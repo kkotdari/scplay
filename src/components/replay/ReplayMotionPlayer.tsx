@@ -27665,11 +27665,14 @@ export default function ReplayMotionPlayer({
               </span>
               {/* 종족 한 글자(요청) — 이름 옆. 종족 고유색 글자만 두는 배지라 자리를
                   거의 안 먹는다. 종족을 못 읽은 경기는 스스로 안 그린다. */}
-              {/* 크게(요청: "종족 배지 크기 확대") — 18 → 22. 이름 옆으로 옮기면서
-                  줄 높이에 여유가 생겼다. */}
+              {/* 다시 한 뼘 줄인다(요청: "종족배지 크기 좀 줄이고") — 22 → 16.
+                  18 → 22로 키운 것은 배지가 이름 **아래**에 홀로 서던 시절의 값이다.
+                  옆으로 세운 뒤로는 나란히 서는 것이 13px 이름칩과 16px 추적 단추라,
+                  22px 배지 하나만 줄에서 튀어 보였다. 추적 단추와 같은 16px이면 줄
+                  양끝의 동그라미 둘이 같은 크기로 읽혀 표의 결이 산다. */}
               {(() => {
                 const Rb9 = replayChrome().RaceBadge;
-                return m.race && Rb9 ? <Rb9 race={m.race} circleLetter size={22} /> : null;
+                return m.race && Rb9 ? <Rb9 race={m.race} circleLetter size={16} /> : null;
               })()}
             </span>
             </span>
