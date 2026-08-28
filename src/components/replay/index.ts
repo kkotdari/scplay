@@ -22,6 +22,10 @@ export type { MotionBase } from "./ReplayMotionPlayer";
 export { TEAM_COLOR } from "./markers";
 export type { MinimapMarker } from "./markers";
 
+// 곁딸린 그림 둘 — 지도 미리보기(대표맵 관리 따위)와 로스터 표 아이콘(사용법 그림).
+export { default as ReplayMapCanvas } from "./ReplayMapCanvas";
+export { default as RosterTableIcon } from "./RosterTableIcon";
+
 // 재생 상태를 밖에서 읽는 열쇠들(공유 링크가 쓴다).
 export {
   PLAYBACK_ZOOM_MAX, playbackClockOf, playbackSpeedOf, playbackTrackOf, playbackViewOf,

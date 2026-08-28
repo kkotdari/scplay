@@ -1,11 +1,11 @@
 # 재생 모듈 꾸러미
 
 `node scripts/replay-module-pack.mjs`가 `src/components/replay/index.ts`에서 import를 실제로 따라가 담은 것이다.
-**총 34개 · 3144KB.**
+**총 35개 · 3150KB.**
 
 | 자리 | 개수 | 크기 | 파일 |
 |---|---|---|---|
-| `src/components/replay/` | 20 | 2791KB | RaceBadge.tsx, ReplayFogLayer.tsx, ReplayFullscreenMinimap.tsx, ReplayMapVector.tsx, ReplayModule.tsx, ReplayMotionPlayer.tsx, RosterTableIcon.tsx, chrome.ts, cx.ts, index.ts, mapGrid.ts, markers.ts, perf9.ts, race.ts, replay.css, spaceBackdrop.ts, terrainGrid.ts, unitStats.ts, useBgm.ts, useReplayMap.ts |
+| `src/components/replay/` | 21 | 2797KB | RaceBadge.tsx, ReplayFogLayer.tsx, ReplayFullscreenMinimap.tsx, ReplayMapCanvas.tsx, ReplayMapVector.tsx, ReplayModule.tsx, ReplayMotionPlayer.tsx, RosterTableIcon.tsx, chrome.ts, cx.ts, index.ts, mapGrid.ts, markers.ts, perf9.ts, race.ts, replay.css, spaceBackdrop.ts, terrainGrid.ts, unitStats.ts, useBgm.ts, useReplayMap.ts |
 | `src/utils/` | 14 | 353KB | bwCombat.ts, bwUnitNames.ts, bwUnits.ts, bwUpgradeNames.ts, contour.ts, mapTerrain.ts, mapTiles.ts, openbwTracks.ts, replayNames.ts, replayTechNames.ts, replayTrack.ts, shapeOblique.ts, statsMix.ts, truthLives.ts |
 
 ## 붙이는 법
