@@ -477,6 +477,25 @@
   .scr-motion-teamcol-rows .scr-motion-teamrow { gap: 0 2px; padding: 0 3px; }
 }
 
+/* ★ 최소 꼴(지표 안 그림)에서는 지표 칸 다섯을 **0으로 접는다**(요청: "플레이어네임이
+   너무 짧아 더 길게 공간 확보해줘") — bare면 .scr-motion-stats를 아예 렌더하지 않는데도
+   격자는 여섯 칸을 그대로 잡고 있었다. 320px 판의 안쪽 292px 가운데 26+44+30+28+28 = 156px과
+   칸 사이 다섯 × 4px = 20px, 합쳐 176px이 **빈 채로** 묶여 있어 이름 칸(1fr)에
+   106px밖에 안 돌아갔다. 거기서 추적 단추 16 · 사이 5 · 손잡이 여백 6 · 종족 배지 22 ·
+   사이 3을 빼면 글자 자리가 54px다 — 네 글자부터 잘린다.
+   접으면 그 176px이 통째로 이름 칸으로 간다. 라벨 줄도 같은 자(--roster-cols)를 쓰므로 함께
+   접히는데, 그 칸들은 이미 visibility: hidden · overflow: hidden이라 폭 0에서도 줄 높이는
+   팀 이름 칸이 그대로 지킨다 — '켜고 끌 때 사람들이 안 오르내린다'는 약속은 그대로다.
+   자는 좁은 화면 규칙보다 한 단 세게(0,3,0) 잡는다 — 같은 무게(0,2,0)로 뒤에 있어
+   그냥 쓰면 gap이 도로 2px로 되돌려진다. */
+.scr-motion-teamcol-rows.scr-motion-teamcol-bare .scr-motion-teamrow {
+  --roster-cols: minmax(0, 1fr) 0 0 0 0 0;
+  gap: 0;
+}
+/* 칸이 넓어졌으니 칩의 상한도 푼다 — 안 풀면 92px(좁은 화면은 104px)에서 도로
+   잘려 넓힌 뜻이 없다. 자르는 자는 이제 칸 그 자체다(1fr + overflow: hidden). */
+.scr-motion-teamcol-rows.scr-motion-teamcol-bare .scr-motion-teamcol-name { max-width: 100%; }
+
 /* 전체화면의 왼쪽 기둥은 이 판이 통째로 채운다 — 기둥의 옛 세로 배치(로스터·바·토글)는
    사이드바 안으로 들어갔다. */
 .scr-fs-col.scr-fs-left { width: auto; padding: 10px; }
@@ -580,7 +599,12 @@
      여기서 또 점 셋을 붙이면 "곰세마리"가 "곰세마…"로 한 자를 더 잃는다.
      칸을 넘칠 일이 없도록 폭 상한도 걷는다 — 자르는 자는 하나여야 한다. */
   white-space: nowrap; overflow: hidden; text-overflow: clip; max-width: 100%;
-  align-self: flex-start;
+  /* ★ 세로 맞춤은 **줄이 쥔다**(지적: "세로 위치가 한줄 안에서도 다 달라서
+     맞춰야해") — 여기 있던 `align-self: flex-start`가 이름칩 하나만 줄 위쪽으로
+     끌어올렸다. 나란히 서는 종족 배지는 22px인데 칩은 13px이라, 가운데 맞춤이던
+     배지와 4~5px 어긋난다(추적 단추 16px까지 셋이 제각기 높이라 서로 따로 놀았다).
+     그 값은 이름 **아래**에 배지가 쌓여 있던 시절(세로 배치)의 잔재다 — 옆으로 세운
+     뒤로는 부모(.scr-motion-teamcol-text)의 align-items: center 하나면 족하다. */
 }
 /* 로스터는 맵 위(요청: 모바일은 옆이 좁다 → 지적: PC 기본 상세도 옆 로스터가 꼭 맵과
    관련된 것처럼 보여 헷갈림) — 원래 모바일(1159px 이하) 전용이던 이 배치를 확대창 아닌
