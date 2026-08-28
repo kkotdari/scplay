@@ -1,0 +1,3762 @@
+/* ══════════════════════════════════════════════════════════════════════════════
+   리플레이 재생 모듈의 화장(化粧) — **이 폴더와 한 몸**이다(요청: "css도 다 포함해서
+   모듈화"). global.css에서 이 모듈이 쓰는 규칙만 **순서 그대로** 떼어 왔다.
+   ══════════════════════════════════════════════════════════════════════════════
+
+   ■ 무엇이 들어왔나 — 선택자에 아래 접두어가 하나라도 있는 규칙 전부, 그리고 그 규칙만
+     쓰는 @keyframes:
+       scr-motion(재생기 본체·조작부) · scr-fs(전체화면) · scr-tracer/bfx/storm/spike/
+       clp/die/wound/nuke/weld/shieldfx/heal/morph/touchdown(전투·특수 효과) ·
+       scr-story-map/win/when(맵 이름 머리 줄) · scr-mapband · scr-v2fx
+     @media·@supports 안의 것도 같은 자로 갈라, 그 감싸개째 옮겼다.
+
+   ■ 순서가 규칙이다
+     이 파일은 global.css **뒤에** 실려야 한다(main.tsx의 import 차례 — 그 자리 주석).
+     떼어 오기 전에는 한 파일 안에서 앞뒤가 정해져 있었으므로, 뒤에 실려야 같은 특이도
+     끼리의 승부가 그대로 보존된다.
+
+   ■ 밖에서 빌려 쓰는 것(옮길 때 함께 챙길 것)
+     색·크기 토큰은 앱의 :root에 있다 — --text, --text-dim, --muted, --line, --line-soft,
+     --panel, --bg, --point, --accent, --danger, --radius, --fs-*, --safe-top,
+     --field-h-sm, --overlay-rgb 따위. screplay에 옮길 때는 그 이름들만 그쪽 값으로 채우면
+     된다(없으면 무채색으로 떨어질 뿐, 배치는 그대로다).
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+
+/* ★ 재생기가 든 카드는 **유리를 벗는다**(지적: "전체화면 모드를 실행하면 모델들이
+   선명해져") ────────────────────────────────────────────────────────────────────
+   그 한마디가 범인을 짚어 준다. 전체화면은 재생기를 body로 **포털**해서 이 카드
+   바깥으로 꺼내는 것 말고는 그리는 방법이 같다 — 그런데 거기서만 모델이 또렷하다면,
+   흐리게 만드는 것은 재생기가 아니라 **이 카드**다.
+   backdrop-filter가 그것이다. 이 파일이 이미 한 번 적어 둔 성질이다(알약탭 주석):
+   "backdrop-filter가 걸린 요소는 자식의 페인팅을 자기 border-box로 잘라낸다" — 곧
+   자손을 제 합성 판에 한 겹 더 굽는다. 웹킷에서는 그 판이 화면 밀도(dpr 3)를 안 따라
+   가는 일이 있고, 그러면 안에 든 캔버스가 아무리 또렷하게 구워져도 한 번 더 깔린
+   저해상도 판을 거쳐 나온다 — 값은 다 치르고 화질만 잃는, 지금 그 증상이다.
+   그래서 **재생기를 품은 카드에서만** 유리를 벗는다(:has) — 목록의 다른 카드는 그대로다.
+   ⚠ :has를 못 읽는 옛 브라우저는 이 규칙을 통째로 버리고 예전처럼 흐릴 뿐이다(안전). */
+.scr-game-result-list-panel-v2 .scr-game-result-trow:has(.scr-motion),
+.scr-light-theme .scr-game-result-list-panel-v2 .scr-game-result-trow:has(.scr-motion) {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* 색상 전환 줄(요청: 미니맵 왼쪽 아래·라벨 왼쪽) — 자주 쓰는 조작이라 보기 설정 줄에서
+   떼어내 지도 바로 밑에 제 줄로 뒀다. 라벨이 왼쪽에 서고 알약은 제 크기 그대로 왼쪽 정렬.
+
+   알약에는 아무 덧칠도 하지 않는다(지적: "버튼이 너무 안 이쁘고 크고 위치도 겹치잖아.
+   미선택 옵션은 글자도 안 보여"). 한 번 키워 봤다가 깨졌던 이유가 둘 있다:
+     ① .scr-pill-tabs는 높이 36px 고정에 그리드다 — 버튼 패딩·글꼴을 키우면 칸이 넘친다.
+     ② fit 모드의 인디케이터는 활성 버튼의 offsetLeft/offsetWidth를 **실측**해 붙인다.
+        폭을 늘리거나(flex:1) 글꼴을 바꾸면 실측 시점과 어긋나 인디케이터가 옆 칸까지
+        덮어, 미선택 글자가 그 아래로 숨었다.
+   크기가 필요하면 PillTabs 공통 규칙에서 손대야지 여기서 덧칠할 곳이 아니다. */
+.scr-motion-colorrow {
+  /* 갭 축소(요청: "색상 옵션 텍스트와 갭 조금 축소해줘"). */
+  display: flex; align-items: center; justify-content: flex-start; gap: 5px;
+  margin: 6px 0 2px;
+}/* 모바일은 가운데(요청: "모바일에선 색상버튼 가운데에 있어야지 한 줄에 한 요소니까") —
+   좁은 배치에서는 이 줄에 이것 하나뿐이라 왼쪽에 붙이면 한쪽으로 쏠려 보인다. 넓은
+   배치는 지도 왼쪽 아래에 맞춰 왼쪽 정렬 그대로다(요청). */
+@media (max-width: 899px) {
+  .scr-motion-colorrow { justify-content: center; }
+}
+
+/* 어두운 카드 위라 글자를 테마색으로 뒤집는다(지적: "비활성 글자가 검정이라 안 보이는
+   듯") — 알약탭의 기본 글자색은 rgba(16,21,26,0.55), 거의 검정이다. 밝은 유리 필터
+   패널 안을 전제로 만든 값이라, 어두운 배경에 놓이는 컨텍스트는 저마다 뒤집어 쓴다
+   (.scr-filter-panel·.scr-motion-radio가 그렇게 하고 있다). 이 줄에만 그 뒤집기가
+   없어서 미선택 글자가 배경에 묻혔다. */
+.scr-motion-colorrow .scr-pill-tabs {
+  /* 보기 설정 줄(.scr-motion-radio)과 같은 크기(요청: 다른 토글들과 동일하게) —
+     라벨을 걷으면서 이 줄만 26px로 큰 이유가 없어졌다. */
+  height: 20px;
+  background: rgba(255, 255, 255, 0.08);
+}
+.scr-light-theme .scr-motion-colorrow .scr-pill-tabs { background: rgba(0, 0, 0, 0.06); }
+.scr-motion-colorrow .scr-pill-tab-btn { font-size: var(--fs-micro); padding: 0 4px; }
+.scr-motion-colorrow .scr-pill-tab-btn:not(.scr-pill-tab-btn-active) { color: var(--muted); }@media (hover: hover) {
+  .scr-motion-colorrow .scr-pill-tab-btn:hover:not(.scr-pill-tab-btn-active) { color: var(--text); }
+}
+/* 모바일 — 창 바깥은 좌우 12px, 안쪽은 8px이다(요청). 바깥 12px은 본문 여백(8px)보다
+   4px 더 물러선 값이라, 그 차이가 곧 "이건 화면이 아니라 그 위에 뜬 창"이라는 표시다.
+   안쪽은 8px까지 조여 내용 폭을 최대한 남긴다 — 이 창은 카드 한 장을 보여주는 자리라
+   여백보다 카드가 넓은 편이 낫다. */
+@media (max-width: 1159px) {
+  /* ★ 뷰포트 폭으로 빼는 것은 **프레임**이다(지적: "scr-fs-stage와 scr-motion-map이
+     어긋나 있어 · 마진레프트 −16을 조사해봐") ─────────────────────────────────────
+     이 트릭(width:100vw + margin-left:calc(50% − 50vw))은 지도가 **문서에 흐르는 블록**
+     이던 시절의 것이다. 판을 하나로 합치면서 지도는 무대(.scr-fs-stage) 안의 절대배치가
+     됐고 폭도 인라인(덮는 폭)으로 온다 — width는 덮여 무력해졌는데 **margin-left만
+     살아남아** 지도를 통째로 왼쪽으로 밀었다. 카드 358 · 창 390이면 179 − 195 = −16px,
+     그만큼 오른쪽에 검은 띠가 났다(실측: 무대 left 16 · 지도 left −1 · 오른쪽 −15).
+     같은 뜻을 프레임에 걸면 판 전체가 화면 폭으로 나가고, 안의 지도는 무대와 안 어긋난다. */
+  .scr-activity-detail-full .scr-motion-frame { width: 100vw; margin-left: calc(50% - 50vw); }
+}
+
+
+/* ── 경기 이야기: 미니맵 + 타임라인 + 요약 문장 ─────────────────────────────
+   (요청) 리플레이에서 읽은 지형 격자로 미니맵을 그리고, 그 아래 타임라인의 스냅을 따라
+   요약 문장 하나하나를 짚어 간다. 스냅을 고르면 문장에 하이라이트가 가고 미니맵에는 그
+   문장의 주인공들이 그때 병력을 보낸 자리에 뜬다.
+
+   로스터는 모바일에서만 감춘다(요청: 카드 하나가 너무 길어졌다) — 편은 미니맵 표시의 색이
+   말해 준다. PC는 가로로 자리가 남으므로 로스터를 양쪽에 두고 미니맵을 그 사이에 둔다. */
+/* 세로 간격을 줄인다(요청) — 바깥 로우(.scr-game-result-trow)의 24px을 그대로 물려받고
+   있었는데, 그 값은 '로스터 / 맵 / 요약'처럼 성격이 다른 덩어리를 가르는 간격이다. 이 안은
+   한 경기의 그림과 그 설명이라 서로 붙어 있어야 한 덩이로 읽힌다. */
+/* ── 연속 재생 플레이어(요청: 스냅 없이 전부 연속, 이미지 대신 텍스트) ─────────────
+   층 셋이 지도 위에 얹힌다: 건물(정확) · 부대 자취(어림) · 마법(정확). 전부 텍스트다. */
+.scr-motion { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+/* 아바타 로스터 기둥(요청: 아바타를 맵 밖으로 — 1팀 왼쪽·2팀 오른쪽 세로 한 줄,
+   로스터식 아바타+닉네임에 그 사람 색) — 맵을 가운데 두고 양옆에 선다. */
+
+/* 세로 슬라이드 바(요청: PC 각도·배속 — 자리는 맵 바깥 좌우) — 지도를 사이에 두고
+   왼쪽이 배속, 오른쪽이 각도다. 상자 안에 레일(가는 세로줄)·눈금·아주 작은 라벨·손잡이가
+   함께 들어간다: 라벨이 상자 밖으로 삐져나가면 옆의 로스터를 덮으므로, 레일을 한쪽으로
+   붙이고 남는 폭을 라벨 자리로 준다. */
+/* 좁은 화면의 슬라이드 바(요청: "모바일은 미니맵 안쪽에 좌우에 배속/각도 슬라이드
+   오버레이") — 지도가 화면 폭을 꽉 채우므로 바깥에 세울 자리가 없다. 지도 상자 안쪽
+   좌우 가장자리에 얹는다. */
+.scr-motion-slidebar-l, .scr-motion-slidebar-r {
+  position: absolute; top: 50%; transform: translateY(-50%); z-index: 7000;
+}
+.scr-motion-slidebar-l { left: 4px; }
+.scr-motion-slidebar-r { right: 4px; }
+/* 그 둘을 켜고 끄는 덮개(요청: "모바일 맵 터치로 세로슬라이더 두개 온오프") — 지도의
+   빈 곳을 톡 누르면 흐려졌다 돌아온다.
+   ★ 덮개는 **자리를 잡은 채로** 깐다(position:absolute; inset:0; z-index) — 흐림
+     (opacity<1)은 그 자체로 쌓임 맥락을 만들어서, 흐름 속 보통 상자였다면 안쪽 바의
+     z-index 7000이 맥락 밖으로 못 나가 유닛 캔버스(z 6000) 뒤로 깔린다. 덮개가 제
+     z-index를 들고 서면 그 값으로 겨루므로 안쪽 차례는 그대로다.
+   ★ 덮개 자신은 손짓을 안 받는다 — 지도 전체를 덮으므로, 안 그러면 지도의 누름을
+     통째로 가로채 다시 켤 수가 없다. 받는 것은 바 둘뿐이다. */
+.scr-motion-slideover {
+  position: absolute; inset: 0; z-index: 7000; pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.scr-motion-slideover > * { pointer-events: auto; }
+.scr-motion-slideover-off { opacity: 0; }
+.scr-motion-slideover-off > * { pointer-events: none; }
+/* 지도 우하단 아이콘 버튼 둘(요청: 슬라이더 여닫이·전체화면 — "위치는 아이콘
+   버튼류와 같이") — 전체화면의 햄버거(.scr-fs-menubtn)와 같은 동그란 꼴, 같은 구석.
+   z는 슬라이드 덮개(7000) 위 — 바가 떠 있어도 여닫이는 눌려야 한다. */
+/* ★ 자리 규칙은 **한 벌뿐**이다(요청: "좌측 패널이나 오버레이에서 지도랑 버튼부 배치는
+   똑같아야돼 css 자체가") ─────────────────────────────────────────────────────────
+   여태 두 벌이었다: 평소 배치는 8px·84px, 전체화면은 12px·88px에 안전영역까지 따로.
+   같은 줄이 배치마다 다른 자에 서면 반드시 갈린다(실제로 4px씩 어긋나 있었다).
+   하나로 합친다. 두 곳의 **진짜 차이는 안전영역 하나뿐**이므로 그것만 변수로 뽑아,
+   전체화면 뿌리가 제 몫을 채워 넣는다(아래 .scr-fs-root). 평소 배치에서는 변수가
+   0이라 같은 식이 그대로 8px·84px이 된다 — 규칙은 하나, 값만 환경이 정한다.
+   ※ 평소 배치에 안전영역을 그냥 더하면 안 된다: 그 지도는 화면 끝이 아니라 문서 한
+     가운데에 있어 홈 인디케이터와 겹칠 일이 없는데도 34px씩 떠오른다. */
+/* ★ 판 아래쪽은 **층이 넷**이다(수리: "모바일에서 장면 공유 버튼이 없어졌어" — 실은
+   아이콘 줄 뒤에 깔려 있었다) ────────────────────────────────────────────────────
+   판을 하나로 합치면서 조종부가 지도 **밖**이 아니라 판 안 맨 아래로 들어왔고, 좁은
+   화면에서는 그 위에 공유 줄(.scr-motion-mobrow)이 한 겹 더 선다. 아이콘 줄은 z가
+   더 높아(12 대 10) 그 줄을 덮는다 — 없어진 것이 아니라 가려진 것이었다.
+   아래에서 위로 쌓는 차례를 못 박는다:
+     조종부(재생·진행바) → 공유 줄(좁은 화면만) → 아이콘 줄 → 미니맵 판
+   넓은 배치에는 공유 줄이 없다(공유는 조종부 꼬리에 붙는다). 그래서 밑값이 갈린다. */
+/* ★ 버튼 줄은 **제 칸 안에서 줄바꿈한다**(요청: "버튼 로우를 미니맵과 겹치지 않는
+   div로 감싸고 그 안에서 자연스럽게 줄바꿈 · 1줄일 때 2줄일 때 레이아웃 흔들림 없도록 ·
+   1줄일 때는 세로로 가운데") ────────────────────────────────────────────────────────
+   여태 이 줄은 `flex-wrap: nowrap` 한 줄이라, 버튼이 늘거나 화면이 좁아지면 왼쪽으로
+   자라 미니맵 위로 올라탔다. 줄바꿈을 허락하되 **자리를 미리 잡아 둬야** 한 줄과 두 줄
+   사이에서 판이 안 흔들린다.
+   그래서 높이를 **두 줄만큼 못 박는다**(--mapbtn-h × 2 + gap). 한 줄이면 그 안에서
+   `align-content: center`가 세로 가운데에 세우고, 두 줄이면 딱 맞게 찬다 — 어느 쪽이든
+   상자의 높이는 같으므로 아래 재생부가 한 톨도 안 움직인다. 버튼 크기를 변수로 뺀 것도
+   그 때문이다: 크기를 바꾸는 자리와 자리를 잡는 자리가 갈리면 반드시 어긋난다. */
+.scr-motion-mapbtns {
+  --mapbtn-h: 44px;
+  --mapbtn-gap: 8px;
+  position: absolute; z-index: 7500;
+  right: calc(8px + var(--mapbtn-inset-r, 0px));
+  bottom: calc(var(--scr-fsbot, 48px) + 6px + var(--mapbtn-inset-b, 0px));
+  /* 전체화면에서는 미니맵이 왼쪽 아래에 절대배치로 서므로, 왼 끝을 **그 오른편**으로
+     못 박아 아무리 줄바꿈해도 겹칠 수 없게 한다(아래 --scr-mini-w는 미니맵 제 폭이다). */
+  left: calc(10px + var(--scr-mini-w, 0px) + 10px + var(--mapbtn-inset-r, 0px));
+  display: flex; gap: var(--mapbtn-gap);
+  flex-wrap: wrap; justify-content: flex-end; align-content: center;
+  min-height: calc(var(--mapbtn-h) * 2 + var(--mapbtn-gap));
+}
+/* (걷어냄) 좁은 화면에서 한 겹 더 올리던 덧값 — 공유 줄이 조종부 줄에 합쳐지면서
+   (요청) 아래층이 셋으로 줄었다. 이제 밑값 하나가 두 배치를 다 낸다. */
+/* (삭제) 도구 판이 켜질 때 아이콘 줄을 한 단 더 밀던 규칙 — 그 판을 안 그린다(요청).
+   밀어 줄 것이 없으므로 아이콘 줄은 늘 조종부 바로 위다(위 기본값). */
+/* 전체화면에서는 지도 상자가 아니라 **화면 뿌리**에 선다 — 그 상자는 화면보다 크게
+   깔려 잘리므로 오른쪽 아래 구석이 화면 밖이다(지적: PC 전체화면에 아이콘이 없었다).
+   자리 규칙은 위와 같은 것을 쓰고, 여기서는 **안전영역만** 채워 준다. */
+.scr-fs-root {
+  /** 전체화면 미니맵의 폭 — 미니맵도 버튼 줄도 이 하나를 본다(아래 .scr-fs-minipanel). */
+  --scr-mini-w: clamp(192px, 60vw, 352px);
+  --mapbtn-inset-r: env(safe-area-inset-right, 0px);
+  /* ★ 아래 안전영역은 **여기서 안 더한다** — 조종부가 이미 제 아래 패딩으로 홈
+     인디케이터를 물고 있고, 아이콘 줄의 밑값은 이제 그 조종부의 **실측 높이**
+     (--scr-fsbot-m)라 그 몫이 한 번 들어 있다. 여기서 또 더하면 두 번 세는 것이고,
+     작은 폰에서는 그 몫이 그대로 지도를 먹는다. 오른쪽은 사정이 다르다(가로 보기의
+     노치는 아무도 안 물고 있다) — 그대로 둔다. */
+  --mapbtn-inset-b: 0px;
+}
+.scr-fs-root > .scr-motion-mapbtns { z-index: 12; }
+/* 무게 (0,2,1) — 알약 기본꼴(.scr-motion-litbtn)이 뒤에 있어 같은 무게로는 눌린
+   납작한 알약이 된다(실측). 햄버거와 같은 44px 동그라미로 못 박는다. */
+.scr-motion-mapbtns button.scr-motion-mapbtn {
+  width: 44px; height: 44px; min-height: 0; padding: 0; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  /* ★ 아이콘은 **무조건 흰색**이다(요청: "아이콘 버튼의 색은 무조건 흰색 · 로스터나
+     도구의 글씨처럼") — 이 버튼들은 앱의 종이가 아니라 **지도** 위에 뜬다. 지도는
+     어느 타일셋이든 어둡고, 그래서 라이트 테마의 잉크(검정)를 쓰면 지형에 묻힌다.
+     로스터·도구 판의 글자가 라이트에서도 흰 것과 같은 사정이다. */
+  color: #f5f6f7;
+  background: rgba(10, 14, 18, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16), 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+.scr-light-theme .scr-motion-mapbtns button.scr-motion-mapbtn {
+  color: #f5f6f7; background: rgba(10, 14, 18, 0.55);
+}
+/* ★ 프레임 모드의 라이트는 **앱의 버튼**이다(지적: "버튼색이 라이트 테마가 아님" ·
+   "쉐도우드롭이 너무 강한 듯") ─────────────────────────────────────────────────────
+   위 두 규칙(흰 아이콘 · 먹판 · 짙은 그림자)은 이 버튼이 **지도 위에 뜨던 시절**의
+   것이다. 그 전제가 둘 다 프레임 모드에서 깨진다:
+     · 바탕이 지도가 아니라 **앱의 종이**다 — 지형에 묻힐 걱정이 없으니 잉크를 뒤집을
+       까닭도 없다. 흰 종이 위의 먹판은 그 자리만 도려낸 것처럼 뜬다.
+     · 그림자가 짙은 까닭은 **어수선한 지형에서 버튼을 떼어 놓기 위해서**였다. 종이
+       위에서는 그 몫이 필요 없고, 0.4짜리 그림자는 그냥 얼룩으로 읽힌다.
+   전체화면(is-fs)은 판이 곧 지도라 종전 그대로 둔다 — 가르는 자가 그것 하나다. */
+.scr-light-theme .scr-fs-layer:not(.is-fs) .scr-motion-mapbtns button.scr-motion-mapbtn {
+  color: var(--text);
+  background: var(--panel-raised);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.14), 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+.scr-light-theme .scr-fs-layer:not(.is-fs)
+  .scr-motion-mapbtns button.scr-motion-mapbtn.is-on {
+  /* 켜짐은 **라이팅 알약**과 같은 결로 — 흰 위의 흰 반투명은 안 보인다. */
+  background: var(--lit-pill-bg, rgba(0, 0, 0, 0.10));
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.26), 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+/* ── 값 버튼(요청: "버튼은 아이콘이 아닌 실제 적용된 수치를 표현") ──────────────────
+   ★ **동그라미에 값만** 적는다(요청: "전부 원형버튼이어야해 그리고 라벨 불필요") —
+     한때 위에 작은 이름표(배속·보기·확대)를 얹었는데, 그러면 이 셋만 알약이 되어
+     아이콘 버튼들과 꼴이 갈렸다. 줄이 한 꼴로 서는 편이 낫다.
+     라벨 없이도 안 헷갈리는 까닭은 **값의 꼴이 서로 다르기** 때문이다:
+       배속 ×2  ·  보기 2D/3D  ·  확대 4배
+     ×가 앞에 붙은 것은 배속, 배가 뒤에 붙은 것은 확대다. 세 토큰이 안 겹친다. */
+.scr-motion-mapbtns button.scr-motion-mapval {
+  font-size: 13px; font-weight: 800;
+}
+.scr-motion-mapval-num {
+  font-variant-numeric: tabular-nums;
+  /* 안 접는다(실측: "3.6배"가 "3.6"과 "배" 두 줄로 접혔다). */
+  white-space: nowrap;
+}
+/* 손짓으로 온 어중간한 값(3.6배)은 다섯 글자라 44px 동그라미에 안 든다 — 한 단 줄인다. */
+.scr-motion-mapval-num.is-long { font-size: 10px; letter-spacing: -0.02em; }/* ★ 좁은 화면의 아이콘 줄 — 가장자리에 바짝 · 조종부 바로 위 · 크기 80%(요청 셋) ────
+   · 오른쪽 8 → 5px(요청: "오버레이들이 너무 안쪽에 떠").
+   · 밑값 60 → 52px(요청: "버튼줄도 그만큼 내려야지") — 아래 조종부 줄이 76에서 48px로
+     돌아왔으므로(진행바 자리 되돌리기) 그만큼 따라 내린다. 48에 한 뼘(4)을 띄운 값이다.
+   · 크기 44 → 35px = 80%(요청: "버튼 크기도 모바일에선 80프로로 축소"). 아이콘·글자도
+     같은 몫으로 줄여(18 → 15px, 13 → 11px) 동그라미 안의 여백 비가 그대로 남는다.
+   · 한 단 더 20%(요청: "모바일 버튼 크기 20프로 축소") — 35 → 28px. 아이콘 15 → 12,
+     값 글자 11 → 9, 긴 값(3.6배) 8 → 7px. **곱하는 곳을 늘리지 않는다**: 44에서 한 번에
+     내린 값을 적어 두므로, 다음에 또 조절해도 곱셈이 겹쳐 쌓이지 않는다.
+   · 다시 10% 확대(요청: "모바일 버튼 크기 10프로만 다시 확대") — 28 → 31px. 아이콘
+     12 → 13, 값 글자 9 → 10, 긴 값 7 → 8px. 44 대비로는 70%다(0.8 × 0.8 × 1.1 = 0.704). */
+@media (max-width: 1159px) {
+  .scr-motion-mapbtns {
+    --mapbtn-h: 31px;
+    --mapbtn-gap: 6px;
+    right: calc(5px + var(--mapbtn-inset-r, 0px));
+    /* 조종부 바로 위 — 사이는 4px만(요청: 최소화). 조종부의 높이(안전 영역 포함)는
+       --scr-fsbot이 안고 있으므로 손으로 적은 수를 안 쓴다. */
+    bottom: calc(var(--scr-fsbot, 44px) + 4px + var(--mapbtn-inset-b, 0px));
+  }
+  .scr-motion-mapbtns button.scr-motion-mapbtn { width: 31px; height: 31px; }
+  .scr-motion-mapbtns button.scr-motion-mapbtn svg { width: 13px; height: 13px; }
+  .scr-motion-mapbtns button.scr-motion-mapval { font-size: 10px; }
+  .scr-motion-mapval-num.is-long { font-size: 8px; }
+}
+@media (max-width: 400px) {
+  /* 아주 좁은 폰 — 줄이 일곱 칸까지 늘 수 있어 한 뼘 더 죈다(크기는 위 80%가 정한다). */
+  .scr-motion-mapbtns { --mapbtn-gap: 4px; }
+}
+
+/* 켜져 있는 여닫이는 한 단 밝게 — 지금 무엇이 떠 있는지가 버튼에서 읽힌다. */
+/* 흐린 꼴 — '지금 꺼져 있다'를 알린다(표 버튼의 셋째 칸: 로스터 숨김). 켠 표시(is-on)의
+   반대편이라, 아무 표시도 없는 기본 꼴과 셋이 서로 갈린다. */
+.scr-motion-mapbtns button.scr-motion-mapbtn.is-mute { opacity: 0.45; }
+.scr-motion-mapbtns button.scr-motion-mapbtn.is-on {
+  background: rgba(255, 255, 255, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32), 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* 지도 + 좌우 기둥 한 줄 — 기둥은 지도와 같은 높이로 늘어난다(요청: 로스터는 최상단,
+   버튼단은 하단). */
+/* ★ 지도는 **절대 늘어나지 않는다**(지적: "지도부분은 반드시 원본 비율을 유지해야해") —
+   이 줄은 기둥들을 같은 높이로 늘이는 stretch인데, 그 늘임이 지도에도 걸리면 인라인
+   aspect-ratio(grid.width / grid.height)를 덮어 세로만 잡아당긴다. 기둥에 최소 높이를
+   못 박은 뒤로 그 줄이 지도보다 커질 수 있게 되면서 실제로 지도가 세로로 늘어났다.
+   지도만 stretch에서 빼면 높이가 다시 제 가로세로비에서 나온다 — 기둥은 그대로 늘어나
+   버튼 줄의 바닥 정렬(margin-top:auto)도 살아 있다. */
+/* 늘어나지만 않으면 되고, 자리는 **가운데**다(지적: "세로든 가로든 가운데 정렬은 해야지
+   지도") — flex-start면 기둥이 더 길 때 지도가 위로 붙어 아래가 휑하다. center면 남는
+   세로를 위아래로 나눠 갖는다. 가로는 좌우 기둥이 대칭이라 이미 가운데지만, 폭이
+   달라져도 흔들리지 않게 줄 자체에도 가운데 정렬을 걸어 둔다. */
+/* 지도 기둥 — 지도·도구줄·조종부·공유 줄이 세로로 선다(요청: "재생바를 맵 너비에
+   맞추기"). 폭은 지도가 정하고 아래 줄들은 그 폭을 그대로 물려받는다. */
+/* 지도 좌우 기둥 — 위에서부터 로스터 · 슬라이드 바 · (오른쪽만) 버튼 줄이 세로로 선다
+   (요청: "로스터 슬라이드바 버튼류가 한 div에 세로로 배치되는거야"). */
+/* ══ 합친 사이드바(요청) — 네 배치가 나눠 쓴다 ═══════════════════════════════
+   지도 **왼쪽**에 선다(오른쪽은 댓글 몫). 위에서부터 1팀·2팀 로스터, 가운데 빈 자리
+   (PC는 그 자리에 배속·각도 바), 맨 아래 버튼부 + 미니맵이다. */
+/* 가운데 — 남는 세로를 여기가 먹는다(요청: 중간은 비우고). 바 둘은 그 안에서 가운데. */
+/* 맨 아래 — **버튼부가 왼쪽, 미니맵이 오른쪽**이다(요청). */
+/* 버튼 기둥 — 남는 가로를 **채운다**(같은 지적: 미니맵 왼쪽에 빈 구멍) — flex-start로
+   왼쪽에 붙여 두면 그 오른쪽이 통째로 빈칸으로 읽혔다. 늘려 두면 그 안의 토글 줄이
+   제 가운데 정렬로 자리를 고르게 쓴다. */
+/* 미니맵 기둥 — 위 오른쪽에 전체화면 토글, 그 아래 미니맵(요청: "전체화면 토글 버튼은
+   미니맵 바깥 위 오른쪽에 배치"). 폭은 미니맵이 정하고 버튼은 그 폭 안에서 오른쪽 끝에
+   선다 — 버튼이 더 넓어도 기둥이 안 밀리게 줄 자체를 미니맵 폭에 맞춰 둔다. */
+.scr-motion-minitop { display: flex; justify-content: flex-end; min-width: 0; }
+/* ── 로스터 '줄 꼴' — 한 사람이 한 줄이다(아바타·닉·종족·일꾼·인구·미네랄·가스·APM).
+   DOM은 칸 꼴과 같고 눕히는 일만 여기서 한다(그쪽 teamCol 주석). */
+.scr-motion-teamhead {
+  font-size: var(--fs-10); font-weight: 800; color: var(--dim);
+  letter-spacing: 0.06em; padding-left: 2px;
+}
+/* ★ 줄 꼴은 **언제나 한 기둥**이다(지적: "전체화면에서 로스터랑 버튼부 줄이 깨짐 —
+   세로 한줄로 쭉 내려가야하는데 옆으로 빠짐") ────────────────────────────────────
+   합친 사이드바(sideNode)를 네 배치가 나눠 쓰게 되면서 남은 자리다. 전체화면 판의
+   뿌리는 `.scr-motion-wide`가 아니라 **포털된 `.scr-fs-layer`**라, 평소 PC 배치에
+   걸어 둔 세로 규칙들이 그 판에는 한 번도 안 닿는다. 대신 옛 기둥 시절의 규칙
+   (`.scr-fs-col .scr-motion-teamcol`의 2열 격자)이 그대로 남아 있어서, 한 사람이
+   한 **줄**인 지금 꼴에서는 그 2열이 줄 둘을 나란히 눕혀 버렸다.
+   자리를 뿌리가 아니라 **사이드바 자신**(.scr-motion-sidepanel)에 건다 — 네 배치가
+   같은 조각을 쓰므로, 이렇게 두면 어느 판에 서든 같은 꼴이 된다. */
+.scr-motion-teamcol-rows { width: 100%; gap: 0; }
+/* 무게를 (0,4,0)으로 올린다 — 옛 기둥 규칙(.scr-motion .scr-fs-col .scr-motion-teamcol,
+   0,3,0)이 이 파일 **뒤쪽**에 있어, 같은 무게로는 그쪽이 이긴다. */
+.scr-motion .scr-motion-sidepanel .scr-motion-teamcol.scr-motion-teamcol-rows,
+.scr-motion .scr-fs-roster-fixed .scr-motion-teamcol.scr-motion-teamcol-rows {
+  display: flex; flex-direction: column; grid-template-columns: none;
+  /* 표답게 줄 사이를 죈다 — 밑의 기본 기둥 gap 10px가 표를 성기게 벌리고 있었다. */
+  gap: 4px;
+}
+/* 버튼부도 같은 사정 — `.scr-motion-wide`에만 세로 규칙이 있어, 전체화면에서는 기본
+   가로 flex(줄바꿈)로 돌아가 알약들이 옆으로 흘렀다. */
+/* 줄 하나가 **표의 한 행**이다(요청: "로스터 현황 정보 컬럼별로 줄맞게 수정") —
+   flex로 늘어놓으면 칸 폭이 글자 길이를 따라가서, 이름이 긴 줄과 짧은 줄의 숫자가
+   서로 다른 자리에 선다. 격자로 못 박으면 사람이 몇이든 같은 세로줄에 맞는다.
+   ★ 지표 덩이는 display: contents로 **꺼풀만 벗긴다** — 그래야 그 안의 다섯 칸이
+     이 격자의 직계 칸이 되어 머리(이름)와 같은 표에 앉는다. 칸 꼴(세로 배치)에서는
+     그 덩이가 그대로 한 덩이여야 하므로 줄 꼴에서만 벗긴다.
+   일꾼 칸만 넓은 까닭은 거기만 '일꾼'이라는 라벨이 붙기 때문이다(나머지는 숫자뿐). */
+/* ★ 라벨 줄과 사람 줄은 **같은 상자 클래스**(.scr-motion-teamrow)를 쓴다(지적: "테이블쪽
+   컬럼과 헤더 라벨 줄 맞춰야함") ────────────────────────────────────────────────────
+   두 줄에 같은 격자를 걸어 두고도 라벨이 값보다 5px 오른쪽에 섰다. 격자가 아니라
+   **상자**가 달랐다: 사람 줄에는 누름 표시(호버 알약)를 넉넉히 칠하려고 `padding: 1px 4px;
+   margin: -1px -4px`가 걸려 있는데(그래야 배치 높이는 안 변하면서 칠만 커진다) 라벨 줄에는
+   그 짝이 없었다. 음수 여백 4px + 안여백 차 1px = 오른쪽 끝이 5px 어긋난다(실측: 라벨
+   '인구' 125~163 · 값 '16/10' 120~158).
+   선택자를 갈래(item/cols)가 아니라 **한 클래스**로 모은다 — 상자 규칙을 어디서 덧칠하든
+   두 줄이 함께 받으므로, 다음에 여백을 손보는 사람이 한쪽만 고칠 길이 없다. */
+.scr-motion-teamcol-rows .scr-motion-teamrow {
+  /* 지표 칸을 한 뼘씩 죈다(같은 지적) — 38/34/30/30/28 = 160 → 36/32/28/26/26 = 148.
+     값은 최대 세 자리(APM은 네 자리까지)라 이 폭에서도 안 잘린다.
+     ★ 칸 나눔은 **변수 하나**가 쥔다(요청: 컬럼 라벨 줄 — 표 형식) — 라벨 줄과 사람
+       줄이 같은 자를 쓰지 않으면 표가 아니다. 좁은 그릇(사이드바·모바일 로스터)은
+       제 몸에 이 변수를 덮어써 두 줄을 함께 죈다. */
+  display: grid;
+  /* 인구 칸이 제일 넓다 — "187/100" 일곱 자가 표의 최장값이다(실측: 32px에서 끝자리가
+     잘렸다). 일꾼은 세 자리면 충분해 그만큼 내준다. */
+  grid-template-columns: var(--roster-cols, minmax(0, 1fr) 26px 44px 30px 28px 28px);
+  align-items: center; gap: 0 4px; width: 100%; padding: 0 5px; margin: 0;
+}
+/* 컬럼 라벨 줄(요청: "일꾼 라벨 없애고 대신 컬럼 라벨을 맨위 추가(표 형식)") — 표의
+   머리라 값 줄과 같은 격자에 앉되 목소리는 한 단 작다. 숫자가 오른쪽 맞춤이므로
+   라벨도 오른쪽 — 라벨과 제 값의 끝자리가 나란해야 세로로 이어 읽힌다. */
+.scr-motion-teamcol-cols {
+  font-size: 8px; font-weight: 700; color: var(--dim); letter-spacing: 0.02em;
+}
+.scr-motion-teamcol-cols > span {
+  text-align: right; white-space: nowrap; overflow: hidden; min-width: 0;
+}
+/* 첫 칸은 팀 이름이다(표 머리와 한 줄로 병합·요청) — 라벨들과 달리 왼쪽 맞춤이고
+   목소리도 한 단 크다. 지표 라벨이 없는 최소 꼴에서도 이 칸만 남아 줄 높이를 지킨다. */
+.scr-motion-teamcol-cols > .scr-motion-teamhead { text-align: left; }
+/* ★ 최소 꼴(지표 없음)에서는 라벨을 **감추되 자리는 남긴다**(요청: "밀리전도 헤더로우
+   자리 항상 확보해서 감춰도 로스터들이 안올라오게 하기") — DOM에서 지우면 줄 높이를
+   정하는 것이 팀 이름 칸 하나뿐이 되고, 밀리는 편이 없어 그 칸마저 비어 있어 격자 줄이
+   통째로 오므라들었다(실측: 15px → 2px). 그러면 로스터를 껐다 켤 때 사람들이 그만큼
+   오르내린다. 같은 요소·같은 글꼴을 두고 보임만 끄면 높이가 정의상 같다. */
+.scr-motion-teamcol-bare .scr-motion-teamcol-cols > span:not(.scr-motion-teamhead) {
+  visibility: hidden;
+}
+/* ★ 지표의 **다섯 줄 자리 비움을 끈다**(지적: "로스터 줄간격 왜케 커 이제 로스터 밑에
+   아무것도 없어서 필요없는데") — 칸 꼴에서는 지표가 이름 **아래** 다섯 줄로 쌓이므로,
+   참값이 오기 전에 그 자리를 미리 비워 둬야 자료가 도착할 때 지도가 안 밀렸다
+   (min-height: 5줄). 줄 꼴에서는 그 다섯이 **옆으로** 눕는데 세로 자리는 그대로 잡혀
+   있어, 한 줄이 60px 남짓으로 부풀었다. 옆으로 누우면 밀릴 아래가 없으니 끈다. */
+.scr-motion-teamcol-rows .scr-motion-stats { min-height: 0; }
+.scr-motion-teamcol-rows .scr-motion-teamcol-head { flex: 0 0 auto; gap: 5px; }
+/* 시점 손잡이(지적: 줄 전체가 눌려 빈 칸까지 범위였다) — 아바타+이름 조각만 누르는
+   자리다. 폭은 제 내용만큼이고(위 flex: 0 0 auto), 손가락 기기에서 너무 얇지 않게
+   위아래로만 조금 넓힌다. */
+.scr-motion-teamcol-pick { cursor: pointer; padding: 2px 3px; border-radius: 7px; }
+.scr-motion-teamcol-pick:focus-visible { outline: 1px solid rgba(255, 255, 255, 0.5); }
+/* 손잡이 조각은 이제 머리(.scr-motion-teamcol-head) **안**에 산다 — 그 왼쪽에 추적
+   버튼이 서면서 머리가 [추적][아바타+이름] 두 칸이 됐다. 옛 배치(머리 자신이 손잡이)의
+   가로 정렬을 이 조각이 물려받는다. */
+.scr-motion-teamcol-pick { display: flex; align-items: center; gap: 6px; min-width: 0; }
+/* 추적 버튼(요청: "로스터 각 멤버 왼쪽에 추적 버튼 추가") — 시점(이름 누르기)과 다른
+   손잡이다: 시점은 그 눈으로 밝혀만 보는 것이고, 추적은 카메라까지 그 사람에게 맡긴다.
+   ★ 손짓을 **되살려야** 한다 — 로스터는 판 전체가 pointer-events: none이고 아바타·이름
+     글자만 되살려 놓은 자리라(위 주석), 안 켜 주면 이 버튼은 눌리지 않는다.
+   ★ **동그란 바탕에 테두리 없음**(요청) — 로스터 한 줄에 사람 수만큼 서는 단추라,
+     네모 테두리를 두르면 이름 옆에 작은 상자들이 줄지어 표의 결을 깬다. 옅은 원이면
+     아바타(같은 동그라미)와 같은 결로 읽혀 한 덩어리가 된다. */
+.scr-motion-track-btn {
+  pointer-events: auto;
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; padding: 0; border: none; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.72); cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}@media (hover: hover) {
+  .scr-motion-track-btn:hover { background: rgba(255, 255, 255, 0.28); color: #fff; }
+}
+
+.scr-motion-track-btn:focus-visible { outline: 1px solid rgba(255, 255, 255, 0.6); }
+/* 켜진 하나는 그 선수의 색으로 찬다 — 지도 위 유닛 색과 곧바로 이어져, 지금 누구를
+   따라가는 중인지가 표에서도 화면에서도 같은 색으로 읽힌다. */
+.scr-motion-track-on { background: var(--pcol, #fff); color: #0b0f14; }
+/* ★ 로스터의 나머지는 **지도로 흘린다**(요청: "로스터의 아바타랑 닉네임 글자(닉네임
+   자리가 아닌 글자만) 딱 선택 가능하게 해 주고 나머지 부분은 그 아래 맵으로 흘려서
+   더블클릭/탭 줌으로 작동하게 해 줘") ────────────────────────────────────────────────
+   로스터는 지도 **위에 얹힌 판**이다. 앞서 손잡이를 줄 전체에서 아바타+이름 조각으로
+   줄였지만(위 주석), 그건 '무엇이 시점을 바꾸나'만 좁힌 것이라 나머지 자리는 여전히
+   손짓을 **먹고만 있었다**: 지표 칸도 판의 빈자리도 눌리지는 않으면서 지도까지 가지도
+   않아, 그 위에서는 더블클릭 줌도 두 번 탭도 안 먹었다.
+   먹지 않을 자리는 아예 **투명하게** 둔다(pointer-events: none) — 그러면 그 자리의
+   손짓은 밑에 깔린 지도가 그대로 받는다. 되살리는 것은 둘뿐이다:
+     · 아바타 동그라미(.scr-motion-base-ring)
+     · 이름 **글자**(.scr-motion-teamcol-name) — 이름 '자리'가 아니라 칩 그 자체라,
+       칩이 짧으면 누르는 자리도 짧다(요청의 "닉네임 자리가 아닌 글자만"이 이 뜻이다).
+   손잡이(pick) 자신은 투명해도 된다 — 누름은 두 조각에서 시작해 **거품처럼 올라와**
+   그 위의 onClick에 닿는다. 종족 배지는 읽는 표시라 되살리지 않는다. */
+.scr-motion-teamcol { pointer-events: none; }
+.scr-motion-teamcol .scr-motion-base-ring,
+.scr-motion-teamcol .scr-motion-teamcol-name { pointer-events: auto; }
+
+/* 이름칩은 남는 자리를 먹되 길면 줄인다 — 지표가 밀려 나가면 안 된다. */
+.scr-motion-teamcol-rows .scr-motion-teamcol-name {
+  max-width: 92px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* 지표 — 꺼풀을 벗겨 다섯 칸이 위 격자에 직접 앉는다. 값이 없어도 빈 칸을 그려
+   자리를 지킨다(그래야 세로줄이 안 흔들린다). 숫자는 오른쪽 맞춤이라 자릿수가
+   달라도 끝자리가 나란하다. */
+.scr-motion-teamcol-rows .scr-motion-stats { display: contents; }
+.scr-motion-teamcol-rows .scr-motion-stat {
+  text-align: right; overflow: hidden; text-overflow: clip;
+}
+/* 트로피는 아바타 왼위에 붙는 딱지다 — 줄 꼴에서 제 칸을 차지하면 표가 한 칸 밀린다. */
+.scr-motion-teamcol-rows .scr-motion-trophy { top: -2px; left: 2px; transform: none; }/* 좁은 배치 — **아바타를 뺀다**(요청: "모바일은 아바타 생략"). 기둥도 좁힌다. */
+@media (max-width: 1159px) {
+  /* ★ 폭을 넓힌다(지적: "모바일 오버레이 폭 더 넓혀야할듯 닉네임이 안나와") — 224px
+     기둥에서 지표 다섯(34+30+27+27+24 + 사이 10 + 여백 6 = 158)을 빼면 이름칸에
+     66px밖에 안 남아, 아바타·종족 글자를 빼고 나면 닉네임이 통째로 말줄임이었다.
+     손가락 기기의 기둥은 이제 **평소 배치에는 안 서고**(로스터는 지도 위로 갔다)
+     전체화면 오버레이에만 있으므로, 지도를 먹는 걱정도 그만큼 줄었다. */
+  /* 이름칸이 넓어진 만큼 칩도 늘린다 — 안 늘리면 남는 자리가 빈칸으로 남는다. */
+  .scr-motion-teamcol-rows .scr-motion-teamcol-name { max-width: 104px; }
+  /* 칸 나눔은 그릇이 변수로 덮어쓴다(위 --roster-cols) — 항시표시 로스터도 같은 폭. */
+  .scr-motion-sidepanel, .scr-fs-roster-fixed {
+    --roster-cols: minmax(0, 1fr) 20px 38px 26px 26px 24px;
+  }
+  .scr-motion-teamcol-rows .scr-motion-teamrow { gap: 0 2px; padding: 0 3px; }
+}
+
+/* 전체화면의 왼쪽 기둥은 이 판이 통째로 채운다 — 기둥의 옛 세로 배치(로스터·바·토글)는
+   사이드바 안으로 들어갔다. */
+.scr-fs-col.scr-fs-left { width: auto; padding: 10px; }
+.scr-motion-side {
+  position: relative;
+  /* 로스터가 2열이 되면서 넓어졌다(요청: "PC에서 로스터 두줄로 / 두줄은 세로 2열로
+     배치") — 한 사람 칸이 92px이고 그 둘에 사이 6px이다. */
+  flex: 0 0 auto; width: 190px; min-width: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+/* 슬라이드 바는 **제 칸**에 산다(요청: "로스터 버튼 셀과 별도의 셀을 하나씩 양쪽에
+   추가해서 거기 넣어줘") — 여태 로스터 기둥 안에 절대 자리로 떠 있어, 지표 줄이 길어지면
+   로스터 글자와 겹쳤다. 바깥부터 [1팀 로스터][배속 바][지도][각도 바][2팀 로스터+버튼]
+   다섯 칸이다 — **바가 안쪽, 로스터가 바깥**이다(지적). 겹칠 것이 없고 좌우 대칭도
+   자리로 지켜진다(둘 다 제 칸의 세로 한가운데).
+   폭은 바 하나만큼(트랙 20 + 여백)이라 지도가 잃는 몫이 거의 없다. */
+.scr-motion-slidecol {
+  flex: 0 0 auto; display: flex; align-items: center; justify-content: center;
+}
+/* (걷어냄) PC 칸의 진한 판 — 아래 .scr-slidebar에서 바탕 자체를 없앴다(요청). */
+/* 버튼 줄은 기둥 맨 아래(요청: "버튼단은 하단으로 이동"). */
+.scr-motion-side .scr-motion-viewrow { margin-top: auto; }
+/* 기둥 안의 버튼 줄은 갭을 줄인다(요청: "자리가 좁을거 같으면"). */
+.scr-motion-side .scr-motion-viewrow { gap: 8px; }
+/* 로스터부·버튼부에 **최소 높이**를 못 박는다(요청) — 지표 줄에 미네랄·가스가 붙으면
+   사람 칸이 두 줄씩 더 길어진다. 그때 기둥이 통째로 늘어나면 지도까지 밀려 내려가므로,
+   지금부터 그 몫을 미리 비워 둔다: 지표 다섯 줄(9px × 1.35 + 1px 간격 ≈ 65px) 기준으로
+   사람 칸 ≈ 125px, 2행이니 로스터 268px. 버튼부는 지금 서 있는 알약 다섯 줄만큼이다. */
+.scr-motion-side .scr-motion-teamcol { min-height: 268px; }
+.scr-motion-side .scr-motion-viewrow { min-height: 196px; }
+/* 지도 **안쪽** 가장자리에 얹히는 자리만은 흰색으로 못 박는다(좁은 화면) — 여기 바탕은
+   앱의 종이가 아니라 지도이고, 지도는 어느 타일셋이든 어둡다. 라이트 테마의 검정
+   잉크를 그대로 쓰면 조작부가 지형에 묻힌다(전체화면이 변수로 푼 것과 같은 사정). */
+.scr-motion-slidebar-l .scr-slidebar,
+.scr-motion-slidebar-r .scr-slidebar { color: #f5f6f7; }
+/* 모바일 화면 폭 확대(요청: 산 아이콘 옆 확대 버튼 — 모달을 벗어나 화면 폭 최대) —
+   맵 줄이 제 상자 가운데에서 뷰포트 폭으로 넓어진다(50% − 50vw 트릭: 상세 모달 본문의
+   가로 클리핑 상자가 모달 폭 전체를 덮어서, 모달을 100vw로 넓히면 잘리지 않는다).
+   아래 요소들은 맵이 커진 만큼 자연히 내려간다 — 폭 트랜지션이 곧 그 내려감의
+   트랜지션이다. 확대는 맵만이다(지적: 로스터 수평 위치는 변하면 안 됨) — 맵 요소만
+   넓히고, 위 로스터 줄은 제자리를 지킨다. */
+/* (삭제·요청: 모바일 확대 제거 둘째 판) — .scr-motion-wide 규칙이 있던 자리. 전체화면
+   게임 상세(.scr-activity-detail-full)가 같은 트릭을 상시로 쓴다. */
+.scr-motion-teamcol { display: flex; flex-direction: column; gap: 10px; width: 88px; flex: 0 0 auto; }
+.scr-motion-teamcol-item {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 1px;
+  /* 로스터 한 칸이 곧 '그 선수 시점' 버튼이다(요청) — 누를 수 있다는 것이 커서로
+     먼저 읽혀야 한다. 눌림 표시는 아래 두 클래스가 맡는다.
+     ★ 여백은 **자리를 안 먹는다**(지적: "pc에서 왜 스크롤이 없는데 세로 스크롤이
+       생기지") — 누름 표시가 글자에 딱 붙지 않게 padding을 줬더니 칸마다 4px씩
+       기둥이 길어졌고, 그 몇 픽셀이 지도 줄을 넘겨 문서에 세로 스크롤바를 띄웠다.
+       같은 몫의 음수 margin으로 상쇄하면 칠해지는 상자만 넉넉해지고 배치 높이는
+       한 톨도 안 변한다. */
+  /* 커서·호버는 **손잡이 조각**으로 옮겼다(지적: 줄 전체가 눌렸다) — 이 칸은 자리와
+     상태 표시만 맡는다. 배경 트랜지션은 눌림 테(아래 -eye)가 아직 쓰므로 남긴다. */
+  border-radius: 8px;
+  padding: 2px 4px; margin: -2px -4px;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}@media (hover: hover) {
+  /* 손잡이 자신은 손짓에 투명하므로(위 pointer-events 주석) :hover가 안 걸린다 —
+     되살린 두 조각 위에 손이 있을 때 켠다. */
+  .scr-motion-teamcol-pick:has(.scr-motion-base-ring:hover),
+  .scr-motion-teamcol-pick:has(.scr-motion-teamcol-name:hover) {
+    background: rgba(255, 255, 255, 0.07);
+  }
+}
+
+/* 지금 보고 있는 시점의 주인 — 옅은 테로 감싼다(글자·아바타는 안 건드린다). */
+/* 고른 사람에게 **테두리**를 두른다(요청: "선택한사람에 로스터에 테두리 넣어주기") —
+   흐림만으로는 '나머지가 물러났다'는 것만 읽히고 누가 뽑혔는지는 눈이 한 번 더 세야
+   안다. 테두리 색은 그 선수의 색이라, 지도 위 유닛 색과 곧바로 이어진다. */
+/* 시야로 고른 사람 — **테두리는 안 두른다**(요청: "시야 선택한 플레이어의 테두리 효과
+   제거"). 임자색 테두리는 이름칩의 색과 겹쳐 같은 말을 두 번 하는 데다, 좁은 판에서
+   줄 하나를 통째로 두껍게 만들어 표의 결을 깼다. 옅은 바탕만으로 '고른 줄'은 읽힌다
+   (안 고른 줄은 아래 -dim이 흐려지므로 대비가 두 겹이다). */
+.scr-motion-teamcol-eye {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+}
+/* 끈 꼴(판 없음)에서는 그 바탕도 없다(요청: "시야 선택 플레이어의 배경색 효과는 패널이
+   있을 때만 적용해야 함") — 판이 없으면 이름만 지도 위에 떠 있는 꼴인데, 그 뒤에 흰
+   네모가 깔리면 판을 걷은 뜻이 없어진다(지도를 가리는 것이 곧 판이었다). */
+.scr-fs-panel-bare .scr-motion-teamcol-eye { background: none; }
+/* 시점이 켜져 있는 동안 **나머지 사람**은 한 단 물러난다 — 지금 누구 눈으로 보고
+   있는지가 로스터에서 한눈에 읽혀야 한다. */
+.scr-motion-teamcol-dim { opacity: 0.5; }
+.scr-motion-teamcol-head { display: flex; align-items: center; gap: 6px; min-width: 0; }
+/* 이름과 종족 배지는 **한 줄**이다(요청: "로스터 종족배지는 닉네임 아래 말고 닉네임
+   옆으로") — 세로로 쌓여 있어서 사람 칸이 한 줄만큼 더 길었고, 그만큼 지표 줄이 아래로
+   밀렸다. 옆으로 세우면 배지가 이름칩의 오른쪽 여백을 그냥 얻어 쓴다. */
+.scr-motion-teamcol-text {
+  display: flex; flex-direction: row; align-items: center; gap: 3px; min-width: 0;
+}
+/* 글씨는 충분히 작게(요청) — 기둥은 지도 곁들이라 지도보다 목소리가 작아야 한다. */
+.scr-motion-teamcol-name {
+  /* 칩 꼴(지적: 글자색에 따라 안 보임) — 그 사람 색이 바탕, 글자는 밝기 따라 검정/흰색
+     (인라인 chipStyle). 색 글자를 카드 바탕에 그대로 얹으면 테마 어느 한쪽에서 묻힌다. */
+  font-size: 9px; font-weight: 700; padding: 1px 4px; border-radius: 3px;
+  /* 말줄임표는 안 쓴다(지적: "모바일 로스터 말줌임표 없이라니까") — 이름 길이는 이미
+     그리는 쪽이 팀 인원으로 자른다(shortName: 4인 3자·3인 4자·2인 6자·1인 전체).
+     여기서 또 점 셋을 붙이면 "곰세마리"가 "곰세마…"로 한 자를 더 잃는다.
+     칸을 넘칠 일이 없도록 폭 상한도 걷는다 — 자르는 자는 하나여야 한다. */
+  white-space: nowrap; overflow: hidden; text-overflow: clip; max-width: 100%;
+  align-self: flex-start;
+}
+/* 로스터는 맵 위(요청: 모바일은 옆이 좁다 → 지적: PC 기본 상세도 옆 로스터가 꼭 맵과
+   관련된 것처럼 보여 헷갈림) — 원래 모바일(1159px 이하) 전용이던 이 배치를 확대창 아닌
+   모든 플레이어로 넓혔다. 기둥 둘이 맵 위에서 1팀 왼쪽·2팀 오른쪽으로 마주 보고,
+   아바타는 걷고 이름만 남긴다 — 위 로스터는 명패지 얼굴첩이 아니다. 팀 안에서는 가로로
+   흘러 줄을 아끼고, 두 팀 사이에는 흐린 세로 줄을 긋는다(요청). 넓은 배치(.scr-motion-wide)는
+   왼쪽 기둥 그리드가 따로 배치하므로 :not으로 비켜 준다. */
+/* (걷어냄) 2팀 이름 오른쪽 몰기 — 표 형식(요청)에서는 두 팀이 같은 왼끝을 쓴다. */
+/* 세 칸(1fr auto 1fr) — 가운데 auto 칸이 vs 자리다(요청: 구분선 말고 vs). */
+/* 세 칸(1팀·vs·2팀)은 이제 로스터 덩어리 안의 일이다 — 맵줄은 로스터와 맵 둘뿐이다. */
+/* 좁은 화면의 지도는 좌우 폭을 꽉 채운다(요청: "맵은 좌우 폭 꽉차게") — 카드·페이지의
+   양옆 여백을 뷰포트 폭으로 밀어낸다(50% − 50vw 트릭). 상세 모달 안에서도 통한다:
+   가로 클리핑 상자가 모달 폭 전체를 덮기 때문이다. */
+/* 칸은 **그릇이 정한다**(요청: "로스터같은부분은 칸 고정해서 내용에따라 너비 흔들리고나
+   하지 않게") — 여태 팀 기둥이 flex-wrap이라 칸 폭이 내용에서 나왔다. 일꾼이 9→14가
+   되거나 미네랄이 88→202가 되면 그 칸이 넓어지고 옆 칸들이 통째로 밀렸다.
+   실측(390px 화면, 4v4): 칸 폭이 0~5.6px, 칸 왼끝이 −4.4~+4.9px씩 흔들렸다.
+   사람 수만큼 같은 폭으로 나눠 갖는 그리드로 바꾼다 — 폭이 그릇에서 나오므로 안의
+   숫자가 몇 자리든 자리는 한 톨도 안 움직인다. 넘치는 글자는 칸 안에서 잘린다. */
+/* ★ 좁은 화면도 **표**다(요청: "로스터 모바일도 가로로 데이터 배치 · 일반모드에선
+   팀별로 좌우로 영역나눈상태 유지한채 팀내에서만 세로로 배치") — 사람마다 세로 한 칸씩
+   가로로 흘리던 칸 꼴을 걷고, 한 사람이 한 줄인 표를 팀 상자 안에 세로로 쌓는다.
+   좌우 나눔은 그대로 rosterwrap(1fr auto 1fr)이 쥔다. */
+.scr-motion:not(.scr-motion-wide) .scr-motion-teamcol {
+  width: auto; display: flex; flex-direction: column; gap: 2px; align-items: stretch;
+}
+/* 팀 상자 폭이 화면 반쪽이라 지표 칸을 한 뼘 더 죈다 — 글자도 아래에서 함께 줄인다. */
+/* 좁은 판의 글자 — 이름 칸에 한 자라도 더 돌려주려 지표를 8px로 못 박는다(cqw 셈은
+   칸 꼴 시절의 자다: 줄 꼴에서는 그릇이 줄 전체라 늘 위 끝만 나왔다). */
+.scr-motion:not(.scr-motion-wide) .scr-motion-teamcol-item {
+  width: 100%; min-width: 0;
+  /* 칸을 '자'로 삼는다 — 글자 크기가 뷰포트가 아니라 **제 칸**을 따라간다. 칸 폭은
+     사람 수가 정하므로(1v1이면 넓고 4v4면 좁다) 화면 폭으로 어림하면 3v3에서 틀린다.
+     실측(360px 화면 4v4): 칸 40.2px에 이름칩이 41px이라 0.8px씩 넘쳤고, 모바일
+     전체화면(칸 35px)에서는 6px 넘쳤다. cqw를 못 읽는 옛 브라우저는 clamp가 통째로
+     버려져 예전 크기(11px·9px) 그대로다 — 그래서 max-width로 한 겹 더 막아 둔다. */
+  container-type: inline-size;
+}
+.scr-motion:not(.scr-motion-wide) .scr-motion-teamcol-name {
+  max-width: 100%; font-size: clamp(8px, 24cqw, 11px);
+}
+.scr-motion:not(.scr-motion-wide) .scr-motion-stats { font-size: clamp(7px, 22cqw, 9px); }
+/* PC 게임상세는 로스터 이름·지표를 두 스텝 크게(요청: 일반/전체화면 모두) — 기둥이
+   지도 곁들이라 작게 눌러 뒀는데(9px), PC는 지도 자체가 크고 기둥에도 폭이 남아 그
+   목소리가 필요 이상으로 작았다. 좁은 화면은 그대로다: 거기선 사람 수가 칸 폭을
+   정하므로(4v4면 35px) 키우면 이름칩이 곧바로 넘친다.
+   이름칩의 최대 폭도 같은 몫으로 늘린다 — 안 늘리면 커진 글자가 그만큼 더 잘린다.
+   ★ 전체화면 로스터는 **포털 안**에 산다(지적: "전체화면에서도 로스터 글자 크기 맞춰서
+     확대했어야해") — 전체화면 판은 body로 포털돼 제 뿌리(.scr-fs-layer)를 갖고, 그
+     뿌리에는 .scr-motion-fs가 아니라 .scr-motion만 붙는다. 그래서 인라인 뿌리에 건
+     선택자는 그 판에 한 번도 안 닿았다. 포털 뿌리를 직접 짚는다.
+   폰 전체화면까지 커지지 않게 PC 폭에서만 건다. */
+.scr-motion-wide .scr-motion-teamcol-name { font-size: 11px; max-width: 100%; }
+.scr-motion-wide .scr-motion-stats { font-size: 11px; }/* PC 전체화면 로스터는 **일반 PC 화면과 똑같다**(요청: "pc 전체화면 로스터 구성 크기
+   일반 화면이랑 똑같이 적용") — 전체화면 판은 .scr-motion-wide가 아니라 포털 뿌리
+   (.scr-fs-layer)라, 좁은 화면용 규칙(:not(.scr-motion-wide))을 물려받고 있었다:
+   아바타가 감춰지고, 이름·지표가 칸 폭을 따르는 clamp가 되고, 한 팀이 가로 한 줄로
+   흘렀다. 지도 옆 기둥(.scr-motion-side)과 같은 2열·같은 글자 크기로 맞춘다.
+   선택자에 .scr-motion을 한 번 더 얹은 것은 위 :not(.scr-motion-wide) 규칙과 무게를
+   맞춰(0,3,0 / 0,4,0) 뒤에 오는 이쪽이 이기게 하기 위해서다.
+   폰 전체화면은 그대로 둔다(칸이 좁아 2열이면 이름이 뭉갠다) — PC 폭에서만 건다. */
+@media (min-width: 1160px) {
+  /* ★ 기둥 폭은 **사이드바가 정한다**(지적: "미니맵은 아직 잘림") ────────────────
+     여기 232px은 좌우 기둥 둘이던 시절의 값이다. 지금 이 기둥 안에는 합친 사이드바
+     하나(.scr-motion-sidepanel, 316px)가 통째로 들어가는데, 기둥이 232px에 못 박혀
+     있고 `.scr-fs-col`은 overflow:hidden이라 **오른쪽 84px이 잘려 나갔다** — 그 끝에
+     선 것이 미니맵이라 미니맵만 반쪽으로 보였다.
+     기둥은 제 내용만큼만 차지하게 두고, 폭은 사이드바 한 곳에서만 정한다(둘이 각자
+     값을 들면 반드시 다시 갈린다). 아래 로스터 규칙들은 그대로다. */
+  .scr-motion.scr-fs-layer .scr-fs-col { width: auto; }
+  /* 오른쪽 기둥의 아이템도 왼쪽과 같은 폭을 쓴다 — flex-end로 밀면 2열 격자가 오른쪽
+     밖으로 넘친다. */
+  .scr-motion.scr-fs-layer .scr-fs-right { align-items: stretch; }
+  .scr-motion .scr-fs-col .scr-motion-teamcol {
+    width: 100%; display: grid; grid-auto-flow: row;
+    grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 6px; align-items: start;
+  }
+  .scr-motion .scr-fs-col .scr-motion-teamcol-item {
+    width: auto; container-type: normal; align-items: center;
+  }
+  /* 아바타를 되살린다 — 좁은 화면 규칙이 감추고 있었다(위 :not(.scr-motion-wide)). */
+  /* 뿌리 클래스 둘(.scr-motion.scr-fs-layer)로 무게를 (0,5,0)으로 — 아바타를 감추는
+     좁은 화면 규칙(:not 포함 0,4,0)이 파일 **뒤**에 있어 같은 무게로는 그쪽이 이긴다. */
+  .scr-motion.scr-fs-layer .scr-fs-col .scr-motion-teamcol-item .scr-motion-base-ring,
+  .scr-motion.scr-fs-layer .scr-fs-roster-fixed .scr-motion-teamcol-item .scr-motion-base-ring {
+    display: inline-flex;
+  }
+  .scr-motion .scr-fs-col .scr-motion-teamcol-name,
+  .scr-motion .scr-fs-roster-fixed .scr-motion-teamcol-name {
+    font-size: 11px; max-width: 100%; align-self: auto;
+  }
+  .scr-motion .scr-fs-col .scr-motion-stats,
+  .scr-motion .scr-fs-roster-fixed .scr-motion-stats { font-size: 11px; }
+  /* 항시표시 로스터의 컬럼 라벨도 PC에서는 한 단 큰다 — 값 줄과 같은 자로. */
+  .scr-motion .scr-fs-roster-fixed .scr-motion-teamcol-cols { font-size: 9px; }
+}
+
+/* 숫자는 폭이 같은 글꼴로(요청의 같은 뜻) — 1과 4의 폭이 다르면 칸이 고정돼도 그 안에서
+   글자가 좌우로 튄다. 지표 줄은 통째로 표 숫자다. */
+.scr-motion-stats { font-variant-numeric: tabular-nums; max-width: 100%; overflow: hidden; }
+.scr-motion:not(.scr-motion-wide) .scr-motion-teamcol-head { max-width: 100%; }
+.scr-motion:not(.scr-motion-wide) .scr-motion-teamcol-text { max-width: 100%; }
+/* 가운데 vs(요청: 구분선 말고 vs) — 경계 border를 걷고 가운데 칸(auto)에 vs가 선다. */
+/* (걷어냄) 2팀 가운데 몰기 — 표 형식에서는 줄이 상자 폭을 통째로 쓴다. */
+/* PC(wide) — 1열(1팀) 오른끝에 세로 가운데로: 2팀 로스터와는 열 간격(12px)만큼
+   떨어진다(재지적: 2팀에 붙지 않게 왼쪽으로). */
+.scr-motion:not(.scr-motion-wide) .scr-motion-teamcol-item .scr-motion-base-ring { display: none; }
+/* (합침) 이름 크기·폭은 위 칸 규칙이 쥔다 — 여기 있던 `font-size:11px; max-width:none`이
+   같은 무게로 뒤에 있어, 칸에 맞춰 줄이는 clamp와 넘침 막이를 통째로 덮고 있었다.
+   "아바타가 빠져 이름이 곧 그 사람이다"라는 뜻은 clamp의 위 끝(11px)이 그대로 잇는다. */
+/* 잘라내기는 바탕 그림에만(지적: 경계의 아바타·이름이 잘려 나감) — 컨테이너가 overflow:
+   hidden이면 모서리 본진의 마커가 반쪽이 된다. 둥근 모서리는 그림이 제 몫으로 갖는다. */
+.scr-motion-map {
+  position: relative; width: 100%; margin-left: 0;
+  /* 스태킹 격리(지적: 가스가 뒤로가기 버튼 위에) — 유닛 캔버스(z 6000)·마커(z 1000+)의
+     z-index가 페이지 전역과 겨루지 않게 맵 상자 안에 가둔다. 맵 밖 떠 있는 버튼·바는
+     이제 늘 맵 내용물 위다. */
+  isolation: isolate;
+  /* 화면 폭 확대(위 .scr-motion-wide)의 넓어짐·되돌아옴이 부드럽게 — 아래 요소들의
+     내려감도 이 폭 트랜지션이 그대로 만든다. */
+  transition: width 0.3s ease, margin-left 0.3s ease;
+}
+/* 전장의 안개 층(요청: 플레이어 시점 보기) — **렌즈 밖**에 서서 화면 픽셀 그대로
+   그린다(그쪽 컴포넌트 주석: 벡터로 그려야 확대해도 계단·흐림이 없다).
+   ★ 층은 유닛 캔버스(z 6000) **아래**다(지적: "3D에서 입체적인 높이가 있는 유닛들이
+     안개에 가려져버리는 문제"). 한때 위에 두었는데(크립이 안개를 안 먹어서), 그러면
+     3D에서 키가 큰 몸이 문제가 된다: 몸은 제 발밑 칸에 서지만 그림은 위쪽 칸들까지
+     솟아 있어서, 그 위 칸이 안개면 멀쩡히 보이는 유닛의 머리가 잘려 나간다.
+     그래서 층을 도로 내리고, **크립·자원·잔상 건물은 제 알파로 물러나게** 했다
+     (그리는 쪽에서 seenAt으로 절반만 칠한다). 안개가 덮어야 할 것은 지형뿐이다 —
+     그 위에 그려지는 것들은 애초에 '지금 보이는 것'이거나 '기억'이고, 둘은 색으로
+     갈리는 편이 잘리는 것보다 낫다.
+   팬·줌은 CSS가 아니라 그리는 쪽이 좌표에 직접 먹인다(유닛 캔버스와 같은 규약). */
+.scr-motion-fog {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 5500;
+}
+/* ★ 지도·유닛·안개는 **함께 나타난다**(요청: "로딩 완료되면 미니맵도 안개·모델과 같이
+   뜨게") — 준비되는 때가 셋 다 달라(지도는 즉시 · 유닛은 자취를 받아야 · 안개는 그
+   자취에서 셈해야) 빈 지도가 먼저 뜨고 나머지가 차례로 얹혔다. 없던 것이 생겨나는 꼴은
+   '덜 됐다'가 아니라 '고장 났다'로 읽힌다. 다 될 때까지 셋을 함께 감추고, 되면 함께
+   부드럽게 켠다. 무엇을 기다리는지는 가운데 글줄이 말한다(그건 이 상자 밖이다). */
+.scr-motion-map > .scr-motion-lens,
+.scr-motion-map > .scr-motion-canvas,
+.scr-motion-map > .scr-motion-unitlayer,
+.scr-motion-map > .scr-motion-fog { transition: opacity 0.28s ease; }
+.scr-motion-map.is-warming > .scr-motion-lens,
+.scr-motion-map.is-warming > .scr-motion-canvas,
+.scr-motion-map.is-warming > .scr-motion-unitlayer,
+.scr-motion-map.is-warming > .scr-motion-fog { opacity: 0; }
+/* 굽는 중에는 **유닛 층만** 감춘다(지적: 굽는 동안 지도와 안개까지 까맣게 지워졌다) —
+   지형은 이미 그려져 있고 안개도 이미 셈해져 있다. 그때 아직 없는 것은 몸뿐이다. */
+.scr-motion-map.is-baking > .scr-motion-unitlayer { opacity: 0; }
+.scr-motion-lens {
+  /* 확대 기준점은 상자 가운데 — 휠·더블클릭·핀치가 모두 가운데 기준으로 팬을 푼다
+     (예전엔 0 0이었는데 JS가 매번 inline으로 center를 덮어썼다). */
+  position: absolute; inset: 0; transform-origin: center;
+  /* ★ will-change를 걷었다(지적: "아이폰 사파리에서만 모든 배율에서 모델과 맵이
+     흐리다 … 특히 맵은 해상도가 엄청 낮은 느낌인데 부하는 많이 걸린다") ─────────────
+     같은 병을 이 파일이 이미 한 번 앓고 고쳤다 — 효과 렌즈(.scr-motion-fxlens)의
+     그 주석이다: **will-change: transform이 걸린 층은 브라우저가 합성 텍스처로 한 번
+     구워 두고 변환만 GPU로 먹인다.** 그래서 렌즈가 z배로 확대되면 1배로 구워 둔
+     텍스처를 z배로 늘려 붙인다. 그때 고쳤을 때는 스톰 스팬만 보고 이 렌즈를 안 건드렸는데,
+     **지도 벡터 캔버스가 사는 곳이 바로 이 렌즈**다.
+     세 증상이 한 원인으로 모인다:
+       · 모든 배율에서 흐리다 — 텍스처가 1배로 굳으니 배율과 무관하다.
+       · 특히 맵이 심하다 — 맵은 이 렌즈 **안**이고, 유닛 캔버스는 렌즈 **밖**이라
+         변환을 안 탄다(그쪽 흐림은 저배율 배킹 배수 몫이고 따로 고쳤다).
+       · 흐린데도 부하는 많다 — 우리는 여전히 2816²짜리 판을 매번 굽는데, 합성 단계가
+         그 해상도를 버린다. 값은 다 치르고 화질만 못 받는 셈이다.
+     크로뮴은 배율이 바뀌면 층을 다시 래스터해서 티가 안 났고, 웹킷은 안 한다 —
+     그래서 "아이폰에서만"이었다.
+     걷어도 되는 까닭은 효과 렌즈와 같다: 이 렌즈에 남은 것은 마커 스팬 몇 개뿐이고
+     (유닛·건물·효과는 전부 캔버스로 갔다) 지도는 제 캔버스가 그린다. 승격이 막아 주던
+     '확대 중 반 픽셀 미끄러짐'은 화질을 통째로 내주고 살 값이 아니다.
+     ★ 캔버스의 translateZ(0)도 함께 걷는다(아래 .scr-motion-mapvec > canvas) —
+       그것은 이 렌즈가 승격돼 있을 때 캔버스만이라도 건지려던 보험이었는데, 렌즈가
+       평범한 층이 된 지금은 오히려 제가 텍스처로 굳는 쪽이 된다. */
+}
+/* 유닛 캔버스 층(캔버스 전환·성능) — 낱개 유닛 도형을 한 장에 그린다. 건물 스팬 위·
+   말풍선(20000) 아래. 입력은 안 받는다. */
+/* ★ 유닛·건물 캔버스만 **지도 위로 한 뼘 더 크다**(요청: "2d에서 맵 위쪽에 높이 있는
+   모델들 위가 잘리자나 그래서 맵 위쪽에 맵영역은 아닌데 그림은 그려지는 영역을
+   추가해야할거같아") ────────────────────────────────────────────────────────────────
+   모델은 제 발밑 칸에서 **위로** 솟는다. 그러니 지도 맨 윗줄에 선 건물은 그림의 위쪽이
+   상자 밖이고, 캔버스가 지도와 같은 크기면 그 몫이 비트맵 밖이라 아예 안 그려진다
+   (잘리는 것이 아니라 없는 것이다).
+   지도의 세로 몫은 그대로 두고 **캔버스만** 위로 늘린다 — 늘린 만큼이 곧 '지도 영역은
+   아닌데 그림은 그려지는 자리'다. 그 몫은 지도가 인라인으로 내려 준다(--scr-mapband).
+   ★ 지금은 **아무도 안 내려 준다** — 위쪽 여유를 두 꼴로 만들어 봤다가 둘 다 걷었다
+     (재생기의 그 걷어냄 주석: 배치가 배율을 타서 손짓이 흔들렸다). 기본값이 0이라 이
+     식은 그대로 두어도 한 톨도 안 늘어난다. 다시 필요해지면 그 한 값만 내려 주면 된다
+   ← 그리는 쪽도 같은 값을 제 기하에서 되읽어 좌표를 그만큼 내린다(UnitLayer의 band9).
+   지형·안개는 안 늘린다: 그것들은 칸을 칠하는 그림이라 솟을 것이 없다. */
+.scr-motion-unitlayer {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  top: calc(-1 * var(--scr-mapband, 0px));
+  width: 100%; height: calc(100% + var(--scr-mapband, 0px));
+  pointer-events: none; z-index: 6000;
+}
+/* (삭제) PC 확대 조절바(.scr-motion-zoom) — PC의 확대 기능을 통째로 걷었다(요청). */
+/* 래디우스 없음(요청: 제거) — 화면 폭 확대에서 모서리가 둥글면 가장자리가 뜬다. */
+.scr-motion-canvas {
+  position: absolute; inset: 0; width: 100%; height: 100%; display: block;
+  /* 드래그 팬(지적: 드래그가 안 됨) — 네이티브 이미지 드래그가 포인터를 가로채지 않게. */
+  -webkit-user-drag: none; user-select: none;
+}
+/* 손가락으로 꾹 눌러도 사파리가 안 가로챈다(지적: "모바일 홀드로 감기 안됨 — 사파리
+   에서 해보면 배경이미지 선택됨") ─────────────────────────────────────────────────
+   눌러서 감기(HOLD_MS 뒤부터 시각이 흐른다)는 **가만히 누르고 있기**로 걸린다. 그런데
+   아이폰 사파리는 그 동작을 제 것으로 안다: 롱프레스 0.5초쯤에 이미지 콜아웃(저장·
+   공유 시트)과 텍스트 선택을 띄우고, 그 순간 진행 중이던 포인터에 **pointercancel**을
+   보낸다. 재생기의 안전망이 그 이벤트로 감기를 끄므로, 감기가 시작되자마자 죽었다.
+   user-select만으로는 안 막힌다 — 콜아웃은 별도 속성(-webkit-touch-callout)이고,
+   접두사 없는 user-select는 사파리가 아직 다 안 받는다. 지도 상자와 그 안의 그림·
+   캔버스에 셋을 다 건다(상속이 끊기는 자식이 있어 개별로도 못박는다). */
+.scr-motion-map,
+.scr-motion-map * {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.scr-motion-map img, .scr-motion-map canvas { -webkit-user-drag: none; }
+/* 두 손가락은 지도 확대다(지적: 모바일 핀치줌이 안 된다) — touch-action에 pinch-zoom을
+   안 실으면 브라우저가 두 손가락 손짓을 페이지 확대로 채가지 않는다(아이폰 사파리는
+   viewport의 user-scalable=no를 접근성 이유로 무시하므로 여기서 막아야 한다).
+   pan-y는 남긴다: 확대 안 한 상태에서 지도 위를 한 손가락으로 훑으면 페이지가 그대로
+   위아래로 굴러야 한다(지난 지적). 더블탭 확대도 pan-y면 브라우저 몫에서 빠져,
+   재생기가 제 더블탭으로 쓴다. */
+.scr-motion-map { touch-action: pan-y; }
+/* 매핑 안 된 맵(정정: 샘플 녹색이 아니라 맵에서 실제 추출한 지형) — 리플레이 타일
+   격자 개략도(ReplayMapCanvas)가 바탕을 채운다. */
+/* 지도 벡터층(요청: 확대해도 선명) — 보이는 창만 굽는 캔버스가 % 자리로 앉는다. */
+/* 실기기 진단 오버레이(#diag) — 지도 왼위. 폰에서 스크린샷 한 장으로 읽히게 또렷한
+   검은 판에 흰 숫자만 둔다(테마와 무관하게 늘 같은 꼴이어야 비교가 된다). */
+.scr-motion-diag {
+  /* absolute다 — 붙는 자리를 배치마다 바꿔서 화면 안에 세운다(평소엔 지도 상자,
+     전체화면엔 판 뿌리). fixed는 답이 못 된다: 조상이 변환을 쓰면 fixed의 기준이
+     화면이 아니라 **그 조상**이 되어(이 파일이 이미 겪은 성질) 결국 같은 자리에 갇힌다. */
+  position: absolute; left: 6px; top: 6px; z-index: 99000; pointer-events: none;
+  padding: 6px 8px; border-radius: 8px;
+  background: rgba(0, 0, 0, 0.78); color: #fff;
+  font-size: 11px; line-height: 1.5; font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.scr-motion-mapvec { overflow: hidden; }
+.scr-motion-mapvec > canvas {
+  position: absolute; display: block;
+  /* (걷어냄) transform: translateZ(0) — 렌즈가 승격돼 있던 시절의 보험이다(위 주석).
+     렌즈에서 will-change를 걷은 지금은 이 승격이 반대로 해가 된다: 캔버스가 제
+     합성 층으로 굳으면 웹킷이 그 텍스처를 배율에 맞춰 다시 안 뜰 수 있다. 승격 없이
+     보통 내용으로 두면 브라우저가 배율에 맞는 해상도로 그린다. */
+}
+.scr-motion-canvas-blank { background: rgba(30, 42, 24, 0.6); overflow: hidden; }
+.scr-motion-canvas-blank .scr-minimap-canvas { width: 100%; height: 100%; display: block; }
+/* 렌즈가 끼면서 마커 스팬은 렌즈의 자식이 됐다 — 옛 선택자를 함께 둔다(렌즈 없는 화면 대비). */
+/* 마커의 확대 되돌림(요청: 확대해도 건물만 2배까지, 유닛은 그대로) — 렌즈가 지도째 z배로
+   키우므로, 마커는 제 --mk(1/z 또는 min(z,2)/z — ReplayMotionPlayer의 렌즈 style)만큼
+   되돌려 앉는다. 축소(1배)에서는 두 변수가 없어 1이다. */
+.scr-motion-map > span, .scr-motion-lens > span {
+  /* (철회) 화면 롤 — 회전도 기울임도 모델을 찌그러뜨려 보였다(지적: 엉뚱한 걸 수정,
+     점점 찌그러짐). 마커는 꼿꼿하게 서고, 시점은 좌우 요잉과 깊이 배율만 말한다. */
+  position: absolute; transform: translate(-50%, -50%) scale(var(--mk, 1)); white-space: nowrap;
+  --mk: var(--mk-unit, 1);
+}
+/* 액티브 말풍선(요청: 마커는 도형 그대로, 무엇인지는 말풍선이) — 앵커 점 위에 뜨고 아래로
+   꼬리를 내민다. 폰트는 수와 무관하게 고정(요청)이고, 바탕·글자색은 인라인(chipStyle),
+   꼬리색은 --bub(같은 바탕색)이다. 마커 공통 transform(-50%,-50%)보다 이 선택자가
+   구체적이라 제 자리 규칙이 이긴다. */
+.scr-motion-map > .scr-motion-bubble, .scr-motion-lens > .scr-motion-bubble {
+  transform: translate(-50%, calc(-100% - 8px));
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+  padding: 2px 6px; border-radius: 6px;
+  font-size: 10px; font-weight: 700; line-height: 1.3;
+  pointer-events: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+.scr-motion-bubble::after {
+  content: ""; position: absolute; left: 50%; top: 100%; transform: translateX(-50%);
+  border: 4px solid transparent; border-top: 5px solid var(--bub, #222); border-bottom: none;
+}/* 모바일은 한 단 작게(요청). */
+@media (max-width: 1159px) {
+  .scr-motion-map > .scr-motion-bubble, .scr-motion-lens > .scr-motion-bubble { font-size: 9px; }
+}
+
+.scr-motion-lens > .scr-motion-build, .scr-motion-lens > .scr-motion-workers { --mk: var(--mk-build, 1); }
+/* (삭제) PC 마커 1.2배 transform(--mk) — 래스터를 GPU로 늘려 마커가 뿌옇게 보였다(지적:
+   "건물이 블러처리되는건 왜그래") — 대신 아래 PC 미디어의 글자 크기 자체를 1.2배로 올려
+   같은 크기를 또렷하게 그린다. --mk는 모바일 확대 렌즈 전용으로 남는다. */
+/* 겹침 차례 — 건물(z2)은 움직이는 것(z3) 아래, 본진 아바타(z4)가 그 위다(요청: 복구 —
+   건물을 위로 올려 보니 얼굴이 도형에 덮여 누가 누군지가 먼저 죽었다). 다만 깨어 있는
+   유닛(이름 칩)만은 아바타보다도 위다(요청) — 지금 움직이며 이야기를 만드는 쪽이,
+   늘 서 있는 문패에 가려지면 안 된다. */
+/* 겹침 층(지적: 유닛이 무조건 위가 아니라 마지막 명령이 위) — 건물·유닛 마커는 JSX가
+   1000+마지막 명령 초를 z로 박아 최근 것이 위로 온다(경기 시간 상한을 넉넉히 넘는
+   15000부터가 고정 층). 본진 아바타·이름 칩·마법 플래시는 그 위의 고정 층이다. */
+.scr-motion-base { z-index: 15000; }
+.scr-motion-build, .scr-motion-workers { z-index: 2; }
+.scr-motion-army, .scr-motion-scout, .scr-motion-cast, .scr-motion-fresh { z-index: 3; }
+.scr-motion-army.scr-motion-chip { z-index: 20000; }
+.scr-motion-cast { z-index: 30000; }
+/* 팀 색 — 팀전 로스터·요약 문장과 같은 두 색을 쓴다(.scr-sum-team*와 한 벌). */
+/* 요약 문장의 두 팀 색(.scr-sum-team*)과 같은 값 — 어두운 지도 위라 살짝 밝힌다. */
+.scr-motion-team1 { color: #5b9ae0; }
+.scr-motion-team2 { color: #e06578; }
+/* 건물 이름은 늘 작게 떠 있고(요청: 합치기 대신 기본 작은 폰트), 활성화 때만 바운스로
+   커진다. */
+/* 지도 위 글자의 바탕(지적: 그림자가 너무 진하다 — 반투명 음영이 낫다) — 네 겹 그림자
+   대신 옅은 어두운 판을 깔고 그림자는 한 겹만 남긴다. 칩(배지)은 제 배경이 있어 제외. */
+/* 일꾼 수는 판(배지) 없이 그냥 텍스트다(요청) — 아래 .scr-motion-workers가 제 그림자만 갖는다. */
+.scr-motion-build:not(.scr-motion-chip) {
+  background: rgba(0, 0, 0, 0.4); border-radius: 3px; padding: 0 2px;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
+}
+/* 배지(칩)는 테두리도 그림자 번짐도 없이 음영(제 배경)만(지적) — 도형·점일 때만 그림자. */
+/* 그림자 폭은 그대로, 농도만 살짝 진하게(요청) — 번짐 반경은 안 키운다. */
+.scr-motion-army:not(.scr-motion-chip) {
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.95);
+}
+.scr-motion-chip { text-shadow: none; border: none; padding: 1px 3px; }
+/* 불투명(지적: 반투명 제거). */
+.scr-motion-build { font-size: 7px; font-weight: 700; }/* PC는 지도가 커서 같은 픽셀이 상대적으로 작다(지적: 도형이 안 보임) — 한 단계씩 키운다. */
+/* 값들은 예전 1.2배 transform을 걷어낸 몫까지 미리 곱해 둔 것(위 --mk 주석) — 크기는
+   그대로, 래스터만 또렷해진다. */
+@media (min-width: 1160px) {
+  .scr-motion-build { font-size: 11px; }
+  .scr-motion-build-shape { font-size: 16px; }
+  .scr-motion-build-hall { font-size: 14px; }
+  /* 본진은 어느 건물 도형보다도 크다(요청). */
+  .scr-motion-build-hall.scr-motion-build-shape { font-size: 30px; }
+  .scr-motion-build-on { font-size: 16px; }
+  .scr-motion-army { font-size: 14px; }
+  .scr-motion-dot { font-size: 17px; }
+  .scr-motion-fresh { font-size: 13px; }
+  .scr-motion-cast { font-size: 13px; }
+  .scr-motion-base-name { font-size: 12px; }
+  .scr-motion-workers { font-size: 11px; }
+  /* 일꾼 점 통일(요청) — 채굴·정찰 같은 크기. ●로 바뀌어 16px은 부대 점보다 커 보였다. */
+  .scr-motion-miner, .scr-motion-scout { font-size: 10px; }
+  /* 본진 아바타도 같은 몫만큼 판과 원을 키운다. */
+  .scr-motion-base-hallwrap { width: 48px; height: 48px; }
+  .scr-motion-base-avatar-in .scr-avatar { width: 22px !important; height: 22px !important; }
+}
+
+.scr-motion-build-on { font-size: 10px; opacity: 1; animation: scr-motion-bounce 0.45s ease-out; }
+/* (삭제) 심장박동(-heartbeat) — 유닛 액티브 효과 취소(요청). scale 맥동은 글자 래스터를
+   늘려 확대 화면에서 칩이 내내 뿌옇게 보이기도 했다(지적: "유닛칩 확대시 글자가 흐려짐").
+   건물은 지어질 때 아래 bounce로 한 번 확대되며 나오고 끝(요청). */
+/* 확대폭을 줄였다(요청: "바운스 효과에서 확대폭 작게") — 0.6→1.3→1은 지도 위에서 건물이
+   튀어 오르는 것처럼 보였다. 0.85→1.12→1이면 '켜졌다'는 신호는 남고 튀는 맛만 빠진다. */
+@keyframes scr-motion-bounce {
+  0% { transform: translate(-50%, -50%) scale(calc(var(--mk, 1) * 0.85)); }
+  45% { transform: translate(-50%, -50%) scale(calc(var(--mk, 1) * 1.12)); }
+  100% { transform: translate(-50%, -50%) scale(var(--mk, 1)); }
+}
+.scr-motion-army {
+  /* 그림자 없음(지적: 유닛 텍스트에 그림자 아직 있다) — 배지는 제 배경만으로 선다. */
+  /* 10 → 9px(요청: 모바일에서 유닛 크기 살짝 축소). PC는 아래 미디어가 12px로 올린다. */
+  font-size: 9px; font-weight: 800;
+  /* opacity도 함께 늦춘다(지적: "유닛 칩이 갑자기 반투명해지는 경우가 있음") — 오래 조용해
+     흐려지는 것(stale)이 문턱을 넘는 순간 뚝 떨어지지 않고 천천히 가라앉는다. */
+  /* 이동 트랜지션 없음(지적: 뚝뚝) — rAF가 매 프레임 위치를 주므로 말풍선처럼 그대로
+     따라가는 것이 가장 부드럽다. opacity 늦춤만 남긴다. */
+  transition: opacity 0.8s ease;
+}
+/* (삭제) 자취가 뜸하면 흐려지던 -stale(0.45) — 생존 추정의 원칙(지적: "유닛은 왜
+   반투명해져?")과 어긋난다: 조용한 유닛도 살아서 그 자리에 있는 것이라 제 농도를 지킨다.
+   반투명은 이제 클로킹만의 뜻이다. */
+/* 클로킹 유닛(옵저버·다크·클로킹 연구 뒤 레이스·고스트)은 반투명이다(요청) — 칩이든
+   점이든 같이 옅어진다. */
+.scr-motion-cloaked { opacity: 0.45; }
+/* 오버로드 풍선 도형은 점 크기(1em)로는 다리가 안 보인다(지적: "오버로드 모양이 안
+   나오는듯") — 한 단 키운다. */
+/* 유닛 크기 — 스팬 마커 시절 규칙이다. 캔버스 전환 뒤로 .scr-motion-ovie·-troop을
+   붙이는 곳이 없어 아래 .scr-motion-unit2x 짝은 죽은 선택자였고, 그 클래스를 다는
+   자리도 함께 걷었다(모델 크기 재정의: 표준=원작 크기, 확대=유닛만 1.5배). */
+.scr-motion-shape-svg.scr-motion-ovie { width: 1.7em; height: 1.7em; }
+/* 병력 쐐기(요청: 일꾼과 아이콘 구분 — 육각형은 점 크기에서 원과 안 갈렸다는 지적으로
+   삼각 쐐기로) — 점(●)과 같은 급의 표시라 점 크기를 따라간다. */
+.scr-motion-shape-svg.scr-motion-troop { width: 1.15em; height: 1.15em; }
+/* 저그 공사 고치(요청) — 통통 바운스. */
+.scr-motion-cocoon { animation: scr-cocoon 0.9s ease-in-out infinite alternate; }
+@keyframes scr-cocoon {
+  from { transform: translateY(0); }
+  to { transform: translateY(-9%); }
+}
+/* 유닛 바닥 띄움(지적: 발이 땅에 묻혀 보임) — 발끝이 마커 지점 위에 서도록 그림을
+   살짝 올린다. 방향은 요잉 재투영이라 회전과의 간섭이 없다. */
+.scr-motion-shape-svg.scr-motion-troop,
+.scr-motion-shape-svg.scr-motion-ovie { transform: translateY(-24%); }
+.scr-motion-legend-troop {
+  font-style: normal; display: inline-flex; vertical-align: -0.1em;
+}
+.scr-motion-legend-troop .scr-motion-shape-svg { width: 0.85em; height: 0.85em; }
+/* 정찰·일꾼 점(지적: 일꾼 정찰이 안 보인다) — 부대 점보다 작고 옅어서 "부대는 아니고
+   무언가 갔다"로 읽힌다. */
+.scr-motion-scout {
+  font-size: 7px; font-weight: 800; opacity: 0.75;
+}
+.scr-motion-cast {
+  /* 기술 전용 배지(요청: 유닛과 다른 스타일) — 어두운 알약에 그 사람 색 테두리(인라인
+     castStyle). 유닛 칩(제 색 꽉 채운 네모)과 꼴부터 갈려, 색이 같아도 안 헷갈린다.
+     글자는 지도 위 규칙대로 테마를 안 타는 밝은 고정색이다. */
+  font-size: 9px; font-weight: 800; color: #f5f6f7;
+  padding: 1px 6px; border-radius: 999px; background: rgba(0, 0, 0, 0.62);
+  animation: scr-motion-in 0.3s ease-out;
+}
+/* 채굴 일꾼 점(요청) — 본진과 자원 사이를 오가는 작은 점. 정찰·일꾼 점(.scr-motion-scout)
+   과 같은 크기·농도로 통일(요청: 자원 채취뿐 아니라 일꾼은 적당히 작은 점 하나로). */
+.scr-motion-miner { font-size: 7px; font-weight: 800; }
+/* 핵(요청: "핵 떨어지는거도 효과") — 이름 칩 뒤로 주황 파문이 두 번 퍼진다. 마커 하나로는
+   경기 최대 사건이 다른 마법과 같은 무게로 읽혔다. */
+.scr-motion-nuke { font-weight: 900; }
+.scr-motion-nuke::after {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 10px; height: 10px;
+  border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none;
+  border: 2px solid rgba(255, 150, 50, 0.95);
+  animation: scr-motion-nuke-wave 1.1s ease-out 2;
+  opacity: 0;
+}
+@keyframes scr-motion-nuke-wave {
+  0% { opacity: 1; width: 10px; height: 10px; border-width: 3px; }
+  100% { opacity: 0; width: 64px; height: 64px; border-width: 1px; }
+}
+.scr-motion-base { display: inline-flex; flex-direction: column; align-items: center; gap: 1px; }
+/* 아바타 이중 테두리(요청) — 안쪽 개인색·바깥 팀색은 인라인 box-shadow가 칠한다. */
+.scr-motion-base-ring { display: inline-flex; border-radius: 50%; margin: 4px; }
+/* 일꾼 수 — 그냥 텍스트, 움직임 없음(요청: 곡괭이질 까딱임과 배지 판을 걷었다). */
+.scr-motion-workers {
+  /* 지도 위 글자는 테마를 안 탄다(지적: 라이트에서 검정 글씨) — 바탕(미니맵)이 늘
+     어두워서, 라이트의 --muted(검정 계열)로는 안 읽힌다. */
+  font-size: 7px; font-weight: 700; color: #f5f6f7;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.9);
+}
+/* 로스터 아래 지표 줄(요청: 일꾼·인구·미네랄·가스·apm을 한 덩이로, 라벨은 일꾼만,
+   작은 글씨로, 가운데 정렬).
+   ★ 항목마다 줄을 바꾼다(요청: "항목별로 세로로 줄바꿈") — 가로로 접던 방식은 폭에 따라
+   접히는 자리가 달라져, 같은 지표가 사람마다 다른 줄에 서고 어떤 폭에서는 두 값이 한
+   줄에 붙어 하나로 읽혔다. 세로로 세우면 몇 번째 줄이 무슨 값인지가 늘 같다. */
+.scr-motion-stats {
+  display: flex; flex-direction: column; justify-content: flex-start; align-items: center;
+  gap: 1px; font-size: 9px; font-weight: 700; line-height: 1.35;
+  color: var(--muted); text-shadow: none;
+}
+/* 자리를 미리 비워 둔다(지적: "로스터 데이터 자리 미리 확보해놓기 지금 로딩되면 지도가
+   아래로 밀림") — 참값이 오기 전에는 '일꾼 0' 한 줄뿐이고, 오고 나면 인구·미네랄·가스·
+   apm이 붙어 다섯 줄이 된다. 그 네 줄만큼 지도가 통째로 밀려 내려갔다. 다섯 줄 몫을
+   처음부터 잡아 두면 자료가 오고 가도 줄이 안 움직인다.
+   em으로 잡는 까닭은 글자 크기가 칸 폭을 따라 변하기 때문이다(container query) —
+   px으로 못 박으면 칸이 좁아진 배치에서 도리어 남는다. */
+.scr-motion-stats { min-height: calc(5 * 1.35em + 4px); }
+.scr-motion-stat { white-space: nowrap; }
+/* 미네랄은 파랑, 가스는 초록(요청) — 원작의 자원 아이콘 색이다. */
+.scr-motion-stat-min { color: #63b3ff; }
+.scr-motion-stat-gas { color: #4fd08a; }
+.scr-motion-build-razed { color: var(--dim); animation: scr-motion-in 0.3s ease-out; }
+/* (삭제) 생산·연구 라임 테(-glow) — 하는 일은 가운데 아이콘(망치·톱니·플라스크)만으로
+   말한다(요청: 건물 액티브 사각형 효과 제거). */
+/* 떠 있는 건물(지적: "건물 떠있는게 표현이 안된다") — 이륙부터 착륙까지 옛 자리에서
+   둥실거린다. 반투명은 살짝만: 자리에 '있긴 한데 땅에 없는' 상태다. */
+/* 반투명은 걷었다(지적: "띄운건물이 페이드아웃되는 현상") — 캔버스 쪽 alpha와 같은
+   까닭이다. 뜬 것은 이제 몸이 떠오르고 그림자가 갈라져 말한다. 둥실거림만 남긴다. */
+.scr-motion-build-afloat { animation: scr-motion-afloat 1.4s ease-in-out infinite; }
+@keyframes scr-motion-afloat {
+  0%, 100% { transform: translate(-50%, calc(-50% - 1px)) scale(var(--mk, 1)); }
+  50% { transform: translate(-50%, calc(-50% - 4px)) scale(var(--mk, 1)); }
+}
+.scr-motion-base-ghost { filter: grayscale(1); opacity: 0.5; }
+.scr-motion-base-name { font-size: 8px; font-weight: 700; }
+@keyframes scr-motion-in { from { opacity: 0; transform: translate(-50%, -50%) scale(calc(var(--mk, 1) * 1.6)); } }
+/* 자막(요청: 미니맵 아래) — 전부 겹쳐 두고 지금 것만 보여 높이가 안 흔들린다. */
+.scr-motion-caps { display: grid; }
+.scr-motion-cap-line {
+  grid-area: 1 / 1; margin: 0; visibility: hidden;
+  font-size: var(--fs-caption); line-height: 1.5; color: var(--text); word-break: keep-all;
+}
+.scr-motion-cap-line[data-on="true"] { visibility: visible; }
+.scr-motion-cap-time { color: var(--dim); font-variant-numeric: tabular-nums; margin-right: 4px; }
+.scr-motion-bar { display: flex; align-items: center; gap: 6px; }
+/* 보기 설정 줄(정리·요청) — 보기·컬러·모델크기 짝 버튼 3그룹, 종류 사이 갭. */
+/* 각 줄 스페이스 비트윈(요청) — flex-wrap의 줄마다 양끝까지 고르게 벌린다. */
+.scr-motion-viewrow { flex-wrap: wrap; justify-content: space-between; margin-bottom: 2px; gap: 12px; align-items: flex-end; }/* PC는 라디오 묶음들을 줄 가운데로 모은다(요청: "피시 라디오 버튼들 모두 줄에서 가운데
+   정렬") — 양끝 정렬(space-between)은 좁은 화면에서 줄이 꽉 차 보기 좋았지만, 넓은
+   화면에서는 성능과 모델 크기가 양쪽 끝으로 멀어져 한 묶음으로 안 읽혔다. */
+@media (min-width: 900px) {
+  .scr-motion-viewrow { justify-content: center; gap: 22px; }
+  /* 묶음 하나하나도 제 칸 가운데로(재지적: "라디오버튼들 각각이 줄에서 가운데 정렬") —
+     줄 전체를 가운데로 모으는 것만으로는 부족했다. 라벨과 알약이 flex-start로 붙어
+     있어 라벨이 알약보다 짧으면(예: "보기") 알약만 오른쪽으로 튀어나와 보였다. */
+  .scr-motion-viewrow .scr-motion-radio { align-items: center; }
+  .scr-motion-viewrow .scr-motion-radio-label { padding-left: 0; }
+  .scr-motion-viewrow .scr-motion-qrow .scr-pill-tabs { align-self: center; }
+}
+
+/* 게임 상세 라디오(요청: 라디오식 버튼을 라이팅 알약 라디오로 — 작게, 위에 라벨,
+   PC·모바일 공통). 어두운 카드 위라 컴팩트 알약탭 컨텍스트처럼 테마 글자를 쓴다. */
+.scr-motion-radio { display: inline-flex; flex-direction: column; align-items: stretch; gap: 3px; }
+/* 라벨 축소(요청: 모바일/PC) — 픽셀 고정으로 모바일 글꼴 스위치도 안 탄다. */
+.scr-motion-radio-label {
+  font-size: 10px; font-weight: 700; color: var(--muted);
+  line-height: 1; padding-left: 4px;
+}
+/* 성능 라디오 — 강제 한 줄 차지(width 100%)를 걷고 다른 라디오와 같이 흐르다
+   넘치면 자연히 줄바꿈한다(요청). */
+/* 성능만 폭이 넓다(지적) — 줄은 통째로 차지하되 알약은 내용 폭만큼만. 100% 늘어난
+   알약이 다섯 옵션을 화면 가득 벌려 놓았다. */
+.scr-motion-qrow .scr-pill-tabs { align-self: flex-start; }
+/* 두 단계 더 작게(요청: 뎁스가 깊은 버튼들) — 24px → 20px, 글자도 한 단 아래. */
+.scr-motion-radio .scr-pill-tabs { height: 20px; background: rgba(255, 255, 255, 0.08); }
+.scr-light-theme .scr-motion-radio .scr-pill-tabs { background: rgba(0, 0, 0, 0.06); }
+/* 탭 너비 축소(요청) — 알약 속 여백을 줄여 각 탭이 좁아지고 줄 사이 갭이 넉넉해진다. */
+.scr-motion-radio .scr-pill-tab-btn { font-size: var(--fs-micro); padding: 0 4px; }
+/* 옵션 간 갭 축소(재지적: 성능·마우스 조작·배속) — 진범은 stretch: 라벨("마우스 조작
+   표시")이 알약보다 넓으면 알약이 라벨 폭까지 늘어나고, 균등 칸이 그 폭을 나눠 가져
+   옵션이 벌어졌다. 알약을 내용 폭으로 두면 균등 칸(가장 넓은 라벨 × N)은 유지돼
+   인디케이터 계산도 그대로다. */
+.scr-motion-radio { align-items: flex-start; }
+.scr-motion-radio .scr-pill-tab-btn:not(.scr-pill-tab-btn-active) { color: var(--muted); }@media (hover: hover) {
+  .scr-motion-radio .scr-pill-tab-btn:hover:not(.scr-pill-tab-btn-active) { color: var(--text); }
+}
+
+/* 클릭 토글·맵연결(요청: 라디오와 높이 맞춘 둥근네모 + 라이팅 테마) — 알약 트랙과 같은
+   반투명 유리 바탕, 켬 상태는 라이팅 알약 채움(인디케이터와 같은 토큰)이다. */
+.scr-motion-litbtn {
+  height: 20px; padding: 0 8px; border-radius: var(--radius-sm); border: none;
+  cursor: pointer; font-family: inherit; font-size: var(--fs-micro); font-weight: 600;
+  color: var(--muted); background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.06);
+}
+.scr-light-theme .scr-motion-litbtn {
+  background: rgba(0, 0, 0, 0.06);
+  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.05);
+}@media (hover: hover) {
+  .scr-motion-litbtn:hover:not(.scr-motion-litbtn-on) {
+    color: var(--text); background: rgba(255, 255, 255, 0.13);
+  }
+  .scr-light-theme .scr-motion-litbtn:hover:not(.scr-motion-litbtn-on) {
+    background: rgba(0, 0, 0, 0.1);
+  }
+}
+
+.scr-motion-litbtn.scr-motion-litbtn-on {
+  background: var(--lit-pill-bg); box-shadow: var(--lit-pill-glow); color: #10151a;
+}
+/* 맵연결(요청: 별도로 맵 좌상단에) — 마커·칩(z 최대 3만대)보다 위, 어두운 지도 위라
+   유리 바탕을 한 겹 진하게. */
+/* 미연결 안내 한 줄(요청: 작게) — 버튼 바로 아래, 지도 위라 밝은 글자 + 얇은 그림자. */
+/* (걷어냄·요청) 맵연결 알약(.scr-motion-maplink)과 그 아래 안내 한 줄
+   (.scr-motion-maplink-note)이 여기 있었다. 지형이 맵 데이터에서 참값으로 오면서
+   재생 화면에서 그림을 이을 까닭이 없어졌다 — 그림 잇기는 운영 메뉴의 미니맵 화면이
+   맡는다. */
+/* 원형 버튼 통일(요청: 11개 전부 같은 크기 정원). */
+/* .scr-motion-btn(아래 정의)과 같이 실리므로 두 클래스 선택자로 이겨야 한다(지적:
+   버튼이 아직 알약꼴) — 뒤에 오는 .scr-motion-btn의 height 22px·radius가 원을 덮었다. */
+.scr-motion-btn.scr-motion-rbtn {
+  width: 34px; height: 34px; min-width: 34px; padding: 0; border-radius: 50%;
+  /* 완전 원 보증(재지적) — 어떤 규칙이 폭·높이를 흔들어도 1:1을 지킨다. */
+  aspect-ratio: 1; box-sizing: border-box;
+  display: inline-flex; align-items: center; justify-content: center;
+  /* 세 글자(개인색)도 한 줄로 원 안에 — 감기면 원이 찌그러진다. */
+  font-size: 9px; letter-spacing: -0.4px; white-space: nowrap; line-height: 1;
+  flex-shrink: 0;
+}
+.scr-motion-btngroup { display: inline-flex; gap: 4px; align-items: center; }
+/* 아랫줄(요청: 버튼 전부 정원, 재생은 예전처럼 크고 가운데) — [배속 | 재생 | 시간] 세 칸
+   그리드로, 재생이 줄의 정중앙에 선다. */
+/* 한 줄 조종간(요청: PC·모바일 공통 — 재생·탐색바·시각을 한 줄로). */
+.scr-motion-bar-controls {
+  display: flex; align-items: center; gap: 8px;
+}
+.scr-motion-bar-controls .scr-motion-range { flex: 1 1 auto; min-width: 0; }
+
+/* 옛 재생 버튼(.scr-story-play)과 같은 꼴(요청) — 46px 완전 원. */
+/* 컴팩트(요청: 버튼 상하좌우 패딩 다 줄이기) — 46px 원 → 30px. */
+.scr-motion-play {
+  flex-shrink: 0;
+  width: 30px; height: 30px; min-width: 30px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; background: transparent; color: var(--text); cursor: pointer; padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}@media (hover: hover) {
+  .scr-motion-play:hover { color: var(--text); background: var(--lit-hover-bg); box-shadow: var(--lit-hover-glow); }
+}
+
+/* 시각 위·공유 아래(요청) — 오른끝 세로 스택. */
+.scr-motion-clockwrap {
+  flex-shrink: 0; display: inline-flex; flex-direction: column;
+  align-items: flex-end; gap: 2px;
+}
+.scr-motion-clockwrap .scr-kakao-icon-btn { color: var(--muted); }
+/* 공유 줄(재재지적: 가운데 정렬). */
+/* 진행바 아랫줄 — 왼쪽 배속, 오른쪽 현재 장면 공유(요청). 공유가 없는 경기에서는
+   배속만 왼쪽에 선다. */
+/* 모바일 줄(요청: 색상 … 성능 … 현재장면공유) — 색상은 왼끝, 성능과 공유는 오른쪽에
+   붙는다. 진행바 줄 바로 위다. */
+.scr-motion-mobrow {
+  display: flex; align-items: flex-end; gap: 10px; margin: 2px 0 4px;
+  /* 넘치면 접는다(지적: "현재장면 공유 버튼 너무 크고 화면 밖으로 나감") — 여태 한 줄로
+     못 박혀 있어, 세 덩이의 합이 화면 폭을 넘으면 오른쪽 것이 그냥 밖으로 밀려났다. */
+  flex-wrap: wrap; row-gap: 4px;
+}
+/* 라디오는 서로 붙어 왼쪽에 모인다(지적: "성능 버튼이 정가운데 있거나 아니면 라디오끼리
+   왼쪽에 모이거나 해야할듯") — 여태 성능에 margin-left:auto가 걸려 있어 색상과 성능
+   사이가 통째로 벌어졌다(실측 390px 화면: 색상 끝 54px, 성능 시작 238.9px — 185px이
+   빈 자리였다). 밀어내는 몫은 공유 버튼이 맡는다(아래). */
+/* 공유 버튼은 이 줄에서 컴팩트하다(지적: 너무 크다) — 기본 .scr-btn 크기(40px대)는
+   알약 둘과 나란히 서기엔 두 배로 크다. PC 공유 줄과 같은 24px 흰 알약으로 맞춘다. */
+/* 전체화면 여닫이(요청: "전체화면 온오프 버튼을 여기로 이동") — 색상·성능과 공유 사이
+   빈칸의 한가운데다. 남는 자리를 이 버튼과 공유 버튼의 auto 여백 둘이 반씩 나눠 갖는다.
+   손가락 표적이라 알약을 키운다(기본 .scr-motion-litbtn은 20px 높이). */
+.scr-motion-mobrow .scr-motion-mobfs {
+  margin-left: auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; min-width: 40px; height: 26px; padding: 0;
+}
+.scr-motion-mobrow .scr-kakao-share-btn {
+  margin-left: auto;
+  /* 좌우 여백을 죈다(요청: "장면공유 버튼 좌우 패딩 축소") — 10 → 6. */
+  height: 24px; min-height: 0; padding: 0 6px; font-size: 11px; gap: 4px;
+  white-space: nowrap; line-height: 1; flex: 0 0 auto;
+  background: #fff; color: #10151a; border: 1px solid #fff; border-radius: 8px;
+  box-shadow: var(--lit-pill-glow);
+}
+.scr-motion-mobrow .scr-kakao-share-btn svg { width: 11px; height: 11px; color: #10151a; }
+.scr-light-theme .scr-motion-mobrow .scr-kakao-share-btn {
+  background: var(--lit-pill-bg); border-color: transparent; color: var(--text);
+}
+.scr-light-theme .scr-motion-mobrow .scr-kakao-share-btn svg { color: var(--text); }
+/* 배속은 한 단 더 작게(요청: "크기를 줄이고") — 라벨을 위가 아니라 옆에 두어 줄
+   높이를 아낀다. .scr-motion-radio의 세로 배치를 여기서 가로로 되돌린다. */
+.scr-motion-speeds {
+  flex-direction: row; align-items: center; gap: 5px;
+}
+.scr-motion-speeds .scr-motion-radio-label { padding-left: 0; }
+.scr-motion-speeds .scr-pill-tabs { height: 18px; }
+.scr-motion-speeds .scr-pill-tab-btn { padding: 0 5px; font-size: 10px; }
+.scr-motion-btn {
+  min-width: 28px; height: 22px; padding: 0 6px; border-radius: var(--radius-sm);
+  border: 1px solid var(--line-hair); background: transparent; color: var(--muted);
+  font-size: var(--fs-9); font-weight: 700; cursor: pointer;
+}
+/* 배속도 라디오 알약(요청) — 배치는 .scr-motion-radio(세로: 라벨 위, 알약 아래)를 따른다. */
+/* 아랫줄은 한 줄(요청: 배속·재생·시간 한 줄) — [배속 | 재생 | 시간] 그리드 그대로,
+   배속 다섯이 원형으로 줄어 한 줄에 넉넉히 선다. */
+/* 유저 컬러 테두리 칩(요청) — 색을 아는 사람의 라벨은 그 색 테두리를 두른다. */
+.scr-motion-chip {
+  /* 배경색이 있는 배지엔 테두리 불요(지적) — 자리만 남긴 투명 테두리. */
+  border: 1px solid transparent; border-radius: 3px; padding: 0 2px;
+  background: rgba(0, 0, 0, 0.35);
+}
+/* 갓 뽑힌 유닛(요청) — 만든 건물 앞에 잠깐 놓이는 작은 점. */
+.scr-motion-fresh { font-size: 7px; text-shadow: 0 0 2px rgba(0, 0, 0, 0.8); }
+/* 도형 전용 크기(지적: PC에서 너무 작다) — 인라인 크기 대신 클래스라야 미디어 확대가 먹는다.
+   한때 모바일만 줄였다가 되돌렸다(요청: 도형 크기 줄이기 취소) — 작게 만드니 무엇을 그린
+   것인지가 안 읽혔다. 대신 뒤가 비치게 해서 겹침을 푼다(아래 opacity). */
+.scr-motion-build-shape { font-size: 9px; }
+/* 부대 점만 모바일에서 한 눈금 작다(요청: 유닛 크기도 살짝 줄이기) — 도형과 달리 점은
+   작아져도 뜻이 안 상한다(자리만 말하는 표시다). PC는 아래 미디어에서 제 값으로 돌아간다. */
+.scr-motion-dot { font-size: 9px; }
+/* 일꾼은 점 클래스가 겹쳐도 늘 작다(지적: 어떤 일꾼이 병력만큼 커 보임) — 일꾼 마커는
+   scout(7px)와 dot(9px)를 같이 달고 있는데, 뒤에 선언된 dot이 이겨 부대 크기가 됐다. */
+.scr-motion-dot.scr-motion-scout { font-size: 7px; }
+/* 유닛 낱개 마커의 덩치(요청: 소형/중형/대형을 다이나믹하게, 전체적으로는 작게) —
+   같은 유닛도 하나하나 제 도형이므로 크기 차이가 곧 소·중·대형 구분이다. 겹침 완화로
+   기존 부대 점(9px)보다 소·중형은 작다. PC 확대 화면 값은 아래 미디어. */
+.scr-motion-dot.scr-motion-unit-s { font-size: 6px; }
+.scr-motion-dot.scr-motion-unit-m { font-size: 8px; }
+.scr-motion-dot.scr-motion-unit-l { font-size: 11px; }@media (min-width: 1160px) {
+  .scr-motion-dot.scr-motion-unit-s { font-size: 8px; }
+  .scr-motion-dot.scr-motion-unit-m { font-size: 11px; }
+  .scr-motion-dot.scr-motion-unit-l { font-size: 15px; }
+}
+
+/* 도형은 아주 살짝 뒤가 비친다(요청: 모바일·PC 모두) — 지도 위에 도형이 빽빽하면 겹친
+   것끼리 서로를 완전히 지운다. 살짝 비치면 뒤에 무엇이 깔렸는지가 보이면서도 앞의 도형이
+   흐려지지는 않는다. 활성(생산 중)일 때는 거의 불투명으로 올려 '지금 일한다'를 지킨다.
+   흐릿해진 자취 점(-stale)은 제 옅음이 뜻이라 건드리지 않는다. */
+.scr-motion-build-shape,
+.scr-motion-sq,
+.scr-motion-dot { opacity: 0.82; }
+.scr-motion-build-on.scr-motion-build-shape { opacity: 0.95; }
+/* 건물 네모 — 글꼴 ■는 작으면 동그랗게 뭉개져(지적) 상자로 직접 그린다. 색은 글자색을 탄다.
+   그림자도 유닛과 같은 톤으로 얇게(요청). */
+.scr-motion-sq {
+  display: inline-block; width: 0.85em; height: 0.85em;
+  background: currentColor; border-radius: 1px; vertical-align: -0.05em;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+}
+/* 건물 전용 벡터 도형(요청: 이모지·글꼴 글리프 말고 벡터) — em 단위라 크기 클래스와
+   확대 배율(--mk)을 글자와 똑같이 따른다. 색도 currentColor 그대로다.
+   그림자도 유닛처럼 얇게(요청: "건물도 약간 그림자 유닛처럼"). */
+.scr-motion-shape-svg {
+  /* 뷰박스 밖도 그린다(지적: 넥서스 앞 기둥 실종) — 시각 밀림·바깥 롤로 16칸을 살짝
+     넘는 꼭대기·기둥이 잘려 나갔다. */
+  overflow: visible;
+  display: inline-block; width: 1em; height: 1em; vertical-align: -0.12em;
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.6));
+}
+/* 그림자 끄기 재보기(`?noshadow=1`) — 위 drop-shadow가 브라우저 칠하기 삯의 얼마인지
+   한 번의 새로고침으로 가르려고 둔다. 보기를 정하는 규칙이 아니라 **자**다. */
+.scr-motion-noshadow .scr-motion-shape-svg { filter: none; }
+/* 층 빼기 재보기(`?hide=fog,unit,mapvec,mini,all`) — 그리는 일은 그대로 두고 **층만**
+   화면에서 뺀다. 줄어든 몫이 곧 그 층의 래스터·합성 삯이다(perf9의 HIDECLS9 머리말). */
+.scr-hide-fog .scr-motion-fog, .scr-hide-all .scr-motion-fog,
+.scr-hide-unit .scr-motion-unitlayer, .scr-hide-all .scr-motion-unitlayer,
+.scr-hide-mapvec .scr-motion-mapvec, .scr-hide-all .scr-motion-mapvec { display: none; }
+/* 건물 밑 그림자 제거(지적: 떠 보임) — 발이 땅에 붙은 건물엔 아래 그림자가 틈으로 읽힌다. */
+.scr-motion-build .scr-motion-shape-svg { filter: none; }
+/* 발자국 비례 도형(요청: "건물 아이콘 크기를 실제 맵크기에 비례해서 정확히") — 스팬 폭을
+   지도 %로 못박고(JSX) 그림이 그 폭을 다 쓴다. 글자 크기 클래스는 이때 안 듣는다.
+   맨 네모(전용 도형 없는 건물)도 같은 폭을 받아 발자국 비율(aspect-ratio, JSX)로 선다. */
+.scr-motion-build-tile { display: inline-flex; justify-content: center; }
+/* 상자가 발자국 비율(aspect-ratio, JSX)이라 그림도 그 비율로 눌린다(preserveAspectRatio
+   none) — 폭·높이 둘 다 실제 발자국이다. */
+.scr-motion-build-tile .scr-motion-shape-svg { width: 100%; height: 100%; }
+.scr-motion-build-tile .scr-motion-sq { width: 100%; height: 100%; }
+/* 유닛 이름 칩에도 같은 톤의 약한 그림자(요청) — 배경 있는 배지라 텍스트 그림자 대신
+   상자 그림자다. */
+.scr-motion-army.scr-motion-chip, .scr-motion-cast.scr-motion-chip { box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5); }
+/* 본진 실루엣 아바타(요청) — 실루엣 색 판이 뒤에 서고, 그 한가운데에 동그란 아바타가
+   잘림 없이 같은 크기로 얹힌다(지적: 사진을 도형으로 자르지 말 것). */
+.scr-motion-base-hallwrap {
+  position: relative; display: inline-flex; width: 40px; height: 40px;
+  align-items: center; justify-content: center;
+}
+.scr-motion-base-hallsvg {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+}
+.scr-motion-base-avatar-in {
+  position: relative; display: inline-flex; border-radius: 50%; overflow: hidden;
+}
+/* 발자국대로 크고 작게(요청: "건물크기로 구분 — 서플·파일런같은 작은 건물은 작게, 큰
+   건물은 크게") — 2×2·3×2 발자국은 한 단계 작게, 4×3 생산 건물은 한 단계 크게. 본진은
+   제 크기(-hall)가 따로 있다. */
+/* -lg 12/16 → 10/14(지적: "배럭 게이트 크기가 너무 큰듯") — 본진(15/20)과의 층은 그대로. */
+.scr-motion-build-sm.scr-motion-build-shape { font-size: 7px; }
+.scr-motion-build-lg.scr-motion-build-shape { font-size: 10px; }@media (min-width: 1160px) {
+  .scr-motion-build-sm.scr-motion-build-shape { font-size: 10px; }
+  .scr-motion-build-lg.scr-motion-build-shape { font-size: 14px; }
+}
+
+/* 본진 건물(커맨드·넥서스·해처리 계열)은 큼직하게(요청) — 이름이든 네모든 한 단계 키운다. */
+.scr-motion-build-hall { font-size: 10px; }
+/* 본진은 어느 건물 도형보다도 크다(요청) — 15 → 18px(지적: "본진 크기가 넘 작은듯"). */
+.scr-motion-build-hall.scr-motion-build-shape { font-size: 18px; }
+/* 종족 배지(요청) — 아바타 오른쪽 어깨에. 밖으로 밀던 것을 아바타에 겹치게 당겼다
+   (요청: 배지를 좀 더 아바타에 붙이기) — 떨어져 있으면 어느 아바타의 배지인지가
+   본진이 몰린 자리에서 안 갈렸다. */
+/* 한 번 더 안쪽으로(요청: "종족이랑 팀 배지 더 아바타랑 겹치게") — 어깨 밖에 매달려
+   있던 것을 아바타 원 위로 확실히 올라앉힌다. */
+.scr-motion-base-race { position: absolute; top: -1px; right: -2px; }
+/* 팀 아이콘(요청: 깃발 말고 팀을 나타내는 아이콘에 색 구분) — 아바타 왼쪽 어깨에 붙는
+   방패다. 개인색 모드에서도 이 자리만은 늘 팀색이라, 색을 개인으로 바꿔 놓고 보다가
+   "얘가 어느 편이더라"를 다시 묻지 않게 된다. 안에 팀 번호가 앉는다(요청). */
+.scr-motion-base-team {
+  position: absolute; top: -2px; left: -4px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.scr-motion-base-team .scr-motion-team-n { font-size: 8px; }
+/* 하는 일 아이콘(공사 망치·생산 톱니·업그레이드 플라스크) — 건물 왼쪽 모서리에 살짝
+   걸친다(요청; 처음엔 한가운데였는데 도형 그림을 가렸다). 색은 JSX 인라인이 칩 글자색
+   규칙으로 준다(지적: 흰색 고정도, 플레이어색도 아니다). */
+.scr-motion-raising {
+  position: absolute; top: 50%; left: 0; right: auto;
+  /* 건물 왼쪽 모서리에 살짝 걸치되 좀 더 안쪽으로(지적). */
+  transform: translate(-15%, -50%); pointer-events: none;
+}
+/* 하는 일 이모지(요청: 아이콘 축소) — 이모지는 글자라 폰트 크기로 줄인다. */
+.scr-motion-job { font-size: 8px; line-height: 1; }
+/* 방패 속 팀 번호(요청) — 방패가 곧 바탕이라 판 없이 숫자만 얹는다. 방패 아랫단이
+   뾰족해 눈금 중심이 살짝 위라, 숫자도 반 픽셀 위로 당긴다. */
+.scr-motion-team-n {
+  position: absolute; font-style: normal; font-size: 6px; font-weight: 900;
+  color: #111; line-height: 1; transform: translateY(-0.5px);
+}
+/* (삭제) 유닛 칩의 팀 방패(.scr-motion-army-team) — 요청으로 붙였다가 요청으로 걷었다.
+   부대가 여럿으로 갈라지면서(squadPts) 칩마다 방패가 붙으면 지도가 방패밭이 된다. */
+/* 승리 트로피(요청) — 재생이 끝나면 이긴 편 아바타 위에 얹힌다. */
+.scr-motion-trophy {
+  position: absolute; top: -9px; left: 50%; transform: translateX(-50%);
+  font-size: 13px; animation: scr-motion-in 0.3s ease-out; pointer-events: none;
+}
+/* 범례(요청) — 도형이 뭔지 한 줄. 지도 아래 가운데, 작은 회색 글씨. */
+.scr-motion-legend {
+  display: flex; justify-content: center; flex-wrap: wrap; gap: 4px 10px;
+  font-size: 10px; color: var(--muted);
+}
+/* 좌우 여백 4 → 9px(요청: "컬러변경 버튼 좌우 여백 좀만 주기") — "개인컬러 보기"처럼
+   글자가 길어지면서 4px로는 글자가 알약 벽에 붙었다. */
+.scr-motion-colorbtn { width: auto; min-width: 50px; padding: 0 9px; border-radius: 11px; height: 22px; white-space: nowrap; }
+.scr-motion-terrain {
+  width: 24px; height: 24px; min-width: 24px; padding: 0; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center; margin-left: 6px;
+}
+.scr-motion-speed-on { background: rgba(255, 255, 255, 0.1); color: var(--text); border-color: var(--line-soft); }
+.scr-motion-range {
+  flex: 1 1 0; min-width: 0; height: 16px; cursor: pointer;
+  -webkit-appearance: none; appearance: none; background: transparent;
+  /* 가로 끌기만 탐색바 몫이다(재지적: 재생바 위에서 위아래 스와이프가 페이지 스크롤로
+     안 이어짐) — none은 세로 손짓까지 삼켰다. pan-y면 세로로 시작한 손짓은 브라우저가
+     스크롤로 가져가고(onPointerCancel이 드래그를 정리), 가로 끌기는 여전히 바가 갖는다. */
+  touch-action: pan-y;
+}/* 모바일 — 손가락 표적을 키운다(지적: 터치로 잡기가 안 됨). 상자 높이 16→32px에
+   손잡이도 12→20px. 트랙(4px)은 가운데 정렬만 다시 맞춘다. */
+@media (max-width: 1159px) {
+  .scr-motion-range { height: 32px; }
+  .scr-motion-range::-webkit-slider-runnable-track { margin-top: 0; }
+  .scr-motion-range::-webkit-slider-thumb { width: 20px; height: 20px; margin-top: -8px; }
+  .scr-motion-range::-moz-range-thumb { width: 20px; height: 20px; }
+}
+/* 손가락 기기는 한 단 더(요청: "가로 세로 슬라이드 모두 잘 안집혀" → 재요청: "진행바
+   다이얼 크기 키우고 터치영역도 넓게") — 상자 32→48px, 손잡이 20→28px, 줄도 4→6px로
+   굵힌다. 손잡이 중심 보정은 −(28−6)/2 = −11px이다. */
+@media (pointer: coarse) {
+  /* ★ 상자를 도로 줄인다(지적: "또 터치 영역 문제였어… 이거 터치 영역 너무 넓어. 저것
+     때문에 줄간격이 억지로 늘려지고 있었어") ─────────────────────────────────────────
+     상자 56px은 손잡이(34px)의 한 배 반이라, 바 위아래로 각각 11px씩 **아무것도 없는
+     터치 자리**가 남아 있었다. 그 자리는 안 보이지만 높이는 진짜라, 조작 세 줄의 간격을
+     아무리 좁혀도 이 상자가 그만큼 도로 벌렸다 — 줄간격을 늘리던 범인이 이것이다.
+     상자 36 · 손잡이 26 · 줄 6으로 내린다. 손가락 표적은 26px이라 여전히 넉넉하고
+     (애플 권고 44는 **버튼**의 자이고 이건 끌어서 쓰는 손잡이다), 상자가 손잡이를 딱
+     감싸므로 남는 자리가 없다. 손잡이 중심 보정은 −(26−6)/2 = −10px이다. */
+  .scr-motion-range { height: 36px; }
+  .scr-motion-range::-webkit-slider-runnable-track { height: 6px; }
+  .scr-motion-range::-moz-range-track { height: 6px; }
+  .scr-motion-range::-webkit-slider-thumb { width: 26px; height: 26px; margin-top: -10px; }
+  .scr-motion-range::-moz-range-thumb { width: 26px; height: 26px; }
+}
+
+/* 전체화면에서는 손짓을 통째로 바가 갖는다 — 평소 화면의 pan-y는 "재생바 위에서 위아래
+   스와이프가 페이지 스크롤로 이어져야 한다"는 요청 때문인데, 전체화면 뒤에는 스크롤할
+   페이지가 없다. 그런데도 pan-y를 두면, 손잡이를 집으려는 손이 조금만 비스듬해도
+   브라우저가 세로 손짓으로 채 가서 끌기가 시작조차 안 된다. */
+.scr-fs-layer .scr-motion-range { touch-action: none; }
+/* ★ 판 안의 조종부 줄은 **제 높이를 스스로 못 박는다**(지적: "이게 있었다가 요소 선택
+   키면 없어지는 거 같은데") ────────────────────────────────────────────────────────
+   맞는 지적이다. 앞 판은 `(pointer: coarse)`일 때만 음수 마진(−12px)을 걸어 진행바의
+   56px을 32px어치로 되돌렸는데, **그 규칙 자체가 포인터를 따라 붙었다 떨어진다** —
+   요소 선택을 켜면 크로뮴이 주 포인터를 마우스로 바꾸므로 규칙이 사라진다. 두 갈래의
+   합이 우연히 같아 수치는 맞았지만, 줄 높이가 '어느 포인터냐'에 매달린 구조는 약하다.
+   (같은 이유로 폭이 1159px을 넘는 손가락 기기 — 태블릿 가로 — 에서는 그 합이 안 맞는다.)
+   그래서 **딸림을 끊는다**: 줄의 높이를 32px로 못 박고, 진행바는 그 안에서 가운데
+   맞춤으로 흘러넘치게 둔다. 넘친 몫은 여전히 손가락이 닿는 자리라 표적(56px)은 한 톨도
+   안 줄고, 줄이 차지하는 자리는 포인터·폭과 **무관하게** 늘 32px이다.
+   그 56px은 진행바가 지도 **밖** 아래에 서던 시절 요청된 값이다("터치영역도 넓게") —
+   그때는 높이가 남의 자리를 안 먹었다. 지금 이 줄은 지도 **위**라 높이가 곧 가려지는
+   지형이고, 그래서 자리는 되돌리되 표적은 지킨다. */
+.scr-fs-layer .scr-fs-bottom > .scr-motion-bar-controls { height: 32px; }
+.scr-fs-layer .scr-motion-range { align-self: center; }
+.scr-motion-range::-webkit-slider-runnable-track {
+  height: 4px; border-radius: 999px;
+  background: linear-gradient(to right, var(--text) var(--p, 0%), var(--line-soft) var(--p, 0%));
+}
+.scr-motion-range::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 12px; height: 12px; margin-top: -4px; border: none; border-radius: 50%;
+  background: var(--text); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
+}
+.scr-motion-range::-moz-range-track {
+  height: 4px; border-radius: 999px;
+  background: linear-gradient(to right, var(--text) var(--p, 0%), var(--line-soft) var(--p, 0%));
+}
+.scr-motion-range::-moz-range-thumb {
+  width: 12px; height: 12px; border: none; border-radius: 50%;
+  background: var(--text); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
+}
+.scr-motion-clock {
+  font-size: var(--fs-9); color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+/* 범례의 일꾼 점 — 지도의 ●와 같은 기호를 부대 항목보다 한 단 작게(지적: •는 너무 작음). */
+.scr-motion-legend-worker { font-style: normal; font-size: 0.8em; }
+/* 태움·드랍 광선(요청: 우주선처럼 노란 광선) — 위(수송선)에서 좁게 시작해 유닛 자리로
+   퍼지며 내리쬔다. 아래끝이 그 자리다(translate -100%). */
+.scr-motion-beam {
+  position: absolute; width: 18px; height: 24px; pointer-events: none;
+  transform: translate(-50%, -100%);
+  clip-path: polygon(36% 0, 64% 0, 100% 100%, 0 100%);
+  background: linear-gradient(rgba(255, 224, 96, 0.06), rgba(255, 224, 96, 0.6));
+  animation: scr-motion-beam 0.9s ease-in-out infinite;
+  z-index: 25000;
+}
+@keyframes scr-motion-beam {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+/* 태움·드랍의 유닛 승강(요청: 글씨 대신) — 광선 속에서 유닛 점이 떠오르거나 내려온다.
+   색은 그 사람 색(currentColor). */
+.scr-motion-lift {
+  position: absolute; width: 5px; height: 5px; border-radius: 50%;
+  background: currentColor; pointer-events: none; z-index: 25001;
+  transform: translate(-50%, -50%);
+}
+.scr-motion-lift-up { animation: scr-motion-lift-up 1.1s ease-in infinite; }
+.scr-motion-lift-down { animation: scr-motion-lift-down 1.1s ease-out infinite; }
+.scr-motion-lift-b { animation-delay: 0.55s; }
+@keyframes scr-motion-lift-up {
+  0% { opacity: 0; transform: translate(-50%, -50%) translateY(0); }
+  25% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) translateY(-20px); }
+}
+@keyframes scr-motion-lift-down {
+  0% { opacity: 0; transform: translate(-50%, -50%) translateY(-20px); }
+  25% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) translateY(0); }
+}
+/* 지도 아래 도구줄(요청: 범례·지형 수정·확대 토글을 전부 같은 한 줄에) — 조종부와 같은
+   3칸 그리드 수법: 가운데 칸(범례+산 버튼)이 정중앙, 확대 토글은 오른쪽 칸 끝이다. */
+.scr-motion-terrain-row { display: flex; justify-content: center; gap: 6px; }/* (삭제·요청: 모바일 확대 제거 둘째 판) — 화면 폭 확대 버튼 규칙이 있던 자리. */
+/* 큰 화면 보기 토글(요청: PC 전용 — 대각선 화살표). */
+@media (min-width: 1160px) { .scr-motion-expand-row { grid-column: 3; display: flex; justify-content: flex-end; }
+}
+
+/* (삭제·요청: PC 확대창 관련 소스 완전 제거) — 큰 화면 팝업(.scr-motion-big-modal)과
+   그 폭 공식. 넓은 배치(.scr-motion-wide)는 상세 화면 안 인라인으로 남는다. */
+/* 팝업에는 맵과 조작부만(요청) — 범례·지형 수정은 감춘다. */
+.scr-motion-wide .scr-motion-terrain-row { display: none; }
+/* 확대 모드 배치(요청: 댓글 영역과 균형을 맞춰 로스터와 버튼을 전부 왼쪽 기둥으로) —
+   [왼쪽 기둥: 1팀·2팀 로스터(위쪽부터) → 조작부] | [맵 최대 크기 + 아래 슬림 탐색바] |
+/* 맵은 조종부 줄(5행)까지 내려온다(지적: 재생 버튼이 너무 아래 — 미니맵 하단과 맞아야) —
+   1/5로 두면 조종부·탐색바가 맵 '아래' 줄에 서서 재생 버튼이 맵 바닥보다 낮았다.
+   1/6이면 조종부(5행, 바닥 정렬)의 밑변이 곧 맵 밑변이다. */
+/* 탐색바는 맵 바로 아래(재재지적) — 맵이 5행까지 차지하므로 6행이 곧 '맵 바로 아래'다.
+   보기 버튼 여섯은 왼쪽 기둥의 배속/재생 줄 '위'로: 4행(늘어나는 줄) 바닥에 버튼,
+   5행에 조종부, 6행엔 등록자와 탐색바가 나란히 선다. */
+/* 공유 줄은 제외(지적: PC에서 진행바와 장면공유 버튼 겹침) — 6행을 나눠 쓰지 않는다. */
+/* 보기 버튼은 왼쪽 기둥에서 종류별로 한 줄씩(요청) — 짝 버튼(2D/3D·팀색/개인색·작게/
+   크게)과 홑 버튼이 각자 제 줄에 선다. */
+.scr-motion-wide .scr-motion-viewrow {
+  /* 넓은 배치에서는 그리드가 아니라 지도 오른쪽 기둥(.scr-motion-side) 안에 산다 —
+     자리는 그 기둥이 정하고, 여기서는 세로 한 줄 배치만 물려준다. */
+  /* 세로 갭 여유(요청) — 6px → 14px. */
+  /* 묶음들을 기둥 가운데로(요청) — 세로 flex라 가로축은 align-items다. */
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  justify-content: flex-start;
+}
+/* 색상 줄도 같이 가운데로(요청: "scr-motion-colorrow 여기랑") — 이쪽은 가로 flex라
+   가로축이 justify-content다. 위 줄과 같은 뜻이 되는 속성이 서로 다르다. */
+/* 왼쪽 기둥 '둘'을 다 쓴다(지적: "컬러 토글이 전체 폭을 쓰게 해줘 반절만 쓰고 있어서..
+   그리드를 너무 잘게 나눈거같아") — 진단이 정확했다. 이 줄만 그리드 자리를 안 정해 둬서
+   자동 배치가 1행 1열(110px) 한 칸에 떨어뜨렸다. 왼쪽 기둥은 110+12+110=232px인데 그
+   절반만 쓰고 있었다(실측: 줄 110px·알약 100px). 로스터 위 범례(.scr-motion-legend-side)
+   ·보기 줄과 같이 1/3으로 걸치고, 행도 못 박아 이웃이 늘고 줄어도 안 떠돈다. */
+/* (삭제·요청: 색상도 일반 토글로 합치기) — 색상 줄이 왼쪽 기둥에 따로 앉던 자리. */
+/* (지도 좌우에 갈라 세운 로스터는 위 .scr-motion-side 기둥 안에 들어갔다.) */
+/* 한 팀 넷을 2열로 앉힌다(요청) — 세로 넷은 지표 줄이 붙으면서 기둥을 너무 길게
+   끌었다. 지표 줄은 이제 항목마다 한 줄이라(위 .scr-motion-stats) 폭과 무관하게 같은
+   높이를 쓴다. */
+.scr-motion-side .scr-motion-teamcol {
+  width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 6px; align-items: start;
+}
+
+/* 왼쪽 — 같은 팀은 세로로(지적), 두 팀 기둥이 나란히 서고 줄(행)이 서로 맞는다.
+   조작부는 로스터 바로 밑이 아니라 기둥의 아래쪽에 붙는다(요청) — 늘어나는 줄(1fr)을
+   차지하고 스스로 바닥 정렬한다. */
+.scr-motion-wide .scr-motion-teamcol { width: auto; }
+/* 왼쪽 기둥 차례 — 2행 로스터, 3행 범례(2열), 5행 조작부. 기둥 타임스탬프는 걷었다
+   (지적: PC에서 타임스탬프가 두 번 — 맵 이름 줄의 시각이 그대로 말하고, 등록자는 그
+   시각 오른쪽에 붙는다 .scr-story-when-by). */
+/* 로스터 덩어리 — 페이지 그리드에서는 한 칸(1열 2행)이고, 그 안에서 팀 둘이 나뉜다.
+   칸 폭 232px을 두 칸 110px + 간격 12px로 쪼개므로 로스터의 겉모습은 예전과 똑같다. */
+.scr-motion-wide .scr-motion-teamcol:first-of-type { grid-column: 1; grid-row: 1; }
+.scr-motion-wide .scr-motion-teamcol:last-of-type { grid-column: 2; grid-row: 1; }
+.scr-motion-legend-side {
+  grid-column: 1; grid-row: 3;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px 10px; justify-items: start; text-align: left;
+  /* 로스터↔범례, 범례↔아래를 가르는 구분선(요청) — 흰 계열 옅은 선. */
+  border-top: 1px solid rgba(var(--overlay-rgb), 0.14);
+  border-bottom: 1px solid rgba(var(--overlay-rgb), 0.14);
+  padding: 10px 0;
+  margin-top: 4px;
+}
+/* 조종부 두 줄(배속은 보기 줄로 — 재요청: 다른 라디오와 동등하게) — 재생(1.5배) / 시간,
+   각각 가운데 정렬. */
+/* PC도 같은 한 줄(요청: PC·모바일 공통) — 자리는 옛 탐색바처럼 맵 아래(3열)라
+   탐색바가 맵 폭을 그대로 쓴다. 속 배치는 기본(플렉스 한 줄) 그대로다. */
+/* (걷어냄) 조종부의 그리드 자리 — 이제 지도 기둥(.scr-motion-mapcol) 안이라
+   그리드 칸이 아니다. 여기 남겨 두면 자리 지정이 기둥 밖으로 다시 끌어낸다. */
+/* 케밥·닫기(요청: PC 기본이 확대인 만큼) — 모달 오른쪽 위 구석에 나란히 떠 있다. */
+/* (삭제·요청: PC 좌측 케밥 제거) — .scr-motion-menu-left. */
+/* (이동·지적) 지형 편집 버튼 — 따로 띄우니 자리가 애매하고 커 보였다. 조작부 배속 무리
+   끝의 작은 원형(산 아이콘)으로 들어갔다. */
+/* (삭제·요청: 확대창 제거) — 뒤 상세 창 가리개(.scr-motion-big-backdrop)도 함께 걷었다. */
+/* 오른쪽 댓글 영역(요청: PC에서 댓글부를 미니맵 우측으로 — 기존 확대창 방식, 이제 상세
+   인라인) — 경기 결과의 댓글 컴포넌트(.scr-comment-*)가 통째로 앉는다. 맵 높이를 넘으면
+   제 스크롤이다(그리드 한 칸을 stretch로 받아 overflow). */
+.scr-motion-sidewrap {
+  grid-column: 3; grid-row: 1 / 6; align-self: stretch; min-height: 0;
+  overflow-y: auto; padding: 2px 4px 2px 2px;
+}
+/* 확대 기둥의 댓글은 위 구분선이 필요 없다(요청) — 카드 인라인용 경계선(.scr-activity-notes
+   border-top)은 본문과 댓글을 가르는 선인데, 여기선 기둥 자체가 이미 제 영역이다. */
+.scr-motion-sidewrap .scr-activity-notes { border-top: none; margin-top: 0; padding-top: 0; }
+/* 넓은 배치에선 댓글이 오른쪽 기둥(sidewrap)에 선다 — 카드 아래의 원래 댓글부는 숨긴다
+   (지적: 댓글이 옆과 아래 모두 노출). 직계 자식만 겨눠야 기둥 안 댓글(같은 클래스를
+   제 몸에 겸함)은 안 걸린다. */
+.scr-activity-card:has(.scr-motion-wide) > .scr-activity-card-comment { display: none; }
+
+.scr-story-map { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+/* 모바일에서는 로스터가 없으니 본문 폭을 다 쓴다(요청: 크게). PC 가운데 열에서는 양쪽
+   로스터가 살아 있어야 하므로 상한을 둔다.
+   상한을 320px로 두던 것을 걷었다(지적: 미니맵 가운데 정렬이 안 맞고 오른쪽 패딩이 크다) —
+   본문이 320보다 넓은 화면에서 그림이 왼쪽에 붙고 오른쪽에만 여백이 남았다(실측: 카드
+   왼쪽 16px, 오른쪽 52px). 폭을 다 쓰면 카드 패딩만 남아 저절로 대칭이 된다. 상한이 걸리는
+   경우에도 가운데로 오도록 auto 마진을 함께 둔다. */
+.scr-story-map { width: 100%; max-width: 100%; margin-inline: auto; }/* PC 상한을 240 → 440으로 크게 올린다(요청: 미니맵 크기 훨씬 크게, 좌우 로스터는 많이
+   줄여도 됨) — 위 .scr-story-matchup-wide의 넓어진 폭이 이 상한을 뒷받침한다. */
+/* PC 상한 560px — 선택자를 .scr-story-mid 안쪽이 아니라 미니맵 자체로 바꾼다.
+   미니맵은 두 자리에 설 수 있는데(로스터 사이 = .scr-story-mid, 그리고 로스터 없이 홀로),
+   실제로 지도가 있는 경기는 홀로 서는 쪽이라 예전 규칙이 한 번도 안 걸렸다 — PC에서
+   본문 폭을 그대로 다 써서 760px까지 커져 있었다(실측). 어느 자리에 서든 걸리게 둔다.
+   (320 → 400 → 480 → 560px, 요청에 따라 키워 왔다) */
+@media (min-width: 1160px) { .scr-story-map { max-width: 560px; }
+}
+/* 게임 페이지는 상한을 아예 걷는다(재지적: 주소줄까지 보여 주며 "상세 맞잖아" — 맞았고,
+   진짜 범인은 이 760px 상한이었다: 플레이어의 부모(.scr-story-map)를 묶어 자리 폭
+   게이트(≥860px)가 영영 안 열렸다). 넓은 배치는 그리드가 폭을 스스로 나눠 쓰므로
+   상한이 더는 필요 없고, 좁은 창에서는 플레이어의 높이 기반 인라인 maxWidth가 여전히
+   맵 크기를 잡는다. */
+@media (min-width: 900px) { .scr-activity-group-page .scr-story-map { max-width: none; width: 100%; }
+}
+/* 상세 모달 안에서는 그 상한을 푼다(요청: "PC에서 더 크게, 미니맵 모달 세로를 늘리고
+   양옆 다 사용") — 모달 폭(820px)에서 좌우 틀만 남기고 지도가 다 가진다. 좌우 틀도
+   16 → 8px로 조인다. */
+@media (min-width: 1160px) {
+  .scr-activity-detail-modal .scr-story-map { max-width: none; }
+}
+
+
+/* 알약 둘(승패·BEST)의 높이는 이 줄이 한 값으로 쥔다 — 알약마다 제 값을 적으면 한쪽만
+   고칠 때 어긋나고, 실제로 그렇게 어긋나 있었다(지적). 글자가 커지는 PC에서는 이 값도
+   함께 커진다(아래 min-width 블록). */
+.scr-story-map-head {
+  /* 알약 높이도 글자와 함께 한 단 낮춘다(요청) — 22 → 20px. */
+  --scr-story-pill-h: 20px;
+  /* 밑선이 아니라 중심으로 맞춘다(지적: 두 배지 높이가 안 맞는다) — 밑선 정렬은 상자가
+     아니라 '첫 글자의 밑선'을 맞추는 것이라, 안에 든 글자 크기가 다른 두 알약(승패는
+     14px 한 덩이, BEST는 12px 태그 + 14px 이름)은 상자 위아래가 서로 어긋나 앉는다.
+     높이를 같게 못 박아도 이 정렬이 남아 있으면 그 어긋남은 그대로다. */
+  /* 두 줄이다(요청: 맵 이름·경기시간 / 승패·베스트) — 바깥은 줄을 쌓고, 줄 안에서
+     가운데 정렬과 배지 정렬(중심 맞춤)을 그대로 이어받는다. */
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  font-size: var(--fs-caption); line-height: 1.2;
+  /* 그림과의 사이를 벌린다(요청: 아래 여백 좀 더) — .scr-story-map의 gap 6px만으로는
+     배지 줄이 미니맵 윗변에 붙어, 배지가 그림에 얹힌 표지처럼 보였다. */
+  margin-bottom: 8px;
+}
+.scr-story-map-head-line {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center;
+  position: relative;
+}
+/* 경기 시각을 맵 이름 줄 왼쪽 끝에(요청: 머리 타임스탬프가 은근 자리를 차지 — 합치자) —
+   게임 페이지에서만 보인다. 목록·묶음 카드는 머리의 시각(.scr-activity-card-time)이
+   그대로 말하므로 두 번 나오지 않게 기본은 숨김. absolute라 맵 이름의 가운데 정렬을
+   안 민다. */
+.scr-story-when { display: none; }
+.scr-story-when-by { display: none; }
+/* 게임 타이틀 로우(재요청: 타임스탬프 왼쪽·작성자 오른쪽·맵/시간/승리 가운데) —
+   게임 페이지에서만. 케밥은 페이지 타이틀 줄(툴바 actions)로 갔다. */
+.scr-story-map-mid { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.scr-activity-group-page .scr-story-map-head { align-self: stretch; }
+/* 타이틀 줄은 지도 폭까지만이다(지적: "위에 타이틀 라인(타임스탬프 맵이름 작성자)은
+   댓글영역은 미포함이야") — 이 줄은 재생기 밖 형제라 여태 댓글 기둥까지 걸쳐 있었다.
+   그래서 맵 이름은 지도가 아니라 '지도+댓글'의 가운데에 섰고, 등록자는 댓글 기둥 위에
+   떠 있었다. 오른쪽에서 댓글 기둥 폭(232) + 칸 사이(12)만큼 물러서면 줄의 왼끝·가운데·
+   오른끝이 정확히 지도의 그것이 된다. 넓은 배치일 때만이다 — 그 판을 아는 것은 재생기
+   안의 .scr-motion-wide뿐이라 :has로 묻는다(같은 수법이 아래 댓글 숨김에도 쓰인다). */
+/* ★ 제목 줄은 **판에 정확히 겹친다**(지적: "타이틀 중앙정렬은 이 문제 같아") ─────────
+   여기 있던 `padding-right: 244px`는 가정이었다 — "오른쪽에 댓글 기둥 232 + 사이 12가
+   있으니 그만큼 물러서면 줄의 가운데가 지도의 가운데다." 판이 제 칸을 꽉 채울 때만
+   참인 가정이고, 이제 판은 제 폭(높이 예산이 정한다)으로 칸 안에서 **가운데** 선다.
+   그래서 가정과 실제가 갈리고 그 차의 절반만큼 제목이 밀렸다.
+   이제 재생기가 판의 왼끝(--scr-frame-l)과 폭(--scr-frame-w)을 재서 적어 준다. 값이
+   아직 없으면(재생기가 없는 경기) 종전처럼 줄 전체를 쓴다. */
+.scr-story-map:has(.scr-motion-wide) .scr-story-map-head {
+  width: var(--scr-frame-w, auto);
+  margin-left: var(--scr-frame-l, 0);
+  box-sizing: border-box;
+}
+/* ★ 가운데는 **격자로** 못 박는다(지적: "상세에서 타이틀 로우가 중앙정렬이 안 맞는 것
+   같으니 확인") — 맞는 지적이다. space-between은 남는 자리를 사이사이에 나눠 줄 뿐이라
+   **양옆 폭이 같을 때만** 가운데 것이 가운데에 온다. 여기 양옆은 시각("8월 10일 22:25")과
+   등록자(아바타 + 닉네임 + "등록")로 폭이 딴판이고, 그 차이의 절반만큼 맵 이름이 밀렸다.
+   1fr auto 1fr이면 양옆 칸이 **정의상 같은 폭**이라 가운데 칸이 줄의 한가운데다.
+   양옆은 제 칸 안에서 바깥쪽으로 붙고, 넘치면 줄임표로 마무리한다. */
+.scr-activity-group-page .scr-story-map-head-line {
+  align-self: stretch;
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+}
+.scr-activity-group-page .scr-story-when { justify-self: start; min-width: 0; }
+.scr-activity-group-page .scr-story-map-mid { justify-self: center; min-width: 0; }
+.scr-activity-group-page .scr-story-when-by {
+  justify-self: end; min-width: 0; overflow: hidden;
+}
+.scr-activity-group-page .scr-story-when {
+  display: inline-flex; align-items: center;
+  font-size: var(--fs-caption); color: var(--muted); font-variant-numeric: tabular-nums;
+  font-weight: 400; white-space: nowrap;
+}
+.scr-activity-group-page .scr-story-when-by {
+  display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+  font-size: var(--fs-caption); color: var(--dim); font-weight: 600;
+}/* 모바일 한 줄 머리(요청: 타임스탬프·맵이름·승패까지 한 줄에, 폰트 한 단씩 축소) —
+   게임 페이지·전체화면 상세에서만: 시각을 줄 안으로 들이고(카드 머리의 시각 줄은 걷는다)
+   전부 한 단씩 줄여 좁은 폭에 한 줄로 선다. 등록자는 모바일에선 아래 등록 줄이 말한다. */
+@media (max-width: 1159px) {
+  .scr-activity-group-page .scr-story-when,
+  .scr-activity-detail-full .scr-story-when {
+    display: inline-flex; align-items: center; position: static; transform: none;
+    font-size: var(--fs-micro); color: var(--muted); font-variant-numeric: tabular-nums;
+    font-weight: 400;
+  }
+  .scr-activity-group-page .scr-story-when-by { font-size: 10px; }
+  .scr-activity-group-page .scr-story-when-by .scr-avatar { width: 14px; height: 14px; }
+  .scr-activity-group-page .scr-story-map-head-line,
+  .scr-activity-detail-full .scr-story-map-head-line { flex-wrap: nowrap; }
+  .scr-activity-group-page .scr-story-map-name,
+  .scr-activity-detail-full .scr-story-map-name { font-size: var(--fs-micro); white-space: nowrap; }
+  .scr-activity-group-page .scr-story-map-dur,
+  .scr-activity-detail-full .scr-story-map-dur { font-size: 10px; }
+  .scr-activity-group-page .scr-story-win,
+  .scr-activity-detail-full .scr-story-win { font-size: 10px; height: 16px; padding: 0 5px; }
+  /* 게임 페이지의 모바일 맵도 뷰포트 폭(요청: 좌우 패딩 없이 최대한 넓게) — 전체화면
+     상세(.scr-activity-detail-full)와 같은 트릭. */
+  /* 거는 대상은 위와 같이 **프레임**이다(지도에 걸면 −16px 밀린다). */
+  .scr-activity-group-page .scr-motion-frame { width: 100vw; margin-left: calc(50% - 50vw); }
+}
+/* 미니맵이 커진 PC에서는 그 위 요소(맵 이름·시간, 승/무 배지)도 같이 키운다(요청: 미니맵
+   위 요소 알맞게 확대) — 작은 미니맵 시절 크기 그대로면 위아래 균형이 안 맞는다. */
+@media (min-width: 1160px) {
+  .scr-story-mid .scr-story-map-head { font-size: var(--fs-body); gap: 8px; --scr-story-pill-h: 22px; }
+}
+
+/* (이동) 미니맵 조작 안내 — 재생 버튼 아래로 내렸다(요청). 규칙은 .scr-story-hint에 있다. */
+/* 미니맵 그림이 아직 안 붙은 맵(요청) — 그림 자리에 안내 한 줄만 둔다. 큰 빈 상자를
+   그려 두지 않는 건, 그러면 "무언가 깨졌다"로 읽히기 때문이다. 채울 수 있는 사람에게
+   하는 말이라 눈에 띌 필요는 없고, 어디서 채우는지만 정확하면 된다. */
+.scr-story-map-missing {
+  text-align: center; color: var(--dim);
+  font-size: calc(var(--fs-caption) - 1px); line-height: 1.3; margin: 4px 0 2px;
+}
+/* 이름·시간 한 단 작게(요청: 맵 이름 텍스트 줄이기) — 배지 줄과 급을 맞춘다. */
+.scr-story-map-name { font-weight: 700; color: var(--text); font-size: var(--fs-caption); }
+.scr-story-map-dur { color: var(--muted); font-size: var(--fs-caption); }
+/* (제거·재요청) 벽 정렬 규칙 — 승리 배지가 맵 이름 좌우로 인라인 배치되며 필요 없어졌다. */
+/* 승패 — 로스터를 감춘 자리(모바일)에서 vs 양옆의 배지가 사라지므로 여기서 알린다.
+   색이 곧 이긴 편이다(미니맵 표시의 팀 색과 같은 값). */
+/* 승패 배지와 BEST 배지는 나란히 서므로 높이를 값으로 못 박는다(지적: 둘의 높이가 살짝
+   안 맞는다) — 안여백으로만 잡으면 한쪽은 테두리 1px이 더 붙고(BEST) 다른 쪽은 안에 든
+   종족 배지가 글자보다 커서, 같은 padding을 줘도 몇 px씩 어긋난다. 상자 높이를 같게 두고
+   속을 가운데로 세우면 안에 무엇이 들든 두 알약이 한 줄에 정확히 선다. */
+.scr-story-win {
+  display: inline-flex; align-items: center; box-sizing: border-box;
+  height: var(--scr-story-pill-h, 20px);
+  /* 한 단 작게(요청) — caption(14) → micro(12). 머리가 두 줄이 되면서 이 배지들이 제 줄을
+     통째로 갖게 됐고, 그 자리에서 예전 크기는 맵 이름보다 커 보였다. */
+  font-weight: 800; font-size: var(--fs-micro); line-height: 1;
+  padding: 0 6px; border-radius: 6px; color: #fff;
+}
+.scr-story-win-t1 { background: #2475cc; }
+.scr-story-win-t2 { background: #cf3f55; }
+.scr-story-win-draw { background: rgba(var(--overlay-rgb), 0.34); color: var(--text); }
+/* 갤러리 위 잘림 방지(지적) — 16-상자를 넘는 높은 모델(스파이어 등)이 위로 삐져도
+   보이게 svg 클리핑을 푼다. */
+.scr-model-stage .scr-motion-shape-svg { overflow: visible; }
+/* 뷰어 그림자 완화(지적: 검은 부분이 너무 강함) — 큰 무대에선 마커용 그림자를 뗀다. */
+.scr-model-stage .scr-motion-shape-svg { filter: none; }
+.scr-model-thumb .scr-motion-shape-svg { filter: none; }
+.scr-model-stage .scr-motion-shape-svg { width: 100%; height: 100%; }
+/* 시즈 착탄(요청) — 포성 뒤 살짝 딜레이를 두고 조준 방향 앞에서 터지는 작은 화구.
+   1.5초 전투 주기에 맞춘 무한 반복이라 프레임과 안 어긋난다. */
+.scr-motion-shellhit {
+  position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px;
+  border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(255, 214, 120, 0.95) 0%, rgba(255, 118, 60, 0.8) 45%, transparent 70%);
+  opacity: 0; transform: scale(0.3);
+  animation: scr-shellhit 1.5s ease-out infinite;
+}
+@keyframes scr-shellhit {
+  0%, 28% { opacity: 0; transform: scale(0.3); }
+  36% { opacity: 1; transform: scale(1); }
+  62% { opacity: 0; transform: scale(1.7); }
+  100% { opacity: 0; transform: scale(1.7); }
+}
+/* 죽음 효과(요청: 종족/타입별) — 쓰러지는 짧은 순간의 잔상: 테란 생체는 붉은 퍼프,
+   메카닉은 주황 스파크 화구, 프로토스는 파랗게 스러지는 빛, 저그는 보라 살점 튐. */
+/* 반으로 축소(요청: 소멸·폭파 효과가 너무 큼) — 12px → 6px. */
+/* 크기는 렌더가 인라인 width/height·margin으로 정한다(요청: "사망효과나 파괴효과는
+   크기에 비례해주고") — 여기 값은 그 값이 못 오는 경우의 바닥이다. 시간도 줄인다
+   (요청): 0.9 → 0.5s. 여운 창(0.55초)보다 짧아야 중간에 안 끊긴다. */
+.scr-motion-diefx {
+  position: absolute; left: 50%; top: 50%;
+  width: 6px; height: 6px; margin: -3px 0 0 -3px;
+  border-radius: 50%; pointer-events: none;
+  /* 0.5 → 0.32초(요청: "지속시간도 더 짧게 줄이기") — ReplayMotionPlayer의 사망
+     여운(0.34초)보다 살짝 짧아, 스팬이 걷히기 전에 불덩이가 다 꺼진다. */
+  animation: scr-diefx 0.32s ease-out forwards;
+}
+.scr-die-bio { background: radial-gradient(circle, rgba(230, 80, 60, 0.9) 0%, rgba(160, 40, 30, 0.5) 55%, transparent 75%); }
+.scr-die-mech { background: radial-gradient(circle, rgba(255, 220, 130, 0.95) 0%, rgba(255, 120, 50, 0.75) 45%, transparent 70%); }
+.scr-die-toss { background: radial-gradient(circle, rgba(210, 235, 255, 0.95) 0%, rgba(110, 170, 255, 0.6) 50%, transparent 75%); }
+/* 저그는 **핏빛**이다(지적: "저그 보라색이 아니라 빨간색으로 터짐 죽을때") — 크립과
+   껍질이 보라라 죽음까지 보라로 두었더니 '터진 것'이 아니라 '사라진 것'으로 읽혔다.
+   원작의 저그는 살점과 피가 튄다 — 가운데는 선홍, 가장자리는 검붉게. */
+.scr-die-zerg { background: radial-gradient(circle, rgba(235, 60, 55, 0.92) 0%, rgba(140, 20, 24, 0.6) 55%, transparent 75%); }
+@keyframes scr-diefx {
+  0% { opacity: 0.9; transform: scale(0.45); }
+  55% { opacity: 0.8; transform: scale(1.05); }
+  100% { opacity: 0; transform: scale(1.5); }
+}
+
+/* 공사 애니(요청) — 스프라이트 캐시라 모델 자체는 못 움직여 CSS 오버레이가 맡는다:
+   테란은 빨간 공사등 깜빡, 저그 고치는 심장 박동, 프로토스 소환구는 빛 글로우. */
+.scr-motion-buildfx {
+  position: absolute; pointer-events: none;
+  width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%;
+}
+/* 테란은 튀는 용접 불티(재재재지적: 위치는 상자 가운데, 라이트가 아니라 스파크) —
+   글로우 두른 불티 셋이 저마다 다른 방향으로 튀어 오르다 포물선으로 떨어진다. */
+/* 테란 용접 스파크(재지적: 노란 점 깜빡임이 전투 같다) — 발원점은 이제 투명한 축이고,
+   JSX가 뿌린 흰빛 막대(.scr-bfx-weld) 여덟이 둥글게 서서 저마다 다른 박자로 튄다.
+   막대 길이·각·지연은 인라인(건물 번호 해시)이 정한다. */
+/* margin도 끊는다(재재지적: 아직도 자리가 안 맞음) — 기반(.scr-motion-buildfx)의
+   18px 상자 가운데 맞춤용 margin -9px가 0×0 축에 그대로 남아, 불티 뭉치가 통째로
+   9px(작은 맵에선 두 타일 가까이) 왼쪽 위로 밀려 있었다. */
+.scr-bfx-terran { width: 0; height: 0; margin: 0; }
+.scr-bfx-weld {
+  /* 앵커는 상자 가운데(재지적: 위치가 안 맞음) — left/top 0은 18px 상자의 왼쪽 위
+     모서리라, 불티가 건물에서 9px(모바일선 3타일) 비껴 떠 있었다. */
+  /* 실선 플라즈마 스파크(요청: "불꽃은 실선처럼 얇은 플라즈마 스파크로 변경") —
+     흰 막대를 걷고, 아래는 사이언 위는 흰 심으로 타는 실 한 올. 굵기는 더 얇게
+     (0.3 → 0.2px), 빛무리는 사이언으로. */
+  position: absolute; left: 50%; top: 50%; width: 0.2px; border-radius: 0.4px;
+  background: linear-gradient(to top, rgba(90, 230, 255, 0), #6fe4ff 35%, #eafcff);
+  box-shadow: 0 0 2px rgba(111, 228, 255, 0.95), 0 0 5px rgba(111, 228, 255, 0.5);
+  transform-origin: 50% 0; opacity: 0;
+  animation: scr-weld 1.7s linear infinite;
+}
+@keyframes scr-weld {
+  /* 파팟 두 번, 그리고 침묵(재×4지적) — 전 불티가 같은 박자로 함께 튄다. */
+  0% { opacity: 0; }
+  4%, 10% { opacity: 1; }
+  13%, 17% { opacity: 0; }
+  20%, 27% { opacity: 1; }
+  31%, 100% { opacity: 0; }
+}
+/* 저그는 글로우 없음(재지적) — 고치 자체가 말한다. */
+.scr-bfx-zerg { display: none; }
+/* 프로토스는 또렷한 발광(재재지적: 거의 안 보였다) — 밝은 심 + 블룸 그림자로
+   빛나는 느낌을 살리되 크기는 아담하게. */
+.scr-bfx-toss {
+  width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(235, 248, 255, 0.75) 0%, rgba(150, 200, 255, 0.35) 45%, transparent 72%);
+  box-shadow: 0 0 6px 1px rgba(140, 190, 255, 0.35);
+  animation: scr-bfx-glow 2s ease-in-out infinite;
+}
+@keyframes scr-bfx-glow {
+  0%, 100% { opacity: 0.3; transform: scale(0.85); }
+  50% { opacity: 0.6; transform: scale(1.1); }
+}
+
+/* 건물 소멸(요청: 종족별) — 테란 주황 폭발+회색 연기, 저그 보라 살점 퍼짐, 프로토스
+   파란 빛 붕괴(안으로 스러짐). 무너진 순간 2초 한 번 재생. */
+/* 크기는 발자국 비례(재지적: 핵폭발급) — 인라인 %폭이 정하고, 정사각 비율과 가운데
+   앵커는 여기서. */
+/* 착지 충격파(요청: "내리면서 충격파 표현정도 더해주면 될듯") — 날아온 건물이 닿는
+   순간 발자국 둘레로 한 번 퍼지는 먼지 고리. 땅에 눕는 것이라 세로는 바닥 눌림(--sq)을
+   그대로 받는다. 건물 밑에 깔린다(z 999 < 건물 1000+) — 고리는 지면의 일이다. */
+/* 가로·세로는 렌더가 그 자리의 자리 사상(posFrac)으로 재 준다 — 눌림 상수로 흉내 내지
+   않으므로 뜬 건물 그림자와 같은 평면에 눕는다(요청). */
+.scr-motion-touchdown {
+  position: absolute; pointer-events: none;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 1px solid rgba(226, 214, 190, 0.75);
+  box-shadow: 0 0 6px rgba(226, 214, 190, 0.35);
+  /* 퍼지는 결도 베지어다(요청: "충격파 효과 ... 부드러운 베지어곡선") — ease-out은
+     크로뮴 기본 곡선이라 끝이 뭉툭하다. 앞이 빠르고 뒤가 길게 잦아드는 곡선을 못
+     박으면 '툭 나타났다 사라지는 원'이 아니라 '퍼져 나가는 파문'으로 읽힌다. */
+  /* 0.7 → 1.2초, 그리고 앞을 덜 채찍처럼(요청: "테란 건물 랜딩시 충격파 속도 느리게
+     (무게감)") — 앞선 곡선(0.16, 0.84…)은 첫 15%에 이미 다 퍼지는 '탁' 하는 파문이라
+     가벼운 것이 튄 것처럼 읽혔다. 무게는 **천천히 밀려 나가 오래 남는** 것이다:
+     시작을 완만하게 하고(첫 제어점 0.34) 끝을 길게 끈다. 시작 반지름도 0.3 → 0.5로
+     — 무거운 것은 점에서 터지지 않고 제 발자국만 한 넓이를 한꺼번에 민다.
+     ★ 길이는 ReplayMotionPlayer의 창(t − sec > 1.2)과 **같은 값**이어야 한다. */
+  animation: scr-touchdown 1.2s cubic-bezier(0.34, 0.5, 0.24, 1) forwards;
+}
+@keyframes scr-touchdown {
+  0% { opacity: 0; scale: 0.5; }
+  18% { opacity: 0.85; }
+  100% { opacity: 0; scale: 1; }
+}
+/* ── 다친 건물의 상처(요청) ─────────────────────────────────────────────────────
+   원작은 종족을 안 가리고 불꽃 한 벌만 얹는다(ReplayMotionPlayer의 woundLv 주석에
+   근거를 적어 뒀다). 여기서는 요청대로 종족별로 가른다 — 셋을 하나로 되돌리려면
+   .scr-wound-* 를 .scr-wound-terran 하나로 합치면 된다.
+   문턱(2/3·1/3)과 붙는 자리 수(1개 → 3개)는 원작 규칙 그대로다. */
+.scr-motion-wound {
+  position: absolute; left: 50%; top: 50%;
+  pointer-events: none; border-radius: 50%;
+}
+/* 테란 — 화재. 주황 불길이 일렁이고 그 위로 잿빛 연기가 오른다. */
+.scr-wound-terran {
+  background: radial-gradient(circle at 50% 62%,
+    rgba(255, 236, 150, 0.95) 0 18%, rgba(255, 150, 40, 0.8) 42%,
+    rgba(190, 60, 20, 0.45) 66%, transparent 78%);
+  animation: scr-wound-fire 0.62s ease-in-out infinite alternate;
+}
+.scr-wound-terran::after {
+  content: ""; position: absolute; left: 50%; bottom: 62%;
+  width: 62%; aspect-ratio: 1; border-radius: 50%;
+  background: radial-gradient(circle, rgba(120, 120, 118, 0.42) 0 45%, transparent 72%);
+  animation: scr-wound-smoke 2.1s ease-out infinite;
+}
+@keyframes scr-wound-fire {
+  0% { opacity: 0.72; scale: 0.88; }
+  100% { opacity: 1; scale: 1.08; }
+}
+@keyframes scr-wound-haze {
+  0% { opacity: 0.5; scale: 0.9; }
+  100% { opacity: 0.85; scale: 1.06; }
+}
+@keyframes scr-wound-smoke {
+  0% { opacity: 0; translate: -50% 0; scale: 0.5; }
+  25% { opacity: 0.55; }
+  100% { opacity: 0; translate: -50% -220%; scale: 1.5; }
+}
+/* 저그 — 피. **뿜어져 나온다**(확인: "저그 건물은? 피같은 액체가 뿜어져 나오는데") —
+   앞선 판은 배어 나와 방울져 흘러내리는 결이었는데, 저그 건물이 다치면 살아 있는 몸이
+   터지듯 체액이 솟구친다. 상처 자국은 그대로 두고 그 위로 줄기가 튀어 오르게 바꾼다:
+   앞이 빠르고(0→35%) 뒤는 포물선으로 떨어지며, 튀는 사이사이 자국이 함께 부푼다. */
+.scr-wound-zerg {
+  background: radial-gradient(circle at 50% 46%,
+    rgba(168, 44, 96, 0.92) 0 30%, rgba(96, 20, 58, 0.62) 58%, transparent 74%);
+  animation: scr-wound-burst 1.1s cubic-bezier(0.2, 0.7, 0.3, 1) infinite;
+}
+.scr-wound-zerg::after {
+  content: ""; position: absolute; left: 50%; top: 46%;
+  width: 30%; aspect-ratio: 1 / 1.8; border-radius: 50% 50% 45% 45%;
+  background: linear-gradient(to top, rgba(120, 22, 66, 0.2), rgba(186, 48, 104, 0.95));
+  box-shadow: 0 0 2px rgba(150, 30, 80, 0.6);
+  animation: scr-wound-spurt 1.1s cubic-bezier(0.12, 0.72, 0.4, 1) infinite;
+}
+@keyframes scr-wound-burst {
+  0% { opacity: 0.95; scale: 1.08; }
+  30% { opacity: 0.7; scale: 0.94; }
+  100% { opacity: 0.85; scale: 1; }
+}
+@keyframes scr-wound-spurt {
+  /* 솟았다 떨어지는 포물선 — 위로 뻗는 동안 늘어나고, 떨어지며 방울로 뭉쳐 흩어진다. */
+  0% { opacity: 0; translate: -50% 10%; scale: 0.4 0.4; }
+  12% { opacity: 1; }
+  38% { translate: -50% -120%; scale: 0.85 1.25; }
+  70% { opacity: 0.75; translate: -50% -70%; scale: 1 0.8; }
+  100% { opacity: 0; translate: -50% 60%; scale: 1.15 0.5; }
+}
+/* 프로토스 — **연기**다(확인: "다친건물은 프로토스는 연기 저그는 피 맞아") — 앞선 판은
+   사이언 방전을 주인공으로 두고 연기를 곁들였는데, 그 반대가 맞다. 방전은 걷고 피어
+   오르는 연기 한 벌만 남기되, 프로토스의 연기라 잿빛에 사이언 기가 살짝 돈다. */
+.scr-wound-toss {
+  background: radial-gradient(circle at 50% 68%,
+    rgba(196, 226, 236, 0.5) 0 22%, rgba(132, 158, 172, 0.34) 52%, transparent 72%);
+  animation: scr-wound-haze 1.9s ease-in-out infinite alternate;
+}
+.scr-wound-toss::after {
+  content: ""; position: absolute; left: 50%; bottom: 58%;
+  width: 68%; aspect-ratio: 1; border-radius: 50%;
+  background: radial-gradient(circle, rgba(168, 194, 206, 0.42) 0 45%, transparent 72%);
+  animation: scr-wound-smoke 2.4s ease-out infinite;
+}
+.scr-motion-collapse {
+  position: absolute; width: 34px; aspect-ratio: 1; height: auto;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.scr-clp-core, .scr-clp-smoke { position: absolute; inset: 0; border-radius: 50%; }
+.scr-clp-terran .scr-clp-core { background: radial-gradient(circle, rgba(255, 224, 140, 0.95) 0%, rgba(255, 120, 50, 0.85) 40%, transparent 70%); animation: scr-clp-burst 1s ease-out forwards; }
+.scr-clp-terran .scr-clp-smoke { background: radial-gradient(circle, rgba(120, 120, 125, 0.55) 0%, rgba(80, 80, 85, 0.35) 55%, transparent 75%); animation: scr-clp-smoke 1s ease-out forwards; }
+.scr-clp-zerg .scr-clp-core { background: radial-gradient(circle, rgba(190, 110, 180, 0.9) 0%, rgba(120, 60, 120, 0.6) 50%, transparent 72%); animation: scr-clp-burst 1s ease-out forwards; }
+.scr-clp-zerg .scr-clp-smoke { background: radial-gradient(circle, rgba(140, 80, 60, 0.5) 0%, rgba(90, 50, 45, 0.3) 55%, transparent 75%); animation: scr-clp-smoke 1s ease-out forwards; }
+/* 프로토스는 멋진 에너지 폭발(재지적: 스러짐이 아니라) — 하얀 섬광 화구가 크게
+   터지고, 푸른 에너지 링이 바깥으로 퍼져 나간다. */
+.scr-clp-toss .scr-clp-core { background: radial-gradient(circle, rgba(255, 255, 255, 0.98) 0%, rgba(170, 215, 255, 0.9) 35%, rgba(110, 170, 255, 0.6) 55%, transparent 74%); animation: scr-clp-burst 1s ease-out forwards; }
+.scr-clp-toss .scr-clp-smoke {
+  background: transparent;
+  border: 2px solid rgba(150, 200, 255, 0.85);
+  box-shadow: 0 0 10px rgba(120, 180, 255, 0.7), inset 0 0 8px rgba(160, 210, 255, 0.5);
+  animation: scr-clp-ring 1s ease-out forwards;
+}
+@keyframes scr-clp-ring {
+  0% { opacity: 0; transform: scale(0.2); }
+  16% { opacity: 1; transform: scale(0.7); }
+  60% { opacity: 0.7; transform: scale(1.9); }
+  100% { opacity: 0; transform: scale(2.5); }
+}
+@keyframes scr-clp-burst {
+  0% { opacity: 0.2; transform: scale(0.3); }
+  18% { opacity: 1; transform: scale(1); }
+  60% { opacity: 0.5; transform: scale(1.5); }
+  100% { opacity: 0; transform: scale(1.9); }
+}
+@keyframes scr-clp-smoke {
+  0% { opacity: 0; transform: scale(0.6); }
+  30% { opacity: 0.8; transform: scale(1.1) translateY(-4px); }
+  100% { opacity: 0; transform: scale(1.6) translateY(-14px); }
+}
+/* 마인 폭발(요청) — 한 번 터지고 끝나는 화구 파문. */
+.scr-motion-mineboom {
+  position: absolute; width: 26px; height: 26px; margin: -13px 0 0 -13px;
+  border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(255, 228, 150, 0.95) 0%, rgba(255, 110, 50, 0.85) 40%, rgba(120, 60, 30, 0.4) 60%, transparent 72%);
+  animation: scr-mineboom 1.2s ease-out forwards;
+}
+@keyframes scr-mineboom {
+  0% { opacity: 0.2; transform: scale(0.2); }
+  25% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(2); }
+}
+/* svg가 세로 가운데 정렬 transform을 받으면 그리기·명중 판정이 배치 요소 무리로
+   올라와 닫기 단추를 가로챈다(수리: 팝업 안 닫힘) — 층을 명시해 단추를 위로. */
+.scr-model-zoom-box .scr-motion-shape-svg { width: 100%; height: 100%; filter: none; z-index: 0; }
+.scr-model-thumb .scr-motion-shape-svg { width: 100%; height: 100%; }
+
+/* (제거·요청) 좌우 동시 보기(비교) — v1이 사라져 비교 대상이 없다. */
+
+/* ── 클릭 자국(요청: 동그라미 안에 점, 납작하게 + 토글) — 브루드워 이동 클릭 표시처럼
+   납작한(가로:세로 2:1) 고리가 살짝 오므라들며 사라지고, 가운데 점은 그대로 있다.
+   색은 찍은 사람 색(currentColor). 표시 창(0.9초)은 재생 쪽이 자른다. ── */
+/* UI 요소라 확대에 안 굵어진다(지적) — 렌즈 줌의 역배율로 제 화면 크기를 지킨다.
+   특이도 수리(재지적: 아직도 두껍고 중심이 어긋남) — 공용 스팬 규칙(.scr-motion-lens >
+   span, 0-1-1)이 이 클래스(0-1-0)의 transform을 이겨 역배율이 아예 안 먹고 있었다.
+   같은 조합 선택자로 확실히 이긴다. 0×0 상자라 원점이 곧 클릭 지점이다. */
+.scr-motion-clickfx { position: absolute; width: 0; height: 0; pointer-events: none; }
+/* 핑도 같은 함정을 지난다 — 그쪽 규칙은 핑 블록에 제 자리로 있다(아래 --mz 되돌림). */
+.scr-motion-lens > .scr-motion-clickfx,
+.scr-motion-map > .scr-motion-clickfx {
+  transform: scale(calc(1 / var(--mz, 1)));
+}
+/* 게임 비율(재재지적: 반으로) — 재생 쪽이 타일 폭(--ckw)을 넘겨 준다(이제 0.55타일).
+   못 받으면 9px 폴백. */
+.scr-motion-clickfx::before {
+  content: ""; position: absolute; left: 50%; top: 50%;
+  /* 전역 리셋(* { box-sizing })은 가상요소를 안 덮는다 — content-box로 그려져 테두리
+     두께만큼 고리 중심이 오른쪽·아래로 밀렸다(지적: 중심점 위치 안 맞음). */
+  box-sizing: border-box;
+  width: var(--ckw, 9px); height: calc(var(--ckw, 9px) / 2);
+  margin: calc(var(--ckw, 9px) / -4) 0 0 calc(var(--ckw, 9px) / -2);
+  /* 실처럼 가늘게(재지적: 색으로 구분되니 선은 실 굵기) — 0.5~0.7px 고정 헤어라인.
+     0.6 → 0.4 → 0.28px(요청: 마우스 마커·선택 링 모두 더 가늘게) — 선택 링과 늘 같은 결.
+     이보다 얇으면 기기에 따라 선이 통째로 사라진다(서브픽셀 반올림). */
+  border: 0.28px solid currentColor; border-radius: 50%;
+  background: transparent;
+  animation: scr-clickfx 0.9s ease-out forwards;
+}
+.scr-motion-clickfx::after {
+  content: ""; position: absolute; left: 50%; top: 50%;
+  /* 점 축소 + 납작(재재지적: 점이 너무 커 고리가 면으로 보였다) — 테두리 타원과 같은
+     2:1 비율로 눌린 작은 점. */
+  /* 점도 한 단 작게(요청: 굵기 감소) — 0.24 → 0.18. */
+  width: calc(var(--ckw, 9px) * 0.18); height: calc(var(--ckw, 9px) * 0.09);
+  margin: calc(var(--ckw, 9px) * -0.045) 0 0 calc(var(--ckw, 9px) * -0.09);
+  border-radius: 50%; background: currentColor;
+  animation: scr-clickdot 0.9s ease-out forwards;
+}
+@keyframes scr-clickfx {
+  0% { transform: scale(1.15); opacity: 0.95; }
+  70% { transform: scale(0.75); opacity: 0.8; }
+  100% { transform: scale(0.6); opacity: 0; }
+}
+@keyframes scr-clickdot {
+  0% { opacity: 1; }
+  80% { opacity: 0.9; }
+  100% { opacity: 0; }
+}
+
+/* v2 전투 효과 축소(지적: 트레이서 너무 크고 두꺼워) — 개체 하나하나에 달리므로 부대
+   마커 시절 크기의 6할로 줄인다. */
+/* v2 축소는 **기본(총구) 트레이서에만** 건다(요청: 무기별 세분화) — 여태 이 한 줄이
+   특이도로 무기별 클래스를 전부 이겨서, 미사일이든 화염이든 화면에서는 0.5×3px 실오라기
+   하나였다. 그래서 슬래시·가시만 예외 규칙을 따로 달아 두는 땜질이 있었다(이제 필요 없다).
+   무기 클래스가 붙은 트레이서는 제 크기로 그린다. */
+/* 전체 반으로(요청: "트레이서, 피해효과 전체 반으로 줄이기 크기를") — 0.5×3 → 0.25×1.5.
+   무기별 클래스 값들도 같은 몫으로 함께 줄였다(위 규칙들). */
+.scr-v2fx .scr-motion-tracer:not([class*="scr-tracer-"]) { width: 0.25px; height: 1.5px; }
+/* 반으로(지적: 피격·치료 효과 등이 너무 크다) — 0.7 → 0.35. */
+/* 반으로(요청) — 0.35 → 0.175. */
+.scr-v2fx .scr-motion-puff { transform: scale(0.175); }
+/* 피격 불꽃(지적: 공격받는 쪽에도 효과) — 표적이 된 개체 위에서 튀는 주황 불티.
+   퍼프보다 작고 붉게, 위로 살짝 튄다. */
+/* 반으로(지적: 피격 효과 너무 크다) — 0.5 → 0.25. */
+.scr-v2fx .scr-puff-hit {
+  /* 반으로(요청) — 0.25 → 0.125. */
+  transform: translate(-50%, -70%) scale(0.125);
+  background: radial-gradient(circle, rgba(255, 170, 90, 0.95) 0%, rgba(255, 90, 40, 0.5) 45%, transparent 70%);
+  animation-duration: 0.7s;
+}
+/* 피격 불티는 **움직이지 않는다**(지적: "현재로서는 절대 움직임 없게 잠깐 표시") —
+   부풀며 퍼지던 scr-puff(scale 0.3 → 1.6) 대신 제자리에서 밝았다 꺼지는 번쩍임이다.
+   자리는 렌더가 인라인 transform으로 '맞는 방향'(쏜 쪽 테두리)에 놓고, 크기도 인라인
+   width/height가 정한다 — 그래서 여기서는 애니만 갈아 끼운다. */
+@keyframes scr-hitflash {
+  0% { opacity: 0; }
+  12%, 55% { opacity: 1; }
+  100% { opacity: 0; }
+}
+/* 창이 0.15초로 줄었으니 애니도 그 안에 끝나야 한다(요청: 시간 축소) — 0.28 → 0.14s.
+   길면 렌더가 스팬을 걷을 때 화면 중간에서 툭 끊긴다. */
+.scr-v2fx .scr-puff-hit { animation: scr-hitflash 0.14s linear; }
+/* 수리 불티(지적: 일꾼 수리 파싱) — SCV가 표적 곁에서 일할 때 튀는 푸른 용접빛. 반으로. */
+.scr-v2fx .scr-puff-weld {
+  /* 반으로(요청) — 0.22 → 0.11. */
+  transform: translate(-50%, -60%) scale(0.11);
+  background: radial-gradient(circle, rgba(190, 230, 255, 0.95) 0%, rgba(90, 160, 255, 0.5) 45%, transparent 70%);
+  animation-duration: 0.6s;
+}
+/* 매딕 힐(지적: 아군 유닛까지 치료) — 유닛 위로 떠오르며 사라지는 흰 십자. 반으로(7→4px).
+   십자는 두 막대(::before/::after)가 아니라 한 요소의 clip-path다(지적: + 두 막대의
+   중심이 안 맞음 — 반픽셀 렌더링이 막대마다 다르게 굴러 어긋났다. 한 조각이면 어긋날
+   상대가 없다). */
+/* 1/10 크기 + 연녹색(요청) — 아주 작은 연둣빛 십자. */
+.scr-motion-healfx {
+  position: absolute; left: 50%; top: 50%; width: 1px; height: 1px;
+  transform: translate(-50%, -50%); pointer-events: none;
+  animation: scr-healfx 1.1s ease-out forwards;
+}
+/* 치유는 **연한 노란빛**이다(요청: "메딕 치료효과는 연한 노란빛으로") — 연둣빛 십자는
+   저그의 산성 갈래(scr-fxa-spine·acid)와 같은 색띠라, 난전에서 치료와 독이 헷갈렸다.
+   노랑은 이 화면에서 치유만 쓰는 색이고, 아래 트레이서(scr-tracer-heal)와도 한 색이다. */
+.scr-motion-healfx::before {
+  content: ""; position: absolute; inset: 0;
+  background: rgba(252, 244, 186, 0.95);
+  clip-path: polygon(34% 0, 66% 0, 66% 34%, 100% 34%, 100% 66%, 66% 66%, 66% 100%, 34% 100%, 34% 66%, 0 66%, 0 34%, 34% 34%);
+  filter: drop-shadow(0 0 1px rgba(255, 240, 160, 0.9));
+}
+@keyframes scr-healfx {
+  0% { opacity: 0; translate: 0 2px; }
+  25% { opacity: 1; }
+  100% { opacity: 0; translate: 0 -5px; }
+}
+
+/* ── 미니맵 핑(요청: 클릭도 기록 — v2 트랙) — 찍은 사람 색(currentColor)의 반투명
+   **조준선 십자**가 한 점으로 오므라들며 스러진다. 표시 창(3초)은 재생 쪽이 자르고
+   여기는 반복만 한다. ── */
+/* ★ 고리가 아니라 **십자**다(지적: "인게임 핑하고 모양이 너무 다른듯 인게임에선
+   두꺼운 십자 아니야?") ─────────────────────────────────────────────────────────
+   맞다. 여태 이 자리는 가는 원 하나가 퍼지는 물결이었는데, 그 꼴은 이 화면에서 이미
+   두 가지가 쓰고 있다 — 클릭 자국(납작한 고리)과 EMP(퍼지는 파란 고리). 셋이 같은
+   말투라 핑만 알아볼 표식이 없었고, 실제로 "이게 뭘까"로 돌아왔다. 십자는 둥근 것
+   천지에 유일한 각진 표식이고, 무엇보다 경기를 아는 사람이 설명 없이 안다. */
+/* ★ 그 십자는 **더하기표가 아니라 조준선**이다 — 가운데가 뚫린다(요청: "반투명하게 ·
+   테두리 제거 · 두께 반으로 · 진짜 십자가가 아니라 조준선 십자가(가운데가 뚫림) ·
+   축소 엄청 많이 하면서 페이드 아웃") ─────────────────────────────────────────────
+   가운데가 막힌 더하기표는 **면**이라 그 아래의 지형·유닛을 가린다. 핑이 가리키는
+   것은 바로 그 한 점인데, 정작 그 점을 제가 덮고 있었다. 뚫으면 가리키는 자리가
+   비어 눈이 저절로 거기로 간다 — 조준선이 조준선인 까닭이다.
+   ★ 만드는 법이 바뀐다 — 팔 넷이 **떨어져** 있어 clip-path 한 장으로는 못 오린다
+     (polygon은 이어진 도형 하나다). 대신 상자 하나에 단색 그러데이션 넷을 깔고
+     크기·자리로 각 팔을 앉힌다: DOM은 여전히 가상요소 하나이고, 팔끼리 겹치는 데가
+     없어 반투명에서도 가운데가 진해지지 않는다(더하기표 시절 두 막대를 겹쳤을 때의
+     그 문제다).
+   ★ 테를 걷었다(요청) — 그림자 사슬 넷이 사라지니 '어미가 필터를 진다'는 사정도,
+     그것 때문에 깜빡임을 어미로 올려 두었던 사정도 함께 없어졌다. 짓 하나(scale +
+     opacity)를 오려 낸 판이 통째로 진다.
+   ★ 스러지는 짓 — 제 크기에서 시작해 **한 점에 가깝게** 줄며 사라진다(0.12배까지).
+     앞판은 1.6 → 1로 살짝 앉았다 멈춰 서 있었는데, 그러면 핑이 3초 동안 지도 위에
+     **머무는 표지**가 된다. 핑은 머무는 것이 아니라 한 번 짚고 마는 신호다. */
+/* (걷어냄) .scr-ic-dot — 캐리어 둘레를 돌던 인터셉터 점이다. 인터셉터가 참값 자취에
+   제 태그·제 길로 들어 있어 이제 제 모델로 직접 그려진다(ReplayMotionPlayer의
+   SHAPE_BUILDERS.interceptor 주석). */
+.scr-motion-pingfx { position: absolute; width: 0; height: 0; pointer-events: none; }
+/* ★ 핑도 **UI 요소**다 — 확대에 안 커진다(지적: "럴커 주변에 갈색 동심원 뭐지") ────────
+   이 고리는 크기를 30px로 못 박아 두었는데, 렌즈 **안**에 살면서 역배율이 없었다. 곧
+   화면에 나오는 지름이 `30 × 배율`이라 8배에서는 246px, 16배면 480px짜리 고리가 된다 —
+   사람이 알아볼 수 있는 표시가 아니라 화면을 가로지르는 정체불명의 띠가 된다.
+   바로 위 클릭 자국은 같은 함정을 이미 지나 역배율을 달고 있었는데(그 주석), 같은 결의
+   이 형제만 빠져 있었다. **같은 조합 선택자**를 쓴다 — 공용 스팬 규칙(.scr-motion-lens >
+   span, 0-1-1)이 단일 클래스(0-1-0)의 transform을 이기므로, 클래스만으로 적으면 아예
+   안 먹는다(클릭 자국이 그 자리에서 한 번 데였다).
+   ⚠ 안쪽 그림(::before)의 애니메이션도 transform을 쓰므로, 역배율은 **바깥 스팬**에
+     걸어야 한다 — 안쪽에 걸면 오므라드는 애니메이션이 덮어 쓴다.
+   ※ 이 글이 말하는 '고리'는 그 뒤 조준선 십자로 바뀌었다(위 블록) — 확대에 같이
+     커지던 사정과 고치는 자리는 꼴과 무관하게 그대로다. */
+.scr-motion-lens > .scr-motion-pingfx,
+.scr-motion-map > .scr-motion-pingfx {
+  transform: scale(calc(1 / var(--mz, 1)));
+}
+.scr-motion-pingfx::before {
+  content: ""; position: absolute; left: 50%; top: 50%;
+  width: 104px; height: 104px; margin: -52px 0 0 -52px;
+  /* 팔 넷 — 위·아래·왼·오른. 단색 그러데이션은 '네모 한 장'을 그리는 가장 싼 길이다. */
+  background-image:
+    linear-gradient(currentColor, currentColor),
+    linear-gradient(currentColor, currentColor),
+    linear-gradient(currentColor, currentColor),
+    linear-gradient(currentColor, currentColor);
+  background-repeat: no-repeat;
+  /* 굵기 20%(요청: 40% → 반으로) · 팔 길이 32% = 반지름 50% − 가운데 구멍 18%. */
+  background-size: 20% 32%, 20% 32%, 32% 20%, 32% 20%;
+  background-position: 50% 0, 50% 100%, 0 50%, 100% 50%;
+  animation: scr-pingfx 1s ease-out infinite;
+}
+@keyframes scr-pingfx {
+  /* 반투명 — 마루가 0.6이다(요청). 지도를 덮는 표시가 아니라 그 위에 얹히는 신호다. */
+  0% { transform: scale(1.15); opacity: 0; }
+  10% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(0.12); opacity: 0; }
+}
+
+/* ── 핵 연출(정정) — 표적 점 → 낙하 탄두 → 착탄 폭발. 크기는 인라인 width(지름 8타일)가
+   정하고 속은 %로 그린다(지적: 너무 크고 진했다 — 실제 피해 반경 + 살짝 투명). */
+.scr-motion-nukefx {
+  pointer-events: none; z-index: 30000; position: absolute;
+  transform: translate(-50%, -50%); aspect-ratio: 1;
+  display: flex; align-items: center; justify-content: center;
+}
+/* 표적 점 — 착탄 전 깜빡이는 표시등(요청: "핵 조준점 더 빨간색으로 하고 크기 축소하되
+   점이 점멸효과 줘서 잘 보이게") ────────────────────────────────────────────────────
+   주황(255,150,70)은 지도의 흙·크립과 색이 겹쳐 '조준중'이라는 경고로 안 읽혔다. 순수한
+   빨강으로 바꾸고 크기는 6 → 4px으로 줄이되, **꺼졌다 켜지는 점멸**을 준다 — 작아진
+   만큼 눈에 띄는 몫은 밝기 변화가 진다(가만히 켜져 있는 작은 점은 안 보인다).
+   0.55초 주기로 거의 꺼졌다(0.15) 완전히 켜지고(1), 켜질 때 붉은 후광이 함께 부푼다. */
+/* 가로·세로 각각 1/4(요청: "핵 조준점 1/4로 크기 축소") — 점 4 → 1px, 후광도 같은
+   몫으로(7/3 → 2/0.8px). 다시 **반으로**(요청: "조준점 크기도 반으로") — 1 → 0.5px,
+   후광도 같은 몫으로(2/0.8 → 1/0.4px). 탄두를 반으로 줄인 것과 같은 결이다: 이 점은
+   '저기에 떨어진다'만 말하면 되고, 그 몫은 크기가 아니라 **점멸**이 진다 — 거의
+   꺼졌다(0.12) 완전히 켜지는 진폭을 그대로 두므로 작아도 눈에 걸린다.
+   ※ 렌즈 안의 px이라 확대하면 함께 커진다(1배에서 반 픽셀이라 흐린 점으로 보이는
+     것이 맞다 — 원작의 조준점도 그만하다). */
+.scr-motion-nuke-dot {
+  position: absolute; left: 50%; top: 50%; width: 0.5px; height: 0.5px; border-radius: 50%;
+  transform: translate(-50%, -50%); background: #ff1a1a;
+  animation: scr-nuke-dot 0.55s ease-in-out infinite alternate;
+}
+@keyframes scr-nuke-dot {
+  from { opacity: 0.12; box-shadow: 0 0 0.5px 0.15px rgba(255, 26, 26, 0.25); }
+  to { opacity: 1; box-shadow: 0 0 1px 0.4px rgba(255, 26, 26, 0.85); }
+}
+/* 핵탄두 꼬리 연기(요청: "꼬리쪽에 연기 효과 추가 가능?") — 꽁무니에서 위로 끌리는
+   한 줄기. 아래가 짙고 위로 갈수록 흩어진다. 좌우로 아주 조금 흔들려 '끌린다'가 된다.
+   자리·크기는 그리는 쪽이 px으로 준다(배율을 손수 곱한 값이라 시트에는 폴백만 둔다). */
+.scr-motion-nuke-smoke {
+  position: absolute; left: 50%; pointer-events: none;
+  width: 6px; height: 24px;
+  transform: translateX(-50%);
+  background: linear-gradient(to top,
+    rgba(214,220,228, 0.42) 0%,
+    rgba(196,204,214, 0.26) 32%,
+    rgba(176,186,198, 0.10) 64%,
+    rgba(176,186,198, 0) 100%);
+  border-radius: 50% / 26%;
+  filter: blur(1px);
+  animation: scr-nuke-smoke 0.85s ease-in-out infinite alternate;
+}
+@keyframes scr-nuke-smoke {
+  from { transform: translateX(-53%) scaleX(0.9); }
+  to { transform: translateX(-47%) scaleX(1.08); }
+}
+.scr-motion-nuke-fall {
+  /* 낙하 탄두도 캔버스 문(FxModel)을 지나므로 안의 absolute가 앉을 자리가 필요하다. */
+  position: relative;
+  /* 26 → 18 → **9px**(요청: "탄두 크기 반으로 줄이기") — 이 값은 JS의 NUKE_HEAD_PX와
+     **같아야 한다**(코를 조준점에 맞추는 셈이 그 값의 0.275배를 쓴다).
+     폭발 상자와는 따로 논다: 상자는 판정 반경(10타일)이 정하고, 탄두는 '하늘에서
+     떨어지는 작은 물체'로 보이는 크기가 정한다. */
+  display: inline-flex; width: 9px; height: 9px;
+  /* (걷어냄) rotate(180deg) — 모델을 화면에서 뒤집어 '탄두가 아래'로 만들던 자리다.
+     이제 모델 자체가 코를 아래로 두고 선다(지적: "핵탄두 모델 떨어지는형태라 아래가
+     코여야해") — 이 판이 쓰이는 자리는 떨어지는 순간 하나뿐이라 그것이 제 모습이고,
+     '어느 쪽이 앞인가'가 스타일시트가 아니라 모델에 적혀 있어야 한다. */
+  animation: scr-nuke-fall 2s linear forwards;
+}
+.scr-motion-nuke-fall .scr-motion-shape-svg { width: 100%; height: 100%; }
+@keyframes scr-nuke-fall {
+  from { translate: 0 -140px; opacity: 0.4; }
+  to { translate: 0 0; opacity: 1; }
+}
+/* 백열 섬광 — 한순간 화면을 때리는 흰 빛(광원: screen 블렌드). 반투명·피해 반경 크기. */
+.scr-motion-nuke-flash {
+  position: absolute; left: 50%; top: 50%; width: 100%; height: 100%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(255,255,255,0.6) 0%, rgba(255,240,200,0.35) 30%, transparent 70%);
+  mix-blend-mode: screen;
+  animation: scr-nuke-flash 0.9s ease-out forwards;
+}
+/* ★ 이 무리의 애니메이션은 **transform 한 줄로만** 쓴다(지적: "핵 버섯구름 효과가 왜
+   왼쪽으로 치우쳐서 올라가지") ────────────────────────────────────────────────────
+   진범은 CSS의 합성 차례다: 개별 속성 `translate`·`rotate`·`scale`이 먼저 곱해지고
+   **`transform`이 맨 뒤**에 곱해진다. 이 조각들은 가운데 맞춤을 `transform:
+   translate(-50%, …)`로 하고 있었는데, 그 −50%가 앞선 `scale`에 **함께 곱해진다**.
+     scale 0.3일 때 −50% → 실제로는 −15%
+     scale 1.6일 때 −50% → 실제로는 −80%
+   곧 커질수록 왼쪽으로(그리고 위로) 밀려간다 — 자라며 비스듬히 흘러가는 그 그림이다.
+   모델 잉크는 정상이다(실측: nukedome의 잉크 가운데가 뷰박스 한가운데 8.00).
+   고치는 법은 **섞지 않는 것**이다: 가운데 맞춤과 크기를 한 transform 목록에 차례로
+   적으면(translate → scale) 퍼센트가 먼저 풀리고 그다음에 확대돼 자리가 안 흔들린다.
+   ※ 키프레임이 transform을 쓰면 바탕 규칙의 transform을 통째로 덮으므로, 키프레임마다
+     가운데 맞춤을 함께 적어야 한다. */
+@keyframes scr-nuke-flash {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.2); }
+  12% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.35); }
+}
+/* ★ 핵 폭발의 몸은 **모델**이다(요청) — 여기 남는 것은 감싸개 둘뿐이다: 퍼지는 충격파와
+   솟는 버섯구름. 모델은 한 자세만 굽고, 자라고 오르는 몫은 이 규칙들이 진다.
+   (걷어냄) .scr-motion-nuke-scorch / -stem / -domewrap / -ring / -blast — 그을음 원,
+   clip-path 삼각형 기둥, 돔 감싸개, 테두리 원 둘. 모두 **정면 붙박이** 도형이라 지도를
+   돌리거나 눕혀도 저 혼자 정면을 봤다. 그을음·기둥·화구·고리는 이제 모델 안에 있다.
+   ※ 자리·비율은 눈대중이 아니라 **잉크 상자를 재서** 잡았다(하네스 실측) — 두 모델의
+     땅 중심(project(0,0,0) = 상자의 8, 12.6)이 잉크 창의 어디에 오는지로 −translate를
+     정한다. 그래야 폭심이 조준점에 정확히 앉는다.
+       nukeblast : 창 16.08×7.40, 땅 중심 (50.0%, 50.3%) → 비율 2.173
+       nukecloud : 창 17.14×16.92, 땅 중심 (50.0%, 77.9%) → 비율 1.013
+     ★ 이 무리도 위 섬광과 같은 규약이다 — 가운데 맞춤과 크기를 **한 transform 목록**에
+       차례로 적는다(개별 translate 속성과 섞으면 퍼센트가 scale에 곱해져 흘러간다). */
+.scr-motion-nuke-wave {
+  position: absolute; left: 50%; top: 50%; width: 100%; aspect-ratio: 2.173;
+  transform: translate(-50%, -50.3%);
+  transform-origin: 50% 50.3%;
+  mix-blend-mode: screen; pointer-events: none;
+  animation: scr-nuke-wave 2.6s ease-out forwards;
+}
+/* ★ **밝을 때 이미 크다**(지적: "크기가 너무 작음 — 실제 터지는 영역까지 확대되게
+   크게") ────────────────────────────────────────────────────────────────────────
+   앞판은 10%에서 0.55배로 밝았다가 끝(투명해지는 자리)에서야 1.05배가 됐다. 그러니
+   **눈에 보이는 동안의 크기는 0.55배**, 곧 6타일 상자에서 3.3타일뿐이었다 — 실제
+   피해 범위의 절반이다. 사람이 보는 것은 '가장 밝을 때의 크기'지 '가장 클 때'가 아니다.
+   이제 12%에 이미 0.95배로 켜지고, 스러지는 동안 1.25배까지 조금 더 밀려 나간다.
+   ※ 여기서 1.0배 = 상자 폭 = **10타일**이다(재지적: "터지는 건물까지 안 퍼진다") —
+     이 재생기가 건물을 걷어내는 반경이 5타일이라, 그림도 같은 수여야 불 밖에서 건물이
+     무너지는 일이 없다. 그 셈은 JSX의 width: pct(10, …) 주석에 있다. */
+@keyframes scr-nuke-wave {
+  0% { opacity: 0; transform: translate(-50%, -50.3%) scale(0.25); }
+  12% { opacity: 1; transform: translate(-50%, -50.3%) scale(0.95); }
+  100% { opacity: 0; transform: translate(-50%, -50.3%) scale(1.25); }
+}
+/* 버섯구름 — 발치가 조준점에 못박힌 채 솟으며 부푼다(기준점이 곧 그 발치다). */
+/* 구름도 같은 셈이다(같은 지적: "위로도 그만큼 솟아야 함") — 폭이 상자의 84%에
+   1배였으니 밝을 때 지름 5타일, 그만큼 낮았다. 폭을 상자만큼(100%) 주고 부푸는 끝을
+   1.7배까지 민다. 솟는 몫도 −13% → −34%로 키운다: 바닥이 6타일로 퍼지는데 구름만
+   제자리에서 부풀면 버섯이 아니라 접시가 된다. 기준점이 발치라 아무리 커져도 폭심은
+   안 움직인다. */
+.scr-motion-nuke-cloud {
+  position: absolute; left: 50%; top: 50%; width: 100%; aspect-ratio: 1.013;
+  transform: translate(-50%, -77.9%);
+  transform-origin: 50% 77.9%;
+  mix-blend-mode: screen; pointer-events: none;
+  /* 2.8s다 — 한 번 6.5s로 늘렸다가 되돌렸다(요청: "여운을 좀 더 길게" → "페이드아웃
+     시간이 좀 과한거 같아 이전으로 돌려줘 더 스피드감있게"). 핵은 훑어 넘기는 재생
+     한가운데서 터지는 것이라, 구름이 오래 서 있으면 여운이 아니라 화면에 남은 얼룩으로
+     읽힌다. 늘릴 일이 다시 생기면 JSX의 NUKE_BOOM_SEC(착탄 뒤 스팬이 남는 초)도 같이
+     올려야 한다 — 그 창보다 길면 아직 보이는 구름을 DOM에서 걷어내 뚝 끊긴다.
+     ※ 여기 적힌 초는 벽시계가 아니라 **게임 초**다: 재생기가 이 애니메이션을 멈춰
+       세우고 음수 지연으로 제 시각을 찍어 주므로(boomClock9), 배속을 걸면 함께 빨라진다. */
+  animation: scr-nuke-cloud 2.8s ease-out forwards;
+}
+@keyframes scr-nuke-cloud {
+  0% { opacity: 0; transform: translate(-50%, -77.9%) translateY(6%) scale(0.3); }
+  16% { opacity: 1; transform: translate(-50%, -77.9%) translateY(-6%) scale(1.05); }
+  100% { opacity: 0; transform: translate(-50%, -77.9%) translateY(-34%) scale(1.7); }
+}
+/* (재구성) 입체 보기 — CSS 3D 빌보드 폐기: 컨테이너 세로 눌림 2.5D로 처리한다(JSX). */
+/* ── 유닛별 전투 효과(요청: 불 대신 무기 특성 — 근접은 없음) ───────────────── */
+/* 예광탄(지적: 공격 효과가 빛뿐이라 누가 쏘고 누가 맞는지 안 보임) — 공격자 마커
+   가운데에서 가장 가까운 적 쪽으로 뻗는 가는 빛줄기. 위쪽 기준점(transform-origin
+   50% 0)에서 회전각이 적 방향을 가리키고, 밝았다 스러지길 반복한다. */
+.scr-motion-tracer {
+  position: absolute; left: 50%; top: 50%; width: 0.4px; height: 2.25px;
+  /* margin-left(-1px 고정) 대신 제 폭의 절반 translate(지적: 좌표 계산 전수 조사) —
+     무기별 변종이 폭만 바꾸며 margin을 물려받아, 굵은 탄일수록 중심이 축에서 왼쪽으로
+     어긋났다. translate 속성은 회전(transform)과 따로 합성돼 폭이 얼마든 정확히
+     가운데다. scr-shot 키프레임도 x를 -50%로 맞춘다. */
+  translate: -50% 0;
+  border-radius: 0.5px; pointer-events: none;
+  transform-origin: 50% 0;
+  /* 기본이 곧 총구 갈래다(요청: "마린 골리앗 같은 총구 종류는 짧은 노란 빛") — 크림빛
+     4.5px에서 노랑 3.4px로. 짧아야 '탄'으로 읽히고, 길면 레이저·미사일과 안 갈린다. */
+  background: linear-gradient(to bottom, rgba(255, 232, 120, 0.98), rgba(255, 200, 60, 0));
+  /* 아주 짧게(지적) — 실제 길이는 렌더가 그 무기의 쿨다운에 반비례해 인라인으로 준다.
+     여기 값은 폴백이다. */
+  animation: scr-tracer 0.22s linear infinite;
+  opacity: 0;
+}
+/* 전체적으로 더 작게(지적: "총구에서 나오는데 몸만한 트레이서?") — 갈래마다 잡아 둔
+   크기를 한 번 더 0.6배로 줄이는 대신, 여기서 기본을 낮추고 아래 갈래 값들도 함께
+   낮춘다. 길이는 '총구에서 표적 쪽으로 잠깐 튀는 불빛'이면 족하다. */
+.scr-motion-tracer { width: 0.35px; height: 1.1px; }
+/* 번쩍 하나 — 움직이지 않는다(지적: "움직임 없이 유닛의 공격부에 고정"). 뜨고 지는
+   구간을 좁혀 잔상이 안 남게 한다. */
+@keyframes scr-tracer {
+  0% { opacity: 0; }
+  10%, 45% { opacity: 1; }
+  70%, 100% { opacity: 0; }
+}
+/* 무기별 예광탄(재지적: 효과는 유닛별로) — 총알은 가늘고 빠르게, 포탄은 굵고 느리게,
+   화염은 짧고 넓게, 가시는 초록, 전탄(드라군·커세어류)은 파랗게, 글레이브는 방울,
+   미사일은 희고 길게, 산은 푸른 방울로. 기본(.scr-motion-tracer)이 총알 꼴이다. */
+/* 퉁퉁포(탱크 모드) — 짧고 두꺼운 주황(요청). 시즈와 한눈에 갈려야 해서 길이를 줄이고
+   두께를 키웠다: 같은 색이되 '짧고 뭉툭한 것'과 '길고 굵은 것'의 대비다. */
+.scr-tracer-cannon {
+  width: 0.75px; height: 1.3px; border-radius: 0.55px;
+  background: linear-gradient(to bottom, rgba(255, 196, 92, 0.98), rgba(255, 132, 30, 0));
+  animation-duration: 0.85s;
+}
+/* 시즈 모드 — 굵고 긴 주황(요청). 포신에서 길게 뻗는 한 줄기. */
+.scr-tracer-siege {
+  width: 1px; height: 3.5px; border-radius: 0.75px;
+  background: linear-gradient(to bottom, rgba(255, 214, 130, 0.98) 0 25%, rgba(255, 128, 24, 0.85) 70%, rgba(255, 110, 16, 0));
+  animation-duration: 1s;
+}
+/* 파이어뱃 — 중간 길이 붉고 두꺼운 화염(요청). 끝으로 갈수록 붉게 번지고 흩어진다. */
+.scr-tracer-flame {
+  width: 1.5px; height: 2px; border-radius: 1.1px;
+  background: linear-gradient(to bottom, rgba(255, 226, 150, 0.95) 0 18%, rgba(255, 110, 40, 0.9) 55%, rgba(220, 40, 20, 0));
+  filter: blur(0.3px);
+  animation-duration: 0.3s;
+}
+/* 근접 베기(기획서 1-G) — 몸 가장자리에서 짧은 흰 호가 표적 쪽으로 쓸린다.
+   rotate 속성은 인라인 transform(조준 회전)과 따로 합성돼 축을 안 깨뜨린다. */
+.scr-tracer-slash {
+  width: 3px; height: 3px; background: none;
+  border: 1.2px solid transparent;
+  border-top-color: rgba(255, 250, 235, 0.95);
+  border-right-color: rgba(255, 250, 235, 0.5);
+  border-radius: 50%;
+  animation: scr-slash 0.55s ease-out infinite;
+}
+/* (땜질 제거) 옛 v2 축소 규칙이 무기 클래스를 이기던 시절의 예외다 — 축소가 기본
+   트레이서에만 걸리게 바뀌어 더 필요 없다. 호 크기는 렌더가 몸 비례로 인라인 지정한다. */
+@keyframes scr-slash {
+  0%, 10% { opacity: 0; rotate: -70deg; }
+  18% { opacity: 1; }
+  40% { opacity: 1; rotate: 45deg; }
+  58%, 100% { opacity: 0; rotate: 65deg; }
+}
+/* 히드라 — 중간 길이 형광 녹색 얇게(요청). 기본보다 길고 더 가늘다. */
+.scr-tracer-spine {
+  width: 0.3px; height: 2px;
+  background: linear-gradient(to bottom, rgba(170, 255, 90, 1), rgba(120, 230, 40, 0));
+  box-shadow: 0 0 1.5px rgba(150, 255, 80, 0.6);
+  animation-duration: 0.45s;
+}
+.scr-tracer-bolt {
+  width: 0.6px; height: 2px;
+  background: linear-gradient(to bottom, rgba(150, 200, 255, 0.95), rgba(150, 200, 255, 0));
+  animation-duration: 0.6s;
+}
+/* 삼각쐐기 탄(요청: "벌처는 은회색 삼각쐐기 뮤탈은 진갈색 삼각쐐기") — 날아가는 탄만
+   쓴다. 트레이서는 총구(transform-origin 50% 0)에서 아래로 뻗으므로 **뾰족한 끝이
+   아래**여야 표적 쪽을 향한다. 모서리는 clip-path로 깎고, 배경은 단색으로 둔다
+   (그러데이션은 깎인 뒤에 꼬리가 사라져 삼각형이 안 읽힌다). */
+.scr-tracer-glave, .scr-tracer-frag {
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  border-radius: 0;
+  animation-duration: 0.24s;
+}
+/* 뮤탈 글레이브 — 진갈색 쐐기. */
+.scr-tracer-glave {
+  width: 1.05px; height: 1.9px;
+  background: #6b4732;
+  box-shadow: 0 0 2px rgba(120, 84, 58, 0.6);
+}
+/* 벌처 파편탄 — 은회색 쐐기. 총구 갈래(gun)에서 갈라 나온 제 무기다. */
+.scr-tracer-frag {
+  width: 0.95px; height: 1.8px;
+  background: #b9bfc6;
+  box-shadow: 0 0 2px rgba(200, 210, 220, 0.55);
+}
+/* 미사일(레이스·발키리·골리앗 대공·스카우트 대공·터렛) — 연기 느낌의 길고 흰/회색
+   빛(요청). 머리는 희게 밝고 꼬리로 갈수록 회색 연기가 퍼진다. */
+.scr-tracer-missile {
+  width: 0.8px; height: 5.2px; border-radius: 0.4px;
+  background: linear-gradient(to bottom,
+    rgba(255, 255, 255, 1) 0 8%, rgba(255, 224, 168, 0.92) 14%,
+    rgba(228, 232, 238, 0.62) 34%, rgba(184, 190, 199, 0.34) 68%, rgba(160, 166, 176, 0));
+  filter: blur(0.5px);
+  animation-duration: 0.4s;
+}
+/* 디바우러 산성포 — 두껍고 연기 느낌의 보라(요청). 뭉근하게 번지는 덩어리라 흐림을
+   같이 준다. 퀸의 산도 같은 갈래로 둔다(둘 다 '뿌리는 것'이다). */
+.scr-tracer-acid {
+  width: 1.3px; height: 2.25px; border-radius: 1px;
+  background: linear-gradient(to bottom,
+    rgba(206, 150, 255, 0.95) 0 20%, rgba(150, 80, 220, 0.7) 60%, rgba(110, 50, 170, 0));
+  filter: blur(0.5px);
+  animation-duration: 0.75s;
+}
+/* 세분화(재지적) — 광자포는 파란 구슬이 날아가고(photon), 커세어는 광자 집중
+   지지기(flare), 테란 광선은 붉게 뾱뾱(laser), 캐리어 요격기는 두두두두(burst),
+   아콘은 번개 줄기(zap), 럴커는 땅에서 솟는 가시 줄(spike), 가디언은 노란
+   독구체(acidball). ★ 예전에는 날아가는 갈래를 translate 애니(scr-shot)로 실제로
+   나아가게 했는데, 지적("움직임 없이 유닛의 공격부에 고정되어 나타나되 방향만 타겟을
+   향한 선")대로 전부 제자리 번쩍임으로 바꿨다 — scr-shot은 이제 아무도 안 쓴다. */
+/* 날아가는 탄(요청: "트레이서로 미사일을 적한테 직접 꽂아줘") — 자리는 렌더가 프레임
+   마다 직접 준다(총구에서 표적까지 보간). 그래서 여기서는 제자리 번쩍임 애니를 끄고
+   나는 동안 계속 보이게만 한다 — 안 끄면 날아가는 탄이 도중에 깜빡여 사라진다. */
+.scr-motion-tracer.scr-shot-fly { animation: none; opacity: 1; }
+/* 성큰의 솟구치는 가시(요청: "혓바닥은 지렛대같은거고 그게 나오면 가시가 솟구쳐") —
+   표적 발밑에서 위로 자란다. 그래서 다른 트레이서와 두 가지가 다르다:
+     · 앵커가 **밑동**이다 — translate로 제 키만큼 위로 올리고 원점을 아래 가운데에 둔다.
+       그래야 scaleY가 '자라기'가 된다(위에서 늘어지는 것이 아니라).
+     · 자리는 렌더가 프레임마다 준다 — 제자리 번쩍임 애니는 끈다. */
+.scr-motion-tracer.scr-spike-erupt {
+  animation: none; opacity: 1;
+  width: 1.05px; border-radius: 0;
+  translate: -50% -100%;
+  transform-origin: 50% 100%;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  /* 진한 주황(지적: "성큰 가시는 한가닥 진한 주황색톤이어야하고") — 상아색은 다른
+     저그 뼈붙이(발톱·이빨)와 같은 색이라 성큰의 것으로 안 읽혔다. 뿌리는 어둡고 끝으로
+     갈수록 밝아 땅을 뚫고 올라온 결이 산다. */
+  background: linear-gradient(to top, #8a3c0c, #e8732a);
+}
+/* 플라즈마(드라군·포톤캐논·스카우트 지상) — 길게 늘어진 플라즈마(요청). 구슬이 아니라
+   앞뒤로 늘어진 빛 덩어리다(제자리에서 번쩍인다).
+   건물 쪽 코드가 아직 photon을 부르므로 두 이름이 같은 그림을 쓴다. */
+.scr-tracer-plasma,
+.scr-tracer-photon {
+  width: 0.85px; height: 2.75px; border-radius: 0.65px;
+  background: linear-gradient(to bottom,
+    rgba(232, 244, 255, 0.98) 0 18%, rgba(120, 180, 255, 0.9) 55%, rgba(70, 120, 255, 0));
+  box-shadow: 0 0 3px rgba(120, 180, 255, 0.55);
+  /* 제자리 번쩍(지적: 움직임 없이) — 날아가던 translate 애니(scr-shot)를 걷는다. */
+  animation-duration: 0.24s;
+}
+.scr-tracer-flare {
+  width: 0.5px; height: 1.75px;
+  background: linear-gradient(to bottom, rgba(200, 230, 255, 0.95), rgba(120, 180, 255, 0));
+  animation-duration: 0.22s;
+}
+.scr-tracer-laser {
+  width: 0.4px; height: 1.75px;
+  background: linear-gradient(to bottom, rgba(255, 120, 100, 0.95), rgba(255, 120, 100, 0));
+  animation-duration: 0.3s;
+}
+.scr-tracer-burst {
+  width: 0.4px; height: 2px;
+  background: linear-gradient(to bottom, rgba(255, 244, 200, 0.95), rgba(255, 244, 200, 0));
+  animation-duration: 0.22s;
+}
+.scr-tracer-zap {
+  width: 0.6px; height: 2.25px;
+  background: repeating-linear-gradient(
+    to bottom, rgba(210, 230, 255, 0.95) 0 2px, rgba(140, 170, 255, 0.5) 2px 3px);
+  animation-duration: 0.2s;
+}
+/* 럴커 가시(재지적: 안 나옴 + 허접) — 뼈가시 토막 줄이 땅에서 상대 쪽으로 차례로
+   솟아 나간다. 위(럴커 자리) 고정 원점에서 길이가 드러나며 물결이 달려 나가고,
+   끝까지 닿으면 사그라든다. */
+/* 럴커 가시(재정정 요청: 뾰족한 삼각형 갈색으로만, 크기는 작게) — 뼛빛 톱니와
+   뿌리 심을 걷고, 갈색 삼각 가시 하나가 땅에서 솟는 모양만 남긴다. 폭은 절반 아래로
+   줄인다. 길이(height)는 렌더가 표적까지 실거리로 인라인 지정한다. */
+/* 럴커·성큰 가시 — 갈색으로 길고 가늘게(요청). 폭을 절반으로 줄여 '창'이 되게 한다
+   (길이는 렌더가 표적까지 실거리로 인라인 지정한다). */
+.scr-tracer-spike {
+  width: 1px; height: 6px;
+  border-radius: 0;
+  background: linear-gradient(to bottom, rgba(140, 96, 52, 0.98) 0 70%, rgba(96, 64, 34, 0.9) 100%);
+  clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+  animation-name: scr-spike-run; animation-duration: 0.6s;
+}
+/* 길이(height)는 렌더가 표적까지 실거리로 인라인 지정한다 — 여긴 두께·폴백만. */
+/* 독(가디언·스포어) — 노랑-연두로 길게(요청). 끈적한 것이 늘어져 날아가는 결이라
+   구슬을 늘리고 흐림을 살짝 준다. 옛 이름(acidball)도 같은 그림이다. */
+.scr-tracer-venom,
+.scr-tracer-acidball {
+  width: 1.05px; height: 2.5px; border-radius: 0.8px;
+  background: linear-gradient(to bottom,
+    rgba(240, 255, 140, 0.98) 0 20%, rgba(190, 230, 60, 0.85) 55%, rgba(140, 190, 30, 0));
+  filter: blur(0.3px);
+  animation-duration: 0.26s;
+}
+/* 메딕(요청: "메딕 노란 작은 동그란 빛") — 뻗는 줄기가 아니라 표적 쪽에 켜지는 작고
+   동그란 노란 불빛이다. 총구 축(translateY)은 그대로 타되 길이가 없다. */
+.scr-tracer-heal {
+  width: 1.2px; height: 1.2px; border-radius: 50%;
+  /* 한 단 연하게(요청: "연한 노란빛") — 짙은 금빛(255,214,80)은 테란 총구 불빛과
+     같은 결이라 치료가 사격처럼 보였다. 심을 크림빛으로 넓히고 테를 옅게 문다. */
+  background: radial-gradient(circle, rgba(255, 250, 214, 0.98) 0 45%, rgba(252, 238, 150, 0.5) 72%, transparent 80%);
+  box-shadow: 0 0 3px rgba(253, 243, 180, 0.65);
+  animation: scr-heal-glow 0.9s ease-in-out infinite;
+}
+@keyframes scr-heal-glow {
+  0%, 100% { opacity: 0.15; scale: 0.7; }
+  45% { opacity: 1; scale: 1.1; }
+}
+.scr-motion-atkfx {
+  position: absolute; left: 62%; top: 28%; width: 6px; height: 6px;
+  pointer-events: none; transform: translate(-50%, -50%); mix-blend-mode: screen;
+}
+/* 방어 건물 사격 축(재지적: 터렛·벙커도 쏜다) — 건물 가운데 0×0 축, 안의 트레이서가
+   적 방향으로 뻗는다. */
+.scr-motion-deffire { position: absolute; width: 0; height: 0; pointer-events: none; }
+/* 총구 래퍼(지적: 공격 효과는 총구 앞에 작게) — 유닛 가운데 0×0 축을 적 방향으로
+   돌려, 안의 섬광이 그 방향 앞(아래 = 회전 후 적 쪽)에서 인다. */
+.scr-motion-muzzle {
+  position: absolute; left: 50%; top: 50%; width: 0; height: 0;
+  pointer-events: none; transform-origin: 0 0;
+}
+.scr-motion-muzzle > .scr-motion-atkfx { left: 0; top: 6px; }
+/* ── 전투 불꽃·사망 퍼프(요청) — 전투 구간의 유닛 낱개 위에서 불꽃이 지지직, 이따금
+   퍼프가 터지며 사그라든다. 광원 블렌드라 지형을 살짝 밝힌다. */
+.scr-motion-fight {
+  position: absolute; left: 50%; top: 50%; width: 14px; height: 14px;
+  transform: translate(-50%, -50%); pointer-events: none; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 240, 180, 0.9) 0%, rgba(255, 200, 90, 0.4) 40%, transparent 70%);
+  mix-blend-mode: screen;
+  animation: scr-fight 0.5s steps(3, jump-none) infinite;
+}
+@keyframes scr-fight {
+  0% { opacity: 0.1; scale: 0.6; }
+  50% { opacity: 0.9; scale: 1; }
+  100% { opacity: 0.2; scale: 0.75; }
+}
+/* 캐리어 인터셉터(요청) — 전투 중 모함 주위를 도는 작은 점. */
+.scr-motion-ceptor {
+  position: absolute; width: 3px; height: 3px; border-radius: 50%;
+  background: currentColor; opacity: 0.85; pointer-events: none;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 2px currentColor;
+}
+/* 절반 크기(지적: 피격 효과도 커 봐야 유닛 크기) — 16 → 9px. */
+.scr-motion-puff {
+  position: absolute; left: 50%; top: 50%; width: 9px; height: 9px;
+  transform: translate(-50%, -50%); pointer-events: none; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 210, 130, 0.85) 0%, rgba(120, 120, 120, 0.4) 45%, transparent 70%);
+  mix-blend-mode: screen;
+  animation: scr-puff 1.2s ease-out forwards;
+}
+@keyframes scr-puff {
+  0% { opacity: 0.9; scale: 0.3; }
+  100% { opacity: 0; scale: 1.6; }
+}
+/* 프로토스 실드 피격(요청: 실드가 남은 유닛·건물은 반투명 실드가 깜빡이는 표현으로)
+   — 불티 대신 몸을 감싼 푸른 막이 한 번 번쩍인다. 지름은 인라인 width가 정한다(몸
+   상자의 1.05배 / 건물 발자국의 0.95배). 두 번 밝아지는 곡선이 '깜빡'을 만든다. */
+/* 더 얇고 연하게 + 스파크(요청) — 막이 두껍고 진해 몸을 덮어 버렸다. 테두리는
+   실오라기(0.3px)로 줄이고 속 채움도 거의 비워, '막이 있다'는 것만 알린다. 대신
+   피격의 인상은 막 위에서 튀는 작은 불티가 맡는다. */
+.scr-motion-shieldfx {
+  position: absolute; left: 50%; top: 50%; border-radius: 50%;
+  transform: translate(-50%, -55%); pointer-events: none;
+  background: radial-gradient(circle,
+    rgba(150, 220, 255, 0.1) 0%, rgba(110, 190, 255, 0.07) 58%, rgba(90, 170, 255, 0) 74%);
+  border: 0.3px solid rgba(195, 238, 255, 0.42);
+  box-shadow: 0 0 2px rgba(140, 210, 255, 0.25);
+  animation: scr-shieldfx 0.55s ease-out forwards;
+}
+/* 실드 스파크(요청) — 막 둘레 여덟 점에서 튀는 흰푸른 불티. 막보다 짧게(0.34초)
+   터졌다 꺼져, 얇아진 테두리 위에서 '맞았다'가 읽힌다. */
+.scr-motion-shieldfx::after {
+  content: ""; position: absolute; inset: -6%; border-radius: 50%;
+  background:
+    radial-gradient(circle at 97% 67%, rgba(240, 252, 255, 0.95) 0, rgba(170, 225, 255, 0.5) 0.8px, transparent 1.8px),
+    radial-gradient(circle at 71% 95%, rgba(240, 252, 255, 0.95) 0, rgba(170, 225, 255, 0.5) 0.8px, transparent 1.8px),
+    radial-gradient(circle at 33% 97%, rgba(240, 252, 255, 0.95) 0, rgba(170, 225, 255, 0.5) 0.8px, transparent 1.8px),
+    radial-gradient(circle at 5% 71%, rgba(240, 252, 255, 0.95) 0, rgba(170, 225, 255, 0.5) 0.8px, transparent 1.8px),
+    radial-gradient(circle at 3% 33%, rgba(240, 252, 255, 0.95) 0, rgba(170, 225, 255, 0.5) 0.8px, transparent 1.8px),
+    radial-gradient(circle at 33% 3%, rgba(240, 252, 255, 0.95) 0, rgba(170, 225, 255, 0.5) 0.8px, transparent 1.8px),
+    radial-gradient(circle at 71% 5%, rgba(240, 252, 255, 0.95) 0, rgba(170, 225, 255, 0.5) 0.8px, transparent 1.8px),
+    radial-gradient(circle at 97% 33%, rgba(240, 252, 255, 0.95) 0, rgba(170, 225, 255, 0.5) 0.8px, transparent 1.8px);
+  mix-blend-mode: screen;
+  animation: scr-shieldspark 0.34s ease-out forwards;
+}
+@keyframes scr-shieldspark {
+  0% { opacity: 0; scale: 0.86; }
+  22% { opacity: 1; }
+  55% { opacity: 0.55; }
+  100% { opacity: 0; scale: 1.2; }
+}
+@keyframes scr-shieldfx {
+  0% { opacity: 0; scale: 0.78; }
+  16% { opacity: 1; }
+  42% { opacity: 0.4; }
+  64% { opacity: 0.95; }
+  100% { opacity: 0; scale: 1.14; }
+}
+/* ── 특징 기술 효과들(요청) — 이름 배지 대신 실제 영역 크기의 전용 연출. 지름은
+   인라인 width가 정한다. */
+.scr-motion-castfx {
+  position: absolute; transform: translate(-50%, -50%); aspect-ratio: 1;
+  pointer-events: none; z-index: 29000;
+}
+/* ── 다크 스웜(요청) — 갈색 반투명 구름이 우글거린다. 지름은 인라인 width(6타일). */
+.scr-motion-swarmfx {
+  pointer-events: none; z-index: 24000; position: absolute;
+  transform: translate(-50%, -50%); aspect-ratio: 1;
+}
+/* ★ 구름은 **덩어리들**로 짓는다 — 큰 그러데이션 한 장이 아니라(지적: "중앙 럴커
+   주변에 갈색 동심원"의 정체가 이 다크 스웜이었다) ──────────────────────────────
+   여태 이 효과는 상자를 거의 꽉 채우는 부드러운 방사 그러데이션 **두 장**이었다.
+   그러면 화면에 나오는 것은 구름이 아니라 공이다:
+     ① 두 장의 중심이 거의 같아 밝기가 가운데에서 밖으로 **한 방향으로만** 떨어진다
+        — 그것이 곧 과녁(동심원)의 꼴이다.
+     ② 6타일짜리 큰 원에 낮은 알파를 아주 완만하게 깔면 8비트 색 계단이 그대로 보인다
+        (띠 무늬). 그 계단 하나하나가 또 동심원으로 읽힌다.
+     ③ 테두리가 온전한 원이라 '떠도는 구름'이 아니라 '그려 넣은 판'이 된다.
+   그래서 큰 한 장을 걷고 **작은 덩이 여럿**을 황금각으로 흩어 겹친다. 겹침의 합이
+   울퉁불퉁한 실루엣을 만들어 원 테두리가 사라지고, 밝기가 사방에서 오르내리므로
+   중심 방향의 계단(=띠)도 안 생긴다. 자리는 못 박은 값이라 프레임마다 안 떨린다.
+   색도 함께 고친다 — 옛 값(150,90,40 · 190,120,50)은 주황에 가까워 불·모래로 읽혔다.
+   원작의 다크 스웜은 이름 그대로 **어두운** 벌레 구름이라 짙은 흙빛이 맞다.
+   두 층은 서로 **반대로 천천히 돈다**(아래 keyframes) — 덩이 두 벌이 엇갈려 지나가면
+   그 자리가 우글거리는 것으로 읽힌다. */
+.scr-motion-swarm-cloud {
+  position: absolute; inset: 0; border-radius: 50%;
+  background:
+    radial-gradient(circle at 55.9% 51.3%, rgba(40,28,16,0.52) 0, rgba(40,28,16,0) 17.0%),
+    radial-gradient(circle at 41.0% 55.3%, rgba(40,28,16,0.60) 0, rgba(40,28,16,0) 21.0%),
+    radial-gradient(circle at 53.9% 37.1%, rgba(40,28,16,0.68) 0, rgba(40,28,16,0) 25.0%),
+    radial-gradient(circle at 56.9% 64.4%, rgba(40,28,16,0.52) 0, rgba(40,28,16,0) 20.4%),
+    radial-gradient(circle at 33.2% 43.2%, rgba(40,28,16,0.60) 0, rgba(40,28,16,0) 24.4%),
+    radial-gradient(circle at 68.7% 43.0%, rgba(40,28,16,0.68) 0, rgba(40,28,16,0) 19.9%),
+    radial-gradient(circle at 40.1% 69.3%, rgba(40,28,16,0.52) 0, rgba(40,28,16,0) 23.9%),
+    radial-gradient(circle at 43.8% 27.5%, rgba(40,28,16,0.60) 0, rgba(40,28,16,0) 19.3%),
+    radial-gradient(circle at 71.1% 63.2%, rgba(40,28,16,0.68) 0, rgba(40,28,16,0) 23.3%),
+    radial-gradient(circle at 24.2% 54.8%, rgba(40,28,16,0.52) 0, rgba(40,28,16,0) 18.7%),
+    radial-gradient(circle at 66.6% 28.0%, rgba(40,28,16,0.60) 0, rgba(40,28,16,0) 22.7%),
+    radial-gradient(circle at 52.7% 78.8%, rgba(40,28,16,0.68) 0, rgba(40,28,16,0) 18.1%),
+    radial-gradient(circle at 27.6% 29.8%, rgba(40,28,16,0.52) 0, rgba(40,28,16,0) 22.1%),
+    radial-gradient(circle at 81.3% 49.8%, rgba(40,28,16,0.60) 0, rgba(40,28,16,0) 17.6%),
+    radial-gradient(circle at 26.2% 72.1%, rgba(40,28,16,0.68) 0, rgba(40,28,16,0) 21.6%);
+  animation: scr-swarm 3.6s ease-in-out infinite alternate;
+}
+.scr-motion-swarm-cloud-b {
+  inset: 5%;
+  background:
+    radial-gradient(circle at 52.1% 56.0%, rgba(134,96,54,0.24) 0, rgba(134,96,54,0) 13.0%),
+    radial-gradient(circle at 40.3% 44.7%, rgba(134,96,54,0.29) 0, rgba(134,96,54,0) 17.9%),
+    radial-gradient(circle at 63.9% 46.5%, rgba(134,96,54,0.34) 0, rgba(134,96,54,0) 15.1%),
+    radial-gradient(circle at 40.7% 64.1%, rgba(134,96,54,0.28) 0, rgba(134,96,54,0) 20.0%),
+    radial-gradient(circle at 47.0% 31.0%, rgba(134,96,54,0.33) 0, rgba(134,96,54,0) 17.2%),
+    radial-gradient(circle at 66.6% 63.2%, rgba(134,96,54,0.27) 0, rgba(134,96,54,0) 14.4%),
+    radial-gradient(circle at 27.0% 51.6%, rgba(134,96,54,0.32) 0, rgba(134,96,54,0) 19.3%),
+    radial-gradient(circle at 67.1% 32.0%, rgba(134,96,54,0.26) 0, rgba(134,96,54,0) 16.5%),
+    radial-gradient(circle at 49.5% 76.4%, rgba(134,96,54,0.31) 0, rgba(134,96,54,0) 13.7%),
+    radial-gradient(circle at 31.6% 29.1%, rgba(134,96,54,0.25) 0, rgba(134,96,54,0) 18.6%),
+    radial-gradient(circle at 79.1% 53.1%, rgba(134,96,54,0.30) 0, rgba(134,96,54,0) 15.8%);
+  animation-name: scr-swarm-b; animation-duration: 2.7s; animation-delay: 0.4s;
+}
+@keyframes scr-swarm {
+  from { transform: rotate(-4deg) scale(0.97); opacity: 0.82; }
+  to { transform: rotate(4deg) scale(1.03); opacity: 1; }
+}
+@keyframes scr-swarm-b {
+  from { transform: rotate(7deg) scale(1.03); opacity: 0.72; }
+  to { transform: rotate(-7deg) scale(0.96); opacity: 0.98; }
+}
+/* ── 사이오닉 스톰(요청) — 반투명 푸른 구름 + 지지직 번개. 지름은 인라인 width(3타일). */
+.scr-motion-stormfx {
+  pointer-events: none; z-index: 30000; position: absolute;
+  transform: translate(-50%, -50%); aspect-ratio: 1;
+}
+/* (걷어냄) 드론 변태·취소의 자국(.scr-motion-morphfx · @keyframes scr-morph-in/out) —
+   요청("건물 변태 링 효과 제거")으로 걷는다. 쓰던 곳은 재생기의 droneMorph 한 곳뿐이라
+   여기 남겨 두면 죽은 규칙이 된다. */
+/* ★ 효과 모델의 공용 껍데기(FxModel) — **3배로 굽고 3분의 1로 줄인다**(지적: "확대 시
+   화질 깨짐"). 새 효과도 같은 문을 지나므로 이 규칙 하나가 전부에 걸린다.
+   이 층은 렌즈와 같은 변환을 지고, 웹킷은 변환이 걸린 가지를 1배로 한 번 래스터해 두고
+   늘려 붙인다. 그러면 SVG가 벡터인데도 확대에서 뭉갠다. 안쪽 그림의 **레이아웃 크기**를
+   3배로 키우고 같은 몫으로 줄여 놓으면 래스터가 3배 크기에서 일어나 세 배 촘촘한 판이
+   남는다 — 보이는 크기는 한 톨도 안 바뀐다. 기준점은 왼위라 자리도 안 밀린다. */
+.scr-motion-fxmodel { position: absolute; inset: 0; overflow: visible; }
+/* ★ 안은 이제 **캔버스**다(지적: iOS 사파리에서만 스톰·핵이 저해상도) — SVG를 키워
+   접는 과표본(--fxos)은 'SVG를 레이아웃 크기로 래스터해 준다'는 엔진의 호의에 기댔는데,
+   iOS 웹킷은 렌즈 배킹에 1배로 칠한 뒤 GPU로 늘려 그 호의가 없다. 배킹 해상도를 직접
+   쥐는 캔버스로 갈았다(FxModel 주석) — 지도·유닛이 같은 병으로 이미 간 길이다.
+   캔버스는 상자를 꽉 채운다: 배킹이 화면 픽셀 수와 같게 구워지므로 그냥 늘려 붙는다. */
+.scr-motion-fxmodel > canvas {
+  position: absolute; inset: 0; width: 100%; height: 100%; display: block;
+  /* ★ 제 합성층을 **강제로** 받는다(재지적: 캔버스로 갈고도 흐림) — 캔버스가 제 층을
+     받으면 배킹 비트맵이 **텍스처째** GPU로 올라가 렌즈 확대는 그 텍스처를 샘플한다:
+     우리가 구운 해상도가 그대로 산다. 층을 못 받으면 부모(렌즈) 층에 **CSS 크기로
+     눌려 칠해진** 뒤 함께 늘어난다 — 몇백 px짜리 작은 캔버스는 iOS가 가속을 안 태우고
+     부모에 그리는 쪽으로 떨어지곤 한다. translateZ(0)이 그 판정을 못 박는다.
+     ※ 렌즈에 will-change를 걸던 실패와 반대 방향이다 — 그건 **그림을 굽는 컨테이너**라
+       1배로 얼었지만, 캔버스 층의 내용물은 래스터가 아니라 우리 비트맵 그 자체다. */
+  transform: translateZ(0); will-change: transform;
+}
+/* (걷어냄) 원작 스톰의 '영역 가득한 푸른 전기 안개' — 동그란 radial-gradient였다.
+   지적: "스톰 글로우는 원형으로 넣으란 게 아니고 가지 모양을 따라 번짐 효과인데".
+   번짐은 이제 모델이 진다(빌더 storm의 후광 겹 셋) — 그쪽은 애초에 가지를 따라 난
+   면이라 어느 각도에서 굽든 번짐이 가지 모양이고, 요잉·피치·배율을 함께 먹는다.
+   여기 있던 것은 늘 정면 원이라 그 어느 것도 못 했다. */
+/* 바닥 섬광 — 낙뢰가 칠 때 땅이 하얗게 번쩍하는 짧은 스트로브. */
+.scr-motion-storm-flash {
+  position: absolute; inset: 30%; border-radius: 50%;
+  background: radial-gradient(circle, rgba(225, 240, 255, 0.26) 0%, rgba(160, 195, 255, 0.1) 50%, transparent 70%);
+  mix-blend-mode: screen;
+  animation: scr-storm-flash 0.38s steps(1) infinite;
+}
+@keyframes scr-storm-flash {
+  0% { opacity: 0.75; }
+  18% { opacity: 0.1; }
+  55% { opacity: 0.55; }
+  70% { opacity: 0.05; }
+  100% { opacity: 0.75; }
+}
+/* 효과 오버레이(지시: 스톰은 모든 유닛 위에) — 렌즈와 같은 자리·같은 변환(JS 미러)을
+   받되 유닛 캔버스(z 6000) 위에 선다. 렌즈 안은 스태킹 컨텍스트(will-change)라 z-index로는
+   캔버스를 못 넘는다 — 그래서 층 자체를 밖에 세운다. */
+/* ★ 사망 효과 앵커 — 이 스팬은 렌즈가 아니라 **효과 시트**의 자식이다(아이폰 흐림
+   때문에 그리로 옮겼다 — 그 자리 주석). 그런데 마커를 제자리에 앉히는 규칙은
+   `.scr-motion-map > span, .scr-motion-lens > span`에만 걸려 있어, 옮겨 온 이 스팬은
+   **position: static인 채로 left/top이 통째로 무시**됐다. 그러면 그 안의 불덩이
+   (.scr-motion-diefx는 절대배치 50%/50%)가 제 부모가 아니라 **시트**를 기준으로 앉아,
+   모든 폭발이 지도 한가운데 한 점에 7px로 겹쳐 찍혔다 — 화면에서는 안 나는 것과 같고,
+   눈에 띄면 '유닛이 없는 자리에서 터진다'로 보인다(지적 둘이 같은 뿌리였다).
+   렌즈 규칙을 물려 쓰지 않고 제 클래스를 두는 까닭: 그 규칙에는 `scale(var(--mk))`가
+   함께 걸려 있는데, 이 시트는 확대를 레이아웃으로 안으므로 크기에 배율이 이미 손으로
+   곱해져 있다(그 자리 주석). 물려 쓰면 배율이 두 번 걸린다. */
+.scr-motion-fxlens > .scr-motion-dieat { position: absolute; }
+.scr-motion-fxlens {
+  /* ★ 확대를 **레이아웃으로** 안는 시트다(지적: 아이폰에서 CSS 효과 전부 흐림) —
+     inset: 0이 아니라 가운데 앵커 + 인라인 width/height(배율×100%)로 선다. 그 사정과
+     손짓 미러는 JSX 주석에. transform의 기본값은 인라인이 늘 덮는다. */
+  position: absolute; left: 50%; top: 50%; width: 100%; height: 100%;
+  transform: translate(-50%, -50%); transform-origin: center;
+  /* ★ will-change를 걷었다(지적: "사이오닉 스톰 지도 확대시 해상도 낮게 보이는 문제
+     … 다른 효과도 그런지 확인 필요") — 확인했고, 원인은 스톰이 아니라 **이 층**이다.
+     will-change: transform이 걸린 층은 브라우저가 합성 텍스처로 한 번 구워 두고
+     변환만 GPU로 먹인다. 그래서 렌즈가 8배로 확대되면 1배로 구워 둔 텍스처를 8배로
+     늘려 붙인다 — 벡터(SVG)든 그러데이션이든 전부 그 배율의 해상도로 굳는다.
+     스톰이 유독 티가 난 것은 가는 흰 선과 drop-shadow 광채가 그 뭉개짐을 가장 잘
+     드러내기 때문이지, 스톰만의 문제가 아니었다.
+     걷어도 되는 까닭: 이 층에 사는 것은 스톰 스팬 몇 개뿐이라(유닛·건물은 전부
+     캔버스로 갔다) 매 프레임 다시 칠해도 값이 싸다. 스태킹 컨텍스트는 will-change가
+     아니라 position + z-index가 이미 만들고 있으므로, 유닛 캔버스(z 6000) 위에
+     선다는 성질도 그대로다. */
+  pointer-events: none; z-index: 7000;
+}
+/* 생성기(scripts/storm-frames.mjs, 시드 41·87)가 구운 두 판을 번갈아 튼다 — 참고 이미지가
+   윗면 뷰라서, 가지들은 지면을 따라 옆으로 퍼지고 세로 성분은 코어 위 짧은 꼬리뿐이다.
+   판마다 타격점·가지 방향이 달라 교대만으로 지지직이 난다. 반주기 어긋난 같은 keyframes
+   한 벌로 서로 반대 위상.
+   상자: viewBox가 위로 넓다(0 -26 48 74) — 입체 뷰의 기둥 낙뢰 자리다. 지면(0~48)이
+   컨테이너(정사각)에 그대로 앉게 아래 붙이고 위로 74/48만큼 키운다. */
+.scr-motion-storm-frame {
+  position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 154.17%;
+  /* 흰 심지에 파란 광채 — 가닥마다 말고 판 한 장에 걸어 싸게 간다. */
+  /* 광채도 함께 조인다(요청: "스톰 줄기 좀더 가늘고 날카롭게") — 굵기만 줄이면
+     번진 광채가 그 자리를 메워 여전히 통통해 보인다. */
+  /* 광채 반경은 **화면 px**이라 배율을 안 탄다 — 확대할수록 줄기 굵기 대비 광채가
+     얇아져 번개가 맨 흰 선으로 남았다. em이 아니라 px뿐인 drop-shadow의 한계라,
+     반경을 한 단 키워 낮은 배율에서도 확대에서도 광채가 남게 잡는다. */
+  filter: drop-shadow(0 0 1.1px rgba(120, 165, 255, 1)) drop-shadow(0 0 3.6px rgba(70, 110, 255, 0.7));
+  animation: scr-storm-frame 0.32s step-end infinite;
+}
+.scr-motion-storm-fB { animation-delay: -0.16s; }
+@keyframes scr-storm-frame {
+  0% { opacity: 1; }
+  50% { opacity: 0; }
+  100% { opacity: 1; }
+}
+/* 끝은 뾰족하게·꺾임은 각지게(요청: "좀더 가늘고 날카롭게") — 둥근 끝(round)이
+   가닥 끝마다 반지름만큼의 방울을 남겨 번개가 아니라 젖은 붓자국으로 보였다.
+   butt + miter면 꺾임이 그대로 각으로 서고 끝이 잘려 날이 선다. */
+.scr-motion-storm-frame path {
+  fill: none; stroke: #eef5ff; stroke-linejoin: miter; stroke-miterlimit: 6;
+  stroke-linecap: butt;
+  mix-blend-mode: screen;
+}
+/* 가지 굵기 — 원가지·잔가지 두 급. 지면을 기는 가는 선이 결의 핵심이라 얇게 간다. */
+/* ★ 갈래가 갈수록 **가늘어진다**(요청: "선이 다 굵기가 같지 않고 더 세부 가지로 갈수록
+   얇게") — 번개는 한 굵기의 철사가 아니라 갈라질 때마다 얇아지는 물길이다. 세 단으로
+   벌린다: 줄기 0.62 · 잔가지 0.3 · 잔가지의 잔가지(잔가지 안에 든 것) 0.16.
+   가늘수록 옅게도 해 둔다 — 굵기만으로는 이 크기(48 상자)에서 한 단 차이가 안 읽힌다. */
+.scr-motion-storm-frame .scr-storm-main { stroke-width: 0.62; }
+.scr-motion-storm-frame .scr-storm-fork { stroke-width: 0.3; opacity: 0.82; }
+.scr-motion-storm-frame .scr-storm-fork .scr-storm-fork,
+.scr-motion-storm-frame .scr-storm-twig { stroke-width: 0.16; opacity: 0.62; }
+/* 타격점 — 하얗게 타는 코어와 그 둘레의 파란 무리. 참고 이미지의 밝은 덩어리다. */
+/* (걷어냄) .scr-storm-core — 갈래가 시작하는 자리의 흰 동그라미(요청: "중간에 동그란거는
+   뭐야 그거 제거해줘"). 마디를 걷은 것과 같은 까닭이다: 번개는 점에서 뻗어 나오는 것이
+   아니라 한 획으로 내리친다. */
+.scr-motion-storm-frame .scr-storm-core { display: none; }
+/* (걷어냄) .scr-storm-halo — 갈래가 갈라지는 자리의 반투명 원(요청: 삭제). 번개는
+   마디로 이어 붙인 사슬이 아니라 한 획으로 내리치는 것이다. */
+/* 코어 곁에 잘게 튄 흰 점 — 참고 이미지의 타점 주변 파편. */
+.scr-motion-storm-frame .scr-storm-fleck { fill: #dbe9ff; stroke: none; }
+/* 부스러기 — 멀리 흩어진 작은 불티. */
+.scr-motion-storm-frame .scr-storm-spark { fill: rgba(190, 215, 255, 0.8); stroke: none; }
+/* 기둥 낙뢰(지시: 모든 유닛 위 → 높이도 꽤 있는 번개) — 입체 뷰에서만. 평면(90도)은
+   바로 위에서 본 그림이라 높이가 화면에 설 자리가 없다(윗면 뷰 스펙 그대로 낮게). */
+.scr-motion-storm-frame .scr-storm-cols { display: none; }
+.scr-motion-stormfx.scr-storm-pitched .scr-storm-cols { display: inline; }
+.scr-motion-storm-frame .scr-storm-col { stroke-width: 0.44; }
+.scr-motion-storm-frame .scr-storm-colspur { stroke-width: 0.32; opacity: 0.85; }
+
+/* 자취 받는 중 알림 — 자취는 서버가 구워 두지만 한 판에 1~2MB라 내려받는 동안 지도가
+   비어 보인다. 되고 있다고 알려 줄 자리다. 맵 좌상단, 맵연결 알약 자리 위. */
+.scr-motion-simnote {
+  /* 맵 정가운데(요청) — 자취가 오기 전에는 지도가 텅 비어 있어, 귀퉁이의 작은 알약은
+     "비어 있다"와 "받는 중이다"를 구분해 주지 못했다. 한가운데면 눈이 먼저 간다. */
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  z-index: 30000;
+  padding: 6px 14px; border-radius: 999px;
+  background: rgba(20, 24, 32, 0.72); color: #cfe6ff;
+  font-size: 11px; line-height: 1.6; letter-spacing: 0.2px;
+  pointer-events: none; white-space: nowrap;
+}
+
+/* 재생할 수 없는 경기(요청: 폴백 없음) — 참값 자취나 사건 표가 없는 판은 재생기 자리에
+   이 한마디만 선다. 옛 경기·분석 실패·아직 안 구운 판이 여기 걸린다. 상자는 지도가
+   설 자리만큼만 높이를 잡아, 앞뒤 여백이 갑자기 무너지지 않게 한다. */
+/* 상자 크기는 재생되는 판과 **같다**(지적: "항상 일관된 디자인이 필요 — 맵영역 크기도")
+   — 이제 이 클래스는 .scr-motion-map 위에 얹혀, 그 자리의 폭·비율을 그대로 쓰고
+   가운데에 한마디만 앉힌다. min-height는 안 준다(비율이 높이를 정한다). */
+.scr-motion-nodata {
+  /* 가운데 정렬은 **두 축 다**(지적: "재생할수없는 게임이에요 텍스트 가운데 정렬좀")
+     — 이 상자는 이제 지도 자리(.scr-motion-map)를 겸하므로 비율이 정한 만큼 키가
+     크다. 그 안에서 글이 위쪽에 붙어 있으면 빈 상자에 딱지를 붙인 꼴이 된다.
+     place-content로 가로·세로를 한 줄에 못 박고, 글 상자 자체도 가운데로 민다. */
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 13px; letter-spacing: 0.2px; text-align: center;
+}
+/* 글자는 **절대 좌표로 못 박는다**(지적 셋: "텍스트 가운데 정렬좀" / "가운데 정렬좀
+   글자" / "더 나감") — 컨테이너 정렬(flex의 justify-content, place-*, margin auto)에
+   기대다 세 번을 헛짚었다. 이 상자는 이제 지도 자리(.scr-motion-map)를 겸하는데 그쪽에
+   폭·전환·격리가 걸려 있어, 정렬이 어느 축에서 안 걸리는지가 문맥마다 달랐다.
+   상자 한가운데에서 제 크기의 절반만큼 되무는 방식은 그 어느 것에도 안 걸린다 —
+   부모가 flex든 block이든, 자식 폭이 얼마든 한가운데다. */
+.scr-motion-nodata { position: relative; }
+.scr-motion-nodata > span {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: max-content; max-width: calc(100% - 32px); text-align: center;
+}
+
+/* ── 정보 팝업(요청: 유닛·건물 클릭하면 정보 툴팁) ─────────────────────────────────
+   집은 몸 옆에 뜨는 작은 글 상자다. 내용은 프레임마다 다시 읽히므로(체력·생산·큐가
+   모두 지금 값이다) 여기서는 자리와 꼴만 맡는다. 지도 위에 얹히지만 클릭은 통과시키지
+   않는다 — 팝업 안을 눌렀다고 팝업이 닫히면 안 된다. */
+/* 폭은 **고정**이다(요청: "팝업폭은 제한이 아니라 고정") — 내용이 길고 짧음에 따라
+   상자가 늘었다 줄었다 하면, 재생 중 매 프레임 폭이 흔들려 읽기가 어렵다. 한 폭으로
+   못 박고 긴 줄은 접는다. 지도가 그보다 좁을 때만 지도 안으로 물러난다.
+   자리는 리액트 쪽에서 지도 상자 안으로 물린다(위/아래 뒤집기 포함). */
+.scr-motion-info {
+  position: absolute; z-index: 30000; transform: translate(-50%, calc(-100% - 14px));
+  /* 232 → 116px(요청: "정보팝업 모달 너비 반으로 축소 눈금도 폭 반으로") — 진행 바는
+     상자 폭을 채우는 flex라, 상자가 반이 되면 눈금 열 칸도 함께 반이 된다. */
+  width: 116px; max-width: calc(100% - 16px);
+  padding: 6px 9px; border-radius: 8px;
+  overflow-wrap: anywhere;
+  /* ★ **블러 반투명 창**(요청: "인포팝업 블러 반투명창으로 변경") — 여태 0.88이라
+     사실상 불투명한 검은 판이었고, 뒤의 전장이 통째로 잘렸다. 판을 절반 넘게 비우고
+     그만큼 흐림을 키우면(6 → 14px) 뒤가 비치면서도 글자는 그대로 읽힌다 — 흐림이
+     대비를 만들어 주므로 어두운 판에 기대지 않아도 된다. 살짝 채도를 올려(saturate)
+     뒤의 유닛 색이 유리 너머로 남게 한다. */
+  background: rgba(12, 16, 22, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(14px) saturate(1.25);
+  -webkit-backdrop-filter: blur(14px) saturate(1.25);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  pointer-events: auto; white-space: normal; text-align: left;
+}
+.scr-motion-info-name { font-size: var(--fs-caption); font-weight: 800; color: #fff; margin-bottom: 2px; }
+.scr-motion-info-line { font-size: var(--fs-9); color: rgba(255, 255, 255, 0.82); line-height: 1.45; }
+/* 진행 바(요청: 스타 원작처럼 칸 수를 따라) — 통짜가 아니라 열 칸이 하나씩 차오른다. */
+.scr-motion-info-prog { display: flex; flex-direction: column; gap: 2px; margin-top: 2px; }
+.scr-motion-info-bar { display: flex; gap: 1px; height: 6px; }
+.scr-motion-info-bar i {
+  flex: 1 1 0; border-radius: 1px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.scr-motion-info-bar i.is-on { background: #6fe36f; border-color: rgba(255, 255, 255, 0.3); }
+/* 큐는 바가 아니라 **칸**이다(요청: "큐 목록은 바가 없어야되고 4칸인가 큐된 목록이
+   옆으로 쭉 나오면 돼") — 원작 생산 패널이 그렇다: 지금 뽑는 것 하나만 진행 바를 갖고,
+   뒤에 선 것들은 작은 칸에 담겨 옆으로 늘어선다. 좁은 상자라 글자를 한 단 더 줄인다. */
+.scr-motion-info-queue { display: flex; align-items: center; gap: 4px; margin-top: 2px; min-width: 0; }
+.scr-motion-info-slots { display: flex; gap: 2px; min-width: 0; }
+.scr-motion-info-slots i {
+  font-style: normal; font-size: 8px; font-weight: 700; line-height: 1;
+  padding: 2px 3px; border-radius: 3px; white-space: nowrap;
+  min-width: 0; overflow: hidden;
+  color: rgba(255, 255, 255, 0.82); background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.12);
+}
+
+/* ── 전체화면 재생(요청: "모바일 피시에서 전체화면 버튼 클릭하면 화면을 꽉채우는
+   전체화면 모드로 변함") ────────────────────────────────────────────────────────
+   뿌리(.scr-motion)를 그대로 두고 클래스만 얹는다 — 전체화면 API는 그 엘리먼트가
+   DOM에서 사라지면 곧바로 풀리므로, 배치를 갈아치우는 대신 같은 뿌리 안에서 무엇을
+   보일지만 바꾼다. 그래서 평소 자식들은 여기서 숨기고 오버레이만 남긴다.
+   position: fixed는 폴백이기도 하다 — 아이폰 사파리는 div에 requestFullscreen을 안
+   주므로, API가 안 걸려도 이 한 줄이 화면을 덮는다. */
+/* ★ 판은 뿌리 상자가 아니라 **body로 포털된 .scr-fs-layer**다(수리: "모바일 전체화면
+   맨위 스타게이트 로고가 있어서") — 경기 카드(.scr-game-result-trow)에 backdrop-filter가
+   걸려 있고, 그건 자손 position:fixed의 담을 상자를 뷰포트에서 그 카드로 바꾼다. 전체화면
+   API가 먹는 PC는 최상위 층으로 올라가 티가 안 났지만, div에 requestFullscreen을 안 주는
+   아이폰 사파리는 이 CSS 폴백이 전부라 화면이 아니라 카드를 덮고 있었다. body로 나가면
+   그 사정이 아예 없다.
+   .scr-motion을 함께 걸어 두는 것은 로스터·알약 같은 조각들이 `.scr-motion X` 자손
+   선택자로 꾸며져 있어서다 — 포털 밖으로 나가면 그 규칙들이 통째로 안 걸린다. */
+/* ★ 이 판은 **평소 배치이자 전체화면**이다(요청: "일반화면을 전체화면과 구분하지 않고
+   전체화면을 프레임 안에 표현하는 걸로 변경") ─────────────────────────────────────
+   기본 꼴이 **프레임**이다: 제자리에서 흐르고, 크기는 부르는 쪽이 인라인으로 준다
+   (지도와 같은 가로세로비 + PC 폭 상한). 전체화면은 여기에 `.is-fs` 한 겹을 얹어
+   화면을 덮게 하는 것뿐이다 — 안에 든 조각(무대·로스터 판·도구 판·조종부)은 한 톨도
+   안 바뀐다. 그래서 두 배치를 따로 맞출 일이 없다.
+   ※ 평소 배치 전용 CSS는 이 통합과 함께 삭제했다(요청: 관리포인트 줄이기).
+   ★ 높이는 **지도 비가 정하고 오버레이가 바닥을 받친다**(지적: "왜케 높이가 낮아
+     피시에서") — 한때 화면을 닮은 비(넓은 16:10)를 못 박았더니 정사각 지도가 PC에서
+     1024×1024에서 1024×640으로 주저앉아 위아래가 크게 잘렸다. 평소 배치에서 지도
+     전체를 보던 자리라 그 크롭은 손해다. 비는 부르는 쪽이 지도 것으로 주고(크롭 0이
+     기본), 여기서는 오버레이가 겹치지 않을 최소 높이만 받친다 — 지도가 그보다 납작하면
+     그만큼만 좌우가 잘리고 끌어서 본다. */
+.scr-fs-layer {
+  position: relative; z-index: 0;
+  display: block; margin: 0 auto; padding: 0; gap: 0;
+  width: 100%; max-width: 100%;
+  /* 바닥값 — 오버레이가 서로 안 겹칠 최소 높이다. 도구 판(아래 140 + 높이 190)이
+     기준이던 460에서 **360으로 내린다**(요청: "보여지는 화면에만 꽉 차게" · 앞선
+     지적: "크롭된 상태로 시작"): 그 판을 걷은 뒤 아래에 남은 것은 조종부(46) ·
+     아이콘 줄(60~104) · 미니맵(112~250)이고 위는 로스터뿐이라 360이면 넉넉하다.
+     460일 때는 폰(폭 390·정사각 지도)에서 프레임이 지도 비보다 길어져, **가만히 있어도
+     좌우가 35px씩 잘린 채로 시작**했다. 360이면 비가 그대로 살아 크롭이 0이다. */
+  min-height: 360px;
+  background: #05070a; border-radius: var(--radius);
+  /* 판은 **구르지 않는다**(지적: "불필요한 세로 스크롤이 생김") — 넘치는 것은 넘치는
+     대로 잘려야지, 스크롤이 생기면 그 순간 조작부가 판 밖으로 밀린다. */
+  overflow: hidden; overscroll-behavior: contain;
+}
+/* 전체화면 — 같은 판을 화면 크기로 못 박는다(자리는 body로 옮겨 심는다). */
+.scr-fs-layer.is-fs {
+  position: fixed; inset: 0; z-index: 90000;
+  width: 100vw; height: 100vh; height: 100dvh;
+  aspect-ratio: auto; min-height: 0;
+  max-width: none; margin: 0; border-radius: 0;
+}/* 넓은 배치는 바닥을 한 단 높인다 — 판(로스터 320px·도구 150px)이 PC 크기라 그만큼
+   세로도 있어야 지도가 남는다. 폭 상한(1024)은 부르는 쪽이 인라인으로 준다. */
+@media (min-width: 1160px) {
+  .scr-fs-layer, .scr-motion-frame-hold { min-height: 420px; }
+}
+
+/* 프레임 자리지기 — 판이 전체화면으로 나가 있는 동안 페이지 높이를 지킨다(안 그러면
+   페이지가 접혔다가 나올 때 도로 펴져 스크롤이 튄다). */
+.scr-motion-frame-hold {
+  width: 100%; margin: 0 auto; min-height: 360px;
+  background: var(--panel, rgba(255,255,255,0.04)); border-radius: var(--radius);
+}
+/* 프레임을 담는 줄 — 가운데 정렬만 한다. PC에서는 오른쪽에 댓글 기둥이 선다.
+   ★ 폭을 **못 박아야** 한다(실측: PC에서 판이 1024가 아니라 560px로 섰다) — 이 줄이
+     제 내용만큼만 넓으면, 안의 판이 쓰는 `min(1024px, 100%)`의 100%가 순환에 걸려
+     '판의 본래 폭'으로 풀린다. 그 본래 폭은 min-height 560 × 비 1:1 = 560px이라,
+     지도가 그 크기로 주저앉았다. width: 100%면 100%가 실제 자리 폭으로 풀린다. */
+.scr-motion-frame {
+  display: flex; justify-content: center; min-width: 0; width: 100%;
+}
+/* ★ 넓은 배치 — **프레임과 댓글 기둥 두 칸**뿐이다(요청: 일반/전체화면 통합) ─────
+   여기 있던 것은 3열 × 6행 격자였다. 그 칸들은 전부 평소 배치 전용 조각(맵줄·사이드바·
+   지도 기둥·도구줄·공유 줄)의 자리였고, 그것들이 없어진 지금 격자는 프레임을 auto 칸에
+   가둬 폭 0으로 접었다(실측: PC 화면이 통째로 검게 나왔다). 이제 줄 하나다. */
+.scr-motion-root.scr-motion-wide {
+  display: flex; align-items: flex-start; column-gap: 12px;
+}
+/* flex-basis를 0으로 — auto면 칸 폭이 내용에서 나와 위와 같은 순환에 걸린다. */
+.scr-motion-root.scr-motion-wide > .scr-motion-frame { flex: 1 1 0; min-width: 0; }
+.scr-motion-root.scr-motion-wide > .scr-motion-sidewrap {
+  flex: 0 0 232px; width: 232px; min-width: 0;
+}
+/* 좁은 배치는 프레임 한 칸이 전부다(댓글은 페이지가 아래에 따로 붙인다). */
+.scr-motion-root:not(.scr-motion-wide) { display: block; }
+/* 전체화면 판은 **라이트 테마에서도 어두운 판**이다(요청: "전체화면 오버레이 폰트
+   색상은 라이트에서도 흰색이어야할듯(지도가 대부분 어두움)") ────────────────────
+   맞는 진단이다: 이 층의 바탕은 앱의 흰 종이가 아니라 **지도**이고, 지도는 어느
+   타일셋이든 어둡다. 그 위에 라이트 팔레트의 검정 글자(#000)를 얹으면 로스터·지표가
+   통째로 안 읽힌다.
+   고치는 자리를 개별 규칙이 아니라 **변수**로 잡는다 — 이 층에 사는 조각들(로스터·
+   알약·슬라이드 바·진행바)은 전부 var(--text)·var(--muted)·var(--line) 계열로
+   꾸며져 있어, 여기서 변수만 다크 값으로 되돌리면 조각을 하나도 안 건드리고 전부
+   따라온다. 앞으로 새 조각이 붙어도 저절로 지켜진다. */
+/* ★ 어두운 판을 지키는 것은 **전체화면뿐**이다(지시: "라이트 테마에서 재생기도 라이트로
+   — 전체화면은 말고, 맵이 보통 어두워서") ─────────────────────────────────────────
+   여태 이 덮어쓰기가 프레임 모드에도 걸려, 라이트 테마인데 재생기만 검은 판이었다.
+   두 자리의 사정이 다르다:
+     · 전체화면 — 판이 곧 화면이고 그 바닥이 **지도**다. 어느 타일셋이든 어두우니
+       흰 글자가 아니면 로스터·지표가 안 읽힌다. 그대로 둔다.
+     · 프레임 — 종이 위에 놓인 카드다. 앱의 나머지가 흰데 여기만 검으면 그 자리만
+       도려낸 것처럼 뜬다. 앱의 팔레트를 그대로 쓰게 놓아 준다.
+   ★ 지도 자신과 그 언저리(무대·위쪽 하늘 띠)는 두 보기 모두 어둡게 둔다 — 그건 크롬이
+     아니라 **지도의 바닥**이고, 지도 위에 얹히는 조각들도 종전대로 흰색으로 못 박혀
+     있다(그쪽 규칙들). */
+.scr-light-theme .scr-fs-layer.is-fs {
+  --text: #f5f6f7;
+  --muted: rgba(245, 246, 247, 0.88);
+  --dim: rgba(245, 246, 247, 0.68);
+  --line: rgba(255, 255, 255, 0.16);
+  --line-soft: rgba(255, 255, 255, 0.16);
+  --line-hair: rgba(255, 255, 255, 0.08);
+  --line-faint: rgba(255, 255, 255, 0.10);
+  --panel: rgba(255, 255, 255, 0.04);
+  --panel-solid: #101011;
+  --panel-raised: rgba(255, 255, 255, 0.12);
+  --card-bg: #0d0d0e;
+  --input-bg: rgba(6, 6, 7, 0.86);
+  --point-contrast: #10151a;
+  color: #f5f6f7;
+}
+/* 프레임 모드의 바탕 — 라이트에서는 앱의 카드와 같은 종이다(위 ★). 넓은 배치(PC)는
+   아래 @media가 바탕을 아예 걷으므로(지도 양옆을 안 채운다) 이 값은 좁은 배치 몫이다. */
+.scr-light-theme .scr-fs-layer:not(.is-fs) { background: var(--card-bg); }
+/* (삭제) .scr-motion-fs — 전체화면 동안 '평소 배치'를 통째로 숨기던 규칙이다.
+   평소 배치라는 것이 없어졌으니(요청: 통합) 숨길 것도 없다. */
+.scr-fs-root { position: absolute; inset: 0; }
+/* 무대 — 지도를 자르는 창이다. 지도는 이보다 크게(cover) 깔리고 여기서 잘린다. */
+.scr-fs-stage { position: absolute; inset: 0; overflow: hidden; }
+.scr-fs-stage > .scr-motion-map { border-radius: 0; }
+/* 밤하늘 — 무대 바닥이다. **눕힌 보기 전용**(요청: "기존 3D 보기에서 남는 빈 공간
+   채우는 용으로 쓰고(맵에 병합 X)") — 평면에서는 지도가 무대를 덮으므로 아예 안 그린다.
+   지도보다 아래에 깔려 지도가 못 채우는 네 귀퉁이에서만 드러난다.
+   덮기(cover)라 별이 안 늘어난다 — 그림이 정사각이고 넘치는 쪽이 잘린다.
+   손짓은 안 받는다: 이 자리에서 시작한 끌기·탭도 무대가 그대로 받아야 한다. */
+.scr-fs-space {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background-repeat: no-repeat; background-position: center; background-size: cover;
+  background-color: #020307;
+  /* ★ **제 층으로 올린다**(계측: 3D 끌기에서 p50 292 → 390ms) ────────────────────────
+     이 그림은 벡터 수백 개짜리 SVG다. 그냥 두면 무대가 다시 칠해질 때마다(끌기·확대는
+     프레임마다 그렇다) 그 벡터를 통째로 다시 래스터한다 — 3D에서만 성능이 떨어진
+     까닭이 이것이다(이 층은 눕힌 보기에만 붙는다).
+     이 판은 **한 번도 안 움직이고 안 커진다**(inset:0, 변환 없음). 그러니 제 층으로
+     올려 두면 딱 한 번 굽고 그 뒤로는 합성만 한다.
+     ★ 이 파일이 will-change로 데인 자리들과는 사정이 반대다 — 거기서는 변환이 걸린
+       층이 1배로 굳어 확대가 흐려졌는데, 이 판은 배율을 아예 안 타므로 굳어도 잃을
+       해상도가 없다. */
+  will-change: transform;
+}
+/* 지도는 하늘 위다 — 둘 다 절대배치라 순서에만 기대면 다른 자식이 끼어들 때 갈린다. */
+.scr-fs-stage > .scr-motion-map { z-index: 1; }
+
+/* 오버레이 조작부 — 반투명 판 셋(좌·우·아래). 3초 미조작이면 통째로 사라진다.
+   pointer-events는 판에만 준다: 판 사이의 빈 자리는 지도를 끄는 손짓이 지나가야 한다. */
+.scr-fs-ui { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
+.scr-fs-ui > * { pointer-events: auto; }
+.scr-fs-ui, .scr-fs-wake { transition: opacity 0.22s ease; }
+/* (삭제·요청: "재생바는 항상 표시(일반/전체 모두)") — 3초 미조작이면 조작부를 통째로
+   걷던 규칙이다. 걷히던 것은 아래 재생·진행바 하나뿐인데(로스터·도구 판은 이 판
+   바깥이다), 재생기에서 재생바가 사라지는 것은 아낀 자리보다 잃는 것이 크다.
+   is-idle 클래스는 남지만 이제 아무 데도 안 닿는다 — 다시 걷고 싶으면 여기 한 줄이다. */
+
+/* ★ **둥근 판**이다(요청: "패널 동그랗게") — 화면 끝에서 끝까지 닿는 띠는 화면의
+   일부처럼 보여 지도와 한 덩이로 읽혔다. 사방을 조금 띄우고 모서리를 둥글리면 지도
+   **위에 얹힌 판**으로 갈린다. 그러려면 바탕도 한쪽으로 사그라드는 그러데이션이 아니라
+   고른 판이어야 한다 — 오른쪽이 투명하면 둥근 모서리가 거기서만 안 보인다. */
+.scr-fs-col {
+  position: absolute; top: 10px; bottom: 94px;
+  display: flex; flex-direction: column; gap: 10px;
+  width: 208px; padding: 10px;
+  overflow: hidden;
+  border-radius: 16px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.10), 0 6px 20px rgba(0, 0, 0, 0.35);
+  /* 더 비친다(요청: "오버레이 배경 투명도 높이기") — 0.82→0.48, 안쪽 끝은 0.28→0.02로
+     아예 사라진다. 흐림은 남겨 둬야 옅은 판 위에서도 글자가 읽힌다. */
+  /* 흐림은 걷었다(요청: "전체화면 오버레이 패널의 블러 제거") — backdrop-filter는
+     제 뒤의 화면을 통째로 한 겹 더 합성하게 만들어 지도가 뿌옇게 뭉개진다. 글자
+     가독은 아래 그러데이션 판과 흰 글자(아래 변수 덮어쓰기)가 맡는다. */
+  background: rgba(6, 9, 14, 0.46);
+}
+.scr-fs-left { left: 10px; }
+.scr-fs-right {
+  right: 0;
+  background: linear-gradient(270deg, rgba(6, 9, 14, 0.48), rgba(6, 9, 14, 0.02));
+  align-items: flex-end;
+}
+/* 로스터는 위, 바는 남는 자리, 토글은 그 아래 — 요청의 세로 차례 그대로다. */
+.scr-fs-roster { flex: 0 0 auto; }
+.scr-fs-bar { flex: 1 1 auto; min-height: 90px; display: flex; align-items: center; }
+.scr-fs-right .scr-fs-bar { justify-content: flex-end; }
+.scr-fs-toggles { flex: 0 0 auto; display: flex; flex-direction: column; gap: 6px; }
+
+/* 아래 조작줄 — 재생·진행바·시각·공유가 한 줄이다(평소 PC와 같은 조각을 쓴다). */
+/* ★ 아래층의 높이를 **한 값으로 조립한다**(요청: "버튼 로우와 재생바 사이 줄간격 너무 큼
+   → 최소화" · "전체화면 모드에서 하단 안전 패딩이 없음" · 판정: "일반 화면에선 재생바
+   아래 공간이 없는 게 맞고 전체화면에선 있는 게 맞아 — 프레임 안이라") ──────────────
+   아이콘 줄과 미니맵은 조종부 줄 위에 앉아야 하는데, 여태 그 밑값이 **손으로 적은 수**
+   (52·93 …)였다. 조종부의 높이가 바뀌면(여백이 폭에 따라 갈리거나 안전 영역이 붙으면)
+   그 수들과 어긋나 사이가 벌어지거나 겹쳤다.
+   이제 높이를 세 조각으로 조립한다: 안쪽 줄(32) + 위아래 여백 + 안전 영역.
+   조각을 따로 두면 특이도 다툼 없이 각자 제자리에서 갈린다 — 여백은 폭이 정하고(좁은
+   화면은 6+6), **안전 영역은 전체화면만 진다**: 전체화면 판은 화면 맨 아래에 붙으니 홈
+   인디케이터가 조종부를 먹으면 안 되고, 프레임 모드는 페이지가 아래로 이어지므로 그
+   몫이 필요 없다(판정). */
+.scr-fs-layer {
+  --scr-botpad: 16px;
+  --scr-safeb: 0px;
+  /* ★ 실측이 있으면 실측을 쓴다(--scr-fsbot-m: 재생기가 조종부를 재서 얹는다) —
+     조립값의 32는 조종부가 **한 줄**이던 시절의 값이라, 두 줄이 되는 좁은 화면에서
+     한 줄만큼 모자랐다(그 몫이 곧 아이콘 줄과 진행바의 겹침이었다). 조각을 하나 더
+     더하는 대신 재게 한 사정은 재생기 쪽 주석에 있다. 실측이 아직 없는 첫 프레임에만
+     옛 조립값으로 선다. */
+  --scr-fsbot: var(--scr-fsbot-m, calc(32px + var(--scr-botpad) + var(--scr-safeb)));
+}
+.scr-fs-layer.is-fs { --scr-safeb: env(safe-area-inset-bottom, 0px); }
+/* ★ 좁은 프레임 — 조작 줄 둘이 **지도 밖으로 흐른다**(요청: "모바일은 버튼 로우와 재생
+   로우를 맵 밖으로 빼야 할 거 같은데. 이렇게 되면 전체화면과 같은 컴포넌트를 못 쓰지?")
+   ──────────────────────────────────────────────────────────────────────────────
+   못 쓰지 않는다 — 오히려 이 구조라서 쉽다. 판 하나에 껍데기 둘이니, 그 두 줄의
+   `position`만 겹침(absolute)에서 흐름(static)으로 갈면 된다. JSX는 한 톨도 안 바뀐다.
+   왜 밖으로 내는가: 좁은 화면에서 그 두 줄은 지도의 아래 5분의 1을 늘 덮고 있었다. 지도가
+   작을수록 그 몫이 크고, 정작 그 아래가 본진인 판이 많다. 밖으로 내면 지도는 제 비를
+   온전히 쓰고(크롭 0) 지형을 한 톨도 안 잃는다. 대가는 판이 그만큼 길어지는 것인데,
+   높이 예산(frameMaxH)이 이미 그 길이를 화면 안으로 죄고 있다.
+   비는 **무대**가 진다(그쪽 stageStyle) — 판의 높이는 이제 '지도 + 두 줄'이라 판에 비를
+   걸면 지도가 눌린다. 그리고 위에 앉는 것들의 밑값 기준(--scr-fsbot)은 0이다: 무대 안에서
+   재는 값이고, 그 무대 아래로는 조종부가 없다.
+   ★ **폭을 안 가린다**(요청: "PC도 모바일처럼 버튼하고 재생바부는 맵 밖 아래로 내려줘")
+     — 한동안 좁은 화면(1159px 이하)에만 걸어 두었다. 밖으로 내는 까닭(줄이 지도의 아래
+     5분의 1을 늘 덮는다)은 폭과 아무 상관이 없었고, 오히려 배치가 둘로 갈려 같은 것을
+     두 벌로 손보게 했다 — 미니맵 밑값·모서리 굴림·여백이 다 그 갈림에서 어긋났다.
+     이제 가르는 것은 **전체화면인가**뿐이다: 전체화면은 지도가 곧 화면이라 줄이 그 위에
+     얹혀야 하고(밖이라는 자리가 없다), 나머지는 다 밖이다. */
+  .scr-fs-layer:not(.is-fs) {
+    --scr-fsbot: 0px;
+    min-height: 0;
+    /* ★ 모서리를 **안 굴린다**(요청: "모바일 일반 보기에서 맵 영역 래디우스 처리 안 하는
+       게 좋을 듯해 — 옆이 꽉 차서" · 지적: "미니맵 아래쪽 컨텐츠가 살짝 잘리는 느낌")
+       ─────────────────────────────────────────────────────────────────────────────
+       둘은 **한 가지**다. 이 판은 overflow:hidden이라 굴린 모서리가 곧 가위다. 폰에서
+       판은 화면 폭을 꽉 채우므로 굴림이 화면 가장자리에서 잘려 어차피 안 보이고, 정작
+       그 가위는 **왼쪽 아래 구석에 앉은 미니맵의 모서리를 깎는다**(그 구석이 굴림의
+       한복판이다). 잘리는 느낌의 정체가 그것이다.
+       굴림은 판이 종이 위의 카드로 보일 때 뜻이 있다 — 폭을 꽉 채우면 카드가 아니라
+       띠다. 전체화면(is-fs)과 넓은 배치는 종전대로 굴린다. */
+    border-radius: 0;
+    /* ★ 지도 **양옆은 비운다**(요청: "맵 양옆은 굳이 검정으로 채울 필요 없는데
+       그냥 맵 스테이지만 가운데 있으면 될듯") ──────────────────────
+       판은 제 칸을 꽉 채우는데(조종부가 가로로 길어야 해서다) 무대는 지도 비만큼만
+       넓고 가운데 선다. 그 차이가 여태 판의 검정(#05070a)으로 드러나, PC에서는 좌우로
+       수백 px짜리 검은 액자가 된다 — 라이트 테마의 흰 종이 위에서 유독 도드라진다.
+       바탕을 걷고, 검정이 **정말 필요한 두 자리**에만 따로 깔아 둔다(아래 두 규칙).
+       전체화면(is-fs)은 판이 곧 화면이라 종전대로 판이 바탕을 진다. */
+    background: none;
+  }
+  /* ① 무대 — 지도가 덮으므로 평소엔 안 보이고, 지도가 아직 안 온 동안의 바닥이다. */
+  .scr-fs-layer:not(.is-fs) .scr-fs-stage { background: #05070a; }
+  /* ② 지도 밖으로 나온 조작부 줄 — 미니맵·아이콘 줄·조종부는 제 바탕을 안 가졌고
+     (위 세 규칙의 background: none), 라이트 테마에서도 흰 글자를 쓴다(.scr-light-theme
+     .scr-fs-layer의 --text 덮어쓰기). 받쳐 줄 어두운 바닥이 없으면 흰 종이 위에서 통째로
+     안 읽힌다. 격자 칸 하나를 가짜 자식으로 깔아 두 줄(미니맵 칸까지)을 덮는다 —
+     세 조각에 각각 바탕을 깔면 제각각의 여백만큼 검정이 끊어져 기워 보인다.
+     규칙이 아니라 **칸**이므로 조각들이 자리를 옮겨도 바닥은 그대로 따라온다. */
+  .scr-fs-layer:not(.is-fs) > .scr-fs-root::before {
+    content: ""; grid-column: 1 / -1; grid-row: 2 / span 2;
+    /* 격자가 `align-items: center`라 칸에 든 것은 제 내용만큼만 높다 — 내용 없는 이
+       바닥은 그대로 0이 된다(실측: height 0). 이 칸만 늘여 준다. */
+    align-self: stretch;
+    background: #05070a;
+  }
+  /* 라이트 테마에서는 이 바닥이 필요 없다(지시) — 조작부가 앱의 팔레트를 쓰게 되면서
+     글자가 어두워졌으니, 받쳐 줄 검정이 오히려 그 자리만 도려낸다. 종이 위에 그냥 둔다. */
+  .scr-light-theme .scr-fs-layer:not(.is-fs) > .scr-fs-root::before { background: none; }
+  /* ★ 지도 밖은 **격자 한 판**이다(요청: "미니맵이 좌측에 배치되고 그 오른쪽에 위는
+     버튼부 아래는 재생바부") ───────────────────────────────────────────────────────
+     지도 밖으로 나온 것이 셋(미니맵·아이콘 줄·조종부)이라 세로로만 쌓으면 판이 그만큼
+     길어지고, 미니맵 옆의 넓은 자리가 통째로 빈다. 왼쪽 한 칸을 미니맵이 세로로 다 쓰고
+     오른쪽 칸을 위아래로 가르면 두 줄 높이 안에 셋이 다 든다 — 원작의 조작부 배치다.
+     자리는 **손으로 못 박는다**(grid-row/column) — 형제 사이에 절대 자리(로스터·진단)가
+     끼어 있어 흐름 순서만으로는 칸이 밀린다. 그것들은 격자에 안 서므로 셈에서 빠진다. */
+  /* ★ 독의 **바깥 테두리는 값 하나**다(지적: "미니맵 위랑 왼쪽 아래 세 군데 패딩이 다
+     달라서 좀 보기 안 좋네") ────────────────────────────────────────────────────────
+     맞다. 여태 세 조각이 각자 제 이웃에게만 맞춰 값을 적었다 — 미니맵 위 6(버튼 줄과
+     맞춤) · 왼쪽 8(독의 왼 끝) · 아래 10(재생부와 맞춤). 조각끼리는 다 맞는데 **미니맵
+     이라는 상자 하나로 보면 셋이 다르다.** 사람 눈은 조각의 이웃 관계가 아니라 네모의
+     네 변을 본다.
+     테두리를 변수 하나로 뺀다. 이웃에 맞추는 것이 아니라 **판 전체가 한 값을 나눠 쓴다** —
+     다음에 조절할 때도 한 곳만 고치면 네 변이 함께 움직인다. */
+  .scr-fs-layer:not(.is-fs) > .scr-fs-root {
+    --scr-dock-pad: 8px;
+    position: relative; inset: auto;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+  }
+  /* 무대가 비를 지고 폭을 꽉 채운다 — 지도는 여기 안에서만 산다. */
+  .scr-fs-layer:not(.is-fs) .scr-fs-stage {
+    position: relative; inset: auto; width: 100%;
+    grid-column: 1 / -1; grid-row: 1;
+  }
+  /* 왼쪽 칸 — 미니맵이 두 줄을 세로로 다 쓴다. 지도 밖이라 판 꾸밈은 걷고, 높이는
+     손으로 못 박는다(비는 지도 것이라 폭이 따라온다).
+     ※ 백분율 높이로 두 줄에 맞추려는 유혹을 참는다 — 확정 높이가 아닌 부모에 건
+       백분율은 엔진마다 답이 갈린다(이 파일이 미니맵 캔버스에서 이미 데였다). */
+  .scr-fs-layer:not(.is-fs) .scr-fs-minipanel {
+    position: static; left: auto; right: auto; bottom: auto; top: auto;
+    grid-column: 1; grid-row: 2 / span 2;
+    width: auto; padding: 0; gap: 0;
+    background: none; box-shadow: none;
+    /* 네 변이 같은 값이다(위 ★) — 위·아래를 따로 적던 것을 걷었다. */
+    margin: var(--scr-dock-pad);
+    /* ★ 왼쪽만 뺀다(지시: "프레임 모드에서 미니맵 왼쪽 여백 제거") — 위 ★의 '네 변이
+       같은 값'과 어긋나 보이지만, 그 규칙이 지키려던 것은 **미니맵이라는 네모의 네 변**
+       이었고 지금 왼쪽 변은 그 네모의 변이 아니라 **판의 가장자리**다. 프레임 모드에서
+       판은 제 칸을 꽉 채우고 좁은 화면에서는 화면 폭을 통째로 쓰므로, 그 끝에서 8px을
+       띄우면 위의 지도가 가장자리에 붙은 것과 어긋난다. 나머지 세 변은 그대로다. */
+    margin-left: 0;
+  }
+  /* ★ 남는 높이는 **버튼 줄이 먹는다**(지적: "아직도 지도 주변의 여백값이 다 달라
+     보여 — 피시도 그래") ──────────────────────────────────────────────────────────
+     테두리를 8px 한 값으로 맞췄는데도 눈에는 여전히 달랐다. 까닭은 여백이 아니라
+     **남는 높이**였다: 미니맵은 격자 두 줄을 가로지르는데 높이가 못 박혀 있고 정렬이
+     가운데라, 오른 칸이 미니맵보다 길어지면 그 차이가 미니맵 위아래로 반씩 갈렸다.
+     적힌 값은 8인데 보이는 것은 8 + 남는 몫의 절반이고, 좌우에는 그 몫이 없으니 세 변이
+     달라 보인다. 내가 버튼 줄에 '두 줄 자리'를 못 박으면서 오른 칸이 길어진 탓이다.
+     남는 높이를 **한 곳에 몰아준다**: 미니맵은 못 박힌 채 두고(그래서 둘레에 남는 것이
+     0이다), 버튼 줄이 제 칸을 세로로 꽉 채워 그 몫을 다 먹는다. 버튼은 그 안에서
+     `align-content: center`가 가운데에 세우므로 보이는 그림은 그대로다.
+     그러면 '두 줄 자리'를 손으로 못 박을 까닭도 없어진다 — 칸 높이를 **미니맵이** 정하니
+     한 줄이든 두 줄이든 판이 안 흔들린다. 전체화면(절대배치)에는 격자가 없으므로 거기서만
+     min-height가 그 일을 계속한다. */
+  .scr-fs-layer:not(.is-fs) .scr-fs-minipanel .scr-motion-minibox { width: auto; margin: 0; }
+  .scr-fs-layer:not(.is-fs) .scr-fs-minipanel .scr-fs-minimap {
+    /* 기본값도 두 배(요청: PC 2배) — 92 → 184. 폰은 아래 480px 규칙이 덮는다. */
+    width: auto; height: var(--scr-dock-mini, 184px);
+  }/* 폰에서는 한 단 작게 — 이 판이 왼쪽 칸을 가져간 만큼 조종부의 칸이 줄고, 390px
+     화면에서는 그 몫이 3할에 가깝다. 76px이면 '어디를 보고 있나'는 그대로 읽힌다. */
+  @media (max-width: 480px) {
+    /* 1.5배(요청) — 76 → 114. 그 뒤 140(위 ★) — 버튼 두 줄 + 재생부가 오른 칸에 들어갈
+       만큼은 되어야 **미니맵이 칸 높이를 정하는 쪽**으로 남는다. 모자라면 오른 칸이
+       더 길어져 남는 높이가 도로 미니맵 둘레로 간다. */
+    .scr-fs-layer:not(.is-fs) { --scr-dock-mini: 140px; }
+}
+
+  /* 오른쪽 칸 위 — 아이콘 줄(오른쪽 맞춤). */
+  .scr-fs-layer:not(.is-fs) .scr-motion-mapbtns {
+    /* ★ 칸을 **꽉 채운다**(justify-self를 걷었다) — `end`면 상자가 내용만큼만 넓어져
+       줄바꿈할 자리가 아예 없다. 칸을 채우고 안에서 오른쪽 맞춤(justify-content: end)
+       하면, 버튼이 늘면 그 칸 안에서 아랫줄로 접힌다. 미니맵은 왼 칸이라 겹칠 수 없다 —
+       요청의 '겹치지 않는 div'를 격자 칸이 이미 하고 있다(전체화면 쪽은 절대배치라
+       왼 끝을 --scr-mini-w로 못 박았다). */
+    position: static; grid-column: 2; grid-row: 2; justify-self: stretch;
+    left: auto; min-width: 0;
+    /* 칸을 세로로도 꽉 채워 **남는 높이를 여기서 먹는다**(위 ★) — 그 높이는 미니맵이
+       정하므로, 손으로 못 박던 '두 줄 자리'는 여기서 푼다(0). */
+    align-self: stretch; min-height: 0;
+    /* 지도 밖으로 나온 줄들은 **숨 쉴 자리**가 필요하다(지적: "로스터랑 버튼 재생바
+       부분용 공간이 위아래 패딩이 없어서 좀 답답해") — 지도 위에 얹혀 있던 시절에는
+       지도 자체가 여백 노릇을 했는데, 밖으로 나오니 줄과 줄이 맞붙었다. 위에 한 뼘
+       (8), 아래는 재생바가 제 몫으로 잇는다. */
+    /* 줄간격을 좁힌다(요청: "모바일 버튼로우/재생바/재생버튼부 세 줄의 줄간격 줄여줘")
+       — 8 → 3. 세 줄이 각자 줄로 읽히기만 하면 되고, 그 몫은 지도가 가져가는 편이 낫다. */
+    /* 위·오른쪽은 독의 테두리 값(위 ★) — 아래는 재생부가 잇는다. */
+    margin: var(--scr-dock-pad) var(--scr-dock-pad) 0 0; right: auto; bottom: auto;
+  }
+  /* 오른쪽 칸 아래 — 조종부(재생·진행바·공유). */
+  .scr-fs-layer:not(.is-fs) .scr-fs-ui { position: static; grid-column: 2; grid-row: 3; }
+  /* (되돌림·요청: "모바일에서 로스터 다시 원복할게 — 맵 안으로 복귀하고 전체화면과
+     같은 CSS") ─────────────────────────────────────────────────────────────────────
+     여기 있던 것 — 로스터를 무대 위(order: −1)로 내보내고, 두 편을 나란히 세우고, 그
+     좁아진 이름 칸을 살리려 칸 나눔(--roster-cols)·여백·글자까지 이 배치 전용으로
+     다시 잡던 규칙 한 벌이다. 지도는 넓어졌지만 대가가 컸다: 폰 폭을 반씩 나눠 쓰니
+     이름 칸이 55px밖에 안 남아 네 글자 이름은 여전히 말줄임이고, 무엇보다 **전체화면과
+     다른 표**가 되어 같은 로스터를 두 벌로 손보게 됐다.
+     이제 지도 위 겹침으로 돌아간다 — 전체화면과 **같은 규칙 한 벌**이다. 조작 줄 둘은
+     그대로 지도 밖에 남는다(그쪽은 지도의 아래 5분의 1을 늘 덮던 것이라 사정이 다르다). */
+  .scr-fs-layer:not(.is-fs) .scr-fs-bottom {
+    position: static; left: auto; right: auto; bottom: auto;
+    /* 지도 밖이라 그림자 그러데이션이 필요 없다 — 판 바탕 위에 그냥 선다.
+       위아래 여백은 넉넉히(같은 지적) — 4/6은 아이콘 줄과 재생바를 한 덩이로 붙여
+       보이게 했다. 위 8·아래 10이면 셋(로스터·버튼·재생바)이 각자 줄로 읽힌다. */
+    /* 좌·우·아래는 독의 테두리 값(위 ★). 위는 버튼 줄과의 사이라 따로다 — 그것은
+       테두리가 아니라 **줄 사이**이므로 같은 값일 까닭이 없다. */
+    background: none; padding: 5px var(--scr-dock-pad) var(--scr-dock-pad);
+  }
+.scr-fs-layer.is-fs .scr-fs-bottom {
+  padding-bottom: calc(var(--scr-botpad) / 2 + env(safe-area-inset-bottom, 0px));
+}
+.scr-fs-bottom {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 8px 12px;
+  /* 흐림 제거 — 위 .scr-fs-col과 같은 까닭(요청). */
+  background: linear-gradient(0deg, rgba(6, 9, 14, 0.55), rgba(6, 9, 14, 0));
+}
+/* ★ min-width: 0이 있어야 **줄어든다**(지적: "재생부가 잘리는데 오른쪽이" · "요소들
+   폭이 넘나") — 미니맵이 아래 독의 왼쪽 칸을 가져가면서 조종부의 칸이 그만큼 좁아졌다
+   (폰 390 → 278). flex 항목은 기본이 `min-width: auto`라 **제 내용의 최소 폭 아래로는
+   안 줄어든다**: 재생 버튼 + 진행바 + 시각이 그 최소를 307px로 잡아, 넘친 29px이 판의
+   overflow에 오른쪽부터 잘려 나갔다(공유 버튼이 그 자리다).
+   0으로 풀면 이 줄이 칸에 맞춰 줄고, 안쪽에서는 진행바가 그 몫을 다 받는다
+   (.scr-motion-range는 이미 flex: 1 1 auto · min-width: 0이다). */
+.scr-fs-bottom > .scr-motion-bar-controls { flex: 1 1 auto; min-width: 0; margin: 0; }
+/* ★ 조종부는 **어디서나 두 줄**이다(요청: "피시 프레임 모드에서도 모바일처럼 재생부와
+   재생버튼·공유버튼·시간 줄을 나누기" · "전체화면에서도 똑같이 나눠서 공통으로 통일")
+   ────────────────────────────────────────────────────────────────────────────────
+   한 줄일 때 폭을 나눠 갖는 것이 넷이다: 재생 버튼 · 진행바 · 시각 · 장면 공유·스크랩.
+   진행바는 **끌어서 쓰는** 것이라 짧을수록 못 쓴다 — 그것만 윗줄로 올려 폭을 통째로 준다.
+   좁은 화면에서 먼저 필요했던 규칙이라 여태 `max-width: 1159px`에 갇혀 있었는데, 넓은
+   화면이라고 진행바가 짧아도 되는 것은 아니다. 무엇보다 **한 배치**로 두어야 고칠 때
+   한 군데만 본다 — 이 파일이 두 벌로 데인 자리가 바로 위 stageNode 주석에 적혀 있다.
+   DOM은 안 건드린다: 조종부와 꼬리를 display: contents로 벗겨 그 안의 넷이 이 격자의
+   직계 칸이 되게 하고, 자리는 격자가 정한다. 그래야 한 벌(controlsNode)을 그대로 쓴다. */
+/* 배치는 **한 벌만** 적는다 — 미디어 문이 있던 시절에는 `display: flex` 한 벌을 두고
+   좁은 화면에서 격자로 덮었지만, 이제 덮을 일이 없다. 덮이려고 존재하는 규칙은 읽는
+   사람을 속인다(위에서 flex를 보고 '한 줄이구나' 한다). 한 곳에서만 정한다. */
+.scr-fs-bottom {
+  display: grid;
+  /* 아랫줄은 넷이다(재재지적: 스크랩이 아래로 떨어졌다) — 재생 · 스크랩 · 공유 · 시각.
+     칸을 안 늘리면 칸 없는 아이가 다음 줄로 흘러 세 줄이 된다. */
+  grid-template-columns: auto auto auto 1fr;
+  grid-template-rows: auto auto;
+  /* 두 줄 사이도 좁힌다(같은 요청) — 6 → 3. */
+  align-items: center; column-gap: 8px; row-gap: 3px;
+}
+.scr-fs-bottom > .scr-motion-bar-controls,
+.scr-fs-bottom > .scr-fs-bottom-tail { display: contents; }
+/* 윗줄 — 진행바가 폭을 다 쓴다. */
+.scr-fs-bottom .scr-motion-range { grid-column: 1 / -1; grid-row: 1; width: 100%; }
+/* 아랫줄 — 재생, 장면 공유, 그리고 오른쪽 끝에 시각. */
+.scr-fs-bottom .scr-motion-play { grid-column: 1; grid-row: 2; }
+.scr-fs-bottom .scr-scrapbtn-wrap { grid-column: 2; grid-row: 2; }
+.scr-fs-bottom .scr-kakao-share-btn { grid-column: 3; grid-row: 2; margin-left: 0; }
+.scr-fs-bottom .scr-motion-clockwrap {
+  grid-column: 4; grid-row: 2; justify-self: end; min-width: 0;
+}
+/* 한 줄 시절의 높이 못 박기는 두 줄에서 뜻이 없다(위 12491행) — 내용이 정하게 둔다. */
+.scr-fs-layer .scr-fs-bottom > .scr-motion-bar-controls { height: auto; }
+
+.scr-fs-bottom-tail { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+/* 전체화면의 장면 공유 버튼도 **라이팅 알약**이다(지적: "전체화면 모드에서 현재 장면
+   공유 버튼 css가 라이팅 테마가 아님") — 이 버튼은 배치마다 다른 조상 아래로 옮겨
+   다니는데(평소 PC는 .scr-motion-sharerow, 좁은 배치는 .scr-motion-mobrow, 전체화면은
+   여기), 알약 꾸밈이 앞의 둘에만 걸려 있어 전체화면에서만 카카오 기본 노랑(#fee500)이
+   드러났다. 세 자리가 같은 배색을 쓰도록 여기에도 같은 규칙을 건다.
+   ★ .scr-fs-layer는 body로 포털되지만 라이트 테마 클래스는 <html>에 붙으므로
+     (.scr-light-theme — utils/theme.ts) 아래 라이트 규칙도 그대로 걸린다. */
+.scr-fs-bottom-tail .scr-kakao-share-btn {
+  /* 좌우 여백을 죈다(요청) — 12 → 7. */
+  height: 26px; min-height: 0; padding: 0 7px; font-size: 11px; gap: 4px;
+  white-space: nowrap; line-height: 1;
+  background: #fff; color: #10151a; border: 1px solid #fff; border-radius: 8px;
+  box-shadow: var(--lit-pill-glow);
+}/* ★ 아이콘은 **좁은 화면에서만** 걷는다(요청: "피시에서는 장면 공유에 카톡 아이콘 복구,
+   모바일에선 둘 다 글자만") — 한때 이 자리에서 통째로 걷었는데, 그 까닭("좁은 줄에서
+   폭만 먹는다")은 폰에서만 참이다. PC는 줄이 넓어 아이콘 한 칸이 아깝지 않고, 무엇보다
+   **어디로 공유되는지**를 그 하나가 말한다. */
+@media (max-width: 1159px) {
+  .scr-fs-bottom-tail .scr-kakao-share-btn svg { display: none; }
+  .scr-motion-mobrow .scr-kakao-share-btn svg { display: none; }
+}
+
+.scr-fs-bottom-tail .scr-kakao-share-btn svg { width: 13px; height: 13px; color: #10151a; }
+.scr-light-theme .scr-fs-bottom-tail .scr-kakao-share-btn {
+  background: var(--lit-pill-bg); border-color: transparent; color: var(--text);
+}
+.scr-light-theme .scr-fs-bottom-tail .scr-kakao-share-btn svg { color: var(--text); }
+
+/* PC 전체화면의 기둥은 두 칸씩 앉힌다 — 208px(좁은 창은 148px) 기둥에 넷을 한 줄로
+   세우면 칸이 37~52px이라 '일꾼 14'가 안 든다. 지도 옆 기둥(.scr-motion-side)과 같은
+   2열이다. 선택자에 .scr-motion을 한 번 더 얹은 것은 위 :not(.scr-motion-wide) 규칙과
+   같은 무게로 맞춰 뒤에 오는 이쪽이 이기게 하기 위해서다. */
+.scr-motion .scr-fs-col .scr-motion-teamcol {
+  grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 4px;
+}
+/* 전체화면 미니맵은 **화면 좌하단**에 따로 산다(요청: 오버레이 기둥 말고) — 아래
+   조작줄(높이 약 60px) 위에 얹히고, 기둥의 반투명 판과 겹치지 않게 그 폭 바깥이 아니라
+   같은 왼쪽 끝에 붙는다. 원작 미니맵의 자리와 같은 결이다. */
+.scr-fs-minicorner {
+  position: absolute; left: 10px; bottom: 70px; width: 200px; z-index: 2;
+}
+/* 평소 배치(PC)의 미니맵 — 왼쪽 로스터 기둥 아래 남는 자리(요청). 기둥 폭을 그대로
+   쓰고, 위 로스터와 조금 떨어뜨린다. */
+/* 미니맵은 왼쪽 기둥의 **맨 아래**에 앉는다(요청: "피시 일반모드에서 미니맵 위치
+   아래쪽에 위치하고") — margin-top:10px은 로스터 바로 밑에 붙는 값이라, 로스터가
+   짧은 경기(2인)에서는 기둥 한가운데에 떠 있었다. auto면 남는 세로 자리를 위쪽이
+   전부 먹어 미니맵이 바닥에 붙는다 — 전체화면의 좌하단 자리와 같은 결이다. */
+.scr-motion-minibox { width: 100%; margin-top: auto; }
+/* 미니맵(PC 전용) — 왼쪽 기둥 아래 빈 자리에 앉는다. */
+.scr-fs-minimap {
+  flex: 0 0 auto; width: 100%; position: relative;
+  /* 모서리는 **안 굴린다**(요청: "미니맵 모든 플랫폼에서 라운딩 제거") — 이 상자는
+     지도를 한 톨도 안 자르고 다 보여 주는 것이 일이다. 굴림은 네 귀퉁이를 깎아 내는데,
+     하필 그 귀퉁이가 판에서는 본진이 서는 자리다(원작 미니맵도 각진 네모다). */
+  border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 0; overflow: hidden;
+  cursor: crosshair; touch-action: none;
+  /* 판 노릇은 이 네모가 한다(요청: 미니맵 자체가 패널) — 바깥 판을 걷어낸 자리라,
+     지도 위에 얹힌 것으로 읽히려면 제 그림자가 있어야 한다. 판이 쓰던 값 그대로. */
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+/* ★ 그 그림자는 **전체화면 몫이다**(지적: "미니맵 쉐도우 없어도 될 듯, 자체가 튀어서")
+   ────────────────────────────────────────────────────────────────────────────────
+   위 값을 준 까닭은 바로 윗줄에 적혀 있다 — '지도 위에 얹힌 것으로 읽히게'. 프레임
+   모드에서는 이 판이 지도 밖 조작부 줄에 서므로 **얹힐 지도가 없다**. 게다가 미니맵은
+   색이 빽빽한 네모라 제 힘으로 이미 배경에서 떨어진다 — 그 위의 그림자는 띄우는 것이
+   아니라 얼룩이다. 지도 버튼의 그림자를 걷은 것과 같은 사정이고, 두 테마 모두 그렇다.
+   ★ 대신 **회색 테두리**를 준다(지시) — 위 흰 머리카락 선은 어두운 지도 위에 얹혔을 때의
+     것이라, 종이 위에서는 아예 안 보인다. 그림자를 걷은 자리에서 미니맵의 네 변을
+     말해 주는 것은 이 선 하나뿐이다. 두 테마 모두 같은 회색이다: 미니맵 속은 어느
+     테마에서도 제 색(지형·유닛)이라, 테두리는 그 색과 갈리기만 하면 된다. 검정은 한 번
+     대 봤는데(지시) 흰 종이 위에서 너무 단단해 미니맵보다 테가 먼저 읽혔다. */
+.scr-fs-layer:not(.is-fs) .scr-fs-minimap {
+  box-shadow: none;
+  border-color: #6b7076;
+}
+/* ★ 캔버스는 **자리로 채운다**(지적: "미니맵 아랫줄이 완전히 가려져" · "그것도 iOS
+   사파리에서 그래") ────────────────────────────────────────────────────────────────
+   여태 `height: 100%`였다. 그런데 이 상자의 높이는 **aspect-ratio가 낸 값**이지 손으로
+   적은 값이 아니다 — 곧 '확정 높이'가 아니다. 백분율 높이를 확정 높이가 아닌 부모에
+   걸면 브라우저마다 답이 갈린다: 크로뮴은 비가 낸 높이로 풀어 주지만, 웹킷은 auto로
+   물러난다. auto로 물러난 <canvas>는 **속성 높이(굽는 픽셀 수)를 CSS 픽셀로** 쓴다 —
+   159짜리 배킹이 79.7px 상자 안에 159px로 서고, 넘치는 절반이 overflow에 잘린다.
+   그것이 '아랫줄이 통째로 가려진다'의 정체이고, 아이폰에서만 났던 까닭이다.
+   자리(absolute + inset 0)로 채우면 백분율을 풀 일이 없다 — 어느 엔진에서도 상자에
+   정확히 맞는다. 상자는 이미 position: relative다. */
+.scr-fs-minimap > canvas {
+  display: block; position: absolute; inset: 0; width: 100%; height: 100%;
+}
+
+/* (삭제·요청: "모바일 전체화면 메뉴 버튼 제거") — 구석에 떠 있던 '⋯' 깨우기 알약
+   (.scr-fs-wake)이 있던 자리다. 이제 지도 아무 데나 누르면 조작부가 켜졌다 꺼진다
+   (ReplayMotionPlayer의 fsToggleUi). */
+
+/* ── 손가락 기기의 전체화면 배치(요청: "모바일 도구 오버레이 배치 잘해서 패널 남는
+   공간 많이 줄일수 있을듯 안그래도 화면 좁은데 맵 다가려져") ─────────────────────
+   여태 좌우 148px 기둥 둘이 서서, 폭 390px 화면에서 지도에 94px만 남겼다. 기둥을 걷고
+   위 한 줄 · 지도 가장자리 바 둘 · 아래 두 줄로 바꾼다 — 가운데는 통째로 지도다. */
+.scr-fs-top {
+  position: absolute; left: 0; right: 0; top: 0;
+  display: flex; align-items: flex-start; gap: 8px;
+  /* 노치·상태바만큼 내려 앉힌다(요청: "맨위 스타게이트 로고가 있어서 로스터 좀
+     내려야해") — 헤더 자체는 이제 판이 덮지만, 홈 화면 웹앱이나 노치 기기에서는
+     화면 맨 위 몇십 px이 시스템 몫이라 그만큼은 비워야 로스터가 안 잘린다. */
+  padding: calc(max(var(--safe-top, 0px), 8px) + 4px) 8px 10px;
+  background: linear-gradient(180deg, rgba(6, 9, 14, 0.55), rgba(6, 9, 14, 0));
+}
+/* 로스터 둘이 줄을 반씩 나눠 갖는다 — 가운데 있던 나가기는 아래 색상·성능 줄의
+   여닫이 버튼으로 옮겼다(요청). */
+.scr-fs-toproster { flex: 1 1 0; min-width: 0; }
+/* 배속·각도는 지도 좌우 **가장자리**에 얹는다 — 평소 좁은 화면(.scr-motion-slidebar-l/-r)과
+   같은 자리다. 다만 그쪽은 지도 상자 기준이고 이쪽은 화면 기준이다: 전체화면의 지도는
+   화면보다 크게 깔려 끌려 다니므로 지도에 붙이면 밖으로 밀려난다. */
+/* ★ 조작부를 여는 **아이콘 버튼**(요청: 햄버거 메뉴) — 모서리 쓸기를 걷고 이걸로
+   갈음했다. 운영체제 손짓과 겨룰 것이 없고, 무엇보다 눈에 보인다.
+   자리는 **오른쪽 아래** 구석이다(지적: "햄버거는 아래에 있는게 정석") — 손에 쥔 기기
+   에서 엄지가 닿는 자리가 아래고, 위 구석은 노치·상태바·브라우저 UI와 겨루는 자리다.
+   조작부가 떠 있는 동안은 이 버튼을 안 그리므로 아래 조종부 줄과 겹칠 일도 없다.
+   홈 인디케이터만큼 띄운다. */
+/* 판(.scr-fs-ui) **바깥**에 선다 — 그 판은 숨을 때 opacity:0이 되고, 투명도는 무리
+   전체에 걸리는 성질이라 자식이 1로 되돌릴 수 없다(지적: 버튼이 안 보임). */
+.scr-fs-menubtn {
+  position: absolute; z-index: 12;
+  right: calc(10px + env(safe-area-inset-right, 0px));
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  width: 44px; height: 44px; padding: 0;
+  /* 홀로 선 아이콘이라 **동그란 판**이다(요청) — 네모 알약은 옆에 짝이 있을 때의 꼴이다. */
+  border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+/* 로스터 여닫이 — 햄버거 **옆**(요청)이다. 같은 꼴·같은 줄, 자리만 한 버튼 왼쪽. */
+.scr-fs-rosterbtn {
+  right: calc(10px + env(safe-area-inset-right, 0px) + 52px);
+}
+/* ── 항시표시 로스터(요청: "전체화면 피시 모바일 둘다 로스터는 항시표시") ──────────
+   조작부 판 바깥에 홀로 선다(그 판은 숨을 때 통째로 투명해진다 — 위 햄버거 주석).
+   자리는 사이드바 로스터가 서던 왼위 — 조작부를 열면 사이드바가 이 자리를 이어받으므로
+   눈에는 로스터가 늘 같은 곳에 있다. 판 꼴은 기둥(.scr-fs-col)과 같은 결의 반투명. */
+/* 전체화면의 떠 있는 판들 — 로스터와 도구가 **각자 제 판**이다(요청: 완전 분리).
+   같은 꼴을 여기 한 번만 적는다: 둥근 모서리·옅은 판·테두리 한 줄. */
+.scr-fs-panel {
+  position: absolute; z-index: 9;
+  /* 여백을 넉넉히(요청: "재생 오버레이 패널 상하좌우 패딩 증가") — 8px은 글자가 판
+     테두리에 닿아, 둥근 판이 아니라 잘린 띠로 읽혔다. 14px이면 로스터 표의 바깥
+     여백(5px)까지 합쳐 한 뼘이 되고, 판이 지도 위에 얹힌 것으로 갈린다. */
+  padding: 14px; border-radius: 14px;
+  display: flex; flex-direction: column; gap: 8px;
+  background: rgba(6, 9, 14, 0.42);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.10), 0 6px 20px rgba(0, 0, 0, 0.35);
+  /* 판 안의 글자는 지도 위라 **늘 흰색**이다(라이트 테마에서도) — 아래 변수 덮어쓰기가
+     .scr-fs-layer 몫으로 이미 걸려 있고, 여기서는 그 값을 그대로 물려받는다. */
+}
+.scr-fs-roster-fixed {
+  /* 프레임에서는 노치를 셈할 까닭이 없다 — 판이 화면 꼭대기에 닿는 것은 전체화면일
+     때뿐이다(아래 .is-fs 규칙이 그때만 safe-top을 얹는다).
+     ★ 왼끝은 **지도의 왼끝**이다(--scr-stage-l) — 판은 이제 제 칸을 꽉 채우므로(폭
+       상한이 무대로 옮겨 갔다) 판 기준으로만 두면 로스터가 페이지 구석으로 끌려가
+       지도에서 한참 떨어져 뜬다. 전체화면에서는 무대가 곧 판이라 그 값이 0이다. */
+  left: calc(var(--scr-stage-l, 0px) + 10px); top: 10px;
+  /* 300 → 320(수리: PC 전체화면에서 세 글자 이름이 "수…"로 잘렸다) — 판 여백이 8에서
+     14로 커지면서(오버레이 여백 키우기) 안쪽 폭이 12px 줄었고, 그 12px이 통째로
+     이름 칸에서 빠졌다. 실측: 이름 칸 86px에 아바타 22 + 사이 5를 빼면 글자 자리가
+     59px인데 '수달이' 칩은 50 + 종족 배지 22 + 사이 3 = 75px이 필요했다.
+     빼앗긴 만큼 되돌리고(+12) 한 뼘 더 둔다 — 네 글자 이름도 이 폭에서 안 잘린다. */
+  width: 320px;
+}
+.scr-fs-layer.is-fs .scr-fs-roster-fixed { top: calc(max(var(--safe-top, 0px), 10px)); }
+/* ★ 판만 걷은 꼴(요청: "자리는 활성화시와 같게하고 패널은 미표시") — 바탕·테두리·
+   그림자만 지우고 자리·여백은 한 톨도 안 건드린다. 그래서 켜고 끌 때 이름이 안
+   움직이고, 지도를 가리던 것(판)만 사라진다.
+   ★ 빈 자리는 **손짓을 흘려보낸다** — 판이 안 보이는데도 300px 상자가 지도의 누름을
+     통째로 삼키면, 보이지도 않는 것에 막혀 지도가 안 끌린다.
+   ★ 도로 받는 것은 이제 **아바타와 이름 글자**뿐이다(요청: 나머지는 지도로 흘려 더블탭
+     줌이 되게) — 여기 있던 `.scr-motion-teamcol-item { pointer-events: auto }`는 줄
+     **전체**를 되살려, 지표 칸과 그 옆 빈자리까지 손짓을 도로 삼켰다. 그 두 조각을
+     되살리는 일은 로스터 쪽 규칙이 이미 한다(.scr-motion-teamcol의 pointer-events
+     주석) — 여기서 한 번 더 열면 그 좁힘이 무효가 된다. */
+.scr-fs-panel-bare {
+  background: none; box-shadow: none; pointer-events: none;
+}
+/* (삭제·요청: "off일 때만 글자 뒤에 음영이 붙는다 — 필요없는 기능이라 원인까지 삭제")
+   판이 없을 때만 걸던 검은 text-shadow 한 겹이었다. 켜고 끌 때 글자의 인상이 달라져
+   같은 표로 안 읽혔다. 이름칩은 제 배경색을 갖고 있어 지도 위에서도 그것으로 읽힌다. */
+/* 도구 판 — 왼쪽 **아래**다. 로스터가 위에 있으므로 둘이 위아래로 갈려 안 겹치고,
+   각각 켜고 끄는 조합 넷이 모두 성립한다. 아래 조종부 줄 위에 앉힌다. */
+/* ★ 도구 판의 알약은 **한 기둥**이다(요청: "오버레이의 버튼부 1열배치 가능하겠다
+   패널 폭 줄일수 있고") ────────────────────────────────────────────────────────
+   여태 이 판만 `.scr-motion-viewrow`의 기본 꼴(가로 flex + 줄바꿈)로 돌아가 알약이
+   둘씩 짝지어 흘렀다 — 세로 규칙이 `.scr-motion-sidepanel` 자손에만 걸려 있었고 이
+   판은 그 자손이 아니기 때문이다(같은 사정으로 옛 기둥에서도 한 번 샜다).
+   1열로 세우면 판 폭을 정하는 것이 '알약 두 묶음'이 아니라 **가장 넓은 묶음 하나**가
+   되므로, 색상 알약이 지도 아이콘으로 빠진 지금은 그 자리가 크게 줄어든다. */
+.scr-fs-toolpanel .scr-motion-viewrow {
+  display: flex; flex-direction: column; flex-wrap: nowrap;
+  align-items: center; justify-content: flex-start; gap: 10px;
+  margin-bottom: 0;
+}
+/* 폭은 이제 **미니맵이 정한다**(요청: 1열이면 판을 좁힐 수 있다) — 실측(계측기
+   --probe-toolpanel의 폭 쓸기): 1열로 세운 알약은 96px이면 한 톨도 안 넘친다(가장
+   넓은 묶음 '마우스 조작' 68 + 여백 28). 곧 손가락 기기에서는 200 → 112px이면 넉넉하다.
+   PC는 이 판 안에 미니맵이 함께 살아서 그 아래로는 못 간다: 한 변이 90px 밑이면 유닛이
+   점 하나라 무엇이 어디 있는지가 안 읽힌다(옛 실측). 150px이면 미니맵 122px이 남아
+   그 문턱 위이면서도 지도를 가리는 몫은 4분의 1이 준다. */
+.scr-fs-toolpanel {
+  /* 아이콘 줄 **위**로 올라앉는다 — 그 줄이 배속·보기·확대 값 버튼을 받으며 넷에서
+     일곱 칸으로 넓어져(요청) 폭 390 화면에서는 판의 자리(왼쪽 112px)까지 닿았다.
+     줄은 도구 판이 켜지면 bottom 88로 밀리고 높이가 44라 윗변이 132px이다 — 판은 그
+     위에서 시작한다. 아래 max-height도 같은 몫만큼 죈다. */
+  left: 10px; bottom: calc(140px + env(safe-area-inset-bottom, 0px));
+  width: 150px; align-items: stretch;
+  /* 높이 상한은 **판 기준**이다(요청: 통합) — 100dvh로 재면 프레임 안에서는 판보다
+     큰 값이 나와 상한 노릇을 못 한다. 담을 상자(.scr-fs-root)가 곧 판이므로 %가
+     전체화면(=화면)과 프레임 둘 다에서 옳다. */
+  max-height: calc(100% - 200px); overflow: auto;
+}
+.scr-fs-toolpanel .scr-motion-sidebars {
+  display: flex; align-items: flex-start; justify-content: center; gap: 18px;
+}
+.scr-fs-toolpanel .scr-motion-minibox { width: 100%; margin: 0; }
+/* ── 미니맵 판(요청: "미니맵 오버레이 및 아이콘 추가") ──────────────────────────────
+   도구 판에 세들어 살던 미니맵을 **제 판**으로 내놨다. 자리는 **왼쪽 아래** 구석이다:
+   위는 로스터, 오른쪽 아래는 아이콘 줄과 재생바가 쓰므로 남는 구석이 여기고, 원작의
+   미니맵 자리이기도 하다. 아래 여백은 조종부 줄(재생·진행바) 높이만큼 비운다 —
+   그 줄은 이제 늘 떠 있으므로(요청) 겹칠 자리를 아예 안 만든다.
+   폭은 판 크기를 따라간다(clamp) — 폰에서는 화면의 36%, PC에서는 176px에서 멈춘다.
+   미니맵은 정사각이 아니라 **지도 비**를 따르므로 높이는 컴포넌트가 정한다. */
+/* 넓은 배치 — 왼쪽 아래 구석(원작의 미니맵 자리). 아이콘 줄이 오른쪽에 몰려 폭
+   300px 남짓이라 왼쪽 구석과 안 닿는다(판정: "피시에선 구지 안 올려도 될 거 같은데"). */
+.scr-fs-minipanel {
+  /* ★ 판을 안 두른다(요청: "미니맵은 패널 없게 수정 미니맵 자체가 패널로 인식가능") —
+     여태 .scr-fs-panel을 함께 걸쳐 바탕·테두리·그림자·여백을 다 얻었는데, 미니맵은
+     이미 제 테두리를 가진 네모라 테두리가 겹으로 섰고 그 사이 여백이 지도를 가렸다.
+     자리 잡는 몫(절대배치·층)만 여기서 스스로 낸다. 판처럼 보이는 일은 미니맵 제
+     테두리와 그림자가 한다(.scr-fs-minimap). */
+  position: absolute; z-index: 9;
+  display: flex; flex-direction: column;
+  /* 조종부 바로 위 — 안전 영역은 --scr-fsbot이 안고 있다(프레임에서는 0). */
+  left: 10px; bottom: calc(var(--scr-fsbot, 48px) + 6px);
+  /* 두 배로(요청: "피시에서 미니맵 크기 2배") — 96~176 → 192~352. 아이콘 줄이 오른쪽에
+     몰려 있어(폭 300 남짓) 왼쪽 아래 구석은 그만큼 자리가 있다. */
+  /* 폭은 **변수 하나**에서 온다 — 버튼 줄의 왼 끝이 같은 값을 보고 물러선다
+     (.scr-motion-mapbtns의 left). 두 곳에 같은 수를 적어 두면 한쪽만 고쳐져 겹친다. */
+  width: var(--scr-mini-w); padding: 0; gap: 0;
+}
+.scr-fs-minipanel .scr-motion-minibox { width: 100%; margin: 0; }/* ★ 좁은 화면도 **왼쪽 아래**다(요청: "미니맵은 다시 왼쪽으로 이동시켜줘(피시랑
+   통일성)") ──────────────────────────────────────────────────────────────────────
+   한동안 오른쪽 아래로 보냈던 자리다(지적: "오른쪽 하단 버튼 로우 바로 위에 배치").
+   그때의 까닭 둘이 지금은 다 사라졌다 — ① 왼쪽 위 로스터와 한 기둥에 겹쳐 보이던
+   것: 로스터가 지도 밖으로 나갔다(위 규칙). ② 아이콘 줄과 닿던 것: 그 줄도 지도
+   밖이다. 남은 것은 **오른쪽 아래에서 아이콘 줄·재생바와 부딪히는 문제**뿐이고
+   (지적: "모바일 일반화면에서 버튼로우와 미니맵이 겹쳐"), 왼쪽은 통째로 비어 있다.
+   무엇보다 PC와 같은 구석이라야 두 화면을 오갈 때 눈이 안 헤맨다.
+   크기는 좁은 화면 몫으로 그대로 줄여 둔다 — 한 변 90px 남짓이면 '어디를 보고 있나'는
+   읽힌다. 여백도 한 단 작게. */
+/* ★ PC 전체화면의 미니맵만 **20% 작게**(지시) — 192~352 → 154~282 ─────────────────
+   값은 폭 하나로 낸다: 미니맵과 버튼 줄이 이 변수를 **함께** 보므로(버튼 줄 왼 끝이
+   `10 + --scr-mini-w + 10`이다), 여기만 줄이면 둘이 나란히 따라온다. 폭을 직접 덮으면
+   둘이 어긋난다(그 자리 주석의 그 흠이다).
+   자리를 `.is-fs`로 못 박는 까닭 — 프레임 모드의 미니맵은 폭이 아니라 **높이**
+   (--scr-dock-mini)로 서고 버튼 줄도 격자 칸에 앉아, 이 값과 무관하다. 그쪽까지 건드릴
+   일이 없으니 전체화면에만 건다. 좁은 화면(<1160)은 아래 제 값이 그대로다. */
+@media (min-width: 1160px) {
+  .scr-fs-layer.is-fs .scr-fs-root { --scr-mini-w: clamp(154px, 48vw, 282px); }
+}
+@media (max-width: 1159px) {
+  /* ★ 폭은 **뿌리의 변수**로 낸다 — 여기서 `width`를 직접 덮으면 버튼 줄의 왼 끝
+     (--scr-mini-w를 보는 .scr-motion-mapbtns)과 어긋난다. 둘은 형제라 판에 건 변수가
+     버튼 줄까지 안 간다: 값을 공유하려면 **공통 조상**에 두어야 한다.
+     1.5배로(요청: "모바일 미니맵 크기 1.5배") — 76~116 → 114~174. */
+  .scr-fs-root { --scr-mini-w: clamp(114px, 34.5vw, 174px); }
+  .scr-fs-minipanel {
+    left: calc(5px + env(safe-area-inset-left, 0px)); right: auto;
+    /* ★ (걷어냄) 버튼 줄 높이만큼(+44) 밀어 올리던 몫(지시: "모바일에서 미니맵 아래
+       버튼줄 확보하던 거 이제 없어도 돼") — 그 줄이 미니맵 위로 올라탈까 봐 자리를
+       비워 두던 값이다. 이제 버튼 줄은 왼 끝이 미니맵 폭 뒤로 못 박혀 있어(위 --scr-mini-w)
+       아무리 줄바꿈해도 그 자리에 닿지 못한다. 막을 것이 없어졌으니 비워 둘 것도 없다 —
+       PC와 같은 +6으로 내려와 지도를 그만큼 덜 가린다. */
+    padding: 0;
+  }
+}
+@media (max-width: 900px) {
+  /* 손가락 기기 — 판을 사이드바(56vw)만큼 두어 이름이 산다(실측: 196px에서는 지표
+     다섯이 150px을 먹어 이름에 한 자만 남았다). 글자는 사이드바와 같은 자다
+     (--roster-cols는 위 1159px 규칙이 함께 덮는다). */
+  /* 손가락 기기도 여백을 키운다(요청) — 다만 폭이 좁으므로 PC(14)보다 한 단 작게. */
+  /* ★ 손가락 기기는 판을 **가장자리에 바짝** 붙인다(요청: "모바일에서 오버레이들이 너무
+     안쪽에 떠 — 맵 내부 패딩과 패널의 패딩 둘 다 줄여야 할 듯") — 판이 10px씩 안으로
+     들어와 앉고 제 안에 또 10px을 두면 가장자리 20px이 통째로 지도를 가리는 테두리가
+     된다. 화면이 좁을수록 그 몫이 크다. 둘 다 줄인다: 앉는 자리 10 → 5, 안 여백 10 → 7. */
+  .scr-fs-roster-fixed { width: clamp(216px, 60vw, 268px); padding: 7px; gap: 4px; left: 5px; }
+  /* 프레임에서는 노치가 없으므로 판을 가장자리에 바짝 붙인다(전체화면은 safe-top). */
+  .scr-fs-layer:not(.is-fs) .scr-fs-roster-fixed { top: 5px; }
+  /* (되돌림·요청: "로스터는 원복하고") 끈 꼴만 좁히던 규칙이 있던 자리다 — 켠 꼴과
+     끈 꼴의 폭이 갈리면 켤 때 이름이 움직여, '자리는 그대로 두고 판만 걷는다'는
+     이 판의 규칙과 어긋났다. */
+  /* ★ 표 글자를 **한 단** 줄이고 줄간격도 그만큼(요청: "모바일에서 테이블의 모든 텍스트
+     1스텝 축소, 그만큼 줄간격 폭도 비례해서 축소") — 폰에서 이 표는 지도 위에 얹히므로
+     작을수록 지형이 산다. 지표 10 → 9px · 이름 11 → 10px · 표 머리 8 → 7px ·
+     팀 이름 10 → 9px, 줄 사이 4 → 3px, 줄 안 위아래 여백 2 → 1px. */
+  /* 한 단씩 줄인다(요청: "모바일에서 로스터 폰트 1스텝 축소"). */
+  .scr-fs-roster-fixed .scr-motion-stat { font-size: 8px; }
+  .scr-motion .scr-fs-roster-fixed .scr-motion-teamcol-name { font-size: 9px; }
+  .scr-motion .scr-fs-roster-fixed .scr-motion-teamcol-cols { font-size: 6px; }
+  .scr-motion .scr-fs-roster-fixed .scr-motion-teamhead { font-size: 8px; }
+  .scr-motion .scr-fs-roster-fixed .scr-motion-teamcol.scr-motion-teamcol-rows { gap: 3px; }
+  /* 상자는 **줄 클래스**에 건다(위 .scr-motion-teamrow 주석) — 사람 줄에만 걸어 두면
+     라벨 줄이 그 음수 여백만큼 오른쪽으로 밀려 표가 어긋난다. */
+  .scr-fs-roster-fixed .scr-motion-teamrow { padding: 1px 4px; margin: -1px -4px; }
+  /* 손가락 기기의 도구 판에는 미니맵이 없다(그쪽은 안 그린다) — 폭을 정하는 것이
+     알약 한 기둥뿐이라 실측 최소(96)에 한 뼘만 얹는다. */
+  .scr-fs-toolpanel { width: 112px; padding: 10px; }
+}
+
+.scr-fs-edge { position: absolute; top: 50%; transform: translateY(-50%); }
+/* 기둥 맨 아래의 배속·각도 줄(요청: "배속 각도 가운데 버튼류 아래로") — 버튼 줄
+   아래에 둘이 나란히, 기둥 가운데로 선다. */
+.scr-motion-sidebars {
+  flex: 0 0 auto; display: flex; align-items: flex-start; justify-content: center; gap: 18px;
+}
+.scr-fs-edge-l { left: 4px; }
+.scr-fs-edge-r { right: 4px; }
+/* 아래 두 줄 — 색상·성능·공유가 위, 재생·진행바·시각이 아래(요청의 모바일 구성 그대로). */
+.scr-fs-bottom-mob {
+  flex-direction: column; align-items: stretch; gap: 2px;
+  padding: 4px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+}
+.scr-fs-bottom-mob > .scr-motion-mobrow,
+.scr-fs-bottom-mob > .scr-motion-bar-controls { margin: 0; }/* 좁은 화면은 글자를 줄인다(요청: "모바일은 화면폭이 좁아 택스트 작게"). */
+@media (max-width: 900px) {
+  .scr-fs-col { width: 148px; padding: 8px 6px; gap: 6px; font-size: 11px; }
+  .scr-fs-col .scr-motion-radio-label { font-size: 10px; }
+  /* (걷음) 이름 크기는 칸이 정한다 — 위 clamp(8~11px)가 92px 칸에서는 그대로 11px이다. */
+  .scr-fs-col .scr-motion-stat { font-size: 10px; }
+  .scr-fs-bottom { padding: 6px 8px; gap: 6px; }
+  /* 여백이 줄었으니 위에 앉는 것들이 보는 높이도 같이 줄어야 한다(위 --scr-fsbot). */
+  .scr-fs-layer { --scr-botpad: 12px; }
+}
+
+
+/* 지도 오른쪽 위 전체화면 버튼 — 네 귀퉁이 꺾쇠 아이콘 하나짜리 알약. */
+/* 지도 오른쪽 **아래** 구석(요청: "피시 경기상세 전체화면 버튼 지도 우하단으로") —
+   위 구석은 맵연결 알약·자취 안내가 쓰는 자리이고, 무엇보다 그 언저리가 곧 경기 초반
+   본진이 서는 자리라 버튼이 유닛 위에 앉는 일이 잦았다. 아래 구석은 진행바 바로 위라
+   조작부끼리 모여 읽힌다. */
+/* 지도 **밖** 오른쪽 아래(요청) — 기둥 맨 아래에 흐름대로 선다. 지도 위에 얹혀 있던
+   시절의 절대 자리·그림자는 걷었다: 기둥은 지도 밖이라 가릴 지형이 없다. */
+
+/* ══ 토스트(요청: "경기 갈림 경고를 팝업 아닌 라이트 테마의 토스트로 · 주의 이모지 ·
+   1.5~2초") ══════════════════════════════════════════════════════════════════════
+   이 앱의 유일한 '스스로 사라지는 알림'이다. 모듈은 components/common/Toast.tsx.
+   ■ 왜 밝은가 — 앱은 어두운 테마다. 알림이 같은 어둠이면 화면에 녹아 못 본 채 사라진다.
+     밝은 판은 어느 장면 위에서도 뜬 것으로 읽히고, 잠깐 뜨는 것이므로 눈이 안 아프다.
+   ■ 자리 — 위 가운데. 아래는 재생 조종부·탭바가 사는 자리라 겹친다.
+   ■ z — 전체화면 판(.scr-fs-layer, 90000)보다 위. 둘 다 body의 자식이라 z가 겨룬다. */
+/* 아직 드러내지 않은 결과 배지 — **자리는 차지하고 그림만 없다**(지적: 배지가 생기면서
+   줄 높이가 달라진다). 끝까지 본 순간 이 클래스만 떨어지므로 한 픽셀도 안 움직인다.
+   display:none·조건부 렌더로는 이 성질을 얻을 수 없다(자리가 사라진다). */
+.scr-story-win-veil { visibility: hidden; }
