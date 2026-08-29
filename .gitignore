@@ -1,2 +1,6 @@
 node_modules/
 dist/
+
+# 로컬 비밀값 — 저장소에 올리지 않는다.
+.env
+.env.*
