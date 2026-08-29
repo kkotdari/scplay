@@ -24,7 +24,10 @@ export default function ReplayRaceBadge({
       style={{
         display: "inline-flex", alignItems: "center", justifyContent: "center",
         width: px, height: px, flex: "0 0 auto", boxSizing: "border-box",
-        fontSize: `${Math.max(8, Math.round(size * 0.62))}px`, fontWeight: 800, lineHeight: 1,
+        /* 하한 8 → 5(지적: 로스터 배지를 8px로 줄이자 글자가 원 밖으로 비집고 나왔다) —
+           8px 원의 속살은 테두리를 빼면 6px인데 하한이 8px 글자를 들이밀었다. 13px 이상
+           에서는 0.62 쪽이 늘 크므로 이 값이 안 걸린다 — 달라지는 것은 아주 작은 배지뿐이다. */
+        fontSize: `${Math.max(5, Math.round(size * 0.62))}px`, fontWeight: 800, lineHeight: 1,
         color: t.fg,
         border: circleLetter ? `1px solid ${t.fg}` : "none",
         borderRadius: "50%",

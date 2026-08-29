@@ -21481,7 +21481,7 @@ export const playbackViewOf = new Map<string, {
 }>();
 
 export default function ReplayMotionPlayer({
-  grid, endSec, bases, teamOfRaw, active = true, winnerTeam, side,
+  grid, endSec, bases: basesIn, teamOfRaw, active = true, winnerTeam, side,
   onDetailClose, loadUnitTracks, initialSec, initialSpeed, initialView, initialTrack,
   clockKey, shareNode, avatars,
   soleView, melee,
@@ -21561,6 +21561,23 @@ export default function ReplayMotionPlayer({
   useLayoutEffect(() => {
     if (PERF9 && perfState9.renderEnd) pAdd("커밋(리액트·DOM)", pNow() - perfState9.renderEnd);
   });
+  /* ★ 관전자는 **아예 없는 사람으로 친다**(요청: "관전자 자동 숨김 / 플레이어 로드시
+     기본적으로 관전자쪽 화면은 안 보이게" → "관전자는 로스터에서도 제거") ──────────────
+     거르는 자리를 로스터 그리는 데(teamCol)가 아니라 **여기 한 곳**으로 잡는다. 아래
+     수십 군데가 bases를 이름·종족·편을 찾는 사전으로 쓰는데, 그리는 자리에서만 걸러 내면
+     '표에는 없는데 지도에는 있는 사람'이 남는다 — 실제로 시점 후보·클릭 자국·이름표가
+     각기 다른 목록을 보게 된다. 들어오는 문 하나를 좁히면 그 뒤는 저절로 따라온다.
+     ★ 목록의 **정체(identity)를 지킨다**(useMemo) — bases는 건물 사전셈 캐시의 열쇠라
+       (bldPreCache9) 프레임마다 새 배열을 만들면 그 캐시가 매번 깨진다.
+     안 넘겨주면 아무도 안 걸러진다 — observer 칸이 없는 앱에서는 종전 그대로다. */
+  const bases = useMemo(
+    () => (basesIn.some((b9) => b9.observer) ? basesIn.filter((b9) => !b9.observer) : basesIn),
+    [basesIn]);
+  /** 관전자 이름 — 참값(entData)에서 온 것들을 거를 때 쓴다. 그쪽은 제 로스터를 따로
+   *  들고 있어(entData.players) bases를 안 거치므로, 이름으로 맞춰 봐야 한다. */
+  const obsNames = useMemo(
+    () => new Set(basesIn.filter((b9) => b9.observer).map((b9) => b9.key)),
+    [basesIn]);
   /* 경기 길이는 경기 메타(endSec)가 유일한 주다 — v1 모션을 걷어내면서 '건물·마법
      시각으로 어림하던' 폴백도 함께 걷었다. 메타가 없으면 60초로 서서 눈에 띈다. */
   const total = useMemo(() => (endSec && endSec > 0 ? endSec : 60), [endSec]);
@@ -22273,7 +22290,7 @@ export default function ReplayMotionPlayer({
     for (const e of entData.lives) {
       if (e.tag < 0) continue;
       const raw = nameOfId.get(e.owner) ?? "";
-      if (!raw) continue;
+      if (!raw || obsNames.has(raw)) continue;   // 관전자 손짓은 안 그린다(위 bases 주석)
       for (const o of e.orders) {
         const key = `${e.owner}:${o[0]}:${o[1]}:${o[2]}`;
         if (seen.has(key)) continue;
@@ -22282,7 +22299,7 @@ export default function ReplayMotionPlayer({
       }
     }
     return out.sort((a, b) => a[0] - b[0]);
-  }, [entData]);
+  }, [entData, obsNames]);
   /* 팀색은 미니맵과 한 벌이다(요청: 덜 파스텔·진하게·원작 색) — 값은 ReplayMinimap의
      TEAM_COLOR 한 곳에서만 정한다. 여태 두 파일이 각자 다른 색을 들고 있어(재생 #5ea2ff·
      #ff7d95, 미니맵 #2b9bff·#ff4d68) 같은 팀이 화면마다 다른 파랑이었다. */
@@ -22309,17 +22326,43 @@ export default function ReplayMotionPlayer({
     const cs9 = (entData?.players ?? []).map((pl) => pl.color).filter(Boolean);
     return cs9.length > 1 && new Set(cs9).size > 1;
   }, [entData]);
+  /* ★ 참값에 색이 없는 판을 위한 **둘째 원천**(지적: "2010년 이전(1.16 이하) 리플레이에서
+     개인색이 안 나오고 팀 2색으로 떨어짐") ────────────────────────────────────────────
+     참값 뭉치는 색을 리마스터 리플레이의 CCLR 구획에서 읽는데, 1.16 이하에는 그 구획이
+     아예 없어 0xffffffff(색 아님)로 온다 → color: "" → 여기서 팀색으로 떨어졌다
+     (openbwTracks의 그 주석이 이미 약속한 동작이다).
+     그런데 **색이 없는 것이 아니라 읽는 자리가 다를 뿐**이다: 리플레이의 사람 구조에는
+     색 번호(Color.ID 0~7)가 그대로 남아 있고, SC:R 인게임도 screp도 그 번호를 표준
+     팔레트로 풀어 색을 낸다. 앱은 이미 screp으로 파싱해 로스터(bases)에 #rrggbb를 싣고
+     넘겨준다 — 실측(2010-12-30 판): 여덟 명 전원 Color={"Name":"Brown","ID":5,…}.
+     그러니 참값이 못 준 자리를 이 값이 메운다.
+     ★ 잣대는 참값 쪽과 **같다**(위 personalUsable) — 로스터 색이 한 가지뿐이면 그것은
+       색이 아니라 '모름'이다. 원작에서 두 사람이 같은 색을 쓰는 일은 없다. */
+  const rosterColor = useMemo(() => {
+    const m9 = new Map<string, string>();
+    for (const b9 of bases) {
+      const c9 = (b9.color ?? "").trim();
+      if (/^#[0-9a-fA-F]{6}$/.test(c9)) m9.set(b9.key, c9);
+    }
+    return new Set(m9.values()).size > 1 ? m9 : new Map<string, string>();
+  }, [bases]);
   const modeColor = (raw: string, team: 1 | 2 | undefined): string => {
     const teamColor = team === 2 ? TEAM_EDGE[2] : TEAM_EDGE[1];
     // 요약 폐지 뒤 개인색의 원천은 개체 트랙이다(수리: 색이 팀 2색으로 퇴행).
-    if (colorNow === "personal") {
-      // 자취가 왔는데 개인색이 없는 판이면 팀색이 답이다(위 주석) — 기다릴 것이 없다.
-      if (entData && !personalUsable) return teamColor;
-      return colorByRaw.get(raw)
-        ?? entData?.players.find((pl) => pl.name === raw)?.color
-        ?? (entLoad === "none" ? teamColor : COLOR_PENDING);
-    }
-    return teamColor;
+    if (colorNow !== "personal") return teamColor;
+    /* 참값이 준 개인색이 먼저다 — 그것이 그 경기에서 실제로 칠해진 색이다.
+       색이 없는 판(위 personalUsable)에서는 이 칸을 통째로 건너뛴다. */
+    const truth9 = personalUsable
+      ? (colorByRaw.get(raw) ?? entData?.players.find((pl) => pl.name === raw)?.color)
+      : undefined;
+    if (truth9) return truth9;
+    /* 참값에 없으면 로스터(screp) 색이다 — 1.16 이하가 여기로 온다. 자취를 아직
+       기다리는 동안에도 쓴다: 이건 '모르는 색을 아는 척'이 아니라 **이미 아는 색**이라,
+       중립 회색으로 세워 둘 까닭이 없다. */
+    const roster9 = rosterColor.get(raw);
+    if (roster9) return roster9;
+    // 둘 다 없다 — 자취가 왔거나 끝내 안 오면 팀색, 아직 오는 중이면 중립(위 주석).
+    return entData || entLoad === "none" ? teamColor : COLOR_PENDING;
   };
   /** 색의 밝기 — 어두운 개인색은 흰 반투명 음영을 받쳐야 보인다(지적). */
   const lumOf = (hex: string): number => {
@@ -27665,14 +27708,15 @@ export default function ReplayMotionPlayer({
               </span>
               {/* 종족 한 글자(요청) — 이름 옆. 종족 고유색 글자만 두는 배지라 자리를
                   거의 안 먹는다. 종족을 못 읽은 경기는 스스로 안 그린다. */}
-              {/* 다시 한 뼘 줄인다(요청: "종족배지 크기 좀 줄이고") — 22 → 16.
-                  18 → 22로 키운 것은 배지가 이름 **아래**에 홀로 서던 시절의 값이다.
-                  옆으로 세운 뒤로는 나란히 서는 것이 13px 이름칩과 16px 추적 단추라,
-                  22px 배지 하나만 줄에서 튀어 보였다. 추적 단추와 같은 16px이면 줄
-                  양끝의 동그라미 둘이 같은 크기로 읽혀 표의 결이 산다. */}
+              {/* 반으로(요청: "종족배지 크기 반으로 줄이고") — 16 → 8. 배지는 읽는
+                  표시지 누르는 것이 아니라, 이름을 위해 줄에서 자리를 내주는 쪽이 맞다.
+                  ★ 8px에서는 RaceBadge의 **글자 하한**이 걸린다 — 그쪽은 글자를
+                    max(8, size × 0.62)로 잡아, 8px 원에 8px 글자가 들어가 테두리를
+                    비집고 나온다. 그 하한을 5로 내려 작은 배지가 제 원 안에 들게 했다
+                    (size 13 이상은 0.62 쪽이 늘 크므로 한 톨도 안 달라진다). */}
               {(() => {
                 const Rb9 = replayChrome().RaceBadge;
-                return m.race && Rb9 ? <Rb9 race={m.race} circleLetter size={16} /> : null;
+                return m.race && Rb9 ? <Rb9 race={m.race} circleLetter size={8} /> : null;
               })()}
             </span>
             </span>
@@ -31369,6 +31413,9 @@ export default function ReplayMotionPlayer({
           {qPing && (entData?.pings ?? []).map(([ps, px, py, ppid], i) => {
             if (t < ps || t - ps > 3) return null;
             const raw = entData?.players.find((pl) => pl.owner === ppid)?.name ?? "";
+            /* 관전자 핑은 안 그린다 — 클릭 자국과 달리 여기는 **실제로 걸린다**: 핑은
+               유닛이 없어도 찍을 수 있어, 관전자가 지도 위에 남기는 유일한 자국이다. */
+            if (obsNames.has(raw)) return null;
             // 핑도 같은 자(위 클릭 자국 주석) — 상대편 것은 시점 보기에서 안 보인다.
             if (fogOn && !visAll && teamOfRaw(raw) !== viewTeam) return null;
             return (
@@ -31774,6 +31821,26 @@ export default function ReplayMotionPlayer({
             const el = mapRef.current;
             const w9 = el?.clientWidth ?? 1;
             const h9 = el?.clientHeight ?? 1;
+            /* ★ 물리는 자리는 지도가 아니라 **보이는 창**이다(지적: "모바일 전체화면에서
+               인포팝업 클램프가 안 되는듯 화면 밖으로 나가서 뜸") ──────────────────────
+               전체화면에서 지도는 무대보다 **크게(cover)** 깔리고, 자르는 일은 무대가
+               맡는다(위 mapNode의 fsCoverW 주석: "지도를 화면보다 크게 깔고 자르는 일은
+               무대에"). 그런데 아래 물림자는 지도 상자(w9·h9)였다 — 잘려 나간 바깥까지
+               '자리 있음'으로 세니, 가장자리 유닛을 누르면 팝업이 크롭된 자리에 앉아
+               화면 밖이 된다. 지도비와 화면비가 많이 다른 폰일수록 그 몫이 커진다
+               (세로 폰에서 정사각 맵이면 좌우로 각각 수백 px이 창 밖이다).
+               두 상자의 실제 사각형으로 겹치는 창을 낸다. 지도는 무대 한가운데에 앉으므로
+               (left/top 50% + translate(-50%, -50%)) 넘치는 몫이 좌우·위아래로 반씩이고,
+               그 반씩이 여기서 vx0·vy0로 잡힌다. 프레임 모드는 덮는 몫이 0이라 vx0·vy0가
+               0, vx1·vy1이 w9·h9가 되어 예전 식과 한 톨도 안 달라진다.
+               지도 상자에 걸린 변환은 이동(translate)뿐이라 사각형 폭이 clientWidth와
+               같다 — 눕힌 보기의 회전은 이 상자가 아니라 안쪽 렌즈가 진다. */
+            const mr9 = el?.getBoundingClientRect();
+            const sr9 = stageRef.current?.getBoundingClientRect();
+            const vx09 = mr9 && sr9 ? Math.max(0, sr9.left - mr9.left) : 0;
+            const vx19 = mr9 && sr9 ? Math.min(w9, sr9.right - mr9.left) : w9;
+            const vy09 = mr9 && sr9 ? Math.max(0, sr9.top - mr9.top) : 0;
+            const vy19 = mr9 && sr9 ? Math.min(h9, sr9.bottom - mr9.top) : h9;
             const lx = ((op.fx - 0.5) * zoom + 0.5) * w9 + pan.x;
             /* 세로는 **그린 몸**에 맞춘다(같은 지적 결) — op.fy는 발밑 자리라, 공중
                유닛처럼 들려 그려지는 몸은 팝업이 몸 아래를 겨눴다. 들기 식은 판정
@@ -31792,7 +31859,7 @@ export default function ReplayMotionPlayer({
             const PAD9 = 6;
             /* 폭은 CSS가 못 박은 값(116 + 좌우 여백 18)이다(요청: "정보팝업 모달 너비
                반으로 축소") — 232에서 절반으로 줄였으니 여기 상한도 절반이다. */
-            const PW9 = Math.min(134, w9 - PAD9 * 2);
+            const PW9 = Math.min(134, vx19 - vx09 - PAD9 * 2);
             const barN9 = lines.filter((ln) => typeof ln !== "string").length;
             const PH9 = 28 + (lines.length - barN9) * 17 + barN9 * 26;
             /* ★ 팝업은 **집은 몸을 안 가린다**(지적: "인포팝업위치가 유닛이나 건물을
@@ -31818,17 +31885,17 @@ export default function ReplayMotionPlayer({
             const rightX9 = lx + halfB9 + PW9 / 2;
             const leftX9 = lx - halfB9 - PW9 / 2;
             /** 옆으로 설 자리가 있나 — 오른쪽 먼저, 없으면 왼쪽. */
-            const side9 = rightX9 + PW9 / 2 <= w9 - PAD9 ? 1
-              : leftX9 - PW9 / 2 >= PAD9 ? -1 : 0;
+            const side9 = rightX9 + PW9 / 2 <= vx19 - PAD9 ? 1
+              : leftX9 - PW9 / 2 >= vx09 + PAD9 ? -1 : 0;
             const cx9 = side9 === 1 ? rightX9 : side9 === -1 ? leftX9
-              : Math.min(Math.max(lx, PW9 / 2 + PAD9), w9 - PW9 / 2 - PAD9);
+              : Math.min(Math.max(lx, vx09 + PW9 / 2 + PAD9), vx19 - PW9 / 2 - PAD9);
             /* 옆에 설 때는 세로 가운데, 위아래로 물러날 때만 종전처럼 몸 위(아래)다. */
-            const flip9 = side9 === 0 && ly - PH9 - 14 < PAD9;
+            const flip9 = side9 === 0 && ly - PH9 - 14 < vy09 + PAD9;
             const cy9 = side9 !== 0
-              ? Math.min(Math.max(ly, PH9 / 2 + PAD9), h9 - PH9 / 2 - PAD9)
+              ? Math.min(Math.max(ly, vy09 + PH9 / 2 + PAD9), vy19 - PH9 / 2 - PAD9)
               : flip9
-                ? Math.min(ly, h9 - PH9 - 14 - PAD9)
-                : Math.min(Math.max(ly, PH9 + 14 + PAD9), h9 - PAD9);
+                ? Math.min(ly, vy19 - PH9 - 14 - PAD9)
+                : Math.min(Math.max(ly, vy09 + PH9 + 14 + PAD9), vy19 - PAD9);
             return (
               <div
                 className="scr-motion-info"
