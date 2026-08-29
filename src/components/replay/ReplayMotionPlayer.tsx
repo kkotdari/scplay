@@ -19209,6 +19209,16 @@ export const SCR_DIAG: {
   areaCap: 0, allocOk: true, zoom: 0, fx: {}, prod: "",
   truthVer: 0, truthTrust: -1, truthWhy: "",
 };
+/* ★ 창에는 **꾸러미가 뜨는 순간** 내건다(지적: "__scrDiag 이거 안 뜨는데") ──────────
+   앞서 자취를 받는 자리(loadEnt)에서 붙였는데, 그 자리는 못 닿는 길이 여럿이다:
+   자취 부르개가 아예 없거나, 이미 받았거나, 받다가 던졌거나(그때는 catch로 샌다).
+   그리고 정작 진단이 필요한 것이 바로 그 '못 닿은' 경우다.
+   여기는 모듈이 읽히는 순간 한 번 도는 자리라, 재생기가 화면에 뜨기만 하면 반드시 있다.
+   값이 아직 안 채워졌으면 truthVer 0 · truthWhy ""로 보인다 — **없는 것과 빈 것은
+   다른 말**이고, 그 둘을 가릴 수 있어야 "안 뜬다"는 신고를 풀 수 있다. */
+if (typeof window !== "undefined") {
+  (window as unknown as { __scrDiag?: unknown }).__scrDiag = SCR_DIAG;
+}
 /** #diag가 켜져 있나 — 주소가 바뀌지 않는 한 한 번만 읽는다. */
 export const scrDiagOn = (): boolean =>
   typeof window !== "undefined" && window.location.hash.toLowerCase().includes("diag");
@@ -21779,7 +21789,11 @@ export default function ReplayMotionPlayer({
       } else {
         setEntLoad("none");
       }
-    } catch {
+    } catch (e) {
+      /* 여기로 새는 것은 **받는 중에 던진** 경우다(그물·404·서버 오류) — 여태 아무
+         말도 안 남겨, 화면의 "재생할 수 없는 게임"이 판 문제인지 배달 문제인지
+         가려지지 않았다. */
+      SCR_DIAG.truthWhy = `자취를 받다 던졌다 — ${e instanceof Error ? e.message : String(e)}`;
       setEntLoad("none");
     }
   };
