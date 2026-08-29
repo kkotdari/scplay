@@ -97,7 +97,8 @@ export type TruthWorld = {
     color: string; team: number }[];
   lives: TruthLife[];
   /** 연구가 실제로 올라간 [초, 이름, 임자]. */
-  ups: [number, string, number][];
+  /** 연구가 올라간 [초, 이름, 임자, 건물태그(0 = 모름)] — 태그는 덤프 판 7부터. */
+  ups: [number, string, number, number][];
   /** 좌표가 남는 마법 [초, x, y, 기술, 임자]. */
   casts: [number, number, number, string, number][];
   /** 미니맵 핑 [초, x, y, 임자]. */

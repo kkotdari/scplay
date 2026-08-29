@@ -8,7 +8,7 @@
  *
  *   전체 = zlib( 아래 바이트열 )              ← 작은 끝(little-endian)
  *
- *   머리   char[4] "OBWT" · u8 판(=5) · f32 초당프레임 · i32 믿을프레임(-1이면 끝까지)
+ *   머리   char[4] "OBWT" · u8 판(=7) · f32 초당프레임 · i32 믿을프레임(-1이면 끝까지)
  *   로스터 u8 사람수, 사람마다 u8 임자 · u8 리플레이id · u8 종족 · u8 편 · u8 controller
  *          · u32 개인색(0x00rrggbb, CCLR에서 읽은 값) · u8 이름길이 · 이름(UTF-8)
  *   트랙표 u32 트랙수, 트랙마다 u32 태그 · u8 임자 · u16 유닛종류
@@ -21,6 +21,13 @@
  *   체력 흐름 → 인터셉터 흐름 (트랙 차례대로, 키가 있는 트랙만)
  *     키마다: varint(프레임차) · varint(값차)
  *   업그레이드 u32 개수, 개마다 varint(프레임차) · u16 id · u8 단계 · u8 사람
+ *              · u32 건물태그   ← 판 7부터 (0이면 '모름')
+ *     ★ 태그가 왜 붙나(지적: "업그레이드 상황이 같은 종류의 건물 인포팝업에 공통으로
+ *       뜨는 현상") — 여태 이 줄에는 **어느 건물에서 연구했는지가 없었다**. 그래서 화면은
+ *       임자와 건물 종류만으로 견줄 수밖에 없었고, 포지가 셋이면 셋 다 같은 연구를 띄웠다.
+ *       생산(아래 명령·트랙)은 태그가 있어 정확히 가리는데 연구만 못 가렸다.
+ *       0은 '덤퍼가 그 건물을 못 짚었다'는 뜻이다 — 그때는 화면이 옛 어림(대표 건물
+ *       하나에만 단다)으로 돌아간다.
  *   마법       u32 개수, 개마다 varint(프레임차) · u16 x · u16 y · u8 기술 · u8 사람
  *   핑         u32 개수, 개마다 varint(프레임차) · u16 x · u16 y · u8 사람
  *   자원       u32 개수, 개마다 u8 사람 · varint(그 사람의 앞 값과의 프레임차)
@@ -106,7 +113,8 @@ export type TruthTracks = {
   trustUntil: number | null;
   players: TruthPlayer[];
   /** 연구가 **끝난** 시각 [초, 이름, 임자]. 누른 때가 아니라 실제로 올라간 때다. */
-  ups: [number, string, number][];
+  /** 연구가 올라간 [초, 이름, 임자, **건물태그**] — 태그는 판 7부터고 0이면 '모름'이다. */
+  ups: [number, string, number, number][];
   /** 마법 [초, x(타일), y(타일), 기술 이름, 임자] — 기운을 실제로 쓴 순간이다. */
   casts: [number, number, number, string, number][];
   /** 미니맵 핑 [초, x(타일), y(타일), 임자] */
@@ -285,7 +293,7 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
        서버가 새 덤퍼로 바뀌어도 **이미 구워 둔 자취는 판 2인 채로 남는다**. 여기서
        판 3만 받으면 재분석이 다 돌 때까지 모든 옛 경기가 "재생할 수 없는 게임"이 된다.
        달라진 것은 상태 바이트의 깃발 한 칸뿐이라, 판 2는 그 칸이 늘 0인 판 3과 같다. */
-    if (version < 2 || version > 6) return null;
+    if (version < 2 || version > 7) return null;
     const hasAir = version >= 3;
     /* 은신은 판 5부터다(요청: "참값에 은신 칸 추가하는 쪽으로 가자") — 옛 덤프는 그 깃발이
        늘 0이라 '은신 아님'으로 읽히는데, 그건 **모르는 것**이지 아님이 아니다. 판으로 갈라
@@ -300,6 +308,9 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
        서로 다른 대상에 붙였다. 옛 판은 이 칸 자체를 안 만든다 — 없는 것과 '표적 없음'은
        다른 말이라, 화면이 그 둘을 갈라 볼 수 있어야 한다. */
     const hasTarget = version >= 6;
+    /* 업그레이드 줄에 건물 태그가 붙는가(위 머리말 ★) — 줄마다 u32 하나가 늘어난다.
+       판 6 뭉치는 이 칸이 없으므로 태그 0(모름)으로 채운다. */
+    const hasUpTag = version >= 7;
     const fps = c.f32();
     const trustFrame = c.i32();
     if (!Number.isFinite(fps) || fps <= 0) return null;
@@ -429,7 +440,7 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
       }
     }
 
-    const ups: [number, string, number][] = [];
+    const ups: [number, string, number, number][] = [];
     { let pf = 0;
       const cnt = c.u32();
       for (let i = 0; i < cnt; i += 1) {
@@ -437,9 +448,12 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
         const id = c.u16();
         const level = c.u8();
         const who = c.u8();
+        /* 태그는 이름을 모르는 줄에서도 **반드시 읽는다** — 아래 `if (nm)`은 담을지를
+           가릴 뿐이고, 안 읽으면 커서가 4바이트씩 밀려 그 뒤가 통째로 어긋난다. */
+        const utag = hasUpTag ? c.u32() : 0;
         const nm = bwUpgradeName(id);
         // 2단계·3단계는 이름 뒤에 단계를 붙인다 — 옛 표기와 같은 자리다.
-        if (nm) ups.push([pf / fps, level > 1 ? `${nm} ${level}` : nm, who]);
+        if (nm) ups.push([pf / fps, level > 1 ? `${nm} ${level}` : nm, who, utag]);
       } }
 
     const casts: [number, number, number, string, number][] = [];

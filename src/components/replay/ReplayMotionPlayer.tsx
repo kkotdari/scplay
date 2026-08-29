@@ -406,7 +406,7 @@ const SPEED_UP_OF: Record<string, string> = {
 const DEFAULT_SPEED = 3.2;
 
 function speedOf(
-  unit: string, atSec: number, ups: [number, string][] | undefined,
+  unit: string, atSec: number, ups: [number, string, number][] | undefined,
 ): number {
   const base = UNIT_SPEED[unit] ?? DEFAULT_SPEED;
   const upName = SPEED_UP_OF[unit];
@@ -17635,6 +17635,18 @@ type UnitDrawOp = {
   /** 아직 짓는(변태하는) 중인 건물인가 — 그런 건물은 생산도 큐도 연구도 못 한다.
    *  팝업이 그 줄들을 아예 안 쓰는 표다(요청). */
   pickWip?: boolean;
+  /** 이 건물이 제 종류의 **대표**인가(지적: "업그레이드 상황이 같은 종류의 건물 인포팝업에
+   *  공통으로 뜨는 현상") ─────────────────────────────────────────────────────────────
+   *  연구 기록(ups)에는 **어느 건물에서 했는지가 안 남는다** — [초, 이름, 임자]뿐이다.
+   *  그래서 임자와 건물 종류만으로 견주면 그 사람의 포지 셋이 모두 같은 연구를 띄운다.
+   *  지도 쪽은 이미 '대표 하나에만 단다'로 풀어 두었는데(그리는 곳의 researching), 팝업이
+   *  그 잣대를 안 써서 여기서만 새어 나왔다. 그 판정을 op에 실어 두 자리가 같은 것을
+   *  보게 한다 — 불이 든 건물과 연구가 적히는 건물이 반드시 같아진다.
+   *  대표는 그 종류에서 가장 오래된, 지금 살아 있는 건물이다. */
+  pickRep?: boolean;
+  /** 이 건물의 **참값 태그** — 연구 기록이 태그를 들고 오는 판(덤프 7)에서 '어느 건물이
+   *  하는 연구인가'를 정확히 가린다. 모르면 없음(그때는 위 pickRep 어림으로 돌아간다). */
+  pickTag?: number;
   /** 지금 무슨 상태인가(요청: 건설·변태 등 모든 상태 노출) — 툴팁 첫 줄에 그대로 뜬다. */
   pickState?: string;
   /** 걸려 있는 마법(키) — 팝업이 그 효과와 색까지 적는다. */
@@ -22479,15 +22491,17 @@ export default function ReplayMotionPlayer({
        벌처 부스터가 전부 기본 속도로 걸었다). 개체 트랙의 연구 기록에서 곧장 만든다.
      연구가 **끝난** 시각(upsDone)이 있으면 그쪽이 맞다 — ups는 누른 때다. */
   const upsByRaw = useMemo(() => {
-    const m = new Map<string, [number, string][]>();
+    /* 셋째 칸은 **그 연구를 한 건물의 참값 태그**다(덤프 판 7부터, 0이면 모름) —
+       같은 종류 건물이 여럿일 때 어디서 하는지를 가리는 유일한 자다. */
+    const m = new Map<string, [number, string, number][]>();
     if (!entData) return m;
     const nameOfId = new Map(entData.players.map((pl) => [pl.owner, pl.name]));
     const src = entData.ups && entData.ups.length > 0 ? entData.ups : entData.ups;
-    for (const [sec, name, pid] of src) {
+    for (const [sec, name, pid, utag] of src) {
       const raw = nameOfId.get(pid);
       if (raw === undefined) continue;
       const a = m.get(raw) ?? [];
-      a.push([sec, name]);
+      a.push([sec, name, utag]);
       m.set(raw, a);
     }
     for (const a of m.values()) a.sort((x, y) => x[0] - y[0]);
@@ -22604,7 +22618,7 @@ export default function ReplayMotionPlayer({
       /** 명령(이동·공격·정지) 시각들 — 선택 링(지적: 드래그 선택 구분)의 재료. */
       orders: number[];
       /** 그 사람의 연구 기록 — 걸음 속도 상한(요청)이 속업을 반영하는 재료. */
-      ups: [number, string][] | undefined;
+      ups: [number, string, number][] | undefined;
       walk: [number, number, number][];
       /** 걸음이 코어(simCore)에서 왔나 — 렌더러 보정을 끄는 열쇠(과제 #61). */
     }[] = [];
@@ -28548,7 +28562,12 @@ export default function ReplayMotionPlayer({
               // 연구 중(요청) — 이 건물에서 하는 연구가 지금 창 안에 시작돼 있나. 어느
               // 건물인지는 안 남으므로 대표 건물에만 단다(지적).
               const hallLike = unit === "Lair" || unit === "Hive" ? "Hatchery" : unit;
-              const researching = !razed && myOrd === repOrd
+              /* ★ 어느 건물인가는 이제 **태그가 말한다**(덤프 판 7) — 연구 줄에 건물
+                 태그가 실려 오면 그 건물 하나만 켠다. 안 실려 오는 판(6 이하)이나 태그가
+                 0인 줄은 여태처럼 대표 하나만 켠다: 아는 척하는 대신 하나만 고르는 어림이다.
+                 판정을 .some **안**으로 넣는다 — 연구마다 태그가 다를 수 있어, 밖에 두면
+                 태그가 있는 줄까지 대표 어림에 묶인다. */
+              const researching = !razed
                 /* ★ 창은 **완성 시각 앞쪽**이다(지적: "건물 활성효과 타이밍이 안맞음 …
                    켜져야하는데 안켜짐 — 업글보다 효과가 느린듯") ─────────────────────
                    자취에 실리는 시각(us)은 업그레이드가 **실제로 올라간 순간**, 곧
@@ -28556,8 +28575,9 @@ export default function ReplayMotionPlayer({
                    창을 [us, us+90]으로 잡고 있었다 — 연구가 **끝난 뒤** 90초 동안 불이
                    드는 셈이라, 화면에서는 정확히 한 연구 길이만큼 늦었다.
                    [us−90, us]로 뒤집는다. 이제 불이 꺼지는 순간이 곧 연구가 끝난 순간이다. */
-                && (upsByRaw.get(raw) ?? []).some(([us, name]) =>
-                  RESEARCH_BUILDING[name] === hallLike && t < us && us - t <= RESEARCH_SEC);
+                && (upsByRaw.get(raw) ?? []).some(([us, name, utag]) =>
+                  RESEARCH_BUILDING[name] === hallLike && t < us && us - t <= RESEARCH_SEC
+                  && (utag > 0 && myTag9 !== undefined ? utag === myTag9 : myOrd === repOrd));
               // 이름 창 = 착공 직후 잠깐뿐(요청) — 그 뒤 공사 중에는 도형+망치이고, 생산·
               // 연구 중에도 이름 대신 라임 글로우가 말한다(요청: "생산중인 건물은 이름을
               // 띄우지 말고 액티브").
@@ -28769,6 +28789,7 @@ export default function ReplayMotionPlayer({
                      뒤와 같은 자로 지어, 다 지어져도 팝업이 그대로 이어진다. */
                   pickKey: `b${raw}|${unit}|${Math.round(x * 4)}|${Math.round(y * 4)}`,
                   pickName: unit, pickRaw: raw, pickBld: true, pickX: x, pickY: y,
+                  pickRep: myOrd === repOrd, pickTag: myTag9,
                   /* 종류별 배수는 **제 모델을 그릴 때만**(테란 공사) 얹는다 — 저그 고치·
                      프로토스 소환구·폴백 공사장은 종류를 안 가리는 공용 모델이라, 거기에
                      스파이어의 몫을 얹으면 고치만 커진다. */
@@ -29192,6 +29213,7 @@ export default function ReplayMotionPlayer({
                        찾으므로(unitOps.find), 못 찾은 그다음 프레임에 통째로 닫혔다. */
                   pickKey: `b${raw}|${unit}|${Math.round(x * 4)}|${Math.round(y * 4)}`,
                   pickName: unit, pickRaw: raw, pickBld: true, pickX: x, pickY: y,
+                  pickRep: myOrd === repOrd, pickTag: myTag9,
                   drawK: BLD_DRAW_K * (BLD_DRAW_TUNE[shapeKind] ?? 1),
                   /* 땅에 앉은 건물은 그림자를 안 진다(요청: 건물 바닥 그림자는 제거) —
                      건물은 발자국이 곧 제 자리라 바닥 타원이 정보를 더하지 않고, 모델
@@ -31755,12 +31777,27 @@ export default function ReplayMotionPlayer({
                  그래서 이 줄은 어느 건물에서도 한 번도 안 떴다 — 업그레이드 건물이
                  '생산 대기'만 달고 서 있던 나머지 절반이다.
                  라바 계보(해처리·레어·하이브)는 세 이름이 같은 연구를 하므로 홀 이름
-                 하나로 모아서 견준다. */
+                 하나로 모아서 견준다.
+                 ★ **대표 건물에만 적는다**(지적: "업그레이드 상황이 같은 종류의 건물
+                   인포팝업에 공통으로 뜨는 현상") — 견주는 자가 임자와 종류뿐이라, 포지가
+                   셋이면 셋 다 같은 연구를 띄웠다. 연구 기록(ups)에 건물이 안 남으므로
+                   어느 포지인지는 원리적으로 모른다: 아는 척하는 대신 하나만 고른다.
+                   태그가 실려 오면(덤프 판 7) 그 건물 하나만, 안 실려 오면 지도와 같은
+                   대표 어림으로 — 어느 쪽이든 **불이 든 건물과 연구가 적히는 건물이 같다**.
+                   여태는 불은 하나인데 팝업은 전부라 서로 다른 말을 하고 있었다.
+                 ★ 창의 **방향도 바로잡는다**(같은 결의 어긋남) — 지도는 진작 [us−90, us]로
+                   뒤집었는데(그쪽 주석: us는 연구가 **끝난** 시각이다) 팝업만 옛 [us, us+90]
+                   그대로였다. 그래서 팝업은 연구가 끝난 **뒤** 90초 동안 '연구 중'이라고
+                   적었다 — 정확히 한 연구 길이만큼 늦은 말이다. 진행률도 함께 뒤집는다:
+                   남은 시간(us − t)이 줄수록 차오른다. */
               const hall9 = en === "Lair" || en === "Hive" ? "Hatchery" : en;
-              const doing = (upsByRaw.get(op.pickRaw ?? "") ?? []).filter(([us, n]) =>
-                RESEARCH_BUILDING[n] === hall9 && us <= t && t - us <= RESEARCH_SEC);
+              const doing = (upsByRaw.get(op.pickRaw ?? "") ?? []).filter(([us, n, utag]) =>
+                RESEARCH_BUILDING[n] === hall9 && t < us && us - t <= RESEARCH_SEC
+                && (utag > 0 && op.pickTag !== undefined
+                  ? utag === op.pickTag : op.pickRep !== false));
               for (const [us, n] of doing) {
-                lines.push(bar(`연구 중 ${researchKo(n)}`, Math.min(0.99, (t - us) / RESEARCH_SEC)));
+                lines.push(bar(`연구 중 ${researchKo(n)}`,
+                  Math.min(0.99, (RESEARCH_SEC - (us - t)) / RESEARCH_SEC)));
               }
             } else {
               /* 그 유닛에 실제로 걸리는 공/방 줄만 레벨로 보여 준다(요청: 인게임보다
