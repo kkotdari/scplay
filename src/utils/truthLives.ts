@@ -94,6 +94,10 @@ export type TruthLife = {
 /** 참값 한 판이 아는 사람·사건 — 화면이 자취 곁에서 읽는 것 전부. */
 export type TruthWorld = {
   players: { owner: number; name: string; race: "" | "테란" | "저그" | "프로토스";
+    /** 그 판 내내 유닛을 하나도 안 가진 임자 — 덤프 판 7부터 실려 온다. 그 앞 판으로
+     *  구운 뭉치는 늘 false다(모른다는 뜻이지 아니라는 뜻이 아니다). 화면은 이 표시가
+     *  선 사람을 로스터에서도 지도에서도 통째로 뺀다. */
+    observer: boolean;
     color: string; team: number }[];
   lives: TruthLife[];
   /** 연구가 실제로 올라간 [초, 이름, 임자]. */
@@ -299,6 +303,7 @@ export function truthWorld(truth: TruthTracks, buildSecOf: BuildSecOf): TruthWor
       owner: pl.owner,
       name: pl.name,
       race: RACE_OF[pl.race] ?? "",
+      observer: pl.observer,
       color: pl.color,
       team: pl.force,
     })),

@@ -8,9 +8,19 @@
  *
  *   전체 = zlib( 아래 바이트열 )              ← 작은 끝(little-endian)
  *
- *   머리   char[4] "OBWT" · u8 판(=5) · f32 초당프레임 · i32 믿을프레임(-1이면 끝까지)
+ *   머리   char[4] "OBWT" · u8 판(=7) · f32 초당프레임 · i32 믿을프레임(-1이면 끝까지)
  *   로스터 u8 사람수, 사람마다 u8 임자 · u8 리플레이id · u8 종족 · u8 편 · u8 controller
- *          · u32 개인색(0x00rrggbb, CCLR에서 읽은 값) · u8 이름길이 · 이름(UTF-8)
+ *          · u8 관전자(판 7부터)
+ *          · u32 개인색(0x00rrggbb) · u8 이름길이 · 이름(UTF-8)
+ *     ★ 판 7에서 **관전자 한 바이트가 controller와 색 사이에 낀다** — 사람당 고정부가
+ *       10 → 11바이트다. 그래서 판 상한만 올리면 로스터부터 밀려 그 뒤가 통째로
+ *       어긋난다(트랙표·키 흐름·업그레이드…). 반드시 갈래를 두어야 한다.
+ *       뜻은 '그 판 내내 유닛을 하나도 안 가진 임자'다 — 로비에서 자리만 차지한
+ *       관전자가 여기 걸린다. 리마스터가 따로 붙이는 관전자(임자 번호 128 이상)는
+ *       슬롯표 바깥이라 애초에 로스터에 안 들어온다.
+ *     ★ 색의 **뜻**도 판 7에서 달라졌다(꼴은 그대로) — 여태 1.16 이하는 CCLR 구획이
+ *       없어 전부 0xFFFFFFFF(모름)였는데, 이제 머리말의 색 번호를 표준 팔레트로 풀어
+ *       진짜 색이 온다. 아래 0xFFFFFFFF 갈래는 그대로 둔다 — 훨씬 덜 걸릴 뿐이다.
  *   트랙표 u32 트랙수, 트랙마다 u32 태그 · u8 임자 · u16 유닛종류
  *          · u32 키수 · u32 체력키수 · u32 인터셉터키수 · u32 표적키수(판 6부터)
  *   키 흐름 (트랙 차례대로, 트랙마다 앞 키와의 **차이**를 적는다)
@@ -86,6 +96,9 @@ export type TruthPlayer = {
   /** 편(force) 번호 */
   force: number;
   controller: number;
+  /** 그 판 내내 유닛을 하나도 안 가진 임자인가 — **판 7부터**. 그 앞 판으로 구운 뭉치는
+   *  이 칸을 안 실어 보내므로 늘 false다(모른다는 뜻이지 아니라는 뜻이 아니다). */
+  observer: boolean;
   /** 게임 안 개인색 #rrggbb */
   color: string;
   name: string;
@@ -285,7 +298,10 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
        서버가 새 덤퍼로 바뀌어도 **이미 구워 둔 자취는 판 2인 채로 남는다**. 여기서
        판 3만 받으면 재분석이 다 돌 때까지 모든 옛 경기가 "재생할 수 없는 게임"이 된다.
        달라진 것은 상태 바이트의 깃발 한 칸뿐이라, 판 2는 그 칸이 늘 0인 판 3과 같다. */
-    if (version < 2 || version > 6) return null;
+    /* 판 6과 판 7이 **섞여 온다** — 이미 저장된 뭉치는 다시 굽기 전까지 판 6 그대로다.
+       상한만 올리고 아래는 갈래로 가른다: 6을 끊으면 재분석 안 한 경기가 전부
+       '재분석 필요'(entLoad none)로 떨어진다. */
+    if (version < 2 || version > 7) return null;
     const hasAir = version >= 3;
     /* 은신은 판 5부터다(요청: "참값에 은신 칸 추가하는 쪽으로 가자") — 옛 덤프는 그 깃발이
        늘 0이라 '은신 아님'으로 읽히는데, 그건 **모르는 것**이지 아님이 아니다. 판으로 갈라
@@ -300,6 +316,8 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
        서로 다른 대상에 붙였다. 옛 판은 이 칸 자체를 안 만든다 — 없는 것과 '표적 없음'은
        다른 말이라, 화면이 그 둘을 갈라 볼 수 있어야 한다. */
     const hasTarget = version >= 6;
+    /* 로스터 줄에 관전자 한 바이트가 끼는가(위 머리말 ★) — 사람당 고정부 10 → 11바이트. */
+    const hasObserver = version >= 7;
     const fps = c.f32();
     const trustFrame = c.i32();
     if (!Number.isFinite(fps) || fps <= 0) return null;
@@ -312,16 +330,21 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
       const race = c.u8();
       const force = c.u8();
       const controller = c.u8();
+      const observer = hasObserver ? c.u8() !== 0 : false;
       const rgb = c.u32();
       const name = c.utf8(c.u8());
-      /* 덤퍼가 CCLR에서 읽어 온 진짜 개인색이다. 그 구획이 없는 옛 리플레이(1.16 이하)는
-         **0xffffffff**(색 아님)로 온다 — 빈 글자로 두면 부르는 쪽이 팀색으로 떨어진다.
+      /* 진짜 개인색이다. 못 읽었으면 **0xffffffff**(색 아님)로 온다 — 빈 글자로 두면
+         부르는 쪽이 팀색으로 떨어진다.
+         ★ 판 7부터 이 자리가 **훨씬 덜 빈다** — 여태 덤퍼는 리마스터의 CCLR 구획에서만
+           색을 읽어, 그 구획이 없는 1.16 이하는 여덟 명이 전부 '모름'이었다. 이제 머리말의
+           색 번호를 표준 팔레트로 풀므로(SC:R 인게임·screp이 가는 길과 같다) 옛 판에서도
+           제 색이 온다. 갈래는 그대로 둔다 — 못 읽는 판이 아주 없어진 것은 아니다.
          ★ 옛 덤퍼는 그 자리에 흰색(0xffffff)을 적었다. 그 판들은 여기서 못 가른다(흰색은
            고를 수 있는 색이라서다) — 대신 재생기가 '로스터 색이 한 가지뿐이면 색이 아니다'
            로 걸러 낸다(ReplayMotionPlayer의 personalUsable). */
       const color = rgb === 0xffffffff
         ? "" : `#${(rgb & 0xffffff).toString(16).padStart(6, "0")}`;
-      players.push({ owner, pid, race, force, controller, color, name });
+      players.push({ owner, pid, race, force, controller, observer, color, name });
     }
 
     const n = c.u32();
