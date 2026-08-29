@@ -21561,6 +21561,23 @@ export default function ReplayMotionPlayer({
   useLayoutEffect(() => {
     if (PERF9 && perfState9.renderEnd) pAdd("커밋(리액트·DOM)", pNow() - perfState9.renderEnd);
   });
+  /* ★ 관전자는 **아예 없는 사람으로 친다**(요청: "관전자 자동 숨김 / 플레이어 로드시
+     기본적으로 관전자쪽 화면은 안 보이게" → "관전자는 로스터에서도 제거") ──────────────
+     거르는 자리를 로스터 그리는 데(teamCol)가 아니라 **여기 한 곳**으로 잡는다. 아래
+     수십 군데가 bases를 이름·종족·편을 찾는 사전으로 쓰는데, 그리는 자리에서만 걸러 내면
+     '표에는 없는데 지도에는 있는 사람'이 남는다 — 실제로 시점 후보·클릭 자국·이름표가
+     각기 다른 목록을 보게 된다. 들어오는 문 하나를 좁히면 그 뒤는 저절로 따라온다.
+     ★ 목록의 **정체(identity)를 지킨다**(useMemo) — bases는 건물 사전셈 캐시의 열쇠라
+       (bldPreCache9) 프레임마다 새 배열을 만들면 그 캐시가 매번 깨진다.
+     안 넘겨주면 아무도 안 걸러진다 — observer 칸이 없는 앱에서는 종전 그대로다. */
+  const bases = useMemo(
+    () => (basesIn.some((b9) => b9.observer) ? basesIn.filter((b9) => !b9.observer) : basesIn),
+    [basesIn]);
+  /** 관전자 이름 — 참값(entData)에서 온 것들을 거를 때 쓴다. 그쪽은 제 로스터를 따로
+   *  들고 있어(entData.players) bases를 안 거치므로, 이름으로 맞춰 봐야 한다. */
+  const obsNames = useMemo(
+    () => new Set(basesIn.filter((b9) => b9.observer).map((b9) => b9.key)),
+    [basesIn]);
   /* 경기 길이는 경기 메타(endSec)가 유일한 주다 — v1 모션을 걷어내면서 '건물·마법
      시각으로 어림하던' 폴백도 함께 걷었다. 메타가 없으면 60초로 서서 눈에 띈다. */
   const total = useMemo(() => (endSec && endSec > 0 ? endSec : 60), [endSec]);
@@ -21590,32 +21607,6 @@ export default function ReplayMotionPlayer({
      "그 경기엔 아무 일도 없었다"가 화면에서 갈려야 한다. */
   const [entData, setEntData] = useState<TruthWorld | null>(null);
   const [entLoad, setEntLoad] = useState<"idle" | "loading" | "none">("idle");
-  /* ★ 관전자는 **아예 없는 사람으로 친다**(요청: "관전자 자동 숨김 / 플레이어 로드시
-     기본적으로 관전자쪽 화면은 안 보이게" → "관전자는 로스터에서도 제거") ──────────────
-     거르는 자리를 로스터 그리는 데(teamCol)가 아니라 **여기 한 곳**으로 잡는다. 아래
-     수십 군데가 bases를 이름·종족·편을 찾는 사전으로 쓰는데, 그리는 자리에서만 걸러 내면
-     '표에는 없는데 지도에는 있는 사람'이 남는다 — 실제로 시점 후보·클릭 자국·이름표가
-     각기 다른 목록을 보게 된다. 들어오는 문 하나를 좁히면 그 뒤는 저절로 따라온다.
-
-     원천은 **둘**이고 합집합이다:
-       · 앱이 준 표시(bases[].observer) — 뜨자마자 알 수 있다. 첫 그림부터 안 뜬다.
-       · 참값 뭉치(entData.players[].observer) — **판 7부터** 실려 온다. 앱이 아직 안
-         채워 넘기는 동안에도 이쪽만으로 걸러진다. 다만 자취는 1~2MB라 늦게 오므로,
-         그때까지는 관전자가 한 박자 보였다 사라진다 — 앱 표시가 있으면 그 깜빡임이 없다.
-     참값 쪽은 제 로스터를 따로 들고 있어(entData.players) bases를 안 거치므로 이름으로
-     맞춘다 — 개인색이 이미 쓰는 짝짓기다(modeColor의 pl.name === raw). */
-  const obsNames = useMemo(() => {
-    const s9 = new Set<string>();
-    for (const b9 of basesIn) if (b9.observer) s9.add(b9.key);
-    for (const pl of entData?.players ?? []) if (pl.observer) s9.add(pl.name);
-    return s9;
-  }, [basesIn, entData]);
-  /* ★ 목록의 **정체(identity)를 지킨다**(useMemo) — bases는 건물 사전셈 캐시의 열쇠라
-     (bldPreCache9) 프레임마다 새 배열을 만들면 그 캐시가 매번 깨진다. 관전자가 없으면
-     원본을 그대로 돌려주어 참값이 오고 가도 캐시가 안 흔들린다. */
-  const bases = useMemo(
-    () => (obsNames.size > 0 ? basesIn.filter((b9) => !obsNames.has(b9.key)) : basesIn),
-    [basesIn, obsNames]);
   /* 유닛의 자리·방향·상태 — 서버가 리플레이를 그대로 돌려 구운 참값이다. 태그로 찾는다.
      (이름이 sim으로 남은 것은 읽는 자리가 수백 군데라서다 — 값의 출처만 바뀌었다.) */
   const [simTracks, setSimTracks] = useState<Map<number, TruthTrack> | null>(null);
