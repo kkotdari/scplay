@@ -4,3 +4,10 @@ dist/
 # 로컬 비밀값 — 저장소에 올리지 않는다.
 .env
 .env.*
+
+# 덤퍼 바이너리와 스타 자료 — 자물쇠(scripts/openbw-tracks-check.mjs)의 ③겹이 여기를 본다.
+# 빌드 산출물과 저작물이라 저장소에 안 담는다(OPENBW_BWDUMP·OPENBW_DATA로 딴 자리도 된다).
+tools/openbw/
+
+# 손으로 갖다 놓는 것들 — 뭉치 표본·주고받은 파일 따위.
+gitignore/

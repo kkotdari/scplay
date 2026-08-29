@@ -113,6 +113,16 @@ export type TruthTracks = {
   trustUntil: number | null;
   players: TruthPlayer[];
   /** 연구가 **끝난** 시각 [초, 이름, 임자]. 누른 때가 아니라 실제로 올라간 때다. */
+  /** 다 읽고 **남은 바이트** — 0이어야 정상이다.
+   *
+   *  ★ 왜 값으로 내나(자물쇠의 축) — 덤퍼가 절 끝에 칸을 하나 붙였는데 여기를 안 고치면,
+   *    앞쪽은 멀쩡히 읽히고 **뒤에 바이트만 남는다**. 여태 그 사실을 아무도 안 봤다
+   *    (커서의 left는 정의만 돼 있고 한 번도 안 쓰였다). 꼴이 갈렸다는 가장 이른 신호가
+   *    바로 이 값이라, 규약 검사(scripts/openbw-tracks-check.mjs)가 이것을 본다.
+   *  ★ 그렇다고 **여기서 물리치지는 않는다** — 뒤에 붙은 칸은 앞쪽 해석을 안 망친다.
+   *    막아 버리면 덤퍼가 한 칸 늘릴 때마다 재생기가 통째로 멈춘다. 읽을 수 있는 데까지
+   *    읽고, 갈렸다는 사실은 검사가 잡는다. */
+  leftover: number;
   /** 연구가 올라간 [초, 이름, 임자, **건물태그**] — 태그는 판 7부터고 0이면 '모름'이다. */
   ups: [number, string, number, number][];
   /** 마법 [초, x(타일), y(타일), 기술 이름, 임자] — 기운을 실제로 쓴 순간이다. */
@@ -532,7 +542,8 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
       }
     }
 
-    return { version, tracks, trustUntil: trustFrame < 0 ? null : trustFrame / fps,
+    return { version, leftover: c.left,
+      tracks, trustUntil: trustFrame < 0 ? null : trustFrame / fps,
       players, ups, casts, pings, res, apm, apmBucketSec, orders, resFields };
   } catch {
     return null;
