@@ -22337,7 +22337,9 @@ export default function ReplayMotionPlayer({
      넘겨준다 — 실측(2010-12-30 판): 여덟 명 전원 Color={"Name":"Brown","ID":5,…}.
      그러니 참값이 못 준 자리를 이 값이 메운다.
      ★ 잣대는 참값 쪽과 **같다**(위 personalUsable) — 로스터 색이 한 가지뿐이면 그것은
-       색이 아니라 '모름'이다. 원작에서 두 사람이 같은 색을 쓰는 일은 없다. */
+       색이 아니라 '모름'이다. 원작에서 두 사람이 같은 색을 쓰는 일은 없다.
+     ※ 덤퍼도 이제 색 번호를 풀어 옛 판의 색을 내준다 — 그래서 이 폴백은 **덜 걸린다**.
+       그래도 걷지 않는다: 이미 구워 둔 뭉치는 다시 굽기 전까지 옛 값('모름') 그대로다. */
   const rosterColor = useMemo(() => {
     const m9 = new Map<string, string>();
     for (const b9 of bases) {
