@@ -293,6 +293,26 @@ class Cursor {
  *
  * 던지지 않는다 — 꼴이 낯설거나 못 풀면 null을 준다. 부르는 쪽은 그때 옛 길로 돌아가면 된다.
  */
+/** 머리 다섯 바이트만 엿본다 — **못 푼 까닭을 말하기 위한** 자다.
+ *
+ *  decodeTruthTracks는 꼴이 낯설면 그냥 null을 준다(그게 부르는 쪽에 편하다). 그런데
+ *  그러면 화면이 "재생할 수 없는 게임이에요"라고만 하고 **왜인지는 아무 데도 안 남는다**.
+ *  판이 범위 밖이라 물리친 것인지, 애초에 OBWT가 아닌 것인지, 자취가 안 온 것인지가
+ *  갈리지 않으면 서버를 고쳐야 할 일과 화면을 고쳐야 할 일을 구분할 수가 없다.
+ *  전체를 푸는 값(1~2MB)을 치르지 않고 머리만 본다. */
+export async function peekTruthHead(
+  b64: string,
+): Promise<{ ok: boolean; version: number } | null> {
+  try {
+    const raw = await inflate(fromBase64(b64));
+    if (raw.length < 5) return null;
+    const ok = raw[0] === 0x4f && raw[1] === 0x42 && raw[2] === 0x57 && raw[3] === 0x54;
+    return { ok, version: raw[4] };
+  } catch {
+    return null;
+  }
+}
+
 export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null> {
   try {
     const raw = await inflate(fromBase64(b64));

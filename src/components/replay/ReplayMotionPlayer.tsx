@@ -52,7 +52,7 @@ import { decodeMapTerrain, terrainGridOfMap } from "../../utils/mapTerrain";
 /* 잠깐 알리고 사라지는 자리(요청) — 갈라진 판 경고가 이 문을 쓴다. */
 import { truthWorld, type TruthLife, type TruthWorld } from "../../utils/truthLives";
 import {
-  decodeTruthTracks, posAtTruth as posAtSim, type TruthTrack, type TruthTracks,
+  decodeTruthTracks, peekTruthHead, posAtTruth as posAtSim, type TruthTrack, type TruthTracks,
   TRUTH_ST_CARRY_GAS as ST_CARRY_GAS, TRUTH_ST_CARRY_MIN as ST_CARRY_MIN,
   TRUTH_ST_BURROW as ST_BURROW,
   TRUTH_ST_FIGHT as ST_FIGHT,
@@ -19193,11 +19193,21 @@ export const SCR_DIAG: {
    *  판이 0이면 자취를 아직 안 받았거나 못 푼 것이다. */
   truthVer: number;
   truthTrust: number;
+  /** 자취를 못 쓴 **까닭** — 빈 글자면 멀쩡히 쓰고 있다는 뜻이다.
+   *
+   *  ★ 왜 두나(지적: "지금 모든 경기가 거의 다 재생할 수 없는 게임이에요라고 나온다") —
+   *    그 화면은 entLoad === "none" 하나로 뭉뚱그려져 있었고, 거기 이르는 길이 셋이다:
+   *      ① 해독기가 물리쳤다(판이 범위 밖이거나 OBWT가 아니다) — **서버·규약 쪽 일**
+   *      ② 풀리긴 했는데 트랙이 0개다 — **덤퍼가 재구성을 못 한 것**(믿을프레임 0)
+   *      ③ 아예 못 받았다(그물·404) — 배달 쪽 일
+   *    셋이 화면에서 같은 말을 하니 어디를 고쳐야 하는지가 안 보인다. 판 번호와 함께
+   *    여기 적어 두면 #diag나 window.__scrDiag로 곧장 읽힌다. */
+  truthWhy: string;
 } = {
   dpr: 0, unitCss: "", unitBack: "", unitB: 0,
   mapCss: "", mapBack: "", ppt: 0, needed: 0, scale: 0, unitScale: 0,
   areaCap: 0, allocOk: true, zoom: 0, fx: {}, prod: "",
-  truthVer: 0, truthTrust: -1,
+  truthVer: 0, truthTrust: -1, truthWhy: "",
 };
 /** #diag가 켜져 있나 — 주소가 바뀌지 않는 한 한 번만 읽는다. */
 export const scrDiagOn = (): boolean =>
@@ -21699,6 +21709,33 @@ export default function ReplayMotionPlayer({
          이 안에 자리·체력·업그레이드·마법·핑·로스터가 다 들어 있다. */
       const got = await loadUnitTracks();
       const truth = got.motion ? await decodeTruthTracks(got.motion) : null;
+      /* ★ 못 쓴 까닭을 **반드시 적어 둔다**(지적: "지금 모든 경기가 거의 다 재생할 수
+         없는 게임이에요라고 나온다") — 여태 진단(truthVer)은 성공 갈래 **안**에만
+         있었다. 그래서 정작 알고 싶은 실패한 판에서는 판 번호가 0으로 남아, 서버가
+         새 판으로 굽기 시작한 것인지 화면이 못 읽는 것인지 가릴 자료가 없었다.
+         못 푼 때는 머리만 따로 엿봐(peekTruthHead) 판을 알아낸다 — 물리친 것과 애초에
+         OBWT가 아닌 것은 다른 사건이고, 고칠 자리도 다르다. */
+      if (!truth) {
+        const h9 = got.motion ? await peekTruthHead(got.motion) : null;
+        SCR_DIAG.truthVer = h9?.version ?? 0;
+        SCR_DIAG.truthWhy = !got.motion ? "자취를 아예 못 받았다"
+          : !h9 ? "못 풀었다(zlib이 아니거나 깨졌다)"
+            : !h9.ok ? "OBWT가 아니다"
+              : `판 ${h9.version}을 해독기가 물리쳤다 — 이 꾸러미는 2~7만 읽는다`;
+      } else if (!truth.tracks.length) {
+        SCR_DIAG.truthVer = truth.version;
+        SCR_DIAG.truthTrust = truth.trustUntil ?? -1;
+        SCR_DIAG.truthWhy = `트랙이 0개다 — 덤퍼가 재구성을 못 했다`
+          + `(믿을프레임 ${truth.trustUntil === null ? -1 : Math.round(truth.trustUntil * 24)}`
+          + `, 남은 바이트 ${truth.leftover})`;
+      } else {
+        SCR_DIAG.truthWhy = "";
+      }
+      /* ★ 창에 **늘** 내건다 — 여태 window.__scrDiag는 유닛 캔버스가 프레임마다 도는
+         자리에서, 그것도 #diag가 켜져 있을 때만 붙었다. 그런데 재생을 못 하는 판에는
+         유닛 캔버스가 아예 안 서므로 **정작 알고 싶은 때 진단이 없었다**. 여기는 자취를
+         받고 한 번 지나는 자리라 값이 안 든다. */
+      (window as unknown as { __scrDiag?: unknown }).__scrDiag = SCR_DIAG;
       if (truth && truth.tracks.length) {
         setEntData(truthWorld(truth, (k) => UNIT_BUILD_SEC[k] ?? 0));
         setTruth(truth);
@@ -27909,6 +27946,7 @@ export default function ReplayMotionPlayer({
                 {/* 참값이 어느 판으로 구워졌나 — '재분석했는데 갈림 시각이 그대로'가
                     진짜 갈림인지 안 구운 것인지를 이 한 줄이 가른다(위 truthVer 주석). */}
                 <div>
+                  {SCR_DIAG.truthWhy ? `⚠ ${SCR_DIAG.truthWhy} · ` : ""}
                   참값 판 {SCR_DIAG.truthVer || "?"} · 갈림{" "}
                   {SCR_DIAG.truthTrust < 0 ? "없음"
                     : `${Math.floor(SCR_DIAG.truthTrust / 60)}분 ${Math.floor(SCR_DIAG.truthTrust % 60)}초`}
