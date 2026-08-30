@@ -34,14 +34,15 @@ import { BLD_STATS, UNIT_BUILD_SEC, UNIT_STATS } from "./unitStats";
    이라 실제보다 두 몸 반지름만큼 짧게 잡히는 어림인데, 그리기용 게이트라 그대로 둔다 —
    반지름까지 더하는 정확한 셈은 코어(bwCombat.reachTiles)의 몫이다. */
 import {
-  acquireTilesOf, fireRangeTilesOf, isKnownKind, profileOf, reachTiles, weaponVs,
+  acquireTilesOf, bodyRadiusOf, fireRangeTilesOf, isKnownKind, profileOf, reachTiles,
+  weaponVs,
 } from "../../utils/bwCombat";
 /* 러커 가시가 나아가는 거리·속도는 무기표가 아니라 iscript 행동(behaviour 9 "go to max
    range")에서 온 값이라 bwCombat이 안 물고 있다. 숫자를 여기 또 적는 대신 표에서 읽는다. */
 import {
   BUILDING_FOOT, FRAME_SEC, GEYSER_FOOT, LURKER_SPINE_SPEED_PX,
-  LURKER_SPINE_TRAVEL_PX, MINERAL_FOOT, PLASMA_SHIELD_UPGRADE, buildingBox,
-  SUPPLY_CAP, SUPPLY_COST, SUPPLY_GIVES, sightTiles,
+  LURKER_SPINE_TRAVEL_PX, MEDIC_HEAL_RANGE_PX, MINERAL_FOOT, PLASMA_SHIELD_UPGRADE,
+  buildingBox, SUPPLY_CAP, SUPPLY_COST, SUPPLY_GIVES, sightTiles,
 } from "../../utils/bwUnits";
 // (정리) DEFENSE_BUILDINGS — 건물 캔버스 전환으로 ▲ 글자 갈래가 없어져 더는 안 쓴다.
 import { type TerrainGrid } from "./terrainGrid";
@@ -20401,6 +20402,20 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
           const tailL9 = st.l * zoom;
           /** 총구에서 머리(표적 쪽 끝)까지. */
           let headD9 = 0;
+          /** ★ **실제로 그어지는 길의 전체 길이** — 곡선·머리·꼬리가 다 이 자를 쓴다.
+           *
+           *  기본은 총구~표적의 화면 거리(reach9)지만, 그 거리가 무너지는 자리에서는
+           *  아래 shot 갈래가 갈래 제 길이로 물러난다(run9). 여태 그 물러남이 **머리에만**
+           *  실려 있었다 — 아래 연기 덩이는 여전히 reach9로 길을 매개했다. 그러면 머리는
+           *  run9까지 나가는데 길은 reach9에서 끝나므로, 덩이가 전부 `t9 = 1`로 죄어져
+           *  **표적 점 하나에 통째로 포개진다**: 화면에는 미사일이 아니라 그 자리의 흰 점
+           *  하나가 남는다(지적: "골리앗 미사일 트레이서 안나감").
+           *  그 자리가 왜 하필 골리앗인가 — 조준 높이는 **표적이 뜬 몫만큼 화면 세로를
+           *  깎는다**(위 beamLen). 쏘는 쪽도 날면 제 높이가 그 몫을 되돌려 놓지만(레이스·
+           *  발키리·스카우트 대공은 그래서 멀쩡했다), 골리앗은 **땅에 선 채 나는 것을
+           *  쏘는** 유일한 갈래라 되돌릴 몫이 없다. 표적이 화면에서 제 높이만큼 아래에
+           *  선 순간 세로가 0으로 상쇄되고, 거기서 이 길이 무너졌다. */
+          let runD9 = reach9;
           if (f.kind === "beam") {
             if (f.style === "heal") {
               // 메딕 — 길이 없는 노란 불빛(scr-tracer-heal + scr-heal-glow 박동).
@@ -20444,9 +20459,11 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
                  **그려지는 길이**는 여전히 화면 거리에 매여 있었다 — 반만 고친 셈이다.
                같은 약을 쓴다: 갈래 제 길이를 바닥으로 깔고, 표적이 멀면 거기까지 뻗는다.
                붙어 있을 때 제 길이만큼 넘칠 수는 있지만, 안 보이는 것보다 낫다. */
-            const run9 = Number.isFinite(reach9)
+            /* ★ 물러난 길이는 **길에도 실린다**(위 runD9) — 머리만 물러나면 연기가
+               표적 점에 포개진다. 둘은 한 자를 써야 한다. */
+            runD9 = Number.isFinite(reach9)
               ? Math.max(reach9, tailL9 * 0.6) : tailL9;
-            headD9 = run9 * Math.min(1, Math.max(0, f.u ?? 0));
+            headD9 = runD9 * Math.min(1, Math.max(0, f.u ?? 0));
           } else if (f.kind === "erupt") {
             /* 성큰 가시(scr-spike-erupt의 캔버스 판) — 표적 발밑에서 **화면 수직으로**
                솟는다. u가 혓바닥 시계의 솟음 몫(sin 마루)이라 자람·꺼짐이 거기 실려 온다. */
@@ -20562,16 +20579,18 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
                자취가 통째로 펄럭인다), 발마다 각이 다르니 두 발이 같은 활을 안 그린다.
                표적까지의 거리를 모르는 자리(len이 안 실려 온 옛 자료)에서는 곧은 선으로
                물러난다 — 조종점을 놓을 자리가 없기 때문이다. */
-            const bow9 = Number.isFinite(reach9)
-              ? reach9 * 0.15 * (Math.sin(rad9 * 7.3) >= 0 ? 1 : -1) : 0;
-            const cx0 = x0 + dxx * (reach9 / 2) - dyy * bow9;
-            const cy0 = y0 + dyy * (reach9 / 2) + dxx * bow9;
-            const tx0 = x0 + dxx * reach9;
-            const ty0 = y0 + dyy * reach9;
+            /* 길이는 **그어지는 길의 것**(runD9)이다 — 화면 거리가 무너진 자리에서
+               reach9로 매개하면 덩이가 전부 표적 점에 포개진다(위 runD9의 ★). */
+            const bow9 = Number.isFinite(runD9) && runD9 > 0
+              ? runD9 * 0.15 * (Math.sin(rad9 * 7.3) >= 0 ? 1 : -1) : 0;
+            const cx0 = x0 + dxx * (runD9 / 2) - dyy * bow9;
+            const cy0 = y0 + dyy * (runD9 / 2) + dxx * bow9;
+            const tx0 = x0 + dxx * runD9;
+            const ty0 = y0 + dyy * runD9;
             /** 자취 위의 한 점 — d는 총구에서의 **직선 거리**(굽은 길의 매개변수로 쓴다). */
             const at9 = (d9: number): [number, number] => {
               if (bow9 === 0) return [x0 + dxx * d9, y0 + dyy * d9];
-              const t9 = Math.max(0, Math.min(1, d9 / reach9));
+              const t9 = Math.max(0, Math.min(1, d9 / runD9));
               const u9 = 1 - t9;
               return [
                 u9 * u9 * x0 + 2 * u9 * t9 * cx0 + t9 * t9 * tx0,
@@ -23008,6 +23027,13 @@ export default function ReplayMotionPlayer({
     /** ★ 마지막으로 **체력이 떨어진** 때(초) — 없으면 이 판에서 한 번도 안 맞았다.
      *  방어 건물의 사격이 이것을 증거로 쓴다(아래 needHurt). */
     hurt?: number;
+    /** ★ 지금 남은 체력(실드 포함) — **없으면 아직 한 번도 안 깎였다**(곧 만피다).
+     *
+     *  메딕이 "고칠 데가 있나"를 이 값으로 묻는다(아래 healing9). 여태 이 명단은
+     *  '때릴 수 있나'만 실어 날랐는데, 메딕의 표적은 때릴 몸이 아니라 **고칠 몸**이라
+     *  물어야 할 것이 하나 더 있다. 자리는 바로 아래 hurt와 같은 이분 탐색이라 삯이
+     *  붙지 않는다(같은 마디를 한 번 찾아 둘을 다 낸다). */
+    hp?: number;
   };
   /* (걷어냄) 띄운 건물의 비행 보간 afloatPosAt — 재료였던 v1 비행 클릭 자취(fpts)가
      요약 폐지로 사라진 뒤 늘 출발 자리를 그대로 돌려주고 있었다. 개체 트랙은 이·착륙을
@@ -23344,7 +23370,7 @@ export default function ReplayMotionPlayer({
          절반 남짓을, 살아 있는 개체 수만큼, 프레임마다 훑는 셈이다(43분 판이면 수만 번).
          체력 키는 시간순이라 이분으로 한 번에 간다 — 로그로 떨어진다. */
       const hp9 = e.hp;
-      if (hp9 && hp9.length > 1) {
+      if (hp9 && hp9.length > 0) {
         let lo9 = 0;
         let hi9 = hp9.length - 1;
         let at9 = -1;
@@ -23353,6 +23379,9 @@ export default function ReplayMotionPlayer({
           if (hp9[md9][0] <= t) { at9 = md9; lo9 = md9 + 1; } else hi9 = md9 - 1;
         }
         if (at9 >= 1 && hp9[at9][1] < hp9[at9 - 1][1]) row.hurt = hp9[at9][0];
+        /* 지금 값도 같은 마디에서 낸다 — 아직 마디가 없으면(at9 < 0) 손 탄 적이 없는
+           몸이라 만피다. 그때는 칸을 안 채운다(읽는 쪽이 '없음 = 만피'로 읽는다). */
+        if (at9 >= 0) row.hp = hp9[at9][1];
       }
     }
     if (PERF9) pAdd("상태고리", pNow() - pS9_상태고리);
@@ -30333,12 +30362,15 @@ export default function ReplayMotionPlayer({
               for (const [ts9, tv9] of ta9) { if (ts9 > t) break; v9 = tv9; }
               return v9;
             })();
+            /* ★ 편·체력도 함께 싣는다 — 메딕의 표적은 **적이 아니라 아군**이라, 이
+               표적이 '고칠 수 있는 몸인가'를 묻는 데 그 둘이 든다(아래 healing9).
+               때리는 쪽에는 안 쓰이므로 값을 더 셈하지 않는다(명단이 이미 들고 있다). */
             let foe: {
               bx: number; by: number; bd: number; air: boolean;
-              bld?: boolean; k?: string; uk?: string;
+              bld?: boolean; k?: string; uk?: string; team?: number; hp?: number;
             } = ((): {
               bx: number; by: number; bd: number; air: boolean;
-              bld?: boolean; k?: string; uk?: string;
+              bld?: boolean; k?: string; uk?: string; team?: number; hp?: number;
             } => {
               const none9 = { bx: 0, by: 0, bd: Infinity, air: false };
               if (!wantFoe9 || !tgtTag9) return none9;
@@ -30350,6 +30382,7 @@ export default function ReplayMotionPlayer({
                 bx: tp9.x, by: tp9.y,
                 bd: Math.hypot(tp9.x - rawPos.x, tp9.y - rawPos.y),
                 air: tp9.air, bld: tp9.bld, k: tp9.k, uk: tp9.uk ?? tp9.k,
+                team: tp9.team, hp: tp9.hp,
               };
             })();
             /* (걷어냄) **어택 명령 되짚기** — 최근 명령에 실린 태그를 표적으로 삼던 자다.
@@ -30647,6 +30680,45 @@ export default function ReplayMotionPlayer({
                ·조준·가시 길이는 전부 이 값을 쓴다. */
             const foeDist = Number.isFinite(foe.bd)
               ? Math.hypot(foe.bx - pos.x, foe.by - pos.y) : Infinity;
+            /* ★ 메딕은 **고칠 몸이 있어야** 일한다(지적: "메딕이 힐 동작을 해도 타겟 피가
+               안 차고 힐할 대상이 없어도 모션을 안 멈춤") ─────────────────────────────
+               두 지적은 한 뿌리다. 메딕을 교전 명단(ENGAGE_SKIP)에서 뺄 때, 치료 자세가
+               서는 문을 참값의 싸움 상태 하나(ST_FIGHT)에 통째로 맡겼다. 그런데 메딕에게
+               그 상태는 '지금 고치는 중'이 아니라 **치료 명령을 들고 있다**에 가깝다:
+               다친 몸을 찾아 따라다니는 내내도, 이미 다 나은 몸 곁에 선 동안도 그대로
+               선다. 게다가 컷 고르기가 메딕만 위상을 안 본다(atkCutOf: "inf"는 늘 2) —
+               한 번 서면 상태가 갈릴 때까지 주사기가 안 내려간다. 그래서 아무도 안 낫는데
+               모션만 돌았고, 그게 곧 "피가 안 찬다"의 정체다(고칠 몸이 없으니 찰 피도 없다).
+               고치는 자리는 여기다. 치료가 성립하는 조건을 **참값에 직접** 묻는다:
+                 ① 겨눈 몸이 지금 지도에 있나 — 메딕의 order_target이 곧 치료 대상이다
+                    (그 갈래는 위 foe 주석이 이미 적어 두었다).
+                 ② 같은 편의 **지상 유닛**인가 — 건물도 뜬 것도 못 고친다.
+                 ③ 원작이 고칠 수 있는 몸인가 — 유기물이면서 기계가 아닌 것만이다
+                    (그 문에 SCV가 걸린다: 표에서 organic이자 mech다. SCV는 수리 대상이지
+                    치료 대상이 아니다).
+                 ④ 원작의 치료 사거리(30px) 안인가 — 이 파일의 거리는 중심-중심이므로
+                    두 몸 반지름을 더한다(bwCombat.reachTiles가 무기에 하는 그 덧셈이다.
+                    메딕은 무기가 없어 그 함수를 못 쓰니 여기서 같은 셈을 편다).
+                 ⑤ 그 몸이 **실제로 다쳐 있나** — 참값 체력이 만피보다 적어야 한다.
+                    다 나은 몸 곁에서는 원작의 메딕도 주사기를 내린다.
+               하나라도 아니면 이 프레임의 메딕은 '일하는 중'이 아니다. 자세도 불빛도 이
+               값 하나(fighting)를 보므로 둘이 함께 멎는다. */
+            const healing9 = drawUnit !== "Medic" ? false : ((): boolean => {
+              if (!Number.isFinite(foe.bd) || foe.bld || foe.air) return false;
+              if ((foe.team ?? 0) !== (team ?? 0)) return false;
+              const uk9 = foe.uk;
+              if (!uk9 || !isKnownKind(uk9)) return false;
+              const pf9 = profileOf(uk9);
+              if (!pf9.organic || pf9.mech) return false;
+              if (foeDist > MEDIC_HEAL_RANGE_PX / 32
+                + bodyRadiusOf(drawUnit) + pf9.radius) return false;
+              const stat9 = UNIT_STATS[uk9];
+              const full9 = stat9 ? stat9.hp + (stat9.sh ?? 0) : 0;
+              /* 체력 칸이 비었으면 한 번도 안 깎인 몸이다(위 FoeRow.hp) — 만피라 고칠
+                 데가 없다. 표에 없는 이름도 '모른다'로 두고 안 고친다. */
+              return full9 > 0 && foe.hp !== undefined && foe.hp < full9;
+            })();
+            if (drawUnit === "Medic" && !healing9) fighting = false;
             /* 몸 방향(지적: 트레이서와 불일치 + 뒤로 걷기) — 싸울 땐 표적을 바라보고,
                걸을 땐 실제 화면 이동 방향을 본다(headingOfDisplay). */
             /* ★ 조준각의 사거리는 **그 무기의 사거리**다(지적: "시즈 공격시 포탑이
@@ -31503,6 +31575,22 @@ export default function ReplayMotionPlayer({
                   : beamLen,
                 ph: ph9,
               });
+              /* ★ 치료는 **낫는 쪽에도** 보인다(지적: "메딕이 힐 동작을 해도 타겟 피가
+                 안 차고") ─────────────────────────────────────────────────────────
+                 여태 이 갈래는 메딕의 주사기 끝에만 불빛을 냈다. 그러면 화면에 남는 것은
+                 '메딕이 뭔가 하고 있다'뿐이고 **누가 낫는 중인지**가 없다 — 참값의 체력은
+                 띄엄띄엄 적히므로 체력바가 눈에 띄게 차오르지도 않아, 결국 아무 일도 안
+                 일어나는 것처럼 보인다. 같은 불빛을 낫는 몸 위에도 얹어 둘을 한 벌로
+                 읽히게 한다. 여기까지 온 메딕은 위 healing9가 이미 '정말 고치는 중'으로
+                 가려 낸 것이라(아니면 fighting이 꺼져 이 자리에 못 온다) 거짓 불빛이 설
+                 자리가 없다. 자리는 표적의 타일·가슴 높이, 박자는 이 메딕의 위상이다. */
+              if (fxName9 === "heal" && Number.isFinite(foe.bd)) {
+                const [hlx9, hly9] = posFrac(foe.bx, foe.by);
+                fxOps.push({
+                  kind: "beam", style: "heal", fx: hlx9, fy: hly9, lift: liftPx9,
+                  mx: 0, my: 0, deg: 0, ph: ph9,
+                });
+              }
             }
             return null;
           });
