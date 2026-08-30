@@ -29556,8 +29556,17 @@ export default function ReplayMotionPlayer({
                     bx: number; by: number; bd: number; air: boolean; k?: string; uk?: string;
                   } => {
                     const none9 = { bx: 0, by: 0, bd: Infinity, air: false };
+                    /* ★ 벙커는 사수를 먼저 묻고, **없으면 제 것을 묻는다** ────────────
+                       사수의 표적이 첫 번째다(위 주석: 벙커는 제가 안 쏜다). 다만 사수를
+                       못 짚는 판이 있다 — Load 버튼으로 태우면 승선 자국이 없어 '마린 한
+                       기 추정'(presumed)으로만 서는데, 그때 crew는 빈 배열이라 물어볼
+                       표적이 아예 없었다. 곧 추정 벙커는 **영영 안 쏘는 벙커**였다.
+                       그 자리에서 벙커 자신의 order_target으로 물러난다. 대개 비어 있지만
+                       (그래서 사수를 먼저 묻는다) 있으면 그것이 참값이므로, 없는 사격을
+                       지어내는 것이 아니라 있는 사격을 놓치지 않는 쪽이다. */
                     const r9 = unit === "Bunker"
-                      ? (crew.map((c9) => foeOfTgt9(c9.tgt)).find((v9) => v9) ?? null)
+                      ? (crew.map((c9) => foeOfTgt9(c9.tgt)).find((v9) => v9)
+                        ?? foeOfTgt9(rec9?.tgt))
                       : foeOfTgt9(rec9?.tgt);
                     if (!r9) return none9;
                     /* 못 치는 갈래면 안 겨눈다 — 참값이 그런 표적을 줄 일은 없지만, 자리
@@ -29738,7 +29747,11 @@ export default function ReplayMotionPlayer({
                   if (unit === "Spore Colony" && foeB.bd <= rgB) pushDefFx("venom");
                   if (unit === "Missile Turret" && foeB.air && foeB.bd <= rgB) pushDefFx("missile");
                   if (unit === "Bunker" && (crew.length > 0 || presumed)) {
-                    if (crewGun && rgB >= 0 && foeB.bd <= rgB) pushDefFx("base");
+                    /* 갈래는 **가우스 소총**이다(표의 그 줄: "gun 짧은 노란 빛(마린·
+                       고스트·벌처·골리앗 지상·벙커)") — 여기만 "base"를 넘기고 있었다.
+                       base는 무기 갈래가 없던 시절의 폴백 꼴이라, 벙커에서 나가는 빛만
+                       밖에 선 마린의 것과 결이 달랐다. */
+                    if (crewGun && rgB >= 0 && foeB.bd <= rgB) pushDefFx("gun");
                     // 화염은 지상 전용이고 사거리도 제 것(가우스 6에 견줘 3)이다.
                     if (crewBat && !foeB.air && batRG >= 0 && foeB.bd <= batRG) pushDefFx("flame", 0.2);
                   }

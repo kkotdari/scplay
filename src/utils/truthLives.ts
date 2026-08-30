@@ -142,6 +142,25 @@ function livesOfTrack(
     const gone = tr.keys[lastIdx * 5 + 4] === TRUTH_ST_GONE;
     const more = ci < cuts.length - 1;
     const bld = isBuilding(kind);
+    /** ★ 이 생애가 **정말로 끝나는 때** — 자리 키가 끊긴 때(lastT)와는 다른 말이다.
+     *
+     *  ── 왜 갈라야 하나(지적: "벙커 안의 유닛 공격시 트레이서 안 보임") ─────────────
+     *  곁 흐름(체력·인터셉터·표적)은 자리 키와 **따로** 온다(그 파일의 꼴 주석: 섞으면
+     *  한쪽이 바뀔 때마다 다른 쪽 키까지 끌려 나온다). 그런데 여기서는 그 셋을 전부
+     *  `lastT`, 곧 **자리 키의 마지막 시각**으로 잘라 왔다. 자리 키가 그 몸의 일생을
+     *  덮는다는 가정인데, 그 가정이 깨지는 자리가 있다:
+     *  **숨은 몸은 자리가 안 바뀐다.** 덤퍼는 달라진 줄만 적으므로, 벙커·수송선에 든
+     *  몸은 타는 그 순간 자리·방향·상태가 모두 얼어붙어 **키가 더는 안 나온다**. 그래서
+     *  벙커에 든 마린의 lastT는 '탄 시각'이고, 그 뒤 900초 동안 겨눈 표적이 이 필터에서
+     *  통째로 잘려 나갔다. 화면은 벙커 사수의 order_target으로 벙커의 사격을 그리므로
+     *  (ReplayMotionPlayer의 crew), 표적이 없으니 **벙커는 아무것도 안 쐈다** — 사수
+     *  명단을 참값으로 이어 준 앞선 수정이 화면에 안 나타난 까닭이 이것이다.
+     *  같은 잘림이 체력에도 있었다: 벙커 안에서 깎인 마린의 체력이 안 실렸다.
+     *  ★ 다음 시절로 이어지는 생애(변태)는 종전대로 lastT에서 끊는다 — 거기서는 경계가
+     *    곧 다음 생애의 시작이라, 늘이면 앞 시절의 값이 뒷 시절로 샌다(그것을 막으려고
+     *    이 필터가 있다). 늘이는 것은 **마지막 생애가 살아서 끝난 경우**뿐이고, 그때
+     *    뒤에 올 다른 시절이 없으므로 샐 곳도 없다. */
+    const lifeEnd = more || gone ? lastT : Infinity;
 
     const sites: LifeSite[] = [];
     const lifts: number[] = [];
@@ -251,7 +270,7 @@ function livesOfTrack(
     }
     const mine: LifeOrder[] = [];
     for (const o of orders.get(tr.tag) ?? []) {
-      if (o[0] >= born && o[0] <= lastT) mine.push([o[0], o[1], o[2], o[3] === 7]);
+      if (o[0] >= born && o[0] <= lifeEnd) mine.push([o[0], o[1], o[2], o[3] === 7]);
     }
     out.push({
       tag: tr.tag,
@@ -270,11 +289,12 @@ function livesOfTrack(
       // 시즈는 이 생애의 구간에 든 것만.
       sieges: sieges.filter(([s]) => s >= born && s <= lastT),
       orders: mine,
-      hp: tr.hp?.filter(([t]) => t >= born && t <= lastT),
-      ic: tr.ic?.filter(([t]) => t >= born && t <= lastT),
-      /* 표적도 이 생애의 구간만 — 한 태그가 라바→알→저글링으로 갈아입으므로, 생애를
-         안 가르면 앞 시절의 표적이 다음 시절로 새어 들어간다. */
-      tgt: tr.tgt?.filter(([t]) => t >= born && t <= lastT),
+      /* 곁 흐름 셋은 **생애의 끝**까지다(위 lifeEnd) — 자리 키가 끊긴 때가 아니다.
+         구간을 가르는 까닭은 그대로다: 한 태그가 라바→알→저글링으로 갈아입으므로,
+         안 가르면 앞 시절의 값이 다음 시절로 새어 들어간다. */
+      hp: tr.hp?.filter(([t]) => t >= born && t <= lifeEnd),
+      ic: tr.ic?.filter(([t]) => t >= born && t <= lifeEnd),
+      tgt: tr.tgt?.filter(([t]) => t >= born && t <= lifeEnd),
     });
     segStart = end;
   }
