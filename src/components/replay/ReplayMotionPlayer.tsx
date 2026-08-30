@@ -30664,9 +30664,26 @@ export default function ReplayMotionPlayer({
                조준·사격이 함께 이 문턱을 본다 — 아래 foeDeg가 null이면 포탑은 차체를
                따르고 트레이서도 안 나간다. */
             const minRange9 = drawUnit2 === "Siege Tank (Siege Mode)" ? 2 : 0;
+            /* ★ 조준 문은 **사격 문과 같은 자**를 쓴다(지적: "시즈탱크가 타겟건물을
+               안 보는 현상") ────────────────────────────────────────────────────────
+               여기 있던 fireRangeTilesOf는 이 파일 머리말이 스스로 적어 둔 어림이다:
+               "'몸 반지름을 뺀 순수 사거리'다. 이 파일의 거리 판정은 전부 중심-중심이라
+               실제보다 두 몸 반지름만큼 짧게 잡힌다 — 그리기용 게이트라 그대로 둔다."
+               작은 몸끼리는 그 오차가 눈에 안 띈다. 그런데 **큰 몸이 큰 몸을 겨눌 때**는
+               두 반지름이 몇 타일이라, 원작이 치는 표적을 화면은 사거리 밖으로 친다.
+               실측(참값 뭉치): 시즈 모드 탱크가 실제로 겨눈 표적의 중심-중심 거리가
+               10.6~15.5타일인데 이 문은 12에서 잘렸다 — 잘린 순간 foeDeg가 null이 되어
+               포탑이 표적을 안 본다. 건물은 몸이 가장 크고 늘 최대 사거리에서 맞으므로
+               거기서 가장 도드라진다.
+               코어의 reachTiles가 두 몸 반지름을 더해 준다(같은 머리말의 그 자). 아래
+               사격 문이 이미 그것을 쓰고 있으니, 조준도 같은 자를 쓰면 **'보는 것'과
+               '쏘는 것'이 어긋날 자리가 없어진다**. */
             const aimTiles9 = Math.max(
               ENGAGE_SIGHT_TILES,
-              isKnownKind(drawUnit2) ? fireRangeTilesOf(drawUnit2, foe.air) : 0,
+              isKnownKind(drawUnit2)
+                ? reachTiles(drawUnit2,
+                  foe.uk && isKnownKind(foe.uk) ? foe.uk : drawUnit2, foe.air)
+                : 0,
             );
             let foeDeg = foeDist >= minRange9 && foeDist <= aimTiles9
               ? Math.atan2(-(foe.bx - pos.x), foe.by - pos.y) * (180 / Math.PI) : null;
