@@ -227,13 +227,33 @@ async function loadDecoder() {
     cleanup: () => rmSync(dir, { recursive: true, force: true }) };
 }
 
-/** 파일 하나를 base64 글자로 — 서버가 준 글자 그대로든, 압축 이진 그대로든 받는다. */
+/** 파일 하나를 base64 글자로 — 오는 꼴 셋을 다 받는다.
+ *
+ *  ① 압축 이진 그대로(zlib 머리 0x78)
+ *  ② base64 글자만
+ *  ③ **서버 응답 JSON 그대로**(`{ "motion": "eNr…" }`) — 실제로 이 꼴로 손에 들어온다.
+ *    사람더러 따옴표를 벗겨 넣으라고 하면 그 자리에서 한 번 더 틀린다. */
 function asB64(file) {
   const buf = readFileSync(file);
-  const head = buf.subarray(0, 2);
-  // zlib 머리(0x78 ??)면 이진이다. 아니면 base64 글자로 본다.
-  if (head[0] === 0x78) return buf.toString("base64");
-  return buf.toString("utf8").trim().replace(/\s+/g, "");
+  if (buf[0] === 0x78) return buf.toString("base64");
+  const txt = buf.toString("utf8").trim();
+  if (txt[0] === "{" || txt[0] === "[") {
+    try {
+      const j = JSON.parse(txt);
+      const pick = (o) => {
+        if (typeof o === "string") return o;
+        if (!o || typeof o !== "object") return null;
+        for (const k of ["motion", "tracks", "data", "b64"]) {
+          if (typeof o[k] === "string") return o[k];
+        }
+        for (const v of Object.values(o)) { const g = pick(v); if (g) return g; }
+        return null;
+      };
+      const got = pick(j);
+      if (got) return got.replace(/\s+/g, "");
+    } catch { /* JSON이 아니면 아래 글자 길로 */ }
+  }
+  return txt.replace(/\s+/g, "");
 }
 
 /* ── ③ 덤퍼 대조 — 글자 갈래 읽기 ────────────────────────────────────────────────
@@ -443,10 +463,19 @@ if (files.length === 0) {
     let r = null;
     try { r = await decode(asB64(f)); } catch (e) { fail(`${f}: 못 읽었다 — ${e.message}`); continue; }
     if (!r) { fail(`${f}: 해독기가 null을 냈다 (판이 ${VER_MIN}~${VER_MAX} 밖이거나 꼴이 낯설다)`); continue; }
+    /* 체력·표적 키를 따로 센다 — 화면의 '체력바가 안 깎인다' · '트레이서가 안 나간다'는
+       대개 이 둘이 비어서다. 뭉치를 열어 보지 않고는 덤퍼 탓인지 그리기 탓인지 못 가른다. */
+    const hpN = r.tracks.reduce((s, tr) => s + (tr.hp?.length ?? 0), 0);
+    const hpTr = r.tracks.filter((tr) => (tr.hp?.length ?? 0) > 0).length;
+    const tgN = r.tracks.reduce((s, tr) => s + (tr.tgt?.length ?? 0), 0);
+    const tgTr = r.tracks.filter((tr) => (tr.tgt?.length ?? 0) > 0).length;
     const cen = `판 ${r.version} · 트랙 ${r.tracks.length} · 사람 ${r.players.length}`
       + ` · 업글 ${r.ups.length} · 마법 ${r.casts.length} · 핑 ${r.pings.length}`
       + ` · 명령 ${[...r.orders.values()].reduce((s, v) => s + v.length, 0)}`
-      + ` · 자원밭 ${r.resFields.length}`;
+      + ` · 자원밭 ${r.resFields.length}`
+      + `
+      체력키 ${hpN} (트랙 ${hpTr}/${r.tracks.length})`
+      + ` · 표적키 ${tgN} (트랙 ${tgTr}/${r.tracks.length})`;
     if (r.leftover !== 0) {
       fail(`${f}: **남은 바이트 ${r.leftover}** — 덤퍼가 칸을 늘렸는데 해독기가 안 지나갔다. ${cen}`);
     } else {

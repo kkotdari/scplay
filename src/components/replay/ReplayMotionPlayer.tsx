@@ -20431,7 +20431,22 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
               ? Math.max(reach9, tailL9) : Math.min(tailL9, reach9);
           } else if (f.kind === "shot") {
             // 날아가는 탄 — 머리가 총구에서 진행률만큼 나가 있고, 표적에서 멈춘다.
-            headD9 = Math.min((f.len ?? 0) * (f.u ?? 0) * zoom, reach9);
+            /* ★ **화면 거리가 무너져도 탄은 난다**(지적: "골리앗이 대공공격에서 트레이서가
+               안 나감(미사일)" — 포탑은 표적을 향해 돌고 있으니 표적은 잡힌 것이다) ──────
+               여기 있던 셈은 화면 거리(reach9)에 진행률을 곱한 것뿐이라, 그 거리가 0에
+               가까우면 머리도 0이 되고 아래 `headD9 - tailD9 < 0.25`에서 통째로 버려진다.
+               공중 표적에서 그 거리가 실제로 무너진다 — beamLen이 조준 높이(foeLift9)를
+               빼서 내는 값이라, 사수가 나는 몸 **바로 밑**에 서면 세로가 상쇄된다.
+               ★ 이 함정은 **바로 위 span 갈래가 이미 겪고 적어 둔 것**이다("붙어 싸울 때
+                 총구~표적의 화면 거리가 거의 0이다 … 늘이려던 것이 지우는 짓이 됐다.
+                 제 길이를 바닥으로 깔고"). 그때 beam만 고치고 shot은 그대로 뒀다.
+                 앞서 같은 지적으로 **날아가는 시각**(shotU)은 지도 위 거리로 옮겼는데,
+                 **그려지는 길이**는 여전히 화면 거리에 매여 있었다 — 반만 고친 셈이다.
+               같은 약을 쓴다: 갈래 제 길이를 바닥으로 깔고, 표적이 멀면 거기까지 뻗는다.
+               붙어 있을 때 제 길이만큼 넘칠 수는 있지만, 안 보이는 것보다 낫다. */
+            const run9 = Number.isFinite(reach9)
+              ? Math.max(reach9, tailL9 * 0.6) : tailL9;
+            headD9 = run9 * Math.min(1, Math.max(0, f.u ?? 0));
           } else if (f.kind === "erupt") {
             /* 성큰 가시(scr-spike-erupt의 캔버스 판) — 표적 발밑에서 **화면 수직으로**
                솟는다. u가 혓바닥 시계의 솟음 몫(sin 마루)이라 자람·꺼짐이 거기 실려 온다. */
@@ -20608,22 +20623,59 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
               ctx.arc(cx9, cy9, r9, 0, Math.PI * 2);
               ctx.fill();
             }
-            // 머리도 덩이와 견줄 만큼 길게 — 덩이가 커진 만큼 짧은 획은 파묻힌다.
-            const hl9 = Math.min(span9, st.w * zoom * 7);
-            if (hl9 > 0.5) {
-              // 머리도 굽은 길 위에 선다 — 두 점을 다 at9로 뽑으면 획이 저절로 접선이다.
+            /* ★ 앞에 **미사일 몸이 선다**(지적: "미사일 트레이서의 연기만 있고 앞에
+               미사일이 없어서 어색함") ────────────────────────────────────────────────
+               여태 머리는 갈래표의 그러데이션으로 그은 획 하나뿐이었다. 그 값으로 재 보면
+               길이 w×7 = 3.5·굵기 w×1 = 0.5(배율 1 기준)인데, 연기 덩이는 반지름이
+               w×3.8이라 **지름이 7.6**이다. 곧 머리는 덩이 하나보다도 짧고 그 7분의 1
+               굵기라, 흰 덩이 줄에 통째로 파묻혔다 — 남는 그림이 '연기뿐'인 까닭이다.
+               (앞서 덩이를 네 배로 키우면서 머리도 함께 키웠어야 했는데 획만 조금 늘렸다.)
+               세 겹으로 나눈다. 뒤에서부터:
+                 ① 배기 불꽃 — 갈래표 그러데이션 그대로, 몸 뒤로 뻗는다(옛 획의 몫).
+                 ② 몸통 — **불투명한** 흰 캡슐. 연기와 갈리는 것은 크기가 아니라 '속이
+                   비치지 않는다'는 점이다: 반투명하면 아무리 키워도 연기의 일부로 읽힌다.
+                 ③ 코 — 몸통 끝의 작은 밝은 점. 어느 쪽이 앞인지를 한 점이 말한다.
+               셋 다 굽은 길(at9) 위에 얹어 유도 곡선을 그대로 탄다. */
+            const bodyL9 = Math.min(span9, st.w * zoom * 9);
+            const flameL9 = Math.min(span9, st.w * zoom * 20);
+            if (flameL9 > 0.5) {
               const [ex9, ey9] = at9(headD9);
-              const [hx9, hy9] = at9(headD9 - hl9);
-              const hg9 = ctx.createLinearGradient(ex9, ey9, hx9, hy9);
+              const [fx9, fy9] = at9(headD9 - flameL9);
+              const hg9 = ctx.createLinearGradient(ex9, ey9, fx9, fy9);
               for (const [o9, c9] of st.g) hg9.addColorStop(o9, c9);
               ctx.globalAlpha = a9;
               ctx.strokeStyle = hg9;
-              ctx.lineWidth = Math.max(0.6, st.w * zoom);
+              ctx.lineWidth = Math.max(0.6, st.w * zoom * 1.6);
               ctx.lineCap = "round";
               ctx.beginPath();
               ctx.moveTo(ex9, ey9);
-              ctx.lineTo(hx9, hy9);
+              ctx.lineTo(fx9, fy9);
               ctx.stroke();
+            }
+            if (bodyL9 > 0.5) {
+              const [ex9, ey9] = at9(headD9);
+              const [bx8, by8] = at9(headD9 - bodyL9);
+              /* 속이 안 비치게 — 흰 몸에 옅은 하늘빛 테(연기와 같은 색 결이라 따로 놀지
+                 않으면서도, 불투명해서 덩이 위로 또렷이 뜬다). */
+              ctx.globalAlpha = a9;
+              ctx.strokeStyle = st.smokeEdge ?? "#a8d4ff";
+              ctx.lineWidth = Math.max(1.4, st.w * zoom * 3.4);
+              ctx.lineCap = "round";
+              ctx.beginPath();
+              ctx.moveTo(ex9, ey9);
+              ctx.lineTo(bx8, by8);
+              ctx.stroke();
+              ctx.strokeStyle = "#ffffff";
+              ctx.lineWidth = Math.max(0.9, st.w * zoom * 2.2);
+              ctx.beginPath();
+              ctx.moveTo(ex9, ey9);
+              ctx.lineTo(bx8, by8);
+              ctx.stroke();
+              // 코 — 앞을 가리키는 한 점.
+              ctx.fillStyle = "#ffffff";
+              ctx.beginPath();
+              ctx.arc(ex9, ey9, Math.max(0.8, st.w * zoom * 1.5), 0, Math.PI * 2);
+              ctx.fill();
             }
             continue;
           }
@@ -31369,8 +31421,14 @@ export default function ReplayMotionPlayer({
                  굵기 한 발)가 잉크 폭과 같게 잡는다. 몸이 잔상보다 가는 유닛(멀리서 본
                  작은 몸)은 0으로 죄어 한 줄로 겹친다 — 그 배율에서는 두 발이 어차피 한
                  획으로 읽힌다. */
+              /* ★ 빼는 값은 **실제로 그려지는 굵기(px)**여야 한다 — 여기 있던
+                 `FX_BEAM.missile.w`는 갈래표의 **상대** 굵기(0.5)라, 픽셀인 inkPx9에서
+                 그대로 빼면 단위가 섞인다. 그리는 쪽은 그 값에 zoom과 배수를 곱해 쓰므로
+                 (몸통 획이 w × zoom × 3.4) 실제 굵기는 배율마다 다르다. 같은 식을 여기서도
+                 써야 '두 발 전체가 몸 폭 하나'라는 약속이 배율과 무관하게 지켜진다. */
               const inkPx9 = fxPx * (modelInkOf(kindMain) / 16);
-              const half9 = Math.max(0, (inkPx9 - (FX_BEAM.missile?.w ?? 0.8)) / 2);
+              const missW9 = Math.max(1.4, (FX_BEAM.missile?.w ?? 0.5) * zoom * 3.4);
+              const half9 = Math.max(0, (inkPx9 - missW9) / 2);
               const perp9: [number, number] = fxName9 === "missile"
                 ? [Math.cos(rad9) * half9, Math.sin(rad9) * half9] : [0, 0];
               const lanes9: number[] = fxName9 === "missile" ? [-1, 1] : [0];
