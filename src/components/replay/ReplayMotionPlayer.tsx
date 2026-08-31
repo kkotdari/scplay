@@ -6987,16 +6987,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* ── 다리 넷 ── 수평 팔 + 사선 아랫마디 + 넓은 접시 발판. */
     const kneeLeg = (px: number, py: number): void => {
       const k9 = depthNow(px, py) > 0 ? -40 : -40.2;
-      /* 두 마디의 길이를 맞춘다(지적: "다리 둘째 마디가 너무 길잖아") — 앞판은 팔 4.09에
-         아랫마디 4.86이라 아랫마디가 더 길었다. 무릎의 x를 발판 쪽으로 끌어오면(0.36 →
-         0.72배) 아랫마디가 가로로 갈 길이 절반으로 줄어 3.34가 되고, 팔도 조금 줄여
-         (0.30~1.42 → 0.55~1.30배) 2.74로 잡으면 둘이 엇비슷해진다. 팔이 몸 밖으로
-         드러나는 몫은 1.7타일이라 여전히 두 마디로 갈려 읽힌다. */
-      const ax = px * 0.72;
-      const ay = py * 0.55;
+      /* ★ 두 마디는 **직각**이다(지적: "다리가 안쪽으로 기울어지면 안 되고 옆에서 봤을 때
+         각도가 직각이어야 해") ────────────────────────────────────────────────────────
+         앞판은 아랫마디가 무릎에서 발판으로 가면서 앞뒤로 1.1타일 되돌아왔다 — 그것이
+         '안쪽으로 기울어짐'이다. 직각이 되려면 **발판이 무릎 바로 아래**여야 하고, 그러면
+         발판의 x·y가 곧 무릎의 x·y다. 팔은 그 x에서 앞뒤로만 나가므로 발판의 x는 몸
+         안(반폭 4.9)이어야 하고, 팔이 몸 밖으로 드러나려면 발판의 y는 몸 밖(반깊이
+         3.05)이어야 한다 — 그래서 발판 자리를 (±5.85, ±3.65)에서 (±4.3, ±5.0)으로
+         옮겼다. 팔 3.2 · 수직 2.7이고 이음매가 정확히 직각이다. */
+      const ax = px;
+      const ay = py * 0.36;
       const AZ = BODY_Z + 0.85;               // 본체 옆면 중턱 — 팔이 몸 밖으로 드러난다
-      const kx = ax;
-      const ky = py * 1.30;                   // 무릎은 발판보다 앞뒤로 조금 더 나간다
+      const kx = px;                          // 무릎은 발판 바로 위다
+      const ky = py;
       const seg = (x0: number, y0: number, z0: number,
         x1: number, y1: number, z1: number, w0: number, w1: number): ShapeFace[] =>
         paintBase(spirePillar({
@@ -7005,9 +7008,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
             [x0 + (x1 - x0) * t9, y0 + (y1 - y0) * t9, z0 + (z1 - z0) * t9],
         }), "#8b929a");
       out.push(...tagKey([
+        // 윗팔 — 바닥에 수평하게 앞뒤로만.
         ...seg(ax, ay, AZ, kx, ky, AZ, 0.46, 0.42),
+        // 무릎 마디.
         ...paintBase(domeFaces3(kx, ky, 0.44, 0.42, AZ - 0.21), MID),
-        ...seg(kx, ky, AZ, px, py, 0.5, 0.42, 0.34),
+        // 아랫마디 — 그 자리에서 **곧게 아래로**(안으로 안 기운다).
+        ...seg(kx, ky, AZ, kx, ky, 0.5, 0.42, 0.34),
       ], k9));
       /* 발판 — 사진의 것은 **넓고 납작한 접시**다(지금까지의 좁은 굽보다 훨씬 크다).
          테를 한 겹 두르고 가운데에 임자색 뚜껑을 얹는다. */
@@ -7020,7 +7026,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ], k9 - 0.1));
       pc.push(...tagKey(domeFaces3(px, py, 0.4, 0.26, 0.34), k9 - 0.05));
     };
-    for (const [lx, ly] of [[-5.85, -3.65], [5.85, -3.65], [-5.85, 3.65], [5.85, 3.65]] as
+    for (const [lx, ly] of [[-4.3, -5.0], [4.3, -5.0], [-4.3, 5.0], [4.3, 5.0]] as
       [number, number][]) kneeLeg(lx, ly);
 
     /* ── 받침 판 ── 본체보다 한 뼘 안쪽이라 처마가 진다. */
@@ -18996,7 +19002,7 @@ export const BLD_NORM: Record<string, number> = {
   diamond: 1.905,  // 상자 상한에 걸림
   dmound: 1.111,
   dome: 1.418,
-  ebay: 1.449,   // 앞뒤 비대칭 다각 껍질로 바꾼 뒤 bld-norm 재측정
+  ebay: 1.482,   // 다리를 직각(수평 팔 + 수직 하강)으로 옮긴 뒤 bld-norm 재측정
   evo: 1.540,
   extract: 1.035,
   factory: 1.117,
