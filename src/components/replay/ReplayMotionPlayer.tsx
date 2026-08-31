@@ -31240,7 +31240,19 @@ export default function ReplayMotionPlayer({
                포탑 판을 가진 종류(탱크 두 모드)만 예외로 되돌린다. 개체 수가 적은
                종류라 훑는 삯이 다시 붙어도 큰 교전의 부담이 아니고, 애초에 포탑 판
                자체가 4배 이상(!liteView)에서만 그려지므로 같은 문턱을 함께 쓴다. */
-            const turretUnit9 = drawUnit.startsWith("Siege Tank");
+            /* ★ **골리앗도 포탑 유닛이다**(지적: "골리앗 뮤탈 상대로 미사일 트레이서
+               안 나옴 — 근본 원인 파악 필요") ────────────────────────────────────────
+               원작에서 골리앗의 **대공 무기(Hellfire Missile Pack)는 포탑 부속(Goliath
+               Turret)의 것**이고, 본체의 것은 지상 무기(Twin Autocannons)뿐이다. 참값의
+               ST_FIGHT는 위 주석대로 **본체에 사격 명령이 붙은 프레임**에만 서므로,
+               골리앗이 공중을 쏘는 동안 본체는 FIGHT가 아니다. 그러면 아래 wantFoe9가
+               거짓이 되어 **표적조차 안 찾고**, fighting도 거짓이라 트레이서 갈래가
+               통째로 건너뛴다 — 지상 표적일 때만 멀쩡했던 까닭이 이것이다(그때는 본체가
+               쏜다). 앞서 탄이 보이는 몫을 9~28%에서 48%로 올린 것은 이 자리와 무관해서
+               증상이 그대로였다.
+               브루드워에서 포탑 부속을 가진 지상 유닛은 시즈 탱크와 골리앗 둘뿐이고,
+               탱크는 이미 같은 까닭으로 여기 들어 있다. */
+            const turretUnit9 = drawUnit.startsWith("Siege Tank") || drawUnit === "Goliath";
             const wantFoe9 = simState !== null
               /* 표적 찾기의 문턱도 트레이서와 같다(요청: 2배부터) — 겨눈 표적이 없으면
                  각도(beamDeg)도 길이(beamLen)도 없어 트레이서를 아예 못 만든다. 포탑
@@ -31331,8 +31343,16 @@ export default function ReplayMotionPlayer({
                명령(InterceptorAttack·ScarabAttack)이 빠져 있었다. 고치는 자리는 덤퍼다
                (bwdump.cpp의 그 자리) — 여기에 거리 어림을 하나 더 세우면 참값 옆에 대역이
                생기고, 그 둘이 언젠가 다른 답을 낸다. 그 판들은 **다시 덤프하면** 살아난다. */
+            /* ★ 포탑 유닛은 **ST_FIGHT 말고 참값의 표적으로도** 싸운다고 본다(위 주석).
+               지어내는 것이 아니다: 참값이 준 order_target이 있고 그것이 이 유닛의 제
+               사거리 안일 때만이다 — 표적은 참값이고 사거리는 표가 말한다. 포탑이 도는
+               둘(탱크·골리앗)에만 걸리므로 다른 유닛의 결은 한 톨도 안 바뀐다. */
+            const turretAim9 = turretUnit9 && Number.isFinite(foe.bd)
+              && isKnownKind(drawUnit)
+              && foe.bd <= reachTiles(drawUnit,
+                foe.uk && isKnownKind(foe.uk) ? foe.uk : drawUnit, foe.air);
             let fighting = simState !== null
-              ? (simState === ST_FIGHT && canFight && !frzSt && !burrowed)
+              ? ((simState === ST_FIGHT || turretAim9) && canFight && !frzSt && !burrowed)
               : (canFight && !frzSt && !burrowed && Number.isFinite(foe.bd)
                 && (foe.bd <= acq9 * (engagedBefore ? 1.3 : 1)
                   || (foe.bld === true && foe.bd <= ENGAGE_SIGHT_TILES * 1.6)));
