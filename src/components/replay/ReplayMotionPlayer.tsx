@@ -331,7 +331,21 @@ const AIR_LIFT_REF = "Wraith";
    것이 진다 — 몸이 들려 그림자와 벌어지는 그 틈이다(AIR_LIFT_K·lift).
    다시 꺼내지 말 것: 키우려면 광원을 점광원으로 바꾸는 이야기부터 해야 한다. */
 /** 굽기 캐시 열쇠에 박는 포탑 각 표식 — 안 돌린 모델은 "0"이라 옛 열쇠와 같다. */
-const headTag = (): string => (headYawNow ? headYawNow.toFixed(0) : "0");
+/** 포탑 각을 **실제로 쓰는** 종류 — 그 밖의 종류는 각이 실려 와도 그림이 안 바뀐다.
+ *
+ *  ★ 이 명단이 없어서 성큰이 판을 열여섯 벌씩 굽고 있었다(조사: "테란·저그 둘 다 판
+ *    총량 안에 들어왔는데도 저그는 버벅인다 — 아무래도 굽는 시간 때문인 듯") ────────────
+ *    성큰의 혓바닥은 **쏘는 순간에만** 나온다(sunkenfire 별본의 `if (sunkenFire)`).
+ *    곧 평상시 성큰(sunken)의 모델은 headYawNow를 한 번도 안 읽는다. 그런데 굽기 열쇠에는
+ *    headTag가 늘 들어가 있었고, 그리는 쪽은 표적이 사거리에 들면 쏘든 안 쏘든 headDeg를
+ *    실어 보낸다 — 그래서 **똑같은 그림의 판이 각 칸마다 한 벌씩**, 최대 열여섯 벌 구워졌다.
+ *    12배·dpr 3에서 성큰 판 한 장이 2MB에 면이 2000장 넘으므로, 성큰이 표적을 따라 각 칸을
+ *    넘을 때마다 그 비싼 굽기가 한 번씩 돌았다. 저그 기지에 성큰이 여럿 늘어서 있으니
+ *    그 일이 끊이지 않는다 — '판 총량은 들어왔는데도 저그만 끊긴다'의 정체다.
+ *    각을 쓰는 셋(터렛·포톤캐논·쏘는 성큰)만 열쇠에 각을 싣는다. */
+const HEAD_KINDS = new Set(["turret", "coil", "sunkenfire"]);
+const headTag = (kind?: string): string =>
+  (headYawNow && (kind === undefined || HEAD_KINDS.has(kind)) ? headYawNow.toFixed(0) : "0");
 /** 굽는 도구(model-shot --head)가 포탑 각을 세우는 문 — 앱에서는 bldSprite가 op.headDeg
  *  로 세우므로 이 문은 도구 전용이다. 돌아간 포탑을 눈으로 확인하려면 이 문이 있어야
  *  한다(poseSet·bldLitSet과 같은 결). */
@@ -18642,7 +18656,7 @@ function resolveShapeFaces(
        0→1→2로 돌아도 빌더가 다시 안 불려 그림이 한 칸에 얼어붙어 있었다.
        (자세·불빛이 여기 실려 있는 것과 같은 까닭이다 — 굽는 동안만 서는 깃발을
         읽는 빌더는 그 깃발을 열쇠에 함께 실어야 한다.) */
-    const key = `${kind}:${bucket}:${flat ? 1 : 0}:${vq}:${pitchTag(pitchView)}:${headTag()}`
+    const key = `${kind}:${bucket}:${flat ? 1 : 0}:${vq}:${pitchTag(pitchView)}:${headTag(kind)}`
       + `:${poseTag(kind)}:${litTag(kind)}:${spinTag(kind)}`;
     let f = HEAD_FACES.get(key);
     if (!f) {
@@ -20371,7 +20385,7 @@ function buildingSpriteBake(
   bldLitNow = !!op.lit;
   bldSpinNow = op.spin ?? 0;
   // 크기(sideQ)를 뺀 몫과 크기로 가른다 — 대타를 찾으려면 앞부분이 따로 있어야 한다.
-  const subKey = `${op.kind}|${op.rotDeg ?? 0}|${op.flat ? 1 : 0}|${vq}|${pitchTag(op.pitch)}|${op.color}|${B.toFixed(2)}|${stg}|${headTag()}|${litTag(op.kind)}|${spinTag(op.kind)}`;
+  const subKey = `${op.kind}|${op.rotDeg ?? 0}|${op.flat ? 1 : 0}|${vq}|${pitchTag(op.pitch)}|${op.color}|${B.toFixed(2)}|${stg}|${headTag(op.kind)}|${litTag(op.kind)}|${spinTag(op.kind)}`;
   const key = `${subKey}|${lod}|${sideQ}`;
   const hit = BLD_SPRITE_CACHE.get(key);
   if (hit) {
@@ -20399,7 +20413,7 @@ function buildingSpriteBake(
   if (!all) return null;
   const faces = stageFaces(
     // 유닛의 poseTag와 같은 함정 — 불빛(litTag)·회전(spinTag) 변종도 열쇠에 싣는다.
-    lodFilter(autoTier(op.kind, `b|${op.kind}|${op.rotDeg ?? 0}|${op.flat ? 1 : 0}|${vq}|${pitchTag(op.pitch)}|${headTag()}|${litTag(op.kind)}|${spinTag(op.kind)}`, all), lod), stg);
+    lodFilter(autoTier(op.kind, `b|${op.kind}|${op.rotDeg ?? 0}|${op.flat ? 1 : 0}|${vq}|${pitchTag(op.pitch)}|${headTag(op.kind)}|${litTag(op.kind)}|${spinTag(op.kind)}`, all), lod), stg);
   /* 여백을 15% → 35%로 넓혔다(과제 #67) — 이 여백이 곧 모델이 쓸 수 있는 자리다.
      15%면 모델 단위로 양옆 2.4뿐이라, 정규화 배수를 재 보니 55종 중 30종이 목표에
      못 가고 여기서 잘렸다(그리고 지금도 7종은 이미 넘쳐 잘리고 있다: 하이브·레어·
@@ -20472,7 +20486,7 @@ function buildingSpriteBake(
   const s9 = (B * sideQ) / 16;
   const box9 = inkBoxOf(cv,
     `b|${op.kind}|${op.rotDeg ?? 0}|${op.flat ? 1 : 0}|${vq}|${pitchTag(op.pitch)}`
-    + `|${lod}|${stg}|${headTag()}|${litTag(op.kind)}|${spinTag(op.kind)}`,
+    + `|${lod}|${stg}|${headTag(op.kind)}|${litTag(op.kind)}|${spinTag(op.kind)}`,
     B * (pad + sideQ / 2) - 8 * s9, B * (pad + sideQ) - 16 * s9, s9);
   // 빌린 판이라 늘 새 판에 옮겨 담고(forceCopy), 원판은 빌림터로 돌려준다.
   const cr9 = cropToInk(cv, box9, true);
