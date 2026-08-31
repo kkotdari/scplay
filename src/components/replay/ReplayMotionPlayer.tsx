@@ -19425,15 +19425,30 @@ const spriteBytes = { n: 0 };
    보여 주느니 한 번 덜컥이는 편이 낫다. */
 const SUB_MAX_UP9 = 1.4;
 /** 대타로 쓸 크기를 고른다 — 크거나 같은 것 우선, 없으면 1.4배 안쪽의 작은 것. */
-const pickSubSize9 = (sizes: number[], want: number): number => {
-  let up9 = 0;      // 요청보다 크거나 같은 것 중 가장 작은 것
-  let down9 = 0;    // 요청보다 작은 것 중 가장 큰 것
-  for (const s9 of sizes) {
-    if (s9 >= want) { if (!up9 || s9 < up9) up9 = s9; }
-    else if (s9 > down9) down9 = s9;
+const pickSubSize9 = (list: { s: number; k: string }[], want: number): string | null => {
+  let up9: { s: number; k: string } | null = null;      // 요청 이상 중 가장 작은 것
+  let down9: { s: number; k: string } | null = null;    // 요청 미만 중 가장 큰 것
+  for (const e9 of list) {
+    if (e9.s >= want) { if (!up9 || e9.s < up9.s) up9 = e9; }
+    else if (!down9 || e9.s > down9.s) down9 = e9;
   }
-  if (up9) return up9;
-  return down9 && want / down9 <= SUB_MAX_UP9 ? down9 : 0;
+  if (up9) return up9.k;
+  return down9 && want / down9.s <= SUB_MAX_UP9 ? down9.k : null;
+};
+/** 색인에 한 줄 적는다 — 같은 열쇠는 한 번만, 여섯 벌까지(오래된 것부터 밀어낸다). */
+const noteSub9 = (
+  map: Map<string, { s: number; k: string }[]>, sub: string, size: number, key: string,
+): void => {
+  const got9 = map.get(sub);
+  if (got9) {
+    if (!got9.some((e9) => e9.k === key)) {
+      got9.push({ s: size, k: key });
+      if (got9.length > 6) got9.shift();
+    }
+    return;
+  }
+  if (map.size > SPRITE_SIZES_MAX) map.clear();
+  map.set(sub, [{ s: size, k: key }]);
 };
 const UNIT_BAKE_PER_FRAME = smallDevice9 ? 1 : 3;
 let unitBakeLeft9 = UNIT_BAKE_PER_FRAME;
@@ -19447,10 +19462,19 @@ let unitBakeLeft9 = UNIT_BAKE_PER_FRAME;
    예산이 다한 자리에서는 같은 건물의 다른 크기로 구워 둔 판을 늘려 찍는다. */
 const BLD_BAKE_PER_FRAME = smallDevice9 ? 1 : 3;
 let bldBakeLeft9 = BLD_BAKE_PER_FRAME;
-const BLD_SPRITE_SIZES = new Map<string, number[]>();
+const BLD_SPRITE_SIZES = new Map<string, { s: number; k: string }[]>();
 /** 크기(pxq)를 뺀 열쇠 → 그 열쇠로 구워 둔 크기들. 예산이 다한 프레임의 대타를 찾는 자다.
  *  보관함이 LRU로 쫓아낸 크기가 남아 있을 수 있으므로, 쓰는 쪽이 실물을 다시 확인한다. */
-const SPRITE_SIZES = new Map<string, number[]>();
+/* ★ 색인에서 **등급(lod)을 뺀다**(지적: "그냥 보고 있는데 멀쩡히 있던 디테일이 사라지는
+   건 다시 그리는 거네") — 정확한 진단이다. 등급은 굽기 열쇠에 들어 있어서, 기기 벌점이
+   0에서 1로 넘어가는 순간 화면의 **모든 열쇠가 한꺼번에 안 맞고** 그 프레임에 한 세대를
+   통째로 다시 굽는다 — 가장 느린 순간에 가장 큰 삯을 치르는 셈이라 조절기가 스스로 병을
+   키웠다. 게다가 그동안 대타도 못 찾는다(새 등급으로 구워 둔 것이 하나도 없으니까).
+   색인이 등급을 안 보면 그 순간 **옛 등급의 판**이 대타로 선다: 화면은 그대로(오히려 더
+   자세한 채) 있고 새 판은 예산대로 한 장씩 조용히 갈아 끼워진다. 폭풍도 사라짐도 없다.
+   그래서 색인은 크기가 아니라 **{크기, 실제 열쇠}**를 든다 — 같은 크기라도 등급이 다르면
+   다른 판이라 열쇠를 그대로 들고 있어야 찾을 수 있다. */
+const SPRITE_SIZES = new Map<string, { s: number; k: string }[]>();
 const SPRITE_SIZES_MAX = 4096;
 /* ★ 장식이 쓰는 **몸 폭은 자세를 안 탄다**(지적: "뮤탈 날갯짓하면서 그림자 크기도
    바뀌는데 그거도 문제 아니야? 보기에도 정신없고") ────────────────────────────────
@@ -19480,11 +19504,12 @@ function unitSprite(
   /* 자세 깃발은 **열쇠를 만들기 전에** 세운다 — poseTag가 이 값을 읽고, 아래 면 짜기
      (resolveShapeFaces → 빌더)도 같은 값을 본다. 끝나면 0으로 되돌린다. */
   poseNow = op.pose ?? 0;
-  /* 열쇠를 **크기를 뺀 몫(baseKey)과 크기**로 가른다 — 위 SPRITE_SIZES가 '같은 모델의
-     다른 크기'를 찾으려면 그 앞부분이 따로 있어야 한다. 이어 붙인 전체는 예전과 같다. */
-  const baseKey = `${op.kind}|${rotB}|${op.flat ? 1 : 0}|${vq}|${pitchTag(op.pitch)}`
-    + `|${op.color}|${B.toFixed(2)}|${lod}|${poseTag(op.kind)}|${op.solid ?? ""}`;
-  const key = `${baseKey}|${pxq}`;
+  /* 열쇠를 **크기·등급을 뺀 몫(subKey)과 그 둘**로 가른다 — 위 SPRITE_SIZES가 '같은
+     모델의 다른 크기·다른 등급'을 찾으려면 그 앞부분이 따로 있어야 한다. */
+  /** 대타 색인의 열쇠 — 크기와 **등급**을 뺀 몫이다(위 SPRITE_SIZES의 ★). */
+  const subKey = `${op.kind}|${rotB}|${op.flat ? 1 : 0}|${vq}|${pitchTag(op.pitch)}`
+    + `|${op.color}|${B.toFixed(2)}|${poseTag(op.kind)}|${op.solid ?? ""}`;
+  const key = `${subKey}|${lod}|${pxq}`;
   SPRITE_PERF.colorSet.add(op.color);
   const hit = SPRITE_CACHE.get(key);
   // 찾은 것은 맨 뒤로 — 그래야 맨 앞이 '가장 오래 안 쓴 것'이 된다(LRU).
@@ -19498,10 +19523,10 @@ function unitSprite(
      '가까움'은 비로 잰다(로그 거리) — 2배 큰 판과 절반짜리 판 중 어느 쪽이 덜 무른지는
      차가 아니라 비가 정한다. */
   if (unitBakeLeft9 <= 0) {
-    const sizes9 = SPRITE_SIZES.get(baseKey);
+    const sizes9 = SPRITE_SIZES.get(subKey);
     if (sizes9) {
       const best9 = pickSubSize9(sizes9, pxq);
-      const alt9 = best9 > 0 ? SPRITE_CACHE.get(`${baseKey}|${best9}`) : undefined;
+      const alt9 = best9 ? SPRITE_CACHE.get(best9) : undefined;
       if (alt9) {
         /* ★ **대타는 LRU를 안 되살린다**(지적: "12배도 아닌데 모바일 사파리 탭이
            새로고침돼") ─────────────────────────────────────────────────────────────
@@ -19574,6 +19599,10 @@ function unitSprite(
   if (cr.cv !== cv) releaseCanvas(cv);
   const entry = { cv: cr.cv, ox: cr.ox, oy: cr.oy, pad, l, ...box };
   SPRITE_CACHE.set(key, entry);
+  /* ★ 색인에 적는다 — **이 줄이 여태 없었다.** 그래서 유닛 쪽 대타 경로는 한 번도 선
+     적이 없고(색인이 늘 비어 있으니 찾을 것이 없다), '굽기를 프레임에 나눠 문다'가
+     사실상 건물에만 걸려 있었다. */
+  noteSub9(SPRITE_SIZES, subKey, pxq, key);
   spriteBytes.n += canvasBytes(cr.cv);
   trimSpriteCache(SPRITE_CACHE, spriteBytes, SPRITE_BYTES_MAX);
   if (PERF9) pAdd("굽기:유닛판", pNow() - pBk9);
@@ -20259,8 +20288,8 @@ function buildingSpriteBake(
   bldLitNow = !!op.lit;
   bldSpinNow = op.spin ?? 0;
   // 크기(sideQ)를 뺀 몫과 크기로 가른다 — 대타를 찾으려면 앞부분이 따로 있어야 한다.
-  const baseKey = `${op.kind}|${op.rotDeg ?? 0}|${op.flat ? 1 : 0}|${vq}|${pitchTag(op.pitch)}|${op.color}|${B.toFixed(2)}|${lod}|${stg}|${headTag()}|${litTag(op.kind)}|${spinTag(op.kind)}`;
-  const key = `${baseKey}|${sideQ}`;
+  const subKey = `${op.kind}|${op.rotDeg ?? 0}|${op.flat ? 1 : 0}|${vq}|${pitchTag(op.pitch)}|${op.color}|${B.toFixed(2)}|${stg}|${headTag()}|${litTag(op.kind)}|${spinTag(op.kind)}`;
+  const key = `${subKey}|${lod}|${sideQ}`;
   const hit = BLD_SPRITE_CACHE.get(key);
   if (hit) {
     SPRITE_PERF.bldHit += 1;
@@ -20269,10 +20298,10 @@ function buildingSpriteBake(
   /* ★ 예산이 다했으면 이번 프레임엔 안 굽고, 같은 건물의 **가장 가까운 크기**를 돌려준다
      (부르는 쪽이 판의 실제 크기 bspr.side로 배율을 맞춘다 — 유닛 쪽과 같은 약이다). */
   if (bldBakeLeft9 <= 0) {
-    const sizes9 = BLD_SPRITE_SIZES.get(baseKey);
+    const sizes9 = BLD_SPRITE_SIZES.get(subKey);
     if (sizes9) {
       const best9 = pickSubSize9(sizes9, sideQ);
-      const alt9 = best9 > 0 ? BLD_SPRITE_CACHE.get(`${baseKey}|${best9}`) : undefined;
+      const alt9 = best9 ? BLD_SPRITE_CACHE.get(best9) : undefined;
       if (alt9) {
         // 대타는 LRU를 안 되살린다 — 유닛 쪽의 ★ 주석과 같은 까닭이다.
         SPRITE_PERF.bldHit += 1;
@@ -20371,13 +20400,7 @@ function buildingSpriteBake(
   };
   BLD_SPRITE_CACHE.set(key, entry);
   // 이 열쇠로 구운 크기를 색인에 적는다(유닛 쪽 SPRITE_SIZES와 같은 규약).
-  const bsz9 = BLD_SPRITE_SIZES.get(baseKey);
-  if (bsz9) {
-    if (!bsz9.includes(sideQ)) { bsz9.push(sideQ); if (bsz9.length > 4) bsz9.shift(); }
-  } else {
-    if (BLD_SPRITE_SIZES.size > SPRITE_SIZES_MAX) BLD_SPRITE_SIZES.clear();
-    BLD_SPRITE_SIZES.set(baseKey, [sideQ]);
-  }
+  noteSub9(BLD_SPRITE_SIZES, subKey, sideQ, key);
   bldSpriteBytes.n += canvasBytes(cr9.cv);
   trimSpriteCache(BLD_SPRITE_CACHE, bldSpriteBytes, BLD_SPRITE_BYTES_MAX);
   if (PERF9) pAdd("굽기:건물판", pNow() - pBb9);
