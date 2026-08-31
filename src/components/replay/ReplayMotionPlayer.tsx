@@ -7050,7 +7050,6 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const DARK = "#3f454d";
     const MID = "#6f7883";
     const PLATE = "#9aa4b2";
-    const WARM = "#a89a86";                   // 오른쪽의 바랜 갈회색 장갑판(사진)
     /* 엔지니어링 베이(전면 재작도 — 사진) ────────────────────────────────────────────
        앞판이 사진과 크게 달랐던 까닭은 몸통을 **대칭 절두체**로 잡았기 때문이다. 사진의
        몸은 매끈하게 좁아지는 뿔이 아니라 **각진 상자를 쌓은 덩이**다:
@@ -7067,22 +7066,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* ★ 판은 **하나**이고, 남는 것은 **맨 아래판**이다(정정: "맨 아래판을 없애면 어떡해
        2층을 없애라니까") — 앞판에서 내가 걷은 쪽이 반대였다. 두 판 중 아래(받침 판,
        z 1.07~1.92)를 남기고 그 위의 2층 판(본체, 1.92~3.27)을 걷는다.
-       남는 판이 윗상자를 받치므로 **발자국 모양**은 그 판이 물려받는다(FOOT9 다각형 ·
-       오른쪽 바랜 장갑 · 초록 통풍구) — 맨 아래판은 원래 네모 상자였고 상자들보다
-       좁아, 그대로 두면 윗상자가 판 밖으로 0.5씩 삐져나온다.
-       잃은 2층 판의 높이(1.30)는 윗상자가 받는다(UPP_H 1.7 → 3.05) — 총높이 4.97 그대로.
+       남는 판은 윗상자를 받치므로 그 폭(MAIN_W)을 그대로 쓴다 — 맨 아래판은 원래
+       상자들보다 좁아, 그대로 두면 윗상자가 판 밖으로 0.5씩 삐져나온다.
+       잃은 2층 판의 높이는 윗상자가 받는다(UPP_H 1.7 → 3.20) — 총높이 4.97 그대로.
        팔(AZ 2.22)은 판 바로 위, 윗상자의 밑동 속에서 나온다 — 다리 길이는 안 건드린다. */
     const BODY_Z = 1.07;
-    /* ★ 아랫 판을 **얇고 작게**(요청: "엔베 아랫쪽 판이 너무 두껍고 커 좀 줄이고") —
-       윗도리 둘을 판 윗면에 딱 맞춰 놓고 보니, 이번엔 그 판이 건물의 거의 전부였다:
-       두께 1.9에 가로 9.8이라 윗도리가 그 위에 얹힌 얇은 층으로 보였다. 발자국을 8%
-       줄이고(FOOT_K) 두께를 1.9 → 1.35로 낮춘다. 발자국을 한 값으로 줄이는 까닭은
-       받침 판·허리 띠·처마·다리 자리가 전부 MAIN_W·MAIN_D·FOOT9에서 나오기 때문이다 —
-       한 곳에서 줄여야 그 넷이 같은 비로 따라온다. */
+    /* 아랫 판을 **얇고 작게**(요청: "엔베 아랫쪽 판이 너무 두껍고 커 좀 줄이고") —
+       발자국을 8% 줄이고(FOOT_K) 두께를 1.9 → 0.7로 낮춘다. 발자국을 한 값으로 줄이는
+       까닭은 판·창·윗상자 폭·다리 자리가 전부 MAIN_W·MAIN_D에서 나오기 때문이다 —
+       한 곳에서 줄여야 넷이 같은 비로 따라온다. */
     const FOOT_K = 0.92;
     const MAIN_W = 9.8 * FOOT_K;
     const MAIN_D = 6.1 * FOOT_K;
-    const MAIN_H = 0.85;      // 맨 아래판의 옛 두께 그대로
+    const MAIN_H = 0.7;       // **얇은** 판(요청)
     const MTOP = BODY_Z + MAIN_H;             // 본체 윗면
     /* ★ 윗 상자 둘을 **절두체**로, 폭을 서로 비슷하게(요청: "엔베 위쪽 상자 부품들도
        절두체 형태로 변경하고 두 부품의 폭 비슷비슷하게 수정") — 네모 상자 둘은 옆선이
@@ -7101,7 +7097,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        다시 안으로 당기므로 윗면에서는 턱이 안 남는다. */
     const UPP_W = MAIN_W / 2;
     const UPP_D = 4.7;
-    const UPP_H = 3.05;                       // 걷어낸 2층 판(1.30)의 몫을 여기서 받는다
+    const UPP_H = 3.20;                       // 걷어낸 2층 판의 몫 + 얇아진 판의 몫
     const UX = -MAIN_W / 4;                   // 관제 블록은 뒤·왼쪽으로 물러난다
     const UY = 0.15;
     const UTOP = MTOP + UPP_H;
@@ -7191,44 +7187,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       [-FOOT_X, -FOOT_Y], [FOOT_X, -FOOT_Y], [-FOOT_X, FOOT_Y], [FOOT_X, FOOT_Y],
     ] as [number, number][]) kneeLeg(lx, ly);
 
-    /* ── 본체 ── **앞뒤가 비대칭인 다각 껍질**이다(요청: 사진의 그 외형) ─────────────
-       사진의 몸은 앞이 넓고 뒤가 좁으며, 오른앞 모서리가 비스듬히 깎여 있다. 네모 상자
-       (boxFaces3)로는 그 셋을 못 낸다 — 발자국을 다각형으로 적고 그 위로 곧게 세운다.
-       변마다 제 바깥 법선으로 보임을 판정하므로(faceLight) 등진 면은 안 그려지고, 오른쪽
-       두 변만 바랜 갈회색 장갑판이 된다(사진의 그 낯). */
-    const FOOT9: [number, number][] = ([
-      [-4.9, 3.05],     // 앞왼
-      [3.2, 3.05],      // 앞오른 — 여기서 빗면이 시작한다
-      [4.9, 1.55],      // 오른앞 빗면 끝
-      [4.9, -2.1],      // 오른뒤
-      [3.5, -3.05],     // 뒤오른 모따기
-      [-3.5, -3.05],    // 뒤왼 모따기
-      [-4.9, -2.1],     // 왼뒤
-    ] as [number, number][]).map(([x9, y9]) => [x9 * FOOT_K, y9 * FOOT_K]);
-    /** 다각 발자국을 z0~z1로 곧게 세운 껍질. grow는 바깥으로 부풀리는 몫(띠·처마용). */
-    const prism9 = (z0: number, z1: number, fill: string, grow: number,
-      fillOf?: (i: number) => string | undefined): ShapeFace[] => {
-      const P = FOOT9.map(([x, y]) => {
-        const r = Math.hypot(x, y) || 1;
-        return [x + (x / r) * grow, y + (y / r) * grow] as [number, number];
-      });
-      const f: ShapeFace[] = [];
-      for (let i9 = 0; i9 < P.length; i9 += 1) {
-        const [x0, y0] = P[i9];
-        const [x1, y1] = P[(i9 + 1) % P.length];
-        const L = Math.hypot(x1 - x0, y1 - y0) || 1;
-        // 발자국을 반시계로 적었으므로 바깥 법선은 변을 +90도 돌린 것이다.
-        const nx = -(y1 - y0) / L;
-        const ny = (x1 - x0) / L;
-        const fl = faceLight(nx, ny, 0);
-        if (!fl.visible) continue;
-        const d = polyPath3([[x0, y0, z0], [x1, y1, z0], [x1, y1, z1], [x0, y0, z1]]);
-        f.push([d, 1, fillOf?.(i9) ?? fill] as ShapeFace, ...fl.face(d));
-      }
-      const top = polyPath3(P.map(([x, y]) => [x, y, z1] as [number, number, number]));
-      f.push([top, 1, fill] as ShapeFace, topFace(top, 0.12));
-      return f;
-    };
+    /* ── 아래 판 ── **네모 얇은 상자**다(요청: "엔베 아래 판 기본 테란 은색에 다각형이
+       아닌 사각형 얇은 상자로 변경") ────────────────────────────────────────────────
+       여태 이 판은 앞이 넓고 뒤가 좁으며 오른앞이 비스듬히 깎인 7각 껍질(prism9 + FOOT9)
+       이었다. 위에 얹힌 상자 둘이 곧고 네모난 절두체라, 밑만 다각이면 둘이 다른 건물의
+       조각처럼 따로 놀았다. 색도 오른쪽 두 면만 바랜 갈회색(WARM)이라 한쪽이 때 탄 듯
+       보였다 — 테란 기본 은색 하나로 굳힌다. 함께 걷은 것: prism9·FOOT9·WARM. */
     /** ★ 위로 좁아지되 **한 옆면만 수직**인 상자(요청: "두 절두체 마주보는 면은 사선이
      *  아니고 수직으로 수정해서 둘이 맞붙게") ─────────────────────────────────────────
      *  frustumFaces3는 네 면이 모두 같은 몫으로 기운다. 그 상자 둘을 나란히 세우면
@@ -7275,9 +7239,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       f9.push([top9, 1, fill] as ShapeFace, topFace(top9, 0.12));
       return f9;
     };
-    // 오른쪽 두 변(빗면·오른면)만 바랜 장갑판.
-    out.push(...tagKey(prism9(BODY_Z, MTOP, SILVER, 0,
-      (i9) => (i9 === 1 || i9 === 2 ? WARM : undefined)), 0));
+    out.push(...tagKey(paintBase(
+      boxFaces3(0, 0, MAIN_W, MAIN_D, MAIN_H, BODY_Z), SILVER), 0));
     /* (걷어냄) 허리 띠와 윗면 처마(요청: "아래판 층수 2개로 줄이고") — 받침 판·본체·
        허리 띠·처마로 아랫도리가 네 겹이라, 얇게 낮춘 몸이 다시 켜켜이 쌓인 층으로
        읽혔다. 남기는 둘은 **받침 판과 본체**다: 받침 판은 다리가 붙는 자리를 만들고
@@ -7343,30 +7306,40 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ...domeFaces3(2.0, 0.2, 0.72, 0.56, UTOP + 0.36),
     ], 12 + depthNow(2.0, 0.2) * 1.6));
 
-    /* ── 형광 초록 세로 막대 ── 좌우 면의 아래쪽에 줄지어 난다(사진). */
-    const vent = (cx: number, cy: number, nx: number, ny: number, n: number,
-      span: number, key: number): void => {
-      if (facingRatio(nx, ny) <= 0.12) return;
-      const ux = ny;
-      const uy = -nx;
+    /* ★ 아래 판의 **창**(요청: "검정색이었다가 라임색으로 반짝이는 창문들로 변경") ────
+       여태 이 자리는 늘 켜져 있는 형광 초록 통풍구였다(활성일 때만 한 단 밝아질 뿐,
+       꺼져도 초록이라 '켜졌다'가 안 읽혔다). 창 공용 winLit을 쓰면 꺼진 동안은 다른
+       테란 건물의 창과 같은 검정(WIN_DARK)이고 활성일 때만 라임이 든다 — 건물 전체가
+       한 박자로 깜빡이므로 이 판이 본체의 일부로 읽힌다.
+       자리는 네모 판의 네 벽이다(다각형이던 시절의 손으로 적은 좌표를 걷는다) — 벽의
+       한가운데에서 폭을 나눠 걸므로 판 치수를 바꿔도 창이 따라온다. */
+    const winRow9 = (nx9: number, ny9: number, n9: number, span9: number): void => {
+      if (facingRatio(nx9, ny9) <= 0.12) return;
+      const ux9 = ny9;
+      const uy9 = -nx9;
+      const bx9 = nx9 * (MAIN_W / 2 + 0.04);
+      const by9 = ny9 * (MAIN_D / 2 + 0.04);
+      const z0v = BODY_Z + 0.16;
+      const z1v = BODY_Z + MAIN_H - 0.16;
       const g9: ShapeFace[] = [];
-      for (let k9 = 0; k9 < n; k9 += 1) {
-        const u9 = (k9 - (n - 1) / 2) * (span / n);
-        const hw = span / n / 3.4;
-        const px9 = cx + ux * u9 + nx * 0.08;
-        const py9 = cy + uy * u9 + ny * 0.08;
+      for (let k9 = 0; k9 < n9; k9 += 1) {
+        const u9 = (k9 - (n9 - 1) / 2) * (span9 / n9);
+        const hw9 = span9 / n9 / 3.0;
+        const px9 = bx9 + ux9 * u9;
+        const py9 = by9 + uy9 * u9;
         g9.push([polyPath3([
-          [px9 - ux * hw, py9 - uy * hw, BODY_Z + 0.12],
-          [px9 + ux * hw, py9 + uy * hw, BODY_Z + 0.12],
-          [px9 + ux * hw, py9 + uy * hw, BODY_Z + 0.66],
-          [px9 - ux * hw, py9 - uy * hw, BODY_Z + 0.66],
-        ]), 1, bldLitNow ? "#7dff4a" : "#2f7a45"] as ShapeFace);
+          [px9 - ux9 * hw9, py9 - uy9 * hw9, z0v],
+          [px9 + ux9 * hw9, py9 + uy9 * hw9, z0v],
+          [px9 + ux9 * hw9, py9 + uy9 * hw9, z1v],
+          [px9 - ux9 * hw9, py9 - uy9 * hw9, z1v],
+        ]), 1, winLit("#a6ff3a")] as ShapeFace);
       }
-      out.push(...tagKey(g9, 3 + depthNow(cx, cy) * 1.6));
+      out.push(...tagKey(g9, 3 + depthNow(bx9, by9) * 1.6));
     };
-    vent(-4.9, -0.4, -1, 0, 3, 3.0, 0);
-    vent(4.9, -0.3, 1, 0, 3, 2.6, 0);
-    vent(-2.4, 3.05, 0, 1, 3, 2.4, 0);
+    winRow9(0, 1, 7, 6.6);
+    winRow9(0, -1, 7, 6.6);
+    winRow9(1, 0, 4, 3.8);
+    winRow9(-1, 0, 4, 3.8);
 
     // 지붕 안테나 — 왼뒤 귀퉁이.
     out.push(...tagKey(hornFaces(UX - 2.4, UY - 1.4, UTOP, UX - 2.4, UY - 1.4, UTOP + 1.7, 0.24),
