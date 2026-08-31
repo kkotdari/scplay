@@ -133,8 +133,12 @@ function inBrowser({ KINDS, VQS, LOD, RES, MARGIN, ANCHOR }) {
   /* 굽는 쪽 pad와 **같은 값이어야 한다**(buildingSprite: `Math.ceil(sideQ * 0.78) + 2`)
      — 0.62 × 16 = 9.92. 여기만 어긋나면 표가 상한을 잘못 잡는다. */
   // 굽는 쪽 pad와 같은 값(buildingSprite: `Math.ceil(sideQ * 0.78) + 2`) — 0.78 × 16.
-  const PAD = 12.48;
-  const headroom = (bb, a) => {
+  /* ★ **데칼만 여백이 다르다** — 크립 얼룩은 땅에 누운 단색 한 겹이라 굽는 쪽이
+     여백을 0.40으로 낮춰 굽는다(그쪽 ★ 주석: 굽는 판 넓이가 절반이다). 여기 상한 셈도
+     같은 값을 써야 표가 상한을 잘못 잡지 않는다. */
+  const DECALS = new Set(["creeppatch", "creeppatch2", "creeppatch3"]);
+  const padOf = (kind) => (DECALS.has(kind) ? 0.40 * 16 : 12.48);
+  const headroom = (bb, a, PAD) => {
     const lim = (lo, hi, c) => Math.min(
       hi > c ? (16 + PAD - c) / (hi - c) : Infinity,
       lo < c ? (c + PAD) / (c - lo) : Infinity,
@@ -151,7 +155,7 @@ function inBrowser({ KINDS, VQS, LOD, RES, MARGIN, ANCHOR }) {
         const bb = shot(kind, pitch, vq);
         if (!bb) { err = true; continue; }
         per.push(bb.w);
-        cap = Math.min(cap, headroom(bb, ANCHOR));
+        cap = Math.min(cap, headroom(bb, ANCHOR, padOf(kind)));
       }
     }
     if (!per.length) { rows.push({ kind, err: true }); continue; }

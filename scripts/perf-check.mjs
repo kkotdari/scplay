@@ -369,9 +369,21 @@ const CANDIDATES = [process.env.PW_CHROMIUM, "/opt/pw-browsers/chromium",
   join(homedir(), "Library/Caches/ms-playwright/chromium-1228/chrome-mac-arm64",
     "Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing")].filter(Boolean);
 const exe = CANDIDATES.find((p) => existsSync(p));
+const launchOpt = exe
+  ? { executablePath: exe, args: ["--no-proxy-server"] }
+  : { args: ["--no-proxy-server"] };
+/* 새 크로미엄은 옛 헤드리스(--headless=old)를 아예 걷어냈다 — 플레이라이트가 그 깃발을
+   붙이는 판이면 창이 열리자마자 죽는다. 그때는 헤드리스를 끄고(headless:false) 새
+   헤드리스 깃발을 손으로 붙인다(model-shot.mjs 등이 쓰는 그 길). */
 const browser = ENGINE === "webkit"
   ? await webkit.launch()
-  : await chromium.launch(exe ? { executablePath: exe, args: ["--no-proxy-server"] } : { args: ["--no-proxy-server"] });
+  : await chromium.launch(launchOpt).catch((e) => {
+    if (!/headless/i.test(String(e))) throw e;
+    return chromium.launch({
+      ...launchOpt, headless: false,
+      args: [...launchOpt.args, "--headless=new", "--no-sandbox"],
+    });
+  });
 /* --ios — 아이폰으로 꾸민다(UA + 손가락). 지도 벡터층이 이 둘로 아이폰을 알아보고
    캔버스 면적 예산을 절반 남짓으로 낮추므로, 그 갈래를 여기서 태울 수 있다.
    ⚠ 엔진은 여전히 크로뮴이다 — 웹킷의 배킹 확보 실패까지 흉내 내지는 못한다. */
@@ -421,7 +433,9 @@ await page.goto(`http://perf-check.local/${has("--diag") ? "#diag" : ""}`);
 /* 앱 CSS — 레이어 크기·자리·이펙트가 전부 클래스에 실려 있어 없으면 화면이 안 선다.
    빌드 산출물(dist)의 CSS를 그대로 얹는다(npm run build가 먼저 돌아 있어야 한다). */
 const { readdirSync } = await import("node:fs");
-const cssDir = join(ROOT, "dist", "assets");
+/* 빌드 산출물의 CSS 자리가 두 가지다 — 라이브러리 빌드는 dist/styles.css 한 장이고,
+   앱 빌드는 dist/assets/*.css다. 둘 다 본다(없는 쪽은 건너뛴다). */
+const cssDir = existsSync(join(ROOT, "dist", "assets")) ? join(ROOT, "dist", "assets") : join(ROOT, "dist");
 const cssFile = existsSync(cssDir) ? readdirSync(cssDir).find((f) => f.endsWith(".css")) : null;
 if (cssFile) {
   // addStyleTag는 이 오리진에서 onerror가 떠서(원인 미상) DOM으로 직접 붙인다.
