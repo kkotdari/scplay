@@ -20881,9 +20881,33 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
              짝수 CSS px로 죄면 블릿 배율(k = sidePx / sideQ)이 1이 아니게 되고, 1에
              가까운 비정수 배율이 모델을 고르게 뭉갠다. 격자에 맞추면 k가 1이 된다. */
           const sideWant = Math.max(4, Math.round((sidePx * bakeZoom / zoom) * B) / B);
-          const sideQ = Math.min(sideWant, bldBakeCap(B),
-            DECAL_KINDS.has(op.kind) ? DECAL_BAKE_MAX : Infinity);
-          const bspr = buildingSprite(op, sideQ, B);
+          /* ★ **크립은 배율도 시점도 안 탄다**(지적: "크립 아직도 메모리 터져 — 구현 방식
+             근본적인 수정 필요") ────────────────────────────────────────────────────────
+             크립 얼룩은 3차원 모형이 아니라 **땅에 누운 무늬 한 장**인데, 여태 다른 건물과
+             똑같은 열쇠로 구워졌다. 그 열쇠에 든 두 칸이 이 판을 터뜨렸다:
+               ① 굽는 크기(sideQ) — 배율을 따라가므로 줌 칸이 바뀔 때마다 새 세대를 굽는다.
+               ② 좌우 시점(vq) — `viewYawOf(x, y)`는 **화면 자리**가 정하므로 −36~36을 6도로
+                  끊은 **열세 칸**이다. 곧 크립 얼룩 하나가 지도 위 자리마다 다른 판이 되고,
+                  화면을 밀 때마다 그 칸이 바뀐다.
+             둘을 곱하면 얼룩 한 무늬가 (줌 칸 × 13)장이다. 실측 치수로 깊은 배율 한 칸만
+             따져도 3무늬 × 13칸 × 2보기 = 78장 × 0.57MB ≈ 44MB — 폰의 건물 판 예산(16MB)의
+             세 배다. 예산이 그만큼 넘치면 LRU가 **매 프레임 쫓아내고 다시 굽는다**. 여기에
+             다시 굽는 값(4MB짜리 굽는 판)이 얹히는 것이 터지던 얼개다.
+             ── 고치는 자리는 **열쇠**다
+             · 크기는 **못 박는다**(DECAL_BAKE_MAX 하나) — 얼룩은 단색 한 겹이라 화소를
+               늘려도 더 나올 것이 없고, 늘려 찍는 길(k)이 이미 있다. 그러면 줌으로는
+               한 장도 다시 안 굽는다.
+             · 시점은 **0으로 못 박는다** — 밀림은 딱딱한 모서리를 기울여 보이게 하는 몫인데
+               얼룩에는 모서리가 없다(물결진 blob이다). 게다가 이 판은 잉크 한가운데로
+               앉으므로(inkCenter), vq마다 잉크중심이 달라지던 몫이 사라져 **화면을 밀 때
+               얼룩이 미세하게 떨리던 것도 함께** 멎는다.
+             남는 열쇠는 무늬 셋 × 보기 둘 = **여섯 장**이고, 그 여섯은 경기 내내 안 바뀐다. */
+          const decal9 = DECAL_KINDS.has(op.kind);
+          const bop9 = decal9 ? { ...op, viewYaw: 0 } : op;
+          const sideQ = decal9
+            ? Math.min(DECAL_BAKE_MAX, bldBakeCap(B))
+            : Math.min(sideWant, bldBakeCap(B));
+          const bspr = buildingSprite(bop9, sideQ, B);
           /* 런타임 채움 보정은 없앴다(과제 #67) — 구운 판의 잉크 폭을 재서 발자국의
              95%가 되게 다시 굽던 자리다. 그 일을 이제 BLD_NORM이 모델 좌표에서 한다.
              보정이 있으면 모델을 고칠 때마다 화면 크기가 조용히 흔들리고, 16-상자를
@@ -20911,7 +20935,7 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
                하고, 발자국에 앉히는 것은 기울기 전의 중심이다.
                한 번만 재서 같은 종류가 어디에 서든 같은 보정을 받는다(옛 지적: "같은
                넥서스인데 하나만 살짝 오른쪽으로 나온다"). */
-            const ref9 = op.viewYaw ? buildingSprite({ ...op, viewYaw: 0 }, sideQ, B) : bspr;
+            const ref9 = bop9.viewYaw ? buildingSprite({ ...bop9, viewYaw: 0 }, sideQ, B) : bspr;
             if (ref9 && ref9.w > 0) {
               bAnc = [(ref9.cx / B) / ref9.l, (ref9.bot / B) / ref9.l];
               BLD_ANCHOR_CACHE.set(bldAnchorKey(op.kind, op.pitch), bAnc);
@@ -20987,7 +21011,9 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
           }
           if (bspr) {
             /* 상한에 안 걸렸고 손짓 중도 아니면 **구운 크기 그대로**다(1:1) — 위 sideQ 주석. */
-            const k = sideQ < sideWant || bakeZoom !== zoom ? sidePx / sideQ : 1;
+            /* 크립은 굽는 크기가 못 박혀 있으므로 **늘 늘려(또는 줄여) 찍는다** — 1:1로
+               찍으면 배율과 무관하게 늘 못 박은 크기로 나온다. */
+            const k = decal9 || sideQ < sideWant || bakeZoom !== zoom ? sidePx / sideQ : 1;
             // 겹친 것만 살짝 그림자(확대 적용: 유닛·건물 공통).
             /* 크립은 그림자를 안 진다(지적: "크립은 그림자 없어야 자연스럽게 이어지지")
                — 크립 판(clipWalk)과 건물 밑 크립 얼룩(inkCenter)은 **땅 그 자체**라
