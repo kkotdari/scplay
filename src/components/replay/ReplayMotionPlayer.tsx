@@ -18975,10 +18975,23 @@ function lodNoteFrame(ms: number): void {
   }
 }
 /** 이 크기로 그릴 때의 등급 — 1 형체 / 2 포인트 / 3 장식. */
+/** 이 배율 위로는 **기기 벌점을 안 먹인다**(지적: "확대 후 그냥 보고 있는데 디테일이
+ *  없어져 — 익스트랙터 창문, 해처리 옥상 가시") ────────────────────────────────────
+ *  그 유실의 정체가 이 벌점이다: 34ms 넘는 프레임이 90번 이어지면 등급이 **화면 전체**
+ *  에서 한 단 내려가고, 34ms 아래가 240프레임(약 12초) 이어져야 돌아온다. 12배 저그
+ *  기지처럼 계속 밀리는 자리에서는 한 번 내려가면 안 돌아온다 — 그래서 '가만히 보고
+ *  있는데도' 창과 가시가 없다.
+ *  그런데 깊은 배율에서 이 벌점은 **버는 것이 거의 없다**: 화면에 든 것이 몇 개뿐이라
+ *  부품을 덜 그려도 굽기 한 번이 조금 싸질 뿐, 프레임을 먹는 것은 그 큰 판들을 찍는
+ *  픽셀이다. 반대로 잃는 것은 사람이 확대해서 **보러 온 바로 그것**이다.
+ *  그래서 이 선 위로는 벌점을 면제한다. 낮은 배율(화면에 수백이 드는 자리)에서는
+ *  종전대로 걸린다 — 거기서는 부품 수가 실제로 프레임을 정한다. */
+const LOD_NO_PENALTY_ZOOM = 5;
 function lodOf(px: number, ptPx = LOD_PX_POINT, dcPx = LOD_PX_DECO): number {
   const base = lodZoom >= LOD_ALL_ZOOM ? LOD_FINE : px < ptPx ? 1 : px < dcPx ? 2 : 3;
+  const pen9 = lodZoom >= LOD_NO_PENALTY_ZOOM ? 0 : lodPenalty;
   // 크기가 정한 등급과 사양 상한 중 낮은 쪽 — 거기서 기기 벌점을 또 한 단 뺀다.
-  return Math.max(1, Math.min(base, lodCap) - lodPenalty);
+  return Math.max(1, Math.min(base, lodCap) - pen9);
 }
 
 /* 실루엣 광원(요청: "사양 최고에서는 유닛과 건물 모두 밝음 어두움 표현 필요") —
