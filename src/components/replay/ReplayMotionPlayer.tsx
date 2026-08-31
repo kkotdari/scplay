@@ -7071,10 +7071,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        수직이라 아래 본체(역시 수직)와 한 덩이로 뭉쳐 층이 안 읽혔고, 폭이 5.8 대 3.2라
        왼쪽만 커서 윗도리가 한쪽으로 쏠려 보였다. 둘 다 위로 좁아지는 절두체로 세우면
        본체의 수직 벽과 결이 갈려 층이 서고, 폭을 4.6/4.0으로 맞추면 좌우가 짝이 된다. */
-    const UPP_W = 4.6;
+    /* ★ 둘을 합치면 판 윗면에 딱 맞는다(요청: "판 위의 절두체 너비 더 넓혀서 두 절두체
+       합친 게 판 윗부분에 딱 맞게") — 앞판은 4.6 + 4.0 = 8.6이라 본체 윗면(가로 9.8)의
+       좌우에 0.6씩 빈 턱이 남았다. 그 턱 때문에 윗도리가 판 위에 얹힌 작은 짐처럼
+       보였다. 폭을 4.9씩으로 맞추면 둘이 −4.9~0, 0~4.9로 판을 반씩 나눠 덮는다. */
+    const UPP_W = MAIN_W / 2;
     const UPP_D = 3.8;
     const UPP_H = 1.7;
-    const UX = -2.0;                          // 관제 블록은 뒤·왼쪽으로 물러난다
+    const UX = -MAIN_W / 4;                   // 관제 블록은 뒤·왼쪽으로 물러난다
     const UY = -0.7;
     const UTOP = MTOP + UPP_H;
     const pc: ShapeFace[] = [];
@@ -7182,6 +7186,52 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       f.push([top, 1, fill] as ShapeFace, topFace(top, 0.12));
       return f;
     };
+    /** ★ 위로 좁아지되 **한 옆면만 수직**인 상자(요청: "두 절두체 마주보는 면은 사선이
+     *  아니고 수직으로 수정해서 둘이 맞붙게") ─────────────────────────────────────────
+     *  frustumFaces3는 네 면이 모두 같은 몫으로 기운다. 그 상자 둘을 나란히 세우면
+     *  맞닿는 면끼리 서로 반대로 누워, 밑에서는 붙고 위로 갈수록 벌어지는 **쐐기 틈**이
+     *  남는다 — 두 덩이가 한 윗도리로 안 읽히던 까닭이다.
+     *  맞붙는 쪽(flat: +1 오른면 · −1 왼면)의 위 모서리를 밑 모서리와 같은 x에 못 박으면
+     *  그 면만 곧게 서고, 나머지 셋은 그대로 기운다. 기운 면의 법선이 하늘을 보는 몫(nz)은
+     *  **면마다** 물러난 거리에서 다시 잰다 — 한 값을 돌려 쓰면 수직 면까지 하늘을 봐서
+     *  밝기가 어긋난다.
+     *  @param dw 위에서 좁아지는 **가로** 몫(맞붙는 쪽이 아닌 한 면이 다 먹는다).
+     *  @param dd 위에서 좁아지는 **앞뒤** 몫(앞뒤 두 면이 반씩 나눈다). */
+    const halfBox9 = (
+      cx: number, cy: number, w: number, d: number, h: number, z0: number,
+      dw: number, dd: number, flat: 1 | -1, fill: string,
+    ): ShapeFace[] => {
+      const bx0 = cx - w / 2;
+      const bx1 = cx + w / 2;
+      const by0 = cy - d / 2;
+      const by1 = cy + d / 2;
+      const tx0 = flat < 0 ? bx0 : bx0 + dw;
+      const tx1 = flat < 0 ? bx1 - dw : bx1;
+      const ty0 = by0 + dd / 2;
+      const ty1 = by1 - dd / 2;
+      const z1 = z0 + h;
+      const B: [number, number][] = [[bx0, by1], [bx1, by1], [bx1, by0], [bx0, by0]];
+      const T: [number, number][] = [[tx0, ty1], [tx1, ty1], [tx1, ty0], [tx0, ty0]];
+      const f9: ShapeFace[] = [];
+      for (let i9 = 0; i9 < 4; i9 += 1) {
+        const j9 = (i9 + 1) % 4;
+        const L9 = Math.hypot(B[j9][0] - B[i9][0], B[j9][1] - B[i9][1]) || 1;
+        const nx9 = -(B[j9][1] - B[i9][1]) / L9;
+        const ny9 = (B[j9][0] - B[i9][0]) / L9;
+        const back9 = ((B[i9][0] + B[j9][0]) / 2 - (T[i9][0] + T[j9][0]) / 2) * nx9
+          + ((B[i9][1] + B[j9][1]) / 2 - (T[i9][1] + T[j9][1]) / 2) * ny9;
+        const fl9 = faceLight(nx9, ny9, back9 / (Math.hypot(h, back9) || 1));
+        if (!fl9.visible) continue;
+        const d9 = polyPath3([
+          [B[i9][0], B[i9][1], z0], [B[j9][0], B[j9][1], z0],
+          [T[j9][0], T[j9][1], z1], [T[i9][0], T[i9][1], z1],
+        ]);
+        f9.push([d9, 1, fill] as ShapeFace, ...fl9.face(d9));
+      }
+      const top9 = polyPath3(T.map(([x9, y9]) => [x9, y9, z1] as [number, number, number]));
+      f9.push([top9, 1, fill] as ShapeFace, topFace(top9, 0.12));
+      return f9;
+    };
     // 오른쪽 두 변(빗면·오른면)만 바랜 장갑판.
     out.push(...tagKey(prism9(BODY_Z, MTOP, SILVER, 0,
       (i9) => (i9 === 1 || i9 === 2 ? WARM : undefined)), 0));
@@ -7193,20 +7243,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* ── 관제 블록 **둘** ── 사진의 윗도리는 상자 하나가 아니라 좌우로 붙은 상자 둘이다
        (지적: "본체 위의 상자 하나가 아니고 양쪽에 박스 두 개가 붙은 형태여야 해").
        왼쪽이 높고 앞면에 창이 나며, 오른쪽은 한 단 낮고 그 위에 원통 탱크가 얹힌다. */
-    const RW = 4.0;
+    const RW = UPP_W;                         // 좌우 폭이 같다 — 둘이 판 윗면을 반씩 나눈다
     const RD = 3.4;
     const RH = UPP_H - 0.55;
-    const RX = UX + UPP_W / 2 + RW / 2;       // 오른 상자 — 왼 상자에 딱 붙는다
+    const RX = UX + UPP_W;                    // 오른 상자 — 왼 상자에 딱 붙는다
     const RY = UY - 0.25;
-    out.push(...tagKey(paintBase(
-      frustumFaces3(UX, UY, UPP_W, UPP_D, UPP_W - 1.0, UPP_D - 0.8, UPP_H, MTOP), PLATE),
-    10 + depthNow(UX, UY) * 1.6));
+    out.push(...tagKey(halfBox9(UX, UY, UPP_W, UPP_D, UPP_H, MTOP, 1.0, 0.8, 1, PLATE),
+      10 + depthNow(UX, UY) * 1.6));
     /* 상자 위의 갓(처마 판)은 안 얹는다(요청: "박스 두 개 위의 지붕은 없는 게 나을 듯")
        — 상자 둘이 이미 층을 이루는데 그 위에 넓은 판을 또 씌우니 층이 하나 더 생겨,
        윗도리가 본체보다 무거워 보였다. 상자의 제 윗면이 곧 지붕이다. */
-    out.push(...tagKey(paintBase(
-      frustumFaces3(RX, RY, RW, RD, RW - 0.9, RD - 0.7, RH, MTOP), MID),
-    10.4 + depthNow(RX, RY) * 1.6));
+    out.push(...tagKey(halfBox9(RX, RY, RW, RD, RH, MTOP, 0.9, 0.7, -1, MID),
+      10.4 + depthNow(RX, RY) * 1.6));
     if (facingRatio(0, 1) > 0.12) {
       const wy = UY + UPP_D / 2 + 0.04;
       const win: ShapeFace[] = [];
@@ -11419,25 +11467,44 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
             u9 * u9 * p0[2] + 2 * u9 * t9 * p1[2] + t9 * t9 * p2[2],
           ];
         };
+        /* ★ 팔마다 **제 자리의 키**를 단다(지적: "커세어 윗팔이 아래팔에 가려짐") ──────
+           spirePillar는 제가 낸 면 전부를 `depthNow(o.x, o.y)` **한 값**으로 못 박는다
+           (그 함수 끝의 tagKey). 그런데 여기 세 팔은 다 `x: 0, y: 0`으로 세운다 — 축을
+           path가 통째로 주므로 x·y를 쓸 데가 없어서다. 곧 **세 팔의 키가 완전히 같았고**,
+           키가 같으면 그리는 차례는 배열 순서가 정한다: 옆팔 둘을 먼저, 아래팔을 나중에
+           밀어 넣었으니 아래팔이 어느 각도에서나 옆팔 위에 그려졌다.
+           팔의 한가운데(베지에 t 0.5)에서 이 몸이 쓰는 자(partKey — 깊이 + 높이 몫)로
+           다시 잰다. 옆팔은 높고(z 5.5~5.9) 앞으로 나가며, 아래팔은 배 밑으로 떨어지므로
+           (z 2.6~3.3) 그 자만으로 아래팔이 뒤로 간다. 걸림쇠도 제 팔의 키를 물려받는다. */
+        const armKey = (
+          p0: [number, number, number], p1: [number, number, number],
+          p2: [number, number, number],
+        ): number => {
+          const c9 = bez9(p0, p1, p2)(0.5);
+          return partKey(c9[0], c9[1], c9[2]);
+        };
         const armHorn = (
           p0: [number, number, number], p1: [number, number, number],
           p2: [number, number, number], w0: number, w1: number,
-        ): ShapeFace[] => paintBase(spirePillar({
+        ): ShapeFace[] => tagKey(paintBase(spirePillar({
           x: 0, y: 0, h: 1, w: w0, segs: 10, sides: 6, caps: "both",
           path: bez9(p0, p1, p2),
           widthOf: (t9: number): number => w0 + (w1 - w0) * t9 ** 0.85,
-        }), "#d4af37");
+        }), "#d4af37"), armKey(p0, p1, p2));
         return [
           ...([1, -1] as const).flatMap((m8): ShapeFace[] => [
             ...armHorn([m8 * 1.5, -0.6, 5.9], [m8 * 2.5, 1.3, 5.7], [m8 * 2.1, 3.3, 5.5],
               0.7, 0.16),
             // 걸림쇠 — 끝 조금 못 미친 자리에서 바깥·뒤로 짧게 튀어나온 턱.
-            ...spikeHorn(m8 * 2.24, 2.6, 5.58, m8 * 2.85, 2.75, 5.5, 0.34, "#d4af37", 5, 0.06, m8, 0),
+            ...tagKey(spikeHorn(m8 * 2.24, 2.6, 5.58, m8 * 2.85, 2.75, 5.5, 0.34,
+              "#d4af37", 5, 0.06, m8, 0),
+            partKey(m8 * 2.5, 2.68, 5.54) + 0.1),
           ]),
           /* 하단 팔 하나 — 몸 밑에서 가파르게 아래·앞으로 떨어졌다가 끝이 위로 말린다.
              역시 마디 없는 한 뿔이다. */
           ...armHorn([0, -0.2, 5.4], [0, 0.6, 2.6], [0, 1.7, 3.3], 0.58, 0.14),
-          ...spikeHorn(0, 1.36, 3.05, 0, 1.55, 2.5, 0.3, "#d4af37", 5, 0.06, 0, 0.3),
+          ...tagKey(spikeHorn(0, 1.36, 3.05, 0, 1.55, 2.5, 0.3, "#d4af37", 5, 0.06, 0, 0.3),
+            partKey(0, 1.45, 2.8) + 0.1),
         ];
       })(),
       // 콕핏 혹 — 금색 몸 위의 한 점이라 칠하지 않는다(임자 색).
@@ -11709,29 +11776,39 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          glue를 켜면 말림을 100% 따라가므로 **잎 겉면에 딱 붙는다**(테두리 띠의 밑변). */
       const kAt9 = (s9: number, y9: number): number =>
         Math.max(-1, Math.min(1, y9 / Math.max(0.001, wOf(tAt(s9)))));
-      /* ★ **요잉**(요청: "아래 두 잎의 덮개들은 좀더 뒤가 벌어지고 앞은 본체에 딱 붙게
-         오므려진 형태로 요잉 조정") ────────────────────────────────────────────────
-         이 판은 몸통 축을 감는 원기둥 조각 위에 눕는다 — 그 위에서 자리를 정하는 것은
-         둘레 각 p 하나다. 그래서 '요잉'은 p를 **앞뒤(y)에 따라 기울이는 일**이 된다:
-         뒤끝에서 +yawR, 앞끝에서 −yawR만큼 돌리면 판이 제 한가운데를 축으로 돈다.
-         아랫잎 둘은 축 둘레 210·330도에 앉으므로 바깥은 각이 **줄어드는**(210) 쪽과
-         **늘어나는**(330) 쪽으로 갈린다 — 부호는 부르는 자리에서 준다.
-         한가운데(yMid9)에서 0이므로 깊이 키·데칼이 재는 자리는 안 흔들린다. */
+      /* ★ **요잉**(요청: "정면에서 본 기준 왼쪽 잎의 덮개는 스스로 위치에서 −15도 요잉,
+         오른쪽은 반대로 +15도") ────────────────────────────────────────────────────
+         첫 판은 이것을 원기둥 위의 둘레 각 p를 앞뒤에 따라 기울이는 것으로 풀었는데,
+         그것은 요잉이 아니라 **몸통 축 둘레의 롤**이다 — 판이 옆구리를 타고 미끄러질 뿐
+         제자리에서 돌지 않는다. 요잉은 **수직축 둘레의 회전**이니 그렇게 돌린다:
+         판을 원기둥 위에서 낸 뒤, 판 제 한가운데를 지나는 세로축 둘레로 (x, y)를 돌린다.
+         부호는 수학의 것(위에서 볼 때 반시계가 +)이다. 그러면 왼아랫잎(−15도)은 뒤끝이
+         −x 쪽(바깥)으로, 앞끝이 +x 쪽(몸 안)으로 가고, 오른아랫잎(+15도)은 그 거울이다 —
+         앞선 요청("뒤가 벌어지고 앞은 본체에 딱 붙게")이 말한 그 꼴이 그대로 나온다.
+         한가운데가 축이므로 깊이 키·데칼이 재는 자리는 안 흔들린다. */
       const yawR9 = ((o9.yawDeg ?? 0) * Math.PI) / 180;
+      const yawC9 = Math.cos(yawR9);
+      const yawS9 = Math.sin(yawR9);
       const yMid9 = (yFrontMid + yBackMid) / 2;
-      const yHalf9 = Math.max(0.001, (yFrontMid - yBackMid) / 2);
-      /** 그 자리의 둘레 각 — 호 위의 s와 요잉을 함께 먹인다. */
-      const pAt = (s9: number, y9: number): number =>
-        th9 - yawR9 * ((y9 - yMid9) / yHalf9) + uOf(tAt(s9)) * ARC9;
+      const pivX9 = Math.cos(th9) * rOf(0.5);
       const at = (
         s9: number, y9: number, lf: number, glue = false,
       ): [number, number, number] => {
         const t9 = tAt(s9);
-        const p9 = pAt(s9, y9);
+        const p9 = th9 + uOf(t9) * ARC9;
         const c9 = curl9(kAt9(s9, y9), t9);
         const cF9 = curl9(kAt9(s9, yFront(s9)), t9);          // 앞끝의 말림 = 바닥
         const r9 = rOf(t9) - (glue ? c9 : cF9 + (c9 - cF9) * (o9.curlK ?? 1)) + lf;
-        return [Math.cos(p9) * r9, y9, LEAF_ZC + Math.sin(p9) * r9];
+        const px9 = Math.cos(p9) * r9;
+        const pz9 = LEAF_ZC + Math.sin(p9) * r9;
+        if (!yawR9) return [px9, y9, pz9];
+        const ax9 = px9 - pivX9;
+        const ay9 = y9 - yMid9;
+        return [
+          pivX9 + ax9 * yawC9 - ay9 * yawS9,
+          yMid9 + ax9 * yawS9 + ay9 * yawC9,
+          pz9,
+        ];
       };
       const N9 = 14;
       const sAt = (i9: number): number => -1 + (2 * i9) / N9;
@@ -11766,7 +11843,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           at(s0, yFront(s0), liftAt(s0, yFront(s0))), at(s1, yFront(s1), liftAt(s1, yFront(s1))),
           at(s1, yBack(s1), liftAt(s1, yBack(s1))), at(s0, yBack(s0), liftAt(s0, yBack(s0))),
         ]);
-        const pM9 = pAt((s0 + s1) / 2, yMid9);
+        const pM9 = th9 + uOf(tAt((s0 + s1) / 2)) * ARC9;
         /* ★ 명암은 faceLight가 아니라 **직접 깐 그러데이션**이다(지적: "윗잎에 붙인
            덮개는 등이 아래로 한번 눌리지 않게") ────────────────────────────────────
            faceLight는 광원 눈금을 세 칸으로 끊는다: 0.3 위는 흰 덧칠, −0.1 아래는 검은
@@ -11797,7 +11874,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const eX9 = pB9[0] - pA9[0];
         const eY9 = pB9[1] - pA9[1];
         const eZ9 = pB9[2] - pA9[2];
-        const pm9 = pAt((s0 + s1) / 2, (y0 + y1) / 2);
+        const pm9 = th9 + uOf(tAt((s0 + s1) / 2)) * ARC9;
         const rX9 = Math.cos(pm9);
         const rZ9 = Math.sin(pm9);
         const nX9 = eY9 * rZ9;
@@ -11845,23 +11922,34 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          자리에 s를 고르게 나눠 박는다. yFront는 옆으로 갈수록 물러나는 곡선이라
          창줄이 저절로 그 곡선을 따라 휜다 — 그것이 '가장자리를 따라'다.
          면은 판 겉면과 같은 자(at)로 내므로 판의 곡률·요잉·두께를 그대로 탄다.
-         색은 푸른색(#79c6ff, 요청) — 여태 청록(#8fe6ff)이라 금색 위에서 흰빛으로 떴다.
-         한 단 밝게 잡는 것은 임자 색과 겹치지 않기 위해서다: 임자가 파랑이면 덮개
-         한가운데의 타원 데칼과 같은 색이 되어 창줄이 그 안에 녹아 버린다. */
+         색은 네온 하늘빛(#5fe6ff + 번짐 #3ad9ff, 요청) — 임자 색과 안 겹치는 것도 함께
+         지킨다: 임자가 파랑이어도 덮개 한가운데의 타원 데칼과 채도가 갈린다. */
       if (o9.win) {
         const WN9 = o9.win;
         const WS9 = 1.7 / WN9;                     // 창 한 칸의 s 폭
-        const WY9 = 0.15;                          // 창의 앞뒤 반길이
+        /* ★ 낱개 크기 1/4(요청: "하나하나의 크기 1/4로 축소") — 넓이의 4분의 1이므로
+           변은 절반이다(앞선 알·라바에서 같은 갈림을 겪었다: '1/4'는 선이 아니라 넓이였다). */
+        const WY9 = 0.075;                         // 창의 앞뒤 반길이
         for (let i9 = 0; i9 < WN9; i9 += 1) {
           const sc9 = -0.85 + WS9 * (i9 + 0.5);
-          const s0 = sc9 - WS9 * 0.28;
-          const s1 = sc9 + WS9 * 0.28;
+          const s0 = sc9 - WS9 * 0.14;
+          const s1 = sc9 + WS9 * 0.14;
           const yc9 = yFront(sc9) - WY9 - 0.1;
           const q9 = (sq: number, yq: number): [number, number, number] =>
             at(sq, yq, liftAt(sq, yq) + 0.02);
-          out9.push([polyPath3([
-            q9(s0, yc9 + WY9), q9(s1, yc9 + WY9), q9(s1, yc9 - WY9), q9(s0, yc9 - WY9),
-          ]), 0.95, "#79c6ff"] as ShapeFace);
+          /** 창 한 장 — g는 바깥으로 부풀리는 몫(1이 창 자체, 그보다 크면 번짐). */
+          const win9 = (g9: number): string => polyPath3([
+            q9(sc9 + (s0 - sc9) * g9, yc9 + WY9 * g9),
+            q9(sc9 + (s1 - sc9) * g9, yc9 + WY9 * g9),
+            q9(sc9 + (s1 - sc9) * g9, yc9 - WY9 * g9),
+            q9(sc9 + (s0 - sc9) * g9, yc9 - WY9 * g9),
+          ]);
+          /* ★ 네온(요청: "창문 네온색으로 변경") — 창이 4분의 1로 작아지면 단색 한 장은
+             금색 판 위에서 점으로 죽는다. 네온의 결은 **번짐**이다: 창보다 두 배 넓은
+             옅은 한 장을 밑에 깔고 그 위에 또렷한 작은 한 장을 얹으면, 작아도 빛나는
+             점으로 읽힌다(건물 창 winRow가 쓰는 그 손이다). */
+          out9.push([win9(2.1), 0.3, "#3ad9ff"] as ShapeFace);
+          out9.push([win9(1), 1, "#5fe6ff"] as ShapeFace);
         }
       }
       /* 키는 잎보다 **아주 조금만** 앞이다 — 덮개는 잎 등 위에 얹힌 것이니 제 잎보다는
@@ -12058,13 +12146,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* ★ 아랫잎 둘의 덮개는 **요잉을 준다**(요청: "아래 두 잎의 덮개들은 좀더 뒤가
          벌어지고 앞은 본체에 딱 붙게 오므려진 형태로 요잉 조정") — 잎이 아니라 그 위에
          얹힌 덮개의 이야기다(재확인 지적).
-         부호: 왼아랫잎은 210도에 앉으므로 바깥(180도 쪽)이 **각이 줄어드는** 쪽이라 음수,
-         오른아랫잎은 330도라 바깥(360도 쪽)이 늘어나는 쪽이라 양수다. 그러면 뒤끝은
-         옆구리 바깥으로 벌어지고 앞끝은 배 밑(270도) 쪽으로 오므라들어 본체에 붙는다. */
-      ...coverPlate({ theta: 210, len: 5.6, arcDeg: 48, arc: 0.62, lenK: 0.22, lift: 0.16, round: 0.5, backK: 0.55, curlK: 0.3, yawDeg: -12 }),
-      ...coverPlate({ theta: 210, len: 5.6, arcDeg: 48, arc: 0.5, lenK: 0.2, shift: 0.13, lift: 0.36, round: 0.5, backK: 0.35, curlK: 0.3, yawDeg: -12 }),
-      ...coverPlate({ theta: 330, len: 5.6, arcDeg: 48, arc: 0.62, lenK: 0.22, lift: 0.16, round: 0.5, backK: 0.55, curlK: 0.3, yawDeg: 12 }),
-      ...coverPlate({ theta: 330, len: 5.6, arcDeg: 48, arc: 0.5, lenK: 0.2, shift: 0.13, lift: 0.36, round: 0.5, backK: 0.35, curlK: 0.3, yawDeg: 12 }),
+         정면에서 왼쪽(축 둘레 210도)이 −15도, 오른쪽(330도)이 +15도다(요청의 그 값). */
+      ...coverPlate({ theta: 210, len: 5.6, arcDeg: 48, arc: 0.62, lenK: 0.22, lift: 0.16, round: 0.5, backK: 0.55, curlK: 0.3, yawDeg: -15 }),
+      ...coverPlate({ theta: 210, len: 5.6, arcDeg: 48, arc: 0.5, lenK: 0.2, shift: 0.13, lift: 0.36, round: 0.5, backK: 0.35, curlK: 0.3, yawDeg: -15 }),
+      ...coverPlate({ theta: 330, len: 5.6, arcDeg: 48, arc: 0.62, lenK: 0.22, lift: 0.16, round: 0.5, backK: 0.55, curlK: 0.3, yawDeg: 15 }),
+      ...coverPlate({ theta: 330, len: 5.6, arcDeg: 48, arc: 0.5, lenK: 0.2, shift: 0.13, lift: 0.36, round: 0.5, backK: 0.35, curlK: 0.3, yawDeg: 15 }),
       /* (걷어냄·지적: "캐리어 윗잎 개인색 데칼은 제거하고 윗잎 덮개의 데칼 크기 확대")
          — 윗잎 등에 눕힌 작은 타원이다. 임자 색을 말하는 자리가 잎과 덮개 둘이었는데,
          두 곳에 나뉘어 있으면 어느 쪽도 제 몫을 못 한다: 잎의 것은 잎맥 곡면 위라 요잉이
@@ -17409,7 +17495,7 @@ const TARGET_FX = new Set(["zap"]);
  *  그대로 번쩍인다("마린같이 실시간은 어쩔수 없고"가 그 선이다).
  *  여기 드는 갈래: 히드라 가시·뮤탈 글레이브·드라군 플라즈마·미사일·독구체·포탄. */
 const PROJECTILE_FX = new Set([
-  "spine", "glave", "acid", "venom", "missile", "plasma", "cannon", "siege", "frag",
+  "spine", "glave", "acid", "venom", "missile", "missileG", "plasma", "cannon", "siege", "frag",
   // 레이저(배틀크루저·레이스 지상) — 짧은 광탄이 날아가 꽂힌다(그 표의 ★).
   "laser",
 ]);
@@ -17658,7 +17744,7 @@ const MODEL_NORM: Record<string, number> = {
   archon: 0.480,
   bc: 0.654,
   burrowhole: 0.832,
-  carrier: 0.704,
+  carrier: 0.695,
   corsair: 1.089,
   darchon: 0.496,
   defiler: 0.687,
@@ -19989,6 +20075,14 @@ const FX_BEAM: Record<string, {
   /** 덩이의 **테두리**색(지적: "흰색에 연한 하늘색 테두리(그라데이션)") — 속에서 테로
    *  가는 방사 그러데이션의 바깥 끝이다. */
   smokeEdge?: string;
+  /** ★ 연기 자취 앞에 세우는 **삼각 탄두**의 색(요청: "기존 미사일 둥근 연기 늘어섬은
+   *  유지하고 삼각 탄두 추가" · "은색의 짧은 삼각형 탄두" · "스카우트는 금색 탄두").
+   *  없으면 옛 흰 캡슐 몸통이다. 코가 **진행 방향**을 가리킨다 — 일반 tri 갈래(글레이브·
+   *  파편)는 밑변이 앞서는 혜성 꼴이라 탄두와 방향이 정반대다(지적: "탄두 삼각형 방향
+   *  반대로됐음"). 그 갈래를 안 건드리고 여기서 따로 그리는 까닭이 이것이다. */
+  warhead?: string;
+  /** 연기 덩이가 나이 들며 옅어지는 몫(0~1) — 클수록 총구 쪽이 빨리 사라진다. 기본 0.45. */
+  smokeFade?: number;
   /** 제자리 번쩍임의 주기(초) — CSS animation-duration을 옮긴 값. 인라인 주기(유닛
    *  쿨다운)가 없는 쪽(방어 건물)이 이 값으로 위상을 만든다. */
   dur?: number;
@@ -20059,7 +20153,24 @@ const FX_BEAM: Record<string, {
      tri를 켜 머리가 뾰족한 삼각으로 그리고(그 갈래가 이미 있다), 길이를 5.2 → 2.1로
      줄이며 연기 자취(trail·puff·smoke)를 통째로 걷는다. 색은 흰빛이 아니라 은색
      계열이라 강철 탄두로 읽힌다. */
-  missile: { dur: 0.4, w: 0.62, l: 2.1, tri: true, g: [[0, "rgba(238,242,247,1)"], [0.35, "rgba(198,206,218,0.95)"], [0.72, "rgba(160,168,180,0.55)"], [1, "rgba(140,148,160,0)"]], glow: "rgba(205,215,230,0.4)" },
+  /* ★ 되돌리고 **얹는다**(요청: "기존 미사일 둥근 연기 늘어섬은 유지하고 삼각 탄두
+     추가하라는 뜻임") — 앞판은 연기를 통째로 걷고 삼각 하나만 남겼는데, 요청은 연기를
+     지우라는 것이 아니라 그 앞에 탄두를 세우라는 것이었다. 연기 덩이(puff·smoke·
+     smokeEdge)를 그대로 되살리고, 옛 흰 캡슐 몸통 자리에 **은색 삼각 탄두**를 세운다.
+     ★ 자취가 **총구에 안 붙는다**(요청: "기존 연기는 유지하되 더 빠르게 페이드 아웃되게
+       유지시간 많이 줄이기") — trail이 켜져 있으면 꼬리가 총구에 못 박혀 연기가 나는
+       내내 안 사라진다. 그 못을 뽑으면 꼬리가 머리 뒤 l만큼만 따라오므로, 연기의
+       '유지시간'이 곧 머리가 l을 지나는 동안이다. l 24렌즈px이면 3타일 사격에서 자취가
+       길의 4분의 1쯤이고 덩이는 다섯 남짓이다 — 늘어선 덩이는 그대로 보이되 총구까지
+       이어지지는 않는다. 거기에 나이 몫(smokeFade)을 0.45 → 0.85로 올려 총구 쪽이 거의
+       다 지워진 채로 끝난다.
+     ★ 크기 20% 축소(요청) — w 0.5 → 0.4. 덩이 반지름·덩이 간격·탄두·불꽃이 전부 이
+       하나에 매여 있으므로(그리는 자리의 셈), 한 값만 줄이면 자취가 통째로 같은 비로
+       작아진다. 하나씩 줄이면 덩이가 서로 파묻히거나 벌어진다. */
+  missile: { dur: 0.4, w: 0.4, l: 24, puff: 12, smoke: "#ffffff", smokeEdge: "#a8d4ff", smokeFade: 0.85, warhead: "#dfe5ec", g: [[0, "rgba(255,255,255,1)"], [0.1, "rgba(214,232,255,0.94)"], [0.32, "rgba(196,212,230,0.6)"], [0.68, "rgba(168,176,188,0.32)"], [1, "rgba(148,156,168,0)"]], glow: "rgba(190,210,235,0.5)" },
+  /* 스카우트의 대공탄 — 미사일과 한 몸이되 **탄두만 금색**이다(요청: "스카우트는 테란과
+     달리 금색 탄두 나가기"). 프로토스의 무기는 은색 쇳덩이가 아니라는 결이다. */
+  missileG: { dur: 0.4, w: 0.4, l: 24, puff: 12, smoke: "#ffffff", smokeEdge: "#ffe6a8", smokeFade: 0.85, warhead: "#e8c65a", g: [[0, "rgba(255,255,255,1)"], [0.1, "rgba(255,240,205,0.94)"], [0.32, "rgba(232,214,160,0.6)"], [0.68, "rgba(190,170,120,0.32)"], [1, "rgba(160,142,100,0)"]], glow: "rgba(235,210,150,0.5)" },
   acid: { dur: 0.75, w: 1.3, l: 2.25, g: [[0, "rgba(206,150,255,0.95)"], [0.2, "rgba(206,150,255,0.95)"], [0.6, "rgba(150,80,220,0.7)"], [1, "rgba(110,50,170,0)"]] },
   plasma: { dur: 0.24, w: 0.85, l: 2.75, g: [[0, "rgba(232,244,255,0.98)"], [0.18, "rgba(232,244,255,0.98)"], [0.55, "rgba(120,180,255,0.9)"], [1, "rgba(70,120,255,0)"]], glow: "rgba(120,180,255,0.55)" },
   flare: { dur: 0.22, w: 0.5, l: 1.75, g: [[0, "rgba(200,230,255,0.95)"], [1, "rgba(120,180,255,0)"]] },
@@ -20154,6 +20265,8 @@ const FX_IMPACT: Record<string, {
   flame: { r: 1, g: [[0, "rgba(255,240,190,0.95)"], [0.3, "rgba(255,140,50,0.65)"], [1, "rgba(200,50,20,0)"]] },
   // 터지는 쪽도 같은 결이다(같은 지적) — 주황 불꽃을 걷고 흰빛 섬광 + 회푸른 연기로.
   missile: { r: 1.1, g: [[0, "rgba(255,255,255,0.98)"], [0.3, "rgba(196,220,255,0.6)"], [0.62, "rgba(158,166,178,0.34)"], [1, "rgba(138,146,158,0)"]], ring: "rgba(220,232,245,0.45)" },
+  // 스카우트의 금 탄두(missileG)가 맞는 그림 — 미사일과 같은 결이되 금빛이다.
+  missileG: { r: 1.1, g: [[0, "rgba(255,250,232,0.98)"], [0.3, "rgba(255,228,160,0.6)"], [0.62, "rgba(198,172,110,0.34)"], [1, "rgba(170,150,100,0)"]], ring: "rgba(245,228,180,0.45)" },
   cannon: { r: 1, g: [[0, "rgba(255,238,190,0.98)"], [0.32, "rgba(255,150,50,0.7)"], [1, "rgba(210,80,20,0)"]] },
   /* 시즈만 크다 — 원작에서도 이 한 발은 **주위까지 함께 터지는** 유일한 지상 포격이다
      (요청이 "시즈처럼 피격효과가 별도로 있는건"이라고 짚은 그것). 고리가 그 범위다. */
@@ -21787,7 +21900,7 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
                  ★ 짙기를 0.72 → 0.94로(지적: "더 하얀색이어야 할 듯") — 반투명한 흰색은
                    어두운 지도 위에서 곧 회색이다. 흰 연기로 읽히려면 바닥이 안 비쳐야 한다.
                    흰 속이 차지하는 몫도 반 → 0.62로 넓혀, 하늘빛은 가장자리 한 테로만 남긴다. */
-              ctx.globalAlpha = a9 * 0.94 * (1 - age9 * 0.45);
+              ctx.globalAlpha = a9 * 0.94 * (1 - age9 * (st.smokeFade ?? 0.45));
               ctx.beginPath();
               ctx.arc(cx9, cy9, r9, 0, Math.PI * 2);
               ctx.fill();
@@ -21821,7 +21934,33 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
               ctx.lineTo(fx9, fy9);
               ctx.stroke();
             }
-            if (bodyL9 > 0.5) {
+            /* ★ **삼각 탄두**(요청) — 코가 진행 방향, 밑변이 뒤다. 여태 이 자리는 흰
+               캡슐 획 + 코 점이었는데, 둥근 캡슐은 연기 덩이와 같은 결이라 자취에 묻혔다.
+               삼각은 연기(원)와 **모양이 다르다** — 그 다름 하나가 '탄두가 앞에 있다'를
+               말한다. 굽은 길(at9) 위의 두 점으로 축을 뽑으므로 유도 곡선을 그대로 탄다.
+               ★ 방향(지적: "탄두 삼각형 방향 반대로됐음") — 코를 머리(headD9)에 둔다.
+                 일반 tri 갈래는 밑변이 밝은 끝(머리)이고 꼭짓점이 꼬리라 정확히 반대다.
+                 그 갈래는 혜성 잔상의 꼴이라 그대로 두고, 탄두는 여기서 따로 그린다. */
+            if (bodyL9 > 0.5 && st.warhead) {
+              const [ex9, ey9] = at9(headD9);
+              const [bx8, by8] = at9(headD9 - bodyL9);
+              const vx8 = ex9 - bx8;
+              const vy8 = ey9 - by8;
+              const vl8 = Math.hypot(vx8, vy8) || 1;
+              const hw8 = Math.max(1, st.w * zoom * 1.9);
+              ctx.globalAlpha = a9;
+              ctx.fillStyle = st.warhead;
+              ctx.beginPath();
+              ctx.moveTo(ex9, ey9);
+              ctx.lineTo(bx8 - (vy8 / vl8) * hw8, by8 + (vx8 / vl8) * hw8);
+              ctx.lineTo(bx8 + (vy8 / vl8) * hw8, by8 - (vx8 / vl8) * hw8);
+              ctx.closePath();
+              ctx.fill();
+              /* 뒤 테두리 한 획 — 밑변이 연기에 녹지 않게 한 단 짙게 두른다. */
+              ctx.strokeStyle = "rgba(70,78,90,0.8)";
+              ctx.lineWidth = Math.max(0.5, st.w * zoom * 0.5);
+              ctx.stroke();
+            } else if (bodyL9 > 0.5) {
               const [ex9, ey9] = at9(headD9);
               const [bx8, by8] = at9(headD9 - bodyL9);
               /* 속이 안 비치게 — 흰 몸에 옅은 하늘빛 테(연기와 같은 색 결이라 따로 놀지
@@ -24470,9 +24609,27 @@ export default function ReplayMotionPlayer({
        겨눔·접근의 표적이 된다. 유닛 태그와 겹치면 유닛이 우선(위에서 이미 set). */
     for (const bt of bldTagSpots.rows) {
       if (t < bt.born + 2 || (bt.gone > 0 && t >= bt.gone)) continue;
-      if (entPosByTag.has(bt.tag)) continue;
       // 뜬 건물은 공중 표적이다 — 자리는 제 줄이 아는 그 자리다(비행 보간은 걷었다).
       const afloat9 = bt.lift !== undefined && t >= bt.lift;
+      /* ★ 이미 **유닛 줄로** 올라온 태그면 그 줄에 '떴다'만 얹는다(재지적: "골리앗 뜬
+         건물 상대로 여전히 지상용 트레이서 나감") ─────────────────────────────────────
+         테란 건물은 원작에서도 유닛이라, 참값 자취(ents)에 제 태그로 실려 온다. 그래서
+         여기 오기 전에 위 유닛 고리가 이미 그 태그를 `air: kc9.air`(건물 상수 = 지상)로
+         명단에 넣어 두었고, 이 고리는 `entPosByTag.has(bt.tag)`에 걸려 **통째로 건너뛰었다**
+         — 곧 '떴다'는 사실을 아는 유일한 줄(bt.lift)이 명단에 한 번도 안 실렸다. 앞선
+         손질에서 읽는 쪽(foe.air)을 고쳤는데도 안 고쳐진 까닭이 이것이다: 읽을 값 자체가
+         없었다.
+         건너뛰지 말고 **덮어 쓴다**. 자리·편·종류는 유닛 줄의 것이 더 정확하므로 그대로
+         두고, 뜬 사실만 두 칸에 얹는다. 이 줄은 engageFoes와 같은 객체라 교전 판정도
+         한꺼번에 옳아진다(대공 무기가 없는 쪽은 뜬 건물에 안 붙는다). */
+      const had9 = entPosByTag.get(bt.tag);
+      if (had9) {
+        if (afloat9 && !had9.air) {
+          had9.air = true;
+          had9.lifted = true;
+        }
+        continue;
+      }
       entPosByTag.set(bt.tag, {
         x: bt.x, y: bt.y,
         team: teamOfRaw(bt.raw) ?? 0, air: afloat9, bld: true, k: bt.k,
@@ -30831,9 +30988,12 @@ export default function ReplayMotionPlayer({
                      포드다). 그 x의 부호만 뒤집어 왼쪽 포드를 얻어 각각 제자리에서 쏘면,
                      어림이 아니라 그 건물의 진짜 발사관 둘이 된다 — 요잉이 돌아도 두 자리가
                      모델과 함께 돈다. */
-                  const mzPair9: [number, number][] = unit === "Missile Turret" && mzModel9
-                    ? [muzzleAt9([-mzModel9[0], mzModel9[1], mzModel9[2]]), [mzBx, mzBy]]
-                    : [[mzBx, mzBy]];
+                  /* ★ 터렛은 **한 줄기**다(재지적: "터렛은 이제보니 미사일 한줄만 나가야함")
+                     — 앞선 요청("두 줄기로 나가야 한다")으로 포드 둘에서 하나씩 내보냈는데,
+                     원작 화면을 다시 보면 터렛의 발사는 한 줄이다. 포드가 둘인 것과 한 박자에
+                     두 발이 나가는 것은 다른 이야기였다(유닛 쪽 lanes9는 그대로 둔다 —
+                     골리앗·레이스·발키리·스카우트는 두 발이 맞다). */
+                  const mzPair9: [number, number][] = [[mzBx, mzBy]];
                   const [dffx9, dffy9] = posFrac(centerX, centerY);
                   /** 방어 사격 한 발 — 날아가는 탄이면 shot, 아니면 제 갈래 주기의 번쩍임. */
                   const pushDefFx = (style9: string, delay9 = 0): void => {
@@ -32659,7 +32819,8 @@ export default function ReplayMotionPlayer({
                종전대로 다발총이다.
                표(ATTACK_FX)의 Wraith가 이미 "laser"이므로 여기서는 갈래를 안 적고
                표로 물러나기만 하면 된다 — 한 곳에만 적힌다. */
-            const fxName9 = dualFx9 && foe.air ? "missile"
+            /* 스카우트만 금 탄두(요청) — 나머지 셋(골리앗·레이스·발키리)과 터렛은 은색이다. */
+            const fxName9 = dualFx9 && foe.air ? (fxUnit === "Scout" ? "missileG" : "missile")
               : dualFx9 && fxUnit !== "Wraith" ? "burst"
                 : ATTACK_FX[fxUnit];
             /** 이 발이 총구에서 표적까지 **나는 데 걸리는 시간**(초) — 지도 위 거리로
@@ -32853,9 +33014,10 @@ export default function ReplayMotionPlayer({
               const inkPx9 = fxPx * (modelInkOf(kindMain) / 16);
               const missW9 = Math.max(1.4, (FX_BEAM.missile?.w ?? 0.5) * zoom * 3.4);
               const half9 = Math.max(0, (inkPx9 - missW9) / 2);
-              const perp9: [number, number] = fxName9 === "missile"
+              const twin9 = fxName9 === "missile" || fxName9 === "missileG";
+              const perp9: [number, number] = twin9
                 ? [Math.cos(rad9) * half9, Math.sin(rad9) * half9] : [0, 0];
-              const lanes9: number[] = fxName9 === "missile" ? [-1, 1] : [0];
+              const lanes9: number[] = twin9 ? [-1, 1] : [0];
               for (const s9 of lanes9) {
                 fxOps.push({
                   kind: "shot", style: fxName9, fx: fxfx9, fy: fxfy9, lift: liftPx9,
