@@ -17874,7 +17874,34 @@ function silhouetteLight(c2: CanvasRenderingContext2D, cv: HTMLCanvasElement): v
    통째로 비우던 옛 방식은 다음 프레임에 화면 전체를 다시 굽게 만들어 그 순간 끊겼다. */
 /* 96 → 128MB — 판 한 변 상한을 2304로 올리면서(위) 큰 판 한 장이 21MB가 됐다. 예산이
    그대로면 큰 판 넉 장이 예산을 다 먹고 서로를 밀어내며 매 프레임 다시 굽는다. */
-const SPRITE_BYTES_MAX = 128 * 1024 * 1024;
+/** ★ 이 기기가 **작은 기기**인가 — 예산과 되돌려주기가 이 한 값을 본다(지적: "모바일에서
+ *  자꾸 메모리 부족으로 페이지가 새로고침돼. 그냥 볼 땐 안 그러는데 갑자기 줌을 줄이거나
+ *  3d로 전환할 때 그런 거 같아") ─────────────────────────────────────────────────────
+ *  손가락 기기 + 작은 화면이면 작은 기기로 본다. 알려 주는 브라우저에서는 메모리(GB)도
+ *  함께 본다(deviceMemory는 크로뮴 계열만 낸다 — 없으면 0이라 앞의 둘로 정한다).
+ *  창이 없는 자리(노드에서 이 파일을 읽는 자·서버 렌더)는 거짓이다. */
+const smallDevice9 = ((): boolean => {
+  if (typeof window === "undefined") return false;
+  const coarse9 = !!window.matchMedia?.("(pointer: coarse)").matches;
+  const side9 = Math.max(window.screen?.width ?? 0, window.screen?.height ?? 0);
+  const mem9 = (navigator as unknown as { deviceMemory?: number }).deviceMemory ?? 0;
+  return (coarse9 && side9 > 0 && side9 <= 1180) || (mem9 > 0 && mem9 <= 4);
+})();
+/* ★ 예산은 **기기가 정한다**(같은 지적) ────────────────────────────────────────────
+   여기 있던 128MB는 PC의 자다. 폰에서 그 값은 예산이 아니라 흉기다: 이 판들은 브라우저
+   힙 밖의 캔버스 뒷그림이고, 폰의 한 탭이 통째로 쓸 수 있는 몫이 그 두어 배뿐이다.
+   ── 왜 하필 '줌을 줄이거나 3d로 전환할 때'인가
+   판의 열쇠에는 **크기(pxq)와 기울임(pitch)이 들어 있다**(unitSprite의 그 줄). 그래서 그
+   둘 중 하나만 바뀌어도 화면의 판이 **한 장도 안 맞는다** — 한 프레임에 새 세대를 통째로
+   굽는다. 그런데 옛 세대는 예산이 찰 때까지 그대로 남아 있으므로(LRU는 넘칠 때만 덜어낸다)
+   그 순간 기기는 두 세대를 함께 이고 있어야 한다. 게다가 줌을 **줄이면** 새 판이 작아
+   예산을 못 채우니, 크게 보던 시절의 큰 판이 경기가 끝날 때까지 안 빠진다.
+   ── 그냥 볼 때는 왜 안 그런가
+   한 배율·한 기울임에 머무는 동안은 열쇠가 안 바뀌어 새로 굽는 일이 거의 없다. 지적의
+   "그냥 볼 땐 안 그런다"가 이 구조를 그대로 말해 준다.
+   폰 몫은 32MB로 잡는다. 폰에서 판 한 장은 대개 몇 KB~100KB라(작게 보므로) 수백 장이
+   그 안에 들어오고, 넘치면 LRU가 가장 오래된 것부터 덜어낸다 — 느려질 뿐 안 죽는다. */
+const SPRITE_BYTES_MAX = (smallDevice9 ? 32 : 128) * 1024 * 1024;
 /** 판 한 장의 한 변 상한(장치 픽셀) — 이보다 커야 하는 요청은 굽지 않고 **직접 그리기**로
  *  떨어진다(호출부가 판이 없을 때의 길을 이미 갖고 있다). 예산(LRU)은 '여러 장이 쌓여'
  *  터지는 것을 막지만, 한 장이 통째로 거대한 경우는 못 막는다 — 이 문이 그것을 막고,
@@ -17911,9 +17938,31 @@ const unitBakeCap = (B: number): number =>
   Math.max(4, Math.floor(((SPRITE_SIDE_MAX - 1) / B - 4) / 2) * 2);
 const bldBakeCap = (B: number): number =>
   Math.max(4, Math.floor((((SPRITE_SIDE_MAX - 1) / B - 6) / 2.56) / 2) * 2);
-const BLD_SPRITE_BYTES_MAX = 64 * 1024 * 1024;
+const BLD_SPRITE_BYTES_MAX = (smallDevice9 ? 16 : 64) * 1024 * 1024;
 /** 캔버스 한 장이 먹는 바이트 — 픽셀당 RGBA 4바이트. */
 const canvasBytes = (cv: HTMLCanvasElement): number => cv.width * cv.height * 4;
+/** ★ 캔버스가 물고 있던 **뒷그림을 그 자리에서 돌려준다** ────────────────────────────
+ *  보관함에서 빼는 것(Map.delete)은 '이 자바스크립트 객체를 더 안 쓴다'는 말일 뿐이고,
+ *  그 뒤에 달린 뒷그림(폭×높이×4바이트)은 쓰레기 수거가 돌아야 풀린다. 판을 한두 장
+ *  버릴 때는 아무래도 좋은 차이지만, 줌·3D 전환처럼 **한 프레임에 수백 장**을 갈아치우는
+ *  자리에서는 그 시차가 곧 봉우리다: 새 세대를 다 굽는 동안 옛 세대의 뒷그림이 아직
+ *  살아 있어, 예산이 말하는 두 배 가까이가 실제로 잡혀 있다. 폰은 거기서 죽는다.
+ *  크기를 0으로 만들면 브라우저가 그 자리에서 뒷그림을 놓는다 — 캔버스에게 "끝났다"를
+ *  말하는 유일한 길이고, 어느 브라우저에서나 같다. */
+const releaseCanvas = (cv: HTMLCanvasElement): void => {
+  cv.width = 0;
+  cv.height = 0;
+};
+/** ★ **한 박자 늦춰** 돌려줄 판들 — 지금 프레임이 손에 쥐고 있을지 모르는 것을 그 자리에서
+ *  0으로 만들면 그 몸만 한 프레임 사라진다. 덜어낼 때 여기 담아 두고 **다음 그리기 첫머리**
+ *  에 비운다(그때는 어느 op도 옛 판을 안 들고 있다). 늦춰 봐야 16ms라, 수거를 기다리는
+ *  것과는 자릿수가 다르다. */
+const RELEASE_Q9: HTMLCanvasElement[] = [];
+/** 미뤄 둔 판들을 실제로 놓는다 — 그리기 한 판의 첫머리에서 부른다. */
+function flushReleased9(): void {
+  for (let i = 0; i < RELEASE_Q9.length; i += 1) releaseCanvas(RELEASE_Q9[i]);
+  RELEASE_Q9.length = 0;
+}
 /** 예산을 넘는 동안 가장 오래 안 쓴 것부터 덜어낸다. */
 function trimSpriteCache<T extends { cv: HTMLCanvasElement; sh?: ShadowPlate | null }>(
   cache: Map<string, T>, bytes: { n: number }, budget: number,
@@ -17923,7 +17972,11 @@ function trimSpriteCache<T extends { cv: HTMLCanvasElement; sh?: ShadowPlate | n
     if (oldest.done) break;
     const got = cache.get(oldest.value);
     // 그림자 판은 몸 판에 매달려 같은 수명을 산다 — 걷을 때 함께 뺀다(아래 shadowPlate).
-    if (got) bytes.n -= canvasBytes(got.cv) + (got.sh ? canvasBytes(got.sh.cv) : 0);
+    if (got) {
+      bytes.n -= canvasBytes(got.cv) + (got.sh ? canvasBytes(got.sh.cv) : 0);
+      RELEASE_Q9.push(got.cv);
+      if (got.sh) RELEASE_Q9.push(got.sh.cv);
+    }
     cache.delete(oldest.value);
   }
 }
@@ -18107,6 +18160,11 @@ function unitSprite(
   // 잉크에 맞춰 자른다 — 자른 자리(ox·oy)만 함께 들고 다니면 그림은 그대로다.
   const box = contentBox(cv);
   const cr = cropToInk(cv, box);
+  /* ★ 자르기 전 **원판**은 그 자리에서 놓는다 — 굽기 한 번에 한 장씩 버려지는 판이고
+     (자른 판만 보관함에 남는다) 한 변이 상한(2304)에 가까우면 한 장이 21MB다. 줌·3D
+     전환처럼 한 프레임에 수백 장을 굽는 자리에서는 이 버려지는 판들이 수거를 기다리며
+     쌓이는 것만으로 봉우리가 된다. 자르기가 안 일어난 판(같은 객체)은 건드리면 안 된다. */
+  if (cr.cv !== cv) releaseCanvas(cv);
   const entry = { cv: cr.cv, ox: cr.ox, oy: cr.oy, pad, l, ...box };
   SPRITE_CACHE.set(key, entry);
   spriteBytes.n += canvasBytes(cr.cv);
@@ -18845,6 +18903,8 @@ function buildingSpriteBake(
      그림은 그대로다(위 cropToInk 주석). */
   const box9 = contentBox(cv);
   const cr9 = cropToInk(cv, box9);
+  // 자르기 전 원판은 그 자리에서 놓는다 — 유닛 쪽과 같은 까닭(그 자리 ★ 주석).
+  if (cr9.cv !== cv) releaseCanvas(cv);
   const entry = {
     cv: cr9.cv, ox: cr9.ox, oy: cr9.oy,
     pad, l, side: sideQ, bot: box9.bot, top: box9.top, w: box9.w, cx: box9.cx,
@@ -19281,6 +19341,9 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
     const paint = (zoom: number, pan: { x: number; y: number }, bakeZoom: number): void => {
       const cv = ref.current;
       if (!cv) return;
+      /* 지난 판에서 덜어낸 판들을 여기서 놓는다(위 RELEASE_Q9) — 이 시점에는 어느
+         op도 옛 판을 안 들고 있다. */
+      flushReleased9();
       const cw = cv.clientWidth;
       const ch = cv.clientHeight;
       /* ★ 이 캔버스는 지도보다 **위로 한 뼘 더 크다**(요청: 지도 위에 그림만 그려지는
@@ -20002,7 +20065,26 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
           ctx.setTransform(B, 0, 0, B, Math.round(B * bx9), Math.round(B * by9));
         }
         if (spr) {
-          const k = px / pxq;
+          /* ★ 블릿 배율은 **자리를 잡을 때 쓴 그 배율**(kU)이다(지적: "dpr 1에서 지도상
+             이미지들이 흐린 듯 보인다") ─────────────────────────────────────────────
+             여기 있던 것은 `px / pxq` — 따로 셈한 제2의 배율이었다. 그런데 바로 위에서
+             판 크기를 **기기픽셀 격자에 맞춰** 구워 두었고(pxqWant의 ★ 주석) 앵커(footX·
+             footY·inkW)는 그 뜻대로 kU를 쓰고 있었다: 상한에 안 걸렸으면 kU가 정확히
+             1이라 '구운 그대로 1:1로 찍는다'가 그 약속이다. 그림만 그 약속 밖에 있었다.
+             `px / pxq`는 그 격자 맞춤이 남긴 **잔차**다. 곧 1에 가깝지만 정수가 아닌
+             배율이고, 그것이 재표본의 최악이라는 것은 바로 위 주석이 이미 적어 두었다.
+             왜 dpr 1에서만 도드라지나 — 격자 눈금이 **짝수 기기픽셀**이라, 그 눈금이
+             CSS px으로 얼마인지가 dpr에 반비례한다. dpr 3이면 2/3 CSS px이라 잔차가
+             1.000 언저리지만, dpr 1이면 눈금이 통째로 2 CSS px이다. 실측(모델 상자
+             23.33px): dpr 3에서 판 23.33 → 배율 1.0000이고, dpr 1에서는 판 24 →
+             배율 0.9721이다. 그 4%가 모든 몸을 고르게 뭉갠 정체다.
+             kU를 쓰면 상한에 안 걸린 흔한 자리에서 배율이 정확히 1이 된다: 판 폭도
+             찍는 폭도 같은 정수 기기픽셀이고, 자리도 이미 정수로 스냅해 두었으므로
+             (위 setTransform의 Math.round) 화소가 화소에 그대로 얹힌다.
+             ★ 크기는 최대 1 기기픽셀 달라진다 — 위 격자 맞춤이 이미 받아들인 값이고
+               (그 주석의 "그건 눈에 안 든다"), 뭉갠 그림보다 낫다. 상한에 걸렸거나
+               손짓 중이면 kU가 곧 px/pxq라 예전과 똑같이 늘려 찍는다. */
+          const k = kU;
           /* 그림자는 **판에 구워 둔 것**을 몸보다 먼저 한 번 찍는다(shadowPlate 주석) —
              여기서 흐림을 돌리지 않는다. 자리는 몸과 같고 번짐 여백(pad)만큼 벌린 뒤
              아래로 조금 내린다. 그 '조금'은 값 하나라 삯이 없다. */
