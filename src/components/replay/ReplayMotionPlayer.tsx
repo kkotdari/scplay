@@ -19485,8 +19485,20 @@ const spriteBytes = { n: 0 };
    1.4배 넘게 늘려야 하면 **대타를 포기하고 굽는다** — 그 정도로 흐린 그림을 몇 프레임
    보여 주느니 한 번 덜컥이는 편이 낫다. */
 const SUB_MAX_UP9 = 1.4;
-/** 대타로 쓸 크기를 고른다 — 크거나 같은 것 우선, 없으면 1.4배 안쪽의 작은 것. */
-const pickSubSize9 = (list: { s: number; k: string }[], want: number): string | null => {
+/* ★ 예산이 다한 프레임에는 **더 무른 대타까지 받는다**(실기 진단: 테란 132장 14.7MB /
+   저그 122장 27.5MB — 저그 유닛 판이 장당 두 배 무겁다) ────────────────────────────────
+   두 화면 다 합이 30MB 언저리로 상한(32)에 붙어 있는데, 테란은 그 안에 작업 집합이 들고
+   저그는 안 든다. 저그 유닛(히드라·러커·울트라·오버로드)이 테란의 것(마린·SCV)보다
+   **모델이 크기 때문**이다 — 판 무게는 그린 크기의 제곱이라 장당 111KB 대 225KB다.
+   작업 집합이 예산을 넘으면 캐시는 영영 안 찬다. 그때 '가까운 크기가 없으니 굽는다'로
+   물러나면 **한 프레임에 몇 장이고 굽게 된다** — 예산으로 죄어 둔 뜻이 사라진다.
+   그래서 예산이 다한 프레임에서는 문턱을 2.5배까지 늘린다: 한두 프레임 무른 그림을
+   보이더라도 굽기 폭풍은 안 낸다. 예산이 남은 프레임에서는 종전대로 1.4배까지만이다. */
+const SUB_MAX_HARD9 = 2.5;
+/** 대타로 쓸 크기를 고른다 — 크거나 같은 것 우선, 없으면 문턱 안쪽의 작은 것. */
+const pickSubSize9 = (
+  list: { s: number; k: string }[], want: number, cap = SUB_MAX_UP9,
+): string | null => {
   let up9: { s: number; k: string } | null = null;      // 요청 이상 중 가장 작은 것
   let down9: { s: number; k: string } | null = null;    // 요청 미만 중 가장 큰 것
   for (const e9 of list) {
@@ -19494,7 +19506,7 @@ const pickSubSize9 = (list: { s: number; k: string }[], want: number): string | 
     else if (!down9 || e9.s > down9.s) down9 = e9;
   }
   if (up9) return up9.k;
-  return down9 && want / down9.s <= SUB_MAX_UP9 ? down9.k : null;
+  return down9 && want / down9.s <= cap ? down9.k : null;
 };
 /** 색인에 한 줄 적는다 — 같은 열쇠는 한 번만, 여섯 벌까지(오래된 것부터 밀어낸다). */
 const noteSub9 = (
@@ -19586,7 +19598,7 @@ function unitSprite(
   if (unitBakeLeft9 <= 0) {
     const sizes9 = SPRITE_SIZES.get(subKey);
     if (sizes9) {
-      const best9 = pickSubSize9(sizes9, pxq);
+      const best9 = pickSubSize9(sizes9, pxq, SUB_MAX_HARD9);
       const alt9 = best9 ? SPRITE_CACHE.get(best9) : undefined;
       if (alt9) {
         /* ★ **대타는 LRU를 안 되살린다**(지적: "12배도 아닌데 모바일 사파리 탭이
@@ -20361,7 +20373,7 @@ function buildingSpriteBake(
   if (bldBakeLeft9 <= 0) {
     const sizes9 = BLD_SPRITE_SIZES.get(subKey);
     if (sizes9) {
-      const best9 = pickSubSize9(sizes9, sideQ);
+      const best9 = pickSubSize9(sizes9, sideQ, SUB_MAX_HARD9);
       const alt9 = best9 ? BLD_SPRITE_CACHE.get(best9) : undefined;
       if (alt9) {
         // 대타는 LRU를 안 되살린다 — 유닛 쪽의 ★ 주석과 같은 까닭이다.
