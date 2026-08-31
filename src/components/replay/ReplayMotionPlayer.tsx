@@ -691,6 +691,10 @@ const LIT_KINDS = new Set<string>([
   /* 가스 셋 — 캐는 동안 켜진다(정제소는 창, 어시밀레이터는 속심, 익스트랙터는 아가리).
      ★ 저그의 kind는 "extract"다(SHAPE_KIND.Extractor) — "extractor"가 아니다. */
   "refinery", "assim", "extract",
+  /* 벙커 — 다른 건물의 '일하는 중'과 달리 **쏘는 중**에 켜진다(요청: "벙커는 발사 시
+     창문이 번쩍거림"). 켜는 자는 아래 사격 판정이고, 여기 들어야 열쇠가 lit를 물어
+     꺼진 판과 켜진 판이 따로 캐시된다. */
+  "tombFlat",
   "tomb", "cube", "factory", "plane",            // 커맨드·배럭·팩토리·스타포트
   /* 아카데미는 아직 유리가 없어 뺀다 — 표에 넣으면 그림이 같은 판만 두 벌 굽는다. */
   "ebay", "armory", "scifac",                     // 엔베·아머리·사이언스퍼실리티
@@ -4657,127 +4661,172 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   },
   /* 벙커(실물 참고) — 사방으로 비탈진 날개 판(정사각 배치) + 날개마다 내려오는 계단 +
      가운데 강철 돔 + 윗면 원형 해치. 날개 밝기는 세계 광원(faceLight)이 정한다. */
+  /* 벙커(전면 재작도 — 사진 기준) ────────────────────────────────────────────────
+     사진이 말하는 것:
+       ① 몸통은 **낮은 사각 절두체**다(요청: "몸체 바닥은 사각형이고 면도 4개인 낮은
+          절두체"). 여태 이 자리는 사방으로 눕는 여덟 자락짜리 언덕이라, 실루엣이 둥근
+          둔덕으로 읽혔다 — 원작 벙커는 각진 상자다.
+       ② **계단이 몸통보다 밖으로 나온다**(요청: "계단은 넓고 본체보다 더 많이 튀어나와").
+          네 면마다 넓은 층계참이 바닥까지 계단으로 내려오고, 그것이 발자국의 바깥선을
+          만든다. 여태는 경사면에 얹힌 좁은 디딤판이라 계단이 아니라 무늬였다.
+       ③ 뚜껑은 낮은 돔이고, 꼭대기에 어두운 해치와 그 둘레를 도는 **붉은 통풍구 고리**가
+          있다. 여태 얹혀 있던 흰 원반(반사광)은 사진에 없다 — 걷는다.
+       ④ 몸통 옆면에 **붉은 총안**이 줄지어 있다. 여덟 개를 사방에 고루 둔다(요청:
+          "창문(총 쏘는 구멍) 8방에 하나씩") — 면이 넷이므로 면마다 둘씩이다.
+       ⑤ 사격 중에는 그 총안이 번쩍인다(요청) — bldLitNow 깃발 하나로 갈린다. */
   tombFlat: () => {
-    /* 몸은 통째로 은색이다(지적: 벙커 전체 은색) — 여태 날개·능선·뚜껑이 밑칠 없이
-       남아 벙커 전체가 임자 색 덩어리였다. 개인색은 뚜껑 밑동을 한 바퀴 두르는
-       포인트 띠 하나만 맡는다. */
     const SILVER9 = TERRAN_STEEL;
     const out: ShapeFace[] = [];
-    /* ★ 네 날개를 **모두** 그린다(지적: "뒷쪽 경사면이 안 그려지는 문제 — 시점이 높아서
-       그려져야 자연스러워") ─────────────────────────────────────────────────────────
-       여태는 faceLight의 보임 판정으로 뒤 날개를 걷어냈다. 그 판정은 부감의 세기를
-       납작비(0.45 ≈ 올려본각 27도)로 재는데, 이 날개는 수평에서 36도밖에 안 누운
-       **지붕에 가까운 면**이다(안 r2·z2.6 → 밖 r5.6·z0). 27도에서 보면 36도 지붕의
-       뒷면은 아슬아슬하게 등을 돌린 것으로 셈해져 통째로 사라졌고, 뚜껑(r3.6) 밖으로
-       r5.6까지 뻗은 자락이 뒤쪽만 뭉텅 잘려 나가 한 입 베어 문 꼴이 됐다.
-       지붕은 지붕으로 다룬다 — 걷어내지 않고 늘 그리되, **뒤에서 앞으로** 깔아 앞 날개가
-       뒤 날개를 덮게 한다. 이 면들은 열쇠 없는 무리라(zsorted가 넣은 차례를 지킨다)
-       도는 차례가 곧 화가 차례다. */
-    const wingAngs9 = [0, 90, 180, 270].slice().sort((p9, q9) => {
-      const r9 = (g9: number): number => depthNow(
-        Math.sin((g9 * Math.PI) / 180) * 3.8, Math.cos((g9 * Math.PI) / 180) * 3.8);
-      return r9(p9) - r9(q9);
-    });
-    /* 경사면의 진짜 법선 — 수평 몫과 위 몫이 빗변에서 나눠 갖는다(run 3.6·rise 2.6).
-       여태 수평을 통째로 1로 넘겨, 명암이 실제보다 벽에 가깝게 셈됐다. */
-    const WN_H9 = 2.6 / Math.hypot(2.6, 3.6);
-    const WN_Z9 = 3.6 / Math.hypot(2.6, 3.6);
-    for (const ang of wingAngs9) {
+    /* 치수 — **받침은 계단 높이만큼만**이다(요청: "절두체 높이 계단과 맞추기"). 그러면
+       몸의 덩치는 받침이 아니라 **돔**이 맡고(요청: "돔 지름이 더 크게"), 계단은 그
+       받침 높이를 그대로 내려오므로 층계와 받침이 한 단으로 읽힌다. */
+    const FB9 = 3.9;          // 받침(사각 절두체) 밑 반폭
+    const FT9 = 3.3;          // 받침 윗 반폭
+    const FH9 = 1.0;          // 받침 높이 = 계단 높이
+    /* 계단 폭은 **면의 반**(요청) — 면 길이 2·FB9의 절반이 곧 반폭 FB9/2다. */
+    const SW9 = FB9 / 2;
+    const SR1 = 5.7;          // 계단이 닿는 바깥 반지름 — 받침(3.9)보다 나온다
+    const STEP9 = 3;
+    const DR9 = 3.15;         // 돔 반지름 — 받침 윗면(3.3) 안에 꽉 차게
+    const DH9 = 1.95;         // 돔 높이
+    /** 받침 옆면의 반지름 — 높이 z에서 벽이 얼마나 나와 있나(세로띠가 이 면을 탄다). */
+    const bodyR9 = (z9: number): number => FB9 - (FB9 - FT9) * (z9 / FH9);
+    /** 돔 표면의 반지름·높이 — 창을 그 곡면 위에 앉힌다. */
+    const domeR9 = (z9: number): number =>
+      DR9 * Math.sqrt(Math.max(0, 1 - ((z9 - FH9) / DH9) ** 2));
+    const domeZ9 = (r9: number): number =>
+      FH9 + DH9 * Math.sqrt(Math.max(0, 1 - (r9 / DR9) ** 2));
+
+    for (const ang of [0, 90, 180, 270]) {
       const a = (ang * Math.PI) / 180;
       const sx = Math.sin(a);
       const sy = Math.cos(a);
       const cxa = Math.cos(a);
       const sya = -Math.sin(a);
-      const d = polyPath3([
-        [sx * 2 + cxa * 2.4, sy * 2 + sya * 2.4, 2.6],
-        [sx * 2 - cxa * 2.4, sy * 2 - sya * 2.4, 2.6],
-        [sx * 5.6 - cxa * 3.3, sy * 5.6 - sya * 3.3, 0],
-        [sx * 5.6 + cxa * 3.3, sy * 5.6 + sya * 3.3, 0],
-      ]);
-      /* 경사 날개의 위 성분(지적: 정면에서 양쪽 경사벽이 안 보임) — 안(2, z2.6)에서
-         밖(5.6, z0)으로 눕는 벽이라 법선이 하늘을 많이 봐, 옆을 향해도 위에서 보인다. */
-      const { face } = faceLight(sx * WN_H9, sy * WN_H9, WN_Z9);
-      out.push([d, 1, SILVER9] as ShapeFace, ...face(d));
-      /* 사방으로 내려오는 계단(요청) — 날개 가운데로 살짝 도드라진 디딤판 셋. */
-      const w = 0.95;
-      for (let i = 0; i < 3; i += 1) {
-        const d0 = 2.3 + i * 1.1;
-        const d1 = d0 + 1.1;
-        const z0 = 2 - i * 0.66;
-        const z1 = z0 - 0.66;
+      /** 그 면의 자리 — r은 바깥으로, w는 옆으로, z는 위로. */
+      const P = (r9: number, w9: number, z9: number): [number, number, number] =>
+        [sx * r9 + cxa * w9, sy * r9 + sya * w9, z9];
+
+      /* ── 계단 ── 받침 윗면에서 바닥까지, 밖으로 뻗는다. 한 단은 디딤판 + 바깥 챌판 +
+         양옆 벽을 가진 덩어리라 옆에서 보면 통짜 층계로 선다. */
+      const SI9 = FT9;
+      const st9: ShapeFace[] = [];
+      for (let k9 = 0; k9 < STEP9; k9 += 1) {
+        const r0 = SI9 + ((SR1 - SI9) * k9) / STEP9;
+        const r1 = SI9 + ((SR1 - SI9) * (k9 + 1)) / STEP9;
+        const zt = (FH9 * (STEP9 - k9)) / STEP9;
+        const zb = (FH9 * (STEP9 - k9 - 1)) / STEP9;
         const tread = polyPath3([
-          [sx * d0 + cxa * w, sy * d0 + sya * w, z0],
-          [sx * d0 - cxa * w, sy * d0 - sya * w, z0],
-          [sx * d1 - cxa * w, sy * d1 - sya * w, z0],
-          [sx * d1 + cxa * w, sy * d1 + sya * w, z0],
-        ]);
+          P(r0, SW9, zt), P(r0, -SW9, zt), P(r1, -SW9, zt), P(r1, SW9, zt)]);
         const riser = polyPath3([
-          [sx * d1 + cxa * w, sy * d1 + sya * w, z0],
-          [sx * d1 - cxa * w, sy * d1 - sya * w, z0],
-          [sx * d1 - cxa * w, sy * d1 - sya * w, z1],
-          [sx * d1 + cxa * w, sy * d1 + sya * w, z1],
+          P(r1, SW9, zt), P(r1, -SW9, zt), P(r1, -SW9, zb), P(r1, SW9, zb)]);
+        const wallL = polyPath3([
+          P(r0, SW9, zt), P(r1, SW9, zt), P(r1, SW9, 0), P(r0, SW9, 0)]);
+        const wallR = polyPath3([
+          P(r0, -SW9, zt), P(r1, -SW9, zt), P(r1, -SW9, 0), P(r0, -SW9, 0)]);
+        const flO = faceLight(sx, sy, 0);
+        const flL = faceLight(cxa, sya, 0);
+        const flR = faceLight(-cxa, -sya, 0);
+        st9.push([`${tread} ${riser}`, 1, SILVER9] as ShapeFace, topFace(tread, 0.14));
+        st9.push(...flO.face(riser));
+        if (flL.visible) st9.push([wallL, 1, SILVER9] as ShapeFace, ...flL.face(wallL));
+        if (flR.visible) st9.push([wallR, 1, SILVER9] as ShapeFace, ...flR.face(wallR));
+      }
+      out.push(...tagKey(st9, depthNow(sx * ((SI9 + SR1) / 2), sy * ((SI9 + SR1) / 2)) * 1.6));
+
+      /* ── 받침 옆면 ── 낮은 사다리꼴 한 장(벽이라 등을 돌리면 안 그린다). */
+      const nH9 = FH9 / Math.hypot(FH9, FB9 - FT9);
+      const nZ9 = (FB9 - FT9) / Math.hypot(FH9, FB9 - FT9);
+      const fl9 = faceLight(sx * nH9, sy * nH9, nZ9);
+      if (fl9.visible) {
+        const wall = polyPath3([
+          P(FB9, FB9, 0), P(FB9, -FB9, 0), P(FT9, -FT9, FH9), P(FT9, FT9, FH9)]);
+        const face9: ShapeFace[] = [[wall, 1, SILVER9] as ShapeFace, ...fl9.face(wall)];
+        /* ★ **세로띠** — 받침이 드러난 자리마다 둘씩(요청: "절두체 드러나는 부분에
+           세로띠 두 개씩 총 8군데") ────────────────────────────────────────────────
+           계단이 면의 한가운데 절반을 덮으므로(계단 반폭 = FB9/2), 한 면에서 드러나는
+           것은 좌우 두 조각이다 — 네 면이니 **여덟 군데**다. 그 여덟 곳에 세로띠를 둘씩
+           세운다. 색은 안 준다: 사진의 붉은 띠가 곧 임자를 말하는 자리라(꼭대기 고리와
+           같은 갈래), 색을 비우면 굽는 쪽이 임자 색을 채운다. 옆에서 보는 화면에서는
+           꼭대기 고리가 잘 안 보이므로, 팀이 읽히는 자리가 여기서 생긴다. */
+        /* ★ 옆자리는 **면 폭에 비례해서** 잡는다(지적: "띠가 면을 넘어가잖어") —
+           받침이 사다리꼴이라 옆 반폭이 높이마다 다른데(그 높이의 bodyR9), 띠를 고정
+           좌표로 놓으면 위쪽에서 면 밖으로 삐져나간다. 자리를 −1~1의 **정규 좌표**로
+           잡고 그 높이의 반폭을 곱하면 띠가 면과 같은 기울기로 모여 어느 높이에서도
+           안 넘는다. 계단이 덮는 안쪽 끝(정규 좌표 SW9/FB9 = 0.5)도 같은 자로 잰다. */
+        const BZ0 = 0.18;
+        const BZ1 = 0.84;
+        const BHU = 0.055;                              // 반폭(정규 좌표)
+        for (const sd9 of [-1, 1]) {
+          for (const u9 of [0.70, 0.88]) {
+            const uc9 = sd9 * u9;
+            face9.push([polyPath3([
+              P(bodyR9(BZ0), (uc9 - sd9 * BHU) * bodyR9(BZ0), BZ0),
+              P(bodyR9(BZ0), (uc9 + sd9 * BHU) * bodyR9(BZ0), BZ0),
+              P(bodyR9(BZ1), (uc9 + sd9 * BHU) * bodyR9(BZ1), BZ1),
+              P(bodyR9(BZ1), (uc9 - sd9 * BHU) * bodyR9(BZ1), BZ1),
+            ]), 1] as ShapeFace);
+          }
+        }
+        out.push(...tagKey(face9,
+          depthNow(sx * ((FB9 + FT9) / 2), sy * ((FB9 + FT9) / 2)) * 1.6));
+      }
+    }
+    /* 받침 윗면 — 돔이 앉는 자리(돔보다 넓은 만큼만 드러난다). */
+    const cap9 = polyPath3([
+      [FT9, FT9, FH9], [FT9, -FT9, FH9], [-FT9, -FT9, FH9], [-FT9, FT9, FH9]]);
+    out.push(...tagKey([[cap9, 1, SILVER9] as ShapeFace, topFace(cap9, 0.12)], 0.2));
+    /* ── 돔 ── 이 건물의 몸이다. 받침 윗면에 앉아 위로 부푼다. */
+    out.push(...tagKey(paintBase(domeFaces3(0, 0, DR9, DH9, FH9), SILVER9), 0.5));
+    /* ── 총안 여덟 ── **돔에 난다**(요청: "총 쏘는 창은 돔에 나 있음"). 돔 곡면 위
+       여덟 방위에 하나씩이라 어느 쪽을 쏘든 그 방향에 구멍이 있고, 카메라를 마주 보는
+       것만 그린다. 사격 중에는 총구 불빛으로 번쩍인다(bldLitNow·요청). */
+    {
+      const WZ0 = FH9 + 0.34;
+      const WZ1 = FH9 + 0.95;
+      const WHW = 0.46;
+      const win9: ShapeFace[] = [];
+      for (let k9 = 0; k9 < 8; k9 += 1) {
+        const aw9 = (k9 * 45 * Math.PI) / 180;
+        const swx = Math.sin(aw9);
+        const swy = Math.cos(aw9);
+        if (facingRatio(swx, swy) <= 0.1) continue;
+        const lxx = Math.cos(aw9);
+        const lyy = -Math.sin(aw9);
+        const r0 = domeR9(WZ0) + 0.04;
+        const r1 = domeR9(WZ1) + 0.04;
+        const wq = polyPath3([
+          [swx * r0 - lxx * WHW, swy * r0 - lyy * WHW, WZ0],
+          [swx * r0 + lxx * WHW, swy * r0 + lyy * WHW, WZ0],
+          [swx * r1 + lxx * WHW, swy * r1 + lyy * WHW, WZ1],
+          [swx * r1 - lxx * WHW, swy * r1 - lyy * WHW, WZ1],
         ]);
-        out.push([`${tread} ${riser}`, 1, TERRAN_STEEL] as ShapeFace, topFace(tread, 0.22), ...face(riser)); // 계단 은색(요청)
+        win9.push([wq, 1, bldLitNow ? "#ffe27a" : "#20262e"] as ShapeFace);
+        if (bldLitNow) win9.push(topFace(wq, 0.5));
       }
+      if (win9.length) out.push(...tagKey(win9, 11));
     }
-    /* 경사면 사이 메움(지적: 네 날개 사이가 뚫림) — 이웃 날개의 맞닿는 빗변끼리 능선
-       사각(안쪽 두 점이 거의 붙어 사실상 삼각)으로 잇고, 같은 경사 법선으로 판정한다. */
-    for (const ang of wingAngs9) {
-      const a0 = (ang * Math.PI) / 180;
-      const a1 = ((ang + 90) * Math.PI) / 180;
-      const edge = (a: number, side: 1 | -1): [number, number, number][] => {
-        const sx = Math.sin(a);
-        const sy = Math.cos(a);
-        const cxa = Math.cos(a);
-        const sya = -Math.sin(a);
-        return [
-          [sx * 2 + side * cxa * 2.4, sy * 2 + side * sya * 2.4, 2.6],
-          [sx * 5.6 + side * cxa * 3.3, sy * 5.6 + side * sya * 3.3, 0],
-        ];
-      };
-      const [inA, outA] = edge(a0, 1);
-      const [inB, outB] = edge(a1, -1);
-      const nx = (Math.sin(a0) + Math.sin(a1)) / Math.SQRT2;
-      const ny = (Math.cos(a0) + Math.cos(a1)) / Math.SQRT2;
-      /* 능선도 날개와 함께 늘 그린다 — 날개만 남기고 이것을 걷으면 네 자락 사이가
-         다시 뚫린다(이 블록이 애초에 그 구멍을 메우려고 생겼다). */
-      const { face } = faceLight(nx * WN_H9, ny * WN_H9, WN_Z9);
-      const d = polyPath3([inA, outA, outB, inB]);
-      out.push([d, 1, SILVER9] as ShapeFace, ...face(d));
+    /* ── 꼭대기 ── 어두운 해치와 그 둘레를 도는 **개인색 데칼 여덟**(지적: "적갈색
+       데칼이 개인색 데칼이어야 함") — 색을 안 주면 굽는 쪽이 임자 색을 채운다. 벙커에서
+       팀이 읽히는 자리가 여기 하나라, 내려다보는 이 판에 두는 것이 가장 잘 보인다. */
+    const top9: ShapeFace[] = [];
+    for (let k9 = 0; k9 < 8; k9 += 1) {
+      /* 가늘게(지적: "돔 윗면의 임자색 데칼도 너무 두껍") — 한 칸 45도 가운데
+         **16도**만 쓴다(전엔 37도라 고리가 통째로 임자 색 접시처럼 보였다). 사진의
+         꼭대기도 살 사이가 넓은 가는 슬롯이다. */
+      const a0 = ((k9 * 45 + 14.5) * Math.PI) / 180;
+      const a1 = ((k9 * 45 + 30.5) * Math.PI) / 180;
+      const ri = 1.0;
+      const ro = 1.95;
+      top9.push([polyPath3([
+        [Math.sin(a0) * ri, Math.cos(a0) * ri, domeZ9(ri)],
+        [Math.sin(a1) * ri, Math.cos(a1) * ri, domeZ9(ri)],
+        [Math.sin(a1) * ro, Math.cos(a1) * ro, domeZ9(ro)],
+        [Math.sin(a0) * ro, Math.cos(a0) * ro, domeZ9(ro)],
+      ]), 1] as ShapeFace);
     }
-    // 뚜껑은 납작하게(지적) — 낮은 돔과 그 높이에 맞춘 해치.
-    out.push(...paintBase(domeFaces3(0, 0, 3.6, 2.4, 1.6), SILVER9));
-    out.push(topFace(discPath3(0, 0, 4.05, 1.7), 0.3));
-    out.push(capFace(discPath3(0, 0, 4.08, 0.7), 0.35));
-    /* 개인색 포인트 띠 — 뚜껑 밑동을 한 바퀴 두른다. 돔(제 키 = 깊이 + 2.4)보다
-       작은 키를 줘 돔이 띠의 윗면을 덮게 한다 — 안 그러면 납작한 원통이 뚜껑 위에
-       초록 판때기로 얹힌다. */
-    out.push(...tagKey(cylinderFaces3(0, 0, 3.74, 0.4, 1.2), depthNow(0, 0) + 1));
-    /* 사진 디테일 보강(요청) — 앞면에 초록 총안 셋, 네 모서리에 은빛 기둥, 발치에
-       노랑·검정 빗금 띠, 왼쪽에 배관 하나. 형태는 지금 것 그대로. */
-    if (facingRatio(0, 1) > 0.12) {
-      const det: ShapeFace[] = [];
-      for (const lx9 of [-1.5, 0, 1.5]) {
-        det.push([polyPath3([
-          [lx9 - 0.5, 2.62, 0.9], [lx9 + 0.5, 2.62, 0.9],
-          [lx9 + 0.5, 2.62, 1.5], [lx9 - 0.5, 2.62, 1.5],
-        ]), 1, "#4cd86a"] as ShapeFace);
-      }
-      for (let k9 = 0; k9 < 7; k9 += 1) {
-        const u0 = -3 + k9 * 0.5;
-        det.push([polyPath3([
-          [u0, 2.64, 0], [u0 + 0.24, 2.64, 0], [u0 + 0.48, 2.64, 0.6], [u0 + 0.24, 2.64, 0.6],
-        ]), 1, k9 % 2 === 0 ? "#e8c33a" : "#21252c"] as ShapeFace);
-      }
-      out.push(...tagKey(det, 12 + depthNow(0, 2.6) * 1.6));
-    }
-    for (const [cx9, cy9] of [[-2.5, 2.2], [2.5, 2.2], [-2.5, -2.2], [2.5, -2.2]] as
-      [number, number][]) {
-      out.push(...tagKey(paintBase(boxFaces3(cx9, cy9, 0.5, 0.5, 2.2, 0), TERRAN_STEEL),
-        depthNow(cx9, cy9) * 1.6 + 2));
-    }
-    out.push(...tagKey(paintBase(tubeFaces(-3.6, 0.6, -3.6, -1.4, 0.32, 0.8), "#828e9f"),
-      depthNow(-3.6, -0.4) * 1.6 + 1));
+    top9.push(capFace(discPath3(0, 0, domeZ9(0) + 0.02, 0.82), 0.42));
+    out.push(...tagKey(top9, 12));
     return out;
   },
   /* 넥서스(실물 참고) — 절두 황금 피라미드(높이 한 단 낮춤) + 면의 능선 띠 + 꼭대기
@@ -17752,10 +17801,10 @@ export const buildingYawOf = (): number => BUILDING_BASE_YAW;
      mx = cos(d + Y),  my = sin(d + Y)
    면 된다(Y = BUILDING_BASE_YAW). 검산: d = 45도면 (mx,my) = (0,1) — 모형의 앞면,
    곧 총안 셋이 난 +y 벽이다. 건물이 45도 돌아 서 있으니 그 벽이 세계 45도를 본다.
-   반지름은 뚜껑(3.6)과 자락 끝(5.6) 사이라 실루엣 가장자리에서 나고, 높이는 그 자리
-   경사면(z ≈ 0.58)보다 조금 위다. */
-const BUNKER_MUZZLE_R = 4.8;
-const BUNKER_MUZZLE_Z = 0.9;
+   반지름·높이는 **돔에 난 총안** 그 자리다(그 모델의 WZ0~WZ1·domeR9) — 빛이 창에서
+   난다. */
+const BUNKER_MUZZLE_R = 3.15;
+const BUNKER_MUZZLE_Z = 1.62;
 const bunkerMuzzleOf = (deg: number): [number, number, number] => {
   const a = ((deg + BUILDING_BASE_YAW) * Math.PI) / 180;
   return [Math.cos(a) * BUNKER_MUZZLE_R, Math.sin(a) * BUNKER_MUZZLE_R, BUNKER_MUZZLE_Z];
@@ -18751,7 +18800,7 @@ export const BLD_NORM: Record<string, number> = {
   sunken: 1.308,
   sunkenfire: 1.391,
   tomb: 1.534,
-  tombFlat: 1.296,   // 1.441 → 축소 목표(1.08)에 맞춰 bld-norm 재측정
+  tombFlat: 1.431,   // 사각 절두체 + 돔으로 재작도 후 bld-norm 재측정
   trapezoid: 2.476,
   tribunal: 1.954,
   turret: 1.932,  // 상자 상한에 걸림
@@ -29758,7 +29807,12 @@ export default function ReplayMotionPlayer({
                   return ((Math.round(d9 / 22.5) * 22.5) % 360 + 360) % 360;
                 })()
                 : undefined;
+              /* 이 건물 판의 자리 — 아래 사격 판정이 벙커의 불빛을 나중에 켠다(요청:
+                 발사 시 창 번쩍임). op 목록은 이 순회가 다 끝난 뒤에야 그려지므로,
+                 자리만 들고 있다가 뒤에서 고쳐도 늦지 않다. */
+              let bldOpIx9 = -1;
               if (shapeKind) {
+                bldOpIx9 = unitOps.length;
                 unitOps.push({
                   fx: fxF, fy: fyF, z, kind: sunkenOut ? "sunkenfire" : shapeKind,
                   /* 창에 불이 드는 조건(요청: "평소 어둡고 활성 시 노란불") — 이 건물이
@@ -30221,9 +30275,20 @@ export default function ReplayMotionPlayer({
                        고스트·벌처·골리앗 지상·벙커)") — 여기만 "base"를 넘기고 있었다.
                        base는 무기 갈래가 없던 시절의 폴백 꼴이라, 벙커에서 나가는 빛만
                        밖에 선 마린의 것과 결이 달랐다. */
-                    if (crewGun && rgB >= 0 && foeB.bd <= rgB) pushDefFx("gun");
+                    const gunOn9 = !!crewGun && rgB >= 0 && foeB.bd <= rgB;
+                    const batOn9 = !!crewBat && !foeB.air && batRG >= 0 && foeB.bd <= batRG;
+                    if (gunOn9) pushDefFx("gun");
                     // 화염은 지상 전용이고 사거리도 제 것(가우스 6에 견줘 3)이다.
-                    if (crewBat && !foeB.air && batRG >= 0 && foeB.bd <= batRG) pushDefFx("flame", 0.2);
+                    if (batOn9) pushDefFx("flame", 0.2);
+                    /* ★ 쏘는 동안 **창이 번쩍인다**(요청) — 박자는 트레이서와 같은 것을
+                       쓴다(FX_BEAM.gun의 주기). 둘이 같은 시계를 봐야 빛이 창에서 나가는
+                       것으로 읽힌다. 저사양·잔상은 켜 두기만 한다(깜빡임은 판 두 벌을
+                       초당 몇 번 오가게 만들어 굽기 캐시를 흔든다 — 다른 건물과 같은 규약). */
+                    if ((gunOn9 || batOn9) && bldOpIx9 >= 0 && !bldFrozen9) {
+                      const wd9 = FX_BEAM.gun?.dur ?? 0.22;
+                      const wp9 = ((((t + i * 0.13) % wd9) + wd9) % wd9) / wd9;
+                      if (!qAnim || wp9 < 0.5) unitOps[bldOpIx9].lit = true;
+                    }
                   }
                 }
                 return bldFx;
