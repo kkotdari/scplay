@@ -19401,6 +19401,27 @@ const spriteBytes = { n: 0 };
    한 프레임에 굽는 수를 죄고, 예산이 다한 자리에서는 같은 모델의 **다른 크기로 이미
    구워 둔 판**을 늘려(줄여) 찍는다. 한두 프레임 살짝 무를 뿐 곧 제 크기로 갈아 끼워지고,
    덜컥임은 사라진다. 그래서 '가까운 크기'를 찾을 색인이 하나 필요하다(SPRITE_SIZES). */
+/* ★ 대타는 **큰 판을 먼저 고른다**(지적: "12배 저그 버벅임 시 건물들 디테일이 유실됨 —
+   익스트랙터 창문, 해처리 옥상 가시") ────────────────────────────────────────────────
+   그 유실은 버벅임의 **부작용이 아니라 같은 일**이다. 판의 등급(lod)은 굽는 크기가
+   정하므로, 대타로 온 **작은 판은 애초에 부품이 적게 구워진 판**이다 — 늘려 찍으면
+   흐려지는 데 그치지 않고 창·가시가 아예 없다.
+   고르는 자를 바꾼다: 요청보다 **크거나 같은** 판이 있으면 그중 가장 작은 것을 쓴다
+   (줄여 찍는 것은 부품을 안 잃는다). 없으면 작은 것 중 가장 큰 것을 쓰되, 그마저
+   1.4배 넘게 늘려야 하면 **대타를 포기하고 굽는다** — 그 정도로 흐린 그림을 몇 프레임
+   보여 주느니 한 번 덜컥이는 편이 낫다. */
+const SUB_MAX_UP9 = 1.4;
+/** 대타로 쓸 크기를 고른다 — 크거나 같은 것 우선, 없으면 1.4배 안쪽의 작은 것. */
+const pickSubSize9 = (sizes: number[], want: number): number => {
+  let up9 = 0;      // 요청보다 크거나 같은 것 중 가장 작은 것
+  let down9 = 0;    // 요청보다 작은 것 중 가장 큰 것
+  for (const s9 of sizes) {
+    if (s9 >= want) { if (!up9 || s9 < up9) up9 = s9; }
+    else if (s9 > down9) down9 = s9;
+  }
+  if (up9) return up9;
+  return down9 && want / down9 <= SUB_MAX_UP9 ? down9 : 0;
+};
 const UNIT_BAKE_PER_FRAME = smallDevice9 ? 1 : 3;
 let unitBakeLeft9 = UNIT_BAKE_PER_FRAME;
 /* ★ **건물도 같다 — 오히려 더하다**(계측: 저그 본진을 배율 6·12로 확대해 재 봤다) ─────
@@ -19466,12 +19487,7 @@ function unitSprite(
   if (unitBakeLeft9 <= 0) {
     const sizes9 = SPRITE_SIZES.get(baseKey);
     if (sizes9) {
-      let best9 = 0;
-      let bd9 = Infinity;
-      for (const s9 of sizes9) {
-        const d9 = Math.abs(Math.log(s9 / pxq));
-        if (d9 < bd9) { bd9 = d9; best9 = s9; }
-      }
+      const best9 = pickSubSize9(sizes9, pxq);
       const alt9 = best9 > 0 ? SPRITE_CACHE.get(`${baseKey}|${best9}`) : undefined;
       if (alt9) {
         /* ★ **대타는 LRU를 안 되살린다**(지적: "12배도 아닌데 모바일 사파리 탭이
@@ -20242,12 +20258,7 @@ function buildingSpriteBake(
   if (bldBakeLeft9 <= 0) {
     const sizes9 = BLD_SPRITE_SIZES.get(baseKey);
     if (sizes9) {
-      let best9 = 0;
-      let bd9 = Infinity;
-      for (const s9 of sizes9) {
-        const d9 = Math.abs(Math.log(s9 / sideQ));
-        if (d9 < bd9) { bd9 = d9; best9 = s9; }
-      }
+      const best9 = pickSubSize9(sizes9, sideQ);
       const alt9 = best9 > 0 ? BLD_SPRITE_CACHE.get(`${baseKey}|${best9}`) : undefined;
       if (alt9) {
         // 대타는 LRU를 안 되살린다 — 유닛 쪽의 ★ 주석과 같은 까닭이다.
