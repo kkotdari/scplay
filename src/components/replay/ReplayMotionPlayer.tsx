@@ -7104,10 +7104,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const RH = UPP_H - 0.6;
     out.push(...tagKey(paintBase(boxFaces3(UX, UY, UPP_W, UPP_D, UPP_H, MTOP), PLATE),
       10 + depthNow(UX, UY) * 1.6));
-    out.push(...tagKey([
-      ...paintBase(boxFaces3(RX, RY, RW, RD, RH, MTOP), MID),
-      ...paintBase(boxFaces3(RX, RY, RW + 0.26, RD + 0.26, 0.16, MTOP + RH), PLATE),
-    ], 10.4 + depthNow(RX, RY) * 1.6));
+    /* 상자 위의 갓(처마 판)은 안 얹는다(요청: "박스 두 개 위의 지붕은 없는 게 나을 듯")
+       — 상자 둘이 이미 층을 이루는데 그 위에 넓은 판을 또 씌우니 층이 하나 더 생겨,
+       윗도리가 본체보다 무거워 보였다. 상자의 제 윗면이 곧 지붕이다. */
+    out.push(...tagKey(paintBase(boxFaces3(RX, RY, RW, RD, RH, MTOP), MID),
+      10.4 + depthNow(RX, RY) * 1.6));
     if (facingRatio(0, 1) > 0.12) {
       const wy = UY + UPP_D / 2 + 0.04;
       const win: ShapeFace[] = [];
@@ -7124,12 +7125,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       }
       out.push(...tagKey(win, 11 + depthNow(UX, wy) * 1.6));
     }
-    // 지붕판 — 관제 블록보다 넓어 처마가 진다.
-    out.push(...tagKey(paintBase(
-      boxFaces3(UX, UY, UPP_W + 0.7, UPP_D + 0.7, 0.24, UTOP), SILVER),
-    12 + depthNow(UX, UY) * 1.6));
-    // 지붕 위 임자색 가로 막대(사진).
-    pc.push(...tagKey(boxFaces3(UX - 0.5, UY - 0.2, 3.0, 0.9, 0.34, UTOP + 0.24),
+    // (걷어냄·요청) 관제 블록 위에 씌우던 넓은 지붕판 — 위 오른 상자와 같은 까닭이다.
+    // 임자색 가로 막대는 상자의 제 윗면에 바로 앉는다.
+    pc.push(...tagKey(boxFaces3(UX - 0.5, UY - 0.2, 3.0, 0.9, 0.34, UTOP),
       13 + depthNow(UX - 0.5, UY - 0.2) * 1.6));
 
     /* ── 오른뒤에 누운 원통 탱크 ── 끝에 테가 둘린다(사진). */
