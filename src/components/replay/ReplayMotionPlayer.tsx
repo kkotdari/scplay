@@ -5702,41 +5702,63 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        맨 위 한 뼘(0.55)만 좁아지는 절두체를 얹으면 그 한 겹이 모서리를 비스듬히 깎는다.
        통째로 테이퍼를 주지 않는 까닭: 그러면 기둥이 아니라 원뿔대가 되어 '받침'의 뜻이
        사라진다. 깎는 것은 모서리이지 기둥이 아니다. */
-    ...paintBase(boxFaces3(0, 0.4, 5.2, 5.2, 4.55), "#7e8a9c"),
-    ...paintBase(frustumFaces3(0, 0.4, 5.2, 5.2, 4.3, 4.3, 0.55, 4.55), "#7e8a9c"),
-    /* 밑동 공사장 노랑·검정 대각선 띠 — 사각기둥이 되었으니 네 벽에 하나씩 두른다.
-       보이는 벽만 그리고, 위 모서리를 앞으로 밀어 사선을 만든다. */
+    /* ★ 받침을 **절두체**로(요청: "터렛 하단 받침부 절두체 형태임") — 곧은 사각기둥은
+       위아래 폭이 같아 '토막'으로 읽혔고, 위 한 뼘만 깎아 둔 모서리로는 그 인상이 안
+       바뀌었다. 밑을 넓히고 위를 좁히면 받침이 땅을 딛고 선 대(臺)가 된다. 위에 얹히는
+       것들(머리 상자·포드)의 높이는 그대로라 실루엣의 나머지는 안 바뀐다. */
     ...((): ShapeFace[] => {
-      const faces: ShapeFace[] = [];
-      const HW = 2.63;   // 밑동 반폭(위 5.2의 절반에서 살짝 안쪽)
-      const side = (
-        nx9: number, ny9: number, pt: (t: number, z: number) => [number, number, number],
-      ): void => {
-        if (facingRatio(nx9, ny9) < 0.05) return;
-        faces.push([polyPath3([pt(0, 0.2), pt(5.2, 0.2), pt(5.2, 1.4), pt(0, 1.4)]),
-          1, "#d9ae35"] as ShapeFace);
-        for (let t = 0.3; t < 4.4; t += 1.25) {
-          faces.push([polyPath3([pt(t, 0.2), pt(t + 0.5, 0.2), pt(t + 0.9, 1.4), pt(t + 0.4, 1.4)]),
-            1, "#1b1e23"] as ShapeFace);
+      const BB9 = 5.8;    // 밑변
+      const BT9 = 4.5;    // 윗변
+      const BH9 = 4.55;   // 높이
+      const BY9 = 0.4;    // 중심 앞뒤
+      /** 벽의 반폭 — 높이에 따라 좁아진다. 띠가 이 자를 함께 써야 벽에 붙어 기운다. */
+      const half9 = (z9: number): number => (BB9 + (BT9 - BB9) * (z9 / BH9)) / 2;
+      /** 벽 위의 한 점 — t는 그 벽을 가로지르는 0~1, z는 높이. eps만큼 바깥으로 띄운다. */
+      const wall9 = (
+        nx9: number, ny9: number, t9: number, z9: number, eps9 = 0,
+      ): [number, number, number] => {
+        const h9 = half9(z9) + eps9;
+        const u9 = -h9 + 2 * h9 * t9;
+        if (ny9 > 0) return [u9, BY9 + h9, z9];
+        if (ny9 < 0) return [-u9, BY9 - h9, z9];
+        if (nx9 > 0) return [h9, BY9 - u9, z9];
+        return [-h9, BY9 + u9, z9];
+      };
+      /* ★ 띠의 **키**(지적: "해저드 띠가 안보임") — 여태 이 띠들은 키를 안 달아
+         f[3]이 비었고, 굽는 쪽에서 빈 키는 0으로 읽힌다. 곧 받침 몸통(제 깊이 + 반지름
+         몫으로 2~4쯤)보다 **늘 뒤**로 정렬되어 벽에 통째로 먹혔다 — 벽보다 0.03 바깥에
+         그렸는데도 실루엣 밖으로 삐져나온 실오라기만 보이던 까닭이다. 몸통이 낼 수 있는
+         가장 큰 키(깊이 + 높이)보다 한 뼘 위로 못 박아, 보이는 벽 위에는 늘 띠가 얹힌다.
+         (머리 상자는 20이므로 여전히 띠보다 앞이다.) */
+      const bandKey9 = depthNow(0, BY9) + BH9 + 0.4;
+      const faces: ShapeFace[] = [
+        ...paintBase(frustumFaces3(0, BY9, BB9, BB9, BT9, BT9, BH9, 0), "#7e8a9c"),
+        /* 꼭대기 모서리를 한 번 더 사선으로 깎는다 — 절두체 위가 칼같이 끊기지 않게. */
+        ...paintBase(frustumFaces3(0, BY9, BT9, BT9, BT9 - 0.5, BT9 - 0.5, 0.55, BH9), "#7e8a9c"),
+      ];
+      /* 공사장 노랑·검정 대각선 띠 — **바닥 가까이**(z 0.25~1.4) 네 벽을 한 바퀴 두른다.
+         빗금은 위 끝을 벽을 따라 옆으로 밀어(skew) 비스듬해진다. */
+      /* 임자 색 띠 — 해저드 바로 위(z 1.55~2.15). 칠하지 않는다: 안 칠한 면이 임자 색을
+         받는 자리다. 붙어 선 터렛 여럿에서 누구 것인지를 이 띠 하나가 답한다. */
+      const HZ0 = 0.25, HZ1 = 1.4, TZ0 = 1.55, TZ1 = 2.15;
+      for (const [nx9, ny9] of [[0, 1], [0, -1], [1, 0], [-1, 0]] as [number, number][]) {
+        if (facingRatio(nx9, ny9) < 0.05) continue;
+        const w9 = (t9: number, z9: number): [number, number, number] =>
+          wall9(nx9, ny9, t9, z9, 0.04);
+        faces.push(...tagKey([
+          [polyPath3([w9(0, HZ0), w9(1, HZ0), w9(1, HZ1), w9(0, HZ1)]), 1, "#d9ae35"],
+        ] as ShapeFace[], bandKey9));
+        for (let t9 = 0.02; t9 < 0.93; t9 += 0.185) {
+          const a9 = Math.min(1, t9 + 0.09);
+          faces.push(...tagKey([
+            [polyPath3([w9(t9, HZ0), w9(a9, HZ0),
+              w9(Math.min(1, a9 + 0.055), HZ1), w9(Math.min(1, t9 + 0.055), HZ1)]), 1, "#1b1e23"],
+          ] as ShapeFace[], bandKey9 + 0.01));
         }
-      };
-      side(0, 1, (t, z) => [-HW + t, 0.4 + HW, z]);
-      side(0, -1, (t, z) => [HW - t, 0.4 - HW, z]);
-      side(1, 0, (t, z) => [HW, 0.4 + HW - t, z]);
-      side(-1, 0, (t, z) => [-HW, 0.4 - HW + t, z]);
-      /* ★ 해저드 띠 **바로 위에 임자 색 띠**(지적) — 이 건물은 여태 임자 색이 포드 옆
-         작은 데칼 하나뿐이라, 붙어 선 터렛 여럿에서 누구 것인지가 안 읽혔다. 밑동을 한
-         바퀴 도는 띠는 어느 각도에서도 최소 한 벽이 보이므로 그 물음에 늘 답한다.
-         칠을 안 한다 — 그리는 쪽이 임자 색을 넣는 자리다. */
-      const band9 = (nx9: number, ny9: number,
-        pt: (t: number, z: number) => [number, number, number]): void => {
-        if (facingRatio(nx9, ny9) < 0.05) return;
-        faces.push([polyPath3([pt(0, 1.5), pt(5.2, 1.5), pt(5.2, 2.0), pt(0, 2.0)]), 1] as ShapeFace);
-      };
-      band9(0, 1, (t, z) => [-HW + t, 0.4 + HW, z]);
-      band9(0, -1, (t, z) => [HW - t, 0.4 - HW, z]);
-      band9(1, 0, (t, z) => [HW, 0.4 + HW - t, z]);
-      band9(-1, 0, (t, z) => [-HW, 0.4 - HW + t, z]);
+        faces.push(...tagKey([
+          [polyPath3([w9(0, TZ0), w9(1, TZ0), w9(1, TZ1), w9(0, TZ1)]), 1],
+        ] as ShapeFace[], bandKey9));
+      }
       return faces;
     })(),
     // (제거·지적: 기둥 옆 막대기 제거) — 옆으로 삐친 관이 정체불명 막대로 보였다.
@@ -8015,8 +8037,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        원통이라 초승달 위에 초록 판때기 넷이 누운 꼴이었다. 마디는 관 자체의 각으로
        읽힌다. */
     /* 기둥 셋 — 청록 띠를 두른 황금 대. 가운데가 가장 높다. */
-    ([[-2.5, 0.4, 3.2, 0], [0, -1.6, 4.4, 1], [2.5, 0.4, 3.2, 0]] as
-      [number, number, number, number][]).forEach(([px, py, ph, own9]) => {
+    /** 기둥 셋의 자리·높이 — 아래 들보(다리)도 같은 표에서 끝점을 읽는다. */
+    const PILLARS9: [number, number, number, number][] = [
+      [-2.5, 0.4, 3.2, 0], [0, -1.6, 4.4, 1], [2.5, 0.4, 3.2, 0],
+    ];
+    PILLARS9.forEach(([px, py, ph, own9]) => {
       const key = 12 + depthNow(px, py) * 1.6;
       // 기둥 셋은 모두 황금(재지적) — 개인색은 아래 받침이 맡는다.
       out.push(...tagKey([
@@ -8041,6 +8066,29 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       key + 1));
       out.push(...tagKey([[groundEllipse(...project(px, py, 1.68 + ph), 0.42, 0.42), 0.55,
         "#e0fffb"] as ShapeFace], key + 2));
+    });
+    /* ★ 기둥끼리 잇는 **다리**(요청·사진: "기둥간 연결하는 다리들이 있음 — 전부 바닥쪽에
+       연결됨") ─────────────────────────────────────────────────────────────────────
+       여태 기둥 셋은 초승달 받침 위에 각각 따로 서 있어, 어느 요잉에서는 세 개의 막대가
+       그냥 나란한 것으로 읽혔다. 사진의 옵저버토리는 기둥 **밑동**을 서로 이은 들보가
+       삼각 테를 이루고, 그 테가 셋을 한 구조물로 묶는다.
+       세 쌍(0-1·1-2·0-2)을 다 잇는다 — 두 쌍만 이으면 뚫린 쪽에서 볼 때 테가 안 닫힌다.
+       키는 들보 **한가운데의 깊이**로 잰다(기둥과 같은 자 `12 + depthNow×1.6`): 앞으로
+       돈 들보는 기둥 앞에, 뒤로 돈 들보는 기둥 뒤에 놓인다. 하나의 붙박이 값을 쓰면 어느
+       각도에서든 뒤 들보가 앞 기둥 위로 올라온다.
+       끝은 기둥 속(반지름 0.62)에 파묻히므로 뚜껑을 안 덮는다 — 단면이 안 비친다. */
+    ([[0, 1], [1, 2], [0, 2]] as [number, number][]).forEach(([i9, j9]) => {
+      const a9 = PILLARS9[i9];
+      const b9 = PILLARS9[j9];
+      const mx9 = (a9[0] + b9[0]) / 2;
+      const my9 = (a9[1] + b9[1]) / 2;
+      const BZ9 = 1.55;   // 들보 높이 — 기둥 밑동(z 0.8) 바로 위다
+      out.push(...tagKey(paintBase(spirePillar({
+        x: 0, y: 0, h: 1, w: 1, segs: 4, sides: 6, caps: "none",
+        path: (t9: number): [number, number, number] =>
+          [a9[0] + (b9[0] - a9[0]) * t9, a9[1] + (b9[1] - a9[1]) * t9, BZ9],
+        widthOf: (): number => 0.26,
+      }), GOLD_D), 12 + depthNow(mx9, my9) * 1.6));
     });
     return raceBase(out, "toss", pc);
   }),
@@ -10860,7 +10908,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 옆 잔다리 — **마디 둘씩, 훨씬 길게**(요청). 한 마디짜리 짧은 뿔은 몸에 붙은
        돌기로만 보였다. 무릎에서 한 번 꺾여 아래로 뻗으면 다리로 읽힌다. 뻗는 거리도
        1.3 → 3.6쯤으로 키운다. 짙은 갈색. */
-    ...([-1, 1] as const).flatMap((m9) => ([[-0.6, 5.7], [-1.5, 5.6]] as [number, number][])
+    /* ★ 앞쪽에 한 쌍 더(요청: "가디언 양쪽 옆다리 하나씩 더 추가 — 지금 있는 다리
+       앞쪽에") — 있던 둘은 y −0.6·−1.5로 둘 다 몸 뒤쪽에 몰려 있어, 옆에서 보면 다리가
+       꽁무니에만 달린 꼴이었다. 앞(y +0.3)에 한 마디를 더 세우면 셋이 앞뒤로 고르게
+       퍼져 게다리로 읽힌다. 무릎·발끝의 벌어짐(i9로 셈한다)도 셋으로 자연히 부채가 된다. */
+    ...([-1, 1] as const).flatMap((m9) => ([[0.3, 5.75], [-0.6, 5.7], [-1.5, 5.6]] as [number, number][])
       .flatMap(([ly9, lz9], i9) => {
         const kx9 = m9 * (3.9 + i9 * 0.2);   // 무릎
         const ky9 = ly9 - 1.5;
@@ -16020,7 +16072,20 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const armRZ9 = rootZ(ARM_X9 * BK, ARM_Y9 * BK);
     /** 팔뚝이 끝나고 집게가 갈라지는 자리. */
     const forkX9 = ARM_X9 * BK + 0.2;
-    const forkY9 = ARM_Y9 * BK + 0.12;
+    /* ★ 팔뚝은 **앞으로 비스듬히** 뻗고, 집게는 거기서 **뒤로 굽는다**(요청: "집게다리는
+       다리가 약간 앞쪽으로 뻗다가 집게에서 뒤로 살짝 굽히는 느낌") ─────────────────────
+       여태 팔뚝은 앞뒤(y)로 0.12밖에 안 나가 사실상 곧게 떨어졌고, 집게도 앞으로 조금
+       나갔다 멈출 뿐이라(+0.16t −0.1t²) 전체가 배 밑에 매달린 곧은 막대였다. 팔뚝을
+       0.45타일 앞으로 눕히고(1타일 내려가며 — 24°쯤) 집게가 그 끝에서 다시 뒤로 굽으면,
+       실루엣이 앞으로 나갔다 되돌아오는 낫꼴이 되어 '거는 집게'로 읽힌다.
+       갈림점(forkY9)은 팔뚝이 실제로 끝나는 자리여야 하므로 같은 수(ARM_FWD9)를 쓴다 —
+       한쪽만 고치면 집게가 팔뚝 끝에서 떨어져 나온다. */
+    const ARM_FWD9 = 0.45;
+    const forkY9 = ARM_Y9 * BK + ARM_FWD9;
+    /** 집게 갈래의 앞뒤(y) — 갈림점에서 살짝 앞으로 나갔다가 t²로 뒤로 굽는다.
+     *  갈래와 그 위의 상아 가시가 **같은 식**을 써야 가시가 갈래에 붙어 따라 굽는다. */
+    const clawY9 = (t9: number): number =>
+      forkY9 + (0.08 * t9 - 0.60 * t9 * t9) * CLAW_K9;
     const forkZ9 = armRZ9 - ARM_LEN9;
     for (const m of [-1, 1] as const) {
       /* ★ 키를 **제 자리에서** 잰다(요청: "집게발 키값 점검") — 여기 있던 것은
@@ -16044,7 +16109,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            것을 0.12로 줄이고, 그만큼 아래(z)로 더 내린다. 매달린 부속은 제 무게로
            떨어져야 '느릿하게 떠 있는 것'으로 읽힌다. */
         path: (t9: number): [number, number, number] =>
-          [m * (ARM_X9 * BK + 0.2 * t9), ARM_Y9 * BK + 0.12 * t9, armRZ9 - ARM_LEN9 * t9],
+          [m * (ARM_X9 * BK + 0.2 * t9), ARM_Y9 * BK + ARM_FWD9 * t9,
+            armRZ9 - ARM_LEN9 * t9],
         /* 윗다리를 가늘게(요청: "집게다리의 윗다리 부분 두께 축소") — 0.26~0.56이던
            것을 0.18~0.34로. 갈림점(아래 갈래의 뿌리 굵기 0.34)과 굵기를 맞춰, 팔뚝에서
            집게로 넘어가는 자리에 턱이 안 생긴다. */
@@ -16069,7 +16135,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           path: (t9: number): [number, number, number] => [
             m * (forkX9 - 0.12 * CLAW_K9 * t9 * t9)
               + s * (0.26 + 0.12 * t9 - 0.30 * t9 * t9) * CLAW_K9,
-            forkY9 + (0.16 * t9 - 0.1 * t9 * t9) * CLAW_K9,
+            clawY9(t9),
             forkZ9 - 2.6 * CLAW_K9 * t9,
           ],
           widthOf: (t9: number): number =>
@@ -16096,7 +16162,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const ct9 = 0.24;
         const cbx9 = m * (forkX9 - 0.12 * CLAW_K9 * ct9 * ct9)
           + m * (0.26 + 0.12 * ct9 - 0.30 * ct9 * ct9) * CLAW_K9;
-        const cby9 = forkY9 + (0.16 * ct9 - 0.1 * ct9 * ct9) * CLAW_K9;
+        const cby9 = clawY9(ct9);
         const cbz9 = forkZ9 - 2.6 * CLAW_K9 * ct9;
         claws.push(...tagKey(spike(
           cbx9, cby9, cbz9,
@@ -17463,7 +17529,7 @@ const MODEL_NORM: Record<string, number> = {
   ghost: 1.552,  // 상자 상한(원한 배수 1.723)
   goliath: 0.711,
   goon: 0.667,
-  guardian: 0.636,
+  guardian: 0.611,
   gunner: 1.402,  // 어깨판 10% 축소 뒤 model-norm 재측정
   htemp: 1.217,
   hydra: 0.685,
@@ -17476,7 +17542,7 @@ const MODEL_NORM: Record<string, number> = {
   muta: 0.741,
   mutacocoon: 1.826,  // 상자 상한(원한 배수 1.891)
   observer: 1.938,
-  ovie: 0.709,
+  ovie: 0.747,
   probe: 1.738,  // 다리 두께면을 양쪽으로 고친 뒤 model-norm 재측정
   probeGas: 1.486,
   probeMin: 1.543,
@@ -19234,7 +19300,7 @@ export const BLD_NORM: Record<string, number> = {
   tombFlat: 1.431,   // 사각 절두체 + 돔으로 재작도 후 bld-norm 재측정
   trapezoid: 2.480,
   tribunal: 1.954,
-  turret: 1.932,  // 상자 상한에 걸림
+  turret: 1.966,  // 받침을 절두체로 바꾸고 다시 잼
   warpin: 2.196,
 };
 const BLD_SPRITE_CACHE = new Map<string, { cv: HTMLCanvasElement; ox: number; oy: number; pad: number; l: number; side: number; bot: number; top: number; w: number; cx: number }>();
