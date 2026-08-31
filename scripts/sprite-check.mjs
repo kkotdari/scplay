@@ -185,9 +185,18 @@ const CANDIDATES = [
   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
 ].filter(Boolean);
 const exe = CANDIDATES.find((p) => existsSync(p));
-const browser = await chromium.launch(
-  exe ? { executablePath: exe, args: ["--no-proxy-server"] } : { args: ["--no-proxy-server"] },
-);
+const launchOpt = exe
+  ? { executablePath: exe, args: ["--no-proxy-server"] }
+  : { args: ["--no-proxy-server"] };
+/* 새 크로미엄은 옛 헤드리스(--headless=old)를 걷어냈다 — 그 깃발이 붙는 판이면 창이
+   열리자마자 죽는다(model-shot·perf-check가 쓰는 그 되물림). */
+const browser = await chromium.launch(launchOpt).catch((e) => {
+  if (!/headless/i.test(String(e))) throw e;
+  return chromium.launch({
+    ...launchOpt, headless: false,
+    args: [...launchOpt.args, "--headless=new", "--no-sandbox"],
+  });
+});
 const page = await (await browser.newContext({ viewport: { width: 400, height: 300 } })).newPage();
 page.on("pageerror", (e) => console.error("페이지 오류:", String(e).slice(0, 300)));
 await page.route("http://sprite-check.local/*", (r) => r.fulfill({

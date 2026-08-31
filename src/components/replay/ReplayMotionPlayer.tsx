@@ -18828,6 +18828,10 @@ function inkBoxOf(
    자르기 **전** 좌표계 그대로 둔다 — 발 위치·그림자·체력바가 다 그 자를 쓰기 때문이다. */
 export function cropToInk(
   cv: HTMLCanvasElement, box: { bot: number; cx: number; top: number; w: number },
+  /** ★ 자를 것이 없어도 **반드시 새 판에 옮겨 담는다** — 원판이 빌려 쓰는 것(아래
+   *  BAKE_POOL)일 때 쓴다. 안 그러면 다음 굽기가 그 판을 지우는 순간, 보관함에 든
+   *  스프라이트가 통째로 빈 그림이 된다. */
+  forceCopy = false,
 ): { cv: HTMLCanvasElement; ox: number; oy: number } {
   /* 2화소 — 잉크 상자가 훑기가 아니라 **되돌린 값**일 수 있어서다(위 inkBoxOf의 ⚠).
      되돌린 상자는 안티에일리어싱 한 화소만큼 좁을 수 있으므로 한 화소를 더 남긴다. */
@@ -18838,15 +18842,20 @@ export function cropToInk(
   const y1 = Math.min(cv.height, box.bot + M);
   const w = x1 - x0;
   const h = y1 - y0;
-  // 잉크가 없거나 이미 꽉 찬 판은 그대로 둔다(자를 것이 없다).
-  if (w <= 0 || h <= 0 || (w >= cv.width && h >= cv.height)) return { cv, ox: 0, oy: 0 };
+  // 잉크가 없거나 이미 꽉 찬 판은 그대로 둔다(자를 것이 없다) — 빌린 판만 예외다.
+  const whole9 = w <= 0 || h <= 0 || (w >= cv.width && h >= cv.height);
+  if (whole9 && !forceCopy) return { cv, ox: 0, oy: 0 };
+  const cw9 = whole9 ? cv.width : w;
+  const ch9 = whole9 ? cv.height : h;
+  const cx9 = whole9 ? 0 : x0;
+  const cy9 = whole9 ? 0 : y0;
   const out = document.createElement("canvas");
-  out.width = w;
-  out.height = h;
+  out.width = cw9;
+  out.height = ch9;
   const c = out.getContext("2d");
   if (!c) return { cv, ox: 0, oy: 0 };
-  c.drawImage(cv, x0, y0, w, h, 0, 0, w, h);
-  return { cv: out, ox: x0, oy: y0 };
+  c.drawImage(cv, cx9, cy9, cw9, ch9, 0, 0, cw9, ch9);
+  return { cv: out, ox: cx9, oy: cy9 };
 }
 const PATH2D_CACHE = new Map<string, Path2D>();
 const pathOf = (d: string): Path2D => {
@@ -19110,6 +19119,48 @@ const canvasBytes = (cv: HTMLCanvasElement): number => cv.width * cv.height * 4;
 const releaseCanvas = (cv: HTMLCanvasElement): void => {
   cv.width = 0;
   cv.height = 0;
+};
+/* ★ **굽는 판을 빌려 쓴다**(질문: "사파리에서 메모리를 몰라 예산을 적게 유지하면
+   오히려 터질 확률이 안 올라가나?") ─────────────────────────────────────────────────
+   그 물음이 옳다. 예산(LRU)이 막는 것은 **머물러 있는 판들의 합**인데, 폰에서 실제로
+   터지던 자리는 거기가 아니었다 — 줌·기울임이 한 칸 바뀌면 열쇠가 통째로 안 맞아
+   **한 프레임에 한 세대를 다시 굽고**(그 자리 SPRITE_BYTES_MAX 주석), 그동안 굽는 판
+   수백 장을 잡았다 놓는다. 그 봉우리는 예산과 무관하다. 그러니 예산을 더 죄면 머무는
+   몫만 줄고 **다시 굽는 횟수는 오히려 는다** — 곧 그 봉우리를 더 자주 밟는다. 어느
+   선 밑으로는 죄는 것이 안전이 아니라 위험이다.
+   답은 예산을 키우는 것(모르는 기기에 대고 낙관하는 일)이 아니라 **다시 굽기를 싸게
+   만드는 것**이다. 굽는 판은 그리고 나면 잘라 담고 버리는 소모품이라, 같은 크기를 다시
+   달라고 할 때가 잦다(같은 발자국의 건물들·같은 세대의 다시 굽기). 크기별로 몇 장만
+   빌려 두고 지워 쓰면 큰 뒷그림을 잡았다 놓는 일이 통째로 사라진다.
+   ★ 크기가 **정확히 같을 때만** 빌린다 — 큰 판을 작은 요청에 빌려주면 잉크 훑기가 그
+     넓이를 다 훑어 되레 느려진다(첫 판에서 이 함정을 봤다).
+   ★ 빌린 판은 스프라이트로 나갈 수 없다 — 다음 굽기가 지운다. 그래서 자를 것이 없어도
+     반드시 새 판에 옮겨 담는다(cropToInk의 forceCopy). */
+const BAKE_POOL: HTMLCanvasElement[] = [];
+const BAKE_POOL_MAX = 3;
+/** 그 크기의 굽는 판을 빌린다 — 빌림터에 있으면 지워서 주고, 없으면 새로 짓는다. */
+const bakeCanvas = (side: number): HTMLCanvasElement | null => {
+  const i9 = BAKE_POOL.findIndex((c) => c.width === side && c.height === side);
+  if (i9 >= 0) {
+    const [cv9] = BAKE_POOL.splice(i9, 1);
+    const c9 = cv9.getContext("2d");
+    if (!c9) return null;
+    c9.setTransform(1, 0, 0, 1, 0, 0);
+    c9.clearRect(0, 0, side, side);
+    return cv9;
+  }
+  const cv9 = document.createElement("canvas");
+  cv9.width = side;
+  cv9.height = side;
+  return cv9;
+};
+/** 다 쓴 굽는 판을 돌려준다 — 빌림터가 차면 가장 오래된 것을 그 자리에서 놓는다. */
+const freeBakeCanvas = (cv: HTMLCanvasElement): void => {
+  BAKE_POOL.push(cv);
+  while (BAKE_POOL.length > BAKE_POOL_MAX) {
+    const old9 = BAKE_POOL.shift();
+    if (old9) releaseCanvas(old9);
+  }
 };
 /** ★ **한 박자 늦춰** 돌려줄 판들 — 지금 프레임이 손에 쥐고 있을지 모르는 것을 그 자리에서
  *  0으로 만들면 그 몸만 한 프레임 사라진다. 덜어낼 때 여기 담아 두고 **다음 그리기 첫머리**
@@ -20052,11 +20103,12 @@ function buildingSpriteBake(
   const padK = DECAL_KINDS.has(op.kind) ? 0.40 : 0.78;
   const pad = Math.ceil(sideQ * padK) + 2;
   const l = sideQ + pad * 2;
-  const cv = document.createElement("canvas");
-  cv.width = Math.max(1, Math.ceil(l * B));
-  cv.height = cv.width;
+  const side9 = Math.max(1, Math.ceil(l * B));
   // 너무 큰 판은 굽지 않는다(위 SPRITE_SIDE_MAX) — 직접 그리기로 떨어진다.
-  if (cv.width > SPRITE_SIDE_MAX) return null;
+  if (side9 > SPRITE_SIDE_MAX) return null;
+  // 굽는 판은 **빌려 쓴다**(위 BAKE_POOL) — 이 판은 잘라 담고 나면 버리는 소모품이다.
+  const cv = bakeCanvas(side9);
+  if (!cv) return null;
   const c2 = cv.getContext("2d");
   if (!c2) return null;
   c2.setTransform(B, 0, 0, B, 0, 0);
@@ -20088,9 +20140,9 @@ function buildingSpriteBake(
     `b|${op.kind}|${op.rotDeg ?? 0}|${op.flat ? 1 : 0}|${vq}|${pitchTag(op.pitch)}`
     + `|${lod}|${stg}|${headTag()}|${litTag(op.kind)}|${spinTag(op.kind)}`,
     B * (pad + sideQ / 2) - 8 * s9, B * (pad + sideQ) - 16 * s9, s9);
-  const cr9 = cropToInk(cv, box9);
-  // 자르기 전 원판은 그 자리에서 놓는다 — 유닛 쪽과 같은 까닭(그 자리 ★ 주석).
-  if (cr9.cv !== cv) releaseCanvas(cv);
+  // 빌린 판이라 늘 새 판에 옮겨 담고(forceCopy), 원판은 빌림터로 돌려준다.
+  const cr9 = cropToInk(cv, box9, true);
+  freeBakeCanvas(cv);
   const entry = {
     cv: cr9.cv, ox: cr9.ox, oy: cr9.oy,
     pad, l, side: sideQ, bot: box9.bot, top: box9.top, w: box9.w, cx: box9.cx,
