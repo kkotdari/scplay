@@ -161,9 +161,19 @@ function inBrowser({ KINDS, VQS, LOD, RES, MARGIN, ANCHOR }) {
 const js = bundle();
 /* 크로뮴 자리는 환경마다 다르다 — model-norm.mjs와 같은 손잡이(PW_CHROMIUM)를 준다.
    (맥 로컬은 ~/Library/Caches/ms-playwright/… 아래에 있고, 리눅스 상자는 /opt다.) */
-const browser = await chromium.launch({
+/* 새 크로미엄은 옛 헤드리스(--headless=old)를 걷어냈다 — 플레이라이트가 그 깃발을
+   붙이는 판이면 창이 열리자마자 죽는다. 그때는 헤드리스를 끄고 새 헤드리스 깃발을
+   손으로 붙여 같은 자리에 선다(model-shot.mjs와 같은 손). */
+const launchOpt = {
   executablePath: process.env.PW_CHROMIUM ?? "/opt/pw-browsers/chromium",
   args: ["--no-proxy-server"],
+};
+const browser = await chromium.launch(launchOpt).catch(async (e) => {
+  if (!/headless/i.test(String(e))) throw e;
+  return chromium.launch({
+    ...launchOpt, headless: false,
+    args: [...launchOpt.args, "--headless=new", "--no-sandbox"],
+  });
 });
 const page = await (await browser.newContext({ viewport: { width: 900, height: 900 } })).newPage();
 page.on("pageerror", (e) => console.error("PAGEERR", String(e).slice(0, 300)));

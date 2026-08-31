@@ -326,7 +326,17 @@ function inBrowser({ KINDS, MODES, BUCKETS, VQ_PROBE, SCALES, FOOT_Y, NORM_ANCHO
 const { chromium } = await import("playwright-core");
 const js = bundle();
 const exe = process.env.PW_CHROMIUM ?? "/opt/pw-browsers/chromium";
-const browser = await chromium.launch({ executablePath: exe, args: ["--no-proxy-server"] });
+/* 새 크로미엄은 옛 헤드리스(--headless=old)를 걷어냈다 — 플레이라이트가 그 깃발을
+   붙이는 판이면 창이 열리자마자 죽는다. 그때는 헤드리스를 끄고 새 헤드리스 깃발을
+   손으로 붙여 같은 자리에 선다(model-shot.mjs와 같은 손). */
+const launchOpt = { executablePath: exe, args: ["--no-proxy-server"] };
+const browser = await chromium.launch(launchOpt).catch(async (e) => {
+  if (!/headless/i.test(String(e))) throw e;
+  return chromium.launch({
+    ...launchOpt, headless: false,
+    args: [...launchOpt.args, "--headless=new", "--no-sandbox"],
+  });
+});
 const page = await (await browser.newContext({ viewport: { width: 400, height: 300 } })).newPage();
 page.on("pageerror", (e) => console.error("페이지 오류:", String(e).slice(0, 300)));
 /* 진짜 오리진이 있어야 한다 — about:blank(불투명 오리진)에서는 번들 안의 localStorage

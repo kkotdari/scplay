@@ -4663,7 +4663,26 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        포인트 띠 하나만 맡는다. */
     const SILVER9 = TERRAN_STEEL;
     const out: ShapeFace[] = [];
-    for (const ang of [0, 90, 180, 270]) {
+    /* ★ 네 날개를 **모두** 그린다(지적: "뒷쪽 경사면이 안 그려지는 문제 — 시점이 높아서
+       그려져야 자연스러워") ─────────────────────────────────────────────────────────
+       여태는 faceLight의 보임 판정으로 뒤 날개를 걷어냈다. 그 판정은 부감의 세기를
+       납작비(0.45 ≈ 올려본각 27도)로 재는데, 이 날개는 수평에서 36도밖에 안 누운
+       **지붕에 가까운 면**이다(안 r2·z2.6 → 밖 r5.6·z0). 27도에서 보면 36도 지붕의
+       뒷면은 아슬아슬하게 등을 돌린 것으로 셈해져 통째로 사라졌고, 뚜껑(r3.6) 밖으로
+       r5.6까지 뻗은 자락이 뒤쪽만 뭉텅 잘려 나가 한 입 베어 문 꼴이 됐다.
+       지붕은 지붕으로 다룬다 — 걷어내지 않고 늘 그리되, **뒤에서 앞으로** 깔아 앞 날개가
+       뒤 날개를 덮게 한다. 이 면들은 열쇠 없는 무리라(zsorted가 넣은 차례를 지킨다)
+       도는 차례가 곧 화가 차례다. */
+    const wingAngs9 = [0, 90, 180, 270].slice().sort((p9, q9) => {
+      const r9 = (g9: number): number => depthNow(
+        Math.sin((g9 * Math.PI) / 180) * 3.8, Math.cos((g9 * Math.PI) / 180) * 3.8);
+      return r9(p9) - r9(q9);
+    });
+    /* 경사면의 진짜 법선 — 수평 몫과 위 몫이 빗변에서 나눠 갖는다(run 3.6·rise 2.6).
+       여태 수평을 통째로 1로 넘겨, 명암이 실제보다 벽에 가깝게 셈됐다. */
+    const WN_H9 = 2.6 / Math.hypot(2.6, 3.6);
+    const WN_Z9 = 3.6 / Math.hypot(2.6, 3.6);
+    for (const ang of wingAngs9) {
       const a = (ang * Math.PI) / 180;
       const sx = Math.sin(a);
       const sy = Math.cos(a);
@@ -4677,8 +4696,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ]);
       /* 경사 날개의 위 성분(지적: 정면에서 양쪽 경사벽이 안 보임) — 안(2, z2.6)에서
          밖(5.6, z0)으로 눕는 벽이라 법선이 하늘을 많이 봐, 옆을 향해도 위에서 보인다. */
-      const { visible, face } = faceLight(sx, sy, 3.6 / Math.hypot(2.6, 3.6));
-      if (!visible) continue;
+      const { face } = faceLight(sx * WN_H9, sy * WN_H9, WN_Z9);
       out.push([d, 1, SILVER9] as ShapeFace, ...face(d));
       /* 사방으로 내려오는 계단(요청) — 날개 가운데로 살짝 도드라진 디딤판 셋. */
       const w = 0.95;
@@ -4704,7 +4722,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     }
     /* 경사면 사이 메움(지적: 네 날개 사이가 뚫림) — 이웃 날개의 맞닿는 빗변끼리 능선
        사각(안쪽 두 점이 거의 붙어 사실상 삼각)으로 잇고, 같은 경사 법선으로 판정한다. */
-    for (const ang of [0, 90, 180, 270]) {
+    for (const ang of wingAngs9) {
       const a0 = (ang * Math.PI) / 180;
       const a1 = ((ang + 90) * Math.PI) / 180;
       const edge = (a: number, side: 1 | -1): [number, number, number][] => {
@@ -4721,8 +4739,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const [inB, outB] = edge(a1, -1);
       const nx = (Math.sin(a0) + Math.sin(a1)) / Math.SQRT2;
       const ny = (Math.cos(a0) + Math.cos(a1)) / Math.SQRT2;
-      const { visible, face } = faceLight(nx, ny, 3.6 / Math.hypot(2.6, 3.6));
-      if (!visible) continue;
+      /* 능선도 날개와 함께 늘 그린다 — 날개만 남기고 이것을 걷으면 네 자락 사이가
+         다시 뚫린다(이 블록이 애초에 그 구멍을 메우려고 생겼다). */
+      const { face } = faceLight(nx * WN_H9, ny * WN_H9, WN_Z9);
       const d = polyPath3([inA, outA, outB, inB]);
       out.push([d, 1, SILVER9] as ShapeFace, ...face(d));
     }
@@ -17720,6 +17739,27 @@ const BUILDING_BASE_YAW = 45;
    각이 제각각이고 새 모델을 그릴 때마다 "왜 또 돌아가 있지"가 반복됐다. 그 각들은 이제
    빌더 안 withModelSpin에 구워져 모델의 일부다 — 그리는 쪽은 기본 요잉 하나만 쓴다. */
 export const buildingYawOf = (): number => BUILDING_BASE_YAW;
+/* ★ 벙커의 포구는 **쏘는 쪽을 따라 돈다**(지적: "트레이서가 벙커 위에 나와서 잘 안 보여
+   — 벙커 외부에 방향에 맞는 사격하는 부분에 나오게") ────────────────────────────────
+   여태 BLD_MUZZLE.tombFlat은 [0, 2.7, 1.2] 한 점이었다. 두 가지가 틀렸다:
+     ① 자리 — r 2.7은 뚜껑(돔 r3.6) **안쪽**이고 z 1.2는 그 높이라, 빛이 벙커 지붕
+        한가운데서 났다. 밖에서 보면 총구가 아니라 뚜껑 위의 반짝임이다.
+     ② 방향 — 건물 포구는 건물 요잉으로만 돌아, 어느 쪽을 쏘든 늘 같은 자리에서 났다.
+        벙커는 사방 대칭이고 네 면 모두 사수가 붙는 건물이라, 쏘는 쪽 자락에서 나야 한다.
+   그래서 포구를 각의 함수로 만든다. 모형 각을 세계 각에서 얻는 식은 anchorPoint가
+   withYaw(−건물요잉)으로 도는 데서 그대로 나온다: 카메라를 −Y 돌리면 모형 점 (mx,my)가
+   화면에서 (mx·cosY − my·sinY, mx·sinY + my·cosY) 자리에 서므로, 세계 각 d를 겨누려면
+     mx = cos(d + Y),  my = sin(d + Y)
+   면 된다(Y = BUILDING_BASE_YAW). 검산: d = 45도면 (mx,my) = (0,1) — 모형의 앞면,
+   곧 총안 셋이 난 +y 벽이다. 건물이 45도 돌아 서 있으니 그 벽이 세계 45도를 본다.
+   반지름은 뚜껑(3.6)과 자락 끝(5.6) 사이라 실루엣 가장자리에서 나고, 높이는 그 자리
+   경사면(z ≈ 0.58)보다 조금 위다. */
+const BUNKER_MUZZLE_R = 4.8;
+const BUNKER_MUZZLE_Z = 0.9;
+const bunkerMuzzleOf = (deg: number): [number, number, number] => {
+  const a = ((deg + BUILDING_BASE_YAW) * Math.PI) / 180;
+  return [Math.cos(a) * BUNKER_MUZZLE_R, Math.sin(a) * BUNKER_MUZZLE_R, BUNKER_MUZZLE_Z];
+};
 
 /* 음영 증폭(지적: 모델들 그림자가 너무 없어 — 갤러리보다 더 진하게) — 흑·백 덮개 면의
    불투명도를 1.45배로 키운다. 몸판(덮개색 없는 면)은 그대로라 색은 안 변하고 그늘·광만
@@ -18203,6 +18243,24 @@ const unitBakeCap = (B: number): number =>
 const bldBakeCap = (B: number): number =>
   Math.max(4, Math.floor((((SPRITE_SIDE_MAX - 1) / B - 6) / 2.56) / 2) * 2);
 const BLD_SPRITE_BYTES_MAX = (smallDevice9 ? 16 : 64) * 1024 * 1024;
+/* ★ **데칼**은 또렷함이 필요 없다 — 굽기 상한을 따로 낮춘다(지적: "모바일에서 저그 본진을
+   볼 때 너무 끊긴다") ────────────────────────────────────────────────────────────────
+   재 보니 크립 얼룩이 이 화면에서 가장 큰 판이다. 해처리 크립은 15타일이라 해처리 본체
+   (4타일)의 **열네 배 넓이**이고, 굽기 상한(bldBakeCap)까지 그대로 커진다. 폰(390px·
+   DPR 2) 기준 저그 본진 한 채(해처리1·콜로니2·일반건물5)의 얼룩만으로
+     줌×3 1.0MB · 줌×6 3.8MB · 줌×12 **13.8MB**
+   인데 폰의 건물 판 예산은 16MB다 — 맨 위 배율에서 얼룩 하나가 예산의 86%를 먹는다.
+   거기에 건물 본체와 상대 진영까지 얹히면 예산을 넘겨 LRU가 **매 프레임 쫓아내고 다시
+   굽는다**. 다시 굽는 값도 크다: 얼룩의 굽는 판은 한 변이 2.56배(여백 0.78)라 크립
+   하나가 2296² = 530만 화소이고, contentBox가 그걸 통째로 훑는다. 여덟이면 4천만 화소다.
+   저그 본진에서만 나는 까닭이 이것이다 — 크립 얼룩은 저그 건물만 낸다.
+   그런데 얼룩은 **단색 한 겹**이다(색 하나·알파 하나). 화소를 아무리 늘려도 더 나올
+   것이 없고, 늘려 찍는 길(아래 k = sidePx / sideQ)이 이미 있다. 그래서 이 갈래만
+   상한을 낮춰 굽고 늘려 찍는다 — 가장자리가 조금 부드러워질 뿐이고, 크립 경계는 원래
+   물결져 있어 오히려 결에 맞는다. 폰이 더 낮은 것은 화면이 작아 그 부드러움이 안
+   보이기 때문이다. */
+const DECAL_BAKE_MAX = smallDevice9 ? 192 : 384;
+const DECAL_KINDS = new Set(["creeppatch", "creeppatch2", "creeppatch3"]);
 /** 캔버스 한 장이 먹는 바이트 — 픽셀당 RGBA 4바이트. */
 const canvasBytes = (cv: HTMLCanvasElement): number => cv.width * cv.height * 4;
 /** ★ 캔버스가 물고 있던 **뒷그림을 그 자리에서 돌려준다** ────────────────────────────
@@ -18582,7 +18640,10 @@ export const BLD_FILL_TARGET: Record<string, number> = {
        bld-norm이 상한에서 멈춘다). 지금 걸리는 것은 파일런(diamond)·스파이어(spire)
        둘이고, 아래 값은 그 둘에 대해서는 뜻이 없다. */
   // 작아 보이는 것들 — 키운다.
-  tombFlat: 1.2,       // 벙커
+  /* 10% 축소(요청: "그려지는 크기가 너무 커 10프로 축소") — 1.2 → 1.08.
+     짝이 되는 BLD_NORM.tombFlat도 같은 몫(×0.9)으로 내렸다: 잉크 폭이 목표에
+     선형이라 다시 재지 않아도 값이 정확히 떨어진다. */
+  tombFlat: 1.08,      // 벙커
   turret: 1.45,        // 터렛(재요청: "터렛 확대" — 1.2에서 더)
   trapezoid: 1.2,      // 서플라이
   /* 엔베는 한 번 더(재지적: "엔베 크기 확대") — 1.2로도 작았다. 지붕이 낮고 넓은
@@ -18690,7 +18751,7 @@ export const BLD_NORM: Record<string, number> = {
   sunken: 1.308,
   sunkenfire: 1.391,
   tomb: 1.534,
-  tombFlat: 1.441,
+  tombFlat: 1.296,   // 1.441 → 축소 목표(1.08)에 맞춰 bld-norm 재측정
   trapezoid: 2.476,
   tribunal: 1.954,
   turret: 1.932,  // 상자 상한에 걸림
@@ -19860,7 +19921,8 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
              짝수 CSS px로 죄면 블릿 배율(k = sidePx / sideQ)이 1이 아니게 되고, 1에
              가까운 비정수 배율이 모델을 고르게 뭉갠다. 격자에 맞추면 k가 1이 된다. */
           const sideWant = Math.max(4, Math.round((sidePx * bakeZoom / zoom) * B) / B);
-          const sideQ = Math.min(sideWant, bldBakeCap(B));
+          const sideQ = Math.min(sideWant, bldBakeCap(B),
+            DECAL_KINDS.has(op.kind) ? DECAL_BAKE_MAX : Infinity);
           const bspr = buildingSprite(op, sideQ, B);
           /* 런타임 채움 보정은 없앴다(과제 #67) — 구운 판의 잉크 폭을 재서 발자국의
              95%가 되게 다시 굽던 자리다. 그 일을 이제 BLD_NORM이 모델 좌표에서 한다.
@@ -30048,7 +30110,8 @@ export default function ReplayMotionPlayer({
                     const dy9 = (gfy9 - cfy9) * mh9 + ((ay9 - ink9[1]) * side9) / 16;
                     return [dx9, dy9];
                   };
-                  const mzModel9 = shapeKind ? BLD_MUZZLE[shapeKind] : undefined;
+                  const mzModel9 = unit === "Bunker" ? bunkerMuzzleOf(degB)
+                    : shapeKind ? BLD_MUZZLE[shapeKind] : undefined;
                   const [mzBx, mzBy] = muzzleAt9(mzModel9);
                   /* ★ 미사일 터렛은 **두 발이 나간다**(지적: "미사일 터렛 트레이서에서 미사일
                      두 방이야 · 포드가 양쪽 두 개잖아 — 골리앗·발키리 대공·스카우트 대공·
@@ -30098,8 +30161,12 @@ export default function ReplayMotionPlayer({
                     const pf9 = isKnownKind(unit) ? profileOf(unit) : null;
                     const w9 = pf9 ? weaponVs(pf9, foeB.air) : null;
                     const cd9 = Math.max(0.15, w9 ? w9.cd : 0.6);
+                    /* 유닛 쪽과 같은 바닥(그 자리 ★) — 미사일 터렛도 붙어 쏠수록
+                       탄이 안 보이던 병을 함께 앓았다(1타일 14%). */
+                    const dist9 = lenB / Math.max(1, tPxB);
                     const flySec9 = Math.min(cd9 * 0.9,
-                      Math.max(0.05, lenB / Math.max(1, SHOT_TILES_PER_SEC * tPxB)));
+                      Math.max(0.05, Math.min(cd9 * 0.4, 0.4),
+                        dist9 / Math.max(1, SHOT_TILES_PER_SEC)));
                     const ph9 = firePhase(`b${raw}|${unit}|${Math.round(x * 4)}|${Math.round(y * 4)}`, cd9);
                     const u9 = (ph9 * cd9) / flySec9;
                     // 닿는 순간을 반드시 그린다 — 유닛 쪽과 같은 까닭(위 주석).
@@ -31844,8 +31911,23 @@ export default function ReplayMotionPlayer({
             /** 이 발이 총구에서 표적까지 **나는 데 걸리는 시간**(초) — 지도 위 거리로
              *  잰다(아래 shotU의 ★). 날아가는 탄과 그 탄이 남기는 자국(산성 포자)이
              *  같은 시계를 봐야 '닿는 순간'이 둘에서 갈리지 않는다. */
-            const flySec9 = Math.min(fxCdRaw * 0.9,
-              Math.max(0.05, foeDist / Math.max(1, SHOT_TILES_PER_SEC)));
+/* ★ 나는 시간에 **바닥을 깐다**(지적: "골리앗 뮤탈 상대로 트레이서 안 나감") ─────────
+               탄은 나는 동안에만 그려진다(아래 shotU의 ★: 안 날면 아무것도 안 그린다 — 총구 앞에
+               막대가 서 있던 자리를 걷어낸 것이다). 그러면 화면에 보이는 몫은 곧 `나는 시간 ÷ 쿨다운`
+               인데, 실측하면 골리앗 대공이 1타일 9% · 2타일 19% · 3타일 28%다. 뮤탈은 제 사거리가
+               3타일이라 딱 그 구간에서 붙는다 — 열에 두 번만 보이니 "안 나간다"로 읽힌다. 게다가
+               같은 골리앗의 **지상** 무기는 날아가는 탄이 아니라 번쩍임이라 늘 보여서, 한 유닛 안에서
+               상대에 따라 있고 없고가 갈렸다.
+               탄속(SHOT_TILES_PER_SEC)은 그 표가 스스로 "[어림]"이라 적어 둔 값이다. 그 어림이 말하려던
+               것은 '탄이 눈에 보이게 날아간다'인데, 한 주기의 열에 아홉을 존재하지 않는 탄은 그 말을
+               못 지킨다. 그래서 거리로 잰 시간이 너무 짧으면 **쿨다운의 몫**으로 바닥을 깐다(0.4배).
+               절대 상한 0.4초를 함께 두는 까닭은 쿨다운이 아주 긴 무기(디바우러 4.2초 · 시즈 3.2초)
+               에서 바닥이 그대로 1.7초가 되어 탄이 기어가기 때문이다. */
+            const flySec9 = ((cd9v: number, dist9v: number): number => {
+              const floor9 = Math.min(cd9v * 0.4, 0.4);
+              return Math.min(cd9v * 0.9,
+                Math.max(0.05, floor9, dist9v / Math.max(1, SHOT_TILES_PER_SEC)));
+            })(fxCdRaw, foeDist);
             const shotU = ((): number | null => {
               /* ★ 나는 거리는 **지도 위 거리**로 잰다(지적: "골리앗 스카웃 대공 미사일
                  안 나감" · "트레이서가 여전히 떠 있는 건물엔 안 나가") ────────────────
