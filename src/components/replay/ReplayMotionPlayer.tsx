@@ -1983,9 +1983,11 @@ function suitPauldron(m: 1 | -1, g: number, fill?: string): ShapeFace[] {
      키워(0.9g) 판의 바깥 끝이 몸통 밖 1.5g에 닿게 한다.
      밑면(잘린 수평면)이 곧 어깨선이라, z는 팔 뿌리 높이(3.66)에 맞춘다. */
   /* 사진의 어깨판은 **머리만큼 높다** — 밑면이 어깨선에 앉고 꼭대기가 헬멧 허리께에
-     닿는다. 반지름 0.86 → 0.94, 위로 부푸는 몫 0.6 → 0.82. */
+     닿는다. 반지름 0.86 → 0.94, 위로 부푸는 몫 0.6 → 0.82.
+     ★ 10% 축소(요청: "마린 어깨 보호구 크기 10프로 축소") — 0.94 → 0.846. 뿌리 자리는
+       그대로라 판이 안쪽으로 물러나지 않고 바깥 끝만 한 뼘 들어온다. */
   const f9 = tagKey(
-    quarterDome(m * 0.66 * g, -0.12, suitShoulderZ(), 0.94 * g, m, 0, undefined, 0.14, 0.82),
+    quarterDome(m * 0.66 * g, -0.12, suitShoulderZ(), 0.846 * g, m, 0, undefined, 0.14, 0.82),
     depthNow(m * 1.1 * g, -0.12) * 1.6 + 1.4,
   );
   return fill ? paintBase(f9, fill) : paleTeam(f9, 0.26);
@@ -7035,10 +7037,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const MAIN_D = 6.1;
     const MAIN_H = 1.9;
     const MTOP = BODY_Z + MAIN_H;             // 본체 윗면
-    const UPP_W = 5.8;
-    const UPP_D = 4.0;
+    /* ★ 윗 상자 둘을 **절두체**로, 폭을 서로 비슷하게(요청: "엔베 위쪽 상자 부품들도
+       절두체 형태로 변경하고 두 부품의 폭 비슷비슷하게 수정") — 네모 상자 둘은 옆선이
+       수직이라 아래 본체(역시 수직)와 한 덩이로 뭉쳐 층이 안 읽혔고, 폭이 5.8 대 3.2라
+       왼쪽만 커서 윗도리가 한쪽으로 쏠려 보였다. 둘 다 위로 좁아지는 절두체로 세우면
+       본체의 수직 벽과 결이 갈려 층이 서고, 폭을 4.6/4.0으로 맞추면 좌우가 짝이 된다. */
+    const UPP_W = 4.6;
+    const UPP_D = 3.8;
     const UPP_H = 1.7;
-    const UX = -1.3;                          // 관제 블록은 뒤·왼쪽으로 물러난다
+    const UX = -2.0;                          // 관제 블록은 뒤·왼쪽으로 물러난다
     const UY = -0.7;
     const UTOP = MTOP + UPP_H;
     const pc: ShapeFace[] = [];
@@ -7157,30 +7164,32 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* ── 관제 블록 **둘** ── 사진의 윗도리는 상자 하나가 아니라 좌우로 붙은 상자 둘이다
        (지적: "본체 위의 상자 하나가 아니고 양쪽에 박스 두 개가 붙은 형태여야 해").
        왼쪽이 높고 앞면에 창이 나며, 오른쪽은 한 단 낮고 그 위에 원통 탱크가 얹힌다. */
-    const RX = UX + UPP_W / 2 + 1.6;          // 오른 상자 — 왼 상자에 딱 붙는다
-    const RY = UY - 0.3;
-    const RW = 3.2;
-    const RD = 3.2;
-    const RH = UPP_H - 0.6;
-    out.push(...tagKey(paintBase(boxFaces3(UX, UY, UPP_W, UPP_D, UPP_H, MTOP), PLATE),
-      10 + depthNow(UX, UY) * 1.6));
+    const RW = 4.0;
+    const RD = 3.4;
+    const RH = UPP_H - 0.55;
+    const RX = UX + UPP_W / 2 + RW / 2;       // 오른 상자 — 왼 상자에 딱 붙는다
+    const RY = UY - 0.25;
+    out.push(...tagKey(paintBase(
+      frustumFaces3(UX, UY, UPP_W, UPP_D, UPP_W - 1.0, UPP_D - 0.8, UPP_H, MTOP), PLATE),
+    10 + depthNow(UX, UY) * 1.6));
     /* 상자 위의 갓(처마 판)은 안 얹는다(요청: "박스 두 개 위의 지붕은 없는 게 나을 듯")
        — 상자 둘이 이미 층을 이루는데 그 위에 넓은 판을 또 씌우니 층이 하나 더 생겨,
        윗도리가 본체보다 무거워 보였다. 상자의 제 윗면이 곧 지붕이다. */
-    out.push(...tagKey(paintBase(boxFaces3(RX, RY, RW, RD, RH, MTOP), MID),
-      10.4 + depthNow(RX, RY) * 1.6));
+    out.push(...tagKey(paintBase(
+      frustumFaces3(RX, RY, RW, RD, RW - 0.9, RD - 0.7, RH, MTOP), MID),
+    10.4 + depthNow(RX, RY) * 1.6));
     if (facingRatio(0, 1) > 0.12) {
       const wy = UY + UPP_D / 2 + 0.04;
       const win: ShapeFace[] = [];
       // 어두운 창틀 한 장 위에 밝은 유리 넷.
       win.push([polyPath3([
-        [UX - 2.2, wy, MTOP + 0.55], [UX + 2.2, wy, MTOP + 0.55],
-        [UX + 2.2, wy, MTOP + 1.3], [UX - 2.2, wy, MTOP + 1.3]]), 1, DARK] as ShapeFace);
+        [UX - 1.75, wy, MTOP + 0.55], [UX + 1.75, wy, MTOP + 0.55],
+        [UX + 1.75, wy, MTOP + 1.3], [UX - 1.75, wy, MTOP + 1.3]]), 1, DARK] as ShapeFace);
       for (let k9 = 0; k9 < 4; k9 += 1) {
-        const cx9 = UX - 1.65 + k9 * 1.1;
+        const cx9 = UX - 1.3 + k9 * 0.87;
         win.push([polyPath3([
-          [cx9 - 0.36, wy + 0.03, MTOP + 0.68], [cx9 + 0.36, wy + 0.03, MTOP + 0.68],
-          [cx9 + 0.36, wy + 0.03, MTOP + 1.17], [cx9 - 0.36, wy + 0.03, MTOP + 1.17],
+          [cx9 - 0.28, wy + 0.03, MTOP + 0.68], [cx9 + 0.28, wy + 0.03, MTOP + 0.68],
+          [cx9 + 0.28, wy + 0.03, MTOP + 1.17], [cx9 - 0.28, wy + 0.03, MTOP + 1.17],
         ]), 1, winLit("#cfe6ff")] as ShapeFace);
       }
       out.push(...tagKey(win, 11 + depthNow(UX, wy) * 1.6));
@@ -12542,9 +12551,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     ...paintBase(spirePillar({
       x: 0, y: 0, z0: 0, h: 1, w: 1, segs: 20, sides: 14, caps: "bottom",
       path: (t9: number): [number, number, number] => [0, 0, 4.6 * t9],
+      /* ★ 정수리를 더 둥글게(지적: "변태알 위가 너무 뾰족한 느낌 더 동글동글하게") —
+         지수를 0.5(정확한 타원구)에서 **0.38**로 낮춘다. 타원구의 옆선은 극 가까이에서
+         기울기가 가팔라 위가 뾰족한 원뿔로 읽히는데, 지수를 낮추면 같은 높이에서 반폭이
+         더 남아(u 0.9에서 0.60 → 0.68) 어깨가 부풀고 정수리가 둥글게 닫힌다. */
       widthOf: (t9: number): number => {
         const u9 = 0.12 + 0.88 * t9;
-        return 2.05 * Math.sqrt(Math.max(0, 1 - (2 * u9 - 1) ** 2));
+        return 2.05 * Math.max(0, 1 - (2 * u9 - 1) ** 2) ** 0.38;
       },
     }), "#d9b8a2"),
   ],
@@ -16353,7 +16366,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      말과 부호가 그대로 맞는다(BUILDING_BASE_YAW 위 주석).
      ⚠ 이 몸은 비스듬히 누운 애벌레라 회전 대칭이 아니다 — 돌리면 잉크 상자가 바뀌므로
        `npm run model-norm -- --emit`을 다시 돌려 MODEL_NORM·MODEL_INK를 갈아야 한다. */
-  mutacocoon: () => withModelSpin(90, (): ShapeFace[] => {
+  /* ★ −90도 더(요청: "변태고치 모델 자체 -90도 요잉") — 앞서 +90으로 돌려 둔 것을
+     되돌리는 셈이라 이제 0이다. 이 판의 규약대로 그릴 때 보정하지 않고 모델 안에서
+     돌린다(withModelSpin). 0이면 감쌀 것이 없으므로 아예 벗긴다.
+     ⚠ 이 몸은 비스듬히 누운 애벌레라 회전 대칭이 아니다 — 잉크 상자가 바뀌므로
+       MODEL_NORM·MODEL_INK를 다시 쟀다. */
+  mutacocoon: (): ShapeFace[] => {
     const out: ShapeFace[] = [];
     /** 몸 축 — 비스듬히 누운 완만한 활. 한끝이 낮고(z 3.4) 반대끝이 높다(z 5.6). */
     const axis = (t9: number): [number, number, number] => [
@@ -16403,7 +16421,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ));
     }
     return out;
-  }),
+  },
   /* 미네랄(재정정: 삼각뿔 말고 보석 기둥) — 세운 기둥 결정 + 뾰족 갓 셋, 키가 다
      다르다. 색은 그리는 쪽이 하늘색을 넣는다(팀색과 무관한 지물). */
   mineral: () => {
@@ -17350,13 +17368,13 @@ const MODEL_NORM: Record<string, number> = {
   droneMin: 1.071,
   dship: 0.711,
   dtemp: 0.922,
-  egg: 1.261,
+  egg: 1.237,   // 정수리를 둥글게 한 뒤 model-norm 재측정
   fbat: 1.233,
   ghost: 1.552,  // 상자 상한(원한 배수 1.723)
   goliath: 0.711,
   goon: 0.667,
   guardian: 0.636,
-  gunner: 1.380,
+  gunner: 1.402,  // 어깨판 10% 축소 뒤 model-norm 재측정
   htemp: 1.217,
   hydra: 0.685,
   inf: 1.514,  // 상자 상한(원한 배수 1.615)
