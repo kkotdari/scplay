@@ -19347,6 +19347,28 @@ export const SPRITE_PERF = {
    (= 열쇠가 색으로 갈리는 것이 범인인지)가 바로 보인다. */
 if (typeof window !== "undefined") {
   (window as unknown as Record<string, unknown>).__spritePerf = SPRITE_PERF;
+  /* ★ **무엇이 예산을 먹나** — 열쇠별 무게를 무거운 차례로 준다(지적: "유독 저그 쪽만
+     더 심해"). 합계만으로는 '어느 종류가' 먹는지 못 가른다: 같은 16MB라도 종류 하나가
+     각도 열여섯 벌로 갈려 먹는 것과 종류 마흔이 한 벌씩 먹는 것은 고칠 자리가 다르다.
+     콘솔에서 `__spriteTop()` 한 줄이면 그 갈림이 나온다(기본은 건물, "u"를 주면 유닛). */
+  (window as unknown as Record<string, unknown>).__spriteTop = (
+    which = "b", n = 14,
+  ): string => {
+    const cache = which === "u" ? SPRITE_CACHE : BLD_SPRITE_CACHE;
+    const byKind = new Map<string, { n: number; b: number }>();
+    let tot = 0;
+    for (const [k9, v9] of cache) {
+      const kind9 = k9.slice(0, k9.indexOf("|"));
+      const sh9 = (v9 as { sh?: { cv: HTMLCanvasElement } | null }).sh;
+      const b9 = canvasBytes(v9.cv) + (sh9 ? canvasBytes(sh9.cv) : 0);
+      tot += b9;
+      const got9 = byKind.get(kind9);
+      if (got9) { got9.n += 1; got9.b += b9; } else byKind.set(kind9, { n: 1, b: b9 });
+    }
+    return [`합 ${(tot / 1048576).toFixed(1)}MB · ${cache.size}장`,
+      ...[...byKind.entries()].sort((x9, y9) => y9[1].b - x9[1].b).slice(0, n)
+        .map(([k9, v9]) => `${k9} ${v9.n}장 ${(v9.b / 1048576).toFixed(2)}MB`)].join("\n");
+  };
 }
 /** 프레임 하나가 끝났다 — 이번 프레임 값을 last로 넘기고 0으로 되돌린다. */
 function perfFrame(ms: number): void {
@@ -20166,7 +20188,19 @@ function buildingSprite(op: UnitDrawOp, sideQ: number, B: number): BldSprite | n
 function buildingSpriteBake(
   op: UnitDrawOp, sideQ: number, B: number,
 ): BldSprite | null {
-  const vq = op.viewYaw ? Math.max(-36, Math.min(36, Math.round(op.viewYaw / 6) * 6)) : 0;
+  /* ★ 건물의 시각 밀림 칸을 6도 → **12도**로(지적: "유독 저그 쪽만 더 심해") ────────────
+     밀림 각(viewYaw)은 **화면 자리**가 정한다. 그래서 같은 종류의 건물이 화면을 가로질러
+     늘어서 있으면 저마다 다른 칸에 들어가 **같은 그림이 여러 벌 구워진다**. 6도 칸이면
+     −36~36에서 열세 벌이다.
+     그 줄이 가장 길게 서는 곳이 저그의 성큰·스포어 벽이다(사용자 화면에 성큰 일곱이
+     한 줄로 있었다) — 하나가 0.45MB이니 같은 성큰이 3MB를 먹는다. 실측(perf-check
+     --top, 아이폰 흉내 dpr 3): 간헐천 하나가 **세 벌 2.75MB**로 그 화면의 건물 예산
+     3분의 1이었다. 종류가 아니라 **자리**가 판을 늘리고 있었다.
+     칸을 두 배로 넓히면 벌 수가 절반이다. 잃는 것은 밀림의 결이 최대 6도 어긋나는
+     것인데, 이 밀림은 건물이 화면 가장자리로 갈수록 살짝 기우는 정도의 몫이라 한 칸의
+     차이가 눈에 잘 안 든다(유닛은 종전 6도 그대로 둔다 — 작게 그려져 칸을 넓혀도 얻는
+     것이 적고, 대신 수가 많아 칸 경계를 자주 넘나든다). */
+  const vq = op.viewYaw ? Math.max(-36, Math.min(36, Math.round(op.viewYaw / 12) * 12)) : 0;
   const lod = lodOf(sideQ);
   /* 공사 단계(요청: "3단계로 하고 실제 모델의 부품을 일부만 표현하다가 완성되는 형태로
      수정. 아래쪽 부품부터 표현 → 점점 위로") — stageFaces가 **부품을 골라** 준다.

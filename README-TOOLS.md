@@ -12,6 +12,11 @@
 | model-norm.mjs | 모델 잉크 크기 실측 → MODEL_NORM/MODEL_INK 갱신(--emit) | 〃 |
 | sprite-check.mjs · bld-norm.mjs · dmg-check.mjs · perf-check.mjs | 스프라이트·건물 채움·피해·성능 검사 | 〃 |
 
+판 예산을 **무엇이** 먹는지 보려면 `perf-check.mjs --top`(또는 브라우저 콘솔에서
+`__spriteTop("b")` · `__spriteTop("u")`). 합계만으로는 고칠 자리가 안 갈린다 — 같은
+16MB라도 종류 하나가 자리·각도별로 여러 벌 갈려 먹는 것과 종류 마흔이 한 벌씩 먹는
+것은 손볼 데가 다르다.
+
 `model-shot`과 `doc-sheet`의 갈림 — **그리는 길이 다르다.** model-shot은 면 목록을
 캔버스에 손으로 칠한다(빠르고 의존물이 없다, 모델을 고치며 볼 때 쓴다). doc-sheet은
 앱이 쓰는 그 컴포넌트(ShapeIcon)를 진짜 리액트로 띄우고 앱 CSS + 모듈 CSS를 얹어

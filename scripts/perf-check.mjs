@@ -1217,6 +1217,10 @@ const prof = PROFILE ? (await cdp.send("Profiler.stop")).profile : null;
 if (TRACE) await browser.stopTracing();
 const frames = await page.evaluate(() => window.__frames);
 const sprite = await page.evaluate(() => window.__spritePerf.line());
+/* --top — 판 예산을 **무엇이** 먹는지 종류별로 본다(합계만으로는 고칠 자리가 안 갈린다). */
+const topLines = has("--top")
+  ? await page.evaluate(() => `건물\n${window.__spriteTop("b")}\n유닛\n${window.__spriteTop("u")}`)
+  : null;
 await browser.close();
 
 /* ── 결과 ───────────────────────────────────────────────────────────────────── */
@@ -1228,6 +1232,8 @@ console.log(`\n[프레임] ${dts.length}개 표본 · CPU ${CPU}배 조임 · ${
 console.log(`  p50 ${pct(0.5).toFixed(1)}ms · p75 ${pct(0.75).toFixed(1)}ms · p95 ${pct(0.95).toFixed(1)}ms · 최악 ${dts[dts.length - 1].toFixed(1)}ms`);
 console.log(`  33ms 초과(=밀린 프레임) ${(dts.filter((d) => d > 33).length / dts.length * 100).toFixed(1)}%`);
 console.log(`\n[스프라이트] ${sprite}`);
+if (topLines) console.log(`\n[판 무게]\n${topLines}`);
+if (topLines) console.log(`\n[판 무게]\n${topLines}`);
 
 if (TRACE) {
   /* 트레이스 — 이벤트 이름별 소요 합. 메인 스레드의 스크립트·스타일·레이아웃·페인트와
