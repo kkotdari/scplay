@@ -20920,11 +20920,26 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
          전체 클립이라 남긴다. */
       const CULL = 160;
       const inView0 = (o: UnitDrawOp): boolean => {
-        if (o.clipWalk) return true;
         const ex0 = (o.wFrac !== undefined
           ? Math.max(o.wFrac, o.hFrac ?? 0) * cw : o.sizePx) * zoom + CULL;
         const vx0 = zx(o.fx);
         const vy0 = zy(o.fy);
+        /* ★ **크립 얼룩도 화면 밖은 안 그린다**(조사: "12배 확대에서 저그 기지에서만
+           버벅임이 있어, 특히 드래그 시") ─────────────────────────────────────────────
+           여기 있던 `if (o.clipWalk) return true`가 그 버벅임의 자리다. 크립 판을 **한
+           장도 안 걸러** 늘 다 그렸다 — 지도 전체의 저그 건물마다 하나씩이니 후반 무한
+           맵에서는 수십 장이고, 그 전부가 매 프레임 그려졌다.
+           배율이 오르면 값이 폭발한다: 얼룩은 못 박은 작은 판(DECAL_BAKE_MAX)에서
+           늘려 찍으므로, 12배에서 한 장의 **목적지 사각형**이 5000기기픽셀을 넘는다.
+           수십 장이면 한 프레임에 수억 픽셀을 늘려 그리는 셈이다. 드래그는 그 프레임을
+           손가락이 움직이는 내내 다시 그리므로 거기서 가장 아프고, 크립은 저그만
+           내므로 저그 기지에서만 난다 — 지적의 세 조건이 정확히 이 한 줄에서 나온다.
+           걸러도 그림은 안 바뀐다: 화면 밖 얼룩은 아래 클립(지도 상자·사다리꼴)에서도
+           어차피 한 픽셀도 안 남는다. 다만 **위쪽 여유 띠 규칙은 안 태운다** — 얼룩은
+           크므로 중심이 띠 위에 있어도 아랫자락이 화면을 덮을 수 있다. */
+        if (o.clipWalk) {
+          return vx0 >= -ex0 && vx0 <= cw + ex0 && vy0 >= -ex0 && vy0 <= ch + ex0;
+        }
         /* ★ 위쪽 여유에 그릴 자격은 **발이 상자 안에 있는 것**뿐이다(지적 둘) ──────────
            ① "맨 위가 아닌 아래쪽 화면을 볼 때 유닛도 그 위에 서 있고 그래 … 지금 뷰
               프레임 밖인 거잖아" — 확대·이동해서 지도 가운데를 보고 있으면 상자 위쪽
@@ -21734,11 +21749,16 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
           ctx.shadowColor = "transparent";
           // op별 save를 걷은 뒤로 직전 op의 알파가 남아 있을 수 있다 — 지우개는 꽉 채운다.
           ctx.globalAlpha = 1;
+          /* 차단 마스크도 **화면에 걸리는 조각만** 판다(같은 조사) — 이 그리기도 배율을
+             그대로 타는 늘려 찍기라, 지도 전체의 조각을 다 파면 크립을 다 그리는 것과
+             같은 값이 한 번 더 든다. 화면 밖 조각은 지워 봐야 지울 것이 없다. */
           for (const [sy0, sh, fx0, fy0, fx1, fy1] of maskRects) {
-            ctx.drawImage(
-              wallMask, 0, sy0, wallMask.width, sh,
-              zx(fx0), zy(fy0), (fx1 - fx0) * cw * zoom, (fy1 - fy0) * ch * zoom,
-            );
+            const dx9 = zx(fx0);
+            const dy9 = zy(fy0);
+            const dw9 = (fx1 - fx0) * cw * zoom;
+            const dh9 = (fy1 - fy0) * ch * zoom;
+            if (dx9 + dw9 < 0 || dx9 > cw || dy9 + dh9 < 0 || dy9 > ch) continue;
+            ctx.drawImage(wallMask, 0, sy0, wallMask.width, sh, dx9, dy9, dw9, dh9);
           }
           ctx.restore();
         }
