@@ -6996,11 +6996,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const ax = px * 0.36;                   // 몸에 붙는 자리(몸 안으로 물린다)
       const ay = py * 0.30;
       /* 윗팔을 아래 껍질의 **중턱**에 둔다 — 여기서 몸의 앞뒤 반폭이 2.79라, 팔이 그
-         밖으로 1.5타일 남짓 드러난다(더 낮추면 몸 밑으로 숨고, 더 높이면 윗 껍질에
-         가린다). 그만큼 아랫마디의 낙차도 2.8이라 사선이 제대로 선다. */
+         밖으로 드러난다(더 낮추면 몸 밑으로 숨고, 더 높이면 윗 껍질에 가린다).
+         ★ 무릎을 발판보다 **한참 더** 앞뒤로 뺀다(요청: 원 친 앞다리처럼 네 다리 모두
+           '수평 팔 + 사선'으로 읽히게) — 1.18배로는 드러나는 팔이 1.5타일뿐이라 앞다리
+           말고는 짧은 턱으로만 보였다. 1.42배면 몸 밖으로 2.4타일이 나와, 어느 각에서
+           보든 팔과 사선이 두 마디로 갈린다. 아랫마디는 그 자리에서 바깥(x)·아래로
+           꺾여 원래 발판에 내려꽂힌다. */
       const AZ = BODY_Z + 0.9;                // 윗팔의 높이 — 시작도 끝도 이 값이다
       const kx = ax;                          // 무릎 — x는 그대로, y만 앞뒤로 나갔다
-      const ky = py * 1.18;
+      const ky = py * 1.42;
       const kz = AZ;
       const seg = (x0: number, y0: number, z0: number,
         x1: number, y1: number, z1: number, w0: number, w1: number): ShapeFace[] =>
@@ -7037,6 +7041,27 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       boxFaces3(0, 0, 9.0, 5.3, 0.22, BODY_Z + LOW_H - 0.1), DARK), 1));
     out.push(...tagKey(paintBase(
       frustumFaces3(-0.55, -0.35, 8.0, 4.6, 6.8, 3.6, UPP_H, BODY_Z + LOW_H), PLATE), 2));
+    /* ── 장갑 결(사진) ── 사진의 몸통은 매끈한 절두체가 아니라 판을 덧댄 덩이다. 세 가지가
+       그 결을 만든다: 윗 껍질 꼭대기를 덮는 **처마**, 아래 껍질을 가로지르는 **이음선**,
+       네 귀퉁이의 **장갑 블록**. 셋 다 얇은 판이라 면 수는 조금만 는다. */
+    // 처마 — 윗 껍질보다 한 뼘 넓은 판이 꼭대기를 덮어 그늘 선을 만든다.
+    out.push(...tagKey(paintBase(
+      boxFaces3(-0.55, -0.35, 7.3, 4.1, 0.16, DECK - 0.16), "#b6c0cd"), 3));
+    // 이음선 둘 — 아래 껍질 옆구리를 가로지르는 어두운 띠.
+    for (const [sz9, sh9] of [[0.4, 0.13], [0.86, 0.1]] as [number, number][]) {
+      const t9 = sz9;
+      const w9 = 10.08 + (8.9 - 10.08) * t9;
+      const d9 = 6.34 + (5.2 - 6.34) * t9;
+      out.push(...tagKey(paintBase(
+        boxFaces3(0, 0, w9 + 0.06, d9 + 0.06, sh9, BODY_Z + LOW_H * t9), "#6f7883"), 1.5));
+    }
+    // 귀퉁이 장갑 넷 — 아래 껍질의 네 귀에 붙는 작은 덩이(사진의 각진 모서리).
+    for (const [cx9, cy9] of [[-4.3, -2.6], [4.3, -2.6], [-4.3, 2.6], [4.3, 2.6]] as
+      [number, number][]) {
+      out.push(...tagKey(paintBase(
+        boxFaces3(cx9, cy9, 1.5, 1.2, LOW_H * 0.72, BODY_Z), "#8d97a4"),
+      1.2 + depthNow(cx9, cy9) * 0.02));
+    }
 
     /* ── 앞 오른쪽 임자색 구체(사진) ── 아래 껍질 앞면에 박힌다. */
     pc.push(...tagKey(domeFaces3(2.9, 2.15, 1.15, 1.05, BODY_Z + 0.45),
@@ -18941,7 +18966,7 @@ export const BLD_NORM: Record<string, number> = {
   diamond: 1.905,  // 상자 상한에 걸림
   dmound: 1.111,
   dome: 1.418,
-  ebay: 1.499,
+  ebay: 1.492,   // 다리 윗팔을 늘린 뒤 bld-norm 재측정
   evo: 1.540,
   extract: 1.035,
   factory: 1.117,
