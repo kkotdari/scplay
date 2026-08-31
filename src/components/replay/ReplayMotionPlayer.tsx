@@ -688,7 +688,9 @@ let bldLitNow = false;
    불 켜짐이 상태를 말하지 못하니, 놀고 있는 건물과 유닛을 뽑는 건물이 화면에서 같았다.
    이제 이 표에 든 종류는 op.lit(생산·연구 중)에 따라 판이 두 벌로 갈린다. */
 const LIT_KINDS = new Set<string>([
-  "refinery", "assim",
+  /* 가스 셋 — 캐는 동안 켜진다(정제소는 창, 어시밀레이터는 속심, 익스트랙터는 아가리).
+     ★ 저그의 kind는 "extract"다(SHAPE_KIND.Extractor) — "extractor"가 아니다. */
+  "refinery", "assim", "extract",
   "tomb", "cube", "factory", "plane",            // 커맨드·배럭·팩토리·스타포트
   /* 아카데미는 아직 유리가 없어 뺀다 — 표에 넣으면 그림이 같은 판만 두 벌 굽는다. */
   "ebay", "armory", "scifac",                     // 엔베·아머리·사이언스퍼실리티
@@ -6650,9 +6652,32 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        벌어진 아가리다. 끝점에 어두운 단면을 세우고 그 둘레를 살빛 입술 고리로 두른다. */
     {
       const [mx9, my9, mz9] = GRB(1);
+      /* ★ 가스를 뽑는 동안 **아가리가 빛난다**(지적: "가스 건물 활성화 반짝임 안 나오는 듯")
+         ────────────────────────────────────────────────────────────────────────────
+         익스트랙터에는 여태 불 켠 판이 아예 없었다 — 테란 정제소는 창이, 프로토스
+         어시밀레이터는 속심이 밝아지는데 저그만 아무 일도 안 일어났다(LIT_KINDS에도
+         없어 판이 하나뿐이었다).
+         저그 건물에는 창이 없으니 빛날 자리는 **가스가 실제로 나오는 곳**, 곧 애벌레
+         앞 끝의 아가리다. 색은 정제소의 네온 초록과 같게 둔다 — 같은 일을 알리는
+         신호가 종족마다 다른 색이면 눈이 그것을 하나로 못 묶는다. */
+      const lit9 = bldLitNow;
       out.push(...tagKey([
-        ...paintBase(domeFaces3(mx9, my9 + 0.15, 1.15, 0.5, mz9 - 0.25), "#8a4a2a"),
-        capFace(groundEllipse(...project(mx9, my9 + 0.35, mz9 + 0.05), 0.72, 0.42), 0.62),
+        ...paintBase(domeFaces3(mx9, my9 + 0.15, 1.15, 0.5, mz9 - 0.25),
+          lit9 ? "#3f7a2e" : "#8a4a2a"),
+        capFace(groundEllipse(...project(mx9, my9 + 0.35, mz9 + 0.05), 0.72, 0.42),
+          lit9 ? 0.18 : 0.62),
+        ...(lit9
+          ? [
+            /* 아가리 속에서 새는 빛 — 넓고 옅은 겹 위에 작고 밝은 심. 두 겹이라야
+               '구멍 속이 빛난다'로 읽힌다(한 겹은 얹어 놓은 딱지로 보인다). */
+            [groundEllipse(...project(mx9, my9 + 0.3, mz9 + 0.02), 0.95, 0.56), 0.4,
+              "#7dff4a"] as ShapeFace,
+            [groundEllipse(...project(mx9, my9 + 0.35, mz9 + 0.06), 0.6, 0.34), 0.95,
+              "#7dff4a"] as ShapeFace,
+            [groundEllipse(...project(mx9, my9 + 0.38, mz9 + 0.09), 0.3, 0.17), 1,
+              "#f2fff0"] as ShapeFace,
+          ]
+          : []),
       ], depthNow(mx9, my9) * 1.6 + 15));
     }
     for (const t9 of [0.28, 0.46, 0.64, 0.82]) {
@@ -30581,9 +30606,21 @@ export default function ReplayMotionPlayer({
                    에서 선언된다(const라 여기서 읽으면 TDZ로 터진다. 타입 검사가 이것을
                    안 잡아 줬다). 개체의 정체는 고리 변수가 이미 들고 있으므로 그것을 본다. */
               const isWk9 = e.unit === "SCV" || e.unit === "Probe" || e.unit === "Drone";
-              const gasIn9 = !isWk9 ? undefined : gasBuildings.find((g) => g.raw === e.raw && t >= g.done
-                && (g.gone === 0 || t < g.gone)
-                && Math.abs(g.x - rawPos.x) <= 1.6 && Math.abs(g.y - rawPos.y) <= 1.1);
+              /* ★ 상자가 아니라 **가장 가까운 것**으로 찾는다 ────────────────────────────
+                 앞판은 발자국만 한 상자(±1.6×1.1)를 놓고 그 안이면 그 정제소로 쳤다.
+                 그런데 안에 든 몸의 자리는 **들어가기 직전 자리**로 얼어 있고(참값의 규약),
+                 정제소는 4×2타일이라 그 자리가 발자국 모서리 쪽이면 한가운데서 2타일이
+                 넘는다 — 상자를 벗어나 아무 일도 안 일어났다.
+                 가스 건물은 서로 멀리 떨어져 있으므로 '가장 가까운 하나'면 헷갈릴 데가
+                 없다. 넉넉한 반경(3타일) 안에서 최솟값을 고른다. */
+              const gasIn9 = !isWk9 ? undefined : gasBuildings.reduce<
+                { litKey: string; d: number } | undefined
+              >((best, g) => {
+                if (g.raw !== e.raw || t < g.done || (g.gone !== 0 && t >= g.gone)) return best;
+                const d9 = Math.hypot(g.x - rawPos.x, g.y - rawPos.y);
+                if (d9 > 3) return best;
+                return best && best.d <= d9 ? best : { litKey: g.litKey, d: d9 };
+              }, undefined);
               if (gasIn9) gasBusy.add(gasIn9.litKey);
               return null;
             }
@@ -32226,7 +32263,9 @@ export default function ReplayMotionPlayer({
             if (gm9.size) {
               for (const o9 of unitOps) {
                 if (!o9.pickBld || !o9.pickKey) continue;
-                if (o9.kind !== "refinery" && o9.kind !== "assim" && o9.kind !== "extractor") continue;
+                /* ★ 저그는 "extract"다(SHAPE_KIND.Extractor) — 여기 적혀 있던 "extractor"는
+                   어느 건물의 kind와도 안 맞아, 익스트랙터는 불이 켜질 자격조차 없었다. */
+                if (o9.kind !== "refinery" && o9.kind !== "assim" && o9.kind !== "extract") continue;
                 const at9 = gm9.get(o9.pickKey);
                 if (at9 === undefined) continue;
                 if (at9 > t) { gm9.delete(o9.pickKey); continue; }
