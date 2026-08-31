@@ -19202,7 +19202,17 @@ const BLD_SPRITE_BYTES_MAX = (smallDevice9 ? 16 * smallBudgetK9 * dprBudgetK9 : 
    합은 그대로 두고 칸막이만 무른다: 한쪽의 상한을 `합 − 상대가 지금 쓰는 몫`으로 잡고,
    제 몫의 4분의 1을 바닥으로 깐다(그래야 한쪽이 다른 쪽을 굶기지 못한다).
    **최악의 총량은 한 톨도 안 는다** — 두 상한을 동시에 채워도 합은 여전히 같다. */
-const SPRITE_TOTAL_MAX = SPRITE_BYTES_MAX + BLD_SPRITE_BYTES_MAX;
+/* ★ **지도층에서 던 몫을 여기서 받는다**(요청: "지도 여유분을 줄여 판 예산으로 돌린다")
+   ─────────────────────────────────────────────────────────────────────────────────
+   ReplayMapVector의 캔버스 면적 예산을 8 → 4Mpx로 내렸다(그쪽 ★ 주석: 화질은 안 잃고
+   '끌 때의 여유분'만 준다). 아이폰 dpr 3 기준 그 한 장이 27.6 → 11.8MB이므로 약 16MB가
+   빈다. 그중 14MB를 판 예산으로 옮긴다 — 남은 2MB는 어림의 여유다.
+   **총 메모리는 안 는다**(오히려 2MB 준다). 판 쪽은 저그 12배에서 작업 집합이 예산을
+   넘어 다시 굽기를 되풀이하던 자리라, 같은 총량 안에서 이쪽에 주는 편이 남는 장사다.
+   ※ 짝이 되는 값은 ReplayMapVector의 areaCapRef다 — 한쪽만 고치면 총량이 어긋난다. */
+const MAP_FREED_MB = smallDevice9 ? 14 : 0;
+const SPRITE_TOTAL_MAX = SPRITE_BYTES_MAX + BLD_SPRITE_BYTES_MAX
+  + MAP_FREED_MB * 1024 * 1024;
 /** 지금 이 캐시가 쓸 수 있는 몫 — 상대가 안 쓰는 만큼 빌려 쓴다. */
 const budgetNow9 = (own: number, otherUsed: number): number =>
   Math.max(own * 0.25, SPRITE_TOTAL_MAX - otherUsed);

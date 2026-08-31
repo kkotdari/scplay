@@ -164,14 +164,33 @@ export default function ReplayMapVector({
    *  실제로 쓰는 최대 요구(전체화면 상자 844 × dpr 3 = 2532 → 6.4Mpx)를 덮고도 남는다.
    *  ★ 화질은 이 값과 무관하다 — 아래 needSide가 '보이는 창을 꽉 덮는 한 변'을 늘
    *    바닥으로 깔기 때문에, 예산이 줄면 **끌 때의 여유분만** 줄어든다.
-   *  실패하면 아래 굽기가 이 값을 스스로 반씩 낮춘다(그때만 화질을 내준다). */
+   *  실패하면 아래 굽기가 이 값을 스스로 반씩 낮춘다(그때만 화질을 내준다).
+   *  ★ 8Mpx → **4Mpx**(요청: "지도 여유분을 줄여 판 예산으로 돌린다") ────────────────
+   *    실기 진단이 이 층의 몫을 그대로 보여 줬다: 아이폰 dpr 3에서 `지도 406×406css →
+   *    2626×2626`, 곧 **27.6MB 한 장**이다. 그런데 보이는 창을 1:1로 덮는 데 필요한 한
+   *    변은 `상자폭 406 × dpr 3 = 1218`(1.5Mpx)뿐이다 — 나머지 4.6배 넓이는 전부 끌 때
+   *    안 깜빡이려는 여유분이다.
+   *    같은 탭에서 모델 판 캐시가 예산에 못 박혀 다시 굽기를 되풀이하고 있으므로(저그
+   *    12배), 그 여유분의 절반을 판 쪽으로 돌리는 편이 남는 장사다: 4Mpx면 밑판을 뺀
+   *    실예산이 2.95Mpx(11.8MB)이고 한 변 1717 — 여전히 1218보다 크므로 **화질은 한 톨도
+   *    안 잃고** 여유만 4.6배 → 2배로 준다. 전체화면처럼 요구가 예산을 넘는 자리에서는
+   *    아래 MAX_SIDE의 max()가 needSide를 바닥으로 깔아 화질을 지킨다.
+   *    ※ 짝이 되는 값은 ReplayMotionPlayer의 MAP_FREED_MB다 — 여기서 던 몫을 거기서
+   *      판 예산으로 받는다. 한쪽만 고치면 총량이 어긋난다. */
+  /** 작은 기기인가 — ReplayMotionPlayer의 smallDevice9와 **같은 자**여야 한다(그쪽에서
+   *  MAP_FREED_MB로 이 몫을 받아 가므로, 판정이 갈리면 한쪽만 던 채 다른 쪽이 받는다). */
+  const smallDev9 = typeof window !== "undefined"
+    && ((!!window.matchMedia?.("(pointer: coarse)").matches
+      && Math.max(window.screen?.width ?? 0, window.screen?.height ?? 0) <= 1180)
+      || (((navigator as unknown as { deviceMemory?: number }).deviceMemory ?? 0) > 0
+        && ((navigator as unknown as { deviceMemory?: number }).deviceMemory ?? 0) <= 4));
   const areaCapRef = useRef(
-    typeof navigator !== "undefined"
-      /* 아이폰·아이패드 — 아이패드OS 사파리는 UA에 Mac이라 적으므로 손가락 여부를
-         함께 본다(맥에는 maxTouchPoints가 0이다). */
+    /* 아이폰·아이패드 — 아이패드OS 사파리는 UA에 Mac이라 적으므로 손가락 여부를
+       함께 본다(맥에는 maxTouchPoints가 0이다). */
+    smallDev9 || (typeof navigator !== "undefined"
       && (/iPad|iPhone|iPod/.test(navigator.userAgent)
-        || (/Macintosh/.test(navigator.userAgent) && (navigator.maxTouchPoints ?? 0) > 1))
-      ? 8_000_000 : 16_800_000,
+        || (/Macintosh/.test(navigator.userAgent) && (navigator.maxTouchPoints ?? 0) > 1)))
+      ? 4_000_000 : 16_800_000,
   );
   /** 이미 구워 둔 창 — 그 안에 머무는 동안은 다시 안 굽는다(아래 주석). */
   /** 이미 구워 둔 판 — 열쇠와 창, 그리고 **어느 캔버스에** 구웠나.
