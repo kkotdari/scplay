@@ -729,13 +729,25 @@ const SPIN_STEPS = 8;
 const SPIN_KINDS = new Set<string>([
   "trapezoid", "cyber", "forge", "storm", "nukecloud", "nukeblast",
 ]);
+/* ★ 칸의 **상한**은 회전 칸(8)과 따로 둔다 ─────────────────────────────────────────
+   도는 부품은 여덟 칸이면 족하다(45도씩). 그러나 스톰은 칸을 각으로 쓰지 않고 **무늬의
+   번호**로 쓴다 — 게다가 이제 한 벼락을 여러 단계로 나눠 자라게 하므로(씨앗×단계) 여덟
+   으로는 씨앗이 두셋밖에 안 남아 같은 벼락이 되풀이된다. 상한만 넉넉히 열어 두고, 도는
+   종류는 부르는 쪽이 여태처럼 % SPIN_STEPS로 여덟 칸만 쓴다 — 그쪽 열쇠와 판 수는
+   그대로다. */
+const SPIN_SLOTS = 32;
+/* 스톰이 돌려 쓰는 벼락 씨앗의 수 — 칸은 `씨앗 × 3 + 단계`라 넷이면 열두 칸이다
+   (SPIN_SLOTS 안에 든다). 씨앗 넷이면 한 바퀴가 1초 남짓이라 되풀이가 눈에 안 밟힌다. */
+const STORM_SEEDS = 4;
+/** 벼락 하나가 자라는 단계 수 — 스톰 빌더의 STAGES9와 짝이다(칸 = 씨앗 × 이것 + 단계). */
+const STORM_STAGES = 4;
 /** 굽기 열쇠에 박는 회전 칸 — 안 도는 종류는 "0"이라 옛 열쇠와 같다. */
 const spinTag = (kind: string): string => (SPIN_KINDS.has(kind) ? String(bldSpinNow) : "0");
 /** 지금 칸의 각(라디안) — 빌더가 제 부품을 이만큼 돌린다. */
-const spinRad = (): number => (bldSpinNow * Math.PI * 2) / SPIN_STEPS;
+const spinRad = (): number => ((bldSpinNow % SPIN_STEPS) * Math.PI * 2) / SPIN_STEPS;
 /** 굽는 도구(model-shot --spin)가 칸을 세우는 문 — 앱에서는 op.spin이 세운다. */
 export function bldSpinSet(n: number): void {
-  bldSpinNow = ((Math.round(n) % SPIN_STEPS) + SPIN_STEPS) % SPIN_STEPS;
+  bldSpinNow = ((Math.round(n) % SPIN_SLOTS) + SPIN_SLOTS) % SPIN_SLOTS;
 }
 /** 창 유리의 두 낯 — 꺼졌을 때는 거의 검고, 켜지면 네온이 든다. */
 const WIN_DARK = "#1d2228";
@@ -9038,8 +9050,22 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        모이고 수평 가지는 넓게 퍼져, 둘이 함께 있어야 '내리쳐 퍼진다'가 읽힌다. */
   storm: () => {
     const out: ShapeFace[] = [];
+    /* ★ 칸 하나에 **씨앗과 자람 단계**를 함께 싣는다(요청: "긴 줄기 그려진 후 잔가지로
+       퍼지는 애니메이션") ────────────────────────────────────────────────────────────
+       여태는 칸이 곧 다른 벼락이라, 칸이 넘어갈 때마다 아무 상관 없는 무늬로 갈아 끼웠다.
+       빨리 돌리면 그것이 곧 깜빡임이라 "끊기는 느낌"이 된다(지적). 이제 칸을
+       `씨앗 × 단계 + 단계`로 읽으면, 이웃한 세 칸이 **같은 벼락의 세 시점**이 된다:
+         0 — 줄기가 아직 내려오는 중(길이 62%)
+         1 — 줄기가 땅에 닿았다(길이 100%)
+         2 — 공중 잔가지와 발밑 가지가 뻗는다
+         3 — 그 잔가지가 한 번 더 갈린다
+       난수 수열은 단계와 무관하게 같아야 세 칸이 같은 벼락이다 — 그래서 씨앗은 단계를
+       뺀 몫에서만 뽑고, 단계는 **굽는 것을 줄일 뿐**(bolt의 from9) 뽑는 순서를 건드리지
+       않는다. */
+    const STAGES9 = 4;
+    const STAGE9 = bldSpinNow % STAGES9;
     /* 칸을 씨앗으로 한 결정적 난수 — 같은 칸이면 늘 같은 수열이다. */
-    let sd9 = 1 + bldSpinNow * 7919;
+    let sd9 = 1 + Math.floor(bldSpinNow / STAGES9) * 7919;
     const rnd = (): number => {
       sd9 = (sd9 * 1103515245 + 12345) & 0x7fffffff;
       return sd9 / 0x7fffffff;
@@ -9075,9 +9101,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     };
     /** 번개 한 줄기 — 넓고 옅은 후광 관 위에 좁고 밝은 심 관을 겹친다(반투명·요청). */
     const bolt = (pts: [number, number, number][], w9: number, key9: number,
-      thin9 = false): void => {
+      thin9 = false, from9 = 0, grow9 = 1): void => {
+      /* 아직 자라지 않은 마디는 굽지 않는다 — 부르는 쪽의 난수는 이미 다 돌았으므로
+         (위 STAGE9 주석) 다음 단계에서 같은 자리에 같은 모양으로 돋아난다. */
+      if (STAGE9 < from9) return;
       const n9 = pts.length - 1;
-      const path9 = alongOf(pts);
+      const along9 = alongOf(pts);
+      /* 자라는 중이면 폴리라인의 앞머리만 탄다 — 끝점이 t=grow9 자리라, 줄기가 하늘에서
+         내려오다 만 것으로 읽힌다(굵기 테이퍼도 그 자리 값이라 끝이 뭉툭하지 않다). */
+      const path9 = grow9 >= 1 ? along9 : (t9: number) => along9(t9 * grow9);
       const ph9 = w9 * 137.5;                       // 마디 리듬의 위상 — 줄기마다 다르다
       const tube = (k9: number, fill9: string, op9: number, glow: boolean): ShapeFace[] => {
         const fs = paintBase(spirePillar({
@@ -9155,7 +9187,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ]);
       }
       // 줄기 굵기는 제각각(요청) — 0.13~0.27.
-      bolt(pts, 0.13 + rnd() * 0.14, depthNow(gx9, gy9) * 1.6 + 4 + i9 * 0.01);
+      bolt(pts, 0.13 + rnd() * 0.14, depthNow(gx9, gy9) * 1.6 + 4 + i9 * 0.01,
+        false, 0, STAGE9 === 0 ? 0.62 : 1);
       /* ★ **공중 잔가지**(요청: "공중에도 잔가지가 퍼져야 해, 여기저기 여러 높이에서"
          · "잔가지는 꼭 수평은 아니고 수평에서 수직으로도 퍼지고 대각으로도 퍼지고")
          ────────────────────────────────────────────────────────────────────────
@@ -9185,6 +9218,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const twig9 = (
         bx9: number, by9: number, bz9: number,
         bang9: number, bzc9: number, blen9: number, bw9: number, bkey9: number,
+        bfrom9: number,
       ): [number, number, number][] => {
         const hc9 = Math.sqrt(Math.max(0, 1 - bzc9 * bzc9)); // 남은 몫이 수평
         const tp: [number, number, number][] = [[bx9, by9, bz9]];
@@ -9198,7 +9232,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
             Math.max(0.05, bz9 + bzc9 * blen9 * u9 + (rnd() - 0.5) * blen9 * 0.22),
           ]);
         }
-        bolt(tp, bw9, bkey9, true);
+        bolt(tp, bw9, bkey9, true, bfrom9);
         return tp;
       };
       const twigs9 = 2 + Math.floor(rnd() * 2);
@@ -9213,14 +9247,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const tl9 = R9 * (0.3 + rnd() * 0.8);
         const tw9 = 0.06 + rnd() * 0.07;
         const kb9 = depthNow(ox9, oy9) * 1.6 + 4 + i9 * 0.01 + 0.005;
-        const tp9 = twig9(ox9, oy9, oz9, ta9, zc9, tl9, tw9, kb9);
+        const tp9 = twig9(ox9, oy9, oz9, ta9, zc9, tl9, tw9, kb9, 2);
         if (tl9 <= R9 * 0.6) continue;
         // 긴 가지만 한 번 더 갈린다 — 갈리는 마디도, 벌어지는 쪽도 뽑는다.
         const [jx9, jy9, jz9] = tp9[2 + Math.floor(rnd() * 2)];
         let zc2 = rnd() * 2 - 1;
         if (zc2 > 0) zc2 *= 0.55;
         twig9(jx9, jy9, jz9, ta9 + (rnd() < 0.5 ? -1 : 1) * (0.6 + rnd() * 0.8),
-          zc2, tl9 * (0.35 + rnd() * 0.25), tw9 * 0.62, kb9 + 0.002);
+          zc2, tl9 * (0.35 + rnd() * 0.25), tw9 * 0.62, kb9 + 0.002, 3);
       }
       /* ★ **발밑 가지**(지적: "맨 아래 바닥에 크게 퍼지는 방사형 번개 제거 — 각각의
          줄기에서 뻗어나오는 게 자연스럽다") ──────────────────────────────────────
@@ -9244,7 +9278,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
             0.08 + rnd() * 0.18,
           ]);
         }
-        bolt(lp, 0.07 + rnd() * 0.08, depthNow(gx9, gy9) * 1.6 + 2 + i9 * 0.01 + g9 * 0.001);
+        bolt(lp, 0.07 + rnd() * 0.08, depthNow(gx9, gy9) * 1.6 + 2 + i9 * 0.01 + g9 * 0.001,
+          false, 2);
       }
     }
     /* (걷어냄·요청: "스톰 바닥의 푸른 원반은 제거") — 발치에 깔던 옅은 빛(R9짜리
@@ -32957,7 +32992,7 @@ export default function ReplayMotionPlayer({
                       벌어진 각을 낸다. 이 값이 없으면 번개 기둥만 화면에 수직으로 선다. */}
                   <FxModel
                     kind="storm"
-                    spin={Math.floor((t - sec) * 6) % SPIN_STEPS}
+                    spin={Math.floor((t - sec) * 15) % (STORM_SEEDS * STORM_STAGES)}
                     flat={!pitched}
                     pitchView={pitched}
                     viewYaw={viewYawOf(x, y)}
