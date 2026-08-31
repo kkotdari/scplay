@@ -11534,6 +11534,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       backK?: number;
       /** 판의 **겉면**이 잎의 뒤 말림을 따라가는 몫(1 잎 등에 밀착 ~ 0 완전히 펴진 판). */
       curlK?: number;
+      /** ★ 판의 **요잉**(도) — 뒤끝을 축 둘레로 이만큼 돌리고 앞끝을 그 반대로 돌린다.
+       *  양수는 뒤끝을 각이 커지는 쪽(오른아랫잎에서는 바깥)으로 민다. */
+      yawDeg?: number;
+      /** ★ 앞 테두리를 따라 두르는 창의 개수(0·없음이면 안 그린다). */
+      win?: number;
       decal?: boolean;
     }): ShapeFace[] => {
       const th9 = (o9.theta * Math.PI) / 180;
@@ -11608,11 +11613,25 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          glue를 켜면 말림을 100% 따라가므로 **잎 겉면에 딱 붙는다**(테두리 띠의 밑변). */
       const kAt9 = (s9: number, y9: number): number =>
         Math.max(-1, Math.min(1, y9 / Math.max(0.001, wOf(tAt(s9)))));
+      /* ★ **요잉**(요청: "아래 두 잎의 덮개들은 좀더 뒤가 벌어지고 앞은 본체에 딱 붙게
+         오므려진 형태로 요잉 조정") ────────────────────────────────────────────────
+         이 판은 몸통 축을 감는 원기둥 조각 위에 눕는다 — 그 위에서 자리를 정하는 것은
+         둘레 각 p 하나다. 그래서 '요잉'은 p를 **앞뒤(y)에 따라 기울이는 일**이 된다:
+         뒤끝에서 +yawR, 앞끝에서 −yawR만큼 돌리면 판이 제 한가운데를 축으로 돈다.
+         아랫잎 둘은 축 둘레 210·330도에 앉으므로 바깥은 각이 **줄어드는**(210) 쪽과
+         **늘어나는**(330) 쪽으로 갈린다 — 부호는 부르는 자리에서 준다.
+         한가운데(yMid9)에서 0이므로 깊이 키·데칼이 재는 자리는 안 흔들린다. */
+      const yawR9 = ((o9.yawDeg ?? 0) * Math.PI) / 180;
+      const yMid9 = (yFrontMid + yBackMid) / 2;
+      const yHalf9 = Math.max(0.001, (yFrontMid - yBackMid) / 2);
+      /** 그 자리의 둘레 각 — 호 위의 s와 요잉을 함께 먹인다. */
+      const pAt = (s9: number, y9: number): number =>
+        th9 - yawR9 * ((y9 - yMid9) / yHalf9) + uOf(tAt(s9)) * ARC9;
       const at = (
         s9: number, y9: number, lf: number, glue = false,
       ): [number, number, number] => {
         const t9 = tAt(s9);
-        const p9 = th9 + uOf(t9) * ARC9;
+        const p9 = pAt(s9, y9);
         const c9 = curl9(kAt9(s9, y9), t9);
         const cF9 = curl9(kAt9(s9, yFront(s9)), t9);          // 앞끝의 말림 = 바닥
         const r9 = rOf(t9) - (glue ? c9 : cF9 + (c9 - cF9) * (o9.curlK ?? 1)) + lf;
@@ -11651,7 +11670,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           at(s0, yFront(s0), liftAt(s0, yFront(s0))), at(s1, yFront(s1), liftAt(s1, yFront(s1))),
           at(s1, yBack(s1), liftAt(s1, yBack(s1))), at(s0, yBack(s0), liftAt(s0, yBack(s0))),
         ]);
-        const pM9 = th9 + uOf(tAt((s0 + s1) / 2)) * ARC9;
+        const pM9 = pAt((s0 + s1) / 2, yMid9);
         /* ★ 명암은 faceLight가 아니라 **직접 깐 그러데이션**이다(지적: "윗잎에 붙인
            덮개는 등이 아래로 한번 눌리지 않게") ────────────────────────────────────
            faceLight는 광원 눈금을 세 칸으로 끊는다: 0.3 위는 흰 덧칠, −0.1 아래는 검은
@@ -11682,7 +11701,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const eX9 = pB9[0] - pA9[0];
         const eY9 = pB9[1] - pA9[1];
         const eZ9 = pB9[2] - pA9[2];
-        const pm9 = th9 + uOf(tAt((s0 + s1) / 2)) * ARC9;
+        const pm9 = pAt((s0 + s1) / 2, (y0 + y1) / 2);
         const rX9 = Math.cos(pm9);
         const rZ9 = Math.sin(pm9);
         const nX9 = eY9 * rZ9;
@@ -11721,6 +11740,34 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         }
         out9.push([polyPath3(pts9), 0.92] as ShapeFace);
       }
+      /* ★ 창은 **덮개의 앞 테두리를 따라** 두른다(지적: "창문은 위치가 덮개의 가장자리를
+         따라 배치해야하고 색은 푸른색으로") ──────────────────────────────────────────
+         여태 창줄 셋은 이 함수 **밖에서** 손으로 적은 세계 좌표(0,−2.18,7.86 …)에 서
+         있었다 — 곧 덮개가 조금이라도 움직이면(요잉·길이·말림) 창만 제자리에 남아
+         판 밖으로 떠올랐고, 자리도 테두리가 아니라 판 앞쪽 어림이었다.
+         이제 판의 매개변수(s, y)로 낸다: 앞 테두리 yFront(s)에서 안으로 한 뼘 물린
+         자리에 s를 고르게 나눠 박는다. yFront는 옆으로 갈수록 물러나는 곡선이라
+         창줄이 저절로 그 곡선을 따라 휜다 — 그것이 '가장자리를 따라'다.
+         면은 판 겉면과 같은 자(at)로 내므로 판의 곡률·요잉·두께를 그대로 탄다.
+         색은 푸른색(#79c6ff, 요청) — 여태 청록(#8fe6ff)이라 금색 위에서 흰빛으로 떴다.
+         한 단 밝게 잡는 것은 임자 색과 겹치지 않기 위해서다: 임자가 파랑이면 덮개
+         한가운데의 타원 데칼과 같은 색이 되어 창줄이 그 안에 녹아 버린다. */
+      if (o9.win) {
+        const WN9 = o9.win;
+        const WS9 = 1.7 / WN9;                     // 창 한 칸의 s 폭
+        const WY9 = 0.15;                          // 창의 앞뒤 반길이
+        for (let i9 = 0; i9 < WN9; i9 += 1) {
+          const sc9 = -0.85 + WS9 * (i9 + 0.5);
+          const s0 = sc9 - WS9 * 0.28;
+          const s1 = sc9 + WS9 * 0.28;
+          const yc9 = yFront(sc9) - WY9 - 0.1;
+          const q9 = (sq: number, yq: number): [number, number, number] =>
+            at(sq, yq, liftAt(sq, yq) + 0.02);
+          out9.push([polyPath3([
+            q9(s0, yc9 + WY9), q9(s1, yc9 + WY9), q9(s1, yc9 - WY9), q9(s0, yc9 - WY9),
+          ]), 0.95, "#79c6ff"] as ShapeFace);
+        }
+      }
       /* 키는 잎보다 **아주 조금만** 앞이다 — 덮개는 잎 등 위에 얹힌 것이니 제 잎보다는
          늘 앞이어야 하지만, 그 몫이 크면 **이웃 잎을 넘는다**.
          ★ 앞판의 +0.12+lift(최대 0.48)는 실제로 넘었다(지적: "새로 추가한 부품들 키값이
@@ -11742,10 +11789,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          앞에서 보면 yC9가 뒤라 잎 뒤로 물러나고, 위에서 내려다보면 반지름이 커 잎 위로
          올라온다 — 두 보기가 저절로 갈린다.
          눈금(0.02 + lift×0.05)은 그대로다: 겹끼리의 차례를 lift가 정하는 몫이다. */
-      return tagKey(out9,
+      return tagKey(out9, Math.max(
         depthNow(Math.cos(th9) * rC9, yC9)
-        + (LEAF_ZC + Math.sin(th9) * rC9) * heightDepthK() + 1.2
-        + 0.02 + o9.lift * 0.05);
+        + (LEAF_ZC + Math.sin(th9) * rC9) * heightDepthK() + 1.2,
+        leafKey(o9.theta),
+      ) + 0.02 + o9.lift * 0.05);
     };
     const leaf = (thetaDeg: number, len: number, arcDeg: number): ShapeFace[] => {
       const th9 = (thetaDeg * Math.PI) / 180;
@@ -11889,21 +11937,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          뒤 테두리는 잎 뒤끝을 반쯤만 따라가는 완만한 곡선이다(backK, 지적). */
       ...coverPlate({
         theta: 90, len: 4.7, arcDeg: 54, arc: 0.62, lenK: 0.25,
-        lift: 0.2, round: 0.45, backK: 0.42, curlK: 0.35, decal: true,
+        lift: 0.2, round: 0.45, backK: 0.42, curlK: 0.35, decal: true, win: 5,
       }),
-      /* ★ 윗잎 덮개 앞·옆의 **정사각 창 여럿**(지적: 배틀과 같은 사정 — 그쪽 ★ 주석) ──
-         이 함선도 설정상 거대하다. 창을 작게 여럿 두르면 덮개가 '판 한 장'이 아니라 사람이
-         드나드는 **층**으로 읽힌다. 배틀은 가로로 긴 창, 이쪽은 정사각이다(지적) — 칸 폭의
-         0.5를 채우고 높이를 그 폭과 같게 잡으면 정확히 정사각이 난다.
-         자리는 덮개의 앞 테두리(y −2.2)와 그 양옆이다. 덮개는 휜 판이라 벽 하나를 딱
-         못 잡으므로, 창줄 셋을 앞·좌·우로 나눠 각자 제 법선을 준다 — winRow가 그 법선으로
-         보임을 판정하므로 뒤로 돌아간 줄은 저절로 안 그려진다.
-         키는 윗잎의 것(leafKey 90)에 얹는다 — 덮개 바로 위라 그 잎보다 앞에 서야 한다. */
-      ...tagKey([
-        ...winRow(0, -2.18, 7.86, 0, 1, 1.15, 4, 0.072, "#8fe6ff", 0.5),
-        ...winRow(0.72, -2.62, 7.74, 0.82, 0.57, 0.9, 3, 0.072, "#8fe6ff", 0.5),
-        ...winRow(-0.72, -2.62, 7.74, -0.82, 0.57, 0.9, 3, 0.072, "#8fe6ff", 0.5),
-      ], leafKey(90) + 0.9),
+      /* (옮김) 윗잎 덮개의 창 — 여태 여기서 winRow 셋을 손으로 적은 세계 좌표에
+         세웠다. 이제 coverPlate가 제 앞 테두리를 따라 낸다(그쪽 ★ 주석) — 판이
+         움직이면 창도 따라 움직인다. */
       /* ★ 아랫잎 둘의 뒤에는 **2중 덮개**(요청: "사진처럼 양쪽 아래 잎의 뒷부분에 각각
          2중 덮개 구조물 추가") — 참고 사진의 함선도 옆판 뒤쪽이 한 겹이 아니라 판이
          포개진 층으로 끝난다. 개인색은 윗잎 덮개 하나로 족하므로(옆 두 잎은 순금색이라는
@@ -11921,10 +11959,16 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          거기서는 잎에 정확히 얹힌다). 실측으로 뒤 테두리가 아래 겹은 0.41, 위 겹은
          0.20만큼 잎에서 떠 오르고 그 틈은 테두리 띠가 메운다 — 그 띠가 곧 들린 자리다.
          밑변만 말림을 100% 따르므로 앞은 여전히 잎에 붙어 있다. */
-      ...coverPlate({ theta: 210, len: 5.6, arcDeg: 48, arc: 0.62, lenK: 0.22, lift: 0.16, round: 0.5, backK: 0.55, curlK: 0.3 }),
-      ...coverPlate({ theta: 210, len: 5.6, arcDeg: 48, arc: 0.5, lenK: 0.2, shift: 0.13, lift: 0.36, round: 0.5, backK: 0.35, curlK: 0.3 }),
-      ...coverPlate({ theta: 330, len: 5.6, arcDeg: 48, arc: 0.62, lenK: 0.22, lift: 0.16, round: 0.5, backK: 0.55, curlK: 0.3 }),
-      ...coverPlate({ theta: 330, len: 5.6, arcDeg: 48, arc: 0.5, lenK: 0.2, shift: 0.13, lift: 0.36, round: 0.5, backK: 0.35, curlK: 0.3 }),
+      /* ★ 아랫잎 둘의 덮개는 **요잉을 준다**(요청: "아래 두 잎의 덮개들은 좀더 뒤가
+         벌어지고 앞은 본체에 딱 붙게 오므려진 형태로 요잉 조정") — 잎이 아니라 그 위에
+         얹힌 덮개의 이야기다(재확인 지적).
+         부호: 왼아랫잎은 210도에 앉으므로 바깥(180도 쪽)이 **각이 줄어드는** 쪽이라 음수,
+         오른아랫잎은 330도라 바깥(360도 쪽)이 늘어나는 쪽이라 양수다. 그러면 뒤끝은
+         옆구리 바깥으로 벌어지고 앞끝은 배 밑(270도) 쪽으로 오므라들어 본체에 붙는다. */
+      ...coverPlate({ theta: 210, len: 5.6, arcDeg: 48, arc: 0.62, lenK: 0.22, lift: 0.16, round: 0.5, backK: 0.55, curlK: 0.3, yawDeg: -12 }),
+      ...coverPlate({ theta: 210, len: 5.6, arcDeg: 48, arc: 0.5, lenK: 0.2, shift: 0.13, lift: 0.36, round: 0.5, backK: 0.35, curlK: 0.3, yawDeg: -12 }),
+      ...coverPlate({ theta: 330, len: 5.6, arcDeg: 48, arc: 0.62, lenK: 0.22, lift: 0.16, round: 0.5, backK: 0.55, curlK: 0.3, yawDeg: 12 }),
+      ...coverPlate({ theta: 330, len: 5.6, arcDeg: 48, arc: 0.5, lenK: 0.2, shift: 0.13, lift: 0.36, round: 0.5, backK: 0.35, curlK: 0.3, yawDeg: 12 }),
       /* (걷어냄·지적: "캐리어 윗잎 개인색 데칼은 제거하고 윗잎 덮개의 데칼 크기 확대")
          — 윗잎 등에 눕힌 작은 타원이다. 임자 색을 말하는 자리가 잎과 덮개 둘이었는데,
          두 곳에 나뉘어 있으면 어느 쪽도 제 몫을 못 한다: 잎의 것은 잎맥 곡면 위라 요잉이
