@@ -6987,11 +6987,16 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* ── 다리 넷 ── 수평 팔 + 사선 아랫마디 + 넓은 접시 발판. */
     const kneeLeg = (px: number, py: number): void => {
       const k9 = depthNow(px, py) > 0 ? -40 : -40.2;
-      const ax = px * 0.36;
-      const ay = py * 0.30;
+      /* 두 마디의 길이를 맞춘다(지적: "다리 둘째 마디가 너무 길잖아") — 앞판은 팔 4.09에
+         아랫마디 4.86이라 아랫마디가 더 길었다. 무릎의 x를 발판 쪽으로 끌어오면(0.36 →
+         0.72배) 아랫마디가 가로로 갈 길이 절반으로 줄어 3.34가 되고, 팔도 조금 줄여
+         (0.30~1.42 → 0.55~1.30배) 2.74로 잡으면 둘이 엇비슷해진다. 팔이 몸 밖으로
+         드러나는 몫은 1.7타일이라 여전히 두 마디로 갈려 읽힌다. */
+      const ax = px * 0.72;
+      const ay = py * 0.55;
       const AZ = BODY_Z + 0.85;               // 본체 옆면 중턱 — 팔이 몸 밖으로 드러난다
       const kx = ax;
-      const ky = py * 1.42;                   // 무릎은 발판보다 앞뒤로 더 나간다
+      const ky = py * 1.30;                   // 무릎은 발판보다 앞뒤로 조금 더 나간다
       const seg = (x0: number, y0: number, z0: number,
         x1: number, y1: number, z1: number, w0: number, w1: number): ShapeFace[] =>
         paintBase(spirePillar({
@@ -7022,20 +7027,51 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     out.push(...tagKey(paintBase(
       boxFaces3(0, 0, MAIN_W - 1.0, MAIN_D - 0.8, PLINTH_H, BODY_Z - PLINTH_H), MID), -1));
 
-    /* ── 본체 상자 ── 옆선이 수직인 각진 덩이. 오른쪽 면만 바랜 장갑판이다. */
-    out.push(...tagKey(paintBase(boxFaces3(0, 0, MAIN_W, MAIN_D, MAIN_H, BODY_Z), SILVER), 0));
-    if (facingRatio(1, 0) > 0.12) {
-      const wall = polyPath3([
-        [MAIN_W / 2 + 0.03, -MAIN_D / 2, BODY_Z], [MAIN_W / 2 + 0.03, MAIN_D / 2, BODY_Z],
-        [MAIN_W / 2 + 0.03, MAIN_D / 2, MTOP], [MAIN_W / 2 + 0.03, -MAIN_D / 2, MTOP]]);
-      out.push(...tagKey([[wall, 1, WARM] as ShapeFace, sideFace(wall, 0.16)], 0.4));
-    }
+    /* ── 본체 ── **앞뒤가 비대칭인 다각 껍질**이다(요청: 사진의 그 외형) ─────────────
+       사진의 몸은 앞이 넓고 뒤가 좁으며, 오른앞 모서리가 비스듬히 깎여 있다. 네모 상자
+       (boxFaces3)로는 그 셋을 못 낸다 — 발자국을 다각형으로 적고 그 위로 곧게 세운다.
+       변마다 제 바깥 법선으로 보임을 판정하므로(faceLight) 등진 면은 안 그려지고, 오른쪽
+       두 변만 바랜 갈회색 장갑판이 된다(사진의 그 낯). */
+    const FOOT9: [number, number][] = [
+      [-4.9, 3.05],     // 앞왼
+      [3.2, 3.05],      // 앞오른 — 여기서 빗면이 시작한다
+      [4.9, 1.55],      // 오른앞 빗면 끝
+      [4.9, -2.1],      // 오른뒤
+      [3.5, -3.05],     // 뒤오른 모따기
+      [-3.5, -3.05],    // 뒤왼 모따기
+      [-4.9, -2.1],     // 왼뒤
+    ];
+    /** 다각 발자국을 z0~z1로 곧게 세운 껍질. grow는 바깥으로 부풀리는 몫(띠·처마용). */
+    const prism9 = (z0: number, z1: number, fill: string, grow: number,
+      fillOf?: (i: number) => string | undefined): ShapeFace[] => {
+      const P = FOOT9.map(([x, y]) => {
+        const r = Math.hypot(x, y) || 1;
+        return [x + (x / r) * grow, y + (y / r) * grow] as [number, number];
+      });
+      const f: ShapeFace[] = [];
+      for (let i9 = 0; i9 < P.length; i9 += 1) {
+        const [x0, y0] = P[i9];
+        const [x1, y1] = P[(i9 + 1) % P.length];
+        const L = Math.hypot(x1 - x0, y1 - y0) || 1;
+        // 발자국을 반시계로 적었으므로 바깥 법선은 변을 +90도 돌린 것이다.
+        const nx = -(y1 - y0) / L;
+        const ny = (x1 - x0) / L;
+        const fl = faceLight(nx, ny, 0);
+        if (!fl.visible) continue;
+        const d = polyPath3([[x0, y0, z0], [x1, y1, z0], [x1, y1, z1], [x0, y0, z1]]);
+        f.push([d, 1, fillOf?.(i9) ?? fill] as ShapeFace, ...fl.face(d));
+      }
+      const top = polyPath3(P.map(([x, y]) => [x, y, z1] as [number, number, number]));
+      f.push([top, 1, fill] as ShapeFace, topFace(top, 0.12));
+      return f;
+    };
+    // 오른쪽 두 변(빗면·오른면)만 바랜 장갑판.
+    out.push(...tagKey(prism9(BODY_Z, MTOP, SILVER, 0,
+      (i9) => (i9 === 1 || i9 === 2 ? WARM : undefined)), 0));
     // 허리 띠 — 본체를 한 바퀴 두르는 어두운 장갑.
-    out.push(...tagKey(paintBase(
-      boxFaces3(0, 0, MAIN_W + 0.14, MAIN_D + 0.14, 0.34, BODY_Z + 0.72), DARK), 1));
+    out.push(...tagKey(prism9(BODY_Z + 0.72, BODY_Z + 1.06, DARK, 0.08), 1));
     // 본체 윗면 가장자리 처마.
-    out.push(...tagKey(paintBase(
-      boxFaces3(0, 0, MAIN_W + 0.2, MAIN_D + 0.2, 0.16, MTOP - 0.16), PLATE), 2));
+    out.push(...tagKey(prism9(MTOP - 0.16, MTOP, PLATE, 0.12), 2));
 
     /* ── 관제 블록 ── 뒤·왼쪽으로 물러난 상자 + 앞면의 창 넷 + 넓은 지붕판. */
     out.push(...tagKey(paintBase(boxFaces3(UX, UY, UPP_W, UPP_D, UPP_H, MTOP), PLATE),
@@ -7103,9 +7139,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       }
       out.push(...tagKey(g9, 3 + depthNow(cx, cy) * 1.6));
     };
-    vent(-MAIN_W / 2, -0.4, -1, 0, 3, 3.0, 0);
-    vent(MAIN_W / 2, 0.6, 1, 0, 3, 3.0, 0);
-    vent(-2.6, MAIN_D / 2, 0, 1, 3, 2.4, 0);
+    vent(-4.9, -0.4, -1, 0, 3, 3.0, 0);
+    vent(4.9, -0.3, 1, 0, 3, 2.6, 0);
+    vent(-2.4, 3.05, 0, 1, 3, 2.4, 0);
 
     // 지붕 안테나 — 왼뒤 귀퉁이.
     out.push(...tagKey(hornFaces(UX - 2.4, UY - 1.4, UTOP, UX - 2.4, UY - 1.4, UTOP + 1.7, 0.24),
@@ -18960,7 +18996,7 @@ export const BLD_NORM: Record<string, number> = {
   diamond: 1.905,  // 상자 상한에 걸림
   dmound: 1.111,
   dome: 1.418,
-  ebay: 1.452,   // 사진 기준 재작도(각진 상자 쌓기) 후 bld-norm 재측정
+  ebay: 1.449,   // 앞뒤 비대칭 다각 껍질로 바꾼 뒤 bld-norm 재측정
   evo: 1.540,
   extract: 1.035,
   factory: 1.117,
