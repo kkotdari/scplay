@@ -380,8 +380,32 @@ export default function ReplayMapVector({
            ※ 상자(boxRef)는 안 키운다 — 상자 크기는 ResizeObserver가 재서 배율 셈에
              되먹이므로, 키우는 순간 셈이 제 꼬리를 문다. 캔버스만 키운다. */
         const cssW9 = (((ax1 - ax0) / w)) * bw;
+        const cssH9 = (((ay1 - ay0) / h)) * bh;
+        /* ★ 눕히는 배수는 **면적으로도** 죈다(지적: "저배율에서 3D 전환 시 죽음") ──────
+           위 3200은 레이아웃 **폭**만 보는 자다. 그런데 이 눕히기가 실제로 무는 것은
+           폭이 아니라 **합성 서피스 한 장**이고, 그 넓이는 (레이아웃 폭 × 레이아웃 높이 ×
+           dpr²)이다 — 이 처방이 서는 전제 자체가 '합성기가 축소를 못 접고 레이아웃
+           크기로 래스터한다'이므로, 눕힌 만큼이 고스란히 서피스가 된다. 폭만 보면 dpr도
+           높이도 안 세는 셈이라, 세로로 긴 폰의 dpr 3에서 가장 크게 빗나간다.
+           ── 왜 하필 저배율인가
+           입체에서 배율이 1이면 창이 **지도 전체**다(위 pitched 창 잡기). 그러면 cssW9가
+           상자 폭 그대로라 R9가 3~4까지 붙고, 그 배수가 제곱으로 서피스에 실린다. 셈해
+           보면(폰 390px·dpr 3) 저배율 3D는 서피스가 3510² = 47MB이고, 이 함수를 지나는
+           층이 밑판·선명한 판 둘이라 **94MB**다. 같은 폰에서 확대한 3D는 10MB다 — 아홉
+           배 차이가 곧 "저배율에서만 죽는다"의 정체다.
+           ── 잃는 것이 왜 적은가
+           저배율은 지도 전체를 상자 하나에 욱여넣는 자리다(128타일을 390px에 = 타일당
+           3px). 거기서 래스터를 더 촘촘히 눕혀 봐야 타일 한 칸이 3픽셀인 것은 그대로다 —
+           R9가 값을 하는 자리는 확대해서 타일이 굵어졌을 때고, 그때는 창이 작아 cssW9도
+           작으므로 이 문에 안 걸린다(실측: 창 1/4에서는 종전대로 4다).
+           예산은 이 파일이 이미 들고 있는 기기별 면적(areaCapRef — 아이폰 8Mpx · 그 밖
+           16.8Mpx)을 쓰되, 이 함수를 지나는 층이 둘이므로 반씩 나눈다. */
+        const surfCap9 = Math.max(1, Math.floor(Math.sqrt(
+          areaCapRef.current / 2
+          / Math.max(1, cssW9 * cssH9 * dpr * dpr),
+        )));
         const R9 = Math.max(1, Math.min(4, Math.round(cv.width / Math.max(1, cssW9)),
-          Math.floor(3200 / Math.max(1, cssW9))));
+          Math.floor(3200 / Math.max(1, cssW9)), surfCap9));
         cv.style.transformOrigin = "0 0";
         cv.style.transform = R9 > 1 ? `scale(${(1 / R9).toFixed(4)})` : "";
         cv.style.left = `${((ax0 / w) * 100).toFixed(4)}%`;
