@@ -7311,9 +7311,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        꺼져도 초록이라 '켜졌다'가 안 읽혔다). 창 공용 winLit을 쓰면 꺼진 동안은 다른
        테란 건물의 창과 같은 검정(WIN_DARK)이고 활성일 때만 라임이 든다 — 건물 전체가
        한 박자로 깜빡이므로 이 판이 본체의 일부로 읽힌다.
-       자리는 네모 판의 네 벽이다(다각형이던 시절의 손으로 적은 좌표를 걷는다) — 벽의
-       한가운데에서 폭을 나눠 걸므로 판 치수를 바꿔도 창이 따라온다. */
-    const winRow9 = (nx9: number, ny9: number, n9: number, span9: number): void => {
+       자리는 **앞면의 왼쪽 일부와 오른 옆면 둘뿐**이다(요청: "창문은 앞쪽 왼쪽 일부와
+       우측 옆면에만") — 네 벽을 다 두르면 판이 창으로만 이루어진 띠가 되어, 창이
+       '몇 군데 켜진 방'이 아니라 무늬가 된다. 뒤와 왼 옆면은 민 판으로 남긴다.
+       벽 위의 자리는 그 벽 한가운데에서 재고(off9로 옆으로 민다) 폭을 나눠 거므로,
+       판 치수를 바꿔도 창이 따라온다. */
+    const winRow9 = (
+      nx9: number, ny9: number, n9: number, span9: number, off9 = 0,
+    ): void => {
       if (facingRatio(nx9, ny9) <= 0.12) return;
       const ux9 = ny9;
       const uy9 = -nx9;
@@ -7323,7 +7328,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const z1v = BODY_Z + MAIN_H - 0.16;
       const g9: ShapeFace[] = [];
       for (let k9 = 0; k9 < n9; k9 += 1) {
-        const u9 = (k9 - (n9 - 1) / 2) * (span9 / n9);
+        const u9 = off9 + (k9 - (n9 - 1) / 2) * (span9 / n9);
         const hw9 = span9 / n9 / 3.0;
         const px9 = bx9 + ux9 * u9;
         const py9 = by9 + uy9 * u9;
@@ -7336,10 +7341,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       }
       out.push(...tagKey(g9, 3 + depthNow(bx9, by9) * 1.6));
     };
-    winRow9(0, 1, 7, 6.6);
-    winRow9(0, -1, 7, 6.6);
+    // 앞면 — 왼쪽 일부만(u는 앞면에서 +x 쪽이라 왼쪽은 음수다).
+    winRow9(0, 1, 3, 2.7, -2.4);
+    // 오른 옆면 — 한 줄 그대로.
     winRow9(1, 0, 4, 3.8);
-    winRow9(-1, 0, 4, 3.8);
 
     // 지붕 안테나 — 왼뒤 귀퉁이.
     out.push(...tagKey(hornFaces(UX - 2.4, UY - 1.4, UTOP, UX - 2.4, UY - 1.4, UTOP + 1.7, 0.24),
