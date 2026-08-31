@@ -11913,8 +11913,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          ★ 옆두께도 줄인다(요청: "아비터 양 날개 옆두께 줄이기") — 좌우 반폭은
            thick × spread이므로 spread를 1 → 0.5로 내려 0.48 → 0.24로 반 만든다.
            위아래는 그대로라 날개가 **얇은 지느러미**가 된다. */
+      /* ★ 앞 단면을 **닫는다**(지적: "아비터 윗날개 앞부분 단면이 투명하게 뚫려 있고")
+         — rootW 0.34는 뿌리가 뭉툭하다는 뜻이고, 그 뭉툭한 끝은 열린 단면이다. 뿌리가
+         몸 속에 묻혀 있으면 안 보이지만 이 날개의 앞끝은 y 1.22라 몸 돔(y −0.25~0.65)
+         **밖**에 있어 그 구멍이 그대로 드러났다. 뿌리를 거의 점으로 좁히면(0.34 → 0.06)
+         단면이 사라지고 잎의 코가 뾰족하게 닫힌다. */
       waist: 0.26, thick: 0.48, spread: 0.5,
-      rootW: 0.34, rootPow: 0.55, tipPow: 1.25,
+      rootW: 0.06, rootPow: 0.55, tipPow: 1.25,
       sides: 10, segs: 7, fill: "#d4af37", ref: [0, 0, 1],
       // 속면 비침 막기(지적) — 등진 면을 걷고 진짜 법선으로 칠한다.
       trueNormal: true,
@@ -11962,7 +11967,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       rootW: 0.34, rootPow: 0.55, tipPow: 1.25,
       sides: 8, segs: 6, fill: "#c8a434", ref: [0, 0, 1],
       trueNormal: true,
-      key: depthNow(m2 * (ARB_LOW_X + 0.34), -0.3) + 1.1,
+      /* ★ 아래날개는 **늘 윗날개 뒤**다(지적: "아비터 아래날개가 윗날개에 안 가려지는
+         키값 오류") — 여태 제 자리 깊이(y −0.3)에 +1.1을 얹었는데, 윗날개는 제 자리
+         깊이(y +0.3)에 +1.35라 두 상수의 차(0.25)가 두 자리의 깊이 차보다 작았다.
+         그래서 요잉이 돌아 아래날개 쪽이 앞으로 오는 각에서는 아래가 위를 덮었다.
+         같은 쪽 윗날개와 **같은 점**의 깊이를 쓰고 거기서 한 단만 내리면, 어느 각에서도
+         둘의 앞뒤가 안 뒤집힌다. */
+      key: depthNow(m2 * ARB_WING_X, 0.3) + 1.35 - 0.9,
     });
     return [
       ...lowWing(-1),
@@ -11982,11 +11993,24 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* (걷어냄) 몸과 날개를 잇던 ㅇ 관절 관 한 쌍 — 날개가 몸에 직접 물리면서(요청)
          쓸 데가 없어졌다. */
       ...paintBase(domeFaces3(0, 0.2, 0.45, 0.4, 5.72), "#d4af37"),
+      /* ★ 몸통 위 **작은 방패**(요청: "몸통 위에 평평하고 앞뒤로 긴 작은 방패 하나
+         얹어야 함") — 납작하고 앞뒤로 긴 판 하나다. 폭보다 길이가 세 배라 위에서
+         내려다보는 화면에서 '앞이 어디인가'를 말해 주고, 두께가 얇아 실루엣은 안 바꾼다.
+         키는 몸 돔 바로 위(+0.35)라 날개보다는 낮다 — 앞에 선 날개가 이것도 가린다. */
+      ...tagKey(paintBase(spirePillar({
+        x: 0, y: 0.3, h: 1, w: 1, segs: 3, sides: 8, ref: [0, 1, 0], caps: "both",
+        path: (t9: number): [number, number, number] => [0, 0.86 - 1.12 * t9, 6.14],
+        widthOf: (t9: number): number => 0.19 * (0.55 + 0.45 * Math.sin(Math.PI * t9)),
+      }), "#c8a434"), depthNow(0, 0.3) + 0.35),
       /* 앞면 네온 원렌즈 셋(요청) — 코앞에 가로로 늘어선 작은 사이언 렌즈. 접평면에
          서므로 옆으로 돌면 납작해지고 뒤에선 사라진다. */
       ...([-1, 0, 1] as const).flatMap((k8) => lensFaces({
         x: k8 * 0.26, y: 0.62, z: 5.88 + (k8 === 0 ? 0.08 : 0),
-        nx: k8 * 0.42, ny: 1, r: 0.15, bulge: 0.14, lift: 3.2,
+        /* ★ 키를 낮춘다(지적: "본체의 세 렌즈가 날개에 안 가려짐") — lensFaces의 lift는
+           깊이에 그대로 더하는 상수라, 3.2는 이 모델의 깊이 폭(±0.6 남짓)과 날개 키
+           (+1.35)를 통째로 덮어써 어느 각에서도 렌즈가 맨 위였다. 몸 위에 얹히는 몫만
+           남기면(1.0) 앞에 선 날개가 제대로 가린다. */
+        nx: k8 * 0.42, ny: 1, r: 0.15, bulge: 0.14, lift: 1.0,
         rim: "#1e9d8c", fill: "#72ffec", core: "#cafff8", glint: "#ffffff",
       })),
     ];
@@ -17532,7 +17556,7 @@ const NORM_TARGET_INK = 5.2;
  *   · tankgun·tanksiegegun — **일부러** 목표를 안 맞춘 것. 짝이라 차체 배수를 쓰므로
  *     제 잉크 상자는 5.2가 아니다(포신은 완결 유닛이 아니라 부품이다).
  *  이 표도 --emit이 낸 값이다. */
-const MODEL_INK: Record<string, number> = { arbiter: 4.270, ghost: 4.685, inf: 4.874, larva: 4.787, mine: 4.381, mutacocoon: 5.020, scarab: 4.950, scourge: 5.070, tankgun: 3.772, tanksiegegun: 2.528 };
+const MODEL_INK: Record<string, number> = { arbiter: 4.213, ghost: 4.685, inf: 4.874, larva: 4.787, mine: 4.381, mutacocoon: 5.020, scarab: 4.950, scourge: 5.070, tankgun: 3.772, tanksiegegun: 2.528 };
 /** 그리는 kind가 정규화 뒤 실제로 차지하는 잉크 상자(모델 단위). */
 const modelInkOf = (kind: string): number => MODEL_INK[kind] ?? NORM_TARGET_INK;
 
