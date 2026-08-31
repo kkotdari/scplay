@@ -7060,7 +7060,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          ⑤ 형광 초록 세로 막대가 좌우 면의 아래쪽에 줄지어 난다.
          ⑥ 다리는 몸에서 앞뒤로 뻗은 수평 팔 + 사선 아랫마디이고, 발판은 **넓고 납작한
             접시**다(사진의 원반). */
-    const BODY_Z = 2.35;
+    /* ★ 다리 두 마디를 20% 줄이면 몸도 그만큼 내려앉는다(요청: "다리 두 마디 모두 길이
+       20프로 축소") — 아랫마디의 세로 낙차가 곧 몸이 떠 있는 높이이므로, 길이만 줄이고
+       몸을 그대로 두면 발이 땅에서 0.43만큼 뜬다. 2.35 → 1.92가 그 몫이다(아래 LEG_K). */
+    const BODY_Z = 1.92;
     const PLINTH_H = 0.85;
     /* ★ 아랫 판을 **얇고 작게**(요청: "엔베 아랫쪽 판이 너무 두껍고 커 좀 줄이고") —
        윗도리 둘을 판 윗면에 딱 맞춰 놓고 보니, 이번엔 그 판이 건물의 거의 전부였다:
@@ -7097,6 +7100,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const pc: ShapeFace[] = [];
     const out: ShapeFace[] = [];
 
+    /* ★ 두 마디 20% 축소(요청) ─────────────────────────────────────────────────────
+       줄이는 것은 **뻗는 몫**이지 붙는 자리가 아니다: 팔 뿌리(몸 옆구리)와 무릎은 몸에
+       매인 자리라 그대로 두고, 무릎에서 발판까지·뿌리에서 무릎까지의 거리만 0.8배로
+       당긴다. 그래서 발판이 안으로 들어오고(5.6·5.0 → 5.26·4.36) 세로 낙차가 2.15 →
+       1.72로 줄며, 그 줄어든 낙차만큼 몸이 내려앉는다(위 BODY_Z).
+       옛 판은 무릎·뿌리를 발판 자리의 배수(0.70·0.36)로 냈는데, 그러면 발판을 옮기는
+       순간 붙는 자리까지 함께 움직여 다리가 몸에서 떨어진다. 붙는 자리를 못 박고
+       발판을 그 자리에서 재는 쪽으로 뒤집는다. */
+    const LEG_K = 0.8;
+    const KNEE_X = 5.6 * 0.70;                    // 무릎의 좌우 — 몸 안쪽, 안 움직인다
+    const ROOT_Y = 5.0 * 0.36;                    // 팔 뿌리의 앞뒤 — 몸 옆구리, 안 움직인다
+    const FOOT_X = KNEE_X + (5.6 - KNEE_X) * LEG_K;
+    const FOOT_Y = ROOT_Y + (5.0 - ROOT_Y) * LEG_K;
     /* ── 다리 넷 ── 수평 팔 + 사선 아랫마디 + 넓은 접시 발판. */
     const kneeLeg = (px: number, py: number): void => {
       const k9 = depthNow(px, py) > 0 ? -40 : -40.2;
@@ -7112,9 +7128,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          y가 안 변하므로 옆에서(x축을 따라) 보면 팔은 수평이고 아랫마디는 수직이라 이음매가
          직각이고, 앞에서 보면 아랫마디가 바깥으로 벌어진 다리다. 안쪽으로는 어느 축에서도
          안 기운다. */
-      const kx = px * 0.70;                   // 무릎 — 몸 안쪽(팔이 몸에 붙어 나온다)
+      const kx = Math.sign(px) * KNEE_X;      // 무릎 — 몸 안쪽(팔이 몸에 붙어 나온다)
       const ax = kx;
-      const ay = py * 0.36;
+      const ay = Math.sign(py) * ROOT_Y;
       /* 팔의 높이를 낮춘다(지적: "다리 두 번째 마디 너무 길어 아직도") — 아랫마디의
          길이는 곧 '팔 높이 − 발판 높이'와 벌어지는 몫의 빗변이다. 0.85에서는 낙차가
          2.7이라 아랫마디가 3.37로 팔(3.2)보다 길었다. 0.30으로 내리면 낙차가 2.15,
@@ -7154,8 +7170,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ], k9 - 0.1));
       pc.push(...tagKey(domeFaces3(px, py, 0.4, 0.26, 0.34), k9 - 0.05));
     };
-    for (const [lx, ly] of [[-5.6, -5.0], [5.6, -5.0], [-5.6, 5.0], [5.6, 5.0]] as
-      [number, number][]) kneeLeg(lx, ly);
+    for (const [lx, ly] of [
+      [-FOOT_X, -FOOT_Y], [FOOT_X, -FOOT_Y], [-FOOT_X, FOOT_Y], [FOOT_X, FOOT_Y],
+    ] as [number, number][]) kneeLeg(lx, ly);
 
     /* ── 받침 판 ── 본체보다 한 뼘 안쪽이라 처마가 진다. */
     out.push(...tagKey(paintBase(
@@ -7248,17 +7265,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // 오른쪽 두 변(빗면·오른면)만 바랜 장갑판.
     out.push(...tagKey(prism9(BODY_Z, MTOP, SILVER, 0,
       (i9) => (i9 === 1 || i9 === 2 ? WARM : undefined)), 0));
-    // 허리 띠 — 본체를 한 바퀴 두르는 어두운 장갑.
-    out.push(...tagKey(prism9(BODY_Z + 0.72, BODY_Z + 1.06, DARK, 0.08), 1));
-    // 본체 윗면 가장자리 처마.
-    out.push(...tagKey(prism9(MTOP - 0.16, MTOP, PLATE, 0.12), 2));
+    /* (걷어냄) 허리 띠와 윗면 처마(요청: "아래판 층수 2개로 줄이고") — 받침 판·본체·
+       허리 띠·처마로 아랫도리가 네 겹이라, 얇게 낮춘 몸이 다시 켜켜이 쌓인 층으로
+       읽혔다. 남기는 둘은 **받침 판과 본체**다: 받침 판은 다리가 붙는 자리를 만들고
+       본체는 윗도리를 받치는 판이라, 둘 다 없으면 안 되는 층이다. 걷은 둘은 그 위에
+       덧두른 장식이었다. */
 
     /* ── 관제 블록 **둘** ── 사진의 윗도리는 상자 하나가 아니라 좌우로 붙은 상자 둘이다
        (지적: "본체 위의 상자 하나가 아니고 양쪽에 박스 두 개가 붙은 형태여야 해").
        왼쪽이 높고 앞면에 창이 나며, 오른쪽은 한 단 낮고 그 위에 원통 탱크가 얹힌다. */
     const RW = UPP_W;                         // 좌우 폭이 같다 — 둘이 판 윗면을 반씩 나눈다
     const RD = UPP_D;                         // 앞뒤도 같다 — 둘이 한 윗도리로 읽힌다
-    const RH = UPP_H - 0.55;
+    // 오른 상자도 왼 상자와 **같은 높이**다(요청: "절두체 작은 거 높이 큰 거랑 똑같이").
+    const RH = UPP_H;
     const RX = UX + UPP_W;                    // 오른 상자 — 왼 상자에 딱 붙는다
     const RY = UY - 0.25;
     out.push(...tagKey(halfBox9(UX, UY, UPP_W, UPP_D, UPP_H, MTOP, 1.0, 0.8, 1, PLATE),
@@ -7268,46 +7287,65 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        윗도리가 본체보다 무거워 보였다. 상자의 제 윗면이 곧 지붕이다. */
     out.push(...tagKey(halfBox9(RX, RY, RW, RD, RH, MTOP, 0.9, 0.7, -1, MID),
       10.4 + depthNow(RX, RY) * 1.6));
+    /* ★ 창은 **그 면의 경사를 탄다**(지적: "엔베 검정 창문 경사면에 맞게 각도 조절") ────
+       왼 상자가 위로 좁아지는 절두체가 되면서 앞면이 뒤로 누웠는데(높이 UPP_H 동안
+       앞뒤로 dd/2 = 0.4만큼 물러난다), 창은 여전히 y 한 값에 선 **곧은 판**이었다.
+       그러면 아래는 벽에 파묻히고 위는 벽 밖으로 떠, 옆에서 볼 때 창만 따로 서 있었다.
+       높이마다 앞면의 y를 다시 재는 자(wyAt)를 하나 두고 창틀·유리가 그것을 함께 쓴다 —
+       상자의 기울기(WDD9)를 바꿔도 창이 저절로 따라 눕는다. */
     if (facingRatio(0, 1) > 0.12) {
-      const wy = UY + UPP_D / 2 + 0.04;
+      const WDD9 = 0.8;                          // halfBox9에 넘기는 앞뒤 좁아짐 몫
+      /** 그 높이에서의 왼 상자 앞면 y — 밑(MTOP)에서 위로 가며 뒤로 눕는다. */
+      const wyAt = (z9: number, out9 = 0.04): number =>
+        UY + UPP_D / 2 - (WDD9 / 2) * ((z9 - MTOP) / UPP_H) + out9;
       const win: ShapeFace[] = [];
+      const z0w = MTOP + 0.55;
+      const z1w = MTOP + 1.3;
       // 어두운 창틀 한 장 위에 밝은 유리 넷.
       win.push([polyPath3([
-        [UX - 1.75, wy, MTOP + 0.55], [UX + 1.75, wy, MTOP + 0.55],
-        [UX + 1.75, wy, MTOP + 1.3], [UX - 1.75, wy, MTOP + 1.3]]), 1, DARK] as ShapeFace);
+        [UX - 1.75, wyAt(z0w), z0w], [UX + 1.75, wyAt(z0w), z0w],
+        [UX + 1.75, wyAt(z1w), z1w], [UX - 1.75, wyAt(z1w), z1w]]), 1, DARK] as ShapeFace);
       for (let k9 = 0; k9 < 4; k9 += 1) {
         const cx9 = UX - 1.3 + k9 * 0.87;
+        const z0g = MTOP + 0.68;
+        const z1g = MTOP + 1.17;
         win.push([polyPath3([
-          [cx9 - 0.28, wy + 0.03, MTOP + 0.68], [cx9 + 0.28, wy + 0.03, MTOP + 0.68],
-          [cx9 + 0.28, wy + 0.03, MTOP + 1.17], [cx9 - 0.28, wy + 0.03, MTOP + 1.17],
+          [cx9 - 0.28, wyAt(z0g, 0.07), z0g], [cx9 + 0.28, wyAt(z0g, 0.07), z0g],
+          [cx9 + 0.28, wyAt(z1g, 0.07), z1g], [cx9 - 0.28, wyAt(z1g, 0.07), z1g],
         ]), 1, winLit("#cfe6ff")] as ShapeFace);
       }
-      out.push(...tagKey(win, 11 + depthNow(UX, wy) * 1.6));
+      out.push(...tagKey(win, 11 + depthNow(UX, wyAt(z0w)) * 1.6));
     }
     // (걷어냄·요청) 관제 블록 위에 씌우던 넓은 지붕판 — 위 오른 상자와 같은 까닭이다.
     // 임자색 가로 막대는 상자의 제 윗면에 바로 앉는다.
     pc.push(...tagKey(boxFaces3(UX - 0.5, UY - 0.2, 3.0, 0.9, 0.34, UTOP),
       13 + depthNow(UX - 0.5, UY - 0.2) * 1.6));
 
-    /* ── 오른뒤에 누운 원통 탱크 ── 끝에 테가 둘린다(사진). */
+    /* ── 오른 상자 지붕에 누운 원통 탱크 ── 끝에 테가 둘린다(사진).
+       반구 더미가 이 지붕으로 올라오므로(아래) 탱크는 뒤로 물러앉는다. */
+    const TKY9 = RY - 1.15;
     out.push(...tagKey([
-      ...paintBase(tubeFaces(RX - 1.35, RY - 0.5, RX + 1.35, RY - 0.5, 0.72,
-        MTOP + RH + 0.9), DARK),
-      ...paintBase(cylinderFaces3(RX + 1.47, RY - 0.5, 0.8, 0.18,
-        MTOP + RH + 0.9 - 0.8), MID),
-    ], 11 + depthNow(RX, RY - 0.5) * 1.6));
+      ...paintBase(tubeFaces(RX - 1.35, TKY9, RX + 1.35, TKY9, 0.72, UTOP + 0.62), DARK),
+      ...paintBase(cylinderFaces3(RX + 1.47, TKY9, 0.8, 0.18, UTOP + 0.62 - 0.8), MID),
+    ], 11 + depthNow(RX, TKY9) * 1.6));
 
-    /* ── 임자색 셋 ── 앞면의 큰 구체 · 본체 오른위의 둥근 포드 · (지붕 막대는 위에서). */
-    pc.push(...tagKey(domeFaces3(2.3, 3.02, 1.2, 1.1, BODY_Z + 0.5),
-      14 + depthNow(2.3, 3.02) * 1.6));
+    /* ★ **반구 부품 더미를 옥상으로**(요청: "앞오른쪽 반구형 부품더미 옥상으로 이동") ────
+       여태 큰 구체는 본체 **앞면 오른쪽**에 반쯤 박혀 있었고, 작은 포드는 본체 윗면에
+       앉아 있었다. 그런데 윗상자의 앞뒤를 판에 맞춰 키우면서(UPP_D 4.7) 그 윗면이
+       상자 밑에 통째로 덮여, 포드는 상자 속에 파묻히고 구체만 앞면에 남아 더미가 갈렸다.
+       둘을 함께 **오른 상자 지붕**으로 올린다 — 지붕은 어느 요잉에서도 보이는 자리라
+       임자 색이 안 사라지고(이 둘이 임자 색이다), 옆에 누운 탱크와 함께 옥상 설비
+       더미로 읽힌다. 자리는 지붕 윗면(x 0~3.61 · y −2.10~1.90) 안으로 잡는다. */
+    pc.push(...tagKey(domeFaces3(2.55, 0.8, 1.05, 1.0, UTOP),
+      14 + depthNow(2.55, 0.8) * 1.6));
     out.push(...tagKey(paintBase(spirePillar({
-      x: 2.3, y: 3.02, z0: BODY_Z + 0.15, h: 0.42, w: 1.38, tipW: 1.26,
+      x: 2.55, y: 0.8, z0: UTOP - 0.06, h: 0.36, w: 1.22, tipW: 1.12,
       segs: 1, sides: 10, hold: 0.4, caps: "none",
-    }), DARK), 13.6 + depthNow(2.3, 3.02) * 1.6));
+    }), DARK), 13.6 + depthNow(2.55, 0.8) * 1.6));
     pc.push(...tagKey([
-      ...cylinderFaces3(3.1, 0.8, 0.8, 0.4, MTOP),
-      ...domeFaces3(3.1, 0.8, 0.8, 0.62, MTOP + 0.4),
-    ], 12 + depthNow(3.1, 0.8) * 1.6));
+      ...cylinderFaces3(0.85, 1.1, 0.72, 0.36, UTOP),
+      ...domeFaces3(0.85, 1.1, 0.72, 0.56, UTOP + 0.36),
+    ], 12 + depthNow(0.85, 1.1) * 1.6));
 
     /* ── 형광 초록 세로 막대 ── 좌우 면의 아래쪽에 줄지어 난다(사진). */
     const vent = (cx: number, cy: number, nx: number, ny: number, n: number,
@@ -19514,7 +19552,7 @@ export const BLD_NORM: Record<string, number> = {
   diamond: 1.905,  // 상자 상한에 걸림
   dmound: 1.111,
   dome: 1.418,
-  ebay: 1.328,   // 다리를 옆으로 벌린 뒤 bld-norm 재측정(잉크 폭이 넓어져 배수는 내려간다)
+  ebay: 1.443,   // 다리 두 마디 20% 축소 뒤 재측정(잉크 폭이 좁아져 배수는 올라간다)
   evo: 1.540,
   extract: 1.035,
   factory: 1.117,
