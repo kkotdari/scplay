@@ -40,6 +40,8 @@ export {
      · poseTempoOf   — 그 종류의 걸음 Hz·공격 쿨(초). **null이면 컷이 없는 종류**라
        도록이 이동·액션 칸을 안 세우고 idle 하나로 갈음한다(요청의 그 규칙이다).
      · atkCutOf·flapCutOf — 시각 t에서 어느 컷인가. 재생기와 **같은 문**을 쓰므로
-       도록의 박자가 지도의 박자와 안 갈린다(그 함수들의 ★ 주석이 그 사고를 적어 두었다). */
-export { SHAPE_GALLERY, ShapeIcon, poseTempoOf, atkCutOf, flapCutOf } from "./ReplayMotionPlayer";
+       도록의 박자가 지도의 박자와 안 갈린다(그 함수들의 ★ 주석이 그 사고를 적어 두었다).
+     · poseCutsOf    — 그 종류가 **어느 컷을 갖나**(걸음·공격·날갯짓). 없는 칸은
+       도록이 idle로 갈음한다. */
+export { SHAPE_GALLERY, ShapeIcon, poseTempoOf, poseCutsOf, atkCutOf, flapCutOf } from "./ReplayMotionPlayer";
 export type { ShapeGalleryItem } from "./ReplayMotionPlayer";

@@ -1662,6 +1662,16 @@
 .scr-story-map:has(.scr-motion-wide) .scr-story-map-head {
   width: var(--scr-frame-w, auto);
   margin-left: var(--scr-frame-l, 0);
+  /* ★ 가운데 정렬에서 **빼야** 이 margin이 자리를 잡는다(지적: "map-head 부분 왼쪽 여백
+     뭐지" — 개발자 도구가 margin-left 249px을 가리켰다) ────────────────────────────
+     부모(.scr-story-map)가 `align-items: center`인 세로 플렉스다. 거기서는 자식의
+     **margin 상자**가 가운데에 놓이므로, margin-left는 자리를 '정하는' 것이 아니라
+     가운데 정렬 **위에 덧붙는다**: 왼끝이 l이 아니라 (C − w + l)/2가 된다.
+     재 봤다(컨테이너 850 · 판 폭 603 · 판 왼끝 124): 제목 줄이 124가 아니라 **186**에
+     섰고, align-self로 빼자 정확히 124가 됐다. 판에 겹치라고 준 값이 오히려 판에서
+     떼어 놓고 있었던 셈이다.
+     ※ 이 줄만 빠지고 형제(미니맵·조종부)의 가운데 정렬은 그대로다. */
+  align-self: flex-start;
   box-sizing: border-box;
 }
 /* ★ 가운데는 **격자로** 못 박는다(지적: "상세에서 타이틀 로우가 중앙정렬이 안 맞는 것

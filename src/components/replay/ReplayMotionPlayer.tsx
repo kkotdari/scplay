@@ -932,6 +932,17 @@ export function atkCutOf(
   if (ph < 0.35) return 2;
   return flapHz ? flapCutOf(flapHz, t) : 0;
 }
+/** ★ 이 종류가 **어떤 컷을 갖나**(요청: "이동, 액션 모션은 별도 모델링이 없으면 idle
+ *  모션이 그 모션이 됨") — 도록이 칸을 세울지 idle로 갈음할지 이 값이 정한다.
+ *
+ *  poseTempoOf는 '컷이 있나'만 말하고 **어느 컷인지**는 안 말한다. 그런데 종류마다
+ *  가진 컷이 다르다: 하이템·아콘은 공격만, 리버·디파일러는 걸음만, 뮤탈·디바우러는
+ *  날갯짓까지다. 없는 컷을 달라고 하면 굽기 열쇠(poseTag)가 "0"으로 접어 idle을
+ *  돌려주는데 — 그림은 옳지만 **빌더는 그 컷으로 한 번 불린다**. 열쇠와 그림이
+ *  어긋날 자리를 만드느니, 부르는 쪽이 있는 컷만 묻는 편이 낫다. */
+export function poseCutsOf(kind: string): { move?: boolean; atk?: boolean; flap?: number } | null {
+  return POSE_KINDS[kind] ?? null;
+}
 export function poseTempoOf(kind: string): { walkHz: number; atkCd: number } | null {
   if (!POSE_KINDS[kind]) return null;
   const name = Object.keys(UNIT_3D).find((n) => UNIT_3D[n] === kind);
