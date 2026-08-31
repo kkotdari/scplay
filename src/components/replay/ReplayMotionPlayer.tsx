@@ -6415,6 +6415,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const BODY = "#7e8a9c";
     const STEEL = "#828e9f";
     const SILVER = "#c1c7d0";
+    /* 관은 더 희게(요청: "리파이너리 파이프 더 흰색으로 수정") — 몸통(#7e8a9c)·탱크
+       (#828e9f)와 은색(#c1c7d0)이 한 계열이라 관이 몸에 묻혔다. 관은 이 건물에서 가장
+       눈에 띄어야 하는 결이니(덩이 사이를 굽어 넘는 유일한 곡선) 한 단 더 밝게 뺀다. */
+    const PIPE = "#e6ebf2";
     const out: ShapeFace[] = [];
     // 받침 — 낮고 넓은 검회색 단.
     out.push(...tagKey(paintBase(boxFaces3(0, 0, 8.6, 6, 0.8, 0), DARK), 0));
@@ -6476,7 +6480,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         out.push(...tagKey(paintBase(spirePillar({
           x: 0, y: 0, h: 1, w: 0.42, tipW: 0.42, segs: 3, sides: 8, hold: 1,
           path: (t9: number): [number, number, number] => at9((s9 + t9) / SEG9),
-        }), SILVER),
+        }), PIPE),
         10 + depthNow(mx9, my9) * 1.6 + mz9 * 0.35 + wi * 0.02));
       }
     });
@@ -6913,101 +6917,129 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      빛나는 앞 통, 지붕 안테나. */
   ebay: () => {
     const SILVER = TERRAN_STEEL;
-    /* 엔지니어링 베이 — 몸통은 **아주 낮은 절두 사각뿔**이다(지적: "본체는 엄청 높이가
-       낮은 느낌의 옆면이 사다리꼴 4면으로 되어있는 형태야 앞뒤가 폭이 넓고 옆면 폭은
-       비교적 좁은"). 여태는 그냥 직육면체 상자라 옆선이 수직이었고 키도 3이나 돼
-       '낮고 넓적한 정비고'가 아니라 창고 같았다. frustumFaces3로 밑 8.4×5.28 → 위
-       7.2×3.74, 높이 2.04로 깎으면 네 옆면이 모두 사다리꼴이 되고, 앞뒤 면(폭 8.4)이
-       옆면(폭 5.28)보다 훨씬 넓다. 처음 잡은 7×4.4 → 5×2.6, 높이 1.7을 1.2배로
-       키우고, 다시 가로세로만 1.2배 한 값이다(요청: "엔지니어링 베이 본체 크기 1.2배
-       확대, 높이는 그대로 유지 다리위치는 옮기지 않기") — 높이 2.04와 다리 자리
-       (±5.85, ±3.65)는 손대지 않았다.
-
-       배치는 90도 시계방향으로 돌린 그대로다(지적: "엔베 90도 시계방향 요잉") — 드럼은
-       왼 옆구리를 따라 눕고, 개인색 큰 드럼이 오른앞으로 튀어나오며, 지붕 더미는 좌우로
-       늘어선다. 뷰어 요잉을 건드리면 사용자가 시점을 돌릴 때 같이 돌아 버리므로 모델
-       좌표 자체를 돌려 구웠다.
-
-       다리는 여섯 건물 중 가장 크게 벌어지고 가장 긴 사선 다리다(지적) — 그리고 붙는
-       자리는 밑판 한복판이 아니라 **거의 끝**이다(지적: "다리는 건물 바닥의 거의 끝에
-       달려야해"). 밑판이 7×4.4니 네 귀는 (±3.5, ±2.2)이고, 발판을 (±4.4, ±2.75)로
-       내보낸 뒤 lean 0.22를 주면 위끝이 (±3.43, ±2.15) — 밑판 모서리에 딱 걸린다.
-       내려오면서 0.97만큼 바깥으로 벌어져 수직에서 31도 누운 사선이 되고, 드러나는
-       길이 1.57로 스타포트(1.22)·배럭(1.07)·팩토리(0.92)보다 길다.
-
-       더 눕히되 길이는 다시 조금 줄이고 안으로 당겼다(지적: "더 수평쪽으로 눕도록",
-       "다리길이 살짝 줄이고 더 안쪽으로 이동"). 몸통을 1.2배로 키우면서 붙는 자리도
-       같이 커진 밑판(±4.2, ±2.64)의 네 귀로 다시 맞췄다 — 발판 (±5.85, ±3.65),
-       lean 0.44면 위끝이 (±3.28, ±2.04)다. 모서리에 딱 걸치면 기둥 반지름(0.42)만큼
-       단면이 밖으로 삐져나오므로(지적: "다리 단면이 밖으로 안튀어나오게") 한 뼘 안으로
-       들였다 — 이제 위끝의 바깥 끝이 (3.7, 2.46)이라 밑판(±4.2, ±2.64) 안이고, 다리는
-       몸 뒤에 그려지므로 붙는 자리가 통째로 가려진다. 발판은 그대로 밖에 두어 아래로
-       내려오며 평면으로 2.9 벌어지는 사이 높이는 1.37만 떨어진다 — 수직에서 65도
-       누운 다리다. */
-    /* 본체를 한 단 높인다(요청: "본체 밑에 상자형 판 덧대서 높이기") — 1.5 → 2.35.
-       몸통이 아주 낮은 절두뿔이라 다리 위에 바로 얹히면 '땅에 붙은 뚜껑'으로 읽혔다.
-       아래에 깔리는 상자 판(아래 PLINTH)이 그 사이를 채워, 다리 → 판 → 몸통의 세 단이
-       된다. 다리는 zTop이 BODY_Z를 따라가므로 저절로 그만큼 길어진다(자리는 그대로). */
+    const DARK = "#4a5058";
+    const PLATE = "#98a2b0";
+    /* 엔지니어링 베이(재작도 — 사진 기준) ─────────────────────────────────────────
+       사진이 말하는 것:
+         ① 몸통은 한 덩이가 아니라 **두 단**이다 — 넓고 낮은 아래 껍질 위에 한 뼘 작은
+            윗 껍질이 뒤·왼쪽으로 물러나 얹힌다. 그 턱이 이 건물의 옆선을 만든다.
+            여태는 낮은 절두뿔 한 장이라 옆에서 보면 그냥 눌린 상자였다.
+         ② 앞 오른쪽에 **큰 파란 구체**가 박혀 있다 — 사진의 파랑이 임자 색이다(요청).
+            여태 그 자리에 있던 것은 누운 드럼이라 실루엣이 딴판이었다.
+         ③ 옆면·앞면에 **초록 통풍구가 세로로** 줄지어 난다(사진의 형광 초록).
+         ④ 지붕에 어두운 각진 더미와 굴뚝 하나, 그 옆에 임자색 원통.
+         ⑤ **다리에 관절이 하나 더 있다**(요청: "다른 건물과 달리 착륙 발판 관절이 하나
+            더 있음") — 몸에서 거의 수평으로 나온 윗팔이 무릎에서 꺾여, 아랫팔이 거의
+            수직으로 발판에 내려꽂힌다. 다른 테란 건물의 곧은 사선 다리(legAndFoot)와
+            여기서 갈린다.
+         ⑥ 발판 가운데에도 임자색 뚜껑이 앉는다. */
     const BODY_Z = 2.35;
-    /** 몸통 밑에 덧대는 상자 판 — 몸통 밑면(10.08×6.34)보다 한 뼘 안쪽이라 처마가 진다. */
     const PLINTH_H = 0.85;
-    /** 몸통 지붕 — 지붕 더미가 앉는 갑판(위 5.0×2.6). */
-    const TOP = BODY_Z + 2.04;
-    const foot = (fx: number, fy: number): ShapeFace[] =>
-      legAndFoot(fx, fy, BODY_Z + 0.25, 0.44);
-    /* 지적: "현재 빨간색으로 된 두개의 포인트를 개인색으로 변경" — 오른앞 드럼과 왼뒤
-       지붕 돔, 그 둘이 여태 붉은색(#a8322a)이던 포인트다. 색을 지정하지 않은 채 accent
-       (pc)로 넘겨야 raceBase가 안 칠하고 임자 색이 들어간다(개인색 규약). 둘 다 덩치가
-       있고 앞·뒤로 갈려 있어 어느 요잉에서도 한쪽은 보인다. */
+    const LOW_H = 1.35;                       // 아래 껍질 높이
+    const UPP_H = 1.15;                       // 윗 껍질 높이
+    const DECK = BODY_Z + LOW_H + UPP_H;      // 지붕 갑판
     const pc: ShapeFace[] = [];
-    const out: ShapeFace[] = [
-      ...foot(-5.85, -3.65), ...foot(5.85, -3.65),
-      /* 몸통·드럼은 반드시 제 키를 달아야 한다 — 태그 없는 면은 앞 면의 키를
-         물려받는데, 바로 앞이 다리(−40대)라 몸통이 통째로 다리 뒤로 가라앉는다. */
-      /* 상자 판(요청) — 몸통 바로 밑, 한 뼘 안쪽으로 들여 깐다. 몸통보다 어두운 은색
-         이라 한 단으로 읽히고, 키는 몸통(0)보다 낮아 몸에 가려진다. */
-      ...tagKey(paintBase(boxFaces3(0, 0, 9.0, 5.3, PLINTH_H, BODY_Z - PLINTH_H), "#959fae"), -1),
-      ...tagKey(paintBase(frustumFaces3(0, 0, 10.08, 6.34, 7.2, 3.74, 2.04, BODY_Z), SILVER), 0),
-      // 왼 옆구리를 따라 눕는 작은 드럼 — 끝면이 빛난다.
-      ...tagKey([
-        /* 작은 드럼도 같은 몫으로(요청) — 반지름 0.68 → 0.52.
-           길이도 줄인다(요청: "엔지니어링 베이 드럼통 길이 축소") — 1.9 → 1.35타일. */
-        ...tubeFaces(-5.0, 1.3, -3.65, 1.3, 0.52, BODY_Z + 0.86),
-        topFace(groundEllipse(...project(-5.0, 1.3, BODY_Z + 1.1), 0.38, 0.3), 0.35),
-      ], 6),
-      ...foot(-5.85, 3.65), ...foot(5.85, 3.65),
-    ];
-    /* 오른앞 개인색 드럼 — 앞으로 튀어나온 큰 통이라 옆에서도 임자 색이 넓게 읽힌다.
-       축소(요청: "엔베 드럼통 축소") — 반지름 1.1 → 0.78, 길이 3.6 → 2.4타일. 몸통이
-       납작한 절두뿔이라 이 통 하나가 실루엣의 앞을 통째로 먹고 있었다.
-       길이만 한 번 더(요청: "엔지니어링 베이 드럼통 길이 축소") — 2.4 → 1.6타일.
-       앞끝(y 1.0)은 그대로 두고 뒤끝을 당겨, 몸통 앞으로 나온 몫만 줄인다. */
-    pc.push(...tagKey(tubeFaces(2.6, 1.0, 2.6, 2.6, 0.78, BODY_Z + 0.85),
-      14 + depthNow(2.6, 1.8) * 1.6));
-    // 지붕 더미 둘 — 윗면·옆면 은색.
-    out.push(...tagKey(paintBase(boxFaces3(-1, 0, 2.8, 2.4, 1.4, TOP), SILVER),
-      10 + depthNow(-1, 0) * 1.6));
-    out.push(...tagKey(paintBase(boxFaces3(1.4, -0.1, 1.9, 1.9, 2, TOP), SILVER),
-      10 + depthNow(1.4, -0.1) * 1.6));
-    // 왼뒤 지붕 돔 — 개인색(위 지적). 옆에 붙은 은빛 판은 그대로 둔다.
-    pc.push(...tagKey(domeFaces3(-1.5, -0.3, 0.95, 0.8, TOP + 1.4),
-      16 + depthNow(-1.5, -0.3) * 1.6));
-    out.push(...tagKey(paintBase(boxFaces3(-0.1, -0.3, 1.2, 1.6, 0.35, TOP + 1.4), "#dfe3e6"),
-      16 + depthNow(-0.1, -0.3) * 1.6));
-    // 지붕 안테나.
-    out.push(...tagKey(hornFaces(-2.1, 0.7, TOP + 1.4, -2.1, 0.7, TOP + 3.2, 0.3),
-      16 + depthNow(-2.1, 0.7) * 1.6));
-    // 앞면 초록 발광 띠 — 앞이 보일 때만.
-    if (facingRatio(0, 1) > 0.12) {
-      const led: ShapeFace[] = [];
-      for (const lx of [-2, -1.2, -0.4]) {
-        led.push([polyPath3([
-          [lx - 0.24, 1.22, TOP + 0.3], [lx + 0.24, 1.22, TOP + 0.3],
-          [lx + 0.24, 1.22, TOP + 1.1], [lx - 0.24, 1.22, TOP + 1.1],
-        ]), 1, winLit("#4cd86a")] as ShapeFace);
+    const out: ShapeFace[] = [];
+
+    /* ── 다리 넷 — 무릎이 있다(요청) ─────────────────────────────────────────────
+       키는 다른 테란 건물과 같은 규약(legAndFoot의 그 주석): 어느 몸통보다도 뒤인
+       절대값 −40대에 못 박고, 발판은 다리보다 한 단 더 뒤다. */
+    const kneeLeg = (px: number, py: number): void => {
+      const k9 = depthNow(px, py) > 0 ? -40 : -40.2;
+      const ax = px * 0.60;                   // 몸에 붙는 자리(몸 안으로 물린다)
+      const ay = py * 0.60;
+      const kx = px * 0.94;                   // 무릎
+      const ky = py * 0.94;
+      const kz = BODY_Z * 0.46;
+      const seg = (x0: number, y0: number, z0: number,
+        x1: number, y1: number, z1: number, w0: number, w1: number): ShapeFace[] =>
+        paintBase(spirePillar({
+          x: 0, y: 0, h: 1, w: w0, tipW: w1, segs: 2, sides: 6, hold: 0.2, caps: "none",
+          path: (t9: number): [number, number, number] =>
+            [x0 + (x1 - x0) * t9, y0 + (y1 - y0) * t9, z0 + (z1 - z0) * t9],
+        }), "#8b929a");
+      out.push(...tagKey([
+        // 윗팔 — 몸에서 거의 수평으로 뻗는다.
+        ...seg(ax, ay, BODY_Z + 0.15, kx, ky, kz, 0.46, 0.4),
+        // 무릎 — 마디 구슬 하나. 이것이 있어야 두 팔이 '꺾였다'로 읽힌다.
+        ...paintBase(domeFaces3(kx, ky, 0.44, 0.44, kz - 0.22), "#6e757d"),
+        // 아랫팔 — 무릎에서 거의 수직으로 발판에 내려꽂힌다.
+        ...seg(kx, ky, kz, px, py, 0.42, 0.4, 0.34),
+      ], k9));
+      // 발판 — 접시. 가운데 임자색 뚜껑이 앉는다(사진).
+      out.push(...tagKey(paintBase(spirePillar({
+        x: px, y: py, z0: 0, h: 0.4, w: 0.98, tipW: 0.8,
+        segs: 1, sides: 8, hold: 0.45, caps: "both",
+      }), "#5d636b"), k9 - 0.1));
+      pc.push(...tagKey(domeFaces3(px, py, 0.36, 0.26, 0.4), k9 - 0.05));
+    };
+    for (const [lx, ly] of [[-5.85, -3.65], [5.85, -3.65], [-5.85, 3.65], [5.85, 3.65]] as
+      [number, number][]) kneeLeg(lx, ly);
+
+    /* ── 몸통 두 단 ── 아래 껍질은 넓고 낮은 절두체, 윗 껍질은 뒤·왼쪽으로 물러난다. */
+    out.push(...tagKey(paintBase(boxFaces3(0, 0, 9.0, 5.3, PLINTH_H, BODY_Z - PLINTH_H),
+      "#959fae"), -1));
+    out.push(...tagKey(paintBase(
+      frustumFaces3(0, 0, 10.08, 6.34, 8.9, 5.2, LOW_H, BODY_Z), SILVER), 0));
+    /* 아래 껍질 윗변을 두르는 어두운 장갑 띠 — 두 단 사이의 턱을 또렷하게 만든다. */
+    out.push(...tagKey(paintBase(
+      boxFaces3(0, 0, 9.0, 5.3, 0.22, BODY_Z + LOW_H - 0.1), DARK), 1));
+    out.push(...tagKey(paintBase(
+      frustumFaces3(-0.55, -0.35, 8.0, 4.6, 6.8, 3.6, UPP_H, BODY_Z + LOW_H), PLATE), 2));
+
+    /* ── 앞 오른쪽 임자색 구체(사진) ── 아래 껍질 앞면에 박힌다. */
+    pc.push(...tagKey(domeFaces3(2.9, 2.15, 1.15, 1.05, BODY_Z + 0.45),
+      14 + depthNow(2.9, 2.15) * 1.6));
+    out.push(...tagKey(paintBase(spirePillar({
+      x: 2.9, y: 2.15, z0: BODY_Z + 0.1, h: 0.42, w: 1.32, tipW: 1.2,
+      segs: 1, sides: 10, hold: 0.4, caps: "none",
+    }), DARK), 13 + depthNow(2.9, 2.15) * 1.6));
+
+    /* ── 초록 통풍구 ── 옆면·앞면에 세로로 줄지어 난다(사진). 벽마다 카메라를 마주 볼
+       때만 그린다 — 벽 하나에 판 하나뿐이라 안 가리면 뒤쪽 것이 앞벽 위에 겹친다. */
+    const vent = (cx: number, cy: number, nx: number, ny: number, n: number,
+      span: number, key: number): void => {
+      if (facingRatio(nx, ny) <= 0.12) return;
+      const ux = ny;
+      const uy = -nx;
+      const g9: ShapeFace[] = [];
+      for (let k9 = 0; k9 < n; k9 += 1) {
+        const u9 = (k9 - (n - 1) / 2) * (span / n);
+        const hw = span / n / 3.2;
+        const px9 = cx + ux * u9 + nx * 0.06;
+        const py9 = cy + uy * u9 + ny * 0.06;
+        g9.push([polyPath3([
+          [px9 - ux * hw, py9 - uy * hw, BODY_Z + 0.34],
+          [px9 + ux * hw, py9 + uy * hw, BODY_Z + 0.34],
+          [px9 + ux * hw, py9 + uy * hw, BODY_Z + LOW_H - 0.18],
+          [px9 - ux * hw, py9 - uy * hw, BODY_Z + LOW_H - 0.18],
+        /* 사진의 통풍구는 **늘 초록으로 빛난다** — winLit을 쓰면 평소엔 거의 검은
+           유리라(WIN_DARK) 사진의 그 결이 안 남는다. 평소에도 보이는 짙은 초록으로
+           두고, 연구가 도는 동안만 형광으로 올린다. */
+        ]), 1, bldLitNow ? "#7dff4a" : "#2f7a45"] as ShapeFace);
       }
-      out.push(...tagKey(led, 12 + depthNow(-1.2, 1.2) * 1.6));
-    }
+      out.push(...tagKey(g9, key));
+    };
+    vent(-4.7, 0, -1, 0, 4, 3.6, 12 + depthNow(-4.7, 0) * 1.6);
+    vent(4.7, 0, 1, 0, 4, 3.6, 12 + depthNow(4.7, 0) * 1.6);
+    vent(-2.4, 3.05, 0, 1, 3, 2.6, 12 + depthNow(-2.4, 3.05) * 1.6);
+
+    /* ── 지붕 ── 어두운 각진 더미 하나, 그 오른쪽에 임자색 원통, 뒤 오른쪽에 굴뚝. */
+    out.push(...tagKey(paintBase(boxFaces3(-1.5, -0.2, 3.4, 2.5, 1.15, DECK), DARK),
+      10 + depthNow(-1.5, -0.2) * 1.6));
+    out.push(...tagKey(paintBase(boxFaces3(-1.5, -0.2, 3.7, 2.8, 0.18, DECK + 1.1), PLATE),
+      11 + depthNow(-1.5, -0.2) * 1.6));
+    pc.push(...tagKey([
+      ...cylinderFaces3(1.5, 0.35, 0.82, 0.55, DECK),
+      ...domeFaces3(1.5, 0.35, 0.82, 0.5, DECK + 0.55),
+    ], 12 + depthNow(1.5, 0.35) * 1.6));
+    out.push(...tagKey([
+      ...paintBase(cylinderFaces3(2.5, -1.5, 0.42, 1.5, DECK), "#6e757d"),
+      capFace(discPath3(2.5, -1.5, DECK + 1.5, 0.42), 0.5),
+    ], 12 + depthNow(2.5, -1.5) * 1.6));
+    // 지붕 안테나 — 왼뒤 귀퉁이에서 곧게 선다.
+    out.push(...tagKey(hornFaces(-3.0, -1.2, DECK, -3.0, -1.2, DECK + 1.9, 0.26),
+      13 + depthNow(-3.0, -1.2) * 1.6));
     return raceBase(out, "terran", pc);
   },
   /* 아머리(실물 참고) — 가운데 우물 드럼(어두운 속·테두리 빛 눈금·비스듬한 뚜껑 판),
