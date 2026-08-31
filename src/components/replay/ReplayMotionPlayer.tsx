@@ -19418,6 +19418,16 @@ const BLD_SPRITE_SIZES = new Map<string, number[]>();
  *  보관함이 LRU로 쫓아낸 크기가 남아 있을 수 있으므로, 쓰는 쪽이 실물을 다시 확인한다. */
 const SPRITE_SIZES = new Map<string, number[]>();
 const SPRITE_SIZES_MAX = 4096;
+/* ★ 장식이 쓰는 **몸 폭은 자세를 안 탄다**(지적: "뮤탈 날갯짓하면서 그림자 크기도
+   바뀌는데 그거도 문제 아니야? 보기에도 정신없고") ────────────────────────────────
+   그림자·체력바·링은 '그린 잉크의 폭'(spr.w)을 자로 쓴다. 상자가 아니라 실제로 칠한
+   픽셀을 봐야 종류마다 다른 가로세로비에 안 속기 때문이다(그 자리 주석).
+   그런데 날갯짓 컷은 **날개를 폈다 접는다** — 잉크 상자가 컷마다 실제로 넓어졌다
+   좁아진다. 그 값을 그대로 쓰면 그림자와 체력바가 날갯짓에 맞춰 함께 펄떡인다.
+   몸이 커졌다 작아지는 것이 아니라 **자세가 바뀐 것**이므로, 장식의 자는 자세 0(대기)의
+   것으로 못 박는다. 종류·방위·보기마다 한 번만 적어 두고 모든 컷이 그것을 나눠 쓴다.
+   ※ 값은 '판 크기에 대한 비'라 배율이 바뀌어도 그대로 쓴다. */
+const INK_W_RATIO9 = new Map<string, number>();
 function unitSprite(
   op: UnitDrawOp, pxq: number, B: number,
 ): { cv: HTMLCanvasElement; ox: number; oy: number; pad: number; l: number; bot: number; cx: number; top: number; w: number } | null {
@@ -21375,7 +21385,15 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
            모델들의 세로/가로 비가 실제로 그만큼 다르기 때문이라 정규화로는 못 없앤다.
            그러니 장식이 상자(px)가 아니라 이 몸 폭(inkW)을 봐야 한다. 그러면 "바는 제
            유닛보다 넓지 않다" 같은 조건이 종류를 안 가리고 식만으로 보장된다. */
-        const inkW = spr && spr.w > 0 ? (spr.w / B) * kU : px * inkK;
+        /** 이 종류·방위·보기의 장식용 몸 폭 비 — 자세 0에서 잰 값 하나를 모든 컷이 쓴다. */
+        const inkKey9 = `${op.kind}|${Math.round((op.rotDeg ?? 0) / 22.5)}`
+          + `|${op.flat ? 1 : 0}|${pitchTag(op.pitch)}`;
+        const inkR9 = spr && spr.w > 0 && pxqB > 0 ? (spr.w / B) / pxqB : 0;
+        if (inkR9 > 0 && !(op.pose ?? 0)) INK_W_RATIO9.set(inkKey9, inkR9);
+        const inkW = ((): number => {
+          const r9 = INK_W_RATIO9.get(inkKey9) ?? inkR9;
+          return r9 > 0 ? r9 * px : px * inkK;
+        })();
         const footY = spr
           ? sy - px * 0.24 - (spr.pad + pxqB / 2) * kU + (spr.bot / B) * kU - 1
           : sy + px * 0.28;
