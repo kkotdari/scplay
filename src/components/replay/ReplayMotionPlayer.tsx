@@ -9974,6 +9974,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   goliath: () => {
     const STEEL = TERRAN_STEEL;
     const DEEP = "#8792a2";
+    const DARK = "#6b7482";     // 발바닥·그늘진 밑판
+    const GUN_D = "#3b4048";    // 총열 안쪽
     const out: ShapeFace[] = [];
     /* 다리 한 쌍 — 역관절(디지티그레이드). 엉덩이 → 무릎(앞) → 발목(뒤) → 넓은 발.
        마디마다 뿔기둥이라 어느 요잉에서도 굵기가 살고 제 그늘을 갖는다. */
@@ -9987,15 +9989,43 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const hip: [number, number, number] = [m * 1.35, -0.15, 4.3];
       const knee: [number, number, number] = [m * 1.6, 1.15 + st9 * 0.55, 2.75 + lf9 * 0.5];
       const ankle: [number, number, number] = [m * 1.72, -0.55 + st9 * 1.1, 1.25 + lf9];
+      const fx9 = m * 1.72;                 // 발 좌우 자리
+      const fy9 = 0.25 + st9 * 1.1;         // 발 앞뒤 자리
       out.push(...tagKey(paintBase([
+        // 고관절 — 몸통에서 다리가 도는 자리. 마디 사이에 관절이 보여야 기계로 읽힌다.
+        ...cylinderFaces3(hip[0], hip[1], 0.54, 0.62, hip[2] - 0.3),
         ...suitLimb(hip, knee, 0.46, 0.36, 0.5, { sides: 6, key: -0.6 }),
         ...suitLimb(knee, ankle, 0.4, 0.3, 0.42, { sides: 6, key: -0.6 }),
-        // 발 — 밑이 넓고 발등으로 좁아지는 절두체. 발바닥이 평평해야 선 것으로 읽힌다.
-        ...frustumFaces3(m * 1.72, 0.25 + st9 * 1.1, 1.35, 2.35, 1.1, 1.9, 0.6, lf9),
-        // 발목에서 발로 이어지는 짧은 마디.
-        ...suitLimb(ankle, [m * 1.72, 0.1 + st9 * 1.1, 0.72 + lf9], 0.34, 0.4, 0.36,
-          { sides: 6, key: -0.6 }),
+        // 발목 관절 — 정강이가 발등 집으로 들어가는 자리.
+        ...cylinderFaces3(fx9, fy9 - 0.15, 0.44, 0.34, lf9 + 0.88),
       ], DEEP), key));
+      /* ★ **무릎 덮개**(요청: 사진처럼 자세히) — 역관절의 꺾이는 앞면에 붙는 판이다.
+         마디 둘을 뿔기둥으로만 이으면 무릎이 그냥 굵어지는 자리라 관절로 안 읽힌다. */
+      out.push(...tagKey(paintBase(frustumFaces3(
+        knee[0] + m * 0.06, knee[1] + 0.3, 0.84, 0.62, 0.62, 0.44, 0.58, knee[2] - 0.3,
+      ), STEEL), key + 0.3));
+      /* ★ **발**(요청: "발모양") ────────────────────────────────────────────────────
+         여태 발은 절두체 한 덩이였다 — 위에서 내려다보면 그냥 쐐기 상자라, 이 걷는
+         병기의 실루엣에서 가장 눈에 띄는 자리가 가장 밋밋했다. 사진의 골리앗 발은
+         **넓은 바닥 판 + 앞으로 갈라진 발가락 셋 + 뒤꿈치 며느리발톱**이고, 그 위에
+         발목이 들어앉는 집이 한 단 솟는다. 그 넷을 그대로 짠다.
+         발가락을 셋으로 가르는 까닭은 사이의 **틈**이다: 틈이 있어야 위에서 볼 때
+         발가락이 셋으로 세지고, 없으면 아무리 앞을 좁혀도 다시 한 덩이가 된다. */
+      out.push(...tagKey([
+        // 바닥 판 — 땅에 닿는 넓은 밑창. 한 단 어두워 땅과 몸 사이의 층이 보인다.
+        ...paintBase(boxFaces3(fx9, fy9 - 0.15, 1.62, 2.0, 0.26, lf9), DARK),
+        // 발가락 셋 — 밑창 앞에서 갈라져 나간다.
+        ...([-0.52, 0, 0.52] as const).flatMap((tx9) => paintBase([
+          ...boxFaces3(fx9 + tx9, fy9 + 1.28, 0.44, 0.92, 0.3, lf9),
+          // 발톱 — 발가락 앞 끝을 한 번 더 좁혀 끝을 세운다.
+          ...frustumFaces3(fx9 + tx9, fy9 + 1.86, 0.44, 0.28, 0.28, 0.18, 0.2, lf9),
+        ], DEEP)),
+        // 뒤꿈치 며느리발톱 — 뒤로 뻗어 걸음을 받친다.
+        ...paintBase(boxFaces3(fx9, fy9 - 1.34, 0.82, 0.72, 0.44, lf9), DEEP),
+        // 발등 집 — 발목이 들어앉는 한 단. 위가 좁아 발이 앞으로 눕는 결이 난다.
+        ...paintBase(frustumFaces3(fx9, fy9 - 0.2, 1.4, 1.5, 0.98, 1.02, 0.62, lf9 + 0.26),
+          STEEL),
+      ], key + 0.2));
     }
     /* 골반 — 두 다리를 잇는 낮은 상자. 몸통이 여기 얹힌다. */
     out.push(...tagKey(paintBase(boxFaces3(0, -0.1, 2.6, 1.9, 0.75, 4.15), DEEP),
@@ -10004,14 +10034,37 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        앉는 유리 가리개가 얼굴처럼 튀어나온다. 개인색이다. */
     out.push(...tagKey(frustumFaces3(0, -0.3, 2.3, 2.2, 1.75, 1.7, 1.85, 4.85),
       depthNow(0, -0.3) * 1.6 + 1));
-    /* 플렉시실드(자료) — 몸통 앞면을 통째로 덮는 유리 가리개. 앞을 볼 때만. */
-    if (facingRatio(0, 1) > 0.05) {
-      const gl = polyPath3([
-        [-0.82, 0.86, 6.5], [0.82, 0.86, 6.5], [0.9, 0.98, 5.35], [-0.9, 0.98, 5.35],
-      ]);
-      out.push(...tagKey([
-        [gl, 0.82, "#8fc6dd"] as ShapeFace, topFace(gl, 0.14),
-      ], depthNow(0, 0.9) * 1.6 + 3));
+    /* ★ **탑승부**(요청: "탑승부분") ────────────────────────────────────────────────
+       여태 이 자리는 몸통 앞면에 붙인 **평평한 사각 유리 한 장**이었다 — 앞을 볼 때만
+       그려지는 데칼이라, 조금만 돌아도 통째로 사라지고 옆에서는 조종석이 아예 없었다.
+       사진의 골리앗은 몸통 앞에 **한 칸 튀어나온 유리 집**이 얹히고, 그 밑을 테두리
+       띠가 두르며 위에는 차양이 덮는다. 그러니 유리도 **덩이**여야 한다:
+         · 유리 집 — 위로 갈수록 좁아지는 절두체. 면마다 세계 광원이 실리므로 어느
+           요잉에서도 앞·옆 유리가 제 밝기로 갈린다(평면 한 장으로는 안 되던 일이다).
+         · 테두리 띠 — 유리 집이 몸통에 앉는 자리를 두르는 낮은 상자. 유리가 몸에서
+           그냥 돋아난 것처럼 보이지 않게 한다.
+         · 차양 — 유리 위를 덮는 판. 조종석의 '눈썹'이라 얼굴로 읽히는 데 결정적이다.
+         · 가운데 세로 창틀 — 유리를 좌우로 가르는 얇은 기둥. 이것 하나로 '창'이 된다. */
+    {
+      const cKey = depthNow(0, 0.5) * 1.6 + 2;
+      out.push(...tagKey(paintBase(boxFaces3(0, 0.45, 1.86, 1.62, 0.26, 5.32), STEEL),
+        cKey));
+      out.push(...tagKey(paintBase(
+        frustumFaces3(0, 0.45, 1.56, 1.36, 1.14, 0.96, 1.14, 5.5), "#8fc6dd",
+      ), cKey + 0.4));
+      // 유리의 광택 — 위 절반에 얹는 한 겹. 유리로 읽히는 것은 이 반짝임이다.
+      out.push(...tagKey([topFace(polyPath3([
+        [-0.42, 1.05, 6.35], [0.42, 1.05, 6.35], [0.5, 1.16, 5.85], [-0.5, 1.16, 5.85],
+      ]), 0.22)], cKey + 0.55));
+      // 가운데 세로 창틀
+      out.push(...tagKey(paintBase(boxFaces3(0, 1.02, 0.14, 0.16, 1.08, 5.55), STEEL),
+        cKey + 0.6));
+      // 차양 — 유리 위를 덮는 판. 앞으로 한 뼘 내밀어 그늘을 만든다.
+      out.push(...tagKey(paintBase(boxFaces3(0, 0.66, 1.5, 0.6, 0.22, 6.6), STEEL),
+        cKey + 0.7));
+      // 위 해치 — 사람이 드나드는 뚜껑. 몸통 뒤 절반의 지붕이다.
+      out.push(...tagKey(paintBase(frustumFaces3(0, -0.6, 1.5, 1.25, 1.2, 0.98, 0.28, 6.7),
+        DEEP), cKey - 0.6));
     }
     /* 양팔 **쌍열 기관포 포드**(자료: twin 30mm autocannons) — 골리앗의 실루엣을
        쥐는 부품이다. 몸통보다 크고, 어깨에서 짧은 축으로 매달려 앞으로 총열 둘을 뻗는다.
@@ -10023,28 +10076,65 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     for (const m of [-1, 1] as const) {
       const px = m * 2.75;
       const key = depthNow(px, 0) * 1.6 + 2;
-      // 어깨 축 — 몸통과 포드를 잇는 짧은 관.
-      out.push(...tagKey(paintBase(tubeFaces(m * 1.15, -0.2, px, -0.2, 0.38, 5.85), DEEP), key - 0.2));
-      // 포드 몸 — 개인색.
-      out.push(...tagKey(frustumFaces3(px, -0.1 - atG9 * 0.22, 1.5, 2.5, 1.3, 2.1, 1.9, 4.85), key));
-      // 총열 둘 — 포드 앞에서 나란히 앞으로. 포구가 제 각도의 단면을 그린다.
-      for (const dz of [5.35, 5.95]) {
-        out.push(...tagKey(paintBase(
-          tubeFaces(px, 1.1 - atG9 * 0.75, px, 3.05 - atG9 * 0.75, 0.24, dz, true), GUNMETAL,
-        ), key + 0.5));
+      const py = -0.1 - atG9 * 0.22;
+      /* ★ **어깨**(요청: "어깨부분") — 여태 몸통과 포드를 잇는 것은 가는 관 하나였다.
+         포드가 몸통보다 큰 병기에서 그 관은 '매달아 놓은 끈'으로 보인다. 사진의 골리앗은
+         어깨가 **굵은 구동 드럼**이고 그 위를 둥근 어깨판이 덮는다. 드럼의 축은 좌우(x)
+         이므로 관을 그 방향으로 눕히면 옆에서 볼 때 원통 단면이 그대로 어깨가 된다. */
+      out.push(...tagKey(paintBase(
+        tubeFaces(m * 1.05, -0.2, m * 2.2, -0.2, 0.62, 5.85), GUNMETAL,
+      ), key - 0.4));
+      // 어깨판 — 드럼과 포드가 만나는 자리를 덮는 둥근 판.
+      out.push(...tagKey(paintBase(domeFaces3(px, -0.15, 0.98, 0.66, 6.5), STEEL), key + 0.9));
+      /* 포드 몸 — 개인색. **두 단으로 깎는다**: 아래는 조금 벌어지고 위는 좁아져,
+         모서리가 한 번 꺾인 상자가 된다(한 덩이 절두체는 어느 각도에서도 밋밋했다). */
+      out.push(...tagKey(frustumFaces3(px, py, 1.42, 2.42, 1.54, 2.5, 1.15, 4.85), key));
+      out.push(...tagKey(frustumFaces3(px, py, 1.54, 2.5, 1.16, 1.98, 0.75, 6.0), key + 0.1));
+      // 바깥 옆구리의 세로 갈비 — 포드가 판이 아니라 상자로 보이게 하는 한 줄.
+      out.push(...tagKey(paintBase(
+        boxFaces3(px + m * 0.76, py, 0.14, 2.0, 0.62, 5.2), STEEL,
+      ), key + 0.6));
+      /* ★ **총구**(요청: "총구모양") ────────────────────────────────────────────────
+         여태 총열은 굵기가 한결같은 관 둘이었다 — 끝이 그냥 끊기니 '막대'다. 실총의
+         결은 세 단이다: 굵은 **약실 집** → 가는 **총열** → 끝의 **소염기**(다시 굵다).
+         그 굵기의 오르내림이 있어야 끝이 '총구'로 읽힌다. 소염기만 뚜껑을 열어(capOpen)
+         안이 어둡게 뚫린 구멍을 남긴다 — 총구는 막힌 데가 아니다.
+         나란한 둘로 두는 것은 자료 그대로다(twin 30mm autocannons). */
+      const rc9 = atG9 * 0.75;
+      for (const dx9 of [-0.42, 0.42]) {
+        const bx9 = px + dx9;
+        out.push(...tagKey(paintBase([
+          ...tubeFaces(bx9, 0.85 - rc9, bx9, 2.0 - rc9, 0.3, 5.62),
+        ], GUNMETAL), key + 0.5));
+        out.push(...tagKey(paintBase([
+          ...tubeFaces(bx9, 2.0 - rc9, bx9, 3.16 - rc9, 0.185, 5.62),
+        ], GUN_D), key + 0.55));
+        out.push(...tagKey(paintBase([
+          ...tubeFaces(bx9, 3.16 - rc9, bx9, 3.52 - rc9, 0.28, 5.62, true),
+        ], GUNMETAL), key + 0.6));
       }
     }
-    /* **헬파이어 미사일 팩**(자료) — 어깨 위에 얹힌 발사대 한 쌍. 상자 하나가 아니라
-       탄두 셋이 줄지어 위-앞을 겨눈 모습이라야 '팩'으로 읽힌다. */
+    /* **헬파이어 미사일 팩**(자료) — 어깨 위에 얹힌 발사대 한 쌍.
+       ★ 상자 앞을 **발사관 입 넷**으로 뚫는다(요청: 사진처럼 자세히) — 여태는 상자에서
+         탄두 셋이 뿔처럼 돋아 있었다. 팩은 탄이 밖에 걸린 것이 아니라 **관 안에** 든
+         물건이고, 그래서 앞에서 보이는 것은 뚫린 구멍이다. 벽 원반(wallDiscPath)으로
+         내면 앞을 볼 때만 제 각도의 타원으로 그려진다. */
     for (const m of [-1, 1] as const) {
-      const px = m * 1.5;
-      const key = depthNow(px, -0.55) * 1.6 + 5;
-      out.push(...tagKey(paintBase(boxFaces3(px, -0.55, 1.1, 1.9, 0.42, 6.7), "#758295"), key));
-      for (const dy of [-1.15, -0.4, 0.35]) {
-        out.push(...tagKey(paintBase([
-          ...tubeFaces(px, dy, px, dy + 0.5, 0.24, 7.28),
-          ...hornFaces(px, dy + 0.45, 7.28, px, dy + 0.95, 7.42, 0.34),
-        ], "#576272"), key + 0.3));
+      const px = m * 1.55;
+      const key = depthNow(px, -0.3) * 1.6 + 5;
+      out.push(...tagKey(paintBase([
+        ...boxFaces3(px, -0.3, 1.25, 1.9, 0.86, 6.55),
+        // 위 덮개 — 앞으로 좁아지는 낮은 뚜껑. 상자 꼭대기가 칼같이 끊기지 않게.
+        ...frustumFaces3(px, -0.3, 1.25, 1.9, 1.02, 1.5, 0.24, 7.41),
+      ], "#758295"), key));
+      if (facingRatio(0, 1) > 0.05) {
+        for (const ox9 of [-0.3, 0.3]) {
+          for (const oz9 of [6.79, 7.17]) {
+            out.push(...tagKey([
+              [wallDiscPath(px + ox9, 0.66, oz9, 0.24, 0.21), 1, "#2b3038"] as ShapeFace,
+            ], key + 0.4));
+          }
+        }
       }
     }
     /* 머리 — 어깨 사이에 낮게 앉은 감지기 상자와 안테나(자료: external audio pickups). */
@@ -10052,6 +10142,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ...frustumFaces3(0, -0.35, 1.1, 1, 0.85, 0.8, 0.6, 6.7),
       ...spikeHorn(-0.42, -0.5, 7.3, -0.7, -0.85, 8.5, 0.2, undefined, 4, 0.08, -0.5, -0.5),
     ], STEEL), depthNow(0, -0.35) * 1.6 + 4));
+    // 감지기 렌즈 — 머리 앞의 붉은 점. 작아도 '어디를 보는가'를 말한다.
+    if (facingRatio(0, 1) > 0.05) {
+      out.push(...tagKey([
+        [wallDiscPath(0, 0.16, 7.02, 0.2, 0.17), 0.95, "#d8564a"] as ShapeFace,
+      ], depthNow(0, -0.35) * 1.6 + 4.4));
+    }
     return out;
   },
   /* 리버(전면 재작도 — 사진 samples/리버1~3.jpg 기준) ──────────────────────────
@@ -17369,7 +17465,11 @@ const MUZZLE_ANCHOR: Record<string, [number, number, number]> = {
   inf: [1.22, 2.05, 3],
   // 탱크 둘은 포탑을 원점에 맞추며 포신이 옮겨졌다(위 tankTurret·siegeTurret 주석) —
   // 값은 새 포신 끝(평시 쌍포신 y 5.95·z 3.75, 시즈 소염기 y 6.85·z 5.9)이다.
-  tank: [0.5, 5.9, 3.75], tanksiege: [0, 4.8, 5.62], goliath: [1.4, 2.2, 3.4],
+  tank: [0.5, 5.9, 3.75], tanksiege: [0, 4.8, 5.62],
+  /* 골리앗 [1.4, 2.2, 3.4] → [0, 2.9, 5.62] — 옛 값은 지금 모델에서 **무릎 높이**(z 3.4)의
+     허공이었다. 총열은 z 5.62에 있고, 미사일은 좌우 두 줄기로 갈라져 나가므로(lanes9)
+     앵커는 몸 한가운데여야 두 발이 양 포드에 하나씩 선다 — x를 0으로 옮긴 까닭이다. */
+  goliath: [0, 2.9, 5.62],
   vulture: [0, 3.4, 2.6], wraith: [0, 3.1, 3.88], bc: [0, 4.6, 3.8],
   /* 발키리는 **몸 가운데**에서(지적: "나오는 위치가 안맞고") — x 0.9는 오른쪽 발사관
      하나를 짚은 값이라, 어느 요잉에서는 미사일이 몸 옆 허공에서 났다. 발키리는 좌우
@@ -17571,7 +17671,7 @@ const MODEL_NORM: Record<string, number> = {
   egg: 1.237,   // 정수리를 둥글게 한 뒤 model-norm 재측정
   fbat: 1.233,
   ghost: 1.552,  // 상자 상한(원한 배수 1.723)
-  goliath: 0.711,
+  goliath: 0.672,
   goon: 0.667,
   guardian: 0.611,
   gunner: 1.402,  // 어깨판 10% 축소 뒤 model-norm 재측정
