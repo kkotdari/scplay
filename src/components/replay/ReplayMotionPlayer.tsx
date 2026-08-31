@@ -17406,6 +17406,33 @@ SHAPE_BUILDERS.droneGas = () => {
     return [...SHAPE_BUILDERS.drone(), ...gasSacLoad(0, 2.7, 2.7, 0.95)];
   } finally { scvCarry = false; }
 };
+/* ★ 일꾼의 **몸과 짐을 나눈다**(조사: 12배에서 유닛 판 예산을 일꾼이 통째로 먹는다) ────
+   진단이 가리킨 수는 `유닛 49장 21.3/21MB`였다. 그 49장의 정체가 이것이다:
+     일꾼 3종(빈손·미네랄·가스) × 16방위 = **48장**
+   그런데 미네랄판과 가스판은 **몸이 똑같다** — 둘 다 scvCarry 자세이고 다른 것은 손에 든
+   것뿐이다. 곧 같은 몸을 두 벌 굽고 있었다.
+   몸(…Hold)과 짐(load…)을 갈라 굽는다. 몸은 세 벌이 아니라 두 벌(빈손·안은 자세)이 되고,
+   짐은 제 크기가 몸의 5분의 1이라 판 무게가 25분의 1이다 — 48장 → 32장 + 자잘한 것으로,
+   일꾼이 먹던 몫이 3분의 1 준다.
+   자리는 안 어긋난다: 둘 다 같은 16-상자에서 같은 배수로 구우므로(NORM_PAIR가 맨몸
+   배수로 접는다) 그리는 쪽이 같은 보정으로 두 판을 겹쳐 찍으면 짐이 제 모형 좌표에
+   그대로 앉는다(아래 op.attach). */
+SHAPE_BUILDERS.scvHold = () => {
+  scvCarry = true;
+  try { return SHAPE_BUILDERS.scv(); } finally { scvCarry = false; }
+};
+SHAPE_BUILDERS.droneHold = () => {
+  scvCarry = true;
+  try { return SHAPE_BUILDERS.drone(); } finally { scvCarry = false; }
+};
+// 프로브는 짐을 몸 앞에 띄울 뿐 자세가 안 바뀐다 — 맨몸 판을 그대로 쓴다.
+SHAPE_BUILDERS.probeHold = () => SHAPE_BUILDERS.probe();
+SHAPE_BUILDERS.loadScvMin = () => mineralLoad(0, 3.15, 3.95, 1.0);
+SHAPE_BUILDERS.loadScvGas = () => gasBoxLoad(0, 3.15, 3.95, 1.0);
+SHAPE_BUILDERS.loadProbeMin = () => mineralLoad(0, 1.9, 4.35, 0.9);
+SHAPE_BUILDERS.loadProbeGas = () => gasBoxLoad(0, 1.9, 4.35, 0.9, "#c9a227");
+SHAPE_BUILDERS.loadDroneMin = () => mineralLoad(0, 2.7, 2.7, 0.95);
+SHAPE_BUILDERS.loadDroneGas = () => gasSacLoad(0, 2.7, 2.7, 0.95);
 /* 부품 깊이 정렬(지적: 일부만 가려지는 파트에서 뒤 요소가 비쳐 보임 — 가장 큰 문제) —
    빌더의 그리기 순서는 표준 시점 기준 고정이라, 요잉으로 뒤로 돌아간 부품이 앞 부품
    위에 그려졌다. 프리미티브(상자·절두·기둥·돔·뿔·관·다리)가 제 중심 깊이를 면에 달아
@@ -17498,6 +17525,15 @@ const workerKindOf = (race?: string): string =>
  *  NORM_PAIR가 맨몸 배수를 물려주므로 몸 크기는 안 변한다. */
 const workerLoadKind = (base: string, st: number | null): string =>
   (st === ST_CARRY_MIN ? `${base}Min` : st === ST_CARRY_GAS ? `${base}Gas` : base);
+/** 짐을 진 일꾼의 **몸** 판 — 미네랄이든 가스든 자세가 같으므로 한 벌이다(위 ★). */
+const workerBodyKind = (base: string, st: number | null): string =>
+  (st === ST_CARRY_MIN || st === ST_CARRY_GAS ? `${base}Hold` : base);
+/** 그 위에 겹쳐 찍을 **짐** 판 — 없으면 undefined다. */
+const workerAttachKind = (base: string, st: number | null): string | undefined => {
+  if (st !== ST_CARRY_MIN && st !== ST_CARRY_GAS) return undefined;
+  const b9 = base.charAt(0).toUpperCase() + base.slice(1);
+  return `load${b9}${st === ST_CARRY_MIN ? "Min" : "Gas"}`;
+};
 /** 일꾼 정체 — 살아 있는 일꾼을 셀 때 개체 트랙에서 고르는 이름들. */
 const WORKER_KINDS = new Set(["SCV", "Probe", "Drone"]);
 /** 커맨드 없이 시작하는 일꾼 수 — 세 종족 모두 4기다(개체 트랙에는 첫 클릭에야 나타난다). */
@@ -17890,6 +17926,12 @@ const NORM_PAIR: Record<string, string> = {
   scvMin: "scv", scvGas: "scv",
   probeMin: "probe", probeGas: "probe",
   droneMin: "drone", droneGas: "drone",
+  /* 몸/짐을 가른 별본도 같은 배수를 쓴다 — 그래야 두 판이 같은 자에서 나와 겹쳐 찍을 때
+     짐이 제 자리에 앉는다(SHAPE_BUILDERS.scvHold의 ★). */
+  scvHold: "scv", droneHold: "drone", probeHold: "probe",
+  loadScvMin: "scv", loadScvGas: "scv",
+  loadProbeMin: "probe", loadProbeGas: "probe",
+  loadDroneMin: "drone", loadDroneGas: "drone",
 };
 /** 모델 공간 배수의 유일한 입구 — 굽기·도록·총구 앵커가 전부 이것을 쓴다.
  *  짝은 본체 배수로 접힌다. */
@@ -17929,7 +17971,10 @@ const NORM_TARGET_INK = 5.2;
  *  이 표도 --emit이 낸 값이다. */
 const MODEL_INK: Record<string, number> = { arbiter: 4.213, ghost: 4.685, inf: 4.874, larva: 4.787, mine: 4.381, mutacocoon: 5.020, scarab: 4.950, scourge: 5.070, tankgun: 3.772, tanksiegegun: 2.528 };
 /** 그리는 kind가 정규화 뒤 실제로 차지하는 잉크 상자(모델 단위). */
-const modelInkOf = (kind: string): number => MODEL_INK[kind] ?? NORM_TARGET_INK;
+/* 짝은 본체의 잉크 몫을 물려받는다 — 등급(lod)과 장식 자가 이 값을 보므로, 짐 판만
+   따로 재면 짐이 몸과 다른 등급으로 구워져 부품이 빠진다. */
+const modelInkOf = (kind: string): number =>
+  MODEL_INK[kind] ?? MODEL_INK[NORM_PAIR[kind] ?? ""] ?? NORM_TARGET_INK;
 
 /** ②-a 원작 자료 — **BWAPI 원전 그대로다. 한 칸도 손보지 마라**(손볼 곳은 UNIT_SIZE_TUNE).
  *  [폭px, 높이px, 등급(0 소·1 중·2 대), 공중(1)]
@@ -18654,6 +18699,10 @@ type UnitDrawOp = {
    *  몸통 요잉(rotDeg)과의 차가 곧 모델 회전이다(위 headYawNow 주석). 값은 22.5도로
    *  갈무리해 넘겨야 한다 — 굽는 판이 칸마다 하나씩 생긴다. */
   headDeg?: number;
+  /** ★ 이 판 **위에 같은 자로 겹쳐 찍을** 판(요청: 일꾼 몸/짐 가르기) — 같은 16-상자·같은
+   *  배수로 구워지므로, 몸의 자리 보정을 그대로 쓰고 제 잉크 오프셋만 달리 하면 짐이 제
+   *  모형 좌표에 앉는다. */
+  attach?: string;
   /** 도형 한 변(px) — 크기표 × 깊이 배율까지 포함한 **그리는 상자**다.
    *  화면에 보이는 몸은 이것의 약 1/3(NORM_TARGET_INK/16)이고, 몸을 자로 삼는 장식은
    *  이 값이 아니라 구운 판의 잉크 폭(inkW)을 쓴다. */
@@ -21743,12 +21792,36 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
              픽셀 단위로 같은 그림이 나온다. */
           const cw9 = spr.cv.width / B;
           const ch9 = spr.cv.height / B;
+          /* ★ 겹쳐 찍는 판(op.attach) — 일꾼이 든 짐이다. **같은 자**로 굽는다: 같은
+             크기(pxqB)·같은 배수(NORM_PAIR가 맨몸 것으로 접는다)라, 몸과 똑같은 변환에
+             제 잉크 오프셋(ox·oy)만 달리 주면 짐이 제 모형 좌표에 앉는다. 짐 판은 몸의
+             5분의 1 크기라 무게가 25분의 1이다 — 몸을 미네랄·가스로 두 벌 굽던 것을 한
+             벌로 줄이는 값에 견주면 거저다.
+             ★ **앞뒤 차례는 요잉이 정한다** — 짐은 모형의 앞(+y)에 안기므로, 일꾼이 등을
+               보이면(요잉 90~270도) 짐은 몸 **뒤**에 있어야 한다. 한 판씩 겹쳐 찍는
+               길에는 부품별 깊이가 없으니 차례로 그 몫을 낸다: 등을 보일 때는 짐을 먼저
+               깔고 몸으로 덮는다(합본 모델에서 짐이 가려지던 그 그림이 그대로 난다). */
+          const atSpr9 = op.attach ? unitSprite({ ...op, kind: op.attach }, pxqB, B) : null;
+          const atDraw9 = (): void => {
+            if (!atSpr9) return;
+            SPRITE_PERF.blit += 1;
+            ctx.drawImage(
+              atSpr9.cv,
+              (-(atSpr9.pad + pxqB / 2) + atSpr9.ox / B) * k,
+              (-(atSpr9.pad + pxqB / 2) + atSpr9.oy / B) * k,
+              (atSpr9.cv.width / B) * k, (atSpr9.cv.height / B) * k,
+            );
+          };
+          const rb9 = ((Math.round((op.rotDeg ?? 0) / 22.5) * 22.5) % 360 + 360) % 360;
+          const atBack9 = rb9 > 90 && rb9 < 270;
+          if (atBack9) atDraw9();
           ctx.drawImage(
             spr.cv,
             (-(spr.pad + pxqB / 2) + spr.ox / B) * k,
             (-(spr.pad + pxqB / 2) + spr.oy / B) * k,
             cw9 * k, ch9 * k,
           );
+          if (!atBack9) atDraw9();
           ctx.setTransform(B, 0, 0, B, 0, 0);
           continue;
         }
@@ -32883,8 +32956,12 @@ export default function ReplayMotionPlayer({
             /* 버로우한 럴커는 제 몸을 갖는다(위 지적) — 다른 버로우 유닛만 맨 구멍이다. */
             const kind0 = burrowed && !digging9
               ? (drawUnit === "Lurker" ? (lurkStrike ? "lurkerfire" : "lurkerburrow") : "burrowhole")
-              : isWorker ? workerLoadKind(workerKindOf(race), simState)
+              : isWorker ? workerBodyKind(workerKindOf(race), simState)
                 : unitMarkerKind(drawUnit2, race);
+            /* 짐은 **따로 겹쳐 찍는다**(위 workerAttachKind의 ★) — 몸 판을 미네랄·가스로
+               두 벌 굽지 않으려는 것이 요점이다. */
+            const load0 = burrowed || !isWorker
+              ? undefined : workerAttachKind(workerKindOf(race), simState);
             const gunKind = kind0 === "tank" ? "tankgun" : kind0 === "tanksiege" ? "tanksiegegun" : null;
             /* ★ 저배율은 **합본**이다(지적: "저배율에서 시즈탱크 포탑부를 아예 안 그리는
                문제") — 포탑 판은 4배부터만 얹는데(liteView 게이트, 판을 한 벌 덜 굽는
@@ -32949,6 +33026,8 @@ export default function ReplayMotionPlayer({
                  `1000 + (ei % 137)`, 곧 **아무 차례도 아니었다**. */
               z: 1000 + Math.round(ay3 * Z_TILE) + Z_UNIT_AHEAD,
               kind: kindMain,
+              // 짐 판은 몸 판 위에 같은 자로 겹쳐 찍는다(위 load0).
+              ...(load0 ? { attach: load0 } : {}),
               selRing: selNow || undefined,
               // 보임 토글이면 만피여도 표시(요청: 모든 유닛·건물 다 표시).
               hpFrac: Math.max(0.04, Math.min(1, hpNow / Math.max(1, hpFull))),
