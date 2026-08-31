@@ -20417,6 +20417,45 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
            *  선 순간 세로가 0으로 상쇄되고, 거기서 이 길이 무너졌다. */
           let runD9 = reach9;
           if (f.kind === "beam") {
+            /* ★ 산성 포자(디바우러) — 표적 몸에 **들러붙어 남는** 자국이다(만드는 쪽의
+               acidAge9 주석에 그 사정이 있다). 위상은 '나이'다: 0이 갓 닿음, 1이 다음
+               발 직전.
+               그리는 결이 다른 갈래와 다르다 — 이것은 총구에서 뻗는 빛도 날아가는 탄도
+               아니라서 방향(deg)도 길이(l)도 뜻이 없다. 몸에 흩뿌려진 **방울 몇**이
+               전부고, 그 방울이 몸을 따라 눕는다(세로를 눌러 부감에 맞춘다).
+               · 자리 — 황금각으로 흩어 어느 개수에서도 뭉치지 않는다. 마디 번호를
+                 씨앗으로 삼아 **프레임마다 안 흔들린다**(난수를 새로 뽑으면 자국이 몸
+                 위에서 끓는다 — 연기 덩이가 데었던 그 자리와 같은 까닭이다).
+               · 삭음 — 다 삭아도 3할은 남긴다. 다음 발이 덧칠하므로 겨눠진 몸은 끊기지
+                 않고 산에 덮인 채로 읽힌다.
+               · 색 — 탄과 **같은 결**이다(이 파일의 규약: 나간 빛과 닿은 빛이 같은 색).
+                 속은 옅은 보랏빛 흰색, 테로 갈수록 짙은 보라다. */
+            if (f.style === "acidspore") {
+              const r0 = ((f.size ?? 8) / 2) * zoom;
+              if (r0 < 0.6) continue;
+              const pop9 = p9 < 0.12 ? p9 / 0.12 : 1;      // 닿는 순간 톡 붙는다
+              const fade9 = 1 - p9 * 0.45;                  // 반 넘게 남는다
+              for (let i9 = 0; i9 < 5; i9 += 1) {
+                const an9 = i9 * 2.399 + 0.7;               // 황금각
+                /* 몸 한가운데부터 테두리 밖 한 뼘까지 — 몇은 걸치고 몇은 흘러내린 꼴이
+                   돼야 '묻었다'로 읽힌다(다 안에 들면 몸의 무늬가 된다). */
+                const rr9 = r0 * (0.35 + 0.5 * (((i9 * 7) % 5) / 5));
+                const bx9 = x0 + Math.cos(an9) * rr9;
+                const by9 = y0 + Math.sin(an9) * rr9 * 0.62;
+                const br9 = Math.max(0.7, r0 * 0.4 * pop9 * (0.72 + 0.28 * (((i9 * 3) % 4) / 4)));
+                const gg9 = ctx.createRadialGradient(bx9, by9, 0, bx9, by9, br9);
+                gg9.addColorStop(0, "rgba(238,210,255,0.95)");
+                gg9.addColorStop(0.45, "rgba(180,110,240,0.75)");
+                gg9.addColorStop(1, "rgba(110,50,170,0)");
+                ctx.globalAlpha = fade9;
+                ctx.fillStyle = gg9;
+                ctx.beginPath();
+                ctx.arc(bx9, by9, br9, 0, Math.PI * 2);
+                ctx.fill();
+              }
+              ctx.globalAlpha = 1;
+              continue;
+            }
             if (f.style === "heal") {
               // 메딕 — 길이 없는 노란 불빛(scr-tracer-heal + scr-heal-glow 박동).
               const pulse9 = 0.15 + Math.sin(p9 * Math.PI) * 0.85;
@@ -31404,6 +31443,11 @@ export default function ReplayMotionPlayer({
             const fxName9 = dualFx9 && foe.air ? "missile"
               : dualFx9 && fxUnit !== "Wraith" ? "burst"
                 : ATTACK_FX[fxUnit];
+            /** 이 발이 총구에서 표적까지 **나는 데 걸리는 시간**(초) — 지도 위 거리로
+             *  잰다(아래 shotU의 ★). 날아가는 탄과 그 탄이 남기는 자국(산성 포자)이
+             *  같은 시계를 봐야 '닿는 순간'이 둘에서 갈리지 않는다. */
+            const flySec9 = Math.min(fxCdRaw * 0.9,
+              Math.max(0.05, foeDist / Math.max(1, SHOT_TILES_PER_SEC)));
             const shotU = ((): number | null => {
               /* ★ 나는 거리는 **지도 위 거리**로 잰다(지적: "골리앗 스카웃 대공 미사일
                  안 나감" · "트레이서가 여전히 떠 있는 건물엔 안 나가") ────────────────
@@ -31418,13 +31462,57 @@ export default function ReplayMotionPlayer({
                  남는다. 화면 거리는 그리는 길이·방향에만 쓴다(그건 화면의 일이 맞다). */
               if (!fxName9 || !PROJECTILE_FX.has(fxName9)) return null;
               if (!Number.isFinite(foeDist) || foeDist <= 0.05) return null;
-              const flySec = Math.min(fxCdRaw * 0.9,
-                Math.max(0.05, foeDist / Math.max(1, SHOT_TILES_PER_SEC)));
               const ph9 = firePhase(`u${holdKey}`, fxCdRaw);
-              const u9 = (ph9 * fxCdRaw) / flySec;
+              const u9 = (ph9 * fxCdRaw) / flySec9;
               return u9 < 1.2 ? Math.min(1, u9) : null;
             })();
             if (beamDeg === null || !fxName9) return null;
+            /* ★ 산성 포자 — 디바우러의 산은 **표적에 남는다**(지적: "디바우러 트레이서는
+               나가는데 타겟에 산성 효과가 안 남는 거였어") ────────────────────────────
+               원작의 부식성 산(Corrosive Acid)은 맞히고 끝나는 무기가 아니다. 맞은 몸에
+               **산성 포자**가 들러붙어 눈에 보이게 남고(겹쳐 쌓인다), 그동안 그 몸은 더
+               아프게 맞고 더 느리게 쏜다. 디바우러 한 기가 판을 바꾸는 것이 그 자국이지
+               한 발의 피해가 아니다.
+               그런데 화면에 그 자국이 설 자리가 없었다. 맞는 쪽 그림(FX_IMPACT.acid)은
+               **체력이 실제로 줄어든 순간**에만 0.14초 뜨는데, 참값의 체력은 띄엄띄엄
+               적히므로 대부분의 사격에는 아무것도 안 난다(커세어가 통째로 안 보이던 그
+               사정이다). 게다가 이 무기는 쿨다운이 원작에서 가장 길어(100프레임 = 4.2초)
+               탄이 나는 몫은 한 주기의 1/8뿐이다 — 나머지 7/8 동안 표적은 말짱해 보였다.
+               그래서 자국을 **탄과 따로** 낸다: 탄이 닿는 위상(flySec/쿨다운)을 지나면
+               다음 발이 올 때까지 표적 몸에 포자가 붙어 서서히 삭는다. 곧 한 주기가
+               '날아가는 8분의 1 + 남아 있는 8분의 7'로 채워져, 겨눠진 몸이 늘 산에
+               덮여 있다.
+               ★ 자국의 임자는 **쏘는 쪽**이다 — 참값에는 "이 몸에 포자가 몇 겹인가"가
+                 없고 "이 디바우러가 무엇을 겨누나"만 있다. 그러니 겨누는 동안만 그린다:
+                 지어낸 겹수를 몸에 얹는 대신 참값이 아는 만큼만 말한다. 둘이 한 몸을
+                 겨누면 자국도 두 벌이라 저절로 짙어진다(원작의 겹침과 결이 같다). */
+            const acidAge9 = ((): number | null => {
+              if (fxName9 !== "acid") return null;
+              if (!Number.isFinite(foeDist) || foeDist <= 0.05) return null;
+              /** 탄이 닿는 위상 — 그 뒤가 곧 '자국이 남아 있는' 구간이다. */
+              const land9 = Math.min(0.9, flySec9 / Math.max(0.05, fxCdRaw));
+              const ph9 = firePhase(`u${holdKey}`, fxCdRaw);
+              // 아직 안 닿았으면 자국이 없다 — 첫 발 전에 미리 묻히지 않는다.
+              return ph9 >= land9 ? (ph9 - land9) / Math.max(0.05, 1 - land9) : null;
+            })();
+            if (acidAge9 !== null) {
+              /* 크기·높이는 **표적 제 몸**의 것이다 — 쏘는 쪽 크기로 어림하면 몸집이
+                 갈리는 짝에서 자국이 몸을 벗어난다(조준 높이가 데었던 그 자리와 같다).
+                 ★ 그리고 그 자는 **보이는 몸**이어야 한다 — unitPxOf가 내는 것은 모델
+                   **상자**이고 모델이 그 상자를 채우는 몫은 3분의 1 남짓이다
+                   (modelInkOf/16). 상자로 재면 포자가 몸에서 한참 떨어진 허공에 붙는다
+                   (실드막·미사일 두 발 간격이 똑같이 데었던 자리다). 잉크 폭으로
+                   되돌린 뒤 아주 조금만 넓혀, 몸 테두리에 걸치게 둔다. */
+              const aKind9 = foe.uk ? (UNIT_3D[foe.uk] ?? "") : "";
+              const aPx9 = (foe.uk && isKnownKind(foe.uk)
+                ? unitPxOf(foe.uk, foe.by) : fxPx) * (modelInkOf(aKind9) / 16) * 1.1;
+              const [afx9, afy9] = posFrac(foe.bx, foe.by);
+              fxOps.push({
+                kind: "beam", style: "acidspore", fx: afx9, fy: afy9,
+                lift: foe.air ? foeLift9 : aPx9 * 0.5,
+                mx: 0, my: 0, deg: 0, ph: acidAge9, size: aPx9,
+              });
+            }
             /* 총구 오프셋(렌즈 px) — 모델 앵커가 있으면 CSS의 translate→rotate 순서
                그대로(안 돌린 오프셋), 없으면 옛 픽셀 폴백(rotate→translateY = 방향 ×
                오프셋)이다. 앵커 배수는 몸 판의 것(modelNormOf, 버로우면 구멍 판). */
