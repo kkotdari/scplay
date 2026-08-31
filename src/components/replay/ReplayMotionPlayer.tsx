@@ -6999,23 +6999,34 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          y가 안 변하므로 옆에서(x축을 따라) 보면 팔은 수평이고 아랫마디는 수직이라 이음매가
          직각이고, 앞에서 보면 아랫마디가 바깥으로 벌어진 다리다. 안쪽으로는 어느 축에서도
          안 기운다. */
-      const kx = px * 0.64;                   // 무릎 — 몸 안쪽(팔이 몸에 붙어 나온다)
+      const kx = px * 0.70;                   // 무릎 — 몸 안쪽(팔이 몸에 붙어 나온다)
       const ax = kx;
       const ay = py * 0.36;
-      const AZ = BODY_Z + 0.85;               // 본체 옆면 중턱 — 팔이 몸 밖으로 드러난다
+      /* 팔의 높이를 낮춘다(지적: "다리 두 번째 마디 너무 길어 아직도") — 아랫마디의
+         길이는 곧 '팔 높이 − 발판 높이'와 벌어지는 몫의 빗변이다. 0.85에서는 낙차가
+         2.7이라 아랫마디가 3.37로 팔(3.2)보다 길었다. 0.30으로 내리면 낙차가 2.15,
+         무릎을 조금 더 바깥(0.64 → 0.70배)에 두어 벌어지는 몫이 1.68이라
+         아랫마디가 2.73 — 팔보다 확실히 짧다. 이 높이도 본체 옆면 안이라 팔은 그대로
+         몸에 붙어 나온다. */
+      const AZ = BODY_Z + 0.30;
       const ky = py;                          // 무릎의 앞뒤는 발판과 같다
       const seg = (x0: number, y0: number, z0: number,
         x1: number, y1: number, z1: number, w0: number, w1: number): ShapeFace[] =>
         paintBase(spirePillar({
-          x: 0, y: 0, h: 1, w: w0, tipW: w1, segs: 2, sides: 6, hold: 0.2, caps: "none",
+          /* 단면을 **켠다**(지적: "마디가 검게 보여") — 끄면 무릎에서 맞닿는 두 관의
+             열린 끝으로 속(등진 어두운 면)이 그대로 비쳐, 이음매가 검은 덩이로 보인다.
+             양 끝은 몸속·무릎 구슬·발판에 묻히므로 켜 두어도 겉으로 안 드러난다. */
+          x: 0, y: 0, h: 1, w: w0, tipW: w1, segs: 2, sides: 6, hold: 0.2, caps: "both",
           path: (t9: number): [number, number, number] =>
             [x0 + (x1 - x0) * t9, y0 + (y1 - y0) * t9, z0 + (z1 - z0) * t9],
         }), "#8b929a");
       out.push(...tagKey([
         // 윗팔 — 바닥에 수평하게 앞뒤로만.
         ...seg(ax, ay, AZ, kx, ky, AZ, 0.46, 0.42),
-        // 무릎 마디.
-        ...paintBase(domeFaces3(kx, ky, 0.44, 0.42, AZ - 0.21), MID),
+        /* 무릎 마디 — 관보다 넉넉히(반지름 0.44 → 0.58) 잡아 두 관의 이음매를 통째로
+           감싼다. 아래로도 한 토막 내려 구슬처럼 보이게 한다. */
+        ...paintBase(cylinderFaces3(kx, ky, 0.58, 0.32, AZ - 0.32), MID),
+        ...paintBase(domeFaces3(kx, ky, 0.58, 0.46, AZ), MID),
         // 아랫마디 — 앞뒤는 그대로, 옆으로 벌어지며 내려간다.
         ...seg(kx, ky, AZ, px, py, 0.5, 0.42, 0.34),
       ], k9));
@@ -7083,9 +7094,20 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // 본체 윗면 가장자리 처마.
     out.push(...tagKey(prism9(MTOP - 0.16, MTOP, PLATE, 0.12), 2));
 
-    /* ── 관제 블록 ── 뒤·왼쪽으로 물러난 상자 + 앞면의 창 넷 + 넓은 지붕판. */
+    /* ── 관제 블록 **둘** ── 사진의 윗도리는 상자 하나가 아니라 좌우로 붙은 상자 둘이다
+       (지적: "본체 위의 상자 하나가 아니고 양쪽에 박스 두 개가 붙은 형태여야 해").
+       왼쪽이 높고 앞면에 창이 나며, 오른쪽은 한 단 낮고 그 위에 원통 탱크가 얹힌다. */
+    const RX = UX + UPP_W / 2 + 1.6;          // 오른 상자 — 왼 상자에 딱 붙는다
+    const RY = UY - 0.3;
+    const RW = 3.2;
+    const RD = 3.2;
+    const RH = UPP_H - 0.6;
     out.push(...tagKey(paintBase(boxFaces3(UX, UY, UPP_W, UPP_D, UPP_H, MTOP), PLATE),
       10 + depthNow(UX, UY) * 1.6));
+    out.push(...tagKey([
+      ...paintBase(boxFaces3(RX, RY, RW, RD, RH, MTOP), MID),
+      ...paintBase(boxFaces3(RX, RY, RW + 0.26, RD + 0.26, 0.16, MTOP + RH), PLATE),
+    ], 10.4 + depthNow(RX, RY) * 1.6));
     if (facingRatio(0, 1) > 0.12) {
       const wy = UY + UPP_D / 2 + 0.04;
       const win: ShapeFace[] = [];
@@ -7112,9 +7134,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
 
     /* ── 오른뒤에 누운 원통 탱크 ── 끝에 테가 둘린다(사진). */
     out.push(...tagKey([
-      ...paintBase(tubeFaces(1.0, -2.05, 3.5, -2.05, 0.78, MTOP + 0.78), DARK),
-      ...paintBase(cylinderFaces3(3.62, -2.05, 0.86, 0.18, MTOP + 0.78 - 0.86), MID),
-    ], 11 + depthNow(2.2, -2.05) * 1.6));
+      ...paintBase(tubeFaces(RX - 1.35, RY - 0.5, RX + 1.35, RY - 0.5, 0.72,
+        MTOP + RH + 0.9), DARK),
+      ...paintBase(cylinderFaces3(RX + 1.47, RY - 0.5, 0.8, 0.18,
+        MTOP + RH + 0.9 - 0.8), MID),
+    ], 11 + depthNow(RX, RY - 0.5) * 1.6));
 
     /* ── 임자색 셋 ── 앞면의 큰 구체 · 본체 오른위의 둥근 포드 · (지붕 막대는 위에서). */
     pc.push(...tagKey(domeFaces3(2.3, 3.02, 1.2, 1.1, BODY_Z + 0.5),
