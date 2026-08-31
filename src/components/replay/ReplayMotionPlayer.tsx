@@ -3979,7 +3979,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   /* 폭·길이만 줄인다(요청: "서플 높이 그대로 폭 길이만 축소") — 가로 두 축을 0.75로,
      높이는 앞서 올린 1.2 그대로다. 정규화가 잉크 **상자**를 한 목표에 맞추므로, 가로가
      줄고 세로가 그대로면 그만큼 배수가 올라 결과는 '더 좁고 더 높은' 디포가 된다. */
-  trapezoid: () => withModelScale(0.75, 0.75, 1.2, () => withModelSpin(-90, () => {
+  /* 높이 10% 축소(요청: "서플라이 리파이너리 높이 10프로 축소") — z 배수 1.2 → 1.08. */
+  trapezoid: () => withModelScale(0.75, 0.75, 1.08, () => withModelSpin(-90, () => {
     /* 서플라이 디포(재작도·사진) — 검회색 장갑 상자다. 지붕 뒤에 드럼통 하나가 서고,
        지붕 가운데와 앞면 두 곳에는 환풍구가 뚫린다. 왼쪽 지붕에는 은빛 보급 상자 줄과
        그 아래 초록 발광, 왼쪽 옆면에는 초록 창과 해저드 띠, 앞에는 경사로와 드럼 둘.
@@ -6307,9 +6308,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         }), IVORY),
         capFace(discPath3(CHX, CHY, CHZ + CHH + 1, 1.2), 0.55),
       ], ck9));
+      /* 단면을 **켠다**(지적: "스포어 굴뚝의 임자색 띠 안쪽이 비쳐보임") — 이 띠는 대롱
+         (그 높이의 반지름 1.15)보다 굵어서(1.32/1.26) 두 끝이 남의 몸에 안 묻힌다. 그런
+         자리에 caps "none"을 두면 열린 고리 속의 등진 어두운 면이 그대로 보인다.
+         (팔에 끼운 좁은 고리처럼 정말 묻히는 자리에서만 끄는 것이 맞다.) */
       pc.push(...tagKey(spirePillar({
         x: CHX, y: CHY, z0: CHZ + 0.55, h: 0.65, w: 1.32, tipW: 1.26,
-        segs: 1, sides: 10, hold: 0.5, caps: "none",
+        segs: 1, sides: 10, hold: 0.5, caps: "both",
       }), ck9 + 0.5));
       /* 굴뚝 둘레의 작은 흰 가시 넷(요청) — 대롱 중턱에서 바깥·위로 짧게 돋는다.
          보이는 쪽만 그린다. */
@@ -6419,7 +6424,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
 
   /* 리파이너리(실물 참고) — 낮은 받침 + 좌우 어두운 탑 + 가운데 나팔 굴뚝 + 은빛
      팔꿈치 배관들 + 앞 은색 탱크 + 왼앞 줄무늬 경사로. */
-  refinery: () => {
+  /* 높이 10% 축소(요청) — 부품이 저마다 다른 z에서 파생되므로 모델 좌표의 z만 한 자리
+     에서 줄인다(가로·세로는 1이라 발자국은 그대로다). */
+  refinery: () => withModelScale(1, 1, 0.9, () => {
     /* 리파이너리(전면 재작도·사진) — 검회색 각진 덩이 여럿이 붙어 서고, 그 사이를
        마디진 은빛 관이 굽어 넘는다. 뒤 가운데엔 검은 나팔 흡입구, 앞에는 은빛 갓을
        쓴 탱크 둘, 발치와 드럼에는 노랑·검정 빗금, 왼앞에는 층진 경사로. 탱크 갓
@@ -6529,7 +6536,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ...boxFaces3(0, 4.3, 2.1, 1.1, 0.25, 0),
     ], "#576272"), depthNow(0, 3.8) * 1.6 + 3));
     return out;
-  },
+  }),
   assim: () => {
     const GOLD = "#c9a227";
     const GOLD_D = "#8a6f2a";
@@ -10540,7 +10547,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // 구 몸통 — 한 단 더 축소(3.3 → 2.7, 재지적) + 그늘 초승달 + 하이라이트.
     out.push(...tagKey([
       // 구체 짙은 은색(요청).
-      [groundEllipse(bx, by, 2.7, 2.58), 1, "#9ba3ad"] as ShapeFace,
+      [groundEllipse(bx, by, 2.7, 2.58), 1, TERRAN_STEEL_D] as ShapeFace,
       sideFace(`M${bx + 1.05} ${by - 2.3} A2.6 2.5 0 0 1 ${bx + 1.05} ${by + 2.3}`
         + ` A3.8 3.7 0 0 0 ${bx + 1.05} ${by - 2.3} Z`, 0.16),
       topFace(groundEllipse(bx - 0.9, by - 1, 1.2, 1), 0.28),
@@ -10568,7 +10575,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           return [dxs * rad, dys * rad, 6.4 + v9];
         },
         waist: 0.5, thick: 0.26, spread: 0.78 / 0.26,
-        rootPow: 1, tipPow: 1, sides: 10, segs: 8, fill: "#c9ced6",
+        rootPow: 1, tipPow: 1, sides: 10, segs: 8, fill: TERRAN_STEEL,
         // 단면의 u축을 반지름 방향으로 — 셋이 저마다 제 바깥쪽으로 납작해진다.
         ref: [dxs, dys, 0],
         key: depthNow(dxs * 3.35, dys * 3.35) + 0.8,
@@ -10616,7 +10623,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       spikeHorn(0, 1.4, 5.4, 0, 2.1, 3.9, 0.36, undefined, 6, 0.12, 0, -0.5),
       "#9a8468",
     ), depthNow(0, 1.7) + 0.6));
-    return zsorted(out);
+    /* ★ 테란 금속 광을 입힌다(지적: "사베 광택색이 왜 누렇지, 은색도 테란 상수값 기본
+       은색이 아닌 듯") — 이 몸은 raceBase를 안 탄다(색 없는 면이 임자 색이어야 해서다).
+       그 바람에 흰 광(#fff)·검은 그늘(#000)이 날것으로 남아, 다른 테란 유닛의 서늘한
+       금속 대비와 결이 달라 누렇고 매트하게 보였다. glossFaces만 따로 태우면 덮개 면의
+       색만 종족 광으로 바뀌고 **어느 면이 임자 색인가는 한 톨도 안 바뀐다**.
+       은색 둘도 손으로 적던 값(#c9ced6·#9ba3ad)에서 테란 상수로 옮겼다 — 그 상수의
+       주석이 애초에 "손으로 적던 은색을 이름 둘로 모은다"고 적어 둔 자리다. */
+    return zsorted(glossFaces(out, "terran"));
   },
   /* 뮤탈리스크(정정) — 날개는 위에 달리고, 긴 몸통이 앞-아래로 휘어 입이 아래로 나온다. */
   muta: () => {
@@ -13104,9 +13118,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         /* 손끝은 화물 옆구리다 — 상자가 2/3로 줄어(반폭 0.68) 팔도 그만큼 더 안으로
            굽는다(요청: "팔 각도 조절"). */
         const u9 = t9 - 0.46;
-        return [m * (2.36 - 3.0 * u9), 1.63 + 2.85 * u9];
+        return [m * (2.302 - 2.55 * u9), 1.434 + 2.42 * u9];
       }
-      return [m * (1.95 + 0.9 * t9), 0.3 + 2.9 * t9];
+      /* ★ 팔을 15% 줄인다(요청: "scv 상완·하완 길이 줄이기") — 어깨 아래(±1.95, 0.3)
+         에서 손끝까지의 자락을 0.9·2.9 → 0.765·2.465로 줄이면 손끝이 (±2.85, 3.2)에서
+         (±2.715, 2.765)로 당겨진다. 나르는 중의 꺾인 자락도 같은 몫으로 줄여 팔꿈치가
+         이어지게 맞췄다(위 분기의 시작점이 곧 t 0.46의 이 값이다).
+         아래 드릴·집게는 손끝에 물리므로 같은 만큼(∓0.135, −0.435) 함께 당긴다. */
+      return [m * (1.95 + 0.765 * t9), 0.3 + 2.465 * t9];
     };
     for (const m of [-1, 1] as const) {
       /* ★ 키의 밑수를 몸통과 같은 자로 내린다(지적: "키수정") — 여태 +4로 못 박혀
@@ -13189,27 +13208,30 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ), depthNow(hx9, hy9) * 1.6 + 1.5));
       }
     } else {
-      // 드릴·집게 높이는 그대로 둔다(정정) — 하완만 올랐다.
+      /* ★ 높이를 **하완에 맞춘다**(지적: "드릴 집게 높이 하완과 맞추기 — 지금 너무
+         낮음") — 하완은 z 4.62에 서는데 연장만 4.3이라 손목에서 한 단 떨어져, 팔이
+         연장을 든 것이 아니라 그 위에 얹혀 있는 것으로 보였다. 4.3 → 4.62.
+         자리도 짧아진 팔의 손끝에 맞춰 (∓0.135, −0.435) 당겼다. */
       out.push(...tagKey(paintBase([
-        ...tubeFaces(-2.78, 3.05, -2.92, 3.5, 0.5, 4.3),
-        ...hornFaces(-2.92, 3.4, 4.3, -3.38, 4.85, 4.3, 0.74),
-      ], GUNMETAL), depthNow(-2.9, 3.9) * 1.6 + 1.5));
+        ...tubeFaces(-2.645, 2.615, -2.785, 3.065, 0.5, 4.62),
+        ...hornFaces(-2.785, 2.965, 4.62, -3.245, 4.415, 4.62, 0.74),
+      ], GUNMETAL), depthNow(-2.765, 3.465) * 1.6 + 1.5));
       for (let i = 0; i < 3; i += 1) {
-        const y0 = 3.55 + i * 0.4;
-        const x0 = -2.96 - i * 0.12;
+        const y0 = 3.115 + i * 0.4;
+        const x0 = -2.825 - i * 0.12;
         const r0 = 0.34 - i * 0.09;
-        out.push(...tagKey(paintBase(tubeFaces(x0, y0, x0 - 0.04, y0 + 0.12, r0, 4.3), "#687486"),
+        out.push(...tagKey(paintBase(tubeFaces(x0, y0, x0 - 0.04, y0 + 0.12, r0, 4.62), "#687486"),
           depthNow(x0, y0) * 1.6 + 1.6));
       }
     }
     /* 오른팔 집게(사진) — 손목 토막에서 세 갈래가 앞으로 벌어져 나온다. */
     if (!carry) {
       out.push(...tagKey(paintBase([
-        ...tubeFaces(2.78, 3.05, 2.92, 3.5, 0.5, 4.3),
-        ...hornFaces(2.64, 3.45, 4.3, 2.5, 4.6, 4.3, 0.3),
-        ...hornFaces(3.2, 3.45, 4.3, 3.46, 4.6, 4.3, 0.3),
-        ...hornFaces(2.92, 3.45, 4.68, 3.02, 4.5, 4.95, 0.28),
-      ], GUNMETAL), depthNow(2.9, 3.9) * 1.6 + 1.5));
+        ...tubeFaces(2.645, 2.615, 2.785, 3.065, 0.5, 4.62),
+        ...hornFaces(2.505, 3.015, 4.62, 2.365, 4.165, 4.62, 0.3),
+        ...hornFaces(3.065, 3.015, 4.62, 3.325, 4.165, 4.62, 0.3),
+        ...hornFaces(2.785, 3.015, 5.0, 2.885, 4.065, 5.27, 0.28),
+      ], GUNMETAL), depthNow(2.765, 3.465) * 1.6 + 1.5));
     }
     /* 부양 부스터 한 쌍(정정: 다리가 아니다) — 몸 아래 매달린 짧은 포드 둘. 밑면에
        아래를 향한 노즐이 달려 그 힘으로 떠 있다는 것이 읽힌다. 땅에는 안 닿는다. */
@@ -17395,9 +17417,9 @@ const MODEL_NORM: Record<string, number> = {
   scarab: 1.514,  // 상자 상한(원한 배수 1.591)
   scourge: 1.293,  // 상자 상한(원한 배수 1.327)
   scout: 0.952,
-  scv: 0.731,
-  scvGas: 0.839,
-  scvMin: 0.845,
+  scv: 0.749,
+  scvGas: 0.842,
+  scvMin: 0.851,
   shuttle: 0.666,
   tank: 0.665,
   tankbody: 0.723,
@@ -17405,7 +17427,7 @@ const MODEL_NORM: Record<string, number> = {
   tanksiegebody: 0.575,
   ultra: 0.361,
   valk: 0.900,
-  vessel: 0.804,
+  vessel: 0.770,
   vulture: 0.828,
   wraith: 0.774,
   zealot: 0.799,
@@ -19131,7 +19153,7 @@ export const BLD_NORM: Record<string, number> = {
   pool: 1.449,
   pyramidWide: 1.058,
   queensnest: 1.148,
-  refinery: 1.391,  // 입구를 가운데로 옮겨 잉크 폭이 좁아진 만큼 bld-norm 재측정
+  refinery: 1.394,  // 입구를 가운데로 옮겨 잉크 폭이 좁아진 만큼 bld-norm 재측정
   robobay: 1.423,
   sbattery: 2.032,
   scaffold: 1.733,
@@ -19142,7 +19164,7 @@ export const BLD_NORM: Record<string, number> = {
   sunkenfire: 1.391,
   tomb: 1.534,
   tombFlat: 1.431,   // 사각 절두체 + 돔으로 재작도 후 bld-norm 재측정
-  trapezoid: 2.476,
+  trapezoid: 2.480,
   tribunal: 1.954,
   turret: 1.932,  // 상자 상한에 걸림
   warpin: 2.196,
