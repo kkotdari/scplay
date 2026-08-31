@@ -322,7 +322,10 @@ window.__mount = (motion, players, walkJson, terrainB64) => {
     /* 중간 배율 계측(--zoom) — 공유 링크의 &z=와 같은 길로 확대·중심을 건다.
        난전이 (64,64) = 분수 0.5라 화면 한가운데 온다. */
     ...(window.__zoom > 1 || (window.__deg && window.__deg !== 90)
-      ? { initialView: { z: Math.max(1, window.__zoom || 1), cx: 0.5, cy: 0.5, deg: window.__deg || 90 } } : {}),
+      ? { initialView: { z: Math.max(1, window.__zoom || 1),
+        // --cx/--cy — 확대해서 볼 자리(지도 분수). 기본은 한가운데지만, 본진을 확대해
+        // 재려면 그 자리로 옮겨야 한다(가운데는 빈 땅이라 아무것도 안 그려진다).
+        cx: window.__cx ?? 0.5, cy: window.__cy ?? 0.5, deg: window.__deg || 90 } } : {}),
     loadUnitTracks: async () => ({ motion }),
     /* 장면 공유 버튼 자리(배치 검증용) — 실제 앱은 KakaoShareButton을 내려보낸다.
        없으면 그 줄이 빈 채라 '어디에 서는가'를 화면으로 못 가린다. */
@@ -448,10 +451,12 @@ if (cssFile) {
 else console.warn("⚠ dist CSS 없음 — npm run build 먼저. 화면 배치가 안 맞을 수 있다.");
 await page.addScriptTag({ content: js, type: "module" });
 await page.waitForFunction("!!window.__mount");
-await page.evaluate(([z, d, mw, mh]) => {
+await page.evaluate(([z, d, mw, mh, cx, cy]) => {
   window.__zoom = z; window.__deg = d; window.__mapw = mw; window.__maph = mh;
+  window.__cx = cx; window.__cy = cy;
 }, [Number(flag("--zoom", 1)), Number(flag("--deg", 90)),
-  Number(flag("--mapw", 128)), Number(flag("--maph", 128))]);
+  Number(flag("--mapw", 128)), Number(flag("--maph", 128)),
+  Number(flag("--cx", 0.5)), Number(flag("--cy", 0.5))]);
 await page.evaluate(([m, pl, wj, tb]) => window.__mount(m, pl, wj, tb), [world.motion, world.players, walkFixture, makeTerrain()]);
 // 재생이 실제로 그려질 때까지 — blit이 돌기 시작하면 준비된 것이다.
 await page.waitForFunction("window.__spritePerf && (window.__spritePerf.last.blit + window.__spritePerf.last.bldBlit) > 0", null, { timeout: 30000 });

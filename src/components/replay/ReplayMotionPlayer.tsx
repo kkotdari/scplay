@@ -19327,9 +19327,42 @@ function perfFrame(ms: number): void {
   };
   p.bake = 0; p.hit = 0; p.blit = 0; p.direct = 0;
   p.bldBake = 0; p.bldHit = 0; p.bldBlit = 0;
+  // 굽기 예산도 프레임마다 되돌린다(위 UNIT_BAKE_PER_FRAME·BLD_BAKE_PER_FRAME).
+  unitBakeLeft9 = UNIT_BAKE_PER_FRAME;
+  bldBakeLeft9 = BLD_BAKE_PER_FRAME;
 }
 const SPRITE_CACHE = new Map<string, { cv: HTMLCanvasElement; ox: number; oy: number; pad: number; l: number; bot: number; cx: number; top: number; w: number }>();
 const spriteBytes = { n: 0 };
+/* ★ 한 프레임에 굽는 판의 **수를 죈다**(지적: "저그 본진은 6배까지 괜찮다가 12배 줌하면
+   버벅임이 보여") ────────────────────────────────────────────────────────────────────
+   계측(perf-check --zoom 6 / 12, 폰 390px): 배율 6에서는 판 하나가 102KB인데 12에서는
+   **377KB**다(한 변 307기기픽셀 — 판의 무게는 배율의 제곱을 탄다). 보관 총량은 12.8MB로
+   예산(32MB) 안이라 **쫓겨나서 나는 일이 아니고**, 빗나감도 12.5%에 지나지 않는다.
+   문제는 낱개의 값이다: 그 크기 한 장을 굽는 데 10ms가 든다(헤드리스 기준). 중급 폰은
+   그 네 배라 **한 장이 한 프레임을 통째로 먹는다** — 유닛이 돌아 새 방위 칸에 들어설
+   때마다 한 번씩 덜컥인다. 6배에서 안 그러던 까닭도 같다(장당 값이 4분의 1이다).
+   고치는 길은 셋인데 둘은 값을 치른다: 굽는 크기를 죄면 흐려지고(앞서 지적받은 그
+   블러다), 그냥 안 그리면 한 프레임 깜빡인다. 세 번째가 값이 없다 — **미루는 것**이다.
+   한 프레임에 굽는 수를 죄고, 예산이 다한 자리에서는 같은 모델의 **다른 크기로 이미
+   구워 둔 판**을 늘려(줄여) 찍는다. 한두 프레임 살짝 무를 뿐 곧 제 크기로 갈아 끼워지고,
+   덜컥임은 사라진다. 그래서 '가까운 크기'를 찾을 색인이 하나 필요하다(SPRITE_SIZES). */
+const UNIT_BAKE_PER_FRAME = smallDevice9 ? 1 : 3;
+let unitBakeLeft9 = UNIT_BAKE_PER_FRAME;
+/* ★ **건물도 같다 — 오히려 더하다**(계측: 저그 본진을 배율 6·12로 확대해 재 봤다) ─────
+     배율 6  건물 13판 7.7MB (장당 0.59MB)
+     배율 12 건물  7판 8.6MB (장당 **1.23MB**)
+   폰의 건물 판 예산은 16MB라 12배에서는 **열세 장**이면 찬다. 저그 본진 한 채는 해처리·
+   풀·에보·스파이어·성큰·스포어·익스트랙터에 미네랄까지 그보다 많다 — 곧 예산이 넘쳐
+   LRU가 쫓아내고, 쫓겨난 자리를 다시 구우면 굽는 판(여백까지 6.6배 넓이)이 8MB다.
+   그 한 장이 한 프레임을 먹는다. 유닛과 같은 약을 쓴다: 프레임마다 굽는 수를 죄고,
+   예산이 다한 자리에서는 같은 건물의 다른 크기로 구워 둔 판을 늘려 찍는다. */
+const BLD_BAKE_PER_FRAME = smallDevice9 ? 1 : 3;
+let bldBakeLeft9 = BLD_BAKE_PER_FRAME;
+const BLD_SPRITE_SIZES = new Map<string, number[]>();
+/** 크기(pxq)를 뺀 열쇠 → 그 열쇠로 구워 둔 크기들. 예산이 다한 프레임의 대타를 찾는 자다.
+ *  보관함이 LRU로 쫓아낸 크기가 남아 있을 수 있으므로, 쓰는 쪽이 실물을 다시 확인한다. */
+const SPRITE_SIZES = new Map<string, number[]>();
+const SPRITE_SIZES_MAX = 4096;
 function unitSprite(
   op: UnitDrawOp, pxq: number, B: number,
 ): { cv: HTMLCanvasElement; ox: number; oy: number; pad: number; l: number; bot: number; cx: number; top: number; w: number } | null {
@@ -19341,8 +19374,11 @@ function unitSprite(
   /* 자세 깃발은 **열쇠를 만들기 전에** 세운다 — poseTag가 이 값을 읽고, 아래 면 짜기
      (resolveShapeFaces → 빌더)도 같은 값을 본다. 끝나면 0으로 되돌린다. */
   poseNow = op.pose ?? 0;
-  const key = `${op.kind}|${rotB}|${op.flat ? 1 : 0}|${vq}|${pitchTag(op.pitch)}`
-    + `|${op.color}|${pxq}|${B.toFixed(2)}|${lod}|${poseTag(op.kind)}|${op.solid ?? ""}`;
+  /* 열쇠를 **크기를 뺀 몫(baseKey)과 크기**로 가른다 — 위 SPRITE_SIZES가 '같은 모델의
+     다른 크기'를 찾으려면 그 앞부분이 따로 있어야 한다. 이어 붙인 전체는 예전과 같다. */
+  const baseKey = `${op.kind}|${rotB}|${op.flat ? 1 : 0}|${vq}|${pitchTag(op.pitch)}`
+    + `|${op.color}|${B.toFixed(2)}|${lod}|${poseTag(op.kind)}|${op.solid ?? ""}`;
+  const key = `${baseKey}|${pxq}`;
   SPRITE_PERF.colorSet.add(op.color);
   const hit = SPRITE_CACHE.get(key);
   // 찾은 것은 맨 뒤로 — 그래야 맨 앞이 '가장 오래 안 쓴 것'이 된다(LRU).
@@ -19351,6 +19387,30 @@ function unitSprite(
     poseNow = 0;
     SPRITE_CACHE.delete(key); SPRITE_CACHE.set(key, hit); return hit;
   }
+  /* ★ 예산이 다했으면 **이번 프레임엔 안 굽는다** — 같은 모델의 가장 가까운 크기를
+     찾아 그것을 돌려준다(부르는 쪽이 판의 실제 크기를 l·pad에서 되읽어 배율을 맞춘다).
+     '가까움'은 비로 잰다(로그 거리) — 2배 큰 판과 절반짜리 판 중 어느 쪽이 덜 무른지는
+     차가 아니라 비가 정한다. */
+  if (unitBakeLeft9 <= 0) {
+    const sizes9 = SPRITE_SIZES.get(baseKey);
+    if (sizes9) {
+      let best9 = 0;
+      let bd9 = Infinity;
+      for (const s9 of sizes9) {
+        const d9 = Math.abs(Math.log(s9 / pxq));
+        if (d9 < bd9) { bd9 = d9; best9 = s9; }
+      }
+      const alt9 = best9 > 0 ? SPRITE_CACHE.get(`${baseKey}|${best9}`) : undefined;
+      if (alt9) {
+        SPRITE_PERF.hit += 1;
+        poseNow = 0;
+        SPRITE_CACHE.delete(`${baseKey}|${best9}`);
+        SPRITE_CACHE.set(`${baseKey}|${best9}`, alt9);
+        return alt9;
+      }
+    }
+  }
+  unitBakeLeft9 -= 1;
   SPRITE_PERF.bake += 1;
   /* ★ 굽는 시간을 **계측판에 올린다**(실측: 최악 프레임 399ms 가운데 붓:유닛캔버스가
      336ms) — 굽기는 이 붓 **안에서** 도는데, 여태 세는 것은 횟수뿐이라(SPRITE_PERF)
@@ -20079,12 +20139,35 @@ function buildingSpriteBake(
      같은 값으로 돈다. 굽기가 끝나면 반드시 도로 끈다(finally). */
   bldLitNow = !!op.lit;
   bldSpinNow = op.spin ?? 0;
-  const key = `${op.kind}|${op.rotDeg ?? 0}|${op.flat ? 1 : 0}|${vq}|${pitchTag(op.pitch)}|${op.color}|${sideQ}|${B.toFixed(2)}|${lod}|${stg}|${headTag()}|${litTag(op.kind)}|${spinTag(op.kind)}`;
+  // 크기(sideQ)를 뺀 몫과 크기로 가른다 — 대타를 찾으려면 앞부분이 따로 있어야 한다.
+  const baseKey = `${op.kind}|${op.rotDeg ?? 0}|${op.flat ? 1 : 0}|${vq}|${pitchTag(op.pitch)}|${op.color}|${B.toFixed(2)}|${lod}|${stg}|${headTag()}|${litTag(op.kind)}|${spinTag(op.kind)}`;
+  const key = `${baseKey}|${sideQ}`;
   const hit = BLD_SPRITE_CACHE.get(key);
   if (hit) {
     SPRITE_PERF.bldHit += 1;
     BLD_SPRITE_CACHE.delete(key); BLD_SPRITE_CACHE.set(key, hit); return hit;
   }
+  /* ★ 예산이 다했으면 이번 프레임엔 안 굽고, 같은 건물의 **가장 가까운 크기**를 돌려준다
+     (부르는 쪽이 판의 실제 크기 bspr.side로 배율을 맞춘다 — 유닛 쪽과 같은 약이다). */
+  if (bldBakeLeft9 <= 0) {
+    const sizes9 = BLD_SPRITE_SIZES.get(baseKey);
+    if (sizes9) {
+      let best9 = 0;
+      let bd9 = Infinity;
+      for (const s9 of sizes9) {
+        const d9 = Math.abs(Math.log(s9 / sideQ));
+        if (d9 < bd9) { bd9 = d9; best9 = s9; }
+      }
+      const alt9 = best9 > 0 ? BLD_SPRITE_CACHE.get(`${baseKey}|${best9}`) : undefined;
+      if (alt9) {
+        SPRITE_PERF.bldHit += 1;
+        BLD_SPRITE_CACHE.delete(`${baseKey}|${best9}`);
+        BLD_SPRITE_CACHE.set(`${baseKey}|${best9}`, alt9);
+        return alt9;
+      }
+    }
+  }
+  bldBakeLeft9 -= 1;
   SPRITE_PERF.bldBake += 1;
   const pBb9 = PERF9 ? pNow() : 0;
   const { faces: all } = resolveShapeFaces(op.kind, op.rotDeg, op.flat, op.viewYaw, op.pitch);
@@ -20174,6 +20257,14 @@ function buildingSpriteBake(
     pad, l, side: sideQ, bot: box9.bot, top: box9.top, w: box9.w, cx: box9.cx,
   };
   BLD_SPRITE_CACHE.set(key, entry);
+  // 이 열쇠로 구운 크기를 색인에 적는다(유닛 쪽 SPRITE_SIZES와 같은 규약).
+  const bsz9 = BLD_SPRITE_SIZES.get(baseKey);
+  if (bsz9) {
+    if (!bsz9.includes(sideQ)) { bsz9.push(sideQ); if (bsz9.length > 4) bsz9.shift(); }
+  } else {
+    if (BLD_SPRITE_SIZES.size > SPRITE_SIZES_MAX) BLD_SPRITE_SIZES.clear();
+    BLD_SPRITE_SIZES.set(baseKey, [sideQ]);
+  }
   bldSpriteBytes.n += canvasBytes(cr9.cv);
   trimSpriteCache(BLD_SPRITE_CACHE, bldSpriteBytes, BLD_SPRITE_BYTES_MAX);
   if (PERF9) pAdd("굽기:건물판", pNow() - pBb9);
@@ -21000,7 +21091,7 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
                보이는지(groundSquash)를 자리마다 실제로 재어 넘겨받는다. 그 값이 곧
                바닥면의 눌림이라, 그림자가 지면 격자와 같은 각도로 깔린다. */
             const squish = 0.55;
-            const inkW9 = bspr && bspr.w > 0 ? (bspr.w / B) * (sidePx / sideQ) : wPx;
+            const inkW9 = bspr && bspr.w > 0 ? (bspr.w / B) * (sidePx / bspr.side) : wPx;
             /* 2D는 그린 몸에만 맞춘다(지적: 평면에선 건물이 높이까지 바닥 상자 안으로
                눌려 들어가, 발자국 폭(wPx) 바닥은 그린 몸보다 늘 크다) — 발자국 하한을
                걷고 잉크 폭의 0.72만 덮는다. 입체는 종전대로 발자국 하한을 지킨다. */
@@ -21039,7 +21130,10 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
             /* 상한에 안 걸렸고 손짓 중도 아니면 **구운 크기 그대로**다(1:1) — 위 sideQ 주석. */
             /* 크립은 굽는 크기가 못 박혀 있으므로 **늘 늘려(또는 줄여) 찍는다** — 1:1로
                찍으면 배율과 무관하게 늘 못 박은 크기로 나온다. */
-            const k = decal9 || sideQ < sideWant || bakeZoom !== zoom ? sidePx / sideQ : 1;
+            /* 판의 **실제 크기**로 잰다(bspr.side) — 굽기 예산이 다한 프레임에는 요청과
+               다른 크기가 올 수 있다(buildingSpriteBake의 ★). */
+            const k = decal9 || bspr.side !== sideWant || bakeZoom !== zoom
+              ? sidePx / bspr.side : 1;
             // 겹친 것만 살짝 그림자(확대 적용: 유닛·건물 공통).
             /* 크립은 그림자를 안 진다(지적: "크립은 그림자 없어야 자연스럽게 이어지지")
                — 크립 판(clipWalk)과 건물 밑 크립 얼룩(inkCenter)은 **땅 그 자체**라
@@ -21086,7 +21180,7 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
           const bLeft9 = Math.round((sx - (bspr.pad + bspr.side / 2) * k) * B) / B;
             if (bShadow9) {
               const bsh9 = shadowPlate(
-                bspr, Math.max(1.5, sideQ * 0.06), 0.4, B, bldSpriteBytes,
+                bspr, Math.max(1.5, bspr.side * 0.06), 0.4, B, bldSpriteBytes,
               );
               if (bsh9) {
                 SPRITE_PERF.bldBlit += 1;
@@ -21192,8 +21286,13 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
         const pxqWant = Math.max(4, (Math.round((op.sizePx * bakeZoom * B) / 2) * 2) / B);
         const pxq = Math.min(pxqWant, unitBakeCap(B));
         const spr = unitSprite(op, pxq, B);
+        /* ★ **판의 실제 크기**를 되읽는다 — 굽기 예산이 다한 프레임에는 요청과 다른
+           크기가 올 수 있다(unitSprite의 ★). 판은 `l = pxq + 2·pad`로 지어졌으므로
+           거꾸로 풀면 그 크기다. 자리·그림자·블릿이 전부 이 값을 써야 대타가 제자리에
+           제 크기로 찍힌다. */
+        const pxqB = spr ? spr.l - 2 * spr.pad : pxq;
         /* 상한에 안 걸렸으면 **구운 크기 그대로** 찍는다(1:1). 걸렸으면 그만큼 늘린다. */
-        const kU = pxq < pxqWant ? px / pxq : (bakeZoom === zoom ? 1 : px / pxq);
+        const kU = pxqB === pxqWant && bakeZoom === zoom ? 1 : px / pxqB;
         /* 몸의 실제 폭(화면 px) — contentBox가 이미 재 둔 값이라 공짜다(지적: 체력바가
            몸을 덮는다 / 그림자가 몸만큼 크다 / 링이 몸보다 크다). 정규화가 맞추는 것은
            잉크 **상자**이고 폭 몫은 가로세로비 때문에 종류마다 1.7배까지 남는다 —
@@ -21202,12 +21301,12 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
            유닛보다 넓지 않다" 같은 조건이 종류를 안 가리고 식만으로 보장된다. */
         const inkW = spr && spr.w > 0 ? (spr.w / B) * kU : px * inkK;
         const footY = spr
-          ? sy - px * 0.24 - (spr.pad + pxq / 2) * kU + (spr.bot / B) * kU - 1
+          ? sy - px * 0.24 - (spr.pad + pxqB / 2) * kU + (spr.bot / B) * kU - 1
           : sy + px * 0.28;
         /* 내용물 가로 중심(재지적: 그림자·링이 몸과 안 맞음) — 상자 중심이 아니라 실제
            그려진 픽셀의 가운데에 붙인다. */
         const footX = spr
-          ? sx - (spr.pad + pxq / 2) * kU + (spr.cx / B) * kU
+          ? sx - (spr.pad + pxqB / 2) * kU + (spr.cx / B) * kU
           : sx;
         if (hover && !op.noShadow && showShadows !== false && detail) {
           ctx.shadowColor = "transparent";
@@ -21438,7 +21537,7 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
                멀리 져야 맞다. 공중만 몫을 두 배 반으로 키우고 한 단 짙게 한다 — 겹쳐도
                이웃 몸 밖으로 삐져나와 어느 것이 위인지가 읽힌다. */
             const sh9 = shadowPlate(
-              spr, Math.max(1.5, pxq * (op.air ? 0.16 : 0.1)),
+              spr, Math.max(1.5, pxqB * (op.air ? 0.16 : 0.1)),
               op.air ? 0.55 : 0.4, B, spriteBytes,
             );
             if (sh9) {
@@ -21447,8 +21546,8 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
               SPRITE_PERF.blit += 1;
               ctx.drawImage(
                 sh9.cv,
-                (-(spr.pad + pxq / 2) + spr.ox / B - sh9.pad) * k,
-                (-(spr.pad + pxq / 2) + spr.oy / B - sh9.pad) * k
+                (-(spr.pad + pxqB / 2) + spr.ox / B - sh9.pad) * k,
+                (-(spr.pad + pxqB / 2) + spr.oy / B - sh9.pad) * k
                   + Math.max(1, px * (op.air ? 0.18 : 0.07)),
                 (sh9.cv.width / B) * k, (sh9.cv.height / B) * k,
               );
@@ -21464,8 +21563,8 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
           const ch9 = spr.cv.height / B;
           ctx.drawImage(
             spr.cv,
-            (-(spr.pad + pxq / 2) + spr.ox / B) * k,
-            (-(spr.pad + pxq / 2) + spr.oy / B) * k,
+            (-(spr.pad + pxqB / 2) + spr.ox / B) * k,
+            (-(spr.pad + pxqB / 2) + spr.oy / B) * k,
             cw9 * k, ch9 * k,
           );
           ctx.setTransform(B, 0, 0, B, 0, 0);
