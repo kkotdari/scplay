@@ -19077,7 +19077,24 @@ const deviceMem9 = ((): number => {
 })();
 /** 작은 기기의 예산 배수 — 메모리를 부르는 만큼만 넓힌다(모르면 1배 = 종전 32/16MB). */
 const smallBudgetK9 = deviceMem9 >= 8 ? 3 : deviceMem9 >= 6 ? 2.5 : deviceMem9 >= 4 ? 1.75 : 1;
-const SPRITE_BYTES_MAX = (smallDevice9 ? 32 * smallBudgetK9 : 128) * 1024 * 1024;
+/* ★ 예산은 바이트가 아니라 **화소**로 잡아야 한다(실기 진단: 아이폰 dpr 3 · 배율 6에서
+   `판 유닛 261장 32.0/32MB · 건물 38장 16.5/16MB` — 둘 다 예산에 못 박힌 채였고, 그
+   상태에서 탭이 버려졌다) ────────────────────────────────────────────────────────────
+   같은 그림이라도 dpr이 오르면 판이 **제곱으로** 무거워진다. 그런데 예산은 바이트로
+   못 박혀 있어, dpr 3 화면은 dpr 2 화면과 같은 32MB를 쓰면서 실제로는 화면에 훨씬 적은
+   수의 판밖에 못 담는다 — 그러고도 총량은 그대로 무겁다. 게다가 그 기기는 지도 캔버스
+   한 장에만 이미 2626² × 4 = **27.6MB**를 쓰고 있다(진단의 그 줄). 판 예산 48MB가 거기
+   얹히면 사파리가 버틸 자리가 없다.
+   기준을 dpr 2(이 값들을 처음 잡은 화면)로 두고 그보다 촘촘한 화면에서는 같은 비로
+   내린다. 제곱까지 내리면(화소를 완전히 고정) dpr 3에서 44%가 되어 되굽기가 너무
+   잦아지므로, 절반 몫(선형)만 먹인다 — dpr 3에서 67%다.
+   ※ 값을 죄는 만큼 되굽기는 는다. 그 값은 이제 대타 판(굽기 예산이 다한 프레임)과
+     빌림터가 받아 낸다 — 예산을 죄는 일이 곧 덜컥임이던 시절과는 사정이 다르다. */
+const dprBudgetK9 = ((): number => {
+  if (typeof window === "undefined") return 1;
+  return Math.min(1, 2 / Math.max(1, window.devicePixelRatio || 1));
+})();
+const SPRITE_BYTES_MAX = (smallDevice9 ? 32 * smallBudgetK9 * dprBudgetK9 : 128) * 1024 * 1024;
 /** 판 한 장의 한 변 상한(장치 픽셀) — 이보다 커야 하는 요청은 굽지 않고 **직접 그리기**로
  *  떨어진다(호출부가 판이 없을 때의 길을 이미 갖고 있다). 예산(LRU)은 '여러 장이 쌓여'
  *  터지는 것을 막지만, 한 장이 통째로 거대한 경우는 못 막는다 — 이 문이 그것을 막고,
@@ -19114,7 +19131,7 @@ const unitBakeCap = (B: number): number =>
   Math.max(4, Math.floor(((SPRITE_SIDE_MAX - 1) / B - 4) / 2) * 2);
 const bldBakeCap = (B: number): number =>
   Math.max(4, Math.floor((((SPRITE_SIDE_MAX - 1) / B - 6) / 2.56) / 2) * 2);
-const BLD_SPRITE_BYTES_MAX = (smallDevice9 ? 16 * smallBudgetK9 : 64) * 1024 * 1024;
+const BLD_SPRITE_BYTES_MAX = (smallDevice9 ? 16 * smallBudgetK9 * dprBudgetK9 : 64) * 1024 * 1024;
 /* ★ **데칼**은 또렷함이 필요 없다 — 굽기 상한을 따로 낮춘다(지적: "모바일에서 저그 본진을
    볼 때 너무 끊긴다") ────────────────────────────────────────────────────────────────
    재 보니 크립 얼룩이 이 화면에서 가장 큰 판이다. 해처리 크립은 15타일이라 해처리 본체
@@ -21200,9 +21217,13 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
           /* 건물도 같은 자다(위 유닛 스냅 주석) — 왼위 모서리를 기기픽셀 격자에 얹는다. */
           const bLeft9 = Math.round((sx - (bspr.pad + bspr.side / 2) * k) * B) / B;
             if (bShadow9) {
+              /* ★ 그림자 판도 **예산에 든다**(실기 진단: 건물 16.5/16MB — 예산을
+                 넘겨 있었다) — shadowPlate는 바이트만 더하고 덜어내지는 않아, 판마다
+                 매달린 그림자가 예산 위로 조용히 넘쳐 있었다. 굽고 나서 한 번 죈다. */
               const bsh9 = shadowPlate(
                 bspr, Math.max(1.5, bspr.side * 0.06), 0.4, B, bldSpriteBytes,
               );
+              trimSpriteCache(BLD_SPRITE_CACHE, bldSpriteBytes, BLD_SPRITE_BYTES_MAX);
               if (bsh9) {
                 SPRITE_PERF.bldBlit += 1;
                 ctx.drawImage(
@@ -21557,10 +21578,12 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
                게다가 이 그림자는 '띄운 몸이 지는 그림자'이기도 하다: 높이 나는 것일수록
                멀리 져야 맞다. 공중만 몫을 두 배 반으로 키우고 한 단 짙게 한다 — 겹쳐도
                이웃 몸 밖으로 삐져나와 어느 것이 위인지가 읽힌다. */
+            // 그림자 판도 예산에 든다 — 건물 쪽의 ★ 주석과 같은 까닭이다.
             const sh9 = shadowPlate(
               spr, Math.max(1.5, pxqB * (op.air ? 0.16 : 0.1)),
               op.air ? 0.55 : 0.4, B, spriteBytes,
             );
+            trimSpriteCache(SPRITE_CACHE, spriteBytes, SPRITE_BYTES_MAX);
             if (sh9) {
               ctx.shadowColor = "transparent";
               ctx.globalAlpha = op.alpha;
