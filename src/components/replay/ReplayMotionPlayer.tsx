@@ -6872,57 +6872,104 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const DARK = "#3c434e";
     // 붉던 세 자리(드럼 띠·굴뚝 갓·대야 속)는 개인색이 됐다(요청) — 붉은색 상수는 뺀다.
     const out: ShapeFace[] = [];
-    /* 발치 슬래브 — 사방으로 흩어진 돌빛 판들. 낮게 깔려 받침 노릇을 한다. */
-    for (const [bx, by, bw, bh, br] of [
-      [-3.2, 2.6, 2.2, 1.2, 0.7], [-1, 3.2, 1.6, 1, 0.55], [1.4, 3, 1.8, 1.1, 0.6],
-      [3.4, 1.8, 1.4, 1.6, 0.5], [-4, 0.4, 1.3, 1.8, 0.6], [3.8, -1.6, 1.2, 1.4, 0.45],
-    ] as [number, number, number, number, number][]) {
-      out.push(...tagKey(paintBase(boxFaces3(bx, by, bw, bh, br, 0), STEEL),
-        depthNow(bx, by) * 1.6));
+    /* ★ 받침은 **밑이 벌어지는 치마**다(요청: "아랫쪽이 좀 넓어지는 치마 형태여야 함") ──
+       여태 이 자리는 낮고 넓은 네모 단 하나에 발치 슬래브 몇 장을 흩어 둔 것이었다.
+       사진의 아카데미는 그런 평평한 판이 아니라, 위의 탑·드럼·대야를 한 덩이로 받치는
+       **여러 쪽으로 각진 치마**가 아래로 갈수록 벌어지며 땅에 닿는다 — 그 벌어짐이 이
+       건물의 실루엣을 만든다.
+       열두 쪽 기둥의 밑을 넓히고 위를 좁혀(w 6.6 → tipW 4.6) 그 꼴을 낸다. taper를 1보다
+       크게 주면 위쪽이 완만하고 아래로 갈수록 급히 벌어져, 곧은 원뿔이 아니라 치마의
+       주름진 옆선이 된다. */
+    const SK_R0 = 6.6;                       // 밑 반폭
+    const SK_R1 = 4.6;                       // 윗 반폭
+    const SK_H = 2.2;
+    const SK_N = 12;                         // 쪽 수
+    const SK_CX = 0;
+    const SK_CY = 0.2;
+    out.push(...tagKey(paintBase(spirePillar({
+      x: SK_CX, y: SK_CY, z0: 0, h: SK_H, w: SK_R0, tipW: SK_R1,
+      segs: 3, sides: SK_N, hold: 0, taper: 1.5,
+    }), DARK), -8));
+    /* ★ 부품의 층 편차를 **깊이 폭보다 작게** 둔다(수리: 굴뚝이 드럼을 뚫고 비쳐 보임) —
+       여태 드럼 12 · 가운데 통 14 · 굴뚝 16 · 작업대 18~20처럼 상수 편차가 8이나 됐는데,
+       이 모델의 깊이 값은 ±6.4다. 곧 그 편차가 깊이를 덮어써서, 뒤에 선 굴뚝이 앞의 드럼
+       위에 그려졌다(익스트랙터에서 고친 것과 같은 병). 편차는 한 부품 안의 차례를 세우는
+       데만 쓰면 되므로 소수점이면 넉넉하다.
+       치마만은 −8로 못 박는다 — 그 위에 서는 것들은 z가 높아 늘 나중에 그려야 한다. */
+    /* 치마 겉면의 띠(사진) — 쪽마다 세로로 긴 판이 붙는데, 그중 몇에는 밝은 상아빛과
+       임자색 줄이 그어져 있다. 카메라를 마주 보는 쪽만 그린다. */
+    const skR9 = (t9: number): number => SK_R1 + (SK_R0 - SK_R1) * (1 - t9) ** 1.5;
+    const skirtStripe: ShapeFace[] = [];
+    const skirtOwn: ShapeFace[] = [];
+    for (let k9 = 0; k9 < SK_N; k9 += 1) {
+      const a9 = ((k9 + 0.5) / SK_N) * Math.PI * 2;
+      const sxk = Math.sin(a9);
+      const syk = Math.cos(a9);
+      if (facingRatio(sxk, syk) <= 0.1) continue;
+      const lxk = Math.cos(a9);
+      const lyk = -Math.sin(a9);
+      const bar = (hw: number, z0: number, z1: number): string => {
+        const r0 = skR9(z0 / SK_H) + 0.05;
+        const r1 = skR9(z1 / SK_H) + 0.05;
+        return polyPath3([
+          [SK_CX + sxk * r0 - lxk * hw, SK_CY + syk * r0 - lyk * hw, z0],
+          [SK_CX + sxk * r0 + lxk * hw, SK_CY + syk * r0 + lyk * hw, z0],
+          [SK_CX + sxk * r1 + lxk * hw, SK_CY + syk * r1 + lyk * hw, z1],
+          [SK_CX + sxk * r1 - lxk * hw, SK_CY + syk * r1 - lyk * hw, z1],
+        ]);
+      };
+      if (k9 % 3 === 0) {
+        // 상아빛 넓은 판.
+        const d9 = bar(0.62, 0.15, SK_H - 0.35);
+        skirtStripe.push([d9, 1, "#cfc6b4"] as ShapeFace, sideFace(d9, 0.16));
+      } else if (k9 % 3 === 1) {
+        // 임자색 좁은 줄 — 색을 안 주면 굽는 쪽이 임자 색을 채운다.
+        skirtOwn.push([bar(0.3, 0.25, SK_H - 0.5), 1] as ShapeFace);
+      }
     }
-    // 본체 받침 — 낮고 넓은 어두운 단.
-    out.push(...tagKey(paintBase(boxFaces3(0, 0.2, 8.4, 5.4, 2, 0), DARK), 4));
+    out.push(...tagKey(skirtStripe, -7.7));
     /* 왼쪽 리벳 드럼 돔(사진) — 통 몸에 붉은 띠를 두르고 위는 잿빛 돔 뚜껑. */
     out.push(...tagKey([
       // 전체 높이 상향(요청) — 드럼 몸 2.2 → 3.4, 돔 1.5 → 2.1.
       ...paintBase(cylinderFaces3(-2.6, 0.6, 2.15, 3.4, 1.2), STEEL),
-    ], 12 + depthNow(-2.6, 0.6) * 1.6));
+    ], 1 + depthNow(-2.6, 0.6) * 1.6));
     out.push(...tagKey([
       ...paintBase(domeFaces3(-2.6, 0.6, 2.15, 2.1, 4.6), "#717e92"),
       capFace(discPath3(-2.6, 0.6, 6.75, 0.8), 0.3),
-    ], 13 + depthNow(-2.6, 0.6) * 1.6));
+    ], 1.2 + depthNow(-2.6, 0.6) * 1.6));
     /* 개인색은 여태 붉던 자리들(요청) — 드럼 허리 띠, 굴뚝 두 갓, 오른쪽 대야 속.
        셋이 몸통 좌우와 뒤에 흩어져 어느 요잉에서도 하나는 보인다. */
-    const pc: ShapeFace[] = [...tagKey(
-      cylinderFaces3(-2.6, 0.6, 2.24, 0.6, 3.4), 12.5 + depthNow(-2.6, 0.6) * 1.6,
-    )];
+    const pc: ShapeFace[] = [
+      ...tagKey(skirtOwn, -7.6),
+      ...tagKey(cylinderFaces3(-2.6, 0.6, 2.24, 0.6, 3.4), 1.1 + depthNow(-2.6, 0.6) * 1.6),
+    ];
     /* 뒤 굴뚝 탑 둘 — 붉은 갓을 쓴 가는 기둥. 하나는 더 높다. */
     for (const [cx9, cy9, ch9, cr9] of [
       [-1.2, -2.1, 7.2, 0.55], [1.5, -2.4, 5.8, 0.62],
     ] as [number, number, number, number][]) {
       out.push(...tagKey(
         paintBase(cylinderFaces3(cx9, cy9, cr9, ch9, 1.2), DARK),
-        16 + depthNow(cx9, cy9) * 1.6,
+        1 + depthNow(cx9, cy9) * 1.6,
       ));
       pc.push(...tagKey([
         ...cylinderFaces3(cx9, cy9, cr9 * 1.35, 0.7, 1.2 + ch9 - 0.7),
         capFace(discPath3(cx9, cy9, 1.2 + ch9, cr9 * 0.9), 0.45),
-      ], 16.5 + depthNow(cx9, cy9) * 1.6));
+      ], 1.2 + depthNow(cx9, cy9) * 1.6));
     }
     // 가운데 잿빛 원통 — 돔 뚜껑을 쓴 짧은 통.
     out.push(...tagKey([
       ...paintBase(cylinderFaces3(0.2, -0.9, 0.95, 3.8, 1.2), "#828e9f"),
       ...paintBase(domeFaces3(0.2, -0.9, 0.95, 1, 5), TERRAN_STEEL_D),
-    ], 14 + depthNow(0.2, -0.9) * 1.6));
+    ], 1 + depthNow(0.2, -0.9) * 1.6));
     /* 오른쪽 큰 고리 대야(사진) — 잿빛 테 안이 붉게 파인 원형 우물. 테는 굵다. */
     out.push(...tagKey([
       ...paintBase(cylinderFaces3(3, -0.8, 2.5, 2.6, 1.2), STEEL),
       [discPath3(3, -0.8, 3.82, 2.5), 1, STEEL] as ShapeFace,
-    ], 12 + depthNow(3, -0.8) * 1.6));
+    ], 1 + depthNow(3, -0.8) * 1.6));
     pc.push(...tagKey([
       bodyFace(discPath3(3, -0.8, 3.72, 1.75)),
       capFace(discPath3(3, -0.8, 3.65, 1.35), 0.4),
-    ], 12.5 + depthNow(3, -0.8) * 1.6));
+    ], 1.3 + depthNow(3, -0.8) * 1.6));
     /* 앞 기운 작업 단(사진) — 다리 넷 위에 비스듬히 얹힌 판과 잔 부속들. */
     {
       const tab: ShapeFace[] = [];
@@ -6939,12 +6986,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         tab.push(bodyFace(polyPath3([lo[k], lo[q], hi[q], hi[k]])));
       }
       tab.push(bodyFace(polyPath3(hi)), topFace(polyPath3(hi), 0.18));
-      out.push(...tagKey(paintBase(tab, "#8a6a44"), 18 + depthNow(1.9, 1.7) * 1.6));
+      out.push(...tagKey(paintBase(tab, "#8a6a44"), 1.4 + depthNow(1.9, 1.7) * 1.6));
       // 단 위 잔 부속 — 작은 원반과 상자.
       out.push(...tagKey([
         ...paintBase(cylinderFaces3(1.2, 1.3, 0.42, 0.24, 3), TERRAN_STEEL_D),
         ...paintBase(boxFaces3(2.5, 1.9, 0.6, 0.5, 0.4, 2.6), DARK),
-      ], 20 + depthNow(1.9, 1.6) * 1.6));
+      ], 1.7 + depthNow(1.9, 1.6) * 1.6));
     }
     return raceBase(out, "terran", pc);
   }),
@@ -19010,7 +19057,7 @@ export const BLD_FILL_TARGET: Record<string, number> = {
  *  않는다"로 그친다 — 상한을 이유로 줄이면 멀쩡히 보이던 건물이 갑자기 작아진다.
  *  표에 없는 종류는 1(모델 그대로)이다. */
 export const BLD_NORM: Record<string, number> = {
-  academy: 1.684,
+  academy: 1.470,  // 치마형 받침으로 바꾼 뒤 bld-norm 재측정
   arch: 2.646,
   archives: 2.489,  // 상자 상한에 걸림
   armory: 1.223,
