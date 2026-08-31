@@ -793,8 +793,12 @@ function winRow(
   for (let i9 = 0; i9 < n; i9 += 1) {
     const u9 = (i9 - (n - 1) / 2) * pitch9;
     if (bldLitNow) {
-      // 번짐 — 유리보다 한 뼘 크고 아주 옅다. 창틀 밖 벽에 빛이 밴 것처럼 보인다.
-      faces.push([rect(u9, w9 * 0.9, h9 * 0.95, 0.05), 0.28, neon] as ShapeFace);
+      /* ★ 번짐은 **창틀을 조금 넘는 테두리**다(지적: "리파이너리 불빛이 창문 테두리
+         넘어 밖까지 칠해짐") — 여기 있던 0.9·0.95는 유리(반폭 w9/2 · 반높이 h9/2)의
+         1.8배·1.9배라, 이웃한 창의 번짐끼리 서로 맞닿아 벽 한 면이 통째로 네온 판이
+         됐다(실측 렌더). 창이 벽에 난 구멍으로 안 읽히고 벽에 붙인 초록 스티커로 보인
+         까닭이다. 유리보다 24%만 크게 잡으면 칸 사이에 벽이 남아 창이 낱낱이 선다. */
+      faces.push([rect(u9, w9 * 0.62, h9 * 0.62, 0.05), 0.34, neon] as ShapeFace);
       faces.push([rect(u9, w9 / 2, h9 / 2, 0.09), 1, neon] as ShapeFace);
       faces.push([rect(u9, w9 * 0.28, h9 * 0.3, 0.11), 1, "#f2fff0"] as ShapeFace);
     } else {
@@ -4825,7 +4829,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         [Math.sin(a0) * ro, Math.cos(a0) * ro, domeZ9(ro)],
       ]), 1] as ShapeFace);
     }
-    top9.push(capFace(discPath3(0, 0, domeZ9(0) + 0.02, 0.82), 0.42));
+    /* (걷어냄·요청: "벙커 돔 위의 구멍 제거") — 꼭대기에 두던 어두운 해치 원반이다.
+       내려다보는 이 사영에서는 뚜껑 한가운데의 검은 원이 '뚫린 구멍'으로 읽혀, 슬롯
+       여덟이 그 구멍을 둘러싼 꼴이 됐다. 슬롯만 남기면 고리 무늬로 곱게 읽힌다. */
     out.push(...tagKey(top9, 12));
     return out;
   },
@@ -18040,6 +18046,53 @@ function contentBox(cv: HTMLCanvasElement): { bot: number; cx: number; top: numb
      작아 보인다. 그 몫을 재서 그리기 단계가 되돌린다. */
   return { bot, cx: (minX + maxX + 1) / 2, top, w: maxX - minX + 1 };
 }
+/* ★ 잉크 상자를 **모형 좌표로 기억한다**(지적: "모바일에서 저그 본진에서 여전히 버벅임.
+   특히 일꾼 자원 캐는 곳이 심하고 크게 확대하면 더 심함") ─────────────────────────────
+   실측 — 굽는 판의 잉크 상자를 잡는 훑기(getImageData + 전수 주사)에 드는 값이다
+   (폰 판, CPU를 6배 느리게 걸어 저사양 기기에 맞췄다):
+     한 변 458px 11.2ms · 660px 24.4ms · 914px 44.6ms · 1300px 85.6ms
+   폰의 한 프레임이 50ms(20Hz)이므로 **고배율에서는 건물 한 채를 구울 때 이 훑기만으로
+   한 프레임을 통째로 먹는다.** 배율을 바꾸면 판 열쇠의 크기 칸이 한꺼번에 갈려 화면 안
+   건물이 전부 다시 구워지는데, 저그 본진처럼 무거운 모델이 몰린 자리(해처리 1727면 ·
+   익스트랙터 2722면 · 크립 · 미네랄 · 드론들)에서는 그 훑기가 줄줄이 쌓여 수백 ms가
+   멈춘다. 판은 배율의 제곱으로 커지므로 확대할수록 심해진다 — 지적 그대로다.
+   그런데 훑어서 얻는 값은 **판 크기와 무관하다**. 굽기의 변환이
+     화소 = 원점 + 배수 × 모형좌표
+   꼴이라(unitSprite·buildingSprite의 setTransform·translate·scale), 모형 안에서 잉크가
+   차지하는 자리는 pxq·sideQ·B가 무엇이든 같다. 실측으로도 판 한 변을 3배 바꿔 재면
+   모형 좌표 상자가 **0.053 모형단위** 안에서 같다(= 안티에일리어싱 1화소).
+   그러니 한 번만 훑어 모형 좌표로 적어 두고, 다음부터는 그 상자를 이 판의 배수로
+   되돌린다. 기억 열쇠에서 크기(pxq·sideQ)와 기기 배수(B)와 **임자 색**을 뺀다 — 색은
+   칠하는 값만 바꿀 뿐 덮는 자리를 안 바꾼다. 그래서 한 종류·한 각을 한 번 재면 배율을
+   아무리 오가도, 임자가 몇이든 다시 안 훑는다.
+   ⚠ 안티에일리어싱 가장자리가 모형 좌표에서 판 크기에 따라 조금 다르므로(1화소 ÷ 배수),
+     자를 때 여유를 1 → 2화소로 넓혔다(위 실측의 0.053이 가장 큰 판에서도 3화소 안이다).
+   ⚠ 첫 굽기도 **되돌린 상자를 쓴다** — 훑은 값과 되돌린 값이 한 화소쯤 다를 수 있는데,
+     그 상자는 자르기뿐 아니라 자리 맞춤(bot·cx·w)에도 쓰이므로 배율마다 값이 달라지면
+     건물이 배율을 오갈 때 미세하게 흔들린다. 한 우물에서 나오게 한다. */
+const INK_MODEL_CACHE = new Map<string, [number, number, number, number]>();
+/** 기억 상한 — 종류 × 각 × 자세 × 등급이라 실제로는 수천을 안 넘지만, 못을 박아 둔다. */
+const INK_MODEL_MAX = 8192;
+/** 이 판의 잉크 상자 — 기억해 둔 모형 상자가 있으면 훑지 않는다.
+ *  @param ox,oy 모형 원점이 앉는 화소 자리 @param s 모형 한 단위의 화소 크기 */
+function inkBoxOf(
+  cv: HTMLCanvasElement, memo: string, ox: number, oy: number, s: number,
+): { bot: number; cx: number; top: number; w: number } {
+  let m = s > 0 ? INK_MODEL_CACHE.get(memo) : undefined;
+  if (m === undefined) {
+    const box = contentBox(cv);
+    if (s <= 0) return box;
+    m = [(box.cx - box.w / 2 - ox) / s, (box.top - oy) / s,
+      (box.cx + box.w / 2 - ox) / s, (box.bot - oy) / s];
+    if (INK_MODEL_CACHE.size >= INK_MODEL_MAX) INK_MODEL_CACHE.clear();
+    INK_MODEL_CACHE.set(memo, m);
+  }
+  const x0 = ox + m[0] * s;
+  const x1 = ox + m[2] * s;
+  const top = Math.max(0, Math.min(cv.height - 1, Math.floor(oy + m[1] * s)));
+  const bot = Math.max(top + 1, Math.min(cv.height, Math.ceil(oy + m[3] * s)));
+  return { bot, top, cx: (x0 + x1) / 2, w: Math.max(1, x1 - x0) };
+}
 /* ── 구운 판을 잉크에 맞춰 잘라 낸다(재생 부하 개선) ──────────────────────────
    왜 이것이 가장 큰 자리인가 — 굽는 판은 **16 모델 단위 정사각**이다(unitSprite가
    `c2.scale(pxq/16, pxq/16)`으로 그 상자를 화면 pxq에 맞춘다). 그런데 정규화가
@@ -18059,7 +18112,9 @@ function contentBox(cv: HTMLCanvasElement): { bot: number; cx: number; top: numb
 export function cropToInk(
   cv: HTMLCanvasElement, box: { bot: number; cx: number; top: number; w: number },
 ): { cv: HTMLCanvasElement; ox: number; oy: number } {
-  const M = 1; // 안티에일리어싱 가장자리 한 픽셀은 남긴다.
+  /* 2화소 — 잉크 상자가 훑기가 아니라 **되돌린 값**일 수 있어서다(위 inkBoxOf의 ⚠).
+     되돌린 상자는 안티에일리어싱 한 화소만큼 좁을 수 있으므로 한 화소를 더 남긴다. */
+  const M = 2;
   const x0 = Math.max(0, Math.floor(box.cx - box.w / 2) - M);
   const x1 = Math.min(cv.width, Math.ceil(box.cx + box.w / 2) + M);
   const y0 = Math.max(0, box.top - M);
@@ -18528,8 +18583,12 @@ function unitSprite(
     c2.fill(pathOf(d));
   }
   if (lod >= 3) silhouetteLight(c2, cv);
-  // 잉크에 맞춰 자른다 — 자른 자리(ox·oy)만 함께 들고 다니면 그림은 그대로다.
-  const box = contentBox(cv);
+  /* 잉크에 맞춰 자른다 — 자른 자리(ox·oy)만 함께 들고 다니면 그림은 그대로다.
+     상자는 모형 좌표로 기억해 둔다(위 inkBoxOf) — 굽기 변환이
+     화소 = B·pad + (B·pxq/16)·모형좌표 이므로 원점과 배수가 이 둘이다. */
+  const box = inkBoxOf(cv,
+    `u|${op.kind}|${rotB}|${op.flat ? 1 : 0}|${vq}|${pitchTag(op.pitch)}|${lod}|${poseTag(op.kind)}`,
+    B * pad, B * pad, (B * pxq) / 16);
   const cr = cropToInk(cv, box);
   /* ★ 자르기 전 **원판**은 그 자리에서 놓는다 — 굽기 한 번에 한 장씩 버려지는 판이고
      (자른 판만 보관함에 남는다) 한 변이 상한(2304)에 가까우면 한 장이 21MB다. 줌·3D
@@ -19275,7 +19334,14 @@ function buildingSpriteBake(
   /* 잉크에 맞춰 자른다 — 건물 판은 여백(pad)이 발자국의 62%라 한 변이 2.24배이고,
      잉크는 대략 1배다: 넓이의 5분의 1만 쓰인다. 자른 자리(ox·oy)만 들고 다니면
      그림은 그대로다(위 cropToInk 주석). */
-  const box9 = contentBox(cv);
+  /* 상자는 모형 좌표로 기억한다(위 inkBoxOf) — 굽기 변환이
+       화소 = B·(pad + sideQ/2) + (B·sideQ/16)·(모형좌표 − 8)   [세로는 −16]
+     이므로 배수는 B·sideQ/16이고 원점은 거기서 8·배수(세로 16·배수)를 뺀 자리다. */
+  const s9 = (B * sideQ) / 16;
+  const box9 = inkBoxOf(cv,
+    `b|${op.kind}|${op.rotDeg ?? 0}|${op.flat ? 1 : 0}|${vq}|${pitchTag(op.pitch)}`
+    + `|${lod}|${stg}|${headTag()}|${litTag(op.kind)}|${spinTag(op.kind)}`,
+    B * (pad + sideQ / 2) - 8 * s9, B * (pad + sideQ) - 16 * s9, s9);
   const cr9 = cropToInk(cv, box9);
   // 자르기 전 원판은 그 자리에서 놓는다 — 유닛 쪽과 같은 까닭(그 자리 ★ 주석).
   if (cr9.cv !== cv) releaseCanvas(cv);
