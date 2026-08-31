@@ -6503,11 +6503,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       }
       out.push(...tagKey(warn, 2 + depthNow(0, 3) * 1.6));
     }
-    // 왼앞 층진 경사로.
+    /* 앞 층진 경사로 — **가운데**다(지적: "리파이너리 입구 왼쪽에 치우치지 않고 가운데
+       있어야 해"). x를 −3.4로 두어 왼쪽 귀퉁이에 붙어 있었는데, 입구는 건물의 얼굴이라
+       한쪽으로 몰리면 몸이 기울어 보인다. */
     out.push(...tagKey(paintBase([
-      ...boxFaces3(-3.4, 3.2, 2.4, 1.4, 0.5, 0),
-      ...boxFaces3(-3.4, 4.3, 2.1, 1.1, 0.25, 0),
-    ], "#576272"), depthNow(-3.4, 3.8) * 1.6 + 3));
+      ...boxFaces3(0, 3.2, 2.4, 1.4, 0.5, 0),
+      ...boxFaces3(0, 4.3, 2.1, 1.1, 0.25, 0),
+    ], "#576272"), depthNow(0, 3.8) * 1.6 + 3));
     return out;
   },
   assim: () => {
@@ -6689,6 +6691,41 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           fill: "#6b4732",
         }), depthNow(px + dxr * r, py + dyr * r) * 1.6));
       }
+      /* ★ **창은 통 옆구리에 한 줄로 여럿**이다(지적: "익스트랙터 불빛은 저기가 아니라
+         양쪽 기둥건물의 옆쪽에 창이 여러 개 줄지어 있어 수평으로") ────────────────────
+         앞서는 애벌레 앞 끝의 아가리를 빛냈다. 그 자리는 가스가 나오는 곳이지 창이
+         아니고, 무엇보다 **가운데 하나**라 '이 건물이 일한다'가 한 점으로만 읽혔다.
+         빛나는 자리를 통 둘의 옆구리로 옮긴다 — 좌우 어느 쪽에서 봐도 한 줄이 보이고,
+         여러 개가 나란해서 멀리서도 띠로 읽힌다.
+         창은 원통 겉면을 따라간다(각을 나눠 잡고 그 자리 반지름을 쓴다) — 평평한 사각을
+         얹으면 통 옆에서 떠 보인다. 카메라를 마주 보는 것만 그린다. */
+      /* 일곱을 반 바퀴(±84도)에 두른다 — 다섯을 좁게 몰면 요잉에 따라 한쪽 통의 창이
+         통째로 안 보이는 각이 생긴다(실측: 0도에서 오른쪽 통이 하나도 안 났다). 반 바퀴를
+         덮으면 어느 각에서도 통마다 두셋은 카메라를 마주 본다. */
+      const WN9 = 7;
+      const WU9 = 0.62;                       // 창이 앉는 높이(통 높이의 몫)
+      const WZ9 = VH * WU9;
+      const WHZ = 0.32;                       // 반높이
+      const WHA = 0.155;                      // 반폭(라디안)
+      const outA9 = Math.atan2(px, py);       // 통이 가운데에서 벗어난 방향
+      const wr9 = vatR(WU9) * 1.03;
+      const win9: ShapeFace[] = [];
+      for (let k9 = 0; k9 < WN9; k9 += 1) {
+        const aw9 = outA9 + (((k9 - (WN9 - 1) / 2) * 28) * Math.PI) / 180;
+        if (facingRatio(Math.sin(aw9), Math.cos(aw9)) <= 0.12) continue;
+        const pt9 = (da: number, dz: number): [number, number, number] =>
+          [px + Math.sin(aw9 + da) * wr9, py + Math.cos(aw9 + da) * wr9, WZ9 + dz];
+        const wd9 = polyPath3([
+          pt9(-WHA, -WHZ), pt9(WHA, -WHZ), pt9(WHA, WHZ), pt9(-WHA, WHZ)]);
+        win9.push([wd9, 1, bldLitNow ? "#7dff4a" : "#2b3326"] as ShapeFace);
+        if (bldLitNow) {
+          win9.push([polyPath3([
+            pt9(-WHA * 0.45, -WHZ * 0.5), pt9(WHA * 0.45, -WHZ * 0.5),
+            pt9(WHA * 0.45, WHZ * 0.5), pt9(-WHA * 0.45, WHZ * 0.5)]), 1, "#f2fff0"] as ShapeFace);
+        }
+      }
+      // 통 몸 바로 위 — 앞으로 지나는 힘줄 기둥은 제 깊이가 더 커서 창을 가로지른다(우리 결).
+      if (win9.length) out.push(...tagKey(win9, key + 0.5));
       // 검은 덮개 — 통 윗지름을 그대로 받아 위로 좁아진다.
       out.push(...tagKey(paintBase(spirePillar({
         x: px, y: py, z0: VH - 0.15, h: 1.5, w: r * 0.86, tipW: r * 0.4,
@@ -6738,15 +6775,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        벌어진 아가리다. 끝점에 어두운 단면을 세우고 그 둘레를 살빛 입술 고리로 두른다. */
     {
       const [mx9, my9, mz9] = GRB(1);
-      /* ★ 가스를 뽑는 동안 **아가리가 빛난다**(지적: "가스 건물 활성화 반짝임 안 나오는 듯")
-         ────────────────────────────────────────────────────────────────────────────
-         익스트랙터에는 여태 불 켠 판이 아예 없었다 — 테란 정제소는 창이, 프로토스
-         어시밀레이터는 속심이 밝아지는데 저그만 아무 일도 안 일어났다(LIT_KINDS에도
-         없어 판이 하나뿐이었다).
-         저그 건물에는 창이 없으니 빛날 자리는 **가스가 실제로 나오는 곳**, 곧 애벌레
-         앞 끝의 아가리다. 색은 정제소의 네온 초록과 같게 둔다 — 같은 일을 알리는
-         신호가 종족마다 다른 색이면 눈이 그것을 하나로 못 묶는다. */
-      const lit9 = bldLitNow;
+      /* (되돌림) 여기서 빛나던 아가리 — 활성 신호를 통 옆구리의 창 줄로 옮겼다(위
+         vat의 ★). 가스가 나오는 곳이라 골랐던 자리인데, 가운데 하나뿐이라 '일하는 중'이
+         한 점으로만 읽혔고 무엇보다 사용자가 본 건물의 그 자리가 아니었다. 아가리는
+         이제 늘 같은 낯이다. */
+      const lit9 = false;
       out.push(...tagKey([
         ...paintBase(domeFaces3(mx9, my9 + 0.15, 1.15, 0.5, mz9 - 0.25),
           lit9 ? "#3f7a2e" : "#8a4a2a"),
@@ -18849,7 +18882,7 @@ export const BLD_NORM: Record<string, number> = {
   pool: 1.449,
   pyramidWide: 1.058,
   queensnest: 1.148,
-  refinery: 1.226,
+  refinery: 1.391,  // 입구를 가운데로 옮겨 잉크 폭이 좁아진 만큼 bld-norm 재측정
   robobay: 1.423,
   sbattery: 2.032,
   scaffold: 1.733,
