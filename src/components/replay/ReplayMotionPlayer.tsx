@@ -79,7 +79,7 @@ import {
   boxFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project,
   domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio,
   prismYFaces, prismZFaces, pyramidFaces3,
-  screenCircle, setPitchSquash, sphereFaces3, tubeFaces,
+  screenCircle, setPitchSquash, sphereFaces3, tubeAxisLift, tubeFaces,
   wallDiscPath, withModelSpin, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted,
 } from "../../utils/shapeOblique";
 import { TEAM_COLOR, type MinimapMarker } from "./markers";
@@ -9880,13 +9880,39 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          하나·위 하나가 된다. */
       for (const mz9 of [4.85, 6.25] as const) {
         const mx9 = m9 * 4.5;
+        const mr9 = 0.36;
+        /* ★ 몸통만 떠 있던 것(지적: "몸통과 앞코/꼬리가 위치가 안 맞음. 몸통만 더 높은 듯")
+           ─────────────────────────────────────────────────────────────────────────
+           관(tubeFaces)은 축 좌표를 그대로 안 쓴다 — 투영선이 관의 **배**가 되도록 화면에서
+           `r*0.45`만큼 올려 그린다(그 함수의 dzc). 코·꼬리는 뿔(hornFaces)이라 그 몫이
+           없으므로, 같은 z를 줬는데도 몸통만 그만큼 위에 앉았다.
+           관에 줄 z에서 그 몫을 빼면 관의 축이 제 값에 앉는다 — 화면 몫을 z로 되돌리는
+           일이라 지금 시점의 높이 배율을 타야 하고, 그 환산을 tubeAxisLift가 한다. */
+        const mzTube9 = mz9 - tubeAxisLift(mr9);
         out.push(...tagKey([
-          ...paintBase(tubeFaces(mx9, -1.85, mx9, 0.95, 0.36, mz9), TERRAN_STEEL_D),
+          ...paintBase(tubeFaces(mx9, -1.85, mx9, 0.95, mr9, mzTube9), TERRAN_STEEL_D),
           ...paintBase(hornFaces(mx9, 0.95, mz9, mx9, 2.05, mz9, 0.66), TERRAN_STEEL_D),
           ...paintBase(hornFaces(mx9, -1.7, mz9, mx9, -2.35, mz9 + 0.62, 0.2), "#474f5c"),
           ...paintBase(hornFaces(mx9, -1.7, mz9, mx9 - 0.62, -2.35, mz9, 0.2), "#474f5c"),
           ...paintBase(hornFaces(mx9, -1.7, mz9, mx9 + 0.62, -2.35, mz9, 0.2), "#474f5c"),
         ], key9(mx9, -0.4, mz9)));
+        /* ★ 날개 끝 → 미사일을 잇는 **아주 가는 가지**(요청) ────────────────────────────
+           여태 미사일 둘은 날개 끝 곁에 **떠 있었다** — 날개 판은 x 4.30에서 끝나고 미사일은
+           4.5에 서므로, 무엇이 무엇을 매달고 있는지가 그림에 없다. 원작의 이것은 날개 끝에서
+           위아래로 뻗은 걸이에 매달린 미사일이다.
+           굵기는 아주 가늘게(반폭 0.075) — 굵으면 걸이가 아니라 두 번째 날개가 된다.
+           마디를 둘만 쓰고 뚜껑을 안 그린다: 양 끝이 날개와 관 속에 묻히는 토막이다. */
+        /* 끝은 관의 **겉면**에서 멈춘다 — 축(mz9)까지 넣으면 가지의 대부분이 관 속에
+           묻혀 밖에서는 보이지 않는다(첫 판이 그랬다). 시작도 날개 끝(4.30)이 아니라
+           한 뼘 안쪽(4.06)이라야 가지가 판 위로 드러난다. */
+        const mzEnd9 = mz9 + (mz9 > 5.72 ? -mr9 : mr9);
+        out.push(...tagKey(paintBase(spirePillar({
+          x: 0, y: 0, h: 1, w: 1, segs: 3, sides: 6, caps: "none",
+          path: (t9: number): [number, number, number] => [
+            m9 * (4.06 + 0.46 * t9), -0.52, 5.74 + (mzEnd9 - 5.74) * t9,
+          ],
+          widthOf: (): number => 0.075,
+        }), TERRAN_STEEL_D), key9(m9 * 4.3, -0.52, (5.74 + mzEnd9) / 2) + 0.4));
       }
     }
     /* ④ 함체 — 팔각기둥이고 뚜껑 쪽이 살짝 좁다. 내려다보는 카메라라 여덟 모가 그대로
@@ -16917,7 +16943,7 @@ const UNIT_BULK: Record<string, 0 | 1 | 2> = {
 const MODEL_NORM: Record<string, number> = {
   arbiter: 1.826,  // 상자 상한(원한 배수 2.224)
   archon: 0.480,
-  bc: 0.670,
+  bc: 0.654,
   burrowhole: 0.832,
   carrier: 0.704,
   corsair: 1.073,
