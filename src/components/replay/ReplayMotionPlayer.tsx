@@ -17421,7 +17421,7 @@ const MODEL_NORM: Record<string, number> = {
   mutacocoon: 1.826,  // 상자 상한(원한 배수 1.891)
   observer: 1.938,
   ovie: 0.709,
-  probe: 1.747,
+  probe: 1.738,  // 다리 두께면을 양쪽으로 고친 뒤 model-norm 재측정
   probeGas: 1.486,
   probeMin: 1.543,
   queen: 0.621,
