@@ -94,7 +94,11 @@ function bundle() {
 
 /** 브라우저 안 — 한 장을 unitSprite와 같은 얼개로 굽고 ms와 면 수를 잰다. */
 function inBrowser({ KINDS, PXQ, DPR, PAD, BUCKETS }) {
-  const shadeBoost = (o, fill) => (fill ? Math.min(0.85, o * 1.45) : o);
+  /* 앱의 그 함수와 **똑같아야 한다**(ReplayMotionPlayer의 shadeBoost) — `o < 1` 조건이
+     여기만 빠져 있어서, 불투명도 1인 몸판까지 0.85로 깔렸다. 그 탓에 이 도구로 뽑은
+     모든 그림이 실제보다 비쳐 보였고(부품이 겹친 모델일수록 심하다), 그 그림을 보고
+     모델을 고치면 없는 병을 고치게 된다. */
+  const shadeBoost = (o, fill) => (fill && o < 1 ? Math.min(0.85, o * 1.45) : o);
   const rows = [];
   for (const kind of KINDS) {
     let faceN = 0;

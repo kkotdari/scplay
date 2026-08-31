@@ -2555,7 +2555,12 @@ function paintBase(faces: ShapeFace[], base: string): ShapeFace[] {
    #7b828a는 채도가 거의 없는 밝은 회색이라, 화면에서 강철이 아니라 **시멘트**로 읽혔다.
    원작의 테란 함체는 푸른 기가 도는 강청색이고 어둡다. 밝기를 한 단 내리고(0.53 → 0.44)
    푸른 쪽으로 기울인다. */
-const RACE_BASE_TONE = { terran: "#636b78", toss: "#c9a63f", zerg: "#b9724a" } as const;
+/* 테란의 푸른기를 한 단 줄인다(요청: "테란 기본 은색 푸른기 줄이기") — 세 값 모두
+   파랑이 빨강보다 20 남짓 높아 강철이 청회색으로 읽혔다. 그 차를 절반으로 좁히고 밝기는
+   그대로 둔다: 바탕 #636b78 → #65696e, 판 #929aa8 → #94989e, 관 #78808c → #7a7e83.
+   광색(RACE_GLOSS_LIT.terran)도 함께 눅인다 — 이 렌더러에서 금속은 명암 차로 읽히므로,
+   하이라이트가 하늘빛이면 바탕만 중성으로 바꿔도 푸른 기가 도로 든다. */
+const RACE_BASE_TONE = { terran: "#65696e", toss: "#c9a63f", zerg: "#b9724a" } as const;
 /* 종족별 **광의 색** — 안 적힌 종족은 흰 광(#fff) 그대로다.
    테란만 옅은 하늘빛을 쓴다(지적: "특히 광택에서 푸른빛을 좀 더 줘야 함"). 이 렌더러에서
    금속은 색이 아니라 명암 차로 읽히는데, 그 명암의 밝은 쪽이 순백이면 어떤 바탕색을 깔아도
@@ -2570,7 +2575,7 @@ const RACE_GLOSS_SHADE: Partial<Record<keyof typeof RACE_BASE_TONE, string>> = {
   toss: "#1a1206",
 };
 const RACE_GLOSS_LIT: Partial<Record<keyof typeof RACE_BASE_TONE, string>> = {
-  terran: "#c6d8ee",
+  terran: "#d8e0e8",
   // 프로토스는 **따뜻한** 광이다 — 금에 푸른 광을 얹으면 도금이 벗겨진 놋쇠로 보인다.
   toss: "#fff3cf",
 };
@@ -2581,8 +2586,8 @@ const RACE_GLOSS_LIT: Partial<Record<keyof typeof RACE_BASE_TONE, string>> = {
    그래서 손으로 적던 은색을 **이름 둘**로 모은다. 값은 바탕색과 같은 색상각(푸른 강청)이고
    밝기만 다르다: 판은 바탕보다 밝고, 관·부속은 그 사이다.
    프로토스 것(사이언스 베슬의 실드)은 안 건드린다 — 그 은색은 종족이 다르다. */
-const TERRAN_STEEL = "#929aa8";      // 밝은 판·겉껍데기
-const TERRAN_STEEL_D = "#78808c";    // 관·부속·그늘진 판
+const TERRAN_STEEL = "#94989e";      // 밝은 판·겉껍데기
+const TERRAN_STEEL_D = "#7a7e83";    // 관·부속·그늘진 판
 /** 몸에는 종족 바탕색을 입히고, 뒤에 붙이는 accent 면만 개인색으로 남긴다(규칙 1·4).
  *  accent는 칠하지 않은 채로 두어야 그리는 쪽이 임자 색을 넣는다 — 건물마다 눈에 띄는
  *  한두 곳만. */
@@ -4437,7 +4442,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     ]);
   },
 
-  plane: () => {
+  /* 전체 높이 1.4배(요청: "스타포트 전체적으로 높이 늘리기 1.4배") — 몸통·착륙판·앞
+     구조물·다리가 저마다 다른 상수에서 파생되므로, 그 상수들을 하나씩 곱하면 어딘가는
+     반드시 빠진다. 모델 좌표의 z만 한 자리에서 늘리면 전부가 같은 몫으로 따라온다
+     (아카데미가 쓰는 그 문이다). 가로·세로는 1이라 발자국은 안 바뀐다. */
+  plane: () => withModelScale(1, 1, 1.4, () => {
     /* 스타포트(재작도 — 게임 스프라이트 기준) ──────────────────────────────────────
        앞선 판은 몸통·칼라·패드를 층층이 쌓아 너무 높았다(지적: "너가 만든거랑 너무
        달라"). 실제 스프라이트는 **납작하다**: 낮은 팔각 몸통 위에 큼직한 원형 착륙판이
@@ -4638,7 +4647,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        개인색 구조물과 대칭으로 왼쪽 옆으로 이동해야해") — 정면에는 이미 길다란
        구조물과 그 위의 세로 데칼이 있어 색이 겹쳤고 좌우 짝도 안 맞아 보였다.
        이제 90도(오른쪽)·270도(왼쪽)가 짝을 이루고 180도(뒤)가 하나 더 있다. */
-    for (const deg9 of [90, 180, 270]) {
+    /* 뒤(180도) 슬래브는 걷었다(요청: "스타포트 뒤쪽 임자색 부품 제거") — 앞에는 이미
+       길다란 구조물 위의 세로 데칼이 있고 좌우 둘이 짝을 이루므로, 뒤 하나는 어느
+       각에서도 앞의 것과 겹쳐 보일 뿐 새로 말해 주는 것이 없었다. */
+    for (const deg9 of [90, 270]) {
       const a9 = (deg9 * Math.PI) / 180;
       const sx9 = Math.sin(a9);
       const sy9 = Math.cos(a9);
@@ -4662,7 +4674,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ));
     }
     return raceBase(out, "terran", pc);
-  },
+  }),
   /* 벙커(실물 참고) — 사방으로 비탈진 날개 판(정사각 배치) + 날개마다 내려오는 계단 +
      가운데 강철 돔 + 윗면 원형 해치. 날개 밝기는 세계 광원(faceLight)이 정한다. */
   /* 벙커(전면 재작도 — 사진 기준) ────────────────────────────────────────────────
@@ -6930,22 +6942,23 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     out.push(...tagKey(skirtStripe, -7.7));
     /* 왼쪽 리벳 드럼 돔(사진) — 통 몸에 붉은 띠를 두르고 위는 잿빛 돔 뚜껑. */
     out.push(...tagKey([
-      // 전체 높이 상향(요청) — 드럼 몸 2.2 → 3.4, 돔 1.5 → 2.1.
-      ...paintBase(cylinderFaces3(-2.6, 0.6, 2.15, 3.4, 1.2), STEEL),
+      /* 높이 10% 축소(요청: "아카데미 드럼, 굴뚝들 높이 10프로 줄이기") — 치마는
+         그대로 두고 그 위에 서는 것들만 낮춘다. 드럼 몸 3.4 → 3.06. */
+      ...paintBase(cylinderFaces3(-2.6, 0.6, 2.15, 3.06, 1.2), STEEL),
     ], 1 + depthNow(-2.6, 0.6) * 1.6));
     out.push(...tagKey([
-      ...paintBase(domeFaces3(-2.6, 0.6, 2.15, 2.1, 4.6), "#717e92"),
-      capFace(discPath3(-2.6, 0.6, 6.75, 0.8), 0.3),
+      ...paintBase(domeFaces3(-2.6, 0.6, 2.15, 1.89, 4.26), "#717e92"),
+      capFace(discPath3(-2.6, 0.6, 6.11, 0.8), 0.3),
     ], 1.2 + depthNow(-2.6, 0.6) * 1.6));
     /* 개인색은 여태 붉던 자리들(요청) — 드럼 허리 띠, 굴뚝 두 갓, 오른쪽 대야 속.
        셋이 몸통 좌우와 뒤에 흩어져 어느 요잉에서도 하나는 보인다. */
     const pc: ShapeFace[] = [
       ...tagKey(skirtOwn, -7.6),
-      ...tagKey(cylinderFaces3(-2.6, 0.6, 2.24, 0.6, 3.4), 1.1 + depthNow(-2.6, 0.6) * 1.6),
+      ...tagKey(cylinderFaces3(-2.6, 0.6, 2.24, 0.6, 3.06), 1.1 + depthNow(-2.6, 0.6) * 1.6),
     ];
     /* 뒤 굴뚝 탑 둘 — 붉은 갓을 쓴 가는 기둥. 하나는 더 높다. */
     for (const [cx9, cy9, ch9, cr9] of [
-      [-1.2, -2.1, 7.2, 0.55], [1.5, -2.4, 5.8, 0.62],
+      [-1.2, -2.1, 6.48, 0.55], [1.5, -2.4, 5.22, 0.62],
     ] as [number, number, number, number][]) {
       out.push(...tagKey(
         paintBase(cylinderFaces3(cx9, cy9, cr9, ch9, 1.2), DARK),
@@ -6958,8 +6971,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     }
     // 가운데 잿빛 원통 — 돔 뚜껑을 쓴 짧은 통.
     out.push(...tagKey([
-      ...paintBase(cylinderFaces3(0.2, -0.9, 0.95, 3.8, 1.2), "#828e9f"),
-      ...paintBase(domeFaces3(0.2, -0.9, 0.95, 1, 5), TERRAN_STEEL_D),
+      ...paintBase(cylinderFaces3(0.2, -0.9, 0.95, 3.42, 1.2), "#828e9f"),
+      ...paintBase(domeFaces3(0.2, -0.9, 0.95, 0.9, 4.62), TERRAN_STEEL_D),
     ], 1 + depthNow(0.2, -0.9) * 1.6));
     /* 오른쪽 큰 고리 대야(사진) — 잿빛 테 안이 붉게 파인 원형 우물. 테는 굵다. */
     out.push(...tagKey([
@@ -19096,7 +19109,7 @@ export const BLD_NORM: Record<string, number> = {
   nydus: 1.184,
   observatory: 1.650,
   physlab: 1.395,
-  plane: 1.216,
+  plane: 1.200,   // 높이 1.4배 후 bld-norm 재측정
   pool: 1.449,
   pyramidWide: 1.058,
   queensnest: 1.148,
