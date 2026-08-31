@@ -2015,6 +2015,9 @@ function armChain(
     fill?: string;
     /** 손(손등·손가락)만의 색(요청: "손들은 짙은 회색 적용") — 없으면 팔과 같다. */
     handFill?: string;
+    /** ★ 하완만 **칠하지 않는다**(요청: "파뱃 하완 임자색으로") — 안 칠한 면이 임자 색을
+     *  받는 이 렌더러의 규약을 팔 한 마디에만 적용하는 손잡이다. 상완·손은 fill 그대로다. */
+    foreTeam?: boolean;
     /** 손(손등 + 손가락)을 낼지 — 무기가 손 노릇을 하는 종류는 끈다. */ hand?: boolean;
     /** 깊이 키 밑수 — 몸통(0.9g) 위에 얹는 값이다. */ key?: number;
   },
@@ -2029,7 +2032,8 @@ function armChain(
   out.push(...tagKey(paint(suitLimb(sh, el, o.upper, o.fore, (o.upper + o.fore) * 0.52, {})),
     depthNow((sh[0] + el[0]) / 2, (sh[1] + el[1]) / 2) * 1.6 + K));
   // ② 하완 — 팔꿈치에서 손목으로. 뿌리는 상완의 끝, 끝은 손목이다.
-  out.push(...tagKey(paint(suitLimb(el, wr, o.fore, wristW, o.fore * 1.02, {})),
+  const fore9 = suitLimb(el, wr, o.fore, wristW, o.fore * 1.02, {});
+  out.push(...tagKey(o.foreTeam ? fore9 : paint(fore9),
     depthNow((el[0] + wr[0]) / 2, (el[1] + wr[1]) / 2) * 1.6 + K + 0.05));
   if (o.hand === false) return out;
   /* ③ 손등 — 하완 축을 **그대로 이어** 손목에서 뻗는다. 위아래로 얇아(oval 2.2)
@@ -3984,7 +3988,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      높이는 앞서 올린 1.2 그대로다. 정규화가 잉크 **상자**를 한 목표에 맞추므로, 가로가
      줄고 세로가 그대로면 그만큼 배수가 올라 결과는 '더 좁고 더 높은' 디포가 된다. */
   /* 높이 10% 축소(요청: "서플라이 리파이너리 높이 10프로 축소") — z 배수 1.2 → 1.08. */
-  trapezoid: () => withModelScale(0.75, 0.75, 1.08, () => withModelSpin(-90, () => {
+  // 높이 다시 10% 축소(요청) — 1.08 → 0.972. 가로는 그대로라 더 납작해진다.
+  trapezoid: () => withModelScale(0.75, 0.75, 0.972, () => withModelSpin(-90, () => {
     /* 서플라이 디포(재작도·사진) — 검회색 장갑 상자다. 지붕 뒤에 드럼통 하나가 서고,
        지붕 가운데와 앞면 두 곳에는 환풍구가 뚫린다. 왼쪽 지붕에는 은빛 보급 상자 줄과
        그 아래 초록 발광, 왼쪽 옆면에는 초록 창과 해저드 띠, 앞에는 경사로와 드럼 둘.
@@ -4697,7 +4702,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        ④ 몸통 옆면에 **붉은 총안**이 줄지어 있다. 여덟 개를 사방에 고루 둔다(요청:
           "창문(총 쏘는 구멍) 8방에 하나씩") — 면이 넷이므로 면마다 둘씩이다.
        ⑤ 사격 중에는 그 총안이 번쩍인다(요청) — bldLitNow 깃발 하나로 갈린다. */
-  tombFlat: () => {
+  /* 전체 높이 10% 증가(요청) — 모형 z만 1.1배다. 받침·돔·계단·창·총구 자리가 전부
+     이 한 겹 안에서 나므로 비율이 안 깨진다(짝이 되는 BUNKER_MUZZLE_Z도 같은 몫). */
+  tombFlat: () => withModelScale(1, 1, 1.1, () => {
     const SILVER9 = TERRAN_STEEL;
     const out: ShapeFace[] = [];
     /* 치수 — **받침은 계단 높이만큼만**이다(요청: "절두체 높이 계단과 맞추기"). 그러면
@@ -4706,9 +4713,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const FB9 = 3.9;          // 받침(사각 절두체) 밑 반폭
     const FT9 = 3.3;          // 받침 윗 반폭
     const FH9 = 1.0;          // 받침 높이 = 계단 높이
-    /* 계단 폭은 **면의 반**(요청) — 면 길이 2·FB9의 절반이 곧 반폭 FB9/2다. */
-    const SW9 = FB9 / 2;
-    const SR1 = 5.7;          // 계단이 닿는 바깥 반지름 — 받침(3.9)보다 나온다
+    /* 계단 폭은 **면의 반**(요청) — 면 길이 2·FB9의 절반이 곧 반폭 FB9/2다.
+       ★ 계단 크기 2/3로(요청) — 폭과 **밖으로 뻗는 몫** 둘 다 같은 몫으로 줄인다. 하나만
+         줄이면 계단이 길쭉하거나 뭉툭해져 '작아졌다'가 아니라 '모양이 바뀌었다'가 된다. */
+    const STAIR_K9 = 2 / 3;
+    const SW9 = (FB9 / 2) * STAIR_K9;
+    // 계단이 닿는 바깥 반지름 — 받침 윗면(FT9)에서 뻗는 몫만 줄인다.
+    const SR1 = FT9 + (5.7 - FT9) * STAIR_K9;
     const STEP9 = 3;
     const DR9 = 3.15;         // 돔 반지름 — 받침 윗면(3.3) 안에 꽉 차게
     const DH9 = 1.95;         // 돔 높이
@@ -4853,7 +4864,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        여덟이 그 구멍을 둘러싼 꼴이 됐다. 슬롯만 남기면 고리 무늬로 곱게 읽힌다. */
     out.push(...tagKey(top9, 12));
     return out;
-  },
+  }),
   /* 넥서스(실물 참고) — 절두 황금 피라미드(높이 한 단 낮춤) + 면의 능선 띠 + 꼭대기
      파란 수정 + 사방 삼각 진입받침 + 네 귀 오벨리스크. 뒤 기둥은 피라미드가 가리도록
      먼저 그린다(지적: 기둥이 비쳐 보였다). */
@@ -10713,17 +10724,23 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        '옆을 본다'는 것은 판의 납작한 쪽이 x를 향한다는 뜻이다. 축이 z이므로 단면 기준(ref)을
        앞뒤(y)로 못 박으면 단면의 u가 앞뒤 폭, v가 좌우가 된다 — oval로 그 v를 눌러야 얇은
        쪽이 옆을 향한다. 임자 색이 여기 든다(칠을 안 한다). */
+    /* ★ 팔 길이 20% 축소(요청) — 뿌리(몸 옆구리 x 1.3)는 그대로 두고 뻗는 몫만 1.2 →
+       0.96으로 줄인다. **방패도 그만큼 안으로 따라온다**: 팔만 줄이면 끝과 방패 사이에
+       0.24짜리 틈이 생겨 날개가 몸에서 떨어져 뜬다. 길이를 한 값(ARM_L9)에서 내어 둘이
+       늘 붙어 있게 한다. */
+    const ARM_L9 = 1.2 * 0.8;
     for (const m9 of [-1, 1] as const) {
+      const ax9 = 1.3 + ARM_L9;               // 팔 끝 = 방패 뿌리
       out.push(...tagKey(paintBase(
-        rodFaces(m9 * 1.3, -1.0, 5.3, m9 * 2.5, -1.05, 5.25, 0.34), "#657183",
-      ), key9(m9 * 1.9, -1.02, 5.28)));
+        rodFaces(m9 * 1.3, -1.0, 5.3, m9 * ax9, -1.05, 5.25, 0.34), "#657183",
+      ), key9(m9 * (1.3 + ARM_L9 / 2), -1.02, 5.28)));
       out.push(...tagKey(spirePillar({
         x: 0, y: 0, h: 1, w: 1, segs: 4, sides: 4, ref: [0, 1, 0], caps: "both", oval: 0.16,
         path: (t9: number): [number, number, number] => [
-          m9 * (2.6 + 0.9 * t9), -1.05, 4.5 + 2.5 * t9,
+          m9 * (ax9 + 0.1 + 0.9 * t9), -1.05, 4.5 + 2.5 * t9,
         ],
         widthOf: widthCurve([[0, 1.05], [1, 0.52]]),
-      }), key9(m9 * 3.0, -1.05, 5.75)));
+      }), key9(m9 * (ax9 + 0.55), -1.05, 5.75)));
     }
     /* ⑤ 꽁무니 엔진 넷 — 뒤를 볼 때만 포구가 어두워지는 관이라 각도를 스스로 탄다. */
     /* 넷을 **정사각으로** 모은다(지적) — 앞판은 마름모(아래 둘 넓게·위 둘 좁게)라 흩어져
@@ -13570,7 +13587,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       for (const m of [-1, 1] as const) {
         const [hx9, hy9] = armAt(m, 1);
         out.push(...tagKey(paintBase(
-          tubeFaces(hx9, hy9, hx9 - m * 0.3, hy9 + 0.3, 0.3, 4.62), GUNMETAL,
+          tubeFaces(hx9, hy9, hx9 - m * 0.3, hy9 + 0.3, 0.3, 4.62 - tubeAxisLift(0.3)),
+          GUNMETAL,
         ), depthNow(hx9, hy9) * 1.6 + 1.5));
       }
     } else {
@@ -13578,8 +13596,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          낮음") — 하완은 z 4.62에 서는데 연장만 4.3이라 손목에서 한 단 떨어져, 팔이
          연장을 든 것이 아니라 그 위에 얹혀 있는 것으로 보였다. 4.3 → 4.62.
          자리도 짧아진 팔의 손끝에 맞춰 (∓0.135, −0.435) 당겼다. */
+      /* ★ 손목 원판만 **내려 앉힌다**(요청: "scv 하완과 집게/드릴 사이 원판 부품만 아래로
+         내려서 하완과 중심축 맞추기") — tubeFaces는 관을 제 z보다 `r×0.45`만큼 **올려**
+         그린다(옛 배치와 눈높이를 맞추는 오프셋 — 그 함수의 주석). 하완은 상자(prism)라
+         그 몫이 없으므로, 같은 z 4.62에 세워도 원판만 한 뼘 위로 뜬다. 그 화면 몫을 z로
+         되돌리는 자가 이미 있다(tubeAxisLift) — 빼면 축이 하완과 한 줄에 선다.
+         뿔로 지은 드릴 코·집게 갈래는 그 오프셋이 없으므로 4.62 그대로 둔다. */
       out.push(...tagKey(paintBase([
-        ...tubeFaces(-2.645, 2.615, -2.785, 3.065, 0.5, 4.62),
+        ...tubeFaces(-2.645, 2.615, -2.785, 3.065, 0.5, 4.62 - tubeAxisLift(0.5)),
         ...hornFaces(-2.785, 2.965, 4.62, -3.245, 4.415, 4.62, 0.74),
       ], GUNMETAL), depthNow(-2.765, 3.465) * 1.6 + 1.5));
       for (let i = 0; i < 3; i += 1) {
@@ -13592,8 +13616,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     }
     /* 오른팔 집게(사진) — 손목 토막에서 세 갈래가 앞으로 벌어져 나온다. */
     if (!carry) {
+      // 손목 원판은 같은 몫으로 내려 앉힌다(왼팔의 ★ 주석).
       out.push(...tagKey(paintBase([
-        ...tubeFaces(2.645, 2.615, 2.785, 3.065, 0.5, 4.62),
+        ...tubeFaces(2.645, 2.615, 2.785, 3.065, 0.5, 4.62 - tubeAxisLift(0.5)),
         ...hornFaces(2.505, 3.015, 4.62, 2.365, 4.165, 4.62, 0.3),
         ...hornFaces(3.065, 3.015, 4.62, 3.325, 4.165, 4.62, 0.3),
         ...hornFaces(2.785, 3.015, 5.0, 2.885, 4.065, 5.27, 0.28),
@@ -14359,11 +14384,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ...armChain([-1.26, -0.02, suitShoulderZ()],
         [-1.12, lp(0.24, 0.5) + sway, lp(2.96, 3.2) + dz],
         [-0.62, lp(0.92, 1.36) + sway, lp(2.5, 2.98) + dz],
-        { upper: 0.34, fore: 0.4, fill: RED_D, handFill: "#464e5b" }),
+        // 하완만 임자 색(요청) — 붉은 상완과 짙은 손 사이에 팀의 한 마디가 든다.
+        { upper: 0.34, fore: 0.4, fill: RED_D, handFill: "#464e5b", foreTeam: true }),
       ...armChain([1.26, -0.02, suitShoulderZ()],
         [1.14, lp(0.26, 0.56) + sway, lp(2.96, 3.22) + dz],
         [0.6, lp(1.28, 1.95) + sway, lp(2.52, 3.0) + dz],
-        { upper: 0.34, fore: 0.4, fill: RED_D, handFill: "#464e5b" }),
+        { upper: 0.34, fore: 0.4, fill: RED_D, handFill: "#464e5b", foreTeam: true }),
       /* 화염방사기 **두 자루**(정정: "아까처럼 2개로") — 팔마다 한 자루씩, 손 앞에서
          곧게 나간다. 굵은 통 + 곁의 가는 통 하나, 끝에 점화 테. 손보다 위 키다. */
       ...([-1, 1] as const).flatMap((m9) => {
@@ -17839,7 +17865,7 @@ const MODEL_NORM: Record<string, number> = {
   tanksiege: 0.558,
   tanksiegebody: 0.575,
   ultra: 0.361,
-  valk: 0.900,
+  valk: 1.003,   // 날개 팔 20% 축소 뒤 재측정
   vessel: 0.770,
   vulture: 0.828,
   wraith: 0.774,
@@ -18527,7 +18553,8 @@ export const buildingYawOf = (): number => BUILDING_BASE_YAW;
    반지름·높이는 **돔에 난 총안** 그 자리다(그 모델의 WZ0~WZ1·domeR9) — 빛이 창에서
    난다. */
 const BUNKER_MUZZLE_R = 3.15;
-const BUNKER_MUZZLE_Z = 1.62;
+// 몸의 z가 1.1배가 되었으므로(tombFlat의 withModelScale) 총구 높이도 같은 몫이다.
+const BUNKER_MUZZLE_Z = 1.62 * 1.1;
 const bunkerMuzzleOf = (deg: number): [number, number, number] => {
   const a = ((deg + BUILDING_BASE_YAW) * Math.PI) / 180;
   return [Math.cos(a) * BUNKER_MUZZLE_R, Math.sin(a) * BUNKER_MUZZLE_R, BUNKER_MUZZLE_Z];
@@ -19531,10 +19558,9 @@ export const BLD_FILL_TARGET: Record<string, number> = {
        bld-norm이 상한에서 멈춘다). 지금 걸리는 것은 파일런(diamond)·스파이어(spire)
        둘이고, 아래 값은 그 둘에 대해서는 뜻이 없다. */
   // 작아 보이는 것들 — 키운다.
-  /* 10% 축소(요청: "그려지는 크기가 너무 커 10프로 축소") — 1.2 → 1.08.
-     짝이 되는 BLD_NORM.tombFlat도 같은 몫(×0.9)으로 내렸다: 잉크 폭이 목표에
-     선형이라 다시 재지 않아도 값이 정확히 떨어진다. */
-  tombFlat: 1.08,      // 벙커
+  /* (되돌림·요청: "벙커 그려지는 크기 10프로 줄였던 거 원복") — 1.08 → 1.2.
+     짝이 되는 BLD_NORM.tombFlat은 아래에서 다시 잰 값이다. */
+  tombFlat: 1.2,       // 벙커
   turret: 1.45,        // 터렛(재요청: "터렛 확대" — 1.2에서 더)
   trapezoid: 1.2,      // 서플라이
   /* 엔베는 한 번 더(재지적: "엔베 크기 확대") — 1.2로도 작았다. 지붕이 낮고 넓은
@@ -19642,8 +19668,8 @@ export const BLD_NORM: Record<string, number> = {
   sunken: 1.308,
   sunkenfire: 1.391,
   tomb: 1.534,
-  tombFlat: 1.431,   // 사각 절두체 + 돔으로 재작도 후 bld-norm 재측정
-  trapezoid: 2.480,
+  tombFlat: 1.724,   // 높이 1.1배·계단 2/3·그리기 크기 원복 뒤 재측정
+  trapezoid: 2.487,
   tribunal: 1.954,
   turret: 1.966,  // 받침을 절두체로 바꾸고 다시 잼
   warpin: 2.196,
@@ -21894,8 +21920,19 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
                붙어 있을 때 제 길이만큼 넘칠 수는 있지만, 안 보이는 것보다 낫다. */
             /* ★ 물러난 길이는 **길에도 실린다**(위 runD9) — 머리만 물러나면 연기가
                표적 점에 포개진다. 둘은 한 자를 써야 한다. */
+            /* ★ **표적을 지나치지 않는다**(지적: "미사일 트레이서 길이가 짧게 못 그리나
+               타겟을 지나쳐서 멀리까지 나감") ────────────────────────────────────────
+               여기 있던 바닥(`tailL9 × 0.6`)은 갈래표의 잔상 길이 l에 매여 있었다. 그
+               바닥은 '화면 거리가 무너지는 자리'(땅에 선 골리앗이 바로 머리 위의 것을 쏠
+               때)를 위한 것인데, 미사일의 l을 연기 자취 길이로 쓰면서 5.2 → 24로 키우자
+               바닥도 3.1 → 14.4로 함께 커졌다 — 곧 **모든** 사격이 표적을 그만큼 지나쳐
+               날았다.
+               바닥은 무너진 자리에만 쓴다: 표적이 제 거리를 갖고 있으면(2px 넘게) 길이를
+               그 거리로 못 박아 머리가 표적에 정확히 선다. 정말 겹쳐 선 자리에서만 옛
+               바닥으로 물러나 짧은 토막이라도 보이게 한다. */
             runD9 = Number.isFinite(reach9)
-              ? Math.max(reach9, tailL9 * 0.6) : tailL9;
+              ? (reach9 > 2 * zoom ? reach9 : Math.max(reach9, tailL9 * 0.6))
+              : tailL9;
             headD9 = runD9 * Math.min(1, Math.max(0, f.u ?? 0));
           } else if (f.kind === "erupt") {
             /* 성큰 가시(scr-spike-erupt의 캔버스 판) — 표적 발밑에서 **화면 수직으로**
@@ -21999,7 +22036,14 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
              머리는 따로 그린다 — 연기와 달리 그쪽은 불꽃이라 갈래표의 그러데이션 그대로
              짧은 획 한 번이다. */
           if (st.puff) {
-            const span9 = headD9 - tailD9;
+            /* ★ **연기는 탄두 뒤에서 난다**(지적: "탄두에도 연기가 겹쳐지는데 연기는 탄두
+               뒤쪽에 따라 나오는 거야") — 여태 덩이를 tailD9~headD9로 깔았는데 머리(headD9)
+               가 곧 탄두의 코라, 마지막 덩이 몇이 탄두 위에 그대로 겹쳤다. 로켓의 연기는
+               노즐에서 나오므로 **탄두 길이만큼 뒤**에서 시작해야 한다.
+               탄두 길이(bodyL9)를 먼저 재고 덩이의 끝을 거기까지로 죈다. */
+            const bodyL9 = Math.min(Math.max(0, headD9 - tailD9), st.w * zoom * 9);
+            const smokeEnd9 = st.warhead ? headD9 - bodyL9 : headD9;
+            const span9 = Math.max(0, smokeEnd9 - tailD9);
             /* ★ 간격의 바닥을 2 → 0.9px로(재요청: "더 자주 나오게") — 덩이를 4분의 1로
                줄이자 이 바닥이 실제 간격을 지배해, 지름 1.5px짜리 덩이가 2px씩 떨어져
                점선으로 보였다. 바닥은 '한 프레임에 덩이가 수백 개 서지 않게' 막는 안전값
@@ -22037,7 +22081,7 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
             const core9 = st.smoke ?? "#ffffff";
             const edge9 = st.smokeEdge ?? core9;
             for (let i9 = 0; i9 <= n9; i9 += 1) {
-              const d9 = tailD9 + (span9 * i9) / n9;
+              const d9 = tailD9 + (span9 * i9) / n9;   // 탄두 뒤(smokeEnd9)까지만 깔린다
               // 0 머리(갓 뿜음) ~ 1 총구(가장 오래됨).
               const age9 = span9 <= 0 ? 0 : 1 - (d9 - tailD9) / span9;
               /* ★ 크기는 **앞뒤가 같다**(지적: "크기는 앞이나 뒤나 일정한데 살짝 변동은
@@ -22092,8 +22136,7 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
                    비치지 않는다'는 점이다: 반투명하면 아무리 키워도 연기의 일부로 읽힌다.
                  ③ 코 — 몸통 끝의 작은 밝은 점. 어느 쪽이 앞인지를 한 점이 말한다.
                셋 다 굽은 길(at9) 위에 얹어 유도 곡선을 그대로 탄다. */
-            const bodyL9 = Math.min(span9, st.w * zoom * 9);
-            const flameL9 = Math.min(span9, st.w * zoom * 20);
+            const flameL9 = Math.min(Math.max(0, headD9 - tailD9), st.w * zoom * 20);
             if (flameL9 > 0.5) {
               const [ex9, ey9] = at9(headD9);
               const [fx9, fy9] = at9(headD9 - flameL9);
@@ -23460,6 +23503,11 @@ export default function ReplayMotionPlayer({
       tag: number; x: number; y: number; raw: string; born: number; gone: number; k: string;
       /** 이륙 시각 — 뜬 뒤로는 표적 자리가 앉았던 자리가 아니라 나는 자리다. */
       lift?: number;
+      /** ★ 이륙·착륙 시각 **전부**(요청 조사: "공중 건물에 골리앗 대지 트레이서가 아직도
+       *  나간다") — 아래 airborneAt이 '그 순간에 떠 있나'를 이 둘로 가린다. 한 값(lift)
+       *  으로는 못 가린다(그 자리 ★ 주석). */
+      lifts: number[];
+      siteTs: number[];
     }[] = [];
     /* 태그 없는 물리 건물 자리(기획서 2-D) — 시작 홀 등 태그 생애가 없는 건물의
        자리 색인. 태그 미해석 어택의 폴백 표적이 된다. */
@@ -23481,6 +23529,7 @@ export default function ReplayMotionPlayer({
       const row = {
         tag: e.tag, x: site[1] + footDx(e.kind), y: site[2] + footDy(e.kind),
         raw: nameOfId.get(e.owner) ?? "", born: e.born, gone, k: e.kind,
+        lifts: [...e.lifts], siteTs: e.sites.map((s9) => s9[0]),
         ...(lifted !== undefined ? { lift: lifted } : {}),
       };
       if (e.tag > 0) rows.push(row);
@@ -24781,8 +24830,24 @@ export default function ReplayMotionPlayer({
        겨눔·접근의 표적이 된다. 유닛 태그와 겹치면 유닛이 우선(위에서 이미 set). */
     for (const bt of bldTagSpots.rows) {
       if (t < bt.born + 2 || (bt.gone > 0 && t >= bt.gone)) continue;
-      // 뜬 건물은 공중 표적이다 — 자리는 제 줄이 아는 그 자리다(비행 보간은 걷었다).
-      const afloat9 = bt.lift !== undefined && t >= bt.lift;
+      /* ★ **그 순간에 떠 있나**를 이·착륙 자취로 가린다(재재지적: "공중 건물에 골리앗
+         대공이 아닌 대지 트레이서가 아직도 나가") ────────────────────────────────────
+         여기 있던 셈은 `bt.lift`, 곧 **마지막 자리 뒤의 이륙 하나**였다. 그 값은 '지금
+         떠 있나'를 못 말한다: 건물이 100초에 떴다가 200초에 다른 자리에 내려앉으면
+         마지막 자리는 200초이고 100초 이륙은 그 앞이라 걸러진다 — 곧 **떠서 날고 있던
+         100~200초 동안 이 명단은 "한 번도 안 떴다"고 답했다.** 사람이 화면에서 뜬 건물을
+         보는 시간이 대개 그 구간이라(뜬 건물은 결국 내려앉는다) 늘 지상 무기가 나갔다.
+         그리는 쪽(buildsV2)은 자리 **구간마다** 이륙을 찾아 옳게 그리고 있었는데, 표적
+         명단만 마지막 구간을 봤다 — 화면과 판정이 갈린 자리가 이것이다.
+         이제 이·착륙 시각을 다 들고 와서, 지금(t) 이전의 **가장 마지막 사건**이 이륙이면
+         떠 있는 것으로 본다. 착륙(자리 잡음)이 더 나중이면 앉은 것이다. */
+      const afloat9 = ((): boolean => {
+        let last9 = -Infinity;
+        let air9 = false;
+        for (const s9 of bt.siteTs) if (s9 <= t && s9 >= last9) { last9 = s9; air9 = false; }
+        for (const l9 of bt.lifts) if (l9 <= t && l9 >= last9) { last9 = l9; air9 = true; }
+        return air9;
+      })();
       /* ★ 이미 **유닛 줄로** 올라온 태그면 그 줄에 '떴다'만 얹는다(재지적: "골리앗 뜬
          건물 상대로 여전히 지상용 트레이서 나감") ─────────────────────────────────────
          테란 건물은 원작에서도 유닛이라, 참값 자취(ents)에 제 태그로 실려 온다. 그래서
