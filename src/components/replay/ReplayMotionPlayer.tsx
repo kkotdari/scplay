@@ -19427,7 +19427,14 @@ const SPRITE_SIZES_MAX = 4096;
    몸이 커졌다 작아지는 것이 아니라 **자세가 바뀐 것**이므로, 장식의 자는 자세 0(대기)의
    것으로 못 박는다. 종류·방위·보기마다 한 번만 적어 두고 모든 컷이 그것을 나눠 쓴다.
    ※ 값은 '판 크기에 대한 비'라 배율이 바뀌어도 그대로 쓴다. */
-const INK_W_RATIO9 = new Map<string, number>();
+/* ★ **자세 0이 아예 안 오는 종류가 있다**(재지적: "그림자 여전히 크기 변하는데?") —
+   나는 저그(뮤탈·디바우러)는 flapCutOf가 1·4·3만 돌려주므로 대기 컷(0)이 한 번도 안
+   선다. 그래서 '자세 0에서 잰 값'을 기다리는 앞판은 이 종류에서 아무것도 못 적었고,
+   장식이 그대로 이번 컷의 잉크를 썼다 — 고친 것이 정작 고쳐야 할 종류만 비켜 갔다.
+   기다리지 말고 **본 것 중 가장 작은 자세 번호**의 값을 쓴다. 대기 컷이 있는 종류는
+   여전히 0의 값이고, 날갯짓만 하는 종류는 컷 1의 값으로 못 박힌다 — 어느 쪽이든 컷이
+   바뀌어도 안 흔들리는 한 값이라는 것이 요점이다(어느 컷의 값인지가 아니라). */
+const INK_W_RATIO9 = new Map<string, { pose: number; r: number }>();
 function unitSprite(
   op: UnitDrawOp, pxq: number, B: number,
 ): { cv: HTMLCanvasElement; ox: number; oy: number; pad: number; l: number; bot: number; cx: number; top: number; w: number } | null {
@@ -21389,9 +21396,14 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
         const inkKey9 = `${op.kind}|${Math.round((op.rotDeg ?? 0) / 22.5)}`
           + `|${op.flat ? 1 : 0}|${pitchTag(op.pitch)}`;
         const inkR9 = spr && spr.w > 0 && pxqB > 0 ? (spr.w / B) / pxqB : 0;
-        if (inkR9 > 0 && !(op.pose ?? 0)) INK_W_RATIO9.set(inkKey9, inkR9);
         const inkW = ((): number => {
-          const r9 = INK_W_RATIO9.get(inkKey9) ?? inkR9;
+          const got9 = INK_W_RATIO9.get(inkKey9);
+          const pose9 = op.pose ?? 0;
+          if (inkR9 > 0 && (!got9 || pose9 < got9.pose)) {
+            INK_W_RATIO9.set(inkKey9, { pose: pose9, r: inkR9 });
+            return inkR9 * px;
+          }
+          const r9 = got9 ? got9.r : inkR9;
           return r9 > 0 ? r9 * px : px * inkK;
         })();
         const footY = spr
