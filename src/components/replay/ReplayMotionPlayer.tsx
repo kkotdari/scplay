@@ -17362,133 +17362,142 @@ for (const tone9 of ["terran", "toss"] as const) {
   }
 }
 
-export const SHAPE_GALLERY: { kind: string; label: string; group: "유닛" | "건물" | "부가" }[] = [
+/** 도록 한 칸 — 밖(앱의 도록 화면)이 이 꼴을 그대로 먹는다. */
+export type ShapeGalleryItem = {
+  kind: string;
+  label: string;
+  /** 갈래 — "부가"는 유닛도 건물도 아닌 것들(자원·크립·버로우 구멍·핵·스톰·탱크 부품). */
+  group: "유닛" | "건물" | "부가";
+  /** 종족 — 중립(자원)은 빈 글자다. 도록의 종족 고르기가 이 칸을 본다. */
+  race: "테란" | "프로토스" | "저그" | "";
+};
+export const SHAPE_GALLERY: ShapeGalleryItem[] = [
   // ── 유닛 · 테란 ──
-  { kind: "scv", label: "SCV", group: "유닛" },
-  { kind: "scvMin", label: "SCV(미네랄)", group: "유닛" },
-  { kind: "scvGas", label: "SCV(가스)", group: "유닛" },
-  { kind: "gunner", label: "마린", group: "유닛" },
-  { kind: "ghost", label: "고스트", group: "유닛" },
-  { kind: "fbat", label: "파이어뱃", group: "유닛" },
-  { kind: "inf", label: "메딕", group: "유닛" },
-  { kind: "vulture", label: "벌처", group: "유닛" },
-  { kind: "mine", label: "스파이더 마인", group: "유닛" },
-  { kind: "tank", label: "시즈 탱크", group: "유닛" },
-  { kind: "tanksiege", label: "시즈 탱크(시즈)", group: "유닛" },
-  { kind: "goliath", label: "골리앗", group: "유닛" },
-  { kind: "wraith", label: "레이스", group: "유닛" },
-  { kind: "dship", label: "드랍십", group: "유닛" },
-  { kind: "vessel", label: "사이언스 베슬", group: "유닛" },
-  { kind: "valk", label: "발키리", group: "유닛" },
-  { kind: "bc", label: "배틀크루저", group: "유닛" },
+  { kind: "scv", label: "SCV", group: "유닛", race: "테란" },
+  { kind: "scvMin", label: "SCV(미네랄)", group: "유닛", race: "테란" },
+  { kind: "scvGas", label: "SCV(가스)", group: "유닛", race: "테란" },
+  { kind: "gunner", label: "마린", group: "유닛", race: "테란" },
+  { kind: "ghost", label: "고스트", group: "유닛", race: "테란" },
+  { kind: "fbat", label: "파이어뱃", group: "유닛", race: "테란" },
+  { kind: "inf", label: "메딕", group: "유닛", race: "테란" },
+  { kind: "vulture", label: "벌처", group: "유닛", race: "테란" },
+  { kind: "mine", label: "스파이더 마인", group: "유닛", race: "테란" },
+  { kind: "tank", label: "시즈 탱크", group: "유닛", race: "테란" },
+  { kind: "tanksiege", label: "시즈 탱크(시즈)", group: "유닛", race: "테란" },
+  { kind: "goliath", label: "골리앗", group: "유닛", race: "테란" },
+  { kind: "wraith", label: "레이스", group: "유닛", race: "테란" },
+  { kind: "dship", label: "드랍십", group: "유닛", race: "테란" },
+  { kind: "vessel", label: "사이언스 베슬", group: "유닛", race: "테란" },
+  { kind: "valk", label: "발키리", group: "유닛", race: "테란" },
+  { kind: "bc", label: "배틀크루저", group: "유닛", race: "테란" },
   // ── 유닛 · 프로토스 ──
-  { kind: "probe", label: "프로브", group: "유닛" },
-  { kind: "probeMin", label: "프로브(미네랄)", group: "유닛" },
-  { kind: "probeGas", label: "프로브(가스)", group: "유닛" },
-  { kind: "zealot", label: "질럿", group: "유닛" },
-  { kind: "goon", label: "드라군", group: "유닛" },
-  { kind: "htemp", label: "하이 템플러", group: "유닛" },
-  { kind: "dtemp", label: "다크 템플러", group: "유닛" },
-  { kind: "archon", label: "아콘", group: "유닛" },
-  { kind: "darchon", label: "다크 아콘", group: "유닛" },
-  { kind: "shuttle", label: "셔틀", group: "유닛" },
-  { kind: "reaver", label: "리버", group: "유닛" },
-  { kind: "observer", label: "옵저버", group: "유닛" },
-  { kind: "scout", label: "스카웃", group: "유닛" },
-  { kind: "corsair", label: "커세어", group: "유닛" },
-  { kind: "carrier", label: "캐리어", group: "유닛" },
+  { kind: "probe", label: "프로브", group: "유닛", race: "프로토스" },
+  { kind: "probeMin", label: "프로브(미네랄)", group: "유닛", race: "프로토스" },
+  { kind: "probeGas", label: "프로브(가스)", group: "유닛", race: "프로토스" },
+  { kind: "zealot", label: "질럿", group: "유닛", race: "프로토스" },
+  { kind: "goon", label: "드라군", group: "유닛", race: "프로토스" },
+  { kind: "htemp", label: "하이 템플러", group: "유닛", race: "프로토스" },
+  { kind: "dtemp", label: "다크 템플러", group: "유닛", race: "프로토스" },
+  { kind: "archon", label: "아콘", group: "유닛", race: "프로토스" },
+  { kind: "darchon", label: "다크 아콘", group: "유닛", race: "프로토스" },
+  { kind: "shuttle", label: "셔틀", group: "유닛", race: "프로토스" },
+  { kind: "reaver", label: "리버", group: "유닛", race: "프로토스" },
+  { kind: "observer", label: "옵저버", group: "유닛", race: "프로토스" },
+  { kind: "scout", label: "스카웃", group: "유닛", race: "프로토스" },
+  { kind: "corsair", label: "커세어", group: "유닛", race: "프로토스" },
+  { kind: "carrier", label: "캐리어", group: "유닛", race: "프로토스" },
   /* (교체) carrierbay "캐리어(인터셉터)" — 캐리어 둘레에 인터셉터 넷을 붙여 둔 합본
      이었다. 인터셉터가 제 모델을 갖게 되어(요청) 합본은 쓸 데가 없다: 지도에서는 한
      번도 안 그려지는 도록 전용 판이었고, 인터셉터는 실제로 캐리어에서 **떨어져 나와**
      날아간다. */
-  { kind: "interceptor", label: "인터셉터", group: "유닛" },
-  { kind: "scarab", label: "스캐럽", group: "유닛" },
-  { kind: "arbiter", label: "아비터", group: "유닛" },
+  { kind: "interceptor", label: "인터셉터", group: "유닛", race: "프로토스" },
+  { kind: "scarab", label: "스캐럽", group: "유닛", race: "프로토스" },
+  { kind: "arbiter", label: "아비터", group: "유닛", race: "프로토스" },
   // ── 유닛 · 저그 ──
   /* 라바·변태알은 **참값 자취에 제 유닛으로 실린다**(옛 주석은 "리플레이에 라바는 안
      남는다"였다 — 명령 기록만 보던 시절의 말이다). 실측: 한 태그가 라바 35 → 알 36 →
      드론 41로 갈아입는다. 그래서 해처리 장식이 아니라 다른 유닛과 같은 길로 그려진다. */
-  { kind: "larva", label: "라바", group: "유닛" },
-  { kind: "egg", label: "변태알", group: "유닛" },
-  { kind: "drone", label: "드론", group: "유닛" },
-  { kind: "droneMin", label: "드론(미네랄)", group: "유닛" },
-  { kind: "droneGas", label: "드론(가스)", group: "유닛" },
-  { kind: "ovie", label: "오버로드", group: "유닛" },
-  { kind: "zling", label: "저글링", group: "유닛" },
-  { kind: "hydra", label: "히드라", group: "유닛" },
-  { kind: "lurker", label: "러커", group: "유닛" },
-  { kind: "muta", label: "뮤탈리스크", group: "유닛" },
-  { kind: "scourge", label: "스커지", group: "유닛" },
-  { kind: "queen", label: "퀸", group: "유닛" },
-  { kind: "ultra", label: "울트라리스크", group: "유닛" },
-  { kind: "defiler", label: "디파일러", group: "유닛" },
-  { kind: "guardian", label: "가디언", group: "유닛" },
-  { kind: "devourer", label: "디바우러", group: "유닛" },
+  { kind: "larva", label: "라바", group: "유닛", race: "저그" },
+  { kind: "egg", label: "변태알", group: "유닛", race: "저그" },
+  { kind: "drone", label: "드론", group: "유닛", race: "저그" },
+  { kind: "droneMin", label: "드론(미네랄)", group: "유닛", race: "저그" },
+  { kind: "droneGas", label: "드론(가스)", group: "유닛", race: "저그" },
+  { kind: "ovie", label: "오버로드", group: "유닛", race: "저그" },
+  { kind: "zling", label: "저글링", group: "유닛", race: "저그" },
+  { kind: "hydra", label: "히드라", group: "유닛", race: "저그" },
+  { kind: "lurker", label: "러커", group: "유닛", race: "저그" },
+  { kind: "muta", label: "뮤탈리스크", group: "유닛", race: "저그" },
+  { kind: "scourge", label: "스커지", group: "유닛", race: "저그" },
+  { kind: "queen", label: "퀸", group: "유닛", race: "저그" },
+  { kind: "ultra", label: "울트라리스크", group: "유닛", race: "저그" },
+  { kind: "defiler", label: "디파일러", group: "유닛", race: "저그" },
+  { kind: "guardian", label: "가디언", group: "유닛", race: "저그" },
+  { kind: "devourer", label: "디바우러", group: "유닛", race: "저그" },
   // ── 건물 · 테란 ──
-  { kind: "tomb", label: "커맨드", group: "건물" },
-  { kind: "comsat", label: "컴샛", group: "건물" },
-  { kind: "nsilo", label: "핵 사일로", group: "건물" },
-  { kind: "trapezoid", label: "서플라이", group: "건물" },
-  { kind: "refinery", label: "리파이너리", group: "건물" },
-  { kind: "cube", label: "배럭", group: "건물" },
-  { kind: "ebay", label: "엔지니어링 베이", group: "건물" },
-  { kind: "tombFlat", label: "벙커", group: "건물" },
-  { kind: "academy", label: "아카데미", group: "건물" },
-  { kind: "turret", label: "터렛", group: "건물" },
-  { kind: "factory", label: "팩토리", group: "건물" },
-  { kind: "mshop", label: "머신샵", group: "건물" },
-  { kind: "plane", label: "스타포트", group: "건물" },
-  { kind: "ctower", label: "컨트롤 타워", group: "건물" },
-  { kind: "armory", label: "아머리", group: "건물" },
-  { kind: "scifac", label: "사이언스 퍼실리티", group: "건물" },
-  { kind: "covert", label: "코버트 옵스", group: "건물" },
-  { kind: "physlab", label: "피직스 랩", group: "건물" },
-  { kind: "scaffold", label: "공사장(테란)", group: "건물" },
+  { kind: "tomb", label: "커맨드", group: "건물", race: "테란" },
+  { kind: "comsat", label: "컴샛", group: "건물", race: "테란" },
+  { kind: "nsilo", label: "핵 사일로", group: "건물", race: "테란" },
+  { kind: "trapezoid", label: "서플라이", group: "건물", race: "테란" },
+  { kind: "refinery", label: "리파이너리", group: "건물", race: "테란" },
+  { kind: "cube", label: "배럭", group: "건물", race: "테란" },
+  { kind: "ebay", label: "엔지니어링 베이", group: "건물", race: "테란" },
+  { kind: "tombFlat", label: "벙커", group: "건물", race: "테란" },
+  { kind: "academy", label: "아카데미", group: "건물", race: "테란" },
+  { kind: "turret", label: "터렛", group: "건물", race: "테란" },
+  { kind: "factory", label: "팩토리", group: "건물", race: "테란" },
+  { kind: "mshop", label: "머신샵", group: "건물", race: "테란" },
+  { kind: "plane", label: "스타포트", group: "건물", race: "테란" },
+  { kind: "ctower", label: "컨트롤 타워", group: "건물", race: "테란" },
+  { kind: "armory", label: "아머리", group: "건물", race: "테란" },
+  { kind: "scifac", label: "사이언스 퍼실리티", group: "건물", race: "테란" },
+  { kind: "covert", label: "코버트 옵스", group: "건물", race: "테란" },
+  { kind: "physlab", label: "피직스 랩", group: "건물", race: "테란" },
+  { kind: "scaffold", label: "공사장(테란)", group: "건물", race: "테란" },
   // ── 건물 · 프로토스 ──
-  { kind: "pyramidWide", label: "넥서스", group: "건물" },
-  { kind: "diamond", label: "파일런", group: "건물" },
-  { kind: "assim", label: "어시밀레이터", group: "건물" },
-  { kind: "gate", label: "게이트", group: "건물" },
-  { kind: "forge", label: "포지", group: "건물" },
-  { kind: "coil", label: "포토", group: "건물" },
-  { kind: "sbattery", label: "실드 배터리", group: "건물" },
-  { kind: "cyber", label: "사이버네틱스 코어", group: "건물" },
-  { kind: "citadel", label: "시타델", group: "건물" },
-  { kind: "archives", label: "템플러 아카이브", group: "건물" },
-  { kind: "dome", label: "로보틱스", group: "건물" },
-  { kind: "robobay", label: "서포트 베이", group: "건물" },
-  { kind: "observatory", label: "옵저버토리", group: "건물" },
-  { kind: "arch", label: "스타게이트", group: "건물" },
-  { kind: "fleetbeacon", label: "플릿 비컨", group: "건물" },
-  { kind: "tribunal", label: "아비터 트리뷰널", group: "건물" },
-  { kind: "warpin", label: "소환구(프로토스)", group: "건물" },
+  { kind: "pyramidWide", label: "넥서스", group: "건물", race: "프로토스" },
+  { kind: "diamond", label: "파일런", group: "건물", race: "프로토스" },
+  { kind: "assim", label: "어시밀레이터", group: "건물", race: "프로토스" },
+  { kind: "gate", label: "게이트", group: "건물", race: "프로토스" },
+  { kind: "forge", label: "포지", group: "건물", race: "프로토스" },
+  { kind: "coil", label: "포토", group: "건물", race: "프로토스" },
+  { kind: "sbattery", label: "실드 배터리", group: "건물", race: "프로토스" },
+  { kind: "cyber", label: "사이버네틱스 코어", group: "건물", race: "프로토스" },
+  { kind: "citadel", label: "시타델", group: "건물", race: "프로토스" },
+  { kind: "archives", label: "템플러 아카이브", group: "건물", race: "프로토스" },
+  { kind: "dome", label: "로보틱스", group: "건물", race: "프로토스" },
+  { kind: "robobay", label: "서포트 베이", group: "건물", race: "프로토스" },
+  { kind: "observatory", label: "옵저버토리", group: "건물", race: "프로토스" },
+  { kind: "arch", label: "스타게이트", group: "건물", race: "프로토스" },
+  { kind: "fleetbeacon", label: "플릿 비컨", group: "건물", race: "프로토스" },
+  { kind: "tribunal", label: "아비터 트리뷰널", group: "건물", race: "프로토스" },
+  { kind: "warpin", label: "소환구(프로토스)", group: "건물", race: "프로토스" },
   // ── 건물 · 저그 ──
-  { kind: "hatchery", label: "해처리", group: "건물" },
-  { kind: "lair", label: "레어", group: "건물" },
-  { kind: "hive", label: "하이브", group: "건물" },
-  { kind: "creep", label: "크립 콜로니", group: "건물" },
-  { kind: "sunken", label: "성큰", group: "건물" },
-  { kind: "sunkenfire", label: "성큰(발사)", group: "건물" },
-  { kind: "spore", label: "스포어", group: "건물" },
-  { kind: "extract", label: "익스트랙터", group: "건물" },
-  { kind: "pool", label: "스포닝풀", group: "건물" },
-  { kind: "evo", label: "에볼루션 챔버", group: "건물" },
-  { kind: "hydraden", label: "히드라 덴", group: "건물" },
-  { kind: "spire", label: "스파이어", group: "건물" },
-  { kind: "gspire", label: "그레이터 스파이어", group: "건물" },
-  { kind: "queensnest", label: "퀸즈 네스트", group: "건물" },
-  { kind: "nydus", label: "나이더스", group: "건물" },
-  { kind: "cavern", label: "울트라 동굴", group: "건물" },
-  { kind: "dmound", label: "디파일러 마운드", group: "건물" },
-  { kind: "cocoon", label: "공사 고치(저그)", group: "건물" },
-  { kind: "lurkeregg", label: "럴커 알", group: "유닛" },
-  { kind: "mutacocoon", label: "변태 고치", group: "유닛" },
+  { kind: "hatchery", label: "해처리", group: "건물", race: "저그" },
+  { kind: "lair", label: "레어", group: "건물", race: "저그" },
+  { kind: "hive", label: "하이브", group: "건물", race: "저그" },
+  { kind: "creep", label: "크립 콜로니", group: "건물", race: "저그" },
+  { kind: "sunken", label: "성큰", group: "건물", race: "저그" },
+  { kind: "sunkenfire", label: "성큰(발사)", group: "건물", race: "저그" },
+  { kind: "spore", label: "스포어", group: "건물", race: "저그" },
+  { kind: "extract", label: "익스트랙터", group: "건물", race: "저그" },
+  { kind: "pool", label: "스포닝풀", group: "건물", race: "저그" },
+  { kind: "evo", label: "에볼루션 챔버", group: "건물", race: "저그" },
+  { kind: "hydraden", label: "히드라 덴", group: "건물", race: "저그" },
+  { kind: "spire", label: "스파이어", group: "건물", race: "저그" },
+  { kind: "gspire", label: "그레이터 스파이어", group: "건물", race: "저그" },
+  { kind: "queensnest", label: "퀸즈 네스트", group: "건물", race: "저그" },
+  { kind: "nydus", label: "나이더스", group: "건물", race: "저그" },
+  { kind: "cavern", label: "울트라 동굴", group: "건물", race: "저그" },
+  { kind: "dmound", label: "디파일러 마운드", group: "건물", race: "저그" },
+  { kind: "cocoon", label: "공사 고치(저그)", group: "건물", race: "저그" },
+  { kind: "lurkeregg", label: "럴커 알", group: "유닛", race: "저그" },
+  { kind: "mutacocoon", label: "변태 고치", group: "유닛", race: "저그" },
   // ── 자원 ──
   /* 미네랄 셋(요청: 3종) — 도록에서 나란히 견줘야 성격이 갈렸는지 보인다. */
-  { kind: "mineral", label: "미네랄 ①기둥", group: "건물" },
-  { kind: "mineralb", label: "미네랄 ②판", group: "건물" },
-  { kind: "mineralc", label: "미네랄 ③덩이", group: "건물" },
-  { kind: "geyser", label: "가스 간헐천", group: "건물" },
+  { kind: "mineral", label: "미네랄 ①기둥", group: "부가", race: "" },
+  { kind: "mineralb", label: "미네랄 ②판", group: "부가", race: "" },
+  { kind: "mineralc", label: "미네랄 ③덩이", group: "부가", race: "" },
+  { kind: "geyser", label: "가스 간헐천", group: "부가", race: "" },
 ];
 
 /** 도형 kind → 그 kind로 그려지는 건물의 원작 이름 — SHAPE_KIND를 뒤집은 것이다.
@@ -17562,18 +17571,26 @@ export const shapeMapTiles = (kind: string): number => {
      · 부속 연결관·버로우 구멍 — 다른 모델에 붙는 조각.
    ※ 사이오닉 스톰은 여기 없다 — 그것은 모델이 아니라 CSS 스팬(.scr-motion-stormfx)이라
      굽는 판이 없다. 도록에 실으려면 먼저 모델로 다시 지어야 한다. */
-const AUX_GALLERY: { kind: string; label: string; group: "부가" }[] = [
-  { kind: "nuke", label: "핵탄두", group: "부가" },
-  { kind: "nukedome", label: "핵 화구", group: "부가" },
-  { kind: "storm", label: "사이오닉 스톰", group: "부가" },
-  { kind: "nukeblast", label: "핵 충격파", group: "부가" },
-  { kind: "nukecloud", label: "핵 버섯구름", group: "부가" },
-  { kind: "tankbody", label: "탱크 차체", group: "부가" },
-  { kind: "tankgun", label: "탱크 포탑", group: "부가" },
-  { kind: "tanksiegebody", label: "시즈 차체", group: "부가" },
-  { kind: "tanksiegegun", label: "시즈 포탑", group: "부가" },
-  { kind: "addonlink", label: "부속 연결관", group: "부가" },
-  { kind: "burrowhole", label: "버로우 구멍", group: "부가" },
+const AUX_GALLERY: ShapeGalleryItem[] = [
+  { kind: "nuke", label: "핵탄두", group: "부가", race: "테란" },
+  { kind: "nukedome", label: "핵 화구", group: "부가", race: "테란" },
+  { kind: "storm", label: "사이오닉 스톰", group: "부가", race: "프로토스" },
+  { kind: "nukeblast", label: "핵 충격파", group: "부가", race: "테란" },
+  { kind: "nukecloud", label: "핵 버섯구름", group: "부가", race: "테란" },
+  { kind: "tankbody", label: "탱크 차체", group: "부가", race: "테란" },
+  { kind: "tankgun", label: "탱크 포탑", group: "부가", race: "테란" },
+  { kind: "tanksiegebody", label: "시즈 차체", group: "부가", race: "테란" },
+  { kind: "tanksiegegun", label: "시즈 포탑", group: "부가", race: "테란" },
+  { kind: "addonlink", label: "부속 연결관", group: "부가", race: "테란" },
+  { kind: "burrowhole", label: "버로우 구멍", group: "부가", race: "저그" },
+  /* 도록에 칸이 없던 다섯을 더한다(요청: "유닛/건물 이외의 모델들은 따로 한 페이지에") —
+     빌더는 있는데 볼 자리가 없었다. 럴커 둘은 버로우한 몸의 두 자세이고(구멍이 아니라
+     제 몸이다), 크립 셋은 씨앗만 다른 같은 카펫이라 나란히 놓아야 갈렸는지 보인다. */
+  { kind: "lurkerburrow", label: "럴커(버로우)", group: "부가", race: "저그" },
+  { kind: "lurkerfire", label: "럴커(가시)", group: "부가", race: "저그" },
+  { kind: "creeppatch", label: "크립 ①", group: "부가", race: "저그" },
+  { kind: "creeppatch2", label: "크립 ②", group: "부가", race: "저그" },
+  { kind: "creeppatch3", label: "크립 ③", group: "부가", race: "저그" },
 ];
 SHAPE_GALLERY.push(...AUX_GALLERY);
 const UNIT_KIND_SET = new Set(SHAPE_GALLERY.filter((g) => g.group === "유닛").map((g) => g.kind));
@@ -21258,9 +21275,16 @@ export function FxModel({
 }
 export function ShapeIcon({
   kind, className, faces: facesOverride, rotDeg, flat, keepRatio, viewYaw, pitchView, wide, fit, fitPad, fitBox: fitBoxProp,
-  spin,
+  spin, pose,
 }: {
   kind: string; className?: string;
+  /** ★ 자세 컷(요청: 도록에서 idle·이동·액션을 보여 준다) — 0 기본 · 1·3 걸음 ·
+   *  2·4·5 공격이다(POSE_* 상수와 같은 번호).
+   *  ★ 왜 프롭이 필요한가 — 컷은 모듈 전역 깃발(poseNow)이라 굽기 **직전에** 세우고
+   *    끝나면 되돌려야 한다(안 되돌리면 다음에 굽는 남의 모델까지 그 컷으로 굽힌다).
+   *    밖에서 poseSet을 부르면 리액트의 그리는 차례와 그 창을 맞출 길이 없다 — 여기
+   *    안에서 spin과 **같은 규약**으로 감싼다. */
+  pose?: 0 | 1 | 2 | 3 | 4 | 5;
   /** 회전 칸(요청: 스톰을 모델로) — 도는 부품을 가진 종류(SPIN_KINDS)의 변종 번호다.
    *  스톰은 이 값이 **번개 무늬의 씨앗**이라, 칸이 바뀌면 무늬가 통째로 갈린다.
    *  굽기 열쇠(spinTag)가 이 값을 물므로 같은 칸은 늘 같은 그림이다. */
@@ -21313,12 +21337,14 @@ export function ShapeIcon({
     : ((): ReturnType<typeof resolveShapeFaces> => {
       /* 칸은 **굽기 전에** 세우고 끝나면 되돌린다 — poseSet과 같은 규약(모듈 전역
          깃발이라, 안 되돌리면 다음에 굽는 남의 모델까지 그 칸으로 굽힌다). */
-      if (spin === undefined) {
+      if (spin === undefined && !pose) {
         return resolveShapeFaces(kind, rotDeg ?? BUILDING_BASE_YAW, flat, viewYaw, pitchView);
       }
-      bldSpinSet(spin);
+      if (spin !== undefined) bldSpinSet(spin);
+      if (pose) poseNow = pose;
       const r9 = resolveShapeFaces(kind, rotDeg ?? BUILDING_BASE_YAW, flat, viewYaw, pitchView);
-      bldSpinSet(0);
+      if (pose) poseNow = 0;
+      if (spin !== undefined) bldSpinSet(0);
       return r9;
     })();
   const faces = resolved.faces;
