@@ -13314,15 +13314,27 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         [tx + nx * wTip, ty + ny * wTip, z1],
         [tx - nx * wTip, ty - ny * wTip, z1],
       ]);
-      const dEdge = polyPath3([
-        [rx + nx * wRoot, ryy + ny * wRoot, z0],
-        [tx + nx * wTip, ty + ny * wTip, z1],
-        [tx + nx * wTip, ty + ny * wTip, z1 - 0.28],
-        [rx + nx * wRoot, ryy + ny * wRoot, z0 - 0.34],
+      /* ★ 두께면은 **보이는 쪽**에 그린다(지적: "프로브 다리들이 정면 기준 좌우 대칭이
+         아님… 면 처리가 잘못된 듯") ────────────────────────────────────────────────
+         여태는 +법선 쪽 한 장만 그렸다. 그런데 좌우 한 쌍의 다리는 법선이 서로 거울이라,
+         한쪽은 그 면이 카메라를 마주 보고 반대쪽은 등을 돌린다 — 같은 각에서 한 다리만
+         두께가 보이고 짝은 납작한 판으로 남았다. 그것이 비대칭의 정체다.
+         두 쪽을 다 만들고 **제 법선으로 보임을 판정**해 마주 보는 것만 그린다. 판정이
+         면마다 제 값을 쓰므로 좌우가 저절로 짝이 맞는다. */
+      const edgeOf = (sd: 1 | -1): string => polyPath3([
+        [rx + sd * nx * wRoot, ryy + sd * ny * wRoot, z0],
+        [tx + sd * nx * wTip, ty + sd * ny * wTip, z1],
+        [tx + sd * nx * wTip, ty + sd * ny * wTip, z1 - 0.28],
+        [rx + sd * nx * wRoot, ryy + sd * ny * wRoot, z0 - 0.34],
       ]);
+      const edges9: string[] = [];
+      for (const sd of [1, -1] as const) {
+        if (faceLight(sd * nx, sd * ny, 0).visible) edges9.push(edgeOf(sd));
+      }
       // 제 깊이(지적: 앞다리 안 가려짐) — 날개판마다 제 중심 깊이를 단다.
       return tagKey(
-        [bodyFace(`${dTop} ${dEdge}`), topFace(dTop, 0.18), sideFace(dEdge, 0.3)],
+        [bodyFace([dTop, ...edges9].join(" ")), topFace(dTop, 0.18),
+          ...edges9.map((d9) => sideFace(d9, 0.3))],
         depthNow(dx * (r0 + len * 0.7), dy * (r0 + len * 0.7)),
       );
     };
@@ -19775,7 +19787,13 @@ const FX_BEAM: Record<string, {
      잔상(trail)까지 달고 길이도 5.2로 가장 긴데, 굵기까지 굵으니 화면에서 미사일이
      아니라 흰 막대로 읽혔다. 두 발이 나란히 나가는 무기라(그 자리 주석) 굵기가 줄면
      두 발이 갈려 보이는 이득도 있다. */
-  missile: { dur: 0.4, w: 0.5, l: 5.2, trail: true, puff: 12, smoke: "#ffffff", smokeEdge: "#a8d4ff", g: [[0, "rgba(255,255,255,1)"], [0.1, "rgba(214,232,255,0.94)"], [0.32, "rgba(196,212,230,0.6)"], [0.68, "rgba(168,176,188,0.32)"], [1, "rgba(148,156,168,0)"]], glow: "rgba(190,210,235,0.5)" },
+  /* ★ 미사일은 **은색의 짧은 삼각 탄두**다(요청) — 앞판은 길이 5.2에 연기 덩이 열둘을
+     달고 흰 그러데이션으로 뿜는 자취라, 탄두가 아니라 '흰 연기 줄'로 읽혔다. 날아가는
+     것은 짧고 단단한 쇳덩이여야 그 뒤가 비어 있어도 탄으로 보인다.
+     tri를 켜 머리가 뾰족한 삼각으로 그리고(그 갈래가 이미 있다), 길이를 5.2 → 2.1로
+     줄이며 연기 자취(trail·puff·smoke)를 통째로 걷는다. 색은 흰빛이 아니라 은색
+     계열이라 강철 탄두로 읽힌다. */
+  missile: { dur: 0.4, w: 0.62, l: 2.1, tri: true, g: [[0, "rgba(238,242,247,1)"], [0.35, "rgba(198,206,218,0.95)"], [0.72, "rgba(160,168,180,0.55)"], [1, "rgba(140,148,160,0)"]], glow: "rgba(205,215,230,0.4)" },
   acid: { dur: 0.75, w: 1.3, l: 2.25, g: [[0, "rgba(206,150,255,0.95)"], [0.2, "rgba(206,150,255,0.95)"], [0.6, "rgba(150,80,220,0.7)"], [1, "rgba(110,50,170,0)"]] },
   plasma: { dur: 0.24, w: 0.85, l: 2.75, g: [[0, "rgba(232,244,255,0.98)"], [0.18, "rgba(232,244,255,0.98)"], [0.55, "rgba(120,180,255,0.9)"], [1, "rgba(70,120,255,0)"]], glow: "rgba(120,180,255,0.55)" },
   flare: { dur: 0.22, w: 0.5, l: 1.75, g: [[0, "rgba(200,230,255,0.95)"], [1, "rgba(120,180,255,0)"]] },
@@ -31345,7 +31363,14 @@ export default function ReplayMotionPlayer({
               return {
                 bx: tp9.x, by: tp9.y,
                 bd: Math.hypot(tp9.x - rawPos.x, tp9.y - rawPos.y),
-                air: tp9.air, bld: tp9.bld, k: tp9.k, uk: tp9.uk ?? tp9.k,
+                /* ★ **떠 있는 건물은 공중 표적이다**(지적: "골리앗이 떠 있는 건물 공격할
+                   때 지상 트레이서가 나감") — 명단은 그 사실을 lifted로 따로 들고 있는데
+                   (FoeRow의 그 주석: "띄운 건물은 공중 유닛이다"), 여기서 air만 실어
+                   보내니 아래 무기 고르기가 지상 무기를 골랐다. 골리앗·레이스·스카우트는
+                   표적이 공중이냐로 대공/지상 무기가 갈리므로 이 한 칸이 곧 그 갈림이다.
+                   여기서 접어 두면 무기·사거리·조준 높이가 한꺼번에 옳아진다. */
+                air: tp9.air || tp9.lifted === true,
+                bld: tp9.bld, k: tp9.k, uk: tp9.uk ?? tp9.k,
                 team: tp9.team, hp: tp9.hp,
               };
             })();
