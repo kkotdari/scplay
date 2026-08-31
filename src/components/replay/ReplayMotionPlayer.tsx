@@ -19145,6 +19145,18 @@ const unitBakeCap = (B: number): number =>
 const bldBakeCap = (B: number): number =>
   Math.max(4, Math.floor((((SPRITE_SIDE_MAX - 1) / B - 6) / 2.56) / 2) * 2);
 const BLD_SPRITE_BYTES_MAX = (smallDevice9 ? 16 * smallBudgetK9 * dprBudgetK9 : 64) * 1024 * 1024;
+/* ★ 두 예산을 **한 주머니로 나눠 쓴다**(실기 진단: 12배 저그 기지에서 `유닛 49장
+   21.3/21MB · 건물 3장 8.3/11MB` — 유닛은 예산에 못 박혀 쫓아내고 다시 굽는데 건물은
+   2.7MB를 남기고 있었다) ────────────────────────────────────────────────────────────
+   둘로 갈라 둔 것은 '건물 판이 유닛 판을 다 밀어내지 않게' 하려던 칸막이인데, 화면에
+   무엇이 많은지는 자리마다 다르다 — 저그 본진은 일꾼이 스물이고 건물은 셋이다.
+   합은 그대로 두고 칸막이만 무른다: 한쪽의 상한을 `합 − 상대가 지금 쓰는 몫`으로 잡고,
+   제 몫의 4분의 1을 바닥으로 깐다(그래야 한쪽이 다른 쪽을 굶기지 못한다).
+   **최악의 총량은 한 톨도 안 는다** — 두 상한을 동시에 채워도 합은 여전히 같다. */
+const SPRITE_TOTAL_MAX = SPRITE_BYTES_MAX + BLD_SPRITE_BYTES_MAX;
+/** 지금 이 캐시가 쓸 수 있는 몫 — 상대가 안 쓰는 만큼 빌려 쓴다. */
+const budgetNow9 = (own: number, otherUsed: number): number =>
+  Math.max(own * 0.25, SPRITE_TOTAL_MAX - otherUsed);
 /* ★ **데칼**은 또렷함이 필요 없다 — 굽기 상한을 따로 낮춘다(지적: "모바일에서 저그 본진을
    볼 때 너무 끊긴다") ────────────────────────────────────────────────────────────────
    재 보니 크립 얼룩이 이 화면에서 가장 큰 판이다. 해처리 크립은 15타일이라 해처리 본체
@@ -19604,7 +19616,7 @@ function unitSprite(
      사실상 건물에만 걸려 있었다. */
   noteSub9(SPRITE_SIZES, subKey, pxq, key);
   spriteBytes.n += canvasBytes(cr.cv);
-  trimSpriteCache(SPRITE_CACHE, spriteBytes, SPRITE_BYTES_MAX);
+  trimSpriteCache(SPRITE_CACHE, spriteBytes, budgetNow9(SPRITE_BYTES_MAX, bldSpriteBytes.n));
   if (PERF9) pAdd("굽기:유닛판", pNow() - pBk9);
   return entry;
 }
@@ -20402,7 +20414,7 @@ function buildingSpriteBake(
   // 이 열쇠로 구운 크기를 색인에 적는다(유닛 쪽 SPRITE_SIZES와 같은 규약).
   noteSub9(BLD_SPRITE_SIZES, subKey, sideQ, key);
   bldSpriteBytes.n += canvasBytes(cr9.cv);
-  trimSpriteCache(BLD_SPRITE_CACHE, bldSpriteBytes, BLD_SPRITE_BYTES_MAX);
+  trimSpriteCache(BLD_SPRITE_CACHE, bldSpriteBytes, budgetNow9(BLD_SPRITE_BYTES_MAX, spriteBytes.n));
   if (PERF9) pAdd("굽기:건물판", pNow() - pBb9);
   return entry;
 }
@@ -21336,7 +21348,7 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
               const bsh9 = shadowPlate(
                 bspr, Math.max(1.5, bspr.side * 0.06), 0.4, B, bldSpriteBytes,
               );
-              trimSpriteCache(BLD_SPRITE_CACHE, bldSpriteBytes, BLD_SPRITE_BYTES_MAX);
+              trimSpriteCache(BLD_SPRITE_CACHE, bldSpriteBytes, budgetNow9(BLD_SPRITE_BYTES_MAX, spriteBytes.n));
               if (bsh9) {
                 SPRITE_PERF.bldBlit += 1;
                 ctx.drawImage(
@@ -21709,7 +21721,7 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
               spr, Math.max(1.5, pxqB * (op.air ? 0.16 : 0.1)),
               op.air ? 0.55 : 0.4, B, spriteBytes,
             );
-            trimSpriteCache(SPRITE_CACHE, spriteBytes, SPRITE_BYTES_MAX);
+            trimSpriteCache(SPRITE_CACHE, spriteBytes, budgetNow9(SPRITE_BYTES_MAX, bldSpriteBytes.n));
             if (sh9) {
               ctx.shadowColor = "transparent";
               ctx.globalAlpha = op.alpha;
@@ -29905,9 +29917,11 @@ export default function ReplayMotionPlayer({
                     작은 기기의 예산은 유닛 32MB·건물 16MB(메모리를 부르는 기기는 그 배수). */}
                 <div>
                   판 유닛 {SPRITE_PERF.last.keys}장{" "}
-                  {(SPRITE_PERF.last.bytes / 1048576).toFixed(1)}/{(SPRITE_BYTES_MAX / 1048576).toFixed(0)}MB
-                  {" · "}건물 {SPRITE_PERF.last.bldKeys}장{" "}
-                  {(SPRITE_PERF.last.bldBytes / 1048576).toFixed(1)}/{(BLD_SPRITE_BYTES_MAX / 1048576).toFixed(0)}MB
+                  {(SPRITE_PERF.last.bytes / 1048576).toFixed(1)}MB{" · "}
+                  건물 {SPRITE_PERF.last.bldKeys}장{" "}
+                  {(SPRITE_PERF.last.bldBytes / 1048576).toFixed(1)}MB{" / 합 "}
+                  {((SPRITE_PERF.last.bytes + SPRITE_PERF.last.bldBytes) / 1048576).toFixed(1)}
+                  /{(SPRITE_TOTAL_MAX / 1048576).toFixed(0)}MB
                 </div>
                 {/* 참값이 어느 판으로 구워졌나 — '재분석했는데 갈림 시각이 그대로'가
                     진짜 갈림인지 안 구운 것인지를 이 한 줄이 가른다(위 truthVer 주석). */}
