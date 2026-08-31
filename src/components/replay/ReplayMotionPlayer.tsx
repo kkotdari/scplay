@@ -6730,19 +6730,28 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         }
       }
       // 통 몸 바로 위 — 앞으로 지나는 힘줄 기둥은 제 깊이가 더 커서 창을 가로지른다(우리 결).
-      if (win9.length) out.push(...tagKey(win9, key + 0.5));
+      /* ★ 층 편차는 **깊이 폭보다 작아야 한다**(지적: "두 건물 사이의 임자색 코끼리코의
+         키 문제가 수정 안 됐어") ─────────────────────────────────────────────────────
+         코를 토막 내 제 깊이로 매겼는데도 안 고쳐진 까닭이 여기 있었다. 통의 부품들이
+         제 몸 안에서 앞뒤를 가리려고 +9·+10·+11을 얹고 있었는데, 이 모델의 깊이 값은
+         통틀어 ±5 남짓이다. 곧 그 편차가 **깊이를 통째로 덮어써서**, 뒤에 선 통의
+         뚜껑과 뿔이 앞에 지나가는 코 위에 그려졌다.
+         편차의 구실은 '한 통 안에서 몸 → 창 → 뚜껑 → 뿔 차례'뿐이고, 한 통의 부품은
+         깊이가 거의 같으므로 그 차례를 세우는 데는 소수점이면 넉넉하다. 편차를 1 미만으로
+         낮추면 통끼리도, 통과 코 사이도 **제 깊이대로** 선다. */
+      if (win9.length) out.push(...tagKey(win9, key + 0.4));
       // 검은 덮개 — 통 윗지름을 그대로 받아 위로 좁아진다.
       out.push(...tagKey(paintBase(spirePillar({
         x: px, y: py, z0: VH - 0.15, h: 1.5, w: r * 0.86, tipW: r * 0.4,
         segs: 4, sides: 12, hold: 0.05, taper: 1.7,
-      }), "#3a3f46"), key + 9));
+      }), "#3a3f46"), key + 0.7));
       // 덮개에서 솟는 상아 뿔 셋 — 바깥·뒤로 크게 휘며 끝이 뾰족하다.
       out.push(...tagKey(spikeHorn(px - m * 0.7, py - 0.4, 4.6, px - m * 2.4, py - 1.6, 9.4, 1.35,
-        IVORY, 6, 1.2, -m, -0.5), key + 10));
+        IVORY, 6, 1.2, -m, -0.5), key + 0.85));
       out.push(...tagKey(spikeHorn(px + m * 0.9, py - 0.2, 4.5, px + m * 2.5, py - 1.2, 8.2, 1.15,
-        IVORY, 6, 1, m, -0.4), key + 10));
+        IVORY, 6, 1, m, -0.4), key + 0.85));
       out.push(...tagKey(spikeHorn(px, py + 0.7, 4.3, px + m * 0.5, py + 2, 7, 0.95,
-        IVORY, 6, 0.8, 0, 1), key + 11));
+        IVORY, 6, 0.8, 0, 1), key + 0.95));
     };
     /* 두 통 사이를 잇는 살덩이 안장(지적: "양쪽 건물 사이에 원래 빈공간임?" — 사진에는
        비어 있지 않다) — 여태 두 통이 따로 선 두 덩이라 그 사이로 배경이 그대로 비쳤다.
@@ -6802,7 +6811,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
               "#f2fff0"] as ShapeFace,
           ]
           : []),
-      ], depthNow(mx9, my9) * 1.6 + 15));
+      ], depthNow(mx9, my9) * 1.6 + 0.5));
     }
     for (const t9 of [0.28, 0.46, 0.64, 0.82]) {
       const [gx9, gy9, gz9] = GRB(t9);
@@ -6811,11 +6820,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         segs: 1, sides: 10, hold: 1,
       });
       out.push(...tagKey([...rib9, ...rib9.map(([d9]) => sideFace(d9, 0.2))],
-        depthNow(gx9, gy9) * 1.6 + 5));
+        depthNow(gx9, gy9) * 1.6 + 0.3));
     }
     // 애벌레 끝 상아 뿔.
     out.push(...tagKey(spikeHorn(0, -1.7, 4.2, -0.5, -2.9, 7.2, 1.3, IVORY, 6, 0.7, 0, -1),
-      depthNow(0, -2.3) * 1.6 + 5));
+      depthNow(0, -2.3) * 1.6 + 0.3));
     // 땅에서 솟는 앞 가시 둘 — 다른 뿔과 같은 상아색(요청).
     out.push(...tagKey(spikeHorn(-1.7, 3.4, 0.4, -2.6, 4.8, 2.4, 0.8, IVORY, 6, 0.4, -0.6, 0.8),
       depthNow(-2.1, 4.1) * 1.6));
@@ -6946,11 +6955,24 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        절대값 −40대에 못 박고, 발판은 다리보다 한 단 더 뒤다. */
     const kneeLeg = (px: number, py: number): void => {
       const k9 = depthNow(px, py) > 0 ? -40 : -40.2;
-      const ax = px * 0.60;                   // 몸에 붙는 자리(몸 안으로 물린다)
-      const ay = py * 0.60;
-      const kx = px * 0.94;                   // 무릎
-      const ky = py * 0.94;
-      const kz = BODY_Z * 0.46;
+      /* ★ 윗팔은 **바닥에 수평하게 앞뒤로** 뻗는다(지적: "발판 추가 관절은 이 느낌이
+         아니라 몸체에서 바닥에 수평하게 앞뒤로 뻗어야 해, 그리고 다음 마디가 사선으로
+         원래 위치로 내려가고") — 앞판은 몸에서 바깥·아래로 비스듬히 내려가다 꺾였다.
+         그건 마디가 둘인 사선 다리일 뿐이고, 사진의 것은 **수평 팔 + 사선 다리**다.
+         그래서 윗팔은 높이를 안 바꾸고 앞뒤(y)로만 나가고(x는 붙는 자리 그대로),
+         무릎에서 아랫마디가 바깥(x)·아래로 꺾여 원래 발판 자리에 내려꽂힌다. */
+      /* 무릎을 **발판보다 조금 더 바깥**(앞뒤로)에 둔다 — 다리는 늘 몸 뒤로 그려지는
+         규약(아래 k9)이라, 무릎이 몸 발자국 안이면 수평 팔이 통째로 몸에 가려 안 보인다.
+         발판의 y를 한 뼘 넘겨 놓으면 팔의 바깥 몫이 몸 실루엣 밖으로 드러나고, 다음
+         마디는 그 자리에서 바깥·아래로 꺾여 제자리(발판)에 내려꽂힌다.
+         높이를 몸 아래로 내리는 길은 안 쓴다 — 그러면 사선의 낙차가 0.9밖에 안 남아
+         두 마디가 한 막대로 읽힌다(실측 렌더). */
+      const ax = px * 0.42;                   // 몸에 붙는 자리(몸 안으로 물린다)
+      const ay = py * 0.30;
+      const AZ = BODY_Z + 0.45;               // 윗팔의 높이 — 시작도 끝도 이 값이다
+      const kx = ax;                          // 무릎 — x는 그대로, y만 앞뒤로 나갔다
+      const ky = py * 1.10;
+      const kz = AZ;
       const seg = (x0: number, y0: number, z0: number,
         x1: number, y1: number, z1: number, w0: number, w1: number): ShapeFace[] =>
         paintBase(spirePillar({
@@ -6959,12 +6981,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
             [x0 + (x1 - x0) * t9, y0 + (y1 - y0) * t9, z0 + (z1 - z0) * t9],
         }), "#8b929a");
       out.push(...tagKey([
-        // 윗팔 — 몸에서 거의 수평으로 뻗는다.
-        ...seg(ax, ay, BODY_Z + 0.15, kx, ky, kz, 0.46, 0.4),
+        // 윗팔 — 바닥에 수평(높이가 안 변한다), 앞뒤로만 나간다.
+        ...seg(ax, ay, AZ, kx, ky, kz, 0.46, 0.42),
         // 무릎 — 마디 구슬 하나. 이것이 있어야 두 팔이 '꺾였다'로 읽힌다.
         ...paintBase(domeFaces3(kx, ky, 0.44, 0.44, kz - 0.22), "#6e757d"),
-        // 아랫팔 — 무릎에서 거의 수직으로 발판에 내려꽂힌다.
-        ...seg(kx, ky, kz, px, py, 0.42, 0.4, 0.34),
+        // 아랫마디 — 무릎에서 바깥·아래로 사선을 그으며 제자리(발판)에 내려꽂힌다.
+        ...seg(kx, ky, kz, px, py, 0.42, 0.42, 0.34),
       ], k9));
       // 발판 — 접시. 가운데 임자색 뚜껑이 앉는다(사진).
       out.push(...tagKey(paintBase(spirePillar({
