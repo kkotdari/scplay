@@ -256,6 +256,24 @@ const CREEP_SPREAD_SEC = 180;
 const PITCH_DEGS = [90, 30] as const;
 /** 입체(3D) 한 칸 — 버튼이 켜질 때 쓰는 각. */
 const PITCH_3D = PITCH_DEGS[1];
+/** ★ 이 기기에 입체를 내주나 — **손가락 기기에는 안 준다**(지시: "모바일에서 3D 전환하려고
+ *  하면 토스트 띄워서 3D보기는 PC에서만 가능해요 라고 띄우자 / 공유주소로 들어온 경우
+ *  모바일에서는 3D를 무시하고") ────────────────────────────────────────────────────
+ *  왜 막는가 — 입체는 원근이 낀 가지라 합성기가 축소를 못 접고 **레이아웃 크기로 서피스를
+ *  다시 래스터한다**. 그 서피스는 캔버스 예산 밖의 몫이고, 끌 때마다 다시 잡힌다. 눕히는
+ *  배수를 면적으로 죄어(ReplayMapVector의 surfCap9) 전환 순간은 넘겼지만 **끄는 동안**
+ *  터지는 것이 남았다(지적). 폰의 한 탭이 쓸 수 있는 몫 안에서 이 그림을 안전하게 그릴
+ *  길을 우리는 아직 모른다 — 모르는 것을 아는 척하고 내주느니 문을 닫는다.
+ *  자는 **손가락**이다(pointer: coarse): 폰·태블릿이 걸리고, 터치 노트북은 주 포인터가
+ *  마우스라 안 걸린다. 창이 없는 자리(노드·서버 렌더)는 참이다 — 막을 화면이 없다. */
+const pitchAllowed = (): boolean => {
+  if (typeof window === "undefined" || !window.matchMedia) return true;
+  return !window.matchMedia("(pointer: coarse)").matches;
+};
+/** 입체를 못 내줄 때 한 번 알린다 — 화면에 아무 반응이 없으면 '버튼이 고장'으로 읽힌다. */
+const pitchDenied = (): void => {
+  replayToast("3D 보기는 PC에서만 가능해요", { kind: "info" });
+};
 /** 그 각에서 땅이 눌리는 정도(세로/가로) — sin(시점각)이다. 90도면 1(안 눌림=평면),
  *  30도면 0.5. 화면에 눕는 것(그림자·선택 링·트레이서)은 전부 이 값을 곱한다. */
 const flatOf = (deg: number): number => Math.sin((deg * Math.PI) / 180);
@@ -13593,31 +13611,46 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         6.55 - 2.6 * t9 - 0.9 * t9 * t9,
       ],
     }), "#3a4258"), depthNow(m9 * 0.4, -1.8) * 1.6 - 0.5)),
-    /* ① 어깨 뿔 활 한 쌍 — 어깨 갑주에서 위로 솟았다 초승달처럼 뒤·아래로 감긴다.
-       금색, 끝으로 갈수록 가늘다. 질럿을 질럿으로 알아보게 하는 실루엣이다. */
-    /* ★ 뿔을 **크게, 밖으로** 다시 그린다(요청: 샘플 이미지 대조 재작도) ────────────
-       샘플(질럿1·4)에서 이 활은 어깨보다 **훨씬 넓게** 벌어져 위로 솟았다 뒤로 감긴다 —
-       머리보다 크고, 정면 실루엣의 절반을 이것이 만든다. 여태 것은 x 1.25에서 나서 0.9로
-       **오므라들며** 머리에 붙어, 뿔이 아니라 뒤통수 장식으로 읽혔다. 밑동을 굵게(0.3 →
-       0.44) 하고 끝을 바깥(2.05)·위(8.7)로 보낸다. */
+    /* ① 가슴에서 등으로 넘어가는 **관 한 쌍**(지적: "질럿 가슴에서 어깨 위로 나오는 두
+       뿔은 사실 뿔이 아니고 등으로 이어지게 굽은 관 형태야. 굵기도 일정하고 가슴에서
+       등으로 이어지는 거. 각도는 지금처럼 약간 바깥으로 기울어진 건 맞음") ──────────────
+       여태 이것은 **뿔**이었다: 어깨에서 솟아 뒤로 감기며 끝이 뾰족해지는 활. 그러면
+       두 가지가 틀린다.
+         ① 끝이 **허공에서 끊긴다** — 뿔은 어딘가에 가 닿지 않는 물건이라 뒤에서 보면
+            등 위에 막대 둘이 떠 있다. 실제 이 부품은 가슴에서 나 어깨를 넘어 **등으로
+            돌아가 닫히는** 한 줄이다: 두 끝이 다 몸에 물려 있어야 관으로 읽힌다.
+         ② 가늘어진다 — 뿔의 결이지 관의 결이 아니다. 관은 어디를 잘라도 같은 굵기다
+            (그래서 taper·tipW를 걷고 widthOf 한 값으로 못 박는다).
+       기울기는 그대로 둔다(지적: "각도는 지금처럼") — 마루에서 바깥으로 가장 벌어지고
+       (x 2.0) 두 끝에서 몸으로 오므라드는 그 결이다.
+       ★ 두 끝을 **몸 안에 묻는다** — 가슴 끝은 흉갑 앞면(z 5.3 언저리), 등 끝은 등판
+         (y −2.0)이다. 묻히므로 끝 단면을 안 그린다(caps "none"): 그려 봐야 몸 속이고,
+         관이 어디서 나서 어디로 드는지는 묻힌 자리가 말한다. */
     ...([-1, 1] as const).flatMap((m9): ShapeFace[] => {
-      /** 뿔의 등뼈 — 뿔과 그 밑동을 감는 띠가 **같은 곡선**을 쓴다. 따로 적으면
-       *  언젠가 갈리고, 갈리는 순간 띠가 뿔에서 벗어난다(이 파일의 단골 사고다). */
+      /** 관의 등뼈 — 관과 그 밑동을 감는 띠가 **같은 곡선**을 쓴다. 따로 적으면
+       *  언젠가 갈리고, 갈리는 순간 띠가 관에서 벗어난다(이 파일의 단골 사고다). */
       const horn9 = (t9: number): [number, number, number] => {
         const u9 = 1 - t9;
         const bz = (p0: number, c1: number, c2: number, p3: number): number =>
           u9 * u9 * u9 * p0 + 3 * u9 * u9 * t9 * c1 + 3 * u9 * t9 * t9 * c2 + t9 * t9 * t9 * p3;
         return [
-          m9 * bz(1.5, 2.6, 2.6, 1.55),
-          bz(-0.2, -0.4, -1.7, -2.7),
-          bz(5.5, 7.0, 8.4, 8.5),
+          // 가슴(1.05)에서 어깨 밖으로 벌어졌다가(2.0) 등(1.2)으로 오므라든다.
+          m9 * bz(1.05, 2.0, 2.0, 1.2),
+          // 앞(+0.85)에서 뒤(−2.05)로 — 이 한 축이 '가슴에서 등으로'다.
+          bz(0.85, 0.7, -1.75, -2.05),
+          // 흉갑에서 솟아 어깨 위(마루 7.9)를 넘고 등판 높이로 내린다.
+          bz(5.25, 7.7, 7.9, 5.7),
         ];
       };
       const hKey9 = depthNow(m9 * 1.9, -1.1) * 1.6 + 2;
       return [
         ...tagKey(paintBase(spirePillar({
-          x: 0, y: 0, h: 1, w: 0.44, tipW: 0.05, segs: 9, sides: 6, taper: 1.15, caps: "bottom",
+          /* 굵기는 **한 값**이다(지적: "굵기도 일정하고") — w·tipW·taper의 기본 규칙은
+             한쪽으로 줄어드는 뿔의 자라, 여기서는 쓰지 않고 widthOf로 못 박는다.
+             단면은 팔각 — 관은 둥근 물건이고, 육각은 어느 요잉에서 모서리가 도드라진다. */
+          x: 0, y: 0, h: 1, w: 1, segs: 12, sides: 8, caps: "none",
           path: horn9,
+          widthOf: (): number => 0.36,
         }), P_GOLD), hKey9),
         /* ★ 개인색 띠(요청: "질럿 어깨뿔 아래쪽 감싸는 띠") ────────────────────────────
            뿔 밑동을 한 바퀴 감는 고리다. **칠하지 않는 것이 곧 개인색이다** — 여기서
@@ -13625,16 +13658,16 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            띠가 도는 자리는 뿔의 t 0.10~0.30 — 굵기가 아직 밑동 그대로(w 0.44)인 구간이라
            한 바퀴가 고르게 감긴다. 그 위(t > hold 0.45)는 가늘어지는 구간이라 같은 굵기로
            감으면 위쪽만 헐거워진다.
-           단면은 **열 각**이다 — 뿔은 육각인데, 사각·육각끼리는 기둥마다 단면 기준축을
+           단면은 **열 각**이다 — 관은 팔각인데, 팔각·열각끼리는 기둥마다 단면 기준축을
            제 접선에서 따로 고르므로(spirePillar의 AUTO_REF) 모서리가 서로 어긋난다.
-           둥글게 두르면 어느 각으로 서든 뿔을 고르게 덮는다. 반폭 0.56은 육각 뿔의
-           **모서리 반지름**(0.44/cos30° = 0.508)보다 크게 잡은 값이다 — 이보다 작으면
-           뿔의 모서리가 띠를 뚫고 나온다.
-           끝 단면은 안 그린다(caps "none") — 두 끝이 다 뿔 속에 묻힌 토막이다. */
+           둥글게 두르면 어느 각으로 서든 관을 고르게 덮는다. 반폭 0.46은 팔각 관의
+           **모서리 반지름**(0.36/cos22.5° = 0.390)보다 크게 잡은 값이다 — 이보다 작으면
+           관의 모서리가 띠를 뚫고 나온다(관이 가늘어지면서 0.56에서 함께 내려온 값이다).
+           끝 단면은 안 그린다(caps "none") — 두 끝이 다 관 속에 묻힌 토막이다. */
         ...tagKey(spirePillar({
           x: 0, y: 0, h: 1, w: 1, segs: 2, sides: 10, caps: "none", trueNormal: true,
           path: (t9: number): [number, number, number] => horn9(0.10 + 0.20 * t9),
-          widthOf: (): number => 0.56,
+          widthOf: (): number => 0.46,
         }), hKey9 + 0.6),
       ];
     }),
@@ -16165,6 +16198,45 @@ SHAPE_BUILDERS.interceptor = () => {
   ];
 };
 
+/* ★ 스캐럽(지적: "리버 스캐럽이 안나감(트레이서)" · "리버 스캐럽은 길을 찾아서 가는
+   특징도 있음") ─────────────────────────────────────────────────────────────────────
+   ── 왜 아무것도 안 나갔나
+   스캐럽은 **참값 자취에 제 개체로 실려 있다**(유닛 85, 상자 5×5px). 그런데 이 표에
+   이름이 없어 종족 폴백으로 떨어졌다 — 곧 리버가 쏜 스캐럽이 **작은 질럿**이 되어 땅을
+   기어갔다. 인터셉터가 '허공에 뜬 질럿 떼'로 날아다니던 그 자리와 **똑같은 사고**이고,
+   고치는 법도 같다: 이름을 이어 주면 제 모습으로 선다.
+   ── 왜 리버 쪽에 트레이서를 안 다나
+   지적의 둘째 줄이 그 답이다("길을 찾아서 가는 특징"). 스캐럽은 총알이 아니라 **제 발로
+   길을 찾아 굴러가는 몸**이다 — 총구에서 표적까지 곧게 잇는 트레이서로는 그 성질이
+   통째로 거짓이 된다(언덕을 돌아가는 스캐럽이 벽을 뚫고 날아간다). 참값의 자취에는
+   OpenBW가 실제로 굴린 그 길이 프레임마다 들어 있으므로, **몸을 그리는 것이 곧 가장
+   정확한 트레이서**다. 지어낼 것이 하나도 없다.
+   ── 꼴
+   원작의 스캐럽은 손바닥만 한 기계 벌레다: 둥근 금빛 등딱지, 그 밑에 파란 에너지 심,
+   앞으로 난 짧은 다리 한 쌍. 아주 작게 그려지는 몸(상자 5px)이라 부품을 늘리면 한
+   덩어리로 뭉갠다 — 등·심·다리 셋이면 '벌레'로 읽히는 최소한이다. */
+SHAPE_BUILDERS.scarab = () => {
+  const SHELL9 = "#d9b551";      // 금빛 등딱지(프로토스 금과 같은 결)
+  const CORE9 = "#5fc8ff";       // 파란 에너지 심
+  const Z9 = 1.5;                // 땅에 붙어 구른다 — 다른 유닛보다 훨씬 낮다
+  return [
+    /* 등딱지 — 앞이 조금 좁은 둥근 껍질. 눕힌 팔각 기둥이라 어느 요잉에서도 통으로
+       읽히고, 위에서 내려다보는 평면 보기에서는 그 단면이 곧 등이다. */
+    ...paintBase(prismYFaces(OCT_XZ(0, Z9, 1.5, 1.05), -1.5, 1.5, true, true), SHELL9),
+    /* 등마루 — 껍질 위를 앞뒤로 지나는 한 줄. 이 한 줄이 앞뒤를 말한다. */
+    ...paintBase(prismYFaces(OCT_XZ(0, Z9 + 0.9, 0.42, 0.3), -1.1, 1.25, true, true), "#b8952f"),
+    /* 에너지 심 — 껍질 밑에서 새는 파란 빛. 스캐럽이 **폭탄**이라는 것을 말하는 유일한
+       부품이라 색을 안 아낀다(칠해 두므로 임자 색이 안 든다 — 이 빛은 개인색이 아니다). */
+    ...paintBase(domeFaces3(0, 0, 1.0, 0.62, Z9 - 0.72), CORE9),
+    ...fine([[wallDiscPath(0, 1.52, Z9 + 0.1, 0.5, 0.42), 0.95, CORE9] as ShapeFace]),
+    /* 앞다리 한 쌍 — 껍질 앞 밑에서 비스듬히 내려 땅을 짚는다. 짧고 굵게: 가늘면 이
+       크기에서 통째로 사라진다. */
+    ...([-1, 1] as const).flatMap((m9) => paintBase(
+      tubeFaces(m9 * 0.75, 1.0, m9 * 1.15, 1.85, 0.26, Z9 - 0.5, true), "#8d7a3c",
+    )),
+  ];
+};
+
 /* 크립 블롭 세 변형(요청: 저그 건물 아래 크립) — 씨앗만 다른 같은 생물 카펫. */
 SHAPE_BUILDERS.creeppatch = () => creepBlobFaces(0.7);
 SHAPE_BUILDERS.creeppatch2 = () => creepBlobFaces(2.3);
@@ -16426,6 +16498,9 @@ const UNIT_3D: Record<string, string> = {
      쓰는 판마다 **허공에 뜬 질럿 떼**가 날아다녔다. 참값 자취에 제 태그·제 길이가
      그대로 있으니(SHAPE_BUILDERS.interceptor 주석의 실측) 이름만 이어 주면 된다. */
   Interceptor: "interceptor",
+  /* 스캐럽(지적) — 여기 이름이 없어 프로토스 폴백(zealot)으로 떨어졌다. 리버가 쏠
+     때마다 **작은 질럿**이 땅을 기어 표적으로 갔다. 인터셉터와 같은 사고·같은 처방. */
+  Scarab: "scarab",
   /* 수송선 셋(단서: "큰 질럿들이 좀 이따 드라군으로 바뀜") — 이 셋이 표에 없어 부대
      구성의 셔틀이 종족 폴백(질럿·마린·저글링)에 폴백 덩치(대형)로, 게다가 공중이라 떠서
      그려졌다. 구성 순서가 바뀌면 그 자리가 드라군으로 바뀌는 것까지 들어맞는다. */
@@ -16484,7 +16559,15 @@ const ATTACK_FX: Record<string, string> = {
      드라군·포톤과 한 갈래의 푸른 플라즈마 탄이다. 옛 "bolt"는 날아가는 탄이 아니라
      제자리 번쩍임이라(PROJECTILE_FX 밖) 무엇이 날아가 맞았는지가 안 읽혔다. */
   Dragoon: "plasma", Scout: "plasma", Corsair: "flare", Arbiter: "plasma", Carrier: "burst",
-  Archon: "zap", Reaver: "cannon",
+  Archon: "zap",
+  /* ★ 리버는 **제 트레이서가 없다**(지적: "리버 스캐럽은 길을 찾아서 가는 특징도 있음")
+     ─────────────────────────────────────────────────────────────────────────────────
+     여기 있던 "cannon"은 총구에서 표적까지 곧게 날아가는 포탄이다. 리버가 쏘는 것은
+     포탄이 아니라 **스캐럽**이고, 스캐럽은 제 발로 길을 찾아 굴러간다 — 언덕을 돌아가는
+     그 몸을 곧은 선으로 그리면 벽을 뚫고 날아가는 그림이 된다.
+     그 몸은 이제 참값 자취대로 저 스스로 굴러간다(SHAPE_BUILDERS.scarab) — 그것이 곧
+     이 무기의 트레이서다. 여기에 선을 하나 더 그으면 같은 사격이 두 벌이 되고, 그중
+     한 벌은 거짓말이다. 캐리어의 인터셉터와 같은 결이다. */
   /* 인터셉터도 제 무기를 갖는다(펄스 캐논) — 이제 참값 자취로 저 스스로 날아다니므로
      캐리어의 장식이 아니라 쏘는 유닛이다. */
   Interceptor: "gun",
@@ -16794,6 +16877,7 @@ const MODEL_NORM: Record<string, number> = {
   probeMin: 1.543,
   queen: 0.621,
   reaver: 0.810,
+  scarab: 1.514,  // 상자 상한(원한 배수 1.591)
   scourge: 1.293,  // 상자 상한(원한 배수 1.327)
   scout: 0.952,
   scv: 0.731,
@@ -16809,7 +16893,7 @@ const MODEL_NORM: Record<string, number> = {
   vessel: 0.804,
   vulture: 0.828,
   wraith: 0.774,
-  zealot: 0.763,
+  zealot: 0.755,
   zling: 0.758,
   // tankgun: 없음 — 짝이라 소스의 NORM_PAIR가 tankbody 배수로 접는다.
   // tanksiegegun: 없음 — 짝이라 소스의 NORM_PAIR가 tanksiegebody 배수로 접는다.
@@ -16867,7 +16951,7 @@ const NORM_TARGET_INK = 5.2;
  *   · tankgun·tanksiegegun — **일부러** 목표를 안 맞춘 것. 짝이라 차체 배수를 쓰므로
  *     제 잉크 상자는 5.2가 아니다(포신은 완결 유닛이 아니라 부품이다).
  *  이 표도 --emit이 낸 값이다. */
-const MODEL_INK: Record<string, number> = { arbiter: 4.270, ghost: 4.685, inf: 4.874, larva: 4.787, mine: 4.381, mutacocoon: 5.020, scourge: 5.070, tankgun: 3.772, tanksiegegun: 2.528 };
+const MODEL_INK: Record<string, number> = { arbiter: 4.270, ghost: 4.685, inf: 4.874, larva: 4.787, mine: 4.381, mutacocoon: 5.020, scarab: 4.950, scourge: 5.070, tankgun: 3.772, tanksiegegun: 2.528 };
 /** 그리는 kind가 정규화 뒤 실제로 차지하는 잉크 상자(모델 단위). */
 const modelInkOf = (kind: string): number => MODEL_INK[kind] ?? NORM_TARGET_INK;
 
@@ -16895,6 +16979,9 @@ const UNIT_BW_RAW = {
   /* 인터셉터 — units.dat 상자 [좌 8·상 8·우 7·하 7] = 16×16, 등급 소형, 비행
      (bwUnits.ts의 Interceptor 줄과 같은 자료다). 저글링과 같은 상자다. */
   interceptor: [16, 16, 0, 1],
+  /* 스캐럽 — units.dat 상자 [좌 2·상 2·우 2·하 2] = 5×5, 등급 소형, 지상
+     (bwUnits.ts의 Scarab 줄과 같은 자료다). 이 게임에서 가장 작은 몸이다. */
+  scarab: [5, 5, 0, 0],
   // ── 저그 ──
   drone: [23, 23, 0, 0], zling: [16, 16, 0, 0], hydra: [21, 23, 1, 0], lurker: [32, 32, 1, 0],
   ultra: [38, 32, 2, 0], defiler: [27, 25, 1, 0], queen: [48, 48, 1, 1], ovie: [50, 50, 2, 1],
@@ -17200,7 +17287,7 @@ const GLOSS_KINDS: Record<"terran" | "toss", string[]> = {
     .split(" "),
   toss: ("pyramidWide diamond assim gate forge coil sbattery cyber citadel archives dome robobay "
     + "observatory arch fleetbeacon tribunal warpin probe probeMin probeGas zealot goon htemp "
-    + "dtemp archon darchon shuttle reaver observer scout corsair carrier interceptor arbiter "
+    + "dtemp archon darchon shuttle reaver observer scout corsair carrier interceptor scarab arbiter "
     + "vessel").split(" "),
 };
 for (const tone9 of ["terran", "toss"] as const) {
@@ -17250,6 +17337,7 @@ export const SHAPE_GALLERY: { kind: string; label: string; group: "유닛" | "�
      번도 안 그려지는 도록 전용 판이었고, 인터셉터는 실제로 캐리어에서 **떨어져 나와**
      날아간다. */
   { kind: "interceptor", label: "인터셉터", group: "유닛" },
+  { kind: "scarab", label: "스캐럽", group: "유닛" },
   { kind: "arbiter", label: "아비터", group: "유닛" },
   // ── 유닛 · 저그 ──
   /* 라바·변태알은 **참값 자취에 제 유닛으로 실린다**(옛 주석은 "리플레이에 라바는 안
@@ -25024,7 +25112,11 @@ export default function ReplayMotionPlayer({
         const deg = PITCH_DEGS.reduce((best, d) =>
           (Math.abs(d - initialView.deg) < Math.abs(best - initialView.deg) ? d : best),
         PITCH_DEGS[0]);
-        setPitchDeg(deg);
+        /* ★ 손가락 기기는 **입체를 무시하고 평면으로 연다**(지시) — 알림은 안 띄운다:
+           이 사람은 3D를 누른 적이 없고, 링크가 실어 온 것을 우리가 조용히 접는 것뿐이다.
+           누르지도 않은 조작을 안 된다고 말하면 그게 더 이상하다. 자리(z·cx·cy)는 그대로
+           살린다 — 못 주는 것은 각 하나뿐이다. */
+        setPitchDeg(pitchAllowed() ? deg : PITCH_DEGS[0]);
         z9 = Math.min(ZOOM_MAX, Math.max(1, initialView.z));
         setZoom(z9);
         raf = requestAnimationFrame(step);
@@ -27286,7 +27378,9 @@ export default function ReplayMotionPlayer({
            d가 아니라 v인 까닭은 wasd가 d를 이미 쓰기 때문이다(지시 정정). */
         e.preventDefault();
         wakeUi();
-        setPitchDeg((v9) => (v9 === 90 ? PITCH_3D : 90));
+        // 손가락 기기에는 입체를 안 준다(위 pitchAllowed) — 버튼과 같은 문이다.
+        if (!pitchAllowed()) pitchDenied();
+        else setPitchDeg((v9) => (v9 === 90 ? PITCH_3D : 90));
       } else if (k === "m" || k === "M" || k === "ㅡ") {
         /* m — 음악 켜기/끄기(지시). 색상(c)·재생(p)과 같은 결이다: 손잡이가 화면에
            있는 조작이라 **오버레이를 깨운다**(위 wakeUi 주석의 그 규약 — 눌러 놓고
@@ -28302,7 +28396,10 @@ export default function ReplayMotionPlayer({
       <button
         type="button"
         className={cx("scr-motion-litbtn scr-motion-mapbtn scr-motion-mapval", pitched && "is-on")}
-        onClick={() => setPitchDeg((v) => (v === 90 ? PITCH_3D : 90))}
+        onClick={() => {
+          if (!pitchAllowed()) { pitchDenied(); return; }
+          setPitchDeg((v) => (v === 90 ? PITCH_3D : 90));
+        }}
         aria-pressed={pitched}
         aria-label={pitched ? "입체 보기 — 누르면 평면" : "평면 보기 — 누르면 입체"}
         title="보기"
