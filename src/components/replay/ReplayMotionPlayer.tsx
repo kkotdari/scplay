@@ -13585,13 +13585,67 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const R9 = 0.46;
         const P9 = (u9: number, z9: number, out9: number): [number, number, number] =>
           [ex9 * (R9 + out9) + ux9 * u9, -0.1 + ey9 * (R9 + out9) + uy9 * u9, z9];
-        // 더 많이 올린다(재재지적) — z 3.15~4.15, 갈비 밑에 걸리는 허리 갑주다.
-        const d9 = polyPath3([
-          P9(-hw9, 4.15, 0), P9(hw9, 4.15, 0), P9(hw9 * 1.12, 3.4, 0.1),
-          P9(0, 3.15, 0.14), P9(-hw9 * 1.12, 3.4, 0.1),
-        ]);
-        return tagKey([[d9, 1] as ShapeFace, sideFace(d9, 0.16)],
-          depthNow(ex9 * R9, -0.1 + ey9 * R9) * 1.6 + 1.0);
+        /* ★ 판을 **감아서** 짠다(지시: "허리 갑옷들도 좀 입체감 부여") ────────────────
+           여태 이 갑주는 폴리곤 하나에 어두운 겹(sideFace)을 덧댄 **카드**였다. sideFace는
+           두께가 아니라 같은 길을 어둡게 한 번 더 칠하는 명암 수법이라, 어느 각에서 봐도
+           실제로는 종잇장이다 — 몸이 돌면 판만 팔랑거린다.
+           이제 셋을 준다.
+             ① **배흘림** — 폭(u)을 마디로 잘라, 가운데가 가장 바깥으로 부풀고 양 끝이
+                몸에 붙는 코사인 곡면으로 민다. 이 한 줄이 '허리를 감싸 쥔' 꼴을 만든다.
+             ② **진짜 테두리** — 바깥 껍질의 가장자리를 안쪽 껍질(두께 T9만큼 몸 쪽)과
+                이어 띠를 두른다. 실루엣 가장자리에서 이 띠가 곧 판의 단면이다.
+             ③ **면마다 제 명암** — 마디가 몸을 감고 도는 만큼 어두워진다(가운데 밝고
+                가장자리 어둡다). 곡면은 결국 명암이 만든다.
+           윤곽(위는 곧고 아래로 넓어졌다 한 점으로 모인다)은 옛 판 그대로다 — 고치는
+           것은 꼴이 아니라 두께다. */
+        const T9 = 0.11;                       // 판 두께(모델 단위)
+        const BULGE9 = 0.13;                   // 가운데가 바깥으로 부푸는 몫
+        /** 세로 진행 v(0 위 ~ 1 아래끝) → 그 줄의 반폭·높이·바깥 밀기. */
+        const row9 = (v9: number): { hw: number; z: number; out: number } => (v9 <= 0.5
+          ? { hw: hw9 * (1 + 0.12 * (v9 / 0.5)), z: 4.15 - 0.75 * (v9 / 0.5),
+            out: 0.1 * (v9 / 0.5) }
+          : { hw: hw9 * 1.12 * (1 - (v9 - 0.5) / 0.5), z: 3.4 - 0.25 * ((v9 - 0.5) / 0.5),
+            out: 0.1 + 0.04 * ((v9 - 0.5) / 0.5) });
+        /** 껍질 위의 한 점 — s9는 u의 정규 자리(−1~1), off9는 두께 방향 밀기. */
+        const S9 = (v9: number, s9: number, off9: number): [number, number, number] => {
+          const r9 = row9(v9);
+          const bul9 = BULGE9 * Math.cos((Math.PI / 2) * Math.max(-1, Math.min(1, s9)));
+          return P9(r9.hw * s9, r9.z, r9.out + bul9 + off9);
+        };
+        const VS9 = [0, 0.34, 0.62, 0.84, 1] as const;   // 세로 마디
+        const US9 = 6;                                    // 가로 마디
+        const key9 = depthNow(ex9 * R9, -0.1 + ey9 * R9) * 1.6 + 1.0;
+        const out9: ShapeFace[] = [];
+        for (let vi = 0; vi + 1 < VS9.length; vi += 1) {
+          const va = VS9[vi];
+          const vb = VS9[vi + 1];
+          for (let ui = 0; ui < US9; ui += 1) {
+            const sa = -1 + (2 * ui) / US9;
+            const sb = -1 + (2 * (ui + 1)) / US9;
+            const q9 = polyPath3([
+              S9(va, sa, 0), S9(va, sb, 0), S9(vb, sb, 0), S9(vb, sa, 0),
+            ]);
+            /* 명암 — 마디의 가운데가 몸에서 얼마나 돌아섰나(코사인)가 곧 밝기다.
+               가장자리로 갈수록 어두워져 배흘림이 눈에 읽힌다. */
+            const sm9 = (sa + sb) / 2;
+            out9.push([q9, 0.62 + 0.38 * Math.cos((Math.PI / 2) * sm9)] as ShapeFace);
+          }
+        }
+        /* 테두리 띠 — 바깥 껍질의 둘레를 안쪽 껍질과 잇는다. 위 가장자리·아래 꼭짓점
+           까지 한 바퀴 돌므로, 어느 각에서 잘려 보여도 단면이 있다. */
+        const ring9: [number, number][] = [];
+        for (let ui = 0; ui <= US9; ui += 1) ring9.push([0, -1 + (2 * ui) / US9]);
+        for (let vi = 1; vi < VS9.length; vi += 1) ring9.push([VS9[vi], 1]);
+        for (let ui = US9; ui >= 0; ui -= 1) ring9.push([1, -1 + (2 * ui) / US9]);
+        for (let vi = VS9.length - 2; vi >= 1; vi -= 1) ring9.push([VS9[vi], -1]);
+        for (let i9 = 0; i9 + 1 < ring9.length; i9 += 1) {
+          const [va, sa] = ring9[i9];
+          const [vb, sb] = ring9[i9 + 1];
+          out9.push([polyPath3([
+            S9(va, sa, 0), S9(vb, sb, 0), S9(vb, sb, -T9), S9(va, sa, -T9),
+          ]), 0.5] as ShapeFace);
+        }
+        return tagKey(out9, key9);
       }),
     ...tagKey(protossFace(P_SKIN), depthNow(0, 0.4) * 1.6 + 0.7),
     /* ③ 케이블 다발 — 뒤통수에서 등으로 늘어지는 신경삭. 가운데 굵은 한 줄(기존
@@ -13634,12 +13688,23 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const bz = (p0: number, c1: number, c2: number, p3: number): number =>
           u9 * u9 * u9 * p0 + 3 * u9 * u9 * t9 * c1 + 3 * u9 * t9 * t9 * c2 + t9 * t9 * t9 * p3;
         return [
-          // 가슴(1.05)에서 어깨 밖으로 벌어졌다가(2.0) 등(1.2)으로 오므라든다.
-          m9 * bz(1.05, 2.0, 2.0, 1.2),
-          // 앞(+0.85)에서 뒤(−2.05)로 — 이 한 축이 '가슴에서 등으로'다.
-          bz(0.85, 0.7, -1.75, -2.05),
-          // 흉갑에서 솟아 어깨 위(마루 7.9)를 넘고 등판 높이로 내린다.
-          bz(5.25, 7.7, 7.9, 5.7),
+          /* 두 끝은 **가슴·등 한가운데 가까이**로 모은다(지시: "양끝을 좀더 가슴과 등
+             중앙쪽으로 모으기") — 어깨 밖(1.70)으로 벌어졌다가 다시 오므라든다.
+             ★ 끝을 몸 옆(0.6 언저리)에 두면 어깨 갑주(알 중심 x 1.42·반지름 0.9가
+               x 0.52부터다) 속에 통째로 파묻혀, 가늘어진 관이 앞뒤에서 안 보인다. */
+          /* 바깥 기울기는 **살짝**이다(지적: "각도는 지금처럼 약간 바깥으로 기울어진 건
+             맞음") — 두 끝을 가운데로 모은 뒤에도 마루를 1.6까지 내밀면, 옆에서 볼 때
+             정면에 세운 **큰 고리**가 된다(끝은 붙어 있는데 마루만 멀어 그렇다).
+             1.15면 어깨 폭 언저리라 관이 어깨를 타고 넘는 결로 읽힌다. */
+          m9 * bz(0.34, 1.10, 1.15, 0.36),
+          // 앞(+0.58)에서 뒤(−0.20)로 — 이 한 축이 '가슴에서 등으로'다.
+          bz(0.58, 1.05, -1.20, -0.20),
+          /* 흉갑에서 솟아 **어깨 위를 넘고**(마루 6.74) 등판 높이로 내린다.
+             ★ 마루를 낮춘 까닭 — 조종점을 7.35·7.85로 두었을 때 실제 마루가 7.04였고,
+               그 높이는 **머리 옆**이다(목 끝 6.28 위로 얼굴이 선다). 그러면 어깨를 넘는
+               관이 아니라 머리 곁에 세워 둔 **고리 손잡이**로 읽힌다. 6.74면 어깨 갑주
+               (알 z 5.6에서 솟는다) 바로 위를 스치고 지나간다 — 묻히지도, 뜨지도 않는다. */
+          bz(5.15, 7.05, 7.35, 5.55),
         ];
       };
       const hKey9 = depthNow(m9 * 1.9, -1.1) * 1.6 + 2;
@@ -13648,9 +13713,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           /* 굵기는 **한 값**이다(지적: "굵기도 일정하고") — w·tipW·taper의 기본 규칙은
              한쪽으로 줄어드는 뿔의 자라, 여기서는 쓰지 않고 widthOf로 못 박는다.
              단면은 팔각 — 관은 둥근 물건이고, 육각은 어느 요잉에서 모서리가 도드라진다. */
-          x: 0, y: 0, h: 1, w: 1, segs: 12, sides: 8, caps: "none",
+          x: 0, y: 0, h: 1, w: 1, segs: 12, sides: 8, caps: "both",
           path: horn9,
-          widthOf: (): number => 0.36,
+          widthOf: (): number => 0.18,
         }), P_GOLD), hKey9),
         /* ★ 개인색 띠(요청: "질럿 어깨뿔 아래쪽 감싸는 띠") ────────────────────────────
            뿔 밑동을 한 바퀴 감는 고리다. **칠하지 않는 것이 곧 개인색이다** — 여기서
@@ -13667,7 +13732,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ...tagKey(spirePillar({
           x: 0, y: 0, h: 1, w: 1, segs: 2, sides: 10, caps: "none", trueNormal: true,
           path: (t9: number): [number, number, number] => horn9(0.10 + 0.20 * t9),
-          widthOf: (): number => 0.46,
+          widthOf: (): number => 0.26,
         }), hKey9 + 0.6),
       ];
     }),
@@ -16893,7 +16958,7 @@ const MODEL_NORM: Record<string, number> = {
   vessel: 0.804,
   vulture: 0.828,
   wraith: 0.774,
-  zealot: 0.755,
+  zealot: 0.799,
   zling: 0.758,
   // tankgun: 없음 — 짝이라 소스의 NORM_PAIR가 tankbody 배수로 접는다.
   // tanksiegegun: 없음 — 짝이라 소스의 NORM_PAIR가 tanksiegebody 배수로 접는다.
