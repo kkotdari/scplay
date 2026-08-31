@@ -7,9 +7,24 @@
 |---|---|---|
 | model-depth-check.mjs | 깊이 열쇠에 높이가 실렸나(모델 관문) + 기준선 | 없음 (이미 scplay에 있음) |
 | openbw-tracks-check.mjs | 참값 뭉치 규약 자물쇠 — 덤퍼와 해독기가 같은 꼴을 말하나 | 없음 (③겹만 덤퍼 바이너리·자료) |
-| model-shot.mjs | 모델을 굽어 PNG 도록으로 | playwright-core + 크로미움 |
+| model-shot.mjs | 모델을 굽어 PNG 대조표로(도구 제 그림 — 검정 바탕 격자) | playwright-core + 크로미움 |
+| doc-sheet.mjs | **도록 화면 그대로** 판형 그림으로(앱 테마·그림자·개인색) | 〃 + scplayer의 global.css |
 | model-norm.mjs | 모델 잉크 크기 실측 → MODEL_NORM/MODEL_INK 갱신(--emit) | 〃 |
 | sprite-check.mjs · bld-norm.mjs · dmg-check.mjs · perf-check.mjs | 스프라이트·건물 채움·피해·성능 검사 | 〃 |
+
+`model-shot`과 `doc-sheet`의 갈림 — **그리는 길이 다르다.** model-shot은 면 목록을
+캔버스에 손으로 칠한다(빠르고 의존물이 없다, 모델을 고치며 볼 때 쓴다). doc-sheet은
+앱이 쓰는 그 컴포넌트(ShapeIcon)를 진짜 리액트로 띄우고 앱 CSS + 모듈 CSS를 얹어
+**도록 화면을 그대로 찍는다** — 칸 테마도, `.scr-motion-shape-svg`의 drop-shadow도,
+`--scr-doc-own` 개인색도 화면에서 보는 그대로다(남에게 보낼 그림은 이쪽).
+
+```
+node scripts/doc-sheet.mjs --group 유닛 --race 테란 --out /tmp/t-unit.png
+node scripts/doc-sheet.mjs --group 부가 --css ../scplayer/src/styles/global.css
+```
+CSS 차례가 규약이다 — 앱 CSS 먼저, 모듈 CSS 나중(scplay README의 그 규약). 도록의
+`.scr-doc .scr-doc-svg`가 그것을 이기려고 한 단 올려 잡혀 있어, 차례를 뒤집으면 SVG가
+1em(16px)에 갇혀 모델이 점이 된다.
 
 package.json scripts에 원하는 것만 걸면 된다:
 ```json
