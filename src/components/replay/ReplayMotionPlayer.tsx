@@ -19164,7 +19164,13 @@ const releaseCanvas = (cv: HTMLCanvasElement): void => {
    ★ 빌린 판은 스프라이트로 나갈 수 없다 — 다음 굽기가 지운다. 그래서 자를 것이 없어도
      반드시 새 판에 옮겨 담는다(cropToInk의 forceCopy). */
 const BAKE_POOL: HTMLCanvasElement[] = [];
-const BAKE_POOL_MAX = 3;
+/* ★ 빌림터는 **바이트로** 죈다(같은 지적) — 장수로만 죄면 12배에서 8MB짜리 굽는 판
+   셋이 경기 내내 잡혀 있다. 폰의 판 예산(32/16MB)에 견주면 그것만으로 예산 하나를
+   더 쓰는 셈이다. 한 장이 너무 크면 아예 안 빌려 두고(그런 크기는 어차피 드물어
+   되쓸 일도 적다) 그 자리에서 놓는다. */
+const BAKE_POOL_MAX = 2;
+const BAKE_ONE_MAX = (smallDevice9 ? 2 : 8) * 1024 * 1024;
+const BAKE_POOL_BYTES = (smallDevice9 ? 4 : 24) * 1024 * 1024;
 /** 그 크기의 굽는 판을 빌린다 — 빌림터에 있으면 지워서 주고, 없으면 새로 짓는다. */
 const bakeCanvas = (side: number): HTMLCanvasElement | null => {
   const i9 = BAKE_POOL.findIndex((c) => c.width === side && c.height === side);
@@ -19183,10 +19189,14 @@ const bakeCanvas = (side: number): HTMLCanvasElement | null => {
 };
 /** 다 쓴 굽는 판을 돌려준다 — 빌림터가 차면 가장 오래된 것을 그 자리에서 놓는다. */
 const freeBakeCanvas = (cv: HTMLCanvasElement): void => {
+  if (canvasBytes(cv) > BAKE_ONE_MAX) { releaseCanvas(cv); return; }
   BAKE_POOL.push(cv);
-  while (BAKE_POOL.length > BAKE_POOL_MAX) {
+  let sum9 = BAKE_POOL.reduce((a9, c9) => a9 + canvasBytes(c9), 0);
+  while (BAKE_POOL.length > BAKE_POOL_MAX || (sum9 > BAKE_POOL_BYTES && BAKE_POOL.length > 1)) {
     const old9 = BAKE_POOL.shift();
-    if (old9) releaseCanvas(old9);
+    if (!old9) break;
+    sum9 -= canvasBytes(old9);
+    releaseCanvas(old9);
   }
 };
 /** ★ **한 박자 늦춰** 돌려줄 판들 — 지금 프레임이 손에 쥐고 있을지 모르는 것을 그 자리에서
@@ -19214,6 +19224,12 @@ function trimSpriteCache<T extends { cv: HTMLCanvasElement; sh?: ShadowPlate | n
       if (got.sh) RELEASE_Q9.push(got.sh.cv);
     }
     cache.delete(oldest.value);
+    /* ★ 예산이 넘쳐 **덜어내고 있다는 것**이 곧 압박의 신호다 — 그럴 때는 굽는 판
+       빌림터도 함께 놓는다(같은 지적: 사파리가 탭을 버린다). 빌림터는 '다시 굽기를
+       싸게'가 목적이지 '메모리를 쥐고 있기'가 아니므로, 예산을 다투는 순간에는 내주는
+       편이 옳다. 압박이 가시면 다음 굽기가 다시 채운다. */
+    for (const c9 of BAKE_POOL) releaseCanvas(c9);
+    BAKE_POOL.length = 0;
   }
 }
 /** 판에 **구워 두는** 겹침 그림자 — 그리기마다 돌리던 흐림을 굽기 한 번으로 옮긴다. */
@@ -19402,10 +19418,16 @@ function unitSprite(
       }
       const alt9 = best9 > 0 ? SPRITE_CACHE.get(`${baseKey}|${best9}`) : undefined;
       if (alt9) {
+        /* ★ **대타는 LRU를 안 되살린다**(지적: "12배도 아닌데 모바일 사파리 탭이
+           새로고침돼") ─────────────────────────────────────────────────────────────
+           여기서 delete + set으로 맨 뒤에 다시 꽂으면 그 판은 '방금 쓴 것'이 되어 안
+           쫓겨난다. 그런데 대타는 **옛 세대의 판**이다 — 배율이 바뀌어 새 세대를 굽는
+           동안 옛 세대까지 계속 되살아나면, 폰이 두 세대를 통째로 이고 있게 된다.
+           예산이 막는 것은 합이지만 그 합이 두 배가 되는 셈이라, 사파리가 탭을 버린다.
+           대타는 임시로 빌려 쓰는 그림일 뿐이니 제 나이대로 늙게 둔다 — 새 세대가 다
+           구워지면 옛 세대는 예정대로 쫓겨난다. */
         SPRITE_PERF.hit += 1;
         poseNow = 0;
-        SPRITE_CACHE.delete(`${baseKey}|${best9}`);
-        SPRITE_CACHE.set(`${baseKey}|${best9}`, alt9);
         return alt9;
       }
     }
@@ -20160,9 +20182,8 @@ function buildingSpriteBake(
       }
       const alt9 = best9 > 0 ? BLD_SPRITE_CACHE.get(`${baseKey}|${best9}`) : undefined;
       if (alt9) {
+        // 대타는 LRU를 안 되살린다 — 유닛 쪽의 ★ 주석과 같은 까닭이다.
         SPRITE_PERF.bldHit += 1;
-        BLD_SPRITE_CACHE.delete(`${baseKey}|${best9}`);
-        BLD_SPRITE_CACHE.set(`${baseKey}|${best9}`, alt9);
         return alt9;
       }
     }
@@ -29696,6 +29717,16 @@ export default function ReplayMotionPlayer({
                   예산 {(SCR_DIAG.areaCap / 1e6).toFixed(1)}Mpx · 배킹확보{" "}
                   {SCR_DIAG.allocOk ? "성공" : "실패"}
                 </div>
+                {/* ★ 판 보관함의 **지금 무게**(지적: "모바일 사파리 탭이 새로고침돼") —
+                    사파리가 탭을 버리는 것은 메모리 때문인데, 그 값은 폰에서 콘솔 없이는
+                    못 읽는다. 여기 한 줄이면 스크린샷 한 장으로 '예산에 닿았나'가 갈린다.
+                    작은 기기의 예산은 유닛 32MB·건물 16MB(메모리를 부르는 기기는 그 배수). */}
+                <div>
+                  판 유닛 {SPRITE_PERF.last.keys}장{" "}
+                  {(SPRITE_PERF.last.bytes / 1048576).toFixed(1)}/{(SPRITE_BYTES_MAX / 1048576).toFixed(0)}MB
+                  {" · "}건물 {SPRITE_PERF.last.bldKeys}장{" "}
+                  {(SPRITE_PERF.last.bldBytes / 1048576).toFixed(1)}/{(BLD_SPRITE_BYTES_MAX / 1048576).toFixed(0)}MB
+                </div>
                 {/* 참값이 어느 판으로 구워졌나 — '재분석했는데 갈림 시각이 그대로'가
                     진짜 갈림인지 안 구운 것인지를 이 한 줄이 가른다(위 truthVer 주석). */}
                 <div>
@@ -31495,6 +31526,15 @@ export default function ReplayMotionPlayer({
               g.sec <= t && (g.gone === 0 || t < g.gone) && g.gd <= 4
               && Math.abs(g.gx - res[0]) < 0.5 && Math.abs(g.gy - res[1]) < 0.5) : undefined;
             if (gasOn && t >= gasOn.done) return null;
+            /* ★ **바닥난 미네랄은 아예 안 그린다**(요청: "미네랄 소진 시 미네랄 모델
+               아예 없어져야 해") — 여태 남은 단 0에서도 결정 한 덩이를 남겼다
+               (keepN [1, 3, 6, 9, 12]의 그 1). 원작에서 다 캔 밭은 자리째 사라지므로
+               한 덩이가 남으면 '아직 캘 것이 있다'로 읽힌다.
+               모델을 빈 것으로 만들지 않고 **여기서 거르는** 까닭: 면이 없는 판은 잉크가
+               없어 자르기가 원판을 통째로 들고 다니고(빈 판이 보관함에 쌓인다), 정규화
+               측정도 0으로 나뉜다. 안 그릴 것은 안 그리는 것이 옳다.
+               간헐천은 종전대로 남는다 — 마른 간헐천은 원작에서도 돌그릇이 남는다. */
+            if (!gasSpot && resStageAt(res[0], res[1]) === 0) return null;
             const underGas = !!gasOn;
             // 고갈된 미네랄(요청)은 밭이 사라진다. 가스는 아래에서 색만 죽인다.
             /* 고갈 어림은 끈다(지적: 미네랄·간헐천에 모델 적용해야지 — 후반에 자원이
