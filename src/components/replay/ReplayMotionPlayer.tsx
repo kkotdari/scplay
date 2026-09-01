@@ -10989,7 +10989,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const RING_R9 = 2.3;
     for (const [t0, key9] of [[-0.25, depthNow(0, RING_R9) + 0.6], [0.25, -1]] as [number, number][]) {
       out.push(...tagKey(paintBase(spirePillar({
-        x: 0, y: 0, h: 1, w: 0.17, tipW: 0.17, segs: 14, sides: 6, caps: "none",
+        // 고리 폭 넓게(요청) — 세로 반두께 0.14에 가로는 2.6배(0.36)의 납작한 띠.
+        x: 0, y: 0, h: 1, w: 0.14, tipW: 0.14, segs: 14, sides: 6, caps: "none", oval: 2.6,
         ref: [0, 0, 1],
         path: (t9: number): [number, number, number] => {
           const a9 = (t0 + t9 * 0.5) * Math.PI * 2;
@@ -10999,11 +11000,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     }
     for (const ang of [30, 150, 270]) {
       const a2 = (ang * Math.PI) / 180;
-      const px5 = Math.sin(a2) * RING_R9;
-      const py5 = Math.cos(a2) * RING_R9;
+      // 반구는 고리의 **바깥 아래쪽**에 붙는다(요청) — 띠 바깥 가장자리 밑에 매달림.
+      const px5 = Math.sin(a2) * (RING_R9 + 0.32);
+      const py5 = Math.cos(a2) * (RING_R9 + 0.32);
       out.push(...tagKey([
-        ...domeFaces3(px5, py5, 0.62, 0.3, 6.5),
-        topFace(discPath3(px5, py5, 6.78, 0.34), 0.22),
+        ...domeFaces3(px5, py5, 0.55, 0.4, 5.82),
+        topFace(discPath3(px5, py5, 6.2, 0.3), 0.18),
       ], py5 >= -0.01 ? depthNow(px5, py5) + 0.7 : -0.9));
     }
     // 구 몸통 — 한 단 더 축소(3.3 → 2.7, 재지적) + 그늘 초승달 + 하이라이트.
@@ -11036,12 +11038,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         path: (t: number): [number, number, number] => {
           // 방패 10% 확대(요청): 반길이 2.1 → 2.31, 반폭 0.78 → 0.86. 구가 작아진
           // 만큼 안으로 당겨 구를 감싼다(3.35 → 2.75).
-          // 위아래 20% 더(재요청): 반길이 2.31 → 2.77.
-          const v9 = -2.77 + 5.54 * t;
-          const rad = 2.3 - 0.75 * (v9 / 2.77) ** 2;
+          // 길이 10% 축소(재요청): 반길이 2.77 → 2.49.
+          const v9 = -2.49 + 4.98 * t;
+          const rad = 2.3 - 0.75 * (v9 / 2.49) ** 2;
           return [dxs * rad, dys * rad, 6.4 + v9];
         },
-        waist: 0.5, thick: 0.26, spread: 0.86 / 0.26,
+        waist: 0.5, thick: 0.16, spread: 0.86 / 0.16,   // 두께 0.26 → 0.16(요청)
         /* 끝은 뾰족하지 않고 **직선으로 뭉뚝하게** 깎는다(재지적) — 뿌리·끝 굵기 비를
            0에서 0.55로 두면 끝 단면이 평평한 절단면이 된다. */
         rootW: 0.55, tipW: 0.55,
@@ -18156,7 +18158,7 @@ const MODEL_NORM: Record<string, number> = {
   tanksiegebody: 0.723,
   ultra: 0.361,
   valk: 1.003,   // 날개 팔 20% 축소 뒤 재측정
-  vessel: 0.956,  // 고리 띠 뒤 재측정(model-norm)
+  vessel: 0.962,  // 방패 축소·넓은 고리 뒤 재측정(model-norm)
   vulture: 0.828,
   wraith: 0.774,
   zealot: 0.799,
