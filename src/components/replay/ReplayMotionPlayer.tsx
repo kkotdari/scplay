@@ -5428,9 +5428,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /** 판 좌표 → 세계 좌표: u 접선, v 앞뒤(y), r 반지름 — 평면이 아니라
        *  **원통으로 감는다**(지적: "정면에서 봤을 때 원의 호로 보이게"): 접선
        *  오프셋을 각도로 바꿔 판 전체가 축 둘레 원호를 따라 안쪽으로 휜다. */
+      /* 세로 1.22배(지적: "세로가 너무 눌린 것 같은데") — 모델의 고리는 정원인데
+         투영이 z를 눌러 화면에서 높이가 폭의 8할쯤으로 찍힌다. 고리의 세로축만
+         미리 늘려 화면에서 폭=높이의 원으로 보이게 한다. */
       const P9 = (u9: number, v9: number, r9: number): [number, number, number] => {
         const th9 = phi + u9 / R;
-        return [Math.sin(th9) * r9, v9, C + Math.cos(th9) * r9];
+        return [Math.sin(th9) * r9, v9, C + Math.cos(th9) * r9 * 1.22];
       };
       /* 십자 방패 윤곽 — 세로 기둥(반폭 0.85, v ±1.85)의 끝은 삼각(v ±2.4),
          가로 팔(u ±2.3, 반높이 0.75)의 끝은 일자 사각. */
@@ -5458,6 +5461,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const OUTLINE = smooth9(smooth9(RAW9));
       const fSide = facingRatio(rx, 0);
       const bellyOn = rz > 0.5 ? false : rz < -0.5 ? true : fSide < -0.1;
+      /* 임자색은 방패면의 **가로 줄무늬**다(요청: 옆면 장식은 금색으로, 임자색은
+         각 방패면 가로 줄무늬 몇 개) — 보이는 면에 얇은 띠 셋. */
+      const stripe9 = (r9: number): ShapeFace[] =>
+        ([[-0.7, 0.78], [0, 1.35], [0.7, 0.78]] as [number, number][]).map(([v0, hw9]) =>
+          bodyFace(polyPath3([
+            P9(-hw9, v0 - 0.08, r9), P9(hw9, v0 - 0.08, r9),
+            P9(hw9, v0 + 0.08, r9), P9(-hw9, v0 + 0.08, r9),
+          ])));
       const plate: ShapeFace[] = [];
       // 테두리 림 — 안·바깥 면 사이 두께의 실제 면. 판 면들이 위에서 덮는다.
       for (let e9 = 0; e9 < OUTLINE.length; e9 += 1) {
@@ -5477,6 +5488,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       }
       out.push(...tagKey(plate, key9));
       if (!bellyOn) {
+        out.push(...tagKey(stripe9(Ro + 0.02), key9 + 0.45));
         if (vert9) {
           // 일자 막대 — 바깥 면을 가로지르는 곧은 띠.
           const bar9 = polyPath3([
@@ -5493,7 +5505,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           for (const m9 of [-1, 1] as const) {
             out.push(...spirePillar({
               x: 0, y: 0, h: 1, w: 0.17, tipW: 0.17, segs: 5, sides: 3,
-              trueNormal: true, ref: [rx, 0, rz],
+              fill: GOLD9, trueNormal: true, ref: [rx, 0, rz],
               path: (t9: number): [number, number, number] =>
                 P9(m9 * (0.88 - 0.42 * Math.sin(Math.PI * t9)), -1.7 + 3.4 * t9, Ro + 0.15),
             }).map((f9) => { f9[3] = key9 + 0.5; return f9; }));
@@ -5503,6 +5515,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       if (bellyOn) {
         /* 안면 — 가로로 누운 수정 창 넷(아쿠아·활성 발광)과 사이 갈빗대.
            팔 띠(v ±0.6) 안에서 접선을 따라 줄짓는다. */
+        out.push(...tagKey(stripe9(Ri - 0.02), key9 + 0.55));
         const win: ShapeFace[] = [];
         for (let k9 = 0; k9 < 4; k9 += 1) {
           const v9 = -1.14 + k9 * 0.76;
@@ -20268,7 +20281,7 @@ export const BLD_FILL_TARGET: Record<string, number> = {
  *  표에 없는 종류는 1(모델 그대로)이다. */
 export const BLD_NORM: Record<string, number> = {
   academy: 1.470,  // 치마형 받침으로 바꾼 뒤 bld-norm 재측정
-  arch: 2.584,  // 십자 방패판 재작도 뒤 재측정(bld-norm)
+  arch: 2.576,  // 십자 방패판 재작도 뒤 재측정(bld-norm)
   archives: 2.489,  // 상자 상한에 걸림
   armory: 1.223,
   assim: 1.655,
