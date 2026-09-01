@@ -10876,9 +10876,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        그래서 같은 경로를 t 구간으로 잘라 도막마다 **제 자리 깊이**로 단다. 도막 사이의
        단면은 안 그린다(caps none) — 이웃과 같은 자리라 겹치면 z 다툼이 난다. 양 끝만
        막는다. 셋이면 코·가운데·꼬리가 저마다 제 차례를 갖는다. */
-    const hullPath9 = (t9: number): [number, number, number] => [0, -2.2 + 4.8 * t9, 5.75];
+    /* 동체를 줄인다(요청: 특히 앞부분) — 길이 4.8 → 4.0(앞 0.7·뒤 0.1). 코 단면은
+       살짝 아래로 치우친다(요청): 뒤 6할은 5.75 그대로, 코로 갈수록 0.35 내려간다. */
+    const hullPath9 = (t9: number): [number, number, number] =>
+      [0, -2.1 + 4.0 * t9, 5.75 - 0.35 * Math.max(0, (t9 - 0.6) / 0.4)];
     // 폭을 한 뼘 더(지적) — 통통한 것은 세로이고 가로는 아니다.
-    const hullW9 = widthCurve([[0, 1.42], [0.3, 1.72], [0.75, 1.3], [1, 0.95]]);   // 코 뭉뚝(요청: 끝 0.42 → 0.95)
+    const hullW9 = widthCurve([[0, 1.42], [0.3, 1.72], [0.75, 1.26], [1, 0.7]]);   // 코 끝 0.95 → 0.7(조금 되돌림)
     for (const [t0, t1, cap9] of [
       [0, 1 / 3, "bottom"], [1 / 3, 2 / 3, "none"], [2 / 3, 1, "top"],
     ] as [number, number, "bottom" | "none" | "top"][]) {
@@ -10986,7 +10989,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* ★ 방패 셋을 잇는 **수평 고리 띠**(요청) — 방패 허리 반지름(2.3)에 도는 관.
        앞 반(y ≥ 0)은 구 위에, 뒤 반은 구 뒤에 그려 구를 감싼 고리로 읽힌다.
        추진 반구 셋은 구가 아니라 **이 고리 표면 위**에 앉는다(요청). */
-    const RING_R9 = 2.3;
+    const RING_R9 = 2.0;   // 지름 축소(요청) 2.3 → 2.0
     for (const [t0, key9] of [[-0.25, depthNow(0, RING_R9) + 0.6], [0.25, -1]] as [number, number][]) {
       out.push(...tagKey(paintBase(spirePillar({
         // 고리 폭은 **위아래 폭**(정정) — 세로 반폭 0.34에 가로는 0.4배(0.14)의 세운 띠.
@@ -11001,11 +11004,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     for (const ang of [30, 150, 270]) {
       const a2 = (ang * Math.PI) / 180;
       // 반구는 고리의 **바깥 아래쪽**에 붙는다(요청) — 띠 바깥 가장자리 밑에 매달림.
-      const px5 = Math.sin(a2) * (RING_R9 + 0.32);
-      const py5 = Math.cos(a2) * (RING_R9 + 0.32);
+      const px5 = Math.sin(a2) * (RING_R9 + 0.3);
+      const py5 = Math.cos(a2) * (RING_R9 + 0.3);
       out.push(...tagKey([
-        ...domeFaces3(px5, py5, 0.55, 0.4, 5.82),
-        topFace(discPath3(px5, py5, 6.2, 0.3), 0.18),
+        ...domeFaces3(px5, py5, 0.55, 0.4, 5.5),   // 더 아래로(재요청) 5.82 → 5.5
+        topFace(discPath3(px5, py5, 5.88, 0.3), 0.18),
       ], py5 >= -0.01 ? depthNow(px5, py5) + 0.7 : -0.9));
     }
     // 구 몸통 — 한 단 더 축소(3.3 → 2.7, 재지적) + 그늘 초승달 + 하이라이트.
@@ -11040,17 +11043,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           // 만큼 안으로 당겨 구를 감싼다(3.35 → 2.75).
           // 길이 10% 축소(재요청): 반길이 2.77 → 2.49.
           const v9 = -2.49 + 4.98 * t;
-          const rad = 2.3 - 0.75 * (v9 / 2.49) ** 2;
+          // 방패는 고리 **바깥쪽**에 붙는다(정정) — 허리가 고리 바깥면(2.0+0.2)에 닿고
+          // 끝은 살짝만 안으로 든다.
+          const rad = 2.22 - 0.6 * (v9 / 2.49) ** 2;
           return [dxs * rad, dys * rad, 6.4 + v9];
         },
-        waist: 0.5, thick: 0.16, spread: 0.86 / 0.16,   // 두께 0.26 → 0.16(요청)
+        waist: 0.5, thick: 0.1, spread: 0.86 / 0.1,   // 두께 0.16 → 0.1(재요청)
         /* 끝은 뾰족하지 않고 **직선으로 뭉뚝하게** 깎는다(재지적) — 뿌리·끝 굵기 비를
            0에서 0.55로 두면 끝 단면이 평평한 절단면이 된다. */
         rootW: 0.55, tipW: 0.55,
         rootPow: 1, tipPow: 1, sides: 10, segs: 8, fill: TERRAN_STEEL,
         // 단면의 u축을 반지름 방향으로 — 셋이 저마다 제 바깥쪽으로 납작해진다.
         ref: [dxs, dys, 0],
-        key: depthNow(dxs * 2.3, dys * 2.3) + 0.8,
+        key: depthNow(dxs * 2.22, dys * 2.22) + 0.8,
       }));
     }
     /* ── 사진에서 새로 얻은 것 셋 ───────────────────────────────────────────────
@@ -13523,13 +13528,20 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        땅을 짚는다. 사진의 은청색 눈 두 알과 사이의 붉은 등은 작게 남긴다. 임자색은
        몸체 뒤 윗면의 작은 판. */
     const out: ShapeFace[] = [];
-    const tri9 = (z9: number): [number, number, number][] =>
-      [[0, 2.4, z9], [-2.2, -1.4, z9], [2.2, -1.4, z9]];
+    /* 모서리는 뭉뚝하게(재요청) — 삼각의 세 꼭짓점을 이웃 쪽으로 22%씩 깎은 육각. */
+    const C9: [number, number][] = [[0, 2.4], [-2.2, -1.4], [2.2, -1.4]];
+    const tri9 = (z9: number): [number, number, number][] => C9.flatMap((c9, k9) => {
+      const pv9 = C9[(k9 + 2) % 3]; const nx9 = C9[(k9 + 1) % 3];
+      return [
+        [c9[0] + (pv9[0] - c9[0]) * 0.22, c9[1] + (pv9[1] - c9[1]) * 0.22, z9],
+        [c9[0] + (nx9[0] - c9[0]) * 0.22, c9[1] + (nx9[1] - c9[1]) * 0.22, z9],
+      ] as [number, number, number][];
+    });
     const lo9 = tri9(1.0);
     const hi9 = tri9(2.0);
     const body9: ShapeFace[] = [bodyFace(polyPath3(lo9))];
     const walls9 = lo9.map((_, k9) => {
-      const n9 = (k9 + 1) % 3;
+      const n9 = (k9 + 1) % lo9.length;
       const mx9 = (lo9[k9][0] + lo9[n9][0]) / 2; const my9 = (lo9[k9][1] + lo9[n9][1]) / 2;
       const ml9 = Math.hypot(mx9, my9) || 1;
       return { d: polyPath3([lo9[k9], lo9[n9], hi9[n9], hi9[k9]]), nx: mx9 / ml9, ny: my9 / ml9,
@@ -13548,9 +13560,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     out.push(...tagKey([
       [discPath3(0, 0.9, 2.03, 0.2), 1, glowLit("#ff4a4a", "#7a1f1f")] as ShapeFace,
     ], partKey(0, 0.9, 2.1)));
-    for (const [ax9, ay9] of [[0, 2.4], [-2.2, -1.4], [2.2, -1.4]] as [number, number][]) {
-      out.push(...tagKey(raceBase(rodFaces(ax9 * 0.8, ay9 * 0.8, 1.2, ax9 * 1.35, ay9 * 1.35, 0.05, 0.14), "terran"),
-        partKey(ax9 * 1.2, ay9 * 1.2, 0.5)));
+    // 다리 — 마디 둘(재요청): 몸에서 무릎까지 비스듬히 오르고, 무릎에서 발까지 꺾여 내린다.
+    for (const [ax9, ay9] of C9) {
+      out.push(...tagKey(raceBase([
+        ...rodFaces(ax9 * 0.8, ay9 * 0.8, 1.2, ax9 * 1.25, ay9 * 1.25, 1.55, 0.14),
+        ...rodFaces(ax9 * 1.25, ay9 * 1.25, 1.55, ax9 * 1.5, ay9 * 1.5, 0.05, 0.12),
+      ], "terran"), partKey(ax9 * 1.25, ay9 * 1.25, 0.8)));
     }
     // 임자색 윗판 — 눈 뒤 윗면을 넓게 덮는다(재요청: 더 크고 잘 보이게).
     out.push(...tagKey([bodyFace(polyPath3([
@@ -18128,7 +18143,7 @@ const MODEL_NORM: Record<string, number> = {
   larva: 1.350,  // 상자 상한(원한 배수 1.466)
   lurker: 0.592,
   lurkeregg: 0.886,
-  mine: 1.084,  // 삼각 몸체·다리 셋 뒤 재측정(model-norm)
+  mine: 1.007,  // 모따기·마디 다리 뒤 재측정(model-norm)
   muta: 0.741,
   mutacocoon: 1.826,  // 상자 상한(원한 배수 1.891)
   observer: 1.938,
@@ -18158,8 +18173,8 @@ const MODEL_NORM: Record<string, number> = {
   tanksiege: 0.723,
   tanksiegebody: 0.723,
   ultra: 0.361,
-  valk: 0.988,   // 코 뭉뚝 뒤 재측정(model-norm)
-  vessel: 0.973,  // 세로 고리 뒤 재측정(model-norm)
+  valk: 1.015,   // 동체 축소 뒤 재측정(model-norm)
+  vessel: 1.014,  // 고리 축소·바깥 방패 뒤 재측정(model-norm)
   vulture: 0.828,
   wraith: 0.774,
   zealot: 0.799,
