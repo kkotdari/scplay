@@ -19343,9 +19343,11 @@ function flushReleased9(): void {
 }
 /** 예산을 넘는 동안 가장 오래 안 쓴 것부터 덜어낸다. */
 function trimSpriteCache<T extends { cv: HTMLCanvasElement; sh?: ShadowPlate | null }>(
-  cache: Map<string, T>, bytes: { n: number }, budget: number,
+  cache: Map<string, T>, bytes: { n: number }, budget: number, bld = false,
 ): void {
   while (bytes.n > budget && cache.size > 1) {
+    // 쫓아낸 장수를 센다 — 다시 굽는 값의 **원인이 압박인지**를 가르는 수다.
+    if (bld) SPRITE_PERF.bldEvict += 1; else SPRITE_PERF.evict += 1;
     const oldest = cache.keys().next();
     if (oldest.done) break;
     const got = cache.get(oldest.value);
@@ -19433,10 +19435,49 @@ function shadowPlate(
      예산 안으로 들어왔으니 쫓아내기가 멈춘다. 그림은 한 톨도 안 바뀐다.
    읽는 법 — 개발자 콘솔에서 `__spritePerf.last`를 보거나, 한 줄 요약은
      `__spritePerf.line()`. 값은 프레임마다 롤링되고 `last`는 직전 한 판의 합이다. */
+/* ★ **굽는 값을 시간으로 잰다**(지적: "판 용량 문제가 아닌 거 같고" → "저그 건물 또는
+   유닛 굽기에 시간이 오래 걸려서 버벅이는 건지") ───────────────────────────────────
+   여태 이 계측판이 센 것은 **횟수**뿐이었다. 그런데 횟수는 값이 아니다 — 종류마다
+   한 장의 값이 다르다. 계측(sprite-check --dpr 3, 다섯 크기 합)으로 저그 건물은
+   하이브 4.6ms · 레어 4.1ms · 익스트랙터 4.0ms인데 견줘 테란·프로토스 건물은
+   엔베 0.9ms · 포지 0.7ms · 팩토리 0.3ms다 — 대여섯 배에서 열몇 배다.
+   ★ 다만 **절대값은 작다**(한 크기당 1~2ms). 그러니 이 값만으로는 12배 저그 기지의
+     버벅임이 설명되지 않는다 — 굽기가 범인이라면 장수가 아주 많아야 한다. 그 '아주
+     많은가'를 눈으로 확인할 수단이 여태 없었다. 그래서 세 가지를 더 센다:
+     · 굽는 **시간**(ms)과 그중 **가장 비쌌던 한 장의 이름** — 범인을 이름으로 짚는다.
+     · **버린 장수**(예산이 넘쳐 LRU가 쫓아낸 것) — 다시 굽기의 원인이 압박인지 아닌지.
+     · **미룬 장수**(프레임 굽기 예산이 다해 대타로 때운 것) — 밀린 일이 얼마나 쌓였나.
+   그리고 이 값들을 **2초 창**으로 모은다 — 프레임 값은 폰 화면에서 눈으로 못 읽는다.
+   스크린샷 한 장에 '지난 2초 동안 무엇이 얼마나 구워졌나'가 남아야 판정이 된다. */
 export const SPRITE_PERF = {
   /** 이번 프레임 누적 — 프레임 경계(perfFrame)에서 last로 넘기고 0으로 되돌린다. */
   bake: 0, hit: 0, blit: 0, direct: 0,
   bldBake: 0, bldHit: 0, bldBlit: 0,
+  /** 이번 프레임에 실제로 **굽는 데 쓴 시간**(ms) — 유닛·건물 따로. */
+  bakeMs: 0, bldBakeMs: 0,
+  /** 예산이 넘쳐 쫓아낸 장수 · 프레임 굽기 예산이 다해 대타로 때운 장수. */
+  evict: 0, bldEvict: 0, defer: 0, bldDefer: 0,
+  /** 2초 창 — 폰에서 눈으로 읽을 수 있는 눈금(아래 winRoll). */
+  /* ★ **버벅인 그 프레임이 굽기였나** — 이 한 쌍이 답을 가른다. 가장 오래 걸린 프레임의
+     길이(worstFrame)와 **그 프레임 안에서 굽는 데 쓴 시간**(worstFrameBake)을 같이
+     남긴다. 300ms 프레임의 굽기가 5ms였다면 범인은 굽기가 아니다 — 그 경우 더 이상
+     판 쪽을 파지 않는다. 반대로 둘이 붙어 있으면 굽기가 맞다. */
+  w: {
+    t0: 0, frames: 0, bake: 0, bldBake: 0, ms: 0, bldMs: 0,
+    evict: 0, bldEvict: 0, defer: 0, bldDefer: 0, worst: 0, worstKind: "",
+    worstFrame: 0, worstFrameBake: 0,
+  },
+  wLast: {
+    secs: 0, frames: 0, bake: 0, bldBake: 0, ms: 0, bldMs: 0,
+    evict: 0, bldEvict: 0, defer: 0, bldDefer: 0, worst: 0, worstKind: "",
+    worstFrame: 0, worstFrameBake: 0,
+  },
+  /** 한 장을 굽고 나서 부른다 — 창에 값과 '가장 비쌌던 한 장'을 남긴다. */
+  noteBake(kind: string, ms: number, bld: boolean): void {
+    const p = SPRITE_PERF;
+    if (bld) { p.bldBakeMs += ms; p.w.bldMs += ms; } else { p.bakeMs += ms; p.w.ms += ms; }
+    if (ms > p.w.worst) { p.w.worst = ms; p.w.worstKind = kind; }
+  },
   /** 직전 프레임의 값. */
   last: {
     bake: 0, hit: 0, blit: 0, direct: 0, bldBake: 0, bldHit: 0, bldBlit: 0, ms: 0,
@@ -19444,6 +19485,22 @@ export const SPRITE_PERF = {
   },
   /** 이번 판에서 본 임자 색의 가짓수 — 열쇠가 색으로 갈리는 몫을 직접 센다. */
   colorSet: new Set<string>(),
+  /** 2초마다 창을 닫아 wLast로 넘긴다 — 프레임 경계(perfFrame)에서 부른다. */
+  winRoll(now: number): void {
+    const p = SPRITE_PERF;
+    const w = p.w;
+    if (w.t0 === 0) { w.t0 = now; return; }
+    if (now - w.t0 < 2000) return;
+    p.wLast = {
+      secs: (now - w.t0) / 1000, frames: w.frames, bake: w.bake, bldBake: w.bldBake,
+      ms: w.ms, bldMs: w.bldMs, evict: w.evict, bldEvict: w.bldEvict,
+      defer: w.defer, bldDefer: w.bldDefer, worst: w.worst, worstKind: w.worstKind,
+      worstFrame: w.worstFrame, worstFrameBake: w.worstFrameBake,
+    };
+    w.t0 = now; w.frames = 0; w.bake = 0; w.bldBake = 0; w.ms = 0; w.bldMs = 0;
+    w.evict = 0; w.bldEvict = 0; w.defer = 0; w.bldDefer = 0; w.worst = 0; w.worstKind = "";
+    w.worstFrame = 0; w.worstFrameBake = 0;
+  },
   line(): string {
     const l = SPRITE_PERF.last;
     const tot = l.bake + l.hit;
@@ -19451,7 +19508,15 @@ export const SPRITE_PERF = {
     return `[sprite] ${l.ms.toFixed(1)}ms · 유닛 굽기 ${l.bake}/${tot}(빗나감 ${miss}%)`
       + ` blit ${l.blit} 직접 ${l.direct} · 건물 굽기 ${l.bldBake}/${l.bldBake + l.bldHit}`
       + ` blit ${l.bldBlit} · 보관 유닛 ${l.keys}판 ${(l.bytes / 1048576).toFixed(1)}MB`
-      + ` 건물 ${l.bldKeys}판 ${(l.bldBytes / 1048576).toFixed(1)}MB · 임자색 ${l.colors}가지`;
+      + ` 건물 ${l.bldKeys}판 ${(l.bldBytes / 1048576).toFixed(1)}MB · 임자색 ${l.colors}가지`
+      + `\n[굽기 ${SPRITE_PERF.wLast.secs.toFixed(1)}초 창] 유닛 ${SPRITE_PERF.wLast.bake}장`
+      + ` ${SPRITE_PERF.wLast.ms.toFixed(0)}ms · 건물 ${SPRITE_PERF.wLast.bldBake}장`
+      + ` ${SPRITE_PERF.wLast.bldMs.toFixed(0)}ms · 버림 U${SPRITE_PERF.wLast.evict}`
+      + `/B${SPRITE_PERF.wLast.bldEvict} · 미룸 U${SPRITE_PERF.wLast.defer}`
+      + `/B${SPRITE_PERF.wLast.bldDefer} · 최악판 ${SPRITE_PERF.wLast.worstKind}`
+      + ` ${SPRITE_PERF.wLast.worst.toFixed(0)}ms · 최악프레임`
+      + ` ${SPRITE_PERF.wLast.worstFrame.toFixed(0)}ms(굽기`
+      + ` ${SPRITE_PERF.wLast.worstFrameBake.toFixed(0)}ms)`;
   },
 };
 /* 콘솔에서 바로 읽을 수 있게 창에 매단다 — 계측기는 켜고 끄는 것이 아니라 늘 도는
@@ -19495,8 +19560,17 @@ function perfFrame(ms: number): void {
     bldKeys: BLD_SPRITE_CACHE.size, bldBytes: bldSpriteBytes.n,
     colors: p.colorSet.size,
   };
+  // 가장 긴 프레임과 **그 프레임의 굽기 몫**을 함께 남긴다(위 ★).
+  if (ms > p.w.worstFrame) { p.w.worstFrame = ms; p.w.worstFrameBake = p.bakeMs + p.bldBakeMs; }
+  p.w.frames += 1;
+  p.w.bake += p.bake; p.w.bldBake += p.bldBake;
+  p.w.evict += p.evict; p.w.bldEvict += p.bldEvict;
+  p.w.defer += p.defer; p.w.bldDefer += p.bldDefer;
+  p.winRoll(typeof performance !== "undefined" ? performance.now() : Date.now());
   p.bake = 0; p.hit = 0; p.blit = 0; p.direct = 0;
   p.bldBake = 0; p.bldHit = 0; p.bldBlit = 0;
+  p.bakeMs = 0; p.bldBakeMs = 0;
+  p.evict = 0; p.bldEvict = 0; p.defer = 0; p.bldDefer = 0;
   // 굽기 예산도 프레임마다 되돌린다(위 UNIT_BAKE_PER_FRAME·BLD_BAKE_PER_FRAME).
   unitBakeLeft9 = UNIT_BAKE_PER_FRAME;
   bldBakeLeft9 = BLD_BAKE_PER_FRAME;
@@ -19651,6 +19725,7 @@ function unitSprite(
            대타는 임시로 빌려 쓰는 그림일 뿐이니 제 나이대로 늙게 둔다 — 새 세대가 다
            구워지면 옛 세대는 예정대로 쫓겨난다. */
         SPRITE_PERF.hit += 1;
+        SPRITE_PERF.defer += 1;
         poseNow = 0;
         return alt9;
       }
@@ -19663,6 +19738,8 @@ function unitSprite(
      콘솔에서만 보였다. 그러면 "덜컥인 그 프레임이 굽기였나"를 화면에서 못 가른다.
      시간으로 올리면 ⚠최악프레임 줄에 이름이 그대로 찍힌다. */
   const pBk9 = PERF9 ? pNow() : 0;
+  // 늘 켜 두는 눈금(위 SPRITE_PERF의 ★) — 굽기는 드물고 이미 비싸, 시계 두 번은 공짜다.
+  const tBk9 = pNow();
   const { faces: all } = resolveShapeFaces(op.kind, op.rotDeg, op.flat, op.viewYaw, op.pitch);
   if (!all) return null;
   /* 등급 캐시 열쇠에도 자세를 싣는다(지적: "걷기 애니메이션 안된다") — 판 열쇠에는
@@ -19719,6 +19796,7 @@ function unitSprite(
   noteSub9(SPRITE_SIZES, subKey, pxq, key);
   spriteBytes.n += canvasBytes(cr.cv);
   trimSpriteCache(SPRITE_CACHE, spriteBytes, budgetNow9(SPRITE_BYTES_MAX, bldSpriteBytes.n));
+  SPRITE_PERF.noteBake(op.kind, pNow() - tBk9, false);
   if (PERF9) pAdd("굽기:유닛판", pNow() - pBk9);
   return entry;
 }
@@ -20419,6 +20497,7 @@ function buildingSpriteBake(
       if (alt9) {
         // 대타는 LRU를 안 되살린다 — 유닛 쪽의 ★ 주석과 같은 까닭이다.
         SPRITE_PERF.bldHit += 1;
+        SPRITE_PERF.bldDefer += 1;
         return alt9;
       }
     }
@@ -20426,6 +20505,7 @@ function buildingSpriteBake(
   bldBakeLeft9 -= 1;
   SPRITE_PERF.bldBake += 1;
   const pBb9 = PERF9 ? pNow() : 0;
+  const tBb9 = pNow();
   const { faces: all } = resolveShapeFaces(op.kind, op.rotDeg, op.flat, op.viewYaw, op.pitch);
   if (!all) return null;
   const faces = stageFaces(
@@ -20516,7 +20596,8 @@ function buildingSpriteBake(
   // 이 열쇠로 구운 크기를 색인에 적는다(유닛 쪽 SPRITE_SIZES와 같은 규약).
   noteSub9(BLD_SPRITE_SIZES, subKey, sideQ, key);
   bldSpriteBytes.n += canvasBytes(cr9.cv);
-  trimSpriteCache(BLD_SPRITE_CACHE, bldSpriteBytes, budgetNow9(BLD_SPRITE_BYTES_MAX, spriteBytes.n));
+  trimSpriteCache(BLD_SPRITE_CACHE, bldSpriteBytes, budgetNow9(BLD_SPRITE_BYTES_MAX, spriteBytes.n), true);
+  SPRITE_PERF.noteBake(op.kind, pNow() - tBb9, true);
   if (PERF9) pAdd("굽기:건물판", pNow() - pBb9);
   return entry;
 }
@@ -21450,7 +21531,7 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
               const bsh9 = shadowPlate(
                 bspr, Math.max(1.5, bspr.side * 0.06), 0.4, B, bldSpriteBytes,
               );
-              trimSpriteCache(BLD_SPRITE_CACHE, bldSpriteBytes, budgetNow9(BLD_SPRITE_BYTES_MAX, spriteBytes.n));
+              trimSpriteCache(BLD_SPRITE_CACHE, bldSpriteBytes, budgetNow9(BLD_SPRITE_BYTES_MAX, spriteBytes.n), true);
               if (bsh9) {
                 SPRITE_PERF.bldBlit += 1;
                 ctx.drawImage(
@@ -30073,6 +30154,31 @@ export default function ReplayMotionPlayer({
                   {(SPRITE_PERF.last.bldBytes / 1048576).toFixed(1)}MB{" / 합 "}
                   {((SPRITE_PERF.last.bytes + SPRITE_PERF.last.bldBytes) / 1048576).toFixed(1)}
                   /{(SPRITE_TOTAL_MAX / 1048576).toFixed(0)}MB
+                </div>
+                {/* ★ **굽는 값**(위 SPRITE_PERF의 ★) — 용량 줄만으로는 '예산에 닿았나'
+                    밖에 못 읽는데, 지금 남은 물음은 그 아래다: 예산 안에 들어와 있어도
+                    프레임마다 다시 굽고 있으면 버벅인다. 2초 창이라 스크린샷 한 장에
+                    남는다. 굽는 장수가 0에 가까운데도 버벅이면 굽기가 아니고(그러면
+                    판 쪽을 더 안 판다), 장수·ms가 계속 오르면 무엇이 열쇠를 흔드는지를
+                    다음에 찾는다.
+                    '버림'이 0이 아니면 예산 압박이 다시 굽기를 부르고 있는 것이고,
+                    '미룸'이 쌓이면 프레임 굽기 예산에 일이 밀려 있는 것이다. */}
+                <div>
+                  굽기 {SPRITE_PERF.wLast.secs.toFixed(0)}초 · 유닛{" "}
+                  {SPRITE_PERF.wLast.bake}장 {SPRITE_PERF.wLast.ms.toFixed(0)}ms · 건물{" "}
+                  {SPRITE_PERF.wLast.bldBake}장 {SPRITE_PERF.wLast.bldMs.toFixed(0)}ms
+                </div>
+                <div>
+                  버림 U{SPRITE_PERF.wLast.evict}/B{SPRITE_PERF.wLast.bldEvict}
+                  {" · 미룸 "}U{SPRITE_PERF.wLast.defer}/B{SPRITE_PERF.wLast.bldDefer}
+                  {" · 최악판 "}{SPRITE_PERF.wLast.worstKind || "-"}{" "}
+                  {SPRITE_PERF.wLast.worst.toFixed(0)}ms
+                </div>
+                {/* 이 줄 하나가 '굽기인가 아닌가'를 가른다(위 ★) — 최악 프레임이 길었는데
+                    괄호 안(그 프레임의 굽기 몫)이 작으면 범인은 굽기가 아니다. */}
+                <div>
+                  최악프레임 {SPRITE_PERF.wLast.worstFrame.toFixed(0)}ms
+                  {" (그중 굽기 "}{SPRITE_PERF.wLast.worstFrameBake.toFixed(0)}ms)
                 </div>
                 {/* 참값이 어느 판으로 구워졌나 — '재분석했는데 갈림 시각이 그대로'가
                     진짜 갈림인지 안 구운 것인지를 이 한 줄이 가른다(위 truthVer 주석). */}

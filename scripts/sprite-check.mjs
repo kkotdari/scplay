@@ -99,6 +99,17 @@ function inBrowser({ KINDS, PXQ, DPR, PAD, BUCKETS }) {
      모든 그림이 실제보다 비쳐 보였고(부품이 겹친 모델일수록 심하다), 그 그림을 보고
      모델을 고치면 없는 병을 고치게 된다. */
   const shadeBoost = (o, fill) => (fill && o < 1 ? Math.min(0.85, o * 1.45) : o);
+  /* ★ Path2D도 앱과 **같이 캐시한다**(소스의 pathOf) — 여기만 면마다 `new Path2D(d)`를
+     새로 만들고 있어서, 이 도구가 잰 굽기 값에는 앱에 없는 **경로 문자열 파싱**이 통째로
+     섞여 있었다. 면이 2000장 넘는 저그 건물일수록 그 몫이 커, 도구가 저그 쪽을 실제보다
+     비싸게 말한다. 계측기가 앱과 다른 자로 재면 그 수를 보고 고친 것이 헛수고가 된다
+     (위 shadeBoost가 데인 자리와 같은 결이다). */
+  const pathCache = new Map();
+  const pathOf = (d) => {
+    let p = pathCache.get(d);
+    if (!p) { p = new Path2D(d); pathCache.set(d, p); }
+    return p;
+  };
   const rows = [];
   for (const kind of KINDS) {
     let faceN = 0;
@@ -132,7 +143,7 @@ function inBrowser({ KINDS, PXQ, DPR, PAD, BUCKETS }) {
         for (const f of faces) {
           c.globalAlpha = shadeBoost(f[1], f[2]);
           c.fillStyle = f[2] ?? "#4aa3ff";
-          try { c.fill(new Path2D(f[0])); } catch (e) { /* 못 읽는 패스는 건너뛴다 */ }
+          try { c.fill(pathOf(f[0])); } catch (e) { /* 못 읽는 패스는 건너뛴다 */ }
         }
       }
       ms += (performance.now() - t0) / N;
