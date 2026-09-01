@@ -19518,12 +19518,12 @@ export const SPRITE_PERF = {
   w: {
     t0: 0, frames: 0, bake: 0, bldBake: 0, ms: 0, bldMs: 0,
     evict: 0, bldEvict: 0, defer: 0, bldDefer: 0, worst: 0, worstKind: "",
-    worstFrame: 0, worstFrameBake: 0,
+    worstFrame: 0, worstFrameBake: 0, blit: 0,
   },
   wLast: {
     secs: 0, frames: 0, bake: 0, bldBake: 0, ms: 0, bldMs: 0,
     evict: 0, bldEvict: 0, defer: 0, bldDefer: 0, worst: 0, worstKind: "",
-    worstFrame: 0, worstFrameBake: 0,
+    worstFrame: 0, worstFrameBake: 0, blit: 0,
   },
   /** 한 장을 굽고 나서 부른다 — 창에 값과 '가장 비쌌던 한 장'을 남긴다. */
   noteBake(kind: string, ms: number, bld: boolean): void {
@@ -19550,11 +19550,11 @@ export const SPRITE_PERF = {
       secs: (now - w.t0) / 1000, frames: w.frames, bake: w.bake, bldBake: w.bldBake,
       ms: w.ms, bldMs: w.bldMs, evict: w.evict, bldEvict: w.bldEvict,
       defer: w.defer, bldDefer: w.bldDefer, worst: w.worst, worstKind: w.worstKind,
-      worstFrame: w.worstFrame, worstFrameBake: w.worstFrameBake,
+      worstFrame: w.worstFrame, worstFrameBake: w.worstFrameBake, blit: w.blit,
     };
     w.t0 = now; w.frames = 0; w.bake = 0; w.bldBake = 0; w.ms = 0; w.bldMs = 0;
     w.evict = 0; w.bldEvict = 0; w.defer = 0; w.bldDefer = 0; w.worst = 0; w.worstKind = "";
-    w.worstFrame = 0; w.worstFrameBake = 0;
+    w.worstFrame = 0; w.worstFrameBake = 0; w.blit = 0;
   },
   line(): string {
     const l = SPRITE_PERF.last;
@@ -19568,6 +19568,8 @@ export const SPRITE_PERF = {
       + ` ${SPRITE_PERF.wLast.ms.toFixed(0)}ms · 건물 ${SPRITE_PERF.wLast.bldBake}장`
       + ` ${SPRITE_PERF.wLast.bldMs.toFixed(0)}ms · 버림 U${SPRITE_PERF.wLast.evict}`
       + `/B${SPRITE_PERF.wLast.bldEvict} · 미룸 U${SPRITE_PERF.wLast.defer}`
+      + ` · 찍기 ${SPRITE_PERF.wLast.frames
+        ? Math.round(SPRITE_PERF.wLast.blit / SPRITE_PERF.wLast.frames) : 0}장/프레임`
       + `/B${SPRITE_PERF.wLast.bldDefer} · 최악판 ${SPRITE_PERF.wLast.worstKind}`
       + ` ${SPRITE_PERF.wLast.worst.toFixed(0)}ms · 최악프레임`
       + ` ${SPRITE_PERF.wLast.worstFrame.toFixed(0)}ms(굽기`
@@ -19619,6 +19621,10 @@ function perfFrame(ms: number): void {
   // 가장 긴 프레임과 **그 프레임의 굽기 몫**을 함께 남긴다(위 ★).
   if (ms > p.w.worstFrame) { p.w.worstFrame = ms; p.w.worstFrameBake = p.bakeMs + p.bldBakeMs; }
   p.w.frames += 1;
+  /* ★ **그리는 장수**도 센다 — 낮은 배율(1·2배)에서는 굽기가 0인데도 프레임이 밀린다.
+     거기서 값을 정하는 것은 굽기가 아니라 **프레임마다 찍는 drawImage 수**다(실측: 2배에서
+     유닛 blit 661장). 프레임당 평균으로 보면 '유닛이 몇이라 몇 장을 찍고 있나'가 바로 읽힌다. */
+  p.w.blit += p.blit + p.bldBlit;
   p.w.bake += p.bake; p.w.bldBake += p.bldBake;
   p.w.evict += p.evict; p.w.bldEvict += p.bldEvict;
   p.w.defer += p.defer; p.w.bldDefer += p.bldDefer;
@@ -21976,7 +21982,8 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
           /* 그림자는 **판에 구워 둔 것**을 몸보다 먼저 한 번 찍는다(shadowPlate 주석) —
              여기서 흐림을 돌리지 않는다. 자리는 몸과 같고 번짐 여백(pad)만큼 벌린 뒤
              아래로 조금 내린다. 그 '조금'은 값 하나라 삯이 없다. */
-          if (bodyShadow) {
+          /* 낮은 배율에서는 지상만 뺀다(위 SHADOW_GROUND_MIN_ZOOM의 ★). */
+          if (bodyShadow && (op.air || zoom >= SHADOW_GROUND_MIN_ZOOM)) {
             /* ★ **공중은 더 멀리·더 짙게**(지적: "공중유닛 겹침시 그림자 나와야하는데
                뮤탈모여있는데 안생김") ────────────────────────────────────────────────
                이 그림자는 몸 바로 아래로 px의 7%(뮤탈이면 두 픽셀 남짓)만 내려간다.
@@ -23524,6 +23531,26 @@ const DEEP_MIN_ZOOM = 6;
  *    자리가 한 곳이어야 하고, 사양 게이트(showOverlap = 품질 '고')와는 뜻이 다르다
  *    (그쪽은 낮은 사양에서 아예 안 켜는 문이다). */
 const SHADOW_MIN_ZOOM = 1;
+/* ★ **낮은 배율에서는 지상 유닛의 그림자를 안 진다**(지적: "모바일 1,2배는 또 다른
+   문제 같아 — 너무 많은 양을 구워야 하다 보니 느려지는 듯(개수)") ────────────────────
+   개수가 범인이라는 관측은 맞았고, 다만 많은 쪽이 **굽는 판이 아니라 그리는 판**이었다:
+   1·2배에서는 굽기가 0장인데(실측) 프레임이 p50 167ms다. 유닛 하나가 판 **두 장**을
+   찍기 때문이다 — 몸과 그림자. 게다가 그림자 판은 흐림 여백 탓에 몸보다 **면적이
+   두세 배 크다**(흐림 반지름에 바닥값 1.5가 있어, 몸이 작을수록 여백 몫이 커진다).
+   곧 낮은 배율에서는 몸보다 그림자를 그리는 값이 더 든다.
+   실측(합성 세계·1배·dpr 3·CPU 4배): 그림자를 끄면 p50 166.6 → 116.6ms(−30%),
+   p75 466.6 → 216.7ms(−54%).
+   ★ 그런데 **공중은 남긴다**(요청) — 이 그림자의 값어치는 '겹쳤을 때 어느 것이 위인지'
+     인데, 지상 유닛은 원작 충돌 처리가 서로 떼어 놓아 낮은 배율에서 겹칠 일이 거의 없다.
+     반면 공중은 서로 안 밀어내 뮤탈 뭉치가 통째로 포개져 난다 — 거기서는 그림자가
+     유일한 단서다(아래 blit의 ★가 적어 둔 그 자리). 그리고 수로도 공중이 소수라,
+     지상만 걷어도 이득의 대부분이 온다.
+   ★ 건물은 안 건드린다 — 수가 적고(화면에 수십), 낮은 배율에서 지형 위에 앉은 덩어리를
+     띄워 보이게 하는 몫이 크다.
+   ★ **작은 기기에서만**이다(지시: "모바일만이야") — PC는 이 자리가 안 아프고, 큰 화면
+     에서는 1·2배에서도 유닛이 폰보다 크게 그려져 그림자가 제 몫을 한다. 그래서 데스크톱
+     에서는 지금 그대로 지상도 그림자를 진다. */
+const SHADOW_GROUND_MIN_ZOOM = smallDevice9 ? 3 : 0;
 /** ★ 전투 효과가 **갈래마다** 서는 칸 — 요청: "2배에서 전투효과: 가시 분출 우리 /
  *  4배에서 전투효과: 피격 / 나머지는 다 8배부터 노출".
  *  여기 적힌 것은 **사다리(가장 이른 칸)** 이고, 실제 칸은 배치의 바닥과 함께 잰다
@@ -30276,6 +30303,9 @@ export default function ReplayMotionPlayer({
                 <div>
                   버림 U{SPRITE_PERF.wLast.evict}/B{SPRITE_PERF.wLast.bldEvict}
                   {" · 미룸 "}U{SPRITE_PERF.wLast.defer}/B{SPRITE_PERF.wLast.bldDefer}
+                  {" · 찍기 "}
+                  {SPRITE_PERF.wLast.frames
+                    ? Math.round(SPRITE_PERF.wLast.blit / SPRITE_PERF.wLast.frames) : 0}장/프레임
                   {" · 최악판 "}{SPRITE_PERF.wLast.worstKind || "-"}{" "}
                   {SPRITE_PERF.wLast.worst.toFixed(0)}ms
                 </div>
