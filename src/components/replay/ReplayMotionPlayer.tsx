@@ -10900,8 +10900,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        그린다: 이 크기에서는 밝게 태운 윗면 한 장이 곧 창이다. 등의 혹과 갈리도록 한 단 더
        어둡게 두고 앞으로 내민다 — 두 덩이가 같은 색이면 혹이 둘로 보일 뿐이다. */
     out.push(...tagKey([
-      ...paintBase(domeFaces3(0, 1.25, 0.62, 0.46, 5.95), "#3d4653"),
-      topFace(groundEllipse(...project(0, 1.35, 6.4), 0.38, 0.28), 0.34),
+      // (걷어냄) 코의 캐노피 돔 + 하이라이트 원 둘(지적: "코의 광택인지 저 부분 두 원 제거")
     ], key9(0, 1.25, 6.2) + 0.4));
     /* ③ 지붕 H.A.L.O. 포드 한 쌍 — 넉 발씩 여덟이 한 살보다(자료: "firing missiles in
        salvos of eight"). 관 넷을 나란히 묶고 덮개 판을 얹으면 발사기 한 덩이가 된다.
@@ -13517,27 +13516,43 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   /* 마인은 그냥 납작한 삼각형 판(재재재지적) — 뿔도 장식도 없이, 땅에 놓인 삼각 판
      한 장(살짝 두께만). */
   mine: () => {
-    /* 스파이더 마인 재작도(사진) — 검붉은 낮은 몸체 위에 **은청색 눈 두 알**이 나란히
-       솟고 그 사이에 붉은 등이 켜진다. 가는 다리 셋(앞 둘·뒤 하나)이 땅을 짚는다.
-       임자색은 몸체 뒤 윗면의 작은 판. */
+    /* 스파이더 마인(재지적: "삼각형 몸체에 다리 3개가 달린 꼴, 테란 기본색") — 앞이
+       뾰족한 삼각 기둥 몸체(테란 기본색·raceBase)에서 세 꼭짓점으로 가는 다리가 뻗어
+       땅을 짚는다. 사진의 은청색 눈 두 알과 사이의 붉은 등은 작게 남긴다. 임자색은
+       몸체 뒤 윗면의 작은 판. */
     const out: ShapeFace[] = [];
-    const BODY9 = "#3a2a2e";
-    out.push(...tagKey(paintBase(frustumFaces3(0, 0, 3.0, 2.4, 3.4, 2.6, 1.3, 0.9), BODY9),
-      partKey(0, 0, 1.5)));
+    const tri9 = (z9: number): [number, number, number][] =>
+      [[0, 2.4, z9], [-2.2, -1.4, z9], [2.2, -1.4, z9]];
+    const lo9 = tri9(1.0);
+    const hi9 = tri9(2.0);
+    const body9: ShapeFace[] = [bodyFace(polyPath3(lo9))];
+    const walls9 = lo9.map((_, k9) => {
+      const n9 = (k9 + 1) % 3;
+      const mx9 = (lo9[k9][0] + lo9[n9][0]) / 2; const my9 = (lo9[k9][1] + lo9[n9][1]) / 2;
+      const ml9 = Math.hypot(mx9, my9) || 1;
+      return { d: polyPath3([lo9[k9], lo9[n9], hi9[n9], hi9[k9]]), nx: mx9 / ml9, ny: my9 / ml9,
+        f: facingRatio(mx9 / ml9, my9 / ml9) };
+    }).sort((q9, w9) => q9.f - w9.f);
+    for (const wl9 of walls9) {
+      const fl9 = faceLight(wl9.nx, wl9.ny, 0.3);
+      body9.push(bodyFace(wl9.d), ...(fl9.visible ? fl9.face(wl9.d) : [sideFace(wl9.d, 0.46)]));
+    }
+    body9.push(bodyFace(polyPath3(hi9)), topFace(polyPath3(hi9), 0.2));
+    out.push(...tagKey(raceBase(body9, "terran"), partKey(0, 0, 1.5)));
     for (const m9 of [-1, 1] as const) {
-      out.push(...tagKey(paintBase(domeFaces3(m9 * 0.95, 0.5, 0.95, 0.85, 2.1), "#c8d4e2"),
-        partKey(m9 * 0.95, 0.5, 2.5)));
+      out.push(...tagKey(paintBase(domeFaces3(m9 * 0.7, 0.55, 0.55, 0.5, 2.0), "#c8d4e2"),
+        partKey(m9 * 0.7, 0.55, 2.3)));
     }
     out.push(...tagKey([
-      [discPath3(0, 0.95, 2.15, 0.3), 1, glowLit("#ff4a4a", "#7a1f1f")] as ShapeFace,
-    ], partKey(0, 0.95, 2.3)));
-    for (const [ax9, ay9] of [[-2.2, 1.8], [2.2, 1.8], [0, -2.6]] as [number, number][]) {
-      out.push(...tagKey(paintBase(rodFaces(ax9 * 0.45, ay9 * 0.45, 1.0, ax9, ay9, 0.05, 0.14), BODY9),
-        partKey(ax9, ay9, 0.5)));
+      [discPath3(0, 0.9, 2.03, 0.2), 1, glowLit("#ff4a4a", "#7a1f1f")] as ShapeFace,
+    ], partKey(0, 0.9, 2.1)));
+    for (const [ax9, ay9] of [[0, 2.4], [-2.2, -1.4], [2.2, -1.4]] as [number, number][]) {
+      out.push(...tagKey(raceBase(rodFaces(ax9 * 0.8, ay9 * 0.8, 1.2, ax9 * 1.35, ay9 * 1.35, 0.05, 0.14), "terran"),
+        partKey(ax9 * 1.2, ay9 * 1.2, 0.5)));
     }
     out.push(...tagKey([bodyFace(polyPath3([
-      [-0.9, -0.95, 2.21], [0.9, -0.95, 2.21], [0.9, -0.2, 2.21], [-0.9, -0.2, 2.21],
-    ]))], partKey(0, -0.5, 2.25)));
+      [-0.8, -1.2, 2.01], [0.8, -1.2, 2.01], [0.5, -0.5, 2.01], [-0.5, -0.5, 2.01],
+    ]))], partKey(0, -0.9, 2.05)));
     return out;
   },
 
@@ -18110,7 +18125,7 @@ const MODEL_NORM: Record<string, number> = {
   larva: 1.350,  // 상자 상한(원한 배수 1.466)
   lurker: 0.592,
   lurkeregg: 0.886,
-  mine: 1.330,  // 재작도(눈·다리) 뒤 재측정(model-norm)
+  mine: 1.084,  // 삼각 몸체·다리 셋 뒤 재측정(model-norm)
   muta: 0.741,
   mutacocoon: 1.826,  // 상자 상한(원한 배수 1.891)
   observer: 1.938,
