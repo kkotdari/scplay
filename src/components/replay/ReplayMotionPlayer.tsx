@@ -4264,10 +4264,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const out: ShapeFace[] = [];
 
     // ── 몸통 3단 치수 — 앞뒤·옆면의 세로 홈이 이 프로필을 따라 굽는다.
-    const ZB0 = 0.6; const ZW0 = 2.2; const ZW1 = 3.1; const ZT = 4.75;
-    const WB = 7.4; const DB = 4.9;      // 바닥
+    const ZB0 = 0.6; const ZW0 = 1.8; const ZW1 = 3.2; const ZT = 4.9;
+    const WB = 8.0; const DB = 5.4;      // 바닥
     const WW = 8.8; const DW = 6.2;      // 허리
-    const WT = 7.0; const DT = 4.4;      // 꼭대기
+    const WT = 7.6; const DT = 5.0;      // 꼭대기
     out.push(...tagKey(frustumFaces3(0, 0, WB, DB, WW, DW, ZW0 - ZB0, ZB0), 2));
     out.push(...tagKey(boxFaces3(0, 0, WW, DW, ZW1 - ZW0, ZW0), 2.1));
     out.push(...tagKey(frustumFaces3(0, 0, WW, DW, WT, DT, ZT - ZW1, ZW1), 2.2));
@@ -20226,7 +20226,7 @@ export const BLD_NORM: Record<string, number> = {
   ebay: 1.443,   // 다리 두 마디 20% 축소 뒤 재측정(잉크 폭이 좁아져 배수는 올라간다)
   evo: 1.540,
   extract: 1.027,  // 가시 밑둥 굵힘 뒤 재측정(bld-norm)
-  factory: 1.409,  // 절두체+허리 재작도 뒤 재측정(bld-norm)
+  factory: 1.400,  // 절두체+허리 재작도 뒤 재측정(bld-norm)
   fleetbeacon: 2.125,
   forge: 1.809,
   gate: 1.774,
