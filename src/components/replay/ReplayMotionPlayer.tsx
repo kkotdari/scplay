@@ -5399,78 +5399,104 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          목표만 내리면 같은 그림이 통째로 작아질 뿐이지만, 잎을 모으면 **잉크 상자 자체가
          좁아져** 같은 목표 안에서 몸이 오히려 실해진다. 뒷건물을 덜 침범하면서 관문이
          작아 보이지 않는 길이 이 둘의 조합이다. */
-    const R = 2.18;   // 축에서 잎 배까지 반지름
+    const R = 2.45;   // 축에서 조각 배까지 반지름
     /* 잎의 앞뒤를 자른다(요청: "스타게이트 네 잎의 앞뒤를 잘라서 길쭉하지 않게") —
        3.1 → 2.1. 접선 반폭(TANG)이 1.95인데 앞뒤 반길이가 3.1이라 잎 하나가 1.6:1로
        늘어난 널빤지였고, 위에서 내려다보는 화면에서 앞뒤 잎 둘이 유독 길쭉하게
        읽혔다. 2.1이면 앞뒤:접선이 1.08:1 — 거의 원에 가까운 잎이 된다.
        앞뒤만 줄이므로 반지름(R)·접선 반폭(TANG)·반지름 두께(RAD)는 그대로다: 관문의
        지름과 구멍 크기는 안 변하고 날의 앞뒤만 짧아진다. */
-    /* 조각 재작도(재재작도 — "기존 컨셉 삭제, 잎의 위치만 참고, 더 좋은 도형") ──
-       잎(꽃잎) 개념을 버린다. 관문은 **고리를 넷으로 자른 호(arc) 조각**이다:
-       상하좌우 자리마다 축 둘레를 도는 두꺼운 곡면 셸 하나 — 크루아상 조각처럼
-       가운데가 굵고 끝으로 갈수록 가늘어지는 굽은 기둥(spirePillar 호 경로).
-         · 위아래 조각은 호가 넓고(반스팬 0.66rad) 납작한 단면,
-         · 좌우 조각은 호가 좁은 대신 앞뒤로 더 깊은 단면 — "살짝 다른 꼴".
-       안쪽 면에는 호를 따라 푸른 수정 창 넷 + 비스듬한 갈빗대(사진 검정·초록 원),
-       임자색은 좌우 조각 바깥 등의 마름모 데칼 두 장씩이다. */
+    /* 조각 재작도 셋째 판(지적 둘) ────────────────────────────────────────────
+       · 각 조각은 **십자 형태의 방패판**이다 — 가운데 세로 기둥의 위아래 끝은
+         **삼각**으로 뾰족하고, 좌우로 뻗는 팔의 끝은 **사각**으로 잘린다.
+         납작한 판을 축 쪽으로 세우고(안·바깥 두 면 + 테두리 림) 반지름 방향
+         두께 0.6을 준다.
+       · 위아래 조각의 바깥 면엔 **일자 막대**가, 좌우 조각의 바깥 면엔
+         **기타 몸통꼴 곡선 두 줄**(허리가 잘록한 S 물결·임자색)이 붙는다.
+       · 발광 창은 **가로**다(지적: "발광 부분이 원작과 방향이 반대임(수직)") —
+         팔을 따라 눕힌 마름모 넷. */
     const GOLD9 = "#c9a227";
     const PHIS = [0, Math.PI / 2, Math.PI, -Math.PI / 2];
     for (const phi of PHIS) {
       const rx = Math.sin(phi);   // 축에서 바깥 방향(x·z 평면)
       const rz = Math.cos(phi);
+      const tx = Math.cos(phi);   // 접선 방향
+      const tz = -Math.sin(phi);
       const vert9 = Math.abs(rz) > 0.5;   // 위·아래 조각인가
-      const SPAN = vert9 ? 0.72 : 0.66;   // 호 반스팬(rad) — 틈은 대각선 자리
-      const THK = vert9 ? 0.56 : 0.5;     // 가운데 반두께(반지름 방향)
-      const OVAL = vert9 ? 2.5 : 3.1;     // 앞뒤 깊이/반두께 — 좌우가 더 깊다
+      const Ro = R + 0.3; const Ri = R - 0.3;
       const key9 = depthNow(rx * R, 0);
-      out.push(...spirePillar({
-        x: 0, y: 0, h: 1, w: 1, segs: 6, sides: 6, oval: OVAL, caps: "none",
-        fill: GOLD9, trueNormal: true, ref: [rx, 0, rz],
-        path: (t: number): [number, number, number] => {
-          const th9 = phi + (2 * t - 1) * SPAN;
-          return [Math.sin(th9) * R, 0, C + Math.cos(th9) * R];
-        },
-        widthOf: (t: number): number => THK * (0.3 + 0.7 * Math.sin(Math.PI * t) ** 0.8),
-      }).map((f9) => { f9[3] = key9; return f9; }));
+      /** 판 좌표 → 세계 좌표: u 접선, v 앞뒤(y), r 반지름. */
+      const P9 = (u9: number, v9: number, r9: number): [number, number, number] =>
+        [rx * r9 + tx * u9, v9, C + rz * r9 + tz * u9];
+      /* 십자 방패 윤곽 — 세로 기둥(반폭 0.85, v ±1.85)의 끝은 삼각(v ±2.4),
+         가로 팔(u ±2.3, 반높이 0.75)의 끝은 일자 사각. */
+      const AW = 0.68; const AL = vert9 ? 1.75 : 1.6; const AH = 0.6;
+      const CV = 1.45; const CT = 1.95;
+      const OUTLINE: [number, number][] = [
+        [-AW, CV], [0, CT], [AW, CV], [AW, AH], [AL, AH], [AL, -AH], [AW, -AH],
+        [AW, -CV], [0, -CT], [-AW, -CV], [-AW, -AH], [-AL, -AH], [-AL, AH], [-AW, AH],
+      ];
       const fSide = facingRatio(rx, 0);
       const bellyOn = rz > 0.5 ? false : rz < -0.5 ? true : fSide < -0.1;
+      const plate: ShapeFace[] = [];
+      // 테두리 림 — 안·바깥 면 사이 두께의 실제 면. 판 면들이 위에서 덮는다.
+      for (let e9 = 0; e9 < OUTLINE.length; e9 += 1) {
+        const [u0, v0] = OUTLINE[e9];
+        const [u1, v1] = OUTLINE[(e9 + 1) % OUTLINE.length];
+        plate.push([polyPath3([P9(u0, v0, Ri), P9(u1, v1, Ri), P9(u1, v1, Ro), P9(u0, v0, Ro)]),
+          1, "#9a7d1f"] as ShapeFace);
+      }
+      const inner9 = polyPath3(OUTLINE.map(([u9, v9]) => P9(u9, v9, Ri)));
+      const outer9 = polyPath3(OUTLINE.map(([u9, v9]) => P9(u9, v9, Ro)));
+      // 먼 면 먼저, 가까운 면 나중 — 배가 보이면 안면이 가깝다.
       if (bellyOn) {
-        /* 안쪽 면 — 호를 따라 수정 창 넷(아쿠아·활성시 발광)과 그 사이 비스듬한
-           어두운 금 갈빗대. 창 자리도 호 위라 조각의 굽이를 따라간다. */
-        const ri9 = R - THK - 0.05;
+        plate.push([outer9, 1, GOLD9] as ShapeFace, [inner9, 1, "#b8921f"] as ShapeFace);
+      } else {
+        plate.push([inner9, 1, "#b8921f"] as ShapeFace, [outer9, 1, GOLD9] as ShapeFace,
+          topFace(outer9, 0.18));
+      }
+      out.push(...tagKey(plate, key9));
+      if (!bellyOn) {
+        if (vert9) {
+          // 일자 막대 — 바깥 면을 가로지르는 곧은 띠.
+          const bar9 = polyPath3([
+            P9(-1.95, -0.24, Ro + 0.12), P9(1.95, -0.24, Ro + 0.12),
+            P9(1.95, 0.24, Ro + 0.12), P9(-1.95, 0.24, Ro + 0.12),
+          ]);
+          out.push(...tagKey([
+            [bar9, 1, "#b8921f"] as ShapeFace, topFace(bar9, 0.25),
+            [polyPath3([P9(-1.95, 0.24, Ro), P9(1.95, 0.24, Ro),
+              P9(1.95, 0.24, Ro + 0.12), P9(-1.95, 0.24, Ro + 0.12)]), 1, "#8a6f1d"] as ShapeFace,
+          ], key9 + 0.5));
+        } else {
+          // 기타 몸통꼴 곡선 두 줄 — 끝이 넓고 허리가 잘록한 S 물결(임자색).
+          for (const m9 of [-1, 1] as const) {
+            out.push(...spirePillar({
+              x: 0, y: 0, h: 1, w: 0.17, tipW: 0.17, segs: 5, sides: 3,
+              trueNormal: true, ref: [rx, 0, rz],
+              path: (t9: number): [number, number, number] =>
+                P9(-1.7 + 3.4 * t9, m9 * (0.88 - 0.42 * Math.sin(Math.PI * t9)), Ro + 0.15),
+            }).map((f9) => { f9[3] = key9 + 0.5; return f9; }));
+          }
+        }
+      }
+      if (bellyOn) {
+        /* 안면 — 가로로 누운 수정 창 넷(아쿠아·활성 발광)과 사이 갈빗대.
+           팔 띠(v ±0.6) 안에서 접선을 따라 줄짓는다. */
         const win: ShapeFace[] = [];
         for (let k9 = 0; k9 < 4; k9 += 1) {
-          const th9 = phi + (-0.36 + k9 * 0.24);
-          const ux9 = Math.cos(th9); const uz9 = -Math.sin(th9);
-          const cx9 = Math.sin(th9) * ri9; const cz9 = C + Math.cos(th9) * ri9;
-          const d9 = polyPath3(([[-0.26, 0], [0, 0.5], [0.26, 0], [0, -0.5]] as [number, number][])
-            .map(([a9, b9]) => [cx9 + ux9 * a9, b9, cz9 + uz9 * a9] as [number, number, number]));
+          const u9 = -1.14 + k9 * 0.76;
+          const d9 = polyPath3(([[-0.32, 0], [0, 0.22], [0.32, 0], [0, -0.22]] as [number, number][])
+            .map(([a9, b9]) => P9(u9 + a9, b9, Ri - 0.03)));
           win.push([d9, 1, glowLit("#60f2df", "#22776b")] as ShapeFace, topFace(d9, 0.35));
         }
-        for (let k9 = 0; k9 < 5; k9 += 1) {
-          const th9 = phi + (-0.48 + k9 * 0.24);
-          const ux9 = Math.cos(th9); const uz9 = -Math.sin(th9);
-          const cx9 = Math.sin(th9) * ri9; const cz9 = C + Math.cos(th9) * ri9;
-          const d9 = polyPath3(([[-0.05, -0.62], [0.05, -0.62], [0.13, 0.62], [0.03, 0.62]] as [number, number][])
-            .map(([a9, b9]) => [cx9 + ux9 * a9, b9, cz9 + uz9 * a9] as [number, number, number]));
+        for (let k9 = 0; k9 < 3; k9 += 1) {
+          const u9 = -0.76 + k9 * 0.76;
+          const d9 = polyPath3(([[-0.06, -0.5], [0.06, -0.5], [0.14, 0.5], [0.02, 0.5]] as [number, number][])
+            .map(([a9, b9]) => P9(u9 + a9, b9, Ri - 0.03)));
           win.push([d9, 1, "#7a5f15"] as ShapeFace);
         }
         out.push(...tagKey(win, key9 + 0.6));
-      } else if (!vert9) {
-        /* 좌우 조각 바깥 등 — 임자색 마름모 데칼 두 장(프로토스 건물마다 개인색
-           자리 하나 규칙). 호 위에 놓여 조각의 굽이를 따라간다. */
-        const ro9 = R + THK + 0.05;
-        const dec: ShapeFace[] = [];
-        for (const dth9 of [-0.22, 0.22]) {
-          const th9 = phi + dth9;
-          const ux9 = Math.cos(th9); const uz9 = -Math.sin(th9);
-          const cx9 = Math.sin(th9) * ro9; const cz9 = C + Math.cos(th9) * ro9;
-          const d9 = polyPath3(([[-0.24, 0], [0, 0.45], [0.24, 0], [0, -0.45]] as [number, number][])
-            .map(([a9, b9]) => [cx9 + ux9 * a9, b9, cz9 + uz9 * a9] as [number, number, number]));
-          dec.push(bodyFace(d9));
-        }
-        out.push(...tagKey(dec, key9 + 0.6));
       }
     }
     return out;
@@ -20221,7 +20247,7 @@ export const BLD_FILL_TARGET: Record<string, number> = {
  *  표에 없는 종류는 1(모델 그대로)이다. */
 export const BLD_NORM: Record<string, number> = {
   academy: 1.470,  // 치마형 받침으로 바꾼 뒤 bld-norm 재측정
-  arch: 2.669,  // 호 조각 재작도 뒤 재측정(bld-norm)
+  arch: 2.576,  // 십자 방패판 재작도 뒤 재측정(bld-norm)
   archives: 2.489,  // 상자 상한에 걸림
   armory: 1.223,
   assim: 1.655,
