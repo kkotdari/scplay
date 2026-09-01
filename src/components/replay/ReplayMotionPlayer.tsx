@@ -7578,12 +7578,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const out: ShapeFace[] = [];
 
     // ── 받침 — 넓게 벌어진 낮은 단(사진의 다엽 기단을 절두체 하나로 요약).
-    out.push(...tagKey(paintBase(frustumFaces3(0, 0, 8.4, 6.4, 7.6, 5.6, 1.1, 0.55), KH_D), 0));
+    /* 몸은 **테란 기본색**이다(정정: "청동색은 조금만 남기고 테란 기본색으로") — 칠을
+       안 하면 끝의 raceBase가 은색으로 채운다. 청동은 왼 원반단의 윗단·돔에만 남긴다. */
+    out.push(...tagKey(frustumFaces3(0, 0, 8.4, 6.4, 7.6, 5.6, 1.1, 0.55), 0));
 
     // ── 발판 넷 — **테란 공통 다리·발판**(정정: "다른 테란 건물들 발판과 같은 모델로").
     //    정사각 네 귀 배치는 그대로다.
     for (const [fx9, fy9] of [
-      [-2.6, 2.6], [2.6, 2.6], [-2.6, -2.6], [2.6, -2.6],
+      [-3.0, 3.0], [3.0, 3.0], [-3.0, -3.0], [3.0, -3.0],   // 더 바깥으로(정정)
     ] as [number, number][]) {
       out.push(...legAndFoot(fx9, fy9, 0.75));
     }
@@ -7594,8 +7596,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const k9 = 6 + depthNow(cx9, cy9) * 1.6;
       // 한 뼘 축소(정정: "왼쪽 동그란 판 크기 축소") — 2.35/1.85 → 1.92/1.5, 돔·갓도 함께.
       out.push(...tagKey([
-        ...paintBase(cylinderFaces3(cx9, cy9, 1.92, 1.0, 1.55), KH),
-        ...paintBase(cylinderFaces3(cx9, cy9, 1.5, 0.72, 2.55), KH_D),
+        ...cylinderFaces3(cx9, cy9, 1.92, 1.0, 1.55),          // 테란 기본색
+        ...paintBase(cylinderFaces3(cx9, cy9, 1.5, 0.72, 2.55), KH_D),   // 청동 잔향 ①
       ], k9));
       // 둘레 발광 마디 여섯 — 아랫단 벽을 도는 라임 창(연구 중 점등).
       const arc9: ShapeFace[] = [];
@@ -7613,7 +7615,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ]), 1, LIME] as ShapeFace);
       }
       out.push(...tagKey(arc9, k9 + 0.3));
-      out.push(...tagKey(paintBase(domeFaces3(cx9, cy9, 1.28, 0.85, 3.27), KH), k9 + 0.5));
+      out.push(...tagKey(paintBase(domeFaces3(cx9, cy9, 1.28, 0.85, 3.27), KH), k9 + 0.5));   // 청동 잔향 ②
       // 임자색 갓 — 돔 꼭대기의 작은 흰 캡(사진의 흰 자리 = 임자색).
       pc.push(...tagKey(domeFaces3(cx9, cy9, 0.6, 0.36, 3.98), k9 + 0.8));
     }
@@ -7650,7 +7652,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     {
       const bx9 = 3.15; const by9 = 0.3;
       const k9 = 10 + depthNow(bx9, by9) * 1.6;
-      out.push(...tagKey(paintBase(frustumFaces3(bx9, by9, 2.6, 2.7, 2.2, 2.3, 2.3, 0.9), KH), k9));
+      out.push(...tagKey(frustumFaces3(bx9, by9, 2.6, 2.7, 2.2, 2.3, 2.3, 0.9), k9));   // 테란 기본색
       if (facingRatio(0, 1) > 0.08) {
         const fy9 = by9 + 1.32;
         const win9: ShapeFace[] = [[polyPath3([
