@@ -5425,9 +5425,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const vert9 = Math.abs(rz) > 0.5;   // 위·아래 조각인가
       const Ro = R + 0.15; const Ri = R - 0.15;
       const key9 = depthNow(rx * R, 0);
-      /** 판 좌표 → 세계 좌표: u 접선, v 앞뒤(y), r 반지름. */
-      const P9 = (u9: number, v9: number, r9: number): [number, number, number] =>
-        [rx * r9 + tx * u9, v9, C + rz * r9 + tz * u9];
+      /** 판 좌표 → 세계 좌표: u 접선, v 앞뒤(y), r 반지름 — 평면이 아니라
+       *  **원통으로 감는다**(지적: "정면에서 봤을 때 원의 호로 보이게"): 접선
+       *  오프셋을 각도로 바꿔 판 전체가 축 둘레 원호를 따라 안쪽으로 휜다. */
+      const P9 = (u9: number, v9: number, r9: number): [number, number, number] => {
+        const th9 = phi + u9 / R;
+        return [Math.sin(th9) * r9, v9, C + Math.cos(th9) * r9];
+      };
       /* 십자 방패 윤곽 — 세로 기둥(반폭 0.85, v ±1.85)의 끝은 삼각(v ±2.4),
          가로 팔(u ±2.3, 반높이 0.75)의 끝은 일자 사각. */
       const AW = 0.95; const AL = vert9 ? 1.75 : 1.6; const AH = 0.85;
@@ -5498,7 +5502,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const win: ShapeFace[] = [];
         for (let k9 = 0; k9 < 4; k9 += 1) {
           const v9 = -1.14 + k9 * 0.76;
-          const d9 = polyPath3(([[0, -0.32], [0.22, 0], [0, 0.32], [-0.22, 0]] as [number, number][])
+          // 발광체는 **정사각형**(지적: 마름모 아님).
+          const d9 = polyPath3(([[-0.24, -0.24], [0.24, -0.24], [0.24, 0.24], [-0.24, 0.24]] as [number, number][])
             .map(([a9, b9]) => P9(a9, v9 + b9, Ri - 0.03)));
           win.push([d9, 1, glowLit("#60f2df", "#22776b")] as ShapeFace, topFace(d9, 0.35));
         }
@@ -20259,7 +20264,7 @@ export const BLD_FILL_TARGET: Record<string, number> = {
  *  표에 없는 종류는 1(모델 그대로)이다. */
 export const BLD_NORM: Record<string, number> = {
   academy: 1.470,  // 치마형 받침으로 바꾼 뒤 bld-norm 재측정
-  arch: 2.590,  // 십자 방패판 재작도 뒤 재측정(bld-norm)
+  arch: 2.602,  // 십자 방패판 재작도 뒤 재측정(bld-norm)
   archives: 2.489,  // 상자 상한에 걸림
   armory: 1.223,
   assim: 1.655,
