@@ -10878,29 +10878,30 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        막는다. 셋이면 코·가운데·꼬리가 저마다 제 차례를 갖는다. */
     /* 동체를 줄인다(요청: 특히 앞부분) — 길이 4.8 → 4.0(앞 0.7·뒤 0.1). 코 단면은
        살짝 아래로 치우친다(요청): 뒤 6할은 5.75 그대로, 코로 갈수록 0.35 내려간다. */
-    /* 조종석(t≈0.49)에서 코끝까지 **평평한 경사면 하나**(요청) — z는 조종석부터 코까지
-       선형으로 내려가고 폭도 같은 구간에서 선형으로 줄어, 윗면이 한 평면이 된다. */
-    const hullPath9 = (t9: number): [number, number, number] =>
-      [0, -2.1 + 4.0 * t9, 5.75 - 0.4 * Math.max(0, (t9 - 0.49) / 0.51)];
-    // 폭을 한 뼘 더(지적) — 통통한 것은 세로이고 가로는 아니다.
-    const hullW9 = widthCurve([[0, 1.42], [0.3, 1.72], [1, 0.7]]);   // 0.3 → 1 선형 테이퍼(윗면이 한 평면)
-    for (const [t0, t1, cap9] of [
-      [0, 1 / 3, "bottom"], [1 / 3, 2 / 3, "none"], [2 / 3, 1, "top"],
-    ] as [number, number, "bottom" | "none" | "top"][]) {
-      const mid9 = hullPath9((t0 + t1) / 2);
-      out.push(...tagKey(raceBase(spirePillar({
-        /* 세로로 **통통하게**(지적: "몸은 통통함 세로로") — oval이 곧 '높이 ÷ 폭'이라
-           낮게 두면 접시가 되고 키우면 부피가 선다. */
-        /* 둥근 느낌을 걷는다(요청) — 팔각 → **육각** 단면. ref가 x라 꼭짓점이 좌우에
-           서고 윗면·밑면은 평평한 직선면, 옆은 빗면 둘이다. 조종부 돔만 둥글게 남긴다. */
-        /* 옆면을 수직으로 살짝 깎는다(요청) — 팔각 단면을 22.5도 돌려 세워, 윗면·밑면이
-           평평하고 좌우에 수직 옆면이 서며 그 사이가 빗면이다. */
-        x: 0, y: 0, h: 1, w: 1, segs: 4, sides: 8, ref: [Math.cos(Math.PI / 8), 0, Math.sin(Math.PI / 8)],
-        caps: cap9, oval: 0.8,
-        path: (t9: number): [number, number, number] => hullPath9(t0 + (t1 - t0) * t9),
-        widthOf: (t9: number): number => hullW9(t0 + (t1 - t0) * t9),
-      }), "terran"), key9(mid9[0], mid9[1], mid9[2])));
+    /* ★ 동체 완전 재작도(요청: "면수 확 줄이기 · 코가 너무 내려감 · 옆면은 곡선이
+       아니라 직선면") — 굽은 기둥을 걷고 **평면도 육각형 각기둥** 하나로 짠다: 뒤가
+       넓고 코로 갈수록 좁아지는 육각 윤곽, 바닥은 평평(5.1), 윗면은 코 쪽만 살짝
+       낮다(6.5 → 6.15). 벽 여섯·윗면·밑면 = 여덟 면이 전부다. */
+    const PLAN9: [number, number][] = [
+      [-1.7, -2.1], [1.7, -2.1], [1.9, -0.4], [0.7, 1.9], [-0.7, 1.9], [-1.9, -0.4],
+    ];
+    const topZ9 = (y9: number): number => 6.5 - 0.35 * Math.max(0, (y9 + 0.4) / 2.3);
+    const lo9 = PLAN9.map(([x9, y9]) => [x9, y9, 5.1] as [number, number, number]);
+    const hi9 = PLAN9.map(([x9, y9]) => [x9, y9, topZ9(y9)] as [number, number, number]);
+    const hull9: ShapeFace[] = [bodyFace(polyPath3(lo9))];
+    const walls9 = lo9.map((_, k9) => {
+      const n9 = (k9 + 1) % lo9.length;
+      const mx9 = (lo9[k9][0] + lo9[n9][0]) / 2; const my9 = (lo9[k9][1] + lo9[n9][1]) / 2;
+      const ml9 = Math.hypot(mx9, my9) || 1;
+      return { d: polyPath3([lo9[k9], lo9[n9], hi9[n9], hi9[k9]]), nx: mx9 / ml9, ny: my9 / ml9,
+        f: facingRatio(mx9 / ml9, my9 / ml9) };
+    }).sort((q9, w9) => q9.f - w9.f);
+    for (const wl9 of walls9) {
+      const fl9 = faceLight(wl9.nx, wl9.ny, 0.3);
+      hull9.push(bodyFace(wl9.d), ...(fl9.visible ? fl9.face(wl9.d) : [sideFace(wl9.d, 0.46)]));
     }
+    hull9.push(bodyFace(polyPath3(hi9)), topFace(polyPath3(hi9), 0.2));
+    out.push(...tagKey(raceBase(hull9, "terran"), key9(0, -0.2, 5.8)));
     /* ② 등의 둥근 혹 — 몸에 두께를 준다. 한 단 어두워 동체와 갈린다. */
     /* 조종부(사진) — 등 한가운데 **둥근 링** 위에 어두운 캐노피 돔이 앉는다. 링이 있어야
        '해치 달린 조종석'으로 읽히고, 돔만 있으면 등의 혹이다. */
@@ -10909,8 +10910,6 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ...paintBase(domeFaces3(0, -0.15, 0.88, 0.6, 6.32), "#3d4653"),
       topFace(groundEllipse(...project(0, -0.3, 6.86), 0.42, 0.28), 0.3),
     ], key9(0, -0.15, 6.5) + 0.3));
-    // 코 밑 턱판(사진) — 코가 아래로 한 겹 더 두꺼운 쐐기로 읽힌다.
-    out.push(...tagKey(raceBase(boxFaces3(0, 1.45, 1.3, 0.9, 0.28, 4.95), "terran"), key9(0, 1.45, 5.1)));
     /* ②-b 조종석(지적: "조종석부 표현이 없음") — 혹 앞에 얹힌 어두운 물집. 창을 따로 안
        그린다: 이 크기에서는 밝게 태운 윗면 한 장이 곧 창이다. 등의 혹과 갈리도록 한 단 더
        어둡게 두고 앞으로 내민다 — 두 덩이가 같은 색이면 혹이 둘로 보일 뿐이다. */
@@ -10960,13 +10959,25 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const ARM_L9 = 1.2 * 0.8;
     for (const m9 of [-1, 1] as const) {
       const ax9 = 1.3 + ARM_L9;               // 팔 끝 = 방패 뿌리
-      // 팔은 둥근 막대가 아니라 **입체 각재**(사진·요청) — 상자 보.
-      out.push(...tagKey(paintBase(
-        boxFaces3(m9 * (1.3 + ARM_L9 / 2), -1.02, ARM_L9 + 0.2, 0.55, 0.5, 5.0), TERRAN_STEEL,
-      ), key9(m9 * (1.3 + ARM_L9 / 2), -1.02, 5.28)));
-      // 방패는 **직사각형에 가까운** 세운 판(사진·요청) — 얇은 상자, 칠 안 해 임자색.
-      out.push(...tagKey(boxFaces3(m9 * (ax9 + 0.35), -1.05, 0.22, 1.25, 2.7, 4.4),
-        key9(m9 * (ax9 + 0.35), -1.05, 5.75)));
+      /* 팔은 **직각삼각형** 쐐기(요청) — 윗변은 수평(5.55), 몸 쪽이 두껍고(4.75까지)
+         끝으로 갈수록 얇아진다. 앞뒤 두께 0.55의 삼각기둥: 앞·뒤 삼각면 + 위·빗면. */
+      const AX0 = m9 * 1.3; const AX1 = m9 * ax9;
+      const armF9 = (yy9: number): [number, number, number][] => [
+        [AX0, yy9, 5.55], [AX1, yy9, 5.55], [AX0, yy9, 4.75],
+      ];
+      const aF = armF9(-0.75); const aB = armF9(-1.3);
+      out.push(...tagKey(paintBase([
+        bodyFace(polyPath3(aB)), sideFace(polyPath3(aB), 0.3),
+        bodyFace(polyPath3([aB[1], aB[2], aF[2], aF[1]])), sideFace(polyPath3([aB[1], aB[2], aF[2], aF[1]]), 0.4),
+        bodyFace(polyPath3(aF)), ...faceLight(0, 1).face(polyPath3(aF)),
+        bodyFace(polyPath3([aB[0], aB[1], aF[1], aF[0]])), topFace(polyPath3([aB[0], aB[1], aF[1], aF[0]]), 0.22),
+      ], TERRAN_STEEL), key9(m9 * (1.3 + ARM_L9 / 2), -1.02, 5.2)));
+      // 방패는 직사각 판을 **살짝 바깥으로 기울여** 세운다(요청) — 위가 0.3 바깥.
+      out.push(...tagKey(spirePillar({
+        x: 0, y: 0, h: 1, w: 1, segs: 1, sides: 4, ref: [0, 1, 0], caps: "both", oval: 0.16,
+        path: (t9: number): [number, number, number] => [m9 * (ax9 + 0.25 + 0.3 * t9), -1.05, 4.4 + 2.7 * t9],
+        widthOf: (): number => 0.62,
+      }), key9(m9 * (ax9 + 0.4), -1.05, 5.75)));
     }
     /* ⑤ 꽁무니 엔진 넷 — 뒤를 볼 때만 포구가 어두워지는 관이라 각도를 스스로 탄다. */
     /* 넷을 **정사각으로** 모은다(지적) — 앞판은 마름모(아래 둘 넓게·위 둘 좁게)라 흩어져
@@ -18188,7 +18199,7 @@ const MODEL_NORM: Record<string, number> = {
   tanksiege: 0.723,
   tanksiegebody: 0.723,
   ultra: 0.361,
-  valk: 1.080,   // 링 조종부·각재 팔·직사각 방패 뒤 재측정(model-norm)
+  valk: 1.082,   // 직선면 육각 동체 재작도 뒤 재측정(model-norm)
   vessel: 0.882,  // 방패 20% 축소 뒤 재측정(model-norm)
   vulture: 0.828,
   wraith: 0.774,
