@@ -10938,7 +10938,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const bk9 = polyPath3([rF, rR, tR, tF]);
       const end9 = polyPath3([tB, tF, tR, tT]);
       const arm9: ShapeFace[] = [bodyFace(bot9), sideFace(bot9, 0.4)];
-      for (const [d9, nx9, ny9] of [[bk9, 0, -1], [end9, m9, 0], [fr9, 0, 1]] as [string, number, number][]) {
+      /* 벽은 **등진 것부터 앞으로** 정렬해 그린다(지적: 뒤에서 보면 내부 면이 비침) —
+         고정 차례면 뒤에서 볼 때 등진 앞벽이 뒷벽 위에 덮여 속이 비쳤다. 등진 벽은
+         그늘만 얹어 두어도 앞벽이 위에서 덮는다. */
+      const aw9 = ([[bk9, 0, -1], [end9, m9, 0], [fr9, 0, 1]] as [string, number, number][])
+        .map(([d9, nx9, ny9]) => ({ d9, nx9, ny9, f: facingRatio(nx9, ny9) }))
+        .sort((q9, w9) => q9.f - w9.f);
+      for (const { d9, nx9, ny9 } of aw9) {
         const fl9 = faceLight(nx9, ny9, 0.2);
         arm9.push(bodyFace(d9), ...(fl9.visible ? fl9.face(d9) : [sideFace(d9, 0.46)]));
       }
