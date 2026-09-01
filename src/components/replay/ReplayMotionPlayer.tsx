@@ -10847,17 +10847,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   /* 발키리(실물 참고) — 뭉툭한 큰 몸통에 둥근 코, 지붕의 미사일 튜브 다발 두 줄,
      양옆의 납작한 판 날개, 뒤 엔진 블록. */
   valk: () => {
-    /* 발키리 재작도(회전 프레임 다섯 장 참고) ───────────────────────────────────────
-       원작의 실루엣을 정하는 것은 넷이다:
-         ① 동체 허리를 두르는 **큰 원형 고리(후프)** — 축 방향(y)에 수직한 x·z 평면의
-            원. 정면에서 동체 가운데에 뚫린 둥근 구멍으로 보이고, 고리 둘레엔 임자색
-            조각(원작의 빨간 띠)이 박힌다. 임자색 자리는 여기와 날개 방패다.
-         ② **납작한 쐐기 코** — 앞면에 네모난 흡기판이 있고 아래로 뾰족하다.
-         ③ 뒤 갑판의 **적층 발사관**(레일 달린 상자 둘)과 그 뒤 엔진관.
-         ④ 몸 옆에서 **위·바깥·뒤로 쓸린 날개(V)** 한 쌍, 끝에 **세로 직사각 방패**.
-       동체는 테란 기본색(raceBase). 뒤쪽 작은 조종 돔은 고리 뒤 갑판에 앉는다. */
+    /* 발키리(묘사대로 재작도) ──────────────────────────────────────────────────────
+       1. 동체: 가운데는 **넓은 드럼통** 위에 **낮은 반구형 조종석**. 뒤쪽은 앞이 좁고 뒤가
+          넓은 절두체(앞뒤 크기 차 적음). 앞은 **넙적한 새 부리**가 드럼 앞부분 아래쪽에 달린다.
+       2. 뒷동체 양옆에 절두체 팔 — 윗면은 경사가 심하고 아랫면은 덜하다. 그 끝에 방패꼴 날개.
+       3. 임자색은 돔 중간의 고리 띠와 날개 방패 모서리를 두르는 띠. */
     const out: ShapeFace[] = [];
     const key9 = partKey;
+    /** 평면 윤곽을 zLo~zHi로 세운 각기둥(벽은 뒤→앞, 윗면은 마지막). */
     const tier9 = (plan: [number, number][], zLo: (y9: number) => number, zHi: (y9: number) => number): ShapeFace[] => {
       const lo9 = plan.map(([x9, y9]) => [x9, y9, zLo(y9)] as [number, number, number]);
       const hi9 = plan.map(([x9, y9]) => [x9, y9, zHi(y9)] as [number, number, number]);
@@ -10877,90 +10874,61 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       return f9;
     };
 
-    // ① 동체 — 뒤 몸통 상자(y −2.9~0.6) + 쐐기 코(y 0.6~3.1).
-    out.push(...tagKey(raceBase(boxFaces3(0, -1.15, 2.0, 3.5, 1.25, 5.2), "terran"), key9(0, -1.15, 5.8)));
+    // 1-가) 가운데 드럼통 + 낮은 반구 조종석 + 돔 허리의 임자색 고리.
+    out.push(...tagKey(raceBase(cylinderFaces3(0, 0.2, 1.6, 1.1, 5.2), "terran"), key9(0, 0.2, 5.75)));
+    out.push(...tagKey([
+      // 임자색 고리(칠 안 함)를 먼저 깔고 돔으로 가운데를 덮는다 — 원통 윗면이 돔을
+      // 덮지 않고 돔 허리 바깥으로 삐져나온 띠만 남는다.
+      ...cylinderFaces3(0, 0.2, 1.12, 0.14, 6.48),
+      ...raceBase(domeFaces3(0, 0.2, 1.15, 0.6, 6.3), "terran"),
+    ], key9(0, 0.2, 6.6)));
+    // 1-나) 뒤 절두체 — 앞(y −1.4) 좁고 뒤(y −3.2) 넓되 차이는 적게.
     out.push(...tagKey(raceBase(tier9(
-      [[-1.0, 0.6], [1.0, 0.6], [0.5, 3.1], [-0.5, 3.1]],
-      (y9) => 5.3 + 0.25 * Math.max(0, (y9 - 0.6) / 2.5),
-      (y9) => 6.45 - 0.7 * Math.max(0, (y9 - 0.6) / 2.5),
-    ), "terran"), key9(0, 1.85, 5.8)));
-    // 코 앞면 흡기판 + 턱 쐐기.
-    out.push(...tagKey([
-      [polyPath3([[-0.42, 3.11, 5.62], [0.42, 3.11, 5.62], [0.42, 3.11, 5.72], [-0.42, 3.11, 5.72]]), 1, "#3d4653"] as ShapeFace,
-      ...raceBase([
-        bodyFace(polyPath3([[-0.5, 3.1, 5.55], [0.5, 3.1, 5.55], [0, 3.5, 5.15]])),
-        sideFace(polyPath3([[-0.5, 3.1, 5.55], [0.5, 3.1, 5.55], [0, 3.5, 5.15]]), 0.3),
-      ], "terran"),
-    ], key9(0, 3.2, 5.5)));
+      [[-1.2, -1.4], [1.2, -1.4], [1.4, -3.2], [-1.4, -3.2]],
+      () => 5.25, (y9) => 6.25 + 0.15 * Math.max(0, (-1.4 - y9) / 1.8),
+    ), "terran"), key9(0, -2.3, 5.8)));
+    // 1-다) 넙적한 부리 — 드럼 앞부분 아래쪽에 달린 낮은 쐐기.
+    out.push(...tagKey(raceBase(tier9(
+      [[-1.2, 1.2], [1.2, 1.2], [0.55, 3.2], [-0.55, 3.2]],
+      (y9) => 5.15 + 0.15 * Math.max(0, (y9 - 1.2) / 2.0),
+      (y9) => 5.8 - 0.3 * Math.max(0, (y9 - 1.2) / 2.0),
+    ), "terran"), key9(0, 2.2, 5.45)));
 
-    // ② 큰 고리 — x·z 평면의 원(반지름 1.95, y −0.3). 네 호로 나눠 제 깊이를 단다.
-    const RR9 = 1.95; const RY9 = -0.3; const RZ9 = 5.85;
-    for (let q9 = 0; q9 < 4; q9 += 1) {
-      const mid9 = ((q9 + 0.5) / 4) * Math.PI * 2;
-      out.push(...tagKey(paintBase(spirePillar({
-        x: 0, y: 0, h: 1, w: 0.26, tipW: 0.26, segs: 6, sides: 6, caps: "none", oval: 1.5,
-        ref: [0, 1, 0],
-        path: (t9: number): [number, number, number] => {
-          const a9 = ((q9 + t9) / 4) * Math.PI * 2;
-          return [Math.sin(a9) * RR9, RY9, RZ9 + Math.cos(a9) * RR9];
-        },
-      }), TERRAN_STEEL), key9(Math.sin(mid9) * RR9, RY9, RZ9 + Math.cos(mid9) * RR9)));
-    }
-    // 고리 둘레의 임자색 조각 넷(원작의 빨간 띠) — 45도 자리마다 짧고 굵은 호.
-    for (const ang9 of [45, 135, 225, 315]) {
-      const c9 = (ang9 * Math.PI) / 180;
-      out.push(...tagKey(spirePillar({
-        x: 0, y: 0, h: 1, w: 0.32, tipW: 0.32, segs: 3, sides: 6, caps: "both", oval: 1.2,
-        ref: [0, 1, 0],
-        path: (t9: number): [number, number, number] => {
-          const a9 = c9 + (t9 - 0.5) * 0.42;
-          return [Math.sin(a9) * RR9, RY9 + 0.05, RZ9 + Math.cos(a9) * RR9];
-        },
-      }), key9(Math.sin(c9) * RR9, RY9 + 0.05, RZ9 + Math.cos(c9) * RR9) + 0.05));
-    }
-
-    // 조종 돔 — 고리 뒤 갑판 위.
-    out.push(...tagKey([
-      ...paintBase(cylinderFaces3(0, -1.2, 0.62, 0.18, 6.45), TERRAN_STEEL),
-      ...paintBase(domeFaces3(0, -1.2, 0.5, 0.36, 6.63), "#3d4653"),
-    ], key9(0, -1.2, 6.8)));
-
-    // ③ 뒤 갑판 적층 발사관 둘(레일 달린 상자) + 엔진관 넷.
-    for (const [bw9, bd9, bh9, bz9] of [[1.7, 1.4, 0.55, 6.45], [1.45, 1.25, 0.5, 7.0]] as [number, number, number, number][]) {
-      out.push(...tagKey([
-        ...raceBase(boxFaces3(0, -2.4, bw9, bd9, bh9, bz9), "terran"),
-        ...([-1, 1] as const).map((m9): ShapeFace => [polyPath3([
-          [m9 * bw9 * 0.42, -2.4 - bd9 / 2 - 0.01, bz9 + 0.1], [m9 * bw9 * 0.12, -2.4 - bd9 / 2 - 0.01, bz9 + 0.1],
-          [m9 * bw9 * 0.12, -2.4 - bd9 / 2 - 0.01, bz9 + bh9 - 0.1], [m9 * bw9 * 0.42, -2.4 - bd9 / 2 - 0.01, bz9 + bh9 - 0.1],
-        ]), 1, "#3d4653"]),
-      ], key9(0, -2.4, bz9 + bh9 / 2)));
-    }
-    for (const [ex9, ez9] of [[-0.62, 5.45], [0.62, 5.45], [-0.62, 6.05], [0.62, 6.05]] as const) {
-      out.push(...tagKey(paintBase(
-        tubeFaces(ex9, -2.85, ex9, -3.7, 0.3, ez9, true), TERRAN_STEEL_D,
-      ), key9(ex9, -3.3, ez9) + 0.3));
-    }
-
-    // ④ 날개 한 쌍 — 몸 옆에서 위·바깥·뒤로 쓸린 각재, 끝에 세로 직사각 방패(임자색 틀 + 어두운 속판).
+    // 2) 양옆 절두체 팔 + 방패꼴 날개.
     for (const m9 of [-1, 1] as const) {
-      const r0: [number, number, number] = [m9 * 1.0, -0.4, 5.6];
-      const r1: [number, number, number] = [m9 * 3.0, -1.5, 6.7];
-      out.push(...tagKey(paintBase(spirePillar({
-        x: 0, y: 0, h: 1, w: 0.24, tipW: 0.2, segs: 2, sides: 4, caps: "none", oval: 0.7,
-        ref: [0, 0, 1],
-        path: (t9: number): [number, number, number] =>
-          [r0[0] + (r1[0] - r0[0]) * t9, r0[1] + (r1[1] - r0[1]) * t9, r0[2] + (r1[2] - r0[2]) * t9],
-      }), TERRAN_STEEL), key9(m9 * 2.0, -0.95, 6.15)));
-      const px9 = m9 * 3.05;
-      const plate9 = (dy9: number, dz9: number): string => polyPath3([
-        [px9, -1.5 - dy9, 6.7 - dz9], [px9, -1.5 + dy9, 6.7 - dz9],
-        [px9, -1.5 + dy9, 6.7 + dz9], [px9, -1.5 - dy9, 6.7 + dz9],
+      const X0 = m9 * 1.3; const X1 = m9 * 3.0;
+      // 뿌리(몸 옆) 네 점과 끝 네 점 — 윗면은 6.35→5.7(급), 아랫면은 5.25→5.45(완).
+      const rB: [number, number, number] = [X0, -1.55, 5.25]; const rF: [number, number, number] = [X0, -3.05, 5.25];
+      const rT: [number, number, number] = [X0, -1.55, 6.35]; const rR: [number, number, number] = [X0, -3.05, 6.35];
+      const tB: [number, number, number] = [X1, -1.8, 5.45]; const tF: [number, number, number] = [X1, -2.85, 5.45];
+      const tT: [number, number, number] = [X1, -1.8, 5.7]; const tR: [number, number, number] = [X1, -2.85, 5.7];
+      const top9 = polyPath3([rT, rR, tR, tT]);
+      const bot9 = polyPath3([rB, rF, tF, tB]);
+      const fr9 = polyPath3([rB, rT, tT, tB]);        // 앞벽(+y)
+      const bk9 = polyPath3([rF, rR, tR, tF]);        // 뒷벽(−y)
+      const end9 = polyPath3([tB, tF, tR, tT]);       // 끝면(±x)
+      const arm9: ShapeFace[] = [bodyFace(bot9), sideFace(bot9, 0.4)];
+      for (const [d9, nx9, ny9] of [[bk9, 0, -1], [end9, m9, 0], [fr9, 0, 1]] as [string, number, number][]) {
+        const fl9 = faceLight(nx9, ny9, 0.2);
+        arm9.push(bodyFace(d9), ...(fl9.visible ? fl9.face(d9) : [sideFace(d9, 0.46)]));
+      }
+      arm9.push(bodyFace(top9), topFace(top9, 0.22));
+      out.push(...tagKey(raceBase(arm9, "terran"), key9(m9 * 2.15, -2.3, 5.8)));
+      // 방패꼴 날개 — 위는 네모, 아래는 뾰족. 임자색 큰 판 위에 기본색 속판을 얹어 모서리 띠.
+      const px9 = m9 * 3.08; const cy9 = -2.3; const cz9 = 6.1;
+      const shield9 = (k9: number): string => polyPath3([
+        [px9, cy9 - 0.85 * k9, cz9 + 1.15 * k9], [px9, cy9 + 0.85 * k9, cz9 + 1.15 * k9],
+        [px9, cy9 + 0.85 * k9, cz9 - 0.2 * k9], [px9, cy9, cz9 - 1.25 * k9], [px9, cy9 - 0.85 * k9, cz9 - 0.2 * k9],
       ]);
       out.push(...tagKey([
-        bodyFace(plate9(0.85, 1.2)),
-        [plate9(0.62, 0.95), 1, "#3d4653"] as ShapeFace,
-        bodyFace(polyPath3([[px9, -1.5 - 0.62, 6.7 - 0.95], [px9, -1.5 + 0.62, 6.7 - 0.95], [px9, -1.5 + 0.62, 6.7 - 0.7], [px9, -1.5 - 0.62, 6.7 - 0.7]])),
-      ], key9(px9, -1.5, 6.7)));
+        bodyFace(shield9(1)),                              // 임자색 테
+        ...raceBase([bodyFace(shield9(0.78))], "terran"),  // 기본색 속판
+      ], key9(px9, cy9, cz9)));
+    }
+    // 뒤 배기관 둘 — 절두체 뒷면 아래.
+    for (const ex9 of [-0.62, 0.62]) {
+      out.push(...tagKey(paintBase(tubeFaces(ex9, -3.15, ex9, -3.85, 0.3, 5.65, true), TERRAN_STEEL_D),
+        key9(ex9, -3.5, 5.65) + 0.3));
     }
     return zsorted(out);
   },
@@ -17936,7 +17904,7 @@ const MUZZLE_ANCHOR: Record<string, [number, number, number]> = {
   /* 발키리는 **몸 가운데**에서(지적: "나오는 위치가 안맞고") — x 0.9는 오른쪽 발사관
      하나를 짚은 값이라, 어느 요잉에서는 미사일이 몸 옆 허공에서 났다. 발키리는 좌우
      발사관이 함께 뿜으므로 가운데가 두 줄기의 대표다. */
-  valk: [0, 3.1, 5.65],   // 재작도 코끝
+  valk: [0, 3.2, 5.5],   // 부리 끝
   hydra: [0, 2.6, 4.2], lurker: [0, 3, 2.2], muta: [0, 3, 3], queen: [0, 3, 3],
   guardian: [0, 3.2, 2.8], devourer: [0, 3.2, 2.8], ultra: [0, 3.6, 3.4],
   goon: [0, 3.2, 3.6], zealot: [0.8, 2.4, 3],
@@ -18174,7 +18142,7 @@ const MODEL_NORM: Record<string, number> = {
   tanksiege: 0.723,
   tanksiegebody: 0.723,
   ultra: 0.361,
-  valk: 0.904,   // 회전 프레임 기준 재작도 뒤 재측정(model-norm)
+  valk: 0.906,   // 묘사 기준 재작도(드럼·부리·방패 날개) 뒤 재측정(model-norm)
   vessel: 0.882,  // 방패 20% 축소 뒤 재측정(model-norm)
   vulture: 0.828,
   wraith: 0.774,
