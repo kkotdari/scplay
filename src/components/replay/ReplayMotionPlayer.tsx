@@ -10878,10 +10878,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        막는다. 셋이면 코·가운데·꼬리가 저마다 제 차례를 갖는다. */
     /* 동체를 줄인다(요청: 특히 앞부분) — 길이 4.8 → 4.0(앞 0.7·뒤 0.1). 코 단면은
        살짝 아래로 치우친다(요청): 뒤 6할은 5.75 그대로, 코로 갈수록 0.35 내려간다. */
+    /* 조종석(t≈0.49)에서 코끝까지 **평평한 경사면 하나**(요청) — z는 조종석부터 코까지
+       선형으로 내려가고 폭도 같은 구간에서 선형으로 줄어, 윗면이 한 평면이 된다. */
     const hullPath9 = (t9: number): [number, number, number] =>
-      [0, -2.1 + 4.0 * t9, 5.75 - 0.35 * Math.max(0, (t9 - 0.6) / 0.4)];
+      [0, -2.1 + 4.0 * t9, 5.75 - 0.4 * Math.max(0, (t9 - 0.49) / 0.51)];
     // 폭을 한 뼘 더(지적) — 통통한 것은 세로이고 가로는 아니다.
-    const hullW9 = widthCurve([[0, 1.42], [0.3, 1.72], [0.75, 1.26], [1, 0.7]]);   // 코 끝 0.95 → 0.7(조금 되돌림)
+    const hullW9 = widthCurve([[0, 1.42], [0.3, 1.72], [1, 0.7]]);   // 0.3 → 1 선형 테이퍼(윗면이 한 평면)
     for (const [t0, t1, cap9] of [
       [0, 1 / 3, "bottom"], [1 / 3, 2 / 3, "none"], [2 / 3, 1, "top"],
     ] as [number, number, "bottom" | "none" | "top"][]) {
@@ -10891,7 +10893,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            낮게 두면 접시가 되고 키우면 부피가 선다. */
         /* 둥근 느낌을 걷는다(요청) — 팔각 → **육각** 단면. ref가 x라 꼭짓점이 좌우에
            서고 윗면·밑면은 평평한 직선면, 옆은 빗면 둘이다. 조종부 돔만 둥글게 남긴다. */
-        x: 0, y: 0, h: 1, w: 1, segs: 4, sides: 6, ref: [1, 0, 0], caps: cap9, oval: 0.8,
+        /* 옆면을 수직으로 살짝 깎는다(요청) — 팔각 단면을 22.5도 돌려 세워, 윗면·밑면이
+           평평하고 좌우에 수직 옆면이 서며 그 사이가 빗면이다. */
+        x: 0, y: 0, h: 1, w: 1, segs: 4, sides: 8, ref: [Math.cos(Math.PI / 8), 0, Math.sin(Math.PI / 8)],
+        caps: cap9, oval: 0.8,
         path: (t9: number): [number, number, number] => hullPath9(t0 + (t1 - t0) * t9),
         widthOf: (t9: number): number => hullW9(t0 + (t1 - t0) * t9),
       }), "terran"), key9(mid9[0], mid9[1], mid9[2])));
@@ -10919,14 +10924,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          내리면 동체의 델타와 등의 혹이 다시 주인공이 된다.
          포구는 둘씩이다. 관을 통짜로 그리되 tubeFaces에 맡긴다 — 마주보는 쪽 끝에만
          어두운 아가리를 그리고 키도 제가 달아, 어느 각도에서도 뚫린 파이프가 안 된다. */
-      out.push(...tagKey(paintBase(boxFaces3(px9, 1.5, 0.5, 0.62, 0.72, 5.05), DARK),
+      out.push(...tagKey(paintBase(boxFaces3(px9, 0.9, 0.5, 0.62, 0.72, 5.05)   /* 앞 포드 뒤로(요청) 1.5 → 0.9 */, DARK),
         key9(px9, 1.5, 5.4)));
       /* 포구는 **위아래로** 둘이다(지적) — 나란히 두면 두 관이 하나로 뭉쳐 보이고, 위아래로
          쌓으면 좁은 폭 안에서도 둘로 갈린다. 크기는 절반이라(0.9 → 0.5폭) 몸의 실루엣을
          안 건드린다. */
       for (const dz9 of [5.22, 5.62]) {
         out.push(...tagKey(paintBase(
-          tubeFaces(px9, 1.15, px9, 2.05, 0.15, dz9, true), TERRAN_STEEL_D,
+          tubeFaces(px9, 0.55, px9, 1.45, 0.15, dz9, true), TERRAN_STEEL_D,
         ), key9(px9, 1.6, dz9)));
       }
     }
@@ -11006,11 +11011,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     for (const ang of [30, 150, 270]) {
       const a2 = (ang * Math.PI) / 180;
       // 반구는 고리의 **바깥 아래쪽**에 붙는다(요청) — 띠 바깥 가장자리 밑에 매달림.
-      const px5 = Math.sin(a2) * (RING_R9 + 0.3);
-      const py5 = Math.cos(a2) * (RING_R9 + 0.3);
+      /* 반구는 고리에 바로 붙지 않고 **팔로 이어져 더 바깥**에 있다(재요청) — 고리
+         바깥면(2.05·z 6.3)에서 바깥 아래로 뻗는 팔 끝(3.0·z 5.75)에 반구가 앉는다. */
+      const px5 = Math.sin(a2) * 3.0;
+      const py5 = Math.cos(a2) * 3.0;
       out.push(...tagKey([
-        ...domeFaces3(px5, py5, 0.83, 0.6, 5.5),   // 1.5배(재요청)
-        topFace(discPath3(px5, py5, 6.08, 0.45), 0.18),
+        ...paintBase(rodFaces(Math.sin(a2) * 2.05, Math.cos(a2) * 2.05, 6.3,
+          Math.sin(a2) * 2.9, Math.cos(a2) * 2.9, 5.75, 0.13), TERRAN_STEEL_D),
+        ...domeFaces3(px5, py5, 0.83, 0.6, 5.4),
+        topFace(discPath3(px5, py5, 5.98, 0.45), 0.18),
       ], py5 >= -0.01 ? depthNow(px5, py5) + 0.7 : -0.9));
     }
     // 구 몸통 — 한 단 더 축소(3.3 → 2.7, 재지적) + 그늘 초승달 + 하이라이트.
@@ -11045,10 +11054,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           // 만큼 안으로 당겨 구를 감싼다(3.35 → 2.75).
           // 길이 10% 축소(재요청): 반길이 2.77 → 2.49.
           // 1.5배(재요청): 반길이 2.49 → 3.74, 반폭 0.86 → 1.29. 자리는 조금 위로(6.4 → 6.9).
-          const v9 = -3.74 + 7.48 * t;
-          // 방패는 고리 **바깥쪽**에 붙는다 — 허리가 고리 바깥면(2.0+0.2)에 닿고 끝은
-          // 살짝만 안으로 든다.
-          const rad = 2.22 - 0.6 * (v9 / 3.74) ** 2;
+          // 위아래 20% 축소(재요청): 반길이 3.74 → 2.99. 휨은 더(0.6 → 0.9).
+          const v9 = -2.99 + 5.98 * t;
+          const rad = 2.22 - 0.9 * (v9 / 2.99) ** 2;
           return [dxs * rad, dys * rad, 6.9 + v9];
         },
         waist: 0.5, thick: 0.15, spread: 1.29 / 0.15,
@@ -18177,8 +18185,8 @@ const MODEL_NORM: Record<string, number> = {
   tanksiege: 0.723,
   tanksiegebody: 0.723,
   ultra: 0.361,
-  valk: 1.015,   // 동체 축소 뒤 재측정(model-norm)
-  vessel: 0.839,  // 방패·반구 1.5배 뒤 재측정(model-norm)
+  valk: 1.042,   // 팔각 동체·포드 뒤로 뒤 재측정(model-norm)
+  vessel: 0.842,  // 방패 축소·팔 반구 뒤 재측정(model-norm)
   vulture: 0.828,
   wraith: 0.774,
   zealot: 0.799,
