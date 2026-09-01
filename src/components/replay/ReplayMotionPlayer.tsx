@@ -10878,7 +10878,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        막는다. 셋이면 코·가운데·꼬리가 저마다 제 차례를 갖는다. */
     const hullPath9 = (t9: number): [number, number, number] => [0, -2.2 + 4.8 * t9, 5.75];
     // 폭을 한 뼘 더(지적) — 통통한 것은 세로이고 가로는 아니다.
-    const hullW9 = widthCurve([[0, 1.42], [0.3, 1.72], [0.75, 1.22], [1, 0.42]]);
+    const hullW9 = widthCurve([[0, 1.42], [0.3, 1.72], [0.75, 1.3], [1, 0.95]]);   // 코 뭉뚝(요청: 끝 0.42 → 0.95)
     for (const [t0, t1, cap9] of [
       [0, 1 / 3, "bottom"], [1 / 3, 2 / 3, "none"], [2 / 3, 1, "top"],
     ] as [number, number, "bottom" | "none" | "top"][]) {
@@ -10989,8 +10989,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const RING_R9 = 2.3;
     for (const [t0, key9] of [[-0.25, depthNow(0, RING_R9) + 0.6], [0.25, -1]] as [number, number][]) {
       out.push(...tagKey(paintBase(spirePillar({
-        // 고리 폭 넓게(요청) — 세로 반두께 0.14에 가로는 2.6배(0.36)의 납작한 띠.
-        x: 0, y: 0, h: 1, w: 0.14, tipW: 0.14, segs: 14, sides: 6, caps: "none", oval: 2.6,
+        // 고리 폭은 **위아래 폭**(정정) — 세로 반폭 0.34에 가로는 0.4배(0.14)의 세운 띠.
+        x: 0, y: 0, h: 1, w: 0.34, tipW: 0.34, segs: 14, sides: 6, caps: "none", oval: 0.4,
         ref: [0, 0, 1],
         path: (t9: number): [number, number, number] => {
           const a9 = (t0 + t9 * 0.5) * Math.PI * 2;
@@ -13552,9 +13552,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       out.push(...tagKey(raceBase(rodFaces(ax9 * 0.8, ay9 * 0.8, 1.2, ax9 * 1.35, ay9 * 1.35, 0.05, 0.14), "terran"),
         partKey(ax9 * 1.2, ay9 * 1.2, 0.5)));
     }
+    // 임자색 윗판 — 눈 뒤 윗면을 넓게 덮는다(재요청: 더 크고 잘 보이게).
     out.push(...tagKey([bodyFace(polyPath3([
-      [-0.8, -1.2, 2.01], [0.8, -1.2, 2.01], [0.5, -0.5, 2.01], [-0.5, -0.5, 2.01],
-    ]))], partKey(0, -0.9, 2.05)));
+      [-1.9, -1.25, 2.01], [1.9, -1.25, 2.01], [1.0, 0.15, 2.01], [-1.0, 0.15, 2.01],
+    ]))], partKey(0, 0, 2.2)));   // 몸과 같은 자리·더 높은 z → 늘 몸 윗면 위
     return out;
   },
 
@@ -18157,8 +18158,8 @@ const MODEL_NORM: Record<string, number> = {
   tanksiege: 0.723,
   tanksiegebody: 0.723,
   ultra: 0.361,
-  valk: 1.003,   // 날개 팔 20% 축소 뒤 재측정
-  vessel: 0.962,  // 방패 축소·넓은 고리 뒤 재측정(model-norm)
+  valk: 0.988,   // 코 뭉뚝 뒤 재측정(model-norm)
+  vessel: 0.973,  // 세로 고리 뒤 재측정(model-norm)
   vulture: 0.828,
   wraith: 0.774,
   zealot: 0.799,
