@@ -10953,10 +10953,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       sh9.push(...raceBase([bodyFace(polyPath3(trap9(0.205, 0.74)))], "terran"));
       out.push(...tagKey(sh9, key9(m9 * 3.15, cy9, (cz0 + cz1) / 2)));
     }
-    // 뒤 배기관 둘.
-    for (const ex9 of [-0.62, 0.62]) {
-      out.push(...tagKey(paintBase(tubeFaces(ex9, -2.55, ex9, -3.25, 0.3, Z(5.7), true), TERRAN_STEEL_D),
-        key9(ex9, -2.9, Z(5.7)) + 0.3));
+    /* 추진체 **넷**(요청) — 뒷면에 정사각으로 2×2, 넷이 뒷면 높이를 꽉 채우는 크기.
+       뒷면 높이 Z(5.25)~Z(6.4)를 둘로 나눈 반지름(0.43), 가운데 z에서 ±0.43. */
+    const TZ9 = (Z(5.25) + Z(6.4)) / 2;
+    for (const [ex9, ez9] of [[-0.44, TZ9 - 0.43], [0.44, TZ9 - 0.43], [-0.44, TZ9 + 0.43], [0.44, TZ9 + 0.43]] as [number, number][]) {
+      out.push(...tagKey(paintBase(tubeFaces(ex9, -2.55, ex9, -3.3, 0.42, ez9, true), TERRAN_STEEL_D),
+        key9(ex9, -2.95, ez9) + 0.3));
     }
     return zsorted(out);
   },
@@ -18170,7 +18172,7 @@ const MODEL_NORM: Record<string, number> = {
   tanksiege: 0.723,
   tanksiegebody: 0.723,
   ultra: 0.361,
-  valk: 0.827,   // 높이 1.5배·D자 드럼·사다리꼴 방패 뒤 재측정(model-norm)
+  valk: 0.826,   // 추진체 넷 뒤 재측정(model-norm)
   vessel: 0.882,  // 방패 20% 축소 뒤 재측정(model-norm)
   vulture: 0.828,
   wraith: 0.774,
