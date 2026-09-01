@@ -343,7 +343,7 @@ const AIR_LIFT_REF = "Wraith";
  *    넘을 때마다 그 비싼 굽기가 한 번씩 돌았다. 저그 기지에 성큰이 여럿 늘어서 있으니
  *    그 일이 끊이지 않는다 — '판 총량은 들어왔는데도 저그만 끊긴다'의 정체다.
  *    각을 쓰는 셋(터렛·포톤캐논·쏘는 성큰)만 열쇠에 각을 싣는다. */
-const HEAD_KINDS = new Set(["turret", "coil", "sunkenfire"]);
+const HEAD_KINDS = new Set(["turret", "coil", "sunkenfire", "sunkentongue"]);
 const headTag = (kind?: string): string =>
   (headYawNow && (kind === undefined || HEAD_KINDS.has(kind)) ? headYawNow.toFixed(0) : "0");
 /** 굽는 도구(model-shot --head)가 포탑 각을 세우는 문 — 앱에서는 bldSprite가 op.headDeg
@@ -683,6 +683,8 @@ const TRACK_STEEL = "#a7aeb8";
  *  값 하나로 촉수 길이를 바꾸고, 아래 sunkenfire가 켠 채로 같은 빌더를 부른다.
  *  currentYaw와 같은 결의 굽기 상태라, 굽기가 끝나면 반드시 도로 끈다. */
 let sunkenFire = false;
+/** 혓바닥을 **뺀 채로** 굽는 문(sunkenTongueFaces의 ★) — 몸만 담은 판을 낸다. */
+let sunkenTongue = true;
 /* 자세(요청: "전격 애니메이션화 — 이동/공격 2컷") ────────────────────────────────
    0 기본 · 1 이동 컷 · 2 공격 컷. 굽는 동안만 서는 깃발이다(sunkenFire·headYawNow와
    같은 결) — 빌더가 이 값을 읽어 팔다리를 조금 다르게 놓고, 굽기 열쇠에 poseTag가
@@ -3480,6 +3482,34 @@ const MIN_VARIANTS: {
 let mineralVar = 0;
 /** 꼴 번호 → 도형 이름 꼬리(①은 이름이 그냥 mineral이라 빈 글자다). */
 const MIN_VARIANT_TAG = ["", "b", "c"] as const;
+/* ★ 성큰의 **혓바닥만** 따로 낸다(조사: "안 쏠 땐 확실히 부드러워짐, 쏠 땐 똑같이
+   버벅여") ────────────────────────────────────────────────────────────────────────
+   앞 손질로 평상시 성큰은 각을 안 물게 되어 판이 한 벌로 줄었다. 그런데 쏘는 순간에는
+   여전히 **몸까지 통째로** 각 칸마다 다시 굽는다 — 12배·dpr 3에서 성큰 판은 2MB에 면이
+   2000장 넘으므로, 표적을 따라 칸을 넘을 때마다 한 프레임이 통째로 날아간다.
+   그런데 각이 바꾸는 것은 **혀 하나**다. 몸은 한 톨도 안 바뀐다.
+   그래서 일꾼의 짐과 같은 손을 쓴다(op.attach): 몸은 각 없는 한 벌을 그대로 쓰고, 혀만
+   각별로 굽는다. 혀는 기둥 하나라 면이 몸의 몇십 분의 일이고 잉크도 작아, 열여섯 칸을
+   다 구워도 몸 한 벌 값이 안 된다. 화질은 한 톨도 안 내준다.
+   `sunkenfire`(몸 + 혀 합본)는 도록·옛 자리를 위해 남긴다 — 지도는 이제 몸 + attach다. */
+const sunkenTongueFaces = (): ShapeFace[] => {
+  /* 더 통통하고 두 배 길게, 위로 솟았다 아래로 휘는 활 모양(요청) — leanY·curveY로는
+     z가 t에 정비례해 곧게만 오르므로, 등뼈를 직접 그린다: y는 앞으로 곧게 나가고
+     z는 위로 볼록한 포물선(솟았다 내려온다). */
+  const TL = 6.6;     // 앞으로 뻗는 거리
+  const TUP = 11;     // 솟는 몫
+  const TDN = 10;     // 내려앉는 몫(t²) — TUP보다 작아 끝이 처음보다는 높다
+  /* 혀만 돈다(요청: "성큰 혀는 공격대상을 향해야 해") — withModelSpin(headYawNow)으로
+     감싸면 이 판만 표적 쪽으로 돌아간다. 22.5도 열여섯 칸이다. */
+  return tagKey(withModelSpin(headYawNow, (): ShapeFace[] => paintBase(spirePillar({
+    /* 구두주걱 모양(요청) — 뿌리가 가늘고 앞으로 갈수록 두꺼워진다(0.38 → 1.25). */
+    x: 0.25, y: -0.15, h: 1, w: 0.38, tipW: 1.25,
+    segs: 12, sides: 8, hold: 0.05, taper: 0.9,
+    path: (t9: number): [number, number, number] => [
+      0.25, -0.15 + TL * t9, 3.4 + TUP * t9 - TDN * t9 * t9,
+    ],
+  }), "#b5713a")), 13);
+};
 export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   /* 커맨드 센터(재작도 — 사진 기준, 기존 비율·자세는 그대로) ─────────────────────
      여태 선체 전체가 개인색이라 종족이 안 읽히고 팀마다 딴 건물처럼 보였다. 테란의
@@ -6201,31 +6231,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        안 건드리고, 가운데 촉수의 아가리에서 구릿빛 가시가 앞위로 감겨 나온다.
        가시가 나가는 타이밍에만 이 판을 쓰므로(SHAPE_BUILDERS.sunkenfire), 평소 모습과
        실루엣이 어긋나 건물이 들썩이는 일이 없다. */
-    if (sunkenFire) {
-      /* 더 통통하고 두 배 길게, 위로 솟았다 아래로 휘는 활 모양(요청) — leanY·curveY로는
-         z가 t에 정비례해 곧게만 오르므로, 등뼈를 직접 그린다: y는 앞으로 곧게 나가고
-         z는 위로 볼록한 포물선(솟았다 내려온다). 이 활이 성큰의 촉수가 표적을 향해
-         휘둘리는 그 순간의 모양이다. */
-      const TL = 6.6;     // 앞으로 뻗는 거리
-      const TUP = 11;     // 솟는 몫
-      const TDN = 10;     // 내려앉는 몫(t²) — TUP보다 작아 끝이 처음보다는 높다
-      /* 혀만 돈다(요청: "성큰 혀는 공격대상을 향해야 해", "몸은 돌지말고 혀만 돌아야함")
-         — withModelSpin(headYawNow)으로 감싸면 몸통·등가시·크립은 그대로 서 있고 이
-         판만 표적 쪽으로 돌아간다. 포톤캐논 포탑(coil)·터렛이 쓰는 바로 그 장치다.
-         그리는 쪽이 headDeg를 넘겨 주고(방어 사격 자리의 headDeg9), 굽기가 몸통 요잉과의
-         차를 headYawNow에 세워 둔다. 22.5도 열여섯 칸이라 굽는 판도 열여섯 장뿐이다. */
-      out.push(...tagKey(withModelSpin(headYawNow, (): ShapeFace[] => paintBase(spirePillar({
-        /* 구두주걱 모양(요청) — 뿌리가 가늘고 앞으로 갈수록 두꺼워진다. spirePillar의
-           굵기는 밑동 w에서 끝 tipW로 가므로, 둘을 **뒤집어** 준다(0.38 → 1.25).
-           taper 0.9면 중턱까지는 천천히 벌어지다 끝머리에서 확 넓어져, 퍼 올리는
-           주걱의 앞날이 된다. */
-        x: 0.25, y: -0.15, h: 1, w: 0.38, tipW: 1.25,
-        segs: 12, sides: 8, hold: 0.05, taper: 0.9,
-        path: (t9: number): [number, number, number] => [
-          0.25, -0.15 + TL * t9, 3.4 + TUP * t9 - TDN * t9 * t9,
-        ],
-      }), "#b5713a")), 13));
-    }
+    if (sunkenFire && sunkenTongue) out.push(...sunkenTongueFaces());
     // 등 검은 가시들 — 몸 옆선 위에 돋는다.
     for (const [ang, sz] of [
       // 더 크고 굵게(요청) — 길이 1.5배, 굵기 0.34 → 0.72.
@@ -17236,6 +17242,15 @@ SHAPE_BUILDERS.creeppatch3 = () => creepBlobFaces(4.1);
     try { return sunkenBase(); } finally { sunkenFire = false; }
   };
 }
+/** 혓바닥만 담은 판(위 sunkenTongueFaces의 ★) — 지도는 몸(sunken) 위에 이것을 겹쳐
+    찍는다. 각을 무는 것은 이 판뿐이라, 표적을 따라 각 칸을 넘어도 몸은 안 다시 굽는다. */
+SHAPE_BUILDERS.sunkentongue = () => sunkenTongueFaces();
+/** 쏠 때의 **몸만**(혓바닥 없이) — 지도는 이 판 위에 sunkentongue를 겹쳐 찍는다.
+ *  몸은 각을 안 물으므로 평상시 것과 합해 딱 두 벌이고, 각을 무는 것은 혀뿐이다. */
+SHAPE_BUILDERS.sunkenrear = () => {
+  sunkenFire = true; sunkenTongue = false;
+  try { return SHAPE_BUILDERS.sunken(); } finally { sunkenFire = false; sunkenTongue = true; }
+};
 /* 자원 고갈 별본(요청) — 남은 단마다 한 벌씩. 같은 빌더를 깃발만 바꿔 부르므로 결정
    자리·색·기울기가 한 톨도 안 갈린다(성큰의 혓바닥 판과 같은 규약). */
 {
@@ -17954,6 +17969,8 @@ const modelNormOf = (kind: string): number => MODEL_NORM[NORM_PAIR[kind] ?? kind
  *  성큰의 혓바닥 판이 제 배수를 따로 가지면, 쏘는 순간 건물이 통째로 커졌다 작아진다. */
 const BLD_NORM_PAIR: Record<string, string> = {
   sunkenfire: "sunken",
+  // 혓바닥은 몸과 **같은 배수**라야 겹쳐 찍을 때 아가리에서 나온다(op.attach 규약).
+  sunkentongue: "sunken", sunkenrear: "sunken",
   /* 고갈 별본은 본판 배수를 그대로 쓴다 — 안 접으면 정규화가 '줄어든 잉크'를 도로 키워
      덩어리가 줄수록 밭이 커지고, 마른 간헐천이 성한 것보다 커진다. */
   mineral0: "mineral", mineral1: "mineral", mineral2: "mineral", mineral3: "mineral",
@@ -21452,6 +21469,31 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
               bLeft9 + (bspr.ox / B) * k, bTop9 + (bspr.oy / B) * k,
               (bspr.cv.width / B) * k, (bspr.cv.height / B) * k,
             );
+            /* ★ 겹쳐 찍는 판(op.attach) — 성큰의 혓바닥이다(유닛 쪽 짐과 같은 규약).
+               **같은 자**로 굽는다: 같은 판 크기(sideQ)·같은 배수(NORM_PAIR가 몸 것으로
+               접는다)라, 몸과 똑같은 자리·배율에 제 잉크 오프셋(ox·oy)만 달리 주면
+               혀가 제 모형 좌표(아가리)에 앉는다.
+               차례는 늘 몸 **뒤**다 — 합본에서도 혀는 tagKey 13으로 몸의 지붕(12)보다
+               위였으므로, 나중에 찍는 것이 그 그림 그대로다. */
+            if (op.attach) {
+              const atB9 = buildingSprite({ ...bop9, kind: op.attach }, sideQ, B);
+              if (atB9) {
+                /* 자리는 **16-상자를 겹쳐** 잡는다 — 몸 판의 상자가 화면에서 차지한
+                   네모(왼위 + 크기)를 구한 뒤, 혀 판의 상자를 거기에 포갠다. 예산이
+                   다한 프레임에는 대역 판이 와서 두 판의 side가 다를 수 있으므로
+                   (buildingSpriteBake의 ★), 혀의 배율은 제 side로 따로 낸다. */
+                const boxL9 = bLeft9 + bspr.pad * k;
+                const boxT9 = bTop9 + bspr.pad * k;
+                const kA9 = (bspr.side * k) / atB9.side;
+                SPRITE_PERF.bldBlit += 1;
+                ctx.drawImage(
+                  atB9.cv,
+                  boxL9 - atB9.pad * kA9 + (atB9.ox / B) * kA9,
+                  boxT9 - atB9.pad * kA9 + (atB9.oy / B) * kA9,
+                  (atB9.cv.width / B) * kA9, (atB9.cv.height / B) * kA9,
+                );
+              }
+            }
             /* 건물 체력바(요청) — 다친 건물 위에만. 유닛 바와 같은 3색. */
             if (showHp !== false && zoom >= DEEP_MIN_ZOOM && op.hpFrac !== undefined && op.hpFrac > 0) {
               /* 최대 체력의 제곱근 비례(재재지적: 정비례로 갔더니 적용이 안 된 듯 보이고
@@ -31297,7 +31339,13 @@ export default function ReplayMotionPlayer({
               if (shapeKind) {
                 bldOpIx9 = unitOps.length;
                 unitOps.push({
-                  fx: fxF, fy: fyF, z, kind: sunkenOut ? "sunkenfire" : shapeKind,
+                  /* ★ 몸과 혓바닥을 가른다(위 sunkenTongueFaces의 ★) — 합본(sunkenfire)을
+                     쓰면 표적을 따라 각 칸을 넘을 때마다 2MB·2000면짜리 몸을 통째로 다시
+                     굽느라 한 프레임이 날아갔다. 몸(sunkenrear)은 각을 안 물어 평상시 것과
+                     합해 **두 벌**로 끝나고, 각별로 굽는 것은 기둥 하나짜리 혀뿐이다.
+                     쏠 때 둔덕이 솟고 낫날이 서는 몫(sunkenFire 깃발)은 그대로 남는다. */
+                  fx: fxF, fy: fyF, z, kind: sunkenOut ? "sunkenrear" : shapeKind,
+                  ...(sunkenOut ? { attach: "sunkentongue" } : {}),
                   /* 창에 불이 드는 조건(요청: "평소 어둡고 활성 시 노란불") — 이 건물이
                      지금 유닛을 뽑거나 연구를 돌리고 있나. 가스 건물(정제소)만은 이 뒤에
                      따로 gasBusy가 켠다(일꾼이 안에 들어가 있는 동안). */
