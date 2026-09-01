@@ -10902,10 +10902,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       }), "terran"), key9(mid9[0], mid9[1], mid9[2])));
     }
     /* ② 등의 둥근 혹 — 몸에 두께를 준다. 한 단 어두워 동체와 갈린다. */
+    /* 조종부(사진) — 등 한가운데 **둥근 링** 위에 어두운 캐노피 돔이 앉는다. 링이 있어야
+       '해치 달린 조종석'으로 읽히고, 돔만 있으면 등의 혹이다. */
     out.push(...tagKey([
-      ...paintBase(domeFaces3(0, -0.15, 1.45, 0.78, 6.1), TERRAN_STEEL),
-      topFace(groundEllipse(...project(0, -0.15, 6.88), 0.7, 0.5), 0.26),
+      ...paintBase(cylinderFaces3(0, -0.15, 1.15, 0.32, 6.0), TERRAN_STEEL),
+      ...paintBase(domeFaces3(0, -0.15, 0.88, 0.6, 6.32), "#3d4653"),
+      topFace(groundEllipse(...project(0, -0.3, 6.86), 0.42, 0.28), 0.3),
     ], key9(0, -0.15, 6.5) + 0.3));
+    // 코 밑 턱판(사진) — 코가 아래로 한 겹 더 두꺼운 쐐기로 읽힌다.
+    out.push(...tagKey(raceBase(boxFaces3(0, 1.45, 1.3, 0.9, 0.28, 4.95), "terran"), key9(0, 1.45, 5.1)));
     /* ②-b 조종석(지적: "조종석부 표현이 없음") — 혹 앞에 얹힌 어두운 물집. 창을 따로 안
        그린다: 이 크기에서는 밝게 태운 윗면 한 장이 곧 창이다. 등의 혹과 갈리도록 한 단 더
        어둡게 두고 앞으로 내민다 — 두 덩이가 같은 색이면 혹이 둘로 보일 뿐이다. */
@@ -10955,16 +10960,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const ARM_L9 = 1.2 * 0.8;
     for (const m9 of [-1, 1] as const) {
       const ax9 = 1.3 + ARM_L9;               // 팔 끝 = 방패 뿌리
+      // 팔은 둥근 막대가 아니라 **입체 각재**(사진·요청) — 상자 보.
       out.push(...tagKey(paintBase(
-        rodFaces(m9 * 1.3, -1.0, 5.3, m9 * ax9, -1.05, 5.25, 0.34), TERRAN_STEEL,
+        boxFaces3(m9 * (1.3 + ARM_L9 / 2), -1.02, ARM_L9 + 0.2, 0.55, 0.5, 5.0), TERRAN_STEEL,
       ), key9(m9 * (1.3 + ARM_L9 / 2), -1.02, 5.28)));
-      out.push(...tagKey(spirePillar({
-        x: 0, y: 0, h: 1, w: 1, segs: 4, sides: 4, ref: [0, 1, 0], caps: "both", oval: 0.16,
-        path: (t9: number): [number, number, number] => [
-          m9 * (ax9 + 0.1 + 0.9 * t9), -1.05, 4.5 + 2.5 * t9,
-        ],
-        widthOf: widthCurve([[0, 1.05], [1, 0.52]]),
-      }), key9(m9 * (ax9 + 0.55), -1.05, 5.75)));
+      // 방패는 **직사각형에 가까운** 세운 판(사진·요청) — 얇은 상자, 칠 안 해 임자색.
+      out.push(...tagKey(boxFaces3(m9 * (ax9 + 0.35), -1.05, 0.22, 1.25, 2.7, 4.4),
+        key9(m9 * (ax9 + 0.35), -1.05, 5.75)));
     }
     /* ⑤ 꽁무니 엔진 넷 — 뒤를 볼 때만 포구가 어두워지는 관이라 각도를 스스로 탄다. */
     /* 넷을 **정사각으로** 모은다(지적) — 앞판은 마름모(아래 둘 넓게·위 둘 좁게)라 흩어져
@@ -11055,11 +11057,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           // 길이 10% 축소(재요청): 반길이 2.77 → 2.49.
           // 1.5배(재요청): 반길이 2.49 → 3.74, 반폭 0.86 → 1.29. 자리는 조금 위로(6.4 → 6.9).
           // 위아래 20% 축소(재요청): 반길이 3.74 → 2.99. 휨은 더(0.6 → 0.9).
-          const v9 = -2.99 + 5.98 * t;
-          const rad = 2.22 - 0.9 * (v9 / 2.99) ** 2;
+          // 20% 축소(재요청): 반길이 2.99 → 2.39, 반폭 1.29 → 1.03.
+          const v9 = -2.39 + 4.78 * t;
+          const rad = 2.22 - 0.9 * (v9 / 2.39) ** 2;
           return [dxs * rad, dys * rad, 6.9 + v9];
         },
-        waist: 0.5, thick: 0.15, spread: 1.29 / 0.15,
+        waist: 0.5, thick: 0.13, spread: 1.03 / 0.13,
         /* 끝은 뾰족하지 않고 **직선으로 뭉뚝하게** 깎는다(재지적) — 뿌리·끝 굵기 비를
            0에서 0.55로 두면 끝 단면이 평평한 절단면이 된다. */
         rootW: 0.55, tipW: 0.55,
@@ -18185,8 +18188,8 @@ const MODEL_NORM: Record<string, number> = {
   tanksiege: 0.723,
   tanksiegebody: 0.723,
   ultra: 0.361,
-  valk: 1.042,   // 팔각 동체·포드 뒤로 뒤 재측정(model-norm)
-  vessel: 0.842,  // 방패 축소·팔 반구 뒤 재측정(model-norm)
+  valk: 1.080,   // 링 조종부·각재 팔·직사각 방패 뒤 재측정(model-norm)
+  vessel: 0.882,  // 방패 20% 축소 뒤 재측정(model-norm)
   vulture: 0.828,
   wraith: 0.774,
   zealot: 0.799,
