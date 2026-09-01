@@ -671,7 +671,7 @@ const IVORY = "#eae3d2";
 /* 진한 상아색(요청: 하이브 가시·옆띠). */
 const IVORY_DEEP = "#cdc0a0";
 /* 테란 화기 금속색(요청: 총구·포신은 어두운 회색). */
-const GUNMETAL = "#8b9199";   // = 테란 기본색(요청: 손칠 줄이고 기본색)
+const GUNMETAL = "#76808f";   // = 테란 기본색(요청: 손칠 줄이고 기본색)
 /** 총의 검정(지적: "마린 총 거의 검정색 / 고스트 총도") — 건메탈(#4b5058)은 부품
  *  회색이고, 손에 든 **총기**는 거의 검정이어야 몸에서 갈려 읽힌다. */
 const GUN_BLACK = "#22252a";
@@ -2606,7 +2606,7 @@ function paintBase(faces: ShapeFace[], base: string): ShapeFace[] {
 /* 테란은 한 단 진한 쇠다(요청: "stain된 전쟁의 쇠붙이 — 좀 더 진한 쇠색이면서 광택과
    때묻음이 공존") — 은회색 #65696e를 건메탈 #575c63으로 내리고, 얼룩은 아래
    stainOf9가 면(패널)마다 낸다. 광택은 glossFaces의 볼록한 자가 그대로 세운다. */
-const RACE_BASE_TONE = { terran: "#8b9199", toss: "#d6be45", zerg: "#b9724a" } as const;
+const RACE_BASE_TONE = { terran: "#76808f", toss: "#d6be45", zerg: "#b9724a" } as const;   // 테란: 푸른기 더·더 진하게(요청)
 /* ★ **때 얼룩** — 칠 안 한 테란 면마다 쇠색 네 벌 중 하나를 **결정적으로** 고른다.
    무작위면 굽을 때마다 판이 달라져 캐시가 거짓말이 된다 — 면의 경로 문자열을 해시해
    같은 면은 언제나 같은 얼룩을 받는다. 네 벌은 기준(#575c63)의 위아래 5%와, 갈빛이
@@ -2632,7 +2632,7 @@ const RACE_GLOSS_SHADE: Partial<Record<keyof typeof RACE_BASE_TONE, string>> = {
   toss: "#1a1708",
 };
 const RACE_GLOSS_LIT: Partial<Record<keyof typeof RACE_BASE_TONE, string>> = {
-  terran: "#e6e9ec",   // 광도 청색기 줄임
+  terran: "#dde4ec",   // 광에도 푸른기 살짝
   // 프로토스는 **따뜻한** 광이다 — 금에 푸른 광을 얹으면 도금이 벗겨진 놋쇠로 보인다.
   toss: "#fff3cf",
 };
@@ -2647,7 +2647,7 @@ const RACE_GLOSS_LIT: Partial<Record<keyof typeof RACE_BASE_TONE, string>> = {
    너무 다름") — 조사하니 두 벌이었다: raceBase 톤(#6a7382·푸른 강청·광택)과 이 손칠
    은색(#94989e·중성 회색·광택 없음). 손칠 은색을 같은 색상각(푸른 강청)으로 옮기고
    어두운 쪽은 톤과 같게 둔다 — 밝기 단만 남고 색이 갈리지 않는다. */
-const TERRAN_STEEL = "#a3a8ae";      // 밝은 판·겉껍데기(톤보다 한 단 밝게 · 흰기)
+const TERRAN_STEEL = "#8f99a8";      // 밝은 판·겉껍데기(톤보다 한 단 밝은 같은 푸른 강청)
 const TERRAN_STEEL_D = RACE_BASE_TONE.terran;    // 관·부속·그늘진 판(= 기본색)
 /** 몸에는 종족 바탕색을 입히고, 뒤에 붙이는 accent 면만 개인색으로 남긴다(규칙 1·4).
  *  accent는 칠하지 않은 채로 두어야 그리는 쪽이 임자 색을 넣는다 — 건물마다 눈에 띄는
