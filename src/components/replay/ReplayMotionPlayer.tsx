@@ -4249,141 +4249,158 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     return out;
   })),
   factory: () => {
-    /* 팩토리(재작도 둘째 판 — "절두체 아님, 면이 더 다양해") ────────────────────────
-       사진의 양감은 매끈한 절두체가 아니라 **깎아 만든 다면체**다:
-         · 수직 벽으로 선 큰 왼 덩이 + 한 단 낮은 오른 덩이(지붕에 단차)
-         · 벽 꼭대기와 지붕 사이를 잇는 **빗면 어깨**(앞·왼·뒤 세 장)
-         · 아래는 두 단으로 벌어지는 스커트(수직 옆면의 상자 겹)
-       그래서 면이 수직벽·빗면·지붕 두 층·스커트 단으로 갈린다. 몸은 칠하지 않아
-       '전장의 쇠'(stainOf9)가 입혀지고, 임자색은 포탑 하우징·발톱·문 위 띠·오른
-       덩이 세로 등이다. 생산 불빛은 앞문의 **주황 번짐 + 노란 심**(요청)이다. */
+    /* 팩토리(재작도 셋째 판 — 지시의 개념대로 처음부터) ────────────────────────────
+       몸통: **절두체 두 개를 위아래로 붙이고 그 사이에 직육면체 허리**를 끼운 3단이다.
+         · 아래 절두체 — 위로 갈수록 벌어진다(0.6→2.2)
+         · 허리 직육면체 — 가장 넓은 자리의 수직 띠(2.2→3.1)
+         · 위 절두체 — 위로 갈수록 좁아진다(3.1→4.75)
+       패임: **윗면은 가로로**(x 방향 골), **앞뒤면은 세로로** 가운데가 패인다.
+       앞면 바닥에 경사진 발 셋, 옆면(오른쪽)에 푹 패인 경사로. 몸은 칠하지 않아
+       전장의 쇠(stainOf9)가 입혀지고, 임자색은 포탑·발끝·베이 속 가로 등이다. */
     const NEAR_BLACK = "#22262c";
     const ROOF = "#2b3038";
     const TEETH = "#c5cad2";
-    const LIT_EDGE = winLit("#ff9d3d");   // 번짐 — 주황
-    const LIT_CORE = winLit("#ffe790");   // 심 — 노랑
     const pc: ShapeFace[] = [];
     const out: ShapeFace[] = [];
 
-    // ── 발 넷 — 궤도풍 클램프, 발톱 끝 임자색.
-    for (const [fx9, fy9] of [[-3.4, 2.4], [3.4, 2.4], [-3.4, -2.4], [3.4, -2.4]] as
-      [number, number][]) {
-      const sy9 = Math.sign(fy9);
-      const k9 = depthNow(fx9, fy9) * 1.6;
-      out.push(...tagKey([
-        ...paintBase(boxFaces3(fx9, fy9, 1.15, 1.0, 0.95, 0), NEAR_BLACK),
-        ...paintBase(boxFaces3(fx9, fy9 + sy9 * 0.75, 1.0, 0.6, 0.45, 0), "#343a44"),
-      ], k9));
-      pc.push(...tagKey(boxFaces3(fx9, fy9 + sy9 * 1.1, 0.9, 0.16, 0.34, 0.02), k9 + 0.1));
+    // ── 몸통 3단 치수 — 앞뒤·옆면의 세로 홈이 이 프로필을 따라 굽는다.
+    const ZB0 = 0.6; const ZW0 = 2.2; const ZW1 = 3.1; const ZT = 4.75;
+    const WB = 7.4; const DB = 4.9;      // 바닥
+    const WW = 8.8; const DW = 6.2;      // 허리
+    const WT = 7.0; const DT = 4.4;      // 꼭대기
+    out.push(...tagKey(frustumFaces3(0, 0, WB, DB, WW, DW, ZW0 - ZB0, ZB0), 2));
+    out.push(...tagKey(boxFaces3(0, 0, WW, DW, ZW1 - ZW0, ZW0), 2.1));
+    out.push(...tagKey(frustumFaces3(0, 0, WW, DW, WT, DT, ZT - ZW1, ZW1), 2.2));
+
+    /** 그 높이에서의 앞면 y(3단 프로필) — 홈·베이가 이 자를 쓴다. */
+    const fyAt = (z9: number): number => {
+      if (z9 <= ZW0) return DB / 2 + (DW / 2 - DB / 2) * ((z9 - ZB0) / (ZW0 - ZB0));
+      if (z9 <= ZW1) return DW / 2;
+      return DW / 2 - (DW / 2 - DT / 2) * ((z9 - ZW1) / (ZT - ZW1));
+    };
+    /** 그 높이에서의 옆면 x — 경사로 문간이 쓴다. */
+    const sxAt = (z9: number): number => {
+      if (z9 <= ZW0) return WB / 2 + (WW / 2 - WB / 2) * ((z9 - ZB0) / (ZW0 - ZB0));
+      if (z9 <= ZW1) return WW / 2;
+      return WW / 2 - (WW / 2 - WT / 2) * ((z9 - ZW1) / (ZT - ZW1));
+    };
+
+    // ── 윗면 — **가로(x) 골**: 지붕 판 두 장 사이가 낮은 골 바닥이다.
+    out.push(...tagKey(paintBase(boxFaces3(0, 0, WT - 0.3, 1.35, 0.1, ZT - 0.34), ROOF), 3));
+    out.push(...tagKey([
+      ...boxFaces3(0, (DT / 2 + 0.7) / 2 + 0.32, WT - 0.2, DT / 2 - 0.72, 0.14, ZT - 0.06),
+      ...boxFaces3(0, -((DT / 2 + 0.7) / 2 + 0.32), WT - 0.2, DT / 2 - 0.72, 0.14, ZT - 0.06),
+    ], 3.05));
+
+    // ── 앞뒤면 — **세로 홈**: 가운데 x ±0.8이 프로필을 따라 0.22 파인다.
+    for (const sgn9 of [1, -1] as const) {
+      if (facingRatio(0, sgn9) <= 0.08) continue;
+      const gy9 = (z9: number): number => sgn9 * (fyAt(z9) - 0.22);
+      const seg9 = (z0: number, z1: number): void => {
+        const d9 = polyPath3([
+          [-0.8, gy9(z0), z0], [0.8, gy9(z0), z0], [0.8, gy9(z1), z1], [-0.8, gy9(z1), z1],
+        ]);
+        out.push(...tagKey([[d9, 1, "#2e343c"] as ShapeFace], 2.5));
+      };
+      seg9(0.9, ZW0); seg9(ZW0, ZW1); seg9(ZW1, ZT - 0.2);
     }
 
-    // ── 스커트 두 단 — 수직 옆면의 상자 겹(아래가 더 넓다).
-    out.push(...tagKey(boxFaces3(0, 0, 8.9, 6.3, 0.55, 0.55), 0));
-    out.push(...tagKey(boxFaces3(0, 0, 8.4, 5.9, 0.55, 1.1), 0.5));
+    // ── 앞면 베이 둘 — 세로 홈 좌우, 아래 절두체의 기운 면에 파인 개구부.
+    //    속에 임자색 가로 등, 밑단에 밝은 문턱(사진 보라 참조의 그 낯).
+    if (facingRatio(0, 1) > 0.08) {
+      for (const m9 of [-1, 1] as const) {
+        const bq9 = (x0: number, x1: number, z0: number, z1: number, dy9 = 0.03): string =>
+          polyPath3([
+            [m9 * x0, fyAt(z0) + dy9, z0], [m9 * x1, fyAt(z0) + dy9, z0],
+            [m9 * x1, fyAt(z1) + dy9, z1], [m9 * x0, fyAt(z1) + dy9, z1],
+          ]);
+        out.push(...tagKey([
+          [bq9(1.6, 3.5, 1.1, 2.9), 1, NEAR_BLACK] as ShapeFace,      // 개구부
+          [bq9(1.6, 3.5, 0.95, 1.12), 1, "#b9bec6"] as ShapeFace,      // 문턱
+        ], 2.5));
+        pc.push(...tagKey([[bq9(1.95, 3.15, 1.85, 2.2, 0.05), 1] as ShapeFace], 2.55));
+      }
+    }
 
-    // ── 왼 큰 덩이 — 수직 벽(z 1.65~3.75) + 빗면 어깨 세 장 + 지붕 판(4.6).
-    const AX0 = -4.1; const AX1 = 1.9;                    // 왼 덩이 x 범위
-    const AY = 2.65;                                      // 앞벽 y(수직)
-    const ATOP = 3.75;                                    // 벽 꼭대기
-    const RTOP = 4.6;                                     // 지붕
-    out.push(...tagKey(boxFaces3((AX0 + AX1) / 2, -0.15, AX1 - AX0, AY * 2 - 0.3, ATOP - 1.65, 1.65), 2));
-    // 빗면 어깨 — 벽 꼭대기에서 지붕 가장자리로 눕는 판(앞·왼·뒤).
-    const shoulder9 = (q9: [number, number, number][]): void => {
-      const d9 = polyPath3(q9);
-      out.push(...tagKey([[d9, 1] as ShapeFace, topFace(d9, 0.1)], 2.6));
-    };
-    shoulder9([[AX0, AY, ATOP], [AX1, AY, ATOP], [AX1 - 0.5, AY - 0.85, RTOP], [AX0 + 0.5, AY - 0.85, RTOP]]);
-    shoulder9([[AX0, AY, ATOP], [AX0, -AY + 0.3, ATOP], [AX0 + 0.5, -AY + 1.0, RTOP], [AX0 + 0.5, AY - 0.85, RTOP]]);
-    shoulder9([[AX0, -AY + 0.3, ATOP], [AX1, -AY + 0.3, ATOP], [AX1 - 0.5, -AY + 1.0, RTOP], [AX0 + 0.5, -AY + 1.0, RTOP]]);
-    out.push(...tagKey(paintBase(boxFaces3((AX0 + AX1) / 2, -0.1, AX1 - AX0 - 1.0, AY * 2 - 2.0, 0.14, RTOP), ROOF), 3));
-
-    // ── 오른 낮은 덩이 — 지붕 단차(3.6). 수직 벽 상자 + 제 지붕 판.
-    const BX = 3.15;
-    out.push(...tagKey(boxFaces3(BX, -0.15, 2.5, 5.3, 1.95, 1.65), 2.2));
-    out.push(...tagKey(paintBase(boxFaces3(BX, -0.15, 2.3, 5.0, 0.13, 3.6), ROOF), 3.1));
-
-    // ── 지붕 굴뚝 넷 — 왼 지붕 뒤쪽 줄.
-    for (let c9 = 0; c9 < 4; c9 += 1) {
-      const cx9 = -2.9 + c9 * 0.85;
+    // ── 앞바닥 경사발 셋 — 몸 밑단에서 앞으로 내려 밟는 쐐기. 발끝이 임자색.
+    for (const fx9 of [-2.6, 0, 2.6]) {
+      const k9 = depthNow(fx9, 3.1) * 1.6;
+      const top9 = polyPath3([
+        [fx9 - 0.55, DB / 2 - 0.1, 0.92], [fx9 + 0.55, DB / 2 - 0.1, 0.92],
+        [fx9 + 0.45, DB / 2 + 0.85, 0.14], [fx9 - 0.45, DB / 2 + 0.85, 0.14],
+      ]);
       out.push(...tagKey([
-        ...paintBase(cylinderFaces3(cx9, -1.35, 0.36, 0.55, RTOP + 0.1), NEAR_BLACK),
-        capFace(discPath3(cx9, -1.35, RTOP + 0.72, 0.26), 0.5),
+        [top9, 1, "#3a4048"] as ShapeFace, topFace(top9, 0.1),
+        [polyPath3([
+          [fx9 - 0.45, DB / 2 + 0.85, 0.14], [fx9 + 0.45, DB / 2 + 0.85, 0.14],
+          [fx9 + 0.45, DB / 2 + 0.85, 0], [fx9 - 0.45, DB / 2 + 0.85, 0],
+        ]), 1, NEAR_BLACK] as ShapeFace,
+      ], k9));
+      pc.push(...tagKey(boxFaces3(fx9, DB / 2 + 0.9, 0.8, 0.14, 0.24, 0), k9 + 0.1));
+    }
+    // 뒤 받침 둘 — 뒤 귀의 낮은 클램프.
+    for (const fx9 of [-3.1, 3.1]) {
+      out.push(...tagKey(paintBase(boxFaces3(fx9, -2.5, 1.1, 0.9, 0.8, 0), NEAR_BLACK),
+        depthNow(fx9, -2.5) * 1.6));
+    }
+
+    // ── 옆면(오른쪽) — **푹 패인 경사로**: 옆벽의 어두운 문간에서 경사면이 밖으로
+    //    나와 땅에 닿는다.
+    if (facingRatio(1, 0) > 0.06) {
+      const dq9 = polyPath3([
+        [sxAt(0.9) - 0.24, -1.0, 0.9], [sxAt(0.9) - 0.24, 1.4, 0.9],
+        [sxAt(2.9) - 0.24, 1.4, 2.9], [sxAt(2.9) - 0.24, -1.0, 2.9],
+      ]);
+      out.push(...tagKey([[dq9, 1, NEAR_BLACK] as ShapeFace], 2.5));
+    }
+    {
+      const ramp9 = polyPath3([
+        [sxAt(1.0) - 0.2, -0.85, 1.0], [sxAt(1.0) - 0.2, 1.25, 1.0],
+        [WW / 2 + 1.15, 1.25, 0.05], [WW / 2 + 1.15, -0.85, 0.05],
+      ]);
+      out.push(...tagKey([
+        [ramp9, 1, "#4a515b"] as ShapeFace, topFace(ramp9, 0.1),
+        [polyPath3([
+          [sxAt(1.0) - 0.2, 1.25, 1.0], [WW / 2 + 1.15, 1.25, 0.05],
+          [WW / 2 + 1.15, 1.25, 0], [sxAt(1.0) - 0.2, 1.25, 0],
+        ]), 1, "#343a43"] as ShapeFace,
+        [polyPath3([
+          [WW / 2 + 1.15, -0.85, 0.05], [WW / 2 + 1.15, 1.25, 0.05],
+          [WW / 2 + 1.15, 1.25, 0], [WW / 2 + 1.15, -0.85, 0],
+        ]), 1, NEAR_BLACK] as ShapeFace,
+      ], 10 + depthNow(WW / 2 + 0.6, 0.2) * 1.6));
+    }
+
+    // ── 지붕 — 검은 굴뚝 넷(뒤 판) · 흰 성곽 이빨 · 임자색 포탑(뒤 오른쪽).
+    for (let c9 = 0; c9 < 4; c9 += 1) {
+      const cx9 = -2.4 + c9 * 0.8;
+      out.push(...tagKey([
+        ...paintBase(cylinderFaces3(cx9, -1.55, 0.34, 0.5, ZT + 0.06), NEAR_BLACK),
+        capFace(discPath3(cx9, -1.55, ZT + 0.62, 0.24), 0.5),
       ], 3.3 + c9 * 0.01));
     }
-
-    // ── 흰 성곽 이빨 — 어깨 빗면 위 모서리와 오른 지붕 가장자리.
-    for (const [tx9, ty9, tz9] of [
-      [-3.1, 1.65, RTOP], [-1.6, 1.65, RTOP], [-0.1, 1.65, RTOP], [1.2, 1.65, RTOP],
-      [-3.35, -0.2, RTOP], [-3.35, -1.3, RTOP],
-      [2.35, 2.1, 3.6], [3.95, 2.1, 3.6], [3.95, -1.9, 3.6],
-    ] as [number, number, number][]) {
-      out.push(...tagKey(paintBase(boxFaces3(tx9, ty9, 0.72, 0.4, 0.42, tz9 + 0.06), TEETH), 3.5));
+    for (const [tx9, ty9] of [
+      [-2.9, 1.85], [-1.5, 1.85], [0.1, 1.85], [1.5, 1.85], [2.9, 1.85],
+      [-3.2, 0.2], [3.2, 0.2], [-3.2, -1.4],
+    ] as [number, number][]) {
+      out.push(...tagKey(paintBase(boxFaces3(tx9, ty9, 0.68, 0.38, 0.4, ZT), TEETH), 3.5));
     }
-
-    // ── 포탑(오른 덩이 지붕) — 임자색 하우징 + 검은 포신 셋 + 탄약함.
     {
-      pc.push(...tagKey(boxFaces3(2.75, -1.0, 1.3, 1.05, 0.8, 3.73), 3.7));
-      out.push(...tagKey(paintBase(boxFaces3(3.45, -1.55, 0.9, 0.65, 0.65, 3.73), NEAR_BLACK), 3.72));
+      pc.push(...tagKey(boxFaces3(2.1, -1.2, 1.3, 1.05, 0.8, ZT + 0.02), 3.7));
+      out.push(...tagKey(paintBase(boxFaces3(2.75, -1.7, 0.9, 0.6, 0.62, ZT + 0.02), NEAR_BLACK), 3.72));
       for (const m9 of [-1, 0, 1] as const) {
         out.push(...tagKey(paintBase(spirePillar({
-          x: 0, y: 0, h: 1, w: 0.17, tipW: 0.17, segs: 1, sides: 6, hold: 1,
+          x: 0, y: 0, h: 1, w: 0.16, tipW: 0.16, segs: 1, sides: 6, hold: 1,
           path: (t9: number): [number, number, number] => [
-            2.6 + m9 * 0.28 + t9 * 0.65, -0.8 + t9 * 0.7, 4.2 + t9 * 0.7,
+            1.95 + m9 * 0.27 + t9 * 0.62, -1.0 + t9 * 0.66, ZT + 0.5 + t9 * 0.66,
           ],
         }), NEAR_BLACK), 3.75));
       }
     }
 
-    // ── 앞문 둘 + 원형 해치 — 왼 덩이의 **수직** 앞벽에 붙는다.
-    if (facingRatio(0, 1) > 0.1) {
-      const fy9 = AY + 0.03;
-      for (const dx9 of [-3.2, -1.5]) {
-        out.push(...tagKey([
-          [polyPath3([
-            [dx9 - 0.62, fy9, 1.95], [dx9 + 0.62, fy9, 1.95],
-            [dx9 + 0.62, fy9, 3.45], [dx9 - 0.62, fy9, 3.45]]), 1, NEAR_BLACK] as ShapeFace,
-          /* 생산 불빛 — 주황 번짐 위에 노란 심(요청: "중심은 노랗고 주변이 주황"). */
-          [polyPath3([
-            [dx9 - 0.5, fy9 + 0.02, 2.06], [dx9 + 0.5, fy9 + 0.02, 2.06],
-            [dx9 + 0.5, fy9 + 0.02, 2.44], [dx9 - 0.5, fy9 + 0.02, 2.44]]), 0.85, LIT_EDGE] as ShapeFace,
-          [polyPath3([
-            [dx9 - 0.34, fy9 + 0.04, 2.14], [dx9 + 0.34, fy9 + 0.04, 2.14],
-            [dx9 + 0.34, fy9 + 0.04, 2.36], [dx9 - 0.34, fy9 + 0.04, 2.36]]), 0.95, LIT_CORE] as ShapeFace,
-        ], 2.5));
-        pc.push(...tagKey([[polyPath3([
-          [dx9 - 0.62, fy9 + 0.02, 3.5], [dx9 + 0.62, fy9 + 0.02, 3.5],
-          [dx9 + 0.62, fy9 + 0.02, 3.72], [dx9 - 0.62, fy9 + 0.02, 3.72]]), 1] as ShapeFace], 2.55));
-      }
-      out.push(...tagKey([
-        [polyPath3([
-          [-0.3, fy9, 2.0], [1.5, fy9, 2.0], [1.5, fy9, 3.4], [-0.3, fy9, 3.4]]), 1, "#31363e"] as ShapeFace,
-        [polyPath3(Array.from({ length: 13 }, (_, i9): [number, number, number] => {
-          const a9 = (i9 / 13) * Math.PI * 2;
-          return [0.6 + Math.cos(a9) * 0.45, fy9 + 0.02, 2.7 + Math.sin(a9) * 0.45];
-        })), 1, NEAR_BLACK] as ShapeFace,
-      ], 2.5));
-    }
-
-    // ── 오른 덩이 앞면 — 해저드 화살 셋 + 임자색 세로 등 둘.
-    if (facingRatio(0, 1) > 0.1) {
-      const fy29 = -0.15 + 5.3 / 2 + 0.03;
-      const haz9: ShapeFace[] = [];
-      for (let a9 = 0; a9 < 3; a9 += 1) {
-        const zz9 = 1.9 + a9 * 0.45;
-        haz9.push([polyPath3([
-          [BX - 0.55, fy29, zz9], [BX - 0.55, fy29, zz9 + 0.3], [BX + 0.05, fy29, zz9 + 0.15],
-        ]), 1, "#e8a13a"] as ShapeFace);
-      }
-      out.push(...tagKey(haz9, 2.7));
-    }
-    pc.push(...tagKey([
-      ...boxFaces3(BX - 1.2, 2.35, 0.16, 0.4, 1.3, 1.75),
-      ...boxFaces3(BX + 1.18, 2.35, 0.16, 0.4, 1.3, 1.75),
-    ], 2.75));
-
     // ── 모서리 안테나 둘.
-    out.push(...tagKey(paintBase(hornFaces(-3.7, -2.2, RTOP, -3.95, -2.4, 6.2, 0.1), "#5a616b"), 3.8));
-    out.push(...tagKey(paintBase(hornFaces(3.9, 2.1, 3.6, 4.15, 2.35, 5.0, 0.09), "#5a616b"), 3.82));
+    out.push(...tagKey(paintBase(hornFaces(-3.3, -1.9, ZT, -3.55, -2.1, 6.4, 0.1), "#5a616b"), 3.8));
+    out.push(...tagKey(paintBase(hornFaces(3.3, 1.7, ZT, 3.55, 1.9, 6.0, 0.09), "#5a616b"), 3.82));
 
     return raceBase(out, "terran", pc);
   },
@@ -20209,7 +20226,7 @@ export const BLD_NORM: Record<string, number> = {
   ebay: 1.443,   // 다리 두 마디 20% 축소 뒤 재측정(잉크 폭이 좁아져 배수는 올라간다)
   evo: 1.540,
   extract: 1.027,  // 가시 밑둥 굵힘 뒤 재측정(bld-norm)
-  factory: 1.381,  // 다면 재작도 뒤 재측정(bld-norm)
+  factory: 1.409,  // 절두체+허리 재작도 뒤 재측정(bld-norm)
   fleetbeacon: 2.125,
   forge: 1.809,
   gate: 1.774,
