@@ -548,7 +548,15 @@ export default function ReplayMapVector({
        몫을 창 넓이로 돌린다. 굽기는 손짓 시작과 끝에 한 번씩만 일어나고(열쇠에 pad를
        실었다) 그 사이는 자리만 옮긴다(place). 굳은 뒤에는 pad 1로 다시 구워 화질이
        제자리로 온다 — 그 한 번은 움직임이 멈춘 뒤라 눈에 안 띈다. */
-    const ppt = Math.max(0.001, Math.min(needed, MAX_SIDE / (visSpan * pad), 512));
+    const pptRaw9 = Math.max(0.001, Math.min(needed, MAX_SIDE / (visSpan * pad), 512));
+    /* ★ dpr 1 흐림의 마지막 조각(진단: "지도 배율 0.9999 ㅅ재표본") ────────────────
+       예산 죔이 ppt를 요구값의 코앞(실측 32.15/32.16 — 0.03% 아래)까지만 내려도,
+       배킹 한 변이 화면 기기픽셀보다 1px 작아져 브라우저가 지도 전체를 0.9999배로
+       재표본한다. 1에 가까운 비정수 배율은 재표본의 최악이다(유닛 kU의 그 병).
+       요구의 2% 안쪽이면 **요구값으로 스냅**한다 — 잃는 것은 끌기 여유 타일 몇
+       개뿐이고, 얻는 것은 배율 정확히 1(재표본 소멸)이다. 손짓 중(pad>1)에는 ppt가
+       요구의 7할쯤이라 이 문에 안 걸린다 — 그때의 재표본은 이미 감수한 값이다. */
+    const ppt = pptRaw9 >= needed * 0.98 ? needed : pptRaw9;
     /** 그 배율에서 한 변에 담을 수 있는 타일 수 — 창은 이만큼 크게 굽는다. */
     const budget = Math.max(Math.round(visSpan * pad), Math.floor(MAX_SIDE / ppt));
     /** 보이는 창을 가운데 두고 예산껏 넓힌 뒤 맵 안으로 민다. */
@@ -607,7 +615,12 @@ export default function ReplayMapVector({
        기기픽셀과 직접 견준다: 1.000이 아니면 그만큼 재표본이다. */
     SCR_DIAG.ppt = Math.round(pptX * 100) / 100;
     SCR_DIAG.needed = Math.round(needed * 100) / 100;
-    SCR_DIAG.scale = Math.round((cw / Math.max(1e-6, ((tx1 - tx0) / w) * bw * zoom * dpr)) * 10000) / 10000;
+    /* ★ 실제 놓이는 크기와 견준다(수리: "0.9999 재표본"이 거짓 경보였다) — placeOn이
+       CSS 변을 기기픽셀로 스냅하므로(snap), 화면 기기픽셀은 스냅 전 이상값이 아니라
+       **반올림한 값**이다. 이상값과 견주면 늘 1 언저리의 소수가 나와 재표본이 없는
+       화면에도 재표본 딱지가 붙는다. */
+    SCR_DIAG.scale = Math.round((cw / Math.max(1,
+      Math.round(((tx1 - tx0) / w) * bw * zoom * dpr))) * 10000) / 10000;
     SCR_DIAG.areaCap = areaCap;
     SCR_DIAG.mapBack = `${cv.width}x${cv.height}`;
     SCR_DIAG.allocOk = cv.width === cw && cv.height === ch;
