@@ -1039,6 +1039,9 @@ function spikeHorn(
   w: number, fill?: string, sides = 6, bow = 0,
   /** 휨 방향(요청: 본진 안쪽으로) — 주면 그 방향으로 배가 부풀고, 없으면 옛 규칙(+y). */
   bowX?: number, bowY?: number,
+  /** 가늘어지는 급함(요청: "밑둥은 굵고 위로 가면서 급격히") — 기본 1.5는 완만, 2.5쯤
+   *  주면 밑동만 통통하고 금세 바늘이 된다. */
+  taper = 1.5,
 ): ShapeFace[] {
   const bxDir = bowX ?? 0;
   const byDir = bowY ?? 1;
@@ -1047,7 +1050,7 @@ function spikeHorn(
      빨리 가늘어진다. hold는 두지 않는다(굵기 유지 구간이 있으면 그 끝이 턱이 된다). */
   return spirePillar({
     x: 0, y: 0, h: 1, w: w * 0.62, tipW: 0.02,
-    segs: 10, sides, hold: 0, taper: 1.5, fill,
+    segs: 10, sides, hold: 0, taper, fill,
     path: (t9: number): [number, number, number] => {
       const s9 = Math.sin(Math.PI * t9) * bow;
       return [
@@ -2600,7 +2603,24 @@ function paintBase(faces: ShapeFace[], base: string): ShapeFace[] {
    그대로 둔다: 바탕 #636b78 → #65696e, 판 #929aa8 → #94989e, 관 #78808c → #7a7e83.
    광색(RACE_GLOSS_LIT.terran)도 함께 눅인다 — 이 렌더러에서 금속은 명암 차로 읽히므로,
    하이라이트가 하늘빛이면 바탕만 중성으로 바꿔도 푸른 기가 도로 든다. */
-const RACE_BASE_TONE = { terran: "#65696e", toss: "#c9a63f", zerg: "#b9724a" } as const;
+/* 테란은 한 단 진한 쇠다(요청: "stain된 전쟁의 쇠붙이 — 좀 더 진한 쇠색이면서 광택과
+   때묻음이 공존") — 은회색 #65696e를 건메탈 #575c63으로 내리고, 얼룩은 아래
+   stainOf9가 면(패널)마다 낸다. 광택은 glossFaces의 볼록한 자가 그대로 세운다. */
+const RACE_BASE_TONE = { terran: "#575c63", toss: "#c9a63f", zerg: "#b9724a" } as const;
+/* ★ **때 얼룩** — 칠 안 한 테란 면마다 쇠색 네 벌 중 하나를 **결정적으로** 고른다.
+   무작위면 굽을 때마다 판이 달라져 캐시가 거짓말이 된다 — 면의 경로 문자열을 해시해
+   같은 면은 언제나 같은 얼룩을 받는다. 네 벌은 기준(#575c63)의 위아래 5%와, 갈빛이
+   도는 전장 때(#56534c) 하나다: 패널마다 톤이 조금씩 어긋나는 것이 곧 '닦지 않은
+   전쟁 쇠붙이'다. 광(하이라이트)은 그 위에 그대로 얹혀 광택과 때가 공존한다. */
+/* 얼룩 폭은 좁게 — 첫 판(±8% + 진한 갈빛)은 지붕처럼 **큰 면 하나**가 통째로 그 벌을
+   받아 '때'가 아니라 '다른 색 칠'로 읽혔다(공장 지붕이 올리브가 됐다). 위아래 4%와
+   아주 옅은 갈빛 한 벌이면 패널 사이 어긋남으로만 남는다. */
+const STAIN_TERRAN9 = ["#525760", "#575c63", "#5c6168", "#585a55"] as const;
+const stainOf9 = (d: string): string => {
+  let h9 = 0;
+  for (let i9 = 0; i9 < d.length; i9 += 7) h9 = (h9 * 31 + d.charCodeAt(i9)) | 0;
+  return STAIN_TERRAN9[(h9 >>> 1) & 3];
+};
 /* 종족별 **광의 색** — 안 적힌 종족은 흰 광(#fff) 그대로다.
    테란만 옅은 하늘빛을 쓴다(지적: "특히 광택에서 푸른빛을 좀 더 줘야 함"). 이 렌더러에서
    금속은 색이 아니라 명암 차로 읽히는데, 그 명암의 밝은 쪽이 순백이면 어떤 바탕색을 깔아도
@@ -2656,7 +2676,10 @@ function glossFaces(
 function raceBase(
   faces: ShapeFace[], tone: keyof typeof RACE_BASE_TONE, accent: ShapeFace[] = [],
 ): ShapeFace[] {
-  const painted = paintBase(faces, RACE_BASE_TONE[tone]);
+  const painted = tone === "terran"
+    ? faces.map(([d, o, f, k, l, n]) =>
+      [d, o, f ?? stainOf9(d), k, l, n] as ShapeFace)   // 때 얼룩(위 ★)
+    : paintBase(faces, RACE_BASE_TONE[tone]);
   /* 프로토스만 금속 광을 세게 준다(요청: "프로토스 기본색 좀더 밝게하고 메탈 느낌나게
      표현할수 없나"). 바탕색만 밝히면 노란 물감이 될 뿐 금속이 안 된다 — 이 렌더러에서
      금속은 색이 아니라 **명암 차**로 읽힌다. 면마다 얹히는 흰 광(#fff)을 1.7배로 올려
@@ -6879,11 +6902,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 덮개에서 솟는 상아 뿔 셋 — 바깥·뒤로 크게 휘며 끝이 뾰족하다.
       // 밑둥 아주 굵게(지시) — 1.35/1.15/0.95 → 2.3/1.95/1.6.
       out.push(...tagKey(spikeHorn(px - m * 0.7, py - 0.4, 4.6, px - m * 2.4, py - 1.6, 9.4, 2.3,
-        IVORY, 6, 1.2, -m, -0.5), key + 0.85));
+        IVORY, 6, 1.2, -m, -0.5, 2.6), key + 0.85));
       out.push(...tagKey(spikeHorn(px + m * 0.9, py - 0.2, 4.5, px + m * 2.5, py - 1.2, 8.2, 1.95,
-        IVORY, 6, 1, m, -0.4), key + 0.85));
+        IVORY, 6, 1, m, -0.4, 2.6), key + 0.85));
       out.push(...tagKey(spikeHorn(px, py + 0.7, 4.3, px + m * 0.5, py + 2, 7, 1.6,
-        IVORY, 6, 0.8, 0, 1), key + 0.95));
+        IVORY, 6, 0.8, 0, 1, 2.6), key + 0.95));
     };
     /* 두 통 사이를 잇는 살덩이 안장(지적: "양쪽 건물 사이에 원래 빈공간임?" — 사진에는
        비어 있지 않다) — 여태 두 통이 따로 선 두 덩이라 그 사이로 배경이 그대로 비쳤다.
@@ -6981,12 +7004,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         depthNow(gx9, gy9) * 1.6 + 0.3));
     }
     // 애벌레 끝 상아 뿔.
-    out.push(...tagKey(spikeHorn(0, -1.7, 4.2, -0.5, -2.9, 7.2, 2.2, IVORY, 6, 0.7, 0, -1),
+    out.push(...tagKey(spikeHorn(0, -1.7, 4.2, -0.5, -2.9, 7.2, 2.2, IVORY, 6, 0.7, 0, -1, 2.6),
       depthNow(0, -2.3) * 1.6 + 0.3));
     // 땅에서 솟는 앞 가시 둘 — 다른 뿔과 같은 상아색(요청).
-    out.push(...tagKey(spikeHorn(-1.7, 3.4, 0.4, -2.6, 4.8, 2.4, 1.4, IVORY, 6, 0.4, -0.6, 0.8),
+    out.push(...tagKey(spikeHorn(-1.7, 3.4, 0.4, -2.6, 4.8, 2.4, 1.4, IVORY, 6, 0.4, -0.6, 0.8, 2.6),
       depthNow(-2.1, 4.1) * 1.6));
-    out.push(...tagKey(spikeHorn(1.9, 3.2, 0.4, 2.8, 4.4, 2.2, 1.4, IVORY, 6, 0.4, 0.6, 0.8),
+    out.push(...tagKey(spikeHorn(1.9, 3.2, 0.4, 2.8, 4.4, 2.2, 1.4, IVORY, 6, 0.4, 0.6, 0.8, 2.6),
       depthNow(2.3, 3.8) * 1.6));
     /* ② 가운데 구조물 위 **베스핀 증기**(지시·사진: 초록 가스가 가운데 위로 뭉게뭉게)
        — 리파이너리 굴뚝·간헐천과 같은 표현: 위로 갈수록 넓고 옅어지는 초록 타원 세 켜.
