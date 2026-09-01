@@ -29685,13 +29685,41 @@ export default function ReplayMotionPlayer({
        ★ 덤으로 **표가 결정적이 된다** — tierTableOf는 부를 때의 자세 깃발(poseNow)로
          구운 면을 재고 그 표를 종류마다 영영 쥔다. 경기 중에 처음 불리면 그때 마침
          선 자세가 표에 박히는데, 여기서 지으면 늘 기본 자세(0)다. */
+    /* ★ **모드 별본의 표까지** 데운다(실기: 새 판에서도 "최악판 tanksiege 230ms") ────
+       lives에는 본판 이름만 온다 — 시즈 모드·버로우·일꾼 짐 같은 별본은 **그리는 쪽이
+       상태를 보고 갈아 끼우는** 이름이라 위 kinds에 안 잡히고, 경기 중 처음 갈아 끼우는
+       순간 제 등급표(tierTableOf: 여덟 방위 다시 굽기)를 그 프레임에 짓는다. 탱크가
+       처음 시즈를 박는 순간의 230ms가 그것이다.
+       본판이 있으면 그 별본이 나올 것은 확실하므로(시즈 없는 탱크는 있어도, 탱크 없는
+       시즈는 없다) 본판의 표를 데울 때 별본의 표도 같이 데운다. 기하(16방위)는 여전히
+       본판만이다 — 별본 기하는 3~7ms라 재생 중 한두 번 구워도 안 아프고, 아팠던 것은
+       표(수백 ms)뿐이다. */
+    const WARM_KIN9: Record<string, readonly string[]> = {
+      tank: ["tankbody", "tankgun", "tanksiege", "tanksiegebody", "tanksiegegun"],
+      tanksiege: ["tanksiegebody", "tanksiegegun", "tank", "tankbody", "tankgun"],
+      lurker: ["burrowhole", "lurkerburrow", "lurkerfire"],
+      scv: ["scvHold", "loadScvMin", "loadScvGas"],
+      probe: ["probeHold", "loadProbeMin", "loadProbeGas"],
+      drone: ["droneHold", "loadDroneMin", "loadDroneGas"],
+      sunken: ["sunkenrear", "sunkentongue"],
+      geyser: ["geyserdry"],
+    };
     const jobs: { kind: string; rot?: number; table?: boolean }[] = [];
-    for (const k9 of kinds) {
+    const tabled9 = new Set<string>();
+    const pushTable9 = (k9: string): void => {
+      if (tabled9.has(k9) || !SHAPE_BUILDERS[k9]) return;
+      tabled9.add(k9);
       jobs.push({ kind: k9, table: true });
+    };
+    for (const k9 of kinds) {
+      pushTable9(k9);
+      for (const v9 of WARM_KIN9[k9] ?? []) pushTable9(v9);
       const isBld = !UNIT_KIND_SET.has(k9);
       if (isBld) jobs.push({ kind: k9 });
       else for (let r9 = 0; r9 < 16; r9 += 1) jobs.push({ kind: k9, rot: r9 * 22.5 });
     }
+    // 다른 유닛의 버로우도 맨 구멍을 쓴다 — 저그가 있으면 무조건 데워 둔다(면 몇 장짜리라 값도 없다).
+    if ([...kinds].some((k9) => k9 === "zling" || k9 === "hydra" || k9 === "drone")) pushTable9("burrowhole");
     let i9 = 0;
     let raf9 = 0;
     let lastPost9 = 0;
