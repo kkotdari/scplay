@@ -19950,6 +19950,46 @@ const SPRITE_SIZES_MAX = 4096;
    여전히 0의 값이고, 날갯짓만 하는 종류는 컷 1의 값으로 못 박힌다 — 어느 쪽이든 컷이
    바뀌어도 안 흔들리는 한 값이라는 것이 요점이다(어느 컷의 값인지가 아니라). */
 const INK_W_RATIO9 = new Map<string, { pose: number; r: number }>();
+/** dpr 1 판 또렷하게(시험 — "쨍한 느낌") — 1배 굽기의 안티앨리어싱 경계를 언샤프
+ *  마스크(4-이웃)로 굳힌다. 알파를 곱한(프리멀티플라이) 값으로 컨볼루션해야 투명
+ *  이웃이 검은 테를 끌어들이지 않고, 알파도 함께 갈아 경계 자체가 딱딱해진다.
+ *  B가 1 이하일 때만 단다 — dpr 2+는 픽셀이 촘촘해 굳힐 것이 없고 판도 네 배라
+ *  삯만 든다. 판 굽기마다 한 번이라(블릿마다가 아니다) 값은 캐시가 문다. */
+const SHARP1X_A9 = 0.4;
+function sharpenPlate9(cv: HTMLCanvasElement): void {
+  const w9 = cv.width; const h9 = cv.height;
+  if (!w9 || !h9 || w9 * h9 > 1_200_000) return;
+  const c9 = cv.getContext("2d");
+  if (!c9) return;
+  const im9 = c9.getImageData(0, 0, w9, h9);
+  const s9 = im9.data;
+  const pm9 = new Float32Array(s9.length);
+  for (let i9 = 0; i9 < s9.length; i9 += 4) {
+    const a9 = s9[i9 + 3] / 255;
+    pm9[i9] = s9[i9] * a9;
+    pm9[i9 + 1] = s9[i9 + 1] * a9;
+    pm9[i9 + 2] = s9[i9 + 2] * a9;
+    pm9[i9 + 3] = s9[i9 + 3];
+  }
+  const A9 = SHARP1X_A9;
+  const row9 = w9 * 4;
+  for (let y9 = 1; y9 < h9 - 1; y9 += 1) {
+    for (let x9 = 1; x9 < w9 - 1; x9 += 1) {
+      const p9 = y9 * row9 + x9 * 4;
+      const va9 = pm9[p9 + 3] * (1 + 4 * A9)
+        - A9 * (pm9[p9 - row9 + 3] + pm9[p9 + row9 + 3] + pm9[p9 - 4 + 3] + pm9[p9 + 4 + 3]);
+      const aOut9 = Math.max(0, Math.min(255, va9));
+      s9[p9 + 3] = aOut9;
+      if (aOut9 < 1) continue;
+      for (let ch9 = 0; ch9 < 3; ch9 += 1) {
+        const v9 = pm9[p9 + ch9] * (1 + 4 * A9)
+          - A9 * (pm9[p9 - row9 + ch9] + pm9[p9 + row9 + ch9] + pm9[p9 - 4 + ch9] + pm9[p9 + 4 + ch9]);
+        s9[p9 + ch9] = (v9 * 255) / aOut9;
+      }
+    }
+  }
+  c9.putImageData(im9, 0, 0);
+}
 function unitSprite(
   op: UnitDrawOp, pxq: number, B: number,
 ): { cv: HTMLCanvasElement; ox: number; oy: number; pad: number; l: number; bot: number; cx: number; top: number; w: number } | null {
@@ -20062,6 +20102,7 @@ function unitSprite(
     `u|${op.kind}|${rotB}|${op.flat ? 1 : 0}|${vq}|${pitchTag(op.pitch)}|${lod}|${poseTag(op.kind)}`,
     B * pad, B * pad, (B * pxq) / 16);
   const cr = cropToInk(cv, box, true);
+  if (B <= 1) sharpenPlate9(cr.cv);   // dpr 1 — 경계 굳히기(위 sharpenPlate9)
   /* 자르고 난 **원판**은 빌림터로 돌려준다(위 ★) — 다음 굽기가 같은 한 변이면 그대로
      되쓰고, 아니면 빌림터가 알아서 놓는다. 여기서 통째로 버리던 것이 봉우리의 몫이었다. */
   freeBakeCanvas(cv);
@@ -20874,6 +20915,9 @@ function buildingSpriteBake(
     B * (pad + sideQ / 2) - 8 * s9, B * (pad + sideQ) - 16 * s9, s9);
   // 빌린 판이라 늘 새 판에 옮겨 담고(forceCopy), 원판은 빌림터로 돌려준다.
   const cr9 = cropToInk(cv, box9, true);
+  /* 데칼(크립 얼룩)은 안 굳힌다 — 반투명 가장자리가 언샤프 링(밝은 테)으로 떠서
+     땅과 이어지는 무늬가 도리어 도드라진다. 딱딱해야 할 것은 몸의 경계뿐이다. */
+  if (B <= 1 && !DECAL_KINDS.has(op.kind) && !op.clipWalk && !op.inkCenter) sharpenPlate9(cr9.cv);
   freeBakeCanvas(cv);
   const entry = {
     cv: cr9.cv, ox: cr9.ox, oy: cr9.oy,
