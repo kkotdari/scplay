@@ -20508,23 +20508,32 @@ export function autoTier(kind: string, key: string, faces: ShapeFace[]): ShapeFa
      한 줄이 실루엣 깨짐 350건 → 214건, 각도 흔들림 8.9%p → 3.4%p를 만든다(값은 감축률
      로 치른다: 저 59%→80%). */
   const hasBody = new Set<number>();
-  for (const f of faces) {
+  /* ★ 면의 넓이는 **한 번만 잰다**(실기: 최악 프레임 66ms 중 굽기:유닛판 43ms) ────────
+     여기 있던 두 고리가 같은 면의 pathBox를 **두 번씩** 파싱하고 있었다 — 첫 고리가
+     부품 최대 넓이를 재고, 둘째 고리가 같은 면을 다시 재서 명암 잔조각을 판정한다.
+     면이 3천 장이면 문자열 파싱 6천 번이고, 이 함수는 판 열쇠마다 한 번씩 돌므로
+     (각·자세·요잉 칸이 처음 나올 때마다) 전투 중에 새 열쇠가 잡힐 때마다 그 값이 한
+     프레임에 떨어진다. 첫 고리에서 잰 값을 배열로 들고 둘째 고리가 그대로 쓴다 —
+     판정은 같은 수로 하므로 결과가 한 면도 안 다르다. */
+  const areas9 = new Float64Array(faces.length);
+  for (let i9 = 0; i9 < faces.length; i9 += 1) {
+    const f = faces[i9];
     const pid = f[5];
     if (pid === undefined) continue;
     if (f[2] === undefined) hasBody.add(pid);
     const b = pathBox(f[0]);
     const a = (b[2] - b[0]) * (b[3] - b[1]);
+    areas9[i9] = a;
     partSpan.set(pid, Math.max(partSpan.get(pid) ?? 0, a));
   }
-  const out = faces.map((f) => {
+  const out = faces.map((f, i9) => {
     const pid = f[5];
     if (pid === undefined) return f;
     const cur = f[4] ?? 1;
     let t = table.get(pid) ?? cur;
     if (t > 0 && f[2] !== undefined && hasBody.has(pid)) {
-      const b = pathBox(f[0]);
       const pa = partSpan.get(pid) ?? 0;
-      const fa = (b[2] - b[0]) * (b[3] - b[1]);
+      const fa = areas9[i9];
       if (pa > 0 && fa / pa < SHADE_MINOR) t = Math.max(t, LOD_FINE);
     }
     return (t === cur ? f : [f[0], f[1], f[2], f[3], t, pid]) as ShapeFace;
