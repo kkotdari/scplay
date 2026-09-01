@@ -7553,110 +7553,132 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   /* 사이언스 퍼실리티(정정: 엔베가 아니라 이 건물이었다) — 드럼 발 위에 떠 있는
      둥근 층층 플랫폼, 가운데 큰 갈빗살 돔(농구공 반쪽), 원통 모듈, 초록 불 띠. */
   scifac: () => {
-    /* 사이언스 퍼실리티(재작도 — 원작 스프라이트 기준) ──────────────────────────────
-       "회원들이 못알아봐 — 만들 때 가장 중요한 건 원작의 특징을 살려서 알아볼 수 있게
-       하는 것"이라는 지적을 받았다. 그래서 이 건물을 알아보게 하는 **두 가지**를 먼저
-       세우고 나머지를 거기 맞췄다:
-         ① 지붕을 덮는 **크고 납작한 타원 접시** — 원작에서 가장 먼저 눈에 드는 것이고,
-            둥근 돔이 아니라 한쪽으로 길쭉한 타원이라는 점이 특징이다. 여태 반지름 3의
-            원뿔이라 작고 동그래서 딴 건물처럼 보였다. 가로 4.9 · 세로 2.7로 키우고
-            납작하게 눕혀 지붕을 거의 덮게 한다. 개인색은 이 접시다(요청).
-         ② 옆구리의 **초록 발광 띠** — 원작의 초록 불이 이 건물의 두 번째 표지다.
-            네 칸짜리 작은 띠를 크게 키우고 둘레 포드에도 한 줄씩 넣어 어느 각에서도
-            초록이 보이게 한다.
-       몸은 다리 위에 떠 있다(테란 건물 공통) — 지면에 앉히면 원작의 실루엣이 안 나온다. */
-    const BRONZE = "#c1c7d0";
-    const BRONZE_D = "#828e9f";
-    const STEEL = "#dfe3e6";
-    const GRID = "#21252c";
-    const LED = winLit("#4cd86a");
+    /* 사이언스 퍼실리티(전면 재작도 — 원작 스프라이트 사진 기준) ─────────────────────
+       사진이 정한 것 셋(지시: "흰색이 임자색, 라임색이 창문 불빛"):
+         · **크고 매끈한 흰 돔** — 뒤 가운데를 덮는 이 건물의 얼굴. 흰 자리가 곧
+           임자색이므로 칠하지 않고 pc로 보낸다.
+         · **라임 불빛** — 왼 원반단의 둘레 발광 마디와 오른 블록의 세로 창살. 연구
+           중에만 켜진다(winLit — scifac은 LIT_KINDS에 있다).
+         · 팔레트는 은색이 아니라 **청동·암강철**이다. 바닥엔 굵은 톱니 발이 앉는다. */
+    const KH = "#9b8f6d";        // 청동 카키(밝은 면)
+    const KH_D = "#6e6449";      // 어두운 청동
+    const ST = "#4a505a";        // 암강철
+    const ST_D = "#343a44";      // 더 어두운 강철
+    const LIME = winLit("#8cff4f");
+    const TEAL = "#5fe8d8";
+    const pc: ShapeFace[] = [];
     const out: ShapeFace[] = [];
-    const BASE_Z = 0.95;
 
-    // 다리 넷 — 거의 수직으로 내려가고 밑에 발판(테란 건물 공통 구조).
-    for (const [gx9, gy9] of [[-3.6, 2.6], [3.6, 2.4], [-3.8, -2.4], [3.8, -2.6]] as
-      [number, number][]) {
-      out.push(...legAndFoot(gx9, gy9, BASE_Z + 0.2));
-    }
-    // 받침 — 넓고 낮은 단. 다리 위에 뜬다.
-    out.push(...tagKey(paintBase(frustumFaces3(0, 0, 8.2, 6.2, 7, 5.2, 1.3, BASE_Z), BRONZE_D), 0));
-    // 본체 — 위로 좁아지는 덩치.
-    out.push(...tagKey(paintBase(frustumFaces3(0, -0.2, 5.6, 4.2, 4.4, 3.2, 1.9, BASE_Z + 1.3), BRONZE), 6));
+    // ── 받침 — 넓게 벌어진 낮은 단(사진의 다엽 기단을 절두체 하나로 요약).
+    out.push(...tagKey(paintBase(frustumFaces3(0, 0, 8.4, 6.4, 7.6, 5.6, 1.1, 0.55), KH_D), 0));
 
-    /* 둘레 포드 넷 — 어두운 격자 뚜껑을 쓴 둥근 통. 원작에도 네 귀에 이런 통이 앉는다.
-       통마다 초록 띠를 한 줄 둘러, 접시에 가려 몸통 띠가 안 보이는 각도에서도 초록이
-       살아 있게 한다. */
-    for (const [px, py] of [[-3, 1.7], [3, 1.5], [-3.2, -1.5], [3.2, -1.7]] as [number, number][]) {
-      const dep9 = depthNow(px, py) * 1.6;
-      out.push(...tagKey([
-        ...paintBase(cylinderFaces3(px, py, 1.35, 1.15, BASE_Z + 1.3), BRONZE),
-        ...paintBase(cylinderFaces3(px, py, 1.42, 0.3, BASE_Z + 2.45), GRID),
-        capFace(discPath3(px, py, BASE_Z + 2.78, 1.15), 0.4),
-      ], 12 + dep9));
-      // 포드 허리의 초록 띠 — 앞을 향한 쪽만.
-      const nx9 = px / Math.hypot(px, py);
-      const ny9 = py / Math.hypot(px, py);
-      if (facingRatio(nx9, ny9) > 0.1) {
-        const tx9 = -ny9;
-        const ty9 = nx9;
-        const r9 = 1.38;
-        out.push(...tagKey([[polyPath3([
-          [px + nx9 * r9 - tx9 * 0.85, py + ny9 * r9 - ty9 * 0.85, BASE_Z + 1.62],
-          [px + nx9 * r9 + tx9 * 0.85, py + ny9 * r9 + ty9 * 0.85, BASE_Z + 1.62],
-          [px + nx9 * r9 + tx9 * 0.85, py + ny9 * r9 + ty9 * 0.85, BASE_Z + 2.14],
-          [px + nx9 * r9 - tx9 * 0.85, py + ny9 * r9 - ty9 * 0.85, BASE_Z + 2.14],
-        ]), 0.95, LED] as ShapeFace], 13 + dep9));
+    // ── 톱니 발 셋 — 굵고 어두운 골진 원통(사진 앞·오른쪽의 그 발).
+    for (const [fx9, fy9] of [[-0.4, 3.35], [3.3, 2.45], [-3.9, 2.4]] as [number, number][]) {
+      const foot9: ShapeFace[] = [
+        ...paintBase(cylinderFaces3(fx9, fy9, 1.2, 1.05, 0), ST_D),
+        [discPath3(fx9, fy9, 1.07, 1.05), 1, "#454b55"] as ShapeFace,
+      ];
+      for (let g9 = 0; g9 < 8; g9 += 1) {
+        const a9 = ((g9 * 45 + 22) * Math.PI) / 180;
+        foot9.push(...paintBase(boxFaces3(
+          fx9 + Math.sin(a9) * 1.2, fy9 + Math.cos(a9) * 1.2, 0.34, 0.34, 0.95, 0.02,
+        ), "#3d434d"));
       }
+      out.push(...tagKey(foot9, depthNow(fx9, fy9) * 1.6 + 1));
     }
 
-    /* 옆구리 초록 발광 띠 — 원작의 표지 둘째. 네 칸을 크게 키웠다. 앞이 보일 때만. */
-    if (facingRatio(0, 1) > 0.1) {
-      const led: ShapeFace[] = [];
-      led.push([polyPath3([
-        [-2.0, 1.9, BASE_Z + 1.5], [2.0, 1.9, BASE_Z + 1.5],
-        [2.0, 1.9, BASE_Z + 2.62], [-2.0, 1.9, BASE_Z + 2.62],
-      ]), 1, GRID] as ShapeFace);
-      for (const lx of [-1.42, -0.47, 0.48, 1.43]) {
-        led.push([polyPath3([
-          [lx - 0.34, 1.93, BASE_Z + 1.62], [lx + 0.34, 1.93, BASE_Z + 1.62],
-          [lx + 0.34, 1.93, BASE_Z + 2.5], [lx - 0.34, 1.93, BASE_Z + 2.5],
-        ]), 0.95, LED] as ShapeFace);
-      }
-      out.push(...tagKey(led, 9 + depthNow(0, 1.9) * 1.6));
-    }
-
-    // 가운데 원통 모듈 — 본체 위에 누운 통.
-    out.push(...tagKey(paintBase(tubeFaces(-1.6, -0.6, 1.6, -0.6, 0.8, BASE_Z + 3.1), STEEL),
-      16 + depthNow(0, -0.6)));
-
-    /* ★ 크고 납작한 타원 접시 — 이 건물의 얼굴이다. 개인색(요청).
-       바탕색 도우미가 몸의 밑칠을 전부 칠하므로, 개인색 부품은 out이 아니라 accent에
-       담아야 색 없이 남는다(수리: 접시가 은색으로 묻혀 있었다).
-       원기둥·돔 도우미는 전부 정원이라 타원이 안 나온다 — 화면 타원(groundEllipse)을
-       두 켜로 겹쳐 두께 있는 접시를 만든다. 아래 켜를 조금 내려 그리면 그 사이가
-       접시의 옆테로 읽힌다. */
-    /* 접시를 건물 한가운데로 옮기고 조금 줄였으며, 화면 타원 대신 각진 기둥으로
-       낸다(요청: "반구 건물의 중앙으로 위치좀 맞추고 크기 살짝 줄이고 스파이어필라
-       사용"). 화면 타원은 어느 요잉에서도 같은 방향으로 누워 있어 몸이 돌아도 접시만
-       안 도는 것처럼 보였다 — spirePillar는 단면을 실제로 세우므로 요잉을 따라 돌고
-       면이 살아 금속으로 읽힌다. 낮고 넓게(높이 0.8, 밑 2.7 → 윗 1.95) 잡아 반구라기
-       보다 접시에 가깝게 둔다. 개인색이다(요청). */
-    const pc: ShapeFace[] = [...tagKey(spirePillar({
-      x: 0, y: 0, z0: BASE_Z + 3.4, h: 0.8, w: 2.7, tipW: 1.95,
-      segs: 2, sides: 16, hold: 0.25, caps: "top",
-    }), 30)];
-
-    /* 뒤 가는 안테나 둘 — 원작의 왼뒤 안테나. */
-    for (const [ax, ay, ah] of [[-2.6, -2.6, 3.2], [-1.7, -3.0, 2.4]] as [number, number, number][]) {
+    // ── 왼쪽 원반단 — 두 단 + 둘레 라임 마디 + 청동 돔, 꼭대기 임자색 갓.
+    {
+      const cx9 = -3.1; const cy9 = 0.4;
+      const k9 = 6 + depthNow(cx9, cy9) * 1.6;
       out.push(...tagKey([
-        ...paintBase(cylinderFaces3(ax, ay, 0.13, ah, BASE_Z + 2.4), STEEL),
-        capFace(discPath3(ax, ay, BASE_Z + 2.4 + ah, 0.28), 0.4),
-      ], 20 + depthNow(ax, ay)));
+        ...paintBase(cylinderFaces3(cx9, cy9, 2.35, 1.0, 1.55), KH),
+        ...paintBase(cylinderFaces3(cx9, cy9, 1.85, 0.72, 2.55), KH_D),
+      ], k9));
+      // 둘레 발광 마디 여섯 — 아랫단 벽을 도는 라임 창(연구 중 점등).
+      const arc9: ShapeFace[] = [];
+      for (let a0 = 0; a0 < 6; a0 += 1) {
+        const b0 = (a0 * 60 + 8) * (Math.PI / 180);
+        const b1 = (a0 * 60 + 44) * (Math.PI / 180);
+        const nx9 = Math.sin((b0 + b1) / 2);
+        const ny9 = Math.cos((b0 + b1) / 2);
+        if (facingRatio(nx9, ny9) <= 0.08) continue;
+        arc9.push([polyPath3([
+          [cx9 + Math.sin(b0) * 2.38, cy9 + Math.cos(b0) * 2.38, 1.8],
+          [cx9 + Math.sin(b1) * 2.38, cy9 + Math.cos(b1) * 2.38, 1.8],
+          [cx9 + Math.sin(b1) * 2.38, cy9 + Math.cos(b1) * 2.38, 2.3],
+          [cx9 + Math.sin(b0) * 2.38, cy9 + Math.cos(b0) * 2.38, 2.3],
+        ]), 1, LIME] as ShapeFace);
+      }
+      out.push(...tagKey(arc9, k9 + 0.3));
+      out.push(...tagKey(paintBase(domeFaces3(cx9, cy9, 1.55, 1.0, 3.27), KH), k9 + 0.5));
+      // 임자색 갓 — 돔 꼭대기의 작은 흰 캡(사진의 흰 자리 = 임자색).
+      pc.push(...tagKey(domeFaces3(cx9, cy9, 0.72, 0.42, 4.05), k9 + 0.8));
+    }
+
+    // ── 큰 흰 돔(임자색) — 뒤 가운데, 암강철 드럼 위에 앉는다. 이 건물의 얼굴.
+    {
+      const cx9 = 0.7; const cy9 = -1.3;
+      const k9 = 8 + depthNow(cx9, cy9) * 1.6;
+      out.push(...tagKey([
+        ...paintBase(cylinderFaces3(cx9, cy9, 2.7, 1.15, 1.55), ST),
+        ...paintBase(cylinderFaces3(cx9, cy9, 2.77, 0.16, 2.35), ST_D),
+      ], k9));
+      pc.push(...tagKey(domeFaces3(cx9, cy9, 2.6, 1.75, 2.7, true), k9 + 0.6));
+    }
+
+    // ── 가운데 앞 탑 — 마디 링을 두른 어두운 원통 + 곁의 작은 원통(사진 중앙).
+    {
+      const k9 = 12 + depthNow(-0.4, 1.9) * 1.6;
+      out.push(...tagKey([
+        ...paintBase(cylinderFaces3(-0.4, 1.9, 1.0, 3.7, 0.9), ST_D),
+        ...paintBase(cylinderFaces3(-0.4, 1.9, 1.07, 0.16, 1.75), "#6a7280"),
+        ...paintBase(cylinderFaces3(-0.4, 1.9, 1.07, 0.16, 2.75), "#6a7280"),
+        ...paintBase(cylinderFaces3(-0.4, 1.9, 1.07, 0.16, 3.75), "#6a7280"),
+        ...paintBase(domeFaces3(-0.4, 1.9, 0.95, 0.5, 4.6), ST),
+      ], k9));
+      const k29 = 12 + depthNow(1.15, 1.3) * 1.6;
+      out.push(...tagKey([
+        ...paintBase(cylinderFaces3(1.15, 1.3, 0.62, 2.3, 0.9), ST),
+        ...paintBase(cylinderFaces3(1.15, 1.3, 0.68, 0.14, 2.0), "#6a7280"),
+        capFace(discPath3(1.15, 1.3, 3.2, 0.5), 0.3),
+      ], k29));
+    }
+
+    // ── 오른쪽 블록 — 청동 절두체, 앞면 어두운 홈에 라임 세로 창살, 윗모서리 청록 띠.
+    {
+      const bx9 = 3.15; const by9 = 0.3;
+      const k9 = 10 + depthNow(bx9, by9) * 1.6;
+      out.push(...tagKey(paintBase(frustumFaces3(bx9, by9, 2.6, 2.7, 2.2, 2.3, 2.3, 0.9), KH), k9));
+      if (facingRatio(0, 1) > 0.08) {
+        const fy9 = by9 + 1.32;
+        const win9: ShapeFace[] = [[polyPath3([
+          [bx9 - 1.0, fy9, 1.35], [bx9 + 1.0, fy9, 1.35],
+          [bx9 + 0.93, fy9, 2.75], [bx9 - 0.93, fy9, 2.75],
+        ]), 1, "#22262c"] as ShapeFace];
+        for (let w9 = 0; w9 < 3; w9 += 1) {
+          const wx9 = bx9 - 0.62 + w9 * 0.62;
+          win9.push([polyPath3([
+            [wx9 - 0.14, fy9 + 0.02, 1.5], [wx9 + 0.14, fy9 + 0.02, 1.5],
+            [wx9 + 0.13, fy9 + 0.02, 2.6], [wx9 - 0.13, fy9 + 0.02, 2.6],
+          ]), 1, LIME] as ShapeFace);
+        }
+        out.push(...tagKey(win9, k9 + 0.4));
+      }
+      out.push(...tagKey(paintBase(boxFaces3(bx9 - 1.15, by9, 0.16, 2.1, 0.14, 3.2), TEAL), k9 + 0.5));
+    }
+
+    // ── 뒤왼쪽 안테나 팔 — 비스듬한 가는 기둥과 가로대 둘(사진 왼뒤 크레인).
+    {
+      const k9 = 6 + depthNow(-3.5, -2.6) * 1.6;
+      out.push(...tagKey([
+        ...paintBase(hornFaces(-3.5, -2.6, 1.65, -4.6, -3.2, 4.3, 0.2), ST),
+        ...paintBase(boxFaces3(-4.25, -3.0, 0.8, 0.12, 0.1, 3.6), ST_D),
+        ...paintBase(boxFaces3(-3.95, -2.82, 0.62, 0.1, 0.09, 2.95), ST_D),
+      ], k9));
     }
     return raceBase(out, "terran", pc);
   },
-  /* 포지(렌더 참고 복원) — 왼앞 아치 별채, 가운데 총알 기둥 무리, 초록 배관 다발이
-     오른쪽 큰 렌즈 돔으로 흘러들고, 앞오른쪽에 작은 렌즈 돔. */
   forge: () => withModelSpin(-90, () => {
     /* 포지(전면 재작도·사진) — 황금 덩치다: 오른뒤에 청록 눈이 박힌 큰 황금 돔,
        앞오른쪽에 같은 눈을 인 작은 돔, 왼쪽에 뾰족한 황금 뿔탑 셋, 그 사이를 잇는
@@ -20323,7 +20345,7 @@ export const BLD_NORM: Record<string, number> = {
   robobay: 1.423,
   sbattery: 2.032,
   scaffold: 1.733,
-  scifac: 1.373,
+  scifac: 1.359,  // 사진 기준 전면 재작도 뒤 재측정(bld-norm)
   spire: 1.548,  // 상자 상한에 걸림
   spore: 1.666,
   sunken: 1.308,
