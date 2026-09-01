@@ -19540,6 +19540,44 @@ export const SPRITE_PERF = {
     evict: 0, bldEvict: 0, defer: 0, bldDefer: 0, worst: 0, worstKind: "",
     worstFrame: 0, worstFrameBake: 0, blit: 0,
   },
+  /* ★ **화면이 지금 쥐고 있는 캔버스 전부**(지적: "스샷 찍다가 탭 터지기까지 함") ──────
+     판 보관함은 이미 재고 있지만(41/46MB) 그것은 **한 층**일 뿐이다. 화면에는 지도
+     배킹(1713² ≈ 11.7MB) · 유닛(1179² ≈ 5.6MB) · 안개 · 미니맵 · 굽는 빌림터가 더
+     있고, 이들은 서로 다른 파일에 흩어져 있어 합계를 볼 길이 여태 없었다. 사파리가
+     탭을 버리는 것은 **그 합**이 정하는데, 우리는 그 수를 한 번도 본 적이 없다.
+     그래서 문서의 <canvas>를 통째로 훑어 폭×높이×4를 더한다 — 어느 파일이 만들었든,
+     내가 모르는 층이 있어도 잡힌다. 2초에 한 번이라 삯이 없다.
+     ★ 보관함의 판은 문서에 안 붙어 있다(오프스크린) — 그래서 이 값과 판 줄은 **서로
+       다른 것을 세며, 더해야 전체가 된다.** DOM 마커 수도 같이 센다: 유닛 천 개가
+       스팬으로 서 있으면 그 자체가 무시 못 할 몫이다. */
+  dom: { canvases: 0, canvasMB: 0, markers: 0, list: "" },
+  scanDom(): void {
+    if (typeof document === "undefined") return;
+    let n9 = 0;
+    let b9 = 0;
+    /* 큰 것부터 이름과 함께 적는다 — 합계만으로는 **어느 층을 줄여야 하는지**를 못
+       가른다. 이름은 클래스의 마지막 마디를 쓴다(scr-motion-unitlayer → unitlayer). */
+    const each9: { n: string; mb: number }[] = [];
+    for (const c9 of Array.from(document.getElementsByTagName("canvas"))) {
+      n9 += 1;
+      const mb9 = (c9.width * c9.height * 4) / 1048576;
+      b9 += mb9 * 1048576;
+      const cls9 = (c9.className || "").split(/\s+/).filter(Boolean);
+      const nm9 = (cls9[cls9.length - 1] || c9.parentElement?.className || "?")
+        .split(/\s+/).pop()?.replace(/^scr-(motion-|map-)?/, "") || "?";
+      each9.push({ n: `${nm9} ${c9.width}×${c9.height}`, mb: mb9 });
+    }
+    each9.sort((x9, y9) => y9.mb - x9.mb);
+    SPRITE_PERF.dom = {
+      canvases: n9,
+      canvasMB: b9 / 1048576,
+      list: each9.slice(0, 4).map((e9) => `${e9.n} ${e9.mb.toFixed(1)}MB`).join(" · "),
+      /* 마커는 **지도 칸 안의 모든 마디**로 센다 — 유닛은 이제 캔버스에 그리므로 종류별
+         클래스를 짚으면 놓친다(실제로 scr-motion-army는 효과 스팬 둘뿐이다). 무엇이 몇
+         개 서 있든 이 수가 곧 DOM 무게다. */
+      markers: document.querySelectorAll(".scr-motion-frame *").length,
+    };
+  },
   wLast: {
     secs: 0, frames: 0, bake: 0, bldBake: 0, ms: 0, bldMs: 0,
     evict: 0, bldEvict: 0, defer: 0, bldDefer: 0, worst: 0, worstKind: "",
@@ -19572,6 +19610,7 @@ export const SPRITE_PERF = {
       defer: w.defer, bldDefer: w.bldDefer, worst: w.worst, worstKind: w.worstKind,
       worstFrame: w.worstFrame, worstFrameBake: w.worstFrameBake, blit: w.blit,
     };
+    SPRITE_PERF.scanDom();
     w.t0 = now; w.frames = 0; w.bake = 0; w.bldBake = 0; w.ms = 0; w.bldMs = 0;
     w.evict = 0; w.bldEvict = 0; w.defer = 0; w.bldDefer = 0; w.worst = 0; w.worstKind = "";
     w.worstFrame = 0; w.worstFrameBake = 0; w.blit = 0;
@@ -19593,7 +19632,12 @@ export const SPRITE_PERF = {
       + `/B${SPRITE_PERF.wLast.bldDefer} · 최악판 ${SPRITE_PERF.wLast.worstKind}`
       + ` ${SPRITE_PERF.wLast.worst.toFixed(0)}ms · 최악프레임`
       + ` ${SPRITE_PERF.wLast.worstFrame.toFixed(0)}ms(굽기`
-      + ` ${SPRITE_PERF.wLast.worstFrameBake.toFixed(0)}ms)`;
+      + ` ${SPRITE_PERF.wLast.worstFrameBake.toFixed(0)}ms)`
+      + `\n[메모리] 캔버스 ${SPRITE_PERF.dom.canvases}장`
+      + ` ${SPRITE_PERF.dom.canvasMB.toFixed(1)}MB + 판`
+      + ` ${((l.bytes + l.bldBytes) / 1048576).toFixed(1)}MB = `
+      + `${(SPRITE_PERF.dom.canvasMB + (l.bytes + l.bldBytes) / 1048576).toFixed(1)}MB`
+      + ` · 마커 ${SPRITE_PERF.dom.markers}개\n           ${SPRITE_PERF.dom.list}`;
   },
 };
 /* 콘솔에서 바로 읽을 수 있게 창에 매단다 — 계측기는 켜고 끄는 것이 아니라 늘 도는
@@ -30368,6 +30412,21 @@ export default function ReplayMotionPlayer({
                 <div>
                   최악프레임 {SPRITE_PERF.wLast.worstFrame.toFixed(0)}ms
                   {" (그중 굽기 "}{SPRITE_PERF.wLast.worstFrameBake.toFixed(0)}ms)
+                </div>
+                {/* ★ 탭이 터지는 자를 본다(위 dom의 ★) — 판(오프스크린)과 화면 캔버스는
+                    **서로 다른 것**이라 더해야 전체다. */}
+                <div>
+                  캔버스 {SPRITE_PERF.dom.canvases}장{" "}
+                  {SPRITE_PERF.dom.canvasMB.toFixed(1)}MB{" + 판 "}
+                  {((SPRITE_PERF.last.bytes + SPRITE_PERF.last.bldBytes) / 1048576).toFixed(1)}
+                  {"MB = "}
+                  {(SPRITE_PERF.dom.canvasMB
+                    + (SPRITE_PERF.last.bytes + SPRITE_PERF.last.bldBytes) / 1048576).toFixed(1)}MB
+                  {" · 마커 "}{SPRITE_PERF.dom.markers}개
+                </div>
+                {/* 어느 층이 큰가 — 줄일 자리를 이 줄이 짚는다. */}
+                <div style={{ fontSize: "0.92em", opacity: 0.85 }}>
+                  {SPRITE_PERF.dom.list || "-"}
                 </div>
                 {/* 참값이 어느 판으로 구워졌나 — '재분석했는데 갈림 시각이 그대로'가
                     진짜 갈림인지 안 구운 것인지를 이 한 줄이 가른다(위 truthVer 주석). */}
