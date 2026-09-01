@@ -5435,12 +5435,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 십자 방패 윤곽 — 세로 기둥(반폭 0.85, v ±1.85)의 끝은 삼각(v ±2.4),
          가로 팔(u ±2.3, 반높이 0.75)의 끝은 일자 사각. */
       const AW = 0.95; const AL = vert9 ? 1.75 : 1.6; const AH = 0.85;
-      const CV = 1.45; const CT = 1.95;
+      const CV = 1.45; const CT = 2.1;
       const RAW9: [number, number][] = [
         [-AW, CV], [0, CT], [AW, CV], [AW, AH], [AL, AH], [AL, -AH], [AW, -AH],
         [AW, -CV], [0, -CT], [-AW, -CV], [-AW, -AH], [-AL, -AH], [-AL, AH], [-AW, AH],
       ];
-      // 모서리를 곡선으로(지적: "각지면 안되고 부드럽게") — 차이킨 잘라내기 두 번.
+      /* 모서리를 곡선으로(지적: "각지면 안되고 부드럽게") — 차이킨 잘라내기 두 번.
+         단, 세로 팔의 삼각 꼭짓점(v ±CT)은 **깎지 않고 그대로 남긴다**(재지적:
+         "세로 팔은 좀더 세모 모양으로, 너무 둥글리지 않게"). */
       const smooth9 = (pts: [number, number][]): [number, number][] => {
         const o9: [number, number][] = [];
         for (let e9 = 0; e9 < pts.length; e9 += 1) {
@@ -5448,6 +5450,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           const [u1, v1] = pts[(e9 + 1) % pts.length];
           o9.push([u0 * 0.75 + u1 * 0.25, v0 * 0.75 + v1 * 0.25]);
           o9.push([u0 * 0.25 + u1 * 0.75, v0 * 0.25 + v1 * 0.75]);
+          const [u2, v2] = pts[(e9 + 2) % pts.length];
+          if (u2 === 0 && Math.abs(v2) === CT) o9.push([u2, v2]);
         }
         return o9;
       };
@@ -20264,7 +20268,7 @@ export const BLD_FILL_TARGET: Record<string, number> = {
  *  표에 없는 종류는 1(모델 그대로)이다. */
 export const BLD_NORM: Record<string, number> = {
   academy: 1.470,  // 치마형 받침으로 바꾼 뒤 bld-norm 재측정
-  arch: 2.602,  // 십자 방패판 재작도 뒤 재측정(bld-norm)
+  arch: 2.584,  // 십자 방패판 재작도 뒤 재측정(bld-norm)
   archives: 2.489,  // 상자 상한에 걸림
   armory: 1.223,
   assim: 1.655,
