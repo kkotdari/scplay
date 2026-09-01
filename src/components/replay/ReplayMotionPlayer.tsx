@@ -4292,17 +4292,36 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ...boxFaces3(0, -((DT / 2 + 0.7) / 2 + 0.32), WT - 0.2, DT / 2 - 0.72, 0.14, ZT - 0.06),
     ], 3.05));
 
-    // ── 앞뒤면 — **세로 홈**: 가운데 x ±0.8이 프로필을 따라 0.22 파인다.
+    /* ── 앞뒤면 — 세로 홈을 **진짜 입체**로(요청: 색 아닌 실제 패임): 가운데
+       x ±0.8을 0.38 파낸다. 패인 바닥 판(색 없는 면이라 스테인 쇠가 입혀져
+       바깥벽과 같은 재질로 명암만 진다), 시점을 향한 쪽 문설주 벽, 아래 문턱
+       (윗면·밝음)·위 인방(밑면·어두움)까지 전부 실제 면이다. */
     for (const sgn9 of [1, -1] as const) {
       if (facingRatio(0, sgn9) <= 0.08) continue;
-      const gy9 = (z9: number): number => sgn9 * (fyAt(z9) - 0.22);
-      const seg9 = (z0: number, z1: number): void => {
-        const d9 = polyPath3([
+      const GD9 = 0.38;   // 홈 깊이
+      const gy9 = (z9: number): number => sgn9 * (fyAt(z9) - GD9);
+      const oy9 = (z9: number): number => sgn9 * fyAt(z9);
+      const Z0 = 0.9; const Z1 = ZT - 0.2;
+      const g: ShapeFace[] = [];
+      for (const [z0, z1] of [[Z0, ZW0], [ZW0, ZW1], [ZW1, Z1]] as [number, number][]) {
+        g.push([polyPath3([
           [-0.8, gy9(z0), z0], [0.8, gy9(z0), z0], [0.8, gy9(z1), z1], [-0.8, gy9(z1), z1],
-        ]);
-        out.push(...tagKey([[d9, 1, "#2e343c"] as ShapeFace], 2.5));
-      };
-      seg9(0.9, ZW0); seg9(ZW0, ZW1); seg9(ZW1, ZT - 0.2);
+        ]), 1] as ShapeFace);
+        for (const m9 of [-1, 1] as const) {
+          if (facingRatio(m9, 0) <= 0.04) continue;
+          g.push([polyPath3([
+            [-m9 * 0.8, gy9(z0), z0], [-m9 * 0.8, oy9(z0), z0],
+            [-m9 * 0.8, oy9(z1), z1], [-m9 * 0.8, gy9(z1), z1],
+          ]), 1, "#31373f"] as ShapeFace);
+        }
+      }
+      g.push([polyPath3([
+        [-0.8, oy9(Z0), Z0], [0.8, oy9(Z0), Z0], [0.8, gy9(Z0), Z0], [-0.8, gy9(Z0), Z0],
+      ]), 1, "#7a818b"] as ShapeFace);
+      g.push([polyPath3([
+        [-0.8, oy9(Z1), Z1], [0.8, oy9(Z1), Z1], [0.8, gy9(Z1), Z1], [-0.8, gy9(Z1), Z1],
+      ]), 1, "#23272e"] as ShapeFace);
+      out.push(...tagKey(g, 2.5));
     }
 
     // ── 앞면 베이 둘 — 세로 홈 좌우, 아래 절두체의 기운 면에 파인 개구부.
