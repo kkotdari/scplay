@@ -10891,9 +10891,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         x: 0, y: DY, z0: Z(6.3), h: DH0, w: 1, segs: 3, sides: 14, ref: [1, 0, 0], caps: "top",
         widthOf: (t9: number): number => BW * Math.sqrt(Math.max(0.05, 1 - ((t9 * 0.6) / 0.9) ** 2)),
       }), "terran"),
-      ...cylinderFaces3(0, DY, 1.24, Z(6.3) + DH0 + 0.16 - (Z(6.3) + DH0 - 0.02), Z(6.3) + DH0 - 0.02),   // 임자색 고리
-      ...paintBase(cylinderFaces3(0, DY, 1.24, 0.04, Z(6.3) + DH0 + 0.12), TERRAN_STEEL),         // 고리 윗면 쇠색
-      ...raceBase(domeFaces3(0, DY, 0.79, (Z(7.35) - Z(6.9)) * 0.75, Z(6.3) + DH0 + 0.14), "terran"),  // 위 작은 돔(0.9 → 0.79, 12% 축소)
+      /* 임자색 고리는 **2층 돔 밑동을 두르는 띠**(재요청) — 돔 반지름(0.71)보다 살짝 큰
+         낮은 원통을 돔보다 먼저 깔아, 돔 밑동 바깥으로 삐져나온 옆띠만 임자색으로 남는다. */
+      ...cylinderFaces3(0, DY, 0.71 + 0.07, 0.16, Z(6.3) + DH0 + 0.02),
+      ...raceBase(domeFaces3(0, DY, 0.71, (Z(7.35) - Z(6.9)) * 0.75, Z(6.3) + DH0 + 0.06), "terran"),  // 위 작은 돔(0.79 → 0.71, 10% 축소)
     ], key9(0, DY, Z(6.9))));
     // 1-나) 뒤 절두체 — 상자 뒤(y −0.6)에 붙되 폭은 상자의 8할(재요청 20% 축소), 뒤로 조금 넓어진다.
     const TW0 = BW * 0.64;   // 0.8 → 0.64 (재요청 20% 축소)
