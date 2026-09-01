@@ -2606,7 +2606,7 @@ function paintBase(faces: ShapeFace[], base: string): ShapeFace[] {
 /* 테란은 한 단 진한 쇠다(요청: "stain된 전쟁의 쇠붙이 — 좀 더 진한 쇠색이면서 광택과
    때묻음이 공존") — 은회색 #65696e를 건메탈 #575c63으로 내리고, 얼룩은 아래
    stainOf9가 면(패널)마다 낸다. 광택은 glossFaces의 볼록한 자가 그대로 세운다. */
-const RACE_BASE_TONE = { terran: "#525a68", toss: "#c9a63f", zerg: "#b9724a" } as const;
+const RACE_BASE_TONE = { terran: "#5c6472", toss: "#c9a63f", zerg: "#b9724a" } as const;
 /* ★ **때 얼룩** — 칠 안 한 테란 면마다 쇠색 네 벌 중 하나를 **결정적으로** 고른다.
    무작위면 굽을 때마다 판이 달라져 캐시가 거짓말이 된다 — 면의 경로 문자열을 해시해
    같은 면은 언제나 같은 얼룩을 받는다. 네 벌은 기준(#575c63)의 위아래 5%와, 갈빛이
@@ -2617,7 +2617,9 @@ const RACE_BASE_TONE = { terran: "#525a68", toss: "#c9a63f", zerg: "#b9724a" } a
    패널 사이 어긋남으로만 남는다.
    갈빛은 걷었다(정정: "갈빛이 아니라 푸른빛이 도는 진한 철색") — 네 벌 모두 파랑이
    도는 철색 계열이고, 넷째는 푸른 기만 살짝 덜한 무광 철이다. */
-const STAIN_TERRAN9 = ["#4c5462", "#525a68", "#58606e", "#535a64"] as const;
+/* 한 단 밝게(재재지적: "아직도 테란 너무 어두운 거 같애") — 네 벌 모두 +10.
+   푸른 기 도는 철색 결은 그대로다. */
+const STAIN_TERRAN9 = ["#565e6c", "#5c6472", "#626a78", "#5d6470"] as const;
 const stainOf9 = (d: string): string => {
   let h9 = 0;
   for (let i9 = 0; i9 < d.length; i9 += 7) h9 = (h9 * 31 + d.charCodeAt(i9)) | 0;
@@ -2668,7 +2670,7 @@ function glossFaces(
   /* 테란 그늘만 한 단 약하게(요청: "테란 모델 어두운 부분이 좀 심하게 어두운데") —
      스테인 바탕(#4c5462…)이 이미 어두워, 같은 깊이의 검은 그늘을 얹으면 옆·밑면이
      먹처럼 죽는다. 흰 광은 그대로 두어 금속 대비는 지킨다. */
-  const shK9 = tone === "terran" ? 0.72 : 1;
+  const shK9 = tone === "terran" ? 0.58 : 1;   // 0.72 → 0.58 (재재지적)
   return faces.map(([d, o, f, k, l, n]) => {
     if (f !== "#fff" && f !== "#000") return [d, o, f, k, l, n] as ShapeFace;
     const o9 = f === "#fff"
