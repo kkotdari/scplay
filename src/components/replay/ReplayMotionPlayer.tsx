@@ -10893,7 +10893,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       }), "terran"),
       ...cylinderFaces3(0, DY, 1.24, Z(6.3) + DH0 + 0.16 - (Z(6.3) + DH0 - 0.02), Z(6.3) + DH0 - 0.02),   // 임자색 고리
       ...paintBase(cylinderFaces3(0, DY, 1.24, 0.04, Z(6.3) + DH0 + 0.12), TERRAN_STEEL),         // 고리 윗면 쇠색
-      ...raceBase(domeFaces3(0, DY, 0.9, (Z(7.35) - Z(6.9)) * 0.75, Z(6.3) + DH0 + 0.14), "terran"),   // 위 작은 돔(지름 1.02 → 0.9)
+      ...raceBase(domeFaces3(0, DY, 0.79, (Z(7.35) - Z(6.9)) * 0.75, Z(6.3) + DH0 + 0.14), "terran"),  // 위 작은 돔(0.9 → 0.79, 12% 축소)
     ], key9(0, DY, Z(6.9))));
     // 1-나) 뒤 절두체 — 상자 뒤(y −0.6)에 붙되 폭은 상자의 8할(재요청 20% 축소), 뒤로 조금 넓어진다.
     const TW0 = BW * 0.64;   // 0.8 → 0.64 (재요청 20% 축소)
