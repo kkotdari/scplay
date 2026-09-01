@@ -29543,9 +29543,27 @@ export default function ReplayMotionPlayer({
       if (k9) kinds.add(k9);
     }
     if (kinds.size === 0) return undefined;
-    /* 일감 — 종류 × 16방향. 건물은 방향이 없으니 한 벌뿐이다. */
-    const jobs: { kind: string; rot?: number }[] = [];
+    /* 일감 — 종류마다 **부품 등급표 한 벌 + 방향 판**이다(건물은 방향이 없어 한 벌).
+       ★ **등급표를 여기서 짓는다**(실기 계측: "굽기 7장 314ms · 최악판 devourer 270ms",
+         최악 프레임 487ms 중 굽기 289ms) ──────────────────────────────────────────────
+         장수는 적은데 값이 큰 것이 실마리였다. 단계로 갈라 재 보니 판 한 장의 값이
+         기하 3ms · 칠하기 3~30ms인데 **등급 매기기(autoTier)가 100~170ms**였다.
+         그 안을 다시 보니 pathBox는 한 바퀴 8ms로 범인이 아니고, 값은 전부
+         `tierTableOf`에 있었다 — 그 함수가 종류마다 **여덟 방위를 다시 구워** 부품
+         크기표를 짓는다.
+         종류당 한 번뿐이라(TIER_TABLE) 경기 내내 되풀이되지는 않는다. 그런데 그
+         '한 번'이 **경기 중에** 온다: 43분 경기에서 새 유닛이 처음 등장할 때마다 한
+         프레임이 통째로 그 표에 쓰인다. 실기의 270ms짜리 devourer가 그것이다.
+         계측: 테란+저그 72종을 다 지어도 합 2215ms(평균 31ms·최대 115ms)다. 곧 이것은
+         '경기 중에 치르기엔 큰 값'이지만 '들어올 때 치르기엔 작은 값'이다 — 그리고 이
+         화면은 이미 그 자리를 갖고 있다(요청: "들어가면 처음에 캐시를 다 굽고(로딩)
+         끊김없이 플레이"). 표는 이 경기에 실제로 나오는 종류만 짓는다(위 kinds).
+       ★ 덤으로 **표가 결정적이 된다** — tierTableOf는 부를 때의 자세 깃발(poseNow)로
+         구운 면을 재고 그 표를 종류마다 영영 쥔다. 경기 중에 처음 불리면 그때 마침
+         선 자세가 표에 박히는데, 여기서 지으면 늘 기본 자세(0)다. */
+    const jobs: { kind: string; rot?: number; table?: boolean }[] = [];
     for (const k9 of kinds) {
+      jobs.push({ kind: k9, table: true });
       const isBld = !UNIT_KIND_SET.has(k9);
       if (isBld) jobs.push({ kind: k9 });
       else for (let r9 = 0; r9 < 16; r9 += 1) jobs.push({ kind: k9, rot: r9 * 22.5 });
@@ -29572,7 +29590,8 @@ export default function ReplayMotionPlayer({
                미리 구운 720판 중 실제로 쓰인 것이 거의 없었다(캐시 10판이면 되는 장면
                에서 0.7MB를 굽고 최악 프레임 36 → 127ms). 면은 요잉 칸(vq)만 타므로
                훨씬 적은 수로 실제 쓰임을 덮는다. */
-          resolveShapeFaces(j9.kind, j9.rot, flat9, 0, pitched);
+          if (j9.table) tierTableOf(j9.kind);
+          else resolveShapeFaces(j9.kind, j9.rot, flat9, 0, pitched);
         } catch { /* 낯선 종류 하나가 로딩을 통째로 막지 않게 — 그건 재생 중 굽는다. */ }
       }
       if (i9 < jobs.length) {
