@@ -10898,12 +10898,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // 1-나) 뒤 절두체 — 상자 뒤(y −0.6)에 붙되 폭은 상자의 8할(재요청 20% 축소), 뒤로 조금 넓어진다.
     const TW0 = BW * 0.64;   // 0.8 → 0.64 (재요청 20% 축소)
     out.push(...tagKey(raceBase(prism9(
-      [[-TW0, CUT, Z(5.25)], [TW0, CUT, Z(5.25)], [TW0 + 0.12, -2.6, Z(5.25)], [-TW0 - 0.12, -2.6, Z(5.25)]],
+      [[-TW0, CUT, Z(5.25)], [TW0, CUT, Z(5.25)], [TW0 + 0.12, -2.1, Z(5.25)], [-TW0 - 0.12, -2.1, Z(5.25)]],
       // 높이 25% 증가(요청): 1.0→1.25 · 1.15→1.44
-      [[-TW0, CUT, Z(6.5)], [TW0, CUT, Z(6.5)], [TW0 + 0.12, -2.6, Z(6.69)], [-TW0 - 0.12, -2.6, Z(6.69)]],
-      0, -1.6), "terran"), key9(0, -1.6, Z(5.8))));
+      [[-TW0, CUT, Z(6.5)], [TW0, CUT, Z(6.5)], [TW0 + 0.12, -2.1, Z(6.69)], [-TW0 - 0.12, -2.1, Z(6.69)]],
+      0, -1.35), "terran"), key9(0, -1.35, Z(5.8))));
     // 뒷동체 위 성냥갑 부품(요청) — 폭은 뒷동체의 반(TW0), 길이는 2/3(1.33), 낮은 상자.
-    out.push(...tagKey(raceBase(boxFaces3(0, -1.6, TW0, 1.33, Z(7.05) - Z(6.58), Z(6.58)), "terran"), key9(0, -1.6, Z(6.85))));
+    out.push(...tagKey(raceBase(boxFaces3(0, -1.35, TW0, 1.0, Z(7.05) - Z(6.58), Z(6.58)), "terran"), key9(0, -1.35, Z(6.85))));
     // 1-다) 부리 — 앞면을 잘라 뭉뚝(끝 반폭 0.85), 윗면 급경사(5.85→5.25), 윗면 양쪽 사선 깎기.
     out.push(...tagKey(raceBase(prism9(
       // 폭 10%·높이 20% 추가 확대(요청): 밑 반폭 1.76, 끝 1.045 · 높이 밑 1.26·끝 0.144
@@ -10918,19 +10918,20 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 중간동체 양옆의 **노출 포신 둘**(재지적: 포드가 아니라 포신) — 상자 옆구리를 따라
        가운데 동체 길이(y −0.6~1.7)만큼 길게 뻗고 위아래로 둘씩 겹친다. 반지름 0.17. */
     for (const m9 of [-1, 1] as const) {
-      const px9 = m9 * (BW + 0.2);
-      for (const tz9 of [Z(5.5), Z(6.0)]) {
-        out.push(...tagKey(paintBase(tubeFaces(px9, CUT, px9, 1.7 + 0.3, 0.17, tz9, true), TERRAN_STEEL_D),
+      const GR9 = 0.24;                       // 포신 반지름(확대)
+      const px9 = m9 * (BW + GR9);            // 몸 옆면에 딱 붙는다
+      for (const tz9 of [Z(5.55), Z(5.55) + GR9 * 2]) {   // 위아래 포신이 서로 딱 붙는다
+        out.push(...tagKey(paintBase(tubeFaces(px9, CUT, px9, 1.7 + 0.3, GR9, tz9, true), TERRAN_STEEL_D),
           key9(px9, 0.55, tz9) + 0.2));
       }
     }
     // 2) 양옆 절두체 팔(폭 1.0) + 두께 있는 사다리꼴 방패(위 바깥·아래 안으로 기움).
     for (const m9 of [-1, 1] as const) {
       const X0 = m9 * (TW0 + 0.05); const X1 = m9 * 3.0;
-      const rB: [number, number, number] = [X0, -0.6, Z(5.25)]; const rF: [number, number, number] = [X0, -2.6, Z(5.25)];   // 깊이 = 뒷동체
-      const rT: [number, number, number] = [X0, -0.6, Z(6.57)]; const rR: [number, number, number] = [X0, -2.6, Z(6.57)];   // 높이 +20%
-      const tB: [number, number, number] = [X1, -0.85, Z(5.45)]; const tF: [number, number, number] = [X1, -2.35, Z(5.45)];
-      const tT: [number, number, number] = [X1, -0.85, Z(5.75)]; const tR: [number, number, number] = [X1, -2.35, Z(5.75)];
+      const rB: [number, number, number] = [X0, -0.6, Z(5.25)]; const rF: [number, number, number] = [X0, -2.1, Z(5.25)];   // 깊이 = 뒷동체
+      const rT: [number, number, number] = [X0, -0.6, Z(6.57)]; const rR: [number, number, number] = [X0, -2.1, Z(6.57)];   // 높이 +20%
+      const tB: [number, number, number] = [X1, -0.8, Z(5.45)]; const tF: [number, number, number] = [X1, -1.9, Z(5.45)];
+      const tT: [number, number, number] = [X1, -0.8, Z(5.75)]; const tR: [number, number, number] = [X1, -1.9, Z(5.75)];
       const top9 = polyPath3([rT, rR, tR, tT]);
       const bot9 = polyPath3([rB, rF, tF, tB]);
       const fr9 = polyPath3([rB, rT, tT, tB]);
@@ -10942,11 +10943,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         arm9.push(bodyFace(d9), ...(fl9.visible ? fl9.face(d9) : [sideFace(d9, 0.46)]));
       }
       arm9.push(bodyFace(top9), topFace(top9, 0.22));
-      out.push(...tagKey(raceBase(arm9, "terran"), key9(m9 * 2.1, -1.6, Z(5.8))));
+      out.push(...tagKey(raceBase(arm9, "terran"), key9(m9 * 2.1, -1.35, Z(5.8))));
       /* 방패 — 사다리꼴(위 반폭 0.62·아래 0.82), 높이 Z 기준 2.3, 두께 0.2. 위가 바깥
          (+0.28)·아래가 안(−0.28)으로 기운다. 바깥면은 임자색 판 위에 기본색 속판(모서리 띠),
          안면·테두리 벽은 기본색. */
-      const cy9 = -1.6; const cz0 = Z(5.0); const cz1 = Z(7.3);
+      const cy9 = -1.35; const cz0 = Z(5.0); const cz1 = Z(7.3);
       const sx9 = (z9: number, off9: number): number =>
         m9 * (3.05 + off9 + 0.28 * ((z9 - (cz0 + cz1) / 2) / (cz1 - cz0)) * 2);
       const trap9 = (off9: number, k9: number): [number, number, number][] => {
@@ -10974,8 +10975,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        뒷면 높이 Z(5.25)~Z(6.4)를 둘로 나눈 반지름(0.43), 가운데 z에서 ±0.43. */
     const TZ9 = (Z(5.25) + Z(6.4)) / 2;
     for (const [ex9, ez9] of [[-0.44, TZ9 - 0.43], [0.44, TZ9 - 0.43], [-0.44, TZ9 + 0.43], [0.44, TZ9 + 0.43]] as [number, number][]) {
-      out.push(...tagKey(paintBase(tubeFaces(ex9, -2.55, ex9, -3.3, 0.42, ez9, true), TERRAN_STEEL_D),
-        key9(ex9, -2.95, ez9) + 0.3));
+      out.push(...tagKey(paintBase(tubeFaces(ex9, -2.05, ex9, -2.8, 0.42, ez9, true), TERRAN_STEEL_D),
+        key9(ex9, -2.45, ez9) + 0.3));
     }
     return zsorted(out);
   },
@@ -18189,7 +18190,7 @@ const MODEL_NORM: Record<string, number> = {
   tanksiege: 0.723,
   tanksiegebody: 0.723,
   ultra: 0.361,
-  valk: 0.821,   // 노출 포신·넓은 팔 뒤 재측정(model-norm)
+  valk: 0.838,   // 짧은 뒷동체·굵은 포신 뒤 재측정(model-norm)
   vessel: 0.882,  // 방패 20% 축소 뒤 재측정(model-norm)
   vulture: 0.828,
   wraith: 0.774,
