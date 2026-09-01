@@ -19773,6 +19773,16 @@ const SUB_MAX_UP9 = 1.4;
    그래서 예산이 다한 프레임에서는 문턱을 2.5배까지 늘린다: 한두 프레임 무른 그림을
    보이더라도 굽기 폭풍은 안 낸다. 예산이 남은 프레임에서는 종전대로 1.4배까지만이다. */
 const SUB_MAX_HARD9 = 2.5;
+/* ★ 예산이 다한 프레임의 **마지막 수단은 '아무 크기나'다**(지적: "급 확대시 탭터짐") ──
+   대타 고르기는 축소(큰 판을 작게)는 무제한 허용하고 확대(작은 판을 늘림)만 2.5배로
+   막는다. 그래서 급 '축소'는 조용한데 급 '확대'는 옛 판이 전부 문턱 밖이라 — 화면의
+   판 전체가 **한 프레임에** 다시 굽힌다. 그 순간 옛 세대(캐시) + 새 세대(막 굽는 것)
+   + 걷혀서 수거를 기다리는 판들이 겹쳐 봉우리가 서고, 화면 캔버스 45MB 위에 얹히면
+   사파리가 탭을 버린다.
+   그래서 프레임의 굽기 예산이 다했으면 2.5배 문턱을 접고 **있는 판 중 가장 가까운
+   것**을 쓴다. 흐릿한 것은 잠깐이다 — 손짓 중에는 어차피 옛 판을 늘려 보이고 있었고
+   (bakeZoom), 그 뒤로 프레임마다 예산만큼 진짜 판이 차오르며 또렷해진다. 폭탄 같은
+   한 프레임(굽기 수십 장 + 수거 대기 수십 장)이 1초 남짓의 점진 선명화로 바뀐다. */
 /** 대타로 쓸 크기를 고른다 — 크거나 같은 것 우선, 없으면 문턱 안쪽의 작은 것. */
 const pickSubSize9 = (
   list: { s: number; k: string }[], want: number, cap = SUB_MAX_UP9,
@@ -19876,7 +19886,8 @@ function unitSprite(
   if (unitBakeLeft9 <= 0) {
     const sizes9 = SPRITE_SIZES.get(subKey);
     if (sizes9) {
-      const best9 = pickSubSize9(sizes9, pxq, SUB_MAX_HARD9);
+      const best9 = pickSubSize9(sizes9, pxq, SUB_MAX_HARD9)
+        ?? pickSubSize9(sizes9, pxq, Infinity);   // 마지막 수단(위 ★) — 흐려도 안 터진다
       const alt9 = best9 ? SPRITE_CACHE.get(best9) : undefined;
       if (alt9) {
         /* ★ **대타는 LRU를 안 되살린다**(지적: "12배도 아닌데 모바일 사파리 탭이
@@ -20671,7 +20682,8 @@ function buildingSpriteBake(
   if (bldBakeLeft9 <= 0) {
     const sizes9 = BLD_SPRITE_SIZES.get(subKey);
     if (sizes9) {
-      const best9 = pickSubSize9(sizes9, sideQ, SUB_MAX_HARD9);
+      const best9 = pickSubSize9(sizes9, sideQ, SUB_MAX_HARD9)
+        ?? pickSubSize9(sizes9, sideQ, Infinity);   // 마지막 수단(위 ★)
       const alt9 = best9 ? BLD_SPRITE_CACHE.get(best9) : undefined;
       if (alt9) {
         // 대타는 LRU를 안 되살린다 — 유닛 쪽의 ★ 주석과 같은 까닭이다.
