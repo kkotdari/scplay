@@ -23326,6 +23326,15 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
  *  1400²×4B ≈ 7.8MB. 웹킷은 배킹 확보에 실패하면 그 층을 **통째로 안 그린다**(이 판이
  *  지도·유닛에서 이미 겪은 실패다) — 선명함보다 그리기가 먼저다. */
 const FX_RASTER_CAP = 1400;
+/** FxModel 래스터 캐시(수리: "스톰 이펙트시 부하") ───────────────────────────────
+ *  FxModel은 스프라이트 캐시를 안 타고, spin 칸이 바뀔 때마다(스톰은 초당 12번) 판을
+ *  통째로 다시 칠했다 — 771면짜리 스톰을 최대 1400² 캔버스에, 스톰마다. 실측(sprite-check
+ *  --pxq 300~1200) 한 장 2.5ms이니 폰 CPU 조임 4~6배면 10~15ms × 12/s × 스톰 수다.
+ *  (종류·칸·크기·요잉·피치·평면·색) 열쇠로 한 번만 굽고 되쓴다 — 열두 칸이 다 구워진
+ *  뒤로는 blit 한 번이고, 같은 크기의 스톰 여럿이 같은 열두 칸을 나눠 쓴다. LRU·바이트 상한. */
+const FX_RASTER_CACHE = new Map<string, HTMLCanvasElement>();
+const FX_RASTER_BYTES = { n: 0 };
+const FX_RASTER_MAX = (smallDevice9 ? 6 : 24) * 1024 * 1024;
 export function FxModel({
   kind, spin, flat, pitchView, viewYaw, rotDeg = 0, peak = 1, fit = true,
 }: {
@@ -23423,6 +23432,17 @@ export function FxModel({
         (ch9 - bh9 * sc9) / 2 - by0 * sc9);
       // 색 없는 면이 곧 임자 색(SVG의 currentColor와 같은 규약) — 감싸개의 color를 읽는다.
       const cur9 = window.getComputedStyle(cv).color || "#fff";
+      // 도는 이펙트만 캐시한다(위 FX_RASTER_CACHE) — 한 번 그리는 것은 되쓸 일이 없다.
+      const key9 = spin === undefined ? "" : `${kind}|${spin}|${flat ? 1 : 0}|${pitchView ? 1 : 0}`
+        + `|${viewYaw ?? 0}|${rotDeg}|${fit ? 1 : 0}|${cw9}x${ch9}|${cur9}`;
+      const hit9 = key9 ? FX_RASTER_CACHE.get(key9) : undefined;
+      if (hit9) {
+        c2.setTransform(1, 0, 0, 1, 0, 0);
+        c2.globalAlpha = 1;
+        c2.drawImage(hit9, 0, 0);
+        FX_RASTER_CACHE.delete(key9); FX_RASTER_CACHE.set(key9, hit9);   // LRU
+        return;
+      }
       /* (걷어냄) 캔버스 그림자로 넣던 글로우 — **번짐은 모델이 진다**(지적: "스톰
          글로우는 원형으로 넣으란 게 아니고 가지 모양을 따라 번짐 효과인데").
          면들을 한 덩이로 모아 한 번에 번지게 하는 손이었는데, 두 가지로 틀렸다:
@@ -23438,6 +23458,18 @@ export function FxModel({
         c2.globalAlpha = o9;
         c2.fillStyle = fill9 ?? cur9;
         c2.fill(pathOf(d9));
+      }
+      if (key9) {
+        const copy9 = document.createElement("canvas");
+        copy9.width = cw9; copy9.height = ch9;
+        copy9.getContext("2d")?.drawImage(cv, 0, 0);
+        FX_RASTER_CACHE.set(key9, copy9);
+        FX_RASTER_BYTES.n += cw9 * ch9 * 4;
+        while (FX_RASTER_BYTES.n > FX_RASTER_MAX && FX_RASTER_CACHE.size > 1) {
+          const [k0, v0] = FX_RASTER_CACHE.entries().next().value as [string, HTMLCanvasElement];
+          FX_RASTER_CACHE.delete(k0);
+          FX_RASTER_BYTES.n -= v0.width * v0.height * 4;
+        }
       }
       /* #diag — 실기기에서 배킹을 눈으로 읽는다(iOS 저해상도 추적). '배킹/상자px'. */
       if (typeof location !== "undefined" && location.hash.includes("diag")) {
@@ -25734,8 +25766,14 @@ export default function ReplayMotionPlayer({
          방어 건물까지 이 값을 보는 모든 자리가 한꺼번에 옳아진다. */
       const kc9 = constOf9(e);
       if (kc9.noBody) continue;
+      /* ★ 표적 자리는 **몸이 그려지는 자리**여야 한다(지적: "디바우러 산성포자 적에게
+         붙은 게 안 움직여서 어색") — 그리기는 참값(simNow)이 있으면 그 자리로 몸을
+         옮기는데(아래 렌더의 `if (simNow) pos = …`), 표적 지도는 명령 자취(q)만 보고
+         있었다. 둘이 갈리는 동안(밀려 움직임·자취 없는 이동) 포자·트레이서가 몸이
+         떠난 자리를 겨눴다. 참값이 있으면 참값 자리를 싣는다. */
       const row: FoeRow = {
-        team: teamOfRaw(e.raw) ?? 0, x: q.x, y: q.y,
+        team: teamOfRaw(e.raw) ?? 0,
+        x: sIn9 ? sIn9.x : q.x, y: sIn9 ? sIn9.y : q.y,
         air: kc9.air,
         uk: kc9.uk,
       };
