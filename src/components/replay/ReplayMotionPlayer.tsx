@@ -6877,11 +6877,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         segs: 4, sides: 12, hold: 0.05, taper: 1.7,
       }), "#3a3f46"), key + 0.7));
       // 덮개에서 솟는 상아 뿔 셋 — 바깥·뒤로 크게 휘며 끝이 뾰족하다.
-      out.push(...tagKey(spikeHorn(px - m * 0.7, py - 0.4, 4.6, px - m * 2.4, py - 1.6, 9.4, 1.35,
+      // 밑둥 아주 굵게(지시) — 1.35/1.15/0.95 → 2.3/1.95/1.6.
+      out.push(...tagKey(spikeHorn(px - m * 0.7, py - 0.4, 4.6, px - m * 2.4, py - 1.6, 9.4, 2.3,
         IVORY, 6, 1.2, -m, -0.5), key + 0.85));
-      out.push(...tagKey(spikeHorn(px + m * 0.9, py - 0.2, 4.5, px + m * 2.5, py - 1.2, 8.2, 1.15,
+      out.push(...tagKey(spikeHorn(px + m * 0.9, py - 0.2, 4.5, px + m * 2.5, py - 1.2, 8.2, 1.95,
         IVORY, 6, 1, m, -0.4), key + 0.85));
-      out.push(...tagKey(spikeHorn(px, py + 0.7, 4.3, px + m * 0.5, py + 2, 7, 0.95,
+      out.push(...tagKey(spikeHorn(px, py + 0.7, 4.3, px + m * 0.5, py + 2, 7, 1.6,
         IVORY, 6, 0.8, 0, 1), key + 0.95));
     };
     /* 두 통 사이를 잇는 살덩이 안장(지적: "양쪽 건물 사이에 원래 빈공간임?" — 사진에는
@@ -6980,13 +6981,21 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         depthNow(gx9, gy9) * 1.6 + 0.3));
     }
     // 애벌레 끝 상아 뿔.
-    out.push(...tagKey(spikeHorn(0, -1.7, 4.2, -0.5, -2.9, 7.2, 1.3, IVORY, 6, 0.7, 0, -1),
+    out.push(...tagKey(spikeHorn(0, -1.7, 4.2, -0.5, -2.9, 7.2, 2.2, IVORY, 6, 0.7, 0, -1),
       depthNow(0, -2.3) * 1.6 + 0.3));
     // 땅에서 솟는 앞 가시 둘 — 다른 뿔과 같은 상아색(요청).
-    out.push(...tagKey(spikeHorn(-1.7, 3.4, 0.4, -2.6, 4.8, 2.4, 0.8, IVORY, 6, 0.4, -0.6, 0.8),
+    out.push(...tagKey(spikeHorn(-1.7, 3.4, 0.4, -2.6, 4.8, 2.4, 1.4, IVORY, 6, 0.4, -0.6, 0.8),
       depthNow(-2.1, 4.1) * 1.6));
-    out.push(...tagKey(spikeHorn(1.9, 3.2, 0.4, 2.8, 4.4, 2.2, 0.8, IVORY, 6, 0.4, 0.6, 0.8),
+    out.push(...tagKey(spikeHorn(1.9, 3.2, 0.4, 2.8, 4.4, 2.2, 1.4, IVORY, 6, 0.4, 0.6, 0.8),
       depthNow(2.3, 3.8) * 1.6));
+    /* ② 가운데 구조물 위 **베스핀 증기**(지시·사진: 초록 가스가 가운데 위로 뭉게뭉게)
+       — 리파이너리 굴뚝·간헐천과 같은 표현: 위로 갈수록 넓고 옅어지는 초록 타원 세 켜.
+       가스라 3티어(저사양에선 걷힌다). 애벌레 등마루(꼭대기 z≈3.7, y≈1) 위에 세운다. */
+    out.push(...tagKey([
+      [groundEllipse(...project(-0.1, 0.9, 4.6), 1.15, 0.7), 0.18, "#7ee03a", 0, 3] as ShapeFace,
+      [groundEllipse(...project(-0.25, 1.05, 5.4), 1.5, 0.9), 0.11, "#7ee03a", 0, 3] as ShapeFace,
+      [groundEllipse(...project(-0.42, 1.2, 6.15), 1.85, 1.05), 0.06, "#7ee03a", 0, 3] as ShapeFace,
+    ], depthNow(0, 1) * 1.6 + 3));
     return out;
   }),
 
@@ -20321,7 +20330,7 @@ export const BLD_NORM: Record<string, number> = {
   dome: 1.418,
   ebay: 1.443,   // 다리 두 마디 20% 축소 뒤 재측정(잉크 폭이 좁아져 배수는 올라간다)
   evo: 1.540,
-  extract: 1.035,
+  extract: 1.027,  // 가시 밑둥 굵힘 뒤 재측정(bld-norm)
   factory: 1.117,
   fleetbeacon: 2.125,
   forge: 1.809,
