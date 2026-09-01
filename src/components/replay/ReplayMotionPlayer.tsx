@@ -19244,9 +19244,21 @@ const BLD_SPRITE_BYTES_MAX = (smallDevice9 ? 16 * smallBudgetK9 * dprBudgetK9 : 
 const MAP_FREED_MB = smallDevice9 ? 14 : 0;
 const SPRITE_TOTAL_MAX = SPRITE_BYTES_MAX + BLD_SPRITE_BYTES_MAX
   + MAP_FREED_MB * 1024 * 1024;
-/** 지금 이 캐시가 쓸 수 있는 몫 — 상대가 안 쓰는 만큼 빌려 쓴다. */
-const budgetNow9 = (own: number, otherUsed: number): number =>
-  Math.max(own * 0.25, SPRITE_TOTAL_MAX - otherUsed);
+/* ★ 몫에는 **바닥이 있어야 한다**(실기 계측: "판 유닛 58장 9.2MB · 건물 37장 36.6MB") ──
+   여기 있던 식은 `max(제 몫의 4분의 1, 총량 − 상대가 쓴 만큼)`이었다. 곧 **먼저 자란
+   쪽이 임자**가 되는 식이다: 건물은 판이 화면에 들어오는 순간 한 번에 굽히고 그 뒤로는
+   안 바뀌므로 늘 먼저 자라고, 그렇게 46MB 가운데 36.6MB를 쥔 채 경기 내내 안 놓았다.
+   정작 계속 갈리는 것은 유닛인데 남은 9MB로 살았다 — 그래서 시간바를 옮기거나 끌면
+   유닛 판이 통째로 갈렸다(실기: 2초에 굽기 301장·버림 299장, 최악 프레임 212ms 중
+   굽기 201ms). 시간이 지나면 괜찮아지는 것은 화면이 멎어 작업 집합이 9MB 안으로
+   들어오기 때문이다.
+   그래서 **상대가 안 쓰더라도 상대 몫만큼은 남겨 둔다** — 상대가 쓴 양을 상대의 바닥
+   아래로는 안 본다. 그러면 두 몫이 총량에서 정확히 균형을 이룬다:
+     유닛  = max(21.3, 46 − max(건물쓴양, 10.7)) → 건물이 아무리 커도 21.3MB는 남는다
+     건물  = max(10.7, 46 − max(유닛쓴양, 21.3)) → 유닛이 바닥에 있어도 24.7MB까지
+   합이 46MB에서 만나고, 남는 몫(지도에서 돌린 14MB)은 여전히 덜 쓰는 쪽이 가져간다. */
+const budgetNow9 = (own: number, otherUsed: number, otherOwn: number): number =>
+  Math.max(own, SPRITE_TOTAL_MAX - Math.max(otherUsed, otherOwn));
 /* ★ **데칼**은 또렷함이 필요 없다 — 굽기 상한을 따로 낮춘다(지적: "모바일에서 저그 본진을
    볼 때 너무 끊긴다") ────────────────────────────────────────────────────────────────
    재 보니 크립 얼룩이 이 화면에서 가장 큰 판이다. 해처리 크립은 15타일이라 해처리 본체
@@ -19300,9 +19312,14 @@ const BAKE_POOL: HTMLCanvasElement[] = [];
    셋이 경기 내내 잡혀 있다. 폰의 판 예산(32/16MB)에 견주면 그것만으로 예산 하나를
    더 쓰는 셈이다. 한 장이 너무 크면 아예 안 빌려 두고(그런 크기는 어차피 드물어
    되쓸 일도 적다) 그 자리에서 놓는다. */
-const BAKE_POOL_MAX = 2;
-const BAKE_ONE_MAX = (smallDevice9 ? 2 : 8) * 1024 * 1024;
-const BAKE_POOL_BYTES = (smallDevice9 ? 4 : 24) * 1024 * 1024;
+/* 유닛까지 이 빌림터를 쓰게 되어(unitSpriteBake의 ★) 한 칸을 넓힌다 — 종류마다 한 변이
+   다르고 빌림터는 **같은 한 변**만 되쓰므로, 두 칸이면 종류가 번갈아 나올 때 늘 빗나간다.
+   한 장 상한도 12배·dpr 3의 유닛 판(702² = 2.0MB)이 확실히 들어가게 3MB로 올린다.
+   ★ 빌림터는 예산 압박이 오면 통째로 놓는다(trimSpriteCache의 ★) — 그래서 이 몫이
+     판 예산과 겹쳐 메모리를 밀어 올리지는 않는다. */
+const BAKE_POOL_MAX = 3;
+const BAKE_ONE_MAX = (smallDevice9 ? 3 : 8) * 1024 * 1024;
+const BAKE_POOL_BYTES = (smallDevice9 ? 6 : 24) * 1024 * 1024;
 /** 그 크기의 굽는 판을 빌린다 — 빌림터에 있으면 지워서 주고, 없으면 새로 짓는다. */
 const bakeCanvas = (side: number): HTMLCanvasElement | null => {
   const i9 = BAKE_POOL.findIndex((c) => c.width === side && c.height === side);
@@ -19340,6 +19357,14 @@ const RELEASE_Q9: HTMLCanvasElement[] = [];
 function flushReleased9(): void {
   for (let i = 0; i < RELEASE_Q9.length; i += 1) releaseCanvas(RELEASE_Q9[i]);
   RELEASE_Q9.length = 0;
+}
+/** 두 보관함을 **함께** 죈다 — 한쪽이 자라면 상대의 몫이 그만큼 줄어드는 식이므로
+ *  (위 budgetNow9), 자란 쪽만 죄면 합이 총량을 넘긴 채로 한동안 남는다. */
+function trimBoth9(): void {
+  trimSpriteCache(SPRITE_CACHE, spriteBytes,
+    budgetNow9(SPRITE_BYTES_MAX, bldSpriteBytes.n, BLD_SPRITE_BYTES_MAX));
+  trimSpriteCache(BLD_SPRITE_CACHE, bldSpriteBytes,
+    budgetNow9(BLD_SPRITE_BYTES_MAX, spriteBytes.n, SPRITE_BYTES_MAX), true);
 }
 /** 예산을 넘는 동안 가장 오래 안 쓴 것부터 덜어낸다. */
 function trimSpriteCache<T extends { cv: HTMLCanvasElement; sh?: ShadowPlate | null }>(
@@ -19779,11 +19804,20 @@ function unitSprite(
      pad는 안티에일리어싱 여유만. */
   const pad = 2;
   const l = pxq + pad * 2;
-  const cv = document.createElement("canvas");
-  cv.width = Math.max(1, Math.ceil(l * B));
-  cv.height = cv.width;
+  const side9 = Math.max(1, Math.ceil(l * B));
   // 너무 큰 판은 굽지 않는다(위 SPRITE_SIDE_MAX) — 직접 그리기로 떨어진다.
-  if (cv.width > SPRITE_SIDE_MAX) return null;
+  if (side9 > SPRITE_SIDE_MAX) return null;
+  /* ★ 굽는 판을 **빌려 쓴다**(계측: 최악 판 lurker 79ms · muta 47ms · zealot 72ms) ────
+     한 장을 채우는 값은 1ms 남짓인데(sprite-check) 이따금 한 장이 수십 ms로 튄다. 그
+     차이는 그림이 아니라 **캔버스 한 장을 새로 짓고 버리는 값**이다: 12배·dpr 3에서 굽는
+     판은 702²×4 = 2MB이고, 그것을 초당 수백 장 짓고 버리면 수거가 프레임 한가운데서
+     돈다. 건물 쪽은 이미 빌림터를 쓰고 있었는데 유닛만 매번 새로 짓고 있었다.
+     빌림터는 **같은 한 변**만 되쓰므로, 같은 종류가 잇달아 굽힐 때(뮤탈 여덟 마리처럼)
+     그대로 맞는다 — 그 자리가 정확히 지금 아픈 자리다.
+     ★ 빌린 판은 스프라이트로 못 나간다(다음 굽기가 지운다) — 자를 것이 없어도 반드시
+       새 판에 옮겨 담는다(아래 cropToInk의 forceCopy). 건물 쪽과 같은 규약이다. */
+  const cv = bakeCanvas(side9);
+  if (!cv) return null;
   const c2 = cv.getContext("2d");
   if (!c2) return null;
   c2.setTransform(B, 0, 0, B, 0, 0);
@@ -19810,12 +19844,10 @@ function unitSprite(
   const box = inkBoxOf(cv,
     `u|${op.kind}|${rotB}|${op.flat ? 1 : 0}|${vq}|${pitchTag(op.pitch)}|${lod}|${poseTag(op.kind)}`,
     B * pad, B * pad, (B * pxq) / 16);
-  const cr = cropToInk(cv, box);
-  /* ★ 자르기 전 **원판**은 그 자리에서 놓는다 — 굽기 한 번에 한 장씩 버려지는 판이고
-     (자른 판만 보관함에 남는다) 한 변이 상한(2304)에 가까우면 한 장이 21MB다. 줌·3D
-     전환처럼 한 프레임에 수백 장을 굽는 자리에서는 이 버려지는 판들이 수거를 기다리며
-     쌓이는 것만으로 봉우리가 된다. 자르기가 안 일어난 판(같은 객체)은 건드리면 안 된다. */
-  if (cr.cv !== cv) releaseCanvas(cv);
+  const cr = cropToInk(cv, box, true);
+  /* 자르고 난 **원판**은 빌림터로 돌려준다(위 ★) — 다음 굽기가 같은 한 변이면 그대로
+     되쓰고, 아니면 빌림터가 알아서 놓는다. 여기서 통째로 버리던 것이 봉우리의 몫이었다. */
+  freeBakeCanvas(cv);
   const entry = { cv: cr.cv, ox: cr.ox, oy: cr.oy, pad, l, ...box };
   SPRITE_CACHE.set(key, entry);
   /* ★ 색인에 적는다 — **이 줄이 여태 없었다.** 그래서 유닛 쪽 대타 경로는 한 번도 선
@@ -19823,7 +19855,7 @@ function unitSprite(
      사실상 건물에만 걸려 있었다. */
   noteSub9(SPRITE_SIZES, subKey, pxq, key);
   spriteBytes.n += canvasBytes(cr.cv);
-  trimSpriteCache(SPRITE_CACHE, spriteBytes, budgetNow9(SPRITE_BYTES_MAX, bldSpriteBytes.n));
+  trimBoth9();
   SPRITE_PERF.noteBake(op.kind, pNow() - tBk9, false);
   if (PERF9) pAdd("굽기:유닛판", pNow() - pBk9);
   return entry;
@@ -20624,7 +20656,7 @@ function buildingSpriteBake(
   // 이 열쇠로 구운 크기를 색인에 적는다(유닛 쪽 SPRITE_SIZES와 같은 규약).
   noteSub9(BLD_SPRITE_SIZES, subKey, sideQ, key);
   bldSpriteBytes.n += canvasBytes(cr9.cv);
-  trimSpriteCache(BLD_SPRITE_CACHE, bldSpriteBytes, budgetNow9(BLD_SPRITE_BYTES_MAX, spriteBytes.n), true);
+  trimBoth9();
   SPRITE_PERF.noteBake(op.kind, pNow() - tBb9, true);
   if (PERF9) pAdd("굽기:건물판", pNow() - pBb9);
   return entry;
@@ -21559,7 +21591,7 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
               const bsh9 = shadowPlate(
                 bspr, Math.max(1.5, bspr.side * 0.06), 0.4, B, bldSpriteBytes,
               );
-              trimSpriteCache(BLD_SPRITE_CACHE, bldSpriteBytes, budgetNow9(BLD_SPRITE_BYTES_MAX, spriteBytes.n), true);
+              trimBoth9();
               if (bsh9) {
                 SPRITE_PERF.bldBlit += 1;
                 ctx.drawImage(
@@ -21957,7 +21989,7 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
               spr, Math.max(1.5, pxqB * (op.air ? 0.16 : 0.1)),
               op.air ? 0.55 : 0.4, B, spriteBytes,
             );
-            trimSpriteCache(SPRITE_CACHE, spriteBytes, budgetNow9(SPRITE_BYTES_MAX, bldSpriteBytes.n));
+            trimBoth9();
             if (sh9) {
               ctx.shadowColor = "transparent";
               ctx.globalAlpha = op.alpha;
