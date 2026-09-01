@@ -2855,8 +2855,8 @@ function tankTrack(cx: number, yA = -3.6, yB = 3.6): ShapeFace[] {
   const out: ShapeFace[] = [...paintBase(trackFaces(cx, yA, yB, H, W), TRACK_STEEL)];
   // 달림면 위에 얹히는 것들의 밑값 — 옆벽 열쇠 위(위 trackTopKey 주석).
   const kTop = trackTopKey(cx, (yA + yB) / 2, W);
-  // 트랙 링크 — 달림면을 가로지르는 가는 리브 여덟.
-  const n = 8;
+  // 트랙 링크 — 달림면을 가로지르는 가는 리브. 수는 길이가 정한다(짝을 둘로 가르면서).
+  const n = Math.max(3, Math.round((yB - yA) / 0.9));
   for (let i = 0; i < n; i += 1) {
     const y = yA + 0.8 + (i * (yB - yA - 1.6)) / (n - 1);
     out.push(...tagKey(paintBase(
@@ -2883,9 +2883,15 @@ function tankTrack(cx: number, yA = -3.6, yB = 3.6): ShapeFace[] {
      넘어가 통째로 사라졌다. 없애면 원작에 맞고 그 버그도 함께 사라진다. */
   return out;
 }
-/** 궤도 한 쌍 — 사진대로 한 쪽에 하나씩, 차체 길이를 다 덮는다. */
+/** 궤도 — 한 쪽에 **앞뒤 두 짝**이다(지시: "캐터필러부 두 개의 유닛으로 변경, 앞쪽이
+ *  뒤쪽의 1/2 길이"). 옛 판은 한 쪽에 통짜 하나(7.2)였다. 전체 길이는 그대로 두고
+ *  틈 0.3을 사이에 두고 뒤 4.6 · 앞 2.3으로 가른다 — 정확히 2:1이다. 앞은 +y(사선
+ *  앞판 쪽)다. 링크·기동륜은 tankTrack이 제 길이에 맞춰 알아서 낸다. */
 function tankTracks(dx = 2.45): ShapeFace[] {
-  return ([-dx, dx]).flatMap((cx) => tankTrack(cx));
+  return ([-dx, dx]).flatMap((cx) => [
+    ...tankTrack(cx, -3.6, 1.0),
+    ...tankTrack(cx, 1.3, 3.6),
+  ]);
 }
 /** 차체 — 궤도 사이 상자 + 사선 앞판 + 빗금 해치 + 옆 장갑 치마 + 꽁무니 통풍구.
  *  옆면은 개인색을 안 쓴다(포탑이 그 몫을 맡는다) — 차체까지 팀색이면 궤도 사이가
@@ -3281,14 +3287,14 @@ function hatcheryMoundFaces(seamColor: string, spikeColor = "#1b1e23"): ShapeFac
     const [mx, my] = project(0, 0, 6.35);
     out.push(sideFace(`M${mx - 1.5} ${my} L${mx + 1.5} ${my} Q${mx + 1.4} ${my + 1} ${mx} ${my + 1.15} Q${mx - 1.4} ${my + 1} ${mx - 1.5} ${my} Z`, 0.35));
     out.push(topFace(groundEllipse(mx, my, 1.4, 0.4)));
-    /* 정수리 아가리(요청: "저그에 어울리는 빛") — 테란은 창, 프로토스는 플라즈마,
-       저그는 **살아 있는 살**이다: 라바를 뽑는 동안 둔덕 꼭대기의 구멍이 안에서부터
-       달아오르고, 쉴 때는 식은 짙은 살빛으로 가라앉는다. 바닥에 눕는 원판이라
-       모델 좌표(discPath3)로 그려 요잉을 따라 함께 눌린다. */
+    /* 정수리 아가리 — **불빛은 걷었다**(지시: "저그 건물 액티브 불빛 효과 모두 제거,
+       익스트랙터 가스 채취 시 빼고"). 여기 있던 glowLit(달아오른 주홍 ↔ 식은 살빛)이
+       그 불빛인데, 해처리 가족은 LIT_KINDS에도 없어 열쇠가 lit를 안 물었다 — 곧 첫
+       굽기의 상태로 **얼어붙는** 유령 불빛이었다(실측: lit 켬/끔 324px 차이). 저그의
+       생산은 알이 이미 말하므로(LIT_KINDS의 그 주석) 식은 살빛으로 못 박는다. */
     out.push(...tagKey([
-      [discPath3(0, 0, 6.4, 1.12), 1, glowLit("#e8632a", "#4a2a1e")] as ShapeFace,
-      [discPath3(0, 0, 6.44, 0.62), bldLitNow ? 0.95 : 0.55,
-        glowLit("#ffcf7a", "#5d3626")] as ShapeFace,
+      [discPath3(0, 0, 6.4, 1.12), 1, "#4a2a1e"] as ShapeFace,
+      [discPath3(0, 0, 6.44, 0.62), 0.55, "#5d3626"] as ShapeFace,
     ], 1));
     /* 옆선 여섯 + 입구발 여섯(재재재지적: 60도 균등, 옆선이 입구굴과 딱 맞게) —
        다리와 얇은 경사면 옆선을 같은 각에 두고 방향별 깊이 키로 묶는다. 뒤로 돈
@@ -4047,7 +4053,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      줄고 세로가 그대로면 그만큼 배수가 올라 결과는 '더 좁고 더 높은' 디포가 된다. */
   /* 높이 10% 축소(요청: "서플라이 리파이너리 높이 10프로 축소") — z 배수 1.2 → 1.08. */
   // 높이 다시 10% 축소(요청) — 1.08 → 0.972. 가로는 그대로라 더 납작해진다.
-  trapezoid: () => withModelScale(0.75, 0.75, 0.972, () => withModelSpin(-90, () => {
+  /* 높이 한 단 더 축소(지시: "서플라이 높이 축소") — z 0.972 → 0.875(약 −10%). */
+  trapezoid: () => withModelScale(0.75, 0.75, 0.875, () => withModelSpin(-90, () => {
     /* 서플라이 디포(재작도·사진) — 검회색 장갑 상자다. 지붕 뒤에 드럼통 하나가 서고,
        지붕 가운데와 앞면 두 곳에는 환풍구가 뚫린다. 왼쪽 지붕에는 은빛 보급 상자 줄과
        그 아래 초록 발광, 왼쪽 옆면에는 초록 창과 해저드 띠, 앞에는 경사로와 드럼 둘.
@@ -4140,29 +4147,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           22 + depthNow(fx, 2.7));
       }
     }
-    /* 드럼통(재지적: "아까 없앴던 떨어진 디스크도 실제로 존재함. 크기 줄여서 복구하되
-       디스크 아래에 본체기둥도 있게해서 드럼통 느낌") — 예전에는 원판만 지붕 위 허공에
-       떠 있어 어느 방향에서 봐도 본체와 안 닿는 낱개로 보였고, 그래서 걷었던 것이다.
-       원판 아래에 기둥을 세우면 밑동이 지붕에 닿아 통 하나로 읽힌다. 크기는 줄였다
-       (반지름 1.6 → 0.92). 뚜껑 안쪽 원이 개인색 데칼이다(요청). */
-    {
-      // 키는 낮추고(재지적: "드럼통 높이 낮추기") 배는 그대로 — 1.5 → 0.85.
-      /* 드럼은 윗면의 **뒤쪽 오른쪽 귀**다(정정 요청: "디스크는 뒷면 오른쪽이야").
-         윗면은 6.4×4.8(x ±3.2 · y ±2.4)이고 드럼 반지름이 0.92라, (2.2, −1.4)면
-         바깥 끝이 x 3.12 · y −2.32로 귀에 바짝 붙되 테두리를 안 넘는다.
-         왼쪽 뒤는 지붕 보급 상자 줄이 쓴다 — 둘이 좌우로 갈려 지붕이 안 붐빈다. */
-      const dx = 2.2; const dy = -1.4; const dr = 0.92; const dz = 2.6; const dh = 0.85;
-      out.push(...tagKey([
-        ...paintBase(cylinderFaces3(dx, dy, dr, dh, dz), STEEL),
-        // 허리 테 둘 — 드럼통으로 읽히게 하는 표식.
-        ...paintBase(cylinderFaces3(dx, dy, dr * 1.07, 0.13, dz + dh * 0.3), "#7c889a"),
-        ...paintBase(cylinderFaces3(dx, dy, dr * 1.07, 0.13, dz + dh * 0.62), "#7c889a"),
-        // 뚜껑 — 어두운 강철 원판, 그 안쪽 원은 칠하지 않아 임자 색이 든다(개인색 데칼).
-        [discPath3(dx, dy, dz + dh + 0.02, dr), 1, DARK] as ShapeFace,
-        [discPath3(dx, dy, dz + dh + 0.04, dr * 0.62), 1] as ShapeFace,
-        topFace(discPath3(dx, dy, dz + dh + 0.06, dr * 0.26), 0.3),
-      ], 26 + depthNow(dx, dy)));
-    }
+    /* (걷어냄·지시: "뒤쪽 드럼통 제거") — 지붕 뒤 오른쪽 귀의 드럼통(기둥 + 허리 테
+       둘 + 개인색 뚜껑)이다. 개인색 몫은 지붕 보급 상자 줄과 앞 드럼 뚜껑이 그대로
+       가지고 있다. 되살리려면 이 자리에 cylinderFaces3(2.2, -1.4, 0.92, 0.85, 2.6)
+       한 벌을 다시 세우면 된다. */
     /* 환풍팬 둘 사이의 배기 파이프(요청: "옆면에 환풍팬 사이에 지상으로 이어지는
        파이프 구조물") — 벽 앞으로 살짝 나와 선 굵은 관이 지붕 밑에서 땅까지 내려온다.
        위쪽은 팔꿈치로 꺾여 벽 안으로 들어가고, 중간에 이음매 테 둘, 밑동에는 바닥판이
@@ -4910,11 +4898,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const a1 = ((k9 * 45 + 30.5) * Math.PI) / 180;
       const ri = 1.0;
       const ro = 1.95;
+      /* ★ 고리를 **그린 돔 안으로** 앉힌다(지시: "돔 위의 임자색 돔 표면에 딱 붙이기")
+         — 돔 몸통은 화면 좌표의 빌보드 곡선(domeFaces3의 body)이라, 비껴 보는 각에서
+         제 실루엣이 진짜 3D 돔의 윤곽보다 **낮다**(뒤쪽 표면이 정수리 위로 나오는 몫을
+         빌보드는 못 그린다). 그런데 이 슬롯들은 진짜 3D 좌표(domeZ9)로 앉혔으니 그
+         차이만큼 몸통 밖으로 떠서, 개인색 고리가 돔 위에 뜬 작은 돔처럼 읽혔다.
+         표면 높이의 22%를 눌러 그린 몸통 안에 넣는다 — 어느 요잉에서도 실루엣 안이다. */
+      const dz9 = (r9: number): number => FH9 + (domeZ9(r9) - FH9) * 0.78;
       top9.push([polyPath3([
-        [Math.sin(a0) * ri, Math.cos(a0) * ri, domeZ9(ri)],
-        [Math.sin(a1) * ri, Math.cos(a1) * ri, domeZ9(ri)],
-        [Math.sin(a1) * ro, Math.cos(a1) * ro, domeZ9(ro)],
-        [Math.sin(a0) * ro, Math.cos(a0) * ro, domeZ9(ro)],
+        [Math.sin(a0) * ri, Math.cos(a0) * ri, dz9(ri)],
+        [Math.sin(a1) * ri, Math.cos(a1) * ri, dz9(ri)],
+        [Math.sin(a1) * ro, Math.cos(a1) * ro, dz9(ro)],
+        [Math.sin(a0) * ro, Math.cos(a0) * ro, dz9(ro)],
       ]), 1] as ShapeFace);
     }
     /* (걷어냄·요청: "벙커 돔 위의 구멍 제거") — 꼭대기에 두던 어두운 해치 원반이다.
@@ -6535,47 +6530,58 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ...winRow(bx - bw / 2, by, wz, -1, 0, bh * 0.7, 2, bz * 0.3, NEON),
       ], 10 + depthNow(bx, by) * 1.6 + 0.4));
     }
-    /* 뒤 검은 나팔 흡입구 — 위로 벌어지는 통. */
+    /* 뒤 검은 나팔 굴뚝 — **맨 뒤 제일 높은 덩이의 옥상에 앉는다**(지시). 여태 (−0.2,
+       −2.6)·밑동 z 3.4로 덩이 A와 B **사이 허공**에 떠 있었다 — 어느 지붕에도 안 닿는
+       자리다. 가장 높은 뒤 덩이 B(1.4, −2, 지붕 z 5.0) 한가운데로 옮기고 밑동을 그
+       지붕에 딱 붙인다. */
     out.push(...tagKey([
       ...paintBase(spirePillar({
-        x: -0.2, y: -2.6, z0: 3.4, h: 1.8, w: 1.05, tipW: 1.75,
+        x: 1.4, y: -2, z0: 5.0, h: 1.6, w: 0.95, tipW: 1.55,
         segs: 3, sides: 12, hold: 0.2,
       }), "#21252c"),
-      capFace(discPath3(-0.2, -2.6, 5.2, 1.55), 0.55),
-    ], 20 + depthNow(-0.2, -2.6)));
-    /* 마디진 은빛 관 셋 — 덩이 사이를 굽어 넘는다.
-       ★ 관을 **토막 내 토막마다 제 깊이로** 키를 준다(지적: "파이프 부분 키가 이상한듯
-         앞뒤 옆에서 다보임") — 여태 관 하나에 키가 하나뿐이었고, 그마저 밑수 24로 못
-         박혀 있어서 어느 각에서 보든 덩이(밑수 10) 위에 통째로 그려졌다. 관은 건물을
-         **타넘는** 것이라 한쪽 끝은 늘 뒤로 넘어가는데, 그 뒤쪽 다리까지 앞에 그려지니
-         어느 방향에서 봐도 관 전체가 드러났다. 이제 밑수를 덩이와 같은 10으로 맞추고
-         토막마다 제 자리 깊이를 매긴다 — 뒤로 넘어간 토막은 덩이가 가린다.
-         (어시밀레이터 활 띠에서 이미 같은 병을 이 수법으로 고쳐 두었다.) */
-    ([
-      [[-2.4, -1.6, 3.6], [-0.6, 0.4, 4.4], [1.4, -0.6, 4.2]],
-      [[1.4, -2, 5], [2.6, 0.4, 4.2], [3.2, 2, 3.2]],
-      [[-3, 1.8, 3.2], [-1.6, 2.4, 2.6], [0.4, 2.2, 2.2]],
-    ] as [number, number, number][][]).forEach((way, wi) => {
-      const at9 = (t9: number): [number, number, number] => {
-        const u9 = 1 - t9;
-        const b9 = (a: number, b: number, c: number): number =>
-          u9 * u9 * a + 2 * u9 * t9 * b + t9 * t9 * c;
-        return [
-          b9(way[0][0], way[1][0], way[2][0]),
-          b9(way[0][1], way[1][1], way[2][1]),
-          b9(way[0][2], way[1][2], way[2][2]),
-        ];
+      capFace(discPath3(1.4, -2, 6.6, 1.38), 0.55),
+    ], 10 + depthNow(1.4, -2) * 1.6 + 1.2));
+    /* 관 — **ㄱ자 직각 배관**이다(지시: "파이프는 세로로 위에서 아래 지붕으로 직각으로
+       연결"). 옛 판은 덩이 사이를 활처럼 굽어 넘는 베지에 셋이었는데, 실제 정유 설비의
+       관은 굽지 않는다: 지붕에서 **수직으로** 올라가 높은 보를 **수평으로** 건너고
+       반대편 지붕으로 수직으로 내린다. 다리(세로)는 제 지붕에 밑동이 닿고, 보(가로)는
+       토막마다 제 깊이 키를 받아 뒤로 넘어간 토막이 덩이에 가린다(옛 관의 그 규약). */
+    {
+      const R9 = 0.26;
+      /** 지붕 z — 덩이 표의 0.8 + bz. */
+      const pipeRun = (
+        x0: number, y0: number, z0r: number,
+        x1: number, y1: number, z1r: number, top9: number,
+      ): void => {
+        // 세로 다리 둘 — 지붕에서 보 높이까지.
+        for (const [px9, py9, pz9] of [[x0, y0, z0r], [x1, y1, z1r]] as const) {
+          out.push(...tagKey([
+            ...paintBase(cylinderFaces3(px9, py9, R9, top9 - pz9, pz9), PIPE),
+            // 팔꿈치 테 — 직각 이음매의 마디.
+            ...paintBase(cylinderFaces3(px9, py9, R9 * 1.2, 0.14, top9 - 0.16), SILVER),
+            ...paintBase(cylinderFaces3(px9, py9, R9 * 1.2, 0.14, pz9 + 0.05), SILVER),
+          ], 10 + depthNow(px9, py9) * 1.6 + pz9 * 0.35 + 0.3));
+        }
+        // 가로 보 — 토막 넷, 토막마다 제 깊이.
+        const SEG9 = 4;
+        for (let s9 = 0; s9 < SEG9; s9 += 1) {
+          const t0 = s9 / SEG9;
+          const t1 = (s9 + 1) / SEG9;
+          const mx9 = x0 + (x1 - x0) * (t0 + t1) / 2;
+          const my9 = y0 + (y1 - y0) * (t0 + t1) / 2;
+          out.push(...tagKey(paintBase(spirePillar({
+            x: 0, y: 0, h: 1, w: 0.42, tipW: 0.42, segs: 1, sides: 8, hold: 1,
+            path: (t9: number): [number, number, number] => {
+              const u9 = t0 + (t1 - t0) * t9;
+              return [x0 + (x1 - x0) * u9, y0 + (y1 - y0) * u9, top9];
+            },
+          }), PIPE), 10 + depthNow(mx9, my9) * 1.6 + top9 * 0.35));
+        }
       };
-      const SEG9 = 6;
-      for (let s9 = 0; s9 < SEG9; s9 += 1) {
-        const [mx9, my9, mz9] = at9((s9 + 0.5) / SEG9);
-        out.push(...tagKey(paintBase(spirePillar({
-          x: 0, y: 0, h: 1, w: 0.42, tipW: 0.42, segs: 3, sides: 8, hold: 1,
-          path: (t9: number): [number, number, number] => at9((s9 + t9) / SEG9),
-        }), PIPE),
-        10 + depthNow(mx9, my9) * 1.6 + mz9 * 0.35 + wi * 0.02));
-      }
-    });
+      pipeRun(-2.4, -1.6, 4.2, 1.0, -1.4, 5.0, 5.8);   // A 지붕 ↔ B 지붕(굴뚝 옆)
+      pipeRun(2.4, -1.6, 5.0, 3.2, 0.6, 3.8, 5.6);     // B 지붕 ↔ C 지붕
+      pipeRun(-3, 1.8, 3.2, -2.6, -0.9, 4.2, 4.9);     // D 지붕 ↔ A 지붕
+    }
     /* 앞 탱크 둘 — 은빛 갓을 쓴 통. 갓은 개인색(요청: 개인색 몫 확대).
        키의 밑수도 덩이와 같은 10이다(위 관과 같은 지적) — 22로 못 박혀 있던 동안엔
        뒤에 선 탱크가 앞 덩이 위에 그려졌다. */
@@ -7308,6 +7314,41 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        윗도리가 본체보다 무거워 보였다. 상자의 제 윗면이 곧 지붕이다. */
     out.push(...tagKey(halfBox9(RX, RY, RW, RD, RH, MTOP, 0.9, 0.7, -1, MID),
       10.4 + depthNow(RX, RY) * 1.6));
+    /* ★ 오른 절두체 **오른 옆면의 렌즈 드럼**(지시: "임자색 원형 납작 렌즈 부착, 렌즈
+       둘레와 맞는 드럼통을 절두체에 90프로 파묻고 10프로는 앞쪽에 드러나게") ──────────
+       드럼통은 옆면을 뚫고 나온 가로 원통이다 — 몸의 90%가 절두체 속이고 10%만
+       옆으로 드러나며, 그 드러난 끝의 뚜껑 안쪽이 임자색 납작 렌즈다(渦紋 없이 평평).
+       옆면은 위로 갈수록 안으로 눕는 절두체라(halfBox9의 dw 0.9), 렌즈 높이에서의
+       면 x를 다시 재서 거기에 걸친다. */
+    {
+      const LZ9 = MTOP + RH * 0.45;
+      const faceX9 = RX + RW / 2 - 0.9 * ((LZ9 - MTOP) / RH);
+      const LR9 = 0.85;
+      const LL9 = 1.5;
+      const x19 = faceX9 + LL9 * 0.1;             // 드러난 끝(면 밖 10%)
+      const lensDisc9 = (k9: number, dx9: number): string => polyPath3(
+        Array.from({ length: 17 }, (_, i9): [number, number, number] => {
+          const a9 = (i9 / 16) * Math.PI * 2;
+          return [x19 + dx9, RY + Math.cos(a9) * LR9 * k9, LZ9 + Math.sin(a9) * LR9 * k9];
+        }));
+      const drum9: ShapeFace[] = [
+        // 몸통 — 90%는 절두체 속(요잉이 돌아도 이음매가 안 비게 통째로 세운다).
+        ...paintBase(tubeFaces(faceX9 - LL9 * 0.9, RY, x19, RY, LR9,
+          LZ9 - tubeAxisLift(LR9)), MID),
+      ];
+      if (facingRatio(1, 0) > 0.04) {
+        drum9.push([lensDisc9(1, 0.02), 1, DARK] as ShapeFace);   // 드럼 뚜껑 테
+        /* 렌즈는 **임자색 명단(pc)으로만** 나간다 — 이 빌더는 끝에서 raceBase(out, …)가
+           out의 칠 안 한 면을 전부 테란 기본색으로 덮고, pc는 그 붓을 안 맞은 채 뒤에
+           붙는다(raceBase의 return). out에 넣으면 은색으로 굳는다(첫 판이 그랬다).
+           제 깊이 키를 들려 보내야 정렬이 드럼 곁에 세운다. */
+        pc.push(...tagKey([
+          [lensDisc9(0.8, 0.05), 1] as ShapeFace,              // 임자색 납작 렌즈
+          topFace(lensDisc9(0.3, 0.08), 0.3),                  // 광택 한 점
+        ], 10.4 + depthNow(x19, RY) * 1.6 + 0.35));
+      }
+      out.push(...tagKey(drum9, 10.4 + depthNow(x19, RY) * 1.6 + 0.3));
+    }
     /* ★ 창은 **그 면의 경사를 탄다**(지적: "엔베 검정 창문 경사면에 맞게 각도 조절") ────
        왼 상자가 위로 좁아지는 절두체가 되면서 앞면이 뒤로 누웠는데(높이 UPP_H 동안
        앞뒤로 dd/2 = 0.4만큼 물러난다), 창은 여전히 y 한 값에 선 **곧은 판**이었다.
@@ -9353,11 +9394,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           return [px + ox + Math.cos(a9) * rx * k9, py + oy + Math.sin(a9) * ry * k9, 0.12];
         }),
       );
+      /* 연못 그라데이션(지시: "중앙에서 바로 시작해서 가장자리로 갈수록 진한 녹색") —
+         면은 단색이라 참 그라데이션 대신 동심 고리 여섯으로 계단을 놓는다. 밝은 속이
+         0.7까지 꽉 차 있던 옛 판과 달리, 가장 밝은 것은 **한가운데 한 점**이고 바깥으로
+         갈수록 한 단씩 어두워진다. 치우친 하이라이트는 걷는다 — 중심이 곧 밝은 자리다. */
       out.push(...tagKey([
         [ring(1), 1, FLESH_D] as ShapeFace,
-        [ring(0.86), 1, "#2f7a24"] as ShapeFace,
-        [ring(0.7), 1, GOO] as ShapeFace,
-        topFace(ring(0.32, -rx * 0.2, -ry * 0.2), 0.35),
+        [ring(0.86), 1, "#2c6e1f"] as ShapeFace,
+        [ring(0.72), 1, "#3a8f28"] as ShapeFace,
+        [ring(0.58), 1, "#49b232"] as ShapeFace,
+        [ring(0.44), 1, "#57cf3a"] as ShapeFace,
+        [ring(0.3), 1, "#6fe84c"] as ShapeFace,
+        [ring(0.16), 1, "#8dff66"] as ShapeFace,
       ], key));
     };
     /* 화면 왼쪽이 -x다(project에서 +x가 오른쪽으로 간다) — 지적의 "왼쪽에 큰거"는
@@ -15216,14 +15264,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     ], 0));
 
     /* ② 속 형체 ─────────────────────────────────────────────────────────────── */
-    // 머리 — 가슴에서 **뒤·위**로 길게 뻗은 뾰족한 두건. 사진 실루엣의 얼굴이다.
+    /* 머리 — 가슴에서 뒤·위로 뻗는 두건. **한 뼘 줄이고 앞으로**(지시: "머리 크기 축소
+       및 머리 앞으로 좀 이동") — 길이 2.9 → 2.45, 폭 0.46 → 0.38, 뿌리 y 0.45 → 0.8.
+       솟는 몫도 같은 비로 줄여 두건의 기울기는 그대로다. */
     out.push(...tagKey(inky(paintBase(spirePillar({
       x: 0, y: 0, h: 1, w: 1, segs: 7, sides: 6, oval: 1.9, caps: "none",
       ref: [0, 0, 1],
       path: (t9: number): [number, number, number] =>
-        [0, 0.45 - 2.9 * t9, ORB_Z + 1.05 + 1.85 * t9 - 0.35 * t9 * t9],
-      // 사진의 머리는 **뾰족한 두건**이다 — 폭이 넓으면 구 위쪽을 덮는 덩이가 된다.
-      widthOf: (t9: number): number => 0.46 * Math.sin(Math.PI * (0.08 + 0.76 * t9)) + 0.03,
+        [0, 0.8 - 2.45 * t9, ORB_Z + 1.05 + 1.56 * t9 - 0.3 * t9 * t9],
+      widthOf: (t9: number): number => 0.38 * Math.sin(Math.PI * (0.08 + 0.76 * t9)) + 0.03,
     }), FLESH_L9)), 0.56));
     // 몸통 — 가슴에서 아래로 흐르며 가늘어진다.
     out.push(...tagKey(inky(paintBase(spirePillar({
