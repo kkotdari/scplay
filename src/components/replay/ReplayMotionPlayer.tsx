@@ -7504,8 +7504,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         [polyPath3([[-3.2, 1.36, 0.5], [-1.8, 1.36, 0.5], [-1.8, 1.36, 1.1], [-3.2, 1.36, 1.1]]),
           1, winLit("#4cd86a")] as ShapeFace,
       ] : []),
-      // 가운데 우물 드럼 — 테는 구릿빛, 둘레엔 초록 발광 칸이 빙 둘러 박힌다(사진).
-      ...paintBase(cylinderFaces3(0, 0, 2.6, 3), "#8a6a44"),
+      // 가운데 우물 드럼 — 기본 테란색(요청: 황동 → 스테인 쇠), 둘레엔 초록 발광 칸.
+      ...cylinderFaces3(0, 0, 2.6, 3),
       capFace(discPath3(0, 0, 3.05, 1.85), 0.45),
       ...Array.from({ length: 14 }, (_, k9) => {
         const a9 = (k9 / 14) * Math.PI * 2;
