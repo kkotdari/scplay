@@ -10885,7 +10885,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     out.push(...tagKey(raceBase(boxFaces3(0, DY, BW * 2, 2.3, Z(6.3) - Z(5.2), Z(5.2)), "terran"), key9(0, DY, Z(5.75))));
     /* 조종석은 **2층 돔**(재지적) — 아래 돔은 위가 잘린 타원 돔(밑 r 1.6 → 절단면 r 1.19),
        그 위에 작은 돔이 올라앉고, 둘 사이에 임자색 고리(옆은 임자색·윗면은 쇠색). */
-    const DH0 = Z(6.9) - Z(6.3);            // 아래 돔 절단 높이
+    const DH0 = (Z(6.9) - Z(6.3)) * 0.75;   // 아래 돔 절단 높이(25% 축소)
     out.push(...tagKey([
       ...raceBase(spirePillar({
         x: 0, y: DY, z0: Z(6.3), h: DH0, w: 1, segs: 3, sides: 14, ref: [1, 0, 0], caps: "top",
@@ -10893,7 +10893,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       }), "terran"),
       ...cylinderFaces3(0, DY, 1.24, Z(6.3) + DH0 + 0.16 - (Z(6.3) + DH0 - 0.02), Z(6.3) + DH0 - 0.02),   // 임자색 고리
       ...paintBase(cylinderFaces3(0, DY, 1.24, 0.04, Z(6.3) + DH0 + 0.12), TERRAN_STEEL),         // 고리 윗면 쇠색
-      ...raceBase(domeFaces3(0, DY, 1.02, Z(7.35) - Z(6.9), Z(6.3) + DH0 + 0.14), "terran"),        // 위 작은 돔
+      ...raceBase(domeFaces3(0, DY, 1.02, (Z(7.35) - Z(6.9)) * 0.75, Z(6.3) + DH0 + 0.14), "terran"),  // 위 작은 돔(25% 축소)
     ], key9(0, DY, Z(6.9))));
     // 1-나) 뒤 절두체 — 상자 뒤(y −0.6)에 붙되 폭은 상자의 8할(재요청 20% 축소), 뒤로 조금 넓어진다.
     const TW0 = BW * 0.8;
@@ -10904,18 +10904,27 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       0, -1.6), "terran"), key9(0, -1.6, Z(5.8))));
     // 1-다) 부리 — 앞면을 잘라 뭉뚝(끝 반폭 0.85), 윗면 급경사(5.85→5.25), 윗면 양쪽 사선 깎기.
     out.push(...tagKey(raceBase(prism9(
-      [[-BW, 1.7, Z(5.15)], [BW, 1.7, Z(5.15)], [0.95, 3.5, Z(5.22)], [-0.95, 3.5, Z(5.22)]],
-      // 높이 50% 증가(요청): 밑 0.7→1.05 · 끝 0.08→0.12
-      [[-1.15, 1.7, Z(6.2)], [1.15, 1.7, Z(6.2)], [0.55, 3.5, Z(5.34)], [-0.55, 3.5, Z(5.34)]],
+      // 폭 10%·높이 20% 추가 확대(요청): 밑 반폭 1.76, 끝 1.045 · 높이 밑 1.26·끝 0.144
+      [[-BW * 1.1, 1.7, Z(5.15)], [BW * 1.1, 1.7, Z(5.15)], [1.045, 3.5, Z(5.22)], [-1.045, 3.5, Z(5.22)]],
+      [[-1.265, 1.7, Z(6.41)], [1.265, 1.7, Z(6.41)], [0.605, 3.5, Z(5.364)], [-0.605, 3.5, Z(5.364)]],
       0, 2.6), "terran"), key9(0, 2.6, Z(5.45))));
 
+    // 중간동체 양옆 앞쪽의 포드(요청) — 상자 옆구리에 붙은 발사기, 포구 셋이 위아래로 쌓인다.
+    for (const m9 of [-1, 1] as const) {
+      const px9 = m9 * (BW + 0.28);
+      out.push(...tagKey([
+        ...raceBase(boxFaces3(px9, 1.05, 0.56, 1.1, Z(6.25) - Z(5.35), Z(5.35)), "terran"),
+        ...([Z(5.5), Z(5.8), Z(6.1)] as number[]).flatMap((tz9) =>
+          paintBase(tubeFaces(px9, 1.55, px9, 2.15, 0.13, tz9, true), TERRAN_STEEL_D)),
+      ], key9(px9, 1.3, Z(5.8))));
+    }
     // 2) 양옆 절두체 팔(폭 1.0) + 두께 있는 사다리꼴 방패(위 바깥·아래 안으로 기움).
     for (const m9 of [-1, 1] as const) {
       const X0 = m9 * (TW0 + 0.05); const X1 = m9 * 3.0;
       const rB: [number, number, number] = [X0, -1.7, Z(5.25)]; const rF: [number, number, number] = [X0, -2.7, Z(5.25)];
-      const rT: [number, number, number] = [X0, -1.7, Z(6.35)]; const rR: [number, number, number] = [X0, -2.7, Z(6.35)];
+      const rT: [number, number, number] = [X0, -1.7, Z(6.57)]; const rR: [number, number, number] = [X0, -2.7, Z(6.57)];   // 높이 +20%
       const tB: [number, number, number] = [X1, -1.85, Z(5.45)]; const tF: [number, number, number] = [X1, -2.55, Z(5.45)];
-      const tT: [number, number, number] = [X1, -1.85, Z(5.7)]; const tR: [number, number, number] = [X1, -2.55, Z(5.7)];
+      const tT: [number, number, number] = [X1, -1.85, Z(5.75)]; const tR: [number, number, number] = [X1, -2.55, Z(5.75)];
       const top9 = polyPath3([rT, rR, tR, tT]);
       const bot9 = polyPath3([rB, rF, tF, tB]);
       const fr9 = polyPath3([rB, rT, tT, tB]);
@@ -18174,7 +18183,7 @@ const MODEL_NORM: Record<string, number> = {
   tanksiege: 0.723,
   tanksiegebody: 0.723,
   ultra: 0.361,
-  valk: 0.800,   // 상자 받침·2층 돔 뒤 재측정(model-norm)
+  valk: 0.798,   // 포드·부리 확대 뒤 재측정(model-norm)
   vessel: 0.882,  // 방패 20% 축소 뒤 재측정(model-norm)
   vulture: 0.828,
   wraith: 0.774,
