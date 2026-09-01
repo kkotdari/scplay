@@ -10915,22 +10915,22 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         [-0.605, 3.5, Z(5.364)], [-0.862, 2.8, Z(6.05)]],
       0, 2.6), "terran"), key9(0, 2.6, Z(5.45))));
 
-    // 중간동체 양옆 앞쪽의 포드(요청) — 상자 옆구리에 붙은 발사기, 포구 셋이 위아래로 쌓인다.
+    /* 중간동체 양옆의 **노출 포신 둘**(재지적: 포드가 아니라 포신) — 상자 옆구리를 따라
+       가운데 동체 길이(y −0.6~1.7)만큼 길게 뻗고 위아래로 둘씩 겹친다. 반지름 0.17. */
     for (const m9 of [-1, 1] as const) {
-      const px9 = m9 * (BW + 0.28);
-      out.push(...tagKey([
-        ...raceBase(boxFaces3(px9, 1.05, 0.56, 1.1, Z(6.25) - Z(5.35), Z(5.35)), "terran"),
-        ...([Z(5.5), Z(5.8), Z(6.1)] as number[]).flatMap((tz9) =>
-          paintBase(tubeFaces(px9, 1.55, px9, 2.15, 0.13, tz9, true), TERRAN_STEEL_D)),
-      ], key9(px9, 1.3, Z(5.8))));
+      const px9 = m9 * (BW + 0.2);
+      for (const tz9 of [Z(5.5), Z(6.0)]) {
+        out.push(...tagKey(paintBase(tubeFaces(px9, CUT, px9, 1.7 + 0.3, 0.17, tz9, true), TERRAN_STEEL_D),
+          key9(px9, 0.55, tz9) + 0.2));
+      }
     }
     // 2) 양옆 절두체 팔(폭 1.0) + 두께 있는 사다리꼴 방패(위 바깥·아래 안으로 기움).
     for (const m9 of [-1, 1] as const) {
       const X0 = m9 * (TW0 + 0.05); const X1 = m9 * 3.0;
-      const rB: [number, number, number] = [X0, -1.7, Z(5.25)]; const rF: [number, number, number] = [X0, -2.7, Z(5.25)];
-      const rT: [number, number, number] = [X0, -1.7, Z(6.57)]; const rR: [number, number, number] = [X0, -2.7, Z(6.57)];   // 높이 +20%
-      const tB: [number, number, number] = [X1, -1.85, Z(5.45)]; const tF: [number, number, number] = [X1, -2.55, Z(5.45)];
-      const tT: [number, number, number] = [X1, -1.85, Z(5.75)]; const tR: [number, number, number] = [X1, -2.55, Z(5.75)];
+      const rB: [number, number, number] = [X0, -0.6, Z(5.25)]; const rF: [number, number, number] = [X0, -2.6, Z(5.25)];   // 깊이 = 뒷동체
+      const rT: [number, number, number] = [X0, -0.6, Z(6.57)]; const rR: [number, number, number] = [X0, -2.6, Z(6.57)];   // 높이 +20%
+      const tB: [number, number, number] = [X1, -0.85, Z(5.45)]; const tF: [number, number, number] = [X1, -2.35, Z(5.45)];
+      const tT: [number, number, number] = [X1, -0.85, Z(5.75)]; const tR: [number, number, number] = [X1, -2.35, Z(5.75)];
       const top9 = polyPath3([rT, rR, tR, tT]);
       const bot9 = polyPath3([rB, rF, tF, tB]);
       const fr9 = polyPath3([rB, rT, tT, tB]);
@@ -10942,11 +10942,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         arm9.push(bodyFace(d9), ...(fl9.visible ? fl9.face(d9) : [sideFace(d9, 0.46)]));
       }
       arm9.push(bodyFace(top9), topFace(top9, 0.22));
-      out.push(...tagKey(raceBase(arm9, "terran"), key9(m9 * 2.1, -2.2, Z(5.8))));
+      out.push(...tagKey(raceBase(arm9, "terran"), key9(m9 * 2.1, -1.6, Z(5.8))));
       /* 방패 — 사다리꼴(위 반폭 0.62·아래 0.82), 높이 Z 기준 2.3, 두께 0.2. 위가 바깥
          (+0.28)·아래가 안(−0.28)으로 기운다. 바깥면은 임자색 판 위에 기본색 속판(모서리 띠),
          안면·테두리 벽은 기본색. */
-      const cy9 = -2.2; const cz0 = Z(5.0); const cz1 = Z(7.3);
+      const cy9 = -1.6; const cz0 = Z(5.0); const cz1 = Z(7.3);
       const sx9 = (z9: number, off9: number): number =>
         m9 * (3.05 + off9 + 0.28 * ((z9 - (cz0 + cz1) / 2) / (cz1 - cz0)) * 2);
       const trap9 = (off9: number, k9: number): [number, number, number][] => {
@@ -18189,7 +18189,7 @@ const MODEL_NORM: Record<string, number> = {
   tanksiege: 0.723,
   tanksiegebody: 0.723,
   ultra: 0.361,
-  valk: 0.798,   // 포드·부리 확대 뒤 재측정(model-norm)
+  valk: 0.821,   // 노출 포신·넓은 팔 뒤 재측정(model-norm)
   vessel: 0.882,  // 방패 20% 축소 뒤 재측정(model-norm)
   vulture: 0.828,
   wraith: 0.774,
