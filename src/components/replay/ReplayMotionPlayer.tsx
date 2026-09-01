@@ -5387,99 +5387,69 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        읽혔다. 2.1이면 앞뒤:접선이 1.08:1 — 거의 원에 가까운 잎이 된다.
        앞뒤만 줄이므로 반지름(R)·접선 반폭(TANG)·반지름 두께(RAD)는 그대로다: 관문의
        지름과 구멍 크기는 안 변하고 날의 앞뒤만 짧아진다. */
-    /* 잎 재작도(사진 — "상하좌우 4조각이다") ────────────────────────────────
-       네 잎 구조는 그대로 두되 잎 하나하나를 다시 그렸다. 사진의 요점 셋:
-         · 잎이 서로 거의 닿을 만큼 넓다(잎 확대·간격 축소).
-         · 배(관 안쪽)에는 금 갈빗대 사이로 푸른 수정 창이 줄지어 박힌다.
-         · 위아래 잎과 좌우 잎은 꼴이 살짝 다르다 — 위아래는 넓고 납작한 꽃잎에
-           등에 흰 대리석 상감, 좌우는 앞뒤로 길고 등마루에 S자 지느러미가 선다. */
-    const RAD = 0.45; // 반지름 방향 반두께
+    /* 조각 재작도(재재작도 — "기존 컨셉 삭제, 잎의 위치만 참고, 더 좋은 도형") ──
+       잎(꽃잎) 개념을 버린다. 관문은 **고리를 넷으로 자른 호(arc) 조각**이다:
+       상하좌우 자리마다 축 둘레를 도는 두꺼운 곡면 셸 하나 — 크루아상 조각처럼
+       가운데가 굵고 끝으로 갈수록 가늘어지는 굽은 기둥(spirePillar 호 경로).
+         · 위아래 조각은 호가 넓고(반스팬 0.66rad) 납작한 단면,
+         · 좌우 조각은 호가 좁은 대신 앞뒤로 더 깊은 단면 — "살짝 다른 꼴".
+       안쪽 면에는 호를 따라 푸른 수정 창 넷 + 비스듬한 갈빗대(사진 검정·초록 원),
+       임자색은 좌우 조각 바깥 등의 마름모 데칼 두 장씩이다. */
     const GOLD9 = "#c9a227";
     const PHIS = [0, Math.PI / 2, Math.PI, -Math.PI / 2];
     for (const phi of PHIS) {
       const rx = Math.sin(phi);   // 축에서 바깥 방향(x·z 평면)
       const rz = Math.cos(phi);
-      const tx = Math.cos(phi);   // 접선 방향
-      const tz = -Math.sin(phi);
-      const vert9 = Math.abs(rz) > 0.5;  // 위·아래 잎인가
-      const TANG = vert9 ? 2.65 : 2.45;  // 접선 반폭 — 잎을 키워 간격을 줄인다
-      const LEN = vert9 ? 1.7 : 2.05;    // 앞뒤 반길이 — 좌우 잎이 조금 길다
+      const vert9 = Math.abs(rz) > 0.5;   // 위·아래 조각인가
+      const SPAN = vert9 ? 0.72 : 0.66;   // 호 반스팬(rad) — 틈은 대각선 자리
+      const THK = vert9 ? 0.56 : 0.5;     // 가운데 반두께(반지름 방향)
+      const OVAL = vert9 ? 2.5 : 3.1;     // 앞뒤 깊이/반두께 — 좌우가 더 깊다
       const key9 = depthNow(rx * R, 0);
-      out.push(...leafFaces({
+      out.push(...spirePillar({
+        x: 0, y: 0, h: 1, w: 1, segs: 6, sides: 6, oval: OVAL, caps: "none",
+        fill: GOLD9, trueNormal: true, ref: [rx, 0, rz],
         path: (t: number): [number, number, number] => {
-          const a9 = -1 + 2 * t;
-          const r9 = R + (vert9 ? 0.22 : 0.3) * (1 - a9 * a9);
-          const t9 = 0.32 * (a9 * a9 - 0.42);
-          return [rx * r9 + tx * t9, a9 * LEN, C + rz * r9 + tz * t9];
+          const th9 = phi + (2 * t - 1) * SPAN;
+          return [Math.sin(th9) * R, 0, C + Math.cos(th9) * R];
         },
-        waist: 0.5, thick: RAD, spread: TANG / RAD,
-        rootW: 0.3, tipW: 0.3, rootPow: 0.9, tipPow: 0.9,
-        sides: 4, segs: 3, fill: GOLD9, trueNormal: true,
-        ref: [rx, 0, rz],
-        key: key9,
-      }));
-      // 좌우 잎만 — 등마루의 S자 지느러미(사진 파란 원).
-      if (!vert9) {
-        out.push(...leafFaces({
-          path: (t: number): [number, number, number] => {
-            const a9 = -1 + 2 * t;
-            const r9 = R + RAD + 0.34 * (1 - a9 * a9);
-            const t9 = 0.34 * a9;  // 앞뒤로 가며 접선 쪽으로 흘러 S자로 읽힌다
-            return [rx * r9 + tx * t9, a9 * (LEN + 0.1), C + rz * r9 + tz * t9];
-          },
-          waist: 0.5, thick: 0.52, spread: 0.26,
-          rootPow: 1.1, tipPow: 1.1,
-          sides: 3, segs: 3, trueNormal: true,
-          ref: [rx, 0, rz],
-          key: key9 + 0.3,
-        }));
-      }
+        widthOf: (t: number): number => THK * (0.3 + 0.7 * Math.sin(Math.PI * t) ** 0.8),
+      }).map((f9) => { f9[3] = key9; return f9; }));
       const fSide = facingRatio(rx, 0);
       const bellyOn = rz > 0.5 ? false : rz < -0.5 ? true : fSide < -0.1;
       if (bellyOn) {
-        /* 배 — 금 갈빗대 사이 푸른 수정 창 넷(사진 검정·초록 원): 접선을 따라
-           마름모 창 넷이 줄짓고 사이마다 비스듬한 어두운 금 갈빗대가 선다.
-           창은 아쿠아 고정(관 속은 워프 에너지) — 활성에만 탄다. */
-        const r9 = R - RAD - 0.06;
+        /* 안쪽 면 — 호를 따라 수정 창 넷(아쿠아·활성시 발광)과 그 사이 비스듬한
+           어두운 금 갈빗대. 창 자리도 호 위라 조각의 굽이를 따라간다. */
+        const ri9 = R - THK - 0.05;
         const win: ShapeFace[] = [];
         for (let k9 = 0; k9 < 4; k9 += 1) {
-          const u9 = (-0.57 + k9 * 0.38) * TANG;
-          const hu = TANG * 0.13;
-          const hv = LEN * 0.3;
-          const d9 = polyPath3(([[-hu, 0], [0, hv], [hu, 0], [0, -hv]] as [number, number][])
-            .map(([a9, b9]) => [
-              rx * r9 + tx * (u9 + a9), b9, C + rz * r9 + tz * (u9 + a9),
-            ] as [number, number, number]));
+          const th9 = phi + (-0.36 + k9 * 0.24);
+          const ux9 = Math.cos(th9); const uz9 = -Math.sin(th9);
+          const cx9 = Math.sin(th9) * ri9; const cz9 = C + Math.cos(th9) * ri9;
+          const d9 = polyPath3(([[-0.26, 0], [0, 0.5], [0.26, 0], [0, -0.5]] as [number, number][])
+            .map(([a9, b9]) => [cx9 + ux9 * a9, b9, cz9 + uz9 * a9] as [number, number, number]));
           win.push([d9, 1, glowLit("#60f2df", "#22776b")] as ShapeFace, topFace(d9, 0.35));
         }
         for (let k9 = 0; k9 < 5; k9 += 1) {
-          const u9 = (-0.76 + k9 * 0.38) * TANG;
-          const hv = LEN * 0.34;
-          const d9 = polyPath3(([[-0.08, -1], [0.08, -1], [0.2, 1], [0.08, 1]] as [number, number][])
-            .map(([a9, b9]) => [
-              rx * r9 + tx * (u9 + a9 * TANG * 0.5), b9 * hv, C + rz * r9 + tz * (u9 + a9 * TANG * 0.5),
-            ] as [number, number, number]));
+          const th9 = phi + (-0.48 + k9 * 0.24);
+          const ux9 = Math.cos(th9); const uz9 = -Math.sin(th9);
+          const cx9 = Math.sin(th9) * ri9; const cz9 = C + Math.cos(th9) * ri9;
+          const d9 = polyPath3(([[-0.05, -0.62], [0.05, -0.62], [0.13, 0.62], [0.03, 0.62]] as [number, number][])
+            .map(([a9, b9]) => [cx9 + ux9 * a9, b9, cz9 + uz9 * a9] as [number, number, number]));
           win.push([d9, 1, "#7a5f15"] as ShapeFace);
         }
         out.push(...tagKey(win, key9 + 0.6));
-      } else {
-        /* 등 — 위아래 잎만 흰 대리석 상감(사진 빨간 원). 임자색 자리는 좌우 잎의
-           S자 지느러미다(프로토스 건물마다 개인색 자리 하나 규칙). */
-        const ro9 = R + RAD + 0.05;
+      } else if (!vert9) {
+        /* 좌우 조각 바깥 등 — 임자색 마름모 데칼 두 장(프로토스 건물마다 개인색
+           자리 하나 규칙). 호 위에 놓여 조각의 굽이를 따라간다. */
+        const ro9 = R + THK + 0.05;
         const dec: ShapeFace[] = [];
-        if (vert9) {
-          for (const [su9, sv9, sw9, sh9] of [
-            [-0.34, -0.06, 0.4, 0.5], [0.26, 0.04, 0.36, 0.44],
-          ] as [number, number, number, number][]) {
-            const d9 = polyPath3(([
-              [-sw9, 0], [-sw9 * 0.3, -sh9 * 0.7], [sw9 * 0.7, -sh9 * 0.3],
-              [sw9, sh9 * 0.5], [0, sh9],
-            ] as [number, number][]).map(([a9, b9]) => [
-              rx * ro9 + tx * ((su9 + a9 * 0.55) * TANG), (sv9 + b9 * 0.55) * LEN,
-              C + rz * ro9 + tz * ((su9 + a9 * 0.55) * TANG),
-            ] as [number, number, number]));
-            dec.push([d9, 1, "#d6cdb0"] as ShapeFace);
-          }
+        for (const dth9 of [-0.22, 0.22]) {
+          const th9 = phi + dth9;
+          const ux9 = Math.cos(th9); const uz9 = -Math.sin(th9);
+          const cx9 = Math.sin(th9) * ro9; const cz9 = C + Math.cos(th9) * ro9;
+          const d9 = polyPath3(([[-0.24, 0], [0, 0.45], [0.24, 0], [0, -0.45]] as [number, number][])
+            .map(([a9, b9]) => [cx9 + ux9 * a9, b9, cz9 + uz9 * a9] as [number, number, number]));
+          dec.push(bodyFace(d9));
         }
         out.push(...tagKey(dec, key9 + 0.6));
       }
@@ -20232,7 +20202,7 @@ export const BLD_FILL_TARGET: Record<string, number> = {
  *  표에 없는 종류는 1(모델 그대로)이다. */
 export const BLD_NORM: Record<string, number> = {
   academy: 1.470,  // 치마형 받침으로 바꾼 뒤 bld-norm 재측정
-  arch: 2.567,  // 잎 재작도 뒤 재측정(bld-norm)
+  arch: 2.669,  // 호 조각 재작도 뒤 재측정(bld-norm)
   archives: 2.489,  // 상자 상한에 걸림
   armory: 1.223,
   assim: 1.655,
