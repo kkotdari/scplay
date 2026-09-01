@@ -4264,7 +4264,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const out: ShapeFace[] = [];
 
     // ── 몸통 3단 치수 — 앞뒤·옆면의 세로 홈이 이 프로필을 따라 굽는다.
-    const ZB0 = 0.6; const ZW0 = 1.8; const ZW1 = 3.2; const ZT = 4.9;
+    const ZB0 = 0.6; const ZW0 = 2.0; const ZW1 = 3.8; const ZT = 5.9;
     const WB = 8.0; const DB = 5.4;      // 바닥
     const WW = 8.8; const DW = 6.2;      // 허리
     const WT = 7.6; const DT = 5.0;      // 꼭대기
@@ -4399,8 +4399,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     }
 
     // ── 모서리 안테나 둘.
-    out.push(...tagKey(paintBase(hornFaces(-3.3, -1.9, ZT, -3.55, -2.1, 6.4, 0.1), "#5a616b"), 3.8));
-    out.push(...tagKey(paintBase(hornFaces(3.3, 1.7, ZT, 3.55, 1.9, 6.0, 0.09), "#5a616b"), 3.82));
+    out.push(...tagKey(paintBase(hornFaces(-3.3, -1.9, ZT, -3.55, -2.1, 7.6, 0.1), "#5a616b"), 3.8));
+    out.push(...tagKey(paintBase(hornFaces(3.3, 1.7, ZT, 3.55, 1.9, 7.2, 0.09), "#5a616b"), 3.82));
 
     return raceBase(out, "terran", pc);
   },
@@ -20226,7 +20226,7 @@ export const BLD_NORM: Record<string, number> = {
   ebay: 1.443,   // 다리 두 마디 20% 축소 뒤 재측정(잉크 폭이 좁아져 배수는 올라간다)
   evo: 1.540,
   extract: 1.027,  // 가시 밑둥 굵힘 뒤 재측정(bld-norm)
-  factory: 1.400,  // 절두체+허리 재작도 뒤 재측정(bld-norm)
+  factory: 1.397,  // 절두체+허리 재작도 뒤 재측정(bld-norm)
   fleetbeacon: 2.125,
   forge: 1.809,
   gate: 1.774,
