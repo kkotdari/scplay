@@ -10882,11 +10882,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        아니라 직선면") — 굽은 기둥을 걷고 **평면도 육각형 각기둥** 하나로 짠다: 뒤가
        넓고 코로 갈수록 좁아지는 육각 윤곽, 바닥은 평평(5.1), 윗면은 코 쪽만 살짝
        낮다(6.5 → 6.15). 벽 여섯·윗면·밑면 = 여덟 면이 전부다. */
+    /* (사진 재반영) 코는 **길고 납작한 칼날 쐐기**다 — 뒤 갑판(y −2.3~−0.3)은 평평하고,
+       거기서 코끝(y 3.0)까지 윗면이 내려가며 밑면은 올라와 끝이 얇은 날이 된다. 옆면은
+       곧은 평면 여섯. */
     const PLAN9: [number, number][] = [
-      [-1.7, -2.1], [1.7, -2.1], [1.9, -0.4], [0.7, 1.9], [-0.7, 1.9], [-1.9, -0.4],
+      [-1.6, -2.3], [1.6, -2.3], [1.9, -0.6], [0.35, 3.0], [-0.35, 3.0], [-1.9, -0.6],
     ];
-    const topZ9 = (y9: number): number => 6.5 - 0.35 * Math.max(0, (y9 + 0.4) / 2.3);
-    const lo9 = PLAN9.map(([x9, y9]) => [x9, y9, 5.1] as [number, number, number]);
+    const topZ9 = (y9: number): number => 6.4 - 0.95 * Math.max(0, (y9 + 0.3) / 3.3);
+    const botZ9 = (y9: number): number => 5.0 + 0.3 * Math.max(0, (y9 - 0.4) / 2.6);
+    const lo9 = PLAN9.map(([x9, y9]) => [x9, y9, botZ9(y9)] as [number, number, number]);
     const hi9 = PLAN9.map(([x9, y9]) => [x9, y9, topZ9(y9)] as [number, number, number]);
     const hull9: ShapeFace[] = [bodyFace(polyPath3(lo9))];
     const walls9 = lo9.map((_, k9) => {
@@ -10902,14 +10906,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     }
     hull9.push(bodyFace(polyPath3(hi9)), topFace(polyPath3(hi9), 0.2));
     out.push(...tagKey(raceBase(hull9, "terran"), key9(0, -0.2, 5.8)));
+    // 뒤 갑판의 엔진 하우징 둘(사진 뒤쪽의 네모 덩이).
+    for (const m9 of [-1, 1] as const) {
+      out.push(...tagKey(raceBase(boxFaces3(m9 * 0.95, -1.75, 1.1, 1.2, 0.85, 6.4), "terran"),
+        key9(m9 * 0.95, -1.75, 6.9)));
+    }
     /* ② 등의 둥근 혹 — 몸에 두께를 준다. 한 단 어두워 동체와 갈린다. */
     /* 조종부(사진) — 등 한가운데 **둥근 링** 위에 어두운 캐노피 돔이 앉는다. 링이 있어야
        '해치 달린 조종석'으로 읽히고, 돔만 있으면 등의 혹이다. */
     out.push(...tagKey([
-      ...paintBase(cylinderFaces3(0, -0.15, 1.15, 0.32, 6.0), TERRAN_STEEL),
-      ...paintBase(domeFaces3(0, -0.15, 0.88, 0.6, 6.32), "#3d4653"),
-      topFace(groundEllipse(...project(0, -0.3, 6.86), 0.42, 0.28), 0.3),
-    ], key9(0, -0.15, 6.5) + 0.3));
+      ...paintBase(cylinderFaces3(0, -0.5, 1.05, 0.3, 6.35), TERRAN_STEEL),
+      ...paintBase(domeFaces3(0, -0.5, 0.8, 0.55, 6.65), "#3d4653"),
+      topFace(groundEllipse(...project(0, -0.65, 7.15), 0.38, 0.26), 0.3),
+    ], key9(0, -0.5, 6.9) + 0.3));
     /* ②-b 조종석(지적: "조종석부 표현이 없음") — 혹 앞에 얹힌 어두운 물집. 창을 따로 안
        그린다: 이 크기에서는 밝게 태운 윗면 한 장이 곧 창이다. 등의 혹과 갈리도록 한 단 더
        어둡게 두고 앞으로 내민다 — 두 덩이가 같은 색이면 혹이 둘로 보일 뿐이다. */
@@ -10928,14 +10937,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          내리면 동체의 델타와 등의 혹이 다시 주인공이 된다.
          포구는 둘씩이다. 관을 통짜로 그리되 tubeFaces에 맡긴다 — 마주보는 쪽 끝에만
          어두운 아가리를 그리고 키도 제가 달아, 어느 각도에서도 뚫린 파이프가 안 된다. */
-      out.push(...tagKey(paintBase(boxFaces3(px9, 0.9, 0.5, 0.62, 0.72, 5.05)   /* 앞 포드 뒤로(요청) 1.5 → 0.9 */, DARK),
+      out.push(...tagKey(paintBase(boxFaces3(px9, 0.7, 0.5, 0.62, 0.6, 5.25), DARK),
         key9(px9, 1.5, 5.4)));
       /* 포구는 **위아래로** 둘이다(지적) — 나란히 두면 두 관이 하나로 뭉쳐 보이고, 위아래로
          쌓으면 좁은 폭 안에서도 둘로 갈린다. 크기는 절반이라(0.9 → 0.5폭) 몸의 실루엣을
          안 건드린다. */
-      for (const dz9 of [5.22, 5.62]) {
+      for (const dz9 of [5.4, 5.72]) {
         out.push(...tagKey(paintBase(
-          tubeFaces(px9, 0.55, px9, 1.45, 0.15, dz9, true), TERRAN_STEEL_D,
+          tubeFaces(px9, 0.35, px9, 1.25, 0.14, dz9, true), TERRAN_STEEL_D,
         ), key9(px9, 1.6, dz9)));
       }
     }
@@ -10958,26 +10967,26 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        늘 붙어 있게 한다. */
     const ARM_L9 = 1.2 * 0.8;
     for (const m9 of [-1, 1] as const) {
-      const ax9 = 1.3 + ARM_L9;               // 팔 끝 = 방패 뿌리
+      const ax9 = 1.9 + ARM_L9;               // 팔 끝 = 방패 뿌리
       /* 팔은 **직각삼각형** 쐐기(요청) — 윗변은 수평(5.55), 몸 쪽이 두껍고(4.75까지)
          끝으로 갈수록 얇아진다. 앞뒤 두께 0.55의 삼각기둥: 앞·뒤 삼각면 + 위·빗면. */
-      const AX0 = m9 * 1.3; const AX1 = m9 * ax9;
+      const AX0 = m9 * 1.85; const AX1 = m9 * ax9;
       const armF9 = (yy9: number): [number, number, number][] => [
-        [AX0, yy9, 5.55], [AX1, yy9, 5.55], [AX0, yy9, 4.75],
+        [AX0, yy9, 5.9], [AX1, yy9, 5.9], [AX0, yy9, 5.0],
       ];
-      const aF = armF9(-0.75); const aB = armF9(-1.3);
+      const aF = armF9(-0.35); const aB = armF9(-0.9);
       out.push(...tagKey(paintBase([
         bodyFace(polyPath3(aB)), sideFace(polyPath3(aB), 0.3),
         bodyFace(polyPath3([aB[1], aB[2], aF[2], aF[1]])), sideFace(polyPath3([aB[1], aB[2], aF[2], aF[1]]), 0.4),
         bodyFace(polyPath3(aF)), ...faceLight(0, 1).face(polyPath3(aF)),
         bodyFace(polyPath3([aB[0], aB[1], aF[1], aF[0]])), topFace(polyPath3([aB[0], aB[1], aF[1], aF[0]]), 0.22),
-      ], TERRAN_STEEL), key9(m9 * (1.3 + ARM_L9 / 2), -1.02, 5.2)));
+      ], TERRAN_STEEL), key9(m9 * (1.9 + ARM_L9 / 2), -0.62, 5.5)));
       // 방패는 직사각 판을 **살짝 바깥으로 기울여** 세운다(요청) — 위가 0.3 바깥.
       out.push(...tagKey(spirePillar({
         x: 0, y: 0, h: 1, w: 1, segs: 1, sides: 4, ref: [0, 1, 0], caps: "both", oval: 0.16,
-        path: (t9: number): [number, number, number] => [m9 * (ax9 + 0.25 + 0.3 * t9), -1.05, 4.4 + 2.7 * t9],
-        widthOf: (): number => 0.62,
-      }), key9(m9 * (ax9 + 0.4), -1.05, 5.75)));
+        path: (t9: number): [number, number, number] => [m9 * (ax9 + 0.2 + 0.3 * t9), -0.62, 4.6 + 2.8 * t9],
+        widthOf: (): number => 0.7,
+      }), key9(m9 * (ax9 + 0.35), -0.62, 6.0)));
     }
     /* ⑤ 꽁무니 엔진 넷 — 뒤를 볼 때만 포구가 어두워지는 관이라 각도를 스스로 탄다. */
     /* 넷을 **정사각으로** 모은다(지적) — 앞판은 마름모(아래 둘 넓게·위 둘 좁게)라 흩어져
@@ -18199,7 +18208,7 @@ const MODEL_NORM: Record<string, number> = {
   tanksiege: 0.723,
   tanksiegebody: 0.723,
   ultra: 0.361,
-  valk: 1.082,   // 직선면 육각 동체 재작도 뒤 재측정(model-norm)
+  valk: 0.945,   // 칼날 코 재작도 뒤 재측정(model-norm)
   vessel: 0.882,  // 방패 20% 축소 뒤 재측정(model-norm)
   vulture: 0.828,
   wraith: 0.774,
