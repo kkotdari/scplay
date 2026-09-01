@@ -6526,6 +6526,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     ] as [number, number, number, number, number][]) {
       out.push(...tagKey(paintBase(boxFaces3(bx, by, bw, bh, bz, 0.8), BODY),
         10 + depthNow(bx, by) * 1.6));
+      /* 아래쪽 해저드 띠(정정·사진) — 덩이 앞면 밑동을 노랑·검정 빗금이 두른다. */
+      out.push(...tagKey(hazardPanel(bx, by + bh / 2 + 0.03, 1.18, bw * 0.42, 0.3, 4),
+        10 + depthNow(bx, by) * 1.6 + 0.45));
       const wz = 0.8 + bz * 0.62;
       out.push(...tagKey([
         // 앞벽 — 가로로 늘어선 창 셋.
@@ -6570,7 +6573,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         }
         return [xi9, Y09 - RE9 - (d9 - LV9 - LC9), ZT9];
       };
-      for (const xi9 of [-3.5, -2.7, -1.9]) {
+      /* 자리: 왼·가운데·오른 하나씩(정정 — 사진처럼 건물 곳곳을 오른다). 가운데는
+         입구 덮개 바로 뒤(y 2.9)라 덮개 위로 솟는 그림이 사진의 결이다. */
+      for (const xi9 of [-3.5, 0.6, 3.6]) {
         const p9 = at9(xi9);
         const SEG9 = 8;
         for (let s9 = 0; s9 < SEG9; s9 += 1) {
@@ -6585,13 +6590,21 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           10 + depthNow(xi9, Y09) * 1.6 + 0.3));
       }
     }
-    /* 입구 캐노피(지시) — 앞 경사로 위에 눕는 얇은 차양 판과 앞 기둥 둘. */
+    /* 입구 — **앞으로 튀어나온 포치**(정정·사진: 벽에서 돌출한 어두운 경사 지붕과
+       양옆 벽이 경사로를 감싼다). 차양 판 + 기둥이던 것을 걷고, 본체 앞벽에서 앞으로
+       내려 눕는 빗면 지붕과 옆벽 둘을 세운다. 발치 경사로 상자 둘은 그대로 그 속이다. */
     {
-      const CZ9 = 2.0;
+      const hoodT = polyPath3([
+        [-1.6, 3.02, 2.3], [1.6, 3.02, 2.3], [1.3, 4.75, 1.35], [-1.3, 4.75, 1.35],
+      ]);
+      const lip = polyPath3([
+        [-1.3, 4.75, 1.35], [1.3, 4.75, 1.35], [1.3, 4.75, 0.55], [-1.3, 4.75, 0.55],
+      ]);
       out.push(...tagKey([
-        ...paintBase(boxFaces3(0, 3.7, 3.1, 1.7, 0.16, CZ9), SILVER),
-        ...paintBase(cylinderFaces3(-1.35, 4.35, 0.1, CZ9, 0), STEEL),
-        ...paintBase(cylinderFaces3(1.35, 4.35, 0.1, CZ9, 0), STEEL),
+        ...paintBase(boxFaces3(-1.45, 3.85, 0.3, 1.7, 1.5, 0), "#454b55"),
+        ...paintBase(boxFaces3(1.45, 3.85, 0.3, 1.7, 1.5, 0), "#454b55"),
+        [hoodT, 1, "#4d545f"] as ShapeFace, topFace(hoodT, 0.16),
+        [lip, 1, "#3a4049"] as ShapeFace,
       ], depthNow(0, 3.9) * 1.6 + 3.4));
     }
     /* 앞 탱크 둘 — 은빛 갓을 쓴 통. 갓은 개인색(요청: 개인색 몫 확대).
@@ -6604,6 +6617,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           ? domeFaces3(tx, ty, 1.2, 0.85, 2.7)
           : paintBase(domeFaces3(tx, ty, 1.2, 0.85, 2.7), SILVER)),
         capFace(discPath3(tx, ty, 3.5, 0.5), 0.3),
+        /* 드럼 밑동 해저드 띠(정정·사진) — 원통 앞면에 붙는 납작 띠. 통을 다 두르지
+           않고 앞판 한 장이다(발치 warn과 같은 데칼 규약 — 등을 돌리면 헬퍼가 걷는다). */
+        ...hazardPanel(tx, ty + 1.16, 1.12, 0.92, 0.26, 3),
       ], 10 + depthNow(tx, ty) * 1.6 + 0.9));
     });
     /* 발치 노랑·검정 빗금 띠 — 앞면 아래를 두른다. */
@@ -7336,10 +7352,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const LZ9 = MTOP + RH * 0.45;
       const faceX9 = RX + RW / 2 - 0.9 * ((LZ9 - MTOP) / RH);
       const LR9 = 0.85;
-      const LL9 = 1.5;
-      /* 끝만 살짝(정정: "절두체 안으로 더 들어가게 끝만 살짝 튀어나오게") — 드러난
-         몫을 길이 비가 아니라 못 박은 0.08로. */
-      const x19 = faceX9 + 0.08;
+      // 길이 2배(정정: "드럼통 길이 2배로 늘리되 옆으로 덜 튀어나오게 집어넣기").
+      const LL9 = 3.0;
+      const x19 = faceX9 + 0.05;
       /* 자리도 정가운데가 아니라 **앞 모서리에 걸친다**(정정) — 옆면의 앞 끝 y를 그
          높이에서 재고(절두체라 위로 갈수록 안으로 물러난다), 원판이 그 모서리를 15%
          넘게 둔다. */
@@ -7350,9 +7365,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           const a9 = (i9 / 16) * Math.PI * 2;
           return [x19 + dx9, LY9 + Math.cos(a9) * LR9 * k9, LZ9 + Math.sin(a9) * LR9 * k9];
         }));
+      /* 몸통은 **드러날 토막만** 그린다 — 이 판의 깊이 키가 절두체(10.4+깊이)보다
+         높아, 파묻힌 몸까지 세우면 상자 위에 통째로 겹쳐 보인다(2배 판에서 실제로
+         그랬다). 길이 LL9는 '어디까지 파묻혔나'의 설계값이고, 그리는 것은 면 밖 0.05
+         + 이음매 여유 0.5뿐이다 — 요잉이 돌아도 틈이 안 비고, 나머지는 상자 속이라
+         보일 일이 없다. */
+      void LL9;
       const drum9: ShapeFace[] = [
-        // 몸통 — 대부분 절두체 속(요잉이 돌아도 이음매가 안 비게 통째로 세운다).
-        ...paintBase(tubeFaces(faceX9 - LL9 * 0.9, LY9, x19, LY9, LR9,
+        ...paintBase(tubeFaces(faceX9 - 0.5, LY9, x19, LY9, LR9,
           LZ9 - tubeAxisLift(LR9)), MID),
       ];
       if (facingRatio(1, 0) > 0.04) {
