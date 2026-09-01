@@ -4395,7 +4395,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
             [rx9(t9 - 0.07), -0.32, rz9(t9 - 0.07)],
           ]), 1, "#e8a13a"];
         }),
-      ], 10 + depthNow(WW / 2 + 0.6, 0.2) * 1.6));
+        /* 키(지적: "옆면 경사로 키값 문제, 앞면에 안 가려지네") — 경사로가 붙은
+           +x 옆면이 시점을 향할 때만 몸 위(10+)이고, 등을 돌리면 몸보다 먼저 그려
+           몸이 덮는다. */
+      ], facingRatio(1, 0) >= 0 ? 10 + depthNow(WW / 2 + 0.6, 0.2) * 1.6 : -5));
     }
 
     // ── 지붕 — 검은 굴뚝 넷(뒤 판) · 흰 성곽 이빨 · 임자색 포탑(뒤 오른쪽).
@@ -5208,10 +5211,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     };
     /* 안쪽으로 당긴다(지적: 이웃 게이트의 발판과 겹친다) — 발자국 밖으로 나가면
        옆 건물과 포갠다: 바깥 끝이 5.4를 넘지 않게 자리 3.6·반지름 1.8로 조인다. */
-    out.push(...pad(0, 3.6, 1.8));
-    out.push(...pad(0, -3.6, 1.8));
-    out.push(...pad(3.8, 0, 1.8));
-    out.push(...pad(-3.8, 0, 1.8));
+    out.push(...pad(0, 3.4, 1.45));
+    out.push(...pad(0, -3.4, 1.45));
+    out.push(...pad(3.5, 0, 1.45));
+    out.push(...pad(-3.5, 0, 1.45));
     /* 한가운데 작은 사각 판(요청) — 네 발판 사이 바닥을 메운다. */
     {
       const S9 = 1.15;
@@ -5304,36 +5307,34 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
               S의 허리다.
            ③ 0.86~1: x가 멈추고 z만 오른다 — 접선이 수직이라 끝이 곧게 선다.
          옛 판의 '끝을 수평으로 눕혀 마주 보기'(TIP_FLAT·HOOK·TCUT)는 걷었다. */
+      /* ★ 곡선이 아니라 **직선으로 꺾인다**(재요청) — 세 마디 폴리라인:
+           ① 0~0.35: 곧게 바깥으로(x가 BOW9만큼 선형으로 나간다)
+           ② 0.35~0.8: 곧게 안으로(x가 −IN9까지 선형으로 든다)
+           ③ 0.8~1: 곧게 위로(x 고정)
+         마디 수(20)는 꺾이는 t(7/20·16/20)가 정확히 눈금에 걸리게 잡았다 — 안 그러면
+         꺾임이 두 눈금에 나뉘어 도로 둥글어진다. 뿌리 되꺾기(ROOT)도 걷었다. */
       const AXIS9 = 8.3;
       const BOW9 = 0.9;
       const IN9 = 1.6;
-      /** 뿌리가 되꺾이는 구간(0~1)과 그 몫. */
-      const ROOT9 = 0.26;
-      const ROOT_IN9 = 0.62;
-      const bow9 = (t9: number): number => (t9 < 0.62 ? Math.sin((Math.PI * t9) / 0.62) : 0);
-      const lean9 = (t9: number): number => {
-        if (t9 <= 0.38) return 0;
-        if (t9 >= 0.86) return 1;
-        const u9 = (t9 - 0.38) / 0.48;
-        return u9 * u9 * (3 - 2 * u9);
-      };
+      const K1_9 = 0.35;
+      const K2_9 = 0.8;
+      const xoff9 = (t9: number): number => (
+        t9 <= K1_9 ? BOW9 * (t9 / K1_9)
+          : t9 <= K2_9 ? BOW9 - (BOW9 + IN9) * ((t9 - K1_9) / (K2_9 - K1_9))
+            : -IN9);
       const cut9 = (t9: number): number => (t9 < CUT9 ? 1 - t9 / CUT9 : 0);
-      const root9 = (t9: number): number =>
-        (t9 < ROOT9 ? ((ROOT9 - t9) / ROOT9) ** 1.5 : 0);
       /** 깎기 전 굵기 — 밑동에서 굵고 끝으로 갈수록 가늘다. */
       const base9 = (t9: number): number => (t9 <= HOLD9 ? W0_9
         : W1_9 + (W0_9 - W1_9) * (1 - (t9 - HOLD9) / (1 - HOLD9)) ** 1.5);
       out.push(...tagKey(spirePillar({
         // 끝은 뾰족이 아니라 뭉뚝하게 잘린 면(지적) — tipW 0.12 → 0.55.
-        x: 0, y: 0, h: 1, w: 1, segs: 14, sides: 4, ref: [0, 1, 0],
+        x: 0, y: 0, h: 1, w: 1, segs: 20, sides: 4, ref: [0, 1, 0],
         /* 끝끼리 모으되 붙지는 않게(재지적: 너무 붙었다) — 안쪽으로 눕는 몫 2.25 →
            1.85. 두 끝 사이에 문틈이 남는다. */
         path: (t9: number): [number, number, number] => [
-          mx9 + Math.sign(mx9) * BOW9 * bow9(t9)
-            - Math.sign(mx9) * IN9 * lean9(t9)
-            + Math.sign(mx9) * (W0_9 * 0.5 * CUT_K9) * cut9(t9)
-            - Math.sign(mx9) * ROOT_IN9 * root9(t9),
-          -0.3 * lean9(t9),
+          mx9 + Math.sign(mx9) * xoff9(t9)
+            + Math.sign(mx9) * (W0_9 * 0.5 * CUT_K9) * cut9(t9),
+          -0.3 * Math.max(0, (t9 - K1_9) / (1 - K1_9)),
           h - 0.35 + AXIS9 * t9,
         ],
         widthOf: (t9: number): number => base9(t9) * (1 - CUT_K9 * cut9(t9)),
@@ -5358,6 +5359,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         x: 0, y: ry9, z0: h, h: 4.3, w: 0.6, tipW: 0,
         segs: 4, sides: 6, curveY: -sy9 * 1.2, hold: 0.5,
       }), facingRatio(0, sy9) >= 0 ? 34 : 26));
+    }
+    /* ★ 양옆에도 돌출 디테일(요청: "앞쪽뿐 아니라 양옆에도") — 옆 발판 바깥 끝에서
+       바깥·위로 뻗는 낮은 뿔 한 쌍. 앞뒤 뿔보다 짧고 바깥으로 눕는다. */
+    for (const sx9 of [1, -1] as const) {
+      out.push(...tagKey(spirePillar({
+        x: sx9 * 3.9, y: 0, z0: h - 0.2, h: 2.6, w: 0.5, tipW: 0,
+        segs: 4, sides: 6, curveX: sx9 * 1.1, hold: 0.45,
+      }), facingRatio(sx9, 0) >= 0 ? 34 : 26));
     }
     /* 사진 디테일(요청) — 탑 밑동에 금 무늬 골. 발판 위 원판은 청록을 걷고 개인색
        자리로 삼는다(요청) — 네 발판에 하나씩이라 사방 어디서 봐도 임자 색이 깔린다.
@@ -5384,8 +5393,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          읽혔다. 이제 발판 윗면과 **같은 기울기**의 얇은 사각 하나만 얹는다: 발판은
          안쪽 변 h에서 바깥 변 0.32로 기운 쐐기라, 네 꼭짓점의 높이를 그 규칙 그대로
          셈해 0.02만 띄운다. 면이 하나뿐이라 어느 각도에서도 두께가 안 보인다. */
-      const PAD_R9 = 1.8;
-      for (const [px9, py9] of [[0, 3.6], [0, -3.6], [3.8, 0], [-3.8, 0]] as [number, number][]) {
+      const PAD_R9 = 1.45;
+      for (const [px9, py9] of [[0, 3.4], [0, -3.4], [3.5, 0], [-3.5, 0]] as [number, number][]) {
         // 중심에서 발판으로 가는 축(바깥 방향) — 발판이 기운 축과 같다.
         const ang9 = Math.atan2(py9, px9);
         const ox9 = Math.cos(ang9);
@@ -5395,8 +5404,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           const u9 = ((x9 - px9) * ox9 + (y9 - py9) * oy9) / PAD_R9;
           return (h + 0.32) / 2 - u9 * ((h - 0.32) / 2) + 0.02;
         };
-        const lx9 = py9 === 0 ? 1.45 : 0.34;
-        const ly9 = py9 === 0 ? 0.34 : 1.45;
+        const lx9 = py9 === 0 ? 1.15 : 0.3;
+        const ly9 = py9 === 0 ? 0.3 : 1.15;
         const quad9: [number, number, number][] = [
           [px9 - lx9, py9 - ly9, 0], [px9 + lx9, py9 - ly9, 0],
           [px9 + lx9, py9 + ly9, 0], [px9 - lx9, py9 + ly9, 0],
@@ -20395,7 +20404,7 @@ export const BLD_NORM: Record<string, number> = {
   factory: 1.485,  // 절두체+허리 재작도 뒤 재측정(bld-norm)
   fleetbeacon: 2.125,
   forge: 1.809,
-  gate: 1.761,  // S자 기둥·발판 품수 뒤 재측정(bld-norm)
+  gate: 1.942,  // 직선 꺾임 기둥·좁힌 발판 뒤 재측정(bld-norm)
   geyser: 1.587,
   gspire: 1.151,  // 상자 상한에 걸림
   hatchery: 1.188,
