@@ -2665,11 +2665,15 @@ function glossFaces(
   const hi9 = RACE_GLOSS_LIT[tone];
   const sh9 = RACE_GLOSS_SHADE[tone];
   if (!hi9 && !sh9) return faces;
+  /* 테란 그늘만 한 단 약하게(요청: "테란 모델 어두운 부분이 좀 심하게 어두운데") —
+     스테인 바탕(#4c5462…)이 이미 어두워, 같은 깊이의 검은 그늘을 얹으면 옆·밑면이
+     먹처럼 죽는다. 흰 광은 그대로 두어 금속 대비는 지킨다. */
+  const shK9 = tone === "terran" ? 0.72 : 1;
   return faces.map(([d, o, f, k, l, n]) => {
     if (f !== "#fff" && f !== "#000") return [d, o, f, k, l, n] as ShapeFace;
     const o9 = f === "#fff"
       ? 0.05 + 0.38 * Math.min(1, o / 0.2) ** 1.8
-      : 0.10 + 0.50 * Math.min(1, o / 0.38) ** 1.1;
+      : (0.10 + 0.50 * Math.min(1, o / 0.38) ** 1.1) * shK9;
     const f9 = f === "#fff" ? (hi9 ?? f) : (sh9 ?? f);
     return [d, o9, f9, k, l, n] as ShapeFace;
   });
@@ -9783,6 +9787,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const gr9 = R9 * (i9 === 0 ? 0.15 : 0.45 + rnd() * 0.4);   // 하나는 가운데
       const gx9 = Math.cos(ga9) * gr9;            // 닿는 자리
       const gy9 = Math.sin(ga9) * gr9;
+      /* 시간차 탄생(요청: "동시에 모든 줄기가 내리지 말고 시간차를 두고") — 줄기마다
+         태어나는 단계(0~2)를 제 몫으로 뽑는다. 제 단계 전에는 안 보이고, 제 단계에는
+         내려오는 중(62%)이며, 잔가지·발밑 가지는 거기서 한 박자 뒤에 돋는다. 난수는
+         단계와 무관하게 늘 같은 차례로 돌므로(bolt의 from9 규약) 다음 단계에서 같은
+         자리에 같은 줄기가 이어진다. */
+      const bs9 = Math.floor(rnd() * 3);
       const tx9 = gx9 + (rnd() - 0.5) * R9 * 0.5; // 꼭대기 자리(살짝 비껴간다)
       const ty9 = gy9 + (rnd() - 0.5) * R9 * 0.5;
       const pts: [number, number, number][] = [];
@@ -9800,7 +9810,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       }
       // 줄기 굵기는 제각각(요청) — 0.13~0.27.
       bolt(pts, 0.13 + rnd() * 0.14, depthNow(gx9, gy9) * 1.6 + 4 + i9 * 0.01,
-        false, 0, STAGE9 === 0 ? 0.62 : 1);
+        false, bs9, STAGE9 === bs9 ? 0.62 : 1);
       /* ★ **공중 잔가지**(요청: "공중에도 잔가지가 퍼져야 해, 여기저기 여러 높이에서"
          · "잔가지는 꼭 수평은 아니고 수평에서 수직으로도 퍼지고 대각으로도 퍼지고")
          ────────────────────────────────────────────────────────────────────────
@@ -9859,14 +9869,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const tl9 = R9 * (0.3 + rnd() * 0.8);
         const tw9 = 0.06 + rnd() * 0.07;
         const kb9 = depthNow(ox9, oy9) * 1.6 + 4 + i9 * 0.01 + 0.005;
-        const tp9 = twig9(ox9, oy9, oz9, ta9, zc9, tl9, tw9, kb9, 2);
+        const tp9 = twig9(ox9, oy9, oz9, ta9, zc9, tl9, tw9, kb9, Math.min(3, bs9 + 2));
         if (tl9 <= R9 * 0.6) continue;
         // 긴 가지만 한 번 더 갈린다 — 갈리는 마디도, 벌어지는 쪽도 뽑는다.
         const [jx9, jy9, jz9] = tp9[2 + Math.floor(rnd() * 2)];
         let zc2 = rnd() * 2 - 1;
         if (zc2 > 0) zc2 *= 0.55;
         twig9(jx9, jy9, jz9, ta9 + (rnd() < 0.5 ? -1 : 1) * (0.6 + rnd() * 0.8),
-          zc2, tl9 * (0.35 + rnd() * 0.25), tw9 * 0.62, kb9 + 0.002, 3);
+          zc2, tl9 * (0.35 + rnd() * 0.25), tw9 * 0.62, kb9 + 0.002, Math.min(3, bs9 + 3));
       }
       /* ★ **발밑 가지**(지적: "맨 아래 바닥에 크게 퍼지는 방사형 번개 제거 — 각각의
          줄기에서 뻗어나오는 게 자연스럽다") ──────────────────────────────────────
@@ -9891,7 +9901,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           ]);
         }
         bolt(lp, 0.07 + rnd() * 0.08, depthNow(gx9, gy9) * 1.6 + 2 + i9 * 0.01 + g9 * 0.001,
-          false, 2);
+          false, Math.min(3, bs9 + 2));
       }
     }
     /* (걷어냄·요청: "스톰 바닥의 푸른 원반은 제거") — 발치에 깔던 옅은 빛(R9짜리
@@ -19956,7 +19966,7 @@ const INK_W_RATIO9 = new Map<string, { pose: number; r: number }>();
  *  삯만 든다. 판 굽기마다 한 번이라(블릿마다가 아니다) 값은 캐시가 문다. */
 /* (걷어냄) 2배 굽기+nearest 반내림(ssaa) 시험 — 3자 비교 결과 "효과가 거의 없네":
    점표본은 경계만 굳히고 대비는 안 올려, 언샤프보다 체감이 약했다. 언샤프만 남긴다. */
-const SHARP1X_A9 = 0.4;
+const SHARP1X_A9 = 0.3;  // 0.4 → 0.3 (요청: "조금만 강도를 줄여주고")
 function sharpenPlate9(cv: HTMLCanvasElement): void {
   const w9 = cv.width; const h9 = cv.height;
   if (!w9 || !h9 || w9 * h9 > 1_200_000) return;
