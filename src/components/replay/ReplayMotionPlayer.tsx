@@ -6549,34 +6549,31 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       }), "#21252c"),
       capFace(discPath3(1.4, -2, 6.6, 1.38), 0.55),
     ], 10 + depthNow(1.4, -2) * 1.6 + 1.2));
-    /* 관 셋 — **같은 꼴·같은 각으로 나란히**(정정: "관 세 개는 같은 모양 같은 각도로
-       나란히 붙어 있어야 해 … 부드럽게 꺾여야 하고 수평보다 수직 마디가 좀 더 길어야").
-       앞 판의 ㄱ자(지붕↔지붕, 셋이 제각각)를 걷고, 왼쪽 관 꼴 하나를 x 간격 0.8로 세 벌
-       찍는다: 건물 **앞에서 수직으로** 길게 오르고(3.0), 사분원 굽이로 **부드럽게** 꺾여
-       뒤로 짧은 수평(2.2)을 건너 덩이 위에서 끝난다. 토막마다 제 깊이 키다(옛 관 규약). */
+    /* 관 셋 — **입구에 꽂힌다**(정정: "파이프는 입구 양옆 기둥과 입구 위 천장에
+       이어져야 해, 지금처럼 바닥까지 내려오지 않고"). 왼·오른 관은 포치 옆벽 꼭대기
+       (z 2.6)에서, 가운데 관은 빗면 천장(z 3.1)에서 시작해 수직으로 오르고, 사분원으로
+       부드럽게 꺾여 뒤로 수평을 건넌다 — 같은 꼴·같은 각, 수직이 수평보다 길다.
+       밑동에는 플랜지 테를 둘러 '꽂힌 관'으로 읽히게 한다. 토막마다 제 깊이 키. */
     {
       const R9 = 0.26;
-      const Y09 = 2.9;          // 세로 다리 — 덩이 앞면(y 2.8) 바로 앞
-      const Z09 = 0.8;          // 밑동 — 받침 윗면
-      const ZT9 = 4.6;          // 보 높이
+      const ZT9 = 5.7;          // 보 높이
       const RE9 = 0.9;          // 굽이 반지름
-      const LH9 = 2.2;          // 수평 몫 — 세로(3.0)보다 짧다
-      const LV9 = ZT9 - RE9 - Z09;
-      const LC9 = (RE9 * Math.PI) / 2;
-      const LT9 = LV9 + LC9 + LH9;
-      const at9 = (xi9: number) => (t9: number): [number, number, number] => {
-        const d9 = t9 * LT9;
-        if (d9 <= LV9) return [xi9, Y09, Z09 + d9];
-        if (d9 <= LV9 + LC9) {
-          const a9 = (d9 - LV9) / RE9;
-          return [xi9, Y09 - RE9 + RE9 * Math.cos(a9), ZT9 - RE9 + RE9 * Math.sin(a9)];
-        }
-        return [xi9, Y09 - RE9 - (d9 - LV9 - LC9), ZT9];
-      };
-      /* 자리: 왼·가운데·오른 하나씩(정정 — 사진처럼 건물 곳곳을 오른다). 가운데는
-         입구 덮개 바로 뒤(y 2.9)라 덮개 위로 솟는 그림이 사진의 결이다. */
-      for (const xi9 of [-3.5, 0.6, 3.6]) {
-        const p9 = at9(xi9);
+      const LH9 = 1.6;          // 수평 몫 — 수직(1.7~2.2)보다 짧다
+      for (const [xi9, yi9, zi9] of [
+        [-1.45, 3.85, 2.6], [0, 3.6, 3.1], [1.45, 3.85, 2.6],
+      ] as [number, number, number][]) {
+        const LV9 = ZT9 - RE9 - zi9;
+        const LC9 = (RE9 * Math.PI) / 2;
+        const LT9 = LV9 + LC9 + LH9;
+        const p9 = (t9: number): [number, number, number] => {
+          const d9 = t9 * LT9;
+          if (d9 <= LV9) return [xi9, yi9, zi9 + d9];
+          if (d9 <= LV9 + LC9) {
+            const a9 = (d9 - LV9) / RE9;
+            return [xi9, yi9 - RE9 + RE9 * Math.cos(a9), ZT9 - RE9 + RE9 * Math.sin(a9)];
+          }
+          return [xi9, yi9 - RE9 - (d9 - LV9 - LC9), ZT9];
+        };
         const SEG9 = 8;
         for (let s9 = 0; s9 < SEG9; s9 += 1) {
           const [mx9, my9, mz9] = p9((s9 + 0.5) / SEG9);
@@ -6585,24 +6582,25 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
             path: (t9: number): [number, number, number] => p9((s9 + t9) / SEG9),
           }), PIPE), 10 + depthNow(mx9, my9) * 1.6 + mz9 * 0.35));
         }
-        // 밑동 받침 — 다리가 땅에서 솟은 게 아니라 받침에 꽂힌 관으로 읽히게.
-        out.push(...tagKey(paintBase(cylinderFaces3(xi9, Y09, R9 * 1.5, 0.18, Z09), SILVER),
-          10 + depthNow(xi9, Y09) * 1.6 + 0.3));
+        out.push(...tagKey(paintBase(cylinderFaces3(xi9, yi9, R9 * 1.5, 0.14, zi9), SILVER),
+          10 + depthNow(xi9, yi9) * 1.6 + zi9 * 0.35 + 0.05));
       }
     }
     /* 입구 — **앞으로 튀어나온 포치**(정정·사진: 벽에서 돌출한 어두운 경사 지붕과
        양옆 벽이 경사로를 감싼다). 차양 판 + 기둥이던 것을 걷고, 본체 앞벽에서 앞으로
        내려 눕는 빗면 지붕과 옆벽 둘을 세운다. 발치 경사로 상자 둘은 그대로 그 속이다. */
+    /* 포치를 **높인다**(정정: "입구는 높아야 해, 지금 너무 납작하고 낮아") — 옆벽
+       1.5 → 2.6, 빗면 지붕 뒤 2.3 → 3.5 · 앞 1.35 → 2.5. 관 셋이 이 위에 꽂힌다. */
     {
       const hoodT = polyPath3([
-        [-1.6, 3.02, 2.3], [1.6, 3.02, 2.3], [1.3, 4.75, 1.35], [-1.3, 4.75, 1.35],
+        [-1.6, 3.02, 3.5], [1.6, 3.02, 3.5], [1.3, 4.75, 2.5], [-1.3, 4.75, 2.5],
       ]);
       const lip = polyPath3([
-        [-1.3, 4.75, 1.35], [1.3, 4.75, 1.35], [1.3, 4.75, 0.55], [-1.3, 4.75, 0.55],
+        [-1.3, 4.75, 2.5], [1.3, 4.75, 2.5], [1.3, 4.75, 1.7], [-1.3, 4.75, 1.7],
       ]);
       out.push(...tagKey([
-        ...paintBase(boxFaces3(-1.45, 3.85, 0.3, 1.7, 1.5, 0), "#454b55"),
-        ...paintBase(boxFaces3(1.45, 3.85, 0.3, 1.7, 1.5, 0), "#454b55"),
+        ...paintBase(boxFaces3(-1.45, 3.85, 0.3, 1.7, 2.6, 0), "#454b55"),
+        ...paintBase(boxFaces3(1.45, 3.85, 0.3, 1.7, 2.6, 0), "#454b55"),
         [hoodT, 1, "#4d545f"] as ShapeFace, topFace(hoodT, 0.16),
         [lip, 1, "#3a4049"] as ShapeFace,
       ], depthNow(0, 3.9) * 1.6 + 3.4));
