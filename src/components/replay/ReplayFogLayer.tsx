@@ -29,6 +29,10 @@ import React, { useEffect, useRef } from "react";
 
 import { contoursOf, chaikin, type Loop } from "../../utils/contour";
 import { pWrap } from "./perf9";
+/** 작은 기기인가 — ReplayMotionPlayer의 그 판별과 같은 자다(위 B의 주석). */
+const smallDev9 = typeof window !== "undefined"
+  && !!window.matchMedia?.("(pointer: coarse)").matches
+  && Math.max(window.screen?.width ?? 0, window.screen?.height ?? 0) <= 1180;
 
 /** 밝혔지만 안 보이는 칸의 덮개 짙기(0~1). */
 const DIM = 0.6;
@@ -83,7 +87,11 @@ export default function ReplayFogLayer({
     const cw = box.clientWidth;
     const ch = box.clientHeight;
     if (cw <= 0 || ch <= 0) return;
-    const B = Math.min(2, typeof window === "undefined" ? 1 : (window.devicePixelRatio || 1));
+    /* 작은 기기는 1.5배로(실기: 전체화면에서 이 층 하나가 1390² = 7.4MB) — 안개는
+       등고선을 Chaikin으로 깎아 그리는 **부드러운 막**이라, 1.5배를 화면 배율로 늘려도
+       테가 계단으로 읽히지 않는다. 그림자 판을 낮춰 구운 것과 같은 결이다. */
+    const B = Math.min(smallDev9 ? 1.5 : 2,
+      typeof window === "undefined" ? 1 : (window.devicePixelRatio || 1));
     if (cv.width !== Math.round(cw * B) || cv.height !== Math.round(ch * B)) {
       cv.width = Math.round(cw * B);
       cv.height = Math.round(ch * B);

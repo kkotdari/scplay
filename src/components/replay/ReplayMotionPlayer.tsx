@@ -19171,6 +19171,8 @@ function silhouetteLight(c2: CanvasRenderingContext2D, cv: HTMLCanvasElement): v
  *  손가락 기기 + 작은 화면이면 작은 기기로 본다. 알려 주는 브라우저에서는 메모리(GB)도
  *  함께 본다(deviceMemory는 크로뮴 계열만 낸다 — 없으면 0이라 앞의 둘로 정한다).
  *  창이 없는 자리(노드에서 이 파일을 읽는 자·서버 렌더)는 거짓이다. */
+/** 빌드 표식(vite define) — 개발 서버·도구 번들에는 없을 수 있어 선언만 느슨히 둔다. */
+declare const __SCPLAY_BUILD__: string | undefined;
 const smallDevice9 = ((): boolean => {
   if (typeof window === "undefined") return false;
   const coarse9 = !!window.matchMedia?.("(pointer: coarse)").matches;
@@ -30429,7 +30431,10 @@ export default function ReplayMotionPlayer({
      버튼 줄과 같이 배치마다 붙는 자리가 달라서 변수로 둔다. */
   const diagNode = diagOn ? (
   <div className="scr-motion-diag">
-                <div>dpr {SCR_DIAG.dpr} · 배율 {SCR_DIAG.zoom.toFixed(2)}</div>
+                <div>
+                  dpr {SCR_DIAG.dpr} · 배율 {SCR_DIAG.zoom.toFixed(2)}
+                  {" · 판 "}{typeof __SCPLAY_BUILD__ !== "undefined" ? __SCPLAY_BUILD__ : "dev"}
+                </div>
                 <div>유닛 {SCR_DIAG.unitCss}css → {SCR_DIAG.unitBack} (B {SCR_DIAG.unitB.toFixed(2)})</div>
                 <div>
                   {/* 배킹 배수가 dpr보다 작으면 그만큼 뭉갠 것이다. */}
