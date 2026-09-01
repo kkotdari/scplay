@@ -13523,21 +13523,21 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const out: ShapeFace[] = [];
     const BODY9 = "#3a2a2e";
     out.push(...tagKey(paintBase(frustumFaces3(0, 0, 3.0, 2.4, 3.4, 2.6, 1.3, 0.9), BODY9),
-      depthNow(0, 0)));
+      partKey(0, 0, 1.5)));
     for (const m9 of [-1, 1] as const) {
       out.push(...tagKey(paintBase(domeFaces3(m9 * 0.95, 0.5, 0.95, 0.85, 2.1), "#c8d4e2"),
-        depthNow(m9 * 0.95, 0.5) + 0.5));
+        partKey(m9 * 0.95, 0.5, 2.5)));
     }
     out.push(...tagKey([
       [discPath3(0, 0.95, 2.15, 0.3), 1, glowLit("#ff4a4a", "#7a1f1f")] as ShapeFace,
-    ], depthNow(0, 0.95) + 0.8));
+    ], partKey(0, 0.95, 2.3)));
     for (const [ax9, ay9] of [[-2.2, 1.8], [2.2, 1.8], [0, -2.6]] as [number, number][]) {
       out.push(...tagKey(paintBase(rodFaces(ax9 * 0.45, ay9 * 0.45, 1.0, ax9, ay9, 0.05, 0.14), BODY9),
-        depthNow(ax9, ay9)));
+        partKey(ax9, ay9, 0.5)));
     }
     out.push(...tagKey([bodyFace(polyPath3([
       [-0.9, -0.95, 2.21], [0.9, -0.95, 2.21], [0.9, -0.2, 2.21], [-0.9, -0.2, 2.21],
-    ]))], depthNow(0, -0.5) + 0.6));
+    ]))], partKey(0, -0.5, 2.25)));
     return out;
   },
 
