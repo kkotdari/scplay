@@ -840,7 +840,17 @@
   padding: 6px 8px; border-radius: 8px;
   background: rgba(0, 0, 0, 0.78); color: #fff;
   font-size: 11px; line-height: 1.5; font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+  /* ★ 사파리가 **글자만 키우는** 것을 막는다(지적: "글씨가 왜케 크게 나오지") ─────────
+     전체화면에서는 이 판이 695 css px인데 화면(레이아웃 뷰포트)은 390이다. iOS 사파리는
+     그렇게 뷰포트보다 넓은 블록의 글자를 '읽기 좋으라고' 스스로 키운다(text autosizing)
+     — 11px이 20px 가까이 부푼다. 모형과 단추는 그대로인데 글자만 커진 그림이 정확히 그
+     증상이다. 이 판은 계측값을 촘촘히 보여야 하는 자리라 그 호의를 사양한다. */
+  -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
+  /* ★ 줄이 **안 잘리게** 한다 — nowrap이라 긴 줄(메모리·굽기)이 화면 오른쪽으로 흘러
+     나가 정작 봐야 할 수가 잘렸다(실기 스크린샷: "마커…", "fog 1390×139…").
+     판은 못 누르므로(pointer-events: none) 가로로 밀어 볼 수도 없다. 짧은 줄은 어차피
+     한 줄에 들어가니, 넘치는 줄만 접히면 된다. 한글은 낱말 안에서 안 끊는다. */
+  white-space: normal; word-break: keep-all; max-width: calc(100% - 12px);
 }
 .scr-motion-mapvec { overflow: hidden; }
 .scr-motion-mapvec > canvas {

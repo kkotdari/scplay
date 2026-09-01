@@ -19550,7 +19550,7 @@ export const SPRITE_PERF = {
      ★ 보관함의 판은 문서에 안 붙어 있다(오프스크린) — 그래서 이 값과 판 줄은 **서로
        다른 것을 세며, 더해야 전체가 된다.** DOM 마커 수도 같이 센다: 유닛 천 개가
        스팬으로 서 있으면 그 자체가 무시 못 할 몫이다. */
-  dom: { canvases: 0, canvasMB: 0, markers: 0, list: "" },
+  dom: { canvases: 0, canvasMB: 0, markers: 0, list: "", view: "" },
   scanDom(): void {
     if (typeof document === "undefined") return;
     let n9 = 0;
@@ -19572,6 +19572,25 @@ export const SPRITE_PERF = {
       canvases: n9,
       canvasMB: b9 / 1048576,
       list: each9.slice(0, 4).map((e9) => `${e9.n} ${e9.mb.toFixed(1)}MB`).join(" · "),
+      /* ★ **캔버스가 실제로 보이는 만큼인가**(지적: 전체화면에서 상자가 406 → 695css) ──
+         평소 배치에서는 지도 상자가 화면 폭과 같은데, 전체화면에서는 695가 된다. 화면이
+         그보다 좁으면 그 차이만큼은 **영영 안 보이는 화소**다 — 캔버스는 그만큼 크게
+         잡히고(넓이는 제곱으로) 그리는 삯도 거기 다 붙는다.
+         그래서 셋을 나란히 적는다: 상자가 CSS로 몇인지 · 화면에 실제로 몇으로 놓였는지
+         (getBoundingClientRect는 변환·잘림 뒤의 값이다) · 그리고 보는 창이 몇인지.
+         셋이 같으면 낭비가 없고, 상자가 창보다 크면 그 몫이 곧 버리는 화소다. */
+      view: ((): string => {
+        const box9 = document.querySelector(".scr-motion-map") as HTMLElement | null;
+        const r9 = box9?.getBoundingClientRect();
+        const vv9 = (window as unknown as { visualViewport?: { width: number; height: number } })
+          .visualViewport;
+        return box9 && r9
+          ? `상자 ${box9.clientWidth}×${box9.clientHeight}`
+            + ` · 놓인자리 ${Math.round(r9.width)}×${Math.round(r9.height)}`
+            + ` · 창 ${Math.round(vv9?.width ?? window.innerWidth)}`
+            + `×${Math.round(vv9?.height ?? window.innerHeight)}`
+          : "";
+      })(),
       /* 마커는 **지도 칸 안의 모든 마디**로 센다 — 유닛은 이제 캔버스에 그리므로 종류별
          클래스를 짚으면 놓친다(실제로 scr-motion-army는 효과 스팬 둘뿐이다). 무엇이 몇
          개 서 있든 이 수가 곧 DOM 무게다. */
@@ -19637,7 +19656,8 @@ export const SPRITE_PERF = {
       + ` ${SPRITE_PERF.dom.canvasMB.toFixed(1)}MB + 판`
       + ` ${((l.bytes + l.bldBytes) / 1048576).toFixed(1)}MB = `
       + `${(SPRITE_PERF.dom.canvasMB + (l.bytes + l.bldBytes) / 1048576).toFixed(1)}MB`
-      + ` · 마커 ${SPRITE_PERF.dom.markers}개\n           ${SPRITE_PERF.dom.list}`;
+      + ` · 마커 ${SPRITE_PERF.dom.markers}개\n           ${SPRITE_PERF.dom.list}`
+      + `\n           ${SPRITE_PERF.dom.view}`;
   },
 };
 /* 콘솔에서 바로 읽을 수 있게 창에 매단다 — 계측기는 켜고 끄는 것이 아니라 늘 도는
@@ -30427,6 +30447,10 @@ export default function ReplayMotionPlayer({
                 {/* 어느 층이 큰가 — 줄일 자리를 이 줄이 짚는다. */}
                 <div style={{ fontSize: "0.92em", opacity: 0.85 }}>
                   {SPRITE_PERF.dom.list || "-"}
+                </div>
+                {/* 상자가 창보다 크면 그 몫은 영영 안 보이는 화소다(위 view의 ★). */}
+                <div style={{ fontSize: "0.92em", opacity: 0.85 }}>
+                  {SPRITE_PERF.dom.view || "-"}
                 </div>
                 {/* 참값이 어느 판으로 구워졌나 — '재분석했는데 갈림 시각이 그대로'가
                     진짜 갈림인지 안 구운 것인지를 이 한 줄이 가른다(위 truthVer 주석). */}
