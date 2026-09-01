@@ -4310,7 +4310,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           g.push([polyPath3([
             [-m9 * 0.8, gy9(z0), z0], [-m9 * 0.8, oy9(z0), z0],
             [-m9 * 0.8, oy9(z1), z1], [-m9 * 0.8, gy9(z1), z1],
-          ]), 1, "#31373f"] as ShapeFace);
+          ]), 1, "#555c67"] as ShapeFace);
         }
       }
       g.push([polyPath3([
@@ -4318,7 +4318,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ]), 1, "#7a818b"] as ShapeFace);
       g.push([polyPath3([
         [-0.8, oy9(Z1), Z1], [0.8, oy9(Z1), Z1], [0.8, gy9(Z1), Z1], [-0.8, gy9(Z1), Z1],
-      ]), 1, "#23272e"] as ShapeFace);
+      ]), 1, "#454b55"] as ShapeFace);
       out.push(...tagKey(g, 2.5));
     }
 
@@ -4398,7 +4398,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         /* 키(지적: "옆면 경사로 키값 문제, 앞면에 안 가려지네") — 경사로가 붙은
            +x 옆면이 시점을 향할 때만 몸 위(10+)이고, 등을 돌리면 몸보다 먼저 그려
            몸이 덮는다. */
-      ], facingRatio(1, 0) >= 0 ? 10 + depthNow(WW / 2 + 0.6, 0.2) * 1.6 : -5));
+      ], facingRatio(1, 0) > 0.25 ? 10 + depthNow(WW / 2 + 0.6, 0.2) * 1.6 : -5));
+      /* 정면(옆면이 스쳐 보이는 각)에서는 먼저 그려 몸이 덮는다(재지적: "정면에서
+         안 가려짐") — 몸 밖으로 튀어나온 몫만 남고 앞면과 겹친 몫은 앞면 아래로 간다. */
     }
 
     // ── 지붕 — 검은 굴뚝 넷(뒤 판) · 흰 성곽 이빨 · 임자색 포탑(뒤 오른쪽).
@@ -5202,6 +5204,33 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ] as [number, number][]) {
         f9.push(...boxFaces3(bx9, by9, 0.42, 0.42, 0.22, zTop9(bx9, by9) - 0.02));
       }
+      /* ★ 양옆 변의 **톱니**(재요청: "발판 하나하나의 양옆에 톱니마냥 튀어나온 것") —
+         안쪽·바깥 변을 뺀 옆 변 넷(1-2·2-3·4-5·5-0)의 한가운데서 삼각 이빨이 바깥으로
+         튀어나온다. 발판 두께(TH9)만큼의 삼각기둥이다. */
+      for (const [ia9, ib9] of [[1, 2], [2, 3], [4, 5], [5, 0]] as [number, number][]) {
+        const ax9 = hi9[ia9][0]; const ay9 = hi9[ia9][1];
+        const bx9 = hi9[ib9][0]; const by9 = hi9[ib9][1];
+        const mx9 = (ax9 + bx9) / 2; const my9 = (ay9 + by9) / 2;
+        const ex9 = bx9 - ax9; const ey9 = by9 - ay9;
+        const el9 = Math.hypot(ex9, ey9) || 1;
+        let nx9 = ey9 / el9; let ny9 = -ex9 / el9;          // 변의 법선
+        if ((mx9 - cx9) * nx9 + (my9 - cy9) * ny9 < 0) { nx9 = -nx9; ny9 = -ny9; }
+        const t0: [number, number] = [mx9 - (ex9 / el9) * 0.3, my9 - (ey9 / el9) * 0.3];
+        const t1: [number, number] = [mx9 + (ex9 / el9) * 0.3, my9 + (ey9 / el9) * 0.3];
+        const tp: [number, number] = [mx9 + nx9 * 0.42, my9 + ny9 * 0.42];
+        const zt9 = zTop9(mx9, my9);
+        const top9 = polyPath3([[t0[0], t0[1], zt9], [t1[0], t1[1], zt9], [tp[0], tp[1], zt9 - 0.04]]);
+        const w1 = polyPath3([[t0[0], t0[1], zt9 - TH9], [tp[0], tp[1], zt9 - TH9 - 0.04],
+          [tp[0], tp[1], zt9 - 0.04], [t0[0], t0[1], zt9]]);
+        const w2 = polyPath3([[tp[0], tp[1], zt9 - TH9 - 0.04], [t1[0], t1[1], zt9 - TH9],
+          [t1[0], t1[1], zt9], [tp[0], tp[1], zt9 - 0.04]]);
+        for (const [wd9, wnx9, wny9] of [[w1, nx9 - ex9 / el9, ny9 - ey9 / el9], [w2, nx9 + ex9 / el9, ny9 + ey9 / el9]] as [string, number, number][]) {
+          const wl9 = Math.hypot(wnx9, wny9) || 1;
+          const fl9 = faceLight(wnx9 / wl9, wny9 / wl9, 0.3);
+          f9.push(bodyFace(wd9), ...(fl9.visible ? fl9.face(wd9) : [sideFace(wd9, 0.46)]));
+        }
+        f9.push(bodyFace(top9), topFace(top9, 0.2));
+      }
       for (const k9 of [0, 1]) {
         const gx9 = cx9 - ox9 * r9 * 0.62 + (k9 === 0 ? -oy9 : oy9) * r9 * 0.36;
         const gy9 = cy9 - oy9 * r9 * 0.62 + (k9 === 0 ? ox9 : -ox9) * r9 * 0.36;
@@ -5266,7 +5295,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          굵기만 줄이면 사방이 좁아져 '깎임'이 아니라 그냥 가는 밑동이 된다.
        굵기 규칙(w·tipW·hold·taper)은 path를 주면 그대로 살지만 깎기를 얹어야 하므로
        widthOf로 옮겨 적는다 — 값은 옛것 그대로다. */
-    for (const mx9 of [-2.1, 2.1]) {
+    for (const mx9 of [-1.85, 1.85]) {   // 2.1 → 1.85 가운데로
       const W0_9 = 1.5;
       const W1_9 = 0.55;
       const HOLD9 = 0.12;
@@ -5314,8 +5343,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          마디 수(20)는 꺾이는 t(7/20·16/20)가 정확히 눈금에 걸리게 잡았다 — 안 그러면
          꺾임이 두 눈금에 나뉘어 도로 둥글어진다. 뿌리 되꺾기(ROOT)도 걷었다. */
       const AXIS9 = 8.3;
-      const BOW9 = 0.9;
-      const IN9 = 1.6;
+      const BOW9 = 0.55;   // 0.9 → 0.55 (재지적: 너무 퍼진 느낌)
+      const IN9 = 1.35;
       const K1_9 = 0.35;
       const K2_9 = 0.8;
       const xoff9 = (t9: number): number => (
@@ -5359,14 +5388,6 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         x: 0, y: ry9, z0: h, h: 4.3, w: 0.6, tipW: 0,
         segs: 4, sides: 6, curveY: -sy9 * 1.2, hold: 0.5,
       }), facingRatio(0, sy9) >= 0 ? 34 : 26));
-    }
-    /* ★ 양옆에도 돌출 디테일(요청: "앞쪽뿐 아니라 양옆에도") — 옆 발판 바깥 끝에서
-       바깥·위로 뻗는 낮은 뿔 한 쌍. 앞뒤 뿔보다 짧고 바깥으로 눕는다. */
-    for (const sx9 of [1, -1] as const) {
-      out.push(...tagKey(spirePillar({
-        x: sx9 * 3.9, y: 0, z0: h - 0.2, h: 2.6, w: 0.5, tipW: 0,
-        segs: 4, sides: 6, curveX: sx9 * 1.1, hold: 0.45,
-      }), facingRatio(sx9, 0) >= 0 ? 34 : 26));
     }
     /* 사진 디테일(요청) — 탑 밑동에 금 무늬 골. 발판 위 원판은 청록을 걷고 개인색
        자리로 삼는다(요청) — 네 발판에 하나씩이라 사방 어디서 봐도 임자 색이 깔린다.
@@ -9843,7 +9864,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          내려오는 중(62%)이며, 잔가지·발밑 가지는 거기서 한 박자 뒤에 돋는다. 난수는
          단계와 무관하게 늘 같은 차례로 돌므로(bolt의 from9 규약) 다음 단계에서 같은
          자리에 같은 줄기가 이어진다. */
-      const bs9 = Math.floor(rnd() * 3);
+      /* 더 랜덤하고 띄엄띄엄(재요청) — 0~3 네 단계에 고르게 흩는다. 3에 태어난
+         줄기는 그 칸에서 내려오는 중인 채로 끝나 다음 씨앗으로 넘어간다 — 그것이
+         곧 '띄엄띄엄'이다. */
+      const bs9 = Math.floor(rnd() * 4);
       const tx9 = gx9 + (rnd() - 0.5) * R9 * 0.5; // 꼭대기 자리(살짝 비껴간다)
       const ty9 = gy9 + (rnd() - 0.5) * R9 * 0.5;
       const pts: [number, number, number][] = [];
@@ -20404,7 +20428,7 @@ export const BLD_NORM: Record<string, number> = {
   factory: 1.485,  // 절두체+허리 재작도 뒤 재측정(bld-norm)
   fleetbeacon: 2.125,
   forge: 1.809,
-  gate: 1.942,  // 직선 꺾임 기둥·좁힌 발판 뒤 재측정(bld-norm)
+  gate: 1.952,  // 톱니 발판·모은 기둥 뒤 재측정(bld-norm)
   geyser: 1.587,
   gspire: 1.151,  // 상자 상한에 걸림
   hatchery: 1.188,
@@ -35402,7 +35426,7 @@ export default function ReplayMotionPlayer({
                       벌어진 각을 낸다. 이 값이 없으면 번개 기둥만 화면에 수직으로 선다. */}
                   <FxModel
                     kind="storm"
-                    spin={Math.floor((t - sec) * 15) % (STORM_SEEDS * STORM_STAGES)}
+                    spin={Math.floor((t - sec) * 12) % (STORM_SEEDS * STORM_STAGES)}   /* 0.8배(요청) */
                     flat={!pitched}
                     pitchView={pitched}
                     viewYaw={viewYawOf(x, y)}
