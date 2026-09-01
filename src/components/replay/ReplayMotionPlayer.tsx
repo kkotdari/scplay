@@ -10885,39 +10885,65 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* (사진 재반영) 코는 **길고 납작한 칼날 쐐기**다 — 뒤 갑판(y −2.3~−0.3)은 평평하고,
        거기서 코끝(y 3.0)까지 윗면이 내려가며 밑면은 올라와 끝이 얇은 날이 된다. 옆면은
        곧은 평면 여섯. */
+    /* 동체(면수 제한 없이 다시) — **두 단**이다: 아래 넓은 단(5.0~5.9)과 그 위로 0.28
+       안으로 들어간 갑판 단(5.9~6.5). 옆면에 베벨 턱이 서서 한 장짜리 벽보다 입체가
+       읽힌다. 평면도는 육각(뒤 넓고 코 좁음), 코는 길고 납작한 칼날. */
     const PLAN9: [number, number][] = [
       [-1.6, -2.3], [1.6, -2.3], [1.9, -0.6], [0.35, 3.0], [-0.35, 3.0], [-1.9, -0.6],
     ];
-    const topZ9 = (y9: number): number => 6.4 - 0.95 * Math.max(0, (y9 + 0.3) / 3.3);
+    const inset9 = (k9: number): [number, number][] => PLAN9.map(([x9, y9]) => [
+      x9 - Math.sign(x9) * k9, y9 - Math.sign(y9) * k9 * 0.6,
+    ]);
+    const topZ9 = (y9: number): number => 6.5 - 0.95 * Math.max(0, (y9 + 0.3) / 3.3);
+    const midZ9 = (y9: number): number => 5.9 - 0.5 * Math.max(0, (y9 + 0.3) / 3.3);
     const botZ9 = (y9: number): number => 5.0 + 0.3 * Math.max(0, (y9 - 0.4) / 2.6);
-    const lo9 = PLAN9.map(([x9, y9]) => [x9, y9, botZ9(y9)] as [number, number, number]);
-    const hi9 = PLAN9.map(([x9, y9]) => [x9, y9, topZ9(y9)] as [number, number, number]);
-    const hull9: ShapeFace[] = [bodyFace(polyPath3(lo9))];
-    const walls9 = lo9.map((_, k9) => {
-      const n9 = (k9 + 1) % lo9.length;
-      const mx9 = (lo9[k9][0] + lo9[n9][0]) / 2; const my9 = (lo9[k9][1] + lo9[n9][1]) / 2;
-      const ml9 = Math.hypot(mx9, my9) || 1;
-      return { d: polyPath3([lo9[k9], lo9[n9], hi9[n9], hi9[k9]]), nx: mx9 / ml9, ny: my9 / ml9,
-        f: facingRatio(mx9 / ml9, my9 / ml9) };
-    }).sort((q9, w9) => q9.f - w9.f);
-    for (const wl9 of walls9) {
-      const fl9 = faceLight(wl9.nx, wl9.ny, 0.3);
-      hull9.push(bodyFace(wl9.d), ...(fl9.visible ? fl9.face(wl9.d) : [sideFace(wl9.d, 0.46)]));
-    }
-    hull9.push(bodyFace(polyPath3(hi9)), topFace(polyPath3(hi9), 0.2));
-    out.push(...tagKey(raceBase(hull9, "terran"), key9(0, -0.2, 5.8)));
+    const tier9 = (plan: [number, number][], zLo: (y9: number) => number, zHi: (y9: number) => number): ShapeFace[] => {
+      const lo9 = plan.map(([x9, y9]) => [x9, y9, zLo(y9)] as [number, number, number]);
+      const hi9 = plan.map(([x9, y9]) => [x9, y9, zHi(y9)] as [number, number, number]);
+      const f9: ShapeFace[] = [bodyFace(polyPath3(lo9))];
+      const walls9 = lo9.map((_, k9) => {
+        const n9 = (k9 + 1) % lo9.length;
+        const mx9 = (lo9[k9][0] + lo9[n9][0]) / 2; const my9 = (lo9[k9][1] + lo9[n9][1]) / 2;
+        const ml9 = Math.hypot(mx9, my9) || 1;
+        return { d: polyPath3([lo9[k9], lo9[n9], hi9[n9], hi9[k9]]), nx: mx9 / ml9, ny: my9 / ml9,
+          f: facingRatio(mx9 / ml9, my9 / ml9) };
+      }).sort((q9, w9) => q9.f - w9.f);
+      for (const wl9 of walls9) {
+        const fl9 = faceLight(wl9.nx, wl9.ny, 0.3);
+        f9.push(bodyFace(wl9.d), ...(fl9.visible ? fl9.face(wl9.d) : [sideFace(wl9.d, 0.46)]));
+      }
+      f9.push(bodyFace(polyPath3(hi9)), topFace(polyPath3(hi9), 0.2));
+      return f9;
+    };
+    out.push(...tagKey(raceBase(tier9(PLAN9, botZ9, midZ9), "terran"), key9(0, -0.2, 5.4)));
+    out.push(...tagKey(raceBase(tier9(inset9(0.28), midZ9, topZ9), "terran"), key9(0, -0.2, 6.1)));
+    // 코 등마루 — 조종석 앞에서 코끝까지 가늘어지는 낮은 능선(사진의 가운데 줄).
+    out.push(...tagKey(raceBase(tier9([[-0.42, 0.2], [0.42, 0.2], [0.12, 2.9], [-0.12, 2.9]],
+      topZ9, (y9) => topZ9(y9) + 0.22), "terran"), key9(0, 1.5, 6.3)));
+    // 밑 용골 지느러미 — 배 가운데 아래로 선 얇은 삼각판.
+    out.push(...tagKey(raceBase([
+      bodyFace(polyPath3([[0, 0.9, 5.05], [0, -1.6, 5.0], [0, -1.2, 4.35]])),
+      sideFace(polyPath3([[0, 0.9, 5.05], [0, -1.6, 5.0], [0, -1.2, 4.35]]), 0.3),
+    ], "terran"), key9(0, -0.4, 4.6)));
     // 뒤 갑판의 엔진 하우징 둘(사진 뒤쪽의 네모 덩이).
     for (const m9 of [-1, 1] as const) {
-      out.push(...tagKey(raceBase(boxFaces3(m9 * 0.95, -1.75, 1.1, 1.2, 0.85, 6.4), "terran"),
-        key9(m9 * 0.95, -1.75, 6.9)));
+      out.push(...tagKey([
+        ...raceBase(boxFaces3(m9 * 0.95, -1.7, 1.2, 1.4, 1.0, 6.4), "terran"),
+        [polyPath3([[m9 * 0.5, -2.41, 6.55], [m9 * 1.4, -2.41, 6.55], [m9 * 1.4, -2.41, 7.25], [m9 * 0.5, -2.41, 7.25]]),
+          1, "#3d4653"] as ShapeFace,
+      ], key9(m9 * 0.95, -1.7, 6.95)));
     }
     /* ② 등의 둥근 혹 — 몸에 두께를 준다. 한 단 어두워 동체와 갈린다. */
     /* 조종부(사진) — 등 한가운데 **둥근 링** 위에 어두운 캐노피 돔이 앉는다. 링이 있어야
        '해치 달린 조종석'으로 읽히고, 돔만 있으면 등의 혹이다. */
     out.push(...tagKey([
-      ...paintBase(cylinderFaces3(0, -0.5, 1.05, 0.3, 6.35), TERRAN_STEEL),
-      ...paintBase(domeFaces3(0, -0.5, 0.8, 0.55, 6.65), "#3d4653"),
-      topFace(groundEllipse(...project(0, -0.65, 7.15), 0.38, 0.26), 0.3),
+      ...raceBase(tier9(Array.from({ length: 8 }, (_, k9) => {
+        const a9 = ((k9 + 0.5) / 8) * Math.PI * 2;
+        return [Math.sin(a9) * 1.4, -0.5 + Math.cos(a9) * 1.4] as [number, number];
+      }), () => 6.42, () => 6.56), "terran"),
+      ...paintBase(cylinderFaces3(0, -0.5, 1.05, 0.3, 6.5), TERRAN_STEEL),
+      ...paintBase(domeFaces3(0, -0.5, 0.8, 0.55, 6.8), "#3d4653"),
+      topFace(groundEllipse(...project(0, -0.65, 7.3), 0.38, 0.26), 0.3),
     ], key9(0, -0.5, 6.9) + 0.3));
     /* ②-b 조종석(지적: "조종석부 표현이 없음") — 혹 앞에 얹힌 어두운 물집. 창을 따로 안
        그린다: 이 크기에서는 밝게 태운 윗면 한 장이 곧 창이다. 등의 혹과 갈리도록 한 단 더
@@ -18208,7 +18234,7 @@ const MODEL_NORM: Record<string, number> = {
   tanksiege: 0.723,
   tanksiegebody: 0.723,
   ultra: 0.361,
-  valk: 0.945,   // 칼날 코 재작도 뒤 재측정(model-norm)
+  valk: 0.942,   // 2단 동체 재작도 뒤 재측정(model-norm)
   vessel: 0.882,  // 방패 20% 축소 뒤 재측정(model-norm)
   vulture: 0.828,
   wraith: 0.774,
