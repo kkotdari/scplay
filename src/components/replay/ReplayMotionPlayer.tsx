@@ -5423,14 +5423,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const tx = Math.cos(phi);   // 접선 방향
       const tz = -Math.sin(phi);
       const vert9 = Math.abs(rz) > 0.5;   // 위·아래 조각인가
-      const Ro = R + 0.3; const Ri = R - 0.3;
+      const Ro = R + 0.15; const Ri = R - 0.15;
       const key9 = depthNow(rx * R, 0);
       /** 판 좌표 → 세계 좌표: u 접선, v 앞뒤(y), r 반지름. */
       const P9 = (u9: number, v9: number, r9: number): [number, number, number] =>
         [rx * r9 + tx * u9, v9, C + rz * r9 + tz * u9];
       /* 십자 방패 윤곽 — 세로 기둥(반폭 0.85, v ±1.85)의 끝은 삼각(v ±2.4),
          가로 팔(u ±2.3, 반높이 0.75)의 끝은 일자 사각. */
-      const AW = 0.68; const AL = vert9 ? 1.75 : 1.6; const AH = 0.6;
+      const AW = 0.95; const AL = vert9 ? 1.75 : 1.6; const AH = 0.85;
       const CV = 1.45; const CT = 1.95;
       const RAW9: [number, number][] = [
         [-AW, CV], [0, CT], [AW, CV], [AW, AH], [AL, AH], [AL, -AH], [AW, -AH],
@@ -20259,7 +20259,7 @@ export const BLD_FILL_TARGET: Record<string, number> = {
  *  표에 없는 종류는 1(모델 그대로)이다. */
 export const BLD_NORM: Record<string, number> = {
   academy: 1.470,  // 치마형 받침으로 바꾼 뒤 bld-norm 재측정
-  arch: 2.572,  // 십자 방패판 재작도 뒤 재측정(bld-norm)
+  arch: 2.590,  // 십자 방패판 재작도 뒤 재측정(bld-norm)
   archives: 2.489,  // 상자 상한에 걸림
   armory: 1.223,
   assim: 1.655,
