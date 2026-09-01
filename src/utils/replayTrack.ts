@@ -18,7 +18,13 @@ export type TrackPt = [number, number, number, number?];
 
 export interface TrackPos { x: number; y: number; moving: boolean; sinceLast: number }
 
-export function posAt(pts: TrackPt[], t: number): TrackPos | null {
+/** 토막 커서 — 재생은 시간이 앞으로만 가므로, 지난 프레임에 고른 토막이 이번에도 거의
+ *  그대로 맞는다(같거나 바로 다음). 부르는 쪽이 자취마다 하나씩 들고 오면 이분 탐색이
+ *  사실상 O(1)이 된다. 어긋나면(탐색·시간 점프) 그냥 이분 탐색으로 돌아간다 —
+ *  **결과는 커서가 있든 없든 한 토막도 안 다르다.** */
+export type TrackCur = { i: number };
+
+export function posAt(pts: TrackPt[], t: number, cur?: TrackCur): TrackPos | null {
   const n = pts.length;
   if (n === 0) return null;
   if (t <= pts[0][0]) {
@@ -34,12 +40,24 @@ export function posAt(pts: TrackPt[], t: number): TrackPos | null {
      개체 하나가 수천 점을 지니는 일이 생겼는데(실측: 게임 1의 최장 일꾼 8981점),
      앞에서부터 훑으면 그 하나가 프레임을 먹는다. 앞뒤로 같은 시각의 점이 겹쳐 있어도
      고르는 토막은 옛 훑기와 같다. */
-  let lo = 0;
-  let hi = n - 1;
-  while (lo < hi) {
-    const mid = (lo + hi + 1) >> 1;
-    if (pts[mid][0] <= t) lo = mid; else hi = mid - 1;
+  let lo = -1;
+  /* 커서 맞춰 보기 — 지난 토막(h) 또는 그 다음(h+1)이 t를 담고 있으면 탐색을 건너뛴다.
+     담는 조건이 '마지막으로 t를 안 넘는 키'와 같으므로(다음 점이 t를 넘는가) 이분
+     탐색과 같은 답이다. 같은 시각이 겹친 점에서는 조건이 안 맞아 이분으로 떨어진다. */
+  if (cur) {
+    const h9 = cur.i;
+    if (h9 >= 0 && h9 < n - 1 && pts[h9][0] <= t && pts[h9 + 1][0] > t) lo = h9;
+    else if (h9 >= -1 && h9 + 2 < n && pts[h9 + 1][0] <= t && pts[h9 + 2][0] > t) lo = h9 + 1;
   }
+  if (lo < 0) {
+    lo = 0;
+    let hi = n - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (pts[mid][0] <= t) lo = mid; else hi = mid - 1;
+    }
+  }
+  if (cur) cur.i = lo;
   const [s0, x0, y0] = pts[lo];
   const [s1, x1, y1] = pts[lo + 1];
   const dt0 = Math.max(0.001, s1 - s0);

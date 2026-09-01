@@ -185,17 +185,32 @@ const angDiff = (a: number, b: number): number => {
 /** t초일 때 이 개체의 자리·방향·상태. 아직 안 태어났으면 null. */
 export function posAtTruth(
   tr: TruthTrack, t: number,
+  /** 토막 커서(replayTrack의 TrackCur와 같은 규약) — 재생은 시간이 앞으로만 가므로
+   *  지난 프레임의 키가 거의 그대로 맞는다. 어긋나면 이분법으로 돌아가, 결과는 커서가
+   *  있든 없든 같다. */
+  cur?: { i: number },
 ): { x: number; y: number; hdg: number; state: number } | null {
   const n = tr.keys.length / 5;
   if (n === 0) return null;
   if (t < tr.keys[0]) return null;
   // 마지막으로 t를 안 넘는 키 — 키가 수천 개라 이분법으로 찾는다.
-  let lo = 0;
-  let hi = n - 1;
-  while (lo < hi) {
-    const mid = (lo + hi + 1) >> 1;
-    if (tr.keys[mid * 5] <= t) lo = mid; else hi = mid - 1;
+  let lo = -1;
+  if (cur) {
+    const h9 = cur.i;
+    if (h9 >= 0 && (h9 === n - 1 ? tr.keys[h9 * 5] <= t
+      : tr.keys[h9 * 5] <= t && tr.keys[(h9 + 1) * 5] > t)) lo = h9;
+    else if (h9 >= -1 && h9 + 1 < n && tr.keys[(h9 + 1) * 5] <= t
+      && (h9 + 2 >= n || tr.keys[(h9 + 2) * 5] > t)) lo = h9 + 1;
   }
+  if (lo < 0) {
+    lo = 0;
+    let hi = n - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (tr.keys[mid * 5] <= t) lo = mid; else hi = mid - 1;
+    }
+  }
+  if (cur) cur.i = lo;
   const i = lo * 5;
   const st = tr.keys[i + 4];
   if (lo === n - 1) return { x: tr.keys[i + 1], y: tr.keys[i + 2], hdg: tr.keys[i + 3], state: st };

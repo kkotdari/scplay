@@ -18984,6 +18984,23 @@ export function cropToInk(
   c.drawImage(cv, cx9, cy9, cw9, ch9, 0, 0, cw9, ch9);
   return { cv: out, ox: cx9, oy: cy9 };
 }
+/* ★ 자취 토막 **커서**(계측: dpr을 ¼로 줄여도 프레임 36ms 그대로 — 범인은 화소가
+   아니라 JS, 그중 개체 1020기를 프레임마다 도는 고리였다. 렌더전체 15.4ms 중 준비
+   9.6·개체고리 7.7·개체마커 3.4) ────────────────────────────────────────────────────
+   그 고리들의 바닥 삯이 개체마다 도는 이분 탐색이다(posAt·posAtSim — 자취가 최장
+   8981점). 재생은 시간이 앞으로만 가므로 지난 프레임의 토막이 이번에도 거의 그대로
+   맞는다 — 자취마다 커서를 들려 주면 탐색이 사실상 O(1)이다. 결과는 한 토막도 안
+   다르다(무작위 200자취 × 300질의 × 2함수로 완전 일치 확인).
+   자리(고리)마다 보관함을 따로 둔다 — 같은 자취를 '지금 시각'과 '되짚기'가 번갈아
+   물으면 커서가 서로를 밀어내 매번 빗나간다. WeakMap이라 자취가 걷히면 같이 걷힌다. */
+const WALK_CUR_A9 = new WeakMap<TrackPt[], { i: number }>();   // 개체고리(표적 색인)
+const WALK_CUR_B9 = new WeakMap<TrackPt[], { i: number }>();   // 개체마커(그리기)
+const TRUTH_CUR9 = new WeakMap<object, { i: number }>();       // 참값 상태(ST_INSIDE)
+const curOf9 = <K extends object>(m9: WeakMap<K, { i: number }>, k9: K): { i: number } => {
+  let c9 = m9.get(k9);
+  if (!c9) { c9 = { i: -1 }; m9.set(k9, c9); }
+  return c9;
+};
 const PATH2D_CACHE = new Map<string, Path2D>();
 const pathOf = (d: string): Path2D => {
   let p = PATH2D_CACHE.get(d);
@@ -25446,7 +25463,7 @@ export default function ReplayMotionPlayer({
         if (t >= bb9[0] && t < bb9[1]) { hid9 = true; break; }
       }
       if (hid9) continue;
-      const q = posAt(e.walk, t);
+      const q = posAt(e.walk, t, curOf9(WALK_CUR_A9, e.walk));
       if (!q) continue;
       /* 안에 든 몸은 표적이 아니다 — 태운 것(벙커·수송선)이 표적이다. 화면은 이미
          같은 자로 이 몸을 안 그리는데(아래 렌더의 ST_INSIDE), 표적 지도에는 남아 있어
@@ -25457,7 +25474,7 @@ export default function ReplayMotionPlayer({
          `simTracks.get` + `posAtSim`을 개체마다 또 불렀다(같은 값을 두 번 셈). 뽑아
          두었다가 넘긴다. */
       const trIn9 = simTracks?.get(e.tag);
-      const sIn9 = trIn9 ? posAtSim(trIn9, t) : null;
+      const sIn9 = trIn9 ? posAtSim(trIn9, t, curOf9(TRUTH_CUR9, trIn9)) : null;
       if (sIn9 && sIn9.state === ST_INSIDE) {
         insideSpots.push({ raw: e.raw, unit: e.unit, x: q.x, y: q.y,
           ...(e.tgt ? { tgt: e.tgt } : {}) });
@@ -28479,28 +28496,48 @@ export default function ReplayMotionPlayer({
      두 구간에 걸친 평균 방향(대각선)을 물어, 꺾고 나서도 한동안 비껴 보였다. */
   /* 마커별 직전 방향 기억(지적: 회전 부드럽게) — headingOf의 각 스무딩 상태. 마커가
      사라지면 항목이 남지만 몇백 개 수준이라 판 하나 안에서는 무해하다. */
-  const hdgMemRef = useRef(new Map<string, { h: number; t: number }>());
+  const hdgMemRef = useRef(new Map<string, {
+    h: number; t: number;
+    /** 되짚기가 낸 목표각 · 그때의 자리 · 마지막으로 되짚은 시각 — 아래 ★. */
+    tg: number; px: number; py: number; lb: number;
+  }>());
   const headingOf = (walk: TrackPt[], pos: { x: number; y: number }, smoothKey?: string): number => {
     let target = 0;
-    for (const back of [0.3, 0.8, 2, 4, 8, 15]) {
-      const hp = posAt(walk, Math.max(0, t - back));
-      if (!hp) break;
-      const dx = pos.x - hp.x;
-      const dy = pos.y - hp.y;
-      if (Math.hypot(dx, dy) > 0.08) { target = (Math.atan2(-dx, dy) * 180) / Math.PI; break; }
+    /* ★ **멈춘 유닛은 되짚기를 4Hz로만**(계측: 개체마커 3.4ms) ─────────────────────
+       이 되짚기는 움직이는 유닛에서는 첫 창(0.3초)에 바로 끝나지만, **멈춘 유닛은 여섯
+       창을 다 돌고서야** '안 움직였다'를 안다 — 기지의 노는 일꾼·수비 병력일수록 비싸다.
+       자리가 지난 프레임과 똑같으면 그 사이에 움직인 것이 없다는 뜻이므로 목표각도
+       그대로다. 다만 영영 안 되짚으면 안 된다 — 창(0.3~15초)이 흘러가며 목표각이
+       바뀌는 설계라(마지막 움직임이 15초를 넘으면 기본각), 0.25초에 한 번은 제대로
+       되짚어 그 흐름을 따라간다. 늦어야 한 창의 4분의 1이라 눈에 안 든다. */
+    const mem0 = smoothKey ? hdgMemRef.current.get(smoothKey) : undefined;
+    const still9 = mem0 !== undefined && mem0.px === pos.x && mem0.py === pos.y
+      && t >= mem0.t && t - mem0.lb < 0.25;
+    let lb9 = t;
+    if (still9 && mem0) {
+      target = mem0.tg;
+      lb9 = mem0.lb;
+    } else {
+      for (const back of [0.3, 0.8, 2, 4, 8, 15]) {
+        const hp = posAt(walk, Math.max(0, t - back));
+        if (!hp) break;
+        const dx = pos.x - hp.x;
+        const dy = pos.y - hp.y;
+        if (Math.hypot(dx, dy) > 0.08) { target = (Math.atan2(-dx, dy) * 180) / Math.PI; break; }
+      }
     }
     if (!smoothKey) return target;
     /* 회전을 부드럽게(지적: 움직임·회전 좀 부드럽게) — 경유점을 꺾는 순간 방향이 즉시
        홱 돌던 것을, 마커별로 지난 프레임의 각을 기억해 초당 300도 상한으로 따라잡게
        한다. 시킹(시간이 뒤로 가거나 크게 점프)이나 첫 등장은 그대로 스냅. */
-    const mem = hdgMemRef.current.get(smoothKey);
-    hdgMemRef.current.set(smoothKey, { h: target, t });
+    const mem = mem0;
+    hdgMemRef.current.set(smoothKey, { h: target, t, tg: target, px: pos.x, py: pos.y, lb: lb9 });
     if (!mem || t <= mem.t || t - mem.t > 1.5) return target;
     let diff = ((target - mem.h) % 360 + 540) % 360 - 180;
     const maxTurn = 300 * (t - mem.t);
     if (Math.abs(diff) > maxTurn) diff = Math.sign(diff) * maxTurn;
     const h = mem.h + diff;
-    hdgMemRef.current.set(smoothKey, { h, t });
+    hdgMemRef.current.set(smoothKey, { h, t, tg: target, px: pos.x, py: pos.y, lb: lb9 });
     return h;
   };
   /* 화면 걸음 기준 방향(지적: 뒤로 걷는 유닛 + 몸과 트레이서 방향 불일치) — 걸음 시계
@@ -32633,7 +32670,7 @@ export default function ReplayMotionPlayer({
                자취는 이미 제 시각에 제자리라, 여기서 시각을 미루면 코어가 낸 값을
                렌더러가 도로 흔드는 꼴이 된다. */
             const eff9 = t;
-            const rawPos = posAt(rp, eff9);
+            const rawPos = posAt(rp, eff9, curOf9(WALK_CUR_B9, rp));
             if (!rawPos) return null;
             /* 시점 보기 — **적 유닛은 지금 보이는 자리에 있을 때만** 그린다(요청:
                원작대로 3단). 밝혀 둔 자리(1단)라도 유닛은 안 남는다 — 원작이 기억하는
