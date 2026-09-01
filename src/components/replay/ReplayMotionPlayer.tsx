@@ -6555,11 +6555,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        수평보다 길다. 밑동 플랜지 테로 '꽂힌 관'으로 읽히게 한다. 토막마다 제 깊이 키. */
     {
       const R9 = 0.26;
-      const ZT9 = 5.9;          // 보 높이
+      const ZT9 = 6.3;          // 보 높이 — 높인 천장(4.0) 위로
       const RE9 = 0.9;          // 굽이 반지름
-      const LH9 = 1.4;          // 수평 몫 — 수직(1.5~1.9)보다 짧다
+      const LH9 = 1.2;          // 수평 몫 — 수직(1.4~1.9)보다 짧다
       for (const [xi9, yi9, zi9] of [
-        [-1.6, 2.6, 3.5], [0, 3.6, 3.1], [1.9, 2.4, 3.5],
+        [-1.6, 2.6, 3.5], [0, 3.6, 4.0], [1.9, 2.4, 3.5],
       ] as [number, number, number][]) {
         const LV9 = ZT9 - RE9 - zi9;
         const LC9 = (RE9 * Math.PI) / 2;
@@ -6588,18 +6588,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 입구 — **앞으로 튀어나온 포치**(정정·사진: 벽에서 돌출한 어두운 경사 지붕과
        양옆 벽이 경사로를 감싼다). 차양 판 + 기둥이던 것을 걷고, 본체 앞벽에서 앞으로
        내려 눕는 빗면 지붕과 옆벽 둘을 세운다. 발치 경사로 상자 둘은 그대로 그 속이다. */
-    /* 포치를 **높인다**(정정: "입구는 높아야 해, 지금 너무 납작하고 낮아") — 옆벽
-       1.5 → 2.6, 빗면 지붕 뒤 2.3 → 3.5 · 앞 1.35 → 2.5. 관 셋이 이 위에 꽂힌다. */
+    /* 포치를 **한 단 더 높인다**(재정정: "포치만 왜케 낮지") — 앞 판(옆벽 2.6·지붕
+       3.5)은 하필 양옆 드럼(돔 꼭대기 ≈3.2)에 가려 높이가 안 읽혔다. 드럼보다 머리
+       하나 위로: 옆벽 3.4, 빗면 지붕 뒤 4.4 · 앞 3.3, 앞 립도 함께. */
     {
       const hoodT = polyPath3([
-        [-1.6, 3.02, 3.5], [1.6, 3.02, 3.5], [1.3, 4.75, 2.5], [-1.3, 4.75, 2.5],
+        [-1.6, 3.02, 4.4], [1.6, 3.02, 4.4], [1.3, 4.75, 3.3], [-1.3, 4.75, 3.3],
       ]);
       const lip = polyPath3([
-        [-1.3, 4.75, 2.5], [1.3, 4.75, 2.5], [1.3, 4.75, 1.7], [-1.3, 4.75, 1.7],
+        [-1.3, 4.75, 3.3], [1.3, 4.75, 3.3], [1.3, 4.75, 2.4], [-1.3, 4.75, 2.4],
       ]);
       out.push(...tagKey([
-        ...paintBase(boxFaces3(-1.45, 3.85, 0.3, 1.7, 2.6, 0), "#454b55"),
-        ...paintBase(boxFaces3(1.45, 3.85, 0.3, 1.7, 2.6, 0), "#454b55"),
+        ...paintBase(boxFaces3(-1.45, 3.85, 0.3, 1.7, 3.4, 0), "#454b55"),
+        ...paintBase(boxFaces3(1.45, 3.85, 0.3, 1.7, 3.4, 0), "#454b55"),
         [hoodT, 1, "#4d545f"] as ShapeFace, topFace(hoodT, 0.16),
         [lip, 1, "#3a4049"] as ShapeFace,
       ], depthNow(0, 3.9) * 1.6 + 3.4));
@@ -7572,16 +7573,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // ── 받침 — 넓게 벌어진 낮은 단(사진의 다엽 기단을 절두체 하나로 요약).
     out.push(...tagKey(paintBase(frustumFaces3(0, 0, 8.4, 6.4, 7.6, 5.6, 1.1, 0.55), KH_D), 0));
 
-    // ── 톱니 발 셋 — 굵고 어두운 골진 원통(사진 앞·오른쪽의 그 발).
-    for (const [fx9, fy9] of [[-0.4, 3.35], [3.3, 2.45], [-3.9, 2.4]] as [number, number][]) {
+    // ── 톱니 발 **넷** — 작게 줄여 정사각 네 귀에(지시: "네 발 크기 줄이고 정사각
+    //    방향으로 배치").
+    for (const [fx9, fy9] of [
+      [-2.6, 2.6], [2.6, 2.6], [-2.6, -2.6], [2.6, -2.6],
+    ] as [number, number][]) {
       const foot9: ShapeFace[] = [
-        ...paintBase(cylinderFaces3(fx9, fy9, 1.2, 1.05, 0), ST_D),
-        [discPath3(fx9, fy9, 1.07, 1.05), 1, "#454b55"] as ShapeFace,
+        ...paintBase(cylinderFaces3(fx9, fy9, 0.92, 0.95, 0), ST_D),
+        [discPath3(fx9, fy9, 0.97, 0.82), 1, "#454b55"] as ShapeFace,
       ];
       for (let g9 = 0; g9 < 8; g9 += 1) {
         const a9 = ((g9 * 45 + 22) * Math.PI) / 180;
         foot9.push(...paintBase(boxFaces3(
-          fx9 + Math.sin(a9) * 1.2, fy9 + Math.cos(a9) * 1.2, 0.34, 0.34, 0.95, 0.02,
+          fx9 + Math.sin(a9) * 0.92, fy9 + Math.cos(a9) * 0.92, 0.27, 0.27, 0.85, 0.02,
         ), "#3d434d"));
       }
       out.push(...tagKey(foot9, depthNow(fx9, fy9) * 1.6 + 1));
@@ -7616,15 +7620,21 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       pc.push(...tagKey(domeFaces3(cx9, cy9, 0.72, 0.42, 4.05), k9 + 0.8));
     }
 
-    // ── 큰 흰 돔(임자색) — 뒤 가운데, 암강철 드럼 위에 앉는다. 이 건물의 얼굴.
+    /* ── 큰 임자색 돔 — **정가운데·이중**(지시: "높이 높이고 정가운데로 이동. 돔은
+       이중이고 1층과 2층 사이 불빛이 원 고리 모양으로 새어나옴") ────────────────────
+       암강철 드럼 위에 아랫돔(넓고 낮게), 그 위에 윗돔(좁고 높게)이 앉고, 두 층 사이
+       틈에서 라임 불빛 고리가 샌다(winLit — 연구 중에만). 두 돔이 임자색이다. */
     {
-      const cx9 = 0.7; const cy9 = -1.3;
+      const cx9 = 0; const cy9 = -0.6;
       const k9 = 8 + depthNow(cx9, cy9) * 1.6;
       out.push(...tagKey([
-        ...paintBase(cylinderFaces3(cx9, cy9, 2.7, 1.15, 1.55), ST),
-        ...paintBase(cylinderFaces3(cx9, cy9, 2.77, 0.16, 2.35), ST_D),
+        ...paintBase(cylinderFaces3(cx9, cy9, 2.7, 1.0, 1.55), ST),
+        ...paintBase(cylinderFaces3(cx9, cy9, 2.77, 0.16, 2.2), ST_D),
       ], k9));
-      pc.push(...tagKey(domeFaces3(cx9, cy9, 2.6, 1.75, 2.7, true), k9 + 0.6));
+      pc.push(...tagKey(domeFaces3(cx9, cy9, 2.62, 1.05, 2.55, true), k9 + 0.5));
+      // 층 사이 불빛 고리 — 아랫돔 어깨 위에 짧은 발광 원통 띠.
+      out.push(...tagKey(paintBase(cylinderFaces3(cx9, cy9, 1.92, 0.3, 3.42), LIME), k9 + 0.7));
+      pc.push(...tagKey(domeFaces3(cx9, cy9, 1.85, 1.5, 3.7, true), k9 + 0.85));
     }
 
     // ── 가운데 앞 탑 — 마디 링을 두른 어두운 원통 + 곁의 작은 원통(사진 중앙).
@@ -20345,7 +20355,7 @@ export const BLD_NORM: Record<string, number> = {
   robobay: 1.423,
   sbattery: 2.032,
   scaffold: 1.733,
-  scifac: 1.359,  // 사진 기준 전면 재작도 뒤 재측정(bld-norm)
+  scifac: 1.443,  // 사진 기준 전면 재작도 + 이중 돔·발 넷 뒤 재측정(bld-norm)
   spire: 1.548,  // 상자 상한에 걸림
   spore: 1.666,
   sunken: 1.308,
