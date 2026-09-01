@@ -671,7 +671,7 @@ const IVORY = "#eae3d2";
 /* 진한 상아색(요청: 하이브 가시·옆띠). */
 const IVORY_DEEP = "#cdc0a0";
 /* 테란 화기 금속색(요청: 총구·포신은 어두운 회색). */
-const GUNMETAL = "#4b5058";
+const GUNMETAL = "#8b9199";   // = 테란 기본색(요청: 손칠 줄이고 기본색)
 /** 총의 검정(지적: "마린 총 거의 검정색 / 고스트 총도") — 건메탈(#4b5058)은 부품
  *  회색이고, 손에 든 **총기**는 거의 검정이어야 몸에서 갈려 읽힌다. */
 const GUN_BLACK = "#22252a";
@@ -2606,7 +2606,7 @@ function paintBase(faces: ShapeFace[], base: string): ShapeFace[] {
 /* 테란은 한 단 진한 쇠다(요청: "stain된 전쟁의 쇠붙이 — 좀 더 진한 쇠색이면서 광택과
    때묻음이 공존") — 은회색 #65696e를 건메탈 #575c63으로 내리고, 얼룩은 아래
    stainOf9가 면(패널)마다 낸다. 광택은 glossFaces의 볼록한 자가 그대로 세운다. */
-const RACE_BASE_TONE = { terran: "#6a7382", toss: "#d6be45", zerg: "#b9724a" } as const;
+const RACE_BASE_TONE = { terran: "#8b9199", toss: "#d6be45", zerg: "#b9724a" } as const;
 /* ★ **때 얼룩** — 칠 안 한 테란 면마다 쇠색 네 벌 중 하나를 **결정적으로** 고른다.
    무작위면 굽을 때마다 판이 달라져 캐시가 거짓말이 된다 — 면의 경로 문자열을 해시해
    같은 면은 언제나 같은 얼룩을 받는다. 네 벌은 기준(#575c63)의 위아래 5%와, 갈빛이
@@ -2632,7 +2632,7 @@ const RACE_GLOSS_SHADE: Partial<Record<keyof typeof RACE_BASE_TONE, string>> = {
   toss: "#1a1708",
 };
 const RACE_GLOSS_LIT: Partial<Record<keyof typeof RACE_BASE_TONE, string>> = {
-  terran: "#d8e0e8",
+  terran: "#e6e9ec",   // 광도 청색기 줄임
   // 프로토스는 **따뜻한** 광이다 — 금에 푸른 광을 얹으면 도금이 벗겨진 놋쇠로 보인다.
   toss: "#fff3cf",
 };
@@ -2647,8 +2647,8 @@ const RACE_GLOSS_LIT: Partial<Record<keyof typeof RACE_BASE_TONE, string>> = {
    너무 다름") — 조사하니 두 벌이었다: raceBase 톤(#6a7382·푸른 강청·광택)과 이 손칠
    은색(#94989e·중성 회색·광택 없음). 손칠 은색을 같은 색상각(푸른 강청)으로 옮기고
    어두운 쪽은 톤과 같게 둔다 — 밝기 단만 남고 색이 갈리지 않는다. */
-const TERRAN_STEEL = "#7f8998";      // 밝은 판·겉껍데기(톤보다 한 단 밝은 같은 강청)
-const TERRAN_STEEL_D = "#6a7382";    // 관·부속·그늘진 판(= RACE_BASE_TONE.terran)
+const TERRAN_STEEL = "#a3a8ae";      // 밝은 판·겉껍데기(톤보다 한 단 밝게 · 흰기)
+const TERRAN_STEEL_D = RACE_BASE_TONE.terran;    // 관·부속·그늘진 판(= 기본색)
 /** 몸에는 종족 바탕색을 입히고, 뒤에 붙이는 accent 면만 개인색으로 남긴다(규칙 1·4).
  *  accent는 칠하지 않은 채로 두어야 그리는 쪽이 임자 색을 넣는다 — 건물마다 눈에 띄는
  *  한두 곳만. */
@@ -10557,7 +10557,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        임자 색은 주익이 진다(칠 안 한 면이 그 색을 받는다).
        ★ 총구 앵커도 함께 옮긴다(MUZZLE_ANCHOR.wraith) — 총열이 옮겨 갔는데 앵커를 두면
          트레이서가 몸 밖 허공에서 난다(요청: "모델 변경 시 트레이서 위치도 확인"). */
-    const DARK = "#48515e";        // 꼬리팔·꼬리날개·받침
+    const DARK = TERRAN_STEEL_D;   // 기본색(요청)        // 꼬리팔·꼬리날개·받침
     const out: ShapeFace[] = [];
     /* ★ 이 모델의 키에는 **높이도 싣는다**(지적: "하단 포신 파이프가 아직도 동체랑 날개에
        안 가려짐") ────────────────────────────────────────────────────────────────────
@@ -10893,7 +10893,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     }
     /* ② 등의 둥근 혹 — 몸에 두께를 준다. 한 단 어두워 동체와 갈린다. */
     out.push(...tagKey([
-      ...paintBase(domeFaces3(0, -0.15, 1.45, 0.78, 6.1), "#657183"),
+      ...paintBase(domeFaces3(0, -0.15, 1.45, 0.78, 6.1), TERRAN_STEEL),
       topFace(groundEllipse(...project(0, -0.15, 6.88), 0.7, 0.5), 0.26),
     ], key9(0, -0.15, 6.5) + 0.3));
     /* ②-b 조종석(지적: "조종석부 표현이 없음") — 혹 앞에 얹힌 어두운 물집. 창을 따로 안
@@ -10947,7 +10947,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     for (const m9 of [-1, 1] as const) {
       const ax9 = 1.3 + ARM_L9;               // 팔 끝 = 방패 뿌리
       out.push(...tagKey(paintBase(
-        rodFaces(m9 * 1.3, -1.0, 5.3, m9 * ax9, -1.05, 5.25, 0.34), "#657183",
+        rodFaces(m9 * 1.3, -1.0, 5.3, m9 * ax9, -1.05, 5.25, 0.34), TERRAN_STEEL,
       ), key9(m9 * (1.3 + ARM_L9 / 2), -1.02, 5.28)));
       out.push(...tagKey(spirePillar({
         x: 0, y: 0, h: 1, w: 1, segs: 4, sides: 4, ref: [0, 1, 0], caps: "both", oval: 0.16,
@@ -10984,15 +10984,28 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const out: ShapeFace[] = [];
     // 추진체 — 방패 사이 자리(30·150·270도).
     /* 납작한 접시로(재지적) — 키 큰 돔 대신 살짝 도톰한 원반, 크기도 축소(1.3→1.1). */
+    /* ★ 방패 셋을 잇는 **수평 고리 띠**(요청) — 방패 허리 반지름(2.3)에 도는 관.
+       앞 반(y ≥ 0)은 구 위에, 뒤 반은 구 뒤에 그려 구를 감싼 고리로 읽힌다.
+       추진 반구 셋은 구가 아니라 **이 고리 표면 위**에 앉는다(요청). */
+    const RING_R9 = 2.3;
+    for (const [t0, key9] of [[-0.25, depthNow(0, RING_R9) + 0.6], [0.25, -1]] as [number, number][]) {
+      out.push(...tagKey(paintBase(spirePillar({
+        x: 0, y: 0, h: 1, w: 0.17, tipW: 0.17, segs: 14, sides: 6, caps: "none",
+        ref: [0, 0, 1],
+        path: (t9: number): [number, number, number] => {
+          const a9 = (t0 + t9 * 0.5) * Math.PI * 2;
+          return [Math.sin(a9) * RING_R9, Math.cos(a9) * RING_R9, 6.4];
+        },
+      }), TERRAN_STEEL), key9));
+    }
     for (const ang of [30, 150, 270]) {
       const a2 = (ang * Math.PI) / 180;
-      // 구 0.8배에 맞춰 안으로(3.2 → 2.6) · 돔도 살짝 작게.
-      const px5 = Math.sin(a2) * 2.2;
-      const py5 = Math.cos(a2) * 2.2;
+      const px5 = Math.sin(a2) * RING_R9;
+      const py5 = Math.cos(a2) * RING_R9;
       out.push(...tagKey([
-        ...domeFaces3(px5, py5, 0.85, 0.3, 5.95),
-        topFace(discPath3(px5, py5, 6.23, 0.48), 0.22),
-      ], depthNow(px5, py5)));
+        ...domeFaces3(px5, py5, 0.62, 0.3, 6.5),
+        topFace(discPath3(px5, py5, 6.78, 0.34), 0.22),
+      ], py5 >= -0.01 ? depthNow(px5, py5) + 0.7 : -0.9));
     }
     // 구 몸통 — 한 단 더 축소(3.3 → 2.7, 재지적) + 그늘 초승달 + 하이라이트.
     out.push(...tagKey([
@@ -13504,38 +13517,30 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   /* 마인은 그냥 납작한 삼각형 판(재재재지적) — 뿔도 장식도 없이, 땅에 놓인 삼각 판
      한 장(살짝 두께만). */
   mine: () => {
-    // 옆면 봉합(재지적) — 아랫판·윗판 대응 변을 띠로 이어 두께 옆구리를 채운다.
-    const pts = (z: number): [number, number, number][] =>
-      [[0, 2.6, z], [-2.3, -1.5, z], [2.3, -1.5, z]];
-    const lo = pts(0);
-    // 더 납작하게(요청) — 높이 0.8 → 0.42. 정규화는 균일 배율이라 z만 줄이면 화면에서도
-    // 그만큼 납작해진다(균일 축소와 달리 되돌려지지 않는다).
-    const hi = pts(0.42);
-    // 은색 몸 + 윗판 개인색 동그라미(요청).
-    const faces: ShapeFace[] = [[polyPath3(lo), 1, TERRAN_STEEL] as ShapeFace];
-    for (let i = 0; i < 3; i += 1) {
-      const j = (i + 1) % 3;
-      faces.push([polyPath3([lo[i], lo[j], hi[j], hi[i]]), 1, TERRAN_STEEL] as ShapeFace);
+    /* 스파이더 마인 재작도(사진) — 검붉은 낮은 몸체 위에 **은청색 눈 두 알**이 나란히
+       솟고 그 사이에 붉은 등이 켜진다. 가는 다리 셋(앞 둘·뒤 하나)이 땅을 짚는다.
+       임자색은 몸체 뒤 윗면의 작은 판. */
+    const out: ShapeFace[] = [];
+    const BODY9 = "#3a2a2e";
+    out.push(...tagKey(paintBase(frustumFaces3(0, 0, 3.0, 2.4, 3.4, 2.6, 1.3, 0.9), BODY9),
+      depthNow(0, 0)));
+    for (const m9 of [-1, 1] as const) {
+      out.push(...tagKey(paintBase(domeFaces3(m9 * 0.95, 0.5, 0.95, 0.85, 2.1), "#c8d4e2"),
+        depthNow(m9 * 0.95, 0.5) + 0.5));
     }
-    faces.push([polyPath3(hi), 1, TERRAN_STEEL] as ShapeFace, topFace(polyPath3(hi), 0.18));
-    faces.push(bodyFace(groundEllipse(...project(0, -0.1, 0.44), 0.72, 0.5)));
-    return faces;
+    out.push(...tagKey([
+      [discPath3(0, 0.95, 2.15, 0.3), 1, glowLit("#ff4a4a", "#7a1f1f")] as ShapeFace,
+    ], depthNow(0, 0.95) + 0.8));
+    for (const [ax9, ay9] of [[-2.2, 1.8], [2.2, 1.8], [0, -2.6]] as [number, number][]) {
+      out.push(...tagKey(paintBase(rodFaces(ax9 * 0.45, ay9 * 0.45, 1.0, ax9, ay9, 0.05, 0.14), BODY9),
+        depthNow(ax9, ay9)));
+    }
+    out.push(...tagKey([bodyFace(polyPath3([
+      [-0.9, -0.95, 2.21], [0.9, -0.95, 2.21], [0.9, -0.2, 2.21], [-0.9, -0.2, 2.21],
+    ]))], depthNow(0, -0.5) + 0.6));
+    return out;
   },
-  /* 애드온 연결부(지적: "테란 부속건물 연결부를 1자로하되 본 건물 옆면의 가장 뒷부분에서
-     시작해서 부속건물 옆면의 앞부분으로 쭉 이어지는 구조로. 각 옆면에는 수직임") — 칼라
-     두 개를 낀 넓은 관을 걷고 곧은 막대 하나만 남긴다.
-     왜 막대를 x축에 그냥 눕히면 "각 옆면에 수직"이 되는가: 건물은 전부 45도로 요잉해 서
-     있어(BUILDING_BASE_YAW) 서로 마주 보는 두 옆면 — 본체의 +x 벽과 애드온의 −x 벽 —
-     이 화면에서 비스듬한 채 나란하다. 그 두 벽에 동시에 수직인 방향이 곧 모형의 +x축이라,
-     x축에 눕힌 막대 하나면 조건이 저절로 지켜진다. 다만 통로도 건물과 같은 각으로 구워야
-     하므로 부르는 쪽에서 rotDeg를 건물 요잉으로 준다(옛 0은 이 벽을 비껴 찔렀다).
-     그 +x 방향은 화면에서 오른쪽 아래로 내려가므로, 막대는 본체 옆면이 가장 뒤로 물러난
-     끝(오른 모서리)에서 나와 애드온 옆면의 가장 앞 끝(왼 모서리)으로 들어간다 — 지적한
-     구조 그대로다.
-     길이 13은 요잉·원근·시각 밀림을 다 먹인 뒤에도 16칸 뷰박스를 안 넘는 한계에서 잡았다
-     (넘으면 굽는 판에서 끝이 잘린다). z0을 3으로 띄운 것도 같은 이유로 아래쪽 잘림을
-     피하려는 것뿐이다 — 자리는 그린 잉크의 바닥을 기준으로 다시 앉히므로, 띄운 높이가
-     화면에서 통로를 위로 올리지는 않는다. */
+
   addonlink: () => {
     /* 통로 색과 무늬(요청: "애드온 연결부 테란 기본 은색 적용 및 해저드 데칼 넣기") —
        여태 색을 안 준 맨 상자라 임자 색이 통째로 칠해졌다. 본체와 애드온은 테란 기본색인데
@@ -16747,7 +16752,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     if (facingRatio(0, 1) > 0.06) {
       for (const tx of [-2.6, 2.6]) {
         out.push(...tagKey([
-          [wallDiscPath(tx, 0.42, POD_Z, 0.62, 0.62), 1, "#576272"] as ShapeFace,
+          [wallDiscPath(tx, 0.42, POD_Z, 0.62, 0.62), 1, TERRAN_STEEL_D] as ShapeFace,
           [wallDiscPath(tx, 0.4, POD_Z, 0.4, 0.4), 1, "#2c3138"] as ShapeFace,
         ], depthNow(tx, 0.42) * 1.6 + 2));
       }
@@ -18105,7 +18110,7 @@ const MODEL_NORM: Record<string, number> = {
   larva: 1.350,  // 상자 상한(원한 배수 1.466)
   lurker: 0.592,
   lurkeregg: 0.886,
-  mine: 1.293,  // 상자 상한(원한 배수 1.535)
+  mine: 1.330,  // 재작도(눈·다리) 뒤 재측정(model-norm)
   muta: 0.741,
   mutacocoon: 1.826,  // 상자 상한(원한 배수 1.891)
   observer: 1.938,
@@ -18136,7 +18141,7 @@ const MODEL_NORM: Record<string, number> = {
   tanksiegebody: 0.723,
   ultra: 0.361,
   valk: 1.003,   // 날개 팔 20% 축소 뒤 재측정
-  vessel: 0.944,  // 구 0.8배 더·방패 뭉뚝 뒤 재측정(model-norm)
+  vessel: 0.956,  // 고리 띠 뒤 재측정(model-norm)
   vulture: 0.828,
   wraith: 0.774,
   zealot: 0.799,
