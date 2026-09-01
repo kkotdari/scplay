@@ -4265,9 +4265,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
 
     // ── 몸통 3단 치수 — 앞뒤·옆면의 세로 홈이 이 프로필을 따라 굽는다.
     const ZB0 = 0.6; const ZW0 = 2.0; const ZW1 = 3.8; const ZT = 5.9;
-    const WB = 8.0; const DB = 5.4;      // 바닥
-    const WW = 8.8; const DW = 6.2;      // 허리
-    const WT = 7.6; const DT = 5.0;      // 꼭대기
+    const WB = 7.0; const DB = 5.4;      // 바닥
+    const WW = 7.8; const DW = 6.2;      // 허리
+    const WT = 6.6; const DT = 5.0;      // 꼭대기
     out.push(...tagKey(frustumFaces3(0, 0, WB, DB, WW, DW, ZW0 - ZB0, ZB0), 2));
     out.push(...tagKey(boxFaces3(0, 0, WW, DW, ZW1 - ZW0, ZW0), 2.1));
     out.push(...tagKey(frustumFaces3(0, 0, WW, DW, WT, DT, ZT - ZW1, ZW1), 2.2));
@@ -4368,20 +4368,30 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           [WW / 2 + 1.15, -0.85, 0.05], [WW / 2 + 1.15, 1.25, 0.05],
           [WW / 2 + 1.15, 1.25, 0], [WW / 2 + 1.15, -0.85, 0],
         ]), 1, NEAR_BLACK] as ShapeFace,
+        // 바깥(내려가는 쪽)을 가리키는 노란 삼각 유도선 셋
+        ...([0.3, 0.55, 0.8] as const).map((t9): ShapeFace => {
+          const rx9 = (u9: number): number => sxAt(1.0) - 0.2 + (WW / 2 + 1.35 - sxAt(1.0)) * u9;
+          const rz9 = (u9: number): number => 1.0 + (0.05 - 1.0) * u9 + 0.03;
+          return [polyPath3([
+            [rx9(t9 + 0.1), 0.2, rz9(t9 + 0.1)],
+            [rx9(t9 - 0.07), 0.72, rz9(t9 - 0.07)],
+            [rx9(t9 - 0.07), -0.32, rz9(t9 - 0.07)],
+          ]), 1, "#e8a13a"];
+        }),
       ], 10 + depthNow(WW / 2 + 0.6, 0.2) * 1.6));
     }
 
     // ── 지붕 — 검은 굴뚝 넷(뒤 판) · 흰 성곽 이빨 · 임자색 포탑(뒤 오른쪽).
     for (let c9 = 0; c9 < 4; c9 += 1) {
-      const cx9 = -2.4 + c9 * 0.8;
+      const cx9 = -2.95 + c9 * 0.66;
       out.push(...tagKey([
         ...paintBase(cylinderFaces3(cx9, -1.55, 0.34, 0.5, ZT + 0.06), NEAR_BLACK),
         capFace(discPath3(cx9, -1.55, ZT + 0.62, 0.24), 0.5),
       ], 3.3 + c9 * 0.01));
     }
     for (const [tx9, ty9] of [
-      [-2.9, 1.85], [-1.5, 1.85], [0.1, 1.85], [1.5, 1.85], [2.9, 1.85],
-      [-3.2, 0.2], [3.2, 0.2], [-3.2, -1.4],
+      [-2.5, 1.85], [-1.3, 1.85], [0.1, 1.85], [1.3, 1.85], [2.5, 1.85],
+      [-2.8, 0.2], [2.8, 0.2], [-2.8, -1.4],
     ] as [number, number][]) {
       out.push(...tagKey(paintBase(boxFaces3(tx9, ty9, 0.68, 0.38, 0.4, ZT), TEETH), 3.5));
     }
@@ -4398,9 +4408,32 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       }
     }
 
+    // ── 옥상 가운데 뒤쪽 — 샌드위치꼴 직각삼각 쐐기: 뒷벽은 수직, 빗면이
+    //    앞바닥 모서리에서 뒤 꼭대기로 오른다.
+    {
+      const WX0 = -0.45; const WX1 = 1.35; const YF9 = -0.5; const YR9 = -1.9;
+      const WZ0 = ZT + 0.08; const WZ1 = WZ0 + 1.5;
+      const slope9 = polyPath3([
+        [WX0, YF9, WZ0], [WX1, YF9, WZ0], [WX1, YR9, WZ1], [WX0, YR9, WZ1],
+      ]);
+      out.push(...tagKey([
+        [slope9, 1] as ShapeFace, topFace(slope9, 0.55),
+        ...(facingRatio(0, -1) > 0.06 ? [[polyPath3([
+          [WX0, YR9, WZ0], [WX1, YR9, WZ0], [WX1, YR9, WZ1], [WX0, YR9, WZ1],
+        ]), 1, "#3a4048"] as ShapeFace] : []),
+        ...([-1, 1] as const).flatMap((m9): ShapeFace[] => {
+          const mx9 = m9 > 0 ? WX1 : WX0;
+          if (facingRatio(m9, 0) <= 0.06) return [];
+          return [[polyPath3([
+            [mx9, YF9, WZ0], [mx9, YR9, WZ0], [mx9, YR9, WZ1],
+          ]), 1, "#4a515b"] as ShapeFace];
+        }),
+      ], 3.62));
+    }
+
     // ── 모서리 안테나 둘.
-    out.push(...tagKey(paintBase(hornFaces(-3.3, -1.9, ZT, -3.55, -2.1, 7.6, 0.1), "#5a616b"), 3.8));
-    out.push(...tagKey(paintBase(hornFaces(3.3, 1.7, ZT, 3.55, 1.9, 7.2, 0.09), "#5a616b"), 3.82));
+    out.push(...tagKey(paintBase(hornFaces(-2.9, -1.9, ZT, -3.15, -2.1, 7.6, 0.1), "#5a616b"), 3.8));
+    out.push(...tagKey(paintBase(hornFaces(2.9, 1.7, ZT, 3.15, 1.9, 7.2, 0.09), "#5a616b"), 3.82));
 
     return raceBase(out, "terran", pc);
   },
@@ -20226,7 +20259,7 @@ export const BLD_NORM: Record<string, number> = {
   ebay: 1.443,   // 다리 두 마디 20% 축소 뒤 재측정(잉크 폭이 좁아져 배수는 올라간다)
   evo: 1.540,
   extract: 1.027,  // 가시 밑둥 굵힘 뒤 재측정(bld-norm)
-  factory: 1.397,  // 절두체+허리 재작도 뒤 재측정(bld-norm)
+  factory: 1.485,  // 절두체+허리 재작도 뒤 재측정(bld-norm)
   fleetbeacon: 2.125,
   forge: 1.809,
   gate: 1.774,
