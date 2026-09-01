@@ -19535,6 +19535,8 @@ export const SPRITE_PERF = {
   last: {
     bake: 0, hit: 0, blit: 0, direct: 0, bldBake: 0, bldHit: 0, bldBlit: 0, ms: 0,
     keys: 0, bytes: 0, bldKeys: 0, bldBytes: 0, colors: 0,
+    /** 직전 프레임이 **굽는 데** 쓴 시간 — 재생 틱이 이것으로 '굽는 중'을 안다. */
+    bakeMs: 0,
   },
   /** 이번 판에서 본 임자 색의 가짓수 — 열쇠가 색으로 갈리는 몫을 직접 센다. */
   colorSet: new Set<string>(),
@@ -19609,6 +19611,7 @@ function perfFrame(ms: number): void {
   p.last = {
     bake: p.bake, hit: p.hit, blit: p.blit, direct: p.direct,
     bldBake: p.bldBake, bldHit: p.bldHit, bldBlit: p.bldBlit, ms,
+    bakeMs: p.bakeMs + p.bldBakeMs,
     keys: SPRITE_CACHE.size, bytes: spriteBytes.n,
     bldKeys: BLD_SPRITE_CACHE.size, bldBytes: bldSpriteBytes.n,
     colors: p.colorSet.size,
@@ -29459,6 +29462,12 @@ export default function ReplayMotionPlayer({
   // (걷어냄) sceneReady — 두 뜻을 묶어 두던 이름이다. 이제 쓰는 쪽이 둘을 따로 본다.
   /** 굽는 중인가 — 재생 틱이 이 깃발을 보고 시간을 멈춘다(핀치와 같은 자리). 상태로
    *  보면 프레임마다 시계 effect가 다시 서므로 ref로 든다. */
+  /** 굽는 프레임으로 볼 문턱(ms) · 이어서 멈춰 있을 수 있는 상한(ms) — 위 재생 틱의 ★. */
+  const BAKE_HOLD_MS9 = 10;
+  const BAKE_HOLD_MAX9 = 1500;
+  /** 굽기 멈춤 상태 — ms는 이어 멈춘 길이, win/winDt는 띠를 켜고 끄는 최근 창. */
+  const bakeHoldRef = useRef({ ms: 0, win: 0, winDt: 0, shown: false });
+  const [bakeHold, setBakeHold] = useState(false);
   const warmingRef = useRef(false);
   useEffect(() => {
     if (!entData || !active) return undefined;
@@ -29574,8 +29583,44 @@ export default function ReplayMotionPlayer({
          blur가 안 오는 경우(다른 모니터로 시선만 이동)를 위한 이중 잠금이다. */
       const dt = c ? Math.min((now - c.last) / 1000, 0.5) : 0;
       if (c) lodNoteFrame((now - c.last));
-      // 굽는 동안에도 시간은 안 간다(요청: 다 굽고 끊김없이) — 핀치와 같은 규칙이다.
-      const acc = gestureRef.current || warmingRef.current ? 0 : (c?.acc ?? 0) + dt;
+      /* ★ **굽는 프레임에는 시간을 안 보낸다**(제안: "저사양에서는 굽기 버벅임이 생길
+         수밖에 없잖아, 차라리 로딩중을 띄우는 게 어때") ─────────────────────────────
+         굽기 자체를 0으로 만들 수는 없다. 시간바를 크게 옮기거나 화면을 끌어 새 건물·
+         유닛이 들어오면 그 판들은 그 자리에서 처음 구워야 하고, 저사양일수록 오래 걸린다.
+         그런데 **눈에 버벅임으로 읽히는 것은 굽느라 느린 것이 아니라 그 사이에 시간이
+         그대로 흘러 그림이 껑충 뛰는 것**이다: 200ms짜리 프레임은 재생 시간도 200ms를
+         한 번에 밀어, 유닛이 순간이동한 것처럼 보인다.
+         그래서 진입 프리베이크가 쓰던 규칙(warmingRef: "굽는 동안 시간은 안 간다")을
+         재생 중에도 그대로 쓴다 — 직전 프레임이 굽는 데 10ms 넘게 썼으면 이번 프레임은
+         **굽는 프레임**으로 보고 시간을 안 보낸다. 그림은 계속 그려지므로 화면이 멎는
+         것이 아니라 **잠깐 느려질** 뿐이고, 다 구우면 곧바로 제 속도로 돌아온다.
+         ★ 스스로 풀린다 — 시간이 안 가면 장면이 안 바뀌므로 다음 프레임은 구울 것이
+           없다. 그래서 이 멈춤은 '굽을 것이 남은 동안'만 정확히 지속된다(보통 한두
+           프레임). 그래도 굽기가 끝없이 이어지는 최악의 기기를 위해 **1.5초 상한**을
+           둔다 — 그 뒤로는 시간을 다시 보내, 재생이 영영 안 나가는 일은 없다.
+         ★ 로딩 표시는 **오래 걸릴 때만** 뜬다(아래 250ms) — 한두 프레임짜리 멈춤에
+           띠가 깜빡이면 그것이 더 성가시다. 재생 중에 늘 띄우는 길은 안 쓴다: 그건
+           일을 줄이지 않으면서 정작 보고 있는 장면만 가린다. */
+      const bakeMs9 = SPRITE_PERF.last.bakeMs;
+      const hold9 = bakeHoldRef.current;
+      const holding9 = c !== null && bakeMs9 >= BAKE_HOLD_MS9 && hold9.ms < BAKE_HOLD_MAX9;
+      if (holding9 && c) hold9.ms += now - c.last;
+      else if (bakeMs9 < BAKE_HOLD_MS9) hold9.ms = 0;
+      /* ★ 띠를 켜는 자는 **따로**다 — 위 멈춤은 스스로 한 프레임 만에 풀리므로(시간이
+         안 가면 구울 것이 없다) 그 길이로는 '오래 끈다'를 못 잰다. 대신 **최근 창에서
+         굽기가 차지한 몫**을 본다: 반 초 가운데 40% 넘게 굽고 있으면 사람이 느끼는
+         '지금 버벅인다'가 맞고, 그때만 알린다. 창이 닫힐 때만 상태를 놓으므로(반 초에
+         한 번) 이 표시가 정작 구울 프레임을 먹지 않는다. */
+      hold9.win += bakeMs9;
+      hold9.winDt += c ? now - c.last : 0;
+      if (hold9.winDt >= 500) {
+        const heavy9 = hold9.win > hold9.winDt * 0.4;
+        if (heavy9 !== hold9.shown) { hold9.shown = heavy9; setBakeHold(heavy9); }
+        hold9.win = 0;
+        hold9.winDt = 0;
+      }
+      const acc = gestureRef.current || warmingRef.current || holding9
+        ? 0 : (c?.acc ?? 0) + dt;
       const drawnAt = c?.drawn ?? 0;
       const draw = acc > 0 && now - drawnAt >= drawGapMs();
       clockRef.current = {
@@ -30646,6 +30691,12 @@ export default function ReplayMotionPlayer({
             <span className="scr-motion-simnote scr-motion-warmnote">
               모델 굽는 중… {Math.min(99, Math.round((warmAt.done / warmAt.total) * 100))}%
             </span>
+          )}
+          {/* 재생 중 굽기 몰림 — 시간바를 크게 옮기거나 새 기지를 끌어 들어왔을 때다.
+              진행률이 없다(몇 장이 남았는지는 그릴 때가 되어야 안다) — 대신 '멈춰서
+              굽고 있다'는 사실만 알린다. 한두 프레임짜리 멈춤에는 안 뜬다(250ms). */}
+          {!warmAt && bakeHold && (
+            <span className="scr-motion-simnote scr-motion-warmnote">모델 굽는 중…</span>
           )}
           {/* (걷어냄·요청: "미니맵 연결해주세요는 이제 없애야해") — "미연결 상태에선
              유닛이 벽을 뚫고 다녀요"라는 한 줄이 여기 있었다. 그 말은 지형(벽)을 미니맵
