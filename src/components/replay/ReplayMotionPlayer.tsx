@@ -10971,12 +10971,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       sh9.push(...raceBase([bodyFace(polyPath3(trap9(0.205, 0.74)))], "terran"));
       out.push(...tagKey(sh9, key9(m9 * 3.15, cy9, (cz0 + cz1) / 2)));
     }
-    /* 추진체 **넷**(요청) — 뒷면에 정사각으로 2×2, 넷이 뒷면 높이를 꽉 채우는 크기.
-       뒷면 높이 Z(5.25)~Z(6.4)를 둘로 나눈 반지름(0.43), 가운데 z에서 ±0.43. */
-    const TZ9 = (Z(5.25) + Z(6.4)) / 2;
-    for (const [ex9, ez9] of [[-0.44, TZ9 - 0.43], [0.44, TZ9 - 0.43], [-0.44, TZ9 + 0.43], [0.44, TZ9 + 0.43]] as [number, number][]) {
-      out.push(...tagKey(paintBase(tubeFaces(ex9, -2.05, ex9, -2.8, 0.42, ez9, true), TERRAN_STEEL_D),
-        key9(ex9, -2.45, ez9) + 0.3));
+    /* 추진체 **넷** — 둥근 관이 아니라 **직육면체**(재지적): 단면이 위아래로 긴 직사각,
+       색은 검회색. 뒷면에 2×2로 배치해 뒷면 높이를 꽉 채운다. */
+    const TZ0 = Z(5.25); const TZ1 = Z(6.69);
+    const TH9 = (TZ1 - TZ0) / 2 - 0.04;      // 한 칸 높이
+    for (const [ex9, ez9] of [[-0.42, TZ0 + 0.02], [0.42, TZ0 + 0.02], [-0.42, TZ0 + 0.06 + TH9], [0.42, TZ0 + 0.06 + TH9]] as [number, number][]) {
+      out.push(...tagKey(paintBase(boxFaces3(ex9, -2.45, 0.72, 0.75, TH9, ez9), "#3f444c"),
+        key9(ex9, -2.45, ez9 + TH9 / 2) + 0.3));
     }
     return zsorted(out);
   },
