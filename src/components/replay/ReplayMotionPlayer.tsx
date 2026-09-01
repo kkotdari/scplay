@@ -19367,7 +19367,13 @@ function trimSpriteCache<T extends { cv: HTMLCanvasElement; sh?: ShadowPlate | n
   }
 }
 /** 판에 **구워 두는** 겹침 그림자 — 그리기마다 돌리던 흐림을 굽기 한 번으로 옮긴다. */
-type ShadowPlate = { cv: HTMLCanvasElement; pad: number };
+type ShadowPlate = {
+  cv: HTMLCanvasElement; pad: number;
+  /** 찍을 때의 크기(CSS px) — 판을 낮은 해상도로 구우므로 캔버스 화소 수와 다르다. */
+  w: number; h: number;
+};
+/** 그림자 판을 구울 목표 한 변(기기 px) — 이보다 커지면 그만큼 낮춰 굽는다(아래 ★). */
+const SHADOW_BAKE_SIDE9 = 320;
 /* ★ 흐림은 **판마다 한 번**이면 된다(지시: "1로 가야지 모바일에서도 적용할 수 있잖아")
    ────────────────────────────────────────────────────────────────────────────────
    여태는 그릴 때마다 캔버스 shadowBlur를 돌렸다 — 유닛 하나당 한 번, 프레임마다. 이
@@ -19393,16 +19399,38 @@ function shadowPlate(
   const h9 = host.cv.height + bd * 2;
   if (w9 > SPRITE_SIDE_MAX || h9 > SPRITE_SIDE_MAX) { host.sh = null; return null; }
   const pSh9 = PERF9 ? pNow() : 0;
+  /* ★ 그림자는 **낮은 해상도로 굽는다**(실기 계측: 12배·dpr 3에서 유닛 판 한 장이
+     3.05MB인데 몸은 0.4MB뿐이었다 — 나머지 2.6MB가 이 판이다) ────────────────────
+     흐림 반지름이 그리는 크기에 비례하므로(공중 pxq×0.16), 12배에서 반지름이 110
+     기기픽셀이 된다. 그러면 이 판은 몸 판 사방으로 220px씩 자라 **넓이가 몸의 여섯
+     배**가 된다. 그 탓에 예산 24MB에 판이 여덟 장밖에 안 들어갔고, 뮤탈 여덟 마리가
+     날갯짓으로 자세를 바꿀 때마다 여덟 장이 통째로 갈려 나갔다 — 실기에서 2초에
+     463장을 굽고 483장을 버렸다(굽기 1371ms, 최악 프레임의 91%).
+     그런데 이 판은 **흐린 얼룩**이다. 반지름 110px로 뭉갠 그림에는 화소 눈금이 남아
+     있지 않으므로, 3분의 1로 굽고 세 배로 늘려 찍어도 눈에 드는 차이가 없다(늘리는
+     쪽의 겹선형 보간이 흐림과 같은 일을 한다). 몸 판은 한 톨도 안 건드린다 — 거기는
+     화소 눈금이 곧 그림이다.
+     값: 그림자 판이 9분의 1로 줄어 판 한 장이 3.05MB → 0.7MB가 된다. 같은 예산에
+     여덟 장이 아니라 서른 장 넘게 들어가므로 날갯짓 한 바퀴가 통째로 캐시에 남고,
+     굽기가 멈춘다. 흐림 자체도 넓이·반지름이 함께 줄어 훨씬 싸진다.
+     ★ 흐림이 캔버스 화소로 8보다 얇아지지는 않게 막는다 — 그 아래로 내려가면 늘려
+       찍을 때 얼룩의 테가 계단으로 읽힌다. 작은 판(낮은 배율)은 ds가 1이라 예전 그대로다. */
+  const ds = Math.max(1, Math.min(
+    Math.ceil(Math.max(w9, h9) / SHADOW_BAKE_SIDE9),
+    Math.max(1, Math.floor((blurQ * B) / 8)),
+  ));
+  const cw9 = Math.max(1, Math.ceil(w9 / ds));
+  const ch9 = Math.max(1, Math.ceil(h9 / ds));
   const cv = document.createElement("canvas");
-  cv.width = w9;
-  cv.height = h9;
+  cv.width = cw9;
+  cv.height = ch9;
   const c9 = cv.getContext("2d");
   if (!c9) { host.sh = null; return null; }
   c9.shadowColor = `rgba(0, 0, 0, ${alpha})`;
-  c9.shadowBlur = blurQ * B;
-  c9.shadowOffsetX = w9;
-  c9.drawImage(host.cv, bd - w9, bd);
-  const out = { cv, pad: bd / B };
+  c9.shadowBlur = (blurQ * B) / ds;
+  c9.shadowOffsetX = cw9;
+  c9.drawImage(host.cv, bd / ds - cw9, bd / ds, host.cv.width / ds, host.cv.height / ds);
+  const out = { cv, pad: bd / B, w: (cw9 * ds) / B, h: (ch9 * ds) / B };
   host.sh = out;
   bytes.n += canvasBytes(cv);
   /* 그림자 굽기도 따로 센다 — 이 판이 굽기 봉우리를 얼마나 키웠는지가 곧 이 줄이다. */
@@ -21538,7 +21566,7 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
                   bsh9.cv,
                   bLeft9 + (bspr.ox / B) * k - bsh9.pad * k,
                   bTop9 + (bspr.oy / B) * k - bsh9.pad * k + Math.max(1, sidePx * 0.04),
-                  (bsh9.cv.width / B) * k, (bsh9.cv.height / B) * k,
+                  bsh9.w * k, bsh9.h * k,
                 );
               }
             }
@@ -21939,7 +21967,7 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
                 (-(spr.pad + pxqB / 2) + spr.ox / B - sh9.pad) * k,
                 (-(spr.pad + pxqB / 2) + spr.oy / B - sh9.pad) * k
                   + Math.max(1, px * (op.air ? 0.18 : 0.07)),
-                (sh9.cv.width / B) * k, (sh9.cv.height / B) * k,
+                sh9.w * k, sh9.h * k,
               );
             }
           }

@@ -57,7 +57,11 @@ const KINDS = String(flag("--kinds",
   + "zealot,goon,dtemp,htemp,probe,shuttle,corsair,scout,"
   + "zling,hydra,muta,drone,lurker,ovie,scourge,ultra")).split(",").filter(Boolean);
 /** 8인전에서 화면에 흔한 pxq(모델 상자 한 변의 화면 픽셀) — 줌 단계별. */
-const PXQ = [24, 36, 52, 72, 96].slice(0, Math.max(1, ZOOMS));
+/* --pxq로 직접 줄 수 있다(요청 조사: 12배·dpr 3의 실제 판 크기는 이 표 밖이다 —
+   모델 상자가 230 CSS px면 기기 690px이라, 96까지만 재던 표로는 그 자리를 못 본다). */
+const PXQ = flag("--pxq")
+  ? String(flag("--pxq")).split(",").map(Number).filter((v) => v > 0)
+  : [24, 36, 52, 72, 96].slice(0, Math.max(1, ZOOMS));
 
 const ENTRY = `
 import { SHAPE_BUILDERS, autoTier, cropToInk } from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
