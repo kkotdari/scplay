@@ -18436,8 +18436,6 @@ export const SHAPE_GALLERY: ShapeGalleryItem[] = [
   { kind: "devourer", label: "디바우러", group: "유닛", race: "저그" },
   // ── 건물 · 테란 ──
   { kind: "tomb", label: "커맨드", group: "건물", race: "테란" },
-  { kind: "comsat", label: "컴샛", group: "건물", race: "테란" },
-  { kind: "nsilo", label: "핵 사일로", group: "건물", race: "테란" },
   { kind: "trapezoid", label: "서플라이", group: "건물", race: "테란" },
   { kind: "refinery", label: "리파이너리", group: "건물", race: "테란" },
   { kind: "cube", label: "배럭", group: "건물", race: "테란" },
@@ -18446,14 +18444,22 @@ export const SHAPE_GALLERY: ShapeGalleryItem[] = [
   { kind: "academy", label: "아카데미", group: "건물", race: "테란" },
   { kind: "turret", label: "터렛", group: "건물", race: "테란" },
   { kind: "factory", label: "팩토리", group: "건물", race: "테란" },
-  { kind: "mshop", label: "머신샵", group: "건물", race: "테란" },
   { kind: "plane", label: "스타포트", group: "건물", race: "테란" },
-  { kind: "ctower", label: "컨트롤 타워", group: "건물", race: "테란" },
   { kind: "armory", label: "아머리", group: "건물", race: "테란" },
   { kind: "scifac", label: "사이언스 퍼실리티", group: "건물", race: "테란" },
+  { kind: "scaffold", label: "공사장(테란)", group: "건물", race: "테란" },
+  /* ★ 애드온은 **뒤로 미룬다**(지시) — 여태 컴샛·핵 사일로가 커맨드 바로 뒤에, 머신샵이
+     팩토리 뒤에, 컨트롤 타워가 스타포트 뒤에 끼어 본 건물 사이사이를 끊고 있었다.
+     붙는 자리로는 그 차례가 맞지만, 도록은 '무엇이 있나'를 훑는 자리다 — 혼자 서지
+     못하는 여섯이 본 건물 열 몇을 세 토막으로 가르면 목록이 안 읽힌다.
+     한 덩이로 묶어 끝에 둔다. 그러면 앞은 본 건물만 죽 이어지고, 애드온은 제 무리로
+     한눈에 든다. 차례만 바뀔 뿐 무엇 하나 빠지지 않는다. */
+  { kind: "comsat", label: "컴샛", group: "건물", race: "테란" },
+  { kind: "nsilo", label: "핵 사일로", group: "건물", race: "테란" },
+  { kind: "mshop", label: "머신샵", group: "건물", race: "테란" },
+  { kind: "ctower", label: "컨트롤 타워", group: "건물", race: "테란" },
   { kind: "covert", label: "코버트 옵스", group: "건물", race: "테란" },
   { kind: "physlab", label: "피직스 랩", group: "건물", race: "테란" },
-  { kind: "scaffold", label: "공사장(테란)", group: "건물", race: "테란" },
   // ── 건물 · 프로토스 ──
   { kind: "pyramidWide", label: "넥서스", group: "건물", race: "프로토스" },
   { kind: "diamond", label: "파일런", group: "건물", race: "프로토스" },

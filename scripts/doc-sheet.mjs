@@ -31,13 +31,22 @@ const WIDTH = Number(flag("--width", 1280));            // 페이지 폭(칸 크
 const DPR = Number(flag("--dpr", 2));
 const APP_CSS = String(flag("--css", join(ROOT, "..", "scplayer", "src", "styles", "global.css")));
 const OUT = String(flag("--out", join(tmpdir(), "doc-sheet.png")));
+/* --narrow — 도록 화면이 **폰에서 쓰는 그 배치**(GalleryScreen의 `is-narrow`)로 뽑는다.
+   그 클래스가 붙으면 앱 CSS가 격자를 8열 → 4열로, 560px 아래에서는 다시 2열로 눕히고
+   모델 칸의 높이도 104 → 132px로 키운다. 폭만 좁히고 이 클래스를 안 붙이면 8열 격자가
+   그대로 남아 방위 넷을 넣어도 절반이 빈 채 칸만 홀쭉해진다(첫 판이 그랬다). */
+const NARROW = argv.includes("--narrow");
+/* --own — 임자색(칠 안 한 면이 먹는 currentColor). 도록 화면은 `--scr-doc-own`으로
+   고정 연두를 주는데, 종이로 뽑을 때는 다른 색이 필요할 때가 있다(요청: 빨강).
+   변수만 덮어쓰면 되는 자리라 앱 CSS를 안 건드린다. */
+const OWN = String(flag("--own", ""));
 
 /* ── 브라우저에 넣을 번들 ─────────────────────────────────────────────────────── */
 const ENTRY = `
 import { createElement as h } from "react";
 import { createRoot } from "react-dom/client";
 import { SHAPE_GALLERY, ShapeIcon } from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
-window.__docSheet = (group, race, rots) => {
+window.__docSheet = (group, race, rots, narrow) => {
   const rows = SHAPE_GALLERY.filter((g) => g.group === group && (race === "전체" || g.race === race));
   const host = document.getElementById("host");
   /* 도록 화면(GalleryScreen)의 마크업 그대로다 — 고르기 줄과 돌아가기 버튼만 뺀다
@@ -53,7 +62,10 @@ window.__docSheet = (group, race, rots) => {
       it.race ? h("span", { key: "r", className: "scr-doc-race" }, it.race) : null,
       h("span", { key: "k", className: "scr-doc-kind" }, it.kind),
     ]),
-    h("div", { key: "a", className: "scr-doc-angles" }, rots.map((d) => angleCell(it.kind, d))),
+    h("div", {
+      key: "a",
+      className: "scr-doc-angles" + (narrow ? " is-narrow" : ""),
+    }, rots.map((d) => angleCell(it.kind, d))),
   ]);
   const list = h("div", { className: "scr-doc-list" }, rows.map(itemRow));
   createRoot(host).render(h("div", { className: "scr-doc" }, list));
@@ -110,6 +122,7 @@ const sheetCss = `
   html, body { background: var(--void, #0d1014); }
   #host { padding: 20px 22px 26px; }
   .scr-doc-kind { margin-left: 8px; font-size: 11px; color: var(--text-dim); font-family: ui-monospace, monospace; }
+  ${OWN ? `.scr-doc { --scr-doc-own: ${OWN}; }` : ""}
 `;
 await page.evaluate(([a, b, c]) => {
   for (const css of [a, b, c]) {
@@ -125,7 +138,8 @@ await page.evaluate((code) => {
   document.head.appendChild(sc);
 }, js);
 await page.waitForFunction(() => typeof window.__docSheet === "function", null, { timeout: 60000 });
-const n = await page.evaluate(([g, r, rots]) => window.__docSheet(g, r, rots), [GROUP, RACE, ROTS]);
+const n = await page.evaluate(([g, r, rots, nw]) => window.__docSheet(g, r, rots, nw),
+  [GROUP, RACE, ROTS, NARROW]);
 await page.waitForFunction(() => document.querySelectorAll(".scr-doc-angle svg").length > 0, null, { timeout: 120000 });
 await page.waitForTimeout(400);
 await page.locator("#host").screenshot({ path: OUT });
