@@ -10889,7 +10889,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       out.push(...tagKey(raceBase(spirePillar({
         /* 세로로 **통통하게**(지적: "몸은 통통함 세로로") — oval이 곧 '높이 ÷ 폭'이라
            낮게 두면 접시가 되고 키우면 부피가 선다. */
-        x: 0, y: 0, h: 1, w: 1, segs: 4, sides: 8, ref: [1, 0, 0], caps: cap9, oval: 0.8,
+        /* 둥근 느낌을 걷는다(요청) — 팔각 → **육각** 단면. ref가 x라 꼭짓점이 좌우에
+           서고 윗면·밑면은 평평한 직선면, 옆은 빗면 둘이다. 조종부 돔만 둥글게 남긴다. */
+        x: 0, y: 0, h: 1, w: 1, segs: 4, sides: 6, ref: [1, 0, 0], caps: cap9, oval: 0.8,
         path: (t9: number): [number, number, number] => hullPath9(t0 + (t1 - t0) * t9),
         widthOf: (t9: number): number => hullW9(t0 + (t1 - t0) * t9),
       }), "terran"), key9(mid9[0], mid9[1], mid9[2])));
@@ -11007,8 +11009,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const px5 = Math.sin(a2) * (RING_R9 + 0.3);
       const py5 = Math.cos(a2) * (RING_R9 + 0.3);
       out.push(...tagKey([
-        ...domeFaces3(px5, py5, 0.55, 0.4, 5.5),   // 더 아래로(재요청) 5.82 → 5.5
-        topFace(discPath3(px5, py5, 5.88, 0.3), 0.18),
+        ...domeFaces3(px5, py5, 0.83, 0.6, 5.5),   // 1.5배(재요청)
+        topFace(discPath3(px5, py5, 6.08, 0.45), 0.18),
       ], py5 >= -0.01 ? depthNow(px5, py5) + 0.7 : -0.9));
     }
     // 구 몸통 — 한 단 더 축소(3.3 → 2.7, 재지적) + 그늘 초승달 + 하이라이트.
@@ -11042,13 +11044,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           // 방패 10% 확대(요청): 반길이 2.1 → 2.31, 반폭 0.78 → 0.86. 구가 작아진
           // 만큼 안으로 당겨 구를 감싼다(3.35 → 2.75).
           // 길이 10% 축소(재요청): 반길이 2.77 → 2.49.
-          const v9 = -2.49 + 4.98 * t;
-          // 방패는 고리 **바깥쪽**에 붙는다(정정) — 허리가 고리 바깥면(2.0+0.2)에 닿고
-          // 끝은 살짝만 안으로 든다.
-          const rad = 2.22 - 0.6 * (v9 / 2.49) ** 2;
-          return [dxs * rad, dys * rad, 6.4 + v9];
+          // 1.5배(재요청): 반길이 2.49 → 3.74, 반폭 0.86 → 1.29. 자리는 조금 위로(6.4 → 6.9).
+          const v9 = -3.74 + 7.48 * t;
+          // 방패는 고리 **바깥쪽**에 붙는다 — 허리가 고리 바깥면(2.0+0.2)에 닿고 끝은
+          // 살짝만 안으로 든다.
+          const rad = 2.22 - 0.6 * (v9 / 3.74) ** 2;
+          return [dxs * rad, dys * rad, 6.9 + v9];
         },
-        waist: 0.5, thick: 0.1, spread: 0.86 / 0.1,   // 두께 0.16 → 0.1(재요청)
+        waist: 0.5, thick: 0.15, spread: 1.29 / 0.15,
         /* 끝은 뾰족하지 않고 **직선으로 뭉뚝하게** 깎는다(재지적) — 뿌리·끝 굵기 비를
            0에서 0.55로 두면 끝 단면이 평평한 절단면이 된다. */
         rootW: 0.55, tipW: 0.55,
@@ -18174,7 +18177,7 @@ const MODEL_NORM: Record<string, number> = {
   tanksiegebody: 0.723,
   ultra: 0.361,
   valk: 1.015,   // 동체 축소 뒤 재측정(model-norm)
-  vessel: 1.014,  // 고리 축소·바깥 방패 뒤 재측정(model-norm)
+  vessel: 0.839,  // 방패·반구 1.5배 뒤 재측정(model-norm)
   vulture: 0.828,
   wraith: 0.774,
   zealot: 0.799,
