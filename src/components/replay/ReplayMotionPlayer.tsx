@@ -5432,10 +5432,22 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          가로 팔(u ±2.3, 반높이 0.75)의 끝은 일자 사각. */
       const AW = 0.68; const AL = vert9 ? 1.75 : 1.6; const AH = 0.6;
       const CV = 1.45; const CT = 1.95;
-      const OUTLINE: [number, number][] = [
+      const RAW9: [number, number][] = [
         [-AW, CV], [0, CT], [AW, CV], [AW, AH], [AL, AH], [AL, -AH], [AW, -AH],
         [AW, -CV], [0, -CT], [-AW, -CV], [-AW, -AH], [-AL, -AH], [-AL, AH], [-AW, AH],
       ];
+      // 모서리를 곡선으로(지적: "각지면 안되고 부드럽게") — 차이킨 잘라내기 두 번.
+      const smooth9 = (pts: [number, number][]): [number, number][] => {
+        const o9: [number, number][] = [];
+        for (let e9 = 0; e9 < pts.length; e9 += 1) {
+          const [u0, v0] = pts[e9];
+          const [u1, v1] = pts[(e9 + 1) % pts.length];
+          o9.push([u0 * 0.75 + u1 * 0.25, v0 * 0.75 + v1 * 0.25]);
+          o9.push([u0 * 0.25 + u1 * 0.75, v0 * 0.25 + v1 * 0.75]);
+        }
+        return o9;
+      };
+      const OUTLINE = smooth9(smooth9(RAW9));
       const fSide = facingRatio(rx, 0);
       const bellyOn = rz > 0.5 ? false : rz < -0.5 ? true : fSide < -0.1;
       const plate: ShapeFace[] = [];
@@ -5460,13 +5472,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         if (vert9) {
           // 일자 막대 — 바깥 면을 가로지르는 곧은 띠.
           const bar9 = polyPath3([
-            P9(-1.95, -0.24, Ro + 0.12), P9(1.95, -0.24, Ro + 0.12),
-            P9(1.95, 0.24, Ro + 0.12), P9(-1.95, 0.24, Ro + 0.12),
+            P9(-0.24, -1.85, Ro + 0.12), P9(0.24, -1.85, Ro + 0.12),
+            P9(0.24, 1.85, Ro + 0.12), P9(-0.24, 1.85, Ro + 0.12),
           ]);
           out.push(...tagKey([
             [bar9, 1, "#b8921f"] as ShapeFace, topFace(bar9, 0.25),
-            [polyPath3([P9(-1.95, 0.24, Ro), P9(1.95, 0.24, Ro),
-              P9(1.95, 0.24, Ro + 0.12), P9(-1.95, 0.24, Ro + 0.12)]), 1, "#8a6f1d"] as ShapeFace,
+            [polyPath3([P9(0.24, -1.85, Ro), P9(0.24, 1.85, Ro),
+              P9(0.24, 1.85, Ro + 0.12), P9(0.24, -1.85, Ro + 0.12)]), 1, "#8a6f1d"] as ShapeFace,
           ], key9 + 0.5));
         } else {
           // 기타 몸통꼴 곡선 두 줄 — 끝이 넓고 허리가 잘록한 S 물결(임자색).
@@ -5475,7 +5487,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
               x: 0, y: 0, h: 1, w: 0.17, tipW: 0.17, segs: 5, sides: 3,
               trueNormal: true, ref: [rx, 0, rz],
               path: (t9: number): [number, number, number] =>
-                P9(-1.7 + 3.4 * t9, m9 * (0.88 - 0.42 * Math.sin(Math.PI * t9)), Ro + 0.15),
+                P9(m9 * (0.88 - 0.42 * Math.sin(Math.PI * t9)), -1.7 + 3.4 * t9, Ro + 0.15),
             }).map((f9) => { f9[3] = key9 + 0.5; return f9; }));
           }
         }
@@ -5485,15 +5497,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            팔 띠(v ±0.6) 안에서 접선을 따라 줄짓는다. */
         const win: ShapeFace[] = [];
         for (let k9 = 0; k9 < 4; k9 += 1) {
-          const u9 = -1.14 + k9 * 0.76;
-          const d9 = polyPath3(([[-0.32, 0], [0, 0.22], [0.32, 0], [0, -0.22]] as [number, number][])
-            .map(([a9, b9]) => P9(u9 + a9, b9, Ri - 0.03)));
+          const v9 = -1.14 + k9 * 0.76;
+          const d9 = polyPath3(([[0, -0.32], [0.22, 0], [0, 0.32], [-0.22, 0]] as [number, number][])
+            .map(([a9, b9]) => P9(a9, v9 + b9, Ri - 0.03)));
           win.push([d9, 1, glowLit("#60f2df", "#22776b")] as ShapeFace, topFace(d9, 0.35));
         }
         for (let k9 = 0; k9 < 3; k9 += 1) {
-          const u9 = -0.76 + k9 * 0.76;
-          const d9 = polyPath3(([[-0.06, -0.5], [0.06, -0.5], [0.14, 0.5], [0.02, 0.5]] as [number, number][])
-            .map(([a9, b9]) => P9(u9 + a9, b9, Ri - 0.03)));
+          const v9 = -0.76 + k9 * 0.76;
+          const d9 = polyPath3(([[-0.5, -0.06], [-0.5, 0.06], [0.5, 0.14], [0.5, 0.02]] as [number, number][])
+            .map(([a9, b9]) => P9(a9, v9 + b9, Ri - 0.03)));
           win.push([d9, 1, "#7a5f15"] as ShapeFace);
         }
         out.push(...tagKey(win, key9 + 0.6));
@@ -20247,7 +20259,7 @@ export const BLD_FILL_TARGET: Record<string, number> = {
  *  표에 없는 종류는 1(모델 그대로)이다. */
 export const BLD_NORM: Record<string, number> = {
   academy: 1.470,  // 치마형 받침으로 바꾼 뒤 bld-norm 재측정
-  arch: 2.576,  // 십자 방패판 재작도 뒤 재측정(bld-norm)
+  arch: 2.572,  // 십자 방패판 재작도 뒤 재측정(bld-norm)
   archives: 2.489,  // 상자 상한에 걸림
   armory: 1.223,
   assim: 1.655,
