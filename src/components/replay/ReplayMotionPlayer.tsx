@@ -5428,12 +5428,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /** 판 좌표 → 세계 좌표: u 접선, v 앞뒤(y), r 반지름 — 평면이 아니라
        *  **원통으로 감는다**(지적: "정면에서 봤을 때 원의 호로 보이게"): 접선
        *  오프셋을 각도로 바꿔 판 전체가 축 둘레 원호를 따라 안쪽으로 휜다. */
-      /* 세로 1.22배(지적: "세로가 너무 눌린 것 같은데") — 모델의 고리는 정원인데
-         투영이 z를 눌러 화면에서 높이가 폭의 8할쯤으로 찍힌다. 고리의 세로축만
-         미리 늘려 화면에서 폭=높이의 원으로 보이게 한다. */
+      // 세로 1.22배 보정은 걷었다(요청: "강제로 높이 높인 거 취소") — 고리는 모델
+      // 좌표의 정원 그대로 두고, 투영의 눌림도 다른 모델들과 같은 규칙으로 받는다.
       const P9 = (u9: number, v9: number, r9: number): [number, number, number] => {
         const th9 = phi + u9 / R;
-        return [Math.sin(th9) * r9, v9, C + Math.cos(th9) * r9 * 1.22];
+        return [Math.sin(th9) * r9, v9, C + Math.cos(th9) * r9];
       };
       /* 십자 방패 윤곽 — 세로 기둥(반폭 0.85, v ±1.85)의 끝은 삼각(v ±2.4),
          가로 팔(u ±2.3, 반높이 0.75)의 끝은 일자 사각. */
@@ -20322,7 +20321,7 @@ export const BLD_FILL_TARGET: Record<string, number> = {
  *  표에 없는 종류는 1(모델 그대로)이다. */
 export const BLD_NORM: Record<string, number> = {
   academy: 1.470,  // 치마형 받침으로 바꾼 뒤 bld-norm 재측정
-  arch: 2.576,  // 십자 방패판 재작도 뒤 재측정(bld-norm)
+  arch: 2.584,  // 십자 방패판 재작도 뒤 재측정(bld-norm)
   archives: 2.489,  // 상자 상한에 걸림
   armory: 1.223,
   assim: 1.655,
