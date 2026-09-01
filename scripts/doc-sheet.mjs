@@ -40,6 +40,11 @@ const NARROW = argv.includes("--narrow");
    고정 연두를 주는데, 종이로 뽑을 때는 다른 색이 필요할 때가 있다(요청: 빨강).
    변수만 덮어쓰면 되는 자리라 앱 CSS를 안 건드린다. */
 const OWN = String(flag("--own", ""));
+/* --bg — 종이 배경으로 뽑는다(요청: "흰색 배경으로"). 값은 바탕색(기본 #fff).
+   어두운 테마 변수 위에 얹는 오버라이드라, 글자·테두리도 함께 잉크색으로 뒤집는다. */
+const bgRaw9 = flag("--bg", "#fff");
+const BG = argv.includes("--bg")
+  ? (typeof bgRaw9 === "string" && !bgRaw9.startsWith("-") ? bgRaw9 : "#fff") : "";
 
 /* ── 브라우저에 넣을 번들 ─────────────────────────────────────────────────────── */
 const ENTRY = `
@@ -123,6 +128,15 @@ const sheetCss = `
   #host { padding: 20px 22px 26px; }
   .scr-doc-kind { margin-left: 8px; font-size: 11px; color: var(--text-dim); font-family: ui-monospace, monospace; }
   ${OWN ? `.scr-doc { --scr-doc-own: ${OWN}; }` : ""}
+  ${BG ? `
+  html, body { background: ${BG}; }
+  .scr-doc-angle { background: ${BG}; border-color: #d8dbe0; }
+  .scr-doc-angle > span { color: #5a6472; }
+  .scr-doc-itemhead h3 { color: #14181f; }
+  .scr-doc-race { color: #5a6472; border-color: #c9cdd4; }
+  .scr-doc-kind { color: #7a828e; }
+  .scr-doc-item { border-top-color: #d8dbe0; }
+  ` : ""}
 `;
 await page.evaluate(([a, b, c]) => {
   for (const css of [a, b, c]) {

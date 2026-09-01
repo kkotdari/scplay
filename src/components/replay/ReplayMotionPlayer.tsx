@@ -18335,11 +18335,8 @@ const UNIT_SIZE_TUNE: Partial<Record<keyof typeof UNIT_BW_RAW, number>> = {
      같은 몫(0.85)으로 함께 내리고, 두 번 지적된 옵저버는 한 단 더(0.8 → 0.68), 울트라는
      한 단 더 올린다(1.2 → 1.35). 무리를 같은 값으로 움직이는 것이 핵심이다 — 낱개로
      흩으면 원작이 정해 준 그들 사이의 비율이 깨진다. */
-  /* 배틀크루저를 한 뼘 키운다(요청: "정상화한 뒤에는 배클의 인게임 크기를 좀 키워도
-     좋다") — 원작 상자(75×59)가 이미 가장 크지만, 화면에서 함선의 무게가 덜 실렸다.
-     이 값이 곧 도록의 '지도상 크기' 기준(MAP_REF_TILES)이기도 해서, 올리면 나머지가
-     그만큼 상대적으로 작아진다 — 그것이 곧 "배클이 커진다"는 뜻이다. */
-  bc: 1.2,
+  /* (되돌림) 배틀크루저 1.2배 보정 — "크기가 너무 크게 그려짐" 재지적으로 걷었다.
+     원작 상자(75×59)가 이미 가장 커서 보정 없이도 무게가 실린다. */
   /* ★ 일꾼 셋을 **테란 보병과 같은 무리로** 되돌린다(요청: "전에 일꾼들 크기 확대한 거
      다시 정상화") ─────────────────────────────────────────────────────────────────────
      한때 일꾼·테란 보병·프로토스 인간형이 한 무리로 같은 0.85였다. 그 뒤 보병 넷만
@@ -18478,16 +18475,12 @@ export type ShapeGalleryItem = {
 export const SHAPE_GALLERY: ShapeGalleryItem[] = [
   // ── 유닛 · 테란 ──
   { kind: "scv", label: "SCV", group: "유닛", race: "테란" },
-  { kind: "scvMin", label: "SCV(미네랄)", group: "유닛", race: "테란" },
-  { kind: "scvGas", label: "SCV(가스)", group: "유닛", race: "테란" },
   { kind: "gunner", label: "마린", group: "유닛", race: "테란" },
   { kind: "ghost", label: "고스트", group: "유닛", race: "테란" },
   { kind: "fbat", label: "파이어뱃", group: "유닛", race: "테란" },
   { kind: "inf", label: "메딕", group: "유닛", race: "테란" },
   { kind: "vulture", label: "벌처", group: "유닛", race: "테란" },
-  { kind: "mine", label: "스파이더 마인", group: "유닛", race: "테란" },
   { kind: "tank", label: "시즈 탱크", group: "유닛", race: "테란" },
-  { kind: "tanksiege", label: "시즈 탱크(시즈)", group: "유닛", race: "테란" },
   { kind: "goliath", label: "골리앗", group: "유닛", race: "테란" },
   { kind: "wraith", label: "레이스", group: "유닛", race: "테란" },
   { kind: "dship", label: "드랍십", group: "유닛", race: "테란" },
@@ -18495,9 +18488,11 @@ export const SHAPE_GALLERY: ShapeGalleryItem[] = [
   { kind: "valk", label: "발키리", group: "유닛", race: "테란" },
   { kind: "bc", label: "배틀크루저", group: "유닛", race: "테란" },
   // ── 유닛 · 프로토스 ──
+  { kind: "scvMin", label: "SCV(미네랄)", group: "유닛", race: "테란" },
+  { kind: "scvGas", label: "SCV(가스)", group: "유닛", race: "테란" },
+  { kind: "tanksiege", label: "시즈 탱크(시즈)", group: "유닛", race: "테란" },
+  { kind: "mine", label: "스파이더 마인", group: "유닛", race: "테란" },
   { kind: "probe", label: "프로브", group: "유닛", race: "프로토스" },
-  { kind: "probeMin", label: "프로브(미네랄)", group: "유닛", race: "프로토스" },
-  { kind: "probeGas", label: "프로브(가스)", group: "유닛", race: "프로토스" },
   { kind: "zealot", label: "질럿", group: "유닛", race: "프로토스" },
   { kind: "goon", label: "드라군", group: "유닛", race: "프로토스" },
   { kind: "htemp", label: "하이 템플러", group: "유닛", race: "프로토스" },
@@ -18523,9 +18518,9 @@ export const SHAPE_GALLERY: ShapeGalleryItem[] = [
      드론 41로 갈아입는다. 그래서 해처리 장식이 아니라 다른 유닛과 같은 길로 그려진다. */
   { kind: "larva", label: "라바", group: "유닛", race: "저그" },
   { kind: "egg", label: "변태알", group: "유닛", race: "저그" },
+  { kind: "probeMin", label: "프로브(미네랄)", group: "유닛", race: "프로토스" },
+  { kind: "probeGas", label: "프로브(가스)", group: "유닛", race: "프로토스" },
   { kind: "drone", label: "드론", group: "유닛", race: "저그" },
-  { kind: "droneMin", label: "드론(미네랄)", group: "유닛", race: "저그" },
-  { kind: "droneGas", label: "드론(가스)", group: "유닛", race: "저그" },
   { kind: "ovie", label: "오버로드", group: "유닛", race: "저그" },
   { kind: "zling", label: "저글링", group: "유닛", race: "저그" },
   { kind: "hydra", label: "히드라", group: "유닛", race: "저그" },
@@ -18587,7 +18582,6 @@ export const SHAPE_GALLERY: ShapeGalleryItem[] = [
   { kind: "hive", label: "하이브", group: "건물", race: "저그" },
   { kind: "creep", label: "크립 콜로니", group: "건물", race: "저그" },
   { kind: "sunken", label: "성큰", group: "건물", race: "저그" },
-  { kind: "sunkenfire", label: "성큰(발사)", group: "건물", race: "저그" },
   { kind: "spore", label: "스포어", group: "건물", race: "저그" },
   { kind: "extract", label: "익스트랙터", group: "건물", race: "저그" },
   { kind: "pool", label: "스포닝풀", group: "건물", race: "저그" },
@@ -18600,8 +18594,11 @@ export const SHAPE_GALLERY: ShapeGalleryItem[] = [
   { kind: "cavern", label: "울트라 동굴", group: "건물", race: "저그" },
   { kind: "dmound", label: "디파일러 마운드", group: "건물", race: "저그" },
   { kind: "cocoon", label: "공사 고치(저그)", group: "건물", race: "저그" },
+  { kind: "sunkenfire", label: "성큰(발사)", group: "건물", race: "저그" },
   { kind: "lurkeregg", label: "럴커 알", group: "유닛", race: "저그" },
   { kind: "mutacocoon", label: "변태 고치", group: "유닛", race: "저그" },
+  { kind: "droneMin", label: "드론(미네랄)", group: "유닛", race: "저그" },
+  { kind: "droneGas", label: "드론(가스)", group: "유닛", race: "저그" },
   // ── 자원 ──
   /* 미네랄 셋(요청: 3종) — 도록에서 나란히 견줘야 성격이 갈렸는지 보인다. */
   { kind: "mineral", label: "미네랄 ①기둥", group: "부가", race: "" },
