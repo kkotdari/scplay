@@ -19954,6 +19954,20 @@ const INK_W_RATIO9 = new Map<string, { pose: number; r: number }>();
  *  이웃이 검은 테를 끌어들이지 않고, 알파도 함께 갈아 경계 자체가 딱딱해진다.
  *  B가 1 이하일 때만 단다 — dpr 2+는 픽셀이 촘촘해 굳힐 것이 없고 판도 네 배라
  *  삯만 든다. 판 굽기마다 한 번이라(블릿마다가 아니다) 값은 캐시가 문다. */
+/** dpr1 또렷하게 — 시험 스위치: "unsharp"(언샤프 마스크) | "ssaa"(2배 굽고 nearest 반내림). */
+const SHARP_MODE9: "unsharp" | "ssaa" = "unsharp";
+/** 2배로 구운 판을 nearest로 반 내려찍는다(1안) — 점표본이라 회색 계단이 사라진
+ *  하드 엣지가 나온다(사실상 AA 없는 래스터). */
+function halveNearest9(cv: HTMLCanvasElement): HTMLCanvasElement {
+  const dn9 = document.createElement("canvas");
+  dn9.width = Math.max(1, Math.round(cv.width / 2));
+  dn9.height = Math.max(1, Math.round(cv.height / 2));
+  const dc9 = dn9.getContext("2d");
+  if (!dc9) return cv;
+  dc9.imageSmoothingEnabled = false;
+  dc9.drawImage(cv, 0, 0, dn9.width, dn9.height);
+  return dn9;
+}
 const SHARP1X_A9 = 0.4;
 function sharpenPlate9(cv: HTMLCanvasElement): void {
   const w9 = cv.width; const h9 = cv.height;
@@ -20060,7 +20074,9 @@ function unitSprite(
      pad는 안티에일리어싱 여유만. */
   const pad = 2;
   const l = pxq + pad * 2;
-  const side9 = Math.max(1, Math.ceil(l * B));
+  // ssaa 시험(dpr1) — 2배로 굽고 마지막에 nearest로 반 내려찍는다.
+  const Bk9 = SHARP_MODE9 === "ssaa" && B <= 1 ? B * 2 : B;
+  const side9 = Math.max(1, Math.ceil(l * Bk9));
   // 너무 큰 판은 굽지 않는다(위 SPRITE_SIDE_MAX) — 직접 그리기로 떨어진다.
   if (side9 > SPRITE_SIDE_MAX) return null;
   /* ★ 굽는 판을 **빌려 쓴다**(계측: 최악 판 lurker 79ms · muta 47ms · zealot 72ms) ────
@@ -20076,7 +20092,7 @@ function unitSprite(
   if (!cv) return null;
   const c2 = cv.getContext("2d");
   if (!c2) return null;
-  c2.setTransform(B, 0, 0, B, 0, 0);
+  c2.setTransform(Bk9, 0, 0, Bk9, 0, 0);
   c2.translate(pad, pad);
   c2.scale(pxq / 16, pxq / 16);
   /* 모델 공간 정규화(요청: "모델 좌표를 키우는 쪽이 낫겠다") — 면을 채우기 **전에**,
@@ -20099,13 +20115,16 @@ function unitSprite(
      화소 = B·pad + (B·pxq/16)·모형좌표 이므로 원점과 배수가 이 둘이다. */
   const box = inkBoxOf(cv,
     `u|${op.kind}|${rotB}|${op.flat ? 1 : 0}|${vq}|${pitchTag(op.pitch)}|${lod}|${poseTag(op.kind)}`,
-    B * pad, B * pad, (B * pxq) / 16);
+    Bk9 * pad, Bk9 * pad, (Bk9 * pxq) / 16);
   const cr = cropToInk(cv, box, true);
-  if (B <= 1) sharpenPlate9(cr.cv);   // dpr 1 — 경계 굳히기(위 sharpenPlate9)
+  if (SHARP_MODE9 === "unsharp" && B <= 1) sharpenPlate9(cr.cv);   // dpr 1 — 경계 굳히기
   /* 자르고 난 **원판**은 빌림터로 돌려준다(위 ★) — 다음 굽기가 같은 한 변이면 그대로
      되쓰고, 아니면 빌림터가 알아서 놓는다. 여기서 통째로 버리던 것이 봉우리의 몫이었다. */
   freeBakeCanvas(cv);
-  const entry = { cv: cr.cv, ox: cr.ox, oy: cr.oy, pad, l, ...box };
+  const entry = Bk9 !== B
+    ? { cv: halveNearest9(cr.cv), ox: Math.round(cr.ox / 2), oy: Math.round(cr.oy / 2),
+      pad, l, bot: box.bot / 2, top: box.top / 2, cx: box.cx / 2, w: box.w / 2 }
+    : { cv: cr.cv, ox: cr.ox, oy: cr.oy, pad, l, ...box };
   SPRITE_CACHE.set(key, entry);
   /* ★ 색인에 적는다 — **이 줄이 여태 없었다.** 그래서 유닛 쪽 대타 경로는 한 번도 선
      적이 없고(색인이 늘 비어 있으니 찾을 것이 없다), '굽기를 프레임에 나눠 문다'가
@@ -20875,7 +20894,9 @@ function buildingSpriteBake(
   const padK = DECAL_KINDS.has(op.kind) ? 0.40 : 0.78;
   const pad = Math.ceil(sideQ * padK) + 2;
   const l = sideQ + pad * 2;
-  const side9 = Math.max(1, Math.ceil(l * B));
+  const soft9 = DECAL_KINDS.has(op.kind) || !!op.clipWalk || !!op.inkCenter;
+  const Bk9 = SHARP_MODE9 === "ssaa" && B <= 1 && !soft9 ? B * 2 : B;
+  const side9 = Math.max(1, Math.ceil(l * Bk9));
   // 너무 큰 판은 굽지 않는다(위 SPRITE_SIDE_MAX) — 직접 그리기로 떨어진다.
   if (side9 > SPRITE_SIDE_MAX) return null;
   // 굽는 판은 **빌려 쓴다**(위 BAKE_POOL) — 이 판은 잘라 담고 나면 버리는 소모품이다.
@@ -20883,7 +20904,7 @@ function buildingSpriteBake(
   if (!cv) return null;
   const c2 = cv.getContext("2d");
   if (!c2) return null;
-  c2.setTransform(B, 0, 0, B, 0, 0);
+  c2.setTransform(Bk9, 0, 0, Bk9, 0, 0);
   c2.translate(pad + sideQ / 2, pad + sideQ);
   c2.scale(sideQ / 16, sideQ / 16);
   c2.translate(-8, -16);
@@ -20907,21 +20928,22 @@ function buildingSpriteBake(
   /* 상자는 모형 좌표로 기억한다(위 inkBoxOf) — 굽기 변환이
        화소 = B·(pad + sideQ/2) + (B·sideQ/16)·(모형좌표 − 8)   [세로는 −16]
      이므로 배수는 B·sideQ/16이고 원점은 거기서 8·배수(세로 16·배수)를 뺀 자리다. */
-  const s9 = (B * sideQ) / 16;
+  const s9 = (Bk9 * sideQ) / 16;
   const box9 = inkBoxOf(cv,
     `b|${op.kind}|${op.rotDeg ?? 0}|${op.flat ? 1 : 0}|${vq}|${pitchTag(op.pitch)}`
     + `|${lod}|${stg}|${headTag(op.kind)}|${litTag(op.kind)}|${spinTag(op.kind)}`,
-    B * (pad + sideQ / 2) - 8 * s9, B * (pad + sideQ) - 16 * s9, s9);
+    Bk9 * (pad + sideQ / 2) - 8 * s9, Bk9 * (pad + sideQ) - 16 * s9, s9);
   // 빌린 판이라 늘 새 판에 옮겨 담고(forceCopy), 원판은 빌림터로 돌려준다.
   const cr9 = cropToInk(cv, box9, true);
   /* 데칼(크립 얼룩)은 안 굳힌다 — 반투명 가장자리가 언샤프 링(밝은 테)으로 떠서
-     땅과 이어지는 무늬가 도리어 도드라진다. 딱딱해야 할 것은 몸의 경계뿐이다. */
-  if (B <= 1 && !DECAL_KINDS.has(op.kind) && !op.clipWalk && !op.inkCenter) sharpenPlate9(cr9.cv);
+     땅과 이어지는 무늬가 도리어 도드라졌다. 딱딱해야 할 것은 몸의 경계뿐이다. */
+  if (SHARP_MODE9 === "unsharp" && B <= 1 && !soft9) sharpenPlate9(cr9.cv);
   freeBakeCanvas(cv);
-  const entry = {
-    cv: cr9.cv, ox: cr9.ox, oy: cr9.oy,
-    pad, l, side: sideQ, bot: box9.bot, top: box9.top, w: box9.w, cx: box9.cx,
-  };
+  const entry = Bk9 !== B
+    ? { cv: halveNearest9(cr9.cv), ox: Math.round(cr9.ox / 2), oy: Math.round(cr9.oy / 2),
+      pad, l, side: sideQ, bot: box9.bot / 2, top: box9.top / 2, w: box9.w / 2, cx: box9.cx / 2 }
+    : { cv: cr9.cv, ox: cr9.ox, oy: cr9.oy,
+      pad, l, side: sideQ, bot: box9.bot, top: box9.top, w: box9.w, cx: box9.cx };
   BLD_SPRITE_CACHE.set(key, entry);
   // 이 열쇠로 구운 크기를 색인에 적는다(유닛 쪽 SPRITE_SIZES와 같은 규약).
   noteSub9(BLD_SPRITE_SIZES, subKey, sideQ, key);
