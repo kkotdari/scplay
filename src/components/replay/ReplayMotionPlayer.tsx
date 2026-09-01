@@ -1426,7 +1426,7 @@ function leafFaces(o: {
   ], o.key ?? (depthNow(wpt[0], wpt[1]) + o.thick * Math.max(1, o.spread)));
 }
 /* 프로토스 금·플라즈마(요청) — 인간형 다섯(질럿·하템·다크·아콘·다크아콘)이 나눠 쓴다. */
-const P_GOLD = "#d4af37";
+const P_GOLD = "#d9c344";  // 붉은기 줄인 노란 금(요청)
 /** 프로토스 인간형의 **살빛**(지적: "프로토스 인간형 피부색이 이제보니 푸른 연보라였구나
  *  금색인줄...") — 여태 얼굴까지 갑옷과 같은 금색으로 칠해, 투구를 쓴 것처럼 보였다.
  *  드러난 살(얼굴)은 갑옷과 색이 갈려야 얼굴로 읽힌다. */
@@ -2606,7 +2606,7 @@ function paintBase(faces: ShapeFace[], base: string): ShapeFace[] {
 /* 테란은 한 단 진한 쇠다(요청: "stain된 전쟁의 쇠붙이 — 좀 더 진한 쇠색이면서 광택과
    때묻음이 공존") — 은회색 #65696e를 건메탈 #575c63으로 내리고, 얼룩은 아래
    stainOf9가 면(패널)마다 낸다. 광택은 glossFaces의 볼록한 자가 그대로 세운다. */
-const RACE_BASE_TONE = { terran: "#5c6472", toss: "#c9a63f", zerg: "#b9724a" } as const;
+const RACE_BASE_TONE = { terran: "#6a7382", toss: "#d6be45", zerg: "#b9724a" } as const;
 /* ★ **때 얼룩** — 칠 안 한 테란 면마다 쇠색 네 벌 중 하나를 **결정적으로** 고른다.
    무작위면 굽을 때마다 판이 달라져 캐시가 거짓말이 된다 — 면의 경로 문자열을 해시해
    같은 면은 언제나 같은 얼룩을 받는다. 네 벌은 기준(#575c63)의 위아래 5%와, 갈빛이
@@ -2617,14 +2617,7 @@ const RACE_BASE_TONE = { terran: "#5c6472", toss: "#c9a63f", zerg: "#b9724a" } a
    패널 사이 어긋남으로만 남는다.
    갈빛은 걷었다(정정: "갈빛이 아니라 푸른빛이 도는 진한 철색") — 네 벌 모두 파랑이
    도는 철색 계열이고, 넷째는 푸른 기만 살짝 덜한 무광 철이다. */
-/* 한 단 밝게(재재지적: "아직도 테란 너무 어두운 거 같애") — 네 벌 모두 +10.
-   푸른 기 도는 철색 결은 그대로다. */
-const STAIN_TERRAN9 = ["#565e6c", "#5c6472", "#626a78", "#5d6470"] as const;
-const stainOf9 = (d: string): string => {
-  let h9 = 0;
-  for (let i9 = 0; i9 < d.length; i9 += 7) h9 = (h9 * 31 + d.charCodeAt(i9)) | 0;
-  return STAIN_TERRAN9[(h9 >>> 1) & 3];
-};
+/* (걷어냄) STAIN_TERRAN9·stainOf9 — 면마다 다른 철색 얼룩. 그늘과 겹쳐 두 번 어두워져 걷었다. */
 /* 종족별 **광의 색** — 안 적힌 종족은 흰 광(#fff) 그대로다.
    테란만 옅은 하늘빛을 쓴다(지적: "특히 광택에서 푸른빛을 좀 더 줘야 함"). 이 렌더러에서
    금속은 색이 아니라 명암 차로 읽히는데, 그 명암의 밝은 쪽이 순백이면 어떤 바탕색을 깔아도
@@ -2636,7 +2629,7 @@ const stainOf9 = (d: string): string => {
  *  ★ 이 색은 **두 번 칠하지 않기 위한 표식** 노릇도 한다(glossFaces 주석). */
 const RACE_GLOSS_SHADE: Partial<Record<keyof typeof RACE_BASE_TONE, string>> = {
   terran: "#0d1219",
-  toss: "#1a1206",
+  toss: "#1a1708",
 };
 const RACE_GLOSS_LIT: Partial<Record<keyof typeof RACE_BASE_TONE, string>> = {
   terran: "#d8e0e8",
@@ -2684,10 +2677,9 @@ function glossFaces(
 function raceBase(
   faces: ShapeFace[], tone: keyof typeof RACE_BASE_TONE, accent: ShapeFace[] = [],
 ): ShapeFace[] {
-  const painted = tone === "terran"
-    ? faces.map(([d, o, f, k, l, n]) =>
-      [d, o, f ?? stainOf9(d), k, l, n] as ShapeFace)   // 때 얼룩(위 ★)
-    : paintBase(faces, RACE_BASE_TONE[tone]);
+  /* 테란 스테인(면마다 다른 철색)은 걷었다(요청: "음영과 중복되어 너무 어두움") —
+     얼룩이 그늘과 겹쳐 어둡기가 두 번 쌓였다. 세 종족 다 단색 바탕 + 명암이다. */
+  const painted = paintBase(faces, RACE_BASE_TONE[tone]);
   /* 프로토스만 금속 광을 세게 준다(요청: "프로토스 기본색 좀더 밝게하고 메탈 느낌나게
      표현할수 없나"). 바탕색만 밝히면 노란 물감이 될 뿐 금속이 안 된다 — 이 렌더러에서
      금속은 색이 아니라 **명암 차**로 읽힌다. 면마다 얹히는 흰 광(#fff)을 1.7배로 올려
@@ -4898,7 +4890,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         /* 끝을 도려내고 팁을 꽂는다(재재재지적: 화살촉처럼 튀지 않게) — 팁 원뿔이
            그 높이의 기둥 굵기보다 늘 살짝 굵어 기둥 끝을 완전히 감싼다.
            기둥 몸도 금빛(재작도) — 넷이 통째로 개인색이면 종족이 안 읽힌다. */
-        ...paintBase(hornFaces(px, py, 0.4, px, py, 8.8, 1.7), "#c9a227"),
+        ...paintBase(hornFaces(px, py, 0.4, px, py, 8.8, 1.7), "#d4bd3c"),
         /* 오벨리스크 보석은 **개인색**이다(지적: "넥서스 사선에서 개인색 장식 포인트가
            안보임") — 여태 여기까지 사이언으로 못 박혀 있어서, 화면에 남은 개인색은
            꼭대기 받침 띠 하나뿐이었다. 그 띠는 지붕에 가려 사선에서 거의 안 보인다.
@@ -4924,7 +4916,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // 6.0 → 5.6(재지적: 왼뒤 기둥이 너무 바깥) — 받침 원반이 피라미드 모서리에 걸치게 붙인다.
     /* 상자 정규화(지적: 넥서스가 발자국을 초과) — 기둥·받침이 요잉 투영에서 ±9까지
        나가 16칸 상자를 넘쳤다. 전체를 0.85배로 눌러 안에 들인다. */
-    const GOLD9 = "#c9a227";
+    const GOLD9 = "#d4bd3c";
     const GOLDD = "#8e6f1a";
     const CYAN9 = "#5aecd8";
     // (걷어냄) GLASS9 — 정면 유리 창 셋이 쓰던 색이다. 창은 사다리꼴 현판으로 갈렸다.
@@ -5120,34 +5112,44 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     }
     return out;
   },
-  /* 게이트웨이 재작도(사진 둘 참고 — "발판이 통짜가 아니라 작은 부품들로, 양옆 기둥
-     형태와 각도 수정") ─────────────────────────────────────────────────────────
-     · 기둥 둘은 어금니(굽은 관)가 아니라 **곧게 안으로 기운 각진 기둥**이다 — 네모
-       단면이 밑에서 굵고 위로 가늘어지며 꼭대기에서 서로 맞닿아 A자 아치를 이룬다.
-       앞면엔 어두운 청록·남색 패널이 박힌다.
-     · 아치 안에 **푸른 수정(마름모)**이 매달린다 — 옛 구체 대신.
-     · 발판은 한 장짜리 판이 아니라 **작은 부품들의 무더기**다: 기울어 흩어진 금판·
-       검은 판 열댓 장, 앞을 가로지르는 은빛 막대 셋, 앞왼쪽의 검은 갈고리, 오른쪽의
-       검은 지느러미. 임자색은 네 방위의 판 위 얇은 띠 넷이다. */
+  /* 게이트웨이(실물 점검) — 낮은 사방 경사로 마당 위에 마주 기운 어금니 탑 한 쌍이
+     사이를 띄워 문을 이루고, 그 사이에 소환 빛이 선다. */
   gate: () => {
+    /* 사방 발판 넷을 저마다 정육각형 판으로(정정 요청) — 한 모서리가 건물 중심을
+       보게 돌리고(꼭지점이 아니라), 안쪽 변이 높고 바깥쪽 변이 낮은 쐐기로 눕힌다.
+       위아래 두 육각형을 둘레 벽으로 봉합해 얇은 두께를 주고, 벽은 뒤에서 앞으로
+       정렬해 그려 입체감을 지킨다. */
+    const h = 1.15; // 발판 안쪽(높은 쪽) 윗면 높이 — 기둥·뿔이 여기서 선다.
     const out: ShapeFace[] = [];
-    const GOLD9 = "#c9a227";
-    const DARK9 = "#3f3a33";
-    const H0 = 0.9;   // 가운데 받침 윗면 — 기둥이 여기서 선다.
-    /** 밑면 다각형(x·y)을 z0~z1로 세운 각기둥 — 벽은 뒤에서 앞으로, 윗면은 마지막. */
-    const prism9 = (
-      pts: [number, number][], z0: number, z1: number, cx9: number, cy9: number,
-    ): ShapeFace[] => {
-      const lo = pts.map(([x9, y9]) => [x9, y9, z0] as [number, number, number]);
-      const hi = pts.map(([x9, y9]) => [x9, y9, z1] as [number, number, number]);
-      const f9: ShapeFace[] = [];
-      const walls9 = lo.map((_, i9) => {
-        const j9 = (i9 + 1) % lo.length;
-        const mx9 = (lo[i9][0] + lo[j9][0]) / 2 - cx9;
-        const my9 = (lo[i9][1] + lo[j9][1]) / 2 - cy9;
+    const pad = (cx9: number, cy9: number, r9: number): ShapeFace[] => {
+      const inAng9 = Math.atan2(-cy9, -cx9); // 중심을 향하는 방향
+      // 모서리 중점이 중심을 보게 — 정육각형 꼭지점은 중점보다 30도 앞선다.
+      const base9 = inAng9 - Math.PI / 6;
+      const LO9 = 0.32; // 바깥 변 윗면 높이
+      const TH9 = 0.32; // 판 두께(요청: 얇게)
+      const ox9 = -Math.cos(inAng9);
+      const oy9 = -Math.sin(inAng9);
+      const hex9 = (dz9: number): [number, number, number][] => Array.from(
+        { length: 6 },
+        (_, i9) => {
+          const a9 = base9 + (i9 / 6) * Math.PI * 2;
+          const px9 = cx9 + Math.cos(a9) * r9;
+          const py9 = cy9 + Math.sin(a9) * r9;
+          // 바깥 방향으로 얼마나 나갔나(-1 안 ~ +1 바깥) → 그만큼 낮아진다.
+          const u9 = ((px9 - cx9) * ox9 + (py9 - cy9) * oy9) / r9;
+          return [px9, py9, (h + LO9) / 2 - u9 * ((h - LO9) / 2) + dz9];
+        },
+      );
+      const lo9 = hex9(-TH9);
+      const hi9 = hex9(0);
+      const f9: ShapeFace[] = [bodyFace(polyPath3(lo9))];
+      const walls9 = lo9.map((_, i9) => {
+        const j9 = (i9 + 1) % 6;
+        const mx9 = (lo9[i9][0] + lo9[j9][0]) / 2 - cx9;
+        const my9 = (lo9[i9][1] + lo9[j9][1]) / 2 - cy9;
         const ml9 = Math.hypot(mx9, my9) || 1;
         return {
-          d: polyPath3([lo[i9], lo[j9], hi[j9], hi[i9]]),
+          d: polyPath3([lo9[i9], lo9[j9], hi9[j9], hi9[i9]]),
           nx: mx9 / ml9, ny: my9 / ml9, f: facingRatio(mx9 / ml9, my9 / ml9),
         };
       }).sort((q9, w9) => q9.f - w9.f);
@@ -5155,116 +5157,265 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const fl9 = faceLight(wl9.nx, wl9.ny, 0.3);
         f9.push(bodyFace(wl9.d), ...(fl9.visible ? fl9.face(wl9.d) : [sideFace(wl9.d, 0.46)]));
       }
-      f9.push(bodyFace(polyPath3(hi)), topFace(polyPath3(hi), 0.2));
-      return f9;
+      f9.push(bodyFace(polyPath3(hi9)), topFace(polyPath3(hi9), 0.2));
+      /* ★ 품수를 늘린다(요청: "발판 하나하나의 품수를 늘리고") — 한 장짜리 쐐기 위에
+         ① 안쪽 작은 육각 단(반지름 0.52배, 0.16 높게), ② 바깥 변 모서리의 작은 블록
+         셋, ③ 안쪽 변 곁의 검은 홈 둘을 얹어 부품이 여럿인 발판으로 읽히게 한다.
+         전부 쐐기 윗면의 기울기(zTop9)를 따라 앉는다. */
+      const zTop9 = (px9: number, py9: number): number => {
+        const u9 = ((px9 - cx9) * ox9 + (py9 - cy9) * oy9) / r9;
+        return (h + LO9) / 2 - u9 * ((h - LO9) / 2);
+      };
+      const hexR9 = (rr9: number, dz9: number): [number, number, number][] => Array.from(
+        { length: 6 },
+        (_, i9) => {
+          const a9 = base9 + (i9 / 6) * Math.PI * 2;
+          const px9 = cx9 + Math.cos(a9) * rr9;
+          const py9 = cy9 + Math.sin(a9) * rr9;
+          return [px9, py9, zTop9(px9, py9) + dz9];
+        },
+      );
+      const sLo9 = hexR9(r9 * 0.52, 0);
+      const sHi9 = hexR9(r9 * 0.52, 0.16);
+      const sWalls9 = sLo9.map((_, i9) => {
+        const j9 = (i9 + 1) % 6;
+        const mx9 = (sLo9[i9][0] + sLo9[j9][0]) / 2 - cx9;
+        const my9 = (sLo9[i9][1] + sLo9[j9][1]) / 2 - cy9;
+        const ml9 = Math.hypot(mx9, my9) || 1;
+        return {
+          d: polyPath3([sLo9[i9], sLo9[j9], sHi9[j9], sHi9[i9]]),
+          nx: mx9 / ml9, ny: my9 / ml9, f: facingRatio(mx9 / ml9, my9 / ml9),
+        };
+      }).sort((q9, w9) => q9.f - w9.f);
+      for (const wl9 of sWalls9) {
+        const fl9 = faceLight(wl9.nx, wl9.ny, 0.3);
+        f9.push(bodyFace(wl9.d), ...(fl9.visible ? fl9.face(wl9.d) : [sideFace(wl9.d, 0.46)]));
+      }
+      f9.push(bodyFace(polyPath3(sHi9)), topFace(polyPath3(sHi9), 0.2));
+      for (const [bx9, by9] of [
+        [hi9[3][0] * 0.86 + cx9 * 0.14, hi9[3][1] * 0.86 + cy9 * 0.14],
+        [hi9[4][0] * 0.86 + cx9 * 0.14, hi9[4][1] * 0.86 + cy9 * 0.14],
+        [cx9 + ox9 * r9 * 0.8, cy9 + oy9 * r9 * 0.8],
+      ] as [number, number][]) {
+        f9.push(...boxFaces3(bx9, by9, 0.42, 0.42, 0.22, zTop9(bx9, by9) - 0.02));
+      }
+      for (const k9 of [0, 1]) {
+        const gx9 = cx9 - ox9 * r9 * 0.62 + (k9 === 0 ? -oy9 : oy9) * r9 * 0.36;
+        const gy9 = cy9 - oy9 * r9 * 0.62 + (k9 === 0 ? ox9 : -ox9) * r9 * 0.36;
+        f9.push(...paintBase(boxFaces3(gx9, gy9, 0.34, 0.34, 0.1, zTop9(gx9, gy9)), "#3f3a33"));
+      }
+      return tagKey(f9, depthNow(cx9, cy9));
     };
-    /** 돌려 놓은 직사각 판 — 중심·각도·너비·깊이·높이. */
-    const plate9 = (
-      cx9: number, cy9: number, deg9: number, w9: number, d9: number, h9: number,
-      z0 = 0, fill9?: string,
-    ): ShapeFace[] => {
-      const a9 = (deg9 * Math.PI) / 180;
-      const c9 = Math.cos(a9); const s9 = Math.sin(a9);
-      const pts: [number, number][] = ([[-1, -1], [1, -1], [1, 1], [-1, 1]] as [number, number][])
-        .map(([u9, v9]) => [
-          cx9 + (u9 * w9 / 2) * c9 - (v9 * d9 / 2) * s9,
-          cy9 + (u9 * w9 / 2) * s9 + (v9 * d9 / 2) * c9,
-        ]);
-      const f9 = prism9(pts, z0, z0 + h9, cx9, cy9);
-      return tagKey(fill9 ? paintBase(f9, fill9) : f9, depthNow(cx9, cy9) * 1.6);
-    };
-
-    // ── 발판 무더기 — 가운데 받침 + 기울어 흩어진 금판·검은 판·작은 조각들.
-    out.push(...plate9(0, 0, 0, 3.4, 3.0, H0));                     // 가운데 받침
-    out.push(...plate9(-3.0, 1.2, 20, 2.4, 1.4, 0.55));
-    out.push(...plate9(3.1, 1.0, -15, 2.2, 1.5, 0.6));
-    out.push(...plate9(-2.2, -2.4, -30, 2.0, 1.2, 0.5));
-    out.push(...plate9(2.6, -2.3, 25, 2.3, 1.3, 0.45));
-    out.push(...plate9(0.4, 3.0, 10, 2.6, 1.2, 0.4));
-    out.push(...plate9(-0.6, -3.4, -8, 2.4, 1.1, 0.4));
-    out.push(...plate9(-1.6, 3.3, 35, 1.0, 0.7, 0.35));
-    out.push(...plate9(3.0, 2.2, 50, 1.1, 0.7, 0.35));
-    out.push(...plate9(-3.4, 2.6, -25, 1.2, 0.8, 0.3));
-    out.push(...plate9(1.4, -1.1, 15, 1.3, 0.8, 1.2));            // 받침 옆 층진 덩이
-    out.push(...plate9(-1.6, -0.9, -12, 1.2, 0.8, 1.15));
-    out.push(...plate9(-3.6, -0.6, 40, 1.6, 1.0, 0.7, 0, DARK9)); // 검은 판들
-    out.push(...plate9(3.8, -0.4, -35, 1.5, 1.0, 0.65, 0, DARK9));
-    out.push(...plate9(1.8, 2.6, -20, 1.4, 0.9, 0.5, 0, DARK9));
-    out.push(...plate9(-0.2, 1.9, 6, 1.9, 0.5, 0.3, H0, "#2e3d44")); // 받침 앞턱 청록 띠
-
-    // ── 은빛 막대 셋 — 앞을 가로지르고 옆으로 뻗는다(사진의 파이프).
-    for (const [x1, y1, x2, y2, r9, z9] of [
-      [-4.4, 1.9, 4.2, 2.5, 0.12, 1.15], [-4.0, -1.4, -0.4, 2.9, 0.1, 1.0],
-      [0.9, -3.1, 4.4, -0.5, 0.1, 0.95],
-    ] as [number, number, number, number, number, number][]) {
-      out.push(...tagKey(paintBase(tubeFaces(x1, y1, x2, y2, r9, z9), "#c2c6cc"),
-        depthNow((x1 + x2) / 2, (y1 + y2) / 2) * 1.6 + 0.5));
+    /* 안쪽으로 당긴다(지적: 이웃 게이트의 발판과 겹친다) — 발자국 밖으로 나가면
+       옆 건물과 포갠다: 바깥 끝이 5.4를 넘지 않게 자리 3.6·반지름 1.8로 조인다. */
+    out.push(...pad(0, 3.6, 1.8));
+    out.push(...pad(0, -3.6, 1.8));
+    out.push(...pad(3.8, 0, 1.8));
+    out.push(...pad(-3.8, 0, 1.8));
+    /* 한가운데 작은 사각 판(요청) — 네 발판 사이 바닥을 메운다. */
+    {
+      const S9 = 1.15;
+      const TZ9 = 0.34;
+      const sq9 = (z9: number): [number, number, number][] => [
+        [-S9, -S9, z9], [S9, -S9, z9], [S9, S9, z9], [-S9, S9, z9],
+      ];
+      const lo9 = sq9(0);
+      const hi9 = sq9(TZ9);
+      const f9: ShapeFace[] = [bodyFace(polyPath3(lo9))];
+      const walls9 = lo9.map((_, i9) => {
+        const j9 = (i9 + 1) % 4;
+        const mx9 = (lo9[i9][0] + lo9[j9][0]) / 2;
+        const my9 = (lo9[i9][1] + lo9[j9][1]) / 2;
+        const ml9 = Math.hypot(mx9, my9) || 1;
+        return {
+          d: polyPath3([lo9[i9], lo9[j9], hi9[j9], hi9[i9]]),
+          nx: mx9 / ml9, ny: my9 / ml9, f: facingRatio(mx9 / ml9, my9 / ml9),
+        };
+      }).sort((q9, w9) => q9.f - w9.f);
+      for (const wl9 of walls9) {
+        const fl9 = faceLight(wl9.nx, wl9.ny, 0.3);
+        f9.push(bodyFace(wl9.d), ...(fl9.visible ? fl9.face(wl9.d) : [sideFace(wl9.d, 0.46)]));
+      }
+      f9.push(bodyFace(polyPath3(hi9)), topFace(polyPath3(hi9), 0.2));
+      out.push(...tagKey(f9, depthNow(0, 0)));
     }
-    // ── 앞왼쪽 검은 갈고리 — 판에서 솟아 안쪽으로 굽는다.
-    out.push(...tagKey(spirePillar({
-      x: 0, y: 0, h: 1, w: 0.5, tipW: 0.08, segs: 6, sides: 5, fill: "#3b3126",
-      ref: [0, 1, 0],
-      path: (t9: number): [number, number, number] =>
-        [-3.2 + 1.4 * t9 * t9, 2.3 - 1.0 * t9, 0.7 + 3.0 * t9 - 0.7 * t9 * t9],
-    }), depthNow(-2.8, 2.0) * 1.6 + 1));
-    // ── 오른쪽 검은 지느러미 — 앞뒤로 누운 낮은 호.
-    out.push(...tagKey(spirePillar({
-      x: 0, y: 0, h: 1, w: 0.75, tipW: 0.2, segs: 6, sides: 4, oval: 0.4, fill: "#4a3f2e",
-      ref: [1, 0, 0],
-      path: (t9: number): [number, number, number] =>
-        [3.5 - 0.3 * t9, -1.8 + 3.2 * t9, 0.8 + 2.3 * Math.sin(Math.PI * t9)],
-    }), depthNow(3.4, -0.2) * 1.6 + 1));
-
-    // ── 기둥 둘 — 곧게 안으로 기운 네모 기둥, 꼭대기에서 맞닿는다.
-    const APEX9 = H0 + 7.4;
-    const pillar9 = (t9: number, m9: number): [number, number, number] =>
-      [m9 * (3.05 - 2.75 * t9), 0.15 * t9, H0 + 7.4 * t9];
-    const pw9 = (t9: number): number => (t9 < 0.1 ? 1.15 : 1.15 - 0.5 * ((t9 - 0.1) / 0.9));
-    for (const m9 of [-1, 1] as const) {
-      const key9 = 30 + depthNow(m9 * 2, 0) * 1.6;
+    /* 실물 점검(스프라이트 시트) — 게이트는 돛 하나가 아니라 마주 기운 어금니 탑
+       한 쌍이 사이를 띄우고 문을 이룬다. 사이엔 소환 빛. */
+    const [wx, wy] = project(0, 0.1, 4.2);
+    /* 탑·구체는 경사로 위 얹힘(지적: 발판에 기둥이 가려짐) — 경사로가 제 깊이를
+       달면서 앞 경사로가 탑을 덮었다. 지붕 규칙으로 붙박이 큰 키를 준다. */
+    /* 어금니 탑을 4각 기반 기둥뿔로(요청) — 밑동이 굵고 안쪽으로 기울며 끝이
+       뾰족해진다. 8각판 위에 얹히므로 지붕 규칙 키를 준다. */
+    /* 탑 둘은 저마다 제 자리 깊이(재지적: 소환구가 탑에 아예 안 가려진다) — 둘을
+       한 키로 묶고 구체를 그 위에 얹었더니, 앞으로 돈 탑까지 구체 뒤로 갔다.
+       탑은 30±제 깊이, 구체는 그 한가운데(30)에 두면 앞 탑은 구체를 덮고 뒤 탑은
+       구체 뒤로 간다 — 문 사이에 빛이 든 그림이다. */
+    // 뿌리만 안쪽으로(지적) — ±2.7 → ±2.1. 끝 자리는 그대로라 눕는 몫이 줄어든다.
+    /* ★ 탑의 **아래쪽은 곧게 선다**(요청: "게이트웨이 두 높은 기둥의 아래쪽으로 갈수록
+       직각으로 떨어지다 살짝 안쪽으로 깎여 떨어지게") ────────────────────────────────
+       여태 이 탑은 leanX·leanY로 축이 **한 줄로 비스듬히** 섰다 — 곧 밑동부터 끝까지 같은
+       기울기라, 바닥에 꽂힌 자리도 기울어 '기대 놓은 막대'로 읽혔다. 실물의 어금니는
+       아래 절반이 곧게 서다 위에서 안으로 굽는다.
+       축을 손으로 그린다(path): t가 VERT9까지는 눕는 몫이 0이라 정확히 수직이고, 그
+       위로만 안쪽·앞으로 눕는다(1.35제곱이라 굽이가 위로 갈수록 급하다).
+       ★ 밑동은 **안쪽 면만** 깎는다 — 맨 아래 한 뼘에서 굵기를 CUT_K9만큼 줄이되, 줄어든
+         절반만큼 축을 **바깥으로** 밀어 바깥 면은 수직 그대로 두고 안쪽 면만 파고든다.
+         굵기만 줄이면 사방이 좁아져 '깎임'이 아니라 그냥 가는 밑동이 된다.
+       굵기 규칙(w·tipW·hold·taper)은 path를 주면 그대로 살지만 깎기를 얹어야 하므로
+       widthOf로 옮겨 적는다 — 값은 옛것 그대로다. */
+    for (const mx9 of [-2.1, 2.1]) {
+      const W0_9 = 1.5;
+      const W1_9 = 0.55;
+      const HOLD9 = 0.12;
+      /** 이 높이까지는 곧게 선다(0~1). */
+      /** 밑동 깎임이 사라지는 높이. */
+      const CUT9 = 0.16;
+      /** 깎아 내는 굵기 몫. */
+      const CUT_K9 = 0.3;
+      /* ★ 두 끝을 **평행한 수직 단면**으로 세운다(요청: "기둥 끝 마주보는 부분을
+         수직으로 깎아서 서로 평행한 단면이 마주보게") ─────────────────────────────────
+         앞판은 끝을 안쪽으로 더 눕히기만 했다. 끝 면은 축에 수직이니 축이 기운 만큼
+         비스듬한 면이 되어, 서로를 **비껴** 볼 뿐 마주 보지 않았다.
+         면을 세우는 자는 굵기가 아니라 **축의 접선**이다 — 끝 단면은 언제나 접선에
+         수직이므로, 접선이 t=1에서 정확히 **수평**이면 그 면은 정확히 **수직**이다.
+         그래서 마지막 한 뼘에서 z가 멈추게 만든다: z를 t가 아니라 t − TIP_FLAT9·tip9(t)로
+         올리고, TIP_FLAT9를 tip9의 t=1 기울기의 역수(1/5 = 0.2)로 잡으면 dz/dt가 그
+         자리에서 딱 0이 된다. x는 계속 안으로 가므로 접선은 수평-안쪽, 단면은 수직이고,
+         두 탑이 거울이라 두 면은 **평행**하다.
+         잃는 높이(TIP_FLAT9만큼)는 축 길이를 6.4 → 8.3으로 늘려 미리 채운다.
+         ★ 단면 기준(ref)을 x → **y**로 바꾼다. 축이 바닥에서는 수직, 끝에서는 수평-x라
+           x든 z든 어느 한 축을 기준으로 잡으면 그 어딘가에서 축과 나란해져 단면이 무너진다
+           (굽이가 x–z 평면 안에서 일어나므로 y만이 어디서도 축과 안 겹친다). 네모 단면은
+           90도 돌려도 같은 네모라 모양은 한 톨도 안 변한다.
+         굵기 깎기(TCUT_K9)는 그대로 둔다 — 줄어든 절반만큼 축을 안쪽으로 밀어 바깥
+         어깨만 깎으므로, 마주 보는 자리를 안 건드린다.
+       ★ 뿌리는 **직각을 넘어 안으로** 오므린다(요청) ────────────────────────────────
+         밑동에서 굵기만 깎던 것(CUT9)은 '살짝 파인 면'이라 발이 여전히 수직으로 꽂혀
+         있었다. 축 자체를 마지막 ROOT9 구간에서 안쪽으로 되꺾으면 발이 수직을 **넘어**
+         안으로 향한다 — 바닥 단면도 축에 수직이라 함께 기울어(수평에서 23도) 두 발이
+         서로를 향해 오므린 어금니 뿌리가 된다.
+         발이 기울면 한쪽 모서리가 발판 위로 들뜨므로 시작 z를 0.35만큼 묻는다.
+         굽이가 급해졌으니 마디도 9 → 14로 늘린다(적으면 굽이가 각져 꺾인 막대가 된다). */
+      /** 끝 깎임·갈고리가 시작되는 높이(0~1). */
+      /* ★ 기둥은 **S자**다(요청: "밖으로 올라가다 안쪽으로 모이고 마지막엔 수직으로
+         올라감") — 세 마디를 잇는다:
+           ① 0~0.62: 바깥으로 부풀었다 돌아온다(sin 한 봉우리, 최대 BOW9).
+           ② 0.38~0.86: 안쪽으로 모인다(smoothstep으로 IN9만큼) — ①과 겹치는 구간이
+              S의 허리다.
+           ③ 0.86~1: x가 멈추고 z만 오른다 — 접선이 수직이라 끝이 곧게 선다.
+         옛 판의 '끝을 수평으로 눕혀 마주 보기'(TIP_FLAT·HOOK·TCUT)는 걷었다. */
+      const AXIS9 = 8.3;
+      const BOW9 = 0.9;
+      const IN9 = 1.6;
+      /** 뿌리가 되꺾이는 구간(0~1)과 그 몫. */
+      const ROOT9 = 0.26;
+      const ROOT_IN9 = 0.62;
+      const bow9 = (t9: number): number => (t9 < 0.62 ? Math.sin((Math.PI * t9) / 0.62) : 0);
+      const lean9 = (t9: number): number => {
+        if (t9 <= 0.38) return 0;
+        if (t9 >= 0.86) return 1;
+        const u9 = (t9 - 0.38) / 0.48;
+        return u9 * u9 * (3 - 2 * u9);
+      };
+      const cut9 = (t9: number): number => (t9 < CUT9 ? 1 - t9 / CUT9 : 0);
+      const root9 = (t9: number): number =>
+        (t9 < ROOT9 ? ((ROOT9 - t9) / ROOT9) ** 1.5 : 0);
+      /** 깎기 전 굵기 — 밑동에서 굵고 끝으로 갈수록 가늘다. */
+      const base9 = (t9: number): number => (t9 <= HOLD9 ? W0_9
+        : W1_9 + (W0_9 - W1_9) * (1 - (t9 - HOLD9) / (1 - HOLD9)) ** 1.5);
       out.push(...tagKey(spirePillar({
-        x: 0, y: 0, h: 1, w: 1, segs: 6, sides: 4, ref: [0, 1, 0], caps: "none",
-        path: (t9: number) => pillar9(t9, m9),
-        widthOf: pw9,
-      }), key9));
-      // 앞면(+y) 패널 — 아래는 청록, 위는 남색(사진).
-      for (const [t0, t1, col9] of [[0.3, 0.6, "#2e3d44"], [0.7, 0.9, "#2a2f3a"]] as [number, number, string][]) {
-        const q9: [number, number, number][] = [];
-        for (const [t9, sg9] of [[t0, -1], [t0, 1], [t1, 1], [t1, -1]] as [number, number][]) {
-          const [px9, py9, pz9] = pillar9(t9, m9);
-          q9.push([px9 + sg9 * pw9(t9) * 0.36, py9 + pw9(t9) * 0.5 + 0.03, pz9]);
-        }
-        out.push(...tagKey([[polyPath3(q9), 1, col9] as ShapeFace], key9 + 0.2));
+        // 끝은 뾰족이 아니라 뭉뚝하게 잘린 면(지적) — tipW 0.12 → 0.55.
+        x: 0, y: 0, h: 1, w: 1, segs: 14, sides: 4, ref: [0, 1, 0],
+        /* 끝끼리 모으되 붙지는 않게(재지적: 너무 붙었다) — 안쪽으로 눕는 몫 2.25 →
+           1.85. 두 끝 사이에 문틈이 남는다. */
+        path: (t9: number): [number, number, number] => [
+          mx9 + Math.sign(mx9) * BOW9 * bow9(t9)
+            - Math.sign(mx9) * IN9 * lean9(t9)
+            + Math.sign(mx9) * (W0_9 * 0.5 * CUT_K9) * cut9(t9)
+            - Math.sign(mx9) * ROOT_IN9 * root9(t9),
+          -0.3 * lean9(t9),
+          h - 0.35 + AXIS9 * t9,
+        ],
+        widthOf: (t9: number): number => base9(t9) * (1 - CUT_K9 * cut9(t9)),
+      }), 30 + depthNow(mx9, 0) * 1.6));
+    }
+    // 가운데 소환 구체 — 두 탑 깊이의 한가운데.
+    /* 소환구도 화면 원으로(지적: "구 형태가 찌그러져 보이잖아") — 세로로 긴 타원
+       (1.1×1.4)이라 서 있는 빛기둥처럼 보였다. 구는 어느 시점에서도 원이다. */
+    out.push(...tagKey([
+      [screenCircle(wx, wy, 1.2), 0.5, "#b6faf1"] as ShapeFace,
+      topFace(screenCircle(wx - 0.3, wy - 0.3, 0.6), 0.4),
+    ], 30));
+    /* 발판 뿔(요청) — 앞뒤 경사로 한가운데에서 솟아 끝이 안쪽으로 휜다. 아래는 기둥,
+       위는 뿔인 공용 도형(spirePillar). */
+    for (const sy9 of [1, -1] as const) {
+      // 발판과 함께 안쪽으로(지적: 이웃 건물과 겹침).
+      const ry9 = sy9 * 2.7;
+      /* 작은 뿔이 어금니 탑(키 30)에 안 묻히게(지적) — 앞쪽 뿔은 탑보다 큰 키,
+         뒤쪽 뿔은 탑보다 작은 키를 줘 앞뒤가 제대로 갈린다. */
+      out.push(...tagKey(spirePillar({
+        // 앞뒤 뿔 살짝 축소(요청) — 높이 5.1 → 4.3, 굵기 0.72 → 0.6.
+        x: 0, y: ry9, z0: h, h: 4.3, w: 0.6, tipW: 0,
+        segs: 4, sides: 6, curveY: -sy9 * 1.2, hold: 0.5,
+      }), facingRatio(0, sy9) >= 0 ? 34 : 26));
+    }
+    /* 사진 디테일(요청) — 탑 밑동에 금 무늬 골. 발판 위 원판은 청록을 걷고 개인색
+       자리로 삼는다(요청) — 네 발판에 하나씩이라 사방 어디서 봐도 임자 색이 깔린다.
+       칠하지 않아야 임자 색이 드니 아래 gated.push로 따로 얹는다. */
+    /* 탑 밑동을 두르던 금 원판 둘은 걷었다(지적: 게이트 기둥쪽 원판 제거) — 납작한
+       원통이라 탑에 판때기가 꽂힌 꼴이었다. */
+    /* 몸은 금빛 바탕(재작도) — 여태 발판·마당·어금니 탑이 통째로 개인색이라 종족이
+       안 읽혔다. 남은 밑칠을 금으로 덮고, 개인색은 아래 두 곳만 남긴다. */
+    const gated: ShapeFace[] = paintBase(out, "#d4bd3c");
+    /* 발판 위 장식(지적: "게이트 발판위 장식을 긴 직육면체 띠모양으로하고 색이 연하게
+       들어가고 있어서 원래색으로 변경") — 여태는 반지름 1.05·높이 0.16짜리 납작한
+       원통이었다. 그렇게 납작하면 실루엣이 곧 윗면이라, cylinderFaces3가 마지막에
+       얹는 흰 윗면(topFace, 농도 0.3)이 원판을 통째로 덮었다. 임자 색 위에 흰색이
+       3할 깔린 셈이라 "색이 연하게" 보인 것 — 알파도 밝기 보정도 아니고 이 흰 덮개가
+       원인이다. 그래서 원통을 걷고, 흰 덮개 없이 몸판과 옆 그늘만 쓰는 직육면체 띠를
+       손으로 짠다. 윗면이 밑칠 그대로라 임자 색이 제 색으로 든다.
+       띠는 중심에서 발판으로 가는 축과 직각으로 길게 눕혀, 발판을 가로지르는 긴
+       직육면체가 된다. */
+    {
+      /* 발판은 안쪽 변 h에서 바깥 변 0.32로 기운 쐐기다(pad의 LO9) — 그 한복판
+         높이에 띠를 앉혀야 한쪽 끝이 뜨거나 파묻히지 않는다. */
+      /* 두께 없는 데칼로(요청: "게이트 발판위 개인색은 두께없는 데칼로 발판 윗면에 딱
+         붙이기") — 직육면체 띠는 옆벽 넷과 윗면을 가져 발판 위에 올라앉은 '블록'으로
+         읽혔다. 이제 발판 윗면과 **같은 기울기**의 얇은 사각 하나만 얹는다: 발판은
+         안쪽 변 h에서 바깥 변 0.32로 기운 쐐기라, 네 꼭짓점의 높이를 그 규칙 그대로
+         셈해 0.02만 띄운다. 면이 하나뿐이라 어느 각도에서도 두께가 안 보인다. */
+      const PAD_R9 = 1.8;
+      for (const [px9, py9] of [[0, 3.6], [0, -3.6], [3.8, 0], [-3.8, 0]] as [number, number][]) {
+        // 중심에서 발판으로 가는 축(바깥 방향) — 발판이 기운 축과 같다.
+        const ang9 = Math.atan2(py9, px9);
+        const ox9 = Math.cos(ang9);
+        const oy9 = Math.sin(ang9);
+        /* 그 축과 나란히 긴 데칼(재지적 때의 방향 그대로) — 방사 방향 1.45, 접선 0.34. */
+        const zAt9 = (x9: number, y9: number): number => {
+          const u9 = ((x9 - px9) * ox9 + (y9 - py9) * oy9) / PAD_R9;
+          return (h + 0.32) / 2 - u9 * ((h - 0.32) / 2) + 0.02;
+        };
+        const lx9 = py9 === 0 ? 1.45 : 0.34;
+        const ly9 = py9 === 0 ? 0.34 : 1.45;
+        const quad9: [number, number, number][] = [
+          [px9 - lx9, py9 - ly9, 0], [px9 + lx9, py9 - ly9, 0],
+          [px9 + lx9, py9 + ly9, 0], [px9 - lx9, py9 + ly9, 0],
+        ].map(([qx9, qy9]) => [qx9, qy9, zAt9(qx9, qy9)] as [number, number, number]);
+        // 색을 안 준 면이라 임자 색이 제 색으로 든다(흰 덮개도 안 얹는다).
+        gated.push(...tagKey([bodyFace(polyPath3(quad9))], depthNow(px9, py9) * 1.6 + 0.3));
       }
     }
-    // 꼭대기 — 두 기둥이 맞닿는 납작한 머릿돌.
-    out.push(...tagKey(boxFaces3(0, 0.15, 1.35, 0.95, 0.55, APEX9 - 0.2), 30.6));
-
-    /* 몸은 금으로(개인색 자리는 아래 띠 넷·수정 광뿐). */
-    const gated: ShapeFace[] = paintBase(out, GOLD9);
-    // ── 임자색 띠 넷 — 네 방위 판 윗면에 얇게 눕는다.
-    for (const [px9, py9, deg9, h9] of [
-      [-3.0, 1.2, 20, 0.55], [3.1, 1.0, -15, 0.6], [0.4, 3.0, 10, 0.4], [-0.6, -3.4, -8, 0.4],
-    ] as [number, number, number, number][]) {
-      const a9 = (deg9 * Math.PI) / 180;
-      const c9 = Math.cos(a9); const s9 = Math.sin(a9);
-      const q9 = ([[-0.85, -0.2], [0.85, -0.2], [0.85, 0.2], [-0.85, 0.2]] as [number, number][])
-        .map(([u9, v9]) => [px9 + u9 * c9 - v9 * s9, py9 + u9 * s9 + v9 * c9, h9 + 0.02] as [number, number, number]);
-      gated.push(...tagKey([bodyFace(polyPath3(q9))], depthNow(px9, py9) * 1.6 + 0.3));
-    }
-    // ── 아치 안 푸른 수정 — 세로 마름모(x·z 평면) + 흰 심 + 옅은 후광. 활성에만 환하다.
-    {
-      const cz9 = H0 + 4.9;
-      const rh9 = (rx9: number, rz9: number): string => polyPath3([
-        [0, 0.2, cz9 + rz9], [rx9, 0.2, cz9], [0, 0.2, cz9 - rz9], [-rx9, 0.2, cz9],
-      ]);
-      const [wx, wy] = project(0, 0.2, cz9);
-      gated.push(...tagKey([
-        [screenCircle(wx, wy, 1.1), bldLitNow ? 0.28 : 0.14, glowLit("#a2fff3", "#228679")] as ShapeFace,
-        [rh9(0.95, 1.7), bldLitNow ? 0.85 : 0.5, glowLit("#a2fff3", "#228679")] as ShapeFace,
-        [rh9(0.48, 0.95), bldLitNow ? 0.75 : 0.4, glowLit("#e8fbff", "#30a495")] as ShapeFace,
-      ], 30.1));
-    }
+    /* 문틈 소환 빛은 고정 플라즈마색(요청) — 임자 색이면 어두운 색을 만났을 때 빛이
+       아니라 구멍으로 보인다. 반투명 사이언으로 못 박고 흰 심을 얹는다. */
+    /* 소환 빛도 상태를 말한다(요청: 프로토스 플라즈마) — 유닛을 뽑는 동안만 문틈이
+       환하게 타고, 놀고 있을 때는 식은 청록으로 가라앉는다. 테란 창과 같은 규약이다. */
+    gated.push(...tagKey([
+      [screenCircle(wx, wy, 0.95), bldLitNow ? 0.62 : 0.34,
+        glowLit("#a2fff3", "#228679")] as ShapeFace,
+      [screenCircle(wx, wy, 0.52), bldLitNow ? 0.5 : 0.28,
+        glowLit("#e8fbff", "#30a495")] as ShapeFace,
+    ], 30.1));
+    // 탑 어깨의 개인색 띠도 같은 이유로 걷었다 — 개인색은 문틈 빛과 발판 원판이 맡는다.
     return gated;
   },
   /* 스타게이트(확정, 요청: 보여준 육각형판으로 — 길이만 조금 짧게) — 긴 육각형
@@ -5310,7 +5461,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          **기타 몸통꼴 곡선 두 줄**(허리가 잘록한 S 물결·임자색)이 붙는다.
        · 발광 창은 **가로**다(지적: "발광 부분이 원작과 방향이 반대임(수직)") —
          팔을 따라 눕힌 마름모 넷. */
-    const GOLD9 = "#c9a227";
+    const GOLD9 = "#d4bd3c";
     const PHIS = [0, Math.PI / 2, Math.PI, -Math.PI / 2];
     for (const phi of PHIS) {
       const rx = Math.sin(phi);   // 축에서 바깥 방향(x·z 평면)
@@ -5474,7 +5625,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 요청: "개인색을 고리에 적용하고 두르는 조각들은 금색으로 변경" — 임자 색과
        금색의 자리를 통째로 맞바꿨다. 링을 두르는 조각이 곧 이 갈고리들이라 금색을
        못 박고, 색을 안 준 면(=임자 색)은 링만 갖는다. */
-    const CLAW9 = "#c9a227";
+    const CLAW9 = "#d4bd3c";
     const claw = (ang: number): ShapeFace[] => {
       const a = (ang * Math.PI) / 180;
       const bx = Math.sin(a) * RING_R;
@@ -5970,7 +6121,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           const fl9 = faceLight(wl9.nx, wl9.ny, 0.3);
           body9.push(bodyFace(wl9.d), ...(fl9.visible ? fl9.face(wl9.d) : [sideFace(wl9.d, 0.44)]));
         }
-        out9.push(...paintBase(body9, "#c9a227"));
+        out9.push(...paintBase(body9, "#d4bd3c"));
         /* 잘린 단면 — **관 벽 두께만큼의 얇은 테**다(지적: "포톤 파이프 잘린 단면이
            안가려지고 다보임"). 안쪽 관 반지름까지 통째로 메우면 관 사이의 빈 공간이 검은
            원반으로 덮여 '두꺼운 와셔를 낀 기둥'이 된다 — 관은 속이 빈 파이프라 잘린
@@ -6000,7 +6151,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       if (facingRatio(Math.sin(a9), Math.cos(a9)) <= 0.05) continue;
       /* 포드는 뚜껑 위 얹힘 — 뚜껑(키 1.4)을 늘 이기게 2를 기준으로 제 깊이만큼
          살짝 갈린다(붙박이 큰 값이면 뒤 포드가 포탑 위로 튄다). */
-      out.push(...tagKey(paintBase(boxFaces3(px9, py9, 0.75, 0.75, 0.7, 0.3), "#c9a227"),
+      out.push(...tagKey(paintBase(boxFaces3(px9, py9, 0.75, 0.75, 0.7, 0.3), "#d4bd3c"),
         2 + depthNow(px9, py9) * 0.1));
     }
     return raceBase(out, "toss", pc);
@@ -6512,7 +6663,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     return out;
   }),
   assim: () => {
-    const GOLD = "#c9a227";
+    const GOLD = "#d4bd3c";
     const GOLD_D = "#8a6f2a";
     /* (걷어냄) TEAL — 청록 #31c0ad. 녹색기가 돌아 황금 껍데기 위에서 이끼로 보였다는
        지적으로 렌즈·눈금은 사이언으로, 굴뚝 띠는 개인색으로 옮겼다. */
@@ -8024,11 +8175,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 목 — 몸 앞면(y 1.4쯤)에서 **곧바로 앞으로** 뻗는 반원기둥. 앞뒤가 밑면인
          기둥이라 prismYFaces가 그 축이다: 단면이 (x, z) 반원이고 그것을 y로 민다.
          뒤 밑면은 몸속이라 안 그리고(capBack false), 앞 밑면은 반구가 덮는다. */
-      ...tagKey(paintBase(prismYFaces(neckPlan, 1.1, HEAD_Y - 1.1, false, false), "#c9a227"),
+      ...tagKey(paintBase(prismYFaces(neckPlan, 1.1, HEAD_Y - 1.1, false, false), "#d4bd3c"),
         depthNow(0, 3) * 1.6 + 2),
       /* 목 끝의 반구 — 장식 하나 없는 매끈한 돔이다(요청: "반구의 장식은 다 제거").
          목과 밑면 높이를 나눠 써 평평한 배가 이어진다. */
-      ...tagKey(paintBase(domeFaces3(0, HEAD_Y, 1.05, 1, NECK_Z), "#c9a227"),
+      ...tagKey(paintBase(domeFaces3(0, HEAD_Y, 1.05, 1, NECK_Z), "#d4bd3c"),
         depthNow(0, HEAD_Y) * 1.6 + 3),
       /* 반구 위의 **얇은 아쿠아 렌즈 한 장** — 이것 하나가 이 건물의 눈이다.
          내려다보는 화면이라 정수리에 눕힌 얇은 원반이 곧 렌즈로 읽힌다. */
@@ -8110,7 +8261,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      위에 청록 띠를 두른 황금 기둥 셋이 솟아 청록 랜턴을 인다(가운데가 가장 높다).
      받침은 마디진 관이라 굽은 몸이 그대로 읽힌다. 랜턴 하나는 개인색이다. */
   observatory: () => withModelSpin(270, () => {
-    const GOLD = "#c9a227";
+    const GOLD = "#d4bd3c";
     const GOLD_D = "#8a6f2a";
     /* 청록을 걷는다(요청: "어시밀레이터, 옵저버토리 청록색 계열 제거 → 금색이나 연한
        사이언색으로 변경") — #31c0ad은 녹색기가 돌아 황금 껍데기 위에서 이끼로 보인다.
@@ -10283,7 +10434,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      몸이 아니다. 등을 세워 앞뒤로 오므렸다(구부림) 낮추며 길게 펴는(폄) 두 컷이
      번갈아 트면, 공벌레가 몸을 밀어 나아가는 그 결이 된다. */
   reaver: () => {
-    const GOLD = "#c9a227";
+    const GOLD = "#d4bd3c";
     const GOLD_L = "#e2c256";
     const GOLD_D = "#8a6d1a";
     const out: ShapeFace[] = [];
@@ -17430,7 +17581,7 @@ SHAPE_BUILDERS.scvGas = () => {
   } finally { scvCarry = false; }
 };
 SHAPE_BUILDERS.probeMin = () => [...SHAPE_BUILDERS.probe(), ...mineralLoad(0, 1.9, 4.35, 0.9)];
-SHAPE_BUILDERS.probeGas = () => [...SHAPE_BUILDERS.probe(), ...gasBoxLoad(0, 1.9, 4.35, 0.9, "#c9a227")];
+SHAPE_BUILDERS.probeGas = () => [...SHAPE_BUILDERS.probe(), ...gasBoxLoad(0, 1.9, 4.35, 0.9, "#d4bd3c")];
 SHAPE_BUILDERS.droneMin = () => {
   scvCarry = true;
   try {
@@ -17467,7 +17618,7 @@ SHAPE_BUILDERS.probeHold = () => SHAPE_BUILDERS.probe();
 SHAPE_BUILDERS.loadScvMin = () => mineralLoad(0, 3.15, 3.95, 1.0);
 SHAPE_BUILDERS.loadScvGas = () => gasBoxLoad(0, 3.15, 3.95, 1.0);
 SHAPE_BUILDERS.loadProbeMin = () => mineralLoad(0, 1.9, 4.35, 0.9);
-SHAPE_BUILDERS.loadProbeGas = () => gasBoxLoad(0, 1.9, 4.35, 0.9, "#c9a227");
+SHAPE_BUILDERS.loadProbeGas = () => gasBoxLoad(0, 1.9, 4.35, 0.9, "#d4bd3c");
 SHAPE_BUILDERS.loadDroneMin = () => mineralLoad(0, 2.7, 2.7, 0.95);
 SHAPE_BUILDERS.loadDroneGas = () => gasSacLoad(0, 2.7, 2.7, 0.95);
 /* 부품 깊이 정렬(지적: 일부만 가려지는 파트에서 뒤 요소가 비쳐 보임 — 가장 큰 문제) —
@@ -20244,7 +20395,7 @@ export const BLD_NORM: Record<string, number> = {
   factory: 1.485,  // 절두체+허리 재작도 뒤 재측정(bld-norm)
   fleetbeacon: 2.125,
   forge: 1.809,
-  gate: 1.872,  // A자 아치 재작도 뒤 재측정(bld-norm)
+  gate: 1.761,  // S자 기둥·발판 품수 뒤 재측정(bld-norm)
   geyser: 1.587,
   gspire: 1.151,  // 상자 상한에 걸림
   hatchery: 1.188,
