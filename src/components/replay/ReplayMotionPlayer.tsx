@@ -22964,7 +22964,11 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
           const y0 = ay + (f.my ?? 0) * zoom;
           let a9 = 1;
           /** 총구에서 표적까지(화면 px) — op에 len이 실려 있으면 그만큼이 한계다. */
-          const reach9 = f.len !== undefined && f.len > 0 ? f.len * zoom : Infinity;
+          /* ★ len은 **몸 가운데**에서 표적까지인데 선은 **총구**(mx·my)에서 시작한다 — 총구가
+             겨눈 쪽으로 나와 있는 만큼 빼야 머리가 표적에서 멈춘다(지적: 배틀 트레이서가
+             표적을 지나쳐 감 — 배틀은 총구가 앞으로 5타일 가까이 나와 있다). */
+          const mzFwd9 = (f.mx ?? 0) * dxx + (f.my ?? 0) * dyy;
+          const reach9 = f.len !== undefined && f.len > 0 ? Math.max(0, f.len - mzFwd9) * zoom : Infinity;
           /** 잔상 길이 — 갈래표의 l이 곧 '뒤로 얼마나 남나'다. */
           const tailL9 = st.l * zoom;
           /** 총구에서 머리(표적 쪽 끝)까지. */
@@ -35684,7 +35688,7 @@ export default function ReplayMotionPlayer({
                       벌어진 각을 낸다. 이 값이 없으면 번개 기둥만 화면에 수직으로 선다. */}
                   <FxModel
                     kind="storm"
-                    spin={Math.floor((t - sec) * 12) % (STORM_SEEDS * STORM_STAGES)}   /* 0.8배(요청) */
+                    spin={Math.floor((t - sec) * 9.6) % (STORM_SEEDS * STORM_STAGES)}   /* 0.8배(요청) → 다시 20% 감속(재요청) 12 → 9.6 */
                     flat={!pitched}
                     pitchView={pitched}
                     viewYaw={viewYawOf(x, y)}
