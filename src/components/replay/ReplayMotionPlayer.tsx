@@ -1034,6 +1034,34 @@ let geyserDry = false;
 const COLONY_BASE = "#3a3f46";
 /** 두 점을 잇는 뿔(요청: 가시·뿔도 공용 기둥으로) — spirePillar를 '뿌리 → 끝'
  *  방향으로 세워, 밑동이 굵고 끝이 뾰족한 뿔을 만든다. 살짝 휘게 하려면 bow를 준다. */
+/** 반투명 **플라즈마 칼날**(요청: 질럿·다템 검) — 고깔이 아니라 **방추**다: 뿌리에서
+ *  끝으로 가며 곧게 뾰족해지는 가늘고 납작한 날이다(재요청: 배흘림 없이).
+ *  면 투명도를 alpha로 눌러 속이 비치는 빛의 날로 읽힌다. 키는 부르는 쪽이 단다. */
+/** 주먹 쥔 손(요청: 칼 밑에 주먹) — 손목 자리에 얹는 작은 공. 위 반구 + 밑 짧은 통. */
+function fistFaces(x: number, y: number, z: number, r: number, fill: string): ShapeFace[] {
+  return paintBase([
+    ...cylinderFaces3(x, y, r * 0.92, r * 0.8, z - r * 0.8),
+    ...domeFaces3(x, y, r, r * 0.85, z),
+  ], fill);
+}
+function plasmaBlade(
+  a: [number, number, number], b: [number, number, number], w: number, fill: string, alpha = 0.6,
+): ShapeFace[] {
+  return spirePillar({
+    /* w는 옛 spikeHorn의 지름 값을 그대로 받아 반지름(×0.5)으로 쓴다. 단면은 **납작**하다
+       (요청: 손등 위에서 나오는 검이라 납작해야) — 옆(x)으로 0.3배 눌린 세로 판. */
+    // 폭은 지름 값의 0.2(반지름) — 잎이 아니라 **날**로 읽히게 좁고 길다(재지적: 더 좁게).
+    x: 0, y: 0, h: 1, w: w * 0.2, tipW: w * 0.2, segs: 5, sides: 6, caps: "none", trueNormal: true,
+    // oval은 v축(=축×u, ref가 위(z)면 옆 방향)을 누른다 → 옆으로 얇고 위아래로 선 날.
+    oval: 0.3, ref: [0, 0, 1],
+    path: (t9: number): [number, number, number] =>
+      [a[0] + (b[0] - a[0]) * t9, a[1] + (b[1] - a[1]) * t9, a[2] + (b[2] - a[2]) * t9],
+    // 배흘림 없이 뿌리에서 끝까지 곧게 뾰족(재요청).
+    // widthOf는 **절대 반지름**이다(w를 안 곱한다) — 뿌리 반지름 w×0.2에서 끝 0으로.
+    widthOf: (t9: number): number => w * 0.2 * (1 - t9 * 0.97),
+  // 면 밝기(o)를 살린 채 alpha를 곱한다 — 반투명이면서도 면마다 음영이 남아 입체로 읽힌다.
+  }).map(([d, o, , k, l, n]) => [d, Math.max(0.15, o * alpha), fill, k, l, n] as ShapeFace);
+}
 function spikeHorn(
   bx: number, by: number, bz: number, tx: number, ty: number, tz: number,
   w: number, fill?: string, sides = 6, bow = 0,
@@ -1548,6 +1576,8 @@ function protossLegs(
   thighFill?: string, shinFill?: string, lift = 0, shrink = 1,
   /** 걸음 몫(요청: 애니메이션) — 부호가 컷(1/3)에서 오므로 두 컷이 서로 거울이다. */
   stride = 0,
+  /** 굵기만의 배수(지적: "하템 다리 너무 두꺼움") — 자리는 그대로, 마디 굵기만 줄인다. */
+  thin = 1,
 ): ShapeFace[] {
   const paint = (f: ShapeFace[], c?: string): ShapeFace[] => (c ? paintBase(f, c) : f);
   /* 다리 길이 줄이기(요청: 하이템플러는 짧게) — 엉덩이(3.95)를 축으로 z를 눌러
@@ -1573,12 +1603,13 @@ function protossLegs(
     /* 다리 키(지적: "질럿 다템 하템 키가 엉망 다리쪽 팔쪽 얼굴쪽") — −0.9는 붙박이라
        요잉을 돌려도 늘 같은 층이었다. 마디마다 제 자리 깊이를 실어 몸통(0)을 사이에
        두고 앞뒤가 갈리게 한다: 앞다리는 몸 위, 뒷다리는 몸 뒤. */
-    out.push(...paint(suitLimb(hip, knee, 0.38, 0.33, 0.41,
+    out.push(...paint(suitLimb(hip, knee, 0.38 * thin, 0.33 * thin, 0.41 * thin,
       { sides: 7, key: depthNow(hip[0], (hip[1] + knee[1]) / 2) * 1.6 - 0.9, tag: "leg.thigh" }), thighFill));
     out.push(...paint([
-      ...suitLimb(knee, ankle, 0.45, 0.38, 0.5,
+      ...suitLimb(knee, ankle, 0.45 * thin, 0.38 * thin, 0.5 * thin,
         { sides: 7, key: depthNow(knee[0], (knee[1] + ankle[1]) / 2) * 1.6 - 0.9, tag: "leg.shin" }),
-      ...suitLimb(ankle, toe, 0.38, 0.3, 0.36,
+      // 발은 작고 예리하게(요청: 프로토스 인간형 발이 투박하고 큼) — 0.38/0.3/0.36 → 0.27/0.18/0.25.
+      ...suitLimb(ankle, toe, 0.27, 0.18, 0.25,
         { sides: 7, key: depthNow(ankle[0], (ankle[1] + toe[1]) / 2) * 1.6 - 0.95, tag: "leg.foot" }),
     ], shinFill));
     /* 발은 **두 갈래 발가락**이다(요청: "프로토스 보병류 발은 scv 발같은 발가락 2개
@@ -1597,9 +1628,10 @@ function protossLegs(
     for (const s9 of [-1, 1] as const) {
       out.push(...paint(tagKey(spirePillar({
         x: 0, y: 0, h: 1, w: 1, segs: 2, sides: 6, oval: 1.8, caps: "none",
+        // 발가락 둘 — 가늘고 끝이 뾰족하게(요청). 벌림 0.32 → 0.24, 굵기 0.24 → 0.15, 끝 0.02.
         path: (t9: number): [number, number, number] =>
-          [fx + s9 * (0.1 + 0.32 * t9), fy + 0.78 * t9, fz + 0.24 - 0.12 * t9],
-        widthOf: (t9: number): number => 0.24 - 0.12 * t9,
+          [fx + s9 * (0.08 + 0.24 * t9), fy + 0.72 * t9, fz + 0.2 - 0.1 * t9],
+        widthOf: (t9: number): number => 0.15 - 0.13 * t9,
       }), -0.9 + depthNow(fx + s9 * 0.26, fy + 0.4) * 0.25), shinFill));
     }
   }
@@ -15126,24 +15158,23 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ];
       /* 칼 — 손에서 이어 나간다. 겨눔에서는 앞·위로 서 있고(칼끝을 든 자세),
          잽에서는 **수평으로** 앞으로 내지른다(칼끝 높이가 손과 거의 같다). */
-      const bl0: [number, number, number] = [hd[0] * 0.975, hd[1] - 0.13, hd[2] + 0.15];
-      const bl1: [number, number, number] = [
-        m9 * (2.7 - j9 * 0.34),
-        hd[1] + 1.35 + g9 * 0.5 + j9 * 1.35,
-        hd[2] + (g9 ? 0.62 : -1.7) - j9 * 0.28,
-      ];
       const el = jointBetween(sh, hd, 1.2, 1.3, [m9 * 0.8, -0.5, -0.3]);
       return [
         ...paintBase(pLimb(sh, el, 0.44), "#3a4258"),
         ...paintBase(pLimb(el, hd, 0.6), P_GOLD),
-        ...paintBase(spikeHorn(
-          bl0[0], bl0[1], bl0[2], bl1[0], bl1[1], bl1[2], 0.7, undefined, 6, 0.12,
-        ), P_PLASMA),
-        // 칼날의 흰 심 — 칼과 같은 두 점을 살짝 안쪽으로 물려 긋는다.
-        [polyPath3([
-          [hd[0], hd[1] + 0.03, hd[2] + 0.05], [bl1[0] * 0.98, bl1[1] - 0.05, bl1[2] + 0.1],
-          [bl1[0] * 0.93, bl1[1], bl1[2] - 0.05], [hd[0] * 0.935, hd[1] + 0.08, hd[2] - 0.15],
-        ]), 0.75, "#ffffff"] as ShapeFace,
+        // 주먹(요청) — 칼은 손등에서 나온다.
+        ...tagKey(fistFaces(hd[0], hd[1], hd[2] - 0.1, 0.24, "#3a4258"),
+          depthNow(hd[0], hd[1]) * 1.6 + 1.15),
+        // 반투명 방추 칼날(요청) — 좁고 길게(1.4배), 뿌리에서 도로 좁아져 고깔로 안 읽힌다.
+        // ★ 칼은 **하완과 평행**(재지적) — 팔꿈치→손 방향 그대로 손등에서 1.9만큼 뻗는다.
+        ...((): ShapeFace[] => {
+          const dx = hd[0] - el[0]; const dy = hd[1] - el[1]; const dz = hd[2] - el[2];
+          const L = Math.hypot(dx, dy, dz) || 1;
+          const b0: [number, number, number] = [hd[0] + (dx / L) * 0.05, hd[1] + (dy / L) * 0.05, hd[2] + (dz / L) * 0.05 + 0.1];
+          const b1: [number, number, number] = [hd[0] + (dx / L) * 1.9, hd[1] + (dy / L) * 1.9, hd[2] + (dz / L) * 1.9 + 0.1];
+          return tagKey(plasmaBlade(b0, b1, 0.7, P_PLASMA, 0.8),
+            depthNow((b0[0] + b1[0]) / 2, (b0[1] + b1[1]) / 2) * 1.6 + 1.2);
+        })(),
       ];
     }),
   ];
@@ -15184,6 +15215,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      짙은 청동 한 색으로 내린다. 그러면 초록 검과 초록 눈이 유일한 밝은 점이 되어,
      원작이 다크를 그리는 방식과 같아진다. */
   const DK9 = "#6a5636";
+  // 오른팔(검 팔) 세 점 — 칼이 하완과 평행하게 뻗도록 팔꿈치를 여기서 함께 둔다.
+  const shR9: [number, number, number] = [0.82, 0.25 + armY(1) * 0.5, 5.6];
+  const hdR9: [number, number, number] = [1.62, -1.55 + armY(1) + tipY9 * 0.55, 4.1 + tipZ9 * 0.42];
+  const elR9 = jointBetween(shR9, hdR9, 1.45, 1.2, [0.8, -0.3, -0.5]);
   /** 팔 하나 — 어깨 관절 공 + 상완 + 하완. 팔꿈치는 두 마디 길이(1.45·1.2) 고정으로 푼다. */
   const dtArm = (m9: 1 | -1, sh9: [number, number, number], hd9: [number, number, number]): ShapeFace[] => {
     const el9 = jointBetween(sh9, hd9, 1.45, 1.2, [m9 * 0.8, -0.3, -0.5]);
@@ -15247,7 +15282,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 오른팔은 뒤로(요청) — 검을 뒤로 늘어뜨린 자세. 하완과 검이 1자다. */
     /* 검 든 팔 — 평소엔 뒤(−y)로 늘어뜨리고, 공격에서는 그 팔이 통째로 앞으로 돌아
        검이 몸 앞을 가른다. sw9가 그 휘두른 몫이다(뒤 −1.55 → 앞 +1.15). */
-    ...dtArm(1, [0.82, 0.25 + armY(1) * 0.5, 5.6], [1.62, -1.55 + armY(1) + tipY9 * 0.55, 4.1 + tipZ9 * 0.42]),
+    ...dtArm(1, shR9, hdR9),
     /* 검은 **초록**이다(사진 다크템플러2·3 — 워프 블레이드) — 질럿의 플라즈마와
        갈리는 다크의 표식. 심은 밝은 백록. */
     ...((): ShapeFace[] => {
@@ -15257,21 +15292,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /** 칼끝 — 쉼에서는 뒤·아래, 컷에 따라 그 몫이 통째로 실린다. */
       /* 검은 **흰 플라즈마**이고 더 크다(요청) — 길이 1.25배, 굵기 0.75 → 0.95. 심은
          푸른빛 도는 흰색. */
-      const p0: [number, number, number] =
-        [1.92, -2.85 + armY(1) + tipY9, 1.55 + tipZ9];
-      const p9: [number, number, number] =
-        [h9[0] + (p0[0] - h9[0]) * 1.25, h9[1] + (p0[1] - h9[1]) * 1.25, h9[2] + (p0[2] - h9[2]) * 1.25];
       return [
-        ...paintBase(spikeHorn(
-          h9[0], h9[1], h9[2], p9[0], p9[1], p9[2], 0.95, undefined, 6, 0.12,
-        ), "#eefbff"),
+        ...tagKey(fistFaces(h9[0], h9[1], h9[2] - 0.05, 0.22, DK9),   // 주먹(요청)
+          depthNow(h9[0], h9[1]) * 1.6 + 1.15),
+        // ★ 칼은 **하완과 평행**(재지적) — 팔꿈치→손 방향으로 손등에서 2.6만큼.
+        ...((): ShapeFace[] => {
+          const dx = hdR9[0] - elR9[0]; const dy = hdR9[1] - elR9[1]; const dz = hdR9[2] - elR9[2];
+          const L = Math.hypot(dx, dy, dz) || 1;
+          const b0: [number, number, number] = [h9[0] + (dx / L) * 0.05, h9[1] + (dy / L) * 0.05, h9[2] + (dz / L) * 0.05 + 0.1];
+          const b1: [number, number, number] = [h9[0] + (dx / L) * 2.6, h9[1] + (dy / L) * 2.6, h9[2] + (dz / L) * 2.6 + 0.1];
+          return tagKey(plasmaBlade(b0, b1, 0.95, "#eefbff", 0.8),
+            depthNow((b0[0] + b1[0]) / 2, (b0[1] + b1[1]) / 2) * 1.6 + 1.2);
+        })(),
         // 칼날의 밝은 심 — 같은 두 점을 살짝 안쪽으로 물려 긋는다.
-        [polyPath3([
-          [h9[0] * 1.04, h9[1] + 0.12, h9[2] - 0.15],
-          [p9[0] * 1.03, p9[1] + 0.1, p9[2] + 0.05],
-          [p9[0] * 0.96, p9[1] + 0.05, p9[2] - 0.05],
-          [h9[0] * 0.96, h9[1] + 0.07, h9[2] - 0.25],
-        ]), 0.8, "#cfeaff"] as ShapeFace,
       ];
     })(),
     /* ★ (걷어냄) 후드 — 머리 정수리·뒤통수를 통째로 덮던 짙은 돔이다(지적: "다크템플러
@@ -15305,7 +15338,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const L = 1.6;
     return [
       // 다리는 금색(재지적) — 다리 길이 축소(요청): 엉덩이 축으로 0.68배.
-      ...protossLegs(P_GOLD, P_GOLD, L, 0.68),
+      ...protossLegs(P_GOLD, P_GOLD, L, 0.68, 0, 0.72),   // 다리 굵기 0.72배(지적: 너무 두꺼움)
       ...protossTorso(P_GOLD, L),
       ...protossNeck(P_GOLD, L),
       /* 앞가리개(요청) — 허리부터 발목까지. 몸에 딱 붙인다(재지적: 떠 보였다) —
@@ -18370,7 +18403,7 @@ const MODEL_NORM: Record<string, number> = {
   droneGas: 1.040,
   droneMin: 1.071,
   dship: 0.719,  // 낮은 꼬리·H자 날개 뒤 재측정(model-norm)
-  dtemp: 0.905,  // 검 확대·팔 뿌리 이동 뒤 재측정(model-norm)
+  dtemp: 0.911,  // 플라즈마 검·주먹 뒤 재측정(model-norm)
   egg: 1.237,   // 정수리를 둥글게 한 뒤 model-norm 재측정
   fbat: 1.229,
   ghost: 1.552,  // 상자 상한(원한 배수 1.723)
@@ -18378,7 +18411,7 @@ const MODEL_NORM: Record<string, number> = {
   goon: 0.667,
   guardian: 0.611,
   gunner: 1.327,  // 팔 길이 고정 뒤 model-norm 재측정
-  htemp: 1.233,   // 어깨판 재작 뒤 재측정(model-norm)
+  htemp: 1.249,   // 다리 굵기·발 축소 뒤 재측정(model-norm)
   hydra: 0.685,
   inf: 1.514,  // 상자 상한(원한 배수 1.615)
   interceptor: 1.606,
@@ -18419,7 +18452,7 @@ const MODEL_NORM: Record<string, number> = {
   vessel: 0.898,  // 방패 접힘 축·뾰족 위끝 뒤 재측정(model-norm)
   vulture: 0.828,
   wraith: 0.895,  // 재측정(model-norm)
-  zealot: 0.799,
+  zealot: 0.835,  // 플라즈마 검·주먹·발 축소 뒤 재측정(model-norm)
   zling: 0.758,
   // tankgun: 없음 — 짝이라 소스의 NORM_PAIR가 tankbody 배수로 접는다.
   // tanksiegegun: 없음 — 짝이라 소스의 NORM_PAIR가 tanksiegebody 배수로 접는다.
