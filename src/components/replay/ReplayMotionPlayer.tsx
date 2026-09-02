@@ -855,7 +855,13 @@ const POSE_ATK_R = 5;
    움직일 때만 트는 컷이라 제자리에 뜬 비행체는 굳어 버린다. flap은 그 조건을 안 보고
    초당 몇 번인지(Hz)만 받아 늘 두 컷을 오간다. 컷 자체는 걸음과 같은 1↔3이라 빌더는
    walkDir() 하나만 읽으면 된다. */
-const POSE_KINDS: Record<string, { move?: boolean; atk?: boolean; flap?: number }> = {
+const POSE_KINDS: Record<string, { move?: boolean; atk?: boolean; flap?: number;
+  /** 추진체 불꽃(요청: 비행체는 이동할 때만 불꽃) — 걸음 컷이 없는 비행체는 이동 중이면 자세 1을 고정으로 받는다. */
+  thrust?: boolean;
+}> = {
+  // ── 비행체: 이동 중이면 자세 1(추진체 불꽃), 아니면 0 ──
+  wraith: { thrust: true }, dship: { thrust: true }, valk: { thrust: true }, bc: { thrust: true },
+  scout: { thrust: true }, corsair: { thrust: true }, shuttle: { thrust: true }, carrier: { thrust: true },
   gunner: { move: true, atk: true },
   fbat: { move: true, atk: true },
   ghost: { move: true, atk: true },
@@ -34166,6 +34172,8 @@ export default function ReplayMotionPlayer({
                 /* 간이 보기에서는 **날갯짓이 있는 종류만** 컷을 고른다 — 차례는 아래
                    그대로 둔다(공격 컷이 날갯짓보다 앞선다). 여기서 걸러 내기만 한다. */
                 if (liteView && !pk9.flap) return 0;
+                // 비행체(thrust): 걸음 컷이 없으니 이동 중이면 자세 1 고정 — 빌더가 그 자세에서만 불꽃을 낸다.
+                if (pk9.thrust) return movingNow ? 1 : 0;
                 /* ★ **걸음이 공격보다 먼저다**(지적: "질럿 걷기가 적용 안된듯?") —
                    여태 공격이 먼저였는데, `fighting`은 '사거리 안에 적이 있다'라
                    표적을 향해 **걸어가는 내내** 참이다. 그래서 교전 지역에 들어선
