@@ -15255,7 +15255,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          물러난 곡선(몸을 두른다), 옆구리를 지나 아래로 퍼지며, 자락은 아래로 갈수록
          뒤·위로 젖혀져 나부낀다. */
       const pts: [number, number, number][] = [
-        [-1.32, -0.35, 5.85], [-0.7, -0.7, 6], [0, -0.8, 6.02], [0.7, -0.7, 6], [1.32, -0.35, 5.85],
+        // 윗변은 **어깨에 딱**(지적) — 어깨 뿌리(±0.82, 0.25, 5.6) 위·뒤, 몸통 꼭대기(6.05) 위로.
+        [-1.25, -0.05, 6.15], [-0.7, -0.3, 6.35], [0, -0.4, 6.4], [0.7, -0.3, 6.35], [1.25, -0.05, 6.15],
         [1.85, -1.05, 4.5], [2.45, -1.95, 2.9], [2.7, -2.75, 1.9],
       ];
       for (let i = 0; i <= 10; i += 1) {
@@ -15390,9 +15391,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          이 천이 없으면 실루엣이 막대에 가깝다. 두 폭이 등 가운데에서 만나 V로 벌어지고,
          아래로 갈수록 바깥·뒤로 흐른다. */
       ...([-1, 1] as const).flatMap((m9): ShapeFace[] => {
+        // 윗변은 **어깨에 딱**(지적: 너무 낮게 달림) — 어깨 뿌리(±1.05, −0.2, 5.7) 바로 위·뒤.
         const d9 = polyPath3([
-          [m9 * 0.05, -0.66, 5.72 + L],
-          [m9 * 0.66, -0.72, 5.52 + L],
+          [m9 * 0.05, -0.35, 6.25 + L],
+          [m9 * 0.95, -0.45, 6.05 + L],
           [m9 * 1.14, -1.16, 3.3 + L],
           [m9 * 0.92, -1.46, 1.5 + L],
           [m9 * 0.08, -1.28, 1.35 + L],
@@ -17167,7 +17169,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        솟는 수직 안정판과, 그 위에서 좌우로 뻗는 수평 안정판 한 쌍. */
     /* 꼬리 입체화(요청) — 수직 안정판은 좌우 두께, 수평 안정판은 위아래 두께를 갖는
        판. 각 판의 둘레를 띠로 둘러 부피를 만든다. */
-    out.push(...tagKey(paintBase(((): ShapeFace[] => {
+    out.push(...tagKey(((): ShapeFace[] => {
       /* 꼬리(재지적) — 앞뒤로 뻗는 팔(붐)은 **아주 낮은** 판이고, 그 끝의 좌우 팔(수평
          안정판) 양쪽 끝에 **수직 날개**가 서서 붙는다(H자 꼬리). 높은 수직 안정판은 걷었다. */
       // 붐은 더 길게(요청: −5.3 → −6.0), 수평·수직 날개도 그 끝으로 물러난다.
@@ -17205,13 +17207,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         f9.push(bodyFace(polyPath3(hi9)), topFace(polyPath3(hi9), topOp));
         return f9;
       };
+      // 붐만 쇠색, 수평·수직 꼬리 날개는 **임자색**(요청) — 칠하지 않아 임자 색이 든다.
       return [
-        ...slab(finAt(-0.25), finAt(0.25), 0.14),
+        ...paintBase(slab(finAt(-0.25), finAt(0.25), 0.14), TERRAN_STEEL),
         ...slab(wingAt(6.25), wingAt(6.5), 0.16),
         ...slab(endAt(-1, 0.16), endAt(-1, 0), 0.12),
         ...slab(endAt(1, 0), endAt(1, 0.16), 0.12),
       ];
-    })(), TERRAN_STEEL), depthNow(0, -3.6)));
+    })(), depthNow(0, -3.6)));
     return out;
   },
   /* 셔틀(다시 둘, 실물 참고) — 둥근 게딱지 몸통 앞(+y)으로 굵은 집게 두 개가 안쪽으로
@@ -18454,7 +18457,7 @@ const MODEL_NORM: Record<string, number> = {
   drone: 1.072,
   droneGas: 1.040,
   droneMin: 1.071,
-  dship: 0.704,  // 재측정(model-norm)
+  dship: 0.708,  // 재측정(model-norm)
   dtemp: 0.875,  // 재측정(model-norm)
   egg: 1.237,   // 정수리를 둥글게 한 뒤 model-norm 재측정
   fbat: 1.229,
