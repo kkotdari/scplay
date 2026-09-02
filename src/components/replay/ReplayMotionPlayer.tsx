@@ -6802,8 +6802,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        띠를 두른다: 평소엔 식은 짙은 유리이고, 가스를 뽑는 동안 플라즈마 사이언이
        들어온다. 기둥은 어느 각에서도 실루엣 밖에 서 있어 뒤에서도 불이 보인다.
        (자리·기울기는 아래 기둥 루프가 그대로 다시 셈한다 — 같은 값이어야 붙는다.) */
-    ([[-2.3, -1.9, 3.4, 0], [2.3, -1.9, 3.4, 0], [-2.7, 1.5, 2.2, -1], [2.7, 1.5, 2.2, 1]] as
-      [number, number, number, number][]).forEach(([px, py, ph, lean]) => {
+    /* 굴뚝은 **셋**(재지적): 앞 양옆 둘(기운 채)과 **뒤 가운데 큰 것 하나**(k 1.45배).
+       가스는 세 곳에서 다 오르되 가운데가 가장 크다. */
+    const CHIM9: [number, number, number, number, number][] = [
+      [-2.7, 1.5, 2.2, -1, 1], [2.7, 1.5, 2.2, 1, 1], [0, -2.3, 3.6, 0, 1.45],
+    ];
+    CHIM9.forEach(([px, py, ph, lean, k9]) => {
       const wx9 = px + lean * 0.72;
       const wy9 = py + (lean === 0 ? 0 : 0.32);
       const wz9 = 0.3 + ph * 0.72;
@@ -6814,30 +6818,36 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          '켜졌다'만 읽히고 색이 튀지 않는다. */
       out.push(...tagKey(bldLitNow
         ? [
-          ...paintBase(cylinderFaces3(wx9, wy9, 0.46, 0.3, wz9), "#e8c33a"),
-          ...paintBase(cylinderFaces3(wx9, wy9, 0.49, 0.1, wz9 + 0.08), "#fff2b0"),
+          ...paintBase(cylinderFaces3(wx9, wy9, 0.46 * k9, 0.3, wz9), "#e8c33a"),
+          ...paintBase(cylinderFaces3(wx9, wy9, 0.49 * k9, 0.1, wz9 + 0.08), "#fff2b0"),
         ]
-        : paintBase(cylinderFaces3(wx9, wy9, 0.46, 0.3, wz9), GOLD_D),
+        : paintBase(cylinderFaces3(wx9, wy9, 0.46 * k9, 0.3, wz9), GOLD_D),
       10 + depthNow(px, py) * 1.6 + 0.5));
     });
     /* 네 귀 기둥 — 뒤 둘은 높고 곧게, 앞 둘은 낮고 바깥으로 기운다. 청록 띠와 황금 갓. */
-    ([[-2.3, -1.9, 3.4, 0], [2.3, -1.9, 3.4, 0], [-2.7, 1.5, 2.2, -1], [2.7, 1.5, 2.2, 1]] as
-      [number, number, number, number][]).forEach(([px, py, ph, lean]) => {
+    /* 굴뚝은 **셋**(재지적): 앞 양옆 둘(기운 채)과 **뒤 가운데 큰 것 하나**(k 1.45배).
+       가스는 세 곳에서 다 오르되 가운데가 가장 크다. */
+    CHIM9.forEach(([px, py, ph, lean, k9]) => {
       out.push(...tagKey(paintBase(spirePillar({
-        x: px, y: py, z0: 0.3, h: ph, w: 0.55, tipW: 0.42,
+        x: px, y: py, z0: 0.3, h: ph, w: 0.55 * k9, tipW: 0.42 * k9,
         segs: 3, sides: 6, hold: 0.3, leanX: lean * 0.9, leanY: lean === 0 ? 0 : 0.4,
       }), GOLD), 10 + depthNow(px, py) * 1.6));
       /* 굴뚝 띠는 개인색이다(요청: "굴뚝들 녹색데칼 개인색으로 변경") — 색을 안 주면
          임자 색이 들므로 pc에 담는다(out은 밑칠이 통째로 금빛을 덮어쓴다). */
       pc.push(...tagKey(cylinderFaces3(px + lean * 0.45, py + (lean === 0 ? 0 : 0.2),
-        0.6, 0.45, 0.3 + ph * 0.55), 10 + depthNow(px, py) * 1.6 + 0.2));
+        0.6 * k9, 0.45, 0.3 + ph * 0.55), 10 + depthNow(px, py) * 1.6 + 0.2));
     });
     /* 오른뒤 기둥에서 오르는 초록 가스(사진) — 위로 갈수록 넓고 옅어지는 세 켜. */
-    for (const [gz, gr, ga] of [[4, 0.6, 0.3], [5.1, 0.9, 0.18], [6.2, 1.2, 0.1]] as
-      [number, number, number][]) {
-      out.push(...tagKey([[groundEllipse(
-        ...project(2.3 + (gz - 4) * 0.1, -1.9 + (gz - 4) * 0.15, gz), gr, gr * 0.6,
-      ), ga, "#80ff96"] as ShapeFace], 20 + depthNow(2.3, -1.9)));
+    // 증기 — 세 굴뚝 위에 층층이, 크기는 굴뚝 배수(k9)를 따라 가운데가 가장 크다.
+    for (const [px, py, ph, lean, k9] of CHIM9) {
+      const wx9 = px + lean * 0.72; const wy9 = py + (lean === 0 ? 0 : 0.32);
+      const top9 = 0.3 + ph * 0.72 + 0.4;
+      for (const [dz, gr, ga] of [[0, 0.55, 0.3], [1.0, 0.85, 0.18], [2.0, 1.15, 0.1]] as
+        [number, number, number][]) {
+        out.push(...tagKey([[groundEllipse(
+          ...project(wx9 + dz * 0.1, wy9 + dz * 0.15, top9 + dz), gr * k9, gr * k9 * 0.6,
+        ), ga, "#80ff96"] as ShapeFace], 20 + depthNow(px, py)));
+      }
     }
     // 개인색은 몸을 타넘는 가운데 활 띠 둘(위 own9) — 덧붙였던 원판은 걷어냈다(요청).
     return raceBase(out, "toss", pc);
@@ -20435,7 +20445,7 @@ export const BLD_NORM: Record<string, number> = {
   arch: 2.584,  // 십자 방패판 재작도 뒤 재측정(bld-norm)
   archives: 2.489,  // 상자 상한에 걸림
   armory: 1.223,
-  assim: 1.655,
+  assim: 1.556,  // 굴뚝 셋 재배치 뒤 재측정(bld-norm)
   cavern: 1.082,
   citadel: 2.225,
   cocoon: 2.018,
