@@ -2963,6 +2963,29 @@ const TANK_STEEL = TERRAN_STEEL;
 /** 안전주의 빗금 판(요청 팔레트: 노랑검정 빗금) — 세로 판 하나에 노란 바탕과 검은
  *  빗금 몇 줄. 판이 (x, z) 평면에 서므로 빗금은 두 축을 함께 밀어 그린다. 앞을 볼
  *  때만 그린다(뒤에서는 차체 속이다). */
+/** 해저드 **상자**(피직스랩·코버트옵스 사진의 노랑·검정 빗금 덩이) — 상자 하나를 노랑으로
+ *  칠하고, 윗면과 앞면에 검정 빗금 띠를 얹는다. y·z 방향 빗금이라 요잉을 함께 탄다. */
+function hazardBox(cx: number, cy: number, w: number, d: number, h: number, z0: number, bars = 4): ShapeFace[] {
+  const out: ShapeFace[] = [...paintBase(boxFaces3(cx, cy, w, d, h, z0), "#e8c33a")];
+  const zt = z0 + h + 0.01;
+  for (let k9 = 0; k9 < bars; k9 += 1) {
+    const u0 = -w / 2 + (k9 + 0.15) * (w / bars);
+    const u1 = u0 + (w / bars) * 0.45;
+    // 윗면 사선 띠.
+    out.push([polyPath3([
+      [cx + u0, cy - d / 2, zt], [cx + u1, cy - d / 2, zt],
+      [cx + u1 + d * 0.35, cy + d / 2, zt], [cx + u0 + d * 0.35, cy + d / 2, zt],
+    ]), 1, "#1c1f24"] as ShapeFace);
+    // 앞면 사선 띠(앞을 볼 때만).
+    if (facingRatio(0, 1) > 0.08) {
+      out.push([polyPath3([
+        [cx + u0, cy + d / 2 + 0.01, z0], [cx + u1, cy + d / 2 + 0.01, z0],
+        [cx + u1 + h * 0.35, cy + d / 2 + 0.01, z0 + h], [cx + u0 + h * 0.35, cy + d / 2 + 0.01, z0 + h],
+      ]), 1, "#1c1f24"] as ShapeFace);
+    }
+  }
+  return out;
+}
 function hazardPanel(
   xc: number, y: number, zc: number, hw: number, hh: number, bars = 4,
 ): ShapeFace[] {
@@ -13114,136 +13137,84 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   /* 코버트 옵스(재모델링·사진) — 어두운 각진 선체 위에 길쭉한 장갑 슬래브 셋이
      비스듬히 얹히고(모서리에 밝은 띠), 뒤 왼쪽에 노랑·검정 빗금 쐐기, 오른쪽 앞에
      검은 포구 원통이 튀어나온다. 아래는 골이 진 띠 받침. */
+  /* 코버트옵스(사진 재작도) — **낮고 넓은 몸체** 위에 양옆에서 안쪽으로 기운 **검은 유리판
+     두 장**이 마주 서고, 왼뒤에 노랑·검정 해저드 덩이. 앞 위 모서리에 초록 등줄, 오른쪽에
+     둥근 환기구, 앞은 낮은 경사 치마. */
   covert: () => {
     const out: ShapeFace[] = [
-      // 받침 슬래브는 중심 깊이만(지적: 애드온 바닥이 위 부품을 덮음).
-      ...tagKey(paintBase(boxFaces3(0, 0.2, 5.6, 4.4, 1.1), "#383e48"), depthNow(0, 0.2)),
+      ...tagKey(paintBase(boxFaces3(0, 0.2, 5.6, 4.4, 0.6), "#383e48"), depthNow(0, 0.2)),
     ];
-    // 골 진 띠 받침 — 앞면을 가로지르는 가는 홈 넷.
-    if (facingRatio(0, 1) > 0.1) {
-      const rib: ShapeFace[] = [];
-      for (let k = 0; k < 4; k += 1) {
-        rib.push(sideFace(polyPath3([
-          [-2.6, 2.41, 0.2 + k * 0.24], [2.6, 2.41, 0.2 + k * 0.24],
-          [2.6, 2.41, 0.32 + k * 0.24], [-2.6, 2.41, 0.32 + k * 0.24],
-        ]), 0.35));
-      }
-      out.push(...tagKey(rib, depthNow(0, 2.4) + 0.2));
+    const K = (x9: number, y9: number, add = 0): number => 22 + depthNow(x9, y9) + add;
+    // ① 몸체 — 낮은 상자 + 앞 경사 치마(앞을 볼 때만).
+    out.push(...tagKey(paintBase(boxFaces3(0, 0.0, 5.0, 3.4, 1.3, 0.6), "#6a7484"), K(0, 0)));
+    if (facingRatio(0, 1) > 0.08) {
+      const skirt = polyPath3([[-2.5, 1.7, 0.6], [2.5, 1.7, 0.6], [2.5, 2.3, 0.6], [-2.5, 2.3, 0.6]]);
+      const slope = polyPath3([[-2.5, 2.3, 0.6], [2.5, 2.3, 0.6], [2.5, 1.7, 1.9], [-2.5, 1.7, 1.9]]);
+      out.push(...tagKey([[skirt, 1, "#4a515c"] as ShapeFace, [slope, 1, "#7e8a9c"] as ShapeFace,
+        // 초록 등줄 — 경사 치마 위 모서리.
+        [polyPath3([[-2.2, 1.72, 1.75], [2.2, 1.72, 1.75], [2.2, 1.72, 1.85], [-2.2, 1.72, 1.85]]), 1,
+          bldLitNow ? "#4cd86a" : "#245c31"] as ShapeFace,
+      ], K(0, 1.9, 0.5)));
     }
-    /* 장갑 슬래브 셋 — 앞으로 낮아지게 비스듬히 얹힌 긴 판. 위 모서리에 밝은 띠. */
-    for (const [sx, sy] of [[-1.5, 0.1], [0, 0.1], [1.5, 0.1]] as [number, number][]) {
-      const lo: [number, number, number][] = [
-        [sx - 0.62, sy - 1.9, 2.5], [sx + 0.62, sy - 1.9, 2.5],
-        [sx + 0.62, sy + 1.9, 1.35], [sx - 0.62, sy + 1.9, 1.35],
-      ];
-      const hi = lo.map(([x9, y9, z9]) => [x9, y9, z9 + 0.62] as [number, number, number]);
-      const f: ShapeFace[] = [bodyFace(polyPath3(lo))];
-      for (let k = 0; k < 4; k += 1) {
-        const q = (k + 1) % 4;
-        f.push(bodyFace(polyPath3([lo[k], lo[q], hi[q], hi[k]])));
-      }
-      f.push(bodyFace(polyPath3(hi)), topFace(polyPath3(hi), 0.18));
-      // 위 모서리 밝은 띠(사진) — 슬래브 꼭대기를 따라 흐르는 옅은 초록빛 선.
-      f.push([polyPath3([
-        [sx - 0.5, sy - 1.7, 3.14], [sx + 0.5, sy - 1.7, 3.14],
-        [sx + 0.5, sy + 1.6, 2.15], [sx - 0.5, sy + 1.6, 2.15],
-      ]), 0.8, "#cfe0cf"] as ShapeFace);
-      out.push(...tagKey(paintBase(f, "#7e8a9c"), 24 + depthNow(sx, sy)));
+    // ② 안쪽으로 기운 검은 유리판 두 장 — 옆 모서리에서 솟아 가운데로 기운다.
+    for (const m9 of [-1, 1] as const) {
+      const pane = polyPath3([
+        [m9 * 2.4, -1.3, 1.9], [m9 * 2.4, 1.2, 1.9], [m9 * 1.2, 1.0, 3.1], [m9 * 1.2, -1.1, 3.1],
+      ]);
+      const rim = polyPath3([
+        [m9 * 2.5, -1.4, 1.85], [m9 * 2.5, 1.3, 1.85], [m9 * 2.4, 1.2, 1.9], [m9 * 2.4, -1.3, 1.9],
+      ]);
+      out.push(...tagKey([
+        [pane, 1, "#1e2733"] as ShapeFace, topFace(pane, 0.18),
+        [rim, 1, "#9aa4b2"] as ShapeFace,
+      ], K(m9 * 1.8, -0.1, 0.8)));
     }
-    /* 뒤 왼쪽 노랑·검정 빗금 쐐기(사진) — 선체 뒤 위로 솟은 경사 블록. */
-    out.push(...tagKey(paintBase(
-      frustumFaces3(-2.1, -1.9, 2.4, 1.6, 1.6, 1.2, 1.6, 1.1), "#21252c",
-    ), 24 + depthNow(-2.1, -1.9)));
-    if (facingRatio(0, 1) > 0.1) {
-      const warn: ShapeFace[] = [];
-      for (let k = 0; k < 5; k += 1) {
-        const u0 = -3.15 + k * 0.44;
-        warn.push([polyPath3([
-          [u0, -1.12, 1.15], [u0 + 0.22, -1.12, 1.15],
-          [u0 + 0.52, -1.12, 2.6], [u0 + 0.3, -1.12, 2.6],
-        ]), 1, k % 2 === 0 ? "#e8c33a" : "#21252c"] as ShapeFace);
-      }
-      out.push(...tagKey(warn, 25 + depthNow(-2.1, -1.1)));
-    }
-    /* 오른쪽 앞 검은 포구 원통(사진) — 옆으로 누운 관, 끝이 뚫린다. */
-    out.push(...tagKey(paintBase(
-      tubeFaces(2.1, -0.4, 3.5, -0.4, 0.62, 2.1, true), "#21252c",
-    ), 26 + depthNow(3, -0.4)));
-    /* 본체 색은 테란 기본색이다(요청: "서플라이 본체 색 테란 기본색", "리파이너리
-       아카데미도", "애드온들도") — 이 건물들만 제 회색을 손으로 박아 두고 있어서,
-       커맨드·배럭·팩토리 옆에 서면 혼자 어둡고 칙칙했다. 주 덩이를 raceBase가 칠하는
-       톤(#868d94)으로 맞추고, 어두운 받침·구멍·밝은 은빛 디테일은 그대로 둔다.
-       raceBase로 감싸는 것은 색뿐 아니라 종족별 광택(테란 1.7/1.25)까지 받기 위해서다. */
+    // ③ 해저드 덩이 — 왼뒤 위.
+    out.push(...tagKey(hazardBox(-1.55, -1.25, 1.7, 1.2, 0.9, 1.9, 4), K(-1.55, -1.25, 1.0)));
+    // ④ 오른쪽 둥근 환기구 + 가운데 낮은 상자(등).
+    out.push(...tagKey([
+      ...paintBase(tubeFaces(2.5, -0.9, 2.9, -0.9, 0.45, 1.35, true), "#576272"),
+    ], K(2.7, -0.9, 0.6)));
+    out.push(...tagKey(paintBase(boxFaces3(0, -0.2, 1.6, 1.6, 0.5, 1.9), "#7e8a9c"), K(0, -0.2, 0.9)));
     return raceBase(out, "terran");
   },
-  /* 피직스 랩(재모델링·사진) — 왼쪽에 큰 강철 구형 포드가 앉고 그 뒤로 노랑·검정
-     빗금 날개가 부챗살로 펴진다. 오른쪽으로는 초록 발광 띠가 박힌 기계 팔이 뻗어
-     끝에 테 고리가 물리고, 발치에는 층진 받침과 앞 오른쪽 판이 깔린다. */
   physlab: () => {
     const out: ShapeFace[] = [
-      // 받침 슬래브는 중심 깊이만(지적: 애드온 바닥이 위 부품을 덮음).
-      ...tagKey(paintBase(boxFaces3(0, 0.2, 5.6, 4.4, 0.8), "#7e8a9c"), depthNow(0, 0.2)),
+      ...tagKey(paintBase(boxFaces3(0, 0.2, 5.6, 4.4, 0.6), "#383e48"), depthNow(0, 0.2)),
     ];
-    // 층진 받침 — 위로 좁아지는 단.
-    out.push(...tagKey(paintBase(
-      frustumFaces3(-0.8, -0.2, 3.4, 2.8, 2.5, 2, 1.1, 0.8), "#576272",
-    ), 22 + depthNow(-0.8, -0.2)));
-    /* 해저드 패턴은 건물 둘레에 두른다(재지적: 잘못 입힌 듯 — 주위로 두르는 것
-       아니냐) — 부챗살 날개에 칠하던 것을 걷고, 받침 옆면을 빙 둘러 노랑·검정 빗금
-       띠를 두른다. 보이는 쪽 면에만 그린다. */
-    for (let k9 = 0; k9 < 20; k9 += 1) {
-      const a9 = (k9 / 20) * Math.PI * 2;
-      const sx9 = Math.sin(a9);
-      const sy9 = Math.cos(a9);
-      if (facingRatio(sx9, sy9) <= 0.05) continue;
-      out.push(...tagKey(paintBase(
-        boxFaces3(sx9 * 3.55, sy9 * 2.75, 0.62, 0.62, 0.7, 0.1),
-        k9 % 2 === 0 ? "#e8c33a" : "#21252c",
-      ), depthNow(sx9 * 3.55, sy9 * 2.75) * 1.6 - 1));
-    }
-    /* 큰 구형 포드(사진) — 위·아래 돔을 맞붙여 진짜 구로. 허리에 리벳 테. */
+    const K = (x9: number, y9: number, add = 0): number => 22 + depthNow(x9, y9) + add;
+    const CX = -0.7; const CY = 0.1;
+    // ① 받침대 — 팔각 원기둥 두 단.
     out.push(...tagKey([
-      ...paintBase(domeFaces3(-1.5, 0.1, 1.75, 1.6, 2.2), TERRAN_STEEL_D),
-      ...paintBase(cylinderFaces3(-1.5, 0.1, 1.75, 1.1, 1.1), "#828e9f"),
-      ...paintBase(cylinderFaces3(-1.5, 0.1, 1.82, 0.24, 2), "#576272"),
-      capFace(discPath3(-1.5, 0.1, 3.4, 0.9), 0.2),
-    ], 26 + depthNow(-1.5, 0.1)));
-    /* 오른쪽 기계 팔(사진) — 구에서 오른앞으로 뻗는 각진 통. 옆구리에 초록 발광 띠. */
-    out.push(...tagKey(paintBase(boxFaces3(1.1, 0.1, 3.4, 1.3, 1.2, 2.3), "#7e8a9c"),
-      26 + depthNow(1.1, 0.1)));
-    if (facingRatio(0, 1) > 0.12) {
-      const led: ShapeFace[] = [];
-      for (const lx of [0.1, 0.8, 1.5]) {
-        led.push([polyPath3([
-          [lx - 0.22, 0.76, 2.7], [lx + 0.22, 0.76, 2.7],
-          [lx + 0.22, 0.76, 3.1], [lx - 0.22, 0.76, 3.1],
-        ]), 1, "#4cd86a"] as ShapeFace);
-      }
-      out.push(...tagKey(led, 27 + depthNow(0.8, 0.8)));
-    }
-    // 팔 끝 테 고리 — 관 끝에 물린 굵은 테.
+      ...paintBase(cylinderFaces3(CX, CY, 1.5, 0.5, 0.6), "#576272"),
+      ...paintBase(cylinderFaces3(CX, CY, 1.1, 0.5, 1.1), "#6a7484"),
+    ], K(CX, CY)));
+    // ② 구체 — 아래 짧은 통 + 위 반구(구로 읽힌다).
     out.push(...tagKey([
-      ...paintBase(tubeFaces(2.6, 0.1, 3.4, 0.1, 0.72, 2.9, true), TERRAN_STEEL_D),
-      ...paintBase(tubeFaces(3.3, 0.1, 3.5, 0.1, 0.92, 2.9), "#576272"),
-    ], 28 + depthNow(3.2, 0.1)));
-    // 앞 오른쪽 바닥 판(사진) — 낮게 깔린 넓은 철판.
-    out.push(...tagKey(paintBase(boxFaces3(1.6, 2.1, 2.6, 1.6, 0.32, 0.8), "#576272"),
-      22 + depthNow(1.6, 2.1)));
-    /* 본체 색은 테란 기본색이다(요청: "서플라이 본체 색 테란 기본색", "리파이너리
-       아카데미도", "애드온들도") — 이 건물들만 제 회색을 손으로 박아 두고 있어서,
-       커맨드·배럭·팩토리 옆에 서면 혼자 어둡고 칙칙했다. 주 덩이를 raceBase가 칠하는
-       톤(#868d94)으로 맞추고, 어두운 받침·구멍·밝은 은빛 디테일은 그대로 둔다.
-       raceBase로 감싸는 것은 색뿐 아니라 종족별 광택(테란 1.7/1.25)까지 받기 위해서다. */
+      ...paintBase(cylinderFaces3(CX, CY, 1.85, 0.7, 1.6), "#8f9aab"),
+      ...paintBase(domeFaces3(CX, CY, 1.85, 1.6, 2.3), "#a3adbb"),
+    ], K(CX, CY, 0.5)));
+    // ③ 해저드 덩이 — 구 왼뒤에 박힌 상자.
+    out.push(...tagKey(hazardBox(-2.05, -1.25, 1.3, 1.4, 1.5, 1.4, 3), K(-2.05, -1.25, 0.9)));
+    // ④ 가속관 — 구 오른쪽에서 앞으로 길게. 끝은 굵은 테, 아래 납작한 해치 판.
+    out.push(...tagKey([
+      ...paintBase(tubeFaces(1.3, -1.7, 1.3, 2.1, 0.55, 2.4), "#7e8a9c"),
+      ...paintBase(tubeFaces(1.3, 1.7, 1.3, 2.15, 0.64, 2.4), "#576272"),
+      ...paintBase(tubeFaces(1.3, -1.65, 1.3, -1.2, 0.64, 2.4), "#576272"),
+    ], K(1.3, 0.2, 0.7)));
+    out.push(...tagKey(paintBase(boxFaces3(1.7, 1.55, 1.7, 1.3, 0.16, 0.6), "#6a7484"), K(1.7, 1.55, 0.2)));
+    out.push(...tagKey(paintBase(boxFaces3(1.3, 0.9, 0.5, 0.5, 1.3, 0.6), "#576272"), K(1.3, 0.9, 0.3)));
+    // ⑤ 구 위 접시 안테나 + 왼뒤 기둥.
+    out.push(...tagKey([
+      ...paintBase(cylinderFaces3(CX + 0.2, CY, 0.09, 0.9, 3.85), "#b7bec8"),
+      ...paintBase(domeFaces3(CX + 0.2, CY, 0.42, 0.14, 4.7), "#c5cad2"),
+    ], K(CX + 0.2, CY, 1.4)));
+    out.push(...tagKey([
+      ...paintBase(cylinderFaces3(-2.2, -0.2, 0.3, 3.2, 0.6), "#576272"),
+      ...paintBase(cylinderFaces3(-2.2, -0.2, 0.38, 0.25, 3.8), "#21252c"),
+    ], K(-2.2, -0.2, 1.2)));
     return raceBase(out, "terran");
   },
-  /* ── 공사 표현 공용 셋(요청: 아이콘 대신 모델) ───────────────────────────── */
-  /* 저그 고치 — 크립 위 통통한 번데기(재생 쪽 CSS가 바운스시킨다). */
-  /* 저그 변태 고치 — 고정색(요청: 팀색 말고): 장기 느낌의 연한 살색 몸 + 붉은·갈·보라
-     힘줄 선. 크립은 탁한 보라. */
-  /* 라바(요청: "이왕 해처리에 매핑할 거면 라바도 모델링하소") — 해처리 발치에 누워
-     꿈틀대는 창백한 애벌레. 마디 다섯을 구슬로 꿰고, 가운데가 통통하며 머리 쪽이
-     조금 든다. 눈 둘은 머리 앞위에 박힌 검은 점이다.
-     쓰는 자리가 지도의 해처리 곁뿐이라 요잉은 건물과 같은 각을 탄다. */
   larva: () => {
     /* 몸은 **한 덩이**로 그린다 — 구슬을 낱개 프리미티브로 꿰면 구슬마다 제 광택·그늘
        원반이 따라붙어, 작게 그릴수록 얼룩덜룩한 뭉치가 된다(첫 판이 그랬다).
@@ -20605,7 +20576,7 @@ export const BLD_NORM: Record<string, number> = {
   cocoon: 2.018,
   coil: 1.337,
   comsat: 1.366,
-  covert: 1.435,
+  covert: 1.467,  // 사진 재작도 뒤 재측정(bld-norm)
   creep: 1.540,
   ctower: 1.555,
   cube: 1.112,
@@ -20633,7 +20604,7 @@ export const BLD_NORM: Record<string, number> = {
   nsilo: 1.354,
   nydus: 1.184,
   observatory: 1.650,
-  physlab: 1.395,
+  physlab: 1.468,  // 사진 재작도 뒤 재측정(bld-norm)
   plane: 1.200,   // 높이 1.4배 후 bld-norm 재측정
   pool: 1.449,
   pyramidWide: 1.058,
