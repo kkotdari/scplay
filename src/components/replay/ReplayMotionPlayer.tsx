@@ -6601,9 +6601,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         segs: 3, sides: 12, hold: 0.2,
       }), "#21252c"),
       capFace(discPath3(0, -0.3, 6.6, 1.38), 0.55),
-      [groundEllipse(...project(-0.1, -0.15, 7.3), 1.1, 0.66), 0.16, "#9df58e", 0, 3] as ShapeFace,
-      [groundEllipse(...project(-0.25, 0.0, 8.1), 1.45, 0.86), 0.1, "#9df58e", 0, 3] as ShapeFace,
-      [groundEllipse(...project(-0.42, 0.15, 8.85), 1.8, 1.02), 0.06, "#9df58e", 0, 3] as ShapeFace,
+      [groundEllipse(...project(-0.1, -0.15, 7.3), 1.1, 0.66), 0.16, "#80ff96", 0, 3] as ShapeFace,
+      [groundEllipse(...project(-0.25, 0.0, 8.1), 1.45, 0.86), 0.1, "#80ff96", 0, 3] as ShapeFace,
+      [groundEllipse(...project(-0.42, 0.15, 8.85), 1.8, 1.02), 0.06, "#80ff96", 0, 3] as ShapeFace,
     ], 10 + depthNow(0, -0.3) * 1.6 + 1.2));
     /* 관 셋 — 가운데는 입구 천장, **양옆은 앞 드럼통 옥상 가운데에 꽂힌다**(정정:
        "양옆 파이프는 드럼통 옥상 가운데 앵커링"). 드럼 돔 꼭대기(z≈3.5)에서 수직으로
@@ -6837,7 +6837,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       [number, number, number][]) {
       out.push(...tagKey([[groundEllipse(
         ...project(2.3 + (gz - 4) * 0.1, -1.9 + (gz - 4) * 0.15, gz), gr, gr * 0.6,
-      ), ga, "#9df58e"] as ShapeFace], 20 + depthNow(2.3, -1.9)));
+      ), ga, "#80ff96"] as ShapeFace], 20 + depthNow(2.3, -1.9)));
     }
     // 개인색은 몸을 타넘는 가운데 활 띠 둘(위 own9) — 덧붙였던 원판은 걷어냈다(요청).
     return raceBase(out, "toss", pc);
@@ -7044,9 +7044,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        — 리파이너리 굴뚝·간헐천과 같은 표현: 위로 갈수록 넓고 옅어지는 초록 타원 세 켜.
        가스라 3티어(저사양에선 걷힌다). 애벌레 등마루(꼭대기 z≈3.7, y≈1) 위에 세운다. */
     out.push(...tagKey([
-      [groundEllipse(...project(-0.1, 0.9, 4.6), 1.15, 0.7), 0.18, "#9df58e", 0, 3] as ShapeFace,
-      [groundEllipse(...project(-0.25, 1.05, 5.4), 1.5, 0.9), 0.11, "#9df58e", 0, 3] as ShapeFace,
-      [groundEllipse(...project(-0.42, 1.2, 6.15), 1.85, 1.05), 0.06, "#9df58e", 0, 3] as ShapeFace,
+      [groundEllipse(...project(-0.1, 0.9, 4.6), 1.15, 0.7), 0.18, "#80ff96", 0, 3] as ShapeFace,
+      [groundEllipse(...project(-0.25, 1.05, 5.4), 1.5, 0.9), 0.11, "#80ff96", 0, 3] as ShapeFace,
+      [groundEllipse(...project(-0.42, 1.2, 6.15), 1.85, 1.05), 0.06, "#80ff96", 0, 3] as ShapeFace,
     ], depthNow(0, 1) * 1.6 + 3));
     return out;
   }),
