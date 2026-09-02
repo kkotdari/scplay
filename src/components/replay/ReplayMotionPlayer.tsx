@@ -15126,14 +15126,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 어깨는 **금판만**(요청: 임자색 반구 제거) — 판은 팔 뿌리(±1.3, −0.2, 5.7) 위에서
        바깥·아래로 흘러내려 어깨 관절을 덮는다. 뿌리엔 금 관절 공 하나. */
     ...([-1, 1] as const).flatMap((m9): ShapeFace[] => [
-      ...tagKey(paintBase(domeFaces3(m9 * 1.3, -0.2, 0.3, 0.26, 5.6), P_GOLD),
-        depthNow(m9 * 1.3, -0.2) * 1.6 + 1.5),
+      ...tagKey(paintBase(domeFaces3(m9 * 0.85, 0.3, 0.3, 0.26, 5.5), P_GOLD),
+        depthNow(m9 * 0.85, 0.3) * 1.6 + 1.5),
       // 판은 1/3 크기(재요청) — 길이·폭·처짐 모두 1/3.
       ...tagKey(paintBase(spirePillar({
         x: 0, y: 0, h: 1, w: 1, segs: 4, sides: 6, oval: 3.2, caps: "none",
         ref: [m9, -0.2, 0],
         path: (t9: number): [number, number, number] => [
-          m9 * (1.2 + 0.32 * t9), -0.2 - 0.08 * t9, 5.95 - 0.25 * t9 - 0.17 * t9 * t9,
+          m9 * (0.75 + 0.32 * t9), 0.3 - 0.08 * t9, 5.85 - 0.25 * t9 - 0.17 * t9 * t9,
         ],
         widthOf: (t9: number): number => 0.17 - 0.1 * t9 * t9,
       }), P_GOLD), depthNow(m9 * 1.6, -0.35) * 1.6 + 1.6),
@@ -15155,7 +15155,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* ★ 팔꿈치는 두 마디 길이(상완 1.2 · 하완 1.3) 고정으로 푼다(요청: 질럿·하템·다템
          팔도 같은 함수) — 어깨·손만 자세대로 두면 길이는 늘 같다. 잽에서 손이 더 멀면
          팔이 곧게 펴진다. bend는 바깥·뒤·아래(굽힌 팔꿈치가 뒤로 빠진다). */
-      const sh: [number, number, number] = [m9 * 1.3, -0.2 + aY, 5.7];
+      // 뿌리는 몸통 어깨선 위(지적: 어깨가 몸통에서 떨어짐) — 어깨 높이의 몸통 반폭 0.72·축 y 0.35.
+      const sh: [number, number, number] = [m9 * 0.82, 0.3 + aY, 5.6];
       /* 손 — 겨눔에서는 팔꿈치보다 **앞·위**(굽힌 팔), 잽에서는 앞으로 쭉 뻗어
          팔꿈치와 거의 한 줄이 된다(수평 찌르기). */
       const hd: [number, number, number] = [
@@ -17111,8 +17112,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 콕핏은 **앞쪽**이다(요청): 등판 위 상자가 아니라, 동체 앞끝에 좌우로 누운 반원 드럼통
        (가로 관)이 있고 그 위에 **반의 반 구** 유리(앞을 보는 4분구)가 얹힌다. */
     out.push(...tagKey([
-      ...paintBase(tubeFaces(-1.05, 2.95, 1.05, 2.95, 0.62, 5.75), TERRAN_STEEL),
-      ...quarterDome(0, 2.95, 6.37, 0.72, 0, 1, undefined, 0.15, 1)
+      /* 몸체는 **밑면이 반원인 낮은 기둥**(재지적) — 뒷변은 동체 앞면(y 2.6)에 붙고 앞은
+         둥근 D자 평면, 높이 0.55. 그 위에 앞을 보는 4분구 유리. */
+      ...paintBase(prismZFaces(Array.from({ length: 9 }, (_, i9) => {
+        const a9 = Math.PI * (i9 / 8);
+        return [Math.cos(a9) * 1.0, 2.6 + Math.sin(a9) * 1.0] as [number, number];
+      }), 5.65, 0.55, false), TERRAN_STEEL),
+      ...quarterDome(0, 2.62, 6.2, 0.9, 0, 1, undefined, 0.12, 1)
         .map(([d9, o9, f9, k9, l9, n9]) =>
           [d9, f9 === undefined ? 0.68 : o9, f9 ?? "#8fc6dd", k9, l9, n9] as ShapeFace),
     ], depthNow(0, 2.95) * 1.6 + 3));
@@ -17126,8 +17132,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        가린다. 뒤 하얀 분사 원은 제거(요청). */
     // 포드 추진체는 실린더 중심 높이에 맞춘다(재지적).
     // 안쪽 둘은 작고 낮게(재요청: 축소·아래로), 포드 것은 그대로.
-    for (const [tx, tz, tr] of [[-0.85, 5.15, 0.58], [0.85, 5.15, 0.58], [-2.6, POD_Z, 0.82], [2.6, POD_Z, 0.82]] as [number, number, number][]) {
-      out.push(...paintBase(tubeFaces(tx, -2.95, tx, -3.95, tr, tz), TERRAN_STEEL_D));
+    // 안쪽 작은 추진체 둘은 **동체 뒤면**(y −1.8)에 붙는다(재지적: 꼬리붐이 아니라). 포드 것은 포드 뒤.
+    for (const [tx, tz, tr, ty] of [[-0.85, 5.2, 0.58, -1.8], [0.85, 5.2, 0.58, -1.8], [-2.6, POD_Z, 0.82, -2.95], [2.6, POD_Z, 0.82, -2.95]] as [number, number, number, number][]) {
+      out.push(...paintBase(tubeFaces(tx, ty, tx, ty - 1.0, tr, tz), TERRAN_STEEL_D));
     }
     /* 꼬리(재지적: 축을 몸통에 붙이고 비행기 꼬리 스타일로) — 등판 뒤끝에서 곧장
        솟는 수직 안정판과, 그 위에서 좌우로 뻗는 수평 안정판 한 쌍. */
@@ -18420,7 +18427,7 @@ const MODEL_NORM: Record<string, number> = {
   drone: 1.072,
   droneGas: 1.040,
   droneMin: 1.071,
-  dship: 0.695,  // 재측정(model-norm)
+  dship: 0.704,  // 재측정(model-norm)
   dtemp: 0.875,  // 재측정(model-norm)
   egg: 1.237,   // 정수리를 둥글게 한 뒤 model-norm 재측정
   fbat: 1.229,
@@ -18470,7 +18477,7 @@ const MODEL_NORM: Record<string, number> = {
   vessel: 0.898,  // 방패 접힘 축·뾰족 위끝 뒤 재측정(model-norm)
   vulture: 0.828,
   wraith: 0.894,  // 재측정(model-norm)
-  zealot: 0.813,  // 어깨판 1/3 뒤 재측정(model-norm)
+  zealot: 0.803,  // 재측정(model-norm)
   zling: 0.758,
   // tankgun: 없음 — 짝이라 소스의 NORM_PAIR가 tankbody 배수로 접는다.
   // tanksiegegun: 없음 — 짝이라 소스의 NORM_PAIR가 tanksiegebody 배수로 접는다.
