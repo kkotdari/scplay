@@ -10998,8 +10998,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const TZ0 = Z(5.25); const TZ1 = Z(6.69);
     const TH9 = (TZ1 - TZ0) / 2 - 0.04;      // 한 칸 높이
     for (const [ex9, ez9] of [[-0.42, TZ0 + 0.02], [0.42, TZ0 + 0.02], [-0.42, TZ0 + 0.06 + TH9], [0.42, TZ0 + 0.06 + TH9]] as [number, number][]) {
+      /* 열쇠(지적: 앞에서 보면 추진체가 뒷동체를 뚫고 비침) — 뒷면이 시점을 향할 때만 제
+         깊이로(뒷동체 위), 등을 돌리면 뒷동체보다 먼저 그려 뒷동체가 덮는다. */
       out.push(...tagKey(paintBase(boxFaces3(ex9, -2.45, 0.72, 0.75, TH9, ez9), "#3f444c"),
-        key9(ex9, -2.45, ez9 + TH9 / 2) + 0.3));
+        facingRatio(0, -1) > 0.05 ? key9(ex9, -2.45, ez9 + TH9 / 2) + 0.3 : key9(0, -1.35, Z(5.8)) - 1));
     }
     return zsorted(out);
   },
