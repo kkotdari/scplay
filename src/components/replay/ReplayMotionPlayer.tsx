@@ -11122,7 +11122,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           // 위아래 20% 축소(재요청): 반길이 3.74 → 2.99. 휨은 더(0.6 → 0.9).
           // 20% 축소(재요청): 반길이 2.99 → 2.39, 반폭 1.29 → 1.03.
           const v9 = -2.39 + 4.78 * t;
-          const rad = 2.22 - 1.3 * (v9 / 2.39) ** 2;   // 더 호로(요청) 0.9 → 1.3
+          const rad = 2.22 - 1.1 * (v9 / 2.39) ** 2;   // 호 되돌림(재요청: 너무 휨) 1.3 → 1.1
           return [dxs * rad, dys * rad, 6.9 + v9];
         },
         waist: 0.5, thick: 0.13, spread: 1.03 / 0.13,
@@ -13763,7 +13763,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     }
     /* 몸통 — 앞이 좁고 뒤가 넓은 절두체. 앞이 좁아야 그 앞에 앉는 조종석 유리가
        머리처럼 튀어나온 것으로 읽힌다. */
-    out.push(...tagKey(paintBase(frustumFaces3(0, -0.5, 2.75, 2.7, 2.35, 2.3, 2.5, 3.2), STEEL),
+    // 깊이(위아래 두께) 축소(재요청): 2.5 → 2.1, 위아래에서 조금씩.
+    out.push(...tagKey(paintBase(frustumFaces3(0, -0.5, 2.75, 2.7, 2.35, 2.3, 2.1, 3.3), STEEL),
       depthNow(0, -0.5) * 1.6 + 1));
     /* 가슴 등 두 개(사진) — 호박빛 렌즈. 앞을 볼 때만 그린다.
        ★ 자리를 조종석 밖으로(지적: "이상한 주황색 동그라미가 비쳐보이는데") — 옛
@@ -13855,7 +13856,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const key = 1.2;
       const [u0, v0] = armAt(m, 0);
       const [u1, v1] = armAt(m, 0.46);
-      out.push(...tagKey(paintBase(tubeFaces(u0, v0, u1, v1, 0.5, 4.35), DEEP),
+      out.push(...tagKey(paintBase(tubeFaces(u0, v0, u1, v1, 0.4, 4.35), DEEP),   // 상완 깊이 0.5 → 0.4(재요청)
         depthNow(u0, v0) * 1.6 + key));
       /* ★ 팔뚝은 **직육면체**다(지적: "scv 하완도 직육면체야 / 원통 아님") — SCV의
          팔은 깎아 만든 기계 팔이라 단면이 네모다. sides 4짜리 기둥이 곧 그 각기둥이고,
@@ -13887,14 +13888,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const nx9 = -(by9 - ay9) / dl9;   // 축과 수직인 수평 법선(한쪽)
         const ny9 = (bx9 - ax9) / dl9;
         const H9 = 0.33;                  // 하완 반폭(0.31) + 띄움
+        const W9 = 0.31;                  // 낱장 반폭 — 면 너비에 꽉 차게(재요청)
         const zc9 = 4.62;
         const out9: ShapeFace[] = [];
         // 윗면 낱장 — 내려다보는 화면에서 늘 보인다.
         out9.push(...tagKey([[polyPath3([
-          [ax9 + nx9 * 0.26, ay9 + ny9 * 0.26, zc9 + H9],
-          [ax9 - nx9 * 0.26, ay9 - ny9 * 0.26, zc9 + H9],
-          [bx9 - nx9 * 0.26, by9 - ny9 * 0.26, zc9 + H9],
-          [bx9 + nx9 * 0.26, by9 + ny9 * 0.26, zc9 + H9],
+          [ax9 + nx9 * W9, ay9 + ny9 * W9, zc9 + H9],
+          [ax9 - nx9 * W9, ay9 - ny9 * W9, zc9 + H9],
+          [bx9 - nx9 * W9, by9 - ny9 * W9, zc9 + H9],
+          [bx9 + nx9 * W9, by9 + ny9 * W9, zc9 + H9],
         ]), 1] as ShapeFace],
         depthNow((ax9 + bx9) / 2, (ay9 + by9) / 2) * 1.6 + 1.45));
         // 옆면 낱장 둘 — 제 법선이 시점을 향할 때만.
@@ -13903,8 +13905,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           const ox9 = nx9 * sg9 * H9;
           const oy9 = ny9 * sg9 * H9;
           out9.push(...tagKey([[polyPath3([
-            [ax9 + ox9, ay9 + oy9, zc9 + 0.26], [bx9 + ox9, by9 + oy9, zc9 + 0.26],
-            [bx9 + ox9, by9 + oy9, zc9 - 0.26], [ax9 + ox9, ay9 + oy9, zc9 - 0.26],
+            [ax9 + ox9, ay9 + oy9, zc9 + W9], [bx9 + ox9, by9 + oy9, zc9 + W9],
+            [bx9 + ox9, by9 + oy9, zc9 - W9], [ax9 + ox9, ay9 + oy9, zc9 - W9],
           ]), 1] as ShapeFace],
           depthNow((ax9 + bx9) / 2 + ox9, (ay9 + by9) / 2 + oy9) * 1.6 + 1.45));
         }
@@ -13914,7 +13916,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 하완이 중장비 팔의 규칙이다.
       out.push(...tagKey(prism(0.46, 1, 0.62, STEEL), depthNow(u1, v1) * 1.6 + key + 0.1));
       // 개인색 낱장 데칼 두 자리(위 armDecal 주석).
-      out.push(...armDecal(0.64, 0.78));   // 띠 한 줄(재요청: 둘 → 하나)
+      out.push(...armDecal(0.67, 0.75));   // 띠 한 줄, 폭 축소(재요청: 0.14 → 0.08)
     }
     /* 왼팔 드릴(사진) — 굵은 원뿔에 나선 마디 셋을 둘러 드릴로 읽히게 한다. */
     /* 드릴·집게는 **안 나르는 손**의 것이다 — 나르는 중에는 두 팔이 화물 옆구리를
@@ -18271,7 +18273,7 @@ const MODEL_NORM: Record<string, number> = {
   tanksiegebody: 0.723,
   ultra: 0.361,
   valk: 0.840,   // 앞동체 −10% 뒤 재측정(model-norm)
-  vessel: 0.897,  // 방패 더 휨 뒤 재측정(model-norm)
+  vessel: 0.890,  // 방패 호 되돌린 뒤 재측정(model-norm)
   vulture: 0.828,
   wraith: 0.774,
   zealot: 0.799,
