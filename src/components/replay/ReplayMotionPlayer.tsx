@@ -10935,8 +10935,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     for (const m9 of [-1, 1] as const) {
       const GR9 = 0.24;                       // 포신 반지름(확대)
       const px9 = m9 * (BW + GR9);            // 몸 옆면에 딱 붙는다
-      for (const tz9 of [Z(5.55), Z(5.55) + GR9 * 2]) {   // 위아래 포신이 서로 딱 붙는다
-        out.push(...tagKey(paintBase(tubeFaces(px9, -0.15, px9, 1.7 + 0.3, GR9, tz9, true), TERRAN_STEEL_D),   // 뒤끝은 날개팔 앞(y −0.6)에서 떨어져
+      // 아래로 조금(Z(5.55) → Z(5.3)), 뒤끝은 더 앞(y −0.15 → 0.2), 색은 한 단 연하게(TERRAN_STEEL).
+      for (const tz9 of [Z(5.3), Z(5.3) + GR9 * 2]) {   // 위아래 포신이 서로 딱 붙는다
+        out.push(...tagKey(paintBase(tubeFaces(px9, 0.2, px9, 1.7 + 0.3, GR9, tz9, true), TERRAN_STEEL),
           key9(px9, 0.55, tz9) + 0.2));
       }
     }
