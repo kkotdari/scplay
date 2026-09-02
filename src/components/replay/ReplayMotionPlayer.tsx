@@ -23483,7 +23483,16 @@ export function FxModel({
       if (!w9 || !h9) return;                       // 관찰자가 상자가 서면 다시 부른다.
       const dpr9 = Math.min(3, window.devicePixelRatio || 1);
       // 배킹 배수 — 화면 px × DPR × 애니 최대 배수. 상한은 긴 변에 건다.
-      const k9 = Math.min(Math.max(1, peak) * dpr9, FX_RASTER_CAP / Math.max(w9, h9));
+      /* ★ 도는 이펙트는 **모든 칸이 캐시에 들어가는 크기**로만 굽는다(지적: 고배율에서
+         스톰에 뮤탈이 많이 맞을 때 느려짐) — 스톰은 칸이 16(씨앗 4 × 단계 4)이고 초당
+         12번 바뀐다. 12배에서 한 칸이 1400² × 4B ≈ 8MB라 상한(24MB)에 셋밖에 못 들어가고,
+         그러면 매 칸이 캐시를 놓쳐 **초당 12번 큰 캔버스를 새로 굽고 복사**했다(스톰
+         여러 장이면 그만큼 곱). 칸 전부가 들어가도록 한 칸의 예산을 상한 ÷ (칸 수 × 1.5)로
+         잡고 그 안으로 배율을 낮춘다 — 번짐 효과라 조금 흐려도 티가 안 난다. */
+      const budget9 = spin === undefined ? Infinity
+        : FX_RASTER_MAX / (STORM_SEEDS * STORM_STAGES * 1.5);
+      const kBudget9 = Math.sqrt(budget9 / (4 * w9 * h9));
+      const k9 = Math.min(Math.max(1, peak) * dpr9, FX_RASTER_CAP / Math.max(w9, h9), kBudget9);
       const cw9 = Math.max(1, Math.round(w9 * k9));
       const ch9 = Math.max(1, Math.round(h9 * k9));
       /* 면 목록은 ShapeIcon과 같은 문(resolveShapeFaces·같은 캐시)을 지난다 — 회전 칸은
@@ -33800,10 +33809,25 @@ export default function ReplayMotionPlayer({
             })();
             let hpNow = hpFull;
             let hurtAt = -99;
-            for (const [hs2, hv2] of e.hp) {
-              if (hs2 > t) break;
-              if (hv2 < hpNow) hurtAt = hs2;
-              hpNow = hv2;
+            /* ★ 이진 탐색으로(지적: 스톰에 뮤탈이 많이 맞을 때 느려짐) — 여태 표본을 처음부터
+               지금까지 매 프레임 훑었다. 맞는 동안 표본이 촘촘히 쌓이는 몸(스톰 아래
+               뮤탈)이 수십이면 프레임마다 수만 번이다. 지금 자리를 이진 탐색으로 찾고,
+               '마지막으로 깎인 때'는 거기서 3초 안쪽만 거슬러 본다 — 쓰는 곳이 0.55초
+               창(실드막·불티)뿐이라 그보다 오래된 깎임은 아무도 안 읽는다. */
+            {
+              const hp9 = e.hp;
+              let lo9 = 0; let hi9 = hp9.length - 1; let at9 = -1;
+              while (lo9 <= hi9) {
+                const md9 = (lo9 + hi9) >> 1;
+                if (hp9[md9][0] <= t) { at9 = md9; lo9 = md9 + 1; } else hi9 = md9 - 1;
+              }
+              if (at9 >= 0) {
+                hpNow = hp9[at9][1];
+                for (let i9 = at9; i9 >= 0 && hp9[i9][0] >= t - 3; i9 -= 1) {
+                  const prev9 = i9 > 0 ? hp9[i9 - 1][1] : hpFull;
+                  if (hp9[i9][1] < prev9) { hurtAt = hp9[i9][0]; break; }
+                }
+              }
             }
             /* 선택 표시(지적: 드래그 선택 구분) — 방금 명령을 받았다는 것은 그 직전에
                (드래그든 부대지정이든) 잡혔다는 뜻이다. 클릭 토글이 켜져 있으면 명령
