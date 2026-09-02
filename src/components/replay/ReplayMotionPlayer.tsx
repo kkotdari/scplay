@@ -10649,7 +10649,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const [, yb, zb] = hullPath9(tb);
         const wa = hullW9(ta) + 0.03; const wb = hullW9(tb) + 0.03;
         out.push(...tagKey([[polyPath3([
-          [-0.11, ya, za + wa], [0.11, ya, za + wa], [0.11, yb, zb + wb], [-0.11, yb, zb + wb],
+          [-0.24, ya, za + wa], [0.24, ya, za + wa], [0.24, yb, zb + wb], [-0.24, yb, zb + wb],   // 폭 2배(재요청)
         ]), 0.95] as ShapeFace], key9(0, (ya + yb) / 2, (za + zb) / 2) + 0.6));
       }
     }
@@ -10714,7 +10714,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       out.push(...tagKey(spirePillar({
         x: 0, y: 0, h: 1, w: 0.47, tipW: 0.47, segs: 1, sides: 10, caps: "none", trueNormal: true,
         ref: [0, 0, 1],
-        path: (t9: number): [number, number, number] => [tx9, 0.15 + 0.45 * t9, pz9 + tubeAxisLift(0.42)],
+        // 포신(y −0.6~1.6)의 80%를 덮는다(재요청): −0.38 ~ 1.38.
+        path: (t9: number): [number, number, number] => [tx9, -0.38 + 1.76 * t9, pz9 + tubeAxisLift(0.42)],
       }), key9(tx9, 0.4, pz9) + 0.25));
       /* ⑤ 꼬리팔 — **곧게 뒤로**(지적: 벌어지지 않는다). 벌리면 꼬리가 또 하나의 날개로
          읽혀 실루엣이 여섯 갈래가 된다. */
@@ -14452,10 +14453,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       -0.48 + carry9 * 0.3, 2.35 - carry9 * 0.35, 3.34 + carry9 * 0.78,
     ];
     /** 총 축 위의 한 점 — 걸음 흔들림(sway)·반동(kick)·몸 낮춤(dz)을 함께 얹는다. */
+    // 총 확대(요청): 길이 1.25배 — 개머리판은 그대로 두고 총구 쪽으로 늘인다.
+    const GL9 = 1.25;
     const GP9 = (t9: number): [number, number, number] => [
-      GB9[0] + (GM9[0] - GB9[0]) * t9,
-      GB9[1] + (GM9[1] - GB9[1]) * t9 - kick + sway,
-      GB9[2] + (GM9[2] - GB9[2]) * t9 + dz,
+      GB9[0] + (GM9[0] - GB9[0]) * t9 * GL9,
+      GB9[1] + (GM9[1] - GB9[1]) * t9 * GL9 - kick + sway,
+      GB9[2] + (GM9[2] - GB9[2]) * t9 * GL9 + dz,
     ];
     return [
       /* 다리도 짙은 은색 — suitLegs의 셋째 자리(_kneeFill)는 지금 쓰이지 않는 값이라
@@ -14479,7 +14482,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 바이저는 은색 반투명(정정: 금빛 → "은색반투명으로") — 유리 너머로 뒤 껍데기가
       // 옅게 비쳐 헬멧이 빈 유리구로 읽힌다.
       // 유리는 껍데기보다 짙은 은색이어야 바이저로 갈려 읽힌다(같은 톤이면 통짜 은구).
-      ...suitHelmet(-0.32, 4.34, 0.62, TERRAN_STEEL, "#7e8899", 1, 0.72),
+      ...suitHelmet(-0.32, 4.34, 0.62, TERRAN_STEEL, "#101318", 1, 0.72),   // 유리 앞은 짙은 검정(요청)
       /* 헬멧 귀 원판(사진 marine1 — 바이저 좌우의 둥근 볼트) — 껍데기 옆에 붙는 짧은
          원통. 머리와 같은 붙박이 키(+6)라 몸통에 안 먹힌다. */
       ...([-1, 1] as const).flatMap((m8) => tagKey(paintBase(
@@ -14521,13 +14524,21 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ...tagKey(paintBase(spirePillar({
         x: 0, y: 0, h: 1, w: 1, segs: 4, sides: 6, oval: 2.7, caps: "both",
         ref: [1, 0, 0],
-        path: (t9: number): [number, number, number] => GP9(t9 * 0.74),
-        widthOf: (): number => 0.13,
+        path: (t9: number): [number, number, number] => GP9(t9 * 0.82),   // 총몸을 늘이고 총열은 짧게(재요청: 총열이 너무 튀어나오지 않게)
+        widthOf: (): number => 0.17,   // 굵기 1.3배(요청) 0.13 → 0.17
       }), GUN_BLACK), depthNow(GB9[0], 1.0) * 1.6 + 1.6),
       // 총열 — 몸 앞끝에서 총구까지. 끝 단면을 그려 뚫린 총구로 읽힌다.
+      /* 총 **본체 앞끝**의 임자색 고리(재요청: 총구가 아니라 본체 앞끝) — 총몸(t 0~0.74)의
+         끝 토막을 같은 단면(ref x · oval 2.7)으로 살짝 굵게 한 바퀴 두른다. 칠하지 않아
+         임자 색이 든다. */
+      ...tagKey(spirePillar({
+        x: 0, y: 0, h: 1, w: 0.2, tipW: 0.2, segs: 1, sides: 6, oval: 2.7, ref: [1, 0, 0],
+        caps: "none", trueNormal: true,
+        path: (t9: number): [number, number, number] => GP9(0.72 + 0.1 * t9),
+      }), depthNow(GB9[0], 1.0) * 1.6 + 1.7),
       ...tagKey(paintBase(spirePillar({
         x: 0, y: 0, h: 1, w: 1, segs: 3, sides: 6, caps: "top",
-        path: (t9: number): [number, number, number] => GP9(0.72 + 0.28 * t9),
+        path: (t9: number): [number, number, number] => GP9(0.8 + 0.15 * t9),
         widthOf: (): number => 0.1,
       }), GUN_BLACK), depthNow(GM9[0], 1.8) * 1.6 + 1.62),
     ];
@@ -18275,7 +18286,7 @@ const MODEL_NORM: Record<string, number> = {
   goliath: 0.671,
   goon: 0.667,
   guardian: 0.611,
-  gunner: 1.402,  // 어깨판 10% 축소 뒤 model-norm 재측정
+  gunner: 1.346,  // 총 확대 뒤 model-norm 재측정
   htemp: 1.233,   // 어깨판 재작 뒤 재측정(model-norm)
   hydra: 0.685,
   inf: 1.514,  // 상자 상한(원한 배수 1.615)
