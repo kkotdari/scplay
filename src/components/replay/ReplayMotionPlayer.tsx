@@ -15126,15 +15126,16 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 어깨는 **금판만**(요청: 임자색 반구 제거) — 판은 팔 뿌리(±1.3, −0.2, 5.7) 위에서
        바깥·아래로 흘러내려 어깨 관절을 덮는다. 뿌리엔 금 관절 공 하나. */
     ...([-1, 1] as const).flatMap((m9): ShapeFace[] => [
-      ...tagKey(paintBase(domeFaces3(m9 * 1.3, -0.2, 0.42, 0.36, 5.55), P_GOLD),
+      ...tagKey(paintBase(domeFaces3(m9 * 1.3, -0.2, 0.3, 0.26, 5.6), P_GOLD),
         depthNow(m9 * 1.3, -0.2) * 1.6 + 1.5),
+      // 판은 1/3 크기(재요청) — 길이·폭·처짐 모두 1/3.
       ...tagKey(paintBase(spirePillar({
         x: 0, y: 0, h: 1, w: 1, segs: 4, sides: 6, oval: 3.2, caps: "none",
         ref: [m9, -0.2, 0],
         path: (t9: number): [number, number, number] => [
-          m9 * (1.05 + 0.95 * t9), -0.2 - 0.25 * t9, 6.08 - 0.75 * t9 - 0.5 * t9 * t9,
+          m9 * (1.2 + 0.32 * t9), -0.2 - 0.08 * t9, 5.95 - 0.25 * t9 - 0.17 * t9 * t9,
         ],
-        widthOf: (t9: number): number => 0.5 - 0.3 * t9 * t9,
+        widthOf: (t9: number): number => 0.17 - 0.1 * t9 * t9,
       }), P_GOLD), depthNow(m9 * 1.6, -0.35) * 1.6 + 1.6),
     ]),
     /* ④ 가슴 보석 — 흉갑 한가운데 청옥. 앞을 볼 때만 뜨는 볼록 렌즈다. */
@@ -18469,7 +18470,7 @@ const MODEL_NORM: Record<string, number> = {
   vessel: 0.898,  // 방패 접힘 축·뾰족 위끝 뒤 재측정(model-norm)
   vulture: 0.828,
   wraith: 0.894,  // 재측정(model-norm)
-  zealot: 0.812,  // 재측정(model-norm)
+  zealot: 0.813,  // 어깨판 1/3 뒤 재측정(model-norm)
   zling: 0.758,
   // tankgun: 없음 — 짝이라 소스의 NORM_PAIR가 tankbody 배수로 접는다.
   // tanksiegegun: 없음 — 짝이라 소스의 NORM_PAIR가 tanksiegebody 배수로 접는다.
