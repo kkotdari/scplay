@@ -6601,9 +6601,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         segs: 3, sides: 12, hold: 0.2,
       }), "#21252c"),
       capFace(discPath3(0, -0.3, 6.6, 1.38), 0.55),
-      [groundEllipse(...project(-0.1, -0.15, 7.3), 1.1, 0.66), 0.16, "#7ee03a", 0, 3] as ShapeFace,
-      [groundEllipse(...project(-0.25, 0.0, 8.1), 1.45, 0.86), 0.1, "#7ee03a", 0, 3] as ShapeFace,
-      [groundEllipse(...project(-0.42, 0.15, 8.85), 1.8, 1.02), 0.06, "#7ee03a", 0, 3] as ShapeFace,
+      [groundEllipse(...project(-0.1, -0.15, 7.3), 1.1, 0.66), 0.16, "#9df58e", 0, 3] as ShapeFace,
+      [groundEllipse(...project(-0.25, 0.0, 8.1), 1.45, 0.86), 0.1, "#9df58e", 0, 3] as ShapeFace,
+      [groundEllipse(...project(-0.42, 0.15, 8.85), 1.8, 1.02), 0.06, "#9df58e", 0, 3] as ShapeFace,
     ], 10 + depthNow(0, -0.3) * 1.6 + 1.2));
     /* 관 셋 — 가운데는 입구 천장, **양옆은 앞 드럼통 옥상 가운데에 꽂힌다**(정정:
        "양옆 파이프는 드럼통 옥상 가운데 앵커링"). 드럼 돔 꼭대기(z≈3.5)에서 수직으로
@@ -6837,7 +6837,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       [number, number, number][]) {
       out.push(...tagKey([[groundEllipse(
         ...project(2.3 + (gz - 4) * 0.1, -1.9 + (gz - 4) * 0.15, gz), gr, gr * 0.6,
-      ), ga, "#7ee03a"] as ShapeFace], 20 + depthNow(2.3, -1.9)));
+      ), ga, "#9df58e"] as ShapeFace], 20 + depthNow(2.3, -1.9)));
     }
     // 개인색은 몸을 타넘는 가운데 활 띠 둘(위 own9) — 덧붙였던 원판은 걷어냈다(요청).
     return raceBase(out, "toss", pc);
@@ -7044,9 +7044,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        — 리파이너리 굴뚝·간헐천과 같은 표현: 위로 갈수록 넓고 옅어지는 초록 타원 세 켜.
        가스라 3티어(저사양에선 걷힌다). 애벌레 등마루(꼭대기 z≈3.7, y≈1) 위에 세운다. */
     out.push(...tagKey([
-      [groundEllipse(...project(-0.1, 0.9, 4.6), 1.15, 0.7), 0.18, "#7ee03a", 0, 3] as ShapeFace,
-      [groundEllipse(...project(-0.25, 1.05, 5.4), 1.5, 0.9), 0.11, "#7ee03a", 0, 3] as ShapeFace,
-      [groundEllipse(...project(-0.42, 1.2, 6.15), 1.85, 1.05), 0.06, "#7ee03a", 0, 3] as ShapeFace,
+      [groundEllipse(...project(-0.1, 0.9, 4.6), 1.15, 0.7), 0.18, "#9df58e", 0, 3] as ShapeFace,
+      [groundEllipse(...project(-0.25, 1.05, 5.4), 1.5, 0.9), 0.11, "#9df58e", 0, 3] as ShapeFace,
+      [groundEllipse(...project(-0.42, 1.2, 6.15), 1.85, 1.05), 0.06, "#9df58e", 0, 3] as ShapeFace,
     ], depthNow(0, 1) * 1.6 + 3));
     return out;
   }),
@@ -17328,7 +17328,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        그대로라 '흐려진' 것이 아니라 **짙어진** 것으로 읽히고, 반사 곡선은 안 건드리므로
        번쩍임의 대비(어두운 바탕 위의 흰 몇 면)는 오히려 또렷해진다. */
     return lit9(paintBase(
-      order.filter((gi) => gi < keepN).flatMap((gi) => gems[gi]), "#3f8ecf"));
+      order.filter((gi) => gi < keepN).flatMap((gi) => gems[gi]), "#6cb6ea"));   // 더 연하게(요청) #3f8ecf → #6cb6ea
   },
   /* 가스 간헐천(재모델링·사진 / 요청: 개인색 없는 고유색 전용) — 팀색을 한 점도
      쓰지 않는다: 모든 면에 제 색을 박는다. 지적("분화구 외의 나머지 부품들 삭제")에
@@ -17336,8 +17336,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      달리해 열린다. 안에 초록 베스핀이 고이고 그 위로 초록 김이 층층이 오른다. */
   geyser: () => {
     const ROCK = "#7a7264";
-    const GAS = "#7ee03a";
-    const GAS_D = "#3f7a1c";
+    const GAS = "#9df58e";
+    const GAS_D = "#5fae3c";   // 맑게(요청)
     /* (걷어냄) 흙바닥 타원 — 분화구 밑에 깔던 짙은 회갈(#413c35) 원반이다(요청:
        "가스는 아래 그림자 제거"). 흙을 뜻하려던 것인데 화면에서는 간헐천이 지는
        그림자 한 장이었고, 이 판의 규칙은 **뜬 것만 그림자를 진다**는 것이다(고치
@@ -32740,7 +32740,8 @@ export default function ReplayMotionPlayer({
                  뒤가 45%씩 비쳤다는 뜻이다. 결정의 '수정 같음'은 알파가 아니라 흰
                  광택이 낸다(아래 lit9)므로, 알파는 거의 닫고 광택을 키운다.
                  밝혔지만 지금 안 보이는 자리의 자원은 절반만 — 기억이라는 표시다. */
-              alpha: (gasSpot ? 1 : 0.9) * (rSeen9 === 1 ? 0.5 : 1), noShadow: true,
+              // 미네랄 밭 알파 0.9 → 0.72(요청: 더 연하고 투명하게) — 비침은 알파가 낸다.
+              alpha: (gasSpot ? 1 : 0.72) * (rSeen9 === 1 ? 0.5 : 1), noShadow: true,
             });
             return null;
           });
