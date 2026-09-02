@@ -21119,6 +21119,8 @@ export type FxOp = {
   style?: string;
   /** shot: 표적까지 화면 거리 · spike: 가시 길이(렌즈 px). */
   len?: number;
+  /** shot: 표적이 **움직이는 중**인가 — 유도탄(미사일)은 이때만 휘고, 멈춘 표적엔 곧게 간다(요청). */
+  tm?: boolean;
   /** shot: 진행률 0~1. */
   u?: number;
   /** 반짝 위상 0~1 — beam은 쿨다운 주기, hit/shield는 제 창 안의 진행. */
@@ -23126,7 +23128,10 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
                물러난다 — 조종점을 놓을 자리가 없기 때문이다. */
             /* 길이는 **그어지는 길의 것**(runD9)이다 — 화면 거리가 무너진 자리에서
                reach9로 매개하면 덩이가 전부 표적 점에 포개진다(위 runD9의 ★). */
-            const bow9 = Number.isFinite(runD9) && runD9 > 0
+            /* ★ 굽이는 **움직이는 표적**에만(요청: "고정된 타겟엔 직선으로 가는 게 자연스러움")
+               — 멈춘 표적을 향한 유도탄은 틀 일이 없으니 곧게 간다. 표적 상태를 모르는
+               자리(tm 없음)도 곧다. */
+            const bow9 = f.tm && Number.isFinite(runD9) && runD9 > 0
               ? runD9 * 0.15 * (Math.sin(rad9 * 7.3) >= 0 ? 1 : -1) : 0;
             const cx0 = x0 + dxx * (runD9 / 2) - dyy * bow9;
             const cy0 = y0 + dyy * (runD9 / 2) + dxx * bow9;
@@ -25644,6 +25649,8 @@ export default function ReplayMotionPlayer({
      에서 만나고, 서로 원좌표 기준이라 지나쳐 겹치지 않는다. 시야(9타일) 밖은 안 끈다. */
   type FoeRow = {
     team: number; x: number; y: number; air: boolean; bld?: boolean; k?: string;
+    /** 지금 **걷는 중**인가(명령 자취) — 유도탄 트레이서가 휠지(움직이는 표적) 곧게 갈지(멈춘 표적) 가른다. */
+    moving?: boolean;
     /** 유닛 행일 때의 원작 유닛 이름 — 방어 건물이 공중 표적을 겨눌 때 그 표적의 제
      *  크기를 알아야 조준 높이가 맞는다. `k`는 **건물 행에만** 실리므로(방어 건물
      *  갈래) 공중 갈래에서는 언제나 undefined였다 — 그 자리를 이 필드가 채운다. */
@@ -25863,6 +25870,7 @@ export default function ReplayMotionPlayer({
         x: sIn9 ? sIn9.x : q.x, y: sIn9 ? sIn9.y : q.y,
         air: kc9.air,
         uk: kc9.uk,
+        moving: q.moving,
       };
       engageFoes.push(row);
       foeEnts.push({ row, e, q, sim: sIn9, kc: kc9 });
@@ -33328,10 +33336,10 @@ export default function ReplayMotionPlayer({
                때리는 쪽에는 안 쓰이므로 값을 더 셈하지 않는다(명단이 이미 들고 있다). */
             let foe: {
               bx: number; by: number; bd: number; air: boolean;
-              bld?: boolean; k?: string; uk?: string; team?: number; hp?: number;
+              bld?: boolean; k?: string; uk?: string; team?: number; hp?: number; moving?: boolean;
             } = ((): {
               bx: number; by: number; bd: number; air: boolean;
-              bld?: boolean; k?: string; uk?: string; team?: number; hp?: number;
+              bld?: boolean; k?: string; uk?: string; team?: number; hp?: number; moving?: boolean;
             } => {
               const none9 = { bx: 0, by: 0, bd: Infinity, air: false };
               if (!wantFoe9 || !tgtTag9) return none9;
@@ -33340,7 +33348,7 @@ export default function ReplayMotionPlayer({
                  지도가 그리는 자원이다) — 참값이 가리켜도 그릴 것이 없으므로 없는 것으로 둔다. */
               if (!tp9) return none9;
               return {
-                bx: tp9.x, by: tp9.y,
+                bx: tp9.x, by: tp9.y, moving: tp9.moving,
                 bd: Math.hypot(tp9.x - rawPos.x, tp9.y - rawPos.y),
                 /* ★ **떠 있는 건물은 공중 표적이다**(지적: "골리앗이 떠 있는 건물 공격할
                    때 지상 트레이서가 나감") — 명단은 그 사실을 lifted로 따로 들고 있는데
@@ -34581,7 +34589,7 @@ export default function ReplayMotionPlayer({
                 fxOps.push({
                   kind: "shot", style: fxName9, fx: fxfx9, fy: fxfy9, lift: liftPx9,
                   mx: mzx9 + perp9[0] * s9, my: mzy9 + perp9[1] * s9,
-                  deg: beamDeg, len: beamLen, u: shotU,
+                  deg: beamDeg, len: beamLen, u: shotU, tm: !!foe.moving,
                 });
               }
             } else if (PROJECTILE_FX.has(fxName9)) {
