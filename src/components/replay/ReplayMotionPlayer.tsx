@@ -10243,12 +10243,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ));
     }
     /* 등 드럼(유탄 발사기) — 갑판 위 큰 원통 + 꽁무니 쪽 놋빛 끝. */
-    out.push(...tagKey(paintBase(tubeFaces(0, -2.95, 0, -0.5, 0.82, 5.75), DEEP),
-      depthNow(0, -1.7) * 1.6 + 3));
+    /* 드럼은 **같은 반지름의 세 마디**(뒤·임자색 띠·앞)로 잇는다(지적: "드럼통 내부
+       비침") — 여태 허리 띠를 드럼보다 굵은 짧은 관으로 얹어, 띠의 끝 원판(어두운 뚜껑)이
+       드럼 위에 찍혀 뻥 뚫린 속처럼 읽혔다. 마디를 같은 굵기로 두고 마디마다 제 깊이를
+       달면, 가까운 마디의 옆면이 먼 마디의 끝 원판을 덮어 이음매만 남는다. */
+    out.push(...tagKey(paintBase(tubeFaces(0, -2.95, 0, -1.6, 0.82, 5.75), DEEP),
+      depthNow(0, -2.3) * 1.6 + 3));
+    out.push(...tagKey(tubeFaces(0, -1.62, 0, -1.03, 0.82, 5.75), depthNow(0, -1.32) * 1.6 + 3));   // 임자색 띠
+    out.push(...tagKey(paintBase(tubeFaces(0, -1.05, 0, -0.5, 0.82, 5.75), DEEP),
+      depthNow(0, -0.78) * 1.6 + 3));
     out.push(...tagKey(paintBase(tubeFaces(0, -3.4, 0, -2.9, 0.68, 5.75, true), "#b08a3c"),
       depthNow(0, -3.1) * 1.6 + 3));
-    // 드럼 허리의 개인색 띠 — 작아져도 남는 자리다(칠하지 않는다).
-    out.push(...tagKey(tubeFaces(0, -1.6, 0, -1.05, 0.86, 5.75), depthNow(0, -1.3) * 1.6 + 3.5));
     /* 탄 사람 — 갑판 위로 나온 상반신만. 웅크려 앞으로 기운 몸통 + 헬멧 + 앞으로
        뻗어 손잡이를 쥔 두 팔. 개인색 전투복이라 몸통은 칠하지 않는다. */
     {
