@@ -43,5 +43,5 @@ export {
        도록의 박자가 지도의 박자와 안 갈린다(그 함수들의 ★ 주석이 그 사고를 적어 두었다).
      · poseCutsOf    — 그 종류가 **어느 컷을 갖나**(걸음·공격·날갯짓). 없는 칸은
        도록이 idle로 갈음한다. */
-export { SHAPE_GALLERY, ShapeIcon, poseTempoOf, poseCutsOf, atkCutOf, flapCutOf } from "./ReplayMotionPlayer";
+export { SHAPE_GALLERY, ShapeIcon, poseTempoOf, poseCutsOf, atkCutOf, flapCutOf, shapeMapTiles } from "./ReplayMotionPlayer";
 export type { ShapeGalleryItem } from "./ReplayMotionPlayer";

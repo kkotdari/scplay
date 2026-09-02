@@ -5250,10 +5250,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ] as [number, number][]) {
         f9.push(...boxFaces3(bx9, by9, 0.42, 0.42, 0.22, zTop9(bx9, by9) - 0.02));
       }
-      /* ★ 양옆 변의 **톱니**(재요청: "발판 하나하나의 양옆에 톱니마냥 튀어나온 것") —
-         안쪽·바깥 변을 뺀 옆 변 넷(1-2·2-3·4-5·5-0)의 한가운데서 삼각 이빨이 바깥으로
-         튀어나온다. 발판 두께(TH9)만큼의 삼각기둥이다. */
-      for (const [ia9, ib9] of [[1, 2], [2, 3], [4, 5], [5, 0]] as [number, number][]) {
+      /* ★ 양옆 변의 **작고 납작한 사각 판**(재요청: 삼각 톱니 대신) — 안쪽·바깥 변을 뺀 옆 변
+         넷(1-2·2-3·4-5·5-0)의 한가운데서 얇은 네모 판이 바깥으로 살짝 튀어나온다. 크기는
+         변마다 제각각(길이 0.34~0.5 · 돌출 0.16~0.3 · 두께 0.06~0.1)이라 규칙 부품으로 안 읽힌다. */
+      ([[1, 2], [2, 3], [4, 5], [5, 0]] as [number, number][]).forEach(([ia9, ib9], k9) => {
         const ax9 = hi9[ia9][0]; const ay9 = hi9[ia9][1];
         const bx9 = hi9[ib9][0]; const by9 = hi9[ib9][1];
         const mx9 = (ax9 + bx9) / 2; const my9 = (ay9 + by9) / 2;
@@ -5261,22 +5261,22 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const el9 = Math.hypot(ex9, ey9) || 1;
         let nx9 = ey9 / el9; let ny9 = -ex9 / el9;          // 변의 법선
         if ((mx9 - cx9) * nx9 + (my9 - cy9) * ny9 < 0) { nx9 = -nx9; ny9 = -ny9; }
-        const t0: [number, number] = [mx9 - (ex9 / el9) * 0.3, my9 - (ey9 / el9) * 0.3];
-        const t1: [number, number] = [mx9 + (ex9 / el9) * 0.3, my9 + (ey9 / el9) * 0.3];
-        const tp: [number, number] = [mx9 + nx9 * 0.42, my9 + ny9 * 0.42];
-        const zt9 = zTop9(mx9, my9);
-        const top9 = polyPath3([[t0[0], t0[1], zt9], [t1[0], t1[1], zt9], [tp[0], tp[1], zt9 - 0.04]]);
-        const w1 = polyPath3([[t0[0], t0[1], zt9 - TH9], [tp[0], tp[1], zt9 - TH9 - 0.04],
-          [tp[0], tp[1], zt9 - 0.04], [t0[0], t0[1], zt9]]);
-        const w2 = polyPath3([[tp[0], tp[1], zt9 - TH9 - 0.04], [t1[0], t1[1], zt9 - TH9],
-          [t1[0], t1[1], zt9], [tp[0], tp[1], zt9 - 0.04]]);
-        for (const [wd9, wnx9, wny9] of [[w1, nx9 - ex9 / el9, ny9 - ey9 / el9], [w2, nx9 + ex9 / el9, ny9 + ey9 / el9]] as [string, number, number][]) {
-          const wl9 = Math.hypot(wnx9, wny9) || 1;
-          const fl9 = faceLight(wnx9 / wl9, wny9 / wl9, 0.3);
-          f9.push(bodyFace(wd9), ...(fl9.visible ? fl9.face(wd9) : [sideFace(wd9, 0.46)]));
-        }
+        const seed9 = ((cx9 * 7.3 + cy9 * 3.1 + k9 * 11.7) % 1 + 1) % 1;
+        const half9 = 0.17 + 0.08 * seed9;                  // 변 방향 반길이
+        const out9 = 0.16 + 0.14 * ((seed9 * 3.7) % 1);     // 바깥 돌출
+        const th9 = 0.06 + 0.04 * ((seed9 * 5.3) % 1);      // 두께
+        const off9 = (seed9 - 0.5) * 0.2;                    // 변 위 자리 흔들림
+        const c0: [number, number] = [mx9 + (ex9 / el9) * (off9 - half9), my9 + (ey9 / el9) * (off9 - half9)];
+        const c1: [number, number] = [mx9 + (ex9 / el9) * (off9 + half9), my9 + (ey9 / el9) * (off9 + half9)];
+        const o0: [number, number] = [c0[0] + nx9 * out9, c0[1] + ny9 * out9];
+        const o1: [number, number] = [c1[0] + nx9 * out9, c1[1] + ny9 * out9];
+        const zt9 = zTop9(mx9, my9) - 0.01;
+        const top9 = polyPath3([[c0[0], c0[1], zt9], [c1[0], c1[1], zt9], [o1[0], o1[1], zt9], [o0[0], o0[1], zt9]]);
+        const front9 = polyPath3([[o0[0], o0[1], zt9 - th9], [o1[0], o1[1], zt9 - th9], [o1[0], o1[1], zt9], [o0[0], o0[1], zt9]]);
+        const flF9 = faceLight(nx9, ny9, 0.3);
+        f9.push(bodyFace(front9), ...(flF9.visible ? flF9.face(front9) : [sideFace(front9, 0.46)]));
         f9.push(bodyFace(top9), topFace(top9, 0.2));
-      }
+      });
       for (const k9 of [0, 1]) {
         const gx9 = cx9 - ox9 * r9 * 0.62 + (k9 === 0 ? -oy9 : oy9) * r9 * 0.36;
         const gy9 = cy9 - oy9 * r9 * 0.62 + (k9 === 0 ? ox9 : -ox9) * r9 * 0.36;
@@ -5388,11 +5388,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            ③ 0.8~1: 곧게 위로(x 고정)
          마디 수(20)는 꺾이는 t(7/20·16/20)가 정확히 눈금에 걸리게 잡았다 — 안 그러면
          꺾임이 두 눈금에 나뉘어 도로 둥글어진다. 뿌리 되꺾기(ROOT)도 걷었다. */
-      const AXIS9 = 8.3;
+      // 꼭대기 수직부(③)를 줄인다(요청): 0.8~1(1.66) → 0.9~1(0.76). 축 길이도 그만큼 덜어 8.3 → 7.6.
+      const AXIS9 = 7.6;
       const BOW9 = 0.55;   // 0.9 → 0.55 (재지적: 너무 퍼진 느낌)
       const IN9 = 1.35;
       const K1_9 = 0.35;
-      const K2_9 = 0.8;
+      const K2_9 = 0.9;
       const xoff9 = (t9: number): number => (
         t9 <= K1_9 ? BOW9 * (t9 / K1_9)
           : t9 <= K2_9 ? BOW9 - (BOW9 + IN9) * ((t9 - K1_9) / (K2_9 - K1_9))
