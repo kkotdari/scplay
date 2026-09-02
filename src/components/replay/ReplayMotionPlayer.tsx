@@ -35477,9 +35477,8 @@ export default function ReplayMotionPlayer({
                4배 미만에서는 줌 대신 4를 쓴다: 1배에서 타일이 8px이면 자국이 4px이라 점도
                못 되는데, 4배 기준으로 잡으면 18px 남짓으로 눈에 든다. 4배부터는 줌이 그대로
                들어가므로 자국이 타일과 함께 커진다 — 확대할수록 원작 비율에 수렴한다. */
-            /* 고배율에서 한 단 더(재지적: 12배에서 너무 작다) — 0.55타일을 4배부터 배율 따라 0.85까지 올린다. */
-            const ckK9 = Math.min(0.85, 0.55 + 0.03 * Math.max(0, zoom - 4));
-            const ckw = Math.max(10, ((mapRef.current?.clientWidth ?? 320) / grid.width) * Math.max(4, zoom) * ckK9);
+            // 핑과 같은 자(재요청: 복잡하지 않게) — 4배부터 배율 그대로, 타일의 0.7배(12배에서 작다는 지적으로 0.55 → 0.7).
+            const ckw = Math.max(10, ((mapRef.current?.clientWidth ?? 320) / grid.width) * Math.max(4, zoom) * 0.7);
             // 공격 클릭은 붉은 고리로 갈라 보인다(지적: 클릭 종류 구분).
             return (
               <span
