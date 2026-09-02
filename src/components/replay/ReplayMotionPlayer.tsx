@@ -22952,14 +22952,16 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
             const cy9 = ay - r9 * 0.1;                          // translate -55%
             ctx.globalAlpha = a9;
             const g9 = ctx.createRadialGradient(ax, cy9, 0, ax, cy9, r9);
-            g9.addColorStop(0, "rgba(150,220,255,0.1)");
-            g9.addColorStop(0.58, "rgba(110,190,255,0.07)");
-            g9.addColorStop(0.74, "rgba(90,170,255,0)");
+            // 플라즈마 테마(요청): 가운데 흰색에서 흰빛 도는 푸른색으로 번져 나간다.
+            g9.addColorStop(0, "rgba(255,255,255,0.6)");
+            g9.addColorStop(0.3, "rgba(205,238,255,0.32)");
+            g9.addColorStop(0.62, "rgba(140,200,255,0.12)");
+            g9.addColorStop(0.8, "rgba(110,180,255,0)");
             ctx.fillStyle = g9;
             ctx.beginPath();
             ctx.arc(ax, cy9, r9, 0, Math.PI * 2);
             ctx.fill();
-            ctx.strokeStyle = "rgba(195,238,255,0.42)";
+            ctx.strokeStyle = "rgba(225,245,255,0.55)";
             ctx.lineWidth = Math.max(0.5, 0.3 * zoom);
             ctx.beginPath();
             ctx.arc(ax, cy9, r9 * 0.74, 0, Math.PI * 2);
@@ -32198,7 +32200,8 @@ export default function ReplayMotionPlayer({
                 if (bShieldUp9) {
                   fxOps.push({
                     kind: "shield", fx: bfx9, fy: bfy9, lift: bLift9,
-                    size: bw9 * 0.95, ph: (t - bldHp.hurt) / 0.55,
+                    // 건물도 제곱근 자(요청) — 발자국 폭이 4타일이면 2타일 남짓.
+                    size: 1.25 * Math.sqrt(bw9 * tilePx), ph: (t - bldHp.hurt) / 0.55,
                   });
                 } else {
                   /* 건물도 제 결로 튄다(요청: 종족별 피해 효과) — 테란은 불꽃, 저그는 피,
@@ -32210,7 +32213,7 @@ export default function ReplayMotionPlayer({
                   const bWpn9 = bHitSrc9.uk ? ATTACK_FX[bHitSrc9.uk] : undefined;
                   fxOps.push({
                     kind: "hit", fx: bfx9, fy: bfy9, lift: bLift9,
-                    size: bw9 * 0.3, dist: bw9 * 0.4, mat: bMat9,
+                    size: 0.6 * Math.sqrt(bw9 * tilePx), dist: bw9 * 0.4, mat: bMat9,
                     ph: (t - bldHp.hurt) / 0.18,
                     ...(bWpn9 ? { style: bWpn9 } : {}),
                     ...(bHitDir9 ? { dx: bHitDir9[0], dy: bHitDir9[1] } : {}),
@@ -33185,7 +33188,7 @@ export default function ReplayMotionPlayer({
             if (!qDeath) return null;
             /* 크기는 건물 발자국의 0.7배(재지적: 그래도 너무 큼 — 반으로) — 퍼센트 폭이라
                맵 확대에도 비례한다. */
-            const clpW = (((FOOTPRINT[unit] ?? [3, 2])[0] * 0.7) / grid.width) * 100;
+            const clpW = (((FOOTPRINT[unit] ?? [3, 2])[0] * 0.56) / grid.width) * 100;   // 20% 축소(요청): 0.7 → 0.56
             /* 격추는 **뜬 높이에서** 터진다(같은 요청) — 몸이 거기 있었으니 불도 거기서
                나야 한다. 높이는 몸을 띄우던 식 그대로다(위 bFlyPx9): 발자국 폭 × 뜬 몫
                × 0.55. 뜬 몫은 죽는 순간의 값으로 **얼린다** — 둥실거림(sin)과 오르내림을
@@ -33822,9 +33825,10 @@ export default function ReplayMotionPlayer({
                   <span
                     className={`scr-motion-diefx scr-die-${dk}`}
                     style={{
-                      width: `${(diePx9 * 0.72 * zoom).toFixed(1)}px`,
-                      height: `${(diePx9 * 0.72 * zoom).toFixed(1)}px`,
-                      margin: `${(-diePx9 * 0.36 * zoom).toFixed(1)}px 0 0 ${(-diePx9 * 0.36 * zoom).toFixed(1)}px`,
+                      // 20% 축소(요청): 0.72 → 0.58(정비례는 그대로).
+                      width: `${(diePx9 * 0.58 * zoom).toFixed(1)}px`,
+                      height: `${(diePx9 * 0.58 * zoom).toFixed(1)}px`,
+                      margin: `${(-diePx9 * 0.29 * zoom).toFixed(1)}px 0 0 ${(-diePx9 * 0.29 * zoom).toFixed(1)}px`,
                     }}
                   />
                 </span>,
@@ -34478,10 +34482,13 @@ export default function ReplayMotionPlayer({
                  서넛을 덮는 크기가 된다(캐리어에서 실측). 잉크 몫으로 몸 폭을 되찾은 뒤
                  1.35배 — 몸을 감싸되 이웃은 안 삼킨다. 아래 hit는 이미 0.42(= 몸의
                  1.29배)라 그대로 둔다. */
+              /* ★ 크기는 **몸 폭의 제곱근**이다(요청: 유닛·건물 크기의 제곱근에 비례 — 건물에서 너무
+                 커지지 않게, 질럿은 지금 너무 크다). 타일 하나를 기준으로 √(몸폭 × 타일)이라
+                 몸이 타일만 하면 그대로, 네 배면 두 배만 커진다. 피격 불티도 같은 자다. */
               ? { kind: "shield", fx: fxfx9, fy: fxfy9, lift: liftPx9,
-                size: fxPx * (modelInkOf(kindMain) / 16) * 1.35, ph: (t - hurtAt) / 0.55 }
+                size: 1.25 * Math.sqrt(fxPx * (modelInkOf(kindMain) / 16) * tilePx), ph: (t - hurtAt) / 0.55 }
               : { kind: "hit", fx: fxfx9, fy: fxfy9, lift: liftPx9,
-                size: fxPx * 0.42, ph: (t - hurtAt) / 0.14, mat: hitMat9,
+                size: 1.0 * Math.sqrt(fxPx * (modelInkOf(kindMain) / 16) * tilePx), ph: (t - hurtAt) / 0.14, mat: hitMat9,
                 ...(hitWpn9 ? { style: hitWpn9 } : {}),
                 ...(hitDir9 ? { dx: hitDir9[0], dy: hitDir9[1] } : {}) }) : null;
             if (hitFx9 && !fighting) {
