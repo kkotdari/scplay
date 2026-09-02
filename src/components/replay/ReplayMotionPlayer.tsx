@@ -1151,6 +1151,9 @@ function spirePillar(o: {
    *  묻힌 단면은 카메라를 마주 보므로 보임 판정은 참인데, 그 앞을 가리는 것이 '다른
    *  도형'이라 페인터 순서로는 절대 못 가린다. 그런 토막은 "none"으로 아예 끄자. */
   caps?: "both" | "top" | "bottom" | "none";
+  /** 단면 다각형의 시작 각(라디안) — 기본은 변 하나가 u축을 마주 보게 반 칸(π/sides)
+   *  돌린 것. 0을 주면 꼭짓점이 u·v축 위에 놓여, 네 변이면 마름모(가운데 접힌 판)가 된다. */
+  phase?: number;
   /** 옆면 명암을 **진짜 면 법선**으로(캐리어 잎: 호를 등뼈로 눕힌 얇은 판) — 기본은
    *  '축에서 면까지의 x·y 방향'을 법선으로 어림한다. 세운 기둥에선 그게 곧 법선이지만,
    *  눕힌 판의 윗면은 축에서 앞뒤(y)로 벌어진 자리라 "앞을 보는 면·뒤를 보는 면"으로
@@ -1239,7 +1242,7 @@ function spirePillar(o: {
       const vy = T[2] * ux - T[0] * uz;
       const vz = T[0] * uy - T[1] * ux;
       frames.push(Array.from({ length: sides }, (_, i) => {
-        const a = (i / sides) * Math.PI * 2 + Math.PI / sides;
+        const a = (i / sides) * Math.PI * 2 + (o.phase ?? Math.PI / sides);
         const cu = Math.cos(a);
         const cs = cu * r;
         const sn = Math.sin(a) * r * ovalK + (o.skewV ? o.skewV(cu, t) : 0);
@@ -1400,6 +1403,8 @@ function leafFaces(o: {
   key?: number;
   /** 진짜 면 법선·등진 면 걷기(spirePillar.trueNormal) — 얇은 판의 속면 비침을 막는다. */
   trueNormal?: boolean;
+  /** 단면 시작 각(spirePillar.phase) — 0이면 네 변 단면이 마름모라 세로 접힘 축이 선다. */
+  phase?: number;
 }): ShapeFace[] {
   const wa = Math.min(0.85, Math.max(0.15, o.waist ?? 0.42));
   const sides = o.sides ?? 8;
@@ -1414,7 +1419,7 @@ function leafFaces(o: {
   const halfPillar = (t0: number, t1: number, end: number, pow: number): ShapeFace[] =>
     spirePillar({
       x: 0, y: 0, h: 1, w: 1, segs, sides, oval: o.spread, caps: "none", fill: o.fill,
-      ref: o.ref, trueNormal: o.trueNormal,
+      ref: o.ref, trueNormal: o.trueNormal, phase: o.phase,
       path: (t: number): [number, number, number] => o.path(t0 + (t1 - t0) * t),
       // t 0이 끝(뿌리 또는 잎끝), t 1이 허리가 되도록 u를 맞춘다.
       widthOf: (t: number): number => halfOf(t, end, pow),
@@ -11129,7 +11134,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         /* 끝은 뾰족하지 않고 **직선으로 뭉뚝하게** 깎는다(재지적) — 뿌리·끝 굵기 비를
            0에서 0.55로 두면 끝 단면이 평평한 절단면이 된다. */
         // 양옆 모서리 배흘림을 약하게(재요청): 끝 굵기 비 0.55 → 0.8 — 허리가 덜 불룩하다.
-        rootW: 0.6, tipW: 0.6,   // 0.6으로 복구(재요청)
+        // 위(잎끝)는 삼각으로 뾰족하게(재요청): tipW 0. 아래(뿌리)는 0.6 그대로.
+        rootW: 0.6, tipW: 0,
+        // 세로 접힘 축(재요청): 단면을 마름모로 — 가운데 능선이 위아래로 달린다.
+        phase: 0,
         // 면 수 절반 이하로(재요청): 10×8 → 4×6. 네 변 단면은 곧 납작한 판이다.
         rootPow: 1, tipPow: 1, sides: 4, segs: 4, fill: TERRAN_STEEL,   // 마디 4 — 옆면 호가 각지게 꺾인다(재요청)
         // 단면의 u축을 반지름 방향으로 — 셋이 저마다 제 바깥쪽으로 납작해진다.
@@ -13761,15 +13769,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const tx = m * 1.05;
       const key = depthNow(tx, -1.7) * 1.6;
       // 크기 축소(요청: "어깨랑 뒤 실린더도 크기 축소") — 반지름 0.66 → 0.54, 높이 3.1 → 2.6.
-      out.push(...tagKey(paintBase(cylinderFaces3(tx, -1.7, 0.54, 2.6, 4.3), DEEP), key));
-      out.push(...tagKey(paintBase(cylinderFaces3(tx, -1.7, 0.6, 0.38, 6.62), "#e2e6ea"), key + 0.3));
-      out.push(...tagKey(paintBase(cylinderFaces3(tx, -1.7, 0.58, 0.28, 5.65), "#383e48"), key + 0.2));
+      // 몸통 뒤가 −1.5로 당겨져 탱크도 −1.7 → −1.25로 앞으로.
+      out.push(...tagKey(paintBase(cylinderFaces3(tx, -1.25, 0.54, 2.6, 4.3), DEEP), key));
+      out.push(...tagKey(paintBase(cylinderFaces3(tx, -1.25, 0.6, 0.38, 6.62), "#e2e6ea"), key + 0.3));
+      out.push(...tagKey(paintBase(cylinderFaces3(tx, -1.25, 0.58, 0.28, 5.65), "#383e48"), key + 0.2));
     }
     /* 몸통 — 앞이 좁고 뒤가 넓은 절두체. 앞이 좁아야 그 앞에 앉는 조종석 유리가
        머리처럼 튀어나온 것으로 읽힌다. */
     // 깊이(위아래 두께) 축소(재요청): 2.5 → 2.1, 위아래에서 조금씩.
     // 30% 더(재요청): 2.1 → 1.5.
-    out.push(...tagKey(paintBase(frustumFaces3(0, -0.5, 2.75, 2.7, 2.35, 2.3, 1.5, 3.6), STEEL),
+    // 앞뒤 깊이 25% 축소(재요청 — '깊이'는 앞뒤 길이): 2.7/2.3 → 2.0/1.7. 뒤 탱크·추진체가 따라온다.
+    out.push(...tagKey(paintBase(frustumFaces3(0, -0.5, 2.75, 2.0, 2.35, 1.7, 1.5, 3.6), STEEL),
       depthNow(0, -0.5) * 1.6 + 1));
     /* 가슴 등 두 개(사진) — 호박빛 렌즈. 앞을 볼 때만 그린다.
        ★ 자리를 조종석 밖으로(지적: "이상한 주황색 동그라미가 비쳐보이는데") — 옛
@@ -13808,16 +13818,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 크기 축소(요청: "어깨랑 뒤 실린더도 크기 축소") — 1.3×2.3×1.9 → 1.05×1.95×1.6.
       const sx = m * 2.0;
       const key = depthNow(sx, -0.3) * 1.6 + 2;
-      out.push(...tagKey(paintBase(boxFaces3(sx, -0.3, 1.05, 1.95, 1.6, 3.6), STEEL), key));
+      // 어깨 앞뒤 깊이 25% 축소(재요청): 1.95 → 1.45. 띠·뚜껑도 따라 줄인다.
+      out.push(...tagKey(paintBase(boxFaces3(sx, -0.3, 1.05, 1.45, 1.6, 3.6), STEEL), key));
       /* 개인색 띠 — 덮개 허리를 두르는 **벽만 있는** 네모 고리(지적: "속까지 비쳐
          보임") — 상자로 두르면 윗면이 통짜 네모라, 위에서 볼 때 그 판이 덮개 윗판을
          통째로 가려 속이 빈 것처럼 보였다. 벽 넷만 세우면 위가 뚫린 진짜 띠다. */
       out.push(...tagKey(prismZFaces([
-        [sx - 0.56, -1.31], [sx + 0.56, -1.31], [sx + 0.56, 0.71], [sx - 0.56, 0.71],
+        [sx - 0.56, -1.06], [sx + 0.56, -1.06], [sx + 0.56, 0.46], [sx - 0.56, 0.46],
       ], 4.05, 0.44, false), key + 0.2));
       const cap = polyPath3([
-        [sx - 0.5, -1.2, 5.2], [sx + 0.5, -1.2, 5.2],
-        [sx + 0.5, 0.6, 5.2], [sx - 0.5, 0.6, 5.2],
+        [sx - 0.5, -0.95, 5.2], [sx + 0.5, -0.95, 5.2],
+        [sx + 0.5, 0.35, 5.2], [sx - 0.5, 0.35, 5.2],
       ]);
       out.push(...tagKey([[cap, 1, STEEL] as ShapeFace, topFace(cap, 0.14)], key + 0.4));
     }
@@ -14016,7 +14027,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        노즐이 몸에서 떨어져 붙은 막대로 보인다. */
     for (const jx of [-0.9, 0.9]) {
       out.push(...tagKey(
-        paintBase(tubeFaces(jx, -2.3, jx, -3.3, 0.44, 3.9, true), TERRAN_STEEL_D),
+        paintBase(tubeFaces(jx, -1.85, jx, -2.85, 0.44, 3.9, true), TERRAN_STEEL_D),   // 몸통 뒤(−1.5)에 물림
         depthNow(jx, -2.9) * 1.6 + 1.1,
       ));
     }
@@ -18260,7 +18271,7 @@ const MODEL_NORM: Record<string, number> = {
   scarab: 1.514,  // 상자 상한(원한 배수 1.591)
   scourge: 1.293,  // 상자 상한(원한 배수 1.327)
   scout: 0.841,  // 나셀 내린 뒤 재측정(model-norm)
-  scv: 0.749,
+  scv: 0.767,  // 어깨·몸통 앞뒤 깊이 줄인 뒤 재측정(model-norm)
   scvGas: 0.842,
   scvMin: 0.851,
   shuttle: 0.666,
@@ -18278,7 +18289,7 @@ const MODEL_NORM: Record<string, number> = {
   tanksiegebody: 0.723,
   ultra: 0.361,
   valk: 0.840,   // 앞동체 −10% 뒤 재측정(model-norm)
-  vessel: 0.891,  // 방패 배흘림 0.6·마디 4 뒤 재측정(model-norm)
+  vessel: 0.898,  // 방패 접힘 축·뾰족 위끝 뒤 재측정(model-norm)
   vulture: 0.828,
   wraith: 0.774,
   zealot: 0.799,
