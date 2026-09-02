@@ -31477,6 +31477,10 @@ export default function ReplayMotionPlayer({
             const rBD9 = buildsDrawOrder.map((i) => {
               const [sec, x, y, unit, raw, gone, liftAt, bldDoneAt] = buildsSrc[i];
               if (sec > t) return null;
+              /* ★ 몸이 없는 개체(스캔·다크 스웜 자국 등)는 건물로 안 그린다(지적: 스캔에 동심원 —
+                 스캔이 건물 자취로 실려 모델 없는 테란 폴백(예전 공사장, 지금 워프인 고리)이
+                 탐지 반경 크기로 섰다). 그 연출은 캐스트 효과가 따로 낸다. */
+              if (NO_BODY_UNITS.has(unit)) return null;
               const goneAt = gone ?? 0;
               // 없어진 건물은 그냥 사라진다(요청: ✕ 표시 없음) — 착륙 이사·변태와도 한 결이다.
               /* 핵 한 방(요청) — 폭발 반경 안에서 무너진 걸로 판정된 건물은 파괴 감지가
@@ -34342,7 +34346,10 @@ export default function ReplayMotionPlayer({
                그대로 산다: hitSrc9(때린 쪽 찾기)도 안 돌고, hitFx9가 null이라
                "안 싸우는데 맞았다"는 갈래도 저절로 안 걸린다 — 2~4배에서는 싸우는
                몸의 트레이서만 남는다. */
-            const hitNow = !liteView && t - hurtAt <= 0.15;
+            /* ★ 몸이 없는 개체(스캔·다크 스웜 자국 등)는 피격 불티·실드막을 안 낸다(지적: 스캔에
+               동심원) — 스캔 개체는 참값에 체력(에너지)이 깎이는 자취가 실려 '맞았다'로 읽혔고,
+               실드막 고리가 탐지 반경 크기로 그려졌다. */
+            const hitNow = !liteView && !NO_BODY_UNITS.has(drawUnit) && t - hurtAt <= 0.15;
             /* 효과는 가슴 높이(지적: 공격 효과가 너무 낮다 — 발밑에서 튀었다) — 마커
                기준점은 발 자리라, 몸이 실제로 떠 있는 몫만큼 띄워 몸통에 맞춘다.
                ★ 그 몫은 **그리는 쪽과 같은 식**이어야 한다(지적: "공중유닛의 피격효과가
