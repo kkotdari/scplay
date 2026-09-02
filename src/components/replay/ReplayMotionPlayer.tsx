@@ -10995,7 +10995,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 바깥면 — 임자색 판 + 기본색 속판(모서리 띠가 남는다).
       sh9.push(bodyFace(polyPath3(oth9)));
       sh9.push(...raceBase([bodyFace(polyPath3(trap9(0.205, 0.74)))], "terran"));
-      out.push(...tagKey(sh9, key9(m9 * 3.15, cy9, (cz0 + cz1) / 2)));
+      /* 방패 열쇠는 **팔 열쇠에 묶는다**(지적: 앞뒤에서 팔과 방패 키값이 안 맞음) — 앞뒤
+         시점에선 둘의 깊이가 같아 z 몫으로만 갈렸다. 방패 바깥면이 시점을 향하면 팔 위에,
+         안면이 보이면(시점이 몸 쪽) 팔이 방패 앞에 있으니 팔 아래에 그린다. */
+      const armKey9 = key9(m9 * 2.1, -1.35, Z(5.8));
+      out.push(...tagKey(sh9, facingRatio(m9, 0) < -0.05 ? armKey9 - 0.2 : armKey9 + 0.2));
     }
     /* 추진체 **넷** — 둥근 관이 아니라 **직육면체**(재지적): 단면이 위아래로 긴 직사각,
        색은 검회색. 뒷면에 2×2로 배치해 뒷면 높이를 꽉 채운다. */
