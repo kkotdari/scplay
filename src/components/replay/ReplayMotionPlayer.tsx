@@ -1568,7 +1568,7 @@ function pLimb(
      요잉과 무관해, 뒤로 돌아간 팔·머리 장식이 늘 몸통 위에 그려졌다. 마디 한가운데의
      깊이를 실으면 앞엣것은 몸 위, 뒤엣것은 몸 뒤로 저절로 갈린다. */
   const k9 = key ?? (depthNow((a[0] + b[0]) / 2, (a[1] + b[1]) / 2) * 1.6 - 0.4);
-  return suitLimb(a, b, w * 0.5, w * 0.46, w * 0.55, { sides: 7, caps: "none", key: k9, tag: "limb" });
+  return suitLimb(a, b, w * 0.5, w * 0.46, w * 0.55, { sides: 7, caps: "none", trueNormal: true, key: k9, tag: "limb" });
 }
 /** 프로토스 다리 한 쌍 — 테란과 같은 뿔기둥 마디로 짠다. 다만 프로토스는 **역관절**
  *  (디지티그레이드)이다: 무릎이 앞으로 크게 나오고 발목이 뒤로 물러났다가 긴 발이
@@ -1604,15 +1604,22 @@ function protossLegs(
     /* 다리 키(지적: "질럿 다템 하템 키가 엉망 다리쪽 팔쪽 얼굴쪽") — −0.9는 붙박이라
        요잉을 돌려도 늘 같은 층이었다. 마디마다 제 자리 깊이를 실어 몸통(0)을 사이에
        두고 앞뒤가 갈리게 한다: 앞다리는 몸 위, 뒷다리는 몸 뒤. */
+    /* ★ 세 마디의 키(지적) — 마디마다 **제 한가운데 깊이**로 매기고 단면은 셋 다 안 그린다:
+       허벅지 위는 골반 속, 무릎·발목은 서로의 속이라 뚜껑이 보이면 곧 이음매가 뜬다.
+       같은 깊이일 때는 아래 마디가 나중이라(배열 차례) 무릎에서 정강이가 허벅지를 덮고,
+       발목에서 발이 정강이를 덮는다 — 앞으로 굽은 무릎·앞으로 뻗은 발이 그 차례다. */
+    const kT = depthNow((hip[0] + knee[0]) / 2, (hip[1] + knee[1]) / 2) * 1.6 - 0.9;
+    const kS = depthNow((knee[0] + ankle[0]) / 2, (knee[1] + ankle[1]) / 2) * 1.6 - 0.9;
+    const kF = depthNow((ankle[0] + toe[0]) / 2, (ankle[1] + toe[1]) / 2) * 1.6 - 0.9;
     out.push(...paint(suitLimb(hip, knee, 0.38 * thin, 0.33 * thin, 0.41 * thin,
-      { sides: 7, key: depthNow(hip[0], (hip[1] + knee[1]) / 2) * 1.6 - 0.9, tag: "leg.thigh" }), thighFill));
+      { sides: 7, caps: "none", trueNormal: true, key: kT, tag: "leg.thigh" }), thighFill));
     out.push(...paint([
       // 정강이·발 단면은 안 그린다(지적: 하지 단면이 대퇴에 안 가려짐) — 두 끝이 다 남의 몸속이다.
       ...suitLimb(knee, ankle, 0.45 * thin, 0.38 * thin, 0.5 * thin,
-        { sides: 7, caps: "none", key: depthNow(knee[0], (knee[1] + ankle[1]) / 2) * 1.6 - 0.9, tag: "leg.shin" }),
+        { sides: 7, caps: "none", trueNormal: true, key: kS, tag: "leg.shin" }),
       // 발은 작고 예리하게(요청: 프로토스 인간형 발이 투박하고 큼) — 0.38/0.3/0.36 → 0.27/0.18/0.25.
       ...suitLimb(ankle, toe, 0.27, 0.18, 0.25,
-        { sides: 7, caps: "none", key: depthNow(ankle[0], (ankle[1] + toe[1]) / 2) * 1.6 - 0.95, tag: "leg.foot" }),
+        { sides: 7, caps: "none", trueNormal: true, key: kF, tag: "leg.foot" }),
     ], shinFill));
     /* 발은 **두 갈래 발가락**이다(요청: "프로토스 보병류 발은 scv 발같은 발가락 2개
        형태의 발 모양으로") — 삼각 말굽 한 장을 걷고, SCV 발굽과 같은 결로 짠다:
@@ -1678,6 +1685,8 @@ function suitLimb(
     /** 깊이 키에 더할 몫 — 이 마디가 늘 무엇 뒤에 있어야 할 때 쓴다(팔은 어깨보호구
      *  뒤, 다리는 몸통 뒤). 이음매의 뚜껑이 남의 몸속에 있으려면 그리는 차례가 먼저여야
      *  하는데, 제 자리 깊이만으로는 요잉에 따라 그 차례가 뒤집힌다. */
+    /** 진짜 법선·등진 면 걷기(spirePillar.trueNormal) — 뚜껑 없는 마디의 안벽 비침을 막는다. */
+    trueNormal?: boolean;
     key?: number;
   } = {},
 ): ShapeFace[] {
@@ -1685,7 +1694,7 @@ function suitLimb(
   const m = mid ?? (w0 + w1) / 2;
   return tagKey(spirePillar({
     x: 0, y: 0, h: 1, w: w0, tipW: 1, segs: o.segs ?? 3, sides: o.sides ?? 6,
-    caps: o.caps ?? "both", oval: o.oval,
+    caps: o.caps ?? "both", oval: o.oval, trueNormal: o.trueNormal,
     path: (t: number): [number, number, number] =>
       [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t],
     // 2차 베지에 옆선 — 뿌리 w0 · 배 mid · 끝 w1. 종아리·팔뚝의 부푼 배가 여기서 온다.

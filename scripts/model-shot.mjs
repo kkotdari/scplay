@@ -35,6 +35,7 @@ const HEAD = Number(flag("--head", 0));           // 포탑부 상대 각(도) �
 const SPIN = Number(flag("--spin", 0));           // 도는 부품의 칸(0~7) — 서플라이 팬·코어 디스크
 const BG = String(flag("--bg", "#20242b"));
 const ZOOM = Number(flag("--zoom", 1));            // 칸 가운데 기준 확대·축소(키 큰 건물은 0.5쯤)
+const PAN = String(flag("--pan", "0,0")).split(",").map(Number);   // 확대 뒤 칸 안에서 옮기기(px): 다리를 보려면 0,-120
 const COLOR = String(flag("--color", "#4aa3ff"));      // 임자 색(칠 안 한 면에 든다)
 const OUT = String(flag("--out", join(tmpdir(), "model-shot.png")));
 
@@ -81,7 +82,7 @@ function bundle() {
 }
 
 /** 페이지 안에서 도는 그리개 — 바깥 스코프를 못 보므로 필요한 값은 전부 인자로. */
-function inBrowser({ KINDS, ROTS, MODE, CELL, LOD, BG, COLOR, POSE, LIT, HEAD, SPIN, ZOOM }) {
+function inBrowser({ KINDS, ROTS, MODE, CELL, LOD, BG, COLOR, POSE, LIT, HEAD, SPIN, ZOOM, PAN }) {
   /* 앱의 그 함수와 **똑같아야 한다**(ReplayMotionPlayer의 shadeBoost) — `o < 1` 조건이
      여기만 빠져 있어서, 불투명도 1인 몸판까지 0.85로 깔렸다. 그 탓에 이 도구로 뽑은
      모든 그림이 실제보다 비쳐 보였고(부품이 겹친 모델일수록 심하다), 그 그림을 보고
@@ -110,7 +111,7 @@ function inBrowser({ KINDS, ROTS, MODE, CELL, LOD, BG, COLOR, POSE, LIT, HEAD, S
       c.beginPath();
       c.rect(0, 0, CELL, CELL);
       c.clip();
-      c.translate(CELL / 2, CELL / 2); c.scale(ZOOM, ZOOM); c.translate(-CELL / 2, -CELL / 2);
+      c.translate(CELL / 2 + PAN[0], CELL / 2 + PAN[1]); c.scale(ZOOM, ZOOM); c.translate(-CELL / 2, -CELL / 2);
       c.scale(CELL / 16, CELL / 16);
       if (faces) {
         for (const f of faces) {
@@ -162,7 +163,7 @@ await page.route("http://model-shot.local/*", (r) => r.fulfill({
 await page.goto("http://model-shot.local/");
 await page.addScriptTag({ content: js, type: "module" });
 await page.waitForFunction("!!window.__bake");
-const dataUrl = await page.evaluate(inBrowser, { KINDS, ROTS, MODE, CELL, LOD, BG, COLOR, POSE, LIT, HEAD, SPIN, ZOOM });
+const dataUrl = await page.evaluate(inBrowser, { KINDS, ROTS, MODE, CELL, LOD, BG, COLOR, POSE, LIT, HEAD, SPIN, ZOOM, PAN });
 await browser.close();
 writeFileSync(OUT, Buffer.from(dataUrl.split(",")[1], "base64"));
 console.log(OUT);
