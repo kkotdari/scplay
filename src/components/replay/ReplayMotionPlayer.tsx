@@ -15113,11 +15113,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const j9 = jabOf(m9);
       /* 팔꿈치 — 겨눔에서는 몸 옆으로 당겨 **아래에서 위로 꺾이는 직각**을 만들고,
          잽에서는 앞으로 조금 나가며 그 각이 펴진다. */
-      const el: [number, number, number] = [
-        m9 * (1.7 + g9 * 0.08),
-        0.15 + aY - g9 * 0.62 + j9 * 0.5,
-        4.75 - g9 * 0.28,
-      ];
+      /* ★ 팔꿈치는 두 마디 길이(상완 1.2 · 하완 1.3) 고정으로 푼다(요청: 질럿·하템·다템
+         팔도 같은 함수) — 어깨·손만 자세대로 두면 길이는 늘 같다. 잽에서 손이 더 멀면
+         팔이 곧게 펴진다. bend는 바깥·뒤·아래(굽힌 팔꿈치가 뒤로 빠진다). */
+      const sh: [number, number, number] = [m9 * 1.3, -0.2 + aY, 5.7];
       /* 손 — 겨눔에서는 팔꿈치보다 **앞·위**(굽힌 팔), 잽에서는 앞으로 쭉 뻗어
          팔꿈치와 거의 한 줄이 된다(수평 찌르기). */
       const hd: [number, number, number] = [
@@ -15133,8 +15132,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         hd[1] + 1.35 + g9 * 0.5 + j9 * 1.35,
         hd[2] + (g9 ? 0.62 : -1.7) - j9 * 0.28,
       ];
+      const el = jointBetween(sh, hd, 1.2, 1.3, [m9 * 0.8, -0.5, -0.3]);
       return [
-        ...paintBase(pLimb([m9 * 1.3, -0.2 + aY, 5.7], el, 0.44), "#3a4258"),
+        ...paintBase(pLimb(sh, el, 0.44), "#3a4258"),
         ...paintBase(pLimb(el, hd, 0.6), P_GOLD),
         ...paintBase(spikeHorn(
           bl0[0], bl0[1], bl0[2], bl1[0], bl1[1], bl1[2], 0.7, undefined, 6, 0.12,
@@ -15184,6 +15184,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      짙은 청동 한 색으로 내린다. 그러면 초록 검과 초록 눈이 유일한 밝은 점이 되어,
      원작이 다크를 그리는 방식과 같아진다. */
   const DK9 = "#6a5636";
+  /** 팔 하나 — 어깨 관절 공 + 상완 + 하완. 팔꿈치는 두 마디 길이(1.45·1.2) 고정으로 푼다. */
+  const dtArm = (m9: 1 | -1, sh9: [number, number, number], hd9: [number, number, number]): ShapeFace[] => {
+    const el9 = jointBetween(sh9, hd9, 1.45, 1.2, [m9 * 0.8, -0.3, -0.5]);
+    const kUp = depthNow((sh9[0] + el9[0]) / 2, (sh9[1] + el9[1]) / 2) * 1.6 + 1.0;
+    const kLo = depthNow((el9[0] + hd9[0]) / 2, (el9[1] + hd9[1]) / 2) * 1.6 + 1.0;
+    return [
+      ...tagKey(paintBase(domeFaces3(sh9[0], sh9[1], 0.3, 0.24, sh9[2] - 0.12), DK9), kUp + 0.05),
+      ...paintBase(pLimb(sh9, el9, 0.5, kUp), DK9),
+      ...paintBase(pLimb(el9, hd9, 0.45, kLo), DK9),
+    ];
+  };
   return [
     /* 망토(재지적: 더 들리고 끝단은 완만한 물결) — 어깨에서 시작해 뒤로 들린 자락,
        밑단은 지그재그가 아니라 사인 물결이다. 제 깊이를 달아 뒤에서 보면 몸 위로 온다. */
@@ -15218,12 +15229,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     ...tagKey(protossFace(P_SKIN, 0), depthNow(0, 0.4) * 1.6 + 0.7),
     // 왼팔 두 마디 — 금색.
     /* 왼팔(−x) — 상완 1.45 · 하완 1.2로 오른팔과 **같다**(요청). 어깨·손만 두고 팔꿈치는 푼다. */
-    ...((): ShapeFace[] => {
-      const sh9: [number, number, number] = [-0.95, -0.1 + armY(-1) * 0.5, 5.85];
-      const hd9: [number, number, number] = [-1.1, 1.2 + armY(-1), 3.7];
-      const el9 = jointBetween(sh9, hd9, 1.45, 1.2, [-0.8, -0.3, -0.5]);
-      return [...paintBase(pLimb(sh9, el9, 0.5), DK9), ...paintBase(pLimb(el9, hd9, 0.45), DK9)];
-    })(),
+    /* ★ 팔 뿌리는 **몸통 어깨선 위**(지적: "팔이 어깨랑 안 붙어 있고 각도에 따라 상완이
+       안 보임") — 여태 (∓0.95~1.05, y −0.1) 자리라 앞으로 기운 몸통 축(어깨 높이에서
+       y≈0.3)보다 0.4 뒤·밖에 떠 있었다. 어깨 높이(z 5.6)의 몸통 반폭이 0.75쯤이니
+       뿌리를 (∓0.82, 0.25)에 두고, 이음매에 작은 어깨 관절 공을 얹는다.
+       ★ 키도 몸통 자에 맞춘다 — 몸통은 depthNow+0.8(×1 자), 팔은 pLimb 기본이
+         depthNow×1.6−0.4라 팔이 앞에 있어도 깊이가 얕으면 몸통에 졌다. 팔에는
+         depthNow×1.6+1.0을 명시해, 몸통 축(y −0.1)보다 앞이면 이기고 뒤면 진다. */
+    ...dtArm(-1, [-0.82, 0.25 + armY(-1) * 0.5, 5.6], [-1.1, 1.2 + armY(-1), 3.7]),
     /* 왼손 — 하이템플러식 큰 손: 흰 손바닥 + 긴 손가락 셋. */
     ...paintBase([
       ...domeFaces3(-1.1, 1.25, 0.34, 0.28, 3.5),
@@ -15234,12 +15247,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 오른팔은 뒤로(요청) — 검을 뒤로 늘어뜨린 자세. 하완과 검이 1자다. */
     /* 검 든 팔 — 평소엔 뒤(−y)로 늘어뜨리고, 공격에서는 그 팔이 통째로 앞으로 돌아
        검이 몸 앞을 가른다. sw9가 그 휘두른 몫이다(뒤 −1.55 → 앞 +1.15). */
-    ...((): ShapeFace[] => {
-      const sh9: [number, number, number] = [1.05, -0.15 + armY(1), 5.65];
-      const hd9: [number, number, number] = [1.62, -1.55 + armY(1) + tipY9 * 0.55, 4.1 + tipZ9 * 0.42];
-      const el9 = jointBetween(sh9, hd9, 1.45, 1.2, [0.8, -0.3, -0.5]);
-      return [...paintBase(pLimb(sh9, el9, 0.5), DK9), ...paintBase(pLimb(el9, hd9, 0.45), DK9)];
-    })(),
+    ...dtArm(1, [0.82, 0.25 + armY(1) * 0.5, 5.6], [1.62, -1.55 + armY(1) + tipY9 * 0.55, 4.1 + tipZ9 * 0.42]),
     /* 검은 **초록**이다(사진 다크템플러2·3 — 워프 블레이드) — 질럿의 플라즈마와
        갈리는 다크의 표식. 심은 밝은 백록. */
     ...((): ShapeFace[] => {
@@ -15247,19 +15255,23 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const h9: [number, number, number] =
         [1.6, -1.62 + armY(1) + tipY9 * 0.55, 3.95 + tipZ9 * 0.42];
       /** 칼끝 — 쉼에서는 뒤·아래, 컷에 따라 그 몫이 통째로 실린다. */
-      const p9: [number, number, number] =
+      /* 검은 **흰 플라즈마**이고 더 크다(요청) — 길이 1.25배, 굵기 0.75 → 0.95. 심은
+         푸른빛 도는 흰색. */
+      const p0: [number, number, number] =
         [1.92, -2.85 + armY(1) + tipY9, 1.55 + tipZ9];
+      const p9: [number, number, number] =
+        [h9[0] + (p0[0] - h9[0]) * 1.25, h9[1] + (p0[1] - h9[1]) * 1.25, h9[2] + (p0[2] - h9[2]) * 1.25];
       return [
         ...paintBase(spikeHorn(
-          h9[0], h9[1], h9[2], p9[0], p9[1], p9[2], 0.75, undefined, 6, 0.12,
-        ), "#4fe07a"),
+          h9[0], h9[1], h9[2], p9[0], p9[1], p9[2], 0.95, undefined, 6, 0.12,
+        ), "#eefbff"),
         // 칼날의 밝은 심 — 같은 두 점을 살짝 안쪽으로 물려 긋는다.
         [polyPath3([
           [h9[0] * 1.04, h9[1] + 0.12, h9[2] - 0.15],
           [p9[0] * 1.03, p9[1] + 0.1, p9[2] + 0.05],
           [p9[0] * 0.96, p9[1] + 0.05, p9[2] - 0.05],
           [h9[0] * 0.96, h9[1] + 0.07, h9[2] - 0.25],
-        ]), 0.75, "#d8ffe4"] as ShapeFace,
+        ]), 0.8, "#cfeaff"] as ShapeFace,
       ];
     })(),
     /* ★ (걷어냄) 후드 — 머리 정수리·뒤통수를 통째로 덮던 짙은 돔이다(지적: "다크템플러
@@ -15352,14 +15364,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            1이면 머리 위로 뻗는다. */
       ...([-1, 1] as const).flatMap((m9): ShapeFace[] => {
         const at9 = poseNow === 2 ? 1 : 0;
-        const e9: [number, number, number] =
-          [m9 * (1.5 + 0.25 * at9), 0.15 + 0.35 * at9, 4.55 + 1.95 * at9 + L];
         const w9: [number, number, number] =
           [m9 * (1.35 + 0.15 * at9), 0.5 + 0.65 * at9, 3.45 + 4.45 * at9 + L];
+        // 팔꿈치는 두 마디 길이(1.3·1.4) 고정으로 푼다(요청) — 내린 팔은 바깥·뒤로 굽고, 든 팔은 곧다.
+        const s9: [number, number, number] = [m9 * 1.05, -0.2, 5.7 + L];
+        const e9 = jointBetween(s9, w9, 1.3, 1.4, [m9 * 0.9, -0.4, -0.2]);
         // 손가락은 팔이 내려가면 아래를, 올라가면 위를 향한다.
         const fz9 = -0.7 + 1.4 * at9;
         return [
-          ...paintBase(pLimb([m9 * 1.05, -0.2, 5.7 + L], e9, 0.45), P_GOLD),
+          ...paintBase(pLimb(s9, e9, 0.45), P_GOLD),
           ...pLimb(e9, w9, 0.38),
           ...paintBase([
             ...domeFaces3(w9[0] * 0.99, w9[1] + 0.05, 0.26, 0.22, w9[2] + 0.05),
@@ -18357,7 +18370,7 @@ const MODEL_NORM: Record<string, number> = {
   droneGas: 1.040,
   droneMin: 1.071,
   dship: 0.719,  // 낮은 꼬리·H자 날개 뒤 재측정(model-norm)
-  dtemp: 0.908,
+  dtemp: 0.905,  // 검 확대·팔 뿌리 이동 뒤 재측정(model-norm)
   egg: 1.237,   // 정수리를 둥글게 한 뒤 model-norm 재측정
   fbat: 1.229,
   ghost: 1.552,  // 상자 상한(원한 배수 1.723)
