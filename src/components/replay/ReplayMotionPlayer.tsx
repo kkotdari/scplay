@@ -1017,7 +1017,7 @@ export function poseTempoOf(kind: string): { walkHz: number; atkCd: number } | n
 const poseTag = (kind: string): string => {
   const p9 = POSE_KINDS[kind];
   if (!p9 || !poseNow) return "0";
-  if ((poseNow === 1 || poseNow === POSE_WALK_B) && !p9.move && !p9.flap) return "0";
+  if ((poseNow === 1 || poseNow === POSE_WALK_B) && !p9.move && !p9.flap && !p9.thrust) return "0";   // thrust(추진체 불꽃)도 제 열쇠를 가진다
   // 공격 컷 셋(2·4·5)은 전부 atk를 가진 종류만 갈린다.
   if ((poseNow === 2 || poseNow === POSE_ATK_L || poseNow === POSE_ATK_R) && !p9.atk) return "0";
   return String(poseNow);
