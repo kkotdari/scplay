@@ -1044,6 +1044,24 @@ function fistFaces(x: number, y: number, z: number, r: number, fill: string): Sh
     ...domeFaces3(x, y, r, r * 0.85, z),
   ], fill);
 }
+/** 추진체 **불꽃**(요청: 함선·비행기는 평소엔 불빛 없이, 이동할 때만) — 노즐 뒤(−y)로
+ *  뿜는 방추 두 겹: 바깥은 종족 색(테란 주황·프로토스 푸른빛), 속은 밝은 심(노랑·흰빛).
+ *  반투명이라 뒤에 있는 것이 비친다. 이동 컷(poseNow 1)에서만 부르는 것이 규약이다. */
+function thrustFlame(
+  x: number, y: number, z: number, r: number, race: "terran" | "toss", key: number,
+): ShapeFace[] {
+  const outer = race === "terran" ? "#ff8a1e" : "#5fb8ff";
+  const inner = race === "terran" ? "#ffe066" : "#eaf8ff";
+  const cone = (rr: number, len: number, fill: string, alpha: number): ShapeFace[] => spirePillar({
+    x: 0, y: 0, h: 1, w: rr, tipW: 0, segs: 4, sides: 8, caps: "none", trueNormal: true,
+    path: (t9: number): [number, number, number] => [x, y - len * t9, z],
+    widthOf: (t9: number): number => rr * (1 - t9) ** 0.7,
+  }).map(([d, o, , k, l, n]) => [d, Math.max(0.2, o * alpha), fill, k, l, n] as ShapeFace);
+  return tagKey([
+    ...cone(r * 1.05, r * 4.5, outer, 0.7),
+    ...cone(r * 0.55, r * 3.0, inner, 0.9),
+  ], key);
+}
 function plasmaBlade(
   a: [number, number, number], b: [number, number, number], w: number, fill: string, alpha = 0.6,
 ): ShapeFace[] {
@@ -10711,6 +10729,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 막대도 제 키를 스스로 단다(위 ★) — 싸매지 않는다.
       out.push(...tagKey(paintBase(rodFaces(bx9, -0.4, 6.05, bx9, -2.65, 6.05, 0.22), DARK),
         key9(bx9, -1.5, 6.05)));
+      if (poseNow === 1) out.push(...thrustFlame(bx9, -2.65, 6.05, 0.26, "terran", key9(bx9, -3.2, 6.05) + 0.4));
       /* ⑥ 꼬리날개 — **화살 깃**이다(지적: "긴 변이 팔 옆쪽에 붙는다 · 화살 꼬리 날개
          생각하면 비슷") ─────────────────────────────────────────────────────────────
          앞판은 긴 쪽이 **바깥으로** 뻗어 있었다 — 그러면 작은 주익 한 쌍이 하나 더 달린
@@ -10755,11 +10774,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         path: (t9: number): [number, number, number] => [tx9, -2.05 - 1.35 * t9, tz9],
         widthOf: (t9: number): number => 0.62 - 0.12 * t9,
       }), RACE_BASE_TONE.terran), key9(tx9, -2.7, tz9)));
-      if (facingRatio(0, -1) > 0.05) {
+      // 분사구 빛은 **이동할 때만**(요청) — 평소엔 어두운 노즐이다.
+      if (poseNow === 1 && facingRatio(0, -1) > 0.05) {
         out.push(...tagKey([
           [wallDiscPath(tx9, -3.45, tz9, 0.4, 0.34), 0.8, "#7fd0ff"] as ShapeFace,
         ], key9(tx9, -3.45, tz9) + 0.5));
       }
+      if (poseNow === 1) out.push(...thrustFlame(tx9, -3.45, tz9, 0.45, "terran", key9(tx9, -4.2, tz9) + 0.4));
     }
     /* ② 날개 — **넓적한 판**이다(지적). 축을 스팬(x)으로 눕히고 단면 기준(ref)을 앞뒤(y)로
        못 박으면 단면의 u가 곧 코드, v가 두께다 — oval로 v만 눌러 얇은 판을 만든다.
@@ -11055,6 +11076,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          깊이로(뒷동체 위), 등을 돌리면 뒷동체보다 먼저 그려 뒷동체가 덮는다. */
       out.push(...tagKey(paintBase(boxFaces3(ex9, -2.45, 0.72, 0.75, TH9, ez9), "#2c3036"),   // 더 어둡게(요청)
         facingRatio(0, -1) > 0.05 ? key9(ex9, -2.45, ez9 + TH9 / 2) + 0.3 : key9(0, -1.35, Z(5.8)) - 1));
+      if (poseNow === 1) out.push(...thrustFlame(ex9, -2.83, ez9 + TH9 / 2, 0.28, "terran", key9(ex9, -3.2, ez9 + TH9 / 2) + 0.4));
     }
     return zsorted(out);
   },
@@ -11902,11 +11924,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ...tagKey(domeFaces3(0, 0.35, 0.62, 0.5, 6.2), partKey(0, 0.35, 6.5) + 0.5),
       /* 뒤 엔진 둘 — 사진의 그 청록 불빛. 벽 데칼이라 요잉을 함께 타고, 뒤를 볼 때만 든다
          (앞에서 보이면 몸 앞에 뜬 두 점이 된다). */
-      ...(facingRatio(0, -1) > 0.05
+      ...(poseNow === 1 && facingRatio(0, -1) > 0.05   // 이동할 때만(요청)
         ? tagKey([
           [wallDiscPath(-0.85, -1.62, 5.8, 0.4, 0.34), 0.85, P_PLASMA] as ShapeFace,
           [wallDiscPath(0.85, -1.62, 5.8, 0.4, 0.34), 0.85, P_PLASMA] as ShapeFace,
         ], partKey(0, -1.62, 5.8) + 0.5)
+        : []),
+      ...(poseNow === 1
+        ? [-0.85, 0.85].flatMap((ex9) => thrustFlame(ex9, -1.62, 5.8, 0.38, "toss", partKey(ex9, -2.3, 5.8) + 0.4))
         : []),
     ];
   },
@@ -11977,11 +12002,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       out.push(...tagKey(paintBase(
         tubeFaces(ex9, -1.3, ex9, -3.3, 0.42, 6.25, true), GOLD9,
       ), partKey(ex9, -2.3, 6.25)));
-      if (facingRatio(0, -1) > 0.05) {
+      if (poseNow === 1 && facingRatio(0, -1) > 0.05) {   // 이동할 때만(요청)
         out.push(...tagKey([
           [wallDiscPath(ex9, -3.35, 6.25, 0.36, 0.3), 0.85, P_PLASMA] as ShapeFace,
         ], partKey(ex9, -3.35, 6.25) + 0.5));
       }
+      if (poseNow === 1) out.push(...thrustFlame(ex9, -3.35, 6.25, 0.38, "toss", partKey(ex9, -4.0, 6.25) + 0.4));
       /* ⑥ 앞뿔 — 코 위로 뻗는 한 쌍(사진1의 더듬이). 이 둘이 있어야 앞이 '머리'로 읽힌다. */
       out.push(...tagKey(paintBase(
         spikeHorn(m9 * 0.5, 1.9, 6.2, m9 * 0.85, 3.9, 6.35, 0.18, undefined, 5), GOLD9,
@@ -12457,12 +12483,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const thruster = (tx: number, tz: number): ShapeFace[] => [
       ...tagKey(paintBase(tubeFaces(tx, THRUST_Y0, tx, THRUST_Y1, 0.4, tz), THRUST_GOLD),
         thrustKey(tx, tz)),
-      ...(facingRatio(0, -1) > 0.05
+      ...(poseNow === 1 && facingRatio(0, -1) > 0.05   // 이동할 때만(요청)
         ? tagKey([
           [wallDiscPath(tx, THRUST_Y1 - 0.03, tz, 0.36, 0.3), 0.9, P_PLASMA] as ShapeFace,
           topFace(wallDiscPath(tx, THRUST_Y1 - 0.05, tz, 0.2, 0.17), 0.5),
         ], thrustKey(tx, tz) + 0.3)
         : []),
+      ...(poseNow === 1 ? thrustFlame(tx, THRUST_Y1 - 0.05, tz, 0.36, "toss", thrustKey(tx, tz) + 0.35) : []),
     ];
     /* (걷어냄) 아주 작은 옆날개 둘 — 아랫잎 뒤에 2중 덮개가 서면서 꽁무니가 이미
        층으로 차, 지느러미가 그 위에 겹쳐 지저분했다(요청: "양쪽 꼬리 날개 제거").
@@ -16740,6 +16767,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const KZ = [0, 0.18, 0.76, 0.91, 1.0].map((v9) => rz0 - len9 * v9);
         // 굵기 반으로(요청: "오버로드 다리 굵기 반으로") — 마디의 비는 그대로다.
         const KW = [0.17, 0.16, 0.14, 0.12, 0.09].map((v) => v * LKW);
+        /* 맨 뒷다리(ly −1.36)는 **요잉 ±30°**(요청: 왼쪽 +30 · 오른쪽 −30) — 뿌리(첫 마디,
+           KX[0]·ly)를 축으로 바깥 오프셋만 돌리므로 뿌리는 몸에서 안 떨어진다. 두 다리가
+           거울로 뒤로 벌어진다. */
+        const yaw9 = ly < -1 ? -m * (Math.PI / 6) : 0;
+        const PX = KX.map((x9) => KX[0] + (x9 - KX[0]) * Math.cos(yaw9));
+        const PY = KX.map((x9) => ly + (x9 - KX[0]) * Math.sin(yaw9));
         /* 다리 — 배와 같은 자. 층 −0.2면 뿌리(배 속)에서는 배가 이기고, 앞으로
            돈 다리는 제 깊이로 배를 이긴다. */
         const key = depthNow(m * LEG_X9, ly) * 1.6 - 0.2;
@@ -16763,10 +16796,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
               x: 0, y: 0, h: 1, w: KW[j] * 2, tipW: 0.03,
               segs: 8, sides: 6, hold: 0.34, taper: 0.9, caps: "bottom",
               path: (t9: number): [number, number, number] => [
-                KX[j] + (KX[j + 1] - KX[j]) * t9, ly, KZ[j] + (KZ[j + 1] - KZ[j]) * t9,
+                PX[j] + (PX[j + 1] - PX[j]) * t9, PY[j] + (PY[j + 1] - PY[j]) * t9, KZ[j] + (KZ[j + 1] - KZ[j]) * t9,
               ],
             }), "#4f3625")
-            : rodFaces(KX[j], ly, KZ[j], KX[j + 1], ly, KZ[j + 1], KW[j] * 2);
+            : rodFaces(PX[j], PY[j], KZ[j], PX[j + 1], PY[j + 1], KZ[j + 1], KW[j] * 2);
           // 배 밑으로 내려간 마디일수록 몸보다 앞이다(위 hangK 주석).
           limbs.push(...tagKey(seg9,
             key + j * 0.1 + hangK((KZ[j] + KZ[j + 1]) / 2) * 2.6));
@@ -17060,6 +17093,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // 안쪽 작은 추진체 둘은 **동체 뒤면**(y −1.8)에 붙는다(재지적: 꼬리붐이 아니라). 포드 것은 포드 뒤.
     for (const [tx, tz, tr, ty] of [[-0.85, 5.2, 0.58, -1.8], [0.85, 5.2, 0.58, -1.8], [-3.0, POD_Z, 0.82, -2.95], [3.0, POD_Z, 0.82, -2.95]] as [number, number, number, number][]) {
       out.push(...paintBase(tubeFaces(tx, ty, tx, ty - 1.0, tr, tz), TERRAN_STEEL_D));
+      if (poseNow === 1) out.push(...thrustFlame(tx, ty - 1.0, tz + tr * 0.45, tr * 0.8, "terran", depthNow(tx, ty - 2) * 1.6 + 1));
     }
     /* 꼬리(재지적: 축을 몸통에 붙이고 비행기 꼬리 스타일로) — 등판 뒤끝에서 곧장
        솟는 수직 안정판과, 그 위에서 좌우로 뻗는 수평 안정판 한 쌍. */
@@ -17188,11 +17222,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       out.push(...tagKey(paintBase(
         tubeFaces(tx, -2.15, tx, -3.5, 0.42, 3.85, true), "#a8801f",
       ), partKey(tx, -2.8, 3.85)));
-      if (facingRatio(0, -1) > 0.05) {
+      if (poseNow === 1 && facingRatio(0, -1) > 0.05) {   // 이동할 때만(요청)
         out.push(...tagKey([
           [wallDiscPath(tx, -3.55, 3.85, 0.36, 0.3), 0.85, P_PLASMA] as ShapeFace,
         ], partKey(tx, -3.55, 3.85) + 0.5));
       }
+      if (poseNow === 1) out.push(...thrustFlame(tx, -3.55, 3.85, 0.38, "toss", partKey(tx, -4.2, 3.85) + 0.4));
     }
     // 아가리 어두운 속은 제거(지적: 앞 검정 반투명 부품) — 빛 줄만 남긴다.
     out.push(topFace(curvePath3([-1.6, 1.1, 3.9], [
@@ -18377,7 +18412,7 @@ const MODEL_NORM: Record<string, number> = {
   muta: 0.741,
   mutacocoon: 1.826,  // 상자 상한(원한 배수 1.891)
   observer: 1.938,
-  ovie: 0.747,
+  ovie: 0.816,  // 뒷다리 요잉 뒤 재측정(model-norm)
   probe: 1.738,  // 다리 두께면을 양쪽으로 고친 뒤 model-norm 재측정
   probeGas: 1.486,
   probeMin: 1.543,
