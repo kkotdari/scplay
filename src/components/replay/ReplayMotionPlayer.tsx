@@ -3151,7 +3151,7 @@ function tankTurretV2(siege: boolean): ShapeFace[] {
   const hex9: [number, number][] = [
     [-0.6, 1.2 * f9], [0.6, 1.2 * f9], [1.4, 0.2 * f9], [1.1, -1.3 * f9], [-1.1, -1.3 * f9], [-1.4, 0.2 * f9],
   ];
-  out.push(...tagKey(paintBase(prismZFaces(hex9, Z0 + 0.25, 1.35, false), TANK_STEEL), kT(0, 0) + 0.3));
+  out.push(...tagKey(paintBase(prismZFaces(hex9, Z0 + 0.25, 1.35, true), TANK_STEEL), kT(0, 0) + 0.3));   // 윗면 덮는다(지적: 윗면이 안 보임)
   // 지휘관 해치 — 상자 위 뒤쪽 작은 돔.
   out.push(...tagKey(paintBase(domeFaces3(0, -0.55 * f9, 0.32, 0.22, Z0 + 1.6), "#7d848d"), kT(0, -0.55 * f9) + 0.5));
   const fwd9 = facingRatio(0, 1) > 0.08;
@@ -17042,7 +17042,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ...paintBase(prismZFaces(Array.from({ length: 9 }, (_, i9) => {
         const a9 = Math.PI * (i9 / 8);
         return [Math.cos(a9) * 1.0, 2.6 + Math.sin(a9) * 1.0] as [number, number];
-      }), 5.65, 0.55, false), TERRAN_STEEL),
+      }), 5.65, 0.55, true), TERRAN_STEEL),
       ...quarterDome(0, 2.62, 6.2, 0.9, 0, 1, undefined, 0.12, 1)
         .map(([d9, o9, f9, k9, l9, n9]) =>
           [d9, f9 === undefined ? 0.68 : o9, f9 ?? "#8fc6dd", k9, l9, n9] as ShapeFace),
