@@ -1078,7 +1078,8 @@ function spikeHorn(
      빨리 가늘어진다. hold는 두지 않는다(굵기 유지 구간이 있으면 그 끝이 턱이 된다). */
   return spirePillar({
     x: 0, y: 0, h: 1, w: w * 0.62, tipW: 0.02,
-    segs: 10, sides, hold: 0, taper, fill,
+    // 밑동 단면은 안 그린다(지적: 두개골 뿔의 꽁무니 단면이 얼굴에 안 가려짐) — 뿔의 밑동은 늘 남의 몸속이다.
+    segs: 10, sides, hold: 0, taper, fill, caps: "none",
     path: (t9: number): [number, number, number] => {
       const s9 = Math.sin(Math.PI * t9) * bow;
       return [
@@ -1606,11 +1607,12 @@ function protossLegs(
     out.push(...paint(suitLimb(hip, knee, 0.38 * thin, 0.33 * thin, 0.41 * thin,
       { sides: 7, key: depthNow(hip[0], (hip[1] + knee[1]) / 2) * 1.6 - 0.9, tag: "leg.thigh" }), thighFill));
     out.push(...paint([
+      // 정강이·발 단면은 안 그린다(지적: 하지 단면이 대퇴에 안 가려짐) — 두 끝이 다 남의 몸속이다.
       ...suitLimb(knee, ankle, 0.45 * thin, 0.38 * thin, 0.5 * thin,
-        { sides: 7, key: depthNow(knee[0], (knee[1] + ankle[1]) / 2) * 1.6 - 0.9, tag: "leg.shin" }),
+        { sides: 7, caps: "none", key: depthNow(knee[0], (knee[1] + ankle[1]) / 2) * 1.6 - 0.9, tag: "leg.shin" }),
       // 발은 작고 예리하게(요청: 프로토스 인간형 발이 투박하고 큼) — 0.38/0.3/0.36 → 0.27/0.18/0.25.
       ...suitLimb(ankle, toe, 0.27, 0.18, 0.25,
-        { sides: 7, key: depthNow(ankle[0], (ankle[1] + toe[1]) / 2) * 1.6 - 0.95, tag: "leg.foot" }),
+        { sides: 7, caps: "none", key: depthNow(ankle[0], (ankle[1] + toe[1]) / 2) * 1.6 - 0.95, tag: "leg.foot" }),
     ], shinFill));
     /* 발은 **두 갈래 발가락**이다(요청: "프로토스 보병류 발은 scv 발같은 발가락 2개
        형태의 발 모양으로") — 삼각 말굽 한 장을 걷고, SCV 발굽과 같은 결로 짠다:
@@ -10725,8 +10727,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     {
       const N9 = 6;
       for (let i9 = 0; i9 < N9; i9 += 1) {
-        const ta = 0.14 + (0.66 * i9) / N9;
-        const tb = 0.14 + (0.66 * (i9 + 1)) / N9;
+        // 콕핏(돔 y 1.1 = t 0.54, 반지름 0.52)을 안 덮게 t 0.03~0.35만(지적).
+        const ta = 0.03 + (0.32 * i9) / N9;
+        const tb = 0.03 + (0.32 * (i9 + 1)) / N9;
         const [, ya, za] = hullPath9(ta);
         const [, yb, zb] = hullPath9(tb);
         const wa = hullW9(ta) + 0.03; const wb = hullW9(tb) + 0.03;
@@ -15120,16 +15123,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        더 얹힌 층진 구조다. 그 판이 어깨를 넓혀 상체를 역삼각으로 만든다 — 알만 있으면
        어깨가 좁아 몸이 원통으로 읽힌다.
        판은 납작한 기둥(oval 3.2)으로 짠다 — 반지름 방향으로 넓고 접선 방향으로 얇다. */
+    /* 어깨는 **금판만**(요청: 임자색 반구 제거) — 판은 팔 뿌리(±1.3, −0.2, 5.7) 위에서
+       바깥·아래로 흘러내려 어깨 관절을 덮는다. 뿌리엔 금 관절 공 하나. */
     ...([-1, 1] as const).flatMap((m9): ShapeFace[] => [
-      ...domeFaces3(m9 * 1.42, -0.25, 0.9, 0.66, 5.6),
+      ...tagKey(paintBase(domeFaces3(m9 * 1.3, -0.2, 0.42, 0.36, 5.55), P_GOLD),
+        depthNow(m9 * 1.3, -0.2) * 1.6 + 1.5),
       ...tagKey(paintBase(spirePillar({
         x: 0, y: 0, h: 1, w: 1, segs: 4, sides: 6, oval: 3.2, caps: "none",
-        ref: [m9, -0.25, 0],
+        ref: [m9, -0.2, 0],
         path: (t9: number): [number, number, number] => [
-          m9 * (1.5 + 0.62 * t9), -0.28 - 0.34 * t9, 6.0 - 1.15 * t9 - 0.55 * t9 * t9,
+          m9 * (1.05 + 0.95 * t9), -0.2 - 0.25 * t9, 6.08 - 0.75 * t9 - 0.5 * t9 * t9,
         ],
-        widthOf: (t9: number): number => 0.34 - 0.24 * t9 * t9,
-      }), P_GOLD), depthNow(m9 * 2.1, -0.5) * 1.6 + 1.6),
+        widthOf: (t9: number): number => 0.5 - 0.3 * t9 * t9,
+      }), P_GOLD), depthNow(m9 * 1.6, -0.35) * 1.6 + 1.6),
     ]),
     /* ④ 가슴 보석 — 흉갑 한가운데 청옥. 앞을 볼 때만 뜨는 볼록 렌즈다. */
     ...lensFaces({
@@ -15171,8 +15177,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           const dx = hd[0] - el[0]; const dy = hd[1] - el[1]; const dz = hd[2] - el[2];
           const L = Math.hypot(dx, dy, dz) || 1;
           const b0: [number, number, number] = [hd[0] + (dx / L) * 0.05, hd[1] + (dy / L) * 0.05, hd[2] + (dz / L) * 0.05 + 0.1];
-          const b1: [number, number, number] = [hd[0] + (dx / L) * 2.2, hd[1] + (dy / L) * 2.2, hd[2] + (dz / L) * 2.2 + 0.1];
-          return tagKey(plasmaBlade(b0, b1, 0.7, P_PLASMA, 0.8),
+          const b1: [number, number, number] = [hd[0] + (dx / L) * 2.8, hd[1] + (dy / L) * 2.8, hd[2] + (dz / L) * 2.8 + 0.1];
+          return tagKey(plasmaBlade(b0, b1, 0.95, P_PLASMA, 0.8),
             depthNow((b0[0] + b1[0]) / 2, (b0[1] + b1[1]) / 2) * 1.6 + 1.2);
         })(),
       ];
@@ -15293,14 +15299,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 검은 **흰 플라즈마**이고 더 크다(요청) — 길이 1.25배, 굵기 0.75 → 0.95. 심은
          푸른빛 도는 흰색. */
       return [
-        ...tagKey(fistFaces(h9[0], h9[1], h9[2] - 0.05, 0.22, DK9),   // 주먹(요청)
+        ...tagKey(fistFaces(h9[0], h9[1], h9[2] - 0.05, 0.22, "#e9edf0"),   // 주먹 — 왼손과 같은 흰색(지적: 양손 색 다름)
           depthNow(h9[0], h9[1]) * 1.6 + 1.15),
         // ★ 칼은 **하완과 평행**(재지적) — 팔꿈치→손 방향으로 손등에서 2.6만큼.
         ...((): ShapeFace[] => {
           const dx = hdR9[0] - elR9[0]; const dy = hdR9[1] - elR9[1]; const dz = hdR9[2] - elR9[2];
           const L = Math.hypot(dx, dy, dz) || 1;
           const b0: [number, number, number] = [h9[0] + (dx / L) * 0.05, h9[1] + (dy / L) * 0.05, h9[2] + (dz / L) * 0.05 + 0.1];
-          const b1: [number, number, number] = [h9[0] + (dx / L) * 3.3, h9[1] + (dy / L) * 3.3, h9[2] + (dz / L) * 3.3 + 0.1];
+          const b1: [number, number, number] = [h9[0] + (dx / L) * 4.0, h9[1] + (dy / L) * 4.0, h9[2] + (dz / L) * 4.0 + 0.1];
           return tagKey(plasmaBlade(b0, b1, 1.2, "#eefbff", 0.8),
             depthNow((b0[0] + b1[0]) / 2, (b0[1] + b1[1]) / 2) * 1.6 + 1.2);
         })(),
@@ -15525,17 +15531,22 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          두께를 준다. 안쪽 끝은 몸 속에 묻히므로 단면을 안 그린다(caps "none").
          등진 쪽은 걷는다 — 판이 몸통보다 큰 키를 지니므로, 안 걸러 내면 뒤쪽 판이 몸을
          뚫고 앞으로 나온다(캐리어 덮개에서 겪은 그 자리와 한 뿌리다). */
-      ...([45, 135, 225, 315] as const).flatMap((deg9): ShapeFace[] => {
+      /* ★ 덮개는 **평소엔 닫혀** 몸통을 감싸고 **공격 때만 벌어진다**(요청). 자리도 45도
+         돌려 0·90·180·270에 둔다(지적: 위치가 살짝 안 맞음). 닫히면 돔 겉을 타고 내려가고,
+         벌어지면 바깥·위로 들린다 — op 0~1로 두 길을 잇는다. */
+      ...([0, 90, 180, 270] as const).flatMap((deg9): ShapeFace[] => {
         const a9 = (deg9 * Math.PI) / 180;
         const cx9 = Math.cos(a9);
         const cy9 = Math.sin(a9);
         if (facingRatio(cx9, cy9) < 0.1) return [];
+        const op9 = poseNow === 2 ? 1 : 0;
         return tagKey(spirePillar({
           x: 0, y: 0, h: 1, w: 1, segs: 3, sides: 6, oval: 0.42, caps: "none",
           ref: [-cy9, cx9, 0],
-          path: (t9: number): [number, number, number] => [
-            cx9 * (1.42 + 0.78 * t9), -0.1 + cy9 * (1.42 + 0.78 * t9), 5.15 - 1.5 * t9,
-          ],
+          path: (t9: number): [number, number, number] => {
+            const r9 = 1.42 + (0.25 + 0.75 * op9) * t9;
+            return [cx9 * r9, -0.1 + cy9 * r9, 5.15 - (1.5 - 0.9 * op9) * t9];
+          },
           widthOf: (t9: number): number => 0.72 - 0.44 * t9 * t9,
         /* ★ 키는 **다리와 같은 자**여야 한다(지적: "다리 대퇴에 뒤쪽 판이 안 가려지는데?")
            ───────────────────────────────────────────────────────────────────────────
@@ -17083,9 +17094,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         return [[flank(m9), 1, TERRAN_STEEL] as ShapeFace, ...fl9.face(flank(m9))];
       }),
       [plate, 1, TERRAN_STEEL] as ShapeFace, topFace(plate, 0.18),
-      // 등판 개인색 띠 — 판의 굽은 결을 그대로 따르는 가로 줄.
-      bodyFace(curvePath3([-2.55, 1.9, 5.75], [
-        [[0, 1.9, 8.05], [2.55, 1.9, 5.75]], [[2.55, 0.6, 5.7]], [[0, 0.6, 7.96], [-2.55, 0.6, 5.7]],
+      /* 임자색 데칼은 폭 전체를 두르는 띠가 아니라 등판 가운데의 **직사각형**(요청) —
+         아치(∩) 위에 얹히므로 좌우 변만 아치를 따라 굽고(x ±1.3에서 z 6.64), 앞뒤 변은
+         곧다. */
+      bodyFace(curvePath3([-1.3, 1.5, 6.66], [
+        [[0, 1.5, 7.3], [1.3, 1.5, 6.66]], [[1.3, -1.0, 6.56]], [[0, -1.0, 7.2], [-1.3, -1.0, 6.56]],
       ])),
     ], depthNow(0, 0.4)));
     /* 앞 조종석 캐노피(자료 재작도) — 등판 앞머리에 얹힌 유리 상자. 여태 드랍십에
@@ -17094,12 +17107,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 납작하게(요청: "드랍십 앞부분에 붙인 상자모양 납작하게") — 높이 0.9 → 0.4로
        눌러 등판에 붙인 낮은 유리창이 되게 한다. 앞으로 갈수록 더 낮아지는 기울기는
        남겨 두어(뒤 1.4 → 앞 1.05 폭) 캐노피의 결은 유지된다. */
+    /* 콕핏은 **앞쪽**이다(요청): 등판 위 상자가 아니라, 동체 앞끝에 좌우로 누운 반원 드럼통
+       (가로 관)이 있고 그 위에 **반의 반 구** 유리(앞을 보는 4분구)가 얹힌다. */
     out.push(...tagKey([
-      ...paintBase(boxFaces3(0, 2.2, 2, 1.5, 0.2, 6.6), TERRAN_STEEL),
-      ...frustumFaces3(0, 2.25, 1.8, 1.4, 1.45, 1.1, 0.4, 6.78)
+      ...paintBase(tubeFaces(-1.05, 2.95, 1.05, 2.95, 0.62, 5.75), TERRAN_STEEL),
+      ...quarterDome(0, 2.95, 6.37, 0.72, 0, 1, undefined, 0.15, 1)
         .map(([d9, o9, f9, k9, l9, n9]) =>
           [d9, f9 === undefined ? 0.68 : o9, f9 ?? "#8fc6dd", k9, l9, n9] as ShapeFace),
-    ], depthNow(0, 2.2) * 1.6 + 3));
+    ], depthNow(0, 2.95) * 1.6 + 3));
     /* 뒤 추진체 셋 — 짙은 은색(재지적). 앞에서 볼 때도 몸을 뚫고 보이던 문제(지적:
        안 가려짐)는 꽁무니가 돌아앉으면 아예 그리지 않는 것으로 해결 — 몸판이 무깊이
        면이라 painter로는 못 가린다. */
@@ -17120,16 +17135,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     out.push(...tagKey(paintBase(((): ShapeFace[] => {
       /* 꼬리(재지적) — 앞뒤로 뻗는 팔(붐)은 **아주 낮은** 판이고, 그 끝의 좌우 팔(수평
          안정판) 양쪽 끝에 **수직 날개**가 서서 붙는다(H자 꼬리). 높은 수직 안정판은 걷었다. */
+      // 붐은 더 길게(요청: −5.3 → −6.0), 수평·수직 날개도 그 끝으로 물러난다.
       const finAt = (x9: number): [number, number, number][] => [
-        [x9, -1.9, 6.05], [x9, -5.3, 6.4], [x9, -5.3, 5.95], [x9, -1.9, 5.6],
+        [x9, -1.9, 6.05], [x9, -6.0, 6.4], [x9, -6.0, 5.95], [x9, -1.9, 5.6],
       ];
       const wingAt = (z9: number): [number, number, number][] => [
-        [-1.6, -5.1, z9], [1.6, -5.1, z9], [1.2, -4.25, z9], [-1.2, -4.25, z9],
+        [-1.6, -5.8, z9], [1.6, -5.8, z9], [1.2, -4.95, z9], [-1.2, -4.95, z9],
       ];
       /** 수평 안정판 양끝의 수직 날개 — y·z 평면에 선 판(두께 0.16). */
+      // 수직 날개는 위쪽이 **안쪽으로 기운다**(요청): 밑 x 1.6 → 꼭대기 x 1.2.
       const endAt = (m9: 1 | -1, dx9: number): [number, number, number][] => [
-        [m9 * (1.6 + dx9), -5.15, 6.35], [m9 * (1.6 + dx9), -4.2, 6.35],
-        [m9 * (1.6 + dx9), -4.45, 7.7], [m9 * (1.6 + dx9), -5.15, 7.7],
+        [m9 * (1.6 + dx9), -5.85, 6.35], [m9 * (1.6 + dx9), -4.9, 6.35],
+        [m9 * (1.2 + dx9), -5.15, 7.7], [m9 * (1.2 + dx9), -5.85, 7.7],
       ];
       /* 옆면은 뒤를 향한 것부터(재지적: 면들이 서로 가리고 비친다) — 무깊이 면이라
          배열 순서가 곧 그리는 순서다. 각 옆면의 바깥 법선을 재 뒤→앞으로 정렬하면
@@ -18402,16 +18419,16 @@ const MODEL_NORM: Record<string, number> = {
   drone: 1.072,
   droneGas: 1.040,
   droneMin: 1.071,
-  dship: 0.719,  // 낮은 꼬리·H자 날개 뒤 재측정(model-norm)
-  dtemp: 0.897,  // 검 확대 뒤 재측정(model-norm)
+  dship: 0.695,  // 재측정(model-norm)
+  dtemp: 0.875,  // 재측정(model-norm)
   egg: 1.237,   // 정수리를 둥글게 한 뒤 model-norm 재측정
   fbat: 1.229,
   ghost: 1.552,  // 상자 상한(원한 배수 1.723)
   goliath: 0.671,
-  goon: 0.667,
+  goon: 0.655,  // 재측정(model-norm)
   guardian: 0.611,
   gunner: 1.327,  // 팔 길이 고정 뒤 model-norm 재측정
-  htemp: 1.249,   // 다리 굵기·발 축소 뒤 재측정(model-norm)
+  htemp: 1.249,  // 재측정(model-norm)
   hydra: 0.685,
   inf: 1.514,  // 상자 상한(원한 배수 1.615)
   interceptor: 1.606,
@@ -18451,8 +18468,8 @@ const MODEL_NORM: Record<string, number> = {
   valk: 0.840,   // 앞동체 −10% 뒤 재측정(model-norm)
   vessel: 0.898,  // 방패 접힘 축·뾰족 위끝 뒤 재측정(model-norm)
   vulture: 0.828,
-  wraith: 0.895,  // 재측정(model-norm)
-  zealot: 0.828,  // 검 확대 뒤 재측정(model-norm)
+  wraith: 0.894,  // 재측정(model-norm)
+  zealot: 0.812,  // 재측정(model-norm)
   zling: 0.758,
   // tankgun: 없음 — 짝이라 소스의 NORM_PAIR가 tankbody 배수로 접는다.
   // tanksiegegun: 없음 — 짝이라 소스의 NORM_PAIR가 tanksiegebody 배수로 접는다.
