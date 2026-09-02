@@ -21119,8 +21119,9 @@ export type FxOp = {
   style?: string;
   /** shot: 표적까지 화면 거리 · spike: 가시 길이(렌즈 px). */
   len?: number;
-  /** shot: 표적이 **움직이는 중**인가 — 유도탄(미사일)은 이때만 휘고, 멈춘 표적엔 곧게 간다(요청). */
-  tm?: boolean;
+  /** shot: **발사 때 겨눈 각**(도) — 유도탄은 이 방향으로 나가서 지금 표적 쪽으로 튼다.
+   *  표적이 안 움직였으면 deg와 같아 곧게 간다(요청: "가만히 있는데도 처음부터 휘어서 감"). */
+  d0?: number;
   /** shot: 진행률 0~1. */
   u?: number;
   /** 반짝 위상 0~1 — beam은 쿨다운 주기, hit/shield는 제 창 안의 진행. */
@@ -23128,13 +23129,20 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
                물러난다 — 조종점을 놓을 자리가 없기 때문이다. */
             /* 길이는 **그어지는 길의 것**(runD9)이다 — 화면 거리가 무너진 자리에서
                reach9로 매개하면 덩이가 전부 표적 점에 포개진다(위 runD9의 ★). */
-            /* ★ 굽이는 **움직이는 표적**에만(요청: "고정된 타겟엔 직선으로 가는 게 자연스러움")
-               — 멈춘 표적을 향한 유도탄은 틀 일이 없으니 곧게 간다. 표적 상태를 모르는
-               자리(tm 없음)도 곧다. */
-            const bow9 = f.tm && Number.isFinite(runD9) && runD9 > 0
-              ? runD9 * 0.15 * (Math.sin(rad9 * 7.3) >= 0 ? 1 : -1) : 0;
-            const cx0 = x0 + dxx * (runD9 / 2) - dyy * bow9;
-            const cy0 = y0 + dyy * (runD9 / 2) + dxx * bow9;
+            /* ★ 굽이는 **발사 각과 지금 각의 차이**다(요청: "미사일이 나가고 나서 움직이기
+               시작했어도 유도탄으로 따라가긴 해야 해 … 가만히 있는데도 처음부터 휘어서
+               간다는 게 문제") — 앞 판은 난수 쪽으로 늘 활을 그렸다. 이제 조종점을 **발사
+               때 겨눈 방향**(d0)으로 반쯤 나간 자리에 두면: 표적이 그대로면 d0 = deg라
+               조종점이 직선 위에 놓여 곧게 가고, 표적이 옮겨 갔으면 출발은 옛 방향, 끝은
+               새 자리라 그 사이가 저절로 굽는다 — 그것이 유도다. */
+            const rad0 = f.d0 !== undefined ? (f.d0 * Math.PI) / 180 : rad9;
+            const dx0 = -Math.sin(rad0);
+            const dy0 = Math.cos(rad0);
+            const guided9 = Number.isFinite(runD9) && runD9 > 0
+              && Math.abs(dx0 - dxx) + Math.abs(dy0 - dyy) > 1e-4;
+            const bow9 = guided9 ? 1 : 0;
+            const cx0 = x0 + dx0 * (runD9 / 2);
+            const cy0 = y0 + dy0 * (runD9 / 2);
             const tx0 = x0 + dxx * runD9;
             const ty0 = y0 + dyy * runD9;
             /** 자취 위의 한 점 — d는 총구에서의 **직선 거리**(굽은 길의 매개변수로 쓴다). */
@@ -25649,8 +25657,6 @@ export default function ReplayMotionPlayer({
      에서 만나고, 서로 원좌표 기준이라 지나쳐 겹치지 않는다. 시야(9타일) 밖은 안 끈다. */
   type FoeRow = {
     team: number; x: number; y: number; air: boolean; bld?: boolean; k?: string;
-    /** 지금 **걷는 중**인가(명령 자취) — 유도탄 트레이서가 휠지(움직이는 표적) 곧게 갈지(멈춘 표적) 가른다. */
-    moving?: boolean;
     /** 유닛 행일 때의 원작 유닛 이름 — 방어 건물이 공중 표적을 겨눌 때 그 표적의 제
      *  크기를 알아야 조준 높이가 맞는다. `k`는 **건물 행에만** 실리므로(방어 건물
      *  갈래) 공중 갈래에서는 언제나 undefined였다 — 그 자리를 이 필드가 채운다. */
@@ -25870,7 +25876,6 @@ export default function ReplayMotionPlayer({
         x: sIn9 ? sIn9.x : q.x, y: sIn9 ? sIn9.y : q.y,
         air: kc9.air,
         uk: kc9.uk,
-        moving: q.moving,
       };
       engageFoes.push(row);
       foeEnts.push({ row, e, q, sim: sIn9, kc: kc9 });
@@ -33336,10 +33341,10 @@ export default function ReplayMotionPlayer({
                때리는 쪽에는 안 쓰이므로 값을 더 셈하지 않는다(명단이 이미 들고 있다). */
             let foe: {
               bx: number; by: number; bd: number; air: boolean;
-              bld?: boolean; k?: string; uk?: string; team?: number; hp?: number; moving?: boolean;
+              bld?: boolean; k?: string; uk?: string; team?: number; hp?: number;
             } = ((): {
               bx: number; by: number; bd: number; air: boolean;
-              bld?: boolean; k?: string; uk?: string; team?: number; hp?: number; moving?: boolean;
+              bld?: boolean; k?: string; uk?: string; team?: number; hp?: number;
             } => {
               const none9 = { bx: 0, by: 0, bd: Infinity, air: false };
               if (!wantFoe9 || !tgtTag9) return none9;
@@ -33348,7 +33353,7 @@ export default function ReplayMotionPlayer({
                  지도가 그리는 자원이다) — 참값이 가리켜도 그릴 것이 없으므로 없는 것으로 둔다. */
               if (!tp9) return none9;
               return {
-                bx: tp9.x, by: tp9.y, moving: tp9.moving,
+                bx: tp9.x, by: tp9.y,
                 bd: Math.hypot(tp9.x - rawPos.x, tp9.y - rawPos.y),
                 /* ★ **떠 있는 건물은 공중 표적이다**(지적: "골리앗이 떠 있는 건물 공격할
                    때 지상 트레이서가 나감") — 명단은 그 사실을 lifted로 따로 들고 있는데
@@ -34584,12 +34589,17 @@ export default function ReplayMotionPlayer({
               const twin9 = fxName9 === "missile" || fxName9 === "missileG";
               const perp9: [number, number] = twin9
                 ? [Math.cos(rad9) * half9, Math.sin(rad9) * half9] : [0, 0];
+              /* ★ 발사 순간의 겨눈 각을 **한 발 동안** 잠근다(요청: 유도탄은 쏜 뒤 표적이
+                 움직이면 따라가되, 가만히 있으면 처음부터 곧게) — lockAim은 위상이 한 바퀴
+                 돌 때(다음 발)만 새로 잰다. 끝점은 늘 지금 표적이고, 이 각은 **출발 방향**만
+                 정한다. 둘이 같으면 직선, 다르면 그 차이만큼 굽는다. */
+              const launchDeg9 = lockAim(`m${holdKey}`, firePhase(`u${holdKey}`, fxCdRaw), beamDeg, beamLen).deg;
               const lanes9: number[] = twin9 ? [-1, 1] : [0];
               for (const s9 of lanes9) {
                 fxOps.push({
                   kind: "shot", style: fxName9, fx: fxfx9, fy: fxfy9, lift: liftPx9,
                   mx: mzx9 + perp9[0] * s9, my: mzy9 + perp9[1] * s9,
-                  deg: beamDeg, len: beamLen, u: shotU, tm: !!foe.moving,
+                  deg: beamDeg, len: beamLen, u: shotU, d0: launchDeg9,
                 });
               }
             } else if (PROJECTILE_FX.has(fxName9)) {
