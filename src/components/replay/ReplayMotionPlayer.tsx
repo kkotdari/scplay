@@ -10910,7 +10910,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          쇠 재질이 살고 반투명·뚫림이 없다. */
       ...raceBase(spirePillar({
         x: 0, y: DY, z0: Z(6.3) + DH0 + 0.06, h: 0.32, w: 1, segs: 3, sides: 14, ref: [1, 0, 0], caps: "top",
-        widthOf: (t9: number): number => Math.max(0.12, Math.sqrt(Math.max(0, 1 - t9 * t9))),
+        // 꼭대기를 평평하게(재요청) — 타원 옆선을 0.75 지점에서 잘라 반지름 0.66의 평평한 윗면.
+        widthOf: (t9: number): number => Math.sqrt(Math.max(0, 1 - (t9 * 0.75) ** 2)),
       }), "terran"),
     ], key9(0, DY, Z(6.9))));
     // 1-나) 뒤 절두체 — 상자 뒤(y −0.6)에 붙되 폭은 상자의 8할(재요청 20% 축소), 뒤로 조금 넓어진다.
