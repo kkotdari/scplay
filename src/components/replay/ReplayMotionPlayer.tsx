@@ -11125,7 +11125,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           const rad = 2.22 - 1.1 * (v9 / 2.39) ** 2;   // 호 되돌림(재요청: 너무 휨) 1.3 → 1.1
           return [dxs * rad, dys * rad, 6.9 + v9];
         },
-        waist: 0.5, thick: 0.13, spread: 1.03 / 0.13,
+        waist: 0.5, thick: 0.08, spread: 1.03 / 0.08,   // 양옆 볼록 줄임(재요청): 반두께 0.13 → 0.08
         /* 끝은 뾰족하지 않고 **직선으로 뭉뚝하게** 깎는다(재지적) — 뿌리·끝 굵기 비를
            0에서 0.55로 두면 끝 단면이 평평한 절단면이 된다. */
         rootW: 0.55, tipW: 0.55,
@@ -11843,16 +11843,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           ...([1, -1] as const).flatMap((m8): ShapeFace[] => [
             ...armHorn([m8 * 1.5, -0.6, 5.9], [m8 * 2.5, 1.3, 5.7], [m8 * 2.1, 3.3, 5.5],
               0.7, 0.16),
-            /* 위팔 끝의 **누운 계란** 플라즈마 덩이(요청) — 팔 끝에서 앞으로 눕힌 작은
-               타원체. 뒤가 굵고 앞이 조금 좁은 계란 옆선을 widthOf로 준다. */
+            /* 위팔 끝의 **누운 계란** 플라즈마 덩이(요청) — 팔 끝 **안쪽**에 더 작게 붙고,
+               옆(x)으로 납작하며 앞뒤로 길다(재요청). 뒤가 굵고 앞이 조금 좁은 계란
+               옆선을 widthOf로, 옆 납작함은 oval로 준다. 색은 흰빛 도는 푸른 플라즈마. */
             ...tagKey(paintBase(spirePillar({
-              x: 0, y: 0, h: 1, segs: 6, sides: 8, w: 0.34, tipW: 0.34, caps: "none", trueNormal: true,
-              path: (t9: number): [number, number, number] => [m8 * 2.1, 3.2 + 0.62 * t9, 5.5],
+              x: 0, y: 0, h: 1, segs: 6, sides: 8, w: 0.24, tipW: 0.24, caps: "none", trueNormal: true,
+              oval: 0.55, ref: [0, 0, 1],   // v축 = x → 옆으로 납작
+              path: (t9: number): [number, number, number] => [m8 * 1.8, 2.95 + 0.85 * t9, 5.5],
               widthOf: (t9: number): number => {
                 const u9 = 2 * t9 - 1;
                 return Math.sqrt(Math.max(0, 1 - u9 * u9)) * (1 - 0.18 * u9);
               },
-            }), P_PLASMA), partKey(m8 * 2.1, 3.55, 5.5) + 0.3),
+            }), "#cfe9ff"), partKey(m8 * 1.8, 3.4, 5.5) + 0.3),
             /* ★ 걸림쇠는 **안쪽에서 뒤를 향한 미늘**이다(지적: "팔끝 돌출부품은 바깥쪽이
                아닌 안쪽으로 이동 / 낚시바늘 끝같은 느낌으로 안쪽에서 뒤를 향한 가시") ────
                앞판은 뿌리에서 **바깥·앞**으로 뻗었다 — 팔이 이미 바깥으로 휘는데 그 끝에서
@@ -13764,7 +13766,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 몸통 — 앞이 좁고 뒤가 넓은 절두체. 앞이 좁아야 그 앞에 앉는 조종석 유리가
        머리처럼 튀어나온 것으로 읽힌다. */
     // 깊이(위아래 두께) 축소(재요청): 2.5 → 2.1, 위아래에서 조금씩.
-    out.push(...tagKey(paintBase(frustumFaces3(0, -0.5, 2.75, 2.7, 2.35, 2.3, 2.1, 3.3), STEEL),
+    // 30% 더(재요청): 2.1 → 1.5.
+    out.push(...tagKey(paintBase(frustumFaces3(0, -0.5, 2.75, 2.7, 2.35, 2.3, 1.5, 3.6), STEEL),
       depthNow(0, -0.5) * 1.6 + 1));
     /* 가슴 등 두 개(사진) — 호박빛 렌즈. 앞을 볼 때만 그린다.
        ★ 자리를 조종석 밖으로(지적: "이상한 주황색 동그라미가 비쳐보이는데") — 옛
@@ -13856,7 +13859,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const key = 1.2;
       const [u0, v0] = armAt(m, 0);
       const [u1, v1] = armAt(m, 0.46);
-      out.push(...tagKey(paintBase(tubeFaces(u0, v0, u1, v1, 0.4, 4.35), DEEP),   // 상완 깊이 0.5 → 0.4(재요청)
+      out.push(...tagKey(paintBase(tubeFaces(u0, v0, u1, v1, 0.28, 4.35), DEEP),   // 상완 깊이 0.5 → 0.4 → 0.28(재요청 30%)
         depthNow(u0, v0) * 1.6 + key));
       /* ★ 팔뚝은 **직육면체**다(지적: "scv 하완도 직육면체야 / 원통 아님") — SCV의
          팔은 깎아 만든 기계 팔이라 단면이 네모다. sides 4짜리 기둥이 곧 그 각기둥이고,
@@ -18219,7 +18222,7 @@ const MODEL_NORM: Record<string, number> = {
   bc: 0.654,
   burrowhole: 0.832,
   carrier: 0.695,
-  corsair: 0.999,  // 위팔 끝 플라즈마 알 뒤 재측정(model-norm)
+  corsair: 1.072,  // 팔 끝 안쪽 작은 알 뒤 재측정(model-norm)
   darchon: 0.496,
   defiler: 0.687,
   devourer: 0.805,
@@ -18273,7 +18276,7 @@ const MODEL_NORM: Record<string, number> = {
   tanksiegebody: 0.723,
   ultra: 0.361,
   valk: 0.840,   // 앞동체 −10% 뒤 재측정(model-norm)
-  vessel: 0.890,  // 방패 호 되돌린 뒤 재측정(model-norm)
+  vessel: 0.891,  // 방패 얇게 편 뒤 재측정(model-norm)
   vulture: 0.828,
   wraith: 0.774,
   zealot: 0.799,
