@@ -5250,32 +5250,26 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ] as [number, number][]) {
         f9.push(...boxFaces3(bx9, by9, 0.42, 0.42, 0.22, zTop9(bx9, by9) - 0.02));
       }
-      /* ★ 양옆 변의 **작고 납작한 사각 판**(재요청: 삼각 톱니 대신) — 안쪽·바깥 변을 뺀 옆 변
-         넷(1-2·2-3·4-5·5-0)의 한가운데서 얇은 네모 판이 바깥으로 살짝 튀어나온다. 크기는
-         변마다 제각각(길이 0.34~0.5 · 돌출 0.16~0.3 · 두께 0.06~0.1)이라 규칙 부품으로 안 읽힌다. */
+      /* ★ 양옆 변의 **철사**(재요청: 판이 아니라 철사 느낌, 변에 수직으로 뻗어 나감) — 안쪽·
+         바깥 변을 뺀 옆 변 넷(1-2·2-3·4-5·5-0)에서 가는 막대가 변에 **수직으로** 바깥을 향해
+         뻗는다. 변마다 둘씩, 길이(0.5~0.95)와 자리를 흔들어 규칙 부품으로 안 읽힌다. */
       ([[1, 2], [2, 3], [4, 5], [5, 0]] as [number, number][]).forEach(([ia9, ib9], k9) => {
         const ax9 = hi9[ia9][0]; const ay9 = hi9[ia9][1];
         const bx9 = hi9[ib9][0]; const by9 = hi9[ib9][1];
-        const mx9 = (ax9 + bx9) / 2; const my9 = (ay9 + by9) / 2;
         const ex9 = bx9 - ax9; const ey9 = by9 - ay9;
         const el9 = Math.hypot(ex9, ey9) || 1;
-        let nx9 = ey9 / el9; let ny9 = -ex9 / el9;          // 변의 법선
+        const ux9 = ex9 / el9; const uy9 = ey9 / el9;
+        let nx9 = uy9; let ny9 = -ux9;                       // 변의 법선(바깥)
+        const mx9 = (ax9 + bx9) / 2; const my9 = (ay9 + by9) / 2;
         if ((mx9 - cx9) * nx9 + (my9 - cy9) * ny9 < 0) { nx9 = -nx9; ny9 = -ny9; }
-        const seed9 = ((cx9 * 7.3 + cy9 * 3.1 + k9 * 11.7) % 1 + 1) % 1;
-        const half9 = 0.3 + 0.14 * seed9;                   // 변 방향 반길이 — 더 길게(재요청) 0.17~0.25 → 0.3~0.44
-        const out9 = 0.16 + 0.14 * ((seed9 * 3.7) % 1);     // 바깥 돌출
-        const th9 = 0.06 + 0.04 * ((seed9 * 5.3) % 1);      // 두께
-        const off9 = (seed9 - 0.5) * 0.2;                    // 변 위 자리 흔들림
-        const c0: [number, number] = [mx9 + (ex9 / el9) * (off9 - half9), my9 + (ey9 / el9) * (off9 - half9)];
-        const c1: [number, number] = [mx9 + (ex9 / el9) * (off9 + half9), my9 + (ey9 / el9) * (off9 + half9)];
-        const o0: [number, number] = [c0[0] + nx9 * out9, c0[1] + ny9 * out9];
-        const o1: [number, number] = [c1[0] + nx9 * out9, c1[1] + ny9 * out9];
-        const zt9 = zTop9(mx9, my9) - 0.01;
-        const top9 = polyPath3([[c0[0], c0[1], zt9], [c1[0], c1[1], zt9], [o1[0], o1[1], zt9], [o0[0], o0[1], zt9]]);
-        const front9 = polyPath3([[o0[0], o0[1], zt9 - th9], [o1[0], o1[1], zt9 - th9], [o1[0], o1[1], zt9], [o0[0], o0[1], zt9]]);
-        const flF9 = faceLight(nx9, ny9, 0.3);
-        f9.push(bodyFace(front9), ...(flF9.visible ? flF9.face(front9) : [sideFace(front9, 0.46)]));
-        f9.push(bodyFace(top9), topFace(top9, 0.2));
+        for (const q9 of [0, 1]) {
+          const seed9 = ((cx9 * 7.3 + cy9 * 3.1 + k9 * 11.7 + q9 * 4.9) % 1 + 1) % 1;
+          const at9 = 0.3 + 0.4 * ((seed9 * 2.3) % 1) + q9 * 0.05;   // 변 위 자리(0.3~0.75)
+          const len9 = 0.5 + 0.45 * seed9;                             // 뻗는 길이
+          const rx9 = ax9 + ex9 * at9; const ry9 = ay9 + ey9 * at9;
+          const z9 = zTop9(rx9, ry9) + 0.04;
+          f9.push(...rodFaces(rx9, ry9, z9, rx9 + nx9 * len9, ry9 + ny9 * len9, z9 + 0.02, 0.07));
+        }
       });
       for (const k9 of [0, 1]) {
         const gx9 = cx9 - ox9 * r9 * 0.62 + (k9 === 0 ? -oy9 : oy9) * r9 * 0.36;
