@@ -16936,11 +16936,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 꼬리 입체화(요청) — 수직 안정판은 좌우 두께, 수평 안정판은 위아래 두께를 갖는
        판. 각 판의 둘레를 띠로 둘러 부피를 만든다. */
     out.push(...tagKey(paintBase(((): ShapeFace[] => {
+      /* 꼬리(재지적) — 앞뒤로 뻗는 팔(붐)은 **아주 낮은** 판이고, 그 끝의 좌우 팔(수평
+         안정판) 양쪽 끝에 **수직 날개**가 서서 붙는다(H자 꼬리). 높은 수직 안정판은 걷었다. */
       const finAt = (x9: number): [number, number, number][] => [
-        [x9, -1.9, 6.1], [x9, -4.6, 8.3], [x9, -5.3, 8.3], [x9, -5.3, 5.6],
+        [x9, -1.9, 6.05], [x9, -5.3, 6.4], [x9, -5.3, 5.95], [x9, -1.9, 5.6],
       ];
       const wingAt = (z9: number): [number, number, number][] => [
         [-1.6, -5.1, z9], [1.6, -5.1, z9], [1.2, -4.25, z9], [-1.2, -4.25, z9],
+      ];
+      /** 수평 안정판 양끝의 수직 날개 — y·z 평면에 선 판(두께 0.16). */
+      const endAt = (m9: 1 | -1, dx9: number): [number, number, number][] => [
+        [m9 * (1.6 + dx9), -5.15, 6.35], [m9 * (1.6 + dx9), -4.2, 6.35],
+        [m9 * (1.6 + dx9), -4.45, 7.7], [m9 * (1.6 + dx9), -5.15, 7.7],
       ];
       /* 옆면은 뒤를 향한 것부터(재지적: 면들이 서로 가리고 비친다) — 무깊이 면이라
          배열 순서가 곧 그리는 순서다. 각 옆면의 바깥 법선을 재 뒤→앞으로 정렬하면
@@ -16965,8 +16972,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         return f9;
       };
       return [
-        ...slab(finAt(-0.2), finAt(0.2), 0.14),
-        ...slab(wingAt(7.95), wingAt(8.25), 0.16),
+        ...slab(finAt(-0.25), finAt(0.25), 0.14),
+        ...slab(wingAt(6.25), wingAt(6.5), 0.16),
+        ...slab(endAt(-1, 0.16), endAt(-1, 0), 0.12),
+        ...slab(endAt(1, 0), endAt(1, 0.16), 0.12),
       ];
     })(), TERRAN_STEEL), depthNow(0, -3.6)));
     return out;
@@ -18203,7 +18212,7 @@ const MODEL_NORM: Record<string, number> = {
   drone: 1.072,
   droneGas: 1.040,
   droneMin: 1.071,
-  dship: 0.710,
+  dship: 0.719,  // 낮은 꼬리·H자 날개 뒤 재측정(model-norm)
   dtemp: 0.908,
   egg: 1.237,   // 정수리를 둥글게 한 뒤 model-norm 재측정
   fbat: 1.233,
