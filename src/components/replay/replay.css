@@ -1222,6 +1222,10 @@
   display: inline-flex; align-items: center; justify-content: center;
   width: 40px; min-width: 40px; height: 26px; padding: 0;
 }
+/* 아이콘과 글자를 한 줄 가운데에(지적: "아이콘과 글자 세로가 안 맞네") — 기본 버튼은
+   인라인 배치라 svg가 기준선에 앉아 글자보다 처졌다. */
+.scr-kakao-share-btn { display: inline-flex; align-items: center; justify-content: center; }
+.scr-kakao-share-btn svg { flex: 0 0 auto; }
 .scr-motion-mobrow .scr-kakao-share-btn {
   margin-left: auto;
   /* 좌우 여백을 죈다(요청: "장면공유 버튼 좌우 패딩 축소") — 10 → 6. */
