@@ -20267,7 +20267,10 @@ const INK_W_RATIO9 = new Map<string, { pose: number; r: number }>();
  *  삯만 든다. 판 굽기마다 한 번이라(블릿마다가 아니다) 값은 캐시가 문다. */
 /* (걷어냄) 2배 굽기+nearest 반내림(ssaa) 시험 — 3자 비교 결과 "효과가 거의 없네":
    점표본은 경계만 굳히고 대비는 안 올려, 언샤프보다 체감이 약했다. 언샤프만 남긴다. */
-const SHARP1X_A9 = 0.3;  // 0.4 → 0.3 (요청: "조금만 강도를 줄여주고")
+const SHARP1X_A9 = 0.15;  // 0.4 → 0.3 → 0.15 (재요청: 계단현상이 심하다)
+/* 알파(경계)는 더 약하게 — 계단은 색보다 **경계를 굳히는 몫**에서 난다. 색 대비는 남기고
+   경계의 안티앨리어싱은 거의 살린다. */
+const SHARP1X_ALPHA9 = 0.06;
 function sharpenPlate9(cv: HTMLCanvasElement): void {
   const w9 = cv.width; const h9 = cv.height;
   if (!w9 || !h9 || w9 * h9 > 1_200_000) return;
@@ -20288,8 +20291,8 @@ function sharpenPlate9(cv: HTMLCanvasElement): void {
   for (let y9 = 1; y9 < h9 - 1; y9 += 1) {
     for (let x9 = 1; x9 < w9 - 1; x9 += 1) {
       const p9 = y9 * row9 + x9 * 4;
-      const va9 = pm9[p9 + 3] * (1 + 4 * A9)
-        - A9 * (pm9[p9 - row9 + 3] + pm9[p9 + row9 + 3] + pm9[p9 - 4 + 3] + pm9[p9 + 4 + 3]);
+      const va9 = pm9[p9 + 3] * (1 + 4 * SHARP1X_ALPHA9)
+        - SHARP1X_ALPHA9 * (pm9[p9 - row9 + 3] + pm9[p9 + row9 + 3] + pm9[p9 - 4 + 3] + pm9[p9 + 4 + 3]);
       const aOut9 = Math.max(0, Math.min(255, va9));
       s9[p9 + 3] = aOut9;
       if (aOut9 < 1) continue;
