@@ -17065,8 +17065,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 꼬리(재지적) — 앞뒤로 뻗는 팔(붐)은 **아주 낮은** 판이고, 그 끝의 좌우 팔(수평
          안정판) 양쪽 끝에 **수직 날개**가 서서 붙는다(H자 꼬리). 높은 수직 안정판은 걷었다. */
       // 붐은 더 길게(요청: −5.3 → −6.0), 수평·수직 날개도 그 끝으로 물러난다.
-      const finAt = (x9: number): [number, number, number][] => [
-        [x9, -1.9, 6.05], [x9, -6.0, 6.4], [x9, -6.0, 5.95], [x9, -1.9, 5.6],
+      /* 붐은 세로 판이 아니라 **바닥과 평행한 널판**(재지적) — x로 넓고(±0.55) z로 얇은
+         (0.18) 판이 등판 뒤에서 뒤로 뻗는다. slab은 아래 윤곽(lo)·위 윤곽(hi)을 받으므로
+         평면 윤곽을 z 두 층으로 준다. */
+      const boomAt = (z9: number): [number, number, number][] => [
+        [-0.55, -1.9, z9], [0.55, -1.9, z9], [0.4, -6.0, z9 + 0.15], [-0.4, -6.0, z9 + 0.15],
       ];
       const wingAt = (z9: number): [number, number, number][] => [
         [-1.6, -5.8, z9], [1.6, -5.8, z9], [1.2, -4.95, z9], [-1.2, -4.95, z9],
@@ -17101,8 +17104,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       };
       // 붐만 쇠색, 수평·수직 꼬리 날개는 **임자색**(요청) — 칠하지 않아 임자 색이 든다.
       return [
-        ...paintBase(slab(finAt(-0.25), finAt(0.25), 0.14), TERRAN_STEEL),
-        ...slab(wingAt(6.25), wingAt(6.5), 0.16),
+        ...paintBase(slab(boomAt(5.95), boomAt(6.13), 0.16), TERRAN_STEEL),
+        // 붐 끝의 가로 팔도 테란 기본색(재지적: 임자색 아님) — 임자색은 양끝 수직 날개만.
+        ...paintBase(slab(wingAt(6.25), wingAt(6.5), 0.16), TERRAN_STEEL),
         ...slab(endAt(-1, 0.16), endAt(-1, 0), 0.12),
         ...slab(endAt(1, 0), endAt(1, 0.16), 0.12),
       ];
