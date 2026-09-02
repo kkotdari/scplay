@@ -5,7 +5,7 @@
 
     node scripts/doc-catalog.mjs --out <scratch>/dorok
 
-결과: `1. terran_units.png` `2. protoss_units.png` `3. zerg_units.png`
+결과: `1. terran_units_blue.png` `2. protoss_units_blue.png` `3. zerg_units_blue.png`
 `4. terran_bldgs_blue.png` `5. protoss_bldgs_blue.png` `6. zerg_bldgs_blue.png`
 `7. extra.png` `list.txt`, 그리고 상위 디렉터리의 `도록.zip`. zip을 사용자에게 보낸다.
 조건(4방위 45·135·225·315 · narrow · 흰 배경 · 임자색 #2b62e8 · 폭 660 · dpr 3)도 스크립트 안에 있다.
