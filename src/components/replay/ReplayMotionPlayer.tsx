@@ -5029,9 +5029,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // 꼭대기 받침 + 수정 — 지붕 키로 가림 해결(지적) + 옥색~시안 고정색(지적).
     // 받침 띠는 개인색(칠하지 않는다) — 가장 높고 사방에서 보이는 첫째 포인트.
     out.push(...tagKey([
-      ...paintBase(boxFaces3(0, 0, 3.1, 3.1, 0.45, 6.4), GOLDD),
-      // 받침 띠도 한 뼘 키운다 — 사선에서 지붕에 덜 가리게(지적).
-      ...boxFaces3(0, 0, 3.2, 3.2, 0.55, 6.8),
+      ...paintBase(boxFaces3(0, 0, 1.9, 1.9, 0.45, 6.4), GOLDD),
+      // 임자색 네모판 40% 축소(요청) 3.2 → 1.92, 받침도 따라 줄인다.
+      ...boxFaces3(0, 0, 1.92, 1.92, 0.55, 6.8),
       /* ★ 꼭대기 수정은 **진짜 입체**다(지적: "넥서스 윗 보석이 입체가 아니라 평면으로
          그려진듯 확인해줘") — 확인했고, 맞다. 여태 이 자리는 **화면 좌표에 손으로 적은
          마름모 path 두 장**이었다: project()로 중심 한 점만 잡고 나머지 꼭짓점은 그
@@ -5057,15 +5057,36 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const sy = Math.cos(a);
       const cxa = Math.cos(a);
       const sya = -Math.sin(a);
-      const { visible, face } = faceLight(sx, sy);
-      if (!visible) continue;
-      const d = polyPath3([
-        [sx * 4.2 + cxa * 2.2, sy * 4.2 + sya * 2.2, 1.5],
-        [sx * 4.2 - cxa * 2.2, sy * 4.2 - sya * 2.2, 1.5],
-        [sx * 8.4, sy * 8.4, 0],
-      ]);
-      // 발판도 제 깊이(지적: 기둥과 가려짐 순서) — 앞 발판만 기둥 위로. 몸과 같은 금빛.
-      out.push(...tagKey([[d, 1, GOLD9] as ShapeFace, ...face(d)], depthNow(sx * 5.5, sy * 5.5)));
+      /* 발판 재작(요청): 40% 확대(안변 반폭 2.2 → 3.08, 끝 8.4 → 10.1) · 두께 2배(0.5 슬래브) ·
+         더 가파르게(안변 z 1.5 → 2.4). 끝에는 **삼각뿔** 하나 — 높이는 본 건물의 1/4(≈1.85),
+         건물 중심 쪽으로 살짝 기울고 뾰족한 모서리(꼭짓점)가 바깥을 본다(phase 0 · ref 바깥).
+         발판도 제 깊이(지적: 기둥과 가려짐 순서) — 몸과 같은 금빛. */
+      const TH9 = 0.5;
+      const tri9 = (dz9: number): [number, number, number][] => [
+        // 20% 축소(재요청): 반폭 3.08 → 2.46, 끝 10.1 → 8.9.
+        [sx * 4.2 + cxa * 2.46, sy * 4.2 + sya * 2.46, 2.4 + dz9],
+        [sx * 4.2 - cxa * 2.46, sy * 4.2 - sya * 2.46, 2.4 + dz9],
+        [sx * 8.9, sy * 8.9, 0.5 + dz9],
+      ];
+      const hi9 = tri9(0); const lo9 = tri9(-TH9);
+      const padF: ShapeFace[] = [];
+      for (let i9 = 0; i9 < 3; i9 += 1) {
+        const j9 = (i9 + 1) % 3;
+        const w9 = polyPath3([lo9[i9], lo9[j9], hi9[j9], hi9[i9]]);
+        const mx9 = (hi9[i9][0] + hi9[j9][0]) / 2 - sx * 6; const my9 = (hi9[i9][1] + hi9[j9][1]) / 2 - sy * 6;
+        const ml9 = Math.hypot(mx9, my9) || 1;
+        const fl9 = faceLight(mx9 / ml9, my9 / ml9, 0.2);
+        padF.push([w9, 1, GOLD9] as ShapeFace, ...(fl9.visible ? fl9.face(w9) : [sideFace(w9, 0.4)]));
+      }
+      const top9 = polyPath3(hi9);
+      const flT9 = faceLight(sx, sy, 0.55);
+      padF.push([top9, 1, GOLD9] as ShapeFace, ...(flT9.visible ? flT9.face(top9) : [topFace(top9, 0.18)]));
+      // 끝 삼각뿔 — 밑면은 발판 끝 위, 꼭대기는 안쪽으로 0.6 기운다.
+      padF.push(...paintBase(spirePillar({
+        x: 0, y: 0, h: 1, w: 0.95, tipW: 0.02, segs: 2, sides: 3, phase: 0, ref: [sx, sy, 0], caps: "none",
+        path: (t9: number): [number, number, number] => [sx * (8.15 - 0.6 * t9), sy * (8.15 - 0.6 * t9), 0.5 + 1.85 * t9],
+      }), GOLD9));
+      out.push(...tagKey(padF, depthNow(sx * 6.5, sy * 6.5)));
     }
     out.push(...pillar(-5.6, 5.6), ...pillar(5.6, 5.6));
     /* 옆면 사이언 빗살(사진) — 몸이 금빛이 된 만큼 빗살은 종족 팔레트의 사이언으로
@@ -5383,7 +5404,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          마디 수(20)는 꺾이는 t(7/20·16/20)가 정확히 눈금에 걸리게 잡았다 — 안 그러면
          꺾임이 두 눈금에 나뉘어 도로 둥글어진다. 뿌리 되꺾기(ROOT)도 걷었다. */
       // 꼭대기 수직부(③)를 줄인다(요청): 0.8~1(1.66) → 0.9~1(0.76). 축 길이도 그만큼 덜어 8.3 → 7.6.
-      const AXIS9 = 7.6;
+      const AXIS9 = 6.85;   // 10% 축소(재요청) 7.6 → 6.85
       const BOW9 = 0.55;   // 0.9 → 0.55 (재지적: 너무 퍼진 느낌)
       const IN9 = 1.35;
       const K1_9 = 0.35;
@@ -6872,8 +6893,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       }), GOLD), 10 + depthNow(px, py) * 1.6));
       /* 굴뚝 띠는 개인색이다(요청: "굴뚝들 녹색데칼 개인색으로 변경") — 색을 안 주면
          임자 색이 들므로 pc에 담는다(out은 밑칠이 통째로 금빛을 덮어쓴다). */
-      pc.push(...tagKey(cylinderFaces3(px + lean * 0.45, py + (lean === 0 ? 0 : 0.2),
-        0.6 * k9, 0.45, 0.3 + ph * 0.55), 10 + depthNow(px, py) * 1.6 + 0.2));
+      /* 띠는 굴뚝과 같은 둥근네모 단면의 **뚜껑 없는 고리**(지적: 임자색 부품의 단면이 비침) —
+         원통(cylinderFaces3)은 윗면이 있어 그 원판이 굴뚝 위로 떠 보였다. */
+      pc.push(...tagKey(spirePillar({
+        x: px + lean * 0.45, y: py + (lean === 0 ? 0 : 0.2), z0: 0.3 + ph * 0.55, h: 0.45,
+        w: 0.58 * k9, tipW: 0.58 * k9, oval: 1.6, ref: py < -2 ? [0, 1, 0] : [1, 0, 0],
+        segs: 1, sides: 8, hold: 1, caps: "none", trueNormal: true,
+      }), 10 + depthNow(px, py) * 1.6 + 0.2));
     });
     /* 오른뒤 기둥에서 오르는 초록 가스(사진) — 위로 갈수록 넓고 옅어지는 세 켜. */
     // 증기 — 세 굴뚝 위에 층층이, 크기는 굴뚝 배수(k9)를 따라 가운데가 가장 크다.
@@ -7802,12 +7828,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const CYAN = "#83f9e9";
     const out: ShapeFace[] = [];
     const pc: ShapeFace[] = [];
-    // 은빛 발 넷 — 바닥에 낮게 깔린 판.
-    for (const [fx, fy] of [[-3.4, 2.6], [3.4, 2.4], [-3.6, -1.6], [3.6, -2]] as [number, number][]) {
-      // 발은 바닥에 깔리므로 한 칸 아래.
-      out.push(...tagKey(paintBase(boxFaces3(fx, fy, 1.5, 1.1, 0.35, 0), TERRAN_STEEL),
-        depthNow(fx, fy) - 2));
-    }
+    // (걷어냄) 은빛 발 넷 — 요청: 흰 성냥갑 불필요하면 삭제.
     /* 큰 황금 돔(오른뒤) — 위에 청록 눈. 옆구리에 붉은 띠. */
     out.push(...tagKey([
       ...paintBase(cylinderFaces3(2.2, -0.6, 3, 1.4, 0.3), GOLD_D),
@@ -7872,16 +7893,16 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          비(K9)로 함께 줄인다. 상자 중심(−2.4, 2.3)은 그대로 두어 자리는 안 옮긴다. */
       const K9 = 2 / 3;
       const blk: ShapeFace[] = [
-        ...boxFaces3(-2.4, 2.3, 3.6 * K9, 2.6 * K9, 1.7 * K9, 0.3),
+        ...boxFaces3(-2.4, -0.6, 3.6 * K9, 2.6 * K9, 1.7 * K9, 0.3),
       ];
       // 골은 셋만(요청: 장식 축소). 곁 혹도 걷는다.
       for (let k = 0; k < 3; k += 1) {
         // 골 자리도 상자 중심을 축으로 같은 비로 모은다.
         const gx = -2.4 + (-3.5 + k * 1.1 - (-2.4)) * K9;
         blk.push(...paintBase(
-          boxFaces3(gx, 2.3, 0.3 * K9, 2.7 * K9, 0.34 * K9, 2 * K9), GOLD_D));
+          boxFaces3(gx, -0.6, 0.3 * K9, 2.7 * K9, 0.34 * K9, 2 * K9), GOLD_D));
       }
-      pc.push(...tagKey(blk, depthNow(-2.4, 2.3) + 1.3));
+      pc.push(...tagKey(blk, depthNow(-2.4, -0.6) + 1.3));
     }
     /* 앞쪽 톱니 바퀴 — **모델 평면 안에 그린, 화면에서는 정원인 바퀴** ────────────
        지적 셋을 한 번에 푸는 자리다.
@@ -7902,7 +7923,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     {
       const WX0 = -5.7;
       const WX1 = -4.4;
-      const CY = 1.6;                      // 바퀴 중심(모델 y)
+      const CY = -0.6;   // 뒤 돔 중심(y −0.6)에 맞춤(요청)                      // 바퀴 중심(모델 y)
       /* ★ 바퀴 **중심이 지면(z 0)에 있다**(지적: "평평하게 잘린 부분은 지면에 딱
          닿아있어") — 곧 이 톱니는 바닥에 반쯤 파묻힌 물레다. 중심을 띄워 두면(옛 1.8)
          잘린 현이 지면보다 위에 떠, 바퀴가 공중에 걸린 원반으로 보였다.
@@ -8281,71 +8302,70 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   },
   /* 로보틱스 서포트 베이(실물 참고) — 톱니 테 받침판 가운데 오목한 대접(심 발광),
      그 둘레로 바깥으로 기운 당근 포드들과 굽은 관 팔. */
+  /* 로보틱스 서포트 베이(사진 재작도) ─────────────────────────────────────────────
+     · 받침은 **오목한 대접**: 넓은 금 받침 위에 안이 움푹 패인 그릇, 한가운데 청록 결정.
+     · 대접 옆면은 **꽃잎 판**이 빙 둘러 감싼다(여덟 장, 바깥으로 살짝 벌어짐).
+     · 뒤쪽에서 **파이프 셋**이 솟아 앞으로 굽고, 그 끝마다 **길고 둥근 세모 판**이 앞을 보고
+       매달린다(청록 빛줄 한 줄씩). 가운데 것이 가장 크고 높다. */
   robobay: () => {
-    const out: ShapeFace[] = [...cylinderFaces3(0, 0, 4.6, 1.1)];
-    // 받침 테두리 톱니.
-    for (const ang of [160, 200, 90, 270, 40, 320]) {
-      const a = (ang * Math.PI) / 180;
-      out.push(...boxFaces3(Math.sin(a) * 4.7, Math.cos(a) * 4.7, 0.8, 0.8, 0.9));
-    }
-    /* 오목 대접 + 심 발광 — 받침 키에 명시로 묶는다(지적: 기둥 가려짐 — 마지막 톱니
-       키를 물려받아 요잉 따라 아주 늦게 그려지며 뒤 판들을 덮었다). */
-    const [gx2, gy2] = project(0, 0, 1.25);
+    const out: ShapeFace[] = [];
+    const GOLD = "#d4af37"; const GOLD_D = "#a8862a"; const CYAN = "#5aecd8";
+    const K = (x9: number, y9: number, add = 0): number => depthNow(x9, y9) * 1.6 + add;
+    // ① 받침 팔각 판 + 대접(위로 벌어지는 절두 원통) + 안쪽 어두운 우묵 + 결정.
+    // 받침은 둥근 판만(재지적: 네모 판 제거) — 아래 넓은 원판 + 위로 벌어지는 원통 대접.
+    out.push(...tagKey(paintBase(cylinderFaces3(0, 0, 5.0, 0.5), GOLD_D), 1));
+    out.push(...tagKey(paintBase(cylinderFaces3(0, 0, 4.4, 1.3, 0.5), GOLD), 2));
     out.push(...tagKey([
-      /* ★ 윗판의 오목한 속은 **연한 사이언**이다(지적: "서포트 베이 윗판" — 아카이브와
-         같은 사연) — capFace는 '그늘 한 겹'이라 겹칠수록 검어진다. 그래서 이 접시가
-         황금 몸에 뚫린 검은 구멍으로 읽혔다. 프로토스의 오목한 자리는 쉬고 있어도
-         은은하게 빛나는 결정면이고, 활성일 때 한 단 더 밝아질 뿐이다(glowLit).
-         맨 위의 작은 하이라이트(topFace)는 그대로 둔다 — 그것은 그늘이 아니라 빛이다. */
-      [discPath3(0, 0, 1.15, 3), 1, glowLit("#a4f6eb", "#56cebe")] as ShapeFace,
-      [discPath3(0, 0, 1.18, 2.1), 1, glowLit("#e0fffb", "#99e5db")] as ShapeFace,
-      topFace(groundEllipse(gx2, gy2, 0.7, 0.4), 0.5),
-    ], depthNow(0, 0) + 1.1));
-    /* 뒤 기둥들(재지적: 뾰족뿔이 아니라 끝이 둥근 넙적판) — 바깥으로 기운 넓은 판,
-       꼭대기는 둥근 캡. */
-    const plate = (
-      bx2: number, by2: number, z0: number, tx2: number, ty2: number, zt: number, w: number,
-    ): ShapeFace[] => {
-      const [ax, ay] = project(bx2, by2, z0);
-      const [cx3, cy3] = project(tx2, ty2, zt);
-      const dx = cx3 - ax;
-      const dy = cy3 - ay;
-      const len = Math.hypot(dx, dy) || 1;
-      const nx = (-dy / len) * (w / 2);
-      const ny = (dx / len) * (w / 2);
-      const ex = (dx / len) * (w * 0.62);
-      const ey = (dy / len) * (w * 0.62);
-      const d = `M${ax + nx} ${ay + ny} L${cx3 + nx} ${cy3 + ny}`
-        + ` Q${cx3 + ex} ${cy3 + ey} ${cx3 - nx} ${cy3 - ny} L${ax - nx} ${ay - ny} Z`;
-      const edge = `M${cx3 + nx * 0.3} ${cy3 + ny * 0.3} Q${cx3 + ex} ${cy3 + ey} ${cx3 - nx} ${cy3 - ny}`
-        + ` L${ax - nx} ${ay - ny} L${ax - nx * 0.5} ${ay - ny * 0.5} Z`;
-      // 깊이 키는 판 전체의 가장 앞점(뿌리·끝 중 앞) — 프리미티브와 같은 규칙.
-      return tagKey(
-        [bodyFace(d), sideFace(edge, 0.18)],
-        Math.max(depthNow(bx2, by2), depthNow(tx2, ty2)),
-      );
-    };
-    /* 개인색은 이 뒤 넙적판 셋(요청: 덧붙인 원판 말고 실제 부품에) — 로보베이에서
-       가장 크고 높이 선 부품이라 임자 색이 실루엣째로 읽힌다. */
-    const pc: ShapeFace[] = [
-      ...plate(-1.4, -1.2, 1, -2.5, -2, 6.6, 2.1),
-      ...plate(0.4, -1.7, 1, 0.7, -3, 7.2, 2.2),
-      ...plate(1.7, -0.6, 1, 2.8, -1.1, 5.8, 2),
-    ];
-    // 굽은 관 팔 — 받침 밖에서 포드 쪽으로 넘어온다.
-    out.push(...hornFaces(-3.6, 0.9, 0.8, -4, 0.2, 3.6, 0.7));
-    out.push(...hornFaces(-4, 0.2, 3.5, -2.9, -0.9, 4.6, 0.55));
-    out.push(...hornFaces(3.6, 1.3, 0.8, 4, 0.6, 3.2, 0.7));
-    out.push(...hornFaces(4, 0.6, 3.1, 3, -0.3, 4.2, 0.55));
-    /* 사진 디테일(요청) — 밑동에 금 테. 받침 테를 두르던 청록 띠는 걷었다
-       (지적: 프로토스 짙은 녹색판 제거). */
-    out.push(...tagKey(paintBase(cylinderFaces3(0, 0, 5.1, 0.3, 0), "#8a6f2a"),
-      depthNow(0, 0) * 1.6 - 1));
-    return raceBase(out, "toss", pc);
+      ...paintBase(cylinderFaces3(0, 0, 3.7, 0.12, 1.5), "#2b2f36"),
+      capFace(discPath3(0, 0, 1.63, 3.0), 0.55),
+      ...paintBase(spirePillar({
+        x: 0, y: 0, z0: 1.4, h: 2.2, w: 0.55, tipW: 0, segs: 3, sides: 6,
+        widthOf: (t9: number): number => 0.55 * (1 - t9) ** 0.6, fill: glowLit("#c9fff6", CYAN),
+      }), glowLit("#c9fff6", CYAN)),
+    ], 3));
+    // ② 꽃잎 판 여덟 — 대접 옆면을 두르며 바깥으로 살짝 벌어진 납작한 잎.
+    for (let k9 = 0; k9 < 8; k9 += 1) {
+      const a9 = (k9 / 8) * Math.PI * 2 + Math.PI / 8;
+      const cx9 = Math.cos(a9); const cy9 = Math.sin(a9);
+      if (facingRatio(cx9, cy9) < -0.35) continue;
+      // 잎은 **바닥에 붙어** 몸 둘레로 방사(재지적) — 대접 밑동에서 바깥으로 눕고 끝만 살짝 든다.
+      out.push(...tagKey(paintBase(spirePillar({
+        x: 0, y: 0, h: 1, w: 1, segs: 3, sides: 6, oval: 0.16, caps: "none", trueNormal: true,
+        ref: [0, 0, 1],
+        path: (t9: number): [number, number, number] => [cx9 * (4.2 + 1.9 * t9), cy9 * (4.2 + 1.9 * t9), 0.62 + 0.25 * t9 * t9],
+        widthOf: (t9: number): number => 1.05 * (1 - (t9 - 0.3) ** 2 * 1.5),
+      }), GOLD), K(cx9 * 5.2, cy9 * 5.2, 0.6)));
+    }
+    // ③ 뒤에서 솟아 앞으로 굽는 파이프 셋 + 끝의 긴 둥근세모 판.
+    for (const [px9, sc9] of [[-2.3, 0.85], [0, 1], [2.3, 0.85]] as [number, number][]) {
+      const H9 = 5.2 * sc9;
+      // 파이프는 뒤에서 **방사형으로 위로** 퍼진다(재지적): 바깥 것일수록 옆으로 벌어지며 오르고, 앞으로는 조금만 굽는다.
+      const pipe = (t9: number): [number, number, number] => [
+        px9 * (0.55 + 0.75 * t9), -3.1 + 1.6 * t9 * t9, 0.9 + H9 * Math.sin(t9 * Math.PI * 0.5),
+      ];
+      out.push(...tagKey(paintBase(spirePillar({
+        x: 0, y: 0, h: 1, w: 0.3, tipW: 0.3, segs: 8, sides: 6, hold: 1, caps: "none",
+        path: pipe,
+      }), GOLD_D), K(px9, -1.5, 3)));
+      // 판 — 파이프 끝에서 앞·아래로 매달린 긴 둥근 세모(위가 넓고 아래로 뾰족).
+      const [tx9, ty9, tz9] = pipe(1);
+      const L9 = 3.4 * sc9;
+      out.push(...tagKey([
+        ...paintBase(spirePillar({
+          x: 0, y: 0, h: 1, w: 1, segs: 5, sides: 8, oval: 0.22, caps: "none", trueNormal: true,
+          ref: [1, 0, 0],
+          path: (t9: number): [number, number, number] => [tx9, ty9 + 0.3 * t9, tz9 - L9 * t9],
+          widthOf: (t9: number): number => 0.95 * sc9 * Math.sqrt(Math.max(0.02, 1 - t9 * t9)),
+        }), GOLD),
+        // 청록 빛줄 — 판 앞면 가운데 세로 한 줄(앞을 볼 때만).
+        ...(facingRatio(0, 1) > 0.1 ? [[polyPath3([
+          [tx9 - 0.12, ty9 + 0.28, tz9 - 0.3], [tx9 + 0.12, ty9 + 0.28, tz9 - 0.3],
+          [tx9 + 0.08, ty9 + 0.55, tz9 - L9 * 0.8], [tx9 - 0.08, ty9 + 0.55, tz9 - L9 * 0.8],
+        ]), 1, glowLit("#c9fff6", CYAN)] as ShapeFace] : []),
+      ], K(tx9, ty9, 3.5)));
+    }
+    return raceBase(out, "toss");
   },
-  /* 옵저버토리(전면 재작도·사진) — 바닥에 누운 황금 초승달 받침이 앞을 감싸고, 그
-     위에 청록 띠를 두른 황금 기둥 셋이 솟아 청록 랜턴을 인다(가운데가 가장 높다).
-     받침은 마디진 관이라 굽은 몸이 그대로 읽힌다. 랜턴 하나는 개인색이다. */
   observatory: () => withModelSpin(270, () => {
     const GOLD = "#d4bd3c";
     const GOLD_D = "#8a6f2a";
@@ -17591,6 +17611,22 @@ SHAPE_BUILDERS.interceptor = () => {
         [wallDiscPath(m * 1.15, -1.62, Z9, 0.24, 0.2), 1, "#eaf7ff"] as ShapeFace,
       ], depthNow(m * 1.15, -1.7))
       : []),
+    /* 양 동체 바깥의 **아주 작은 사다리꼴 날개**(요청) — 통 옆구리에서 바깥으로 짧게. */
+    ...((): ShapeFace[] => {
+      const d9 = polyPath3([
+        [m * 1.75, -0.55, Z9], [m * 1.75, 0.75, Z9], [m * 2.3, 0.4, Z9], [m * 2.3, -0.25, Z9],
+      ]);
+      return tagKey([[d9, 1, GOLD9] as ShapeFace, topFace(d9, 0.18)], depthNow(m * 2.0, 0.1) + 0.3);
+    })(),
+    /* 양 동체 **앞뒤의 네온 에너지**(요청) — 통 앞·뒤 끝에서 뻗는 작은 청록 방추. */
+    ...([[1.35, 1], [-1.6, -1]] as [number, number][]).flatMap(([y0, dir9]) => tagKey(spirePillar({
+      x: 0, y: 0, h: 1, w: 0.26, tipW: 0, segs: 4, sides: 6, caps: "none", trueNormal: true,
+      // 앞쪽 에너지는 **납작하게**(재요청) — 위아래(z)를 0.35로 누른다. 뒤는 둥근 그대로.
+      ...(dir9 > 0 ? { oval: 0.35, ref: [1, 0, 0] as [number, number, number] } : {}),
+      path: (t9: number): [number, number, number] => [m * 1.15, y0 + dir9 * 0.9 * t9, Z9],
+      widthOf: (t9: number): number => 0.26 * Math.sin(Math.PI * (0.2 + 0.8 * t9)) ** 0.8,
+    }).map(([d, o, , k, l, n]) => [d, Math.max(0.3, o * 0.85), "#7fffe6", k, l, n] as ShapeFace),
+    depthNow(m * 1.15, y0 + dir9 * 0.5) + 0.4)),
   ];
   return [
     ...pod(1),
@@ -17643,25 +17679,27 @@ SHAPE_BUILDERS.interceptor = () => {
    앞으로 난 짧은 다리 한 쌍. 아주 작게 그려지는 몸(상자 5px)이라 부품을 늘리면 한
    덩어리로 뭉갠다 — 등·심·다리 셋이면 '벌레'로 읽히는 최소한이다. */
 SHAPE_BUILDERS.scarab = () => {
-  const SHELL9 = "#d9b551";      // 금빛 등딱지(프로토스 금과 같은 결)
-  const Z9 = 1.5;                // 땅에 붙어 구른다 — 다른 유닛보다 훨씬 낮다
+  /* 스캐럽(재작도 요청): **구형 몸**에 앞을 보는 **반구 눈 둘**과 **철사 더듬이 둘**. 땅에 붙어
+     구르는 작은 공이라 z 1.5 언저리에 앉는다. 이 빌더는 zsorted를 안 타므로 배열 차례가 곧
+     그리는 차례다 — 몸을 먼저, 눈·더듬이를 나중에. */
+  const SHELL9 = "#d9b551";
+  const Z9 = 1.5;
   return [
-    /* 등딱지 — 앞이 조금 좁은 둥근 껍질. 눕힌 팔각 기둥이라 어느 요잉에서도 통으로
-       읽히고, 위에서 내려다보는 평면 보기에서는 그 단면이 곧 등이다. */
-    /* 에너지 심 — 껍질 밑에서 새는 파란 빛. 스캐럽이 **폭탄**이라는 것을 말하는 유일한
-       부품이라 색을 안 아낀다(칠해 두므로 임자 색이 안 든다 — 이 빛은 개인색이 아니다).
-       ★ 껍질보다 **먼저** 그린다(재지적: 파란 덩이가 껍질 옆으로 튀어 보임) — 이 빌더는
-         zsorted를 안 타서 배열 차례가 곧 그리는 차례라, 뒤에 두면 껍질 위를 덮었다. */
-    // (걷어냄) 밑에서 새는 심 반구 — 껍질 밖으로 삐져 임자 데칼로 오해됐다(재지적). 앞 구멍만 남긴다.
-    ...paintBase(prismYFaces(OCT_XZ(0, Z9, 1.5, 1.05), -1.5, 1.5, true, true), SHELL9),
-    /* 등마루 — 껍질 위를 앞뒤로 지나는 한 줄. 이 한 줄이 앞뒤를 말한다. */
-    ...paintBase(prismYFaces(OCT_XZ(0, Z9 + 0.9, 0.42, 0.3), -1.1, 1.25, true, true), "#b8952f"),
-    /* 앞다리 한 쌍 — 껍질 앞 밑에서 비스듬히 내려 땅을 짚는다. 짧고 굵게: 가늘면 이
-       크기에서 통째로 사라진다. */
-    /* 뿌리를 껍질 **속**(x ±0.55, y 0.5, z 1.15)에 박고 비스듬히 내려 땅을 짚는다(지적: 더듬이가
-       몸에서 떨어져 있음) — 수평 관(tubeFaces)이라 껍질 앞에서 허공에 떠 있었다. */
+    // 구체 — 세로 축의 방추(sin 옆선)라 어느 요잉에서도 둥글다.
+    ...paintBase(spirePillar({
+      x: 0, y: 0, z0: Z9 - 1.25, h: 2.5, w: 1.25, tipW: 0.02, segs: 8, sides: 10,
+      widthOf: (t9: number): number => 1.25 * Math.sin(Math.PI * Math.min(0.999, Math.max(0.001, t9))),
+    }), SHELL9),
+    // 반구 눈 둘 — 앞을 보는 4분구(앞으로 볼록).
     ...([-1, 1] as const).flatMap((m9) => paintBase(
-      rodFaces(m9 * 0.55, 0.5, Z9 - 0.35, m9 * 1.1, 1.85, Z9 - 1.05, 0.5), "#8d7a3c",
+      quarterDome(m9 * 0.5, 1.05, Z9 + 0.25, 0.34, 0, 1, undefined, 0.15, 1), "#2b3140",
+    )),
+    ...([-1, 1] as const).flatMap((m9) => paintBase(
+      quarterDome(m9 * 0.5, 1.22, Z9 + 0.3, 0.16, 0, 1, undefined, 0.1, 1), "#5fe6ff",
+    )),
+    // 철사 더듬이 둘 — 이마에서 앞·위·바깥으로.
+    ...([-1, 1] as const).flatMap((m9) => paintBase(
+      rodFaces(m9 * 0.35, 0.95, Z9 + 0.85, m9 * 0.95, 2.1, Z9 + 1.55, 0.07), "#8d7a3c",
     )),
   ];
 };
@@ -18341,7 +18379,7 @@ const MODEL_NORM: Record<string, number> = {
   htemp: 1.249,  // 재측정(model-norm)
   hydra: 0.685,
   inf: 1.514,  // 상자 상한(원한 배수 1.615)
-  interceptor: 1.606,
+  interceptor: 1.410,  // 재작 뒤 재측정(model-norm)
   larva: 1.350,  // 상자 상한(원한 배수 1.466)
   lurker: 0.592,
   lurkeregg: 0.886,
@@ -20507,7 +20545,7 @@ export const BLD_FILL_TARGET: Record<string, number> = {
      기둥·고리), 잉크 폭을 발자국의 95%에 맞춰도 눈에 잡히는 덩어리는 그 절반이다.
      같은 무리를 같은 몫으로 올린다 — 스타게이트(arch)만 상자 상한이 낮아 덜 오른다. */
   // 게이트만 한 단 내린다(요청: "게이트 살짝 축소") — 1.25 → 1.12.
-  gate: 1.12, tribunal: 1.15, fleetbeacon: 1.15,
+  gate: 1.847,  // 재작 뒤 재측정(bld-norm)
   /* 스포닝 풀이 너무 작게 나온다(지적) — 이 모델은 바닥 크립 얼룩(반지름 6.8)이
      16-상자를 거의 가득 채워, 채움 보정이 '이미 큰 건물'로 재고 몸을 도로 줄였다.
      실제로 보이는 웅덩이·두렁은 상자의 절반쯤뿐이다. 목표 채움을 올려 몸을 키운다. */
@@ -20544,7 +20582,7 @@ export const BLD_FILL_TARGET: Record<string, number> = {
   evo: 1.2,            // 에볼루션 챔버
   creep: 1.2, sunken: 1.2, sunkenfire: 1.2, spore: 1.2,   // 크립·성큰·스포어
   spire: 1.2, gspire: 1.2,                                // 스파이어(상한에 걸림)
-  forge: 1.2,          // 포지
+  forge: 1.596,  // 재작 뒤 재측정(bld-norm)
   citadel: 1.2,        // 시타델 오브 아둔
   archives: 1.35,      // 템플러 아카이브(1.15에서 더)
   /* 스타게이트 — 1.15 → 1.35로 키웠다가 **1.18로 내린다**(지적: "스타게이트가 윗건물
@@ -20588,7 +20626,7 @@ export const BLD_NORM: Record<string, number> = {
   arch: 2.584,  // 십자 방패판 재작도 뒤 재측정(bld-norm)
   archives: 2.489,  // 상자 상한에 걸림
   armory: 1.223,
-  assim: 1.627,  // 굴뚝 갓 올린 뒤 재측정(bld-norm)
+  assim: 1.627,  // 재작 뒤 재측정(bld-norm)
   cavern: 1.082,
   citadel: 2.225,
   cocoon: 2.018,
@@ -20625,10 +20663,10 @@ export const BLD_NORM: Record<string, number> = {
   physlab: 1.468,  // 사진 재작도 뒤 재측정(bld-norm)
   plane: 1.200,   // 높이 1.4배 후 bld-norm 재측정
   pool: 1.449,
-  pyramidWide: 1.058,
+  pyramidWide: 1.046,  // 재작 뒤 재측정(bld-norm)
   queensnest: 1.148,
   refinery: 1.394,  // 입구를 가운데로 옮겨 잉크 폭이 좁아진 만큼 bld-norm 재측정
-  robobay: 1.423,
+  robobay: 1.219,  // 재작 뒤 재측정(bld-norm)
   sbattery: 1.951,  // 빨대 다리 뒤 재측정(bld-norm)
   scifac: 1.445,  // 재작도 + 삼중탑 제거·왼판 축소 뒤 재측정(bld-norm)
   spire: 1.548,  // 상자 상한에 걸림
