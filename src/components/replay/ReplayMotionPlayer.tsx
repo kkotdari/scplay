@@ -10770,7 +10770,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        청록 분사구가 든다. */
     for (const [tx9, tz9] of [[-1.05, 5.55], [1.05, 5.55], [0, 6.75]] as const) {
       out.push(...tagKey(paintBase(spirePillar({
-        x: tx9, y: -2.05, h: 1, w: 1, segs: 2, sides: 3, caps: "none",
+        x: tx9, y: -2.05, h: 1, w: 1, segs: 2, sides: 8, caps: "none",   // 삼각 → 원형(요청)
         path: (t9: number): [number, number, number] => [tx9, -2.05 - 1.35 * t9, tz9],
         widthOf: (t9: number): number => 0.62 - 0.12 * t9,
       }), RACE_BASE_TONE.terran), key9(tx9, -2.7, tz9)));
@@ -11891,12 +11891,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
                옆(x)으로 납작하며 앞뒤로 길다(재요청). 뒤가 굵고 앞이 조금 좁은 계란
                옆선을 widthOf로, 옆 납작함은 oval로 준다. 색은 흰빛 도는 푸른 플라즈마. */
             ...tagKey(paintBase(spirePillar({
-              x: 0, y: 0, h: 1, segs: 6, sides: 8, w: 0.24, tipW: 0.24, caps: "none", trueNormal: true,
-              oval: 0.55, ref: [0, 0, 1],   // v축 = x → 옆으로 납작
-              path: (t9: number): [number, number, number] => [m8 * 1.8, 2.95 + 0.85 * t9, 5.5],
+              // 90° 피칭·크기 1/4(재요청): 세로(z)로 서고 길이 0.42, 반지름 0.1(widthOf는 절대 반지름).
+              x: 0, y: 0, h: 1, segs: 6, sides: 8, w: 0.1, tipW: 0.1, caps: "none", trueNormal: true,
+              oval: 0.55, ref: [0, 1, 0],
+              path: (t9: number): [number, number, number] => [m8 * 1.8, 3.3, 5.3 + 0.42 * t9],
               widthOf: (t9: number): number => {
                 const u9 = 2 * t9 - 1;
-                return Math.sqrt(Math.max(0, 1 - u9 * u9)) * (1 - 0.18 * u9);
+                return 0.1 * Math.sqrt(Math.max(0, 1 - u9 * u9)) * (1 - 0.18 * u9);
               },
             }), "#cfe9ff"), partKey(m8 * 1.8, 3.4, 5.5) + 0.3),
             /* ★ 걸림쇠는 **안쪽에서 뒤를 향한 미늘**이다(지적: "팔끝 돌출부품은 바깥쪽이
@@ -12695,9 +12696,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          키는 몸 돔 바로 위(+0.35)라 날개보다는 낮다 — 앞에 선 날개가 이것도 가린다. */
       ...tagKey(paintBase(spirePillar({
         x: 0, y: 0.3, h: 1, w: 1, segs: 3, sides: 8, ref: [0, 1, 0], caps: "both",
-        path: (t9: number): [number, number, number] => [0, 0.86 - 1.12 * t9, 6.14],
+        path: (t9: number): [number, number, number] => [0, 0.86 - 1.12 * t9, 6.2],   // 몸 돔 꼭대기 위로 살짝(지적: 잘 안 보임)
         widthOf: (t9: number): number => 0.19 * (0.55 + 0.45 * Math.sin(Math.PI * t9)),
-      }), "#c8a434"), depthNow(0, 0.3) + 0.35),
+      }), "#a8841c"), depthNow(0, 0.3) + 1.5),   // 몸보다 한 단 짙은 금 — 같은 금이면 안 갈렸다   // 몸 돔 위에 늘 보이게(지적: 잘 안 보임) 0.35 → 1.5
       /* 앞면 네온 원렌즈 셋(요청) — 코앞에 가로로 늘어선 작은 사이언 렌즈. 접평면에
          서므로 옆으로 돌면 납작해지고 뒤에선 사라진다. */
       ...([-1, 0, 1] as const).flatMap((k8) => lensFaces({
@@ -12976,32 +12977,40 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   mshop: () => {
     const out: ShapeFace[] = [
       // 받침 슬래브는 중심 깊이만(지적: 애드온 바닥이 위 부품을 덮음).
-      ...tagKey(paintBase(boxFaces3(0, 0.2, 5.6, 4.4, 1), "#383e48"), depthNow(0, 0.2)),
+      ...tagKey(paintBase(boxFaces3(0, 0.2, 5.6, 4.4, 0.6), "#383e48"), depthNow(0, 0.2)),
       // 본체 — 위로 살짝 좁아지는 각진 덩치.
-      ...tagKey(paintBase(frustumFaces3(0, 0.2, 5.4, 4.2, 4.8, 3.6, 2.4, 1), "#7e8a9c"),
-        22 + depthNow(0, 0.2)),
+      /* 몸통은 **팩토리를 닮은 3단**(요청): 아래 절두체(벌어짐) + 허리 상자 + 위 절두체(좁아짐).
+         허리 상자 양 옆면에는 톱니가 늘어선다. */
+      ...tagKey(paintBase(frustumFaces3(0, 0.2, 4.6, 3.6, 5.2, 4.2, 1.1, 0.6), "#7e8a9c"), 22 + depthNow(0, 0.2)),
+      ...tagKey(paintBase(boxFaces3(0, 0.2, 5.2, 4.2, 1.2, 1.7), "#7e8a9c"), 22.1 + depthNow(0, 0.2)),
+      ...tagKey(paintBase(frustumFaces3(0, 0.2, 5.2, 4.2, 4.4, 3.4, 1.3, 2.9), "#7e8a9c"), 22.2 + depthNow(0, 0.2)),
+      ...([-1, 1] as const).flatMap((m9): ShapeFace[] => Array.from({ length: 5 }, (_, k9) => {
+        const ty9 = 0.2 - 1.4 + k9 * 0.7;
+        return tagKey(paintBase(boxFaces3(m9 * 2.72, ty9, 0.3, 0.34, 0.55, 2.0), "#c5cad2"),
+          22.15 + depthNow(m9 * 2.72, ty9));
+      }).flat()),
     ];
     /* 앞면 방열 격자(사진) — 주황 테 안에 세로살이 촘촘하다. 앞이 보일 때만. */
     if (facingRatio(0, 1) > 0.12) {
       const g: ShapeFace[] = [[polyPath3([
-        [-1.9, 2.31, 1.3], [1.5, 2.31, 1.3], [1.5, 2.31, 3.1], [-1.9, 2.31, 3.1],
+        [-1.9, 2.31, 1.78], [1.5, 2.31, 1.78], [1.5, 2.31, 2.85], [-1.9, 2.31, 2.85],
       ]), 1, "#d2762a"] as ShapeFace];
       for (let k = 0; k < 11; k += 1) {
         const gx = -1.72 + k * 0.3;
         g.push([polyPath3([
-          [gx, 2.33, 1.45], [gx + 0.16, 2.33, 1.45], [gx + 0.16, 2.33, 2.95], [gx, 2.33, 2.95],
+          [gx, 2.33, 1.88], [gx + 0.16, 2.33, 1.88], [gx + 0.16, 2.33, 2.75], [gx, 2.33, 2.75],
         ]), 1, "#828e9f"] as ShapeFace);
       }
       out.push(...tagKey(g, 24 + depthNow(0, 2.35)));
       // 왼쪽 초록 발광 띠 + 노랑·검정 빗금 블록.
       const side: ShapeFace[] = [[polyPath3([
-        [-2.5, 2.05, 2.6], [-2.05, 2.05, 2.6], [-2.05, 2.05, 3], [-2.5, 2.05, 3],
+        [-2.5, 2.32, 2.45], [-2.05, 2.32, 2.45], [-2.05, 2.32, 2.8], [-2.5, 2.32, 2.8],
       ]), 1, "#4cd86a"] as ShapeFace];
       for (let k = 0; k < 4; k += 1) {
         const u0 = -2.55 + k * 0.32;
         side.push([polyPath3([
-          [u0, 2.05, 1.5], [u0 + 0.16, 2.05, 1.5],
-          [u0 + 0.38, 2.05, 2.35], [u0 + 0.22, 2.05, 2.35],
+          [u0, 2.32, 1.85], [u0 + 0.16, 2.32, 1.85],
+          [u0 + 0.38, 2.32, 2.35], [u0 + 0.22, 2.32, 2.35],
         ]), 1, k % 2 === 0 ? "#e8c33a" : "#21252c"] as ShapeFace);
       }
       out.push(...tagKey(side, 24 + depthNow(-2.3, 2.05)));
@@ -13009,17 +13018,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // 지붕 배기관 둘(사진) — 왼뒤에서 곧게 솟는다.
     for (const [ex, ey, eh] of [[-1.5, -1.2, 2.4], [-0.6, -1.7, 1.9]] as [number, number, number][]) {
       out.push(...tagKey([
-        ...paintBase(cylinderFaces3(ex, ey, 0.28, eh, 3.4), "#576272"),
-        ...paintBase(cylinderFaces3(ex, ey, 0.42, 0.3, 3.4 + eh - 0.3), "#21252c"),
-        capFace(discPath3(ex, ey, 3.4 + eh, 0.28), 0.45),
+        ...paintBase(cylinderFaces3(ex, ey, 0.28, eh, 4.2), "#576272"),
+        ...paintBase(cylinderFaces3(ex, ey, 0.42, 0.3, 4.2 + eh - 0.3), "#21252c"),
+        capFace(discPath3(ex, ey, 4.2 + eh, 0.28), 0.45),
       ], 26 + depthNow(ex, ey)));
     }
     /* 오른쪽 누운 드럼(사진) — 밝은 회색 통에 어두운 테 둘. 관 프리미티브라 끝
        단면이 요잉을 탄다. */
     out.push(...tagKey([
-      ...paintBase(tubeFaces(1.3, -1, 3.2, -1, 1.15, 3.2), "#b7bec8"),
-      ...paintBase(tubeFaces(1.6, -1, 1.8, -1, 1.22, 3.2), "#576272"),
-      ...paintBase(tubeFaces(2.7, -1, 2.9, -1, 1.22, 3.2), "#576272"),
+      ...paintBase(tubeFaces(1.3, -1, 3.2, -1, 1.15, 4.0), "#b7bec8"),
+      ...paintBase(tubeFaces(1.6, -1, 1.8, -1, 1.22, 4.0), "#576272"),
+      ...paintBase(tubeFaces(2.7, -1, 2.9, -1, 1.22, 4.0), "#576272"),
     ], 26 + depthNow(2.2, -1)));
     /* 본체 색은 테란 기본색이다(요청: "서플라이 본체 색 테란 기본색", "리파이너리
        아카데미도", "애드온들도") — 이 건물들만 제 회색을 손으로 박아 두고 있어서,
@@ -16983,19 +16992,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const pod = (tx: number): void => {
       /* 깊이 보정을 걷는다(재지적: 사선에서 가려져야 할 실린더가 앞으로 튄다) —
          관이 스스로 다는 깊이면 판·꼬리와 자연스럽게 앞뒤가 갈린다. */
-      out.push(...paintBase(tubeFaces(tx, -2.9, tx, 0.4, 0.82, POD_Z), TERRAN_STEEL));
+      out.push(...paintBase(tubeFaces(tx, -2.9, tx, 0.4, 0.66, POD_Z), TERRAN_STEEL));   // 지름 20% 축소(재요청)
     };
     // 폭 축소(지적: 몸체 폭 줄이기) — 포드 자리 ±3.1 → ±2.6.
     // 포드는 더 바깥으로(재요청) — x ±2.6 → ±3.0.
-    pod(-3.0);
-    pod(3.0);
+    pod(-2.7);
+    pod(2.7);   // 안쪽으로(재요청) ±3.0 → ±2.7
     /* 포드 앞 흡기구(자료 재작도) — 엔진 나셀의 앞이 뚫려 있다는 표시. 앞을 볼 때만
        그리고, 벽 원반이라 요잉을 따라 함께 눌린다. */
     if (facingRatio(0, 1) > 0.06) {
-      for (const tx of [-3.0, 3.0]) {
+      for (const tx of [-2.7, 2.7]) {
         out.push(...tagKey([
-          [wallDiscPath(tx, 0.42, POD_Z, 0.62, 0.62), 1, TERRAN_STEEL_D] as ShapeFace,
-          [wallDiscPath(tx, 0.4, POD_Z, 0.4, 0.4), 1, "#2c3138"] as ShapeFace,
+          [wallDiscPath(tx, 0.42, POD_Z, 0.5, 0.5), 1, TERRAN_STEEL_D] as ShapeFace,
+          [wallDiscPath(tx, 0.4, POD_Z, 0.32, 0.32), 1, "#2c3138"] as ShapeFace,
         // 키는 등판(depthNow ×1 자)보다 살짝 아래 — 포드 앞판은 등판 밑이라 등판 모서리를 덮으면 안 된다(지적: 동체가 가려짐).
         ], depthNow(tx, 0.42) - 0.3));
       }
@@ -17091,7 +17100,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // 포드 추진체는 실린더 중심 높이에 맞춘다(재지적).
     // 안쪽 둘은 작고 낮게(재요청: 축소·아래로), 포드 것은 그대로.
     // 안쪽 작은 추진체 둘은 **동체 뒤면**(y −1.8)에 붙는다(재지적: 꼬리붐이 아니라). 포드 것은 포드 뒤.
-    for (const [tx, tz, tr, ty] of [[-0.85, 5.2, 0.58, -1.8], [0.85, 5.2, 0.58, -1.8], [-3.0, POD_Z, 0.82, -2.95], [3.0, POD_Z, 0.82, -2.95]] as [number, number, number, number][]) {
+    for (const [tx, tz, tr, ty] of [[-1.0, 5.2, 0.46, -1.8], [1.0, 5.2, 0.46, -1.8], [-2.7, POD_Z, 0.66, -2.95], [2.7, POD_Z, 0.66, -2.95]] as [number, number, number, number][]) {
       out.push(...paintBase(tubeFaces(tx, ty, tx, ty - 1.0, tr, tz), TERRAN_STEEL_D));
       if (poseNow === 1) out.push(...thrustFlame(tx, ty - 1.0, tz + tr * 0.45, tr * 0.8, "terran", depthNow(tx, ty - 2) * 1.6 + 1));
     }
@@ -17715,12 +17724,6 @@ SHAPE_BUILDERS.scarab = () => {
     /* 등마루 — 껍질 위를 앞뒤로 지나는 한 줄. 이 한 줄이 앞뒤를 말한다. */
     ...paintBase(prismYFaces(OCT_XZ(0, Z9 + 0.9, 0.42, 0.3), -1.1, 1.25, true, true), "#b8952f"),
     ...fine([[wallDiscPath(0, 1.52, Z9 + 0.1, 0.34, 0.28), 0.95, CORE9] as ShapeFace]),
-    /* 임자색 데칼(재지적: 자리 확인) — 등마루 양옆 비탈에 짧은 띠 한 쌍. 칠하지 않아
-       임자 색이 들고, 위에서 내려다보는 지도에서 등 한가운데로 읽힌다. */
-    ...([-1, 1] as const).map((m9): ShapeFace => [polyPath3([
-      [m9 * 0.45, -0.7, Z9 + 0.98], [m9 * 1.05, -0.7, Z9 + 0.72],
-      [m9 * 1.05, 0.5, Z9 + 0.72], [m9 * 0.45, 0.5, Z9 + 0.98],
-    ]), 0.9]),
     /* 앞다리 한 쌍 — 껍질 앞 밑에서 비스듬히 내려 땅을 짚는다. 짧고 굵게: 가늘면 이
        크기에서 통째로 사라진다. */
     ...([-1, 1] as const).flatMap((m9) => paintBase(
@@ -18385,14 +18388,14 @@ const MODEL_NORM: Record<string, number> = {
   bc: 0.654,
   burrowhole: 0.832,
   carrier: 0.695,
-  corsair: 1.072,  // 팔 끝 안쪽 작은 알 뒤 재측정(model-norm)
+  corsair: 1.141,  // 알 1/4 뒤 재측정(model-norm)
   darchon: 0.496,
   defiler: 0.687,
   devourer: 0.805,
   drone: 1.072,
   droneGas: 1.040,
   droneMin: 1.071,
-  dship: 0.687,  // 포드 바깥 이동 뒤 재측정(model-norm)
+  dship: 0.712,  // 포드 축소·안쪽 이동 뒤 재측정(model-norm)
   dtemp: 0.875,  // 재측정(model-norm)
   egg: 1.237,   // 정수리를 둥글게 한 뒤 model-norm 재측정
   fbat: 1.229,
@@ -20675,7 +20678,7 @@ export const BLD_NORM: Record<string, number> = {
   mineral: 1.678,
   mineralb: 1.264,
   mineralc: 1.583,
-  mshop: 1.360,
+  mshop: 1.349,  // 3단 몸통 뒤 재측정(bld-norm)
   nsilo: 1.354,
   nydus: 1.184,
   observatory: 1.650,
