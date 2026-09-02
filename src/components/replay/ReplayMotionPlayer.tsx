@@ -1539,7 +1539,7 @@ function pLimb(
      요잉과 무관해, 뒤로 돌아간 팔·머리 장식이 늘 몸통 위에 그려졌다. 마디 한가운데의
      깊이를 실으면 앞엣것은 몸 위, 뒤엣것은 몸 뒤로 저절로 갈린다. */
   const k9 = key ?? (depthNow((a[0] + b[0]) / 2, (a[1] + b[1]) / 2) * 1.6 - 0.4);
-  return suitLimb(a, b, w * 0.5, w * 0.46, w * 0.55, { sides: 7, caps: "none", key: k9 });
+  return suitLimb(a, b, w * 0.5, w * 0.46, w * 0.55, { sides: 7, caps: "none", key: k9, tag: "limb" });
 }
 /** 프로토스 다리 한 쌍 — 테란과 같은 뿔기둥 마디로 짠다. 다만 프로토스는 **역관절**
  *  (디지티그레이드)이다: 무릎이 앞으로 크게 나오고 발목이 뒤로 물러났다가 긴 발이
@@ -1623,11 +1623,16 @@ function widthCurve(stops: [number, number][]): (t: number) => number {
  *  뾰족한 spikeHorn과 달리 팔·다리처럼 굵기가 이어지는 마디에 쓴다. 이음매는 다음
  *  마디가 덮으므로 단면을 안 그리는 것이 기본이다(지적: "다리 단면이 밖으로 비쳐
  *  보임" — 관절에서 마주 보는 뚜껑은 늘 남의 몸속이다). */
+/** 마디 길이 기록(scripts/limb-check.mjs) — 켜져 있으면 suitLimb이 부를 때마다 두 끝과
+ *  길이를 적는다. 앱에서는 늘 꺼져 있다(on=false). */
+export const LIMB_LOG: { on: boolean; rows: { a: [number, number, number]; b: [number, number, number]; len: number; tag: string }[] } =
+  { on: false, rows: [] };
 function suitLimb(
   a: [number, number, number], b: [number, number, number],
   w0: number, w1: number, mid?: number,
   o: {
     sides?: number; segs?: number; oval?: number;
+    /** 마디 이름(limb-check용) — 그림엔 안 쓴다. */ tag?: string;
     caps?: "both" | "top" | "bottom" | "none";
     /** 깊이 키에 더할 몫 — 이 마디가 늘 무엇 뒤에 있어야 할 때 쓴다(팔은 어깨보호구
      *  뒤, 다리는 몸통 뒤). 이음매의 뚜껑이 남의 몸속에 있으려면 그리는 차례가 먼저여야
@@ -1635,6 +1640,7 @@ function suitLimb(
     key?: number;
   } = {},
 ): ShapeFace[] {
+  if (LIMB_LOG.on) LIMB_LOG.rows.push({ a, b, len: Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]), tag: o.tag ?? "" });
   const m = mid ?? (w0 + w1) / 2;
   return tagKey(spirePillar({
     x: 0, y: 0, h: 1, w: w0, tipW: 1, segs: o.segs ?? 3, sides: o.sides ?? 6,
@@ -1792,8 +1798,15 @@ function suitLegs(
     /* 다리를 한 단 더 짧게(사진: 상체가 크고 다리가 짧다) — 골반 2.5 → 2.18,
        무릎 1.5 → 1.22, 발목 0.3 → 0.24. 마디 비는 그대로라 걸음은 안 달라진다. */
     const hip: [number, number, number] = [m * 0.54 * spread, -0.05 - LEG_BACK, 2.36 * zk];
-    const knee: [number, number, number] = [m * 0.6 * spread, 0.14 - LEG_BACK + st * 0.75, 1.34 * zk + Math.max(0, st) * 0.32];
-    const ankle: [number, number, number] = [m * 0.58 * spread, -0.02 - LEG_BACK + st * 1.35, 0.26 + Math.max(0, st) * 0.24];
+    /* ★ 걸음에도 **허벅지·정강이 길이는 그대로**(요청: 양다리 길이 같아야) — 여태 무릎을
+       보폭에 비례해 손으로 밀어, 내딛는 다리의 마디가 서 있는 다리보다 길어졌다. 이제
+       발목만 보폭대로 옮기고 무릎은 두 마디 길이(서 있을 때 값)로 푼다(앞으로 굽힘). */
+    const knee0: [number, number, number] = [m * 0.6 * spread, 0.14 - LEG_BACK, 1.34 * zk];
+    const ankle0: [number, number, number] = [m * 0.58 * spread, -0.02 - LEG_BACK, 0.26];
+    const Lt9 = Math.hypot(knee0[0] - hip[0], knee0[1] - hip[1], knee0[2] - hip[2]);
+    const Ls9 = Math.hypot(ankle0[0] - knee0[0], ankle0[1] - knee0[1], ankle0[2] - knee0[2]);
+    const ankle: [number, number, number] = [ankle0[0], ankle0[1] + st * 1.35, ankle0[2] + Math.max(0, st) * 0.24];
+    const knee: [number, number, number] = st === 0 ? knee0 : jointBetween(hip, ankle, Lt9, Ls9, [0, 1, 0.15]);
     /* 마디 뚜껑을 닫고(지적: "다리의 윗단면이 비쳐보이는것") 다리를 늘 몸통보다
        먼저 그린다 — 허벅지 꼭대기는 골반 속, 정강이 꼭대기는 허벅지 속, 정강이 발치는
        군화 속이라 뚜껑이 다 남의 몸 안에 있다. 뚜껑 없는 관은 위에서 보면 속(뒤쪽
@@ -1815,9 +1828,9 @@ function suitLegs(
        안벽이 검게 비쳤다 — 답은 차례다: 정강이(−1.05)를 허벅지(−0.85)보다 먼저
        그리면 단면이 늘 허벅지 밑에 깔린다. */
     out.push(...suitLimb(hip, knee, 0.46 * tk * thighK, 0.453 * tk * thighK,
-      0.566 * tk * thighK * thighK, { key: -0.85 }));
+      0.566 * tk * thighK * thighK, { key: -0.85, tag: "leg.thigh" }));
     out.push(...suitLimb(knee, ankle, 0.453 * tk * shinK, 0.362 * tk * shinK,
-      0.521 * tk * shinK, { key: -1.05 }));
+      0.521 * tk * shinK, { key: -1.05, tag: "leg.shin" }));
     /* 군화 — **앞코가 둥근 구두**다(요청: "지금 벽돌 모양 → 진짜 앞코가 1/4구 모양인
        구두 모양으로") ─────────────────────────────────────────────────────────────
        밑판이 평평해야 한다는 앞선 지적은 그대로 지킨다(발목에서 이어지는 기둥으로
@@ -1995,7 +2008,13 @@ function quarterDome(
   }
   return fill ? paintBase(out, fill) : out;
 }
-function suitPauldron(m: 1 | -1, g: number, fill?: string, plain = false): ShapeFace[] {
+function suitPauldron(m: 1 | -1, g: number, fill?: string, plain = false, dir?: [number, number, number]): ShapeFace[] {
+  /* 팔 자세 따라 돌기(요청) — 상완 방향(dir)이 오면 판의 축을 그쪽으로 섞는다: 앞뒤 성분과
+     위로 든 몫만 받아, 팔이 앞을 겨누면 판이 앞으로 돌고 늘어뜨리면 제자리다. */
+  const L9 = dir ? Math.hypot(dir[0], dir[1], dir[2]) || 1 : 1;
+  const ax9 = dir ? m + (dir[0] / L9) * 0.6 : m;
+  const ay9 = dir ? (dir[1] / L9) * 0.9 : 0;
+  const az9 = dir ? 0.14 + Math.max(0, dir[2] / L9) * 0.9 : 0.14;
   /* 색을 받으면 그 색으로 칠하고(요청: "마린 어깨 무릎 보호구 은색"), 안 받으면
      여태처럼 임자 색에 흰 기를 섞는다(paleTeam) — 매딕·파뱃·고스트는 그대로다. */
   /* ★ 어깨판은 **반구의 윗 반**이다(지적: "이제보니 고치 모양인데 그게 아니라 자연스러운
@@ -2029,7 +2048,7 @@ function suitPauldron(m: 1 | -1, g: number, fill?: string, plain = false): Shape
      ★ 10% 축소(요청: "마린 어깨 보호구 크기 10프로 축소") — 0.94 → 0.846. 뿌리 자리는
        그대로라 판이 안쪽으로 물러나지 않고 바깥 끝만 한 뼘 들어온다. */
   const f9 = tagKey(
-    quarterDome(m * 0.66 * g, -0.12, suitShoulderZ(), 0.846 * g, m, 0, undefined, 0.14, 0.82),
+    quarterDome(m * 0.66 * g, -0.12, suitShoulderZ(), 0.846 * g, ax9, ay9, undefined, az9, 0.82),
     depthNow(m * 1.1 * g, -0.12) * 1.6 + 1.4,
   );
   return fill ? paintBase(f9, fill) : plain ? f9 : paleTeam(f9, 0.26);   // plain: 임자색 그대로(마린)
@@ -2045,6 +2064,30 @@ function suitPauldron(m: 1 | -1, g: number, fill?: string, plain = false): Shape
  *  굵기는 유닛의 성격이 정한다(파워드 아머는 하완이 상완보다 굵다).
  *
  *  ★ 불필요한 부품은 하나도 없다 — 커프·손목 테·손바닥 판 따위를 덧대지 않는다. */
+/** 두 마디 길이가 **고정된** 관절 자리(요청: "모든 인간형은 양팔 양다리 길이 같아야") ──
+ *  a(어깨·엉덩이)와 c(손·발목)가 정해지면, a에서 La·c에서 Lc 떨어진 점은 원 하나 위에
+ *  있다. 그 원에서 bend 쪽으로 가장 치우친 점을 고른다(팔꿈치는 바깥·뒤, 무릎은 앞).
+ *  둘 사이가 La+Lc보다 멀면 곧게 편 팔(비율로 나눈 점)로 물러난다. 자세마다 손·발만
+ *  옮기면 마디 길이는 늘 같다. */
+function jointBetween(
+  a: [number, number, number], c: [number, number, number], La: number, Lc: number,
+  bend: [number, number, number],
+): [number, number, number] {
+  const dx = c[0] - a[0]; const dy = c[1] - a[1]; const dz = c[2] - a[2];
+  const D = Math.hypot(dx, dy, dz) || 1e-6;
+  const ux = dx / D; const uy = dy / D; const uz = dz / D;
+  if (D >= La + Lc - 1e-6) {
+    const k = La / (La + Lc);
+    return [a[0] + dx * k, a[1] + dy * k, a[2] + dz * k];
+  }
+  const x = Math.max(-La, Math.min(La, (La * La - Lc * Lc + D * D) / (2 * D)));
+  const h = Math.sqrt(Math.max(0, La * La - x * x));
+  const bd = bend[0] * ux + bend[1] * uy + bend[2] * uz;
+  let px = bend[0] - ux * bd; let py = bend[1] - uy * bd; let pz = bend[2] - uz * bd;
+  let P = Math.hypot(px, py, pz);
+  if (P < 1e-6) { px = -uy; py = ux; pz = 0; P = Math.hypot(px, py, pz) || 1; }
+  return [a[0] + ux * x + (px / P) * h, a[1] + uy * x + (py / P) * h, a[2] + uz * x + (pz / P) * h];
+}
 function armChain(
   sh: [number, number, number], el: [number, number, number], wr: [number, number, number],
   o: {
@@ -2067,10 +2110,10 @@ function armChain(
   const wristW = o.fore * 0.72;   // 손목 — 하완의 끝 굵기
   const out: ShapeFace[] = [];
   // ① 상완 — 어깨에서 팔꿈치로. 끝 굵기가 곧 하완의 뿌리다.
-  out.push(...tagKey(paint(suitLimb(sh, el, o.upper, o.fore, (o.upper + o.fore) * 0.52, {})),
+  out.push(...tagKey(paint(suitLimb(sh, el, o.upper, o.fore, (o.upper + o.fore) * 0.52, { tag: "arm.upper" })),
     depthNow((sh[0] + el[0]) / 2, (sh[1] + el[1]) / 2) * 1.6 + K));
   // ② 하완 — 팔꿈치에서 손목으로. 뿌리는 상완의 끝, 끝은 손목이다.
-  const fore9 = suitLimb(el, wr, o.fore, wristW, o.fore * 1.02, {});
+  const fore9 = suitLimb(el, wr, o.fore, wristW, o.fore * 1.02, { tag: "arm.fore" });
   out.push(...tagKey(o.foreTeam ? fore9 : paint(fore9),
     depthNow((el[0] + wr[0]) / 2, (el[1] + wr[1]) / 2) * 1.6 + K + 0.05));
   if (o.hand === false) return out;
@@ -14371,12 +14414,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         : []),
       /* 두 팔(재작) — 의무복이라 **가는 팔**(0.22 → 0.25). 오른팔(−x)은 주사기를
          허리께에 받치고, 치료 컷(hl 1)에서 앞으로 든다. 왼팔은 몸 옆으로 늘어뜨린다. */
+      // 팔꿈치는 두 마디 길이(0.71·0.5) 고정으로 푼다(요청: 양팔 길이 같아야).
       ...armChain([-1.02, -0.02, suitShoulderZ()],
-        [-1.06, hl(0.14 + swing(-1), 0.5), hl(2.9, 3.14)],
+        jointBetween([-1.02, -0.02, suitShoulderZ()], [-1.04, hl(0.42 + swing(-1) * 1.5, 1.05), hl(2.5, 3.24)], 0.71, 0.5, [-0.7, -0.35, -0.6]),
         [-1.04, hl(0.42 + swing(-1) * 1.5, 1.05), hl(2.5, 3.24)],
         { upper: 0.22, fore: 0.25, fill: WHITE, handFill: "#464e5b" }),
       ...armChain([0.98, -0.02, suitShoulderZ()],
-        [1.02, 0.1 + swing(1), 2.9], [1.0, 0.34 + swing(1) * 1.5, 2.48],
+        jointBetween([0.98, -0.02, suitShoulderZ()], [1.0, 0.34 + swing(1) * 1.5, 2.48], 0.71, 0.5, [0.7, -0.35, -0.6]),
+        [1.0, 0.34 + swing(1) * 1.5, 2.48],
         { upper: 0.22, fore: 0.25, fill: WHITE, handFill: "#464e5b" }),
       /* 주사기 — 오른손이 쥐는 장비다(사진 medic1: 흰 몸통 + 초록 약통 + 앞 바늘).
          손끝 자리에서 하완 축을 그대로 이어 뻗으므로 팔과 겹치지 않는다. */
@@ -14473,8 +14518,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ...suitBelt(1, undefined, 1.28, SUIT_TROOPER.oval, SUIT_TROOPER.chest),
       ...paintBase(suitNeck(1), SUIT_SILVER),
       // 어깨판 — 색을 안 넘기면 paleTeam으로 든다(임자 색의 한 단 밝은 판).
-      ...suitPauldron(-1, 1, undefined, true),   // 임자색 흐리지 않게(요청)
-      ...suitPauldron(1, 1, undefined, true),
+      // 어깨판은 아래 팔 묶음에서 상완 방향과 함께 낸다(요청: 팔 자세 따라 돌게).
       // 헬멧 — 1.4배(요청: "마린 파뱃 헬멧 크기 1.4배"). 0.65 → 0.91.
       // 헬멧도 뒤로(지적) — 목 위에 얹힌 것이 아니라 앞으로 내민 꼴이었다.
       /* 헬멧은 **작고 낮다**(사진) — 어깨판이 커지면서 머리는 그 사이에 파묻히듯
@@ -14512,12 +14556,28 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          앞으로 이어져 손가락이 총 밑에 닿는다. 총은 손보다 위 키라 손이 총을 안 삼킨다. */
       /* 오른손은 **방아쇠**(축의 뒤끝 언저리), 왼손은 몸을 가로질러 **앞 손잡이**를
          쥔다 — 총 축 위의 점을 그대로 손목으로 삼으니 두 손이 늘 총에 붙어 있다. */
-      ...armChain([-1.14, -0.02, suitShoulderZ()],
-        [-1.06, 0.02 - kick + sway, 3.02 + dz], GP9(0.12),
-        { upper: 0.28, fore: 0.33, fill: SUIT_SILVER, handFill: "#464e5b" }),
-      ...armChain([1.18, -0.02, suitShoulderZ()],
-        [0.78, 0.5 - kick + sway, 3.22 + dz], GP9(0.6),
-        { upper: 0.28, fore: 0.33, fill: SUIT_SILVER, handFill: "#464e5b" }),
+      /* ★ 하완 길이는 **좌우 같다**(지적: "팔길이가 좌우 다르진 않지? 특히 하완") — 손은
+         총 위의 정한 자리(오른손 방아쇠 t 0.15 · 왼손 앞손잡이 t 0.55)를 잡고, 팔꿈치는
+         그 손에서 **같은 거리(FORE9)**만큼 어깨 쪽으로 물러난 자리에 둔다(바깥·아래로
+         살짝 벌려 굽힌 팔로 읽히게). 총이 길어져도 하완은 늘 이 길이다. */
+      ...((): ShapeFace[] => {
+        /* 상완 1.0 · 하완 1.2로 **좌우 같다**(요청). 손은 총 위의 정한 자리(오른손 방아쇠
+           t 0.15 · 왼손 앞손잡이 t 0.55), 팔꿈치는 jointBetween이 바깥·뒤로 굽혀 푼다.
+           어깨판(suitPauldron)에 상완 방향을 넘겨 팔이 든 만큼 함께 돈다(요청). */
+        const shR: [number, number, number] = [-1.14, -0.02, suitShoulderZ()];
+        const shL: [number, number, number] = [1.18, -0.02, suitShoulderZ()];
+        const hR = GP9(0.15); const hL = GP9(0.42);
+        const eR = jointBetween(shR, hR, 1.0, 1.2, [-0.7, -0.35, -0.6]);
+        const eL = jointBetween(shL, hL, 1.0, 1.2, [0.7, -0.35, -0.6]);
+        const dirOf = (sh: [number, number, number], el: [number, number, number]): [number, number, number] =>
+          [el[0] - sh[0], el[1] - sh[1], el[2] - sh[2]];
+        return [
+          ...suitPauldron(-1, 1, undefined, true, dirOf(shR, eR)),
+          ...suitPauldron(1, 1, undefined, true, dirOf(shL, eL)),
+          ...armChain(shR, eR, hR, { upper: 0.28, fore: 0.33, fill: SUIT_SILVER, handFill: "#464e5b" }),
+          ...armChain(shL, eL, hL, { upper: 0.28, fore: 0.33, fill: SUIT_SILVER, handFill: "#464e5b" }),
+        ];
+      })(),
       /* 가우스 소총 — 사진(marine1)의 그 총이다: **좌우로 얇고 위아래로 큰** 판형
          몸통에 짧은 총열(ref를 x로 못 박고 oval 2.7이 그 비를 낸다). 두 손 위 키(+1.6)
          라 손에 안 묻힌다. */
@@ -14631,12 +14691,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            공격 컷(lp의 둘째 값)은 겨눈 자세 그대로다. 걸음 스윙은 내려진 오른팔에만
            싣는다 — 총줄을 쥔 손은 걸어도 그 자리다. */
         // 고스트는 가장 가는 팔(요청: 두께로 유닛의 성격을 낸다) — 상완 0.19·하완 0.21.
+        // 팔꿈치는 두 마디 길이(0.95·0.85) 고정으로 푼다(요청: 양팔 길이 같아야).
         ...armChain([-0.74, 0.02, suitShoulderZ() + 0.3],
-          [lp(-0.94, -0.52), lp(0.1, 0.6) - kick - sway, lp(3.02, 3.16) + dz],
+          jointBetween([-0.74, 0.02, suitShoulderZ() + 0.3],
+            [lp(-0.78, -0.02), lp(0.3, 0.92) - kick - sway * 1.6, lp(2.38, 3.32) + dz], 0.95, 0.85, [-0.7, -0.35, -0.6]),
           [lp(-0.78, -0.02), lp(0.3, 0.92) - kick - sway * 1.6, lp(2.38, 3.32) + dz],
           { upper: 0.19, fore: 0.21, handFill: "#464e5b" }),   // 팔은 임자색(요청)
         ...armChain([0.78, 0.02, suitShoulderZ() + 0.3],
-          [lp(0.98, 0.6), lp(0.14, 0.72) - kick, lp(3.06, 3.12) + dz],
+          jointBetween([0.78, 0.02, suitShoulderZ() + 0.3],
+            [lp(0.42, 0.42), lp(0.44, 1.62) - kick, lp(3.62, 3.38) + dz], 0.95, 0.85, [0.7, -0.35, -0.6]),
           [lp(0.42, 0.42), lp(0.44, 1.62) - kick, lp(3.62, 3.38) + dz],
           { upper: 0.19, fore: 0.21, handFill: "#464e5b" }),   // 팔은 임자색(요청)
       ])(),
@@ -14771,13 +14834,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 두 팔(재작) — 넷 중 **가장 굵다**(0.34 → 0.40). 파이어뱃은 건틀릿 팔이
          아니라(정정: "손은 있고 양손으로 화염방사기의 방아쇠를 당긴다") 화염방사기를
          두 손으로 쥔다. 오른손(−x)이 뒤 손잡이, 왼손(+x)이 앞을 받친다. */
+      // 팔꿈치는 두 마디 길이(0.9·1.2) 고정으로 푼다(요청: 양팔 길이 같아야).
       ...armChain([-1.26, -0.02, suitShoulderZ()],
-        [-1.12, lp(0.24, 0.5) + sway, lp(2.96, 3.2) + dz],
+        jointBetween([-1.26, -0.02, suitShoulderZ()], [-0.62, lp(0.92, 1.36) + sway, lp(2.5, 2.98) + dz], 0.9, 1.2, [-0.7, -0.35, -0.6]),
         [-0.62, lp(0.92, 1.36) + sway, lp(2.5, 2.98) + dz],
         // 하완만 임자 색(요청) — 붉은 상완과 짙은 손 사이에 팀의 한 마디가 든다.
         { upper: 0.34, fore: 0.4, fill: RED_D, handFill: "#464e5b", foreTeam: true }),
       ...armChain([1.26, -0.02, suitShoulderZ()],
-        [1.14, lp(0.26, 0.56) + sway, lp(2.96, 3.22) + dz],
+        jointBetween([1.26, -0.02, suitShoulderZ()], [0.6, lp(1.28, 1.95) + sway, lp(2.52, 3.0) + dz], 0.9, 1.2, [0.7, -0.35, -0.6]),
         [0.6, lp(1.28, 1.95) + sway, lp(2.52, 3.0) + dz],
         { upper: 0.34, fore: 0.4, fill: RED_D, handFill: "#464e5b", foreTeam: true }),
       /* 화염방사기 **두 자루**(정정: "아까처럼 2개로") — 팔마다 한 자루씩, 손 앞에서
@@ -15146,8 +15210,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        위로 삐지지 않게'였고, 그 후드가 이제 없다. */
     ...tagKey(protossFace(P_SKIN, 0), depthNow(0, 0.4) * 1.6 + 0.7),
     // 왼팔 두 마디 — 금색.
-    ...paintBase(pLimb([-0.95, -0.1 + armY(-1) * 0.5, 5.85], [-1.5, 0.4 + armY(-1), 4.55], 0.5), DK9),   // 어깨에 붙임(재지적)
-    ...paintBase(pLimb([-1.5, 0.4 + armY(-1), 4.55], [-1.1, 1.2 + armY(-1), 3.7], 0.45), DK9),
+    /* 왼팔(−x) — 상완 1.45 · 하완 1.2로 오른팔과 **같다**(요청). 어깨·손만 두고 팔꿈치는 푼다. */
+    ...((): ShapeFace[] => {
+      const sh9: [number, number, number] = [-0.95, -0.1 + armY(-1) * 0.5, 5.85];
+      const hd9: [number, number, number] = [-1.1, 1.2 + armY(-1), 3.7];
+      const el9 = jointBetween(sh9, hd9, 1.45, 1.2, [-0.8, -0.3, -0.5]);
+      return [...paintBase(pLimb(sh9, el9, 0.5), DK9), ...paintBase(pLimb(el9, hd9, 0.45), DK9)];
+    })(),
     /* 왼손 — 하이템플러식 큰 손: 흰 손바닥 + 긴 손가락 셋. */
     ...paintBase([
       ...domeFaces3(-1.1, 1.25, 0.34, 0.28, 3.5),
@@ -15158,10 +15227,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 오른팔은 뒤로(요청) — 검을 뒤로 늘어뜨린 자세. 하완과 검이 1자다. */
     /* 검 든 팔 — 평소엔 뒤(−y)로 늘어뜨리고, 공격에서는 그 팔이 통째로 앞으로 돌아
        검이 몸 앞을 가른다. sw9가 그 휘두른 몫이다(뒤 −1.55 → 앞 +1.15). */
-    ...paintBase(pLimb([1.05, -0.15 + armY(1), 5.65],
-      [1.5, -0.9 + armY(1) + tipY9 * 0.22, 4.85 + tipZ9 * 0.14], 0.5), DK9),
-    ...paintBase(pLimb([1.5, -0.9 + armY(1) + tipY9 * 0.22, 4.85 + tipZ9 * 0.14],
-      [1.62, -1.55 + armY(1) + tipY9 * 0.55, 4.1 + tipZ9 * 0.42], 0.45), DK9),
+    ...((): ShapeFace[] => {
+      const sh9: [number, number, number] = [1.05, -0.15 + armY(1), 5.65];
+      const hd9: [number, number, number] = [1.62, -1.55 + armY(1) + tipY9 * 0.55, 4.1 + tipZ9 * 0.42];
+      const el9 = jointBetween(sh9, hd9, 1.45, 1.2, [0.8, -0.3, -0.5]);
+      return [...paintBase(pLimb(sh9, el9, 0.5), DK9), ...paintBase(pLimb(el9, hd9, 0.45), DK9)];
+    })(),
     /* 검은 **초록**이다(사진 다크템플러2·3 — 워프 블레이드) — 질럿의 플라즈마와
        갈리는 다크의 표식. 심은 밝은 백록. */
     ...((): ShapeFace[] => {
@@ -18281,12 +18352,12 @@ const MODEL_NORM: Record<string, number> = {
   dship: 0.719,  // 낮은 꼬리·H자 날개 뒤 재측정(model-norm)
   dtemp: 0.908,
   egg: 1.237,   // 정수리를 둥글게 한 뒤 model-norm 재측정
-  fbat: 1.233,
+  fbat: 1.229,
   ghost: 1.552,  // 상자 상한(원한 배수 1.723)
   goliath: 0.671,
   goon: 0.667,
   guardian: 0.611,
-  gunner: 1.346,  // 총 확대 뒤 model-norm 재측정
+  gunner: 1.327,  // 팔 길이 고정 뒤 model-norm 재측정
   htemp: 1.233,   // 어깨판 재작 뒤 재측정(model-norm)
   hydra: 0.685,
   inf: 1.514,  // 상자 상한(원한 배수 1.615)
