@@ -11129,9 +11129,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         /* 끝은 뾰족하지 않고 **직선으로 뭉뚝하게** 깎는다(재지적) — 뿌리·끝 굵기 비를
            0에서 0.55로 두면 끝 단면이 평평한 절단면이 된다. */
         // 양옆 모서리 배흘림을 약하게(재요청): 끝 굵기 비 0.55 → 0.8 — 허리가 덜 불룩하다.
-        rootW: 0.8, tipW: 0.8,
+        rootW: 0.6, tipW: 0.6,   // 0.6으로 복구(재요청)
         // 면 수 절반 이하로(재요청): 10×8 → 4×6. 네 변 단면은 곧 납작한 판이다.
-        rootPow: 1, tipPow: 1, sides: 4, segs: 6, fill: TERRAN_STEEL,
+        rootPow: 1, tipPow: 1, sides: 4, segs: 4, fill: TERRAN_STEEL,   // 마디 4 — 옆면 호가 각지게 꺾인다(재요청)
         // 단면의 u축을 반지름 방향으로 — 셋이 저마다 제 바깥쪽으로 납작해진다.
         ref: [dxs, dys, 0],
         key: depthNow(dxs * 2.22, dys * 2.22) + 0.8,
@@ -18278,7 +18278,7 @@ const MODEL_NORM: Record<string, number> = {
   tanksiegebody: 0.723,
   ultra: 0.361,
   valk: 0.840,   // 앞동체 −10% 뒤 재측정(model-norm)
-  vessel: 0.886,  // 방패 면 수 줄인 뒤 재측정(model-norm)
+  vessel: 0.891,  // 방패 배흘림 0.6·마디 4 뒤 재측정(model-norm)
   vulture: 0.828,
   wraith: 0.774,
   zealot: 0.799,
