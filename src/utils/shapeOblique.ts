@@ -928,7 +928,15 @@ export function frustumFaces3(
   ];
   const out: ShapeFace[] = [];
   const bodyParts: string[] = [top];
-  for (const f of sides) {
+  /* ★ 벽은 **등진 것부터 앞으로** 정렬해 덮개를 얹는다(지적: 골리앗 어깨 너머 비침) —
+     위가 좁은 절두체는 등진 벽도 법선의 위 성분으로 '보이는 벽'에 들어, 고정 차례면
+     그 벽의 밝은 덮개가 가까운 벽 위에 찍혀 뒤가 비치는 듯 보였다. 가까운 벽의 덮개가
+     마지막에 오면 그 자리는 가까운 벽의 명암만 남는다. */
+  const ordered = sides
+    .map((f) => ({ f, k: facingRatio(f.n[0], f.n[1]) }))
+    .sort((a, b) => a.k - b.k)
+    .map(({ f }) => f);
+  for (const f of ordered) {
     const { visible, face } = faceLight(f.n[0], f.n[1], f.nz);
     if (!visible) continue;
     bodyParts.push(f.d);
