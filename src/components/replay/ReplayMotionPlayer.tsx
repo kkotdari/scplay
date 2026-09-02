@@ -10638,6 +10638,21 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         widthOf: (t9: number): number => hullW9(t0 + (t1 - t0) * t9),
       }), "terran"), key9(mid9[0], mid9[1], mid9[2])));
     }
+    /* 동체 윗면 **세로 임자색 띠**(요청) — 등마루를 따라 앞뒤로 달리는 좁은 띠. 육각
+       단면의 꼭짓점이 위라 그 능선 바로 위에 납작한 조각을 잇는다. */
+    {
+      const N9 = 6;
+      for (let i9 = 0; i9 < N9; i9 += 1) {
+        const ta = 0.14 + (0.66 * i9) / N9;
+        const tb = 0.14 + (0.66 * (i9 + 1)) / N9;
+        const [, ya, za] = hullPath9(ta);
+        const [, yb, zb] = hullPath9(tb);
+        const wa = hullW9(ta) + 0.03; const wb = hullW9(tb) + 0.03;
+        out.push(...tagKey([[polyPath3([
+          [-0.11, ya, za + wa], [0.11, ya, za + wa], [0.11, yb, zb + wb], [-0.11, yb, zb + wb],
+        ]), 0.95] as ShapeFace], key9(0, (ya + yb) / 2, (za + zb) / 2) + 0.6));
+      }
+    }
     /* ② 캐노피 — 동체 앞등에 얹힌 어두운 물집. 창을 따로 안 그린다(이 크기에서는 밝게
        태운 윗면 한 장이 곧 창이다). */
     out.push(...tagKey([
@@ -10654,7 +10669,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        꺾여야 하므로 마디를 그 자리에 두고 두 도막을 곧게 잇는다. */
     const KINK9 = 0.45;
     for (const m9 of [-1, 1] as const) {
-      out.push(...tagKey(spirePillar({
+      // 날개는 이제 쇠색(요청: 임자색은 포신 띠와 동체 윗면 띠로).
+      out.push(...tagKey(raceBase(spirePillar({
         x: 0, y: 0, h: 1, w: 1, segs: 6, sides: 8, ref: [0, 1, 0], caps: "both", oval: 0.22,
         /* **정확히 옆으로**(지적) — 앞판은 스팬을 따라 y가 1.15 물러났다. 조금이라도
            뒤로 눕으면 날개가 '쓸린 것'으로 읽히는데, 이 유닛의 날개는 몸통에 직각이다.
@@ -10673,7 +10689,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
             : 0.6 - 0.4 * ((t9 - KINK9) / (1 - KINK9))),
         ],
         widthOf: widthCurve([[0, 1.15], [KINK9, 0.92], [1, 0.42]]),
-      }), key9(m9 * 2.2, 0.55, 6.5)));
+      }), "terran"), key9(m9 * 2.2, 0.55, 6.5)));
       /* ④ 날개 끝 포드 — **앞뒤로 눕고 총구가 정면을 본다**(지적). 날개 방향으로 누우면
          포드가 날개의 연장으로 읽혀 '무기'가 아니라 '날개 끝 살'이 된다. 축을 y로 못 박으면
          어느 요잉에서도 이 통이 겨눈 쪽을 본다. z도 한 값으로 못 박아 지면과 나란히 둔다
@@ -10693,6 +10709,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          capOpen이면 그 단면이 어두운 포구가 되며, 키도 제가 단다. 그래서 **안 싸맨다**. */
       out.push(...tagKey(raceBase(tubeFaces(tx9, -0.6, tx9, 1.6, 0.42, pz9, true), "terran"),
         key9(tx9, 0.5, pz9)));
+      /* 임자색 띠(요청) — 포신 허리를 두르는 짧은 고리. 칠하지 않아 임자 색이 든다. 관은
+         제 z보다 r×0.45 올려 그리므로(tubeAxisLift) 고리 축도 그만큼 올린다. */
+      out.push(...tagKey(spirePillar({
+        x: 0, y: 0, h: 1, w: 0.47, tipW: 0.47, segs: 1, sides: 10, caps: "none", trueNormal: true,
+        ref: [0, 0, 1],
+        path: (t9: number): [number, number, number] => [tx9, 0.15 + 0.45 * t9, pz9 + tubeAxisLift(0.42)],
+      }), key9(tx9, 0.4, pz9) + 0.25));
       /* ⑤ 꼬리팔 — **곧게 뒤로**(지적: 벌어지지 않는다). 벌리면 꼬리가 또 하나의 날개로
          읽혀 실루엣이 여섯 갈래가 된다. */
       const bx9 = m9 * 0.62;
@@ -14540,9 +14563,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const lp = (a9: number, b9: number): number => a9 + (b9 - a9) * at;
     return [
       // ② 다리는 짙은 잿빛. 발은 몸보다 덜 모은다(가는 몸이 외줄로 서 보이지 않게).
-      ...paintBase(suitLegs(G, 0.62, undefined, 0.28 * wd), DARK),
+      /* 임자색 자리 변경(요청): 헬멧 껍데기·팔다리가 임자색, 몸통은 흰색. 칠하지 않은
+         면이 임자 색을 받으므로 다리·팔·헬멧은 밑칠을 걷고 몸통에 흰색을 얹는다. */
+      ...suitLegs(G, 0.62, undefined, 0.28 * wd),
       // 가슴판은 임자 색이다 — 고스트를 팀으로 가르는 자리는 여기 하나뿐이다.
-      ...suitTorso(G, SUIT_TROOPER),
+      ...paintBase(suitTorso(G, SUIT_TROOPER), WHITE),
       ...paintBase(suitNeck(G), DARK),
       /* 허벅지 옆 붉은 무늬 한 쌍(사진 ghost2 — 다리 옆을 타는 붉은 표식) — 옆을
          볼 때만 그리는 세로 판. */
@@ -14567,7 +14592,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ...paintBase(domeFaces3(-0.5, -0.86, 0.1, 0.1, 6.1), RED),
       /* ① 두건 + 외눈 바이저 — 뒤통수를 감싸는 흰 껍데기(뒤로 향한 4분구) 앞에
          붉은 렌즈 하나가 박힌다. 렌즈는 앞을 볼 때만 뜬다(뒤통수엔 눈이 없다). */
-      ...tagKey(paintBase(quarterDome(0, -0.12, 4.44, 0.42, 0, -1, undefined, 0.16), WHITE),
+      ...tagKey(quarterDome(0, -0.12, 4.44, 0.42, 0, -1, undefined, 0.16),   // 헬멧 껍데기 — 임자색(요청)
         depthNow(0, -0.3) * 1.6 + 3.2),
       ...tagKey(paintBase(domeFaces3(0, 0.02, 0.31, 0.34, 4.46), DARK),
         depthNow(0, 0.02) * 1.6 + 3.3),
@@ -14598,11 +14623,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ...armChain([-0.74, 0.02, suitShoulderZ() + 0.3],
           [lp(-0.94, -0.52), lp(0.1, 0.6) - kick - sway, lp(3.02, 3.16) + dz],
           [lp(-0.78, -0.02), lp(0.3, 0.92) - kick - sway * 1.6, lp(2.38, 3.32) + dz],
-          { upper: 0.19, fore: 0.21, fill: DARK, handFill: "#464e5b" }),
+          { upper: 0.19, fore: 0.21, handFill: "#464e5b" }),   // 팔은 임자색(요청)
         ...armChain([0.78, 0.02, suitShoulderZ() + 0.3],
           [lp(0.98, 0.6), lp(0.14, 0.72) - kick, lp(3.06, 3.12) + dz],
           [lp(0.42, 0.42), lp(0.44, 1.62) - kick, lp(3.62, 3.38) + dz],
-          { upper: 0.19, fore: 0.21, fill: DARK, handFill: "#464e5b" }),
+          { upper: 0.19, fore: 0.21, handFill: "#464e5b" }),   // 팔은 임자색(요청)
       ])(),
       /* ④ C-10 저격소총 — 노리쇠는 상자, 총열은 관 프리미티브라 총구가 요잉을 탄다.
          사진의 붉은 마디를 총열 중간에 한 줄 박는다.
@@ -18291,7 +18316,7 @@ const MODEL_NORM: Record<string, number> = {
   valk: 0.840,   // 앞동체 −10% 뒤 재측정(model-norm)
   vessel: 0.898,  // 방패 접힘 축·뾰족 위끝 뒤 재측정(model-norm)
   vulture: 0.828,
-  wraith: 0.774,
+  wraith: 0.895,  // 재측정(model-norm)
   zealot: 0.799,
   zling: 0.758,
   // tankgun: 없음 — 짝이라 소스의 NORM_PAIR가 tankbody 배수로 접는다.
