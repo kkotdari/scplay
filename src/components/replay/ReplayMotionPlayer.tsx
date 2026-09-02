@@ -5262,7 +5262,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         let nx9 = ey9 / el9; let ny9 = -ex9 / el9;          // 변의 법선
         if ((mx9 - cx9) * nx9 + (my9 - cy9) * ny9 < 0) { nx9 = -nx9; ny9 = -ny9; }
         const seed9 = ((cx9 * 7.3 + cy9 * 3.1 + k9 * 11.7) % 1 + 1) % 1;
-        const half9 = 0.17 + 0.08 * seed9;                  // 변 방향 반길이
+        const half9 = 0.3 + 0.14 * seed9;                   // 변 방향 반길이 — 더 길게(재요청) 0.17~0.25 → 0.3~0.44
         const out9 = 0.16 + 0.14 * ((seed9 * 3.7) % 1);     // 바깥 돌출
         const th9 = 0.06 + 0.04 * ((seed9 * 5.3) % 1);      // 두께
         const off9 = (seed9 - 0.5) * 0.2;                    // 변 위 자리 흔들림
