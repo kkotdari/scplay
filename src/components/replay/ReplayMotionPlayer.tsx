@@ -1050,15 +1050,15 @@ function plasmaBlade(
   return spirePillar({
     /* w는 옛 spikeHorn의 지름 값을 그대로 받아 반지름(×0.5)으로 쓴다. 단면은 **납작**하다
        (요청: 손등 위에서 나오는 검이라 납작해야) — 옆(x)으로 0.3배 눌린 세로 판. */
-    // 폭은 지름 값의 0.2(반지름) — 잎이 아니라 **날**로 읽히게 좁고 길다(재지적: 더 좁게).
-    x: 0, y: 0, h: 1, w: w * 0.2, tipW: w * 0.2, segs: 5, sides: 6, caps: "none", trueNormal: true,
+    // 폭은 지름 값의 0.3(반지름) — 잎이 아니라 **날**로 읽히되 너무 가늘지 않게(재지적).
+    x: 0, y: 0, h: 1, w: w * 0.3, tipW: w * 0.3, segs: 5, sides: 6, caps: "none", trueNormal: true,
     // oval은 v축(=축×u, ref가 위(z)면 옆 방향)을 누른다 → 옆으로 얇고 위아래로 선 날.
     oval: 0.3, ref: [0, 0, 1],
     path: (t9: number): [number, number, number] =>
       [a[0] + (b[0] - a[0]) * t9, a[1] + (b[1] - a[1]) * t9, a[2] + (b[2] - a[2]) * t9],
     // 배흘림 없이 뿌리에서 끝까지 곧게 뾰족(재요청).
-    // widthOf는 **절대 반지름**이다(w를 안 곱한다) — 뿌리 반지름 w×0.2에서 끝 0으로.
-    widthOf: (t9: number): number => w * 0.2 * (1 - t9 * 0.97),
+    // widthOf는 **절대 반지름**이다(w를 안 곱한다) — 뿌리 반지름 w×0.3에서 끝 0으로.
+    widthOf: (t9: number): number => w * 0.3 * (1 - t9 * 0.97),
   // 면 밝기(o)를 살린 채 alpha를 곱한다 — 반투명이면서도 면마다 음영이 남아 입체로 읽힌다.
   }).map(([d, o, , k, l, n]) => [d, Math.max(0.15, o * alpha), fill, k, l, n] as ShapeFace);
 }
@@ -15171,7 +15171,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           const dx = hd[0] - el[0]; const dy = hd[1] - el[1]; const dz = hd[2] - el[2];
           const L = Math.hypot(dx, dy, dz) || 1;
           const b0: [number, number, number] = [hd[0] + (dx / L) * 0.05, hd[1] + (dy / L) * 0.05, hd[2] + (dz / L) * 0.05 + 0.1];
-          const b1: [number, number, number] = [hd[0] + (dx / L) * 1.9, hd[1] + (dy / L) * 1.9, hd[2] + (dz / L) * 1.9 + 0.1];
+          const b1: [number, number, number] = [hd[0] + (dx / L) * 2.2, hd[1] + (dy / L) * 2.2, hd[2] + (dz / L) * 2.2 + 0.1];
           return tagKey(plasmaBlade(b0, b1, 0.7, P_PLASMA, 0.8),
             depthNow((b0[0] + b1[0]) / 2, (b0[1] + b1[1]) / 2) * 1.6 + 1.2);
         })(),
@@ -15300,8 +15300,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           const dx = hdR9[0] - elR9[0]; const dy = hdR9[1] - elR9[1]; const dz = hdR9[2] - elR9[2];
           const L = Math.hypot(dx, dy, dz) || 1;
           const b0: [number, number, number] = [h9[0] + (dx / L) * 0.05, h9[1] + (dy / L) * 0.05, h9[2] + (dz / L) * 0.05 + 0.1];
-          const b1: [number, number, number] = [h9[0] + (dx / L) * 2.6, h9[1] + (dy / L) * 2.6, h9[2] + (dz / L) * 2.6 + 0.1];
-          return tagKey(plasmaBlade(b0, b1, 0.95, "#eefbff", 0.8),
+          const b1: [number, number, number] = [h9[0] + (dx / L) * 3.3, h9[1] + (dy / L) * 3.3, h9[2] + (dz / L) * 3.3 + 0.1];
+          return tagKey(plasmaBlade(b0, b1, 1.2, "#eefbff", 0.8),
             depthNow((b0[0] + b1[0]) / 2, (b0[1] + b1[1]) / 2) * 1.6 + 1.2);
         })(),
         // 칼날의 밝은 심 — 같은 두 점을 살짝 안쪽으로 물려 긋는다.
@@ -18403,7 +18403,7 @@ const MODEL_NORM: Record<string, number> = {
   droneGas: 1.040,
   droneMin: 1.071,
   dship: 0.719,  // 낮은 꼬리·H자 날개 뒤 재측정(model-norm)
-  dtemp: 0.911,  // 플라즈마 검·주먹 뒤 재측정(model-norm)
+  dtemp: 0.897,  // 검 확대 뒤 재측정(model-norm)
   egg: 1.237,   // 정수리를 둥글게 한 뒤 model-norm 재측정
   fbat: 1.229,
   ghost: 1.552,  // 상자 상한(원한 배수 1.723)
@@ -18452,7 +18452,7 @@ const MODEL_NORM: Record<string, number> = {
   vessel: 0.898,  // 방패 접힘 축·뾰족 위끝 뒤 재측정(model-norm)
   vulture: 0.828,
   wraith: 0.895,  // 재측정(model-norm)
-  zealot: 0.835,  // 플라즈마 검·주먹·발 축소 뒤 재측정(model-norm)
+  zealot: 0.828,  // 검 확대 뒤 재측정(model-norm)
   zling: 0.758,
   // tankgun: 없음 — 짝이라 소스의 NORM_PAIR가 tankbody 배수로 접는다.
   // tanksiegegun: 없음 — 짝이라 소스의 NORM_PAIR가 tanksiegebody 배수로 접는다.
