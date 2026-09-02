@@ -210,7 +210,7 @@ const NUKE_FALL_PX = 140;
  *  18 → **9**(요청: "탄두 크기 반으로 줄이기") — 폭발 상자가 6 → 10타일로 커지며
  *  탄두가 상대적으로 커 보였다. 폭발과 탄두는 별개 값이라 각각 정한다(그 사정은
  *  아래 폭발 width 주석에 있다). */
-const NUKE_HEAD_PX = 9;
+const NUKE_HEAD_PX = 3.6;   // 0.4배(요청: 핵탄두 0.4) — 9px는 1배에서 세 타일 폭이라 컸다
 /** 착탄 뒤 폭발 효과가 화면에 남는 시간(초) — 이 창이 끝나면 스팬이 통째로 사라진다.
  *  구름이 옅어지는 데 걸리는 시간(CSS scr-nuke-cloud, 2.8초)보다 길어야 한다 — 짧으면
  *  아직 보이는 구름을 DOM에서 걷어내 **뚝 끊긴다**. 늘리거나 줄일 때 둘을 같이 본다.
@@ -18642,6 +18642,9 @@ const SIZE_REF = gmOf(Object.values(UNIT_BW_TILES));
  *      디바우러 1.02 · 아비터 1.06: 44×44 셋 중 가디언을 기준으로 두고
  *      내구(250 / 350+150)와 인구(4 / 8) 순으로 벌렸다. **폭은 임의다.** */
 const UNIT_SIZE_TUNE: Partial<Record<keyof typeof UNIT_BW_RAW, number>> = {
+  /* 도록 크기 보정 페이지(?cal)에서 실측해 준 배수(요청). */
+  archon: 1.2, darchon: 1.2, corsair: 0.8, interceptor: 0.8, larva: 0.6, egg: 0.6,
+  muta: 0.8, scourge: 0.6, ultra: 1.2, guardian: 0.8, lurkeregg: 0.6, mutacocoon: 0.8,
   /* (전부 걷음 — 요청: "유닛 크기 보정 모두 제거") — 일꾼·보병 0.68, 메딕 0.612,
      질럿 0.85, 템플러 0.808, 커세어 0.85, 마인 0.53, 옵저버 0.17, 스커지 0.7,
      시즈 1.257, 아콘 1.35, 아비터·디파일러 1.2, 울트라 1.5, 라바·알 0.5, 오버로드
@@ -20403,7 +20406,12 @@ const BLD_DRAW_K = 1.2;
  *  스파이어 둘 1.2배(요청: "스파이어류 그려지는 크기 1.2배(특히 3d에서 보면 높아
  *  보여야함)") — 스파이어는 발자국이 2×2로 작은데 원작에서는 저그 건물 중 가장 높이
  *  솟는 것이다. 발자국에 맞춰 그리면 그 '높음'이 통째로 사라진다. */
-const BLD_DRAW_TUNE: Record<string, number> = { spire: 1.2, gspire: 1.2 };
+const BLD_DRAW_TUNE: Record<string, number> = {
+  spire: 1.2, gspire: 1.2,
+  // 도록 크기 보정 페이지(?cal)에서 실측해 준 배수(요청).
+  turret: 1.4, comsat: 0.6, diamond: 1.4, coil: 1.2, forge: 0.8, dome: 0.8, robobay: 1.2,
+  tribunal: 0.8, creep: 1.2, sunken: 1.2, spore: 1.2, queensnest: 1.2, cavern: 1.4,
+};
 /** 공중은 늘 위층 — 지상 z가 아무리 커도(맵 256타일 × Z_TILE) 못 넘는 값이어야 한다. */
 const Z_AIR = 10000000;
 /** 프로토스 소환구 상자(타일)와 지면에서 띄우는 높이(타일) — 요청: 축소 + 더 띄우기. */
