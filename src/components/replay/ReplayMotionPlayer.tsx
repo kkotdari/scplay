@@ -1557,8 +1557,15 @@ function protossLegs(
   for (const m of [-1, 1] as const) {
     const st = m * stride;   // 오른다리가 나가면 왼다리는 물러난다.
     const hip: [number, number, number] = [m * 0.5, -0.3, Z(3.95)];
-    const knee: [number, number, number] = [m * 0.82, 0.3 + st * 0.7, Z(2.2) + Math.max(0, st) * 0.3];
-    const ankle: [number, number, number] = [m * 0.95, -0.75 + st * 1.2, Z(1) + Math.max(0, st) * 0.2];
+    /* ★ 걸음에도 **허벅지·정강이 길이는 그대로**(요청: 질럿·템플러류도 같은 함수로) —
+       suitLegs와 같은 결이다. 발목·발끝만 보폭대로 옮기고 무릎은 서 있을 때의 두 마디
+       길이로 푼다(jointBetween, 앞으로 굽힘). */
+    const knee0: [number, number, number] = [m * 0.82, 0.3, Z(2.2)];
+    const ankle0: [number, number, number] = [m * 0.95, -0.75, Z(1)];
+    const Lt9 = Math.hypot(knee0[0] - hip[0], knee0[1] - hip[1], knee0[2] - hip[2]);
+    const Ls9 = Math.hypot(ankle0[0] - knee0[0], ankle0[1] - knee0[1], ankle0[2] - knee0[2]);
+    const ankle: [number, number, number] = [ankle0[0], ankle0[1] + st * 1.2, ankle0[2] + Math.max(0, st) * 0.2];
+    const knee: [number, number, number] = st === 0 ? knee0 : jointBetween(hip, ankle, Lt9, Ls9, [0, 1, 0.1]);
     const toe: [number, number, number] = [m * 1.04, 0.5 + st * 1.2, Z(0.15) + Math.max(0, st) * 0.15];
     /* 하지가 허벅지보다 굵다(요청) — 허벅지 0.6, 정강이 0.72, 발목 0.58. 마디마다
        배가 부풀게 mid를 따로 줘, 곧은 막대가 아니라 근육 붙은 마디로 읽힌다. */
@@ -1567,12 +1574,12 @@ function protossLegs(
        요잉을 돌려도 늘 같은 층이었다. 마디마다 제 자리 깊이를 실어 몸통(0)을 사이에
        두고 앞뒤가 갈리게 한다: 앞다리는 몸 위, 뒷다리는 몸 뒤. */
     out.push(...paint(suitLimb(hip, knee, 0.38, 0.33, 0.41,
-      { sides: 7, key: depthNow(hip[0], (hip[1] + knee[1]) / 2) * 1.6 - 0.9 }), thighFill));
+      { sides: 7, key: depthNow(hip[0], (hip[1] + knee[1]) / 2) * 1.6 - 0.9, tag: "leg.thigh" }), thighFill));
     out.push(...paint([
       ...suitLimb(knee, ankle, 0.45, 0.38, 0.5,
-        { sides: 7, key: depthNow(knee[0], (knee[1] + ankle[1]) / 2) * 1.6 - 0.9 }),
+        { sides: 7, key: depthNow(knee[0], (knee[1] + ankle[1]) / 2) * 1.6 - 0.9, tag: "leg.shin" }),
       ...suitLimb(ankle, toe, 0.38, 0.3, 0.36,
-        { sides: 7, key: depthNow(ankle[0], (ankle[1] + toe[1]) / 2) * 1.6 - 0.95 }),
+        { sides: 7, key: depthNow(ankle[0], (ankle[1] + toe[1]) / 2) * 1.6 - 0.95, tag: "leg.foot" }),
     ], shinFill));
     /* 발은 **두 갈래 발가락**이다(요청: "프로토스 보병류 발은 scv 발같은 발가락 2개
        형태의 발 모양으로") — 삼각 말굽 한 장을 걷고, SCV 발굽과 같은 결로 짠다:
