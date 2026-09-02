@@ -16952,16 +16952,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       out.push(...paintBase(tubeFaces(tx, -2.9, tx, 0.4, 0.82, POD_Z), TERRAN_STEEL));
     };
     // 폭 축소(지적: 몸체 폭 줄이기) — 포드 자리 ±3.1 → ±2.6.
-    pod(-2.6);
-    pod(2.6);
+    // 포드는 더 바깥으로(재요청) — x ±2.6 → ±3.0.
+    pod(-3.0);
+    pod(3.0);
     /* 포드 앞 흡기구(자료 재작도) — 엔진 나셀의 앞이 뚫려 있다는 표시. 앞을 볼 때만
        그리고, 벽 원반이라 요잉을 따라 함께 눌린다. */
     if (facingRatio(0, 1) > 0.06) {
-      for (const tx of [-2.6, 2.6]) {
+      for (const tx of [-3.0, 3.0]) {
         out.push(...tagKey([
           [wallDiscPath(tx, 0.42, POD_Z, 0.62, 0.62), 1, TERRAN_STEEL_D] as ShapeFace,
           [wallDiscPath(tx, 0.4, POD_Z, 0.4, 0.4), 1, "#2c3138"] as ShapeFace,
-        ], depthNow(tx, 0.42) * 1.6 + 2));
+        // 키는 등판(depthNow ×1 자)보다 살짝 아래 — 포드 앞판은 등판 밑이라 등판 모서리를 덮으면 안 된다(지적: 동체가 가려짐).
+        ], depthNow(tx, 0.42) - 0.3));
       }
     }
     /* 구부러진 판이 곧 윗 등(재지적: 판이 너무 아래) — 포드보다 한 단 높이 올리고
@@ -17055,7 +17057,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // 포드 추진체는 실린더 중심 높이에 맞춘다(재지적).
     // 안쪽 둘은 작고 낮게(재요청: 축소·아래로), 포드 것은 그대로.
     // 안쪽 작은 추진체 둘은 **동체 뒤면**(y −1.8)에 붙는다(재지적: 꼬리붐이 아니라). 포드 것은 포드 뒤.
-    for (const [tx, tz, tr, ty] of [[-0.85, 5.2, 0.58, -1.8], [0.85, 5.2, 0.58, -1.8], [-2.6, POD_Z, 0.82, -2.95], [2.6, POD_Z, 0.82, -2.95]] as [number, number, number, number][]) {
+    for (const [tx, tz, tr, ty] of [[-0.85, 5.2, 0.58, -1.8], [0.85, 5.2, 0.58, -1.8], [-3.0, POD_Z, 0.82, -2.95], [3.0, POD_Z, 0.82, -2.95]] as [number, number, number, number][]) {
       out.push(...paintBase(tubeFaces(tx, ty, tx, ty - 1.0, tr, tz), TERRAN_STEEL_D));
     }
     /* 꼬리(재지적: 축을 몸통에 붙이고 비행기 꼬리 스타일로) — 등판 뒤끝에서 곧장
@@ -17069,8 +17071,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 붐은 세로 판이 아니라 **바닥과 평행한 널판**(재지적) — x로 넓고(±0.55) z로 얇은
          (0.18) 판이 등판 뒤에서 뒤로 뻗는다. slab은 아래 윤곽(lo)·위 윤곽(hi)을 받으므로
          평면 윤곽을 z 두 층으로 준다. */
-      const boomAt = (z9: number): [number, number, number][] => [
-        [-0.55, -1.9, z9], [0.55, -1.9, z9], [0.4, -6.0, z9 + 0.15], [-0.4, -6.0, z9 + 0.15],
+      const boomAt = (z9: number): [number, number, number][] => [   // 너비 축소(재요청) ±0.55 → ±0.35
+        [-0.35, -1.9, z9], [0.35, -1.9, z9], [0.26, -6.0, z9 + 0.15], [-0.26, -6.0, z9 + 0.15],
       ];
       const wingAt = (z9: number): [number, number, number][] => [
         [-1.6, -5.8, z9], [1.6, -5.8, z9], [1.2, -4.95, z9], [-1.2, -4.95, z9],
@@ -18354,7 +18356,7 @@ const MODEL_NORM: Record<string, number> = {
   drone: 1.072,
   droneGas: 1.040,
   droneMin: 1.071,
-  dship: 0.708,  // 재측정(model-norm)
+  dship: 0.687,  // 포드 바깥 이동 뒤 재측정(model-norm)
   dtemp: 0.875,  // 재측정(model-norm)
   egg: 1.237,   // 정수리를 둥글게 한 뒤 model-norm 재측정
   fbat: 1.229,
