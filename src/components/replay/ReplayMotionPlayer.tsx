@@ -32237,16 +32237,23 @@ export default function ReplayMotionPlayer({
                 || unit === "Sunken Colony")
                 && !raising && !bldFrozen9 && (goneEff === 0 || t < goneEff)
                 ? ((): number | undefined => {
+                  /* ★ 터렛은 **쉴 때도 돈다**(요청: idle 상태에서 포탑부가 돌며 탐지) — 표적이
+                     없으면 시간에 따라 천천히 한 바퀴(24°/s, 15초에 한 바퀴) 도는 각을 준다.
+                     자리(centerX·centerY)로 위상을 흩어 여러 터렛이 한 박자로 안 돈다.
+                     22.5도로 접으므로 캐시 판은 겨눌 때와 같은 16장 안에서 돈다. */
+                  const sweep9 = unit === "Missile Turret"
+                    ? ((Math.round(((t * 24 + centerX * 37 + centerY * 53) % 360) / 22.5) * 22.5) % 360 + 360) % 360
+                    : undefined;
                   const f9 = foeOfTgt9(rec9?.tgt);
-                  if (!f9) return undefined;
+                  if (!f9) return sweep9;
                   /* 못 치는 갈래는 겨누지도 않는다 — 터렛은 하늘만, 성큰은 땅만이다.
                      참값이 그런 표적을 줄 일은 없지만, 자리 색인이 어긋나 엉뚱한 행을
                      짚었을 때 포탑이 이상한 데를 보는 것보다 안 보는 편이 낫다. */
-                  if (unit === "Missile Turret" && !f9.air) return undefined;
+                  if (unit === "Missile Turret" && !f9.air) return sweep9;
                   if (unit === "Sunken Colony" && f9.air) return undefined;
                   const dd9 = Math.hypot(f9.x - centerX, f9.y - centerY);
                   if (dd9 > reachTo(unit, { air: f9.air, k: f9.k, uk: f9.uk },
-                    fireRangeTilesOf(unit, f9.air))) return undefined;
+                    fireRangeTilesOf(unit, f9.air))) return sweep9;
                   const d9 = (Math.atan2(-(f9.x - centerX), f9.y - centerY) * 180) / Math.PI;
                   return ((Math.round(d9 / 22.5) * 22.5) % 360 + 360) % 360;
                 })()
