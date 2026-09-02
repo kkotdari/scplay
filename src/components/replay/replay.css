@@ -2197,6 +2197,8 @@
    제 태그·제 길로 들어 있어 이제 제 모델로 직접 그려진다(ReplayMotionPlayer의
    SHAPE_BUILDERS.interceptor 주석). */
 .scr-motion-pingfx { position: absolute; width: 0; height: 0; pointer-events: none; }
+/* 핑·클릭 자국은 이제 효과 렌즈(.scr-motion-fxlens) 안에 산다 — 크립(유닛 캔버스)·안개 위. 그 층은 폭으로
+   배율을 먹으므로 아래 역배율 규칙(.scr-motion-lens > …)은 거기선 안 걸리고, px이 곧 화면 px이다. */
 /* ★ 핑도 **UI 요소**다 — 확대에 안 커진다(지적: "럴커 주변에 갈색 동심원 뭐지") ────────
    이 고리는 크기를 30px로 못 박아 두었는데, 렌즈 **안**에 살면서 역배율이 없었다. 곧
    화면에 나오는 지름이 `30 × 배율`이라 8배에서는 246px, 16배면 480px짜리 고리가 된다 —
@@ -2215,7 +2217,9 @@
 }
 .scr-motion-pingfx::before {
   content: ""; position: absolute; left: 50%; top: 50%;
-  width: 104px; height: 104px; margin: -52px 0 0 -52px;
+  /* 크기는 재생 쪽이 배율 따라 내려 준다(--pgw, 요청: 마커처럼) — 못 받으면 104px. */
+  width: var(--pgw, 104px); height: var(--pgw, 104px);
+  margin: calc(var(--pgw, 104px) / -2) 0 0 calc(var(--pgw, 104px) / -2);
   /* 팔 넷 — 위·아래·왼·오른. 단색 그러데이션은 '네모 한 장'을 그리는 가장 싼 길이다. */
   background-image:
     linear-gradient(currentColor, currentColor),
