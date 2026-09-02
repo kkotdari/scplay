@@ -11435,13 +11435,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        퍼져 게다리로 읽힌다. 무릎·발끝의 벌어짐(i9로 셈한다)도 셋으로 자연히 부채가 된다. */
     ...([-1, 1] as const).flatMap((m9) => ([[0.3, 5.75], [-0.6, 5.7], [-1.5, 5.6]] as [number, number][])
       .flatMap(([ly9, lz9], i9) => {
-        const kx9 = m9 * (3.9 + i9 * 0.2);   // 무릎
-        const ky9 = ly9 - 1.5;
-        const kz9 = lz9 - 1.5;
+        /* 마디가 푹 들어가지 않는 관(suitLimb, 굵기 일정)으로(재요청) — 뿔(hornFaces)은 이음매에서
+           가늘어졌다. 길이는 줄이고(무릎 3.9 → 3.3, 발 5.2 → 4.4) 굵기는 키운다(0.5/0.34 → 0.62/0.5). */
+        const kx9 = m9 * (3.3 + i9 * 0.2);   // 무릎
+        const ky9 = ly9 - 1.2;
+        const kz9 = lz9 - 1.3;
+        const fx9 = m9 * (4.4 + i9 * 0.25);
+        const knee: [number, number, number] = [kx9, ky9, kz9];
         return [
-          ...paintBase(hornFaces(m9 * 2.3, ly9, lz9, kx9, ky9, kz9, 0.5), "#6b4732"),
-          ...paintBase(hornFaces(kx9, ky9, kz9, m9 * (5.2 + i9 * 0.3), ky9 - 1.4, kz9 - 2.1, 0.34),
-            "#6b4732"),
+          ...paintBase(suitLimb([m9 * 2.3, ly9, lz9], knee, 0.31, 0.29, 0.31, { sides: 7, caps: "none", trueNormal: true }), "#6b4732"),
+          ...paintBase(domeFaces3(kx9, ky9, 0.3, 0.26, kz9 - 0.1), "#6b4732"),
+          ...paintBase(suitLimb(knee, [fx9, ky9 - 1.1, kz9 - 1.7], 0.27, 0.22, 0.27, { sides: 7, caps: "none", trueNormal: true }), "#6b4732"),
         ];
       })),
   ],
@@ -11876,13 +11880,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
                옆(x)으로 납작하며 앞뒤로 길다(재요청). 뒤가 굵고 앞이 조금 좁은 계란
                옆선을 widthOf로, 옆 납작함은 oval로 준다. 색은 흰빛 도는 푸른 플라즈마. */
             ...tagKey(paintBase(spirePillar({
-              // 90° 피칭·크기 1/4(재요청): 세로(z)로 서고 길이 0.42, 반지름 0.1(widthOf는 절대 반지름).
-              x: 0, y: 0, h: 1, segs: 6, sides: 8, w: 0.1, tipW: 0.1, caps: "none", trueNormal: true,
-              oval: 0.55, ref: [0, 1, 0],
-              path: (t9: number): [number, number, number] => [m8 * 1.8, 3.3, 5.3 + 0.42 * t9],
+              // 다시 90° 피칭·2배(재요청): 앞뒤(y)로 누운 길이 0.84, 반지름 0.2(widthOf는 절대 반지름).
+              x: 0, y: 0, h: 1, segs: 6, sides: 8, w: 0.2, tipW: 0.2, caps: "none", trueNormal: true,
+              oval: 0.55, ref: [0, 0, 1],
+              path: (t9: number): [number, number, number] => [m8 * 1.8, 2.95 + 0.84 * t9, 5.5],
               widthOf: (t9: number): number => {
                 const u9 = 2 * t9 - 1;
-                return 0.1 * Math.sqrt(Math.max(0, 1 - u9 * u9)) * (1 - 0.18 * u9);
+                return 0.2 * Math.sqrt(Math.max(0, 1 - u9 * u9)) * (1 - 0.18 * u9);
               },
             }), "#cfe9ff"), partKey(m8 * 1.8, 3.4, 5.5) + 0.3),
             /* ★ 걸림쇠는 **안쪽에서 뒤를 향한 미늘**이다(지적: "팔끝 돌출부품은 바깥쪽이
@@ -13618,49 +13622,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   },
   /* 테란 공사장 — 기초 슬래브 + 뼈대 기둥 넷 + 가로 보 + 크레인.
      고정색(요청): 공사 쇳빛 + 빨간 불빛. */
-  scaffold: () => withModelSpin(-90, () => [
-    ...paintBase([
-      ...boxFaces3(0, 0, 7, 5, 0.8),
-      ...boxFaces3(-2.9, 1.9, 0.5, 0.5, 3.4, 0.8),
-      ...boxFaces3(2.9, 1.9, 0.5, 0.5, 3.4, 0.8),
-      ...boxFaces3(-2.9, -1.9, 0.5, 0.5, 3.4, 0.8),
-      ...boxFaces3(2.9, -1.9, 0.5, 0.5, 3.4, 0.8),
-      ...boxFaces3(0, 1.9, 6.2, 0.4, 0.4, 4.2),
-      ...boxFaces3(0, -1.9, 6.2, 0.4, 0.4, 4.2),
-      // 크레인 — 기둥 + 지브 + 갈고리 줄.
-      ...boxFaces3(2.3, -1.5, 0.45, 0.45, 6.4, 0.8),
-      bodyFace(polyPath3([[2.3, -1.7, 7.2], [-0.9, -1.7, 6.9], [-0.9, -1.5, 6.9], [2.3, -1.3, 7.2]])),
-      ...hornFaces(-0.7, -1.6, 6.9, -0.7, -1.6, 5.2, 0.16),
-    ], "#98a1af"),
-    /* 공사장 안전 띠(요청: 터렛에 붙인 패턴을 적절히) — 기초 슬래브 네 옆면에
-       노랑 바탕·검정 사선. 면마다 facing으로 보일 때만 그린다. */
-    ...((): ShapeFace[] => {
-      const faces: ShapeFace[] = [];
-      const side = (
-        nx: number, ny: number, pt: (t: number, z: number) => [number, number, number], len: number,
-      ): void => {
-        if (facingRatio(nx, ny) < 0.05) return;
-        faces.push([polyPath3([pt(0, 0.05), pt(len, 0.05), pt(len, 0.75), pt(0, 0.75)]), 1, "#d9ae35"] as ShapeFace);
-        for (let t = 0.35; t < len - 0.95; t += 1.4) {
-          faces.push([polyPath3([pt(t, 0.05), pt(t + 0.55, 0.05), pt(t + 0.95, 0.75), pt(t + 0.4, 0.75)]), 1, "#1b1e23"] as ShapeFace);
-        }
-      };
-      side(0, 1, (t, z) => [-3.5 + t, 2.51, z], 7);
-      side(0, -1, (t, z) => [3.5 - t, -2.51, z], 7);
-      side(1, 0, (t, z) => [3.51, 2.5 - t, z], 5);
-      side(-1, 0, (t, z) => [-3.51, -2.5 + t, z], 5);
-      return faces;
-    })(),
-    // 빨간 공사 등 — 크레인 꼭대기와 앞뒤 보 끝.
-    [groundEllipse(...project(2.3, -1.5, 7.4), 0.3, 0.24), 0.85, "#ff5f4b"] as ShapeFace,
-    [groundEllipse(...project(-2.9, 1.9, 4.5), 0.24, 0.19), 0.8, "#ff5f4b"] as ShapeFace,
-    [groundEllipse(...project(2.9, -1.9, 4.5), 0.24, 0.19), 0.8, "#ff5f4b"] as ShapeFace,
-  ]),
+  // (걷어냄) scaffold — 테란 공사장 뼈대·크레인(요청: 이제 안 쓰여서 삭제).
 
-  /* 스파이더 마인(요청) — 땅에 반쯤 묻힌 작은 돔 + 감지침 셋. 맵에서 죽음의 원인이
-     보이게 마인 자체를 그린다. */
-  /* 마인은 그냥 납작한 삼각형 판(재재재지적) — 뿔도 장식도 없이, 땅에 놓인 삼각 판
-     한 장(살짝 두께만). */
   mine: () => {
     /* 스파이더 마인(재지적: "삼각형 몸체에 다리 3개가 달린 꼴, 테란 기본색") — 앞이
        뾰족한 삼각 기둥 몸체(테란 기본색·raceBase)에서 세 꼭짓점으로 가는 다리가 뻗어
@@ -17702,7 +17665,6 @@ SHAPE_BUILDERS.interceptor = () => {
    덩어리로 뭉갠다 — 등·심·다리 셋이면 '벌레'로 읽히는 최소한이다. */
 SHAPE_BUILDERS.scarab = () => {
   const SHELL9 = "#d9b551";      // 금빛 등딱지(프로토스 금과 같은 결)
-  const CORE9 = "#3ee6c8";       // 청록 에너지 심(재지적: 임자 파랑과 헷갈리지 않게)
   const Z9 = 1.5;                // 땅에 붙어 구른다 — 다른 유닛보다 훨씬 낮다
   return [
     /* 등딱지 — 앞이 조금 좁은 둥근 껍질. 눕힌 팔각 기둥이라 어느 요잉에서도 통으로
@@ -17715,7 +17677,6 @@ SHAPE_BUILDERS.scarab = () => {
     ...paintBase(prismYFaces(OCT_XZ(0, Z9, 1.5, 1.05), -1.5, 1.5, true, true), SHELL9),
     /* 등마루 — 껍질 위를 앞뒤로 지나는 한 줄. 이 한 줄이 앞뒤를 말한다. */
     ...paintBase(prismYFaces(OCT_XZ(0, Z9 + 0.9, 0.42, 0.3), -1.1, 1.25, true, true), "#b8952f"),
-    ...fine([[wallDiscPath(0, 1.52, Z9 + 0.1, 0.34, 0.28), 0.95, CORE9] as ShapeFace]),
     /* 앞다리 한 쌍 — 껍질 앞 밑에서 비스듬히 내려 땅을 짚는다. 짧고 굵게: 가늘면 이
        크기에서 통째로 사라진다. */
     ...([-1, 1] as const).flatMap((m9) => paintBase(
@@ -18380,7 +18341,7 @@ const MODEL_NORM: Record<string, number> = {
   bc: 0.654,
   burrowhole: 0.832,
   carrier: 0.695,
-  corsair: 1.141,  // 알 1/4 뒤 재측정(model-norm)
+  corsair: 1.128,  // 알 2배 뒤 재측정(model-norm)
   darchon: 0.496,
   defiler: 0.687,
   devourer: 0.805,
@@ -18394,7 +18355,7 @@ const MODEL_NORM: Record<string, number> = {
   ghost: 1.552,  // 상자 상한(원한 배수 1.723)
   goliath: 0.671,
   goon: 0.655,  // 재측정(model-norm)
-  guardian: 0.611,
+  guardian: 0.683,  // 다리 짧고 굵게 뒤 재측정(model-norm)
   gunner: 1.327,  // 팔 길이 고정 뒤 model-norm 재측정
   htemp: 1.249,  // 재측정(model-norm)
   hydra: 0.685,
@@ -18753,7 +18714,7 @@ const SHAPE_ROT: Record<string, number> = {};
    저그는 안 감싼다(유기체라 광이 없다). */
 const GLOSS_KINDS: Record<"terran" | "toss", string[]> = {
   terran: ("tomb comsat nsilo trapezoid refinery cube ebay tombFlat academy turret factory "
-    + "mshop plane ctower armory scifac covert physlab scaffold scv scvMin scvGas gunner ghost "
+    + "mshop plane ctower armory scifac covert physlab scv scvMin scvGas gunner ghost "
     + "fbat inf vulture mine tank tanksiege tankbody tankgun goliath wraith dship valk bc")
     .split(" "),
   toss: ("pyramidWide diamond assim gate forge coil sbattery cyber citadel archives dome robobay "
@@ -18850,7 +18811,6 @@ export const SHAPE_GALLERY: ShapeGalleryItem[] = [
   { kind: "plane", label: "스타포트", group: "건물", race: "테란" },
   { kind: "armory", label: "아머리", group: "건물", race: "테란" },
   { kind: "scifac", label: "사이언스 퍼실리티", group: "건물", race: "테란" },
-  { kind: "scaffold", label: "공사장(테란)", group: "건물", race: "테란" },
   /* ★ 애드온은 **뒤로 미룬다**(지시) — 여태 컴샛·핵 사일로가 커맨드 바로 뒤에, 머신샵이
      팩토리 뒤에, 컨트롤 타워가 스타포트 뒤에 끼어 본 건물 사이사이를 끊고 있었다.
      붙는 자리로는 그 차례가 맞지만, 도록은 '무엇이 있나'를 훑는 자리다 — 혼자 서지
@@ -18968,7 +18928,7 @@ export const shapeMapTiles = (kind: string): number => {
   if (kind.startsWith("mineral")) return 2.4;   // 꼴·고갈 별본 모두 같은 상자다.
   if (kind === "geyser") return 3.84;
   // 공사장·고치는 무엇이 될지에 따라 달라진다 — 흔한 3×2의 폭 3으로 둔다(건물 폴백).
-  if (kind === "scaffold" || kind === "cocoon") return 3 * BLD_DRAW_K;
+  if (kind === "cocoon") return 3 * BLD_DRAW_K;
   const sk = GALLERY_SIZE_KIND[kind] ?? kind;
   return unitTilesOf(sk, sk, 1);
 };
@@ -20681,7 +20641,6 @@ export const BLD_NORM: Record<string, number> = {
   refinery: 1.394,  // 입구를 가운데로 옮겨 잉크 폭이 좁아진 만큼 bld-norm 재측정
   robobay: 1.423,
   sbattery: 1.951,  // 빨대 다리 뒤 재측정(bld-norm)
-  scaffold: 1.733,
   scifac: 1.445,  // 재작도 + 삼중탑 제거·왼판 축소 뒤 재측정(bld-norm)
   spire: 1.548,  // 상자 상한에 걸림
   spore: 1.666,
@@ -31969,7 +31928,7 @@ export default function ReplayMotionPlayer({
                      모델이 없는 건물(부속 등 폴백)만 예전 공사장으로 떨어진다. */
                   kind: race2 === "저그" ? "cocoon"
                     : race2 === "프로토스" ? "warpin"
-                      : (shapeKind || "scaffold"),
+                      : (shapeKind || "warpin"),   // 모델 없는 테란 건물(부속 폴백)은 공사장 대신 프로토스식 워프인 판을 빌린다 — 공사장 모델은 걷었다(요청)
                   /* 아래 부품부터 다섯 칸에 나눠 솟는다(요청: 3단계 부족 시 5단계) —
                      진행률을 그대로 칸으로 바꾼다. 마지막 칸(=BUILD_STAGES)이 완성 모델
                      이라, 다 짓기 전에 완성형이 서 버리지 않게 진행률 1 미만은 한 칸
