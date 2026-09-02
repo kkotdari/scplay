@@ -12993,7 +12993,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        · 왼쪽 옆구리에 초록 등이 켜진 작은 상자, 앞 왼 모서리엔 해저드 빗금.
        · 지붕 왼뒤에 **굴뚝 둘**(높이 다름), 오른쪽 위에 **앞뒤로 누운 큰 드럼**(끝에 테).
        · 앞 아래로 가는 배관 둘이 옆으로 지난다. */
-  mshop: () => {
+  mshop: () => withModelSpin(-90, () => {   // 모델 −90° 요잉(요청)
     const out: ShapeFace[] = [];
     const K = (x9: number, y9: number, add = 0): number => 22 + depthNow(x9, y9) + add;
     const DARK = "#383e48";
@@ -13057,7 +13057,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ...paintBase(tubeFaces(-1.2, 2.2, 2.1, 2.2, 0.11, 0.6), "#6a7484"),
     ], K(0, 2.1, 0.7)));
     return raceBase(out, "terran");
-  },
+  }),
   ctower: () => {
     const out: ShapeFace[] = [
       // 받침 슬래브는 중심 깊이만(지적: 받침 판과 탑 순서가 요잉 따라 어긋남).
@@ -20600,7 +20600,7 @@ export const BLD_NORM: Record<string, number> = {
   mineral: 1.678,
   mineralb: 1.264,
   mineralc: 1.583,
-  mshop: 1.513,  // 사진 재작도 뒤 재측정(bld-norm)
+  mshop: 1.523,  // −90° 요잉 뒤 재측정(bld-norm)
   nsilo: 1.354,
   nydus: 1.184,
   observatory: 1.650,
