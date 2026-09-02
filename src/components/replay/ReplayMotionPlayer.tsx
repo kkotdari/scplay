@@ -2667,12 +2667,15 @@ function glossFaces(
   /* 테란 그늘만 한 단 약하게(요청: "테란 모델 어두운 부분이 좀 심하게 어두운데") —
      스테인 바탕(#4c5462…)이 이미 어두워, 같은 깊이의 검은 그늘을 얹으면 옆·밑면이
      먹처럼 죽는다. 흰 광은 그대로 두어 금속 대비는 지킨다. */
-  const shK9 = tone === "terran" ? 0.58 : 1;   // 0.72 → 0.58 (재재지적)
+  /* 그늘 전체를 한 단 걷는다(지적: "조명 음영이 너무 세 어두운 부분이 거의 검정") —
+     검은 덮개 곡선의 상한을 0.60 → 0.43으로, 테란 배수는 0.58 → 0.7(곡선이 낮아진 만큼
+     되돌려 테란만 밋밋해지지 않게). */
+  const shK9 = tone === "terran" ? 0.7 : 1;
   return faces.map(([d, o, f, k, l, n]) => {
     if (f !== "#fff" && f !== "#000") return [d, o, f, k, l, n] as ShapeFace;
     const o9 = f === "#fff"
       ? 0.05 + 0.38 * Math.min(1, o / 0.2) ** 1.8
-      : (0.10 + 0.50 * Math.min(1, o / 0.38) ** 1.1) * shK9;
+      : (0.07 + 0.36 * Math.min(1, o / 0.38) ** 1.1) * shK9;
     const f9 = f === "#fff" ? (hi9 ?? f) : (sh9 ?? f);
     return [d, o9, f9, k, l, n] as ShapeFace;
   });
@@ -18867,8 +18870,10 @@ const bunkerMuzzleOf = (deg: number): [number, number, number] => {
  *
  *  덮개는 애초에 반투명(0.22·0.3·0.4)이라 1보다 작다. 그 조건 하나만 더 두면 뜻은
  *  그대로 지키면서 몸판은 불투명해진다. */
+/* 증폭 1.45 → 1.25, 상한 0.85 → 0.7(지적: 음영이 너무 세 거의 검정) — 덮개가 종족 광택
+   곡선으로 이미 한 번 짙어진 위에 또 곱해져 두 겹으로 쌓이던 것을 완화한다. */
 const shadeBoost = (o: number, fill?: string): number =>
-  (fill && o < 1 ? Math.min(0.85, o * 1.45) : o);
+  (fill && o < 1 ? Math.min(0.7, o * 1.25) : o);
 
 function resolveShapeFaces(
   kind: string, rotDeg?: number, flat?: boolean, viewYaw?: number, pitchView?: boolean,
