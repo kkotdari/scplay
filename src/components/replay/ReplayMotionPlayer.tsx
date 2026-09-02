@@ -10905,10 +10905,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ]));
       }),
       // 위 돔 — 반지름 1.0(정정), 높이는 반지름의 0.32로 **납작하게**(재요청).
-      /* 2층 돔 — 납작한 돔에 domeFaces3의 큰 그늘 덮개(오른쪽 아래 절반)가 얹히면 가운데가
-         뚫린 듯 반투명하게 읽혔다(지적: "왜 반투명해"). 몸판은 원래 불투명이다 — 그늘 덮개만
-         걷고 흰 광은 남겨 쇠 재질을 지킨다. */
-      ...raceBase(domeFaces3(0, DY, 1.0, 0.32, Z(6.3) + DH0 + 0.06).filter((f9) => f9[2] !== "#000"), "terran"),
+      /* 2층 돔도 1층처럼 **회전체 프리미티브**(재요청) — 화면 곡선 한 장(domeFaces3)이 아니라
+         spirePillar로 세운 납작한 타원 돔(밑 r 1.0·높이 0.32, 면 14). 면마다 제 명암이 들어
+         쇠 재질이 살고 반투명·뚫림이 없다. */
+      ...raceBase(spirePillar({
+        x: 0, y: DY, z0: Z(6.3) + DH0 + 0.06, h: 0.32, w: 1, segs: 3, sides: 14, ref: [1, 0, 0], caps: "top",
+        widthOf: (t9: number): number => Math.max(0.12, Math.sqrt(Math.max(0, 1 - t9 * t9))),
+      }), "terran"),
     ], key9(0, DY, Z(6.9))));
     // 1-나) 뒤 절두체 — 상자 뒤(y −0.6)에 붙되 폭은 상자의 8할(재요청 20% 축소), 뒤로 조금 넓어진다.
     const TW0 = BW * 0.64;   // 0.8 → 0.64 (재요청 20% 축소)
@@ -11000,7 +11003,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     for (const [ex9, ez9] of [[-0.42, TZ0 + 0.02], [0.42, TZ0 + 0.02], [-0.42, TZ0 + 0.06 + TH9], [0.42, TZ0 + 0.06 + TH9]] as [number, number][]) {
       /* 열쇠(지적: 앞에서 보면 추진체가 뒷동체를 뚫고 비침) — 뒷면이 시점을 향할 때만 제
          깊이로(뒷동체 위), 등을 돌리면 뒷동체보다 먼저 그려 뒷동체가 덮는다. */
-      out.push(...tagKey(paintBase(boxFaces3(ex9, -2.45, 0.72, 0.75, TH9, ez9), "#3f444c"),
+      out.push(...tagKey(paintBase(boxFaces3(ex9, -2.45, 0.72, 0.75, TH9, ez9), "#2c3036"),   // 더 어둡게(요청)
         facingRatio(0, -1) > 0.05 ? key9(ex9, -2.45, ez9 + TH9 / 2) + 0.3 : key9(0, -1.35, Z(5.8)) - 1));
     }
     return zsorted(out);
