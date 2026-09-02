@@ -12959,72 +12959,78 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   /* 머신 샵(재모델링·사진) — 톱니처럼 각진 강철 덩치다: 앞면에 주황 테를 두른
      세로살 방열 격자, 왼쪽에 초록 발광 띠와 노랑·검정 빗금 블록, 지붕 왼쪽에 배기관
      둘, 오른쪽에 옆으로 누운 밝은 드럼 하나. */
+  /* 머신샵(사진 재작도) ─────────────────────────────────────────────────────────
+     사진이 말하는 것:
+       · 받침은 **어두운 팔각 판**인데 가장자리가 **톱니바퀴**처럼 이가 둘러 있다.
+       · 그 위 가운데에 **상자 몸체**. 앞면(왼앞)에 **주황 틀의 세로 살 라디에이터**.
+       · 왼쪽 옆구리에 초록 등이 켜진 작은 상자, 앞 왼 모서리엔 해저드 빗금.
+       · 지붕 왼뒤에 **굴뚝 둘**(높이 다름), 오른쪽 위에 **앞뒤로 누운 큰 드럼**(끝에 테).
+       · 앞 아래로 가는 배관 둘이 옆으로 지난다. */
   mshop: () => {
-    const out: ShapeFace[] = [
-      // 받침 슬래브는 중심 깊이만(지적: 애드온 바닥이 위 부품을 덮음).
-      ...tagKey(paintBase(boxFaces3(0, 0.2, 5.6, 4.4, 0.6), "#383e48"), depthNow(0, 0.2)),
-      // 본체 — 위로 살짝 좁아지는 각진 덩치.
-      /* 몸통은 **팩토리를 닮은 3단**(요청): 아래 절두체(벌어짐) + 허리 상자 + 위 절두체(좁아짐).
-         허리 상자 양 옆면에는 톱니가 늘어선다. */
-      ...tagKey(paintBase(frustumFaces3(0, 0.2, 4.6, 3.6, 5.2, 4.2, 1.1, 0.6), "#7e8a9c"), 22 + depthNow(0, 0.2)),
-      ...tagKey(paintBase(boxFaces3(0, 0.2, 5.2, 4.2, 1.2, 1.7), "#7e8a9c"), 22.1 + depthNow(0, 0.2)),
-      ...tagKey(paintBase(frustumFaces3(0, 0.2, 5.2, 4.2, 4.4, 3.4, 1.3, 2.9), "#7e8a9c"), 22.2 + depthNow(0, 0.2)),
-      ...([-1, 1] as const).flatMap((m9): ShapeFace[] => Array.from({ length: 5 }, (_, k9) => {
-        const ty9 = 0.2 - 1.4 + k9 * 0.7;
-        return tagKey(paintBase(boxFaces3(m9 * 2.72, ty9, 0.3, 0.34, 0.55, 2.0), "#c5cad2"),
-          22.15 + depthNow(m9 * 2.72, ty9));
-      }).flat()),
-    ];
-    /* 앞면 방열 격자(사진) — 주황 테 안에 세로살이 촘촘하다. 앞이 보일 때만. */
-    if (facingRatio(0, 1) > 0.12) {
+    const out: ShapeFace[] = [];
+    const K = (x9: number, y9: number, add = 0): number => 22 + depthNow(x9, y9) + add;
+    const DARK = "#383e48";
+    const BODY = "#7e8a9c";
+    // ① 톱니바퀴 받침 — 팔각 판 + 둘레 이 16개.
+    const oct9: [number, number][] = Array.from({ length: 8 }, (_, k9) => {
+      const a9 = (Math.PI / 8) + (k9 / 8) * Math.PI * 2;
+      return [Math.cos(a9) * 3.3, 0.1 + Math.sin(a9) * 3.0];
+    });
+    out.push(...tagKey(paintBase(prismZFaces(oct9, 0, 0.55, true), DARK), 20 + depthNow(0, 0.1)));
+    for (let k9 = 0; k9 < 16; k9 += 1) {
+      const a9 = (k9 / 16) * Math.PI * 2;
+      const cx9 = Math.cos(a9) * 3.25; const cy9 = 0.1 + Math.sin(a9) * 2.95;
+      out.push(...tagKey(paintBase(spirePillar({
+        x: cx9, y: cy9, z0: 0.05, h: 0.45, w: 0.28, tipW: 0.28, segs: 1, sides: 4, hold: 1,
+        ref: [Math.cos(a9), Math.sin(a9), 0], oval: 1.6, caps: "top",
+      }), "#4a515c"), 20.2 + depthNow(cx9, cy9)));
+    }
+    // ② 몸체 상자 + 지붕 한 단.
+    out.push(...tagKey(paintBase(boxFaces3(0, 0.2, 4.4, 3.4, 2.3, 0.55), BODY), K(0, 0.2)));
+    out.push(...tagKey(paintBase(boxFaces3(0.2, -0.1, 3.4, 2.6, 0.35, 2.85), "#6a7484"), K(0.2, -0.1, 0.3)));
+    // ③ 앞면 라디에이터 — 주황 틀 + 세로 살(앞을 볼 때만).
+    if (facingRatio(0, 1) > 0.1) {
       const g: ShapeFace[] = [[polyPath3([
-        [-1.9, 2.31, 1.78], [1.5, 2.31, 1.78], [1.5, 2.31, 2.85], [-1.9, 2.31, 2.85],
+        [-2.0, 1.92, 0.9], [0.4, 1.92, 0.9], [0.4, 1.92, 2.6], [-2.0, 1.92, 2.6],
       ]), 1, "#d2762a"] as ShapeFace];
-      for (let k = 0; k < 11; k += 1) {
-        const gx = -1.72 + k * 0.3;
+      for (let k9 = 0; k9 < 8; k9 += 1) {
+        const gx = -1.82 + k9 * 0.27;
         g.push([polyPath3([
-          [gx, 2.33, 1.88], [gx + 0.16, 2.33, 1.88], [gx + 0.16, 2.33, 2.75], [gx, 2.33, 2.75],
-        ]), 1, "#828e9f"] as ShapeFace);
+          [gx, 1.94, 1.05], [gx + 0.15, 1.94, 1.05], [gx + 0.15, 1.94, 2.45], [gx, 1.94, 2.45],
+        ]), 1, "#8f9aab"] as ShapeFace);
       }
-      out.push(...tagKey(g, 24 + depthNow(0, 2.35)));
-      // 왼쪽 초록 발광 띠 + 노랑·검정 빗금 블록.
-      const side: ShapeFace[] = [[polyPath3([
-        [-2.5, 2.32, 2.45], [-2.05, 2.32, 2.45], [-2.05, 2.32, 2.8], [-2.5, 2.32, 2.8],
-      ]), 1, "#4cd86a"] as ShapeFace];
-      for (let k = 0; k < 4; k += 1) {
-        const u0 = -2.55 + k * 0.32;
-        side.push([polyPath3([
-          [u0, 2.32, 1.85], [u0 + 0.16, 2.32, 1.85],
-          [u0 + 0.38, 2.32, 2.35], [u0 + 0.22, 2.32, 2.35],
-        ]), 1, k % 2 === 0 ? "#e8c33a" : "#21252c"] as ShapeFace);
-      }
-      out.push(...tagKey(side, 24 + depthNow(-2.3, 2.05)));
+      // 앞 왼 모서리 해저드 빗금.
+      g.push(...hazardPanel(-2.15, 1.93, 0.5, 0.7, 0.62, 3));
+      out.push(...tagKey(g, K(0, 1.95, 0.6)));
     }
-    // 지붕 배기관 둘(사진) — 왼뒤에서 곧게 솟는다.
-    for (const [ex, ey, eh] of [[-1.5, -1.2, 2.4], [-0.6, -1.7, 1.9]] as [number, number, number][]) {
-      out.push(...tagKey([
-        ...paintBase(cylinderFaces3(ex, ey, 0.28, eh, 4.2), "#576272"),
-        ...paintBase(cylinderFaces3(ex, ey, 0.42, 0.3, 4.2 + eh - 0.3), "#21252c"),
-        capFace(discPath3(ex, ey, 4.2 + eh, 0.28), 0.45),
-      ], 26 + depthNow(ex, ey)));
-    }
-    /* 오른쪽 누운 드럼(사진) — 밝은 회색 통에 어두운 테 둘. 관 프리미티브라 끝
-       단면이 요잉을 탄다. */
+    // ④ 왼쪽 옆구리 초록등 상자.
     out.push(...tagKey([
-      ...paintBase(tubeFaces(1.3, -1, 3.2, -1, 1.15, 4.0), "#b7bec8"),
-      ...paintBase(tubeFaces(1.6, -1, 1.8, -1, 1.22, 4.0), "#576272"),
-      ...paintBase(tubeFaces(2.7, -1, 2.9, -1, 1.22, 4.0), "#576272"),
-    ], 26 + depthNow(2.2, -1)));
-    /* 본체 색은 테란 기본색이다(요청: "서플라이 본체 색 테란 기본색", "리파이너리
-       아카데미도", "애드온들도") — 이 건물들만 제 회색을 손으로 박아 두고 있어서,
-       커맨드·배럭·팩토리 옆에 서면 혼자 어둡고 칙칙했다. 주 덩이를 raceBase가 칠하는
-       톤(#868d94)으로 맞추고, 어두운 받침·구멍·밝은 은빛 디테일은 그대로 둔다.
-       raceBase로 감싸는 것은 색뿐 아니라 종족별 광택(테란 1.7/1.25)까지 받기 위해서다. */
+      ...paintBase(boxFaces3(-2.45, 0.3, 0.5, 1.4, 0.9, 1.2), "#4a515c"),
+      ...(facingRatio(-1, 0) > 0.1 ? [[polyPath3([
+        [-2.71, -0.2, 1.5], [-2.71, 0.8, 1.5], [-2.71, 0.8, 1.75], [-2.71, -0.2, 1.75],
+      ]), 1, bldLitNow ? "#4cd86a" : "#245c31"] as ShapeFace] : []),
+    ], K(-2.45, 0.3, 0.4)));
+    // ⑤ 굴뚝 둘(왼뒤) — 높이 다름, 꼭대기 어두운 갓.
+    for (const [ex, ey, eh] of [[-1.4, -0.9, 2.6], [-0.5, -1.3, 2.0]] as [number, number, number][]) {
+      out.push(...tagKey([
+        ...paintBase(cylinderFaces3(ex, ey, 0.26, eh, 2.85), "#576272"),
+        ...paintBase(cylinderFaces3(ex, ey, 0.38, 0.28, 2.85 + eh - 0.28), "#21252c"),
+        capFace(discPath3(ex, ey, 2.85 + eh, 0.26), 0.45),
+      ], K(ex, ey, 1.2)));
+    }
+    // ⑥ 오른쪽 위 큰 드럼 — 앞뒤로 누운 관, 양끝에 테.
+    out.push(...tagKey([
+      ...paintBase(tubeFaces(1.55, -1.5, 1.55, 1.3, 0.95, 3.1), "#b7bec8"),
+      ...paintBase(tubeFaces(1.55, 1.0, 1.55, 1.25, 1.02, 3.1), "#576272"),
+      ...paintBase(tubeFaces(1.55, -1.45, 1.55, -1.2, 1.02, 3.1), "#576272"),
+    ], K(1.55, -0.1, 1.0)));
+    // ⑦ 앞 아래 배관 둘 — 몸 앞에서 옆으로 지난다.
+    out.push(...tagKey([
+      ...paintBase(tubeFaces(-1.6, 2.05, 1.9, 2.05, 0.14, 0.78), "#8f9aab"),
+      ...paintBase(tubeFaces(-1.2, 2.2, 2.1, 2.2, 0.11, 0.6), "#6a7484"),
+    ], K(0, 2.1, 0.7)));
     return raceBase(out, "terran");
   },
-  /* 컨트롤 타워(재모델링·사진) — 붉은 치마를 두른 원뿔 관제탑에 노랑·검정 빗금 띠가
-     감기고, 꼭대기 드럼 위에 접시 안테나가 앉는다. 오른쪽에는 초록 등을 인 격자
-     철탑이 따로 서고, 발치에 작은 붉은 드럼이 놓인다. */
   ctower: () => {
     const out: ShapeFace[] = [
       // 받침 슬래브는 중심 깊이만(지적: 받침 판과 탑 순서가 요잉 따라 어긋남).
@@ -20663,7 +20669,7 @@ export const BLD_NORM: Record<string, number> = {
   mineral: 1.678,
   mineralb: 1.264,
   mineralc: 1.583,
-  mshop: 1.349,  // 3단 몸통 뒤 재측정(bld-norm)
+  mshop: 1.513,  // 사진 재작도 뒤 재측정(bld-norm)
   nsilo: 1.354,
   nydus: 1.184,
   observatory: 1.650,
