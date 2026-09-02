@@ -11925,12 +11925,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
             /* 위팔은 **八자로 벌어진다**(재요청) — 뿌리에서 앞·바깥으로 계속 나가 끝이 x 3.1.
                뿌리 굵기 0.7 → 0.5. 바깥쪽에는 삼각 **날개막**(뿌리 뒤·끝·바깥 뒤 세 점)이 붙는다. */
             // 안쪽으로 더 모으고(x 0.8배) 팔을 굴려 날개막이 살짝 아래를 본다(재요청) — 바깥 꼭짓점 z 5.7 → 5.25.
-            ...armHorn([m8 * 1.2, -0.6, 5.9], [m8 * 2.0, 1.0, 5.6], [m8 * 2.5, 3.0, 5.35],
+            // 한 번 더 안쪽으로(x 0.82배)·더 굴림(재요청): 바깥 꼭짓점 z 5.25 → 4.9.
+            ...armHorn([m8 * 1.0, -0.6, 5.9], [m8 * 1.65, 1.0, 5.55], [m8 * 2.05, 3.0, 5.3],
               0.5, 0.16),
             ...tagKey(((): ShapeFace[] => {
-              const d9 = polyPath3([[m8 * 1.35, -0.9, 5.85], [m8 * 2.45, 2.9, 5.35], [m8 * 3.0, -0.4, 5.25]]);
+              const d9 = polyPath3([[m8 * 1.15, -0.9, 5.85], [m8 * 2.0, 2.9, 5.3], [m8 * 2.55, -0.4, 4.9]]);
               return [[d9, 1, "#d4af37"] as ShapeFace, topFace(d9, 0.18)];
-            })(), partKey(m8 * 2.3, 0.5, 5.55) + 0.05),
+            })(), partKey(m8 * 1.9, 0.5, 5.4) + 0.05),
             /* 위팔 끝의 **누운 계란** 플라즈마 덩이(요청) — 팔 끝 **안쪽**에 더 작게 붙고,
                옆(x)으로 납작하며 앞뒤로 길다(재요청). 뒤가 굵고 앞이 조금 좁은 계란
                옆선을 widthOf로, 옆 납작함은 oval로 준다. 색은 흰빛 도는 푸른 플라즈마. */
@@ -11938,12 +11939,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
               // 다시 90° 피칭·2배(재요청): 앞뒤(y)로 누운 길이 0.84, 반지름 0.2(widthOf는 절대 반지름).
               x: 0, y: 0, h: 1, segs: 6, sides: 8, w: 0.2, tipW: 0.2, caps: "none", trueNormal: true,
               oval: 0.55, ref: [0, 0, 1],
-              path: (t9: number): [number, number, number] => [m8 * 2.15, 2.5 + 0.84 * t9, 5.35],
+              path: (t9: number): [number, number, number] => [m8 * 1.75, 2.5 + 0.84 * t9, 5.3],
               widthOf: (t9: number): number => {
                 const u9 = 2 * t9 - 1;
                 return 0.2 * Math.sqrt(Math.max(0, 1 - u9 * u9)) * (1 - 0.18 * u9);
               },
-            }), "#cfe9ff"), partKey(m8 * 2.15, 2.9, 5.35) + 0.3),
+            }), "#cfe9ff"), partKey(m8 * 1.75, 2.9, 5.3) + 0.3),
             /* ★ 걸림쇠는 **안쪽에서 뒤를 향한 미늘**이다(지적: "팔끝 돌출부품은 바깥쪽이
                아닌 안쪽으로 이동 / 낚시바늘 끝같은 느낌으로 안쪽에서 뒤를 향한 가시") ────
                앞판은 뿌리에서 **바깥·앞**으로 뻗었다 — 팔이 이미 바깥으로 휘는데 그 끝에서
@@ -11952,9 +11953,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
                것이 안 빠지게 하는 방향이다. 그래서 안(−m8)과 뒤(−y)로 눕힌다.
                뿌리는 팔 곡선 위의 t 0.85 자리를 그대로 쓴다(끝에서 조금 못 미친 자리).
                휨(bow)은 바깥·앞을 향하게 두어 미늘의 배가 볼록하고 끝이 안으로 말린다. */
-            ...tagKey(spikeHorn(m8 * 2.33, 2.41, 5.4, m8 * 2.0, 1.65, 5.35, 0.32,
+            ...tagKey(spikeHorn(m8 * 1.9, 2.41, 5.35, m8 * 1.62, 1.65, 5.3, 0.32,
               "#d4af37", 5, 0.12, m8 * 0.6, 0.5),
-            partKey(m8 * 2.15, 2.0, 5.38) + 0.1),
+            partKey(m8 * 1.75, 2.0, 5.33) + 0.1),
           ]),
           /* 하단 팔 하나 — 몸 밑에서 가파르게 아래·앞으로 떨어졌다가 끝이 위로 말린다.
              역시 마디 없는 한 뿔이다. */
@@ -12706,7 +12707,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const lowWing = (m2: 1 | -1): ShapeFace[] => tagKey(paintBase(spirePillar({
       x: 0, y: 0, h: 1, w: 1, segs: 4, sides: 8, ref: [0, 1, 0], caps: "both", oval: 0.3, trueNormal: true,
       path: (t: number): [number, number, number] => [
-        m2 * (ARB_LOW_X + 0.75 * t), 0.4 - 0.95 * t, 5.68 - 0.6 * t,
+        // 뒤로 갈수록 덜 벌어진다(재지적): 바깥 0.75 → 0.32, 대신 뒤로 조금 더(0.95 → 1.1).
+        m2 * (ARB_LOW_X + 0.32 * t), 0.4 - 1.1 * t, 5.68 - 0.6 * t,
       ],
       // 시위를 반 넘게 줄여 얇상하게(재지적): 0.62 → 0.26.
       widthOf: (t: number): number => 0.26 * (1 - 0.5 * t),
@@ -17617,17 +17619,18 @@ SHAPE_BUILDERS.interceptor = () => {
        벽 원반이라 요잉을 타고 저절로 납작해진다. */
     ...(facingRatio(0, -1) > 0.05
       ? tagKey([
-        [wallDiscPath(m * 1.15, -1.58, Z9, 0.44, 0.36), 0.95, GLOW9] as ShapeFace,
-        [wallDiscPath(m * 1.15, -1.62, Z9, 0.24, 0.2), 1, "#eaf7ff"] as ShapeFace,
-      ], depthNow(m * 1.15, -1.7))
+        // 단면(y −1.55)에 **정확히** 붙인다(재지적) — 앞뒤 순서는 키가 가른다.
+        [wallDiscPath(m * 1.15, -1.55, Z9, 0.44, 0.36), 0.95, GLOW9] as ShapeFace,
+        [wallDiscPath(m * 1.15, -1.55, Z9, 0.24, 0.2), 1, "#eaf7ff"] as ShapeFace,
+      ], depthNow(m * 1.15, -1.7) + 0.3)
       : []),
     /* 앞끝 에너지도 **동체 단면의 데칼**(재지적: 방추·판 말고) — 통 앞 단면에 붙인 벽 원반. */
     ...(facingRatio(0, 1) > 0.05
       ? tagKey([
         // 통 앞끝은 y 1.3(prismYFaces의 셋째 인자는 길이다) — 그 단면 바로 앞.
-        [wallDiscPath(m * 1.15, 1.33, Z9, 0.44, 0.36), 0.95, "#7fffe6"] as ShapeFace,
-        [wallDiscPath(m * 1.15, 1.37, Z9, 0.24, 0.2), 1, "#eaf7ff"] as ShapeFace,
-      ], depthNow(m * 1.15, 1.45))
+        [wallDiscPath(m * 1.15, 1.3, Z9, 0.44, 0.36), 0.95, "#7fffe6"] as ShapeFace,
+        [wallDiscPath(m * 1.15, 1.3, Z9, 0.24, 0.2), 1, "#eaf7ff"] as ShapeFace,
+      ], depthNow(m * 1.15, 1.45) + 0.3)
       : []),
     /* 양 동체 바깥의 **아주 작은 사다리꼴 날개**(요청) — 통 옆구리에서 바깥으로 짧게. */
     ...((): ShapeFace[] => {
@@ -17648,14 +17651,9 @@ SHAPE_BUILDERS.interceptor = () => {
     ...paintBase(spirePillar({
       x: 0, y: 0, h: 1, w: 1, segs: 6, sides: 10, ref: [1, 0, 0], caps: "both", oval: 0.75, trueNormal: true,
       path: (t9: number): [number, number, number] => [0, -1.35 + 2.5 * t9, Z9 + 0.3],
-      widthOf: (t9: number): number => 0.52 * Math.sin(Math.PI * (0.1 + 0.8 * t9)) ** 0.6 + 0.04,
+      widthOf: (t9: number): number => 0.66 * Math.sin(Math.PI * (0.1 + 0.8 * t9)) ** 0.6 + 0.04,
     }), GOLD9),
-    /* 가운데 몸과 양 통을 잇는 **넓적한 판**(재요청) — 앞에서 뒤까지 쭉 이어지는 얇은 널.
-       (옛 뒤 팔 한 쌍은 이것으로 갈음.) */
-    ...([1, -1] as const).flatMap((m9) => paintBase(prismZFaces([
-      // 통 길이(−1.55~1.3) 안에 든다 — 앞으로 삐져나온 판이 '앞쪽 이상한 판'이었다(재지적).
-      [m9 * 0.3, -1.35], [m9 * 1.15, -1.35], [m9 * 1.15, 1.1], [m9 * 0.3, 1.1],
-    ], Z9 - 0.09, 0.18, true), GOLD9)),
+    // (걷어냄) 잇는 판 — 재지적: 가운데 몸이 양 통에 **직접** 닿는다(반폭 0.52 → 0.66, 통 안쪽 면 x 0.53 속으로).
     /* ── 앞 포신(사진: 가운데 아래에서 앞으로 튀어나온 짧은 포구) — 몸 밑에서 앞으로
        뻗는다. 인터셉터가 무엇으로 쏘는지가 이 하나로 읽힌다. */
     /* ★ (걷어냄) 가운데 포신 — 몸통 코앞으로 뻗던 가는 팔각 막대와 그 끝의 검은 포구다
@@ -18372,7 +18370,7 @@ const MODEL_NORM: Record<string, number> = {
   bc: 0.654,
   burrowhole: 0.832,
   carrier: 0.695,
-  corsair: 1.122,  // 재측정(model-norm)
+  corsair: 1.203,  // 재측정(model-norm)
   darchon: 0.496,
   defiler: 0.687,
   devourer: 0.805,
