@@ -18704,10 +18704,11 @@ const SIZE_REF = gmOf(Object.values(UNIT_BW_TILES));
  *      내구(250 / 350+150)와 인구(4 / 8) 순으로 벌렸다. **폭은 임의다.** */
 const UNIT_SIZE_TUNE: Record<string, number> = {   // 열쇠는 sizeKind(메딕처럼 원작 치수표에 없는 종류도 받는다)
   /* 도록 크기 보정 페이지(?cal)에서 실측해 준 배수(요청). */
-  archon: 1.2, darchon: 1.2, corsair: 0.8, interceptor: 0.8, larva: 0.6, egg: 0.6,
-  muta: 0.8, scourge: 0.6, ultra: 1.2, guardian: 0.8, lurkeregg: 0.6, mutacocoon: 0.8,
-  observer: 0.4,   // 빠뜨렸던 것(재요청)
-  gunner: 0.8, inf: 0.8, fbat: 0.8, ghost: 0.8, htemp: 0.8,   // 재요청(마린·메딕(inf)·파뱃·고스트·하템)
+  archon: 1.2, darchon: 1.2, corsair: 0.8, interceptor: 0.8, larva: 0.4, egg: 0.4,
+  muta: 0.8, scourge: 0.6, ultra: 1.4, guardian: 0.8, lurkeregg: 0.6, mutacocoon: 0.8,
+  observer: 0.8,
+  gunner: 0.8, inf: 0.8, fbat: 0.8, ghost: 0.8, htemp: 0.6, dtemp: 0.8,   // 마린·메딕(inf)·파뱃·고스트·하템·다템
+  scv: 0.8, probe: 0.8, drone: 0.8,   // 일꾼류
   /* (전부 걷음 — 요청: "유닛 크기 보정 모두 제거") — 일꾼·보병 0.68, 메딕 0.612,
      질럿 0.85, 템플러 0.808, 커세어 0.85, 마인 0.53, 옵저버 0.17, 스커지 0.7,
      시즈 1.257, 아콘 1.35, 아비터·디파일러 1.2, 울트라 1.5, 라바·알 0.5, 오버로드
@@ -20475,7 +20476,8 @@ const BLD_DRAW_K = 1.2;
 const BLD_DRAW_TUNE: Record<string, number> = {
   spire: 1.2, gspire: 1.2,
   // 도록 크기 보정 페이지(?cal)에서 실측해 준 배수(요청).
-  turret: 1.4, comsat: 0.6, diamond: 1.4, coil: 1.2, forge: 0.8, dome: 0.8, robobay: 1.2,
+  // 터렛·포톤캐논(coil)·로보틱스(dome)는 1.0으로 되돌려 표에서 뺐다(재요청).
+  comsat: 0.6, diamond: 1.2, forge: 0.8, robobay: 1.2,
   tribunal: 0.8, creep: 1.2, sunken: 1.2, spore: 1.2, queensnest: 1.2, cavern: 1.4,
 };
 /** 공중은 늘 위층 — 지상 z가 아무리 커도(맵 256타일 × Z_TILE) 못 넘는 값이어야 한다. */
