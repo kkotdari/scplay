@@ -6804,8 +6804,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        (자리·기울기는 아래 기둥 루프가 그대로 다시 셈한다 — 같은 값이어야 붙는다.) */
     /* 굴뚝은 **셋**(재지적): 앞 양옆 둘(기운 채)과 **뒤 가운데 큰 것 하나**(k 1.45배).
        가스는 세 곳에서 다 오르되 가운데가 가장 크다. */
+    /* 굴뚝 셋은 **앞뒤로 긴 둥근네모 기둥**이고 기울지 않고 수직으로 선다(재지적).
+       앞 둘은 1.15배, 뒤 가운데는 1.45배. */
     const CHIM9: [number, number, number, number, number][] = [
-      [-2.7, 1.5, 2.2, -1, 1], [2.7, 1.5, 2.2, 1, 1], [0, -2.3, 3.6, 0, 1.45],
+      [-2.7, 1.5, 2.4, 0, 1.15], [2.7, 1.5, 2.4, 0, 1.15], [0, -2.3, 3.6, 0, 1.45],
     ];
     CHIM9.forEach(([px, py, ph, lean, k9]) => {
       const wx9 = px + lean * 0.72;
@@ -6829,8 +6831,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        가스는 세 곳에서 다 오르되 가운데가 가장 크다. */
     CHIM9.forEach(([px, py, ph, lean, k9]) => {
       out.push(...tagKey(paintBase(spirePillar({
-        x: px, y: py, z0: 0.3, h: ph, w: 0.55 * k9, tipW: 0.42 * k9,
-        segs: 3, sides: 6, hold: 0.3, leanX: lean * 0.9, leanY: lean === 0 ? 0 : 0.4,
+        // 둥근네모 단면(팔각)을 앞뒤(y)로 1.6배 늘리고, 굵기 변화·기울기 없이 수직으로.
+        x: px, y: py, z0: 0.3, h: ph, w: 0.5 * k9, tipW: 0.5 * k9, oval: 1.6, ref: [1, 0, 0],
+        segs: 2, sides: 8, hold: 1, leanX: lean * 0, leanY: 0,
       }), GOLD), 10 + depthNow(px, py) * 1.6));
       /* 굴뚝 띠는 개인색이다(요청: "굴뚝들 녹색데칼 개인색으로 변경") — 색을 안 주면
          임자 색이 들므로 pc에 담는다(out은 밑칠이 통째로 금빛을 덮어쓴다). */
@@ -20445,7 +20448,7 @@ export const BLD_NORM: Record<string, number> = {
   arch: 2.584,  // 십자 방패판 재작도 뒤 재측정(bld-norm)
   archives: 2.489,  // 상자 상한에 걸림
   armory: 1.223,
-  assim: 1.556,  // 굴뚝 셋 재배치 뒤 재측정(bld-norm)
+  assim: 1.637,  // 수직 둥근네모 굴뚝 뒤 재측정(bld-norm)
   cavern: 1.082,
   citadel: 2.225,
   cocoon: 2.018,
