@@ -1990,7 +1990,7 @@ function quarterDome(
   }
   return fill ? paintBase(out, fill) : out;
 }
-function suitPauldron(m: 1 | -1, g: number, fill?: string): ShapeFace[] {
+function suitPauldron(m: 1 | -1, g: number, fill?: string, plain = false): ShapeFace[] {
   /* 색을 받으면 그 색으로 칠하고(요청: "마린 어깨 무릎 보호구 은색"), 안 받으면
      여태처럼 임자 색에 흰 기를 섞는다(paleTeam) — 매딕·파뱃·고스트는 그대로다. */
   /* ★ 어깨판은 **반구의 윗 반**이다(지적: "이제보니 고치 모양인데 그게 아니라 자연스러운
@@ -2027,7 +2027,7 @@ function suitPauldron(m: 1 | -1, g: number, fill?: string): ShapeFace[] {
     quarterDome(m * 0.66 * g, -0.12, suitShoulderZ(), 0.846 * g, m, 0, undefined, 0.14, 0.82),
     depthNow(m * 1.1 * g, -0.12) * 1.6 + 1.4,
   );
-  return fill ? paintBase(f9, fill) : paleTeam(f9, 0.26);
+  return fill ? paintBase(f9, fill) : plain ? f9 : paleTeam(f9, 0.26);   // plain: 임자색 그대로(마린)
 }
 /** 보병 팔 한 짝 — **상완 → 하완 → 손등 → 손가락**이 한 사슬로 이어진다(요청).
  *
@@ -10412,7 +10412,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          등진 옆벽의 법선이 아래로 기울어 '보이는 벽'으로 잘못 남아, 몸 뒤 포드의 속벽이
          비쳤다. */
       out.push(...tagKey(boxFaces3(px, py, 1.54, 2.5, 1.15, 4.85), key));
-      out.push(...tagKey(frustumFaces3(px, py, 1.54, 2.5, 1.16, 1.98, 0.75, 6.0), key + 0.1));
+      out.push(...tagKey(boxFaces3(px, py, 1.4, 2.3, 0.75, 6.0), key + 0.1));   // 상완 위 마디도 곧은 상자(재지적: 어깨 너머 비침)
       // 바깥 옆구리의 세로 갈비 — 포드가 판이 아니라 상자로 보이게 하는 한 줄.
       out.push(...tagKey(paintBase(
         boxFaces3(px + m * 0.76, py, 0.14, 2.0, 0.62, 5.2), STEEL,
@@ -10858,12 +10858,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     if (facingRatio(0, 1) > -0.05) {
       const k9 = Math.min(1, (facingRatio(0, 1) + 0.05) / 0.4);
       out.push(...tagKey([
-        [wallDiscPath(0, 4.93, 5.8, 0.78, 0.62), 0.55 * k9, "#3d4653"] as ShapeFace,
-        topFace(wallDiscPath(0, 4.93, 5.8, 0.55, 0.44), 0.2 * k9),
-        capFace(wallDiscPath(0, 4.93, 5.8, 0.36, 0.28), 0.62 * k9),
-        // 포문 위 작은 홈 한 쌍 — 사진의 앞면 그리블. 벽 데칼이라 요잉을 함께 탄다.
-        [wallDiscPath(-0.95, 4.93, 6.25, 0.2, 0.16), 0.45 * k9, "#3d4653"] as ShapeFace,
-        [wallDiscPath(0.95, 4.93, 6.25, 0.2, 0.16), 0.45 * k9, "#3d4653"] as ShapeFace,
+        // 야마토 포구 축소(요청) 0.78 → 0.56 · 포문 위 작은 점 둘은 제거(요청)
+        [wallDiscPath(0, 4.93, 5.8, 0.56, 0.45), 0.55 * k9, "#3d4653"] as ShapeFace,
+        topFace(wallDiscPath(0, 4.93, 5.8, 0.4, 0.32), 0.2 * k9),
+        capFace(wallDiscPath(0, 4.93, 5.8, 0.26, 0.2), 0.62 * k9),
       ], key9(0, 4.95, 5.8) + 0.8));
     }
     return zsorted(out);
@@ -10954,8 +10952,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          거기서 코끝(3.5)까지 급히(6.05→5.36). 양옆 마디를 y 2.8에 하나 더 둔다. */
       [[-BW * 1.1, 1.7, Z(5.15)], [BW * 1.1, 1.7, Z(5.15)], [1.588, 2.8, Z(5.193)], [1.045, 3.5, Z(5.22)],
         [-1.045, 3.5, Z(5.22)], [-1.588, 2.8, Z(5.193)]],   // 중간 마디 폭 +20%
-      [[-1.265, 1.7, Z(6.41)], [1.265, 1.7, Z(6.41)], [1.034, 2.8, Z(6.05)], [0.605, 3.5, Z(5.364)],
-        [-0.605, 3.5, Z(5.364)], [-1.034, 2.8, Z(6.05)]],
+      // 높이 10% 축소(재요청): 밑 1.26→1.134 · 무릎 0.857→0.771 · 끝 0.144→0.13
+      [[-1.265, 1.7, Z(6.284)], [1.265, 1.7, Z(6.284)], [1.034, 2.8, Z(5.964)], [0.605, 3.5, Z(5.35)],
+        [-0.605, 3.5, Z(5.35)], [-1.034, 2.8, Z(5.964)]],
       0, 2.6), "terran"), key9(0, 2.6, Z(5.45))));
 
     /* 중간동체 양옆의 **노출 포신 둘**(재지적: 포드가 아니라 포신) — 상자 옆구리를 따라
@@ -11120,7 +11119,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           // 위아래 20% 축소(재요청): 반길이 3.74 → 2.99. 휨은 더(0.6 → 0.9).
           // 20% 축소(재요청): 반길이 2.99 → 2.39, 반폭 1.29 → 1.03.
           const v9 = -2.39 + 4.78 * t;
-          const rad = 2.22 - 0.9 * (v9 / 2.39) ** 2;
+          const rad = 2.22 - 1.3 * (v9 / 2.39) ** 2;   // 더 호로(요청) 0.9 → 1.3
           return [dxs * rad, dys * rad, 6.9 + v9];
         },
         waist: 0.5, thick: 0.13, spread: 1.03 / 0.13,
@@ -12690,8 +12689,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     if (facingRatio(0, 1) > 0.02) {
       const k9 = Math.min(1, facingRatio(0, 1) / 0.35);
       out.push(...tagKey([
-        [wallDiscPath(0, 1.46, CZ9, 0.36, 0.32), 0.95 * k9, "#2fd66a"] as ShapeFace,
-        [wallDiscPath(0, 1.47, CZ9, 0.17, 0.15), 0.95 * k9, "#d8ffe6"] as ShapeFace,
+        // 렌즈는 관의 축 높이(z + r×0.45)에(재지적: 좀 아래 붙어 있음).
+        [wallDiscPath(0, 1.46, CZ9 + 0.2, 0.36, 0.32), 0.95 * k9, "#2fd66a"] as ShapeFace,
+        [wallDiscPath(0, 1.47, CZ9 + 0.2, 0.17, 0.15), 0.95 * k9, "#d8ffe6"] as ShapeFace,
       ], partKey(0, 1.5, CZ9) + 0.6));
     }
     /* ④ 잎날 셋 — 120도씩. 얇은 판이라 축을 뻗는 방향으로 눕히고 단면 기준(ref)을 그
@@ -13886,7 +13886,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         depthNow((ax9 + bx9) / 2, (ay9 + by9) / 2) * 1.6 + 1.45));
         // 옆면 낱장 둘 — 제 법선이 시점을 향할 때만.
         for (const sg9 of [1, -1] as const) {
-          if (facingRatio(nx9 * sg9, ny9 * sg9) < 0.1) continue;
+          // 시점 문을 걷는다(재요청: 끊기는 부분 없이 한 바퀴) — 등진 벽은 팔이 덮는다.
           const ox9 = nx9 * sg9 * H9;
           const oy9 = ny9 * sg9 * H9;
           out9.push(...tagKey([[polyPath3([
@@ -13901,8 +13901,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 하완이 중장비 팔의 규칙이다.
       out.push(...tagKey(prism(0.46, 1, 0.62, STEEL), depthNow(u1, v1) * 1.6 + key + 0.1));
       // 개인색 낱장 데칼 두 자리(위 armDecal 주석).
-      out.push(...armDecal(0.56, 0.66));
-      out.push(...armDecal(0.8, 0.9));
+      out.push(...armDecal(0.64, 0.78));   // 띠 한 줄(재요청: 둘 → 하나)
     }
     /* 왼팔 드릴(사진) — 굵은 원뿔에 나선 마디 셋을 둘러 드릴로 읽히게 한다. */
     /* 드릴·집게는 **안 나르는 손**의 것이다 — 나르는 중에는 두 팔이 화물 옆구리를
@@ -14417,8 +14416,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ...suitBelt(1, undefined, 1.28, SUIT_TROOPER.oval, SUIT_TROOPER.chest),
       ...paintBase(suitNeck(1), SUIT_SILVER),
       // 어깨판 — 색을 안 넘기면 paleTeam으로 든다(임자 색의 한 단 밝은 판).
-      ...suitPauldron(-1, 1),
-      ...suitPauldron(1, 1),
+      ...suitPauldron(-1, 1, undefined, true),   // 임자색 흐리지 않게(요청)
+      ...suitPauldron(1, 1, undefined, true),
       // 헬멧 — 1.4배(요청: "마린 파뱃 헬멧 크기 1.4배"). 0.65 → 0.91.
       // 헬멧도 뒤로(지적) — 목 위에 얹힌 것이 아니라 앞으로 내민 꼴이었다.
       /* 헬멧은 **작고 낮다**(사진) — 어깨판이 커지면서 머리는 그 사이에 파묻히듯
@@ -15080,7 +15079,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        위로 삐지지 않게'였고, 그 후드가 이제 없다. */
     ...tagKey(protossFace(P_SKIN, 0), depthNow(0, 0.4) * 1.6 + 0.7),
     // 왼팔 두 마디 — 금색.
-    ...paintBase(pLimb([-1.05, -0.15 + armY(-1), 5.65], [-1.5, 0.4 + armY(-1), 4.55], 0.5), DK9),
+    ...paintBase(pLimb([-0.95, -0.1 + armY(-1) * 0.5, 5.85], [-1.5, 0.4 + armY(-1), 4.55], 0.5), DK9),   // 어깨에 붙임(재지적)
     ...paintBase(pLimb([-1.5, 0.4 + armY(-1), 4.55], [-1.1, 1.2 + armY(-1), 3.7], 0.45), DK9),
     /* 왼손 — 하이템플러식 큰 손: 흰 손바닥 + 긴 손가락 셋. */
     ...paintBase([
@@ -15164,8 +15163,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 얼굴 — 공통 턱주가리(요청). 정수리 뿔·뒤 장식 뿔은 제거.
       ...tagKey(protossFace(P_SKIN, L), depthNow(0, 0.4) * 1.6 + 0.7),
       // 어깨 갑옷 한 쌍 — 개인색.
-      ...domeFaces3(-1.15, -0.25, 0.55, 0.45, 5.8 + L),
-      ...domeFaces3(1.15, -0.25, 0.55, 0.45, 5.8 + L),
+      /* 어깨판(재요청) — 반구 대신 끝이 뾰족하고 살짝 위로 솟는 판. 몸에서 바깥·위로
+         뻗는 납작한 뿔(spikeHorn)로 낸다. */
+      ...([-1, 1] as const).flatMap((m9) => spikeHorn(
+        m9 * 0.75, -0.25, 5.75 + L, m9 * 1.95, -0.3, 6.25 + L, 0.62, undefined, 4, 0.1,
+      )),
       /* 등 뒤 케이다린 활 고리(사진 하이템플러1) — 어깨 뒤에서 머리 위로 솟는 굽은
          호 한 쌍이 파랗게 빛난다. 하템을 하템으로 알아보게 하는 실루엣이다. */
       /* ★ 케이다린 활을 **머리 위를 넘는 한 아치**로(요청: 샘플 대조 재작도) ──────────
@@ -15175,19 +15177,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          절반씩 둘로 짜서 꼭대기에서 만나게 한다 — 대칭이 저절로 맞고, 어느 각도에서
          굽든 두 쪽의 깊이가 따로 판정돼 앞뒤가 갈린다. 밑동을 굵게(0.14 → 0.24) 하고
          끝(꼭대기)은 가늘게 둔다. */
-      ...([-1, 1] as const).flatMap((m9) => tagKey(paintBase(spirePillar({
-        x: 0, y: 0, h: 1, w: 0.24, tipW: 0.13, segs: 8, sides: 5, caps: "none",
-        path: (t9: number): [number, number, number] => {
-          const u9 = 1 - t9;
-          const bz = (p0: number, c1: number, c2: number, p3: number): number =>
-            u9 * u9 * u9 * p0 + 3 * u9 * u9 * t9 * c1 + 3 * u9 * t9 * t9 * c2 + t9 * t9 * t9 * p3;
-          return [
-            m9 * bz(1.3, 1.85, 1.15, 0.04),
-            bz(-0.6, -1.0, -1.0, -0.72),
-            5.5 + L + bz(0, 2.6, 4.5, 4.35),
-          ];
-        },
-      }), "#c2ecff"), depthNow(m9 * 1.3, -0.85) * 1.6 + 2)),
+      // (걷어냄) 어깨에서 머리 위를 넘던 파란 활 — 요청: 어깨 뿔 제거.
       /* ★ 등 뒤 망토(샘플 하이템플러1·3) — 어깨에서 무릎께까지 흐르는 넓은 천 두 폭.
          개인색이다(칠하지 않는다): 샘플 3의 파란 망토가 그 자리이고, 하템은 몸이 가늘어
          이 천이 없으면 실루엣이 막대에 가깝다. 두 폭이 등 가운데에서 만나 V로 벌어지고,
@@ -18217,11 +18207,11 @@ const MODEL_NORM: Record<string, number> = {
   egg: 1.237,   // 정수리를 둥글게 한 뒤 model-norm 재측정
   fbat: 1.233,
   ghost: 1.552,  // 상자 상한(원한 배수 1.723)
-  goliath: 0.672,
+  goliath: 0.671,
   goon: 0.667,
   guardian: 0.611,
   gunner: 1.402,  // 어깨판 10% 축소 뒤 model-norm 재측정
-  htemp: 1.217,
+  htemp: 1.233,   // 어깨판 재작 뒤 재측정(model-norm)
   hydra: 0.685,
   inf: 1.514,  // 상자 상한(원한 배수 1.615)
   interceptor: 1.606,
@@ -18258,8 +18248,8 @@ const MODEL_NORM: Record<string, number> = {
   tanksiege: 0.723,
   tanksiegebody: 0.723,
   ultra: 0.361,
-  valk: 0.838,   // 짧은 뒷동체·굵은 포신 뒤 재측정(model-norm)
-  vessel: 0.882,  // 방패 20% 축소 뒤 재측정(model-norm)
+  valk: 0.840,   // 앞동체 −10% 뒤 재측정(model-norm)
+  vessel: 0.897,  // 방패 더 휨 뒤 재측정(model-norm)
   vulture: 0.828,
   wraith: 0.774,
   zealot: 0.799,
