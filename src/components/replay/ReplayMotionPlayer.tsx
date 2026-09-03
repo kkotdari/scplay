@@ -18983,7 +18983,13 @@ function sharpenPlate9(cv: HTMLCanvasElement): void {
  *  이 마스크에 흰색(음영 알파 그대로)으로 굽되, 화가 순서상 그 **위**에 오는 고정색 면은 destination-out으로 파낸다
  *  (가림 순서가 그대로 산다 — 옛 주석의 "층을 둘로 가르면 가림이 깨진다"는 이 파내기로 푼다). 그릴 때 임자 색으로
  *  source-in 물들여 몸판 위에 얹는다. 판 가짓수가 임자 수분의 1이 된다. */
-type TintPlate9 = { cv: HTMLCanvasElement; ox: number; oy: number; /** 색별로 물들인 마스크(한 번 만들어 되쓴다) */ by?: Map<string, HTMLCanvasElement> };
+type TintPlate9 = {
+  cv: HTMLCanvasElement; ox: number; oy: number;
+  /** 몸판이 광택(silhouetteLight)을 받았나 — 물들인 마스크에도 같은 광택을 얹는다(지적: 포톤 톱니 임자색이 흐림). */
+  gloss: boolean;
+  /** 색별로 물들인 마스크(한 번 만들어 되쓴다) */
+  by?: Map<string, HTMLCanvasElement>;
+};
 /** 한 마스크가 드는 색별 물들인 판의 상한 — 8인전이면 여덟 벌이다(마스크는 몸판보다 훨씬 작다). */
 const TINT_BY_MAX9 = 8;
 /** 마스크의 물들인 판을 전부 놓는다(쫓아낼 때) — 바이트 합을 돌려준다. */
@@ -19017,6 +19023,8 @@ const tintedOf9 = (tn: TintPlate9, color: string): HTMLCanvasElement | null => {
   tc.globalCompositeOperation = "source-in";
   tc.fillStyle = color;
   tc.fillRect(0, 0, w, h);
+  // 몸판과 같은 광택 — 옛 굽기에서는 임자 면도 이 그러데이션(왼위 밝게·오른아래 어둡게)을 받았다.
+  if (tn.gloss) silhouetteLight(tc, cv);
   if (!tn.by) tn.by = new Map();
   if (tn.by.size >= TINT_BY_MAX9) {
     const first = tn.by.keys().next();
@@ -19187,7 +19195,7 @@ function unitSprite(
   let tint: TintPlate9 | null = null;
   if (tintCv9 && maskBox9 && maskBox9.w > 1) {
     const mcr = cropToInk(tintCv9, maskBox9, true);
-    tint = { cv: mcr.cv, ox: mcr.ox, oy: mcr.oy };
+    tint = { cv: mcr.cv, ox: mcr.ox, oy: mcr.oy, gloss: lod >= 3 };
   }
   /* 자르고 난 **원판**은 빌림터로 돌려준다(위 ★) — 다음 굽기가 같은 한 변이면 그대로
      되쓰고, 아니면 빌림터가 알아서 놓는다. 여기서 통째로 버리던 것이 봉우리의 몫이었다. */

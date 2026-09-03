@@ -466,6 +466,11 @@ if (has("--msgsize")) {
             st.fOps += m.n || 0; if (m.fog) st.fFog = (st.fFog || 0) + 1;
             st.fMax = Math.max(st.fMax, json + m.buf.byteLength + fog);
             (st.fr ||= []).push([Math.round(performance.now()), m.t, m.cur]);
+            if (m.fog && m.fog.explored && (st.fogs ||= []).length < 8) {
+              const ex = m.fog.explored; let seen = 0; for (let i = 0; i < ex.length; i += 1) if (ex[i] !== 65535) seen += 1;
+              const vs = m.fog.visSrc; let lit = 0; for (let i = 0; i < vs.length; i += 1) if (vs[i] > 0) lit += 1;
+              st.fogs.push(`${(performance.now() / 1000).toFixed(1)}s t${m.t.toFixed(1)} 본곳 ${(100 * seen / ex.length).toFixed(0)}% 밝음 ${(100 * lit / Math.max(1, vs.length)).toFixed(0)}%`);
+            }
           }
           fn(ev);
         });
@@ -1309,6 +1314,7 @@ if (has("--msgsize")) {
     const mb = (n) => `${(n / 1048576).toFixed(1)}MB`;
     return `참값 ${mb(b.truth)} · 파생 ${mb(b.world)} · 상위: ${(b.top || []).map(([k, v]) => `${k} ${mb(v)}`).join(" · ")}`;
   }));
+  console.log("[안개]", await page.evaluate(() => ((window.__msgStat || {}).fogs || []).join(" · ")));
   console.log("[시계]", await page.evaluate(() => {
     const st = window.__msgStat; if (!st || !st.cmds) return "없음";
     const cmds = st.cmds.slice(-6).map(([w, t0, p, sp]) => `${(w / 1000).toFixed(1)}s→t0 ${t0.toFixed(2)}${p ? "" : "(정지)"}×${sp}`).join(" · ");

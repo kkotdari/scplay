@@ -210,7 +210,8 @@ const deriveNow = (): void => {
     bytes = { truth: bTruth, world: bWorld, typed, top: per.slice(0, 8) };
   } catch { bytes = undefined; }
   post({ type: "ready", bytes });
-  post({ type: "worldui", ui: pickWorldUi9(world) });
+  // hasEnts: 개체 있는 세계인가 — 메인은 이것이 참일 때만 안개를 켠다(참값 오기 전의 빈 세계 장은 '본 곳 0%'라 새까맣다).
+  post({ type: "worldui", ui: pickWorldUi9(world), hasEnts: entData !== null });
   pump();
 };
 const rebuildEngine = (): void => {
