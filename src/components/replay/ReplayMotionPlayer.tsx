@@ -15981,21 +15981,29 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 걸음(요청) — 칼다리 넷이 **대각으로** 짚는다: 오른앞과 왼뒤가 함께 나간다.
        발끝(땅을 짚는 마디)만 앞뒤로 옮기고 뿌리는 몸에 박힌 채 둔다. */
     const wdL9 = walkDir();
+    /* 버로우 파기 컷(요청: 제자리에서 앞다리 넷이 빠르게 땅을 판다) — 4·5 컷은 왼쪽·오른쪽 칼다리 두 개씩이 번갈아
+       **들렸다(무릎 위로, 발끝 몸 앞) 내리꽂힌다**(무릎 낮게, 발끝 땅속·앞으로). 엔진이 9Hz로 두 컷을 오가면 좌우가
+       번갈아 긁는 파기가 된다. 걸음 컷과는 안 겹친다(파는 동안은 서 있다). */
+    const dg9 = poseNow === POSE_ATK_L ? 1 : poseNow === POSE_ATK_R ? -1 : 0;
     for (const m2 of [1, -1] as const) {
       const stR9 = wdL9 * m2 * 0.8;    // 뒷다리(−y)
       const stF9 = -stR9;              // 앞다리(+y) — 대각이라 반대
+      const up9 = dg9 * m2;            // +1 든 쪽 · −1 찍는 쪽 · 0 안 팜
+      const kz9 = up9 * 0.5;           // 무릎 높이 변화
+      const fz9 = up9 > 0 ? 1.5 : up9 < 0 ? -1.6 : 0;   // 발끝 높이(찍는 쪽은 땅속)
+      const fy9 = up9 > 0 ? 0.3 : up9 < 0 ? 0.8 : 0;    // 발끝 앞으로
       /* 칼다리는 꺽쇠(재재지적: 더 완만하게) — 뿌리에서 바깥·위로 살짝만 올라
          꼭대기를 찍고, 완만한 각도로 내려와 땅을 짚는다. 내려오는 끝마디는
          상아색 발톱(지적)이다. 대퇴부는 길고 굵게, 가시부는 짧게(요청). */
-      out.push(...spikeHorn(m2 * 1.5, -0.9, 3.8, m2 * 4.2, -2.6 + stR9 * 0.5, 4.7, 1.5,
+      out.push(...spikeHorn(m2 * 1.5, -0.9, 3.8, m2 * 4.2, -2.6 + stR9 * 0.5 + fy9 * 0.5, 4.7 + kz9, 1.5,
         LEG_FLESH, 8, 0.35, m2 * 0.3, -0.9));
-      out.push(...ivory(spikeHorn(m2 * 4.2, -2.6 + stR9 * 0.5, 4.7,
-        m2 * 4.85, -3.2 + stR9, 2.1 + Math.max(0, stR9) * 0.5, 0.6,
+      out.push(...ivory(spikeHorn(m2 * 4.2, -2.6 + stR9 * 0.5 + fy9 * 0.5, 4.7 + kz9,
+        m2 * 4.85, -3.2 + stR9 + fy9, 2.1 + Math.max(0, stR9) * 0.5 + fz9, 0.6,
         undefined, 6, 0.2, m2 * 0.6, -0.8)));
-      out.push(...spikeHorn(m2 * 1.6, 0.6, 3.8, m2 * 4.3, 2.1 + stF9 * 0.5, 4.7, 1.5,
+      out.push(...spikeHorn(m2 * 1.6, 0.6, 3.8, m2 * 4.3, 2.1 + stF9 * 0.5 + fy9 * 0.5, 4.7 + kz9, 1.5,
         LEG_FLESH, 8, 0.35, m2 * 0.3, 0.9));
-      out.push(...ivory(spikeHorn(m2 * 4.3, 2.1 + stF9 * 0.5, 4.7,
-        m2 * 4.95, 2.8 + stF9, 2.1 + Math.max(0, stF9) * 0.5, 0.6,
+      out.push(...ivory(spikeHorn(m2 * 4.3, 2.1 + stF9 * 0.5 + fy9 * 0.5, 4.7 + kz9,
+        m2 * 4.95, 2.8 + stF9 + fy9, 2.1 + Math.max(0, stF9) * 0.5 + fz9, 0.6,
         undefined, 6, 0.2, m2 * 0.6, 0.8)));
       /* 앞 가시갈고리 한 쌍(지적) — 몸 앞에서 앞을 향해 뻗다 끝이 갈고리처럼
          아래로 말린다. 상부 검회색(재지적). */
@@ -26760,6 +26768,18 @@ export default function ReplayMotionPlayer({
         );
       case "mineboom":
         return <span key={d.key} className="scr-motion-mineboom" style={{ ...posStyle(d.x, d.y), zIndex: 1500 }} />;
+      case "dig":
+        /* 럴커 버로우 파기의 흙덩이(요청) — 다섯 알이 옆·뒤로 튀어 떨어진다. seed 갈래로 방향을 뒤집는다. */
+        return (
+          <span
+            key={d.key}
+            className={`scr-motion-dig scr-dig-${d.seed % 4}`}
+            style={{ ...posStyle(d.x, d.y), width: `${d.wPct.toFixed(3)}%`, zIndex: 1490 }}
+            aria-hidden
+          >
+            <i /><i /><i /><i /><i />
+          </span>
+        );
       case "touchdown":
         return (
           <span

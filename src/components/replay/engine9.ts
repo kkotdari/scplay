@@ -416,7 +416,9 @@ export const POSE_KINDS: Record<string, { move?: boolean; atk?: boolean; flap?: 
      아래 그리는 쪽이 발포 박자(fireK)로 따로 세운다. */
   tankgun: { atk: true },
   tanksiegegun: { atk: true },
-  lurker: { move: true },
+  /* atk 컷(4·5)은 **버로우 파기**다(요청: 럴커는 가라앉는 게 아니라 제자리에서 앞다리 넷이 빠르게 땅을 판다) — 선 럴커는
+     공격이 없으니 그 두 컷이 비어 있다. 공격 자세 고르기(fighting)에서는 lurker를 뺀다. */
+  lurker: { move: true, atk: true },
   /* 뮤탈 3.2 → 1.8 → **2.4Hz**(지적: "조금 더 빠르게 되돌리기") ────────────────────
      1.8로 내린 것은 컷이 둘뿐이던 시절의 처방이다. 두 컷은 위·아래를 **뒤집을** 뿐이라
      빠르면 떨림으로 읽혔고, 그래서 3.2 → 1.8로 늦춰 떨림을 눌렀다. 이제 가운데를
@@ -2229,6 +2231,8 @@ export type DomFx9 =
   | { k: "wound"; key: string; x: number; y: number; z: number; lift: number; race: string; items: { sz: number; dx: number; dy: number; delay: number }[] }
   | { k: "mineboom"; key: string; x: number; y: number }
   | { k: "touchdown"; key: string; x: number; y: number; wPct: number; hPct: number }
+  /** 럴커 버로우 파기의 흙덩이(요청) — 0.15초마다 새 열쇠로 한 움큼씩 튄다. seed로 튀는 방향 갈래를 고른다. */
+  | { k: "dig"; key: string; x: number; y: number; seed: number; wPct: number }
   | { k: "collapse"; key: string; x: number; y: number; wPct: number; rk: string; flyUp: number }
   | { k: "castfx"; key: string; x: number; y: number; cls: string; wTiles: number; scan: boolean }
   | { k: "swarm"; key: string; x: number; y: number }
@@ -6564,9 +6568,20 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
     /* 몸이 제자리에서 뜨는 몫(모델 상자 배수) — 호버 유닛의 부양과 땅파기의
        가라앉음이다. 그리는 쪽(op.rise)과 빙결 우리가 **같은 값**을 봐야 우리가
        몸에 붙는다(아래 cage의 lift 주석). */
-    const rise9 = (HOVER_RISE_K[drawUnit] ?? 0) - (digging9 ? digU9 * 0.9 : 0)
+    /* 럴커는 안 가라앉는다(요청) — 파는 자세(컷 4·5)와 흙덩이(아래 dig)가 그 몫이다. 다른 버로우 유닛은 잠겨 든다. */
+    const rise9 = (HOVER_RISE_K[drawUnit] ?? 0) - (digging9 && drawUnit !== "Lurker" ? digU9 * 0.9 : 0)
       /* 시즈 전환: 앉았다 일어남(0 → −0.16 → 0) — 판이 바뀌는 한가운데에서 가장 낮다. */
       - (siegeXf9 ? 0.16 * Math.sin(Math.PI * Math.min(1, siegeXf9.u)) : 0);
+    if (digging9 && drawUnit === "Lurker" && !markerView && burrowNext9 !== null) {
+      /* 흙덩이(요청) — 0.15초마다 한 움큼. 스팬은 열쇠가 살아 있는 동안만 있으므로 최근 세 움큼을 함께 실어 한 움큼이
+         0.45초(CSS 길이)를 다 산다. 폭은 몸 한 타일의 화면 폭이다. */
+      const digT0 = burrowNext9 - BURROW_DIG_SEC;
+      const nD = Math.floor((t - digT0) / 0.15);
+      const wD = Math.abs(posFrac(pos.x + 0.6, pos.y)[0] - posFrac(pos.x - 0.6, pos.y)[0]) * 100;
+      for (let j = Math.max(0, nD - 2); j <= nD; j += 1) {
+        dom.push({ k: "dig", key: `dig-${e.tag}-${j}`, x: pos.x, y: pos.y + 0.35, seed: j + e.tag, wPct: wD });
+      }
+    }
     const lurkStrike = burrowed && !digging9
       && !frzSt && !foe.air && lurkDist <= lurkRange;
     if (lurkStrike && lurkFoe && lurkDist < foeDist) {
@@ -6759,6 +6774,9 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
            갈아 끼우지만, 날갯짓은 두 컷(1↔3)을 오갈 뿐이고 그 둘은 이미 캐시에
            함께 산다. 종류도 둘뿐이다. 그래서 이것만 문턱 밖으로 뺀다. */
         if (!pk9 || markerView || !qAnim) return 0;
+        /* 럴커 버로우 파기(요청: "가라앉는 게 아니라 제자리에서 앞다리 넷으로 빠르게 땅을 파는 모션") — 창 동안 4·5 컷을
+           9Hz로 오간다(왼·오른 다리가 번갈아 찍는다). 간이 보기 문턱보다 앞이다 — 폰에서도 보여야 한다. */
+        if (digging9 && kindMain === "lurker") return Math.floor(t * 18) % 2 === 1 ? 5 : 4;
         /* 간이 보기에서는 **날갯짓이 있는 종류만** 컷을 고른다 — 차례는 아래
            그대로 둔다(공격 컷이 날갯짓보다 앞선다). 여기서 걸러 내기만 한다. */
         /* ★ 이동 컷(걸음·비행 추진)만은 **셋째 칸(3배)부터** 친다(요청) — 판은 컷 수만큼
@@ -6780,7 +6798,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         /* 컷 고르기는 **공용 문**(atkCutOf·flapCutOf)이 낸다 — 도록도 같은
            문을 지난다. 두 곳이 따로 적어 두었더니 갈렸다(그 함수의 ★ 주석). */
         const flapCut = (): 0 | 1 | 3 | 4 => (pk9.flap ? flapCutOf(pk9.flap, t) : 0);
-        if (pk9.atk && fighting) {
+        if (pk9.atk && fighting && kindMain !== "lurker") {
           const pf9 = isKnownKind(drawUnit) ? profileOf(drawUnit) : null;
           const w9 = pf9 ? weaponVs(pf9, !!foe?.air) : null;
           const cd9 = Math.max(0.2, w9 ? w9.cd : 0.6);

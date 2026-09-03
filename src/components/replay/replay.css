@@ -2024,6 +2024,30 @@
   background: radial-gradient(circle, rgba(255, 228, 150, 0.95) 0%, rgba(255, 110, 50, 0.85) 40%, rgba(120, 60, 30, 0.4) 60%, transparent 72%);
   animation: scr-mineboom 1.2s ease-out forwards;
 }
+/* ── 럴커 버로우 파기의 흙덩이(요청) — 컨테이너는 몸 한 타일 폭(2:1 납작), 알 다섯이 발끝에서 옆·뒤로 튀어 올랐다
+   떨어진다. translate %는 알 제 크기 기준이라 줌을 따라 같이 커진다. 길이 0.45초는 엔진의 세 움큼 창과 같은 값. ── */
+.scr-motion-dig {
+  position: absolute; transform: translate(-50%, -50%); aspect-ratio: 2 / 1; pointer-events: none;
+}
+.scr-dig-1 { transform: translate(-50%, -50%) scaleX(-1); }
+.scr-dig-2 { transform: translate(-50%, -50%) rotate(22deg); }
+.scr-dig-3 { transform: translate(-50%, -50%) rotate(-22deg) scaleX(-1); }
+.scr-motion-dig i {
+  position: absolute; left: 50%; top: 45%; width: 9%; height: 18%; min-width: 2px; min-height: 2px;
+  border-radius: 45%; background: #6b4a2e; box-shadow: 0 0 1px rgba(0, 0, 0, 0.45);
+  animation: scr-dig-clod 0.45s cubic-bezier(0.2, 0.7, 0.4, 1) forwards;
+}
+.scr-motion-dig i:nth-child(1) { --dx: -260%; --dy: -240%; background: #7a563a; }
+.scr-motion-dig i:nth-child(2) { --dx: 210%; --dy: -300%; }
+.scr-motion-dig i:nth-child(3) { --dx: -120%; --dy: -380%; background: #5a3d26; animation-delay: 0.04s; }
+.scr-motion-dig i:nth-child(4) { --dx: 300%; --dy: -180%; background: #7a563a; animation-delay: 0.07s; }
+.scr-motion-dig i:nth-child(5) { --dx: 40%; --dy: -320%; animation-delay: 0.02s; }
+@keyframes scr-dig-clod {
+  0% { opacity: 0; transform: translate(-50%, 0) scale(0.6); }
+  15% { opacity: 1; }
+  55% { transform: translate(calc(-50% + var(--dx)), var(--dy)) scale(1); }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--dx) * 1.3), calc(var(--dy) * 0.15)) scale(0.8); }
+}
 @keyframes scr-mineboom {
   0% { opacity: 0.2; transform: scale(0.2); }
   25% { opacity: 1; transform: scale(1); }
