@@ -18281,7 +18281,29 @@ const dprBudgetK9 = ((): number => {
   if (typeof window === "undefined") return 1;
   return Math.min(1, 2 / Math.max(1, window.devicePixelRatio || 1));
 })();
-const SPRITE_BYTES_MAX = (smallDevice9 ? 32 * smallBudgetK9 * dprBudgetK9 : 128) * 1024 * 1024;
+/* ★ 기기 프로필(5번) — 폰/PC로 갈리던 문턱을 한 표에 모았다. 새 문턱은 여기에 더하고 자리에서는 DEV9.x만 읽는다.
+   (기기 판정은 smallDevice9 하나다: 손가락 기기 + 작은 화면, 또는 메모리 4GB 이하.) */
+const DEV9 = smallDevice9 ? {
+  name: "phone",
+  /** 유닛/건물 판 예산(MB) — 메모리를 부르는 기기는 그 배수. */
+  spriteMB: 32 * smallBudgetK9 * dprBudgetK9, bldSpriteMB: 16 * smallBudgetK9 * dprBudgetK9,
+  /** 지도 벡터층이 비워 두는 몫(MB) · 데칼 굽기 한 변 상한 · 굽는 판 한 장/빌림터 상한(MB) */
+  mapFreedMB: 14, decalBakeMax: 192, bakeOneMB: 3, bakePoolMB: 6,
+  /** 프레임당 굽는 장수(유닛/건물) */
+  unitBakePerFrame: 1, bldBakePerFrame: 1,
+  /** 피격 불티 수 배수 · 죽음 파편 수 · 효과 래스터 예산(MB) · 접지 그림자 최소 배율 */
+  hitShardK: 0.6, dieShards: 12, fxRasterMB: 6, shadowGroundMinZoom: 3,
+  /** 워커 시야 여유(화면 배수) · 앞으로 지을 한도(벽시계 초·MB) · 요잉을 늘 여덟 칸으로 */
+  cullMargin: 0.5, aheadSec: 1.5, aheadMB: 4, yaw8Always: true,
+} : {
+  name: "pc",
+  spriteMB: 128, bldSpriteMB: 64,
+  mapFreedMB: 0, decalBakeMax: 384, bakeOneMB: 8, bakePoolMB: 24,
+  unitBakePerFrame: 3, bldBakePerFrame: 3,
+  hitShardK: 1, dieShards: 24, fxRasterMB: 24, shadowGroundMinZoom: 0,
+  cullMargin: 1, aheadSec: 3, aheadMB: 10, yaw8Always: false,
+};
+const SPRITE_BYTES_MAX = DEV9.spriteMB * 1024 * 1024;
 /** 판 한 장의 한 변 상한(장치 픽셀) — 이보다 커야 하는 요청은 굽지 않고 **직접 그리기**로
  *  떨어진다(호출부가 판이 없을 때의 길을 이미 갖고 있다). 예산(LRU)은 '여러 장이 쌓여'
  *  터지는 것을 막지만, 한 장이 통째로 거대한 경우는 못 막는다 — 이 문이 그것을 막고,
@@ -18318,7 +18340,7 @@ const unitBakeCap = (B: number): number =>
   Math.max(4, Math.floor(((SPRITE_SIDE_MAX - 1) / B - 4) / 2) * 2);
 const bldBakeCap = (B: number): number =>
   Math.max(4, Math.floor((((SPRITE_SIDE_MAX - 1) / B - 6) / 2.56) / 2) * 2);
-const BLD_SPRITE_BYTES_MAX = (smallDevice9 ? 16 * smallBudgetK9 * dprBudgetK9 : 64) * 1024 * 1024;
+const BLD_SPRITE_BYTES_MAX = DEV9.bldSpriteMB * 1024 * 1024;
 /* ★ 두 예산을 **한 주머니로 나눠 쓴다**(실기 진단: 12배 저그 기지에서 `유닛 49장
    21.3/21MB · 건물 3장 8.3/11MB` — 유닛은 예산에 못 박혀 쫓아내고 다시 굽는데 건물은
    2.7MB를 남기고 있었다) ────────────────────────────────────────────────────────────
@@ -18335,7 +18357,7 @@ const BLD_SPRITE_BYTES_MAX = (smallDevice9 ? 16 * smallBudgetK9 * dprBudgetK9 : 
    **총 메모리는 안 는다**(오히려 2MB 준다). 판 쪽은 저그 12배에서 작업 집합이 예산을
    넘어 다시 굽기를 되풀이하던 자리라, 같은 총량 안에서 이쪽에 주는 편이 남는 장사다.
    ※ 짝이 되는 값은 ReplayMapVector의 areaCapRef다 — 한쪽만 고치면 총량이 어긋난다. */
-const MAP_FREED_MB = smallDevice9 ? 14 : 0;
+const MAP_FREED_MB = DEV9.mapFreedMB;
 const SPRITE_TOTAL_MAX = SPRITE_BYTES_MAX + BLD_SPRITE_BYTES_MAX
   + MAP_FREED_MB * 1024 * 1024;
 /* ★ 몫에는 **바닥이 있어야 한다**(실기 계측: "판 유닛 58장 9.2MB · 건물 37장 36.6MB") ──
@@ -18369,7 +18391,7 @@ const budgetNow9 = (own: number, otherUsed: number, otherOwn: number): number =>
    상한을 낮춰 굽고 늘려 찍는다 — 가장자리가 조금 부드러워질 뿐이고, 크립 경계는 원래
    물결져 있어 오히려 결에 맞는다. 폰이 더 낮은 것은 화면이 작아 그 부드러움이 안
    보이기 때문이다. */
-const DECAL_BAKE_MAX = smallDevice9 ? 192 : 384;
+const DECAL_BAKE_MAX = DEV9.decalBakeMax;
 const DECAL_KINDS = new Set(["creeppatch", "creeppatch2", "creeppatch3"]);
 /** 캔버스 한 장이 먹는 바이트 — 픽셀당 RGBA 4바이트. */
 const canvasBytes = (cv: HTMLCanvasElement): number => cv.width * cv.height * 4;
@@ -18412,8 +18434,8 @@ const BAKE_POOL: HTMLCanvasElement[] = [];
    ★ 빌림터는 예산 압박이 오면 통째로 놓는다(trimSpriteCache의 ★) — 그래서 이 몫이
      판 예산과 겹쳐 메모리를 밀어 올리지는 않는다. */
 const BAKE_POOL_MAX = 3;
-const BAKE_ONE_MAX = (smallDevice9 ? 3 : 8) * 1024 * 1024;
-const BAKE_POOL_BYTES = (smallDevice9 ? 6 : 24) * 1024 * 1024;
+const BAKE_ONE_MAX = DEV9.bakeOneMB * 1024 * 1024;
+const BAKE_POOL_BYTES = DEV9.bakePoolMB * 1024 * 1024;
 /** 그 크기의 굽는 판을 빌린다 — 빌림터에 있으면 지워서 주고, 없으면 새로 짓는다. */
 const bakeCanvas = (side: number): HTMLCanvasElement | null => {
   const i9 = BAKE_POOL.findIndex((c) => c.width === side && c.height === side);
@@ -18869,7 +18891,7 @@ const noteSub9 = (
   if (map.size > SPRITE_SIZES_MAX) map.clear();
   map.set(sub, [{ s: size, k: key }]);
 };
-const UNIT_BAKE_PER_FRAME = smallDevice9 ? 1 : 3;
+const UNIT_BAKE_PER_FRAME = DEV9.unitBakePerFrame;
 let unitBakeLeft9 = UNIT_BAKE_PER_FRAME;
 /* ★ **건물도 같다 — 오히려 더하다**(계측: 저그 본진을 배율 6·12로 확대해 재 봤다) ─────
      배율 6  건물 13판 7.7MB (장당 0.59MB)
@@ -18879,7 +18901,7 @@ let unitBakeLeft9 = UNIT_BAKE_PER_FRAME;
    LRU가 쫓아내고, 쫓겨난 자리를 다시 구우면 굽는 판(여백까지 6.6배 넓이)이 8MB다.
    그 한 장이 한 프레임을 먹는다. 유닛과 같은 약을 쓴다: 프레임마다 굽는 수를 죄고,
    예산이 다한 자리에서는 같은 건물의 다른 크기로 구워 둔 판을 늘려 찍는다. */
-const BLD_BAKE_PER_FRAME = smallDevice9 ? 1 : 3;
+const BLD_BAKE_PER_FRAME = DEV9.bldBakePerFrame;
 let bldBakeLeft9 = BLD_BAKE_PER_FRAME;
 const BLD_SPRITE_SIZES = new Map<string, { s: number; k: string }[]>();
 /** 크기(pxq)를 뺀 열쇠 → 그 열쇠로 구워 둔 크기들. 예산이 다한 프레임의 대타를 찾는 자다.
@@ -19909,7 +19931,7 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
   const pal = PALS[mat] ?? PALS.mech;
   // 기계는 낱개가 더 많다 — 절반이 짧은 막대라(아래) 면 조각 수는 그대로 지킨다.
   const nBase = mat === "mech" ? (bld ? 24 : 16) : (bld ? 16 : 10);
-  const N = smallDevice9 ? Math.round(nBase * 0.6) : nBase;
+  const N = Math.round(nBase * DEV9.hitShardK);
   const g = W * (wet ? 1.1 : mat === "toss" ? 0.25 : 0.7);
   for (let i = 0; i < (mat === "toss" ? 0 : N); i += 1) {
     const an = (i / N) * Math.PI * 2 + (rnd() - 0.5) * 0.6;
@@ -21296,7 +21318,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
             const away9 = hasDir9 ? Math.atan2(-(f.dy ?? 0), -(f.dx ?? 0)) : 0;
             /* ★ 삯(지적: 모바일이 버거워짐) — 낱개마다 stroke를 부르면 맞는 몸마다 스물네 번이다. 색이 둘뿐이니
                **색별로 한 경로에 몰아** 두 번만 긋는다(굵기는 색별 한 값). 폰은 낱개도 열둘로 줄인다. */
-            const N9 = smallDevice9 ? 12 : 24;
+            const N9 = DEV9.dieShards;
             ctx.lineCap = "round";
             for (let ci = 0; ci < 2; ci += 1) {
               ctx.beginPath();
@@ -22057,7 +22079,7 @@ const FX_RASTER_CAP = 1400;
  *  뒤로는 blit 한 번이고, 같은 크기의 스톰 여럿이 같은 열두 칸을 나눠 쓴다. LRU·바이트 상한. */
 const FX_RASTER_CACHE = new Map<string, HTMLCanvasElement>();
 const FX_RASTER_BYTES = { n: 0 };
-const FX_RASTER_MAX = (smallDevice9 ? 6 : 24) * 1024 * 1024;
+const FX_RASTER_MAX = DEV9.fxRasterMB * 1024 * 1024;
 export function FxModel({
   kind, spin, flat, pitchView, viewYaw, rotDeg = 0, peak = 1, fit = true,
 }: {
@@ -22530,7 +22552,7 @@ const SHADOW_MIN_ZOOM = 1;
    ★ **작은 기기에서만**이다(지시: "모바일만이야") — PC는 이 자리가 안 아프고, 큰 화면
      에서는 1·2배에서도 유닛이 폰보다 크게 그려져 그림자가 제 몫을 한다. 그래서 데스크톱
      에서는 지금 그대로 지상도 그림자를 진다. */
-const SHADOW_GROUND_MIN_ZOOM = smallDevice9 ? 3 : 0;
+const SHADOW_GROUND_MIN_ZOOM = DEV9.shadowGroundMinZoom;
 /** ★ 전투 효과가 **갈래마다** 서는 칸 — 요청: "2배에서 전투효과: 가시 분출 우리 /
  *  4배에서 전투효과: 피격 / 나머지는 다 8배부터 노출".
  *  여기 적힌 것은 **사다리(가장 이른 칸)** 이고, 실제 칸은 배치의 바닥과 함께 잰다
@@ -26342,7 +26364,7 @@ export default function ReplayMotionPlayer({
       if (inside9 && aSent9 <= aVis9 * 20) return sent9;
     }
     // 여유 — PC는 앞뒤 한 화면씩(3×3), 폰은 반 화면씩(2×2): 설계도 한 장의 op 수·메모리가 그만큼 준다.
-    const mk9 = smallDevice9 ? 0.5 : 1;
+    const mk9 = DEV9.cullMargin;
     const mx9 = (visRect9.x1 - visRect9.x0) * mk9;
     const my9 = (visRect9.y1 - visRect9.y0) * mk9;
     const r9 = {
@@ -26397,7 +26419,7 @@ export default function ReplayMotionPlayer({
       // 앞으로 지어 둘 한도는 기기가 정한다 — 폰은 2초·5MB(스크린샷 한 번의 요동에도 터진다), PC는 3초·10MB.
       w9.postMessage({
         type: "cmd", playing: playing9, t0: t, speed,
-        aheadSec: smallDevice9 ? 1.5 : 3, aheadBytes: (smallDevice9 ? 4 : 10) * 1024 * 1024,
+        aheadSec: DEV9.aheadSec, aheadBytes: DEV9.aheadMB * 1024 * 1024,
       });
     }
   }
@@ -28983,7 +29005,7 @@ export default function ReplayMotionPlayer({
             /* ★ 작은 기기는 요잉을 늘 여덟 칸으로(지적: 폰 6배 대규모 교전에서 판 굽기·버림이 초당 35장 —
                판 예산 36MB가 찬 채 LRU가 굽고 버리기를 되풀이했다. dpr 2로 눌러도 그대로였으니 픽셀이 아니라
                **판의 가짓수**다: 종류×요잉 16×색×자세. 요잉을 여덟 칸으로 하면 가짓수가 반으로 준다). */
-            yawAt={smallDevice9 || liteFlag9 ? Infinity : wide ? ZOOM_STEPS[2] : ZOOM_STEPS[3]}
+            yawAt={DEV9.yaw8Always || liteFlag9 ? Infinity : wide ? ZOOM_STEPS[2] : ZOOM_STEPS[3]}
             moveAt={wide ? ZOOM_STEPS[1] : ZOOM_STEPS[2]}
             /* 크립을 가두는 맵 모서리(재지적: 3D에서 크립이 영역을 벗어남) — 입체는 원근
                투영된 사다리꼴이라 네 모서리를 posFrac으로 투영해 넘긴다. 평면은 단위
