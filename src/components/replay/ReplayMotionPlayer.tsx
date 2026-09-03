@@ -33776,8 +33776,11 @@ export default function ReplayMotionPlayer({
     const pool9 = lerpPoolRef9.current;
     let lf9 = lerpFrameRef9.current;
     if (!lf9) { lf9 = { frame: { ...fa9 }, ops: [] }; lerpFrameRef9.current = lf9; }
-    const ops9 = lf9.ops;
-    ops9.length = 0;
+    /* ★ op **배열은 그리기마다 새로** 만든다(지적: "뮤탈리스크가 아예 안 그려짐") — 붓의 정렬 캐시가 배열의 정체성으로
+       '같은 ops면 다시 안 정렬'하므로, 배열 하나를 되쓰면 첫 그리기의 목록이 영영 남아 뒤에 시야에 든 개체가 안 그려진다.
+       객체는 풀에서 되쓰고 배열 하나만 새로 — 그리기당 할당 하나다. */
+    const ops9: UnitDrawOp[] = [];
+    lf9.ops = ops9;
     const src9 = fa9.unitOps;
     for (let i9 = 0; i9 < src9.length; i9 += 1) {
       const s9 = src9[i9];
