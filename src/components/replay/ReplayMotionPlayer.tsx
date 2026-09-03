@@ -1056,6 +1056,12 @@ function fistFaces(x: number, y: number, z: number, r: number, fill: string): Sh
 /** 추진 불빛의 꼴 — 후보판용 손잡이(window.__thrustStyle). 고르면 이 기본값만 바꾼다.
  *   flame 옛 불꽃 방추 · disc 납작 원판(겹 세 장 그러데이션) · drum 짧은 드럼통(테 + 달아오른 끝면)
  *   · halo 원판 + 아주 옅은 짧은 여운. */
+/** 두 육각 색을 t(0~1)로 섞는다 — 그러데이션 계단용. */
+function mixHex(a: string, b: string, t: number): string {
+  const pa = [1, 3, 5].map((i9) => parseInt(a.slice(i9, i9 + 2), 16));
+  const pb = [1, 3, 5].map((i9) => parseInt(b.slice(i9, i9 + 2), 16));
+  return `#${pa.map((v9, i9) => Math.round(v9 + (pb[i9] - v9) * t).toString(16).padStart(2, "0")).join("")}`;
+}
 type ThrustStyle = "flame" | "disc" | "drum" | "halo";
 const THRUST_STYLE_DEFAULT: ThrustStyle = "drum";   // 고름: 3번 드럼통(+ 번지는 에너지)
 const thrustStyleNow = (): ThrustStyle =>
@@ -1112,10 +1118,14 @@ function thrustFlame(
         ...drum(r * 1.35, y - r * 0.08, r * 0.82, outer, 0.12, "both", true),
         ...cone(r * 0.85, r * 1.5, mid, 0.2),
       ], key - 0.3),
+      /* 그러데이션을 **촘촘히**(재요청: 에너지·불인 만큼) — 옆면은 세 도막으로 종족색 → 가운데색으로
+         옮겨 가고, 끝면은 여섯 겹의 동심 원반이 바깥(가운데색)에서 심(밝은색)까지 잘게 밟는다. */
       ...tagKey([
-        ...drum(r * 1.05, y, r * 0.6, outer, 0.55, "none"),
-        ...drum(r * 1.05, y - r * 0.6, r * 0.02, mid, 0.85),
-        ...drum(r * 0.55, y - r * 0.62, r * 0.02, inner, 1.0),
+        ...[0, 1, 2].flatMap((i9) => drum(r * 1.05, y - r * 0.2 * i9, r * 0.2, mixHex(outer, mid, i9 / 3), 0.55 + i9 * 0.08, "none")),
+        ...[0, 1, 2, 3, 4, 5].flatMap((i9) => drum(
+          r * (1.05 - i9 * 0.14), y - r * (0.6 + i9 * 0.012), r * 0.02,
+          mixHex(mid, inner, i9 / 5), 0.8 + i9 * 0.04,
+        )),
       ], key),
     ];
   }
