@@ -19023,8 +19023,8 @@ const tintedOf9 = (tn: TintPlate9, color: string, bytes: { n: number } = spriteB
   tc.globalCompositeOperation = "source-in";
   tc.fillStyle = color;
   tc.fillRect(0, 0, w, h);
-  // 몸판과 같은 광택 — 옛 굽기에서는 임자 면도 이 그러데이션(왼위 밝게·오른아래 어둡게)을 받았다.
-  if (tn.gloss) silhouetteLight(tc, cv);
+  // 임자 면에는 광택을 안 얹는다(지적: 포톤 톱니 임자색이 흐림 — 왼위 14% 흰 빛이 임자색을 씻었다). gloss는 남겨 두되 안 쓴다.
+  void tn.gloss;
   if (!tn.by) tn.by = new Map();
   if (tn.by.size >= TINT_BY_MAX9) {
     const first = tn.by.keys().next();
@@ -23183,7 +23183,10 @@ export default function ReplayMotionPlayer({
         const pf9: PackedFrame9 = { t: m9.t, buf: m9.buf, strs: m9.strs, fog: m9.fog ?? null, ms: m9.ms ?? 0, n: m9.n ?? 0, seq: m9.seq ?? 0 };
         /* 시야가 바뀌어 새 차례의 장이 오면, 그 시각 이후의 옛 차례 장은 밀어낸다(지적: 드래그 때 툭툭 — 전에는 시야가
            바뀔 때 버퍼를 통째로 비워 새 장이 올 때까지 마지막 장을 든 채 멎었다. 옛 장은 제 시야 안에서는 여전히 옳다). */
-        for (const [k9, f9] of frames9) if (f9.seq < pf9.seq && f9.t >= pf9.t - 1e-6) frames9.delete(k9);
+        /* 단, 주인 시각 이하의 옛 장은 남긴다(지적: 많이 드래그하면 유닛이 잠깐 이전 자리로 갔다 돌아옴) — 새 차례는 워커
+           시계(주인보다 조금 뒤)에서 시작하므로, 그 사이의 옛 장까지 밀어내면 붓이 새 차례의 더 이른 장으로 되돌아갔다. */
+        const tNowSeq9 = cmdNowRef9.current.t;
+        for (const [k9, f9] of frames9) if (f9.seq < pf9.seq && f9.t >= pf9.t - 1e-6 && f9.t > tNowSeq9) frames9.delete(k9);
         frames9.set(Math.round(pf9.t * 1000), pf9);
         wStatRef.current.got += 1;
         const st9 = wStatRef.current;
