@@ -150,10 +150,12 @@ const pump = (): void => {
     return;
   }
   const until = cur + clock.aheadSec * clock.speed;
-  // 시계 뒤로 반 초 넘게 지난 장은 한도 셈에서 뺀다(메인도 그쯤에서 버린다).
-  if (built.length > 0 && built[0].t < cur - 0.5) built = built.filter((b) => b.t >= cur - 0.5);
+  /* 바이트 한도는 **주인의 마지막 시각(t0)** 부터 센다 — 제 시계(cur)부터 세면 주인이 멎어 있는 동안(굽기 홀드)
+     t0~cur 사이의 장들이 셈에서 빠져 메인 메모리가 한도를 넘는다(계측: 한도 10MB에 메인 15.6MB). */
+  const from = Math.min(cur, clock.t0) - 0.5;
+  if (built.length > 0 && built[0].t < from) built = built.filter((b) => b.t >= from);
   let bytesAhead = 0;
-  for (const b of built) if (b.t >= cur) bytesAhead += b.bytes;
+  for (const b of built) if (b.t >= from) bytesAhead += b.bytes;
   /* 한 번에 여덟 장 또는 60ms까지만 짓고 한숨 돌린다 — 느린 기기에서 여덟 장이 1초를 넘으면 그동안 명령이 줄을 선다. */
   let n = 0;
   const pumpAt = nowMs();
