@@ -2026,6 +2026,10 @@ export const BURROWABLE = new Set(["Drone", "Zergling", "Hydralisk", "Lurker", "
 /** 땅을 파고 드는 데 드는 시간(초) — 원작의 버로우 애니메이션 길이 언저리(약 1초, 공식 자료는 이 환경에서 못 열어
  *  확인 못 함). 이 창 동안 몸은 버로우 지점에 서서 땅에 잠겨 들고, 럴커는 아직 가시를 안 쏜다(요청). */
 export const BURROW_DIG_SEC = 0.9;
+/** 시즈 탱크의 모드 전환(시즈·언시즈)에 드는 시간(초) — 원작 전환 애니메이션 길이 언저리(공식 자료는 이 환경에서
+ *  못 열어 확인 못 함). 명령 시각이 전환의 **시작**이다: 그 창 동안 몸은 그 자리에 서서 앉았다 일어나며(앞 반은 옛 몸이
+ *  가라앉고 뒤 반은 새 몸이 올라온다), 창이 끝나야 사거리·사격이 새 모드다(요청: 버로우와 같은 규약). */
+export const SIEGE_XF_SEC = 1.5;
 /** 정제소 불빛의 유예(초) — 일꾼이 나간 뒤로도 이만큼은 켜 둔다. 가스 왕복 한 바퀴가
  *  대략 이 언저리라, 한 대만 붙어 캐도 불이 안 끊긴다(지적: 계속 깜빡). */
 export const GAS_LIT_HOLD = 12;
@@ -6079,6 +6083,24 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       const spot9 = posAtSim(simTr, burrowNext9) ?? posAtW(rp, burrowNext9);
       if (spot9) pos = { ...pos, x: spot9.x, y: spot9.y, moving: false, sinceLast: 0 };
     }
+    /* ★ 시즈·언시즈도 같은 규약(요청) — Siege/Unsiege 커맨드 증거 그대로 판정하되, 명령 시각부터 SIEGE_XF_SEC 동안은
+       **전환 중**이다: 자리를 명령 시각의 자리에 못 박고(움직임 없음), 몸은 앉았다 일어나며(아래 rise), 앞 반은 옛 판·
+       뒤 반은 새 판(drawUnit2)이다. 사거리·사격·몸 각의 대각 고정(siegeOn)은 창이 **끝나야** 새 모드다. 창 안에 반대
+       명령이 오면 마지막 것이 이긴다(전환 시작을 그때로 옮긴다). */
+    let siegeOn = 0;
+    let siegeXf9: { to: number; u: number; at: number } | null = null;
+    for (const [ss2, on2] of e.sieges) {
+      if (ss2 > t) break;
+      if (on2 === siegeOn) { siegeXf9 = null; continue; }
+      if (t < ss2 + SIEGE_XF_SEC) siegeXf9 = { to: on2, u: (t - ss2) / SIEGE_XF_SEC, at: ss2 };
+      else { siegeOn = on2; siegeXf9 = null; }
+    }
+    if (siegeXf9 && drawUnit.startsWith("Siege Tank")) {
+      const spotS9 = (simTr ? posAtSim(simTr, siegeXf9.at) : null) ?? posAtW(rp, siegeXf9.at);
+      if (spotS9) pos = { ...pos, x: spotS9.x, y: spotS9.y, moving: false, sinceLast: 0 };
+    } else siegeXf9 = null;
+    /** 그려지는 모드 — 전환 뒤 반부터 새 판이다. */
+    const siegeShow9 = siegeXf9 ? (siegeXf9.u >= 0.5 ? siegeXf9.to : siegeOn) : siegeOn;
     /* 교전 당김·홀드·잽은 코어가 켜지면 안 돈다(과제 #61) — 코어는 표적까지
        걸어가 사거리에서 멈추는 일을 제 이동 모형으로 이미 했다. 여기서 한 번 더
        끌면 두 모형이 같은 몸을 밀고, 어차피 아래에서 코어 자리로 덮여 버려질
@@ -6314,10 +6336,8 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       }
       return null;
     }
-    /* 시즈모드(지적: 판정을 리플레이에서) — Siege/Unsiege 커맨드 증거 그대로. */
-    let siegeOn = 0;
-    for (const [ss2, on2] of e.sieges) { if (ss2 <= t) siegeOn = on2; else break; }
-    const drawUnit2 = siegeOn === 1 && drawUnit.startsWith("Siege Tank")
+    /* 시즈모드(지적: 판정을 리플레이에서) — 위 siegeOn·siegeXf9(전환 창) — 그리는 판은 siegeShow9. */
+    const drawUnit2 = siegeShow9 === 1 && drawUnit.startsWith("Siege Tank")
       ? "Siege Tank (Siege Mode)" : drawUnit;
     /* 표적 거리는 '그려지는 몸'에서 다시 잰다(지적: 맞는 대상이 없는데 공격한다 /
        둘이 너무 멀어 따로 놀아 보인다) — foe.bd는 원자취(명령 좌표) 기준인데,
@@ -6436,8 +6456,16 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       if (nukeAim9) {
         return (Math.atan2(-(nukeAim9[0] - pos.x), nukeAim9[1] - pos.y) * 180) / Math.PI;
       }
-      if (siegeOn === 1 && drawUnit.startsWith("Siege Tank")) {
-        return Math.round((bodyHdg0 - 45) / 90) * 90 + 45;
+      if (drawUnit.startsWith("Siege Tank") && (siegeOn === 1 || siegeXf9)) {
+        const snap9 = Math.round((bodyHdg0 - 45) / 90) * 90 + 45;
+        /* 시즈로 들어가는 전환의 앞 반 동안 몸이 가장 가까운 대각으로 돌아 앉는다(요청: 전환 동작). 언시즈는 창이
+           끝날 때까지 박힌 채다. */
+        if (siegeXf9 && siegeXf9.to === 1 && siegeOn !== 1) {
+          const k9 = Math.min(1, siegeXf9.u / 0.5);
+          const d9 = ((snap9 - bodyHdg0 + 540) % 360) - 180;
+          return bodyHdg0 + d9 * k9;
+        }
+        return snap9;
       }
       if (!IDLE_SCAN.has(drawUnit2) || fighting || burrowed) return bodyHdg0;
       if (simState !== null && simState !== 0) return bodyHdg0;   // 0 = ST_IDLE
@@ -6527,7 +6555,9 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
     /* 몸이 제자리에서 뜨는 몫(모델 상자 배수) — 호버 유닛의 부양과 땅파기의
        가라앉음이다. 그리는 쪽(op.rise)과 빙결 우리가 **같은 값**을 봐야 우리가
        몸에 붙는다(아래 cage의 lift 주석). */
-    const rise9 = (HOVER_RISE_K[drawUnit] ?? 0) - (digging9 ? digU9 * 0.9 : 0);
+    const rise9 = (HOVER_RISE_K[drawUnit] ?? 0) - (digging9 ? digU9 * 0.9 : 0)
+      /* 시즈 전환: 앉았다 일어남(0 → −0.16 → 0) — 판이 바뀌는 한가운데에서 가장 낮다. */
+      - (siegeXf9 ? 0.16 * Math.sin(Math.PI * Math.min(1, siegeXf9.u)) : 0);
     const lurkStrike = burrowed && !digging9
       && !frzSt && !foe.air && lurkDist <= lurkRange;
     if (lurkStrike && lurkFoe && lurkDist < foeDist) {
