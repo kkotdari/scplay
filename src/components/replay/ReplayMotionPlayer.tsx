@@ -21714,6 +21714,9 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
       ctx.beginPath(); ctx.moveTo(x - cx * L, y - sx * L); ctx.lineTo(x + cx * L, y + sx * L); ctx.stroke();
     } else if (wet) {
       ctx.beginPath(); ctx.ellipse(x, y, sz * (0.7 + (i % 4) * 0.15), sz * (0.5 + (i % 3) * 0.2), rot, 0, Math.PI * 2); ctx.fill();
+    } else if (pal[i % pal.length] === "#ff8a3d") {
+      // 주황은 화염 조각이라 둥글게(재지적) — 각진 쇳조각과 갈린다.
+      ctx.beginPath(); ctx.arc(x, y, sz * 0.9, 0, Math.PI * 2); ctx.fill();
     } else {
       const hw = sz, hh = sz * 0.6;
       ctx.beginPath();
