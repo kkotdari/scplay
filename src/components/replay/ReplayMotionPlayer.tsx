@@ -421,7 +421,8 @@ const SPIN_SLOTS = 32;
    (SPIN_SLOTS 안에 든다). 씨앗 넷이면 한 바퀴가 1초 남짓이라 되풀이가 눈에 안 밟힌다. */
 const STORM_SEEDS = 4;
 /** 벼락 하나가 자라는 단계 수 — 스톰 빌더의 STAGES9와 짝이다(칸 = 씨앗 × 이것 + 단계). */
-const STORM_STAGES = 4;
+/** 4 → 8(지적: 세로 줄기가 거의 동시에 생김) — 줄기 다섯이 태어나는 칸을 여덟으로 벌려 띄엄띄엄 내리친다. */
+const STORM_STAGES = 8;
 /** 굽기 열쇠에 박는 회전 칸 — 안 도는 종류는 "0"이라 옛 열쇠와 같다. */
 const spinTag = (kind: string): string => (SPIN_KINDS.has(kind) ? String(bldSpinNow) : "0");
 /** 지금 칸의 각(라디안) — 빌더가 제 부품을 이만큼 돌린다. */
@@ -9424,7 +9425,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        난수 수열은 단계와 무관하게 같아야 세 칸이 같은 벼락이다 — 그래서 씨앗은 단계를
        뺀 몫에서만 뽑고, 단계는 **굽는 것을 줄일 뿐**(bolt의 from9) 뽑는 순서를 건드리지
        않는다. */
-    const STAGES9 = 4;
+    const STAGES9 = STORM_STAGES;
     const STAGE9 = bldSpinNow % STAGES9;
     /* 칸을 씨앗으로 한 결정적 난수 — 같은 칸이면 늘 같은 수열이다. */
     let sd9 = 1 + Math.floor(bldSpinNow / STAGES9) * 7919;
@@ -9541,7 +9542,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 더 랜덤하고 띄엄띄엄(재요청) — 0~3 네 단계에 고르게 흩는다. 3에 태어난
          줄기는 그 칸에서 내려오는 중인 채로 끝나 다음 씨앗으로 넘어간다 — 그것이
          곧 '띄엄띄엄'이다. */
-      const bs9 = Math.floor(rnd() * 4);
+      /* 태어나는 칸을 **줄기마다 나눠 맡긴다**(지적: 거의 동시에 생김) — 균등에서 뽑으면 둘셋이 한 칸에 몰린다.
+         i9번째 줄기는 대략 i9·7/5 칸 언저리(흔들림 0.9칸)에서 나므로 여덟 칸에 걸쳐 차례로 내리친다. */
+      const bs9 = Math.min(STAGES9 - 2, Math.floor((i9 + rnd() * 0.9) * ((STAGES9 - 1) / 5)));
+      // 줄기 길이도 살짝씩 다르게(지적) — 시작 높이를 85~115%로.
+      const top9 = TOP9 * (0.85 + rnd() * 0.3);
       const tx9 = gx9 + (rnd() - 0.5) * R9 * 0.5; // 꼭대기 자리(살짝 비껴간다)
       const ty9 = gy9 + (rnd() - 0.5) * R9 * 0.5;
       const pts: [number, number, number][] = [];
@@ -9554,7 +9559,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         pts.push([
           tx9 + (gx9 - tx9) * u9 + (rnd() - 0.5) * j9,
           ty9 + (gy9 - ty9) * u9 + (rnd() - 0.5) * j9,
-          TOP9 * (1 - u9) ** 1.15,
+          top9 * (1 - u9) ** 1.15,
         ]);
       }
       // 줄기 굵기는 제각각(요청) — 0.13~0.27.
