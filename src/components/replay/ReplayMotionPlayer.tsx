@@ -17889,6 +17889,8 @@ const HOVER_UNIT_SET = new Set([
  *  그대로 지키면서 몸판은 불투명해진다. */
 /* 증폭 1.45 → 1.25, 상한 0.85 → 0.7(지적: 음영이 너무 세 거의 검정) — 덮개가 종족 광택
    곡선으로 이미 한 번 짙어진 위에 또 곱해져 두 겹으로 쌓이던 것을 완화한다. */
+/** 체력바 두께(CSS px) — 유닛·건물 가리지 않고 같다(지적: "길이만 길거나 짧고 두께는 동일하게"). 배율에만 살짝 따른다. */
+const hpBarH9 = (zoom: number): number => Math.max(1.5, 1.2 + zoom * 0.25);
 const shadeBoost = (o: number, fill?: string): number =>
   (fill && o < 1 ? Math.min(0.7, o * 1.25) : o);
 
@@ -19972,6 +19974,8 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
     mech: ["#6b737e", "#9aa3ad", "#6b4a2b", "#6b737e", "#3a3d44", "#9aa3ad", "#ff8a3d"],
     bio: ["#c8231b", "#e0a48a", "#7a1210"],
     zerg: ["#6e1b3a", "#5b3a8a", "#6b4a2b"], toss: ["#d4af37", "#a8862a", "#e6f4ff"],
+    // 고치(변태알·러커알·뮤탈 고치·공사 고치 취소) — 피 없이 고치 껍질 조각만: 보라 갈색·연보라·짙은 자주
+    cocoon: ["#8a6a9a", "#c9b7d6", "#5a4060", "#a58cb8", "#6b4a2b"],
   };
   const DROP9: Record<string, string> = { bio: "#ef5a45", zerg: "#9b2a47" };
   const pal = PALS[mat] ?? PALS.mech;
@@ -20778,7 +20782,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
               const bScale = Math.min(1.15, Math.max(0.85, ((op.hpMax ?? 800) / 1000) ** 0.25));
               // 유닛과 같은 몫으로(요청) — 0.4 → 0.267, 0.03 → 0.015.
               const bw3 = Math.max(2.5, wPx * 0.267 * bScale);
-              const bh3 = Math.max(0.6, wPx * 0.015);
+              const bh3 = hpBarH9(zoom);   // 두께는 모두 같다(지적) — 길이만 다르다
               const bx3 = sx - bw3 / 2;
               /* 바는 **몸 아래**다(요청: 원작처럼 모델 아래쪽) — 그려진 픽셀의 바닥선
                  (bspr.bot) 바로 밑이다. 건물은 발자국 아랫변이 곧 땅에 닿는 줄이라,
@@ -21044,7 +21048,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
              길이가 최대 체력을 따르는 것(요청)은 그대로다 — 저글링 0.585배 ↔ 울트라
              0.975배에 몸 크기 차이가 곱해져 바 길이는 여전히 네 배쯤 벌어진다. */
           const bw2 = Math.max(1.5, inkW * 0.78 * hpScale);
-          const bh2 = Math.max(0.5, inkW * 0.08);
+          const bh2 = hpBarH9(zoom);   // 두께는 모두 같다(지적) — 길이만 다르다
           const bx2 = sx - bw2 / 2;
           /* ★ 바는 **몸 아래**다(요청: "유닛 건물 체력바를 원작처럼 모델 아래쪽으로
              이동") — 원작의 체력바는 발밑에 깔린다. 여태 머리 위였는데, 그러면 뒤에

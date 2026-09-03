@@ -1656,7 +1656,7 @@ export type FxOp = {
   /** hit: **맞은 몸의 결**(요청: "자신의 피해 효과 … 죽음 효과랑 결을 같이") —
    *  살은 피, 프로토스는 에너지, 기계는 불꽃. 죽음 효과(scr-die-*)와 같은 넷이다.
    *  hit의 `style`은 이것과 짝을 이루는 **때린 무기**의 갈래다(FX_IMPACT). */
-  mat?: "bio" | "mech" | "toss" | "zerg";
+  mat?: "bio" | "mech" | "toss" | "zerg" | "cocoon";
   /** hit: 몸 가운데에서 **맞은 자리**까지(렌즈 px) — 없으면 size의 0.71배.
    *  건물은 발자국이 몸 상자와 따로 놀아(4×3 해처리) 제 값을 실어 보낸다. */
   dist?: number;
@@ -5678,7 +5678,8 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         kind: "burst", fx: bfx9, fy: bfy9, lift: flyUp9, bld: true,
         size: (FOOTPRINT[unit] ?? [3, 2])[0] * (mapW9 / grid.width),
         ph: (t - goneAt) / BLD_FX_SEC,
-        mat: rk === "terran" ? "mech" : rk, seed: i + 13,
+        // 저그 공사 고치(완성 전 사라짐)는 고치색 파편(지적)
+        mat: !finished9 && rk === "zerg" ? "cocoon" : rk === "terran" ? "mech" : rk, seed: i + 13,
       });
     }
     dom.push({ k: "collapse", key: `clp-${i}`, x: x + footDx(unit), y: y + footDy(unit), wPct: clpW, rk, flyUp: flyUp9 });
@@ -6236,7 +6237,10 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
          프로토스는 원작에서 인간형이 연기·기계형이 끈적한 액체로 갈리지만
          여기서는 하나로 묶는다(요청: 통일) — 종족이 곧 결이라야 화면에서
          '누가 죽었나'가 읽힌다. */
-      const dk = race === "저그" ? "zerg"
+      /* 고치 갈래(지적): 변태알·러커알·뮤탈 고치가 취소로 터지면 피 폭발이 아니라 고치색 파편이 튄다. */
+      const cocoon9 = e.end === "self"
+        && (e.unit === "Egg" || e.unit === "Lurker Egg" || e.unit === "Mutalisk Cocoon");
+      const dk = cocoon9 ? "cocoon" : race === "저그" ? "zerg"
         : race === "프로토스" ? "toss"
           : BIONIC_UNITS.has(drawUnit) ? "bio" : "mech";
       /* 죽은 자리에 못박기(지적: 체력 0으로 소멸한 유닛이 폭발하며 움직임) —
@@ -7074,10 +7078,13 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
        못 지킨다. 그래서 거리로 잰 시간이 너무 짧으면 **쿨다운의 몫**으로 바닥을 깐다(0.4배).
        절대 상한 0.4초를 함께 두는 까닭은 쿨다운이 아주 긴 무기(디바우러 4.2초 · 시즈 3.2초)
        에서 바닥이 그대로 1.7초가 되어 탄이 기어가기 때문이다. */
+    /* 디바우러의 부식성 산(acid)은 원작에서 느리게 날아가는 탄이다(지적: 디바우러 탄이 안 보임 — 쿨다운 100프레임에
+       비행 0.4초면 한 주기의 1/10만 보였다). 그 탄만 속도를 5타일/초로 낮추고 바닥을 1초로 올려 눈에 들게 한다. */
+    const slowAcid9 = fxName9 === "acid";
     const flySec9 = ((cd9v: number, dist9v: number): number => {
-      const floor9 = Math.min(cd9v * 0.4, 0.4);
+      const floor9 = Math.min(cd9v * 0.4, slowAcid9 ? 1.0 : 0.4);
       return Math.min(cd9v * 0.9,
-        Math.max(0.05, floor9, dist9v / Math.max(1, SHOT_TILES_PER_SEC)));
+        Math.max(0.05, floor9, dist9v / Math.max(1, slowAcid9 ? 5 : SHOT_TILES_PER_SEC)));
     })(fxCdRaw, foeDist);
     const shotU = ((): number | null => {
       /* ★ 나는 거리는 **지도 위 거리**로 잰다(지적: "골리앗 스카웃 대공 미사일
