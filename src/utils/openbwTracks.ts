@@ -213,8 +213,19 @@ export function posAtTruth(
   if (cur) cur.i = lo;
   const i = lo * 5;
   const st = tr.keys[i + 4];
+  /* ★ 사라진 키(GONE)의 자리는 **믿지 않는다**(지적: "위로 도망가던 오버로드가 아래로 되돌아와
+     터졌어") — 죽는 순간의 키는 덤퍼가 개체를 걷어 내며 적는 것이라 자리가 마지막으로 산 자리와
+     다를 때가 있다(되돌아간 자리·묵은 자리). 그 키 **쪽으로 메우면** 죽기 직전 몸이 그리로
+     미끄러지고, 그 키 **위에 서면** 터지는 자리까지 거기가 된다. 둘 다 마지막으로 산 키에 못 박는다. */
+  if (st === TRUTH_ST_GONE && lo > 0) {
+    const h = i - 5;
+    return { x: tr.keys[h + 1], y: tr.keys[h + 2], hdg: tr.keys[h + 3], state: st };
+  }
   if (lo === n - 1) return { x: tr.keys[i + 1], y: tr.keys[i + 2], hdg: tr.keys[i + 3], state: st };
   const j = i + 5;
+  if (tr.keys[j + 4] === TRUTH_ST_GONE) {
+    return { x: tr.keys[i + 1], y: tr.keys[i + 2], hdg: tr.keys[i + 3], state: st };
+  }
   const span = tr.keys[j] - tr.keys[i];
   const u = span > 0 ? Math.min(1, Math.max(0, (t - tr.keys[i]) / span)) : 0;
   /* ★ 방향은 **키 사이를 나눠 갖지 않는다**(지적: "유닛들 방향전환이 너무 느리고
