@@ -8,8 +8,8 @@
  *    clock  { t, speed, playing }                            재생 시계 — 프레임마다(값이 바뀔 때).
  *  (워커 → 메인)
  *    ready                                                   세계를 받아 엔진을 세웠다.
- *    frame  { frame: Frame9 }                                시각 t의 프레임 하나.
- *    err    { message }                                      셈이 던졌다 — 메인은 제 엔진으로 물러난다.
+ *    frame  { frame: Frame9, ms }                            시각 t의 프레임 하나(+ 짓는 데 든 ms).
+ *    err    { message }                                      셈이 던졌다 — 메인은 마지막 프레임을 든 채 진단에 적는다.
  *
  *  박자: 시계 t에서 앞으로 AHEAD_SEC(게임 시각)까지, 한 프레임 = speed/FPS9 초씩 미리 짓는다.
  *  시계가 뛰면(탐색·배속 변경) 엔진 상태(발사 위상·조준 고정 같은 기억)를 비우고 그 자리부터 다시.
@@ -17,7 +17,7 @@
  *
  *  ⚠ 이 파일은 ReplayMotionPlayer 모듈을 통째로 끌어온다(엔진이 그 안의 표·헬퍼를 쓴다). React도
  *    함께 묶이지만 모듈을 읽기만 할 뿐 DOM은 안 만진다 — 워커에서 `document`를 만지는 줄이 생기면
- *    여기서 던지고, 메인은 err를 받아 제 엔진으로 물러난다(화면은 안 죽는다). */
+ *    여기서 던지고, 메인은 err를 받아 진단(#diag 워커 줄)에 적는다(화면은 안 죽는다). */
 import {
   createEngine9, deriveWorld9, type EngineView9, type EngineWorld9, type Frame9,
 } from "./ReplayMotionPlayer";
@@ -26,6 +26,8 @@ import type { TruthWorld } from "../../utils/truthLives";
 
 const FPS9 = 30;
 const AHEAD_SEC = 1.0;
+/** 가장 성긴 박자 — 짓기가 아무리 느려도 초당 이만큼은 낸다(그보다 느리면 그냥 뒤처진다). */
+const FPS_MIN9 = 8;
 
 type WorldMsg = {
   type: "world"; entData: TruthWorld | null; truth: TruthTracks | null;
@@ -48,6 +50,26 @@ let lastBuiltT = -1;
 let winStartT = -1;
 /** 미뤄 둔 pump 타이머(0이면 없음). */
 let pumpTimer = 0;
+/** 프레임 한 장 짓는 데 든 시간(ms, 지수 평균) — 박자를 여기에 맞춘다(아래 stepNow). 0이면 아직 모른다. */
+let buildMs = 0;
+const nowMs = (): number => (typeof performance !== "undefined" ? performance.now() : Date.now());
+/** 한 장 짓고 보낸다 — 시간을 재어 buildMs에 섞고, 메인에도 ms를 실어 보낸다(#diag '짓기'). */
+const emit = (t: number): void => {
+  if (!engine) return;
+  const t0 = nowMs();
+  const f = engine.build(t);
+  const ms = nowMs() - t0;
+  buildMs = buildMs === 0 ? ms : buildMs * 0.85 + ms * 0.15;
+  post({ type: "frame", frame: f, ms });
+};
+/** 프레임 사이 게임 시각 간격. 기본은 speed/30초. ★ 짓기가 그보다 오래 걸리면(폰·긴 경기) 간격을 벌려 시계를
+ *  따라간다 — 초당 30장을 고집하면 워커가 영영 뒤처져 도착하는 프레임이 모두 낡는다(폰에서 유닛이 안 보이던 까닭).
+ *  벽시계로 한 장에 buildMs면 게임 시각으로는 buildMs·speed만큼 흐른다 — 그 1.3배를 간격으로 삼는다. */
+const stepNow = (): number => {
+  const base = Math.max(1 / 240, clock.speed / FPS9);
+  const need = (buildMs / 1000) * clock.speed * 1.3;
+  return Math.min(Math.max(base, need), Math.max(base, clock.speed / FPS_MIN9));
+};
 
 const post = (m: unknown): void => { (self as unknown as Worker).postMessage(m); };
 
@@ -61,7 +83,7 @@ const rebuildEngine = (): void => {
 
 const pump = (): void => {
   if (!engine) return;
-  const step = Math.max(1 / 240, clock.speed / FPS9);
+  const step = stepNow();
   /* 시계가 **지어 둔 창 밖**으로 나갔나 — 뒤로 감았거나(behind) 창 끝을 넘어 앞으로 뛰었거나(ahead).
      (전에는 nextT와 견줬는데 nextT는 늘 1초 앞서 있어 매 시계마다 '뛰었다'가 되어 같은 구간을 되풀이해
      지었다 — 10초에 5,900장. 창은 [마지막 지은 시각, nextT]다.) */
@@ -77,10 +99,9 @@ const pump = (): void => {
     // 멈춤: 그 시각의 프레임이 창 안에 없을 때만 한 장.
     const have = winStartT >= 0 && clock.t >= winStartT - step * 1.5 && clock.t <= nextT;
     if (!have) {
-      const f = engine.build(clock.t);
+      emit(clock.t);
       lastBuiltT = clock.t;
       winStartT = clock.t;
-      post({ type: "frame", frame: f });
       nextT = clock.t + step;
     }
     return;
@@ -90,10 +111,9 @@ const pump = (): void => {
   const until = clock.t + AHEAD_SEC * clock.speed;
   let n = 0;
   while (nextT <= until && n < 8) {
-    const f = engine.build(nextT);
+    emit(nextT);
     lastBuiltT = nextT;
-    post({ type: "frame", frame: f });
-    nextT += step;
+    nextT += stepNow();
     n += 1;
   }
   if (nextT <= until) {

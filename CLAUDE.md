@@ -28,7 +28,8 @@
   `ReplayMotionPlayer.tsx` **모듈 스코프**의 순수 함수다. 컴포넌트는 화면 입력(EngineView9)만 건넨다.
 - 프레임은 **워커만** 낸다(`frameWorker.ts`, 동적 `import("./frameWorker?worker&inline")`, 라이브러리 빌드는
   `inlineDynamicImports`로 한 파일). 메인 엔진 대비 길은 없다 — 워커가 못 서면 마지막 프레임을 든 채
-  `SCR_DIAG.worker`(#diag)에 까닭이 적힌다.
+  `SCR_DIAG.worker`(#diag의 "워커" 줄: on/준비중/off · got/used/missed · 짓기 ms · ⚠오류)에 까닭이 적힌다.
+- 워커는 짓기 시간(ms)에 맞춰 프레임 간격을 벌린다(초당 30장 기본, 최소 8장). 메인은 2초 안의 프레임이면 낡아도 든다.
 - 엔진은 늘 **자세히** 낸다(요잉 16칸·모든 자세·탱크 차체+포탑). 낮은 배율 간이화는 붓(UnitLayer)의
   `detailAt`·`yawAt`·`moveAt`가 한다. 배율·팬은 프레임에 안 실린다.
 - 계측: `node scripts/perf-check.mjs`(vite 번들이 기본) — `[워커] on got/used/missed`로 워커가 쓰였는지 본다.

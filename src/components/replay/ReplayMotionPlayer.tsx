@@ -30257,7 +30257,13 @@ export default function ReplayMotionPlayer({
      까닭을 적는다. 도구 번들(esbuild)에는 워커가 없으므로 계측은 perf-check(vite)로 한다. */
   const frameWorkerRef = useRef<Worker | null>(null);
   const wFramesRef = useRef<Map<number, Frame9>>(new Map());
-  const wStatRef = useRef({ got: 0, used: 0, missed: 0, err: "", sentWorld: 0, sentView: 0, sentClock: 0 });
+  const wStatRef = useRef({
+    got: 0, used: 0, missed: 0, err: "", sentWorld: 0, sentView: 0, sentClock: 0,
+    /** 워커가 세계를 받아 엔진을 세웠다(ready). 세계를 보낸 뒤 오래 안 오면 진단에 '응답 없음'. */
+    ready: false, worldAt: 0,
+    /** 워커가 잰 프레임 한 장 짓는 시간(ms, 지수 평균) — 폰에서 워커가 시계를 못 따라가는지 본다. */
+    buildMs: 0,
+  });
   const lastFrameRef9 = useRef<Frame9 | null>(null);
   /** 워커에 마지막으로 보낸(보낼) 세계 — 워커가 늦게 서면(동적 import) 그때 다시 보낸다. */
   const worldMsgRef9 = useRef<unknown>(null);
@@ -30276,31 +30282,53 @@ export default function ReplayMotionPlayer({
       try { w9 = new (Ctor9 as new () => Worker)(); } catch (e9) { wStatRef.current.err = `워커 생성 실패 ${String(e9).slice(0, 80)}`; return; }
       wire9(w9);
       frameWorkerRef.current = w9;
-      if (worldMsgRef9.current) w9.postMessage(worldMsgRef9.current);
+      if (worldMsgRef9.current) {
+        wStatRef.current.sentWorld += 1;
+        wStatRef.current.ready = false;
+        wStatRef.current.worldAt = pNow();
+        w9.postMessage(worldMsgRef9.current);
+      }
     }).catch((e9) => { wStatRef.current.err = `워커 모듈 못 부름 ${String(e9).slice(0, 80)}`; });
     const wire9 = (wk9: Worker): void => {
-    wk9.onmessage = (ev: MessageEvent<{ type: string; frame?: Frame9; message?: string }>) => {
+    wk9.onmessage = (ev: MessageEvent<{ type: string; frame?: Frame9; message?: string; ms?: number }>) => {
       const m9 = ev.data;
       if (m9.type === "frame" && m9.frame) {
         frames9.set(Math.round(m9.frame.t * 1000), m9.frame);
         wStatRef.current.got += 1;
+        if (typeof m9.ms === "number") {
+          const st9 = wStatRef.current;
+          st9.buildMs = st9.buildMs === 0 ? m9.ms : st9.buildMs * 0.9 + m9.ms * 0.1;
+        }
         // 너무 많이 쌓이면(탐색 뒤 옛 것) 오래된 것부터 버린다 — 2초치(60장)면 넉넉하고 폰 메모리도 가볍다.
         if (frames9.size > 60) {
           const keys9 = [...frames9.keys()].sort((a9, b9) => a9 - b9);
           for (let i9 = 0; i9 < keys9.length - 45; i9 += 1) frames9.delete(keys9[i9]);
         }
+      } else if (m9.type === "ready") {
+        wStatRef.current.ready = true;
       } else if (m9.type === "err") {
-        wStatRef.current.err = m9.message ?? "?";
+        wStatRef.current.err = m9.message || "워커가 던졌다(내용 없음)";
         // eslint-disable-next-line no-console
         console.error("[scplay] 프레임 워커가 던졌다:", m9.message);
         wk9.terminate();
         frameWorkerRef.current = null;
       }
     };
+    /* 워커 스크립트가 못 서거나(모듈 워커 미지원·문법) 잡히지 않은 채 던지면 여기로 온다. Safari는
+       message가 빈 문자열일 때가 있어 자리(파일:줄)도 함께 적는다 — 빈 err는 '문제 없음'으로 보인다. */
     wk9.onerror = (e9) => {
-      wStatRef.current.err = String(e9.message ?? e9);
+      const ev9 = e9 as ErrorEvent;
+      const where9 = ev9.filename ? ` @${String(ev9.filename).slice(-24)}:${ev9.lineno ?? 0}:${ev9.colno ?? 0}` : "";
+      wStatRef.current.err = `${ev9.message || "워커 오류(내용 없음)"}${where9}`;
+      // eslint-disable-next-line no-console
+      console.error("[scplay] 프레임 워커 오류:", wStatRef.current.err, e9);
       wk9.terminate();
       frameWorkerRef.current = null;
+    };
+    wk9.onmessageerror = () => {
+      wStatRef.current.err = "메시지를 못 풀었다(messageerror)";
+      // eslint-disable-next-line no-console
+      console.error("[scplay] 프레임 워커 messageerror");
     };
     };
     return () => { dead9 = true; w9?.terminate(); frameWorkerRef.current = null; frames9.clear(); };
@@ -30316,6 +30344,8 @@ export default function ReplayMotionPlayer({
     if (!w9) return;
     wFramesRef.current.clear();
     wStatRef.current.sentWorld += 1;
+    wStatRef.current.ready = false;
+    wStatRef.current.worldAt = pNow();
     w9.postMessage(msg9);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [world]);
@@ -33453,24 +33483,27 @@ export default function ReplayMotionPlayer({
       w9.postMessage({ type: "clock", t, speed, playing: playing9 });
     }
   }
-  /** 워커 프레임 고르기 — t보다 앞서지 않은 것 중 가장 늦은 것. 한 걸음(speed/30)의 1.5배 안이면 쓴다. */
+  /** 워커 프레임 고르기 — t보다 앞서지 않은 것 중 가장 늦은 것, 없으면 바로 뒤의 것.
+   *  ★ 낡았어도 든다(지적: 폰에서 유닛이 하나도 안 그려짐). 전에는 한 걸음(speed/30)의 1.5배 안의 것만 받았는데,
+   *  워커가 시계를 못 따라가는 기기(폰·긴 경기)에서는 도착하는 프레임이 **늘** 그보다 낡아 하나도 못 쓰고 빈 화면이
+   *  됐다. 이제 2초 안이면 든다 — 낡은 프레임은 살짝 끊길 뿐이고, 빈 화면보다 낫다. 그 밖(탐색 직후 옛 자리의
+   *  프레임)은 안 든다 — 마지막에 쓴 프레임을 든 채 새 것을 기다린다. */
   const pickWorkerFrame9 = (): Frame9 | null => {
     const frames9 = wFramesRef.current;
     if (frames9.size === 0) return null;
-    const step9 = Math.max(1 / 240, speed / 30);
+    const near9 = Math.max(2, speed * 2);
     let best: Frame9 | null = null;
     for (const f9 of frames9.values()) {
       if (f9.t > t + 1e-6) continue;
       if (!best || f9.t > best.t) best = f9;
     }
-    if (best && t - best.t <= step9 * 1.5) return best;
-    // 앞선 것이 없으면(막 탐색한 직후) 바로 뒤의 것이라도 한 걸음 안이면 쓴다.
+    if (best && t - best.t <= near9) return best;
     let next: Frame9 | null = null;
     for (const f9 of frames9.values()) {
       if (f9.t < t) continue;
       if (!next || f9.t < next.t) next = f9;
     }
-    if (next && next.t - t <= step9 * 1.5) return next;
+    if (next && next.t - t <= near9) return next;
     return null;
   };
   /* 프레임은 워커 것뿐이다. 이 시각에 맞는 것이 없으면(탐색 직후·첫 프레임) 마지막으로 쓴 프레임을 들고
@@ -33479,8 +33512,14 @@ export default function ReplayMotionPlayer({
   if (wFrame9) { wStatRef.current.used += 1; lastFrameRef9.current = wFrame9; } else wStatRef.current.missed += 1;
   const frame9: Frame9 = wFrame9 ?? lastFrameRef9.current ?? EMPTY_FRAME9;
   // 워커 상태는 늘 적어 둔다(perf-check가 읽는다) — 문자열 하나라 값이 싸다.
-  SCR_DIAG.worker = `${frameWorkerRef.current ? "on" : "off"} got ${wStatRef.current.got} used ${wStatRef.current.used} missed ${wStatRef.current.missed}`
-    + ` sent(world ${wStatRef.current.sentWorld} view ${wStatRef.current.sentView} clock ${wStatRef.current.sentClock})${wStatRef.current.err ? ` err ${wStatRef.current.err}` : ""}`;
+  {
+    const st9 = wStatRef.current;
+    const wait9 = !st9.ready && st9.worldAt > 0 ? (pNow() - st9.worldAt) / 1000 : 0;
+    SCR_DIAG.worker = `${frameWorkerRef.current ? (st9.ready ? "on" : "준비중") : "off"} got ${st9.got} used ${st9.used} missed ${st9.missed}`
+      + ` 짓기 ${st9.buildMs.toFixed(1)}ms sent(world ${st9.sentWorld} view ${st9.sentView} clock ${st9.sentClock})`
+      + (wait9 > 15 ? ` ⚠ 세계 보낸 지 ${Math.round(wait9)}초째 응답 없음` : "")
+      + (st9.err ? ` ⚠ ${st9.err}` : "");
+  }
   if (typeof window !== "undefined" && !(window as unknown as { __scrDiag?: unknown }).__scrDiag) {
     (window as unknown as { __scrDiag?: unknown }).__scrDiag = SCR_DIAG;
   }
@@ -35021,6 +35060,8 @@ export default function ReplayMotionPlayer({
                   {SCR_DIAG.truthTrust < 0 ? "없음"
                     : `${Math.floor(SCR_DIAG.truthTrust / 60)}분 ${Math.floor(SCR_DIAG.truthTrust % 60)}초`}
                 </div>
+                {/* 프레임 워커 — on/준비중/off · 받은/쓴/놓친 장수 · 한 장 짓는 ms · 오류(⚠). 폰에서 유닛이 안 보이면 이 줄부터. */}
+                <div style={{ wordBreak: "break-all" }}>워커 {SCR_DIAG.worker || "-"}</div>
               </div>
   ) : null;
   /** 확대 버튼에 적을 값 — 화면의 지금 배율이다(핀치·더블탭·휠·한 손 줌 공통). 칸에
