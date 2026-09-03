@@ -21334,7 +21334,9 @@ function buildingSpriteBake(
  *  좌표 규약은 CSS 시절 그대로다: fx/fy는 렌즈 분수 앵커, 길이·오프셋은 **렌즈 px**
  *  (그릴 때 zoom을 곱한다), deg는 CSS rotate와 같은 시계방향(0 = 화면 아래)이다. */
 export type FxOp = {
-  kind: "beam" | "shot" | "spike" | "erupt" | "hit" | "shield" | "cage" | "tether";
+  kind: "beam" | "shot" | "spike" | "erupt" | "hit" | "shield" | "cage" | "tether" | "burst";
+  /** burst(죽음·파괴 폭발): 낱개 흩뿌림의 씨앗(개체마다 다르게) · 건물이면 bld. */
+  seed?: number; bld?: boolean;
   fx: number; fy: number;
   /** 가슴 높이 들기(렌즈 px) — 럴커 가시만 0(땅에서 솟는다). */
   lift: number;
@@ -21626,6 +21628,112 @@ const FX_MAT: Record<string, { core: string; drop: string; deep: string; flash: 
   toss: { core: "rgba(143,208,255,0.95)", drop: "rgba(230,244,255,0.95)", deep: "rgba(58,143,255,0.95)", flash: "#ffffff", n: 5, r: 0.66 },
   mech: { core: "rgba(255,138,61,0.95)", drop: "rgba(255,209,102,0.95)", deep: "rgba(255,90,31,0.95)", flash: "#fff4d0", n: 5, r: 0.62 },
 };
+/** 죽음·파괴 **파편 폭발**(요청) ────────────────────────────────────────────────────────
+ *  덩어리가 낱개로 갈라져 날아가는 그림 하나로 넷을 낸다 — 결(mat)이 낱개의 색·수·중력과 곁들이는
+ *  겹을 정한다.
+ *    mech 기계·테란 건물: 노란 섬광 → 주황 화염, 검은 쇳조각이 튀고 회색 연기 셋이 오른다.
+ *    toss 프로토스: 흰 심에서 푸른 플라즈마 고리가 퍼지고, 금빛 조각이 날며 희게 타서 사라진다.
+ *    zerg 저그: 검붉은 살점이 무겁게 떨어지고 바닥에 피떡이 번진다. bio(테란 생체)는 붉은 살점.
+ *  자는 f.size(보이는 몸 폭·발자국 폭, 렌즈 px)이고 p는 0~1 진행이다. 낱개는 씨앗(seed)으로
+ *  개체마다 다르게 흩되 프레임마다는 같다(무작위면 지지직거린다). save/restore 없이 네 점을
+ *  손으로 돌려 채운다(계측: save 하나가 CPU 8%였다). */
+function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: number, zoom: number, p: number): void {
+  const W = Math.max(3, (f.size ?? 4) * zoom);
+  const mat = f.mat ?? "mech";
+  const bld = f.bld === true;
+  let sd = ((f.seed ?? 1) * 2654435761) >>> 0;
+  const rnd = (): number => { sd = (sd * 1664525 + 1013904223) >>> 0; return sd / 4294967296; };
+  const ease = 1 - (1 - p) * (1 - p);
+  const wet = mat === "zerg" || mat === "bio";
+  // ① 바닥·뒤 겹 — 결마다 다른 한 장.
+  if (wet) {
+    // 피떡: 바닥에 납작하게 번지는 검붉은 타원, 오래 남는다.
+    const rr = W * (0.18 + 0.55 * ease);
+    ctx.globalAlpha = (mat === "zerg" ? 0.6 : 0.5) * (1 - p * 0.6);
+    ctx.fillStyle = mat === "zerg" ? "#4a0c22" : "#5a0f0c";
+    ctx.beginPath(); ctx.ellipse(ax, ay + W * 0.12, rr, rr * 0.42, 0, 0, Math.PI * 2); ctx.fill();
+  } else if (mat === "mech") {
+    // 화염: 섬광이 크게 터졌다 빨리 죽고, 그 자리에 주황 불이 조금 더 머문다.
+    if (p < 0.55) {
+      const q = p / 0.55;
+      ctx.globalAlpha = (1 - q) * 0.9;
+      ctx.fillStyle = "#ff8a1e";
+      ctx.beginPath(); ctx.arc(ax, ay - W * 0.05, W * (0.22 + 0.5 * q), 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = (1 - q) ** 1.6;
+      ctx.fillStyle = "#fff1b0";
+      ctx.beginPath(); ctx.arc(ax, ay - W * 0.05, W * (0.14 + 0.25 * q), 0, Math.PI * 2); ctx.fill();
+    }
+  } else {
+    // 플라즈마: 흰 심 + 퍼지는 푸른 고리.
+    ctx.globalAlpha = Math.max(0, 1 - p * 1.6);
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath(); ctx.arc(ax, ay, W * 0.18 * (1 - p), 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = (1 - p) * 0.75;
+    ctx.strokeStyle = "#8fd0ff";
+    ctx.lineWidth = Math.max(0.8, W * 0.05 * (1 - p * 0.5));
+    ctx.beginPath(); ctx.ellipse(ax, ay, W * (0.2 + 0.85 * ease), W * (0.2 + 0.85 * ease) * 0.6, 0, 0, Math.PI * 2); ctx.stroke();
+  }
+  // ② 낱개 — 결의 팔레트 셋을 돌려 쓰고, 중력은 살점이 가장 무겁다.
+  const PALS: Record<string, [string, string, string]> = {
+    mech: ["#3a3d44", "#6b737e", "#ff8a3d"], bio: ["#c8231b", "#7a1210", "#ef5a45"],
+    zerg: ["#6e1b3a", "#3f0a1e", "#9b2a47"], toss: ["#d4af37", "#a8862a", "#e6f4ff"],
+  };
+  const pal = PALS[mat] ?? PALS.mech;
+  const nBase = bld ? 16 : 10;
+  const N = smallDevice9 ? Math.round(nBase * 0.6) : nBase;
+  const g = W * (wet ? 1.1 : mat === "toss" ? 0.25 : 0.7);
+  for (let i = 0; i < N; i += 1) {
+    const an = (i / N) * Math.PI * 2 + (rnd() - 0.5) * 0.6;
+    const v = W * (0.45 + rnd() * 0.65);
+    const sz = W * (0.07 + rnd() * (bld ? 0.1 : 0.08));
+    const rot = an + (rnd() - 0.5) * 6 * p;
+    const life = mat === "toss" ? 0.75 : 1;
+    const q = Math.min(1, p / life);
+    if (q >= 1) continue;
+    const eq = 1 - (1 - q) * (1 - q);
+    const x = ax + Math.cos(an) * v * eq;
+    const y = ay + Math.sin(an) * v * eq * 0.6 - W * 0.25 * eq + g * q * q;
+    // 네 모서리 — 회전한 직사각형(가로 sz·세로 sz×0.6).
+    const cx = Math.cos(rot), sx = Math.sin(rot);
+    const hw = sz, hh = sz * 0.6;
+    const fill = mat === "toss" ? mixHex(pal[i % 2], "#dff2ff", q) : pal[i % 3];
+    ctx.globalAlpha = mat === "toss" ? (1 - q) ** 0.6 : (q < 0.7 ? 1 : (1 - q) / 0.3);
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.moveTo(x + cx * hw - sx * hh, y + sx * hw + cx * hh);
+    ctx.lineTo(x - cx * hw - sx * hh, y - sx * hw + cx * hh);
+    ctx.lineTo(x - cx * hw + sx * hh, y - sx * hw - cx * hh);
+    ctx.lineTo(x + cx * hw + sx * hh, y + sx * hw - cx * hh);
+    ctx.closePath(); ctx.fill();
+  }
+  // ③ 곁들이 — 기계는 연기, 살은 핏방울, 프로토스는 반짝이.
+  if (mat === "mech") {
+    for (let i = 0; i < 3; i += 1) {
+      const ox = (i - 1) * W * 0.28 + (rnd() - 0.5) * W * 0.1;
+      const q = Math.max(0, Math.min(1, (p - 0.1 - i * 0.06) / 0.9));
+      if (q <= 0) continue;
+      ctx.globalAlpha = 0.5 * (1 - q);
+      ctx.fillStyle = "#5c6068";
+      ctx.beginPath(); ctx.arc(ax + ox, ay - W * 0.15 - W * 0.7 * q, W * (0.14 + 0.32 * q), 0, Math.PI * 2); ctx.fill();
+    }
+  } else if (wet) {
+    ctx.fillStyle = pal[2];
+    for (let i = 0; i < 8; i += 1) {
+      const an = rnd() * Math.PI * 2; const v = W * (0.5 + rnd() * 0.7);
+      const x = ax + Math.cos(an) * v * ease, y = ay + Math.sin(an) * v * ease * 0.6 - W * 0.2 * ease + W * 0.9 * p * p;
+      ctx.globalAlpha = (1 - p) * 0.9;
+      ctx.beginPath(); ctx.arc(x, y, Math.max(0.6, W * 0.03), 0, Math.PI * 2); ctx.fill();
+    }
+  } else {
+    ctx.fillStyle = "#ffffff";
+    for (let i = 0; i < 6; i += 1) {
+      const an = rnd() * Math.PI * 2; const v = W * (0.4 + rnd() * 0.8);
+      ctx.globalAlpha = Math.max(0, 1 - p * 1.3) * 0.9;
+      ctx.beginPath(); ctx.arc(ax + Math.cos(an) * v * ease, ay + Math.sin(an) * v * ease * 0.6 - W * 0.3 * ease, Math.max(0.6, W * 0.025), 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+}
 /* ── 저배율 마커(요청: "저배율에서 유닛이 많아서 힘드니까 건물과 유닛을 그냥 가벼운
    마커로 표시 — 크기만 종별로, 캔버스 형태와 크기대로, 자원도, 그림자 없이") ─────────
    marker가 켜지면 장면 **전체**가 임자 색 사각으로 찍힌다. 종별 크기는 이미 op에 실려
@@ -22870,6 +22978,10 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
           const ay = zy(f.fy) - f.lift * zoom;
           if (ax < -60 || ax > cw + 60 || ay < -60 || ay > ch + 60) continue;
           const p9 = Math.max(0, Math.min(1, f.ph ?? 0));
+          if (f.kind === "burst") {
+            drawBurst9(ctx, f, ax, ay, zoom, p9);
+            continue;
+          }
           if (f.kind === "hit") {
             /* 피격은 **두 겹**이다(요청: "피격시 무조건 주황색 폭발로 처리되는데") ──
                  ① 때린 무기의 제 그림(FX_IMPACT) — 시즈는 크게 터지고 히드라 가시는
@@ -24315,6 +24427,7 @@ const FX_MIN_ZOOM: Record<FxOp["kind"], number> = {
   spike: 2, erupt: 2, cage: 2,
   hit: 4,
   shield: DEEP_MIN_ZOOM, tether: DEEP_MIN_ZOOM,
+  burst: 2,   // 죽음·파괴 폭발 — 2배부터 캔버스로(그 아래는 DOM 여운 하나)
 };
 /** 배치의 바닥(detailAt: 폰 8배)을 **안 타는** 갈래 — 제 칸(FX_MIN_ZOOM)이 곧 실제 칸이다.
  *
@@ -24326,7 +24439,10 @@ const FX_MIN_ZOOM: Record<FxOp["kind"], number> = {
  *    표에는 이미 2배로 적혀 있었는데(cage: 2) 배치 바닥과 **둘 중 늦은 쪽**을 쓰는 규칙에
  *    걸려 폰에서는 8배였다. 그 바닥을 안 타게 한다.
  *  나머지(피격·실드막·승하차 줄)는 꾸밈이라 바닥을 그대로 탄다. */
-const FX_NO_FLOOR = new Set<FxOp["kind"]>(["beam", "shot", "cage"]);
+const FX_NO_FLOOR = new Set<FxOp["kind"]>(["beam", "shot", "cage", "burst"]);
+/** 죽음 폭발이 사는 시간(초) — 유닛·건물. 캔버스 burst와 DOM 여운·집계 문이 같은 값을 본다. */
+const DIE_FX_SEC = 0.5;
+const BLD_FX_SEC = 1.0;
 const SHIELD_FX_ON: boolean = false;
 const ENGAGE_SKIP = new Set([
   "Worker", "Transport", "Overlord", "Dropship", "Shuttle", "Observer", "Science Vessel",
@@ -33310,6 +33426,16 @@ export default function ReplayMotionPlayer({
                   * ((mapRef.current?.clientWidth ?? 320) / grid.width) * e9 * 0.55;
               })()
               : 0;
+            /* 파편 폭발도 얹는다(요청: 파괴 효과도 파편화) — 자는 발자국 폭, 1초. 옛 연기·심 DOM은 그대로 둔다. */
+            if (zoom >= FX_MIN_ZOOM.burst && t >= goneAt && t - goneAt <= BLD_FX_SEC) {
+              const [bfx9, bfy9] = posFrac(x + footDx(unit), y + footDy(unit));
+              fxOps.push({
+                kind: "burst", fx: bfx9, fy: bfy9, lift: flyUp9, bld: true,
+                size: (FOOTPRINT[unit] ?? [3, 2])[0] * ((mapRef.current?.clientWidth ?? 320) / grid.width),
+                ph: (t - goneAt) / BLD_FX_SEC,
+                mat: rk === "terran" ? "mech" : rk, seed: i + 13,
+              });
+            }
             return (
               <span
                 key={`clp-${i}`}
@@ -33352,7 +33478,7 @@ export default function ReplayMotionPlayer({
                몸은 죽은 자리에 못박히지만, 그 자리에 오래 남을수록 뒤에 오는 유닛이
                시체 위를 지나간다. CSS 애니(scr-diefx)의 길이와 **같은 값**이어야 한다 —
                여운이 더 길면 다 꺼진 빈 스팬이 남고, 짧으면 불덩이가 도중에 잘린다. */
-            if (dieAt !== null && t >= dieAt + (e.end === "morph" ? 0 : 0.34)) return null;
+            if (dieAt !== null && t >= dieAt + (e.end === "morph" ? 0 : DIE_FX_SEC)) return null;
             const team = teamOfRaw(e.raw);
             /* 걸음 속도 상한(요청) — 제 속도표로 죈다. 15%만 여유를 둔다: 교전 지연을
                따라잡는 몫이라, 이보다 크면 다시 '순간적으로 빨라짐'이 된다.
@@ -33927,6 +34053,18 @@ export default function ReplayMotionPlayer({
               /* 죽음 효과는 사라진 몸이 있던 자리에 서므로, 그 몸이 그려지던 높이를
                  그대로 따른다 — 들기 몫의 두 배다(터지는 불꽃이 몸보다 위로 솟는다). */
               const dieLift = uAir ? airLiftPxOf(dpy) * 2 : 0;
+              /* ★ **파편 폭발**(요청: 단순한 페이드아웃 확대 말고 덩어리가 파편화되어 터지는 꼴 — 기계는
+                 화염·연기, 프로토스는 플라즈마화, 저그는 살점·피떡) — 캔버스 burst op으로 그린다(2배부터).
+                 자는 보이는 몸 폭. 그 아래 칸은 옛 DOM 여운 하나만 남긴다. */
+              if (zoom >= FX_MIN_ZOOM.burst) {
+                const [bfx9, bfy9] = posFrac(dpx, dpy);
+                fxOps.push({
+                  kind: "burst", fx: bfx9, fy: bfy9, lift: dieLift,
+                  size: diePx9 * (modelInkOf(UNIT_3D[drawUnit] ?? "") / 16), ph: (t - dieAt) / DIE_FX_SEC,
+                  mat: dk, seed: e.tag > 0 ? e.tag : ei + 7,
+                });
+                return null;
+              }
               /* ★ 반환하지 않고 **효과 시트로 보낸다**(지적: 아이폰에서 사망 효과 흐림)
                  — 이 루프의 그릇(렌즈)은 transform 확대라 iOS가 1배로 굽는다. 시트는
                  확대를 레이아웃으로 안으므로 px에 배율을 손수 곱한다(시트 주석). */
