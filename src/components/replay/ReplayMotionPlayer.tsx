@@ -29981,6 +29981,8 @@ export const emptyWorldUi9 = (): WorldUi9 => {
   }
   return emptyWorldUiCache9;
 };
+/** 메인 개체 표에서 비운 배열들의 자리표(공유) — 같은 참조라 메모리를 안 먹는다. */
+const EMPTY_ARR9: never[] = [];
 /** 워커가 보낸 설계도 한 장 — 숫자 배열(unpack9로 푼다) + 안개(바뀐 장에만) + 짓기 ms. 푼 결과는 dec에 붙인다. */
 export type PackedFrame9 = {
   t: number; buf: Float32Array; strs: string[];
@@ -30375,7 +30377,14 @@ export default function ReplayMotionPlayer({
        그 셋을 안 읽는다(체력바는 op에 실려 오고, 화면이 읽는 건 명령·자리·생애 경계뿐). 워커는 제 개체 표를 참값에서
        따로 만드니 여기 것은 비워도 된다(계측: 폰 메인 개체 39.7MB). */
     const ed9 = entDataRef9.current;
-    if (ed9) for (const lf9 of ed9.lives) { lf9.hp = undefined; lf9.ic = undefined; lf9.tgt = undefined; }
+    /* 메인의 화면이 읽는 생애 필드는 born·died·owner·kind·bld·tag·orders뿐(1번: 개체 표 두 벌 줄이기). 자리 열
+       (sites)·이착륙·은신·시즈 구간은 워커 것만 쓰이므로 빈 배열(공유)로 바꿔 놓는다 — 객체는 그대로, 배열만 놓는다. */
+    if (ed9) {
+      for (const lf9 of ed9.lives) {
+        lf9.hp = undefined; lf9.ic = undefined; lf9.tgt = undefined;
+        lf9.sites = EMPTY_ARR9; lf9.lifts = EMPTY_ARR9; lf9.cloaks = EMPTY_ARR9; lf9.sieges = EMPTY_ARR9;
+      }
+    }
   };
   useEffect(() => {
     if (typeof Worker === "undefined") { wStatRef.current.err = "Worker 없음"; return undefined; }

@@ -12,7 +12,13 @@ export function estBytes9(v: unknown, seen: Set<object> = new Set()): number {
   const o = v as object;
   if (seen.has(o)) return 0;
   seen.add(o);
-  if (ArrayBuffer.isView(o)) return (o as ArrayBufferView).byteLength + 40;
+  if (ArrayBuffer.isView(o)) {
+    // 같은 버퍼를 보는 창(subarray)은 한 번만 — 생애마다 자른 변곡점 창이 참값 버퍼를 다시 세지 않게.
+    const buf = (o as ArrayBufferView).buffer;
+    if (seen.has(buf)) return 40;
+    seen.add(buf);
+    return buf.byteLength + 40;
+  }
   if (o instanceof ArrayBuffer) return o.byteLength;
   if (o instanceof Map) {
     let n = 48;
