@@ -33696,7 +33696,7 @@ export default function ReplayMotionPlayer({
       // 앞으로 지어 둘 한도는 기기가 정한다 — 폰은 2초·5MB(스크린샷 한 번의 요동에도 터진다), PC는 3초·10MB.
       w9.postMessage({
         type: "cmd", playing: playing9, t0: t, speed,
-        aheadSec: smallDevice9 ? 1 : 3, aheadBytes: (smallDevice9 ? 3 : 10) * 1024 * 1024,
+        aheadSec: smallDevice9 ? 1.5 : 3, aheadBytes: (smallDevice9 ? 4 : 10) * 1024 * 1024,
       });
     }
   }

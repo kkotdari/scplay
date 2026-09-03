@@ -159,7 +159,9 @@ const pump = (): void => {
   const until = cur + clock.aheadSec * clock.speed;
   /* 바이트 한도는 **주인의 마지막 시각(t0)** 부터 센다 — 제 시계(cur)부터 세면 주인이 멎어 있는 동안(굽기 홀드)
      t0~cur 사이의 장들이 셈에서 빠져 메인 메모리가 한도를 넘는다(계측: 한도 10MB에 메인 15.6MB). */
-  const from = Math.min(cur, clock.t0) - 0.5;
+  /* 뒤(주인 시각 이전)의 장은 한도에 안 넣는다(계측: 폰 3MB 한도를 t0−0.5초부터 세니 앞으로 쓸 몫이 0.4초뿐이라
+     뒤 장이 없는 순간이 10% — 보간이 못 먹고 다음 장에서 뛰었다). 뒤 장은 메인이 제 자로 버린다. */
+  const from = Math.min(cur, clock.t0);
   if (built.length > 0 && built[0].t < from) built = built.filter((b) => b.t >= from);
   let bytesAhead = 0;
   for (const b of built) if (b.t >= from) bytesAhead += b.bytes;
