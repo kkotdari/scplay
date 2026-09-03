@@ -53,6 +53,7 @@ import { decodeMapTerrain, terrainGridOfMap } from "../../utils/mapTerrain";
 /* 잠깐 알리고 사라지는 자리(요청) — 갈라진 판 경고가 이 문을 쓴다. */
 import { truthWorld, type TruthLife, type TruthWorld } from "../../utils/truthLives";
 import { unpack9 } from "./framePack";
+import { estBytes9, mb9 } from "./memEst9";
 import {
   decodeTruthTracks, peekTruthHead, posAtTruth as posAtSim, type TruthTrack, type TruthTracks,
   TRUTH_ST_CARRY_GAS as ST_CARRY_GAS, TRUTH_ST_CARRY_MIN as ST_CARRY_MIN,
@@ -21932,6 +21933,13 @@ if (typeof window !== "undefined") {
 /** #diag가 켜져 있나 — 주소가 바뀌지 않는 한 한 번만 읽는다. */
 export const scrDiagOn = (): boolean =>
   typeof window !== "undefined" && window.location.hash.toLowerCase().includes("diag");
+/** 진단의 **용도**(요청: "diag= 파라미터로 용도를 나누던가") — `#diag`만이면 요약 한 줄, `#diag=draw`(그리기·굽기),
+ *  `#diag=mem`(메모리), `#diag=worker`(설계 일꾼), `#diag=truth`(참값), `#diag=all`(전부). 쉼표로 여럿(`mem,worker`). */
+export const scrDiagModes = (): Set<string> => {
+  if (typeof window === "undefined") return new Set();
+  const m9 = /diag=([a-z,]+)/.exec(window.location.hash.toLowerCase());
+  return new Set(m9 ? m9[1].split(",") : []);
+};
 
 function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShadows, showOverlap, showHp, showCreep, marker: markerProp, markerAt, detailAt, yawAt, moveAt, painter, live, onPainted }: {
   ops: UnitDrawOp[]; zoom: number; pan: { x: number; y: number };
@@ -22027,7 +22035,12 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
          브라우저 캔버스 한 변 한계(4096px)뿐이고, 그것도 큰 PC 화면에서만 닿는다. */
       /* `?dpr=N`이 있으면 그 값으로 누른다(재보기 깃발 — perf9의 DPRCAP9 머리말).
          평소에는 Infinity라 아무 일도 안 한다. */
-      const B = Math.min(dpr, DPRCAP9, 4096 / Math.max(cw, ch, 1));
+      /* ★ 작은 기기의 6배 이상은 배킹을 2로 누른다(지적: 폰 6배 대규모 교전에서 판 예산이 찬 채 굽고 버림 —
+         요잉 8칸·자세 컷 없이도 179장 35MB로 예산 끝이었다). 한 장의 픽셀이 2.25분의 1이라 같은 예산에 두 배 넘게
+         담긴다. 3배 이하는 판이 작아 예산에 여유가 있으니 화면 픽셀(dpr 3) 그대로 둔다. `?dpr=`이 있으면 그것이
+         우선이다(더 낮은 쪽). */
+      const capSmall9 = smallDevice9 && zoom >= 6 ? 2 : Infinity;
+      const B = Math.min(dpr, DPRCAP9, capSmall9, 4096 / Math.max(cw, ch, 1));
       const bw = Math.round(cw * B);
       const bh = Math.round(ch * B);
       if (cv.width !== bw) cv.width = bw;
@@ -29962,9 +29975,10 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
 /** 화면(UI)이 읽는 파생 자료 — 워커가 세계를 세운 뒤 한 번 보내 준다(요청: 메인의 중복 파생 자료 제거).
  *  메인은 deriveWorld9를 안 부른다 — 폰 메모리에서 가장 큰 덩어리 하나가 빠진다. */
 export type WorldUi9 = Pick<EngineWorld9,
-  "buildsSrc" | "entWalks" | "castsSrc" | "nukeLase" | "gasBuildings" | "prodDoneAt" | "prodDoneByRaw" | "upsByRaw" | "nukeImpacts">;
+  "buildsSrc" | "castsSrc" | "nukeLase" | "gasBuildings" | "prodDoneAt" | "prodDoneByRaw" | "upsByRaw" | "nukeImpacts">;
+/** 걷기(entWalks)는 여기 안 든다 — 가장 큰 덩어리인데 추적(로스터 버튼)을 켤 때만 쓴다. 그때 워커에 따로 청한다(want walks). */
 export const pickWorldUi9 = (w: EngineWorld9): WorldUi9 => ({
-  buildsSrc: w.buildsSrc, entWalks: w.entWalks, castsSrc: w.castsSrc, nukeLase: w.nukeLase, gasBuildings: w.gasBuildings,
+  buildsSrc: w.buildsSrc, castsSrc: w.castsSrc, nukeLase: w.nukeLase, gasBuildings: w.gasBuildings,
   prodDoneAt: w.prodDoneAt, prodDoneByRaw: w.prodDoneByRaw, upsByRaw: w.upsByRaw, nukeImpacts: w.nukeImpacts,
 });
 let emptyWorldUiCache9: WorldUi9 | null = null;
@@ -30256,7 +30270,8 @@ export default function ReplayMotionPlayer({
             },
           );
         }
-        setSimTracks(new Map(truth.tracks.map((tr) => [tr.tag, tr])));
+        // 트랙 지도는 안 만든다 — 참값은 워커에 넘겨 메인의 배열이 비고, 이 값은 '받았다'로만 쓰인다.
+        setSimTracks(new Map());
         setEntLoad("idle");
       } else {
         setEntLoad("none");
@@ -30289,7 +30304,15 @@ export default function ReplayMotionPlayer({
      세운 뒤 한 번 보내 준다(worldui). 오기 전 몇 ms는 빈 표를 본다. */
   const [worldUi9, setWorldUi9] = useState<WorldUi9 | null>(null);
   const world: WorldUi9 = worldUi9 ?? emptyWorldUi9();
-  const { buildsSrc, entWalks, castsSrc, nukeLase, gasBuildings, prodDoneAt, prodDoneByRaw, upsByRaw, nukeImpacts } = world;
+  const { buildsSrc, castsSrc, nukeLase, gasBuildings, prodDoneAt, prodDoneByRaw, upsByRaw, nukeImpacts } = world;
+  /** 걷기 — 추적을 켤 때 워커에 청해 받는다(아래 want walks). 세계가 바뀌면 비운다. */
+  const [entWalks9, setEntWalks9] = useState<EngineWorld9["entWalks"]>([]);
+  const entWalks = entWalks9;
+  const walksAskedRef9 = useRef(false);
+  /** 세계 세대 — 워커가 새 worldui를 보낼 때마다 오른다(걷기를 다시 청하는 자). */
+  const [worldGen9, setWorldGen9] = useState(0);
+  /** 워커가 어림한 제 메모리(참값·파생) — ready에 실려 온다. */
+  const [memWorker9, setMemWorker9] = useState<{ truth: number; world: number } | null>(null);
   /* ★ 프레임 워커 = 설계 일꾼(요청) — 주인(여기 재생 상태)의 명령만 받아 앞으로 설계도를 지어 두고, 붓은 받은 것만
      그린다. **길은 이것 하나다**(지적: 메인 엔진 대비 코드는 두 길이라 별로) — 워커가 못 서면 프레임이 없고, 화면은
      마지막 프레임을 든 채 진단(SCR_DIAG.worker)에 까닭을 적는다. 도구 번들(esbuild)에는 워커가 없다. */
@@ -30319,7 +30342,27 @@ export default function ReplayMotionPlayer({
   const cmdSentRef9 = useRef<{ playing: boolean; t0: number; speed: number; at: number } | null>(null);
   const viewSentRef9 = useRef<{ key: string; colors: Record<string, string> } | null>(null);
   /** 워커가 (다시) 서면 렌더를 한 번 일으켜 시점·명령을 보내게 한다(멈춘 화면은 렌더가 없다). */
-  const [, setWorkerTick9] = useState(0);
+  const [workerTick9, setWorkerTick9] = useState(0);
+  /** 참값은 워커에 **넘긴다**(transfer, 요청: 세계의 주인을 하나로) — 트랙의 형식 배열 버퍼를 통째로 옮기고 메인에는
+   *  껍데기(detached 배열)만 남는다. 메인이 트랙 배열을 읽는 자리는 없다(자원 그래프 res·판 번호·개체 표 entData는
+   *  넘기기 전에 만든 것이라 남는다). 같은 참값을 두 번 안 넘긴다. */
+  const truthRef9 = useRef<TruthTracks | null>(null);
+  const truthSentRef9 = useRef<TruthTracks | null | undefined>(undefined);
+  const postTruth9 = (w9: Worker): void => {
+    const tr9 = truthRef9.current;
+    if (truthSentRef9.current === tr9) return;
+    truthSentRef9.current = tr9;
+    const bufs9: Transferable[] = [];
+    if (tr9) {
+      const seen9 = new Set<ArrayBufferLike>();
+      for (const tk9 of tr9.tracks) {
+        for (const arr9 of [tk9.keys, tk9.done, tk9.air, tk9.cloak, tk9.types]) {
+          if (arr9 && arr9.byteLength > 0 && !seen9.has(arr9.buffer)) { seen9.add(arr9.buffer); bufs9.push(arr9.buffer as ArrayBuffer); }
+        }
+      }
+    }
+    w9.postMessage({ type: "truth", truth: tr9 }, bufs9);
+  };
   useEffect(() => {
     if (typeof Worker === "undefined") { wStatRef.current.err = "Worker 없음"; return undefined; }
     let w9: Worker | null = null;
@@ -30343,10 +30386,12 @@ export default function ReplayMotionPlayer({
         wStatRef.current.worldAt = pNow();
         w9.postMessage(worldMsgRef9.current);
       }
+      postTruth9(w9);
       setWorkerTick9((k9) => k9 + 1);
     }).catch((e9) => { wStatRef.current.err = `워커 모듈 못 부름 ${String(e9).slice(0, 80)}`; });
     const wire9 = (wk9: Worker): void => {
     wk9.onmessage = (ev: MessageEvent<{ type: string; message?: string; ui?: WorldUi9 } & Partial<PackedFrame9>>) => {
+      if (dead9) return;
       const m9 = ev.data;
       if (m9.type === "frame" && m9.buf && m9.strs && typeof m9.t === "number") {
         const pf9: PackedFrame9 = { t: m9.t, buf: m9.buf, strs: m9.strs, fog: m9.fog ?? null, ms: m9.ms ?? 0, n: m9.n ?? 0 };
@@ -30384,8 +30429,15 @@ export default function ReplayMotionPlayer({
         }
       } else if (m9.type === "worldui" && m9.ui) {
         setWorldUi9(m9.ui);
+        setEntWalks9([]);
+        walksAskedRef9.current = false;
+        setWorldGen9((g9) => g9 + 1);
+      } else if (m9.type === "walks") {
+        setEntWalks9((m9 as unknown as { entWalks: EngineWorld9["entWalks"] }).entWalks ?? []);
       } else if (m9.type === "ready") {
         wStatRef.current.ready = true;
+        const b9 = (m9 as unknown as { bytes?: { truth: number; world: number } }).bytes;
+        if (b9) setMemWorker9(b9);
       } else if (m9.type === "err") {
         wStatRef.current.err = m9.message || "워커가 던졌다(내용 없음)";
         // eslint-disable-next-line no-console
@@ -30413,9 +30465,11 @@ export default function ReplayMotionPlayer({
     };
     return () => { dead9 = true; w9?.terminate(); frameWorkerRef.current = null; frames9.clear(); fogSnapsRef9.current = []; };
   }, []);
+  /* 세계의 작은 조각(지도·기지·팀·길이) — 참값·개체는 안 싣는다(참값은 위 postTruth9로 한 번 넘기고, 개체 표는
+     워커가 참값에서 스스로 만든다). 이 조각이 바뀌면 워커가 든 참값으로 다시 센다. */
   useEffect(() => {
     const msg9 = {
-      type: "world", entData, truth,
+      type: "world",
       grid: { width: grid.width, height: grid.height, resources: grid.resources },
       bases: bases.map((b9) => ({ key: b9.key, race: b9.race })), teamMap: teamMap9, total,
     };
@@ -30429,7 +30483,16 @@ export default function ReplayMotionPlayer({
     wStatRef.current.worldAt = pNow();
     w9.postMessage(msg9);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entData, truth, grid, bases, teamKey9, total]);
+  }, [grid, bases, teamKey9, total]);
+  truthRef9.current = truth;
+  useEffect(() => {
+    const w9 = frameWorkerRef.current;
+    if (!w9) return;
+    wFramesRef.current.clear();
+    fogSnapsRef9.current = [];
+    postTruth9(w9);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [truth, workerTick9]);
   /* 건물 체력 자취(요청: 건물 체력바 — 실드·회복·불·수리 반영은 분석이 했다) —
      자리 열쇠(raw|x|y)로 그 건물의 체력 변곡점을 찾는다. */
   /** ★ 건물마다 **고른 체력 줄**을 기억해 둔다(성능) ─────────────────────────────────
@@ -31045,6 +31108,14 @@ export default function ReplayMotionPlayer({
     if (on9) setZoom(ZOOM_TAP);
   };
   /** 태그 → 그 태그의 유닛 생애들 — 변태로 갈린 생애가 같은 태그를 나눠 쓴다. */
+  /* 걷기는 추적을 켤 때 워커에 청한다 — 세계가 바뀌었으면(worldGen9) 다시. */
+  useEffect(() => {
+    if (!trackRaw || walksAskedRef9.current) return;
+    const w9 = frameWorkerRef.current;
+    if (!w9) return;
+    walksAskedRef9.current = true;
+    w9.postMessage({ type: "want", what: "walks" });
+  }, [trackRaw, worldGen9, workerTick9]);
   const walksByTag = useMemo(() => {
     const m9 = new Map<number, typeof entWalks>();
     /* 추적을 켜기 전에는 **한 톨도 안 만든다** — 이 표를 쌓는 데 드는 것은 생애 수만큼의
@@ -31144,7 +31215,8 @@ export default function ReplayMotionPlayer({
    *  건물도 제 시야가 저를 덮는다. 곧 달라지는 것은 '아무도 안 본 땅'뿐이다. */
   const visAll = viewTeam !== 1 && viewTeam !== 2;
   /** 안개를 셈할 재료가 있나 — 자취가 없는 옛 기록은 종전대로 통째로 보인다. */
-  const fogOn = entWalks.length > 0;
+  // 안개는 개체 트랙이 있을 때만(옛 경기는 없다) — 걷기(entWalks)는 이제 추적을 켤 때만 받으므로 그 길이로 가리면 안 된다.
+  const fogOn = !!entData && entData.lives.length > 0;
   const gw9 = grid.width;
   const gh9 = grid.height;
   /** 밝힘 이력 — 칸마다 '그 팀이 **처음 본** 초'. 안 본 칸은 NEVER. */
@@ -33607,7 +33679,7 @@ export default function ReplayMotionPlayer({
       // 앞으로 지어 둘 한도는 기기가 정한다 — 폰은 2초·5MB(스크린샷 한 번의 요동에도 터진다), PC는 3초·10MB.
       w9.postMessage({
         type: "cmd", playing: playing9, t0: t, speed,
-        aheadSec: smallDevice9 ? 2 : 3, aheadBytes: (smallDevice9 ? 5 : 10) * 1024 * 1024,
+        aheadSec: smallDevice9 ? 1 : 3, aheadBytes: (smallDevice9 ? 3 : 10) * 1024 * 1024,
       });
     }
   }
@@ -35130,102 +35202,100 @@ export default function ReplayMotionPlayer({
      원인이 갈린다(위 SCR_DIAG 주석): 배킹이 화면 요구를 못 따라간 것인지, 예산에
      막힌 것인지, 배킹은 멀쩡한데 합성이 버린 것인지. 안 켜면 아무것도 안 그린다.
      버튼 줄과 같이 배치마다 붙는 자리가 달라서 변수로 둔다. */
+  const diagModes9 = scrDiagModes();
+  const memMain9 = useMemo(() => {
+    if (!diagOn) return { truth: 0, ent: 0, ui: 0, walks: 0 };
+    const seen9 = new Set<object>();
+    return { truth: estBytes9(truth, seen9), ent: estBytes9(entData, seen9), ui: estBytes9(world, seen9), walks: estBytes9(entWalks9, seen9) };
+  }, [diagOn, truth, entData, world, entWalks9]);
+  const dm9 = (k: string): boolean => diagModes9.has(k) || diagModes9.has("all");
+  const sheetsMB9 = (SPRITE_PERF.last.bytes + SPRITE_PERF.last.bldBytes) / 1048576;
   const diagNode = diagOn ? (
   <div className="scr-motion-diag">
+                {/* 머리 — 늘 보인다: 배킹(dpr)·배율·어느 판인가. */}
                 <div>
                   dpr {SCR_DIAG.dpr} · 배율 {SCR_DIAG.zoom.toFixed(2)}
                   {" · 판 "}{typeof __SCPLAY_BUILD__ !== "undefined" ? __SCPLAY_BUILD__ : "dev"}
+                  {SCR_DIAG.unitScale !== 1 || SCR_DIAG.scale !== 1 ? " · ⚠재표본" : ""}
+                  {!SCR_DIAG.allocOk ? " · ⚠배킹확보 실패" : ""}
                 </div>
-                <div>유닛 {SCR_DIAG.unitCss}css → {SCR_DIAG.unitBack} (B {SCR_DIAG.unitB.toFixed(2)})</div>
-                <div>
-                  {/* 배킹 배수가 dpr보다 작으면 그만큼 뭉갠 것이다. */}
-                  유닛 화질 {SCR_DIAG.dpr ? Math.round((SCR_DIAG.unitB / SCR_DIAG.dpr) * 100) : 0}%
-                </div>
-                {/* 지도와 같은 자 — 1.0000이 아니면 유닛 판도 재표본된다. */}
-                <div>
-                  유닛 배율 {SCR_DIAG.unitScale.toFixed(4)}
-                  {SCR_DIAG.unitScale === 1 ? " (1:1)" : " ⚠재표본"}
-                </div>
-                <div>지도 {SCR_DIAG.mapCss}css → {SCR_DIAG.mapBack}</div>
-                <div>타일당 {SCR_DIAG.ppt}/{SCR_DIAG.needed}</div>
-                {/* 이 줄이 진짜다 — 1.0000이 아니면 그만큼 브라우저가 다시 표본한다. */}
-                <div>
-                  지도 배율 {SCR_DIAG.scale.toFixed(4)}
-                  {SCR_DIAG.scale === 1 ? " (1:1)" : " ⚠재표본"}
-                </div>
-                <div>
-                  예산 {(SCR_DIAG.areaCap / 1e6).toFixed(1)}Mpx · 배킹확보{" "}
-                  {SCR_DIAG.allocOk ? "성공" : "실패"}
-                </div>
-                {/* ★ 판 보관함의 **지금 무게**(지적: "모바일 사파리 탭이 새로고침돼") —
-                    사파리가 탭을 버리는 것은 메모리 때문인데, 그 값은 폰에서 콘솔 없이는
-                    못 읽는다. 여기 한 줄이면 스크린샷 한 장으로 '예산에 닿았나'가 갈린다.
-                    작은 기기의 예산은 유닛 32MB·건물 16MB(메모리를 부르는 기기는 그 배수). */}
-                <div>
-                  판 유닛 {SPRITE_PERF.last.keys}장{" "}
-                  {(SPRITE_PERF.last.bytes / 1048576).toFixed(1)}MB{" · "}
-                  건물 {SPRITE_PERF.last.bldKeys}장{" "}
-                  {(SPRITE_PERF.last.bldBytes / 1048576).toFixed(1)}MB{" / 합 "}
-                  {((SPRITE_PERF.last.bytes + SPRITE_PERF.last.bldBytes) / 1048576).toFixed(1)}
-                  /{(SPRITE_TOTAL_MAX / 1048576).toFixed(0)}MB
-                </div>
-                {/* ★ **굽는 값**(위 SPRITE_PERF의 ★) — 용량 줄만으로는 '예산에 닿았나'
-                    밖에 못 읽는데, 지금 남은 물음은 그 아래다: 예산 안에 들어와 있어도
-                    프레임마다 다시 굽고 있으면 버벅인다. 2초 창이라 스크린샷 한 장에
-                    남는다. 굽는 장수가 0에 가까운데도 버벅이면 굽기가 아니고(그러면
-                    판 쪽을 더 안 판다), 장수·ms가 계속 오르면 무엇이 열쇠를 흔드는지를
-                    다음에 찾는다.
-                    '버림'이 0이 아니면 예산 압박이 다시 굽기를 부르고 있는 것이고,
-                    '미룸'이 쌓이면 프레임 굽기 예산에 일이 밀려 있는 것이다. */}
-                <div>
-                  굽기 {SPRITE_PERF.wLast.secs.toFixed(0)}초 · 유닛{" "}
-                  {SPRITE_PERF.wLast.bake}장 {SPRITE_PERF.wLast.ms.toFixed(0)}ms · 건물{" "}
-                  {SPRITE_PERF.wLast.bldBake}장 {SPRITE_PERF.wLast.bldMs.toFixed(0)}ms
-                </div>
-                <div>
-                  버림 U{SPRITE_PERF.wLast.evict}/B{SPRITE_PERF.wLast.bldEvict}
-                  {" · 미룸 "}U{SPRITE_PERF.wLast.defer}/B{SPRITE_PERF.wLast.bldDefer}
-                  {" · 찍기 "}
-                  {SPRITE_PERF.wLast.frames
-                    ? Math.round(SPRITE_PERF.wLast.blit / SPRITE_PERF.wLast.frames) : 0}장/프레임
-                  {" · 최악판 "}{SPRITE_PERF.wLast.worstKind || "-"}{" "}
-                  {SPRITE_PERF.wLast.worst.toFixed(0)}ms
-                </div>
-                {/* 이 줄 하나가 '굽기인가 아닌가'를 가른다(위 ★) — 최악 프레임이 길었는데
-                    괄호 안(그 프레임의 굽기 몫)이 작으면 범인은 굽기가 아니다. */}
-                <div>
-                  최악프레임 {SPRITE_PERF.wLast.worstFrame.toFixed(0)}ms
-                  {" (그중 굽기 "}{SPRITE_PERF.wLast.worstFrameBake.toFixed(0)}ms)
-                </div>
-                {/* ★ 탭이 터지는 자를 본다(위 dom의 ★) — 판(오프스크린)과 화면 캔버스는
-                    **서로 다른 것**이라 더해야 전체다. */}
-                <div>
-                  캔버스 {SPRITE_PERF.dom.canvases}장{" "}
-                  {SPRITE_PERF.dom.canvasMB.toFixed(1)}MB{" + 판 "}
-                  {((SPRITE_PERF.last.bytes + SPRITE_PERF.last.bldBytes) / 1048576).toFixed(1)}
-                  {"MB = "}
-                  {(SPRITE_PERF.dom.canvasMB
-                    + (SPRITE_PERF.last.bytes + SPRITE_PERF.last.bldBytes) / 1048576).toFixed(1)}MB
-                  {" · 마커 "}{SPRITE_PERF.dom.markers}개
-                </div>
-                {/* 어느 층이 큰가 — 줄일 자리를 이 줄이 짚는다. */}
-                <div style={{ fontSize: "0.92em", opacity: 0.85 }}>
-                  {SPRITE_PERF.dom.list || "-"}
-                </div>
-                {/* 상자가 창보다 크면 그 몫은 영영 안 보이는 화소다(위 view의 ★). */}
-                <div style={{ fontSize: "0.92em", opacity: 0.85 }}>
-                  {SPRITE_PERF.dom.view || "-"}
-                </div>
-                {/* 참값이 어느 판으로 구워졌나 — '재분석했는데 갈림 시각이 그대로'가
-                    진짜 갈림인지 안 구운 것인지를 이 한 줄이 가른다(위 truthVer 주석). */}
-                <div>
-                  {SCR_DIAG.truthWhy ? `⚠ ${SCR_DIAG.truthWhy} · ` : ""}
-                  참값 판 {SCR_DIAG.truthVer || "?"} · 갈림{" "}
-                  {SCR_DIAG.truthTrust < 0 ? "없음"
-                    : `${Math.floor(SCR_DIAG.truthTrust / 60)}분 ${Math.floor(SCR_DIAG.truthTrust % 60)}초`}
-                </div>
-                {/* 프레임 워커 — on/준비중/off · 받은/쓴/놓친 장수 · 한 장 짓는 ms · 오류(⚠). 폰에서 유닛이 안 보이면 이 줄부터. */}
-                <div style={{ wordBreak: "break-all" }}>워커 {SCR_DIAG.worker || "-"}</div>
+                {/* 요약(값 없는 #diag) — 한 줄에 끊김·메모리·워커의 첫 자를 다 둔다. */}
+                {diagModes9.size === 0 && (
+                  <div>
+                    최악프레임 {SPRITE_PERF.wLast.worstFrame.toFixed(0)}ms(굽기 {SPRITE_PERF.wLast.worstFrameBake.toFixed(0)})
+                    {" · 굽기 "}{SPRITE_PERF.wLast.bake}장 버림 {SPRITE_PERF.wLast.evict}
+                    {" · 판 "}{sheetsMB9.toFixed(1)}/{(SPRITE_TOTAL_MAX / 1048576).toFixed(0)}MB
+                    {" · 캔버스 "}{SPRITE_PERF.dom.canvasMB.toFixed(1)}MB
+                    {" · 워커 "}{frameWorkerRef.current ? (wStatRef.current.ready ? "on" : "준비중") : "off"}
+                    {" "}{wStatRef.current.buildMs.toFixed(0)}ms
+                    {wStatRef.current.err ? ` ⚠ ${wStatRef.current.err}` : ""}
+                  </div>
+                )}
+                {dm9("draw") && (
+                  <>
+                    <div>
+                      유닛 {SCR_DIAG.unitCss}css → {SCR_DIAG.unitBack} (B {SCR_DIAG.unitB.toFixed(2)}
+                      {SCR_DIAG.dpr && SCR_DIAG.unitB < SCR_DIAG.dpr ? ` · 화질 ${Math.round((SCR_DIAG.unitB / SCR_DIAG.dpr) * 100)}%` : ""})
+                      {" · 지도 "}{SCR_DIAG.mapBack} · 타일당 {SCR_DIAG.ppt}/{SCR_DIAG.needed}
+                    </div>
+                    {/* 굽는 값 — 예산 안이어도 프레임마다 다시 굽고 있으면 버벅인다. '버림'이 0이 아니면 예산 압박이
+                        다시 굽기를 부르는 것이고, '미룸'이 쌓이면 프레임 굽기 예산에 일이 밀려 있는 것이다. */}
+                    <div>
+                      굽기 {SPRITE_PERF.wLast.secs.toFixed(0)}초 · 유닛{" "}
+                      {SPRITE_PERF.wLast.bake}장 {SPRITE_PERF.wLast.ms.toFixed(0)}ms · 건물{" "}
+                      {SPRITE_PERF.wLast.bldBake}장 {SPRITE_PERF.wLast.bldMs.toFixed(0)}ms
+                      {" · 버림 "}U{SPRITE_PERF.wLast.evict}/B{SPRITE_PERF.wLast.bldEvict}
+                      {" · 미룸 "}U{SPRITE_PERF.wLast.defer}/B{SPRITE_PERF.wLast.bldDefer}
+                    </div>
+                    <div>
+                      찍기{" "}
+                      {SPRITE_PERF.wLast.frames
+                        ? Math.round(SPRITE_PERF.wLast.blit / SPRITE_PERF.wLast.frames) : 0}장/프레임
+                      {" · 최악판 "}{SPRITE_PERF.wLast.worstKind || "-"}{" "}
+                      {SPRITE_PERF.wLast.worst.toFixed(0)}ms
+                      {" · 최악프레임 "}{SPRITE_PERF.wLast.worstFrame.toFixed(0)}ms
+                      {" (그중 굽기 "}{SPRITE_PERF.wLast.worstFrameBake.toFixed(0)}ms) · 마커 {SPRITE_PERF.dom.markers}개
+                    </div>
+                  </>
+                )}
+                {dm9("mem") && (
+                  <>
+                    {/* 탭이 터지는 자 — 판(오프스크린)과 화면 캔버스는 서로 다른 것이라 더해야 전체다. */}
+                    <div>
+                      판 유닛 {SPRITE_PERF.last.keys}장 {(SPRITE_PERF.last.bytes / 1048576).toFixed(1)}MB
+                      {" · 건물 "}{SPRITE_PERF.last.bldKeys}장 {(SPRITE_PERF.last.bldBytes / 1048576).toFixed(1)}MB
+                      {" / 합 "}{sheetsMB9.toFixed(1)}/{(SPRITE_TOTAL_MAX / 1048576).toFixed(0)}MB
+                    </div>
+                    <div>
+                      캔버스 {SPRITE_PERF.dom.canvases}장 {SPRITE_PERF.dom.canvasMB.toFixed(1)}MB
+                      {" + 판 "}{sheetsMB9.toFixed(1)}MB{" = "}{(SPRITE_PERF.dom.canvasMB + sheetsMB9).toFixed(1)}MB
+                      {" · 설계도 "}{(((): number => {
+                        let b9 = 0;
+                        for (const f9 of wFramesRef.current.values()) b9 += f9.buf.byteLength;
+                        return b9;
+                      })() / 1048576).toFixed(1)}MB {wFramesRef.current.size}장
+                    </div>
+                    <div style={{ fontSize: "0.92em", opacity: 0.85 }}>{SPRITE_PERF.dom.list || "-"}</div>
+                    {/* 자바스크립트 쪽 큰 덩어리의 어림(memEst9) — 참값은 워커에 넘긴 뒤라 메인은 껍데기만 남아야 한다. */}
+                    <div>
+                      메모리(어림) 메인: 참값 {mb9(memMain9.truth)} · 개체 {mb9(memMain9.ent)} · UI파생 {mb9(memMain9.ui)}
+                      {" · 걷기 "}{mb9(memMain9.walks)}
+                      {" | 워커: "}{memWorker9 ? `참값 ${mb9(memWorker9.truth)} · 파생 ${mb9(memWorker9.world)}` : "-"}
+                    </div>
+                  </>
+                )}
+                {dm9("truth") && (
+                  <div>
+                    {SCR_DIAG.truthWhy ? `⚠ ${SCR_DIAG.truthWhy} · ` : ""}
+                    참값 판 {SCR_DIAG.truthVer || "?"} · 갈림{" "}
+                    {SCR_DIAG.truthTrust < 0 ? "없음"
+                      : `${Math.floor(SCR_DIAG.truthTrust / 60)}분 ${Math.floor(SCR_DIAG.truthTrust % 60)}초`}
+                  </div>
+                )}
+                {dm9("worker") && (
+                  /* 프레임 워커 — on/준비중/off · 받은/쓴/놓친 장수 · 한 장 짓는 ms · op·KB · 앞 · 시야 · [속] · 오류(⚠). */
+                  <div style={{ wordBreak: "break-all" }}>워커 {SCR_DIAG.worker || "-"}</div>
+                )}
               </div>
   ) : null;
   /** 확대 버튼에 적을 값 — 화면의 지금 배율이다(핀치·더블탭·휠·한 손 줌 공통). 칸에

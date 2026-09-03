@@ -23,8 +23,10 @@ import {
   createEngine9, deriveWorld9, pickWorldUi9, type EngineView9, type EngineWorld9, type Frame9,
 } from "./ReplayMotionPlayer";
 import { pack9 } from "./framePack";
+import { estBytes9 } from "./memEst9";
+import { UNIT_BUILD_SEC } from "./unitStats";
 import type { TruthTracks } from "../../utils/openbwTracks";
-import type { TruthWorld } from "../../utils/truthLives";
+import { truthWorld } from "../../utils/truthLives";
 
 const FPS9 = 30;
 /** 가장 성긴 박자 — 짓기가 아무리 느려도 초당 이만큼은 낸다(그보다 느리면 그냥 뒤처진다). */
@@ -35,15 +37,20 @@ const AHEAD_WALL_SEC = 3;
 const AHEAD_BYTES = 10 * 1024 * 1024;
 
 type WorldMsg = {
-  type: "world"; entData: TruthWorld | null; truth: TruthTracks | null;
+  type: "world";
   grid: { width: number; height: number; resources?: [number, number, 0 | 1][] };
   bases: { key: string; race?: string }[]; teamMap: Record<string, 1 | 2>; total: number;
 };
+/** 참값 — 메인이 transfer로 **넘긴** 것(메인에는 껍데기만 남는다). 개체 표(entData)는 여기서 스스로 만든다. */
+type TruthMsg = { type: "truth"; truth: TruthTracks | null };
 type ViewMsg = { type: "view"; view: EngineView9 };
 type CmdMsg = { type: "cmd"; playing: boolean; t0: number; speed: number; aheadSec?: number; aheadBytes?: number };
-type Msg = WorldMsg | ViewMsg | CmdMsg;
+type WantMsg = { type: "want"; what: "walks" };
+type Msg = WorldMsg | TruthMsg | ViewMsg | CmdMsg | WantMsg;
 
 let world: EngineWorld9 | null = null;
+let truthData: TruthTracks | null = null;
+let worldParams: Omit<WorldMsg, "type"> | null = null;
 let view: EngineView9 | null = null;
 let engine: ReturnType<typeof createEngine9> | null = null;
 /** 주인의 명령 + 받은 벽시계 시각 — 지금 시각은 이것으로 센다(clockT). */
@@ -170,6 +177,25 @@ const pump = (): void => {
   pumpTimer = setTimeout(() => { pumpTimer = 0; pump(); }, delay) as unknown as number;
 };
 
+/** 세계를 (다시) 센다 — 참값과 세계 조각이 둘 다 있을 때. 개체 표는 참값에서 여기서 만든다(메인과 같은 함수). */
+const deriveNow = (): void => {
+  if (!worldParams) return;
+  const p = worldParams;
+  const entData = truthData && truthData.tracks.length ? truthWorld(truthData, (k) => UNIT_BUILD_SEC[k] ?? 0) : null;
+  world = deriveWorld9({
+    entData, truth: truthData, grid: p.grid, bases: p.bases,
+    teamOf: (raw: string) => p.teamMap[raw], total: p.total,
+  });
+  rebuildEngine();
+  let bytes: { truth: number; world: number } | undefined;
+  try {
+    const seen = new Set<object>();
+    bytes = { truth: estBytes9(truthData, seen), world: estBytes9(world, seen) + estBytes9(entData, seen) };
+  } catch { bytes = undefined; }
+  post({ type: "ready", bytes });
+  post({ type: "worldui", ui: pickWorldUi9(world) });
+  pump();
+};
 const rebuildEngine = (): void => {
   if (!world || !view) return;
   engine = createEngine9(world, view);
@@ -184,15 +210,13 @@ if (inWorker9) self.onmessage = (ev: MessageEvent<Msg>): void => {
   const m = ev.data;
   try {
     if (m.type === "world") {
-      const teamMap = m.teamMap;
-      world = deriveWorld9({
-        entData: m.entData, truth: m.truth, grid: m.grid, bases: m.bases,
-        teamOf: (raw: string) => teamMap[raw], total: m.total,
-      });
-      rebuildEngine();
-      post({ type: "ready" });
-      post({ type: "worldui", ui: pickWorldUi9(world) });
-      pump();
+      worldParams = { grid: m.grid, bases: m.bases, teamMap: m.teamMap, total: m.total };
+      deriveNow();
+    } else if (m.type === "truth") {
+      truthData = m.truth;
+      deriveNow();
+    } else if (m.type === "want") {
+      if (m.what === "walks") post({ type: "walks", entWalks: world?.entWalks ?? [] });
     } else if (m.type === "view") {
       view = m.view;
       if (engine) engine.setView(view); else rebuildEngine();
