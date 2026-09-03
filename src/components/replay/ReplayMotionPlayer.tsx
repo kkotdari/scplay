@@ -22890,6 +22890,25 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
             /** 무기 세기 — 표의 반지름비(총 0.5 · 시즈 1.75)를 1 언저리로 옮긴 배수. */
             const wk9 = im9 ? Math.min(2, Math.max(0.7, im9.r / 0.6)) : 1;
             const mt9 = FX_MAT[f.mat ?? "mech"];
+            /* ★ 표적 자리 **스플래시**(커세어 플레어·아콘 잽)는 제 그림 그대로다(지적: "인터셉터 피격효과
+               파편이 아직도 너무 큰데") — 이 둘은 맞는 쪽 체력이 아니라 **쏘는 쪽 박자**로 표적에 얹는
+               op이고, 자(size)가 쏘는 몸의 **상자 통째**다(옛 그러데이션 타원의 자). 파편 그리기로 넘어가니
+               커세어가 쏘는 인터셉터마다 상자만 한 파편 부채가 텄다. 옛 납작 타원(FX_IMPACT flat)을 되살려
+               이 갈래만 그것으로 그리고 파편은 안 낸다. */
+            if (im9 && (f.style === "flare" || f.style === "zap")) {
+              const ir9 = r9 * im9.r * (0.7 + p9 * 0.5);
+              const fl9 = im9.flat ?? 1;
+              ctx.globalAlpha = a9;
+              if (fl9 !== 1) { ctx.translate(hx9, hy9); ctx.scale(1, fl9); ctx.translate(-hx9, -hy9); }
+              const gi9 = ctx.createRadialGradient(hx9, hy9, 0, hx9, hy9, ir9);
+              for (const [o9, c9] of im9.g) gi9.addColorStop(o9, c9);
+              ctx.fillStyle = gi9;
+              ctx.beginPath();
+              ctx.arc(hx9, hy9, ir9, 0, Math.PI * 2);
+              ctx.fill();
+              if (fl9 !== 1) { ctx.translate(hx9, hy9); ctx.scale(1, 1 / fl9); ctx.translate(-hx9, -hy9); }
+              continue;
+            }
             /* ★ 파편 **스물넷**, **궤적 스트릭**(재요청: 양 4배, 이동 방향으로 길게) — 후보판 B2의
                움직임(짧게 튀어 멈춤, 중력 없음, 섬광·링 없음)은 그대로 두고, 낱개를 점 대신 조금 전
                자리에서 지금 자리까지 잇는 짧은 선으로 그려 꼬리가 생긴다. 각은 부채꼴 ±0.65rad를
