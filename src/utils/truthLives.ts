@@ -56,8 +56,9 @@ export type TruthLife = {
   bornY: number;
   /** 사라진 초 — 끝까지 살아 있었으면 null. */
   died: number | null;
-  /** 끝난 갈래 — "morph" 다음 생애로 이어짐 · "atk" 사라짐 · "" 끝까지 삶. */
-  end: "morph" | "atk" | "";
+  /** 끝난 갈래 — "morph" 다음 생애로 이어짐 · "atk" 사라짐 · "self" 자폭(스커지·마인·감염된 테란, 변태알 취소) · "" 끝까지 삶.
+   *  "self"는 사망 효과가 나야 하는 끝이라 "morph"와 다르고, 킬로 세지 않아야 하니 "atk"와도 다르다. */
+  end: "morph" | "atk" | "self" | "";
   /** 건물인가. */
   bld: boolean;
   /** 앉은 자리들 — 첫째가 처음 지은 자리, 그 뒤는 옮겨 앉은 자리다. 건물만 갖는다. */
@@ -141,6 +142,15 @@ function livesOfTrack(
     const lastT = kT(tr, lastIdx);
     const gone = kS(tr, lastIdx) === TRUTH_ST_GONE;
     const more = ci < cuts.length - 1;
+    /* ★ 자폭(지적: 스커지는 자폭 때 제 사망 효과가 나야 · 변태알도 취소가 자폭) ─────────────────────────
+       스커지·스파이더 마인·감염된 테란은 제 손으로 사라지므로 GONE 키가 없이 자취가 끊길 수 있다 — 그 끝을 죽음으로
+       본다. 변태알·러커알·뮤탈 고치는 취소하면 라바·히드라·뮤탈로 되돌아가 '변태'로 이어지는데, 그 되돌아감은 알이
+       터진 것이니 앞 생애의 끝을 자폭으로 적는다(완성으로 이어지는 변태는 그대로 morph). */
+    const nextKind = more ? (BW_UNIT_NAME[tr.types[end]] ?? "") : "";
+    const selfEnd = SUICIDE_KINDS.has(kind)
+      || (more && ((kind === "Egg" && nextKind === "Larva")
+        || (kind === "Lurker Egg" && nextKind === "Hydralisk")
+        || (kind === "Mutalisk Cocoon" && nextKind === "Mutalisk")));
     const bld = isBuilding(kind);
     /** ★ 이 생애가 **정말로 끝나는 때** — 자리 키가 끊긴 때(lastT)와는 다른 말이다.
      *
@@ -279,8 +289,8 @@ function livesOfTrack(
       born,
       bornX: kX(tr, segStart),
       bornY: kY(tr, segStart),
-      died: more || gone ? lastT : null,
-      end: more ? "morph" : gone ? "atk" : "",
+      died: more || gone || selfEnd ? lastT : null,
+      end: selfEnd ? "self" : more ? "morph" : gone ? "atk" : "",
       bld,
       sites,
       doneAt,
@@ -310,6 +320,8 @@ const MORPH_SEC: Record<string, number> = {
   "Sunken Colony": 12.6, "Spore Colony": 12.6,
 };
 
+/** 제 손으로 사라지는 종류 — 자취가 GONE 없이 끊겨도 죽음이다(위 selfEnd). */
+const SUICIDE_KINDS = new Set(["Scourge", "Spider Mine", "Infested Terran"]);
 export function truthWorld(truth: TruthTracks, buildSecOf: BuildSecOf): TruthWorld {
   const lives: TruthLife[] = [];
   for (const tr of truth.tracks) lives.push(...livesOfTrack(tr, truth.orders, buildSecOf));

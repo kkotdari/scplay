@@ -20774,7 +20774,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
               /* 유닛 바와 같은 원칙(전수조사) — 바는 제 건물보다 넓지 않다. 배율은
                  0.6~1.4배로 조이고 폭 기준도 0.7 → 0.6으로 낮춘다. */
               /* 유닛 바와 같이 얇고 짧게(요청) — 길이 0.6 → 0.4배, 두께 0.05 → 0.03배. */
-              const bScale = Math.min(1.4, Math.max(0.6, Math.sqrt((op.hpMax ?? 800) / 1000)));
+              /* 편차를 팍 줄인다(지적: 포톤은 너무 작고 배틀·캐리어는 너무 큼) — 제곱근 0.6~1.4 → 네제곱근 0.85~1.15. */
+              const bScale = Math.min(1.15, Math.max(0.85, ((op.hpMax ?? 800) / 1000) ** 0.25));
               // 유닛과 같은 몫으로(요청) — 0.4 → 0.267, 0.03 → 0.015.
               const bw3 = Math.max(2.5, wPx * 0.267 * bScale);
               const bh3 = Math.max(0.6, wPx * 0.015);
@@ -20782,7 +20783,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
               /* 바는 **몸 아래**다(요청: 원작처럼 모델 아래쪽) — 그려진 픽셀의 바닥선
                  (bspr.bot) 바로 밑이다. 건물은 발자국 아랫변이 곧 땅에 닿는 줄이라,
                  그 아래에 놓으면 원작의 발치 바와 같은 자리가 된다. */
-              const byTop = bTop9 + (bspr.bot / B) * k + 2;
+              const byTop = bTop9 + (bspr.bot / B) * k + 2 + wPx * 0.03;   // 살짝 아래로(지적)
               ctx.globalAlpha = op.alpha * 0.9;
               ctx.fillStyle = "rgba(10, 14, 10, 0.75)";
               ctx.fillRect(bx3 - 0.5, byTop - 0.5, bw3 + 1, bh3 + 1);
@@ -21033,7 +21034,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
              대 3.3타일) 저글링과 울트라의 바 길이 차이는 그대로 4배쯤 난다. */
           /* 전체적으로 상당히 얇고 짧게(요청) — 길이 0.85 → 0.58배, 두께 0.085 → 0.05배.
              바닥값도 함께 내려(3 → 2px, 1.4 → 0.9px) 작은 유닛에서 굵어 보이지 않게. */
-          const hpScale = Math.min(1.25, Math.max(0.75, Math.sqrt((op.hpMax ?? 100) / 150)));
+          // 편차를 팍 줄인다(지적) — 제곱근 0.75~1.25 → 네제곱근 0.85~1.15. 몸 크기 차이는 inkW가 그대로 진다.
+          const hpScale = Math.min(1.15, Math.max(0.85, ((op.hpMax ?? 100) / 150) ** 0.25));
           /* 자를 상자(px)에서 **몸 폭(inkW)**으로 옮긴다(회귀: 아콘 바가 몸의 1.49배).
              HP_BAR_W 0.78 × hpScale 상한 1.25 = 0.975 — 어떤 종류에서도 바는 몸보다
              넓지 않다. 이것이 표가 아니라 **식으로** 보장되는 것이 핵심이다: 예전 상자
@@ -21051,7 +21053,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
              유닛에서는 몸이 아니라 그림자 곁에 눕는다(지적: "공중유닛 체력바는 모델
              아래로") — 몸은 lift만큼 떠 있으므로 그만큼 함께 올려야 발치에 붙는다.
              지상 유닛은 lift가 0이라 예전과 같은 자리다. */
-          const by2 = footY - lift + Math.max(1, px * 0.05);
+          const by2 = footY - lift + Math.max(2, px * 0.11);   // 살짝 아래로(지적)
           ctx.shadowColor = "transparent";
           ctx.globalAlpha = op.alpha * 0.9;
           ctx.fillStyle = "rgba(10, 14, 10, 0.75)";
