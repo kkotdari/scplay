@@ -26,9 +26,10 @@
 ## 프레임 엔진·워커 구조(2026-09)
 - `deriveWorld9`(파생 자료)·`createEngine9`(시각 t → 프레임: unitOps·fxOps·DOM 기록·안개)는
   `ReplayMotionPlayer.tsx` **모듈 스코프**의 순수 함수다. 컴포넌트는 화면 입력(EngineView9)만 건넨다.
-- `frameWorker.ts`가 같은 엔진을 워커에서 돌려 프레임을 미리 쌓는다(동적 `import("./frameWorker?worker&inline")`,
-  라이브러리 빌드는 `inlineDynamicImports`로 한 파일). 워커가 없거나 던지면 메인 엔진으로 물러난다.
+- 프레임은 **워커만** 낸다(`frameWorker.ts`, 동적 `import("./frameWorker?worker&inline")`, 라이브러리 빌드는
+  `inlineDynamicImports`로 한 파일). 메인 엔진 대비 길은 없다 — 워커가 못 서면 마지막 프레임을 든 채
+  `SCR_DIAG.worker`(#diag)에 까닭이 적힌다.
 - 엔진은 늘 **자세히** 낸다(요잉 16칸·모든 자세·탱크 차체+포탑). 낮은 배율 간이화는 붓(UnitLayer)의
   `detailAt`·`yawAt`·`moveAt`가 한다. 배율·팬은 프레임에 안 실린다.
-- 계측: `node scripts/perf-check.mjs --vite [--noworker]` — vite로 묶어야 워커가 돈다(esbuild 도구 번들은
-  워커 없이 메인 엔진). `[워커] on got/used/missed`로 워커가 쓰였는지 본다. `?noworker=1`(해시도 됨)로 끌 수 있다.
+- 계측: `node scripts/perf-check.mjs`(vite 번들이 기본) — `[워커] on got/used/missed`로 워커가 쓰였는지 본다.
+  esbuild 도구 번들(model-shot 등, perf-check `--esbuild`)에는 워커가 없어 유닛 프레임이 안 그려진다.

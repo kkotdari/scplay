@@ -383,7 +383,8 @@ async function bundleVite() {
   rmSync(src, { force: true });
   return js;
 }
-const js = has("--vite") ? await bundleVite() : bundle();
+/* 기본이 vite다 — 프레임은 워커만 내므로 esbuild 번들(--esbuild)에는 유닛이 안 그려진다(굽기·배치 검사용). */
+const js = has("--esbuild") ? bundle() : await bundleVite();
 
 const TRACE = has("--trace");        // 크로뮴 트레이스 — 메인 스레드 밖(래스터·컴포짓)까지 본다
 /* --engine webkit — 웹킷으로 돌린다(요청·지적: "스테이지 문제 웹킷 쪽인가 봐 지금
@@ -456,8 +457,8 @@ await page.route("http://perf-check.local/*", (r) => r.fulfill({
   body: `<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width, initial-scale=1"><body style="margin:0"><div class="${WRAP}" style="padding:0 16px"><div id=root></div></div>`,
 }));
 // --diag — 진단 오버레이(#diag)를 켠 채로 띄운다(재생기가 주소 해시로 판단한다).
-/* 주소 해시 — #diag(진단 표시), noworker=1(프레임 워커 끄기·비교용). */
-const hash9 = [has("--diag") ? "diag" : "", has("--noworker") ? "noworker=1" : ""].filter(Boolean).join("&");
+/* 주소 해시 — #diag(진단 표시). */
+const hash9 = has("--diag") ? "diag" : "";
 await page.goto(`http://perf-check.local/${hash9 ? `#${hash9}` : ""}`);
 /* 앱 CSS — 레이어 크기·자리·이펙트가 전부 클래스에 실려 있어 없으면 화면이 안 선다.
    빌드 산출물(dist)의 CSS를 그대로 얹는다(npm run build가 먼저 돌아 있어야 한다). */

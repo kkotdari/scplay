@@ -21874,8 +21874,6 @@ function bakeStepOf(z9: number): number {
  *  예산에 막힌 것인지, 아예 배킹 확보가 실패한 것인지.
  *  값은 그리는 쪽(UnitLayer·ReplayMapVector)이 매 프레임 여기에 적고, 오버레이는
  *  재생 틱마다 읽어 그린다. 꺼져 있으면 적기만 하고 아무도 안 읽는다(값 없음). */
-/** `?noworker=1` — 프레임 워커를 끄고 메인 엔진만 쓴다(계측 비교·재현용). */
-const NOWORKER9 = typeof location !== "undefined" && /[?&#]noworker=1/.test(location.search + location.hash);
 export const SCR_DIAG: {
   dpr: number; unitCss: string; unitBack: string; unitB: number;
   mapCss: string; mapBack: string; ppt: number; needed: number;
@@ -24748,6 +24746,11 @@ export type DomFx9 =
 export type Frame9 = {
   t: number; unitOps: UnitDrawOp[]; fxOps: FxOp[]; miniExtra: MiniDot[]; gasBusy: string[]; dom: DomFx9[];
   explored: Uint16Array | null; visNow: Uint8Array | null; visSrc: Float32Array;
+};
+/** 워커 프레임이 아직 없을 때 드는 빈 프레임 — 지도만 그려진다. */
+const EMPTY_FRAME9: Frame9 = {
+  t: -1, unitOps: [], fxOps: [], miniExtra: [], gasBusy: [], dom: [],
+  explored: null, visNow: null, visSrc: new Float32Array(0),
 };
 export type EngineWorld9 = ReturnType<typeof deriveWorld9>;
 export function deriveWorld9(inp: {
@@ -30249,17 +30252,17 @@ export default function ReplayMotionPlayer({
     [entData, truth, grid, bases, teamKey9, total],
   );
   const { buildsSrc, entWalks, castsSrc, nukeLase, gasBuildings, prodDoneAt, prodDoneByRaw, upsByRaw, nukeImpacts } = world;
-  const engineRef9 = useRef<ReturnType<typeof createEngine9> | null>(null);
-  const engineWorldRef9 = useRef<EngineWorld9 | null>(null);
-  /* ★ 프레임 워커(요청) — 셈은 워커가 미리, 메인은 붓만. 워커가 없거나(옛 브라우저) 던지면 메인
-     엔진(위 engineRef9)이 그대로 맡는다 — 두 길이 같은 코드라 그림이 안 갈린다. */
+  /* ★ 프레임 워커(요청) — 셈은 워커가 미리, 메인은 붓만. **길은 이것 하나다**(지적: 메인 엔진 대비 코드는
+     두 길을 두는 것이라 별로) — 워커가 못 서면 프레임이 없고, 화면은 마지막 프레임을 든 채 진단(SCR_DIAG.worker)에
+     까닭을 적는다. 도구 번들(esbuild)에는 워커가 없으므로 계측은 perf-check(vite)로 한다. */
   const frameWorkerRef = useRef<Worker | null>(null);
   const wFramesRef = useRef<Map<number, Frame9>>(new Map());
   const wStatRef = useRef({ got: 0, used: 0, missed: 0, err: "", sentWorld: 0, sentView: 0, sentClock: 0 });
+  const lastFrameRef9 = useRef<Frame9 | null>(null);
   /** 워커에 마지막으로 보낸(보낼) 세계 — 워커가 늦게 서면(동적 import) 그때 다시 보낸다. */
   const worldMsgRef9 = useRef<unknown>(null);
   useEffect(() => {
-    if (NOWORKER9 || typeof Worker === "undefined") return undefined;
+    if (typeof Worker === "undefined") { wStatRef.current.err = "Worker 없음"; return undefined; }
     let w9: Worker | null = null;
     let dead9 = false;
     const frames9 = wFramesRef.current;
@@ -30269,12 +30272,12 @@ export default function ReplayMotionPlayer({
     void import("./frameWorker?worker&inline").then((mod9) => {
       if (dead9) return;
       const Ctor9 = (mod9 as { default?: unknown }).default;
-      if (typeof Ctor9 !== "function") return;
-      try { w9 = new (Ctor9 as new () => Worker)(); } catch { return; }
+      if (typeof Ctor9 !== "function") { wStatRef.current.err = "워커 모듈 없음(도구 번들)"; return; }
+      try { w9 = new (Ctor9 as new () => Worker)(); } catch (e9) { wStatRef.current.err = `워커 생성 실패 ${String(e9).slice(0, 80)}`; return; }
       wire9(w9);
       frameWorkerRef.current = w9;
       if (worldMsgRef9.current) w9.postMessage(worldMsgRef9.current);
-    }).catch(() => { /* 워커 없이 간다 */ });
+    }).catch((e9) => { wStatRef.current.err = `워커 모듈 못 부름 ${String(e9).slice(0, 80)}`; });
     const wire9 = (wk9: Worker): void => {
     wk9.onmessage = (ev: MessageEvent<{ type: string; frame?: Frame9; message?: string }>) => {
       const m9 = ev.data;
@@ -30289,17 +30292,15 @@ export default function ReplayMotionPlayer({
       } else if (m9.type === "err") {
         wStatRef.current.err = m9.message ?? "?";
         // eslint-disable-next-line no-console
-        console.warn("[scplay] 프레임 워커가 던졌다 — 메인 엔진으로 물러난다:", m9.message);
+        console.error("[scplay] 프레임 워커가 던졌다:", m9.message);
         wk9.terminate();
         frameWorkerRef.current = null;
-        frames9.clear();
       }
     };
     wk9.onerror = (e9) => {
       wStatRef.current.err = String(e9.message ?? e9);
       wk9.terminate();
       frameWorkerRef.current = null;
-      frames9.clear();
     };
     };
     return () => { dead9 = true; w9?.terminate(); frameWorkerRef.current = null; frames9.clear(); };
@@ -33425,12 +33426,6 @@ export default function ReplayMotionPlayer({
     viewTeam, visAll, fogOn, colors: colorTable9,
     qAnim, qBuildFx, qDeath, clickFx,
   };
-  if (engineRef9.current === null || engineWorldRef9.current !== world) {
-    engineRef9.current = createEngine9(world, engView9);
-    engineWorldRef9.current = world;
-  } else {
-    engineRef9.current.setView(engView9);
-  }
   /* 시점 입력이 바뀌면 워커에도 알린다 — 색표는 참조로, 나머지는 값으로 견준다. */
   const viewKey9 = `${engView9.mapW}|${engView9.mapH}|${engView9.tilePx.toFixed(3)}|${engView9.pitched ? 1 : 0}|${engView9.pitchFlat.toFixed(4)}`
     + `|${engView9.geom.w}|${engView9.geom.h}|${engView9.geom.P.toFixed(1)}|${engView9.viewTeam}|${engView9.visAll ? 1 : 0}|${engView9.fogOn ? 1 : 0}`
@@ -33478,11 +33473,11 @@ export default function ReplayMotionPlayer({
     if (next && next.t - t <= step9 * 1.5) return next;
     return null;
   };
-  const pEng9 = PERF9 ? pNow() : 0;
+  /* 프레임은 워커 것뿐이다. 이 시각에 맞는 것이 없으면(탐색 직후·첫 프레임) 마지막으로 쓴 프레임을 들고
+     있는다 — 워커가 몇 ms 뒤에 채운다. 아직 아무것도 없으면 빈 프레임(지도만). */
   const wFrame9 = pickWorkerFrame9();
-  if (wFrame9) wStatRef.current.used += 1; else if (frameWorkerRef.current) wStatRef.current.missed += 1;
-  const frame9 = wFrame9 ?? engineRef9.current.build(t);
-  if (PERF9) pAdd(wFrame9 ? "엔진(워커 프레임)" : "엔진(메인 프레임)", pNow() - pEng9);
+  if (wFrame9) { wStatRef.current.used += 1; lastFrameRef9.current = wFrame9; } else wStatRef.current.missed += 1;
+  const frame9: Frame9 = wFrame9 ?? lastFrameRef9.current ?? EMPTY_FRAME9;
   // 워커 상태는 늘 적어 둔다(perf-check가 읽는다) — 문자열 하나라 값이 싸다.
   SCR_DIAG.worker = `${frameWorkerRef.current ? "on" : "off"} got ${wStatRef.current.got} used ${wStatRef.current.used} missed ${wStatRef.current.missed}`
     + ` sent(world ${wStatRef.current.sentWorld} view ${wStatRef.current.sentView} clock ${wStatRef.current.sentClock})${wStatRef.current.err ? ` err ${wStatRef.current.err}` : ""}`;
