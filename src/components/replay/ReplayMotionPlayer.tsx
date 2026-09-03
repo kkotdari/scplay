@@ -30368,6 +30368,10 @@ export default function ReplayMotionPlayer({
       }
     }
     w9.postMessage({ type: "truth", truth: tr9 }, bufs9);
+    /* 넘긴 뒤 메인의 트랙은 **비운다** — 형식 배열은 transfer로 이미 비었지만 체력·인터셉터·표적 같은 쌍 배열은
+       복제라 남는다(계측: 폰에서 메인 참값 40.8MB). 메인이 트랙을 읽는 자리는 없다(개체 표·자원 그래프·판 번호는
+       따로 있다). 배열을 비우면 트랙 객체가 통째로 걷힌다. */
+    if (tr9) tr9.tracks.length = 0;
   };
   useEffect(() => {
     if (typeof Worker === "undefined") { wStatRef.current.err = "Worker 없음"; return undefined; }
