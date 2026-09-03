@@ -29409,7 +29409,12 @@ export default function ReplayMotionPlayer({
      자세 컷·요잉 열여섯 칸·포탑 판·전투 효과 셈을 다 돌린다. 좁은 자리는 8배 그대로.
      ⚠ 만드는 쪽(이 값)과 그리는 쪽(detailAt) 둘 다 내려야 한다 — 여기서만 내리면
      굽기는 자세해지는데 그리는 쪽이 걸러 아무것도 안 보이고, 반대면 없는 값을 그린다. */
-  const liteView = zoomStep <= (wide ? 0 : 2);
+  /* ★ 문턱은 **기기**로 가른다(지적: "scplayer에선 3배에서 이동모션이 나오는데 stargayte에선
+     6배부터") — wide는 재생기 상자의 폭(860px)이라, 같은 PC라도 좁은 상자에 앉히면 폰 문턱이
+     걸렸다. 이 문턱이 생긴 까닭은 폰의 부하이므로 폰(굵은 포인터·작은 화면)이 아니면 넓은 상자와
+     같은 문턱을 쓴다. wide는 배치에만 남는다. */
+  const roomy = wide || !smallDevice9;
+  const liteView = zoomStep <= (roomy ? 0 : 2);
   /** ★ **요잉만은 셋째 칸까지 묶는다**(요청: "요잉 4배까지는 축소") — 배치를 안 가린다.
    *  굽는 판은 요잉 칸마다 한 벌이라 열여섯 칸은 여덟 칸의 두 배를 굽고 두 배를 이고
    *  있는다. 그 배율에서도 22.5도와 45도 사이의 차이는 몸 윤곽 한두 픽셀이라, 치르는
@@ -34309,7 +34314,9 @@ export default function ReplayMotionPlayer({
                 if (!pk9 || markerView || !qAnim) return 0;
                 /* 간이 보기에서는 **날갯짓이 있는 종류만** 컷을 고른다 — 차례는 아래
                    그대로 둔다(공격 컷이 날갯짓보다 앞선다). 여기서 걸러 내기만 한다. */
-                if (liteView && !pk9.flap) return 0;
+                /* ★ 이동 컷(걸음·비행 추진)만은 **셋째 칸(3배)부터** 친다(요청) — 판은 컷 수만큼
+                   늘지만 3배의 판은 작아 삯이 작고, 움직임이 읽히는 것이 먼저다. 공격 컷은 그대로. */
+                if (liteView && !pk9.flap && !(zoomStep >= 2 && (pk9.move || pk9.thrust))) return 0;
                 // 비행체(thrust): 걸음 컷이 없으니 이동 중이면 자세 1 고정 — 빌더가 그 자세에서만 불꽃을 낸다.
                 if (pk9.thrust) return movingNow ? 1 : 0;
                 /* ★ **걸음이 공격보다 먼저다**(지적: "질럿 걷기가 적용 안된듯?") —
@@ -35487,7 +35494,7 @@ export default function ReplayMotionPlayer({
                그 크기에서 그림자·불티가 없으면 몸이 바닥에서 떠 보인다. 좁은 자리(폰)는
                종전 문턱(8배) 그대로다 — 같은 2배라도 유닛이 대여섯 픽셀이고, 화면에 남는
                유닛 수는 가장 많은 칸이라 삯을 그대로 다 치른다. */
-            detailAt={wide ? ZOOM_STEPS[1] : ZOOM_STEPS[3]}
+            detailAt={roomy ? ZOOM_STEPS[1] : ZOOM_STEPS[3]}
             /* 크립을 가두는 맵 모서리(재지적: 3D에서 크립이 영역을 벗어남) — 입체는 원근
                투영된 사다리꼴이라 네 모서리를 posFrac으로 투영해 넘긴다. 평면은 단위
                사각형이 나와 기존 직사각 클립과 같다. */
