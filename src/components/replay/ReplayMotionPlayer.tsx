@@ -21744,11 +21744,11 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
                7개·0.20이면 0.57이라 꼭대기를 지나 내려가기 시작한 뒤에 다음이 솟는다.
                훑는 길이(len)는 안 건드린다 — 그건 늘 최대 사거리다. */
             const N9 = 7;
-            const W9 = 0.2;
+            const W9 = 0.14;   // 0.2 → 0.14(요청: 럴커 가시 유지 시간 더 짧게) — 낱개가 솟았다 지는 창
             const hw9 = (st.w / 2) * zoom * 0.85;
             // 높이 2.6 → 3.6 → 5.4(요청: "길이 1.5배 증가") — 땅에서 솟는 뼈라
             // 낮으면 얼룩으로 읽힌다.
-            const HH9 = 5.4 * zoom;
+            const HH9 = 4.05 * zoom;   // 5.4 → 4.05(요청: 가시 길이 25% 축소)
             for (let i9 = 0; i9 < N9; i9 += 1) {
               const q9 = (p9 - (i9 / N9) * (1 - W9)) / W9;
               if (q9 <= 0 || q9 >= 1) continue;
