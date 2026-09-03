@@ -30366,14 +30366,15 @@ export default function ReplayMotionPlayer({
           while (k9 > 0 && snaps9[k9 - 1].t > pf9.t) k9 -= 1;
           snaps9.splice(k9, 0, { t: pf9.t, fog: pf9.fog });
         }
-        /* 버림 — 주인 시각보다 1초 지난 장(붓은 t 이하 가장 늦은 장 하나만 쓴다), 30초 넘게 앞선 장(탐색 전 옛 자리).
-           안개 판은 15초 뒤·40초 앞 밖. 메모리는 앞 한도(워커 AHEAD_BYTES)와 이 뒤 1초가 정한다. */
+        /* 버림 — 주인 시각보다 1초 지난 장(붓은 t 이하 가장 늦은 장 하나만 쓴다), 워커가 지을 수 있는 앞(벽시계 3초 +
+           2.5초 여유)·배속을 넘어 앞선 장(탐색 전 옛 자리). 안개 판은 15초 뒤·같은 앞 밖. */
         const tNow9 = cmdNowRef9.current.t;
+        const aheadMax9 = 6 * Math.max(1, cmdNowRef9.current.speed) + 1;
         if (frames9.size > 8) {
-          for (const [k9, f9] of frames9) if (f9.t < tNow9 - 1 || f9.t > tNow9 + 30) frames9.delete(k9);
+          for (const [k9, f9] of frames9) if (f9.t < tNow9 - 1 || f9.t > tNow9 + aheadMax9) frames9.delete(k9);
         }
         if (snaps9.length > 4) {
-          const keep9 = snaps9.filter((sn9) => sn9.t >= tNow9 - 15 && sn9.t <= tNow9 + 40);
+          const keep9 = snaps9.filter((sn9) => sn9.t >= tNow9 - 15 && sn9.t <= tNow9 + aheadMax9 + 2);
           if (keep9.length !== snaps9.length) fogSnapsRef9.current = keep9.length > 0 ? keep9 : snaps9.slice(-1);
         }
       } else if (m9.type === "worldui" && m9.ui) {
@@ -33590,7 +33591,10 @@ export default function ReplayMotionPlayer({
     const c9 = cmdSentRef9.current;
     const pred9 = c9 ? (c9.playing ? c9.t0 + ((pNow() - c9.at) / 1000) * c9.speed : c9.t0) : Number.NaN;
     const jumped9 = !c9 || Math.abs(t - pred9) > Math.max(0.3, 0.15 * speed);
-    if (w9 && (!c9 || c9.playing !== playing9 || c9.speed !== speed || jumped9)) {
+    /* 심장박동 — 재생 중엔 1초마다 한 번은 보낸다(값이 그대로여도). 워커는 마지막 명령 뒤 2.5초까지만 제 시계로
+       굴리므로, 주인이 멎으면(굽기 홀드·백그라운드) 워커도 곧 선다. */
+    const beat9 = !!c9 && playing9 && pNow() - c9.at > 1000;
+    if (w9 && (!c9 || c9.playing !== playing9 || c9.speed !== speed || jumped9 || beat9)) {
       cmdSentRef9.current = { playing: playing9, t0: t, speed, at: pNow() };
       wStatRef.current.sentCmd += 1;
       w9.postMessage({ type: "cmd", playing: playing9, t0: t, speed });

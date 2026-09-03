@@ -65,7 +65,13 @@ let fogSent: { explored: Uint16Array | null; visNow: Uint8Array | null; visSrc: 
 };
 
 const nowMs = (): number => (typeof performance !== "undefined" ? performance.now() : Date.now());
-const clockT = (): number => (clock.playing ? clock.t0 + ((nowMs() - clock.at) / 1000) * clock.speed : clock.t0);
+/** 주인 명령 없이 제 시계로 굴리는 상한(벽시계 초). 주인은 재생 중 1초마다 심장박동 명령을 보낸다 — 그것이 끊기면
+ *  (굽느라 시간을 안 보내는 프레임·멈춘 탭) 주인은 제자리인데 워커만 앞서 달려 설계도를 쌓는다(폰: 앞 9.1초·15MB).
+ *  그래서 마지막 명령 뒤 이만큼까지만 굴리고 그 자리에 선다. 주인이 돌아오면 명령이 다시 온다. */
+const STALL_WALL_SEC = 2.5;
+const clockT = (): number => (clock.playing
+  ? clock.t0 + Math.min(STALL_WALL_SEC, (nowMs() - clock.at) / 1000) * clock.speed
+  : clock.t0);
 const post = (m: unknown, transfer?: Transferable[]): void => {
   const w = self as unknown as Worker;
   if (transfer && transfer.length > 0) w.postMessage(m, transfer); else w.postMessage(m);
