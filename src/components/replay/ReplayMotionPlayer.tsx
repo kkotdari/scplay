@@ -19974,8 +19974,8 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
     mech: ["#6b737e", "#9aa3ad", "#6b4a2b", "#6b737e", "#3a3d44", "#9aa3ad", "#ff8a3d"],
     bio: ["#c8231b", "#e0a48a", "#7a1210"],
     zerg: ["#6e1b3a", "#5b3a8a", "#6b4a2b"], toss: ["#d4af37", "#a8862a", "#e6f4ff"],
-    // 고치(변태알·러커알·뮤탈 고치·공사 고치 취소) — 피 없이 고치 껍질 조각만: 보라 갈색·연보라·짙은 자주
-    cocoon: ["#8a6a9a", "#c9b7d6", "#5a4060", "#a58cb8", "#6b4a2b"],
+    // 고치(변태알·러커알·뮤탈 고치·공사 고치 취소) — 살색이 주(지적)이고 갈색·보라 파편이 섞인다. 피는 없다.
+    cocoon: ["#e0a48a", "#c98d72", "#e0a48a", "#6b4a2b", "#e0a48a", "#5b3a8a", "#c98d72"],
   };
   const DROP9: Record<string, string> = { bio: "#ef5a45", zerg: "#9b2a47" };
   const pal = PALS[mat] ?? PALS.mech;
@@ -27808,8 +27808,11 @@ export default function ReplayMotionPlayer({
                상태표(STATUS_CASTS.Irradiate.dur)와 **같은 값**이어야 한다. */
             : c[3] === "Irradiate" ? STATUS_CASTS.Irradiate.dur
               : c[3] === "Scanner Sweep" ? SCAN_DETECT_SEC : CAST_HOLD_SEC));
-  // 핵이 떠 있는 동안만 React 박자를 올린다(위 REACT_STEP_NUKE_MS9).
-  reactStepRef9.current = castsNow.some((c9) => c9[3] === "Nuclear Strike") ? REACT_STEP_NUKE_MS9 : REACT_STEP_MS9;
+  /* 재생 시각으로 칸·애니를 긁는 DOM 효과가 떠 있는 동안만 React 박자를 올린다(위 REACT_STEP_NUKE_MS9) — 핵(낙하·폭발을
+     paused+delay로 긁는다)과 스톰(칸이 초당 9.6개라 10Hz로 뽑으면 칸을 건너뛰거나 두 번 든다). 나머지 캐스트는 제 CSS
+     애니메이션이 알아서 돈다. */
+  reactStepRef9.current = castsNow.some((c9) => c9[3] === "Nuclear Strike" || c9[3] === "Psionic Storm")
+    ? REACT_STEP_NUKE_MS9 : REACT_STEP_MS9;
 
   /* (걷어냄) 수송·드랍 어림 한 벌 — 드랍/태움 신호(drops·loads)와 수송선 자취로
      '내린 자리·태운 자리'를 짚던 어림이다. 재료가 전부 v1 부대 트랙이라 요약 폐지 뒤로는

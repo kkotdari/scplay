@@ -1815,7 +1815,7 @@
    원작의 저그는 살점과 피가 튄다 — 가운데는 선홍, 가장자리는 검붉게. */
 .scr-die-zerg { background: radial-gradient(circle, rgba(235, 60, 55, 0.92) 0%, rgba(140, 20, 24, 0.6) 55%, transparent 75%); }
 /* 고치 취소(변태알·러커알·뮤탈 고치·공사 고치) — 피가 아니라 고치 껍질의 보랏빛 파편(캔버스 burst의 cocoon 갈래와 같은 색). */
-.scr-die-cocoon { background: radial-gradient(circle, rgba(201, 183, 214, 0.9) 0%, rgba(138, 106, 154, 0.55) 55%, transparent 75%); }
+.scr-die-cocoon { background: radial-gradient(circle, rgba(224, 164, 138, 0.9) 0%, rgba(138, 106, 154, 0.5) 55%, transparent 75%); }
 @keyframes scr-diefx {
   0% { opacity: 0.9; transform: scale(0.45); }
   55% { opacity: 0.8; transform: scale(1.05); }
