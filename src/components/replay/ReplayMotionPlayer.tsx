@@ -19654,6 +19654,9 @@ function silhouetteLight(c2: CanvasRenderingContext2D, cv: HTMLCanvasElement): v
  *  창이 없는 자리(노드에서 이 파일을 읽는 자·서버 렌더)는 거짓이다. */
 /** 빌드 표식(vite define) — 개발 서버·도구 번들에는 없을 수 있어 선언만 느슨히 둔다. */
 declare const __SCPLAY_BUILD__: string | undefined;
+/** `?lite=1` — 붓 간이화를 모든 배율에 강제한다(요잉 8칸·자세 컷 없음·포탑 한 판). 폰에서 판 스래싱이 남는지
+ *  배포 없이 시험하는 깃발. */
+const liteFlag9 = typeof location !== "undefined" && /[?&]lite=1/.test(location.search);
 const smallDevice9 = ((): boolean => {
   if (typeof window === "undefined") return false;
   const coarse9 = !!window.matchMedia?.("(pointer: coarse)").matches;
@@ -36063,10 +36066,13 @@ export default function ReplayMotionPlayer({
                그 크기에서 그림자·불티가 없으면 몸이 바닥에서 떠 보인다. 좁은 자리(폰)는
                종전 문턱(8배) 그대로다 — 같은 2배라도 유닛이 대여섯 픽셀이고, 화면에 남는
                유닛 수는 가장 많은 칸이라 삯을 그대로 다 치른다. */
-            detailAt={wide ? ZOOM_STEPS[1] : ZOOM_STEPS[3]}
+            detailAt={liteFlag9 ? Infinity : wide ? ZOOM_STEPS[1] : ZOOM_STEPS[3]}
             /* 붓 쪽 간이화 문턱(엔진은 늘 자세히 낸다 — UnitLayer의 ★ 주석): 요잉 열여섯 칸은 넓은
                자리 셋째 칸(3배)·좁은 자리 넷째 칸(6배)부터, 걸음·추진 컷은 넓은 자리 2배·좁은 자리 3배부터. */
-            yawAt={wide ? ZOOM_STEPS[2] : ZOOM_STEPS[3]}
+            /* ★ 작은 기기는 요잉을 늘 여덟 칸으로(지적: 폰 6배 대규모 교전에서 판 굽기·버림이 초당 35장 —
+               판 예산 36MB가 찬 채 LRU가 굽고 버리기를 되풀이했다. dpr 2로 눌러도 그대로였으니 픽셀이 아니라
+               **판의 가짓수**다: 종류×요잉 16×색×자세. 요잉을 여덟 칸으로 하면 가짓수가 반으로 준다). */
+            yawAt={smallDevice9 || liteFlag9 ? Infinity : wide ? ZOOM_STEPS[2] : ZOOM_STEPS[3]}
             moveAt={wide ? ZOOM_STEPS[1] : ZOOM_STEPS[2]}
             /* 크립을 가두는 맵 모서리(재지적: 3D에서 크립이 영역을 벗어남) — 입체는 원근
                투영된 사다리꼴이라 네 모서리를 posFrac으로 투영해 넘긴다. 평면은 단위
