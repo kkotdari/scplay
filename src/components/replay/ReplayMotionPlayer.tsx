@@ -61,11 +61,10 @@ import {
   TRUTH_ST_FIGHT as ST_FIGHT,
   TRUTH_ST_GATHER as ST_GATHER,
   TRUTH_ST_INSIDE as ST_INSIDE,
-  TRUTH_ST_MOVE as ST_MOVE,
-} from "../../utils/openbwTracks";
+  TRUTH_ST_MOVE as ST_MOVE, kT, tkN, tkT, tkV, tkAt, tkLast, EMPTY_TICKS, type Ticks } from "../../utils/openbwTracks";
 /* 자취 읽기는 유틸로 나갔다(과제 #61) — 코어가 걸음의 진실이 된 뒤로 이 파일의
    몫이 아니고, 밖에 있어야 자로 잴 수 있다(scripts/pos-check.mjs). */
-import { posAt, posAtW, wT, EMPTY_WALK, type WalkView, type TrackPos, type TrackPt } from "../../utils/replayTrack";
+import { posAt, posAtW, wT, wX, wY, EMPTY_WALK, type WalkView, type TrackPos, type TrackPt } from "../../utils/replayTrack";
 /* 무대에서 지도가 안 덮는 자리(2D의 그림 여유 띠 · 3D의 빈 귀퉁이)를 채우는 밤하늘 —
    경기마다 다른 한 장을 SVG로 지어 data URI로 돌려준다(그 파일 머리말). */
 import { spaceBackdropUrl } from "./spaceBackdrop";
@@ -24848,12 +24847,12 @@ export function deriveWorld9(inp: {
        제 order_target을 갖는데, 그 값에 닿으려면 여기와 똑같은 '자리 → 생애' 색인이
        한 벌 더 필요했다. 같은 고리에서 같은 열쇠로 걸어 두면 읽는 쪽이 한 번만 찾는다. */
     const m = new Map<string, {
-      born: number; tag: number; hp: [number, number][]; tgt?: [number, number][];
+      born: number; tag: number; hp: Ticks; tgt?: Ticks;
     }[]>();
     if (!entData) return m;
     const nameOfId = new Map(entData.players.map((pl) => [pl.owner, pl.name]));
     for (const e of entData.lives) {
-      if (!e.bld || !e.hp || e.hp.length === 0) continue;
+      if (!e.bld || !e.hp || tkN(e.hp) === 0) continue;
       /* ★ **앉았던 자리 전부**에 색인한다(지적: "테란 공중 건물에 공격 트레이서랑 피해
          효과가 안 나옴") ────────────────────────────────────────────────────────────
          여기서 마지막 자리 하나만 담았다. 그런데 읽는 쪽(건물 그리기)은 **그 줄의 자리**로
@@ -24929,7 +24928,7 @@ export function deriveWorld9(inp: {
     }
     return m;
   })();
-  const bldRecMemo = new Map<string, { born: number; tag: number; hp: [number, number][]; tgt?: [number, number][] }>();
+  const bldRecMemo = new Map<string, { born: number; tag: number; hp: Ticks; tgt?: Ticks }>();
   const buildsSrc = buildsV2;
   const buildsDrawOrder = (() => buildsSrc.map((_, i) => i)
     .sort((a, b) => buildsSrc[a][2] - buildsSrc[b][2]))();
@@ -25069,13 +25068,13 @@ export function deriveWorld9(inp: {
       /** 버로우 켬·해제 [초, 켬1/해제0] — 시즈와 같이 커맨드 그대로. */
       /** 수리·힐 명령 초(지적: 일꾼 수리·매딕 힐) — 곁에서 일하는 효과의 창. */
       /** 체력 변곡점 [초, 퍼센트](요청: 스탯 생애주기) — 체력바의 재료. */
-      hp: [number, number][];
+      hp: Ticks;
       /** 인터셉터 개수 변곡점(요청: 실시간 적용) — 캐리어 둘레를 도는 점들. */
-      ic: [number, number][];
+      ic: Ticks;
       /** ★ **지금 겨눈 개체** 변곡점 [초, 표적 태그] — 0은 '겨눈 것 없음'(참값 판 6부터).
        *  `undefined`면 그 덤프는 표적을 모르는 옛 판이다 — 그때는 아무 공격도 안 그린다
        *  (어림으로 메우던 자리를 걷었다: 지시 "다른 유닛도 모두 공통으로 다 걷어내"). */
-      tgt?: [number, number][];
+      tgt?: Ticks;
       /** 탑승 구간(요청: 수송선 승하차) — 이 동안 마커를 숨긴다.
        *  이어 주는 선을 그리려면 '언제'만으로는 모자라고 '어디에서 어디로'가 있어야 한다.
        *  이쪽 끝(몸)은 자취가 낸다:
@@ -25150,8 +25149,7 @@ export function deriveWorld9(inp: {
          이제 코어 자취가 없으면 그 개체는 **안 그린다** — 대역으로 비슷한 것을
          지어내면 코어가 못 낸 개체가 있다는 사실이 화면에서 사라진다. */
       const simTr0 = simTracks?.get(e.tag);
-      if (!simTr0 || simTr0.keys.length < 5) continue;
-      const ks = simTr0.keys;
+      if (!simTr0 || simTr0.kt.length < 1) continue;
       /* ★ 걸음은 **이 생애의 구간만** 담는다(지적: "라바 알이 왜 기어다니냐 라바같은데")
          — 자취 하나가 여러 생애를 품는다: 태그 하나가 라바 → 알 → 드론으로 갈아입고,
          truthLives가 그 경계에서 생애를 가른다. 그런데 여기서 자취의 **모든** 키를
@@ -25160,20 +25158,24 @@ export function deriveWorld9(inp: {
          드론 곁에 라바와 알이 평생 따라다녔다. 구간 밖 키를 잘라 그 뿌리를 막는다. */
       const wEnd = e.died ?? Infinity;
       /* 구간 [born, wEnd]의 키 범위 — 키는 시각순이라 이어진 한 토막이다. 복사 없이 창으로 가리킨다. */
-      const nK9 = Math.floor(ks.length / 5);
+      const nK9 = simTr0.kt.length;
       let k0 = 0;
-      while (k0 < nK9 && ks[k0 * 5] < e.born) k0 += 1;
+      while (k0 < nK9 && kT(simTr0, k0) < e.born) k0 += 1;
       let k1 = k0;
-      while (k1 < nK9 && ks[k1 * 5] <= wEnd) k1 += 1;
-      const wk: WalkView = k1 > k0 ? { ks, i0: k0, n: k1 - k0 } : EMPTY_WALK;
+      while (k1 < nK9 && kT(simTr0, k1) <= wEnd) k1 += 1;
+      const wk: WalkView = k1 > k0 ? { tr: simTr0, i0: k0, n: k1 - k0 } : EMPTY_WALK;
       {
         /** 안에 든 첫 키의 자리(-1이면 지금 밖) · 밖에 있던 마지막 키의 자리. */
         let in0 = -1;
         let out9 = -1;
         let last9 = -1;
-        for (let q = 0; q + 4 < ks.length; q += 5) {
-          if (ks[q] < e.born || ks[q] > wEnd) continue;
-          if (ks[q + 4] === ST_INSIDE) {
+        const kS9 = (i: number): number => simTr0.kst[i];
+        const kX9 = (i: number): number => simTr0.kxy[i * 2] / 32;
+        const kY9 = (i: number): number => simTr0.kxy[i * 2 + 1] / 32;
+        for (let q = 0; q < nK9; q += 1) {
+          const tq9 = kT(simTr0, q);
+          if (tq9 < e.born || tq9 > wEnd) continue;
+          if (kS9(q) === ST_INSIDE) {
             if (in0 < 0) in0 = q;
           } else {
             /* ★ **가스 캐기는 탑승이 아니다**(지적: "가스 캐는 일꾼들에 없던 아쿠아 점선이
@@ -25185,8 +25187,8 @@ export function deriveWorld9(inp: {
                가르는 자는 **앞뒤 상태**다. 가스 왕복은 들어가기 직전이 채취(ST_GATHER)이거나
                나온 직후가 가스 들기(ST_CARRY_GAS)다 — 둘 다 배에 타고 내리는 몸에는 없는
                상태다. 반대로 수송선·벙커에 드는 몸은 그 앞뒤가 가만·이동이다. */
-            const gas9 = (out9 >= 0 && ks[out9 + 4] === ST_GATHER)
-              || ks[q + 4] === ST_CARRY_GAS;
+            const gas9 = (out9 >= 0 && kS9(out9) === ST_GATHER)
+              || kS9(q) === ST_CARRY_GAS;
             /* ★ **생산도 탑승이 아니다**(지적: "스타포트에서 드랍십이 생산될 때 둘이
                연결되는 버그") ─────────────────────────────────────────────────────────
                원작에서 건물이 찍어 내는 유닛은 다 될 때까지 **건물 안에 숨어 있다** —
@@ -25201,9 +25203,9 @@ export function deriveWorld9(inp: {
             if (in0 >= 0 && (gas9 || out9 < 0)) in0 = -1;
             else if (in0 >= 0) {
               rideSpans.push({
-                a: ks[in0], b: ks[q],
-                ax: ks[out9 + 1], ay: ks[out9 + 2],
-                bx: ks[q + 1], by: ks[q + 2],
+                a: kT(simTr0, in0), b: kT(simTr0, q),
+                ax: kX9(out9), ay: kY9(out9),
+                bx: kX9(q), by: kY9(q),
               });
               in0 = -1;
             }
@@ -25213,11 +25215,11 @@ export function deriveWorld9(inp: {
         }
         /* 끝까지 안에 있었으면 **내린 적이 없다**(배가 격추됐거나 경기가 끝났다) —
            끝을 무한으로 두어 다시 나타나지 않게 한다. */
-        if (in0 >= 0 && out9 >= 0 && ks[out9 + 4] !== ST_GATHER) {
+        if (in0 >= 0 && out9 >= 0 && kS9(out9) !== ST_GATHER) {
           rideSpans.push({
-            a: ks[in0], b: Number.POSITIVE_INFINITY,
-            ax: ks[out9 + 1], ay: ks[out9 + 2],
-            bx: ks[last9 + 1], by: ks[last9 + 2],
+            a: kT(simTr0, in0), b: Number.POSITIVE_INFINITY,
+            ax: kX9(out9), ay: kY9(out9),
+            bx: kX9(last9), by: kY9(last9),
           });
         }
       }
@@ -25276,8 +25278,8 @@ export function deriveWorld9(inp: {
         atkAt: e.orders.filter((o) => o[3])
           .map((o) => [o[0], 0, o[1], o[2]] as [number, number, number, number]),
         sieges: e.sieges.map(([s9, on9]) => [s9, on9 ? 1 : 0] as [number, number]),
-        hp: e.hp ?? [],
-        ic: e.ic ?? [],
+        hp: e.hp ?? EMPTY_TICKS,
+        ic: e.ic ?? EMPTY_TICKS,
         // 표적은 **없으면 없는 채로** 넘긴다(빈 배열로 바꾸면 '옛 판'과 '안 겨눔'이 섞인다).
         ...(e.tgt ? { tgt: e.tgt } : {}),
         orders: e.orders.map((o) => o[0]),
@@ -25529,8 +25531,8 @@ export function deriveWorld9(inp: {
         if (teamOfRaw(q.raw) === teamOfRaw(raw)) continue;
         for (let wi9 = 0; wi9 < q.walk.n; wi9 += 1) {
           const ps = wT(q.walk, wi9);
-          const px = q.walk.ks[(q.walk.i0 + wi9) * 5 + 1];
-          const py = q.walk.ks[(q.walk.i0 + wi9) * 5 + 2];
+          const px = wX(q.walk, wi9);
+          const py = wY(q.walk, wi9);
           if (ps <= sec + 4 || Math.hypot(px - x, py - y) > 2) continue;
           if (boom === 0 || ps < boom) boom = ps;
           break;
@@ -25933,7 +25935,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
        '무엇을 쏘나'를 물어야 할 곳은 승무원 쪽이다. 여기 자리와 함께 그 흐름을 담아 두면
        벙커 그리기가 다시 개체를 훑지 않아도 된다. */
     const insideSpots: {
-      raw: string; unit: string; x: number; y: number; tgt?: [number, number][];
+      raw: string; unit: string; x: number; y: number; tgt?: Ticks;
     }[] = [];
     /** 지금 서 있는 **일꾼들**(임자·자리) — 테란 공사 불티가 '진짜 짓는 일꾼' 곁에서
      *  튀게 하는 재료다(지적: "테란 건설시 스파크랑 일꾼 위치 안맞음"). 아래 개체 고리가
@@ -26036,8 +26038,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         if (e.tag > 0) entPosByTag.set(e.tag, row);
         /* 이 몸이 지금 겨눈 태그를 뒤집어 담는다 — 흐름은 바뀔 때만 한 줄이라 훑기가 짧다. */
         if (e.tgt) {
-          let tv9 = 0;
-          for (const [ts9, tt9] of e.tgt) { if (ts9 > t) break; tv9 = tt9; }
+          const tv9 = tkLast(e.tgt, t);
           if (tv9 && !foeByTarget.has(tv9)) foeByTarget.set(tv9, row);
         }
         // 아비터 은신장·디텍터(전수조사) — 이번 프레임 위치를 명단에 올린다.
@@ -26212,18 +26213,12 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
            절반 남짓을, 살아 있는 개체 수만큼, 프레임마다 훑는 셈이다(43분 판이면 수만 번).
            체력 키는 시간순이라 이분으로 한 번에 간다 — 로그로 떨어진다. */
         const hp9 = e.hp;
-        if (hp9 && hp9.length > 0) {
-          let lo9 = 0;
-          let hi9 = hp9.length - 1;
-          let at9 = -1;
-          while (lo9 <= hi9) {
-            const md9 = (lo9 + hi9) >> 1;
-            if (hp9[md9][0] <= t) { at9 = md9; lo9 = md9 + 1; } else hi9 = md9 - 1;
-          }
-          if (at9 >= 1 && hp9[at9][1] < hp9[at9 - 1][1]) row.hurt = hp9[at9][0];
+        if (hp9 && tkN(hp9) > 0) {
+          const at9 = tkAt(hp9, t);
+          if (at9 >= 1 && tkV(hp9, at9) < tkV(hp9, at9 - 1)) row.hurt = tkT(hp9, at9);
           /* 지금 값도 같은 마디에서 낸다 — 아직 마디가 없으면(at9 < 0) 손 탄 적이 없는
              몸이라 만피다. 그때는 칸을 안 채운다(읽는 쪽이 '없음 = 만피'로 읽는다). */
-          if (at9 >= 0) row.hp = hp9[at9][1];
+          if (at9 >= 0) row.hp = tkV(hp9, at9);
         }
       }
       if (PERF9) pAdd("상태고리", pNow() - pS9_상태고리);
@@ -26460,10 +26455,8 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       pAdd("건물수", 0); perfHit["건물수"] = (perfHit["건물수"] ?? 0) + bldFoes.length;
       pFrame();
     }
-    const foeOfTgt9 = (arr: [number, number][] | undefined): FoeRow | null => {
-      if (!arr) return null;
-      let v9 = 0;
-      for (const [ts9, tv9] of arr) { if (ts9 > t) break; v9 = tv9; }
+    const foeOfTgt9 = (arr: Ticks | undefined): FoeRow | null => {
+      const v9 = tkLast(arr, t);
       if (!v9) return null;
       return entPosByTag.get(v9) ?? null;
     };
@@ -27171,7 +27164,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
          같은 줄을 본다. 고르는 셈은 t를 안 보므로 한 번 고른 것을 기억해 둔다
          (위 bldRecMemo). 여기로 올린 까닭은 표적도 이 줄에 실려 있어서다. */
       const rec9 = ((): {
-        born: number; tag: number; hp: [number, number][]; tgt?: [number, number][];
+        born: number; tag: number; hp: Ticks; tgt?: Ticks;
       } | undefined => {
         const k9 = `${raw}|${Math.round(x)}|${Math.round(y)}`;
         const arr = entBldHp.get(k9);
@@ -27193,8 +27186,10 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         const full0 = bs0 ? bs0[0] + bs0[1] : 850;
         let now0 = full0;
         let hurt = -99;
-        for (const [hs3, hv3] of rec.hp) {
+        for (let hi3 = 0, hn3 = tkN(rec.hp); hi3 < hn3; hi3 += 1) {
+          const hs3 = tkT(rec.hp, hi3);
           if (hs3 > t) break;
+          const hv3 = tkV(rec.hp, hi3);
           if (hv3 < now0) hurt = hs3;
           now0 = hv3;
         }
@@ -27610,7 +27605,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
              마린을 뽑은 기록이 있어야 서므로, 실제로는 아무것도 안 쏘는 벙커가 많았다.
              이제 상태가 ST_INSIDE인 개체 중 이 발자국 안에 있는 것이 곧 사수다.
              자리 넷을 넘겨 잡히면 먼저 들어간 넷만 센다. */
-          const crew: { kind: string; tgt?: [number, number][] }[] =
+          const crew: { kind: string; tgt?: Ticks }[] =
             unit !== "Bunker" ? [] : insideSpots
               .filter((q9) => q9.raw === raw
                 && Math.abs(q9.x - centerX) <= fp2[0] / 2 + 1
@@ -28475,13 +28470,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
        브루드워에서 포탑 부속을 가진 지상 유닛은 시즈 탱크와 골리앗 둘뿐이고,
        탱크는 이미 같은 까닭으로 여기 들어 있다. */
     const turretUnit9 = drawUnit.startsWith("Siege Tank") || drawUnit === "Goliath";
-    const tgtTag9 = ((): number => {
-      const ta9 = e.tgt;
-      if (!ta9) return 0;
-      let v9 = 0;
-      for (const [ts9, tv9] of ta9) { if (ts9 > t) break; v9 = tv9; }
-      return v9;
-    })();
+    const tgtTag9 = tkLast(e.tgt, t);
     const wantFoe9 = simState !== null
       /* 표적 찾기의 문턱도 트레이서와 같다(요청: 2배부터) — 겨눈 표적이 없으면
          각도(beamDeg)도 길이(beamLen)도 없어 트레이서를 아예 못 만든다. 포탑
@@ -28979,16 +28968,12 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
        창(실드막·불티)뿐이라 그보다 오래된 깎임은 아무도 안 읽는다. */
     {
       const hp9 = e.hp;
-      let lo9 = 0; let hi9 = hp9.length - 1; let at9 = -1;
-      while (lo9 <= hi9) {
-        const md9 = (lo9 + hi9) >> 1;
-        if (hp9[md9][0] <= t) { at9 = md9; lo9 = md9 + 1; } else hi9 = md9 - 1;
-      }
+      const at9 = tkAt(hp9, t);
       if (at9 >= 0) {
-        hpNow = hp9[at9][1];
-        for (let i9 = at9; i9 >= 0 && hp9[i9][0] >= t - 3; i9 -= 1) {
-          const prev9 = i9 > 0 ? hp9[i9 - 1][1] : hpFull;
-          if (hp9[i9][1] < prev9) { hurtAt = hp9[i9][0]; break; }
+        hpNow = tkV(hp9, at9);
+        for (let i9 = at9; i9 >= 0 && tkT(hp9, i9) >= t - 3; i9 -= 1) {
+          const prev9 = i9 > 0 ? tkV(hp9, i9 - 1) : hpFull;
+          if (tkV(hp9, i9) < prev9) { hurtAt = tkT(hp9, i9); break; }
         }
       }
     }
@@ -30363,7 +30348,7 @@ export default function ReplayMotionPlayer({
     if (tr9) {
       const seen9 = new Set<ArrayBufferLike>();
       for (const tk9 of tr9.tracks) {
-        for (const arr9 of [tk9.keys, tk9.done, tk9.air, tk9.cloak, tk9.types]) {
+        for (const arr9 of [tk9.kt, tk9.kxy, tk9.kh, tk9.kst, tk9.done, tk9.air, tk9.cloak, tk9.types, tk9.hp, tk9.ic, tk9.tgt]) {
           if (arr9 && arr9.byteLength > 0 && !seen9.has(arr9.buffer)) { seen9.add(arr9.buffer); bufs9.push(arr9.buffer as ArrayBuffer); }
         }
       }

@@ -172,15 +172,18 @@ function expect(ver, r, fail) {
   eq("트랙0 태그·임자·종류", [a.tag, a.owner, a.kind], [77, 3, "SCV"]);
   eq("트랙0 born", a.born, 2);
   // 키 둘 — 자리는 차이 누적을 타일로(÷32), 방향은 0~255를 도(度)로.
-  eq("트랙0 키0 (t,x,y,방향)", [a.keys[0], a.keys[1], a.keys[2], a.keys[3]], [2, 10, 20, 0]);
-  eq("트랙0 키1 (t,x,y,방향)", [a.keys[5], a.keys[6], a.keys[7], a.keys[8]], [3, 11, 20, 90]);
+  // 자리 형식(2026-09): kt(초) · kxy(픽셀 Int16) · kh(방향 바이트) · kst(상태) — 접근자 없이 직접 읽어 견준다.
+  const kx = (tr, i) => tr.kxy[i * 2] / 32, ky = (tr, i) => tr.kxy[i * 2 + 1] / 32, kh = (tr, i) => (tr.kh[i] * 360) / 256;
+  eq("트랙0 키0 (t,x,y,방향)", [a.kt[0], kx(a, 0), ky(a, 0), kh(a, 0)], [2, 10, 20, 0]);
+  eq("트랙0 키1 (t,x,y,방향)", [a.kt[1], kx(a, 1), ky(a, 1), kh(a, 1)], [3, 11, 20, 90]);
   eq("트랙0 done(0x80 없음)", [...a.done], [1, 1]);
   if (ver >= 3) eq("트랙0 air(0x40)", [...(a.air ?? [])], [0, 1]);
   else eq("트랙0 air(판2엔 없다)", a.air, undefined);
   if (ver >= 5) eq("트랙0 cloak", [...(a.cloak ?? [])], [0, 0]);
-  eq("트랙0 체력", a.hp, [[2, 60], [3, 50]]);
-  eq("트랙0 인터셉터", a.ic, [[2, 4]]);
-  if (ver >= 6) eq("트랙0 표적", a.tgt, [[2, 78]]);
+  // 변곡점은 평평한 형식 배열 [초, 값, 초, 값, …]이다.
+  eq("트랙0 체력", [...a.hp], [2, 60, 3, 50]);
+  eq("트랙0 인터셉터", [...a.ic], [2, 4]);
+  if (ver >= 6) eq("트랙0 표적", [...a.tgt], [2, 78]);
   eq("트랙1 done(0x80 있음 → 공사중)", [...b.done], [0]);
 
   // 셋을 넣었지만 가운데(이름 모름)는 버려져 둘만 남는다 — 뒤 절은 안 밀려야 한다.
@@ -330,18 +333,17 @@ function compare(bin, txt, decoded, upName, fail) {
   for (const tr of decoded.tracks) {
     const a = txt.byTag.get(tr.tag);
     if (!a) { fail(`이진에만 있는 태그 ${tr.tag}`); continue; }
-    const n = tr.keys.length / 5;
+    const n = tr.kt.length;
     if (n !== a.length) { fail(`태그 ${tr.tag} 키 ${n} vs ${a.length}`); continue; }
     for (let i = 0; i < n; i += 1) {
       const [frame, x, y, head, state, type] = a[i];
-      const o = i * 5;
-      if (!near(tr.keys[o], frame / fps, T)) { fail(`태그 ${tr.tag} 키 ${i} 시각`); break; }
-      if (!near(tr.keys[o + 1], x / 32, XY)) { fail(`태그 ${tr.tag} 키 ${i} x`); break; }
-      if (!near(tr.keys[o + 2], y / 32, XY)) { fail(`태그 ${tr.tag} 키 ${i} y`); break; }
-      if (!near(tr.keys[o + 3], (head * 360) / 256, 1e-2)) { fail(`태그 ${tr.tag} 키 ${i} 방향`); break; }
+      if (!near(tr.kt[i], frame / fps, T)) { fail(`태그 ${tr.tag} 키 ${i} 시각`); break; }
+      if (!near(tr.kxy[i * 2] / 32, x / 32, XY)) { fail(`태그 ${tr.tag} 키 ${i} x`); break; }
+      if (!near(tr.kxy[i * 2 + 1] / 32, y / 32, XY)) { fail(`태그 ${tr.tag} 키 ${i} y`); break; }
+      if (!near((tr.kh[i] * 360) / 256, (head * 360) / 256, 1e-2)) { fail(`태그 ${tr.tag} 키 ${i} 방향`); break; }
       /* 상태는 낮은 네 자리뿐이다 — 그 위는 깃발(0x80 공사·0x40 공중·0x20 은신)이라
          해독기가 따로 떼어 done·air·cloak에 담는다. 글자 쪽은 한 바이트 그대로다. */
-      if (tr.keys[o + 4] !== (state & 0x0f)) { fail(`태그 ${tr.tag} 키 ${i} 상태`); break; }
+      if (tr.kst[i] !== (state & 0x0f)) { fail(`태그 ${tr.tag} 키 ${i} 상태`); break; }
       if (tr.done[i] !== (state & 0x80 ? 0 : 1)) { fail(`태그 ${tr.tag} 키 ${i} 완성`); break; }
       if (tr.air && tr.air[i] !== (state & 0x40 ? 1 : 0)) { fail(`태그 ${tr.tag} 키 ${i} 공중`); break; }
       if (tr.cloak && tr.cloak[i] !== (state & 0x20 ? 1 : 0)) { fail(`태그 ${tr.tag} 키 ${i} 은신`); break; }
@@ -352,10 +354,10 @@ function compare(bin, txt, decoded, upName, fail) {
        유닛의 체력이 붙는다. 그 어긋남은 화면에서 눈에 잘 안 띈다. */
     for (const [nm, got, want] of [["체력", tr.hp, txt.hp.get(tr.tag)],
       ["인터셉터", tr.ic, txt.ic.get(tr.tag)], ["표적", tr.tgt, txt.tgt.get(tr.tag)]]) {
-      const gn = got?.length ?? 0, wn = want?.length ?? 0;
+      const gn = (got?.length ?? 0) >> 1, wn = want?.length ?? 0;
       if (gn !== wn) { fail(`태그 ${tr.tag} ${nm} 키 ${gn} vs ${wn}`); continue; }
       for (let i = 0; i < gn; i += 1) {
-        if (!near(got[i][0], want[i][0] / fps, T) || got[i][1] !== want[i][1]) {
+        if (!near(got[i * 2], want[i][0] / fps, T) || got[i * 2 + 1] !== want[i][1]) {
           fail(`태그 ${tr.tag} ${nm} 키 ${i}`); break;
         }
       }
@@ -465,9 +467,9 @@ if (files.length === 0) {
     if (!r) { fail(`${f}: 해독기가 null을 냈다 (판이 ${VER_MIN}~${VER_MAX} 밖이거나 꼴이 낯설다)`); continue; }
     /* 체력·표적 키를 따로 센다 — 화면의 '체력바가 안 깎인다' · '트레이서가 안 나간다'는
        대개 이 둘이 비어서다. 뭉치를 열어 보지 않고는 덤퍼 탓인지 그리기 탓인지 못 가른다. */
-    const hpN = r.tracks.reduce((s, tr) => s + (tr.hp?.length ?? 0), 0);
+    const hpN = r.tracks.reduce((s, tr) => s + ((tr.hp?.length ?? 0) >> 1), 0);
     const hpTr = r.tracks.filter((tr) => (tr.hp?.length ?? 0) > 0).length;
-    const tgN = r.tracks.reduce((s, tr) => s + (tr.tgt?.length ?? 0), 0);
+    const tgN = r.tracks.reduce((s, tr) => s + ((tr.tgt?.length ?? 0) >> 1), 0);
     const tgTr = r.tracks.filter((tr) => (tr.tgt?.length ?? 0) > 0).length;
     const cen = `판 ${r.version} · 트랙 ${r.tracks.length} · 사람 ${r.players.length}`
       + ` · 업글 ${r.ups.length} · 마법 ${r.casts.length} · 핑 ${r.pings.length}`

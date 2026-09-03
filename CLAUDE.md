@@ -40,6 +40,9 @@
   워커가 참값에서 만든다. 화면(UI)이 읽는 파생 자료(건물 행·캐스트·핵·가스·생산·업글)는 워커가 `worldui`로 한 번
   보내고, 걷기(entWalks)는 추적을 켤 때 `want walks`(임자별)로 청한다. 메인은 deriveWorld9를 안 부른다. 넘긴 뒤
   메인의 트랙 배열은 비운다. 걷기는 참값 키를 가리키는 창(`WalkView`, `posAtW`)이라 복사가 없다(폰 메모리).
+- 참값 자리 형식(`openbwTracks.ts`): 키는 `kt`(초 Float32)·`kxy`(픽셀 Int16×2)·`kh`(방향 바이트)·`kst`(상태)로 나눠 들고
+  접근자 `kT/kX/kY/kH/kS`로만 읽는다. 체력·인터셉터·표적은 평평한 형식 배열 `Ticks`([초,값,…], 표적은 Float64)이고
+  `tkN/tkT/tkV/tkAt/tkLast/tkSlice`로 읽는다. 자리를 바꾸면 접근자만 고친다. 검사: `node scripts/openbw-tracks-check.mjs`.
 - `#diag`는 요약 한 줄, `#diag=draw|mem|worker|truth|all`(쉼표로 여럿)로 용도를 가른다. `mem`에 메모리 어림(memEst9) 줄.
 - 워커는 짓기 시간(ms)에 맞춰 프레임 간격을 벌린다(초당 30장 기본, 최소 8장). 메인은 2초 안의 프레임이면 낡아도 든다.
 - 엔진은 늘 **자세히** 낸다(요잉 16칸·모든 자세·탱크 차체+포탑). 낮은 배율 간이화는 붓(UnitLayer)의

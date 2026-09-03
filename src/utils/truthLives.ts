@@ -23,7 +23,7 @@
  */
 import { BUILDING_FOOT } from "./bwUnits";
 import { BW_UNIT_NAME } from "./bwUnitNames";
-import { TRUTH_ST_GONE, TRUTH_ST_MOVE, type TruthTrack, type TruthTracks } from "./openbwTracks";
+import { TRUTH_ST_GONE, TRUTH_ST_MOVE, type TruthTrack, type TruthTracks, kT, kX, kY, kS, tkSlice, type Ticks } from "./openbwTracks";
 
 /** 시즈탱크의 두 자세 — 종류 번호가 바뀌지만 같은 몸이다. */
 const TANK_ID = 5;
@@ -83,12 +83,12 @@ export type TruthLife = {
   /** 떨어진 명령들 — 마우스 자국과 선택 링이 이것으로 선다. */
   orders: LifeOrder[];
   /** 체력 변곡점 [초, 남은 체력(실드 포함, 실제 수치)]. */
-  hp?: [number, number][];
+  hp?: Ticks;
   /** 캐리어 인터셉터 수 변곡점 [초, 개수]. */
-  ic?: [number, number][];
+  ic?: Ticks;
   /** ★ **지금 겨눈 개체** 변곡점 [초, 표적 태그] — 0은 '겨눈 것 없음'(판 6부터).
    *  없으면 그 덤프는 표적을 모르는 옛 판이다(그 둘은 다른 말이다 — TruthTrack.tgt 주석). */
-  tgt?: [number, number][];
+  tgt?: Ticks;
 };
 
 /** 참값 한 판이 아는 사람·사건 — 화면이 자취 곁에서 읽는 것 전부. */
@@ -125,7 +125,7 @@ function livesOfTrack(
   for (let i = 1; i < n; i += 1) {
     if (tr.types[i] === tr.types[i - 1]) continue;
     if (same(tr.types[i]) !== same(tr.types[i - 1])) continue;
-    sieges.push([tr.keys[i * 5], tr.types[i] === TANK_SIEGE_ID]);
+    sieges.push([kT(tr, i), tr.types[i] === TANK_SIEGE_ID]);
   }
   // 종류가 (시즈를 뺀 뒤에도) 바뀌는 자리 = 생애 경계.
   const cuts: number[] = [];
@@ -136,10 +136,10 @@ function livesOfTrack(
   for (let ci = 0; ci < cuts.length; ci += 1) {
     const end = cuts[ci];
     const kind = BW_UNIT_NAME[tr.types[segStart]] ?? `?${tr.types[segStart]}`;
-    const born = tr.keys[segStart * 5];
+    const born = kT(tr, segStart);
     const lastIdx = end - 1;
-    const lastT = tr.keys[lastIdx * 5];
-    const gone = tr.keys[lastIdx * 5 + 4] === TRUTH_ST_GONE;
+    const lastT = kT(tr, lastIdx);
+    const gone = kS(tr, lastIdx) === TRUTH_ST_GONE;
     const more = ci < cuts.length - 1;
     const bld = isBuilding(kind);
     /** ★ 이 생애가 **정말로 끝나는 때** — 자리 키가 끊긴 때(lastT)와는 다른 말이다.
@@ -171,8 +171,8 @@ function livesOfTrack(
          **좌상단 타일**을 기준으로 그리므로 반 발자국을 뺀다 — 안 빼면 건물이 통째로
          오른아래로 밀린다(지적: "건물들 위치가 조금 틀림 우하단으로 쏠린느낌"). */
       const foot = BUILDING_FOOT[kind] ?? [3, 2];
-      const bx = tr.keys[segStart * 5 + 1] - foot[0] / 2;
-      const by = tr.keys[segStart * 5 + 2] - foot[1] / 2;
+      const bx = kX(tr, segStart) - foot[0] / 2;
+      const by = kY(tr, segStart) - foot[1] / 2;
       /* 처음부터 서 있던 건물인가 — 참값이 키마다 '다 지어졌나'를 준다. 다만 그 비트만
          믿으면 안 된다(지적: "아직도 스타팅 홀 건설되면서 시작한다구"): 시작 본진은
          자취의 첫 키가 0초가 아닐 수 있고, 그러면 done이 1이어도 born > 0이라 화면이
@@ -198,8 +198,8 @@ function livesOfTrack(
              잡혔다. 재생 쪽은 그 시각부터 공사 모델(소환구)을 걷고 완성 건물을 그리는데
              바로 이어 페이드아웃이 시작되므로, 화면에는 "건물이 한순간 나타났다 스러진다".
              완성은 정말로 '완성 비트가 켜진 채 살아 있는 키'만 말한다. */
-          if (tr.keys[i * 5 + 4] === TRUTH_ST_GONE) break;
-          if (tr.done[i]) { doneAt = tr.keys[i * 5]; break; }
+          if (kS(tr, i) === TRUTH_ST_GONE) break;
+          if (tr.done[i]) { doneAt = kT(tr, i); break; }
         }
         /* 참값이 변태의 끝을 안 말하면(또는 시작부터 완성이라 말하면) 원작 표로 잰다.
            그 표는 프레임을 23.81로 나눈 값이라 다른 건물 시간과 같은 자다. */
@@ -237,18 +237,18 @@ function livesOfTrack(
       /** 이 키에서 떠 있나 — 깃발이 있으면 그것이 답이고, 없으면 자리로 가른다. */
       const aloft = (i: number): boolean => (air
         ? air[i] !== 0
-        : !(onTile(tr.keys[i * 5 + 1] - foot[0] / 2)
-          && onTile(tr.keys[i * 5 + 2] - foot[1] / 2)));
+        : !(onTile(kX(tr, i) - foot[0] / 2)
+          && onTile(kY(tr, i) - foot[1] / 2)));
       let flying = false;
       for (let i = segStart + 1; i < end; i += 1) {
         /* 깃발이 있으면 '떴다/앉았다'를 그대로 읽고, 없으면 예전처럼 '움직이기 시작한
            순간'을 이륙으로 본다 — 옛 판에는 뜬 채 가만히 있는 구간을 알 길이 없다. */
-        const up = air ? aloft(i) : (tr.keys[i * 5 + 4] === TRUTH_ST_MOVE || (flying && aloft(i)));
-        if (up && !flying) { flying = true; lifts.push(tr.keys[i * 5]); }
+        const up = air ? aloft(i) : (kS(tr, i) === TRUTH_ST_MOVE || (flying && aloft(i)));
+        if (up && !flying) { flying = true; lifts.push(kT(tr, i)); }
         else if (!up && flying) {
           flying = false;
-          sites.push([tr.keys[i * 5],
-            tr.keys[i * 5 + 1] - foot[0] / 2, tr.keys[i * 5 + 2] - foot[1] / 2]);
+          sites.push([kT(tr, i),
+            kX(tr, i) - foot[0] / 2, kY(tr, i) - foot[1] / 2]);
         }
       }
     }
@@ -261,11 +261,11 @@ function livesOfTrack(
         let on9 = -1;
         for (let i = segStart; i < end; i += 1) {
           const up9 = ck9[i] !== 0;
-          if (up9 && on9 < 0) on9 = tr.keys[i * 5];
-          else if (!up9 && on9 >= 0) { cloaks.push([on9, tr.keys[i * 5]]); on9 = -1; }
+          if (up9 && on9 < 0) on9 = kT(tr, i);
+          else if (!up9 && on9 >= 0) { cloaks.push([on9, kT(tr, i)]); on9 = -1; }
         }
         // 끝까지 켜져 있으면 마지막 키로 닫는다 — 그 뒤는 이 개체가 없다.
-        if (on9 >= 0) cloaks.push([on9, tr.keys[(end - 1) * 5]]);
+        if (on9 >= 0) cloaks.push([on9, kT(tr, end - 1)]);
       }
     }
     const mine: LifeOrder[] = [];
@@ -277,8 +277,8 @@ function livesOfTrack(
       owner: tr.owner,
       kind,
       born,
-      bornX: tr.keys[segStart * 5 + 1],
-      bornY: tr.keys[segStart * 5 + 2],
+      bornX: kX(tr, segStart),
+      bornY: kY(tr, segStart),
       died: more || gone ? lastT : null,
       end: more ? "morph" : gone ? "atk" : "",
       bld,
@@ -292,9 +292,9 @@ function livesOfTrack(
       /* 곁 흐름 셋은 **생애의 끝**까지다(위 lifeEnd) — 자리 키가 끊긴 때가 아니다.
          구간을 가르는 까닭은 그대로다: 한 태그가 라바→알→저글링으로 갈아입으므로,
          안 가르면 앞 시절의 값이 다음 시절로 새어 들어간다. */
-      hp: tr.hp?.filter(([t]) => t >= born && t <= lifeEnd),
-      ic: tr.ic?.filter(([t]) => t >= born && t <= lifeEnd),
-      tgt: tr.tgt?.filter(([t]) => t >= born && t <= lifeEnd),
+      hp: tr.hp ? tkSlice(tr.hp, born, lifeEnd) : undefined,
+      ic: tr.ic ? tkSlice(tr.ic, born, lifeEnd) : undefined,
+      tgt: tr.tgt ? tkSlice(tr.tgt, born, lifeEnd) : undefined,
     });
     segStart = end;
   }

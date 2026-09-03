@@ -54,7 +54,14 @@ export type TruthTrack = {
   /** 초. 끝까지 살아 있었으면 null */
   died: number | null;
   /** 다섯씩 [t(초), x(타일), y(타일), 방향(도), 상태] */
-  keys: Float32Array;
+  /** 키 시각(초) — 키마다 하나. (옛 keys[5k]) */
+  kt: Float32Array;
+  /** 키 자리(픽셀, Int16 두 칸) — 타일은 /32. (옛 keys[5k+1..2]를 float32 타일로 들던 것: 메모리 절반) */
+  kxy: Int16Array;
+  /** 키 방향(바이트 0~255 → 도는 ×360/256). */
+  kh: Uint8Array;
+  /** 키 상태(0~15). */
+  kst: Uint8Array;
   /** 키마다 '다 지어졌나' — 0이면 짓는 중이다. 시작부터 서 있던 건물과 지금 짓는 건물을
    *  가리는 표다. 키 수와 길이가 같다. */
   done: Uint8Array;
@@ -70,19 +77,68 @@ export type TruthTrack = {
   types: Uint16Array;
   /** 체력 변곡점 [초, 남은 체력] — 실드를 더한 **실제 수치**다(퍼센트가 아니다).
    *  잔물결(저그 재생·프로토스 실드 충전)은 솎여 있다. */
-  hp?: [number, number][];
+  hp?: Ticks;
   /** 캐리어 인터셉터 수 변곡점 [초, 개수]. 캐리어가 아니면 없다. */
-  ic?: [number, number][];
+  ic?: Ticks;
   /** ★ **지금 겨눈 개체** 변곡점 [초, 표적 태그] — 0은 '겨눈 것 없음'이다(판 6부터).
    *
    *  원작이 매 프레임 들고 있는 값(order_target.unit)을 그대로 옮긴 것이라 어림이 한 톨도
    *  안 든다. 바뀔 때만 한 줄이라 자리 키보다 훨씬 성기다.
    *  ★ **없는 것과 0은 다르다** — 이 칸이 아예 없으면 그 덤프는 표적을 모르는 옛 판이고
    *    (그때는 아무 공격도 안 그린다), 있는데 0이면 '지금 아무것도 안 겨눈다'는 참값이다. */
-  tgt?: [number, number][];
+  tgt?: Ticks;
 };
 
 /** 리플레이 머리말이 아는 사람. */
+/* ★ 키·변곡점의 **자리**(요청: 형식 배열로 — 폰 워커 참값 102MB의 절반이 키, 나머지가 쌍 배열이었다) ─────
+ *  키는 초(Float32)·픽셀(Int16×2)·방향(Uint8)·상태(Uint8)로 나눠 든다(키당 10B, 옛 float32 다섯 칸 20B).
+ *  체력·인터셉터·표적 변곡점(Ticks)은 평평한 형식 배열 [초, 값, 초, 값, …]이다(쌍당 8~16B, 옛 배열 객체 48B).
+ *  읽는 쪽은 아래 접근자만 쓴다 — 자리를 다시 바꿔도 여기만 고친다. */
+export const kN = (tr: TruthTrack): number => tr.kt.length;
+export const kT = (tr: TruthTrack, i: number): number => tr.kt[i];
+export const kX = (tr: TruthTrack, i: number): number => tr.kxy[i * 2] / 32;
+export const kY = (tr: TruthTrack, i: number): number => tr.kxy[i * 2 + 1] / 32;
+export const kH = (tr: TruthTrack, i: number): number => (tr.kh[i] * 360) / 256;
+export const kS = (tr: TruthTrack, i: number): number => tr.kst[i];
+/** 변곡점 열 — [초, 값]이 번갈아 든 평평한 배열. 표적은 태그(u32)라 Float64. */
+export type Ticks = Float32Array | Float64Array;
+export const EMPTY_TICKS: Float32Array = new Float32Array(0);
+export const tkN = (a: Ticks): number => a.length >> 1;
+export const tkT = (a: Ticks, i: number): number => a[i * 2];
+export const tkV = (a: Ticks, i: number): number => a[i * 2 + 1];
+/** t 이하 마지막 칸의 번호 — 없으면 -1(이분). */
+export function tkAt(a: Ticks, t: number): number {
+  let lo = 0;
+  let hi = (a.length >> 1) - 1;
+  let at = -1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (a[mid * 2] <= t) { at = mid; lo = mid + 1; } else hi = mid - 1;
+  }
+  return at;
+}
+/** t 이하 마지막 값 — 없으면 0. */
+export const tkLast = (a: Ticks | undefined, t: number): number => {
+  if (!a) return 0;
+  const i = tkAt(a, t);
+  return i < 0 ? 0 : a[i * 2 + 1];
+};
+/** [t0, t1] 구간만 — 복사 없는 subarray. */
+export function tkSlice<T extends Ticks>(a: T, t0: number, t1: number): T {
+  const n = a.length >> 1;
+  let i0 = 0;
+  while (i0 < n && a[i0 * 2] < t0) i0 += 1;
+  let i1 = i0;
+  while (i1 < n && a[i1 * 2] <= t1) i1 += 1;
+  return a.subarray(i0 * 2, i1 * 2) as T;
+}
+/** 빈 트랙 — 빈 걷기 창 같은 자리의 자리표. */
+export const EMPTY_TRACK: TruthTrack = {
+  tag: 0, owner: 0, kind: "", born: 0, died: null,
+  kt: new Float32Array(0), kxy: new Int16Array(0), kh: new Uint8Array(0), kst: new Uint8Array(0),
+  types: new Uint16Array(0), done: new Uint8Array(0),
+};
+
 export type TruthPlayer = {
   /** 시뮬 안의 임자 번호(0~11) — 트랙의 owner와 같은 것이다. */
   owner: number;
@@ -185,71 +241,50 @@ const angDiff = (a: number, b: number): number => {
 /** t초일 때 이 개체의 자리·방향·상태. 아직 안 태어났으면 null. */
 export function posAtTruth(
   tr: TruthTrack, t: number,
-  /** 토막 커서(replayTrack의 TrackCur와 같은 규약) — 재생은 시간이 앞으로만 가므로
-   *  지난 프레임의 키가 거의 그대로 맞는다. 어긋나면 이분법으로 돌아가, 결과는 커서가
-   *  있든 없든 같다. */
   cur?: { i: number },
 ): { x: number; y: number; hdg: number; state: number } | null {
-  const n = tr.keys.length / 5;
+  const n = tr.kt.length;
   if (n === 0) return null;
-  if (t < tr.keys[0]) return null;
-  // 마지막으로 t를 안 넘는 키 — 키가 수천 개라 이분법으로 찾는다.
+  const kt = tr.kt;
+  if (t < kt[0]) return null;
   let lo = -1;
   if (cur) {
     const h9 = cur.i;
-    if (h9 >= 0 && (h9 === n - 1 ? tr.keys[h9 * 5] <= t
-      : tr.keys[h9 * 5] <= t && tr.keys[(h9 + 1) * 5] > t)) lo = h9;
-    else if (h9 >= -1 && h9 + 1 < n && tr.keys[(h9 + 1) * 5] <= t
-      && (h9 + 2 >= n || tr.keys[(h9 + 2) * 5] > t)) lo = h9 + 1;
+    if (h9 >= 0 && (h9 === n - 1 ? kt[h9] <= t : kt[h9] <= t && kt[h9 + 1] > t)) lo = h9;
+    else if (h9 >= -1 && h9 + 1 < n && kt[h9 + 1] <= t && (h9 + 2 >= n || kt[h9 + 2] > t)) lo = h9 + 1;
   }
   if (lo < 0) {
     lo = 0;
     let hi = n - 1;
     while (lo < hi) {
       const mid = (lo + hi + 1) >> 1;
-      if (tr.keys[mid * 5] <= t) lo = mid; else hi = mid - 1;
+      if (kt[mid] <= t) lo = mid; else hi = mid - 1;
     }
   }
   if (cur) cur.i = lo;
-  const i = lo * 5;
-  const st = tr.keys[i + 4];
-  /* ★ 사라진 키(GONE)의 자리는 **믿지 않는다**(지적: "위로 도망가던 오버로드가 아래로 되돌아와
-     터졌어") — 죽는 순간의 키는 덤퍼가 개체를 걷어 내며 적는 것이라 자리가 마지막으로 산 자리와
-     다를 때가 있다(되돌아간 자리·묵은 자리). 그 키 **쪽으로 메우면** 죽기 직전 몸이 그리로
-     미끄러지고, 그 키 **위에 서면** 터지는 자리까지 거기가 된다. 둘 다 마지막으로 산 키에 못 박는다. */
+  const st = kS(tr, lo);
+  /* 죽는 순간의 키(GONE)는 덤퍼가 개체를 걷어 내며 적는 것이라 자리가 마지막으로 산 자리와 다를 때가 있다 —
+     그 키 쪽으로 메우지도, 그 위에 서지도 않고 마지막으로 산 키에 못 박는다(지적: 오버로드가 되돌아와 터짐). */
   if (st === TRUTH_ST_GONE && lo > 0) {
-    const h = i - 5;
-    return { x: tr.keys[h + 1], y: tr.keys[h + 2], hdg: tr.keys[h + 3], state: st };
+    return { x: kX(tr, lo - 1), y: kY(tr, lo - 1), hdg: kH(tr, lo - 1), state: st };
   }
-  if (lo === n - 1) return { x: tr.keys[i + 1], y: tr.keys[i + 2], hdg: tr.keys[i + 3], state: st };
-  const j = i + 5;
-  if (tr.keys[j + 4] === TRUTH_ST_GONE) {
-    return { x: tr.keys[i + 1], y: tr.keys[i + 2], hdg: tr.keys[i + 3], state: st };
-  }
-  const span = tr.keys[j] - tr.keys[i];
-  const u = span > 0 ? Math.min(1, Math.max(0, (t - tr.keys[i]) / span)) : 0;
-  /* ★ 방향은 **키 사이를 나눠 갖지 않는다**(지적: "유닛들 방향전환이 너무 느리고
-     이상해짐") ──────────────────────────────────────────────────────────────────
-     자리는 키 사이를 선형으로 메우는 것이 옳다 — 등속으로 걸으니까. 그런데 각을
-     같은 자로 메우면 **회전이 키 간격만큼 길어진다**. 덤퍼는 키를 솎아 내므로(자리
-     편차·각 편차가 문턱을 넘을 때만 적는다) 곧게 걷거나 서 있는 동안은 키가 몇 초씩
-     벌어지는데, 그 사이에 각이 90도 갈리면 유닛이 **몇 초에 걸쳐 스르르 돈다**.
-     원작에서 회전은 그런 것이 아니다: 유닛은 제 회전율(unit_turn_rate)로 **곧장**
-     돌고 나서 그 각을 유지한다. 마린이 180도 도는 데 서너 프레임(0.15초)이다.
-     그래서 여기서는 앞 키의 각에서 **초당 TURN_DPS도**로 따라가다 목표에 닿으면
-     멈춘다. 키가 촘촘한 구간(선회 비행처럼 자리가 계속 휘는 곳)에서는 상한이 아예
-     안 걸려 예전과 같은 매끄러운 호가 그대로 남는다 — 상한이 무는 것은 키가 멀리
-     떨어진, 곧 '돌고 나서 한참 그대로'인 구간뿐이다.
-     키에 늦지 않게 필요한 속도(need)와 견줘 더 빠른 쪽을 쓰므로, 다음 키에 닿는
-     순간의 각은 언제나 그 키의 각 그대로다(경계에서 안 튄다). */
-  const dh = angDiff(tr.keys[i + 3], tr.keys[j + 3]);
-  const dt = t - tr.keys[i];
+  if (lo === n - 1) return { x: kX(tr, lo), y: kY(tr, lo), hdg: kH(tr, lo), state: st };
+  const j = lo + 1;
+  if (kS(tr, j) === TRUTH_ST_GONE) return { x: kX(tr, lo), y: kY(tr, lo), hdg: kH(tr, lo), state: st };
+  const span = kt[j] - kt[lo];
+  const u = span > 0 ? Math.min(1, Math.max(0, (t - kt[lo]) / span)) : 0;
+  /* 각은 선형으로 안 메운다 — 앞 키의 각에서 초당 TURN_DPS도로 따라가다 목표에 닿으면 멈춘다(원작의 회전).
+     키에 늦지 않게 필요한 속도(need)와 견줘 더 빠른 쪽을 쓰므로 다음 키에 닿는 순간의 각은 그 키의 각 그대로다. */
+  const h0 = kH(tr, lo);
+  const dh = angDiff(h0, kH(tr, j));
+  const dt = t - kt[lo];
   const need = span > 0 ? Math.abs(dh) / span : 0;
   const turned = Math.min(Math.abs(dh), Math.max(TURN_DPS, need) * dt);
+  const x0 = kX(tr, lo); const y0 = kY(tr, lo);
   return {
-    x: tr.keys[i + 1] + (tr.keys[j + 1] - tr.keys[i + 1]) * u,
-    y: tr.keys[i + 2] + (tr.keys[j + 2] - tr.keys[i + 2]) * u,
-    hdg: norm360(tr.keys[i + 3] + Math.sign(dh) * turned),
+    x: x0 + (kX(tr, j) - x0) * u,
+    y: y0 + (kY(tr, j) - y0) * u,
+    hdg: norm360(h0 + Math.sign(dh) * turned),
     state: st,
   };
 }
@@ -409,7 +444,10 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
     const tracks: TruthTrack[] = [];
     for (let i = 0; i < n; i += 1) {
       const h = head[i];
-      const keys = new Float32Array(h.count * 5);
+      const kt = new Float32Array(h.count);
+      const kxy = new Int16Array(h.count * 2);
+      const kh = new Uint8Array(h.count);
+      const kst = new Uint8Array(h.count);
       const types = new Uint16Array(h.count);
       const done = new Uint8Array(h.count);
       const air = hasAir ? new Uint8Array(h.count) : undefined;
@@ -439,12 +477,11 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
         const t = pf / fps;
         if (k === 0) born = t;
         if (state === TRUTH_ST_GONE) died = t;
-        const o = k * 5;
-        keys[o] = t;
-        keys[o + 1] = px / 32;              // 픽셀 → 타일
-        keys[o + 2] = py / 32;
-        keys[o + 3] = (headingByte * 360) / 256;
-        keys[o + 4] = state;
+        kt[k] = t;
+        kxy[k * 2] = px;                    // 픽셀 그대로(읽을 때 /32 → 타일)
+        kxy[k * 2 + 1] = py;
+        kh[k] = headingByte;
+        kst[k] = state;
       }
       tracks.push({
         tag: h.tag,
@@ -452,7 +489,7 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
         kind: BW_UNIT_NAME[h.type] ?? `?${h.type}`,
         born,
         died,
-        keys,
+        kt, kxy, kh, kst,
         types,
         done,
         ...(air ? { air } : {}),
@@ -463,17 +500,18 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
     /* 체력·인터셉터는 자리 키와 따로 온다(섞으면 한쪽이 바뀔 때마다 다른 쪽 키까지
        끌려 나온다). 트랙 차례가 같으므로 같은 차례로 읽어 붙인다. */
     const readTicks = (want: (h: typeof head[number]) => number,
-      put: (tr: TruthTrack, v: [number, number][]) => void): void => {
+      put: (tr: TruthTrack, v: Float32Array) => void): void => {
       for (let i = 0; i < n; i += 1) {
         const cnt = want(head[i]);
         if (!cnt) continue;
-        const out: [number, number][] = new Array(cnt);
+        const out = new Float32Array(cnt * 2);
         let pf = 0;
         let pv = 0;
         for (let k = 0; k < cnt; k += 1) {
           pf += c.varint();
           pv += c.varint();
-          out[k] = [pf / fps, pv];
+          out[k * 2] = pf / fps;
+          out[k * 2 + 1] = pv;
         }
         put(tracks[i], out);
       }
@@ -486,11 +524,13 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
       for (let i = 0; i < n; i += 1) {
         const cnt = head[i].tgt;
         if (!cnt) continue;
-        const out: [number, number][] = new Array(cnt);
+        // 표적은 태그(u32)라 float32로는 깨진다 — Float64.
+        const out = new Float64Array(cnt * 2);
         let pf = 0;
         for (let k = 0; k < cnt; k += 1) {
           pf += c.varint();
-          out[k] = [pf / fps, c.u32()];
+          out[k * 2] = pf / fps;
+          out[k * 2 + 1] = c.u32();
         }
         tracks[i].tgt = out;
       }

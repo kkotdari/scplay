@@ -193,7 +193,8 @@ const deriveNow = (): void => {
     const bTruth = estBytes9(truthData, seen);
     // 참값 가운데 형식 배열(키·상태) 몫 — 나머지는 체력·인터셉터·표적 같은 쌍 배열이다(형식으로 바꿀지 정하는 자).
     let typed = 0;
-    if (truthData) for (const tk of truthData.tracks) typed += tk.keys.byteLength + tk.done.byteLength + tk.types.byteLength + (tk.air?.byteLength ?? 0) + (tk.cloak?.byteLength ?? 0);
+    if (truthData) for (const tk of truthData.tracks) typed += tk.kt.byteLength + tk.kxy.byteLength + tk.kh.byteLength + tk.kst.byteLength + tk.done.byteLength + tk.types.byteLength
+      + (tk.air?.byteLength ?? 0) + (tk.cloak?.byteLength ?? 0) + (tk.hp?.byteLength ?? 0) + (tk.ic?.byteLength ?? 0) + (tk.tgt?.byteLength ?? 0);
     const bEnt = estBytes9(entData, seen);
     // 파생 자료는 필드마다 따로 잰다(같은 seen이라 겹치는 것은 먼저 잰 필드에 붙는다) — 어느 것이 큰지 진단에 싣는다.
     const per: [string, number][] = [["entData", bEnt]];
