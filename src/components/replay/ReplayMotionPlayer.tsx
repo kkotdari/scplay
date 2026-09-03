@@ -30312,7 +30312,7 @@ export default function ReplayMotionPlayer({
   /** 세계 세대 — 워커가 새 worldui를 보낼 때마다 오른다(걷기를 다시 청하는 자). */
   const [worldGen9, setWorldGen9] = useState(0);
   /** 워커가 어림한 제 메모리(참값·파생) — ready에 실려 온다. */
-  const [memWorker9, setMemWorker9] = useState<{ truth: number; world: number } | null>(null);
+  const [memWorker9, setMemWorker9] = useState<{ truth: number; world: number; top?: [string, number][] } | null>(null);
   /* ★ 프레임 워커 = 설계 일꾼(요청) — 주인(여기 재생 상태)의 명령만 받아 앞으로 설계도를 지어 두고, 붓은 받은 것만
      그린다. **길은 이것 하나다**(지적: 메인 엔진 대비 코드는 두 길이라 별로) — 워커가 못 서면 프레임이 없고, 화면은
      마지막 프레임을 든 채 진단(SCR_DIAG.worker)에 까닭을 적는다. 도구 번들(esbuild)에는 워커가 없다. */
@@ -30436,7 +30436,7 @@ export default function ReplayMotionPlayer({
         setEntWalks9((m9 as unknown as { entWalks: EngineWorld9["entWalks"] }).entWalks ?? []);
       } else if (m9.type === "ready") {
         wStatRef.current.ready = true;
-        const b9 = (m9 as unknown as { bytes?: { truth: number; world: number } }).bytes;
+        const b9 = (m9 as unknown as { bytes?: { truth: number; world: number; top?: [string, number][] } }).bytes;
         if (b9) setMemWorker9(b9);
       } else if (m9.type === "err") {
         wStatRef.current.err = m9.message || "워커가 던졌다(내용 없음)";
@@ -35282,6 +35282,11 @@ export default function ReplayMotionPlayer({
                       {" · 걷기 "}{mb9(memMain9.walks)}
                       {" | 워커: "}{memWorker9 ? `참값 ${mb9(memWorker9.truth)} · 파생 ${mb9(memWorker9.world)}` : "-"}
                     </div>
+                    {memWorker9?.top && (
+                      <div style={{ fontSize: "0.92em", opacity: 0.85 }}>
+                        워커 파생 상위: {memWorker9.top.map(([k9, b9]) => `${k9} ${mb9(b9)}`).join(" · ")}
+                      </div>
+                    )}
                   </>
                 )}
                 {dm9("truth") && (

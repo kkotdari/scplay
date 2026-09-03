@@ -187,10 +187,21 @@ const deriveNow = (): void => {
     teamOf: (raw: string) => p.teamMap[raw], total: p.total,
   });
   rebuildEngine();
-  let bytes: { truth: number; world: number } | undefined;
+  let bytes: { truth: number; world: number; top: [string, number][] } | undefined;
   try {
     const seen = new Set<object>();
-    bytes = { truth: estBytes9(truthData, seen), world: estBytes9(world, seen) + estBytes9(entData, seen) };
+    const bTruth = estBytes9(truthData, seen);
+    const bEnt = estBytes9(entData, seen);
+    // 파생 자료는 필드마다 따로 잰다(같은 seen이라 겹치는 것은 먼저 잰 필드에 붙는다) — 어느 것이 큰지 진단에 싣는다.
+    const per: [string, number][] = [["entData", bEnt]];
+    let bWorld = bEnt;
+    for (const k of Object.keys(world as unknown as Record<string, unknown>)) {
+      const b = estBytes9((world as unknown as Record<string, unknown>)[k], seen);
+      bWorld += b;
+      per.push([k, b]);
+    }
+    per.sort((a, b) => b[1] - a[1]);
+    bytes = { truth: bTruth, world: bWorld, top: per.slice(0, 8) };
   } catch { bytes = undefined; }
   post({ type: "ready", bytes });
   post({ type: "worldui", ui: pickWorldUi9(world) });
