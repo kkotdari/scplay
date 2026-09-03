@@ -26951,7 +26951,13 @@ export default function ReplayMotionPlayer({
      실제 폭'(부모 상자, ≥860px)만 본다 — 상세든 카드든 자리가 넓으면 옛 확대창 배치
      (맵 왼쪽 + 오른쪽 댓글 기둥)를 쓴다. 좁은 자리는 그대로 세로 배치다. 닫기(X·Esc)는
      여전히 상세에서만이다. */
-  const rootRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  /* ★ 뿌리가 **붙는 때**를 잡는다(지적: "stargayte에서는 부모 폭이 860px 이상이 돼도
+     .scr-motion-wide가 안 붙어") — 아래 관찰자는 마운트 때 한 번만 달렸다. 그때 뿌리가 아직
+     없으면(자료를 기다리는 동안 다른 갈래를 그리거나, 담는 쪽이 늦게 앉히면) 부모를 못 잡고
+     영영 좁은 보기로 남았다. 콜백 ref로 뿌리가 붙을 때마다 상태에 실어 관찰자를 다시 단다. */
+  const [rootEl, setRootEl] = useState<HTMLDivElement | null>(null);
+  const setRoot = useCallback((el: HTMLDivElement | null): void => { rootRef.current = el; setRootEl(el); }, []);
   const [wide, setWide] = useState(false);
   /* 지도를 '남는 세로에 꽉 맞춘다'(지적: "세로 스크롤 안 만드는 건 좋은데 그건 세로
      높이에 맞추라는 얘기지 저렇게 작게 고정하라는 게 아녀" / "scr-motion-wide 높이를
@@ -26963,12 +26969,18 @@ export default function ReplayMotionPlayer({
      가로 스크롤이 나는데, 그건 사용자가 받아들인 쪽이다.
      지도가 커지면 뿌리도 커지므로 되먹임이 생길 수 있어 4px보다 작은 변화는 무시한다. */
   useEffect(() => {
-    const host = rootRef.current?.parentElement;
-    if (!host || typeof ResizeObserver === "undefined") return undefined;
-    const ro = new ResizeObserver(() => setWide(host.clientWidth >= 860));
+    const host = rootEl?.parentElement;
+    if (!host) return undefined;
+    const measure = (): void => setWide(host.clientWidth >= 860);
+    measure();   // 관찰자 첫 발화를 기다리지 않고 바로 한 번 잰다.
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", measure);
+      return () => window.removeEventListener("resize", measure);
+    }
+    const ro = new ResizeObserver(measure);
     ro.observe(host);
     return () => ro.disconnect();
-  }, []);
+  }, [rootEl]);
   /* 맵 뷰어 크기는 고정이다(요청: "맵뷰어 크기는 1024*1024로 고정, 가로 세로 중 더 긴
      쪽을 맞추면 돼") — 화면 높이에 맞춰 폭을 되돌리던 자동 계산을 통째로 걷었다.
      그 계산은 넓은 배치에서 **한 번도 작동한 적이 없다**: 맵줄(.scr-motion-maprow)이
@@ -36180,7 +36192,7 @@ export default function ReplayMotionPlayer({
   const pBody9 = PERF9 ? pNow() : 0;
   const body = (
     <div
-      ref={rootRef}
+      ref={setRoot}
       className={cx("scr-motion", "scr-motion-root", wide && "scr-motion-wide")}
       style={{ margin: "0 auto" }}
     >
@@ -36219,7 +36231,7 @@ export default function ReplayMotionPlayer({
        조작 줄은 안 단다(없는 것을 조작하는 버튼은 일관성이 아니라 거짓말이다). */
     return (
       <div
-        ref={rootRef}
+        ref={setRoot}
         className={cx("scr-motion", "scr-motion-root", wide && "scr-motion-wide")}
         style={{ margin: "0 auto" }}
       >
