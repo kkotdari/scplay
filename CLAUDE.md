@@ -24,8 +24,10 @@
 빈 커밋 "배포 트리거: …"를 브랜치와 main에 푸시.
 
 ## 프레임 엔진·워커 구조(2026-09)
-- `deriveWorld9`(파생 자료)·`createEngine9`(시각 t → 프레임: unitOps·fxOps·DOM 기록·안개)는
-  `ReplayMotionPlayer.tsx` **모듈 스코프**의 순수 함수다. 컴포넌트는 화면 입력(EngineView9)만 건넨다.
+- `deriveWorld9`(파생 자료)·`createEngine9`(시각 t → 프레임: unitOps·fxOps·DOM 기록·안개)는 **`engine9.ts`**의
+  순수 함수다(엔진이 이행적으로 참조하는 표·헬퍼 151개를 함께 옮겼다 — React·DOM 없음, 워커는 이 모듈만 든다).
+  `ReplayMotionPlayer.tsx`는 붓·UI만 남았고 필요한 이름을 engine9에서 import한다(다른 파일이 쓰던 것은 re-export).
+  옮긴 기준은 `scratchpad/split_engine.mjs`(TS API로 이행 참조를 닫음)였다. 컴포넌트는 화면 입력(EngineView9)만 건넨다.
 - 두 일꾼: **설계 일꾼**(`frameWorker.ts`, 동적 `import("./frameWorker?worker&inline")`, 라이브러리 빌드는
   `inlineDynamicImports`로 한 파일)이 주인(메인 재생 상태)의 명령(`cmd`: 재생/정지·기준 시각·배속, **바뀔 때만**)과
   시점(`view`: 상자·기울기·색·품질·**시야 사각형**)을 받아 제 벽시계로 앞으로 설계도를 지어 둔다(벽시계 3초·10MB 한도).

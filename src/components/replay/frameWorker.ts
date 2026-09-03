@@ -21,7 +21,7 @@
  *    묶이지만 DOM은 안 만진다 — 워커에서 `document`를 만지는 줄이 생기면 여기서 던지고 메인 진단에 적힌다. */
 import {
   createEngine9, deriveWorld9, pickWorldUi9, type EngineView9, type EngineWorld9, type Frame9,
-} from "./ReplayMotionPlayer";
+} from "./engine9";
 import { pack9 } from "./framePack";
 import { estBytes9 } from "./memEst9";
 import { UNIT_BUILD_SEC } from "./unitStats";
