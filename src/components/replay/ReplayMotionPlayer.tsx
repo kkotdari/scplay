@@ -118,7 +118,7 @@ const NUKE_FALL_PX = 140;
  *  18 → **9**(요청: "탄두 크기 반으로 줄이기") — 폭발 상자가 6 → 10타일로 커지며
  *  탄두가 상대적으로 커 보였다. 폭발과 탄두는 별개 값이라 각각 정한다(그 사정은
  *  아래 폭발 width 주석에 있다). */
-const NUKE_HEAD_PX = 3.6;
+const NUKE_HEAD_PX = 9;   // 3.6 → 9(요청: 핵탄두 2.5배)
 /* 입체 보기의 바닥 기하 — 모듈 스코프에 둔다(수리: 그림자가 바닥보다 두 배 납작한
    문제). 지형 그림·마커 사영은 컴포넌트 안에서 이 값들을 쓰고, 캔버스의 그림자·
    선택 링은 컴포넌트 밖(UnitLayer)에서 쓴다. 같은 바닥을 두 곳이 따로 알고 있으면
@@ -22747,6 +22747,9 @@ export const playbackViewOf = new Map<string, {
 const EMPTY_ARR9: never[] = [];
 /** React 상태 t를 올리는 간격(ms) — 유닛 캔버스는 틱이 프레임마다 칠하고, React는 이 박자로만 렌더한다(4번). */
 const REACT_STEP_MS9 = 100;
+/** 핵이 떠 있는 동안의 React 박자(ms) — 핵 낙하·폭발은 CSS 애니메이션을 재생 시각으로 긁는(paused + delay) 방식이라
+ *  React 갱신 박자가 곧 그 효과의 프레임이다(지적: 핵 낙하·폭발 프레임이 낮아 보임). 그동안만 25Hz로 올린다. */
+const REACT_STEP_NUKE_MS9 = 40;
 /** 워커가 보낸 설계도 한 장 — 숫자 배열(unpack9로 푼다) + 안개(바뀐 장에만) + 짓기 ms. 푼 결과는 dec에 붙인다. */
 export type PackedFrame9 = {
   t: number; buf: Float32Array; strs: string[];
@@ -23112,6 +23115,8 @@ export default function ReplayMotionPlayer({
   const tLiveRef9 = useRef(0);
   const tFromTickRef9 = useRef(-1);
   const reactAtRef9 = useRef(0);
+  /** 지금의 React 박자(ms) — 핵이 떠 있으면 REACT_STEP_NUKE_MS9, 아니면 REACT_STEP_MS9(렌더가 정한다). */
+  const reactStepRef9 = useRef(REACT_STEP_MS9);
   const paintFnRef9 = useRef<((tNow: number) => void) | null>(null);
   const frameOpsRef9 = useRef<UnitDrawOp[] | null>(null);
   const frameFxRef9 = useRef<FxOp[] | null>(null);
@@ -27766,7 +27771,7 @@ export default function ReplayMotionPlayer({
         tLiveRef9.current = next9;
         paintFnRef9.current?.(next9);
         const nowR9 = performance.now();
-        if (ended9 || nowR9 - reactAtRef9.current >= REACT_STEP_MS9) {
+        if (ended9 || nowR9 - reactAtRef9.current >= reactStepRef9.current) {
           reactAtRef9.current = nowR9;
           tFromTickRef9.current = next9;
           setT(next9);
@@ -27803,6 +27808,8 @@ export default function ReplayMotionPlayer({
                상태표(STATUS_CASTS.Irradiate.dur)와 **같은 값**이어야 한다. */
             : c[3] === "Irradiate" ? STATUS_CASTS.Irradiate.dur
               : c[3] === "Scanner Sweep" ? SCAN_DETECT_SEC : CAST_HOLD_SEC));
+  // 핵이 떠 있는 동안만 React 박자를 올린다(위 REACT_STEP_NUKE_MS9).
+  reactStepRef9.current = castsNow.some((c9) => c9[3] === "Nuclear Strike") ? REACT_STEP_NUKE_MS9 : REACT_STEP_MS9;
 
   /* (걷어냄) 수송·드랍 어림 한 벌 — 드랍/태움 신호(drops·loads)와 수송선 자취로
      '내린 자리·태운 자리'를 짚던 어림이다. 재료가 전부 v1 부대 트랙이라 요약 폐지 뒤로는
