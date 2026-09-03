@@ -449,6 +449,7 @@ if (has("--msgsize")) {
     const origPost = Worker.prototype.postMessage;
     Worker.prototype.postMessage = function (m, ...rest) {
       try { const z = sizeOf(m); const t = (m && m.type) || "?"; const e = (st.up[t] ||= { n: 0, json: 0, typed: 0 }); e.n += 1; e.json += z.json; e.typed += z.typed; } catch {}
+      if (m && m.type === "cmd") (st.cmds ||= []).push([Math.round(performance.now()), m.t0, m.playing ? 1 : 0, m.speed]);
       return origPost.call(this, m, ...rest);
     };
     const d = Object.getOwnPropertyDescriptor(Worker.prototype, "onmessage");
@@ -463,6 +464,7 @@ if (has("--msgsize")) {
             st.frames += 1; st.fJson += json; st.fTyped += m.buf.byteLength + fog;
             st.fOps += m.n || 0; if (m.fog) st.fFog = (st.fFog || 0) + 1;
             st.fMax = Math.max(st.fMax, json + m.buf.byteLength + fog);
+            (st.fr ||= []).push([Math.round(performance.now()), m.t, m.cur]);
           }
           fn(ev);
         });
@@ -1301,6 +1303,13 @@ if (has("--msgsize")) {
     return `올림: ${up}\n  프레임 ${st.frames}장 · 장당 json ${(st.fJson / n / 1024).toFixed(1)}KB + typed ${(st.fTyped / n / 1024).toFixed(1)}KB (최대 ${(st.fMax / 1024).toFixed(0)}KB) · 장당 unitOps ${(st.fOps / n).toFixed(0)} · 안개 실린 장 ${st.fFog || 0} · 합 ${mb(st.fJson + st.fTyped)}`;
   });
   console.log("[메시지]", r);
+  console.log("[시계]", await page.evaluate(() => {
+    const st = window.__msgStat; if (!st || !st.cmds) return "없음";
+    const cmds = st.cmds.slice(-6).map(([w, t0, p, sp]) => `${(w / 1000).toFixed(1)}s→t0 ${t0.toFixed(2)}${p ? "" : "(정지)"}×${sp}`).join(" · ");
+    const fr = (st.fr || []).slice(-5).map(([w, t, cur]) => `${(w / 1000).toFixed(1)}s t ${t.toFixed(2)} cur ${cur === undefined ? "?" : cur.toFixed(2)}`).join(" · ");
+    const d = window.__scrDiag;
+    return `명령 ${st.cmds.length}회: ${cmds}\n  프레임(끝 5): ${fr}\n  지금 ${(performance.now() / 1000).toFixed(1)}s · 워커줄 ${d ? d.worker : "-"}`;
+  }));
 }
 await browser.close();
 
