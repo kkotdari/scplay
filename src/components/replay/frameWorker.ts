@@ -1,33 +1,39 @@
-/* 프레임 워커(요청: "워커 분리 — 한 번에 최고 효과로") ─────────────────────────────────────────
- *  재생기의 셈(개체·건물 op·효과·안개)을 **딴 스레드에서 미리** 돌려 프레임을 쌓아 둔다. 메인
- *  스레드에는 붓(캔버스 그리기)과 React만 남는다.
+/* 프레임 워커 = **설계 일꾼**(요청: 두 일꾼 — 설계 일꾼은 주인 명령만 받아 여유가 있을 때마다 더 멀리 설계도를
+ *  지어 두고, 그림 일꾼(메인의 붓)은 받은 설계도만 그린다. 단방향.) ─────────────────────────────────
  *
  *  통신 규약(메인 → 워커)
  *    world  { entData, truth, grid, bases, teamMap, total }   참값·지도·기지 — 경기마다 한 번.
- *    view   { view: EngineView9 }                            상자 크기·기울기·시점·색·품질 — 바뀔 때.
- *    clock  { t, speed, playing }                            재생 시계 — 프레임마다(값이 바뀔 때).
+ *    view   { view: EngineView9 }                            상자 크기·기울기·시점·색·품질·**시야 사각형** — 바뀔 때.
+ *    cmd    { playing, t0, speed }                            주인의 명령 — 재생/정지·탐색·배속 때만(매 프레임이 아니다).
  *  (워커 → 메인)
  *    ready                                                   세계를 받아 엔진을 세웠다.
- *    frame  { frame: Frame9, ms }                            시각 t의 프레임 하나(+ 짓는 데 든 ms).
+ *    worldui { ui }                                          화면(UI)이 읽는 파생 자료 몇 가지 — 메인은 제 것을 안 만든다.
+ *    frame  { t, buf, strs, fog, ms }                        시각 t의 설계도(숫자 배열 + 문자열 표, transfer) · 안개는 바뀐 장만.
  *    err    { message }                                      셈이 던졌다 — 메인은 마지막 프레임을 든 채 진단에 적는다.
  *
- *  박자: 시계 t에서 앞으로 AHEAD_SEC(게임 시각)까지, 한 프레임 = speed/FPS9 초씩 미리 짓는다.
- *  시계가 뛰면(탐색·배속 변경) 엔진 상태(발사 위상·조준 고정 같은 기억)를 비우고 그 자리부터 다시.
- *  잠깐 멈춤(playing=false)이면 그 시각의 프레임 하나만 지어 둔다.
+ *  시계: 명령의 (t0, 배속)에서 제 벽시계로 굴린다 — 주인을 기다리지 않는다. 정지면 t0에 멈춘 한 장만.
+ *  박자: 한 장 = speed/30초(짓기가 느리면 벌린다, 최소 초당 8장). 앞으로 AHEAD_WALL_SEC(벽시계)·AHEAD_BYTES까지
+ *        지어 두고, 한도에 닿으면 시계가 흐를 때까지 쉰다.
+ *  튐:   시계가 지은 창 뒤로 갔거나(되감기) 창 끝을 2초 넘게 앞섰으면(건너뛰기) 엔진 기억을 비우고 그 자리부터.
+ *        조금 앞선 것(워커가 느려 뒤처짐)은 기억을 두고 그 자리로 뛴다. 시점·시야가 바뀌면 기억은 두고 지금 시각부터.
  *
- *  ⚠ 이 파일은 ReplayMotionPlayer 모듈을 통째로 끌어온다(엔진이 그 안의 표·헬퍼를 쓴다). React도
- *    함께 묶이지만 모듈을 읽기만 할 뿐 DOM은 안 만진다 — 워커에서 `document`를 만지는 줄이 생기면
- *    여기서 던지고, 메인은 err를 받아 진단(#diag 워커 줄)에 적는다(화면은 안 죽는다). */
+ *  ⚠ 이 파일은 ReplayMotionPlayer 모듈을 통째로 끌어온다(엔진이 그 안의 표·헬퍼를 쓴다). React도 함께
+ *    묶이지만 DOM은 안 만진다 — 워커에서 `document`를 만지는 줄이 생기면 여기서 던지고 메인 진단에 적힌다. */
 import {
-  createEngine9, deriveWorld9, type EngineView9, type EngineWorld9, type Frame9,
+  createEngine9, deriveWorld9, pickWorldUi9, type EngineView9, type EngineWorld9, type Frame9,
 } from "./ReplayMotionPlayer";
+import { pack9 } from "./framePack";
 import type { TruthTracks } from "../../utils/openbwTracks";
 import type { TruthWorld } from "../../utils/truthLives";
 
 const FPS9 = 30;
-const AHEAD_SEC = 1.0;
 /** 가장 성긴 박자 — 짓기가 아무리 느려도 초당 이만큼은 낸다(그보다 느리면 그냥 뒤처진다). */
 const FPS_MIN9 = 8;
+/** 앞으로 지어 두는 한도 — 벽시계 초(배속을 곱해 게임 시각이 된다)와 바이트. 폰 메모리를 생각한 값이다. */
+const AHEAD_WALL_SEC = 3;
+const AHEAD_BYTES = 10 * 1024 * 1024;
+/** 건너뛰기 판정(초) — 시계가 지은 창 끝을 이만큼 넘어 앞서면 엔진 기억을 비운다. */
+const JUMP_SEC = 2;
 
 type WorldMsg = {
   type: "world"; entData: TruthWorld | null; truth: TruthTracks | null;
@@ -35,91 +41,121 @@ type WorldMsg = {
   bases: { key: string; race?: string }[]; teamMap: Record<string, 1 | 2>; total: number;
 };
 type ViewMsg = { type: "view"; view: EngineView9 };
-type ClockMsg = { type: "clock"; t: number; speed: number; playing: boolean };
-type Msg = WorldMsg | ViewMsg | ClockMsg;
+type CmdMsg = { type: "cmd"; playing: boolean; t0: number; speed: number };
+type Msg = WorldMsg | ViewMsg | CmdMsg;
 
 let world: EngineWorld9 | null = null;
 let view: EngineView9 | null = null;
 let engine: ReturnType<typeof createEngine9> | null = null;
-let clock: { t: number; speed: number; playing: boolean } = { t: 0, speed: 1, playing: false };
-/** 다음에 지을 프레임의 시각. 음수면 아직 없다. */
+/** 주인의 명령 + 받은 벽시계 시각 — 지금 시각은 이것으로 센다(clockT). */
+let clock: { playing: boolean; t0: number; speed: number; at: number } = { playing: false, t0: 0, speed: 1, at: 0 };
+/** 다음에 지을 프레임의 시각. 음수면 '지금 시각부터 새로'. */
 let nextT = -1;
-/** 지어 둔 프레임의 마지막 시각 — 멈춤 상태에서 같은 t를 두 번 안 짓게. */
-let lastBuiltT = -1;
-/** 지어 둔 창의 **시작** 시각 — 되감기 판정은 이것과 견준다(lastBuiltT는 창의 끝이다). */
+/** 지어 둔 창의 **시작** 시각 — 되감기 판정은 이것과 견준다. */
 let winStartT = -1;
 /** 미뤄 둔 pump 타이머(0이면 없음). */
 let pumpTimer = 0;
-/** 프레임 한 장 짓는 데 든 시간(ms, 지수 평균) — 박자를 여기에 맞춘다(아래 stepNow). 0이면 아직 모른다. */
+/** 프레임 한 장 짓는 데 든 시간(ms, 지수 평균) — 박자를 여기에 맞춘다(stepNow). 0이면 아직 모른다. */
 let buildMs = 0;
-const nowMs = (): number => (typeof performance !== "undefined" ? performance.now() : Date.now());
-/** 한 장 짓고 보낸다 — 시간을 재어 buildMs에 섞고, 메인에도 ms를 실어 보낸다(#diag '짓기'). */
-const emit = (t: number): void => {
-  if (!engine) return;
-  const t0 = nowMs();
-  const f = engine.build(t);
-  const ms = nowMs() - t0;
-  buildMs = buildMs === 0 ? ms : buildMs * 0.85 + ms * 0.15;
-  post({ type: "frame", frame: f, ms });
+/** 지어 보낸 프레임(시각·바이트) — 앞 한도(바이트)를 세는 자. 시계 뒤의 것은 버린다. */
+let built: { t: number; bytes: number }[] = [];
+/** 마지막으로 실어 보낸 안개 판(참조) — 같은 참조면 안 싣는다. 엔진은 바뀔 때만 새 배열을 만든다. */
+let fogSent: { explored: Uint16Array | null; visNow: Uint8Array | null; visSrc: Float32Array | null } = {
+  explored: null, visNow: null, visSrc: null,
 };
-/** 프레임 사이 게임 시각 간격. 기본은 speed/30초. ★ 짓기가 그보다 오래 걸리면(폰·긴 경기) 간격을 벌려 시계를
- *  따라간다 — 초당 30장을 고집하면 워커가 영영 뒤처져 도착하는 프레임이 모두 낡는다(폰에서 유닛이 안 보이던 까닭).
- *  벽시계로 한 장에 buildMs면 게임 시각으로는 buildMs·speed만큼 흐른다 — 그 1.3배를 간격으로 삼는다. */
+
+const nowMs = (): number => (typeof performance !== "undefined" ? performance.now() : Date.now());
+const clockT = (): number => (clock.playing ? clock.t0 + ((nowMs() - clock.at) / 1000) * clock.speed : clock.t0);
+const post = (m: unknown, transfer?: Transferable[]): void => {
+  const w = self as unknown as Worker;
+  if (transfer && transfer.length > 0) w.postMessage(m, transfer); else w.postMessage(m);
+};
+
+/** 프레임 사이 게임 시각 간격. 기본 speed/30초. 짓기가 그보다 오래 걸리면(폰·긴 경기) 간격을 벌려 시계를 따라간다 —
+ *  벽시계로 한 장에 buildMs면 게임 시각으로는 buildMs·speed만큼 흐른다. 그 1.3배를 간격으로 삼는다. */
 const stepNow = (): number => {
   const base = Math.max(1 / 240, clock.speed / FPS9);
   const need = (buildMs / 1000) * clock.speed * 1.3;
   return Math.min(Math.max(base, need), Math.max(base, clock.speed / FPS_MIN9));
 };
 
-const post = (m: unknown): void => { (self as unknown as Worker).postMessage(m); };
+const restartFrom = (t: number, forget: boolean): void => {
+  if (!engine) return;
+  if (forget) engine.reset();
+  nextT = t;
+  winStartT = t;
+  built = [];
+  // 새 창의 첫 장에는 안개를 꼭 싣는다 — 메인이 옛 창의 안개를 이 창에 붙이면 안 된다(되감기면 미래의 안개다).
+  fogSent = { explored: null, visNow: null, visSrc: null };
+};
+
+/** 한 장 짓고 싸서 보낸다. 시간을 재어 buildMs에 섞고, 바이트를 돌려준다. */
+const emit = (t: number): number => {
+  if (!engine) return 0;
+  const t0 = nowMs();
+  const f: Frame9 = engine.build(t);
+  const body = pack9({ unitOps: f.unitOps, fxOps: f.fxOps, miniExtra: f.miniExtra, gasBusy: f.gasBusy, dom: f.dom });
+  const transfer: Transferable[] = [body.buf.buffer];
+  let fog: { explored: Uint16Array | null; visNow: Uint8Array | null; visSrc: Float32Array } | null = null;
+  let bytes = body.buf.byteLength;
+  if (f.explored !== fogSent.explored || f.visNow !== fogSent.visNow || f.visSrc !== fogSent.visSrc) {
+    fogSent = { explored: f.explored, visNow: f.visNow, visSrc: f.visSrc };
+    // 엔진이 제 판을 다시 쓰므로 복사해서 넘긴다(transfer는 원본을 떼어 간다).
+    fog = {
+      explored: f.explored ? f.explored.slice() : null,
+      visNow: f.visNow ? f.visNow.slice() : null,
+      visSrc: f.visSrc.slice(),
+    };
+    if (fog.explored) { transfer.push(fog.explored.buffer); bytes += fog.explored.byteLength; }
+    if (fog.visNow) { transfer.push(fog.visNow.buffer); bytes += fog.visNow.byteLength; }
+    transfer.push(fog.visSrc.buffer); bytes += fog.visSrc.byteLength;
+  }
+  const ms = nowMs() - t0;
+  buildMs = buildMs === 0 ? ms : buildMs * 0.85 + ms * 0.15;
+  post({ type: "frame", t: f.t, buf: body.buf, strs: body.strs, fog, ms, n: f.unitOps.length }, transfer);
+  built.push({ t: f.t, bytes });
+  return bytes;
+};
+
+const pump = (): void => {
+  if (pumpTimer !== 0) { clearTimeout(pumpTimer); pumpTimer = 0; }
+  if (!engine) return;
+  const step = stepNow();
+  const cur = clockT();
+  if (nextT < 0) restartFrom(cur, false);
+  else if (winStartT >= 0 && cur < winStartT - step * 2) restartFrom(cur, true);          // 되감기
+  else if (cur > nextT + JUMP_SEC) restartFrom(cur, true);                                 // 건너뛰기
+  else if (cur > nextT + step * 2) { nextT = cur; winStartT = cur; }                       // 뒤처짐 — 기억은 두고 뛴다
+  if (!clock.playing) {
+    // 멈춤: 그 시각의 프레임이 창 안에 없을 때만 한 장.
+    const have = built.some((b) => Math.abs(b.t - cur) <= step * 1.5);
+    if (!have) { emit(cur); nextT = cur + step; winStartT = Math.min(winStartT < 0 ? cur : winStartT, cur); }
+    return;
+  }
+  const until = cur + AHEAD_WALL_SEC * clock.speed;
+  // 시계 뒤로 1초 넘게 지난 장은 한도 셈에서 뺀다(메인도 그쯤에서 버린다).
+  if (built.length > 0 && built[0].t < cur - 1) built = built.filter((b) => b.t >= cur - 1);
+  let bytesAhead = 0;
+  for (const b of built) if (b.t >= cur) bytesAhead += b.bytes;
+  /* 한 번에 여덟 장까지만 짓고 한숨 돌린다 — 그 사이에 온 명령·시점 메시지가 먼저 처리된다. */
+  let n = 0;
+  while (nextT <= until && bytesAhead < AHEAD_BYTES && n < 8) {
+    bytesAhead += emit(nextT);
+    nextT += stepNow();
+    n += 1;
+  }
+  const more = nextT <= until && bytesAhead < AHEAD_BYTES;
+  // 더 지을 게 있으면 곧, 한도에 닿았으면 시계가 반 걸음쯤 흐른 뒤에 다시.
+  const delay = more ? 0 : Math.max(20, ((step / Math.max(0.01, clock.speed)) * 1000) * 0.5);
+  pumpTimer = setTimeout(() => { pumpTimer = 0; pump(); }, delay) as unknown as number;
+};
 
 const rebuildEngine = (): void => {
   if (!world || !view) return;
   engine = createEngine9(world, view);
   nextT = -1;
-  lastBuiltT = -1;
   winStartT = -1;
-};
-
-const pump = (): void => {
-  if (!engine) return;
-  const step = stepNow();
-  /* 시계가 **지어 둔 창 밖**으로 나갔나 — 뒤로 감았거나(behind) 창 끝을 넘어 앞으로 뛰었거나(ahead).
-     (전에는 nextT와 견줬는데 nextT는 늘 1초 앞서 있어 매 시계마다 '뛰었다'가 되어 같은 구간을 되풀이해
-     지었다 — 10초에 5,900장. 창은 [마지막 지은 시각, nextT]다.) */
-  const behind = winStartT >= 0 && clock.t < winStartT - step * 2;
-  const ahead = nextT < 0 || clock.t > nextT + step * 2;
-  if (behind || ahead) {
-    engine.reset();
-    nextT = clock.t;
-    winStartT = clock.t;
-    lastBuiltT = -1;
-  }
-  if (!clock.playing) {
-    // 멈춤: 그 시각의 프레임이 창 안에 없을 때만 한 장.
-    const have = winStartT >= 0 && clock.t >= winStartT - step * 1.5 && clock.t <= nextT;
-    if (!have) {
-      emit(clock.t);
-      lastBuiltT = clock.t;
-      winStartT = clock.t;
-      nextT = clock.t + step;
-    }
-    return;
-  }
-  /* 한 번에 여덟 장까지만 짓고 한숨 돌린다(setTimeout 0) — 그 사이에 온 시계·시점 메시지가 먼저 처리되어,
-     탐색 직후 옛 자리의 프레임을 계속 짓는 일이 없다. */
-  const until = clock.t + AHEAD_SEC * clock.speed;
-  let n = 0;
-  while (nextT <= until && n < 8) {
-    emit(nextT);
-    lastBuiltT = nextT;
-    nextT += stepNow();
-    n += 1;
-  }
-  if (nextT <= until) {
-    if (pumpTimer !== 0) clearTimeout(pumpTimer);
-    pumpTimer = setTimeout(() => { pumpTimer = 0; pump(); }, 0) as unknown as number;
-  }
+  built = [];
 };
 
 /* 워커 안에서만 귀를 연다 — 도구 번들이 이 모듈을 보통 모듈로 묶어 메인에서 읽을 때는 아무 일도 않는다. */
@@ -135,20 +171,19 @@ if (inWorker9) self.onmessage = (ev: MessageEvent<Msg>): void => {
       });
       rebuildEngine();
       post({ type: "ready" });
+      post({ type: "worldui", ui: pickWorldUi9(world) });
       pump();
     } else if (m.type === "view") {
       view = m.view;
       if (engine) engine.setView(view); else rebuildEngine();
-      // 시점·색이 바뀌면 지어 둔 프레임은 옛 것이다 — 이 시각부터 다시.
+      // 시점·시야·색이 바뀌면 지어 둔 설계도는 옛 것이다 — 기억은 두고 지금 시각부터 다시.
       nextT = -1;
-      lastBuiltT = -1;
-      winStartT = -1;
       pump();
-    } else if (m.type === "clock") {
-      clock = { t: m.t, speed: m.speed, playing: m.playing };
+    } else if (m.type === "cmd") {
+      clock = { playing: m.playing, t0: m.t0, speed: m.speed, at: nowMs() };
       pump();
     }
   } catch (e) {
-    post({ type: "err", message: e instanceof Error ? e.message : String(e) });
+    post({ type: "err", message: e instanceof Error ? `${e.message} ${(e.stack ?? "").split("\n")[1] ?? ""}`.trim() : String(e) });
   }
 };

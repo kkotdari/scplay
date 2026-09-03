@@ -26,11 +26,21 @@
 ## 프레임 엔진·워커 구조(2026-09)
 - `deriveWorld9`(파생 자료)·`createEngine9`(시각 t → 프레임: unitOps·fxOps·DOM 기록·안개)는
   `ReplayMotionPlayer.tsx` **모듈 스코프**의 순수 함수다. 컴포넌트는 화면 입력(EngineView9)만 건넨다.
-- 프레임은 **워커만** 낸다(`frameWorker.ts`, 동적 `import("./frameWorker?worker&inline")`, 라이브러리 빌드는
-  `inlineDynamicImports`로 한 파일). 메인 엔진 대비 길은 없다 — 워커가 못 서면 마지막 프레임을 든 채
-  `SCR_DIAG.worker`(#diag의 "워커" 줄: on/준비중/off · got/used/missed · 짓기 ms · ⚠오류)에 까닭이 적힌다.
+- 두 일꾼: **설계 일꾼**(`frameWorker.ts`, 동적 `import("./frameWorker?worker&inline")`, 라이브러리 빌드는
+  `inlineDynamicImports`로 한 파일)이 주인(메인 재생 상태)의 명령(`cmd`: 재생/정지·기준 시각·배속, **바뀔 때만**)과
+  시점(`view`: 상자·기울기·색·품질·**시야 사각형**)을 받아 제 벽시계로 앞으로 설계도를 지어 둔다(벽시계 3초·10MB 한도).
+  **그림 일꾼**(메인의 붓)은 받은 설계도 중 t 이하 가장 늦은 장을 골라 그때 푼다. 단방향. 메인 엔진 대비 길은 없다 —
+  워커가 못 서면 마지막 프레임을 든 채 `SCR_DIAG.worker`(#diag "워커" 줄: on/준비중/off · got/used/missed ·
+  짓기 ms · op 수·KB · 앞 s·장·MB · 시야 · ⚠오류)에 까닭이 적힌다.
+- 설계도는 `framePack.ts`로 **float32 배열 + 문자열 표**로 싸서 transfer로 넘긴다(구조화 복제 없음). 안개 판 셋은
+  바뀐 장에만 싣고, 메인은 그 시각 이하 가장 늦은 안개 판을 붙인다.
+- 컬링: 메인이 보이는 사각형에 앞뒤 한 화면씩 여유(3×3)를 붙여 `view.cull`로 보낸다. 보이는 것이 그 안에 있는 동안은
+  다시 안 보낸다(작은 팬은 설계도를 안 버린다). 1.2배 이하는 지도 전체. 밖의 개체는 미니맵 점만 남는다.
+- 화면(UI)이 읽는 파생 자료(건물 행·걷기·캐스트·핵·가스·생산·업글)는 워커가 `worldui`로 한 번 보낸다 —
+  메인은 deriveWorld9를 안 부른다(폰 메모리).
 - 워커는 짓기 시간(ms)에 맞춰 프레임 간격을 벌린다(초당 30장 기본, 최소 8장). 메인은 2초 안의 프레임이면 낡아도 든다.
 - 엔진은 늘 **자세히** 낸다(요잉 16칸·모든 자세·탱크 차체+포탑). 낮은 배율 간이화는 붓(UnitLayer)의
-  `detailAt`·`yawAt`·`moveAt`가 한다. 배율·팬은 프레임에 안 실린다.
-- 계측: `node scripts/perf-check.mjs`(vite 번들이 기본) — `[워커] on got/used/missed`로 워커가 쓰였는지 본다.
+  `detailAt`·`yawAt`·`moveAt`가 한다. 배율·팬 자체는 프레임에 안 실린다(시야 사각형만).
+- 계측: `node scripts/perf-check.mjs [--msgsize]`(vite 번들이 기본) — `[워커] on got/used/missed`로 워커가 쓰였는지,
+  `--msgsize`로 장당 바이트·op 수를 본다. 워커 번들의 `process.env.NODE_ENV`는 vite.config의 define이 박는다(사파리).
   esbuild 도구 번들(model-shot 등, perf-check `--esbuild`)에는 워커가 없어 유닛 프레임이 안 그려진다.

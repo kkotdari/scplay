@@ -456,10 +456,13 @@ if (has("--msgsize")) {
       set(fn) {
         d.set.call(this, (ev) => {
           const m = ev.data;
-          if (m && m.type === "frame" && m.frame) {
-            const z = sizeOf(m.frame); st.frames += 1; st.fJson += z.json; st.fTyped += z.typed;
-            st.fOps += m.frame.unitOps.length; st.fFx += m.frame.fxOps.length; st.fDom += m.frame.dom.length;
-            st.fMax = Math.max(st.fMax, z.json + z.typed);
+          if (m && m.type === "frame" && m.buf) {
+            // 싼 설계도: buf(Float64Array, transfer) + strs + 안개(바뀐 장만). json 몫은 문자열 표뿐이다.
+            const fog = m.fog ? (m.fog.visSrc.byteLength + (m.fog.explored ? m.fog.explored.byteLength : 0) + (m.fog.visNow ? m.fog.visNow.byteLength : 0)) : 0;
+            const json = JSON.stringify(m.strs).length;
+            st.frames += 1; st.fJson += json; st.fTyped += m.buf.byteLength + fog;
+            st.fOps += m.n || 0; if (m.fog) st.fFog = (st.fFog || 0) + 1;
+            st.fMax = Math.max(st.fMax, json + m.buf.byteLength + fog);
           }
           fn(ev);
         });
@@ -1295,7 +1298,7 @@ if (has("--msgsize")) {
     const mb = (n) => `${(n / 1048576).toFixed(2)}MB`;
     const up = Object.entries(st.up).map(([k, e]) => `${k} ${e.n}회 json ${mb(e.json)} typed ${mb(e.typed)}`).join(" · ");
     const n = Math.max(1, st.frames);
-    return `올림: ${up}\n  프레임 ${st.frames}장 · 장당 json ${(st.fJson / n / 1024).toFixed(1)}KB + typed ${(st.fTyped / n / 1024).toFixed(1)}KB (최대 ${(st.fMax / 1024).toFixed(0)}KB) · 장당 unitOps ${(st.fOps / n).toFixed(0)} fxOps ${(st.fFx / n).toFixed(0)} dom ${(st.fDom / n).toFixed(1)} · 합 ${mb(st.fJson + st.fTyped)}`;
+    return `올림: ${up}\n  프레임 ${st.frames}장 · 장당 json ${(st.fJson / n / 1024).toFixed(1)}KB + typed ${(st.fTyped / n / 1024).toFixed(1)}KB (최대 ${(st.fMax / 1024).toFixed(0)}KB) · 장당 unitOps ${(st.fOps / n).toFixed(0)} · 안개 실린 장 ${st.fFog || 0} · 합 ${mb(st.fJson + st.fTyped)}`;
   });
   console.log("[메시지]", r);
 }

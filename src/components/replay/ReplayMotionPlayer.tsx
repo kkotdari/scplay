@@ -52,6 +52,7 @@ import { decodeMapTerrain, terrainGridOfMap } from "../../utils/mapTerrain";
    참값이 생긴 뒤로는 견줄 것도 없어 통째로 걷었다. legacy는 유물로 남긴다. */
 /* 잠깐 알리고 사라지는 자리(요청) — 갈라진 판 경고가 이 문을 쓴다. */
 import { truthWorld, type TruthLife, type TruthWorld } from "../../utils/truthLives";
+import { unpack9 } from "./framePack";
 import {
   decodeTruthTracks, peekTruthHead, posAtTruth as posAtSim, type TruthTrack, type TruthTracks,
   TRUTH_ST_CARRY_GAS as ST_CARRY_GAS, TRUTH_ST_CARRY_MIN as ST_CARRY_MIN,
@@ -25574,6 +25575,9 @@ export type EngineView9 = {
   viewTeam: number; visAll: boolean; fogOn: boolean;
   colors: Record<string, string>;
   qAnim: boolean; qBuildFx: boolean; qDeath: boolean; clickFx: boolean;
+  /** 시야 사각형(자리 분수, 여유 포함) — 이 밖의 개체·건물은 op를 안 만든다(미니맵 점만). null이면 지도 전체.
+   *  (요청: 컬링 — 옛 메인 엔진의 cull9. 워커는 지도 전체 690기 대신 보이는 170기만 센다.) */
+  cull: { x0: number; x1: number; y0: number; y1: number } | null;
 };
 export function createEngine9(world: EngineWorld9, view0: EngineView9) {
   let view = view0;
@@ -25744,13 +25748,15 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     const gasBusy = new Set<string>();
     const fxOps: FxOp[] = [];
     const dom: DomFx9[] = [];
-    const cull9: { x0: number; x1: number; y0: number; y1: number } | null = null;
+    const cull9 = view.cull;
+    /** 이 자리가 시야(여유 포함) 안인가 — 밖이면 op를 아예 안 만든다. 밖일 때는 **분수 자리도 함께** 돌려준다:
+     *  부르는 쪽이 그 자리에 미니맵 점 하나를 남긴다(miniExtra). */
     const onScreen9 = (x9: number, y9: number): [boolean, number, number] => {
       if (!cull9) return [true, 0, 0];
       const [fx9, fy9] = posFrac(x9, y9);
-      return [true, fx9, fy9];
+      const in9 = fx9 >= cull9.x0 && fx9 <= cull9.x1 && fy9 >= cull9.y0 && fy9 <= cull9.y1;
+      return [in9, fx9, fy9];
     };
-    void onScreen9;
     /** 그 열쇠의 사격 박자 위상(0~1) — 사거리에 든 순간이 0이다. */
     const firePhase = (key: string, cd: number): number => {
       const m9 = fireStartRef.current;
@@ -29942,6 +29948,31 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
   return { build, setView, reset, get view() { return view; } };
 }
 
+/** 화면(UI)이 읽는 파생 자료 — 워커가 세계를 세운 뒤 한 번 보내 준다(요청: 메인의 중복 파생 자료 제거).
+ *  메인은 deriveWorld9를 안 부른다 — 폰 메모리에서 가장 큰 덩어리 하나가 빠진다. */
+export type WorldUi9 = Pick<EngineWorld9,
+  "buildsSrc" | "entWalks" | "castsSrc" | "nukeLase" | "gasBuildings" | "prodDoneAt" | "prodDoneByRaw" | "upsByRaw" | "nukeImpacts">;
+export const pickWorldUi9 = (w: EngineWorld9): WorldUi9 => ({
+  buildsSrc: w.buildsSrc, entWalks: w.entWalks, castsSrc: w.castsSrc, nukeLase: w.nukeLase, gasBuildings: w.gasBuildings,
+  prodDoneAt: w.prodDoneAt, prodDoneByRaw: w.prodDoneByRaw, upsByRaw: w.upsByRaw, nukeImpacts: w.nukeImpacts,
+});
+let emptyWorldUiCache9: WorldUi9 | null = null;
+/** 워커의 것이 오기 전의 빈 표 — 한 번만 만들어 같은 참조를 준다(메모 deps가 흔들리지 않게). */
+export const emptyWorldUi9 = (): WorldUi9 => {
+  if (!emptyWorldUiCache9) {
+    emptyWorldUiCache9 = pickWorldUi9(deriveWorld9({
+      entData: null, truth: null, grid: { width: 1, height: 1 }, bases: [], teamOf: () => undefined, total: 0,
+    }));
+  }
+  return emptyWorldUiCache9;
+};
+/** 워커가 보낸 설계도 한 장 — 숫자 배열(unpack9로 푼다) + 안개(바뀐 장에만) + 짓기 ms. 푼 결과는 dec에 붙인다. */
+export type PackedFrame9 = {
+  t: number; buf: Float32Array; strs: string[];
+  fog: { explored: Uint16Array | null; visNow: Uint8Array | null; visSrc: Float32Array } | null;
+  ms: number; /** 유닛 op 수(진단) */ n: number; dec?: Frame9;
+};
+
 export default function ReplayMotionPlayer({
   grid, endSec, bases: basesIn, teamOfRaw, active = true, winnerTeam, side,
   onDetailClose, loadUnitTracks, initialSec, initialSpeed, initialView, initialTrack,
@@ -30243,30 +30274,37 @@ export default function ReplayMotionPlayer({
   const teamKey9 = JSON.stringify(teamMap9);
   const teamMapRef9 = useRef(teamMap9);
   teamMapRef9.current = teamMap9;
-  const world = useMemo(
-    () => {
-      const tm9 = teamMapRef9.current;
-      return deriveWorld9({ entData, truth, grid, bases, teamOf: (raw9: string) => tm9[raw9] ?? teamOfRaw(raw9), total });
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [entData, truth, grid, bases, teamKey9, total],
-  );
+  /* ★ 파생 자료는 **워커**가 센다(요청: 메인의 중복 파생 자료 제거). 화면(UI)이 읽는 몇 가지는 워커가 세계를
+     세운 뒤 한 번 보내 준다(worldui). 오기 전 몇 ms는 빈 표를 본다. */
+  const [worldUi9, setWorldUi9] = useState<WorldUi9 | null>(null);
+  const world: WorldUi9 = worldUi9 ?? emptyWorldUi9();
   const { buildsSrc, entWalks, castsSrc, nukeLase, gasBuildings, prodDoneAt, prodDoneByRaw, upsByRaw, nukeImpacts } = world;
-  /* ★ 프레임 워커(요청) — 셈은 워커가 미리, 메인은 붓만. **길은 이것 하나다**(지적: 메인 엔진 대비 코드는
-     두 길을 두는 것이라 별로) — 워커가 못 서면 프레임이 없고, 화면은 마지막 프레임을 든 채 진단(SCR_DIAG.worker)에
-     까닭을 적는다. 도구 번들(esbuild)에는 워커가 없으므로 계측은 perf-check(vite)로 한다. */
+  /* ★ 프레임 워커 = 설계 일꾼(요청) — 주인(여기 재생 상태)의 명령만 받아 앞으로 설계도를 지어 두고, 붓은 받은 것만
+     그린다. **길은 이것 하나다**(지적: 메인 엔진 대비 코드는 두 길이라 별로) — 워커가 못 서면 프레임이 없고, 화면은
+     마지막 프레임을 든 채 진단(SCR_DIAG.worker)에 까닭을 적는다. 도구 번들(esbuild)에는 워커가 없다. */
   const frameWorkerRef = useRef<Worker | null>(null);
-  const wFramesRef = useRef<Map<number, Frame9>>(new Map());
+  const wFramesRef = useRef<Map<number, PackedFrame9>>(new Map());
+  /** 워커가 보낸 안개 판들(바뀐 장에만 실린다) — 장을 풀 때 그 시각 이하 가장 늦은 판을 붙인다. */
+  const fogSnapsRef9 = useRef<{ t: number; fog: NonNullable<PackedFrame9["fog"]> }[]>([]);
   const wStatRef = useRef({
-    got: 0, used: 0, missed: 0, err: "", sentWorld: 0, sentView: 0, sentClock: 0,
+    got: 0, used: 0, missed: 0, err: "", sentWorld: 0, sentView: 0, sentCmd: 0,
     /** 워커가 세계를 받아 엔진을 세웠다(ready). 세계를 보낸 뒤 오래 안 오면 진단에 '응답 없음'. */
     ready: false, worldAt: 0,
     /** 워커가 잰 프레임 한 장 짓는 시간(ms, 지수 평균) — 폰에서 워커가 시계를 못 따라가는지 본다. */
     buildMs: 0,
+    /** 장당 유닛 op 수·싼 크기(KB), 지수 평균 — 컬링이 먹는지 본다. */
+    ops: 0, kb: 0,
   });
   const lastFrameRef9 = useRef<Frame9 | null>(null);
   /** 워커에 마지막으로 보낸(보낼) 세계 — 워커가 늦게 서면(동적 import) 그때 다시 보낸다. */
   const worldMsgRef9 = useRef<unknown>(null);
+  /** 주인의 지금 상태(렌더마다 갱신) — 프레임 버림·안개 판 정리의 자. */
+  const cmdNowRef9 = useRef<{ playing: boolean; t: number; speed: number }>({ playing: false, t: 0, speed: 1 });
+  /** 워커에 보낸 마지막 명령 — 바뀔 때만 다시 보낸다(주인의 명령은 매 프레임이 아니다). */
+  const cmdSentRef9 = useRef<{ playing: boolean; t0: number; speed: number; at: number } | null>(null);
+  const viewSentRef9 = useRef<{ key: string; colors: Record<string, string> } | null>(null);
+  /** 워커가 (다시) 서면 렌더를 한 번 일으켜 시점·명령을 보내게 한다(멈춘 화면은 렌더가 없다). */
+  const [, setWorkerTick9] = useState(0);
   useEffect(() => {
     if (typeof Worker === "undefined") { wStatRef.current.err = "Worker 없음"; return undefined; }
     let w9: Worker | null = null;
@@ -30282,28 +30320,46 @@ export default function ReplayMotionPlayer({
       try { w9 = new (Ctor9 as new () => Worker)(); } catch (e9) { wStatRef.current.err = `워커 생성 실패 ${String(e9).slice(0, 80)}`; return; }
       wire9(w9);
       frameWorkerRef.current = w9;
+      viewSentRef9.current = null;
+      cmdSentRef9.current = null;
       if (worldMsgRef9.current) {
         wStatRef.current.sentWorld += 1;
         wStatRef.current.ready = false;
         wStatRef.current.worldAt = pNow();
         w9.postMessage(worldMsgRef9.current);
       }
+      setWorkerTick9((k9) => k9 + 1);
     }).catch((e9) => { wStatRef.current.err = `워커 모듈 못 부름 ${String(e9).slice(0, 80)}`; });
     const wire9 = (wk9: Worker): void => {
-    wk9.onmessage = (ev: MessageEvent<{ type: string; frame?: Frame9; message?: string; ms?: number }>) => {
+    wk9.onmessage = (ev: MessageEvent<{ type: string; message?: string; ui?: WorldUi9 } & Partial<PackedFrame9>>) => {
       const m9 = ev.data;
-      if (m9.type === "frame" && m9.frame) {
-        frames9.set(Math.round(m9.frame.t * 1000), m9.frame);
+      if (m9.type === "frame" && m9.buf && m9.strs && typeof m9.t === "number") {
+        const pf9: PackedFrame9 = { t: m9.t, buf: m9.buf, strs: m9.strs, fog: m9.fog ?? null, ms: m9.ms ?? 0, n: m9.n ?? 0 };
+        frames9.set(Math.round(pf9.t * 1000), pf9);
         wStatRef.current.got += 1;
-        if (typeof m9.ms === "number") {
-          const st9 = wStatRef.current;
-          st9.buildMs = st9.buildMs === 0 ? m9.ms : st9.buildMs * 0.9 + m9.ms * 0.1;
+        const st9 = wStatRef.current;
+        st9.buildMs = st9.buildMs === 0 ? pf9.ms : st9.buildMs * 0.9 + pf9.ms * 0.1;
+        st9.ops = st9.ops === 0 ? pf9.n : st9.ops * 0.9 + pf9.n * 0.1;
+        st9.kb = st9.kb === 0 ? pf9.buf.byteLength / 1024 : st9.kb * 0.9 + (pf9.buf.byteLength / 1024) * 0.1;
+        const snaps9 = fogSnapsRef9.current;
+        if (pf9.fog) {
+          // 시각순으로 꽂는다(거의 늘 끝).
+          let k9 = snaps9.length;
+          while (k9 > 0 && snaps9[k9 - 1].t > pf9.t) k9 -= 1;
+          snaps9.splice(k9, 0, { t: pf9.t, fog: pf9.fog });
         }
-        // 너무 많이 쌓이면(탐색 뒤 옛 것) 오래된 것부터 버린다 — 2초치(60장)면 넉넉하고 폰 메모리도 가볍다.
-        if (frames9.size > 60) {
-          const keys9 = [...frames9.keys()].sort((a9, b9) => a9 - b9);
-          for (let i9 = 0; i9 < keys9.length - 45; i9 += 1) frames9.delete(keys9[i9]);
+        /* 버림 — 주인 시각보다 1초 지난 장(붓은 t 이하 가장 늦은 장 하나만 쓴다), 30초 넘게 앞선 장(탐색 전 옛 자리).
+           안개 판은 15초 뒤·40초 앞 밖. 메모리는 앞 한도(워커 AHEAD_BYTES)와 이 뒤 1초가 정한다. */
+        const tNow9 = cmdNowRef9.current.t;
+        if (frames9.size > 8) {
+          for (const [k9, f9] of frames9) if (f9.t < tNow9 - 1 || f9.t > tNow9 + 30) frames9.delete(k9);
         }
+        if (snaps9.length > 4) {
+          const keep9 = snaps9.filter((sn9) => sn9.t >= tNow9 - 15 && sn9.t <= tNow9 + 40);
+          if (keep9.length !== snaps9.length) fogSnapsRef9.current = keep9.length > 0 ? keep9 : snaps9.slice(-1);
+        }
+      } else if (m9.type === "worldui" && m9.ui) {
+        setWorldUi9(m9.ui);
       } else if (m9.type === "ready") {
         wStatRef.current.ready = true;
       } else if (m9.type === "err") {
@@ -30331,7 +30387,7 @@ export default function ReplayMotionPlayer({
       console.error("[scplay] 프레임 워커 messageerror");
     };
     };
-    return () => { dead9 = true; w9?.terminate(); frameWorkerRef.current = null; frames9.clear(); };
+    return () => { dead9 = true; w9?.terminate(); frameWorkerRef.current = null; frames9.clear(); fogSnapsRef9.current = []; };
   }, []);
   useEffect(() => {
     const msg9 = {
@@ -30343,12 +30399,13 @@ export default function ReplayMotionPlayer({
     const w9 = frameWorkerRef.current;
     if (!w9) return;
     wFramesRef.current.clear();
+    fogSnapsRef9.current = [];
     wStatRef.current.sentWorld += 1;
     wStatRef.current.ready = false;
     wStatRef.current.worldAt = pNow();
     w9.postMessage(msg9);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [world]);
+  }, [entData, truth, grid, bases, teamKey9, total]);
   /* 건물 체력 자취(요청: 건물 체력바 — 실드·회복·불·수리 반영은 분석이 했다) —
      자리 열쇠(raw|x|y)로 그 건물의 체력 변곡점을 찾는다. */
   /** ★ 건물마다 **고른 체력 줄**을 기억해 둔다(성능) ─────────────────────────────────
@@ -33446,21 +33503,56 @@ export default function ReplayMotionPlayer({
   const unitSepPxOf = (u: string): number =>
     tilePx * (UNIT_BODY_TILES[UNIT_3D[u] ?? u]
       ?? CLASS_TILES[u === "?" ? 0 : (UNIT_BULK[u] ?? 1)]);
-  /* ★★ 프레임은 **엔진**이 낸다(요청: 워커 분리 — 첫 단은 셈을 순수 함수로 떼어내기) ─────────────
-     옛날에는 이 아래 몇천 줄이 렌더마다 개체·건물을 돌며 op를 밀었다. 이제 그 고리는 createEngine9
-     (모듈 스코프)에 있고, 여기서는 화면 쪽 입력(상자 크기·기울기·시점·색·품질)만 건네 프레임 하나를
-     받는다. 배율·팬은 안 건넨다 — 프레임은 배율과 무관하고, 낮은 배율의 간이화는 붓이 한다. */
+  /* 시야 사각형(요청: 컬링) — 옛 메인 엔진의 자(cull9)와 **같은 식**(미니맵 흰 네모 fsViewAt). 보이는 사각형에
+     앞뒤로 한 화면씩 여유를 붙여(3×3) 보내고, 보이는 사각형이 그 안에 있는 동안은 다시 안 보낸다 — 작은 팬은
+     설계도를 안 버린다. 여유가 보이는 것의 20배를 넘으면(많이 당겨 들어옴) 조인다. 1.2배 이하는 지도가 거의
+     다 보이니 없음(지도 전체). */
+  const visRect9 = ((): { x0: number; x1: number; y0: number; y1: number } | null => {
+    const z9 = zoomRef.current;
+    if (!(z9 > 1.2)) return null;
+    const st9 = stageSizeRef.current;
+    const cv9 = coverRef.current;
+    if (!(st9.w > 0) || !(st9.h > 0) || !(cv9.w > 0) || !(cv9.h > 0)) return null;
+    const winH9 = Math.max(st9.h, viewHRef.current || 0);
+    const spanX = st9.w / (cv9.w * z9);
+    const spanY = winH9 / (cv9.h * z9);
+    const cxF = 0.5 - panRef.current.x / (cv9.w * z9);
+    const cyF = 0.5 - panRef.current.y / (cv9.h * z9);
+    return { x0: cxF - spanX / 2, x1: cxF + spanX / 2, y0: cyF - spanY / 2, y1: cyF + spanY / 2 };
+  })();
+  const cullSentRef9 = useRef<{ x0: number; x1: number; y0: number; y1: number } | null>(null);
+  const cullRect9 = ((): { x0: number; x1: number; y0: number; y1: number } | null => {
+    const sent9 = cullSentRef9.current;
+    if (!visRect9) { cullSentRef9.current = null; return null; }
+    if (sent9) {
+      const inside9 = visRect9.x0 >= sent9.x0 && visRect9.x1 <= sent9.x1 && visRect9.y0 >= sent9.y0 && visRect9.y1 <= sent9.y1;
+      const aSent9 = (sent9.x1 - sent9.x0) * (sent9.y1 - sent9.y0);
+      const aVis9 = (visRect9.x1 - visRect9.x0) * (visRect9.y1 - visRect9.y0);
+      if (inside9 && aSent9 <= aVis9 * 20) return sent9;
+    }
+    const mx9 = visRect9.x1 - visRect9.x0;
+    const my9 = visRect9.y1 - visRect9.y0;
+    const r9 = {
+      x0: Math.max(-0.05, visRect9.x0 - mx9), x1: Math.min(1.05, visRect9.x1 + mx9),
+      y0: Math.max(-0.05, visRect9.y0 - my9), y1: Math.min(1.05, visRect9.y1 + my9),
+    };
+    cullSentRef9.current = r9;
+    return r9;
+  })();
+  /* ★★ 프레임은 워커(설계 일꾼)가 낸다. 여기서는 화면 쪽 입력(상자 크기·기울기·시점·색·품질·시야)을 건넨다.
+     배율·팬 자체는 안 건넨다 — 낮은 배율의 간이화는 붓이 한다. */
   const engView9: EngineView9 = {
     mapW: mapRef.current?.clientWidth ?? 320, mapH: mapRef.current?.clientHeight ?? 220, tilePx,
     pitched, pitchFlat, geom: pitchGeom(),
     viewTeam, visAll, fogOn, colors: colorTable9,
     qAnim, qBuildFx, qDeath, clickFx,
+    cull: cullRect9,
   };
   /* 시점 입력이 바뀌면 워커에도 알린다 — 색표는 참조로, 나머지는 값으로 견준다. */
   const viewKey9 = `${engView9.mapW}|${engView9.mapH}|${engView9.tilePx.toFixed(3)}|${engView9.pitched ? 1 : 0}|${engView9.pitchFlat.toFixed(4)}`
     + `|${engView9.geom.w}|${engView9.geom.h}|${engView9.geom.P.toFixed(1)}|${engView9.viewTeam}|${engView9.visAll ? 1 : 0}|${engView9.fogOn ? 1 : 0}`
-    + `|${engView9.qAnim ? 1 : 0}${engView9.qBuildFx ? 1 : 0}${engView9.qDeath ? 1 : 0}${engView9.clickFx ? 1 : 0}`;
-  const viewSentRef9 = useRef<{ key: string; colors: Record<string, string> } | null>(null);
+    + `|${engView9.qAnim ? 1 : 0}${engView9.qBuildFx ? 1 : 0}${engView9.qDeath ? 1 : 0}${engView9.clickFx ? 1 : 0}`
+    + `|${cullRect9 ? `${cullRect9.x0.toFixed(3)},${cullRect9.x1.toFixed(3)},${cullRect9.y0.toFixed(3)},${cullRect9.y1.toFixed(3)}` : "all"}`;
   {
     const w9 = frameWorkerRef.current;
     const sent9 = viewSentRef9.current;
@@ -33471,34 +33563,34 @@ export default function ReplayMotionPlayer({
       w9.postMessage({ type: "view", view: engView9 });
     }
   }
-  /* 시계 — t가 바뀔 때마다 워커에 알린다(렌더 안에서 보내도 된다: 값만 실린다). */
-  const clockSentRef9 = useRef<{ t: number; speed: number; playing: boolean } | null>(null);
+  /* 명령(요청: 주인 → 설계 일꾼, 바뀔 때만) — 재생/정지·배속·탐색. 탐색은 "보낸 명령으로 예측한 시각과 지금 t의
+     차"로 안다(0.3초 또는 배속×0.15초). 시계가 무거운 프레임에 밀려 처지면 그것도 같은 자로 다시 맞춘다. */
+  const playing9 = playing && active;
+  cmdNowRef9.current = { playing: playing9, t, speed };
   {
     const w9 = frameWorkerRef.current;
-    const c9 = clockSentRef9.current;
-    const playing9 = playing && active;
-    if (w9 && (!c9 || c9.t !== t || c9.speed !== speed || c9.playing !== playing9)) {
-      clockSentRef9.current = { t, speed, playing: playing9 };
-      wStatRef.current.sentClock += 1;
-      w9.postMessage({ type: "clock", t, speed, playing: playing9 });
+    const c9 = cmdSentRef9.current;
+    const pred9 = c9 ? (c9.playing ? c9.t0 + ((pNow() - c9.at) / 1000) * c9.speed : c9.t0) : Number.NaN;
+    const jumped9 = !c9 || Math.abs(t - pred9) > Math.max(0.3, 0.15 * speed);
+    if (w9 && (!c9 || c9.playing !== playing9 || c9.speed !== speed || jumped9)) {
+      cmdSentRef9.current = { playing: playing9, t0: t, speed, at: pNow() };
+      wStatRef.current.sentCmd += 1;
+      w9.postMessage({ type: "cmd", playing: playing9, t0: t, speed });
     }
   }
-  /** 워커 프레임 고르기 — t보다 앞서지 않은 것 중 가장 늦은 것, 없으면 바로 뒤의 것.
-   *  ★ 낡았어도 든다(지적: 폰에서 유닛이 하나도 안 그려짐). 전에는 한 걸음(speed/30)의 1.5배 안의 것만 받았는데,
-   *  워커가 시계를 못 따라가는 기기(폰·긴 경기)에서는 도착하는 프레임이 **늘** 그보다 낡아 하나도 못 쓰고 빈 화면이
-   *  됐다. 이제 2초 안이면 든다 — 낡은 프레임은 살짝 끊길 뿐이고, 빈 화면보다 낫다. 그 밖(탐색 직후 옛 자리의
-   *  프레임)은 안 든다 — 마지막에 쓴 프레임을 든 채 새 것을 기다린다. */
-  const pickWorkerFrame9 = (): Frame9 | null => {
+  /** 설계도 고르기 — t보다 앞서지 않은 것 중 가장 늦은 것, 없으면 바로 뒤의 것. 2초 안이면 낡아도 든다(빈 화면보다
+   *  낫다). 그 밖(탐색 직후 옛 자리)은 안 든다 — 마지막에 쓴 프레임을 든 채 새 것을 기다린다. */
+  const pickWorkerFrame9 = (): PackedFrame9 | null => {
     const frames9 = wFramesRef.current;
     if (frames9.size === 0) return null;
     const near9 = Math.max(2, speed * 2);
-    let best: Frame9 | null = null;
+    let best: PackedFrame9 | null = null;
     for (const f9 of frames9.values()) {
       if (f9.t > t + 1e-6) continue;
       if (!best || f9.t > best.t) best = f9;
     }
     if (best && t - best.t <= near9) return best;
-    let next: Frame9 | null = null;
+    let next: PackedFrame9 | null = null;
     for (const f9 of frames9.values()) {
       if (f9.t < t) continue;
       if (!next || f9.t < next.t) next = f9;
@@ -33506,17 +33598,51 @@ export default function ReplayMotionPlayer({
     if (next && next.t - t <= near9) return next;
     return null;
   };
-  /* 프레임은 워커 것뿐이다. 이 시각에 맞는 것이 없으면(탐색 직후·첫 프레임) 마지막으로 쓴 프레임을 들고
-     있는다 — 워커가 몇 ms 뒤에 채운다. 아직 아무것도 없으면 빈 프레임(지도만). */
-  const wFrame9 = pickWorkerFrame9();
-  if (wFrame9) { wStatRef.current.used += 1; lastFrameRef9.current = wFrame9; } else wStatRef.current.missed += 1;
-  const frame9: Frame9 = wFrame9 ?? lastFrameRef9.current ?? EMPTY_FRAME9;
+  /** 설계도 풀기 — 그릴 장만 푼다(한 번 푼 것은 붙여 둔다). 안개는 장에 실렸으면 그것, 아니면 그 시각 이하 가장
+   *  늦은 안개 판, 그것도 없으면 마지막 프레임의 것. */
+  const decodeFrame9 = (pf9: PackedFrame9): Frame9 => {
+    if (pf9.dec) return pf9.dec;
+    const body9 = unpack9({ buf: pf9.buf, strs: pf9.strs }) as Pick<Frame9, "unitOps" | "fxOps" | "miniExtra" | "gasBusy" | "dom">;
+    let fog9 = pf9.fog;
+    if (!fog9) {
+      const snaps9 = fogSnapsRef9.current;
+      for (let i9 = snaps9.length - 1; i9 >= 0; i9 -= 1) if (snaps9[i9].t <= pf9.t + 1e-6) { fog9 = snaps9[i9].fog; break; }
+    }
+    if (!fog9) {
+      const last9 = lastFrameRef9.current;
+      fog9 = last9 ? { explored: last9.explored, visNow: last9.visNow, visSrc: last9.visSrc }
+        : { explored: null, visNow: null, visSrc: new Float32Array(0) };
+    }
+    pf9.dec = {
+      t: pf9.t, unitOps: body9.unitOps, fxOps: body9.fxOps, miniExtra: body9.miniExtra, gasBusy: body9.gasBusy, dom: body9.dom,
+      explored: fog9.explored, visNow: fog9.visNow, visSrc: fog9.visSrc,
+    };
+    return pf9.dec;
+  };
+  const wPacked9 = pickWorkerFrame9();
+  let frame9: Frame9;
+  if (wPacked9) {
+    wStatRef.current.used += 1;
+    frame9 = decodeFrame9(wPacked9);
+    lastFrameRef9.current = frame9;
+  } else {
+    wStatRef.current.missed += 1;
+    frame9 = lastFrameRef9.current ?? EMPTY_FRAME9;
+  }
   // 워커 상태는 늘 적어 둔다(perf-check가 읽는다) — 문자열 하나라 값이 싸다.
   {
     const st9 = wStatRef.current;
     const wait9 = !st9.ready && st9.worldAt > 0 ? (pNow() - st9.worldAt) / 1000 : 0;
+    let ahead9 = -1e9;
+    let bytes9 = 0;
+    for (const f9 of wFramesRef.current.values()) {
+      if (f9.t - t > ahead9) ahead9 = f9.t - t;
+      bytes9 += f9.buf.byteLength + (f9.fog ? f9.fog.visSrc.byteLength + (f9.fog.explored?.byteLength ?? 0) + (f9.fog.visNow?.byteLength ?? 0) : 0);
+    }
     SCR_DIAG.worker = `${frameWorkerRef.current ? (st9.ready ? "on" : "준비중") : "off"} got ${st9.got} used ${st9.used} missed ${st9.missed}`
-      + ` 짓기 ${st9.buildMs.toFixed(1)}ms sent(world ${st9.sentWorld} view ${st9.sentView} clock ${st9.sentClock})`
+      + ` 짓기 ${st9.buildMs.toFixed(1)}ms op ${st9.ops.toFixed(0)}·${st9.kb.toFixed(0)}KB 앞 ${wFramesRef.current.size > 0 ? Math.max(0, ahead9).toFixed(1) : "-"}s·${wFramesRef.current.size}장·${(bytes9 / 1048576).toFixed(1)}MB`
+      + ` 시야 ${cullRect9 ? `${((cullRect9.x1 - cullRect9.x0) * 100).toFixed(0)}×${((cullRect9.y1 - cullRect9.y0) * 100).toFixed(0)}%` : "전체"}`
+      + ` sent(world ${st9.sentWorld} view ${st9.sentView} cmd ${st9.sentCmd})`
       + (wait9 > 15 ? ` ⚠ 세계 보낸 지 ${Math.round(wait9)}초째 응답 없음` : "")
       + (st9.err ? ` ⚠ ${st9.err}` : "");
   }
