@@ -1074,11 +1074,18 @@ function thrustFlame(
     widthOf: (t9: number): number => rr * (1 - t9) ** 0.7,
   }), fill, alpha);
   /** 노즐 뒤로 짧게 뻗는 통 — y0에서 y0−len까지, 반지름 rr. 끝면(뒤 뚜껑)을 caps로 닫는다. */
-  const drum = (rr: number, y0: number, len: number, fill: string, alpha: number, caps: "none" | "both" | "top" | "bottom" = "both"): ShapeFace[] => tint(spirePillar({
-    x: 0, y: 0, h: 1, w: rr, tipW: rr, segs: 1, sides: 12, caps, trueNormal: true,
-    path: (t9: number): [number, number, number] => [x, y0 - len * t9, z],
-    widthOf: (): number => rr,
-  }), fill, alpha, Math.min(0.3, alpha));
+  /** shell이면 **유리관**이다(재지적: 빛무리의 앞뒤면·안쪽면이 안 보임) — 등진 면을 안 걷고(안쪽 벽이
+   *  비친다) 앞뒤 뚜껑을 다 달며, 면마다 같은 투명도로 깐다(음영 없이). */
+  const drum = (rr: number, y0: number, len: number, fill: string, alpha: number, caps: "none" | "both" | "top" | "bottom" = "both", shell = false): ShapeFace[] => {
+    const fs = spirePillar({
+      x: 0, y: 0, h: 1, w: rr, tipW: rr, segs: 1, sides: 12, caps, trueNormal: !shell,
+      path: (t9: number): [number, number, number] => [x, y0 - len * t9, z],
+      widthOf: (): number => rr,
+    });
+    return shell
+      ? fs.map(([d, , , k, l, n]) => [d, alpha, fill, k, l, n] as ShapeFace)
+      : tint(fs, fill, alpha, Math.min(0.3, alpha));
+  };
   const style = thrustStyleNow();
   if (style === "disc") {
     /* 납작 원판 겹 세 장 — 바깥(종족색, 옅게) → 가운데 → 심(밝게). 안으로 갈수록 뒤로 조금 더
@@ -1102,7 +1109,7 @@ function thrustFlame(
          또렷하고 껍질은 둘레에만 비친다. 투명도도 0.22 → 0.12. */
     return [
       ...tagKey([
-        ...drum(r * 1.35, y - r * 0.08, r * 0.82, outer, 0.12, "bottom"),
+        ...drum(r * 1.35, y - r * 0.08, r * 0.82, outer, 0.12, "both", true),
         ...cone(r * 0.85, r * 1.5, mid, 0.2),
       ], key - 0.3),
       ...tagKey([
