@@ -21664,14 +21664,18 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
       ctx.beginPath(); ctx.arc(ax, ay - W * 0.05, W * (0.14 + 0.25 * q), 0, Math.PI * 2); ctx.fill();
     }
   } else {
-    // 플라즈마: 흰 심 + 퍼지는 푸른 고리.
-    ctx.globalAlpha = Math.max(0, 1 - p * 1.6);
-    ctx.fillStyle = "#ffffff";
-    ctx.beginPath(); ctx.arc(ax, ay, W * 0.18 * (1 - p), 0, Math.PI * 2); ctx.fill();
-    ctx.globalAlpha = (1 - p) * 0.75;
-    ctx.strokeStyle = "#8fd0ff";
-    ctx.lineWidth = Math.max(0.8, W * 0.05 * (1 - p * 0.5));
-    ctx.beginPath(); ctx.ellipse(ax, ay, W * (0.2 + 0.85 * ease), W * (0.2 + 0.85 * ease) * 0.6, 0, 0, Math.PI * 2); ctx.stroke();
+    /* 플라즈마 **구형 폭발**(재요청): 푸른빛 구가 부풀며 옅어지고 가운데는 하얀 에너지 심 — 겹 셋(바깥
+       푸른빛·가운데 연푸른빛·흰 심)에 밝은 테. 납작하게 안 누르고 정원(구)이다. 조각은 안 낸다. */
+    const R9 = W * (0.22 + 0.78 * ease);
+    const fade = 1 - p;
+    ctx.globalAlpha = 0.32 * fade; ctx.fillStyle = "#3a8fff";
+    ctx.beginPath(); ctx.arc(ax, ay, R9, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 0.45 * fade; ctx.fillStyle = "#8fd0ff";
+    ctx.beginPath(); ctx.arc(ax, ay, R9 * 0.7, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = Math.min(1, 1.1 * fade) ** 0.8; ctx.fillStyle = "#ffffff";
+    ctx.beginPath(); ctx.arc(ax, ay, R9 * 0.38 * (1 - p * 0.5), 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 0.6 * fade; ctx.strokeStyle = "#cfeaff"; ctx.lineWidth = Math.max(0.8, W * 0.03);
+    ctx.beginPath(); ctx.arc(ax, ay, R9, 0, Math.PI * 2); ctx.stroke();
   }
   // ② 낱개 — 결의 팔레트 셋을 돌려 쓰고, 중력은 살점이 가장 무겁다.
   const PALS: Record<string, [string, string, string]> = {
@@ -21682,7 +21686,7 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
   const nBase = bld ? 16 : 10;
   const N = smallDevice9 ? Math.round(nBase * 0.6) : nBase;
   const g = W * (wet ? 1.1 : mat === "toss" ? 0.25 : 0.7);
-  for (let i = 0; i < N; i += 1) {
+  for (let i = 0; i < (mat === "toss" ? 0 : N); i += 1) {
     const an = (i / N) * Math.PI * 2 + (rnd() - 0.5) * 0.6;
     const v = W * (0.45 + rnd() * 0.65);
     const sz = W * (0.07 + rnd() * (bld ? 0.1 : 0.08));
