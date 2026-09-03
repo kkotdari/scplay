@@ -5631,10 +5631,12 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       dom.push({ k: "touchdown", key: `td-${i}`, x: cx9, y: cy9, wPct, hPct });
     });
     {
-    const rW9 = buildsSrc.map(([sec, x, y, unit, raw, gone, liftAt], i) => {
+    const rW9 = buildsSrc.map(([sec, x, y, unit, raw, gone, liftAt, doneAt9], i) => {
     const goneAt = gone ?? 0;
     // 2 → 1초(요청: "시간 축소해") — CSS 애니도 같은 1초다.
     if (!goneAt || t < goneAt || t > goneAt + 1) return null;
+    // 완성된 적이 있는 건물인가 — 공사·소환 중에 사라진 것(취소)은 같은 자리에 다시 서도 폭발을 건너뛰지 않는다(지적).
+    const finished9 = (doneAt9 ?? 0) > 0 && (doneAt9 ?? 0) <= goneAt;
     /* ★ 뜬 건물이라고 다 '이사'는 아니다(요청: "테란 건물 공중에서 요격 시 …
        그냥 공중에서 폭파로 변경") ────────────────────────────────────────────
        여기 있던 조건은 `liftAt`뿐이었다 — 뜬 적이 있으면 무조건 폭발을 걸렀다.
@@ -5646,7 +5648,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       && buildsSrc.some(([s2,,, u2, r2]) => r2 === raw && u2 === unit && s2 === goneAt);
     if (landed9) return null;
     // 후계가 선 자리는 무너진 것이 아니라 변태·재건이다(위 succeedsBld와 같은 자).
-    if (buildsSrc.some(([s2, x2, y2, u2, r2], j) => j !== i && r2 === raw
+    if (finished9 && buildsSrc.some(([s2, x2, y2, u2, r2], j) => j !== i && r2 === raw
       && s2 > sec && Math.hypot(x2 - x, y2 - y) <= SAME_SITE_TILES
       && succeedsBld(unit, u2))) return null;
     const race = bases.find((b2) => b2.key === raw)?.race;

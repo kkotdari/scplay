@@ -147,10 +147,15 @@ function livesOfTrack(
        본다. 변태알·러커알·뮤탈 고치는 취소하면 라바·히드라·뮤탈로 되돌아가 '변태'로 이어지는데, 그 되돌아감은 알이
        터진 것이니 앞 생애의 끝을 자폭으로 적는다(완성으로 이어지는 변태는 그대로 morph). */
     const nextKind = more ? (BW_UNIT_NAME[tr.types[end]] ?? "") : "";
-    const selfEnd = SUICIDE_KINDS.has(kind)
+    /* GONE 없이 경기 끝보다 2초 넘게 일찍 끊긴 자취도 '제거'다(지적: 테란 공사·프로토스 소환구 취소에 폭발이 안 남) —
+       취소·자폭은 덤퍼가 GONE을 안 적을 수 있다. 끝까지 산 개체(gameEnd 언저리에서 끊김)는 그대로 둔다. */
+    const cutShort = !more && !gone && lastT < gameEnd9 - 2;
+    const selfEnd = SUICIDE_KINDS.has(kind) || cutShort
       || (more && ((kind === "Egg" && nextKind === "Larva")
         || (kind === "Lurker Egg" && nextKind === "Hydralisk")
-        || (kind === "Mutalisk Cocoon" && nextKind === "Mutalisk")));
+        || (kind === "Mutalisk Cocoon" && nextKind === "Mutalisk")
+        /* 저그 공사 고치(드론이 변한 건물) 취소 → 드론으로 되돌아감(지적: 폭발 + 드론 변신) */
+        || (isBuilding(kind) && nextKind === "Drone")));
     const bld = isBuilding(kind);
     /** ★ 이 생애가 **정말로 끝나는 때** — 자리 키가 끊긴 때(lastT)와는 다른 말이다.
      *
@@ -322,7 +327,10 @@ const MORPH_SEC: Record<string, number> = {
 
 /** 제 손으로 사라지는 종류 — 자취가 GONE 없이 끊겨도 죽음이다(위 selfEnd). */
 const SUICIDE_KINDS = new Set(["Scourge", "Spider Mine", "Infested Terran"]);
+/** 경기의 끝(모든 자취의 마지막 키) — GONE 없이 이보다 일찍 끊긴 자취를 '제거'로 가르는 자(위 cutShort). truthWorld가 세운다. */
+let gameEnd9 = Infinity;
 export function truthWorld(truth: TruthTracks, buildSecOf: BuildSecOf): TruthWorld {
+  gameEnd9 = truth.tracks.reduce((m9, tr9) => (tr9.kt.length ? Math.max(m9, tr9.kt[tr9.kt.length - 1]) : m9), 0);
   const lives: TruthLife[] = [];
   for (const tr of truth.tracks) lives.push(...livesOfTrack(tr, truth.orders, buildSecOf));
   return {
