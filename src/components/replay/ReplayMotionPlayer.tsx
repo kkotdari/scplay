@@ -21540,11 +21540,12 @@ FX_IMPACT.photon = FX_IMPACT.plasma;
  *  작게 맞은 부위에") — 죽음 효과(scr-die-*)와 같은 넷·같은 색이다. 죽을 때 크게
  *  한 번 터지는 것이 맞을 때마다 작게 튄다고 보면 된다.
  *  core는 맞은 자리의 얼룩, drop은 사방으로 튀는 낱알의 색·개수다. */
-const FX_MAT: Record<string, { core: string; drop: string; n: number; r: number }> = {
-  bio: { core: "rgba(200,40,30,0.75)", drop: "rgba(230,80,60,0.95)", n: 5, r: 0.62 },
-  zerg: { core: "rgba(150,25,26,0.8)", drop: "rgba(235,60,55,0.95)", n: 6, r: 0.7 },
-  toss: { core: "rgba(120,180,255,0.6)", drop: "rgba(210,235,255,0.95)", n: 5, r: 0.66 },
-  mech: { core: "rgba(255,140,50,0.6)", drop: "rgba(255,220,130,0.95)", n: 5, r: 0.62 },
+/* flash는 맞는 순간의 섬광(결마다 흰빛에 제 색을 한 방울) — 후보판의 팔레트 그대로. */
+const FX_MAT: Record<string, { core: string; drop: string; flash: string; n: number; r: number }> = {
+  bio: { core: "rgba(200,35,27,0.95)", drop: "rgba(239,90,69,0.95)", flash: "#ffd9d2", n: 5, r: 0.62 },
+  zerg: { core: "rgba(160,26,58,0.95)", drop: "rgba(224,65,107,0.95)", flash: "#ffcfe0", n: 6, r: 0.7 },
+  toss: { core: "rgba(143,208,255,0.95)", drop: "rgba(230,244,255,0.95)", flash: "#ffffff", n: 5, r: 0.66 },
+  mech: { core: "rgba(255,138,61,0.95)", drop: "rgba(255,209,102,0.95)", flash: "#fff4d0", n: 5, r: 0.62 },
 };
 /* ── 저배율 마커(요청: "저배율에서 유닛이 많아서 힘드니까 건물과 유닛을 그냥 가벼운
    마커로 표시 — 크기만 종별로, 캔버스 형태와 크기대로, 자원도, 그림자 없이") ─────────
@@ -22799,59 +22800,46 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
                여태 이 자리는 무기·몸을 안 가리는 주황 복사 그러데이션 하나였다. */
             const a9 = envHit(p9);
             if (a9 <= 0.02) continue;
+            /* ★ 피격은 **섬광 하나 + 파편 셋**이다(후보판에서 고름: "A의 방향에 B의 효과, 충격링은
+               없어도 될듯") ──────────────────────────────────────────────────────────────
+               옛 판(무기 색 방사 그러데이션 + 결 얼룩 + 낱알 다섯)은 번짐이 커서 색 덩이로 읽혔다.
+               이제 ① 맞은 자리에 몸 결의 흰 섬광이 한 점 터져 줄어들고, ② 파편 셋이 **맞은 반대쪽**
+               (때린 쪽에서 밀려나는 방향)으로 부채꼴로 날아간다. 피(생체·저그)는 중력을 타고 조금
+               떨어진다. 무기의 세기는 섬광·파편의 자에만 실린다(시즈는 크게, 총알은 작게) — 무기의
+               제 그림(FX_IMPACT의 그러데이션)은 더 안 그린다. */
             const base9 = f.size ?? 4;
             const r9 = (base9 / 2) * zoom * HIT_FX_K;
             const off9 = (f.dist ?? base9 * 0.71) * zoom;
             const hx9 = ax + (f.dx ?? 0) * off9;
             const hy9 = ay + (f.dy ?? 0) * off9 - r9 * 0.2;
-            ctx.globalAlpha = a9;
-            // ① 무기의 제 피격 그림 — 자라며 번진다(0.7 → 1.2배).
             const im9 = f.style ? FX_IMPACT[f.style] : undefined;
-            if (im9) {
-              const ir9 = r9 * im9.r * (0.7 + p9 * 0.5);
-              /* 납작비(요청: 커세어는 "넙적한 타원") — 세로만 눌러 지면에 눕는 타원으로
-                 그린다. 그러데이션도 함께 눌려야 하므로 캔버스 변환으로 통째로 누른다. */
-              const fl9 = im9.flat ?? 1;
-              if (fl9 !== 1) { ctx.translate(hx9, hy9); ctx.scale(1, fl9); ctx.translate(-hx9, -hy9); }
-              const gi9 = ctx.createRadialGradient(hx9, hy9, 0, hx9, hy9, ir9);
-              for (const [o9, c9] of im9.g) gi9.addColorStop(o9, c9);
-              ctx.fillStyle = gi9;
-              ctx.beginPath();
-              ctx.arc(hx9, hy9, ir9, 0, Math.PI * 2);
-              ctx.fill();
-              if (im9.ring) {
-                // 충격파 고리 — 밖으로 번지며 사그라든다(시즈·미사일·플라즈마).
-                ctx.strokeStyle = im9.ring;
-                ctx.globalAlpha = a9 * (1 - p9) * 0.8;
-                ctx.lineWidth = Math.max(0.4, 0.22 * zoom);
-                ctx.beginPath();
-                ctx.arc(hx9, hy9, ir9 * (0.55 + p9 * 0.7), 0, Math.PI * 2);
-                ctx.stroke();
-                ctx.globalAlpha = a9;
-              }
-              /* 눌림은 **여기서 되돌린다** — 아래 몸의 결(피·불꽃)까지 눌리면 안 된다.
-                 save/restore를 안 쓰는 것은 이 파일의 규약이다(그 삯이 계측에 잡혔다) —
-                 대신 건 것을 그대로 되짚는다. */
-              if (fl9 !== 1) {
-                ctx.translate(hx9, hy9); ctx.scale(1, 1 / fl9); ctx.translate(-hx9, -hy9);
-              }
-            }
-            /* ② 맞은 몸의 결 — 작은 얼룩 하나와 사방으로 튀는 낱알 몇. 각은 붙박이라
-               프레임마다 안 떨리고(맞는 창이 0.15초뿐이라 무작위면 지지직거린다),
-               튀는 거리만 위상을 탄다. */
+            /** 무기 세기 — 표의 반지름비(총 0.5 · 시즈 1.75)를 1 언저리로 옮긴 배수. */
+            const wk9 = im9 ? Math.min(2, Math.max(0.7, im9.r / 0.6)) : 1;
             const mt9 = FX_MAT[f.mat ?? "mech"];
-            const mr9 = r9 * mt9.r;
-            ctx.fillStyle = mt9.core;
-            ctx.beginPath();
-            ctx.arc(hx9, hy9, mr9 * (0.34 + p9 * 0.24), 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = mt9.drop;
-            for (let di = 0; di < mt9.n; di += 1) {
-              const an9 = ((di * 2.399) + 0.6) % (Math.PI * 2);   // 황금각 — 고르게 흩는다
-              const dd9 = mr9 * (0.35 + p9 * 1.15);
-              const dr9 = Math.max(0.35, mr9 * 0.26 * (1 - p9 * 0.5));
+            // ① 섬광 — 처음 45%만, 줄어들며 사라진다.
+            if (p9 < 0.45) {
+              ctx.globalAlpha = a9 * (1 - p9 / 0.45);
+              ctx.fillStyle = mt9.flash;
               ctx.beginPath();
-              ctx.arc(hx9 + Math.cos(an9) * dd9, hy9 + Math.sin(an9) * dd9 - dd9 * 0.25, dr9, 0, Math.PI * 2);
+              ctx.arc(hx9, hy9, Math.max(0.6, r9 * 0.3 * wk9 * Math.max(0.25, 1 - p9 * 1.6)), 0, Math.PI * 2);
+              ctx.fill();
+            }
+            // ② 파편 셋 — 방향을 알면 그 반대쪽 부채꼴(±0.55rad), 모르면 황금각으로 사방.
+            const hasDir9 = Number.isFinite(f.dx) && Number.isFinite(f.dy) && ((f.dx ?? 0) !== 0 || (f.dy ?? 0) !== 0);
+            const away9 = hasDir9 ? Math.atan2(-(f.dy ?? 0), -(f.dx ?? 0)) : 0;
+            const wet9 = f.mat === "bio" || f.mat === "zerg";
+            for (let di = 0; di < 3; di += 1) {
+              const an9 = hasDir9 ? away9 + (di - 1) * 0.55 + ((di * 7) % 3 - 1) * 0.12 : (di * 2.399 + 0.6) % (Math.PI * 2);
+              const sp9 = r9 * (0.9 + (di % 2) * 0.35) * wk9;
+              const dd9 = sp9 * (0.25 + p9 * 1.1);
+              const gy9 = wet9 ? r9 * 0.9 * p9 * p9 : r9 * 0.25 * p9 * p9;
+              const px9 = hx9 + Math.cos(an9) * dd9;
+              const py9 = hy9 + Math.sin(an9) * dd9 * (hasDir9 ? 1 : 0.6) - (hasDir9 ? 0 : dd9 * 0.2) + gy9;
+              const dr9 = Math.max(0.5, r9 * 0.09 * wk9 * (1 - p9 * 0.4));
+              ctx.globalAlpha = a9 * (1 - p9 * 0.7);
+              ctx.fillStyle = di === 0 ? mt9.drop : mt9.core;
+              ctx.beginPath();
+              ctx.arc(px9, py9, dr9, 0, Math.PI * 2);
               ctx.fill();
             }
             continue;
