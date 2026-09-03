@@ -21991,12 +21991,31 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
           if (st.tri) {
             /* 쐐기(글레이브·파편) — 밑변이 **밝은 끝**, 꼭짓점이 사그라드는 끝이다.
                날아가는 것은 넓은 머리가 앞서고 꼬리로 갈수록 뾰족해진다(혜성 꼴). */
+            /* ★ 표창(요청: 뮤탈·벌처 쐐기를 정삼각형에서 각 변을 삼각형으로 판 표창으로 · 뾰족한 쪽이 적을 향하게) ────
+               세 꼭짓점의 별이다: 앞 꼭짓점이 머리(lx9·ly9, 나는 방향 dxx·dyy)이고 뒤 두 꼭짓점이 ±120도. 변마다
+               가운데를 중심 쪽으로 파(반지름 0.35R) 세 날이 선다. 반폭(st.w/2)이 뒤 날의 벌어짐(0.866R)이다. */
             const hw9 = (st.w / 2) * zoom;
+            const R9 = hw9 / 0.866;
+            const r9 = R9 * 0.35;
+            const cx9 = lx9 - dxx * R9;
+            const cy9 = ly9 - dyy * R9;
+            const px9 = -dyy;                      // 수직(왼쪽)
+            const py9 = dxx;
+            const pt9 = (a9: number, b9: number): [number, number] => [cx9 + dxx * a9 + px9 * b9, cy9 + dyy * a9 + py9 * b9];
+            const T0 = pt9(R9, 0);
+            const N01 = pt9(0.5 * r9, 0.866 * r9);
+            const T1 = pt9(-0.5 * R9, 0.866 * R9);
+            const N12 = pt9(-r9, 0);
+            const T2 = pt9(-0.5 * R9, -0.866 * R9);
+            const N20 = pt9(0.5 * r9, -0.866 * r9);
             ctx.fillStyle = g9;
             ctx.beginPath();
-            ctx.moveTo(lx9 - dyy * hw9, ly9 + dxx * hw9);
-            ctx.lineTo(lx9 + dyy * hw9, ly9 - dxx * hw9);
-            ctx.lineTo(dx9, dy9);
+            ctx.moveTo(T0[0], T0[1]);
+            ctx.lineTo(N01[0], N01[1]);
+            ctx.lineTo(T1[0], T1[1]);
+            ctx.lineTo(N12[0], N12[1]);
+            ctx.lineTo(T2[0], T2[1]);
+            ctx.lineTo(N20[0], N20[1]);
             ctx.closePath();
             ctx.fill();
           } else {
