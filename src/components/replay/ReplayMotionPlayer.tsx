@@ -21724,6 +21724,35 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
       ctx.closePath(); ctx.fill();
     }
   }
+  // 유리 조각(재요청): 기계는 삼각형·평행사변형 등 제각각 꼴의 옅은 청백 조각 몇 개가 더 튄다.
+  if (mat === "mech") {
+    const NG = bld ? 5 : 3;
+    for (let i = 0; i < NG; i += 1) {
+      const an = rnd() * Math.PI * 2;
+      const v = W * (0.55 + rnd() * 0.7);
+      const sz = W * (0.06 + rnd() * 0.07);
+      const rot = an + (rnd() - 0.5) * 8 * p;
+      const tri = rnd() < 0.5;
+      const skew = (rnd() - 0.5) * 1.2;
+      const q = p;
+      const eq = 1 - (1 - q) * (1 - q);
+      const x = ax + Math.cos(an) * v * eq;
+      const y = ay + Math.sin(an) * v * eq * 0.6 - W * 0.3 * eq + W * 0.8 * q * q;
+      const cx = Math.cos(rot), sx = Math.sin(rot);
+      const P = (u: number, w: number): [number, number] => [x + cx * u - sx * w, y + sx * u + cx * w];
+      ctx.globalAlpha = (q < 0.7 ? 0.8 : 0.8 * (1 - q) / 0.3);
+      ctx.fillStyle = i % 2 ? "#cfe6f5" : "#a9cfe6";
+      ctx.beginPath();
+      if (tri) {
+        const a = P(-sz, sz * 0.7), b = P(sz * 1.2, sz * 0.4), c = P(-sz * 0.2, -sz);
+        ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.lineTo(c[0], c[1]);
+      } else {
+        const a = P(-sz + skew * sz, sz * 0.5), b = P(sz + skew * sz, sz * 0.5), c = P(sz - skew * sz, -sz * 0.5), d = P(-sz - skew * sz, -sz * 0.5);
+        ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.lineTo(c[0], c[1]); ctx.lineTo(d[0], d[1]);
+      }
+      ctx.closePath(); ctx.fill();
+    }
+  }
   // ③ 곁들이 — 기계는 연기, 살은 핏방울, 프로토스는 반짝이.
   if (mat === "mech") {
     // 연기는 더 분명하고 크게(재지적) — 넷, 반지름 0.22 → 0.8W, 더 높이 오르고 진하게.
