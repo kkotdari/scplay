@@ -30229,9 +30229,24 @@ export default function ReplayMotionPlayer({
      소스만 갈아 끼우면 되게 한다. v2를 켜면 장면 전체(유닛·건물·마법)가 v2 데이터다. */
   /* ★ 파생 자료는 **엔진 세계**(deriveWorld9) 하나로 — 옛 useMemo 사슬(건물 행·개체 걷기·생산·업글…)이
      전부 거기 있다. 참값·지도·기지가 바뀔 때만 다시 센다. 화면(UI)이 읽는 것은 여기서 꺼내 쓴다. */
+  /** 편 표(임자 → 편) — 세계·워커가 함수 대신 이 표를 쓴다. 문자열 열쇠로 견줘 부모가 매 렌더 새 함수를
+   *  내려도 세계를 다시 안 센다. */
+  const teamMap9 = useMemo(() => {
+    const m9: Record<string, 1 | 2> = {};
+    for (const b9 of bases) { const tm9 = teamOfRaw(b9.key); if (tm9) m9[b9.key] = tm9; }
+    for (const pl9 of entData?.players ?? []) { const tm9 = teamOfRaw(pl9.name); if (tm9) m9[pl9.name] = tm9; }
+    return m9;
+  }, [bases, entData, teamOfRaw]);
+  const teamKey9 = JSON.stringify(teamMap9);
+  const teamMapRef9 = useRef(teamMap9);
+  teamMapRef9.current = teamMap9;
   const world = useMemo(
-    () => deriveWorld9({ entData, truth, grid, bases, teamOf: teamOfRaw, total }),
-    [entData, truth, grid, bases, teamOfRaw, total],
+    () => {
+      const tm9 = teamMapRef9.current;
+      return deriveWorld9({ entData, truth, grid, bases, teamOf: (raw9: string) => tm9[raw9] ?? teamOfRaw(raw9), total });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [entData, truth, grid, bases, teamKey9, total],
   );
   const { buildsSrc, entWalks, castsSrc, nukeLase, gasBuildings, prodDoneAt, prodDoneByRaw, upsByRaw, nukeImpacts } = world;
   const engineRef9 = useRef<ReturnType<typeof createEngine9> | null>(null);
@@ -30289,13 +30304,6 @@ export default function ReplayMotionPlayer({
     };
     return () => { dead9 = true; w9?.terminate(); frameWorkerRef.current = null; frames9.clear(); };
   }, []);
-  /** 워커에 넘길 편 표 — 함수는 못 넘기므로 임자마다 편 번호를 미리 푼다. */
-  const teamMap9 = useMemo(() => {
-    const m9: Record<string, 1 | 2> = {};
-    for (const b9 of bases) { const tm9 = teamOfRaw(b9.key); if (tm9) m9[b9.key] = tm9; }
-    for (const pl9 of entData?.players ?? []) { const tm9 = teamOfRaw(pl9.name); if (tm9) m9[pl9.name] = tm9; }
-    return m9;
-  }, [bases, entData, teamOfRaw]);
   useEffect(() => {
     const msg9 = {
       type: "world", entData, truth,
@@ -30308,7 +30316,8 @@ export default function ReplayMotionPlayer({
     wFramesRef.current.clear();
     wStatRef.current.sentWorld += 1;
     w9.postMessage(msg9);
-  }, [world, teamMap9, entData, truth, grid.width, grid.height, grid.resources, bases, total]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [world]);
   /* 건물 체력 자취(요청: 건물 체력바 — 실드·회복·불·수리 반영은 분석이 했다) —
      자리 열쇠(raw|x|y)로 그 건물의 체력 변곡점을 찾는다. */
   /** ★ 건물마다 **고른 체력 줄**을 기억해 둔다(성능) ─────────────────────────────────
