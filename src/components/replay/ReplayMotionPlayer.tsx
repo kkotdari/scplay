@@ -19210,7 +19210,7 @@ type UnitDrawOp = {
   /** 바닥에 실제로 깔리는 그림자 테두리(분수 좌표) — 발자국 타원을 타일 공간에서
    *  띄엄띄엄 찍어 자리 사상으로 옮긴 점들이다(요청: 화면 타원 어림 말고 실제로 바닥에
    *  그려야 한다). 원근이 실린 채 지면에 눕는다. */
-  shadowPts?: [number, number][];
+  shadowPts?: number[];
   /** 지면선(입체) — 발자국 아랫변을 자리 사상으로 옮긴 세로 자리. 상자 바닥
    *  어림(sy + hPx/2) 대신 이 값에 그린 몸의 발을 앉힌다(지적: 3D에서 건물이
    *  그림자보다 한 칸쯤 아래에 그려짐 — 그림자는 지면에 직접 그린 도형이라 옳고,
@@ -22422,16 +22422,13 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
             ctx.globalAlpha = op.alpha * 0.36;
             ctx.fillStyle = "#000";
             ctx.beginPath();
-            if (op.shadowPts && op.shadowPts.length >= 3) {
+            if (op.shadowPts && op.shadowPts.length >= 6) {
               /* 바닥에 실제로 그린다(요청) — 발자국 타원을 타일 공간에서 찍어 둔 점들을
                  그대로 화면으로 옮겨 잇는다. 원근이 실려 있어 멀수록 눌리고 가까울수록
                  펴지며, 지면 격자와 같은 평면에 눕는다. */
-              const p0 = op.shadowPts[0];
-              ctx.moveTo(zx(p0[0]), zy(p0[1]));
-              for (let q = 1; q < op.shadowPts.length; q += 1) {
-                const pq = op.shadowPts[q];
-                ctx.lineTo(zx(pq[0]), zy(pq[1]));
-              }
+              const sp = op.shadowPts;
+              ctx.moveTo(zx(sp[0]), zy(sp[1]));
+              for (let q = 2; q + 1 < sp.length; q += 2) ctx.lineTo(zx(sp[q]), zy(sp[q + 1]));
               ctx.closePath();
             } else {
               ctx.ellipse(
@@ -27480,20 +27477,22 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
              원근·기울기가 지면 격자와 정확히 같다.
              뜬 건물은 발자국의 0.6배로 줄여 깐다 — 몸과 그림자의 크기 차가 곧
              비행 높이로 읽힌다(공중 유닛 그림자와 같은 결). */
-          shadowPts: ((): [number, number][] => {
+          // 평평한 [x0, y0, x1, y1, …](지적: 툭툭 순간이동 — 장마다 점 배열 수천 개를 만들던 것이 GC 멎음의 한 몫).
+          shadowPts: ((): number[] => {
             /* 0.6 → 0.85(지적: "띄운건물 그림자 크기 작음") — 발자국의 60%는
                큰 건물에서 몸 밑에 숨는 크기였다. 85%면 몸보다는 작아 '떠 있다'가
                남으면서도 땅에 실린 무게가 읽힌다. */
             const sk9 = 0.85;
             const rx9 = (boxW / 2) * sk9;
             const ry9 = (boxH / 2) * sk9;
-            const pts9: [number, number][] = [];
+            const pts9: number[] = [];
             for (let q9 = 0; q9 < 12; q9 += 1) {
               const a9 = (q9 / 12) * Math.PI * 2;
-              pts9.push(posFrac(
+              const p9 = posFrac(
                 bodyX + Math.cos(a9) * rx9 * 0.98,
                 bodyY + Math.sin(a9) * ry9 * 0.98,
-              ));
+              );
+              pts9.push(p9[0], p9[1]);
             }
             return pts9;
           })(),
@@ -33778,7 +33777,7 @@ export default function ReplayMotionPlayer({
       const k9 = lerpKey9(s9);
       if (!k9) { ops9.push(s9); continue; }
       let o9 = pool9.get(k9);
-      if (!o9) { o9 = { ...s9 }; if (s9.shadowPts) o9.shadowPts = s9.shadowPts.map((p9) => [p9[0], p9[1]] as [number, number]); pool9.set(k9, o9); }
+      if (!o9) { o9 = { ...s9 }; if (s9.shadowPts) o9.shadowPts = s9.shadowPts.slice(); pool9.set(k9, o9); }
       else {
         const keep9 = o9.shadowPts;
         // 앞 장에 없는 필드는 지운다(lit·selRing·hpFrac 같은 선택 필드가 옛 장 값으로 남으면 안 된다).
@@ -33786,9 +33785,9 @@ export default function ReplayMotionPlayer({
         Object.assign(o9, s9);
         if (s9.shadowPts) {
           if (keep9 && keep9.length === s9.shadowPts.length) {
-            for (let j9 = 0; j9 < keep9.length; j9 += 1) { keep9[j9][0] = s9.shadowPts[j9][0]; keep9[j9][1] = s9.shadowPts[j9][1]; }
+            for (let j9 = 0; j9 < keep9.length; j9 += 1) keep9[j9] = s9.shadowPts[j9];
             o9.shadowPts = keep9;
-          } else o9.shadowPts = s9.shadowPts.map((p9) => [p9[0], p9[1]] as [number, number]);
+          } else o9.shadowPts = s9.shadowPts.slice();
         } else if (keep9) delete o9.shadowPts;
       }
       const n9 = b9.byKey.get(k9);
@@ -33801,10 +33800,7 @@ export default function ReplayMotionPlayer({
         if (s9.rise !== undefined && n9.rise !== undefined) o9.rise = s9.rise + (n9.rise - s9.rise) * u9;
         const sp9 = s9.shadowPts; const np9 = n9.shadowPts; const op9 = o9.shadowPts;
         if (sp9 && np9 && op9 && sp9.length === np9.length && op9.length === sp9.length) {
-          for (let j9 = 0; j9 < sp9.length; j9 += 1) {
-            op9[j9][0] = sp9[j9][0] + (np9[j9][0] - sp9[j9][0]) * u9;
-            op9[j9][1] = sp9[j9][1] + (np9[j9][1] - sp9[j9][1]) * u9;
-          }
+          for (let j9 = 0; j9 < sp9.length; j9 += 1) op9[j9] = sp9[j9] + (np9[j9] - sp9[j9]) * u9;
         }
       }
       ops9.push(o9);
@@ -34940,8 +34936,13 @@ export default function ReplayMotionPlayer({
         acc: draw ? 0 : acc, drawn: draw ? now : drawnAt,
       };
       if (draw) {
+        /* ★ 한 번의 그리기에 나아가는 벽시계 상한 80ms(지적: "툭툭 살짝씩 순간이동" — 계측: t 걸음 평균 34ms, 최대
+           273ms). 메인이 잠깐 멎었다 풀리면(GC·DOM·굽기) 쌓인 시간을 한 번에 밀어 유닛이 그만큼 건너뛰었다. 그 몫은
+           버린다 — 재생이 벽시계보다 조금 늦어질 뿐이고, 사람 눈에는 뜀보다 늦음이 훨씬 덜 거슬린다. 배속을 곱하기
+           전의 벽시계로 잰다(8배에서도 한 번에 0.64초 넘게 안 뛴다). 워커는 시계차가 0.3초를 넘으면 명령으로 다시 맞는다. */
+        const advWall9 = Math.min(acc, 0.08);
         setT((prev) => {
-          const next = prev + acc * speed;
+          const next = prev + advWall9 * speed;
           if (next >= total) {
             setPlaying(false);
             setDone(true);
