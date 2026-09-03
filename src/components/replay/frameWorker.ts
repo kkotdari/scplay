@@ -44,6 +44,8 @@ let clock: { t: number; speed: number; playing: boolean } = { t: 0, speed: 1, pl
 let nextT = -1;
 /** 지어 둔 프레임의 마지막 시각 — 멈춤 상태에서 같은 t를 두 번 안 짓게. */
 let lastBuiltT = -1;
+/** 지어 둔 창의 **시작** 시각 — 되감기 판정은 이것과 견준다(lastBuiltT는 창의 끝이다). */
+let winStartT = -1;
 /** 미뤄 둔 pump 타이머(0이면 없음). */
 let pumpTimer = 0;
 
@@ -54,20 +56,30 @@ const rebuildEngine = (): void => {
   engine = createEngine9(world, view);
   nextT = -1;
   lastBuiltT = -1;
+  winStartT = -1;
 };
 
 const pump = (): void => {
   if (!engine) return;
   const step = Math.max(1 / 240, clock.speed / FPS9);
-  if (nextT < 0 || Math.abs(clock.t - nextT) > step * 4) {
-    // 시계가 뛰었다(탐색·배속) — 기억을 비우고 그 자리부터.
+  /* 시계가 **지어 둔 창 밖**으로 나갔나 — 뒤로 감았거나(behind) 창 끝을 넘어 앞으로 뛰었거나(ahead).
+     (전에는 nextT와 견줬는데 nextT는 늘 1초 앞서 있어 매 시계마다 '뛰었다'가 되어 같은 구간을 되풀이해
+     지었다 — 10초에 5,900장. 창은 [마지막 지은 시각, nextT]다.) */
+  const behind = winStartT >= 0 && clock.t < winStartT - step * 2;
+  const ahead = nextT < 0 || clock.t > nextT + step * 2;
+  if (behind || ahead) {
     engine.reset();
     nextT = clock.t;
+    winStartT = clock.t;
+    lastBuiltT = -1;
   }
   if (!clock.playing) {
-    if (Math.abs(lastBuiltT - clock.t) > 1e-6) {
+    // 멈춤: 그 시각의 프레임이 창 안에 없을 때만 한 장.
+    const have = winStartT >= 0 && clock.t >= winStartT - step * 1.5 && clock.t <= nextT;
+    if (!have) {
       const f = engine.build(clock.t);
       lastBuiltT = clock.t;
+      winStartT = clock.t;
       post({ type: "frame", frame: f });
       nextT = clock.t + step;
     }
@@ -110,6 +122,7 @@ if (inWorker9) self.onmessage = (ev: MessageEvent<Msg>): void => {
       // 시점·색이 바뀌면 지어 둔 프레임은 옛 것이다 — 이 시각부터 다시.
       nextT = -1;
       lastBuiltT = -1;
+      winStartT = -1;
       pump();
     } else if (m.type === "clock") {
       clock = { t: m.t, speed: m.speed, playing: m.playing };

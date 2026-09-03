@@ -30240,7 +30240,7 @@ export default function ReplayMotionPlayer({
      엔진(위 engineRef9)이 그대로 맡는다 — 두 길이 같은 코드라 그림이 안 갈린다. */
   const frameWorkerRef = useRef<Worker | null>(null);
   const wFramesRef = useRef<Map<number, Frame9>>(new Map());
-  const wStatRef = useRef({ got: 0, used: 0, missed: 0, err: "" });
+  const wStatRef = useRef({ got: 0, used: 0, missed: 0, err: "", sentWorld: 0, sentView: 0, sentClock: 0 });
   /** 워커에 마지막으로 보낸(보낼) 세계 — 워커가 늦게 서면(동적 import) 그때 다시 보낸다. */
   const worldMsgRef9 = useRef<unknown>(null);
   useEffect(() => {
@@ -30306,6 +30306,7 @@ export default function ReplayMotionPlayer({
     const w9 = frameWorkerRef.current;
     if (!w9) return;
     wFramesRef.current.clear();
+    wStatRef.current.sentWorld += 1;
     w9.postMessage(msg9);
   }, [world, teamMap9, entData, truth, grid.width, grid.height, grid.resources, bases, total]);
   /* 건물 체력 자취(요청: 건물 체력바 — 실드·회복·불·수리 반영은 분석이 했다) —
@@ -33432,6 +33433,7 @@ export default function ReplayMotionPlayer({
     if (w9 && (!sent9 || sent9.key !== viewKey9 || sent9.colors !== colorTable9)) {
       viewSentRef9.current = { key: viewKey9, colors: colorTable9 };
       wFramesRef.current.clear();
+      wStatRef.current.sentView += 1;
       w9.postMessage({ type: "view", view: engView9 });
     }
   }
@@ -33443,6 +33445,7 @@ export default function ReplayMotionPlayer({
     const playing9 = playing && active;
     if (w9 && (!c9 || c9.t !== t || c9.speed !== speed || c9.playing !== playing9)) {
       clockSentRef9.current = { t, speed, playing: playing9 };
+      wStatRef.current.sentClock += 1;
       w9.postMessage({ type: "clock", t, speed, playing: playing9 });
     }
   }
@@ -33472,7 +33475,8 @@ export default function ReplayMotionPlayer({
   const frame9 = wFrame9 ?? engineRef9.current.build(t);
   if (PERF9) pAdd(wFrame9 ? "엔진(워커 프레임)" : "엔진(메인 프레임)", pNow() - pEng9);
   // 워커 상태는 늘 적어 둔다(perf-check가 읽는다) — 문자열 하나라 값이 싸다.
-  SCR_DIAG.worker = `${frameWorkerRef.current ? "on" : "off"} got ${wStatRef.current.got} used ${wStatRef.current.used} missed ${wStatRef.current.missed}${wStatRef.current.err ? ` err ${wStatRef.current.err}` : ""}`;
+  SCR_DIAG.worker = `${frameWorkerRef.current ? "on" : "off"} got ${wStatRef.current.got} used ${wStatRef.current.used} missed ${wStatRef.current.missed}`
+    + ` sent(world ${wStatRef.current.sentWorld} view ${wStatRef.current.sentView} clock ${wStatRef.current.sentClock})${wStatRef.current.err ? ` err ${wStatRef.current.err}` : ""}`;
   if (typeof window !== "undefined" && !(window as unknown as { __scrDiag?: unknown }).__scrDiag) {
     (window as unknown as { __scrDiag?: unknown }).__scrDiag = SCR_DIAG;
   }
