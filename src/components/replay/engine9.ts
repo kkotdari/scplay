@@ -11,7 +11,7 @@ import { BLD_STATS, UNIT_BUILD_SEC, UNIT_STATS } from "./unitStats";
 import { acquireTilesOf, bodyRadiusOf, fireRangeTilesOf, isKnownKind, profileOf, reachTiles, weaponVs } from "../../utils/bwCombat";
 import { BUILDING_FOOT, FRAME_SEC, GEYSER_FOOT, LURKER_SPINE_SPEED_PX, LURKER_SPINE_TRAVEL_PX, MEDIC_HEAL_RANGE_PX, MINERAL_FOOT, buildingBox, sightTiles } from "../../utils/bwUnits";
 import { type TruthWorld } from "../../utils/truthLives";
-import { posAtTruth as posAtSim, type TruthTrack, type TruthTracks, TRUTH_ST_CARRY_GAS as ST_CARRY_GAS, TRUTH_ST_CARRY_MIN as ST_CARRY_MIN, TRUTH_ST_BURROW as ST_BURROW, TRUTH_ST_FIGHT as ST_FIGHT, TRUTH_ST_GATHER as ST_GATHER, TRUTH_ST_INSIDE as ST_INSIDE, TRUTH_ST_MOVE as ST_MOVE, kT, tkN, tkT, tkV, tkAt, tkLast, EMPTY_TICKS, type Ticks } from "../../utils/openbwTracks";
+import { posAtTruth as posAtSim, kN, kS, type TruthTrack, type TruthTracks, TRUTH_ST_CARRY_GAS as ST_CARRY_GAS, TRUTH_ST_CARRY_MIN as ST_CARRY_MIN, TRUTH_ST_BURROW as ST_BURROW, TRUTH_ST_FIGHT as ST_FIGHT, TRUTH_ST_GATHER as ST_GATHER, TRUTH_ST_INSIDE as ST_INSIDE, TRUTH_ST_MOVE as ST_MOVE, kT, tkN, tkT, tkV, tkAt, tkLast, EMPTY_TICKS, type Ticks } from "../../utils/openbwTracks";
 import { posAtW, wT, wX, wY, EMPTY_WALK, type WalkView, type TrackPos } from "../../utils/replayTrack";
 import { project, withPitchView, withTopView, withViewShear, withYaw } from "../../utils/shapeOblique";
 import { TEAM_COLOR } from "./markers";
@@ -2023,8 +2023,8 @@ export const FREEZE_STATUS = new Set(["stasis", "mael", "lock"]);
  *    상태(마엘스트롬·플레이그·인스네어·이레디에이트)는 그대로 오라가 맡는다. */
 export const CAGED_STATUS = new Set(["stasis", "lock"]);
 export const BURROWABLE = new Set(["Drone", "Zergling", "Hydralisk", "Lurker", "Defiler", "Infested Terran"]);
-/** 땅을 파고 드는 데 드는 시간(초) — 원작의 버로우 애니메이션 길이 언저리다. 이 창
- *  동안 몸은 선 채로 땅에 잠겨 들고, 럴커는 아직 가시를 안 쏜다(요청). */
+/** 땅을 파고 드는 데 드는 시간(초) — 원작의 버로우 애니메이션 길이 언저리(약 1초, 공식 자료는 이 환경에서 못 열어
+ *  확인 못 함). 이 창 동안 몸은 버로우 지점에 서서 땅에 잠겨 들고, 럴커는 아직 가시를 안 쏜다(요청). */
 export const BURROW_DIG_SEC = 0.9;
 /** 정제소 불빛의 유예(초) — 일꾼이 나간 뒤로도 이만큼은 켜 둔다. 가스 왕복 한 바퀴가
  *  대략 이 언저리라, 한 대만 붙어 캐도 불이 안 끊긴다(지적: 계속 깜빡). */
@@ -6059,6 +6059,26 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         && (foe.bd <= acq9 * (engagedBefore ? 1.3 : 1)
           || (foe.bld === true && foe.bd <= ENGAGE_SIGHT_TILES * 1.6)));
     let pos = rawPos;
+    /* ★ 버로우 예고(요청: 럴커 버로우 때 땅 파는 모션 — 이동을 그만큼 일찍 멈추고, 버로우할 자리에서 애니메이션 뒤 바로
+       땅속 상태) ─────────────────────────────────────────────────────────────────
+       참값이 ST_BURROW로 바뀌는 시각 T1을 **미리** 본다(키를 앞으로 훑는다 — 워커가 앞을 짓는 구조라 값이 싸다).
+       [T1−BURROW_DIG_SEC, T1) 동안은 자리를 T1의 자리(버로우 지점)에 못 박고 몸이 잠겨 들며(아래 digging9·rise),
+       T1부터는 곧장 땅속 판이다. 옛 방식(상태가 바뀐 **뒤**에 파기)은 버로우 완성과 첫 가시가 파는 창만큼 늦었다. */
+    const burrowNext9 = ((): number | null => {
+      if (!simTr || !BURROWABLE.has(e.unit)) return null;
+      if (simNow && simNow.state === ST_BURROW) return null;
+      const kt9 = simTr.kt;
+      const n9 = kN(simTr);
+      let lo9 = 0;
+      let hi9 = n9;
+      while (lo9 < hi9) { const m9 = (lo9 + hi9) >> 1; if (kt9[m9] <= t) lo9 = m9 + 1; else hi9 = m9; }
+      for (let i9 = lo9; i9 < n9 && kt9[i9] <= t + BURROW_DIG_SEC; i9 += 1) if (kS(simTr, i9) === ST_BURROW) return kt9[i9];
+      return null;
+    })();
+    if (burrowNext9 !== null && simTr) {
+      const spot9 = posAtSim(simTr, burrowNext9) ?? posAtW(rp, burrowNext9);
+      if (spot9) pos = { ...pos, x: spot9.x, y: spot9.y, moving: false, sinceLast: 0 };
+    }
     /* 교전 당김·홀드·잽은 코어가 켜지면 안 돈다(과제 #61) — 코어는 표적까지
        걸어가 사거리에서 멈추는 일을 제 이동 모형으로 이미 했다. 여기서 한 번 더
        끌면 두 모형이 같은 몸을 밀고, 어차피 아래에서 코어 자리로 덮여 버려질
@@ -6501,18 +6521,9 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
        곧바로 가시가 튀어나와 '땅에 닿자마자 발사'로 읽혔다.
        ① 파는 창(BURROW_DIG_SEC) 동안은 가시를 안 쏘고,
        ② 그동안 몸은 **선 채로 땅에 잠겨 들어간다**(아래 digging9·rise). */
-    const burrowT0 = ((): number => {
-      const m9 = burrowAtRef.current;
-      if (!burrowed) { m9.delete(holdKey); return t; }
-      const had = m9.get(holdKey);
-      if (had === undefined || had > t) { m9.set(holdKey, t); return t; }
-      return had;
-    })();
-    /** 파는 진행 0~1 — 1이면 다 묻혔다. */
-    const digU9 = burrowed ? Math.min(1, (t - burrowT0) / BURROW_DIG_SEC) : 1;
-    /* 파는 동안은 **선 몸**을 그대로 쓰고 rise가 땅으로 끌어내린다 — 구멍 판으로
-       곧장 갈아입으면 '사라졌다 나타났다'가 되어 모션이 안 읽힌다. */
-    const digging9 = burrowed && digU9 < 1;
+    /* 파는 창은 상태가 바뀌기 **전**이다(위 burrowNext9) — T1까지 남은 시간으로 진행률을 낸다. T1부터는 곧장 땅속 판. */
+    const digU9 = burrowNext9 !== null ? Math.min(1, Math.max(0, 1 - (burrowNext9 - t) / BURROW_DIG_SEC)) : 1;
+    const digging9 = burrowNext9 !== null && !burrowed;
     /* 몸이 제자리에서 뜨는 몫(모델 상자 배수) — 호버 유닛의 부양과 땅파기의
        가라앉음이다. 그리는 쪽(op.rise)과 빙결 우리가 **같은 값**을 봐야 우리가
        몸에 붙는다(아래 cage의 lift 주석). */

@@ -27727,7 +27727,9 @@ export default function ReplayMotionPlayer({
        올라가면서 태우는 몫은 절반이다.
        이 값은 참값 표적을 들이며 일이 크게 준 뒤의 값이다 — 표적찾기·시야 레이캐스트가
        통째로 사라졌다(그 자리 주석). 그 전이었으면 22는 헛문턱이었을 것이다. */
-    const MOBILE_GAP_MS = 22;
+    /* 22 → 12ms(지적: "모바일 프레임 제한 있나, 가벼운데 프레임이 낮은 느낌") — 22ms는 60Hz 화면에서 rAF 두 번에 한 번
+       (30fps)이었다. 12ms면 60Hz는 매 rAF(60fps), 120Hz는 두 번에 한 번(60fps). 워커·보간이 있어 붓은 그만큼 가볍다. */
+    const MOBILE_GAP_MS = 12;
     const drawGapMs = (): number => (
       GAP9 || (pcView ? (xfGestureRef.current ? 33 : 16) : MOBILE_GAP_MS));
     const tick = (now: number) => {
