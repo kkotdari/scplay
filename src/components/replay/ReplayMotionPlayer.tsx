@@ -23017,6 +23017,9 @@ export default function ReplayMotionPlayer({
   /* ★ 파생 자료는 **워커**가 센다(요청: 메인의 중복 파생 자료 제거). 화면(UI)이 읽는 몇 가지는 워커가 세계를
      세운 뒤 한 번 보내 준다(worldui). 오기 전 몇 ms는 빈 표를 본다. */
   const [worldUi9, setWorldUi9] = useState<WorldUi9 | null>(null);
+  /** 워커가 **개체 있는** 세계를 세웠나 — 안개는 이때부터(지적: 첫 장면 뒤 지도가 새까맣게 한 번 깜박임 — 참값 오기 전
+   *  빈 세계로 지은 첫 장의 안개가 '본 곳 0%'였다). */
+  const [worldEnts9, setWorldEnts9] = useState(false);
   const world: WorldUi9 = worldUi9 ?? emptyWorldUi9();
   const { buildsSrc, castsSrc, nukeLase, gasBuildings, prodDoneAt, prodDoneByRaw, upsByRaw, nukeImpacts } = world;
   /** 걷기 — 추적을 켤 때 워커에 청해 받는다(아래 want walks). 세계가 바뀌면 비운다. */
@@ -23172,9 +23175,14 @@ export default function ReplayMotionPlayer({
         }
       } else if (m9.type === "worldui" && m9.ui) {
         setWorldUi9(m9.ui);
+        setWorldEnts9(!!(m9 as unknown as { hasEnts?: boolean }).hasEnts);
         setEntWalks9([]);
         walksAskedRef9.current = null;
         setWorldGen9((g9) => g9 + 1);
+        // 새 세대의 세계다 — 옛 세대로 지은 장(안개가 다르다)은 버린다. 새 장은 이 메시지 바로 뒤에 온다.
+        frames9.clear();
+        fogSnapsRef9.current = [];
+        lastFrameRef9.current = null;
       } else if (m9.type === "walks") {
         setEntWalks9((m9 as unknown as { entWalks: EngineWorld9["entWalks"] }).entWalks ?? []);
       } else if (m9.type === "ready") {
@@ -23961,7 +23969,7 @@ export default function ReplayMotionPlayer({
   const visAll = viewTeam !== 1 && viewTeam !== 2;
   /** 안개를 셈할 재료가 있나 — 자취가 없는 옛 기록은 종전대로 통째로 보인다. */
   // 안개는 개체 트랙이 있을 때만(옛 경기는 없다) — 걷기(entWalks)는 이제 추적을 켤 때만 받으므로 그 길이로 가리면 안 된다.
-  const fogOn = !!entData && entData.lives.length > 0;
+  const fogOn = !!entData && entData.lives.length > 0 && worldEnts9;
   const gw9 = grid.width;
   const gh9 = grid.height;
   /** 밝힘 이력 — 칸마다 '그 팀이 **처음 본** 초'. 안 본 칸은 NEVER. */
