@@ -21541,11 +21541,11 @@ FX_IMPACT.photon = FX_IMPACT.plasma;
  *  한 번 터지는 것이 맞을 때마다 작게 튄다고 보면 된다.
  *  core는 맞은 자리의 얼룩, drop은 사방으로 튀는 낱알의 색·개수다. */
 /* flash는 맞는 순간의 섬광(결마다 흰빛에 제 색을 한 방울) — 후보판의 팔레트 그대로. */
-const FX_MAT: Record<string, { core: string; drop: string; flash: string; n: number; r: number }> = {
-  bio: { core: "rgba(200,35,27,0.95)", drop: "rgba(239,90,69,0.95)", flash: "#ffd9d2", n: 5, r: 0.62 },
-  zerg: { core: "rgba(160,26,58,0.95)", drop: "rgba(224,65,107,0.95)", flash: "#ffcfe0", n: 6, r: 0.7 },
-  toss: { core: "rgba(143,208,255,0.95)", drop: "rgba(230,244,255,0.95)", flash: "#ffffff", n: 5, r: 0.66 },
-  mech: { core: "rgba(255,138,61,0.95)", drop: "rgba(255,209,102,0.95)", flash: "#fff4d0", n: 5, r: 0.62 },
+const FX_MAT: Record<string, { core: string; drop: string; deep: string; flash: string; n: number; r: number }> = {
+  bio: { core: "rgba(200,35,27,0.95)", drop: "rgba(239,90,69,0.95)", deep: "rgba(122,18,16,0.95)", flash: "#ffd9d2", n: 5, r: 0.62 },
+  zerg: { core: "rgba(160,26,58,0.95)", drop: "rgba(224,65,107,0.95)", deep: "rgba(92,13,38,0.95)", flash: "#ffcfe0", n: 6, r: 0.7 },
+  toss: { core: "rgba(143,208,255,0.95)", drop: "rgba(230,244,255,0.95)", deep: "rgba(58,143,255,0.95)", flash: "#ffffff", n: 5, r: 0.66 },
+  mech: { core: "rgba(255,138,61,0.95)", drop: "rgba(255,209,102,0.95)", deep: "rgba(255,90,31,0.95)", flash: "#fff4d0", n: 5, r: 0.62 },
 };
 /* ── 저배율 마커(요청: "저배율에서 유닛이 많아서 힘드니까 건물과 유닛을 그냥 가벼운
    마커로 표시 — 크기만 종별로, 캔버스 형태와 크기대로, 자원도, 그림자 없이") ─────────
@@ -22824,24 +22824,32 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
               ctx.arc(hx9, hy9, Math.max(0.6, r9 * 0.3 * wk9 * Math.max(0.25, 1 - p9 * 1.6)), 0, Math.PI * 2);
               ctx.fill();
             }
-            // ② 파편 셋 — 방향을 알면 그 반대쪽 부채꼴(±0.55rad), 모르면 황금각으로 사방.
+            /* ② 파편 셋 — **B의 움직임에 A의 꼴**(정정: "B의 파편 움직임 + A의 파편 모델"). 움직임은
+               B: 셋이 짧게 튀어 나가고 중력은 없다(방향을 알면 그 반대쪽 부채꼴 ±0.65rad, 모르면
+               사방). 꼴은 A: 점이 아니라 **꼬리가 달린 가는 선**(스트릭) — 조금 전 자리에서 지금
+               자리까지 긋고, 피는 굵고 불티는 가늘다. 색은 결의 세 톤을 돌려 쓴다. */
             const hasDir9 = Number.isFinite(f.dx) && Number.isFinite(f.dy) && ((f.dx ?? 0) !== 0 || (f.dy ?? 0) !== 0);
             const away9 = hasDir9 ? Math.atan2(-(f.dy ?? 0), -(f.dx ?? 0)) : 0;
             const wet9 = f.mat === "bio" || f.mat === "zerg";
+            ctx.lineCap = "round";
             for (let di = 0; di < 3; di += 1) {
-              const an9 = hasDir9 ? away9 + (di - 1) * 0.55 + ((di * 7) % 3 - 1) * 0.12 : (di * 2.399 + 0.6) % (Math.PI * 2);
-              const sp9 = r9 * (0.9 + (di % 2) * 0.35) * wk9;
-              const dd9 = sp9 * (0.25 + p9 * 1.1);
-              const gy9 = wet9 ? r9 * 0.9 * p9 * p9 : r9 * 0.25 * p9 * p9;
-              const px9 = hx9 + Math.cos(an9) * dd9;
-              const py9 = hy9 + Math.sin(an9) * dd9 * (hasDir9 ? 1 : 0.6) - (hasDir9 ? 0 : dd9 * 0.2) + gy9;
-              const dr9 = Math.max(0.5, r9 * 0.09 * wk9 * (1 - p9 * 0.4));
-              ctx.globalAlpha = a9 * (1 - p9 * 0.7);
-              ctx.fillStyle = di === 0 ? mt9.drop : mt9.core;
+              const an9 = hasDir9 ? away9 + (di - 1) * 0.65 + ((di * 7) % 3 - 1) * 0.1 : (di * 2.399 + 0.6) % (Math.PI * 2);
+              const sp9 = r9 * (1.0 + (di % 2) * 0.3) * wk9;
+              const at9 = (q9: number): [number, number] => {
+                const dd9 = sp9 * (0.3 + q9 * 1.2);
+                return [hx9 + Math.cos(an9) * dd9, hy9 + Math.sin(an9) * dd9 * (hasDir9 ? 1 : 0.6) - (hasDir9 ? 0 : dd9 * 0.15)];
+              };
+              const [px9, py9] = at9(p9);
+              const [qx9, qy9] = at9(Math.max(0, p9 - (wet9 ? 0.22 : 0.34)));
+              ctx.globalAlpha = a9 * (1 - p9 * 0.75);
+              ctx.strokeStyle = di === 0 ? mt9.drop : di === 1 ? mt9.core : mt9.deep;
+              ctx.lineWidth = Math.max(0.6, r9 * (wet9 ? 0.12 : 0.06) * wk9 * (1 - p9 * 0.5));
               ctx.beginPath();
-              ctx.arc(px9, py9, dr9, 0, Math.PI * 2);
-              ctx.fill();
+              ctx.moveTo(qx9, qy9);
+              ctx.lineTo(px9, py9);
+              ctx.stroke();
             }
+            ctx.lineCap = "butt";
             continue;
           }
           /* ★ (꺼 둠) 프로토스 실드 방어 효과 — 요청: "제거, 완성도있게 다시 추가할
