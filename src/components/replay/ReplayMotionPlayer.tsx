@@ -21874,6 +21874,8 @@ function bakeStepOf(z9: number): number {
  *  예산에 막힌 것인지, 아예 배킹 확보가 실패한 것인지.
  *  값은 그리는 쪽(UnitLayer·ReplayMapVector)이 매 프레임 여기에 적고, 오버레이는
  *  재생 틱마다 읽어 그린다. 꺼져 있으면 적기만 하고 아무도 안 읽는다(값 없음). */
+/** `?noworker=1` — 프레임 워커를 끄고 메인 엔진만 쓴다(계측 비교·재현용). */
+const NOWORKER9 = typeof location !== "undefined" && /[?&#]noworker=1/.test(location.search + location.hash);
 export const SCR_DIAG: {
   dpr: number; unitCss: string; unitBack: string; unitB: number;
   mapCss: string; mapBack: string; ppt: number; needed: number;
@@ -21887,6 +21889,8 @@ export const SCR_DIAG: {
   areaCap: number; allocOk: boolean; zoom: number;
   /** 생산 색인 요약(#diag) — "(임자|건물종류)=건수". 비어 있으면 호스트 찾기 실패다. */
   prod: string;
+  /** 프레임 워커 상태 — on/off · 받은 수 · 쓴 수 · 놓친 수. */
+  worker: string;
   /** 이 프레임의 효과 op을 '갈래:무기'로 센다 — "이 무기가 안 나간다"는 신고를 눈이
    *  아니라 수로 가리려고 둔다(트레이서는 0.2초짜리라 스크린샷 한 장으로는 못 가린다).
    *  #diag가 켜져 있을 때만 채운다. */
@@ -21910,7 +21914,7 @@ export const SCR_DIAG: {
 } = {
   dpr: 0, unitCss: "", unitBack: "", unitB: 0,
   mapCss: "", mapBack: "", ppt: 0, needed: 0, scale: 0, unitScale: 0,
-  areaCap: 0, allocOk: true, zoom: 0, fx: {}, prod: "",
+  areaCap: 0, allocOk: true, zoom: 0, fx: {}, prod: "", worker: "",
   truthVer: 0, truthTrust: -1, truthWhy: "",
 };
 /* ★ 창에는 **꾸러미가 뜨는 순간** 내건다(지적: "__scrDiag 이거 안 뜨는데") ──────────
@@ -21927,7 +21931,7 @@ if (typeof window !== "undefined") {
 export const scrDiagOn = (): boolean =>
   typeof window !== "undefined" && window.location.hash.toLowerCase().includes("diag");
 
-function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShadows, showOverlap, showHp, showCreep, marker: markerProp, markerAt, detailAt, painter, live, onPainted }: {
+function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShadows, showOverlap, showHp, showCreep, marker: markerProp, markerAt, detailAt, yawAt, moveAt, painter, live, onPainted }: {
   ops: UnitDrawOp[]; zoom: number; pan: { x: number; y: number };
   /** 사양 게이트(요청) — 끄면 접지·겹침 그림자/체력바/크립을 안 그린다. 기본 켬. */
   showShadows?: boolean; showOverlap?: boolean; showHp?: boolean; showCreep?: boolean;
@@ -21950,6 +21954,10 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
   markerAt?: number;
   /** 자세함(그림자·전투 효과·체력바)이 켜지는 배율 문턱 — 위와 같은 까닭. */
   detailAt?: number;
+  /** 요잉 열여섯 칸이 서는 배율 — 그 아래서는 45도로 눕혀 그린다(붓 쪽 간이화, 아래 ★). */
+  yawAt?: number;
+  /** 걸음·추진 컷이 서는 배율 — 그 아래서는 기본 자세로 그린다(날갯짓은 늘). */
+  moveAt?: number;
   /** 전투 효과(요청: 이펙트 캔버스 이관) — 몸을 다 그린 뒤 맨 위에 그린다. */
   fx?: FxOp[];
   /** 붓 넘기는 자리(수리: 손짓 중 캔버스 CSS 변환) — 렌더마다 이 칸에 그리기 함수를
@@ -22115,7 +22123,44 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
           out: [...ops].sort((a, b) => (a.z + (a.air ? Z_AIR : 0)) - (b.z + (b.air ? Z_AIR : 0))),
         };
       }
-      const sorted = sortCacheRef.current.out.filter(inView0);
+      /* ★ **낮은 배율의 간이화는 여기서 한다**(요청: 워커 분리 — "자세·요잉은 둘째 방법") ────────
+         엔진(워커)은 늘 자세히 낸다(열여섯 칸 요잉·모든 자세 컷·탱크 차체+포탑). 배율은 프레임에 안
+         실리므로, 배율이 바뀌어도 미리 지어 둔 프레임이 산다. 대신 붓이 그릴 때 배율을 보고 깎는다:
+           · 요잉: yawAt 아래서는 45도 칸으로 눕힌다(판 캐시가 여덟 칸만 든다).
+           · 자세: detailAt 아래서는 공격 컷을 지우고, moveAt 아래서는 걸음·추진 컷도 지운다.
+             날갯짓(flap)만은 늘 남긴다(뮤탈의 날개는 세부가 아니라 살아 있다는 표시).
+           · 탱크: detailAt 아래서는 차체+포탑 판 대신 한 판(tank·tanksiege)으로 그리고 포신 op은 버린다.
+         옛 만드는 쪽 판정(liteView·liteYaw)과 같은 칸에서 같은 답이 나오게 문턱을 그대로 받는다. */
+      const lite9 = !detail;
+      const liteYaw9 = yawAt !== undefined && zoom < yawAt;
+      const moveOk9 = moveAt === undefined || zoom >= moveAt;
+      const sorted = ((): UnitDrawOp[] => {
+        const raw9 = sortCacheRef.current.out.filter(inView0);
+        if (!lite9 && !liteYaw9) return raw9;
+        const out9: UnitDrawOp[] = [];
+        for (const op0 of raw9) {
+          let op = op0;
+          if (lite9 && (op.kind === "tankgun" || op.kind === "tanksiegegun")) continue;
+          let kind = op.kind;
+          let pose = op.pose ?? 0;
+          let rotDeg = op.rotDeg;
+          if (lite9) {
+            if (kind === "tankbody") kind = "tank";
+            else if (kind === "tanksiegebody") kind = "tanksiege";
+            const pk9 = POSE_KINDS[kind];
+            if (pk9 && !pk9.flap) {
+              const walk9 = pose === 1 || pose === 3;
+              if (!walk9 || !moveOk9 || !(pk9.move || pk9.thrust)) pose = 0;
+            } else if (!pk9) pose = 0;
+          }
+          if (liteYaw9 && rotDeg !== undefined) rotDeg = Math.round(rotDeg / 45) * 45;
+          if (kind !== op.kind || pose !== (op.pose ?? 0) || rotDeg !== op.rotDeg) {
+            op = { ...op, kind, pose: pose as UnitDrawOp["pose"], ...(rotDeg !== undefined ? { rotDeg } : {}) };
+          }
+          out9.push(op);
+        }
+        return out9;
+      })();
       /* ── (걷어냄) **겹침 이완** — 이것이 '슬라이딩'의 진범이었다 ────────────────
          지적: "슬라이딩 문제를 완전 잘못 짚은거 같아 … 진짜 원인은 유닛 겹침 허용과
          관련있을거 같거든? 그쪽을 파봐". 맞았다.
@@ -30191,6 +30236,78 @@ export default function ReplayMotionPlayer({
   const { buildsSrc, entWalks, castsSrc, nukeLase, gasBuildings, prodDoneAt, prodDoneByRaw, upsByRaw, nukeImpacts } = world;
   const engineRef9 = useRef<ReturnType<typeof createEngine9> | null>(null);
   const engineWorldRef9 = useRef<EngineWorld9 | null>(null);
+  /* ★ 프레임 워커(요청) — 셈은 워커가 미리, 메인은 붓만. 워커가 없거나(옛 브라우저) 던지면 메인
+     엔진(위 engineRef9)이 그대로 맡는다 — 두 길이 같은 코드라 그림이 안 갈린다. */
+  const frameWorkerRef = useRef<Worker | null>(null);
+  const wFramesRef = useRef<Map<number, Frame9>>(new Map());
+  const wStatRef = useRef({ got: 0, used: 0, missed: 0, err: "" });
+  /** 워커에 마지막으로 보낸(보낼) 세계 — 워커가 늦게 서면(동적 import) 그때 다시 보낸다. */
+  const worldMsgRef9 = useRef<unknown>(null);
+  useEffect(() => {
+    if (NOWORKER9 || typeof Worker === "undefined") return undefined;
+    let w9: Worker | null = null;
+    let dead9 = false;
+    const frames9 = wFramesRef.current;
+    /* ★ 워커 모듈은 **동적으로** 부른다 — vite는 `?worker&inline`을 인라인 워커 생성자로 만들고,
+       도구 스크립트의 esbuild 번들(model-shot·perf-check…)은 그 접미사를 몰라 보통 모듈로 묶는다
+       (default가 없다). 그 경우 그냥 워커 없이 간다 — 도구는 워커가 필요 없다. */
+    void import("./frameWorker?worker&inline").then((mod9) => {
+      if (dead9) return;
+      const Ctor9 = (mod9 as { default?: unknown }).default;
+      if (typeof Ctor9 !== "function") return;
+      try { w9 = new (Ctor9 as new () => Worker)(); } catch { return; }
+      wire9(w9);
+      frameWorkerRef.current = w9;
+      if (worldMsgRef9.current) w9.postMessage(worldMsgRef9.current);
+    }).catch(() => { /* 워커 없이 간다 */ });
+    const wire9 = (wk9: Worker): void => {
+    wk9.onmessage = (ev: MessageEvent<{ type: string; frame?: Frame9; message?: string }>) => {
+      const m9 = ev.data;
+      if (m9.type === "frame" && m9.frame) {
+        frames9.set(Math.round(m9.frame.t * 1000), m9.frame);
+        wStatRef.current.got += 1;
+        // 너무 많이 쌓이면(탐색 뒤 옛 것) 오래된 것부터 버린다 — 2초치(60장)면 넉넉하고 폰 메모리도 가볍다.
+        if (frames9.size > 60) {
+          const keys9 = [...frames9.keys()].sort((a9, b9) => a9 - b9);
+          for (let i9 = 0; i9 < keys9.length - 45; i9 += 1) frames9.delete(keys9[i9]);
+        }
+      } else if (m9.type === "err") {
+        wStatRef.current.err = m9.message ?? "?";
+        // eslint-disable-next-line no-console
+        console.warn("[scplay] 프레임 워커가 던졌다 — 메인 엔진으로 물러난다:", m9.message);
+        wk9.terminate();
+        frameWorkerRef.current = null;
+        frames9.clear();
+      }
+    };
+    wk9.onerror = (e9) => {
+      wStatRef.current.err = String(e9.message ?? e9);
+      wk9.terminate();
+      frameWorkerRef.current = null;
+      frames9.clear();
+    };
+    };
+    return () => { dead9 = true; w9?.terminate(); frameWorkerRef.current = null; frames9.clear(); };
+  }, []);
+  /** 워커에 넘길 편 표 — 함수는 못 넘기므로 임자마다 편 번호를 미리 푼다. */
+  const teamMap9 = useMemo(() => {
+    const m9: Record<string, 1 | 2> = {};
+    for (const b9 of bases) { const tm9 = teamOfRaw(b9.key); if (tm9) m9[b9.key] = tm9; }
+    for (const pl9 of entData?.players ?? []) { const tm9 = teamOfRaw(pl9.name); if (tm9) m9[pl9.name] = tm9; }
+    return m9;
+  }, [bases, entData, teamOfRaw]);
+  useEffect(() => {
+    const msg9 = {
+      type: "world", entData, truth,
+      grid: { width: grid.width, height: grid.height, resources: grid.resources },
+      bases: bases.map((b9) => ({ key: b9.key, race: b9.race })), teamMap: teamMap9, total,
+    };
+    worldMsgRef9.current = msg9;
+    const w9 = frameWorkerRef.current;
+    if (!w9) return;
+    wFramesRef.current.clear();
+    w9.postMessage(msg9);
+  }, [world, teamMap9, entData, truth, grid.width, grid.height, grid.resources, bases, total]);
   /* 건물 체력 자취(요청: 건물 체력바 — 실드·회복·불·수리 반영은 분석이 했다) —
      자리 열쇠(raw|x|y)로 그 건물의 체력 변곡점을 찾는다. */
   /** ★ 건물마다 **고른 체력 줄**을 기억해 둔다(성능) ─────────────────────────────────
@@ -33304,9 +33421,61 @@ export default function ReplayMotionPlayer({
   } else {
     engineRef9.current.setView(engView9);
   }
+  /* 시점 입력이 바뀌면 워커에도 알린다 — 색표는 참조로, 나머지는 값으로 견준다. */
+  const viewKey9 = `${engView9.mapW}|${engView9.mapH}|${engView9.tilePx.toFixed(3)}|${engView9.pitched ? 1 : 0}|${engView9.pitchFlat.toFixed(4)}`
+    + `|${engView9.geom.w}|${engView9.geom.h}|${engView9.geom.P.toFixed(1)}|${engView9.viewTeam}|${engView9.visAll ? 1 : 0}|${engView9.fogOn ? 1 : 0}`
+    + `|${engView9.qAnim ? 1 : 0}${engView9.qBuildFx ? 1 : 0}${engView9.qDeath ? 1 : 0}${engView9.clickFx ? 1 : 0}`;
+  const viewSentRef9 = useRef<{ key: string; colors: Record<string, string> } | null>(null);
+  {
+    const w9 = frameWorkerRef.current;
+    const sent9 = viewSentRef9.current;
+    if (w9 && (!sent9 || sent9.key !== viewKey9 || sent9.colors !== colorTable9)) {
+      viewSentRef9.current = { key: viewKey9, colors: colorTable9 };
+      wFramesRef.current.clear();
+      w9.postMessage({ type: "view", view: engView9 });
+    }
+  }
+  /* 시계 — t가 바뀔 때마다 워커에 알린다(렌더 안에서 보내도 된다: 값만 실린다). */
+  const clockSentRef9 = useRef<{ t: number; speed: number; playing: boolean } | null>(null);
+  {
+    const w9 = frameWorkerRef.current;
+    const c9 = clockSentRef9.current;
+    const playing9 = playing && active;
+    if (w9 && (!c9 || c9.t !== t || c9.speed !== speed || c9.playing !== playing9)) {
+      clockSentRef9.current = { t, speed, playing: playing9 };
+      w9.postMessage({ type: "clock", t, speed, playing: playing9 });
+    }
+  }
+  /** 워커 프레임 고르기 — t보다 앞서지 않은 것 중 가장 늦은 것. 한 걸음(speed/30)의 1.5배 안이면 쓴다. */
+  const pickWorkerFrame9 = (): Frame9 | null => {
+    const frames9 = wFramesRef.current;
+    if (frames9.size === 0) return null;
+    const step9 = Math.max(1 / 240, speed / 30);
+    let best: Frame9 | null = null;
+    for (const f9 of frames9.values()) {
+      if (f9.t > t + 1e-6) continue;
+      if (!best || f9.t > best.t) best = f9;
+    }
+    if (best && t - best.t <= step9 * 1.5) return best;
+    // 앞선 것이 없으면(막 탐색한 직후) 바로 뒤의 것이라도 한 걸음 안이면 쓴다.
+    let next: Frame9 | null = null;
+    for (const f9 of frames9.values()) {
+      if (f9.t < t) continue;
+      if (!next || f9.t < next.t) next = f9;
+    }
+    if (next && next.t - t <= step9 * 1.5) return next;
+    return null;
+  };
   const pEng9 = PERF9 ? pNow() : 0;
-  const frame9 = engineRef9.current.build(t);
-  if (PERF9) pAdd("엔진(프레임)", pNow() - pEng9);
+  const wFrame9 = pickWorkerFrame9();
+  if (wFrame9) wStatRef.current.used += 1; else if (frameWorkerRef.current) wStatRef.current.missed += 1;
+  const frame9 = wFrame9 ?? engineRef9.current.build(t);
+  if (PERF9) pAdd(wFrame9 ? "엔진(워커 프레임)" : "엔진(메인 프레임)", pNow() - pEng9);
+  // 워커 상태는 늘 적어 둔다(perf-check가 읽는다) — 문자열 하나라 값이 싸다.
+  SCR_DIAG.worker = `${frameWorkerRef.current ? "on" : "off"} got ${wStatRef.current.got} used ${wStatRef.current.used} missed ${wStatRef.current.missed}${wStatRef.current.err ? ` err ${wStatRef.current.err}` : ""}`;
+  if (typeof window !== "undefined" && !(window as unknown as { __scrDiag?: unknown }).__scrDiag) {
+    (window as unknown as { __scrDiag?: unknown }).__scrDiag = SCR_DIAG;
+  }
   const unitOps = frame9.unitOps;
   const fxOps = frame9.fxOps;
   const exploredAt = frame9.explored;
@@ -35685,6 +35854,10 @@ export default function ReplayMotionPlayer({
                종전 문턱(8배) 그대로다 — 같은 2배라도 유닛이 대여섯 픽셀이고, 화면에 남는
                유닛 수는 가장 많은 칸이라 삯을 그대로 다 치른다. */
             detailAt={wide ? ZOOM_STEPS[1] : ZOOM_STEPS[3]}
+            /* 붓 쪽 간이화 문턱(엔진은 늘 자세히 낸다 — UnitLayer의 ★ 주석): 요잉 열여섯 칸은 넓은
+               자리 셋째 칸(3배)·좁은 자리 넷째 칸(6배)부터, 걸음·추진 컷은 넓은 자리 2배·좁은 자리 3배부터. */
+            yawAt={wide ? ZOOM_STEPS[2] : ZOOM_STEPS[3]}
+            moveAt={wide ? ZOOM_STEPS[1] : ZOOM_STEPS[2]}
             /* 크립을 가두는 맵 모서리(재지적: 3D에서 크립이 영역을 벗어남) — 입체는 원근
                투영된 사다리꼴이라 네 모서리를 posFrac으로 투영해 넘긴다. 평면은 단위
                사각형이 나와 기존 직사각 클립과 같다. */

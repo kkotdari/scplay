@@ -359,7 +359,31 @@ function bundle() {
 /* ── 달리기 ─────────────────────────────────────────────────────────────────── */
 const world = makeWorld();
 console.log(`합성 세계: 트랙 ${world.nTracks}개 · motion ${(world.motion.length / 1024).toFixed(0)}KB`);
-const js = bundle();
+/* --vite — esbuild 대신 **vite로** 묶는다(프레임 워커 `?worker&inline`은 vite만 안다). 배포판과 같은
+   길이라 워커가 실제로 도는지를 여기서 잰다. 동적 import까지 한 파일에 넣는다(inlineDynamicImports). */
+async function bundleVite() {
+  const { build } = await import("vite");
+  const reactPlugin = (await import("@vitejs/plugin-react")).default;
+  const dir = mkdtempSync(join(tmpdir(), "perfcheck-vite-"));
+  const src = join(ROOT, "scripts", ".perf-entry.tmp.ts");
+  writeFileSync(src, ENTRY);
+  await build({
+    configFile: false, root: ROOT, logLevel: "error",
+    plugins: [reactPlugin()],
+    define: { "process.env.NODE_ENV": JSON.stringify("production"), __SCPLAY_BUILD__: JSON.stringify("perf") },
+    worker: { format: "es", plugins: () => [reactPlugin()], rollupOptions: { external: [] } },
+    build: {
+      outDir: dir, emptyOutDir: true, sourcemap: false, minify: false, cssCodeSplit: false,
+      lib: { entry: src, formats: ["es"], fileName: "entry" },
+      rollupOptions: { external: [], output: { inlineDynamicImports: true } },
+    },
+  });
+  const js = readFileSync(join(dir, "entry.js"), "utf8");
+  rmSync(dir, { recursive: true, force: true });
+  rmSync(src, { force: true });
+  return js;
+}
+const js = has("--vite") ? await bundleVite() : bundle();
 
 const TRACE = has("--trace");        // 크로뮴 트레이스 — 메인 스레드 밖(래스터·컴포짓)까지 본다
 /* --engine webkit — 웹킷으로 돌린다(요청·지적: "스테이지 문제 웹킷 쪽인가 봐 지금
@@ -432,13 +456,16 @@ await page.route("http://perf-check.local/*", (r) => r.fulfill({
   body: `<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width, initial-scale=1"><body style="margin:0"><div class="${WRAP}" style="padding:0 16px"><div id=root></div></div>`,
 }));
 // --diag — 진단 오버레이(#diag)를 켠 채로 띄운다(재생기가 주소 해시로 판단한다).
-await page.goto(`http://perf-check.local/${has("--diag") ? "#diag" : ""}`);
+/* 주소 해시 — #diag(진단 표시), noworker=1(프레임 워커 끄기·비교용). */
+const hash9 = [has("--diag") ? "diag" : "", has("--noworker") ? "noworker=1" : ""].filter(Boolean).join("&");
+await page.goto(`http://perf-check.local/${hash9 ? `#${hash9}` : ""}`);
 /* 앱 CSS — 레이어 크기·자리·이펙트가 전부 클래스에 실려 있어 없으면 화면이 안 선다.
    빌드 산출물(dist)의 CSS를 그대로 얹는다(npm run build가 먼저 돌아 있어야 한다). */
 const { readdirSync } = await import("node:fs");
 /* 빌드 산출물의 CSS 자리가 두 가지다 — 라이브러리 빌드는 dist/styles.css 한 장이고,
    앱 빌드는 dist/assets/*.css다. 둘 다 본다(없는 쪽은 건너뛴다). */
-const cssDir = existsSync(join(ROOT, "dist", "assets")) ? join(ROOT, "dist", "assets") : join(ROOT, "dist");
+const cssDir = [join(ROOT, "dist", "assets"), join(ROOT, "dist")]
+  .find((d) => existsSync(d) && readdirSync(d).some((f) => f.endsWith(".css"))) ?? join(ROOT, "dist");
 const cssFile = existsSync(cssDir) ? readdirSync(cssDir).find((f) => f.endsWith(".css")) : null;
 if (cssFile) {
   // addStyleTag는 이 오리진에서 onerror가 떠서(원인 미상) DOM으로 직접 붙인다.
@@ -1221,6 +1248,8 @@ const sprite = await page.evaluate(() => window.__spritePerf.line());
 const topLines = has("--top")
   ? await page.evaluate(() => `건물\n${window.__spriteTop("b")}\n유닛\n${window.__spriteTop("u")}`)
   : null;
+// 프레임 워커 상태(SCR_DIAG.worker) — on/off · 받은 수 · 쓴 수 · 놓친 수.
+try { console.log(`[워커] ${await page.evaluate(() => (window.__scrDiag && window.__scrDiag.worker) || "(진단 없음)")}`); } catch (e) { console.log("[워커] (못 읽음)", String(e).slice(0, 80)); }
 await browser.close();
 
 /* ── 결과 ───────────────────────────────────────────────────────────────────── */
@@ -1229,6 +1258,7 @@ for (let i = 1; i < frames.length; i += 1) dts.push(frames[i] - frames[i - 1]);
 dts.sort((a, b) => a - b);
 const pct = (q) => dts[Math.min(dts.length - 1, Math.floor(dts.length * q))] ?? 0;
 console.log(`\n[프레임] ${dts.length}개 표본 · CPU ${CPU}배 조임 · ${WIDE ? "PC 1280" : "폰 390"}px`);
+
 console.log(`  p50 ${pct(0.5).toFixed(1)}ms · p75 ${pct(0.75).toFixed(1)}ms · p95 ${pct(0.95).toFixed(1)}ms · 최악 ${dts[dts.length - 1].toFixed(1)}ms`);
 console.log(`  33ms 초과(=밀린 프레임) ${(dts.filter((d) => d > 33).length / dts.length * 100).toFixed(1)}%`);
 console.log(`\n[스프라이트] ${sprite}`);
