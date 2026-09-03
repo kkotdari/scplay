@@ -45,7 +45,7 @@ type WorldMsg = {
 type TruthMsg = { type: "truth"; truth: TruthTracks | null };
 type ViewMsg = { type: "view"; view: EngineView9 };
 type CmdMsg = { type: "cmd"; playing: boolean; t0: number; speed: number; aheadSec?: number; aheadBytes?: number };
-type WantMsg = { type: "want"; what: "walks" };
+type WantMsg = { type: "want"; what: "walks"; raw?: string };
 type Msg = WorldMsg | TruthMsg | ViewMsg | CmdMsg | WantMsg;
 
 let world: EngineWorld9 | null = null;
@@ -227,7 +227,10 @@ if (inWorker9) self.onmessage = (ev: MessageEvent<Msg>): void => {
       truthData = m.truth;
       deriveNow();
     } else if (m.type === "want") {
-      if (m.what === "walks") post({ type: "walks", entWalks: world?.entWalks ?? [] });
+      if (m.what === "walks") {
+        const all = world?.entWalks ?? [];
+        post({ type: "walks", entWalks: m.raw ? all.filter((e) => e.raw === m.raw) : all });
+      }
     } else if (m.type === "view") {
       view = m.view;
       if (engine) engine.setView(view); else rebuildEngine();

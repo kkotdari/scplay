@@ -65,7 +65,7 @@ import {
 } from "../../utils/openbwTracks";
 /* 자취 읽기는 유틸로 나갔다(과제 #61) — 코어가 걸음의 진실이 된 뒤로 이 파일의
    몫이 아니고, 밖에 있어야 자로 잴 수 있다(scripts/pos-check.mjs). */
-import { posAt, type TrackPos, type TrackPt } from "../../utils/replayTrack";
+import { posAt, posAtW, wT, EMPTY_WALK, type WalkView, type TrackPos, type TrackPt } from "../../utils/replayTrack";
 /* 무대에서 지도가 안 덮는 자리(2D의 그림 여유 띠 · 3D의 빈 귀퉁이)를 채우는 밤하늘 —
    경기마다 다른 한 장을 SVG로 지어 data URI로 돌려준다(그 파일 머리말). */
 import { spaceBackdropUrl } from "./spaceBackdrop";
@@ -19475,8 +19475,8 @@ export function cropToInk(
    다르다(무작위 200자취 × 300질의 × 2함수로 완전 일치 확인).
    자리(고리)마다 보관함을 따로 둔다 — 같은 자취를 '지금 시각'과 '되짚기'가 번갈아
    물으면 커서가 서로를 밀어내 매번 빗나간다. WeakMap이라 자취가 걷히면 같이 걷힌다. */
-const WALK_CUR_A9 = new WeakMap<TrackPt[], { i: number }>();   // 개체고리(표적 색인)
-const WALK_CUR_B9 = new WeakMap<TrackPt[], { i: number }>();   // 개체마커(그리기)
+const WALK_CUR_A9 = new WeakMap<object, { i: number }>();   // 개체고리(표적 색인)
+const WALK_CUR_B9 = new WeakMap<object, { i: number }>();   // 개체마커(그리기)
 const TRUTH_CUR9 = new WeakMap<object, { i: number }>();       // 참값 상태(ST_INSIDE)
 const curOf9 = <K extends object>(m9: WeakMap<K, { i: number }>, k9: K): { i: number } => {
   let c9 = m9.get(k9);
@@ -25097,7 +25097,8 @@ export function deriveWorld9(inp: {
       orders: number[];
       /** 그 사람의 연구 기록 — 걸음 속도 상한(요청)이 속업을 반영하는 재료. */
       ups: [number, string, number][] | undefined;
-      walk: [number, number, number][];
+      /** 걸음 — 참값 키를 생애 구간만 가리키는 창(WalkView). 복사가 없다(위 replayTrack의 ★). */
+      walk: WalkView;
       /** 걸음이 코어(simCore)에서 왔나 — 렌더러 보정을 끄는 열쇠(과제 #61). */
     }[] = [];
     for (const e of entData.lives) {
@@ -25158,11 +25159,13 @@ export function deriveWorld9(inp: {
          아래 그리기의 '언제부터 언제까지 보이나'가 생애가 아니라 태그 전체가 된다 —
          드론 곁에 라바와 알이 평생 따라다녔다. 구간 밖 키를 잘라 그 뿌리를 막는다. */
       const wEnd = e.died ?? Infinity;
-      const wk: [number, number, number][] = [];
-      for (let q = 0; q + 4 < ks.length; q += 5) {
-        if (ks[q] < e.born || ks[q] > wEnd) continue;
-        wk.push([ks[q], ks[q + 1], ks[q + 2]]);
-      }
+      /* 구간 [born, wEnd]의 키 범위 — 키는 시각순이라 이어진 한 토막이다. 복사 없이 창으로 가리킨다. */
+      const nK9 = Math.floor(ks.length / 5);
+      let k0 = 0;
+      while (k0 < nK9 && ks[k0 * 5] < e.born) k0 += 1;
+      let k1 = k0;
+      while (k1 < nK9 && ks[k1 * 5] <= wEnd) k1 += 1;
+      const wk: WalkView = k1 > k0 ? { ks, i0: k0, n: k1 - k0 } : EMPTY_WALK;
       {
         /** 안에 든 첫 키의 자리(-1이면 지금 밖) · 밖에 있던 마지막 키의 자리. */
         let in0 = -1;
@@ -25218,7 +25221,7 @@ export function deriveWorld9(inp: {
           });
         }
       }
-      if (wk.length === 0) continue;
+      if (wk.n === 0) continue;
       /* 상태(전수조사) — 시전 순간 그 자리에 있었으면 걸린다. 적이 건 것만(스태시스는
          아군 오폭도 언다). */
       const statuses: [number, number, string][] = [];
@@ -25226,7 +25229,7 @@ export function deriveWorld9(inp: {
         const cfg = STATUS_CASTS[tech5];
         if (!cfg) continue;
         if (!cfg.any && craw5 === raw) continue;
-        const pp5 = posAt(wk, cs5);
+        const pp5 = posAtW(wk, cs5);
         if (!pp5) continue;
         /* ★ **제 몸의 반지름만큼 더 센다**(지적: 스태시스에 걸린 무리인데 우리가 하나만
            그려진다) — 여태 시전 자리에서 유닛 **중심**까지의 거리만 봤다. 그런데 원작이
@@ -25292,8 +25295,8 @@ export function deriveWorld9(inp: {
   const nukeCasts = (() => entWalks
     .filter((q) => q.unit === "Nuclear Missile" && q.died !== null)
     .map((q) => {
-      const at = posAt(q.walk, q.died ?? 0);
-      const from = posAt(q.walk, q.born);
+      const at = posAtW(q.walk, q.died ?? 0);
+      const from = posAtW(q.walk, q.born);
       if (!at || !from || Math.hypot(at.x - from.x, at.y - from.y) < 6) return null;
       return [(q.died ?? 0) - NUKE_FALL_SEC - NUKE_LEAD_SEC,
         at.x, at.y, "Nuclear Strike", q.raw] as CastRow;
@@ -25302,8 +25305,8 @@ export function deriveWorld9(inp: {
   const nukeLase = (() => entWalks
     .filter((q) => q.unit === "Nuclear Missile" && q.died !== null)
     .map((q) => {
-      const at = posAt(q.walk, q.died ?? 0);
-      const from = posAt(q.walk, q.born);
+      const at = posAtW(q.walk, q.died ?? 0);
+      const from = posAtW(q.walk, q.born);
       if (!at || !from || Math.hypot(at.x - from.x, at.y - from.y) < 6) return null;
       return { t0: q.born, t1: q.died ?? 0, x: at.x, y: at.y };
     })
@@ -25335,7 +25338,7 @@ export function deriveWorld9(inp: {
          그것도 터진 증거다. */
       const entDied = entWalks.some((q9) => {
         if (q9.died === null || q9.died < sec - 1 || q9.died > sec + 3) return false;
-        const p9 = posAt(q9.walk, Math.min(q9.died, sec));
+        const p9 = posAtW(q9.walk, Math.min(q9.died, sec));
         return !!p9 && Math.hypot(p9.x - c[1], p9.y - c[2]) <= 4;
       });
       /* 미사일 자신의 죽음이 곧 착탄 증거다(수리: 핵 연출 복원) — 날아간 미사일이 그
@@ -25344,7 +25347,7 @@ export function deriveWorld9(inp: {
       const msHit = entWalks.some((q9) => {
         if (q9.unit !== "Nuclear Missile" || q9.died === null) return false;
         if (Math.abs(q9.died - sec) > 1.5) return false;
-        const p9 = posAt(q9.walk, q9.died);
+        const p9 = posAtW(q9.walk, q9.died);
         return !!p9 && Math.hypot(p9.x - c[1], p9.y - c[2]) <= 3;
       });
       return { sec, x: c[1], y: c[2], confirmed: bldGone || entDied || msHit };
@@ -25524,7 +25527,10 @@ export function deriveWorld9(inp: {
       // (스토리 다이어트) 적 접근은 v2 개체 자취로 잰다 — v1 pts는 더 안 실린다.
       for (const q of entWalks) {
         if (teamOfRaw(q.raw) === teamOfRaw(raw)) continue;
-        for (const [ps, px, py] of q.walk) {
+        for (let wi9 = 0; wi9 < q.walk.n; wi9 += 1) {
+          const ps = wT(q.walk, wi9);
+          const px = q.walk.ks[(q.walk.i0 + wi9) * 5 + 1];
+          const py = q.walk.ks[(q.walk.i0 + wi9) * 5 + 2];
           if (ps <= sec + 4 || Math.hypot(px - x, py - y) > 2) continue;
           if (boom === 0 || ps < boom) boom = ps;
           break;
@@ -25662,12 +25668,12 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
            자리는 표본 수가 아니라 찍는 원의 넓이라(시야 8타일이면 원 하나가 200칸),
            서 있는 유닛은 첫 한 번이면 족하다. */
         for (const e9 of entWalks) {
-          if ((!visAll && teamOfRaw(e9.raw) !== viewTeam) || e9.walk.length === 0) continue;
+          if ((!visAll && teamOfRaw(e9.raw) !== viewTeam) || e9.walk.n === 0) continue;
           const r9 = sightTiles(e9.unit || "Marine");
           const end9 = Math.min(e9.died ?? total, tCap);
           let lastK = -1;
           for (let s9 = e9.born; s9 <= end9; s9 += 1.2) {
-            const q9 = posAt(e9.walk, s9);
+            const q9 = posAtW(e9.walk, s9);
             if (!q9) continue;
             const k9 = Math.floor(q9.y) * gw9 + Math.floor(q9.x);
             if (k9 === lastK) continue;
@@ -25805,7 +25811,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       m9.set(key, { ph, deg: prev.deg, len: prev.len });
       return { deg: prev.deg, len: prev.len };
     };
-    const headingOf = (walk: TrackPt[], pos: { x: number; y: number }, smoothKey?: string): number => {
+    const headingOf = (walk: WalkView, pos: { x: number; y: number }, smoothKey?: string): number => {
       let target = 0;
       /* ★ **멈춘 유닛은 되짚기를 4Hz로만**(계측: 개체마커 3.4ms) ─────────────────────
          이 되짚기는 움직이는 유닛에서는 첫 창(0.3초)에 바로 끝나지만, **멈춘 유닛은 여섯
@@ -25823,7 +25829,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         lb9 = mem0.lb;
       } else {
         for (const back of [0.3, 0.8, 2, 4, 8, 15]) {
-          const hp = posAt(walk, Math.max(0, t - back));
+          const hp = posAtW(walk, Math.max(0, t - back));
           if (!hp) break;
           const dx = pos.x - hp.x;
           const dy = pos.y - hp.y;
@@ -25954,7 +25960,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
          싸우고, 터렛·벙커 발사도 이 목록으로 겨눈다. */
       const pS9_개체고리 = PERF9 ? pNow() : 0;
       for (const e of entWalks) {
-        if (e.walk.length === 0 || t < e.born) continue;
+        if (e.walk.n === 0 || t < e.born) continue;
         if (e.died !== null && t >= e.died) continue;
         /* 유령 상대 제거(지적: 주변에 공격할 게 없는데 공격 모션) — 화면 규칙으로 이미
            죽었거나(체력 0 조기 사망) 숨은(수송 탑승·건설 흡수) 개체가 목록에 남아, 곁
@@ -25988,7 +25994,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           if (t >= bb9[0] && t < bb9[1]) { hid9 = true; break; }
         }
         if (hid9) continue;
-        const q = posAt(e.walk, t, curOf9(WALK_CUR_A9, e.walk));
+        const q = posAtW(e.walk, t, curOf9(WALK_CUR_A9, e.walk));
         if (!q) continue;
         /* 안에 든 몸은 표적이 아니다 — 태운 것(벙커·수송선)이 표적이다. 화면은 이미
            같은 자로 이 몸을 안 그리는데(아래 렌더의 ST_INSIDE), 표적 지도에는 남아 있어
@@ -26534,7 +26540,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         const at9 = inW9 ? r9.a : r9.b;
         if (!rideCarriers9) {
           rideCarriers9 = entWalks.filter((c9) => RIDE_CARRIERS.has(c9.unit)
-            && c9.walk.length > 0);
+            && c9.walk.n > 0);
         }
         /** 그 순간 곁에 있던 **같은 임자의 배** — 가장 가까운 하나. */
         let ship9: (typeof entWalks)[number] | null = null;
@@ -26542,7 +26548,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         for (const c9 of rideCarriers9) {
           if (c9.raw !== e9.raw || c9.tag === e9.tag) continue;
           if (at9 < c9.born || (c9.died !== null && at9 >= c9.died)) continue;
-          const cp9 = posAt(c9.walk, at9);
+          const cp9 = posAtW(c9.walk, at9);
           if (!cp9) continue;
           const d9 = Math.hypot(cp9.x - ux9, cp9.y - uy9);
           if (d9 >= sd9) continue;
@@ -26578,14 +26584,14 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
            맞는 답이므로 그쪽만 얼린 채 둔다. 이때 움직이는 것은 배 쪽 끝뿐인데, 그것이
            곧 '몸을 태우고 떠나는' 그림이라 물리로도 맞다.
            죽은 뒤에는 죽은 자리에 멈춘다(posAt은 자취 끝을 넘어서면 마지막 점을 준다). */
-        const snow9 = posAt(ship9.walk,
+        const snow9 = posAtW(ship9.walk,
           ship9.died !== null ? Math.min(t, ship9.died) : t);
         if (!snow9) continue;
         /** 배가 떠 있는 몫(px) — 배는 **공중**이라 줄의 저쪽 끝은 하늘에 있다. */
         const slift9 = isAirUnit(ship9.unit)
           ? (mapW9 / Math.max(1, grid.width)) * 1.5 : 0;
         const unow9 = outW9
-          ? posAt(e9.walk, e9.died !== null ? Math.min(t, e9.died) : t) : null;
+          ? posAtW(e9.walk, e9.died !== null ? Math.min(t, e9.died) : t) : null;
         const [ufx9, ufy9] = posFrac(unow9?.x ?? ux9, unow9?.y ?? uy9);
         const [sfx9, sfy9] = posFrac(snow9.x, snow9.y);
         /* ★ 줄은 **몸 위에서** 시작한다(지적: "점선이 유닛 중간까지 이어서 유닛까지 가려지는
@@ -28220,7 +28226,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     const r9 = entWalks.map((e, ei) => {
     const rp = e.walk;
     // 이 생애가 시작하기 전에는 안 그린다 — 걸음이 이미 구간으로 잘려 있다(위 ★).
-    if (rp.length === 0 || t < e.born) return null;
+    if (rp.n === 0 || t < e.born) return null;
     /* 죽음의 주인은 하나다(과제 #69) — 시뮬이 돌면 시뮬, 아니면 분석의 d다.
        분석이 체력 자취를 d에서 0으로 맞춰 주므로 '체력바가 0이면 즉사'는 저절로
        성립한다(체력 0 = d). 셋을 견주던 옛 사슬은 걷었다 — 그 셋이 서로 달라서
@@ -28252,7 +28258,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
        자취는 이미 제 시각에 제자리라, 여기서 시각을 미루면 코어가 낸 값을
        렌더러가 도로 흔드는 꼴이 된다. */
     const eff9 = t;
-    const rawPos = posAt(rp, eff9, curOf9(WALK_CUR_B9, rp));
+    const rawPos = posAtW(rp, eff9, curOf9(WALK_CUR_B9, rp));
     if (!rawPos) return null;
     /* 시점 보기 — **적 유닛은 지금 보이는 자리에 있을 때만** 그린다(요청:
        원작대로 3단). 밝혀 둔 자리(1단)라도 유닛은 안 남는다 — 원작이 기억하는
@@ -28797,7 +28803,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
          죽은 몸이 **걸렸던 옛 자리**에서 터졌다. 갇힌 동안은 무적이라 그 창
          안에서 죽는 일 자체가 없으므로, 이 갈래가 맞을 수 있는 경우도 없다. */
       const dsim0 = simTr ? posAtSim(simTr, dieAt) : null;
-      const dp0 = dsim0 ?? posAt(rp, Math.max(rp[0][0], dieAt));
+      const dp0 = dsim0 ?? posAtW(rp, Math.max(wT(rp, 0), dieAt));
       const dpx = dp0 ? dp0.x : ax3;
       const dpy = dp0 ? dp0.y : ay3;
       /** 죽은 몸의 화면 크기 — 뜨는 높이와 터지는 크기가 같은 자를 쓴다. */
@@ -29911,14 +29917,14 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
           let bd9 = STATUS_CASTS.Irradiate.r;
           let found9 = false;
           for (const q9 of entWalks) {
-            if (q9.raw === raw || q9.walk.length === 0) continue;
-            const p09 = posAt(q9.walk, sec);
+            if (q9.raw === raw || q9.walk.n === 0) continue;
+            const p09 = posAtW(q9.walk, sec);
             if (!p09) continue;
             const d09 = Math.hypot(x - p09.x, y - p09.y);
             if (d09 > bd9) continue;
             bd9 = d09;
             found9 = true;
-            hit9 = q9.died !== null && t >= q9.died ? null : posAt(q9.walk, t);
+            hit9 = q9.died !== null && t >= q9.died ? null : posAtW(q9.walk, t);
           }
           if (found9 && !hit9) return null;   // 표적이 죽었다 — 효과도 끝이다.
           if (hit9) { afx9 = hit9.x; afy9 = hit9.y; }
@@ -30308,7 +30314,7 @@ export default function ReplayMotionPlayer({
   /** 걷기 — 추적을 켤 때 워커에 청해 받는다(아래 want walks). 세계가 바뀌면 비운다. */
   const [entWalks9, setEntWalks9] = useState<EngineWorld9["entWalks"]>([]);
   const entWalks = entWalks9;
-  const walksAskedRef9 = useRef(false);
+  const walksAskedRef9 = useRef<string | null>(null);
   /** 세계 세대 — 워커가 새 worldui를 보낼 때마다 오른다(걷기를 다시 청하는 자). */
   const [worldGen9, setWorldGen9] = useState(0);
   /** 워커가 어림한 제 메모리(참값·파생) — ready에 실려 온다. */
@@ -30430,7 +30436,7 @@ export default function ReplayMotionPlayer({
       } else if (m9.type === "worldui" && m9.ui) {
         setWorldUi9(m9.ui);
         setEntWalks9([]);
-        walksAskedRef9.current = false;
+        walksAskedRef9.current = null;
         setWorldGen9((g9) => g9 + 1);
       } else if (m9.type === "walks") {
         setEntWalks9((m9 as unknown as { entWalks: EngineWorld9["entWalks"] }).entWalks ?? []);
@@ -31110,11 +31116,12 @@ export default function ReplayMotionPlayer({
   /** 태그 → 그 태그의 유닛 생애들 — 변태로 갈린 생애가 같은 태그를 나눠 쓴다. */
   /* 걷기는 추적을 켤 때 워커에 청한다 — 세계가 바뀌었으면(worldGen9) 다시. */
   useEffect(() => {
-    if (!trackRaw || walksAskedRef9.current) return;
+    if (!trackRaw || walksAskedRef9.current === trackRaw) return;
     const w9 = frameWorkerRef.current;
     if (!w9) return;
-    walksAskedRef9.current = true;
-    w9.postMessage({ type: "want", what: "walks" });
+    walksAskedRef9.current = trackRaw;
+    // 그 임자의 걷기만 — 걷기 창은 참값 키 배열을 가리키므로 복제하면 그 트랙의 키가 통째로 건너온다. 임자 하나면 견딜 만하다.
+    w9.postMessage({ type: "want", what: "walks", raw: trackRaw });
   }, [trackRaw, worldGen9, workerTick9]);
   const walksByTag = useMemo(() => {
     const m9 = new Map<number, typeof entWalks>();
@@ -31142,7 +31149,7 @@ export default function ReplayMotionPlayer({
   const bodyAt9 = useCallback((tag9: number, sec9: number): { x: number; y: number } | null => {
     for (const e9 of walksByTag.get(tag9) ?? []) {
       if (sec9 < e9.born || (e9.died !== null && sec9 > e9.died)) continue;
-      const p9 = posAt(e9.walk, sec9);
+      const p9 = posAtW(e9.walk, sec9);
       if (p9) return { x: p9.x, y: p9.y };
     }
     for (const b9 of bldsByTag.get(tag9) ?? []) {

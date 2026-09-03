@@ -457,6 +457,7 @@ if (has("--msgsize")) {
       set(fn) {
         d.set.call(this, (ev) => {
           const m = ev.data;
+          if (m && m.type === "ready" && m.bytes) st.ready = m.bytes;
           if (m && m.type === "frame" && m.buf) {
             // 싼 설계도: buf(Float64Array, transfer) + strs + 안개(바뀐 장만). json 몫은 문자열 표뿐이다.
             const fog = m.fog ? (m.fog.visSrc.byteLength + (m.fog.explored ? m.fog.explored.byteLength : 0) + (m.fog.visNow ? m.fog.visNow.byteLength : 0)) : 0;
@@ -1303,6 +1304,11 @@ if (has("--msgsize")) {
     return `올림: ${up}\n  프레임 ${st.frames}장 · 장당 json ${(st.fJson / n / 1024).toFixed(1)}KB + typed ${(st.fTyped / n / 1024).toFixed(1)}KB (최대 ${(st.fMax / 1024).toFixed(0)}KB) · 장당 unitOps ${(st.fOps / n).toFixed(0)} · 안개 실린 장 ${st.fFog || 0} · 합 ${mb(st.fJson + st.fTyped)}`;
   });
   console.log("[메시지]", r);
+  console.log("[워커 메모리]", await page.evaluate(() => {
+    const b = (window.__msgStat || {}).ready; if (!b) return "없음";
+    const mb = (n) => `${(n / 1048576).toFixed(1)}MB`;
+    return `참값 ${mb(b.truth)} · 파생 ${mb(b.world)} · 상위: ${(b.top || []).map(([k, v]) => `${k} ${mb(v)}`).join(" · ")}`;
+  }));
   console.log("[시계]", await page.evaluate(() => {
     const st = window.__msgStat; if (!st || !st.cmds) return "없음";
     const cmds = st.cmds.slice(-6).map(([w, t0, p, sp]) => `${(w / 1000).toFixed(1)}s→t0 ${t0.toFixed(2)}${p ? "" : "(정지)"}×${sp}`).join(" · ");

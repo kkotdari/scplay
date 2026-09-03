@@ -76,3 +76,45 @@ export function posAt(pts: TrackPt[], t: number, cur?: TrackCur): TrackPos | nul
     moving: !still, sinceLast: still ? t - s0 : 0,
   };
 }
+
+/* ★ 걷기 **창**(요청: 메모리 — 워커 파생 자료 182MB의 90%가 걷기였다) ─────────────────────────────────
+ *  참값 트랙의 키(Float32Array, 한 키 = [초, x, y, …] 다섯 칸)를 생애 구간만 **가리킨다**. 복사가 없다 —
+ *  옛 `[초, x, y][]`는 키마다 배열 객체 하나(60~80B)라 참값(20B)의 서너 배였다. */
+export type WalkView = { ks: Float32Array; i0: number; n: number };
+export const EMPTY_WALK: WalkView = { ks: new Float32Array(0), i0: 0, n: 0 };
+export const wT = (w: WalkView, i: number): number => w.ks[(w.i0 + i) * 5];
+export const wX = (w: WalkView, i: number): number => w.ks[(w.i0 + i) * 5 + 1];
+export const wY = (w: WalkView, i: number): number => w.ks[(w.i0 + i) * 5 + 2];
+/** posAt과 같은 셈을 창 위에서 한다(같은 커서 규칙). */
+export function posAtW(w: WalkView, t: number, cur?: TrackCur): TrackPos | null {
+  const n = w.n;
+  if (n === 0) return null;
+  const ks = w.ks;
+  const b = w.i0 * 5;
+  const T = (i: number): number => ks[b + i * 5];
+  const X = (i: number): number => ks[b + i * 5 + 1];
+  const Y = (i: number): number => ks[b + i * 5 + 2];
+  if (t <= T(0)) return { x: X(0), y: Y(0), moving: false, sinceLast: Infinity };
+  if (t >= T(n - 1)) return { x: X(n - 1), y: Y(n - 1), moving: false, sinceLast: t - T(n - 1) };
+  let lo = -1;
+  if (cur) {
+    const h9 = cur.i;
+    if (h9 >= 0 && h9 < n - 1 && T(h9) <= t && T(h9 + 1) > t) lo = h9;
+    else if (h9 >= -1 && h9 + 2 < n && T(h9 + 1) <= t && T(h9 + 2) > t) lo = h9 + 1;
+  }
+  if (lo < 0) {
+    lo = 0;
+    let hi = n - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (T(mid) <= t) lo = mid; else hi = mid - 1;
+    }
+  }
+  if (cur) cur.i = lo;
+  const s0 = T(lo); const x0 = X(lo); const y0 = Y(lo);
+  const s1 = T(lo + 1); const x1 = X(lo + 1); const y1 = Y(lo + 1);
+  const dt0 = Math.max(0.001, s1 - s0);
+  const k = (t - s0) / dt0;
+  const still = Math.hypot(x1 - x0, y1 - y0) / dt0 < 0.4;
+  return { x: x0 + (x1 - x0) * k, y: y0 + (y1 - y0) * k, moving: !still, sinceLast: still ? t - s0 : 0 };
+}
