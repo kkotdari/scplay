@@ -1057,7 +1057,7 @@ function fistFaces(x: number, y: number, z: number, r: number, fill: string): Sh
  *   flame 옛 불꽃 방추 · disc 납작 원판(겹 세 장 그러데이션) · drum 짧은 드럼통(테 + 달아오른 끝면)
  *   · halo 원판 + 아주 옅은 짧은 여운. */
 type ThrustStyle = "flame" | "disc" | "drum" | "halo";
-const THRUST_STYLE_DEFAULT: ThrustStyle = "flame";
+const THRUST_STYLE_DEFAULT: ThrustStyle = "drum";   // 고름: 3번 드럼통(+ 번지는 에너지)
 const thrustStyleNow = (): ThrustStyle =>
   ((globalThis as unknown as { __thrustStyle?: ThrustStyle }).__thrustStyle) ?? THRUST_STYLE_DEFAULT;
 function thrustFlame(
@@ -1092,10 +1092,14 @@ function thrustFlame(
   if (style === "drum") {
     /* 짧은 드럼통 — 옆면은 종족색 테(반투명), 뒤 끝면은 달아오른 심(밝은색, 불투명에 가깝게).
        길이는 반지름의 0.6. 끝면 가운데에 더 작은 심 한 장을 얹어 두 단 그러데이션. */
+    /* + **번지는 반투명 에너지**(재요청): 끝면 뒤로 한 치 더 넓은 옅은 원판 한 장(빛무리)과,
+       뒤로 짧게(1.5r) 사그라드는 아주 옅은 방추 하나. 둘 다 반투명이라 통이 그대로 읽힌다. */
     return tagKey([
       ...drum(r * 1.05, y, r * 0.6, outer, 0.55, "none"),
       ...drum(r * 1.05, y - r * 0.6, r * 0.02, mid, 0.85),
       ...drum(r * 0.55, y - r * 0.62, r * 0.02, inner, 1.0),
+      ...drum(r * 1.5, y - r * 0.66, r * 0.02, outer, 0.22),
+      ...cone(r * 0.85, r * 1.5, mid, 0.26),
     ], key);
   }
   if (style === "halo") {
