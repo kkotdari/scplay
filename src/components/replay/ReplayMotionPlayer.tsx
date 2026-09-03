@@ -33585,12 +33585,24 @@ export default function ReplayMotionPlayer({
                브루드워에서 포탑 부속을 가진 지상 유닛은 시즈 탱크와 골리앗 둘뿐이고,
                탱크는 이미 같은 까닭으로 여기 들어 있다. */
             const turretUnit9 = drawUnit.startsWith("Siege Tank") || drawUnit === "Goliath";
+            const tgtTag9 = ((): number => {
+              const ta9 = e.tgt;
+              if (!ta9) return 0;
+              let v9 = 0;
+              for (const [ts9, tv9] of ta9) { if (ts9 > t) break; v9 = tv9; }
+              return v9;
+            })();
             const wantFoe9 = simState !== null
               /* 표적 찾기의 문턱도 트레이서와 같다(요청: 2배부터) — 겨눈 표적이 없으면
                  각도(beamDeg)도 길이(beamLen)도 없어 트레이서를 아예 못 만든다. 포탑
                  판은 여전히 4배 이상에서만 얹히지만(아래 gunKind 게이트) 겨눔은 그보다
                  낮은 칸에서도 필요해졌다. */
-              ? (!markerView && (((simState === ST_FIGHT || turretUnit9)
+              /* ★ **쫓는 유닛도 찾는다**(지적: "도망가는 오버로드를 상대가 타게팅을 못하는지 트레이서가
+                 안 나가") — 참값의 ST_FIGHT는 사격 명령이 붙은 프레임에만 서고, 달아나는 표적을 뒤쫓는
+                 동안은 MOVE다. 표적(order_target)은 참값이 계속 들고 있으므로 MOVE + 표적이면 찾아 두고,
+                 싸우는지는 아래 chaseAim9가 사거리로 가른다. */
+              ? (!markerView && (((simState === ST_FIGHT || turretUnit9
+                || (simState === ST_MOVE && tgtTag9 !== 0))
                 && canFight && !frzSt && tracerView)
                 || burrowed))
               : true;
@@ -33611,13 +33623,6 @@ export default function ReplayMotionPlayer({
                ★ 딸려 사라진 삯 — 매 프레임 적 명단을 8타일 격자에 담고, 후보마다 지형
                  레이캐스트(sightBlocked)를 쏘고, 어택 명령 45초 창을 역순으로 훑던 일이
                  전부 태그 한 번 찾기로 바뀐다(계측에서 표적찾기·시야가 늘 위쪽이었다). */
-            const tgtTag9 = ((): number => {
-              const ta9 = e.tgt;
-              if (!ta9) return 0;
-              let v9 = 0;
-              for (const [ts9, tv9] of ta9) { if (ts9 > t) break; v9 = tv9; }
-              return v9;
-            })();
             /* ★ 편·체력도 함께 싣는다 — 메딕의 표적은 **적이 아니라 아군**이라, 이
                표적이 '고칠 수 있는 몸인가'를 묻는 데 그 둘이 든다(아래 healing9).
                때리는 쪽에는 안 쓰이므로 값을 더 셈하지 않는다(명단이 이미 들고 있다). */
@@ -33690,8 +33695,15 @@ export default function ReplayMotionPlayer({
               && isKnownKind(drawUnit)
               && foe.bd <= reachTiles(drawUnit,
                 foe.uk && isKnownKind(foe.uk) ? foe.uk : drawUnit, foe.air);
+            /* ★ 쫓으며 쏜다(같은 지적) — 포탑 유닛의 자와 같다: 참값의 표적이 있고, 적이며, 제 사거리 안이면
+               MOVE 상태여도 싸우는 것으로 본다. 원작에서 달아나는 표적을 뒤쫓는 유닛은 사거리에 들 때마다
+               쏘는데, 그 짧은 사격 프레임은 덤퍼의 키 사이로 빠지기 일쑤였다. */
+            const chaseAim9 = simState === ST_MOVE && tgtTag9 !== 0 && Number.isFinite(foe.bd)
+              && (foe.team ?? 0) !== (team ?? 0) && isKnownKind(drawUnit)
+              && foe.bd <= reachTiles(drawUnit,
+                foe.uk && isKnownKind(foe.uk) ? foe.uk : drawUnit, foe.air);
             let fighting = simState !== null
-              ? ((simState === ST_FIGHT || turretAim9) && canFight && !frzSt && !burrowed)
+              ? ((simState === ST_FIGHT || turretAim9 || chaseAim9) && canFight && !frzSt && !burrowed)
               : (canFight && !frzSt && !burrowed && Number.isFinite(foe.bd)
                 && (foe.bd <= acq9 * (engagedBefore ? 1.3 : 1)
                   || (foe.bld === true && foe.bd <= ENGAGE_SIGHT_TILES * 1.6)));
@@ -33911,7 +33923,10 @@ export default function ReplayMotionPlayer({
               /* 공중은 떠 있던 몸 자리에서 터진다(지적) — 비행 높이만큼 위로. */
               /* 죽음 효과는 사라진 몸이 있던 자리에 서므로, 그 몸이 그려지던 높이를
                  그대로 따른다 — 들기 몫의 두 배다(터지는 불꽃이 몸보다 위로 솟는다). */
-              const dieLift = uAir ? airLiftPxOf(dpy) * 2 : 0;
+              /* 들기는 **몸과 같은 한 배**(지적: "오버로드가 도망가다 죽을 때 다시 돌아가는 모습") — 두 배로
+                 띄우니 터지는 자리가 몸이 있던 자리에서 화면 위로 한 뼘 튀어, 아래로 달아나던 몸이 왔던 쪽으로
+                 되돌아간 것처럼 읽혔다. 솟는 몫은 애니(1.7배 부풂)가 맡는다. */
+              const dieLift = uAir ? airLiftPxOf(dpy) : 0;
               /* ★ 반환하지 않고 **효과 시트로 보낸다**(지적: 아이폰에서 사망 효과 흐림)
                  — 이 루프의 그릇(렌즈)은 transform 확대라 iOS가 1배로 굽는다. 시트는
                  확대를 레이아웃으로 안으므로 px에 배율을 손수 곱한다(시트 주석). */
