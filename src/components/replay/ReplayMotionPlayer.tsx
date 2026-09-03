@@ -22749,7 +22749,7 @@ const EMPTY_ARR9: never[] = [];
 const REACT_STEP_MS9 = 100;
 /** 핵이 떠 있는 동안의 React 박자(ms) — 핵 낙하·폭발은 CSS 애니메이션을 재생 시각으로 긁는(paused + delay) 방식이라
  *  React 갱신 박자가 곧 그 효과의 프레임이다(지적: 핵 낙하·폭발 프레임이 낮아 보임). 그동안만 25Hz로 올린다. */
-const REACT_STEP_NUKE_MS9 = 40;
+const REACT_STEP_NUKE_MS9 = 0;   // 40 → 0(지적: 25Hz로도 안 매끄러움) — 핵·스톰 동안은 그리기 틱마다(폰 45Hz·PC 60Hz) 렌더한다.
 /** 워커가 보낸 설계도 한 장 — 숫자 배열(unpack9로 푼다) + 안개(바뀐 장에만) + 짓기 ms. 푼 결과는 dec에 붙인다. */
 export type PackedFrame9 = {
   t: number; buf: Float32Array; strs: string[];
