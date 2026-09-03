@@ -21697,18 +21697,26 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
     const eq = 1 - (1 - q) * (1 - q);
     const x = ax + Math.cos(an) * v * eq;
     const y = ay + Math.sin(an) * v * eq * 0.6 - W * 0.25 * eq + g * q * q;
-    // 네 모서리 — 회전한 직사각형(가로 sz·세로 sz×0.6).
+    /* 꼴은 셋(재지적: 면만 있으면 꽃가루 같다) — 셋에 하나는 **가는 줄**(핏줄기·부품 막대), 나머지는
+       살은 **무작위 타원**(둥근 살점), 기계는 **각진 직사각형**(쇳조각). */
     const cx = Math.cos(rot), sx = Math.sin(rot);
-    const hw = sz, hh = sz * 0.6;
-    const fill = mat === "toss" ? mixHex(pal[i % 2], "#dff2ff", q) : pal[i % 3];
-    ctx.globalAlpha = mat === "toss" ? (1 - q) ** 0.6 : (q < 0.7 ? 1 : (1 - q) / 0.3);
-    ctx.fillStyle = fill;
-    ctx.beginPath();
-    ctx.moveTo(x + cx * hw - sx * hh, y + sx * hw + cx * hh);
-    ctx.lineTo(x - cx * hw - sx * hh, y - sx * hw + cx * hh);
-    ctx.lineTo(x - cx * hw + sx * hh, y - sx * hw - cx * hh);
-    ctx.lineTo(x + cx * hw + sx * hh, y + sx * hw - cx * hh);
-    ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = q < 0.7 ? 1 : (1 - q) / 0.3;
+    ctx.fillStyle = pal[i % 3];
+    if (i % 3 === 2) {
+      ctx.strokeStyle = pal[i % 3]; ctx.lineWidth = Math.max(0.6, sz * 0.28); ctx.lineCap = "round";
+      const L = sz * 2.2;
+      ctx.beginPath(); ctx.moveTo(x - cx * L, y - sx * L); ctx.lineTo(x + cx * L, y + sx * L); ctx.stroke();
+    } else if (wet) {
+      ctx.beginPath(); ctx.ellipse(x, y, sz * (0.7 + (i % 4) * 0.15), sz * (0.5 + (i % 3) * 0.2), rot, 0, Math.PI * 2); ctx.fill();
+    } else {
+      const hw = sz, hh = sz * 0.6;
+      ctx.beginPath();
+      ctx.moveTo(x + cx * hw - sx * hh, y + sx * hw + cx * hh);
+      ctx.lineTo(x - cx * hw - sx * hh, y - sx * hw + cx * hh);
+      ctx.lineTo(x - cx * hw + sx * hh, y - sx * hw - cx * hh);
+      ctx.lineTo(x + cx * hw + sx * hh, y + sx * hw - cx * hh);
+      ctx.closePath(); ctx.fill();
+    }
   }
   // ③ 곁들이 — 기계는 연기, 살은 핏방울, 프로토스는 반짝이.
   if (mat === "mech") {
