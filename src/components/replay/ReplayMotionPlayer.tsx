@@ -29987,6 +29987,15 @@ export type PackedFrame9 = {
   t: number; buf: Float32Array; strs: string[];
   fog: { explored: Uint16Array | null; visNow: Uint8Array | null; visSrc: Float32Array } | null;
   ms: number; /** 유닛 op 수(진단) */ n: number; dec?: Frame9;
+  /** 보간용 — 이 장의 유닛 op 열쇠 표(다음 장으로 쓰일 때) · 이 장을 바탕으로 한 보간 프레임(앞 장으로 쓰일 때). */
+  byKey?: Map<string, UnitDrawOp>; lerp?: { frame: Frame9; ops: UnitDrawOp[] };
+};
+/** 보간 열쇠 — 같은 개체의 같은 부위(몸·포탑·짐)를 두 장에서 잇는다. 열쇠가 없는 op(효과·장식)는 안 잇는다. */
+const lerpKey9 = (op: UnitDrawOp): string | null => (op.pickKey ? `${op.pickKey}|${op.kind}|${op.attach ?? ""}` : null);
+const lerpAng9 = (a: number, b: number, u: number): number => {
+  let d = ((b - a) % 360 + 540) % 360 - 180;
+  if (d > 180) d -= 360;
+  return a + d * u;
 };
 
 export default function ReplayMotionPlayer({
@@ -30323,8 +30332,6 @@ export default function ReplayMotionPlayer({
     engMs: 0, packMs: 0, fogMs: 0, fogN: 0, resets: 0, skew: 0,
   });
   const lastFrameRef9 = useRef<Frame9 | null>(null);
-  /** 마지막으로 푼 설계도 — 새 장을 풀면 이것의 푼 객체를 놓는다. */
-  const lastDecodedRef9 = useRef<PackedFrame9 | null>(null);
   /** 워커에 마지막으로 보낸(보낼) 세계 — 워커가 늦게 서면(동적 import) 그때 다시 보낸다. */
   const worldMsgRef9 = useRef<unknown>(null);
   /** 주인의 지금 상태(렌더마다 갱신) — 프레임 버림·안개 판 정리의 자. */
@@ -33710,10 +33717,6 @@ export default function ReplayMotionPlayer({
    *  늦은 안개 판, 그것도 없으면 마지막 프레임의 것. */
   const decodeFrame9 = (pf9: PackedFrame9): Frame9 => {
     if (pf9.dec) return pf9.dec;
-    // 푼 것은 한 장만 들고 있는다 — 앞 장의 객체(수백 개)는 놓아 GC에 맡긴다(폰 메모리).
-    const prev9 = lastDecodedRef9.current;
-    if (prev9 && prev9 !== pf9) prev9.dec = undefined;
-    lastDecodedRef9.current = pf9;
     const body9 = unpack9({ buf: pf9.buf, strs: pf9.strs }) as Pick<Frame9, "unitOps" | "fxOps" | "miniExtra" | "gasBusy" | "dom">;
     let fog9 = pf9.fog;
     if (!fog9) {
@@ -33731,11 +33734,71 @@ export default function ReplayMotionPlayer({
     };
     return pf9.dec;
   };
+  /** 바로 뒤의 설계도(t보다 앞선 것 중 가장 이른 것, 0.6초 안) — 보간의 끝점. */
+  const pickNextFrame9 = (a9: PackedFrame9): PackedFrame9 | null => {
+    let next: PackedFrame9 | null = null;
+    for (const f9 of wFramesRef.current.values()) {
+      if (f9.t <= a9.t + 1e-6) continue;
+      if (!next || f9.t < next.t) next = f9;
+    }
+    return next && next.t - a9.t <= 0.6 ? next : null;
+  };
+  /** ★ 두 설계도 사이 **보간**(지적: "툭툭 살짝씩 순간이동") ─────────────────────────────────────────
+   *  붓이 t 이하 가장 늦은 장을 그대로 쓰면 장 간격(워커 박자 40ms, 밀리면 100ms 넘게)만큼 자리가 뛴다. 앞 장(a)과
+   *  뒤 장(b)에서 같은 개체(lerpKey9)를 찾아 자리·방향을 t의 비율로 섞는다 — 장 밀도와 무관하게 매끄럽다. 뒤 장이
+   *  없으면(워커가 뒤처짐) 앞 장 그대로. 자세·z·알파는 앞 장 것이다. 보간 op는 장마다 한 번 복사해 두고 제자리에서
+   *  값만 바꾼다(그리기마다 객체를 안 만든다). */
+  const lerpFrame9 = (a9: PackedFrame9, tNow9: number): Frame9 => {
+    const fa9 = decodeFrame9(a9);
+    if (tNow9 <= a9.t + 1e-6) return fa9;
+    const b9 = pickNextFrame9(a9);
+    if (!b9) return fa9;
+    const fb9 = decodeFrame9(b9);
+    const u9 = Math.min(1, (tNow9 - a9.t) / (b9.t - a9.t));
+    if (!b9.byKey) {
+      b9.byKey = new Map();
+      for (const op9 of fb9.unitOps) { const k9 = lerpKey9(op9); if (k9) b9.byKey.set(k9, op9); }
+    }
+    if (!a9.lerp) {
+      const ops9 = fa9.unitOps.map((op9) => (op9.pickKey
+        ? { ...op9, ...(op9.shadowPts ? { shadowPts: op9.shadowPts.map((p9) => [p9[0], p9[1]] as [number, number]) } : {}) }
+        : op9));
+      a9.lerp = { frame: { ...fa9, unitOps: ops9 }, ops: ops9 };
+    }
+    const ops9 = a9.lerp.ops;
+    const src9 = fa9.unitOps;
+    for (let i9 = 0; i9 < ops9.length; i9 += 1) {
+      const s9 = src9[i9];
+      const k9 = lerpKey9(s9);
+      if (!k9) continue;
+      const n9 = b9.byKey.get(k9);
+      const o9 = ops9[i9];
+      if (!n9) { o9.fx = s9.fx; o9.fy = s9.fy; continue; }
+      o9.fx = s9.fx + (n9.fx - s9.fx) * u9;
+      o9.fy = s9.fy + (n9.fy - s9.fy) * u9;
+      if (s9.baseFy !== undefined && n9.baseFy !== undefined) o9.baseFy = s9.baseFy + (n9.baseFy - s9.baseFy) * u9;
+      if (s9.rotDeg !== undefined && n9.rotDeg !== undefined) o9.rotDeg = lerpAng9(s9.rotDeg, n9.rotDeg, u9);
+      if (s9.headDeg !== undefined && n9.headDeg !== undefined) o9.headDeg = lerpAng9(s9.headDeg, n9.headDeg, u9);
+      if (s9.rise !== undefined && n9.rise !== undefined) o9.rise = s9.rise + (n9.rise - s9.rise) * u9;
+      const sp9 = s9.shadowPts; const np9 = n9.shadowPts; const op9 = o9.shadowPts;
+      if (sp9 && np9 && op9 && sp9.length === np9.length && op9.length === sp9.length) {
+        for (let j9 = 0; j9 < sp9.length; j9 += 1) {
+          op9[j9][0] = sp9[j9][0] + (np9[j9][0] - sp9[j9][0]) * u9;
+          op9[j9][1] = sp9[j9][1] + (np9[j9][1] - sp9[j9][1]) * u9;
+        }
+      }
+    }
+    return a9.lerp.frame;
+  };
   const wPacked9 = pickWorkerFrame9();
   let frame9: Frame9;
   if (wPacked9) {
     wStatRef.current.used += 1;
-    frame9 = decodeFrame9(wPacked9);
+    // 푼 것은 앞 장(그리는 장)과 뒤 장(보간 끝점)만 들고, 그보다 옛 장의 객체는 놓는다(폰 메모리).
+    for (const f9 of wFramesRef.current.values()) {
+      if (f9.t < wPacked9.t && f9.dec) { f9.dec = undefined; f9.lerp = undefined; f9.byKey = undefined; }
+    }
+    frame9 = wPacked9.t <= t ? lerpFrame9(wPacked9, t) : decodeFrame9(wPacked9);
     lastFrameRef9.current = frame9;
   } else {
     wStatRef.current.missed += 1;
