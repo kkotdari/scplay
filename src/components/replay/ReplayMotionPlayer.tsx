@@ -18461,7 +18461,7 @@ function trimBoth9(): void {
     budgetNow9(BLD_SPRITE_BYTES_MAX, spriteBytes.n, SPRITE_BYTES_MAX), true);
 }
 /** 예산을 넘는 동안 가장 오래 안 쓴 것부터 덜어낸다. */
-function trimSpriteCache<T extends { cv: HTMLCanvasElement; sh?: ShadowPlate | null }>(
+function trimSpriteCache<T extends { cv: HTMLCanvasElement; sh?: ShadowPlate | null; tint?: TintPlate9 | null }>(
   cache: Map<string, T>, bytes: { n: number }, budget: number, bld = false,
 ): void {
   while (bytes.n > budget && cache.size > 1) {
@@ -18472,9 +18472,10 @@ function trimSpriteCache<T extends { cv: HTMLCanvasElement; sh?: ShadowPlate | n
     const got = cache.get(oldest.value);
     // 그림자 판은 몸 판에 매달려 같은 수명을 산다 — 걷을 때 함께 뺀다(아래 shadowPlate).
     if (got) {
-      bytes.n -= canvasBytes(got.cv) + (got.sh ? canvasBytes(got.sh.cv) : 0);
+      bytes.n -= canvasBytes(got.cv) + (got.sh ? canvasBytes(got.sh.cv) : 0) + (got.tint ? canvasBytes(got.tint.cv) : 0);
       RELEASE_Q9.push(got.cv);
       if (got.sh) RELEASE_Q9.push(got.sh.cv);
+      if (got.tint) { RELEASE_Q9.push(got.tint.cv); bytes.n -= releaseTints9(got.tint); }
     }
     cache.delete(oldest.value);
     /* ★ 예산이 넘쳐 **덜어내고 있다는 것**이 곧 압박의 신호다 — 그럴 때는 굽는 판
@@ -18795,7 +18796,7 @@ function perfFrame(ms: number): void {
   unitBakeLeft9 = UNIT_BAKE_PER_FRAME;
   bldBakeLeft9 = BLD_BAKE_PER_FRAME;
 }
-const SPRITE_CACHE = new Map<string, { cv: HTMLCanvasElement; ox: number; oy: number; pad: number; l: number; bot: number; cx: number; top: number; w: number }>();
+const SPRITE_CACHE = new Map<string, UnitPlate9>();
 const spriteBytes = { n: 0 };
 /* ★ 한 프레임에 굽는 판의 **수를 죈다**(지적: "저그 본진은 6배까지 괜찮다가 12배 줌하면
    버벅임이 보여") ────────────────────────────────────────────────────────────────────
@@ -18956,9 +18957,68 @@ function sharpenPlate9(cv: HTMLCanvasElement): void {
   }
   c9.putImageData(im9, 0, 0);
 }
+/** 임자 색 마스크(2번: 임자 색을 굽지 말고 그릴 때 입히기) — 판 열쇠에서 색을 뺐다. 개인색 면은 몸판에서 빼고
+ *  이 마스크에 흰색(음영 알파 그대로)으로 굽되, 화가 순서상 그 **위**에 오는 고정색 면은 destination-out으로 파낸다
+ *  (가림 순서가 그대로 산다 — 옛 주석의 "층을 둘로 가르면 가림이 깨진다"는 이 파내기로 푼다). 그릴 때 임자 색으로
+ *  source-in 물들여 몸판 위에 얹는다. 판 가짓수가 임자 수분의 1이 된다. */
+type TintPlate9 = { cv: HTMLCanvasElement; ox: number; oy: number; /** 색별로 물들인 마스크(한 번 만들어 되쓴다) */ by?: Map<string, HTMLCanvasElement> };
+/** 한 마스크가 드는 색별 물들인 판의 상한 — 8인전이면 여덟 벌이다(마스크는 몸판보다 훨씬 작다). */
+const TINT_BY_MAX9 = 8;
+/** 마스크의 물들인 판을 전부 놓는다(쫓아낼 때) — 바이트 합을 돌려준다. */
+const releaseTints9 = (tn: TintPlate9): number => {
+  let b = 0;
+  if (tn.by) { for (const c of tn.by.values()) { b += canvasBytes(c); RELEASE_Q9.push(c); } tn.by.clear(); }
+  return b;
+};
+type UnitPlate9 = { cv: HTMLCanvasElement; ox: number; oy: number; pad: number; l: number; bot: number; cx: number; top: number; w: number; tint?: TintPlate9 | null };
+/** 두 잉크 상자(픽셀)의 합 — 몸판(임자 면 없음)과 마스크의 합이 옛 '온 판'의 상자다(자·발밑·중심이 그대로). */
+const unionInkBox9 = (
+  a: { bot: number; cx: number; top: number; w: number }, b: { bot: number; cx: number; top: number; w: number } | null,
+): { bot: number; cx: number; top: number; w: number } => {
+  if (!b || !(b.w > 1)) return a;
+  const x0 = Math.min(a.cx - a.w / 2, b.cx - b.w / 2);
+  const x1 = Math.max(a.cx + a.w / 2, b.cx + b.w / 2);
+  return { top: Math.min(a.top, b.top), bot: Math.max(a.bot, b.bot), cx: (x0 + x1) / 2, w: Math.max(1, x1 - x0) };
+};
+/** 마스크를 임자 색으로 물들인 판 — (마스크, 색)마다 한 번만 만들고 되쓴다(계측: 그릴 때마다 물들이면 찍기가
+ *  300 → 451장, 프레임이 1.5배 — 네 번의 캔버스 연산이 유닛마다 붙었다). 마스크는 임자 면 상자만이라 몸판보다 훨씬 작다. */
+const tintedOf9 = (tn: TintPlate9, color: string): HTMLCanvasElement | null => {
+  const got = tn.by?.get(color);
+  if (got) return got;
+  if (typeof document === "undefined") return null;
+  const w = tn.cv.width; const h = tn.cv.height;
+  const cv = document.createElement("canvas");
+  cv.width = w; cv.height = h;
+  const tc = cv.getContext("2d");
+  if (!tc) return null;
+  tc.drawImage(tn.cv, 0, 0);
+  tc.globalCompositeOperation = "source-in";
+  tc.fillStyle = color;
+  tc.fillRect(0, 0, w, h);
+  if (!tn.by) tn.by = new Map();
+  if (tn.by.size >= TINT_BY_MAX9) {
+    const first = tn.by.keys().next();
+    if (!first.done) { const old = tn.by.get(first.value); if (old) { spriteBytes.n -= canvasBytes(old); RELEASE_Q9.push(old); } tn.by.delete(first.value); }
+  }
+  tn.by.set(color, cv);
+  spriteBytes.n += canvasBytes(cv);
+  return cv;
+};
+/** 물들인 마스크를 몸판과 같은 자리에 얹는다(그리기 변환은 부르는 쪽이 세워 둔 상태). */
+const drawTint9 = (
+  ctx: CanvasRenderingContext2D, spr: UnitPlate9, color: string, pxqB: number, k: number, B: number,
+): void => {
+  const tn = spr.tint;
+  if (!tn) return;
+  const cv = tintedOf9(tn, color);
+  if (!cv) return;
+  SPRITE_PERF.blit += 1;
+  ctx.drawImage(cv,
+    (-(spr.pad + pxqB / 2) + tn.ox / B) * k, (-(spr.pad + pxqB / 2) + tn.oy / B) * k, (cv.width / B) * k, (cv.height / B) * k);
+};
 function unitSprite(
   op: UnitDrawOp, pxq: number, B: number,
-): { cv: HTMLCanvasElement; ox: number; oy: number; pad: number; l: number; bot: number; cx: number; top: number; w: number } | null {
+): UnitPlate9 | null {
   const rotB = op.rotDeg !== undefined
     ? ((Math.round(op.rotDeg / 22.5) * 22.5) % 360 + 360) % 360 : -1;
   const vq = op.viewYaw ? Math.max(-36, Math.min(36, Math.round(op.viewYaw / 6) * 6)) : 0;
@@ -18970,8 +19030,9 @@ function unitSprite(
   /* 열쇠를 **크기·등급을 뺀 몫(subKey)과 그 둘**로 가른다 — 위 SPRITE_SIZES가 '같은
      모델의 다른 크기·다른 등급'을 찾으려면 그 앞부분이 따로 있어야 한다. */
   /** 대타 색인의 열쇠 — 크기와 **등급**을 뺀 몫이다(위 SPRITE_SIZES의 ★). */
+  // 열쇠에 임자 색이 없다(위 TintPlate9) — 같은 판을 모든 임자가 나눠 쓴다.
   const subKey = `${op.kind}|${rotB}|${op.flat ? 1 : 0}|${vq}|${pitchTag(op.pitch)}`
-    + `|${op.color}|${B.toFixed(2)}|${poseTag(op.kind)}|${op.solid ?? ""}`;
+    + `|${B.toFixed(2)}|${poseTag(op.kind)}|${op.solid ?? ""}`;
   const key = `${subKey}|${lod}|${pxq}`;
   SPRITE_PERF.colorSet.add(op.color);
   const hit = SPRITE_CACHE.get(key);
@@ -19055,30 +19116,68 @@ function unitSprite(
      벗어나고 자료실 크기와 지도 크기가 어긋난다. */
   const nrm = modelNormOf(op.kind);
   if (nrm !== 1) { c2.translate(8, 8); c2.scale(nrm, nrm); c2.translate(-8, -8); }
+  // 임자 면(fill 없음)은 몸판에서 뺀다 — 마스크가 그 자리를 맡는다(solid면 전부 한 색이라 마스크가 없다).
+  const teamSplit9 = !op.solid && faces.some((f9) => f9[2] === undefined);
   for (const [d, o, fill] of faces) {
+    if (teamSplit9 && fill === undefined) continue;
     c2.globalAlpha = shadeBoost(o, fill);
     c2.fillStyle = op.solid ?? fill ?? op.color;
     c2.fill(pathOf(d));
   }
   if (lod >= 3) silhouetteLight(c2, cv);
+  /* 마스크 — 같은 변환으로 임자 면만 흰색(음영 알파)으로, 그 뒤에 오는 고정색 면은 제 알파로 파낸다. */
+  let tintCv9: HTMLCanvasElement | null = null;
+  if (teamSplit9) {
+    const mv = bakeCanvas(side9);
+    const m2 = mv?.getContext("2d");
+    if (mv && m2) {
+      m2.setTransform(B, 0, 0, B, 0, 0);
+      m2.translate(pad, pad);
+      m2.scale(pxq / 16, pxq / 16);
+      if (nrm !== 1) { m2.translate(8, 8); m2.scale(nrm, nrm); m2.translate(-8, -8); }
+      for (const [d, o, fill] of faces) {
+        if (fill === undefined) {
+          m2.globalCompositeOperation = "source-over";
+          m2.globalAlpha = o;
+          m2.fillStyle = "#fff";
+        } else {
+          m2.globalCompositeOperation = "destination-out";
+          m2.globalAlpha = shadeBoost(o, fill);
+          m2.fillStyle = "#000";
+        }
+        m2.fill(pathOf(d));
+      }
+      m2.globalCompositeOperation = "source-over";
+      m2.globalAlpha = 1;
+      tintCv9 = mv;
+    }
+  }
   /* 잉크에 맞춰 자른다 — 자른 자리(ox·oy)만 함께 들고 다니면 그림은 그대로다.
      상자는 모형 좌표로 기억해 둔다(위 inkBoxOf) — 굽기 변환이
      화소 = B·pad + (B·pxq/16)·모형좌표 이므로 원점과 배수가 이 둘이다. */
-  const box = inkBoxOf(cv,
-    `u|${op.kind}|${rotB}|${op.flat ? 1 : 0}|${vq}|${pitchTag(op.pitch)}|${lod}|${poseTag(op.kind)}`,
-    B * pad, B * pad, (B * pxq) / 16);
+  const memo9 = `u|${op.kind}|${rotB}|${op.flat ? 1 : 0}|${vq}|${pitchTag(op.pitch)}|${lod}|${poseTag(op.kind)}${teamSplit9 ? "|nt" : ""}`;
+  const bodyBox9 = inkBoxOf(cv, memo9, B * pad, B * pad, (B * pxq) / 16);
+  const maskBox9 = tintCv9 ? inkBoxOf(tintCv9, `${memo9}|tm`, B * pad, B * pad, (B * pxq) / 16) : null;
+  // 몸판은 **합 상자**로 자른다 — 자(bot·cx·w)가 옛 온 판과 같아야 발밑·중심·체력바가 안 움직인다.
+  const box = unionInkBox9(bodyBox9, maskBox9);
   const cr = cropToInk(cv, box, true);
   if (B <= 1) sharpenPlate9(cr.cv);   // dpr 1 — 경계 굳히기(위 sharpenPlate9)
+  let tint: TintPlate9 | null = null;
+  if (tintCv9 && maskBox9 && maskBox9.w > 1) {
+    const mcr = cropToInk(tintCv9, maskBox9, true);
+    tint = { cv: mcr.cv, ox: mcr.ox, oy: mcr.oy };
+  }
   /* 자르고 난 **원판**은 빌림터로 돌려준다(위 ★) — 다음 굽기가 같은 한 변이면 그대로
      되쓰고, 아니면 빌림터가 알아서 놓는다. 여기서 통째로 버리던 것이 봉우리의 몫이었다. */
   freeBakeCanvas(cv);
-  const entry = { cv: cr.cv, ox: cr.ox, oy: cr.oy, pad, l, ...box };
+  if (tintCv9) freeBakeCanvas(tintCv9);
+  const entry: UnitPlate9 = { cv: cr.cv, ox: cr.ox, oy: cr.oy, pad, l, ...box, tint };
   SPRITE_CACHE.set(key, entry);
   /* ★ 색인에 적는다 — **이 줄이 여태 없었다.** 그래서 유닛 쪽 대타 경로는 한 번도 선
      적이 없고(색인이 늘 비어 있으니 찾을 것이 없다), '굽기를 프레임에 나눠 문다'가
      사실상 건물에만 걸려 있었다. */
   noteSub9(SPRITE_SIZES, subKey, pxq, key);
-  spriteBytes.n += canvasBytes(cr.cv);
+  spriteBytes.n += canvasBytes(cr.cv) + (tint ? canvasBytes(tint.cv) : 0);
   trimBoth9();
   SPRITE_PERF.noteBake(op.kind, pNow() - tBk9, false);
   if (PERF9) pAdd("굽기:유닛판", pNow() - pBk9);
@@ -20984,6 +21083,7 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
               (-(atSpr9.pad + pxqB / 2) + atSpr9.oy / B) * k,
               (atSpr9.cv.width / B) * k, (atSpr9.cv.height / B) * k,
             );
+            drawTint9(ctx, atSpr9, op.color, pxqB, k, B);
           };
           const rb9 = ((Math.round((op.rotDeg ?? 0) / 22.5) * 22.5) % 360 + 360) % 360;
           const atBack9 = rb9 > 90 && rb9 < 270;
@@ -20994,6 +21094,7 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
             (-(spr.pad + pxqB / 2) + spr.oy / B) * k,
             cw9 * k, ch9 * k,
           );
+          drawTint9(ctx, spr, op.color, pxqB, k, B);
           if (!atBack9) atDraw9();
           ctx.setTransform(B, 0, 0, B, 0, 0);
           continue;

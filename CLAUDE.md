@@ -45,6 +45,9 @@
 - 참값 자리 형식(`openbwTracks.ts`): 키는 `kt`(초 Float32)·`kxy`(픽셀 Int16×2)·`kh`(방향 바이트)·`kst`(상태)로 나눠 들고
   접근자 `kT/kX/kY/kH/kS`로만 읽는다. 체력·인터셉터·표적은 평평한 형식 배열 `Ticks`([초,값,…], 표적은 Float64)이고
   `tkN/tkT/tkV/tkAt/tkLast/tkSlice`로 읽는다. 자리를 바꾸면 접근자만 고친다. 검사: `node scripts/openbw-tracks-check.mjs`.
+- 임자 색은 **굽지 않고 그릴 때 입힌다**(`UnitPlate9.tint`): 판 열쇠에 색이 없고, 개인색 면은 마스크(흰색·음영 알파,
+  화가 순서상 위의 고정 면은 destination-out으로 파냄)로 따로 굽는다. 그릴 때 (마스크, 색)별로 한 번 물들인 판을
+  `tintedOf9`로 만들어 되쓴다(상한 8색). 건물 판은 아직 색이 열쇠에 든다.
 - `#diag`는 요약 한 줄, `#diag=draw|mem|worker|truth|all`(쉼표로 여럿)로 용도를 가른다. `mem`에 메모리 어림(memEst9) 줄.
 - 워커는 짓기 시간(ms)에 맞춰 프레임 간격을 벌린다(초당 30장 기본, 최소 8장). 메인은 2초 안의 프레임이면 낡아도 든다.
 - 엔진은 늘 **자세히** 낸다(요잉 16칸·모든 자세·탱크 차체+포탑). 낮은 배율 간이화는 붓(UnitLayer)의
