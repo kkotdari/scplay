@@ -6991,12 +6991,19 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
      *  뮤탈을 쏘면 뮤탈의 높이를 골리앗 몸으로 잰 셈이라, 몸집이 갈리는 짝일수록
      *  겨냥이 위아래로 어긋났다. 표적 이름은 FoeRow.uk가 들고 있다. */
     const foeLift9 = foe.air ? airLiftPxOf(foe.by) : 0;
+    /* ★ 조준은 **사수 총구 → 표적 몸 가운데**(지적: 배틀크루저의 트레이서가 디바우러 위로 나감) ─────────────
+       발사 시작점은 발밑에서 몸높이(liftPx9 = 들기 + 0.34·몸)만큼 위인데, 여태 방향은 발밑→발밑으로 셌다. 그러면
+       선 전체가 사수 몸높이만큼 위로 밀려 끝점이 '표적 발밑 + 사수 몸높이'가 된다 — 사수가 크고 표적이 작으면
+       표적 위 허공이다. 표적 쪽도 같은 자(0.34·제 몸)로 가운데를 잡는다. 사수·표적이 같은 크기면 옛 그림 그대로다. */
+    const foePx9 = foe.uk && isKnownKind(foe.uk) ? unitPxOf(foe.uk, foe.by) : fxPx;
+    const foeBody9 = foePx9 * 0.34;
     const aimDeg = (fx9: number, fy9: number, fAir: boolean): number => {
       const tPx9 = mapW9 / grid.width;
       const ddx = (fx9 - pos.x) * tPx9;
       let ddy = (fy9 - pos.y) * tPx9 * (pitched ? pitchFlat : 1);
       if (fAir) ddy -= foeLift9;
-      ddy += airLift9;
+      ddy -= foeBody9;
+      ddy += liftPx9;
       return (Math.atan2(-ddx, ddy) * 180) / Math.PI;
     };
     const beamDeg = atkDeg !== null ? aimDeg(foe.bx, foe.by, foe.air) : null;
@@ -7007,7 +7014,8 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       const ddx = (foe.bx - pos.x) * tPx9;
       let ddy = (foe.by - pos.y) * tPx9 * (pitched ? pitchFlat : 1);
       if (foe.air) ddy -= foeLift9;
-      ddy += airLift9;
+      ddy -= foeBody9;
+      ddy += liftPx9;
       return Math.hypot(ddx, ddy);
     })();
     /* 총구 모델 앵커(승인) — 앵커는 몸 각(bodyHdg)으로 뽑고 — 그래서 늘 몸
