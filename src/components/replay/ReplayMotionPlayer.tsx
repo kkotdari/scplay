@@ -30318,7 +30318,7 @@ export default function ReplayMotionPlayer({
   /** 세계 세대 — 워커가 새 worldui를 보낼 때마다 오른다(걷기를 다시 청하는 자). */
   const [worldGen9, setWorldGen9] = useState(0);
   /** 워커가 어림한 제 메모리(참값·파생) — ready에 실려 온다. */
-  const [memWorker9, setMemWorker9] = useState<{ truth: number; world: number; top?: [string, number][] } | null>(null);
+  const [memWorker9, setMemWorker9] = useState<{ truth: number; world: number; typed?: number; top?: [string, number][] } | null>(null);
   /* ★ 프레임 워커 = 설계 일꾼(요청) — 주인(여기 재생 상태)의 명령만 받아 앞으로 설계도를 지어 두고, 붓은 받은 것만
      그린다. **길은 이것 하나다**(지적: 메인 엔진 대비 코드는 두 길이라 별로) — 워커가 못 서면 프레임이 없고, 화면은
      마지막 프레임을 든 채 진단(SCR_DIAG.worker)에 까닭을 적는다. 도구 번들(esbuild)에는 워커가 없다. */
@@ -30353,6 +30353,7 @@ export default function ReplayMotionPlayer({
    *  껍데기(detached 배열)만 남는다. 메인이 트랙 배열을 읽는 자리는 없다(자원 그래프 res·판 번호·개체 표 entData는
    *  넘기기 전에 만든 것이라 남는다). 같은 참값을 두 번 안 넘긴다. */
   const truthRef9 = useRef<TruthTracks | null>(null);
+  const entDataRef9 = useRef<TruthWorld | null>(null);
   const truthSentRef9 = useRef<TruthTracks | null | undefined>(undefined);
   const postTruth9 = (w9: Worker): void => {
     const tr9 = truthRef9.current;
@@ -30372,6 +30373,11 @@ export default function ReplayMotionPlayer({
        복제라 남는다(계측: 폰에서 메인 참값 40.8MB). 메인이 트랙을 읽는 자리는 없다(개체 표·자원 그래프·판 번호는
        따로 있다). 배열을 비우면 트랙 객체가 통째로 걷힌다. */
     if (tr9) tr9.tracks.length = 0;
+    /* 개체 표(entData)의 생애도 체력·인터셉터·표적 쌍 배열을 생애마다 잘라 든다(truthLives의 filter) — 메인의 화면은
+       그 셋을 안 읽는다(체력바는 op에 실려 오고, 화면이 읽는 건 명령·자리·생애 경계뿐). 워커는 제 개체 표를 참값에서
+       따로 만드니 여기 것은 비워도 된다(계측: 폰 메인 개체 39.7MB). */
+    const ed9 = entDataRef9.current;
+    if (ed9) for (const lf9 of ed9.lives) { lf9.hp = undefined; lf9.ic = undefined; lf9.tgt = undefined; }
   };
   useEffect(() => {
     if (typeof Worker === "undefined") { wStatRef.current.err = "Worker 없음"; return undefined; }
@@ -30446,7 +30452,7 @@ export default function ReplayMotionPlayer({
         setEntWalks9((m9 as unknown as { entWalks: EngineWorld9["entWalks"] }).entWalks ?? []);
       } else if (m9.type === "ready") {
         wStatRef.current.ready = true;
-        const b9 = (m9 as unknown as { bytes?: { truth: number; world: number; top?: [string, number][] } }).bytes;
+        const b9 = (m9 as unknown as { bytes?: { truth: number; world: number; typed?: number; top?: [string, number][] } }).bytes;
         if (b9) setMemWorker9(b9);
       } else if (m9.type === "err") {
         wStatRef.current.err = m9.message || "워커가 던졌다(내용 없음)";
@@ -30495,6 +30501,7 @@ export default function ReplayMotionPlayer({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [grid, bases, teamKey9, total]);
   truthRef9.current = truth;
+  entDataRef9.current = entData;
   useEffect(() => {
     const w9 = frameWorkerRef.current;
     if (!w9) return;
@@ -35291,7 +35298,7 @@ export default function ReplayMotionPlayer({
                     <div>
                       메모리(어림) 메인: 참값 {mb9(memMain9.truth)} · 개체 {mb9(memMain9.ent)} · UI파생 {mb9(memMain9.ui)}
                       {" · 걷기 "}{mb9(memMain9.walks)}
-                      {" | 워커: "}{memWorker9 ? `참값 ${mb9(memWorker9.truth)} · 파생 ${mb9(memWorker9.world)}` : "-"}
+                      {" | 워커: "}{memWorker9 ? `참값 ${mb9(memWorker9.truth)}(형식 ${mb9(memWorker9.typed ?? 0)}) · 파생 ${mb9(memWorker9.world)}` : "-"}
                     </div>
                     {memWorker9?.top && (
                       <div style={{ fontSize: "0.92em", opacity: 0.85 }}>

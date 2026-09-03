@@ -187,10 +187,13 @@ const deriveNow = (): void => {
     teamOf: (raw: string) => p.teamMap[raw], total: p.total,
   });
   rebuildEngine();
-  let bytes: { truth: number; world: number; top: [string, number][] } | undefined;
+  let bytes: { truth: number; world: number; typed: number; top: [string, number][] } | undefined;
   try {
     const seen = new Set<object>();
     const bTruth = estBytes9(truthData, seen);
+    // 참값 가운데 형식 배열(키·상태) 몫 — 나머지는 체력·인터셉터·표적 같은 쌍 배열이다(형식으로 바꿀지 정하는 자).
+    let typed = 0;
+    if (truthData) for (const tk of truthData.tracks) typed += tk.keys.byteLength + tk.done.byteLength + tk.types.byteLength + (tk.air?.byteLength ?? 0) + (tk.cloak?.byteLength ?? 0);
     const bEnt = estBytes9(entData, seen);
     // 파생 자료는 필드마다 따로 잰다(같은 seen이라 겹치는 것은 먼저 잰 필드에 붙는다) — 어느 것이 큰지 진단에 싣는다.
     const per: [string, number][] = [["entData", bEnt]];
@@ -201,7 +204,7 @@ const deriveNow = (): void => {
       per.push([k, b]);
     }
     per.sort((a, b) => b[1] - a[1]);
-    bytes = { truth: bTruth, world: bWorld, top: per.slice(0, 8) };
+    bytes = { truth: bTruth, world: bWorld, typed, top: per.slice(0, 8) };
   } catch { bytes = undefined; }
   post({ type: "ready", bytes });
   post({ type: "worldui", ui: pickWorldUi9(world) });
