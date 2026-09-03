@@ -21679,13 +21679,16 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
   }
   // ② 낱개 — 결의 팔레트 셋을 돌려 쓰고, 중력은 살점이 가장 무겁다.
   // 살은 세 톤을 섞는다(재지적): 테란 생체는 빨강·살색·검붉음, 저그는 검붉음·보라·갈색. 핏방울은 따로.
-  const PALS: Record<string, [string, string, string]> = {
-    mech: ["#3a3d44", "#6b737e", "#ff8a3d"], bio: ["#c8231b", "#e0a48a", "#7a1210"],
+  // 기계는 테란 기본색(강철 회색 둘)을 더 많이, 갈색 부품과 검은 조각·주황 한 조각(재지적).
+  const PALS: Record<string, string[]> = {
+    mech: ["#6b737e", "#9aa3ad", "#6b4a2b", "#6b737e", "#3a3d44", "#9aa3ad", "#ff8a3d"],
+    bio: ["#c8231b", "#e0a48a", "#7a1210"],
     zerg: ["#6e1b3a", "#5b3a8a", "#6b4a2b"], toss: ["#d4af37", "#a8862a", "#e6f4ff"],
   };
   const DROP9: Record<string, string> = { bio: "#ef5a45", zerg: "#9b2a47" };
   const pal = PALS[mat] ?? PALS.mech;
-  const nBase = bld ? 16 : 10;
+  // 기계는 낱개가 더 많다 — 절반이 짧은 막대라(아래) 면 조각 수는 그대로 지킨다.
+  const nBase = mat === "mech" ? (bld ? 24 : 16) : (bld ? 16 : 10);
   const N = smallDevice9 ? Math.round(nBase * 0.6) : nBase;
   const g = W * (wet ? 1.1 : mat === "toss" ? 0.25 : 0.7);
   for (let i = 0; i < (mat === "toss" ? 0 : N); i += 1) {
@@ -21703,10 +21706,11 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
        살은 **무작위 타원**(둥근 살점), 기계는 **각진 직사각형**(쇳조각). */
     const cx = Math.cos(rot), sx = Math.sin(rot);
     ctx.globalAlpha = q < 0.7 ? 1 : (1 - q) / 0.3;
-    ctx.fillStyle = pal[i % 3];
-    if (!wet && i % 3 === 2) {
-      ctx.strokeStyle = pal[i % 3]; ctx.lineWidth = Math.max(0.6, sz * 0.28); ctx.lineCap = "round";
-      const L = sz * 2.2;
+    ctx.fillStyle = pal[i % pal.length];
+    // 막대는 **짧게 여럿**(재지적: 길어서 어색) — 기계 낱개의 절반, 길이는 조각의 1.0배.
+    if (!wet && i % 2 === 1) {
+      ctx.strokeStyle = pal[i % pal.length]; ctx.lineWidth = Math.max(0.6, sz * 0.3); ctx.lineCap = "round";
+      const L = sz * 1.0;
       ctx.beginPath(); ctx.moveTo(x - cx * L, y - sx * L); ctx.lineTo(x + cx * L, y + sx * L); ctx.stroke();
     } else if (wet) {
       ctx.beginPath(); ctx.ellipse(x, y, sz * (0.7 + (i % 4) * 0.15), sz * (0.5 + (i % 3) * 0.2), rot, 0, Math.PI * 2); ctx.fill();
