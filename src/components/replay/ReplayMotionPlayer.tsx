@@ -21678,10 +21678,12 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
     ctx.beginPath(); ctx.arc(ax, ay, R9, 0, Math.PI * 2); ctx.stroke();
   }
   // ② 낱개 — 결의 팔레트 셋을 돌려 쓰고, 중력은 살점이 가장 무겁다.
+  // 살은 세 톤을 섞는다(재지적): 테란 생체는 빨강·살색·검붉음, 저그는 검붉음·보라·갈색. 핏방울은 따로.
   const PALS: Record<string, [string, string, string]> = {
-    mech: ["#3a3d44", "#6b737e", "#ff8a3d"], bio: ["#c8231b", "#7a1210", "#ef5a45"],
-    zerg: ["#6e1b3a", "#3f0a1e", "#9b2a47"], toss: ["#d4af37", "#a8862a", "#e6f4ff"],
+    mech: ["#3a3d44", "#6b737e", "#ff8a3d"], bio: ["#c8231b", "#e0a48a", "#7a1210"],
+    zerg: ["#6e1b3a", "#5b3a8a", "#6b4a2b"], toss: ["#d4af37", "#a8862a", "#e6f4ff"],
   };
+  const DROP9: Record<string, string> = { bio: "#ef5a45", zerg: "#9b2a47" };
   const pal = PALS[mat] ?? PALS.mech;
   const nBase = bld ? 16 : 10;
   const N = smallDevice9 ? Math.round(nBase * 0.6) : nBase;
@@ -21702,7 +21704,7 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
     const cx = Math.cos(rot), sx = Math.sin(rot);
     ctx.globalAlpha = q < 0.7 ? 1 : (1 - q) / 0.3;
     ctx.fillStyle = pal[i % 3];
-    if (i % 3 === 2) {
+    if (!wet && i % 3 === 2) {
       ctx.strokeStyle = pal[i % 3]; ctx.lineWidth = Math.max(0.6, sz * 0.28); ctx.lineCap = "round";
       const L = sz * 2.2;
       ctx.beginPath(); ctx.moveTo(x - cx * L, y - sx * L); ctx.lineTo(x + cx * L, y + sx * L); ctx.stroke();
@@ -21720,16 +21722,17 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
   }
   // ③ 곁들이 — 기계는 연기, 살은 핏방울, 프로토스는 반짝이.
   if (mat === "mech") {
-    for (let i = 0; i < 3; i += 1) {
-      const ox = (i - 1) * W * 0.28 + (rnd() - 0.5) * W * 0.1;
-      const q = Math.max(0, Math.min(1, (p - 0.1 - i * 0.06) / 0.9));
+    // 연기는 더 분명하고 크게(재지적) — 넷, 반지름 0.22 → 0.8W, 더 높이 오르고 진하게.
+    for (let i = 0; i < 4; i += 1) {
+      const ox = (i - 1.5) * W * 0.3 + (rnd() - 0.5) * W * 0.12;
+      const q = Math.max(0, Math.min(1, (p - 0.05 - i * 0.05) / 0.9));
       if (q <= 0) continue;
-      ctx.globalAlpha = 0.5 * (1 - q);
-      ctx.fillStyle = "#5c6068";
-      ctx.beginPath(); ctx.arc(ax + ox, ay - W * 0.15 - W * 0.7 * q, W * (0.14 + 0.32 * q), 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 0.7 * (1 - q * 0.85);
+      ctx.fillStyle = i % 2 ? "#5a5e66" : "#7a7f88";
+      ctx.beginPath(); ctx.arc(ax + ox, ay - W * 0.15 - W * 0.9 * q, W * (0.22 + 0.58 * q), 0, Math.PI * 2); ctx.fill();
     }
   } else if (wet) {
-    ctx.fillStyle = pal[2];
+    ctx.fillStyle = DROP9[mat] ?? pal[0];
     for (let i = 0; i < 8; i += 1) {
       const an = rnd() * Math.PI * 2; const v = W * (0.5 + rnd() * 0.7);
       const x = ax + Math.cos(an) * v * ease, y = ay + Math.sin(an) * v * ease * 0.6 - W * 0.2 * ease + W * 0.9 * p * p;
