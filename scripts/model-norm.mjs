@@ -77,7 +77,7 @@ export const GALLERY_ONLY = new Set(["tank", "tanksiege"]);
  *  각자 제 목표(5.2)를 맞추면 포신만 1.38~1.56배 부풀어 포탑이 차체 밖으로 나간다.
  *  그래서 --emit은 짝을 **안 찍고**(소스가 NORM_PAIR로 접는다), 본체의 상한을 잡을 때
  *  짝의 상한도 함께 본다. 짝의 잉크 상자는 목표와 다르므로 MODEL_INK 쪽에 실린다. */
-export const NORM_PAIR = { tankgun: "tankbody", tanksiegegun: "tanksiegebody" };
+export const NORM_PAIR = { tankgun: "tankbody", tanksiegegun: "tanksiegebody", tanksiegelegs: "tanksiegebody" };
 /** 참고로 함께 재는 발밑 원점 — shapeOblique originYNow 와 같은 값(top 12 · 그 외 12.6). */
 export const FOOT_Y = { top: 12, pitch: 12.6, base: 12.6 };
 

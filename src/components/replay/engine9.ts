@@ -967,6 +967,8 @@ export const MODEL_NORM: Record<string, number> = {
  *  16-상자를 안 넘는다(넘침 훑기 0종 실측). */
 export const NORM_PAIR: Record<string, string> = {
   tankgun: "tankbody", tanksiegegun: "tanksiegebody",
+  /* 시즈 버팀다리 홑판(전환 동작용 attach) — 시즈 차체와 같은 자라야 다 펴진 순간 구운 시즈 판과 이어진다. */
+  tanksiegelegs: "tanksiegebody",
   /* 버로우한 럴커 두 별본 — 흙 구멍이 같은 크기라야 버로우 자리가 종류마다 안 흔들린다. */
   lurkerburrow: "burrowhole", lurkerfire: "burrowhole",
   /* 짐을 든 일꾼도 **맨몸 배수 그대로**다(요청: 일꾼별 자원 들기 모델) — 짐이 늘어난
@@ -1330,6 +1332,9 @@ export type UnitDrawOp = {
    *  배수로 구워지므로, 몸의 자리 보정을 그대로 쓰고 제 잉크 오프셋만 달리 하면 짐이 제
    *  모형 좌표에 앉는다. */
   attach?: string;
+  /** 겹쳐 찍는 판만 원점(모델 원점) 기준으로 곱하는 배율 — 시즈 전환의 버팀다리가 몸에서 뻗어 나오고 들어가는
+   *  동작이다(요청). 있으면 그 판은 몸 **뒤**에 깐다(오므린 다리가 차체 밖으로 안 비친다). */
+  attachK?: number;
   /** 도형 한 변(px) — 크기표 × 깊이 배율까지 포함한 **그리는 상자**다.
    *  화면에 보이는 몸은 이것의 약 1/3(NORM_TARGET_INK/16)이고, 몸을 자로 삼는 장식은
    *  이 값이 아니라 구운 판의 잉크 폭(inkW)을 쓴다. */
@@ -6099,8 +6104,12 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       const spotS9 = (simTr ? posAtSim(simTr, siegeXf9.at) : null) ?? posAtW(rp, siegeXf9.at);
       if (spotS9) pos = { ...pos, x: spotS9.x, y: spotS9.y, moving: false, sinceLast: 0 };
     } else siegeXf9 = null;
-    /** 그려지는 모드 — 전환 뒤 반부터 새 판이다. */
-    const siegeShow9 = siegeXf9 ? (siegeXf9.u >= 0.5 ? siegeXf9.to : siegeOn) : siegeOn;
+    /** 그려지는 모드 — 전환 창 동안은 **탱크 차체 + 따로 겹치는 버팀다리 판**(아래 legK9)이고, 구운 시즈 판은 창이
+     *  끝나야(시즈) 또는 창이 시작하며(언시즈) 바뀐다. 다리 셋이 몸에서 뻗어 나와 땅을 짚고, 언시즈는 거꾸로 접힌다(요청). */
+    const siegeShow9 = siegeXf9 ? 0 : siegeOn;
+    const legK9 = siegeXf9
+      ? 0.3 + 0.7 * Math.min(1, Math.max(0, siegeXf9.to === 1 ? siegeXf9.u : 1 - siegeXf9.u))
+      : null;
     /* 교전 당김·홀드·잽은 코어가 켜지면 안 돈다(과제 #61) — 코어는 표적까지
        걸어가 사거리에서 멈추는 일을 제 이동 모형으로 이미 했다. 여기서 한 번 더
        끌면 두 모형이 같은 몸을 밀고, 어차피 아래에서 코어 자리로 덮여 버려질
@@ -6639,6 +6648,8 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       kind: kindMain,
       // 짐 판은 몸 판 위에 같은 자로 겹쳐 찍는다(위 load0).
       ...(load0 ? { attach: load0 } : {}),
+      // 시즈 전환 중이면 버팀다리 판을 몸 뒤에 겹쳐, 배율로 뻗고 접는다(위 legK9).
+      ...(legK9 !== null && !markerView ? { attach: "tanksiegelegs", attachK: legK9 } : {}),
       selRing: selNow || undefined,
       // 보임 토글이면 만피여도 표시(요청: 모든 유닛·건물 다 표시).
       hpFrac: Math.max(0.04, Math.min(1, hpNow / Math.max(1, hpFull))),

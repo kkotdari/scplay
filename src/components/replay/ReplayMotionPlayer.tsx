@@ -9834,6 +9834,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   /* 발포 반동용 분해(요청) — 시즈 차체/포탑·포신 분리판. */
   tanksiegebody: () => [...tankTracks(), ...siegeLegs(), ...tankHull()],
   tanksiegegun: () => siegeTurret(),
+  /* 시즈 버팀다리 홑판 — 시즈 전환 동작(요청)에서 탱크 차체 위에 attach로 겹쳐 배율(attachK)로 뻗고 접는다. */
+  tanksiegelegs: () => siegeLegs(),
   /* 벌처(사진 기준 재작도 — 지적: "기존 너무 단순") ────────────────────────────
      사진이 말하는 것:
        · **길다**. 옆에서 본 실루엣이 3:1쯤으로 납작하고, 그 절반이 앞으로 뻗은
@@ -17853,6 +17855,7 @@ const AUX_GALLERY: ShapeGalleryItem[] = [
   { kind: "tankgun", label: "탱크 포탑", group: "부가", race: "테란" },
   { kind: "tanksiegebody", label: "시즈 차체", group: "부가", race: "테란" },
   { kind: "tanksiegegun", label: "시즈 포탑", group: "부가", race: "테란" },
+  { kind: "tanksiegelegs", label: "시즈 버팀다리", group: "부가", race: "테란" },
   { kind: "addonlink", label: "부속 연결관", group: "부가", race: "테란" },
   { kind: "burrowhole", label: "버로우 구멍", group: "부가", race: "저그" },
   /* 도록에 칸이 없던 다섯을 더한다(요청: "유닛/건물 이외의 모델들은 따로 한 페이지에") —
@@ -21170,6 +21173,9 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
           const atDraw9 = (): void => {
             if (!atSpr9) return;
             SPRITE_PERF.blit += 1;
+            /* 겹판 배율(op.attachK) — 원점(모델 원점 = 변환의 0,0) 기준이라 시즈 버팀다리가 차체에서 뻗어 나온다. */
+            const aK9 = op.attachK ?? 1;
+            if (aK9 !== 1) { ctx.save(); ctx.scale(aK9, aK9); }
             ctx.drawImage(
               atSpr9.cv,
               (-(atSpr9.pad + pxqB / 2) + atSpr9.ox / B) * k,
@@ -21177,9 +21183,11 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
               (atSpr9.cv.width / B) * k, (atSpr9.cv.height / B) * k,
             );
             drawTint9(ctx, atSpr9, op.color, pxqB, k, B);
+            if (aK9 !== 1) ctx.restore();
           };
           const rb9 = ((Math.round((op.rotDeg ?? 0) / 22.5) * 22.5) % 360 + 360) % 360;
-          const atBack9 = rb9 > 90 && rb9 < 270;
+          // 배율 겹판(버팀다리)은 늘 몸 뒤 — 오므린 다리가 차체 위로 안 비친다.
+          const atBack9 = op.attachK !== undefined || (rb9 > 90 && rb9 < 270);
           if (atBack9) atDraw9();
           ctx.drawImage(
             spr.cv,
@@ -27616,8 +27624,8 @@ export default function ReplayMotionPlayer({
        본판만이다 — 별본 기하는 3~7ms라 재생 중 한두 번 구워도 안 아프고, 아팠던 것은
        표(수백 ms)뿐이다. */
     const WARM_KIN9: Record<string, readonly string[]> = {
-      tank: ["tankbody", "tankgun", "tanksiege", "tanksiegebody", "tanksiegegun"],
-      tanksiege: ["tanksiegebody", "tanksiegegun", "tank", "tankbody", "tankgun"],
+      tank: ["tankbody", "tankgun", "tanksiege", "tanksiegebody", "tanksiegegun", "tanksiegelegs"],
+      tanksiege: ["tanksiegebody", "tanksiegegun", "tank", "tankbody", "tankgun", "tanksiegelegs"],
       lurker: ["burrowhole", "lurkerburrow", "lurkerfire"],
       scv: ["scvHold", "loadScvMin", "loadScvGas"],
       probe: ["probeHold", "loadProbeMin", "loadProbeGas"],
