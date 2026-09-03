@@ -19953,6 +19953,13 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
       ctx.fillStyle = "#fff1b0";
       ctx.beginPath(); ctx.arc(ax, ay - W * 0.05, W * (0.14 + 0.25 * q), 0, Math.PI * 2); ctx.fill();
     }
+  } else if (mat === "cocoon") {
+    /* 고치(지적: 흰빛 도는 푸른 파동이 보임 — 이 갈래가 없어 아래 프로토스 플라즈마 구로 떨어졌다) — 살빛 점액 얼룩만
+       옅게 깔고 파편은 아래 공통 고리가 낸다. 구·섬광·테는 없다. */
+    const rr = W * (0.14 + 0.4 * ease);
+    ctx.globalAlpha = 0.35 * (1 - p * 0.7);
+    ctx.fillStyle = "#b07a62";
+    ctx.beginPath(); ctx.ellipse(ax, ay + W * 0.1, rr, rr * 0.42, 0, 0, Math.PI * 2); ctx.fill();
   } else {
     /* 플라즈마 **구형 폭발**(재요청): 푸른빛 구가 부풀며 옅어지고 가운데는 하얀 에너지 심 — 겹 셋(바깥
        푸른빛·가운데 연푸른빛·흰 심)에 밝은 테. 납작하게 안 누르고 정원(구)이다. 조각은 안 낸다. */
