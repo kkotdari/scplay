@@ -1121,10 +1121,11 @@ function thrustFlame(
       /* 그러데이션을 **촘촘히**(재요청: 에너지·불인 만큼) — 옆면은 세 도막으로 종족색 → 가운데색으로
          옮겨 가고, 끝면은 여섯 겹의 동심 원반이 바깥(가운데색)에서 심(밝은색)까지 잘게 밟는다. */
       ...tagKey([
-        ...[0, 1, 2].flatMap((i9) => drum(r * 1.05, y - r * 0.2 * i9, r * 0.2, mixHex(outer, mid, i9 / 3), 0.55 + i9 * 0.08, "none")),
-        ...[0, 1, 2, 3, 4, 5].flatMap((i9) => drum(
-          r * (1.05 - i9 * 0.14), y - r * (0.6 + i9 * 0.012), r * 0.02,
-          mixHex(mid, inner, i9 / 5), 0.8 + i9 * 0.04,
+        // 면수를 줄인다(지적: 모바일 굽기 삯) — 옆면 두 도막, 끝면 네 겹. 그러데이션 결은 남는다.
+        ...[0, 1].flatMap((i9) => drum(r * 1.05, y - r * 0.3 * i9, r * 0.3, mixHex(outer, mid, i9 / 2), 0.55 + i9 * 0.1, "none")),
+        ...[0, 1, 2, 3].flatMap((i9) => drum(
+          r * (1.05 - i9 * 0.2), y - r * (0.6 + i9 * 0.015), r * 0.02,
+          mixHex(mid, inner, i9 / 3), 0.8 + i9 * 0.06,
         )),
       ], key),
     ];
@@ -22921,26 +22922,27 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
                고르게 나누되 낱개마다 고정 흔들림(각·거리·굵기)을 줘 줄 서지 않는다. */
             const hasDir9 = Number.isFinite(f.dx) && Number.isFinite(f.dy) && ((f.dx ?? 0) !== 0 || (f.dy ?? 0) !== 0);
             const away9 = hasDir9 ? Math.atan2(-(f.dy ?? 0), -(f.dx ?? 0)) : 0;
-            const N9 = 24;
+            /* ★ 삯(지적: 모바일이 버거워짐) — 낱개마다 stroke를 부르면 맞는 몸마다 스물네 번이다. 색이 둘뿐이니
+               **색별로 한 경로에 몰아** 두 번만 긋는다(굵기는 색별 한 값). 폰은 낱개도 열둘로 줄인다. */
+            const N9 = smallDevice9 ? 12 : 24;
             ctx.lineCap = "round";
-            for (let di = 0; di < N9; di += 1) {
-              const j1 = (di * 7) % 5; const j2 = (di * 11) % 4; const j3 = (di * 5) % 3;
-              const an9 = hasDir9
-                ? away9 + (di / (N9 - 1) - 0.5) * 1.3 + (j1 - 2) * 0.03
-                : (di / N9) * Math.PI * 2 + 0.3 + (j1 - 2) * 0.05;
-              const sp9 = r9 * wk9 * (0.8 + j2 * 0.22);
-              const at9 = (q9: number): [number, number] => {
-                const dd9 = sp9 * (0.3 + q9 * 1.2);
-                return [hx9 + Math.cos(an9) * dd9, hy9 + Math.sin(an9) * dd9 * 0.6 - dd9 * 0.15];
-              };
-              const [px9, py9] = at9(p9);
-              const [qx9, qy9] = at9(Math.max(0, p9 - 0.28));
-              ctx.globalAlpha = a9 * (1 - p9) * 0.95;
-              ctx.strokeStyle = di % 2 ? mt9.drop : mt9.core;
-              ctx.lineWidth = Math.max(0.6, r9 * wk9 * (0.05 + j3 * 0.015) * 1.6);
+            for (let ci = 0; ci < 2; ci += 1) {
               ctx.beginPath();
-              ctx.moveTo(qx9, qy9);
-              ctx.lineTo(px9, py9);
+              for (let di = ci; di < N9; di += 2) {
+                const j1 = (di * 7) % 5; const j2 = (di * 11) % 4;
+                const an9 = hasDir9
+                  ? away9 + (di / (N9 - 1) - 0.5) * 1.3 + (j1 - 2) * 0.03
+                  : (di / N9) * Math.PI * 2 + 0.3 + (j1 - 2) * 0.05;
+                const sp9 = r9 * wk9 * (0.8 + j2 * 0.22);
+                const d1 = sp9 * (0.3 + p9 * 1.2);
+                const d0 = sp9 * (0.3 + Math.max(0, p9 - 0.28) * 1.2);
+                const c9 = Math.cos(an9); const s9 = Math.sin(an9);
+                ctx.moveTo(hx9 + c9 * d0, hy9 + s9 * d0 * 0.6 - d0 * 0.15);
+                ctx.lineTo(hx9 + c9 * d1, hy9 + s9 * d1 * 0.6 - d1 * 0.15);
+              }
+              ctx.globalAlpha = a9 * (1 - p9) * 0.95;
+              ctx.strokeStyle = ci ? mt9.drop : mt9.core;
+              ctx.lineWidth = Math.max(0.6, r9 * wk9 * (ci ? 0.075 : 0.06) * 1.6);
               ctx.stroke();
             }
             ctx.lineCap = "butt";
