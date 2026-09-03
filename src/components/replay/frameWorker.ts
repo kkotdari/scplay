@@ -14,8 +14,8 @@
  *  시계: 명령의 (t0, 배속)에서 제 벽시계로 굴린다 — 주인을 기다리지 않는다. 정지면 t0에 멈춘 한 장만.
  *  박자: 한 장 = speed/30초(짓기가 느리면 벌린다, 최소 초당 8장). 앞으로 AHEAD_WALL_SEC(벽시계)·AHEAD_BYTES까지
  *        지어 두고, 한도에 닿으면 시계가 흐를 때까지 쉰다.
- *  튐:   시계가 지은 창 뒤로 갔거나(되감기) 창 끝을 2초 넘게 앞섰으면(건너뛰기) 엔진 기억을 비우고 그 자리부터.
- *        조금 앞선 것(워커가 느려 뒤처짐)은 기억을 두고 그 자리로 뛴다. 시점·시야가 바뀌면 기억은 두고 지금 시각부터.
+ *  튐:   시계가 지은 창 뒤로 갔으면(되감기) 엔진 기억을 비우고 그 자리부터. 앞으로 튄 것(건너뛰기·뒤처짐)은 기억을
+ *        두고 그 자리로 뛴다. 시점·시야가 바뀌면 기억은 두고 지금 시각부터.
  *
  *  ⚠ 이 파일은 ReplayMotionPlayer 모듈을 통째로 끌어온다(엔진이 그 안의 표·헬퍼를 쓴다). React도 함께
  *    묶이지만 DOM은 안 만진다 — 워커에서 `document`를 만지는 줄이 생기면 여기서 던지고 메인 진단에 적힌다. */
@@ -32,8 +32,6 @@ const FPS_MIN9 = 8;
 /** 앞으로 지어 두는 한도 — 벽시계 초(배속을 곱해 게임 시각이 된다)와 바이트. 폰 메모리를 생각한 값이다. */
 const AHEAD_WALL_SEC = 3;
 const AHEAD_BYTES = 10 * 1024 * 1024;
-/** 건너뛰기 판정(초) — 시계가 지은 창 끝을 이만큼 넘어 앞서면 엔진 기억을 비운다. */
-const JUMP_SEC = 2;
 
 type WorldMsg = {
   type: "world"; entData: TruthWorld | null; truth: TruthTracks | null;
@@ -59,6 +57,8 @@ let pumpTimer = 0;
 let buildMs = 0;
 /** 지어 보낸 프레임(시각·바이트) — 앞 한도(바이트)를 세는 자. 시계 뒤의 것은 버린다. */
 let built: { t: number; bytes: number }[] = [];
+/** 엔진 기억을 비운 횟수(진단) */
+let resets = 0;
 /** 마지막으로 실어 보낸 안개 판(참조) — 같은 참조면 안 싣는다. 엔진은 바뀔 때만 새 배열을 만든다. */
 let fogSent: { explored: Uint16Array | null; visNow: Uint8Array | null; visSrc: Float32Array | null } = {
   explored: null, visNow: null, visSrc: null,
@@ -81,7 +81,7 @@ const stepNow = (): number => {
 
 const restartFrom = (t: number, forget: boolean): void => {
   if (!engine) return;
-  if (forget) engine.reset();
+  if (forget) { engine.reset(); resets += 1; }
   nextT = t;
   winStartT = t;
   built = [];
@@ -94,7 +94,9 @@ const emit = (t: number): number => {
   if (!engine) return 0;
   const t0 = nowMs();
   const f: Frame9 = engine.build(t);
+  const t1 = nowMs();
   const body = pack9({ unitOps: f.unitOps, fxOps: f.fxOps, miniExtra: f.miniExtra, gasBusy: f.gasBusy, dom: f.dom });
+  const t2 = nowMs();
   const transfer: Transferable[] = [body.buf.buffer];
   let fog: { explored: Uint16Array | null; visNow: Uint8Array | null; visSrc: Float32Array } | null = null;
   let bytes = body.buf.byteLength;
@@ -112,7 +114,12 @@ const emit = (t: number): number => {
   }
   const ms = nowMs() - t0;
   buildMs = buildMs === 0 ? ms : buildMs * 0.85 + ms * 0.15;
-  post({ type: "frame", t: f.t, buf: body.buf, strs: body.strs, fog, ms, n: f.unitOps.length }, transfer);
+  const st = engine.stats();
+  post({
+    type: "frame", t: f.t, buf: body.buf, strs: body.strs, fog, ms, n: f.unitOps.length,
+    // 진단 — 짓기의 속(엔진·싸기), 안개 비용·횟수, 리셋 횟수, 워커 시계(주인 t와의 차를 메인이 본다)
+    msBuild: t1 - t0, msPack: t2 - t1, fogCost: st.fogCost, fogN: st.fogStamps, resets, cur: clockT(),
+  }, transfer);
   built.push({ t: f.t, bytes });
   return bytes;
 };
@@ -124,8 +131,9 @@ const pump = (): void => {
   const cur = clockT();
   if (nextT < 0) restartFrom(cur, false);
   else if (winStartT >= 0 && cur < winStartT - step * 2) restartFrom(cur, true);          // 되감기
-  else if (cur > nextT + JUMP_SEC) restartFrom(cur, true);                                 // 건너뛰기
-  else if (cur > nextT + step * 2) { nextT = cur; winStartT = cur; }                       // 뒤처짐 — 기억은 두고 뛴다
+  /* 앞으로 튐(건너뛰기·뒤처짐)은 기억을 **안 비운다** — 시간이 앞으로 가는 것은 엔진에겐 긴 프레임일 뿐이고, 비우면
+     안개·방향·사격 위상을 처음부터 다시 쌓아 첫 장들이 무거워진다(폰에서 짓기가 191ms까지 오르던 나선의 한 축). */
+  else if (cur > nextT + step * 2) restartFrom(cur, false);
   if (!clock.playing) {
     // 멈춤: 그 시각의 프레임이 창 안에 없을 때만 한 장.
     const have = built.some((b) => Math.abs(b.t - cur) <= step * 1.5);
@@ -137,9 +145,10 @@ const pump = (): void => {
   if (built.length > 0 && built[0].t < cur - 1) built = built.filter((b) => b.t >= cur - 1);
   let bytesAhead = 0;
   for (const b of built) if (b.t >= cur) bytesAhead += b.bytes;
-  /* 한 번에 여덟 장까지만 짓고 한숨 돌린다 — 그 사이에 온 명령·시점 메시지가 먼저 처리된다. */
+  /* 한 번에 여덟 장 또는 60ms까지만 짓고 한숨 돌린다 — 느린 기기에서 여덟 장이 1초를 넘으면 그동안 명령이 줄을 선다. */
   let n = 0;
-  while (nextT <= until && bytesAhead < AHEAD_BYTES && n < 8) {
+  const pumpAt = nowMs();
+  while (nextT <= until && bytesAhead < AHEAD_BYTES && n < 8 && nowMs() - pumpAt < 60) {
     bytesAhead += emit(nextT);
     nextT += stepNow();
     n += 1;

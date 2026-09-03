@@ -25599,6 +25599,8 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
   const hdgMemRef = { current: new Map<string, { h: number; t: number; tg: number; px: number; py: number; lb: number }>() };
   const dispHdgRef = { current: new Map<string, { x: number; y: number; h: number; t: number }>() };
   const fogStampRef = { current: { key: "", at: -1e9, ms: -1e9, cost: 0, filled: false } };
+  /** 안개를 다시 쌓은 횟수(진단) */
+  let fogStampN9 = 0;
   const visSrcRef = { current: new Float32Array(0) };
   const visBufRef = { current: null as Uint8Array | null };
   const lastSeenRef = { current: new Float32Array(0) };
@@ -26257,12 +26259,16 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       const key9 = `${viewTeam}|${visAll ? 1 : 0}|${n9}`;
       const now9 = pNow();
       const wait9 = Math.min(FOG_MAX_MS, Math.max(FOG_MIN_MS, fs9.cost / FOG_BUDGET));
+      /* ★ 워커는 프레임을 **앞으로 몰아** 짓는다(벽시계 1초에 경기 몇 초치) — 벽시계 자만 쓰면 한 장 짓는 데 wait9를
+         넘는 느린 기기에서 **매 장** 다시 쌓는다(폰: 짓기 191ms의 큰 몫). 그래서 벽시계와 **경기 시각** 둘 다 wait9만큼
+         지나야 다시 쌓는다(경기 시각은 ms를 1배속의 초로 읽는다). 튐(2초 넘는 도약)은 여전히 즉시. */
       if (fs9.filled && fs9.key === key9
-        && now9 - fs9.ms < wait9
+        && (now9 - fs9.ms < wait9 || Math.abs(t - fs9.at) < wait9 / 1000)
         && Math.abs(t - fs9.at) < FOG_JUMP_SEC) {
         return buf;
       }
       fs9.key = key9; fs9.at = t; fs9.ms = now9; fs9.filled = true;
+      fogStampN9 += 1;
       buf.fill(0);
       /* ★ 이 함수가 이 화면의 **최대 비용**이었다(계측: 자기 시간 7.7%, 1위 — 2배·4배
          모두에서 그랬다) ────────────────────────────────────────────────────────────
@@ -29945,7 +29951,9 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       explored: exploredAt, visNow, visSrc: visSrcRef.current,
     };
   };
-  return { build, setView, reset, get view() { return view; } };
+  /** 진단 — 마지막 안개 쌓기 비용(ms)과 누적 횟수. */
+  const stats = (): { fogCost: number; fogStamps: number } => ({ fogCost: fogStampRef.current.cost, fogStamps: fogStampN9 });
+  return { build, setView, reset, stats, get view() { return view; } };
 }
 
 /** 화면(UI)이 읽는 파생 자료 — 워커가 세계를 세운 뒤 한 번 보내 준다(요청: 메인의 중복 파생 자료 제거).
@@ -30294,6 +30302,8 @@ export default function ReplayMotionPlayer({
     buildMs: 0,
     /** 장당 유닛 op 수·싼 크기(KB), 지수 평균 — 컬링이 먹는지 본다. */
     ops: 0, kb: 0,
+    /** 짓기의 속(지수 평균): 엔진 ms · 싸기 ms · 안개 쌓기 ms, 누적 안개 횟수·리셋 횟수, 워커 시계 − 주인 t(초). */
+    engMs: 0, packMs: 0, fogMs: 0, fogN: 0, resets: 0, skew: 0,
   });
   const lastFrameRef9 = useRef<Frame9 | null>(null);
   /** 워커에 마지막으로 보낸(보낼) 세계 — 워커가 늦게 서면(동적 import) 그때 다시 보낸다. */
@@ -30341,6 +30351,14 @@ export default function ReplayMotionPlayer({
         st9.buildMs = st9.buildMs === 0 ? pf9.ms : st9.buildMs * 0.9 + pf9.ms * 0.1;
         st9.ops = st9.ops === 0 ? pf9.n : st9.ops * 0.9 + pf9.n * 0.1;
         st9.kb = st9.kb === 0 ? pf9.buf.byteLength / 1024 : st9.kb * 0.9 + (pf9.buf.byteLength / 1024) * 0.1;
+        const x9 = m9 as unknown as { msBuild?: number; msPack?: number; fogCost?: number; fogN?: number; resets?: number; cur?: number };
+        const mix9 = (old9: number, v9: number): number => (old9 === 0 ? v9 : old9 * 0.9 + v9 * 0.1);
+        st9.engMs = mix9(st9.engMs, x9.msBuild ?? 0);
+        st9.packMs = mix9(st9.packMs, x9.msPack ?? 0);
+        st9.fogMs = x9.fogCost ?? st9.fogMs;
+        st9.fogN = x9.fogN ?? st9.fogN;
+        st9.resets = x9.resets ?? st9.resets;
+        if (typeof x9.cur === "number") st9.skew = x9.cur - cmdNowRef9.current.t;
         const snaps9 = fogSnapsRef9.current;
         if (pf9.fog) {
           // 시각순으로 꽂는다(거의 늘 끝).
@@ -33642,6 +33660,7 @@ export default function ReplayMotionPlayer({
     SCR_DIAG.worker = `${frameWorkerRef.current ? (st9.ready ? "on" : "준비중") : "off"} got ${st9.got} used ${st9.used} missed ${st9.missed}`
       + ` 짓기 ${st9.buildMs.toFixed(1)}ms op ${st9.ops.toFixed(0)}·${st9.kb.toFixed(0)}KB 앞 ${wFramesRef.current.size > 0 ? Math.max(0, ahead9).toFixed(1) : "-"}s·${wFramesRef.current.size}장·${(bytes9 / 1048576).toFixed(1)}MB`
       + ` 시야 ${cullRect9 ? `${((cullRect9.x1 - cullRect9.x0) * 100).toFixed(0)}×${((cullRect9.y1 - cullRect9.y0) * 100).toFixed(0)}%` : "전체"}`
+      + ` [엔진 ${st9.engMs.toFixed(0)} 싸기 ${st9.packMs.toFixed(1)} 안개 ${st9.fogMs.toFixed(0)}ms×${st9.fogN} 리셋 ${st9.resets} 시계차 ${st9.skew >= 0 ? "+" : ""}${st9.skew.toFixed(1)}s]`
       + ` sent(world ${st9.sentWorld} view ${st9.sentView} cmd ${st9.sentCmd})`
       + (wait9 > 15 ? ` ⚠ 세계 보낸 지 ${Math.round(wait9)}초째 응답 없음` : "")
       + (st9.err ? ` ⚠ ${st9.err}` : "");
