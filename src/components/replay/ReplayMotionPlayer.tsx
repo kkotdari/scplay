@@ -30335,9 +30335,11 @@ export default function ReplayMotionPlayer({
   const lerpPoolRef9 = useRef<Map<string, UnitDrawOp>>(new Map());
   const lerpFrameRef9 = useRef<{ frame: Frame9; ops: UnitDrawOp[] } | null>(null);
   /** 붓 박자 통계(진단) — t 걸음(ms)·같은 앞 장을 되풀이한 횟수·뒤 장이 없던 횟수. */
-  const brushStatRef9 = useRef({ lastT: -1, stepSum: 0, stepMax: 0, stepN: 0, lastA: -1, sameA: 0, noB: 0, draws: 0 });
+  const brushStatRef9 = useRef({ lastT: -1, stepSum: 0, stepMax: 0, stepN: 0, lastA: -1, sameA: 0, noB: 0, gapB: 0, draws: 0 });
   /** 워커에 마지막으로 보낸(보낼) 세계 — 워커가 늦게 서면(동적 import) 그때 다시 보낸다. */
   const worldMsgRef9 = useRef<unknown>(null);
+  /** 시계가 올린 t가 아직 안 그려졌나 — 렌더 본문에서 내린다. 켜져 있으면 틱은 시간을 안 보낸다(렌더 한 번에 한 걸음). */
+  const tPendingRef9 = useRef(false);
   /** 주인의 지금 상태(렌더마다 갱신) — 프레임 버림·안개 판 정리의 자. */
   const cmdNowRef9 = useRef<{ playing: boolean; t: number; speed: number }>({ playing: false, t: 0, speed: 1 });
   /** 워커에 보낸 마지막 명령 — 바뀔 때만 다시 보낸다(주인의 명령은 매 프레임이 아니다). */
@@ -33679,6 +33681,7 @@ export default function ReplayMotionPlayer({
      차"로 안다(0.3초 또는 배속×0.15초). 시계가 무거운 프레임에 밀려 처지면 그것도 같은 자로 다시 맞춘다. */
   const playing9 = playing && active;
   cmdNowRef9.current = { playing: playing9, t, speed };
+  tPendingRef9.current = false;
   {
     const w9 = frameWorkerRef.current;
     const c9 = cmdSentRef9.current;
@@ -33757,7 +33760,11 @@ export default function ReplayMotionPlayer({
     const bs9 = brushStatRef9.current;
     if (tNow9 <= a9.t + 1e-6) return fa9;
     const b9 = pickNextFrame9(a9);
-    if (!b9) { bs9.noB += 1; return fa9; }
+    if (!b9) {
+      bs9.noB += 1;
+      for (const f9 of wFramesRef.current.values()) if (f9.t > a9.t + 0.6) { bs9.gapB += 1; break; }
+      return fa9;
+    }
     const fb9 = decodeFrame9(b9);
     const u9 = Math.min(1, (tNow9 - a9.t) / (b9.t - a9.t));
     if (!b9.byKey) {
@@ -33851,7 +33858,7 @@ export default function ReplayMotionPlayer({
       + ` [엔진 ${st9.engMs.toFixed(0)} 싸기 ${st9.packMs.toFixed(1)} 안개 ${st9.fogMs.toFixed(0)}ms×${st9.fogN} 리셋 ${st9.resets} 시계차 ${st9.skew >= 0 ? "+" : ""}${st9.skew.toFixed(1)}s]`
       + ((): string => {
         const b9 = brushStatRef9.current;
-        return ` 붓: t걸음 ${b9.stepN ? (b9.stepSum / b9.stepN).toFixed(0) : "-"}/${b9.stepMax.toFixed(0)}ms 같은장 ${b9.sameA}/${b9.draws} 뒤장없음 ${b9.noB}`;
+        return ` 붓: t걸음 ${b9.stepN ? (b9.stepSum / b9.stepN).toFixed(0) : "-"}/${b9.stepMax.toFixed(0)}ms 같은장 ${b9.sameA}/${b9.draws} 뒤장없음 ${b9.noB}(틈 ${b9.gapB})`;
       })()
       + ` sent(world ${st9.sentWorld} view ${st9.sentView} cmd ${st9.sentCmd})`
       + (wait9 > 15 ? ` ⚠ 세계 보낸 지 ${Math.round(wait9)}초째 응답 없음` : "")
@@ -34941,6 +34948,10 @@ export default function ReplayMotionPlayer({
            버린다 — 재생이 벽시계보다 조금 늦어질 뿐이고, 사람 눈에는 뜀보다 늦음이 훨씬 덜 거슬린다. 배속을 곱하기
            전의 벽시계로 잰다(8배에서도 한 번에 0.64초 넘게 안 뛴다). 워커는 시계차가 0.3초를 넘으면 명령으로 다시 맞는다. */
         const advWall9 = Math.min(acc, 0.08);
+        /* ★ 앞 걸음이 아직 안 그려졌으면 이번 걸음은 버린다(계측: 상한 80ms인데 t 걸음 최대 148ms — 메인이 바쁠 때
+           React가 두 틱의 갱신을 한 렌더로 합쳐 화면에는 두 걸음이 한 번에 나타났다). 렌더 한 번에 한 걸음만. */
+        if (tPendingRef9.current) { clockRef.current.acc = 0; return; }
+        tPendingRef9.current = true;
         setT((prev) => {
           const next = prev + advWall9 * speed;
           if (next >= total) {
