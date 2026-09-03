@@ -5672,17 +5672,19 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       })()
       : 0;
     /* 파편 폭발도 얹는다(요청: 파괴 효과도 파편화) — 자는 발자국 폭, 1초. 옛 연기·심 DOM은 그대로 둔다. */
+    // 저그 공사 고치(완성 전 사라짐)는 건물 폭발이 아니라 **작은 고치 파편**(지적: 너무 크고 푸른 파동) — 크기는 발자국의
+    // 절반, 건물 갈래(bld) 아님, 아래 DOM 무너짐(충격파·연기)도 안 낸다.
+    const cocoonB9 = !finished9 && rk === "zerg";
     if (t >= goneAt && t - goneAt <= BLD_FX_SEC) {
       const [bfx9, bfy9] = posFrac(x + footDx(unit), y + footDy(unit));
       fxOps.push({
-        kind: "burst", fx: bfx9, fy: bfy9, lift: flyUp9, bld: true,
-        size: (FOOTPRINT[unit] ?? [3, 2])[0] * (mapW9 / grid.width),
+        kind: "burst", fx: bfx9, fy: bfy9, lift: flyUp9, bld: !cocoonB9,
+        size: (FOOTPRINT[unit] ?? [3, 2])[0] * (mapW9 / grid.width) * (cocoonB9 ? 0.5 : 1),
         ph: (t - goneAt) / BLD_FX_SEC,
-        // 저그 공사 고치(완성 전 사라짐)는 고치색 파편(지적)
-        mat: !finished9 && rk === "zerg" ? "cocoon" : rk === "terran" ? "mech" : rk, seed: i + 13,
+        mat: cocoonB9 ? "cocoon" : rk === "terran" ? "mech" : rk, seed: i + 13,
       });
     }
-    dom.push({ k: "collapse", key: `clp-${i}`, x: x + footDx(unit), y: y + footDy(unit), wPct: clpW, rk, flyUp: flyUp9 });
+    if (!cocoonB9) dom.push({ k: "collapse", key: `clp-${i}`, x: x + footDx(unit), y: y + footDy(unit), wPct: clpW, rk, flyUp: flyUp9 });
     return null;
   });
       void rW9;
