@@ -6075,7 +6075,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
     /* ★ 버로우 예고(요청: 럴커 버로우 때 땅 파는 모션 — 이동을 그만큼 일찍 멈추고, 버로우할 자리에서 애니메이션 뒤 바로
        땅속 상태) ─────────────────────────────────────────────────────────────────
        참값이 ST_BURROW로 바뀌는 시각 T1을 **미리** 본다(키를 앞으로 훑는다 — 워커가 앞을 짓는 구조라 값이 싸다).
-       [T1−BURROW_DIG_SEC, T1) 동안은 자리를 T1의 자리(버로우 지점)에 못 박고 몸이 잠겨 들며(아래 digging9·rise),
+       [T1−BURROW_DIG_SEC, T1) 동안은 자리를 T1의 자리(버로우 지점)에 못 박고 파는 동작을 하며(아래 digging9),
        T1부터는 곧장 땅속 판이다. 옛 방식(상태가 바뀐 **뒤**에 파기)은 버로우 완성과 첫 가시가 파는 창만큼 늦었다. */
     const burrowNext9 = ((): number | null => {
       if (!simTr || !BURROWABLE.has(e.unit)) return null;
@@ -6569,9 +6569,8 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
        가라앉음이다. 그리는 쪽(op.rise)과 빙결 우리가 **같은 값**을 봐야 우리가
        몸에 붙는다(아래 cage의 lift 주석). */
     /* 럴커는 안 가라앉는다(요청) — 파는 자세(컷 4·5)와 흙덩이(아래 dig)가 그 몫이다. 다른 버로우 유닛은 잠겨 든다. */
-    const rise9 = (HOVER_RISE_K[drawUnit] ?? 0) - (digging9 && drawUnit !== "Lurker" ? digU9 * 0.9 : 0)
-      /* 시즈 전환: 앉았다 일어남(0 → −0.16 → 0) — 판이 바뀌는 한가운데에서 가장 낮다. */
-      - (siegeXf9 ? 0.16 * Math.sin(Math.PI * Math.min(1, siegeXf9.u)) : 0);
+    // 시즈 전환은 안 앉는다(요청: 아래로 내려가는 모션 제거) — 버팀다리가 뻗고 접히는 것(legK9)만이 전환 동작이다.
+    const rise9 = (HOVER_RISE_K[drawUnit] ?? 0) - (digging9 && drawUnit !== "Lurker" ? digU9 * 0.9 : 0);
     if (digging9 && drawUnit === "Lurker" && !markerView && burrowNext9 !== null) {
       /* 흙덩이(요청) — 0.15초마다 한 움큼. 스팬은 열쇠가 살아 있는 동안만 있으므로 최근 세 움큼을 함께 실어 한 움큼이
          0.45초(CSS 길이)를 다 산다. 폭은 몸 한 타일의 화면 폭이다. */

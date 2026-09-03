@@ -27840,6 +27840,11 @@ export default function ReplayMotionPlayer({
     return () => {
       if (clockRef.current) cancelAnimationFrame(clockRef.current.raf);
       clockRef.current = null;
+      /* ★ 멈출 때 살아 있는 시각을 React에 넘긴다(지적: "럴커 버로우 때 재생 중과 일시정지의 위치가 다르다") — 붓은
+         tLive로 그려 왔고 React t는 100ms 박자라 그보다 뒤처져 있다. 넘기지 않으면 멈춘 화면이 마지막으로 그린 장보다
+         ≤100ms **앞 장**으로 되돌아간다(버로우 지점에 못 박히기 직전 걸어오던 자리 같은). 배속을 바꿀 때도 같다. */
+      const tl9 = tLiveRef9.current;
+      if (tl9 > 0 && tl9 !== tFromTickRef9.current) { tFromTickRef9.current = tl9; setT(tl9); }
     };
   }, [playing, active, speed, total]);
 
