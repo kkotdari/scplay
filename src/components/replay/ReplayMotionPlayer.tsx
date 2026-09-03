@@ -20086,8 +20086,11 @@ export const scrDiagModes = (): Set<string> => {
   return new Set(m9 ? m9[1].split(",") : []);
 };
 
-function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShadows, showOverlap, showHp, showCreep, marker: markerProp, markerAt, detailAt, yawAt, moveAt, painter, live, onPainted }: {
+function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan, wallMask, maskRects, clipQuad, showShadows, showOverlap, showHp, showCreep, marker: markerProp, markerAt, detailAt, yawAt, moveAt, painter, live, onPainted }: {
   ops: UnitDrawOp[]; zoom: number; pan: { x: number; y: number };
+  /** ★ 붓을 React 밖에서 몰 때(4번) — 시계 틱이 여기 넣어 둔 op·효과를 붓이 읽는다(props의 ops·fx보다 앞선다).
+   *  driven이 참인 동안 이 effect는 안 칠한다(틱이 칠한다); 멈추면 종전대로 렌더마다 칠한다. */
+  opsSrc?: { current: UnitDrawOp[] | null }; fxSrc?: { current: FxOp[] | null }; driven?: { current: boolean };
   /** 사양 게이트(요청) — 끄면 접지·겹침 그림자/체력바/크립을 안 그린다. 기본 켬. */
   showShadows?: boolean; showOverlap?: boolean; showHp?: boolean; showCreep?: boolean;
   /** 크립 차단 마스크(요청: 벽·램프·다리는 크립이 못 뚫는다) — 칸 하나가 픽셀 하나인
@@ -20147,6 +20150,8 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
     const paint = (zoom: number, pan: { x: number; y: number }, bakeZoom: number): void => {
       const cv = ref.current;
       if (!cv) return;
+      const ops = opsSrc?.current ?? opsProp;
+      const fx = fxSrc?.current ?? fxProp;
       /* 지난 판에서 덜어낸 판들을 여기서 놓는다(위 RELEASE_Q9) — 이 시점에는 어느
          op도 옛 판을 안 들고 있다. */
       flushReleased9();
@@ -21975,6 +21980,8 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
     };
     /* 부모가 손짓 중에 쥘 붓을 넘긴다 — 렌더마다 새 ops를 문 채로 갈아 끼운다. */
     if (painter) painter.current = paint;
+    // 틱이 몰고 있으면(재생 중) 여기서는 안 칠한다 — 붓은 이미 프레임마다 틱이 쥔다.
+    if (driven?.current) return;
     /* 손짓이 도는 중이면 상태(props)가 아니라 지금 손끝의 값으로 그린다 — 드래그 중에도
        재생 틱이 계속 리렌더를 내는데, 그때 굳은 지 오래인 배율로 한 장 그리면 화면이
        한 프레임 뒤로 튄다. */
@@ -22657,6 +22664,8 @@ export const playbackViewOf = new Map<string, {
 }>();
 /** 메인 개체 표에서 비운 배열들의 자리표(공유) — 같은 참조라 메모리를 안 먹는다. */
 const EMPTY_ARR9: never[] = [];
+/** React 상태 t를 올리는 간격(ms) — 유닛 캔버스는 틱이 프레임마다 칠하고, React는 이 박자로만 렌더한다(4번). */
+const REACT_STEP_MS9 = 100;
 /** 워커가 보낸 설계도 한 장 — 숫자 배열(unpack9로 푼다) + 안개(바뀐 장에만) + 짓기 ms. 푼 결과는 dec에 붙인다. */
 export type PackedFrame9 = {
   t: number; buf: Float32Array; strs: string[];
@@ -23014,8 +23023,15 @@ export default function ReplayMotionPlayer({
   const brushStatRef9 = useRef({ lastT: -1, stepSum: 0, stepMax: 0, stepN: 0, lastA: -1, sameA: 0, noB: 0, gapB: 0, draws: 0 });
   /** 워커에 마지막으로 보낸(보낼) 세계 — 워커가 늦게 서면(동적 import) 그때 다시 보낸다. */
   const worldMsgRef9 = useRef<unknown>(null);
-  /** 시계가 올린 t가 아직 안 그려졌나 — 렌더 본문에서 내린다. 켜져 있으면 틱은 시간을 안 보낸다(렌더 한 번에 한 걸음). */
-  const tPendingRef9 = useRef(false);
+  /* ★ 붓을 React 밖에서(4번) — 시계 틱이 프레임마다 설계도를 골라 캔버스를 곧장 칠한다(paintFnRef9). React 상태 t는
+     초당 열 번만 올린다(REACT_STEP_MS9): 시간 표시·DOM 효과·미니맵·안개는 그 박자면 족하고, 유닛·효과 캔버스는 틱이 쥔다. */
+  const tLiveRef9 = useRef(0);
+  const tFromTickRef9 = useRef(-1);
+  const reactAtRef9 = useRef(0);
+  const paintFnRef9 = useRef<((tNow: number) => void) | null>(null);
+  const frameOpsRef9 = useRef<UnitDrawOp[] | null>(null);
+  const frameFxRef9 = useRef<FxOp[] | null>(null);
+  const drivenRef9 = useRef(false);
   /** 주인의 지금 상태(렌더마다 갱신) — 프레임 버림·안개 판 정리의 자. */
   const cmdNowRef9 = useRef<{ playing: boolean; t: number; speed: number }>({ playing: false, t: 0, speed: 1 });
   /** 워커에 보낸 마지막 명령 — 바뀔 때만 다시 보낸다(주인의 명령은 매 프레임이 아니다). */
@@ -26364,7 +26380,9 @@ export default function ReplayMotionPlayer({
      차"로 안다(0.3초 또는 배속×0.15초). 시계가 무거운 프레임에 밀려 처지면 그것도 같은 자로 다시 맞춘다. */
   const playing9 = playing && active;
   cmdNowRef9.current = { playing: playing9, t, speed };
-  tPendingRef9.current = false;
+  // 밖에서 t가 바뀌었으면(탐색) 틱의 살아 있는 시계도 거기로.
+  if (t !== tFromTickRef9.current) tLiveRef9.current = t;
+  drivenRef9.current = playing9;
   {
     const w9 = frameWorkerRef.current;
     const c9 = cmdSentRef9.current;
@@ -26385,22 +26403,22 @@ export default function ReplayMotionPlayer({
   }
   /** 설계도 고르기 — t보다 앞서지 않은 것 중 가장 늦은 것, 없으면 바로 뒤의 것. 2초 안이면 낡아도 든다(빈 화면보다
    *  낫다). 그 밖(탐색 직후 옛 자리)은 안 든다 — 마지막에 쓴 프레임을 든 채 새 것을 기다린다. */
-  const pickWorkerFrame9 = (): PackedFrame9 | null => {
+  const pickWorkerFrame9 = (tNow9: number): PackedFrame9 | null => {
     const frames9 = wFramesRef.current;
     if (frames9.size === 0) return null;
     const near9 = Math.max(2, speed * 2);
     let best: PackedFrame9 | null = null;
     for (const f9 of frames9.values()) {
-      if (f9.t > t + 1e-6) continue;
+      if (f9.t > tNow9 + 1e-6) continue;
       if (!best || f9.t > best.t) best = f9;
     }
-    if (best && t - best.t <= near9) return best;
+    if (best && tNow9 - best.t <= near9) return best;
     let next: PackedFrame9 | null = null;
     for (const f9 of frames9.values()) {
-      if (f9.t < t) continue;
+      if (f9.t < tNow9) continue;
       if (!next || f9.t < next.t) next = f9;
     }
-    if (next && next.t - t <= near9) return next;
+    if (next && next.t - tNow9 <= near9) return next;
     return null;
   };
   /** 설계도 풀기 — 그릴 장만 푼다(한 번 푼 것은 붙여 둔다). 안개는 장에 실렸으면 그것, 아니면 그 시각 이하 가장
@@ -26505,29 +26523,38 @@ export default function ReplayMotionPlayer({
     fr9.explored = fa9.explored; fr9.visNow = fa9.visNow; fr9.visSrc = fa9.visSrc;
     return fr9;
   };
-  const wPacked9 = pickWorkerFrame9();
-  let frame9: Frame9;
-  {
-    const bs9 = brushStatRef9.current;
-    if (playing && active) {
-      if (bs9.lastT >= 0 && t > bs9.lastT) { const st9 = (t - bs9.lastT) * 1000; bs9.stepSum += st9; bs9.stepMax = Math.max(bs9.stepMax, st9); bs9.stepN += 1; }
-      bs9.lastT = t;
+  /** 시각 t의 프레임 — 설계도를 골라(pickWorkerFrame9) 앞·뒤 장 사이를 보간한다. count9면 붓 통계도 센다(틱). */
+  const frameAt9 = (tNow9: number, count9: boolean): Frame9 => {
+    const wPacked9 = pickWorkerFrame9(tNow9);
+    if (count9) {
+      const bs9 = brushStatRef9.current;
+      if (bs9.lastT >= 0 && tNow9 > bs9.lastT) { const st9 = (tNow9 - bs9.lastT) * 1000; bs9.stepSum += st9; bs9.stepMax = Math.max(bs9.stepMax, st9); bs9.stepN += 1; }
+      bs9.lastT = tNow9;
       bs9.draws += 1;
       if (wPacked9) { if (wPacked9.t === bs9.lastA) bs9.sameA += 1; bs9.lastA = wPacked9.t; }
     }
-  }
-  if (wPacked9) {
-    wStatRef.current.used += 1;
-    // 푼 것은 앞 장(그리는 장)과 뒤 장(보간 끝점)만 들고, 그보다 옛 장의 객체는 놓는다(폰 메모리).
-    for (const f9 of wFramesRef.current.values()) {
-      if (f9.t < wPacked9.t && f9.dec) { f9.dec = undefined; f9.byKey = undefined; }
+    if (wPacked9) {
+      if (count9) wStatRef.current.used += 1;
+      // 푼 것은 앞 장(그리는 장)과 뒤 장(보간 끝점)만 들고, 그보다 옛 장의 객체는 놓는다(폰 메모리).
+      for (const f9 of wFramesRef.current.values()) {
+        if (f9.t < wPacked9.t && f9.dec) { f9.dec = undefined; f9.byKey = undefined; }
+      }
+      const fr9 = wPacked9.t <= tNow9 ? lerpFrame9(wPacked9, tNow9) : decodeFrame9(wPacked9);
+      lastFrameRef9.current = fr9;
+      return fr9;
     }
-    frame9 = wPacked9.t <= t ? lerpFrame9(wPacked9, t) : decodeFrame9(wPacked9);
-    lastFrameRef9.current = frame9;
-  } else {
-    wStatRef.current.missed += 1;
-    frame9 = lastFrameRef9.current ?? EMPTY_FRAME9;
-  }
+    if (count9) wStatRef.current.missed += 1;
+    return lastFrameRef9.current ?? EMPTY_FRAME9;
+  };
+  /* 틱의 붓 — 살아 있는 시각으로 프레임을 골라 op·효과를 ref에 두고 유닛 캔버스를 곧장 칠한다(React 없이). */
+  paintFnRef9.current = (tNow9: number): void => {
+    const fr9 = frameAt9(tNow9, true);
+    frameOpsRef9.current = fr9.unitOps;
+    frameFxRef9.current = fr9.fxOps;
+    opsRef.current = fr9.unitOps;
+    unitPaintRef.current?.(zoomRef.current, panRef.current, zoomCommitRef.current);
+  };
+  const frame9: Frame9 = frameAt9(t, false);
   // 워커 상태는 늘 적어 둔다(perf-check가 읽는다) — 문자열 하나라 값이 싸다.
   {
     const st9 = wStatRef.current;
@@ -27634,21 +27661,23 @@ export default function ReplayMotionPlayer({
            버린다 — 재생이 벽시계보다 조금 늦어질 뿐이고, 사람 눈에는 뜀보다 늦음이 훨씬 덜 거슬린다. 배속을 곱하기
            전의 벽시계로 잰다(8배에서도 한 번에 0.64초 넘게 안 뛴다). 워커는 시계차가 0.3초를 넘으면 명령으로 다시 맞는다. */
         const advWall9 = Math.min(acc, 0.08);
-        /* ★ 앞 걸음이 아직 안 그려졌으면 이번 걸음은 버린다(계측: 상한 80ms인데 t 걸음 최대 148ms — 메인이 바쁠 때
-           React가 두 틱의 갱신을 한 렌더로 합쳐 화면에는 두 걸음이 한 번에 나타났다). 렌더 한 번에 한 걸음만. */
-        if (tPendingRef9.current) { clockRef.current.acc = 0; return; }
-        tPendingRef9.current = true;
-        setT((prev) => {
-          const next = prev + advWall9 * speed;
-          if (next >= total) {
-            setPlaying(false);
-            setDone(true);
-            // 끝까지 봤다고 바깥에 알린다(요청) — 화면이 그때 승패를 드러낸다.
-            onFinish?.();
-            return total;
-          }
-          return next;
-        });
+        /* ★ 붓은 React 밖에서(4번) — 살아 있는 시계(tLiveRef9)를 한 걸음 올리고 그 자리에서 캔버스를 칠한다. React 상태
+           t는 초당 열 번(REACT_STEP_MS9)만 올린다. 그래서 React가 두 틱을 한 렌더로 합쳐도 캔버스의 걸음은 안 흔들린다
+           (옛 '앞 걸음이 안 그려졌으면 버림' 규칙은 필요가 없어졌다). */
+        const cur9 = tLiveRef9.current;
+        let next9 = cur9 + advWall9 * speed;
+        let ended9 = false;
+        if (next9 >= total) { next9 = total; ended9 = true; }
+        tLiveRef9.current = next9;
+        paintFnRef9.current?.(next9);
+        const nowR9 = performance.now();
+        if (ended9 || nowR9 - reactAtRef9.current >= REACT_STEP_MS9) {
+          reactAtRef9.current = nowR9;
+          tFromTickRef9.current = next9;
+          setT(next9);
+          // 끝까지 봤다고 바깥에 알린다(요청) — 화면이 그때 승패를 드러낸다.
+          if (ended9) { setPlaying(false); setDone(true); onFinish?.(); }
+        }
       }
     };
     clockRef.current = { raf: requestAnimationFrame(tick), last: performance.now(), acc: 0, drawn: 0 };
@@ -28923,7 +28952,7 @@ export default function ReplayMotionPlayer({
             )}
 
           <UnitLayer
-            ops={unitOps} fx={fxOps}
+            ops={unitOps} fx={fxOps} opsSrc={frameOpsRef9} fxSrc={frameFxRef9} driven={drivenRef9}
             zoom={zoom} pan={pan} wallMask={creepMask} maskRects={creepMaskRects}
             /* 손짓(드래그·핀치·휠) 중에는 부모가 이 붓으로 캔버스만 다시 그린다 —
                리액트를 안 거치고, 그린 자리는 손끝 그대로다(xfLive). */
