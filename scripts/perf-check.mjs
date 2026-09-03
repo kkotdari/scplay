@@ -431,6 +431,44 @@ page.on("pageerror", (e) => console.error("페이지 오류:", String(e).slice(0
      이 깃발로는 폴백을 못 태운다. 남겨 두는 까닭은 그 사실 자체가 기록이라서다: 배치의
      안전을 '측정이 틀렸을 때'로 시험하려 하지 말고 **구조로** 보장할 것(지금은 좁은
      배치에서 판의 max-height를 아예 안 걸어, 잘릴 수 있는 자리가 없다). */
+/* 워커 메시지 크기 계측(--msgsize) — 메인→워커(world/view/clock)와 워커→메인(frame)의 바이트를 잰다.
+   구조화 복제 비용의 자(JSON 길이 + 형식 배열 바이트). 폰에서 워커 분리가 버벅이는 까닭을 숫자로 보려고. */
+if (has("--msgsize")) {
+  await page.addInitScript(() => {
+    const st = { up: {}, frames: 0, fJson: 0, fTyped: 0, fOps: 0, fFx: 0, fDom: 0, fMax: 0 };
+    window.__msgStat = st;
+    const sizeOf = (m) => {
+      let typed = 0;
+      const json = JSON.stringify(m, (k, v) => {
+        if (ArrayBuffer.isView(v)) { typed += v.byteLength; return undefined; }
+        if (v instanceof Map) return [...v.entries()];
+        return v;
+      });
+      return { json: json ? json.length : 0, typed };
+    };
+    const origPost = Worker.prototype.postMessage;
+    Worker.prototype.postMessage = function (m, ...rest) {
+      try { const z = sizeOf(m); const t = (m && m.type) || "?"; const e = (st.up[t] ||= { n: 0, json: 0, typed: 0 }); e.n += 1; e.json += z.json; e.typed += z.typed; } catch {}
+      return origPost.call(this, m, ...rest);
+    };
+    const d = Object.getOwnPropertyDescriptor(Worker.prototype, "onmessage");
+    Object.defineProperty(Worker.prototype, "onmessage", {
+      set(fn) {
+        d.set.call(this, (ev) => {
+          const m = ev.data;
+          if (m && m.type === "frame" && m.frame) {
+            const z = sizeOf(m.frame); st.frames += 1; st.fJson += z.json; st.fTyped += z.typed;
+            st.fOps += m.frame.unitOps.length; st.fFx += m.frame.fxOps.length; st.fDom += m.frame.dom.length;
+            st.fMax = Math.max(st.fMax, z.json + z.typed);
+          }
+          fn(ev);
+        });
+      },
+      get() { return d.get.call(this); },
+      configurable: true,
+    });
+  });
+}
 if (has("--noro")) {
   await page.addInitScript(() => {
     Object.defineProperty(window, "ResizeObserver", { value: undefined, configurable: true });
@@ -1251,6 +1289,16 @@ const topLines = has("--top")
   : null;
 // 프레임 워커 상태(SCR_DIAG.worker) — on/off · 받은 수 · 쓴 수 · 놓친 수.
 try { console.log(`[워커] ${await page.evaluate(() => (window.__scrDiag && window.__scrDiag.worker) || "(진단 없음)")}`); } catch (e) { console.log("[워커] (못 읽음)", String(e).slice(0, 80)); }
+if (has("--msgsize")) {
+  const r = await page.evaluate(() => {
+    const st = window.__msgStat; if (!st) return "없음";
+    const mb = (n) => `${(n / 1048576).toFixed(2)}MB`;
+    const up = Object.entries(st.up).map(([k, e]) => `${k} ${e.n}회 json ${mb(e.json)} typed ${mb(e.typed)}`).join(" · ");
+    const n = Math.max(1, st.frames);
+    return `올림: ${up}\n  프레임 ${st.frames}장 · 장당 json ${(st.fJson / n / 1024).toFixed(1)}KB + typed ${(st.fTyped / n / 1024).toFixed(1)}KB (최대 ${(st.fMax / 1024).toFixed(0)}KB) · 장당 unitOps ${(st.fOps / n).toFixed(0)} fxOps ${(st.fFx / n).toFixed(0)} dom ${(st.fDom / n).toFixed(1)} · 합 ${mb(st.fJson + st.fTyped)}`;
+  });
+  console.log("[메시지]", r);
+}
 await browser.close();
 
 /* ── 결과 ───────────────────────────────────────────────────────────────────── */
