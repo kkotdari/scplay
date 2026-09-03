@@ -30,6 +30,7 @@ const MODE = String(flag("--mode", "base"));          // base(도록) · top(지
 const CELL = Number(flag("--cell", 220));
 const LOD = Number(flag("--lod", 3));
 const POSE = Number(flag("--pose", 0));          // 0 기본 · 1 이동 컷 · 2 공격 컷
+const THRUST = flag("--thrust") ? String(flag("--thrust")) : "";   // 추진 불빛 꼴 후보(flame·disc·drum·halo)
 const LIT = argv.includes("--lit");               // 건물 창문에 불 켜기(활성 상태)
 const HEAD = Number(flag("--head", 0));           // 포탑부 상대 각(도) — 터렛·포톤·성큰
 const SPIN = Number(flag("--spin", 0));           // 도는 부품의 칸(0~7) — 서플라이 팬·코어 디스크
@@ -82,7 +83,8 @@ function bundle() {
 }
 
 /** 페이지 안에서 도는 그리개 — 바깥 스코프를 못 보므로 필요한 값은 전부 인자로. */
-function inBrowser({ KINDS, ROTS, MODE, CELL, LOD, BG, COLOR, POSE, LIT, HEAD, SPIN, ZOOM, PAN }) {
+function inBrowser({ KINDS, ROTS, MODE, CELL, LOD, BG, COLOR, POSE, LIT, HEAD, SPIN, ZOOM, PAN, THRUST }) {
+  if (THRUST) window.__thrustStyle = THRUST;
   /* 앱의 그 함수와 **똑같아야 한다**(ReplayMotionPlayer의 shadeBoost) — `o < 1` 조건이
      여기만 빠져 있어서, 불투명도 1인 몸판까지 0.85로 깔렸다. 그 탓에 이 도구로 뽑은
      모든 그림이 실제보다 비쳐 보였고(부품이 겹친 모델일수록 심하다), 그 그림을 보고
@@ -163,7 +165,7 @@ await page.route("http://model-shot.local/*", (r) => r.fulfill({
 await page.goto("http://model-shot.local/");
 await page.addScriptTag({ content: js, type: "module" });
 await page.waitForFunction("!!window.__bake");
-const dataUrl = await page.evaluate(inBrowser, { KINDS, ROTS, MODE, CELL, LOD, BG, COLOR, POSE, LIT, HEAD, SPIN, ZOOM, PAN });
+const dataUrl = await page.evaluate(inBrowser, { KINDS, ROTS, MODE, CELL, LOD, BG, COLOR, POSE, LIT, HEAD, SPIN, ZOOM, PAN, THRUST });
 await browser.close();
 writeFileSync(OUT, Buffer.from(dataUrl.split(",")[1], "base64"));
 console.log(OUT);

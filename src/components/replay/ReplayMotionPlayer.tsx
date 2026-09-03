@@ -1053,16 +1053,59 @@ function fistFaces(x: number, y: number, z: number, r: number, fill: string): Sh
 /** 추진체 **불꽃**(요청: 함선·비행기는 평소엔 불빛 없이, 이동할 때만) — 노즐 뒤(−y)로
  *  뿜는 방추 두 겹: 바깥은 종족 색(테란 주황·프로토스 푸른빛), 속은 밝은 심(노랑·흰빛).
  *  반투명이라 뒤에 있는 것이 비친다. 이동 컷(poseNow 1)에서만 부르는 것이 규약이다. */
+/** 추진 불빛의 꼴 — 후보판용 손잡이(window.__thrustStyle). 고르면 이 기본값만 바꾼다.
+ *   flame 옛 불꽃 방추 · disc 납작 원판(겹 세 장 그러데이션) · drum 짧은 드럼통(테 + 달아오른 끝면)
+ *   · halo 원판 + 아주 옅은 짧은 여운. */
+type ThrustStyle = "flame" | "disc" | "drum" | "halo";
+const THRUST_STYLE_DEFAULT: ThrustStyle = "flame";
+const thrustStyleNow = (): ThrustStyle =>
+  ((globalThis as unknown as { __thrustStyle?: ThrustStyle }).__thrustStyle) ?? THRUST_STYLE_DEFAULT;
 function thrustFlame(
   x: number, y: number, z: number, r: number, race: "terran" | "toss", key: number,
 ): ShapeFace[] {
   const outer = race === "terran" ? "#ff8a1e" : "#5fb8ff";
   const inner = race === "terran" ? "#ffe066" : "#eaf8ff";
-  const cone = (rr: number, len: number, fill: string, alpha: number): ShapeFace[] => spirePillar({
+  const mid = race === "terran" ? "#ffb347" : "#a8d8ff";
+  const tint = (fs: ShapeFace[], fill: string, alpha: number, floor = 0.2): ShapeFace[] =>
+    fs.map(([d, o, , k, l, n]) => [d, Math.max(floor, o * alpha), fill, k, l, n] as ShapeFace);
+  const cone = (rr: number, len: number, fill: string, alpha: number): ShapeFace[] => tint(spirePillar({
     x: 0, y: 0, h: 1, w: rr, tipW: 0, segs: 4, sides: 8, caps: "none", trueNormal: true,
     path: (t9: number): [number, number, number] => [x, y - len * t9, z],
     widthOf: (t9: number): number => rr * (1 - t9) ** 0.7,
-  }).map(([d, o, , k, l, n]) => [d, Math.max(0.2, o * alpha), fill, k, l, n] as ShapeFace);
+  }), fill, alpha);
+  /** 노즐 뒤로 짧게 뻗는 통 — y0에서 y0−len까지, 반지름 rr. 끝면(뒤 뚜껑)을 caps로 닫는다. */
+  const drum = (rr: number, y0: number, len: number, fill: string, alpha: number, caps: "none" | "both" | "top" | "bottom" = "both"): ShapeFace[] => tint(spirePillar({
+    x: 0, y: 0, h: 1, w: rr, tipW: rr, segs: 1, sides: 12, caps, trueNormal: true,
+    path: (t9: number): [number, number, number] => [x, y0 - len * t9, z],
+    widthOf: (): number => rr,
+  }), fill, alpha, 0.3);
+  const style = thrustStyleNow();
+  if (style === "disc") {
+    /* 납작 원판 겹 세 장 — 바깥(종족색, 옅게) → 가운데 → 심(밝게). 안으로 갈수록 뒤로 조금 더
+       나와 겹이 읽히고, 달아오른 에너지처럼 가운데가 가장 밝다. 두께는 반지름의 0.22. */
+    return tagKey([
+      ...drum(r * 1.15, y, r * 0.22, outer, 0.5),
+      ...drum(r * 0.82, y - r * 0.06, r * 0.24, mid, 0.75),
+      ...drum(r * 0.48, y - r * 0.12, r * 0.26, inner, 0.95),
+    ], key);
+  }
+  if (style === "drum") {
+    /* 짧은 드럼통 — 옆면은 종족색 테(반투명), 뒤 끝면은 달아오른 심(밝은색, 불투명에 가깝게).
+       길이는 반지름의 0.6. 끝면 가운데에 더 작은 심 한 장을 얹어 두 단 그러데이션. */
+    return tagKey([
+      ...drum(r * 1.05, y, r * 0.6, outer, 0.55, "none"),
+      ...drum(r * 1.05, y - r * 0.6, r * 0.02, mid, 0.85),
+      ...drum(r * 0.55, y - r * 0.62, r * 0.02, inner, 1.0),
+    ], key);
+  }
+  if (style === "halo") {
+    /* 원판 + 여운 — disc의 겹 두 장에, 뒤로 짧게(1.6r) 사그라드는 아주 옅은 방추 하나. */
+    return tagKey([
+      ...drum(r * 1.1, y, r * 0.22, outer, 0.5),
+      ...drum(r * 0.55, y - r * 0.1, r * 0.26, inner, 0.95),
+      ...cone(r * 0.8, r * 1.6, mid, 0.3),
+    ], key);
+  }
   return tagKey([
     ...cone(r * 1.05, r * 4.5, outer, 0.7),
     ...cone(r * 0.55, r * 3.0, inner, 0.9),
