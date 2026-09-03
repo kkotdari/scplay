@@ -19010,7 +19010,7 @@ const unionInkBox9 = (
 };
 /** 마스크를 임자 색으로 물들인 판 — (마스크, 색)마다 한 번만 만들고 되쓴다(계측: 그릴 때마다 물들이면 찍기가
  *  300 → 451장, 프레임이 1.5배 — 네 번의 캔버스 연산이 유닛마다 붙었다). 마스크는 임자 면 상자만이라 몸판보다 훨씬 작다. */
-const tintedOf9 = (tn: TintPlate9, color: string): HTMLCanvasElement | null => {
+const tintedOf9 = (tn: TintPlate9, color: string, bytes: { n: number } = spriteBytes): HTMLCanvasElement | null => {
   const got = tn.by?.get(color);
   if (got) return got;
   if (typeof document === "undefined") return null;
@@ -19028,10 +19028,10 @@ const tintedOf9 = (tn: TintPlate9, color: string): HTMLCanvasElement | null => {
   if (!tn.by) tn.by = new Map();
   if (tn.by.size >= TINT_BY_MAX9) {
     const first = tn.by.keys().next();
-    if (!first.done) { const old = tn.by.get(first.value); if (old) { spriteBytes.n -= canvasBytes(old); RELEASE_Q9.push(old); } tn.by.delete(first.value); }
+    if (!first.done) { const old = tn.by.get(first.value); if (old) { bytes.n -= canvasBytes(old); RELEASE_Q9.push(old); } tn.by.delete(first.value); }
   }
   tn.by.set(color, cv);
-  spriteBytes.n += canvasBytes(cv);
+  bytes.n += canvasBytes(cv);
   return cv;
 };
 /** 물들인 마스크를 몸판과 같은 자리에 얹는다(그리기 변환은 부르는 쪽이 세워 둔 상태). */
@@ -19328,7 +19328,7 @@ export const BLD_FILL_TARGET: Record<string, number> = {
   // 가스 셋은 도로 살짝 올린다(요청: "가스 건물즐 살짝씩 확대") — 0.8 → 0.92.
   refinery: 0.92, assim: 0.92, extract: 0.92,
 };
-const BLD_SPRITE_CACHE = new Map<string, { cv: HTMLCanvasElement; ox: number; oy: number; pad: number; l: number; side: number; bot: number; top: number; w: number; cx: number }>();
+const BLD_SPRITE_CACHE = new Map<string, BldSprite>();
 const bldSpriteBytes = { n: 0 };
 /* (걷어냄) pathYRange — 경로의 세로 범위만 재던 자다. 공사 단계(stageFaces)가
    '안쪽 → 바깥쪽' 규칙을 더하면서 세로만이 아니라 **부품 상자 전체**가 필요해졌고,
@@ -19695,6 +19695,8 @@ export function stageFaces(faces: ShapeFace[], stg: number): ShapeFace[] {
 type BldSprite = {
   cv: HTMLCanvasElement; ox: number; oy: number; pad: number; l: number;
   side: number; bot: number; top: number; w: number; cx: number;
+  /** 임자 색 마스크(유닛과 같은 규약, 위 TintPlate9) — 건물 판 열쇠에도 색이 없다. */
+  tint?: TintPlate9 | null;
 };
 /** 굽는 동안만 포탑 각을 세워 둔다(위 headYawNow 주석) — 열쇠를 짓기 **전**에 서야
  *  하므로 감싸는 자리가 여기다. 각은 −180~180으로 접어 표식이 흔들리지 않게 한다. */
@@ -19738,7 +19740,8 @@ function buildingSpriteBake(
   bldLitNow = !!op.lit;
   bldSpinNow = op.spin ?? 0;
   // 크기(sideQ)를 뺀 몫과 크기로 가른다 — 대타를 찾으려면 앞부분이 따로 있어야 한다.
-  const subKey = `${op.kind}|${op.rotDeg ?? 0}|${op.flat ? 1 : 0}|${vq}|${pitchTag(op.pitch)}|${op.color}|${B.toFixed(2)}|${stg}|${headTag(op.kind)}|${litTag(op.kind)}|${spinTag(op.kind)}`;
+  // 열쇠에 임자 색이 없다(유닛과 같은 마스크 규약) — 같은 건물 판을 모든 임자가 나눠 쓴다.
+  const subKey = `${op.kind}|${op.rotDeg ?? 0}|${op.flat ? 1 : 0}|${vq}|${pitchTag(op.pitch)}|${B.toFixed(2)}|${stg}|${headTag(op.kind)}|${litTag(op.kind)}|${spinTag(op.kind)}`;
   const key = `${subKey}|${lod}|${sideQ}`;
   const hit = BLD_SPRITE_CACHE.get(key);
   if (hit) {
@@ -19828,12 +19831,35 @@ function buildingSpriteBake(
     c2.scale(bn, bn);
     c2.translate(-8, -16);
   }
+  const teamSplitB9 = faces.some((f9) => f9[2] === undefined);
   for (const [d, o, fill] of faces) {
+    if (teamSplitB9 && fill === undefined) continue;
     c2.globalAlpha = shadeBoost(o, fill);
     c2.fillStyle = fill ?? op.color;
     c2.fill(pathOf(d));
   }
   if (lod >= 3) silhouetteLight(c2, cv);
+  /* 임자 색 마스크(유닛과 같은 규약) — 같은 변환으로 임자 면만 흰색(음영 알파), 뒤에 오는 고정 면은 제 알파로 파낸다. */
+  let tintCvB9: HTMLCanvasElement | null = null;
+  if (teamSplitB9) {
+    const mv = bakeCanvas(side9);
+    const m2 = mv?.getContext("2d");
+    if (mv && m2) {
+      m2.setTransform(B, 0, 0, B, 0, 0);
+      m2.translate(pad + sideQ / 2, pad + sideQ);
+      m2.scale(sideQ / 16, sideQ / 16);
+      m2.translate(-8, -16);
+      if (bn !== undefined && bn !== 1) { m2.translate(8, 16); m2.scale(bn, bn); m2.translate(-8, -16); }
+      for (const [d, o, fill] of faces) {
+        if (fill === undefined) { m2.globalCompositeOperation = "source-over"; m2.globalAlpha = o; m2.fillStyle = "#fff"; }
+        else { m2.globalCompositeOperation = "destination-out"; m2.globalAlpha = shadeBoost(o, fill); m2.fillStyle = "#000"; }
+        m2.fill(pathOf(d));
+      }
+      m2.globalCompositeOperation = "source-over";
+      m2.globalAlpha = 1;
+      tintCvB9 = mv;
+    }
+  }
   /* 잉크에 맞춰 자른다 — 건물 판은 여백(pad)이 발자국의 62%라 한 변이 2.24배이고,
      잉크는 대략 1배다: 넓이의 5분의 1만 쓰인다. 자른 자리(ox·oy)만 들고 다니면
      그림은 그대로다(위 cropToInk 주석). */
@@ -19841,24 +19867,31 @@ function buildingSpriteBake(
        화소 = B·(pad + sideQ/2) + (B·sideQ/16)·(모형좌표 − 8)   [세로는 −16]
      이므로 배수는 B·sideQ/16이고 원점은 거기서 8·배수(세로 16·배수)를 뺀 자리다. */
   const s9 = (B * sideQ) / 16;
-  const box9 = inkBoxOf(cv,
-    `b|${op.kind}|${op.rotDeg ?? 0}|${op.flat ? 1 : 0}|${vq}|${pitchTag(op.pitch)}`
-    + `|${lod}|${stg}|${headTag(op.kind)}|${litTag(op.kind)}|${spinTag(op.kind)}`,
-    B * (pad + sideQ / 2) - 8 * s9, B * (pad + sideQ) - 16 * s9, s9);
-  // 빌린 판이라 늘 새 판에 옮겨 담고(forceCopy), 원판은 빌림터로 돌려준다.
+  const memoB9 = `b|${op.kind}|${op.rotDeg ?? 0}|${op.flat ? 1 : 0}|${vq}|${pitchTag(op.pitch)}`
+    + `|${lod}|${stg}|${headTag(op.kind)}|${litTag(op.kind)}|${spinTag(op.kind)}${teamSplitB9 ? "|nt" : ""}`;
+  const bodyBoxB9 = inkBoxOf(cv, memoB9, B * (pad + sideQ / 2) - 8 * s9, B * (pad + sideQ) - 16 * s9, s9);
+  const maskBoxB9 = tintCvB9 ? inkBoxOf(tintCvB9, `${memoB9}|tm`, B * (pad + sideQ / 2) - 8 * s9, B * (pad + sideQ) - 16 * s9, s9) : null;
+  // 몸판은 합 상자로 자른다(자·발밑·중심이 옛 온 판과 같게).
+  const box9 = unionInkBox9(bodyBoxB9, maskBoxB9);
   const cr9 = cropToInk(cv, box9, true);
+  let tintB9: TintPlate9 | null = null;
+  if (tintCvB9 && maskBoxB9 && maskBoxB9.w > 1) {
+    const mcr = cropToInk(tintCvB9, maskBoxB9, true);
+    tintB9 = { cv: mcr.cv, ox: mcr.ox, oy: mcr.oy, gloss: lod >= 3 };
+  }
   /* 데칼(크립 얼룩)은 안 굳힌다 — 반투명 가장자리가 언샤프 링(밝은 테)으로 떠서
      땅과 이어지는 무늬가 도리어 도드라졌다. 딱딱해야 할 것은 몸의 경계뿐이다. */
   if (B <= 1 && !soft9) sharpenPlate9(cr9.cv);
   freeBakeCanvas(cv);
-  const entry = {
+  if (tintCvB9) freeBakeCanvas(tintCvB9);
+  const entry: BldSprite = {
     cv: cr9.cv, ox: cr9.ox, oy: cr9.oy,
-    pad, l, side: sideQ, bot: box9.bot, top: box9.top, w: box9.w, cx: box9.cx,
+    pad, l, side: sideQ, bot: box9.bot, top: box9.top, w: box9.w, cx: box9.cx, tint: tintB9,
   };
   BLD_SPRITE_CACHE.set(key, entry);
   // 이 열쇠로 구운 크기를 색인에 적는다(유닛 쪽 SPRITE_SIZES와 같은 규약).
   noteSub9(BLD_SPRITE_SIZES, subKey, sideQ, key);
-  bldSpriteBytes.n += canvasBytes(cr9.cv);
+  bldSpriteBytes.n += canvasBytes(cr9.cv) + (tintB9 ? canvasBytes(tintB9.cv) : 0);
   trimBoth9();
   SPRITE_PERF.noteBake(op.kind, pNow() - tBb9, true);
   if (PERF9) pAdd("굽기:건물판", pNow() - pBb9);
@@ -20697,6 +20730,13 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
               bLeft9 + (bspr.ox / B) * k, bTop9 + (bspr.oy / B) * k,
               (bspr.cv.width / B) * k, (bspr.cv.height / B) * k,
             );
+            if (bspr.tint) {
+              const tcv9 = tintedOf9(bspr.tint, op.color, bldSpriteBytes);
+              if (tcv9) {
+                SPRITE_PERF.bldBlit += 1;
+                ctx.drawImage(tcv9, bLeft9 + (bspr.tint.ox / B) * k, bTop9 + (bspr.tint.oy / B) * k, (tcv9.width / B) * k, (tcv9.height / B) * k);
+              }
+            }
             /* ★ 겹쳐 찍는 판(op.attach) — 성큰의 혓바닥이다(유닛 쪽 짐과 같은 규약).
                **같은 자**로 굽는다: 같은 판 크기(sideQ)·같은 배수(NORM_PAIR가 몸 것으로
                접는다)라, 몸과 똑같은 자리·배율에 제 잉크 오프셋(ox·oy)만 달리 주면

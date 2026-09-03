@@ -47,7 +47,7 @@
   `tkN/tkT/tkV/tkAt/tkLast/tkSlice`로 읽는다. 자리를 바꾸면 접근자만 고친다. 검사: `node scripts/openbw-tracks-check.mjs`.
 - 임자 색은 **굽지 않고 그릴 때 입힌다**(`UnitPlate9.tint`): 판 열쇠에 색이 없고, 개인색 면은 마스크(흰색·음영 알파,
   화가 순서상 위의 고정 면은 destination-out으로 파냄)로 따로 굽는다. 그릴 때 (마스크, 색)별로 한 번 물들인 판을
-  `tintedOf9`로 만들어 되쓴다(상한 8색). 건물 판은 아직 색이 열쇠에 든다.
+  `tintedOf9`로 만들어 되쓴다(상한 8색). 건물 판(`BldSprite.tint`)도 같은 규약이다.
 - 기기 프로필은 `DEV9` 한 표(폰/PC: 판 예산·굽기 상한·프레임당 굽기·불티·효과 래스터·그림자 최소 배율·시야 여유·
   앞 한도·요잉 8칸). 새 문턱은 표에 더하고 자리에서는 `DEV9.x`만 읽는다. 기기 판정은 `smallDevice9` 하나.
 - `#diag`는 요약 한 줄, `#diag=draw|mem|worker|truth|all`(쉼표로 여럿)로 용도를 가른다. `mem`에 메모리 어림(memEst9) 줄.
