@@ -22890,25 +22890,35 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
             /** 무기 세기 — 표의 반지름비(총 0.5 · 시즈 1.75)를 1 언저리로 옮긴 배수. */
             const wk9 = im9 ? Math.min(2, Math.max(0.7, im9.r / 0.6)) : 1;
             const mt9 = FX_MAT[f.mat ?? "mech"];
-            /* ★ 파편 여섯뿐이다(후보판 B2로 확정: "B에서 충격링 제거하고 파편양 늘리기 · 섬광도 제거")
-               — 섬광·링·스트릭 없이 점 파편 여섯이 짧게 튀어 나가 멈춘다(중력 없음). 각은 **고르게
-               등분**한다(무작위면 결마다 한쪽으로 몰렸다): 방향을 알면 맞은 반대쪽 부채꼴 ±0.65rad를
-               여섯으로, 모르면 360°를 여섯으로. 세로는 0.6으로 눌러 지면에 눕고 조금(0.15) 들어
-               올린다. 색은 밝은 톤·중간 톤을 번갈아. 무기 세기(wk9)는 자에만 실린다. */
+            /* ★ 파편 **스물넷**, **궤적 스트릭**(재요청: 양 4배, 이동 방향으로 길게) — 후보판 B2의
+               움직임(짧게 튀어 멈춤, 중력 없음, 섬광·링 없음)은 그대로 두고, 낱개를 점 대신 조금 전
+               자리에서 지금 자리까지 잇는 짧은 선으로 그려 꼬리가 생긴다. 각은 부채꼴 ±0.65rad를
+               고르게 나누되 낱개마다 고정 흔들림(각·거리·굵기)을 줘 줄 서지 않는다. */
             const hasDir9 = Number.isFinite(f.dx) && Number.isFinite(f.dy) && ((f.dx ?? 0) !== 0 || (f.dy ?? 0) !== 0);
             const away9 = hasDir9 ? Math.atan2(-(f.dy ?? 0), -(f.dx ?? 0)) : 0;
-            for (let di = 0; di < 6; di += 1) {
-              const an9 = hasDir9 ? away9 + (di / 5 - 0.5) * 1.3 : (di / 6) * Math.PI * 2 + 0.3;
-              const dd9 = r9 * wk9 * (0.3 + p9 * (0.9 + ((di * 7) % 4) * 0.15));
-              const px9 = hx9 + Math.cos(an9) * dd9;
-              const py9 = hy9 + Math.sin(an9) * dd9 * 0.6 - dd9 * 0.15;
-              const dr9 = Math.max(0.6, r9 * wk9 * (0.05 + ((di * 5) % 3) * 0.015));
+            const N9 = 24;
+            ctx.lineCap = "round";
+            for (let di = 0; di < N9; di += 1) {
+              const j1 = (di * 7) % 5; const j2 = (di * 11) % 4; const j3 = (di * 5) % 3;
+              const an9 = hasDir9
+                ? away9 + (di / (N9 - 1) - 0.5) * 1.3 + (j1 - 2) * 0.03
+                : (di / N9) * Math.PI * 2 + 0.3 + (j1 - 2) * 0.05;
+              const sp9 = r9 * wk9 * (0.8 + j2 * 0.22);
+              const at9 = (q9: number): [number, number] => {
+                const dd9 = sp9 * (0.3 + q9 * 1.2);
+                return [hx9 + Math.cos(an9) * dd9, hy9 + Math.sin(an9) * dd9 * 0.6 - dd9 * 0.15];
+              };
+              const [px9, py9] = at9(p9);
+              const [qx9, qy9] = at9(Math.max(0, p9 - 0.28));
               ctx.globalAlpha = a9 * (1 - p9) * 0.95;
-              ctx.fillStyle = di % 2 ? mt9.drop : mt9.core;
+              ctx.strokeStyle = di % 2 ? mt9.drop : mt9.core;
+              ctx.lineWidth = Math.max(0.6, r9 * wk9 * (0.05 + j3 * 0.015) * 1.6);
               ctx.beginPath();
-              ctx.arc(px9, py9, dr9, 0, Math.PI * 2);
-              ctx.fill();
+              ctx.moveTo(qx9, qy9);
+              ctx.lineTo(px9, py9);
+              ctx.stroke();
             }
+            ctx.lineCap = "butt";
             continue;
           }
           /* ★ (꺼 둠) 프로토스 실드 방어 효과 — 요청: "제거, 완성도있게 다시 추가할
@@ -32269,8 +32279,7 @@ export default function ReplayMotionPlayer({
                 if (bShieldUp9) {
                   fxOps.push({
                     kind: "shield", fx: bfx9, fy: bfy9, lift: bLift9,
-                    // 건물도 제곱근 자(요청) — 발자국 폭이 4타일이면 2타일 남짓.
-                    size: 1.25 * Math.sqrt(bw9 * tilePx), ph: (t - bldHp.hurt) / 0.55,
+                    size: bw9 * 0.95, ph: (t - bldHp.hurt) / 0.55,
                   });
                 } else {
                   /* 건물도 제 결로 튄다(요청: 종족별 피해 효과) — 테란은 불꽃, 저그는 피,
@@ -32282,7 +32291,7 @@ export default function ReplayMotionPlayer({
                   const bWpn9 = bHitSrc9.uk ? ATTACK_FX[bHitSrc9.uk] : undefined;
                   fxOps.push({
                     kind: "hit", fx: bfx9, fy: bfy9, lift: bLift9,
-                    size: 0.6 * Math.sqrt(bw9 * tilePx), dist: bw9 * 0.4, mat: bMat9,
+                    size: bw9 * 0.3, dist: bw9 * 0.4, mat: bMat9,
                     ph: (t - bldHp.hurt) / 0.18,
                     ...(bWpn9 ? { style: bWpn9 } : {}),
                     ...(bHitDir9 ? { dx: bHitDir9[0], dy: bHitDir9[1] } : {}),
@@ -34553,13 +34562,11 @@ export default function ReplayMotionPlayer({
                  서넛을 덮는 크기가 된다(캐리어에서 실측). 잉크 몫으로 몸 폭을 되찾은 뒤
                  1.35배 — 몸을 감싸되 이웃은 안 삼킨다. 아래 hit는 이미 0.42(= 몸의
                  1.29배)라 그대로 둔다. */
-              /* ★ 크기는 **몸 폭의 제곱근**이다(요청: 유닛·건물 크기의 제곱근에 비례 — 건물에서 너무
-                 커지지 않게, 질럿은 지금 너무 크다). 타일 하나를 기준으로 √(몸폭 × 타일)이라
-                 몸이 타일만 하면 그대로, 네 배면 두 배만 커진다. 피격 불티도 같은 자다. */
+              /* 크기는 몸에 **정비례**한다(정정: 제곱근으로 해 보니 건물에서 거의 안 보였다 — 되돌림). */
               ? { kind: "shield", fx: fxfx9, fy: fxfy9, lift: liftPx9,
-                size: 1.25 * Math.sqrt(fxPx * (modelInkOf(kindMain) / 16) * tilePx), ph: (t - hurtAt) / 0.55 }
+                size: fxPx * (modelInkOf(kindMain) / 16) * 1.35, ph: (t - hurtAt) / 0.55 }
               : { kind: "hit", fx: fxfx9, fy: fxfy9, lift: liftPx9,
-                size: 1.0 * Math.sqrt(fxPx * (modelInkOf(kindMain) / 16) * tilePx), ph: (t - hurtAt) / 0.14, mat: hitMat9,
+                size: fxPx * 0.42, ph: (t - hurtAt) / 0.14, mat: hitMat9,
                 ...(hitWpn9 ? { style: hitWpn9 } : {}),
                 ...(hitDir9 ? { dx: hitDir9[0], dy: hitDir9[1] } : {}) }) : null;
             if (hitFx9 && !fighting) {
