@@ -30306,6 +30306,8 @@ export default function ReplayMotionPlayer({
     engMs: 0, packMs: 0, fogMs: 0, fogN: 0, resets: 0, skew: 0,
   });
   const lastFrameRef9 = useRef<Frame9 | null>(null);
+  /** 마지막으로 푼 설계도 — 새 장을 풀면 이것의 푼 객체를 놓는다. */
+  const lastDecodedRef9 = useRef<PackedFrame9 | null>(null);
   /** 워커에 마지막으로 보낸(보낼) 세계 — 워커가 늦게 서면(동적 import) 그때 다시 보낸다. */
   const worldMsgRef9 = useRef<unknown>(null);
   /** 주인의 지금 상태(렌더마다 갱신) — 프레임 버림·안개 판 정리의 자. */
@@ -30366,12 +30368,12 @@ export default function ReplayMotionPlayer({
           while (k9 > 0 && snaps9[k9 - 1].t > pf9.t) k9 -= 1;
           snaps9.splice(k9, 0, { t: pf9.t, fog: pf9.fog });
         }
-        /* 버림 — 주인 시각보다 1초 지난 장(붓은 t 이하 가장 늦은 장 하나만 쓴다), 워커가 지을 수 있는 앞(벽시계 3초 +
+        /* 버림 — 주인 시각보다 반 초 지난 장(붓은 t 이하 가장 늦은 장 하나만 쓴다), 워커가 지을 수 있는 앞(벽시계 3초 +
            2.5초 여유)·배속을 넘어 앞선 장(탐색 전 옛 자리). 안개 판은 15초 뒤·같은 앞 밖. */
         const tNow9 = cmdNowRef9.current.t;
         const aheadMax9 = 6 * Math.max(1, cmdNowRef9.current.speed) + 1;
         if (frames9.size > 8) {
-          for (const [k9, f9] of frames9) if (f9.t < tNow9 - 1 || f9.t > tNow9 + aheadMax9) frames9.delete(k9);
+          for (const [k9, f9] of frames9) if (f9.t < tNow9 - 0.5 || f9.t > tNow9 + aheadMax9) frames9.delete(k9);
         }
         if (snaps9.length > 4) {
           const keep9 = snaps9.filter((sn9) => sn9.t >= tNow9 - 15 && sn9.t <= tNow9 + aheadMax9 + 2);
@@ -33549,8 +33551,10 @@ export default function ReplayMotionPlayer({
       const aVis9 = (visRect9.x1 - visRect9.x0) * (visRect9.y1 - visRect9.y0);
       if (inside9 && aSent9 <= aVis9 * 20) return sent9;
     }
-    const mx9 = visRect9.x1 - visRect9.x0;
-    const my9 = visRect9.y1 - visRect9.y0;
+    // 여유 — PC는 앞뒤 한 화면씩(3×3), 폰은 반 화면씩(2×2): 설계도 한 장의 op 수·메모리가 그만큼 준다.
+    const mk9 = smallDevice9 ? 0.5 : 1;
+    const mx9 = (visRect9.x1 - visRect9.x0) * mk9;
+    const my9 = (visRect9.y1 - visRect9.y0) * mk9;
     const r9 = {
       x0: Math.max(-0.05, visRect9.x0 - mx9), x1: Math.min(1.05, visRect9.x1 + mx9),
       y0: Math.max(-0.05, visRect9.y0 - my9), y1: Math.min(1.05, visRect9.y1 + my9),
@@ -33597,7 +33601,11 @@ export default function ReplayMotionPlayer({
     if (w9 && (!c9 || c9.playing !== playing9 || c9.speed !== speed || jumped9 || beat9)) {
       cmdSentRef9.current = { playing: playing9, t0: t, speed, at: pNow() };
       wStatRef.current.sentCmd += 1;
-      w9.postMessage({ type: "cmd", playing: playing9, t0: t, speed });
+      // 앞으로 지어 둘 한도는 기기가 정한다 — 폰은 2초·5MB(스크린샷 한 번의 요동에도 터진다), PC는 3초·10MB.
+      w9.postMessage({
+        type: "cmd", playing: playing9, t0: t, speed,
+        aheadSec: smallDevice9 ? 2 : 3, aheadBytes: (smallDevice9 ? 5 : 10) * 1024 * 1024,
+      });
     }
   }
   /** 설계도 고르기 — t보다 앞서지 않은 것 중 가장 늦은 것, 없으면 바로 뒤의 것. 2초 안이면 낡아도 든다(빈 화면보다
@@ -33624,6 +33632,10 @@ export default function ReplayMotionPlayer({
    *  늦은 안개 판, 그것도 없으면 마지막 프레임의 것. */
   const decodeFrame9 = (pf9: PackedFrame9): Frame9 => {
     if (pf9.dec) return pf9.dec;
+    // 푼 것은 한 장만 들고 있는다 — 앞 장의 객체(수백 개)는 놓아 GC에 맡긴다(폰 메모리).
+    const prev9 = lastDecodedRef9.current;
+    if (prev9 && prev9 !== pf9) prev9.dec = undefined;
+    lastDecodedRef9.current = pf9;
     const body9 = unpack9({ buf: pf9.buf, strs: pf9.strs }) as Pick<Frame9, "unitOps" | "fxOps" | "miniExtra" | "gasBusy" | "dom">;
     let fog9 = pf9.fog;
     if (!fog9) {

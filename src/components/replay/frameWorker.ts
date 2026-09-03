@@ -29,7 +29,8 @@ import type { TruthWorld } from "../../utils/truthLives";
 const FPS9 = 30;
 /** 가장 성긴 박자 — 짓기가 아무리 느려도 초당 이만큼은 낸다(그보다 느리면 그냥 뒤처진다). */
 const FPS_MIN9 = 8;
-/** 앞으로 지어 두는 한도 — 벽시계 초(배속을 곱해 게임 시각이 된다)와 바이트. 폰 메모리를 생각한 값이다. */
+/** 앞으로 지어 두는 한도의 기본값 — 벽시계 초(배속을 곱해 게임 시각이 된다)와 바이트. 주인이 명령에 실어 기기에
+ *  맞게 정한다(폰 2초·5MB, PC 3초·10MB — 폰은 스크린샷 한 번의 메모리 요동에도 터진다). */
 const AHEAD_WALL_SEC = 3;
 const AHEAD_BYTES = 10 * 1024 * 1024;
 
@@ -39,14 +40,16 @@ type WorldMsg = {
   bases: { key: string; race?: string }[]; teamMap: Record<string, 1 | 2>; total: number;
 };
 type ViewMsg = { type: "view"; view: EngineView9 };
-type CmdMsg = { type: "cmd"; playing: boolean; t0: number; speed: number };
+type CmdMsg = { type: "cmd"; playing: boolean; t0: number; speed: number; aheadSec?: number; aheadBytes?: number };
 type Msg = WorldMsg | ViewMsg | CmdMsg;
 
 let world: EngineWorld9 | null = null;
 let view: EngineView9 | null = null;
 let engine: ReturnType<typeof createEngine9> | null = null;
 /** 주인의 명령 + 받은 벽시계 시각 — 지금 시각은 이것으로 센다(clockT). */
-let clock: { playing: boolean; t0: number; speed: number; at: number } = { playing: false, t0: 0, speed: 1, at: 0 };
+let clock: { playing: boolean; t0: number; speed: number; at: number; aheadSec: number; aheadBytes: number } = {
+  playing: false, t0: 0, speed: 1, at: 0, aheadSec: AHEAD_WALL_SEC, aheadBytes: AHEAD_BYTES,
+};
 /** 다음에 지을 프레임의 시각. 음수면 '지금 시각부터 새로'. */
 let nextT = -1;
 /** 지어 둔 창의 **시작** 시각 — 되감기 판정은 이것과 견준다. */
@@ -146,20 +149,20 @@ const pump = (): void => {
     if (!have) { emit(cur); nextT = cur + step; winStartT = Math.min(winStartT < 0 ? cur : winStartT, cur); }
     return;
   }
-  const until = cur + AHEAD_WALL_SEC * clock.speed;
-  // 시계 뒤로 1초 넘게 지난 장은 한도 셈에서 뺀다(메인도 그쯤에서 버린다).
-  if (built.length > 0 && built[0].t < cur - 1) built = built.filter((b) => b.t >= cur - 1);
+  const until = cur + clock.aheadSec * clock.speed;
+  // 시계 뒤로 반 초 넘게 지난 장은 한도 셈에서 뺀다(메인도 그쯤에서 버린다).
+  if (built.length > 0 && built[0].t < cur - 0.5) built = built.filter((b) => b.t >= cur - 0.5);
   let bytesAhead = 0;
   for (const b of built) if (b.t >= cur) bytesAhead += b.bytes;
   /* 한 번에 여덟 장 또는 60ms까지만 짓고 한숨 돌린다 — 느린 기기에서 여덟 장이 1초를 넘으면 그동안 명령이 줄을 선다. */
   let n = 0;
   const pumpAt = nowMs();
-  while (nextT <= until && bytesAhead < AHEAD_BYTES && n < 8 && nowMs() - pumpAt < 60) {
+  while (nextT <= until && bytesAhead < clock.aheadBytes && n < 8 && nowMs() - pumpAt < 60) {
     bytesAhead += emit(nextT);
     nextT += stepNow();
     n += 1;
   }
-  const more = nextT <= until && bytesAhead < AHEAD_BYTES;
+  const more = nextT <= until && bytesAhead < clock.aheadBytes;
   // 더 지을 게 있으면 곧, 한도에 닿았으면 시계가 반 걸음쯤 흐른 뒤에 다시.
   const delay = more ? 0 : Math.max(20, ((step / Math.max(0.01, clock.speed)) * 1000) * 0.5);
   pumpTimer = setTimeout(() => { pumpTimer = 0; pump(); }, delay) as unknown as number;
@@ -195,7 +198,10 @@ if (inWorker9) self.onmessage = (ev: MessageEvent<Msg>): void => {
       nextT = -1;
       pump();
     } else if (m.type === "cmd") {
-      clock = { playing: m.playing, t0: m.t0, speed: m.speed, at: nowMs() };
+      clock = {
+        playing: m.playing, t0: m.t0, speed: m.speed, at: nowMs(),
+        aheadSec: m.aheadSec ?? AHEAD_WALL_SEC, aheadBytes: m.aheadBytes ?? AHEAD_BYTES,
+      };
       pump();
     }
   } catch (e) {
