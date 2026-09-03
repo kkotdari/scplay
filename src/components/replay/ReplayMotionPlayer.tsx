@@ -21351,6 +21351,10 @@ export type FxOp = {
   u?: number;
   /** 반짝 위상 0~1 — beam은 쿨다운 주기, hit/shield는 제 창 안의 진행. */
   ph?: number;
+  /** hit: **표적 스플래시**(쏘는 쪽 박자로 표적에 얹는 그림 — 커세어 플레어·아콘 잽). 트레이서에
+   *  가까운 것이라 파편이 아니라 제 납작 타원으로 그린다. 맞는 쪽 체력이 깎일 때의 진짜 피격은
+   *  이 깃발이 없어 같은 무기 갈래(style)여도 파편이 난다. */
+  splash?: boolean;
   /** hit/shield: 기준 크기(렌즈 px) — 몸 상자(fxPx) 비례값이 실려 온다. */
   size?: number;
   /** hit: 맞은 방향 단위벡터(화면) — 없으면 몸 가운데. */
@@ -22895,7 +22899,9 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
                op이고, 자(size)가 쏘는 몸의 **상자 통째**다(옛 그러데이션 타원의 자). 파편 그리기로 넘어가니
                커세어가 쏘는 인터셉터마다 상자만 한 파편 부채가 텄다. 옛 납작 타원(FX_IMPACT flat)을 되살려
                이 갈래만 그것으로 그리고 파편은 안 낸다. */
-            if (im9 && (f.style === "flare" || f.style === "zap")) {
+            // 깃발로 가른다(재지적: "스플래시는 트레이서에 가깝고 피격효과는 나야지") — 같은 무기에
+            // **맞아서 체력이 깎인** 피격(splash 없음)은 아래 파편으로 간다.
+            if (im9 && f.splash) {
               const ir9 = r9 * im9.r * (0.7 + p9 * 0.5);
               const fl9 = im9.flat ?? 1;
               ctx.globalAlpha = a9;
@@ -34829,7 +34835,7 @@ export default function ReplayMotionPlayer({
                      둘이 어긋나 안 맞닿았다. 몸 한가운데로 올려 둘을 같은 줄에 세운다.
                      공중 표적은 종전대로 제 비행 높이다(foeLift9). */
                   lift: foe.air ? foeLift9 : fxPx * 0.5,
-                  size: fxPx, dist: 0, dx: 0, dy: 0, ph: tph9,
+                  size: fxPx, dist: 0, dx: 0, dy: 0, ph: tph9, splash: true,
                 });
               }
               // 선을 안 그리는 갈래만 여기서 끝난다 — 나머지는 아래로 내려가 선도 그린다.
