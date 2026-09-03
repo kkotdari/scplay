@@ -22816,40 +22816,25 @@ function UnitLayer({ ops, fx, zoom, pan, wallMask, maskRects, clipQuad, showShad
             /** 무기 세기 — 표의 반지름비(총 0.5 · 시즈 1.75)를 1 언저리로 옮긴 배수. */
             const wk9 = im9 ? Math.min(2, Math.max(0.7, im9.r / 0.6)) : 1;
             const mt9 = FX_MAT[f.mat ?? "mech"];
-            // ① 섬광 — 처음 45%만, 줄어들며 사라진다.
-            if (p9 < 0.45) {
-              ctx.globalAlpha = a9 * (1 - p9 / 0.45);
-              ctx.fillStyle = mt9.flash;
-              ctx.beginPath();
-              ctx.arc(hx9, hy9, Math.max(0.6, r9 * 0.3 * wk9 * Math.max(0.25, 1 - p9 * 1.6)), 0, Math.PI * 2);
-              ctx.fill();
-            }
-            /* ② 파편 셋 — **B의 움직임에 A의 꼴**(정정: "B의 파편 움직임 + A의 파편 모델"). 움직임은
-               B: 셋이 짧게 튀어 나가고 중력은 없다(방향을 알면 그 반대쪽 부채꼴 ±0.65rad, 모르면
-               사방). 꼴은 A: 점이 아니라 **꼬리가 달린 가는 선**(스트릭) — 조금 전 자리에서 지금
-               자리까지 긋고, 피는 굵고 불티는 가늘다. 색은 결의 세 톤을 돌려 쓴다. */
+            /* ★ 파편 여섯뿐이다(후보판 B2로 확정: "B에서 충격링 제거하고 파편양 늘리기 · 섬광도 제거")
+               — 섬광·링·스트릭 없이 점 파편 여섯이 짧게 튀어 나가 멈춘다(중력 없음). 각은 **고르게
+               등분**한다(무작위면 결마다 한쪽으로 몰렸다): 방향을 알면 맞은 반대쪽 부채꼴 ±0.65rad를
+               여섯으로, 모르면 360°를 여섯으로. 세로는 0.6으로 눌러 지면에 눕고 조금(0.15) 들어
+               올린다. 색은 밝은 톤·중간 톤을 번갈아. 무기 세기(wk9)는 자에만 실린다. */
             const hasDir9 = Number.isFinite(f.dx) && Number.isFinite(f.dy) && ((f.dx ?? 0) !== 0 || (f.dy ?? 0) !== 0);
             const away9 = hasDir9 ? Math.atan2(-(f.dy ?? 0), -(f.dx ?? 0)) : 0;
-            const wet9 = f.mat === "bio" || f.mat === "zerg";
-            ctx.lineCap = "round";
-            for (let di = 0; di < 3; di += 1) {
-              const an9 = hasDir9 ? away9 + (di - 1) * 0.65 + ((di * 7) % 3 - 1) * 0.1 : (di * 2.399 + 0.6) % (Math.PI * 2);
-              const sp9 = r9 * (1.0 + (di % 2) * 0.3) * wk9;
-              const at9 = (q9: number): [number, number] => {
-                const dd9 = sp9 * (0.3 + q9 * 1.2);
-                return [hx9 + Math.cos(an9) * dd9, hy9 + Math.sin(an9) * dd9 * (hasDir9 ? 1 : 0.6) - (hasDir9 ? 0 : dd9 * 0.15)];
-              };
-              const [px9, py9] = at9(p9);
-              const [qx9, qy9] = at9(Math.max(0, p9 - (wet9 ? 0.22 : 0.34)));
-              ctx.globalAlpha = a9 * (1 - p9 * 0.75);
-              ctx.strokeStyle = di === 0 ? mt9.drop : di === 1 ? mt9.core : mt9.deep;
-              ctx.lineWidth = Math.max(0.6, r9 * (wet9 ? 0.12 : 0.06) * wk9 * (1 - p9 * 0.5));
+            for (let di = 0; di < 6; di += 1) {
+              const an9 = hasDir9 ? away9 + (di / 5 - 0.5) * 1.3 : (di / 6) * Math.PI * 2 + 0.3;
+              const dd9 = r9 * wk9 * (0.3 + p9 * (0.9 + ((di * 7) % 4) * 0.15));
+              const px9 = hx9 + Math.cos(an9) * dd9;
+              const py9 = hy9 + Math.sin(an9) * dd9 * 0.6 - dd9 * 0.15;
+              const dr9 = Math.max(0.6, r9 * wk9 * (0.05 + ((di * 5) % 3) * 0.015));
+              ctx.globalAlpha = a9 * (1 - p9) * 0.95;
+              ctx.fillStyle = di % 2 ? mt9.drop : mt9.core;
               ctx.beginPath();
-              ctx.moveTo(qx9, qy9);
-              ctx.lineTo(px9, py9);
-              ctx.stroke();
+              ctx.arc(px9, py9, dr9, 0, Math.PI * 2);
+              ctx.fill();
             }
-            ctx.lineCap = "butt";
             continue;
           }
           /* ★ (꺼 둠) 프로토스 실드 방어 효과 — 요청: "제거, 완성도있게 다시 추가할
