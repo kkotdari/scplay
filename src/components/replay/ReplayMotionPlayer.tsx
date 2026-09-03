@@ -32291,7 +32291,8 @@ export default function ReplayMotionPlayer({
                   const bWpn9 = bHitSrc9.uk ? ATTACK_FX[bHitSrc9.uk] : undefined;
                   fxOps.push({
                     kind: "hit", fx: bfx9, fy: bfy9, lift: bLift9,
-                    size: bw9 * 0.3, dist: bw9 * 0.4, mat: bMat9,
+                    // 건물도 같은 비(반지름 = 폭의 1/4 → size 0.69·K)로 — 옛 0.3은 거의 안 보였다.
+                    size: bw9 * 0.69, dist: bw9 * 0.4, mat: bMat9,
                     ph: (t - bldHp.hurt) / 0.18,
                     ...(bWpn9 ? { style: bWpn9 } : {}),
                     ...(bHitDir9 ? { dx: bHitDir9[0], dy: bHitDir9[1] } : {}),
@@ -34562,11 +34563,16 @@ export default function ReplayMotionPlayer({
                  서넛을 덮는 크기가 된다(캐리어에서 실측). 잉크 몫으로 몸 폭을 되찾은 뒤
                  1.35배 — 몸을 감싸되 이웃은 안 삼킨다. 아래 hit는 이미 0.42(= 몸의
                  1.29배)라 그대로 둔다. */
-              /* 크기는 몸에 **정비례**한다(정정: 제곱근으로 해 보니 건물에서 거의 안 보였다 — 되돌림). */
+              /* 크기는 몸에 **정비례**한다(정정: 제곱근으로 해 보니 건물에서 거의 안 보였다 — 되돌림).
+                 ★ 자는 **보이는 몸 폭**(W = 상자 × 잉크/16)이다(지적: "실제로는 후보판보다 훠얼씬 크게
+                   나온다") — 옛 0.42×상자는 상자가 몸의 세 배 남짓이라 파편 반지름이 몸 폭의 0.5배,
+                   튀는 자리(dist 기본 = size×0.71)는 몸 폭 하나 밖이었다. 후보판의 비(반지름 = 몸 폭의
+                   1/4, 튀는 자리 = 중심에서 몸 폭의 0.32)로 맞춘다. */
               ? { kind: "shield", fx: fxfx9, fy: fxfy9, lift: liftPx9,
                 size: fxPx * (modelInkOf(kindMain) / 16) * 1.35, ph: (t - hurtAt) / 0.55 }
               : { kind: "hit", fx: fxfx9, fy: fxfy9, lift: liftPx9,
-                size: fxPx * 0.42, ph: (t - hurtAt) / 0.14, mat: hitMat9,
+                size: fxPx * (modelInkOf(kindMain) / 16) * 0.69, dist: fxPx * (modelInkOf(kindMain) / 16) * 0.32,
+                ph: (t - hurtAt) / 0.14, mat: hitMat9,
                 ...(hitWpn9 ? { style: hitWpn9 } : {}),
                 ...(hitDir9 ? { dx: hitDir9[0], dy: hitDir9[1] } : {}) }) : null;
             if (hitFx9 && !fighting) {
