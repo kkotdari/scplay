@@ -29987,8 +29987,8 @@ export type PackedFrame9 = {
   t: number; buf: Float32Array; strs: string[];
   fog: { explored: Uint16Array | null; visNow: Uint8Array | null; visSrc: Float32Array } | null;
   ms: number; /** 유닛 op 수(진단) */ n: number; dec?: Frame9;
-  /** 보간용 — 이 장의 유닛 op 열쇠 표(다음 장으로 쓰일 때) · 이 장을 바탕으로 한 보간 프레임(앞 장으로 쓰일 때). */
-  byKey?: Map<string, UnitDrawOp>; lerp?: { frame: Frame9; ops: UnitDrawOp[] };
+  /** 보간용 — 이 장의 유닛 op 열쇠 표(뒤 장으로 쓰일 때 한 번 만든다). */
+  byKey?: Map<string, UnitDrawOp>;
 };
 /** 보간 열쇠 — 같은 개체의 같은 부위(몸·포탑·짐)를 두 장에서 잇는다. 열쇠가 없는 op(효과·장식)는 안 잇는다. */
 const lerpKey9 = (op: UnitDrawOp): string | null => (op.pickKey ? `${op.pickKey}|${op.kind}|${op.attach ?? ""}` : null);
@@ -30332,6 +30332,11 @@ export default function ReplayMotionPlayer({
     engMs: 0, packMs: 0, fogMs: 0, fogN: 0, resets: 0, skew: 0,
   });
   const lastFrameRef9 = useRef<Frame9 | null>(null);
+  /** 보간 op 풀 — 개체 열쇠마다 op 객체 하나를 두고 장이 바뀌어도 그 객체에 값만 덮어쓴다(그리기마다 객체를 안 만든다). */
+  const lerpPoolRef9 = useRef<Map<string, UnitDrawOp>>(new Map());
+  const lerpFrameRef9 = useRef<{ frame: Frame9; ops: UnitDrawOp[] } | null>(null);
+  /** 붓 박자 통계(진단) — t 걸음(ms)·같은 앞 장을 되풀이한 횟수·뒤 장이 없던 횟수. */
+  const brushStatRef9 = useRef({ lastT: -1, stepSum: 0, stepMax: 0, stepN: 0, lastA: -1, sameA: 0, noB: 0, draws: 0 });
   /** 워커에 마지막으로 보낸(보낼) 세계 — 워커가 늦게 서면(동적 import) 그때 다시 보낸다. */
   const worldMsgRef9 = useRef<unknown>(null);
   /** 주인의 지금 상태(렌더마다 갱신) — 프레임 버림·안개 판 정리의 자. */
@@ -33750,53 +33755,83 @@ export default function ReplayMotionPlayer({
    *  값만 바꾼다(그리기마다 객체를 안 만든다). */
   const lerpFrame9 = (a9: PackedFrame9, tNow9: number): Frame9 => {
     const fa9 = decodeFrame9(a9);
+    const bs9 = brushStatRef9.current;
     if (tNow9 <= a9.t + 1e-6) return fa9;
     const b9 = pickNextFrame9(a9);
-    if (!b9) return fa9;
+    if (!b9) { bs9.noB += 1; return fa9; }
     const fb9 = decodeFrame9(b9);
     const u9 = Math.min(1, (tNow9 - a9.t) / (b9.t - a9.t));
     if (!b9.byKey) {
       b9.byKey = new Map();
       for (const op9 of fb9.unitOps) { const k9 = lerpKey9(op9); if (k9) b9.byKey.set(k9, op9); }
     }
-    if (!a9.lerp) {
-      const ops9 = fa9.unitOps.map((op9) => (op9.pickKey
-        ? { ...op9, ...(op9.shadowPts ? { shadowPts: op9.shadowPts.map((p9) => [p9[0], p9[1]] as [number, number]) } : {}) }
-        : op9));
-      a9.lerp = { frame: { ...fa9, unitOps: ops9 }, ops: ops9 };
-    }
-    const ops9 = a9.lerp.ops;
+    /* 보간 프레임은 하나를 계속 쓴다 — op 객체는 개체 열쇠별 풀에서 꺼내 앞 장의 값을 덮어쓴다. 그림자 발자국 배열도
+       풀 객체의 것을 재사용한다(길이가 다를 때만 새로). 열쇠 없는 op(효과·장식)는 앞 장 객체 그대로. */
+    const pool9 = lerpPoolRef9.current;
+    let lf9 = lerpFrameRef9.current;
+    if (!lf9) { lf9 = { frame: { ...fa9 }, ops: [] }; lerpFrameRef9.current = lf9; }
+    const ops9 = lf9.ops;
+    ops9.length = 0;
     const src9 = fa9.unitOps;
-    for (let i9 = 0; i9 < ops9.length; i9 += 1) {
+    for (let i9 = 0; i9 < src9.length; i9 += 1) {
       const s9 = src9[i9];
       const k9 = lerpKey9(s9);
-      if (!k9) continue;
+      if (!k9) { ops9.push(s9); continue; }
+      let o9 = pool9.get(k9);
+      if (!o9) { o9 = { ...s9 }; if (s9.shadowPts) o9.shadowPts = s9.shadowPts.map((p9) => [p9[0], p9[1]] as [number, number]); pool9.set(k9, o9); }
+      else {
+        const keep9 = o9.shadowPts;
+        // 앞 장에 없는 필드는 지운다(lit·selRing·hpFrac 같은 선택 필드가 옛 장 값으로 남으면 안 된다).
+        for (const k9 in o9) if (!(k9 in s9)) delete (o9 as unknown as Record<string, unknown>)[k9];
+        Object.assign(o9, s9);
+        if (s9.shadowPts) {
+          if (keep9 && keep9.length === s9.shadowPts.length) {
+            for (let j9 = 0; j9 < keep9.length; j9 += 1) { keep9[j9][0] = s9.shadowPts[j9][0]; keep9[j9][1] = s9.shadowPts[j9][1]; }
+            o9.shadowPts = keep9;
+          } else o9.shadowPts = s9.shadowPts.map((p9) => [p9[0], p9[1]] as [number, number]);
+        } else if (keep9) delete o9.shadowPts;
+      }
       const n9 = b9.byKey.get(k9);
-      const o9 = ops9[i9];
-      if (!n9) { o9.fx = s9.fx; o9.fy = s9.fy; continue; }
-      o9.fx = s9.fx + (n9.fx - s9.fx) * u9;
-      o9.fy = s9.fy + (n9.fy - s9.fy) * u9;
-      if (s9.baseFy !== undefined && n9.baseFy !== undefined) o9.baseFy = s9.baseFy + (n9.baseFy - s9.baseFy) * u9;
-      if (s9.rotDeg !== undefined && n9.rotDeg !== undefined) o9.rotDeg = lerpAng9(s9.rotDeg, n9.rotDeg, u9);
-      if (s9.headDeg !== undefined && n9.headDeg !== undefined) o9.headDeg = lerpAng9(s9.headDeg, n9.headDeg, u9);
-      if (s9.rise !== undefined && n9.rise !== undefined) o9.rise = s9.rise + (n9.rise - s9.rise) * u9;
-      const sp9 = s9.shadowPts; const np9 = n9.shadowPts; const op9 = o9.shadowPts;
-      if (sp9 && np9 && op9 && sp9.length === np9.length && op9.length === sp9.length) {
-        for (let j9 = 0; j9 < sp9.length; j9 += 1) {
-          op9[j9][0] = sp9[j9][0] + (np9[j9][0] - sp9[j9][0]) * u9;
-          op9[j9][1] = sp9[j9][1] + (np9[j9][1] - sp9[j9][1]) * u9;
+      if (n9) {
+        o9.fx = s9.fx + (n9.fx - s9.fx) * u9;
+        o9.fy = s9.fy + (n9.fy - s9.fy) * u9;
+        if (s9.baseFy !== undefined && n9.baseFy !== undefined) o9.baseFy = s9.baseFy + (n9.baseFy - s9.baseFy) * u9;
+        if (s9.rotDeg !== undefined && n9.rotDeg !== undefined) o9.rotDeg = lerpAng9(s9.rotDeg, n9.rotDeg, u9);
+        if (s9.headDeg !== undefined && n9.headDeg !== undefined) o9.headDeg = lerpAng9(s9.headDeg, n9.headDeg, u9);
+        if (s9.rise !== undefined && n9.rise !== undefined) o9.rise = s9.rise + (n9.rise - s9.rise) * u9;
+        const sp9 = s9.shadowPts; const np9 = n9.shadowPts; const op9 = o9.shadowPts;
+        if (sp9 && np9 && op9 && sp9.length === np9.length && op9.length === sp9.length) {
+          for (let j9 = 0; j9 < sp9.length; j9 += 1) {
+            op9[j9][0] = sp9[j9][0] + (np9[j9][0] - sp9[j9][0]) * u9;
+            op9[j9][1] = sp9[j9][1] + (np9[j9][1] - sp9[j9][1]) * u9;
+          }
         }
       }
+      ops9.push(o9);
     }
-    return a9.lerp.frame;
+    // 풀이 너무 크면(개체가 오래 사라짐) 비운다 — 다음 장에서 다시 찬다.
+    if (pool9.size > src9.length * 3 + 200) pool9.clear();
+    const fr9 = lf9.frame;
+    fr9.t = fa9.t; fr9.unitOps = ops9; fr9.fxOps = fa9.fxOps; fr9.miniExtra = fa9.miniExtra; fr9.gasBusy = fa9.gasBusy; fr9.dom = fa9.dom;
+    fr9.explored = fa9.explored; fr9.visNow = fa9.visNow; fr9.visSrc = fa9.visSrc;
+    return fr9;
   };
   const wPacked9 = pickWorkerFrame9();
   let frame9: Frame9;
+  {
+    const bs9 = brushStatRef9.current;
+    if (playing && active) {
+      if (bs9.lastT >= 0 && t > bs9.lastT) { const st9 = (t - bs9.lastT) * 1000; bs9.stepSum += st9; bs9.stepMax = Math.max(bs9.stepMax, st9); bs9.stepN += 1; }
+      bs9.lastT = t;
+      bs9.draws += 1;
+      if (wPacked9) { if (wPacked9.t === bs9.lastA) bs9.sameA += 1; bs9.lastA = wPacked9.t; }
+    }
+  }
   if (wPacked9) {
     wStatRef.current.used += 1;
     // 푼 것은 앞 장(그리는 장)과 뒤 장(보간 끝점)만 들고, 그보다 옛 장의 객체는 놓는다(폰 메모리).
     for (const f9 of wFramesRef.current.values()) {
-      if (f9.t < wPacked9.t && f9.dec) { f9.dec = undefined; f9.lerp = undefined; f9.byKey = undefined; }
+      if (f9.t < wPacked9.t && f9.dec) { f9.dec = undefined; f9.byKey = undefined; }
     }
     frame9 = wPacked9.t <= t ? lerpFrame9(wPacked9, t) : decodeFrame9(wPacked9);
     lastFrameRef9.current = frame9;
@@ -33818,6 +33853,10 @@ export default function ReplayMotionPlayer({
       + ` 짓기 ${st9.buildMs.toFixed(1)}ms op ${st9.ops.toFixed(0)}·${st9.kb.toFixed(0)}KB 앞 ${wFramesRef.current.size > 0 ? Math.max(0, ahead9).toFixed(1) : "-"}s·${wFramesRef.current.size}장·${(bytes9 / 1048576).toFixed(1)}MB`
       + ` 시야 ${cullRect9 ? `${((cullRect9.x1 - cullRect9.x0) * 100).toFixed(0)}×${((cullRect9.y1 - cullRect9.y0) * 100).toFixed(0)}%` : "전체"}`
       + ` [엔진 ${st9.engMs.toFixed(0)} 싸기 ${st9.packMs.toFixed(1)} 안개 ${st9.fogMs.toFixed(0)}ms×${st9.fogN} 리셋 ${st9.resets} 시계차 ${st9.skew >= 0 ? "+" : ""}${st9.skew.toFixed(1)}s]`
+      + ((): string => {
+        const b9 = brushStatRef9.current;
+        return ` 붓: t걸음 ${b9.stepN ? (b9.stepSum / b9.stepN).toFixed(0) : "-"}/${b9.stepMax.toFixed(0)}ms 같은장 ${b9.sameA}/${b9.draws} 뒤장없음 ${b9.noB}`;
+      })()
       + ` sent(world ${st9.sentWorld} view ${st9.sentView} cmd ${st9.sentCmd})`
       + (wait9 > 15 ? ` ⚠ 세계 보낸 지 ${Math.round(wait9)}초째 응답 없음` : "")
       + (st9.err ? ` ⚠ ${st9.err}` : "");
