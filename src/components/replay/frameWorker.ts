@@ -43,7 +43,7 @@ type WorldMsg = {
 };
 /** 참값 — 메인이 transfer로 **넘긴** 것(메인에는 껍데기만 남는다). 개체 표(entData)는 여기서 스스로 만든다. */
 type TruthMsg = { type: "truth"; truth: TruthTracks | null };
-type ViewMsg = { type: "view"; view: EngineView9 };
+type ViewMsg = { type: "view"; view: EngineView9; seq?: number };
 type CmdMsg = { type: "cmd"; playing: boolean; t0: number; speed: number; aheadSec?: number; aheadBytes?: number };
 type WantMsg = { type: "want"; what: "walks"; raw?: string };
 type Msg = WorldMsg | TruthMsg | ViewMsg | CmdMsg | WantMsg;
@@ -52,6 +52,8 @@ let world: EngineWorld9 | null = null;
 let truthData: TruthTracks | null = null;
 let worldParams: Omit<WorldMsg, "type"> | null = null;
 let view: EngineView9 | null = null;
+/** 시점 차례 번호 — 프레임에 실어 보낸다. 메인은 새 차례의 장이 오면 그 시각 이후의 옛 차례 장만 밀어낸다. */
+let viewSeq = 0;
 let engine: ReturnType<typeof createEngine9> | null = null;
 /** 주인의 명령 + 받은 벽시계 시각 — 지금 시각은 이것으로 센다(clockT). */
 let clock: { playing: boolean; t0: number; speed: number; at: number; aheadSec: number; aheadBytes: number } = {
@@ -132,7 +134,7 @@ const emit = (t: number): number => {
   buildMs = buildMs === 0 ? ms : buildMs * 0.85 + ms * 0.15;
   const st = engine.stats();
   post({
-    type: "frame", t: f.t, buf: body.buf, strs: body.strs, fog, ms, n: f.unitOps.length,
+    type: "frame", t: f.t, buf: body.buf, strs: body.strs, fog, ms, n: f.unitOps.length, seq: viewSeq,
     // 진단 — 짓기의 속(엔진·싸기), 안개 비용·횟수, 리셋 횟수, 워커 시계(주인 t와의 차를 메인이 본다)
     msBuild: t1 - t0, msPack: t2 - t1, fogCost: st.fogCost, fogN: st.fogStamps, resets, cur: clockT(),
   }, transfer);
@@ -240,6 +242,7 @@ if (inWorker9) self.onmessage = (ev: MessageEvent<Msg>): void => {
       }
     } else if (m.type === "view") {
       view = m.view;
+      viewSeq = m.seq ?? viewSeq + 1;
       if (engine) engine.setView(view); else rebuildEngine();
       // 시점·시야·색이 바뀌면 지어 둔 설계도는 옛 것이다 — 기억은 두고 지금 시각부터 다시.
       nextT = -1;

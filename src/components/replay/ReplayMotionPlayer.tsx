@@ -22740,7 +22740,7 @@ const REACT_STEP_MS9 = 100;
 export type PackedFrame9 = {
   t: number; buf: Float32Array; strs: string[];
   fog: { explored: Uint16Array | null; visNow: Uint8Array | null; visSrc: Float32Array } | null;
-  ms: number; /** 유닛 op 수(진단) */ n: number; dec?: Frame9;
+  ms: number; /** 유닛 op 수(진단) */ n: number; /** 시점 차례(시야 사각형이 바뀔 때마다 오른다) */ seq: number; dec?: Frame9;
   /** 보간용 — 이 장의 유닛 op 열쇠 표(뒤 장으로 쓰일 때 한 번 만든다). */
   byKey?: Map<string, UnitDrawOp>;
 };
@@ -23180,7 +23180,10 @@ export default function ReplayMotionPlayer({
       if (dead9) return;
       const m9 = ev.data;
       if (m9.type === "frame" && m9.buf && m9.strs && typeof m9.t === "number") {
-        const pf9: PackedFrame9 = { t: m9.t, buf: m9.buf, strs: m9.strs, fog: m9.fog ?? null, ms: m9.ms ?? 0, n: m9.n ?? 0 };
+        const pf9: PackedFrame9 = { t: m9.t, buf: m9.buf, strs: m9.strs, fog: m9.fog ?? null, ms: m9.ms ?? 0, n: m9.n ?? 0, seq: m9.seq ?? 0 };
+        /* 시야가 바뀌어 새 차례의 장이 오면, 그 시각 이후의 옛 차례 장은 밀어낸다(지적: 드래그 때 툭툭 — 전에는 시야가
+           바뀔 때 버퍼를 통째로 비워 새 장이 올 때까지 마지막 장을 든 채 멎었다. 옛 장은 제 시야 안에서는 여전히 옳다). */
+        for (const [k9, f9] of frames9) if (f9.seq < pf9.seq && f9.t >= pf9.t - 1e-6) frames9.delete(k9);
         frames9.set(Math.round(pf9.t * 1000), pf9);
         wStatRef.current.got += 1;
         const st9 = wStatRef.current;
@@ -26449,9 +26452,9 @@ export default function ReplayMotionPlayer({
     const sent9 = viewSentRef9.current;
     if (w9 && (!sent9 || sent9.key !== viewKey9 || sent9.colors !== colorTable9)) {
       viewSentRef9.current = { key: viewKey9, colors: colorTable9 };
-      wFramesRef.current.clear();
+      // 버퍼는 안 비운다 — 새 차례의 장이 도착하면 그 시각 이후의 옛 장만 밀려난다(위 프레임 받기).
       wStatRef.current.sentView += 1;
-      w9.postMessage({ type: "view", view: engView9 });
+      w9.postMessage({ type: "view", view: engView9, seq: wStatRef.current.sentView });
     }
   }
   /* 명령(요청: 주인 → 설계 일꾼, 바뀔 때만) — 재생/정지·배속·탐색. 탐색은 "보낸 명령으로 예측한 시각과 지금 t의
