@@ -11101,14 +11101,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         /* 다리는 **거의 수평**이다(지적: 너무 내려가 있다) — 무릎 1.3·발 1.7씩 떨어지던 것을 0.35·0.6으로 올려
            옆으로 뻗은 게다리로. 내려간 만큼은 바깥으로 더 뻗어(무릎 3.3 → 3.6, 발 4.4 → 5.0) 길이를 지킨다. */
         const kx9 = m9 * (3.6 + i9 * 0.2);   // 무릎
-        const ky9 = ly9 - 1.2;
+        // 뒤로 안 쏠린다(지적: 너무 뒤를 향한다 — 옆면에 거의 수직으로) — 무릎 −1.2 → −0.2, 발 −1.1 → −0.2.
+        const ky9 = ly9 - 0.2;
         const kz9 = lz9 - 0.35;
         const fx9 = m9 * (5.0 + i9 * 0.25);
         const knee: [number, number, number] = [kx9, ky9, kz9];
         return [
           ...paintBase(suitLimb([m9 * 2.3, ly9, lz9], knee, 0.31, 0.29, 0.31, { sides: 7, caps: "none", trueNormal: true }), "#6b4732"),
           ...paintBase(domeFaces3(kx9, ky9, 0.3, 0.26, kz9 - 0.1), "#6b4732"),
-          ...paintBase(suitLimb(knee, [fx9, ky9 - 1.1, kz9 - 0.6], 0.27, 0.22, 0.27, { sides: 7, caps: "none", trueNormal: true }), "#6b4732"),
+          ...paintBase(suitLimb(knee, [fx9, ky9 - 0.2, kz9 - 0.6], 0.27, 0.22, 0.27, { sides: 7, caps: "none", trueNormal: true }), "#6b4732"),
         ];
       })),
   ],
