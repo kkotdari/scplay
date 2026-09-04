@@ -7038,7 +7038,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
            튀는 자리(dist 기본 = size×0.71)는 몸 폭 하나 밖이었다. 후보판의 비(반지름 = 몸 폭의
            1/4, 튀는 자리 = 중심에서 몸 폭의 0.32)로 맞춘다. */
       ? { kind: "shield", fx: fxfx9, fy: fxfy9, lift: liftPx9,
-        size: fxPx * (modelInkOf(kindMain) / 16) * 1.35, ph: (t - hurtAt) / 0.55 }
+        size: fxPx * (modelInkOf(kindMain) / 16) * 1.2, ph: (t - hurtAt) / 0.4 }
       : { kind: "hit", fx: fxfx9, fy: fxfy9, lift: liftPx9,
         size: fxPx * (modelInkOf(kindMain) / 16) * 0.69, dist: fxPx * (modelInkOf(kindMain) / 16) * 0.32,
         ph: (t - hurtAt) / 0.14, mat: hitMat9,

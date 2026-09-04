@@ -2368,6 +2368,16 @@ const RACE_GLOSS_LIT: Partial<Record<keyof typeof RACE_BASE_TONE, string>> = {
    어두운 쪽은 톤과 같게 둔다 — 밝기 단만 남고 색이 갈리지 않는다. */
 const TERRAN_STEEL = "#8f99a8";      // 밝은 판·겉껍데기(톤보다 한 단 밝은 같은 푸른 강청)
 const TERRAN_STEEL_D = RACE_BASE_TONE.terran;    // 관·부속·그늘진 판(= 기본색)
+/* ★ 프로토스 금도 **한 계열**이어야 한다(지적: "캐리어·아비터 등 프로토스 기본 색 적용 안 되는 느낌 — 전수조사") ──
+   조사하니 프로토스 유닛 빌더 열넷(리버·커세어·스카웃·캐리어·아비터·옵저버·프로브·질럿·다크·하이·
+   드라군·아콘·다크아콘·셔틀)이 **전부** raceBase를 안 타고 손으로 적은 금(#d4af37·#c8a434·#a8801f…)이었다.
+   기본색 톤(#d6be45)보다 붉고 어두운 겨자빛이라 건물 옆에 서면 종족 색이 아니라 딴 색으로 읽혔다.
+   테란 강철(TERRAN_STEEL)과 같은 해법 — 손칠 금을 **이름 셋**으로 모은다. 값은 기본색과 같은 색상각이고
+   밝기 단만 다르다: 몸판은 기본색 그대로, 날개·부속은 한 단, 추진부·그늘진 부속은 두 단 짙다.
+   여기 한 줄만 고치면 프로토스 유닛 전체가 함께 바뀐다. */
+const TOSS_GOLD = RACE_BASE_TONE.toss;   // 몸판·겉껍데기(= 기본색)
+const TOSS_GOLD_M = "#c1ab3e";          // 한 단 짙은 금(날개·부속) — 기본색 ×0.9
+const TOSS_GOLD_D = "#a08e34";          // 두 단 짙은 금(추진부·그늘진 부속) — 기본색 ×0.75
 /** 몸에는 종족 바탕색을 입히고, 뒤에 붙이는 accent 면만 개인색으로 남긴다(규칙 1·4).
  *  accent는 칠하지 않은 채로 두어야 그리는 쪽이 임자 색을 넣는다 — 건물마다 눈에 띄는
  *  한두 곳만. */
@@ -5712,7 +5722,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 윗면만 개인색이다 — 몸판 위에 같은 네모를 한 장 더 얹는다. 깊이 키는 제 톱니
          바로 위(+0.4)라 어느 요잉에서도 제 톱니에 붙어 다닌다. */
       const capD = polyPath3(hi9);
-      pc.push(...tagKey([bodyFace(capD), topFace(capD, 0.2)], depthNow(tx9, ty9) * 1.6 + 0.4));
+      /* 흰 윗면을 안 얹는다(지적: "톱니 위 임자색 데칼 아직도 연하게 보임") — 여태 개인색
+         네모 위에 topFace 0.2를 얹었는데, 이 빌더는 GLOSS_KINDS(toss)의 감싸개를 타므로
+         그 흰 덮개가 금속 곡선을 한 번 더 먹어 0.43(#fff3cf), 굽는 자(shadeBoost)에서
+         0.54가 됐다 — 임자 색이 절반 넘게 씻겼다(실측 #4aa3ff → #bbd5e1). 게이트 발판 데칼과
+         같은 답: 덮개 없이 몸판만 두어 임자 색이 제 색으로 든다. 톱니의 입체는 옆벽이 읽는다. */
+      pc.push(...tagKey([bodyFace(capD)], depthNow(tx9, ty9) * 1.6 + 0.4));
     }
     /* 가운데 포탑은 받침 위 얹힘(재지적: 바닥이 포탑을 가림) — 지붕 띠 키로 받침
        (반지름 키)·이음 원반들을 늘 이긴다.
@@ -10153,9 +10168,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      몸이 아니다. 등을 세워 앞뒤로 오므렸다(구부림) 낮추며 길게 펴는(폄) 두 컷이
      번갈아 트면, 공벌레가 몸을 밀어 나아가는 그 결이 된다. */
   reaver: () => {
-    const GOLD = "#d4bd3c";
+    const GOLD = TOSS_GOLD;
     const GOLD_L = "#e2c256";
-    const GOLD_D = "#8a6d1a";
+    const GOLD_D = TOSS_GOLD_D;
     const out: ShapeFace[] = [];
     /** 구부림 몫 — 컷 1은 +1(구부림), 컷 3은 −1(폄). 기본 자세는 0이다. */
     const bd9 = walkDir();
@@ -11462,7 +11477,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          파랑이 이 렌더러에서는 임자 색 자리다. 몸은 금, 등에 얹는 판 한 장만 안 칠한다 —
          내려다보는 화면에서 가장 잘 보이는 자리라 색 몫이 안 줄어든다(스카우트 날개 데칼과
          같은 손이다). */
-    const GOLD9 = "#d4af37";
+    const GOLD9 = TOSS_GOLD;
     const out: ShapeFace[] = [];
     const hullPath9 = (t9: number): [number, number, number] => [0, -1.5 + 3.3 * t9, 5.85];
     const hullW9 = widthCurve([[0, 0.5], [0.42, 0.97], [1, 0.09]]);   // 동체 폭 20% 축소 → 다시 30% 축소(재요청)
@@ -11535,7 +11550,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           x: 0, y: 0, h: 1, w: w0, segs: 10, sides: 6, caps: "both",
           path: bez9(p0, p1, p2),
           widthOf: (t9: number): number => w0 + (w1 - w0) * t9 ** 0.85,
-        }), "#d4af37"), armKey(p0, p1, p2));
+        }), TOSS_GOLD), armKey(p0, p1, p2));
         return [
           ...([1, -1] as const).flatMap((m8): ShapeFace[] => [
             /* 위팔은 **八자로 벌어진다**(재요청) — 뿌리에서 앞·바깥으로 계속 나가 끝이 x 3.1.
@@ -11546,7 +11561,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
               0.5, 0.16),
             ...tagKey(((): ShapeFace[] => {
               const d9 = polyPath3([[m8 * 1.15, -0.9, 5.85], [m8 * 2.0, 2.9, 5.3], [m8 * 2.55, -0.4, 4.9]]);
-              return [[d9, 1, "#d4af37"] as ShapeFace, topFace(d9, 0.18)];
+              return [[d9, 1, TOSS_GOLD] as ShapeFace, topFace(d9, 0.18)];
             })(), partKey(m8 * 1.9, 0.5, 5.4) + 0.05),
             /* 위팔 끝의 **누운 계란** 플라즈마 덩이(요청) — 팔 끝 **안쪽**에 더 작게 붙고,
                옆(x)으로 납작하며 앞뒤로 길다(재요청). 뒤가 굵고 앞이 조금 좁은 계란
@@ -11570,7 +11585,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
                뿌리는 팔 곡선 위의 t 0.85 자리를 그대로 쓴다(끝에서 조금 못 미친 자리).
                휨(bow)은 바깥·앞을 향하게 두어 미늘의 배가 볼록하고 끝이 안으로 말린다. */
             ...tagKey(spikeHorn(m8 * 1.9, 2.41, 5.35, m8 * 1.62, 1.65, 5.3, 0.32,
-              "#d4af37", 5, 0.12, m8 * 0.6, 0.5),
+              TOSS_GOLD, 5, 0.12, m8 * 0.6, 0.5),
             partKey(m8 * 1.75, 2.0, 5.33) + 0.1),
           ]),
           /* 하단 팔 하나 — 몸 밑에서 가파르게 아래·앞으로 떨어졌다가 끝이 위로 말린다.
@@ -11612,7 +11627,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        임자 색은 앞판의 규약 그대로 **날개 데칼 한 자락**이다(프로토스 함선은 몸이 금색이고
        임자 색은 한 자락이다 — 캐리어·아비터가 그렇다).
        키는 partKey로 짓는다(그 주석 참고) — 나셀이 동체 위에 얹히므로 높이가 앞뒤를 가른다. */
-    const GOLD9 = "#d4af37";
+    const GOLD9 = TOSS_GOLD;
     const out: ShapeFace[] = [];
     /* ① 동체 — 꼬리에서 코까지 한 기둥. 축을 y로 눕히고 ref를 x로 못 박으면 단면의 u가
        가로 폭, v가 높이다. oval로 v를 눌러 납작한 몸을 만들고 widthOf로 코를 좁힌다.
@@ -11691,7 +11706,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        이제 leafFaces 한 번이면 잎 한 장이다 — 허리에서 맞붙는 기둥 둘이라 이음매가
        없고, 면마다 세계 광원이 저절로 실리며, 깊이 키도 한 덩이다. 윤곽(앞뒤 길이·
        좌우 폭·앞으로 처지는 기울기)은 옛 판 그대로 옮겼다. */
-    const GOLD9 = "#d4af37";
+    const GOLD9 = TOSS_GOLD;
     /* (걷어냄) HUBZ — 잎의 앞뒤 끝을 이 높이로 끌어올려 '몸통 자리로 모이게' 하던
        값이다. 그 끌어올림이 곧 앞뒤 휨이었고, 옆에서 보면 바나나로 읽혔다(지적).
        이제 등뼈의 높이는 제자리(z0)에 못 박혀 있어 쓸 데가 없다. */
@@ -11966,7 +11981,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         if (!faceLight(nX9 / nL9, nY9 / nL9, nZ9 / nL9).visible) continue;
         out9.push(...paintBase([[polyPath3([
           pA9, pB9, at(s1, y1, 0.01, true), at(s0, y0, 0.01, true),
-        ]), 1] as ShapeFace], "#a8801f"));
+        ]), 1] as ShapeFace], TOSS_GOLD_D));
       }
       /** 덮개 **겉면 한가운데**의 자리 — 깊이 키와 데칼이 이 한 점을 나눠 쓴다. */
       const yC9 = (yFrontMid + yBackMid) / 2;
@@ -12102,7 +12117,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        위 하나(윗잎 뒤). 색은 프로토스 기본 금색(#d4af37)보다 한 단 진한 금이고, 뒷
        단면은 플라즈마 에너지다 — 관이 제 끝 단면을 그리는 대신, 그 자리에 벽 원반을
        한 장 세워 밝게 태운다(뒤를 보일 때만 그린다). */
-    const THRUST_GOLD = "#a8801f";
+    const THRUST_GOLD = TOSS_GOLD_D;
     /* 추진체를 **꽁무니 밖으로 뺀다**(요청: "추진체가 너무 안에 들어가있다 — 뒤로 빼서
        밖에서 반 이상 보이게") — 여태 관이 y −2.45~−3.65였다. 잎의 앞뒤 반길이가
        4.7(윗잎)·5.6(아랫잎 둘)이니 관이 통째로 잎 안에 잠겨, 뒤에서 볼 때 잎 사이로
@@ -12282,7 +12297,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       waist: 0.26, thick: 0.48, spread: 0.5,
       // 뒤끝을 살짝만 둥글린다(재요청): tipPow 1.25 → 0.7 — 지수가 작을수록 끝이 뭉툭하게 닫힌다.
       rootW: 0.06, rootPow: 0.55, tipPow: 0.7,
-      sides: 10, segs: 7, fill: "#d4af37", ref: [0, 0, 1],
+      sides: 10, segs: 7, fill: TOSS_GOLD, ref: [0, 0, 1],
       // 속면 비침 막기(지적) — 등진 면을 걷고 진짜 법선으로 칠한다.
       trueNormal: true,
       /* 날개 키(재지적: 각도에 따라 몸체에 가려짐) — 몸 돔은 depthNow에 반지름
@@ -12328,7 +12343,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ],
       // 시위를 반 넘게 줄여 얇상하게(재지적): 0.62 → 0.26.
       widthOf: (t: number): number => 0.26 * (1 - 0.5 * t),
-    }), "#c8a434"), depthNow(m2 * ARB_WING_X, 0.3) + 1.35 - 0.9);
+    }), TOSS_GOLD_M), depthNow(m2 * ARB_WING_X, 0.3) + 1.35 - 0.9);
     return [
       ...lowWing(-1),
       ...lowWing(1),
@@ -12346,7 +12361,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          렌즈 셋도 같은 몫으로 줄여 작아진 코에 얹는다. */
       /* (걷어냄) 몸과 날개를 잇던 ㅇ 관절 관 한 쌍 — 날개가 몸에 직접 물리면서(요청)
          쓸 데가 없어졌다. */
-      ...paintBase(domeFaces3(0, 0.2, 0.45, 0.4, 5.72), "#d4af37"),
+      ...paintBase(domeFaces3(0, 0.2, 0.45, 0.4, 5.72), TOSS_GOLD),
       /* ★ 몸통 위 **작은 방패**(요청: "몸통 위에 평평하고 앞뒤로 긴 작은 방패 하나
          얹어야 함") — 납작하고 앞뒤로 긴 판 하나다. 폭보다 길이가 세 배라 위에서
          내려다보는 화면에서 '앞이 어디인가'를 말해 주고, 두께가 얇아 실루엣은 안 바꾼다.
@@ -12355,7 +12370,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         x: 0, y: 0.3, h: 1, w: 1, segs: 3, sides: 8, ref: [0, 1, 0], caps: "both",
         path: (t9: number): [number, number, number] => [0, 0.86 - 1.12 * t9, 6.2],   // 몸 돔 꼭대기 위로 살짝(지적: 잘 안 보임)
         widthOf: (t9: number): number => 0.19 * (0.55 + 0.45 * Math.sin(Math.PI * t9)),
-      }), "#a8841c"), depthNow(0, 0.3) + 1.5),   // 몸보다 한 단 짙은 금 — 같은 금이면 안 갈렸다   // 몸 돔 위에 늘 보이게(지적: 잘 안 보임) 0.35 → 1.5
+      }), TOSS_GOLD_D), depthNow(0, 0.3) + 1.5),   // 몸보다 한 단 짙은 금 — 같은 금이면 안 갈렸다   // 몸 돔 위에 늘 보이게(지적: 잘 안 보임) 0.35 → 1.5
       /* 앞면 네온 원렌즈 셋(요청) — 코앞에 가로로 늘어선 작은 사이언 렌즈. 접평면에
          서므로 옆으로 돌면 납작해지고 뒤에선 사라진다. */
       ...([-1, 0, 1] as const).flatMap((k8) => lensFaces({
@@ -12383,7 +12398,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        임자 색은 **허리띠 한 줄**이다 — 프로토스 규약(몸은 금, 임자 색은 한 자락) 그대로이고,
        이 크기에서 가장 잘 읽히는 자리다(앞판의 파란 귀가 하던 몫을 띠가 받는다).
        키는 partKey로 짓는다 — 잎날이 몸 위아래로 갈려 붙으므로 높이가 앞뒤를 가른다. */
-    const GOLD9 = "#d4af37";
+    const GOLD9 = TOSS_GOLD;
     const CZ9 = 6.0;                 // 몸 중심 높이
     const out: ShapeFace[] = [];
     /* ① 몸 — 금색 구. 세운 기둥의 굵기를 사인으로 주면 그대로 공이다(반지름 1.05). */
@@ -13714,7 +13729,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const wMid = wRoot + (wTip - wRoot) * f;
       const zMid = z0 + (z1 - z0) * f;
       return [
-        ...paintBase(wing(ang, r0, len * f, wRoot, wMid, z0, zMid), "#d4af37"),
+        ...paintBase(wing(ang, r0, len * f, wRoot, wMid, z0, zMid), TOSS_GOLD),
         ...wing(ang, r0 + len * f, len * (1 - f), wMid, wTip, zMid, z1),
       ];
     };
@@ -13744,7 +13759,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // 몸통은 늘 다리 위(지적: 뒷다리에 가려짐) — 제 깊이 키를 크게 단다.
     out.push(...tagKey([
       // 몸통 금색, 몸통 위 원판만 개인색(요청).
-      [discPath3(0, 0, 6.2, 1.55 * BD), 1, "#d4af37"] as ShapeFace,
+      [discPath3(0, 0, 6.2, 1.55 * BD), 1, TOSS_GOLD] as ShapeFace,
       [discPath3(0, 0, 6.5, 1.05 * BD), 1] as ShapeFace,
       topFace(discPath3(0, 0, 6.8, 0.62 * BD), 0.3),
     ], depthNow(0, 0) + 2.5));
@@ -13766,7 +13781,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     out.push(topFace(groundEllipse(p2x, p2y, 0.28, 0.22), 0.3));
     /* 앞다리 한 쌍(재지적: 길이 축소 + 두 다리 사이 벌리기 + 몸에 더 딱) — 뿌리를
        몸 바로 밑(0.65)까지 당기고, 각도를 ±14→±30으로 벌리고, 길이는 반 남짓으로. */
-    for (const ang of [30, -30]) out.push(...paintBase(wing(ang, 0.85 * BD, 0.8 + 0.85 * (1 - BD), 0.17, 0.08, 6.15, 5.5), "#d4af37"));
+    for (const ang of [30, -30]) out.push(...paintBase(wing(ang, 0.85 * BD, 0.8 + 0.85 * (1 - BD), 0.17, 0.08, 6.15, 5.5), TOSS_GOLD));
     return out;
   },
   /* 드론(정정) — 갈퀴치마는 집게 사이가 아니라 집게팔과 꼬리 사이, 양옆에 부채처럼
@@ -14656,7 +14671,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* ④ 가슴 보석 — 흉갑 한가운데 청옥. 앞을 볼 때만 뜨는 볼록 렌즈다. */
     ...lensFaces({
       x: 0, y: 0.62, z: 5.0, nx: 0, ny: 1, r: 0.24, bulge: 0.3, lift: 3,
-      rim: "#8a7230", back: "#1d2f52", fill: "#3f7fe0", core: "#8fc0ff", glint: "#e6f1ff",
+      rim: TOSS_GOLD_D, back: "#1d2f52", fill: "#3f7fe0", core: "#8fc0ff", glint: "#e6f1ff",
     }),
     /* ② 팔 — 상완은 남색 속몸, 하완은 금 보호대(사진의 배색). */
     // 하완 건틀릿을 상완보다 굵게(사진 대조: 금 건틀릿이 팔의 주인공이다).
@@ -15026,7 +15041,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ...tagKey(domeFaces3(dx * 3.3, dy * 3.3 + st9 * 0.35, 0.62, 0.5, 5.15), 8),
         // 하지 — 무릎 아래에서 발끝으로 좁아지는 사각뿔.
         ...prism(sh0[0], sh0[1], sh0[2], sh1[0], sh1[1], sh1[2], 0.6, 0.26),
-      ], "#d4af37"), key9);
+      ], TOSS_GOLD), key9);
     };
     const [gx2, gy2] = project(-0.5, -0.5, 5.8);
     return [
@@ -15085,19 +15100,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          샘플의 드라군은 다리 위에 납작한 접시가 얹힌 꼴이 아니라, 어깨 높이까지 솟은
          **금빛 갑각**이다. 여태는 파란 돔 하나가 몸의 전부라 다리에 접시를 올린 것처럼
          보였다. 그 돔은 아래 몸(조종석)으로 두고, 그 위에 금 갑각을 한 단 얹는다. */
-      ...tagKey(paintBase(domeFaces3(0, -0.1, 1.25, 1.5, 5.5), "#d4af37"),
+      ...tagKey(paintBase(domeFaces3(0, -0.1, 1.25, 1.5, 5.5), TOSS_GOLD),
         depthNow(0, -0.1) * 1.6 + 2.4),
       /* ★ 어깨 옆판 한 쌍(샘플 드라군1) — 몸통 좌우로 크게 벌어져 **위로 솟은** 둥근 금
          갑판이다. 드라군 실루엣의 절반이 이 두 판이고, 샘플에서는 몸보다 높이 올라가
          가운데 머리를 사이에 끼운 꼴이 된다. 여태 값(반지름 0.85 · z 4.9)은 몸에 묻혀
          옆에서만 겨우 보였다 — 크게(1.25) 하고 밖(1.75)·위(5.7)로 낸다. */
       ...([-1, 1] as const).flatMap((m9) => tagKey(paintBase(
-        quarterDome(m9 * 1.62, -0.15, 6.25, 1.3, m9, 0, undefined, 0.42, 0.9), "#d4af37",
+        quarterDome(m9 * 1.62, -0.15, 6.25, 1.3, m9, 0, undefined, 0.42, 0.9), TOSS_GOLD,
       ), depthNow(m9 * 2.4, -0.15) * 1.6 + 3)),
       /* ★ 머리 — 두 갑판 사이에 낀 좁은 판과 그 한가운데의 **세로 눈**(샘플 드라군1).
          이것이 '어디를 보고 있나'를 말한다 — 없으면 앞뒤가 안 갈린다. */
       ...(facingRatio(0, 1) > 0.1 ? [
-        ...tagKey(paintBase(domeFaces3(0, 0.35, 0.6, 0.95, 6.2), "#c8a233"),
+        ...tagKey(paintBase(domeFaces3(0, 0.35, 0.6, 0.95, 6.2), TOSS_GOLD_M),
           depthNow(0, 0.35) * 1.6 + 3.4),
         ...tagKey([[polyPath3([
           [-0.13, 0.9, 7.28], [0.13, 0.9, 7.28], [0.09, 0.97, 6.35], [-0.09, 0.97, 6.35],
@@ -16787,9 +16802,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const legF: ShapeFace[] = [];
       for (let i9 = 0; i9 < lo9.length; i9 += 1) {
         const j9 = (i9 + 1) % lo9.length;
-        legF.push([polyPath3([lo9[i9], lo9[j9], hi9[j9], hi9[i9]]), 1, "#d4af37"] as ShapeFace);
+        legF.push([polyPath3([lo9[i9], lo9[j9], hi9[j9], hi9[i9]]), 1, TOSS_GOLD] as ShapeFace);
       }
-      legF.push([polyPath3(hi9), 1, "#d4af37"] as ShapeFace, topFace(polyPath3(hi9), 0.16));
+      legF.push([polyPath3(hi9), 1, TOSS_GOLD] as ShapeFace, topFace(polyPath3(hi9), 0.16));
       /* 키는 **뿌리 자리**로 잰다 — 다리는 몸 옆구리에서 나와 앞바깥으로 쓸리므로, 가운데나
          끝으로 재면 앞에서 볼 때 뿌리까지 몸 위로 올라온다(그러면 다리가 몸에 붙은 것이
          아니라 얹힌 것으로 읽힌다). 뿌리로 재면 앞에서는 몸이 뿌리를 덮고, 옆에서는 가까운
@@ -16814,7 +16829,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     for (const m8 of [-1, 1] as const) {
       const tx = m8 * 1.15;
       out.push(...tagKey(paintBase(
-        tubeFaces(tx, -2.15, tx, -3.5, 0.42, 3.85, true), "#a8801f",
+        tubeFaces(tx, -2.15, tx, -3.5, 0.42, 3.85, true), TOSS_GOLD_D,
       ), partKey(tx, -2.8, 3.85)));
       if (poseNow === 1 && facingRatio(0, -1) > 0.05) {   // 이동할 때만(요청)
         out.push(...tagKey([
@@ -16876,12 +16891,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           ...[...ths9].reverse().map((t9) => at9(t9, -1, 0))];
         const hi9 = [...ths9.map((t9) => at9(t9, 1, THK9)),
           ...[...ths9].reverse().map((t9) => at9(t9, -1, THK9))];
-        const f9: ShapeFace[] = [[polyPath3(lo9), 1, "#d4af37"] as ShapeFace];
+        const f9: ShapeFace[] = [[polyPath3(lo9), 1, TOSS_GOLD] as ShapeFace];
         for (let i9 = 0; i9 < lo9.length; i9 += 1) {
           const j9 = (i9 + 1) % lo9.length;
-          f9.push([polyPath3([lo9[i9], lo9[j9], hi9[j9], hi9[i9]]), 1, "#d4af37"] as ShapeFace);
+          f9.push([polyPath3([lo9[i9], lo9[j9], hi9[j9], hi9[i9]]), 1, TOSS_GOLD] as ShapeFace);
         }
-        f9.push([polyPath3(hi9), 1, "#d4af37"] as ShapeFace, topFace(polyPath3(hi9), 0.16));
+        f9.push([polyPath3(hi9), 1, TOSS_GOLD] as ShapeFace, topFace(polyPath3(hi9), 0.16));
         const mid9 = at9(TH9 * (f0 + f1) / 2, 0 as unknown as 1, 0);
         out.push(...tagKey(f9, partKey(mid9[0], mid9[1], mid9[2])));
       }
@@ -21515,26 +21530,33 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
             continue;
           }
           if (SHIELD_FX_ON && f.kind === "shield") {
+            /* 막은 **죽음과 갈려야 한다**(지적: "스커지 자폭에서 왜 프로토스 사별 효과가 나지") —
+               스커지 자체는 저그 재질로 터진다(engine9의 dk). 프로토스로 보인 것은 **맞은 쪽**의
+               실드 피격 막이었다: 여태 흰 심 + 푸른 방사 구 + 테로, 프로토스 사별의 플라즈마 구
+               (drawBurst9 toss: 푸른 구·연푸른 속·흰 심·밝은 테)와 같은 문법이었다. 몸의 1.35배로
+               0.55초라 스커지 한 방마다 '프로토스가 죽었다'로 읽혔다.
+               이제 막은 **가장자리에서만 밝은 껍질**이다 — 안쪽은 거의 비치고 테두리로 갈수록
+               연푸른빛이 오르며 얇은 테 하나가 몸을 감싼다. 흰 심이 없고 구가 안 차오르므로
+               죽음과 겹칠 일이 없다. 자·길이도 한 단 줄였다(engine9: 1.2배·0.4초). */
             const a9 = envShield(p9);
             if (a9 <= 0.02) continue;
-            const sc9 = 0.78 + p9 * 0.36;                      // scale .78 → 1.14
+            const sc9 = 0.9 + p9 * 0.2;                       // scale .9 → 1.1
             const r9 = ((f.size ?? 6) / 2) * zoom * sc9;
-            const cy9 = ay - r9 * 0.1;                          // translate -55%
+            const cy9 = ay - r9 * 0.1;
             ctx.globalAlpha = a9;
-            const g9 = ctx.createRadialGradient(ax, cy9, 0, ax, cy9, r9);
-            // 플라즈마 테마(요청): 가운데 흰색에서 흰빛 도는 푸른색으로 번져 나간다.
-            g9.addColorStop(0, "rgba(255,255,255,0.6)");
-            g9.addColorStop(0.3, "rgba(205,238,255,0.32)");
-            g9.addColorStop(0.62, "rgba(140,200,255,0.12)");
-            g9.addColorStop(0.8, "rgba(110,180,255,0)");
+            const g9 = ctx.createRadialGradient(ax, cy9, r9 * 0.55, ax, cy9, r9);
+            g9.addColorStop(0, "rgba(140,200,255,0)");
+            g9.addColorStop(0.7, "rgba(140,200,255,0.16)");
+            g9.addColorStop(0.92, "rgba(205,238,255,0.42)");
+            g9.addColorStop(1, "rgba(225,245,255,0)");
             ctx.fillStyle = g9;
             ctx.beginPath();
             ctx.arc(ax, cy9, r9, 0, Math.PI * 2);
             ctx.fill();
-            ctx.strokeStyle = "rgba(225,245,255,0.55)";
-            ctx.lineWidth = Math.max(0.5, 0.3 * zoom);
+            ctx.strokeStyle = "rgba(225,245,255,0.7)";
+            ctx.lineWidth = Math.max(0.6, 0.35 * zoom);
             ctx.beginPath();
-            ctx.arc(ax, cy9, r9 * 0.74, 0, Math.PI * 2);
+            ctx.arc(ax, cy9, r9 * 0.93, 0, Math.PI * 2);
             ctx.stroke();
             continue;
           }
