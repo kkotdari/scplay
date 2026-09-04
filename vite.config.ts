@@ -8,7 +8,14 @@ export default defineConfig({
      말하게 한다: 배포 직후의 재현 보고가 옛 판에서 온 것인지 새 판인지, 여태 가릴
      길이 없었다. 시각은 이 라이브러리를 실제로 굽는 순간(배포 파이프라인)의 것이다. */
   define: {
-    __SCPLAY_BUILD__: JSON.stringify(new Date().toISOString().slice(5, 16).replace("T", " ")),
+    /* 판 시각은 **한국표준시**로(지적: 진단창의 판 시간이 KST가 아니다) — toISOString은 UTC고 Vercel 빌드 기계도 UTC라
+       9시간 앞선 값이 박혔다. 기계의 시간대와 무관하게 Asia/Seoul로 찍는다(MM-DD HH:mm). */
+    __SCPLAY_BUILD__: JSON.stringify((() => {
+      const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Asia/Seoul", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false,
+      }).formatToParts(new Date()).map((x) => [x.type, x.value]));
+      return `${p.month}-${p.day} ${p.hour}:${p.minute}`;
+    })()),
     /* ★ 워커 번들의 `process.env.NODE_ENV`(지적: 폰에서 "Can't find variable: process") — 워커에는 react가
        통째로 묶이고 그 안의 `process.env.NODE_ENV` 검사는 라이브러리 모드에서 그대로 남는다. 메인 번들에서는
        소비자(scplayer)의 번들러가 바꿔 주지만 워커는 **문자열(base64)로 인라인**돼 손이 안 닿는다 — 워커에는
