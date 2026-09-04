@@ -18333,7 +18333,9 @@ const DEV9 = smallDevice9 ? {
   mapFreedMB: 0, decalBakeMax: 384, bakeOneMB: 8, bakePoolMB: 24,
   unitBakePerFrame: 3, bldBakePerFrame: 3,
   hitShardK: 1, dieShards: 24, fxRasterMB: 24, shadowGroundMinZoom: 0,
-  cullMargin: 1, aheadSec: 3, aheadMB: 10, yaw8Always: false,
+  /* 앞 한도 10 → 24MB(진단: PC 3배에서 장당 220KB라 10MB가 0.7초 만에 차, 3초 예산이 있어도 앞이 0.7초뿐이었다 —
+     굽기 한 번(최악 41ms)이나 GC에 뒤장이 비기 딱 좋은 여유다. 24MB면 220KB로 3.6초). */
+  cullMargin: 1, aheadSec: 3, aheadMB: 24, yaw8Always: false,
 };
 const SPRITE_BYTES_MAX = DEV9.spriteMB * 1024 * 1024;
 /** 판 한 장의 한 변 상한(장치 픽셀) — 이보다 커야 하는 요청은 굽지 않고 **직접 그리기**로
