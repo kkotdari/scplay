@@ -23174,6 +23174,10 @@ export default function ReplayMotionPlayer({
      초당 열 번만 올린다(REACT_STEP_MS9): 시간 표시·DOM 효과·미니맵·안개는 그 박자면 족하고, 유닛·효과 캔버스는 틱이 쥔다. */
   const tLiveRef9 = useRef(0);
   const tFromTickRef9 = useRef(-1);
+  /* 멈춘 동안 새 장이 오면 React를 한 번 깨우는 박자(아래 frame 갈래의 ★) — 100ms에 한 번으로 죈다. */
+  const [pausedTick9, setPausedTick9] = useState(0);
+  const pausedWakeRef9 = useRef<number | null>(null);
+  void pausedTick9;
   const reactAtRef9 = useRef(0);
   /** 지금의 React 박자(ms) — 핵이 떠 있으면 REACT_STEP_NUKE_MS9, 아니면 REACT_STEP_MS9(렌더가 정한다). */
   const reactStepRef9 = useRef(REACT_STEP_MS9);
@@ -23265,6 +23269,17 @@ export default function ReplayMotionPlayer({
         for (const [k9, f9] of frames9) if (f9.seq < pf9.seq && f9.t >= pf9.t - 1e-6 && f9.t > tNowSeq9) frames9.delete(k9);
         frames9.set(Math.round(pf9.t * 1000), pf9);
         wStatRef.current.got += 1;
+        /* ★ 멈춰 있을 때도 새 장이 오면 다시 그린다(지적: "일시정지 때도 그림을 리프레시해야") — 장은 이 ref에만 쌓여
+           React가 모르므로, 멈춘 화면은 멈추던 순간에 고른 장(보간 중이던 옛 장)으로 굳어 있었다. 정지 명령을 받은 워커가
+           정확히 그 시각의 장을 지어 보내도, 탐색·팬·줌으로 시야가 바뀌어 새 장이 와도 안 그려졌다. 붓은 ref로 곧장 칠하고
+           (React 없이), 안개·DOM 효과·미니맵은 React 박자를 한 번 깨워(100ms에 한 번) 따라오게 한다. 지금 시각보다 앞선
+           장(미리 지은 것)은 그릴 것이 없으니 안 깨운다. */
+        if (!drivenRef9.current && pf9.t <= cmdNowRef9.current.t + 0.05) {
+          paintFnRef9.current?.(tLiveRef9.current);
+          if (pausedWakeRef9.current === null) {
+            pausedWakeRef9.current = window.setTimeout(() => { pausedWakeRef9.current = null; setPausedTick9((n9) => n9 + 1); }, 100);
+          }
+        }
         const st9 = wStatRef.current;
         st9.buildMs = st9.buildMs === 0 ? pf9.ms : st9.buildMs * 0.9 + pf9.ms * 0.1;
         st9.ops = st9.ops === 0 ? pf9.n : st9.ops * 0.9 + pf9.n * 0.1;
