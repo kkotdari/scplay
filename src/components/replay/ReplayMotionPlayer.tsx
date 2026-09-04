@@ -20095,8 +20095,11 @@ function drawHpBar(
      긋는다: 어두운 바탕 위에 채움, 채움 폭은 게임 px로 3의 배수에 맞추고(OpenBW filled_width: 최소 3, 나머지 2면 올림·1이면
      내림), 3px마다 1px 금을 긋는다(칸 = 2px 색 + 1px 금). 한 칸의 체력은 최대 체력 ÷ 칸 수다 — 원작도 칸이 체력 단위가
      아니라 폭이 정하는 것이다. 작아서 칸이 안 읽히면 옛 민바(평평한 채움)다. */
+  /* ★ 원작 폭이 실린 op는 **어느 배율에서든** 원작식이다(지적: 저배율에서 옛 방식으로 나온다) — 어두운 바탕과 3게임px
+     단위 채움은 늘 그리고, 금만 칸이 화면 1.6px 이상일 때 긋는다(그 아래는 마린 바가 통째로 10px 남짓이라 금을 그어도
+     얼룩이다). 금은 1게임px이되 화면 0.6px 아래로는 안 내려간다. */
   const uPx = op.hpBarW ? bw / op.hpBarW : 0;
-  if (op.hpBarW && uPx * 3 >= 2.5) {
+  if (op.hpBarW && uPx > 0) {
     const W = op.hpBarW;
     ctx.save();
     ctx.globalAlpha = 0.6;
@@ -20120,7 +20123,7 @@ function drawHpBar(
     ctx.save();
     ctx.globalAlpha = 0.75;
     ctx.fillStyle = "#0b0f14";
-    for (let x = 3; x < W; x += 3) ctx.fillRect(bx + (x - 1) * uPx, by, Math.max(1, uPx), bh);
+    if (uPx * 3 >= 1.6) for (let x = 3; x < W; x += 3) ctx.fillRect(bx + (x - 1) * uPx, by, Math.max(0.6, uPx), bh);
     ctx.restore();
     return;
   }
