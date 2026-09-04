@@ -6,7 +6,8 @@ import {
 import { createPortal } from "react-dom";
 import { useBgm } from "./useBgm";
 import RosterTableIcon from "./RosterTableIcon";
-import { Crosshair, Map as MapIcon, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Users } from "lucide-react";
+import { BookOpen, Crosshair, Map as MapIcon, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Users } from "lucide-react";
+import ReplayGuide from "./ReplayGuide";
 /* 미니맵 — 이제 **제 오버레이 판**이고 제 아이콘으로 여닫는다(요청: "미니맵 오버레이
    및 아이콘 추가"). 도구 판 안에 세들어 살던 시절과 달리, 켜고 끄는 것이 이것 하나다. */
 import ReplayFullscreenMinimap, { type MiniDot } from "./ReplayFullscreenMinimap";
@@ -22829,7 +22830,7 @@ const lerpAng9 = (a: number, b: number, u: number): number => {
 export default function ReplayMotionPlayer({
   grid, endSec, bases: basesIn, teamOfRaw, active = true, winnerTeam, side,
   onDetailClose, loadUnitTracks, initialSec, initialSpeed, initialView, initialTrack,
-  clockKey, shareNode, avatars,
+  clockKey, shareNode, onGuide, guide = true, avatars,
   soleView, melee,
   onFinish,
 }: {
@@ -22896,6 +22897,10 @@ export default function ReplayMotionPlayer({
   soleView?: boolean;
   /** 진행바 아래 공유 버튼(요청: 케밥은 그대로, 별도 버튼) — 시계 옆에 앉는다. */
   shareNode?: React.ReactNode;
+  /** 사용법(요청: 공통) — 공유 버튼 옆 '사용법' 버튼. 기본은 재생기가 제 덮개(ReplayGuide)를 띄우고, onGuide를 주면 앱이 대신
+   *  연다(제 라우팅으로 띄우고 싶을 때). guide=false면 버튼을 안 낸다. */
+  onGuide?: () => void;
+  guide?: boolean;
   // (삭제·요청) caps — 자막 표시를 걷으면서 함께.
 }) {
   /* 렌더 함수 **전체**에 든 JS 시간 — 준비·mapNode만 재면 그 사이 수백 줄의
@@ -24374,6 +24379,24 @@ export default function ReplayMotionPlayer({
      옛 식으로 되돌아온다. 전체화면에서는 지도를 화면보다 크게(cover) 깔아 두므로
      배율 1에서도 그 차이만큼 드래그 여유가 생긴다 — 그것이 곧 '크롭한 나머지 보기'다. */
   const [fsOn, setFsOn] = useState(false);
+  /* 사용법 덮개(요청: 공통) — 열면 history에 한 칸 밀어 뒤로가기(폰의 제스처 포함)가 덮개를 닫게 한다. 닫기 버튼은 그
+     칸을 되돌려(back) 같은 길로 닫는다. */
+  const [guideOpen9, setGuideOpen9] = useState(false);
+  const guidePushed9 = useRef(false);
+  const openGuide9 = (): void => {
+    if (onGuide) { onGuide(); return; }
+    try { window.history.pushState({ scrGuide: 1 }, ""); guidePushed9.current = true; } catch { guidePushed9.current = false; }
+    setGuideOpen9(true);
+  };
+  const closeGuide9 = (): void => {
+    if (guidePushed9.current) { guidePushed9.current = false; window.history.back(); } else setGuideOpen9(false);
+  };
+  useEffect(() => {
+    if (!guideOpen9) return;
+    const onPop = (): void => { guidePushed9.current = false; setGuideOpen9(false); };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [guideOpen9]);
   const fsOnRef = useRef(false);
   fsOnRef.current = fsOn;
   /** 전체화면 무대(화면을 꽉 채우는 상자) — 지도를 이 크기에 맞춰 덮게 깐다. */
@@ -29848,6 +29871,12 @@ export default function ReplayMotionPlayer({
             {controlsNode}
             <div className="scr-fs-bottom-tail">
               {shareNode}
+              {guide && (
+                <button type="button" className="scr-kakao-share-btn scr-guide-btn" onClick={openGuide9} aria-label="사용법">
+                  <BookOpen />
+                  사용법
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -29857,6 +29886,8 @@ export default function ReplayMotionPlayer({
   /* 전체화면은 이 판을 body로 옮겨 심는 일이다 — 조상 카드에 backdrop-filter가 걸려
      있으면 fixed의 담을 상자가 그 카드로 바뀌므로(위 enterFs 주석) 반드시 body다. */
   const fsInner = fsOn ? createPortal(stageNode, document.body) : null;
+  const guideNode9 = guideOpen9
+    ? createPortal(<div className="scr-guide-overlay"><ReplayGuide onClose={closeGuide9} /></div>, document.body) : null;
 
   /* ══ 몸통 — **프레임 하나와 댓글 기둥**뿐이다(요청: 일반/전체화면 통합) ═════════
      여기 있던 것들을 전부 걷었다: 맵줄(.scr-motion-maprow)·좁은 화면 로스터 줄
@@ -29888,6 +29919,7 @@ export default function ReplayMotionPlayer({
       {/* 오른쪽 댓글 영역(요청: PC에서 댓글부를 미니맵 우측으로). */}
       {wide && side ? <div className="scr-motion-sidewrap">{side}</div> : null}
       {fsInner}
+      {guideNode9}
     </div>
   );
 

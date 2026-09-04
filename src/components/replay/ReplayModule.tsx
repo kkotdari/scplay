@@ -58,6 +58,9 @@ export interface ReplayModuleProps {
   onDetailClose?: () => void;
   /** 진행바 아래 슬롯 — 공유·스크랩처럼 **앱의 것**을 여기 꽂는다. */
   shareNode?: ReactNode;
+  /** 사용법 버튼(공통) — 앱이 제 라우팅으로 열고 싶으면 onGuide, 버튼을 안 내려면 guide=false. */
+  onGuide?: () => void;
+  guide?: boolean;
   /** 확대 모드 오른쪽 슬롯 — 댓글 따위(지시: 모듈은 안 만든다, 받기만 한다). */
   side?: ReactNode;
   /** 오른쪽 위 케밥 — 앱의 메뉴. */
@@ -71,7 +74,7 @@ export default function ReplayModule({
   grid, endSec, bases, teamOfRaw, loadUnitTracks,
   head, winnerTeam, melee, soleView, active = true,
   initialSec, initialSpeed, initialView, initialTrack, clockKey,
-  onFinish, onDetailClose, shareNode, side, menu, avatars,
+  onFinish, onDetailClose, shareNode, onGuide, guide, side, menu, avatars,
 }: ReplayModuleProps) {
   const win = head?.win ?? null;
   /* 배지는 **양쪽에 다 세우고 한쪽만 감춘다** — 반대쪽을 아예 안 그리면 좌우 자리 폭이
@@ -121,6 +124,8 @@ export default function ReplayModule({
         initialTrack={initialTrack}
         clockKey={clockKey}
         shareNode={shareNode}
+        onGuide={onGuide}
+        guide={guide}
         onDetailClose={onDetailClose}
         soleView={soleView}
         loadUnitTracks={loadUnitTracks}

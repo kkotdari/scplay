@@ -3,6 +3,7 @@
    고칠 수 있다. 필요한 것이 생기면 여기로 하나씩 낸다. */
 
 export { default as ReplayModule } from "./ReplayModule";
+export { default as ReplayGuide } from "./ReplayGuide";
 export type { ReplayHead, ReplayModuleProps } from "./ReplayModule";
 
 // 앱이 꽂아 주는 것들 — 붙이는 법은 README.md.

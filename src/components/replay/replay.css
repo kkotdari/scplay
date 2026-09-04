@@ -3868,3 +3868,248 @@
    줄 높이가 달라진다). 끝까지 본 순간 이 클래스만 떨어지므로 한 픽셀도 안 움직인다.
    display:none·조건부 렌더로는 이 성질을 얻을 수 없다(자리가 사라진다). */
 .scr-story-win-veil { visibility: hidden; }
+/* ── 사용법(요청: 공통 — 앱에서 옮겨 옴) — 재생기 아래 '사용법' 버튼이 이 덮개를 body에 포털로 띄운다. ── */
+.scr-guide-overlay { position: fixed; inset: 0; z-index: 240; overflow: auto; background: var(--void, #0d1117); color: var(--text, #e6edf3); }
+.scr-guide{ max-width: 760px; margin: 0 auto; padding: 0 16px 72px; }
+
+.scr-guide-top{ position: relative; display: flex; flex-direction: column; gap: 12px; padding: 24px 0 8px; }
+
+.scr-guide-eyebrow{
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--accent);
+}
+
+.scr-guide-deck{ margin: 0; color: var(--text-dim); font-size: 15px; line-height: 1.68; max-width: 56ch; }
+
+.scr-guide-deck b{ color: var(--text); font-weight: 600; }
+
+.scr-guide-jump{ display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+
+.scr-guide-jump a{
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 13px; border: 1px solid var(--line-soft); border-radius: 999px;
+  background: var(--panel-raised); color: var(--text); text-decoration: none; font-size: 13px;
+}
+
+.scr-guide-jump a:hover{ border-color: var(--accent); }
+
+.scr-guide-jump b{ font-family: var(--font-mono, monospace); color: var(--accent); font-weight: 500; }
+
+
+.scr-guide-sec{ padding-top: 44px; }
+
+.scr-guide-h2{ margin: 6px 0 0; font-size: 22px; letter-spacing: -.01em; }
+
+.scr-guide-h3{ margin: 30px 0 0; font-size: 15px; }
+
+.scr-guide-lede{ margin: 10px 0 0; color: var(--text-dim); font-size: 15px; line-height: 1.7; }
+
+.scr-guide-sub{ margin: 6px 0 0; color: var(--text-dim); font-size: 13.5px; }
+
+
+
+.scr-guide-q{ margin-top: 18px; border-top: 1px solid var(--line-soft); }
+
+.scr-guide-qrow{
+  display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.15fr); gap: 14px;
+  padding: 11px 0; border-bottom: 1px solid var(--line-faint, var(--line-soft));
+  align-items: center;
+}
+
+.scr-guide-qin{
+  font-family: var(--font-mono, monospace); font-size: 13px; color: var(--text);
+  background: var(--panel-raised); border: 1px solid var(--line-soft); border-radius: 6px;
+  padding: 8px 11px; min-width: 0; overflow-x: auto; white-space: nowrap;
+}
+
+.scr-guide-qin::before{ content: "⌕ "; opacity: .5; }
+
+.scr-guide-qout{ font-size: 13.5px; color: var(--text-dim); min-width: 0; }
+
+.scr-guide-qout b{ color: var(--text); font-weight: 600; }
+
+
+.scr-guide-note{
+  margin-top: 12px; padding: 14px 16px; border-radius: 8px;
+  background: var(--panel-raised); border: 1px solid var(--line-soft);
+  font-size: 13.5px; line-height: 1.66;
+}
+
+.scr-guide-note b{ color: var(--text); }
+
+.scr-guide-note code{ font-family: var(--font-mono, monospace); font-size: .92em; }
+
+
+
+
+
+
+.scr-guide-race{ width: 7px; height: 7px; border-radius: 2px; flex: none; }
+
+.scr-guide-race-p{ background: var(--protoss); }
+
+
+
+.scr-guide-roster-mock{
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px; background: var(--panel-raised); border-bottom: 1px solid var(--line-soft);
+}
+
+.scr-guide-rbtn{
+  width: 24px; height: 24px; flex: none; display: grid; place-items: center;
+  border: 1px solid var(--line-soft); border-radius: 6px;
+  background: var(--panel-solid); color: var(--text-dim);
+}
+
+.scr-guide-rname{ display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; }
+
+.scr-guide-rapm{ margin-left: auto; font-size: 11.5px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+
+
+
+.scr-guide-time{
+  font-family: var(--font-mono, monospace); font-size: 11.5px; color: var(--text);
+  font-variant-numeric: tabular-nums; flex: none;
+}
+
+.scr-guide-toolrow{
+  display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+  padding: 10px 12px; background: var(--panel-raised); border-bottom: 1px solid var(--line-soft);
+}
+
+.scr-guide-toolrow{ gap: 8px; }
+
+.scr-guide-toolrow .scr-guide-mbtn{ font-size: 13px; font-weight: 800; }
+
+.scr-guide-legend kbd{ margin: 0 1px; }
+
+
+
+.scr-guide-mock{
+  margin-top: 18px; border: 1px solid var(--line-soft); border-radius: var(--radius);
+  background: var(--panel-solid); overflow: hidden;
+}
+
+.scr-guide-bar{
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  padding: 10px 12px; background: var(--panel-raised); border-bottom: 1px solid var(--line-soft);
+}
+
+
+.scr-guide-mbtn{
+  width: 44px; height: 44px; flex: none; display: grid; place-items: center;
+  border: none; border-radius: 999px;
+  color: #f5f6f7; background: rgba(10, 14, 18, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16), 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+
+.scr-guide-mbtn.is-on{
+  background: var(--lit-pill-bg); box-shadow: var(--lit-pill-glow); color: #10151a;
+}
+
+
+.scr-guide-play{
+  width: 30px; height: 30px; flex: none; display: grid; place-items: center;
+  border-radius: 50%; background: transparent; color: var(--text);
+}
+
+
+.scr-guide-tbtn{
+  display: inline-flex; align-items: center; gap: 4px; flex: none;
+  height: 26px; padding: 0 7px; border-radius: 8px;
+  font-size: 11px; font-weight: 700; line-height: 1; white-space: nowrap;
+  background: #fff; color: #10151a; border: 1px solid #fff;
+  box-shadow: var(--lit-pill-glow);
+}
+
+.scr-guide-tbtn svg{ width: 13px; height: 13px; color: #10151a; }
+
+.scr-light-theme .scr-guide-tbtn{
+  background: var(--lit-pill-bg); border-color: transparent; color: var(--text);
+}
+
+.scr-light-theme .scr-guide-tbtn svg{ color: var(--text); }
+
+
+.scr-guide-seek{ flex: 1 1 130px; min-width: 110px; height: 5px; border-radius: 3px; background: var(--line-soft); position: relative; }
+
+.scr-guide-seek::after{ content: ""; position: absolute; inset: 0 62% 0 0; background: var(--accent); border-radius: 3px; }
+
+.scr-guide-legend{ list-style: none; margin: 0; padding: 12px 14px; display: grid; gap: 8px; }
+
+.scr-guide-ic{
+  display: inline-grid; place-items: center; width: 20px; height: 20px; flex: none;
+  color: var(--accent);
+}
+
+.scr-guide-ic-txt{ font-size: 10px; font-family: var(--font-mono, monospace); letter-spacing: -.02em; }
+
+.scr-guide-mbtn-txt{ font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+.scr-guide-rbtn-face{
+  border-radius: 50%; font-size: 10px; color: var(--text);
+  background: var(--panel-raised);
+}
+
+.scr-guide-legend li{ display: grid; grid-template-columns: 20px 1fr; gap: 10px; align-items: start; font-size: 13.5px; color: var(--text-dim); }
+
+.scr-guide-legend b{ color: var(--text); font-weight: 600; }
+
+
+
+.scr-guide kbd{
+  display: inline-grid; place-items: center; min-width: 28px; height: 27px; padding: 0 8px;
+  font-family: var(--font-mono, monospace); font-size: 12px; color: var(--text);
+  background: var(--panel-raised); border: 1px solid var(--line-soft);
+  border-bottom-width: 2.5px; border-radius: 6px; line-height: 1;
+}
+
+.scr-guide-kbd-wide{ min-width: 66px; }
+
+.scr-guide-keys{ margin-top: 16px; border-top: 1px solid var(--line-soft); }
+
+.scr-guide-keyrow{
+  display: grid; grid-template-columns: minmax(116px, auto) 1fr; gap: 14px;
+  padding: 10px 0; border-bottom: 1px solid var(--line-faint, var(--line-soft)); align-items: baseline;
+}
+
+.scr-guide-combo{ display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+
+.scr-guide-plus{ color: var(--text-dim); font-size: 11px; margin-right: 3px; }
+
+.scr-guide-what{ font-size: 14px; }
+
+.scr-guide-what small{ display: block; color: var(--text-dim); font-size: 12.5px; line-height: 1.55; margin-top: 2px; }
+
+.scr-guide-group{
+  display: block; font-family: var(--font-mono, monospace); font-size: 10.5px;
+  letter-spacing: .14em; color: var(--text-dim);
+  padding: 18px 0 5px; border-bottom: 1px solid var(--line-faint, var(--line-soft));
+}
+
+.scr-guide-back{ margin-top: 36px; display: flex; justify-content: center; }
+
+
+
+.scr-guide-close{
+  position: absolute; top: 0; right: 0;
+  width: 34px; height: 34px; display: grid; place-items: center;
+  border: 1px solid var(--line-soft); border-radius: 50%;
+  background: var(--panel-solid); color: var(--text-dim); cursor: pointer;
+}
+@media (hover: hover) {
+
+  .scr-guide-close:hover{ color: var(--text); border-color: var(--text-dim); }
+}
+
+.scr-guide-close:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 560px) {
+
+  .scr-guide-qrow{ grid-template-columns: 1fr; gap: 7px; }
+
+  .scr-guide-keyrow{ grid-template-columns: 1fr; gap: 7px; }
+
+  
+  .scr-guide-bar{ gap: 7px; }
+}
