@@ -22,7 +22,7 @@
 **사용자가 "배포"라고 할 때만** 한다. 그 전엔 feature 브랜치 푸시까지만.
 배포 = ① scplay `git push origin HEAD:main` → ② scplayer의 `package-lock.json`에서 `node_modules/scplay`의
 `resolved` 해시를 그 main 커밋으로 올리는 커밋("재생기 갱신: …")을 브랜치와 main에 푸시.
-scplayer는 락 고정이다(vercel installCommand `npm ci`) — 락을 안 올리면 scplay main을 밀어도 앱에 안 실린다.
+scplayer 쪽 소스를 만졌으면 그쪽에서 `npx tsc --noEmit -p tsconfig.json`만이 아니라 **`npx vite build`까지** 돌린다(CSS 문법 오류는 tsc가 못 잡는다). scplayer는 락 고정이다(vercel installCommand `npm ci`) — 락을 안 올리면 scplay main을 밀어도 앱에 안 실린다.
 옛 방식(빈 "배포 트리거" 커밋 · installCommand의 HEAD 덮어쓰기)은 걷었다.
 락을 통째로 다시 만들 일이 있으면 **node_modules를 치운 채** `npm install --package-lock-only`로 만든다 — 설치된 트리에서
 뽑으면 이 기계 플랫폼의 선택 패키지만 실려 Vercel의 `npm ci`가 거부한다(esbuild·rollup 바이너리·fsevents).
