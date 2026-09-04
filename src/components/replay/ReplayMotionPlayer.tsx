@@ -17879,6 +17879,8 @@ SHAPE_GALLERY.push(...AUX_GALLERY);
 const UNIT_KIND_SET = new Set(SHAPE_GALLERY.filter((g) => g.group === "유닛").map((g) => g.kind));
 /** 발밑만 떠 있는 지상 유닛 — 부양 그림자(넓고 옅은 타원)를 지는 무리다. 일꾼 셋은
  *  **짐을 진 별본까지** 든다: 짐 유무로 그림자가 바뀌면 밭을 오가는 동안 깜빡인다. */
+/** 접지 그림자 중심을 위로 당기는 몫(세로 반지름의 배수) — 바닥까지 꽉 찬 상자꼴 몸만(그림자 그리기의 up9 주석). */
+const SHADOW_UP_K9: Record<string, number> = { tank: 0.75, tankbody: 0.75, tanksiege: 0.75, tanksiegebody: 0.75 };
 const HOVER_UNIT_SET = new Set([
   "scv", "scvMin", "scvGas", "probe", "probeMin", "probeGas", "drone", "droneMin", "droneGas",
   "vulture", "archon", "darchon", "htemp",
@@ -20989,7 +20991,12 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
              지름은 몸 폭의 0.84배로 모든 종류에서 몸 안에 들어온다. */
           const shR = inkW * 0.42;
           // 세로 자리는 판의 발끝(위 hover 갈래와 같은 지적 둘) — 옛 `− px × 0.09`만 걷는다.
-          ctx.ellipse(footX, groundY ?? footY, shR, shR * 0.58 * (op.pitch ? pitchFlatNow : 1), 0, 0, Math.PI * 2);
+          /* ★ 상자꼴 차량은 그림자 중심을 위로 당긴다(지적: "탱크의 유닛 그림자가 너무 아래쪽") — 타원 중심을 판의 잉크
+             바닥(footY)에 두는 자는 다리 달린 몸(발끝 아래로 몸이 없다)에 맞춘 것이라, 궤도가 바닥까지 꽉 찬 탱크는 타원
+             절반이 몸 아래로 빠져나와 떠 있는 것처럼 읽혔다(12배에서 뚜렷). 세로 반지름의 몫만큼 올려 몸 밑에 깔리게 한다. */
+          const ry9 = shR * 0.58 * (op.pitch ? pitchFlatNow : 1);
+          const up9 = (SHADOW_UP_K9[op.kind] ?? 0) * ry9;
+          ctx.ellipse(footX, (groundY ?? footY) - up9, shR, ry9, 0, 0, Math.PI * 2);
           ctx.fill();
         }
         /* 선택 링(지적: 드래그 선택 구분) — 잡힌 유닛 발밑의 가는 타원 테.
