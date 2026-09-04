@@ -27271,7 +27271,7 @@ export default function ReplayMotionPlayer({
   };
 
   /* 키보드(요청: PC) — ↑↓ 배속, ←→ 5초 뒤/앞. 댓글 입력 중에는 건드리지 않는다.
-     여기에 더 붙는 것들: I/O 확대·축소 · v 평면/입체 · c 색상 토글 · m 음악 토글 ·
+     여기에 더 붙는 것들: ]/[ 확대·축소 · v 평면/입체 · c 색상 토글 · m 음악 토글 ·
      p 재생/일시정지 · wasd 지도 드래그 이동.
      ★ 오버레이를 깨우는 단축키와 안 깨우는 단축키가 갈린다(요청: "전체화면에서
        키보드 조작시 **그 기능이 오버레이에서 조작하는 기능이면** 오버레이가 활성화
@@ -27443,9 +27443,9 @@ export default function ReplayMotionPlayer({
            0이고, 쓰는 자리에서는 화면이 통째로 조작된다. 막을 까닭이 없다.
            입력칸·단추 초점 걸러내기는 위에 그대로 있어, 자판이 붙어 있어도 글 쓰는 중에는
            안 뺏는다. */
-      } else if (e.code === "KeyI" || e.code === "KeyO") {
-        /* I/O 로 한 칸씩 확대·축소(지시: Q/E → I/O — in·out, 그 전엔 PageUp/Down·−/=) — I가 확대(in),
-           O가 축소(out). wasd처럼 **e.code**를 읽어 한글 자판(ㅂ·ㄷ)에서도 듣는다. 지도
+      } else if (e.code === "BracketRight" || e.code === "BracketLeft") {
+        /* ]/[ 로 한 칸씩 확대·축소(지시: I/O → ]/[ — O·P는 앱의 스크랩·장면 공유에 내준다) — ]가 확대,
+           [가 축소. wasd처럼 **e.code**를 읽어 한글 자판(ㅂ·ㄷ)에서도 듣는다. 지도
            **한가운데를 축**으로 삼는다(더블클릭은 누른 자리가 축이지만, 키에는 겨눈
            자리가 없다). 칸은 배율 사다리(ZOOM_STEPS 1·2·3·6·12) 그대로라 손짓·휠과 같은
            자리에 선다. 팬은 새 배율의 한계로 다시 죈다 — 안 그러면 축소할 때 지도 끝이
@@ -27456,7 +27456,7 @@ export default function ReplayMotionPlayer({
           const el9 = mapRef.current;
           const r9 = el9?.getBoundingClientRect();
           if (!r9 || r9.width < 4) return;
-          const up9 = e.code === "KeyI";
+          const up9 = e.code === "BracketRight";
           // 사잇값에서 한 칸이 두 칸으로 뛰지 않게(위 zoomNext 주석) — 끝이면 제자리.
           const z9 = zoomNext(zoomRef.current, up9)
             ?? (up9 ? ZOOM_STEPS[ZOOM_STEPS.length - 1] : ZOOM_STEPS[0]);
