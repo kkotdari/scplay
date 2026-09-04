@@ -1426,6 +1426,11 @@ export type UnitDrawOp = {
      클릭 판정과 툴팁이 이 셋만 본다. 열쇠는 프레임이 바뀌어도 같은 몸을 가리켜야
      하므로 유닛은 개체 태그, 건물은 임자·종류·자리로 짓는다. */
   pickKey?: string;
+  /** 잔상 판(하템 귀신 활강) — 본체와 같은 pickKey·kind를 지니므로 보간 열쇠와 집기에서
+   *  이 깃발로 가른다(지적: "하템 이동시 파란색 환영이 본체보다 살짝 뒤에 나와야 함, 본체도
+   *  보여야 하고" — 열쇠가 같아 다음 장 짝 표에서 환영이 본체를 덮어썼고, 둘이 한 풀 객체를
+   *  나눠 써 본체까지 파란 환영으로 그려졌다). */
+  ghost?: boolean;
   /** 영문 유닛·건물 이름(표 조회용). */
   pickName?: string;
   /** 임자(플레이어 raw). */
@@ -6895,7 +6900,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       const [gfx9, gfy9] = posFrac(ax3 + Math.sin(hr9) * 0.45, ay3 - Math.cos(hr9) * 0.45);
       unitOps.push({
         ...mainOp, fx: gfx9, fy: gfy9, z: mainOp.z - 1,
-        alpha: mainOp.alpha * 0.34, solid: "#5f8dff",
+        alpha: mainOp.alpha * 0.34, solid: "#5f8dff", ghost: true,
         selRing: undefined, hpFrac: undefined, tint: undefined, noShadow: true,
       });
     }

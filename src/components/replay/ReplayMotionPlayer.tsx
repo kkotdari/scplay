@@ -22825,7 +22825,10 @@ export type PackedFrame9 = {
   byKey?: Map<string, UnitDrawOp>;
 };
 /** 보간 열쇠 — 같은 개체의 같은 부위(몸·포탑·짐)를 두 장에서 잇는다. 열쇠가 없는 op(효과·장식)는 안 잇는다. */
-const lerpKey9 = (op: UnitDrawOp): string | null => (op.pickKey ? `${op.pickKey}|${op.kind}|${op.attach ?? ""}` : null);
+/* 잔상(ghost)은 제 열쇠를 갖는다 — 본체와 같은 pickKey·kind라 열쇠가 겹치면 byKey 표에서
+   뒤에 온 잔상이 본체를 덮고, 풀 객체까지 한 개를 나눠 써 본체가 파란 잔상으로 그려졌다
+   (하템 귀신 활강: 본체가 안 보이고 환영만 남던 까닭). */
+const lerpKey9 = (op: UnitDrawOp): string | null => (op.pickKey ? `${op.pickKey}|${op.kind}|${op.attach ?? ""}${op.ghost ? "|g" : ""}` : null);
 const lerpAng9 = (a: number, b: number, u: number): number => {
   let d = ((b - a) % 360 + 540) % 360 - 180;
   if (d > 180) d -= 360;
@@ -27299,7 +27302,7 @@ export default function ReplayMotionPlayer({
     let best: string | null = null;
     let bestD = Infinity;
     for (const o of opsRef.current) {
-      if (!o.pickKey) continue;
+      if (!o.pickKey || o.ghost) continue;   // 잔상 판은 집지 않는다
       // UnitLayer의 분수→화면 사상과 같은 식(zx/zy 주석 참고).
       const ox = (o.fx - 0.5) * r.width * zoom + r.width / 2 + pan.x;
       const oy0 = (o.fy - 0.5) * r.height * zoom + r.height / 2 + pan.y;
