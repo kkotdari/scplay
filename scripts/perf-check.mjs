@@ -1343,6 +1343,13 @@ await browser.close();
 /* ── 결과 ───────────────────────────────────────────────────────────────────── */
 const dts = [];
 for (let i = 1; i < frames.length; i += 1) dts.push(frames[i] - frames[i - 1]);
+/* 튐 시간표(--framelog) — 50ms 넘는 간격을 시각순으로 찍는다. 주기(예: 1초마다)가 있는지 눈으로 보는 자. */
+if (has("--framelog")) {
+  const th = Number(flag("--framelog", 50)) || 50;
+  const rows = [];
+  for (let i = 1; i < frames.length; i += 1) { const d = frames[i] - frames[i - 1]; if (d > th) rows.push(`${((frames[i] - frames[0]) / 1000).toFixed(2)}s ${d.toFixed(0)}ms`); }
+  console.log(`[튐 시간표 >${th}ms] ${rows.length}개\n  ${rows.join(" · ")}`);
+}
 dts.sort((a, b) => a - b);
 const pct = (q) => dts[Math.min(dts.length - 1, Math.floor(dts.length * q))] ?? 0;
 console.log(`\n[프레임] ${dts.length}개 표본 · CPU ${CPU}배 조임 · ${WIDE ? "PC 1280" : "폰 390"}px`);
