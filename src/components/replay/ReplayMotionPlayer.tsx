@@ -29789,6 +29789,16 @@ export default function ReplayMotionPlayer({
             (.scr-fs-minipanel이 그 일을 이제 스스로 한다). */}
         {(fsOn ? fsMiniOn : true) && (
           <div className="scr-fs-minipanel">
+            {/* 사용법 문은 **미니맵 위 왼쪽**이다(지적: 아래 줄에 두니 스크랩·공유 버튼과 겹쳤다) — 미니맵 판이 왼쪽 아래
+                구석에 늘 있으니 그 머리에 작은 알약으로 앉힌다. 판은 손짓 판정에서 빠져 있어 그냥 눌린다. */}
+            {guide && (
+              <div className="scr-fs-minitop">
+                <button type="button" className="scr-guide-btn" onClick={openGuide9} aria-label="사용법" title="사용법">
+                  <BookOpen size={12} />
+                  사용법
+                </button>
+              </div>
+            )}
             <div className="scr-motion-minibox">
               <ReplayFullscreenMinimap
                 grid={grid}
@@ -29871,12 +29881,6 @@ export default function ReplayMotionPlayer({
             {controlsNode}
             <div className="scr-fs-bottom-tail">
               {shareNode}
-              {guide && (
-                <button type="button" className="scr-kakao-share-btn scr-guide-btn" onClick={openGuide9} aria-label="사용법">
-                  <BookOpen />
-                  사용법
-                </button>
-              )}
             </div>
           </div>
         </div>

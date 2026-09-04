@@ -3746,7 +3746,16 @@
      (.scr-motion-mapbtns의 left). 두 곳에 같은 수를 적어 두면 한쪽만 고쳐져 겹친다. */
   width: var(--scr-mini-w); padding: 0; gap: 0;
 }
-.scr-fs-minipanel .scr-motion-minibox { width: 100%; margin: 0; }/* ★ 좁은 화면도 **왼쪽 아래**다(요청: "미니맵은 다시 왼쪽으로 이동시켜줘(피시랑
+.scr-fs-minipanel .scr-motion-minibox { width: 100%; margin: 0; }
+/* 미니맵 머리의 사용법 알약(지적: 아래 줄에서 공유 버튼과 겹침) — 왼쪽 정렬, 미니맵과 4px 띄움. 공유 알약과 같은 배색. */
+.scr-fs-minitop { display: flex; justify-content: flex-start; align-items: center; margin-bottom: 4px; }
+.scr-guide-btn {
+  display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px;
+  font: inherit; font-size: 11px; font-weight: 700; line-height: 1; white-space: nowrap; cursor: pointer;
+  background: #fff; color: #10151a; border: 1px solid #fff; border-radius: 8px;
+  box-shadow: var(--lit-pill-glow);
+}
+.scr-guide-btn svg { flex: 0 0 auto; }/* ★ 좁은 화면도 **왼쪽 아래**다(요청: "미니맵은 다시 왼쪽으로 이동시켜줘(피시랑
    통일성)") ──────────────────────────────────────────────────────────────────────
    한동안 오른쪽 아래로 보냈던 자리다(지적: "오른쪽 하단 버튼 로우 바로 위에 배치").
    그때의 까닭 둘이 지금은 다 사라졌다 — ① 왼쪽 위 로스터와 한 기둥에 겹쳐 보이던
