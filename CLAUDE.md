@@ -20,8 +20,10 @@
 
 ## 배포
 **사용자가 "배포"라고 할 때만** 한다. 그 전엔 feature 브랜치 푸시까지만.
-배포 = scplay `git push origin HEAD:main`, 그리고 scplayer에 실제 변경이 없으면
-빈 커밋 "배포 트리거: …"를 브랜치와 main에 푸시.
+배포 = ① scplay `git push origin HEAD:main` → ② scplayer의 `package-lock.json`에서 `node_modules/scplay`의
+`resolved` 해시를 그 main 커밋으로 올리는 커밋("재생기 갱신: …")을 브랜치와 main에 푸시.
+scplayer는 락 고정이다(vercel installCommand `npm ci`) — 락을 안 올리면 scplay main을 밀어도 앱에 안 실린다.
+옛 방식(빈 "배포 트리거" 커밋 · installCommand의 HEAD 덮어쓰기)은 걷었다.
 
 ## 프레임 엔진·워커 구조(2026-09)
 - `deriveWorld9`(파생 자료)·`createEngine9`(시각 t → 프레임: unitOps·fxOps·DOM 기록·안개)는 **`engine9.ts`**의
