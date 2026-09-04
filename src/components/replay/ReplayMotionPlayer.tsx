@@ -19941,16 +19941,23 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
     ctx.fillStyle = mat === "zerg" ? "#4a0c22" : "#5a0f0c";
     ctx.beginPath(); ctx.ellipse(ax, ay + W * 0.12, rr, rr * 0.42, 0, 0, Math.PI * 2); ctx.fill();
   } else if (mat === "mech") {
-    // 화염: 섬광이 크게 터졌다 빨리 죽고, 그 자리에 주황 불이 조금 더 머문다.
-    if (p < 0.55) {
-      const q = p / 0.55;
-      ctx.globalAlpha = (1 - q) * 0.9;
-      ctx.fillStyle = "#ff8a1e";
-      ctx.beginPath(); ctx.arc(ax, ay - W * 0.05, W * (0.22 + 0.5 * q), 0, Math.PI * 2); ctx.fill();
-      ctx.globalAlpha = (1 - q) ** 1.6;
-      ctx.fillStyle = "#fff1b0";
-      ctx.beginPath(); ctx.arc(ax, ay - W * 0.05, W * (0.14 + 0.25 * q), 0, Math.PI * 2); ctx.fill();
-    }
+    /* 불색 폭발 구(요청: "테란 건물·기계 사망 효과에 폭발(불색) 구도 있어야 해") — 여태는
+       0.55 위상까지만 사는 작은 주황 원 하나라, 파편이 튀는 동안 정작 '터지는 구'가 없어
+       기계·건물은 쇳조각만 흩어지는 꼴이었다. 프로토스의 플라즈마 구(아래 else: 푸른 구·
+       연푸른 속·흰 심·밝은 테)와 같은 문법을 불색으로 짠다 — 짙은 주홍 바깥 구, 주황 속,
+       연노랑 심, 노란 테. 구는 위상 내내 커지며 스러지고(ease), 심은 빨리 꺼진다.
+       건물은 몸이 커서 구를 한 단 크게 잡는다(0.78 대 0.62). */
+    const R9 = W * ((bld ? 0.2 : 0.18) + (bld ? 0.58 : 0.44) * ease);
+    const fade = 1 - p;
+    const cy9 = ay - W * 0.05;
+    ctx.globalAlpha = 0.38 * fade; ctx.fillStyle = "#ff4a12";
+    ctx.beginPath(); ctx.arc(ax, cy9, R9, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 0.5 * fade; ctx.fillStyle = "#ff9a2e";
+    ctx.beginPath(); ctx.arc(ax, cy9, R9 * 0.72, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = Math.max(0, 1 - p * 1.6) ** 1.2; ctx.fillStyle = "#fff1b0";
+    ctx.beginPath(); ctx.arc(ax, cy9, R9 * 0.4 * (1 - p * 0.5), 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 0.55 * fade; ctx.strokeStyle = "#ffc86b"; ctx.lineWidth = Math.max(0.8, W * 0.03);
+    ctx.beginPath(); ctx.arc(ax, cy9, R9, 0, Math.PI * 2); ctx.stroke();
   } else if (mat === "cocoon") {
     /* 고치(지적: 흰빛 도는 푸른 파동이 보임 — 이 갈래가 없어 아래 프로토스 플라즈마 구로 떨어졌다) — 살빛 점액 얼룩만
        옅게 깔고 파편은 아래 공통 고리가 낸다. 구·섬광·테는 없다. */
@@ -28897,11 +28904,18 @@ export default function ReplayMotionPlayer({
             const hpOnly = Math.max(1, max - sh);
             const hpCur = Math.min(cur, hpOnly);
             const hpR = hpCur / hpOnly;
-            lines.push(bar(`체력 ${hpCur} / ${hpOnly}`, hpR,
-              hpR > 0.5 ? "#7ee07e" : hpR > 0.33 ? "#e8d94a" : "#e05a4a"));
+            /* 체력·실드는 **숫자만**(요청: "인포팝업의 체력바 제거 숫자만 표시") — 열 칸 바는
+               걷고 글자만 남긴다. 색은 원작 체력 바의 세 단(연녹·노랑·빨강)을 글자에 그대로 입혀
+               위험한 정도는 여전히 한눈에 읽힌다. 진행 바(건설·연구·생산)는 그대로다. */
+            lines.push(
+              <div className="scr-motion-info-line" key="hp"
+                style={{ color: hpR > 0.5 ? "#7ee07e" : hpR > 0.33 ? "#e8d94a" : "#e05a4a" }}>
+                {`체력 ${hpCur} / ${hpOnly}`}
+              </div>,
+            );
             if (sh > 0) {
               const shCur = Math.max(0, cur - hpOnly);
-              lines.push(bar(`실드 ${shCur} / ${sh}`, shCur / sh, "#f2f6ff"));
+              lines.push(<div className="scr-motion-info-line" key="sh" style={{ color: "#f2f6ff" }}>{`실드 ${shCur} / ${sh}`}</div>);
             }
             if (op.pickBld && op.pickWip) {
               /* 짓는 중인 건물은 아무 일도 못 한다(요청: "건설중 건물에 생산중이나 큐가
