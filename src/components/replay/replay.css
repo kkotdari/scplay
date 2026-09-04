@@ -277,7 +277,9 @@
        --scr-fsbot이 안고 있으므로 손으로 적은 수를 안 쓴다. */
     bottom: calc(var(--scr-fsbot, 44px) + 4px + var(--mapbtn-inset-b, 0px));
   }
-  .scr-motion-mapbtns button.scr-motion-mapbtn { width: 31px; height: 31px; }
+  /* 높이를 못 박지 않는다(지적: 버튼은 원형 유지) — 이 줄이 height: 31을 박아 두면 줄이 좁아 폭만 줄 때 타원이 된다.
+     폭은 31을 바라되(flex-basis·max-width) 세로는 위 기본 규칙의 aspect-ratio가 폭을 따른다. */
+  .scr-motion-mapbtns button.scr-motion-mapbtn { flex-basis: 31px; width: 31px; max-width: 31px; height: auto; }
   .scr-motion-mapbtns button.scr-motion-mapbtn svg { width: 13px; height: 13px; }
   .scr-motion-mapbtns button.scr-motion-mapval { font-size: 10px; }
   .scr-motion-mapval-num.is-long { font-size: 8px; }
