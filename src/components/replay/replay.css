@@ -4131,3 +4131,148 @@
   
   .scr-guide-bar{ gap: 7px; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   앱에 남아 있던 재생기 화장 — 여기가 임자다(지시: "리플레이 재생에 사용되는 css는 scplay에 있고 개별 프로젝트에 있어선
+   안 돼"). 재생기를 앱에서 떼어낼 때 CSS를 접두어 목록으로 갈랐는데 그 목록이 손으로 적은 것이라 빠진 이름이 있었다:
+   scr-fx(마법 효과 원 — 스캔 동심원이 그중 하나)·scr-clickfx. 붙는 자리가 `scr-motion-castfx scr-fx-${갈래}`라 앞의 것만
+   따라오고 그림을 그리는 뒤의 것이 앱에 남았다. 앱에 옛 규칙이 남아 거기서는 멀쩡히 보여 아무도 못 알아챘다.
+   (사용법 scr-guide-*와 scr-minimap-canvas는 같은 날 앞서 이미 옮겨 와 있어 여기서는 뺐다 — 관문 scripts/css-guard.mjs가
+   같은 사고를 막는다.)
+   ══════════════════════════════════════════════════════════════════════════════ */
+/* 공격 클릭(재지적: 뒤집기) — 외곽 고리는 자기 색 그대로, 가운데 점만 빨강이다. */
+.scr-clickfx-atk::after { background: #e0483c; }
+/* 야마토 작렬(정정: FireYamatoGun이 좌표까지 남는다) — 표적 자리의 청백 에너지 구체가
+   확 밝았다 스러진다. */
+.scr-fx-yamato {
+  aspect-ratio: 1; border-radius: 50%; mix-blend-mode: screen;
+  background: radial-gradient(circle,
+    rgba(255, 255, 255, 0.95) 0 16%, rgba(160, 205, 255, 0.85) 38%,
+    rgba(95, 145, 255, 0.4) 62%, transparent 72%);
+  animation: scr-yamato 2.2s ease-out forwards;
+}
+/* 플레이그 — 검붉은 얼룩이 눌어붙었다 사그라든다. */
+.scr-fx-plague {
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 40%, rgba(190, 60, 30, 0.5) 0 18%, transparent 20%),
+    radial-gradient(circle at 65% 55%, rgba(170, 50, 25, 0.45) 0 22%, transparent 24%),
+    radial-gradient(circle at 45% 72%, rgba(200, 70, 35, 0.4) 0 15%, transparent 17%),
+    radial-gradient(circle, rgba(150, 40, 20, 0.3) 0 60%, transparent 70%);
+  animation: scr-fx-fade 6s linear forwards;
+}
+/* 인스네어 — 초록 점액 튐. */
+.scr-fx-ensnare {
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 40% 40%, rgba(120, 200, 60, 0.45) 0 30%, transparent 34%),
+    radial-gradient(circle at 62% 62%, rgba(100, 180, 50, 0.4) 0 26%, transparent 30%),
+    radial-gradient(circle, rgba(90, 170, 40, 0.3) 0 55%, transparent 65%);
+  animation: scr-fx-fade 6s linear forwards;
+}
+/* 이레디에잇 — 노란초록 발광이 맥동. */
+.scr-fx-irrad {
+  border-radius: 50%; mix-blend-mode: screen;
+  background: radial-gradient(circle, rgba(190, 255, 90, 0.55) 0%, rgba(140, 220, 60, 0.3) 45%, transparent 70%);
+  animation: scr-fx-pulse 0.8s ease-in-out infinite alternate;
+}
+/* EMP — 퍼져 나가는 파란 고리 한 번. */
+.scr-fx-emp {
+  border: 2px solid rgba(120, 190, 255, 0.8); border-radius: 50%; mix-blend-mode: screen;
+  animation: scr-fx-ring 1.5s ease-out forwards;
+}
+/* ★ (걷어냄) `.scr-fx-stasis` · `.scr-fx-lock` · `@keyframes scr-fx-sheen` ─────────────
+   시전 자리에 깔던 **원반 한 장**이다(요청: "스테이시스는 동그라미 판 하나로 할 건
+   아니고 각 유닛별로 하이브 모양으로 가둬야 해. 락다운도 각 유닛별로 원형에").
+   부르는 자리(AREA_FX)는 그때 함께 걷었는데 이 규칙만 남아 있었다 — 아무도 안 쓰는
+   글이지만, 남아 있으면 다음에 이 이름을 보고 "아직 원반이 있나" 하게 된다.
+   이제 우리는 몸마다 하나씩, 캔버스가 그린다(UnitLayer의 cage 갈래).
+   같은 이유로 `@keyframes scr-fx-glint`도 함께 걷는다 — 쓰던 곳이 이 둘뿐이었다. */
+/* 마엘스톰 — 보랏빛 파동. */
+.scr-fx-mael {
+  border-radius: 50%; mix-blend-mode: screen;
+  background: radial-gradient(circle, rgba(190, 120, 255, 0.45) 0 45%, rgba(140, 80, 220, 0.25) 65%, transparent 75%);
+  animation: scr-fx-pulse 0.5s ease-in-out 4 alternate forwards;
+}
+/* 리콜 — 도는 푸른 소용돌이. */
+.scr-fx-recall {
+  border-radius: 50%; mix-blend-mode: screen;
+  background: conic-gradient(rgba(120, 180, 255, 0.55), transparent 30%, rgba(120, 180, 255, 0.55) 50%, transparent 80%, rgba(120, 180, 255, 0.55));
+  animation: scr-fx-spin 1s linear infinite;
+}
+/* 스캐너 스윕(요청: 스캔 뿌린 게 효과가 있어야 할 듯) — 테두리 고리 하나로는 넓은
+   지도에서 눈에 안 띄었다. 탐지 원 전체를 옅게 밝히고(그 안이 곧 은신이 벗겨지는
+   자리다), 가운데에서 흰 레이더 고리가 되풀이 퍼지며, 훑는 빛살이 한 바퀴 돈다. */
+.scr-fx-scan {
+  border: 1.5px solid rgba(255, 255, 255, 0.5); border-radius: 50%; mix-blend-mode: screen;
+  background: radial-gradient(circle, rgba(210, 235, 255, 0.16) 0 55%, rgba(180, 220, 255, 0.08) 70%, transparent 82%);
+  animation: scr-fx-fade 9s linear forwards;
+}
+.scr-fx-scan::before,
+.scr-fx-scan::after {
+  content: ""; position: absolute; inset: 0; border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.6);
+  animation: scr-fx-ring 2s ease-out infinite;
+}
+.scr-fx-scan::after { animation-delay: 1s; }
+/* 스캔 별가루(요청: 뿌리면 그 자리에 별가루) — 네 갈래 별이 어긋난 박자로 반짝인다. */
+.scr-fx-dust {
+  position: absolute; width: 7%; aspect-ratio: 1; pointer-events: none;
+  transform: translate(-50%, -50%);
+  animation: scr-fx-twinkle 1.7s ease-in-out infinite;
+}
+.scr-fx-dust::before,
+.scr-fx-dust::after {
+  content: ""; position: absolute; inset: 0; background: rgba(238, 248, 255, 0.92);
+  clip-path: polygon(50% 0%, 57% 43%, 100% 50%, 57% 57%, 50% 100%, 43% 57%, 0% 50%, 43% 43%);
+}
+.scr-fx-dust::after { transform: rotate(45deg) scale(0.55); opacity: 0.65; }
+/* 디스럽션 웹(요청: "커세어 웹 … 효과 추가") ────────────────────────────────────
+   동심원 그러데이션만으로는 거미줄이 아니라 과녁이었다. 진짜 거미줄은 **바큇살 + 그
+   살을 잇는 고리**다: 살은 conic으로, 고리는 repeating-radial의 가는 선으로 긋고,
+   그 아래에 어두운 보랏빛 판을 깔아 '이 안은 사격이 안 통한다'를 만든다.
+   느린 맥동 하나만 두어 살아 있는 그물로 읽히게 한다(빠르면 지지직이 된다). */
+.scr-fx-dweb {
+  border-radius: 50%;
+  background:
+    /* ① 바큇살 열둘 — 가는 밝은 선. */
+    repeating-conic-gradient(from 0deg,
+      rgba(186, 170, 235, 0.5) 0deg 0.9deg, transparent 0.9deg 30deg),
+    /* ② 살을 잇는 고리 — 안쪽이 촘촘하고 밖으로 갈수록 성기다. */
+    repeating-radial-gradient(circle,
+      transparent 0 8.4%, rgba(186, 170, 235, 0.42) 8.4% 9%),
+    /* ③ 바탕 — 가운데가 짙고 가장자리로 스러지는 보랏빛 그늘. */
+    radial-gradient(circle, rgba(46, 32, 70, 0.6) 0 52%, rgba(38, 26, 58, 0.38) 74%, transparent 88%);
+  animation: scr-fx-webpulse 2.4s ease-in-out infinite alternate;
+}
+
+@keyframes scr-yamato {
+  0% { opacity: 0.25; }
+  14%, 55% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes scr-fx-twinkle {
+  0%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(0.35); }
+  45% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  70% { opacity: 0.5; transform: translate(-50%, -50%) scale(0.8); }
+}
+@keyframes scr-fx-webpulse {
+  from { opacity: 0.72; }
+  to { opacity: 0.95; }
+}
+@keyframes scr-fx-fade {
+  0% { opacity: 1; }
+  80% { opacity: 0.8; }
+  100% { opacity: 0; }
+}
+@keyframes scr-fx-pulse {
+  from { opacity: 0.5; scale: 0.9; }
+  to { opacity: 1; scale: 1.05; }
+}
+@keyframes scr-fx-ring {
+  from { opacity: 0.9; scale: 0.15; }
+  to { opacity: 0; scale: 1; }
+}
+@keyframes scr-fx-spin {
+  to { rotate: 1turn; }
+}

@@ -17,7 +17,8 @@
     "build": "vite build",
     "prepare": "npm run build",
     "model-depth-check": "node scripts/model-depth-check.mjs",
-    "openbw-tracks-check": "node scripts/openbw-tracks-check.mjs"
+    "openbw-tracks-check": "node scripts/openbw-tracks-check.mjs",
+    "css-guard": "node scripts/css-guard.mjs"
   },
   "peerDependencies": {
     "react": "^18 || ^19",
