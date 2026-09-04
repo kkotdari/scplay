@@ -552,6 +552,9 @@ if (has("--dockprobe")) {
       vars: lyr ? { mini: lyr.style.getPropertyValue("--scr-dock-mini"), mt: lyr.style.getPropertyValue("--scr-dock-mini-mt"), mb: lyr.style.getPropertyValue("--scr-dock-mini-mb") } : null };
   });
   console.log("[독 자]", JSON.stringify(r));
+    // 캔버스·무대 폭(체력바 절대 폭 검산용) — 지도 한 타일이 화면 몇 px인지가 여기서 나온다.
+    const cvs = await page.evaluate(() => [...document.querySelectorAll("canvas")].map((c) => ({ cls: c.className.slice(0, 40), cw: c.clientWidth, ch: c.clientHeight, w: c.width, h: c.height })));
+    console.log("[캔버스]", JSON.stringify(cvs));
 }
 if (SHOT) {
   await page.waitForTimeout(1500);

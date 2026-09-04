@@ -1075,6 +1075,13 @@ export const gmOf = (v: number[]): number => Math.exp(v.reduce((t, x) => t + Mat
 export const BW_ROWS: readonly (readonly [number, number, number, number])[] = Object.values(UNIT_BW_RAW);
 /** 충돌 상자의 대각(타일) = √(폭×높이)/32. 1타일 = 32px. */
 export const bwBoxTiles = (r: readonly [number, number, number, number]): number => Math.sqrt(r[0] * r[1]) / 32;
+/** 원작 체력바 폭(게임 px) — OpenBW: `width -= (width - 1) % 3; if (width < 19) width = 19;`. 입력은 sprites.dat
+ *  health_bar_size 자리의 어림값이다(UnitDrawOp.hpBarW 주석). */
+export const hpBarGamePx9 = (size: number): number => {
+  let w = Math.round(size);
+  w -= (w - 1) % 3;
+  return w < 19 ? 19 : w;
+};
 /** 등급 대표 크기(타일) — **지상 유닛만의 기하평균**이다. 손으로 고른 수가 아니라
  *  자료에서 유도한다(지상 = 충돌 상자가 몸에 딱 붙는 쪽이라 등급의 기준으로 쓸 수 있다).
  *  실측: 소 0.636 · 중 0.864 · 대 1.011. */
@@ -1395,6 +1402,12 @@ export type UnitDrawOp = {
   pose?: 0 | 1 | 2 | 3 | 4 | 5;
   /** 남은 체력 비율 0~1(요청: 스탯을 지닌 생애주기) — 다쳤을 때만 와서 바가 뜬다. */
   hpFrac?: number;
+  /** 체력바의 **원작 폭**(게임 px, 1타일 = 32px)과 그것을 지도 폭으로 나눈 분수(요청: 잉크 폭이 아니라 절대값에 비례,
+   *  원작 양식 그대로). 원작(OpenBW draw_health_bars)은 sprites.dat의 health_bar_size를 3의 배수+1로 내리고 19 아래면
+   *  19로 올린 폭에, 3px 간격의 칸(2px 색 + 1px 금)을 긋는다. 그 표는 이 환경에서 못 읽어(위키·staredit 차단) 유닛은
+   *  충돌 상자 폭 × 1.3(선택 원 크기 언저리), 건물은 발자국 폭 × 0.95로 어림했다 — hpBarGamePx9. */
+  hpBarW?: number;
+  hpBarFrac?: number;
   /** 최대 체력(실드 합) — 바의 100% 길이가 이 값에 비례한다(지적: 저글링과 울트라의
    *  만피가 같은 길이면 기준이 이상하다). */
   hpMax?: number;
@@ -4917,6 +4930,11 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           })(),
           // 잔상은 체력을 모른다 — 마지막으로 본 모습만 남는다(위 bldFrozen9).
           hpFrac: bldFrozen9 ? undefined : bldHp.frac,
+          // 원작 폭(요청) — 발자국 폭(타일 × 32px)의 0.95를 sprites.dat 값 자리에 넣는다.
+          ...((): { hpBarW: number; hpBarFrac: number } => {
+            const bwB9 = hpBarGamePx9((FOOTPRINT[unit]?.[0] ?? 4) * 32 * 0.95);
+            return { hpBarW: bwB9, hpBarFrac: bwB9 / (gw9 * 32) };
+          })(),
           // 프로토스 건물은 전부 실드를 지닌다 — 그 몫이 바의 흰 칸이다.
           shFrac: bShShare9,
           /* 정보 팝업 신원(요청) — 건물은 태그가 없어 임자·종류·착공 자리로
@@ -6668,6 +6686,12 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       // 보임 토글이면 만피여도 표시(요청: 모든 유닛·건물 다 표시).
       hpFrac: Math.max(0.04, Math.min(1, hpNow / Math.max(1, hpFull))),
       hpMax: hpFull,
+      // 원작 폭(요청) — 충돌 상자 폭 × 1.3을 sprites.dat 값 자리에 넣는다(마린 17 → 22 · 저글링 16 → 19 · 질럿 23 → 28).
+      ...((): { hpBarW: number; hpBarFrac: number } => {
+        const row9 = UNIT_BW_RAW[UNIT_3D[drawUnit] as keyof typeof UNIT_BW_RAW] as readonly number[] | undefined;
+        const bwU9 = hpBarGamePx9(row9 ? row9[0] * 1.3 : 19);
+        return { hpBarW: bwU9, hpBarFrac: bwU9 / (gw9 * 32) };
+      })(),
       // 실드 몫 — 표에서 바로 온다(프로토스가 아니면 0이라 흰 칸이 안 생긴다).
       shFrac: (() => {
         const st1 = UNIT_STATS[drawUnit2] ?? UNIT_STATS[drawUnit];

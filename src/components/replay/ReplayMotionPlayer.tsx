@@ -20091,6 +20091,39 @@ function drawHpBar(
   const shPart = Math.max(0, f - hpCap);
   const hpRatio = hpCap > 0 ? hpPart / hpCap : 1;
   ctx.fillStyle = hpRatio > 0.66 ? "#39c04f" : hpRatio > 0.33 ? "#d9b13b" : "#d5473d";
+  /* ★ 원작 양식(요청) — 폭이 게임 px로 실려 왔고(hpBarW) 한 게임 px가 화면에서 읽힐 만큼(칸 3px ≥ 2.5화면px)이면 원작처럼
+     긋는다: 어두운 바탕 위에 채움, 채움 폭은 게임 px로 3의 배수에 맞추고(OpenBW filled_width: 최소 3, 나머지 2면 올림·1이면
+     내림), 3px마다 1px 금을 긋는다(칸 = 2px 색 + 1px 금). 한 칸의 체력은 최대 체력 ÷ 칸 수다 — 원작도 칸이 체력 단위가
+     아니라 폭이 정하는 것이다. 작아서 칸이 안 읽히면 옛 민바(평평한 채움)다. */
+  const uPx = op.hpBarW ? bw / op.hpBarW : 0;
+  if (op.hpBarW && uPx * 3 >= 2.5) {
+    const W = op.hpBarW;
+    ctx.save();
+    ctx.globalAlpha = 0.6;
+    ctx.fillStyle = "#0b0f14";
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.restore();
+    const fillW = (part: number): number => {
+      let r = Math.floor(part * 100) * W / 100;
+      r = Math.floor(r);
+      if (r < 3) r = 3;
+      else if (r % 3) r = r % 3 > 1 ? r + 3 - (r % 3) : r - (r % 3);
+      return Math.min(W, r);
+    };
+    ctx.fillStyle = hpRatio > 0.66 ? "#39c04f" : hpRatio > 0.33 ? "#d9b13b" : "#d5473d";
+    ctx.fillRect(bx, by, fillW(hpPart) * uPx, bh);
+    if (shPart > 0) {
+      ctx.fillStyle = "#4fa8ff";
+      const s0 = fillW(hpCap);
+      ctx.fillRect(bx + s0 * uPx, by, Math.max(0, fillW(hpCap + shPart) - s0) * uPx, bh);
+    }
+    ctx.save();
+    ctx.globalAlpha = 0.75;
+    ctx.fillStyle = "#0b0f14";
+    for (let x = 3; x < W; x += 3) ctx.fillRect(bx + (x - 1) * uPx, by, Math.max(1, uPx), bh);
+    ctx.restore();
+    return;
+  }
   ctx.fillRect(bx, by, bw * hpPart, bh);
   if (shPart > 0) {
     /* 실드는 **푸른색**이다(지적: "프로토스 실드가 체력이 빠진걸로 읽히는데 푸른색으로
@@ -20764,9 +20797,14 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
               /* 유닛 바와 같이 얇고 짧게(요청) — 길이 0.6 → 0.4배, 두께 0.05 → 0.03배. */
               /* 편차를 팍 줄인다(지적: 포톤은 너무 작고 배틀·캐리어는 너무 큼) — 제곱근 0.6~1.4 → 네제곱근 0.85~1.15. */
               const bScale = Math.min(1.15, Math.max(0.85, ((op.hpMax ?? 800) / 1000) ** 0.25));
-              // 유닛과 같은 몫으로(요청) — 0.4 → 0.267, 0.03 → 0.015.
-              const bw3 = Math.max(2.5, wPx * 0.267 * bScale);
-              const bh3 = hpBarH9(zoom);   // 두께는 모두 같다(지적) — 길이만 다르다
+              /* ★ 자를 유닛과 **같은 것**으로(지적: 건물 바가 너무 작다) — 여태 발자국 상자 폭(wPx)의 0.267이었는데, 유닛은
+                 그린 몸의 잉크 폭의 0.78이다. 건물도 제 판의 잉크 폭(그림자가 쓰는 자와 같다)의 0.78로 — '바는 몸 폭의
+                 8할'이라는 한 규칙이 유닛·건물을 다 낸다. 판이 없을 때만 발자국 폭으로 물러선다. */
+              const inkB9 = bspr && bspr.w > 0 ? (bspr.w / B) * (sidePx / bspr.side) : wPx;
+              /* ★ 원작 폭(요청: 절대값에 비례) — 엔진이 실어 온 게임 px 폭을 화면 px로(지도 폭 분수 × 지도 화면 폭).
+                 없으면(옛 op) 잉크 폭 자로 물러선다. 두께도 원작 5px(게임 px)을 화면으로 옮기되 우리 최소 두께는 지킨다. */
+              const bw3 = op.hpBarFrac !== undefined ? Math.max(3, op.hpBarFrac * cw * zoom) : Math.max(2.5, inkB9 * 0.78 * bScale);
+              const bh3 = op.hpBarW ? Math.max(hpBarH9(zoom), 5 * (bw3 / op.hpBarW)) : hpBarH9(zoom);
               const bx3 = sx - bw3 / 2;
               /* 바는 **몸 아래**다(요청: 원작처럼 모델 아래쪽) — 그려진 픽셀의 바닥선
                  (bspr.bot) 바로 밑이다. 건물은 발자국 아랫변이 곧 땅에 닿는 줄이라,
@@ -21036,8 +21074,9 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
              0.62배가 됐고, 모델을 고칠 때마다 다시 깨졌다.
              길이가 최대 체력을 따르는 것(요청)은 그대로다 — 저글링 0.585배 ↔ 울트라
              0.975배에 몸 크기 차이가 곱해져 바 길이는 여전히 네 배쯤 벌어진다. */
-          const bw2 = Math.max(1.5, inkW * 0.78 * hpScale);
-          const bh2 = hpBarH9(zoom);   // 두께는 모두 같다(지적) — 길이만 다르다
+          // ★ 원작 폭(요청: 절대값에 비례) — 건물 쪽(bw3)과 같은 자. 없으면 잉크 폭 자로.
+          const bw2 = op.hpBarFrac !== undefined ? Math.max(3, op.hpBarFrac * cw * zoom) : Math.max(1.5, inkW * 0.78 * hpScale);
+          const bh2 = op.hpBarW ? Math.max(hpBarH9(zoom), 5 * (bw2 / op.hpBarW)) : hpBarH9(zoom);
           const bx2 = sx - bw2 / 2;
           /* ★ 바는 **몸 아래**다(요청: "유닛 건물 체력바를 원작처럼 모델 아래쪽으로
              이동") — 원작의 체력바는 발밑에 깔린다. 여태 머리 위였는데, 그러면 뒤에
