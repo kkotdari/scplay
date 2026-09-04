@@ -1,3 +1,27 @@
+/* ══ 패키지 기본값(요청: 모듈 그 자체로 완결) ═══════════════════════════════════════════════════════════════
+   재생기가 쓰는 디자인 토큰의 **기본값**이다. 아무 테마 없는 페이지에 꽂아도 모양이 서고, 앱이 같은 이름을 :root나 제
+   요소(테마 클래스)에 정의하면 그 값이 이긴다 — :where()는 특이도 0이라 어떤 앱 규칙에도 진다. 값은 scplayer 어두운
+   테마의 것을 그대로 옮겼다. 앱 토큰 클래스(.scr-btn·.scr-title)도 사용법 안에서만 같은 식으로 기본을 준다. ══════════ */
+:where(:root) {
+  --accent: #e6a23e; --text: #f5f6f7; --text-dim: rgba(245, 246, 247, 0.62); --muted: rgba(245, 246, 247, 0.88);
+  --void: #000000; --panel: rgba(255, 255, 255, 0.04); --panel-raised: rgba(255, 255, 255, 0.12); --panel-solid: #101011;
+  --line: rgba(255, 255, 255, 0.16); --line-soft: rgba(255, 255, 255, 0.16); --line-faint: rgba(255, 255, 255, 0.10);
+  --protoss: #f5d347;
+  --font-mono: "D2Coding", ui-monospace, "SF Mono", "Cascadia Code", "Consolas", "Roboto Mono", monospace;
+  --fs-body: 16px; --fs-caption: 14px; --fs-micro: 12px; --fs-10: 10px; --fs-9: 9px;
+  --radius: 12px; --radius-sm: 8px; --radius-chip: 6px; --safe-top: env(safe-area-inset-top, 0px);
+  --lit-pill-bg: rgba(255, 255, 255, 0.92); --lit-pill-glow: 0 0 10px rgba(255, 255, 255, 0.22), 0 0 26px rgba(255, 255, 255, 0.1);
+  --lit-hover-bg: rgba(255, 255, 255, 0.1); --lit-hover-glow: 0 0 8px rgba(255, 255, 255, 0.1), 0 0 16px rgba(255, 255, 255, 0.04);
+  --overlay-rgb: 255, 255, 255;
+}
+:where(.scr-guide .scr-btn) {
+  border: 1.5px solid rgba(255, 255, 255, 0.32); background: var(--panel-raised); color: var(--text);
+  padding: 10px 16px; font: inherit; font-size: var(--fs-body); font-weight: 600; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: var(--radius-sm);
+}
+:where(.scr-guide .scr-btn-secondary) { background: transparent; }
+:where(.scr-guide .scr-title) { font-weight: 800; font-size: 22px; letter-spacing: 0.01em; margin: 0; color: var(--text); }
+
 /* ══════════════════════════════════════════════════════════════════════════════
    리플레이 재생 모듈의 화장(化粧) — **이 폴더와 한 몸**이다(요청: "css도 다 포함해서
    모듈화"). global.css에서 이 모듈이 쓰는 규칙만 **순서 그대로** 떼어 왔다.
@@ -4217,7 +4241,7 @@
 .scr-fx-scan::after { animation-delay: 1s; }
 /* 스캔 별가루(요청: 뿌리면 그 자리에 별가루) — 네 갈래 별이 어긋난 박자로 반짝인다. */
 .scr-fx-dust {
-  position: absolute; width: 7%; aspect-ratio: 1; pointer-events: none;
+  position: absolute; width: 3.5%; aspect-ratio: 1; pointer-events: none;   /* 반짝임 크기 절반(요청) 7% → 3.5% — 앱에 있던 최신값 */
   transform: translate(-50%, -50%);
   animation: scr-fx-twinkle 1.7s ease-in-out infinite;
 }
