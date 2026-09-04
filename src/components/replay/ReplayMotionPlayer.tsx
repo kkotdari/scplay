@@ -20084,43 +20084,71 @@ function drawHpBar(
   ctx: CanvasRenderingContext2D, op: UnitDrawOp,
   bx: number, by: number, bw: number, bh: number,
 ): void {
-  const f = op.hpFrac ?? 0;
-  const sh = Math.max(0, Math.min(0.95, op.shFrac ?? 0));
-  const hpCap = 1 - sh;
-  const hpPart = Math.min(f, hpCap);
-  const shPart = Math.max(0, f - hpCap);
-  const hpRatio = hpCap > 0 ? hpPart / hpCap : 1;
-  /* 원작 양식(요청) — OpenBW draw_health_bars: 어두운 바탕 위에 채움, 채움 폭은 게임 px로 3의 배수에 맞추고(filled_width:
-     최소 3, 나머지 2면 올림·1이면 내림), 3px마다 1px 금(칸 = 2px 색 + 1px 금). 한 칸의 체력은 최대 체력 ÷ 칸 수다 —
-     원작도 칸이 체력 단위가 아니라 폭이 정한다. 금만 칸이 화면 1.6px 이상일 때 긋는다(그 아래는 마린 바가 통째로 10px
-     남짓이라 금을 그어도 얼룩이다). 금은 1게임px이되 화면 0.6px 아래로는 안 내려간다. 실드는 푸른색(지적: 흰 칸은 빈
-     칸과 겹쳐 읽힌다). 옛 민바(잉크 폭 비례·평평한 채움)는 걷었다. */
+  /* 원작 양식(요청) — OpenBW draw_health_bars 그대로:
+       · 폭은 게임 px(hpBarW). 채움 폭은 3의 배수에 맞춘다(filled_width: 최소 3, 나머지 2면 올림·1이면 내림). 3px마다
+         1px 금(칸 = 2px 색 + 1px 금). 한 칸의 체력은 최대 체력 ÷ 칸 수 — 칸이 체력 단위가 아니라 폭이 정한다.
+       · 체력 줄은 5줄(위·아래 테 1줄 + 색 3줄), 실드가 있으면 7줄(테 + 색 2·2·1 + 테)이고 그 **바로 위에 실드 줄 4줄**
+         (테 + 푸른 2줄 + 테)이 따로 선다(지적: 플토는 실드 줄이 따로). 색 줄은 위가 밝고 아래가 어두운 세 단이다.
+       · 색은 체력 비율로 갈린다 — 66% 넘으면 초록, 33% 넘으면 노랑, 그 아래 빨강. 빈 자리는 어두운 바탕.
+     한 게임 px 줄의 화면 높이는 uPx(폭에서 온 게임 px)와 bh/5(우리 최소 두께) 중 큰 쪽이다. by는 체력 줄의 윗변이고
+     실드 줄은 그 위로 올라간다. 금은 칸이 화면 1.6px 이상일 때만 긋고(그 아래는 얼룩), 화면 0.6px 아래로는 안 내려간다.
+     실드 값은 합산 비율(hpFrac)과 실드 몫(shFrac = 최대 실드 ÷ (최대 체력 + 최대 실드))에서 푼다 — 피해는 실드부터
+     깎이므로 합산이 체력 상한을 넘는 몫이 남은 실드다. */
   const W = op.hpBarW ?? 19;
   const uPx = bw / W;
-  ctx.save();
-  ctx.globalAlpha = 0.6;
-  ctx.fillStyle = "#0b0f14";
-  ctx.fillRect(bx, by, bw, bh);
-  ctx.restore();
+  const f = Math.max(0, Math.min(1, op.hpFrac ?? 0));
+  const sh = Math.max(0, Math.min(0.95, op.shFrac ?? 0));
+  const hpCap = 1 - sh;
+  const hpNow = hpCap > 0 ? Math.min(f, hpCap) / hpCap : 1;
+  const shNow = sh > 0 ? Math.max(0, f - hpCap) / sh : 0;
+  const hasSh = sh > 0;
+  const rowPx = Math.max(uPx, bh / 5);
   const fillW = (part: number): number => {
     let r = Math.floor(Math.floor(part * 100) * W / 100);
     if (r < 3) r = 3;
     else if (r % 3) r = r % 3 > 1 ? r + 3 - (r % 3) : r - (r % 3);
     return Math.min(W, r);
   };
-  ctx.fillStyle = hpRatio > 0.66 ? "#39c04f" : hpRatio > 0.33 ? "#d9b13b" : "#d5473d";
-  ctx.fillRect(bx, by, fillW(hpPart) * uPx, bh);
-  if (shPart > 0) {
-    ctx.fillStyle = "#4fa8ff";
-    const s0 = fillW(hpCap);
-    ctx.fillRect(bx + s0 * uPx, by, Math.max(0, fillW(hpCap + shPart) - s0) * uPx, bh);
+  const BORDER = "#0b0f14";
+  const BG = ["#2a3138", "#1c2126", "#12161a"];
+  const hpShades = hpNow > 0.66 ? ["#5ce06e", "#39c04f", "#2a9a3d"]
+    : hpNow > 0.33 ? ["#f0cc55", "#d9b13b", "#b8922c"] : ["#ee6a5e", "#d5473d", "#b0362e"];
+  /** 줄 하나 — 채움(fillPx까지)은 shade, 나머지는 bg. 테 줄은 통째로 테 색. */
+  const row = (top: number, shade: string | null, bg: string | null, fillPx: number): void => {
+    if (shade === null || bg === null) {
+      ctx.fillStyle = BORDER; ctx.globalAlpha = 0.8;
+      ctx.fillRect(bx, top, bw, rowPx);
+      ctx.globalAlpha = 1;
+      return;
+    }
+    ctx.fillStyle = bg; ctx.globalAlpha = 0.85;
+    ctx.fillRect(bx, top, bw, rowPx);
+    ctx.globalAlpha = 1;
+    if (fillPx > 0) { ctx.fillStyle = shade; ctx.fillRect(bx, top, fillPx, rowPx); }
+  };
+  const hpFill = (hpNow > 0 ? fillW(hpNow) : 0) * uPx;
+  // 실드 줄(4줄) — 체력 줄 바로 위.
+  let top0 = by;
+  if (hasSh) {
+    const shFill = (shNow > 0 ? fillW(shNow) : 0) * uPx;
+    top0 = by - 4 * rowPx;
+    row(top0, null, null, 0);
+    row(top0 + rowPx, "#7cc1ff", BG[1], shFill);
+    row(top0 + 2 * rowPx, "#4fa8ff", BG[2], shFill);
+    row(top0 + 3 * rowPx, null, null, 0);
   }
+  // 체력 줄 — 실드 있으면 7줄(색 2·2·1), 없으면 5줄(색 1·1·1).
+  const rows = hasSh ? [null, 0, 0, 1, 1, 2, null] : [null, 0, 1, 2, null];
+  for (let r = 0; r < rows.length; r += 1) {
+    const k = rows[r];
+    row(by + r * rowPx, k === null ? null : hpShades[k], k === null ? null : BG[k], hpFill);
+  }
+  // 금 — 실드 줄부터 체력 줄 끝까지 한 줄로.
   if (uPx * 3 >= 1.6) {
-    ctx.save();
-    ctx.globalAlpha = 0.75;
-    ctx.fillStyle = "#0b0f14";
-    for (let x = 3; x < W; x += 3) ctx.fillRect(bx + (x - 1) * uPx, by, Math.max(0.6, uPx), bh);
-    ctx.restore();
+    const hTot = by + rows.length * rowPx - top0;
+    ctx.fillStyle = BORDER; ctx.globalAlpha = 0.75;
+    for (let x = 3; x < W; x += 3) ctx.fillRect(bx + (x - 1) * uPx, top0, Math.max(0.6, uPx), hTot);
+    ctx.globalAlpha = 1;
   }
 }
 /** 판(스프라이트)을 굽는 크기 — 배율을 칸으로 **올림**한다.
