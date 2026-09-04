@@ -24442,18 +24442,32 @@ export default function ReplayMotionPlayer({
           const rb9 = btn9.getBoundingClientRect();
           const rT9 = tail9.getBoundingClientRect();
           const rE9 = el.getBoundingClientRect();
-          const mini9 = Math.round(rT9.bottom - rb9.top);
+          /* 미니맵 상자의 테두리(위·아래 1px)는 키에서 뺀다 — 안 빼면 판이 그만큼 커져 줄을 밀고 미니맵 윗변이 버튼보다
+             2px 올라간다(content-box). */
+          const mm9 = lyr.querySelector(".scr-fs-minipanel .scr-fs-minimap") as HTMLElement | null;
+          const bd9 = mm9 && getComputedStyle(mm9).boxSizing !== "border-box"
+            ? (parseFloat(getComputedStyle(mm9).borderTopWidth) || 0) + (parseFloat(getComputedStyle(mm9).borderBottomWidth) || 0) : 0;
+          const mini9 = Math.round(rT9.bottom - rb9.top - bd9);
+          /* 여백은 **격자 칸의 가장자리**에서 잰다(지적: 미니맵이 조작부보다 올라가 보임) — 버튼 줄·재생부의 바깥
+             margin은 칸 안에 있으므로, 요소의 변이 아니라 변에 margin을 더한 자리가 칸의 변이다. 미니맵 판도 칸에 붙어
+             선다(align-self: stretch) — 그래야 이 여백이 곧 미니맵의 자리다. */
+          const mtB9 = parseFloat(getComputedStyle(btns9).marginTop) || 0;
+          const mbE9 = parseFloat(getComputedStyle(el).marginBottom) || 0;
           const cur9 = parseFloat(lyr.style.getPropertyValue("--scr-dock-mini")) || 0;
-          if (mini9 > 40 && Math.abs(mini9 - cur9) > 1) {
+          if (mini9 > 40 && Math.abs(mini9 - cur9) >= 1) {
             lyr.style.setProperty("--scr-dock-mini", `${mini9}px`);
-            lyr.style.setProperty("--scr-dock-mini-mt", `${Math.max(0, Math.round(rb9.top - rB9.top))}px`);
-            lyr.style.setProperty("--scr-dock-mini-mb", `${Math.max(0, Math.round(rE9.bottom - rT9.bottom))}px`);
+            lyr.style.setProperty("--scr-dock-mini-mt", `${Math.max(0, Math.round(rb9.top - (rB9.top - mtB9)))}px`);
+            lyr.style.setProperty("--scr-dock-mini-mb", `${Math.max(0, Math.round(rE9.bottom + mbE9 - rT9.bottom))}px`);
           }
         }
       }
     };
     const ro = new ResizeObserver(read);
     ro.observe(el);
+    /* 지도 버튼 줄도 함께 본다(지적: 미니맵이 조작부보다 올라가 보임) — 미니맵이 넓어지면 버튼 줄이 좁아져 동그라미가
+       줄어드는데(aspect-ratio), 그건 재생부의 크기를 안 바꿔 관찰자가 안 울렸고, 그 사이 4px이 미니맵에 남았다. */
+    const btnsObs9 = lyr.querySelector(".scr-motion-mapbtns");
+    if (btnsObs9) ro.observe(btnsObs9);
     fsBotObsRef.current = ro;
     read();
   }, []);

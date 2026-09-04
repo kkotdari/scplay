@@ -541,6 +541,18 @@ await page.waitForFunction("window.__spritePerf && (window.__spritePerf.last.bli
 await page.waitForTimeout(2500);
 
 const SHOT = flag("--shot", null);
+/* 독 자(--dockprobe): 미니맵·지도 버튼·꼬리 줄의 화면 자리를 찍는다 — 미니맵 키를 조작부에 맞추는 실측의 검산용. */
+if (has("--dockprobe")) {
+  await page.waitForTimeout(1500);
+  const r = await page.evaluate(() => {
+    const q = (sel) => { const el = document.querySelector(sel); if (!el) return null; const b = el.getBoundingClientRect(); return { top: +b.top.toFixed(2), bottom: +b.bottom.toFixed(2), h: +b.height.toFixed(2) }; };
+    const lyr = document.querySelector(".scr-fs-layer");
+    return { mini: q(".scr-fs-minipanel .scr-fs-minimap"), panel: q(".scr-fs-minipanel"), btns: q(".scr-motion-mapbtns"), btn: q(".scr-motion-mapbtns button"),
+      bottom: q(".scr-fs-bottom"), play: q(".scr-motion-play"), range: q(".scr-motion-range"), tail: q(".scr-fs-bottom-tail"),
+      vars: lyr ? { mini: lyr.style.getPropertyValue("--scr-dock-mini"), mt: lyr.style.getPropertyValue("--scr-dock-mini-mt"), mb: lyr.style.getPropertyValue("--scr-dock-mini-mb") } : null };
+  });
+  console.log("[독 자]", JSON.stringify(r));
+}
 if (SHOT) {
   await page.waitForTimeout(1500);
   // 특정 장면 맞추기(--wait ms) — 재생이 실시간이라, 몇 초 뒤 장면은 그만큼 기다려 찍는다.

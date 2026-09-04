@@ -3365,6 +3365,8 @@
        윗변, 아랫변이 꼬리 줄의 아랫변과 맞물리게. 실측 전에는 독 테두리 값. */
     margin-top: var(--scr-dock-mini-mt, var(--scr-dock-pad));
     margin-bottom: var(--scr-dock-mini-mb, var(--scr-dock-pad));
+    /* 칸에 붙어 선다 — 독의 align-items: center를 물려받으면 키가 조금만 달라도 가운데로 옮겨 앉아 위아래가 어긋난다. */
+    align-self: stretch;
   }
   /* ★ 남는 높이는 **버튼 줄이 먹는다**(지적: "아직도 지도 주변의 여백값이 다 달라
      보여 — 피시도 그래") ──────────────────────────────────────────────────────────
