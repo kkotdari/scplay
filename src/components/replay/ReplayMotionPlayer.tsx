@@ -21417,7 +21417,13 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
             const away9 = hasDir9 ? Math.atan2(-(f.dy ?? 0), -(f.dx ?? 0)) : 0;
             /* ★ 삯(지적: 모바일이 버거워짐) — 낱개마다 stroke를 부르면 맞는 몸마다 스물네 번이다. 색이 둘뿐이니
                **색별로 한 경로에 몰아** 두 번만 긋는다(굵기는 색별 한 값). 폰은 낱개도 열둘로 줄인다. */
-            const N9 = DEV9.dieShards;
+            /* 피격 파편은 **죽음 파편 수가 아니다**(지적: "스커지 자폭에서 왜 프로토스 사별 효과가
+               나지") — 여기가 DEV9.dieShards(PC 24·폰 12)를 읽고 있었다. 위 주석의 뜻은 '파편 셋'인데
+               스커지(무기 세기 wk9 = 2)가 프로토스를 치면 연푸른 줄 스물넷이 몸 두 배 부채로 터져,
+               프로토스 사별의 푸른 구와 같은 색·같은 자로 읽혔다. 스커지 자체는 저그 재질(engine9의
+               dk)로 터지므로 이 부채가 곧 '프로토스가 죽었다'로 보인 것이다. 결 표(FX_MAT)의 n
+               (5·6)이 피격 낱개 수다 — 죽음(burst)은 따로 dieShards를 쓴다. */
+            const N9 = mt9.n;
             ctx.lineCap = "round";
             for (let ci = 0; ci < 2; ci += 1) {
               ctx.beginPath();
