@@ -15,7 +15,7 @@
 2. `node scripts/model-shot.mjs --kinds <k> --rots 0,45,90,180 --mode top --cell 300 --lit [--zoom 0.5] --out <scratch>/x.png` 로 눈으로 확인
 3. 정규화 재측정 — 유닛 `node scripts/model-norm.mjs --kinds <k>`(맨 위 표의 필요배수) → MODEL_NORM,
    건물 `node scripts/bld-norm.mjs --kinds <k>` → BLD_NORM
-4. `npx vite build` → `node scripts/model-depth-check.mjs` (✔ 새로 어긴 모델 없음 이어야 한다; 새 빌더는 partKey 키)
+4. `npx vite build` → `node scripts/model-depth-check.mjs` · 클래스를 새로 붙였으면 `node scripts/css-guard.mjs`(규칙 없는 scr-* 이름이면 실패) (✔ 새로 어긴 모델 없음 이어야 한다; 새 빌더는 partKey 키)
 5. 커밋 → 브랜치 푸시
 
 ## 배포
