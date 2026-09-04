@@ -9863,17 +9863,26 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 칼날 코 — 몸 앞끝에서 한 점으로 좁아지는 납작 화살촉. 사진에서 몸 길이의
        절반을 차지하므로 여기서도 그만큼 뽑는다. 단면이 축에 수직이라 어느 요잉에서도
        얇은 날이 얇게 보인다(oval > 1 = 좌우로 넓고 위아래로 얇다). */
+    /* 코끝은 **살짝 뭉뚝하고 두 갈래**다(요청, 사진) — 한 점으로 모으던 화살촉을 폭 0.3에서 끊고(뭉뚝), 거기서 짧은
+       가닥 둘이 앞으로 갈라져 나간다. 몸 길이 절반이라는 비는 그대로다(코 4.0 + 가닥 1.5). */
     out.push(...tagKey(paintBase(spirePillar({
-      x: 0, y: 0, h: 1, w: 1, segs: 8, sides: 6, oval: 1.9, caps: "none",
-      path: (t9: number): [number, number, number] => [0, 1.3 + 5.3 * t9, 4.55 - 0.85 * t9],
-      widthOf: (t9: number): number => 0.6 * (1 - t9) ** 0.8 + 0.03,
-    }), STEEL), depthNow(0, 3.5) * 1.6 + 1));
-    // 코 등마루 — 앞뒤로 흐르는 얇은 지느러미. 코가 판이 아니라 날임을 말한다.
+      x: 0, y: 0, h: 1, w: 1, segs: 8, sides: 6, oval: 1.9, caps: "top",
+      path: (t9: number): [number, number, number] => [0, 1.3 + 3.9 * t9, 4.55 - 0.62 * t9],
+      widthOf: (t9: number): number => 0.3 * (1 - t9) ** 0.8 + 0.3,
+    }), STEEL), depthNow(0, 3.2) * 1.6 + 1));
+    for (const m of [-1, 1] as const) {
+      out.push(...tagKey(paintBase(spirePillar({
+        x: 0, y: 0, h: 1, w: 1, segs: 5, sides: 5, oval: 1.6, caps: "top",
+        path: (t9: number): [number, number, number] => [m * (0.17 + 0.16 * t9), 5.1 + 1.5 * t9, 3.93 - 0.2 * t9],
+        widthOf: (t9: number): number => 0.16 * (1 - t9) ** 0.7 + 0.06,
+      }), STEEL), depthNow(m * 0.3, 5.8) * 1.6 + 1.2));
+    }
+    // 코 등마루 — 앞뒤로 흐르는 얇은 지느러미. 코가 판이 아니라 날임을 말한다. 뭉뚝한 코끝 앞에서 끝난다.
     out.push(...tagKey(paintBase(spirePillar({
       x: 0, y: 0, h: 1, w: 1, segs: 6, sides: 4, oval: 0.35, caps: "none",
-      path: (t9: number): [number, number, number] => [0, 1.5 + 4.4 * t9, 4.85 - 0.75 * t9],
+      path: (t9: number): [number, number, number] => [0, 1.5 + 3.5 * t9, 4.85 - 0.6 * t9],
       widthOf: (t9: number): number => 0.3 * (1 - t9) + 0.02,
-    }), DEEP), depthNow(0, 3.5) * 1.6 + 1.5));
+    }), DEEP), depthNow(0, 3.2) * 1.6 + 1.5));
     /* 옆치마 한 쌍(개인색) — 코 뿌리에서 꽁무니까지 흐르며 아래로 굽는 판.
        칠하지 않은 면이라 임자 색이 든다. */
     for (const m of [-1, 1] as const) {
@@ -9893,12 +9902,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        비침") — 여태 허리 띠를 드럼보다 굵은 짧은 관으로 얹어, 띠의 끝 원판(어두운 뚜껑)이
        드럼 위에 찍혀 뻥 뚫린 속처럼 읽혔다. 마디를 같은 굵기로 두고 마디마다 제 깊이를
        달면, 가까운 마디의 옆면이 먼 마디의 끝 원판을 덮어 이음매만 남는다. */
-    out.push(...tagKey(paintBase(tubeFaces(0, -2.95, 0, -1.6, 0.82, 5.75), DEEP),
+    /* 드럼은 **황동색이고 작다**(요청, 사진) — 반지름 0.82 → 0.62, 갑판에 더 붙여(z 5.75 → 5.5) 앉힌다. 임자색 띠는 그대로. */
+    const BRASS9 = "#b08a3c";
+    out.push(...tagKey(paintBase(tubeFaces(0, -2.95, 0, -1.6, 0.62, 5.5), BRASS9),
       depthNow(0, -2.3) * 1.6 + 3));
-    out.push(...tagKey(tubeFaces(0, -1.62, 0, -1.03, 0.82, 5.75), depthNow(0, -1.32) * 1.6 + 3));   // 임자색 띠
-    out.push(...tagKey(paintBase(tubeFaces(0, -1.05, 0, -0.5, 0.82, 5.75), DEEP),
+    out.push(...tagKey(tubeFaces(0, -1.62, 0, -1.03, 0.62, 5.5), depthNow(0, -1.32) * 1.6 + 3));   // 임자색 띠
+    out.push(...tagKey(paintBase(tubeFaces(0, -1.05, 0, -0.5, 0.62, 5.5), BRASS9),
       depthNow(0, -0.78) * 1.6 + 3));
-    out.push(...tagKey(paintBase(tubeFaces(0, -3.4, 0, -2.9, 0.68, 5.75, true), "#b08a3c"),
+    out.push(...tagKey(paintBase(tubeFaces(0, -3.35, 0, -2.9, 0.5, 5.5, true), "#8f6f30"),
       depthNow(0, -3.1) * 1.6 + 3));
     /* 탄 사람 — 갑판 위로 나온 상반신만. 웅크려 앞으로 기운 몸통 + 헬멧 + 앞으로
        뻗어 손잡이를 쥔 두 팔. 개인색 전투복이라 몸통은 칠하지 않는다. */

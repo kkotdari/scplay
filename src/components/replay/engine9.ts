@@ -954,7 +954,7 @@ export const MODEL_NORM: Record<string, number> = {
   ultra: 0.361,
   valk: 0.840,   // 앞동체 −10% 뒤 재측정(model-norm)
   vessel: 0.898,  // 방패 접힘 축·뾰족 위끝 뒤 재측정(model-norm)
-  vulture: 0.828,
+  vulture: 0.833,
   wraith: 0.894,  // 재측정(model-norm)
   zealot: 0.803,  // 재측정(model-norm)
   zling: 0.758,
