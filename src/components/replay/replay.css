@@ -177,9 +177,11 @@
   /* 전체화면에서는 미니맵이 왼쪽 아래에 절대배치로 서므로, 왼 끝을 **그 오른편**으로
      못 박아 아무리 줄바꿈해도 겹칠 수 없게 한다(아래 --scr-mini-w는 미니맵 제 폭이다). */
   left: calc(10px + var(--scr-mini-w, 0px) + 10px + var(--mapbtn-inset-r, 0px));
+  /* ★ **한 줄**이다(요청: 두 줄 예산 걷고 버튼이 줄에 맞춰 줄어들게) — 줄바꿈을 안 하고, 버튼은 44px을 바라되
+     자리가 모자라면 같이 줄어든다(아래 button 규칙의 flex-basis·aspect-ratio). 그래서 '두 줄 자리'(min-height)가
+     필요 없다 — 버튼 줄의 키는 늘 한 줄이다. */
   display: flex; gap: var(--mapbtn-gap);
-  flex-wrap: wrap; justify-content: flex-end; align-content: center;
-  min-height: calc(var(--mapbtn-h) * 2 + var(--mapbtn-gap));
+  flex-wrap: nowrap; justify-content: flex-end; align-items: center;
 }
 /* (걷어냄) 좁은 화면에서 한 겹 더 올리던 덧값 — 공유 줄이 조종부 줄에 합쳐지면서
    (요청) 아래층이 셋으로 줄었다. 이제 밑값 하나가 두 배치를 다 낸다. */
@@ -190,7 +192,7 @@
    자리 규칙은 위와 같은 것을 쓰고, 여기서는 **안전영역만** 채워 준다. */
 .scr-fs-root {
   /** 전체화면 미니맵의 폭 — 미니맵도 버튼 줄도 이 하나를 본다(아래 .scr-fs-minipanel). */
-  --scr-mini-w: clamp(192px, 60vw, 352px);
+  --scr-mini-w: clamp(176px, 55vw, 320px);
   --mapbtn-inset-r: env(safe-area-inset-right, 0px);
   /* ★ 아래 안전영역은 **여기서 안 더한다** — 조종부가 이미 제 아래 패딩으로 홈
      인디케이터를 물고 있고, 아이콘 줄의 밑값은 이제 그 조종부의 **실측 높이**
@@ -203,7 +205,10 @@
 /* 무게 (0,2,1) — 알약 기본꼴(.scr-motion-litbtn)이 뒤에 있어 같은 무게로는 눌린
    납작한 알약이 된다(실측). 햄버거와 같은 44px 동그라미로 못 박는다. */
 .scr-motion-mapbtns button.scr-motion-mapbtn {
-  width: 44px; height: 44px; min-height: 0; padding: 0; border-radius: 999px;
+  /* 크기는 **유동**이다(요청) — 44px을 바라되 줄이 좁으면 형제와 같이 줄어든다(min-width 0이라 글자 폭 아래로도 준다).
+     세로는 가로를 따른다(aspect-ratio)라 늘 동그라미다. 글자(배속·배율)는 작은 원에서도 넘치지 않게 12px·숨김. */
+  flex: 0 1 44px; min-width: 0; width: 44px; max-width: 44px; height: auto; aspect-ratio: 1 / 1;
+  min-height: 0; padding: 0; border-radius: 999px; overflow: hidden; font-size: 12px;
   display: inline-flex; align-items: center; justify-content: center;
   /* ★ 아이콘은 **무조건 흰색**이다(요청: "아이콘 버튼의 색은 무조건 흰색 · 로스터나
      도구의 글씨처럼") — 이 버튼들은 앱의 종이가 아니라 **지도** 위에 뜬다. 지도는
@@ -3373,14 +3378,14 @@
   .scr-fs-layer:not(.is-fs) .scr-fs-minipanel .scr-motion-minibox { width: auto; margin: 0; }
   .scr-fs-layer:not(.is-fs) .scr-fs-minipanel .scr-fs-minimap {
     /* 기본값도 두 배(요청: PC 2배) — 92 → 184. 폰은 아래 480px 규칙이 덮는다. */
-    width: auto; height: var(--scr-dock-mini, 184px);
+    width: auto; height: var(--scr-dock-mini, 168px);
   }/* 폰에서는 한 단 작게 — 이 판이 왼쪽 칸을 가져간 만큼 조종부의 칸이 줄고, 390px
      화면에서는 그 몫이 3할에 가깝다. 76px이면 '어디를 보고 있나'는 그대로 읽힌다. */
   @media (max-width: 480px) {
     /* 1.5배(요청) — 76 → 114. 그 뒤 140(위 ★) — 버튼 두 줄 + 재생부가 오른 칸에 들어갈
        만큼은 되어야 **미니맵이 칸 높이를 정하는 쪽**으로 남는다. 모자라면 오른 칸이
        더 길어져 남는 높이가 도로 미니맵 둘레로 간다. */
-    .scr-fs-layer:not(.is-fs) { --scr-dock-mini: 140px; }
+    .scr-fs-layer:not(.is-fs) { --scr-dock-mini: 124px; }
 }
 
   /* 오른쪽 칸 위 — 아이콘 줄(오른쪽 맞춤). */
@@ -3750,9 +3755,10 @@
 /* 미니맵 머리의 사용법 알약(지적: 아래 줄에서 공유 버튼과 겹침) — 왼쪽 정렬, 미니맵과 4px 띄움. 공유 알약과 같은 배색. */
 .scr-fs-minitop { display: flex; justify-content: flex-start; align-items: center; margin-bottom: 4px; }
 .scr-guide-btn {
-  display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px;
+  /* 공유·스크랩 알약과 같은 꼴(요청: 좀 더 네모지게) — 높이 26 · 좌우 7 · 모서리 6. */
+  display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 7px;
   font: inherit; font-size: 11px; font-weight: 700; line-height: 1; white-space: nowrap; cursor: pointer;
-  background: #fff; color: #10151a; border: 1px solid #fff; border-radius: 8px;
+  background: #fff; color: #10151a; border: 1px solid #fff; border-radius: 6px;
   box-shadow: var(--lit-pill-glow);
 }
 .scr-guide-btn svg { flex: 0 0 auto; }/* ★ 좁은 화면도 **왼쪽 아래**다(요청: "미니맵은 다시 왼쪽으로 이동시켜줘(피시랑
@@ -3773,14 +3779,14 @@
    (--scr-dock-mini)로 서고 버튼 줄도 격자 칸에 앉아, 이 값과 무관하다. 그쪽까지 건드릴
    일이 없으니 전체화면에만 건다. 좁은 화면(<1160)은 아래 제 값이 그대로다. */
 @media (min-width: 1160px) {
-  .scr-fs-layer.is-fs .scr-fs-root { --scr-mini-w: clamp(154px, 48vw, 282px); }
+  .scr-fs-layer.is-fs .scr-fs-root { --scr-mini-w: clamp(140px, 44vw, 256px); }
 }
 @media (max-width: 1159px) {
   /* ★ 폭은 **뿌리의 변수**로 낸다 — 여기서 `width`를 직접 덮으면 버튼 줄의 왼 끝
      (--scr-mini-w를 보는 .scr-motion-mapbtns)과 어긋난다. 둘은 형제라 판에 건 변수가
      버튼 줄까지 안 간다: 값을 공유하려면 **공통 조상**에 두어야 한다.
      1.5배로(요청: "모바일 미니맵 크기 1.5배") — 76~116 → 114~174. */
-  .scr-fs-root { --scr-mini-w: clamp(114px, 34.5vw, 174px); }
+  .scr-fs-root { --scr-mini-w: clamp(104px, 31vw, 156px); }
   .scr-fs-minipanel {
     left: calc(5px + env(safe-area-inset-left, 0px)); right: auto;
     /* ★ (걷어냄) 버튼 줄 높이만큼(+44) 밀어 올리던 몫(지시: "모바일에서 미니맵 아래
