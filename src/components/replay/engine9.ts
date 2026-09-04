@@ -913,7 +913,7 @@ export const MODEL_NORM: Record<string, number> = {
   ghost: 1.552,  // 상자 상한(원한 배수 1.723)
   goliath: 0.671,
   goon: 0.655,  // 재측정(model-norm)
-  guardian: 0.683,  // 다리 짧고 굵게 뒤 재측정(model-norm)
+  guardian: 0.680,  // 다리 수평으로 뒤 재측정(model-norm)
   gunner: 1.327,  // 팔 길이 고정 뒤 model-norm 재측정
   htemp: 1.249,  // 재측정(model-norm)
   hydra: 0.685,

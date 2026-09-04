@@ -163,19 +163,29 @@ const pump = (): void => {
      t0~cur 사이의 장들이 셈에서 빠져 메인 메모리가 한도를 넘는다(계측: 한도 10MB에 메인 15.6MB). */
   /* 뒤(주인 시각 이전)의 장은 한도에 안 넣는다(계측: 폰 3MB 한도를 t0−0.5초부터 세니 앞으로 쓸 몫이 0.4초뿐이라
      뒤 장이 없는 순간이 10% — 보간이 못 먹고 다음 장에서 뛰었다). 뒤 장은 메인이 제 자로 버린다. */
+  /* ★ 한도는 **두 자**로 센다(진단: 폰 3배에서 앞 0.3초·뒤장없음 15% → 1초마다 끊김) ─────────────────────────
+     t0는 심장박동(1초)으로만 갱신되므로 최대 1초 묵는다. 그 t0부터 한도를 세면 이미 지난 장 1초분(폰 163KB×30 = 4.9MB)이
+     4MB 한도를 통째로 먹어 앞이 0이 되고, 다음 박동에 t0가 뛰면 그 몫이 풀려 여덟 장씩 몰아 짓는다 — 굶고 몰아 짓기가
+     정확히 1초 주기였다. 그래서
+       · 앞 한도(aheadBytes)는 **제 시계(cur) 앞의 장**만 센다 — 지난 장은 메인이 제 자(t−0.5초)로 버린다.
+       · 주인이 멎어(굽기 홀드) t0가 안 오는 동안 메인 메모리가 새는 것은 t0부터 센 몫이 한도의 2.5배를 넘으면 짓기를 멈춰
+         막는다(옛 규칙이 지키려던 것). 평소에는 t0 묵은 1초 + 앞 한도라 그 안에 든다. */
   const from = Math.min(cur, clock.t0);
   if (built.length > 0 && built[0].t < from) built = built.filter((b) => b.t >= from);
   let bytesAhead = 0;
-  for (const b of built) if (b.t >= from) bytesAhead += b.bytes;
+  let bytesMain = 0;
+  for (const b of built) { if (b.t >= cur) bytesAhead += b.bytes; if (b.t >= clock.t0) bytesMain += b.bytes; }
+  const mainCap = clock.aheadBytes * 2.5;
   /* 한 번에 여덟 장 또는 60ms까지만 짓고 한숨 돌린다 — 느린 기기에서 여덟 장이 1초를 넘으면 그동안 명령이 줄을 선다. */
   let n = 0;
   const pumpAt = nowMs();
-  while (nextT <= until && bytesAhead < clock.aheadBytes && n < 8 && nowMs() - pumpAt < 60) {
-    bytesAhead += emit(nextT);
+  while (nextT <= until && bytesAhead < clock.aheadBytes && bytesMain < mainCap && n < 8 && nowMs() - pumpAt < 60) {
+    const b9 = emit(nextT);
+    bytesAhead += b9; bytesMain += b9;
     nextT += stepNow();
     n += 1;
   }
-  const more = nextT <= until && bytesAhead < clock.aheadBytes;
+  const more = nextT <= until && bytesAhead < clock.aheadBytes && bytesMain < mainCap;
   // 더 지을 게 있으면 곧, 한도에 닿았으면 시계가 반 걸음쯤 흐른 뒤에 다시.
   const delay = more ? 0 : Math.max(20, ((step / Math.max(0.01, clock.speed)) * 1000) * 0.5);
   pumpTimer = setTimeout(() => { pumpTimer = 0; pump(); }, delay) as unknown as number;

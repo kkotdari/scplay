@@ -11098,15 +11098,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       .flatMap(([ly9, lz9], i9) => {
         /* 마디가 푹 들어가지 않는 관(suitLimb, 굵기 일정)으로(재요청) — 뿔(hornFaces)은 이음매에서
            가늘어졌다. 길이는 줄이고(무릎 3.9 → 3.3, 발 5.2 → 4.4) 굵기는 키운다(0.5/0.34 → 0.62/0.5). */
-        const kx9 = m9 * (3.3 + i9 * 0.2);   // 무릎
+        /* 다리는 **거의 수평**이다(지적: 너무 내려가 있다) — 무릎 1.3·발 1.7씩 떨어지던 것을 0.35·0.6으로 올려
+           옆으로 뻗은 게다리로. 내려간 만큼은 바깥으로 더 뻗어(무릎 3.3 → 3.6, 발 4.4 → 5.0) 길이를 지킨다. */
+        const kx9 = m9 * (3.6 + i9 * 0.2);   // 무릎
         const ky9 = ly9 - 1.2;
-        const kz9 = lz9 - 1.3;
-        const fx9 = m9 * (4.4 + i9 * 0.25);
+        const kz9 = lz9 - 0.35;
+        const fx9 = m9 * (5.0 + i9 * 0.25);
         const knee: [number, number, number] = [kx9, ky9, kz9];
         return [
           ...paintBase(suitLimb([m9 * 2.3, ly9, lz9], knee, 0.31, 0.29, 0.31, { sides: 7, caps: "none", trueNormal: true }), "#6b4732"),
           ...paintBase(domeFaces3(kx9, ky9, 0.3, 0.26, kz9 - 0.1), "#6b4732"),
-          ...paintBase(suitLimb(knee, [fx9, ky9 - 1.1, kz9 - 1.7], 0.27, 0.22, 0.27, { sides: 7, caps: "none", trueNormal: true }), "#6b4732"),
+          ...paintBase(suitLimb(knee, [fx9, ky9 - 1.1, kz9 - 0.6], 0.27, 0.22, 0.27, { sides: 7, caps: "none", trueNormal: true }), "#6b4732"),
         ];
       })),
   ],
@@ -18326,7 +18328,8 @@ const DEV9 = smallDevice9 ? {
   /** 피격 불티 수 배수 · 죽음 파편 수 · 효과 래스터 예산(MB) · 접지 그림자 최소 배율 */
   hitShardK: 0.6, dieShards: 12, fxRasterMB: 6, shadowGroundMinZoom: 3,
   /** 워커 시야 여유(화면 배수) · 앞으로 지을 한도(벽시계 초·MB) · 요잉을 늘 여덟 칸으로 */
-  cullMargin: 0.5, aheadSec: 1.5, aheadMB: 4, yaw8Always: true,
+  // 앞 한도 4 → 6MB(진단: 3배 장당 163KB — 4MB면 0.8초, 6MB면 1.2초. 지난 장은 이제 한도에 안 든다(frameWorker)).
+  cullMargin: 0.5, aheadSec: 1.5, aheadMB: 6, yaw8Always: true,
 } : {
   name: "pc",
   spriteMB: 128, bldSpriteMB: 64,
