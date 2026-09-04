@@ -1971,6 +1971,8 @@ export const SCR_DIAG: {
   prod: string;
   /** 프레임 워커 상태 — on/off · 받은 수 · 쓴 수 · 놓친 수. */
   worker: string;
+  /** 덜어내기(폰 과밀) — "N단 평균ms 유닛수". */
+  crowd: string;
   /** 이 프레임의 효과 op을 '갈래:무기'로 센다 — "이 무기가 안 나간다"는 신고를 눈이
    *  아니라 수로 가리려고 둔다(트레이서는 0.2초짜리라 스크린샷 한 장으로는 못 가린다).
    *  #diag가 켜져 있을 때만 채운다. */
@@ -1994,7 +1996,7 @@ export const SCR_DIAG: {
 } = {
   dpr: 0, unitCss: "", unitBack: "", unitB: 0,
   mapCss: "", mapBack: "", ppt: 0, needed: 0, scale: 0, unitScale: 0,
-  areaCap: 0, allocOk: true, zoom: 0, fx: {}, prod: "", worker: "",
+  areaCap: 0, allocOk: true, zoom: 0, fx: {}, prod: "", worker: "", crowd: "",
   truthVer: 0, truthTrust: -1, truthWhy: "",
 };
 /** #diag가 켜져 있나 — 주소가 바뀌지 않는 한 한 번만 읽는다. */
@@ -3095,6 +3097,10 @@ export type EngineView9 = {
   viewTeam: number; visAll: boolean; fogOn: boolean;
   colors: Record<string, string>;
   qAnim: boolean; qBuildFx: boolean; qDeath: boolean; clickFx: boolean;
+  /** 덜어내기 단(0·1·2) — 폰에서 붓이 잰다(ReplayMotionPlayer의 CROWD9: 화면 유닛 수 문턱 +
+   *  그리기 ms 방아쇠). 1단부터 홀수 개체의 트레이서를 안 낸다(맞는 중이면 낸다). 그림자·
+   *  파편 수는 붓이 제 자리에서 줄인다. 없으면 0. */
+  crowd?: number;
   /** 시야 사각형(자리 분수, 여유 포함) — 이 밖의 개체·건물은 op를 안 만든다(미니맵 점만). null이면 지도 전체.
    *  (요청: 컬링 — 옛 메인 엔진의 cull9. 워커는 지도 전체 690기 대신 보이는 170기만 센다.) */
   cull: { x0: number; x1: number; y0: number; y1: number } | null;
@@ -3238,6 +3244,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     const qBuildFx = view.qBuildFx;
     const qDeath = view.qDeath;
     const clickFx = view.clickFx;
+    const crowd9 = view.crowd ?? 0;
     const zoom = 6;   // 프레임은 배율과 무관 — 배율이 섞인 옛 식 한 곳(미사일 쌍 간격)에 중간값을 준다.
     const liteView = false; const liteYaw = false; const markerView = false; const tracerView = true;
     void liteView; void liteYaw; void markerView; void tracerView;
@@ -6980,6 +6987,11 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
        동심원) — 스캔 개체는 참값에 체력(에너지)이 깎이는 자취가 실려 '맞았다'로 읽혔고,
        실드막 고리가 탐지 반경 크기로 그려졌다. */
     const hitNow = !liteView && !NO_BODY_UNITS.has(drawUnit) && t - hurtAt <= 0.15;
+    /* 덜어내기 1단(요청: 모바일 과밀 — "유닛 수 + 그리기 속도" 문턱) — 홀수 개체의 트레이서를
+       안 낸다. 개체 색인(ei)은 장마다 같으므로 깜빡이지 않고, 맞는 중(hitNow)이면 그대로
+       살려 피격은 한 번뿐인 것을 안 잃는다. 옛 '세 개체 중 하나' 배율 솎기와 달리 문턱이
+       밀도라 한두 기뿐인 장면은 안 건드린다. */
+    if (crowd9 >= 1 && (ei & 1) === 1 && !hitNow) return null;
     /* 효과는 가슴 높이(지적: 공격 효과가 너무 낮다 — 발밑에서 튀었다) — 마커
        기준점은 발 자리라, 몸이 실제로 떠 있는 몫만큼 띄워 몸통에 맞춘다.
        ★ 그 몫은 **그리는 쪽과 같은 식**이어야 한다(지적: "공중유닛의 피격효과가

@@ -18356,6 +18356,43 @@ const DEV9 = smallDevice9 ? {
      굽기 한 번(최악 41ms)이나 GC에 뒤장이 비기 딱 좋은 여유다. 24MB면 220KB로 3.6초). */
   cullMargin: 1, aheadSec: 3, aheadMB: 24, yaw8Always: false,
 };
+/* 덜어내기 단(요청: "모바일에서 그려야 할 대상이 많을 때 버벅임 방지 — 화면 내 유닛 수 +
+   그리기 속도 문턱으로 2·3·4번 적용") ───────────────────────────────────────────
+   폰에서만 잰다. 붓이 한 장을 칠한 ms를 다섯 장 평균 내고, 그 장의 유닛 op 수(워커가 시야
+   사각형 안으로 걸러 보낸 수 — 폰은 앞뒤 반 화면 여유라 대략 2×2 화면 몫)를 함께 본다.
+   · 유닛 수는 **문턱**이다: 1단 60기·2단 120기 미만이면 아무리 느려도 안 올린다(작은 장면은
+     효과가 곧 볼거리라 덜어낼 게 아니다 — 아콘·리버 한둘이 침묵하던 옛 배율 솎기의 교훈).
+   · 그리기 ms는 **방아쇠**다: 다섯 장 평균 35ms면 1단, 45ms면 2단(폰 붓 주기 50ms의 7할·9할).
+   · 내림은 이력이다: 평균이 **그 단 방아쇠의 절반**(2단 22ms·1단 17ms) 아래로 마흔 장(약 2초)
+     이어지면 한 단 내린다. 올리고 내린 직후에는 다섯 장을 새로 잰다(바뀐 짐으로 재야 한다).
+     ※ 내림 문턱을 고정 25ms로 뒀더니 perf-check(폰·CPU 4배)에서 2단이 24ms로 떨어져 1·2단을
+       1초마다 오갔다 — 덜어낸 덕에 빨라진 값으로 되올리면 곧장 다시 느려진다. 절반이면
+       '덜어낸 것을 되살려도 남는' 여유일 때만 내린다.
+   단별로 덜어내는 것(누적):
+     1단 — 땅 그림자·몸 그림자 끔(붓) · 죽음·피격 파편 반(붓) · 홀수 개체 트레이서 생략(엔진, view.crowd)
+     2단 — 피격 불티 통째로 생략(붓) · 죽음 파편 3분의 1(붓)
+   안 빼는 것: 유닛 본체 판·원거리 트레이서 자체(절반은 남는다)·죽음 여운·미니맵 점. */
+const CROWD9 = { lv: 0, ring: [0, 0, 0, 0, 0], ri: 0, n: 0, calm: 0, units: 0, avg: 0 };
+const CROWD_UNITS9 = [0, 60, 120];   // 단별 유닛 op 수 문턱
+const CROWD_MS9 = [0, 35, 45];       // 단별 그리기 ms 방아쇠(다섯 장 평균)
+const CROWD_CALM_K9 = 0.5;    // 내림 문턱 = 그 단 방아쇠 × 이 값
+const CROWD_CALM_N9 = 40;
+function crowdTick9(ms: number, units: number): void {
+  const c = CROWD9;
+  c.ring[c.ri] = ms; c.ri = (c.ri + 1) % 5; if (c.n < 5) c.n += 1;
+  let sum = 0; for (let i = 0; i < c.n; i += 1) sum += c.ring[i];
+  const avg = sum / c.n; c.avg = avg; c.units = units;
+  if (c.n >= 5) {
+    let want = 0;
+    for (let l = 2; l >= 1; l -= 1) if (avg >= CROWD_MS9[l] && units >= CROWD_UNITS9[l]) { want = l; break; }
+    if (want > c.lv) { c.lv = want; c.calm = 0; c.n = 0; }
+    else if (c.lv > 0 && avg < CROWD_MS9[c.lv] * CROWD_CALM_K9) { c.calm += 1; if (c.calm >= CROWD_CALM_N9) { c.lv -= 1; c.calm = 0; c.n = 0; } }
+    else c.calm = 0;
+  }
+  if (scrDiagOn()) SCR_DIAG.crowd = `${c.lv}단 ${avg.toFixed(0)}ms ${units}기`;
+}
+/** 파편 수 배수 — 0단 1 · 1단 절반 · 2단 3분의 1. */
+const crowdShardK9 = (): number => (CROWD9.lv >= 2 ? 0.34 : CROWD9.lv === 1 ? 0.5 : 1);
 const SPRITE_BYTES_MAX = DEV9.spriteMB * 1024 * 1024;
 /** 판 한 장의 한 변 상한(장치 픽셀) — 이보다 커야 하는 요청은 굽지 않고 **직접 그리기**로
  *  떨어진다(호출부가 판이 없을 때의 길을 이미 갖고 있다). 예산(LRU)은 '여러 장이 쌓여'
@@ -19993,7 +20030,7 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
   const pal = PALS[mat] ?? PALS.mech;
   // 기계는 낱개가 더 많다 — 절반이 짧은 막대라(아래) 면 조각 수는 그대로 지킨다.
   const nBase = mat === "mech" ? (bld ? 24 : 16) : (bld ? 16 : 10);
-  const N = Math.round(nBase * DEV9.hitShardK);
+  const N = Math.round(nBase * DEV9.hitShardK * crowdShardK9());   // 덜어내기: 1단 절반·2단 3분의 1
   const g = W * (wet ? 1.1 : mat === "toss" ? 0.25 : 0.7);
   for (let i = 0; i < (mat === "toss" ? 0 : N); i += 1) {
     const an = (i / N) * Math.PI * 2 + (rnd() - 0.5) * 0.6;
@@ -20485,7 +20522,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
          사양 게이트는 그대로다(showOverlap = 품질 '고') — 낮은 사양에서는 안 켠다. */
       /* `?noshadow=1`이 이것도 끈다 — 그 깃발의 이름이 약속하는 바이고, 무엇보다
          **한 주소로 A/B가 된다**(그림자 탓인지 판이 큰 탓인지를 가르는 유일한 길). */
-      const bodyShadow = showOverlap !== false && !NOSHADOW9
+      const bodyShadow = showOverlap !== false && !NOSHADOW9 && CROWD9.lv === 0   // 덜어내기 1단부터 끔
         && zoom >= SHADOW_MIN_ZOOM && !marker;
       for (const op of list) {
         const sx = zx(op.fx);
@@ -20668,7 +20705,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
           /* 접지 그림자(재재지적: 해처리가 떠 있다) — 상자 바닥 어림이 아니라 구운
              판의 실제 바닥 픽셀(contentBottom)에 붙인다. 모델이 상자를 다 안 채워도
              발이 그림자에 닿는다. */
-          if (op.groundShadow && showShadows !== false && detail) {
+          if (op.groundShadow && showShadows !== false && CROWD9.lv === 0 && detail) {
             /* 바닥 '발자국'만 덮는다(정정: 칸(hPx)은 모델 높이까지 포함해, 칸 기준 타원은
                건물을 통째로 감싸는 큰 원이었다 — 내접으로 바꿔도 거의 그대로라 "적용 안
                됨"으로 보였다). 발자국 깊이 = 폭 × footRatio, 자리는 칸 바닥에 붙인다. */
@@ -20947,7 +20984,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
         const footX = spr
           ? sx - (spr.pad + pxqB / 2) * kU + (spr.cx / B) * kU
           : sx;
-        if (hover && !op.noShadow && showShadows !== false && detail) {
+        if (hover && !op.noShadow && showShadows !== false && CROWD9.lv === 0 && detail) {
           ctx.shadowColor = "transparent";
           /* 떠다니는 지상 유닛(일꾼·벌처·아콘류)은 겨우 발밑만 떠 있다(지적: 그림자가
              너무 크고 진해) — 높이 나는 공중 유닛보다 작고 옅은 타원. */
@@ -21002,7 +21039,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
              가로는 footX 그대로다(앞선 지적: 그림자·링이 몸과 안 맞음). */
           ctx.ellipse(footX, groundY ?? footY, shw * 1.1, shw * (op.air ? 0.5 : 0.42) * (op.pitch ? pitchFlatNow : 1), 0, 0, Math.PI * 2);
           ctx.fill();
-        } else if (showShadows !== false && detail && !op.air && !op.clipWalk) {
+        } else if (showShadows !== false && CROWD9.lv === 0 && detail && !op.air && !op.clipWalk) {
           /* 지상 유닛 접지 그림자(재지적: 전부 떠 있는 느낌 — 발이 그림자에 닿아야 하고
              훨씬 작아야) — 발끝 자리에 딱 붙는 아주 작은 타원.
              ★ 조건에서 UNIT_KIND_SET을 걷었다(지적: 같은 배율에서도 어떤 건 그림자가
@@ -21430,7 +21467,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
                프로토스 사별의 푸른 구와 같은 색·같은 자로 읽혔다. 스커지 자체는 저그 재질(engine9의
                dk)로 터지므로 이 부채가 곧 '프로토스가 죽었다'로 보인 것이다. 결 표(FX_MAT)의 n
                (5·6)이 피격 낱개 수다 — 죽음(burst)은 따로 dieShards를 쓴다. */
-            const N9 = mt9.n;
+            if (CROWD9.lv >= 2) continue;   // 덜어내기 2단: 피격 불티는 통째로 생략(죽음 burst만 남는다)
+            const N9 = Math.max(2, Math.ceil(mt9.n * crowdShardK9()));
             ctx.lineCap = "round";
             for (let ci = 0; ci < 2; ci += 1) {
               ctx.beginPath();
@@ -26616,9 +26654,10 @@ export default function ReplayMotionPlayer({
     viewTeam, visAll, fogOn, colors: colorTable9,
     qAnim, qBuildFx, qDeath, clickFx,
     cull: cullRect9,
+    crowd: CROWD9.lv,
   };
   /* 시점 입력이 바뀌면 워커에도 알린다 — 색표는 참조로, 나머지는 값으로 견준다. */
-  const viewKey9 = `${engView9.mapW}|${engView9.mapH}|${engView9.tilePx.toFixed(3)}|${engView9.pitched ? 1 : 0}|${engView9.pitchFlat.toFixed(4)}`
+  const viewKey9 = `c${CROWD9.lv}|${engView9.mapW}|${engView9.mapH}|${engView9.tilePx.toFixed(3)}|${engView9.pitched ? 1 : 0}|${engView9.pitchFlat.toFixed(4)}`
     + `|${engView9.geom.w}|${engView9.geom.h}|${engView9.geom.P.toFixed(1)}|${engView9.viewTeam}|${engView9.visAll ? 1 : 0}|${engView9.fogOn ? 1 : 0}`
     + `|${engView9.qAnim ? 1 : 0}${engView9.qBuildFx ? 1 : 0}${engView9.qDeath ? 1 : 0}${engView9.clickFx ? 1 : 0}`
     + `|${cullRect9 ? `${cullRect9.x0.toFixed(3)},${cullRect9.x1.toFixed(3)},${cullRect9.y0.toFixed(3)},${cullRect9.y1.toFixed(3)}` : "all"}`;
@@ -26808,7 +26847,9 @@ export default function ReplayMotionPlayer({
     frameOpsRef9.current = fr9.unitOps;
     frameFxRef9.current = fr9.fxOps;
     opsRef.current = fr9.unitOps;
+    const p0 = smallDevice9 ? pNow() : 0;
     unitPaintRef.current?.(zoomRef.current, panRef.current, zoomCommitRef.current);
+    if (smallDevice9) crowdTick9(pNow() - p0, fr9.unitOps.length);   // 덜어내기 단(CROWD9)
   };
   const frame9: Frame9 = frameAt9(t, false);
   // 워커 상태는 늘 적어 둔다(perf-check가 읽는다) — 문자열 하나라 값이 싸다.
@@ -28353,6 +28394,7 @@ export default function ReplayMotionPlayer({
                       유닛 {SCR_DIAG.unitCss}css → {SCR_DIAG.unitBack} (B {SCR_DIAG.unitB.toFixed(2)}
                       {SCR_DIAG.dpr && SCR_DIAG.unitB < SCR_DIAG.dpr ? ` · 화질 ${Math.round((SCR_DIAG.unitB / SCR_DIAG.dpr) * 100)}%` : ""})
                       {" · 지도 "}{SCR_DIAG.mapBack} · 타일당 {SCR_DIAG.ppt}/{SCR_DIAG.needed}
+                      {SCR_DIAG.crowd ? ` · 덜어내기 ${SCR_DIAG.crowd}` : ""}
                     </div>
                     {/* 굽는 값 — 예산 안이어도 프레임마다 다시 굽고 있으면 버벅인다. '버림'이 0이 아니면 예산 압박이
                         다시 굽기를 부르는 것이고, '미룸'이 쌓이면 프레임 굽기 예산에 일이 밀려 있는 것이다. */}
