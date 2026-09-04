@@ -20087,11 +20087,12 @@ function drawHpBar(
   /* 원작 양식(요청) — OpenBW draw_health_bars 그대로:
        · 폭은 게임 px(hpBarW). 채움 폭은 3의 배수에 맞춘다(filled_width: 최소 3, 나머지 2면 올림·1이면 내림). 3px마다
          1px 금(칸 = 2px 색 + 1px 금). 한 칸의 체력은 최대 체력 ÷ 칸 수 — 칸이 체력 단위가 아니라 폭이 정한다.
-       · 체력 줄은 5줄(위·아래 테 1줄 + 색 3줄), 실드가 있으면 7줄(테 + 색 2·2·1 + 테)이고 그 **바로 위에 실드 줄 4줄**
-         (테 + 푸른 2줄 + 테)이 따로 선다(지적: 플토는 실드 줄이 따로). 색 줄은 위가 밝고 아래가 어두운 세 단이다.
+       · 실드 없으면 5줄(테 + 색 3줄 + 테). 실드 있으면 **전체 7줄**인데, 원작은 체력 7줄을 먼저 칠하고 위 4줄을 실드
+         (테 + 푸른 2줄 + 테)로 덮어쓴다 — 그래서 남는 체력은 아래 3줄(색 2줄 + 테)이고 실드 색 2줄·체력 색 2줄로 높이가
+         같다(지적: 플토는 실드 줄이 따로, 체력이 더 높지 않다). 실드의 아래 테가 곧 체력의 위 테다.
        · 색은 체력 비율로 갈린다 — 66% 넘으면 초록, 33% 넘으면 노랑, 그 아래 빨강. 빈 자리는 어두운 바탕.
-     한 게임 px 줄의 화면 높이는 uPx(폭에서 온 게임 px)와 bh/5(우리 최소 두께) 중 큰 쪽이다. by는 체력 줄의 윗변이고
-     실드 줄은 그 위로 올라간다. 금은 칸이 화면 1.6px 이상일 때만 긋고(그 아래는 얼룩), 화면 0.6px 아래로는 안 내려간다.
+     한 게임 px 줄의 화면 높이는 uPx(폭에서 온 게임 px)와 bh/5(우리 최소 두께) 중 큰 쪽이다. by는 막대 전체의 윗변이다
+     (실드가 있으면 실드 테가 거기 선다). 금은 칸이 화면 1.6px 이상일 때만 긋고(그 아래는 얼룩), 화면 0.6px 아래로는 안 내려간다.
      실드 값은 합산 비율(hpFrac)과 실드 몫(shFrac = 최대 실드 ÷ (최대 체력 + 최대 실드))에서 푼다 — 피해는 실드부터
      깎이므로 합산이 체력 상한을 넘는 몫이 남은 실드다. */
   const W = op.hpBarW ?? 19;
@@ -20127,23 +20128,19 @@ function drawHpBar(
     if (fillPx > 0) { ctx.fillStyle = shade; ctx.fillRect(bx, top, fillPx, rowPx); }
   };
   const hpFill = (hpNow > 0 ? fillW(hpNow) : 0) * uPx;
-  // 실드 줄(4줄) — 체력 줄 바로 위.
-  let top0 = by;
-  if (hasSh) {
-    const shFill = (shNow > 0 ? fillW(shNow) : 0) * uPx;
-    top0 = by - 4 * rowPx;
-    row(top0, null, null, 0);
-    row(top0 + rowPx, "#7cc1ff", BG[1], shFill);
-    row(top0 + 2 * rowPx, "#4fa8ff", BG[2], shFill);
-    row(top0 + 3 * rowPx, null, null, 0);
-  }
-  // 체력 줄 — 실드 있으면 7줄(색 2·2·1), 없으면 5줄(색 1·1·1).
-  const rows = hasSh ? [null, 0, 0, 1, 1, 2, null] : [null, 0, 1, 2, null];
+  const shFill = (shNow > 0 ? fillW(shNow) : 0) * uPx;
+  /* 줄 배열 — [색 배열, 인덱스]: null이면 테. 실드 있으면 원작의 덮어쓰기 결과 그대로 7줄, 없으면 5줄. */
+  const top0 = by;
+  const rows: (readonly [string, string, number] | null)[] = hasSh
+    ? [null, ["#7cc1ff", BG[1], shFill] as const, ["#4fa8ff", BG[2], shFill] as const, null,
+      [hpShades[1], BG[1], hpFill] as const, [hpShades[2], BG[2], hpFill] as const, null]
+    : [null, [hpShades[0], BG[0], hpFill] as const, [hpShades[1], BG[1], hpFill] as const, [hpShades[2], BG[2], hpFill] as const, null];
   for (let r = 0; r < rows.length; r += 1) {
     const k = rows[r];
-    row(by + r * rowPx, k === null ? null : hpShades[k], k === null ? null : BG[k], hpFill);
+    if (k === null) row(by + r * rowPx, null, null, 0);
+    else row(by + r * rowPx, k[0], k[1], k[2]);
   }
-  // 금 — 실드 줄부터 체력 줄 끝까지 한 줄로.
+  // 금 — 막대 전체(실드 포함)를 한 번에.
   if (uPx * 3 >= 1.6) {
     const hTot = by + rows.length * rowPx - top0;
     ctx.fillStyle = BORDER; ctx.globalAlpha = 0.75;
