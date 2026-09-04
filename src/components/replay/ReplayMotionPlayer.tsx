@@ -18966,51 +18966,8 @@ const SPRITE_SIZES_MAX = 4096;
    여전히 0의 값이고, 날갯짓만 하는 종류는 컷 1의 값으로 못 박힌다 — 어느 쪽이든 컷이
    바뀌어도 안 흔들리는 한 값이라는 것이 요점이다(어느 컷의 값인지가 아니라). */
 const INK_W_RATIO9 = new Map<string, { pose: number; r: number }>();
-/** dpr 1 판 또렷하게(시험 — "쨍한 느낌") — 1배 굽기의 안티앨리어싱 경계를 언샤프
- *  마스크(4-이웃)로 굳힌다. 알파를 곱한(프리멀티플라이) 값으로 컨볼루션해야 투명
- *  이웃이 검은 테를 끌어들이지 않고, 알파도 함께 갈아 경계 자체가 딱딱해진다.
- *  B가 1 이하일 때만 단다 — dpr 2+는 픽셀이 촘촘해 굳힐 것이 없고 판도 네 배라
- *  삯만 든다. 판 굽기마다 한 번이라(블릿마다가 아니다) 값은 캐시가 문다. */
-/* (걷어냄) 2배 굽기+nearest 반내림(ssaa) 시험 — 3자 비교 결과 "효과가 거의 없네":
-   점표본은 경계만 굳히고 대비는 안 올려, 언샤프보다 체감이 약했다. 언샤프만 남긴다. */
-const SHARP1X_A9 = 0.15;  // 0.4 → 0.3 → 0.15 (재요청: 계단현상이 심하다)
-/* 알파(경계)는 더 약하게 — 계단은 색보다 **경계를 굳히는 몫**에서 난다. 색 대비는 남기고
-   경계의 안티앨리어싱은 거의 살린다. */
-const SHARP1X_ALPHA9 = 0.06;
-function sharpenPlate9(cv: HTMLCanvasElement): void {
-  const w9 = cv.width; const h9 = cv.height;
-  if (!w9 || !h9 || w9 * h9 > 1_200_000) return;
-  const c9 = cv.getContext("2d");
-  if (!c9) return;
-  const im9 = c9.getImageData(0, 0, w9, h9);
-  const s9 = im9.data;
-  const pm9 = new Float32Array(s9.length);
-  for (let i9 = 0; i9 < s9.length; i9 += 4) {
-    const a9 = s9[i9 + 3] / 255;
-    pm9[i9] = s9[i9] * a9;
-    pm9[i9 + 1] = s9[i9 + 1] * a9;
-    pm9[i9 + 2] = s9[i9 + 2] * a9;
-    pm9[i9 + 3] = s9[i9 + 3];
-  }
-  const A9 = SHARP1X_A9;
-  const row9 = w9 * 4;
-  for (let y9 = 1; y9 < h9 - 1; y9 += 1) {
-    for (let x9 = 1; x9 < w9 - 1; x9 += 1) {
-      const p9 = y9 * row9 + x9 * 4;
-      const va9 = pm9[p9 + 3] * (1 + 4 * SHARP1X_ALPHA9)
-        - SHARP1X_ALPHA9 * (pm9[p9 - row9 + 3] + pm9[p9 + row9 + 3] + pm9[p9 - 4 + 3] + pm9[p9 + 4 + 3]);
-      const aOut9 = Math.max(0, Math.min(255, va9));
-      s9[p9 + 3] = aOut9;
-      if (aOut9 < 1) continue;
-      for (let ch9 = 0; ch9 < 3; ch9 += 1) {
-        const v9 = pm9[p9 + ch9] * (1 + 4 * A9)
-          - A9 * (pm9[p9 - row9 + ch9] + pm9[p9 + row9 + ch9] + pm9[p9 - 4 + ch9] + pm9[p9 + 4 + ch9]);
-        s9[p9 + ch9] = (v9 * 255) / aOut9;
-      }
-    }
-  }
-  c9.putImageData(im9, 0, 0);
-}
+/* (걷어냄·요청: 부작용이 더 크다) dpr 1 판의 언샤프 마스크(sharpenPlate9) — 경계를 굳히면 계단·밝은 테가 났다.
+   dpr 1도 굽는 그대로 쓴다. */
 /** 임자 색 마스크(2번: 임자 색을 굽지 말고 그릴 때 입히기) — 판 열쇠에서 색을 뺐다. 개인색 면은 몸판에서 빼고
  *  이 마스크에 흰색(음영 알파 그대로)으로 굽되, 화가 순서상 그 **위**에 오는 고정색 면은 destination-out으로 파낸다
  *  (가림 순서가 그대로 산다 — 옛 주석의 "층을 둘로 가르면 가림이 깨진다"는 이 파내기로 푼다). 그릴 때 임자 색으로
@@ -19223,7 +19180,6 @@ function unitSprite(
   // 몸판은 **합 상자**로 자른다 — 자(bot·cx·w)가 옛 온 판과 같아야 발밑·중심·체력바가 안 움직인다.
   const box = unionInkBox9(bodyBox9, maskBox9);
   const cr = cropToInk(cv, box, true);
-  if (B <= 1) sharpenPlate9(cr.cv);   // dpr 1 — 경계 굳히기(위 sharpenPlate9)
   let tint: TintPlate9 | null = null;
   if (tintCv9 && maskBox9 && maskBox9.w > 1) {
     const mcr = cropToInk(tintCv9, maskBox9, true);
@@ -19842,7 +19798,6 @@ function buildingSpriteBake(
   const padK = DECAL_KINDS.has(op.kind) ? 0.40 : 0.78;
   const pad = Math.ceil(sideQ * padK) + 2;
   const l = sideQ + pad * 2;
-  const soft9 = DECAL_KINDS.has(op.kind) || !!op.clipWalk || !!op.inkCenter;
   const side9 = Math.max(1, Math.ceil(l * B));
   // 너무 큰 판은 굽지 않는다(위 SPRITE_SIDE_MAX) — 직접 그리기로 떨어진다.
   if (side9 > SPRITE_SIDE_MAX) return null;
@@ -19911,9 +19866,6 @@ function buildingSpriteBake(
     const mcr = cropToInk(tintCvB9, maskBoxB9, true);
     tintB9 = { cv: mcr.cv, ox: mcr.ox, oy: mcr.oy, gloss: lod >= 3 };
   }
-  /* 데칼(크립 얼룩)은 안 굳힌다 — 반투명 가장자리가 언샤프 링(밝은 테)으로 떠서
-     땅과 이어지는 무늬가 도리어 도드라졌다. 딱딱해야 할 것은 몸의 경계뿐이다. */
-  if (B <= 1 && !soft9) sharpenPlate9(cr9.cv);
   freeBakeCanvas(cv);
   if (tintCvB9) freeBakeCanvas(tintCvB9);
   const entry: BldSprite = {
