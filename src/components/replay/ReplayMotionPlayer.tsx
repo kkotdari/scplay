@@ -24428,6 +24428,29 @@ export default function ReplayMotionPlayer({
     const read = (): void => {
       const h9 = Math.round(el.getBoundingClientRect().height);
       if (h9 > 0) lyr.style.setProperty("--scr-fsbot-m", `${h9}px`);
+      /* ★ 미니맵 키를 오른쪽 조작부에 맞춘다(요청: "미니맵 높이하고 오른쪽 조작부 높이가 맞아야지") — 프레임 모드의 독은
+         [미니맵 | 지도 버튼 줄 / 재생부] 격자인데, 미니맵 높이를 손값(--scr-dock-mini)으로 박아 두면 오른쪽 세 줄과 위아래가
+         어긋난다. 여기서 실측한다: 지도 버튼의 윗변에서 꼬리 줄의 아랫변까지가 미니맵의 키고, 그 윗변·아랫변이 제 줄의
+         가장자리에서 떨어진 만큼이 미니맵의 위·아래 여백이다. 오른쪽이 미니맵보다 낮아 줄이 늘어나 있는 상태에서 재면 한
+         번에 안 맞을 수 있으나, 미니맵이 줄면 줄도 줄어 관찰자가 다시 부르고 몇 번 안에 맞물린다(1px 안이면 안 건드린다). */
+      if (!lyr.classList.contains("is-fs")) {
+        const btns9 = lyr.querySelector(".scr-motion-mapbtns") as HTMLElement | null;
+        const btn9 = btns9?.querySelector("button") as HTMLElement | null;
+        const tail9 = el.querySelector(".scr-fs-bottom-tail") as HTMLElement | null;
+        if (btns9 && btn9 && tail9) {
+          const rB9 = btns9.getBoundingClientRect();
+          const rb9 = btn9.getBoundingClientRect();
+          const rT9 = tail9.getBoundingClientRect();
+          const rE9 = el.getBoundingClientRect();
+          const mini9 = Math.round(rT9.bottom - rb9.top);
+          const cur9 = parseFloat(lyr.style.getPropertyValue("--scr-dock-mini")) || 0;
+          if (mini9 > 40 && Math.abs(mini9 - cur9) > 1) {
+            lyr.style.setProperty("--scr-dock-mini", `${mini9}px`);
+            lyr.style.setProperty("--scr-dock-mini-mt", `${Math.max(0, Math.round(rb9.top - rB9.top))}px`);
+            lyr.style.setProperty("--scr-dock-mini-mb", `${Math.max(0, Math.round(rE9.bottom - rT9.bottom))}px`);
+          }
+        }
+      }
     };
     const ro = new ResizeObserver(read);
     ro.observe(el);
