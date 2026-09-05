@@ -4903,8 +4903,12 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
              없으면 시간에 따라 천천히 한 바퀴(24°/s, 15초에 한 바퀴) 도는 각을 준다.
              자리(centerX·centerY)로 위상을 흩어 여러 터렛이 한 박자로 안 돈다.
              22.5도로 접으므로 캐시 판은 겨눌 때와 같은 16장 안에서 돈다. */
+          /* 터렛은 **연속으로** 돈다(지적: "저렇게 도는 게 아니라 빙빙 연속적으로") — 22.5도 칸(16장)은
+             24°/s에서 1초에 한 번 툭툭 넘어가는 그림이었다. 터렛만 7.5도 칸(48장)으로 촘촘히 굽는다: 터렛 판은
+             2×2 발자국의 작은 판이라 48장이라도 몇 MB이고, 도는 동안 같은 48장을 되쓴다. 겨눌 때도 같은 칸. */
+          const HEAD_STEP9 = unit === "Missile Turret" ? 7.5 : 22.5;
           const sweep9 = unit === "Missile Turret"
-            ? ((Math.round(((t * 24 + centerX * 37 + centerY * 53) % 360) / 22.5) * 22.5) % 360 + 360) % 360
+            ? ((Math.round(((t * 24 + centerX * 37 + centerY * 53) % 360) / HEAD_STEP9) * HEAD_STEP9) % 360 + 360) % 360
             : undefined;
           const f9 = foeOfTgt9(rec9?.tgt);
           if (!f9) return sweep9;
@@ -4917,7 +4921,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           if (dd9 > reachTo(unit, { air: f9.air, k: f9.k, uk: f9.uk },
             fireRangeTilesOf(unit, f9.air))) return sweep9;
           const d9 = (Math.atan2(-(f9.x - centerX), f9.y - centerY) * 180) / Math.PI;
-          return ((Math.round(d9 / 22.5) * 22.5) % 360 + 360) % 360;
+          return ((Math.round(d9 / HEAD_STEP9) * HEAD_STEP9) % 360 + 360) % 360;
         })()
         : undefined;
       /* 이 건물 판의 자리 — 아래 사격 판정이 벙커의 불빛을 나중에 켠다(요청:
