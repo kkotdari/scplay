@@ -192,6 +192,8 @@ const pitchTag = (pitch?: boolean): string => (pitch ? pitchFlatNow.toFixed(3) :
    각은 22.5도 열여섯 칸으로 갈무리한다 — 굽는 판이 칸마다 하나씩 생기기 때문이다.
    sunkenFire와 같은 결의 '굽는 동안만 서는 깃발'이라, 끝나면 반드시 0으로 되돌린다. */
 let headYawNow = 0;
+/** 겨누는 중인가(표적이 있어 headDeg가 왔나) — 포톤캐논의 대기/공격 모델을 가른다(headTag에 실린다). */
+let headAimNow = false;
 /* ★ 그림자 크기는 **높이를 안 탄다**(요청 → 정정: "공중에 뜰수록 그림자가 커져야돼
    물리적으로" → "아 평행광이면 얘기가 다르지 무조건 1배로 가자") ─────────────────────
    잠깐 점광원 닮음비(H/(H−h))로 키웠다가 되돌린 자리다. 결론이 맞다: 이 화면의 광원은
@@ -214,11 +216,13 @@ let headYawNow = 0;
  *    각을 쓰는 셋(터렛·포톤캐논·쏘는 성큰)만 열쇠에 각을 싣는다. */
 const HEAD_KINDS = new Set(["turret", "coil", "sunkenfire", "sunkentongue"]);
 const headTag = (kind?: string): string =>
-  (headYawNow && (kind === undefined || HEAD_KINDS.has(kind)) ? headYawNow.toFixed(0) : "0");
+  ((headYawNow || headAimNow) && (kind === undefined || HEAD_KINDS.has(kind))
+    ? `${headYawNow.toFixed(0)}${headAimNow ? "a" : ""}` : "0");
 /** 굽는 도구(model-shot --head)가 포탑 각을 세우는 문 — 앱에서는 bldSprite가 op.headDeg
  *  로 세우므로 이 문은 도구 전용이다. 돌아간 포탑을 눈으로 확인하려면 이 문이 있어야
  *  한다(poseSet·bldLitSet과 같은 결). */
-export function headYawSet(d: number): void { headYawNow = d; }
+/** 도구(model-shot --head)용 — 각과 함께 '겨누는 중'도 세운다(0이 아니면 겨눔). */
+export function headYawSet(d: number, aim = d !== 0): void { headYawNow = d; headAimNow = aim; }
 /** 원근 거리 = 상자 세로 × 이 값. 클수록 원근이 약하고 바닥이 상자를 더 채운다.
  *
  *  1.6 → 4(지적: "3D모드에서 좌우의 땅이 내려가게 기울어진 느낌의 착시") — 진단은
@@ -5032,7 +5036,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         path: (t9: number): [number, number, number] => [
           mx9 + Math.sign(mx9) * xoff9(t9)
             + Math.sign(mx9) * (W0_9 * 0.5 * CUT_K9) * cut9(t9),
-          -0.3 * Math.max(0, (t9 - K1_9) / (1 - K1_9)),
+          0,   // 뒤로 눕던 −0.3을 걷는다(지적: 옆에서 보면 좌우 비대칭) — 굽이는 x–z 평면에만
           h - 0.35 + AXIS9 * t9,
         ],
         widthOf: (t9: number): number => base9(t9) * (1 - CUT_K9 * cut9(t9)),
@@ -5046,10 +5050,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const face9 = (t9: number): { x: number; y: number; z: number; hw: number } => {
         const w9 = base9(t9) * (1 - CUT_K9 * cut9(t9));
         return {
-          x: mx9 + Math.sign(mx9) * (xoff9(t9) + (W0_9 * 0.5 * CUT_K9) * cut9(t9) + w9 / 2 + 0.03),
-          y: -0.3 * Math.max(0, (t9 - K1_9) / (1 - K1_9)),
+          /* spirePillar의 반지름은 w 그대로(widthAt)이고 네모 단면의 꼭짓점은 45도에 서므로 옆면은 축에서
+             w·cos45 = 0.707w 떨어져 있다. w/2로 두면 데칼이 면 안쪽에 묻힌다(지적). */
+          x: mx9 + Math.sign(mx9) * (xoff9(t9) + (W0_9 * 0.5 * CUT_K9) * cut9(t9) + w9 * Math.SQRT1_2 + 0.03),
+          y: 0,
           z: h - 0.35 + AXIS9 * t9,
-          hw: w9 / 2,
+          hw: w9 * Math.SQRT1_2,
         };
       };
       const strip9 = (t0: number, t1: number, taperTop: boolean): void => {
@@ -5766,14 +5772,22 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const tx9 = ux9 * 6.15;
       const ty9 = uy9 * 6.15;
       // 안쪽 반폭 0.86, 바깥 반폭 0.5 — 밖으로 좁아지는 쐐기.
+      /* 톱니 1.2배(요청). 윗면은 **안쪽이 높고 밖으로 갈수록 가팔라지는 곡선 경사**(요청) — 안쪽 변 2.04,
+         가운데(방사 +0.18) 1.92, 바깥 변 1.45. 두 조각으로 꺾어 곡선을 낸다(안쪽은 완만, 바깥은 급). */
+      const TK9 = 1.2;
       const quad9 = (z9: number): [number, number, number][] => ([
-        [tx9 - ux9 * 0.75 - vx9 * 0.86, ty9 - uy9 * 0.75 - vy9 * 0.86, z9],
-        [tx9 - ux9 * 0.75 + vx9 * 0.86, ty9 - uy9 * 0.75 + vy9 * 0.86, z9],
-        [tx9 + ux9 * 0.75 + vx9 * 0.5, ty9 + uy9 * 0.75 + vy9 * 0.5, z9],
-        [tx9 + ux9 * 0.75 - vx9 * 0.5, ty9 + uy9 * 0.75 - vy9 * 0.5, z9],
+        [tx9 - ux9 * 0.75 * TK9 - vx9 * 0.86 * TK9, ty9 - uy9 * 0.75 * TK9 - vy9 * 0.86 * TK9, z9],
+        [tx9 - ux9 * 0.75 * TK9 + vx9 * 0.86 * TK9, ty9 - uy9 * 0.75 * TK9 + vy9 * 0.86 * TK9, z9],
+        [tx9 + ux9 * 0.75 * TK9 + vx9 * 0.5 * TK9, ty9 + uy9 * 0.75 * TK9 + vy9 * 0.5 * TK9, z9],
+        [tx9 + ux9 * 0.75 * TK9 - vx9 * 0.5 * TK9, ty9 + uy9 * 0.75 * TK9 - vy9 * 0.5 * TK9, z9],
       ]);
       const lo9 = quad9(0);
-      const hi9 = quad9(1.7);
+      const hi9 = quad9(0).map(([qx9, qy9], k9) => [qx9, qy9, k9 < 2 ? 2.04 : 1.45] as [number, number, number]);
+      const midW9 = 0.644 * TK9;   // 안쪽 0.86 → 바깥 0.5 사이(60% 자리)의 반폭
+      const mid9: [number, number, number][] = [
+        [tx9 + ux9 * 0.18 * TK9 - vx9 * midW9, ty9 + uy9 * 0.18 * TK9 - vy9 * midW9, 1.92],
+        [tx9 + ux9 * 0.18 * TK9 + vx9 * midW9, ty9 + uy9 * 0.18 * TK9 + vy9 * midW9, 1.92],
+      ];
       const tooth9: ShapeFace[] = [bodyFace(polyPath3(lo9))];
       const walls9 = lo9.map((_, k9) => {
         const j9 = (k9 + 1) % 4;
@@ -5792,13 +5806,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       out.push(...tagKey(tooth9, depthNow(tx9, ty9) * 1.6));
       /* 윗면만 개인색이다 — 몸판 위에 같은 네모를 한 장 더 얹는다. 깊이 키는 제 톱니
          바로 위(+0.4)라 어느 요잉에서도 제 톱니에 붙어 다닌다. */
-      const capD = polyPath3(hi9);
+      const capIn9 = polyPath3([hi9[0], hi9[1], mid9[1], mid9[0]]);
+      const capOut9 = polyPath3([mid9[0], mid9[1], hi9[2], hi9[3]]);
       /* 흰 윗면을 안 얹는다(지적: "톱니 위 임자색 데칼 아직도 연하게 보임") — 여태 개인색
          네모 위에 topFace 0.2를 얹었는데, 이 빌더는 GLOSS_KINDS(toss)의 감싸개를 타므로
          그 흰 덮개가 금속 곡선을 한 번 더 먹어 0.43(#fff3cf), 굽는 자(shadeBoost)에서
          0.54가 됐다 — 임자 색이 절반 넘게 씻겼다(실측 #4aa3ff → #bbd5e1). 게이트 발판 데칼과
          같은 답: 덮개 없이 몸판만 두어 임자 색이 제 색으로 든다. 톱니의 입체는 옆벽이 읽는다. */
-      pc.push(...tagKey([bodyFace(capD)], depthNow(tx9, ty9) * 1.6 + 0.4));
+      pc.push(...tagKey([bodyFace(capIn9), bodyFace(capOut9)], depthNow(tx9, ty9) * 1.6 + 0.4));
     }
     /* 가운데 포탑은 받침 위 얹힘(재지적: 바닥이 포탑을 가림) — 지붕 띠 키로 받침
        (반지름 키)·이음 원반들을 늘 이긴다.
@@ -5840,7 +5855,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 관 셋 — [꼭대기 높이, 반지름]. 안쪽이 가장 가늘고 높고, 바깥으로 갈수록 굵고
          낮다. **안에서 밖으로** 그린다: 나중에 그리는 바깥 관이 안쪽 관의 밑동을 덮어야
          '감싼다'가 된다(반대로 그리면 가는 기둥이 굵은 관을 뚫고 나온 꼴이다). */
-      const TUBES: [number, number][] = [[7.4, 0.66], [5.0, 1.06], [3.4, 1.5]];
+      /* 대기/공격을 가른다(지적: "대기 상태에는 포탑이 높이 나오지 않고 가장 안쪽 포탑만 높이 반쯤 올라와
+         있음 — 지금은 공격 모드 모델링") — 겨눌 때(headAimNow)만 세 관이 다 솟고, 대기에는 안쪽 관이 반
+         높이, 바깥 두 관은 밑동만 살짝 보인다. 열쇠(headTag)에 'a'가 실려 판이 따로 굽힌다. */
+      const TUBES: [number, number][] = headAimNow
+        ? [[7.4, 0.66], [5.0, 1.06], [3.4, 1.5]]
+        : [[Z0 + (7.4 - Z0) * 0.5, 0.66], [Z0 + 0.32, 1.06], [Z0 + 0.32, 1.5]];
       const N9 = 14;
       /** 그 높이의 잘린 테 — s9가 자름의 방향이다(+1이면 앞이 낮다). */
       const ringAt = (r9: number, zT: number, s9 = 1): [number, number, number][] =>
@@ -9655,6 +9675,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       }
       // 줄기 굵기는 제각각(요청) — 0.13~0.27.
       const life9 = 2 + Math.floor(rnd() * 2);        // 줄기 수명 2~3칸(난수 차례는 단계와 무관)
+      /* 잔가지·발밑 가지는 줄기보다 **오래 살지 않는다**(지적: "메인 가지만 남거나 잔가지만 남는 경우 — 자연에선
+         잔가지가 같이 사라지거나 먼저 사라진다") — 가지의 끝 칸을 줄기의 끝 칸(endMain9)으로 자른다. */
+      const endMain9 = bs9 + life9;
+      const sub9 = (start9: number, want9: number): [number, number] => {
+        const s9 = Math.min(endMain9 - 1, start9);
+        return [s9, Math.max(1, Math.min(want9, endMain9 - s9))];
+      };
       bolt(pts, 0.13 + rnd() * 0.14, depthNow(gx9, gy9) * 1.6 + 4 + i9 * 0.01,
         false, bs9, STAGE9 === bs9 ? 0.62 : 1, life9);
       /* ★ **공중 잔가지**(요청: "공중에도 잔가지가 퍼져야 해, 여기저기 여러 높이에서"
@@ -9716,14 +9743,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const tw9 = 0.06 + rnd() * 0.07;
         const kb9 = depthNow(ox9, oy9) * 1.6 + 4 + i9 * 0.01 + 0.005;
         const tlife9 = 1 + Math.floor(rnd() * 2);     // 잔가지 수명 1~2칸
-        const tp9 = twig9(ox9, oy9, oz9, ta9, zc9, tl9, tw9, kb9, Math.min(bs9 + life9 - 1, bs9 + 1), tlife9);
+        const [ts9, tl9c] = sub9(bs9 + 1, tlife9);
+        const tp9 = twig9(ox9, oy9, oz9, ta9, zc9, tl9, tw9, kb9, ts9, tl9c);
         if (tl9 <= R9 * 0.6) continue;
         // 긴 가지만 한 번 더 갈린다 — 갈리는 마디도, 벌어지는 쪽도 뽑는다.
         const [jx9, jy9, jz9] = tp9[2 + Math.floor(rnd() * 2)];
         let zc2 = rnd() * 2 - 1;
         if (zc2 > 0) zc2 *= 0.55;
         twig9(jx9, jy9, jz9, ta9 + (rnd() < 0.5 ? -1 : 1) * (0.6 + rnd() * 0.8),
-          zc2, tl9 * (0.35 + rnd() * 0.25), tw9 * 0.62, kb9 + 0.002, Math.min(bs9 + life9 - 1, bs9 + 2), 1);
+          zc2, tl9 * (0.35 + rnd() * 0.25), tw9 * 0.62, kb9 + 0.002, ...sub9(bs9 + 2, 1));
       }
       /* ★ **발밑 가지**(지적: "맨 아래 바닥에 크게 퍼지는 방사형 번개 제거 — 각각의
          줄기에서 뻗어나오는 게 자연스럽다") ──────────────────────────────────────
@@ -9748,7 +9776,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           ]);
         }
         bolt(lp, 0.07 + rnd() * 0.08, depthNow(gx9, gy9) * 1.6 + 2 + i9 * 0.01 + g9 * 0.001,
-          false, Math.min(bs9 + life9 - 1, bs9 + 1), 2);
+          false, ...sub9(bs9 + 1, 2));
       }
     }
     /* (걷어냄·요청: "스톰 바닥의 푸른 원반은 제거") — 발치에 깔던 옅은 빛(R9짜리
@@ -19871,10 +19899,12 @@ function buildingSprite(op: UnitDrawOp, sideQ: number, B: number): BldSprite | n
   const prev9 = headYawNow;
   headYawNow = op.headDeg === undefined ? 0
     : (((op.headDeg - (op.rotDeg ?? 0)) % 360) + 540) % 360 - 180;
+  headAimNow = op.headDeg !== undefined;
   try {
     return buildingSpriteBake(op, sideQ, B);
   } finally {
     headYawNow = prev9;
+    headAimNow = false;
     bldLitNow = false;
     bldSpinNow = 0;
   }
