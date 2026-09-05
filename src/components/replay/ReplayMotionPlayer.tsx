@@ -22492,7 +22492,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
                  ★ 간격도 **같이** 네 배여야 한다(갈래표의 puff 3 → 12). 반지름만 키우면
                    덩이가 서로 파묻혀 도로 한 줄기 띠가 된다 — 이 자취를 덩이로 바꾼 까닭
                    자체가 사라지는 셈이다. 간격과 지름은 늘 한 쌍으로 움직인다. */
-              const r9 = st.w * zoom * (3.8 + 0.6 * jit9);
+              const r9 = st.w * tz9 * (3.8 + 0.6 * jit9);   // 타일 자(폰 보정, 핵탄두와 같은 지적)
               const off9 = Math.sin(i9 * 1.9) * r9 * 0.22;
               const [bx9, by9] = at9(d9);
               const cx9 = bx9 - dyy * off9;
@@ -22539,7 +22539,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
               for (const [o9, c9] of st.g) hg9.addColorStop(o9, c9);
               ctx.globalAlpha = a9;
               ctx.strokeStyle = hg9;
-              ctx.lineWidth = Math.max(0.6, st.w * zoom * 1.6);
+              ctx.lineWidth = Math.max(0.6, st.w * tz9 * 1.6);
               ctx.lineCap = "round";
               ctx.beginPath();
               ctx.moveTo(ex9, ey9);
@@ -22577,14 +22577,14 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
                  않으면서도, 불투명해서 덩이 위로 또렷이 뜬다). */
               ctx.globalAlpha = a9;
               ctx.strokeStyle = st.smokeEdge ?? "#a8d4ff";
-              ctx.lineWidth = Math.max(1.4, st.w * zoom * 3.4);
+              ctx.lineWidth = Math.max(1.4, st.w * tz9 * 3.4);
               ctx.lineCap = "round";
               ctx.beginPath();
               ctx.moveTo(ex9, ey9);
               ctx.lineTo(bx8, by8);
               ctx.stroke();
               ctx.strokeStyle = "#ffffff";
-              ctx.lineWidth = Math.max(0.9, st.w * zoom * 2.2);
+              ctx.lineWidth = Math.max(0.9, st.w * tz9 * 2.2);
               ctx.beginPath();
               ctx.moveTo(ex9, ey9);
               ctx.lineTo(bx8, by8);
@@ -22592,7 +22592,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
               // 코 — 앞을 가리키는 한 점.
               ctx.fillStyle = "#ffffff";
               ctx.beginPath();
-              ctx.arc(ex9, ey9, Math.max(0.8, st.w * zoom * 1.5), 0, Math.PI * 2);
+              ctx.arc(ex9, ey9, Math.max(0.8, st.w * tz9 * 1.5), 0, Math.PI * 2);
               ctx.fill();
             }
             continue;
@@ -30161,8 +30161,8 @@ export default function ReplayMotionPlayer({
                         style={{
                           width: `${hp9 * 0.62 * zoom}px`,
                           height: `${hp9 * 2.6 * zoom}px`,
-translate: `${(-(Math.round((-fp9 * (1 - dropP9) ** 2 - hp9 * 0.275 - hp9 * 1.42) * zoom) + hp9 * 1.3 * zoom) * lean9).toFixed(1)}px ${Math.round(
-                            (-fp9 * (1 - dropP9) ** 2 - hp9 * 0.275
+translate: `${(-(Math.round((-fp9 * (1 - dropP9 ** 2) - hp9 * 0.275 - hp9 * 1.42) * zoom) + hp9 * 1.3 * zoom) * lean9).toFixed(1)}px ${Math.round(
+                            (-fp9 * (1 - dropP9 ** 2) - hp9 * 0.275
                               - hp9 * 1.42) * zoom)}px`,
                           /* 옆 밀림은 띠의 **밑동**(가운데 + 키의 절반 아래)의 높이로 잰다 — 가운데 높이로 재면 밑동이 키의
                              절반만큼 더 밀려 탄두에서 떨어진다(지적: 연기가 너무 바깥쪽). 회전 축도 밑동. */
@@ -30180,10 +30180,12 @@ translate: `${(-(Math.round((-fp9 * (1 - dropP9) ** 2 - hp9 * 0.275 - hp9 * 1.42
                              시트 밖 폴백일 뿐이다). */
                           width: `${hp9 * zoom}px`, height: `${hp9 * zoom}px`,
                           /* ★ **가속도**를 붙인다(요청: "핵탄두 떨어지는 속도 가속도
-                             붙이기") — 여태 진행률을 그대로 높이에 썼다(등속). 떨어지는
-                             것은 등속이 아니라 시간의 제곱으로 빨라지므로(자유낙하
-                             h ∝ t²), 남은 높이를 **(1 − p)²** 으로 준다: 처음에는 거의
+                             붙이기") — 떨어지는 것은 시간의 제곱으로 빨라지므로(자유낙하
+                             h ∝ t²) 남은 높이를 **1 − p²** 으로 준다: 처음에는 거의
                              제자리에 떠 있다가 마지막 순간에 내리꽂힌다.
+                             ★ 앞판은 (1 − p)² 이었다(재지적: "지면에 가까워질수록 갑자기 느려져") —
+                               그 식은 처음에 빨리 떨어지고 땅 근처에서 멈추는 **감속** 곡선이다
+                               (|dh/dp| = 2(1 − p)). 주석이 말하던 것과 반대였다. 회전도 p^2.5로 더 붙인다.
                              창의 길이(NUKE_DROP_SEC)와 착탄 시각은 그대로다 — 같은 시간
                              안에서 배분만 바뀐다. 흐려짐도 같은 곡선을 타 늦게 또렷해진다. */
                           /* ★ 코를 조준점에 맞추는 몫이 **절반이 아니다**(몸을 세우면서
@@ -30194,8 +30196,8 @@ translate: `${(-(Math.round((-fp9 * (1 - dropP9) ** 2 - hp9 * 0.275 - hp9 * 1.42
                              닫히는 둥근 머리라 잉크의 아래 끝이 y 12.40이다(하네스 실측).
                              가운데(50%)와의 차 0.275만큼
                              올리면 코가 점에 닿는다. */
-                          translate: `${(-Math.round((-fp9 * (1 - dropP9) ** 2 - hp9 * 0.275) * zoom) * lean9).toFixed(1)}px ${Math.round(
-                            (-fp9 * (1 - dropP9) ** 2 - hp9 * 0.275) * zoom)}px`,
+                          translate: `${(-Math.round((-fp9 * (1 - dropP9 ** 2) - hp9 * 0.275) * zoom) * lean9).toFixed(1)}px ${Math.round(
+                            (-fp9 * (1 - dropP9 ** 2) - hp9 * 0.275) * zoom)}px`,
                           opacity: 0.4 + 0.6 * dropP9 ** 2,
                         }}
                       >
@@ -30219,7 +30221,7 @@ translate: `${(-(Math.round((-fp9 * (1 - dropP9) ** 2 - hp9 * 0.275 - hp9 * 1.42
                         <FxModel
                           kind="nuke"
                           fit={false}
-                          rotDeg={-(Math.round((dropP9 ** 2 * 720) / 22.5) * 22.5)}
+                          rotDeg={-(Math.round((dropP9 ** 2.5 * 720) / 22.5) * 22.5)}
                           flat={!pitched} pitchView={pitched} viewYaw={viewYawOf(x, y)}
                         />
                       </span>
