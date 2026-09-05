@@ -3983,11 +3983,19 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         if (!visAll && teamOfRaw(b9[4]) !== viewTeam) continue;
         const lift9 = b9[6];
         const land9 = b9[5] ?? 0;   // 이 줄의 gone은 파괴가 아니라 **착륙 시각**이다
-        if (lift9 === undefined || t < lift9 || !(land9 > lift9) || t > land9) continue;
+        if (lift9 === undefined || t < lift9 || (land9 > 0 && t > land9)) continue;
+        const fp9 = FOOTPRINT[b9[3]] ?? [3, 2];
+        /* ★ 참값 자취가 있으면 **그 자리**에 눈을 둔다(지적: "부양 중 건물도 시야만큼 안개 걷히게") — 여태는 착륙 줄이
+           있는 비행만 두 자리 사이 보간으로 냈다. 아직 안 앉은 건물·제자리에서 떠 있는 건물·격추 전 건물은 눈이 없어
+           떠 있는 동안 제 둘레가 안개였다. 자취가 없는 옛 기록만 보간으로 물러난다. */
+        const ftag9 = bldTagAt.get(`${b9[4]}|${b9[3]}|${Math.round(b9[1] + fp9[0] / 2)}|${Math.round(b9[2] + fp9[1] / 2)}`);
+        const ftr9 = ftag9 !== undefined ? simTracks?.get(ftag9) : undefined;
+        const fpos9 = ftr9 ? posAtSim(ftr9, t) : null;
+        if (fpos9) { eye(fpos9.x, fpos9.y, sightTiles(b9[3])); continue; }
+        if (!(land9 > lift9)) continue;
         const to9 = buildsSrc.find(([s2, x2, y2, u2, r2]) => r2 === b9[4] && u2 === b9[3]
           && s2 === land9 && (x2 !== b9[1] || y2 !== b9[2]));
         if (!to9) continue;
-        const fp9 = FOOTPRINT[b9[3]] ?? [3, 2];
         const u9 = Math.min(1, (t - lift9) / Math.max(0.1, land9 - lift9));
         const k9 = u9 * u9 * (3 - 2 * u9);
         eye(b9[1] + (to9[1] - b9[1]) * k9 + fp9[0] / 2,

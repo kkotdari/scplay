@@ -24703,7 +24703,11 @@ export default function ReplayMotionPlayer({
   const visAll = viewTeam !== 1 && viewTeam !== 2;
   /** 안개를 셈할 재료가 있나 — 자취가 없는 옛 기록은 종전대로 통째로 보인다. */
   // 안개는 개체 트랙이 있을 때만(옛 경기는 없다) — 걷기(entWalks)는 이제 추적을 켤 때만 받으므로 그 길이로 가리면 안 된다.
-  const fogOn = !!entData && entData.lives.length > 0 && worldEnts9;
+  /* ★ worldEnts9 문을 걷었다(재지적: "처음에 안개 깜빡임 여전") — 참값(entData)이 있으면 안개는 켜진 것이다. 워커의
+     첫 세계 표(개체 없음)가 올 때까지 안개를 끄면 지도가 밝게 한 번 보였다가 안개가 덮이는 깜빡임이 났다. 첫 장이
+     오기 전에는 아래 fogHold9(전부 안개)를 그린다 — 밝았다 어두워지는 대신 어두운 채로 시작해 걷힌다. */
+  const fogOn = !!entData && entData.lives.length > 0;
+  void worldEnts9;
   const gw9 = grid.width;
   const gh9 = grid.height;
   /** 밝힘 이력 — 칸마다 '그 팀이 **처음 본** 초'. 안 본 칸은 NEVER. */
@@ -27451,8 +27455,12 @@ export default function ReplayMotionPlayer({
   }
   const unitOps = frame9.unitOps;
   const fxOps = frame9.fxOps;
-  const exploredAt = frame9.explored;
-  const visNow = frame9.visNow;
+  /* 첫 안개 판이 오기 전의 자리표 — 전부 '안 본 곳'(FOG_NEVER)·지금 보이는 곳 없음. 지도 크기별로 한 번만 만든다. */
+  const fogHold9 = useMemo(() => (fogOn
+    ? { explored: new Uint16Array(gw9 * gh9).fill(65535), visNow: new Uint8Array(gw9 * gh9) }
+    : null), [fogOn, gw9, gh9]);
+  const exploredAt = frame9.explored ?? fogHold9?.explored ?? null;
+  const visNow = frame9.visNow ?? fogHold9?.visNow ?? null;
   /** DOM 효과 기록 → 스팬. 죽음 여운(dieat)만은 낮은 배율에서 효과 시트로 보낸다(캔버스 burst는 2배부터). */
   /* 입체(3D)에서 CSS 효과의 자·눕기(지적: "스캔 등 CSS 효과가 눕지 않음 · 피격·사망 등 CSS 효과가 너무
      크게 나옴") — 캔버스 op의 자(unitGlyphPx)는 깊이 배율 pitchK(y)를 먹는데, DOM 효과의 폭은 '지도 폭의
