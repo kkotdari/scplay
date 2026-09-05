@@ -4129,12 +4129,38 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const rx9 = (u9: number): number => RX0 + (RX1 - RX0) * u9;
         const rz9 = (u9: number): number => RZ0 + (RZ1 - RZ0) * u9 + 0.03;
         bay.push([polyPath3([
-          [rx9(t9 + 0.1), 0.2, rz9(t9 + 0.1)],
-          [rx9(t9 - 0.07), 0.72, rz9(t9 - 0.07)],
-          [rx9(t9 - 0.07), -0.32, rz9(t9 - 0.07)],
+          [rx9(t9 + 0.1), 0, rz9(t9 + 0.1)],          // 정가운데(재지적)
+          [rx9(t9 - 0.07), 0.52, rz9(t9 - 0.07)],
+          [rx9(t9 - 0.07), -0.52, rz9(t9 - 0.07)],
         ]), 1, "#e8a13a"] as ShapeFace);
       }
       out.push(...tagKey(bay, 2.5));
+      /* ★ 문틀(가림막) — 격납구 둘레의 옆벽을 한 번 더 그려 속이 사선에서 **문틀 밖으로 비치지 않게** 한다
+         (재지적: "격납구가 깊어서 사선에서 가려져야 하는데 안 가려짐"). 안쪽 벽은 깊이만큼 옆으로 밀려 투영되므로
+         문틀 밖으로 삐져나오는데, 벽 면(x = sxAt(z), y ±fyAt(z))을 개구부만 비운 띠들로 덮으면 그 몫이 가려진다.
+         몸과 같은 재질(색 없음 → raceBase 스테인)·같은 명암이라 이음매가 없다. */
+      const frame: ShapeFace[] = [];
+      const fl9 = faceLight(1, 0, 0.3);
+      const quad9 = (y0f: (z: number) => number, y1f: (z: number) => number, z0: number, z1: number): void => {
+        const d9 = polyPath3([
+          [sxAt(z0) + 0.01, y0f(z0), z0], [sxAt(z0) + 0.01, y1f(z0), z0],
+          [sxAt(z1) + 0.01, y1f(z1), z1], [sxAt(z1) + 0.01, y0f(z1), z1],
+        ]);
+        frame.push([d9, 1] as ShapeFace, ...(fl9.visible ? fl9.face(d9) : [sideFace(d9, 0.4)]));
+      };
+      const zs9 = [ZB0, BZ0, ZW0, ZW1, BZ1, ZT].sort((a9, b9) => a9 - b9);
+      for (let i9 = 0; i9 + 1 < zs9.length; i9 += 1) {
+        const z0 = zs9[i9]; const z1 = zs9[i9 + 1];
+        if (z1 - z0 < 1e-3) continue;
+        const zm9 = (z0 + z1) / 2;
+        if (zm9 < BZ0 || zm9 > BZ1) {
+          quad9((z) => -fyAt(z), (z) => fyAt(z), z0, z1);           // 개구부 위·아래: 벽 전체 폭
+        } else {
+          quad9((z) => -fyAt(z), () => BY0, z0, z1);                 // 왼쪽 띠
+          quad9(() => BY1, (z) => fyAt(z), z0, z1);                  // 오른쪽 띠
+        }
+      }
+      out.push(...tagKey(frame, 2.55));
     }
 
     // ── 지붕 — 검은 굴뚝 넷(뒤 판) · 흰 성곽 이빨 · 임자색 포탑(뒤 오른쪽).
@@ -4169,7 +4195,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     //    앞바닥 모서리에서 뒤 꼭대기로 오른다.
     {
       // 정가운데(재지적: "샌드위치 부품이 정 가운데로 오고") — x −0.9~0.9, y 0.7(앞·낮음)~−0.7(뒤·높음).
-      const WX0 = -0.9; const WX1 = 0.9; const YF9 = 0.7; const YR9 = -0.7;
+      const WX0 = -0.9; const WX1 = 0.9; const YF9 = -1.1; const YR9 = -2.5;   // 뒤 판의 정가운데(재재지적: "뒤쪽 정가운데임")
       const WZ0 = ZT + 0.08; const WZ1 = WZ0 + 1.5;
       /* 양옆 삼각면과 빗면의 **아랫부분(0~40%)**은 임자색(요청: "샌드위치 모양 부품의 양옆면과 경사면의 아랫부분을
          임자색으로 감싸기") — 빗면은 그 선에서 위(몸색)·아래(임자색)로 나눈다. */
