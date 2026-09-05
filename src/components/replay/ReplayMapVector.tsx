@@ -469,7 +469,7 @@ export default function ReplayMapVector({
           /* 반올림한 변에서 되짚은 실제 타일 크기로 늘려 그린다 — 위 창이 쓰는 자와
              같은 자다(안 그러면 정사각이 아닌 맵에서 가장자리 한 줄이 뜬다). */
           bctx9.setTransform((bcw9 / w) / bppt9, 0, 0, (bch9 / h) / bppt9, 0, 0);
-          drawMapGrid(bctx9, grid, mt, bppt9, false, pitched ? 4 : 1);
+          drawMapGrid(bctx9, grid, mt, bppt9, false, pitched ? 4 : WALL_2D_K9);
           bctx9.setTransform(1, 0, 0, 1, 0, 0);
           baseBakedRef.current = { key: bkey, cv: bcv };
         }
@@ -646,7 +646,7 @@ export default function ReplayMapVector({
     /* 입체에서는 벽이 네 배 높다(요청) — 평면(위에서 내려다보는 그림)에서는 벽띠가
        곧 '남쪽으로 밀린 그림자'라 높이면 고원이 어긋나 보이지만, 입체에서는 그 띠가
        바로 우리 쪽을 보는 절벽면이라 높을수록 지형의 단이 또렷하다. */
-    drawMapGrid(ctx, grid, mt, ppt, false, pitched ? 4 : 1);
+    drawMapGrid(ctx, grid, mt, ppt, false, pitched ? 4 : WALL_2D_K9);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     /* ★ **정말로 구운 횟수**를 센다 — 여기까지 온 것만이 굽기다.
        `붓:지도벡터`가 세던 것은 이펙트가 **돈** 횟수라, 캐시에 맞아 자리만 옮기고
@@ -701,3 +701,5 @@ export default function ReplayMapVector({
     </div>
   );
 }
+/** 2D 벽띠(절벽면) 높이 배수(요청: "2D에서 지도 높이 표현 강화 … 2배로") — 3D는 4. */
+const WALL_2D_K9 = 2;

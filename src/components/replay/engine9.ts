@@ -6836,6 +6836,8 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
          굽기와 캐시가 그대로 절반이 된다. 4배부터는 열여섯 칸 그대로다. */
       rotDeg: burrowed ? undefined
         : liteYaw ? Math.round(bodyHdg / 45) * 45 : bodyHdg,
+      // 묻힌 몸은 그림자가 없다(요청) — 땅속에 든 것이 땅에 그늘을 질 수 없다.
+      ...(burrowed ? { noShadow: true } : {}),
       viewYaw: viewYawOf(ax3, ay3), flat: !pitched, pitch: pitched,
       /* 크기 열쇠 셋을 바로잡는다(지적 셋을 한 줄에서 고친다):
          ① drawUnit이 아니라 drawUnit2 — 시즈모드 탱크가 "tank" 줄에서 크기를 받아

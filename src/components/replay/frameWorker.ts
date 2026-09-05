@@ -63,6 +63,8 @@ let clock: { playing: boolean; t0: number; speed: number; at: number; aheadSec: 
 let nextT = -1;
 /** 지어 둔 창의 **시작** 시각 — 되감기 판정은 이것과 견준다. */
 let winStartT = -1;
+/** 지난 pump 때의 시계 시각 — **어느 되감기든** 이것과 견줘 잡는다(아래 pump의 ★). */
+let lastCur = -1;
 /** 미뤄 둔 pump 타이머(0이면 없음). */
 let pumpTimer = 0;
 /** 프레임 한 장 짓는 데 든 시간(ms, 지수 평균) — 박자를 여기에 맞춘다(stepNow). 0이면 아직 모른다. */
@@ -148,10 +150,19 @@ const pump = (): void => {
   const step = stepNow();
   const cur = clockT();
   if (nextT < 0) restartFrom(cur, false);
-  else if (winStartT >= 0 && cur < winStartT - step * 2) restartFrom(cur, true);          // 되감기
+  /* ★ 되감기는 **지난 시각보다 뒤로 갔나**로 잡는다(지적: "뒤로감기 했을때 모델들이 새로고침 안되는
+     경우") — 여태는 창의 시작(winStartT)보다 앞으로 갔을 때만 되감기였다. 그런데 창의 시작은 시야가
+     바뀔 때(restartFrom)만 갱신되므로, 재생을 시작한 뒤 팬·줌이 없었으면 창은 0초부터라 **어떤 되감기도
+     안 잡혔다**: nextT는 미래에 머물고 `nextT <= until`이 거짓이라 아무 장도 안 지었다. 메인은 새 시각
+     아래의 장이 없어 마지막 장을 든 채 멎었다(시야를 한 번 바꾸면 그제야 풀렸다 — '경우'의 정체).
+     되감기면 엔진도 잊는다(forget) — 안개·방향·사격 위상은 시간이 앞으로만 흐른다고 믿고 쌓인 것이라
+     미래의 값이다. */
+  else if (lastCur >= 0 && cur < lastCur - step * 2) restartFrom(cur, true);              // 되감기
+  else if (winStartT >= 0 && cur < winStartT - step * 2) restartFrom(cur, true);          // 되감기(창 시작 앞)
   /* 앞으로 튐(건너뛰기·뒤처짐)은 기억을 **안 비운다** — 시간이 앞으로 가는 것은 엔진에겐 긴 프레임일 뿐이고, 비우면
      안개·방향·사격 위상을 처음부터 다시 쌓아 첫 장들이 무거워진다(폰에서 짓기가 191ms까지 오르던 나선의 한 축). */
   else if (cur > nextT + step * 2) restartFrom(cur, false);
+  lastCur = cur;
   if (!clock.playing) {
     // 멈춤: 그 시각의 프레임이 창 안에 없을 때만 한 장.
     const have = built.some((b) => Math.abs(b.t - cur) <= step * 1.5);
@@ -231,6 +242,7 @@ const rebuildEngine = (): void => {
   engine = createEngine9(world, view);
   nextT = -1;
   winStartT = -1;
+  lastCur = -1;
   built = [];
 };
 

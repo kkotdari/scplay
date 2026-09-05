@@ -6352,7 +6352,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const PIPE = "#e6ebf2";
     const out: ShapeFace[] = [];
     // 받침 — 낮고 넓은 검회색 단.
-    out.push(...tagKey(paintBase(boxFaces3(0, 0, 8.6, 6, 0.8, 0), DARK), 0));
+    /* 아래판을 앞으로 당기고 깊이를 줄인다(지적: "리파이너리 아래판 뒤로 너무 길게 나가있는듯") —
+       6 → 5.2, 가운데 0 → 0.4: 뒤 가장자리 −3 → −2.2. 뒤쪽 드럼(A)도 함께 0.3 앞으로. */
+    out.push(...tagKey(paintBase(boxFaces3(0, 0.4, 8.6, 5.2, 0.8, 0), DARK), 0));
     // 각진 덩이 넷 — 높이가 제각각인 상자 무리.
     /* 덩이마다 앞벽·옆벽에 창을 낸다(요청: "익스트랙터 양쪽 건물에 창문 표시 및 평소
        어둡다가 가스캘때는 네온색 불빛") — 평소엔 거의 검은 유리이고, 안에서 가스를
@@ -6362,7 +6364,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     for (const [bx, by, bw, bh, bz] of [
       /* 굴뚝을 인 덩이(제일 높음)는 **정가운데**다(지시: "굴뚝 있는 건물과 굴뚝 통째로
          정가운데로 위치 이동"). (1.4, −2)에서 (0, −0.3)으로 — A·C 사이에 꼭 낀다. */
-      [-2.4, -1.6, 2.6, 2.2, 3.4], [0, -0.3, 2.4, 2, 4.2],
+      [-2.4, -1.3, 2.6, 2.2, 3.4], [0, -0.3, 2.4, 2, 4.2],
       [3.2, 0.6, 2.2, 2.6, 3], [-3, 1.8, 2.2, 2, 2.4],
     ] as [number, number, number, number, number][]) {
       out.push(...tagKey(paintBase(boxFaces3(bx, by, bw, bh, bz, 0.8), BODY),
@@ -17309,7 +17311,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        그대로라 '흐려진' 것이 아니라 **짙어진** 것으로 읽히고, 반사 곡선은 안 건드리므로
        번쩍임의 대비(어두운 바탕 위의 흰 몇 면)는 오히려 또렷해진다. */
     return lit9(paintBase(
-      order.filter((gi) => gi < keepN).flatMap((gi) => gems[gi]), "#6cb6ea"));   // 더 연하게(요청) #3f8ecf → #6cb6ea
+      // 초록기를 빼고 파랑 쪽으로(요청: "미네랄 모델 초록색톤 줄이고 더 청색톤에 가깝게") — 205° → 215°, 밝기·채도 그대로.
+      order.filter((gi) => gi < keepN).flatMap((gi) => gems[gi]), "#6aa2ee"));   // #3f8ecf → #6cb6ea → #6aa2ee
   },
   /* 가스 간헐천(재모델링·사진 / 요청: 개인색 없는 고유색 전용) — 팀색을 한 점도
      쓰지 않는다: 모든 면에 제 색을 박는다. 지적("분화구 외의 나머지 부품들 삭제")에
@@ -21282,7 +21285,10 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
              가로는 footX 그대로다(앞선 지적: 그림자·링이 몸과 안 맞음). */
           ctx.ellipse(sx, groundY ?? groundOy9, shw * 1.1, shw * (op.air ? 0.5 : 0.42) * (op.pitch ? pitchFlatNow : 1), 0, 0, Math.PI * 2);
           ctx.fill();
-        } else if (showShadows !== false && CROWD9.lv === 0 && detail && !op.air && !op.clipWalk) {
+        } else if (showShadows !== false && CROWD9.lv === 0 && detail && !op.air && !op.clipWalk && !op.noShadow) {
+          /* ★ noShadow도 여기서 본다(지적: "버로우 럴커·마인은 그림자 안 그려야 자연스럽" · "다른 저그 버로우도")
+             — 위 부양 갈래만 그 깃발을 보고, 땅에 선 몸의 작은 그림자는 안 봤다. 마인은 op에 noShadow가
+             이미 실려 있었는데도 그림자가 났던 까닭이다. 버로우한 몸은 엔진이 같은 깃발을 싣는다. */
           /* 지상 유닛 접지 그림자(재지적: 전부 떠 있는 느낌 — 발이 그림자에 닿아야 하고
              훨씬 작아야) — 발끝 자리에 딱 붙는 아주 작은 타원.
              ★ 조건에서 UNIT_KIND_SET을 걷었다(지적: 같은 배율에서도 어떤 건 그림자가
