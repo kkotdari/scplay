@@ -863,6 +863,12 @@
 /* 지도 벡터층(요청: 확대해도 선명) — 보이는 창만 굽는 캔버스가 % 자리로 앉는다. */
 /* 실기기 진단 오버레이(#diag) — 지도 왼위. 폰에서 스크린샷 한 장으로 읽히게 또렷한
    검은 판에 흰 숫자만 둔다(테마와 무관하게 늘 같은 꼴이어야 비교가 된다). */
+/* `#diag=fps` — 오른쪽 위 귀퉁이의 작은 fps 오버레이(요청). 아래 진단 판의 자리·크기만 덮어쓴다. */
+.scr-motion-diag.scr-diag-fps {
+  left: auto; right: 6px; padding: 2px 6px; font-size: 10px; line-height: 1.3; border-radius: 6px;
+  background: rgba(0, 0, 0, 0.6);
+}
+.scr-diag-fps-u { font-size: 8px; opacity: 0.8; margin-left: 1px; }
 .scr-motion-diag {
   /* absolute다 — 붙는 자리를 배치마다 바꿔서 화면 안에 세운다(평소엔 지도 상자,
      전체화면엔 판 뿌리). fixed는 답이 못 된다: 조상이 변환을 쓰면 fixed의 기준이

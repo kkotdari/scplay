@@ -2008,6 +2008,8 @@ export const SCR_DIAG: {
   worker: string;
   /** 덜어내기(폰 과밀) — "N단 평균ms 유닛수". */
   crowd: string;
+  /** 붓이 실제로 칠한 초당 장 수(벽시계, 0.5초마다 갱신) — `#diag=fps`의 작은 오버레이가 읽는다. */
+  fps: number;
   /** 이 프레임의 효과 op을 '갈래:무기'로 센다 — "이 무기가 안 나간다"는 신고를 눈이
    *  아니라 수로 가리려고 둔다(트레이서는 0.2초짜리라 스크린샷 한 장으로는 못 가린다).
    *  #diag가 켜져 있을 때만 채운다. */
@@ -2031,7 +2033,7 @@ export const SCR_DIAG: {
 } = {
   dpr: 0, unitCss: "", unitBack: "", unitB: 0,
   mapCss: "", mapBack: "", ppt: 0, needed: 0, scale: 0, unitScale: 0,
-  areaCap: 0, allocOk: true, zoom: 0, fx: {}, prod: "", worker: "", crowd: "",
+  areaCap: 0, allocOk: true, zoom: 0, fx: {}, prod: "", worker: "", crowd: "", fps: 0,
   truthVer: 0, truthTrust: -1, truthWhy: "",
 };
 /** #diag가 켜져 있나 — 주소가 바뀌지 않는 한 한 번만 읽는다. */

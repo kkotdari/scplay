@@ -153,19 +153,20 @@ export default function ReplayGuide({ onClose }: {
           <span className="scr-guide-group">재생</span>
           <K keys={["Space"]} title="재생 / 일시정지" desc="끝까지 본 뒤에 누르면 처음부터 다시 돕니다."/>
           <K keys={["←", "→"]} title="되감기 / 빨리감기" desc="누르고 있으면 계속 감깁니다 — 떼면 그 자리에서 멈춥니다."/>
-          <K keys={["↑", "↓"]} title="배속 올리기 / 내리기"/>
+          <K keys={["Q", "E"]} title="배속 내리기 / 올리기"/>
 
           <span className="scr-guide-group">지도</span>
           <K keys={["W", "A", "S", "D"]} title="지도 움직이기" desc="누르고 있는 동안 계속 밀립니다."/>
-          <K keys={["]", "["]} title="확대 / 축소" desc="]가 확대, [가 축소. 한 번에 한 칸씩, 마우스 휠로도 됩니다."/>
+          <K keys={["↑", "↓"]} title="확대 / 축소" desc="한 번에 한 칸씩, 마우스 휠로도 됩니다."/>
 
           <span className="scr-guide-group">장면</span>
-          <K keys={["O"]} title="장면 스크랩" desc="지금 장면을 제목 붙여 담습니다."/>
-          <K keys={["P"]} title="장면 공유" desc="지금 장면의 링크를 공유 시트로 보냅니다(안 되면 링크 복사)."/>
+          <K keys={["Z"]} title="장면 스크랩" desc="지금 장면을 제목 붙여 담습니다."/>
+          <K keys={["X"]} title="장면 공유" desc="지금 장면의 링크를 공유 시트로 보냅니다(안 되면 링크 복사)."/>
 
           <span className="scr-guide-group">보기</span>
-          <K keys={["V"]} title="평면 ↔ 입체"/>
-          <K keys={["C"]} title="팀색 ↔ 개인색"/>
+          <K keys={["2", "3"]} title="평면 / 입체"/>
+          <K keys={["R"]} title="로스터" desc="이름만 → 전체 → 숨김 순으로 돕니다."/>
+          <K keys={["T"]} title="팀색 ↔ 개인색"/>
           <K keys={["M"]} title="음악 켜기 / 끄기"/>
 
           <span className="scr-guide-group">창</span>

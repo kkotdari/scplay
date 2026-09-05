@@ -23737,6 +23737,10 @@ export default function ReplayMotionPlayer({
     engMs: 0, packMs: 0, fogMs: 0, fogN: 0, resets: 0, skew: 0,
   });
   const lastFrameRef9 = useRef<Frame9 | null>(null);
+  const fpsMeterRef9 = useRef({ n: 0, at: 0 });
+  const fpsOnlyRef9 = useRef(false);
+  const [fpsTick9, setFpsTick9] = useState(0);
+  void fpsTick9;
   /** 보간 op 풀 — 개체 열쇠마다 op 객체 하나를 두고 장이 바뀌어도 그 객체에 값만 덮어쓴다(그리기마다 객체를 안 만든다). */
   const lerpPoolRef9 = useRef<Map<string, UnitDrawOp>>(new Map());
   const lerpFrameRef9 = useRef<{ frame: Frame9; ops: UnitDrawOp[] } | null>(null);
@@ -27380,6 +27384,19 @@ export default function ReplayMotionPlayer({
   };
   /* 틱의 붓 — 살아 있는 시각으로 프레임을 골라 op·효과를 ref에 두고 유닛 캔버스를 곧장 칠한다(React 없이). */
   paintFnRef9.current = (tNow9: number): void => {
+    /* fps 계측(요청: "#diag=fps로 오른쪽 귀퉁이에 프레임 오버레이만 작게") — 붓이 칠한 장을 벽시계 0.5초마다
+       세어 SCR_DIAG.fps에 적는다. 진단이 꺼져 있으면 셈만 하고(싸다) 아무것도 안 그린다. */
+    {
+      const fm9 = fpsMeterRef9.current;
+      fm9.n += 1;
+      const now9 = pNow();
+      if (now9 - fm9.at >= 500) {
+        SCR_DIAG.fps = Math.round((fm9.n * 1000) / (now9 - fm9.at));
+        fm9.n = 0;
+        fm9.at = now9;
+        if (fpsOnlyRef9.current) setFpsTick9((k9) => k9 + 1);
+      }
+    }
     const fr9 = frameAt9(tNow9, true);
     frameOpsRef9.current = fr9.unitOps;
     frameFxRef9.current = fr9.fxOps;
@@ -28075,12 +28092,39 @@ export default function ReplayMotionPlayer({
       const k = e.key;
       /** 오버레이에 손잡이가 있는 조작이면 판을 깨운다(위 주석). */
       const wakeUi = (): void => { if (fsOn) fsWake(); };
+      /* ★ 키 배치(요청: "키 매핑 변경 — 확대 축소: 위아래 화살표 · 배속: q/e · 로스터/색깔: r/t · 2d/3d: 2/3 ·
+         스크랩/공유: z/x · 나머지는 그대로"). 글자 키는 e.code(자판 자리)로 읽어 한글 자판에서도 듣는다. */
+      const zoomStep9 = (up9: boolean): void => {
+        const el9 = mapRef.current;
+        const r9 = el9?.getBoundingClientRect();
+        if (!r9 || r9.width < 4) return;
+        const z9 = zoomNext(zoomRef.current, up9)
+          ?? (up9 ? ZOOM_STEPS[ZOOM_STEPS.length - 1] : ZOOM_STEPS[0]);
+        if (z9 === zoomRef.current) return;
+        const kk9 = z9 / zoomRef.current;
+        const lim9 = panLimit(z9);
+        const np9 = {
+          x: Math.min(lim9.x, Math.max(-lim9.x, panRef.current.x * kk9)),
+          y: Math.min(lim9.yTop, Math.max(-lim9.y, panRef.current.y * kk9)),
+        };
+        zoomRef.current = z9;
+        panRef.current = np9;
+        setZoom(z9);
+        setPan(np9);
+      };
       if (k === "ArrowUp" || k === "ArrowDown") {
+        // 위아래 화살표 = 확대·축소(요청). 옛 ]/[도 아래에 별칭으로 남긴다.
         e.preventDefault();
         wakeUi();
+        zoomStep9(k === "ArrowUp");
+      } else if (e.code === "KeyQ" || e.code === "KeyE") {
+        // q/e = 배속 내리기/올리기(요청).
+        e.preventDefault();
+        wakeUi();
+        const up9 = e.code === "KeyE";
         setSpeed((v) => {
           const i = SPEEDS.indexOf(v);
-          return SPEEDS[k === "ArrowUp" ? Math.min(SPEEDS.length - 1, i + 1) : Math.max(0, i - 1)];
+          return SPEEDS[up9 ? Math.min(SPEEDS.length - 1, i + 1) : Math.max(0, i - 1)];
         });
       } else if (k === "ArrowLeft" || k === "ArrowRight") {
         /* ←→ — 톡 누르면 5초, **붙잡으면 이어 감기**다(요청: "좌우화살표도 모바일처럼
@@ -28139,60 +28183,28 @@ export default function ReplayMotionPlayer({
            입력칸·단추 초점 걸러내기는 위에 그대로 있어, 자판이 붙어 있어도 글 쓰는 중에는
            안 뺏는다. */
       } else if (e.code === "BracketRight" || e.code === "BracketLeft") {
-        /* ]/[ 로 한 칸씩 확대·축소(지시: I/O → ]/[ — O·P는 앱의 스크랩·장면 공유에 내준다) — ]가 확대,
-           [가 축소. wasd처럼 **e.code**를 읽어 한글 자판(ㅂ·ㄷ)에서도 듣는다. 지도
-           **한가운데를 축**으로 삼는다(더블클릭은 누른 자리가 축이지만, 키에는 겨눈
-           자리가 없다). 칸은 배율 사다리(ZOOM_STEPS 1·2·3·6·12) 그대로라 손짓·휠과 같은
-           자리에 선다. 팬은 새 배율의 한계로 다시 죈다 — 안 그러면 축소할 때 지도 끝이
-           안으로 들어온다. 위가 확대다(바·목록의 위쪽이 큰 값인 것과 같은 결). */
+        // ]/[ — 옛 확대·축소 별칭(안내에는 안 적는다).
         e.preventDefault();
         wakeUi();
-        {
-          const el9 = mapRef.current;
-          const r9 = el9?.getBoundingClientRect();
-          if (!r9 || r9.width < 4) return;
-          const up9 = e.code === "BracketRight";
-          // 사잇값에서 한 칸이 두 칸으로 뛰지 않게(위 zoomNext 주석) — 끝이면 제자리.
-          const z9 = zoomNext(zoomRef.current, up9)
-            ?? (up9 ? ZOOM_STEPS[ZOOM_STEPS.length - 1] : ZOOM_STEPS[0]);
-          if (z9 === zoomRef.current) return;
-          const kk9 = z9 / zoomRef.current;
-          const lim9 = panLimit(z9);
-          const np9 = {
-            x: Math.min(lim9.x, Math.max(-lim9.x, panRef.current.x * kk9)),
-            y: Math.min(lim9.yTop, Math.max(-lim9.y, panRef.current.y * kk9)),
-          };
-          /* ★ **ref도 함께 굳힌다**(지적: "확대 축소 키만 잘 안 먹네, 한 번에 안 먹을
-             때가 많아") ─────────────────────────────────────────────────────────────
-             여기만 상태(setZoom)만 쓰고 zoomRef·panRef를 안 건드렸다. 다른 확대 길
-             (휠·핀치·한 손 줌)은 전부 둘을 같이 쓴다 — 까닭이 있다: 손짓이 끝날 때
-             `endGestureXf`가 **`setZoom(zoomRef.current)`로 상태를 ref에 맞춰 되돌린다**.
-             곧 휠·트랙패드를 굴린 뒤 140ms 안이나, wasd·가장자리 밀기가 끝나는 그 순간에
-             키를 누르면 그 되돌림이 키가 올린 배율을 덮었다 — '한 번에 안 먹는' 것의
-             정체가 이것이고, 그래서 **가끔** 그랬다(그 창에 걸릴 때만).
-             ref를 함께 쓰면 되돌림이 덮을 것이 없다: 되돌아갈 값이 곧 새 값이다. */
-          zoomRef.current = z9;
-          panRef.current = np9;
-          setZoom(z9);
-          setPan(np9);
-        }
-      /* (걷어냄) PageUp/Down — 시점 각도 눈금을 한 칸씩 오가던 키다(지시: 제거).
-         각도는 오른쪽 슬라이드 바가 손잡이를 이미 갖고 있고, 키로 한 칸씩 미는 일은
-         2D/3D를 오가는 것에 견주면 쓸 일이 드물었다. */
-      } else if (k === "c" || k === "C" || k === "ㅊ") {
+        zoomStep9(e.code === "BracketRight");
+      } else if (e.code === "KeyT") {
+        // t = 팀색 ↔ 개인색(요청; 옛 c).
         e.preventDefault();
         wakeUi();
         setColorMode((v) => (v === "team" ? "personal" : "team"));
-      } else if (k === "v" || k === "V" || k === "ㅍ") {
-        /* v — 평면/입체 토글(지시). 화면의 2D/3D 버튼과 **같은 일**이다: 각도를 90도와
-           입체 각(PITCH_3D) 사이에서만 오간다. 각도 눈금을 한 칸씩 밀던 PageUp/Down을
-           걷은 자리를 이 하나가 대신한다 — 실제로 오가는 것은 그 두 자리뿐이었다.
-           d가 아니라 v인 까닭은 wasd가 d를 이미 쓰기 때문이다(지시 정정). */
+      } else if (e.code === "KeyR") {
+        // r = 로스터 여닫이(이름만 → 전체 → 숨김, 오른쪽 아래 단추와 같은 순서).
         e.preventDefault();
         wakeUi();
-        // 손가락 기기에는 입체를 안 준다(위 pitchAllowed) — 버튼과 같은 문이다.
-        if (!pitchAllowed()) pitchDenied();
-        else setPitchDeg((v9) => (v9 === 90 ? PITCH_3D : 90));
+        setRosterMode((v) => ((v + 1) % 3) as 0 | 1 | 2);
+      } else if (e.code === "Digit2" || e.code === "Digit3") {
+        // 2 = 평면, 3 = 입체(요청; 옛 v 토글).
+        e.preventDefault();
+        wakeUi();
+        if (e.code === "Digit2") setPitchDeg(90);
+        else if (!pitchAllowed()) pitchDenied();
+        else setPitchDeg(PITCH_3D);
+      // (걷어냄) v 토글 — 2/3 키가 대신한다(위).
       } else if (k === "m" || k === "M" || k === "ㅡ") {
         /* m — 음악 켜기/끄기(지시). 색상(c)·재생(p)과 같은 결이다: 손잡이가 화면에
            있는 조작이라 **오버레이를 깨운다**(위 wakeUi 주석의 그 규약 — 눌러 놓고
@@ -28940,7 +28952,17 @@ export default function ReplayMotionPlayer({
   }, [diagOn, truth, entData, world, entWalks9]);
   const dm9 = (k: string): boolean => diagModes9.has(k) || diagModes9.has("all");
   const sheetsMB9 = (SPRITE_PERF.last.bytes + SPRITE_PERF.last.bldBytes) / 1048576;
-  const diagNode = diagOn ? (
+  /* `#diag=fps` — 오른쪽 위 귀퉁이에 **작은 fps 오버레이만**(요청). 다른 진단 글은 안 그린다.
+     붓의 fps 계측(paintFnRef9)이 0.5초마다 fpsTick9를 올려 이 숫자만 다시 그린다. */
+  const fpsOnly9 = diagModes9.size === 1 && diagModes9.has("fps");
+  fpsOnlyRef9.current = fpsOnly9;
+  const diagNode = fpsOnly9 ? (
+    <div className="scr-motion-diag scr-diag-fps">
+      {SCR_DIAG.fps}<span className="scr-diag-fps-u">fps</span>
+      {" · "}{SPRITE_PERF.wLast.worstFrame.toFixed(0)}ms
+      {" · 워커 "}{wStatRef.current.buildMs.toFixed(0)}ms
+    </div>
+  ) : diagOn ? (
   <div className="scr-motion-diag">
                 {/* 머리 — 늘 보인다: 배킹(dpr)·배율·어느 판인가. */}
                 <div>
