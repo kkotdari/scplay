@@ -4024,7 +4024,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     }
     /* ── 옆면에도 같은 세로 홈(요청: "팩토리 옆면에도 앞면과 같은 가운데 패임 추가") — 앞뒤 홈을 x·y만 바꿔
        옆면(sxAt)에 판다. 홈 바닥·문설주·문턱·인방 모두 같은 규약. */
-    for (const sgn9 of [1, -1] as const) {
+    for (const sgn9 of [-1] as const) {   // 오른쪽(+x)은 격납구가 그 자리를 차지한다
       if (facingRatio(sgn9, 0) <= 0.08) continue;
       const GD9 = 0.38;
       const gx9 = (z9: number): number => sgn9 * (sxAt(z9) - GD9);
@@ -4090,61 +4090,61 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ], k9));
       pc.push(...tagKey(boxFaces3(fx9, DB / 2 + 0.9, 0.8, 0.14, 0.24, 0), k9 + 0.1));
     }
-    // 뒤 받침 둘 — 뒤 귀의 낮은 클램프.
-    for (const fx9 of [-3.1, 3.1]) {
-      out.push(...tagKey(paintBase(boxFaces3(fx9, -2.5, 1.1, 0.9, 0.8, 0), NEAR_BLACK),
-        depthNow(fx9, -2.5) * 1.6));
+    /* 네 귀의 발판(요청: "팩토리도 바닥에 네개의 발판이 있어야함 단 다리는 너무 짧아서 거의 안보일정도") —
+       뒤 클램프 둘을 걷고 네 귀에 낮은 발판(1.3×1.0×0.3)을 놓는다. 다리는 발판과 몸 바닥(ZB0 0.6) 사이 0.3의
+       짧은 원기둥이라 거의 안 보인다. 앞 경사발 셋은 그대로다. */
+    // 다른 건물과 같은 발(재지적: "네개의 발은 다른 건물 같은 발판 형태") — legAndFoot(각진 짧은 다리 + 팔각 발판).
+    // 몸 바닥이 ZB0(0.6)이라 다리는 거의 안 보이고 발판만 남는다. 키는 legAndFoot이 제 것(몸 뒤)을 단다.
+    for (const sx9 of [-1, 1] as const) {
+      for (const sy9 of [-1, 1] as const) {
+        out.push(...legAndFoot(sx9 * 3.0, sy9 * 2.0, ZB0 + 0.1, 0.03));
+      }
     }
 
-    // ── 옆면(오른쪽) — **푹 패인 경사로**: 옆벽의 어두운 문간에서 경사면이 밖으로
-    //    나와 땅에 닿는다.
+    /* ── 옆면(오른쪽) — **몸 안으로 파인 경사로 격납구**(재지적: "경사로를 팩토리 몸통 내부로 이동, 지금처럼
+       튀어나오지 않아야 함. 내부로 넣고 높이도 높여야 함") — 옆벽을 y −1.0~1.4, z 0.9~3.6으로 깊이 1.55 파고,
+       그 안에서 경사면이 안쪽 높은 바닥(z 1.5)에서 벽 선(z 0.05)으로 내려온다. 몸 밖으로 나오는 것은 없다.
+       옆이 보일 때만 그리고 키는 문간과 같은 2.5(몸 위, 앞면보다 아래). */
     if (facingRatio(1, 0) > 0.06) {
-      const dq9 = polyPath3([
-        [sxAt(0.9) - 0.24, -1.0, 0.9], [sxAt(0.9) - 0.24, 1.4, 0.9],
-        [sxAt(2.9) - 0.24, 1.4, 2.9], [sxAt(2.9) - 0.24, -1.0, 2.9],
-      ]);
-      out.push(...tagKey([[dq9, 1, NEAR_BLACK] as ShapeFace], 2.5));
-    }
-    {
-      const ramp9 = polyPath3([
-        [sxAt(1.0) - 0.2, -0.85, 1.0], [sxAt(1.0) - 0.2, 1.25, 1.0],
-        [WW / 2 + 1.15, 1.25, 0.05], [WW / 2 + 1.15, -0.85, 0.05],
-      ]);
-      out.push(...tagKey([
-        [ramp9, 1, "#4a515b"] as ShapeFace, topFace(ramp9, 0.1),
-        [polyPath3([
-          [sxAt(1.0) - 0.2, 1.25, 1.0], [WW / 2 + 1.15, 1.25, 0.05],
-          [WW / 2 + 1.15, 1.25, 0], [sxAt(1.0) - 0.2, 1.25, 0],
-        ]), 1, "#343a43"] as ShapeFace,
-        [polyPath3([
-          [WW / 2 + 1.15, -0.85, 0.05], [WW / 2 + 1.15, 1.25, 0.05],
-          [WW / 2 + 1.15, 1.25, 0], [WW / 2 + 1.15, -0.85, 0],
-        ]), 1, NEAR_BLACK] as ShapeFace,
-        // 바깥(내려가는 쪽)을 가리키는 노란 삼각 유도선 셋
-        ...([0.3, 0.55, 0.8] as const).map((t9): ShapeFace => {
-          const rx9 = (u9: number): number => sxAt(1.0) - 0.2 + (WW / 2 + 1.35 - sxAt(1.0)) * u9;
-          const rz9 = (u9: number): number => 1.0 + (0.05 - 1.0) * u9 + 0.03;
-          return [polyPath3([
-            [rx9(t9 + 0.1), 0.2, rz9(t9 + 0.1)],
-            [rx9(t9 - 0.07), 0.72, rz9(t9 - 0.07)],
-            [rx9(t9 - 0.07), -0.32, rz9(t9 - 0.07)],
-          ]), 1, "#e8a13a"];
-        }),
-        /* 키(지적: "옆면 경사로 키값 문제, 앞면에 안 가려지네") — 경사로가 붙은
-           +x 옆면이 시점을 향할 때만 몸 위(10+)이고, 등을 돌리면 몸보다 먼저 그려
-           몸이 덮는다. */
-      ], facingRatio(1, 0) > 0.25 ? 10 + depthNow(WW / 2 + 0.6, 0.2) * 1.6 : -5));
-      /* 정면(옆면이 스쳐 보이는 각)에서는 먼저 그려 몸이 덮는다(재지적: "정면에서
-         안 가려짐") — 몸 밖으로 튀어나온 몫만 남고 앞면과 겹친 몫은 앞면 아래로 간다. */
+      // 옆면 정가운데(재지적) — y −1.2~1.2. 오른쪽 옆 홈은 이 격납구가 대신한다(아래 옆 홈은 왼쪽만).
+      const BY0 = -1.2; const BY1 = 1.2; const BZ0 = 0.9; const BZ1 = 3.6; const DEEP = 1.55;
+      const ix9 = (z9: number): number => sxAt(z9) - DEEP;
+      const bay: ShapeFace[] = [
+        // 안쪽 벽(어두움)
+        [polyPath3([[ix9(BZ0), BY0, BZ0], [ix9(BZ0), BY1, BZ0], [ix9(BZ1), BY1, BZ1], [ix9(BZ1), BY0, BZ1]]), 1, NEAR_BLACK] as ShapeFace,
+        // 천장(인방)
+        [polyPath3([[ix9(BZ1), BY0, BZ1], [ix9(BZ1), BY1, BZ1], [sxAt(BZ1), BY1, BZ1], [sxAt(BZ1), BY0, BZ1]]), 1, "#454b55"] as ShapeFace,
+      ];
+      // 양옆 벽 — 시점을 향한 쪽만
+      for (const [yy9, ny9] of [[BY0, 1], [BY1, -1]] as [number, 1 | -1][]) {
+        if (facingRatio(0, ny9) <= 0.04) continue;
+        bay.push([polyPath3([[ix9(BZ0), yy9, BZ0], [sxAt(BZ0), yy9, BZ0], [sxAt(BZ1), yy9, BZ1], [ix9(BZ1), yy9, BZ1]]), 1, "#555c67"] as ShapeFace);
+      }
+      // 경사면 — 안쪽 높은 바닥에서 벽 선까지 내려온다
+      const RX0 = ix9(1.5) + 0.05; const RZ0 = 1.5; const RX1 = sxAt(0.9) + 0.02; const RZ1 = 0.05;
+      const ramp9 = polyPath3([[RX0, BY0 + 0.15, RZ0], [RX0, BY1 - 0.15, RZ0], [RX1, BY1 - 0.15, RZ1], [RX1, BY0 + 0.15, RZ1]]);
+      bay.push([ramp9, 1, "#4a515b"] as ShapeFace, topFace(ramp9, 0.1));
+      // 바깥(내려가는 쪽)을 가리키는 노란 삼각 유도선 셋
+      for (const t9 of [0.3, 0.55, 0.8] as const) {
+        const rx9 = (u9: number): number => RX0 + (RX1 - RX0) * u9;
+        const rz9 = (u9: number): number => RZ0 + (RZ1 - RZ0) * u9 + 0.03;
+        bay.push([polyPath3([
+          [rx9(t9 + 0.1), 0.2, rz9(t9 + 0.1)],
+          [rx9(t9 - 0.07), 0.72, rz9(t9 - 0.07)],
+          [rx9(t9 - 0.07), -0.32, rz9(t9 - 0.07)],
+        ]), 1, "#e8a13a"] as ShapeFace);
+      }
+      out.push(...tagKey(bay, 2.5));
     }
 
     // ── 지붕 — 검은 굴뚝 넷(뒤 판) · 흰 성곽 이빨 · 임자색 포탑(뒤 오른쪽).
+    // 굴뚝 넷은 **세로(y) 한 줄**(재지적: "가로로 나란히가 아니라 세로로 나란히") — 왼쪽 뒤에서 앞으로.
     for (let c9 = 0; c9 < 4; c9 += 1) {
-      const cx9 = -2.95 + c9 * 0.66;
+      const cx9 = -2.7; const cy9 = -2.2 + c9 * 0.6;
       out.push(...tagKey([
-        ...paintBase(cylinderFaces3(cx9, -1.55, 0.34, 0.5, ZT + 0.06), NEAR_BLACK),
-        capFace(discPath3(cx9, -1.55, ZT + 0.62, 0.24), 0.5),
-      ], 3.3 + c9 * 0.01));
+        ...paintBase(cylinderFaces3(cx9, cy9, 0.34, 0.5, ZT + 0.06), NEAR_BLACK),
+        capFace(discPath3(cx9, cy9, ZT + 0.62, 0.24), 0.5),
+      ], 3.3 + depthNow(cx9, cy9) * 0.05));
     }
     for (const [tx9, ty9] of [
       [-2.5, 1.85], [-1.3, 1.85], [0.1, 1.85], [1.3, 1.85], [2.5, 1.85],
@@ -4168,24 +4168,35 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // ── 옥상 가운데 뒤쪽 — 샌드위치꼴 직각삼각 쐐기: 뒷벽은 수직, 빗면이
     //    앞바닥 모서리에서 뒤 꼭대기로 오른다.
     {
-      const WX0 = -0.45; const WX1 = 1.35; const YF9 = -0.5; const YR9 = -1.9;
+      // 정가운데(재지적: "샌드위치 부품이 정 가운데로 오고") — x −0.9~0.9, y 0.7(앞·낮음)~−0.7(뒤·높음).
+      const WX0 = -0.9; const WX1 = 0.9; const YF9 = 0.7; const YR9 = -0.7;
       const WZ0 = ZT + 0.08; const WZ1 = WZ0 + 1.5;
-      const slope9 = polyPath3([
-        [WX0, YF9, WZ0], [WX1, YF9, WZ0], [WX1, YR9, WZ1], [WX0, YR9, WZ1],
+      /* 양옆 삼각면과 빗면의 **아랫부분(0~40%)**은 임자색(요청: "샌드위치 모양 부품의 양옆면과 경사면의 아랫부분을
+         임자색으로 감싸기") — 빗면은 그 선에서 위(몸색)·아래(임자색)로 나눈다. */
+      const SB9 = 0.4;
+      const yS9 = YF9 + (YR9 - YF9) * SB9;
+      const zS9 = WZ0 + (WZ1 - WZ0) * SB9;
+      const slopeHi9 = polyPath3([
+        [WX0, yS9, zS9], [WX1, yS9, zS9], [WX1, YR9, WZ1], [WX0, YR9, WZ1],
+      ]);
+      const slopeLo9 = polyPath3([
+        [WX0, YF9, WZ0], [WX1, YF9, WZ0], [WX1, yS9, zS9], [WX0, yS9, zS9],
       ]);
       out.push(...tagKey([
-        [slope9, 1] as ShapeFace, topFace(slope9, 0.55),
+        [slopeHi9, 1] as ShapeFace, topFace(slopeHi9, 0.55),
         ...(facingRatio(0, -1) > 0.06 ? [[polyPath3([
           [WX0, YR9, WZ0], [WX1, YR9, WZ0], [WX1, YR9, WZ1], [WX0, YR9, WZ1],
         ]), 1, "#3a4048"] as ShapeFace] : []),
+      ], 3.62));
+      pc.push(...tagKey([
+        [slopeLo9, 1] as ShapeFace, topFace(slopeLo9, 0.3),
         ...([-1, 1] as const).flatMap((m9): ShapeFace[] => {
           const mx9 = m9 > 0 ? WX1 : WX0;
           if (facingRatio(m9, 0) <= 0.06) return [];
-          return [[polyPath3([
-            [mx9, YF9, WZ0], [mx9, YR9, WZ0], [mx9, YR9, WZ1],
-          ]), 1, "#4a515b"] as ShapeFace];
+          const d9 = polyPath3([[mx9, YF9, WZ0], [mx9, YR9, WZ0], [mx9, YR9, WZ1]]);
+          return [[d9, 1] as ShapeFace, sideFace(d9, 0.35)];
         }),
-      ], 3.62));
+      ], 3.63));
     }
 
     // ── 모서리 안테나 둘.
