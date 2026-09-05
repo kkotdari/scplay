@@ -4878,12 +4878,15 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           /* 자리는 몸 가운데·그 위(요청: 건물 아래에 깔려 안 보임) — 발자국 폭의 0.3만큼 띄워 몸통 위에 앉힌다.
              수는 상처가 심할수록 많다(요청): 1단 2개 · 2단 5개. 그리는 쪽은 캔버스 위 층(dieFx9)에 둔다. */
           k: "wound", key: `bw-${i}`, x: centerX, y: centerY, z: z + 4,
-          lift: bFlyPx9 + fp2[0] * bldTile9 * pitchK(centerY) * 0.3,
+          /* 들기 0.3 → 0.12(지적: "지금 너무 높은데 나오는 경우가 많네") — 몸통 아래쪽에 붙인다. */
+          lift: bFlyPx9 + fp2[0] * bldTile9 * pitchK(centerY) * 0.12,
           race: race2 === "저그" ? "zerg" : race2 === "프로토스" ? "toss" : "terran",
           items: Array.from({ length: woundLv === 2 ? 5 : 2 }, (_, k9) => {
             const h9 = (i * 2654435761 + k9 * 40503) >>> 0;
-            const ux9 = ((h9 % 1000) / 1000 - 0.5) * 0.62;
-            const uy9 = (((h9 >>> 10) % 1000) / 1000 - 0.5) * 0.62;
+            /* 흩는 폭 ±0.31 → ±0.16(요청: "너무 넓게 퍼뜨리진 말고 갯수 늘릴 때도 중심부 주변으로") —
+               2단에서 다섯이 되어도 몸 가운데 언저리에 모인다. */
+            const ux9 = ((h9 % 1000) / 1000 - 0.5) * 0.32;
+            const uy9 = (((h9 >>> 10) % 1000) / 1000 - 0.5) * 0.32;
             const sz9 = fp2[0] * (woundLv === 2 ? 0.34 : 0.26) * bldTile9 * pitchK(centerY);   // 입체: 깊이 배율
             return { sz: sz9, dx: ux9 * fp2[0] * bldTile9 * pitchK(centerY), dy: uy9 * fp2[1] * bldTile9 * pitchK(centerY) * (pitched ? pitchFlat : 1), delay: ((h9 >>> 20) % 100) / 100 };
           }),
