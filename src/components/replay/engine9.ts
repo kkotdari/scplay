@@ -2979,6 +2979,19 @@ export function deriveWorld9(inp: {
     for (const r of bldTagSpots.rows) {
       m.set(`${r.raw}|${r.k}|${Math.round(r.x)}|${Math.round(r.y)}`, r.tag);
     }
+    /* ★ 앉았던 자리 **전부**를 싣는다(지적: "이동중인 건물을 타겟팅할때 … 이동완료 위치에
+       트레이서가 나가는 느낌") — 위 고리는 마지막 자리 하나뿐이라, 떠난 자리 줄(buildsV2의
+       비행 구간)이 제 태그를 못 찾았다. 태그가 있어야 참값 자취의 지금 자리로 몸을 옮긴다. */
+    if (entData) {
+      const nm9 = new Map(entData.players.map((pl) => [pl.owner, pl.name]));
+      for (const e of entData.lives) {
+        if (!e.bld || e.tag <= 0) continue;
+        for (const s9 of e.sites) {
+          const k9 = `${nm9.get(e.owner) ?? ""}|${e.kind}|${Math.round(s9[1] + footDx(e.kind))}|${Math.round(s9[2] + footDy(e.kind))}`;
+          if (!m.has(k9)) m.set(k9, e.tag);
+        }
+      }
+    }
     return m;
   })();
   const tagOrdinals = (() => {
@@ -4299,14 +4312,36 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         const down9 = landsAt9 ? ease9((goneAt - t) / RISE9) : 1;
         hover9 = Math.min(up9, down9);
       }
-      if (flyTo && liftAt !== undefined && t >= liftAt) {
-        /* 가로 이동도 같은 곡선이다 — 등속으로 밀면 뜨자마자 최고 속도라
-           출발·도착이 뚝뚝 끊긴다. */
-        const u9 = Math.min(1, (t - liftAt) / Math.max(0.1, goneAt - liftAt));
-        const k = u9 * u9 * (3 - 2 * u9);
-        bx = x + (flyTo[1] - x) * k;
-        by = y + (flyTo[2] - y) * k;
-        landing = true;
+      /* ★ 뜬 건물의 자리는 **참값 자취**가 말한다(지적: "이동중인 건물을 타겟팅할때 제대로
+         못잡는거 같아. 이동완료 위치에 트레이서가 나가는 느낌") ─────────────────────
+         여태 비행은 [뜬 때, 앉은 때]를 두 자리 사이 smoothstep으로 **어림**했다. 그런데
+         실제 건물은 그 구간을 고르게 날지 않는다 — 떠서 잠시 머물다 가거나, 목적지에
+         먼저 닿아 한참 떠 있다가 앉는다. 표적 지도(entPosByTag)는 참값 자취의 자리를
+         보므로, 건물이 이미 목적지 위에 떠 있는 동안 화면의 몸은 아직 길 한가운데를
+         날고 있었다 — 트레이서가 빈 하늘(도착 자리)로 나간 까닭이다.
+         테란 건물은 원작에서도 유닛이라 참값 자취에 제 태그로 실려 온다. 떠난 자리로
+         태그를 찾아(bldTagAt, 모든 자리) 그 자취의 지금 자리에 몸을 놓는다. 자취가 없는
+         옛 기록만 종전 어림으로 물러난다. 격추(뒤에 줄이 없음)도 같은 길 — 맞은 자리에서
+         터진다. */
+      if (afloat && liftAt !== undefined) {
+        const ftag9 = bldTagAt.get(
+          `${raw}|${unit}|${Math.round(x + footDx(unit))}|${Math.round(y + footDy(unit))}`,
+        );
+        const ftr9 = ftag9 !== undefined ? simTracks?.get(ftag9) : undefined;
+        const fp9 = ftr9 ? posAtSim(ftr9, goneAt > liftAt ? Math.min(t, goneAt) : t) : null;
+        if (fp9) {
+          bx = fp9.x - footDx(unit);
+          by = fp9.y - footDy(unit);
+          landing = true;
+        } else if (flyTo) {
+          /* 가로 이동도 같은 곡선이다 — 등속으로 밀면 뜨자마자 최고 속도라
+             출발·도착이 뚝뚝 끊긴다. */
+          const u9 = Math.min(1, (t - liftAt) / Math.max(0.1, goneAt - liftAt));
+          const k = u9 * u9 * (3 - 2 * u9);
+          bx = x + (flyTo[1] - x) * k;
+          by = y + (flyTo[2] - y) * k;
+          landing = true;
+        }
       }
       /* 뜬 건물의 자리 — 개체 트랙이 착륙 자리마다 줄을 나눠 싣기 때문에, 이 줄의
          좌표가 곧 지금 그 건물이 있는 자리다. 표적 지도(engageFoes·entPosByTag)도
@@ -4803,8 +4838,10 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           const bWpn9 = bHitSrc9.uk ? ATTACK_FX[bHitSrc9.uk] : undefined;
           fxOps.push({
             kind: "hit", fx: bfx9, fy: bfy9, lift: bLift9,
-            // 건물도 같은 비(반지름 = 폭의 1/4 → size 0.69·K)로 — 옛 0.3은 거의 안 보였다.
-            size: bw9 * 0.69, dist: bw9 * 0.4, mat: bMat9,
+            /* 건물도 같은 비(반지름 = 폭의 1/4 → size 0.69·K)로 — 옛 0.3은 거의 안 보였다.
+               → 0.45(요청: "건물 피격효과가 너무 큰듯") — 유닛보다 상자가 커서 같은 비로도
+               불티가 건물 폭만 하게 텄다. */
+            size: bw9 * 0.45, dist: bw9 * 0.3, mat: bMat9,
             ph: (t - bldHp.hurt) / 0.18,
             ...(bWpn9 ? { style: bWpn9 } : {}),
             ...(bHitDir9 ? { dx: bHitDir9[0], dy: bHitDir9[1] } : {}),
@@ -7343,11 +7380,15 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         foe.air);
       if (rtq9 > 0 && foeDist > rtq9) return null;
     }
-    if (fxName9 && (NO_BEAM_FX.has(fxName9) || TARGET_FX.has(fxName9))) {
+    /* ★ 표적 그림만 얹는 갈래(TARGET_FX, 아콘)는 이제 여기서 안 낸다(요청: "아콘 공격
+       트레이서의 스플래시 효과는 공격줄기 끝으로 고정") — 표적 자리에 따로 얹으면 붙어
+       싸울 때 줄기가 제 길이로 물러나는 순간 둘이 갈린다. 아래 beam op가 size·splash를
+       싣고, 그리는 쪽이 줄기가 실제로 끝나는 점에 같은 그림을 그린다. */
+    if (fxName9 && NO_BEAM_FX.has(fxName9)) {
       /* 거리 문턱은 **선을 안 그리는 갈래에만** 건다 — 그쪽은 거리가 곧 '쏘고
          있나'의 대역이었다. 표적 그림만 더 얹는 갈래(TARGET_FX)는 붙어 싸울수록
          오히려 잘 보여야 하므로 문턱이 없다(아콘은 2타일에서 싸운다). */
-      if (beamLen > 1 || TARGET_FX.has(fxName9)) {
+      if (beamLen > 1) {
         const [tfx9, tfy9] = posFrac(foe.bx, foe.by);
         const dly9 = ((ei * 7) % 5) / 10;
         const tph9 = (((t - dly9) % fxCd) + fxCd) % fxCd / fxCd;
@@ -7471,6 +7512,8 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       const mzsy9 = mzy9 + Math.cos(rad9) * surf9;
       fxOps.push({
         kind: "beam", style: fxName9, fx: fxfx9, fy: fxfy9, lift: liftPx9,
+        // 표적 그림을 줄기 끝에 얹는 갈래(TARGET_FX) — 자는 쏘는 몸의 상자(옛 hit op와 같다).
+        ...(TARGET_FX.has(fxName9) ? { size: fxPx, splash: true } : {}),
         /* len은 '표적까지'다 — 그리는 쪽이 번쩍임 길이를 이 값으로 죈다
            (지적: "피격대상을 지나서까지 그려지는데"). 붙어 싸울수록 짧아진다. */
         mx: st9Span(fxName9) ? mzsx9 : mzx9,

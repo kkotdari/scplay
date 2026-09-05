@@ -22020,6 +22020,28 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
                지우는 짓이 됐다. 제 길이를 바닥으로 깔고 표적이 멀면 거기까지 뻗는다. */
             headD9 = st.span && Number.isFinite(reach9)
               ? Math.max(reach9, tailL9) : Math.min(tailL9, reach9);
+            /* ★ 표적 그림은 **줄기 끝에**(요청: "아콘 공격 트레이서의 스플래시 효과는 공격줄기
+               끝으로 고정") — 엔진이 표적 자리에 따로 얹던 hit op를 걷고, 줄기가 실제로
+               끝나는 점(headD9)에 같은 그림(FX_IMPACT·같은 자·같은 박자)을 그린다. 붙어
+               싸워 줄기가 제 길이(tailL9)로 물러나도 둘이 안 갈린다. */
+            const im9 = f.splash && f.size !== undefined && f.style ? FX_IMPACT[f.style] : undefined;
+            if (im9) {
+              const tipX9 = x0 + dxx * headD9;
+              const tipY9 = y0 + dyy * headD9;
+              const ir9 = (f.size! / 2) * zoom * HIT_FX_K * im9.r * (0.7 + p9 * 0.5);
+              const fl9 = im9.flat ?? 1;
+              const keepA9 = ctx.globalAlpha;
+              ctx.globalAlpha = envHit(p9);
+              if (fl9 !== 1) { ctx.translate(tipX9, tipY9); ctx.scale(1, fl9); ctx.translate(-tipX9, -tipY9); }
+              const gi9 = ctx.createRadialGradient(tipX9, tipY9, 0, tipX9, tipY9, ir9);
+              for (const [o9, c9] of im9.g) gi9.addColorStop(o9, c9);
+              ctx.fillStyle = gi9;
+              ctx.beginPath();
+              ctx.arc(tipX9, tipY9, ir9, 0, Math.PI * 2);
+              ctx.fill();
+              if (fl9 !== 1) { ctx.translate(tipX9, tipY9); ctx.scale(1, 1 / fl9); ctx.translate(-tipX9, -tipY9); }
+              ctx.globalAlpha = keepA9;
+            }
           } else if (f.kind === "shot") {
             // 날아가는 탄 — 머리가 총구에서 진행률만큼 나가 있고, 표적에서 멈춘다.
             /* ★ **화면 거리가 무너져도 탄은 난다**(지적: "골리앗이 대공공격에서 트레이서가
