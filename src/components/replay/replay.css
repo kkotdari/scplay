@@ -1922,6 +1922,12 @@
   position: absolute; pointer-events: none;
   /* 가운데 맞춤은 translate **속성**으로(지적: 동심원이 우하단에서 커짐 — JSX의 groundSkewAt9 주석). */
   translate: -50% -50%;
+}
+/* ★ 이 스팬은 렌즈의 직계 자식이라 공통 규칙 `.scr-motion-lens > span`의 transform(translate(-50%) scale(--mk))이
+   또 걸린다(재지적: "착지 파문이 좌상단에서 좌상단 방향으로 퍼져" — 두 번 밀린 데다 그 원점에서 커졌다). 더 구체적인
+   선택자로 transform을 끈다. 입체의 눕히기는 인라인 transform이 이긴다. */
+.scr-motion-lens > .scr-motion-touchdown {
+  transform: none;
   border-radius: 50%;
   border: 1px solid rgba(226, 214, 190, 0.75);
   box-shadow: 0 0 6px rgba(226, 214, 190, 0.35);
