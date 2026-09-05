@@ -1951,7 +1951,6 @@
     rgba(255, 170, 60, 0.5) 0 16%, rgba(200, 70, 20, 0.28) 40%, transparent 62%);
   animation: scr-wound-fire 0.62s ease-in-out infinite alternate;
 }
-.scr-wound-terran > i, .scr-wound-terran > b { display: none; }
 .scr-wound-terran::before {
   content: ""; position: absolute; left: 50%; bottom: 42%;
   width: 34%; height: 150%; translate: -50% 0; transform-origin: 50% 100%;
