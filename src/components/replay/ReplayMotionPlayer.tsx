@@ -412,6 +412,14 @@ let bldSpinNow = 0;
 /* 핵 폭발 둘도 같은 사정이다 — 충격파의 빛살, 버섯구름의 끓는 덩이가 칸을 씨앗으로
    뽑는다. 여기 안 넣으면 열쇠가 칸을 안 물어, 칸을 바꿔도 먼저 구운 판이 그대로 나온다
    (같은 열쇠·다른 그림 = 캐시가 거짓말). */
+/** 모델을 z로 평행이동(모델 단위) — 부양 유닛의 뜬 높이를 한 값으로 맞춘다(요청: "하템 벌처 드론 scv 프로브 다
+ *  동일하게 2로 통일" — 땅 원점에서 잉크 바닥까지 상자 2칸). 셈: 잉크 바닥 y1(model-norm, 입체)·배수 nrm에서
+ *  gap = (12.6 − y1)·nrm, Δz = (y1 − (12.6 − 2/nrm)) / 0.9(입체 z 배율).
+ *  재기 전: scv 13.0/0.767 → 3.34 · probe 10.25/1.738 → −1.33 · drone 12.13/1.078 → 1.54 · htemp 11.25/1.249 → 0.28
+ *  · vulture 11.5/0.833 → 1.45. SHAPE_BUILDERS 표 바로 뒤에서 빌더 자체를 감싼다 — 굽기·도록·측정 도구가 다 같은 모델을 본다. */
+const MODEL_Z_OFF9: Record<string, number> = {
+  scv: 4.19, probe: -1.43, drone: 1.89, htemp: 0.45, vulture: 1.69,   // 한 번 더 맞춤(측정 gap 1.51/2.13/1.72/1.84/1.85 → 2)
+};
 const SPIN_KINDS = new Set<string>([
   "trapezoid", "cyber", "forge", "storm", "nukecloud", "nukeblast",
   "mshop",   // 머신샵 톱니 둘(바닥 톱니판·옆 바퀴 이) — 연구 중에만(요청)
@@ -13943,10 +13951,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     return out;
   },
   /* 프로브(실물 참고) — 팔각 보석 몸(밝은 윗판 층층) + 방사 가시들. */
-  /* 프로브는 z를 1.5 내린다(요청: "일꾼들 떠있는 높이 하템 벌처 수준으로 낮추기") — 재보니(model-norm 잉크 바닥
-     y1 10.25, 땅 원점 12.6, 배수 1.738) 프로브만 땅에서 4.1칸 떠 있었고 하템 1.7·벌처 0.9·드론 0.5·SCV −0.3이었다.
-     프로브를 하템 높이로 내린다. */
-  probe: () => withModelZOff(-1.5, () => {
+  probe: () => {
     const out: ShapeFace[] = [];
     /** 몸통 축소 몫(요청: "프로브 몸체 크기 2/3로 축소") — 몸에 붙는 자리(다리 뿌리·
      *  눈·옆 포트)가 전부 이 값을 지나야 몸만 줄고 부품이 허공에 뜨는 일이 없다. */
@@ -14061,7 +14066,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        몸 바로 밑(0.65)까지 당기고, 각도를 ±14→±30으로 벌리고, 길이는 반 남짓으로. */
     for (const ang of [30, -30]) out.push(...paintBase(wing(ang, 0.85 * BD, 0.8 + 0.85 * (1 - BD), 0.17, 0.08, 6.15, 5.5), TOSS_GOLD));
     return out;
-  }),
+  },
   /* 드론(정정) — 갈퀴치마는 집게 사이가 아니라 집게팔과 꼬리 사이, 양옆에 부채처럼
      펼쳐진다. 몸통(꼬리 겹돔) + 칼날팔 한 쌍 + 양옆 톱니 부채막. */
   drone: () => {
@@ -17511,6 +17516,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   },
 
 };
+/* 부양 유닛의 뜬 높이 통일(MODEL_Z_OFF9) — 표에 든 종류의 빌더를 z 평행이동으로 감싼다. */
+for (const k9 of Object.keys(MODEL_Z_OFF9)) {
+  const b9 = SHAPE_BUILDERS[k9];
+  if (!b9) continue;
+  const dz9 = MODEL_Z_OFF9[k9];
+  SHAPE_BUILDERS[k9] = () => withModelZOff(dz9, b9);
+}
 /* 인터셉터(요청: "캐리어+인터셉터 모델링을 제거하고 인터셉터 모델링을 따로 해야할듯")
    ───────────────────────────────────────────────────────────────────────────────
    왜 따로 서는가: 참값 자취에 **제 태그와 제 길이 그대로** 실려 있다. 실측(한 판,
