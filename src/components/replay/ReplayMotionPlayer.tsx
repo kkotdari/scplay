@@ -5059,6 +5059,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         };
       };
       const strip9 = (t0: number, t1: number, taperTop: boolean): void => {
+        /* 등진 면의 데칼은 안 낸다(지적: "기둥 데칼이 뒤에 있는데도 비쳐 보임") — 데칼 키가 기둥 위라 바깥 면이
+           카메라를 등져도 기둥을 뚫고 보였다. 바깥 면의 법선(±x)이 카메라를 향할 때만 그린다. */
+        if (facingRatio(Math.sign(mx9), 0) <= 0.05) return;
         const N9 = 6;
         for (let i9 = 0; i9 < N9; i9 += 1) {
           const ta9 = t0 + ((t1 - t0) * i9) / N9;
