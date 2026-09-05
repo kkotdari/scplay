@@ -21273,7 +21273,13 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
             ctx.beginPath();
             /* 링은 몸 폭의 1.1배 — 발 언저리에 살짝 걸친다(지적: 링이 몸보다 크다).
                상자 기준이던 예전엔 종류에 따라 0.64~2.61배로 벌어졌다. */
-            ctx.ellipse(footX, ringY, inkW * 0.55, inkW * 0.31 * (op.pitch ? pitchFlatNow : 1), 0, 0, Math.PI * 2);
+            /* 입체에서는 좌우 시점 밀림도 먹인다(요청: 선택 링·마커도 사영 밀림) — 바닥 깊이에 tan(시점각)을
+               곱해 x를 미는 것을 캔버스 변환(가로 밀림)으로 얹는다. 변환은 경로를 만드는 동안만 걸고 되돌린다. */
+            ctx.save();
+            ctx.translate(footX, ringY);
+            if (op.pitch && op.viewYaw) ctx.transform(1, 0, Math.tan((op.viewYaw * Math.PI) / 180), 1, 0, 0);
+            ctx.ellipse(0, 0, inkW * 0.55, inkW * 0.31 * (op.pitch ? pitchFlatNow : 1), 0, 0, Math.PI * 2);
+            ctx.restore();
           };
           /* 검은 테는 걷었다(지적: 깔려면 마우스 마커에도 깔아야 한다) — 링만 두 겹이라
              둘이 따로 놀았다. 임자 색 실선 한 겹으로 통일한다. */
@@ -29591,7 +29597,8 @@ export default function ReplayMotionPlayer({
                      아니므로 층만 올린다 — Z_FX(6100)가 캔버스 바로 위 DOM 효과 층이다. */
                   // 효과 렌즈 안이다 — 배율은 층의 폭이 먹으므로 px은 곧 화면 px, 역배율은 안 건다.
                   ...posStyle(cx2, cy2), color: modeColor(raw, teamOfRaw(raw)), zIndex: 20,
-                  "--ckw": `${ckw.toFixed(1)}px`,
+                  "--ckw": `${(ckw * pitchK(cy2)).toFixed(1)}px`,
+                  ...groundXfAt9(cx2, cy2),   // 입체: 눕히기 + 시점 밀림(요청)
                 } as React.CSSProperties}
               />
             );
@@ -29616,7 +29623,8 @@ export default function ReplayMotionPlayer({
                 /* 크기도 배율을 따른다(요청: 마커처럼) — 4배 기준 아래서는 강제 확대, 위로는 타일 1.4배. */
                 style={{
                   ...posStyle(px, py), color: modeColor(raw, teamOfRaw(raw)), zIndex: 25,
-                  "--pgw": `${(((mapRef.current?.clientWidth ?? 320) / grid.width) * Math.max(4, zoom) * 1.4).toFixed(1)}px`,
+                  "--pgw": `${(((mapRef.current?.clientWidth ?? 320) / grid.width) * Math.max(4, zoom) * 1.4 * pitchK(py)).toFixed(1)}px`,
+                  ...groundXfAt9(px, py),   // 입체: 눕히기 + 시점 밀림(요청)
                 } as React.CSSProperties}
               />
             );

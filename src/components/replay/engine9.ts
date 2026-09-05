@@ -6698,6 +6698,18 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
        시절, '때린다'를 자리 밀기로 흉내 내던 대역이었다.
        이제 **공격 컷**이 그 일을 한다(poseNow 2) — 몸이 통째로 움직이는 것이
        아니라 팔·칼이 실제로 나가므로, 자리를 미는 흉내는 겹쳐 보일 뿐이다. */
+    /* 은신 규칙(요청) ─────────────────────────────────────────────────
+       ① 탐지되어도 **은신 상태로** 그린다 — 여태 적 디텍터가 곁이면 0.72로 '반쯤 벗겨진' 것처럼 그렸는데,
+          탐지는 보이게 할 뿐 은신을 푸는 게 아니다. 은신이면 늘 0.4.
+       ② 상대 편의 개인 시야에서는 **보는 편의 탐지**가 있어야만 보인다 — 없으면 아예 안 그린다(원작처럼
+          안 보이다가, 탐지되면 은신 상태로 나타난다). 전체 보기·제 편은 늘 은신 상태로 보인다. */
+    const cloakedNow9 = e.cloaks.some(([ca, cb]) => t >= ca && t < cb)
+      || drawUnit === "Dark Templar" || drawUnit === "Observer"
+      || (drawUnit !== "Arbiter" && arbiterSpots.some((asp) =>
+        asp.raw === e.raw && Math.hypot(asp.x - pos.x, asp.y - pos.y) <= 4.5));
+    if (cloakedNow9 && fogOn && !visAll && viewTeam > 0 && team !== viewTeam
+      && !detectorSpots.some((dsp) => dsp.team === viewTeam
+        && Math.hypot(dsp.x - pos.x, dsp.y - pos.y) <= 9)) return null;
     unitOps.push({
       fx, fy,
       /* 공중은 2D에서도 y순(지적: 공중 유닛 간 앞뒤 섞임) — ei 나머지는 무작위
@@ -6897,14 +6909,8 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         /* 클로킹(전수조사) — 개인 클록(f=14/15)·상시 은신(다크·옵저버)·아비터
            은신장. 적 디텍터(오버로드·옵저버·베슬·터렛·스포어·캐논·스캔)가
            곁이면 반쯤 벗겨진다. */
-        const cloakedNow = e.cloaks.some(([ca, cb]) => t >= ca && t < cb)
-          || drawUnit === "Dark Templar" || drawUnit === "Observer"
-          || (drawUnit !== "Arbiter" && arbiterSpots.some((asp) =>
-            asp.raw === e.raw && Math.hypot(asp.x - pos.x, asp.y - pos.y) <= 4.5));
-        if (!cloakedNow) return u === "" ? 0.8 : 1;
-        const detected = detectorSpots.some((dsp) => dsp.team > 0
-          && dsp.team !== (team ?? 0) && Math.hypot(dsp.x - pos.x, dsp.y - pos.y) <= 9);
-        return detected ? 0.72 : 0.4;
+        if (!cloakedNow9) return u === "" ? 0.8 : 1;
+        return 0.4;   // 탐지와 무관하게 은신 상태 그대로(위 은신 규칙)
       })(),
       air: uAir,
       /* 뜨는 높이는 **여기서 한 번 재서 실어 보낸다**(지적: "공중 유닛 크기에 따라
