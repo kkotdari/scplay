@@ -72,10 +72,11 @@ const SPEC = {
   명령: "u32 개수, 개마다 varint(프레임차) · u32 태그 · u16 x · u16 y · u8 갈래",
   APM: "u32 개수 · u16 통크기(프레임), 개마다 varint(통차) · u8 사람 · varint(명령수)",
   자원밭단: "[판4+] u32 개수, 개마다 varint(프레임차) · u16 x · u16 y · u8 단",
+  임자바뀜: "[판8] 트랙표 줄 끝에 u8 수, 바뀜마다 u32 프레임(LE) · u8 새 임자 — 마인드 컨트롤·중립화(11). 글자 갈래는 #own\\t태그\\t프레임\\t새임자",
 };
 /** 해독기가 받아 주어야 할 판 — 이 범위 밖은 물리쳐야 한다. */
-const VER_MIN = 2;
-const VER_MAX = 7;
+const VER_MIN = 8;   // 판 8만(요청: 판 7은 더 이상 안 쓴다 — 폴백 없이)
+const VER_MAX = 8;
 
 // ── 바이트 짓기 ────────────────────────────────────────────────────────────────
 const u8 = (v) => Buffer.from([v]);
@@ -109,8 +110,11 @@ function build(ver) {
 
   // 트랙 둘 — 첫째는 키 2·체력 2·인터셉터 1·표적 1, 둘째는 키 1뿐(빈 흐름도 지난다).
   p.push(u32(2));
-  p.push(u32(77), u8(3), u16(7), u32(2), u32(2), u32(1), ...(ver >= 6 ? [u32(1)] : []));
-  p.push(u32(78), u8(5), u16(7), u32(1), u32(0), u32(0), ...(ver >= 6 ? [u32(0)] : []));
+  /* 판 8: 트랙표 줄 끝에 u8 임자바뀜수, 바뀜마다 u32 프레임 · u8 새 임자(덤퍼 실측 바이트: 02 | 2C 01 00 00 04 | 84 03 00 00 0B). */
+  p.push(u32(77), u8(3), u16(7), u32(2), u32(2), u32(1), ...(ver >= 6 ? [u32(1)] : []),
+    ...(ver >= 8 ? [u8(2), u32(300), u8(4), u32(900), u8(11)] : []));
+  p.push(u32(78), u8(5), u16(7), u32(1), u32(0), u32(0), ...(ver >= 6 ? [u32(0)] : []),
+    ...(ver >= 8 ? [u8(0)] : []));
   // 키 흐름 — 상태 바이트에 깃발을 실어 판별 갈래(0x80 공사·0x40 공중·0x20 은신)도 본다.
   p.push(varint(48), varint(320), varint(640), u8(0), u8(0x01), varint(7));
   p.push(varint(24), varint(32), varint(0), u8(64), u8(0x40 | 0x01), varint(0));
@@ -184,6 +188,10 @@ function expect(ver, r, fail) {
   eq("트랙0 체력", [...a.hp], [2, 60, 3, 50]);
   eq("트랙0 인터셉터", [...a.ic], [2, 4]);
   if (ver >= 6) eq("트랙0 표적", [...a.tgt], [2, 78]);
+  if (ver >= 8) {
+    eq("트랙0 임자바뀜", a.own, [{ t: 300 / FPS, owner: 4 }, { t: 900 / FPS, owner: 11 }]);
+    eq("트랙1 임자바뀜(없음)", b.own, []);
+  }
   eq("트랙1 done(0x80 있음 → 공사중)", [...b.done], [0]);
 
   // 셋을 넣었지만 가운데(이름 모름)는 버려져 둘만 남는다 — 뒤 절은 안 밀려야 한다.
@@ -280,7 +288,7 @@ const RES_TYPES = new Set([176, 177, 178, 188, 214]);
 
 function readText(text) {
   const byTag = new Map();
-  const hp = new Map(), ic = new Map(), tgt = new Map();
+  const hp = new Map(), ic = new Map(), tgt = new Map(), own = new Map();
   const up = [], cast = [], ping = [], player = [], res = [], apm = [];
   let trust = -1;
   const typeOfTag = new Map();
@@ -295,6 +303,10 @@ function readText(text) {
         const tg = Number(p[1]);
         if (!m.has(tg)) m.set(tg, []);
         m.get(tg).push([Number(p[2]), Number(p[3])]);
+      } else if (p[0] === "#own") {                 // 판 8: #own\t태그\t프레임\t새임자
+        const tg = Number(p[1]);
+        if (!own.has(tg)) own.set(tg, []);
+        own.get(tg).push([Number(p[2]), Number(p[3])]);
       } else if (p[0] === "#up") up.push(p.slice(1).map(Number));
       else if (p[0] === "#cast") cast.push(p.slice(1).map(Number));
       else if (p[0] === "#ping") ping.push(p.slice(1).map(Number));
@@ -310,7 +322,7 @@ function readText(text) {
     a.push([frame, x, y, head, state, type]);
   }
   for (const [tag, ty] of typeOfTag) if (RES_TYPES.has(ty)) byTag.delete(tag);
-  return { byTag, hp, ic, tgt, up, cast, ping, player, res, apm, trust };
+  return { byTag, hp, ic, tgt, own, up, cast, ping, player, res, apm, trust };
 }
 
 /** 이진 머리에서 초당프레임을 곧장 읽는다 — 상수로 못 박으면 덤퍼가 바꿀 때 조용히 어긋난다. */
@@ -350,6 +362,15 @@ function compare(bin, txt, decoded, upName, fail) {
       if (tr.types[i] !== type) { fail(`태그 ${tr.tag} 키 ${i} 종류 ${tr.types[i]} vs ${type}`); break; }
     }
     keys += n;
+    /* 임자바뀜(판 8) — 이진의 own(초·임자)과 글자의 #own(프레임·임자)을 견준다. */
+    {
+      const ow = txt.own.get(tr.tag) ?? [];
+      const og = tr.own ?? [];
+      if (og.length !== ow.length) fail(`태그 ${tr.tag} 임자바뀜 ${og.length} vs ${ow.length}`);
+      else og.forEach((o, i) => {
+        if (!near(o.t, ow[i][0] / fps, T) || o.owner !== ow[i][1]) fail(`태그 ${tr.tag} 임자바뀜 ${i}`);
+      });
+    }
     /* 체력·인터셉터·표적은 자리 키와 **따로** 실려 온다 — 차례가 한 칸만 밀려도 엉뚱한
        유닛의 체력이 붙는다. 그 어긋남은 화면에서 눈에 잘 안 띈다. */
     for (const [nm, got, want] of [["체력", tr.hp, txt.hp.get(tr.tag)],

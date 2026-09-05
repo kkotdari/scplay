@@ -11,8 +11,11 @@
  *   머리   char[4] "OBWT" · u8 판(=7) · f32 초당프레임 · i32 믿을프레임(-1이면 끝까지)
  *   로스터 u8 사람수, 사람마다 u8 임자 · u8 리플레이id · u8 종족 · u8 편 · u8 controller
  *          · u32 개인색(0x00rrggbb, CCLR에서 읽은 값) · u8 이름길이 · 이름(UTF-8)
- *   트랙표 u32 트랙수, 트랙마다 u32 태그 · u8 임자 · u16 유닛종류
- *          · u32 키수 · u32 체력키수 · u32 인터셉터키수 · u32 표적키수(판 6부터)
+ *   트랙표 u32 트랙수, 트랙마다 u32 태그 · u8 임자(태어날 때) · u16 유닛종류
+ *          · u32 키수 · u32 체력키수 · u32 인터셉터키수 · u32 표적키수
+ *          · u8 임자바뀜수, 바뀜마다 u32 프레임 · u8 새 임자 (판 8 — 마인드 컨트롤·나간 사람의 몸이
+ *            중립(11)으로 넘어가는 순간. 오버로드·수송선 안의 몸도 같은 순간에 같은 규칙. 줄이 가변이라
+ *            건너뛰지 않고 차례로 읽는다)
  *   키 흐름 (트랙 차례대로, 트랙마다 앞 키와의 **차이**를 적는다)
  *     키마다: varint(zigzag(프레임차)) · varint(zigzag(x차)) · varint(zigzag(y차))
  *             · u8 방향(0~255) · u8 상태 · varint(zigzag(종류차))
@@ -53,6 +56,8 @@ export type TruthTrack = {
   born: number;
   /** 초. 끝까지 살아 있었으면 null */
   died: number | null;
+  /** 임자 바뀜(판 8) — 초·새 임자. 비면 손바뀜 없음. 생애 자르기(truthLives)가 이 시각에 구간을 가른다. */
+  own: { t: number; owner: number }[];
   /** 다섯씩 [t(초), x(타일), y(타일), 방향(도), 상태] */
   /** 키 시각(초) — 키마다 하나. (옛 keys[5k]) */
   kt: Float32Array;
@@ -134,7 +139,7 @@ export function tkSlice<T extends Ticks>(a: T, t0: number, t1: number): T {
 }
 /** 빈 트랙 — 빈 걷기 창 같은 자리의 자리표. */
 export const EMPTY_TRACK: TruthTrack = {
-  tag: 0, owner: 0, kind: "", born: 0, died: null,
+  tag: 0, owner: 0, kind: "", born: 0, died: null, own: [],
   kt: new Float32Array(0), kxy: new Int16Array(0), kh: new Uint8Array(0), kst: new Uint8Array(0),
   types: new Uint16Array(0), done: new Uint8Array(0),
 };
@@ -384,7 +389,9 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
        서버가 새 덤퍼로 바뀌어도 **이미 구워 둔 자취는 판 2인 채로 남는다**. 여기서
        판 3만 받으면 재분석이 다 돌 때까지 모든 옛 경기가 "재생할 수 없는 게임"이 된다.
        달라진 것은 상태 바이트의 깃발 한 칸뿐이라, 판 2는 그 칸이 늘 0인 판 3과 같다. */
-    if (version < 2 || version > 7) return null;
+    /* 판 8만 읽는다(요청: "판 7은 더 이상 사용 안 할 것 — 폴백 없이") — 트랙표 줄에 임자바뀜 목록이 붙어
+       줄 길이가 가변이 됐다. 옛 판은 재분석으로 다시 굽는다. */
+    if (version !== 8) return null;
     const hasAir = version >= 3;
     /* 은신은 판 5부터다(요청: "참값에 은신 칸 추가하는 쪽으로 가자") — 옛 덤프는 그 깃발이
        늘 0이라 '은신 아님'으로 읽히는데, 그건 **모르는 것**이지 아님이 아니다. 판으로 갈라
@@ -435,10 +442,13 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
     const n = c.u32();
     if (n > 100000) return null;
     const head: { tag: number; owner: number; type: number;
-      count: number; hp: number; ic: number; tgt: number }[] = new Array(n);
+      count: number; hp: number; ic: number; tgt: number; own: { f: number; owner: number }[] }[] = new Array(n);
     for (let i = 0; i < n; i += 1) {
       head[i] = { tag: c.u32(), owner: c.u8(), type: c.u16(),
-        count: c.u32(), hp: c.u32(), ic: c.u32(), tgt: hasTarget ? c.u32() : 0 };
+        count: c.u32(), hp: c.u32(), ic: c.u32(), tgt: hasTarget ? c.u32() : 0, own: [] };
+      /* 임자바뀜 목록(판 8) — 줄 끝에 u8 수, 바뀜마다 u32 프레임(LE) · u8 새 임자. 차례로 읽는다. */
+      const nOwn9 = c.u8();
+      for (let k = 0; k < nOwn9; k += 1) head[i].own.push({ f: c.u32(), owner: c.u8() });
     }
 
     const tracks: TruthTrack[] = [];
@@ -489,6 +499,7 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
         kind: BW_UNIT_NAME[h.type] ?? `?${h.type}`,
         born,
         died,
+        own: h.own.map((o) => ({ t: o.f / fps, owner: o.owner })),
         kt, kxy, kh, kst,
         types,
         done,

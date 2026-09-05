@@ -2492,7 +2492,7 @@ export function deriveWorld9(inp: {
     if (!entData) return m;
     const nameOfId = new Map(entData.players.map((pl) => [pl.owner, pl.name]));
     for (const e of entData.lives) {
-      if (e.bld || !e.kind) continue;
+      if (e.bld || !e.kind || e.handoff) continue;   // 손바뀜으로 이어진 생애는 생산·출전이 아니다
       if (e.kind === "SCV" || e.kind === "Probe" || e.kind === "Drone" || e.kind === "Overlord") continue;
       const raw = nameOfId.get(e.owner) ?? "";
       const cur = m.get(raw);
@@ -2527,7 +2527,7 @@ export function deriveWorld9(inp: {
     if (!entData) return m;
     const nameOfId = new Map(entData.players.map((pl) => [pl.owner, pl.name]));
     for (const e of entData.lives) {
-      if (e.bld || !e.kind) continue;
+      if (e.bld || !e.kind || e.handoff) continue;   // 손바뀜으로 이어진 생애는 생산·출전이 아니다
       /* 나온 자리는 **참값이 곧장 안다**(지적: 어댑터 걷기) — 옛 코드는 분석이 꽂아 둔
          출생 증거(f=3)를 읽었는데, 참값은 그런 증거를 안 만드는 대신 그 유닛이 처음
          나타난 **실제 자리**를 안다. 그것이 곧 나온 건물의 출구다. */
@@ -2545,7 +2545,7 @@ export function deriveWorld9(inp: {
     if (!entData) return m;
     const nameOfId = new Map(entData.players.map((pl) => [pl.owner, pl.name]));
     for (const e of entData.lives) {
-      if (e.bld || !e.kind) continue;
+      if (e.bld || !e.kind || e.handoff) continue;   // 손바뀜으로 이어진 생애는 생산·출전이 아니다
       const raw = nameOfId.get(e.owner);
       if (raw === undefined) continue;
       const rec = m.get(raw) ?? {};
@@ -5771,7 +5771,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
        몸은 죽은 자리에 못박히지만, 그 자리에 오래 남을수록 뒤에 오는 유닛이
        시체 위를 지나간다. CSS 애니(scr-diefx)의 길이와 **같은 값**이어야 한다 —
        여운이 더 길면 다 꺼진 빈 스팬이 남고, 짧으면 불덩이가 도중에 잘린다. */
-    if (dieAt !== null && t >= dieAt + (e.end === "morph" ? 0 : DIE_FX_SEC)) return null;
+    if (dieAt !== null && t >= dieAt + (e.end === "morph" || e.end === "own" ? 0 : DIE_FX_SEC)) return null;   // 손바뀜(own)도 여운 없음
     const team = teamOfRaw(e.raw);
     /* 걸음 속도 상한(요청) — 제 속도표로 죈다. 15%만 여유를 둔다: 교전 지연을
        따라잡는 몫이라, 이보다 크면 다시 '순간적으로 빨라짐'이 된다.
@@ -6338,7 +6338,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
          않지만, 뜻을 못박아 둔다.
          (걷어냄) 'cap' — 인구 과잉 계상을 원장이 무르던 합성 죽음이다. 참값에는
          그런 무름이 없다(자취에 있는 개체는 실제로 있던 개체다). */
-      if (e.end === "morph") return null;
+      if (e.end === "morph" || e.end === "own") return null;   // 손바뀜은 죽음이 아니다(다음 생애가 같은 몸)
       /* 죽는 결은 넷이다(요청) — 바이오닉 빨강 · 메카닉 주황 폭발 ·
          프로토스 플라즈마 폭발 · 저그 보라. 여태 테란이 통째로 'mech'라
          마린이 터져도 기계 폭발이 났다(CSS에는 scr-die-bio가 진작 있었는데

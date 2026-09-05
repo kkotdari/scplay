@@ -58,7 +58,10 @@ export type TruthLife = {
   died: number | null;
   /** 끝난 갈래 — "morph" 다음 생애로 이어짐 · "atk" 사라짐 · "self" 자폭(스커지·마인·감염된 테란, 변태알 취소) · "" 끝까지 삶.
    *  "self"는 사망 효과가 나야 하는 끝이라 "morph"와 다르고, 킬로 세지 않아야 하니 "atk"와도 다르다. */
-  end: "morph" | "atk" | "self" | "";
+  end: "morph" | "atk" | "self" | "own" | "";
+  /** own — 임자가 바뀌어 끝난 생애(마인드 컨트롤·중립화). 죽음이 아니라 다음 생애가 같은 몸으로 이어진다.
+   *  손바뀜으로 **시작한** 생애는 handoff — 생산·출전 집계와 변태 판정에서 뺀다(같은 몸이 임자만 바뀐 것). */
+  handoff?: boolean;
   /** 건물인가. */
   bld: boolean;
   /** 앉은 자리들 — 첫째가 처음 지은 자리, 그 뒤는 옮겨 앉은 자리다. 건물만 갖는다. */
@@ -131,17 +134,36 @@ function livesOfTrack(
   // 종류가 (시즈를 뺀 뒤에도) 바뀌는 자리 = 생애 경계.
   const cuts: number[] = [];
   for (let i = 1; i < n; i += 1) if (same(tr.types[i]) !== same(tr.types[i - 1])) cuts.push(i);
+  /* 임자 바뀜(판 8)도 자르는 자리다(지적: "마인드 컨트롤한 순간 오버로드와 그 안의 유닛까지 임자색이
+     바뀌어야 하는데 안 바뀜") — 같은 몸이라도 임자가 다르면 색·편·시야·은신이 다 갈리므로 **다른 생애**로
+     세운다. 바뀐 시각 이후 첫 키에서 자르되, 앞 생애의 끝과 뒤 생애의 시작은 키가 아니라 **바뀐 시각**
+     그대로다(키가 성긴 몸이 그 사이에 사라지지 않게). 마지막 키 뒤의 바뀜은 마지막 키에서 자른다. */
+  const ownAt = new Map<number, { t: number; owner: number }>();
+  for (const o of tr.own ?? []) {   // 합성 세계(perf-check)는 own이 없다
+    let i = 0;
+    while (i < n && kT(tr, i) < o.t - 1e-6) i += 1;
+    if (i >= n) i = n - 1;
+    if (i <= 0) continue;
+    ownAt.set(i, o);
+    if (!cuts.includes(i)) cuts.push(i);
+  }
   cuts.push(n);
+  cuts.sort((a, b) => a - b);
 
   let segStart = 0;
+  let curOwner = tr.owner;
   for (let ci = 0; ci < cuts.length; ci += 1) {
     const end = cuts[ci];
     const kind = BW_UNIT_NAME[tr.types[segStart]] ?? `?${tr.types[segStart]}`;
-    const born = kT(tr, segStart);
+    const ownHere = ownAt.get(segStart);           // 이 생애가 손바뀜으로 시작하나
+    if (ownHere) curOwner = ownHere.owner;
+    const handoff = ownHere !== undefined;
+    const born = ownHere ? ownHere.t : kT(tr, segStart);
     const lastIdx = end - 1;
     const lastT = kT(tr, lastIdx);
     const gone = kS(tr, lastIdx) === TRUTH_ST_GONE;
     const more = ci < cuts.length - 1;
+    const ownNext = more ? ownAt.get(end) : undefined;   // 이 생애가 손바뀜으로 끝나나
     /* ★ 자폭(지적: 스커지는 자폭 때 제 사망 효과가 나야 · 변태알도 취소가 자폭) ─────────────────────────
        스커지·스파이더 마인·감염된 테란은 제 손으로 사라지므로 GONE 키가 없이 자취가 끊길 수 있다 — 그 끝을 죽음으로
        본다. 변태알·러커알·뮤탈 고치는 취소하면 라바·히드라·뮤탈로 되돌아가 '변태'로 이어지는데, 그 되돌아감은 알이
@@ -175,7 +197,7 @@ function livesOfTrack(
      *    곧 다음 생애의 시작이라, 늘이면 앞 시절의 값이 뒷 시절로 샌다(그것을 막으려고
      *    이 필터가 있다). 늘이는 것은 **마지막 생애가 살아서 끝난 경우**뿐이고, 그때
      *    뒤에 올 다른 시절이 없으므로 샐 곳도 없다. */
-    const lifeEnd = more || gone ? lastT : Infinity;
+    const lifeEnd = ownNext ? ownNext.t : more || gone ? lastT : Infinity;
 
     const sites: LifeSite[] = [];
     const lifts: number[] = [];
@@ -198,7 +220,7 @@ function livesOfTrack(
          (segStart > 0)이고 변태로 서는 다섯 중 하나면, 다 지어진 비트와 무관하게 변태
          구간을 연다. 참값의 done 비트만 믿으면 변태 중에도 1로 오는 판이 있어(같은 몸이
          계속 서 있는 것이라 완성으로 읽힌다) 고치가 한 프레임도 안 떴다. */
-      const morphed = segStart > 0 && MORPH_SEC[kind] !== undefined;
+      const morphed = segStart > 0 && !handoff && MORPH_SEC[kind] !== undefined;
       const raising = (tr.done[segStart] === 0 || morphed) && born > 1;
       sites.push([raising ? born : born - buildSecOf(kind), bx, by]);
       if (raising) {
@@ -289,13 +311,14 @@ function livesOfTrack(
     }
     out.push({
       tag: tr.tag,
-      owner: tr.owner,
+      owner: curOwner,
       kind,
       born,
       bornX: kX(tr, segStart),
       bornY: kY(tr, segStart),
-      died: more || gone || selfEnd ? lastT : null,
-      end: selfEnd ? "self" : more ? "morph" : gone ? "atk" : "",
+      died: ownNext ? ownNext.t : more || gone || selfEnd ? lastT : null,
+      end: ownNext ? "own" : selfEnd ? "self" : more ? "morph" : gone ? "atk" : "",
+      ...(handoff ? { handoff: true } : {}),
       bld,
       sites,
       doneAt,
