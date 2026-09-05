@@ -4237,7 +4237,7 @@
 }
 /* EMP — 퍼져 나가는 파란 고리 한 번. */
 .scr-fx-emp {
-  border: 2px solid rgba(120, 190, 255, 0.8); border-radius: 50%; mix-blend-mode: screen;
+  border: calc(2px * var(--scr-z, 1)) solid rgba(120, 190, 255, 0.8); border-radius: 50%; mix-blend-mode: screen;
   animation: scr-fx-ring 1.5s ease-out forwards;
 }
 /* ★ (걷어냄) `.scr-fx-stasis` · `.scr-fx-lock` · `@keyframes scr-fx-sheen` ─────────────
@@ -4263,14 +4263,15 @@
    지도에서 눈에 안 띄었다. 탐지 원 전체를 옅게 밝히고(그 안이 곧 은신이 벗겨지는
    자리다), 가운데에서 흰 레이더 고리가 되풀이 퍼지며, 훑는 빛살이 한 바퀴 돈다. */
 .scr-fx-scan {
-  border: 1.5px solid rgba(255, 255, 255, 0.5); border-radius: 50%; mix-blend-mode: screen;
+  /* 효과 시트(fxlens)에 살므로 px은 --scr-z로 곱한다(JSX의 px 게이트 zpx9와 같은 배율). */
+  border: calc(1.5px * var(--scr-z, 1)) solid rgba(255, 255, 255, 0.5); border-radius: 50%; mix-blend-mode: screen;
   background: radial-gradient(circle, rgba(210, 235, 255, 0.16) 0 55%, rgba(180, 220, 255, 0.08) 70%, transparent 82%);
   animation: scr-fx-fade 9s linear forwards;
 }
 .scr-fx-scan::before,
 .scr-fx-scan::after {
   content: ""; position: absolute; inset: 0; border-radius: 50%;
-  border: 1.5px solid rgba(255, 255, 255, 0.6);
+  border: calc(1.5px * var(--scr-z, 1)) solid rgba(255, 255, 255, 0.6);
   animation: scr-fx-ring 2s ease-out infinite;
 }
 .scr-fx-scan::after { animation-delay: 1s; }

@@ -1791,7 +1791,7 @@ export const FX_BEAM: Record<string, {
   flame: { muzzleLit: true, dur: 0.3, w: 1.5, l: 2, g: [[0, "rgba(255,226,150,0.95)"], [0.18, "rgba(255,226,150,0.95)"], [0.55, "rgba(255,110,40,0.9)"], [1, "rgba(220,40,20,0)"]] },
   spine: { dur: 0.45, w: 0.3, l: 2, g: [[0, "rgba(170,255,90,1)"], [1, "rgba(120,230,40,0)"]], glow: "rgba(150,255,80,0.6)" },
   bolt: { dur: 0.6, w: 0.6, l: 2, g: [[0, "rgba(150,200,255,0.95)"], [1, "rgba(150,200,255,0)"]] },
-  glave: { dur: 0.24, w: 1.05, l: 1.9, g: [[0, "#6b4732"], [1, "#6b4732"]], tri: true, glow: "rgba(120,84,58,0.6)" },
+  glave: { dur: 0.24, w: 1.9, l: 1.9, g: [[0, "#6b4732"], [1, "#6b4732"]], tri: true, glow: "rgba(120,84,58,0.6)" },
   frag: { dur: 0.24, w: 0.95, l: 1.8, g: [[0, "#b9bfc6"], [1, "#b9bfc6"]], tri: true, glow: "rgba(200,210,220,0.55)" },
   /* 미사일(요청: "발키리 연기 미사일 트레이서여야함") — 머리는 흰 불꽃, 몸통부터는
      회색 연기가 길게 퍼진다. 옛 값(0.55×3.75)은 너무 가늘고 짧아 총알과 안 갈렸다. */
@@ -1904,6 +1904,8 @@ export const st9Span = (name: string | undefined): boolean => !!(name && FX_BEAM
  *  갈래끼리의 크기 차(가시 0.68 · 화염 1 · 미사일 1.1)가 그 무기의 성질이라 그 비는
  *  지키고 전체만 줄여야 하기 때문이다. 더 줄이려면 이 수 하나만 내리면 된다. */
 export const HIT_FX_K = 0.72;
+/** 몸 상자 가운데에서 효과·조준점까지 더 올리는 몫(상자 비) — 0.10이었다(머리 위). */
+export const BODY_MID_K9 = 0.02;
 export const FX_IMPACT: Record<string, {
   r: number; g: [number, string][]; ring?: string;
   /** 세로 눌림(1이면 원) — 지면에 눕듯 넓적하게 퍼지는 피격에 준다. */
@@ -7109,7 +7111,12 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
        34%였고 그 대부분이 이 DOM 경로다). 이제 숫자 몇 개짜리 FxOp만 밀고
        UnitLayer 캔버스가 몸 위에 그린다. CSS 키프레임이던 애니메이션은 전부
        재생 시각 t의 위상으로 옮겼다(그리는 쪽 봉투 함수들). */
-    const liftPx9 = fxBody + fxPx * 0.1;
+    /* ★ 가슴 몫 0.10 → 0.02(지적: "피격효과가 너무 몸 위쪽에 나오는듯" — 지상·공중 모두) ───
+       그리는 쪽은 몸 **상자의 가운데**를 발 자리에서 0.24·상자 위에 놓는다(UnitLayer의 by9 =
+       sy − px·0.24 − lift). 잉크는 상자의 3분의 1 남짓이라 그 위 0.10·상자는 잉크 높이의
+       30%쯤 더 올라간 자리, 곧 머리 위였다. 몸 가운데에 거의 붙인다. 조준(foeBody9)도 같은
+       비를 쓴다 — 트레이서가 겨누는 점과 불티가 터지는 점은 한 자여야 한다. */
+    const liftPx9 = fxBody + fxPx * BODY_MID_K9;
     /* 맞는 쪽 불티(요청: 크기도 몸에 맞게) — 몸 상자의 0.42배, 가슴 높이.
        싸우는 중이어도 맞으면 띄운다 — 맞는 것과 때리는 것은 따로다. */
     /* 프로토스는 실드가 먼저 깎인다(요청) — 남은 비율이 체력 몫보다 크면 아직
@@ -7208,7 +7215,13 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
        선 전체가 사수 몸높이만큼 위로 밀려 끝점이 '표적 발밑 + 사수 몸높이'가 된다 — 사수가 크고 표적이 작으면
        표적 위 허공이다. 표적 쪽도 같은 자(0.34·제 몸)로 가운데를 잡는다. 사수·표적이 같은 크기면 옛 그림 그대로다. */
     const foePx9 = foe.uk && isKnownKind(foe.uk) ? unitPxOf(foe.uk, foe.by) : fxPx;
-    const foeBody9 = foePx9 * 0.34;
+    /* ★ 표적 몸 가운데 — 유닛은 (0.24 + 가슴 몫)·제 상자(위 liftPx9와 같은 식). 건물은
+       피격 불티가 앉는 자(bLift9 = 발자국 폭·0.3)로 — 여태 건물 행은 uk가 없어 **공격자**
+       몸 크기로 셈해, 트레이서 끝과 건물 불티 자리가 달랐다(지적: "트레이서가 노리는 중심과
+       피격효과의 중심이 좀 다르게 계산되나"). */
+    const foeBody9 = foe.bld && foe.k && FOOTPRINT[foe.k]
+      ? FOOTPRINT[foe.k][0] * (mapW9 / grid.width) * 0.3
+      : foePx9 * (0.24 + BODY_MID_K9);
     const aimDeg = (fx9: number, fy9: number, fAir: boolean): number => {
       const tPx9 = mapW9 / grid.width;
       const ddx = (fx9 - pos.x) * tPx9;

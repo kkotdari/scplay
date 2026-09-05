@@ -18081,7 +18081,6 @@ const UNIT_KIND_SET = new Set(SHAPE_GALLERY.filter((g) => g.group === "유닛").
 /** 발밑만 떠 있는 지상 유닛 — 부양 그림자(넓고 옅은 타원)를 지는 무리다. 일꾼 셋은
  *  **짐을 진 별본까지** 든다: 짐 유무로 그림자가 바뀌면 밭을 오가는 동안 깜빡인다. */
 /** 접지 그림자 중심을 위로 당기는 몫(세로 반지름의 배수) — 바닥까지 꽉 찬 상자꼴 몸만(그림자 그리기의 up9 주석). */
-const SHADOW_UP_K9: Record<string, number> = { tank: 0.75, tankbody: 0.75, tanksiege: 0.75, tanksiegebody: 0.75 };
 const HOVER_UNIT_SET = new Set([
   "scv", "scvMin", "scvGas", "probe", "probeMin", "probeGas", "drone", "droneMin", "droneGas",
   "vulture", "archon", "darchon", "htemp",
@@ -21221,6 +21220,18 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
         const footX = spr
           ? sx - (spr.pad + pxqB / 2) * kU + (spr.cx / B) * kU
           : sx;
+        /* ★ 그림자는 **모델의 땅 원점**에 놓는다(지적: "디파일러 그림자 위치가 몸이랑 안맞음(너무 아래)",
+           "시즈탱크도 그랬고", "그림자 위치가 안맞는 유닛이 있는 이유가 이해가 안돼") ─────────────
+           여태 그림자 타원의 세로 자리는 footY = **판의 가장 아래 잉크 픽셀**이었다. 그 자는 다리 달린
+           몸(발끝이 가장 아래)에는 맞지만, 굽기는 땅 원점(0,0,0)을 상자 (8, 12)(입체 12.6)에 놓고
+           바닥면을 앞뒤(y)로 펼치므로, 가장 아래 픽셀은 발이 아니라 **바닥면의 뒤쪽 가장자리**다 —
+           궤도가 바닥까지 꽉 찬 탱크는 뒤 궤도 끝, 꼬리가 뒤로 긴 디파일러는 꼬리 끝이다. 그래서 몸이
+           앞뒤로 길수록 그림자가 몸 뒤로 밀렸고, 탱크에만 손값(SHADOW_UP_K9)을 대고 있었다.
+           땅 원점의 화면 자리는 잉크와 무관하게 셈이 된다: 판 상자 가운데(sy − 0.24·px)에서 원점 줄
+           (12 또는 12.6)까지 (줄 − 8)/16·px, 여기에 종류 배수(modelNormOf, 상자 가운데 축)를 곱한다.
+           가로도 잉크 중심이 아니라 원점(sx)이다 — 포신이 한쪽으로 뻗어도 그림자는 차체 밑이다. */
+        const gnrm9 = modelNormOf(op.kind);
+        const groundOy9 = sy - px * 0.24 + (((op.flat ? 12 : 12.6) - 8) / 16) * gnrm9 * px;
         if (hover && !op.noShadow && showShadows !== false && CROWD9.lv === 0 && detail) {
           ctx.shadowColor = "transparent";
           /* 떠다니는 지상 유닛(일꾼·벌처·아콘류)은 겨우 발밑만 떠 있다(지적: 그림자가
@@ -21274,7 +21285,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
                 −0.24 × px 옮겨 그려지고(아래 by9), 발끝은 판 안의 잉크가 정한다. 그러니
                 땅 줄은 footY가 맞다. 지면선(groundY)이 실려 온 것(건물·자원)만 그 값을 쓴다.
              가로는 footX 그대로다(앞선 지적: 그림자·링이 몸과 안 맞음). */
-          ctx.ellipse(footX, groundY ?? footY, shw * 1.1, shw * (op.air ? 0.5 : 0.42) * (op.pitch ? pitchFlatNow : 1), 0, 0, Math.PI * 2);
+          ctx.ellipse(sx, groundY ?? groundOy9, shw * 1.1, shw * (op.air ? 0.5 : 0.42) * (op.pitch ? pitchFlatNow : 1), 0, 0, Math.PI * 2);
           ctx.fill();
         } else if (showShadows !== false && CROWD9.lv === 0 && detail && !op.air && !op.clipWalk) {
           /* 지상 유닛 접지 그림자(재지적: 전부 떠 있는 느낌 — 발이 그림자에 닿아야 하고
@@ -21303,8 +21314,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
              바닥(footY)에 두는 자는 다리 달린 몸(발끝 아래로 몸이 없다)에 맞춘 것이라, 궤도가 바닥까지 꽉 찬 탱크는 타원
              절반이 몸 아래로 빠져나와 떠 있는 것처럼 읽혔다(12배에서 뚜렷). 세로 반지름의 몫만큼 올려 몸 밑에 깔리게 한다. */
           const ry9 = shR * 0.58 * (op.pitch ? pitchFlatNow : 1);
-          const up9 = (SHADOW_UP_K9[op.kind] ?? 0) * ry9;
-          ctx.ellipse(footX, (groundY ?? footY) - up9, shR, ry9, 0, 0, Math.PI * 2);
+          // (걷어냄) SHADOW_UP_K9 — 탱크 손값. 땅 원점(groundOy9)에 두면 손값이 필요 없다(위 주석).
+          ctx.ellipse(sx, groundY ?? groundOy9, shR, ry9, 0, 0, Math.PI * 2);
           ctx.fill();
         }
         /* 선택 링(지적: 드래그 선택 구분) — 잡힌 유닛 발밑의 가는 타원 테.
@@ -22357,7 +22368,10 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
             /* ★ 표창(요청: 뮤탈·벌처 쐐기를 정삼각형에서 각 변을 삼각형으로 판 표창으로 · 뾰족한 쪽이 적을 향하게) ────
                세 꼭짓점의 별이다: 앞 꼭짓점이 머리(lx9·ly9, 나는 방향 dxx·dyy)이고 뒤 두 꼭짓점이 ±120도. 변마다
                가운데를 중심 쪽으로 파(반지름 0.35R) 세 날이 선다. 반폭(st.w/2)이 뒤 날의 벌어짐(0.866R)이다. */
-            const hw9 = (st.w / 2) * zoom;
+            /* 별의 자는 **타일 자**(tz9)다(지적: "뮤탈 글레이브 크기도 배율 안 먹는듯?") — 여기만 zoom을
+               곧장 곱해 폰(타일 3px)에서 유닛 대비 두 배 반으로 크고, PC에서는 몸에 비해 작았다. 다른
+               줄기와 같은 자로 옮기고 갈래표의 굵기(glave.w)를 원작 비(타일의 4분의 1)에 맞춘다. */
+            const hw9 = (st.w / 2) * tz9;
             const R9 = hw9 / 0.866;
             const r9 = R9 * 0.35;
             const cx9 = lx9 - dxx * R9;
@@ -26629,6 +26643,12 @@ export default function ReplayMotionPlayer({
     const [fx, fy] = posFrac(x, y);
     return { left: `${(fx * 100).toFixed(3)}%`, top: `${(fy * 100).toFixed(3)}%` };
   };
+  /** ★ 효과 시트(fxlens)의 **px 게이트 하나**(요청: "css 요소의 배율 적용을 하나의 게이트로 통일") ──
+   *  그 시트는 폭 자체가 배율×100%라 안에 적는 px이 곧 화면 px이다. 엔진이 주는 길이는 전부 1배
+   *  상자 px이므로 시트에 px을 적는 곳은 **예외 없이** 이 함수를 지난다 — 파손 효과가 12배에서
+   *  1/12로 줄었던 것은 한 곳이 이 곱을 빠뜨린 탓이었다. CSS 규칙 안의 px(테두리 등)은 시트의
+   *  `--scr-z`(같은 배율)를 calc로 곱한다. 두 길 모두 값은 zoom 하나다. */
+  const zpx9 = (v: number): string => `${(v * zoom).toFixed(1)}px`;
   /** 지도 분수 → 타일 — 위 posFrac의 **역함수**다(요청: "전체화면 온오프시와 각도
    *  변경시 보던위치 중앙을 맞춰줘"). 보던 자리를 지키려면 '지금 화면 한가운데에 오는
    *  지도 지점'을 알아야 하는데, 그건 분수에서 타일로 되돌리는 셈이다.
@@ -27219,15 +27239,15 @@ export default function ReplayMotionPlayer({
                JSX 주석: "px로 적힌 것만 배율을 손수 곱한다"). 엔진이 준 sz·dx·dy·lift는 1배 상자 기준이라
                곱하지 않으면 크기도 들기도 배율분의 1로 줄어, 확대할수록 작아지고 뜬 건물의 불길이 발밑에
                깔렸다. 바로 아래 사망 효과(diePx × zoom)와 같은 규약이다. */
-            style={{ ...posStyle(d.x, d.y), position: "absolute", zIndex: Z_FX - 8, ...(d.lift > 0 ? { transform: `translateY(${(-d.lift * zoom).toFixed(1)}px)` } : {}) }}
+            style={{ ...posStyle(d.x, d.y), position: "absolute", zIndex: Z_FX - 8, ...(d.lift > 0 ? { transform: `translateY(-${zpx9(d.lift)})` } : {}) }}
           >
             {d.items.map((it, k9) => (
               <span
                 key={k9}
                 className={`scr-motion-wound scr-wound-${d.race}`}
                 style={{
-                  width: `${(it.sz * zoom).toFixed(1)}px`, height: `${(it.sz * zoom).toFixed(1)}px`,
-                  transform: `translate(calc(-50% + ${(it.dx * zoom).toFixed(1)}px), calc(-50% + ${(it.dy * zoom).toFixed(1)}px))`,
+                  width: zpx9(it.sz), height: zpx9(it.sz),
+                  transform: `translate(calc(-50% + ${zpx9(it.dx)}), calc(-50% + ${zpx9(it.dy)}))`,
                   animationDelay: `${it.delay}s`,
                 }}
               />
@@ -27270,34 +27290,42 @@ export default function ReplayMotionPlayer({
           </span>
         );
       case "castfx":
-        return (
-          <span key={d.key} className={`scr-motion-castfx scr-fx-${d.cls}`} style={{ ...posStyle(d.x, d.y), width: pct(d.wTiles * pitchK(d.y), grid.width), ...groundXfAt9(d.x, d.y) }}>
+        /* ★ 시전 효과는 **유닛 위**(요청: "스웜이나 이런 효과들은 유닛 밑이 아니라 위에 깔려야됨 —
+           스웜 스테이시스 락다운 스캔 등등") — 렌즈 안 DOM은 유닛 캔버스(z 6000) 밑이라 스캔 원·역병·
+           스웜 구름이 몸에 덮였다. 파손·사망 효과와 같은 효과 시트(fxlens, 캔버스 위)로 옮긴다. 크기는
+           %(타일 비)라 시트의 배율 폭을 그대로 타고, 테두리 px은 CSS가 `--scr-z`로 곱한다. 사망 효과
+           (Z_FX−10)보다 아래에 둔다 — 바닥에 깔리는 효과가 폭발을 덮으면 안 된다.
+           (스테이시스·락다운 우리는 캔버스가 유닛을 다 찍은 뒤 그리므로 이미 몸 위다.) */
+        dieFx9.push(
+          <span key={d.key} className={`scr-motion-castfx scr-fx-${d.cls}`} style={{ ...posStyle(d.x, d.y), position: "absolute", zIndex: Z_FX - 12, width: pct(d.wTiles * pitchK(d.y), grid.width), ...groundXfAt9(d.x, d.y) }}>
             {d.scan && SCAN_DUST.map(([dx9, dy9, dl9], di9) => (
               <span key={`d${di9}`} className="scr-fx-dust" style={{ left: `${dx9}%`, top: `${dy9}%`, animationDelay: `${dl9}s` }} />
             ))}
-          </span>
+          </span>,
         );
+        return null;
       case "swarm":
-        return (
-          <span key={d.key} className="scr-motion-swarmfx" style={{ ...posStyle(d.x, d.y), width: pct(6 * pitchK(d.y), grid.width), ...groundXfAt9(d.x, d.y) }}>
+        dieFx9.push(
+          <span key={d.key} className="scr-motion-swarmfx" style={{ ...posStyle(d.x, d.y), position: "absolute", zIndex: Z_FX - 12, width: pct(6 * pitchK(d.y), grid.width), ...groundXfAt9(d.x, d.y) }}>
             <span className="scr-motion-swarm-cloud" />
             <span className="scr-motion-swarm-cloud scr-motion-swarm-cloud-b" />
-          </span>
+          </span>,
         );
+        return null;
       case "dieat":
         if (zoom >= FX_MIN_ZOOM.burst) return null;
         dieFx9.push(
           <span
             key={d.key}
             className="scr-motion-army scr-motion-dot scr-motion-dieat"
-            style={{ ...posStyle(d.x, d.y), zIndex: Z_FX - 10, ...(d.lift ? { marginTop: `${(-d.lift * zoom).toFixed(1)}px` } : {}) }}
+            style={{ ...posStyle(d.x, d.y), zIndex: Z_FX - 10, ...(d.lift ? { marginTop: `-${zpx9(d.lift)}` } : {}) }}
           >
             <span
               className={`scr-motion-diefx scr-die-${d.dk}`}
               style={{
-                width: `${(d.diePx * 0.58 * zoom).toFixed(1)}px`,
-                height: `${(d.diePx * 0.58 * zoom).toFixed(1)}px`,
-                margin: `${(-d.diePx * 0.29 * zoom).toFixed(1)}px 0 0 ${(-d.diePx * 0.29 * zoom).toFixed(1)}px`,
+                width: zpx9(d.diePx * 0.58),
+                height: zpx9(d.diePx * 0.58),
+                margin: `-${zpx9(d.diePx * 0.29)} 0 0 -${zpx9(d.diePx * 0.29)}`,
               }}
             />
           </span>,
@@ -29654,6 +29682,8 @@ export default function ReplayMotionPlayer({
             style={{
               width: `${zoom * 100}%`, height: `${zoom * 100}%`,
               transform: `translate(-50%, -50%) translate(${pan.x}px, ${pan.y}px)`,
+              // px 게이트(zpx9)의 CSS 쪽 짝 — 규칙 안의 px은 calc(Npx * var(--scr-z))로 곱한다.
+              ["--scr-z" as string]: zoom,
             }}
           >
             {/* 사망 효과(옮김·지적) — 유닛 루프가 채운 모음. 사정은 dieFx9 선언 주석에. */}
