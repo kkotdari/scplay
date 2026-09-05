@@ -29659,6 +29659,13 @@ export default function ReplayMotionPlayer({
                 /* 성공 판정(지적) — 불발이면 폭발 없이 표적 점만 보이다 만다. */
                 const hp9 = NUKE_HEAD_PX * pitchK(y);   // 탄두·연기·낙하 높이도 깊이 배율(입체)
                 const fp9 = NUKE_FALL_PX * pitchK(y);
+                /* 입체의 낙하 축은 수직이 아니다(지적: "3D에서 핵탄두 모델과 연기의 각도가 안 맞고 연기가 맵
+                   안쪽에·너무 수직") — 사영(project)이 높이 z를 x로 z·0.5·밀림(tan 시점각)만큼 밀고 화면 위로는
+                   z·0.8만 올리므로, 이 자리에서 곧게 떨어지는 축은 화면에서 위로 1당 옆으로 0.625·밀림만큼
+                   기운다. 탄두 모델은 그 밀림이 구워져 있는데 연기·낙하 자리는 곧장 위였다. 탄두의 낙하 자리와
+                   연기 자리를 그 축을 따라 옆으로 밀고, 연기 띠는 같은 각으로 돌린다(밑동을 축으로). */
+                const lean9 = pitched ? Math.tan((viewYawOf(x, y) * Math.PI) / 180) * 0.625 : 0;
+                const leanDeg9 = (Math.atan(lean9) * 180) / Math.PI;
                 const landed = nukeImpacts.some((nk) =>
                   nk.confirmed && nk.x === x && nk.y === y && Math.abs(nk.sec - (sec + NUKE_FALL_SEC)) < 0.5);
                 if (age >= NUKE_FALL_SEC && !landed) return null;
@@ -29728,9 +29735,10 @@ export default function ReplayMotionPlayer({
                         style={{
                           width: `${hp9 * 0.62 * zoom}px`,
                           height: `${hp9 * 2.6 * zoom}px`,
-                          translate: `0 ${Math.round(
+                          translate: `${(-Math.round((-fp9 * (1 - dropP9) ** 2 - hp9 * 0.275 - hp9 * 1.42) * zoom) * lean9).toFixed(1)}px ${Math.round(
                             (-fp9 * (1 - dropP9) ** 2 - hp9 * 0.275
                               - hp9 * 1.42) * zoom)}px`,
+                          rotate: `${leanDeg9.toFixed(1)}deg`, transformOrigin: "50% 100%",
                           opacity: 0.25 + 0.6 * dropP9,
                           ...aimClock9,
                         }}
@@ -29758,7 +29766,7 @@ export default function ReplayMotionPlayer({
                              닫히는 둥근 머리라 잉크의 아래 끝이 y 12.40이다(하네스 실측).
                              가운데(50%)와의 차 0.275만큼
                              올리면 코가 점에 닿는다. */
-                          translate: `0 ${Math.round(
+                          translate: `${(-Math.round((-fp9 * (1 - dropP9) ** 2 - hp9 * 0.275) * zoom) * lean9).toFixed(1)}px ${Math.round(
                             (-fp9 * (1 - dropP9) ** 2 - hp9 * 0.275) * zoom)}px`,
                           opacity: 0.4 + 0.6 * dropP9 ** 2,
                         }}
