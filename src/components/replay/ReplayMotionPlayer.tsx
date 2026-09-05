@@ -7968,12 +7968,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const AQUA9 = "#5aecd8";
     /** 목의 단면 — (x, z) 반원. 밑변이 평평해 '반원기둥'이 된다. */
     const NECK_R = 0.72;
-    const NECK_Z = 1.35;
+    const NECK_Z = 0.9;   // 1.35 → 0.9(요청: 앞 연결 팔 높이 낮춤)
     const neckPlan: [number, number][] = Array.from({ length: 9 }, (_, i9) => {
       const a9 = Math.PI * (i9 / 8);
       return [Math.cos(a9) * NECK_R, NECK_Z + Math.sin(a9) * NECK_R] as [number, number];
     });
-    const HEAD_Y = 5.1;   // 반구가 앉는 자리(목 끝)
+    const HEAD_Y = 4.2;   // 반구가 앉는 자리(목 끝) 5.1 → 4.2(요청: 길이 축소)
     return raceBase([
       /* 발치 금 테는 맨 앞에 그린다(지적: 코어 키 검토) — 납작한 원통이라 나중에
          그리면 몸 아래를 판때기로 덮는다. 프리미티브는 제 몫으로 키(깊이+높이)를
@@ -8015,7 +8015,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 목 — 몸 앞면(y 1.4쯤)에서 **곧바로 앞으로** 뻗는 반원기둥. 앞뒤가 밑면인
          기둥이라 prismYFaces가 그 축이다: 단면이 (x, z) 반원이고 그것을 y로 민다.
          뒤 밑면은 몸속이라 안 그리고(capBack false), 앞 밑면은 반구가 덮는다. */
-      ...tagKey(paintBase(prismYFaces(neckPlan, 1.1, HEAD_Y - 1.1, false, false), "#d4bd3c"),
+      // 붙는 면을 앞으로(요청): 1.1 → 1.7.
+      ...tagKey(paintBase(prismYFaces(neckPlan, 1.7, HEAD_Y - 1.7, false, false), "#d4bd3c"),
         depthNow(0, 3) * 1.6 + 2),
       /* 목 끝의 반구 — 장식 하나 없는 매끈한 돔이다(요청: "반구의 장식은 다 제거").
          목과 밑면 높이를 나눠 써 평평한 배가 이어진다. */

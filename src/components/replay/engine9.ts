@@ -1596,11 +1596,11 @@ export const BLD_INK_BOX = new Map<string, [number, number]>();
 export const BLD_NORM: Record<string, number> = {
   academy: 1.470,  // 치마형 받침으로 바꾼 뒤 bld-norm 재측정
   arch: 2.079,  // 판 0.9배 뒤 재측정 2.599 × 0.8(요청: 전체 그려지는 크기 0.8배)
-  archives: 2.489,  // 상자 상한에 걸림
+  archives: 1.991,  // ×0.8(요청: 그려지는 크기 0.8배) · 옛 2.489
   armory: 1.223,
   assim: 1.627,  // 재작 뒤 재측정(bld-norm)
   cavern: 1.082,
-  citadel: 2.225,
+  citadel: 1.780,  // ×0.8(요청: 그려지는 크기 0.8배)
   cocoon: 2.018,
   coil: 1.337,
   comsat: 1.366,
@@ -1608,15 +1608,15 @@ export const BLD_NORM: Record<string, number> = {
   creep: 1.540,
   ctower: 1.555,
   cube: 1.112,
-  cyber: 1.972,
+  cyber: 1.578,  // ×0.8(요청: 그려지는 크기 0.8배)
   diamond: 1.905,  // 상자 상한에 걸림
   dmound: 1.111,
-  dome: 1.418,
+  dome: 1.134,  // ×0.8(요청: 그려지는 크기 0.8배)
   ebay: 1.443,   // 다리 두 마디 20% 축소 뒤 재측정(잉크 폭이 좁아져 배수는 올라간다)
   evo: 1.540,
   extract: 1.027,  // 가시 밑둥 굵힘 뒤 재측정(bld-norm)
   factory: 1.485,  // 절두체+허리 재작도 뒤 재측정(bld-norm)
-  fleetbeacon: 2.125,
+  fleetbeacon: 1.700,  // ×0.8(요청: 그려지는 크기 0.8배)
   forge: 1.596,  // 발 걷어낸 뒤 재측정(bld-norm)
   gate: 1.847,  // 기둥 10% 낮춘 뒤 재측정(bld-norm)
   geyser: 1.587,
@@ -1631,14 +1631,14 @@ export const BLD_NORM: Record<string, number> = {
   mshop: 1.523,  // −90° 요잉 뒤 재측정(bld-norm)
   nsilo: 1.354,
   nydus: 1.184,
-  observatory: 1.650,
+  observatory: 1.320,  // ×0.8(요청: 그려지는 크기 0.8배)
   physlab: 1.468,  // 사진 재작도 뒤 재측정(bld-norm)
   plane: 1.200,   // 높이 1.4배 후 bld-norm 재측정
   pool: 1.449,
   pyramidWide: 1.050,  // 재측정(bld-norm)
   queensnest: 1.148,
   refinery: 1.394,  // 입구를 가운데로 옮겨 잉크 폭이 좁아진 만큼 bld-norm 재측정
-  robobay: 1.389,  // 둘레 판 0.8배 뒤 재측정(bld-norm)
+  robobay: 1.111,  // ×0.8(요청: 그려지는 크기 0.8배) · 옛 1.389
   sbattery: 1.951,  // 빨대 다리 뒤 재측정(bld-norm)
   scifac: 1.445,  // 재작도 + 삼중탑 제거·왼판 축소 뒤 재측정(bld-norm)
   spire: 1.548,  // 상자 상한에 걸림
@@ -1648,7 +1648,7 @@ export const BLD_NORM: Record<string, number> = {
   tomb: 1.534,
   tombFlat: 1.724,   // 높이 1.1배·계단 2/3·그리기 크기 원복 뒤 재측정
   trapezoid: 2.487,
-  tribunal: 1.954,
+  tribunal: 1.563,  // ×0.8(요청: 그려지는 크기 0.8배)
   turret: 1.966,  // 받침을 절두체로 바꾸고 다시 잼
   warpin: 2.196,
 };
