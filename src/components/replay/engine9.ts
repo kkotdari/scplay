@@ -1595,7 +1595,7 @@ export const BLD_INK_BOX = new Map<string, [number, number]>();
  *  표에 없는 종류는 1(모델 그대로)이다. */
 export const BLD_NORM: Record<string, number> = {
   academy: 1.470,  // 치마형 받침으로 바꾼 뒤 bld-norm 재측정
-  arch: 2.599,  // 판 0.9배 뒤 재측정(bld-norm)
+  arch: 2.079,  // 판 0.9배 뒤 재측정 2.599 × 0.8(요청: 전체 그려지는 크기 0.8배)
   archives: 2.489,  // 상자 상한에 걸림
   armory: 1.223,
   assim: 1.627,  // 재작 뒤 재측정(bld-norm)
@@ -2178,6 +2178,8 @@ export const ENGAGE_SIGHT_TILES = 9;
 /** 죽음 폭발이 사는 시간(초) — 유닛·건물. 캔버스 burst와 DOM 여운·집계 문이 같은 값을 본다. */
 /** 체력바가 맞은 뒤 남는 시간(초) — 요청: "체력바는 공격당한 뒤 한동안만 보여준다". 선택된 개체는 늘 보인다. */
 export const HP_BAR_SEC = 3;
+/** 입체에서 체력바 폭 배수(요청: 3D에서 너무 큼). 깊이 배율 pitchK(y)에 더 곱한다. */
+export const HP_BAR_3D_K = 0.7;
 export const DIE_FX_SEC = 0.5;
 export const BLD_FX_SEC = 1.0;
 export const ENGAGE_SKIP = new Set([
@@ -4833,9 +4835,12 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
          말하고 있어, 없어도 상황이 안 읽히지는 않는다. */
       const bldWoundFx: DomFx9 | null = qBuildFx && !bldFrozen9 && woundLv > 0 && !raising
         && (goneEff === 0 || t < goneEff) ? {
-          k: "wound", key: `bw-${i}`, x: centerX, y: centerY, z: z + 4, lift: bFlyPx9,
+          /* 자리는 몸 가운데·그 위(요청: 건물 아래에 깔려 안 보임) — 발자국 폭의 0.3만큼 띄워 몸통 위에 앉힌다.
+             수는 상처가 심할수록 많다(요청): 1단 2개 · 2단 5개. 그리는 쪽은 캔버스 위 층(dieFx9)에 둔다. */
+          k: "wound", key: `bw-${i}`, x: centerX, y: centerY, z: z + 4,
+          lift: bFlyPx9 + fp2[0] * bldTile9 * pitchK(centerY) * 0.3,
           race: race2 === "저그" ? "zerg" : race2 === "프로토스" ? "toss" : "terran",
-          items: Array.from({ length: woundLv === 2 ? 3 : 1 }, (_, k9) => {
+          items: Array.from({ length: woundLv === 2 ? 5 : 2 }, (_, k9) => {
             const h9 = (i * 2654435761 + k9 * 40503) >>> 0;
             const ux9 = ((h9 % 1000) / 1000 - 0.5) * 0.62;
             const uy9 = (((h9 >>> 10) % 1000) / 1000 - 0.5) * 0.62;
@@ -4972,7 +4977,8 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           // 원작 폭(요청) — 발자국 폭(타일 × 32px)의 0.95를 sprites.dat 값 자리에 넣는다.
           ...((): { hpBarW: number; hpBarFrac: number } => {
             const bwB9 = hpBarGamePx9((FOOTPRINT[unit]?.[0] ?? 4) * 32 * 0.95);
-            return { hpBarW: bwB9, hpBarFrac: bwB9 / (gw9 * 32) };
+            /* 입체: 깊이 배율을 먹이고 한 단 줄인다(지적: 3D에서 체력바가 너무 큼 — z가 눌려 몸은 작아지는데 바는 2D 폭). */
+            return { hpBarW: bwB9, hpBarFrac: (bwB9 / (gw9 * 32)) * (pitched ? pitchK(centerY) * HP_BAR_3D_K : 1) };
           })(),
           // 프로토스 건물은 전부 실드를 지닌다 — 그 몫이 바의 흰 칸이다.
           shFrac: bShShare9,
@@ -6742,7 +6748,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       ...((): { hpBarW: number; hpBarFrac: number } => {
         const row9 = UNIT_BW_RAW[UNIT_3D[drawUnit] as keyof typeof UNIT_BW_RAW] as readonly number[] | undefined;
         const bwU9 = hpBarGamePx9(row9 ? row9[0] * 1.3 : 19);
-        return { hpBarW: bwU9, hpBarFrac: bwU9 / (gw9 * 32) };
+        return { hpBarW: bwU9, hpBarFrac: (bwU9 / (gw9 * 32)) * (pitched ? pitchK(ay3) * HP_BAR_3D_K : 1) };   // 입체: 깊이 배율 × 축소(위 건물 쪽 주석)
       })(),
       // 실드 몫 — 표에서 바로 온다(프로토스가 아니면 0이라 흰 칸이 안 생긴다).
       shFrac: (() => {

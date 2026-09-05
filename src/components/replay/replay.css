@@ -1950,12 +1950,14 @@
     rgba(190, 60, 20, 0.45) 66%, transparent 78%);
   animation: scr-wound-fire 0.62s ease-in-out infinite alternate;
 }
-.scr-wound-terran::after {
+/* 테란: 불꽃 + 연기 두 줄기(요청) — 연기는 시차를 두고 번갈아 피어오른다. */
+.scr-wound-terran::before, .scr-wound-terran::after {
   content: ""; position: absolute; left: 50%; bottom: 62%;
   width: 62%; aspect-ratio: 1; border-radius: 50%;
   background: radial-gradient(circle, rgba(120, 120, 118, 0.42) 0 45%, transparent 72%);
   animation: scr-wound-smoke 2.1s ease-out infinite;
 }
+.scr-wound-terran::before { left: 38%; width: 48%; animation-delay: -1.05s; }
 @keyframes scr-wound-fire {
   0% { opacity: 0.72; scale: 0.88; }
   100% { opacity: 1; scale: 1.08; }
@@ -1973,17 +1975,26 @@
    앞선 판은 배어 나와 방울져 흘러내리는 결이었는데, 저그 건물이 다치면 살아 있는 몸이
    터지듯 체액이 솟구친다. 상처 자국은 그대로 두고 그 위로 줄기가 튀어 오르게 바꾼다:
    앞이 빠르고(0→35%) 뒤는 포물선으로 떨어지며, 튀는 사이사이 자국이 함께 부푼다. */
+/* 저그: 피격 효과 같은 **피 터짐**(요청) — 붉은 자국 위로 핏방울 둘이 서로 다른 각으로 튀어 오른다. */
 .scr-wound-zerg {
   background: radial-gradient(circle at 50% 46%,
-    rgba(168, 44, 96, 0.92) 0 30%, rgba(96, 20, 58, 0.62) 58%, transparent 74%);
+    rgba(196, 40, 44, 0.92) 0 30%, rgba(110, 18, 24, 0.62) 58%, transparent 74%);
   animation: scr-wound-burst 1.1s cubic-bezier(0.2, 0.7, 0.3, 1) infinite;
 }
-.scr-wound-zerg::after {
+.scr-wound-zerg::before, .scr-wound-zerg::after {
   content: ""; position: absolute; left: 50%; top: 46%;
   width: 30%; aspect-ratio: 1 / 1.8; border-radius: 50% 50% 45% 45%;
-  background: linear-gradient(to top, rgba(120, 22, 66, 0.2), rgba(186, 48, 104, 0.95));
-  box-shadow: 0 0 2px rgba(150, 30, 80, 0.6);
+  background: linear-gradient(to top, rgba(140, 20, 24, 0.2), rgba(222, 52, 52, 0.95));
+  box-shadow: 0 0 2px rgba(170, 30, 30, 0.6);
   animation: scr-wound-spurt 1.1s cubic-bezier(0.12, 0.72, 0.4, 1) infinite;
+}
+.scr-wound-zerg::before { left: 38%; width: 22%; animation: scr-wound-spurt2 1.3s cubic-bezier(0.12, 0.72, 0.4, 1) infinite; animation-delay: -0.55s; }
+@keyframes scr-wound-spurt2 {
+  0% { opacity: 0; translate: -50% 10%; scale: 0.4 0.4; }
+  12% { opacity: 1; }
+  38% { translate: -140% -100%; scale: 0.85 1.2; }
+  70% { opacity: 0.75; translate: -190% -40%; scale: 1 0.8; }
+  100% { opacity: 0; translate: -220% 70%; scale: 1.1 0.5; }
 }
 @keyframes scr-wound-burst {
   0% { opacity: 0.95; scale: 1.08; }
@@ -2001,16 +2012,25 @@
 /* 프로토스 — **연기**다(확인: "다친건물은 프로토스는 연기 저그는 피 맞아") — 앞선 판은
    사이언 방전을 주인공으로 두고 연기를 곁들였는데, 그 반대가 맞다. 방전은 걷고 피어
    오르는 연기 한 벌만 남기되, 프로토스의 연기라 잿빛에 사이언 기가 살짝 돈다. */
+/* 프로토스: 동그란 연기 대신 **세로로 긴 촛불 같은 플라즈마 누출**(요청) — 밑동은 옅은 하늘빛 후광, 그 위로
+   가늘고 긴 불꽃 둘(크기·박자 다름)이 흔들린다. screen 블렌드라 몸 위에서 빛으로 읽힌다. */
 .scr-wound-toss {
-  background: radial-gradient(circle at 50% 68%,
-    rgba(196, 226, 236, 0.5) 0 22%, rgba(132, 158, 172, 0.34) 52%, transparent 72%);
+  background: radial-gradient(circle at 50% 70%,
+    rgba(150, 230, 255, 0.45) 0 18%, rgba(90, 170, 220, 0.2) 40%, transparent 62%);
   animation: scr-wound-haze 1.9s ease-in-out infinite alternate;
 }
-.scr-wound-toss::after {
-  content: ""; position: absolute; left: 50%; bottom: 58%;
-  width: 68%; aspect-ratio: 1; border-radius: 50%;
-  background: radial-gradient(circle, rgba(168, 194, 206, 0.42) 0 45%, transparent 72%);
-  animation: scr-wound-smoke 2.4s ease-out infinite;
+.scr-wound-toss::before, .scr-wound-toss::after {
+  content: ""; position: absolute; left: 50%; bottom: 40%;
+  width: 22%; height: 170%; translate: -50% 0; transform-origin: 50% 100%;
+  border-radius: 50% 50% 45% 45% / 70% 70% 30% 30%;
+  background: linear-gradient(to top, rgba(120, 220, 255, 0.95) 0%, rgba(210, 245, 255, 0.95) 35%, rgba(255, 255, 255, 0.7) 60%, transparent 100%);
+  filter: blur(0.4px); mix-blend-mode: screen;
+  animation: scr-wound-candle 0.55s ease-in-out infinite alternate;
+}
+.scr-wound-toss::after { left: 62%; width: 14%; height: 120%; animation-duration: 0.42s; animation-delay: -0.2s; }
+@keyframes scr-wound-candle {
+  0% { scale: 1 0.82; opacity: 0.75; }
+  100% { scale: 1.08 1.12; opacity: 1; }
 }
 .scr-motion-collapse {
   position: absolute; width: 34px; aspect-ratio: 1; height: auto;

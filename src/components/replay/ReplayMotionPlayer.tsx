@@ -27142,11 +27142,14 @@ export default function ReplayMotionPlayer({
           </span>
         );
       case "wound":
-        return (
+        /* 캔버스 **위** 층(dieFx9, fxlens)에 둔다(지적: 파손 효과가 건물 아래에 깔려 잘 안 보임) — 렌즈 안
+           DOM은 유닛 캔버스(z 6000) 밑이라 건물 몸이 덮었다. fxlens는 같은 좌표계·같은 변환으로 캔버스 위에 선다
+           (렌즈의 span 규칙이 안 걸리므로 position만 직접 준다). */
+        dieFx9.push(
           <span
             key={d.key}
             className="scr-motion-army scr-motion-dot scr-v2fx"
-            style={{ ...posStyle(d.x, d.y), zIndex: d.z, ...(d.lift > 0 ? { transform: `translateY(${(-d.lift).toFixed(1)}px)` } : {}) }}
+            style={{ ...posStyle(d.x, d.y), position: "absolute", zIndex: Z_FX - 8, ...(d.lift > 0 ? { transform: `translateY(${(-d.lift).toFixed(1)}px)` } : {}) }}
           >
             {d.items.map((it, k9) => (
               <span
@@ -27159,8 +27162,9 @@ export default function ReplayMotionPlayer({
                 }}
               />
             ))}
-          </span>
+          </span>,
         );
+        return null;
       case "mineboom":
         return <span key={d.key} className="scr-motion-mineboom" style={{ ...posStyle(d.x, d.y), zIndex: 1500 }} />;
       case "dig":
