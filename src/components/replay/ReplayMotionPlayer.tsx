@@ -21444,7 +21444,9 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
            가로도 잉크 중심이 아니라 원점(sx)이다 — 포신이 한쪽으로 뻗어도 그림자는 차체 밑이다. */
         const gnrm9 = modelNormOf(op.kind);
         const groundOy9 = sy - px * 0.24 + (((op.flat ? 12 : 12.6) - 8) / 16) * gnrm9 * px;
-        if (hover && !op.noShadow && showShadows !== false && CROWD9.lv === 0 && detail) {
+        /* ★ 덜어내기 중에도 **공중 유닛 그림자는 남긴다**(요청: "떠있는 위치가 안 읽혀서") — 타원 하나라 값이
+           거의 없고, 그림자가 없으면 나는 몸의 높이·자리를 읽을 길이 없다. 부양 지상 유닛 그림자만 덜어낸다. */
+        if (hover && !op.noShadow && showShadows !== false && (CROWD9.lv === 0 || op.air) && detail) {
           ctx.shadowColor = "transparent";
           /* 떠다니는 지상 유닛(일꾼·벌처·아콘류)은 겨우 발밑만 떠 있다(지적: 그림자가
              너무 크고 진해) — 높이 나는 공중 유닛보다 작고 옅은 타원. */

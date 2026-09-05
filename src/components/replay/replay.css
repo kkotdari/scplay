@@ -4291,7 +4291,8 @@
   /* 쓴 사람의 색(--cast, 인라인)으로 물든다(요청). */
   /* ★ 동심원 없이 **얇은 바깥 테두리만**(요청) — 처음 한 번 작은 원에서 바깥 테두리까지 커지고(scr-fx-scan-grow,
      한 번), 그 뒤로는 탐지 시간 동안 테두리만 남았다가 옅어진다. 되풀이 고리(::before/::after)와 바닥 채움은 걷었다. */
-  border: calc(1.2px * var(--scr-z, 1)) solid color-mix(in srgb, var(--cast, #fff) 75%, #fff); border-radius: 50%; mix-blend-mode: screen;
+  /* 굵기 4분의 1·반투명(요청: "스캔 동심원 굵기 1/4정도로 가늘게, 반투명") — 1.2 → 0.3px, 색은 55%. */
+  border: calc(0.3px * var(--scr-z, 1)) solid color-mix(in srgb, color-mix(in srgb, var(--cast, #fff) 75%, #fff) 55%, transparent); border-radius: 50%; mix-blend-mode: screen;
   background: none;
   animation: scr-fx-scan-grow 0.7s cubic-bezier(0.2, 0.8, 0.3, 1) 1, scr-fx-fade 9s linear forwards;
 }
