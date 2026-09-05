@@ -1959,8 +1959,11 @@
   filter: blur(0.35px); mix-blend-mode: screen;
   animation: scr-wound-flame 0.5s ease-in-out infinite alternate;
 }
-/* 테란: 불꽃 + 연기 두 줄기(요청) — 연기는 시차를 두고 번갈아 피어오른다. */
-.scr-wound-terran::after {
+/* 테란: 불꽃 + 연기(요청) — 연기는 **체력이 빨간 2단**(.scr-wound-red, 앵커에 붙는다)에서만 피어오른다
+   (요청: "테란 파손효과는 피가 빨갛게 된 경우엔 연기까지 추가"). 1단은 불꽃만. */
+.scr-wound-terran::after { display: none; }
+.scr-wound-red .scr-wound-terran::after {
+  display: block;
   content: ""; position: absolute; left: 50%; bottom: 100%;
   width: 62%; aspect-ratio: 1; border-radius: 50%;
   background: radial-gradient(circle, rgba(120, 120, 118, 0.42) 0 45%, transparent 72%);

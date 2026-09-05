@@ -22041,18 +22041,38 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
                 거리)로 죈다. 꼬리도 총구 뒤로는 안 넘어간다.
              muzzleLit 갈래(총구 화염·화염방사)만 예외로 총구가 밝다 — 표의 주석 참조. */
           const st = FX_BEAM[f.style ?? "base"] ?? FX_BEAM.base;
-          const rad9 = ((f.deg ?? 0) * Math.PI) / 180;
-          const dxx = -Math.sin(rad9);
-          const dyy = Math.cos(rad9);
+          let rad9 = ((f.deg ?? 0) * Math.PI) / 180;
+          let dxx = -Math.sin(rad9);
+          let dyy = Math.cos(rad9);
           const x0 = ax + (f.mx ?? 0) * zoom;
           const y0 = ay + (f.my ?? 0) * zoom;
           let a9 = 1;
+          /* ★ 표적 자리가 실려 왔으면 **그 화면 점으로** 방향·거리를 다시 잰다(지적: "3D보기에서 트레이서의
+             공중유닛 위치가 잘못 타게팅되는 느낌") — 엔진의 deg·len은 지도를 평면으로 놓고(세로만 pitchFlat)
+             센 어림이라, 입체 사영의 시점 밀림(viewYaw의 skew)·깊이 축소(pitchK)가 안 실렸다. 사수와 표적의
+             깊이가 다를수록, 그리고 공중(들기가 더해질수록) 끝점이 몸에서 벗어났다. 표적의 분수 자리를 붓이 제
+             사영(zx·zy)으로 풀면 어떤 사영에서도 정확히 그 몸이다. */
+          let tgtReach9: number | null = null;
+          if ((f.kind === "beam" || f.kind === "shot") && f.tx !== undefined && f.ty !== undefined) {
+            const x1 = zx(f.tx);
+            const y1 = zy(f.ty) - (f.tlift ?? 0) * zoom;
+            const vx9 = x1 - x0;
+            const vy9 = y1 - y0;
+            const vd9 = Math.hypot(vx9, vy9);
+            if (vd9 > 0.01) {
+              dxx = vx9 / vd9;
+              dyy = vy9 / vd9;
+              rad9 = Math.atan2(-dxx, dyy);
+              tgtReach9 = Math.max(0, vd9 - (f.tgap ?? 0) * zoom);
+            }
+          }
           /** 총구에서 표적까지(화면 px) — op에 len이 실려 있으면 그만큼이 한계다. */
           /* ★ len은 **몸 가운데**에서 표적까지인데 선은 **총구**(mx·my)에서 시작한다 — 총구가
              겨눈 쪽으로 나와 있는 만큼 빼야 머리가 표적에서 멈춘다(지적: 배틀 트레이서가
              표적을 지나쳐 감 — 배틀은 총구가 앞으로 5타일 가까이 나와 있다). */
           const mzFwd9 = (f.mx ?? 0) * dxx + (f.my ?? 0) * dyy;
-          const reach9 = f.len !== undefined && f.len > 0 ? Math.max(0, f.len - mzFwd9) * zoom : Infinity;
+          const reach9 = tgtReach9 !== null ? tgtReach9
+            : f.len !== undefined && f.len > 0 ? Math.max(0, f.len - mzFwd9) * zoom : Infinity;
           /** 잔상 길이 — 갈래표의 l이 곧 '뒤로 얼마나 남나'다. */
           const tailL9 = st.l * tz9;
           /** 총구에서 머리(표적 쪽 끝)까지. */
@@ -22225,7 +22245,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
                7개·0.20이면 0.57이라 꼭대기를 지나 내려가기 시작한 뒤에 다음이 솟는다.
                훑는 길이(len)는 안 건드린다 — 그건 늘 최대 사거리다. */
             const N9 = 7;
-            const W9 = 0.14;   // 0.2 → 0.14(요청: 럴커 가시 유지 시간 더 짧게) — 낱개가 솟았다 지는 창
+            const W9 = 0.28;   // 0.2 → 0.14 → 0.28(재지적: "너무 빨리 나오고 사라지는듯") — 낱개가 솟았다 지는 창
             const hw9 = (st.w / 2) * tz9 * 0.85;
             // 높이 2.6 → 3.6 → 5.4(요청: "길이 1.5배 증가") — 땅에서 솟는 뼈라
             // 낮으면 얼룩으로 읽힌다.
@@ -27347,7 +27367,7 @@ export default function ReplayMotionPlayer({
         dieFx9.push(
           <span
             key={d.key}
-            className="scr-motion-army scr-motion-dot scr-v2fx"
+            className={`scr-motion-army scr-motion-dot scr-v2fx${d.lv >= 2 ? " scr-wound-red" : ""}`}
             /* ★ px에 **배율을 손수 곱한다**(지적: "12배에서 건물 파손 효과가 갑자기 너무 작고 공중에 뜬 건물
                파손효과가 지상에 나오는듯") — 이 층(fxlens)은 폭 자체가 배율×100%라 px이 곧 화면 px이다(위
                JSX 주석: "px로 적힌 것만 배율을 손수 곱한다"). 엔진이 준 sz·dx·dy·lift는 1배 상자 기준이라

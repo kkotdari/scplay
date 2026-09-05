@@ -1692,6 +1692,11 @@ export type FxOp = {
   d0?: number;
   /** shot: 진행률 0~1. */
   u?: number;
+  /** beam/shot: 표적 가운데 앞에서 멈출 몫(px) — 표적 자리는 아래 tx·ty·tlift(테더와 같은 칸)에 싣는다.
+   *  있으면 붓이 각·길이(deg·len) 대신 그 화면 점으로 끝을 잡는다(지적: "3D보기에서 트레이서의 공중유닛 위치가
+   *  잘못 타게팅되는 느낌"). 엔진의 각·길이는 지도를 평면으로 놓고 센 어림이라 입체 사영의 시점 밀림·깊이 축소가
+   *  안 실렸다. */
+  tgap?: number;
   /** 반짝 위상 0~1 — beam은 쿨다운 주기, hit/shield는 제 창 안의 진행. */
   ph?: number;
   /** hit: **표적 스플래시**(쏘는 쪽 박자로 표적에 얹는 그림 — 커세어 플레어·아콘 잽). 트레이서에
@@ -1709,9 +1714,9 @@ export type FxOp = {
   /** hit: 몸 가운데에서 **맞은 자리**까지(렌즈 px) — 없으면 size의 0.71배.
    *  건물은 발자국이 몸 상자와 따로 놀아(4×3 해처리) 제 값을 실어 보낸다. */
   dist?: number;
-  /** tether: 선의 **반대 끝**(지도 분수) — 이쪽 끝은 fx·fy다. */
+  /** tether: 선의 **반대 끝**(지도 분수) — 이쪽 끝은 fx·fy다. beam/shot: 표적의 자리(위 tgap 주석). */
   tx?: number; ty?: number;
-  /** tether: 반대 끝의 들림(렌즈 px) — 배는 떠 있으므로 이쪽만 따로 든다. 없으면 lift. */
+  /** tether: 반대 끝의 들림(렌즈 px) — 배는 떠 있으므로 이쪽만 따로 든다. 없으면 lift. beam/shot: 표적의 들기. */
   tlift?: number;
 };
 /** 트레이서 갈래의 캔버스 값 — CSS(.scr-tracer-*)의 폭·길이·그러데이션을 옮긴 표다.
@@ -2278,7 +2283,7 @@ export type PitchGeom9 = {
 /** 캔버스가 아니라 DOM으로 그리는 효과의 기록 — 메인 스레드가 이것으로 스팬을 만든다. */
 export type DomFx9 =
   | { k: "buildfx"; key: string; x: number; y: number; z: number; race: string; i: number; ws: number }
-  | { k: "wound"; key: string; x: number; y: number; z: number; lift: number; race: string; items: { sz: number; dx: number; dy: number; delay: number }[] }
+  | { k: "wound"; key: string; x: number; y: number; z: number; lift: number; race: string; lv: number; items: { sz: number; dx: number; dy: number; delay: number }[] }
   | { k: "mineboom"; key: string; x: number; y: number }
   | { k: "touchdown"; key: string; x: number; y: number; wPct: number; hPct: number }
   /** 럴커 버로우 파기의 흙덩이(요청) — 0.15초마다 새 열쇠로 한 움큼씩 튄다. seed로 튀는 방향 갈래를 고른다. */
@@ -2998,6 +3003,45 @@ export function deriveWorld9(inp: {
     }
     return m;
   })();
+  /* ★ 나간 사람(지적: "나간 사람 건물이 동시에 폭파되는 문제는 여전") — 원작은 경기에서 나간 사람의 건물·유닛을
+     그 프레임에 한꺼번에 걷는다. 참값에는 그것이 낱낱의 죽음으로 실리므로 화면은 건물 수십 채가 같은 순간
+     폭발·무너짐을 냈다. 한 임자의 건물 넷 이상이 0.5초 안에 함께 죽으면 '나감'으로 보고 그 초를 적어 둔다 —
+     그 순간의 죽음(건물·유닛)은 폭발 없이 사라진다. */
+  const leaveAt9 = (() => {
+    const m = new Map<string, number[]>();
+    if (!entData) return m;
+    const nm9 = new Map(entData.players.map((pl) => [pl.owner, pl.name]));
+    const byRaw9 = new Map<string, number[]>();
+    for (const e of entData.lives) {
+      if (!e.bld || e.died === null || e.end === "own" || e.end === "morph") continue;
+      const r9 = nm9.get(e.owner) ?? "";
+      const a9 = byRaw9.get(r9) ?? [];
+      a9.push(e.died);
+      byRaw9.set(r9, a9);
+    }
+    for (const [r9, ds9] of byRaw9) {
+      ds9.sort((a9, b9) => a9 - b9);
+      let i9 = 0;
+      while (i9 < ds9.length) {
+        let j9 = i9;
+        while (j9 + 1 < ds9.length && ds9[j9 + 1] - ds9[i9] <= 0.5) j9 += 1;
+        if (j9 - i9 + 1 >= 4) {
+          const arr9 = m.get(r9) ?? [];
+          arr9.push(ds9[i9]);
+          m.set(r9, arr9);
+        }
+        i9 = j9 + 1;
+      }
+    }
+    return m;
+  })();
+  /** 이 임자의 이 죽음이 '나감'의 한꺼번 걷힘인가. */
+  const leftAt9 = (raw: string, sec: number): boolean => {
+    const arr9 = leaveAt9.get(raw);
+    if (!arr9) return false;
+    for (const a9 of arr9) if (sec >= a9 - 0.1 && sec <= a9 + 0.6) return true;
+    return false;
+  };
   const tagOrdinals = (() => {
     const m = new Map<string, Map<number, number>>();
     for (const [key, evs] of prodByRawType) {
@@ -3130,7 +3174,7 @@ export function deriveWorld9(inp: {
   return {
     entData, simTracks, buildsSrc, castsV2, entBldHp, bldTagSpots, droneMorph, buildsDrawOrder, bldNudge,
     entCombatStart, upsByRaw, prodDoneAt, prodDoneByRaw, marineBornOf, entWalks, nukeCasts, nukeLase, castsSrc,
-    nukeImpacts, bldGoneEff, goneEffOf, prodByRawType, bldTagAt, tagOrdinals, buildsByType, halls, gasBuildings,
+    nukeImpacts, bldGoneEff, goneEffOf, prodByRawType, bldTagAt, leftAt9, tagOrdinals, buildsByType, halls, gasBuildings,
     resStageSeries, gridHasGasFlags, gasHideOf, mines, bldPre9, bldRecMemo, teamOfRaw, bases, grid, total,
   };
 }
@@ -3155,7 +3199,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
   const {
     entData, simTracks, buildsSrc, entBldHp, bldTagSpots, droneMorph, buildsDrawOrder, bldNudge,
     entCombatStart, upsByRaw, marineBornOf, entWalks, nukeLase, castsSrc,
-    goneEffOf, prodByRawType, bldTagAt, tagOrdinals, buildsByType, halls, gasBuildings,
+    goneEffOf, prodByRawType, bldTagAt, leftAt9, tagOrdinals, buildsByType, halls, gasBuildings,
     resStageSeries, gridHasGasFlags, gasHideOf, mines, bldPre9, bldRecMemo, teamOfRaw, bases, grid, total,
   } = world;
   const gw9 = grid.width;
@@ -4883,6 +4927,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           /* 들기 0.3 → 0.12(지적: "지금 너무 높은데 나오는 경우가 많네") — 몸통 아래쪽에 붙인다. */
           lift: bFlyPx9 + fp2[0] * bldTile9 * pitchK(centerY) * 0.12,
           race: race2 === "저그" ? "zerg" : race2 === "프로토스" ? "toss" : "terran",
+          lv: woundLv,   // 2단(체력 빨강)에서만 테란 연기(요청)
           items: Array.from({ length: woundLv === 2 ? 5 : 2 }, (_, k9) => {
             const h9 = (i * 2654435761 + k9 * 40503) >>> 0;
             /* 흩는 폭 ±0.31 → ±0.16(요청: "너무 넓게 퍼뜨리진 말고 갯수 늘릴 때도 중심부 주변으로") —
@@ -5776,6 +5821,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     const landed9 = liftAt !== undefined && goneAt > liftAt
       && buildsSrc.some(([s2,,, u2, r2]) => r2 === raw && u2 === unit && s2 === goneAt);
     if (landed9) return null;
+    if (leftAt9(raw, goneAt)) return null;   // 나간 사람의 한꺼번 걷힘 — 폭발·무너짐 없이 사라진다(leaveAt9 주석)
     // 후계가 선 자리는 무너진 것이 아니라 변태·재건이다(위 succeedsBld와 같은 자).
     if (finished9 && buildsSrc.some(([s2, x2, y2, u2, r2], j) => j !== i && r2 === raw
       && s2 > sec && Math.hypot(x2 - x, y2 - y) <= SAME_SITE_TILES
@@ -6454,7 +6500,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       /* ★ **파편 폭발**(요청: 단순한 페이드아웃 확대 말고 덩어리가 파편화되어 터지는 꼴 — 기계는
          화염·연기, 프로토스는 플라즈마화, 저그는 살점·피떡) — 캔버스 burst op으로 그린다(2배부터).
          자는 보이는 몸 폭. 그 아래 칸은 옛 DOM 여운 하나만 남긴다. */
-      {
+      if (!leftAt9(e.raw, dieAt)) {   // 나간 사람의 한꺼번 걷힘이면 유닛도 조용히 사라진다(leaveAt9 주석)
         const [bfx9, bfy9] = posFrac(dpx, dpy);
         fxOps.push({
           kind: "burst", fx: bfx9, fy: bfy9, lift: dieLift,
@@ -7241,6 +7287,12 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
     };
     const beamDeg = atkDeg !== null ? aimDeg(foe.bx, foe.by, foe.air) : null;
     /** 총구에서 표적까지의 화면 거리(px) — 날아가는 탄이 얼마나 가야 하나. */
+    /** 표적의 화면 자리(지도 분수·들기) — beam/shot op에 실어 붓이 끝점을 사영 그대로 잡게 한다(FxOp.tx 주석). */
+    const tgtFields9 = (gap9: number): { tx: number; ty: number; tlift: number; tgap: number } | Record<string, never> => {
+      if (atkDeg === null) return {};
+      const [tfx9, tfy9] = posFrac(foe.bx, foe.by);
+      return { tx: tfx9, ty: tfy9, tlift: (foe.air ? foeLift9 : 0) + foeBody9, tgap: gap9 };
+    };
     const beamLen = ((): number => {
       if (atkDeg === null) return 0;
       const tPx9 = mapW9 / grid.width;
@@ -7442,7 +7494,10 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
          자란다. ★ CSS 시절 이 가시는 존재하지 않는 keyframes(scr-spike-run)를
          불러 opacity 0에 갇혀 있었다 — 캔버스로 오며 처음으로 실제로 보인다. */
       const tPx9 = mapW9 / grid.width;
-      const spikeDur9 = (LURKER_SPINE_TRAVEL_PX / LURKER_SPINE_SPEED_PX) * FRAME_SEC;
+      /* ×1.3(지적: "럴커 가시 속도가 원래 저렇게 빠른가? 너무 빨리 나오고 사라지는듯") — 원작 수치(212px ÷
+         18.75px/프레임 ≈ 0.48초)는 가시가 **나가는** 시간이고, 화면의 낱개는 솟았다 지는 창(붓의 W9)까지 짧아
+         눈에 안 남았다. 훑는 주기를 조금 늘리고 붓의 창을 두 배로 벌린다. */
+      const spikeDur9 = (LURKER_SPINE_TRAVEL_PX / LURKER_SPINE_SPEED_PX) * FRAME_SEC * 1.3;
       /* 겨눔은 이 마디의 것으로 못 박는다(위 lockAim 주석) — 원작의 가시도 한 번
          나가기 시작하면 그 방향으로 끝까지 훑는다(behaviour 9: 방향 × 최대 사거리).
          표적을 따라 도는 것은 이 무기의 성질이 아니다. */
@@ -7504,6 +7559,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       for (const s9 of lanes9) {
         fxOps.push({
           kind: "shot", style: fxName9, fx: fxfx9, fy: fxfy9, lift: liftPx9,
+          ...tgtFields9(0),
           mx: mzx9 + perp9[0] * s9, my: mzy9 + perp9[1] * s9,
           deg: beamDeg, len: beamLen, u: shotU, d0: launchDeg9,
         });
@@ -7540,6 +7596,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         kind: "beam", style: fxName9, fx: fxfx9, fy: fxfy9, lift: liftPx9,
         // 표적 그림을 줄기 끝에 얹는 갈래(TARGET_FX) — 자는 쏘는 몸의 상자(옛 hit op와 같다).
         ...(TARGET_FX.has(fxName9) ? { size: fxPx, splash: true } : {}),
+        ...tgtFields9(st9Span(fxName9) ? surf9 + (fxPx / 2) * HIT_FX_K * (FX_IMPACT[fxName9]?.r ?? 0.5) * 0.95 : 0),
         /* len은 '표적까지'다 — 그리는 쪽이 번쩍임 길이를 이 값으로 죈다
            (지적: "피격대상을 지나서까지 그려지는데"). 붙어 싸울수록 짧아진다. */
         mx: st9Span(fxName9) ? mzsx9 : mzx9,
