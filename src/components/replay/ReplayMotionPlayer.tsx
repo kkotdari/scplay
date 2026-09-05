@@ -27082,7 +27082,14 @@ export default function ReplayMotionPlayer({
      pitchK(y)를 곱하고, 땅에 눕는 원(스캔·스웜·착지)은 scaleY(pitchFlat)로 눕힌다. 파는 흙(dig)은 제
      transform(뒤집기·기울기)이 있어 폭만 준다. 모델(FxModel)로 그리는 것(스톰·핵)은 제 사영으로 눕고,
      상자 폭만 같이 준다. 2D에서는 둘 다 항등이다. */
+  /* 눕히기 + **좌우 시점 밀림**(지적: "스캔 같은 것도 각도가 너무 수직 — 롤링이 안 먹는달까") — 사영은 바닥의
+     깊이(화면 아래 방향 dy)에 tan(시점각)을 곱해 x를 민다(project의 ry·납작비·viewShear). 원판 CSS에는 그것이
+     skewX(시점각)이다: 납작하게 누른 뒤(scaleY) 기울인다(skewX) — 변환 목록은 오른쪽부터 먹는다. 시점각은
+     지도 x 자리가 정한다(viewYawOf). */
   const groundXf9 = pitched ? { transform: `translate(-50%, -50%) scaleY(${pitchFlat.toFixed(3)})` } : {};
+  const groundXfAt9 = (x: number, y: number): { transform?: string } => (pitched
+    ? { transform: `translate(-50%, -50%) skewX(${viewYawOf(x, y).toFixed(1)}deg) scaleY(${pitchFlat.toFixed(3)})` }
+    : {});
   const renderDomFx9 = (d: DomFx9): React.ReactNode => {
     switch (d.k) {
       case "buildfx":
@@ -27141,7 +27148,7 @@ export default function ReplayMotionPlayer({
           <span
             key={d.key}
             className="scr-motion-touchdown"
-            style={{ ...posStyle(d.x, d.y), width: `${(d.wPct * pitchK(d.y)).toFixed(3)}%`, height: `${(d.hPct * pitchK(d.y)).toFixed(3)}%`, zIndex: 999, ...groundXf9 }}
+            style={{ ...posStyle(d.x, d.y), width: `${(d.wPct * pitchK(d.y)).toFixed(3)}%`, height: `${(d.hPct * pitchK(d.y)).toFixed(3)}%`, zIndex: 999, ...groundXfAt9(d.x, d.y) }}
             aria-hidden
           />
         );
@@ -27158,7 +27165,7 @@ export default function ReplayMotionPlayer({
         );
       case "castfx":
         return (
-          <span key={d.key} className={`scr-motion-castfx scr-fx-${d.cls}`} style={{ ...posStyle(d.x, d.y), width: pct(d.wTiles * pitchK(d.y), grid.width), ...groundXf9 }}>
+          <span key={d.key} className={`scr-motion-castfx scr-fx-${d.cls}`} style={{ ...posStyle(d.x, d.y), width: pct(d.wTiles * pitchK(d.y), grid.width), ...groundXfAt9(d.x, d.y) }}>
             {d.scan && SCAN_DUST.map(([dx9, dy9, dl9], di9) => (
               <span key={`d${di9}`} className="scr-fx-dust" style={{ left: `${dx9}%`, top: `${dy9}%`, animationDelay: `${dl9}s` }} />
             ))}
@@ -27166,7 +27173,7 @@ export default function ReplayMotionPlayer({
         );
       case "swarm":
         return (
-          <span key={d.key} className="scr-motion-swarmfx" style={{ ...posStyle(d.x, d.y), width: pct(6 * pitchK(d.y), grid.width), ...groundXf9 }}>
+          <span key={d.key} className="scr-motion-swarmfx" style={{ ...posStyle(d.x, d.y), width: pct(6 * pitchK(d.y), grid.width), ...groundXfAt9(d.x, d.y) }}>
             <span className="scr-motion-swarm-cloud" />
             <span className="scr-motion-swarm-cloud scr-motion-swarm-cloud-b" />
           </span>
