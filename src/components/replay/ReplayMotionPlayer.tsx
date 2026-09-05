@@ -9835,7 +9835,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           ]);
         }
         bolt(lp, 0.07 + rnd() * 0.08, depthNow(gx9, gy9) * 1.6 + 2 + i9 * 0.01 + g9 * 0.001,
-          false, ...sub9(bs9 + 1, 2));
+          false, sub9(bs9 + 1, 2)[0], 1, sub9(bs9 + 1, 2)[1]);   // (from9, grow9, life9) — 전개로 넣으면 수명이 grow9 자리에 들어가 발밑 가지가 영영 남았다(지적)
       }
     }
     /* (걷어냄·요청: "스톰 바닥의 푸른 원반은 제거") — 발치에 깔던 옅은 빛(R9짜리
@@ -15393,8 +15393,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          어디감"). 둘째를 거의 흰색으로, 심을 순백으로 올리면 형체가 흰 바탕 위의
          짙은 실루엣이 되어 저절로 살아난다. */
       [screenCircle(ox9, oy9, R), 0.62, "#2f6ff0"] as ShapeFace,
-      [screenCircle(ox9, oy9, R * 0.78), 0.9, "#f7faff"] as ShapeFace,
-      [screenCircle(ox9, oy9, R * 0.46), 1, "#ffffff"] as ShapeFace,
+      // 안쪽 두 구를 키운다(요청: 가장 바깥 구의 색은 얇은 테로만) — 0.78 → 0.9, 0.46 → 0.66.
+      [screenCircle(ox9, oy9, R * 0.9), 0.9, "#f7faff"] as ShapeFace,
+      [screenCircle(ox9, oy9, R * 0.66), 1, "#ffffff"] as ShapeFace,
     ], 0));
 
     /* ② 속 형체 ─────────────────────────────────────────────────────────────── */
@@ -15530,11 +15531,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       [screenCircle(ox9, oy9, R * 1.16), 0.2, "#3a0d10"] as ShapeFace,
       // 붉은 색을 살짝 밝게(요청) — 검붉으면 다크아콘이 아니라 그을린 덩이로 읽힌다.
       [screenCircle(ox9, oy9, R), 0.62, "#b32a30"] as ShapeFace,
-      [screenCircle(ox9, oy9, R * 0.7), 0.5, "#e2512c"] as ShapeFace,
+      [screenCircle(ox9, oy9, R * 0.9), 0.5, "#e2512c"] as ShapeFace,   // 0.7 → 0.9(요청: 바깥 구는 얇은 테로만)
       /* 밝은 심 — **갑주보다 먼저** 깐다(수리: 뒤에 두었더니 반투명 주황 원이 검은
          칼날 위를 덮어, 사진의 검은 칼이 구릿빛 물방울로 보였다). 심은 갑주 뒤에서
          타오르는 불이지 갑주 앞의 유리가 아니다. */
-      [screenCircle(ox9, oy9, R * 0.36), 0.5, "#ff8a46"] as ShapeFace,
+      [screenCircle(ox9, oy9, R * 0.6), 0.5, "#ff8a46"] as ShapeFace,   // 0.36 → 0.6
     ], 0));
 
     /* ② 칼날 몸통 — 위가 넓고 아래로 길게 뾰족하다. 앞뒤로 살짝 눌린 단면(oval)이라
@@ -23676,7 +23677,9 @@ export default function ReplayMotionPlayer({
     const w9 = frameWorkerRef.current;
     if (!w9) return;
     wFramesRef.current.clear();
-    fogSnapsRef9.current = [];
+    /* 안개 판은 **안 비운다**(지적: 처음에 안개가 걷힘 → 적용 → 걷힘 → 적용으로 네 번 바뀜) — 세계·참값을 다시
+       보낼 때마다 판을 비우면 새 장이 올 때까지 '판 없음 = 다 걷힘'으로 그려졌다. 같은 지도면 옛 판이 잠깐 낡은
+       것이 훨씬 낫다. 지도 크기가 다른 판은 아래 decodeFrame9가 크기로 걸러 안 쓴다. */
     wStatRef.current.sentWorld += 1;
     wStatRef.current.ready = false;
     wStatRef.current.worldAt = pNow();
@@ -23689,8 +23692,7 @@ export default function ReplayMotionPlayer({
     const w9 = frameWorkerRef.current;
     if (!w9) return;
     wFramesRef.current.clear();
-    fogSnapsRef9.current = [];
-    postTruth9(w9);
+    postTruth9(w9);   // 안개 판은 두고 간다(위 주석)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [truth, workerTick9]);
   /* 건물 체력 자취(요청: 건물 체력바 — 실드·회복·불·수리 반영은 분석이 했다) —
@@ -26971,10 +26973,23 @@ export default function ReplayMotionPlayer({
     let fog9 = pf9.fog;
     if (!fog9) {
       const snaps9 = fogSnapsRef9.current;
-      for (let i9 = snaps9.length - 1; i9 >= 0; i9 -= 1) if (snaps9[i9].t <= pf9.t + 1e-6) { fog9 = snaps9[i9].fog; break; }
+      const cells9 = grid.width * grid.height;
+      for (let i9 = snaps9.length - 1; i9 >= 0; i9 -= 1) {
+        const sf9 = snaps9[i9];
+        if (sf9.t <= pf9.t + 1e-6 && (!sf9.fog.explored || sf9.fog.explored.length === cells9)) { fog9 = sf9.fog; break; }
+      }
     }
     if (!fog9) {
-      const last9 = lastFrameRef9.current;
+      /* 이 시각 이하의 판이 없으면(막 시작·탐색 직후) **가장 최근 판**이라도 붙인다 — 없을 때 '다 걷힘'으로
+         떨어지던 것이 처음의 깜빡임이었다. 지도 크기가 맞는 판만. */
+      const snaps9 = fogSnapsRef9.current;
+      const cells9 = grid.width * grid.height;
+      let any9: { explored: Uint16Array | null; visNow: Uint8Array | null; visSrc: Float32Array } | null = null;
+      for (let i9 = snaps9.length - 1; i9 >= 0; i9 -= 1) {
+        const sf9 = snaps9[i9];
+        if (!sf9.fog.explored || sf9.fog.explored.length === cells9) { any9 = sf9.fog; break; }
+      }
+      const last9 = any9;
       fog9 = last9 ? { explored: last9.explored, visNow: last9.visNow, visSrc: last9.visSrc }
         : { explored: null, visNow: null, visSrc: new Float32Array(0) };
     }
