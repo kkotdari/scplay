@@ -4908,7 +4908,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
              2×2 발자국의 작은 판이라 48장이라도 몇 MB이고, 도는 동안 같은 48장을 되쓴다. 겨눌 때도 같은 칸. */
           const HEAD_STEP9 = unit === "Missile Turret" ? 7.5 : 22.5;
           const sweep9 = unit === "Missile Turret"
-            ? ((Math.round(((t * 24 + centerX * 37 + centerY * 53) % 360) / HEAD_STEP9) * HEAD_STEP9) % 360 + 360) % 360
+            ? ((Math.round(((t * 48 + centerX * 37 + centerY * 53) % 360) / HEAD_STEP9) * HEAD_STEP9) % 360 + 360)   // 24 → 48°/s(요청: 2배) % 360
             : undefined;
           const f9 = foeOfTgt9(rec9?.tgt);
           if (!f9) return sweep9;

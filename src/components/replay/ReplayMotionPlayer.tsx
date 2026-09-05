@@ -5120,14 +5120,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 발판 뿔(요청) — 앞뒤 경사로 한가운데에서 솟아 끝이 안쪽으로 휜다. 아래는 기둥,
        위는 뿔인 공용 도형(spirePillar). */
     for (const sy9 of [1, -1] as const) {
-      // 발판과 함께 안쪽으로(지적: 이웃 건물과 겹침).
-      const ry9 = sy9 * 2.7;
+      const ry9 = sy9 * 2.9;   // 발판 정중앙(요청) — 발판이 ±2.9로 옮겨 왔다
       /* 작은 뿔이 어금니 탑(키 30)에 안 묻히게(지적) — 앞쪽 뿔은 탑보다 큰 키,
          뒤쪽 뿔은 탑보다 작은 키를 줘 앞뒤가 제대로 갈린다. */
       /* 앞뒤 뿔 20% 축소·한 단 어두운 금(요청) — 높이 4.3 → 3.45, 굵기 0.6 → 0.48. 미리 칠해 두어
          아래 금 밑칠(paintBase)이 못 덮는다. */
       out.push(...tagKey(paintBase(spirePillar({
-        x: 0, y: ry9, z0: h, h: 3.45, w: 0.48, tipW: 0,
+        x: 0, y: ry9, z0: h, h: 3.45, w: 0.48, tipW: 0, oval: 0.55,   // 옆면 폭 납작하게(요청)
         segs: 4, sides: 6, curveY: -sy9 * 0.96, hold: 0.5,
       }), "#9d822e"), facingRatio(0, sy9) >= 0 ? 34 : 26));
     }
@@ -29734,7 +29733,9 @@ export default function ReplayMotionPlayer({
                    z·0.8만 올리므로, 이 자리에서 곧게 떨어지는 축은 화면에서 위로 1당 옆으로 0.625·밀림만큼
                    기운다. 탄두 모델은 그 밀림이 구워져 있는데 연기·낙하 자리는 곧장 위였다. 탄두의 낙하 자리와
                    연기 자리를 그 축을 따라 옆으로 밀고, 연기 띠는 같은 각으로 돌린다(밑동을 축으로). */
-                const lean9 = pitched ? Math.tan((viewYawOf(x, y) * Math.PI) / 180) * 0.625 : 0;
+                /* 0.5(사영의 z→x 밀림) ÷ 0.9(입체 z 눌림, shapeOblique zScaleNow) — 옛 0.625는 눌림 0.8 시절 값이라 밖으로
+                   넘쳤다(지적). */
+                const lean9 = pitched ? Math.tan((viewYawOf(x, y) * Math.PI) / 180) * (0.5 / 0.9) : 0;
                 const leanDeg9 = (Math.atan(lean9) * 180) / Math.PI;
                 const landed = nukeImpacts.some((nk) =>
                   nk.confirmed && nk.x === x && nk.y === y && Math.abs(nk.sec - (sec + NUKE_FALL_SEC)) < 0.5);
@@ -29805,9 +29806,11 @@ export default function ReplayMotionPlayer({
                         style={{
                           width: `${hp9 * 0.62 * zoom}px`,
                           height: `${hp9 * 2.6 * zoom}px`,
-                          translate: `${(-Math.round((-fp9 * (1 - dropP9) ** 2 - hp9 * 0.275 - hp9 * 1.42) * zoom) * lean9).toFixed(1)}px ${Math.round(
+translate: `${(-(Math.round((-fp9 * (1 - dropP9) ** 2 - hp9 * 0.275 - hp9 * 1.42) * zoom) + hp9 * 1.3 * zoom) * lean9).toFixed(1)}px ${Math.round(
                             (-fp9 * (1 - dropP9) ** 2 - hp9 * 0.275
                               - hp9 * 1.42) * zoom)}px`,
+                          /* 옆 밀림은 띠의 **밑동**(가운데 + 키의 절반 아래)의 높이로 잰다 — 가운데 높이로 재면 밑동이 키의
+                             절반만큼 더 밀려 탄두에서 떨어진다(지적: 연기가 너무 바깥쪽). 회전 축도 밑동. */
                           rotate: `${leanDeg9.toFixed(1)}deg`, transformOrigin: "50% 100%",
                           opacity: 0.25 + 0.6 * dropP9,
                           ...aimClock9,
