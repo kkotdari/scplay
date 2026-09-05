@@ -1543,7 +1543,7 @@ export const BLD_DRAW_TUNE: Record<string, number> = {
   spire: 1.2, gspire: 1.2,
   // 도록 크기 보정 페이지(?cal)에서 실측해 준 배수(요청).
   // 터렛·포톤캐논(coil)·로보틱스(dome)는 1.0으로 되돌려 표에서 뺐다(재요청).
-  comsat: 0.6, diamond: 1.2, forge: 0.8, robobay: 1.2,
+  diamond: 1.2, forge: 0.8, robobay: 1.2,   // comsat 0.6은 걷었다(지적: "컴셋 스테이션 왜 이렇게 작지") — 1.0
   tribunal: 0.8, creep: 1.2, sunken: 1.2, spore: 1.2, queensnest: 1.2, cavern: 1.4,
 };
 /** 프로토스 소환구 상자(타일)와 지면에서 띄우는 높이(타일) — 요청: 축소 + 더 띄우기. */
@@ -5099,8 +5099,11 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
              (−0.18)로 옮긴다 — 사람이 지나는 통로는 건물의 앞면이 아니라
              뒤쪽에 붙는 것이 원작의 그림이고, 앞에 두면 두 건물의 얼굴을 가린다. */
           const LINK_IN = 1.3;
+          /* 본건물 쪽은 덜 물린다(요청: "테란 애드온 연결부 본건물 쪽 길이 줄이기") — 1.3 → 0.55. 통로가 본체
+             안으로 깊이 파고들던 몫이 줄어 본체 쪽 길이가 짧아지고 가운데도 부속 쪽으로 옮겨 간다. */
+          const LINK_IN_MAIN = 0.55;
           const leftEdge = par && parBox
-            ? par[1] + footDx(par[3]) + parBox[2] + parBox[0] / 2 - LINK_IN
+            ? par[1] + footDx(par[3]) + parBox[2] + parBox[0] / 2 - LINK_IN_MAIN
             : bodyX - boxW / 2 - 1.2;
           const rightEdge = bodyX - boxW / 2 + LINK_IN;
           /* 가로 2/3(요청: "애드온 연결부 가로 길이 2/3로 줄이고") — 두 끝을
