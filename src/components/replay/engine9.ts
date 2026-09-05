@@ -1682,6 +1682,8 @@ export type FxOp = {
   kind: "beam" | "shot" | "spike" | "erupt" | "hit" | "shield" | "cage" | "tether" | "burst";
   /** burst(죽음·파괴 폭발): 낱개 흩뿌림의 씨앗(개체마다 다르게) · 건물이면 bld. */
   seed?: number; bld?: boolean;
+  /** burst: 몸집 단(1 작음·2 보통·3 큼) — 파편의 **수**가 이 단으로 갈리고 크기는 조금만 커진다(요청). */
+  tier?: 1 | 2 | 3;
   fx: number; fy: number;
   /** 가슴 높이 들기(렌즈 px) — 럴커 가시만 0(땅에서 솟는다). */
   lift: number;
@@ -5880,6 +5882,19 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         size: (FOOTPRINT[unit] ?? [3, 2])[0] * (mapW9 / grid.width) * (cocoonB9 ? 0.5 : 1),
         ph: (t - goneAt) / BLD_FX_SEC,
         mat: cocoonB9 ? "cocoon" : rk === "terran" ? "mech" : rk, seed: i + 13,
+        tier: (FOOTPRINT[unit] ?? [3, 2])[0] <= 2 ? 1 : (FOOTPRINT[unit] ?? [3, 2])[0] === 3 ? 2 : 3,
+      });
+    }
+    /* 저그 건물 **완공 부화**(요청: "그 안에 새 유닛/건물이 나타나게") — 공사 중 고치가 완공 순간 껍질 파편으로
+       찢어진다(고치 재질, 발자국 폭의 반). 시작 건물(sec 0)·날아와 앉은 것은 제외. */
+    if (rk === "zerg" && sec > 0 && (doneAt9 ?? 0) > 0 && t >= (doneAt9 ?? 0) && t - (doneAt9 ?? 0) <= BLD_FX_SEC * 0.6
+      && !(goneAt > 0 && t >= goneAt)) {
+      const [hfx9, hfy9] = posFrac(x + footDx(unit), y + footDy(unit));
+      fxOps.push({
+        kind: "burst", fx: hfx9, fy: hfy9, lift: 0, bld: false,
+        size: (FOOTPRINT[unit] ?? [3, 2])[0] * (mapW9 / grid.width) * 0.5,
+        ph: (t - (doneAt9 ?? 0)) / (BLD_FX_SEC * 0.6),
+        mat: "cocoon", seed: i + 29, tier: 3,
       });
     }
     if (!cocoonB9) dom.push({ k: "collapse", key: `clp-${i}`, x: x + footDx(unit), y: y + footDy(unit), wPct: clpW, rk, flyUp: flyUp9 });
@@ -5904,7 +5919,11 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
        몸은 죽은 자리에 못박히지만, 그 자리에 오래 남을수록 뒤에 오는 유닛이
        시체 위를 지나간다. CSS 애니(scr-diefx)의 길이와 **같은 값**이어야 한다 —
        여운이 더 길면 다 꺼진 빈 스팬이 남고, 짧으면 불덩이가 도중에 잘린다. */
-    if (dieAt !== null && t >= dieAt + (e.end === "morph" || e.end === "own" ? 0 : DIE_FX_SEC)) return null;   // 손바뀜(own)도 여운 없음
+    /* 고치의 **정상 부화**(요청: "저그 고치류 정상 변태 완료시에 껍질 파편으로 찢어지며 터지고 그 안에 새 유닛이
+       나타나게") — 알·러커알·뮤탈고치가 다음 생애(새 유닛)로 이어지는 morph 끝은 죽음이 아니지만, 껍질이 찢어지는
+       파편은 낸다. 그래서 이 셋만 morph 끝에도 DIE_FX_SEC의 여운을 둔다(새 유닛은 다음 생애가 같은 자리에 그린다). */
+    const hatch9 = e.end === "morph" && (e.unit === "Egg" || e.unit === "Lurker Egg" || e.unit === "Mutalisk Cocoon");
+    if (dieAt !== null && t >= dieAt + ((e.end === "morph" && !hatch9) || e.end === "own" ? 0 : DIE_FX_SEC)) return null;   // 손바뀜(own)도 여운 없음
     const team = teamOfRaw(e.raw);
     /* 걸음 속도 상한(요청) — 제 속도표로 죈다. 15%만 여유를 둔다: 교전 지연을
        따라잡는 몫이라, 이보다 크면 다시 '순간적으로 빨라짐'이 된다.
@@ -6471,7 +6490,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
          않지만, 뜻을 못박아 둔다.
          (걷어냄) 'cap' — 인구 과잉 계상을 원장이 무르던 합성 죽음이다. 참값에는
          그런 무름이 없다(자취에 있는 개체는 실제로 있던 개체다). */
-      if (e.end === "morph" || e.end === "own") return null;   // 손바뀜은 죽음이 아니다(다음 생애가 같은 몸)
+      if ((e.end === "morph" && !hatch9) || e.end === "own") return null;   // 손바뀜은 죽음이 아니다(다음 생애가 같은 몸) — 고치 부화만 파편(hatch9)
       /* 죽는 결은 넷이다(요청) — 바이오닉 빨강 · 메카닉 주황 폭발 ·
          프로토스 플라즈마 폭발 · 저그 보라. 여태 테란이 통째로 'mech'라
          마린이 터져도 기계 폭발이 났다(CSS에는 scr-die-bio가 진작 있었는데
@@ -6480,7 +6499,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
          여기서는 하나로 묶는다(요청: 통일) — 종족이 곧 결이라야 화면에서
          '누가 죽었나'가 읽힌다. */
       /* 고치 갈래(지적): 변태알·러커알·뮤탈 고치가 취소로 터지면 피 폭발이 아니라 고치색 파편이 튄다. */
-      const cocoon9 = e.end === "self"
+      const cocoon9 = (e.end === "self" || hatch9)
         && (e.unit === "Egg" || e.unit === "Lurker Egg" || e.unit === "Mutalisk Cocoon");
       const dk = cocoon9 ? "cocoon" : race === "저그" ? "zerg"
         : race === "프로토스" ? "toss"
@@ -6529,6 +6548,11 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
           kind: "burst", fx: bfx9, fy: bfy9, lift: dieLift,
           size: diePx9 * (modelInkOf(UNIT_3D[drawUnit] ?? "") / 16), ph: (t - dieAt) / DIE_FX_SEC,
           mat: dk, seed: e.tag > 0 ? e.tag : ei + 7,
+          // 몸집 단(요청: 파편은 크기 대신 수로) — 보이는 몸 폭을 타일로 재서 셋으로 가른다.
+          tier: ((): 1 | 2 | 3 => {
+            const bt9 = (diePx9 * (modelInkOf(UNIT_3D[drawUnit] ?? "") / 16)) / (mapW9 / grid.width);
+            return bt9 < 0.9 ? 1 : bt9 < 1.8 ? 2 : 3;
+          })(),
         });
         dom.push({ k: "dieat", key: `v2die-${ei}`, x: dpx, y: dpy, dk, diePx: diePx9, lift: dieLift });
       }

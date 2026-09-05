@@ -20389,8 +20389,15 @@ const FX_MAT: Record<string, { core: string; drop: string; deep: string; flash: 
  *  자는 f.size(보이는 몸 폭·발자국 폭, 렌즈 px)이고 p는 0~1 진행이다. 낱개는 씨앗(seed)으로
  *  개체마다 다르게 흩되 프레임마다는 같다(무작위면 지지직거린다). save/restore 없이 네 점을
  *  손으로 돌려 채운다(계측: save 하나가 CPU 8%였다). */
-function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: number, zoom: number, p: number): void {
+function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: number, zoom: number, p: number, tz9 = zoom): void {
   const W = Math.max(3, (f.size ?? 4) * zoom);
+  /* ★ 파편의 **수는 몸집 단으로, 크기는 조금만**(요청: "유닛간 크기 차이에 따라 파편 크기를 배율로 키우기보다는 크기는
+     약간만 커지고 파편 수를 달리하기 — 3단계") — 여태 낱개 크기가 W(몸 폭)에 비례해 울트라는 마린의 다섯 배 조각이
+     튀었다. 이제 낱개 자는 **타일 자**(tz9)에 단별 작은 배수(0.85·1·1.2)만 곱하고, 수는 단별 0.6·1·1.6배다. 건물의
+     테란·저그는 조각을 더 잘게(0.65) 더 많이(1.7배) 낸다(요청). 튀는 거리(v)는 여전히 몸 폭이라 큰 몸은 넓게 퍼진다. */
+  const tier9 = f.tier ?? 2;
+  const szK9 = tier9 === 1 ? 0.85 : tier9 === 3 ? 1.2 : 1;
+  const nK9 = tier9 === 1 ? 0.6 : tier9 === 3 ? 1.6 : 1;
   const mat = f.mat ?? "mech";
   const bld = f.bld === true;
   let sd = ((f.seed ?? 1) * 2654435761) >>> 0;
@@ -20457,12 +20464,13 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
   const pal = PALS[mat] ?? PALS.mech;
   // 기계는 낱개가 더 많다 — 절반이 짧은 막대라(아래) 면 조각 수는 그대로 지킨다.
   const nBase = mat === "mech" ? (bld ? 24 : 16) : (bld ? 16 : 10);
-  const N = Math.round(nBase * DEV9.hitShardK * crowdShardK9());   // 덜어내기: 1단 절반·2단 3분의 1
+  const bldMore9 = bld && (mat === "mech" || mat === "zerg") ? 1.7 : 1;
+  const N = Math.round(nBase * nK9 * bldMore9 * DEV9.hitShardK * crowdShardK9());   // 덜어내기: 1단 절반·2단 3분의 1
   const g = W * (wet ? 1.1 : mat === "toss" ? 0.25 : 0.7);
   for (let i = 0; i < (mat === "toss" ? 0 : N); i += 1) {
     const an = (i / N) * Math.PI * 2 + (rnd() - 0.5) * 0.6;
     const v = W * (0.45 + rnd() * 0.65);
-    const sz = W * (0.07 + rnd() * (bld ? 0.1 : 0.08));
+    const sz = tz9 * (0.55 + rnd() * 0.6) * szK9 * (bld && (mat === "mech" || mat === "zerg") ? 0.65 : 1);
     const rot = an + (rnd() - 0.5) * 6 * p;
     const life = mat === "toss" ? 0.75 : 1;
     const q = Math.min(1, p / life);
@@ -21872,7 +21880,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
           if (ax < -60 || ax > cw + 60 || ay < -60 || ay > ch + 60) continue;
           const p9 = Math.max(0, Math.min(1, f.ph ?? 0));
           if (f.kind === "burst") {
-            drawBurst9(ctx, f, ax, ay, zoom, p9);
+            drawBurst9(ctx, f, ax, ay, zoom, p9, tz9);
             continue;
           }
           if (f.kind === "hit") {
