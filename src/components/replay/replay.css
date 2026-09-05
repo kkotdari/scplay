@@ -2789,42 +2789,43 @@
    중심 방향의 계단(=띠)도 안 생긴다. 자리는 못 박은 값이라 프레임마다 안 떨린다.
    색도 함께 고친다 — 옛 값(150,90,40 · 190,120,50)은 주황에 가까워 불·모래로 읽혔다.
    원작의 다크 스웜은 이름 그대로 **어두운** 벌레 구름이라 짙은 흙빛이 맞다.
+   → 다시 주황으로(요청: "다크 스웜 색 좀더 밝은 주황으로") — 바닥 덩이 rgba(128,62,18) · 윗 덩이 rgba(236,146,56).
    두 층은 서로 **반대로 천천히 돈다**(아래 keyframes) — 덩이 두 벌이 엇갈려 지나가면
    그 자리가 우글거리는 것으로 읽힌다. */
 .scr-motion-swarm-cloud {
   position: absolute; inset: 0; border-radius: 50%;
   background:
-    radial-gradient(circle at 55.9% 51.3%, rgba(40,28,16,0.52) 0, rgba(40,28,16,0) 17.0%),
-    radial-gradient(circle at 41.0% 55.3%, rgba(40,28,16,0.60) 0, rgba(40,28,16,0) 21.0%),
-    radial-gradient(circle at 53.9% 37.1%, rgba(40,28,16,0.68) 0, rgba(40,28,16,0) 25.0%),
-    radial-gradient(circle at 56.9% 64.4%, rgba(40,28,16,0.52) 0, rgba(40,28,16,0) 20.4%),
-    radial-gradient(circle at 33.2% 43.2%, rgba(40,28,16,0.60) 0, rgba(40,28,16,0) 24.4%),
-    radial-gradient(circle at 68.7% 43.0%, rgba(40,28,16,0.68) 0, rgba(40,28,16,0) 19.9%),
-    radial-gradient(circle at 40.1% 69.3%, rgba(40,28,16,0.52) 0, rgba(40,28,16,0) 23.9%),
-    radial-gradient(circle at 43.8% 27.5%, rgba(40,28,16,0.60) 0, rgba(40,28,16,0) 19.3%),
-    radial-gradient(circle at 71.1% 63.2%, rgba(40,28,16,0.68) 0, rgba(40,28,16,0) 23.3%),
-    radial-gradient(circle at 24.2% 54.8%, rgba(40,28,16,0.52) 0, rgba(40,28,16,0) 18.7%),
-    radial-gradient(circle at 66.6% 28.0%, rgba(40,28,16,0.60) 0, rgba(40,28,16,0) 22.7%),
-    radial-gradient(circle at 52.7% 78.8%, rgba(40,28,16,0.68) 0, rgba(40,28,16,0) 18.1%),
-    radial-gradient(circle at 27.6% 29.8%, rgba(40,28,16,0.52) 0, rgba(40,28,16,0) 22.1%),
-    radial-gradient(circle at 81.3% 49.8%, rgba(40,28,16,0.60) 0, rgba(40,28,16,0) 17.6%),
-    radial-gradient(circle at 26.2% 72.1%, rgba(40,28,16,0.68) 0, rgba(40,28,16,0) 21.6%);
+    radial-gradient(circle at 55.9% 51.3%, rgba(128,62,18,0.52) 0, rgba(128,62,18,0) 17.0%),
+    radial-gradient(circle at 41.0% 55.3%, rgba(128,62,18,0.60) 0, rgba(128,62,18,0) 21.0%),
+    radial-gradient(circle at 53.9% 37.1%, rgba(128,62,18,0.68) 0, rgba(128,62,18,0) 25.0%),
+    radial-gradient(circle at 56.9% 64.4%, rgba(128,62,18,0.52) 0, rgba(128,62,18,0) 20.4%),
+    radial-gradient(circle at 33.2% 43.2%, rgba(128,62,18,0.60) 0, rgba(128,62,18,0) 24.4%),
+    radial-gradient(circle at 68.7% 43.0%, rgba(128,62,18,0.68) 0, rgba(128,62,18,0) 19.9%),
+    radial-gradient(circle at 40.1% 69.3%, rgba(128,62,18,0.52) 0, rgba(128,62,18,0) 23.9%),
+    radial-gradient(circle at 43.8% 27.5%, rgba(128,62,18,0.60) 0, rgba(128,62,18,0) 19.3%),
+    radial-gradient(circle at 71.1% 63.2%, rgba(128,62,18,0.68) 0, rgba(128,62,18,0) 23.3%),
+    radial-gradient(circle at 24.2% 54.8%, rgba(128,62,18,0.52) 0, rgba(128,62,18,0) 18.7%),
+    radial-gradient(circle at 66.6% 28.0%, rgba(128,62,18,0.60) 0, rgba(128,62,18,0) 22.7%),
+    radial-gradient(circle at 52.7% 78.8%, rgba(128,62,18,0.68) 0, rgba(128,62,18,0) 18.1%),
+    radial-gradient(circle at 27.6% 29.8%, rgba(128,62,18,0.52) 0, rgba(128,62,18,0) 22.1%),
+    radial-gradient(circle at 81.3% 49.8%, rgba(128,62,18,0.60) 0, rgba(128,62,18,0) 17.6%),
+    radial-gradient(circle at 26.2% 72.1%, rgba(128,62,18,0.68) 0, rgba(128,62,18,0) 21.6%);
   animation: scr-swarm 3.6s ease-in-out infinite alternate;
 }
 .scr-motion-swarm-cloud-b {
   inset: 5%;
   background:
-    radial-gradient(circle at 52.1% 56.0%, rgba(134,96,54,0.24) 0, rgba(134,96,54,0) 13.0%),
-    radial-gradient(circle at 40.3% 44.7%, rgba(134,96,54,0.29) 0, rgba(134,96,54,0) 17.9%),
-    radial-gradient(circle at 63.9% 46.5%, rgba(134,96,54,0.34) 0, rgba(134,96,54,0) 15.1%),
-    radial-gradient(circle at 40.7% 64.1%, rgba(134,96,54,0.28) 0, rgba(134,96,54,0) 20.0%),
-    radial-gradient(circle at 47.0% 31.0%, rgba(134,96,54,0.33) 0, rgba(134,96,54,0) 17.2%),
-    radial-gradient(circle at 66.6% 63.2%, rgba(134,96,54,0.27) 0, rgba(134,96,54,0) 14.4%),
-    radial-gradient(circle at 27.0% 51.6%, rgba(134,96,54,0.32) 0, rgba(134,96,54,0) 19.3%),
-    radial-gradient(circle at 67.1% 32.0%, rgba(134,96,54,0.26) 0, rgba(134,96,54,0) 16.5%),
-    radial-gradient(circle at 49.5% 76.4%, rgba(134,96,54,0.31) 0, rgba(134,96,54,0) 13.7%),
-    radial-gradient(circle at 31.6% 29.1%, rgba(134,96,54,0.25) 0, rgba(134,96,54,0) 18.6%),
-    radial-gradient(circle at 79.1% 53.1%, rgba(134,96,54,0.30) 0, rgba(134,96,54,0) 15.8%);
+    radial-gradient(circle at 52.1% 56.0%, rgba(236,146,56,0.24) 0, rgba(236,146,56,0) 13.0%),
+    radial-gradient(circle at 40.3% 44.7%, rgba(236,146,56,0.29) 0, rgba(236,146,56,0) 17.9%),
+    radial-gradient(circle at 63.9% 46.5%, rgba(236,146,56,0.34) 0, rgba(236,146,56,0) 15.1%),
+    radial-gradient(circle at 40.7% 64.1%, rgba(236,146,56,0.28) 0, rgba(236,146,56,0) 20.0%),
+    radial-gradient(circle at 47.0% 31.0%, rgba(236,146,56,0.33) 0, rgba(236,146,56,0) 17.2%),
+    radial-gradient(circle at 66.6% 63.2%, rgba(236,146,56,0.27) 0, rgba(236,146,56,0) 14.4%),
+    radial-gradient(circle at 27.0% 51.6%, rgba(236,146,56,0.32) 0, rgba(236,146,56,0) 19.3%),
+    radial-gradient(circle at 67.1% 32.0%, rgba(236,146,56,0.26) 0, rgba(236,146,56,0) 16.5%),
+    radial-gradient(circle at 49.5% 76.4%, rgba(236,146,56,0.31) 0, rgba(236,146,56,0) 13.7%),
+    radial-gradient(circle at 31.6% 29.1%, rgba(236,146,56,0.25) 0, rgba(236,146,56,0) 18.6%),
+    radial-gradient(circle at 79.1% 53.1%, rgba(236,146,56,0.30) 0, rgba(236,146,56,0) 15.8%);
   animation-name: scr-swarm-b; animation-duration: 2.7s; animation-delay: 0.4s;
 }
 @keyframes scr-swarm {

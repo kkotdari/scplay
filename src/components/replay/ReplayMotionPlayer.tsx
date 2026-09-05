@@ -119,7 +119,7 @@ const NUKE_FALL_PX = 140;
  *  18 → **9**(요청: "탄두 크기 반으로 줄이기") — 폭발 상자가 6 → 10타일로 커지며
  *  탄두가 상대적으로 커 보였다. 폭발과 탄두는 별개 값이라 각각 정한다(그 사정은
  *  아래 폭발 width 주석에 있다). */
-const NUKE_HEAD_PX = 9;   // 3.6 → 9(요청: 핵탄두 2.5배)
+const NUKE_HEAD_PX = 22.5;   // 3.6 → 9 → 22.5(요청: 핵탄두 2.5배 — 시트(.scr-motion-nuke-fall)는 22.5로 올라 있었는데 이 상수만 9에 남아 탄두가 작았다(지적))
 /* 입체 보기의 바닥 기하 — 모듈 스코프에 둔다(수리: 그림자가 바닥보다 두 배 납작한
    문제). 지형 그림·마커 사영은 컴포넌트 안에서 이 값들을 쓰고, 캔버스의 그림자·
    선택 링은 컴포넌트 밖(UnitLayer)에서 쓴다. 같은 바닥을 두 곳이 따로 알고 있으면
@@ -9479,11 +9479,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         a9[2] + (b9[2] - a9[2]) * f9];
     };
     /** 번개 한 줄기 — 넓고 옅은 후광 관 위에 좁고 밝은 심 관을 겹친다(반투명·요청). */
+    /* 가지마다 **수명**이 있다(지적: "스톰 가지별로 생겼다가 없어지는 시간 훨씬 빠르게 — 지금은
+       효과 끝나기 전에 없어지는 가지가 없음") — 여태 줄기는 제 단계(from9)에 나서 씨앗이 끝날
+       때까지(8칸) 남았다. 이제 life9 칸만 살고 꺼진다: 줄기 2~3칸, 잔가지·발밑 가지 1~2칸.
+       칸 박자도 9.6 → 14/초로 올려(감싸개의 spin) 줄기 하나가 0.14~0.21초 번쩍이고 사라진다. */
     const bolt = (pts: [number, number, number][], w9: number, key9: number,
-      thin9 = false, from9 = 0, grow9 = 1): void => {
+      thin9 = false, from9 = 0, grow9 = 1, life9 = 99): void => {
       /* 아직 자라지 않은 마디는 굽지 않는다 — 부르는 쪽의 난수는 이미 다 돌았으므로
          (위 STAGE9 주석) 다음 단계에서 같은 자리에 같은 모양으로 돋아난다. */
-      if (STAGE9 < from9) return;
+      if (STAGE9 < from9 || STAGE9 >= from9 + life9) return;
       const n9 = pts.length - 1;
       const along9 = alongOf(pts);
       /* 자라는 중이면 폴리라인의 앞머리만 탄다 — 끝점이 t=grow9 자리라, 줄기가 하늘에서
@@ -9579,8 +9583,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ]);
       }
       // 줄기 굵기는 제각각(요청) — 0.13~0.27.
+      const life9 = 2 + Math.floor(rnd() * 2);        // 줄기 수명 2~3칸(난수 차례는 단계와 무관)
       bolt(pts, 0.13 + rnd() * 0.14, depthNow(gx9, gy9) * 1.6 + 4 + i9 * 0.01,
-        false, bs9, STAGE9 === bs9 ? 0.62 : 1);
+        false, bs9, STAGE9 === bs9 ? 0.62 : 1, life9);
       /* ★ **공중 잔가지**(요청: "공중에도 잔가지가 퍼져야 해, 여기저기 여러 높이에서"
          · "잔가지는 꼭 수평은 아니고 수평에서 수직으로도 퍼지고 대각으로도 퍼지고")
          ────────────────────────────────────────────────────────────────────────
@@ -9610,7 +9615,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const twig9 = (
         bx9: number, by9: number, bz9: number,
         bang9: number, bzc9: number, blen9: number, bw9: number, bkey9: number,
-        bfrom9: number,
+        bfrom9: number, blife9 = 2,
       ): [number, number, number][] => {
         const hc9 = Math.sqrt(Math.max(0, 1 - bzc9 * bzc9)); // 남은 몫이 수평
         const tp: [number, number, number][] = [[bx9, by9, bz9]];
@@ -9624,7 +9629,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
             Math.max(0.05, bz9 + bzc9 * blen9 * u9 + (rnd() - 0.5) * blen9 * 0.22),
           ]);
         }
-        bolt(tp, bw9, bkey9, true, bfrom9);
+        bolt(tp, bw9, bkey9, true, bfrom9, 1, blife9);
         return tp;
       };
       const twigs9 = 2 + Math.floor(rnd() * 2);
@@ -9639,14 +9644,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const tl9 = R9 * (0.3 + rnd() * 0.8);
         const tw9 = 0.06 + rnd() * 0.07;
         const kb9 = depthNow(ox9, oy9) * 1.6 + 4 + i9 * 0.01 + 0.005;
-        const tp9 = twig9(ox9, oy9, oz9, ta9, zc9, tl9, tw9, kb9, Math.min(3, bs9 + 2));
+        const tlife9 = 1 + Math.floor(rnd() * 2);     // 잔가지 수명 1~2칸
+        const tp9 = twig9(ox9, oy9, oz9, ta9, zc9, tl9, tw9, kb9, Math.min(bs9 + life9 - 1, bs9 + 1), tlife9);
         if (tl9 <= R9 * 0.6) continue;
         // 긴 가지만 한 번 더 갈린다 — 갈리는 마디도, 벌어지는 쪽도 뽑는다.
         const [jx9, jy9, jz9] = tp9[2 + Math.floor(rnd() * 2)];
         let zc2 = rnd() * 2 - 1;
         if (zc2 > 0) zc2 *= 0.55;
         twig9(jx9, jy9, jz9, ta9 + (rnd() < 0.5 ? -1 : 1) * (0.6 + rnd() * 0.8),
-          zc2, tl9 * (0.35 + rnd() * 0.25), tw9 * 0.62, kb9 + 0.002, Math.min(3, bs9 + 3));
+          zc2, tl9 * (0.35 + rnd() * 0.25), tw9 * 0.62, kb9 + 0.002, Math.min(bs9 + life9 - 1, bs9 + 2), 1);
       }
       /* ★ **발밑 가지**(지적: "맨 아래 바닥에 크게 퍼지는 방사형 번개 제거 — 각각의
          줄기에서 뻗어나오는 게 자연스럽다") ──────────────────────────────────────
@@ -9671,7 +9677,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           ]);
         }
         bolt(lp, 0.07 + rnd() * 0.08, depthNow(gx9, gy9) * 1.6 + 2 + i9 * 0.01 + g9 * 0.001,
-          false, Math.min(3, bs9 + 2));
+          false, Math.min(bs9 + life9 - 1, bs9 + 1), 2);
       }
     }
     /* (걷어냄·요청: "스톰 바닥의 푸른 원반은 제거") — 발치에 깔던 옅은 빛(R9짜리
@@ -10673,10 +10679,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // 2) 양옆 절두체 팔(폭 1.0) + 두께 있는 사다리꼴 방패(위 바깥·아래 안으로 기움).
     for (const m9 of [-1, 1] as const) {
       const X0 = m9 * (TW0 + 0.05); const X1 = m9 * 3.0;
-      const rB: [number, number, number] = [X0, -0.6, Z(5.25)]; const rF: [number, number, number] = [X0, -2.1, Z(5.25)];   // 깊이 = 뒷동체
-      const rT: [number, number, number] = [X0, -0.6, Z(6.57)]; const rR: [number, number, number] = [X0, -2.1, Z(6.57)];   // 높이 +20%
-      const tB: [number, number, number] = [X1, -0.8, Z(5.45)]; const tF: [number, number, number] = [X1, -1.9, Z(5.45)];
-      const tT: [number, number, number] = [X1, -0.8, Z(5.75)]; const tR: [number, number, number] = [X1, -1.9, Z(5.75)];
+      /* 앞뒤 폭 −20%(요청: 양쪽 날개팔 폭 20% 축소) — 뿌리 1.5 → 1.2, 끝 1.1 → 0.88, 가운데(−1.35)는 그대로. */
+      const rB: [number, number, number] = [X0, -0.75, Z(5.25)]; const rF: [number, number, number] = [X0, -1.95, Z(5.25)];   // 깊이 = 뒷동체
+      const rT: [number, number, number] = [X0, -0.75, Z(6.57)]; const rR: [number, number, number] = [X0, -1.95, Z(6.57)];   // 높이 +20%
+      const tB: [number, number, number] = [X1, -0.91, Z(5.45)]; const tF: [number, number, number] = [X1, -1.79, Z(5.45)];
+      const tT: [number, number, number] = [X1, -0.91, Z(5.75)]; const tR: [number, number, number] = [X1, -1.79, Z(5.75)];
       const top9 = polyPath3([rT, rR, tR, tT]);
       const bot9 = polyPath3([rB, rF, tF, tB]);
       const fr9 = polyPath3([rB, rT, tT, tB]);
@@ -20286,13 +20293,15 @@ export const scrDiagModes = (): Set<string> => {
   return new Set(m9 ? m9[1].split(",") : []);
 };
 
-function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan, wallMask, maskRects, clipQuad, showShadows, showOverlap, showHp, showCreep, marker: markerProp, markerAt, detailAt, yawAt, moveAt, painter, live, onPainted }: {
+function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan, tilePx, wallMask, maskRects, clipQuad, showShadows, showOverlap, showHp, showCreep, marker: markerProp, markerAt, detailAt, yawAt, moveAt, painter, live, onPainted }: {
   ops: UnitDrawOp[]; zoom: number; pan: { x: number; y: number };
   /** ★ 붓을 React 밖에서 몰 때(4번) — 시계 틱이 여기 넣어 둔 op·효과를 붓이 읽는다(props의 ops·fx보다 앞선다).
    *  driven이 참인 동안 이 effect는 안 칠한다(틱이 칠한다); 멈추면 종전대로 렌더마다 칠한다. */
   opsSrc?: { current: UnitDrawOp[] | null }; fxSrc?: { current: FxOp[] | null }; driven?: { current: boolean };
   /** 사양 게이트(요청) — 끄면 접지·겹침 그림자/체력바/크립을 안 그린다. 기본 켬. */
   showShadows?: boolean; showOverlap?: boolean; showHp?: boolean; showCreep?: boolean;
+  /** 1배에서 타일 하나의 CSS px — 렌즈px 상수(트레이서 갈래표 l·w, 가시 높이)를 타일 자로 되돌리는 데 쓴다(아래 tz9). */
+  tilePx?: number;
   /** 크립 차단 마스크(요청: 벽·램프·다리는 크립이 못 뚫는다) — 칸 하나가 픽셀 하나인
    *  지형 캔버스. clipWalk 판들을 깐 직후 destination-out으로 파낸다. */
   wallMask?: HTMLCanvasElement | null;
@@ -21422,6 +21431,12 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
             : p9 < 0.64 ? 0.4 + ((p9 - 0.42) / 0.22) * 0.55 : (1 - p9) / 0.36 * 0.95);
         ctx.save();
         ctx.shadowColor = "transparent";
+        /* 렌즈px 상수의 자(지적: "PC보다 모바일에서 트레이서 크기가 훨씬 큼") — 갈래표의 l·w, 가시 높이
+           4.05, 광구 0.7 같은 값은 '1배 CSS px'라 배율만 곱했다. 그런데 타일 하나가 PC에서는 8px 남짓,
+           폰에서는 3px라(지도가 화면 폭에 맞춰 선다) 같은 배율의 같은 px가 폰에서는 유닛 대비 2.6배로
+           컸다. 유닛·피격(f.size)은 엔진이 타일 자로 내므로 이미 맞다. 이 상수들만 타일 8px를 기준으로
+           타일 자에 태운다 — PC(≈8px)는 그대로, 폰은 그만큼 준다. */
+        const tz9 = zoom * ((tilePx ?? 8) / 8);
         for (const f of fx) {
           /* ★ 갈래마다 제 칸이 있다(요청: "2배에서 전투효과: 가시 분출 우리 / 4배에서
              전투효과: 피격 / 나머지는 다 8배부터") — 사다리는 FX_MIN_ZOOM이고, 배치의
@@ -21718,7 +21733,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
           const mzFwd9 = (f.mx ?? 0) * dxx + (f.my ?? 0) * dyy;
           const reach9 = f.len !== undefined && f.len > 0 ? Math.max(0, f.len - mzFwd9) * zoom : Infinity;
           /** 잔상 길이 — 갈래표의 l이 곧 '뒤로 얼마나 남나'다. */
-          const tailL9 = st.l * zoom;
+          const tailL9 = st.l * tz9;
           /** 총구에서 머리(표적 쪽 끝)까지. */
           let headD9 = 0;
           /** ★ **실제로 그어지는 길의 전체 길이** — 곡선·머리·꼬리가 다 이 자를 쓴다.
@@ -21778,7 +21793,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
             if (f.style === "heal") {
               // 메딕 — 길이 없는 노란 불빛(scr-tracer-heal + scr-heal-glow 박동).
               const pulse9 = 0.15 + Math.sin(p9 * Math.PI) * 0.85;
-              const r9 = 0.7 * zoom * (0.7 + Math.sin(p9 * Math.PI) * 0.4);
+              const r9 = 0.7 * tz9 * (0.7 + Math.sin(p9 * Math.PI) * 0.4);
               const g9 = ctx.createRadialGradient(x0, y0, 0, x0, y0, r9);
               g9.addColorStop(0, "rgba(255,250,214,0.98)");
               g9.addColorStop(0.72, "rgba(252,238,150,0.5)");
@@ -21857,7 +21872,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
                **가시 낱개가 간격을 두고 차례로 솟았다 지는** 연쇄다. 낱개는 땅에서
                위로 솟으므로 화면 세로로 세운다(진행 방향으로 눕히면 다시 한 줄로
                읽힌다). 앞뒤 간격과 솟는 창(W9)이 겹치지 않아 '다다다'가 된다. */
-            const L0 = (f.len ?? st.l) * zoom;
+            const L0 = f.len !== undefined ? f.len * zoom : st.l * tz9;
             /* ★ 앞 가시가 **들어가기 시작한 뒤** 다음이 솟는다(지적: "나오는 타이밍은
                이전 가시가 나오고 다시 들어가기 시작한 후 다음게 나옴") ──────────────
                낱개는 sin(πq)로 솟았다 지므로 q 0.5가 꼭대기, 그 뒤가 들어가는 구간이다.
@@ -21868,10 +21883,10 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
                훑는 길이(len)는 안 건드린다 — 그건 늘 최대 사거리다. */
             const N9 = 7;
             const W9 = 0.14;   // 0.2 → 0.14(요청: 럴커 가시 유지 시간 더 짧게) — 낱개가 솟았다 지는 창
-            const hw9 = (st.w / 2) * zoom * 0.85;
+            const hw9 = (st.w / 2) * tz9 * 0.85;
             // 높이 2.6 → 3.6 → 5.4(요청: "길이 1.5배 증가") — 땅에서 솟는 뼈라
             // 낮으면 얼룩으로 읽힌다.
-            const HH9 = 4.05 * zoom;   // 5.4 → 4.05(요청: 가시 길이 25% 축소)
+            const HH9 = 4.05 * tz9;   // 5.4 → 4.05(요청: 가시 길이 25% 축소)
             for (let i9 = 0; i9 < N9; i9 += 1) {
               const q9 = (p9 - (i9 / N9) * (1 - W9)) / W9;
               if (q9 <= 0 || q9 >= 1) continue;
@@ -21940,14 +21955,14 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
                가 곧 탄두의 코라, 마지막 덩이 몇이 탄두 위에 그대로 겹쳤다. 로켓의 연기는
                노즐에서 나오므로 **탄두 길이만큼 뒤**에서 시작해야 한다.
                탄두 길이(bodyL9)를 먼저 재고 덩이의 끝을 거기까지로 죈다. */
-            const bodyL9 = Math.min(Math.max(0, headD9 - tailD9), st.w * zoom * 9);
+            const bodyL9 = Math.min(Math.max(0, headD9 - tailD9), st.w * tz9 * 9);
             const smokeEnd9 = st.warhead ? headD9 - bodyL9 : headD9;
             const span9 = Math.max(0, smokeEnd9 - tailD9);
             /* ★ 간격의 바닥을 2 → 0.9px로(재요청: "더 자주 나오게") — 덩이를 4분의 1로
                줄이자 이 바닥이 실제 간격을 지배해, 지름 1.5px짜리 덩이가 2px씩 떨어져
                점선으로 보였다. 바닥은 '한 프레임에 덩이가 수백 개 서지 않게' 막는 안전값
                이므로(위 n9의 상한 30이 그 몫을 다시 받는다) 덩이 지름 아래로 내려도 된다. */
-            const step9 = Math.max(1.0, st.w * zoom * st.puff);
+            const step9 = Math.max(1.0, st.w * tz9 * st.puff);
             const n9 = Math.min(30, Math.max(2, Math.round(span9 / step9)));
             /* ★ 미사일은 **휘어 날아간다**(지적: "목표물을 따라 휘는 유도 성질 있음") ────
                앞판은 총구에서 표적까지 곧은 선이었다. 유도탄의 자취가 곧을 리 없다 —
@@ -22433,8 +22448,10 @@ export function FxModel({
           FX_RASTER_BYTES.n -= v0.width * v0.height * 4;
         }
       }
-      /* #diag — 실기기에서 배킹을 눈으로 읽는다(iOS 저해상도 추적). '배킹/상자px'. */
-      if (typeof location !== "undefined" && location.hash.includes("diag")) {
+      /* #diag=fx — 실기기에서 배킹을 눈으로 읽는다(iOS 저해상도 추적). '배킹/상자px'.
+         ★ 맨 #diag에서는 안 찍는다(지적: "핵에 웬 이상한 글자가") — 벤치·워커 줄을 보려고 #diag를
+           켠 사람의 화면에 효과마다 초록 글자가 박혔다. fx 용도(또는 all)로 청했을 때만. */
+      if (typeof location !== "undefined" && /diag=(?:[^#&]*,)?(?:fx|all)\b/.test(location.hash)) {
         c2.setTransform(1, 0, 0, 1, 0, 0);
         c2.globalAlpha = 1;
         c2.font = `bold ${Math.max(10, Math.round(cw9 * 0.09))}px monospace`;
@@ -29316,7 +29333,7 @@ export default function ReplayMotionPlayer({
 
           <UnitLayer
             ops={unitOps} fx={fxOps} opsSrc={frameOpsRef9} fxSrc={frameFxRef9} driven={drivenRef9}
-            zoom={zoom} pan={pan} wallMask={creepMask} maskRects={creepMaskRects}
+            zoom={zoom} pan={pan} tilePx={tilePx} wallMask={creepMask} maskRects={creepMaskRects}
             /* 손짓(드래그·핀치·휠) 중에는 부모가 이 붓으로 캔버스만 다시 그린다 —
                리액트를 안 거치고, 그린 자리는 손끝 그대로다(xfLive). */
             painter={unitPaintRef} live={xfLiveRef} onPainted={onUnitPainted}
@@ -29695,7 +29712,7 @@ export default function ReplayMotionPlayer({
                       벌어진 각을 낸다. 이 값이 없으면 번개 기둥만 화면에 수직으로 선다. */}
                   <FxModel
                     kind="storm"
-                    spin={Math.floor((t - sec) * 9.6) % (STORM_SEEDS * STORM_STAGES)}   /* 0.8배(요청) → 다시 20% 감속(재요청) 12 → 9.6 */
+                    spin={Math.floor((t - sec) * 14) % (STORM_SEEDS * STORM_STAGES)}   /* 0.8배(요청) → 다시 20% 감속(재요청) 12 → 9.6 */
                     flat={!pitched}
                     pitchView={pitched}
                     viewYaw={viewYawOf(x, y)}

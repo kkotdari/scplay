@@ -901,7 +901,7 @@ export const MODEL_NORM: Record<string, number> = {
   carrier: 0.695,
   corsair: 1.203,  // 재측정(model-norm)
   darchon: 0.496,
-  defiler: 0.687,
+  defiler: 0.824,   // 0.687 → ×1.2(요청: 디파일러 그리기 1.2배)
   devourer: 0.805,
   drone: 1.078,  // 재측정(model-norm)
   droneGas: 1.040,
@@ -952,7 +952,7 @@ export const MODEL_NORM: Record<string, number> = {
   tanksiege: 0.723,
   tanksiegebody: 0.723,
   ultra: 0.361,
-  valk: 0.840,   // 앞동체 −10% 뒤 재측정(model-norm)
+  valk: 0.672,   // 앞동체 −10% 뒤 재측정(model-norm) 0.840 → ×0.8(요청: 발키리 그리기 0.8배)
   vessel: 0.898,  // 방패 접힘 축·뾰족 위끝 뒤 재측정(model-norm)
   vulture: 0.833,
   wraith: 0.894,  // 재측정(model-norm)
@@ -3984,7 +3984,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
          날아온 것은 몸의 어느 쪽에 맞았는지가 그림으로 안 읽히므로, 모를 때는 몸 가운데다. */
     const hitSrcOf = (
       tag9: number, x9: number, y9: number,
-    ): { dir: [number, number] | null; uk?: string } => {
+    ): { dir: [number, number] | null; uk?: string; unit?: string } => {
       const f9 = tag9 > 0 ? foeByTarget.get(tag9) : undefined;
       if (!f9) return { dir: null };
       const bd9 = Math.hypot(f9.x - x9, f9.y - y9);
@@ -3998,7 +3998,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       /* 무기 갈래는 이름을 아는 몸에서만 — 건물이면 k, 유닛이면 uk가 그 이름이다.
          (사거리 확인은 걷었다: 참값이 겨눈 것이면 제 사거리 안이다.) */
       const uk9 = f9.uk ?? f9.k;
-      return { dir, uk: uk9 && isKnownKind(uk9) ? uk9 : undefined };
+      return { dir, uk: uk9 && isKnownKind(uk9) ? uk9 : undefined, unit: uk9 };
     };
     const RIDE_TETHER_SEC = 1.1;
     /* ★ 배 쪽 끝은 **배에게 묻는다**(지적: "드랍십 내리기 점선이 전혀 엉뚱한 데랑 이어져.
@@ -6904,7 +6904,8 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
     if (kindMain === "htemp" && movingNow && !fighting) {
       const hr9 = (bodyHdg * Math.PI) / 180;
       const mainOp = unitOps[unitOps.length - 1];
-      const [gfx9, gfy9] = posFrac(ax3 + Math.sin(hr9) * 0.45, ay3 - Math.cos(hr9) * 0.45);
+      /* 0.45 → 0.22타일(요청: "환영을 본체에 더 가까이, 약간 겹쳐야 함"). */
+      const [gfx9, gfy9] = posFrac(ax3 + Math.sin(hr9) * 0.22, ay3 - Math.cos(hr9) * 0.22);
       unitOps.push({
         ...mainOp, fx: gfx9, fy: gfy9, z: mainOp.z - 1,
         alpha: mainOp.alpha * 0.34, solid: "#5f8dff", ghost: true,
@@ -7058,7 +7059,11 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         size: fxPx * (modelInkOf(kindMain) / 16) * 1.2, ph: (t - hurtAt) / 0.4 }
       : { kind: "hit", fx: fxfx9, fy: fxfy9, lift: liftPx9,
         size: fxPx * (modelInkOf(kindMain) / 16) * 0.69, dist: fxPx * (modelInkOf(kindMain) / 16) * 0.32,
-        ph: (t - hurtAt) / 0.14, mat: hitMat9,
+        /* 스커지 자폭(지적: "스커지 아직도 죽거나 폭발할 때 프로토스 효과") — 맞은 몸의 결이 아니라
+           **때린 쪽**의 결이다. 스커지는 무기 표(ATTACK_FX)에 없어(자폭) hitWpn9가 비고, 맞은
+           프로토스의 결(toss: 연푸른 줄)로 터져 스커지 자리에서 프로토스 효과가 났다. 자폭은 저그
+           살점이 터지는 것이라 저그 결로 낸다. */
+        ph: (t - hurtAt) / 0.14, mat: /scourge/i.test(hitSrc9?.unit ?? "") ? "zerg" : hitMat9,
         ...(hitWpn9 ? { style: hitWpn9 } : {}),
         ...(hitDir9 ? { dx: hitDir9[0], dy: hitDir9[1] } : {}) }) : null;
     if (hitFx9 && !fighting) {
