@@ -23697,10 +23697,13 @@ export default function ReplayMotionPlayer({
         setEntWalks9([]);
         walksAskedRef9.current = null;
         setWorldGen9((g9) => g9 + 1);
-        // 새 세대의 세계다 — 옛 세대로 지은 장(안개가 다르다)은 버린다. 새 장은 이 메시지 바로 뒤에 온다.
+        /* 새 세대의 세계다 — 옛 세대로 지은 장(안개가 다르다)은 버린다. 새 장은 이 메시지 바로 뒤에 온다.
+           ★ 마지막 장은 **지킨다**(지적: "처음 로딩시 안개 한번 없어졌다 다시 보이는 현상 여전") — 여기서
+             lastFrameRef9까지 비우면 새 장이 올 때까지 빈 장(EMPTY_FRAME9, 안개 판 없음)이 그려져 안개 층이
+             통째로 내려갔다가 첫 새 장에서 되살아났다. 참값을 다시 실을 때마다(세계 표가 다시 올 때마다)
+             그 깜빡임이 났다. 옛 장이 100ms쯤 낡은 것이 안개가 사라지는 것보다 훨씬 낫다. */
         frames9.clear();
         fogSnapsRef9.current = [];
-        lastFrameRef9.current = null;
       } else if (m9.type === "walks") {
         setEntWalks9((m9 as unknown as { entWalks: EngineWorld9["entWalks"] }).entWalks ?? []);
       } else if (m9.type === "ready") {
@@ -27064,7 +27067,11 @@ export default function ReplayMotionPlayer({
         const sf9 = snaps9[i9];
         if (!sf9.fog.explored || sf9.fog.explored.length === cells9) { any9 = sf9.fog; break; }
       }
-      const last9 = any9;
+      /* 판이 하나도 없으면 **마지막으로 그린 장의 안개**를 잇는다(같은 지적) — 안개 판이 없는 장을 '안개 없음'
+         으로 그리면 안개 층이 내려간다. 지도 크기가 맞는 것만. */
+      const lf9 = lastFrameRef9.current;
+      const last9 = any9 ?? (lf9 && lf9.explored && lf9.explored.length === cells9
+        ? { explored: lf9.explored, visNow: lf9.visNow, visSrc: lf9.visSrc } : null);
       fog9 = last9 ? { explored: last9.explored, visNow: last9.visNow, visSrc: last9.visSrc }
         : { explored: null, visNow: null, visSrc: new Float32Array(0) };
     }
