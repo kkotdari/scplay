@@ -4956,7 +4956,9 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
             const uy9 = (((h9 >>> 10) % 1000) / 1000 - 0.5) * 0.32;
             // 세 종족 모두 20% 축소(요청): 0.34/0.26 → 0.27/0.21.
             const sz9 = fp2[0] * (woundLv === 2 ? 0.27 : 0.21) * bldTile9 * pitchK(centerY);   // 입체: 깊이 배율
-            return { sz: sz9, dx: ux9 * fp2[0] * bldTile9 * pitchK(centerY), dy: uy9 * fp2[1] * bldTile9 * pitchK(centerY) * (pitched ? pitchFlat : 1), delay: ((h9 >>> 20) % 100) / 100 };
+            /* 살짝 왼쪽으로(지적: "45도 요잉된 모델과 합쳐지니 오른쪽으로 치우친 느낌") — 건물 판은 45도로 요잉해
+               서므로 보이는 몸의 가운데가 발자국 가운데보다 조금 왼쪽이다. 폭의 0.08만큼 왼쪽에 둔다. */
+            return { sz: sz9, dx: (ux9 - 0.08) * fp2[0] * bldTile9 * pitchK(centerY), dy: uy9 * fp2[1] * bldTile9 * pitchK(centerY) * (pitched ? pitchFlat : 1), delay: ((h9 >>> 20) % 100) / 100 };
           }),
         } : null;
       /** 이 건물이 화면에 내보내는 효과 한 벌 — 이제 상처(계속)뿐이다.

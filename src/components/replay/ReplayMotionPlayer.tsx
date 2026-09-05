@@ -418,7 +418,10 @@ let bldSpinNow = 0;
  *  재기 전: scv 13.0/0.767 → 3.34 · probe 10.25/1.738 → −1.33 · drone 12.13/1.078 → 1.54 · htemp 11.25/1.249 → 0.28
  *  · vulture 11.5/0.833 → 1.45. SHAPE_BUILDERS 표 바로 뒤에서 빌더 자체를 감싼다 — 굽기·도록·측정 도구가 다 같은 모델을 본다. */
 const MODEL_Z_OFF9: Record<string, number> = {
-  scv: 4.19, probe: -1.43, drone: 1.89, htemp: 0.45, vulture: 1.69,   // 한 번 더 맞춤(측정 gap 1.51/2.13/1.72/1.84/1.85 → 2)
+  /* 키에 비례(재요청: "떠있는 유닛 5종이 키에 따라 높이가 달라져야 하네 — 키에 비례해서") — 잉크 높이(model-norm h,
+     입체: scv 5.94 · probe 2.55 · drone 3.57 · htemp 5.21 · vulture 4.99, 평균 4.45)에 2칸을 비례시킨다:
+     scv 2.67 · probe 1.15 · drone 1.60 · htemp 2.34 · vulture 2.24. */
+  scv: 5.37, probe: -2.27, drone: 1.92, htemp: 0.81, vulture: 2.14,
 };
 const SPIN_KINDS = new Set<string>([
   "trapezoid", "cyber", "forge", "storm", "nukecloud", "nukeblast",
@@ -27453,6 +27456,14 @@ export default function ReplayMotionPlayer({
   const groundXfAt9 = (x: number, y: number): { transform?: string } => (pitched
     ? { transform: `translate(-50%, -50%) skewX(${viewYawOf(x, y).toFixed(1)}deg) scaleY(${pitchFlat.toFixed(3)})` }
     : {});
+  /* ★ 가운데 맞춤을 **translate 속성**으로 하는 요소용(지적: "스캔, 테란 건물 착지시 동심원효과가 우하단에서 확대
+     되는데 중심에서 확대돼야 해") — 키프레임이 개별 `scale` 속성으로 커지는 요소에서 `transform: translate(-50%,-50%)`
+     을 쓰면 합성 차례(translate·rotate·scale 속성 → transform 속성, 원점은 상자 가운데)가 원점을 옮겨진 상자의
+     **우하단**에 남겨, 거기서 커졌다. 가운데 맞춤을 `translate: -50% -50%`(맨 바깥 단계)로 빼면 scale은 제 가운데에서
+     일어난다. 이 요소들의 transform에는 눕히기·밀림만 싣는다(2D는 없음). CSS 규칙 쪽도 같은 규약(translate 속성). */
+  const groundSkewAt9 = (x: number, y: number): { transform?: string } => (pitched
+    ? { transform: `skewX(${viewYawOf(x, y).toFixed(1)}deg) scaleY(${pitchFlat.toFixed(3)})` }
+    : {});
   const renderDomFx9 = (d: DomFx9): React.ReactNode => {
     switch (d.k) {
       case "buildfx":
@@ -27520,7 +27531,7 @@ export default function ReplayMotionPlayer({
           <span
             key={d.key}
             className="scr-motion-touchdown"
-            style={{ ...posStyle(d.x, d.y), width: `${(d.wPct * pitchK(d.y)).toFixed(3)}%`, height: `${(d.hPct * pitchK(d.y)).toFixed(3)}%`, zIndex: 999, ...groundXfAt9(d.x, d.y) }}
+            style={{ ...posStyle(d.x, d.y), width: `${(d.wPct * pitchK(d.y)).toFixed(3)}%`, height: `${(d.hPct * pitchK(d.y)).toFixed(3)}%`, zIndex: 999, ...groundSkewAt9(d.x, d.y) }}
             aria-hidden
           />
         );
@@ -27543,7 +27554,7 @@ export default function ReplayMotionPlayer({
            (Z_FX−10)보다 아래에 둔다 — 바닥에 깔리는 효과가 폭발을 덮으면 안 된다.
            (스테이시스·락다운 우리는 캔버스가 유닛을 다 찍은 뒤 그리므로 이미 몸 위다.) */
         dieFx9.push(
-          <span key={d.key} className={`scr-motion-castfx scr-fx-${d.cls}`} style={{ ...posStyle(d.x, d.y), position: "absolute", zIndex: Z_FX - 12, width: pct(d.wTiles * pitchK(d.y), grid.width), ...groundXfAt9(d.x, d.y),
+          <span key={d.key} className={`scr-motion-castfx scr-fx-${d.cls}`} style={{ ...posStyle(d.x, d.y), position: "absolute", zIndex: Z_FX - 12, width: pct(d.wTiles * pitchK(d.y), grid.width), ...groundSkewAt9(d.x, d.y),
             // 쓴 사람의 색(요청: "스캔 효과에 쓴 사람 색 표현하기") — 스캔 CSS가 --cast로 고리·바닥을 물들인다.
             ...(d.scan ? { ["--cast" as string]: modeColor(d.raw, teamOfRaw(d.raw) ?? 1) } : {}) }}>
             {d.scan && SCAN_DUST.map(([dx9, dy9, dl9], di9) => (
