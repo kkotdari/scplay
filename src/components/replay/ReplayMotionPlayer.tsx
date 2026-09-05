@@ -82,7 +82,7 @@ import {
   domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio,
   prismYFaces, prismZFaces, pyramidFaces3,
   screenCircle, setPitchSquash, sphereFaces3, tubeAxisLift, tubeFaces,
-  wallDiscPath, withModelSpin, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted,
+  wallDiscPath, withModelSpin, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted,
 } from "../../utils/shapeOblique";
 import { TEAM_COLOR, type MinimapMarker } from "./markers";
 import {
@@ -9647,7 +9647,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        '하늘로 뻗은 기둥'이 아니라 '넓게 퍼져 내리치는 벼락'이 되게 한다. 내려다보는
        사영에서는 퍼짐이 곧 영역이라, 넓은 쪽이 스톰의 뜻에 맞다. */
     const R9 = 6.8;              // 퍼지는 반지름
-    const TOP9 = 10.5;           // 줄기가 시작하는 높이
+    const TOP9 = 15.5;           // 줄기가 시작하는 높이 — 10.5 → 15.5(요청: "공중유닛도 닿는 위치까지 커버되게")
     /* ★ 번개를 **진짜 관**으로 짠다(요청: "스톰도 고치핏줄처럼 입체적인 기둥형태로해줘
        굵기도 다양하고 줄기안에서도 굵기 변화있게") ────────────────────────────────────
        여태는 폴리라인을 x나 y로 벌린 **얇은 띠**(ribbon)였다. 띠는 벌리는 축이 화면
@@ -13943,7 +13943,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     return out;
   },
   /* 프로브(실물 참고) — 팔각 보석 몸(밝은 윗판 층층) + 방사 가시들. */
-  probe: () => {
+  /* 프로브는 z를 1.5 내린다(요청: "일꾼들 떠있는 높이 하템 벌처 수준으로 낮추기") — 재보니(model-norm 잉크 바닥
+     y1 10.25, 땅 원점 12.6, 배수 1.738) 프로브만 땅에서 4.1칸 떠 있었고 하템 1.7·벌처 0.9·드론 0.5·SCV −0.3이었다.
+     프로브를 하템 높이로 내린다. */
+  probe: () => withModelZOff(-1.5, () => {
     const out: ShapeFace[] = [];
     /** 몸통 축소 몫(요청: "프로브 몸체 크기 2/3로 축소") — 몸에 붙는 자리(다리 뿌리·
      *  눈·옆 포트)가 전부 이 값을 지나야 몸만 줄고 부품이 허공에 뜨는 일이 없다. */
@@ -14058,7 +14061,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        몸 바로 밑(0.65)까지 당기고, 각도를 ±14→±30으로 벌리고, 길이는 반 남짓으로. */
     for (const ang of [30, -30]) out.push(...paintBase(wing(ang, 0.85 * BD, 0.8 + 0.85 * (1 - BD), 0.17, 0.08, 6.15, 5.5), TOSS_GOLD));
     return out;
-  },
+  }),
   /* 드론(정정) — 갈퀴치마는 집게 사이가 아니라 집게팔과 꼬리 사이, 양옆에 부채처럼
      펼쳐진다. 몸통(꼬리 겹돔) + 칼날팔 한 쌍 + 양옆 톱니 부채막. */
   drone: () => {

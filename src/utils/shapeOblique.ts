@@ -570,9 +570,20 @@ export function withModelScale<T>(kx: number, ky: number, kz: number, fn: () => 
 export function withModelZ<T>(k: number, fn: () => T): T {
   return withModelScale(1, 1, k, fn);
 }
+/** 모델 전체를 z로 평행이동(모델 단위) — 떠 있는 몸을 땅 쪽으로 내리는 데 쓴다(프로브). 배율 뒤에 더한다. */
+let modelZOff = 0;
+export function withModelZOff<T>(dz: number, fn: () => T): T {
+  const p = modelZOff;
+  modelZOff = dz;
+  try {
+    return fn();
+  } finally {
+    modelZOff = p;
+  }
+}
 /** 모형 좌표 (x,y,z) → 화면 [sx, sy]. y(앞)는 아래로, z(위)는 위로 간다. */
 export function project(x0: number, y0: number, z0: number): [number, number] {
-  const z = z0 * modelZK;
+  const z = z0 * modelZK + modelZOff;
   // 모델 회전이 먼저다 — 돌아간 좌표를 카메라가 본다(카메라는 안 움직인다).
   const [mx, my] = spun(x0 * modelXK, y0 * modelYK);
   const th = ((yawOverride ?? VIEW.yawDeg) * Math.PI) / 180;
