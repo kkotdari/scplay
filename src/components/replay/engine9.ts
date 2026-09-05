@@ -1595,7 +1595,7 @@ export const BLD_INK_BOX = new Map<string, [number, number]>();
  *  표에 없는 종류는 1(모델 그대로)이다. */
 export const BLD_NORM: Record<string, number> = {
   academy: 1.470,  // 치마형 받침으로 바꾼 뒤 bld-norm 재측정
-  arch: 2.584,  // 십자 방패판 재작도 뒤 재측정(bld-norm)
+  arch: 2.599,  // 판 0.9배 뒤 재측정(bld-norm)
   archives: 2.489,  // 상자 상한에 걸림
   armory: 1.223,
   assim: 1.627,  // 재작 뒤 재측정(bld-norm)
@@ -1638,7 +1638,7 @@ export const BLD_NORM: Record<string, number> = {
   pyramidWide: 1.050,  // 재측정(bld-norm)
   queensnest: 1.148,
   refinery: 1.394,  // 입구를 가운데로 옮겨 잉크 폭이 좁아진 만큼 bld-norm 재측정
-  robobay: 1.310,  // 재측정(bld-norm)
+  robobay: 1.389,  // 둘레 판 0.8배 뒤 재측정(bld-norm)
   sbattery: 1.951,  // 빨대 다리 뒤 재측정(bld-norm)
   scifac: 1.445,  // 재작도 + 삼중탑 제거·왼판 축소 뒤 재측정(bld-norm)
   spire: 1.548,  // 상자 상한에 걸림

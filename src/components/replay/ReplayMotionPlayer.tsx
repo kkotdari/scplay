@@ -5266,8 +5266,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       };
       /* 십자 방패 윤곽 — 세로 기둥(반폭 0.85, v ±1.85)의 끝은 삼각(v ±2.4),
          가로 팔(u ±2.3, 반높이 0.75)의 끝은 일자 사각. */
-      const AW = 0.95; const AL = vert9 ? 1.75 : 1.6; const AH = 0.85;
-      const CV = 1.45; const CT = 2.1;
+      /* 판 하나하나 0.9배(요청) — 반지름(R)은 그대로라 관문 지름은 안 변하고 조각만 준다. */
+      const PK9 = 0.9;
+      const AW = 0.95 * PK9; const AL = (vert9 ? 1.75 : 1.6) * PK9; const AH = 0.85 * PK9;
+      const CV = 1.45 * PK9; const CT = 2.1 * PK9;
       const RAW9: [number, number][] = [
         [-AW, CV], [0, CT], [AW, CV], [AW, AH], [AL, AH], [AL, -AH], [AW, -AH],
         [AW, -CV], [0, -CT], [-AW, -CV], [-AW, -AH], [-AL, -AH], [-AL, AH], [-AW, AH],
@@ -5293,7 +5295,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 임자색은 방패면의 **가로 줄무늬**다(요청: 옆면 장식은 금색으로, 임자색은
          각 방패면 가로 줄무늬 몇 개) — 보이는 면에 얇은 띠 셋. */
       const stripe9 = (r9: number): ShapeFace[] =>
-        ([[-0.7, 0.78], [0, 1.35], [0.7, 0.78]] as [number, number][]).map(([v0, hw9]) =>
+        ([[-0.7 * PK9, 0.78 * PK9], [0, 1.35 * PK9], [0.7 * PK9, 0.78 * PK9]] as [number, number][]).map(([v0, hw9]) =>
           bodyFace(polyPath3([
             P9(-hw9, v0 - 0.08, r9), P9(hw9, v0 - 0.08, r9),
             P9(hw9, v0 + 0.08, r9), P9(-hw9, v0 + 0.08, r9),
@@ -5477,8 +5479,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           const a9 = (i9 / N9) * Math.PI * 2;
           return [Math.cos(a9) * r9, Math.sin(a9) * r9, z9] as [number, number, number];
         });
+      /* 윗면은 **앞쪽이 낮게 기울고 가운데가 옴폭 팬 접시**다(요청, 사진 참조) — 테두리 z는 앞(+y)으로 갈수록
+         0.3 내려가고, 안쪽은 반지름 비의 제곱으로 가운데가 0.5 더 꺼진다. 테두리 점·띠·링·팔 밑동이 전부 이
+         한 식(dishZ9)을 읽어 어긋나지 않는다. */
+      const dishZ9 = (x9: number, y9: number): number => {
+        const r9 = Math.min(1, Math.hypot(x9, y9) / 4.1);
+        return 2.7 - 0.3 * ((y9 / 4.1) + 1) / 2 - 0.5 * (1 - r9 * r9);
+      };
       const lo9 = rim9(5.1, 0);
-      const hi9 = rim9(4.1, 2.7);
+      const hi9 = rim9(4.1, 2.7).map(([x9, y9]) => [x9, y9, dishZ9(x9, y9)] as [number, number, number]);
       /* 벽을 위아래로 가른다 — 위 띠(mid→hi)만 개인색이다(재지적: 몸통 전체 말고
          테두리만). 대야를 통째로 칠하면 건물이 임자 색 덩어리가 되고, 위 링 테두리는
          청록 띠에, 밑동 테는 대야 그림자에 묻혀 안 보였다. */
@@ -5500,25 +5509,38 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       pc.push(...tagKey(band, depthNow(0, 0) + 2.72));
       /* 대야 윗면은 개인색이 아니다(지적: 청록 판을 걷으니 통째로 임자 색이 드러났다)
          — 띠 뒤에 그려 테만 남긴다. */
-      out.push(...tagKey([
-        bodyFace(polyPath3(hi9)), topFace(polyPath3(hi9), 0.1),
-      ], depthNow(0, 0) + 2.74));
+      /* 접시 면: 가운데 점에서 테두리로 부챗살 — 뒤쪽 조각은 카메라를 향해 기울어 밝고(topFace), 앞쪽 조각은
+         등져 살짝 어둡다(sideFace). 깊이 키는 테두리 링·띠 바로 밑. */
+      const dish9: ShapeFace[] = [];
+      const cz9 = dishZ9(0, 0);
+      for (let i9 = 0; i9 < N9; i9 += 1) {
+        const a9 = ((i9 + 0.5) / N9) * Math.PI * 2;
+        const d9 = polyPath3([[0, 0, cz9], hi9[i9], hi9[i9 + 1]]);
+        const back9 = Math.sin(a9) < 0;   // −y = 뒤
+        dish9.push(bodyFace(d9), back9 ? topFace(d9, 0.06 + 0.12 * -Math.sin(a9)) : sideFace(d9, 0.05 + 0.1 * Math.sin(a9)));
+      }
+      out.push(...tagKey(dish9, depthNow(0, 0) + 2.74));
+      /* 테두리 링을 **모델 좌표**로 짠다(지적: 링이 따로 놂 — 손그림 확인) — 여태 annulusPath(화면 좌표, 눌림
+         0.484 고정)라 입체·시점 밀림을 안 따라 받침과 어긋났다. 바깥·안쪽 다각형을 반대 방향으로 이어 한 경로
+         (nonzero)로 고리를 내고, 높이는 접시 테두리 식을 따른다. 발광 점 넷도 같은 식으로 3D 원판. */
+      const ringPt9 = (r9: number, i9: number): [number, number, number] => {
+        const a9 = (i9 / N9) * Math.PI * 2;
+        const x9 = Math.cos(a9) * r9; const y9 = Math.sin(a9) * r9;
+        return [x9, y9, dishZ9(x9 * (4.1 / r9), y9 * (4.1 / r9)) + 0.1];
+      };
+      const ringOuter9 = Array.from({ length: N9 }, (_, i9) => ringPt9(4.35, i9));
+      const ringInner9 = Array.from({ length: N9 }, (_, i9) => ringPt9(3.5, N9 - 1 - i9));
+      const ringD9 = polyPath3(ringOuter9) + " " + polyPath3(ringInner9);
+      out.push(...tagKey([bodyFace(ringD9), topFace(ringD9, 0.12)], depthNow(0, 0) + 2.76));
+      for (const ang of [115, 80, 45, 245]) {
+        const a2 = (ang * Math.PI) / 180;
+        const gx9 = Math.cos(a2) * 3.9; const gy9 = Math.sin(a2) * 3.9;
+        out.push(...tagKey([[discPath3(gx9, gy9, dishZ9(gx9, gy9) + 0.14, 0.42), 0.6, "#5aecd8"] as ShapeFace], depthNow(0, 0) + 2.78));
+      }
     }
     // 구덩이 격자 — 대야 안쪽 우물을 가로지르는 밝은 줄.
-    const bars: string[] = [];
-    for (const o of [-2.1, -0.7, 0.7, 2.1]) {
-      bars.push(polyPath3([[-3.2, o + 0.12, 2.75], [3.2, o + 0.12, 2.75], [3.2, o - 0.12, 2.75], [-3.2, o - 0.12, 2.75]]));
-      bars.push(polyPath3([[o + 0.12, -3.2, 2.75], [o + 0.12, 3.2, 2.75], [o - 0.12, 3.2, 2.75], [o - 0.12, -3.2, 2.75]]));
-    }
-    out.push(topFace(bars.join(" "), 0.22));
-    // 도톰한 링 테두리 — 위 테를 둥근 띠로 두른다.
-    const [rcx, rcy] = project(0, 0, 2.8);
-    out.push(bodyFace(annulusPath(rcx, rcy, 4.15, 3.35, 0.484)));
-    // 테두리 빛 눈금 — 앞쪽 띠의 밝은 조각들.
-    for (const ang of [115, 80, 45, 245]) {
-      const a2 = (ang * Math.PI) / 180;
-      out.push([groundEllipse(rcx + Math.cos(a2) * 3.75, rcy + Math.sin(a2) * 1.82, 0.4, 0.22), 0.6, "#5aecd8"] as ShapeFace);
-    }
+    /* 격자 띠는 걷었다 — 평평한 z 2.75의 직선 띠라 옴폭 팬 접시 위에 떠 버린다(접시 면의 부챗살 명암이 그 몫을
+       한다). 손그림 링·발광 점은 위에서 3D로 다시 짰다. */
     // (삭제·요청) 테두리 흰 가시 — 크레인만 남긴다.
     /* 위는 집게 크레인(요청·사진: 고치 제거) — 뒤쪽에서 솟은 기둥이 앞으로 크게 굽어
        우물 위로 드리우고, 끝에 두 갈래 집게와 청록 발광이 달린다. 판 위 얹힘이라
@@ -8044,8 +8066,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const cx9 = Math.cos(a9); const cy9 = Math.sin(a9);
       const ux9 = -cy9; const uy9 = cx9;
       const at9 = (r9: number, w9: number): [number, number] => [cx9 * r9 + ux9 * w9, cy9 * r9 + uy9 * w9];
+      /* 둘레 판 0.8배(요청) — 제 가운데(반지름 4.15)를 축으로 줄인다: 반지름 방향·접선 반폭 모두 0.8. */
+      const SK9 = 0.8;
+      const sr9 = (r9: number): number => 4.15 + (r9 - 4.15) * SK9;
       out.push(...tagKey(paintBase(prismZFaces([
-        at9(2.6, -1.05), at9(2.6, 1.05), at9(5.3, 1.45), at9(5.7, 0.5), at9(5.7, -0.5), at9(5.3, -1.45),
+        at9(sr9(2.6), -1.05 * SK9), at9(sr9(2.6), 1.05 * SK9), at9(sr9(5.3), 1.45 * SK9),
+        at9(sr9(5.7), 0.5 * SK9), at9(sr9(5.7), -0.5 * SK9), at9(sr9(5.3), -1.45 * SK9),
       ], 0, 0.32, true), GOLD), K(cx9 * 4.4, cy9 * 4.4, 0.4)));
     }
     // ③ 뒤에서 솟는 파이프 셋 — **부채살**(재요청): 뒤 가운데 한 점에서 나와 오를수록 옆으로 벌어진다.

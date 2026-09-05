@@ -152,7 +152,7 @@ function zScaleNow(): number {
   // 0.71 → … → 0.94 → 1(지적: 1까지 늘려봐) — 높이 원본 그대로.
   /* 입체(pitch)의 z: 1 → 0.8(지적: "3D에서 높이가 높아 보여 — z가 좀 더 눌려야") — 45도 언저리로 내려다보는
      보기에서 세로가 1:1이면 건물이 실제보다 껑충하다. 평면(0.66)과 도록(0.89) 사이 값. */
-  return pitchView ? 0.8 : topView ? 0.66 : 0.89;
+  return pitchView ? 0.9 : topView ? 0.66 : 0.89;   // 0.8 → 0.9(재요청)
 }
 function originYNow(): number {
   return pitchView ? 12.6 : topView ? 12 : 12.6;
