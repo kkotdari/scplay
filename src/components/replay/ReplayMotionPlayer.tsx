@@ -18485,7 +18485,10 @@ const DEV9 = smallDevice9 ? {
      2단 — 피격 불티 통째로 생략(붓) · 죽음 파편 3분의 1(붓)
    안 빼는 것: 유닛 본체 판·원거리 트레이서 자체(절반은 남는다)·죽음 여운·미니맵 점. */
 const CROWD9 = { lv: 0, weak: false, k: 1, bench: -1, units: 0, force: -1, bench3: -1, weak3: false, k3: 1 };
-const CROWD_BENCH_MS9 = 24;          // 이 위면 미달 기기(perf-check: PC ≈ 6ms · CPU 4배 조임 ≈ 30ms 사이)
+const CROWD_BENCH_MS9 = 24;          // 2D: 이 위면 미달 기기(실측 PC 7ms · 헤드리스 SW 래스터 19ms)
+/* 3D는 따로 낮춘다(요청: "벤치 기준을 좀 낮추는 건?") — 3D 짐은 벤치가 재는 채우기 말고도 판 가짓수·큰 판
+   굽기가 얹혀, 같은 자로는 '충분'이 후하다. PC 실측 8ms는 넉넉히 통과하고, 그 두 배 언저리부터 미달로 본다. */
+const CROWD_BENCH3D_MS9 = 16;
 const CROWD_UP9 = [60, 120];         // lv → lv+1 올림 유닛 op 수
 const CROWD_DOWN9 = [50, 100];       // lv → lv−1 내림 유닛 op 수
 /** deep — 입체(3D) 몫(지적: "2D는 괜찮은 기기도 3D에선 힘들어함 — 3D 충분 여부도 따로 재라"). 입체의 판은
@@ -18525,8 +18528,8 @@ function crowdInit9(): void {
   c.weak = c.bench > CROWD_BENCH_MS9;
   c.k = c.bench > CROWD_BENCH_MS9 * 2 ? 0.5 : 1;
   c.bench3 = Math.min(benchDevice9(true), benchDevice9(true));   // 입체 몫은 따로 — 같은 자, 무거운 짐
-  c.weak3 = c.bench3 > CROWD_BENCH_MS9;
-  c.k3 = c.bench3 > CROWD_BENCH_MS9 * 2 ? 0.5 : 1;
+  c.weak3 = c.bench3 > CROWD_BENCH3D_MS9;
+  c.k3 = c.bench3 > CROWD_BENCH3D_MS9 * 2 ? 0.5 : 1;
   /* 강제 단(#crowd=0·1·2) — 기기 판정과 무관하게 그 단으로 못 박는다. 효과를 눈으로 견주거나
      perf-check(--crowd)에서 덜어낸 값을 잴 때 쓴다. */
   const m9 = typeof window !== "undefined" ? /crowd=(\d)/.exec(window.location.hash) : null;
