@@ -13439,8 +13439,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         [c9[0] + (nx9[0] - c9[0]) * 0.22, c9[1] + (nx9[1] - c9[1]) * 0.22, z9],
       ] as [number, number, number][];
     });
-    const lo9 = tri9(1.0);
-    const hi9 = tri9(2.0);
+    /* 다리를 걷고 몸을 땅에 붙인다(요청: "마인 다리 제거하고 땅에 딱 붙게 높이 조절") — 여태 몸이
+       z 1.0~2.0에 떠 있고 세 다리가 땅을 짚었다. 이제 몸 바닥이 z 0이다(위 부품들도 1만큼 내린다). */
+    const lo9 = tri9(0.0);
+    const hi9 = tri9(1.0);
     const body9: ShapeFace[] = [bodyFace(polyPath3(lo9))];
     const walls9 = lo9.map((_, k9) => {
       const n9 = (k9 + 1) % lo9.length;
@@ -13454,27 +13456,20 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       body9.push(bodyFace(wl9.d), ...(fl9.visible ? fl9.face(wl9.d) : [sideFace(wl9.d, 0.46)]));
     }
     body9.push(bodyFace(polyPath3(hi9)), topFace(polyPath3(hi9), 0.2));
-    out.push(...tagKey(raceBase(body9, "terran"), partKey(0, 0, 1.5)));
+    out.push(...tagKey(raceBase(body9, "terran"), partKey(0, 0, 0.5)));
     for (const m9 of [-1, 1] as const) {
-      out.push(...tagKey(paintBase(domeFaces3(m9 * 0.7, 0.55, 0.55, 0.5, 2.0), "#c8d4e2"),
-        partKey(m9 * 0.7, 0.55, 2.3)));
+      out.push(...tagKey(paintBase(domeFaces3(m9 * 0.7, 0.55, 0.55, 0.5, 1.0), "#c8d4e2"),
+        partKey(m9 * 0.7, 0.55, 1.3)));
     }
     out.push(...tagKey([
-      [discPath3(0, 0.9, 2.03, 0.2), 1, glowLit("#ff4a4a", "#7a1f1f")] as ShapeFace,
-    ], partKey(0, 0.9, 2.1)));
-    // 다리 — 마디 둘(재요청): 몸에서 무릎까지 비스듬히 오르고, 무릎에서 발까지 꺾여 내린다.
-    for (const [ax9, ay9] of C9) {
-      out.push(...tagKey(raceBase([
-        // 뿌리를 몸 속(꼭짓점의 0.45배, z 1.5)에 박는다(지적: 다리가 몸에서 떨어져 있음).
-        ...rodFaces(ax9 * 0.45, ay9 * 0.45, 1.5, ax9 * 1.25, ay9 * 1.25, 1.55, 0.14),
-        ...rodFaces(ax9 * 1.25, ay9 * 1.25, 1.55, ax9 * 1.5, ay9 * 1.5, 0.05, 0.12),
-      ], "terran"), partKey(ax9 * 1.25, ay9 * 1.25, 0.8)));
-    }
+      [discPath3(0, 0.9, 1.03, 0.2), 1, glowLit("#ff4a4a", "#7a1f1f")] as ShapeFace,
+    ], partKey(0, 0.9, 1.1)));
+    // (걷어냄) 세 다리(rodFaces, 마디 둘) — 요청. 몸이 땅에 앉는다.
     // 임자색 윗판 — 눈 뒤 윗면을 넓게 덮는다(재요청: 더 크고 잘 보이게).
     out.push(...tagKey([bodyFace(polyPath3([
       // 모따기 윗면 안에 든다(지적: 몸을 벗어남) — 아랫변 y −1.2에서 허용 폭 ±1.35, 위 ±1.3.
-      [-1.2, -1.2, 2.01], [1.2, -1.2, 2.01], [0.75, 0.1, 2.01], [-0.75, 0.1, 2.01],
-    ]))], partKey(0, 0, 2.2)));   // 몸과 같은 자리·더 높은 z → 늘 몸 윗면 위
+      [-1.2, -1.2, 1.01], [1.2, -1.2, 1.01], [0.75, 0.1, 1.01], [-0.75, 0.1, 1.01],
+    ]))], partKey(0, 0, 1.2)));   // 몸과 같은 자리·더 높은 z → 늘 몸 윗면 위
     return out;
   },
 
