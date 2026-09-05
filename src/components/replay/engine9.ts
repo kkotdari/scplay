@@ -1424,6 +1424,8 @@ export type UnitDrawOp = {
   pose?: 0 | 1 | 2 | 3 | 4 | 5;
   /** 남은 체력 비율 0~1(요청: 스탯을 지닌 생애주기) — 다쳤을 때만 와서 바가 뜬다. */
   hpFrac?: number;
+  /** 체력바를 지금 보일 것인가 — 맞은 지 HP_BAR_SEC 안(요청: 공격당한 뒤 한동안만). 선택된 개체는 붓이 따로 늘 보인다. */
+  hpShow?: boolean;
   /** 체력바의 **원작 폭**(게임 px, 1타일 = 32px)과 그것을 지도 폭으로 나눈 분수(요청: 잉크 폭이 아니라 절대값에 비례,
    *  원작 양식 그대로). 원작(OpenBW draw_health_bars)은 sprites.dat의 health_bar_size를 3의 배수+1로 내리고 19 아래면
    *  19로 올린 폭에, 3px 간격의 칸(2px 색 + 1px 금)을 긋는다. 그 표는 이 환경에서 못 읽어(위키·staredit 차단) 유닛은
@@ -2174,6 +2176,8 @@ export const BUILD_SEC: Record<string, number> = {
    방어 건물의 표적을 체력 자국으로 뒤밟던 시절의 값이라, 참값 표적이 온 뒤로 쓸 데가 없다. */
 export const ENGAGE_SIGHT_TILES = 9;
 /** 죽음 폭발이 사는 시간(초) — 유닛·건물. 캔버스 burst와 DOM 여운·집계 문이 같은 값을 본다. */
+/** 체력바가 맞은 뒤 남는 시간(초) — 요청: "체력바는 공격당한 뒤 한동안만 보여준다". 선택된 개체는 늘 보인다. */
+export const HP_BAR_SEC = 3;
 export const DIE_FX_SEC = 0.5;
 export const BLD_FX_SEC = 1.0;
 export const ENGAGE_SKIP = new Set([
@@ -4964,6 +4968,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           })(),
           // 잔상은 체력을 모른다 — 마지막으로 본 모습만 남는다(위 bldFrozen9).
           hpFrac: bldFrozen9 ? undefined : bldHp.frac,
+          hpShow: bldHp.hurt >= 0 && t - bldHp.hurt <= HP_BAR_SEC,
           // 원작 폭(요청) — 발자국 폭(타일 × 32px)의 0.95를 sprites.dat 값 자리에 넣는다.
           ...((): { hpBarW: number; hpBarFrac: number } => {
             const bwB9 = hpBarGamePx9((FOOTPRINT[unit]?.[0] ?? 4) * 32 * 0.95);
@@ -6719,6 +6724,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       selRing: selNow || undefined,
       // 보임 토글이면 만피여도 표시(요청: 모든 유닛·건물 다 표시).
       hpFrac: Math.max(0.04, Math.min(1, hpNow / Math.max(1, hpFull))),
+      hpShow: hurtAt >= 0 && t - hurtAt <= HP_BAR_SEC,
       hpMax: hpFull,
       // 원작 폭(요청) — 충돌 상자 폭 × 1.3을 sprites.dat 값 자리에 넣는다(마린 17 → 22 · 저글링 16 → 19 · 질럿 23 → 28).
       ...((): { hpBarW: number; hpBarFrac: number } => {

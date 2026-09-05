@@ -5379,7 +5379,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        지켜야 해서, 허리(PY_M)는 예전 길이(9)의 절반에 그대로 둔다: 기둥만 위로
        길어지고 그 위가 더 뾰족해진다. */
     const PY_T = PY_B + 11.25;
-    const PY_M = PY_B + 4.5;
+    const PY_M = PY_B + 5.2;   // 4.5 → 5.2(요청: 위가 아래보다 너무 길다 — 아래 5.2 : 위 6.05)
     const [cx, cy] = project(0, 0, PY_M);
     /* 요청: "크기 1.5배로 키우고 대신 링 반지름은 살짝 줄임" — 화면에 찍히는 덩치는
        모델 좌표가 아니라 발자국 채움 목표가 정한다(구운 판의 잉크 폭을 재서 발자국의
@@ -20408,7 +20408,7 @@ export const scrDiagModes = (): Set<string> => {
   return new Set(m9 ? m9[1].split(",") : []);
 };
 
-function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan, tilePx, wallMask, maskRects, clipQuad, showShadows, showOverlap, showHp, showCreep, marker: markerProp, markerAt, detailAt, yawAt, moveAt, painter, live, onPainted }: {
+function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan, tilePx, pickedKey, wallMask, maskRects, clipQuad, showShadows, showOverlap, showHp, showCreep, marker: markerProp, markerAt, detailAt, yawAt, moveAt, painter, live, onPainted }: {
   ops: UnitDrawOp[]; zoom: number; pan: { x: number; y: number };
   /** ★ 붓을 React 밖에서 몰 때(4번) — 시계 틱이 여기 넣어 둔 op·효과를 붓이 읽는다(props의 ops·fx보다 앞선다).
    *  driven이 참인 동안 이 effect는 안 칠한다(틱이 칠한다); 멈추면 종전대로 렌더마다 칠한다. */
@@ -20417,6 +20417,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
   showShadows?: boolean; showOverlap?: boolean; showHp?: boolean; showCreep?: boolean;
   /** 1배에서 타일 하나의 CSS px — 렌즈px 상수(트레이서 갈래표 l·w, 가시 높이)를 타일 자로 되돌리는 데 쓴다(아래 tz9). */
   tilePx?: number;
+  /** 선택(집기)된 개체의 pickKey — 체력바를 늘 보인다(요청). */
+  pickedKey?: string | null;
   /** 크립 차단 마스크(요청: 벽·램프·다리는 크립이 못 뚫는다) — 칸 하나가 픽셀 하나인
    *  지형 캔버스. clipWalk 판들을 깐 직후 destination-out으로 파낸다. */
   wallMask?: HTMLCanvasElement | null;
@@ -20633,6 +20635,13 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
           let kind = op.kind;
           let pose = op.pose ?? 0;
           let rotDeg = op.rotDeg;
+          let viewYaw = op.viewYaw;
+          /* 입체 좌우 시점(vq)도 낮은 배율에서 접는다(지적: "3D 충분이라고 판단했는데 실제로는 버벅이고 모델
+             굽는 중이 계속" — PC·지도 전체·1562기: 미룸 2242장). 벤치는 채우는 속도를 재지 **판의 가짓수**를
+             안 잰다. 입체에서 판 열쇠는 종류 × 요잉 8 × 시점 13칸(±36을 6도로)이라, 온 지도가 보이면 몇천
+             장이 되어 굽기가 영영 못 따라간다. 유닛이 몇 px뿐인 배율에서 시점 밀림은 안 읽히므로 1.5배 밑은
+             0으로, 그 위 lite 구간은 18도 칸(5칸)으로 접는다 — 판이 13분의 1·2.6분의 1로 준다. */
+          if (liteYaw9 && viewYaw) viewYaw = zoom < 1.5 ? 0 : Math.round(viewYaw / 18) * 18;
           if (lite9) {
             if (kind === "tankbody") kind = "tank";
             else if (kind === "tanksiegebody") kind = "tanksiege";
@@ -20643,8 +20652,9 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
             } else if (!pk9) pose = 0;
           }
           if (liteYaw9 && rotDeg !== undefined) rotDeg = Math.round(rotDeg / 45) * 45;
-          if (kind !== op.kind || pose !== (op.pose ?? 0) || rotDeg !== op.rotDeg) {
-            op = { ...op, kind, pose: pose as UnitDrawOp["pose"], ...(rotDeg !== undefined ? { rotDeg } : {}) };
+          if (kind !== op.kind || pose !== (op.pose ?? 0) || rotDeg !== op.rotDeg || viewYaw !== op.viewYaw) {
+            op = { ...op, kind, pose: pose as UnitDrawOp["pose"], ...(rotDeg !== undefined ? { rotDeg } : {}),
+              ...(viewYaw !== undefined ? { viewYaw } : {}) };
           }
           out9.push(op);
         }
@@ -21024,7 +21034,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
               }
             }
             /* 건물 체력바(요청) — 다친 건물 위에만. 유닛 바와 같은 3색. */
-            if (showHp !== false && zoom >= DEEP_MIN_ZOOM && op.hpFrac !== undefined && op.hpFrac > 0) {
+            if (showHp !== false && zoom >= DEEP_MIN_ZOOM && op.hpFrac !== undefined && op.hpFrac > 0
+              && (op.hpShow || (pickedKey != null && op.pickKey === pickedKey))) {   // 맞은 지 잠깐·선택된 개체만(요청)
               /* 원작 폭(요청: 절대값에 비례 — 옛 잉크 폭·발자국 폭 자는 걷었다) — 엔진이 실어 온 게임 px 폭을 화면 px로
                  (지도 폭 분수 × 지도 화면 폭). 두께는 원작 5게임px과 우리 최소 두께 중 큰 쪽. */
               // 그리기 루프 안이라 return을 쓰지 않는다 — 폭이 없는 op(없어야 한다)는 최소 폭으로.
@@ -21280,7 +21291,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
         }
         /* 체력바(요청: 체력을 지니고 다니는 생애주기) — 다친 유닛 머리 위에 원작풍
            바: 초록(>66%)·노랑(>33%)·빨강. 성한 유닛에는 안 띄워 화면을 아낀다. */
-        if (showHp !== false && zoom >= DEEP_MIN_ZOOM && op.hpFrac !== undefined && op.hpFrac > 0) {
+        if (showHp !== false && zoom >= DEEP_MIN_ZOOM && op.hpFrac !== undefined && op.hpFrac > 0
+              && (op.hpShow || (pickedKey != null && op.pickKey === pickedKey))) {   // 맞은 지 잠깐·선택된 개체만(요청)
           // 원작 폭(요청) — 건물 쪽(bw3)과 같은 자. 옛 잉크 폭·체력 보정 자는 걷었다.
           const bw2 = Math.max(3, (op.hpBarFrac ?? 0) * cw * zoom);
           const bh2 = Math.max(hpBarH9(zoom), 5 * (bw2 / (op.hpBarW ?? 19)));
@@ -29465,7 +29477,7 @@ export default function ReplayMotionPlayer({
                늦지 않게) — 여기 boolean은 사양 라디오 몫만 진다. */
             showShadows={qShadows}
             showOverlap={qOverlap}
-            showHp={qHp && hpShow}
+            showHp={qHp && hpShow} pickedKey={picked}
             showCreep={qCreep}
             marker={markerView}
             /* 0 = 마커가 어느 칸에도 안 선다(위 markerView) — 배치를 안 가린다.
