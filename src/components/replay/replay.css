@@ -2020,8 +2020,9 @@
 .scr-clp-core, .scr-clp-smoke { position: absolute; inset: 0; border-radius: 50%; }
 .scr-clp-terran .scr-clp-core { background: radial-gradient(circle, rgba(255, 224, 140, 0.95) 0%, rgba(255, 120, 50, 0.85) 40%, transparent 70%); animation: scr-clp-burst 1s ease-out forwards; }
 .scr-clp-terran .scr-clp-smoke { background: radial-gradient(circle, rgba(120, 120, 125, 0.55) 0%, rgba(80, 80, 85, 0.35) 55%, transparent 75%); animation: scr-clp-smoke 1s ease-out forwards; }
-.scr-clp-zerg .scr-clp-core { background: radial-gradient(circle, rgba(190, 110, 180, 0.9) 0%, rgba(120, 60, 120, 0.6) 50%, transparent 72%); animation: scr-clp-burst 1s ease-out forwards; }
-.scr-clp-zerg .scr-clp-smoke { background: radial-gradient(circle, rgba(140, 80, 60, 0.5) 0%, rgba(90, 50, 45, 0.3) 55%, transparent 75%); animation: scr-clp-smoke 1s ease-out forwards; }
+/* 저그 건물 폭발: 보랏빛(190,110,180)에서 붉게(요청: "저그 유닛·건물 폭발 사망 색을 좀더 붉은 색으로"). */
+.scr-clp-zerg .scr-clp-core { background: radial-gradient(circle, rgba(222, 74, 62, 0.9) 0%, rgba(132, 28, 30, 0.6) 50%, transparent 72%); animation: scr-clp-burst 1s ease-out forwards; }
+.scr-clp-zerg .scr-clp-smoke { background: radial-gradient(circle, rgba(124, 58, 48, 0.5) 0%, rgba(82, 38, 34, 0.3) 55%, transparent 75%); animation: scr-clp-smoke 1s ease-out forwards; }
 /* 프로토스는 멋진 에너지 폭발(재지적: 스러짐이 아니라) — 하얀 섬광 화구가 크게
    터지고, 푸른 에너지 링이 바깥으로 퍼져 나간다. */
 .scr-clp-toss .scr-clp-core { background: radial-gradient(circle, rgba(255, 255, 255, 0.98) 0%, rgba(170, 215, 255, 0.9) 35%, rgba(110, 170, 255, 0.6) 55%, transparent 74%); animation: scr-clp-burst 1s ease-out forwards; }

@@ -19999,7 +19999,7 @@ FX_IMPACT.photon = FX_IMPACT.plasma;
 /* flash는 맞는 순간의 섬광(결마다 흰빛에 제 색을 한 방울) — 후보판의 팔레트 그대로. */
 const FX_MAT: Record<string, { core: string; drop: string; deep: string; flash: string; n: number; r: number }> = {
   bio: { core: "rgba(200,35,27,0.95)", drop: "rgba(239,90,69,0.95)", deep: "rgba(122,18,16,0.95)", flash: "#ffd9d2", n: 5, r: 0.62 },
-  zerg: { core: "rgba(160,26,58,0.95)", drop: "rgba(224,65,107,0.95)", deep: "rgba(92,13,38,0.95)", flash: "#ffcfe0", n: 6, r: 0.7 },
+  zerg: { core: "rgba(178,30,40,0.95)", drop: "rgba(232,78,78,0.95)", deep: "rgba(104,14,22,0.95)", flash: "#ffd4cf", n: 6, r: 0.7 },   // 보라끼 걷고 붉게(요청)
   toss: { core: "rgba(143,208,255,0.95)", drop: "rgba(230,244,255,0.95)", deep: "rgba(58,143,255,0.95)", flash: "#ffffff", n: 5, r: 0.66 },
   mech: { core: "rgba(255,138,61,0.95)", drop: "rgba(255,209,102,0.95)", deep: "rgba(255,90,31,0.95)", flash: "#fff4d0", n: 5, r: 0.62 },
 };
@@ -20025,7 +20025,7 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
     // 피떡: 바닥에 납작하게 번지는 검붉은 타원, 오래 남는다.
     const rr = W * (0.18 + 0.55 * ease);
     ctx.globalAlpha = (mat === "zerg" ? 0.6 : 0.5) * (1 - p * 0.6);
-    ctx.fillStyle = mat === "zerg" ? "#4a0c22" : "#5a0f0c";
+    ctx.fillStyle = mat === "zerg" ? "#5c0e14" : "#5a0f0c";   // 저그 핏자국: 자주 → 짙은 빨강(요청: "너무 보라빛")
     ctx.beginPath(); ctx.ellipse(ax, ay + W * 0.12, rr, rr * 0.42, 0, 0, Math.PI * 2); ctx.fill();
   } else if (mat === "mech") {
     /* 불색 폭발 구(요청: "테란 건물·기계 사망 효과에 폭발(불색) 구도 있어야 해") — 여태는
@@ -20072,11 +20072,11 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
   const PALS: Record<string, string[]> = {
     mech: ["#6b737e", "#9aa3ad", "#6b4a2b", "#6b737e", "#3a3d44", "#9aa3ad", "#ff8a3d"],
     bio: ["#c8231b", "#e0a48a", "#7a1210"],
-    zerg: ["#6e1b3a", "#5b3a8a", "#6b4a2b"], toss: ["#d4af37", "#a8862a", "#e6f4ff"],
+    zerg: ["#8f1f28", "#c23a3a", "#5a2a20"], toss: ["#d4af37", "#a8862a", "#e6f4ff"],   // 저그 살점: 보라(#5b3a8a) 걷고 붉은 두 단 + 갈색
     // 고치(변태알·러커알·뮤탈 고치·공사 고치 취소) — 살색이 주(지적)이고 갈색·보라 파편이 섞인다. 피는 없다.
     cocoon: ["#e0a48a", "#c98d72", "#e0a48a", "#6b4a2b", "#e0a48a", "#5b3a8a", "#c98d72"],
   };
-  const DROP9: Record<string, string> = { bio: "#ef5a45", zerg: "#9b2a47" };
+  const DROP9: Record<string, string> = { bio: "#ef5a45", zerg: "#c8343c" };
   const pal = PALS[mat] ?? PALS.mech;
   // 기계는 낱개가 더 많다 — 절반이 짧은 막대라(아래) 면 조각 수는 그대로 지킨다.
   const nBase = mat === "mech" ? (bld ? 24 : 16) : (bld ? 16 : 10);
