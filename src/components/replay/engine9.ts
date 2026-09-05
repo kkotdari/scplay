@@ -4841,7 +4841,8 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
             /* 건물도 같은 비(반지름 = 폭의 1/4 → size 0.69·K)로 — 옛 0.3은 거의 안 보였다.
                → 0.45(요청: "건물 피격효과가 너무 큰듯") — 유닛보다 상자가 커서 같은 비로도
                불티가 건물 폭만 하게 텄다. */
-            size: bw9 * 0.45, dist: bw9 * 0.3, mat: bMat9,
+            // 튀는 자리도 몸 가운데 가까이(0.3 → 0.1) — 유닛과 같은 까닭(트레이서 끝과 겹치게).
+            size: bw9 * 0.45, dist: bw9 * 0.1, mat: bMat9,
             ph: (t - bldHp.hurt) / 0.18,
             ...(bWpn9 ? { style: bWpn9 } : {}),
             ...(bHitDir9 ? { dx: bHitDir9[0], dy: bHitDir9[1] } : {}),
@@ -7142,7 +7143,11 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       ? { kind: "shield", fx: fxfx9, fy: fxfy9, lift: liftPx9,
         size: fxPx * (modelInkOf(kindMain) / 16) * 1.2, ph: (t - hurtAt) / 0.4 }
       : { kind: "hit", fx: fxfx9, fy: fxfy9, lift: liftPx9,
-        size: fxPx * (modelInkOf(kindMain) / 16) * 0.69, dist: fxPx * (modelInkOf(kindMain) / 16) * 0.32,
+        /* ★ 튀는 자리는 **몸 가운데 가까이**(지적: "트레이서는 타겟 중심을 향하는데 피격효과는 외부에서
+           맞은 부분에 나와서 어색") — 트레이서 끝점은 몸 가운데(조준 높이)라, 불티가 표면(0.32)에서 터지면
+           줄기가 닿지 않은 자리에서 튀는 그림이 된다. 0.1로 당겨 줄기 끝과 겹치게 한다. 파편이 날아가는
+           방향(dx·dy)은 그대로라 '어느 쪽에서 맞았나'는 남는다. */
+        size: fxPx * (modelInkOf(kindMain) / 16) * 0.69, dist: fxPx * (modelInkOf(kindMain) / 16) * 0.1,
         /* 스커지 자폭(지적: "스커지 아직도 죽거나 폭발할 때 프로토스 효과") — 맞은 몸의 결이 아니라
            **때린 쪽**의 결이다. 스커지는 무기 표(ATTACK_FX)에 없어(자폭) hitWpn9가 비고, 맞은
            프로토스의 결(toss: 연푸른 줄)로 터져 스커지 자리에서 프로토스 효과가 났다. 자폭은 저그
