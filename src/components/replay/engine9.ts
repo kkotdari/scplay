@@ -73,10 +73,11 @@ export const isAirUnit = (unit: string): boolean =>
    제 그림자에서 통째로 떨어져 나갔다. '살짝 떠 있다'는 그림자와 몸 사이에 **틈이
    보이는** 정도면 되고, 그건 상자의 5% 남짓이다. */
 export const HOVER_RISE_K: Record<string, number> = {
-  Probe: 0.05, SCV: 0.05, Drone: 0.05,
-  "High Templar": 0.055,
+  // 절반 아래로(재요청: "부양 유닛 5종의 높이를 아주 많이 낮춰줘") — 모델 z 내림(MODEL_Z_OFF9)과 함께.
+  Probe: 0.02, SCV: 0.02, Drone: 0.02,
+  "High Templar": 0.022,
   /* 호버 바이크 — 원작에서도 가장 확실히 떠 있는 지상 유닛이다(그래서 한 톨 높다). */
-  Vulture: 0.06,
+  Vulture: 0.025,
 };
 /** 착공 직후 이름이 떠 있는 시간(초) — 그 뒤로는 곧장 도형+망치다(요청: "건물은 처음
  *  짓기 시작할때 잠깐 이름으로 표시하고 아이콘에 망치"). 예전엔 다 지어지고도 한참

@@ -421,7 +421,9 @@ const MODEL_Z_OFF9: Record<string, number> = {
   /* 키에 비례(재요청: "떠있는 유닛 5종이 키에 따라 높이가 달라져야 하네 — 키에 비례해서") — 잉크 높이(model-norm h,
      입체: scv 5.94 · probe 2.55 · drone 3.57 · htemp 5.21 · vulture 4.99, 평균 4.45)에 2칸을 비례시킨다:
      scv 2.67 · probe 1.15 · drone 1.60 · htemp 2.34 · vulture 2.24. */
-  scv: 5.37, probe: -2.27, drone: 1.58, htemp: 0.81, vulture: 2.14,
+  /* 아주 많이 낮춤(재요청: "부양 유닛 5종의 높이를 아주 많이 낮춰줘, 지금 다 높이 떠 있어") — 목표를 0.4배로:
+     scv 1.07 · probe 0.46 · drone 0.64 · htemp 0.94 · vulture 0.90. 화면 들기(HOVER_RISE_K)도 함께 줄였다(engine9). */
+  scv: 2.59, probe: -2.71, drone: 0.24, htemp: -0.65, vulture: -0.05,
 };
 const SPIN_KINDS = new Set<string>([
   "trapezoid", "cyber", "forge", "storm", "nukecloud", "nukeblast",
