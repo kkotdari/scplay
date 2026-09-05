@@ -3984,9 +3984,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
 
     // ── 윗면 — **가로(x) 골**: 지붕 판 두 장 사이가 낮은 골 바닥이다.
     out.push(...tagKey(paintBase(boxFaces3(0, 0, WT - 0.3, 1.35, 0.1, ZT - 0.34), ROOF), 3));
+    /* 옥상 판 둘의 앞뒤 길이를 줄인다(요청: "네모난 윗판(옥상) 앞뒤길이 살짝 줄이기") — 깊이 1.78 → 1.5, 바깥
+       가장자리 2.81 → 2.53(꼭대기 앞면 2.5 안쪽). 안쪽 가장자리(1.03)는 그대로라 골은 안 변한다. */
     out.push(...tagKey([
-      ...boxFaces3(0, (DT / 2 + 0.7) / 2 + 0.32, WT - 0.2, DT / 2 - 0.72, 0.14, ZT - 0.06),
-      ...boxFaces3(0, -((DT / 2 + 0.7) / 2 + 0.32), WT - 0.2, DT / 2 - 0.72, 0.14, ZT - 0.06),
+      ...boxFaces3(0, 1.03 + 0.75, WT - 0.2, 1.5, 0.14, ZT - 0.06),
+      ...boxFaces3(0, -(1.03 + 0.75), WT - 0.2, 1.5, 0.14, ZT - 0.06),
     ], 3.05));
 
     /* ── 앞뒤면 — 세로 홈을 **진짜 입체**로(요청: 색 아닌 실제 패임): 가운데
@@ -4020,6 +4022,35 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ]), 1, "#454b55"] as ShapeFace);
       out.push(...tagKey(g, 2.5));
     }
+    /* ── 옆면에도 같은 세로 홈(요청: "팩토리 옆면에도 앞면과 같은 가운데 패임 추가") — 앞뒤 홈을 x·y만 바꿔
+       옆면(sxAt)에 판다. 홈 바닥·문설주·문턱·인방 모두 같은 규약. */
+    for (const sgn9 of [1, -1] as const) {
+      if (facingRatio(sgn9, 0) <= 0.08) continue;
+      const GD9 = 0.38;
+      const gx9 = (z9: number): number => sgn9 * (sxAt(z9) - GD9);
+      const ox9 = (z9: number): number => sgn9 * sxAt(z9);
+      const Z0 = 0.9; const Z1 = ZT - 0.2;
+      const g: ShapeFace[] = [];
+      for (const [z0, z1] of [[Z0, ZW0], [ZW0, ZW1], [ZW1, Z1]] as [number, number][]) {
+        g.push([polyPath3([
+          [gx9(z0), -0.8, z0], [gx9(z0), 0.8, z0], [gx9(z1), 0.8, z1], [gx9(z1), -0.8, z1],
+        ]), 1] as ShapeFace);
+        for (const m9 of [-1, 1] as const) {
+          if (facingRatio(0, m9) <= 0.04) continue;
+          g.push([polyPath3([
+            [gx9(z0), -m9 * 0.8, z0], [ox9(z0), -m9 * 0.8, z0],
+            [ox9(z1), -m9 * 0.8, z1], [gx9(z1), -m9 * 0.8, z1],
+          ]), 1, "#555c67"] as ShapeFace);
+        }
+      }
+      g.push([polyPath3([
+        [ox9(Z0), -0.8, Z0], [ox9(Z0), 0.8, Z0], [gx9(Z0), 0.8, Z0], [gx9(Z0), -0.8, Z0],
+      ]), 1, "#7a818b"] as ShapeFace);
+      g.push([polyPath3([
+        [ox9(Z1), -0.8, Z1], [ox9(Z1), 0.8, Z1], [gx9(Z1), 0.8, Z1], [gx9(Z1), -0.8, Z1],
+      ]), 1, "#454b55"] as ShapeFace);
+      out.push(...tagKey(g, 2.5));
+    }
 
     // ── 앞면 베이 둘 — 세로 홈 좌우, 아래 절두체의 기운 면에 파인 개구부.
     //    속에 임자색 가로 등, 밑단에 밝은 문턱(사진 보라 참조의 그 낯).
@@ -4030,11 +4061,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
             [m9 * x0, fyAt(z0) + dy9, z0], [m9 * x1, fyAt(z0) + dy9, z0],
             [m9 * x1, fyAt(z1) + dy9, z1], [m9 * x0, fyAt(z1) + dy9, z1],
           ]);
+        /* ★ 창은 **위 절두체의 앞면**에(지적: "테란 팩토리 앞면의 창이 위쪽 절두체의 면으로 옮겨져야해 아래쪽
+           절두체가 아님") — 아래 절두체(z 1.1~2.9)에 파던 개구부·문턱·임자색 등을 위 절두체(ZW1 3.8~ZT 5.9)의
+           기운 앞면으로 올린다. fyAt이 그 높이의 앞면 y를 주므로 z만 바꾸면 면에 붙는다. */
+        // 조금 안쪽으로(가운데 2.55 → 2.35)·20% 축소(요청). 창 1.52×1.04, 등 0.96×0.28.
         out.push(...tagKey([
-          [bq9(1.6, 3.5, 1.1, 2.9), 1, NEAR_BLACK] as ShapeFace,      // 개구부
-          [bq9(1.6, 3.5, 0.95, 1.12), 1, "#b9bec6"] as ShapeFace,      // 문턱
+          [bq9(1.59, 3.11, 4.38, 5.42), 1, NEAR_BLACK] as ShapeFace,   // 개구부(창)
+          [bq9(1.59, 3.11, 4.25, 4.4), 1, "#b9bec6"] as ShapeFace,     // 창턱
         ], 2.5));
-        pc.push(...tagKey([[bq9(1.95, 3.15, 1.85, 2.2, 0.05), 1] as ShapeFace], 2.55));
+        pc.push(...tagKey([[bq9(1.87, 2.83, 4.79, 5.07, 0.05), 1] as ShapeFace], 2.55));
       }
     }
 

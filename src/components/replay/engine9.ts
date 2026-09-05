@@ -1619,7 +1619,7 @@ export const BLD_NORM: Record<string, number> = {
   ebay: 1.443,   // 다리 두 마디 20% 축소 뒤 재측정(잉크 폭이 좁아져 배수는 올라간다)
   evo: 1.232,  // ×0.8(요청: 그리기 0.8배) · 옛 1.540
   extract: 0.822,  // ×0.8(요청: 그리기 0.8배) · 옛 1.027
-  factory: 1.485,  // 절두체+허리 재작도 뒤 재측정(bld-norm)
+  factory: 1.488,  // 창 위 절두체로·옆 홈·옥상 판 축소 뒤 재측정(bld-norm)
   fleetbeacon: 1.700,  // ×0.8(요청: 그려지는 크기 0.8배)
   forge: 1.596,  // 발 걷어낸 뒤 재측정(bld-norm)
   gate: 1.847,  // 기둥 10% 낮춘 뒤 재측정(bld-norm)
