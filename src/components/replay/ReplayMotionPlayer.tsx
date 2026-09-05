@@ -8687,15 +8687,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const [plx, ply] = project(0, 0.6, 0.02);
     out.push(sideFace(groundEllipse(plx, ply, 4.7, 2.25), 0.22));
     out.push([groundEllipse(plx, ply, 4.2, 1.98), 0.85, POND] as ShapeFace);
-    // 밑동 — 후지산 꼴 기둥 하나.
-    const MB_H = 2.6;
+    /* 밑동(후지산 꼴 기둥)은 걷었다(요청: "바닥의 화산 같은 부품 제거하고 연못이 바로 보이게") — 촉수 기둥의
+       뿌리 자리를 정하던 반지름 식(mbR)만 남긴다. */
     const MB_RB = 4.5;
     const MB_RT = 2.2;
     const mbR = (t9: number): number => MB_RT + (MB_RB - MB_RT) * (1 - t9) ** 2;
-    out.push(...tagKey(paintBase(spirePillar({
-      x: 0, y: 0.6, z0: 0, h: MB_H, w: MB_RB, tipW: MB_RT,
-      segs: 5, sides: 14, hold: 0, taper: 2,
-    }), RACE_BASE_TONE.zerg), 0));
     // 촉수 기둥 여섯 — 밑동 옆구리에 뿌리를 두고 위로 모이며 가늘어진다.
     for (const ang of [150, 210, 90, 270, 30, -30]) {
       const a2 = (ang * Math.PI) / 180;
