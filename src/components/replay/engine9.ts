@@ -947,7 +947,7 @@ export const MODEL_NORM: Record<string, number> = {
   mine: 1.007,  // 모따기·마디 다리 뒤 재측정(model-norm)
   muta: 0.741,
   mutacocoon: 1.826,  // 상자 상한(원한 배수 1.891)
-  observer: 1.938,
+  observer: 1.863,
   ovie: 0.816,  // 뒷다리 요잉 뒤 재측정(model-norm)
   probe: 1.738,  // 다리 두께면을 양쪽으로 고친 뒤 model-norm 재측정
   probeGas: 1.486,

@@ -12600,6 +12600,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        방향의 **직각**으로 못 박아야 세 장이 저마다 제 바깥쪽으로 납작해진다(안 그러면
        기둥이 세계 좌표축 하나를 골라, 한 장만 맞고 나머지는 뒤틀린다).
        뿌리를 몸에 묻고 끝으로 갈수록 좁아지며 살짝 뒤로 눕는다. */
+    /* 잎날은 0.8배(길이·폭 모두)이고 **앞으로** 눕는다 — 잎날이 향하는 쪽이 이 유닛의 정면이다
+       (눈과 같은 쪽). 뿌리는 몸 표면에 그대로 묻고 끝이 앞으로 나간다. */
+    const WK9 = 0.8;
+    const WL9 = 1.5 * WK9;
     for (const ang9 of [90, 210, 330]) {
       const a9 = (ang9 * Math.PI) / 180;
       const dx9 = Math.cos(a9);
@@ -12608,10 +12612,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         x: 0, y: 0, h: 1, w: 1, segs: 5, sides: 8, caps: "both", oval: 0.16,
         ref: [-dz9, 0, dx9],
         path: (t9: number): [number, number, number] => [
-          dx9 * (0.7 + 1.5 * t9), -0.15 - 0.62 * t9, CZ9 + dz9 * (0.7 + 1.5 * t9),
+          dx9 * (0.7 + WL9 * t9), 0.15 + 0.62 * t9, CZ9 + dz9 * (0.7 + WL9 * t9),
         ],
-        widthOf: widthCurve([[0, 0.42], [0.35, 0.72], [1, 0.24]]),
-      }), GOLD9), partKey(dx9 * 1.4, -0.5, CZ9 + dz9 * 1.4)));
+        widthOf: widthCurve([[0, 0.42 * WK9], [0.35, 0.72 * WK9], [1, 0.24 * WK9]]),
+      }), GOLD9), partKey(dx9 * 1.3, 0.5, CZ9 + dz9 * 1.3)));
     }
     return zsorted(out);
   },
