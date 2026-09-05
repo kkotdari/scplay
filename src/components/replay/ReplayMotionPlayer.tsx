@@ -8685,8 +8685,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        됐다. 밑동을 저그 살색으로 돌리고(아래) 연못만 형광 연두로 밝힌다. */
     const POND = "#a8ff3d";
     const [plx, ply] = project(0, 0.6, 0.02);
-    out.push(sideFace(groundEllipse(plx, ply, 4.7, 2.25), 0.22));
-    out.push([groundEllipse(plx, ply, 4.2, 1.98), 0.85, POND] as ShapeFace);
+    // 연못 0.8배(요청): 4.7/2.25 → 3.76/1.8, 4.2/1.98 → 3.36/1.58.
+    out.push(sideFace(groundEllipse(plx, ply, 3.76, 1.8), 0.22));
+    out.push([groundEllipse(plx, ply, 3.36, 1.58), 0.85, POND] as ShapeFace);
     /* 밑동(후지산 꼴 기둥)은 걷었다(요청: "바닥의 화산 같은 부품 제거하고 연못이 바로 보이게") — 촉수 기둥의
        뿌리 자리를 정하던 반지름 식(mbR)만 남긴다. */
     const MB_RB = 4.5;
