@@ -19913,7 +19913,7 @@ function buildingSprite(op: UnitDrawOp, sideQ: number, B: number): BldSprite | n
   }
 }
 /** 입체에서 굽는 여백을 더 여는 위로 긴 건물(2D 상한 조사 때도 넘치던 일곱 + 스파이어). */
-const TALL_BLD_KINDS9 = new Set(["gspire", "spire", "hive", "lair", "pyramidWide", "hydraden", "plane", "extractor", "archives", "tribunal"]);
+const TALL_BLD_KINDS9 = new Set(["gspire", "spire", "hive", "lair", "pyramidWide", "hydraden", "plane", "extract", "archives", "tribunal"]);
 function buildingSpriteBake(
   op: UnitDrawOp, sideQ: number, B: number,
 ): BldSprite | null {
