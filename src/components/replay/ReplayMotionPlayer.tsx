@@ -27411,7 +27411,9 @@ export default function ReplayMotionPlayer({
            (Z_FX−10)보다 아래에 둔다 — 바닥에 깔리는 효과가 폭발을 덮으면 안 된다.
            (스테이시스·락다운 우리는 캔버스가 유닛을 다 찍은 뒤 그리므로 이미 몸 위다.) */
         dieFx9.push(
-          <span key={d.key} className={`scr-motion-castfx scr-fx-${d.cls}`} style={{ ...posStyle(d.x, d.y), position: "absolute", zIndex: Z_FX - 12, width: pct(d.wTiles * pitchK(d.y), grid.width), ...groundXfAt9(d.x, d.y) }}>
+          <span key={d.key} className={`scr-motion-castfx scr-fx-${d.cls}`} style={{ ...posStyle(d.x, d.y), position: "absolute", zIndex: Z_FX - 12, width: pct(d.wTiles * pitchK(d.y), grid.width), ...groundXfAt9(d.x, d.y),
+            // 쓴 사람의 색(요청: "스캔 효과에 쓴 사람 색 표현하기") — 스캔 CSS가 --cast로 고리·바닥을 물들인다.
+            ...(d.scan ? { ["--cast" as string]: modeColor(d.raw, teamOfRaw(d.raw) ?? 1) } : {}) }}>
             {d.scan && SCAN_DUST.map(([dx9, dy9, dl9], di9) => (
               <span key={`d${di9}`} className="scr-fx-dust" style={{ left: `${dx9}%`, top: `${dy9}%`, animationDelay: `${dl9}s` }} />
             ))}

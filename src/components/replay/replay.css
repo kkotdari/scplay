@@ -4257,14 +4257,15 @@
    자리다), 가운데에서 흰 레이더 고리가 되풀이 퍼지며, 훑는 빛살이 한 바퀴 돈다. */
 .scr-fx-scan {
   /* 효과 시트(fxlens)에 살므로 px은 --scr-z로 곱한다(JSX의 px 게이트 zpx9와 같은 배율). */
-  border: calc(1.5px * var(--scr-z, 1)) solid rgba(255, 255, 255, 0.5); border-radius: 50%; mix-blend-mode: screen;
-  background: radial-gradient(circle, rgba(210, 235, 255, 0.16) 0 55%, rgba(180, 220, 255, 0.08) 70%, transparent 82%);
+  /* 쓴 사람의 색(--cast, 인라인)으로 물든다(요청) — 테두리·퍼지는 고리는 그 색과 흰색을 섞고, 바닥 원은 옅게 그 색. */
+  border: calc(1.5px * var(--scr-z, 1)) solid color-mix(in srgb, var(--cast, #fff) 70%, #fff); border-radius: 50%; mix-blend-mode: screen;
+  background: radial-gradient(circle, color-mix(in srgb, var(--cast, #d2ebff) 40%, transparent) 0 55%, color-mix(in srgb, var(--cast, #b4dcff) 22%, transparent) 70%, transparent 82%);
   animation: scr-fx-fade 9s linear forwards;
 }
 .scr-fx-scan::before,
 .scr-fx-scan::after {
   content: ""; position: absolute; inset: 0; border-radius: 50%;
-  border: calc(1.5px * var(--scr-z, 1)) solid rgba(255, 255, 255, 0.6);
+  border: calc(1.5px * var(--scr-z, 1)) solid color-mix(in srgb, var(--cast, #fff) 75%, #fff);
   animation: scr-fx-ring 2s ease-out infinite;
 }
 .scr-fx-scan::after { animation-delay: 1s; }

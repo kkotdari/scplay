@@ -2284,7 +2284,9 @@ export type DomFx9 =
   /** 럴커 버로우 파기의 흙덩이(요청) — 0.15초마다 새 열쇠로 한 움큼씩 튄다. seed로 튀는 방향 갈래를 고른다. */
   | { k: "dig"; key: string; x: number; y: number; seed: number; wPct: number }
   | { k: "collapse"; key: string; x: number; y: number; wPct: number; rk: string; flyUp: number }
-  | { k: "castfx"; key: string; x: number; y: number; cls: string; wTiles: number; scan: boolean }
+  | { k: "castfx"; key: string; x: number; y: number; cls: string; wTiles: number; scan: boolean;
+    /** 시전자(raw) — 스캔은 쓴 사람의 색으로 그린다(요청). */
+    raw: string }
   | { k: "swarm"; key: string; x: number; y: number }
   | { k: "dieat"; key: string; x: number; y: number; dk: string; diePx: number; lift: number };
 export type Frame9 = {
@@ -7635,7 +7637,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
           if (found9 && !hit9) return null;   // 표적이 죽었다 — 효과도 끝이다.
           if (hit9) { afx9 = hit9.x; afy9 = hit9.y; }
         }
-        dom.push({ k: "castfx", key: `c-${i}`, x: afx9, y: afy9, cls: fx[0], wTiles: fx[1], scan: tech === "Scanner Sweep" });
+        dom.push({ k: "castfx", key: `c-${i}`, x: afx9, y: afy9, cls: fx[0], wTiles: fx[1], scan: tech === "Scanner Sweep", raw });
         return null;
       }
     }
