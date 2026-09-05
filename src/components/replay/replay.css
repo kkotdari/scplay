@@ -4260,18 +4260,17 @@
    자리다), 가운데에서 흰 레이더 고리가 되풀이 퍼지며, 훑는 빛살이 한 바퀴 돈다. */
 .scr-fx-scan {
   /* 효과 시트(fxlens)에 살므로 px은 --scr-z로 곱한다(JSX의 px 게이트 zpx9와 같은 배율). */
-  /* 쓴 사람의 색(--cast, 인라인)으로 물든다(요청) — 테두리·퍼지는 고리는 그 색과 흰색을 섞고, 바닥 원은 옅게 그 색. */
-  border: calc(1.5px * var(--scr-z, 1)) solid color-mix(in srgb, var(--cast, #fff) 70%, #fff); border-radius: 50%; mix-blend-mode: screen;
-  background: radial-gradient(circle, color-mix(in srgb, var(--cast, #d2ebff) 40%, transparent) 0 55%, color-mix(in srgb, var(--cast, #b4dcff) 22%, transparent) 70%, transparent 82%);
-  animation: scr-fx-fade 9s linear forwards;
+  /* 쓴 사람의 색(--cast, 인라인)으로 물든다(요청). */
+  /* ★ 동심원 없이 **얇은 바깥 테두리만**(요청) — 처음 한 번 작은 원에서 바깥 테두리까지 커지고(scr-fx-scan-grow,
+     한 번), 그 뒤로는 탐지 시간 동안 테두리만 남았다가 옅어진다. 되풀이 고리(::before/::after)와 바닥 채움은 걷었다. */
+  border: calc(1.2px * var(--scr-z, 1)) solid color-mix(in srgb, var(--cast, #fff) 75%, #fff); border-radius: 50%; mix-blend-mode: screen;
+  background: none;
+  animation: scr-fx-scan-grow 0.7s cubic-bezier(0.2, 0.8, 0.3, 1) 1, scr-fx-fade 9s linear forwards;
 }
-.scr-fx-scan::before,
-.scr-fx-scan::after {
-  content: ""; position: absolute; inset: 0; border-radius: 50%;
-  border: calc(1.5px * var(--scr-z, 1)) solid color-mix(in srgb, var(--cast, #fff) 75%, #fff);
-  animation: scr-fx-ring 2s ease-out infinite;
+@keyframes scr-fx-scan-grow {
+  from { scale: 0.12; opacity: 1; }
+  to { scale: 1; opacity: 1; }
 }
-.scr-fx-scan::after { animation-delay: 1s; }
 /* 스캔 별가루(요청: 뿌리면 그 자리에 별가루) — 네 갈래 별이 어긋난 박자로 반짝인다. */
 .scr-fx-dust {
   position: absolute; width: 3.5%; aspect-ratio: 1; pointer-events: none;   /* 반짝임 크기 절반(요청) 7% → 3.5% — 앱에 있던 최신값 */

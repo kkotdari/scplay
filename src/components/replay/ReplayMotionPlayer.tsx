@@ -10969,16 +10969,22 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        앞 반(y ≥ 0)은 구 위에, 뒤 반은 구 뒤에 그려 구를 감싼 고리로 읽힌다.
        추진 반구 셋은 구가 아니라 **이 고리 표면 위**에 앉는다(요청). */
     const RING_R9 = 2.0;   // 지름 축소(요청) 2.3 → 2.0
-    for (const [t0, key9] of [[-0.25, depthNow(0, RING_R9) + 0.6], [0.25, -1]] as [number, number][]) {
+    /* ★ 앞·뒤 반을 **모델 y가 아니라 시점 깊이(depthNow)**로 가른다(지적: "사베 고리가 왜 반쪽만 있고 키값
+       문제도 있어 보여, 구에 안 가려지는듯") — 여태 t0 = −0.25(모델 앞 반)·0.25(뒤 반)로 못박아, 유닛이 요잉하면
+       '앞 반'이 옆·뒤로 돌아가 구 앞에 그려지고 정작 앞쪽 반은 −1로 구 뒤에 묻혔다. 고리를 열두 토막으로 나눠
+       토막마다 제 깊이로 키를 매긴다 — 앞(깊이 ≥ 0)은 구 위, 뒤는 구 뒤. */
+    for (let k9 = 0; k9 < 12; k9 += 1) {
+      const t0 = k9 / 12;
+      const am9 = (t0 + 1 / 24) * Math.PI * 2;
+      const dm9 = depthNow(Math.sin(am9) * RING_R9, Math.cos(am9) * RING_R9);
       out.push(...tagKey(paintBase(spirePillar({
-        // 고리 폭은 **위아래 폭**(정정) — 세로 반폭 0.34에 가로는 0.4배(0.14)의 세운 띠.
-        x: 0, y: 0, h: 1, w: 0.34, tipW: 0.34, segs: 14, sides: 6, caps: "none", oval: 0.4,
+        x: 0, y: 0, h: 1, w: 0.34, tipW: 0.34, segs: 3, sides: 6, caps: "none", oval: 0.4,
         ref: [0, 0, 1],
         path: (t9: number): [number, number, number] => {
-          const a9 = (t0 + t9 * 0.5) * Math.PI * 2;
+          const a9 = (t0 + t9 / 12) * Math.PI * 2;
           return [Math.sin(a9) * RING_R9, Math.cos(a9) * RING_R9, 6.4];
         },
-      }), TERRAN_STEEL), key9));
+      }), TERRAN_STEEL), dm9 >= 0 ? dm9 + 0.6 : -1 + dm9 * 0.1));
     }
     for (const ang of [30, 150, 270]) {
       const a2 = (ang * Math.PI) / 180;
@@ -10992,7 +10998,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           Math.sin(a2) * 2.9, Math.cos(a2) * 2.9, 5.75, 0.13), TERRAN_STEEL_D),
         ...domeFaces3(px5, py5, 0.83, 0.6, 5.4),
         topFace(discPath3(px5, py5, 5.98, 0.45), 0.18),
-      ], py5 >= -0.01 ? depthNow(px5, py5) + 0.7 : -0.9));
+      ], depthNow(px5, py5) >= -0.01 ? depthNow(px5, py5) + 0.7 : -0.9));   // 시점 깊이로(위 고리와 같은 까닭)
     }
     // 구 몸통 — 한 단 더 축소(3.3 → 2.7, 재지적) + 그늘 초승달 + 하이라이트.
     out.push(...tagKey([
@@ -13570,6 +13576,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        면)인 각기둥을 X0~X1로 뻗는다. 해저드 띠는 옆의 평평한 면 한가운데 띠로 남긴다(면 높이 2·R8·sin22.5). */
     const R8 = Math.min(W, ZH / 2);
     const CZ8 = Z0 + ZH / 2;
+    const CY8 = 0.8;   // 앞으로(요청: "애드온 연결부를 좀더 앞쪽으로 이동 — 부속건물보다 앞으로 나오진 않게") — 앞 가장자리 2.2 → 3.0
     const FLAT8 = R8 * Math.cos(Math.PI / 8);       // 평평한 옆면까지의 거리
     const HALF8 = R8 * Math.sin(Math.PI / 8) * 0.9; // 옆면 안에 드는 띠 반높이
     const zB = CZ8 - HALF8;           // 띠 아래
@@ -13577,7 +13584,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const band = (ny: 1 | -1): ShapeFace[] => {
       if (facingRatio(0, ny) < 0.05) return [];
       // 보이는 쪽 벽을 살짝(0.02) 밖으로 띄워 벽과 z-싸움을 안 하게 한다.
-      const y9 = ny * (FLAT8 + 0.02);
+      const y9 = CY8 + ny * (FLAT8 + 0.02);
       const pt = (t: number, z: number): [number, number, number] => [ny > 0 ? X0 + t : X1 - t, y9, z];
       const out: ShapeFace[] = [
         [polyPath3([pt(0, zB), pt(LEN, zB), pt(LEN, zT), pt(0, zT)]), 1, "#d9ae35"] as ShapeFace,
@@ -13592,7 +13599,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const oct9: ShapeFace[] = [];
     const vtx9 = (k: number): [number, number] => {
       const a9 = (Math.PI / 8) + (k * Math.PI) / 4;
-      return [R8 * Math.cos(a9), CZ8 + R8 * Math.sin(a9)];
+      return [CY8 + R8 * Math.cos(a9), CZ8 + R8 * Math.sin(a9)];
     };
     const sides9: { d: string; ny: number; nz: number }[] = [];
     for (let k = 0; k < 8; k += 1) {

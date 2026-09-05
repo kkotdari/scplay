@@ -3246,7 +3246,21 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           /* 이사 비행 — 뜬 때부터 앉을 때까지 두 자리 사이를 그리는 쪽과 같은 곡선으로
              훑는다. 건물 줄은 착륙 자리마다 하나씩이라 이 구간이 빠지면 그 길이 통째로
              안 밝혀진다(테란은 커맨드를 띄워 옮기며 정찰한다). */
-          if (lift9 === undefined || !(gone9 > lift9)) continue;
+          if (lift9 === undefined) continue;
+          /* ★ 비행은 **참값 자취**로 따라간다(지적: "떠있는 건물이 시야에서 제외되는 문제") — 여태는 착륙 줄(to9)이
+             있을 때만 두 자리 사이를 어림으로 이었다. 아직 안 앉은 건물(gone 0)·공중에서 격추된 건물은 뜬 순간부터
+             눈이 아예 없었다. 자취가 있으면 뜬 때부터 걷힐 때(없으면 끝)까지 1초마다 그 자리에 눈을 둔다. */
+          const ftag9 = bldTagAt.get(`${b9[4]}|${b9[3]}|${Math.round(b9[1] + fp9[0] / 2)}|${Math.round(b9[2] + fp9[1] / 2)}`);
+          const ftr9 = ftag9 !== undefined ? simTracks?.get(ftag9) : undefined;
+          if (ftr9) {
+            const endF9 = Math.min(gone9 > 0 ? gone9 : total, tCap);
+            for (let s9 = lift9; s9 <= endF9; s9 += 1) {
+              const fp9b = posAtSim(ftr9, s9);
+              if (fp9b) eye(fp9b.x, fp9b.y, r9, s9, s9);
+            }
+            continue;
+          }
+          if (!(gone9 > lift9)) continue;
           const to9 = buildsSrc.find(([s2, x2, y2, u2, r2]) => r2 === b9[4] && u2 === b9[3]
             && s2 === gone9 && (x2 !== b9[1] || y2 !== b9[2]));
           if (!to9) continue;
@@ -7070,6 +7084,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       unitOps.push({
         // 포신 가려짐 해결(지적) — 곁 유닛의 z가 포탑을 얇게 자르지 않게 여유 있게.
         ...last, kind: gunKind, fx: gfx, fy: gfy, z: last.z + 30,
+        noShadow: true,   // 그림자는 차체 판이 진다(지적: "탱크 본체와 포탑의 그림자가 따로 두 개")
         /* 포신 반동 컷(요청) — 차체 판은 컷이 없으므로 몸 op의 pose를 물려받아
            봐야 늘 0이다. 발포 박자(fireK)가 곧 이 판의 자세다. */
         pose: fireK ? 2 : 0,
