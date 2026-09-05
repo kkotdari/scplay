@@ -3531,17 +3531,25 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           grooves.push([dk9, 0.28, "#000", 0, 2] as ShapeFace, [lt9, 0.22, "#fff", 0, 2] as ShapeFace);
         }
         out.push(...tagKey(grooves, depthNow(0, 6.4) + 0.51));
-        /* 두께감(요청: "커맨드 경사로는 살짝 두께감도 주기") — 판 밑을 땅까지 채운 쐐기의 옆면 둘.
-           경사로 가장자리 두 점과 그 밑 땅 점으로 삼각 옆면을 세운다. 보이는 쪽만(facingRatio). */
-        const wedges: ShapeFace[] = [];
+        /* 두께감(요청: "커맨드 경사로는 살짝 두께감도 주기" → 재지적: "직각삼각형이 아니라 판형태여야해") —
+           경사판 밑에 같은 기울기의 아랫면을 두께(TH)만큼 내려 두고, 옆면 둘과 앞끝 면을 띠로 세운다.
+           땅에 닿는 끝은 그만큼 땅 밑으로 조금 들어가지만 이 사영에는 땅 가림이 없어 얇은 띠로만 남는다. */
+        const TH9 = 0.32;
+        const under9 = (t: number, side: 1 | -1): [number, number, number] => {
+          const q9 = rAt(t, side);
+          return [q9[0], q9[1], q9[2] - TH9];
+        };
+        const slab: ShapeFace[] = [];
         for (const side of [-1, 1] as const) {
           if (facingRatio(side, 0) < 0.05) continue;
-          const a9 = rAt(0, side);
-          const b9 = rAt(1, side);
-          const d9 = polyPath3([a9, b9, [a9[0], a9[1], 0]]);
-          wedges.push([d9, 1, SILVER] as ShapeFace, sideFace(d9, 0.42));
+          const d9 = polyPath3([rAt(0, side), rAt(1, side), under9(1, side), under9(0, side)]);
+          slab.push([d9, 1, SILVER] as ShapeFace, sideFace(d9, 0.42));
         }
-        out.push(...tagKey(wedges, depthNow(0, 6.4) + 0.49));
+        {
+          const f9 = polyPath3([rAt(1, -1), rAt(1, 1), under9(1, 1), under9(1, -1)]);
+          slab.push([f9, 1, SILVER] as ShapeFace, sideFace(f9, 0.3));
+        }
+        out.push(...tagKey(slab, depthNow(0, 6.4) + 0.49));
       }
       /* 입구는 **2층 바닥에서 캐노피까지**다(지적) — 경사로가 물려 들어가는 그 한 칸을
          푸른 하얀빛으로 반투명하게 비춘다. 2층 기둥은 위로 갈수록 좁아지므로 위·아래
@@ -13532,12 +13540,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const LEN = X1 - X0;       // 줄인 뒤의 길이
     const Z0 = 0.4;     // 통로 바닥
     const ZH = 4.4;     // 통로 높이 — 2.2 → 4.4(요청: "애드온 연결부 높이 2배로")
-    const zB = Z0 + 0.5;              // 띠 아래
-    const zT = Z0 + ZH - 0.35;        // 띠 위
+    /* ★ 옆에서 보면 **팔각형**인 기둥(요청) — 상자 대신 y·z 단면이 정팔각(외접반지름 R8, 옆·위·아래가 평평한
+       면)인 각기둥을 X0~X1로 뻗는다. 해저드 띠는 옆의 평평한 면 한가운데 띠로 남긴다(면 높이 2·R8·sin22.5). */
+    const R8 = Math.min(W, ZH / 2);
+    const CZ8 = Z0 + ZH / 2;
+    const FLAT8 = R8 * Math.cos(Math.PI / 8);       // 평평한 옆면까지의 거리
+    const HALF8 = R8 * Math.sin(Math.PI / 8) * 0.9; // 옆면 안에 드는 띠 반높이
+    const zB = CZ8 - HALF8;           // 띠 아래
+    const zT = CZ8 + HALF8;           // 띠 위
     const band = (ny: 1 | -1): ShapeFace[] => {
       if (facingRatio(0, ny) < 0.05) return [];
       // 보이는 쪽 벽을 살짝(0.02) 밖으로 띄워 벽과 z-싸움을 안 하게 한다.
-      const y9 = ny * (W + 0.02);
+      const y9 = ny * (FLAT8 + 0.02);
       const pt = (t: number, z: number): [number, number, number] => [ny > 0 ? X0 + t : X1 - t, y9, z];
       const out: ShapeFace[] = [
         [polyPath3([pt(0, zB), pt(LEN, zB), pt(LEN, zT), pt(0, zT)]), 1, "#d9ae35"] as ShapeFace,
@@ -13548,8 +13562,42 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       }
       return out;
     };
+    void CX; void LEN;
+    const oct9: ShapeFace[] = [];
+    const vtx9 = (k: number): [number, number] => {
+      const a9 = (Math.PI / 8) + (k * Math.PI) / 4;
+      return [R8 * Math.cos(a9), CZ8 + R8 * Math.sin(a9)];
+    };
+    const sides9: { d: string; ny: number; nz: number }[] = [];
+    for (let k = 0; k < 8; k += 1) {
+      const [y0, z0] = vtx9(k);
+      const [y1, z1] = vtx9(k + 1);
+      const an9 = (k * Math.PI) / 4;
+      const ny9 = Math.cos(an9);
+      const nz9 = Math.sin(an9);
+      // 보이는 면만: 위를 보거나(nz) 이쪽을 보는(facingRatio) 면. 아래를 보는 면은 없다.
+      if (nz9 < -0.05) continue;
+      if (Math.abs(nz9) < 0.3 && facingRatio(0, ny9) < 0.05) continue;
+      sides9.push({ d: polyPath3([[X0, y0, z0], [X1, y0, z0], [X1, y1, z1], [X0, y1, z1]]), ny: ny9, nz: nz9 });
+    }
+    // 뒤(안 보이는 쪽)부터 앞으로 — 앞을 보는 면이 마지막에 덮는다.
+    sides9.sort((a9, b9) => (a9.nz + facingRatio(0, a9.ny)) - (b9.nz + facingRatio(0, b9.ny)));
+    for (const sd9 of sides9) {
+      oct9.push(bodyFace(sd9.d));
+      if (sd9.nz > 0.6) oct9.push(topFace(sd9.d, 0.2));
+      else if (sd9.nz > 0.2) oct9.push(topFace(sd9.d, 0.08));
+      else {
+        const fl9 = faceLight(0, Math.sign(sd9.ny) || 1, 0.3);
+        oct9.push(...(fl9.visible ? fl9.face(sd9.d) : [sideFace(sd9.d, 0.42)]));
+      }
+    }
+    for (const [ex9, sx9] of [[X0, -1], [X1, 1]] as [number, 1 | -1][]) {
+      if (facingRatio(sx9, 0) < 0.05) continue;
+      const cap9 = polyPath3(Array.from({ length: 8 }, (_, k) => { const [y9, z9] = vtx9(k); return [ex9, y9, z9] as [number, number, number]; }));
+      oct9.push(bodyFace(cap9), sideFace(cap9, 0.5));
+    }
     return [
-      ...raceBase(boxFaces3(CX, 0, LEN, W * 2, ZH, Z0), "terran"),
+      ...raceBase(oct9, "terran"),
       ...band(1),
       ...band(-1),
     ];
