@@ -15268,13 +15268,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      요잉을 못 탔다 — 구는 돌아도 속 형체와 가락지가 화면에 못 박혀 있었다. 사진에
      가락지는 없다. 전부 모델 좌표로 다시 짠다. */
   archon: () => {
-    /* 초록기를 걷고 푸른 흰색·청색으로(요청): 청록 #2c6b7e/#4a8fa4 → 남청 #2c4f8e/#4a78c8, 하늘 #63c6ff → #6fa8ff. */
+    /* 더 청색으로, 가운데는 더 희게(재요청): 구 바깥 #2f6ff0·속 형체 #2646a8, 흰 심 반지름 0.38 → 0.46, 속 흰 겹 0.72 → 0.78. */
     const ORB_Z = 5.2;
     const R = 4.5;
     /* 연하고 밝게(요청: "아칸 색 좀 연하고 밝게") — 짙은 청록은 구 속에서 검은 덩이로
        가라앉아, 안에 형체가 있다는 것 자체가 안 읽혔다. 두 단 올린다. */
-    const FLESH9 = "#2c4f8e";   // 속 형체 — 구 속에 잠긴 몸
-    const FLESH_L9 = "#4a78c8"; // 그 밝은 면(머리 등)
+    const FLESH9 = "#2646a8";   // 속 형체 — 구 속에 잠긴 몸
+    const FLESH_L9 = "#3d6be0"; // 그 밝은 면(머리 등)
     const out: ShapeFace[] = [];
     /* 속 형체는 **빛을 안 받는다** — 프리미티브가 얹는 흰 윗면이 청록을 회색으로
        들어 올려, 구 속에 잠긴 실루엣이 아니라 물 위에 뜬 조각으로 보인다(다크 아콘의
@@ -15333,18 +15333,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 흰 연기 테두리 — 구보다 한 뼘 크게, 아주 옅게. **세 겹으로 나눠** 깐다:
          한 겹이면 밝은 색이라 배경 위에서 회색 도넛으로 딱 끊겨 보인다(실측 렌더).
          바깥일수록 옅은 세 겹이면 가장자리가 스러지는 결이 난다. */
-      [screenCircle(ox9, oy9, R * 1.2), 0.06, "#c8dcff"] as ShapeFace,
-      [screenCircle(ox9, oy9, R * 1.12), 0.07, "#c8dcff"] as ShapeFace,
-      [screenCircle(ox9, oy9, R * 1.05), 0.09, "#9ec6ff"] as ShapeFace,
+      [screenCircle(ox9, oy9, R * 1.2), 0.06, "#bcd3ff"] as ShapeFace,
+      [screenCircle(ox9, oy9, R * 1.12), 0.07, "#bcd3ff"] as ShapeFace,
+      [screenCircle(ox9, oy9, R * 1.05), 0.09, "#8ab8ff"] as ShapeFace,
       /* ★ **두 번째 구부터 거의 흰색**이다(지적: "아콘 두번째 구까지 거의 흰색임
          원작에서") — 원작의 아콘은 바깥 한 겹만 푸르고 그 안쪽은 눈이 부신 흰빛이다.
          여태 둘째 겹이 하늘빛(#7fd0ff·50%)이라 세 겹이 모두 '파란 구'로 읽혔고, 안에
          잠긴 형체도 파랑 위의 청록이라 대비를 못 얻었다(지적: "아콘 안의 인간형
          어디감"). 둘째를 거의 흰색으로, 심을 순백으로 올리면 형체가 흰 바탕 위의
          짙은 실루엣이 되어 저절로 살아난다. */
-      [screenCircle(ox9, oy9, R), 0.62, "#4a86e0"] as ShapeFace,
-      [screenCircle(ox9, oy9, R * 0.72), 0.88, "#eef4ff"] as ShapeFace,
-      [screenCircle(ox9, oy9, R * 0.38), 0.96, "#ffffff"] as ShapeFace,
+      [screenCircle(ox9, oy9, R), 0.62, "#2f6ff0"] as ShapeFace,
+      [screenCircle(ox9, oy9, R * 0.78), 0.9, "#f7faff"] as ShapeFace,
+      [screenCircle(ox9, oy9, R * 0.46), 1, "#ffffff"] as ShapeFace,
     ], 0));
 
     /* ② 속 형체 ─────────────────────────────────────────────────────────────── */
@@ -15410,7 +15410,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     }
     // 앞 워시 — 형체 위를 덮어 '구 속에 잠긴' 것으로 만든다. 아주 옅게.
     out.push(...tagKey([
-      [screenCircle(ox9, oy9, R), 0.14, "#6fa8ff"] as ShapeFace,
+      [screenCircle(ox9, oy9, R), 0.14, "#5a92ff"] as ShapeFace,
     ], 1));
     return out;
   },
