@@ -7339,7 +7339,11 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
              된다. 게다가 줄기는 조준 높이(몸 가운데)로 오는데 그림만 발치에 있으니
              둘이 어긋나 안 맞닿았다. 몸 한가운데로 올려 둘을 같은 줄에 세운다.
              공중 표적은 종전대로 제 비행 높이다(foeLift9). */
-          lift: foe.air ? foeLift9 : fxPx * 0.5,
+          /* 지상 표적의 높이는 **표적의 몸**으로(지적: "아콘 플라즈마 스플래시가 지상 유닛을 겨눠도 공중에만
+             표시") — fxPx는 쏘는 쪽(아콘)의 몸이라, 작은 지상 표적 위 한참 공중에 떠 있었다. 표적 종류를 알면
+             그 몸의 가슴 높이(0.34·몸), 모르면 종전값. */
+          lift: foe.air ? foeLift9
+            : (foe.uk && isKnownKind(foe.uk) ? unitPxOf(foe.uk, foe.by) : fxPx) * 0.34,
           size: fxPx, dist: 0, dx: 0, dy: 0, ph: tph9, splash: true,
         });
       }
