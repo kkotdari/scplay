@@ -5004,7 +5004,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
              돈다(요청: "코어 디스크는 업그레이드 중에만 돌아야함"). 서플라이
              환풍팬은 건물이 서 있는 한 늘 돈다 — 그건 일이 아니라 설비다. */
           spin: !qAnim || bldFrozen9 ? 0
-            : shapeKind === "forge" || shapeKind === "cyber"
+            : shapeKind === "forge" || shapeKind === "cyber" || shapeKind === "mshop"
               ? (researching ? Math.floor(t * 1.6 * SPIN_STEPS) % SPIN_STEPS : 0)
               : Math.floor(t * 0.6 * SPIN_STEPS) % SPIN_STEPS,
           /* 원작처럼 45도 요잉(지적) — 2D에도 적용(재지적: 2D도 45도 요잉해야지).

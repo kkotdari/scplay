@@ -414,6 +414,7 @@ let bldSpinNow = 0;
    (같은 열쇠·다른 그림 = 캐시가 거짓말). */
 const SPIN_KINDS = new Set<string>([
   "trapezoid", "cyber", "forge", "storm", "nukecloud", "nukeblast",
+  "mshop",   // 머신샵 톱니 둘(바닥 톱니판·옆 바퀴 이) — 연구 중에만(요청)
 ]);
 /* ★ 칸의 **상한**은 회전 칸(8)과 따로 둔다 ─────────────────────────────────────────
    도는 부품은 여덟 칸이면 족하다(45도씩). 그러나 스톰은 칸을 각으로 쓰지 않고 **무늬의
@@ -12874,8 +12875,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       return [Math.cos(a9) * 3.3, 0.1 + Math.sin(a9) * 3.0];
     });
     out.push(...tagKey(paintBase(prismZFaces(oct9, 0, 0.55, true), DARK), 20 + depthNow(0, 0.1)));
+    /* 톱니 둘이 **연구 중에 돈다**(요청: "머신샵 연구중 톱니 두개가 돌게") — 바닥 톱니판의 이 16개는 spinRad만큼
+       돌고(SPIN_KINDS·엔진의 spin 판정은 포지·코어와 같다), 옆의 세로 바퀴에는 이 열 개를 달아 반대로 두 배 빠르게
+       돌린다. 여덟 칸이 이 하나(22.5°)와 맞아 바닥판은 '굴러가는' 그림이 된다. */
+    const SP9 = spinRad();
     for (let k9 = 0; k9 < 16; k9 += 1) {
-      const a9 = (k9 / 16) * Math.PI * 2;
+      const a9 = (k9 / 16) * Math.PI * 2 + SP9 / 2;
       const cx9 = Math.cos(a9) * 3.25; const cy9 = 0.1 + Math.sin(a9) * 2.95;
       out.push(...tagKey(paintBase(spirePillar({
         x: cx9, y: cy9, z0: 0.05, h: 0.45, w: 0.28, tipW: 0.28, segs: 1, sides: 4, hold: 1,
@@ -12921,6 +12926,24 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ...paintBase(tubeFaces(1.55, 1.0, 1.55, 1.25, 1.02, 3.1), "#576272"),
       ...paintBase(tubeFaces(1.55, -1.45, 1.55, -1.2, 1.02, 3.1), "#576272"),
     ], K(1.55, -0.1, 1.0)));
+    {
+      // 세로 바퀴의 이 열 개(x·z 평면, 폭은 바퀴 가운데 1.4) — 반대 방향·두 배.
+      const teeth9: ShapeFace[] = [];
+      const R0 = 0.93; const R1 = 1.22; const WY0 = -0.8; const WY1 = 0.6;
+      for (let k9 = 0; k9 < 10; k9 += 1) {
+        const a0 = (k9 / 10) * Math.PI * 2 - SP9 * 2;
+        const a1 = a0 + (Math.PI * 2 / 10) * 0.45;
+        const am = (a0 + a1) / 2;
+        if (Math.sin(am) < -0.25) continue;   // 아래로 도는 이는 몸·바닥판에 가린다
+        const pt = (a: number, r: number, y: number): [number, number, number] => [1.55 + Math.cos(a) * r, y, 3.1 + Math.sin(a) * r];
+        const outer = polyPath3([pt(a0, R1, WY0), pt(a1, R1, WY0), pt(a1, R1, WY1), pt(a0, R1, WY1)]);
+        const sideA = polyPath3([pt(a0, R0, WY0), pt(a0, R1, WY0), pt(a0, R1, WY1), pt(a0, R0, WY1)]);
+        const sideB = polyPath3([pt(a1, R0, WY0), pt(a1, R1, WY0), pt(a1, R1, WY1), pt(a1, R0, WY1)]);
+        teeth9.push(bodyFace(sideA), sideFace(sideA, 0.4), bodyFace(sideB), sideFace(sideB, 0.4),
+          bodyFace(outer), Math.sin(am) > 0.3 ? topFace(outer, 0.16) : sideFace(outer, 0.25));
+      }
+      out.push(...tagKey(paintBase(teeth9, "#4a515c"), K(1.55, -0.1, 1.0) + 0.05));
+    }
     // ⑦ 앞 아래 배관 둘 — 몸 앞에서 옆으로 지난다.
     out.push(...tagKey([
       ...paintBase(tubeFaces(-1.6, 2.05, 1.9, 2.05, 0.14, 0.78), "#8f9aab"),
