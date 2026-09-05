@@ -19912,6 +19912,8 @@ function buildingSprite(op: UnitDrawOp, sideQ: number, B: number): BldSprite | n
     bldSpinNow = 0;
   }
 }
+/** 입체에서 굽는 여백을 더 여는 위로 긴 건물(2D 상한 조사 때도 넘치던 일곱 + 스파이어). */
+const TALL_BLD_KINDS9 = new Set(["gspire", "spire", "hive", "lair", "pyramidWide", "hydraden", "plane", "extractor", "archives", "tribunal"]);
 function buildingSpriteBake(
   op: UnitDrawOp, sideQ: number, B: number,
 ): BldSprite | null {
@@ -20007,7 +20009,10 @@ function buildingSpriteBake(
      (1.8/2.56)² = 0.49배, 곧 굽는 삯이 절반이다. 잘림은 안 생긴다.
      ★ scripts/bld-norm.mjs도 같은 갈래를 알아야 한다 — 거기 PAD가 상한 셈에 들어가므로
        값이 다르면 상한이 어긋나 판이 조용히 잘린다(그쪽에도 같은 예외를 뒀다). */
-  const padK = DECAL_KINDS.has(op.kind) ? 0.40 : 0.78;
+  /* 입체(pitch)에서는 z가 덜 눌려 위로 긴 모델이 더 높이 선다 — 그레이터 스파이어 꼭대기가 판 위로
+     잘렸다(지적). 위로 긴 종류만 여백을 1.1로 연다(전부 열면 입체 굽기 넓이가 1.4배라 굽기 폭주를
+     더 부른다). 판은 잉크로 잘라 보관하므로 여백은 굽는 동안의 값만 든다. */
+  const padK = DECAL_KINDS.has(op.kind) ? 0.40 : op.pitch && TALL_BLD_KINDS9.has(op.kind) ? 1.1 : 0.78;
   const pad = Math.ceil(sideQ * padK) + 2;
   const l = sideQ + pad * 2;
   const side9 = Math.max(1, Math.ceil(l * B));
