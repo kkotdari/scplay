@@ -1637,7 +1637,7 @@ export const BLD_NORM: Record<string, number> = {
   pool: 1.159,  // ×0.8(요청: 그려지는 크기 0.8배) · 옛 1.449
   pyramidWide: 1.050,  // 재측정(bld-norm)
   queensnest: 1.148,
-  refinery: 1.394,  // 입구를 가운데로 옮겨 잉크 폭이 좁아진 만큼 bld-norm 재측정
+  refinery: 1.456,  // 아래판 뒤를 줄이고 뒤 드럼을 앞으로 당긴 뒤 bld-norm 재측정(1.394 →)
   robobay: 1.111,  // ×0.8(요청: 그려지는 크기 0.8배) · 옛 1.389
   sbattery: 1.951,  // 빨대 다리 뒤 재측정(bld-norm)
   scifac: 1.445,  // 재작도 + 삼중탑 제거·왼판 축소 뒤 재측정(bld-norm)

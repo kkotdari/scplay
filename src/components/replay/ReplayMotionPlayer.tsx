@@ -3516,6 +3516,33 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         [1.05, 6.3, 0], [-1.05, 6.3, 0]]);
       out.push(...tagKey([[ramp, 1, SILVER] as ShapeFace, topFace(ramp, 0.16)],
         depthNow(0, 6.4) + 0.5));
+      /* 경사로에 가로 홈 여섯 줄(요청: "커맨드센터 경사로 연한 가로 줄 여러개 넣기(홈 패인 느낌)") —
+         줄마다 위는 어두운 가는 띠, 바로 아래는 흰 가는 띠라 패인 자리에 빛이 걸린 것으로 읽힌다.
+         경사로 네 꼭짓점을 t로 보간해 폭·높이가 판을 그대로 따른다. */
+      {
+        const rY0 = t1R(DOME_Z) - 0.15;
+        const rAt = (t: number, side: 1 | -1): [number, number, number] => [
+          side * (0.78 + (1.05 - 0.78) * t), rY0 + (6.3 - rY0) * t, DOME_Z * (1 - t)];
+        const grooves: ShapeFace[] = [];
+        for (let k9 = 1; k9 <= 6; k9 += 1) {
+          const t9 = k9 / 7.2;
+          const dk9 = polyPath3([rAt(t9, -1), rAt(t9, 1), rAt(t9 + 0.018, 1), rAt(t9 + 0.018, -1)]);
+          const lt9 = polyPath3([rAt(t9 + 0.018, -1), rAt(t9 + 0.018, 1), rAt(t9 + 0.034, 1), rAt(t9 + 0.034, -1)]);
+          grooves.push([dk9, 0.28, "#000", 0, 2] as ShapeFace, [lt9, 0.22, "#fff", 0, 2] as ShapeFace);
+        }
+        out.push(...tagKey(grooves, depthNow(0, 6.4) + 0.51));
+        /* 두께감(요청: "커맨드 경사로는 살짝 두께감도 주기") — 판 밑을 땅까지 채운 쐐기의 옆면 둘.
+           경사로 가장자리 두 점과 그 밑 땅 점으로 삼각 옆면을 세운다. 보이는 쪽만(facingRatio). */
+        const wedges: ShapeFace[] = [];
+        for (const side of [-1, 1] as const) {
+          if (facingRatio(side, 0) < 0.05) continue;
+          const a9 = rAt(0, side);
+          const b9 = rAt(1, side);
+          const d9 = polyPath3([a9, b9, [a9[0], a9[1], 0]]);
+          wedges.push([d9, 1, SILVER] as ShapeFace, sideFace(d9, 0.42));
+        }
+        out.push(...tagKey(wedges, depthNow(0, 6.4) + 0.49));
+      }
       /* 입구는 **2층 바닥에서 캐노피까지**다(지적) — 경사로가 물려 들어가는 그 한 칸을
          푸른 하얀빛으로 반투명하게 비춘다. 2층 기둥은 위로 갈수록 좁아지므로 위·아래
          너비를 그 높이의 기둥 반지름(t1R)에 맞춰야 벽에 딱 붙는다. 세 겹이라(어두운
@@ -6354,7 +6381,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // 받침 — 낮고 넓은 검회색 단.
     /* 아래판을 앞으로 당기고 깊이를 줄인다(지적: "리파이너리 아래판 뒤로 너무 길게 나가있는듯") —
        6 → 5.2, 가운데 0 → 0.4: 뒤 가장자리 −3 → −2.2. 뒤쪽 드럼(A)도 함께 0.3 앞으로. */
-    out.push(...tagKey(paintBase(boxFaces3(0, 0.4, 8.6, 5.2, 0.8, 0), DARK), 0));
+    out.push(...tagKey(paintBase(boxFaces3(0, 0.5, 8.6, 5.0, 0.8, 0), DARK), 0));   // 재지적: 뒤 −2.2 → −2.0
     // 각진 덩이 넷 — 높이가 제각각인 상자 무리.
     /* 덩이마다 앞벽·옆벽에 창을 낸다(요청: "익스트랙터 양쪽 건물에 창문 표시 및 평소
        어둡다가 가스캘때는 네온색 불빛") — 평소엔 거의 검은 유리이고, 안에서 가스를
@@ -6364,7 +6391,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     for (const [bx, by, bw, bh, bz] of [
       /* 굴뚝을 인 덩이(제일 높음)는 **정가운데**다(지시: "굴뚝 있는 건물과 굴뚝 통째로
          정가운데로 위치 이동"). (1.4, −2)에서 (0, −0.3)으로 — A·C 사이에 꼭 낀다. */
-      [-2.4, -1.3, 2.6, 2.2, 3.4], [0, -0.3, 2.4, 2, 4.2],
+      // 맨 왼쪽(뒤) 드럼 A를 앞으로(재지적: "맨 왼쪽 건물이 너무 뒤로 가 있어서") — y −1.6 → −0.6.
+      [-2.4, -0.6, 2.6, 2.2, 3.4], [0, -0.3, 2.4, 2, 4.2],
       [3.2, 0.6, 2.2, 2.6, 3], [-3, 1.8, 2.2, 2, 2.4],
     ] as [number, number, number, number, number][]) {
       out.push(...tagKey(paintBase(boxFaces3(bx, by, bw, bh, bz, 0.8), BODY),
@@ -13503,7 +13531,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const CX = (X0 + X1) / 2;  // 줄인 뒤의 가운데
     const LEN = X1 - X0;       // 줄인 뒤의 길이
     const Z0 = 0.4;     // 통로 바닥
-    const ZH = 2.2;     // 통로 높이
+    const ZH = 4.4;     // 통로 높이 — 2.2 → 4.4(요청: "애드온 연결부 높이 2배로")
     const zB = Z0 + 0.5;              // 띠 아래
     const zT = Z0 + ZH - 0.35;        // 띠 위
     const band = (ny: 1 | -1): ShapeFace[] => {
