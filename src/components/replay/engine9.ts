@@ -572,6 +572,28 @@ export const UNIT_3D: Record<string, string> = {
 /** 종족 → 일꾼 상징물 — 유닛 이름이 없는 일꾼 점(정찰·채굴)용. */
 export const workerKindOf = (race?: string): string =>
   race === "테란" ? "scv" : race === "저그" ? "drone" : "probe";
+/** 이름 → 종족(지적: "토스가 드론 든 오버로드를 마인드 컨트롤했는데 드론이 프로브로, 공사 표시도
+ *  소환구로 나온다") — 여태 몸·공사·죽음·피격의 종족은 **임자의 종족**이었다. 마인드 컨트롤로
+ *  임자가 바뀐 개체(와 그 드론이 지은 건물)는 임자 종족과 제 종족이 다르다. 이름을 알면 이름이
+ *  종족이고, 이름 없는 개체(무명 일꾼 점)만 임자 종족으로 떨어진다. */
+const RACE_OF_NAME9: Record<string, "테란" | "저그" | "프로토스"> = {};
+for (const n of ["Larva", "Egg", "Drone", "Overlord", "Zergling", "Hydralisk", "Mutalisk", "Scourge", "Queen",
+  "Ultralisk", "Defiler", "Guardian", "Devourer", "Lurker", "Broodling", "Infested Terran", "Lurker Egg",
+  "Mutalisk Cocoon", "Cocoon", "Hatchery", "Lair", "Hive", "Extractor", "Spawning Pool", "Evolution Chamber",
+  "Hydralisk Den", "Spire", "Greater Spire", "Queen's Nest", "Nydus Canal", "Ultralisk Cavern", "Defiler Mound",
+  "Creep Colony", "Sunken Colony", "Spore Colony", "Infested Command Center"]) RACE_OF_NAME9[n] = "저그";
+for (const n of ["Probe", "Zealot", "Dragoon", "High Templar", "Dark Templar", "Archon", "Dark Archon", "Reaver",
+  "Scarab", "Observer", "Shuttle", "Scout", "Corsair", "Carrier", "Interceptor", "Arbiter", "Nexus", "Pylon",
+  "Assimilator", "Gateway", "Forge", "Photon Cannon", "Cybernetics Core", "Shield Battery", "Robotics Facility",
+  "Stargate", "Citadel of Adun", "Robotics Support Bay", "Fleet Beacon", "Templar Archives", "Observatory",
+  "Arbiter Tribunal"]) RACE_OF_NAME9[n] = "프로토스";
+for (const n of ["SCV", "Marine", "Firebat", "Ghost", "Medic", "Vulture", "Vulture Spider Mine", "Siege Tank",
+  "Siege Tank (Tank Mode)", "Siege Tank (Siege Mode)", "Goliath", "Wraith", "Dropship", "Science Vessel", "Battlecruiser",
+  "Valkyrie", "Nuclear Missile", "Command Center", "Comsat Station", "Nuclear Silo", "Supply Depot", "Refinery",
+  "Barracks", "Academy", "Factory", "Machine Shop", "Starport", "Control Tower", "Science Facility", "Covert Ops",
+  "Physics Lab", "Engineering Bay", "Armory", "Missile Turret", "Bunker"]) RACE_OF_NAME9[n] = "테란";
+export const raceOfName9 = (u: string | undefined): "테란" | "저그" | "프로토스" | undefined =>
+  u ? RACE_OF_NAME9[u] : undefined;
 /** 짐을 진 일꾼의 **몸** 판 — 미네랄이든 가스든 자세가 같으므로 한 벌이다(위 ★). */
 export const workerBodyKind = (base: string, st: number | null): string =>
   (st === ST_CARRY_MIN || st === ST_CARRY_GAS ? `${base}Hold` : base);
@@ -4476,7 +4498,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       const hTiles = wTiles * ((boxH + (shapeKind ? riseOf(unit) : 0)) / boxW);
       const wFrac = (wTiles / grid.width) * mkK;
       const hFrac = (hTiles / grid.width) * mkK;
-      const race2 = bases.find((b) => b.key === raw)?.race;
+      const race2 = raceOfName9(unit) ?? bases.find((b) => b.key === raw)?.race;   // 건물의 종족은 이름이 정한다(마인드 컨트롤된 드론의 건물)
       /* (걷어냄) **합성 건설 SCV** — 공사 중 건물 귀퉁이에 SCV 한 기를 지어
          세우던 자리다. 유추 시절에는 어느 일꾼이 짓는지 알 수 없어 필요했지만,
          참값에는 **그 SCV가 제 자취로 이미 거기 서 있다**. 겹쳐 그리면 일꾼이
@@ -5694,7 +5716,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     if (finished9 && buildsSrc.some(([s2, x2, y2, u2, r2], j) => j !== i && r2 === raw
       && s2 > sec && Math.hypot(x2 - x, y2 - y) <= SAME_SITE_TILES
       && succeedsBld(unit, u2))) return null;
-    const race = bases.find((b2) => b2.key === raw)?.race;
+    const race = raceOfName9(unit) ?? bases.find((b2) => b2.key === raw)?.race;
     const rk = race === "저그" ? "zerg" : race === "프로토스" ? "toss" : "terran";
     if (!qDeath) return null;
     /* 크기는 건물 발자국의 0.7배(재지적: 그래도 너무 큼 — 반으로) — 퍼센트 폭이라
@@ -5903,7 +5925,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
     /* 빙결(전수조사: 스태시스·마엘스톰·락다운) — 걸린 자리에 얼어붙는다. */
     const frzSt = e.statuses.find(([sa2, sb2, sk2]) =>
       FREEZE_STATUS.has(sk2) && t >= sa2 && t < sb2);
-    const race = bases.find((b) => b.key === e.raw)?.race;
+    const race = raceOfName9(e.unit) ?? bases.find((b) => b.key === e.raw)?.race;   // 개체의 종족은 이름이 정한다(마인드 컨트롤)
     const u = e.unit;
     /* 초반 무명은 일꾼(지적: 일꾼밖에 없는데 저글링이 정찰) — 그 사람의 첫 전투
        유닛이 태어나기 전의 무명 개체는 보병일 수 없다. */
