@@ -1989,38 +1989,31 @@
    터지듯 체액이 솟구친다. 상처 자국은 그대로 두고 그 위로 줄기가 튀어 오르게 바꾼다:
    앞이 빠르고(0→35%) 뒤는 포물선으로 떨어지며, 튀는 사이사이 자국이 함께 부푼다. */
 /* 저그: 피격 효과 같은 **피 터짐**(요청) — 붉은 자국 위로 핏방울 둘이 서로 다른 각으로 튀어 오른다. */
-.scr-wound-zerg {
-  background: radial-gradient(circle at 50% 46%,
-    rgba(196, 40, 44, 0.92) 0 30%, rgba(110, 18, 24, 0.62) 58%, transparent 74%);
-  animation: scr-wound-burst 1.1s cubic-bezier(0.2, 0.7, 0.3, 1) infinite;
-}
+/* ★ 둥근 자국은 걷고 **솟구치는 피만**(요청) — 줄기 둘이 위가 아니라 **좌우 부채꼴**로 퍼진다(::before 왼쪽,
+   ::after 오른쪽). 자국이 없어진 만큼 줄기를 조금 굵게. */
+.scr-wound-zerg { background: none; }
 .scr-wound-zerg::before, .scr-wound-zerg::after {
   content: ""; position: absolute; left: 50%; top: 46%;
-  width: 30%; aspect-ratio: 1 / 1.8; border-radius: 50% 50% 45% 45%;
+  width: 34%; aspect-ratio: 1 / 1.8; border-radius: 50% 50% 45% 45%;
   background: linear-gradient(to top, rgba(140, 20, 24, 0.2), rgba(222, 52, 52, 0.95));
   box-shadow: 0 0 2px rgba(170, 30, 30, 0.6);
   animation: scr-wound-spurt 1.1s cubic-bezier(0.12, 0.72, 0.4, 1) infinite;
 }
-.scr-wound-zerg::before { left: 38%; width: 22%; animation: scr-wound-spurt2 1.3s cubic-bezier(0.12, 0.72, 0.4, 1) infinite; animation-delay: -0.55s; }
+.scr-wound-zerg::before { left: 42%; width: 26%; animation: scr-wound-spurt2 1.3s cubic-bezier(0.12, 0.72, 0.4, 1) infinite; animation-delay: -0.55s; }
 @keyframes scr-wound-spurt2 {
-  0% { opacity: 0; translate: -50% 10%; scale: 0.4 0.4; }
+  0% { opacity: 0; translate: -50% 10%; scale: 0.4 0.4; rotate: 0deg; }
   12% { opacity: 1; }
-  38% { translate: -140% -100%; scale: 0.85 1.2; }
-  70% { opacity: 0.75; translate: -190% -40%; scale: 1 0.8; }
-  100% { opacity: 0; translate: -220% 70%; scale: 1.1 0.5; }
-}
-@keyframes scr-wound-burst {
-  0% { opacity: 0.95; scale: 1.08; }
-  30% { opacity: 0.7; scale: 0.94; }
-  100% { opacity: 0.85; scale: 1; }
+  38% { translate: -140% -100%; scale: 0.85 1.2; rotate: -32deg; }
+  70% { opacity: 0.75; translate: -190% -40%; scale: 1 0.8; rotate: -48deg; }
+  100% { opacity: 0; translate: -220% 70%; scale: 1.1 0.5; rotate: -60deg; }
 }
 @keyframes scr-wound-spurt {
-  /* 솟았다 떨어지는 포물선 — 위로 뻗는 동안 늘어나고, 떨어지며 방울로 뭉쳐 흩어진다. */
-  0% { opacity: 0; translate: -50% 10%; scale: 0.4 0.4; }
+  /* 솟았다 떨어지는 포물선 — **오른쪽 위로** 뻗는 동안 늘어나고(spurt2의 거울), 떨어지며 방울로 뭉쳐 흩어진다. */
+  0% { opacity: 0; translate: -50% 10%; scale: 0.4 0.4; rotate: 0deg; }
   12% { opacity: 1; }
-  38% { translate: -50% -120%; scale: 0.85 1.25; }
-  70% { opacity: 0.75; translate: -50% -70%; scale: 1 0.8; }
-  100% { opacity: 0; translate: -50% 60%; scale: 1.15 0.5; }
+  38% { translate: 40% -100%; scale: 0.85 1.2; rotate: 32deg; }
+  70% { opacity: 0.75; translate: 90% -40%; scale: 1 0.8; rotate: 48deg; }
+  100% { opacity: 0; translate: 120% 70%; scale: 1.1 0.5; rotate: 60deg; }
 }
 /* 프로토스 — **연기**다(확인: "다친건물은 프로토스는 연기 저그는 피 맞아") — 앞선 판은
    사이언 방전을 주인공으로 두고 연기를 곁들였는데, 그 반대가 맞다. 방전은 걷고 피어

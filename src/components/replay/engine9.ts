@@ -4887,7 +4887,8 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
                2단에서 다섯이 되어도 몸 가운데 언저리에 모인다. */
             const ux9 = ((h9 % 1000) / 1000 - 0.5) * 0.32;
             const uy9 = (((h9 >>> 10) % 1000) / 1000 - 0.5) * 0.32;
-            const sz9 = fp2[0] * (woundLv === 2 ? 0.34 : 0.26) * bldTile9 * pitchK(centerY);   // 입체: 깊이 배율
+            // 세 종족 모두 20% 축소(요청): 0.34/0.26 → 0.27/0.21.
+            const sz9 = fp2[0] * (woundLv === 2 ? 0.27 : 0.21) * bldTile9 * pitchK(centerY);   // 입체: 깊이 배율
             return { sz: sz9, dx: ux9 * fp2[0] * bldTile9 * pitchK(centerY), dy: uy9 * fp2[1] * bldTile9 * pitchK(centerY) * (pitched ? pitchFlat : 1), delay: ((h9 >>> 20) % 100) / 100 };
           }),
         } : null;
