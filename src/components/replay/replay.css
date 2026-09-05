@@ -1944,20 +1944,34 @@
   pointer-events: none; border-radius: 50%;
 }
 /* 테란 — 화재. 주황 불길이 일렁이고 그 위로 잿빛 연기가 오른다. */
+/* 테란: 동그란 불덩이가 아니라 **타오르는 불꽃**(요청) — 바닥은 붉은 잉걸 후광만 옅게 깔고, 위로 뾰족하게
+   솟는 혀 둘(노랑 심·주황 몸·끝은 투명)이 저마다 흔들리며 위로 핥는다. 연기는 그 위에서 피어오른다. */
 .scr-wound-terran {
-  background: radial-gradient(circle at 50% 62%,
-    rgba(255, 236, 150, 0.95) 0 18%, rgba(255, 150, 40, 0.8) 42%,
-    rgba(190, 60, 20, 0.45) 66%, transparent 78%);
+  background: radial-gradient(circle at 50% 70%,
+    rgba(255, 170, 60, 0.5) 0 16%, rgba(200, 70, 20, 0.28) 40%, transparent 62%);
   animation: scr-wound-fire 0.62s ease-in-out infinite alternate;
 }
+.scr-wound-terran > i, .scr-wound-terran > b { display: none; }
+.scr-wound-terran::before {
+  content: ""; position: absolute; left: 50%; bottom: 42%;
+  width: 34%; height: 150%; translate: -50% 0; transform-origin: 50% 100%;
+  border-radius: 50% 50% 40% 40% / 80% 80% 25% 25%;
+  background: linear-gradient(to top, rgba(255, 120, 30, 0.95) 0%, rgba(255, 200, 70, 0.95) 30%, rgba(255, 240, 160, 0.85) 48%, rgba(255, 140, 40, 0.5) 70%, transparent 100%);
+  filter: blur(0.35px); mix-blend-mode: screen;
+  animation: scr-wound-flame 0.5s ease-in-out infinite alternate;
+}
 /* 테란: 불꽃 + 연기 두 줄기(요청) — 연기는 시차를 두고 번갈아 피어오른다. */
-.scr-wound-terran::before, .scr-wound-terran::after {
-  content: ""; position: absolute; left: 50%; bottom: 62%;
+.scr-wound-terran::after {
+  content: ""; position: absolute; left: 50%; bottom: 100%;
   width: 62%; aspect-ratio: 1; border-radius: 50%;
   background: radial-gradient(circle, rgba(120, 120, 118, 0.42) 0 45%, transparent 72%);
   animation: scr-wound-smoke 2.1s ease-out infinite;
 }
-.scr-wound-terran::before { left: 38%; width: 48%; animation-delay: -1.05s; }
+@keyframes scr-wound-flame {
+  0% { scale: 0.92 0.8; opacity: 0.8; rotate: -4deg; }
+  50% { scale: 1.04 1.05; opacity: 1; rotate: 3deg; }
+  100% { scale: 0.96 1.15; opacity: 0.9; rotate: -2deg; }
+}
 @keyframes scr-wound-fire {
   0% { opacity: 0.72; scale: 0.88; }
   100% { opacity: 1; scale: 1.08; }
