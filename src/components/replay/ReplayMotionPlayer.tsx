@@ -18356,40 +18356,72 @@ const DEV9 = smallDevice9 ? {
      굽기 한 번(최악 41ms)이나 GC에 뒤장이 비기 딱 좋은 여유다. 24MB면 220KB로 3.6초). */
   cullMargin: 1, aheadSec: 3, aheadMB: 24, yaw8Always: false,
 };
-/* 덜어내기 단(요청: "모바일에서 그려야 할 대상이 많을 때 버벅임 방지 — 화면 내 유닛 수 +
-   그리기 속도 문턱으로 2·3·4번 적용") ───────────────────────────────────────────
-   폰에서만 잰다. 붓이 한 장을 칠한 ms를 다섯 장 평균 내고, 그 장의 유닛 op 수(워커가 시야
-   사각형 안으로 걸러 보낸 수 — 폰은 앞뒤 반 화면 여유라 대략 2×2 화면 몫)를 함께 본다.
-   · 유닛 수는 **문턱**이다: 1단 60기·2단 120기 미만이면 아무리 느려도 안 올린다(작은 장면은
-     효과가 곧 볼거리라 덜어낼 게 아니다 — 아콘·리버 한둘이 침묵하던 옛 배율 솎기의 교훈).
-   · 그리기 ms는 **방아쇠**다: 다섯 장 평균 35ms면 1단, 45ms면 2단(폰 붓 주기 50ms의 7할·9할).
-   · 내림은 이력이다: 평균이 **그 단 방아쇠의 절반**(2단 22ms·1단 17ms) 아래로 마흔 장(약 2초)
-     이어지면 한 단 내린다. 올리고 내린 직후에는 다섯 장을 새로 잰다(바뀐 짐으로 재야 한다).
-     ※ 내림 문턱을 고정 25ms로 뒀더니 perf-check(폰·CPU 4배)에서 2단이 24ms로 떨어져 1·2단을
-       1초마다 오갔다 — 덜어낸 덕에 빨라진 값으로 되올리면 곧장 다시 느려진다. 절반이면
-       '덜어낸 것을 되살려도 남는' 여유일 때만 내린다.
+/* 덜어내기 단(요청: "모바일에서 그려야 할 대상이 많을 때 버벅임 방지 — 화면 내 유닛 수 문턱으로
+   2·3·4번 적용") ─────────────────────────────────────────────────────────────
+   ★ 재설계(지적: "이전 값으로 트리거 단을 높이다 보니 ① 이미 한참 버벅인 후 적용됨 ② 풀려도 되는
+     지점에서 안 풀림 ③ 계산 비용도 드는 듯 → 플레이어 진입 시 성능 계산을 완료해 놓고, 기준 미달이면
+     유닛 수에 따라 트리거 없이 적용") — 첫 판은 붓이 매 장 그리기 ms를 재고 다섯 장 평균·이력으로
+     단을 올리내렸다. 느려진 **뒤에야** 올라가고, 덜어낸 덕에 빨라진 값으로 되내려 다시 느려지는
+     되먹임이 있었으며, 장마다 시계를 두 번 읽고 평균을 냈다.
+   이제 둘로 가른다:
+   · **기기 판정은 진입 때 한 번**(benchDevice9): 작은 캔버스에 판 찍기 200장·알파 타원 100개·그림자
+     블러 40장을 세 바퀴 돌리고 getImageData로 GPU 줄을 비워 잰다(캔버스 2D는 비동기라 비우지 않으면
+     제출 시간만 잰다). 붓이 처음 칠하기 직전에 한 번 돌고(수십 ms), 그 뒤로는 값만 읽는다.
+     기준(CROWD_BENCH_MS9)을 넘으면 미달 기기(weak), 그 두 배를 넘으면 문턱을 절반으로 낮춘 심한 미달.
+   · **단은 유닛 수의 함수**다: 미달 기기에서만, 그 장의 유닛 op 수(워커가 시야 사각형 안으로 걸러
+     보낸 수 — 폰은 대략 2×2 화면 몫)로 곧장 정한다. 올림 60·120기, 내림 50·100기 — 수가 문턱에서
+     흔들릴 때 깜빡이지 않을 만큼만 띄를 둔다. 시계도 평균도 없다.
    단별로 덜어내는 것(누적):
      1단 — 땅 그림자·몸 그림자 끔(붓) · 죽음·피격 파편 반(붓) · 홀수 개체 트레이서 생략(엔진, view.crowd)
      2단 — 피격 불티 통째로 생략(붓) · 죽음 파편 3분의 1(붓)
    안 빼는 것: 유닛 본체 판·원거리 트레이서 자체(절반은 남는다)·죽음 여운·미니맵 점. */
-const CROWD9 = { lv: 0, ring: [0, 0, 0, 0, 0], ri: 0, n: 0, calm: 0, units: 0, avg: 0 };
-const CROWD_UNITS9 = [0, 60, 120];   // 단별 유닛 op 수 문턱
-const CROWD_MS9 = [0, 35, 45];       // 단별 그리기 ms 방아쇠(다섯 장 평균)
-const CROWD_CALM_K9 = 0.5;    // 내림 문턱 = 그 단 방아쇠 × 이 값
-const CROWD_CALM_N9 = 40;
-function crowdTick9(ms: number, units: number): void {
-  const c = CROWD9;
-  c.ring[c.ri] = ms; c.ri = (c.ri + 1) % 5; if (c.n < 5) c.n += 1;
-  let sum = 0; for (let i = 0; i < c.n; i += 1) sum += c.ring[i];
-  const avg = sum / c.n; c.avg = avg; c.units = units;
-  if (c.n >= 5) {
-    let want = 0;
-    for (let l = 2; l >= 1; l -= 1) if (avg >= CROWD_MS9[l] && units >= CROWD_UNITS9[l]) { want = l; break; }
-    if (want > c.lv) { c.lv = want; c.calm = 0; c.n = 0; }
-    else if (c.lv > 0 && avg < CROWD_MS9[c.lv] * CROWD_CALM_K9) { c.calm += 1; if (c.calm >= CROWD_CALM_N9) { c.lv -= 1; c.calm = 0; c.n = 0; } }
-    else c.calm = 0;
+const CROWD9 = { lv: 0, weak: false, k: 1, bench: -1, units: 0, force: -1 };
+const CROWD_BENCH_MS9 = 24;          // 이 위면 미달 기기(perf-check: PC ≈ 6ms · CPU 4배 조임 ≈ 30ms 사이)
+const CROWD_UP9 = [60, 120];         // lv → lv+1 올림 유닛 op 수
+const CROWD_DOWN9 = [50, 100];       // lv → lv−1 내림 유닛 op 수
+function benchDevice9(): number {
+  if (typeof document === "undefined") return 0;
+  const cv = document.createElement("canvas"); cv.width = 256; cv.height = 256;
+  const ctx = cv.getContext("2d");
+  const sp = document.createElement("canvas"); sp.width = 48; sp.height = 48;
+  const sc = sp.getContext("2d");
+  if (!ctx || !sc) return 0;
+  sc.fillStyle = "#8ac"; sc.beginPath(); sc.arc(24, 24, 20, 0, Math.PI * 2); sc.fill();
+  const t0 = pNow();
+  for (let r = 0; r < 3; r += 1) {
+    ctx.globalAlpha = 0.6;
+    for (let i = 0; i < 200; i += 1) ctx.drawImage(sp, (i * 37) % 220, (i * 53) % 220, 36, 36);
+    ctx.globalAlpha = 0.35; ctx.fillStyle = "#000";
+    for (let i = 0; i < 100; i += 1) { ctx.beginPath(); ctx.ellipse((i * 41) % 240, (i * 29) % 240, 14, 6, 0, 0, Math.PI * 2); ctx.fill(); }
+    ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 6;
+    for (let i = 0; i < 40; i += 1) ctx.drawImage(sp, (i * 61) % 220, (i * 23) % 220, 36, 36);
+    ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
   }
-  if (scrDiagOn()) SCR_DIAG.crowd = `${c.lv}단 ${avg.toFixed(0)}ms ${units}기`;
+  ctx.getImageData(0, 0, 1, 1);
+  return pNow() - t0;
+}
+/** 진입 때 한 번 — 기기 판정. 이미 쟀으면 그냥 지난다. */
+function crowdInit9(): void {
+  const c = CROWD9;
+  if (c.bench >= 0) return;
+  /* 두 번 돌려 **작은 값**을 쓴다 — 한 번은 첫 판 굽기·GC와 겹쳐 곱절로 나올 수 있다(perf-check에서
+     같은 조임인데 29ms와 62ms가 나왔다). 작은 쪽이 기기의 힘이고 큰 쪽은 그 순간의 짐이다. */
+  c.bench = Math.min(benchDevice9(), benchDevice9());
+  c.weak = c.bench > CROWD_BENCH_MS9;
+  c.k = c.bench > CROWD_BENCH_MS9 * 2 ? 0.5 : 1;
+  /* 강제 단(#crowd=0·1·2) — 기기 판정과 무관하게 그 단으로 못 박는다. 효과를 눈으로 견주거나
+     perf-check(--crowd)에서 덜어낸 값을 잴 때 쓴다. */
+  const m9 = typeof window !== "undefined" ? /crowd=(\d)/.exec(window.location.hash) : null;
+  if (m9) c.force = Math.min(2, Number(m9[1]));
+}
+/** 매 장 — 유닛 op 수만 보고 단을 정한다(미달 기기에서만). */
+function crowdTick9(units: number): void {
+  const c = CROWD9;
+  c.units = units;
+  if (c.force >= 0) { c.lv = c.force; return; }
+  if (!c.weak) { c.lv = 0; return; }
+  if (c.lv < 2 && units >= CROWD_UP9[c.lv] * c.k) c.lv += 1;
+  else if (c.lv > 0 && units < CROWD_DOWN9[c.lv - 1] * c.k) c.lv -= 1;
 }
 /** 파편 수 배수 — 0단 1 · 1단 절반 · 2단 3분의 1. */
 const crowdShardK9 = (): number => (CROWD9.lv >= 2 ? 0.34 : CROWD9.lv === 1 ? 0.5 : 1);
@@ -26847,13 +26879,15 @@ export default function ReplayMotionPlayer({
     frameOpsRef9.current = fr9.unitOps;
     frameFxRef9.current = fr9.fxOps;
     opsRef.current = fr9.unitOps;
-    const p0 = smallDevice9 ? pNow() : 0;
+    crowdTick9(fr9.unitOps.length);       // 덜어내기 단 — 미달 기기에서 유닛 수만으로
     unitPaintRef.current?.(zoomRef.current, panRef.current, zoomCommitRef.current);
-    if (smallDevice9) crowdTick9(pNow() - p0, fr9.unitOps.length);   // 덜어내기 단(CROWD9)
   };
   const frame9: Frame9 = frameAt9(t, false);
+  crowdInit9();   // 진입 때 한 번: 기기 벤치(CROWD9) — 첫 렌더에서 돌고 그 뒤로는 값만 읽는다
   // 워커 상태는 늘 적어 둔다(perf-check가 읽는다) — 문자열 하나라 값이 싸다.
   {
+    const c9 = CROWD9;
+    SCR_DIAG.crowd = `벤치 ${c9.bench.toFixed(0)}ms${c9.weak ? (c9.k < 1 ? " 심한미달" : " 미달") : " 충분"}${c9.force >= 0 ? " 강제" : ""} · ${c9.lv}단 ${c9.units}기`;
     const st9 = wStatRef.current;
     const wait9 = !st9.ready && st9.worldAt > 0 ? (pNow() - st9.worldAt) / 1000 : 0;
     let ahead9 = -1e9;

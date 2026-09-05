@@ -507,7 +507,8 @@ await page.route("http://perf-check.local/*", (r) => r.fulfill({
 }));
 // --diag — 진단 오버레이(#diag)를 켠 채로 띄운다(재생기가 주소 해시로 판단한다).
 /* 주소 해시 — #diag(진단 표시). */
-const hash9 = has("--diag") ? "diag" : "";
+/* --crowd N — 덜어내기 단을 강제한다(#crowd=N). 덜어낸 값이 얼마나 주는지 잴 때. */
+const hash9 = [has("--diag") ? "diag" : "", has("--crowd") ? `crowd=${flag("--crowd", 2)}` : ""].filter(Boolean).join(",");
 await page.goto(`http://perf-check.local/${hash9 ? `#${hash9}` : ""}`);
 /* 앱 CSS — 레이어 크기·자리·이펙트가 전부 클래스에 실려 있어 없으면 화면이 안 선다.
    빌드 산출물(dist)의 CSS를 그대로 얹는다(npm run build가 먼저 돌아 있어야 한다). */
