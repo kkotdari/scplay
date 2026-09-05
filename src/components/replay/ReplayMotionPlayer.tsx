@@ -30076,8 +30076,13 @@ export default function ReplayMotionPlayer({
                   animationPlayState: "paused",
                 } as const;
                 /* 성공 판정(지적) — 불발이면 폭발 없이 표적 점만 보이다 만다. */
-                const hp9 = NUKE_HEAD_PX * pitchK(y);   // 탄두·연기·낙하 높이도 깊이 배율(입체)
-                const fp9 = NUKE_FALL_PX * pitchK(y);
+                /* ★ 타일 자로(지적: "핵탄두 크기가 모바일에서 엄청 크게 나오네") — 이 둘은 '1배 CSS px'라 배율만
+                   곱했는데, 타일 하나가 PC에서는 8px 남짓·폰에서는 3px라(지도가 화면 폭에 맞춰 선다) 같은 px가 폰에서는
+                   지도 대비 2.7배로 컸다. 트레이서·파편과 같은 규약으로 타일 8px 기준 비(tilePx/8)를 곱한다 — PC는
+                   그대로, 폰은 그만큼 준다. 낙하 높이도 같은 자(지도에 비례). */
+                const nukeK9 = ((mapRef.current?.clientWidth ?? 320) / grid.width) / 8;
+                const hp9 = NUKE_HEAD_PX * pitchK(y) * nukeK9;   // 탄두·연기·낙하 높이도 깊이 배율(입체)
+                const fp9 = NUKE_FALL_PX * pitchK(y) * nukeK9;
                 /* 입체의 낙하 축은 수직이 아니다(지적: "3D에서 핵탄두 모델과 연기의 각도가 안 맞고 연기가 맵
                    안쪽에·너무 수직") — 사영(project)이 높이 z를 x로 z·0.5·밀림(tan 시점각)만큼 밀고 화면 위로는
                    z·0.8만 올리므로, 이 자리에서 곧게 떨어지는 축은 화면에서 위로 1당 옆으로 0.625·밀림만큼
