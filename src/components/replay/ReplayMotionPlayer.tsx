@@ -27214,15 +27214,20 @@ export default function ReplayMotionPlayer({
           <span
             key={d.key}
             className="scr-motion-army scr-motion-dot scr-v2fx"
-            style={{ ...posStyle(d.x, d.y), position: "absolute", zIndex: Z_FX - 8, ...(d.lift > 0 ? { transform: `translateY(${(-d.lift).toFixed(1)}px)` } : {}) }}
+            /* ★ px에 **배율을 손수 곱한다**(지적: "12배에서 건물 파손 효과가 갑자기 너무 작고 공중에 뜬 건물
+               파손효과가 지상에 나오는듯") — 이 층(fxlens)은 폭 자체가 배율×100%라 px이 곧 화면 px이다(위
+               JSX 주석: "px로 적힌 것만 배율을 손수 곱한다"). 엔진이 준 sz·dx·dy·lift는 1배 상자 기준이라
+               곱하지 않으면 크기도 들기도 배율분의 1로 줄어, 확대할수록 작아지고 뜬 건물의 불길이 발밑에
+               깔렸다. 바로 아래 사망 효과(diePx × zoom)와 같은 규약이다. */
+            style={{ ...posStyle(d.x, d.y), position: "absolute", zIndex: Z_FX - 8, ...(d.lift > 0 ? { transform: `translateY(${(-d.lift * zoom).toFixed(1)}px)` } : {}) }}
           >
             {d.items.map((it, k9) => (
               <span
                 key={k9}
                 className={`scr-motion-wound scr-wound-${d.race}`}
                 style={{
-                  width: `${it.sz.toFixed(1)}px`, height: `${it.sz.toFixed(1)}px`,
-                  transform: `translate(calc(-50% + ${it.dx.toFixed(1)}px), calc(-50% + ${it.dy.toFixed(1)}px))`,
+                  width: `${(it.sz * zoom).toFixed(1)}px`, height: `${(it.sz * zoom).toFixed(1)}px`,
+                  transform: `translate(calc(-50% + ${(it.dx * zoom).toFixed(1)}px), calc(-50% + ${(it.dy * zoom).toFixed(1)}px))`,
                   animationDelay: `${it.delay}s`,
                 }}
               />
