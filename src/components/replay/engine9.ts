@@ -246,10 +246,14 @@ export const RESEARCH_BUILDING: Record<string, string> = {
   "Terran Ship Weapons": "Armory", "Terran Ship Plating": "Armory",
   "U-238 Shells": "Academy", "Stim Packs": "Academy", "Caduceus Reactor": "Academy",
   "Restoration": "Academy", "Optical Flare": "Academy",
-  "Ion Thrusters": "Factory", "Spider Mines": "Factory", "Tank Siege Mode": "Factory",
-  "Cloaking Field": "Starport", "Apollo Reactor": "Starport",
-  "Yamato Gun": "Science Facility", "Titan Reactor": "Science Facility",
-  "Personnel Cloaking": "Science Facility", "Lockdown": "Science Facility",
+  /* ★ 애드온에서 하는 연구는 **애드온 건물**에 단다(지적: "애드온 건물 업그레이드가 표시가 안되나") — 여태
+     팩토리·스타포트·사이언스 퍼실리티(본체)에 걸려 있어 머신샵·컨트롤타워·피직스랩·코버트옵스는 연구 중 표시
+     (불·톱니·팝업 진행률)가 한 번도 안 떴다. 원작 그대로: 이온 추진기·마인·시즈 모드는 머신샵, 클로킹·아폴로는
+     컨트롤 타워, 야마토·타이탄은 피직스 랩, 퍼스널 클로킹·락다운은 코버트 옵스. */
+  "Ion Thrusters": "Machine Shop", "Spider Mines": "Machine Shop", "Tank Siege Mode": "Machine Shop",
+  "Cloaking Field": "Control Tower", "Apollo Reactor": "Control Tower",
+  "Yamato Gun": "Physics Lab", "Titan Reactor": "Physics Lab",
+  "Personnel Cloaking": "Covert Ops", "Lockdown": "Covert Ops",
   "Protoss Ground Weapons": "Forge", "Protoss Ground Armor": "Forge", "Protoss Plasma Shields": "Forge",
   "Protoss Air Weapons": "Cybernetics Core", "Protoss Air Armor": "Cybernetics Core",
   "Singularity Charge": "Cybernetics Core",
