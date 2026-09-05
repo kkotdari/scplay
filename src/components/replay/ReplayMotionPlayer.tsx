@@ -8685,9 +8685,36 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        됐다. 밑동을 저그 살색으로 돌리고(아래) 연못만 형광 연두로 밝힌다. */
     const POND = "#a8ff3d";
     const [plx, ply] = project(0, 0.6, 0.02);
-    // 연못 0.8배(요청): 4.7/2.25 → 3.76/1.8, 4.2/1.98 → 3.36/1.58.
-    out.push(sideFace(groundEllipse(plx, ply, 3.76, 1.8), 0.22));
-    out.push([groundEllipse(plx, ply, 3.36, 1.58), 0.85, POND] as ShapeFace);
+    /* 연못은 스포닝 풀과 같은 결로(요청: "스포닝 풀처럼 그라데이션 주고 거품 몇 개") — 화면 타원 한 장 대신
+       **모형 좌표의 동심 고리 여섯**(테두리 짙은 초록 → 한가운데 형광 연두)으로 계단 그라데이션을 놓고, 그 위에
+       거품 다섯(작은 원판 + 흰 점)을 흩는다. 모형 좌표라 요잉·원근·바닥 눌림이 저절로 실린다.
+       크기는 0.8배(요청): 반지름 3.36(옛 4.2). */
+    void plx; void ply;
+    {
+      const PR9 = 3.36;
+      const ring9 = (k9: number): string => polyPath3(
+        Array.from({ length: 28 }, (_, i9): [number, number, number] => {
+          const a9 = (i9 / 28) * Math.PI * 2;
+          return [Math.cos(a9) * PR9 * k9, 0.6 + Math.sin(a9) * PR9 * k9, 0.08];
+        }),
+      );
+      out.push(...tagKey([
+        [ring9(1.12), 0.22, "#000"] as ShapeFace,
+        [ring9(1), 1, "#2f6a20"] as ShapeFace,
+        [ring9(0.86), 1, "#3f8f28"] as ShapeFace,
+        [ring9(0.72), 1, "#57b52e"] as ShapeFace,
+        [ring9(0.58), 1, "#74d634"] as ShapeFace,
+        [ring9(0.44), 1, "#8ff03a"] as ShapeFace,
+        [ring9(0.3), 1, POND] as ShapeFace,
+        [ring9(0.16), 1, "#c6ff7a"] as ShapeFace,
+      ], -0.6));
+      for (const [bx9, by9, br9] of [[1.6, 1.4, 0.34], [-1.9, 0.2, 0.28], [0.7, -1.1, 0.22], [-0.6, 2.1, 0.26], [2.3, -0.5, 0.2]] as [number, number, number][]) {
+        out.push(...tagKey([
+          [discPath3(bx9, 0.6 + by9, 0.12, br9), 0.9, "#d9ffa6"] as ShapeFace,
+          [discPath3(bx9 - br9 * 0.3, 0.6 + by9 - br9 * 0.3, 0.13, br9 * 0.32), 0.9, "#ffffff"] as ShapeFace,
+        ], -0.5));
+      }
+    }
     /* 밑동(후지산 꼴 기둥)은 걷었다(요청: "바닥의 화산 같은 부품 제거하고 연못이 바로 보이게") — 촉수 기둥의
        뿌리 자리를 정하던 반지름 식(mbR)만 남긴다. */
     const MB_RB = 4.5;
