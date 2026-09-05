@@ -4922,8 +4922,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        오르내리므로 자리마다 z를 반구 식으로 되읽는다. 반구 뒤로 넘어간 파이프는 반구보다 먼저 그려
        가려진다(키를 반구 아래로). */
     {
-      const DR9 = 1.55;   // 반구 반지름
-      const DH9 = 1.05;   // 반구 높이
+      const DR9 = 1.35;   // 반구 반지름 1.55 → 1.35(요청: 살짝 줄임)
+      const DH9 = 0.92;   // 반구 높이 1.05 → 0.92
       const DY9 = 0.35;   // 문 가운데에서 살짝 뒤(구체 아래)
       const DZ9 = h - 0.2;
       const domeKey9 = depthNow(0, DY9) * 1.6 + 0.6;
@@ -4931,13 +4931,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const zDome9 = (r9: number): number => DZ9 + DH9 * Math.sqrt(Math.max(0, 1 - (r9 / DR9) ** 2));
       const PIPE9: [number, number][] = [[0.15, 1.35], [0.62, 1.0], [1.05, 1.5], [1.6, 0.85], [2.15, 1.25],
         [2.7, 0.95], [3.25, 1.45], [3.8, 1.1], [4.4, 0.8], [4.95, 1.3], [5.5, 1.05]];
+      /* 파이프는 반구의 **허리**(반지름의 0.55~0.7)에서 나와 밖으로 뻗는다(요청: 꼭대기가 아니라 허리쪽에서,
+         반구 표면과 파이프 끝을 맞춰). 시작점은 표면 안쪽(반지름 방향으로 0.06 묻힘)이라 끝이 표면에 박혀
+         보이고, 바깥 끝은 반구 밖 땅 가까이(z 0.12)로 내려간다. */
       for (const [a9, len9] of PIPE9) {
-        const r0 = 0.3; const r1 = Math.min(DR9 * 0.97, r0 + len9);
+        const r0 = DR9 * (0.55 + (len9 - 0.8) * 0.2);           // 허리 자리(길이 따라 0.55~0.69)
+        const r1 = Math.min(DR9 + 0.9, r0 + len9 * 0.75);
         const cx9 = Math.cos(a9); const cy9 = Math.sin(a9);
         const mx9 = cx9 * (r0 + r1) / 2; const my9 = DY9 + cy9 * (r0 + r1) / 2;
         const behind9 = depthNow(mx9, my9) < depthNow(0, DY9);
+        const z0 = zDome9(r0 + 0.06) - 0.02;                    // 표면 살짝 안
+        const z1 = r1 <= DR9 ? zDome9(r1) + 0.03 : Math.max(DZ9 + 0.12, zDome9(DR9) + 0.05 - (r1 - DR9) * 0.35);
         out.push(...tagKey(paintBase(rodFaces(
-          cx9 * r0, DY9 + cy9 * r0, zDome9(r0) + 0.04, cx9 * r1, DY9 + cy9 * r1, zDome9(r1) + 0.04, 0.09,
+          cx9 * r0, DY9 + cy9 * r0, z0, cx9 * r1, DY9 + cy9 * r1, z1, 0.09,
         ), "#e6eaee"), behind9 ? domeKey9 - 0.1 : domeKey9 + 0.3));
       }
     }
@@ -15262,12 +15268,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      요잉을 못 탔다 — 구는 돌아도 속 형체와 가락지가 화면에 못 박혀 있었다. 사진에
      가락지는 없다. 전부 모델 좌표로 다시 짠다. */
   archon: () => {
+    /* 초록기를 걷고 푸른 흰색·청색으로(요청): 청록 #2c6b7e/#4a8fa4 → 남청 #2c4f8e/#4a78c8, 하늘 #63c6ff → #6fa8ff. */
     const ORB_Z = 5.2;
     const R = 4.5;
     /* 연하고 밝게(요청: "아칸 색 좀 연하고 밝게") — 짙은 청록은 구 속에서 검은 덩이로
        가라앉아, 안에 형체가 있다는 것 자체가 안 읽혔다. 두 단 올린다. */
-    const FLESH9 = "#2c6b7e";   // 속 형체 — 구 속에 잠긴 몸
-    const FLESH_L9 = "#4a8fa4"; // 그 밝은 면(머리 등)
+    const FLESH9 = "#2c4f8e";   // 속 형체 — 구 속에 잠긴 몸
+    const FLESH_L9 = "#4a78c8"; // 그 밝은 면(머리 등)
     const out: ShapeFace[] = [];
     /* 속 형체는 **빛을 안 받는다** — 프리미티브가 얹는 흰 윗면이 청록을 회색으로
        들어 올려, 구 속에 잠긴 실루엣이 아니라 물 위에 뜬 조각으로 보인다(다크 아콘의
@@ -15326,8 +15333,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 흰 연기 테두리 — 구보다 한 뼘 크게, 아주 옅게. **세 겹으로 나눠** 깐다:
          한 겹이면 밝은 색이라 배경 위에서 회색 도넛으로 딱 끊겨 보인다(실측 렌더).
          바깥일수록 옅은 세 겹이면 가장자리가 스러지는 결이 난다. */
-      [screenCircle(ox9, oy9, R * 1.2), 0.06, "#bcd9ff"] as ShapeFace,
-      [screenCircle(ox9, oy9, R * 1.12), 0.07, "#bcd9ff"] as ShapeFace,
+      [screenCircle(ox9, oy9, R * 1.2), 0.06, "#c8dcff"] as ShapeFace,
+      [screenCircle(ox9, oy9, R * 1.12), 0.07, "#c8dcff"] as ShapeFace,
       [screenCircle(ox9, oy9, R * 1.05), 0.09, "#9ec6ff"] as ShapeFace,
       /* ★ **두 번째 구부터 거의 흰색**이다(지적: "아콘 두번째 구까지 거의 흰색임
          원작에서") — 원작의 아콘은 바깥 한 겹만 푸르고 그 안쪽은 눈이 부신 흰빛이다.
@@ -15336,7 +15343,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          어디감"). 둘째를 거의 흰색으로, 심을 순백으로 올리면 형체가 흰 바탕 위의
          짙은 실루엣이 되어 저절로 살아난다. */
       [screenCircle(ox9, oy9, R), 0.62, "#4a86e0"] as ShapeFace,
-      [screenCircle(ox9, oy9, R * 0.72), 0.88, "#eaf6ff"] as ShapeFace,
+      [screenCircle(ox9, oy9, R * 0.72), 0.88, "#eef4ff"] as ShapeFace,
       [screenCircle(ox9, oy9, R * 0.38), 0.96, "#ffffff"] as ShapeFace,
     ], 0));
 
@@ -15403,7 +15410,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     }
     // 앞 워시 — 형체 위를 덮어 '구 속에 잠긴' 것으로 만든다. 아주 옅게.
     out.push(...tagKey([
-      [screenCircle(ox9, oy9, R), 0.14, "#63c6ff"] as ShapeFace,
+      [screenCircle(ox9, oy9, R), 0.14, "#6fa8ff"] as ShapeFace,
     ], 1));
     return out;
   },
