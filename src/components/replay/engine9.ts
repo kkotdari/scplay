@@ -1620,7 +1620,7 @@ export const BLD_NORM: Record<string, number> = {
   forge: 1.596,  // 발 걷어낸 뒤 재측정(bld-norm)
   gate: 1.847,  // 기둥 10% 낮춘 뒤 재측정(bld-norm)
   geyser: 1.587,
-  gspire: 1.146,  // 구름 여덟 송이 뒤 재측정(bld-norm)
+  gspire: 0.917,  // ×0.8(요청: 그려지는 크기 0.8배) · 옛 1.146
   hatchery: 1.188,
   hive: 1.320,
   hydraden: 1.070,
@@ -1634,7 +1634,7 @@ export const BLD_NORM: Record<string, number> = {
   observatory: 1.320,  // ×0.8(요청: 그려지는 크기 0.8배)
   physlab: 1.468,  // 사진 재작도 뒤 재측정(bld-norm)
   plane: 1.200,   // 높이 1.4배 후 bld-norm 재측정
-  pool: 1.449,
+  pool: 1.159,  // ×0.8(요청: 그려지는 크기 0.8배) · 옛 1.449
   pyramidWide: 1.050,  // 재측정(bld-norm)
   queensnest: 1.148,
   refinery: 1.394,  // 입구를 가운데로 옮겨 잉크 폭이 좁아진 만큼 bld-norm 재측정
