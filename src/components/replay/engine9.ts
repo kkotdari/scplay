@@ -4835,8 +4835,8 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
             const h9 = (i * 2654435761 + k9 * 40503) >>> 0;
             const ux9 = ((h9 % 1000) / 1000 - 0.5) * 0.62;
             const uy9 = (((h9 >>> 10) % 1000) / 1000 - 0.5) * 0.62;
-            const sz9 = fp2[0] * (woundLv === 2 ? 0.34 : 0.26) * bldTile9;
-            return { sz: sz9, dx: ux9 * fp2[0] * bldTile9, dy: uy9 * fp2[1] * bldTile9 * (pitched ? pitchFlat : 1), delay: ((h9 >>> 20) % 100) / 100 };
+            const sz9 = fp2[0] * (woundLv === 2 ? 0.34 : 0.26) * bldTile9 * pitchK(centerY);   // 입체: 깊이 배율
+            return { sz: sz9, dx: ux9 * fp2[0] * bldTile9 * pitchK(centerY), dy: uy9 * fp2[1] * bldTile9 * pitchK(centerY) * (pitched ? pitchFlat : 1), delay: ((h9 >>> 20) % 100) / 100 };
           }),
         } : null;
       /** 이 건물이 화면에 내보내는 효과 한 벌 — 이제 상처(계속)뿐이다.

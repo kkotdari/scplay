@@ -18382,11 +18382,14 @@ const DEV9 = smallDevice9 ? {
      1단 — 땅 그림자·몸 그림자 끔(붓) · 죽음·피격 파편 반(붓) · 홀수 개체 트레이서 생략(엔진, view.crowd)
      2단 — 피격 불티 통째로 생략(붓) · 죽음 파편 3분의 1(붓)
    안 빼는 것: 유닛 본체 판·원거리 트레이서 자체(절반은 남는다)·죽음 여운·미니맵 점. */
-const CROWD9 = { lv: 0, weak: false, k: 1, bench: -1, units: 0, force: -1 };
+const CROWD9 = { lv: 0, weak: false, k: 1, bench: -1, units: 0, force: -1, bench3: -1, weak3: false, k3: 1 };
 const CROWD_BENCH_MS9 = 24;          // 이 위면 미달 기기(perf-check: PC ≈ 6ms · CPU 4배 조임 ≈ 30ms 사이)
 const CROWD_UP9 = [60, 120];         // lv → lv+1 올림 유닛 op 수
 const CROWD_DOWN9 = [50, 100];       // lv → lv−1 내림 유닛 op 수
-function benchDevice9(): number {
+/** deep — 입체(3D) 몫(지적: "2D는 괜찮은 기기도 3D에선 힘들어함 — 3D 충분 여부도 따로 재라"). 입체의 판은
+ *  시각 밀림·기울기를 먹어 더 크게 굽히고 알파 합성 면적도 그만큼 넓다 — 판을 1.7배로, 밀림 변환을 걸고,
+ *  그림자 블러도 한 단 키워 같은 자(24ms)로 잰다. 화소가 2.9배라 그 배만큼 센 기기만 3D 충분이다. */
+function benchDevice9(deep = false): number {
   if (typeof document === "undefined") return 0;
   const cv = document.createElement("canvas"); cv.width = 256; cv.height = 256;
   const ctx = cv.getContext("2d");
@@ -18394,16 +18397,19 @@ function benchDevice9(): number {
   const sc = sp.getContext("2d");
   if (!ctx || !sc) return 0;
   sc.fillStyle = "#8ac"; sc.beginPath(); sc.arc(24, 24, 20, 0, Math.PI * 2); sc.fill();
+  const sz = deep ? 61 : 36;
   const t0 = pNow();
+  if (deep) ctx.setTransform(1, 0, -0.3, 0.78, 30, 0);
   for (let r = 0; r < 3; r += 1) {
     ctx.globalAlpha = 0.6;
-    for (let i = 0; i < 200; i += 1) ctx.drawImage(sp, (i * 37) % 220, (i * 53) % 220, 36, 36);
+    for (let i = 0; i < 200; i += 1) ctx.drawImage(sp, (i * 37) % 220, (i * 53) % 220, sz, sz);
     ctx.globalAlpha = 0.35; ctx.fillStyle = "#000";
-    for (let i = 0; i < 100; i += 1) { ctx.beginPath(); ctx.ellipse((i * 41) % 240, (i * 29) % 240, 14, 6, 0, 0, Math.PI * 2); ctx.fill(); }
-    ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 6;
-    for (let i = 0; i < 40; i += 1) ctx.drawImage(sp, (i * 61) % 220, (i * 23) % 220, 36, 36);
+    for (let i = 0; i < 100; i += 1) { ctx.beginPath(); ctx.ellipse((i * 41) % 240, (i * 29) % 240, deep ? 24 : 14, deep ? 10 : 6, 0, 0, Math.PI * 2); ctx.fill(); }
+    ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = deep ? 10 : 6;
+    for (let i = 0; i < 40; i += 1) ctx.drawImage(sp, (i * 61) % 220, (i * 23) % 220, sz, sz);
     ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
   }
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.getImageData(0, 0, 1, 1);
   return pNow() - t0;
 }
@@ -18416,19 +18422,24 @@ function crowdInit9(): void {
   c.bench = Math.min(benchDevice9(), benchDevice9());
   c.weak = c.bench > CROWD_BENCH_MS9;
   c.k = c.bench > CROWD_BENCH_MS9 * 2 ? 0.5 : 1;
+  c.bench3 = Math.min(benchDevice9(true), benchDevice9(true));   // 입체 몫은 따로 — 같은 자, 무거운 짐
+  c.weak3 = c.bench3 > CROWD_BENCH_MS9;
+  c.k3 = c.bench3 > CROWD_BENCH_MS9 * 2 ? 0.5 : 1;
   /* 강제 단(#crowd=0·1·2) — 기기 판정과 무관하게 그 단으로 못 박는다. 효과를 눈으로 견주거나
      perf-check(--crowd)에서 덜어낸 값을 잴 때 쓴다. */
   const m9 = typeof window !== "undefined" ? /crowd=(\d)/.exec(window.location.hash) : null;
   if (m9) c.force = Math.min(2, Number(m9[1]));
 }
-/** 매 장 — 유닛 op 수만 보고 단을 정한다(미달 기기에서만). */
-function crowdTick9(units: number): void {
+/** 매 장 — 유닛 op 수만 보고 단을 정한다(미달 기기에서만). deep이면 입체 판정(weak3·k3)을 쓴다. */
+function crowdTick9(units: number, deep = false): void {
   const c = CROWD9;
   c.units = units;
   if (c.force >= 0) { c.lv = c.force; return; }
-  if (!c.weak) { c.lv = 0; return; }
-  if (c.lv < 2 && units >= CROWD_UP9[c.lv] * c.k) c.lv += 1;
-  else if (c.lv > 0 && units < CROWD_DOWN9[c.lv - 1] * c.k) c.lv -= 1;
+  const weak = deep ? c.weak3 : c.weak;
+  const k = deep ? c.k3 : c.k;
+  if (!weak) { c.lv = 0; return; }
+  if (c.lv < 2 && units >= CROWD_UP9[c.lv] * k) c.lv += 1;
+  else if (c.lv > 0 && units < CROWD_DOWN9[c.lv - 1] * k) c.lv -= 1;
 }
 /** 파편 수 배수 — 0단 1 · 1단 절반 · 2단 3분의 1. */
 const crowdShardK9 = (): number => (CROWD9.lv >= 2 ? 0.34 : CROWD9.lv === 1 ? 0.5 : 1);
@@ -26896,7 +26907,7 @@ export default function ReplayMotionPlayer({
     frameOpsRef9.current = fr9.unitOps;
     frameFxRef9.current = fr9.fxOps;
     opsRef.current = fr9.unitOps;
-    crowdTick9(fr9.unitOps.length);       // 덜어내기 단 — 미달 기기에서 유닛 수만으로
+    crowdTick9(fr9.unitOps.length, pitched);   // 덜어내기 단 — 미달 기기에서 유닛 수만으로(입체는 제 판정)
     unitPaintRef.current?.(zoomRef.current, panRef.current, zoomCommitRef.current);
   };
   const frame9: Frame9 = frameAt9(t, false);
@@ -26904,7 +26915,8 @@ export default function ReplayMotionPlayer({
   // 워커 상태는 늘 적어 둔다(perf-check가 읽는다) — 문자열 하나라 값이 싸다.
   {
     const c9 = CROWD9;
-    SCR_DIAG.crowd = `벤치 ${c9.bench.toFixed(0)}ms${c9.weak ? (c9.k < 1 ? " 심한미달" : " 미달") : " 충분"}${c9.force >= 0 ? " 강제" : ""} · ${c9.lv}단 ${c9.units}기`;
+    const grade9 = (w9: boolean, k9: number): string => (w9 ? (k9 < 1 ? "심한미달" : "미달") : "충분");
+    SCR_DIAG.crowd = `벤치 2D ${c9.bench.toFixed(0)}ms ${grade9(c9.weak, c9.k)} · 3D ${c9.bench3.toFixed(0)}ms ${grade9(c9.weak3, c9.k3)}${c9.force >= 0 ? " 강제" : ""} · ${pitched ? "3D" : "2D"} ${c9.lv}단 ${c9.units}기`;
     const st9 = wStatRef.current;
     const wait9 = !st9.ready && st9.worldAt > 0 ? (pNow() - st9.worldAt) / 1000 : 0;
     let ahead9 = -1e9;
@@ -26933,6 +26945,13 @@ export default function ReplayMotionPlayer({
   const exploredAt = frame9.explored;
   const visNow = frame9.visNow;
   /** DOM 효과 기록 → 스팬. 죽음 여운(dieat)만은 낮은 배율에서 효과 시트로 보낸다(캔버스 burst는 2배부터). */
+  /* 입체(3D)에서 CSS 효과의 자·눕기(지적: "스캔 등 CSS 효과가 눕지 않음 · 피격·사망 등 CSS 효과가 너무
+     크게 나옴") — 캔버스 op의 자(unitGlyphPx)는 깊이 배율 pitchK(y)를 먹는데, DOM 효과의 폭은 '지도 폭의
+     %'(타일 수)라 깊이를 안 먹었다: 멀리 있는 스캔·스웜·무너짐이 가까운 것과 같은 px로 섰다. 폭에
+     pitchK(y)를 곱하고, 땅에 눕는 원(스캔·스웜·착지)은 scaleY(pitchFlat)로 눕힌다. 파는 흙(dig)은 제
+     transform(뒤집기·기울기)이 있어 폭만 준다. 모델(FxModel)로 그리는 것(스톰·핵)은 제 사영으로 눕고,
+     상자 폭만 같이 준다. 2D에서는 둘 다 항등이다. */
+  const groundXf9 = pitched ? { transform: `translate(-50%, -50%) scaleY(${pitchFlat.toFixed(3)})` } : {};
   const renderDomFx9 = (d: DomFx9): React.ReactNode => {
     switch (d.k) {
       case "buildfx":
@@ -26980,7 +26999,7 @@ export default function ReplayMotionPlayer({
           <span
             key={d.key}
             className={`scr-motion-dig scr-dig-${d.seed % 4}`}
-            style={{ ...posStyle(d.x, d.y), width: `${d.wPct.toFixed(3)}%`, zIndex: 1490 }}
+            style={{ ...posStyle(d.x, d.y), width: `${(d.wPct * pitchK(d.y)).toFixed(3)}%`, zIndex: 1490 }}
             aria-hidden
           >
             <i /><i /><i /><i /><i />
@@ -26991,7 +27010,7 @@ export default function ReplayMotionPlayer({
           <span
             key={d.key}
             className="scr-motion-touchdown"
-            style={{ ...posStyle(d.x, d.y), width: `${d.wPct.toFixed(3)}%`, height: `${d.hPct.toFixed(3)}%`, zIndex: 999 }}
+            style={{ ...posStyle(d.x, d.y), width: `${(d.wPct * pitchK(d.y)).toFixed(3)}%`, height: `${(d.hPct * pitchK(d.y)).toFixed(3)}%`, zIndex: 999, ...groundXf9 }}
             aria-hidden
           />
         );
@@ -27000,7 +27019,7 @@ export default function ReplayMotionPlayer({
           <span
             key={d.key}
             className={`scr-motion-collapse scr-clp-${d.rk}`}
-            style={{ ...posStyle(d.x, d.y), width: `${d.wPct}%`, zIndex: 1450, ...(d.flyUp > 0 ? { marginTop: `${(-d.flyUp).toFixed(2)}px` } : {}) }}
+            style={{ ...posStyle(d.x, d.y), width: `${(d.wPct * pitchK(d.y)).toFixed(3)}%`, zIndex: 1450, ...(d.flyUp > 0 ? { marginTop: `${(-d.flyUp * pitchK(d.y)).toFixed(2)}px` } : {}) }}
           >
             <span className="scr-clp-smoke" />
             <span className="scr-clp-core" />
@@ -27008,7 +27027,7 @@ export default function ReplayMotionPlayer({
         );
       case "castfx":
         return (
-          <span key={d.key} className={`scr-motion-castfx scr-fx-${d.cls}`} style={{ ...posStyle(d.x, d.y), width: pct(d.wTiles, grid.width) }}>
+          <span key={d.key} className={`scr-motion-castfx scr-fx-${d.cls}`} style={{ ...posStyle(d.x, d.y), width: pct(d.wTiles * pitchK(d.y), grid.width), ...groundXf9 }}>
             {d.scan && SCAN_DUST.map(([dx9, dy9, dl9], di9) => (
               <span key={`d${di9}`} className="scr-fx-dust" style={{ left: `${dx9}%`, top: `${dy9}%`, animationDelay: `${dl9}s` }} />
             ))}
@@ -27016,7 +27035,7 @@ export default function ReplayMotionPlayer({
         );
       case "swarm":
         return (
-          <span key={d.key} className="scr-motion-swarmfx" style={{ ...posStyle(d.x, d.y), width: pct(6, grid.width) }}>
+          <span key={d.key} className="scr-motion-swarmfx" style={{ ...posStyle(d.x, d.y), width: pct(6 * pitchK(d.y), grid.width), ...groundXf9 }}>
             <span className="scr-motion-swarm-cloud" />
             <span className="scr-motion-swarm-cloud scr-motion-swarm-cloud-b" />
           </span>
@@ -29507,6 +29526,8 @@ export default function ReplayMotionPlayer({
                   animationPlayState: "paused",
                 } as const;
                 /* 성공 판정(지적) — 불발이면 폭발 없이 표적 점만 보이다 만다. */
+                const hp9 = NUKE_HEAD_PX * pitchK(y);   // 탄두·연기·낙하 높이도 깊이 배율(입체)
+                const fp9 = NUKE_FALL_PX * pitchK(y);
                 const landed = nukeImpacts.some((nk) =>
                   nk.confirmed && nk.x === x && nk.y === y && Math.abs(nk.sec - (sec + NUKE_FALL_SEC)) < 0.5);
                 if (age >= NUKE_FALL_SEC && !landed) return null;
@@ -29538,7 +29559,7 @@ export default function ReplayMotionPlayer({
                        ※ 두 곳이 같은 수를 봐야 한다 — 판정 반경을 고치면 여기도 함께
                          고쳐야 '무너지는데 안 타는 건물'이 다시 생기지 않는다.
                        탄두 크기는 이 값과 별개다(NUKE_HEAD_PX·모델 길이). */
-                    width: pct(10, grid.width),
+                    width: pct(10 * pitchK(y), grid.width),
                     }}
                   >
                     {/* 불발은 끝까지 표적 점이다(수리) — 예전 갈래는 '마지막 2초 & 불발'이
@@ -29574,11 +29595,11 @@ export default function ReplayMotionPlayer({
                       <span
                         className="scr-motion-nuke-smoke"
                         style={{
-                          width: `${NUKE_HEAD_PX * 0.62 * zoom}px`,
-                          height: `${NUKE_HEAD_PX * 2.6 * zoom}px`,
+                          width: `${hp9 * 0.62 * zoom}px`,
+                          height: `${hp9 * 2.6 * zoom}px`,
                           translate: `0 ${Math.round(
-                            (-NUKE_FALL_PX * (1 - dropP9) ** 2 - NUKE_HEAD_PX * 0.275
-                              - NUKE_HEAD_PX * 1.42) * zoom)}px`,
+                            (-fp9 * (1 - dropP9) ** 2 - hp9 * 0.275
+                              - hp9 * 1.42) * zoom)}px`,
                           opacity: 0.25 + 0.6 * dropP9,
                           ...aimClock9,
                         }}
@@ -29590,7 +29611,7 @@ export default function ReplayMotionPlayer({
                           animation: "none",
                           /* 시트의 px은 화면 px이다 — 배율을 손수 곱한다(CSS의 9px은
                              시트 밖 폴백일 뿐이다). */
-                          width: `${NUKE_HEAD_PX * zoom}px`, height: `${NUKE_HEAD_PX * zoom}px`,
+                          width: `${hp9 * zoom}px`, height: `${hp9 * zoom}px`,
                           /* ★ **가속도**를 붙인다(요청: "핵탄두 떨어지는 속도 가속도
                              붙이기") — 여태 진행률을 그대로 높이에 썼다(등속). 떨어지는
                              것은 등속이 아니라 시간의 제곱으로 빨라지므로(자유낙하
@@ -29607,7 +29628,7 @@ export default function ReplayMotionPlayer({
                              가운데(50%)와의 차 0.275만큼
                              올리면 코가 점에 닿는다. */
                           translate: `0 ${Math.round(
-                            (-NUKE_FALL_PX * (1 - dropP9) ** 2 - NUKE_HEAD_PX * 0.275) * zoom)}px`,
+                            (-fp9 * (1 - dropP9) ** 2 - hp9 * 0.275) * zoom)}px`,
                           opacity: 0.4 + 0.6 * dropP9 ** 2,
                         }}
                       >
@@ -29687,7 +29708,7 @@ export default function ReplayMotionPlayer({
                   className="scr-motion-stormfx"
                   style={{
                     ...posStyle(x, y),
-                    width: pct(4.2, grid.width),
+                    width: pct(4.2 * pitchK(y), grid.width),
                     /* (걷어냄) 끝의 사그라듦 — 마지막 0.8초에 걸쳐 옅어지게 두었던
                        자리다(요청: "스톰 마지막에 페이드아웃 없애기"). 원작의 스톰은
                        지속이 끝나는 순간 그대로 그친다: 옅어지는 동안의 반투명한 번개는
