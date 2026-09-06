@@ -5662,10 +5662,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 윗면은 **앞쪽이 낮게 기울고 가운데가 옴폭 팬 접시**다(요청, 사진 참조) — 테두리 z는 앞(+y)으로 갈수록
          0.3 내려가고, 안쪽은 반지름 비의 제곱으로 가운데가 0.5 더 꺼진다. 테두리 점·띠·링·팔 밑동이 전부 이
          한 식(dishZ9)을 읽어 어긋나지 않는다. */
-      // 앞쪽 내림 0.3 → 0.8(요청: "옥상 기울기를 좀 더 기울이기, 앞쪽이 더 많이 내려가게").
+      // 앞쪽 내림 0.3 → 0.8 → 1.3(재요청: "윗면 좀 더 기울이기"). 뒤 테두리 2.7, 앞 테두리 1.4.
       const dishZ9 = (x9: number, y9: number): number => {
         const r9 = Math.min(1, Math.hypot(x9, y9) / 4.1);
-        return 2.7 - 0.8 * ((y9 / 4.1) + 1) / 2 - 0.5 * (1 - r9 * r9);
+        return 2.7 - 1.3 * ((y9 / 4.1) + 1) / 2 - 0.5 * (1 - r9 * r9);
       };
       const lo9 = rim9(5.1, 0);
       const hi9 = rim9(4.1, 2.7).map(([x9, y9]) => [x9, y9, dishZ9(x9, y9)] as [number, number, number]);
