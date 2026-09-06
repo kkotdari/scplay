@@ -2670,15 +2670,49 @@ function tankTrack(cx: number, yA = -3.6, yB = 3.6): ShapeFace[] {
   const out: ShapeFace[] = [...paintBase(trackFaces(cx, yA, yB, H, W), TRACK_STEEL)];
   // 달림면 위에 얹히는 것들의 밑값 — 옆벽 열쇠 위(위 trackTopKey 주석).
   const kTop = trackTopKey(cx, (yA + yB) / 2, W);
-  /* 트랙 링크 → **레일판**(요청: "껍데기의 레일 느낌이 더 살게 — 레일판이 바퀴 본체보다 옆으로 튀어나오게 해서 요철")
-     — 가는 리브 대신 궤도 윗반을 두르는 두꺼운 판이 양옆으로 0.28씩 튀어나온다(실루엣이 톱니로 읽힌다). 판은 조금
-     촘촘히(0.9 → 0.7 간격), 밝기를 번갈아 결이 보이게. */
-  const n = Math.max(4, Math.round((yB - yA) / 0.7));
-  for (let i = 0; i < n; i += 1) {
-    const y = yA + 0.55 + (i * (yB - yA - 1.1)) / (n - 1);
-    out.push(...tagKey(paintBase(
-      boxFaces3(cx, y, W + 0.56, 0.34, H * 0.5, H * 0.5), i % 2 === 0 ? "#737b84" : "#656d76",
-    ), kTop + 0.2));
+  /* 레일판(재지적: "납작한 판대기를 캐터필러 몸체에 빙 두르면서 붙여야지") — 알약 겉면(뒤 반원 → 윗면 → 앞 반원)을
+     따라 얇은 판(두께 0.12·길이 0.32)이 0.5 간격으로 붙고, 양옆으로 0.28씩 몸체보다 튀어나온다(옆 테가 톱니 실루엣).
+     판마다 겉면·양옆 테·앞뒤 모서리를 제 법선으로 그린다. 바닥면은 안 보이니 반원의 아래쪽 20도까지만. */
+  {
+    const rc9 = H / 2; const yAc9 = yA + rc9; const yBc9 = yB - rc9;
+    const PW9 = W + 0.56; const PL9 = 0.32; const PT9 = 0.12; const GAP9 = 0.5;
+    const A0 = (-20 * Math.PI) / 180;                       // 반원에서 내려가는 끝각(아래 20도)
+    const capLen9 = rc9 * (Math.PI / 2 - A0);                // 한쪽 반원의 판 구간 길이(위 90도 → −20도)
+    const total9 = capLen9 * 2 + (yBc9 - yAc9);
+    const n9 = Math.max(6, Math.round(total9 / GAP9));
+    for (let i9 = 0; i9 < n9; i9 += 1) {
+      const s9 = (i9 + 0.5) * (total9 / n9);
+      // 겉면 위 자리 p·바깥 법선 n·진행 방향 t(모두 y-z 평면).
+      let py9: number; let pz9: number; let ny9: number; let nz9: number;
+      if (s9 < capLen9) {                                    // 뒤 반원: 아래(−20도) → 위(90도), 뒤쪽(−y)
+        const a9 = A0 + (s9 / capLen9) * (Math.PI / 2 - A0);
+        ny9 = -Math.cos(a9); nz9 = Math.sin(a9); py9 = yAc9 + ny9 * rc9; pz9 = rc9 + nz9 * rc9;
+      } else if (s9 < capLen9 + (yBc9 - yAc9)) {             // 윗면
+        ny9 = 0; nz9 = 1; py9 = yAc9 + (s9 - capLen9); pz9 = H;
+      } else {                                               // 앞 반원: 위(90도) → 아래(−20도), 앞쪽(+y)
+        const a9 = Math.PI / 2 - ((s9 - capLen9 - (yBc9 - yAc9)) / capLen9) * (Math.PI / 2 - A0);
+        ny9 = Math.cos(a9); nz9 = Math.sin(a9); py9 = yBc9 + ny9 * rc9; pz9 = rc9 + nz9 * rc9;
+      }
+      const ty9 = nz9; const tz9 = -ny9;                     // 접선(진행 방향)
+      const P9 = (sx9: number, st9: number, sn9: number): [number, number, number] => [
+        cx + sx9 * PW9 / 2, py9 + ty9 * st9 * PL9 / 2 + ny9 * sn9 * PT9, pz9 + tz9 * st9 * PL9 / 2 + nz9 * sn9 * PT9,
+      ];
+      const col9 = i9 % 2 === 0 ? "#767e87" : "#666e77";
+      const fs9: ShapeFace[] = [];
+      const put9 = (path9: string, nx: number, ny: number, nz: number): void => {
+        const fl9 = faceLight(nx, ny, nz);
+        if (!fl9.visible) return;
+        fs9.push([path9, 1, col9] as ShapeFace, ...fl9.face(path9));
+        if (nz > 0.6) fs9.push(topFace(path9, 0.12));
+      };
+      put9(polyPath3([P9(-1, -1, 1), P9(1, -1, 1), P9(1, 1, 1), P9(-1, 1, 1)]), 0, ny9, nz9);       // 겉면
+      put9(polyPath3([P9(1, -1, 0), P9(1, 1, 0), P9(1, 1, 1), P9(1, -1, 1)]), 1, 0, 0);            // 오른 테
+      put9(polyPath3([P9(-1, -1, 0), P9(-1, 1, 0), P9(-1, 1, 1), P9(-1, -1, 1)]), -1, 0, 0);       // 왼 테
+      put9(polyPath3([P9(-1, 1, 0), P9(1, 1, 0), P9(1, 1, 1), P9(-1, 1, 1)]), 0, ty9, tz9);        // 앞 모서리
+      put9(polyPath3([P9(-1, -1, 0), P9(1, -1, 0), P9(1, -1, 1), P9(-1, -1, 1)]), 0, -ty9, -tz9);  // 뒤 모서리
+      // 윗면 판은 달림면 열쇠(kTop) 위, 반원 판은 제 자리 깊이 위 — 어느 쪽도 그 자리의 알약 면보다 위다.
+      out.push(...tagKey(fs9, (nz9 > 0.95 ? kTop : Math.max(depthNow(cx, py9) * 1.6, kTop - 0.3)) + 0.2));
+    }
   }
   /* 앞뒤 기동륜 — 궤도 **속**에 든 두꺼운 원판이다.
      ★ 열쇠를 달림면(kTop)에서 **안쪽**으로 내린다(지적: "캐터필러 겉의 껍데기에 안의 두
