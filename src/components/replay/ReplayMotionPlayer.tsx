@@ -22457,7 +22457,10 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
                솟는다. u가 혓바닥 시계의 솟음 몫(sin 마루)이라 자람·꺼짐이 거기 실려 온다. */
             const hgt = (f.len ?? 4) * (f.u ?? 1) * zoom;
             if (hgt < 0.5) continue;
-            const hw9 = ((f.size ?? 1) / 2) * zoom;
+            /* ★ 밑변도 함께 자란다(지적: "가시 모양이 땅에서 위로 나오는 거니까 처음엔 밑변이 짧다가 다 나왔을 때
+               가장 길어야") — 밑변이 고정된 채 높이만 늘면 납작한 삼각이 서서히 뾰족해지는 그림이다. 땅 위로 드러난
+               몫이 곧 가시의 끝부분이므로 밑변은 솟은 몫(u)에 비례한다. 밑변 자체는 0.8배(요청). */
+            const hw9 = ((f.size ?? 1) / 2) * zoom * 0.8 * Math.min(1, Math.max(0, f.u ?? 1));
             const g9 = ctx.createLinearGradient(x0, y0, x0, y0 - hgt);
             // 밝은 주황갈색(요청: "성큰 가시색이 너무 빨감") — 밑동 #8a3c0c → #b5642a, 끝 #e8732a → #f0a050.
             g9.addColorStop(0, "#b5642a");
@@ -22504,8 +22507,9 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
               ctx.globalAlpha = 1;
               ctx.fillStyle = gg9;
               ctx.beginPath();
-              ctx.moveTo(sx9 - hw9, sy9);
-              ctx.lineTo(sx9 + hw9, sy9);
+              // 밑변도 솟은 몫(gz9)만큼 — 성큰 가시와 같은 까닭(땅에서 드러난 몫이 끝부분이라 밑변은 끝에 가서야 최대).
+              ctx.moveTo(sx9 - hw9 * gz9, sy9);
+              ctx.lineTo(sx9 + hw9 * gz9, sy9);
               ctx.lineTo(sx9, sy9 - HH9 * gz9);
               ctx.closePath();
               ctx.fill();
