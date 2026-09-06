@@ -20329,7 +20329,13 @@ function buildingSpriteBake(
   SPRITE_PERF.bldBake += 1;
   const pBb9 = PERF9 ? pNow() : 0;
   const tBb9 = pNow();
-  const { faces: all } = resolveShapeFaces(op.kind, op.rotDeg, op.flat, op.viewYaw, op.pitch);
+  /* ★ 굽는 시각 밀림도 **열쇠의 칸(vq)** 그대로(지적: "3D에서 세로 중앙 좌우쪽 건물들이 자꾸 시점이 흔들리는 문제 —
+     서플라이·터렛처럼 부품이 변하는 경우") — 열쇠는 12도 칸인데 면은 op.viewYaw 원값으로 지어(resolveShapeFaces
+     안에서 6도 칸) 같은 열쇠 안에 두 기하가 섞였다: viewYaw 4도와 −4도는 열쇠가 둘 다 0인데 면은 +6·−6도로 다르다.
+     붙박이 건물은 한 번 굽고 끝이라 안 드러났지만, 포탑 각·불빛처럼 열쇠가 자주 바뀌는 건물은 굽을 때마다 **먼저
+     온 건물의 각**으로 구워져, 같은 열쇠를 나눠 쓰는 이웃 건물의 판이 +6과 −6 사이를 오갔다. 칸 값으로 지으면
+     같은 열쇠는 늘 같은 기하다. */
+  const { faces: all } = resolveShapeFaces(op.kind, op.rotDeg, op.flat, vq, op.pitch);
   if (!all) return null;
   const faces = stageFaces(
     // 유닛의 poseTag와 같은 함정 — 불빛(litTag)·회전(spinTag) 변종도 열쇠에 싣는다.
