@@ -45,11 +45,13 @@ export const NORM_MODE = "top";
  *  √(폭타일×높이타일)로 유도되므로, 같은 자라야 두 층이 같은 말을 한다.
  *  넓이로 맞추면 모델마다 잉크 밀도가 달라(0.30~0.79) 상자가 2.4배 어긋난다. */
 export const TARGET_GM = 5.2;
-/** 확대 축(모델 좌표) — 상자 한가운데. unitSprite 의 배수도 이 점을 쓴다.
- *  발밑이 아니라 중심인 이유: 그리는 쪽이 발자리·가로중심·머리를 전부
- *  contentBox(구운 판의 실제 잉크)에서 다시 재므로 모델이 상자 안에서
- *  어디에 앉든 상관없고, 중심축이 상한이 가장 균형 있게 남는 자리다. */
-export const NORM_ANCHOR = [8, 8];
+/** 확대 축(모델 좌표) — **땅 원점**(8, 12 / 입체 8, 12.6). unitSprite·도록·총구 앵커의 배수도 이 점을 쓴다.
+ *  (바꿈, 요청: "그림자 땅 원점 기준으로") — 예전엔 상자 한가운데(8, 8)였고, 그러면 배수가 큰 종류일수록
+ *  땅 원점이 자취 자리(sy)에서 아래로 밀려 같은 줄의 유닛 그림자가 배수마다 다른 줄에 놓였다.
+ *  원점을 축으로 키우면 원점이 늘 제자리라 그림자 줄이 배수와 무관하다. 축이 아래로 내려온 만큼 위쪽
+ *  여유가 줄어 키 큰 모델의 상한(headroom)이 낮아진다 — 그 몫은 표가 다시 잰다. */
+export const NORM_ANCHOR = [8, 12];
+export const normAnchorOf = (mode) => [8, mode === "pitch" || mode === "base" ? 12.6 : 12];
 /** 상한 안전 여유 — 훑기 해상도가 0.125단위라 그 오차만큼 물러선다. */
 export const CAP_SAFETY = 0.97;
 /** 시각 밀림 각(도)의 굽기 눈금과 상한 — resolveShapeFaces(:7838)와 같은 값.
@@ -175,6 +177,8 @@ function inBrowser({ KINDS, MODES, BUCKETS, VQ_PROBE, SCALES, FOOT_Y, NORM_ANCHO
      모든 그림이 실제보다 비쳐 보였고(부품이 겹친 모델일수록 심하다), 그 그림을 보고
      모델을 고치면 없는 병을 고치게 된다. */
   const shadeBoost = (o, fill) => (fill && o < 1 ? Math.min(0.85, o * 1.45) : o);
+  // 확대 축 = 땅 원점(모드별 FOOT_Y) — 바깥의 normAnchorOf와 같은 식(함수는 evaluate 인자로 못 넘긴다).
+  const normAnchorOf = (m) => [8, FOOT_Y[m] ?? 12.6];
   const mk = (N) => {
     const cv = document.createElement("canvas");
     cv.width = N * MARGIN; cv.height = N * MARGIN;
@@ -195,9 +199,10 @@ function inBrowser({ KINDS, MODES, BUCKETS, VQ_PROBE, SCALES, FOOT_Y, NORM_ANCHO
     c.clearRect(0, 0, W, W);
     c.setTransform(k, 0, 0, k, off, off);
     if (s !== 1) {
-      c.translate(NORM_ANCHOR[0], NORM_ANCHOR[1]);
+      const an = normAnchorOf(mode);
+      c.translate(an[0], an[1]);
       c.scale(s, s);
-      c.translate(-NORM_ANCHOR[0], -NORM_ANCHOR[1]);
+      c.translate(-an[0], -an[1]);
     }
     for (const f of faces) {
       c.globalAlpha = shadeBoost(f[1], f[2]);
@@ -295,7 +300,7 @@ function inBrowser({ KINDS, MODES, BUCKETS, VQ_PROBE, SCALES, FOOT_Y, NORM_ANCHO
         for (const b0 of BK) {
           const b = shot(sweep, kind, b0, mode, vq, s);
           if (!b) continue;
-          const ha = headroom(b, NORM_ANCHOR);
+          const ha = headroom(b, normAnchorOf(mode));
           over = Math.max(over, overflow(b));
           if (ha < hv) hv = ha;
           if (ha < head.anchor) {

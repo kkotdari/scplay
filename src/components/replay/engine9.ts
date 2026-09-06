@@ -7157,7 +7157,8 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       const aimKey9 = holdKey;
       if (foeDeg !== null) aimMemRef.current.set(aimKey9, foeDeg);
       const lastAim9 = aimMemRef.current.get(aimKey9);
-      const idleAim9 = lastAim9 ?? ((last.rotDeg ?? 0) + (kind0 === "tanksiege" ? 180 : 0));
+      // 시즈 몸을 180 돌렸으므로(tanksiegebody spin 270) 대기 포신도 함께 — 차체 기준 뒤쪽 = rotDeg + 0.
+      const idleAim9 = lastAim9 ?? (last.rotDeg ?? 0);
       unitOps.push({
         // 포신 가려짐 해결(지적) — 곁 유닛의 z가 포탑을 얇게 자르지 않게 여유 있게.
         ...last, kind: gunKind, fx: gfx, fy: gfy, z: last.z + 30,
@@ -7527,8 +7528,11 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
        오프셋)이다. 앵커 배수는 몸 판의 것(modelNormOf, 버로우면 구멍 판). */
     const mzS = modelNormOf(burrowed ? kind0 : (MUZZLE_PLATE[fxKind] ?? fxKind));
     const rad9 = (beamDeg * Math.PI) / 180;
+    /* 배수 축은 땅 원점(8, 12 / 입체 8, 12.6)이다(unitSprite의 noy9와 같다) — 앵커를 원점에서 잰 몫만 배수로
+       키우고, 상자 가운데에서 원점까지는 그대로 더한다. */
+    const mzOy9 = pitched ? 12.6 : 12;
     const [mzx9, mzy9]: [number, number] = mzP
-      ? [((mzP[0] - 8) * mzS * fxPx) / 16, (((mzP[1] - 8) * mzS * fxPx) / 16) + 0.1 * fxPx]
+      ? [((mzP[0] - 8) * mzS * fxPx) / 16, (((mzOy9 - 8) + (mzP[1] - mzOy9) * mzS) * fxPx) / 16 + 0.1 * fxPx]
       : [-Math.sin(rad9) * (MUZZLE_PX[fxUnit] ?? 4), Math.cos(rad9) * (MUZZLE_PX[fxUnit] ?? 4)];
     /* ★ 쏘는 쪽에 선을 안 긋고 **표적 위에 직접 그린다**(요청: "커세어는 트레이서가
        자기 자신 쪽엔 없고 대상한테 넙적한 타원 형태로 플라즈마" · 재지적: "커세어

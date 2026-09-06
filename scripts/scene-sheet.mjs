@@ -43,10 +43,10 @@ const esbuild = (src, out, extra) => {
 const tdir = mkdtempSync(join(tmpdir(), "scene-tables-"));
 const tsrc = join(ROOT, "scripts", ".scene-tables.tmp.ts");
 writeFileSync(tsrc, `
-import { SHAPE_KIND, UNIT_3D, raceOfName9, FOOTPRINT, MODEL_NORM, BLD_NORM, BLD_NORM_PAIR, isAirUnit } from ${JSON.stringify(join(ROOT, "src/components/replay/engine9"))};
+import { SHAPE_KIND, UNIT_3D, raceOfName9, FOOTPRINT, MODEL_NORM, BLD_NORM, BLD_NORM_PAIR, isAirUnit, UNIT_SIZE_TUNE, BLD_DRAW_TUNE, BLD_DRAW_K } from ${JSON.stringify(join(ROOT, "src/components/replay/engine9"))};
 import { BW_UNIT_NAME } from ${JSON.stringify(join(ROOT, "src/utils/bwUnitNames"))};
 (globalThis as any).window = globalThis;
-export const TABLES = { SHAPE_KIND, UNIT_3D, FOOTPRINT, BW_UNIT_NAME, MODEL_NORM, BLD_NORM, BLD_NORM_PAIR,
+export const TABLES = { SHAPE_KIND, UNIT_3D, FOOTPRINT, BW_UNIT_NAME, MODEL_NORM, BLD_NORM, BLD_NORM_PAIR, UNIT_SIZE_TUNE, BLD_DRAW_TUNE, BLD_DRAW_K,
   AIR: Object.fromEntries(Object.keys(UNIT_3D).map((n) => [n, isAirUnit(n)])),
   RACE: Object.fromEntries([...Object.keys(SHAPE_KIND), ...Object.keys(UNIT_3D)].map((n) => [n, raceOfName9(n) ?? ""])) };
 `);
@@ -84,7 +84,8 @@ function makeWorld(race) {
     [F(0), x * 32, y * 32, 0, 0, type], [F(GAME_SEC), x * 32, y * 32, 0, 0, type]], hp: null });
   const unitTrack = (type, x, y) => {
     const keys = [];
-    for (let s = 0; s <= GAME_SEC; s += 0.75) keys.push([F(s), Math.round(x * 32), Math.round(y * 32), 160, 0, type]);
+    // 방향은 정면(남쪽, 화면 아래 = 방향 바이트 128)(요청: "유닛들도 방향은 정면을 향하게").
+    for (let s = 0; s <= GAME_SEC; s += 0.75) keys.push([F(s), Math.round(x * 32), Math.round(y * 32), 128, 0, type]);
     tracks.push({ tag: tag++, owner: 0, type, keys, hp: null });
   };
   // 격자 — 건물은 8타일 간격 6열, 유닛은 4타일 간격 10열. 지도 가운데(64,64) 언저리.
@@ -93,10 +94,12 @@ function makeWorld(race) {
   const labels = [];
   // 짧은 이름 — 괄호는 머리글자로(Siege Tank (Siege Mode) → Siege Tank(S)).
   const short = (n) => n.replace(/ \((\w)[^)]*\)/, "($1)");
+  /* 라벨의 배율 = **사용자가 정한 그리기 배율**(요청) — 유닛은 UNIT_SIZE_TUNE[kind](없으면 1), 건물은
+     BLD_DRAW_TUNE[kind](없으면 1; 공통 BLD_DRAW_K 1.2는 따로 안 적는다). 정규화 배수(MODEL_NORM·BLD_NORM)가 아니다. */
   const normOf = (n, isBld) => {
     const k = isBld ? TABLES.SHAPE_KIND[n] : TABLES.UNIT_3D[n];
-    const v = isBld ? (TABLES.BLD_NORM[k] ?? TABLES.BLD_NORM[TABLES.BLD_NORM_PAIR[k]]) : TABLES.MODEL_NORM[k];
-    return v === undefined ? "?" : `×${Number(v).toFixed(2)}`;
+    const v = isBld ? (TABLES.BLD_DRAW_TUNE[k] ?? 1) : (TABLES.UNIT_SIZE_TUNE[k] ?? 1);
+    return `×${Number(v).toFixed(2)}`;
   };
   blds.forEach((n, i) => {
     const x = X0 + (i % 7) * 6 + 2; const y = yb + Math.floor(i / 7) * 6.5 + 2;
@@ -112,8 +115,7 @@ function makeWorld(race) {
     const fp = TABLES.FOOTPRINT[n] ?? [3, 2];
     tracks.push({ tag: tag++, owner: 0, type: nameToId[n], keys: [
       [F(20), x * 32, y * 32, 0, 0x80, nameToId[n]], [F(GAME_SEC), x * 32, y * 32, 0, 0x80, nameToId[n]]], hp: null });
-    const v = TABLES.BLD_NORM[kind];
-    labels.push([lab, v === undefined ? "?" : `×${Number(v).toFixed(2)}`, x, y + fp[1] / 2 + 0.6]);
+    labels.push([lab, `×${Number(TABLES.BLD_DRAW_TUNE[kind] ?? 1).toFixed(2)}`, x, y + fp[1] / 2 + 0.6]);
   });
   const yu = yb + Math.ceil((blds.length + wip.length) / 7) * 6.5 + 2.5;
   // 지상 줄(들) 먼저, 비행 줄(들)은 그 아래 — 비행 유닛은 위로 떠서 그려지니 윗줄과 겹치지 않게 사이를 더 띄운다.

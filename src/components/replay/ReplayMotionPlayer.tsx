@@ -82,7 +82,7 @@ import {
   domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio,
   prismYFaces, prismZFaces, pyramidFaces3,
   screenCircle, setPitchSquash, sphereFaces3, tubeAxisLift, tubeFaces, VIEW_LEAN_K,
-  wallDiscPath, withModelSpin, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted,
+  wallDiscPath, withModelSpin, withModelShift, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted,
 } from "../../utils/shapeOblique";
 import { TEAM_COLOR, type MinimapMarker } from "./markers";
 import {
@@ -8179,7 +8179,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       덩어리에서 뒤 타원형을 감싸는 낮은 벽이 있고 그 벽에는 세로로 흰색 철사가 쭉 붙어 있어. 그 낮은 벽 뒤쪽엔 세로로
       납작한 판형 기둥이 세워져 있음. 반구형 뒤쪽에도 얇고 뒤로 길게 판형 꼬리가 세 개."
      이 빌더는 −90도 요잉이라 모델 +y가 화면 오른쪽, −x가 화면 아래다 — 앞(화면 왼아래)은 모델 (−1,−1)/√2, 뒤는 그 반대. */
-  archives: () => withModelSpin(-90, () => {
+  archives: () => withModelSpin(-135, () => {   // −135도 요잉(요청: −90 → −135)
     const AQUA9 = "#5aecd8";
     const GOLD9 = "#d4bd3c";
     const GOLD_D9 = "#8a6f2a";
@@ -8370,7 +8370,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // ③ 뒤에서 솟는 파이프 셋 — **부채살**(재요청): 뒤 가운데 한 점에서 나와 오를수록 옆으로 벌어진다.
     // 날개 셋 0.6배(요청) — 파이프 높이·판 길이·굵기가 sc9로 함께 준다. 뿌리 자리도 원판에 맞춰 안으로.
     for (const [px9, sc0] of [[-2.7 * DK9, 0.85], [0, 1], [2.7 * DK9, 0.85]] as [number, number][]) {
-      const sc9 = sc0 * 0.6;
+      const sc9 = sc0 * 0.9;   // 0.6 → 0.9(요청: 파이프+방패판 1.5배)
       const H9 = 5.0 * sc9;
       const pipe = (t9: number): [number, number, number] => [
         px9 * (0.06 + 0.94 * t9), -2.3 * DK9 + 1.3 * t9 * t9, 0.8 + H9 * Math.sin(t9 * Math.PI * 0.5),
@@ -8468,7 +8468,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        기둥(왼·뒤·오른)에 앞쪽 꼭짓점(기둥 없음) 하나를 더해 네 변으로 돈다. */
     const FRONT9: [number, number, number, number] = [0, 2.4, 0, 0];
     const NODES9 = [...PILLARS9, FRONT9];
-    ([[0, 1], [1, 2], [2, 3], [3, 0]] as [number, number][]).forEach(([i9, j9]) => {
+    // 마름모 대각선 하나 더(요청): 뒷기둥(1) ↔ 앞 교점(3).
+    ([[0, 1], [1, 2], [2, 3], [3, 0], [1, 3]] as [number, number][]).forEach(([i9, j9]) => {
       const a9 = NODES9[i9];
       const b9 = NODES9[j9];
       const mx9 = (a9[0] + b9[0]) / 2;
@@ -9308,7 +9309,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      왼쪽엔 말려 올라간 촉수, 가운데엔 흰 애벌레 마디, 앞엔 구덩이 입. */
   /* +90도 요잉(요청) — 285 → 375도(= 15도). 갈고리 촉수가 그 상태에서 정면으로 볼 때
      **왼쪽**에 오도록 자리도 함께 옮긴다(아래 촉수 주석). */
-  dmound: () => withModelSpin(375, () => {
+  /* 앞으로 0.9 옮긴다(지적: "디파일러마운드는 왜 혼자 좀 위쪽에 그려져 있지") — 살덩이·수정이 뒤(−y)로 쏠려 발자국
+     가운데보다 위에 떠 보였다. 회전(375도) 안쪽 제 축 기준이라 화면 앞(+y)으로 내려온다. */
+  dmound: () => withModelSpin(375, () => withModelShift(0, 0.9, () => {
     /* 디파일러 마운드(전면 재작도·사진) — 구릿빛 살덩이 두덩이 낮게 엉키고, 그 위로
        검은 수정 조각이 무리 지어 솟는다. 오른쪽에 말려 오른 굵은 촉수, 앞에는 상아빛
        엄니 줄과 흰 애벌레 마디들, 가운데엔 개인색 아가리. */
@@ -9367,7 +9370,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       capFace(discPath3(-0.7, 1.2, 3.15, 0.95), 0.55),
     ], 14));
     return out;
-  }),
+  })),
 
   /* 울트라리스크 동굴(신설·사진) — 여태 모델이 없던 건물이다. 초록빛 도는 살덩이
      덩치에 굵은 핏줄이 도드라지고, 앞 아래가 크게 벌어져 누런 이빨 능선을 두른 굴
@@ -10306,9 +10309,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      궤도·차체는 평상시와 **같은 부품**이다(지적: 두 모드의 몸통이 달라 보였다). */
   // 시즈 모드는 +90도 요잉(요청: "시즈모드 탱크 +90도 요잉") — 차체·다리·합본이 같은 각. 포신은 제 조준각으로 따로 돈다.
   // 합본(저배율·도록)의 포신은 차체 +180 = 절대 180(뒤쪽)(요청) — 앱의 포탑 판은 엔진이 idleAim9로 같은 각을 준다.
-  tanksiege: () => withModelSpin(90, () => [...tankTracks(), ...siegeLegs(), ...tankHull(), ...withModelSpin(90, siegeTurret)]),
+  // 시즈 모드는 +180(요청: "시즈모드 180도 요잉") — 90 → 270. 포탑의 대기 방향(engine9 idleAim9)도 같이 돌렸다.
+  tanksiege: () => withModelSpin(270, () => [...tankTracks(), ...siegeLegs(), ...tankHull(), ...withModelSpin(90, siegeTurret)]),
   /* 발포 반동용 분해(요청) — 시즈 차체/포탑·포신 분리판. */
-  tanksiegebody: () => withModelSpin(90, () => [...tankTracks(), ...siegeLegs(), ...tankHull()]),
+  tanksiegebody: () => withModelSpin(270, () => [...tankTracks(), ...siegeLegs(), ...tankHull()]),
   tanksiegegun: () => siegeTurret(),
   /* 시즈 버팀다리 홑판 — 시즈 전환 동작(요청)에서 탱크 차체 위에 attach로 겹쳐 배율(attachK)로 뻗고 접는다. */
   tanksiegelegs: () => withModelSpin(90, () => siegeLegs()),
@@ -19806,7 +19810,12 @@ function unitSprite(
      도록(ShapeIcon)·총구 앵커도 같은 입구를 탄다 — 셋이 갈리면 트레이서가 포신을
      벗어나고 자료실 크기와 지도 크기가 어긋난다. */
   const nrm = modelNormOf(op.kind);
-  if (nrm !== 1) { c2.translate(8, 8); c2.scale(nrm, nrm); c2.translate(-8, -8); }
+  /* 축은 **땅 원점**(8, 12 / 입체 8, 12.6)이다(요청: "그림자 땅 원점 기준으로") — 상자 한가운데(8, 8)를 축으로
+     키우면 배수만큼 원점이 아래로 밀려, 같은 줄에 선 유닛의 그림자가 배수마다 다른 줄에 놓였다(옵저버 1.86은
+     아래, 캐리어 0.69는 위). 원점을 축으로 하면 원점이 늘 자취 자리(sy + 0.01·px)에 있다. 그림자(groundOy9)·
+     도록(ShapeIcon)·총구 앵커(engine9 mzP)·정규화 스크립트(NORM_ANCHOR)가 같은 축을 쓴다. */
+  const noy9 = op.flat ? 12 : 12.6;
+  if (nrm !== 1) { c2.translate(8, noy9); c2.scale(nrm, nrm); c2.translate(-8, -noy9); }
   // 임자 면(fill 없음)은 몸판에서 뺀다 — 마스크가 그 자리를 맡는다(solid면 전부 한 색이라 마스크가 없다).
   const teamSplit9 = !op.solid && faces.some((f9) => f9[2] === undefined);
   for (const [d, o, fill] of faces) {
@@ -19825,7 +19834,7 @@ function unitSprite(
       m2.setTransform(B, 0, 0, B, 0, 0);
       m2.translate(pad, pad);
       m2.scale(pxq / 16, pxq / 16);
-      if (nrm !== 1) { m2.translate(8, 8); m2.scale(nrm, nrm); m2.translate(-8, -8); }
+      if (nrm !== 1) { m2.translate(8, noy9); m2.scale(nrm, nrm); m2.translate(-8, -noy9); }
       for (const [d, o, fill] of faces) {
         if (fill === undefined) {
           m2.globalCompositeOperation = "source-over";
@@ -21642,8 +21651,9 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
            땅 원점의 화면 자리는 잉크와 무관하게 셈이 된다: 판 상자 가운데(sy − 0.24·px)에서 원점 줄
            (12 또는 12.6)까지 (줄 − 8)/16·px, 여기에 종류 배수(modelNormOf, 상자 가운데 축)를 곱한다.
            가로도 잉크 중심이 아니라 원점(sx)이다 — 포신이 한쪽으로 뻗어도 그림자는 차체 밑이다. */
-        const gnrm9 = modelNormOf(op.kind);
-        const groundOy9 = sy - px * 0.24 + (((op.flat ? 12 : 12.6) - 8) / 16) * gnrm9 * px;
+        /* 배수는 이제 땅 원점을 축으로 걸리므로(unitSprite의 noy9) 원점 줄은 배수와 무관하다 — 상자 가운데에서
+           (줄 − 8)/16·px 그대로. */
+        const groundOy9 = sy - px * 0.24 + (((op.flat ? 12 : 12.6) - 8) / 16) * px;
         /* ★ 덜어내기 중에도 **공중 유닛 그림자는 남긴다**(요청: "떠있는 위치가 안 읽혀서") — 타원 하나라 값이
            거의 없고, 그림자가 없으면 나는 몸의 높이·자리를 읽을 길이 없다. 부양 지상 유닛 그림자만 덜어낸다. */
         if (hover && !op.noShadow && showShadows !== false && (CROWD9.lv === 0 || op.air) && detail) {
@@ -23311,7 +23321,8 @@ export function ShapeIcon({
           (buildingSprite가 쓰는 그 축이다). */}
       <g id={`sf${uid9}`} transform={fitBox ? (rot ? `rotate(${rot} 8 8)` : undefined) : ([
         rot ? `rotate(${rot} 8 8)` : "",
-        modelNormOf(kind) !== 1 ? `translate(8 8) scale(${modelNormOf(kind)}) translate(-8 -8)` : "",
+        // 축은 땅 원점(지도의 unitSprite와 같다 — 상자 가운데였던 것을 옮겼다).
+        modelNormOf(kind) !== 1 ? `translate(8 ${pitchView ? 12.6 : 12}) scale(${modelNormOf(kind)}) translate(-8 -${pitchView ? 12.6 : 12})` : "",
         modelNormOf(kind) === 1 && bldNormOf(kind) !== 1
           ? `translate(8 16) scale(${bldNormOf(kind)}) translate(-8 -16)` : "",
       ].filter(Boolean).join(" ") || undefined)}>

@@ -421,7 +421,7 @@ function currentYaw(): number {
 /** 화면 깊이(요잉 반영) — painter 정렬용. +가 시청자 쪽(앞). */
 export function depthNow(x: number, y: number): number {
   // 깊이도 같은 자로 잰다 — 모델 축을 줄여 놓고 정렬만 옛 좌표로 하면 앞뒤가 뒤집힌다.
-  const [mx, my] = spun(x * modelXK, y * modelYK);
+  const [mx, my] = spun(x * modelXK + modelXOff, y * modelYK + modelYOff);
   const th = (currentYaw() * Math.PI) / 180;
   return -mx * Math.sin(th) + my * Math.cos(th);
 }
@@ -583,11 +583,24 @@ export function withModelZOff<T>(dz: number, fn: () => T): T {
     modelZOff = p;
   }
 }
+/** 모델 전체를 제 축 x·y로 평행이동(모델 단위, **회전 전**) — 발자국 가운데에서 벗어나 앉은 모델(디파일러
+ *  마운드: 덩이가 뒤로 쏠려 화면에서 위로 떠 보임)을 옮기는 데 쓴다. 배율 뒤·회전 앞에 더한다. */
+let modelXOff = 0;
+let modelYOff = 0;
+export function withModelShift<T>(dx: number, dy: number, fn: () => T): T {
+  const px = modelXOff; const py = modelYOff;
+  modelXOff = dx; modelYOff = dy;
+  try {
+    return fn();
+  } finally {
+    modelXOff = px; modelYOff = py;
+  }
+}
 /** 모형 좌표 (x,y,z) → 화면 [sx, sy]. y(앞)는 아래로, z(위)는 위로 간다. */
 export function project(x0: number, y0: number, z0: number): [number, number] {
   const z = z0 * modelZK + modelZOff;
   // 모델 회전이 먼저다 — 돌아간 좌표를 카메라가 본다(카메라는 안 움직인다).
-  const [mx, my] = spun(x0 * modelXK, y0 * modelYK);
+  const [mx, my] = spun(x0 * modelXK + modelXOff, y0 * modelYK + modelYOff);
   const th = ((yawOverride ?? VIEW.yawDeg) * Math.PI) / 180;
   const c = Math.cos(th);
   const sn = Math.sin(th);
