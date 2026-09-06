@@ -8189,7 +8189,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       덩어리에서 뒤 타원형을 감싸는 낮은 벽이 있고 그 벽에는 세로로 흰색 철사가 쭉 붙어 있어. 그 낮은 벽 뒤쪽엔 세로로
       납작한 판형 기둥이 세워져 있음. 반구형 뒤쪽에도 얇고 뒤로 길게 판형 꼬리가 세 개."
      이 빌더는 −90도 요잉이라 모델 +y가 화면 오른쪽, −x가 화면 아래다 — 앞(화면 왼아래)은 모델 (−1,−1)/√2, 뒤는 그 반대. */
-  archives: () => withModelSpin(-90, () => {   // −90도 요잉(요청: −90 → −135 → 다시 −90)
+  archives: () => withModelSpin(-225, () => {   // 요잉 −90 → −135 → 거기서 −90 더(재요청) = −225
     const AQUA9 = "#5aecd8";
     const GOLD9 = "#d4bd3c";
     const GOLD_D9 = "#8a6f2a";
