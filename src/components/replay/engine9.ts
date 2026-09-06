@@ -1558,7 +1558,7 @@ export const BLD_DRAW_TUNE: Record<string, number> = {
   comsat: 1.2, nsilo: 1.2, mshop: 1.2, ctower: 1.2, covert: 1.2, physlab: 1.2,   // 부속(애드온) 전부
   scifac: 1.2,                                                             // 사이언스 퍼실리티
   arch: 1.2, cyber: 1.2, dome: 1.2, citadel: 1.2, archives: 1.2, observatory: 1.2, fleetbeacon: 1.2, sbattery: 1.2,
-  robobay: 1.4,                                                            // 서포트 베이 1.2 → 1.4
+  robobay: 1.6,                                                            // 서포트 베이 1.2 → 1.4 → 1.6(재요청)
   queensnest: 1.2,                                                         // 1.4 → 1.2(재요청, 돔을 키운 뒤)
   turret: 1.2,                                                             // 요청
   pool: 1.2, dmound: 1.2, cavern: 1.2,                                     // 캐번 1.4 → 1.2
