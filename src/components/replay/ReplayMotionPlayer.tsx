@@ -23346,7 +23346,8 @@ const FX_MIN_ZOOM: Record<FxOp["kind"], number> = {
   beam: TRACER_MIN_ZOOM, shot: TRACER_MIN_ZOOM,   /* 트레이서 — 배치를 안 가리고 2배 */
   spike: 2, erupt: 2, cage: 2,
   hit: 4,
-  shield: DEEP_MIN_ZOOM, tether: DEEP_MIN_ZOOM,
+  shield: 4,   // 실드 피격은 다른 피격과 같은 문턱(요청) — 실드가 있든 없든 '맞았다'가 같은 배율에서 읽혀야 한다.
+  tether: DEEP_MIN_ZOOM,
   burst: 2,   // 죽음·파괴 폭발 — 2배부터 캔버스로(그 아래는 DOM 여운 하나)
 };
 /** 배치의 바닥(detailAt: 폰 8배)을 **안 타는** 갈래 — 제 칸(FX_MIN_ZOOM)이 곧 실제 칸이다.
@@ -25040,6 +25041,10 @@ export default function ReplayMotionPlayer({
   }, [pitchFlat]);
   /** 정보 팝업으로 집어 둔 몸의 열쇠(요청) — null이면 닫힘. */
   const [picked, setPicked] = useState<string | null>(null);
+  /** 인포 팝업이 열려 있으면 닫는다 — 화면 이동·배율 변경의 모든 문에서 부른다(beginGestureXf 주석). */
+  const closePicked9 = useCallback((): void => {
+    if (pickedRef.current !== null) setPicked(null);
+  }, []);
   /* (걷어냄) mobBars — 좁은 화면의 배속·각도 바를 여닫던 상태다. 그 바가 지도 위
      값 버튼으로 바뀌면서 여닫을 것이 없어졌다(요청). */
   /** 이번 프레임에 그린 op — 클릭 판정과 팝업 내용이 여기서 지금 값을 읽는다. */
@@ -26495,6 +26500,10 @@ export default function ReplayMotionPlayer({
   /** 손짓 시작 — 이미 도는 중이면 기준을 안 건드린다(휠→드래그 이어짐 등). */
   const beginGestureXf = useCallback((): void => {
     if (xfGestureRef.current) return;
+    /* ★ 화면을 움직이면 인포 팝업은 닫는다(요청: "인포 팝업 열린 상태에서 드래그·줌 시 창 닫혀야 하고 키보드로
+       이동·줌 시에도") — 휠·핀치·드래그(슬롭 지난 뒤)·가장자리 밀기·WASD가 모두 이 문을 지나므로 여기 한 곳이면
+       된다. 단추·키보드 배율(zoomStep9·zoomTo·fsWheelZoom)은 이 문을 안 지나 따로 닫는다. */
+    closePicked9();
     xfGestureRef.current = true;
     xfPaintAtRef.current = performance.now();
     zoomRawRef.current = zoomRef.current;
@@ -27958,6 +27967,7 @@ export default function ReplayMotionPlayer({
    *  한가운데가 유일하게 뜻이 통하는 축이다. 팬은 새 배율의 한계 안으로 죈다 —
    *  안 그러면 축소할 때 지도가 화면 밖으로 밀린 채 남는다. */
   const zoomTo = (z1: number): void => {
+    closePicked9();   // 단추 배율도 팝업을 닫는다(요청).
     const el = mapRef.current;
     const r = el?.getBoundingClientRect();
     if (!r || r.width < 4 || r.height < 4) return;
@@ -28229,6 +28239,7 @@ export default function ReplayMotionPlayer({
          `, c, v · 조작부 감추기/보이기: f · 도움말에 표기된 단축키 이외의 매핑은 모두 제거"). 글자 키는 e.code(자판
          자리)로 읽어 한글 자판에서도 듣는다. 안내(ReplayGuide)에 적힌 키만 여기 있어야 한다 — 별칭을 더하지 않는다. */
       const zoomStep9 = (up9: boolean): void => {
+        closePicked9();   // 키보드 배율도 팝업을 닫는다(요청).
         const el9 = mapRef.current;
         const r9 = el9?.getBoundingClientRect();
         if (!r9 || r9.width < 4) return;
@@ -30524,6 +30535,7 @@ translate: `${(-(Math.round((-fp9 * (1 - dropP9 ** 2) - hp9 * 0.275 - hp9 * 1.42
     if (fsCoverW <= 0 || fsCoverH <= 0) return;
     const z9 = zoomNext(zoomRef.current, up);
     if (z9 === null || z9 === zoomRef.current) return;
+    closePicked9();   // 미니맵 위 휠 배율도 팝업을 닫는다(요청).
     const [fx9, fy9] = miniProject(mx, my);
     const lim9 = panLimit(z9);
     setZoom(z9);
