@@ -733,7 +733,8 @@ export const MUZZLE_ANCHOR: Record<string, [number, number, number]> = {
   inf: [1.22, 2.05, 3],
   // 탱크 둘은 포탑을 원점에 맞추며 포신이 옮겨졌다(위 tankTurret·siegeTurret 주석) —
   // 값은 새 포신 끝(평시 쌍포신 y 5.95·z 3.75, 시즈 소염기 y 6.85·z 5.9)이다.
-  tank: [0.42, 3.5, 3.2], tanksiege: [0, 4.8, 4.4],
+  // 포신 0.8배(요청) 뒤: 탱크 끝 y 3.5 → 3.0 · 시즈는 기울인(12도) 포신 끝 (0, 4.04, 4.29)를 돌린 자리.
+  tank: [0.42, 3.0, 3.2], tanksiege: [0, 3.7, 5.1],
   /* 골리앗 [1.4, 2.2, 3.4] → [0, 2.9, 5.62] — 옛 값은 지금 모델에서 **무릎 높이**(z 3.4)의
      허공이었다. 총열은 z 5.62에 있고, 미사일은 좌우 두 줄기로 갈라져 나가므로(lanes9)
      앵커는 몸 한가운데여야 두 발이 양 포드에 하나씩 선다 — x를 0으로 옮긴 까닭이다. */
@@ -7170,7 +7171,10 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       if (foeDeg !== null) aimMemRef.current.set(aimKey9, foeDeg);
       const lastAim9 = aimMemRef.current.get(aimKey9);
       // 시즈 대기 포신은 **앞**(지적: "idle 상태에서 시즈모드 탱크는 포신이 뒤쪽을 향하고 있음") — 차체 spin 270에 맞춰 +180.
-      const idleAim9 = lastAim9 ?? ((last.rotDeg ?? 0) + (kind0 === "tanksiege" ? 90 : 0));   // +0·+180은 차체 옆이었다(지적) — 차체 뒤 = +90
+      /* 시즈 대기 포신 = 차체 **뒤**(뒤 고정 다리 쪽). 셈: 몸 판은 spin 270으로 굽고 rotDeg hdg로 찍으니 뒤 다리(모형 −y)는
+         −y를 (270 − hdg)만큼 돌린 방향이고, 포탑 판은 spin 없이 rotDeg R로 찍으니 포신(+y)은 +y를 −R만큼 돌린 방향이다.
+         둘이 같으려면 R = hdg + 270(= −90). +0·+180은 옆, +90은 앞이었다. 도록 합성 포탑(안쪽 spin 180)과 같은 배치. */
+      const idleAim9 = lastAim9 ?? ((last.rotDeg ?? 0) + (kind0 === "tanksiege" ? 270 : 0));
       unitOps.push({
         // 포신 가려짐 해결(지적) — 곁 유닛의 z가 포탑을 얇게 자르지 않게 여유 있게.
         ...last, kind: gunKind, fx: gfx, fy: gfy, z: last.z + 30,

@@ -2838,27 +2838,57 @@ function tankTurretV2(siege: boolean): ShapeFace[] {
   const hex9: [number, number][] = [
     [-0.6, 1.2 * f9], [0.6, 1.2 * f9], [1.4, 0.2 * f9], [1.1, -1.3 * f9], [-1.1, -1.3 * f9], [-1.4, 0.2 * f9],
   ];
-  out.push(...tagKey(paintBase(prismZFaces(hex9, Z0 + 0.25, 1.35, true), TANK_STEEL), kT(0, 0) + 0.3));   // 윗면 덮는다(지적: 윗면이 안 보임)
-  // 지휘관 해치 — 상자 위 뒤쪽 작은 돔.
-  out.push(...tagKey(paintBase(domeFaces3(0, -0.55 * f9, 0.32, 0.22, Z0 + 1.6), "#7d848d"), kT(0, -0.55 * f9) + 0.5));
+  /* 시즈 모드는 받침 원판만 빼고 **육각 포탑·돔·포신이 함께 살짝 기운다**(요청: 포신이 살짝 하늘을 향하게) —
+     포탑 밑면 높이(Z0+0.25)의 x축을 축으로 +y(포신) 쪽이 12도 들린다. 육각은 prismZFaces가 축 정렬이라 기운 꼭짓점으로
+     직접 짠다(윗면 + 옆면 여섯, 옆면은 제 법선으로 빛). 일반 모드는 기울기 0이라 옛 그림 그대로다. */
+  const TILT9 = siege ? (12 * Math.PI) / 180 : 0;
+  const ZB9 = Z0 + 0.25;
+  const T9 = (x9: number, y9: number, z9: number): [number, number, number] => [
+    x9, y9 * Math.cos(TILT9) - (z9 - ZB9) * Math.sin(TILT9), ZB9 + y9 * Math.sin(TILT9) + (z9 - ZB9) * Math.cos(TILT9),
+  ];
+  {
+    const HT9 = 1.35;
+    const bot9 = hex9.map(([hx9, hy9]) => T9(hx9, hy9, ZB9));
+    const top9 = hex9.map(([hx9, hy9]) => T9(hx9, hy9, ZB9 + HT9));
+    const hexF: ShapeFace[] = [];
+    for (let i9 = 0; i9 < hex9.length; i9 += 1) {
+      const j9 = (i9 + 1) % hex9.length;
+      const dx9 = hex9[j9][0] - hex9[i9][0]; const dy9 = hex9[j9][1] - hex9[i9][1];
+      const nl9 = Math.hypot(dx9, dy9) || 1;
+      // 꼭짓점 차례가 시계 방향이라 바깥 법선은 (−dy, dx).
+      const fl9 = faceLight(-dy9 / nl9, dx9 / nl9, 0);
+      if (!fl9.visible) continue;
+      const q9 = polyPath3([bot9[i9], bot9[j9], top9[j9], top9[i9]]);
+      hexF.push([q9, 1, TANK_STEEL] as ShapeFace, ...fl9.face(q9));
+    }
+    const tp9 = polyPath3(top9);
+    hexF.push([tp9, 1, TANK_STEEL] as ShapeFace, topFace(tp9, 0.2));
+    out.push(...tagKey(hexF, kT(0, 0) + 0.3));   // 윗면 덮는다(지적: 윗면이 안 보임)
+  }
+  // 지휘관 해치 — 상자 위 뒤쪽 작은 돔(기울기를 함께 탄다).
+  {
+    const [dx9, dy9, dz9] = T9(0, -0.55 * f9, Z0 + 1.6);
+    out.push(...tagKey(paintBase(domeFaces3(dx9, dy9, 0.32, 0.22, dz9), "#7d848d"), kT(0, -0.55 * f9) + 0.5));
+  }
   const fwd9 = facingRatio(0, 1) > 0.08;
+  // 포신 길이 0.8배(요청): 일반 0.6~3.5 → 0.6~3.0(끝마디 2.45~3.0) · 시즈 3.8 → 3.04. 키의 y도 짧아진 만큼(2.4 → 2.0).
   if (!siege) {
     // ③ 일반 모드 — 짧은 쌍포신(앞 폭이 짧은 앞면에서 나온다). 반동은 뒤로 0.6.
     const rc9 = poseNow === 2 ? 0.6 : 0;
     for (const m of [-1, 1] as const) {
       const bx = m * 0.42;
-      const kB = kT(bx, 2.4) + 0.1;
-      out.push(...tagKey(paintBase(tubeFaces(bx, 0.6 - rc9, bx, 3.1 - rc9, 0.3, Z0 + 0.95), GUNMETAL), kB));
-      out.push(...tagKey(paintBase(tubeFaces(bx, 2.95 - rc9, bx, 3.5 - rc9, 0.38, Z0 + 0.95, fwd9), GUNMETAL), kB + 0.05));
+      const kB = kT(bx, 2.0) + 0.1;
+      out.push(...tagKey(paintBase(tubeFaces(bx, 0.6 - rc9, bx, 2.6 - rc9, 0.3, Z0 + 0.95), GUNMETAL), kB));
+      out.push(...tagKey(paintBase(tubeFaces(bx, 2.45 - rc9, bx, 3.0 - rc9, 0.38, Z0 + 0.95, fwd9), GUNMETAL), kB + 0.05));
     }
   } else {
-    // ④ 시즈 모드 — 돌아앉은 본체의 긴 앞면에서 굵고 긴 포신 하나. 반동 1.1.
+    // ④ 시즈 모드 — 돌아앉은 본체의 긴 앞면에서 굵고 긴 포신 하나(기울여 살짝 하늘을 본다). 반동 1.1.
     const rcS9 = poseNow === 2 ? 1.1 : 0;
     out.push(...tagKey(paintBase(spirePillar({
       x: 0, y: 0, h: 1, w: 1, segs: 6, sides: 8, oval: 2, caps: "both",
-      path: (t9: number): [number, number, number] => [0, 1.0 - rcS9 + 3.8 * t9, Z0 + 1.0 + 0.55 * t9],
+      path: (t9: number): [number, number, number] => T9(0, 1.0 - rcS9 + 3.04 * t9, Z0 + 1.0 + 0.44 * t9),
       widthOf: (t9: number): number => 0.6 - 0.07 * t9,
-    }), TANK_STEEL), kT(0, 2.4) + 0.2));
+    }), TANK_STEEL), kT(0, 2.0) + 0.2));
   }
   return out;
 }
