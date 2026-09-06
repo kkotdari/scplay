@@ -38,6 +38,8 @@ const smallDev9 = typeof window !== "undefined"
 const DIM = 0.6;
 /** 안개 색 — 순검정이 아니라 푸른 밤. 순검정은 지형색을 통째로 죽인다. */
 const FOG_RGB = "5, 8, 14";
+/** 붓이 넘기는 최신 안개 한 벌 — 눈 목록(vis)·밝힌 시각 판(exploredAt)·그 시각(t). */
+export type FogOverride = { vis: Float32Array; exploredAt: Uint16Array; t: number };
 
 export default function ReplayFogLayer({
   w, h, exploredAt, t, vis, proj, zoom, pan, tilePx, flatK, className, painter, live,
@@ -64,7 +66,7 @@ export default function ReplayFogLayer({
    *  변하게 벡터니까 가능할듯") — 맞다, 벡터라 다시 그리는 삯이 거의 없다. 손짓
    *  (휠·핀치·드래그)이 도는 동안 부모가 이 붓을 그대로 쥐고 **손끝 배율·팬**으로
    *  다시 그린다. 유닛 캔버스·지도 벡터층이 쓰는 것과 같은 수법이다. */
-  painter?: { current: ((z: number, p: { x: number; y: number }) => void) | null };
+  painter?: { current: ((z: number, p: { x: number; y: number }, ov?: FogOverride) => void) | null };
   /** 지금 손끝의 보기 — 손짓이 도는 동안만 값이 있다(지적: "드래그시 안개가 깜빡거리며
    *  튀는 현상"). 손짓 중에는 재생 틱이 계속 리렌더를 내는데, 그때 **굳은 지 오래인**
    *  zoom·pan(props)으로 한 장 그리면 안개만 한 프레임 뒤로 튄다. 유닛 캔버스가
@@ -75,11 +77,25 @@ export default function ReplayFogLayer({
   /** 밝힘 등고선 갈무리 — 밝힌 칸 수가 바뀔 때만 다시 뽑는다. */
   const ctRef = useRef<{ count: number; loops: Loop[] } | null>(null);
   const fldRef = useRef<{ n: number; f: Float32Array; tmp: Float32Array } | null>(null);
+  /* ★ 붓이 React 밖에서 넘기는 최신 안개(지적: "유닛은 부드러운데 안개는 뚝뚝") — React 상태 t는 100ms 박자라
+     props의 vis/exploredAt만 쓰면 안개가 초당 열 번만 바뀐다. 붓 틱이 고른 장의 안개를 painter의 셋째 인자로
+     넘기면 여기에 담아 두고, 그 뒤의 팬·확대 다시 칠하기도 이 값을 쓴다. props가 이보다 **뒤진** 시각이면
+     (렌더가 붓보다 늦다) props로 되돌리지 않는다 — 되돌리면 시야가 한 걸음 물러섰다 나온다. 탐색처럼 시각이
+     크게 갈리면 props를 따른다. */
+  const latestRef = useRef<FogOverride>({ vis, exploredAt, t });
+  {
+    const lt = latestRef.current;
+    if (t >= lt.t - 1e-6 || Math.abs(t - lt.t) > 0.5 || lt.exploredAt.length !== exploredAt.length) {
+      latestRef.current = { vis, exploredAt, t };
+    }
+  }
 
   useEffect(() => {
     /* 한 장 그리기를 함수로 뽑았다 — 상태(zoom·pan)로 한 번, 손짓 중에는 부모가
        손끝 값으로 다시 부른다. 매개변수 이름이 props를 일부러 가린다. */
-    const paint = (zoom: number, pan: { x: number; y: number }): void => {
+    const paint = (zoom: number, pan: { x: number; y: number }, ov?: FogOverride): void => {
+    if (ov && ov.exploredAt.length === w * h) latestRef.current = ov;
+    const { vis, exploredAt, t } = latestRef.current;
     const cv = cvRef.current;
     if (!cv || w <= 0 || h <= 0) return;
     const box = cv.parentElement;

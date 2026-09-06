@@ -3852,7 +3852,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     const exploredAt = fogSrc?.explored ?? null;
     const FOG_BUDGET = 0.3;   // 0.15 → 0.3(지적: "안개 영역 리프레시가 좀 자주 되어야, 너무 끊어지는 느낌") — 안개 몫 상한 30%
     /** 쉬는 간격의 아래·위 한계(ms) — 첫 판이나 튈 때를 위한 안전대. */
-    const FOG_MIN_MS = 40;    // 60 → 40
+    const FOG_MIN_MS = 30;    // 60 → 40 → 30(붓이 안개를 제 박자로 칠하게 되어, 워커 장 간격(33ms)마다 새 판을 쌓을 수 있게)
     const FOG_MAX_MS = 250;   // 400 → 250 — 느린 기기에서도 초당 넉 장은 새로 쌓는다
     /** 경기 시간이 이만큼 튀면(되감기·건너뛰기) 즉시 다시 쌓는다(초). */
     const FOG_JUMP_SEC = 2;

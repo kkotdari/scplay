@@ -11,7 +11,7 @@ import ReplayGuide from "./ReplayGuide";
 /* 미니맵 — 이제 **제 오버레이 판**이고 제 아이콘으로 여닫는다(요청: "미니맵 오버레이
    및 아이콘 추가"). 도구 판 안에 세들어 살던 시절과 달리, 켜고 끄는 것이 이것 하나다. */
 import ReplayFullscreenMinimap, { type MiniDot } from "./ReplayFullscreenMinimap";
-import ReplayFogLayer from "./ReplayFogLayer";
+import ReplayFogLayer, { type FogOverride } from "./ReplayFogLayer";
 /* (걷어냄) PillTabs — 품질 알약이 있던 시절의 것(도구 판과 함께 미사용). */
 import { cx } from "./cx";
 /* 프사·종족 배지·알림은 **앱이 꽂는다**(chrome.ts 머리말) — 모듈은 그 구현을 안 갖는다. */
@@ -26215,7 +26215,9 @@ export default function ReplayMotionPlayer({
   /** 안개 층의 붓 — 손짓 중에도 지도와 **같은 프레임에** 따라오게 한다(지적: "줌시
    *  맵은 변하는데 시야안개는 안변해서 이상함"). 벡터라 다시 그리는 삯이 거의 없어
    *  배율 갈무리 없이 매번 손끝 값으로 곧장 그린다. */
-  const fogPaintRef = useRef<((z: number, p: { x: number; y: number }) => void) | null>(null);
+  const fogPaintRef = useRef<((z: number, p: { x: number; y: number }, ov?: FogOverride) => void) | null>(null);
+  /** 붓 틱이 마지막으로 안개 층에 넘긴 것 — 같은 판이면 다시 안 칠한다(안개 칠은 등고선·원 채우기라 공짜가 아니다). */
+  const fogTickRef9 = useRef<{ vis: Float32Array | null; explored: Uint16Array | null; tq: number }>({ vis: null, explored: null, tq: -1 });
   /** 미니맵 붓(요청: 드래그·줌 중에도 프레임이 따라온다) — 안개와 같은 규약이다.
    *  평소 배치와 전체화면 미니맵은 서로 배타라 붓 하나를 나눠 쓴다. */
   const miniPaintRef = useRef<((z: number, p: { x: number; y: number }) => void) | null>(null);
@@ -27433,6 +27435,18 @@ export default function ReplayMotionPlayer({
     opsRef.current = fr9.unitOps;
     crowdTick9(fr9.unitOps.length, pitched);   // 덜어내기 단 — 미달 기기에서 유닛 수만으로(입체는 제 판정)
     unitPaintRef.current?.(zoomRef.current, panRef.current, zoomCommitRef.current);
+    /* ★ 안개도 붓 박자로(지적: "유닛은 부드럽게 움직이는데 안개는 뚝뚝 끊겨서 변하는 느낌") — 안개 층은 React
+       props(100ms 박자)로만 다시 그려졌다. 붓이 고른 장의 안개(눈 목록·밝힌 판)가 지난 틱과 다르면 곧장 안개
+       층에 넘겨 칠한다 — 워커가 쌓는 안개 판(40ms 간격)이 그대로 화면 박자가 된다. 밝힌 판은 시각으로 거르므로
+       같은 판이라도 0.25초마다는 한 번 칠한다. */
+    if (fr9.visSrc && fr9.explored && fogPaintRef.current) {
+      const ft9 = fogTickRef9.current;
+      const tq9 = Math.floor(tNow9 * 4);
+      if (fr9.visSrc !== ft9.vis || fr9.explored !== ft9.explored || tq9 !== ft9.tq) {
+        ft9.vis = fr9.visSrc; ft9.explored = fr9.explored; ft9.tq = tq9;
+        fogPaintRef.current(zoomRef.current, panRef.current, { vis: fr9.visSrc, exploredAt: fr9.explored, t: tNow9 });
+      }
+    }
   };
   const frame9: Frame9 = frameAt9(t, false);
   crowdInit9();   // 진입 때 한 번: 기기 벤치(CROWD9) — 첫 렌더에서 돌고 그 뒤로는 값만 읽는다
