@@ -5301,9 +5301,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          뒤쪽 뿔은 탑보다 작은 키를 줘 앞뒤가 제대로 갈린다. */
       /* 앞뒤 뿔 20% 축소·한 단 어두운 금(요청) — 높이 4.3 → 3.45, 굵기 0.6 → 0.48. 미리 칠해 두어
          아래 금 밑칠(paintBase)이 못 덮는다. */
+      /* ★ 발판에 **딱 붙인다**(지적: "앞뒤 뿔탑 위치가 발판 위에 딱 붙어 있는지 확인") — 밑동이 z 1.15(발판
+         안쪽 변 높이)였는데 발판은 안쪽 변 h → 바깥 변 0.32로 기운 쐐기라 한복판 윗면은 (h+0.32)/2 = 0.735다.
+         0.41만큼 떠 있었다. 한복판 높이에서 0.1 묻어 세운다.
+         좌우폭 축소·높이 0.8배(요청: "좌우폭을 더 줄여서 앞에서 보면 가늘어 보이게, 높이도 80%") — w는 좌우
+         반폭(0.48 → 0.3), oval은 앞뒤 눌림이라 0.55(좌우가 넓은 납작)에서 0.9로 되돌려 앞뒤 반폭(0.27)은 거의
+         그대로 둔다. 높이 3.45 → 2.76, 휨도 그 비로. */
       out.push(...tagKey(paintBase(spirePillar({
-        x: 0, y: ry9, z0: h, h: 3.45, w: 0.48, tipW: 0, oval: 0.55,   // 옆면 폭 납작하게(요청)
-        segs: 4, sides: 6, curveY: -sy9 * 0.96, hold: 0.5,
+        x: 0, y: ry9, z0: (h + 0.32) / 2 - 0.1, h: 2.76 + 0.1, w: 0.3, tipW: 0, oval: 0.9,
+        segs: 4, sides: 6, curveY: -sy9 * 0.77, hold: 0.5,
       }), "#9d822e"), facingRatio(0, sy9) >= 0 ? 34 : 26));
     }
     /* 사진 디테일(요청) — 탑 밑동에 금 무늬 골. 발판 위 원판은 청록을 걷고 개인색
@@ -5656,16 +5662,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 윗면은 **앞쪽이 낮게 기울고 가운데가 옴폭 팬 접시**다(요청, 사진 참조) — 테두리 z는 앞(+y)으로 갈수록
          0.3 내려가고, 안쪽은 반지름 비의 제곱으로 가운데가 0.5 더 꺼진다. 테두리 점·띠·링·팔 밑동이 전부 이
          한 식(dishZ9)을 읽어 어긋나지 않는다. */
+      // 앞쪽 내림 0.3 → 0.8(요청: "옥상 기울기를 좀 더 기울이기, 앞쪽이 더 많이 내려가게").
       const dishZ9 = (x9: number, y9: number): number => {
         const r9 = Math.min(1, Math.hypot(x9, y9) / 4.1);
-        return 2.7 - 0.3 * ((y9 / 4.1) + 1) / 2 - 0.5 * (1 - r9 * r9);
+        return 2.7 - 0.8 * ((y9 / 4.1) + 1) / 2 - 0.5 * (1 - r9 * r9);
       };
       const lo9 = rim9(5.1, 0);
       const hi9 = rim9(4.1, 2.7).map(([x9, y9]) => [x9, y9, dishZ9(x9, y9)] as [number, number, number]);
       /* 벽을 위아래로 가른다 — 위 띠(mid→hi)만 개인색이다(재지적: 몸통 전체 말고
          테두리만). 대야를 통째로 칠하면 건물이 임자 색 덩어리가 되고, 위 링 테두리는
          청록 띠에, 밑동 테는 대야 그림자에 묻혀 안 보였다. */
-      const md9 = rim9(4.42, 1.95);
+      // 가운데 테도 접시 기울기를 따른다(앞이 더 내려가면서 앞쪽 띠가 0으로 눌리지 않게) — 테두리에서 0.75 아래.
+      const md9 = rim9(4.42, 0).map(([x9, y9]) => [x9, y9, dishZ9(x9 * 4.1 / 4.42, y9 * 4.1 / 4.42) - 0.75] as [number, number, number]);
       const wall: ShapeFace[] = [];
       const band: ShapeFace[] = [];
       for (let i9 = 0; i9 < N9; i9 += 1) {
@@ -8150,12 +8158,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const AQUA9 = "#5aecd8";
     /** 목의 단면 — (x, z) 반원. 밑변이 평평해 '반원기둥'이 된다. */
     const NECK_R = 0.72;
-    const NECK_Z = 0.9;   // 1.35 → 0.9(요청: 앞 연결 팔 높이 낮춤)
+    /* 앞 반구는 **바닥에 닿는다**(지적: "아카이브 앞쪽 반구가 바닥에 닿아야 함, 그래서 연결팔이 더 앞쪽으로
+       그리고 아래로") — 목의 평평한 배가 곧 바닥(z 0)이고 반구도 z 0에서 선다. 1.35 → 0.9 → 0. */
+    const NECK_Z = 0;
     const neckPlan: [number, number][] = Array.from({ length: 9 }, (_, i9) => {
       const a9 = Math.PI * (i9 / 8);
       return [Math.cos(a9) * NECK_R, NECK_Z + Math.sin(a9) * NECK_R] as [number, number];
     });
-    const HEAD_Y = 4.2;   // 반구가 앉는 자리(목 끝) 5.1 → 4.2(요청: 길이 축소)
+    const HEAD_Y = 4.8;   // 반구가 앉는 자리(목 끝) 5.1 → 4.2 → 4.8(재요청: 연결팔을 더 앞으로)
     return raceBase([
       /* 발치 금 테는 맨 앞에 그린다(지적: 코어 키 검토) — 납작한 원통이라 나중에
          그리면 몸 아래를 판때기로 덮는다. 프리미티브는 제 몫으로 키(깊이+높이)를
@@ -8174,10 +8184,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          — 검정(#000)으로 두면 황금 몸에 구멍이 뚫린 것으로 읽힌다. 프로토스의 그 자리는
          쉬고 있어도 은은하게 빛나는 결정면이다. 활성일 때만 한 단 더 밝힌다(glowLit —
          꺼짐이 곧 어둠이 아니라 '식은 색'이라는 그 규약). */
-      [groundEllipse(...project(0, 0, 2.15), 1.75, 1.05), 1,
-        glowLit("#a4f6eb", "#56cebe")] as ShapeFace,
-      [groundEllipse(...project(0, 0, 2.05), 1.15, 0.7), 1,
-        glowLit("#e0fffb", "#99e5db")] as ShapeFace,
+      /* ★ 분화구는 **입체 부품**이다(지적: "본체의 윗쪽 아쿠아색 부품은 손그림인가? 입체 부품으로 위치 잘
+         맞춰서") — 여태 화면 좌표에 반지름을 손으로 적은 타원 두 장(groundEllipse 1.75×1.05)이라 요잉·기울기·
+         납작비를 안 탔고, 입체에서 돔 위 제자리를 벗어났다. 돔(반지름 2.9·높이 1.6·밑 0.7) 정수리에 낮은 원기둥
+         테(r 1.75, z 1.95~2.2 — 그 반지름의 돔 표면 1.98에 박힌다)와 그 위 발광 원반(r 1.15)으로 다시 세운다.
+         discPath3·cylinderFaces3는 사영·납작비를 제 몫으로 타므로 어느 시점에서도 돔 위 그 자리다. */
+      ...tagKey([
+        ...paintBase(cylinderFaces3(0, 0, 1.75, 0.25, 1.95), glowLit("#a4f6eb", "#56cebe")),
+        [discPath3(0, 0, 2.21, 1.15), 1, glowLit("#e0fffb", "#99e5db")] as ShapeFace,
+      ], 0.5),
       /* 세로줄(요청·재확인: 옆면을 한 바퀴 빙 두르게) — 전 방위로 두르고 보이는 쪽만
          남긴다(faceLight). 납작해진 돔을 따라 끝 높이도 낮췄다. */
       ...[-160, -128, -96, -64, -32, 0, 32, 64, 96, 128, 160].flatMap((ang): ShapeFace[] => {
@@ -13640,8 +13655,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       [screenCircle(ox, oy, 2.68), 1, "#f2fbff"] as ShapeFace,
       [screenCircle(ox, oy, 2.68), 1, "#f2fbff"] as ShapeFace,
       topFace(screenCircle(ox - 0.7, oy - 0.7, 1.15), 0.4),
-      // 바깥 테 밖으로 아주 옅은 빛 번짐 한 겹 — 문이 켜져 있다는 표시.
-      [screenCircle(ox, oy, 3.45), 0.18, "#5aa8ff"] as ShapeFace,
+      /* 바깥 테 밖의 빛 번짐 — **글로우는 여기가 임자다**(지적: "소환구 글로우 효과 중심 위치가 안 맞음"). 여태
+         DOM 글로우(.scr-bfx-toss)를 발자국 지면 가운데에 따로 붙였는데, 구는 WARP_LIFT만큼 떠 있고 입체에서는
+         높이의 시각 밀림까지 타므로 지면 앵커와 구의 화면 중심이 늘 어긋났다. 구와 같은 판에 같은 중심으로
+         구우면 어느 시점에서도 정확히 구 둘레다. 세 겹으로 넓힌다(옛 한 겹 0.18). */
+      [screenCircle(ox, oy, 3.45), 0.2, "#5aa8ff"] as ShapeFace,
+      [screenCircle(ox, oy, 3.95), 0.12, "#5aa8ff"] as ShapeFace,
+      [screenCircle(ox, oy, 4.5), 0.06, "#5aa8ff"] as ShapeFace,
     ];
   },
   /* 테란 공사장 — 기초 슬래브 + 뼈대 기둥 넷 + 가로 보 + 크레인.
@@ -17221,9 +17241,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     });
     for (const m9 of [-1, 1] as const) {
       const P0: [number, number] = [m9 * 2.1, -2.2];
+      /* 끝이 **안쪽으로 모인다**(요청: "셔틀의 뒷다리 두 개도 끝이 안쪽으로 모이게 기울이기") — 바깥으로 불룩
+         나갔다가(4.9) 끝은 안쪽 4.2로 되돌아온다. 옛 끝 5.2. */
       const ring9: [number, number][] = [P0,
-        ...q9(P0, [m9 * 4.8, -1.8], [m9 * 5.2, 1.2], 7),
-        ...q9([m9 * 5.2, 1.2], [m9 * 3.7, 0.6], [m9 * 2.4, 0.1], 5),
+        ...q9(P0, [m9 * 4.9, -1.7], [m9 * 4.2, 1.4], 7),
+        ...q9([m9 * 4.2, 1.4], [m9 * 3.3, 0.7], [m9 * 2.4, 0.1], 5),
         ...q9([m9 * 2.4, 0.1], [m9 * 2.1, -1], P0, 4),
       ];
       /* 높이는 뿌리(3.78)에서 끝(3.3)으로 흐른다 — 옛 판이 점마다 적어 두던 그 기울기를
@@ -17899,7 +17921,7 @@ function mineralLoad(cx: number, cy: number, cz: number, s = 1): ShapeFace[] {
     ...shard(-0.5, -0.16, 0.62, 0.86),
     ...shard(0.48, 0.14, 0.56, 0.72),
     ...shard(0, 0, 0.92, 1.28),
-  ], "#6cc3e8"), depthNow(cx, cy) * 1.6 + 2);
+  ], "#a6c2f0"), depthNow(cx, cy) * 1.6 + 2);   // 미네랄 밭과 같은 색(요청: "일꾼들이 들고 있는 미네랄 색을 실제 미네랄 덩이 색과 통일")
 }
 /** 가스통(테란·프로토스) — 정육면체 상자다. 앞·윗면에 베스핀 초록 창이 난다.
  *  틀 색은 종족이 정한다(요청: "프로는 금색으로 변경") — 테란은 검회색, 프로토스는
@@ -29542,6 +29564,10 @@ export default function ReplayMotionPlayer({
             <ReplayMapVector
               grid={grid} zoom={zoom} pan={pan} pitched={pitched} painter={mapPaintRef}
               tileFrac={mapFracRef} pitchSig={pitched ? pitchTiltDeg.toFixed(1) : ""}
+              /* 입체의 앞줄 확대 배수(지적: "3D에서 맵 이미지가 화질이 안 좋음") — 굽는 해상도가 평면 요구
+                 (상자폭×dpr)만 보고 있어, 원근으로 커지는 앞줄에서 그림 픽셀이 늘어나 흐렸다. 가운데 줄 대비
+                 맨 앞줄의 배율만큼 더 촘촘히 굽는다(예산 안에서). */
+              pitchMag={pitched ? Math.max(1, pitchK(grid.height) / pitchK(grid.height / 2)) : 1}
               /* 입체 변환은 **함수로** 넘긴다(재지적: 3D 드래그에서 지도가 안 따라옴) —
                  문자열로 박아 넘기면 그 값이 커밋된 pan·zoom으로 굳어, 손짓 중에는
                  지도가 멈춰 있고 놓는 순간 튄다(그쪽 pitchXf 주석). */

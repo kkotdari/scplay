@@ -965,7 +965,7 @@ export const MODEL_NORM: Record<string, number> = {
   scv: 0.767,  // 어깨·몸통 앞뒤 깊이 줄인 뒤 재측정(model-norm)
   scvGas: 0.842,
   scvMin: 0.851,
-  shuttle: 0.737,  // 재측정(model-norm)
+  shuttle: 0.782,  // 재측정(model-norm) — 뒷다리 끝 안쪽으로 모은 뒤
   /* ★ 시즈탱크 넷은 **차체 하나의 값으로 못 박는다**(지적: "정규화 시 포신 튀어나온
      부분과 시즈모드의 고정다리 크기는 빼고 정규화해야") — 스크립트가 재는 잉크 상자에
      합본(tank·tanksiege)은 포신이, 시즈 차체는 네 귀의 버팀다리가 들어가 하나뿐인
@@ -1623,7 +1623,7 @@ export const BLD_NORM: Record<string, number> = {
   factory: 1.493,  // 창·옆 홈·격납구·발판·굴뚝·쐐기 손질 뒤 재측정(bld-norm)
   fleetbeacon: 1.700,  // ×0.8(요청: 그려지는 크기 0.8배)
   forge: 1.596,  // 발 걷어낸 뒤 재측정(bld-norm)
-  gate: 1.847,  // 기둥 10% 낮춘 뒤 재측정(bld-norm)
+  gate: 2.050,  // 앞뒤 뿔탑 0.8배·발판에 붙인 뒤 재측정(bld-norm)
   geyser: 1.587,
   gspire: 0.917,  // ×0.8(요청: 그려지는 크기 0.8배) · 옛 1.146
   hatchery: 1.188,
@@ -4798,6 +4798,9 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
            효과가 나오는듯") — 기억으로 남은 자리에서 용접 불티가 튀고 소환구가
            빛나면, 안 보이는 곳의 공사를 실시간으로 들여다보는 꼴이 된다. */
         if (!qBuildFx || halted || bldFrozen9) return null;
+        /* 프로토스 소환구의 글로우는 **모델 안**에 굽는다(지적: DOM 글로우가 구 중심과 어긋남 — warpin 빌더 주석).
+           DOM 글로우는 안 낸다. */
+        if (race2 === "프로토스") return null;
         dom.push({
           k: "buildfx", key: `bfx-${i}`, x: bfxX, y: bfxY, z: z + 1,
           race: race2 === "저그" ? "zerg" : race2 === "프로토스" ? "toss" : "terran", i,
