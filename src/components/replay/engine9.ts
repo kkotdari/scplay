@@ -3850,10 +3850,10 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     };
     const fogSrc = fogSrcFor(fogOn, visAll, viewTeam);
     const exploredAt = fogSrc?.explored ?? null;
-    const FOG_BUDGET = 0.15;
+    const FOG_BUDGET = 0.3;   // 0.15 → 0.3(지적: "안개 영역 리프레시가 좀 자주 되어야, 너무 끊어지는 느낌") — 안개 몫 상한 30%
     /** 쉬는 간격의 아래·위 한계(ms) — 첫 판이나 튈 때를 위한 안전대. */
-    const FOG_MIN_MS = 60;
-    const FOG_MAX_MS = 400;
+    const FOG_MIN_MS = 40;    // 60 → 40
+    const FOG_MAX_MS = 250;   // 400 → 250 — 느린 기기에서도 초당 넉 장은 새로 쌓는다
     /** 경기 시간이 이만큼 튀면(되감기·건너뛰기) 즉시 다시 쌓는다(초). */
     const FOG_JUMP_SEC = 2;
     const pFogVis9 = PERF9 ? pNow() : 0;
@@ -5525,7 +5525,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
                 my: mzBy + Math.cos(radS9) * aimS9.len,
                 // 1.75 → 1.5(지적: "성큰은 살짝 낮추기") — 럴커 가시와 나란히
                 // 두면 성큰 혓바닥이 더 높아 둘의 결이 뒤바뀌어 보였다.
-                len: Math.max(6, tPxB * 1.5), u: upS,
+                len: Math.max(4.8, tPxB * 1.2), u: upS,   // ×0.8(요청: 성큰 가시 높이 0.8배)
                 size: Math.max(1.2, tPxB * 0.3),
               });
             }

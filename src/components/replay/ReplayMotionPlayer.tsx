@@ -21775,13 +21775,21 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
          넓히는 바깥쪽 얼룩은 살아남는다. */
       const creepList = ((): UnitDrawOp[] => {
         if (showCreep === false) return [];
-        const all9 = sorted.filter((o) => o.clipWalk);
+        /* ★ 큰 판부터, 그리고 **큰 판 안에 통째로 든 작은 판만** 솎는다(버그: "해처리 주변의 크립이 안 생기거나
+           갑자기 없어지는 경우") — 여태는 줄 차례대로 보며 '가까이에 이미 남긴 판이 있으면' 버렸다. 성큰·스포어의
+           작은 판이 먼저 남으면 그 곁의 해처리 큰 판이 통째로 떨어져 나갔고, 콜로니가 서거나 사라질 때마다 해처리
+           크립이 생겼다 없어졌다 했다. 반지름이 큰 순서로 세우고, 남긴 판의 반지름에서 제 반지름을 뺀 거리 안에
+           가운데가 들어올 때(가려져 안 보이는 판)만 버린다. 같은 크기끼리는 서로 안 버린다. */
+        const all9 = sorted.filter((o) => o.clipWalk).sort((a9, b9) => (b9.wFrac ?? 0) - (a9.wFrac ?? 0));
         if (all9.length < 3) return all9;
         const keep9: UnitDrawOp[] = [];
         for (const o9 of all9) {
-          const r9 = (o9.wFrac ?? 0) * 0.3;
-          if (r9 > 0 && keep9.some((k9) => Math.abs(k9.fx - o9.fx) < r9
-            && Math.abs(k9.fy - o9.fy) < r9 * (cw / ch))) continue;
+          const ro9 = (o9.wFrac ?? 0) * 0.5;
+          if (keep9.some((k9) => {
+            const rk9 = (k9.wFrac ?? 0) * 0.5;
+            const in9 = rk9 - ro9 * 0.85;
+            return in9 > 0 && Math.abs(k9.fx - o9.fx) < in9 && Math.abs(k9.fy - o9.fy) < in9 * (cw / ch);
+          })) continue;
           keep9.push(o9);
         }
         return keep9;
@@ -22328,8 +22336,9 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
             if (hgt < 0.5) continue;
             const hw9 = ((f.size ?? 1) / 2) * zoom;
             const g9 = ctx.createLinearGradient(x0, y0, x0, y0 - hgt);
-            g9.addColorStop(0, "#8a3c0c");
-            g9.addColorStop(1, "#e8732a");
+            // 밝은 주황갈색(요청: "성큰 가시색이 너무 빨감") — 밑동 #8a3c0c → #b5642a, 끝 #e8732a → #f0a050.
+            g9.addColorStop(0, "#b5642a");
+            g9.addColorStop(1, "#f0a050");
             ctx.globalAlpha = 1;
             ctx.fillStyle = g9;
             ctx.beginPath();
