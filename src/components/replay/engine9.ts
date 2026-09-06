@@ -965,7 +965,7 @@ export const MODEL_NORM: Record<string, number> = {
   scv: 0.767,  // 어깨·몸통 앞뒤 깊이 줄인 뒤 재측정(model-norm)
   scvGas: 0.842,
   scvMin: 0.851,
-  shuttle: 0.782,  // 재측정(model-norm) — 뒷다리 끝 안쪽으로 모은 뒤
+  shuttle: 0.808,  // 재측정(model-norm) — 뒷다리를 더 오므린 뒤
   /* ★ 시즈탱크 넷은 **차체 하나의 값으로 못 박는다**(지적: "정규화 시 포신 튀어나온
      부분과 시즈모드의 고정다리 크기는 빼고 정규화해야") — 스크립트가 재는 잉크 상자에
      합본(tank·tanksiege)은 포신이, 시즈 차체는 네 귀의 버팀다리가 들어가 하나뿐인

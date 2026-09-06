@@ -532,7 +532,7 @@ const MODEL_PERSP = 48;
    폭·세로선이 안 바뀌어 찌그러지지 않고, 내부 소실점만 시각 방향으로 옮겨 간다. */
 let viewShear = 0;
 /** 입체에서 높이(z)에 실리는 시각 밀림의 배수 — DOM 효과의 기울임(RMP lean9)도 이 값을 읽어야 모델과 같이 기운다. */
-export const VIEW_LEAN_K = 0.25;
+export const VIEW_LEAN_K = 0;   // 0.5 → 0.25 → 0(요청: "시각 밀림 0으로") — 높이는 화면에 곧게 선다. 바닥 소실 기울기는 그대로.
 export function withViewShear<T>(sh: number, fn: () => T): T {
   viewShear = sh;
   try {
