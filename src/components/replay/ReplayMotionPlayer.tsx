@@ -2701,17 +2701,22 @@ function tankTrack(cx: number, yA = -3.6, yB = 3.6): ShapeFace[] {
       const fs9: ShapeFace[] = [];
       /* 겉면은 등져도 그린다(재지적: "시점 반대라도 튀어나온 부분은 보여야") — 먼 반원의 판은 몸체 벽이 나중에 덮지만
          양옆으로 튀어나온 몫은 벽 실루엣 밖이라 그대로 남는다. 얇은 테·모서리만 제 법선으로 거른다. */
-      const put9 = (path9: string, nx: number, ny: number, nz: number, always = false): void => {
-        const fl9 = faceLight(nx, ny, nz);
-        if (!fl9.visible && !always) return;
-        fs9.push([path9, 1, col9] as ShapeFace, ...(fl9.visible ? fl9.face(path9) : [sideFace(path9, 0.2)]));
-        if (nz > 0.6) fs9.push(topFace(path9, 0.12));
+      /* 다섯 면을 **다 그리고 가까운 면이 덮는다**(재지적: "가려지는 부분도 그린 뒤 가려야 튀어나온 부분이 보임") —
+         등진 면부터 마주 보는 면 순으로 쌓는다. 몸체 벽에 묻힐 몫은 벽이 나중에 덮고, 옆으로 튀어나온 몫만 남는다. */
+      const faces5: { r: number; path: string; nz: number; fl: ReturnType<typeof faceLight> }[] = [];
+      const put9 = (path9: string, nx: number, ny: number, nz: number): void => {
+        faces5.push({ r: facingRatio(nx, ny) + nz * 0.8, path: path9, nz, fl: faceLight(nx, ny, nz) });
       };
-      put9(polyPath3([P9(-1, -1, 1), P9(1, -1, 1), P9(1, 1, 1), P9(-1, 1, 1)]), 0, ny9, nz9, true); // 겉면
+      put9(polyPath3([P9(-1, -1, 1), P9(1, -1, 1), P9(1, 1, 1), P9(-1, 1, 1)]), 0, ny9, nz9);       // 겉면
       put9(polyPath3([P9(1, -1, 0), P9(1, 1, 0), P9(1, 1, 1), P9(1, -1, 1)]), 1, 0, 0);            // 오른 테
       put9(polyPath3([P9(-1, -1, 0), P9(-1, 1, 0), P9(-1, 1, 1), P9(-1, -1, 1)]), -1, 0, 0);       // 왼 테
       put9(polyPath3([P9(-1, 1, 0), P9(1, 1, 0), P9(1, 1, 1), P9(-1, 1, 1)]), 0, ty9, tz9);        // 앞 모서리
       put9(polyPath3([P9(-1, -1, 0), P9(1, -1, 0), P9(1, -1, 1), P9(-1, -1, 1)]), 0, -ty9, -tz9);  // 뒤 모서리
+      faces5.sort((a9, b9) => a9.r - b9.r);
+      for (const f5 of faces5) {
+        fs9.push([f5.path, 1, col9] as ShapeFace, ...(f5.fl.visible ? f5.fl.face(f5.path) : [sideFace(f5.path, 0.2)]));
+        if (f5.nz > 0.6) fs9.push(topFace(f5.path, 0.12));
+      }
       // 윗면 판은 달림면 열쇠(kTop) 위, 반원 판은 제 자리 깊이 위 — 어느 쪽도 그 자리의 알약 면보다 위다.
       out.push(...tagKey(fs9, (nz9 > 0.95 ? kTop : Math.max(depthNow(cx, py9) * 1.6, kTop - 0.3)) + 0.2));
     }
@@ -2825,16 +2830,18 @@ function tankHull(): ShapeFace[] {
     // 앞 구간 폭에 맞춰 x를 0.72배(±1.75 → ±1.26).
     /* 앞 부품 윗면(폭 1.8) 안에 들게 x를 줄이고, 키는 **앞 부품**(FRONT_KEY) 위로(지적: 벤트 둘이 안 보임 — 여태
        뒤 부품 키(HULL_KEY)라 제 y로 잰 앞 부품이 나중에 그려져 덮었다). */
+    /* 너비를 늘려 앞 궤도 위까지 겹친다(재요청) — 바깥 x 0.86 → 1.95(궤도 안쪽 모서리 1.275 너머), 높이는 레일판 윗면
+       (2.72) 위인 2.76. 키는 앞 부품과 앞 궤도 달림면 중 큰 쪽 위. */
     const outer9 = polyPath3([
-      [m * 0.45, 2.95, 2.63], [m * 0.86, 2.75, 2.63], [m * 0.8, 1.85, 2.63], [m * 0.52, 2.0, 2.63],
+      [m * 0.45, 2.95, 2.76], [m * 1.95, 2.7, 2.76], [m * 1.85, 1.85, 2.76], [m * 0.52, 2.0, 2.76],
     ]);
     const inner9 = polyPath3([
-      [m * 0.52, 2.82, 2.65], [m * 0.79, 2.69, 2.65], [m * 0.74, 1.96, 2.65], [m * 0.58, 2.08, 2.65],
+      [m * 0.55, 2.82, 2.78], [m * 1.8, 2.62, 2.78], [m * 1.72, 1.96, 2.78], [m * 0.6, 2.1, 2.78],
     ]);
     out.push(...tagKey([
       [outer9, 1] as ShapeFace,
       [inner9, 1, "#3a414b"] as ShapeFace,
-    ], FRONT_KEY + 0.35));
+    ], Math.max(FRONT_KEY, trackTopKey(m * 2.0, 2.45, 1.45) + 0.25) + 0.35));
   }
   return out;
 }
@@ -2905,17 +2912,22 @@ function tankTurretV2(siege: boolean): ShapeFace[] {
     const HT9 = 1.35;
     const bot9 = hex9.map(([hx9, hy9]) => T9(hx9, hy9, ZB9));
     const top9 = hex9.map(([hx9, hy9]) => T9(hx9, hy9, ZB9 + HT9));
+    /* 옆면은 **거르지 않고 먼 것부터** 그린다(지적: 시즈 포탑 옆면 가려짐) — 기울인 육각의 옆면 법선은 위아래 성분이
+       생겨 평면 법선만 보는 보임 판정이 보이는 면을 걷어냈다. 여섯 면을 제 깊이순으로 쌓으면 가까운 면이 먼 면을
+       덮어 판정이 필요 없다. */
     const hexF: ShapeFace[] = [];
+    const sides9: { d: number; q: string; fl: ReturnType<typeof faceLight> }[] = [];
     for (let i9 = 0; i9 < hex9.length; i9 += 1) {
       const j9 = (i9 + 1) % hex9.length;
       const dx9 = hex9[j9][0] - hex9[i9][0]; const dy9 = hex9[j9][1] - hex9[i9][1];
       const nl9 = Math.hypot(dx9, dy9) || 1;
       // 꼭짓점 차례가 시계 방향이라 바깥 법선은 (−dy, dx).
       const fl9 = faceLight(-dy9 / nl9, dx9 / nl9, 0);
-      if (!fl9.visible) continue;
       const q9 = polyPath3([bot9[i9], bot9[j9], top9[j9], top9[i9]]);
-      hexF.push([q9, 1, TANK_STEEL] as ShapeFace, ...fl9.face(q9));
+      sides9.push({ d: depthNow((hex9[i9][0] + hex9[j9][0]) / 2, (hex9[i9][1] + hex9[j9][1]) / 2), q: q9, fl: fl9 });
     }
+    sides9.sort((a9, b9) => a9.d - b9.d);
+    for (const s9 of sides9) hexF.push([s9.q, 1, TANK_STEEL] as ShapeFace, ...(s9.fl.visible ? s9.fl.face(s9.q) : [sideFace(s9.q, 0.25)]));
     const tp9 = polyPath3(top9);
     hexF.push([tp9, 1, TANK_STEEL] as ShapeFace, topFace(tp9, 0.2));
     out.push(...tagKey(hexF, kT(0, 0) + 0.3));   // 윗면 덮는다(지적: 윗면이 안 보임)
@@ -10571,12 +10583,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       depthNow(0, -0.3) * 1.6 + 2.5));   // 포드(+2)와 같은 층으로(수리: 먼 포드가 몸통 위에 덮임)
     {
       const cKey = depthNow(0, -0.2) * 1.6 + 2.5;
+      /* 머리를 걷은 몫만큼 반구를 키운다(재요청: 반지름 1.2 → 1.45, 높이 1.45 → 2.0) · 색은 테란 기본 쇠색 · 유리는
+         **앞에만** — 반구 앞 아래에 청유리 판 하나(앞뒤로 길쭉한 낮은 반구)가 돋는다. */
       const YK9 = 1.3;
-      out.push(...tagKey(withModelScale(1, YK9, 1, () => domeFaces3(0, -0.2 / YK9, 1.2, 1.45, 5.45)), cKey + 0.3));
-      out.push(...tagKey(paintBase(withModelScale(1, 1.15, 1, () => domeFaces3(0, 0.62 / 1.15, 0.62, 0.5, 5.75)), "#8fc6dd"),
+      out.push(...tagKey(paintBase(withModelScale(1, YK9, 1, () => domeFaces3(0, -0.2 / YK9, 1.45, 2.0, 5.45)), STEEL), cKey + 0.3));
+      out.push(...tagKey(paintBase(withModelScale(1, 1.15, 1, () => domeFaces3(0, 1.05 / 1.15, 0.78, 0.55, 5.9)), "#8fc6dd"),
         cKey + 0.6));
-      // 유리 눈 위 가는 차양 띠.
-      out.push(...tagKey(paintBase(boxFaces3(0, 0.95, 1.1, 0.24, 0.14, 6.28), STEEL), cKey + 0.7));
+      // 유리 위 가는 차양 띠.
+      out.push(...tagKey(paintBase(boxFaces3(0, 1.4, 1.3, 0.24, 0.14, 6.48), STEEL), cKey + 0.7));
     }
     /* 양팔 **쌍열 기관포 포드**(자료: twin 30mm autocannons) — 골리앗의 실루엣을
        쥐는 부품이다. 몸통보다 크고, 어깨에서 짧은 축으로 매달려 앞으로 총열 둘을 뻗는다.
@@ -10652,17 +10666,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         }
       }
     }
-    /* 머리 — 어깨 사이에 낮게 앉은 감지기 상자와 안테나(자료: external audio pickups). */
-    out.push(...tagKey(paintBase([
-      ...frustumFaces3(0, -0.35, 1.1, 1, 0.85, 0.8, 0.6, 6.7),
-      ...spikeHorn(-0.42, -0.5, 7.3, -0.7, -0.85, 8.5, 0.2, undefined, 4, 0.08, -0.5, -0.5),
-    ], STEEL), depthNow(0, -0.35) * 1.6 + 4));
-    // 감지기 렌즈 — 머리 앞의 붉은 점. 작아도 '어디를 보는가'를 말한다.
-    if (facingRatio(0, 1) > 0.05) {
-      out.push(...tagKey([
-        [wallDiscPath(0, 0.16, 7.02, 0.2, 0.17), 0.95, "#d8564a"] as ShapeFace,
-      ], depthNow(0, -0.35) * 1.6 + 4.4));
-    }
+    // (걷어냄·요청) 머리 감지기 상자·안테나·붉은 렌즈 — 그 몫만큼 콕핏 반구를 키웠다(위).
     return out;
   },
   /* 리버(전면 재작도 — 사진 samples/리버1~3.jpg 기준) ──────────────────────────
