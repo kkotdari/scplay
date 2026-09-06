@@ -187,14 +187,12 @@ export default function ReplayMapVector({
       && Math.max(window.screen?.width ?? 0, window.screen?.height ?? 0) <= 1180)
       || (((navigator as unknown as { deviceMemory?: number }).deviceMemory ?? 0) > 0
         && ((navigator as unknown as { deviceMemory?: number }).deviceMemory ?? 0) <= 4));
-  const areaCapRef = useRef(
-    /* 아이폰·아이패드 — 아이패드OS 사파리는 UA에 Mac이라 적으므로 손가락 여부를
-       함께 본다(맥에는 maxTouchPoints가 0이다). */
-    smallDev9 || (typeof navigator !== "undefined"
-      && (/iPad|iPhone|iPod/.test(navigator.userAgent)
-        || (/Macintosh/.test(navigator.userAgent) && (navigator.maxTouchPoints ?? 0) > 1)))
-      ? 4_000_000 : 16_800_000,
-  );
+  /* 아이폰·아이패드 — 아이패드OS 사파리는 UA에 Mac이라 적으므로 손가락 여부를
+     함께 본다(맥에는 maxTouchPoints가 0이다). */
+  const iosLike9 = smallDev9 || (typeof navigator !== "undefined"
+    && (/iPad|iPhone|iPod/.test(navigator.userAgent)
+      || (/Macintosh/.test(navigator.userAgent) && (navigator.maxTouchPoints ?? 0) > 1)));
+  const areaCapRef = useRef(iosLike9 ? 4_000_000 : 16_800_000);
   /** 이미 구워 둔 창 — 그 안에 머무는 동안은 다시 안 굽는다(아래 주석). */
   /** 이미 구워 둔 판 — 열쇠와 창, 그리고 **어느 캔버스에** 구웠나.
    *
@@ -422,12 +420,19 @@ export default function ReplayMapVector({
            작으므로 이 문에 안 걸린다(실측: 창 1/4에서는 종전대로 4다).
            예산은 이 파일이 이미 들고 있는 기기별 면적(areaCapRef — 아이폰 8Mpx · 그 밖
            16.8Mpx)을 쓰되, 이 함수를 지나는 층이 둘이므로 반씩 나눈다. */
+        /* ★ 접기 배수의 천장을 푼다(재지적: "실제 지도는 해상도가 낮아" — 진단은 타일당 57.94/57.94인데 화면은 흐림)
+           ────────────────────────────────────────────────────────────────────
+           배킹은 요구대로 구웠는데도 흐린 까닭이 바로 이 R다: 서피스는 레이아웃 × R로 래스터되는데 R이 4·폭 3200에
+           잘려, PC(창 68타일·레이아웃 544px)에서 서피스가 2176px = 타일당 32px뿐이었다. 화면은 타일당 58px이니
+           1.8배 흐리다 — 배킹(3940)을 아무리 촘촘히 구워도 서피스가 병목이었다. 이제 R은 **배킹이 다 살 때까지**
+           (ceil(배킹/레이아웃), 8까지) 올리고, 폭 천장은 PC 8192·iOS 3200, 면적은 기기 예산의 8할(밑판 서피스는
+           R 1이라 작다)로 죈다. 예산이 진짜 상한이라 폰은 종전과 같다. */
         const surfCap9 = Math.max(1, Math.floor(Math.sqrt(
-          areaCapRef.current / 2
+          (areaCapRef.current * 0.8)
           / Math.max(1, cssW9 * cssH9 * dpr * dpr),
         )));
-        const R9 = Math.max(1, Math.min(4, Math.round(cv.width / Math.max(1, cssW9)),
-          Math.floor(3200 / Math.max(1, cssW9)), surfCap9));
+        const R9 = Math.max(1, Math.min(8, Math.ceil(cv.width / Math.max(1, cssW9)),
+          Math.floor((iosLike9 ? 3200 : 8192) / Math.max(1, cssW9)), surfCap9));
         cv.style.transformOrigin = "0 0";
         cv.style.transform = R9 > 1 ? `scale(${(1 / R9).toFixed(4)})` : "";
         cv.style.left = `${((ax0 / w) * 100).toFixed(4)}%`;

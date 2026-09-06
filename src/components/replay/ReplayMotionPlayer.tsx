@@ -15540,12 +15540,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* ★ 덮개는 **평소엔 닫혀** 몸통을 감싸고 **공격 때만 벌어진다**(요청). 자리도 45도
          돌려 0·90·180·270에 둔다(지적: 위치가 살짝 안 맞음). 닫히면 돔 겉을 타고 내려가고,
          벌어지면 바깥·위로 들린다 — op 0~1로 두 길을 잇는다. */
+      /* ★ 덮개는 **공격 컷에만** 있다(재요청: "드라군 평소에는 양쪽 반구 껍질 없고 공격 중에만 열려서 생김") — 닫힌
+         덮개를 아예 걷고, 공격 자세(poseNow 2)에서만 벌어진 판이 난다. */
       ...([0, 90, 180, 270] as const).flatMap((deg9): ShapeFace[] => {
+        if (poseNow !== 2) return [];
         const a9 = (deg9 * Math.PI) / 180;
         const cx9 = Math.cos(a9);
         const cy9 = Math.sin(a9);
         if (facingRatio(cx9, cy9) < 0.1) return [];
-        const op9 = poseNow === 2 ? 1 : 0;
+        const op9 = 1;
         return tagKey(spirePillar({
           x: 0, y: 0, h: 1, w: 1, segs: 3, sides: 6, oval: 0.42, caps: "none",
           ref: [-cy9, cx9, 0],
