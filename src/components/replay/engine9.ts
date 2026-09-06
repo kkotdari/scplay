@@ -943,7 +943,7 @@ export const MODEL_NORM: Record<string, number> = {
   goon: 0.655,  // 재측정(model-norm)
   guardian: 0.754,  // 다리 옆으로 곧게 뒤 재측정(model-norm)
   gunner: 1.327,  // 팔 길이 고정 뒤 model-norm 재측정
-  htemp: 1.249,  // 재측정(model-norm)
+  htemp: 1.220,  // 재측정(model-norm) — 다리 1.2배·굽힘 반 뒤
   hydra: 0.685,
   inf: 1.514,  // 상자 상한(원한 배수 1.615)
   interceptor: 1.555,  // 재측정(model-norm)

@@ -1218,6 +1218,9 @@ function protossLegs(
   stride = 0,
   /** 굵기만의 배수(지적: "하템 다리 너무 두꺼움") — 자리는 그대로, 마디 굵기만 줄인다. */
   thin = 1,
+  /** 무릎 굽힘 배수(요청: "하이템플러 다리가 너무 심하게 구부린 듯 좀 더 펴고") — 1이면 본디 굽힘, 0이면 엉덩이~발목
+   *  직선 위에 무릎이 놓인다(곧은 다리). 앞으로 튀어나온 무릎의 몫(y)만 줄인다. */
+  bend = 1,
 ): ShapeFace[] {
   const paint = (f: ShapeFace[], c?: string): ShapeFace[] => (c ? paintBase(f, c) : f);
   /* 다리 길이 줄이기(요청: 하이템플러는 짧게) — 엉덩이(3.95)를 축으로 z를 눌러
@@ -1230,8 +1233,10 @@ function protossLegs(
     /* ★ 걸음에도 **허벅지·정강이 길이는 그대로**(요청: 질럿·템플러류도 같은 함수로) —
        suitLegs와 같은 결이다. 발목·발끝만 보폭대로 옮기고 무릎은 서 있을 때의 두 마디
        길이로 푼다(jointBetween, 앞으로 굽힘). */
-    const knee0: [number, number, number] = [m * 0.82, 0.3, Z(2.2)];
     const ankle0: [number, number, number] = [m * 0.95, -0.75, Z(1)];
+    // 무릎 높이에서 엉덩이~발목 직선의 y — 굽힘(bend)이 0이면 여기, 1이면 본디 자리(0.3).
+    const kneeLineY9 = hip[1] + (ankle0[1] - hip[1]) * ((hip[2] - Z(2.2)) / Math.max(1e-6, hip[2] - ankle0[2]));
+    const knee0: [number, number, number] = [m * 0.82, kneeLineY9 + (0.3 - kneeLineY9) * bend, Z(2.2)];
     const Lt9 = Math.hypot(knee0[0] - hip[0], knee0[1] - hip[1], knee0[2] - hip[2]);
     const Ls9 = Math.hypot(ankle0[0] - knee0[0], ankle0[1] - knee0[1], ankle0[2] - knee0[2]);
     const ankle: [number, number, number] = [ankle0[0], ankle0[1] + st * 1.2, ankle0[2] + Math.max(0, st) * 0.2];
@@ -8003,14 +8008,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const a9 = (deg9 * Math.PI) / 180;
       return { x: Math.sin(a9) * ORB_R, y: -0.2 + Math.cos(a9) * ORB_R };
     };
-    const orb9 = (ox9: number, oy9: number): ShapeFace[] => {
-      const [gx9, gy9] = project(ox9, oy9, 2.55);
-      return [
-        [groundEllipse(gx9, gy9, 0.88, 0.84), 0.62, "#b6faf1"] as ShapeFace,
-        [groundEllipse(gx9, gy9, 0.54, 0.51), 0.5, "#e8fbff"] as ShapeFace,
-        topFace(groundEllipse(gx9 - 0.26, gy9 - 0.25, 0.29, 0.27), 0.5),
-      ];
-    };
+    /* 구슬은 **진짜 구**다(지적: "코어와 비콘의 구체가 손그림으로 그려진 듯, 구체로 다시") — 화면 타원 세 장을 손으로
+       겹치던 것을 sphereFaces3(몸 원 + 그늘 + 하이라이트)로 바꾼다. 어느 시점에서도 같은 공이다. */
+    const orb9 = (ox9: number, oy9: number): ShapeFace[] => sphereFaces3(ox9, oy9, 2.55, 0.86, "#b6faf1");
     const [cx2, cy2] = project(0, -0.2, 3.6);
     return raceBase([
       /* 발치 금 테는 맨 앞에 그린다(지적: 코어 키 검토) — 납작한 원통이라 나중에
@@ -8428,11 +8428,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 낮고 둥근 몸 — 개인색 다리(키 −3)보다 뒤에 온다.
       ...tagKey(domeFaces3(0, 0, 3.1, 2.3), 0),
       // 큰 파란 구슬 — 몸 위 얹힘이라 지붕 키(지적: 구슬 가려짐 오류).
-      ...tagKey([
-        // 수정구를 감싸던 겉 구는 제거(요청) — 연한 시안 반투명 구슬만.
-        [groundEllipse(gx2, gy2, 1.55, 1.45), 0.55, "#b6faf1"] as ShapeFace,
-        topFace(groundEllipse(gx2 - 0.5, gy2 - 0.5, 0.6, 0.5), 0.5),
-      ], 30),
+      // 진짜 구로(지적: "코어와 비콘의 구체가 손그림" — 코어 orb9와 같은 규약). 수정구를 감싸던 겉 구는 없다.
+      ...tagKey(sphereFaces3(0, 0.2, 3.5, 1.5, "#b6faf1"), 30),
     ], "toss", [
       /* 개인색은 몸 옆구리의 **데칼 넷**이다(요청: "플릿비콘 쓸데없는 장식 제거하고
          데칼을 넣기") ────────────────────────────────────────────────────────────
@@ -15349,7 +15346,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const L = 1.6;
     return [
       // 다리는 금색(재지적) — 다리 길이 축소(요청): 엉덩이 축으로 0.68배.
-      ...protossLegs(P_GOLD, P_GOLD, L, 0.68, 0, 0.72),   // 다리 굵기 0.72배(지적: 너무 두꺼움)
+      // 길이 1.2배(0.68 → 0.816)·굽힘 반(bend 0.5)(요청: "다리가 너무 심하게 구부린 듯 좀 더 펴고 길이도 1.2배로").
+      ...protossLegs(P_GOLD, P_GOLD, L, 0.816, 0, 0.72, 0.5),   // 다리 굵기 0.72배(지적: 너무 두꺼움)
       ...protossTorso(P_GOLD, L),
       ...protossNeck(P_GOLD, L),
       /* 앞가리개(요청) — 허리부터 발목까지. 몸에 딱 붙인다(재지적: 떠 보였다) —
@@ -15581,9 +15579,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          갑판이다. 드라군 실루엣의 절반이 이 두 판이고, 샘플에서는 몸보다 높이 올라가
          가운데 머리를 사이에 끼운 꼴이 된다. 여태 값(반지름 0.85 · z 4.9)은 몸에 묻혀
          옆에서만 겨우 보였다 — 크게(1.25) 하고 밖(1.75)·위(5.7)로 낸다. */
-      ...([-1, 1] as const).flatMap((m9) => tagKey(paintBase(
+      // 어깨 갑판 한 쌍도 **공격 컷에만**(재요청: "몸 위 양쪽으로 달린 덮개 공격 중에만 보여야") — 평소엔 없다.
+      ...(poseNow === 2 ? ([-1, 1] as const).flatMap((m9) => tagKey(paintBase(
         quarterDome(m9 * 1.62, -0.15, 6.25, 1.3, m9, 0, undefined, 0.42, 0.9), TOSS_GOLD,
-      ), depthNow(m9 * 2.4, -0.15) * 1.6 + 3)),
+      ), depthNow(m9 * 2.4, -0.15) * 1.6 + 3)) : []),
       /* ★ 머리 — 두 갑판 사이에 낀 좁은 판과 그 한가운데의 **세로 눈**(샘플 드라군1).
          이것이 '어디를 보고 있나'를 말한다 — 없으면 앞뒤가 안 갈린다. */
       ...(facingRatio(0, 1) > 0.1 ? [

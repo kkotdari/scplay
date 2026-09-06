@@ -335,6 +335,24 @@ export default function ReplayMapVector({
       if (!tf || zoom <= 1) {
         vx0 = 0; vx1 = w; vy0 = 0; vy1 = h;
       } else {
+        /* ★ 창을 **지도가 놓인 범위 안으로** 민다(재지적: "3D 아직도 똑같음" — 진단: 타일당 31/96, 창 3968² = 지도
+           전체) ────────────────────────────────────────────────────────────────
+           입체에서는 지도가 렌즈를 다 채우지 않는다 — 눕힌 판 위로 하늘(빈 무대)이 남는다. 화면이 지도 위쪽 가장자리를
+           보고 있으면 렌즈 분수 창(위 vfx/vfy, 0~1로만 죈다)이 하늘 쪽에 걸려 **그 창에 드는 타일이 하나도 없고**,
+           아래 그물이 지도 전체로 물러나 128타일을 4096에 굽는다(타일당 31px). 지도 네 귀퉁이의 분수를 재서 창을 그
+           안으로 밀어 넣으면(크기는 그대로) 실제로 보이는 위쪽 줄들이 잡힌다 — 원근 사영은 직선을 직선으로 보내므로
+           네 귀퉁이의 상자가 곧 지도의 범위다. */
+        let mfx0 = Infinity; let mfx1 = -Infinity; let mfy0 = Infinity; let mfy1 = -Infinity;
+        for (const [cx9, cy9] of [[0, 0], [w, 0], [w, h], [0, h]] as [number, number][]) {
+          const [fx9, fy9] = tf(cx9, cy9);
+          if (fx9 < mfx0) mfx0 = fx9; if (fx9 > mfx1) mfx1 = fx9;
+          if (fy9 < mfy0) mfy0 = fy9; if (fy9 > mfy1) mfy1 = fy9;
+        }
+        const wx9 = vfx1 - vfx0; const wy9 = vfy1 - vfy0;
+        if (vfx0 < mfx0) { vfx0 = mfx0; vfx1 = Math.min(mfx1, mfx0 + wx9); }
+        if (vfx1 > mfx1) { vfx1 = mfx1; vfx0 = Math.max(mfx0, mfx1 - wx9); }
+        if (vfy0 < mfy0) { vfy0 = mfy0; vfy1 = Math.min(mfy1, mfy0 + wy9); }
+        if (vfy1 > mfy1) { vfy1 = mfy1; vfy0 = Math.max(mfy0, mfy1 - wy9); }
         const step = Math.max(1, Math.floor(Math.min(w, h) / 32));
         let mx0 = w; let mx1 = 0; let my0 = h; let my1 = 0;
         for (let ty = 0; ty <= h; ty += step) {
