@@ -29602,10 +29602,9 @@ export default function ReplayMotionPlayer({
             <ReplayMapVector
               grid={grid} zoom={zoom} pan={pan} pitched={pitched} painter={mapPaintRef}
               tileFrac={mapFracRef} pitchSig={pitched ? pitchTiltDeg.toFixed(1) : ""}
-              /* 입체의 앞줄 확대 배수(지적: "3D에서 맵 이미지가 화질이 안 좋음") — 굽는 해상도가 평면 요구
-                 (상자폭×dpr)만 보고 있어, 원근으로 커지는 앞줄에서 그림 픽셀이 늘어나 흐렸다. 가운데 줄 대비
-                 맨 앞줄의 배율만큼 더 촘촘히 굽는다(예산 안에서). */
-              pitchMag={pitched ? Math.max(1, pitchK(grid.height) / pitchK(grid.height / 2)) : 1}
+              /* 입체의 줄별 화면 배율(재지적: "3D에서 지도 선명하지 않은 문제 아직 있음") — 지도 층이 굽는 창의 맨 앞줄
+                 값을 읽어 그 창이 실제로 요구하는 해상도를 낸다(그쪽 pmag9 주석). */
+              pitchKAt={pitched ? pitchK : undefined}
               /* 입체 변환은 **함수로** 넘긴다(재지적: 3D 드래그에서 지도가 안 따라옴) —
                  문자열로 박아 넘기면 그 값이 커밋된 pan·zoom으로 굳어, 손짓 중에는
                  지도가 멈춰 있고 놓는 순간 튄다(그쪽 pitchXf 주석). */

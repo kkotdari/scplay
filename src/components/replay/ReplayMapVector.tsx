@@ -29,7 +29,7 @@ import { pWrap, pCount, PERF9, DPRCAP9 } from "./perf9";
  *   구워 둔 창 안에 머무는 동안은 effect가 곧장 빠져나가므로, 드래그 중에는 한 번도
  *   다시 안 굽는다 — 다시 굽는 때는 배율·상자·보기가 바뀔 때뿐이다. */
 export default function ReplayMapVector({
-  grid, zoom, pan, pitched, style, painter, tileFrac, pitchSig, pitchXf, pitchMag = 1,
+  grid, zoom, pan, pitched, style, painter, tileFrac, pitchSig, pitchXf, pitchKAt,
 }: {
   grid: ReplayMapGrid;
   zoom: number;
@@ -44,8 +44,9 @@ export default function ReplayMapVector({
    *  이제 **함수**로 받는다: 그리는 자리(paint)가 그때의 배율·팬으로 불러 상자에 직접
    *  건다. 커밋 렌더에서도, 손짓 프레임에서도 같은 함수가 같은 자를 쓴다. */
   pitchXf?: (z: number, p: { x: number; y: number }) => string;
-  /** 입체에서 맨 앞줄이 가운데 줄보다 얼마나 크게 보이나(≥1) — 굽는 해상도에 곱한다(RMP의 pitchK). 평면은 1. */
-  pitchMag?: number;
+  /** 입체의 줄별 화면 배율(RMP의 pitchK: 판 px → 화면 px, q·P/(P−v·S)) — 굽는 창의 **맨 앞줄** 값을 굽는 해상도에
+   *  곱한다. 평면은 없음(1). */
+  pitchKAt?: (y: number) => number;
   pan: { x: number; y: number };
   pitched: boolean;
   /** 입체 보기의 기울임 변환 — 부모(재생기)가 pitchGeom으로 만든 것을 그대로 받는다. */
@@ -528,9 +529,14 @@ export default function ReplayMapVector({
        그래서 굽는 크기를 분수로 두고, 캔버스 변을 화면 기기픽셀에 **반올림해 맞춘다** —
        배율이 1이 되어 재표본 자체가 사라진다. drawMapGrid는 분수 배율을 그대로 받는다. */
     // 굽는 해상도도 갈무리한 배율로 — 한 칸 안에서 판이 안 바뀌어야 다시 안 굽는다.
-    /* 입체는 앞줄 확대 배수(pitchMag)만큼 더 촘촘히(지적: "3D에서 맵 이미지가 화질이 안 좋음") — 예산(MAX_SIDE)이
-       진짜 상한이라 폰에서는 거기서 잘리고, PC는 그만큼 또렷해진다. */
-    const needed = Math.max(0.001, (bw * dpr * zBake * pitchMag) / w);
+    /* ★ 입체의 요구 해상도는 **굽는 창의 맨 앞줄 배율**로(재지적: "3D에서 지도 선명하지 않은 문제 아직 있음" —
+       진단: 타일당 76/135, 창 3968²) — 앞판은 지도 전체의 앞줄/가운데 비(≈1.6)를 곱했는데, 그건 창이 지도 어디에
+       있든 같은 값이라 ① 가운데 창에서는 요구를 1.6배 부풀려 예산에 막히고(76 < 135), ② 정작 평면 식은 판의 사전
+       축소(q < 1)를 모른다. 입체에서 판 px 하나가 화면 px 몇이 되나는 줄마다 pitchK(y) = q·P/(P − v·S)이므로,
+       굽는 창에서 가장 큰 값(맨 앞줄 vy1)을 곱하면 그 창이 실제로 요구하는 해상도다 — 가운데 창은 q(≈0.6)라
+       예산 안에 넉넉히 들어 또렷해지고, 맨 앞줄 창만 1보다 큰 값을 받는다. */
+    const pmag9 = pitched && pitchKAt ? Math.max(0.2, pitchKAt(vy1)) : 1;
+    const needed = Math.max(0.001, (bw * dpr * zBake * pmag9) / w);
     /* ★ 타일당 상한은 **512**다(수리: 같은 지적의 진짜 범인) — 여기 있던 256은 화면이
        요구하는 값과 무관한 어림 상한이라, **dpr 3 기기에서만** 물렸다: 아이폰
        전체화면(상자 844 · dpr 3)은 배율 13부터 요구가 258을 넘어 256에 잘리고, 16배
