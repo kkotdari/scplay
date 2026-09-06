@@ -324,6 +324,8 @@ function inBrowser({ KINDS, MODES, BUCKETS, VQ_PROBE, SCALES, FOOT_Y, NORM_ANCHO
         area: avg((m) => m.area),
         rad: Math.sqrt(avg((m) => m.area)),
         headAnchor: head.anchor, headFoot: head.foot, over, worst,
+        // 잉크 상자의 세로 끝(모델 단위, 방위 평균) — 공중 모델의 원점↔잉크 바닥 틈을 맞출 때 쓴다(MODEL_Z_OFF9).
+        y0: avg((m) => m.y0), y1: avg((m) => m.y1), y1Max: mx((m) => m.y1),
         perVq: CLAMP_DETAIL ? perVq : undefined,
       });
     }

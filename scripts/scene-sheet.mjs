@@ -25,6 +25,9 @@ const VIEW = Number(flag("--view", 1400));
 const FPS = 23.81;
 const F = (sec) => Math.round(sec * FPS);
 const GAME_SEC = 120;
+/** 유닛 방향 바이트(0 북 · 64 동 · 128 남 · 192 서) — 기본 128(정면). `--hb N`으로 바꾼다. */
+const HB = Number(flag("--hb", 160));   // 기본 160 = 요잉 45(건물의 45와 같은 칸)
+
 const RACE_EN = { 테란: "terran", 프로토스: "protoss", 저그: "zerg" };
 
 /* ── esbuild ── */
@@ -85,7 +88,7 @@ function makeWorld(race) {
   const unitTrack = (type, x, y) => {
     const keys = [];
     // 방향은 정면(남쪽, 화면 아래 = 방향 바이트 128)(요청: "유닛들도 방향은 정면을 향하게").
-    for (let s = 0; s <= GAME_SEC; s += 0.75) keys.push([F(s), Math.round(x * 32), Math.round(y * 32), 128, 0, type]);
+    for (let s = 0; s <= GAME_SEC; s += 0.75) keys.push([F(s), Math.round(x * 32), Math.round(y * 32), HB, 0, type]);
     tracks.push({ tag: tag++, owner: 0, type, keys, hp: null });
   };
   // 격자 — 건물은 8타일 간격 6열, 유닛은 4타일 간격 10열. 지도 가운데(64,64) 언저리.

@@ -424,6 +424,12 @@ const MODEL_Z_OFF9: Record<string, number> = {
   /* 아주 많이 낮춤(재요청: "부양 유닛 5종의 높이를 아주 많이 낮춰줘, 지금 다 높이 떠 있어") — 목표를 0.4배로:
      scv 1.07 · probe 0.46 · drone 0.64 · htemp 0.94 · vulture 0.90. 화면 들기(HOVER_RISE_K)도 함께 줄였다(engine9). */
   scv: 2.59, probe: -2.71, drone: 0.24, htemp: -0.65, vulture: -0.05,
+  /* 공중 유닛 — 잉크 **가운데**가 땅 원점에서 뜬 몫(타일)을 레이스에 맞춘다(지적: "프로토스 공중유닛하고 사베가
+     다른 유닛들하고 높이가 다르네"). 뜨는 높이(airLiftPxOf)는 모두 같은데 모델마다 몸이 원점 위 어디에 앉았는지가
+     달라, 큰 구(사베)·아비터·옵저버는 높고 셔틀·퀸·인터셉터는 낮았다. 셈: model-norm top의 (y0+y1)/2 → 원점(12)
+     기준 × 배수 × 그리는 타일(unitTilesOf)/16 = 화면 타일 몫, 레이스(−0.83타일)와의 차를 z(0.78 = top 0.66·pitch
+     0.9의 중간)로 되돌린다. 재면 scratchpad/air.json → 이 표. */
+  wraith: 0.00, bc: -1.21, valk: 0.06, vessel: -2.33, dship: 0.45, corsair: 0.01, scout: 0.83, carrier: -1.33, arbiter: -3.34, observer: -1.77, interceptor: 3.05, shuttle: 2.52, muta: -0.29, guardian: 1.73, devourer: 0.11, scourge: 2.57, queen: 2.45, ovie: 0.49, mutacocoon: -0.65,
 };
 const SPIN_KINDS = new Set<string>([
   "trapezoid", "cyber", "forge", "storm", "nukecloud", "nukeblast",
@@ -17792,13 +17798,6 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   },
 
 };
-/* 부양 유닛의 뜬 높이 통일(MODEL_Z_OFF9) — 표에 든 종류의 빌더를 z 평행이동으로 감싼다. */
-for (const k9 of Object.keys(MODEL_Z_OFF9)) {
-  const b9 = SHAPE_BUILDERS[k9];
-  if (!b9) continue;
-  const dz9 = MODEL_Z_OFF9[k9];
-  SHAPE_BUILDERS[k9] = () => withModelZOff(dz9, b9);
-}
 /* 인터셉터(요청: "캐리어+인터셉터 모델링을 제거하고 인터셉터 모델링을 따로 해야할듯")
    ───────────────────────────────────────────────────────────────────────────────
    왜 따로 서는가: 참값 자취에 **제 태그와 제 길이 그대로** 실려 있다. 실측(한 판,
@@ -18115,6 +18114,13 @@ SHAPE_BUILDERS.scvMin = () => {
     return [...SHAPE_BUILDERS.scv(), ...mineralLoad(0, 3.15, 3.95, 1.0)];
   } finally { scvCarry = false; }
 };
+/* 부양 유닛의 뜬 높이 통일(MODEL_Z_OFF9) — 표에 든 종류의 빌더를(뒤늦게 붙는 인터셉터·스캐럽 등도 잡히게 **모든 빌더 뒤에서**) z 평행이동으로 감싼다. */
+for (const k9 of Object.keys(MODEL_Z_OFF9)) {
+  const b9 = SHAPE_BUILDERS[k9];
+  if (!b9) continue;
+  const dz9 = MODEL_Z_OFF9[k9];
+  SHAPE_BUILDERS[k9] = () => withModelZOff(dz9, b9);
+}
 SHAPE_BUILDERS.scvGas = () => {
   scvCarry = true;
   try {
