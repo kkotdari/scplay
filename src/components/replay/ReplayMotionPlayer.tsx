@@ -17511,7 +17511,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        번쩍임의 대비(어두운 바탕 위의 흰 몇 면)는 오히려 또렷해진다. */
     return lit9(paintBase(
       // 초록기를 빼고 파랑 쪽으로(요청: "미네랄 모델 초록색톤 줄이고 더 청색톤에 가깝게") — 205° → 215°, 밝기·채도 그대로.
-      order.filter((gi) => gi < keepN).flatMap((gi) => gems[gi]), "#6aa2ee"));   // #3f8ecf → #6cb6ea → #6aa2ee
+      order.filter((gi) => gi < keepN).flatMap((gi) => gems[gi]), "#a6c2f0"));   // #3f8ecf → #6cb6ea → #6aa2ee → #a6c2f0(요청: "흰색 비율 높여서 밝고 연하게" — 같은 색상, 채도 61→31%, 밝기 67→80%)
   },
   /* 가스 간헐천(재모델링·사진 / 요청: 개인색 없는 고유색 전용) — 팀색을 한 점도
      쓰지 않는다: 모든 면에 제 색을 박는다. 지적("분화구 외의 나머지 부품들 삭제")에

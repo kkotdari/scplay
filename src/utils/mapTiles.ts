@@ -342,7 +342,32 @@ export function drawMapGrid(
        윤곽선을 그릴 때 램프 칸을 클립으로 빼면 그 자리는 위 단 색과 램프 색이 그대로 맞닿아 비탈로 읽힌다. */
     let hasRamp = false;
     for (let i = 0; i < n9; i += 1) if (ramp[i] === 1) { hasRamp = true; break; }
-    const noRampPath = hasRamp ? pathOf((i) => ramp[i] !== 1) : null;
+    /* ★ 램프 **머리도** 빼야 한다(지적: "램프 윗부분에 경계가 그려져 있어서 절벽 위쪽으로 읽혀 — 램프는 사방의
+       테두리가 없어야") — 원작 깃발(rampAt)은 미니타일 고도가 **갈리는** 칸만 램프라 하므로, 램프가 위 단에 닿는
+       마지막 줄(온전히 높은 칸)은 램프가 아니고, 단 경계와 흰 윤곽선이 바로 그 줄과 램프 사이에 그어졌다. 램프
+       칸에 **걸어 다닐 수 있는** 이웃 한 칸을 더해 클립한다 — 못 걷는 이웃(램프 옆 절벽면)은 그대로 두어 옆
+       절벽선은 남는다. 8이웃이라 비스듬한 램프의 귀퉁이도 덮인다. */
+    const rampClip = new Uint8Array(n9);
+    if (hasRamp) {
+      for (let y = 0; y < h; y += 1) {
+        for (let x = 0; x < w; x += 1) {
+          const i = y * w + x;
+          if (ramp[i] === 1) { rampClip[i] = 1; continue; }
+          if (walk[i] !== 1) continue;
+          let near = false;
+          for (let dy = -1; dy <= 1 && !near; dy += 1) {
+            for (let dx = -1; dx <= 1; dx += 1) {
+              const xx = x + dx;
+              const yy = y + dy;
+              if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+              if (ramp[yy * w + xx] === 1) { near = true; break; }
+            }
+          }
+          if (near) rampClip[i] = 1;
+        }
+      }
+    }
+    const noRampPath = hasRamp ? pathOf((i) => rampClip[i] !== 1) : null;
     for (let L = 1; L <= 3; L += 1) {
       const has = (): boolean => {
         for (let i = 0; i < n9; i += 1) if (lvl[i] >= L && isLand(i)) return true;
