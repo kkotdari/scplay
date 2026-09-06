@@ -8346,18 +8346,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const out: ShapeFace[] = [];
     const GOLD = "#d4af37"; const GOLD_D = "#a8862a"; const CYAN = "#5aecd8";
     const K = (x9: number, y9: number, add = 0): number => depthNow(x9, y9) * 1.6 + add;
-    const DK9 = 0.8;   // 아래 원판 0.8배(요청) — 받침·대접·꽃잎 판이 함께 준다.
+    const DK9 = 0.8 * 0.8;   // 아래 원판 0.8배(요청) → 다시 0.8배(재요청: "아래 본체+주변 판들 0.8배") — 받침·대접·발판이 함께 준다.
+    const HB9 = 0.8;         // 본체 높이도 같은 비(재요청) — 대접 통·우묵 계단.
     // ① 받침 팔각 판 + 대접(위로 벌어지는 절두 원통) + 안쪽 어두운 우묵 + 결정.
     // 받침은 둥근 판만(재지적: 네모 판 제거) — 아래 넓은 원판 + 위로 벌어지는 원통 대접.
     /* 본판을 줄인다(재요청: 5.0/4.4 → 3.5/3.1) — 발판이 둘레를 맡으니 대접만 남긴다. */
-    out.push(...tagKey(paintBase(cylinderFaces3(0, 0, 3.5 * DK9, 0.45), GOLD_D), 1));
-    out.push(...tagKey(paintBase(cylinderFaces3(0, 0, 3.1 * DK9, 1.15, 0.45), GOLD), 2));
+    out.push(...tagKey(paintBase(cylinderFaces3(0, 0, 3.5 * DK9, 0.45 * HB9), GOLD_D), 1));
+    out.push(...tagKey(paintBase(cylinderFaces3(0, 0, 3.1 * DK9, 1.15 * HB9, 0.45 * HB9), GOLD), 2));
     /* 움푹 팬 속(재요청: 확실히) — 안으로 갈수록 낮아지는 어두운 원반 셋을 계단으로 쌓아
        오목한 대접 속으로 읽히게 한다(테 2.6 → 1.8 → 1.0, 높이 1.6 → 1.2 → 0.85). */
     out.push(...tagKey([
-      capFace(discPath3(0, 0, 1.61, 2.6 * DK9), 0.62),
-      capFace(discPath3(0, 0, 1.2, 1.8 * DK9), 0.5),
-      capFace(discPath3(0, 0, 0.85, 1.0 * DK9), 0.35),
+      capFace(discPath3(0, 0, 1.61 * HB9, 2.6 * DK9), 0.62),
+      capFace(discPath3(0, 0, 1.2 * HB9, 1.8 * DK9), 0.5),
+      capFace(discPath3(0, 0, 0.85 * HB9, 1.0 * DK9), 0.35),
       ...paintBase(spirePillar({
         x: 0, y: 0, z0: 0.8, h: 2.2, w: 0.5, tipW: 0, segs: 3, sides: 6,
         widthOf: (t9: number): number => 0.5 * (1 - t9) ** 0.6, fill: glowLit("#c9fff6", CYAN),
