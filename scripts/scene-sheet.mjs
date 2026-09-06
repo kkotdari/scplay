@@ -46,10 +46,12 @@ const esbuild = (src, out, extra) => {
 const tdir = mkdtempSync(join(tmpdir(), "scene-tables-"));
 const tsrc = join(ROOT, "scripts", ".scene-tables.tmp.ts");
 writeFileSync(tsrc, `
+import { UNITS } from ${JSON.stringify(join(ROOT, "src/utils/bwUnits"))};
 import { SHAPE_KIND, UNIT_3D, raceOfName9, FOOTPRINT, MODEL_NORM, BLD_NORM, BLD_NORM_PAIR, isAirUnit, UNIT_SIZE_TUNE, BLD_DRAW_TUNE, BLD_DRAW_K } from ${JSON.stringify(join(ROOT, "src/components/replay/engine9"))};
 import { BW_UNIT_NAME } from ${JSON.stringify(join(ROOT, "src/utils/bwUnitNames"))};
 (globalThis as any).window = globalThis;
 export const TABLES = { SHAPE_KIND, UNIT_3D, FOOTPRINT, BW_UNIT_NAME, MODEL_NORM, BLD_NORM, BLD_NORM_PAIR, UNIT_SIZE_TUNE, BLD_DRAW_TUNE, BLD_DRAW_K,
+  BOX: Object.fromEntries(Object.keys(UNIT_3D).map((n) => [n, UNITS[n]?.box ?? null])),
   AIR: Object.fromEntries(Object.keys(UNIT_3D).map((n) => [n, isAirUnit(n)])),
   RACE: Object.fromEntries([...Object.keys(SHAPE_KIND), ...Object.keys(UNIT_3D)].map((n) => [n, raceOfName9(n) ?? ""])) };
 `);
@@ -97,12 +99,16 @@ function makeWorld(race) {
   const labels = [];
   // 짧은 이름 — 괄호는 머리글자로(Siege Tank (Siege Mode) → Siege Tank(S)).
   const short = (n) => n.replace(/ \((\w)[^)]*\)/, "($1)");
-  /* 라벨의 배율 = **사용자가 정한 그리기 배율**(요청) — 유닛은 UNIT_SIZE_TUNE[kind](없으면 1), 건물은
-     BLD_DRAW_TUNE[kind](없으면 1; 공통 BLD_DRAW_K 1.2는 따로 안 적는다). 정규화 배수(MODEL_NORM·BLD_NORM)가 아니다. */
+  /* 라벨 둘째 줄 = **원작 설정의 바닥 공간**(재요청: "배율 말고 실제 게임 설정상 차지하는 바닥공간 가로*세로") —
+     건물은 발자국 타일(units.dat tileSize, 예 4×3), 유닛은 치수 상자(units.dat dimensions: 좌+우+1 × 상+하+1 픽셀,
+     32px = 1타일). 그리기 배율은 `--scale` 깃발로 다시 볼 수 있다. */
+  const SHOW_SCALE = !!flag("--scale", false);
   const normOf = (n, isBld) => {
     const k = isBld ? TABLES.SHAPE_KIND[n] : TABLES.UNIT_3D[n];
-    const v = isBld ? (TABLES.BLD_DRAW_TUNE[k] ?? 1) : (TABLES.UNIT_SIZE_TUNE[k] ?? 1);
-    return `×${Number(v).toFixed(2)}`;
+    if (SHOW_SCALE) return `×${Number(isBld ? (TABLES.BLD_DRAW_TUNE[k] ?? 1) : (TABLES.UNIT_SIZE_TUNE[k] ?? 1)).toFixed(2)}`;
+    if (isBld) { const fp = TABLES.FOOTPRINT[n]; return fp ? `${fp[0]}×${fp[1]}` : "?"; }
+    const b = TABLES.BOX[n];
+    return b ? `${b[0] + b[2] + 1}×${b[1] + b[3] + 1}px` : "?";
   };
   blds.forEach((n, i) => {
     const x = X0 + (i % 7) * 6 + 2; const y = yb + Math.floor(i / 7) * 6.5 + 2;
@@ -118,7 +124,7 @@ function makeWorld(race) {
     const fp = TABLES.FOOTPRINT[n] ?? [3, 2];
     tracks.push({ tag: tag++, owner: 0, type: nameToId[n], keys: [
       [F(20), x * 32, y * 32, 0, 0x80, nameToId[n]], [F(GAME_SEC), x * 32, y * 32, 0, 0x80, nameToId[n]]], hp: null });
-    labels.push([lab, `×${Number(TABLES.BLD_DRAW_TUNE[kind] ?? 1).toFixed(2)}`, x, y + fp[1] / 2 + 0.6]);
+    labels.push([lab, SHOW_SCALE ? `×${Number(TABLES.BLD_DRAW_TUNE[kind] ?? 1).toFixed(2)}` : `${fp[0]}×${fp[1]}`, x, y + fp[1] / 2 + 0.6]);
   });
   const yu = yb + Math.ceil((blds.length + wip.length) / 7) * 6.5 + 2.5;
   // 지상 줄(들) 먼저, 비행 줄(들)은 그 아래 — 비행 유닛은 위로 떠서 그려지니 윗줄과 겹치지 않게 사이를 더 띄운다.
