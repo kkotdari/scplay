@@ -949,7 +949,7 @@ export const MODEL_NORM: Record<string, number> = {
   larva: 1.350,  // 상자 상한(원한 배수 1.466)
   lurker: 0.592,
   lurkeregg: 0.886,
-  mine: 1.007,  // 다리를 걷은 뒤 재측정은 1.840이지만 몸 크기를 지키려 옛 값 유지(요청: 다리 제거·땅에 붙임)
+  mine: 0.806,  // 다리를 걷은 뒤 재측정은 1.840이지만 몸 크기를 지키려 옛 값 1.007 유지 → ×0.8(요청: "벌처랑 마인 0.8배")
   muta: 0.741,
   mutacocoon: 1.826,  // 상자 상한(원한 배수 1.891)
   observer: 1.863,
@@ -983,7 +983,7 @@ export const MODEL_NORM: Record<string, number> = {
   ultra: 0.361,
   valk: 0.672,   // 앞동체 −10% 뒤 재측정(model-norm) 0.840 → ×0.8(요청: 발키리 그리기 0.8배)
   vessel: 0.898,  // 방패 접힘 축·뾰족 위끝 뒤 재측정(model-norm)
-  vulture: 0.833,
+  vulture: 0.666,   // 0.833 × 0.8(요청: "벌처랑 마인 0.8배")
   wraith: 0.894,  // 재측정(model-norm)
   zealot: 0.803,  // 재측정(model-norm)
   zling: 0.758,
