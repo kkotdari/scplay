@@ -8380,7 +8380,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // ③ 뒤에서 솟는 파이프 셋 — **부채살**(재요청): 뒤 가운데 한 점에서 나와 오를수록 옆으로 벌어진다.
     // 날개 셋 0.6배(요청) — 파이프 높이·판 길이·굵기가 sc9로 함께 준다. 뿌리 자리도 원판에 맞춰 안으로.
     for (const [px9, sc0] of [[-2.7 * DK9, 0.85], [0, 1], [2.7 * DK9, 0.85]] as [number, number][]) {
-      const sc9 = sc0 * 0.9;   // 0.6 → 0.9(요청: 파이프+방패판 1.5배)
+      const sc9 = sc0 * 1.08;   // 0.6 → 0.9(요청: 파이프+방패판 1.5배) → 1.08(재요청: 1.2배 더)
       const H9 = 5.0 * sc9;
       const pipe = (t9: number): [number, number, number] => [
         px9 * (0.06 + 0.94 * t9), -2.3 * DK9 + 1.3 * t9 * t9, 0.8 + H9 * Math.sin(t9 * Math.PI * 0.5),
