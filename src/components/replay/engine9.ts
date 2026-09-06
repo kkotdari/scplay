@@ -964,7 +964,7 @@ export const MODEL_NORM: Record<string, number> = {
   scarab: 1.514,  // 상자 상한(원한 배수 1.591)
   scourge: 1.293,  // 상자 상한(원한 배수 1.327)
   scout: 0.851,  // 재측정(model-norm)
-  scv: 0.767,  // 어깨·몸통 앞뒤 깊이 줄인 뒤 재측정(model-norm)
+  scv: 0.753,  // 하완 1.2배·상완 원통 걷은 뒤 재측정(model-norm) — 옛 0.767
   scvGas: 0.842,
   scvMin: 0.851,
   shuttle: 0.808,  // 재측정(model-norm) — 뒷다리를 더 오므린 뒤
