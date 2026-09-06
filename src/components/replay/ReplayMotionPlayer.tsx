@@ -8372,7 +8372,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const at9 = (r9: number, w9: number): [number, number] => [cx9 * r9 * DK9 + ux9 * w9 * DK9, cy9 * r9 * DK9 + uy9 * w9 * DK9];
       /* 둘레 판 0.8배(요청) — 제 가운데(반지름 4.15)를 축으로 줄인다: 반지름 방향·접선 반폭 모두 0.8. */
       const SK9 = 0.8;
-      const sr9 = (r9: number): number => 4.15 + (r9 - 4.15) * SK9;
+      // 앞뒤 길이(반지름 방향)만 0.8배 더(재요청) — 폭(w)은 SK9 그대로.
+      const sr9 = (r9: number): number => 4.15 + (r9 - 4.15) * SK9 * 0.8;
       out.push(...tagKey(paintBase(prismZFaces([
         at9(sr9(2.6), -1.05 * SK9), at9(sr9(2.6), 1.05 * SK9), at9(sr9(5.3), 1.45 * SK9),
         at9(sr9(5.7), 0.5 * SK9), at9(sr9(5.7), -0.5 * SK9), at9(sr9(5.3), -1.45 * SK9),
