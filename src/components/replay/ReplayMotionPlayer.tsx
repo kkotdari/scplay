@@ -81,7 +81,7 @@ import {
   boxFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project,
   domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio,
   prismYFaces, prismZFaces, pyramidFaces3,
-  screenCircle, setPitchSquash, sphereFaces3, tubeAxisLift, tubeFaces,
+  screenCircle, setPitchSquash, sphereFaces3, tubeAxisLift, tubeFaces, VIEW_LEAN_K,
   wallDiscPath, withModelSpin, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted,
 } from "../../utils/shapeOblique";
 import { TEAM_COLOR, type MinimapMarker } from "./markers";
@@ -30235,7 +30235,7 @@ export default function ReplayMotionPlayer({
                    연기 자리를 그 축을 따라 옆으로 밀고, 연기 띠는 같은 각으로 돌린다(밑동을 축으로). */
                 /* 0.5(사영의 z→x 밀림) ÷ 0.9(입체 z 눌림, shapeOblique zScaleNow) — 옛 0.625는 눌림 0.8 시절 값이라 밖으로
                    넘쳤다(지적). */
-                const lean9 = pitched ? Math.tan((viewYawOf(x, y) * Math.PI) / 180) * (0.5 / 0.9) : 0;
+                const lean9 = pitched ? Math.tan((viewYawOf(x, y) * Math.PI) / 180) * (VIEW_LEAN_K / 0.9) : 0;
                 const leanDeg9 = (Math.atan(lean9) * 180) / Math.PI;
                 const landed = nukeImpacts.some((nk) =>
                   nk.confirmed && nk.x === x && nk.y === y && Math.abs(nk.sec - (sec + NUKE_FALL_SEC)) < 0.5);

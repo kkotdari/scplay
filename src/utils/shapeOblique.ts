@@ -531,6 +531,8 @@ const MODEL_PERSP = 48;
    마커는 깊이에 비례해 가로로 민다(앞은 바깥, 뒤는 안). 모델을 돌리는 요잉과 달리
    폭·세로선이 안 바뀌어 찌그러지지 않고, 내부 소실점만 시각 방향으로 옮겨 간다. */
 let viewShear = 0;
+/** 입체에서 높이(z)에 실리는 시각 밀림의 배수 — DOM 효과의 기울임(RMP lean9)도 이 값을 읽어야 모델과 같이 기운다. */
+export const VIEW_LEAN_K = 0.25;
 export function withViewShear<T>(sh: number, fn: () => T): T {
   viewShear = sh;
   try {
@@ -607,8 +609,10 @@ export function project(x0: number, y0: number, z0: number): [number, number] {
      세로 기울임은 + 방향(초록 기대선)이 맞고, 0.8은 과했다(지적 왕복: -0.8은 이상,
      +0.8은 수정탑이 통째 이동해 떨어져 보임 — 그건 파일런 보석의 화면 좌표 문제로
      따로 수리) — 절반쯤인 +0.5로. */
+  /* 세로 기울임 0.5 → 0.25(요청: "시각 밀림 줄여봐" — 가장자리 모델의 윗부분이 바깥으로 기우는 몫). 바닥 남북선의
+     소실 기울기(ry 항)는 지도와 맞물린 값이라 그대로 두고, 높이에 실리는 밀림만 반으로. */
   const rx2 = rx + ry * groundSquashNow() * viewShear
-    + (pitchView ? z * 0.5 * viewShear : 0);
+    + (pitchView ? z * VIEW_LEAN_K * viewShear : 0);
   return [r2(VIEW.originX + rx2 * f), r2(originYNow() + ry2 * groundSquashNow() - z * zScaleNow())];
 }
 
