@@ -7746,27 +7746,31 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ], k29));
     }
 
-    // ── 오른쪽 블록 — 청동 절두체, 앞면 어두운 홈에 라임 세로 창살, 윗모서리 청록 띠.
+    // ── 오른쪽 블록 — 청동 절두체, 옆면(+x) 어두운 홈에 라임 세로 창살, 윗모서리 청록 띠.
+    /* 0.8배 + 제자리 −90도 요잉(요청: "오른쪽의 상자 부품만 크기 0.8배로 축소 및 스스로 −90도 요잉(창문이 옆면을
+       향함)") — 블록 가운데(bx9, by9)·바닥(z 0.9)을 축으로 줄이고, 앞면(+y)에 있던 창살을 오른 옆면(+x)으로 돌린다.
+       절두체는 축 정렬이라 폭·깊이만 바꿔 끼우고, 청록 띠는 왼 모서리(−x)에서 앞 모서리(+y)로 간다. */
     {
-      const bx9 = 3.15; const by9 = 0.3;
+      const bx9 = 3.15; const by9 = 0.3; const S9 = 0.8; const Z09 = 0.9;
+      const zz9 = (z: number): number => Z09 + (z - Z09) * S9;
       const k9 = 10 + depthNow(bx9, by9) * 1.6;
-      out.push(...tagKey(frustumFaces3(bx9, by9, 2.6, 2.7, 2.2, 2.3, 2.3, 0.9), k9));   // 테란 기본색
-      if (facingRatio(0, 1) > 0.08) {
-        const fy9 = by9 + 1.32;
+      out.push(...tagKey(frustumFaces3(bx9, by9, 2.7 * S9, 2.6 * S9, 2.3 * S9, 2.2 * S9, 2.3 * S9, Z09), k9));   // 테란 기본색
+      if (facingRatio(1, 0) > 0.08) {
+        const fx9 = bx9 + 1.32 * S9;
         const win9: ShapeFace[] = [[polyPath3([
-          [bx9 - 1.0, fy9, 1.35], [bx9 + 1.0, fy9, 1.35],
-          [bx9 + 0.93, fy9, 2.75], [bx9 - 0.93, fy9, 2.75],
+          [fx9, by9 + 1.0 * S9, zz9(1.35)], [fx9, by9 - 1.0 * S9, zz9(1.35)],
+          [fx9, by9 - 0.93 * S9, zz9(2.75)], [fx9, by9 + 0.93 * S9, zz9(2.75)],
         ]), 1, "#22262c"] as ShapeFace];
         for (let w9 = 0; w9 < 3; w9 += 1) {
-          const wx9 = bx9 - 0.62 + w9 * 0.62;
+          const wy9 = by9 + (0.62 - w9 * 0.62) * S9;
           win9.push([polyPath3([
-            [wx9 - 0.14, fy9 + 0.02, 1.5], [wx9 + 0.14, fy9 + 0.02, 1.5],
-            [wx9 + 0.13, fy9 + 0.02, 2.6], [wx9 - 0.13, fy9 + 0.02, 2.6],
+            [fx9 + 0.02, wy9 + 0.14 * S9, zz9(1.5)], [fx9 + 0.02, wy9 - 0.14 * S9, zz9(1.5)],
+            [fx9 + 0.02, wy9 - 0.13 * S9, zz9(2.6)], [fx9 + 0.02, wy9 + 0.13 * S9, zz9(2.6)],
           ]), 1, LIME] as ShapeFace);
         }
         out.push(...tagKey(win9, k9 + 0.4));
       }
-      out.push(...tagKey(paintBase(boxFaces3(bx9 - 1.15, by9, 0.16, 2.1, 0.14, 3.2), TEAL), k9 + 0.5));
+      out.push(...tagKey(paintBase(boxFaces3(bx9, by9 + 1.15 * S9, 2.1 * S9, 0.16 * S9, 0.14 * S9, zz9(3.2)), TEAL), k9 + 0.5));
     }
 
     // ── 뒤왼쪽 안테나 팔 — 비스듬한 가는 기둥과 가로대 둘(사진 왼뒤 크레인).

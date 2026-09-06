@@ -1252,7 +1252,8 @@ export const UNIT_SIZE_TUNE: Record<string, number> = {   // 열쇠는 sizeKind(
   archon: 1.2, darchon: 1.2, corsair: 0.8, interceptor: 0.8, larva: 0.4, egg: 0.4,
   muta: 0.8, scourge: 0.6, ultra: 1.4, guardian: 0.8, lurkeregg: 0.6, mutacocoon: 0.8,
   observer: 0.8,
-  gunner: 0.8, inf: 0.8, fbat: 0.8, ghost: 0.8, htemp: 0.6, dtemp: 0.8,   // 마린·메딕(inf)·파뱃·고스트·하템·다템
+  gunner: 0.8, inf: 0.8, fbat: 0.6, ghost: 0.8, htemp: 0.6, dtemp: 0.8,   // 마린·메딕(inf)·파뱃(0.8 → 0.6, 요청)·고스트·하템·다템
+  defiler: 1.2,   // 요청(비교 장면)
   scv: 0.8, probe: 0.8, drone: 0.8,   // 일꾼류
   /* (전부 걷음 — 요청: "유닛 크기 보정 모두 제거") — 일꾼·보병 0.68, 메딕 0.612,
      질럿 0.85, 템플러 0.808, 커세어 0.85, 마인 0.53, 옵저버 0.17, 스커지 0.7,
@@ -1549,9 +1550,17 @@ export const BLD_DRAW_K = 1.2;
 export const BLD_DRAW_TUNE: Record<string, number> = {
   spire: 1.2, gspire: 1.2,
   // 도록 크기 보정 페이지(?cal)에서 실측해 준 배수(요청).
-  // 터렛·포톤캐논(coil)·로보틱스(dome)는 1.0으로 되돌려 표에서 뺐다(재요청).
-  diamond: 1.2, forge: 0.8, robobay: 1.2,   // comsat 0.6은 걷었다(지적: "컴셋 스테이션 왜 이렇게 작지") — 1.0
-  tribunal: 0.8, creep: 1.2, sunken: 1.2, spore: 1.2, queensnest: 1.2, cavern: 1.4,
+  // 터렛·포톤캐논(coil)은 1.0으로 되돌려 표에서 뺐다(재요청).
+  diamond: 1.2,   // comsat 0.6은 걷었다(지적: "컴셋 스테이션 왜 이렇게 작지")
+  creep: 1.2, sunken: 1.2, spore: 1.2,
+  /* 종족별 비교 장면(scene-sheet)을 보고 정한 배수(요청) — 포지·트리뷰널은 1.0으로 되돌려 뺐다. */
+  tombFlat: 1.2,                                                           // 벙커
+  comsat: 1.2, nsilo: 1.2, mshop: 1.2, ctower: 1.2, covert: 1.2, physlab: 1.2,   // 부속(애드온) 전부
+  scifac: 1.2,                                                             // 사이언스 퍼실리티
+  arch: 1.2, cyber: 1.2, dome: 1.2, citadel: 1.2, archives: 1.2, observatory: 1.2, fleetbeacon: 1.2, sbattery: 1.2,
+  robobay: 1.4,                                                            // 서포트 베이 1.2 → 1.4
+  queensnest: 1.4,                                                         // 1.2 → 1.4
+  pool: 1.2, dmound: 1.2, cavern: 1.2,                                     // 캐번 1.4 → 1.2
 };
 /** 프로토스 소환구 상자(타일)와 지면에서 띄우는 높이(타일) — 요청: 축소 + 더 띄우기. */
 export const WARP_TILES = 1.8;
@@ -5654,7 +5663,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     /* 간헐천만 1.2배(요청: "간헐천 그려지는 크기 1.2배 확대") — 3.2 → 3.84.
        제 발자국이 4×2라 그 안에 여전히 든다(그 위에 서는 가스 건물이 3.0~4.0폭
        이라 덮는 관계도 그대로다). 미네랄은 이번 요청 밖이라 안 건드린다. */
-    const wTiles = gasSpot ? 3.84 : 2.4;
+    const wTiles = gasSpot ? 3.84 * 0.8 : 2.4;   // 간헐천 0.8배(요청, 비교 장면)
     unitOps.push({
       fx, fy,
       /* 자원도 높이를 가진다(지적: 뒤 사물을 가려야) — 990 바닥층이 아니라 건물과
