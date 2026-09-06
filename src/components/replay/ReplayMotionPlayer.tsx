@@ -4714,7 +4714,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* ★ 기둥을 **모서리에 심는다**(지적: "기둥들도 45도에 보면 양쪽의 기둥이 위치가 좀 어색함") — 5.6(대각 반지름
        7.9)은 피라미드 모서리(6.36)보다 1.5 바깥이라, 45도에서 양옆 기둥이 몸과 떨어진 허공에 서 보였다. 4.9(반지름
        6.9)로 들이면 받침 원반이 밑동 모서리에 물리고 기둥 아랫동이 몸에 가려져 심긴 것으로 읽힌다. */
-    const PX9 = 5.0;   // 4.9 → 4.5 → 5.0(재요청: "기둥을 좀더 바깥으로") — 모서리 꼭짓점(4.5)에서 대각으로 0.7 밖.
+    const PX9 = 5.5;   // 4.9 → 4.5 → 5.0 → 5.5(재요청: "모서리 기둥 좀더 중심에서 바깥쪽으로") — 모서리 꼭짓점(4.5)에서 대각으로 1.4 밖.
     const out: ShapeFace[] = [...pillar(-PX9, -PX9), ...pillar(PX9, -PX9)];
     // 몸통은 금빛 바탕(재작도) — 프로토스의 바탕색은 골드다.
     out.push(...paintBase(frustumFaces3(0, 0, 9, 9, 2.8, 2.8, 6.4), GOLD9));
@@ -4799,8 +4799,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        **앞**(키 −1)이라 판 가운데를 받침이 덮는다. 날 끝의 뿔은 마디 없는 4면 뿔(segs 1). */
     {
       const TH9 = 0.5;
-      const STAR_R = 8.9;
-      const STAR_IN = 4.0;   // 5.0 → 4.0(요청: 날 폭 줄이기) — 오목점이 안으로 들수록 날이 가늘다(밑변에서 반폭 2.9 → 2.05).
+      // 표창 전체 0.8배(요청: "발판 폭과 앞뒤 길이 모두 0.8배") — 끝 8.9 → 7.12, 오목점 4.0 → 3.2.
+      const STAR_R = 7.12;
+      const STAR_IN = 3.2;   // 5.0 → 4.0(요청: 날 폭 줄이기) — 오목점이 안으로 들수록 날이 가늘다.
       const star9 = (z9: number): [number, number, number][] => {
         const pts: [number, number, number][] = [];
         for (let k9 = 0; k9 < 4; k9 += 1) {
@@ -4841,9 +4842,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const sx = Math.sin(a);
         const sy = Math.cos(a);
         out.push(...tagKey(paintBase(spirePillar({
-          x: 0, y: 0, h: 1, w: 0.5, tipW: 0.02, segs: 1, sides: 3, phase: 0, ref: [sx, sy, 0], caps: "none",
-          path: (t9: number): [number, number, number] => [sx * (7.85 - 0.6 * t9), sy * (7.85 - 0.6 * t9), TH9 + 1.85 * t9],
-        }), GOLD9), depthNow(sx * 7.6, sy * 7.6)));
+          // 표창 0.8배에 맞춰 밑동 7.85 → 6.2, 반폭 0.5 → 0.4(그 자리 날 반폭 0.43 안에 든다).
+          x: 0, y: 0, h: 1, w: 0.4, tipW: 0.02, segs: 1, sides: 3, phase: 0, ref: [sx, sy, 0], caps: "none",
+          path: (t9: number): [number, number, number] => [sx * (6.2 - 0.6 * t9), sy * (6.2 - 0.6 * t9), TH9 + 1.85 * t9],
+        }), GOLD9), depthNow(sx * 6.0, sy * 6.0)));
       }
     }
     out.push(...pillar(-PX9, PX9), ...pillar(PX9, PX9));
