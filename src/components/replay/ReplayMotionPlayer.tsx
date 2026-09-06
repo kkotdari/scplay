@@ -8191,17 +8191,27 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const a9 = Math.PI * (i9 / 8);
       return [Math.cos(a9) * NECK_R, NECK_Z + Math.sin(a9) * NECK_R] as [number, number];
     });
-    const HEAD_Y = 4.8;   // 반구가 앉는 자리(목 끝) 5.1 → 4.2 → 4.8(재요청: 연결팔을 더 앞으로)
+    /* 반구는 **몸에 직접 붙는다**(요청: "우측 연결팔 제거하고 작은 건물을 본건물에 직접 붙임") — 목(prismYFaces)을 걷고
+       몸 돔(반지름 2.9)에 반구(반지름 1.05)를 0.2 파묻혀 붙인다: 2.9 + 1.05 − 0.2 = 3.75. */
+    const HEAD_Y = 3.75;
+    void neckPlan;
     return raceBase([
       /* 발치 금 테는 맨 앞에 그린다(지적: 코어 키 검토) — 납작한 원통이라 나중에
          그리면 몸 아래를 판때기로 덮는다. 프리미티브는 제 몫으로 키(깊이+높이)를
          달기 때문에 배열 맨 앞에 둬도 소용없어, 다른 부품보다 낮은 키를 못 박는다. */
       ...tagKey(paintBase(cylinderFaces3(0, 0, 3.4, 0.3, 0.2), "#8a6f2a"), -9),
       // 왼뒤 뿔 한 쌍 — 개인색 받침 테(키 −1)보다 앞서 그린다. 입체 뿔기둥이다.
+      /* ★ 왼쪽 뿔 넷(요청·사진): **긴 기둥 둘**은 몸 뒤(−y) 왼편에서 높이 솟고, **둘은 지상에** 눕혀 −y 쪽으로 뻗는다.
+         (−y가 화면 왼쪽 — 이 빌더는 −90도 요잉이라 머리(+y)가 오른쪽이다.) */
       ...tagKey([
-        ...spikeHorn(-1.6, -1.4, 2.6, -3.2, -2.4, 6.6, 1.3, undefined, 6, 0.3, -0.7, -0.5),
-        ...spikeHorn(-0.2, -2, 2.8, -0.8, -3.2, 7, 1.4, undefined, 6, 0.3, -0.3, -0.8),
+        ...spikeHorn(-1.0, -1.6, 2.4, -2.4, -3.6, 9.2, 1.3, undefined, 6, 0.3, -0.5, -0.6),
+        ...spikeHorn(0.7, -1.9, 2.6, 1.3, -4.1, 9.8, 1.4, undefined, 6, 0.3, 0.2, -0.7),
       ], -3),
+      // 지상에 누운 뿔 둘 — 밑동은 몸 옆구리, 끝은 바닥 가까이 멀리.
+      ...tagKey([
+        ...spikeHorn(-1.9, -1.2, 0.9, -3.6, -6.0, 0.35, 1.1, undefined, 6, 0.25, -0.3, 0),
+        ...spikeHorn(1.2, -2.0, 0.9, 2.2, -6.6, 0.3, 1.0, undefined, 6, 0.25, 0.3, 0),
+      ], -8),
       // 큰 황금 몸 — 위는 분화구처럼 깎는다. 개인색은 아래 받침 테만.
       ...tagKey(domeFaces3(0, 0, 2.9, 1.6, 0.7), 0),
       // 분화구 — 꼭대기를 깎은 어두운 접시 + 안쪽 더 깊은 그늘.
@@ -8239,8 +8249,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          기둥이라 prismYFaces가 그 축이다: 단면이 (x, z) 반원이고 그것을 y로 민다.
          뒤 밑면은 몸속이라 안 그리고(capBack false), 앞 밑면은 반구가 덮는다. */
       // 붙는 면을 앞으로(요청): 1.1 → 1.7.
-      ...tagKey(paintBase(prismYFaces(neckPlan, 1.7, HEAD_Y - 1.7, false, false), "#d4bd3c"),
-        depthNow(0, 3) * 1.6 + 2),
+      // (걷어냄) 목 — 반구가 몸에 직접 붙는다(요청).
       /* 목 끝의 반구 — 장식 하나 없는 매끈한 돔이다(요청: "반구의 장식은 다 제거").
          목과 밑면 높이를 나눠 써 평평한 배가 이어진다. */
       ...tagKey(paintBase(domeFaces3(0, HEAD_Y, 1.05, 1, NECK_Z), "#d4bd3c"),
@@ -8264,21 +8273,23 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      · 대접 옆면은 **꽃잎 판**이 빙 둘러 감싼다(여덟 장, 바깥으로 살짝 벌어짐).
      · 뒤쪽에서 **파이프 셋**이 솟아 앞으로 굽고, 그 끝마다 **길고 둥근 세모 판**이 앞을 보고
        매달린다(청록 빛줄 한 줄씩). 가운데 것이 가장 크고 높다. */
-  robobay: () => {
+  // −45도 요잉(요청) · 아래 원판 0.8배 · 날개(파이프+세모 판) 0.6배.
+  robobay: () => withModelSpin(-45, () => {
     const out: ShapeFace[] = [];
     const GOLD = "#d4af37"; const GOLD_D = "#a8862a"; const CYAN = "#5aecd8";
     const K = (x9: number, y9: number, add = 0): number => depthNow(x9, y9) * 1.6 + add;
+    const DK9 = 0.8;   // 아래 원판 0.8배(요청) — 받침·대접·꽃잎 판이 함께 준다.
     // ① 받침 팔각 판 + 대접(위로 벌어지는 절두 원통) + 안쪽 어두운 우묵 + 결정.
     // 받침은 둥근 판만(재지적: 네모 판 제거) — 아래 넓은 원판 + 위로 벌어지는 원통 대접.
     /* 본판을 줄인다(재요청: 5.0/4.4 → 3.5/3.1) — 발판이 둘레를 맡으니 대접만 남긴다. */
-    out.push(...tagKey(paintBase(cylinderFaces3(0, 0, 3.5, 0.45), GOLD_D), 1));
-    out.push(...tagKey(paintBase(cylinderFaces3(0, 0, 3.1, 1.15, 0.45), GOLD), 2));
+    out.push(...tagKey(paintBase(cylinderFaces3(0, 0, 3.5 * DK9, 0.45), GOLD_D), 1));
+    out.push(...tagKey(paintBase(cylinderFaces3(0, 0, 3.1 * DK9, 1.15, 0.45), GOLD), 2));
     /* 움푹 팬 속(재요청: 확실히) — 안으로 갈수록 낮아지는 어두운 원반 셋을 계단으로 쌓아
        오목한 대접 속으로 읽히게 한다(테 2.6 → 1.8 → 1.0, 높이 1.6 → 1.2 → 0.85). */
     out.push(...tagKey([
-      capFace(discPath3(0, 0, 1.61, 2.6), 0.62),
-      capFace(discPath3(0, 0, 1.2, 1.8), 0.5),
-      capFace(discPath3(0, 0, 0.85, 1.0), 0.35),
+      capFace(discPath3(0, 0, 1.61, 2.6 * DK9), 0.62),
+      capFace(discPath3(0, 0, 1.2, 1.8 * DK9), 0.5),
+      capFace(discPath3(0, 0, 0.85, 1.0 * DK9), 0.35),
       ...paintBase(spirePillar({
         x: 0, y: 0, z0: 0.8, h: 2.2, w: 0.5, tipW: 0, segs: 3, sides: 6,
         widthOf: (t9: number): number => 0.5 * (1 - t9) ** 0.6, fill: glowLit("#c9fff6", CYAN),
@@ -8289,7 +8300,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const a9 = (k9 / 6) * Math.PI * 2 + Math.PI / 6;
       const cx9 = Math.cos(a9); const cy9 = Math.sin(a9);
       const ux9 = -cy9; const uy9 = cx9;
-      const at9 = (r9: number, w9: number): [number, number] => [cx9 * r9 + ux9 * w9, cy9 * r9 + uy9 * w9];
+      const at9 = (r9: number, w9: number): [number, number] => [cx9 * r9 * DK9 + ux9 * w9 * DK9, cy9 * r9 * DK9 + uy9 * w9 * DK9];
       /* 둘레 판 0.8배(요청) — 제 가운데(반지름 4.15)를 축으로 줄인다: 반지름 방향·접선 반폭 모두 0.8. */
       const SK9 = 0.8;
       const sr9 = (r9: number): number => 4.15 + (r9 - 4.15) * SK9;
@@ -8299,13 +8310,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ], 0, 0.32, true), GOLD), K(cx9 * 4.4, cy9 * 4.4, 0.4)));
     }
     // ③ 뒤에서 솟는 파이프 셋 — **부채살**(재요청): 뒤 가운데 한 점에서 나와 오를수록 옆으로 벌어진다.
-    for (const [px9, sc9] of [[-2.7, 0.85], [0, 1], [2.7, 0.85]] as [number, number][]) {
+    // 날개 셋 0.6배(요청) — 파이프 높이·판 길이·굵기가 sc9로 함께 준다. 뿌리 자리도 원판에 맞춰 안으로.
+    for (const [px9, sc0] of [[-2.7 * DK9, 0.85], [0, 1], [2.7 * DK9, 0.85]] as [number, number][]) {
+      const sc9 = sc0 * 0.6;
       const H9 = 5.0 * sc9;
       const pipe = (t9: number): [number, number, number] => [
-        px9 * (0.06 + 0.94 * t9), -2.3 + 1.3 * t9 * t9, 0.8 + H9 * Math.sin(t9 * Math.PI * 0.5),
+        px9 * (0.06 + 0.94 * t9), -2.3 * DK9 + 1.3 * t9 * t9, 0.8 + H9 * Math.sin(t9 * Math.PI * 0.5),
       ];
       out.push(...tagKey(paintBase(spirePillar({
-        x: 0, y: 0, h: 1, w: 0.28, tipW: 0.28, segs: 8, sides: 6, hold: 1, caps: "none",
+        x: 0, y: 0, h: 1, w: 0.28 * 0.6, tipW: 0.28 * 0.6, segs: 8, sides: 6, hold: 1, caps: "none",
         path: pipe,
       }), GOLD_D), K(px9 * 0.5, -1.2, 3)));
       // 판 — 파이프 끝에서 앞·아래로 매달린 긴 둥근 세모(위가 넓고 아래로 뾰족).
@@ -8328,7 +8341,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ], K(tx9, ty9, 3.5)));
     }
     return raceBase(out, "toss");
-  },
+  }),
   observatory: () => withModelSpin(270, () => {
     const GOLD = "#d4bd3c";
     const GOLD_D = "#8a6f2a";
@@ -8344,20 +8357,16 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 개인색은 이 초승달 받침(재지적: 랜턴 같은 불빛 포인트 말고 넓은 면에 페인트
        칠하듯) — 앞을 감싸는 굵은 관이라 어느 요잉에서도 임자 색이 깔린다. 랜턴·청록
        띠·마디 테는 제 색으로 둔다. */
-    pc.push(...tagKey(spirePillar({
-      x: 0, y: 0, h: 1, w: 0.85, tipW: 0.85, segs: 14, sides: 7, hold: 1,
-      path: (t9: number): [number, number, number] => {
-        const a9 = Math.PI * (-0.12 + 1.24 * t9);
-        return [Math.cos(a9) * R9, -0.6 + Math.sin(a9) * R9 * 0.62, 0.8];
-      },
-    }), 0));
+    // (걷어냄) 임자색 호 모양 바닥 관(요청: "임자색 호 모양 바닥 튜브 제거") — 임자색은 기둥 띠로 옮긴다.
+    void R9;
     /* 받침에 물리던 마디 테 넷은 걷었다(지적: 프로토스 짙은 녹색판 제거) — 납작한
        원통이라 초승달 위에 초록 판때기 넷이 누운 꼴이었다. 마디는 관 자체의 각으로
        읽힌다. */
     /* 기둥 셋 — 청록 띠를 두른 황금 대. 가운데가 가장 높다. */
     /** 기둥 셋의 자리·높이 — 아래 들보(다리)도 같은 표에서 끝점을 읽는다. */
+    // 낮은 기둥 둘을 더 벌린다(요청): ±2.5 → ±3.4.
     const PILLARS9: [number, number, number, number][] = [
-      [-2.5, 0.4, 3.2, 0], [0, -1.6, 4.4, 1], [2.5, 0.4, 3.2, 0],
+      [-3.4, 0.4, 3.2, 0], [0, -1.6, 4.4, 1], [3.4, 0.4, 3.2, 0],
     ];
     PILLARS9.forEach(([px, py, ph, own9]) => {
       const key = 12 + depthNow(px, py) * 1.6;
@@ -8367,9 +8376,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           x: px, y: py, z0: 0.8, h: ph, w: 0.62, tipW: 0.48,
           segs: 3, sides: 7, hold: 0.35,
         }), GOLD),
-        ...paintBase(cylinderFaces3(px, py, 0.68, 0.4, 0.8 + ph * 0.4), TEAL),
         ...paintBase(cylinderFaces3(px, py, 0.68, 0.34, 0.8 + ph * 0.72), GOLD_D),
       ], key));
+      // 임자색은 **기둥의 띠**(요청) — 아래 테를 칠하지 않고 accent로 넘긴다.
+      pc.push(...tagKey(cylinderFaces3(px, py, 0.68, 0.4, 0.8 + ph * 0.4), key + 0.05));
+      void TEAL;
       /* 랜턴 머리 — 청록 발광 알. 불빛은 고유색이라 셋 다 청록으로 돌린다(재지적) —
          가운데 것만 크게 남겨 형태의 강약은 그대로 둔다. */
       out.push(...tagKey(paintBase(own9
@@ -8395,9 +8406,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        돈 들보는 기둥 앞에, 뒤로 돈 들보는 기둥 뒤에 놓인다. 하나의 붙박이 값을 쓰면 어느
        각도에서든 뒤 들보가 앞 기둥 위로 올라온다.
        끝은 기둥 속(반지름 0.62)에 파묻히므로 뚜껑을 안 덮는다 — 단면이 안 비친다. */
-    ([[0, 1], [1, 2], [0, 2]] as [number, number][]).forEach(([i9, j9]) => {
-      const a9 = PILLARS9[i9];
-      const b9 = PILLARS9[j9];
+    /* ★ 연결팔은 **마름모**다(요청: "기둥 사이 잇는 연결팔은 마름모 형태 — 기둥은 없지만 총 4개의 부위를 연결") — 세
+       기둥(왼·뒤·오른)에 앞쪽 꼭짓점(기둥 없음) 하나를 더해 네 변으로 돈다. */
+    const FRONT9: [number, number, number, number] = [0, 2.4, 0, 0];
+    const NODES9 = [...PILLARS9, FRONT9];
+    ([[0, 1], [1, 2], [2, 3], [3, 0]] as [number, number][]).forEach(([i9, j9]) => {
+      const a9 = NODES9[i9];
+      const b9 = NODES9[j9];
       const mx9 = (a9[0] + b9[0]) / 2;
       const my9 = (a9[1] + b9[1]) / 2;
       const BZ9 = 1.55;   // 들보 높이 — 기둥 밑동(z 0.8) 바로 위다
