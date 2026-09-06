@@ -4665,8 +4665,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       return [
         // 받침 원반도 제 깊이(지적: 기둥 바닥의 원들이 안 가려짐).
         ...tagKey([
-          bodyFace(discPath3(px, py, 0.45, 1.6)),
-          sideFace(discPath3(px, py, 0.42, 1.6), 0.25),
+          bodyFace(discPath3(px, py, 0.45, 1.1)),   // 받침 지름 축소(요청): 1.6 → 1.1
+          sideFace(discPath3(px, py, 0.42, 1.1), 0.25),
         ], depthNow(px, py)),
         /* 끝을 도려내고 팁을 꽂는다(재재재지적: 화살촉처럼 튀지 않게) — 팁 원뿔이
            그 높이의 기둥 굵기보다 늘 살짝 굵어 기둥 끝을 완전히 감싼다.
@@ -4713,7 +4713,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* ★ 기둥을 **모서리에 심는다**(지적: "기둥들도 45도에 보면 양쪽의 기둥이 위치가 좀 어색함") — 5.6(대각 반지름
        7.9)은 피라미드 모서리(6.36)보다 1.5 바깥이라, 45도에서 양옆 기둥이 몸과 떨어진 허공에 서 보였다. 4.9(반지름
        6.9)로 들이면 받침 원반이 밑동 모서리에 물리고 기둥 아랫동이 몸에 가려져 심긴 것으로 읽힌다. */
-    const PX9 = 4.5;   // 4.9 → 4.5(재지적: "기둥들은 네 모서리에 정확히 위치") — 몸 밑변 반폭 4.5 = 모서리 꼭짓점 그 자리.
+    const PX9 = 5.0;   // 4.9 → 4.5 → 5.0(재요청: "기둥을 좀더 바깥으로") — 모서리 꼭짓점(4.5)에서 대각으로 0.7 밖.
     const out: ShapeFace[] = [...pillar(-PX9, -PX9), ...pillar(PX9, -PX9)];
     // 몸통은 금빛 바탕(재작도) — 프로토스의 바탕색은 골드다.
     out.push(...paintBase(frustumFaces3(0, 0, 9, 9, 2.8, 2.8, 6.4), GOLD9));
@@ -4791,60 +4791,52 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         fill: glowLit("#c9fff6", "#5aecd8"),
       }),
     ], 45));
-    /* 사방 삼각형 출구 발판(정정: 바깥쪽이 뾰족한 삼각형) — 넓은 변이 피라미드
-       밑동에 기대고, 꼭짓점이 바깥 바닥을 향해 뾰족하게 뻗는다. 전엔 반대(안쪽
-       꼭짓점·바깥 넓은 변)였다. */
-    for (const ang of [0, 90, 180, 270]) {
-      const a = (ang * Math.PI) / 180;
-      const sx = Math.sin(a);
-      const sy = Math.cos(a);
-      const cxa = Math.cos(a);
-      const sya = -Math.sin(a);
-      /* 발판 재작(요청): 40% 확대(안변 반폭 2.2 → 3.08, 끝 8.4 → 10.1) · 두께 2배(0.5 슬래브) ·
-         더 가파르게(안변 z 1.5 → 2.4). 끝에는 **삼각뿔** 하나 — 높이는 본 건물의 1/4(≈1.85),
-         건물 중심 쪽으로 살짝 기울고 뾰족한 모서리(꼭짓점)가 바깥을 본다(phase 0 · ref 바깥).
-         발판도 제 깊이(지적: 기둥과 가려짐 순서) — 몸과 같은 금빛. */
+    /* ★ 발판은 **표창 한 장**이다(요청: "넥서스 본체 아래에 표창 모양의 판을 놓는다고 생각하고 그 표창의 각 날이
+       삐져나와 보이는 걸로") — 네 발판을 따로 세우던 것을 걷고, 바닥(z 0~0.5)에 네 날 표창 판 하나를 깐다. 날 끝은
+       네 경사면 밑변 중앙 방향(0·90·180·270도)으로 8.9까지, 날 사이 오목점은 대각(45도…)으로 반지름 5.0 — 몸
+       밑동(반폭 4.5·모서리 6.36) 안쪽이라 판 가운데는 몸이 가리고 날만 삐져나온다. 그리는 차례는 몸·받침보다
+       **앞**(키 −1)이라 판 가운데를 받침이 덮는다. 날 끝의 뿔은 마디 없는 4면 뿔(segs 1). */
+    {
       const TH9 = 0.5;
-      /* ★ 안변은 **경사면 위에서** 시작한다(지적: "발판 시작부가 이상해 — 경사면의 표면에서 시작해야 하는데")
-         — 안변이 4.2에 못 박혀 있었는데, 그 높이(2.4)의 피라미드 반폭은 half(2.4) ≈ 3.34라 0.9만큼 허공에서
-         시작했다. 안변의 자리를 그 높이의 반폭에서 0.25 안쪽으로(파묻힌 채) 잡는다 — 슬래브 아랫면은 더
-         낮은 높이라 반폭이 커지므로, 안변이 경사를 따라 저절로 기운다. */
-      /* ★ 발판은 **땅에 놓인 판**이다(재지적: "넥서스 발판은 땅에 닿아 있어야 해") — 경사면 중턱(z 2.4)에서
-         내려오는 비탈이 아니라, 두께 0.5의 평판이 바닥(z 0~0.5)에 깔린다. 안변은 밑동 받침(반폭 ≈ 4.6)에
-         0.2 파묻힌 4.4에서 시작해 끝 8.9까지 나간다. 끝의 삼각뿔은 그대로 발판 윗면(0.5)에 앉는다. */
-      const tri9 = (dz9: number): [number, number, number][] => {
-        const z9 = 0.5 + dz9;
-        const ri9 = 4.4;
-        return [
-          // 20% 축소(재요청): 반폭 3.08 → 2.46, 끝 10.1 → 8.9.
-          [sx * ri9 + cxa * 2.46, sy * ri9 + sya * 2.46, z9],
-          [sx * ri9 - cxa * 2.46, sy * ri9 - sya * 2.46, z9],
-          [sx * 8.9, sy * 8.9, z9],
-        ];
+      const STAR_R = 8.9;
+      const STAR_IN = 5.0;
+      const star9 = (z9: number): [number, number, number][] => {
+        const pts: [number, number, number][] = [];
+        for (let k9 = 0; k9 < 4; k9 += 1) {
+          const a9 = (k9 * Math.PI) / 2;
+          pts.push([Math.sin(a9) * STAR_R, Math.cos(a9) * STAR_R, z9]);
+          const b9 = a9 + Math.PI / 4;
+          pts.push([Math.sin(b9) * STAR_IN, Math.cos(b9) * STAR_IN, z9]);
+        }
+        return pts;
       };
-      const hi9 = tri9(0); const lo9 = tri9(-TH9);
+      const hi9 = star9(TH9); const lo9 = star9(0);
       const padF: ShapeFace[] = [];
-      for (let i9 = 0; i9 < 3; i9 += 1) {
-        const j9 = (i9 + 1) % 3;
+      for (let i9 = 0; i9 < hi9.length; i9 += 1) {
+        const j9 = (i9 + 1) % hi9.length;
         const w9 = polyPath3([lo9[i9], lo9[j9], hi9[j9], hi9[i9]]);
-        const mx9 = (hi9[i9][0] + hi9[j9][0]) / 2 - sx * 6; const my9 = (hi9[i9][1] + hi9[j9][1]) / 2 - sy * 6;
-        const ml9 = Math.hypot(mx9, my9) || 1;
-        const fl9 = faceLight(mx9 / ml9, my9 / ml9, 0.2);
+        // 변의 바깥 법선 — 변 방향을 90도 돌린 것 중 변 중점 쪽(밖)을 향하는 것.
+        const ex9 = hi9[j9][0] - hi9[i9][0]; const ey9 = hi9[j9][1] - hi9[i9][1];
+        const mx9 = (hi9[i9][0] + hi9[j9][0]) / 2; const my9 = (hi9[i9][1] + hi9[j9][1]) / 2;
+        let nx9 = ey9; let ny9 = -ex9;
+        if (nx9 * mx9 + ny9 * my9 < 0) { nx9 = -nx9; ny9 = -ny9; }
+        const nl9 = Math.hypot(nx9, ny9) || 1;
+        const fl9 = faceLight(nx9 / nl9, ny9 / nl9, 0.2);
         padF.push([w9, 1, GOLDD] as ShapeFace, ...(fl9.visible ? fl9.face(w9) : [sideFace(w9, 0.4)]));
       }
       const top9 = polyPath3(hi9);
-      const flT9 = faceLight(sx, sy, 0.55);
-      /* 발판은 **받침과 같은 짙은 금**이다(지적: "발판 끝쪽이 위로 들린 것처럼 보이는데") — 몸과 같은 밝은 금이면
-         뒤쪽 발판의 드러난 끝이 경사면의 연장(들린 판)으로 읽혔다. 밑동 받침(GOLDD) 색이면 땅에 깔린 단의 일부로
-         읽힌다. 그리는 차례는 이미 옳다(몸 뒤 → 몸이 안쪽을 가린다). */
-      padF.push([top9, 1, GOLDD] as ShapeFace, ...(flT9.visible ? flT9.face(top9) : [topFace(top9, 0.18)]));
-      // 끝 뿔 — 밑면은 발판 끝 위, 꼭대기는 안쪽으로 0.6 기운다. **4면 뿔**(요청: "발판 끝의 뿔은 4면체 뿔이어야").
-      padF.push(...paintBase(spirePillar({
-        // 폭을 좁혀 발판 끝에 맞춘다(재요청): w 0.95 → 0.5, 밑동을 7.85로 당겨 발판 폭(반폭 0.55) 안에 든다.
-        x: 0, y: 0, h: 1, w: 0.5, tipW: 0.02, segs: 2, sides: 4, phase: Math.PI / 4, ref: [sx, sy, 0], caps: "none",
-        path: (t9: number): [number, number, number] => [sx * (7.85 - 0.6 * t9), sy * (7.85 - 0.6 * t9), 0.5 + 1.85 * t9],
-      }), GOLD9));
-      out.push(...tagKey(padF, depthNow(sx * 6.5, sy * 6.5)));
+      padF.push([top9, 1, GOLDD] as ShapeFace, topFace(top9, 0.18));
+      out.push(...tagKey(padF, depthNow(0, 0) - 1));
+      // 날 끝 뿔 — 밑면은 날 끝 위, 꼭대기는 안쪽으로 0.6 기운다. 마디 없는 4면 뿔(요청).
+      for (const ang of [0, 90, 180, 270]) {
+        const a = (ang * Math.PI) / 180;
+        const sx = Math.sin(a);
+        const sy = Math.cos(a);
+        out.push(...tagKey(paintBase(spirePillar({
+          x: 0, y: 0, h: 1, w: 0.5, tipW: 0.02, segs: 1, sides: 4, phase: Math.PI / 4, ref: [sx, sy, 0], caps: "none",
+          path: (t9: number): [number, number, number] => [sx * (7.85 - 0.6 * t9), sy * (7.85 - 0.6 * t9), TH9 + 1.85 * t9],
+        }), GOLD9), depthNow(sx * 7.6, sy * 7.6)));
+      }
     }
     out.push(...pillar(-PX9, PX9), ...pillar(PX9, PX9));
     /* 옆면 사이언 빗살(사진) — 몸이 금빛이 된 만큼 빗살은 종족 팔레트의 사이언으로
