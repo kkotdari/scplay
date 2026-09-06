@@ -22467,10 +22467,12 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
             g9.addColorStop(1, "#f0a050");
             ctx.globalAlpha = 1;
             ctx.fillStyle = g9;
+            /* 밑변은 **호**다(지적: "가시가 원래는 입체라 밑변의 모양도 호여야") — 원뿔을 위에서 비껴 보면 밑동
+               단면이 타원의 아래 반호로 보인다. 지면 눌림(2D 2:1 관례·3D 30도 눌림 0.5)으로 세로 반지름을 잡는다. */
             ctx.beginPath();
-            ctx.moveTo(x0 - hw9, y0);
+            ctx.moveTo(x0, y0 - hgt);
             ctx.lineTo(x0 + hw9, y0);
-            ctx.lineTo(x0, y0 - hgt);
+            ctx.ellipse(x0, y0, hw9, hw9 * 0.5, 0, 0, Math.PI);
             ctx.closePath();
             ctx.fill();
             continue;
@@ -22508,9 +22510,11 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
               ctx.fillStyle = gg9;
               ctx.beginPath();
               // 밑변도 솟은 몫(gz9)만큼 — 성큰 가시와 같은 까닭(땅에서 드러난 몫이 끝부분이라 밑변은 끝에 가서야 최대).
-              ctx.moveTo(sx9 - hw9 * gz9, sy9);
-              ctx.lineTo(sx9 + hw9 * gz9, sy9);
-              ctx.lineTo(sx9, sy9 - HH9 * gz9);
+              // 밑변은 호(입체 원뿔의 밑동 단면 — 성큰 가시와 같은 규약).
+              const bw9 = hw9 * gz9;
+              ctx.moveTo(sx9, sy9 - HH9 * gz9);
+              ctx.lineTo(sx9 + bw9, sy9);
+              ctx.ellipse(sx9, sy9, bw9, bw9 * 0.5, 0, 0, Math.PI);
               ctx.closePath();
               ctx.fill();
             }
