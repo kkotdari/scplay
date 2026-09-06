@@ -281,6 +281,15 @@ export function drawMapGrid(
            바위처럼 갈래 안에서 갈리는 결이 그 한 겹으로 살아난다.
        판 3이 아닌 옛 지도는 종전 색표로 그대로 물러난다. */
     const realRGB = mt.rgbAt;
+    /* ★ 타일에서 뽑은 색은 **채도를 조금 빼고 살짝 파스텔로**(요청: "너무 쨍한 거 같아 … 약간 파스텔화") —
+       밝기(luma)와 25% 섞어 채도를 내리고, 흰색 쪽으로 8% 올린다. 갈래 중앙값과 칸별 덧칠 둘 다 이 문을 지난다. */
+    const SOFT_K = 0.25;
+    const PASTEL_K = 0.08;
+    const soften = (c: readonly number[]): [number, number, number] => {
+      const lum = 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2];
+      const f = (v: number): number => Math.round(Math.min(255, (v + (lum - v) * SOFT_K) * (1 - PASTEL_K) + 255 * PASTEL_K));
+      return [f(c[0]), f(c[1]), f(c[2])];
+    };
     /** 그 갈래에 든 타일들의 실제 색 중앙값 — 평균이 아니라 중앙값인 까닭은, 갈래
      *  안에 섞인 얼룩(풀·바위)이 평균을 끌어당겨 어느 쪽도 아닌 색이 되기 때문이다. */
     const midColor = (test: (i: number) => boolean, fallback: string): string => {
@@ -301,7 +310,8 @@ export function drawMapGrid(
         a.sort((p9, q9) => p9 - q9);
         return a[a.length >> 1];
       };
-      return `rgb(${mid(rs)},${mid(gs)},${mid(bs)})`;
+      const sc = soften([mid(rs), mid(gs), mid(bs)]);
+      return `rgb(${sc[0]},${sc[1]},${sc[2]})`;
     };
 
     // ① 바탕 — 물·우주로 통째로 깐다. 땅이 그 위를 덮는다.
@@ -327,6 +337,12 @@ export function drawMapGrid(
        제 단을 제 색으로 덮으면, 남는 것은 아랫변에서 아래로 뻗은 띠뿐이다 — 곧 우리
        쪽을 보는 절벽면이고, 곡선 윤곽을 그대로 따라간다. */
     const wallUnit = P * 0.55 * wallScale;
+    /* ★ 램프는 **턱 없이 잇는다**(지적: "램프가 잘 표현이 안 되는 거 같아 — 언덕 위와 아래가 테두리나 층 없이 연결된
+       모양으로") — 단 경계(pL)가 램프 칸을 가로지르므로 절벽 띠와 흰 윤곽선이 램프 위에 그어져 계단이 됐다. 띠와
+       윤곽선을 그릴 때 램프 칸을 클립으로 빼면 그 자리는 위 단 색과 램프 색이 그대로 맞닿아 비탈로 읽힌다. */
+    let hasRamp = false;
+    for (let i = 0; i < n9; i += 1) if (ramp[i] === 1) { hasRamp = true; break; }
+    const noRampPath = hasRamp ? pathOf((i) => ramp[i] !== 1) : null;
     for (let L = 1; L <= 3; L += 1) {
       const has = (): boolean => {
         for (let i = 0; i < n9; i += 1) if (lvl[i] >= L && isLand(i)) return true;
@@ -336,6 +352,7 @@ export function drawMapGrid(
       const pL = pathOf((i) => lvl[i] >= L && isLand(i));
       // 벽띠 두 겹 — 붙은 쪽이 짙고 바닥으로 갈수록 사라진다.
       ctx.save();
+      if (noRampPath) ctx.clip(noRampPath, "evenodd");   // 램프 칸에는 절벽 띠를 안 깐다
       ctx.translate(0, wallUnit * 0.45);
       ctx.fillStyle = "rgba(6,10,20,0.30)";
       ctx.fill(pL, "evenodd");
@@ -347,9 +364,12 @@ export function drawMapGrid(
         terrainFill(mt.tileset, L, true, false));
       ctx.fill(pL, "evenodd");
       /* 마루 테 — 절벽선이 위에서 읽히는 자리다. 곡선을 얇게 한 줄 긋는다. */
+      ctx.save();
+      if (noRampPath) ctx.clip(noRampPath, "evenodd");   // 램프 칸에는 흰 윤곽선도 안 긋는다
       ctx.strokeStyle = "rgba(255,255,255,0.34)";
       ctx.lineWidth = Math.max(1, P * 0.09);
       ctx.stroke(pL);
+      ctx.restore();
     }
 
     /* ④ 절벽면 — 고도가 있는데 못 걷는 칸. 위에서 제 단 색으로 덮였으므로 여기서
@@ -393,7 +413,8 @@ export function drawMapGrid(
           let runStart = 0;
           let runC = "";
           for (let x = 0; x <= w; x += 1) {
-            const c9 = x < w && walk[y * w + x] === 1 ? realRGB(x, y) : null;
+            const c0 = x < w && walk[y * w + x] === 1 ? realRGB(x, y) : null;
+            const c9 = c0 ? soften(c0) : null;
             const col = c9 ? `rgb(${c9[0]},${c9[1]},${c9[2]})` : "";
             if (col === runC) continue;
             if (runC) {
