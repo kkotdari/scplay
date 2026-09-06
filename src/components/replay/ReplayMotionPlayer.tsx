@@ -4677,7 +4677,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            몸은 6.8까지(반폭 0.85 → 0.3), 그 위에 아쿠아 팁 원뿔을 꽂는다 — 팁 밑동(0.34)이 몸 끝(0.3)보다 살짝
            굵어 이음을 감싼다(옛 주석의 그 규약). */
         ...spirePillar({
-          x: px, y: py, z0: 0.4, h: 6.4, w: 0.85, tipW: 0.3, sides: 8, segs: 3, fill: "#d4bd3c",
+          // 밑동 0.8배(요청: "진짜 기둥의 밑동도 0.8배 — 그 위도 자연스럽게 축소되어 이어지게"): 0.85 → 0.68, 끝 0.3 → 0.24.
+          x: px, y: py, z0: 0.4, h: 6.4, w: 0.68, tipW: 0.24, sides: 8, segs: 3, fill: "#d4bd3c",
         }),
         /* 오벨리스크 보석은 **개인색**이다(지적: "넥서스 사선에서 개인색 장식 포인트가
            안보임") — 여태 여기까지 사이언으로 못 박혀 있어서, 화면에 남은 개인색은
@@ -4695,7 +4696,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            glowLit은 그 깃발 하나를 보고 색을 고른다 — 꺼지면 식은 아쿠아, 켜지면 흰빛에
            가깝게. 모양은 그대로고 색만 갈리므로 굽는 삯도 안 는다. */
         ...spirePillar({
-          x: px, y: py, z0: 6.8, h: 2.1, w: 0.34, tipW: 0.02, sides: 8, segs: 2,
+          x: px, y: py, z0: 6.8, h: 2.1, w: 0.27, tipW: 0.02, sides: 8, segs: 2,   // 몸 끝(0.24)을 감싸는 0.27
           fill: glowLit("#e6fffb", "#83f7e8"),
         }),
         // (걷어냄) 기둥 어깨의 타원 하이라이트 — 리본 시절의 광택 대용이었다. 진짜 원뿔은 면마다 빛을 받는다.
@@ -4799,7 +4800,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     {
       const TH9 = 0.5;
       const STAR_R = 8.9;
-      const STAR_IN = 5.0;
+      const STAR_IN = 4.0;   // 5.0 → 4.0(요청: 날 폭 줄이기) — 오목점이 안으로 들수록 날이 가늘다(밑변에서 반폭 2.9 → 2.05).
       const star9 = (z9: number): [number, number, number][] => {
         const pts: [number, number, number][] = [];
         for (let k9 = 0; k9 < 4; k9 += 1) {
@@ -4822,18 +4823,25 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         if (nx9 * mx9 + ny9 * my9 < 0) { nx9 = -nx9; ny9 = -ny9; }
         const nl9 = Math.hypot(nx9, ny9) || 1;
         const fl9 = faceLight(nx9 / nl9, ny9 / nl9, 0.2);
-        padF.push([w9, 1, GOLDD] as ShapeFace, ...(fl9.visible ? fl9.face(w9) : [sideFace(w9, 0.4)]));
+        /* 등 돌린 옆면은 **안 그린다**(지적: "발판 옆면 투명해 보이는 이슈") — 위에서 보는 판의 뒷벽은 윗면이 덮어야
+           하는데, 어두운 덮개(sideFace)까지 얹은 뒷벽이 윗면 가장자리에서 비쳐 판이 유리처럼 읽혔다. 보이는 벽만. */
+        if (!fl9.visible) continue;
+        padF.push([w9, 1, GOLDD] as ShapeFace, ...fl9.face(w9));
       }
       const top9 = polyPath3(hi9);
       padF.push([top9, 1, GOLDD] as ShapeFace, topFace(top9, 0.18));
-      out.push(...tagKey(padF, depthNow(0, 0) - 1));
-      // 날 끝 뿔 — 밑면은 날 끝 위, 꼭대기는 안쪽으로 0.6 기운다. 마디 없는 4면 뿔(요청).
+      /* 판의 키는 **맨 뒤**(지적: "발판 위 뿔 키값 수정") — 키 −1이면 뒤쪽 날의 뿔(깊이 −5.4)이 판보다 먼저
+         그려져 판 윗면이 뿔 밑동을 덮었다. 판은 바닥에 깔린 것이라 무엇보다 먼저 그려도 된다. */
+      out.push(...tagKey(padF, depthNow(0, 0) - 20));
+      /* 날 끝 뿔 — 밑면은 날 끝 위, 꼭대기는 안쪽으로 0.6 기운다. 마디 없는 **삼각뿔**(재요청: "사면체 뿔은 밑면이
+         삼각형이어야지, 삼각형의 한 모서리가 발판의 바깥쪽을 향하게") — sides 3 · phase 0 · ref 바깥이면 꼭짓점 하나가
+         바깥을 본다. */
       for (const ang of [0, 90, 180, 270]) {
         const a = (ang * Math.PI) / 180;
         const sx = Math.sin(a);
         const sy = Math.cos(a);
         out.push(...tagKey(paintBase(spirePillar({
-          x: 0, y: 0, h: 1, w: 0.5, tipW: 0.02, segs: 1, sides: 4, phase: Math.PI / 4, ref: [sx, sy, 0], caps: "none",
+          x: 0, y: 0, h: 1, w: 0.5, tipW: 0.02, segs: 1, sides: 3, phase: 0, ref: [sx, sy, 0], caps: "none",
           path: (t9: number): [number, number, number] => [sx * (7.85 - 0.6 * t9), sy * (7.85 - 0.6 * t9), TH9 + 1.85 * t9],
         }), GOLD9), depthNow(sx * 7.6, sy * 7.6)));
       }
