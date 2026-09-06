@@ -231,7 +231,7 @@ for (const race of RACES) {
     body: `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>${css}
     html,body{margin:0;background:#1b1e24;} #root{width:${VIEW}px;}
     .scr-motion-fog{display:none!important}</style></head><body><div id="root"></div></body></html>` }));
-  await page.goto("http://scene-sheet.local/#nocreep");   // 크립 끔(격자가 보여야 한다)
+  await page.goto(flag("--creep", false) ? "http://scene-sheet.local/" : "http://scene-sheet.local/#nocreep");   // 크립 끔(격자가 보여야 한다) — --creep이면 켠다
   await page.addScriptTag({ content: js, type: "module" });
   await page.waitForFunction("!!window.__mount");
   await page.evaluate(([m, pl, wj, tb, v]) => window.__mount(m, pl, wj, tb, v),
