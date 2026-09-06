@@ -4071,11 +4071,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            기운 앞면으로 올린다. fyAt이 그 높이의 앞면 y를 주므로 z만 바꾸면 면에 붙는다. */
         // 조금 안쪽으로(가운데 2.55 → 2.35)·20% 축소, 그리고 **세로가 긴** 창(재지적: "가로가 세로보다 좁은 형태").
         // 창 1.0×1.4, 등은 그 안의 가로 띠 0.64×0.28.
+        // 키 2.5 → 2.6(창), 2.55 → 2.62(임자색 등) — 격납구 문틀 띠(2.55)가 앞면 귀퉁이를 꼭대기까지 덮으므로 그 위에.
         out.push(...tagKey([
           [bq9(1.85, 2.85, 4.2, 5.6), 1, NEAR_BLACK] as ShapeFace,     // 개구부(창)
           [bq9(1.85, 2.85, 4.07, 4.22), 1, "#b9bec6"] as ShapeFace,    // 창턱
-        ], 2.5));
-        pc.push(...tagKey([[bq9(2.03, 2.67, 4.8, 5.08, 0.05), 1] as ShapeFace], 2.55));
+        ], 2.6));
+        pc.push(...tagKey([[bq9(2.03, 2.67, 4.8, 5.08, 0.05), 1] as ShapeFace], 2.62));
       }
     }
 
@@ -4126,7 +4127,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         bay.push([polyPath3([[ix9(BZ0), yy9, BZ0], [sxAt(BZ0), yy9, BZ0], [sxAt(BZ1), yy9, BZ1], [ix9(BZ1), yy9, BZ1]]), 1, "#555c67"] as ShapeFace);
       }
       // 경사면 — 안쪽 높은 바닥에서 벽 선까지 내려온다
-      const RX0 = ix9(1.5) + 0.05; const RZ0 = 1.5; const RX1 = sxAt(0.9) + 0.02; const RZ1 = 0.05;
+      // 경사면 끝은 몸 바닥(ZB0)까지만 — 그 아래(0.05)까지 내리면 몸 밑으로 삐져나온 몫이 앞면 쪽으로 비쳤다.
+      const RX0 = ix9(1.5) + 0.05; const RZ0 = 1.5; const RX1 = sxAt(0.9) - 0.05; const RZ1 = ZB0;   // 끝도 벽 안쪽(−0.05)
       const ramp9 = polyPath3([[RX0, BY0 + 0.15, RZ0], [RX0, BY1 - 0.15, RZ0], [RX1, BY1 - 0.15, RZ1], [RX1, BY0 + 0.15, RZ1]]);
       bay.push([ramp9, 1, "#4a515b"] as ShapeFace, topFace(ramp9, 0.1));
       // 바깥(내려가는 쪽)을 가리키는 노란 삼각 유도선 셋
@@ -4163,6 +4165,27 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         } else {
           quad9((z) => -fyAt(z), () => BY0, z0, z1);                 // 왼쪽 띠
           quad9(() => BY1, (z) => fyAt(z), z0, z1);                  // 오른쪽 띠
+        }
+      }
+      /* ★ 앞·뒷면에도 문틀을 댄다(재지적: "팩토리 사출구가 앞면에도 영향을 줘서 앞면 쪽 키도 신경 써야") — 옆면이
+         거의 모서리로 설 때(facingRatio 0.06 언저리) 깊이 1.55만큼 안쪽에 있는 속벽이 모서리를 넘어 **앞면(또는
+         뒷면) 위로** 투영된다. 옆면 띠만으로는 그 몫이 안 덮여 앞면에 어두운 세로 띠가 생겼다. 앞·뒷면의 오른쪽
+         귀퉁이(x = sxAt − DEEP − 0.3 … sxAt)를 개구부 높이(BZ0~BZ1)만큼 같은 키(2.55)로 한 번 더 덮는다 — 몸과
+         같은 재질·명암이라 이음매가 없고, 앞면 창(z 4.2~)·경사발(z ≤ 0.92)과는 높이가 안 겹친다. */
+      for (const [sy9, ny9] of [[1, 1], [-1, -1]] as [1 | -1, 1 | -1][]) {
+        if (facingRatio(0, ny9) <= 0.04) continue;
+        const flF9 = faceLight(0, ny9, 0.3);
+        /* 높이는 몸 바닥부터 **꼭대기까지** — 속벽은 앞면보다 1.9~4.3 뒤에 있어 화면에서는 그만큼 위로 올라가
+           앞면의 z 2~6 자리에 겹친다(확대 실측). 개구부 높이만 덮으면 위쪽이 그대로 샜다. */
+        const zs2 = [ZB0, ZW0, ZW1, ZT].sort((a9, b9) => a9 - b9);
+        for (let i9 = 0; i9 + 1 < zs2.length; i9 += 1) {
+          const z0 = zs2[i9]; const z1 = zs2[i9 + 1];
+          if (z1 - z0 < 1e-3) continue;
+          const d9 = polyPath3([
+            [sxAt(z0) - DEEP - 0.6, sy9 * (fyAt(z0) + 0.01), z0], [sxAt(z0) + 0.01, sy9 * (fyAt(z0) + 0.01), z0],
+            [sxAt(z1) + 0.01, sy9 * (fyAt(z1) + 0.01), z1], [sxAt(z1) - DEEP - 0.6, sy9 * (fyAt(z1) + 0.01), z1],
+          ]);
+          frame.push([d9, 1] as ShapeFace, ...(flF9.visible ? flF9.face(d9) : [sideFace(d9, 0.4)]));
         }
       }
       out.push(...tagKey(frame, 2.55));
