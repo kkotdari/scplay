@@ -3245,6 +3245,8 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
   const engageHoldRef = { current: new Map<string, { x: number; y: number; t0: number; tLast: number; adv: number; px: number; py: number; fx: number; fy: number }>() };
   const hdgMemRef = { current: new Map<string, { h: number; t: number; tg: number; px: number; py: number; lb: number }>() };
   const dispHdgRef = { current: new Map<string, { x: number; y: number; h: number; t: number }>() };
+  /** 포탑이 **마지막으로 겨눈 각**(요청: "포탑은 마지막 공격한 방향 유지") — 표적이 사라져도 그 각을 지킨다. */
+  const aimMemRef = { current: new Map<string, number>() };
   const fogStampRef = { current: { key: "", at: -1e9, ms: -1e9, cost: 0, filled: false } };
   /** 안개를 다시 쌓은 횟수(진단) */
   let fogStampN9 = 0;
@@ -3362,7 +3364,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
   };
   const reset = (): void => {
     fireStartRef.current.clear(); aimLockRef.current.clear(); burrowAtRef.current.clear(); gasLitRef.current.clear();
-    engageHoldRef.current.clear(); hdgMemRef.current.clear(); dispHdgRef.current.clear();
+    engageHoldRef.current.clear(); hdgMemRef.current.clear(); dispHdgRef.current.clear(); aimMemRef.current.clear();
     fogStampRef.current = { key: "", at: -1e9, ms: -1e9, cost: 0, filled: false }; lastTRef.current = -1;
   };
   const setView = (v: EngineView9): void => { view = v; };
@@ -7149,6 +7151,13 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
          포탑이 늘 뒤쪽에 어긋나 있는 것처럼 읽힌다. 반동은 알아볼 만큼만 있으면
          된다 — 0.09타일이면 몸의 8분의 1이다. */
       const [gfx, gfy] = posFrac(ax3 - gdx * 0.09 * fireK, ay3 - gdy * 0.09 * fireK);
+      /* ★ 표적이 없으면 **마지막으로 겨눈 각**을 지킨다(요청: "포탑은 마지막 공격한 방향 유지") — 여태는 차체 방향으로
+         되돌아가 교전이 끝날 때마다 포탑이 휙 돌았다. 한 번도 안 겨눈 포탑만 차체를 따르되, 시즈 모드는 **뒤쪽**
+         (차체 +180)을 본다(요청: "포신은 뒤쪽 향해야 함 — 일반 모드일 때랑 반대"). */
+      const aimKey9 = holdKey;
+      if (foeDeg !== null) aimMemRef.current.set(aimKey9, foeDeg);
+      const lastAim9 = aimMemRef.current.get(aimKey9);
+      const idleAim9 = lastAim9 ?? ((last.rotDeg ?? 0) + (kind0 === "tanksiege" ? 180 : 0));
       unitOps.push({
         // 포신 가려짐 해결(지적) — 곁 유닛의 z가 포탑을 얇게 자르지 않게 여유 있게.
         ...last, kind: gunKind, fx: gfx, fy: gfy, z: last.z + 30,
@@ -7161,7 +7170,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
            물려받아, 옆에서 오는 적을 차체째 돌지 않고는 겨눌 수 없었다. 표적이
            없을 때만 차체를 따른다(포신이 허공을 겨눈 채 굳지 않게).
            축은 포탑 링이다 — 위 tankTurret이 링을 모델 원점에 맞춰 둔 덕이다. */
-        rotDeg: foeDeg !== null ? foeDeg : last.rotDeg,
+        rotDeg: foeDeg !== null ? foeDeg : idleAim9,
         selRing: undefined, hpFrac: undefined, hpMax: undefined,
         tint: undefined, groundShadow: undefined,
       });

@@ -5891,10 +5891,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          위에 균형 있게 앉는다. */
       const pvt = (dy: number, t: number): [number, number] =>
         [0.95 + dy * c - t * sn, 5.8 + dy * sn + t * c];
-      const fb = pvt(1.9, 0);
-      const ft = pvt(1.9, 5);
-      const bb = pvt(-1.9, 0);
-      const bt = pvt(-1.9, 5);
+      /* 옆에서 보면 **앞뒤가 위아래보다 길게**(요청: "포드 옆에서 보면 위아래가 살짝 더 긴데 옆이 더 긴 형태로") —
+         앞뒤 ±1.9·높이 5(세로가 김) → 앞뒤 ±2.8·높이 4.4. 띠도 같은 비로 따라온다. */
+      const PL9 = 2.8; const PH9 = 4.4;
+      const fb = pvt(PL9, 0);
+      const ft = pvt(PL9, PH9);
+      const bb = pvt(-PL9, 0);
+      const bt = pvt(-PL9, PH9);
       const front = polyPath3([
         [rx - 0.75, fb[0], fb[1]], [rx + 0.75, fb[0], fb[1]],
         [rx + 0.75, ft[0], ft[1]], [rx - 0.75, ft[0], ft[1]],
@@ -5915,10 +5918,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          앞쪽을 띠로 두름") — 앞면에 붙이면 정면에서만 보이고 옆에서는 사라졌다. 옆면
          앞 끝을 세로로 두르면 어느 쪽에서 봐도 둘 중 하나는 보인다. 면보다 아주 조금
          (0.01) 밖에 띄워 z-싸움을 피한다. */
-      const bandF0 = pvt(1.9, 0.6);
-      const bandF1 = pvt(1.9, 4.6);
-      const bandB0 = pvt(1.18, 0.6);
-      const bandB1 = pvt(1.18, 4.6);
+      const bandF0 = pvt(PL9, 0.6);
+      const bandF1 = pvt(PL9, PH9 - 0.4);
+      const bandB0 = pvt(PL9 - 0.72, 0.6);
+      const bandB1 = pvt(PL9 - 0.72, PH9 - 0.4);
       const sideBand = (m2: 1 | -1): string => polyPath3([
         [rx + m2 * 0.76, bandF0[0], bandF0[1]], [rx + m2 * 0.76, bandF1[0], bandF1[1]],
         [rx + m2 * 0.76, bandB1[0], bandB1[1]], [rx + m2 * 0.76, bandB0[0], bandB0[1]],
@@ -8167,7 +8170,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   },
   /* 템플러 아카이브(리디자인, 실물 참고) — 큰 황금 공 몸에 테 물린 파란 렌즈가
      위에 박히고, 왼뒤로 뿔 한 쌍이 솟으며, 오른앞엔 골진 껍데기 꼬리(끝 원반). */
-  archives: () => {
+  archives: () => withModelSpin(-90, () => {   // −90도 요잉(요청: "아카이브 -90도 요잉") — 목·반구가 왼쪽으로
     /* 템플러 아카이브(재작도·요청) ────────────────────────────────────────────
        요청 그대로다: "앞 반구 하나만 남기고 몸에서 앞으로 곧바로 나오는 반원기둥형
        긴 목끝에 반구가 붙게. 반구의 장식은 다 제거하고 아쿠아 얇은 렌즈 한 장만
@@ -8253,7 +8256,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          칠하니 건물이 임자 색 덩어리가 됐다. 몸을 두르는 낮은 테라 사방에서 보인다. */
       ...tagKey(cylinderFaces3(0, 0, 2.9, 0.7), -1),
     ]);
-  },
+  }),
   /* 로보틱스 서포트 베이(실물 참고) — 톱니 테 받침판 가운데 오목한 대접(심 발광),
      그 둘레로 바깥으로 기운 당근 포드들과 굽은 관 팔. */
   /* 로보틱스 서포트 베이(사진 재작도) ─────────────────────────────────────────────
@@ -10228,12 +10231,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   tankgun: () => tankTurret(),
   /* 시즈 모드(사진 기준) — 네 귀퉁이로 편 버팀다리 + 한 단 솟은 포탑 + 긴 포신.
      궤도·차체는 평상시와 **같은 부품**이다(지적: 두 모드의 몸통이 달라 보였다). */
-  tanksiege: () => [...tankTracks(), ...siegeLegs(), ...tankHull(), ...siegeTurret()],
+  // 시즈 모드는 +90도 요잉(요청: "시즈모드 탱크 +90도 요잉") — 차체·다리·합본이 같은 각. 포신은 제 조준각으로 따로 돈다.
+  // 합본(저배율·도록)의 포신은 차체 +180 = 절대 180(뒤쪽)(요청) — 앱의 포탑 판은 엔진이 idleAim9로 같은 각을 준다.
+  tanksiege: () => withModelSpin(90, () => [...tankTracks(), ...siegeLegs(), ...tankHull(), ...withModelSpin(90, siegeTurret)]),
   /* 발포 반동용 분해(요청) — 시즈 차체/포탑·포신 분리판. */
-  tanksiegebody: () => [...tankTracks(), ...siegeLegs(), ...tankHull()],
+  tanksiegebody: () => withModelSpin(90, () => [...tankTracks(), ...siegeLegs(), ...tankHull()]),
   tanksiegegun: () => siegeTurret(),
   /* 시즈 버팀다리 홑판 — 시즈 전환 동작(요청)에서 탱크 차체 위에 attach로 겹쳐 배율(attachK)로 뻗고 접는다. */
-  tanksiegelegs: () => siegeLegs(),
+  tanksiegelegs: () => withModelSpin(90, () => siegeLegs()),
   /* 벌처(사진 기준 재작도 — 지적: "기존 너무 단순") ────────────────────────────
      사진이 말하는 것:
        · **길다**. 옆에서 본 실루엣이 3:1쯤으로 납작하고, 그 절반이 앞으로 뻗은
