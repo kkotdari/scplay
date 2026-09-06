@@ -8346,8 +8346,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const out: ShapeFace[] = [];
     const GOLD = "#d4af37"; const GOLD_D = "#a8862a"; const CYAN = "#5aecd8";
     const K = (x9: number, y9: number, add = 0): number => depthNow(x9, y9) * 1.6 + add;
-    const DK9 = 0.8 * 0.8;   // 아래 원판 0.8배(요청) → 다시 0.8배(재요청: "아래 본체+주변 판들 0.8배") — 받침·대접·발판이 함께 준다.
-    const HB9 = 0.8;         // 본체 높이도 같은 비(재요청) — 대접 통·우묵 계단.
+    const DK9 = 0.8 * 0.8 * 1.2;   // 아래 원판 0.8배(요청) → 0.8배(재요청) → 1.2배(재재요청: "아래 몸체와 옆 발판 1.2배") — 받침·대접·발판이 함께 변한다.
+    const HB9 = 0.8 * 1.2;         // 본체 높이도 같은 비 — 대접 통·우묵 계단.
     // ① 받침 팔각 판 + 대접(위로 벌어지는 절두 원통) + 안쪽 어두운 우묵 + 결정.
     // 받침은 둥근 판만(재지적: 네모 판 제거) — 아래 넓은 원판 + 위로 벌어지는 원통 대접.
     /* 본판을 줄인다(재요청: 5.0/4.4 → 3.5/3.1) — 발판이 둘레를 맡으니 대접만 남긴다. */
@@ -8372,8 +8372,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const at9 = (r9: number, w9: number): [number, number] => [cx9 * r9 * DK9 + ux9 * w9 * DK9, cy9 * r9 * DK9 + uy9 * w9 * DK9];
       /* 둘레 판 0.8배(요청) — 제 가운데(반지름 4.15)를 축으로 줄인다: 반지름 방향·접선 반폭 모두 0.8. */
       const SK9 = 0.8;
-      // 앞뒤 길이(반지름 방향)만 0.8배 더(재요청) — 폭(w)은 SK9 그대로.
-      const sr9 = (r9: number): number => 4.15 + (r9 - 4.15) * SK9 * 0.8;
+      // 앞뒤 길이(반지름 방향)만 0.8배 더(재요청) → 또 0.8배(재재요청) — 폭(w)은 SK9 그대로.
+      const sr9 = (r9: number): number => 4.15 + (r9 - 4.15) * SK9 * 0.8 * 0.8;
       out.push(...tagKey(paintBase(prismZFaces([
         at9(sr9(2.6), -1.05 * SK9), at9(sr9(2.6), 1.05 * SK9), at9(sr9(5.3), 1.45 * SK9),
         at9(sr9(5.7), 0.5 * SK9), at9(sr9(5.7), -0.5 * SK9), at9(sr9(5.3), -1.45 * SK9),
