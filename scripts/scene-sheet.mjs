@@ -103,7 +103,19 @@ function makeWorld(race) {
     const fp = TABLES.FOOTPRINT[n] ?? [3, 2];
     bldTrack(nameToId[n], x, y); labels.push([short(n), normOf(n, true), x, y + fp[1] / 2 + 0.6]);
   });
-  const yu = yb + Math.ceil(blds.length / 7) * 6.5 + 2.5;
+  /* 공사 중 모델도 한 칸씩(요청: "토스 소환구 저그 공사고치도 추가") — 판 8의 상태 바이트 0x80(아직 안 지어짐)을
+     20초부터 끝까지 실어 born > 1인 공사 생애를 만든다(truthLives.raising). 완성 비트가 안 오니 46초엔 공사 중이다. */
+  const wip = race === "프로토스" ? [["Gateway", "Warp-in", "warpin"]] : race === "저그" ? [["Hydralisk Den", "Cocoon", "cocoon"]] : [];
+  wip.forEach(([n, lab, kind], j) => {
+    const i = blds.length + j;
+    const x = X0 + (i % 7) * 6 + 2; const y = yb + Math.floor(i / 7) * 6.5 + 2;
+    const fp = TABLES.FOOTPRINT[n] ?? [3, 2];
+    tracks.push({ tag: tag++, owner: 0, type: nameToId[n], keys: [
+      [F(20), x * 32, y * 32, 0, 0x80, nameToId[n]], [F(GAME_SEC), x * 32, y * 32, 0, 0x80, nameToId[n]]], hp: null });
+    const v = TABLES.BLD_NORM[kind];
+    labels.push([lab, v === undefined ? "?" : `×${Number(v).toFixed(2)}`, x, y + fp[1] / 2 + 0.6]);
+  });
+  const yu = yb + Math.ceil((blds.length + wip.length) / 7) * 6.5 + 2.5;
   // 지상 줄(들) 먼저, 비행 줄(들)은 그 아래 — 비행 유닛은 위로 떠서 그려지니 윗줄과 겹치지 않게 사이를 더 띄운다.
   const ground = units.filter((n) => !TABLES.AIR[n]); const air = units.filter((n) => TABLES.AIR[n]);
   const COLS = 10;
@@ -128,7 +140,7 @@ function makeWorld(race) {
   for (const tr of tracks) { w.u32(tr.tag); w.u8(tr.owner); w.u16(tr.type); w.u32(tr.keys.length); w.u32(0); w.u32(0); w.u32(0); w.u8(0); }
   for (const tr of tracks) {
     let pf = 0; let px = 0; let py = 0; let pt = 0;
-    for (const [f, x, y, hb, st, ty] of tr.keys) { w.vz(f - pf); pf = f; w.vz(x - px); px = x; w.vz(y - py); py = y; w.u8(hb); w.u8(st & 0x0f); w.vz(ty - pt); pt = ty; }
+    for (const [f, x, y, hb, st, ty] of tr.keys) { w.vz(f - pf); pf = f; w.vz(x - px); px = x; w.vz(y - py); py = y; w.u8(hb); w.u8(st & 0xff); /* 상태 바이트 통째(0x80 = 아직 안 지어짐) */ w.vz(ty - pt); pt = ty; }
   }
   w.u32(0); w.u32(0); w.u32(0); w.u32(0); w.u32(0); w.u32(0); w.u16(119); w.u32(0);
   const motion = deflateSync(w.out()).toString("base64");
@@ -206,8 +218,9 @@ for (const race of RACES) {
      ("프레임 워커 오류(내용 없음)"). */
   await page.route("http://scene-sheet.local/*", (r) => r.fulfill({ contentType: "text/html",
     body: `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>${css}
-    html,body{margin:0;background:#1b1e24;} #root{width:${VIEW}px;}</style></head><body><div id="root"></div></body></html>` }));
-  await page.goto("http://scene-sheet.local/");
+    html,body{margin:0;background:#1b1e24;} #root{width:${VIEW}px;}
+    .scr-motion-fog{display:none!important}</style></head><body><div id="root"></div></body></html>` }));
+  await page.goto("http://scene-sheet.local/#nocreep");   // 크립 끔(격자가 보여야 한다)
   await page.addScriptTag({ content: js, type: "module" });
   await page.waitForFunction("!!window.__mount");
   await page.evaluate(([m, pl, wj, tb, v]) => window.__mount(m, pl, wj, tb, v),

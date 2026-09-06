@@ -2246,8 +2246,11 @@ function zergFace(y: number, z: number, s = 1, fill = ZERG_FLESH): ShapeFace[] {
 }
 /** 크립 갈퀴 바닥(지적: 콜로니 바닥은 동그라미가 아니라 갈퀴) — 사방으로 뻗는 납작한
  *  덩굴 조각들. */
+/** `#nocreep` 해시(도구용: scene-sheet 격자 비교) — 모델에 구운 크립 갈퀴도 함께 뺀다. */
+const NO_CREEP9 = typeof location !== "undefined" && /nocreep/.test(location.hash);
 function creepSplat(r: number): ShapeFace[] {
   const out: ShapeFace[] = [];
+  if (NO_CREEP9) return out;
   for (const ang of [0, 45, 90, 135, 180, 225, 270, 315]) {
     const a = (ang * Math.PI) / 180;
     const sx = Math.sin(a);
@@ -2269,6 +2272,7 @@ function creepSplat(r: number): ShapeFace[] {
    건물의 크립과 겹치며 자연스럽게 한 덩어리로 이어진다(같은 불투명 단색이라 이음매가
    없다). 얼룩 반점 몇 개가 생물 질감을 낸다. */
 function creepBlobFaces(seed: number): ShapeFace[] {
+  if (NO_CREEP9) return [];
   const N = 16;
   const pts: [number, number][] = [];
   for (let i = 0; i < N; i += 1) {
@@ -23814,7 +23818,8 @@ export default function ReplayMotionPlayer({
      (불길·연기·피)은 상태를 이미 체력바가 말하고 있으므로 '중'부터다.
      솎기(세 개체에 하나)와 LOD는 그대로라 저사양의 그리기 부담은 여전히 낮다. */
   const qBuildFx = quality >= 2;
-  const qCreep = quality >= 2;
+  // `#nocreep` 해시로 크립을 끈다(도구용: scene-sheet의 격자 비교 장면 — 크립이 격자를 덮는다).
+  const qCreep = quality >= 2 && !(typeof location !== "undefined" && /nocreep/.test(location.hash));
   const qOverlap = quality >= 3;
   const qPing = quality >= 3;
   /** 애니메이션(요청: "품질 저에서 모든 애니메이션 제거하기 / 필수적인거만 살림
