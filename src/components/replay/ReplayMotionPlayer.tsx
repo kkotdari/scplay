@@ -8170,96 +8170,106 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   },
   /* 템플러 아카이브(리디자인, 실물 참고) — 큰 황금 공 몸에 테 물린 파란 렌즈가
      위에 박히고, 왼뒤로 뿔 한 쌍이 솟으며, 오른앞엔 골진 껍데기 꼬리(끝 원반). */
-  /* 템플러 아카이브(재작도 — 사진 둘 대조, 요청: "사진 보고 작도를 잘해봐") ──────────────────────────────────
-     사진이 말하는 것:
-       ① 몸은 **둥근 금빛 돔**이고, 그 앞 위에 금테를 두른 **큰 시안 타원 렌즈**가 박혀 있다(정면의 눈).
-       ② 몸 앞에서 오른쪽으로 **마디진 외피**(굵은 관이 짙은 청록 띠로 나뉜다)가 바닥을 따라 호를 그리며 뻗고, 그 끝에
-          **작은 금 포드**(위에 시안 렌즈)가 땅에 앉는다.
-       ③ 왼쪽에는 **긴 뿔 둘**이 높이 솟고(하나가 더 높다), **둘은 땅에 누워** 왼쪽 아래로 뻗는다.
-     이 빌더는 −90도 요잉이라 모델 +y가 화면 오른쪽, −x가 화면 앞(아래), +x가 화면 위, −y가 화면 왼쪽이다. */
+  /* 템플러 아카이브(재작도 — 사용자 설명 대로) ──────────────────────────────────────────────
+     "가운데 반구형 위에 렌즈형 타원 보석이 박혀 있고, 앞쪽(−45도 방향이 앞)에 타원 보석이 박힌 낮은 덩어리가 있어. 그 앞
+      덩어리에서 뒤 타원형을 감싸는 낮은 벽이 있고 그 벽에는 세로로 흰색 철사가 쭉 붙어 있어. 그 낮은 벽 뒤쪽엔 세로로
+      납작한 판형 기둥이 세워져 있음. 반구형 뒤쪽에도 얇고 뒤로 길게 판형 꼬리가 세 개."
+     이 빌더는 −90도 요잉이라 모델 +y가 화면 오른쪽, −x가 화면 아래다 — 앞(화면 왼아래)은 모델 (−1,−1)/√2, 뒤는 그 반대. */
   archives: () => withModelSpin(-90, () => {
     const AQUA9 = "#5aecd8";
     const GOLD9 = "#d4bd3c";
     const GOLD_D9 = "#8a6f2a";
-    const TEAL9 = "#1f6b62";
+    const WIRE9 = "#f2f4f0";
     const out: ShapeFace[] = [];
-    // 받침 — 넓고 낮은 짙은 금 판.
-    out.push(...tagKey(paintBase(cylinderFaces3(0, 0, 3.3, 0.3, 0.2), GOLD_D9), -9));
-    // ① 몸 — 둥근 돔(반지름 2.6·높이 2.4·밑 0.5). 칠하지 않아 종족 바탕(금)이 든다.
-    const DZ0 = 0.5; const DR = 2.6; const DH = 2.4;
-    out.push(...tagKey(domeFaces3(0, 0, DR, DH, DZ0), 0));
-    /* 앞 위의 렌즈 — 돔 표면의 법선 n(−0.6, 0, 0.8) 자리에 붙는 타원(세로가 긴 눈). 금테(조금 큰 타원)를 먼저 깔고
-       시안 렌즈를 얹는다. 앞(−x)을 볼 때만 그린다. */
-    if (faceLight(-0.6, 0, 0.8).visible) {
-      const n9 = [-0.6, 0, 0.8] as const;
-      const c9 = [n9[0] * DR, 0, DZ0 + n9[2] * DH] as const;
-      const u9 = [0, 1, 0] as const;
-      const v9 = [0.8, 0, 0.6] as const;
-      const oval9 = (a9: number, b9: number, lift9: number): string => polyPath3(Array.from({ length: 14 }, (_, k9) => {
-        const th9 = (k9 / 14) * Math.PI * 2;
-        const cu9 = Math.cos(th9) * a9; const cv9 = Math.sin(th9) * b9;
-        return [
-          c9[0] + u9[0] * cu9 + v9[0] * cv9 + n9[0] * lift9,
-          c9[1] + u9[1] * cu9 + v9[1] * cv9 + n9[1] * lift9,
-          c9[2] + u9[2] * cu9 + v9[2] * cv9 + n9[2] * lift9,
-        ] as [number, number, number];
-      }));
-      out.push(...tagKey([
-        [oval9(1.15, 1.45, 0.02), 1, GOLD_D9] as ShapeFace,
-        [oval9(0.95, 1.22, 0.05), 1, glowLit("#a4f6eb", "#56cebe")] as ShapeFace,
-        [oval9(0.55, 0.72, 0.07), 1, glowLit("#e0fffb", "#99e5db")] as ShapeFace,
-      ], depthNow(-1.6, 0) * 1.6 + 2));
-    }
-    /* ② 마디진 외피 — 몸 앞(−x)에서 오른쪽(+y)으로 바닥을 따라 도는 굵은 관(반지름 2.95의 호, 사분원). 위가 둥근
-       납작 단면(oval)이고, 짙은 청록 띠 다섯이 마디를 가른다. 끝에 작은 포드. */
-    const arcAt9 = (t9: number): [number, number, number] => {
-      const th9 = Math.PI - (Math.PI / 2) * t9;
-      return [Math.cos(th9) * 2.95, Math.sin(th9) * 2.95, 0.72];
-    };
-    const arcMid9 = arcAt9(0.5);
-    out.push(...tagKey(paintBase(spirePillar({
-      x: 0, y: 0, h: 1, w: 0.8, tipW: 0.8, segs: 12, sides: 8, hold: 1, caps: "both", oval: 0.75,
-      path: arcAt9,
-    }), GOLD9), depthNow(arcMid9[0], arcMid9[1]) * 1.6 + 1.2));
-    for (const tb9 of [0.12, 0.3, 0.48, 0.66, 0.84]) {
-      const m9 = arcAt9(tb9);
-      out.push(...tagKey(paintBase(spirePillar({
-        x: 0, y: 0, h: 1, w: 0.86, tipW: 0.86, segs: 2, sides: 8, hold: 1, caps: "none", oval: 0.75,
-        path: (t9: number): [number, number, number] => arcAt9(tb9 - 0.03 + 0.06 * t9),
-      }), TEAL9), depthNow(m9[0], m9[1]) * 1.6 + 1.3));
-    }
-    // 외피 끝의 작은 포드 — 땅에 앉은 금 반구, 위에 시안 렌즈.
-    const PX9 = 0.35; const PY9 = 3.95;
-    out.push(...tagKey([
-      ...paintBase(domeFaces3(PX9, PY9, 1.0, 0.95, 0.05), GOLD9),
-      [discPath3(PX9, PY9, 1.02, 0.6), 0.9, AQUA9] as ShapeFace,
-      topFace(discPath3(PX9 - 0.1, PY9 - 0.12, 1.05, 0.26), 0.5),
-    ], depthNow(PX9, PY9) * 1.6 + 3));
-    /* ③ 기둥 넷 — **얇은 판**이고 끝에 **화살촉**이 달린다(재요청: "기둥 모양은 얇은 판인데 끝에 화살촉처럼 달린
-       형태"). 긴 둘은 화면 위·왼쪽(+x, −y)에서 높이 솟고, 둘은 화면 아래·왼쪽(−x, −y)으로 땅에 눕는다.
-       판은 ref [0,1,0]으로 넓은 면이 y·축 평면(= 화면을 마주 보는 면)이고 oval 0.22로 x쪽이 얇다. 굵기는 뿌리에서
-       78%까지 서서히 줄다가 화살촉에서 한 번 넓어져 끝으로 뾰족해진다. */
-    const blade9 = (
-      p0: [number, number, number], p1: [number, number, number], w0: number, add: number,
-    ): ShapeFace[] => tagKey(paintBase(spirePillar({
-      x: 0, y: 0, h: 1, w: w0, segs: 16, sides: 6, oval: 0.22, caps: "none", trueNormal: true, ref: [0, 1, 0],
-      path: (t9: number): [number, number, number] => [
-        p0[0] + (p1[0] - p0[0]) * t9, p0[1] + (p1[1] - p0[1]) * t9,
-        p0[2] + (p1[2] - p0[2]) * t9 + Math.sin(Math.PI * t9) * 0.25,
-      ],
-      widthOf: (t9: number): number => (t9 < 0.78
-        ? w0 * (1 - 0.5 * (t9 / 0.78))
-        : w0 * 1.35 * (1 - (t9 - 0.78) / 0.22) ** 0.8),
-    }), GOLD9), depthNow((p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2) * 1.6 + add);
-    out.push(
-      ...blade9([1.0, -1.5, 1.8], [2.3, -3.6, 9.6], 0.75, -1),
-      ...blade9([2.0, -0.3, 1.9], [3.5, -1.9, 8.4], 0.7, -1),
-      ...blade9([-1.5, -1.7, 0.8], [-3.2, -6.0, 0.35], 0.65, 0.5),
-      ...blade9([-2.4, -0.5, 0.8], [-5.8, -3.2, 0.3], 0.6, 0.5),
+    const FA = (-3 * Math.PI) / 4;                  // 앞 방향 각(모델 −x·−y)
+    const fx9 = Math.cos(FA); const fy9 = Math.sin(FA);
+    const K = (x9: number, y9: number, add = 0): number => depthNow(x9, y9) * 1.6 + add;
+    /** 축(앞 방향 d)과 옆(s)으로 잰 자리 → 모델 좌표. */
+    const at9 = (d9: number, s9: number): [number, number] => [fx9 * d9 - fy9 * s9, fy9 * d9 + fx9 * s9];
+    /** 판에 눕힌 타원(중심·앞뒤 반지름·옆 반지름·높이) — 보석·테에 쓴다. */
+    const oval9 = (cx9: number, cy9: number, ra9: number, rb9: number, z9: number): string => polyPath3(
+      Array.from({ length: 16 }, (_, k9) => {
+        const th9 = (k9 / 16) * Math.PI * 2;
+        const [ox9, oy9] = at9(Math.cos(th9) * ra9, Math.sin(th9) * rb9);
+        return [cx9 + ox9, cy9 + oy9, z9] as [number, number, number];
+      }),
     );
-    // 임자색 — 몸을 두르는 낮은 테(받침 위·돔 밑).
+    // 받침 — 넓고 낮은 짙은 금 판.
+    out.push(...tagKey(paintBase(cylinderFaces3(0, 0, 3.5, 0.3, 0.2), GOLD_D9), -9));
+    // ① 가운데 반구 + 그 위의 렌즈형 타원 보석(앞뒤로 긴 타원, 금테).
+    const DZ0 = 0.5; const DR = 2.5; const DH = 2.3;
+    out.push(...tagKey(domeFaces3(0, 0, DR, DH, DZ0), 0));
+    out.push(...tagKey([
+      [oval9(0, 0, 1.45, 1.0, DZ0 + DH + 0.02), 1, GOLD_D9] as ShapeFace,
+      [oval9(0, 0, 1.2, 0.8, DZ0 + DH + 0.05), 1, glowLit("#a4f6eb", "#56cebe")] as ShapeFace,
+      [oval9(0, 0, 0.7, 0.45, DZ0 + DH + 0.07), 1, glowLit("#e0fffb", "#99e5db")] as ShapeFace,
+    ], 0.6));
+    // ② 앞 덩어리 — 낮은 돔에 타원 보석.
+    const [lx9, ly9] = at9(4.0, 0);
+    out.push(...tagKey([
+      ...paintBase(domeFaces3(lx9, ly9, 1.15, 0.85, 0.3), GOLD9),
+      [oval9(lx9, ly9, 0.72, 0.5, 1.17), 1, GOLD_D9] as ShapeFace,
+      [oval9(lx9, ly9, 0.55, 0.37, 1.2), 1, AQUA9] as ShapeFace,
+      [oval9(lx9 - fx9 * 0.12, ly9 - fy9 * 0.12, 0.25, 0.17, 1.22), 0.55, "#f0fffd"] as ShapeFace,
+    ], K(lx9, ly9, 2.5)));
+    /* ③ 낮은 벽 — 앞 덩어리에서 시작해 반구를 감싸며 돈다(반지름 3.0·3.45, 높이 0.3~1.25). 앞각에서 양옆으로 ±150도.
+       조각마다 바깥면·윗면·끝면을 제 법선으로 빛을 받아 그리고, 조각 경계마다 **세로 흰 철사**를 바깥면에 붙인다. */
+    const WI = 2.95; const WO = 3.4; const WZ0 = 0.3; const WZ1 = 1.25;
+    const NW = 20;
+    const wallAng9 = (k9: number): number => FA + Math.PI + ((k9 / NW) - 0.5) * (Math.PI * 300 / 180);   // 뒤(FA+π) 중심 ±150도
+    const wp9 = (a9: number, r9: number, z9: number): [number, number, number] => [Math.cos(a9) * r9, Math.sin(a9) * r9, z9];
+    for (let k9 = 0; k9 < NW; k9 += 1) {
+      const a0 = wallAng9(k9); const a1 = wallAng9(k9 + 1); const am = (a0 + a1) / 2;
+      const seg: ShapeFace[] = [];
+      const outer9 = polyPath3([wp9(a0, WO, WZ0), wp9(a1, WO, WZ0), wp9(a1, WO, WZ1), wp9(a0, WO, WZ1)]);
+      const flO = faceLight(Math.cos(am), Math.sin(am), 0.15);
+      if (flO.visible) seg.push([outer9, 1, GOLD9] as ShapeFace, ...flO.face(outer9));
+      const inner9 = polyPath3([wp9(a0, WI, WZ0), wp9(a1, WI, WZ0), wp9(a1, WI, WZ1), wp9(a0, WI, WZ1)]);
+      const flI = faceLight(-Math.cos(am), -Math.sin(am), 0.15);
+      if (flI.visible) seg.push([inner9, 1, GOLD9] as ShapeFace, ...flI.face(inner9));
+      const top9 = polyPath3([wp9(a0, WI, WZ1), wp9(a1, WI, WZ1), wp9(a1, WO, WZ1), wp9(a0, WO, WZ1)]);
+      seg.push([top9, 1, GOLD9] as ShapeFace, topFace(top9, 0.2));
+      if (k9 === 0 || k9 === NW - 1) {
+        const ae = k9 === 0 ? a0 : a1;
+        const cap9 = polyPath3([wp9(ae, WI, WZ0), wp9(ae, WO, WZ0), wp9(ae, WO, WZ1), wp9(ae, WI, WZ1)]);
+        const flE = faceLight(k9 === 0 ? Math.sin(ae) : -Math.sin(ae), k9 === 0 ? -Math.cos(ae) : Math.cos(ae), 0.15);
+        if (flE.visible) seg.push([cap9, 1, GOLD9] as ShapeFace, ...flE.face(cap9));
+      }
+      // 세로 흰 철사 — 조각 경계의 바깥면에 얇은 띠.
+      if (flO.visible) {
+        const dw9 = 0.012;
+        seg.push([polyPath3([wp9(a0 - dw9, WO + 0.02, WZ0 + 0.05), wp9(a0 + dw9, WO + 0.02, WZ0 + 0.05),
+          wp9(a0 + dw9, WO + 0.02, WZ1 - 0.03), wp9(a0 - dw9, WO + 0.02, WZ1 - 0.03)]), 1, WIRE9] as ShapeFace);
+      }
+      const [mx9, my9] = [Math.cos(am) * (WI + WO) / 2, Math.sin(am) * (WI + WO) / 2];
+      out.push(...tagKey(seg, K(mx9, my9, 1.0)));
+    }
+    /* ④ 판형 부품 — 얇은 판(ref [0,0,1]로 넓은 면이 수직·축 방향, oval로 옆이 얇다). 끝은 화살촉. */
+    const blade9 = (
+      p0: [number, number, number], p1: [number, number, number], w0: number, add: number, up = true, head = true,
+    ): ShapeFace[] => tagKey(paintBase(spirePillar({
+      x: 0, y: 0, h: 1, w: w0, segs: 16, sides: 6, oval: 0.22, caps: "none", trueNormal: true,
+      ref: up ? [fy9, -fx9, 0] : [0, 0, 1],
+      path: (t9: number): [number, number, number] => [
+        p0[0] + (p1[0] - p0[0]) * t9, p0[1] + (p1[1] - p0[1]) * t9, p0[2] + (p1[2] - p0[2]) * t9,
+      ],
+      // 화살촉(head)은 기둥에만 — 꼬리는 끝까지 서서히 좁아지는 판이다.
+      widthOf: (t9: number): number => (!head ? w0 * (1 - 0.85 * t9)
+        : t9 < 0.78 ? w0 * (1 - 0.45 * (t9 / 0.78))
+          : w0 * 1.3 * (1 - (t9 - 0.78) / 0.22) ** 0.8),
+    }), GOLD9), K((p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2, add));
+    // 낮은 벽 뒤쪽의 세로 납작 기둥 하나 — 벽 바로 바깥, 뒤(FA+π) 자리에서 높이 선다.
+    const [bx9, by9] = at9(-3.9, 0);
+    out.push(...blade9([bx9, by9, 0.4], [bx9 - fx9 * 0.6, by9 - fy9 * 0.6, 8.6], 0.75, -1.5));
+    // 반구 뒤의 얇고 긴 판형 꼬리 셋 — 낮게 뒤로 뻗는다(가운데가 가장 길다).
+    for (const [sd9, len9, z1] of [[-1.15, 6.4, 1.2], [0, 7.4, 1.5], [1.15, 6.4, 1.2]] as [number, number, number][]) {
+      const [tx0, ty0] = at9(-1.9, sd9 * 0.55);
+      const [tx1, ty1] = at9(-1.9 - len9, sd9 * 1.9);
+      out.push(...blade9([tx0, ty0, 1.1], [tx1, ty1, z1], 0.5, -2, false, false));
+    }
+    // 임자색 — 반구 밑을 두르는 낮은 테.
     return raceBase(out, "toss", [
-      ...tagKey(cylinderFaces3(0, 0, 2.62, 0.55, 0), -1),
+      ...tagKey(cylinderFaces3(0, 0, 2.52, 0.55, 0), -1),
     ]);
   }),
   /* 로보틱스 서포트 베이(실물 참고) — 톱니 테 받침판 가운데 오목한 대접(심 발광),
