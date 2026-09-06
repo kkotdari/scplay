@@ -4662,7 +4662,6 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   pyramidWide: () => {
     // 네 모서리 기둥은 형체 확정(요청: "넥서스 4기둥도 형태쪽이라 1티어").
     const pillar = (px: number, py: number): ShapeFace[] => shape(((): ShapeFace[] => {
-      const [kx, ky] = project(px, py, 5.8);
       return [
         // 받침 원반도 제 깊이(지적: 기둥 바닥의 원들이 안 가려짐).
         ...tagKey([
@@ -4672,7 +4671,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         /* 끝을 도려내고 팁을 꽂는다(재재재지적: 화살촉처럼 튀지 않게) — 팁 원뿔이
            그 높이의 기둥 굵기보다 늘 살짝 굵어 기둥 끝을 완전히 감싼다.
            기둥 몸도 금빛(재작도) — 넷이 통째로 개인색이면 종족이 안 읽힌다. */
-        ...paintBase(hornFaces(px, py, 0.4, px, py, 8.8, 1.7), "#d4bd3c"),
+        /* ★ 기둥은 **진짜 원뿔**이다(지적: "넥서스 네 개의 기둥이 3D가 아닌 느낌") — 여태 hornFaces였다. 그건
+           화면 좌표에 친 베지에 리본이라 두께가 없고, 밝은 반쪽·어두운 반쪽 두 장이 요잉과 무관하게 늘 같은
+           낯이라 종잇장으로 읽혔다. spirePillar로 세우면 8각 단면이 면마다 빛을 받고 요잉을 따라 돈다.
+           몸은 6.8까지(반폭 0.85 → 0.3), 그 위에 아쿠아 팁 원뿔을 꽂는다 — 팁 밑동(0.34)이 몸 끝(0.3)보다 살짝
+           굵어 이음을 감싼다(옛 주석의 그 규약). */
+        ...spirePillar({
+          x: px, y: py, z0: 0.4, h: 6.4, w: 0.85, tipW: 0.3, sides: 8, segs: 3, fill: "#d4bd3c",
+        }),
         /* 오벨리스크 보석은 **개인색**이다(지적: "넥서스 사선에서 개인색 장식 포인트가
            안보임") — 여태 여기까지 사이언으로 못 박혀 있어서, 화면에 남은 개인색은
            꼭대기 받침 띠 하나뿐이었다. 그 띠는 지붕에 가려 사선에서 거의 안 보인다.
@@ -4688,9 +4694,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            그 셋이 늘 같은 낯이라 '지금 일하고 있다'가 실루엣에서 안 읽혔다.
            glowLit은 그 깃발 하나를 보고 색을 고른다 — 꺼지면 식은 아쿠아, 켜지면 흰빛에
            가깝게. 모양은 그대로고 색만 갈리므로 굽는 삯도 안 는다. */
-        ...paintBase(hornFaces(px, py, 6.8, px, py, 8.9, 0.5),
-          glowLit("#e6fffb", "#83f7e8")),
-        topFace(groundEllipse(kx, ky, 0.45, 0.65), bldLitNow ? 0.72 : 0.5),
+        ...spirePillar({
+          x: px, y: py, z0: 6.8, h: 2.1, w: 0.34, tipW: 0.02, sides: 8, segs: 2,
+          fill: glowLit("#e6fffb", "#83f7e8"),
+        }),
+        // (걷어냄) 기둥 어깨의 타원 하이라이트 — 리본 시절의 광택 대용이었다. 진짜 원뿔은 면마다 빛을 받는다.
       ];
     })());
     /* 기둥 자리 6.6 → 6.0(수리: 대각 모서리 기둥이 요잉 투영에서 뷰박스 가로(±8)를
@@ -4793,12 +4801,23 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          건물 중심 쪽으로 살짝 기울고 뾰족한 모서리(꼭짓점)가 바깥을 본다(phase 0 · ref 바깥).
          발판도 제 깊이(지적: 기둥과 가려짐 순서) — 몸과 같은 금빛. */
       const TH9 = 0.5;
-      const tri9 = (dz9: number): [number, number, number][] => [
-        // 20% 축소(재요청): 반폭 3.08 → 2.46, 끝 10.1 → 8.9.
-        [sx * 4.2 + cxa * 2.46, sy * 4.2 + sya * 2.46, 2.4 + dz9],
-        [sx * 4.2 - cxa * 2.46, sy * 4.2 - sya * 2.46, 2.4 + dz9],
-        [sx * 8.9, sy * 8.9, 0.5 + dz9],
-      ];
+      /* ★ 안변은 **경사면 위에서** 시작한다(지적: "발판 시작부가 이상해 — 경사면의 표면에서 시작해야 하는데")
+         — 안변이 4.2에 못 박혀 있었는데, 그 높이(2.4)의 피라미드 반폭은 half(2.4) ≈ 3.34라 0.9만큼 허공에서
+         시작했다. 안변의 자리를 그 높이의 반폭에서 0.25 안쪽으로(파묻힌 채) 잡는다 — 슬래브 아랫면은 더
+         낮은 높이라 반폭이 커지므로, 안변이 경사를 따라 저절로 기운다. */
+      /* ★ 발판은 **땅에 놓인 판**이다(재지적: "넥서스 발판은 땅에 닿아 있어야 해") — 경사면 중턱(z 2.4)에서
+         내려오는 비탈이 아니라, 두께 0.5의 평판이 바닥(z 0~0.5)에 깔린다. 안변은 밑동 받침(반폭 ≈ 4.6)에
+         0.2 파묻힌 4.4에서 시작해 끝 8.9까지 나간다. 끝의 삼각뿔은 그대로 발판 윗면(0.5)에 앉는다. */
+      const tri9 = (dz9: number): [number, number, number][] => {
+        const z9 = 0.5 + dz9;
+        const ri9 = 4.4;
+        return [
+          // 20% 축소(재요청): 반폭 3.08 → 2.46, 끝 10.1 → 8.9.
+          [sx * ri9 + cxa * 2.46, sy * ri9 + sya * 2.46, z9],
+          [sx * ri9 - cxa * 2.46, sy * ri9 - sya * 2.46, z9],
+          [sx * 8.9, sy * 8.9, z9],
+        ];
+      };
       const hi9 = tri9(0); const lo9 = tri9(-TH9);
       const padF: ShapeFace[] = [];
       for (let i9 = 0; i9 < 3; i9 += 1) {
@@ -5442,16 +5461,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       if (!bellyOn) {
         out.push(...tagKey(stripe9(Ro + 0.02), key9 + 0.45));
         if (vert9) {
-          // 일자 막대 — 바깥 면을 가로지르는 곧은 띠.
-          const bar9 = polyPath3([
-            P9(-0.24, -1.85, Ro + 0.12), P9(0.24, -1.85, Ro + 0.12),
-            P9(0.24, 1.85, Ro + 0.12), P9(-0.24, 1.85, Ro + 0.12),
-          ]);
-          out.push(...tagKey([
-            [bar9, 1, "#b8921f"] as ShapeFace, topFace(bar9, 0.25),
-            [polyPath3([P9(0.24, -1.85, Ro), P9(0.24, 1.85, Ro),
-              P9(0.24, 1.85, Ro + 0.12), P9(0.24, -1.85, Ro + 0.12)]), 1, "#8a6f1d"] as ShapeFace,
-          ], key9 + 0.5));
+          /* 일자 막대 — 바깥 면을 가로지르는 곧은 띠. ★ **네모 기둥**으로(지적: "윗면 장식 막대의 음영이 좀
+             이상") — 여태 윗판 한 장 + 오른쪽 옆면 한 장이었다. 옆면이 한쪽에만 있어 요잉에 따라 막대가
+             반은 밝고 반은 어둡거나 통째로 어두워졌다. 옆 조각의 S 물결과 같은 spirePillar 기둥이면 네 면이
+             제 법선으로 빛을 받아 어느 각도에서도 한 막대로 읽힌다. */
+          out.push(...spirePillar({
+            x: 0, y: 0, h: 1, w: 0.24, tipW: 0.24, segs: 1, sides: 4, caps: "both",
+            fill: "#b8921f", trueNormal: true, ref: [rx, 0, rz],
+            path: (t9: number): [number, number, number] => P9(0, -1.85 + 3.7 * t9, Ro + 0.12),
+          }).map((f9) => { f9[3] = key9 + 0.5; return f9; }));
         } else {
           // 기타 몸통꼴 곡선 두 줄 — 끝이 넓고 허리가 잘록한 S 물결(임자색).
           for (const m9 of [-1, 1] as const) {
@@ -7684,7 +7702,6 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        관 팔 넷, 앞왼쪽에 골이 진 황금 단, 붉은 띠와 은빛 발이 곳곳에 박힌다. */
     const GOLD = "#d4af37";
     const GOLD_D = "#a8862a";
-    const RED = "#a8322a";
     const CYAN = "#83f9e9";
     const out: ShapeFace[] = [];
     const pc: ShapeFace[] = [];
@@ -7698,21 +7715,24 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          숨기는커녕 돔 앞면을 큼직한 원반으로 덮어 버렸다(흰 윗면까지 겹쳐 분홍 얼룩으로
          보였다). 띠에 필요한 것은 돔을 두르는 겉벽뿐이므로, 위·아래 타원의 '앞 반호'
          둘을 이어 초승달 띠로 직접 그린다 — 뒤로 돌아간 반쪽은 돔이 가리는 게 맞다. */
-      ...((): ShapeFace[] => {
-        const BR = 3.04;
-        const [btx, bty] = project(2.2, -0.6, 2.3);
-        const [bbx, bby] = project(2.2, -0.6, 1.9);
-        const bry = BR * groundSquashNow();
-        // 앞 반호는 sweep 0(왼→아래→오른), 되돌아오는 아래 반호는 sweep 1이다.
-        const strip = `M${btx - BR} ${bty} A${BR} ${bry} 0 0 0 ${btx + BR} ${bty}`
-          + ` L${bbx + BR} ${bby} A${BR} ${bry} 0 0 1 ${bbx - BR} ${bby} Z`;
-        return [[strip, 1, RED] as ShapeFace, sideFace(strip, 0.16)];
-      })(),
     /* 키는 한 자로(재지적: 포지 키값이 아직 문제) — 붙박이 상수(6·8·10·12·14·16)가
        깊이 항(±5)보다 커서 요잉과 무관하게 상수가 순서를 지배했다. 부품들은 서로
        옆에 선 것들이라 제 자리 깊이만으로 앞뒤가 옳다. 같은 부품 안에서 '위에 얹힌'
        것(돔의 눈, 관 팔)만 소수점 한 자리를 더한다. */
     ], depthNow(2.2, -0.6) + 3));
+    /* 돔 허리 띠는 **임자색**이다(요청: "포지 돔의 빨간색 띠를 임자색으로") — raceBase는 색 없는 면을 금으로
+       칠하므로, 임자색 면은 accent(pc)로 따로 넘겨야 한다(톱니 옆 띠와 같은 길). 키는 돔과 같은 자에 0.05만
+       더해 돔 겉면 위에 얹힌다. */
+    pc.push(...tagKey(((): ShapeFace[] => {
+      const BR = 3.04;
+      const [btx, bty] = project(2.2, -0.6, 2.3);
+      const [bbx, bby] = project(2.2, -0.6, 1.9);
+      const bry = BR * groundSquashNow();
+      // 앞 반호는 sweep 0(왼→아래→오른), 되돌아오는 아래 반호는 sweep 1이다.
+      const strip = `M${btx - BR} ${bty} A${BR} ${bry} 0 0 0 ${btx + BR} ${bty}`
+        + ` L${bbx + BR} ${bby} A${BR} ${bry} 0 0 1 ${bbx - BR} ${bby} Z`;
+      return [[strip, 1] as ShapeFace, sideFace(strip, 0.16)];
+    })(), depthNow(2.2, -0.6) + 3.05));
     // 큰 돔 꼭대기 청록 눈 — 테 두른 발광 원반.
     out.push(...tagKey([
       [discPath3(2.2, -0.6, 5.05, 1.15), 1, GOLD_D] as ShapeFace,
@@ -11850,18 +11870,27 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           path: bez9(p0, p1, p2),
           widthOf: (t9: number): number => w0 + (w1 - w0) * t9 ** 0.85,
         }), TOSS_GOLD), armKey(p0, p1, p2));
+        /** 위팔 뿌리(m8·1.0, −0.6, 5.9)를 고정점으로 0.8배 당기는 자 — 위팔 길이 축소(요청). */
+        const upArmK9 = 0.8;
+        const up9For = (m8: 1 | -1) => (x: number, y: number, z: number): [number, number, number] => [
+          m8 * 1.0 + upArmK9 * (x - m8 * 1.0), -0.6 + upArmK9 * (y + 0.6), 5.9 + upArmK9 * (z - 5.9),
+        ];
         return [
-          ...([1, -1] as const).flatMap((m8): ShapeFace[] => [
+          ...([1, -1] as const).flatMap((m8): ShapeFace[] => {
+            const up9 = up9For(m8);
+            return [
             /* 위팔은 **八자로 벌어진다**(재요청) — 뿌리에서 앞·바깥으로 계속 나가 끝이 x 3.1.
                뿌리 굵기 0.7 → 0.5. 바깥쪽에는 삼각 **날개막**(뿌리 뒤·끝·바깥 뒤 세 점)이 붙는다. */
             // 안쪽으로 더 모으고(x 0.8배) 팔을 굴려 날개막이 살짝 아래를 본다(재요청) — 바깥 꼭짓점 z 5.7 → 5.25.
             // 한 번 더 안쪽으로(x 0.82배)·더 굴림(재요청): 바깥 꼭짓점 z 5.25 → 4.9.
-            ...armHorn([m8 * 1.0, -0.6, 5.9], [m8 * 1.65, 1.0, 5.55], [m8 * 2.05, 3.0, 5.3],
+            /* ★ 위팔 길이 0.8배(요청: "커세어 위쪽 양팔 길이 0.8배로 축소") — 뿌리(p0)를 고정하고 나머지 점을
+               뿌리 쪽으로 0.8배 당긴다(up9). 날개막·플라즈마·미늘도 팔 끝에 매달린 것이라 같은 자로 당긴다. */
+            ...armHorn([m8 * 1.0, -0.6, 5.9], up9(m8 * 1.65, 1.0, 5.55), up9(m8 * 2.05, 3.0, 5.3),
               0.5, 0.16),
             ...tagKey(((): ShapeFace[] => {
-              const d9 = polyPath3([[m8 * 1.15, -0.9, 5.85], [m8 * 2.0, 2.9, 5.3], [m8 * 2.55, -0.4, 4.9]]);
+              const d9 = polyPath3([up9(m8 * 1.15, -0.9, 5.85), up9(m8 * 2.0, 2.9, 5.3), up9(m8 * 2.55, -0.4, 4.9)]);
               return [[d9, 1, TOSS_GOLD] as ShapeFace, topFace(d9, 0.18)];
-            })(), partKey(m8 * 1.9, 0.5, 5.4) + 0.05),
+            })(), partKey(...up9(m8 * 1.9, 0.5, 5.4)) + 0.05),
             /* 위팔 끝의 **누운 계란** 플라즈마 덩이(요청) — 팔 끝 **안쪽**에 더 작게 붙고,
                옆(x)으로 납작하며 앞뒤로 길다(재요청). 뒤가 굵고 앞이 조금 좁은 계란
                옆선을 widthOf로, 옆 납작함은 oval로 준다. 색은 흰빛 도는 푸른 플라즈마. */
@@ -11869,12 +11898,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
               // 다시 90° 피칭·2배(재요청): 앞뒤(y)로 누운 길이 0.84, 반지름 0.2(widthOf는 절대 반지름).
               x: 0, y: 0, h: 1, segs: 6, sides: 8, w: 0.2, tipW: 0.2, caps: "none", trueNormal: true,
               oval: 0.55, ref: [0, 0, 1],
-              path: (t9: number): [number, number, number] => [m8 * 1.75, 2.5 + 0.84 * t9, 5.3],
+              path: (t9: number): [number, number, number] => {
+                const e9 = up9(m8 * 1.75, 2.5, 5.3);
+                return [e9[0], e9[1] + 0.84 * t9, e9[2]];
+              },
               widthOf: (t9: number): number => {
                 const u9 = 2 * t9 - 1;
                 return 0.2 * Math.sqrt(Math.max(0, 1 - u9 * u9)) * (1 - 0.18 * u9);
               },
-            }), "#cfe9ff"), partKey(m8 * 1.75, 2.9, 5.3) + 0.3),
+            }), "#cfe9ff"), partKey(...up9(m8 * 1.75, 2.9, 5.3)) + 0.3),
             /* ★ 걸림쇠는 **안쪽에서 뒤를 향한 미늘**이다(지적: "팔끝 돌출부품은 바깥쪽이
                아닌 안쪽으로 이동 / 낚시바늘 끝같은 느낌으로 안쪽에서 뒤를 향한 가시") ────
                앞판은 뿌리에서 **바깥·앞**으로 뻗었다 — 팔이 이미 바깥으로 휘는데 그 끝에서
@@ -11883,10 +11915,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
                것이 안 빠지게 하는 방향이다. 그래서 안(−m8)과 뒤(−y)로 눕힌다.
                뿌리는 팔 곡선 위의 t 0.85 자리를 그대로 쓴다(끝에서 조금 못 미친 자리).
                휨(bow)은 바깥·앞을 향하게 두어 미늘의 배가 볼록하고 끝이 안으로 말린다. */
-            ...tagKey(spikeHorn(m8 * 1.9, 2.41, 5.35, m8 * 1.62, 1.65, 5.3, 0.32,
+            ...tagKey(spikeHorn(...up9(m8 * 1.9, 2.41, 5.35), ...up9(m8 * 1.62, 1.65, 5.3), 0.32,
               TOSS_GOLD, 5, 0.12, m8 * 0.6, 0.5),
-            partKey(m8 * 1.75, 2.0, 5.33) + 0.1),
-          ]),
+            partKey(...up9(m8 * 1.75, 2.0, 5.33)) + 0.1),
+          ];
+          }),
           /* 하단 팔 하나 — 몸 밑에서 가파르게 아래·앞으로 떨어졌다가 끝이 위로 말린다.
              역시 마디 없는 한 뿔이다. */
           ...armHorn([0, -0.2, 5.4], [0, 0.6, 2.6], [0, 1.7, 3.3], 0.58, 0.14),

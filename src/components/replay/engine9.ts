@@ -926,7 +926,7 @@ export const MODEL_NORM: Record<string, number> = {
   bc: 0.654,
   burrowhole: 0.832,
   carrier: 0.695,
-  corsair: 1.203,  // 재측정(model-norm)
+  corsair: 1.324,  // 재측정(model-norm) — 위팔 0.8배 뒤
   darchon: 0.496,
   defiler: 0.824,   // 0.687 → ×1.2(요청: 디파일러 그리기 1.2배)
   devourer: 0.805,
