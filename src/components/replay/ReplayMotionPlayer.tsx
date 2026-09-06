@@ -8170,100 +8170,96 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   },
   /* 템플러 아카이브(리디자인, 실물 참고) — 큰 황금 공 몸에 테 물린 파란 렌즈가
      위에 박히고, 왼뒤로 뿔 한 쌍이 솟으며, 오른앞엔 골진 껍데기 꼬리(끝 원반). */
-  archives: () => withModelSpin(-90, () => {   // −90도 요잉(요청: "아카이브 -90도 요잉") — 목·반구가 왼쪽으로
-    /* 템플러 아카이브(재작도·요청) ────────────────────────────────────────────
-       요청 그대로다: "앞 반구 하나만 남기고 몸에서 앞으로 곧바로 나오는 반원기둥형
-       긴 목끝에 반구가 붙게. 반구의 장식은 다 제거하고 아쿠아 얇은 렌즈 한 장만
-       위에 붙임".
-       걷어 내는 것 — 뒤로 45도 돌아 붙어 있던 **골진 껍데기 꼬리**(돔 둘 + 골 줄 둘 +
-       끝 구슬)와 몸 위에 얹혀 있던 **렌즈 구슬**. 그 둘 때문에 건물이 '반구 여럿을
-       흩어 놓은 것'으로 보였다.
-       남기는 것 — 큰 황금 몸, 그 위 분화구, 옆면 세로줄, 왼뒤 뿔 한 쌍, 개인색 받침 테.
-       새로 놓는 것 — 몸 앞면에서 **곧바로 앞으로** 뻗는 반원기둥 목(밑이 평평하고
-       등이 둥근 관)과 그 끝에 붙는 반구 하나, 그리고 반구 정수리의 얇은 아쿠아 렌즈. */
+  /* 템플러 아카이브(재작도 — 사진 둘 대조, 요청: "사진 보고 작도를 잘해봐") ──────────────────────────────────
+     사진이 말하는 것:
+       ① 몸은 **둥근 금빛 돔**이고, 그 앞 위에 금테를 두른 **큰 시안 타원 렌즈**가 박혀 있다(정면의 눈).
+       ② 몸 앞에서 오른쪽으로 **마디진 외피**(굵은 관이 짙은 청록 띠로 나뉜다)가 바닥을 따라 호를 그리며 뻗고, 그 끝에
+          **작은 금 포드**(위에 시안 렌즈)가 땅에 앉는다.
+       ③ 왼쪽에는 **긴 뿔 둘**이 높이 솟고(하나가 더 높다), **둘은 땅에 누워** 왼쪽 아래로 뻗는다.
+     이 빌더는 −90도 요잉이라 모델 +y가 화면 오른쪽, −x가 화면 앞(아래), +x가 화면 위, −y가 화면 왼쪽이다. */
+  archives: () => withModelSpin(-90, () => {
     const AQUA9 = "#5aecd8";
-    /** 목의 단면 — (x, z) 반원. 밑변이 평평해 '반원기둥'이 된다. */
-    const NECK_R = 0.72;
-    /* 앞 반구는 **바닥에 닿는다**(지적: "아카이브 앞쪽 반구가 바닥에 닿아야 함, 그래서 연결팔이 더 앞쪽으로
-       그리고 아래로") — 목의 평평한 배가 곧 바닥(z 0)이고 반구도 z 0에서 선다. 1.35 → 0.9 → 0. */
-    const NECK_Z = 0;
-    const neckPlan: [number, number][] = Array.from({ length: 9 }, (_, i9) => {
-      const a9 = Math.PI * (i9 / 8);
-      return [Math.cos(a9) * NECK_R, NECK_Z + Math.sin(a9) * NECK_R] as [number, number];
-    });
-    /* 반구는 **몸에 직접 붙는다**(요청: "우측 연결팔 제거하고 작은 건물을 본건물에 직접 붙임") — 목(prismYFaces)을 걷고
-       몸 돔(반지름 2.9)에 반구(반지름 1.05)를 0.2 파묻혀 붙인다: 2.9 + 1.05 − 0.2 = 3.75. */
-    const HEAD_Y = 3.75;
-    void neckPlan;
-    return raceBase([
-      /* 발치 금 테는 맨 앞에 그린다(지적: 코어 키 검토) — 납작한 원통이라 나중에
-         그리면 몸 아래를 판때기로 덮는다. 프리미티브는 제 몫으로 키(깊이+높이)를
-         달기 때문에 배열 맨 앞에 둬도 소용없어, 다른 부품보다 낮은 키를 못 박는다. */
-      ...tagKey(paintBase(cylinderFaces3(0, 0, 3.4, 0.3, 0.2), "#8a6f2a"), -9),
-      // 왼뒤 뿔 한 쌍 — 개인색 받침 테(키 −1)보다 앞서 그린다. 입체 뿔기둥이다.
-      /* ★ 왼쪽 뿔 넷(요청·사진): **긴 기둥 둘**은 몸 뒤(−y) 왼편에서 높이 솟고, **둘은 지상에** 눕혀 −y 쪽으로 뻗는다.
-         (−y가 화면 왼쪽 — 이 빌더는 −90도 요잉이라 머리(+y)가 오른쪽이다.) */
-      ...tagKey([
-        ...spikeHorn(-1.0, -1.6, 2.4, -2.4, -3.6, 9.2, 1.3, undefined, 6, 0.3, -0.5, -0.6),
-        ...spikeHorn(0.7, -1.9, 2.6, 1.3, -4.1, 9.8, 1.4, undefined, 6, 0.3, 0.2, -0.7),
-      ], -3),
-      // 지상에 누운 뿔 둘 — 밑동은 몸 옆구리, 끝은 바닥 가까이 멀리.
-      ...tagKey([
-        ...spikeHorn(-1.9, -1.2, 0.9, -3.6, -6.0, 0.35, 1.1, undefined, 6, 0.25, -0.3, 0),
-        ...spikeHorn(1.2, -2.0, 0.9, 2.2, -6.6, 0.3, 1.0, undefined, 6, 0.25, 0.3, 0),
-      ], -8),
-      // 큰 황금 몸 — 위는 분화구처럼 깎는다. 개인색은 아래 받침 테만.
-      ...tagKey(domeFaces3(0, 0, 2.9, 1.6, 0.7), 0),
-      // 분화구 — 꼭대기를 깎은 어두운 접시 + 안쪽 더 깊은 그늘.
-      /* ★ 오목한 속은 **연한 사이언**이다(지적: "아카이브, 베이 검정색 부품은 원래 연한
-         사이언색임. 반짝임 효과는 더 밝은 색으로 주는거지 기본 상태를 까맣게 하면 안됨")
-         — 검정(#000)으로 두면 황금 몸에 구멍이 뚫린 것으로 읽힌다. 프로토스의 그 자리는
-         쉬고 있어도 은은하게 빛나는 결정면이다. 활성일 때만 한 단 더 밝힌다(glowLit —
-         꺼짐이 곧 어둠이 아니라 '식은 색'이라는 그 규약). */
-      /* ★ 분화구는 **입체 부품**이다(지적: "본체의 윗쪽 아쿠아색 부품은 손그림인가? 입체 부품으로 위치 잘
-         맞춰서") — 여태 화면 좌표에 반지름을 손으로 적은 타원 두 장(groundEllipse 1.75×1.05)이라 요잉·기울기·
-         납작비를 안 탔고, 입체에서 돔 위 제자리를 벗어났다. 돔(반지름 2.9·높이 1.6·밑 0.7) 정수리에 낮은 원기둥
-         테(r 1.75, z 1.95~2.2 — 그 반지름의 돔 표면 1.98에 박힌다)와 그 위 발광 원반(r 1.15)으로 다시 세운다.
-         discPath3·cylinderFaces3는 사영·납작비를 제 몫으로 타므로 어느 시점에서도 돔 위 그 자리다. */
-      ...tagKey([
-        ...paintBase(cylinderFaces3(0, 0, 1.75, 0.25, 1.95), glowLit("#a4f6eb", "#56cebe")),
-        [discPath3(0, 0, 2.21, 1.15), 1, glowLit("#e0fffb", "#99e5db")] as ShapeFace,
-      ], 0.5),
-      /* 세로줄(요청·재확인: 옆면을 한 바퀴 빙 두르게) — 전 방위로 두르고 보이는 쪽만
-         남긴다(faceLight). 납작해진 돔을 따라 끝 높이도 낮췄다. */
-      ...[-160, -128, -96, -64, -32, 0, 32, 64, 96, 128, 160].flatMap((ang): ShapeFace[] => {
-        const a2 = (ang * Math.PI) / 180;
-        const sx3 = Math.sin(a2);
-        const sy3 = Math.cos(a2);
-        if (!faceLight(sx3, sy3).visible) return [];
-        const txn = Math.cos(a2) * 0.14;
-        const tyn = -Math.sin(a2) * 0.14;
-        return [capFace(polyPath3([
-          [sx3 * 2.6 - txn, sy3 * 2.6 - tyn, 1],
-          [sx3 * 2.6 + txn, sy3 * 2.6 + tyn, 1],
-          [sx3 * 2.15 + txn, sy3 * 2.15 + tyn, 2.1],
-          [sx3 * 2.15 - txn, sy3 * 2.15 - tyn, 2.1],
-        ]), 0.26)];
-      }),
-      /* 목 — 몸 앞면(y 1.4쯤)에서 **곧바로 앞으로** 뻗는 반원기둥. 앞뒤가 밑면인
-         기둥이라 prismYFaces가 그 축이다: 단면이 (x, z) 반원이고 그것을 y로 민다.
-         뒤 밑면은 몸속이라 안 그리고(capBack false), 앞 밑면은 반구가 덮는다. */
-      // 붙는 면을 앞으로(요청): 1.1 → 1.7.
-      // (걷어냄) 목 — 반구가 몸에 직접 붙는다(요청).
-      /* 목 끝의 반구 — 장식 하나 없는 매끈한 돔이다(요청: "반구의 장식은 다 제거").
-         목과 밑면 높이를 나눠 써 평평한 배가 이어진다. */
-      ...tagKey(paintBase(domeFaces3(0, HEAD_Y, 1.05, 1, NECK_Z), "#d4bd3c"),
-        depthNow(0, HEAD_Y) * 1.6 + 3),
-      /* 반구 위의 **얇은 아쿠아 렌즈 한 장** — 이것 하나가 이 건물의 눈이다.
-         내려다보는 화면이라 정수리에 눕힌 얇은 원반이 곧 렌즈로 읽힌다. */
-      ...tagKey([
-        [discPath3(0, HEAD_Y, NECK_Z + 1.02, 0.62), 0.85, AQUA9] as ShapeFace,
-        topFace(discPath3(0, HEAD_Y - 0.12, NECK_Z + 1.05, 0.28), 0.5),
-      ], depthNow(0, HEAD_Y) * 1.6 + 4),
-    ], "toss", [
-      /* 개인색은 아래 받침 테만(재지적: 몸통 전체 말고 테두리·뚜껑만) — 큰 몸까지
-         칠하니 건물이 임자 색 덩어리가 됐다. 몸을 두르는 낮은 테라 사방에서 보인다. */
-      ...tagKey(cylinderFaces3(0, 0, 2.9, 0.7), -1),
+    const GOLD9 = "#d4bd3c";
+    const GOLD_D9 = "#8a6f2a";
+    const TEAL9 = "#1f6b62";
+    const out: ShapeFace[] = [];
+    // 받침 — 넓고 낮은 짙은 금 판.
+    out.push(...tagKey(paintBase(cylinderFaces3(0, 0, 3.3, 0.3, 0.2), GOLD_D9), -9));
+    // ① 몸 — 둥근 돔(반지름 2.6·높이 2.4·밑 0.5). 칠하지 않아 종족 바탕(금)이 든다.
+    const DZ0 = 0.5; const DR = 2.6; const DH = 2.4;
+    out.push(...tagKey(domeFaces3(0, 0, DR, DH, DZ0), 0));
+    /* 앞 위의 렌즈 — 돔 표면의 법선 n(−0.6, 0, 0.8) 자리에 붙는 타원(세로가 긴 눈). 금테(조금 큰 타원)를 먼저 깔고
+       시안 렌즈를 얹는다. 앞(−x)을 볼 때만 그린다. */
+    if (faceLight(-0.6, 0, 0.8).visible) {
+      const n9 = [-0.6, 0, 0.8] as const;
+      const c9 = [n9[0] * DR, 0, DZ0 + n9[2] * DH] as const;
+      const u9 = [0, 1, 0] as const;
+      const v9 = [0.8, 0, 0.6] as const;
+      const oval9 = (a9: number, b9: number, lift9: number): string => polyPath3(Array.from({ length: 14 }, (_, k9) => {
+        const th9 = (k9 / 14) * Math.PI * 2;
+        const cu9 = Math.cos(th9) * a9; const cv9 = Math.sin(th9) * b9;
+        return [
+          c9[0] + u9[0] * cu9 + v9[0] * cv9 + n9[0] * lift9,
+          c9[1] + u9[1] * cu9 + v9[1] * cv9 + n9[1] * lift9,
+          c9[2] + u9[2] * cu9 + v9[2] * cv9 + n9[2] * lift9,
+        ] as [number, number, number];
+      }));
+      out.push(...tagKey([
+        [oval9(1.15, 1.45, 0.02), 1, GOLD_D9] as ShapeFace,
+        [oval9(0.95, 1.22, 0.05), 1, glowLit("#a4f6eb", "#56cebe")] as ShapeFace,
+        [oval9(0.55, 0.72, 0.07), 1, glowLit("#e0fffb", "#99e5db")] as ShapeFace,
+      ], depthNow(-1.6, 0) * 1.6 + 2));
+    }
+    /* ② 마디진 외피 — 몸 앞(−x)에서 오른쪽(+y)으로 바닥을 따라 도는 굵은 관(반지름 2.95의 호, 사분원). 위가 둥근
+       납작 단면(oval)이고, 짙은 청록 띠 다섯이 마디를 가른다. 끝에 작은 포드. */
+    const arcAt9 = (t9: number): [number, number, number] => {
+      const th9 = Math.PI - (Math.PI / 2) * t9;
+      return [Math.cos(th9) * 2.95, Math.sin(th9) * 2.95, 0.72];
+    };
+    const arcMid9 = arcAt9(0.5);
+    out.push(...tagKey(paintBase(spirePillar({
+      x: 0, y: 0, h: 1, w: 0.8, tipW: 0.8, segs: 12, sides: 8, hold: 1, caps: "both", oval: 0.75,
+      path: arcAt9,
+    }), GOLD9), depthNow(arcMid9[0], arcMid9[1]) * 1.6 + 1.2));
+    for (const tb9 of [0.12, 0.3, 0.48, 0.66, 0.84]) {
+      const m9 = arcAt9(tb9);
+      out.push(...tagKey(paintBase(spirePillar({
+        x: 0, y: 0, h: 1, w: 0.86, tipW: 0.86, segs: 2, sides: 8, hold: 1, caps: "none", oval: 0.75,
+        path: (t9: number): [number, number, number] => arcAt9(tb9 - 0.03 + 0.06 * t9),
+      }), TEAL9), depthNow(m9[0], m9[1]) * 1.6 + 1.3));
+    }
+    // 외피 끝의 작은 포드 — 땅에 앉은 금 반구, 위에 시안 렌즈.
+    const PX9 = 0.35; const PY9 = 3.95;
+    out.push(...tagKey([
+      ...paintBase(domeFaces3(PX9, PY9, 1.0, 0.95, 0.05), GOLD9),
+      [discPath3(PX9, PY9, 1.02, 0.6), 0.9, AQUA9] as ShapeFace,
+      topFace(discPath3(PX9 - 0.1, PY9 - 0.12, 1.05, 0.26), 0.5),
+    ], depthNow(PX9, PY9) * 1.6 + 3));
+    /* ③ 기둥 넷 — **얇은 판**이고 끝에 **화살촉**이 달린다(재요청: "기둥 모양은 얇은 판인데 끝에 화살촉처럼 달린
+       형태"). 긴 둘은 화면 위·왼쪽(+x, −y)에서 높이 솟고, 둘은 화면 아래·왼쪽(−x, −y)으로 땅에 눕는다.
+       판은 ref [0,1,0]으로 넓은 면이 y·축 평면(= 화면을 마주 보는 면)이고 oval 0.22로 x쪽이 얇다. 굵기는 뿌리에서
+       78%까지 서서히 줄다가 화살촉에서 한 번 넓어져 끝으로 뾰족해진다. */
+    const blade9 = (
+      p0: [number, number, number], p1: [number, number, number], w0: number, add: number,
+    ): ShapeFace[] => tagKey(paintBase(spirePillar({
+      x: 0, y: 0, h: 1, w: w0, segs: 16, sides: 6, oval: 0.22, caps: "none", trueNormal: true, ref: [0, 1, 0],
+      path: (t9: number): [number, number, number] => [
+        p0[0] + (p1[0] - p0[0]) * t9, p0[1] + (p1[1] - p0[1]) * t9,
+        p0[2] + (p1[2] - p0[2]) * t9 + Math.sin(Math.PI * t9) * 0.25,
+      ],
+      widthOf: (t9: number): number => (t9 < 0.78
+        ? w0 * (1 - 0.5 * (t9 / 0.78))
+        : w0 * 1.35 * (1 - (t9 - 0.78) / 0.22) ** 0.8),
+    }), GOLD9), depthNow((p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2) * 1.6 + add);
+    out.push(
+      ...blade9([1.0, -1.5, 1.8], [2.3, -3.6, 9.6], 0.75, -1),
+      ...blade9([2.0, -0.3, 1.9], [3.5, -1.9, 8.4], 0.7, -1),
+      ...blade9([-1.5, -1.7, 0.8], [-3.2, -6.0, 0.35], 0.65, 0.5),
+      ...blade9([-2.4, -0.5, 0.8], [-5.8, -3.2, 0.3], 0.6, 0.5),
+    );
+    // 임자색 — 몸을 두르는 낮은 테(받침 위·돔 밑).
+    return raceBase(out, "toss", [
+      ...tagKey(cylinderFaces3(0, 0, 2.62, 0.55, 0), -1),
     ]);
   }),
   /* 로보틱스 서포트 베이(실물 참고) — 톱니 테 받침판 가운데 오목한 대접(심 발광),
