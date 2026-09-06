@@ -10324,7 +10324,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   // 시즈 모드는 +90도 요잉(요청: "시즈모드 탱크 +90도 요잉") — 차체·다리·합본이 같은 각. 포신은 제 조준각으로 따로 돈다.
   // 합본(저배율·도록)의 포신은 차체 +180 = 절대 180(뒤쪽)(요청) — 앱의 포탑 판은 엔진이 idleAim9로 같은 각을 준다.
   // 시즈 모드는 +180(요청: "시즈모드 180도 요잉") — 90 → 270. 포탑의 대기 방향(engine9 idleAim9)도 같이 돌렸다.
-  tanksiege: () => withModelSpin(270, () => [...tankTracks(), ...siegeLegs(), ...tankHull(), ...withModelSpin(90, siegeTurret)]),
+  tanksiege: () => withModelSpin(270, () => [...tankTracks(), ...siegeLegs(), ...tankHull(), ...withModelSpin(270, siegeTurret)]),   // 포탑 안쪽 spin 270 = 엔진 대기 +180과 같은 배치
   /* 발포 반동용 분해(요청) — 시즈 차체/포탑·포신 분리판. */
   tanksiegebody: () => withModelSpin(270, () => [...tankTracks(), ...siegeLegs(), ...tankHull()]),
   tanksiegegun: () => siegeTurret(),

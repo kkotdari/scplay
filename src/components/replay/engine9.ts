@@ -7169,8 +7169,8 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       const aimKey9 = holdKey;
       if (foeDeg !== null) aimMemRef.current.set(aimKey9, foeDeg);
       const lastAim9 = aimMemRef.current.get(aimKey9);
-      // 시즈 몸을 180 돌렸으므로(tanksiegebody spin 270) 대기 포신도 함께 — 차체 기준 뒤쪽 = rotDeg + 0.
-      const idleAim9 = lastAim9 ?? (last.rotDeg ?? 0);
+      // 시즈 대기 포신은 **앞**(지적: "idle 상태에서 시즈모드 탱크는 포신이 뒤쪽을 향하고 있음") — 차체 spin 270에 맞춰 +180.
+      const idleAim9 = lastAim9 ?? ((last.rotDeg ?? 0) + (kind0 === "tanksiege" ? 180 : 0));
       unitOps.push({
         // 포신 가려짐 해결(지적) — 곁 유닛의 z가 포탑을 얇게 자르지 않게 여유 있게.
         ...last, kind: gunKind, fx: gfx, fy: gfy, z: last.z + 30,
