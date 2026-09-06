@@ -19,7 +19,7 @@ const argv = process.argv.slice(2);
 const flag = (n, d = null) => { const i = argv.indexOf(n); return i < 0 ? d : (argv[i + 1] ?? true); };
 const OUT = String(flag("--out", join(tmpdir(), "scene-sheet")));
 const RACES = flag("--race", null) ? [String(flag("--race"))] : ["테란", "프로토스", "저그"];
-const ZOOM = Number(flag("--zoom", 2));
+const ZOOM = Number(flag("--zoom", 2.6));
 const DPR = Number(flag("--dpr", 2));
 const VIEW = Number(flag("--view", 1400));
 const FPS = 23.81;
@@ -43,10 +43,11 @@ const esbuild = (src, out, extra) => {
 const tdir = mkdtempSync(join(tmpdir(), "scene-tables-"));
 const tsrc = join(ROOT, "scripts", ".scene-tables.tmp.ts");
 writeFileSync(tsrc, `
-import { SHAPE_KIND, UNIT_3D, raceOfName9, FOOTPRINT } from ${JSON.stringify(join(ROOT, "src/components/replay/engine9"))};
+import { SHAPE_KIND, UNIT_3D, raceOfName9, FOOTPRINT, MODEL_NORM, BLD_NORM, BLD_NORM_PAIR, isAirUnit } from ${JSON.stringify(join(ROOT, "src/components/replay/engine9"))};
 import { BW_UNIT_NAME } from ${JSON.stringify(join(ROOT, "src/utils/bwUnitNames"))};
 (globalThis as any).window = globalThis;
-export const TABLES = { SHAPE_KIND, UNIT_3D, FOOTPRINT, BW_UNIT_NAME,
+export const TABLES = { SHAPE_KIND, UNIT_3D, FOOTPRINT, BW_UNIT_NAME, MODEL_NORM, BLD_NORM, BLD_NORM_PAIR,
+  AIR: Object.fromEntries(Object.keys(UNIT_3D).map((n) => [n, isAirUnit(n)])),
   RACE: Object.fromEntries([...Object.keys(SHAPE_KIND), ...Object.keys(UNIT_3D)].map((n) => [n, raceOfName9(n) ?? ""])) };
 `);
 esbuild(tsrc, join(tdir, "tables.mjs"), ["--platform=node"]);
@@ -87,18 +88,37 @@ function makeWorld(race) {
     tracks.push({ tag: tag++, owner: 0, type, keys, hp: null });
   };
   // 격자 — 건물은 8타일 간격 6열, 유닛은 4타일 간격 10열. 지도 가운데(64,64) 언저리.
-  const X0 = 64 - 22; let yb = 64 - 22;
+  // 간격을 줄인다(요청: 비교가 쉽게) — 건물 6타일(발자국 최대 4 + 2)·유닛 3.6타일. 라벨은 발치 아래.
+  const X0 = 64 - 22; const yb = 64 - 20;
   const labels = [];
+  // 짧은 이름 — 괄호는 머리글자로(Siege Tank (Siege Mode) → Siege Tank(S)).
+  const short = (n) => n.replace(/ \((\w)[^)]*\)/, "($1)");
+  const normOf = (n, isBld) => {
+    const k = isBld ? TABLES.SHAPE_KIND[n] : TABLES.UNIT_3D[n];
+    const v = isBld ? (TABLES.BLD_NORM[k] ?? TABLES.BLD_NORM[TABLES.BLD_NORM_PAIR[k]]) : TABLES.MODEL_NORM[k];
+    return v === undefined ? "?" : `×${Number(v).toFixed(2)}`;
+  };
   blds.forEach((n, i) => {
-    const x = X0 + (i % 6) * 8 + 2; const y = yb + Math.floor(i / 6) * 8 + 2;
-    bldTrack(nameToId[n], x, y); labels.push([n, x, y]);
+    const x = X0 + (i % 7) * 6 + 2; const y = yb + Math.floor(i / 7) * 6.5 + 2;
+    const fp = TABLES.FOOTPRINT[n] ?? [3, 2];
+    bldTrack(nameToId[n], x, y); labels.push([short(n), normOf(n, true), x, y + fp[1] / 2 + 0.6]);
   });
-  const yu = yb + Math.ceil(blds.length / 6) * 8 + 2;
-  units.forEach((n, i) => {
-    const x = X0 + (i % 8) * 5.6 + 1; const y = yu + Math.floor(i / 8) * 5.5;
-    unitTrack(nameToId[n], x, y); labels.push([n, x, y]);
-  });
-  const yEnd = yu + Math.ceil(units.length / 8) * 5.5;
+  const yu = yb + Math.ceil(blds.length / 7) * 6.5 + 2.5;
+  // 지상 줄(들) 먼저, 비행 줄(들)은 그 아래 — 비행 유닛은 위로 떠서 그려지니 윗줄과 겹치지 않게 사이를 더 띄운다.
+  const ground = units.filter((n) => !TABLES.AIR[n]); const air = units.filter((n) => TABLES.AIR[n]);
+  const COLS = 10;
+  let yRow = yu;
+  const layRow = (list, gap) => {
+    list.forEach((n, i) => {
+      const x = X0 + (i % COLS) * 4.6 + 1; const y = yRow + Math.floor(i / COLS) * gap;
+      unitTrack(nameToId[n], x, y); labels.push([short(n), normOf(n, false), x, y + 1.0]);
+    });
+    yRow += Math.ceil(list.length / COLS) * gap;
+  };
+  layRow(ground, 4.6);
+  yRow += 2.5;          // 비행 줄 앞 여유(떠 있는 몸이 윗줄 라벨을 덮지 않게)
+  layRow(air, 6.0);
+  const yEnd = yRow;
   const w = new W();
   w.u8(0x4f); w.u8(0x42); w.u8(0x57); w.u8(0x54); w.u8(8); w.f32(FPS); w.i32(-1);   // 판 8(해독기가 판 8만 읽는다)
   w.u8(PLAYERS.length);
@@ -197,6 +217,29 @@ for (const race of RACES) {
   await page.waitForTimeout(4000);
   const why = await page.evaluate(() => { const d = window.__scrDiag || {}; return JSON.stringify({ truthWhy: d.truthWhy, truth: d.truth, worker: d.worker, crowd: d.crowd }); });
   console.log("진단:", why);
+  /* 격자 타일(실제 게임 타일 크기)과 이름·배율 라벨을 지도 상자 위에 덧댄다 — 상자 좌표는 initialView와 같은 식
+     (렌즈: ((x/128 − cx)·z + 0.5)·상자폭). 격자는 지도 위·유닛 아래(z 100), 라벨은 맨 위. */
+  await page.evaluate(([labels, z, cx, cy]) => {
+    const map = document.querySelector(".scr-motion-map"); if (!map) return;
+    const r = map.getBoundingClientRect();
+    const tile = (r.width * z) / 128;
+    const ox = ((0 - cx) * z + 0.5) * r.width; const oy = ((0 - cy) * z + 0.5) * r.height;
+    const grid = document.createElement("div");
+    grid.style.cssText = `position:absolute;inset:0;pointer-events:none;z-index:100;` +
+      `background-image:linear-gradient(rgba(255,255,255,0.16) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.16) 1px,transparent 1px);` +
+      `background-size:${tile}px ${tile}px;background-position:${ox}px ${oy}px;`;
+    map.appendChild(grid);
+    const lab = document.createElement("div");
+    lab.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:9000;font:9px/1.15 ui-sans-serif,system-ui,sans-serif;color:#fff;text-shadow:0 0 3px #000,0 0 2px #000;text-align:center;";
+    for (const [t, nv, x, y] of labels) {
+      const d = document.createElement("div");
+      d.innerHTML = `${t}<br><b style="color:#ffd76a">${nv}</b>`;
+      d.style.cssText = `position:absolute;left:${((x / 128 - cx) * z + 0.5) * 100}%;top:${((y / 128 - cy) * z + 0.5) * 100}%;transform:translate(-50%,0);white-space:nowrap;`;
+      lab.appendChild(d);
+    }
+    map.appendChild(lab);
+  }, [world.labels, ZOOM, 0.5, world.cy]);
+  await page.waitForTimeout(300);
   const el = await page.$(".scr-motion-map");
   const file = join(OUT, `scene_${RACE_EN[race]}.png`);
   if (el) await el.screenshot({ path: file }); else await page.screenshot({ path: file });

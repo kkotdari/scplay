@@ -8244,37 +8244,76 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const [mx9, my9] = [Math.cos(am) * (WI + WO) / 2, Math.sin(am) * (WI + WO) / 2];
       out.push(...tagKey(seg, K(mx9, my9, 1.0)));
     }
-    /* ④ 판형 부품 — 얇은 판(ref [0,0,1]로 넓은 면이 수직·축 방향, oval로 옆이 얇다). 끝은 화살촉. */
-    const blade9 = (
-      p0: [number, number, number], p1: [number, number, number], w0: number, add: number, up = true, head = true,
-    ): ShapeFace[] => tagKey(paintBase(spirePillar({
-      x: 0, y: 0, h: 1, w: w0, segs: 16, sides: 6, oval: 0.22, caps: "none", trueNormal: true,
-      ref: up ? [fy9, -fx9, 0] : [0, 0, 1],
-      path: (t9: number): [number, number, number] => [
-        p0[0] + (p1[0] - p0[0]) * t9, p0[1] + (p1[1] - p0[1]) * t9, p0[2] + (p1[2] - p0[2]) * t9,
-      ],
-      /* **잎 모양**(재지적 그림: 넓고 끝이 둥근 판) — 뿌리에서 0.6배로 시작해 35%에서 제 폭, 75%까지 유지하다 끝을
-         타원으로 둥글게 닫는다. 기둥·꼬리 모두 이 옆선이다(head는 이제 안 쓴다). */
-      widthOf: (t9: number): number => {
-        void head;
-        if (t9 < 0.35) return w0 * (0.6 + 0.4 * (t9 / 0.35));
-        if (t9 < 0.75) return w0;
-        return w0 * Math.sqrt(Math.max(0.01, 1 - ((t9 - 0.75) / 0.25) ** 2));
-      },
-    }), GOLD9), K((p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2, add));
-    /* 낮은 벽 뒤쪽의 세로 납작 기둥 — **둘이 양쪽에 대칭**(재요청: "세로로 선 판은 두 개가 양쪽에 대칭으로, 판 모양은
-       현재 판을 반으로 자른 모양") — 한 장을 세로로 가른 반쪽 둘이 옆(s) ±0.42에 나란히 서고, 벤 면이 서로 마주 본다.
-       반폭 0.38·화살촉은 그대로. */
-    // 넓은 잎 판 둘(반폭 0.85)이 옆 ±1.0에 나란히 — 그림의 두 둥근 판.
-    for (const sd9 of [-1.0, 1.0]) {
-      const [bx9, by9] = at9(-3.9, sd9);
-      out.push(...blade9([bx9, by9, 0.4], [bx9 - fx9 * 0.6, by9 - fy9 * 0.6, 8.4], 0.85, -1.5));
+    /* ④ 판형 부품 — 빵칼 모양의 **얇은 판**(그림 = 판의 윤곽): 한쪽 긴 모서리(등)는 곧고, 반대쪽은 자루가 좁다가
+       끝(머리)에서 넓게 불거진 뒤 둥글게 끝난다. 두께 W는 얇다(0.14).
+       p0→p1 축, n = 불거지는 쪽(등의 반대), 두께 W는 축·n에 수직인 방향. 등 모서리가 n=0 자리에 놓인다. */
+    const spatula9 = (
+      p0: [number, number, number], p1: [number, number, number], n9: [number, number, number], W: number, TH: number, add: number,
+    ): ShapeFace[] => {
+      const ax = p1[0] - p0[0]; const ay = p1[1] - p0[1]; const az = p1[2] - p0[2];
+      const L9 = Math.hypot(ax, ay, az); const ex = ax / L9; const ey = ay / L9; const ez = az / L9;
+      // 폭 방향 c = n × e (단위).
+      let cx9 = n9[1] * ez - n9[2] * ey; let cy9 = n9[2] * ex - n9[0] * ez; let cz9 = n9[0] * ey - n9[1] * ex;
+      const cl = Math.hypot(cx9, cy9, cz9) || 1; cx9 /= cl; cy9 /= cl; cz9 /= cl;
+      // 두께 곡선(등에서 잰 높이, 머리 최대 = TH): 자루 0.45 → 머리로 매끄럽게 → 끝은 타원으로 둥글게 0.
+      const th9 = (t9: number): number => {
+        const sh = 0.45;
+        const u9 = t9 <= 0.5 ? sh
+          : t9 < 0.65 ? sh + (1 - sh) * (1 - Math.cos(((t9 - 0.5) / 0.15) * Math.PI)) / 2
+            : t9 <= 0.8 ? 1 : Math.sqrt(Math.max(0, 1 - ((t9 - 0.8) / 0.2) ** 2));
+        return u9 * TH;
+      };
+      // 등에서 본 폭: 자루 일정, 머리 끝은 둥글게 모은다.
+      const wd9 = (t9: number): number => W * (t9 <= 0.82 ? 1 : Math.sqrt(Math.max(0.02, 1 - ((t9 - 0.82) / 0.18) ** 2)));
+      // 조각 나누기 — 곧은 자루는 한 장, 굽는 곳만 잘게(조각 이음새가 줄무늬로 보이지 않게).
+      const TS = [0, 0.5, 0.55, 0.6, 0.65, 0.8, 0.86, 0.92, 0.97, 1];
+      const NS = TS.length - 1;
+      const P = (t9: number, side: number, lift: number): [number, number, number] => {
+        const w9 = wd9(t9) * 0.5 * side; const h9 = lift ? th9(t9) : 0;
+        return [p0[0] + ax * t9 + cx9 * w9 + n9[0] * h9, p0[1] + ay * t9 + cy9 * w9 + n9[1] * h9, p0[2] + az * t9 + cz9 * w9 + n9[2] * h9];
+      };
+      const faces: ShapeFace[] = [];
+      const lit9 = (path: string, nx: number, ny: number, nz: number): void => {
+        const fl = faceLight(nx, ny, nz);
+        if (!fl.visible) return;
+        faces.push([path, 1, GOLD9] as ShapeFace, ...fl.face(path));
+        if (nz > 0.6) faces.push(topFace(path, 0.16));
+      };
+      // 등(평평한 면) — 한 폴리곤.
+      const back9: [number, number, number][] = [];
+      for (let k9 = 0; k9 <= NS; k9 += 1) back9.push(P(TS[k9], 1, 0));
+      for (let k9 = NS; k9 >= 0; k9 -= 1) back9.push(P(TS[k9], -1, 0));
+      lit9(polyPath3(back9), -n9[0], -n9[1], -n9[2]);
+      // 불거진 면 + 양 옆면 — 조각별.
+      for (let k9 = 0; k9 < NS; k9 += 1) {
+        const t0 = TS[k9]; const t1 = TS[k9 + 1];
+        const dh = (th9(t1) - th9(t0)) / (L9 * (t1 - t0));
+        // 불거진 면 법선 ≈ n − e·(dh) (정규화).
+        let fnx = n9[0] - ex * dh; let fny = n9[1] - ey * dh; let fnz = n9[2] - ez * dh;
+        const fl9 = Math.hypot(fnx, fny, fnz) || 1; fnx /= fl9; fny /= fl9; fnz /= fl9;
+        lit9(polyPath3([P(t0, 1, 1), P(t1, 1, 1), P(t1, -1, 1), P(t0, -1, 1)]), fnx, fny, fnz);
+        for (const side of [1, -1]) {
+          lit9(polyPath3([P(t0, side, 0), P(t1, side, 0), P(t1, side, 1), P(t0, side, 1)]), cx9 * side, cy9 * side, cz9 * side);
+        }
+      }
+      // 뿌리 단면(자루 끝) — 두께가 있으니 막는다.
+      lit9(polyPath3([P(0, 1, 0), P(0, -1, 0), P(0, -1, 1), P(0, 1, 1)]), -ex, -ey, -ez);
+      return tagKey(faces, K((p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2, add));
+    };
+    /* 낮은 벽 뒤의 세로 판 둘 — 뒤(FA+π)에서 양옆으로 벌려 서고, 등(곧은 모서리)이 바깥(양옆)을 향한다.
+       넓은 면은 앞뒤를 보고, 불거진 머리는 안쪽(서로 마주 보게). 살짝 뒤로 기운다. */
+    const sx9 = -fy9; const sy9 = fx9;                                  // 옆(+s) 단위 방향
+    for (const side of [1, -1]) {
+      const [bx9, by9] = at9(-3.35, side * 1.5);   // 본체(낮은 벽 바깥면 r 3.4)에 딱 붙게(요청)
+      // 길이 0.6배(요청) — 8.4 → 5.2.
+      out.push(...spatula9([bx9, by9, 0.45], [bx9 - fx9 * 0.4, by9 - fy9 * 0.4, 5.2], [-sx9 * side, -sy9 * side, 0], 0.14, 1.1, -1.5));
     }
-    // 반구 뒤의 **넓고 둥근 판 꼬리 하나**(재지적 그림) — 반폭 1.15, 뒤로 7.2 낮게 뻗어 끝이 둥글다.
-    {
-      const [tx0, ty0] = at9(-1.9, 0);
-      const [tx1, ty1] = at9(-1.9 - 7.2, 0.6);
-      out.push(...blade9([tx0, ty0, 1.1], [tx1, ty1, 1.4], 1.15, -2, false, false));
+    /* 반구 뒤의 판형 꼬리 셋 — 등(곧은 모서리)이 바닥에 닿게 세워 뒤로 길게 뻗는다(가운데가 가장 길다). 받침판
+       가장자리에서 나와 땅으로 내려앉는다. 넓은 면은 옆을 보고, 불거진 머리는 위(끝쪽). */
+    for (const [sd9, len9] of [[-1, 2.9], [0, 3.4], [1, 2.9]] as [number, number][]) {   // 길이 0.6배(요청)
+      const [tx0, ty0] = at9(-2.9, sd9 * 1.75);
+      const [tx1, ty1] = at9(-2.9 - len9, sd9 * 2.3);
+      out.push(...spatula9([tx0, ty0, 0.5], [tx1, ty1, 0.03], [0, 0, 1], 0.14, 1.0, -2));
     }
     // 임자색 — 반구 밑을 두르는 낮은 테.
     return raceBase(out, "toss", [
