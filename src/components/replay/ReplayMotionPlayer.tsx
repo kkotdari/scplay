@@ -18723,7 +18723,7 @@ const DEV9 = smallDevice9 ? {
 } : {
   name: "pc",
   spriteMB: 128, bldSpriteMB: 64,
-  mapFreedMB: 0, decalBakeMax: 384, bakeOneMB: 8, bakePoolMB: 24,
+  mapFreedMB: 0, decalBakeMax: 768, bakeOneMB: 8, bakePoolMB: 24,   // 크립 굽기 상한 384 → 768(지적: PC에서 화질 낮은 게 보임)
   unitBakePerFrame: 3, bldBakePerFrame: 3,
   hitShardK: 1, dieShards: 24, fxRasterMB: 24, shadowGroundMinZoom: 0,
   /* 앞 한도 10 → 24MB(진단: PC 3배에서 장당 220KB라 10MB가 0.7초 만에 차, 3초 예산이 있어도 앞이 0.7초뿐이었다 —
@@ -25778,7 +25778,9 @@ export default function ReplayMotionPlayer({
      자동으로 로스터 1단계 켜고 추적모드 활성화") — 누구를 따라가고 있는지가 안 보이면
      추적은 그냥 '화면이 저 혼자 움직이는 일'로만 보인다. 첫 단인 까닭은 그 한 가지만
      말하면 되기 때문이다: 지표까지 펴면(전체) 지도를 그만큼 더 가린다. */
-  const [rosterMode, setRosterMode] = useState<0 | 1 | 2>(initialTrack ? 0 : 2);
+  // 처음부터 기본 로스터(이름만)로 시작한다(요청: "프레임 모드에서도 기본 로스터는 켠 상태로 시작") — 추적 링크든 아니든.
+  const [rosterMode, setRosterMode] = useState<0 | 1 | 2>(0);
+  void initialTrack;
   /** 미니맵 판이 켜져 있나(요청: "미니맵 오버레이 및 아이콘 추가") — 로스터와 같은 결로
    *  제 아이콘이 여닫는다.
    *  ★ 기본은 **켜짐**이다(요청: "미니맵은 기본 활성화 상태") — 한동안 꺼짐이었다(그때의
@@ -29129,8 +29131,9 @@ export default function ReplayMotionPlayer({
           type="button"
           /* 켠 표시는 **전체 꼴**에만 — 안 보임 꼴은 흐리게 해 '지금 아무것도 없다'를,
              이름만 꼴은 아무 표시 없이 그 사이를 말한다. */
+          /* 켠 표시는 이름만(0)·전체(1) 둘 다(지적: "기본 로스터일 때 버튼 활성화 표시가 안 되는 문제") — 숨김(2)만 흐리다. */
           className={cx("scr-motion-litbtn scr-motion-mapbtn",
-            rosterMode === 1 && "is-on", rosterMode === 2 && "is-mute")}
+            rosterMode !== 2 && "is-on", rosterMode === 2 && "is-mute")}
           onClick={() => setRosterMode((v) => ((v + 1) % 3) as 0 | 1 | 2)}
           aria-label={rosterMode === 0 ? "로스터 현황 보이기"
             : rosterMode === 1 ? "로스터 숨기기" : "로스터 이름만 보이기"}
