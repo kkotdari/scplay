@@ -22134,7 +22134,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
             }
             continue;
           }
-          if (SHIELD_FX_ON && f.kind === "shield") {
+          if (f.kind === "shield" && !SHIELD_FX_ON) continue;   // 꺼 두어도 총구 번쩍임 갈래로 흘러가면 안 된다.
+          if (f.kind === "shield") {
             /* 막은 **죽음과 갈려야 한다**(지적: "스커지 자폭에서 왜 프로토스 사별 효과가 나지") —
                스커지 자체는 저그 재질로 터진다(engine9의 dk). 프로토스로 보인 것은 **맞은 쪽**의
                실드 피격 막이었다: 여태 흰 심 + 푸른 방사 구 + 테로, 프로토스 사별의 플라즈마 구
@@ -22143,23 +22144,25 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
                이제 막은 **가장자리에서만 밝은 껍질**이다 — 안쪽은 거의 비치고 테두리로 갈수록
                연푸른빛이 오르며 얇은 테 하나가 몸을 감싼다. 흰 심이 없고 구가 안 차오르므로
                죽음과 겹칠 일이 없다. 자·길이도 한 단 줄였다(engine9: 1.2배·0.4초). */
+            /* **플라즈마 빛**(요청) — 프로토스 결(FX_MAT.toss)과 같은 시안·흰빛이다: 속은 옅은 시안 안개, 테로 갈수록
+               밝아져 흰 심이 선 시안 테 하나가 몸을 감싼다. 금빛은 어디에도 없다. 선 굵기는 타일 자(tz9)로 폰을 맞춘다. */
             const a9 = envShield(p9);
             if (a9 <= 0.02) continue;
             const sc9 = 0.9 + p9 * 0.2;                       // scale .9 → 1.1
             const r9 = ((f.size ?? 6) / 2) * zoom * sc9;
             const cy9 = ay - r9 * 0.1;
             ctx.globalAlpha = a9;
-            const g9 = ctx.createRadialGradient(ax, cy9, r9 * 0.55, ax, cy9, r9);
-            g9.addColorStop(0, "rgba(140,200,255,0)");
-            g9.addColorStop(0.7, "rgba(140,200,255,0.16)");
-            g9.addColorStop(0.92, "rgba(205,238,255,0.42)");
-            g9.addColorStop(1, "rgba(225,245,255,0)");
+            const g9 = ctx.createRadialGradient(ax, cy9, r9 * 0.5, ax, cy9, r9);
+            g9.addColorStop(0, "rgba(90,190,255,0)");
+            g9.addColorStop(0.68, "rgba(90,190,255,0.2)");
+            g9.addColorStop(0.9, "rgba(170,235,255,0.55)");
+            g9.addColorStop(1, "rgba(235,250,255,0)");
             ctx.fillStyle = g9;
             ctx.beginPath();
             ctx.arc(ax, cy9, r9, 0, Math.PI * 2);
             ctx.fill();
-            ctx.strokeStyle = "rgba(225,245,255,0.7)";
-            ctx.lineWidth = Math.max(0.6, 0.35 * zoom);
+            ctx.strokeStyle = "rgba(230,250,255,0.9)";
+            ctx.lineWidth = Math.max(0.6, 0.35 * tz9);
             ctx.beginPath();
             ctx.arc(ax, cy9, r9 * 0.93, 0, Math.PI * 2);
             ctx.stroke();
@@ -23357,7 +23360,10 @@ const FX_MIN_ZOOM: Record<FxOp["kind"], number> = {
  *    걸려 폰에서는 8배였다. 그 바닥을 안 타게 한다.
  *  나머지(피격·실드막·승하차 줄)는 꾸밈이라 바닥을 그대로 탄다. */
 const FX_NO_FLOOR = new Set<FxOp["kind"]>(["beam", "shot", "cage", "burst"]);
-const SHIELD_FX_ON: boolean = false;
+/* ★ 켠다(지적: "프로토스 실드 피격효과를 금색이 아니라 플라즈마 빛으로") — 꺼 둔 동안 실드 op가 아래 갈래에서
+   **안 걸러지고** 총구 번쩍임 기본 갈래(FX_BEAM.base, 금빛)로 흘러 들어갔다. 그 금빛 번쩍임이 곧 '금색 실드
+   피격'이었다. 이제 실드 막을 플라즈마 빛(흰 심·시안 테)으로 제대로 그리고, 꺼도 아래로 안 흘러가게 막는다. */
+const SHIELD_FX_ON: boolean = true;
 /* 근접 유닛(지적: 질럿이 가까이 가지 않고 멀리서 싸움) — 이들은 당김 상한(2.5타일)에
    걸려 6~7타일 밖에 멈춰 서면 안 되고, 표적에 몸이 닿을 때까지 걸어 들어가야 한다.
    파이어뱃은 사거리 1타일이라 근접으로 친다. */
