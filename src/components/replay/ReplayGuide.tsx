@@ -94,12 +94,12 @@ export default function ReplayGuide({ onClose }: {
           <ul className="scr-guide-legend">
             <li><span className="scr-guide-ic"><Users size={15}/></span><span><b>로스터</b> — 누를 때마다 <b>이름만 → 전체 → 숨김</b> 세 단으로 돕니다. 아이콘이 <b>사람+표</b>(<RosterTableIcon size={13}/>)로 바뀌면 APM 같은 지표까지 떠 있는 상태입니다.</span></li>
             <li><span className="scr-guide-ic"><MapIcon size={15}/></span><span><b>미니맵</b> — 전체 판을 한 눈에. 눌러서 그 자리로 바로 갑니다(전체화면에서 여닫습니다).</span></li>
-            <li><span className="scr-guide-ic scr-guide-ic-txt">×2</span><span><b>배속</b> — 교전 하나를 뜯어볼 땐 낮추고, 초반 빌드를 넘길 땐 올립니다. <kbd>↑</kbd><kbd>↓</kbd>와 같습니다.</span></li>
+            <li><span className="scr-guide-ic scr-guide-ic-txt">×2</span><span><b>배속</b> — 교전 하나를 뜯어볼 땐 낮추고, 초반 빌드를 넘길 땐 올립니다.</span></li>
             <li><span className="scr-guide-ic scr-guide-ic-txt">8배</span><span><b>확대</b> — 지도는 그 배율로 매번 다시 그리므로 아무리 키워도 안 뭉개집니다.</span></li>
-            <li><span className="scr-guide-ic"><Palette size={15}/></span><span><b>색</b> — <b>팀색</b>은 편을 가르고, <b>개인색</b>은 그 경기에서 각자가 쓰던 색입니다. <kbd>C</kbd></span></li>
-            <li><span className="scr-guide-ic scr-guide-ic-txt">2D</span><span><b>보기</b> — 평면(2D)과 입체(3D)를 오갑니다. 언덕·램프는 입체에서 더 잘 읽힙니다. <kbd>V</kbd></span></li>
-            <li><span className="scr-guide-ic"><Music size={15}/></span><span><b>음악</b> — 배경음악을 켜고 끕니다. <kbd>M</kbd></span></li>
-            <li><span className="scr-guide-ic"><Maximize size={15}/></span><span><b>전체화면</b> — <kbd>Alt</kbd>+<kbd>Enter</kbd>와 같습니다. 안에서 <kbd>Enter</kbd>로 조작부를 감춥니다.</span></li>
+            <li><span className="scr-guide-ic"><Palette size={15}/></span><span><b>색</b> — <b>팀색</b>은 편을 가르고, <b>개인색</b>은 그 경기에서 각자가 쓰던 색입니다.</span></li>
+            <li><span className="scr-guide-ic scr-guide-ic-txt">2D</span><span><b>보기</b> — 평면(2D)과 입체(3D)를 오갑니다. 언덕·램프는 입체에서 더 잘 읽힙니다.</span></li>
+            <li><span className="scr-guide-ic"><Music size={15}/></span><span><b>음악</b> — 배경음악을 켜고 끕니다.</span></li>
+            <li><span className="scr-guide-ic"><Maximize size={15}/></span><span><b>전체화면</b>.</span></li>
           </ul>
         </div>
 
@@ -164,14 +164,14 @@ export default function ReplayGuide({ onClose }: {
           <K keys={["X"]} title="장면 공유" desc="지금 장면의 링크를 공유 시트로 보냅니다(안 되면 링크 복사)."/>
 
           <span className="scr-guide-group">보기</span>
-          <K keys={["2", "3"]} title="평면 / 입체"/>
-          <K keys={["R"]} title="로스터" desc="이름만 → 전체 → 숨김 순으로 돕니다."/>
-          <K keys={["T"]} title="팀색 ↔ 개인색"/>
+          <K keys={["`"]} title="로스터" desc="이름만 → 전체 → 숨김 순으로 돕니다."/>
+          <K keys={["C"]} title="팀색 ↔ 개인색"/>
+          <K keys={["V"]} title="평면 ↔ 입체"/>
           <K keys={["M"]} title="음악 켜기 / 끄기"/>
 
           <span className="scr-guide-group">창</span>
           <K keys={["Alt", "Enter"]} plus title="전체화면 들어가기 / 나가기"/>
-          <K keys={["Enter"]} title="조작부 감추기 / 보이기" desc="전체화면일 때만. 지도를 넓게 볼 때 씁니다."/>
+          <K keys={["F"]} title="조작부 감추기 / 보이기" desc="전체화면일 때만. 지도를 넓게 볼 때 씁니다."/>
           <K keys={["Esc"]} title="닫기" desc="유닛 정보창이 열려 있으면 그것부터, 없으면 전체화면에서 나갑니다."/>
         </div>
 

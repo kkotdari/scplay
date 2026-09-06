@@ -24947,6 +24947,9 @@ export default function ReplayMotionPlayer({
   /* 각도는 이제 켜고 끄는 것이 아니라 칸이다(요청: 각도 5단계, 기본 90도=2D) —
      90도 칸이 예전의 '2D', 48도 칸이 예전의 '3D'다. pitched는 그 값에서 나온다. */
   const [pitchDeg, setPitchDeg] = useState<number>(PITCH_DEGS[0]);
+  /** 키 판(v 토글)이 읽는 지금 기울기 — 키 판은 렌더마다 다시 안 걸리므로 ref로 본다. */
+  const pitchDegRef9 = useRef(pitchDeg);
+  pitchDegRef9.current = pitchDeg;
   const pitched = pitchDeg < 90;
   const pitchFlat = flatOf(pitchDeg);
   /** 땅을 눕히는 각(=90도 − 시점각) — CSS rotateX에 그대로 들어간다. */
@@ -28148,8 +28151,9 @@ export default function ReplayMotionPlayer({
       const k = e.key;
       /** 오버레이에 손잡이가 있는 조작이면 판을 깨운다(위 주석). */
       const wakeUi = (): void => { if (fsOn) fsWake(); };
-      /* ★ 키 배치(요청: "키 매핑 변경 — 확대 축소: 위아래 화살표 · 배속: q/e · 로스터/색깔: r/t · 2d/3d: 2/3 ·
-         스크랩/공유: z/x · 나머지는 그대로"). 글자 키는 e.code(자판 자리)로 읽어 한글 자판에서도 듣는다. */
+      /* ★ 키 배치(요청: "확대 축소: 위아래 화살표 · 배속: q/e · 스크랩/공유: z/x", 그 뒤 "로스터, 색깔, 평면입체:
+         `, c, v · 조작부 감추기/보이기: f · 도움말에 표기된 단축키 이외의 매핑은 모두 제거"). 글자 키는 e.code(자판
+         자리)로 읽어 한글 자판에서도 듣는다. 안내(ReplayGuide)에 적힌 키만 여기 있어야 한다 — 별칭을 더하지 않는다. */
       const zoomStep9 = (up9: boolean): void => {
         const el9 = mapRef.current;
         const r9 = el9?.getBoundingClientRect();
@@ -28213,9 +28217,8 @@ export default function ReplayMotionPlayer({
         // 알트+엔터 전체화면 토글(요청) — 창 전체화면의 오래된 관례 그대로다.
         e.preventDefault();
         if (fsOnRef.current) exitFs(); else enterFs();
-      } else if (k === "Enter") {
-        /* 엔터 — **조작부 여닫이**(요청: "단축키는 엔터"). 오른쪽 위 아이콘과 같은 일이다.
-           단추에 초점이 있으면 여기까지 안 온다(위 onBtn9 걸러내기) — 그건 그 단추 몫이다.
+      } else if (e.code === "KeyF") {
+        /* f — **조작부 여닫이**(요청: 엔터 → h → f). 오른쪽 위 아이콘과 같은 일이다.
            전체화면이 아닐 때는 여닫을 판이 없으므로 아무 일도 안 한다. */
         if (!fsOnRef.current) return;
         e.preventDefault();
@@ -28238,30 +28241,25 @@ export default function ReplayMotionPlayer({
            0이고, 쓰는 자리에서는 화면이 통째로 조작된다. 막을 까닭이 없다.
            입력칸·단추 초점 걸러내기는 위에 그대로 있어, 자판이 붙어 있어도 글 쓰는 중에는
            안 뺏는다. */
-      } else if (e.code === "BracketRight" || e.code === "BracketLeft") {
-        // ]/[ — 옛 확대·축소 별칭(안내에는 안 적는다).
-        e.preventDefault();
-        wakeUi();
-        zoomStep9(e.code === "BracketRight");
-      } else if (e.code === "KeyT") {
-        // t = 팀색 ↔ 개인색(요청; 옛 c).
+      // (걷어냄) ]/[ 확대·축소 별칭 · 2/3 평면·입체 · r 로스터 · t 색 — 안내에 없는 매핑은 두지 않는다(요청).
+      } else if (e.code === "KeyC") {
+        // c = 팀색 ↔ 개인색(요청).
         e.preventDefault();
         wakeUi();
         setColorMode((v) => (v === "team" ? "personal" : "team"));
-      } else if (e.code === "KeyR") {
-        // r = 로스터 여닫이(이름만 → 전체 → 숨김, 오른쪽 아래 단추와 같은 순서).
+      } else if (e.code === "Backquote") {
+        // ` = 로스터 여닫이(이름만 → 전체 → 숨김, 오른쪽 아래 단추와 같은 순서 / 요청).
         e.preventDefault();
         wakeUi();
         setRosterMode((v) => ((v + 1) % 3) as 0 | 1 | 2);
-      } else if (e.code === "Digit2" || e.code === "Digit3") {
-        // 2 = 평면, 3 = 입체(요청; 옛 v 토글).
+      } else if (e.code === "KeyV") {
+        // v = 평면 ↔ 입체 토글(요청). 입체가 막힌 기기면 안내만 띄운다.
         e.preventDefault();
         wakeUi();
-        if (e.code === "Digit2") setPitchDeg(90);
+        if (pitchDegRef9.current < 90) setPitchDeg(90);
         else if (!pitchAllowed()) pitchDenied();
         else setPitchDeg(PITCH_3D);
-      // (걷어냄) v 토글 — 2/3 키가 대신한다(위).
-      } else if (k === "m" || k === "M" || k === "ㅡ") {
+      } else if (e.code === "KeyM") {
         /* m — 음악 켜기/끄기(지시). 색상(c)·재생(p)과 같은 결이다: 손잡이가 화면에
            있는 조작이라 **오버레이를 깨운다**(위 wakeUi 주석의 그 규약 — 눌러 놓고
            무엇이 바뀌었는지 볼 수 있어야 한다).
