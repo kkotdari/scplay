@@ -4710,7 +4710,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const GOLDD = "#8e6f1a";
     const CYAN9 = "#5aecd8";
     // (걷어냄) GLASS9 — 정면 유리 창 셋이 쓰던 색이다. 창은 사다리꼴 현판으로 갈렸다.
-    const out: ShapeFace[] = [...pillar(-4.7, -4.7), ...pillar(4.7, -4.7)];
+    /* ★ 기둥을 **모서리에 심는다**(지적: "기둥들도 45도에 보면 양쪽의 기둥이 위치가 좀 어색함") — 5.6(대각 반지름
+       7.9)은 피라미드 모서리(6.36)보다 1.5 바깥이라, 45도에서 양옆 기둥이 몸과 떨어진 허공에 서 보였다. 4.9(반지름
+       6.9)로 들이면 받침 원반이 밑동 모서리에 물리고 기둥 아랫동이 몸에 가려져 심긴 것으로 읽힌다. */
+    const PX9 = 4.9;
+    const out: ShapeFace[] = [...pillar(-PX9, -PX9), ...pillar(PX9, -PX9)];
     // 몸통은 금빛 바탕(재작도) — 프로토스의 바탕색은 골드다.
     out.push(...paintBase(frustumFaces3(0, 0, 9, 9, 2.8, 2.8, 6.4), GOLD9));
     /* 밑동 한 단(사진) — 몸보다 조금 넓은 짙은 금 받침이 깔려, 피라미드가 땅에서
@@ -4826,20 +4830,23 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const mx9 = (hi9[i9][0] + hi9[j9][0]) / 2 - sx * 6; const my9 = (hi9[i9][1] + hi9[j9][1]) / 2 - sy * 6;
         const ml9 = Math.hypot(mx9, my9) || 1;
         const fl9 = faceLight(mx9 / ml9, my9 / ml9, 0.2);
-        padF.push([w9, 1, GOLD9] as ShapeFace, ...(fl9.visible ? fl9.face(w9) : [sideFace(w9, 0.4)]));
+        padF.push([w9, 1, GOLDD] as ShapeFace, ...(fl9.visible ? fl9.face(w9) : [sideFace(w9, 0.4)]));
       }
       const top9 = polyPath3(hi9);
       const flT9 = faceLight(sx, sy, 0.55);
-      padF.push([top9, 1, GOLD9] as ShapeFace, ...(flT9.visible ? flT9.face(top9) : [topFace(top9, 0.18)]));
-      // 끝 삼각뿔 — 밑면은 발판 끝 위, 꼭대기는 안쪽으로 0.6 기운다.
+      /* 발판은 **받침과 같은 짙은 금**이다(지적: "발판 끝쪽이 위로 들린 것처럼 보이는데") — 몸과 같은 밝은 금이면
+         뒤쪽 발판의 드러난 끝이 경사면의 연장(들린 판)으로 읽혔다. 밑동 받침(GOLDD) 색이면 땅에 깔린 단의 일부로
+         읽힌다. 그리는 차례는 이미 옳다(몸 뒤 → 몸이 안쪽을 가린다). */
+      padF.push([top9, 1, GOLDD] as ShapeFace, ...(flT9.visible ? flT9.face(top9) : [topFace(top9, 0.18)]));
+      // 끝 뿔 — 밑면은 발판 끝 위, 꼭대기는 안쪽으로 0.6 기운다. **4면 뿔**(요청: "발판 끝의 뿔은 4면체 뿔이어야").
       padF.push(...paintBase(spirePillar({
         // 폭을 좁혀 발판 끝에 맞춘다(재요청): w 0.95 → 0.5, 밑동을 7.85로 당겨 발판 폭(반폭 0.55) 안에 든다.
-        x: 0, y: 0, h: 1, w: 0.5, tipW: 0.02, segs: 2, sides: 3, phase: 0, ref: [sx, sy, 0], caps: "none",
+        x: 0, y: 0, h: 1, w: 0.5, tipW: 0.02, segs: 2, sides: 4, phase: Math.PI / 4, ref: [sx, sy, 0], caps: "none",
         path: (t9: number): [number, number, number] => [sx * (7.85 - 0.6 * t9), sy * (7.85 - 0.6 * t9), 0.5 + 1.85 * t9],
       }), GOLD9));
       out.push(...tagKey(padF, depthNow(sx * 6.5, sy * 6.5)));
     }
-    out.push(...pillar(-5.6, 5.6), ...pillar(5.6, 5.6));
+    out.push(...pillar(-PX9, PX9), ...pillar(PX9, PX9));
     /* 옆면 사이언 빗살(사진) — 몸이 금빛이 된 만큼 빗살은 종족 팔레트의 사이언으로
        또렷하게 세운다(전엔 탁한 청록이라 금빛 위에서 묻혔다). */
     /* 사방 네 면 모두에 빗살을 세운다(지적: "넥서스 옆면 아쿠아 포인트 사선에서 잘
