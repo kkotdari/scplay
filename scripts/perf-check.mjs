@@ -227,11 +227,12 @@ function makeWorld() {
   /* ── 바이트로 굽는다 ── */
   const w = new W();
   w.u8(0x4f); w.u8(0x42); w.u8(0x57); w.u8(0x54);   // "OBWT"
-  w.u8(4); w.f32(FPS); w.i32(-1);
+  w.u8(8); w.f32(FPS); w.i32(-1);   // 판 8 — 해독기가 판 8만 읽는다(옛 4는 "재생할 수 없는 게임"으로 물러났다)
   w.u8(PLAYERS.length);
   for (const pl of PLAYERS) { w.u8(pl.owner); w.u8(pl.owner); w.u8(pl.race); w.u8(pl.force); w.u8(0); w.u32(pl.color); w.str(pl.name); }
   w.u32(tracks.length);
-  for (const tr of tracks) { w.u32(tr.tag); w.u8(tr.owner); w.u16(tr.type); w.u32(tr.keys.length); w.u32(tr.hp ? tr.hp.length : 0); w.u32(0); }
+  // 판 8 트랙표 줄: … + 표적 수(u32, 0) + 임자바뀜 목록(u8 개수, 0).
+  for (const tr of tracks) { w.u32(tr.tag); w.u8(tr.owner); w.u16(tr.type); w.u32(tr.keys.length); w.u32(tr.hp ? tr.hp.length : 0); w.u32(0); w.u32(0); w.u8(0); }
   for (const tr of tracks) {
     let pf = 0; let px = 0; let py = 0; let pt = 0;
     for (const [f, x, y, hb, st, ty] of tr.keys) {
