@@ -2670,12 +2670,14 @@ function tankTrack(cx: number, yA = -3.6, yB = 3.6): ShapeFace[] {
   const out: ShapeFace[] = [...paintBase(trackFaces(cx, yA, yB, H, W), TRACK_STEEL)];
   // 달림면 위에 얹히는 것들의 밑값 — 옆벽 열쇠 위(위 trackTopKey 주석).
   const kTop = trackTopKey(cx, (yA + yB) / 2, W);
-  // 트랙 링크 — 달림면을 가로지르는 가는 리브. 수는 길이가 정한다(짝을 둘로 가르면서).
-  const n = Math.max(3, Math.round((yB - yA) / 0.9));
+  /* 트랙 링크 → **레일판**(요청: "껍데기의 레일 느낌이 더 살게 — 레일판이 바퀴 본체보다 옆으로 튀어나오게 해서 요철")
+     — 가는 리브 대신 궤도 윗반을 두르는 두꺼운 판이 양옆으로 0.28씩 튀어나온다(실루엣이 톱니로 읽힌다). 판은 조금
+     촘촘히(0.9 → 0.7 간격), 밝기를 번갈아 결이 보이게. */
+  const n = Math.max(4, Math.round((yB - yA) / 0.7));
   for (let i = 0; i < n; i += 1) {
-    const y = yA + 0.8 + (i * (yB - yA - 1.6)) / (n - 1);
+    const y = yA + 0.55 + (i * (yB - yA - 1.1)) / (n - 1);
     out.push(...tagKey(paintBase(
-      boxFaces3(cx, y, W + 0.16, 0.24, 0.14, H - 0.13), "#6e767f",
+      boxFaces3(cx, y, W + 0.56, 0.34, H * 0.5, H * 0.5), i % 2 === 0 ? "#737b84" : "#656d76",
     ), kTop + 0.2));
   }
   /* 앞뒤 기동륜 — 궤도 **속**에 든 두꺼운 원판이다.
@@ -2702,10 +2704,12 @@ function tankTrack(cx: number, yA = -3.6, yB = 3.6): ShapeFace[] {
  *  뒤쪽의 1/2 길이"). 옛 판은 한 쪽에 통짜 하나(7.2)였다. 전체 길이는 그대로 두고
  *  틈 0.3을 사이에 두고 뒤 4.6 · 앞 2.3으로 가른다 — 정확히 2:1이다. 앞은 +y(사선
  *  앞판 쪽)다. 링크·기동륜은 tankTrack이 제 길이에 맞춰 알아서 낸다. */
+/** 앞 궤도는 **안쪽**(요청: 앞의 작은 캐터필러를 안쪽으로) — 뒤 ±2.45, 앞 ±2.0. 차체도 앞 궤도가 붙는 구간만 그만큼 좁다(tankHull). */
+const TRACK_FRONT_IN = 0.45;
 function tankTracks(dx = 2.45): ShapeFace[] {
   return ([-dx, dx]).flatMap((cx) => [
     ...tankTrack(cx, -3.6, 1.0),
-    ...tankTrack(cx, 1.3, 3.6),
+    ...tankTrack(cx - Math.sign(cx) * TRACK_FRONT_IN, 1.3, 3.6),
   ]);
 }
 /** 차체 — 궤도 사이 상자 + 사선 앞판 + 빗금 해치 + 옆 장갑 치마 + 꽁무니 통풍구.
@@ -2729,33 +2733,40 @@ const HULL_KEY = (): number => depthNow(0, 0) * 1.6 + 0.6;
 function tankHull(): ShapeFace[] {
   const out: ShapeFace[] = [];
   // 몸통 — 위가 살짝 좁은 절두체라 옆에서 보면 장갑이 기울어 보인다.
+  /* 차체를 둘로 가른다(요청: 앞 궤도가 붙은 구간만 폭을 줄인다) — 뒤 구간(y −2.85~1.15)은 폭 3.6 그대로, 앞 구간
+     (y 1.15~2.85)은 앞 궤도 안쪽 모서리(±2.0 − 0.725)에 맞춰 폭 2.6. 앞 구간은 제 깊이로 잰다(앞 궤도 사이에 있다). */
   out.push(...tagKey(paintBase(
     // 차체 가운데를 포탑 축(원점)에(지적: 무게중심 = 포탑 정중앙) — y −0.25 → 0, 앞부품 모두 +0.25.
-    frustumFaces3(0, 0, 3.6, 5.7, 3.2, 5.2, 2.35, 0.5), TANK_STEEL,
+    frustumFaces3(0, -0.85, 3.6, 4.0, 3.2, 4.0, 2.35, 0.5), TANK_STEEL,
   ), HULL_KEY()));
+  out.push(...tagKey(paintBase(
+    frustumFaces3(0, 2.0, 2.6, 1.7, 2.3, 1.7, 2.35, 0.5), TANK_STEEL,
+  ), depthNow(0, 2.0) * 1.6 + 0.6));
   /* 사선 앞판(사진) — 차체 앞끝에서 위-뒤로 눕는 판. 옆에서도 이 기울기가 보이게
      제 면으로 그린다. */
   const glacis = polyPath3([
     // 윗변을 차체 윗면 앞 모서리(y 2.6, z 2.85)에 맞춘다(지적: 앞판 위쪽이 동체보다 높게 나옴) — 차체 앞면과 한 평면.
-    [-1.62, 2.87, 0.6], [1.62, 2.87, 0.6], [1.5, 2.62, 2.85], [-1.5, 2.62, 2.85],
+    // 앞 구간 폭 2.6에 맞춰 좁힌다(±1.62 → ±1.3, 윗변 ±1.15).
+    [-1.3, 2.87, 0.6], [1.3, 2.87, 0.6], [1.15, 2.62, 2.85], [-1.15, 2.62, 2.85],
   ]);
   out.push(...tagKey([[glacis, 1, TANK_STEEL] as ShapeFace, topFace(glacis, 0.2)],
     depthNow(0, 2.31) * 1.6 + 0.7));
   // 빗금 해치 — 사선 앞판 위에 얹힌다.
   // 사선 앞판에 **얹힌** 무늬라 그 판의 열쇠 위다(같은 규약) — 제 y로 재면 각도에 따라
   // 판보다 뒤로 내려간다.
-  out.push(...tagKey(hazardPanel(0, 2.72, 1.9, 1.05, 0.5, 4), depthNow(0, 2.31) * 1.6 + 0.8));
+  out.push(...tagKey(hazardPanel(0, 2.72, 1.5, 1.05, 0.5, 4), depthNow(0, 2.31) * 1.6 + 0.8));   // 폭 1.9 → 1.5(앞 구간 좁힘)
   // 앞 등 한 쌍 — 사선판 위 귀퉁이의 작은 불빛.
   out.push(...([-1, 1] as const).flatMap((m) => lensFaces({
-    x: m * 1.22, y: 2.68, z: 2.35, nx: m * 0.3, ny: 1, r: 0.19, bulge: 0.18, lift: 3,
+    x: m * 0.95, y: 2.68, z: 2.35, nx: m * 0.3, ny: 1, r: 0.19, bulge: 0.18, lift: 3,   // ±1.22 → ±0.95(앞 구간 좁힘)
     rim: "#4a3a12", fill: "#e0bf5a", core: "#fff0b8", glint: "#ffffff",
   })));
   // 옆 장갑 치마 — 차체 옆에 덧댄 판 두 장씩. 결이 생겨 밋밋함이 빠진다.
+  // 앞 치마는 좁아진 앞 구간의 옆(±1.36)에, 뒤 치마는 그대로(±1.86).
   for (const m of [-1, 1] as const) {
-    for (const [y0, len] of [[1.3, 1.9], [-1.1, 2.4]] as [number, number][]) {
+    for (const [sx9, y0, len] of [[1.36, 1.95, 1.3], [1.86, -1.1, 2.4]] as [number, number, number][]) {
       out.push(...tagKey(paintBase(
-        boxFaces3(m * 1.86, y0, 0.22, len, 0.9, 1.1), "#aab1b9",
-      ), depthNow(m * 1.86, y0) * 1.6 + 0.65));
+        boxFaces3(m * sx9, y0, 0.22, len, 0.9, 1.1), "#aab1b9",
+      ), depthNow(m * sx9, y0) * 1.6 + 0.65));
     }
   }
   // 꽁무니 엔진 통풍구 — 갑판 뒤의 어두운 살 넷.
@@ -2770,11 +2781,12 @@ function tankHull(): ShapeFace[] {
   /* 앞 벤트 한 쌍(요청) — 앞쪽 양 캐터필러와 동체가 만나는 자리 위, 차체 윗면 앞 귀퉁이에
      얹힌 **사다리꼴** 판. 테두리는 임자색(칠하지 않은 바깥 판), 속은 어두운 살(안쪽 판). */
   for (const m of [-1, 1] as const) {
+    // 앞 구간 폭에 맞춰 x를 0.72배(±1.75 → ±1.26).
     const outer9 = polyPath3([
-      [m * 0.95, 2.6, 2.88], [m * 1.75, 2.4, 2.88], [m * 1.62, 1.5, 2.88], [m * 1.08, 1.65, 2.88],
+      [m * 0.68, 2.6, 2.88], [m * 1.26, 2.4, 2.88], [m * 1.17, 1.5, 2.88], [m * 0.78, 1.65, 2.88],
     ]);
     const inner9 = polyPath3([
-      [m * 1.08, 2.47, 2.9], [m * 1.6, 2.34, 2.9], [m * 1.5, 1.61, 2.9], [m * 1.18, 1.73, 2.9],
+      [m * 0.78, 2.47, 2.9], [m * 1.15, 2.34, 2.9], [m * 1.08, 1.61, 2.9], [m * 0.85, 1.73, 2.9],
     ]);
     out.push(...tagKey([
       [outer9, 1] as ShapeFace,
