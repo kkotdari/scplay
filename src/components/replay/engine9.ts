@@ -1640,7 +1640,7 @@ export const BLD_NORM: Record<string, number> = {
   physlab: 1.468,  // 사진 재작도 뒤 재측정(bld-norm)
   plane: 1.200,   // 높이 1.4배 후 bld-norm 재측정
   pool: 1.159,  // ×0.8(요청: 그려지는 크기 0.8배) · 옛 1.449
-  pyramidWide: 1.052,  // 재측정(bld-norm) — 기둥 5.5·표창 0.8배 뒤
+  pyramidWide: 1.045,  // 재측정(bld-norm) — 기둥 5.5·원기둥 받침·표창 길이 원복 뒤
   queensnest: 1.148,
   refinery: 1.456,  // 아래판 뒤를 줄이고 뒤 드럼을 앞으로 당긴 뒤 bld-norm 재측정(1.394 →)
   robobay: 1.111,  // ×0.8(요청: 그려지는 크기 0.8배) · 옛 1.389
