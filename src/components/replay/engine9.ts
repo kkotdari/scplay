@@ -5103,7 +5103,8 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           })(),
           // 잔상은 체력을 모른다 — 마지막으로 본 모습만 남는다(위 bldFrozen9).
           hpFrac: bldFrozen9 ? undefined : bldHp.frac,
-          hpShow: bldHp.hurt >= 0 && t - bldHp.hurt <= HP_BAR_SEC,
+          // 공사 중에는 늘 보인다(요청: "공사 중 건물들도 체력바가 있어야") — 원작처럼 짓는 동안 체력이 차오른다.
+          hpShow: raising || (bldHp.hurt >= 0 && t - bldHp.hurt <= HP_BAR_SEC),
           // 원작 폭(요청) — 발자국 폭(타일 × 32px)의 0.95를 sprites.dat 값 자리에 넣는다.
           ...((): { hpBarW: number; hpBarFrac: number } => {
             const bwB9 = hpBarGamePx9((FOOTPRINT[unit]?.[0] ?? 4) * 32 * 0.95);

@@ -28836,7 +28836,7 @@ export default function ReplayMotionPlayer({
                     (size 13 이상은 0.62 쪽이 늘 크므로 한 톨도 안 달라진다). */}
               {(() => {
                 const Rb9 = replayChrome().RaceBadge;
-                return m.race && Rb9 ? <Rb9 race={m.race} circleLetter size={8} /> : null;
+                return m.race && Rb9 ? <Rb9 race={m.race} circleLetter size={14} /> : null;   // 8 → 14(요청: 1.8배)
               })()}
             </span>
             </span>
