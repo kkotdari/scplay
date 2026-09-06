@@ -4223,8 +4223,17 @@
    (사용법 scr-guide-*와 scr-minimap-canvas는 같은 날 앞서 이미 옮겨 와 있어 여기서는 뺐다 — 관문 scripts/css-guard.mjs가
    같은 사고를 막는다.)
    ══════════════════════════════════════════════════════════════════════════════ */
-/* 공격 클릭(재지적: 뒤집기) — 외곽 고리는 자기 색 그대로, 가운데 점만 빨강이다. */
-.scr-clickfx-atk::after { background: #e0483c; }
+/* 공격 클릭 — 가운데는 **임자색 십자선**이다(요청: "가운데 빨간 점은 공격 같은데 색은 임자색으로 하고 십자선으로") —
+   빨강 점 대신 currentColor(임자색) 가로·세로 실선 둘. 고리와 같은 2:1 납작 비율이고 선 굵기는 고리 선(--ckline)의
+   1.5배라 점보다 가늘어도 눈에 든다. 크기는 옛 점(--ckdot)의 3배 폭. */
+.scr-clickfx-atk::after {
+  width: calc(var(--ckdot) * 3); height: calc(var(--ckdot) * 1.5);
+  margin: calc(var(--ckdot) * -0.75) 0 0 calc(var(--ckdot) * -1.5);
+  border-radius: 0;
+  background:
+    linear-gradient(currentColor, currentColor) center / 100% calc(var(--ckline) * 1.5) no-repeat,
+    linear-gradient(currentColor, currentColor) center / calc(var(--ckline) * 1.5) 100% no-repeat;
+}
 /* 야마토 작렬(정정: FireYamatoGun이 좌표까지 남는다) — 표적 자리의 청백 에너지 구체가
    확 밝았다 스러진다. */
 .scr-fx-yamato {
