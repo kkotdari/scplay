@@ -1252,7 +1252,7 @@ export const UNIT_SIZE_TUNE: Record<string, number> = {   // 열쇠는 sizeKind(
   archon: 1.2, darchon: 1.2, corsair: 0.8, interceptor: 0.8, larva: 0.4, egg: 0.4,
   muta: 0.8, scourge: 0.6, ultra: 1.4, guardian: 0.8, lurkeregg: 0.6, mutacocoon: 0.8,
   observer: 0.8,
-  gunner: 0.8, inf: 0.8, fbat: 0.6, ghost: 0.8, htemp: 0.6, dtemp: 0.8,   // 마린·메딕(inf)·파뱃(0.8 → 0.6, 요청)·고스트·하템·다템
+  inf: 0.8, fbat: 0.8, ghost: 0.8, htemp: 0.6, dtemp: 0.8,   // 메딕(inf)·파뱃(0.6 → 0.8 재요청)·고스트·하템·다템 — 마린(gunner)은 1.0으로 뺐다(재요청)
   defiler: 1.2,   // 요청(비교 장면)
   scv: 0.8, probe: 0.8, drone: 0.8,   // 일꾼류
   /* (전부 걷음 — 요청: "유닛 크기 보정 모두 제거") — 일꾼·보병 0.68, 메딕 0.612,
@@ -1559,7 +1559,8 @@ export const BLD_DRAW_TUNE: Record<string, number> = {
   scifac: 1.2,                                                             // 사이언스 퍼실리티
   arch: 1.2, cyber: 1.2, dome: 1.2, citadel: 1.2, archives: 1.2, observatory: 1.2, fleetbeacon: 1.2, sbattery: 1.2,
   robobay: 1.4,                                                            // 서포트 베이 1.2 → 1.4
-  queensnest: 1.4,                                                         // 1.2 → 1.4
+  queensnest: 1.2,                                                         // 1.4 → 1.2(재요청, 돔을 키운 뒤)
+  turret: 1.2,                                                             // 요청
   pool: 1.2, dmound: 1.2, cavern: 1.2,                                     // 캐번 1.4 → 1.2
 };
 /** 프로토스 소환구 상자(타일)와 지면에서 띄우는 높이(타일) — 요청: 축소 + 더 띄우기. */
@@ -1652,7 +1653,7 @@ export const BLD_NORM: Record<string, number> = {
   plane: 1.200,   // 높이 1.4배 후 bld-norm 재측정
   pool: 1.159,  // ×0.8(요청: 그려지는 크기 0.8배) · 옛 1.449
   pyramidWide: 1.045,  // 재측정(bld-norm) — 기둥 5.5·원기둥 받침·표창 길이 원복 뒤
-  queensnest: 1.148,
+  queensnest: 1.145,   // 재측정(bld-norm) — 돔 5.6으로 키운 뒤(옛 1.148)
   refinery: 1.456,  // 아래판 뒤를 줄이고 뒤 드럼을 앞으로 당긴 뒤 bld-norm 재측정(1.394 →)
   robobay: 1.408,  // 재측정 1.760 × 0.8(요청: 그려지는 크기 0.8배) — 원판 0.8·날개 0.6·−45도 뒤
   sbattery: 1.951,  // 빨대 다리 뒤 재측정(bld-norm)

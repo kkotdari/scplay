@@ -9244,10 +9244,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const DARK = "#4a3328";      // 갑각 갈고리
     const out: ShapeFace[] = [...tagKey(paintBase(creepSplat(6.6), "#3a3f46"), -20)];
     /* ① 봉분 — 큰 돔 하나가 바탕이고, 그 옆선을 도는 살 혹 두 단이 층을 낸다. */
-    out.push(...tagKey(paintBase(domeFaces3(0, 0, 4.6, 4.4, 0, true), FLESH_R), 0));
+    // 돔 높이 4.4 → 5.6(요청: "돔 높이 높이기") — 혹 단·아가리의 z도 같은 비(HK9)로 올라간다.
+    const DH9 = 5.6; const HK9 = DH9 / 4.4;
+    out.push(...tagKey(paintBase(domeFaces3(0, 0, 4.6, DH9, 0, true), FLESH_R), 0));
     const RING: [number, number, number, number][] = [
       // [단 반지름, 혹 수, 혹 크기, 단 높이]
-      [3.9, 7, 1.15, 1.0], [2.9, 6, 0.95, 2.7], [1.85, 5, 0.75, 4.0],
+      [3.9, 7, 1.15, 1.0 * HK9], [2.9, 6, 0.95, 2.7 * HK9], [1.85, 5, 0.75, 4.0 * HK9],
     ];
     for (const [rr9, n9, br9, bz9] of RING) {
       for (let i9 = 0; i9 < n9; i9 += 1) {
@@ -9266,7 +9268,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        위쪽이 몸 밖에 떠, 옆에서 보면 판이 삐죽 나왔다(그림 대조). 그 높이의 돔
        반지름을 그대로 좇으면 어느 각도에서도 살에 파인 홈이 된다. */
     const domeY = (z9: number): number =>
-      4.6 * 0.92 * Math.sqrt(Math.max(0.03, 1 - (z9 / 4.4) ** 2));
+      4.6 * 0.92 * Math.sqrt(Math.max(0.03, 1 - (z9 / DH9) ** 2));
     /* 홈이지 돌출물이 아니다(그림 대조) — 표면 밖 +0.1에 세우면 옆각에서 실루엣
        밖으로 판이 삐죽 나온다. 반쯤 묻고(−0.12) 가늘게, 깊이 계수도 1.2로 올려
        뒤로 돌면 살 혹들이 덮게 한다. */
@@ -9276,7 +9278,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       out.push(...tagKey(paintBase(spirePillar({
         x: 0, y: 0, h: 1, w: 0.55, tipW: 0.2, segs: 5, sides: 6, oval: 2.4, caps: "none",
         path: (t9: number): [number, number, number] => {
-          const z9 = 0.35 + 2.9 * t9;
+          const z9 = (0.35 + 2.9 * t9) * HK9;
           return [0, domeY(z9) - 0.12, z9];
         },
       }), "#241812"), 3 + depthNow(0, 3.2) * 1.2));
@@ -9284,7 +9286,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         out.push(...tagKey(paintBase(spirePillar({
           x: 0, y: 0, h: 1, w: 0.26, tipW: 0.09, segs: 5, sides: 6, caps: "none",
           path: (t9: number): [number, number, number] => {
-            const z9 = 0.3 + 3.0 * t9;
+            const z9 = (0.3 + 3.0 * t9) * HK9;
             return [m9 * (0.5 + 0.1 * Math.sin(Math.PI * t9)), domeY(z9) - 0.08, z9];
           },
         }), FLESH_L), 3.2 + depthNow(m9 * 0.55, 3.2) * 1.2));
