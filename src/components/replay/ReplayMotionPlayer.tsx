@@ -2699,13 +2699,15 @@ function tankTrack(cx: number, yA = -3.6, yB = 3.6): ShapeFace[] {
       ];
       const col9 = i9 % 2 === 0 ? "#767e87" : "#666e77";
       const fs9: ShapeFace[] = [];
-      const put9 = (path9: string, nx: number, ny: number, nz: number): void => {
+      /* 겉면은 등져도 그린다(재지적: "시점 반대라도 튀어나온 부분은 보여야") — 먼 반원의 판은 몸체 벽이 나중에 덮지만
+         양옆으로 튀어나온 몫은 벽 실루엣 밖이라 그대로 남는다. 얇은 테·모서리만 제 법선으로 거른다. */
+      const put9 = (path9: string, nx: number, ny: number, nz: number, always = false): void => {
         const fl9 = faceLight(nx, ny, nz);
-        if (!fl9.visible) return;
-        fs9.push([path9, 1, col9] as ShapeFace, ...fl9.face(path9));
+        if (!fl9.visible && !always) return;
+        fs9.push([path9, 1, col9] as ShapeFace, ...(fl9.visible ? fl9.face(path9) : [sideFace(path9, 0.2)]));
         if (nz > 0.6) fs9.push(topFace(path9, 0.12));
       };
-      put9(polyPath3([P9(-1, -1, 1), P9(1, -1, 1), P9(1, 1, 1), P9(-1, 1, 1)]), 0, ny9, nz9);       // 겉면
+      put9(polyPath3([P9(-1, -1, 1), P9(1, -1, 1), P9(1, 1, 1), P9(-1, 1, 1)]), 0, ny9, nz9, true); // 겉면
       put9(polyPath3([P9(1, -1, 0), P9(1, 1, 0), P9(1, 1, 1), P9(1, -1, 1)]), 1, 0, 0);            // 오른 테
       put9(polyPath3([P9(-1, -1, 0), P9(-1, 1, 0), P9(-1, 1, 1), P9(-1, -1, 1)]), -1, 0, 0);       // 왼 테
       put9(polyPath3([P9(-1, 1, 0), P9(1, 1, 0), P9(1, 1, 1), P9(-1, 1, 1)]), 0, ty9, tz9);        // 앞 모서리
@@ -2973,7 +2975,7 @@ function siegeLegs(): ShapeFace[] {
        — 굵고 짧으면 버팀대가 아니라 뭉툭한 혹으로 읽힌다. 수평 팔은 바깥으로 더 뻗고
        (아래 r1), 수직 기둥은 무릎을 올려(2 → 2.75) 발목까지의 길이를 늘린다. */
     const KNEE_Z = 2.75;     // 수평 팔의 높이(= 꺾이는 자리)
-    const ANK_Z = 0.6;       // 발목 — 수직 기둥의 아래 끝
+    // (걷어냄) ANK_Z — 기둥이 사각뿔 끝까지 곧장 내려간다.
     // ① 수평 팔 — 몸 옆구리에서 무릎까지, 높이가 안 변한다.
     out.push(...tagKey(paintBase(spirePillar({
       x: 0, y: 0, h: 1, w: 1, segs: 3, sides: 5, caps: "none",
@@ -2987,40 +2989,14 @@ function siegeLegs(): ShapeFace[] {
       domeFaces3(fx, fy, 0.34, 0.3, KNEE_Z - 0.16), TANK_STEEL,
     ), key + 0.1));
     // ③ 수직 기둥 — 무릎에서 곧장 아래로. 아래로 갈수록 살짝 가늘다.
-    out.push(...tagKey(paintBase(spirePillar({
-      x: 0, y: 0, h: 1, w: 1, segs: 3, sides: 5, caps: "none",
-      path: (t9: number): [number, number, number] =>
-        [fx, fy, KNEE_Z - (KNEE_Z - ANK_Z) * t9],
-      widthOf: (t9: number): number => 0.3 - 0.05 * t9,
-    }), TANK_STEEL), key + 0.15));
-    // 발목 마디 — 발가락 셋이 여기서 갈린다.
+    /* 발 마디는 **수직**(재요청: "고정다리 발 마디들 수직으로 — 끝만 뾰족한 부품이고 나머지는 각진 쇠기둥") —
+       무릎에서 곧게 내려가는 네모 쇠기둥(0.44각) 하나에, 맨 아래 짧은 사각뿔 끝만 뾰족하다. 옛 발판·발톱 셋·이빨은 걷었다. */
     out.push(...tagKey(paintBase(
-      frustumFaces3(fx, fy, 0.8, 0.8, 0.62, 0.62, 0.45, 0.55), TANK_STEEL,
-    ), key + 0.2));
-    /* 발가락 셋 — 다리가 뻗어 나간 방향(바깥)과 그 좌우 120도. 끝이 아래로 꺾여
-       땅을 문다. 뿔기둥이라 어느 각도에서도 제 굵기와 그늘을 갖는다. */
-    for (const k of [0, 1, 2] as const) {
-      const th = Math.atan2(dy, dx) + (k * 2 * Math.PI) / 3;
-      const tx = Math.cos(th);
-      const ty = Math.sin(th);
-      out.push(...tagKey(paintBase(spikeHorn(
-        fx, fy, 0.72, fx + tx * 1.15, fy + ty * 1.15, 0, 0.52,
-        "#7d848d", 5, 0.18, tx, ty,
-      ), "#7d848d"), key + 0.3 + k * 0.02));
-      /* 발가락 밑에 **톱니 셋**(요청: "그 작은 발은 약간 톱같은 모양으로 땅을 고정")
-         — 매끈한 발톱은 땅을 짚기만 하지 물지는 않는다. 발가락 등을 따라 아래로
-         내린 짧은 이빨 셋이 그 '문다'를 그린다. 아주 작은 자리라 세부(3티어)로
-         매겨, 작게 그리는 판에서는 먼저 빠지고 발가락만 남는다. */
-      for (const u9 of [0.34, 0.58, 0.82]) {
-        const bx9 = fx + tx * 1.15 * u9;
-        const by9 = fy + ty * 1.15 * u9;
-        const bz9 = 0.72 * (1 - u9);
-        out.push(...fine(tagKey(paintBase(spikeHorn(
-          bx9, by9, bz9 + 0.1, bx9 + tx * 0.16, by9 + ty * 0.16, bz9 - 0.34, 0.26,
-          "#5c636d", 4, 0.05, tx, ty,
-        ), "#5c636d"), key + 0.35 + k * 0.02)));
-      }
-    }
+      boxFaces3(fx, fy, 0.44, 0.44, KNEE_Z - 0.55, 0.55), TANK_STEEL,
+    ), key + 0.15));
+    out.push(...tagKey(paintBase(spikeHorn(
+      fx, fy, 0.56, fx, fy, -0.02, 0.5, "#7d848d", 4, 0,
+    ), "#7d848d"), key + 0.2));
   }
   return out;
 }
