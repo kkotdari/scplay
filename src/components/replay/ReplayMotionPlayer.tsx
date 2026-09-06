@@ -3004,14 +3004,24 @@ function siegeLegs(): ShapeFace[] {
       domeFaces3(fx, fy, 0.34, 0.3, KNEE_Z - 0.16), TANK_STEEL,
     ), key + 0.1));
     // ③ 수직 기둥 — 무릎에서 곧장 아래로. 아래로 갈수록 살짝 가늘다.
-    /* 발 마디는 **수직**(재요청: "고정다리 발 마디들 수직으로 — 끝만 뾰족한 부품이고 나머지는 각진 쇠기둥") —
-       무릎에서 곧게 내려가는 네모 쇠기둥(0.44각) 하나에, 맨 아래 짧은 사각뿔 끝만 뾰족하다. 옛 발판·발톱 셋·이빨은 걷었다. */
+    /* 발 마디(재정정: "세 개의 발이 나오던 것은 맞아 — 그 끝만 뾰족하게") — 무릎에서 곧게 내려가는 네모 쇠기둥
+       (0.44각)이 발목 블록에 닿고, 블록 둘레 세 자리에서 **수직** 네모 발 기둥 셋(0.28각)이 내려가 맨 아래 짧은
+       사각뿔 끝만 뾰족하다. 옛 비스듬한 발톱·이빨 대신 각진 기둥이다. */
     out.push(...tagKey(paintBase(
-      boxFaces3(fx, fy, 0.44, 0.44, KNEE_Z - 0.55, 0.55), TANK_STEEL,
+      boxFaces3(fx, fy, 0.44, 0.44, KNEE_Z - 1.0, 1.0), TANK_STEEL,
     ), key + 0.15));
-    out.push(...tagKey(paintBase(spikeHorn(
-      fx, fy, 0.56, fx, fy, -0.02, 0.5, "#7d848d", 4, 0,
-    ), "#7d848d"), key + 0.2));
+    out.push(...tagKey(paintBase(
+      frustumFaces3(fx, fy, 0.9, 0.9, 0.7, 0.7, 0.45, 0.65), TANK_STEEL,
+    ), key + 0.2));
+    for (const k of [0, 1, 2] as const) {
+      const th = Math.atan2(dy, dx) + (k * 2 * Math.PI) / 3;
+      const tx = fx + Math.cos(th) * 0.5;
+      const ty = fy + Math.sin(th) * 0.5;
+      out.push(...tagKey(paintBase([
+        ...boxFaces3(tx, ty, 0.28, 0.28, 0.45, 0.3),
+        ...spikeHorn(tx, ty, 0.31, tx, ty, -0.02, 0.3, "#7d848d", 4, 0),
+      ], "#7d848d"), key + 0.3 + k * 0.02));
+    }
   }
   return out;
 }
