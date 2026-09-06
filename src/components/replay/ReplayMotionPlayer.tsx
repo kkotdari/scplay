@@ -27463,6 +27463,8 @@ export default function ReplayMotionPlayer({
     qAnim, qBuildFx, qDeath, clickFx,
     cull: cullRect9,
     crowd: CROWD9.lv,
+    // `#noscan` 해시(도구용) — 두리번을 끈다.
+    ...(typeof location !== "undefined" && /noscan/.test(location.hash) ? { noIdleScan: true } : {}),
   };
   /* 시점 입력이 바뀌면 워커에도 알린다 — 색표는 참조로, 나머지는 값으로 견준다. */
   const viewKey9 = `c${CROWD9.lv}|${engView9.mapW}|${engView9.mapH}|${engView9.tilePx.toFixed(3)}|${engView9.pitched ? 1 : 0}|${engView9.pitchFlat.toFixed(4)}`

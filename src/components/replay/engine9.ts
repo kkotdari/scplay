@@ -3235,6 +3235,8 @@ export type EngineView9 = {
   /** 시야 사각형(자리 분수, 여유 포함) — 이 밖의 개체·건물은 op를 안 만든다(미니맵 점만). null이면 지도 전체.
    *  (요청: 컬링 — 옛 메인 엔진의 cull9. 워커는 지도 전체 690기 대신 보이는 170기만 센다.) */
   cull: { x0: number; x1: number; y0: number; y1: number } | null;
+  /** 대기 중 두리번(IDLE_SCAN)을 끈다 — 도구용(scene-sheet 비교 장면: 저글링이 22.5도 돌아간 순간이 찍혀 방향이 어긋나 보였다). */
+  noIdleScan?: boolean;
 };
 export function createEngine9(world: EngineWorld9, view0: EngineView9) {
   let view = view0;
@@ -6736,7 +6738,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         }
         return snap9;
       }
-      if (!IDLE_SCAN.has(drawUnit2) || fighting || burrowed) return bodyHdg0;
+      if (view.noIdleScan || !IDLE_SCAN.has(drawUnit2) || fighting || burrowed) return bodyHdg0;
       if (simState !== null && simState !== 0) return bodyHdg0;   // 0 = ST_IDLE
       const step = Math.floor(t / IDLE_SCAN_SEC + (e.tag % 7) / 7);
       const r = (step * 2654435761 + e.tag * 40503) >>> 0;   // 결정론 난수(같은 입력=같은 그림)

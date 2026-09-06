@@ -100,15 +100,17 @@ function makeWorld(race) {
   // 짧은 이름 — 괄호는 머리글자로(Siege Tank (Siege Mode) → Siege Tank(S)).
   const short = (n) => n.replace(/ \((\w)[^)]*\)/, "($1)");
   /* 라벨 둘째 줄 = **원작 설정의 바닥 공간**(재요청: "배율 말고 실제 게임 설정상 차지하는 바닥공간 가로*세로") —
-     건물은 발자국 타일(units.dat tileSize, 예 4×3), 유닛은 치수 상자(units.dat dimensions: 좌+우+1 × 상+하+1 픽셀,
-     32px = 1타일). 그리기 배율은 `--scale` 깃발로 다시 볼 수 있다. */
+     건물은 발자국 타일(units.dat tileSize, 예 4×3), 유닛은 치수 상자(units.dat dimensions: 좌+우+1 × 상+하+1 픽셀을
+     32로 나눈 타일). 그리기 배율은 `--scale` 깃발로 다시 볼 수 있다. */
   const SHOW_SCALE = !!flag("--scale", false);
   const normOf = (n, isBld) => {
     const k = isBld ? TABLES.SHAPE_KIND[n] : TABLES.UNIT_3D[n];
     if (SHOW_SCALE) return `×${Number(isBld ? (TABLES.BLD_DRAW_TUNE[k] ?? 1) : (TABLES.UNIT_SIZE_TUNE[k] ?? 1)).toFixed(2)}`;
     if (isBld) { const fp = TABLES.FOOTPRINT[n]; return fp ? `${fp[0]}×${fp[1]}` : "?"; }
+    // 타일로(재요청: "픽셀 말고 타일로, 32px이 1") — 소수 둘째 자리.
     const b = TABLES.BOX[n];
-    return b ? `${b[0] + b[2] + 1}×${b[1] + b[3] + 1}px` : "?";
+    const tl = (px) => (px / 32).toFixed(2).replace(/\.?0+$/, "");
+    return b ? `${tl(b[0] + b[2] + 1)}×${tl(b[1] + b[3] + 1)}` : "?";
   };
   blds.forEach((n, i) => {
     const x = X0 + (i % 7) * 6 + 2; const y = yb + Math.floor(i / 7) * 6.5 + 2;
@@ -231,7 +233,7 @@ for (const race of RACES) {
     body: `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>${css}
     html,body{margin:0;background:#1b1e24;} #root{width:${VIEW}px;}
     .scr-motion-fog{display:none!important}</style></head><body><div id="root"></div></body></html>` }));
-  await page.goto(flag("--creep", false) ? "http://scene-sheet.local/" : "http://scene-sheet.local/#nocreep");   // 크립 끔(격자가 보여야 한다) — --creep이면 켠다
+  await page.goto(flag("--creep", false) ? "http://scene-sheet.local/#noscan" : "http://scene-sheet.local/#nocreep,noscan");   // 크립 끔(격자가 보여야 한다; --creep이면 켠다) · 두리번 끔
   await page.addScriptTag({ content: js, type: "module" });
   await page.waitForFunction("!!window.__mount");
   await page.evaluate(([m, pl, wj, tb, v]) => window.__mount(m, pl, wj, tb, v),
