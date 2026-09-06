@@ -4667,9 +4667,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         /* 받침은 **진짜 원기둥**이다(요청: "모서리 기둥의 받침도 입체로") — 납작한 원반 두 장(몸판 + 어두운 덮개)이라
            두께가 없고, 덮개가 한쪽으로 치우쳐 기둥 중심과 어긋나 보였다. 반지름 1.1 · 높이 0.45의 원기둥이면 옆면이
            빛을 받고 기둥은 그 윗면 한가운데서 선다. 색은 안 준다(임자색). */
-        // 키는 기둥(depthNow(px,py))보다 **앞**에 — cylinderFaces3 제 키(깊이 + 높이 몫)가 기둥보다 커서 받침 윗면이
-        // 기둥 밑동을 덮어 기둥이 받침 뒤에 선 것처럼 보였다(첫 그림).
-        ...tagKey(cylinderFaces3(px, py, 1.1, 0.45, 0), depthNow(px, py) - 0.3),
+        /* 받침도 기둥과 같은 **8각 기둥**이다(재지적: "받침이 기둥에 안 가려짐") — cylinderFaces3는 실루엣 한 장 +
+           오른쪽 반 그늘 덮개라, 그늘이 윗면 오른쪽 반까지 덮어 기둥 옆에 받침 조각이 따로 드러난 것처럼 읽혔다.
+           기둥과 같은 spirePillar 8각이면 면마다 제 빛을 받고 기둥(같은 8각·같은 위상)이 그 위에 그대로 선다.
+           키는 기둥(depthNow(px,py))보다 앞(−0.3)에 — 받침이 기둥 밑동을 덮지 않게. 색은 안 준다(임자색). */
+        ...tagKey(spirePillar({
+          x: px, y: py, z0: 0, h: 0.45, w: 1.1, tipW: 1.1, sides: 8, segs: 1, caps: "top",
+        }).map((f9) => { f9[3] = depthNow(px, py) - 0.3; return f9; }), depthNow(px, py) - 0.3),
         /* 끝을 도려내고 팁을 꽂는다(재재재지적: 화살촉처럼 튀지 않게) — 팁 원뿔이
            그 높이의 기둥 굵기보다 늘 살짝 굵어 기둥 끝을 완전히 감싼다.
            기둥 몸도 금빛(재작도) — 넷이 통째로 개인색이면 종족이 안 읽힌다. */
@@ -4836,18 +4840,38 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 판의 키는 **맨 뒤**(지적: "발판 위 뿔 키값 수정") — 키 −1이면 뒤쪽 날의 뿔(깊이 −5.4)이 판보다 먼저
          그려져 판 윗면이 뿔 밑동을 덮었다. 판은 바닥에 깔린 것이라 무엇보다 먼저 그려도 된다. */
       out.push(...tagKey(padF, depthNow(0, 0) - 20));
-      /* 날 끝 뿔 — 밑면은 날 끝 위, 꼭대기는 안쪽으로 0.6 기운다. 마디 없는 **삼각뿔**(재요청: "사면체 뿔은 밑면이
-         삼각형이어야지, 삼각형의 한 모서리가 발판의 바깥쪽을 향하게") — sides 3 · phase 0 · ref 바깥이면 꼭짓점 하나가
-         바깥을 본다. */
+      /* 날 끝 뿔 — 밑면은 **날 끝으로 길게 뻗은 이등변삼각형**이고 그 뾰족한 꼭짓점이 **날 끝점(8.9)과 딱 맞는다**
+         (재요청: "정삼각형이 아니라 발판 끝쪽으로 더 긴 이등변삼각형, 뿔 끝점과 발판 끝점이 딱 맞는 형태"). 뒷변은
+         7.2에서 반폭 0.5(그 자리 날 반폭 0.58 안), 꼭대기는 7.7 위 1.85 높이 — 옆면 셋을 직접 세운다(spirePillar는
+         정다각 단면뿐). 밑면은 판에 묻혀 안 그린다. 면마다 법선을 재서 빛을 받고, 등 돌린 면은 건너뛴다. */
       for (const ang of [0, 90, 180, 270]) {
         const a = (ang * Math.PI) / 180;
         const sx = Math.sin(a);
         const sy = Math.cos(a);
-        out.push(...tagKey(paintBase(spirePillar({
-          // 밑동 7.7, 반폭 0.4 — 가늘어진 날의 그 자리 반폭(0.41) 안에 든다.
-          x: 0, y: 0, h: 1, w: 0.4, tipW: 0.02, segs: 1, sides: 3, phase: 0, ref: [sx, sy, 0], caps: "none",
-          path: (t9: number): [number, number, number] => [sx * (7.7 - 0.6 * t9), sy * (7.7 - 0.6 * t9), TH9 + 1.85 * t9],
-        }), GOLD9), depthNow(sx * 7.5, sy * 7.5)));
+        const cxa = Math.cos(a);
+        const sya = -Math.sin(a);
+        const P3 = (r9: number, u9: number, z9: number): [number, number, number] =>
+          [sx * r9 + cxa * u9, sy * r9 + sya * u9, z9];
+        const tip9 = P3(STAR_R, 0, TH9);
+        const bl9 = P3(7.2, -0.5, TH9);
+        const br9 = P3(7.2, 0.5, TH9);
+        const apex9 = P3(7.7, 0, TH9 + 1.85);
+        const tri9 = (p0: [number, number, number], p1: [number, number, number], p2: [number, number, number]): ShapeFace[] => {
+          // 법선 = (p1−p0)×(p2−p0) — 꼭짓점을 바깥에서 봐 반시계로 준다.
+          const ax9 = p1[0] - p0[0]; const ay9 = p1[1] - p0[1]; const az9 = p1[2] - p0[2];
+          const bx9 = p2[0] - p0[0]; const by9 = p2[1] - p0[1]; const bz9 = p2[2] - p0[2];
+          const nx9 = ay9 * bz9 - az9 * by9; const ny9 = az9 * bx9 - ax9 * bz9; const nz9 = ax9 * by9 - ay9 * bx9;
+          const nl9 = Math.hypot(nx9, ny9, nz9) || 1;
+          const fl9 = faceLight(nx9 / nl9, ny9 / nl9, nz9 / nl9);
+          if (!fl9.visible) return [];
+          const d9 = polyPath3([p0, p1, p2]);
+          return [[d9, 1, GOLD9] as ShapeFace, ...fl9.face(d9)];
+        };
+        out.push(...tagKey([
+          ...tri9(tip9, apex9, br9),   // 오른 옆면(바깥에서 보면 반시계)
+          ...tri9(bl9, apex9, tip9),   // 왼 옆면
+          ...tri9(br9, apex9, bl9),    // 뒷면(몸 쪽)
+        ], depthNow(sx * 7.8, sy * 7.8)));
       }
     }
     out.push(...pillar(-PX9, PX9), ...pillar(PX9, PX9));
