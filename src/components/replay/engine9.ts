@@ -3020,28 +3020,47 @@ export function deriveWorld9(inp: {
      그 프레임에 한꺼번에 걷는다. 참값에는 그것이 낱낱의 죽음으로 실리므로 화면은 건물 수십 채가 같은 순간
      폭발·무너짐을 냈다. 한 임자의 건물 넷 이상이 0.5초 안에 함께 죽으면 '나감'으로 보고 그 초를 적어 둔다 —
      그 순간의 죽음(건물·유닛)은 폭발 없이 사라진다. */
+  /* ★ '나감'은 **남김없이 다 죽는 것**이다(지적: "핵으로 인한 사망 파괴 효과가 왜 안 나올 때가 많지") — 넷 이상이
+     0.5초 안에 죽으면 무조건 나감으로 봤더니, 핵 한 방(건물 넷 이상을 같은 프레임에 걷는다)도 나감으로 읽혀 그
+     순간의 건물·유닛 죽음이 폭발 없이 사라졌다. 나간 사람은 그 순간 **살아 있던 건물 전부**를 잃는다 — 그래서
+     묶음의 수가 그때 살아 있던 건물 수와 같아야 나감이다. 핵 착탄(nukeImpacts) 1.5초 안의 묶음은 어차피 핵이라
+     따로 뺀다(기지가 통째로 핵에 날아가도 폭발은 나와야 한다). */
   const leaveAt9 = (() => {
     const m = new Map<string, number[]>();
     if (!entData) return m;
     const nm9 = new Map(entData.players.map((pl) => [pl.owner, pl.name]));
     const byRaw9 = new Map<string, number[]>();
+    const bldsOf9 = new Map<string, { born: number; died: number | null }[]>();
     for (const e of entData.lives) {
-      if (!e.bld || e.died === null || e.end === "own" || e.end === "morph") continue;
+      if (!e.bld || e.end === "own" || e.end === "morph") continue;
       const r9 = nm9.get(e.owner) ?? "";
+      const b9 = bldsOf9.get(r9) ?? [];
+      b9.push({ born: e.born, died: e.died });
+      bldsOf9.set(r9, b9);
+      if (e.died === null) continue;
       const a9 = byRaw9.get(r9) ?? [];
       a9.push(e.died);
       byRaw9.set(r9, a9);
     }
     for (const [r9, ds9] of byRaw9) {
       ds9.sort((a9, b9) => a9 - b9);
+      const all9 = bldsOf9.get(r9) ?? [];
       let i9 = 0;
       while (i9 < ds9.length) {
         let j9 = i9;
         while (j9 + 1 < ds9.length && ds9[j9 + 1] - ds9[i9] <= 0.5) j9 += 1;
-        if (j9 - i9 + 1 >= 4) {
-          const arr9 = m.get(r9) ?? [];
-          arr9.push(ds9[i9]);
-          m.set(r9, arr9);
+        const n9 = j9 - i9 + 1;
+        if (n9 >= 4) {
+          const t0 = ds9[i9];
+          // 그 순간 살아 있던 건물 수 — 묶음이 이 수에 못 미치면 일부만 죽은 것이라 나감이 아니다.
+          let alive9 = 0;
+          for (const b9 of all9) if (b9.born <= t0 && (b9.died === null || b9.died >= t0 - 0.1)) alive9 += 1;
+          const nuked9 = nukeImpacts.some((nk) => Math.abs(nk.sec - t0) <= 1.5);
+          if (!nuked9 && n9 >= alive9) {
+            const arr9 = m.get(r9) ?? [];
+            arr9.push(t0);
+            m.set(r9, arr9);
+          }
         }
         i9 = j9 + 1;
       }
