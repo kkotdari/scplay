@@ -992,7 +992,7 @@ export const MODEL_NORM: Record<string, number> = {
   muta: 0.741,
   mutacocoon: 1.826,  // 상자 상한(원한 배수 1.891)
   observer: 1.863,
-  ovie: 0.816,  // 뒷다리 요잉 뒤 재측정(model-norm)
+  ovie: 0.815,  // 앞턱을 호로 바꾼 뒤 재측정(model-norm)
   probe: 1.738,  // 다리 두께면을 양쪽으로 고친 뒤 model-norm 재측정
   probeGas: 1.486,
   probeMin: 1.543,
@@ -1680,7 +1680,7 @@ export const BLD_NORM: Record<string, number> = {
   dmound: 1.111,
   dome: 1.134,  // ×0.8(요청: 그려지는 크기 0.8배)
   ebay: 1.443,   // 다리 두 마디 20% 축소 뒤 재측정(잉크 폭이 좁아져 배수는 올라간다)
-  evo: 1.232,  // ×0.8(요청: 그리기 0.8배) · 옛 1.540
+  evo: 1.181,  // ×0.8(요청: 그리기 0.8배) · 가운데 장기 경사·뒤 등걸 0.8 뒤 재측정 1.476 · 옛 1.232
   extract: 0.822,  // ×0.8(요청: 그리기 0.8배) · 옛 1.027
   factory: 1.493,  // 창·옆 홈·격납구·발판·굴뚝·쐐기 손질 뒤 재측정(bld-norm)
   fleetbeacon: 1.700,  // ×0.8(요청: 그려지는 크기 0.8배)
