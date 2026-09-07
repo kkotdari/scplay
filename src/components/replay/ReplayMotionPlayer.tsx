@@ -16936,6 +16936,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /** 그 높이가 배 밑으로 얼마나 나왔나(0~1) — 키에 얹을 몫의 자다. */
     const hangK = (z9: number): number =>
       Math.max(0, Math.min(1, (BELLY_BOT + 0.4 - z9) / 1.2));
+    /** 매달림 몫(hangK)의 **방향 자**(지적: "오버로드 몸통 아래부분이 다른 부품들을 못 가린다") — 매달린
+     *  부속이 배 밑 테두리에 겹칠 때 배 위로 올라오라고 얹는 +2.6인데, 이 몫이 방향을 안 가려 **몸 뒤로
+     *  돌아간** 집게·다리까지 배를 뚫고 나왔다(뒤에서 볼 때 집게의 깊이는 배보다 2.2 낮은데 2.6을 얹으니
+     *  이겼다). 부속이 선 방향이 카메라를 보면 1, 옆이면 0.5, 등지면 0 — 뒤로 돌면 얹는 몫이 사라져 배가
+     *  가린다. */
+    const hangFace9 = (dx9: number, dy9: number): number =>
+      0.5 + 0.5 * Math.max(-1, Math.min(1, facingRatio(dx9, dy9)));
     const rootZ = (rx9: number, ry9: number): number => {
       const d9 = Math.min(R9 - 0.1, Math.hypot(rx9, ry9));
       return CZ - Math.sqrt(Math.max(0.01, 1 - (d9 / R9) ** 2)) * BELLY_RZ + 0.35;
@@ -17041,7 +17048,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
             : rodFaces(PX[j], PY[j], KZ[j], PX[j + 1], PY[j + 1], KZ[j + 1], KW[j] * 2);
           // 배 밑으로 내려간 마디일수록 몸보다 앞이다(위 hangK 주석).
           limbs.push(...tagKey(seg9,
-            key + j * 0.1 + hangK((KZ[j] + KZ[j + 1]) / 2) * 2.6));
+            key + j * 0.1 + hangK((KZ[j] + KZ[j + 1]) / 2) * 2.6 * hangFace9(m * LEG_X9, ly)));
         }
       }
     }
@@ -17113,7 +17120,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            집게로 넘어가는 자리에 턱이 안 생긴다. */
         widthOf: (t9: number): number => 0.18 + 0.16 * t9,
         // 위 절반의 가운데 높이로 잰다 — 아래 갈래는 더 내려가므로 따로 얹는다.
-      }), key + hangK(armRZ9 - ARM_LEN9 / 2) * 2.6));
+      }), key + hangK(armRZ9 - ARM_LEN9 / 2) * 2.6 * hangFace9(m * ARM_X9, ARM_Y9)));
       /* 아래 절반 = 집게 두 갈래 — **관절에서 안쪽으로 구부린다**(요청). 여태는 갈림
          점에서부터 끝까지 서로 **벌어진 채** 내려갔다(0.34t + 0.22t²가 둘을 계속 밀어
          냈다): 벌린 집게가 아니라 갈라진 막대 둘로 읽혔다.
@@ -17143,7 +17150,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            키에 실린다(지금 값으로 +1.4쯤) — 아래로 늘어진 몫은 여전히 몸에 안 먹히고,
            뒤로 돈 집게는 몸에 가려진다. */
         }), key + 0.1 + (s > 0 ? 0.05 : 0)
-          + hangK(forkZ9 - 0.65 * CLAW_K9) * 2.6));
+          + hangK(forkZ9 - 0.65 * CLAW_K9) * 2.6 * hangFace9(m * ARM_X9, ARM_Y9)));
       }
       /* ★ 집게 바깥 위의 **상아 가시**(요청: "집게발 바깥 위쪽에 위로 솟은 상아색 가시
          하나씩") — 집게 한 짝에 하나, 갈림점 언저리에서 바깥·위로 솟는다. ─────────────
@@ -17165,7 +17172,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           cbx9, cby9, cbz9,
           cbx9 + m * 0.62 * CLAW_K9, cby9 - 0.12, cbz9 + 1.5 * CLAW_K9,
           0.34 * CLAW_K9, IVORY_DEEP, 6, 0.4, m * 0.7, -0.2,
-        ), key + 0.2 + hangK(cbz9 + 0.5) * 2.6));
+        ), key + 0.2 + hangK(cbz9 + 0.5) * 2.6 * hangFace9(m * ARM_X9, ARM_Y9)));
       }
     }
     /* 등 주머니(사진의 흰 부분) — **여기가 개인색이다**(요청). 갑각 위에 몰려 붙은
@@ -27601,18 +27608,31 @@ export default function ReplayMotionPlayer({
   };
   /** 설계도 풀기 — 그릴 장만 푼다(한 번 푼 것은 붙여 둔다). 안개는 장에 실렸으면 그것, 아니면 그 시각 이하 가장
    *  늦은 안개 판, 그것도 없으면 마지막 프레임의 것. */
-  const decodeFrame9 = (pf9: PackedFrame9): Frame9 => {
-    if (pf9.dec) return pf9.dec;
-    const body9 = unpack9({ buf: pf9.buf, strs: pf9.strs }) as Pick<Frame9, "unitOps" | "fxOps" | "miniExtra" | "gasBusy" | "dom">;
-    let fog9 = pf9.fog;
-    if (!fog9) {
-      const snaps9 = fogSnapsRef9.current;
-      const cells9 = grid.width * grid.height;
-      for (let i9 = snaps9.length - 1; i9 >= 0; i9 -= 1) {
-        const sf9 = snaps9[i9];
-        if (sf9.t <= pf9.t + 1e-6 && (!sf9.fog.explored || sf9.fog.explored.length === cells9)) { fog9 = sf9.fog; break; }
-      }
+  /** 이 장(제 안개 판이 없는 장)에 붙일 안개 판 — 그 시각 이하 가장 늦은 판. */
+  const fogSnapFor9 = (t9: number): { explored: Uint16Array | null; visNow: Uint8Array | null; visSrc: Float32Array } | null => {
+    const snaps9 = fogSnapsRef9.current;
+    const cells9 = grid.width * grid.height;
+    for (let i9 = snaps9.length - 1; i9 >= 0; i9 -= 1) {
+      const sf9 = snaps9[i9];
+      if (sf9.t <= t9 + 1e-6 && (!sf9.fog.explored || sf9.fog.explored.length === cells9)) return sf9.fog;
     }
+    return null;
+  };
+  const decodeFrame9 = (pf9: PackedFrame9): Frame9 => {
+    if (pf9.dec) {
+      /* ★ 안개 판을 **다시 고른다**(지적: "안개가 가끔 엄청 떨리는 경우 있음 — 드래그하거나 시간 지나면 없어짐") —
+         보간의 뒤 장(B)은 앞 장으로 쓰이기 전에 미리 풀린다. 그때 그 시각의 안개 판이 아직 안 왔으면 한 판 전
+         안개를 쥔 채 굳고(dec 캐시), 판이 온 뒤 새로 푸는 장들은 새 판을 쥔다. 그래서 잇단 장이 옛 판·새 판을
+         번갈아 들어 안개가 한 판씩 앞뒤로 튀었다 — 그것이 '떨림'이고, 끌기(장을 버림)나 시간이 지나면(옛 장이
+         걷힘) 저절로 멎었다. 제 판이 없는 장은 쓸 때마다 '그 시각 이하 가장 늦은 판'을 다시 물어 갈아 든다. */
+      if (!pf9.fog) {
+        const nf9 = fogSnapFor9(pf9.t);
+        if (nf9 && nf9.visSrc !== pf9.dec.visSrc) { pf9.dec.explored = nf9.explored; pf9.dec.visNow = nf9.visNow; pf9.dec.visSrc = nf9.visSrc; }
+      }
+      return pf9.dec;
+    }
+    const body9 = unpack9({ buf: pf9.buf, strs: pf9.strs }) as Pick<Frame9, "unitOps" | "fxOps" | "miniExtra" | "gasBusy" | "dom">;
+    let fog9 = pf9.fog ?? fogSnapFor9(pf9.t) ?? undefined;
     if (!fog9) {
       /* 이 시각 이하의 판이 없으면(막 시작·탐색 직후) **가장 최근 판**이라도 붙인다 — 없을 때 '다 걷힘'으로
          떨어지던 것이 처음의 깜빡임이었다. 지도 크기가 맞는 판만. */
