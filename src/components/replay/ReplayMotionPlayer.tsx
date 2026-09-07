@@ -554,7 +554,15 @@ const brushLogSummary9 = (): string => {
   let back9 = 0; let prevT9 = -1;
   for (const r9 of rs9) { if (r9.aT >= 0) { if (prevT9 >= 0 && r9.aT < prevT9 - 1e-6) back9 += 1; prevT9 = r9.aT; } }
   const xfs9 = rs9.filter((r9) => r9.xf).length;
-  return `${Object.entries(cnt9).map(([k9, n9]) => `${k9}×${n9}`).join(" ")} · 보기 ${views9.size}종 팬x ${(Math.max(...pxs9) - Math.min(...pxs9)).toFixed(1)} 팬y ${(Math.max(...pys9) - Math.min(...pys9)).toFixed(1)} · 장 되돌림 ${back9} · 변환有 ${xfs9} · 재생뒤집힘 ${flips9.length}${flips9.length ? `(${flips9.slice(-4).map((f9) => `${f9.inst}:${f9.on ? "on" : "off"}`).join(" ")})` : ""} · 인스턴스 ${INST_SEQ9}`;
+  // src마다: 서로 다른 보기 수 · 마지막 보기(팬) · 마지막 op 수 · 마지막 앞 장 시각 — 두 붓이 다른 팬·다른 장으로 칠하는지 바로 읽힌다.
+  const bySrc9: Record<string, { views: Set<string>; last: (typeof rs9)[number] }> = {};
+  for (const r9 of rs9) {
+    const k9 = `${r9.inst}:${r9.src}`;
+    const e9 = bySrc9[k9] ?? (bySrc9[k9] = { views: new Set(), last: r9 });
+    e9.views.add(`${r9.px.toFixed(1)}|${r9.py.toFixed(1)}`); e9.last = r9;
+  }
+  const detail9 = Object.entries(bySrc9).map(([k9, e9]) => `${k9} 보기${e9.views.size} 팬(${e9.last.px.toFixed(1)},${e9.last.py.toFixed(1)}) op${e9.last.n} 장${e9.last.aT >= 0 ? e9.last.aT.toFixed(2) : "-"}`).join(" / ");
+  return `${detail9} ‖ ${Object.entries(cnt9).map(([k9, n9]) => `${k9}×${n9}`).join(" ")} · 보기 ${views9.size}종 팬x ${(Math.max(...pxs9) - Math.min(...pxs9)).toFixed(1)} 팬y ${(Math.max(...pys9) - Math.min(...pys9)).toFixed(1)} · 장 되돌림 ${back9} · 변환有 ${xfs9} · 재생뒤집힘 ${flips9.length}${flips9.length ? `(${flips9.slice(-4).map((f9) => `${f9.inst}:${f9.on ? "on" : "off"}`).join(" ")})` : ""} · 인스턴스 ${INST_SEQ9}`;
 };
 /** SCV가 자원을 안고 있는가(요청: "scv 가스나 미네랄 들때는 팔을 안으로 굽혀서 들기")
  *  — 굽는 동안만 서는 깃발(sunkenFire와 같은 결). scvMin·scvGas 빌더가 세우고 scv
@@ -24411,7 +24419,7 @@ export default function ReplayMotionPlayer({
     /** 짓기의 속(지수 평균): 엔진 ms · 싸기 ms · 안개 쌓기 ms, 누적 안개 횟수·리셋 횟수, 워커 시계 − 주인 t(초). */
     engMs: 0, packMs: 0, fogMs: 0, fogN: 0, resets: 0, skew: 0,
   });
-  const lastFrameRef9 = useRef<Frame9 | null>(null);
+  const lastFrameRef9 = useRef<[Frame9 | null, Frame9 | null]>([null, null]);   // 경로별(칸 0 렌더 · 1 틱) — 위 풀과 같은 까닭
   const fpsMeterRef9 = useRef({ n: 0, at: 0 });
   const fpsOnlyRef9 = useRef(false);
   const [fpsTick9, setFpsTick9] = useState(0);
@@ -28141,7 +28149,7 @@ export default function ReplayMotionPlayer({
       }
       /* 판이 하나도 없으면 **마지막으로 그린 장의 안개**를 잇는다(같은 지적) — 안개 판이 없는 장을 '안개 없음'
          으로 그리면 안개 층이 내려간다. 지도 크기가 맞는 것만. */
-      const lf9 = lastFrameRef9.current;
+      const lf9 = lastFrameRef9.current[1] ?? lastFrameRef9.current[0];
       const last9 = any9 ?? (lf9 && lf9.explored && lf9.explored.length === cells9
         ? { explored: lf9.explored, visNow: lf9.visNow, visSrc: lf9.visSrc } : null);
       fog9 = last9 ? { explored: last9.explored, visNow: last9.visNow, visSrc: last9.visSrc }
@@ -28295,11 +28303,11 @@ export default function ReplayMotionPlayer({
         if (f9.t < wPacked9.t && f9.dec) { f9.dec = undefined; f9.byKey = undefined; }
       }
       const fr9 = wPacked9.t <= tNow9 ? lerpFrame9(wPacked9, tNow9, count9 ? 1 : 0) : decodeFrame9(wPacked9);
-      lastFrameRef9.current = fr9;
+      lastFrameRef9.current[count9 ? 1 : 0] = fr9;
       return fr9;
     }
     if (count9) wStatRef.current.missed += 1;
-    return lastFrameRef9.current ?? EMPTY_FRAME9;
+    return lastFrameRef9.current[count9 ? 1 : 0] ?? lastFrameRef9.current[count9 ? 0 : 1] ?? EMPTY_FRAME9;
   };
   /* 틱의 붓 — 살아 있는 시각으로 프레임을 골라 op·효과를 ref에 두고 유닛 캔버스를 곧장 칠한다(React 없이). */
   paintFnRef9.current = (tNow9: number): void => {
