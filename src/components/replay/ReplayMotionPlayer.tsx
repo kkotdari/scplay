@@ -21249,8 +21249,12 @@ export const scrDiagModes = (): Set<string> => {
   return new Set(m9 ? m9[1].split(",") : []);
 };
 
-function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan, tilePx, pickedKey, wallMask, maskRects, clipQuad, showShadows, showOverlap, showHp, showCreep, marker: markerProp, markerAt, detailAt, yawAt, moveAt, painter, live, onPainted }: {
+function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan, viewRefs, tilePx, pickedKey, wallMask, maskRects, clipQuad, showShadows, showOverlap, showHp, showCreep, marker: markerProp, markerAt, detailAt, yawAt, moveAt, painter, live, onPainted }: {
   ops: UnitDrawOp[]; zoom: number; pan: { x: number; y: number };
+  /** ★ 붓의 보기 원천(실측: 감기 중 React 붓 팬 (−645.8,−821.7) vs 도착 붓 panRef (−646.2,−822.7)로 1px 어긋난 두 그림이
+   *  번갈아 찍혔다). 틱·도착 붓은 부모의 zoomRef·panRef를 읽는데 이 effect는 상태 zoom·pan을 읽어, 렌더 사이에 ref만 바뀌면
+   *  둘이 갈렸다. 부모가 그 ref들을 넘기면 이 effect도 **같은 원천**을 읽는다 — 어느 길로 어긋나든 두 그림이 같다. */
+  viewRefs?: { z: { current: number }; p: { current: { x: number; y: number } } };
   /** ★ 붓을 React 밖에서 몰 때(4번) — 시계 틱이 여기 넣어 둔 op·효과를 붓이 읽는다(props의 ops·fx보다 앞선다).
    *  driven이 참인 동안 이 effect는 안 칠한다(틱이 칠한다); 멈추면 종전대로 렌더마다 칠한다. */
   opsSrc?: { current: UnitDrawOp[] | null }; fxSrc?: { current: FxOp[] | null }; driven?: { current: boolean };
@@ -23372,9 +23376,9 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
        전제를 조건으로 적는다 — 마지막으로 칠한 보기와 지금 보기가 같을 때만 건너뛴다.
        그러면 재생 중의 절약은 그대로 남고(그때는 보기가 안 바뀐다), 보기가 달라진
        프레임은 멈춰 있든 아니든 반드시 칠한다. */
-    const vz9 = lv ? lv.z : zoom;
-    const vx9 = lv ? lv.p.x : pan.x;
-    const vy9 = lv ? lv.p.y : pan.y;
+    const vz9 = lv ? lv.z : (viewRefs ? viewRefs.z.current : zoom);
+    const vx9 = lv ? lv.p.x : (viewRefs ? viewRefs.p.current.x : pan.x);
+    const vy9 = lv ? lv.p.y : (viewRefs ? viewRefs.p.current.y : pan.y);
     const pv9 = paintedRef.current;
     const sameView9 = !!pv9 && pv9.z === vz9 && pv9.x === vx9 && pv9.y === vy9;
     if (!(lowDetail9 && !lv && sameView9 && frameRef.current % 2 === 0)) {
@@ -23382,7 +23386,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
       // 굽는 크기는 칸으로 올림한다(위 bakeStepOf) — 연속 배율을 그대로 쓰면 판 캐시가 통째로 헛것이 된다.
       /* 이 한 장이 얼마인지 잰다(perf9) — 이 층은 렌더 **밖**에서 칠하므로, 안 재면
          그 삯이 통째로 '브라우저' 뺄셈 값에 숨는다. 숨은 값은 못 고친다. */
-      pWrap("붓:유닛캔버스", () => paint(lv ? lv.z : zoom, lv ? lv.p : pan, bakeStepOf(zoom)));
+      pWrap("붓:유닛캔버스", () => paint(vz9, { x: vx9, y: vy9 }, bakeStepOf(zoom)));
     }
   });
   return <canvas ref={ref} className="scr-motion-unitlayer" aria-hidden />;
@@ -26970,6 +26974,8 @@ export default function ReplayMotionPlayer({
   /** 임시 변환 손짓(휠·드래그·핀치)이 도는 중인가 — 도는 동안은 상태로 덮지 않는다
    *  (위 onWheel ① 주석). 이름이 wheeling이던 것을 세 손짓이 함께 쓰며 바꿨다. */
   const xfGestureRef = useRef(false);
+  /** 붓들이 나눠 읽는 보기 원천 한 벌(UnitLayer·ReplayFogLayer의 viewRefs 주석). 정체성을 고정해 deps를 안 태운다. */
+  const viewRefs9 = useMemo(() => ({ z: zoomRef, p: panRef }), []);
   /** 캔버스가 마지막으로 **그려진** 배율·팬 — 손짓의 임시 변환은 이 기준에서의
    *  델타다. 굴림 커밋이 들어오면 아래 effect가 이 기준만 갈아 끼운다. */
   const xfBaseRef = useRef({ z: 1, x: 0, y: 0 });
@@ -30888,13 +30894,13 @@ export default function ReplayMotionPlayer({
                 zoom={zoom} pan={pan}
                 tilePx={(mapRef.current?.clientWidth ?? 320) / grid.width}
                 flatK={pitched ? pitchFlat : 1}
-                painter={fogPaintRef} live={xfLiveRef} gesture={xfGestureRef} driven={drivenRef9}
+                painter={fogPaintRef} live={xfLiveRef} gesture={xfGestureRef} driven={drivenRef9} viewRefs={viewRefs9}
               />
             )}
 
           <UnitLayer
             ops={unitOps} fx={fxOps} opsSrc={frameOpsRef9} fxSrc={frameFxRef9} driven={drivenRef9}
-            zoom={zoom} pan={pan} tilePx={tilePx} wallMask={creepMask} maskRects={creepMaskRects}
+            zoom={zoom} pan={pan} viewRefs={viewRefs9} tilePx={tilePx} wallMask={creepMask} maskRects={creepMaskRects}
             /* 손짓(드래그·핀치·휠) 중에는 부모가 이 붓으로 캔버스만 다시 그린다 —
                리액트를 안 거치고, 그린 자리는 손끝 그대로다(xfLive). */
             painter={unitPaintRef} live={xfLiveRef} onPainted={onUnitPainted}

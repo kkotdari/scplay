@@ -42,7 +42,7 @@ const FOG_RGB = "5, 8, 14";
 export type FogOverride = { vis: Float32Array; exploredAt: Uint16Array; t: number };
 
 export default function ReplayFogLayer({
-  w, h, exploredAt, t, vis, proj, zoom, pan, tilePx, flatK, className, painter, live, gesture, driven,
+  w, h, exploredAt, t, vis, proj, zoom, pan, tilePx, flatK, className, painter, live, gesture, driven, viewRefs,
 }: {
   /** 지도 격자 크기(타일). */
   w: number;
@@ -82,6 +82,8 @@ export default function ReplayFogLayer({
    *  또 칠하니 두 시각의 안개가 번갈아 났다. 유닛 캔버스(UnitLayer driven)와 같은 게이트다. 시야가 바뀌어도 틱이
    *  보기를 견줘 다시 칠한다(부모 fogTickRef9). */
   driven?: { current: boolean };
+  /** 붓의 보기 원천(UnitLayer viewRefs 주석) — 있으면 상태 zoom·pan 대신 이 ref를 읽어 유닛 캔버스와 같은 자리에 칠한다. */
+  viewRefs?: { z: { current: number }; p: { current: { x: number; y: number } } };
 }): React.ReactElement {
   const cvRef = useRef<HTMLCanvasElement>(null);
   /** 밝힘 등고선 갈무리 — 밝힌 칸 수가 바뀔 때만 다시 뽑는다. */
@@ -244,7 +246,7 @@ export default function ReplayFogLayer({
     if (gesture?.current || driven?.current) return;   // 손짓 중·틱이 몰 때 — 위 gesture·driven 주석
     const lv = live?.current;
     /* 이 층도 렌더 밖에서 칠한다 — 안 재면 '브라우저' 뺄셈에 숨는다(perf9 머리말). */
-    pWrap("붓:안개캔버스", () => paint(lv ? lv.z : zoom, lv ? lv.p : pan));
+    pWrap("붓:안개캔버스", () => paint(lv ? lv.z : (viewRefs ? viewRefs.z.current : zoom), lv ? lv.p : (viewRefs ? viewRefs.p.current : pan)));
   });
 
   return <canvas ref={cvRef} className={className} aria-hidden />;
