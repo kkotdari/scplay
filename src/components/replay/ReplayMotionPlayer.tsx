@@ -27068,6 +27068,24 @@ export default function ReplayMotionPlayer({
          움직이고 판이 들썩였다. 1배로 돌아오면 CSS의 pan-y로 되돌린다. */
       box.style.touchAction = z1 > 1 ? "none" : "";
     }
+    /* ★ 유닛·안개 캔버스와 지형·미니맵도 **여기서 같은 순간에** 옮긴다(지적: "지형도 마지막에 툭 한 번 움직인다") ──
+       실측(팬 프로브): 끄는 동안 렌즈는 −220인데 유닛·안개·지형은 −210으로 **늘 한 프레임 뒤**였다. CSS 이동을 값비싼
+       다시 그리기와 함께 rAF로 미뤄 둔 탓이다. 놓는 순간 뒤처진 셋이 한꺼번에 따라붙는 것이 그 '툭'이었다.
+       변환 걸기와 지형 자리 옮기기는 값이 거의 안 드니(스타일 한 줄) 렌즈와 나란히 지금 한다. 값비싼 다시 그리기만
+       아래 rAF에 남는다. */
+    {
+      const b9 = xfBaseRef.current;
+      const s9 = z1 / b9.z;
+      const cv9 = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-unitlayer");
+      const fg9 = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-fog");
+      const xf9 = s9 === 1 && px === b9.x && py === b9.y ? ""
+        : `translate(${(px - s9 * b9.x).toFixed(2)}px, ${(py - s9 * b9.y).toFixed(2)}px) scale(${s9.toFixed(4)})`;
+      xfCvXfRef.current = xf9;
+      if (cv9) { cv9.style.transformOrigin = "center"; cv9.style.transform = xf9; }
+      if (fg9) { fg9.style.transformOrigin = "center"; fg9.style.transform = xf9; }
+      mapPaintRef.current?.(z1, panRef.current);
+      miniPaintRef.current?.(z1, panRef.current);
+    }
     if (!repaint) return;
     /* 캔버스 다시 그리기는 **프레임당 한 번**으로 묶는다(요청: 줌 연속 렌더) — 휠은
        한 프레임에 두세 번 올 수 있고 핀치의 pointermove는 더 잦다. 사건마다 그리면
@@ -27095,23 +27113,12 @@ export default function ReplayMotionPlayer({
        보기로 갈아 끼워지므로 CSS 변환은 0으로 돌아간다 — 빈 가장자리는 '마지막으로
        그린 뒤 움직인 만큼'을 절대 못 넘고(아래 문턱: 24px·2%), 그 사이는 한 프레임
        (24ms)이라 눈에 남지 않는다. */
-    /* 안개는 **매 프레임** 다시 그린다(지적: "줌시 지도가 먼저 바뀌고 안개가 바뀜") —
-       아래 유닛·지도 다시 그리기는 삯이 커서 문턱(need9)으로 솎는데, 안개는 벡터라
-       한 장에 1ms가 안 든다. 솎는 쪽에 같이 묶어 두면 지도는 CSS 변환으로 매 프레임
-       미끄러지는데 안개만 문턱마다 툭툭 따라가 두 층이 어긋나 보인다. */
-    /* (바뀜) 안개는 이제 유닛 캔버스와 **같은 규약**이다(지적: "지도는 절대 안 흔들리고 안개·유닛·건물만 흔들린다") —
-       여태 매 손짓 프레임 손끝 자리로 다시 칠했는데, 지도는 합성기 변환으로 곧장 움직이고 캔버스 내용은 사파리에서 한
-       프레임 늦게 올라와 안개만 지도보다 한 발 늦게 따라왔다(빠른 끌기에서 몇 px씩 어긋났다 붙는 것이 떨림). 내용은
-       기준(xfBase) 자리에 두고 아래 캔버스 변환을 유닛 캔버스와 함께 건다. 재기준 때 함께 다시 칠한다. */
-    const fogCv9 = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-fog");
-    /* 미니맵도 매 프레임이다(요청) — 작은 캔버스 한 장이라 안개와 같은 값(1ms 미만)이고,
-       문턱으로 솎으면 지도는 미끄러지는데 프레임만 툭툭 따라가 어긋나 보인다. */
-    miniPaintRef.current?.(z1, panRef.current);
+
     /* 지도 배경도 **매 프레임** 부른다(지적: "줌 시 맵이 로딩이 안개보다 느림") —
        안개만 문턱 밖으로 빼 두었더니 이번엔 둘이 반대로 어긋났다. 배경 쪽은 매 프레임
        불러도 값이 안 든다: 벡터층이 맨 앞에서 '이미 구워 둔 창 안인가'를 보고 곧장
        빠져나가고(그쪽 bakedRef), 실제로 다시 굽는 것은 배율 칸(√2)이 바뀌는 몇 번뿐이다. */
-    mapPaintRef.current?.(z1, panRef.current);
+    // (옮김) 지형·미니맵·캔버스 변환은 applyGestureXf가 렌즈와 같은 프레임에 한다(그쪽 ★). 여기는 값비싼 다시 그리기만.
     const cv = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-unitlayer");
     const b = xfBaseRef.current;
     const s9 = z1 / b.z;
@@ -27156,14 +27163,6 @@ export default function ReplayMotionPlayer({
          벡터층이 배율을 √2 칸으로 갈무리하므로 손짓 한 번에 두세 번만 다시 굽는다. */
       xfPaintMsRef.current = performance.now() - t0;
       return;
-    }
-    if (cv) {
-      cv.style.transformOrigin = "center";
-      const xf9 = s9 === 1 && px === b.x && py === b.y ? ""
-        : `translate(${(px - s9 * b.x).toFixed(2)}px, ${(py - s9 * b.y).toFixed(2)}px) scale(${s9.toFixed(4)})`;
-      cv.style.transform = xf9;
-      xfCvXfRef.current = xf9;
-      if (fogCv9) { fogCv9.style.transformOrigin = "center"; fogCv9.style.transform = xf9; }
     }
   }, []);
   /** 손짓 시작 — 이미 도는 중이면 기준을 안 건드린다(휠→드래그 이어짐 등). */
