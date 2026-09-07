@@ -3488,6 +3488,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        개수는 여덟 → 열둘이다(요청: 1.5배로 더 촘촘히) — 판 폭은 그대로 둬 사이가
        좁아질 뿐 판이 서로 붙지는 않는다. */
     for (let w9 = 0; w9 < 12; w9 += 1) {
+      /* 정면 두 장(±15도)은 뺀다 — 격납구 개구부(x ±1.32)와 그 문틀 위에 걸쳐 파인 자리 위에 뜨게 된다. */
+      if (w9 === 0 || w9 === 11) continue;
       const a9 = ((w9 + 0.5) / 12) * Math.PI * 2;
       const sx9 = Math.sin(a9);
       const sy9 = Math.cos(a9);
@@ -3579,10 +3581,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const CANOPY_Z = T2_Z;
     out.push(...tagKey(paintBase(boxFaces3(0, 4.75, 2.5, 2.1, 0.24, CANOPY_Z), SILVER),
       depthNow(0, 4.75) * 1.6 + 7));
-    for (const cx9 of [-0.95, 0.95]) {
-      out.push(...tagKey(paintBase(cylinderFaces3(cx9, 4.6, 0.14, CANOPY_Z - DOME_Z, DOME_Z), STEEL),
-        depthNow(cx9, 4.6) * 1.6 + 6));
-    }
+    /* 캐노피 기둥 둘은 걷었다 — 정면 격납구(아래)가 그 자리를 파고 들어와 기둥이 개구부 한가운데 서게 됐다.
+       캐노피는 인방 위에 걸린다. */
     /* 상자와 드럼통은 3층 기둥 옆구리에 붙인다(요청: "캐노피 위 상자랑 드럼통 파묻힘
        3층 돔에 붙이기") — 지붕 위에 얹어 두니 지붕과 받침판 사이에 끼어 파묻혔다.
        2층 옥상(갑판) 위, 3층 기둥의 밑동 겉면에 등을 대고 선다: 그 자리의 기둥
@@ -3627,37 +3627,83 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
 
     /* 입구 왼쪽 갑판 두 판은 걷었다(요청) — 통로 판과 그 끝 난간이었는데, 현관 지붕이
        들어오면서 앞이 붐볐고 두 판이 몸에서 떨어져 나온 조각처럼 보였다. */
+    /* ★ 정면 격납구 — 경사로를 **몸 안에 박아 넣는다**(요청: "테란 cc의 경사로를 팩토리의 격납구처럼 건물 안으로
+       박아 넣기"). 여태 경사로는 2층 바닥에서 몸 밖 지면(6.3)까지 뻗은 판이었다. 이제 받침 원반(HULL_Z~DOME_Z)과
+       2층 돔 아랫도리(DOME_Z~BAY_Z1)를 정면에서 x ±BAY_HW, 뒷벽 y = BAY_YI(깊이 약 2.3)만큼 파고, 그 안에서
+       경사면이 2층 바닥(DOME_Z)에서 벽 선의 선체 밑(HULL_Z)으로 내려온다. 몸 밖으로 나오는 것은 없다.
+       팩토리 격납구와 같은 짜임: 속(뒷벽·옆벽·경사면)을 몸 위 키로 그리고, 사선·부감에서 속이 개구부 밖으로
+       비치는 몫(뒷벽은 앞벽보다 뒤라 화면에서 위로 올라가 인방 위로, 옆벽은 요잉만큼 옆으로 샌다)은 개구부
+       둘레의 벽(양 옆 띠·인방)을 겉벽과 같은 반지름·재질로 한 번 더 그린 문틀로 가린다. 천장은 아래를 보는
+       면이라 부감에서 안 보이므로 안 그린다. 현관 캐노피는 인방 위에 그대로 걸린다(기둥 둘은 개구부에 서게 되어
+       걷었다). 옛 입구 빛(세 겹 판)은 격납구가 대신한다 — 뒷벽 위에 가는 푸른 띠 하나만 남겼다. */
     if (frontVisible) {
-      // 진입로 — 데칼 없는 작은 은판 하나.
-      /* 진출 경사로는 **2층 바닥에서 시작해 지면으로 내려온다**(지적) — 여태 받침
-         옆구리에 붙은 짧은 판이라 어디서 나오는 길인지가 안 읽혔다. 2층 기둥의
-         밑동(DOME_Z)에서 출발해 앞으로 뻗으며 지면(0)에 닿는다. */
-      /* 길이·폭 모두 줄였다(요청: "진입로 길이및 폭 축소") — 7.35까지 뻗고 아래가
-         2.7이나 벌어져 건물보다 길이 먼저 눈에 들었다. 6.3까지, 폭은 1.56→2.1이다. */
-      const ramp = polyPath3([
-        [-0.78, t1R(DOME_Z) - 0.15, DOME_Z], [0.78, t1R(DOME_Z) - 0.15, DOME_Z],
-        [1.05, 6.3, 0], [-1.05, 6.3, 0]]);
-      out.push(...tagKey([[ramp, 1, SILVER] as ShapeFace, topFace(ramp, 0.16)],
-        depthNow(0, 6.4) + 0.5));
-      /* 경사로에 가로 홈 여섯 줄(요청: "커맨드센터 경사로 연한 가로 줄 여러개 넣기(홈 패인 느낌)") —
-         줄마다 위는 어두운 가는 띠, 바로 아래는 흰 가는 띠라 패인 자리에 빛이 걸린 것으로 읽힌다.
-         경사로 네 꼭짓점을 t로 보간해 폭·높이가 판을 그대로 따른다. */
+      const BAY_HW = 1.32;
+      const BAY_Z1 = DOME_Z + 1.25;
+      const BAY_YI = 3.05;
+      /** 벽 선 밖으로 나오는 경사로 길이(요청: "약간") — 지면에 닿는 끝까지. */
+      const RAMP_OUT = 1.0;
+      /** 그 높이의 겉벽 반지름 — 받침은 네 단(5.15→5.4 · 5.16 · 5.4→5.37 · 5.46 테), 위는 돔 옆선(t1R). */
+      const wallR = (z: number): number => {
+        if (z < HULL_Z + 0.8) return 5.15 + 0.25 * ((z - HULL_Z) / 0.8);
+        if (z < HULL_Z + 0.94) return 5.16;
+        if (z < HULL_Z + 1.1) return 5.4 - 0.03 * ((z - HULL_Z - 0.94) / 0.16);
+        if (z < DOME_Z) return 5.46;
+        return t1R(z);
+      };
+      /** 개구부 x에서의 겉벽 y. */
+      const wallY = (z: number, x: number): number => Math.sqrt(Math.max(0.01, wallR(z) ** 2 - x * x));
+      /* 키는 고정 3이다 — 2층 돔 벽(2)·구리띠(2.2)·데칼(2.4)보다 위, 3층 몸(8)·그릇(≈9)·캐노피(≈14)보다 아래.
+         옛 입구 빛처럼 depthNow 기준(≈10.8)으로 매기면 뒷벽·옆벽이 부감에서 갑판 위로 올라와 3층 몸을 뚫고
+         비쳤다(실측: 25도에서 검은 쐐기). 속이 개구부 위로 새는 몫은 인방(문틀)과 아래 갑판 덧판이 덮고, 그 위는
+         3층 몸이 제 키로 덮는다. */
+      const KB = 3;
+      const Z0 = HULL_Z;
+      const bay: ShapeFace[] = [
+        // 뒷벽(어두움) — 선체 밑에서 인방까지
+        [polyPath3([[-BAY_HW, BAY_YI, Z0], [BAY_HW, BAY_YI, Z0], [BAY_HW, BAY_YI, BAY_Z1], [-BAY_HW, BAY_YI, BAY_Z1]]), 1, "#22262c"] as ShapeFace,
+        // 뒷벽 위 푸른 빛띠
+        [polyPath3([[-BAY_HW + 0.1, BAY_YI + 0.01, BAY_Z1 - 0.34], [BAY_HW - 0.1, BAY_YI + 0.01, BAY_Z1 - 0.34],
+          [BAY_HW - 0.1, BAY_YI + 0.01, BAY_Z1 - 0.18], [-BAY_HW + 0.1, BAY_YI + 0.01, BAY_Z1 - 0.18]]), 0.55, "#7fc9ff"] as ShapeFace,
+      ];
+      // 양옆 벽 — 안쪽(−sx)을 보는 면이니 시점을 향한 쪽만
+      for (const sx9 of [-1, 1] as const) {
+        if (facingRatio(-sx9, 0) <= 0.04) continue;
+        bay.push([polyPath3([
+          [sx9 * BAY_HW, BAY_YI, Z0], [sx9 * BAY_HW, wallY(Z0, BAY_HW), Z0],
+          [sx9 * BAY_HW, wallY(BAY_Z1, BAY_HW), BAY_Z1], [sx9 * BAY_HW, BAY_YI, BAY_Z1],
+        ]), 1, "#555c67"] as ShapeFace);
+      }
+      /* 경사면 — 뒷벽 발치의 2층 바닥에서 한 기울기로 내려와 벽 선을 지나 **몸 밖 지면까지 조금** 나온다(추가
+         요청: "약간은 바깥쪽 경사로로 나오기도 하게"). 벽 선까지는 격납구 속(키 KB), 그 밖은 몸 앞이라 제 깊이
+         키다. 밖 토막은 옛 경사로처럼 두께(판)를 준다. 폭은 개구부에 거의 꽉 차게(옆벽이 가는 띠로만 보이게). */
+      const RW = BAY_HW - 0.05;
+      const RY0 = BAY_YI + 0.06;
+      const RZ0 = DOME_Z;
+      const RY_W = wallY(Z0, RW);                // 벽 선(선체 밑 높이의 겉벽 y)
+      const RY1 = RY_W + RAMP_OUT;                // 지면에 닿는 끝
+      const RZ1 = 0;
+      const rAt = (t: number, side: 1 | -1): [number, number, number] => [
+        side * RW, RY0 + (RY1 - RY0) * t, RZ0 + (RZ1 - RZ0) * t];
+      const tW = (RY_W - RY0) / (RY1 - RY0);      // 벽 선의 t
+      const rampIn = polyPath3([rAt(0, -1), rAt(0, 1), rAt(tW, 1), rAt(tW, -1)]);
+      bay.push([rampIn, 1, SILVER] as ShapeFace, topFace(rampIn, 0.16));
+      /* 가로 홈 여섯 줄(요청: "커맨드센터 경사로 연한 가로 줄 여러개 넣기(홈 패인 느낌)") — 줄마다 위는 어두운
+         가는 띠, 바로 아래는 흰 가는 띠라 패인 자리에 빛이 걸린 것으로 읽힌다. 벽 선 안팎으로 나눠 담는다. */
+      const grooveAt = (t9: number): ShapeFace[] => {
+        const dk9 = polyPath3([rAt(t9, -1), rAt(t9, 1), rAt(t9 + 0.018, 1), rAt(t9 + 0.018, -1)]);
+        const lt9 = polyPath3([rAt(t9 + 0.018, -1), rAt(t9 + 0.018, 1), rAt(t9 + 0.034, 1), rAt(t9 + 0.034, -1)]);
+        return [[dk9, 0.28, "#000", 0, 2] as ShapeFace, [lt9, 0.22, "#fff", 0, 2] as ShapeFace];
+      };
+      const outer: ShapeFace[] = [];
+      for (let k9 = 1; k9 <= 6; k9 += 1) {
+        const t9 = k9 / 7.2;
+        (t9 + 0.034 <= tW ? bay : outer).push(...grooveAt(t9));
+      }
+      out.push(...tagKey(bay, KB));
+      /* 밖 토막 — 벽 선에서 지면까지. 두께(TH)만큼 내린 아랫면과 옆면 둘·앞끝 면으로 판을 만든다. */
       {
-        const rY0 = t1R(DOME_Z) - 0.15;
-        const rAt = (t: number, side: 1 | -1): [number, number, number] => [
-          side * (0.78 + (1.05 - 0.78) * t), rY0 + (6.3 - rY0) * t, DOME_Z * (1 - t)];
-        const grooves: ShapeFace[] = [];
-        for (let k9 = 1; k9 <= 6; k9 += 1) {
-          const t9 = k9 / 7.2;
-          const dk9 = polyPath3([rAt(t9, -1), rAt(t9, 1), rAt(t9 + 0.018, 1), rAt(t9 + 0.018, -1)]);
-          const lt9 = polyPath3([rAt(t9 + 0.018, -1), rAt(t9 + 0.018, 1), rAt(t9 + 0.034, 1), rAt(t9 + 0.034, -1)]);
-          grooves.push([dk9, 0.28, "#000", 0, 2] as ShapeFace, [lt9, 0.22, "#fff", 0, 2] as ShapeFace);
-        }
-        out.push(...tagKey(grooves, depthNow(0, 6.4) + 0.51));
-        /* 두께감(요청: "커맨드 경사로는 살짝 두께감도 주기" → 재지적: "직각삼각형이 아니라 판형태여야해") —
-           경사판 밑에 같은 기울기의 아랫면을 두께(TH)만큼 내려 두고, 옆면 둘과 앞끝 면을 띠로 세운다.
-           땅에 닿는 끝은 그만큼 땅 밑으로 조금 들어가지만 이 사영에는 땅 가림이 없어 얇은 띠로만 남는다. */
-        const TH9 = 0.32;
+        const rampOut = polyPath3([rAt(tW, -1), rAt(tW, 1), rAt(1, 1), rAt(1, -1)]);
+        const TH9 = 0.3;
         const under9 = (t: number, side: 1 | -1): [number, number, number] => {
           const q9 = rAt(t, side);
           return [q9[0], q9[1], q9[2] - TH9];
@@ -3665,30 +3711,74 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const slab: ShapeFace[] = [];
         for (const side of [-1, 1] as const) {
           if (facingRatio(side, 0) < 0.05) continue;
-          const d9 = polyPath3([rAt(0, side), rAt(1, side), under9(1, side), under9(0, side)]);
+          const d9 = polyPath3([rAt(tW, side), rAt(1, side), under9(1, side), under9(tW, side)]);
           slab.push([d9, 1, SILVER] as ShapeFace, sideFace(d9, 0.42));
         }
         {
           const f9 = polyPath3([rAt(1, -1), rAt(1, 1), under9(1, 1), under9(1, -1)]);
           slab.push([f9, 1, SILVER] as ShapeFace, sideFace(f9, 0.3));
         }
-        out.push(...tagKey(slab, depthNow(0, 6.4) + 0.49));
+        out.push(...tagKey([...slab, [rampOut, 1, SILVER] as ShapeFace, topFace(rampOut, 0.16), ...outer],
+          depthNow(0, RY1) + 0.5));
       }
-      /* 입구는 **2층 바닥에서 캐노피까지**다(지적) — 경사로가 물려 들어가는 그 한 칸을
-         푸른 하얀빛으로 반투명하게 비춘다. 2층 기둥은 위로 갈수록 좁아지므로 위·아래
-         너비를 그 높이의 기둥 반지름(t1R)에 맞춰야 벽에 딱 붙는다. 세 겹이라(어두운
-         안쪽 → 푸른 막 → 하얀 심) 가운데가 환하고 가장자리로 갈수록 옅다. */
-      const gzB = DOME_Z + 0.04;
-      const gzT = CANOPY_Z - 0.02;
-      const gate = (hw: number, inset: number): string => polyPath3([
-        [-hw, t1R(gzB) + inset, gzB], [hw, t1R(gzB) + inset, gzB],
-        [hw * 0.88, t1R(gzT) + inset, gzT], [-hw * 0.88, t1R(gzT) + inset, gzT],
-      ]);
+      /* ★ 문틀(가림막) — 개구부 둘레의 겉벽을 같은 반지름(+0.012)·재질·명암으로 한 번 더 그려 속이 밖으로 비치는
+         몫을 덮는다. 양 옆 띠는 선체 밑에서 2층 갑판까지, 인방은 개구부 위(BAY_Z1)에서 갑판(T2_Z)까지 — 뒷벽의
+         윗부분이 인방 위로 올라와 비치는 몫이 그것이다. 호는 x로 잘라 각으로 바꾸고 몇 조각으로 쪼개 spirePillar
+         옆면과 같은 규칙(bodyFace + faceLight)으로 명암을 준다. */
+      const frame: ShapeFace[] = [];
+      const wallStrip = (z0: number, z1: number, x0: number, x1: number, n9: number, fill: string): void => {
+        const r0 = wallR(z0) + 0.012;
+        const r1 = wallR(Math.min(z1, z1 - 1e-4)) + 0.012;
+        const aOf = (x: number, r: number): number => Math.asin(Math.max(-0.999, Math.min(0.999, x / r)));
+        const a0l = aOf(x0, r0); const a1l = aOf(x1, r0); const a0h = aOf(x0, r1); const a1h = aOf(x1, r1);
+        for (let i9 = 0; i9 < n9; i9 += 1) {
+          const u0 = i9 / n9; const u1 = (i9 + 1) / n9;
+          const aA = a0l + (a1l - a0l) * u0; const aB = a0l + (a1l - a0l) * u1;
+          const aC = a0h + (a1h - a0h) * u1; const aD = a0h + (a1h - a0h) * u0;
+          const d9 = polyPath3([
+            [r0 * Math.sin(aA), r0 * Math.cos(aA), z0], [r0 * Math.sin(aB), r0 * Math.cos(aB), z0],
+            [r1 * Math.sin(aC), r1 * Math.cos(aC), z1], [r1 * Math.sin(aD), r1 * Math.cos(aD), z1],
+          ]);
+          const am = (aA + aB) / 2;
+          const fl9 = faceLight(Math.sin(am), Math.cos(am), 0.3);
+          frame.push([d9, 1, fill] as ShapeFace, ...(fl9.visible ? fl9.face(d9) : [sideFace(d9, 0.42)]));
+        }
+      };
+      const FW = 1.3;   // 옆 띠 폭 — 요잉으로 옆벽이 새는 몫(깊이 2.3 × sin)을 덮는다
+      const bands: [number, number, string][] = [
+        [HULL_Z, HULL_Z + 0.8, SILVER], [HULL_Z + 0.8, HULL_Z + 0.94, STEEL],
+        [HULL_Z + 0.94, HULL_Z + 1.1, SILVER], [HULL_Z + 1.1, DOME_Z, STEEL],
+        [DOME_Z, DOME_Z + 0.42, SILVER], [DOME_Z + 0.42, DOME_Z + 0.84, SILVER], [DOME_Z + 0.84, BAY_Z1, SILVER],
+      ];
+      for (const [z0, z1, fill] of bands) {
+        wallStrip(z0, z1, BAY_HW, BAY_HW + FW, 2, fill);
+        wallStrip(z0, z1, -BAY_HW - FW, -BAY_HW, 2, fill);
+      }
+      // 인방 — 개구부 위. 갑판(T2_Z)까지 두 단.
+      const zm9 = (BAY_Z1 + T2_Z) / 2;
+      wallStrip(BAY_Z1, zm9, -BAY_HW - FW, BAY_HW + FW, 4, SILVER);
+      wallStrip(zm9, T2_Z, -BAY_HW - FW, BAY_HW + FW, 4, SILVER);
+      out.push(...tagKey(frame, KB + 0.05));
+      /* ★ 갑판 덧판 — 뒷벽이 위로 새어 **2층 갑판**(수평면, 몸과 같은 키 2라 격납구 아래)에 비치는 몫은 벽
+         문틀로는 못 덮는다. 갑판(T2_Z, 3층 밑동 3.1~잘린 테 3.55)의 앞쪽 부채꼴을 spirePillar 뚜껑과 같은
+         민무늬 은색으로 한 번 더 깐다. 받침 테 윗면(DOME_Z)에는 안 깐다 — 개구부를 가로질러 경사로를 덮고,
+         민무늬라 빛 먹은 벽 옆에서 검은 쐐기로 보였다(실측). 그 테는 얇아 새는 몫이 눈에 안 띈다. */
+      const sector9 = (r0: number, r1: number, z: number, half: number): string => {
+        const pts: [number, number, number][] = [];
+        const N9 = 8;
+        for (let i9 = 0; i9 <= N9; i9 += 1) {
+          const a9 = -half + (half * 2 * i9) / N9;
+          pts.push([Math.sin(a9) * r1, Math.cos(a9) * r1, z]);
+        }
+        for (let i9 = N9; i9 >= 0; i9 -= 1) {
+          const a9 = -half + (half * 2 * i9) / N9;
+          pts.push([Math.sin(a9) * r0, Math.cos(a9) * r0, z]);
+        }
+        return polyPath3(pts);
+      };
       out.push(...tagKey([
-        [gate(1.28, 0.02), 1, "#23272d"] as ShapeFace,
-        [gate(1.14, 0.05), 0.5, "#7fc9ff"] as ShapeFace,
-        [gate(0.78, 0.08), 0.72, "#eaf6ff"] as ShapeFace,
-      ], depthNow(0, T1_RB) * 1.6 + 3));
+        [sector9(3.08, 3.56, T2_Z + 0.012, 0.8), 1, SILVER] as ShapeFace,
+      ], KB + 0.1));
     }
     out.push(
       ...legAndFoot(-POD_R, POD_R, HULL_Z + 0.25, 0.035),
