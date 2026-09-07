@@ -77,8 +77,27 @@ class W {
 function makeWorld(race) {
   const raceNum = race === "테란" ? 1 : race === "저그" ? 0 : 2;
   const PLAYERS = [{ owner: 0, race: raceNum, force: 1, name: "비교", color: 0x2b62e8, home: [64, 64] }];
-  const blds = Object.keys(TABLES.SHAPE_KIND).filter((n) => TABLES.RACE[n] === race && nameToId[n] !== undefined);
-  const units = Object.keys(TABLES.UNIT_3D).filter((n) => TABLES.RACE[n] === race && nameToId[n] !== undefined);
+  /* 차례는 **빌드 오더**(요청) — 건물은 테크 트리에서 이른 것부터, 유닛은 지상·공중 각각 이른 것부터. 표에 없는 이름은 뒤에. */
+  const ORDER = {
+    "테란": ["Command Center", "Supply Depot", "Refinery", "Barracks", "Engineering Bay", "Bunker", "Missile Turret", "Academy",
+      "Comsat Station", "Factory", "Machine Shop", "Armory", "Starport", "Control Tower", "Science Facility", "Physics Lab",
+      "Covert Ops", "Nuclear Silo",
+      "SCV", "Marine", "Firebat", "Medic", "Ghost", "Vulture", "Spider Mine", "Siege Tank (Tank Mode)", "Siege Tank (Siege Mode)", "Goliath",
+      "Wraith", "Dropship", "Science Vessel", "Valkyrie", "Battlecruiser"],
+    "프로토스": ["Nexus", "Pylon", "Assimilator", "Gateway", "Forge", "Photon Cannon", "Cybernetics Core", "Shield Battery",
+      "Citadel of Adun", "Templar Archives", "Robotics Facility", "Robotics Support Bay", "Observatory", "Stargate",
+      "Fleet Beacon", "Arbiter Tribunal",
+      "Probe", "Zealot", "Dragoon", "High Templar", "Dark Templar", "Archon", "Dark Archon", "Reaver", "Scarab",
+      "Shuttle", "Observer", "Scout", "Corsair", "Carrier", "Interceptor", "Arbiter"],
+    "저그": ["Hatchery", "Creep Colony", "Spawning Pool", "Extractor", "Evolution Chamber", "Sunken Colony", "Spore Colony",
+      "Hydralisk Den", "Lair", "Spire", "Queen's Nest", "Nydus Canal", "Hive", "Ultralisk Cavern", "Greater Spire", "Defiler Mound",
+      "Larva", "Egg", "Drone", "Zergling", "Hydralisk", "Lurker Egg", "Lurker", "Ultralisk", "Defiler", "Broodling", "Infested Terran",
+      "Overlord", "Mutalisk", "Scourge", "Queen", "Mutalisk Cocoon", "Guardian", "Devourer"],
+  }[race] ?? [];
+  const ordIdx = (n) => { const i = ORDER.indexOf(n); return i < 0 ? 999 : i; };
+  const byOrder = (a, b) => ordIdx(a) - ordIdx(b);
+  const blds = Object.keys(TABLES.SHAPE_KIND).filter((n) => TABLES.RACE[n] === race && nameToId[n] !== undefined).sort(byOrder);
+  const units = Object.keys(TABLES.UNIT_3D).filter((n) => TABLES.RACE[n] === race && nameToId[n] !== undefined).sort(byOrder);
   const skipped = Object.keys(TABLES.UNIT_3D).filter((n) => TABLES.RACE[n] === race && nameToId[n] === undefined);
   if (skipped.length) console.log(`  (번호 없어 뺀 유닛: ${skipped.join(", ")})`);
   console.log(`  건물: ${blds.join(", ")}`);
