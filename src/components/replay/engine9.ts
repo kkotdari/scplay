@@ -836,6 +836,8 @@ export const MORPH_SINK9 = 0.3;
 export const HATCH_SLIDE_SEC = 0.6;   // 0.35는 "순식간"이었다(지적)
 /** 부화 미끄럼을 살피는 창(초) — 태어난 지 이보다 오래된 몸은 완성 키를 안 찾는다(알 갈라지는 애니가 1~2초). */
 export const HATCH_SCAN_SEC9 = 4;
+/** 공사 고치 두근거림의 크기 폭(배율) — 꼭대기에서 이만큼 커진다. */
+export const COCOON_PULSE_K9 = 0.07;
 /** 알·러커알·뮤탈 고치의 종류 번호(bwUnitNames) — 부화 미끄럼은 이 셋에서 나온 몸만. */
 const EGG_ID9 = 36;
 const LURKER_EGG_ID9 = 97;
@@ -1391,6 +1393,9 @@ export type UnitDrawOp = {
    *  건물 전용이다: 유닛은 air·rise가 그 몫을 한다. 그림자는 안 따라 뜬다 — 그
    *  둘이 벌어진 만큼이 곧 '떠 있다'로 읽힌다. */
   liftK?: number;
+  /** 찍을 때만 곱하는 배율(고치의 두근거림) — 판은 그대로 두고 바닥 가운데를 축으로 블릿만 키우고 줄인다.
+   *  drawK와 달리 굽는 크기에 안 실린다(굽는 크기가 흔들리면 판이 칸마다 새로 구워져 덜덜 떨린다). */
+  pulseK?: number;
   /** 발자국 세로/가로 비(건물) — 접지 그림자가 '바닥 발자국'만 덮게 하는 자(지적:
    *  칸(hPx)은 모델 높이까지 포함해, 칸 기준 타원은 건물을 통째로 덮는 큰 원이 됐다). */
   footRatio?: number;
@@ -4758,9 +4763,12 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         /* 통통 **뛴다**(지적: "바운스가 아니라 위아래로만 움직임") — 사인은 오르내리는 둥실거림이라 뛰는 결이 없다.
            한 주기 0.9초 중 앞 0.55초는 포물선으로 떠올랐다 내려앉고(땅에 닿는 순간이 뾰족하다) 나머지는 땅에서
            쉰다. 높이는 그린 폭의 7%. */
+        /* ★ 뛰지 않고 **커졌다 작아진다**(요청: "공사고치 위로 뛰지 말고 바운스(크기 확대 축소)") — 크기를 굽는
+           상자(stage)로 흔들면 판이 프레임마다 다른 칸으로 구워져 덜덜 떨리므로(위), 판은 한 장 그대로 두고
+           **찍을 때의 배율**(pulseK, 바닥 가운데 기준)만 흔든다. 리듬은 뛰던 그대로(0.9초 중 0.55초 포물선). */
         const hopP9 = ((t % 0.9) + 0.9) % 0.9 / 0.9;
         const hopQ9 = Math.min(1, hopP9 / 0.55);
-        const bob9 = race2 === "저그" ? 0.07 * 4 * hopQ9 * (1 - hopQ9) : 0;
+        const pulse9 = race2 === "저그" ? 1 + COCOON_PULSE_K9 * 4 * hopQ9 * (1 - hopQ9) : 1;
         /* 공사 모델은 바닥 맞춤(지적: 소환구보다 훨씬 아래쪽에 실제 건물이 생긴다)
            — 완성 모델은 '들어올린 칸'의 바닥 = 발자국 바닥에 앉는데, 소환구·고치는
            제 작은 상자가 칸 중심(위로 들어올린 앵커)에 걸려 바닥이 발자국보다 위에
@@ -4838,7 +4846,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           ...(race2 === "프로토스"
             ? { groundShadow: true, footRatio: 0.5 }
             : {}),
-          ...(bob9 > 0 ? { liftK: bob9 } : {}),
+          ...(pulse9 !== 1 ? { pulseK: pulse9 } : {}),
           color, alpha, noShadow: true,
         });
         /* 공사 애니(요청) — 모델은 캐시 스프라이트라 못 움직이니 CSS 오버레이가

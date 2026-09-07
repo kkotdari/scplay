@@ -8821,7 +8821,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      차지하고, 뒤에는 뒤틀린 검은 등걸이 가지를 뻗는다. 오른쪽에는 창백한 뼈판이
      기대고, 발치에는 검은 촉수 다발이 엉킨다. 키는 저그 공통 자(제 자리 깊이 × 1.6). */
   // 요잉 270 → 360도(요청: "챔버 +90도" — 두 번째 +90이다). 한 바퀴라 0과 같다.
-  evo: () => withModelSpin(0, () => {
+  evo: () => withModelSpin(-90, () => {   // 지금 자세에서 −90도 요잉(요청)
     const out: ShapeFace[] = [...tagKey(creepSplat(6.2), -20)];
     /* 살덩이 엽 둘 — 볼록한 종 모양 기둥. 개인색이라 fill을 주지 않는다. */
     const lobe = (lx9: number, ly9: number, r9: number, h9: number): void => {
@@ -8901,8 +8901,64 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        반지름은 그대로라 옆으로는 안 퍼지고 위로만 선다: 납작하게 눌린 덩이가 아니라
        솟은 염통이 된다. 표면에 얹히는 핏줄·결절·데칼은 전부 h9의 분수로 잡혀 있어
        저절로 따라 올라간다. */
-    lobe(-2.4, 1.2, 3.1, 5.2);
-    lobe(2.3, 0.4, 2.5, 4.3);
+    /* 두 장기를 살짝 바깥으로 벌린다(요청) — x −2.4 → −3.0 · 2.3 → 2.9. 그 사이에 아래 샌드위치 장기가 앉는다. */
+    lobe(-3.0, 1.2, 3.1, 5.2);
+    lobe(2.9, 0.4, 2.5, 4.3);
+    /* ★ 가운데 샌드위치 장기(요청: "가운데에 샌드위치모양의 장기 추가(경사진 윗면 옆면과 앞쪽에 핏줄다발)") —
+       두 장기 사이에 앉는 켜진 살덩이. 윗면은 뒤가 높고 앞으로 기운 경사면, 옆면·앞면에는 속살 켜(밝은 띠)가
+       끼어 샌드위치로 읽히고, 앞면 아래로는 핏줄 다발이 늘어져 바닥으로 흩어진다. 보이는 면만 그린다. */
+    {
+      // 1.5배(요청: "가운데 장기 크기 1.5배로 확대") — 가운데(0, 1.5)를 축으로 셋 다 키운다.
+      const SX = 1.58;
+      const SY0 = 0.08;
+      const SY1 = 2.92;
+      const ZB = 3.5;
+      const ZF = 2.3;
+      const kS9 = depthNow(0, 1.5) * 1.6 + 0.3;
+      const MEAT = "#9e3a2e";
+      const FILL9 = "#d9a27a";
+      const sw: ShapeFace[] = [];
+      const face9 = (pts: [number, number, number][], nx: number, ny: number, col: string, nz = 0): void => {
+        const fl9 = faceLight(nx, ny, nz);
+        if (!fl9.visible) return;
+        const d9 = polyPath3(pts);
+        sw.push([d9, 1, col] as ShapeFace, ...fl9.face(d9));
+      };
+      // 뒷면·옆면·앞면(수직) — 켜 띠는 z 0.36·0.64 자리에 얇게 얹는다(면마다 위 높이가 다르니 그 면의 z를 따른다).
+      const wall9 = (a: [number, number], b: [number, number], za: number, zb: number, nx: number, ny: number): void => {
+        face9([[a[0], a[1], 0], [b[0], b[1], 0], [b[0], b[1], zb], [a[0], a[1], za]], nx, ny, MEAT);
+        const fl9 = faceLight(nx, ny);
+        if (!fl9.visible) return;
+        for (const [f0, f1] of [[0.33, 0.42], [0.6, 0.68]] as [number, number][]) {
+          const d9 = polyPath3([[a[0] + nx * 0.02, a[1] + ny * 0.02, za * f0], [b[0] + nx * 0.02, b[1] + ny * 0.02, zb * f0],
+            [b[0] + nx * 0.02, b[1] + ny * 0.02, zb * f1], [a[0] + nx * 0.02, a[1] + ny * 0.02, za * f1]]);
+          sw.push([d9, 0.9, FILL9] as ShapeFace);
+        }
+      };
+      wall9([-SX, SY1], [SX, SY1], ZF, ZF, 0, 1);          // 앞
+      wall9([SX, SY0], [-SX, SY0], ZB, ZB, 0, -1);         // 뒤
+      wall9([SX, SY1], [SX, SY0], ZF, ZB, 1, 0);           // 오른 옆
+      wall9([-SX, SY0], [-SX, SY1], ZB, ZF, -1, 0);        // 왼 옆
+      // 경사진 윗면 — 뒤(ZB)에서 앞(ZF)으로 내려온다. 위를 보는 면이라 늘 보이고 살짝 밝다.
+      {
+        const d9 = polyPath3([[-SX, SY0, ZB], [SX, SY0, ZB], [SX, SY1, ZF], [-SX, SY1, ZF]]);
+        sw.push([d9, 1, "#a8402f"] as ShapeFace, topFace(d9, 0.07));
+      }
+      out.push(...tagKey(sw, kS9));
+      /* 앞쪽 핏줄 다발 — 앞면 위 가장자리에서 늘어져 바닥 앞으로 흩어지는 가는 줄 여덟. 검정 다발에 붉은·보라
+         한 가닥씩(뒤 다발과 같은 규약). 각도의 순수 함수라 결정적이다. */
+      if (facingRatio(0, 1) > 0.05) {
+        for (let v9 = 0; v9 < 7; v9 += 1) {
+          const u9 = v9 / 6;
+          const bx9 = -SX * 0.85 + u9 * SX * 1.7;
+          const tx9 = bx9 * 1.6 + Math.sin(v9 * 13.7) * 0.35;
+          const ty9 = SY1 + 0.7 + Math.abs(Math.sin(v9 * 7.9)) * 0.9;
+          const col9 = v9 === 2 ? "#b23a2c" : v9 === 5 ? "#7b46a8" : "#241d18";
+          out.push(...tagKey(spikeHorn(bx9, SY1 + 0.03, ZF * 0.92, tx9, ty9, 0.05, v9 === 2 || v9 === 5 ? 0.09 : 0.12,
+            col9, 6, 0.45, 0, 0.8), depthNow(tx9, ty9) * 1.6 + 1.2));
+        }
+      }
+    }
     /* 뒤 검은 등걸 — 뒤틀려 오르는 굵은 기둥 하나와 갈라진 가지 둘. */
     out.push(...tagKey(spirePillar({
       x: 0, y: 0, h: 1, w: 1.9, tipW: 0.85, segs: 10, sides: 7, hold: 0.05, taper: 1.3,
@@ -21600,8 +21656,10 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
                찍으면 배율과 무관하게 늘 못 박은 크기로 나온다. */
             /* 판의 **실제 크기**로 잰다(bspr.side) — 굽기 예산이 다한 프레임에는 요청과
                다른 크기가 올 수 있다(buildingSpriteBake의 ★). */
-            const k = decal9 || bspr.side !== sideWant || bakeZoom !== zoom
-              ? sidePx / bspr.side : 1;
+            /* 고치 두근거림(op.pulseK)은 여기 블릿 배율에만 얹는다 — 아래 bLeft9·bTop9가 k로 가로 가운데·잉크
+               바닥을 잡으므로, 배율이 흔들려도 발은 땅 그 자리다. 판은 안 다시 굽는다. */
+            const k = (decal9 || bspr.side !== sideWant || bakeZoom !== zoom
+              ? sidePx / bspr.side : 1) * (op.pulseK ?? 1);
             // 겹친 것만 살짝 그림자(확대 적용: 유닛·건물 공통).
             /* 크립은 그림자를 안 진다(지적: "크립은 그림자 없어야 자연스럽게 이어지지")
                — 크립 판(clipWalk)과 건물 밑 크립 얼룩(inkCenter)은 **땅 그 자체**라
@@ -27853,6 +27911,7 @@ export default function ReplayMotionPlayer({
         /* 들썩임(고치의 liftK)도 잇는다(지적: "고치 바운스 잔떨림 심해짐") — 높은 배속에서는 장 하나가 경기 시간
            반 초를 덮어, 장마다 굳은 사인값이 그대로 튀었다. 두 장 사이를 이으면 배속과 무관하게 매끄럽다. */
         if (s9.liftK !== undefined && n9.liftK !== undefined) o9.liftK = s9.liftK + (n9.liftK - s9.liftK) * u9;
+        if (s9.pulseK !== undefined && n9.pulseK !== undefined) o9.pulseK = s9.pulseK + (n9.pulseK - s9.pulseK) * u9;
         const sp9 = s9.shadowPts; const np9 = n9.shadowPts; const op9 = o9.shadowPts;
         if (sp9 && np9 && op9 && sp9.length === np9.length && op9.length === sp9.length) {
           for (let j9 = 0; j9 < sp9.length; j9 += 1) op9[j9] = sp9[j9] + (np9[j9] - sp9[j9]) * u9;
