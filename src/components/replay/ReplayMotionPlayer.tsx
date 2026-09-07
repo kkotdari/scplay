@@ -10576,7 +10576,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   tanksiegebody: () => withModelSpin(270, () => [...withModelScale(0.8, 1, 1, () => [...tankTracks(), ...tankHull()]), ...siegeLegs()]),
   tanksiegegun: () => turretScaled9(siegeTurret),
   /* 시즈 버팀다리 홑판 — 시즈 전환 동작(요청)에서 탱크 차체 위에 attach로 겹쳐 배율(attachK)로 뻗고 접는다. */
-  tanksiegelegs: () => withModelSpin(90, () => siegeLegs()),
+  /* 다리 spin은 **탱크 차체 판 기준 0**이다(지적: "시즈 변신 중에 다리 위치가 잘못됨") — 시즈 모델 안에서 다리와 차체는
+     같은 spin(270)을 나눠 상대각 0인데, 이 홑판은 시즈가 spin 90이던 시절의 값(90)이 남아 차체와 어긋났다. 전환 중 탱크
+     차체(spin 0)에 겹치므로 0이라야 시즈 판의 다리와 같은 자리에 선다. */
+  tanksiegelegs: () => siegeLegs(),
   /* 벌처(사진 기준 재작도 — 지적: "기존 너무 단순") ────────────────────────────
      사진이 말하는 것:
        · **길다**. 옆에서 본 실루엣이 3:1쯤으로 납작하고, 그 절반이 앞으로 뻗은
