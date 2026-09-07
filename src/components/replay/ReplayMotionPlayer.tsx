@@ -6449,8 +6449,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     }), SUNKEN_BASE), -1));
     // 몸 — 볼록한 살덩이 둔덕. 쏘는 동안은 힘을 주어 한 뼘 솟는다(위 날 주석과 짝).
     out.push(...tagKey(paintBase(spirePillar({
-      x: 0, y: 0, z0: 0, h: sunkenFire ? 2.95 : 2.4, w: 4.3,
-      tipW: sunkenFire ? 2.1 : 1.8,
+      // 공격 컷에서도 몸은 평소 그대로(지적: "공격 시에도 혓바닥 제외한 다른 부분은 동일하게 — 날개 들지 않게").
+      x: 0, y: 0, z0: 0, h: 2.4, w: 4.3,
+      tipW: 1.8,
       segs: 6, sides: 14, hold: 0, taper: 0.55,
     }), FLESH), 0));
     /* 상아빛 낫 날 여섯 — 바닥에 눕듯 사방으로 뻗는 납작한 칼. 뿌리는 몸에 묻힌다. */
@@ -6475,7 +6476,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const a9 = (ang * Math.PI) / 180;
       const dx = Math.sin(a9);
       const dy = Math.cos(a9);
-      const reach9 = sunkenFire ? len * 0.78 : len;
+      const reach9 = len;   // 공격 컷에서도 날은 평소 그대로(위 지적)
       /* 낫 날을 **프리미티브 곡선**으로(요청: "성큰 사방으러 뻗은 다리들 프리미티브로
          자연스러운 곡선형태로 변경") ─────────────────────────────────────────────
          여태 hornFaces였다. 그건 화면 좌표에 친 베지에 리본이라 두께가 없다: 앞에서
@@ -6486,8 +6487,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          끝에서 내려앉는 포물선이며, 옆으로도 한 번 부푼다 — 그 셋이 겹치면 곧은
          칼이 아니라 휘어 도는 낫이 된다. 마디를 열둘로 나눠 곡선이 매끈하다. */
       const zRoot9 = 1.5;
-      const zTip9 = sunkenFire ? 2.9 : 0.35;
-      const arcK9 = sunkenFire ? 1.5 : 1.05;
+      const zTip9 = 0.35;   // (공격 컷에서 2.9로 들던 것을 걷었다 — 위 지적)
+      const arcK9 = 1.05;
       /* 뾰족한 창이 아니라 **혓바닥**이다(요청: "성큰 발들 뾰족한 형태보다는 혓바닥
          느낌으로") — 끝을 0.02(바늘)로 몰던 것을 0.34로 뭉툭하게 끝내고, 굵기를
          오래 붙들었다가(hold 0.22 · taper 0.7) 끝에서만 부드럽게 준다. 단면도 한 번
@@ -8950,7 +8951,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const SY1 = 5.4;   // 앞으로 더 길게(요청 두 번: 2.92 → 4.3 → 5.4)
       /* 높이 1.4배(요청)에 경사는 더 급하게(요청) — 뒤 3.5 → 4.9, 앞은 1.4배(3.22)가 아니라 2.6으로 낮춰 기울기를 키운다. */
       const ZB = 4.9;
-      const ZF = 2.6;
+      const ZF = 0.45;   // 앞끝은 거의 땅(요청: "가운데 장기 경사 더 강하게, 앞쪽이 거의 땅에 가깝게") — 2.6 → 0.45
       const kS9 = depthNow(0, 1.5) * 1.6 + 0.3;
       const MEAT = "#9e3a2e";
       const FILL9 = "#d9a27a";
@@ -8999,17 +9000,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 뒤 검은 등걸 — 뒤틀려 오르는 굵은 기둥 하나와 갈라진 가지 둘. */
     out.push(...tagKey(spirePillar({
       x: 0, y: 0, h: 1, w: 1.9, tipW: 0.85, segs: 10, sides: 7, hold: 0.05, taper: 1.3,
+      // 뒤 등걸(혈관 기둥) 높이 0.8배(요청: "뒤쪽 혈관 기둥 높이 20% 더 낮추기") — 7.2 → 5.76, 가지도 같은 비.
       path: (t9: number): [number, number, number] => [
         -0.4 + Math.sin(t9 * 2.4) * 1.1,
         -2.2 - t9 * 0.9,
-        t9 * 7.2,
+        t9 * 7.2 * 0.8,
       ],
       fill: "#3a2c22",
     }), depthNow(-0.4, -2.6) * 1.6 + 2));
     for (const [ex9, ey9, ez9, bw9] of [
       [-2.4, -3.2, 6.4, 0.85], [1.9, -3.6, 5.4, 0.75], [0.5, -1.4, 7.8, 0.6],
     ] as [number, number, number, number][]) {
-      out.push(...tagKey(spikeHorn(-0.1, -2.7, 4.4, ex9, ey9, ez9, bw9, "#3a2c22", 6, 0.6,
+      out.push(...tagKey(spikeHorn(-0.1, -2.7, 4.4 * 0.8, ex9, ey9, ez9 * 0.8, bw9, "#3a2c22", 6, 0.6,
         ex9 * 0.4, ey9 * 0.4 - 0.6), depthNow(ex9, ey9) * 1.6 + 2));
     }
     /* (걷어냄·요청: "챔버 상아색 혈관 제거") — 등걸에 기댄 창백한 뼈판 둘이 있던 자리다.
@@ -17059,10 +17061,20 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       }), SHELL_LIT), depthNow(xr, 0.4 * BK) * 1.6 + 1.2));
     }
     /* 갑각 앞턱 — 배와 갑각이 만나는 자리를 두르는 두꺼운 테. 앞을 볼 때만. */
+    /* 앞턱은 **호**다(지적: "이 부품이 너무 어색해 — 몸에 맞게 호 형태로 휘든지 제거") — 여태 곧은 관이 몸 앞을
+       가로질러 알꼴 몸에서 판자처럼 떠 보였다. 그 높이의 배 반지름(타원 식: 0.98·R9)을 따라 앞쪽 ±55도를 도는 이랑으로
+       바꿔, 등의 이랑들과 같은 결로 몸에 붙는다. 살짝(2%) 바깥에 띄워 표면에 얹힌다. */
     if (facingRatio(0, 1) > 0.05) {
-      body.push(...tagKey(paintBase(
-        tubeFaces(-1.6 * BK, 1.5 * BK, 1.6 * BK, 1.5 * BK, 0.3 * BK, bz(CZ - 0.5)), SHELL_LIT,
-      ), depthNow(0, 1.5 * BK) * 1.6 + 1));
+      const dzJ9 = (0.5 * BKZ) / (RZ9 * BELLY_K);
+      const rJ9 = R9 * Math.sqrt(Math.max(0.05, 1 - dzJ9 * dzJ9)) * 1.02;
+      body.push(...tagKey(paintBase(spirePillar({
+        x: 0, y: 0, h: 1, w: 1, segs: 8, sides: 6, caps: "none",
+        path: (t9: number): [number, number, number] => {
+          const a9 = ((-55 + 110 * t9) * Math.PI) / 180;
+          return [Math.sin(a9) * rJ9, Math.cos(a9) * rJ9, bz(CZ - 0.5)];
+        },
+        widthOf: (t9: number): number => (0.24 + 0.08 * Math.sin(Math.PI * t9)) * BK,
+      }), SHELL_LIT), depthNow(0, 1.5 * BK) * 1.6 + 1));
     }
     /* 뿔(사진) — 앞위로 크게 굽는 으뜸 한 쌍 + 뒤·옆의 작은 것들. 상아빛 고유색이라
        갑각과 갈린다. 제 뿌리 깊이를 달아 뒤로 돈 뿔은 몸에 가려진다. */
