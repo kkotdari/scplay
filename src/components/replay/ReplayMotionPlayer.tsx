@@ -528,11 +528,16 @@ let poseNow = 0;
 /** `#diag=brush`(지적: "아직도 떨린다" — 실기기에서 어느 붓이 어긋나는지 가리려고) — 유닛 붓이 칠할 때마다 한 줄 적는
  *  고리(최근 120). src는 부르는 쪽이 세운다: tick(재생 틱) · arrive(멈춘 채 장 도착) · xf(손짓 붓) · commit(손짓 끝) ·
  *  react(UnitLayer effect). aT는 그 붓이 든 앞 장의 시각(틱 계열만). */
-const BRUSH_LOG9: { at: number; src: string; z: number; px: number; py: number; n: number; aT: number; xf: string }[] = [];
+const BRUSH_LOG9: { at: number; src: string; z: number; px: number; py: number; n: number; aT: number; xf: string; inst: number }[] = [];
 let brushSrc9 = "react";
 let brushAT9 = -1;
+/** 재생기 인스턴스 번호(마운트 순) — 한 페이지에 재생기가 둘이면 진단 고리에 섞이므로 가른다. 렌더가 세운다. */
+let INST_SEQ9 = 0;
+let brushInst9 = 0;
+/** 인스턴스별 재생(driven) 뒤집힘 횟수 — 렌더에서 playing9가 지난 값과 다르면 센다. */
+const PLAY_FLIPS9: { at: number; inst: number; on: boolean }[] = [];
 const brushLogPush9 = (z: number, px: number, py: number, n: number, xf: string): void => {
-  BRUSH_LOG9.push({ at: performance.now(), src: brushSrc9, z, px, py, n, aT: brushAT9, xf });
+  BRUSH_LOG9.push({ at: performance.now(), src: brushSrc9, z, px, py, n, aT: brushAT9, xf, inst: brushInst9 });
   if (BRUSH_LOG9.length > 120) BRUSH_LOG9.splice(0, BRUSH_LOG9.length - 120);
   brushSrc9 = "react";
 };
@@ -542,13 +547,14 @@ const brushLogSummary9 = (): string => {
   const rs9 = BRUSH_LOG9.filter((r9) => now9 - r9.at < 2000);
   if (!rs9.length) return "-";
   const cnt9: Record<string, number> = {};
-  for (const r9 of rs9) cnt9[r9.src] = (cnt9[r9.src] ?? 0) + 1;
+  for (const r9 of rs9) cnt9[`${r9.inst}:${r9.src}`] = (cnt9[`${r9.inst}:${r9.src}`] ?? 0) + 1;
+  const flips9 = PLAY_FLIPS9.filter((f9) => now9 - f9.at < 2000);
   const views9 = new Set(rs9.map((r9) => `${r9.z.toFixed(3)}|${r9.px.toFixed(1)}|${r9.py.toFixed(1)}`));
   const pxs9 = rs9.map((r9) => r9.px); const pys9 = rs9.map((r9) => r9.py);
   let back9 = 0; let prevT9 = -1;
   for (const r9 of rs9) { if (r9.aT >= 0) { if (prevT9 >= 0 && r9.aT < prevT9 - 1e-6) back9 += 1; prevT9 = r9.aT; } }
   const xfs9 = rs9.filter((r9) => r9.xf).length;
-  return `${Object.entries(cnt9).map(([k9, n9]) => `${k9}×${n9}`).join(" ")} · 보기 ${views9.size}종 팬x ${(Math.max(...pxs9) - Math.min(...pxs9)).toFixed(1)} 팬y ${(Math.max(...pys9) - Math.min(...pys9)).toFixed(1)} · 장 되돌림 ${back9} · 변환有 ${xfs9}`;
+  return `${Object.entries(cnt9).map(([k9, n9]) => `${k9}×${n9}`).join(" ")} · 보기 ${views9.size}종 팬x ${(Math.max(...pxs9) - Math.min(...pxs9)).toFixed(1)} 팬y ${(Math.max(...pys9) - Math.min(...pys9)).toFixed(1)} · 장 되돌림 ${back9} · 변환有 ${xfs9} · 재생뒤집힘 ${flips9.length}${flips9.length ? `(${flips9.slice(-4).map((f9) => `${f9.inst}:${f9.on ? "on" : "off"}`).join(" ")})` : ""} · 인스턴스 ${INST_SEQ9}`;
 };
 /** SCV가 자원을 안고 있는가(요청: "scv 가스나 미네랄 들때는 팔을 안으로 굽혀서 들기")
  *  — 굽는 동안만 서는 깃발(sunkenFire와 같은 결). scvMin·scvGas 빌더가 세우고 scv
@@ -24392,6 +24398,8 @@ export default function ReplayMotionPlayer({
    *  상태의 원점(pitchGeom().ox·oy)은 워커에 보내는 목표이고, 새 세대의 장이 오기까지 화면은 옛 원점으로 한 몸이어야
    *  지도와 유닛이 어긋나지 않는다. 바뀌면 지형 변환을 바로 다시 건다(paintFnRef9). */
   const drawnOrgRef9 = useRef({ ox: 0, oy: 0 });
+  const instIdRef9 = useRef(0);
+  const lastPlaying9 = useRef<boolean | null>(null);
   const wStatRef = useRef({
     got: 0, used: 0, missed: 0, err: "", sentWorld: 0, sentView: 0, sentCmd: 0,
     /** 워커가 세계를 받아 엔진을 세웠다(ready). 세계를 보낸 뒤 오래 안 오면 진단에 '응답 없음'. */
@@ -28020,6 +28028,15 @@ export default function ReplayMotionPlayer({
   /* 명령(요청: 주인 → 설계 일꾼, 바뀔 때만) — 재생/정지·배속·탐색. 탐색은 "보낸 명령으로 예측한 시각과 지금 t의
      차"로 안다(0.3초 또는 배속×0.15초). 시계가 무거운 프레임에 밀려 처지면 그것도 같은 자로 다시 맞춘다. */
   const playing9 = playing && active;
+  {
+    // #diag=brush — 인스턴스 번호와 재생 뒤집힘(위 PLAY_FLIPS9)
+    if (instIdRef9.current === 0) { INST_SEQ9 += 1; instIdRef9.current = INST_SEQ9; }
+    brushInst9 = instIdRef9.current;
+    if (lastPlaying9.current !== playing9) {
+      if (lastPlaying9.current !== null) { PLAY_FLIPS9.push({ at: performance.now(), inst: instIdRef9.current, on: playing9 }); if (PLAY_FLIPS9.length > 60) PLAY_FLIPS9.splice(0, PLAY_FLIPS9.length - 60); }
+      lastPlaying9.current = playing9;
+    }
+  }
   cmdNowRef9.current = { playing: playing9, t, speed };
   // 밖에서 t가 바뀌었으면(탐색) 틱의 살아 있는 시계도 거기로.
   if (t !== tFromTickRef9.current) tLiveRef9.current = t;
@@ -28312,6 +28329,7 @@ export default function ReplayMotionPlayer({
        스타일은 결국 안 바뀐 셈이라 합성기가 움직이지 않는다. 기준을 손끝으로 옮기는 일(재기준)은 xfPaintNow 하나가
        제 박자로 한다. */
     brushAT9 = lastDrawT9.current;
+    brushInst9 = instIdRef9.current;
     brushSrc9 = drivenRef9.current ? "tick" : "arrive";
     if (xfGestureRef.current) {
       const b9 = xfBaseRef.current;
