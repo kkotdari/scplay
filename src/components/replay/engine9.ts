@@ -830,6 +830,10 @@ export const MORPH_SLIDE_SEC = 0.34;
 /** 미끄럼이 내려가는 깊이 — 고치 기준점(발자국 아랫변)까지 다 가면 너무 깊다(지적: "훨씬 적게 내려가도
  *  될 것 같다"). 발자국 절반 높이의 이 비율만큼만 내려간다. */
 export const MORPH_SINK9 = 0.3;
+/** 부화 미끄럼(초) — 알·고치에서 나온 몸이 알 자리에서 제 첫 자리까지 걸어 나오는 시간(지적: "라바 변태알에서
+ *  나온 유닛이 순간이동"). 원작은 부화 순간 새 몸을 알 곁의 빈 자리에 **놓는다**(place_completed_unit) — 참값의
+ *  첫 키가 이미 그 자리라 화면에서는 알에서 한두 타일 떨어진 곳에 툭 나타났다. 그리는 자리만 알에서 이어 준다. */
+export const HATCH_SLIDE_SEC = 0.35;
 /** 변태·취소 자국이 남는 시간(초). */
 /** 평면(2D)의 바닥 눌림 — 이 화면은 평면에서도 지면을 2:1로 눕힌다(원작 이동 마커의
  *  관례이고, 건물 접지 그림자가 쓰는 값이 이것이다). 자리 사상(posFrac)은 입체에서만
@@ -6591,6 +6595,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
        x, 가운데에서 MORPH_SINK9만큼 내려간 y)까지 x·y를 함께 미끄러진다. 취소는 그 역이다 — 고치 자리에서 나타나 제 자리로. */
     let morphDx9 = 0;
     let morphDy9 = 0;
+    let slid9 = false;
     if (drawUnit === "Drone") {
       for (const ms9 of droneMorph.get(e.tag) ?? []) {
         let u9 = -1;
@@ -6603,7 +6608,26 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         const k9 = u9 * u9;
         morphDx9 = (ms9.x - pos.x) * k9;
         morphDy9 = (ms9.y + ms9.dy * MORPH_SINK9 - pos.y) * k9;
+        slid9 = true;
         break;
+      }
+    }
+    /* ★ 부화 미끄럼(위 HATCH_SLIDE_SEC) — 이 생애의 첫 키 바로 앞 키가 **다른 종류**(알·러커알·고치)면 변태에서
+       이어진 몸이다. 그 앞 키의 자리(알이 있던 자리)에서 제 첫 자리까지 짧게 미끄러져 나온다. 원자취는 그대로다
+       (그리는 자리만). 너무 멀면(6타일 넘게 — 자취가 끊긴 것) 안 잇는다. 드론의 고치 미끄럼과는 겹치지 않는다. */
+    if (!slid9 && t - e.born < HATCH_SLIDE_SEC && e.walk.n > 0 && e.walk.i0 > 0) {
+      const tr9 = e.walk.tr;
+      const i0 = e.walk.i0;
+      if (tr9.types[i0 - 1] !== tr9.types[i0]) {
+        const px9 = tr9.kxy[(i0 - 1) * 2] / 32;
+        const py9 = tr9.kxy[(i0 - 1) * 2 + 1] / 32;
+        const d9 = Math.hypot(pos.x - px9, pos.y - py9);
+        if (d9 > 0.15 && d9 < 6) {
+          const u9 = Math.max(0, (t - e.born) / HATCH_SLIDE_SEC);
+          const k9 = u9 * u9 * (3 - 2 * u9);
+          morphDx9 = (px9 - pos.x) * (1 - k9);
+          morphDy9 = (py9 - pos.y) * (1 - k9);
+        }
       }
     }
     const [ax3, ay3] = [pos.x + morphDx9, pos.y + morphDy9];
