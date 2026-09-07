@@ -4461,6 +4461,25 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       /* 겹침 해소(요청: 건물끼리 캔버스 겹침 불가) — 화면 자리만 민다(위 bldNudge). */
       const nud = bldNudge.get(i);
       if (nud) { bx += nud[0]; by += nud[1]; }
+      /* ★ 부속건물은 **본체의 지면선에 앉힌다**(지적: "애드온 그려지는 위치가 너무 아래쪽" — 스크린샷: 팩토리 발치보다
+         머신샵 바닥이 한 타일 남짓 아래). 원작 자료의 부속 자리는 본체 아랫변보다 한 줄 더 내려가 있어(참값 그대로),
+         발자국 그대로 그리면 본체 모델은 제 아랫변에 서고 부속 판은 그 아래에 매달린 꼴이 된다 — 원작 그림은 본체
+         스프라이트의 치마가 그 줄까지 내려와 붙어 보이지만 우리 모델은 발자국에서 끝난다. 통로(아래 link)가 본체를
+         찾는 것과 같은 규칙으로 본체를 찾아, 몸 상자로 잰 두 지면선의 차이만큼 부속을 위로 올린다(그리는 자리만). */
+      if (ADDONS.has(unit)) {
+        const par9 = buildsSrc.find(([ps3, pxT, pyT, pu3, pr3, pg3]) =>
+          pr3 === raw && !ADDONS.has(pu3) && ps3 <= t
+          && ((pg3 ?? 0) === 0 || t < (pg3 ?? 0))
+          && Math.abs((pxT + (FOOTPRINT[pu3] ?? [4, 3])[0]) - x) <= 0.6
+          && y >= pyT - 0.5 && y <= pyT + 2.5);
+        if (par9) {
+          const pb9 = buildingBox(par9[3]);
+          const ab9 = buildingBox(unit);
+          const parGround9 = par9[2] + footDy(par9[3]) + pb9[3] + pb9[1] / 2;
+          const addGround9 = y + footDy(unit) + ab9[3] + ab9[1] / 2;
+          if (addGround9 > parGround9 + 0.05) by -= addGround9 - parGround9;
+        }
+      }
       /* 짝의 걷힌 시각이 실제로 있어야(> 0) 한다(지적: 첫 기지가 위에서 내려온다) —
          시작 홀은 시작 시각이 0이라, 조건이 "gone === 0"이 되면 살아 있는 같은 종류
          건물 아무거나와 짝이 돼 거기서 날아왔다. */
