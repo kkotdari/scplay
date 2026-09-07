@@ -5870,7 +5870,12 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
        · 크립이 필요한 나머지 건물(풀·스파이어 등)은 스스로 안 퍼뜨린다 — 발자국 크기만 적신다
          (요청: 발자국 크기로 줄이기). 그 밑의 크립은 해처리 얼룩이 이미 덮고 있다. */
     const fp9 = FOOTPRINT[unit] ?? [3, 2];
-    let wTiles: number = fp9[0];
+    /* 발판 얼룩은 발자국보다 **한 타일씩 넓게**(지적: "해처리 완성 직후와 다른 건물 완성 시 크립 발판 크기만큼
+       보여주는 게 안 나온다") — 발자국 폭 그대로면 건물 몸이 제 발자국을 다 덮어(그리기 배율 1.2) 얼룩이 한
+       톨도 안 보인다. 원작에서도 발자국 타일의 크립은 건물 밑이라 안 보이고, 눈에 드는 것은 그 둘레의 크립이다.
+       둘레 한 타일 고리를 더해 '이 건물이 크립 위에 섰다'가 읽히게 한다. */
+    const footW9 = fp9[0] + 2;
+    let wTiles: number = footW9;
     if (hallKind || colonyKind) {
       const doneOf9 = (row: typeof buildsSrc[number]): number => row[7] ?? row[0] + (BUILD_SEC[row[3]] ?? 30);
       let startSec = doneAt9 ?? sec + (BUILD_SEC[unit] ?? 30);
@@ -5881,7 +5886,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       }
       const p = sec <= 1 ? 1 : Math.min(1, Math.max(0, t - startSec) / CREEP_SPREAD_SEC);
       const ease = 1 - (1 - p) * (1 - p);
-      wTiles = Math.round((fp9[0] + (CREEP_FULL_TILES - fp9[0]) * ease) * 2) / 2;
+      wTiles = Math.round((footW9 + (CREEP_FULL_TILES - footW9) * ease) * 2) / 2;
     }
     const mk3 = pitchK(cyb);
     /* 시점 보기 — 한 번도 못 본 자리의 **적 크립**은 안 그린다(요청: 3단 안개).
