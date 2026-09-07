@@ -3040,6 +3040,8 @@ function siegeTurret(): ShapeFace[] { return tankTurretV2(true); }
 /** 포탑+포신 크기 0.8배(요청) — 원점 축으로 셋 다 줄이고, 받침 원판 밑면(z 2.85)이 차체 윗면에 그대로 앉게 z를 되올린다
  *  (withModelZOff는 배율 뒤에 더한다). 총구 앵커(engine9 MUZZLE_ANCHOR)도 같은 식으로 옮겼다. */
 const TURRET_K9 = 0.8;
+/** 포탑을 차체 뒤쪽으로 치우치게 옮기는 몫(모델 단위, 요청) — 엔진(engine9 TURRET_BACK_TILES9)과 같은 값을 타일로 환산해 쓴다. */
+export const TURRET_BACK9 = 0.6;
 function turretScaled9(build: () => ShapeFace[]): ShapeFace[] {
   return withModelZOff(2.85 * (1 - TURRET_K9), () => withModelScale(TURRET_K9, TURRET_K9, TURRET_K9, build));
 }
@@ -10406,7 +10408,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   },
   // (걷어냄) nukedome — 핵 화구 모델(요청: 모델링 제거). 게임 화면에서는 안 쓰이고 도록에만 있었다.
   // 동체+궤도 폭 0.8배(요청, 포탑 제외) — 모형 x만 줄인다(withModelScale는 회전 앞에 곱한다).
-  tank: () => [...withModelScale(0.8, 1, 1, () => [...tankTracks(), ...tankHull()]), ...turretScaled9(tankTurret)],
+  // 포탑은 차체 뒤쪽으로 TURRET_BACK9만큼(요청) — 엔진의 포탑 판은 gun op 자리를 같은 몫 뒤로 민다(engine9).
+  tank: () => [...withModelScale(0.8, 1, 1, () => [...tankTracks(), ...tankHull()]), ...withModelShift(0, -TURRET_BACK9, () => turretScaled9(tankTurret))],
   /* 발포 반동용 분해(요청: 발포 시 포탑·포신만 움직이게) — 차체와 포탑을 딴 판으로
      구워, 쏘는 순간 포탑 판만 살짝 밀렸다 돌아온다. 갤러리·v1은 합본(tank)을 그대로
      쓰고 v2 렌더만 이 짝을 쓴다. */
@@ -10419,7 +10422,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   // 시즈 모드는 +180(요청: "시즈모드 180도 요잉") — 90 → 270. 포탑의 대기 방향(engine9 idleAim9)도 같이 돌렸다.
   /* 도록 합성 포탑: 바깥 spin 270이 포탑에도 걸리므로 안쪽 180을 더해 총 90 = 엔진 대기 +90(차체 뒤)과 같은 배치.
      (지적: "도록엔 반대로 된 듯" — 안쪽 0이면 총 270이라 포신이 차체 앞을 봤다.) */
-  tanksiege: () => withModelSpin(270, () => [...withModelScale(0.8, 1, 1, () => [...tankTracks(), ...tankHull()]), ...siegeLegs(), ...withModelSpin(180, () => turretScaled9(siegeTurret))]),
+  // 시즈 합성: 안쪽 spin 180 안에서 +y가 차체 뒤(−y)다(총 회전 450 = 90도로 옮겨진다).
+  tanksiege: () => withModelSpin(270, () => [...withModelScale(0.8, 1, 1, () => [...tankTracks(), ...tankHull()]), ...siegeLegs(), ...withModelSpin(180, () => withModelShift(0, TURRET_BACK9, () => turretScaled9(siegeTurret)))]),
   /* 발포 반동용 분해(요청) — 시즈 차체/포탑·포신 분리판. */
   tanksiegebody: () => withModelSpin(270, () => [...withModelScale(0.8, 1, 1, () => [...tankTracks(), ...tankHull()]), ...siegeLegs()]),
   tanksiegegun: () => turretScaled9(siegeTurret),

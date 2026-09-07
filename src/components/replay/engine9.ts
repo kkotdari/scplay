@@ -7164,7 +7164,15 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
          벗어나 뒤로 빠진다. 그 순간이 1.5초마다 0.18초씩 오므로, 가만히 보면
          포탑이 늘 뒤쪽에 어긋나 있는 것처럼 읽힌다. 반동은 알아볼 만큼만 있으면
          된다 — 0.09타일이면 몸의 8분의 1이다. */
-      const [gfx, gfy] = posFrac(ax3 - gdx * 0.09 * fireK, ay3 - gdy * 0.09 * fireK);
+      /* 포탑을 차체 **뒤쪽**으로 치우치게(요청) — 모델 0.6칸을 그리는 상자(타일)로 환산해 차체 방향의 반대로 민다.
+         일반 차체의 뒤 = 방향각+180 → (sin, −cos) · 시즈 차체(spin 270)의 뒤 = 방향각+90 → (−cos, −sin).
+         포탑은 제 자리를 축으로 돌므로 조준해도 뒤에 앉은 채 돈다. 도록 합성(TURRET_BACK9)과 같은 값. */
+      const bhr9 = (bodyHdg * Math.PI) / 180;
+      const backT9 = unitTilesOf(kind0, kind0, (UNIT_BULK[drawUnit2] ?? 1) as 0 | 1 | 2) * 0.6 / 16;
+      const [bkx9, bky9] = kind0 === "tanksiege"
+        ? [-Math.cos(bhr9) * backT9, -Math.sin(bhr9) * backT9]
+        : [Math.sin(bhr9) * backT9, -Math.cos(bhr9) * backT9];
+      const [gfx, gfy] = posFrac(ax3 - gdx * 0.09 * fireK + bkx9, ay3 - gdy * 0.09 * fireK + bky9);
       /* ★ 표적이 없으면 **마지막으로 겨눈 각**을 지킨다(요청: "포탑은 마지막 공격한 방향 유지") — 여태는 차체 방향으로
          되돌아가 교전이 끝날 때마다 포탑이 휙 돌았다. 한 번도 안 겨눈 포탑만 차체를 따르되, 시즈 모드는 **뒤쪽**
          (차체 +180)을 본다(요청: "포신은 뒤쪽 향해야 함 — 일반 모드일 때랑 반대"). */
