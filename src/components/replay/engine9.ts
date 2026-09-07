@@ -1288,7 +1288,7 @@ export const UNIT_SIZE_TUNE: Record<string, number> = {   // 열쇠는 sizeKind(
   observer: 0.8,
   inf: 0.8, fbat: 0.8, ghost: 0.8, htemp: 0.6, dtemp: 0.8,   // 메딕(inf)·파뱃(0.6 → 0.8 재요청)·고스트·하템·다템 — 마린(gunner)은 1.0으로 뺐다(재요청)
   defiler: 1.2,   // 요청(비교 장면)
-  tanksiege: 1.2, vulture: 1.2,   // 요청: "시즈·벌처 그리기 1.2배"
+  tank: 1.2, tanksiege: 1.2, vulture: 1.2,   // 요청: "시즈·벌처 그리기 1.2배" → 재요청: 일반·변신 중 탱크도 1.2
   scv: 0.8, probe: 0.8, drone: 0.8,   // 일꾼류
   /* (전부 걷음 — 요청: "유닛 크기 보정 모두 제거") — 일꾼·보병 0.68, 메딕 0.612,
      질럿 0.85, 템플러 0.808, 커세어 0.85, 마인 0.53, 옵저버 0.17, 스커지 0.7,
@@ -2174,6 +2174,10 @@ export const BURROW_DIG_SEC = 0.9;
  *  못 열어 확인 못 함). 명령 시각이 전환의 **시작**이다: 그 창 동안 몸은 그 자리에 서서 앉았다 일어나며(앞 반은 옛 몸이
  *  가라앉고 뒤 반은 새 몸이 올라온다), 창이 끝나야 사거리·사격이 새 모드다(요청: 버로우와 같은 규약). */
 export const SIEGE_XF_SEC = 1.5;
+/** 시즈 탱크가 보는 앞(화면각, 정남 0·반시계) — 원작 시즈 그림이 늘 보는 그 쪽(지적: −45). */
+export const SIEGE_FACE_DEG9 = -45;
+/** 원작이 시즈 전에 몸을 돌려 놓는 고정 방향(units.dat unit_direction)의 **화면각** — 실측 −135(참값 북동 언저리 + 180). */
+export const SIEGE_TRUTH_DEG9 = -135;
 /** 정제소 불빛의 유예(초) — 일꾼이 나간 뒤로도 이만큼은 켜 둔다. 가스 왕복 한 바퀴가
  *  대략 이 언저리라, 한 대만 붙어 캐도 불이 안 끊긴다(지적: 계속 깜빡). */
 export const GAS_LIT_HOLD = 12;
@@ -6934,14 +6938,17 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         return (Math.atan2(-(nukeAim9[0] - pos.x), nukeAim9[1] - pos.y) * 180) / Math.PI;
       }
       if (drawUnit.startsWith("Siege Tank") && (siegeOn === 1 || siegeXf9)) {
-        const snap9 = Math.round((bodyHdg0 - 45) / 90) * 90 + 45;
-        /* 시즈로 들어가는 전환의 앞 반 동안 몸이 가장 가까운 대각으로 돌아 앉는다(요청: 전환 동작). 언시즈는 창이
-           끝날 때까지 박힌 채다. */
-        /* ★ 시즈로 들어갈 때는 **처음부터** 대각에 앉는다(지적: "다리 나오기 전부터 시즈 모드의 방향으로 동체랑 포신
-           자리 잡아야 함 — 다리 다 나오고 고정했는데 갑자기 방향이 바뀔 순 없어") — 여태 창의 앞 반 동안 돌아 앉게
-           했는데, 다리가 뻗는 동안 몸이 도는 것이 '박힌 뒤에 도는 것'으로 읽혔다. 언시즈는 창이 끝날 때까지 박힌 채다. */
-        return snap9;
+        /* ★ 시즈는 **늘 한 방향**이다(지적: "시즈 방향 완전 잘못됨 — 변신 중 −135, 완료 +135, 둘 다 앞이 −45를
+           봐야 함") — 원작(OpenBW order_Sieging)은 시즈 명령을 받으면 몸을 units.dat의 고정 방향(unit_direction)으로
+           돌린 뒤에야 변태하므로 모든 시즈 탱크가 같은 쪽을 본다. 참값 방향을 대각으로 붙이던 옛 셈은 그 고정
+           방향(화면 −135)에 앉았고, 원작 그림이 보이는 앞(−45)과 90도 어긋났다. 시즈 판은 spin 270으로 구워져
+           같은 rotDeg에서 탱크 판보다 270도 돌아 보이므로 그 몫을 뺀다 — 둘 다 화면에서 −45를 본다. */
+        return siegeShow9 === 1 ? SIEGE_FACE_DEG9 - 270 : SIEGE_FACE_DEG9;
       }
+      /* 언시즈 직후 — 참값 방향은 아직 시즈의 고정 방향(화면 −135)이고 몸은 안 움직였다. 그대로 그리면 창이 끝나는
+         순간 90도 튄다. 제자리에 선 채 그 방향이면 시즈가 보이던 앞(−45)을 유지하고, 걷기 시작하면 참값을 따른다. */
+      if (drawUnit.startsWith("Siege Tank") && !pos.moving && simState === 0
+        && Math.abs(((bodyHdg0 - SIEGE_TRUTH_DEG9 + 540) % 360) - 180) < 12) return SIEGE_FACE_DEG9;
       if (view.noIdleScan || !IDLE_SCAN.has(drawUnit2) || fighting || burrowed) return bodyHdg0;
       if (simState !== null && simState !== 0) return bodyHdg0;   // 0 = ST_IDLE
       const step = Math.floor(t / IDLE_SCAN_SEC + (e.tag % 7) / 7);
@@ -7388,8 +7395,9 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       /* ★ 포신도 **전환 창이 열리는 순간** 시즈 자리(+270)를 잡는다(같은 지적) — 여태 창 동안은 탱크 판이라 +0(앞)이고
          창이 끝나 시즈 판으로 바뀌는 순간 +270으로 튀었다. 시즈로 가는 창은 처음부터 +270, 언시즈 창은 +270(= −90)에서
          0으로 매끄럽게 돌아온다(사격 기억 lastAim9이 있으면 그것이 우선 — 겨누던 각은 튀지 않는다). */
-      const gunRest9 = kind0 === "tanksiege" || (siegeXf9 && siegeXf9.to === 1) ? 270
-        : siegeXf9 && siegeXf9.to === 0 ? -90 * (1 - Math.min(1, Math.max(0, siegeXf9.u))) : 0;
+      /* 대기 포신은 몸의 앞과 같은 쪽이다 — 탱크 판(+0)이든 시즈 판(+270, 몸 판의 spin 270 몫)이든 결과는 −45.
+         전환 창에서도 값이 튀지 않는다(위 bodyHdg가 두 판의 몫을 이미 맞췄다). */
+      const gunRest9 = kind0 === "tanksiege" ? 270 : 0;
       const idleAim9 = lastAim9 ?? ((last.rotDeg ?? 0) + gunRest9);
       unitOps.push({
         // 포신 가려짐 해결(지적) — 곁 유닛의 z가 포탑을 얇게 자르지 않게 여유 있게.
