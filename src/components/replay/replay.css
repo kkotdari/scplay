@@ -3621,6 +3621,29 @@
   background: var(--lit-pill-bg); border-color: transparent; color: var(--text);
 }
 .scr-light-theme .scr-fs-bottom-tail .scr-kakao-share-btn svg { color: var(--text); }
+/* ★ 장면 스크랩 버튼도 **같은 알약**이다(지적: "스크랩 버튼만 css가 다르넹") — 스크랩은 앱의 물건이라 공유
+   슬롯(shareNode)에 공유 버튼과 나란히 꽂히는데, 이 줄의 알약 꾸밈은 .scr-kakao-share-btn에만 걸려 있어 스크랩
+   (.scr-scrapbtn)만 앱의 기본 버튼 꼴(테두리·큰 키)로 남았다. 같은 줄의 세 버튼(스크랩·공유·사용법)이 한 꼴이게
+   같은 규칙을 건다. 완료(.is-done)는 초록 글자로만 말한다. */
+.scr-fs-bottom-tail .scr-scrapbtn, .scr-motion-mobrow .scr-scrapbtn {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 26px; min-height: 0; padding: 0 7px; font-size: 11px; gap: 4px; margin: 0;
+  white-space: nowrap; line-height: 1; flex: 0 0 auto; font-weight: inherit;
+  background: #fff; color: #10151a; border: 1px solid #fff; border-radius: 8px;
+  box-shadow: var(--lit-pill-glow);
+}
+.scr-motion-mobrow .scr-scrapbtn { height: 24px; padding: 0 6px; }
+.scr-fs-bottom-tail .scr-scrapbtn svg { flex: 0 0 auto; width: 13px; height: 13px; color: #10151a; }
+.scr-motion-mobrow .scr-scrapbtn svg { flex: 0 0 auto; width: 11px; height: 11px; color: #10151a; }
+@media (max-width: 1159px) {
+  .scr-fs-bottom-tail .scr-scrapbtn svg, .scr-motion-mobrow .scr-scrapbtn svg { display: none; }
+}
+.scr-fs-bottom-tail .scr-scrapbtn.is-done, .scr-motion-mobrow .scr-scrapbtn.is-done { color: #2f8f4c; }
+.scr-light-theme .scr-fs-bottom-tail .scr-scrapbtn, .scr-light-theme .scr-motion-mobrow .scr-scrapbtn {
+  background: var(--lit-pill-bg); border-color: transparent; color: var(--text);
+}
+.scr-light-theme .scr-fs-bottom-tail .scr-scrapbtn svg, .scr-light-theme .scr-motion-mobrow .scr-scrapbtn svg { color: var(--text); }
+.scr-light-theme .scr-fs-bottom-tail .scr-scrapbtn.is-done, .scr-light-theme .scr-motion-mobrow .scr-scrapbtn.is-done { color: #2f8f4c; }
 
 /* PC 전체화면의 기둥은 두 칸씩 앉힌다 — 208px(좁은 창은 148px) 기둥에 넷을 한 줄로
    세우면 칸이 37~52px이라 '일꾼 14'가 안 든다. 지도 옆 기둥(.scr-motion-side)과 같은
