@@ -118,7 +118,10 @@ const restartFrom = (t: number, forget: boolean): void => {
 const emit = (t: number): number => {
   if (!engine) return 0;
   const t0 = nowMs();
-  const f: Frame9 = engine.build(t);
+  // 감기·탐색 장인가 — 시계가 멈춘 채 지난 장과 0.06초 넘게 떨어진 시각을 짓는다(engine build의 still 주석).
+  const lastT9 = built.length ? built[built.length - 1].t : -1;
+  const still9 = !!clock && !clock.playing && lastT9 >= 0 && Math.abs(t - lastT9) > 0.06;
+  const f: Frame9 = engine.build(t, still9);
   const t1 = nowMs();
   const body = pack9({ unitOps: f.unitOps, fxOps: f.fxOps, miniExtra: f.miniExtra, gasBusy: f.gasBusy, dom: f.dom });
   const t2 = nowMs();

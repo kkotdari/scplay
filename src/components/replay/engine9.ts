@@ -3330,6 +3330,7 @@ export type EngineView9 = {
 };
 export function createEngine9(world: EngineWorld9, view0: EngineView9) {
   let view = view0;
+  let stillNow9 = false;
   const {
     entData, simTracks, buildsSrc, entBldHp, bldTagSpots, droneMorph, buildsDrawOrder, bldNudge,
     entCombatStart, upsByRaw, marineBornOf, entWalks, nukeLase, castsSrc,
@@ -3478,7 +3479,10 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     fogStampRef.current = { key: "", at: -1e9, ms: -1e9, cost: 0, filled: false }; lastTRef.current = -1;
   };
   const setView = (v: EngineView9): void => { view = v; };
-  const build = (t: number): Frame9 => {
+  /** still — 시계가 멈춘 채 시각을 건너뛰며 짓는 장(감기·탐색)인가(frameWorker). 참이면 시각 함수 애니메이션(걷기·공격 컷,
+   *  건물 회전·점멸)을 끈다: 장마다 0.1초씩 뛰면 위상이 무작위로 바뀌어 넥서스 같은 건물이 떨려 보였다(지적). */
+  const build = (t: number, still = false): Frame9 => {
+    stillNow9 = still;
     const pitched = view.pitched;
     const pitchFlat = view.pitchFlat;
     const tilePx = view.tilePx;
@@ -3496,7 +3500,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     const viewTeam = view.viewTeam;
     const visAll = view.visAll;
     const fogOn = view.fogOn;
-    const qAnim = view.qAnim;
+    const qAnim = view.qAnim && !stillNow9;   // 감기 장(still)은 애니메이션 없이(위 build 주석)
     const qBuildFx = view.qBuildFx;
     const qDeath = view.qDeath;
     const clickFx = view.clickFx;

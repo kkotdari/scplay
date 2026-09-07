@@ -27536,6 +27536,9 @@ export default function ReplayMotionPlayer({
       if (e.touches.length < 2 && pinch) {
         pinch = null;
         gestureRef.current = false;
+        // 대기 중인 마지막 한 장을 먼저 반영한다(드래그의 flushDragPend9와 같은 까닭).
+        if (pinchRaf) { cancelAnimationFrame(pinchRaf); pinchRaf = 0; }
+        if (pinchPend && xfGestureRef.current) { zoomRef.current = pinchPend.z; panRef.current = pinchPend.p; applyGestureXf(false); pinchPend = null; }
         endGestureXf();
       } else if (e.touches.length < 2) {
         gestureRef.current = false;
@@ -28629,8 +28632,7 @@ export default function ReplayMotionPlayer({
        누르고 기다리는 400ms 사이 손가락이 슬롭을 넘어 흔들리면 드래그 손짓(beginGestureXf)이 먼저 서 있다. 여태 여기서
        드래그만 끊고 손짓은 안 끝내, 감기 내내 xfGesture가 켜진 채 손끝 팬(panRef)과 상태 팬(pan)이 몇 px 어긋나 있었다.
        그 사이 장 도착 붓은 기준 자리에, React 붓은 손끝 자리에 번갈아 칠해 유닛·건물이 떨렸다. */
-    dragPendRef.current = null;
-    if (dragRafRef.current) { cancelAnimationFrame(dragRafRef.current); dragRafRef.current = 0; }
+    flushDragPend9();
     endGestureXf();
     setPlaying(false);
     /** 감기 속도(게임초 / 실초) — 20분 판이면 40초/초라 끝에서 끝까지 30초다. */
@@ -28862,7 +28864,16 @@ export default function ReplayMotionPlayer({
       y: Math.min(lim.yTop, Math.max(-lim.y, cy - oy - z1 * uy)),
     });
   };
+  /** 드래그의 대기 델타(dragPend, rAF에 실린 마지막 한 걸음)를 지금 반영한다 — 손짓을 끝내기 **전에**. 안 그러면 늦게 온
+   *  rAF가 무시되어(applyGestureXf의 문지기) 도착점에 살짝 못 미친 자리에서 굳었다가 그 델타가 뒤늦게 튄다(지적). */
+  const flushDragPend9 = (): void => {
+    if (dragRafRef.current) { cancelAnimationFrame(dragRafRef.current); dragRafRef.current = 0; }
+    const np9 = dragPendRef.current;
+    dragPendRef.current = null;
+    if (np9 && xfGestureRef.current) { panRef.current = np9; applyGestureXf(false); }
+  };
   const onMapPointerUp = (e: React.PointerEvent) => {
+    flushDragPend9();
     /* 손짓 끝내기는 **맨 앞**이다(수리: 손짓 표시가 켜진 채 남는 길들) — 아래에는
        감기(holdSeeked)로 먼저 빠져나가는 갈래가 있고, 드래그 도중 감기·핀치가 끼어들면
        dragRef가 지워져 'dragged'가 거짓이 된다. 그 길로 나가면 xfGesture가 켜진 채
