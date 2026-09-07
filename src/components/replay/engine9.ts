@@ -5859,8 +5859,6 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
        크립이 넓게 퍼지고, 나머지 건물은 제 발밑만 적신다. 같은 자리의 앞선 같은
        계열(해처리→레어, 크립→성큰)에서 확산 시계를 이어받고, 경기 시작 본진
        해처리(sec 0)는 처음부터 만개다(원작: 첫 해처리는 크립을 다 깔고 시작). */
-    const hallKind = ["Hatchery", "Lair", "Hive"].includes(unit);
-    const colonyKind = unit.includes("Colony");
     /* ★ 원작 규칙으로(요청 — 확인: OpenBW bwgame.h) ──────────────────────────────────────
        · 해처리·크립 콜로니는 **완공된 뒤에만** 퍼뜨린다(unit_type_spreads_creep이 completed를 요구).
          고치 동안 공급 범위는 제 발자국뿐(get_max_creep_bb의 placement_size 갈래). 그래서 착공
@@ -5869,24 +5867,45 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
          성큰·스포어는 앞 건물의 시계를 잇는다(앞 건물의 완공이 곧 이 자리 확산의 시작).
        · 크립이 필요한 나머지 건물(풀·스파이어 등)은 스스로 안 퍼뜨린다 — 발자국 크기만 적신다
          (요청: 발자국 크기로 줄이기). 그 밑의 크립은 해처리 얼룩이 이미 덮고 있다. */
-    const fp9 = FOOTPRINT[unit] ?? [3, 2];
     /* 발판 얼룩은 발자국보다 **한 타일씩 넓게**(지적: "해처리 완성 직후와 다른 건물 완성 시 크립 발판 크기만큼
        보여주는 게 안 나온다") — 발자국 폭 그대로면 건물 몸이 제 발자국을 다 덮어(그리기 배율 1.2) 얼룩이 한
        톨도 안 보인다. 원작에서도 발자국 타일의 크립은 건물 밑이라 안 보이고, 눈에 드는 것은 그 둘레의 크립이다.
        둘레 한 타일 고리를 더해 '이 건물이 크립 위에 섰다'가 읽히게 한다. */
-    const footW9 = fp9[0] + 2;
-    let wTiles: number = footW9;
-    if (hallKind || colonyKind) {
-      const doneOf9 = (row: typeof buildsSrc[number]): number => row[7] ?? row[0] + (BUILD_SEC[row[3]] ?? 30);
-      let startSec = doneAt9 ?? sec + (BUILD_SEC[unit] ?? 30);
+    const footW9 = (FOOTPRINT[unit] ?? [3, 2])[0] + 2;
+    /** 이 줄의 크립 얼룩 폭(타일) — 발판 폭이면 아직 안 퍼진 것(고치 동안·퍼뜨리지 않는 건물). */
+    const creepW9 = (row: typeof buildsSrc[number]): number => {
+      const [s9, x9, y9, u9, r9b, , , d9] = row;
+      const fw9 = (FOOTPRINT[u9] ?? [3, 2])[0] + 2;
+      if (!(["Hatchery", "Lair", "Hive"].includes(u9) || u9.includes("Colony"))) return fw9;
+      const doneOf9 = (r2: typeof buildsSrc[number]): number => r2[7] ?? r2[0] + (BUILD_SEC[r2[3]] ?? 30);
+      let startSec = d9 ?? s9 + (BUILD_SEC[u9] ?? 30);
       for (const row2 of buildsSrc) {
         const [s2, x2, y2, u2, r2] = row2;
-        if (r2 !== raw || s2 >= sec || Math.hypot(x2 - x, y2 - y) > SAME_SITE_TILES) continue;
-        if (succeedsBld(u2, unit)) startSec = Math.min(startSec, doneOf9(row2));
+        if (r2 !== r9b || s2 >= s9 || Math.hypot(x2 - x9, y2 - y9) > SAME_SITE_TILES) continue;
+        if (succeedsBld(u2, u9)) startSec = Math.min(startSec, doneOf9(row2));
       }
-      const p = sec <= 1 ? 1 : Math.min(1, Math.max(0, t - startSec) / CREEP_SPREAD_SEC);
+      const p = s9 <= 1 ? 1 : Math.min(1, Math.max(0, t - startSec) / CREEP_SPREAD_SEC);
       const ease = 1 - (1 - p) * (1 - p);
-      wTiles = Math.round((footW9 + (CREEP_FULL_TILES - footW9) * ease) * 2) / 2;
+      return Math.round((fw9 + (CREEP_FULL_TILES - fw9) * ease) * 2) / 2;
+    };
+    const wTiles = creepW9(buildsSrc[i]);
+    /* ★ 이미 크립 위에 서면 제 발판 얼룩은 **안 깐다**(지적: "크립 있는 곳에 해처리나 크립 콜로니 지으면 기존 크립이
+       페이드아웃되는 부자연스러움") — 원작에서 크립 위에 짓는 건물은 아무것도 안 바꾼다. 여기서는 제 발판 얼룩
+       (다른 씨앗의 얼룩 무늬)을 기존 크립 위에 한 장 더 얹어, 그 자리만 무늬가 바뀌고 고치가 자라며 덮어 가는
+       것이 '기존 크립이 스러진다'로 읽혔다. 같은 임자의 퍼진 크립(발판보다 넓은 얼룩)이 이 자리를 이미 덮고
+       있으면 발판 얼룩을 건너뛴다. 제가 퍼지기 시작하면(폭이 발판보다 커지면) 그때부터 제 얼룩을 깐다. */
+    if (wTiles <= footW9 + 0.01) {
+      const covered9 = buildsSrc.some((row2, j) => {
+        if (j === i || row2[4] !== raw || row2[0] > t) return false;
+        const g2 = row2[5] ?? 0;
+        if (g2 > 0 && t >= g2) return false;
+        const w2 = creepW9(row2);
+        const fw2 = (FOOTPRINT[row2[3]] ?? [3, 2])[0] + 2;
+        if (w2 <= fw2 + 0.01) return false;
+        const d2 = Math.hypot(row2[1] + footDx(row2[3]) - cxb, row2[2] + footDy(row2[3]) - cyb);
+        return d2 + footW9 / 2 <= w2 / 2;
+      });
+      if (covered9) return null;
     }
     const mk3 = pitchK(cyb);
     /* 시점 보기 — 한 번도 못 본 자리의 **적 크립**은 안 그린다(요청: 3단 안개).
