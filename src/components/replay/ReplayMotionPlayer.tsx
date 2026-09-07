@@ -23722,7 +23722,9 @@ const REACT_STEP_NUKE_MS9 = 0;   // 40 → 0(지적: 25Hz로도 안 매끄러움
 export type PackedFrame9 = {
   t: number; buf: Float32Array; strs: string[];
   fog: { explored: Uint16Array | null; visNow: Uint8Array | null; visSrc: Float32Array } | null;
-  ms: number; /** 유닛 op 수(진단) */ n: number; /** 시점 차례(시야 사각형이 바뀔 때마다 오른다) */ seq: number; dec?: Frame9;
+  ms: number; /** 유닛 op 수(진단) */ n: number; /** 시점 차례(시야 사각형이 바뀔 때마다 오른다) */ seq: number;
+  /** 안개 갈래 — 시야 주인·전체시야·안개 켬이 바뀔 때만 오른다. 다른 갈래의 안개 판은 섞어 쓰지 않는다. */
+  fseq: number; dec?: Frame9;
   /** 보간용 — 이 장의 유닛 op 열쇠 표(뒤 장으로 쓰일 때 한 번 만든다). */
   byKey?: Map<string, UnitDrawOp>;
 };
@@ -24066,7 +24068,9 @@ export default function ReplayMotionPlayer({
   const frameWorkerRef = useRef<Worker | null>(null);
   const wFramesRef = useRef<Map<number, PackedFrame9>>(new Map());
   /** 워커가 보낸 안개 판들(바뀐 장에만 실린다) — 장을 풀 때 그 시각 이하 가장 늦은 판을 붙인다. */
-  const fogSnapsRef9 = useRef<{ t: number; fog: NonNullable<PackedFrame9["fog"]> }[]>([]);
+  const fogSnapsRef9 = useRef<{ t: number; fseq: number; fog: NonNullable<PackedFrame9["fog"]> }[]>([]);
+  /** 안개 갈래 — 시야 주인·전체시야·안개 켬(fogKey)이 바뀔 때마다 오르고 시야 명령에 실린다. */
+  const fogSeqRef9 = useRef({ key: "", seq: 0, seen: 0, firstT: -1 });
   const wStatRef = useRef({
     got: 0, used: 0, missed: 0, err: "", sentWorld: 0, sentView: 0, sentCmd: 0,
     /** 워커가 세계를 받아 엔진을 세웠다(ready). 세계를 보낸 뒤 오래 안 오면 진단에 '응답 없음'. */
@@ -24180,7 +24184,22 @@ export default function ReplayMotionPlayer({
       if (dead9) return;
       const m9 = ev.data;
       if (m9.type === "frame" && m9.buf && m9.strs && typeof m9.t === "number") {
-        const pf9: PackedFrame9 = { t: m9.t, buf: m9.buf, strs: m9.strs, fog: m9.fog ?? null, ms: m9.ms ?? 0, n: m9.n ?? 0, seq: m9.seq ?? 0 };
+        const pf9: PackedFrame9 = { t: m9.t, buf: m9.buf, strs: m9.strs, fog: m9.fog ?? null, ms: m9.ms ?? 0, n: m9.n ?? 0, seq: m9.seq ?? 0, fseq: m9.fseq ?? 0 };
+        /* ★ 안개 갈래가 바뀌면 옛 갈래의 장·안개 판을 **그 시각부터** 걷는다(지적: "추적 끄면 갑자기 안개 계산을 여러 번
+           하듯 깜빡임") — 추적을 끄면 시야 주인이 그 사람 → 전체로 바뀌어 안개가 통째로 다른데, 워커가 앞서 지어 둔
+           옛 시야의 장들이 새 장 사이사이로 계속 와 그 안개 판이 시각순으로 끼어들었다. 아래 seq 규칙이 옛 **장**은
+           밀어냈지만 그 장에 실린 **안개 판**은 그대로 꽂혀, 새 갈래의 장이 시각으로 고른 판이 옛·새를 번갈았다.
+           새 갈래의 첫 장이 온 뒤로는 그 시각 이후의 옛 갈래 장은 버리고 판도 안 꽂는다. */
+        const fq9 = fogSeqRef9.current;
+        if (pf9.fseq > fq9.seen) {
+          fq9.seen = pf9.fseq;
+          fq9.firstT = pf9.t;
+          for (const [k9, f9] of frames9) if (f9.fseq < pf9.fseq && f9.t >= pf9.t - 1e-6) frames9.delete(k9);
+          const keepS9 = fogSnapsRef9.current.filter((sn9) => !(sn9.fseq < pf9.fseq && sn9.t >= pf9.t - 1e-6));
+          if (keepS9.length !== fogSnapsRef9.current.length) fogSnapsRef9.current = keepS9;
+        } else if (pf9.fseq < fq9.seen && pf9.t >= fq9.firstT - 1e-6) {
+          return;   // 새 갈래가 이미 시작된 시각의 옛 갈래 장 — 장도 판도 안 받는다
+        }
         /* 시야가 바뀌어 새 차례의 장이 오면, 그 시각 이후의 옛 차례 장은 밀어낸다(지적: 드래그 때 툭툭 — 전에는 시야가
            바뀔 때 버퍼를 통째로 비워 새 장이 올 때까지 마지막 장을 든 채 멎었다. 옛 장은 제 시야 안에서는 여전히 옳다). */
         /* 단, 주인 시각 이하의 옛 장은 남긴다(지적: 많이 드래그하면 유닛이 잠깐 이전 자리로 갔다 돌아옴) — 새 차례는 워커
@@ -24217,7 +24236,7 @@ export default function ReplayMotionPlayer({
           // 시각순으로 꽂는다(거의 늘 끝).
           let k9 = snaps9.length;
           while (k9 > 0 && snaps9[k9 - 1].t > pf9.t) k9 -= 1;
-          snaps9.splice(k9, 0, { t: pf9.t, fog: pf9.fog });
+          snaps9.splice(k9, 0, { t: pf9.t, fseq: pf9.fseq, fog: pf9.fog });
         }
         /* 버림 — 주인 시각보다 반 초 지난 장(붓은 t 이하 가장 늦은 장 하나만 쓴다), 워커가 지을 수 있는 앞(벽시계 3초 +
            2.5초 여유)·배속을 넘어 앞선 장(탐색 전 옛 자리). 안개 판은 15초 뒤·같은 앞 밖. */
@@ -27566,7 +27585,11 @@ export default function ReplayMotionPlayer({
       viewSentRef9.current = { key: viewKey9, colors: colorTable9 };
       // 버퍼는 안 비운다 — 새 차례의 장이 도착하면 그 시각 이후의 옛 장만 밀려난다(위 프레임 받기).
       wStatRef.current.sentView += 1;
-      w9.postMessage({ type: "view", view: engView9, seq: wStatRef.current.sentView });
+      // 안개 갈래 — 안개 판의 내용을 정하는 셋(시야 주인·전체시야·안개 켬)이 바뀔 때만 오른다(팬·줌으로는 안 오른다).
+      const fogKey9 = `${engView9.viewTeam}|${engView9.visAll ? 1 : 0}|${engView9.fogOn ? 1 : 0}`;
+      const fq9 = fogSeqRef9.current;
+      if (fq9.key !== fogKey9) { fq9.key = fogKey9; fq9.seq += 1; }
+      w9.postMessage({ type: "view", view: engView9, seq: wStatRef.current.sentView, fogSeq: fq9.seq });
     }
   }
   /* 명령(요청: 주인 → 설계 일꾼, 바뀔 때만) — 재생/정지·배속·탐색. 탐색은 "보낸 명령으로 예측한 시각과 지금 t의
@@ -27617,14 +27640,17 @@ export default function ReplayMotionPlayer({
   /** 설계도 풀기 — 그릴 장만 푼다(한 번 푼 것은 붙여 둔다). 안개는 장에 실렸으면 그것, 아니면 그 시각 이하 가장
    *  늦은 안개 판, 그것도 없으면 마지막 프레임의 것. */
   /** 이 장(제 안개 판이 없는 장)에 붙일 안개 판 — 그 시각 이하 가장 늦은 판. */
-  const fogSnapFor9 = (t9: number): { explored: Uint16Array | null; visNow: Uint8Array | null; visSrc: Float32Array } | null => {
+  const fogSnapFor9 = (t9: number, fseq9: number): { explored: Uint16Array | null; visNow: Uint8Array | null; visSrc: Float32Array } | null => {
     const snaps9 = fogSnapsRef9.current;
     const cells9 = grid.width * grid.height;
+    let any9: (typeof snaps9)[number]["fog"] | null = null;
     for (let i9 = snaps9.length - 1; i9 >= 0; i9 -= 1) {
       const sf9 = snaps9[i9];
-      if (sf9.t <= t9 + 1e-6 && (!sf9.fog.explored || sf9.fog.explored.length === cells9)) return sf9.fog;
+      if (!(sf9.t <= t9 + 1e-6 && (!sf9.fog.explored || sf9.fog.explored.length === cells9))) continue;
+      if (sf9.fseq === fseq9) return sf9.fog;   // 같은 갈래의 가장 늦은 판
+      if (!any9) any9 = sf9.fog;                 // 같은 갈래가 아직 없으면 아무 판(옛 갈래)이라도 — 빈 안개보다 낫다
     }
-    return null;
+    return any9;
   };
   const decodeFrame9 = (pf9: PackedFrame9): Frame9 => {
     if (pf9.dec) {
@@ -27634,13 +27660,13 @@ export default function ReplayMotionPlayer({
          번갈아 들어 안개가 한 판씩 앞뒤로 튀었다 — 그것이 '떨림'이고, 끌기(장을 버림)나 시간이 지나면(옛 장이
          걷힘) 저절로 멎었다. 제 판이 없는 장은 쓸 때마다 '그 시각 이하 가장 늦은 판'을 다시 물어 갈아 든다. */
       if (!pf9.fog) {
-        const nf9 = fogSnapFor9(pf9.t);
+        const nf9 = fogSnapFor9(pf9.t, pf9.fseq);
         if (nf9 && nf9.visSrc !== pf9.dec.visSrc) { pf9.dec.explored = nf9.explored; pf9.dec.visNow = nf9.visNow; pf9.dec.visSrc = nf9.visSrc; }
       }
       return pf9.dec;
     }
     const body9 = unpack9({ buf: pf9.buf, strs: pf9.strs }) as Pick<Frame9, "unitOps" | "fxOps" | "miniExtra" | "gasBusy" | "dom">;
-    let fog9 = pf9.fog ?? fogSnapFor9(pf9.t) ?? undefined;
+    let fog9 = pf9.fog ?? fogSnapFor9(pf9.t, pf9.fseq) ?? undefined;
     if (!fog9) {
       /* 이 시각 이하의 판이 없으면(막 시작·탐색 직후) **가장 최근 판**이라도 붙인다 — 없을 때 '다 걷힘'으로
          떨어지던 것이 처음의 깜빡임이었다. 지도 크기가 맞는 판만. */
