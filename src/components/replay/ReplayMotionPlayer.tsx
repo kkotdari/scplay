@@ -8911,7 +8911,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 1.5배(요청: "가운데 장기 크기 1.5배로 확대") — 가운데(0, 1.5)를 축으로 셋 다 키운다.
       const SX = 1.58;
       const SY0 = 0.08;
-      const SY1 = 2.92;
+      const SY1 = 4.3;   // 앞으로 더 길게 튀어나온다(요청) — 2.92 → 4.3
       const ZB = 3.5;
       const ZF = 2.3;
       const kS9 = depthNow(0, 1.5) * 1.6 + 0.3;
@@ -22085,7 +22085,12 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
              0.5 기기픽셀(dpr 3에서 0.17 CSS px)씩 자리가 튀는데, 그 눈금은 눈에 안 든다.
              ※ 돌아가는 몸(위 갈래)은 회전 자체가 표본을 다시 뜨므로 스냅해도 소용없다 —
                거기는 안 건드린다. */
-          ctx.setTransform(B, 0, 0, B, Math.round(B * bx9), Math.round(B * by9));
+          /* ★ 낮은 배율에서는 스냅하지 않는다(지적: "줌배율이 낮을수록 유닛 이동 움직임이 부드럽지 않음") — 지도
+             전체를 보는 배율에서는 유닛의 한 걸음이 프레임당 1 기기픽셀에 못 미쳐(1배·타일 6px·초당 1.5타일이면
+             30장에 0.3px), 정수로 죄면 몇 장에 한 번씩 한 픽셀을 툭툭 뛴다. 그 배율의 몸은 예닐곱 픽셀이라
+             재표본의 흐림은 눈에 안 들고, 걸음이 끊기는 것만 보인다. 자세함 문턱(detailAt) 위에서만 스냅한다. */
+          if (detail) ctx.setTransform(B, 0, 0, B, Math.round(B * bx9), Math.round(B * by9));
+          else ctx.setTransform(B, 0, 0, B, B * bx9, B * by9);
         }
         if (spr) {
           /* ★ 블릿 배율은 **자리를 잡을 때 쓴 그 배율**(kU)이다(지적: "dpr 1에서 지도상
