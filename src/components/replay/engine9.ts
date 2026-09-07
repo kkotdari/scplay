@@ -738,7 +738,7 @@ export const MUZZLE_ANCHOR: Record<string, [number, number, number]> = {
   /* 골리앗 [1.4, 2.2, 3.4] → [0, 2.9, 5.62] — 옛 값은 지금 모델에서 **무릎 높이**(z 3.4)의
      허공이었다. 총열은 z 5.62에 있고, 미사일은 좌우 두 줄기로 갈라져 나가므로(lanes9)
      앵커는 몸 한가운데여야 두 발이 양 포드에 하나씩 선다 — x를 0으로 옮긴 까닭이다. */
-  goliath: [0, 2.9, 5.62],
+  goliath: [0, 2.9, 5.15],   // 포신 하나·낮춤(z 5.62 → 5.15)
   vulture: [0, 3.4, 2.6], wraith: [0, 3.1, 3.88], bc: [0, 4.6, 3.8],
   /* 발키리는 **몸 가운데**에서(지적: "나오는 위치가 안맞고") — x 0.9는 오른쪽 발사관
      하나를 짚은 값이라, 어느 요잉에서는 미사일이 몸 옆 허공에서 났다. 발키리는 좌우
@@ -940,7 +940,7 @@ export const MODEL_NORM: Record<string, number> = {
   egg: 1.237,   // 정수리를 둥글게 한 뒤 model-norm 재측정
   fbat: 1.229,
   ghost: 1.552,  // 상자 상한(원한 배수 1.723)
-  goliath: 0.671,
+  goliath: 0.705,   // 재측정(model-norm) — 미사일 포드 걷고 포신 하나로(옛 0.671)
   goon: 0.655,  // 재측정(model-norm)
   guardian: 0.754,  // 다리 옆으로 곧게 뒤 재측정(model-norm)
   gunner: 1.327,  // 팔 길이 고정 뒤 model-norm 재측정

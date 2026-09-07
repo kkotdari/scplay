@@ -10640,17 +10640,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          그 굵기의 오르내림이 있어야 끝이 '총구'로 읽힌다. 소염기만 뚜껑을 열어(capOpen)
          안이 어둡게 뚫린 구멍을 남긴다 — 총구는 막힌 데가 아니다.
          나란한 둘로 두는 것은 자료 그대로다(twin 30mm autocannons). */
+      // 포신은 한쪽에 **하나**(재요청: 둘 → 하나) · 높이도 내린다(5.62 → 5.15).
       const rc9 = atG9 * 0.75;
-      for (const dx9 of [-0.42, 0.42]) {
-        const bx9 = px + dx9;
+      {
+        const bx9 = px; const bz9 = 5.15;
         out.push(...tagKey(paintBase([
-          ...tubeFaces(bx9, 0.85 - rc9, bx9, 2.0 - rc9, 0.3, 5.62),
+          ...tubeFaces(bx9, 0.85 - rc9, bx9, 2.0 - rc9, 0.3, bz9),
         ], GUNMETAL), key + 0.5));
         out.push(...tagKey(paintBase([
-          ...tubeFaces(bx9, 2.0 - rc9, bx9, 3.16 - rc9, 0.185, 5.62),
+          ...tubeFaces(bx9, 2.0 - rc9, bx9, 3.16 - rc9, 0.185, bz9),
         ], GUN_D), key + 0.55));
         out.push(...tagKey(paintBase([
-          ...tubeFaces(bx9, 3.16 - rc9, bx9, 3.52 - rc9, 0.28, 5.62, true),
+          ...tubeFaces(bx9, 3.16 - rc9, bx9, 3.52 - rc9, 0.28, bz9, true),
         ], GUNMETAL), key + 0.6));
       }
     }
@@ -10659,25 +10660,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          탄두 셋이 뿔처럼 돋아 있었다. 팩은 탄이 밖에 걸린 것이 아니라 **관 안에** 든
          물건이고, 그래서 앞에서 보이는 것은 뚫린 구멍이다. 벽 원반(wallDiscPath)으로
          내면 앞을 볼 때만 제 각도의 타원으로 그려진다. */
-    for (const m of [-1, 1] as const) {
-      const px = m * 1.55;
-      const key = depthNow(px, -0.3) * 1.6 + 5;
-      out.push(...tagKey(paintBase([
-        ...boxFaces3(px, -0.3, 1.25, 1.9, 0.86, 6.55),
-        // 위 덮개 — 앞으로 좁아지는 낮은 뚜껑. 상자 꼭대기가 칼같이 끊기지 않게.
-        ...frustumFaces3(px, -0.3, 1.25, 1.9, 1.02, 1.5, 0.24, 7.41),
-      ], "#758295"), key));
-      if (facingRatio(0, 1) > 0.05) {
-        for (const ox9 of [-0.3, 0.3]) {
-          for (const oz9 of [6.79, 7.17]) {
-            out.push(...tagKey([
-              [wallDiscPath(px + ox9, 0.66, oz9, 0.24, 0.21), 1, "#2b3038"] as ShapeFace,
-            ], key + 0.4));
-          }
-        }
-      }
-    }
-    // (걷어냄·요청) 머리 감지기 상자·안테나·붉은 렌즈 — 그 몫만큼 콕핏 반구를 키웠다(위).
+    // (걷어냄·요청) 등 위 쇠색 미사일 포드 둘(상자·절두체·발사관 입) — 포드 없이 콕핏 반구만 남는다.
     return out;
   },
   /* 리버(전면 재작도 — 사진 samples/리버1~3.jpg 기준) ──────────────────────────
