@@ -801,6 +801,15 @@ export function muzzlePoint(
 export const BLD_FROM_BLD = new Set([
   "Lair", "Hive", "Greater Spire", "Sunken Colony", "Spore Colony",
 ]);
+/** 짓는 중(미완성)인 땅 건물의 시야(타일) — 원작 규칙이다(OpenBW bwgame.h unit_sight_range:
+ *  `u_grounded_building && !u_completed && !unit_is_morphing_building → 32*4`). 테란 건설·
+ *  프로토스 소환·드론 고치가 다 여기 든다(물음: "공사고치시 드론의 시야가 아니라 건물의 시야야?"
+ *  — 둘 다 아니다, 4타일이다). 예외는 **선 건물이 다음 건물로 변태하는** 다섯(BLD_FROM_BLD,
+ *  unit_is_morphing_building)뿐으로, 그것들은 변태 중에도 제 시야를 다 낸다. */
+export const UNBUILT_SIGHT_TILES = 4;
+/** 이 건물이 이 시각에 내는 시야(타일) — 완공 전이면 위 규칙, 뒤면 제 시야. */
+export const bldSightAt9 = (kind: string, t: number, doneAt: number): number =>
+  (t < doneAt && !BLD_FROM_BLD.has(kind) ? UNBUILT_SIGHT_TILES : sightTiles(kind));
 /** 드론이 **녹아서** 되는 건물 — 위 BLD_FROM_BLD의 나머지 전부다(저그 건물은 둘 중
  *  하나다). 변태 자국과 드론의 미끄럼(아래 MORPH_SLIDE_SEC)이 이 명단만 본다. */
 export const BLD_FROM_DRONE = new Set([
@@ -2483,10 +2492,13 @@ export function deriveWorld9(inp: {
     return { rows, sites };
   })();
   const droneMorph = (() => {
-    const m = new Map<number, { born: number; gone: number; dy: number; x: number; y: number; k: string }>();
+    /* 태그마다 **여럿**이다 — 취소한 드론이 같은 태그로 다시 녹으면 고치가 둘이다(하나만 두면 앞 것의 미끄럼이 사라진다). */
+    const m = new Map<number, { born: number; gone: number; dy: number; x: number; y: number; k: string }[]>();
     for (const r of bldTagSpots.rows) {
       if (!BLD_FROM_DRONE.has(r.k)) continue;
-      m.set(r.tag, { born: r.born, gone: r.gone, dy: footDy(r.k), x: r.x, y: r.y, k: r.k });
+      const arr = m.get(r.tag) ?? [];
+      arr.push({ born: r.born, gone: r.gone, dy: footDy(r.k), x: r.x, y: r.y, k: r.k });
+      m.set(r.tag, arr);
     }
     return m;
   })();
@@ -3292,7 +3304,15 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           const lift9 = b9[6];
           /* 선 자리 — 뜬 때(있으면)까지, 없으면 걷힐 때까지 그 자리에서 본다. */
           const stop9 = lift9 !== undefined ? lift9 : (gone9 > 0 ? gone9 : Infinity);
-          eye(b9[1] + fp9[0] / 2, b9[2] + fp9[1] / 2, r9, b9[0], stop9);
+          /* 짓는 동안은 4타일, 완공 뒤 제 시야(위 UNBUILT_SIGHT_TILES — 원작 규칙). 아래 '지금 시야'와 같은 자. */
+          const done9 = b9[7] ?? b9[0] + (BUILD_SEC[b9[3]] ?? 30);
+          const rUp9 = bldSightAt9(b9[3], b9[0], done9);
+          if (rUp9 !== r9 && done9 > b9[0]) {
+            eye(b9[1] + fp9[0] / 2, b9[2] + fp9[1] / 2, rUp9, b9[0], Math.min(done9, stop9));
+            if (done9 < stop9) eye(b9[1] + fp9[0] / 2, b9[2] + fp9[1] / 2, r9, done9, stop9);
+          } else {
+            eye(b9[1] + fp9[0] / 2, b9[2] + fp9[1] / 2, r9, b9[0], stop9);
+          }
           /* 이사 비행 — 뜬 때부터 앉을 때까지 두 자리 사이를 그리는 쪽과 같은 곡선으로
              훑는다. 건물 줄은 착륙 자리마다 하나씩이라 이 구간이 빠지면 그 길이 통째로
              안 밝혀진다(테란은 커맨드를 띄워 옮기며 정찰한다). */
@@ -3997,10 +4017,12 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         if (!visAll && f9.team !== viewTeam) continue;
         eye(f9.x, f9.y, sightTiles(f9.k ?? "Command Center"));
       }
-      /* ★ **공사 중인 건물도 제 시야를 갖는다**(물음: "공사중 건물은 원래 시야가 없나?"
+      /* ★ **공사 중인 건물도 시야를 갖는다**(물음: "공사중 건물은 원래 시야가 없나?"
          — 없지 않다. 원작은 착공하는 순간 건물 개체를 만들고, 그 개체는 미완성인 채로도
-         제 시야 범위를 그대로 낸다. 파일런을 적진에 박아 정찰하는 것이 그 성질이다.
-         OpenBW의 시야 셈(unit_sight_range)에도 '미완성이면 줄인다'는 갈래가 없다).
+         시야를 낸다. 다만 그 크기는 제 시야가 아니라 **4타일**이다 — OpenBW bwgame.h의
+         unit_sight_range가 미완성 땅 건물(선 건물의 변태 제외)에 32*4를 돌려준다(앞 판의
+         "줄이는 갈래가 없다"는 말은 틀렸다 — 위 UNBUILT_SIGHT_TILES 주석). 파일런을 적진에
+         박아 정찰하는 것도 그 4타일이다.
          그런데 여기 명단(bldFoes)은 **다 지어진 것만** 담는다 — 그쪽은 '방어 건물의
          표적'을 고르는 명단이라 그 규칙이 맞지만, 시야는 아니다. 그래서 밝힘 이력은
          착공 시각부터 찍히는데(위 stamp) 정작 지금 시야에는 공사장이 빠져, 짓는 동안
@@ -4013,7 +4035,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         const done9 = b9[7] ?? b9[0] + (BUILD_SEC[b9[3]] ?? 30);
         if (t >= done9) continue;                                 // 완성분은 위 명단이 냈다
         const fp9 = FOOTPRINT[b9[3]] ?? [3, 2];
-        eye(b9[1] + fp9[0] / 2, b9[2] + fp9[1] / 2, sightTiles(b9[3]));
+        eye(b9[1] + fp9[0] / 2, b9[2] + fp9[1] / 2, bldSightAt9(b9[3], t, done9));
       }
       /* 이사 비행 중인 건물은 **나는 자리**에서도 본다(지적: 떠다니는 건물 시야) —
          위 두 명단은 줄에 적힌 붙박이 좌표를 쓰므로 비행 구간이 빠진다. 그리는 쪽과
@@ -6506,20 +6528,30 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
        **그리는 자리만** 움직인다(요청: "이전/다음 동선에 영향이 없게") — 원자취
        (pos)는 그대로라 앞뒤 걸음·길찾기·집기 열쇠에 한 톨도 안 실린다.
        결은 처음이 느리고 끝이 빠른 쪽(제곱)이다 — 녹아서 주저앉는 결이다. */
+    /* ★ 세로만이 아니라 **고치 한가운데까지**(지적: "드론이 공사고치로 변할 때랑 취소할 때 이동
+       위치가 공사고치 중심하고 안 맞는다 — 고치의 중심까지 이동하고 거기서 다시 나타나게") ──
+       여태는 제자리에서 발자국 절반(dy)만 내려갔다. 그런데 드론이 변태 직전에 선 자리(마지막 키)는
+       발자국 한가운데가 아니라 그 언저리다 — 원작은 자리에 닿기만 하면 녹인다. 그래서 고치는
+       한가운데에 서는데 드론은 옆에서 사라졌다. 이제 드론의 자리에서 고치의 기준점(발자국 가운데
+       x, 아랫변 y)까지 x·y를 함께 미끄러진다. 취소는 그 역이다 — 고치 자리에서 나타나 제 자리로. */
+    let morphDx9 = 0;
     let morphDy9 = 0;
     if (drawUnit === "Drone") {
-      const ms9 = droneMorph.get(e.tag);
-      if (ms9) {
+      for (const ms9 of droneMorph.get(e.tag) ?? []) {
+        let u9 = -1;
         if (ms9.born > 0 && t > ms9.born - MORPH_SLIDE_SEC && t <= ms9.born) {
-          const u9 = (t - (ms9.born - MORPH_SLIDE_SEC)) / MORPH_SLIDE_SEC;
-          morphDy9 = ms9.dy * u9 * u9;
+          u9 = (t - (ms9.born - MORPH_SLIDE_SEC)) / MORPH_SLIDE_SEC;
         } else if (ms9.gone > 0 && t >= ms9.gone && t < ms9.gone + MORPH_SLIDE_SEC) {
-          const u9 = 1 - (t - ms9.gone) / MORPH_SLIDE_SEC;
-          morphDy9 = ms9.dy * u9 * u9;
+          u9 = 1 - (t - ms9.gone) / MORPH_SLIDE_SEC;
         }
+        if (u9 < 0) continue;
+        const k9 = u9 * u9;
+        morphDx9 = (ms9.x - pos.x) * k9;
+        morphDy9 = (ms9.y + ms9.dy - pos.y) * k9;
+        break;
       }
     }
-    const [ax3, ay3] = [pos.x, pos.y + morphDy9];
+    const [ax3, ay3] = [pos.x + morphDx9, pos.y + morphDy9];
     const [fx, fy] = posFrac(ax3, ay3);
     /* 근접 잽은 아래 unitOps.push 직전에서 자리를 살짝 민다 — 여기서는 원래
        자리만 잡는다(효과·체력바·링은 다 이 자리를 기준으로 선다). */
