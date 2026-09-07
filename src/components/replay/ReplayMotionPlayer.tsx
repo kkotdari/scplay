@@ -2992,12 +2992,12 @@ function siegeLegs(): ShapeFace[] {
     const KNEE_Z = 2.75;     // 수평 팔의 높이(= 꺾이는 자리)
     // (걷어냄) ANK_Z — 기둥이 사각뿔 끝까지 곧장 내려간다.
     // ① 수평 팔 — 몸 옆구리에서 무릎까지, 높이가 안 변한다.
+    // 윗마디도 **사각기둥**(재요청) — sides 4 + 단면 기준 위(ref [0,0,1])라 윗면·옆면이 반듯이 선다. 굵기 0.38 일정.
     out.push(...tagKey(paintBase(spirePillar({
-      x: 0, y: 0, h: 1, w: 1, segs: 3, sides: 5, caps: "none",
+      x: 0, y: 0, h: 1, w: 0.38, tipW: 0.38, segs: 2, sides: 4, hold: 1, caps: "none",
+      ref: [0, 0, 1],
       path: (t9: number): [number, number, number] =>
         [ax + (fx - ax) * t9, ay + (fy - ay) * t9, KNEE_Z],
-      // 굵기 0.52 → 0.38(같은 지적).
-      widthOf: (t9: number): number => 0.38 - 0.08 * t9,
     }), TANK_STEEL), key));
     // ② 무릎 관절 — 꺾이는 자리의 덩이. 두 마디의 이음매를 덮는다.
     out.push(...tagKey(paintBase(
@@ -3017,9 +3017,10 @@ function siegeLegs(): ShapeFace[] {
       const th = Math.atan2(dy, dx) + (k * 2 * Math.PI) / 3;
       const tx = fx + Math.cos(th) * 0.5;
       const ty = fy + Math.sin(th) * 0.5;
+      // 발 기둥 굵기 0.28 → 0.2(재요청: 마디 굵기 감소), 뾰족 끝도 0.22.
       out.push(...tagKey(paintBase([
-        ...boxFaces3(tx, ty, 0.28, 0.28, 0.45, 0.3),
-        ...spikeHorn(tx, ty, 0.31, tx, ty, -0.02, 0.3, "#7d848d", 4, 0),
+        ...boxFaces3(tx, ty, 0.2, 0.2, 0.45, 0.3),
+        ...spikeHorn(tx, ty, 0.31, tx, ty, -0.02, 0.22, "#7d848d", 4, 0),
       ], "#7d848d"), key + 0.3 + k * 0.02));
     }
   }
