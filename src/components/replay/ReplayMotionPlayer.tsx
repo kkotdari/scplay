@@ -2675,23 +2675,27 @@ function tankTrack(cx: number, yA = -3.6, yB = 3.6): ShapeFace[] {
      판마다 겉면·양옆 테·앞뒤 모서리를 제 법선으로 그린다. 바닥면은 안 보이니 반원의 아래쪽 20도까지만. */
   {
     const rc9 = H / 2; const yAc9 = yA + rc9; const yBc9 = yB - rc9;
-    const PW9 = W + 0.56; const PL9 = 0.32; const PT9 = 0.12; const GAP9 = 0.5;
-    const A0 = (-20 * Math.PI) / 180;                       // 반원에서 내려가는 끝각(아래 20도)
-    const capLen9 = rc9 * (Math.PI / 2 - A0);                // 한쪽 반원의 판 구간 길이(위 90도 → −20도)
-    const total9 = capLen9 * 2 + (yBc9 - yAc9);
-    const n9 = Math.max(6, Math.round(total9 / GAP9));
+    /* 한 바퀴 **전부**(재지적: 뒤쪽·바닥 레일판이 튀어나와 보여야) — 바닥 판도 두르고, 옆 돌출 0.28 → 0.4·두께 0.12 →
+       0.22로 키워 옆 테가 벽 실루엣 밖(위·아래 모서리, 앞뒤 반원)에서 이빨로 드러나게 한다. */
+    const PW9 = W + 0.8; const PL9 = 0.32; const PT9 = 0.22; const GAP9 = 0.5;
+    const capLen9 = rc9 * Math.PI;                           // 한쪽 반원(위 → 아래) 길이
+    const flat9 = yBc9 - yAc9;
+    const total9 = capLen9 * 2 + flat9 * 2;
+    const n9 = Math.max(8, Math.round(total9 / GAP9));
     for (let i9 = 0; i9 < n9; i9 += 1) {
       const s9 = (i9 + 0.5) * (total9 / n9);
-      // 겉면 위 자리 p·바깥 법선 n·진행 방향 t(모두 y-z 평면).
+      // 겉면 위 자리 p·바깥 법선 n·진행 방향 t(모두 y-z 평면). 차례: 윗면(뒤→앞) → 앞 반원(위→아래) → 바닥(앞→뒤) → 뒤 반원(아래→위).
       let py9: number; let pz9: number; let ny9: number; let nz9: number;
-      if (s9 < capLen9) {                                    // 뒤 반원: 아래(−20도) → 위(90도), 뒤쪽(−y)
-        const a9 = A0 + (s9 / capLen9) * (Math.PI / 2 - A0);
-        ny9 = -Math.cos(a9); nz9 = Math.sin(a9); py9 = yAc9 + ny9 * rc9; pz9 = rc9 + nz9 * rc9;
-      } else if (s9 < capLen9 + (yBc9 - yAc9)) {             // 윗면
-        ny9 = 0; nz9 = 1; py9 = yAc9 + (s9 - capLen9); pz9 = H;
-      } else {                                               // 앞 반원: 위(90도) → 아래(−20도), 앞쪽(+y)
-        const a9 = Math.PI / 2 - ((s9 - capLen9 - (yBc9 - yAc9)) / capLen9) * (Math.PI / 2 - A0);
+      if (s9 < flat9) {                                      // 윗면
+        ny9 = 0; nz9 = 1; py9 = yAc9 + s9; pz9 = H;
+      } else if (s9 < flat9 + capLen9) {                     // 앞 반원: 위(90도) → 아래(−90도)
+        const a9 = Math.PI / 2 - ((s9 - flat9) / capLen9) * Math.PI;
         ny9 = Math.cos(a9); nz9 = Math.sin(a9); py9 = yBc9 + ny9 * rc9; pz9 = rc9 + nz9 * rc9;
+      } else if (s9 < flat9 * 2 + capLen9) {                 // 바닥(앞 → 뒤)
+        ny9 = 0; nz9 = -1; py9 = yBc9 - (s9 - flat9 - capLen9); pz9 = 0;
+      } else {                                               // 뒤 반원: 아래(−90도) → 위(90도), 뒤쪽(−y)
+        const a9 = -Math.PI / 2 - ((s9 - flat9 * 2 - capLen9) / capLen9) * Math.PI;
+        ny9 = Math.cos(a9); nz9 = Math.sin(a9); py9 = yAc9 + ny9 * rc9; pz9 = rc9 + nz9 * rc9;
       }
       const ty9 = nz9; const tz9 = -ny9;                     // 접선(진행 방향)
       const P9 = (sx9: number, st9: number, sn9: number): [number, number, number] => [
