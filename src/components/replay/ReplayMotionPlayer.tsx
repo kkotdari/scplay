@@ -19879,8 +19879,19 @@ function unitSprite(
   if (nrm !== 1) { c2.translate(8, noy9); c2.scale(nrm, nrm); c2.translate(-8, -noy9); }
   // 임자 면(fill 없음)은 몸판에서 뺀다 — 마스크가 그 자리를 맡는다(solid면 전부 한 색이라 마스크가 없다).
   const teamSplit9 = !op.solid && faces.some((f9) => f9[2] === undefined);
+  /* ★ 임자 면 자리는 몸판에서 **파낸다**(지적: "골리앗 임자색 어깨 부품이 다른 부품들을 못 가리네") — 여태는 그냥
+     건너뛰어 그 자리에 뒤에 있던 부품(드럼·콕핏·다리)이 남았고, 마스크가 얹혀도 임자 면 위의 음영 덮개가 마스크를
+     제 알파만큼 파내 그 뒤 부품이 비쳤다. 이제 destination-out으로 뒤엣것을 지우고, 물들인 마스크는 몸판 **아래**에
+     깔린다(drawTint9 차례) — 음영 덮개·뒤에 오는 고정 면은 몸판에 그대로 있어 마스크 위에 얹힌다. */
   for (const [d, o, fill] of faces) {
-    if (teamSplit9 && fill === undefined) continue;
+    if (teamSplit9 && fill === undefined) {
+      c2.globalCompositeOperation = "destination-out";
+      c2.globalAlpha = o;
+      c2.fillStyle = "#000";
+      c2.fill(pathOf(d));
+      c2.globalCompositeOperation = "source-over";
+      continue;
+    }
     c2.globalAlpha = shadeBoost(o, fill);
     c2.fillStyle = op.solid ?? fill ?? op.color;
     c2.fill(pathOf(d));
@@ -19896,19 +19907,13 @@ function unitSprite(
       m2.translate(pad, pad);
       m2.scale(pxq / 16, pxq / 16);
       if (nrm !== 1) { m2.translate(8, noy9); m2.scale(nrm, nrm); m2.translate(-8, -noy9); }
+      // 마스크는 임자 면의 합집합만 — 파내기는 걷었다(가림은 몸판이 마스크 위에서 맡는다).
       for (const [d, o, fill] of faces) {
-        if (fill === undefined) {
-          m2.globalCompositeOperation = "source-over";
-          m2.globalAlpha = o;
-          m2.fillStyle = "#fff";
-        } else {
-          m2.globalCompositeOperation = "destination-out";
-          m2.globalAlpha = shadeBoost(o, fill);
-          m2.fillStyle = "#000";
-        }
+        if (fill !== undefined) continue;
+        m2.globalAlpha = o;
+        m2.fillStyle = "#fff";
         m2.fill(pathOf(d));
       }
-      m2.globalCompositeOperation = "source-over";
       m2.globalAlpha = 1;
       tintCv9 = mv;
     }
@@ -20574,8 +20579,16 @@ function buildingSpriteBake(
     c2.translate(-8, -16);
   }
   const teamSplitB9 = faces.some((f9) => f9[2] === undefined);
+  // 임자 면 자리는 파낸다(유닛과 같은 규약 — unitSprite의 ★).
   for (const [d, o, fill] of faces) {
-    if (teamSplitB9 && fill === undefined) continue;
+    if (teamSplitB9 && fill === undefined) {
+      c2.globalCompositeOperation = "destination-out";
+      c2.globalAlpha = o;
+      c2.fillStyle = "#000";
+      c2.fill(pathOf(d));
+      c2.globalCompositeOperation = "source-over";
+      continue;
+    }
     c2.globalAlpha = shadeBoost(o, fill);
     c2.fillStyle = fill ?? op.color;
     c2.fill(pathOf(d));
@@ -20592,12 +20605,11 @@ function buildingSpriteBake(
       m2.scale(sideQ / 16, sideQ / 16);
       m2.translate(-8, -16);
       if (bn !== undefined && bn !== 1) { m2.translate(8, 16); m2.scale(bn, bn); m2.translate(-8, -16); }
-      for (const [d, o, fill] of faces) {
-        if (fill === undefined) { m2.globalCompositeOperation = "source-over"; m2.globalAlpha = o; m2.fillStyle = "#fff"; }
-        else { m2.globalCompositeOperation = "destination-out"; m2.globalAlpha = shadeBoost(o, fill); m2.fillStyle = "#000"; }
+      for (const [d, o, fill] of faces) {   // 임자 면의 합집합만(파내기 걷음 — 유닛과 같은 규약)
+        if (fill !== undefined) continue;
+        m2.globalAlpha = o; m2.fillStyle = "#fff";
         m2.fill(pathOf(d));
       }
-      m2.globalCompositeOperation = "source-over";
       m2.globalAlpha = 1;
       tintCvB9 = mv;
     }
@@ -21544,6 +21556,13 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
                 );
               }
             }
+            if (bspr.tint) {   // 물들인 마스크를 몸판 **아래**에(unitSprite의 ★ — 건물도 같은 규약)
+              const tcv9 = tintedOf9(bspr.tint, op.color, bldSpriteBytes);
+              if (tcv9) {
+                SPRITE_PERF.bldBlit += 1;
+                ctx.drawImage(tcv9, bLeft9 + (bspr.tint.ox / B) * k, bTop9 + (bspr.tint.oy / B) * k, (tcv9.width / B) * k, (tcv9.height / B) * k);
+              }
+            }
             SPRITE_PERF.bldBlit += 1;
             // 자른 판을 제 자리에 되돌린다(유닛과 같은 규칙) — bLeft9·bTop9는 자르기
             // 전 판의 왼위 모서리다.
@@ -21552,13 +21571,6 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
               bLeft9 + (bspr.ox / B) * k, bTop9 + (bspr.oy / B) * k,
               (bspr.cv.width / B) * k, (bspr.cv.height / B) * k,
             );
-            if (bspr.tint) {
-              const tcv9 = tintedOf9(bspr.tint, op.color, bldSpriteBytes);
-              if (tcv9) {
-                SPRITE_PERF.bldBlit += 1;
-                ctx.drawImage(tcv9, bLeft9 + (bspr.tint.ox / B) * k, bTop9 + (bspr.tint.oy / B) * k, (tcv9.width / B) * k, (tcv9.height / B) * k);
-              }
-            }
             /* ★ 겹쳐 찍는 판(op.attach) — 성큰의 혓바닥이다(유닛 쪽 짐과 같은 규약).
                **같은 자**로 굽는다: 같은 판 크기(sideQ)·같은 배수(NORM_PAIR가 몸 것으로
                접는다)라, 몸과 똑같은 자리·배율에 제 잉크 오프셋(ox·oy)만 달리 주면
@@ -21988,26 +22000,26 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
             /* 겹판 배율(op.attachK) — 원점(모델 원점 = 변환의 0,0) 기준이라 시즈 버팀다리가 차체에서 뻗어 나온다. */
             const aK9 = op.attachK ?? 1;
             if (aK9 !== 1) { ctx.save(); ctx.scale(aK9, aK9); }
+            drawTint9(ctx, atSpr9, op.color, pxqB, k, B);   // 물들인 마스크를 몸판 **아래**에(unitSprite의 ★)
             ctx.drawImage(
               atSpr9.cv,
               (-(atSpr9.pad + pxqB / 2) + atSpr9.ox / B) * k,
               (-(atSpr9.pad + pxqB / 2) + atSpr9.oy / B) * k,
               (atSpr9.cv.width / B) * k, (atSpr9.cv.height / B) * k,
             );
-            drawTint9(ctx, atSpr9, op.color, pxqB, k, B);
             if (aK9 !== 1) ctx.restore();
           };
           const rb9 = ((Math.round((op.rotDeg ?? 0) / 22.5) * 22.5) % 360 + 360) % 360;
           // 배율 겹판(버팀다리)은 늘 몸 뒤 — 오므린 다리가 차체 위로 안 비친다.
           const atBack9 = op.attachK !== undefined || (rb9 > 90 && rb9 < 270);
           if (atBack9) atDraw9();
+          drawTint9(ctx, spr, op.color, pxqB, k, B);   // 물들인 마스크를 몸판 **아래**에(unitSprite의 ★)
           ctx.drawImage(
             spr.cv,
             (-(spr.pad + pxqB / 2) + spr.ox / B) * k,
             (-(spr.pad + pxqB / 2) + spr.oy / B) * k,
             cw9 * k, ch9 * k,
           );
-          drawTint9(ctx, spr, op.color, pxqB, k, B);
           if (!atBack9) atDraw9();
           ctx.setTransform(B, 0, 0, B, 0, 0);
           continue;
