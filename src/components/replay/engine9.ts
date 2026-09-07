@@ -1288,6 +1288,7 @@ export const UNIT_SIZE_TUNE: Record<string, number> = {   // 열쇠는 sizeKind(
   observer: 0.8,
   inf: 0.8, fbat: 0.8, ghost: 0.8, htemp: 0.6, dtemp: 0.8,   // 메딕(inf)·파뱃(0.6 → 0.8 재요청)·고스트·하템·다템 — 마린(gunner)은 1.0으로 뺐다(재요청)
   defiler: 1.2,   // 요청(비교 장면)
+  tanksiege: 1.2, vulture: 1.2,   // 요청: "시즈·벌처 그리기 1.2배"
   scv: 0.8, probe: 0.8, drone: 0.8,   // 일꾼류
   /* (전부 걷음 — 요청: "유닛 크기 보정 모두 제거") — 일꾼·보병 0.68, 메딕 0.612,
      질럿 0.85, 템플러 0.808, 커세어 0.85, 마인 0.53, 옵저버 0.17, 스커지 0.7,
@@ -6917,11 +6918,9 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         const snap9 = Math.round((bodyHdg0 - 45) / 90) * 90 + 45;
         /* 시즈로 들어가는 전환의 앞 반 동안 몸이 가장 가까운 대각으로 돌아 앉는다(요청: 전환 동작). 언시즈는 창이
            끝날 때까지 박힌 채다. */
-        if (siegeXf9 && siegeXf9.to === 1 && siegeOn !== 1) {
-          const k9 = Math.min(1, siegeXf9.u / 0.5);
-          const d9 = ((snap9 - bodyHdg0 + 540) % 360) - 180;
-          return bodyHdg0 + d9 * k9;
-        }
+        /* ★ 시즈로 들어갈 때는 **처음부터** 대각에 앉는다(지적: "다리 나오기 전부터 시즈 모드의 방향으로 동체랑 포신
+           자리 잡아야 함 — 다리 다 나오고 고정했는데 갑자기 방향이 바뀔 순 없어") — 여태 창의 앞 반 동안 돌아 앉게
+           했는데, 다리가 뻗는 동안 몸이 도는 것이 '박힌 뒤에 도는 것'으로 읽혔다. 언시즈는 창이 끝날 때까지 박힌 채다. */
         return snap9;
       }
       if (view.noIdleScan || !IDLE_SCAN.has(drawUnit2) || fighting || burrowed) return bodyHdg0;
@@ -7367,7 +7366,12 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       /* 시즈 대기 포신 = 차체 **뒤**(뒤 고정 다리 쪽). 셈: 몸 판은 spin 270으로 굽고 rotDeg hdg로 찍으니 뒤 다리(모형 −y)는
          −y를 (270 − hdg)만큼 돌린 방향이고, 포탑 판은 spin 없이 rotDeg R로 찍으니 포신(+y)은 +y를 −R만큼 돌린 방향이다.
          둘이 같으려면 R = hdg + 270(= −90). +0·+180은 옆, +90은 앞이었다. 도록 합성 포탑(안쪽 spin 180)과 같은 배치. */
-      const idleAim9 = lastAim9 ?? ((last.rotDeg ?? 0) + (kind0 === "tanksiege" ? 270 : 0));
+      /* ★ 포신도 **전환 창이 열리는 순간** 시즈 자리(+270)를 잡는다(같은 지적) — 여태 창 동안은 탱크 판이라 +0(앞)이고
+         창이 끝나 시즈 판으로 바뀌는 순간 +270으로 튀었다. 시즈로 가는 창은 처음부터 +270, 언시즈 창은 +270(= −90)에서
+         0으로 매끄럽게 돌아온다(사격 기억 lastAim9이 있으면 그것이 우선 — 겨누던 각은 튀지 않는다). */
+      const gunRest9 = kind0 === "tanksiege" || (siegeXf9 && siegeXf9.to === 1) ? 270
+        : siegeXf9 && siegeXf9.to === 0 ? -90 * (1 - Math.min(1, Math.max(0, siegeXf9.u))) : 0;
+      const idleAim9 = lastAim9 ?? ((last.rotDeg ?? 0) + gunRest9);
       unitOps.push({
         // 포신 가려짐 해결(지적) — 곁 유닛의 z가 포탑을 얇게 자르지 않게 여유 있게.
         ...last, kind: gunKind, fx: gfx, fy: gfy, z: last.z + 30,
