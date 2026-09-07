@@ -269,6 +269,7 @@ export function drawMapGrid(
        8이웃으로 묶고, 그 무리에 맞닿은 걷는 비램프 칸의 고도가 둘 이상일 때만 램프로 남긴다. 한 단(또는 절벽면)에만
        붙은 무리는 램프가 아니라 가장자리다 — 깃발을 걷는다. */
     {
+      const raw0 = ramp.slice();   // 원래 깃발(아래 되살리기용)
       const raw = ramp.slice();
       ramp.fill(0);
       /* ★ 램프 칸은 **거의 다 걷는 칸**이다(재지적: 빠른무한에서 언덕 경계선이 일부만 남는다 — 벽 발치 깃발 칸이
@@ -310,6 +311,28 @@ export function drawMapGrid(
         }
         if (levels.size >= 2) for (const i of comp) ramp[i] = 1;
       }
+      /* ★ 진짜 램프에 **붙은 깃발 칸은 되살린다**(재지적: "램프 일부분에 경계선이 생김, 특히 위쪽") — 램프의 맨 윗줄과
+         양옆 칸은 미니타일 일부가 절벽면이라 위 12개 문턱에 걸려 빠졌고, 그 자리(램프 머리)에 선이 도로 그어졌다.
+         걸러진 것은 벽 발치의 외딴 깃발이면 족하다: 살아남은 램프 무리에 8이웃으로 닿는 원래 깃발 칸은 램프로 되돌린다
+         (한 겹만 — 벽 발치 깃발 띠가 램프 곁에서 이어지면 한 칸까지만 딸려 온다). */
+      const grown = ramp.slice();
+      for (let y = 0; y < h; y += 1) {
+        for (let x = 0; x < w; x += 1) {
+          const i = y * w + x;
+          if (raw0[i] !== 1 || ramp[i] === 1) continue;
+          let near = false;
+          for (let dy = -1; dy <= 1 && !near; dy += 1) {
+            for (let dx = -1; dx <= 1; dx += 1) {
+              const xx = x + dx;
+              const yy = y + dy;
+              if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+              if (ramp[yy * w + xx] === 1) { near = true; break; }
+            }
+          }
+          if (near) grown[i] = 1;
+        }
+      }
+      ramp.set(grown);
     }
     const P = pxPerTile;
     /** 그 판정의 곡선 길 — 좌표가 타일 단위라 픽셀 배수만 곱하면 된다. */
