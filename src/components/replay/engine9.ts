@@ -1598,7 +1598,7 @@ export const BLD_DRAW_TUNE: Record<string, number> = {
   arch: 1.2, cyber: 1.2, dome: 1.2, citadel: 1.2, archives: 1.2, observatory: 1.2, fleetbeacon: 1.2, sbattery: 1.2,
   robobay: 1.6,                                                            // 서포트 베이 1.2 → 1.4 → 1.6(재요청)
   queensnest: 1.2,                                                         // 1.4 → 1.2(재요청, 돔을 키운 뒤)
-  turret: 1.2,                                                             // 요청
+  turret: 1.0,                                                             // 1.2 → 1.0 복구(요청) — 공통 1.2배만 탄다
   pool: 1.2, dmound: 1.2, cavern: 1.2,                                     // 캐번 1.4 → 1.2
 };
 /** 프로토스 소환구 상자(타일)와 지면에서 띄우는 높이(타일) — 요청: 축소 + 더 띄우기. */
