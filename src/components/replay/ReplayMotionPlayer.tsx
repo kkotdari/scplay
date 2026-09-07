@@ -23980,6 +23980,8 @@ export type PackedFrame9 = {
   t: number; buf: Float32Array; strs: string[];
   fog: { explored: Uint16Array | null; visNow: Uint8Array | null; visSrc: Float32Array } | null;
   ms: number; /** 유닛 op 수(진단) */ n: number; /** 시점 차례(시야 사각형이 바뀔 때마다 오른다) */ seq: number;
+  /** 세대 — 시점·명령(탐색·감기·재생/정지·배속)마다 오른다(frameWorker gen). 붓은 세대를 섞어 고르지 않는다. */
+  gen: number;
   /** 안개 갈래 — 시야 주인·전체시야·안개 켬이 바뀔 때만 오른다. 다른 갈래의 안개 판은 섞어 쓰지 않는다. */
   fseq: number; dec?: Frame9;
   /** 보간용 — 이 장의 유닛 op 열쇠 표(뒤 장으로 쓰일 때 한 번 만든다). */
@@ -24328,6 +24330,8 @@ export default function ReplayMotionPlayer({
   const fogSnapsRef9 = useRef<{ t: number; fseq: number; fog: NonNullable<PackedFrame9["fog"]> }[]>([]);
   /** 안개 갈래 — 시야 주인·전체시야·안개 켬(fogKey)이 바뀔 때마다 오르고 시야 명령에 실린다. */
   const fogSeqRef9 = useRef({ key: "", seq: 0, seen: 0, firstT: -1 });
+  /** 본 가장 높은 세대(위 PackedFrame9.gen) — 붓은 이 세대의 장을 먼저 고른다. */
+  const genSeenRef9 = useRef({ seen: 0 });
   const wStatRef = useRef({
     got: 0, used: 0, missed: 0, err: "", sentWorld: 0, sentView: 0, sentCmd: 0,
     /** 워커가 세계를 받아 엔진을 세웠다(ready). 세계를 보낸 뒤 오래 안 오면 진단에 '응답 없음'. */
@@ -24447,7 +24451,17 @@ export default function ReplayMotionPlayer({
       if (dead9) return;
       const m9 = ev.data;
       if (m9.type === "frame" && m9.buf && m9.strs && typeof m9.t === "number") {
-        const pf9: PackedFrame9 = { t: m9.t, buf: m9.buf, strs: m9.strs, fog: m9.fog ?? null, ms: m9.ms ?? 0, n: m9.n ?? 0, seq: m9.seq ?? 0, fseq: m9.fseq ?? 0 };
+        const pf9: PackedFrame9 = { t: m9.t, buf: m9.buf, strs: m9.strs, fog: m9.fog ?? null, ms: m9.ms ?? 0, n: m9.n ?? 0, seq: m9.seq ?? 0, fseq: m9.fseq ?? 0, gen: m9.gen ?? 0 };
+        /* ★ 세대 경계(지적: "빨리감기 때 유닛·건물이 흔들린다") — 감기·탐색은 시야가 안 바뀌어 seq가 그대로였고, 되짚기
+           **전에** 앞으로 지어 둔 장(옛 세대)이 되짚은 뒤 새로 짓는 장 사이사이에 시각순으로 끼어들어 붓이 두 세대를
+           번갈아 골랐다(엔진은 상태를 들고 있어 같은 시각이라도 세대마다 자리가 조금 다르다). 새 세대의 첫 장이 오면
+           그 시각 이후의 옛 세대 장은 버린다. 그보다 이른 옛 장은 새 장이 올 때까지 이어 주는 몫이라 둔다(아래 고르기가
+           새 세대를 먼저 본다). */
+        const gq9 = genSeenRef9.current;
+        if (pf9.gen > gq9.seen) {
+          gq9.seen = pf9.gen;
+          for (const [k9, f9] of frames9) if (f9.gen < pf9.gen && f9.t >= pf9.t - 1e-6) frames9.delete(k9);
+        }
         /* ★ 안개 갈래가 바뀌면 옛 갈래의 장·안개 판을 **그 시각부터** 걷는다(지적: "추적 끄면 갑자기 안개 계산을 여러 번
            하듯 깜빡임") — 추적을 끄면 시야 주인이 그 사람 → 전체로 바뀌어 안개가 통째로 다른데, 워커가 앞서 지어 둔
            옛 시야의 장들이 새 장 사이사이로 계속 와 그 안개 판이 시각순으로 끼어들었다. 아래 seq 규칙이 옛 **장**은
@@ -27972,11 +27986,17 @@ export default function ReplayMotionPlayer({
     const frames9 = wFramesRef.current;
     if (frames9.size === 0) return null;
     const near9 = Math.max(2, speed * 2);
+    /* 새 세대 먼저(위 genSeenRef9) — 새 세대의 장이 지금 시각 이하에 하나라도 있으면 그 세대에서만 고른다. 아직 없으면
+       (첫 장이 앞에 있거나 오는 중) 옛 세대의 가장 늦은 장으로 잇는다. 세대를 섞어 번갈아 고르는 일이 없다. */
+    const gs9 = genSeenRef9.current.seen;
     let best: PackedFrame9 | null = null;
+    let bestOld: PackedFrame9 | null = null;
     for (const f9 of frames9.values()) {
       if (f9.t > tNow9 + 1e-6) continue;
-      if (!best || f9.t > best.t) best = f9;
+      if (f9.gen === gs9) { if (!best || f9.t > best.t) best = f9; }
+      else if (!bestOld || f9.t > bestOld.t) bestOld = f9;
     }
+    if (!best) best = bestOld;
     if (best && tNow9 - best.t <= near9) return best;
     let next: PackedFrame9 | null = null;
     for (const f9 of frames9.values()) {
@@ -28044,6 +28064,7 @@ export default function ReplayMotionPlayer({
   const pickNextFrame9 = (a9: PackedFrame9): PackedFrame9 | null => {
     let next: PackedFrame9 | null = null;
     for (const f9 of wFramesRef.current.values()) {
+      if (f9.gen !== a9.gen) continue;   // 보간의 뒤 장은 같은 세대에서만(위 세대 경계)
       if (f9.t <= a9.t + 1e-6) continue;
       if (!next || f9.t < next.t) next = f9;
     }
