@@ -356,24 +356,29 @@ export function drawMapGrid(
        지워지고 이웃 칸의 바깥 변(0.78칸 너머)의 선은 남는다. 못 걷는 이웃(램프 옆 절벽면) 쪽으로는 안 부풀린다.
        반 칸 격자(2w×2h, P/2)로 마스크를 만든다: 반 칸의 제 칸이 램프면 클립, 제 칸이 걷는 칸이고 그 반 칸이 향한
        쪽(x·y·대각)의 이웃 칸이 램프면 클립. */
-    const w2 = w * 2;
-    const h2 = h * 2;
-    const rampHalf = new Uint8Array(w2 * h2);
+    /* 반 칸 → **사분 칸**(재지적: "언덕 위쪽 경계선 안 그려지는 거 아직도 그래") — 반 칸 부풀림은 비스듬한 램프 곁의
+       걷는 칸에서 절벽 윗선의 반을 먹었다. 절벽선은 변 위 ±0.22칸이므로 0.25칸이면 맞닿은 변의 선은 다 지워지고
+       이웃 칸의 나머지 4분의 3은 그대로다. 사분 칸 격자(4w×4h, P/4): 제 칸이 램프면 클립, 제 칸이 걷는 칸이고
+       그 사분 칸이 칸의 **바깥 띠**(x 또는 y의 첫·끝 사분)이며 그쪽 이웃 칸이 램프면 클립(모서리 사분은 대각 이웃도). */
+    const w4 = w * 4;
+    const h4 = h * 4;
+    const rampQ = new Uint8Array(w4 * h4);
     if (hasRamp) {
       const rampAt = (x: number, y: number): boolean => x >= 0 && y >= 0 && x < w && y < h && ramp[y * w + x] === 1;
-      for (let hy = 0; hy < h2; hy += 1) {
-        for (let hx = 0; hx < w2; hx += 1) {
-          const tx = hx >> 1;
-          const ty = hy >> 1;
-          if (ramp[ty * w + tx] === 1) { rampHalf[hy * w2 + hx] = 1; continue; }
+      for (let qy = 0; qy < h4; qy += 1) {
+        for (let qx = 0; qx < w4; qx += 1) {
+          const tx = qx >> 2;
+          const ty = qy >> 2;
+          if (ramp[ty * w + tx] === 1) { rampQ[qy * w4 + qx] = 1; continue; }
           if (walk[ty * w + tx] !== 1) continue;
-          const sx = hx & 1 ? 1 : -1;
-          const sy = hy & 1 ? 1 : -1;
-          if (rampAt(tx + sx, ty) || rampAt(tx, ty + sy) || rampAt(tx + sx, ty + sy)) rampHalf[hy * w2 + hx] = 1;
+          const sx = (qx & 3) === 0 ? -1 : (qx & 3) === 3 ? 1 : 0;
+          const sy = (qy & 3) === 0 ? -1 : (qy & 3) === 3 ? 1 : 0;
+          if ((sx !== 0 && rampAt(tx + sx, ty)) || (sy !== 0 && rampAt(tx, ty + sy))
+            || (sx !== 0 && sy !== 0 && rampAt(tx + sx, ty + sy))) rampQ[qy * w4 + qx] = 1;
         }
       }
     }
-    const noRampPath = hasRamp ? maskPath((i) => rampHalf[i] !== 1, w2, h2, P / 2) : null;
+    const noRampPath = hasRamp ? maskPath((i) => rampQ[i] !== 1, w4, h4, P / 4, 2) : null;
     for (let L = 1; L <= 3; L += 1) {
       const has = (): boolean => {
         for (let i = 0; i < n9; i += 1) if (lvl[i] >= L && isLand(i)) return true;
