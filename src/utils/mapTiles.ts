@@ -283,8 +283,10 @@ export function drawMapGrid(
     const realRGB = mt.rgbAt;
     /* ★ 타일에서 뽑은 색은 **채도를 조금 빼고 살짝 파스텔로**(요청: "너무 쨍한 거 같아 … 약간 파스텔화") —
        밝기(luma)와 25% 섞어 채도를 내리고, 흰색 쪽으로 8% 올린다. 갈래 중앙값과 칸별 덧칠 둘 다 이 문을 지난다. */
-    const SOFT_K = 0.25;
-    const PASTEL_K = 0.08;
+    /* 0.25/0.08 → 0.15/0.03(지적: "타일이 너무 밝다 — 어둡고 진하게") — 파스텔화가 흰 쪽으로 밀던 몫을 줄인다.
+       어둡기 자체는 mapTerrain의 SHOW_GAMMA가 맡는다(둘이 한 결이다). */
+    const SOFT_K = 0.15;
+    const PASTEL_K = 0.03;
     const soften = (c: readonly number[]): [number, number, number] => {
       const lum = 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2];
       const f = (v: number): number => Math.round(Math.min(255, (v + (lum - v) * SOFT_K) * (1 - PASTEL_K) + 255 * PASTEL_K));

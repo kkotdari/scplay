@@ -458,8 +458,12 @@
   width: 16px; height: 16px; padding: 0; border: none; border-radius: 50%;
   background: rgba(255, 255, 255, 0.14);
   color: rgba(255, 255, 255, 0.72); cursor: pointer;
+  /* 글줄 높이를 0으로 — 인라인 svg가 글줄 기준선 위에 앉아 원 안에서 아래로 처졌다(지적: "버튼과
+     내용물 중심이 안 맞는다"). svg도 block으로 세워 기준선 여백을 없앤다. */
+  line-height: 0;
   transition: background 0.15s ease, color 0.15s ease;
-}@media (hover: hover) {
+}
+.scr-motion-track-btn svg { display: block; }@media (hover: hover) {
   .scr-motion-track-btn:hover { background: rgba(255, 255, 255, 0.28); color: #fff; }
 }
 
@@ -467,6 +471,16 @@
 /* 켜진 하나는 그 선수의 색으로 찬다 — 지도 위 유닛 색과 곧바로 이어져, 지금 누구를
    따라가는 중인지가 표에서도 화면에서도 같은 색으로 읽힌다. */
 .scr-motion-track-on { background: var(--pcol, #fff); color: #0b0f14; }
+/* 켜진 표시는 색을 까는 것만이 아니라 **조준선 아이콘이 액티브 그린으로 깜빡인다**(요청) — 지금 따라가는
+   중이라는 살아 있는 신호다. 바탕은 그 사람 색 그대로 두고 글자색만 초록 ↔ 검정을 오간다. */
+@keyframes scr-track-blink {
+  0%, 45% { color: #2ee59d; filter: drop-shadow(0 0 3px rgba(46, 229, 157, 0.9)); }
+  55%, 100% { color: #0b0f14; filter: none; }
+}
+.scr-motion-track-on svg { animation: scr-track-blink 1s steps(1, end) infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .scr-motion-track-on svg { animation: none; color: #2ee59d; }
+}
 /* ★ 로스터의 나머지는 **지도로 흘린다**(요청: "로스터의 아바타랑 닉네임 글자(닉네임
    자리가 아닌 글자만) 딱 선택 가능하게 해 주고 나머지 부분은 그 아래 맵으로 흘려서
    더블클릭/탭 줌으로 작동하게 해 줘") ────────────────────────────────────────────────
