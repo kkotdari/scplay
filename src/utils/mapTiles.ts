@@ -349,27 +349,31 @@ export function drawMapGrid(
        마지막 줄(온전히 높은 칸)은 램프가 아니고, 단 경계와 흰 윤곽선이 바로 그 줄과 램프 사이에 그어졌다. 램프
        칸에 **걸어 다닐 수 있는** 이웃 한 칸을 더해 클립한다 — 못 걷는 이웃(램프 옆 절벽면)은 그대로 두어 옆
        절벽선은 남는다. 8이웃이라 비스듬한 램프의 귀퉁이도 덮인다. */
-    const rampClip = new Uint8Array(n9);
+    /* ★ 이웃 칸을 **통째로** 클립하지 않는다(지적: "진짜 언덕인데도 위쪽 모서리 표현이 사라지는 경우 있어 — 지난번
+       램프 수정의 부작용") — 8이웃 걷는 칸을 다 클립하니, 램프 머리 옆 귀퉁이의 **진짜 절벽 윗선**까지 그 칸에
+       속한 몫이 통째로 지워졌다. 지워야 할 것은 램프와 그 이웃이 **맞닿은 변**의 선뿐이다. 절벽선은 그 변 위에
+       ±0.22칸(lip)으로 그어지니, 램프 칸을 걷는 이웃 쪽으로 **반 칸**만 부풀린 자리를 클립하면 맞닿은 변의 선은
+       지워지고 이웃 칸의 바깥 변(0.78칸 너머)의 선은 남는다. 못 걷는 이웃(램프 옆 절벽면) 쪽으로는 안 부풀린다.
+       반 칸 격자(2w×2h, P/2)로 마스크를 만든다: 반 칸의 제 칸이 램프면 클립, 제 칸이 걷는 칸이고 그 반 칸이 향한
+       쪽(x·y·대각)의 이웃 칸이 램프면 클립. */
+    const w2 = w * 2;
+    const h2 = h * 2;
+    const rampHalf = new Uint8Array(w2 * h2);
     if (hasRamp) {
-      for (let y = 0; y < h; y += 1) {
-        for (let x = 0; x < w; x += 1) {
-          const i = y * w + x;
-          if (ramp[i] === 1) { rampClip[i] = 1; continue; }
-          if (walk[i] !== 1) continue;
-          let near = false;
-          for (let dy = -1; dy <= 1 && !near; dy += 1) {
-            for (let dx = -1; dx <= 1; dx += 1) {
-              const xx = x + dx;
-              const yy = y + dy;
-              if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
-              if (ramp[yy * w + xx] === 1) { near = true; break; }
-            }
-          }
-          if (near) rampClip[i] = 1;
+      const rampAt = (x: number, y: number): boolean => x >= 0 && y >= 0 && x < w && y < h && ramp[y * w + x] === 1;
+      for (let hy = 0; hy < h2; hy += 1) {
+        for (let hx = 0; hx < w2; hx += 1) {
+          const tx = hx >> 1;
+          const ty = hy >> 1;
+          if (ramp[ty * w + tx] === 1) { rampHalf[hy * w2 + hx] = 1; continue; }
+          if (walk[ty * w + tx] !== 1) continue;
+          const sx = hx & 1 ? 1 : -1;
+          const sy = hy & 1 ? 1 : -1;
+          if (rampAt(tx + sx, ty) || rampAt(tx, ty + sy) || rampAt(tx + sx, ty + sy)) rampHalf[hy * w2 + hx] = 1;
         }
       }
     }
-    const noRampPath = hasRamp ? pathOf((i) => rampClip[i] !== 1) : null;
+    const noRampPath = hasRamp ? maskPath((i) => rampHalf[i] !== 1, w2, h2, P / 2) : null;
     for (let L = 1; L <= 3; L += 1) {
       const has = (): boolean => {
         for (let i = 0; i < n9; i += 1) if (lvl[i] >= L && isLand(i)) return true;
