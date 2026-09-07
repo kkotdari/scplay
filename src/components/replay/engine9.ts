@@ -126,9 +126,15 @@ export const NUKE_LEAD_SEC = 1.1;   // 0.4배(요청: 핵탄두 0.4) — 9px는 
  *    boomClock9). 그전에는 이 창만 게임 초였고 CSS는 벽시계라, ×1에서나 맞는 약속이었다:
  *    ×10이면 창은 0.4초 만에 지나가는데 구름은 제 초를 다 태우려 들어 늘 잘렸다. */
 export const NUKE_BOOM_SEC = 4;
-/** 크립이 만개까지 퍼지는 시간(초) — 원작은 해처리·콜로니에서 몇 분에 걸쳐 타일이
- *  번져 나간다(정확한 표는 공개돼 있지 않아 체감치). 시작 본진 해처리는 처음부터 만개. */
-export const CREEP_SPREAD_SEC = 180;
+/** 크립이 만개까지 퍼지는 시간(초) — 원작(OpenBW bwgame.h secondary_order_SpreadCreep)은 완공된
+ *  공급자가 15프레임(0.63초)마다 spread_creep을 한 번 돌려, 이웃 크립 수(1~8) 갈래마다 타일 하나를
+ *  채운다. 갈래가 서너 개씩 비지 않으니 틱마다 3~5칸, 최대 타원(가로 10·세로 6.25타일, 약 196칸)이
+ *  대개 30~40초면 거의 차고 끝이 느려진다. 180이었던 것을 45로(요청: 원작대로). 시작 본진 해처리는
+ *  처음부터 만개(spread_creep_completely). */
+export const CREEP_SPREAD_SEC = 45;
+/** 크립 얼룩의 만개 폭(타일) — 원작 타원(20×12.5)과 같은 넓이의 원 지름(π·10·6.25 ≈ π·8²). 얼룩 판은
+ *  둥근 한 장이라 타원을 그대로 못 내고 넓이로 맞춘다. 해처리와 콜로니가 같다(원작도 같은 타원). */
+export const CREEP_FULL_TILES = 16;
 /** 공중 몸이 뜨는 높이 — **그려진 몸 폭의 배수**다. 보기(2D·3D)와 무관하게 한 값이다.
  *
  *  ★ 보기별 갈래를 **걷었다**(요청: "2D 3D 모두 현재의 3/4 높이로 동일하게 수정하고
@@ -5826,7 +5832,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       dom.push({ k: "mineboom", key: `mine-${mi}`, x: m.x, y: m.y });
     });
     {
-    const r9 = buildsSrc.map(([sec, x, y, unit, raw, gone], i) => {
+    const r9 = buildsSrc.map(([sec, x, y, unit, raw, gone, , doneAt9], i) => {
     if (sec > t) return null;
     const race = bases.find((b2) => b2.key === raw)?.race;
     if (race !== "저그") return null;
@@ -5855,21 +5861,27 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
        해처리(sec 0)는 처음부터 만개다(원작: 첫 해처리는 크립을 다 깔고 시작). */
     const hallKind = ["Hatchery", "Lair", "Hive"].includes(unit);
     const colonyKind = unit.includes("Colony");
-    let wTiles = 8;
+    /* ★ 원작 규칙으로(요청 — 확인: OpenBW bwgame.h) ──────────────────────────────────────
+       · 해처리·크립 콜로니는 **완공된 뒤에만** 퍼뜨린다(unit_type_spreads_creep이 completed를 요구).
+         고치 동안 공급 범위는 제 발자국뿐(get_max_creep_bb의 placement_size 갈래). 그래서 착공
+         순간부터 8타일 얼룩이 깔리던 것을 걷고, 완공(doneAt)까지는 발자국 크기다.
+       · 완공 뒤 발자국에서 만개(CREEP_FULL_TILES)까지 CREEP_SPREAD_SEC에 걸쳐 자란다. 레어·하이브·
+         성큰·스포어는 앞 건물의 시계를 잇는다(앞 건물의 완공이 곧 이 자리 확산의 시작).
+       · 크립이 필요한 나머지 건물(풀·스파이어 등)은 스스로 안 퍼뜨린다 — 발자국 크기만 적신다
+         (요청: 발자국 크기로 줄이기). 그 밑의 크립은 해처리 얼룩이 이미 덮고 있다. */
+    const fp9 = FOOTPRINT[unit] ?? [3, 2];
+    let wTiles: number = fp9[0];
     if (hallKind || colonyKind) {
-      let startSec = sec;
-      for (const [s2, x2, y2, u2, r2] of buildsSrc) {
-        // 자리·계보는 위 succeedsBld와 같은 자를 쓴다 — 곁 콜로니의 시계를 안 물어온다.
-        if (r2 !== raw || s2 >= startSec
-          || Math.hypot(x2 - x, y2 - y) > SAME_SITE_TILES) continue;
-        if (succeedsBld(u2, unit)) startSec = s2;
+      const doneOf9 = (row: typeof buildsSrc[number]): number => row[7] ?? row[0] + (BUILD_SEC[row[3]] ?? 30);
+      let startSec = doneAt9 ?? sec + (BUILD_SEC[unit] ?? 30);
+      for (const row2 of buildsSrc) {
+        const [s2, x2, y2, u2, r2] = row2;
+        if (r2 !== raw || s2 >= sec || Math.hypot(x2 - x, y2 - y) > SAME_SITE_TILES) continue;
+        if (succeedsBld(u2, unit)) startSec = Math.min(startSec, doneOf9(row2));
       }
-      const maxW = hallKind ? 15 : 11;
-      const minW = hallKind ? 8 : 5.5;
-      const p = startSec <= 1 ? 1 : Math.min(1, Math.max(0, t - startSec) / CREEP_SPREAD_SEC);
-      // 앞이 빠르고 갈수록 느린 번짐 — 반 타일 눈금이라 스프라이트도 계단으로만 다시 굽는다.
+      const p = sec <= 1 ? 1 : Math.min(1, Math.max(0, t - startSec) / CREEP_SPREAD_SEC);
       const ease = 1 - (1 - p) * (1 - p);
-      wTiles = Math.round((minW + (maxW - minW) * ease) * 2) / 2;
+      wTiles = Math.round((fp9[0] + (CREEP_FULL_TILES - fp9[0]) * ease) * 2) / 2;
     }
     const mk3 = pitchK(cyb);
     /* 시점 보기 — 한 번도 못 본 자리의 **적 크립**은 안 그린다(요청: 3단 안개).
