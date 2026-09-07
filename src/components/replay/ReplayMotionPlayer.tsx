@@ -2904,6 +2904,7 @@ function tankTurretV2(siege: boolean): ShapeFace[] {
   /* 원판을 뺀 포탑·돔·포신 1.4배(요청) — withModelScale는 겹치면 덮어쓰므로(turretScaled9의 0.8과 못 겹친다) 좌표에
      직접 곱한다. 축은 포탑 밑면 가운데(0, 0, ZB9). */
   const HX9 = 1.4;
+  const BX9 = HX9 * 0.9;   // 포신은 0.9배 더(요청)
   const hex9: [number, number][] = ([
     [-0.6, 1.2 * f9], [0.6, 1.2 * f9], [1.4, 0.2 * f9], [1.1, -1.3 * f9], [-1.1, -1.3 * f9], [-1.4, 0.2 * f9],
   ] as [number, number][]).map(([hx9, hy9]) => [hx9 * HX9, hy9 * HX9] as [number, number]);
@@ -2916,7 +2917,7 @@ function tankTurretV2(siege: boolean): ShapeFace[] {
     x9, y9 * Math.cos(TILT9) - (z9 - ZB9) * Math.sin(TILT9), ZB9 + y9 * Math.sin(TILT9) + (z9 - ZB9) * Math.cos(TILT9),
   ];
   {
-    const HT9 = 1.35 * HX9;
+    const HT9 = 1.35 * HX9 * 0.9;   // 포탑 높이 0.9배(요청)
     const bot9 = hex9.map(([hx9, hy9]) => T9(hx9, hy9, ZB9));
     const top9 = hex9.map(([hx9, hy9]) => T9(hx9, hy9, ZB9 + HT9));
     /* 옆면은 **거르지 않고 먼 것부터** 그린다(지적: 시즈 포탑 옆면 가려짐) — 기울인 육각의 옆면 법선은 위아래 성분이
@@ -2939,22 +2940,18 @@ function tankTurretV2(siege: boolean): ShapeFace[] {
     hexF.push([tp9, 1, TANK_STEEL] as ShapeFace, topFace(tp9, 0.2));
     out.push(...tagKey(hexF, kT(0, 0) + 0.3));   // 윗면 덮는다(지적: 윗면이 안 보임)
   }
-  // 지휘관 해치 — 상자 위 뒤쪽 작은 돔(기울기를 함께 탄다).
-  {
-    const [dx9, dy9, dz9] = T9(0, -0.55 * f9 * HX9, ZB9 + (Z0 + 1.6 - ZB9) * HX9);
-    out.push(...tagKey(paintBase(domeFaces3(dx9, dy9, 0.32 * HX9, 0.22 * HX9, dz9), "#7d848d"), kT(0, -0.55 * f9) + 0.5));
-  }
+  // (걷어냄·요청) 포탑 위 작은 회색 돔(지휘관 해치).
   const fwd9 = facingRatio(0, 1) > 0.08;
   // 포신 길이 0.8배(요청): 일반 0.6~3.5 → 0.6~3.0(끝마디 2.45~3.0) · 시즈 3.8 → 3.04. 키의 y도 짧아진 만큼(2.4 → 2.0).
   if (!siege) {
     // ③ 일반 모드 — 짧은 쌍포신(앞 폭이 짧은 앞면에서 나온다). 반동은 뒤로 0.6.
     const rc9 = poseNow === 2 ? 0.6 : 0;
-    const bz9 = ZB9 + (Z0 + 0.95 - ZB9) * HX9;
+    const bz9 = ZB9 + (Z0 + 0.95 - ZB9) * BX9;
     for (const m of [-1, 1] as const) {
-      const bx = m * 0.42 * HX9;
-      const kB = kT(bx, 2.0 * HX9) + 0.1;
-      out.push(...tagKey(paintBase(tubeFaces(bx, 0.6 * HX9 - rc9, bx, 2.6 * HX9 - rc9, 0.3 * HX9, bz9), GUNMETAL), kB));
-      out.push(...tagKey(paintBase(tubeFaces(bx, 2.45 * HX9 - rc9, bx, 3.0 * HX9 - rc9, 0.38 * HX9, bz9, fwd9), GUNMETAL), kB + 0.05));
+      const bx = m * 0.42 * BX9;
+      const kB = kT(bx, 2.0 * BX9) + 0.1;
+      out.push(...tagKey(paintBase(tubeFaces(bx, 0.6 * BX9 - rc9, bx, 2.6 * BX9 - rc9, 0.3 * BX9, bz9), GUNMETAL), kB));
+      out.push(...tagKey(paintBase(tubeFaces(bx, 2.45 * BX9 - rc9, bx, 3.0 * BX9 - rc9, 0.38 * BX9, bz9, fwd9), GUNMETAL), kB + 0.05));
     }
   } else {
     // ④ 시즈 모드 — 돌아앉은 본체의 긴 앞면에서 굵고 긴 포신 하나(기울여 살짝 하늘을 본다). 반동 1.1.
@@ -2962,9 +2959,9 @@ function tankTurretV2(siege: boolean): ShapeFace[] {
     out.push(...tagKey(paintBase(spirePillar({
       x: 0, y: 0, h: 1, w: 1, segs: 6, sides: 8, oval: 2, caps: "both",
       path: (t9: number): [number, number, number] =>
-        T9(0, (1.0 + 3.04 * t9) * HX9 - rcS9, ZB9 + (Z0 + 1.0 + 0.44 * t9 - ZB9) * HX9),
-      widthOf: (t9: number): number => (0.6 - 0.07 * t9) * HX9,
-    }), TANK_STEEL), kT(0, 2.0 * HX9) + 0.2));
+        T9(0, (1.0 + 3.04 * t9) * BX9 - rcS9, ZB9 + (Z0 + 1.0 + 0.44 * t9 - ZB9) * BX9),
+      widthOf: (t9: number): number => (0.6 - 0.07 * t9) * BX9,
+    }), TANK_STEEL), kT(0, 2.0 * BX9) + 0.2));
   }
   return out;
 }
@@ -3016,20 +3013,18 @@ function siegeLegs(): ShapeFace[] {
     /* 발 마디(재정정: "세 개의 발이 나오던 것은 맞아 — 그 끝만 뾰족하게") — 무릎에서 곧게 내려가는 네모 쇠기둥
        (0.44각)이 발목 블록에 닿고, 블록 둘레 세 자리에서 **수직** 네모 발 기둥 셋(0.28각)이 내려가 맨 아래 짧은
        사각뿔 끝만 뾰족하다. 옛 비스듬한 발톱·이빨 대신 각진 기둥이다. */
+    // 네모 발판은 걷었다(재요청) — 기둥 밑동에서 수직 발 마디 셋이 곧장 나와 각각 땅에 박힌다.
     out.push(...tagKey(paintBase(
-      boxFaces3(fx, fy, 0.44, 0.44, KNEE_Z - 1.0, 1.0), TANK_STEEL,
+      boxFaces3(fx, fy, 0.44, 0.44, KNEE_Z - 0.9, 0.9), TANK_STEEL,
     ), key + 0.15));
-    out.push(...tagKey(paintBase(
-      frustumFaces3(fx, fy, 0.9, 0.9, 0.7, 0.7, 0.45, 0.65), TANK_STEEL,
-    ), key + 0.2));
     for (const k of [0, 1, 2] as const) {
       const th = Math.atan2(dy, dx) + (k * 2 * Math.PI) / 3;
-      const tx = fx + Math.cos(th) * 0.5;
-      const ty = fy + Math.sin(th) * 0.5;
-      // 발 기둥 굵기 0.28 → 0.2(재요청: 마디 굵기 감소), 뾰족 끝도 0.22.
+      const tx = fx + Math.cos(th) * 0.3;
+      const ty = fy + Math.sin(th) * 0.3;
+      // 발 마디 굵기 0.2, 기둥 밑동(z 0.95)에서 땅속(−0.15)까지 — 끝 사각뿔만 뾰족.
       out.push(...tagKey(paintBase([
-        ...boxFaces3(tx, ty, 0.2, 0.2, 0.45, 0.3),
-        ...spikeHorn(tx, ty, 0.31, tx, ty, -0.02, 0.22, "#7d848d", 4, 0),
+        ...boxFaces3(tx, ty, 0.2, 0.2, 0.75, 0.2),
+        ...spikeHorn(tx, ty, 0.21, tx, ty, -0.15, 0.22, "#7d848d", 4, 0),
       ], "#7d848d"), key + 0.3 + k * 0.02));
     }
   }
