@@ -2901,9 +2901,12 @@ function tankTurretV2(siege: boolean): ShapeFace[] {
   out.push(...tagKey(cylinderFaces3(0, 0, 1.9, 0.25, Z0), kT(0, 0)));
   // ② 육각 상자 — 시즈면 앞뒤를 뒤집는다(180° 회전).
   const f9 = siege ? -1 : 1;
-  const hex9: [number, number][] = [
+  /* 원판을 뺀 포탑·돔·포신 1.4배(요청) — withModelScale는 겹치면 덮어쓰므로(turretScaled9의 0.8과 못 겹친다) 좌표에
+     직접 곱한다. 축은 포탑 밑면 가운데(0, 0, ZB9). */
+  const HX9 = 1.4;
+  const hex9: [number, number][] = ([
     [-0.6, 1.2 * f9], [0.6, 1.2 * f9], [1.4, 0.2 * f9], [1.1, -1.3 * f9], [-1.1, -1.3 * f9], [-1.4, 0.2 * f9],
-  ];
+  ] as [number, number][]).map(([hx9, hy9]) => [hx9 * HX9, hy9 * HX9] as [number, number]);
   /* 시즈 모드는 받침 원판만 빼고 **육각 포탑·돔·포신이 함께 살짝 기운다**(요청: 포신이 살짝 하늘을 향하게) —
      포탑 밑면 높이(Z0+0.25)의 x축을 축으로 +y(포신) 쪽이 12도 들린다. 육각은 prismZFaces가 축 정렬이라 기운 꼭짓점으로
      직접 짠다(윗면 + 옆면 여섯, 옆면은 제 법선으로 빛). 일반 모드는 기울기 0이라 옛 그림 그대로다. */
@@ -2913,7 +2916,7 @@ function tankTurretV2(siege: boolean): ShapeFace[] {
     x9, y9 * Math.cos(TILT9) - (z9 - ZB9) * Math.sin(TILT9), ZB9 + y9 * Math.sin(TILT9) + (z9 - ZB9) * Math.cos(TILT9),
   ];
   {
-    const HT9 = 1.35;
+    const HT9 = 1.35 * HX9;
     const bot9 = hex9.map(([hx9, hy9]) => T9(hx9, hy9, ZB9));
     const top9 = hex9.map(([hx9, hy9]) => T9(hx9, hy9, ZB9 + HT9));
     /* 옆면은 **거르지 않고 먼 것부터** 그린다(지적: 시즈 포탑 옆면 가려짐) — 기울인 육각의 옆면 법선은 위아래 성분이
@@ -2938,28 +2941,30 @@ function tankTurretV2(siege: boolean): ShapeFace[] {
   }
   // 지휘관 해치 — 상자 위 뒤쪽 작은 돔(기울기를 함께 탄다).
   {
-    const [dx9, dy9, dz9] = T9(0, -0.55 * f9, Z0 + 1.6);
-    out.push(...tagKey(paintBase(domeFaces3(dx9, dy9, 0.32, 0.22, dz9), "#7d848d"), kT(0, -0.55 * f9) + 0.5));
+    const [dx9, dy9, dz9] = T9(0, -0.55 * f9 * HX9, ZB9 + (Z0 + 1.6 - ZB9) * HX9);
+    out.push(...tagKey(paintBase(domeFaces3(dx9, dy9, 0.32 * HX9, 0.22 * HX9, dz9), "#7d848d"), kT(0, -0.55 * f9) + 0.5));
   }
   const fwd9 = facingRatio(0, 1) > 0.08;
   // 포신 길이 0.8배(요청): 일반 0.6~3.5 → 0.6~3.0(끝마디 2.45~3.0) · 시즈 3.8 → 3.04. 키의 y도 짧아진 만큼(2.4 → 2.0).
   if (!siege) {
     // ③ 일반 모드 — 짧은 쌍포신(앞 폭이 짧은 앞면에서 나온다). 반동은 뒤로 0.6.
     const rc9 = poseNow === 2 ? 0.6 : 0;
+    const bz9 = ZB9 + (Z0 + 0.95 - ZB9) * HX9;
     for (const m of [-1, 1] as const) {
-      const bx = m * 0.42;
-      const kB = kT(bx, 2.0) + 0.1;
-      out.push(...tagKey(paintBase(tubeFaces(bx, 0.6 - rc9, bx, 2.6 - rc9, 0.3, Z0 + 0.95), GUNMETAL), kB));
-      out.push(...tagKey(paintBase(tubeFaces(bx, 2.45 - rc9, bx, 3.0 - rc9, 0.38, Z0 + 0.95, fwd9), GUNMETAL), kB + 0.05));
+      const bx = m * 0.42 * HX9;
+      const kB = kT(bx, 2.0 * HX9) + 0.1;
+      out.push(...tagKey(paintBase(tubeFaces(bx, 0.6 * HX9 - rc9, bx, 2.6 * HX9 - rc9, 0.3 * HX9, bz9), GUNMETAL), kB));
+      out.push(...tagKey(paintBase(tubeFaces(bx, 2.45 * HX9 - rc9, bx, 3.0 * HX9 - rc9, 0.38 * HX9, bz9, fwd9), GUNMETAL), kB + 0.05));
     }
   } else {
     // ④ 시즈 모드 — 돌아앉은 본체의 긴 앞면에서 굵고 긴 포신 하나(기울여 살짝 하늘을 본다). 반동 1.1.
     const rcS9 = poseNow === 2 ? 1.1 : 0;
     out.push(...tagKey(paintBase(spirePillar({
       x: 0, y: 0, h: 1, w: 1, segs: 6, sides: 8, oval: 2, caps: "both",
-      path: (t9: number): [number, number, number] => T9(0, 1.0 - rcS9 + 3.04 * t9, Z0 + 1.0 + 0.44 * t9),
-      widthOf: (t9: number): number => 0.6 - 0.07 * t9,
-    }), TANK_STEEL), kT(0, 2.0) + 0.2));
+      path: (t9: number): [number, number, number] =>
+        T9(0, (1.0 + 3.04 * t9) * HX9 - rcS9, ZB9 + (Z0 + 1.0 + 0.44 * t9 - ZB9) * HX9),
+      widthOf: (t9: number): number => (0.6 - 0.07 * t9) * HX9,
+    }), TANK_STEEL), kT(0, 2.0 * HX9) + 0.2));
   }
   return out;
 }
@@ -2968,9 +2973,9 @@ function siegeLegs(): ShapeFace[] {
   const out: ShapeFace[] = [];
   for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1]] as [number, number][]) {
     // 다리 뿌리(차체 옆구리)와 발목(바깥·아래).
-    const r0 = dx ? 2.6 : 3.2;
+    const r0 = dx ? 2.1 : 2.9;   // 안쪽으로(요청: 고정 다리를 몸 중심 쪽으로) — 2.6/3.2 → 2.1/2.9
     // 바깥으로 더 뻗는다(같은 지적) — 4.1/4.6 → 5.1/5.6.
-    const r1 = dx ? 5.1 : 5.6;
+    const r1 = dx ? 4.4 : 5.0;   // 무릎도 같이 안으로 — 5.1/5.6 → 4.4/5.0
     const ax = dx * r0;
     const ay = dy * r0;
     const fx = dx * r1;
