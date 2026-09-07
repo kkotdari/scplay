@@ -2892,13 +2892,20 @@ const TURRET_BASE = 20;
    · 일반 모드는 포신을 짧게(앞으로 2.4). 시즈 모드는 본체가 **180° 돌아** 긴 뒤 모서리가
      앞을 보고, 그 앞으로 긴 포신이 나온다.
    평시 포탑은 화면 보정(TURRET_SINK)으로 0.6 파묻고, 시즈는 받침 밑면이 곧 차체 윗면이다. */
-function tankTurretV2(siege: boolean): ShapeFace[] {
+/** `parts` — 전환 동작용 홑판을 가르는 손잡이: body(받침+육각 포탑)·barrel(포신)만 골라 짓고, sinkAsTank면 시즈 포신도
+ *  탱크 포탑 높이(TURRET_SINK)에 앉힌다(전환 중 탱크 포탑 몸에 시즈 포신이 뒤로 나오는 판). */
+function tankTurretV2(siege: boolean, parts?: { body?: boolean; barrel?: boolean; sinkAsTank?: boolean;
+  /** 포신이 나온 몫(0~1) — 전환 홑판만 쓴다. 탱크 포신은 (1−ext)만큼 포탑 속으로 들어가고, 시즈 포신은 ext만큼 뒤로 나온다. */
+  ext?: number }): ShapeFace[] {
   const out: ShapeFace[] = [];
-  const oz = (z9: number): number => (siege ? z9 : z9 - TURRET_SINK);
+  const wantBody9 = parts?.body ?? true;
+  const wantBarrel9 = parts?.barrel ?? true;
+  const sink9 = parts?.sinkAsTank ? true : !siege;
+  const oz = (z9: number): number => (sink9 ? z9 - TURRET_SINK : z9);
   const kT = (x9: number, y9: number): number => depthNow(x9, y9) * 1.6 + TURRET_BASE;
   const Z0 = oz(2.85);
   // ① 회전판 — 임자색(칠하지 않는다).
-  out.push(...tagKey(cylinderFaces3(0, 0, 1.9, 0.25, Z0), kT(0, 0)));
+  if (wantBody9) out.push(...tagKey(cylinderFaces3(0, 0, 1.9, 0.25, Z0), kT(0, 0)));
   // ② 육각 상자 — 시즈면 앞뒤를 뒤집는다(180° 회전).
   const f9 = siege ? -1 : 1;
   /* 원판을 뺀 포탑·돔·포신 1.4배(요청) — withModelScale는 겹치면 덮어쓰므로(turretScaled9의 0.8과 못 겹친다) 좌표에
@@ -2911,7 +2918,8 @@ function tankTurretV2(siege: boolean): ShapeFace[] {
   /* 시즈 모드는 받침 원판만 빼고 **육각 포탑·돔·포신이 함께 살짝 기운다**(요청: 포신이 살짝 하늘을 향하게) —
      포탑 밑면 높이(Z0+0.25)의 x축을 축으로 +y(포신) 쪽이 12도 들린다. 육각은 prismZFaces가 축 정렬이라 기운 꼭짓점으로
      직접 짠다(윗면 + 옆면 여섯, 옆면은 제 법선으로 빛). 일반 모드는 기울기 0이라 옛 그림 그대로다. */
-  const TILT9 = siege ? (12 * Math.PI) / 180 : 0;
+  // 전환 홑판(ext 지정)은 탱크 포탑(기울기 0)에 얹힌다 — 포신·포탑이 함께 드는 것은 변신이 끝난 시즈 판에서다.
+  const TILT9 = siege && parts?.ext === undefined ? (12 * Math.PI) / 180 : 0;
   const ZB9 = Z0 + 0.25;
   const T9 = (x9: number, y9: number, z9: number): [number, number, number] => [
     x9, y9 * Math.cos(TILT9) - (z9 - ZB9) * Math.sin(TILT9), ZB9 + y9 * Math.sin(TILT9) + (z9 - ZB9) * Math.cos(TILT9),
@@ -2938,29 +2946,41 @@ function tankTurretV2(siege: boolean): ShapeFace[] {
     for (const s9 of sides9) hexF.push([s9.q, 1, TANK_STEEL] as ShapeFace, ...(s9.fl.visible ? s9.fl.face(s9.q) : [sideFace(s9.q, 0.25)]));
     const tp9 = polyPath3(top9);
     hexF.push([tp9, 1, TANK_STEEL] as ShapeFace, topFace(tp9, 0.2));
-    out.push(...tagKey(hexF, kT(0, 0) + 0.3));   // 윗면 덮는다(지적: 윗면이 안 보임)
+    if (wantBody9) out.push(...tagKey(hexF, kT(0, 0) + 0.3));   // 윗면 덮는다(지적: 윗면이 안 보임)
   }
   // (걷어냄·요청) 포탑 위 작은 회색 돔(지휘관 해치).
   const fwd9 = facingRatio(0, 1) > 0.08;
+  if (!wantBarrel9) return out;
   // 포신 길이 0.8배(요청): 일반 0.6~3.5 → 0.6~3.0(끝마디 2.45~3.0) · 시즈 3.8 → 3.04. 키의 y도 짧아진 만큼(2.4 → 2.0).
   if (!siege) {
     // ③ 일반 모드 — 짧은 쌍포신(앞 폭이 짧은 앞면에서 나온다). 반동은 뒤로 0.6.
-    const rc9 = poseNow === 2 ? 0.6 : 0;
+    /* 들어간 몫(전환 홑판, parts.ext) — 반동(rc9)과 같은 축으로 포신을 포탑 속으로 밀되, 포탑 앞면(뿌리 0.6) 안쪽은
+       안 그린다(앞 겹판은 포탑 몸 위에 찍히므로 속에 든 토막이 비쳐서는 안 된다). 다 들어가면(ext 0) 한 토막도 없다. */
+    const ext9 = parts?.ext;
+    const rc9 = (poseNow === 2 && ext9 === undefined ? 0.6 : 0) + (ext9 !== undefined ? (1 - ext9) * 2.4 * BX9 : 0);
+    const root9 = 0.6 * BX9;
     const bz9 = ZB9 + (Z0 + 0.95 - ZB9) * BX9;
     for (const m of [-1, 1] as const) {
       const bx = m * 0.42 * BX9;
       const kB = kT(bx, 2.0 * BX9) + 0.1;
-      out.push(...tagKey(paintBase(tubeFaces(bx, 0.6 * BX9 - rc9, bx, 2.6 * BX9 - rc9, 0.3 * BX9, bz9), GUNMETAL), kB));
-      out.push(...tagKey(paintBase(tubeFaces(bx, 2.45 * BX9 - rc9, bx, 3.0 * BX9 - rc9, 0.38 * BX9, bz9, fwd9), GUNMETAL), kB + 0.05));
+      const a0 = Math.max(root9, 0.6 * BX9 - rc9); const a1 = 2.6 * BX9 - rc9;
+      if (a1 - a0 > 0.05) out.push(...tagKey(paintBase(tubeFaces(bx, a0, bx, a1, 0.3 * BX9, bz9), GUNMETAL), kB));
+      const b0 = Math.max(root9, 2.45 * BX9 - rc9); const b1 = 3.0 * BX9 - rc9;
+      if (b1 - b0 > 0.05) out.push(...tagKey(paintBase(tubeFaces(bx, b0, bx, b1, 0.38 * BX9, bz9, fwd9), GUNMETAL), kB + 0.05));
     }
   } else {
     // ④ 시즈 모드 — 돌아앉은 본체의 긴 앞면에서 굵고 긴 포신 하나(기울여 살짝 하늘을 본다). 반동 1.1.
-    const rcS9 = poseNow === 2 ? 1.1 : 0;
+    const extS9 = parts?.ext ?? 1;
+    if (extS9 < 0.04) return out;   // 아직 안 나왔다(전환 홑판)
+    const rcS9 = poseNow === 2 && parts?.ext === undefined ? 1.1 : 0;
+    // 나온 몫(extS9)만큼만 뿌리(1.0)에서 뻗는다 — 뒤 겹판은 포탑 몸 뒤에 찍히므로 뿌리 쪽은 몸이 가린다.
+    // 전환 중(ext 지정)엔 **수평**으로 나온다 — 기울기는 변신이 끝나 시즈 포탑과 한 몸이 될 때 함께 든다.
+    const rise9 = parts?.ext === undefined ? 0.44 : 0;
     out.push(...tagKey(paintBase(spirePillar({
       x: 0, y: 0, h: 1, w: 1, segs: 6, sides: 8, oval: 2, caps: "both",
       path: (t9: number): [number, number, number] =>
-        T9(0, (1.0 + 3.04 * t9) * BX9 - rcS9, ZB9 + (Z0 + 1.0 + 0.44 * t9 - ZB9) * BX9),
-      widthOf: (t9: number): number => (0.6 - 0.07 * t9) * BX9,
+        T9(0, (1.0 + 3.04 * extS9 * t9) * BX9 - rcS9, ZB9 + (Z0 + 1.0 + rise9 * extS9 * t9 - ZB9) * BX9),
+      widthOf: (t9: number): number => (0.6 - 0.07 * extS9 * t9) * BX9,
     }), TANK_STEEL), kT(0, 2.0 * BX9) + 0.2));
   }
   return out;
@@ -10582,6 +10602,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      더 그리던 버그 위에서 판단한 값이었다 — 그 버그를 걷고 고해상도로 견주니 0이 시즈 판의 다리 셋과 정확히 겹친다.) */
   tanksiegelegs: () => siegeLegs([[1, 0], [0, -1]]),
   tanksiegelegsF: () => siegeLegs([[-1, 0]]),
+  /* ★ 시즈 전환의 포신 동작(요청: "탱크 포신은 포탑으로 들어가고 반대쪽에서 시즈 포신이 나오게 — 둘이 동시에") — 전환 창의
+     포탑 op은 포신 없는 포탑 몸(tankturret0)에, 앞 포신(tankbarrel)은 attach2(몸 앞)로 배율 1 → 0, 뒤 포신(siegebarrel)은
+     attach(몸 뒤)로 0 → 1. 배율 축이 모델 원점(포탑 링 가운데)이라 포신이 포탑 속으로 들어가고 반대쪽에서 나온다.
+     시즈 포신은 spin 180으로 탱크 포탑 뒤(−y)를 보고, 높이는 탱크 포탑(sinkAsTank)에 맞춘다. */
+  /* 배율 대신 **자세 컷**으로 움직인다(실측: 배율 축이 땅 원점이라 줄인 포신이 포탑에서 떨어져 떠 보였다) — 자세 0~5가
+     곧 '나온 몫' 여섯 칸이고(POSE_KINDS에 등록, 판 열쇠에 실린다), 탱크 포신은 1 − p/5, 시즈 포신은 p/5만큼 나온다. */
+  tankturret0: () => turretScaled9(() => tankTurretV2(false, { barrel: false })),
+  tankbarrel: () => turretScaled9(() => tankTurretV2(false, { body: false, ext: 1 - poseNow / 5 })),
+  siegebarrel: () => withModelSpin(180, () => turretScaled9(() => tankTurretV2(true, { body: false, sinkAsTank: true, ext: poseNow / 5 }))),
   /* 벌처(사진 기준 재작도 — 지적: "기존 너무 단순") ────────────────────────────
      사진이 말하는 것:
        · **길다**. 옆에서 본 실루엣이 3:1쯤으로 납작하고, 그 절반이 앞으로 뻗은
@@ -21365,7 +21394,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
         const out9: UnitDrawOp[] = [];
         for (const op0 of raw9) {
           let op = op0;
-          if (lite9 && (op.kind === "tankgun" || op.kind === "tanksiegegun")) continue;
+          if (lite9 && (op.kind === "tankgun" || op.kind === "tanksiegegun" || op.kind === "tankturret0")) continue;
           let kind = op.kind;
           let pose = op.pose ?? 0;
           let rotDeg = op.rotDeg;
@@ -22174,11 +22203,12 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
           const atSpr9 = op.attach ? unitSprite({ ...op, kind: op.attach }, pxqB, B) : null;
           /* 둘째 겹판(op.attach2) — 늘 몸 **앞**에 찍는다(시즈 전환의 앞쪽 버팀다리). 같은 배율(attachK)을 탄다. */
           const at2Spr9 = op.attach2 ? unitSprite({ ...op, kind: op.attach2 }, pxqB, B) : null;
-          const atDrawOf9 = (sp9: typeof atSpr9): void => {
+          const atDrawOf9 = (sp9: typeof atSpr9, kOverride9?: number): void => {
             if (!sp9) return;
             SPRITE_PERF.blit += 1;
             /* 겹판 배율(op.attachK) — 원점(모델 원점 = 변환의 0,0) 기준이라 시즈 버팀다리가 차체에서 뻗어 나온다. */
-            const aK9 = op.attachK ?? 1;
+            const aK9 = kOverride9 ?? op.attachK ?? 1;
+            if (aK9 <= 0.01) return;
             if (aK9 !== 1) { ctx.save(); ctx.scale(aK9, aK9); }
             drawTint9(ctx, sp9, op.color, pxqB, k, B);   // 물들인 마스크를 몸판 **아래**에(unitSprite의 ★)
             ctx.drawImage(
@@ -22202,7 +22232,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
             cw9 * k, ch9 * k,
           );
           if (!atBack9) atDraw9();
-          atDrawOf9(at2Spr9);
+          atDrawOf9(at2Spr9, op.attach2K);   // 둘째 겹판은 제 배율(attach2K)이 있으면 그것을, 없으면 attachK를 탄다
           ctx.setTransform(B, 0, 0, B, 0, 0);
           continue;
         }
@@ -29066,8 +29096,8 @@ export default function ReplayMotionPlayer({
        본판만이다 — 별본 기하는 3~7ms라 재생 중 한두 번 구워도 안 아프고, 아팠던 것은
        표(수백 ms)뿐이다. */
     const WARM_KIN9: Record<string, readonly string[]> = {
-      tank: ["tankbody", "tankgun", "tanksiege", "tanksiegebody", "tanksiegegun", "tanksiegelegs", "tanksiegelegsF"],
-      tanksiege: ["tanksiegebody", "tanksiegegun", "tank", "tankbody", "tankgun", "tanksiegelegs", "tanksiegelegsF"],
+      tank: ["tankbody", "tankgun", "tanksiege", "tanksiegebody", "tanksiegegun", "tanksiegelegs", "tanksiegelegsF", "tankturret0", "tankbarrel", "siegebarrel"],
+      tanksiege: ["tanksiegebody", "tanksiegegun", "tank", "tankbody", "tankgun", "tanksiegelegs", "tanksiegelegsF", "tankturret0", "tankbarrel", "siegebarrel"],
       lurker: ["burrowhole", "lurkerburrow", "lurkerfire"],
       scv: ["scvHold", "loadScvMin", "loadScvGas"],
       probe: ["probeHold", "loadProbeMin", "loadProbeGas"],

@@ -400,6 +400,9 @@ export const POSE_KINDS: Record<string, { move?: boolean; atk?: boolean; flap?: 
   // ── 비행체: 이동 중이면 자세 1(추진체 불꽃), 아니면 0 ──
   wraith: { thrust: true }, dship: { thrust: true }, valk: { thrust: true }, bc: { thrust: true },
   scout: { thrust: true }, corsair: { thrust: true }, shuttle: { thrust: true }, carrier: { thrust: true },
+  /* 시즈 전환의 포신 홑판 — 자세 0~5가 '나온 몫' 여섯 칸이다(ReplayMotionPlayer tankbarrel·siegebarrel). 걸음·공격 컷의
+     뜻이 아니라, 모든 자세가 판 열쇠에 실리도록 둘 다 켠다. */
+  tankbarrel: { move: true, atk: true }, siegebarrel: { move: true, atk: true },
   gunner: { move: true, atk: true },
   fbat: { move: true, atk: true },
   ghost: { move: true, atk: true },
@@ -1036,6 +1039,8 @@ export const NORM_PAIR: Record<string, string> = {
   tanksiegelegs: "tanksiegebody",
   /* 앞쪽 다리 홑판(attach2)도 같은 자 — 짝이 없으면 배수 1로 구워져 앞 다리만 딴 크기로 보였다(지적: "왼쪽 옆 다리만 크게"). */
   tanksiegelegsF: "tanksiegebody",
+  /* 전환 창의 포탑 몸·앞 포신·뒤 포신 홑판 — 탱크 포탑(tankgun)과 같은 자(차체 배수). */
+  tankturret0: "tankbody", tankbarrel: "tankbody", siegebarrel: "tankbody",
   /* 버로우한 럴커 두 별본 — 흙 구멍이 같은 크기라야 버로우 자리가 종류마다 안 흔들린다. */
   lurkerburrow: "burrowhole", lurkerfire: "burrowhole",
   /* 짐을 든 일꾼도 **맨몸 배수 그대로**다(요청: 일꾼별 자원 들기 모델) — 짐이 늘어난
@@ -1411,8 +1416,10 @@ export type UnitDrawOp = {
    *  배수로 구워지므로, 몸의 자리 보정을 그대로 쓰고 제 잉크 오프셋만 달리 하면 짐이 제
    *  모형 좌표에 앉는다. */
   attach?: string;
-  /** 둘째 겹판 — 늘 몸 앞에 찍는다(시즈 전환의 앞쪽 버팀다리). attachK를 같이 탄다. */
+  /** 둘째 겹판 — 늘 몸 앞에 찍는다(시즈 전환의 앞쪽 버팀다리·앞 포신). attach2K가 없으면 attachK를 같이 탄다. */
   attach2?: string;
+  /** 둘째 겹판의 제 배율 — 포신 전환처럼 두 겹판이 서로 반대로 움직일 때. */
+  attach2K?: number;
   /** 겹쳐 찍는 판만 원점(모델 원점) 기준으로 곱하는 배율 — 시즈 전환의 버팀다리가 몸에서 뻗어 나오고 들어가는
    *  동작이다(요청). 있으면 그 판은 몸 **뒤**에 깐다(오므린 다리가 차체 밖으로 안 비친다). */
   attachK?: number;
@@ -7408,18 +7415,33 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
          (재지적: "변신 중엔 포탑도 원래 방향(정면) — 완료되어 시즈 포신으로 바뀐 순간 방향도 바뀌게"). 언시즈 창도 탱크
          판이라 앞이다. */
       const gunRest9 = kind0 === "tanksiege" ? 90 : 0;
+      /** 전환 창의 포신 동작 — 시즈로 가면 0 → 1, 언시즈면 1 → 0(뒤 포신이 나온 몫). 부드럽게(smoothstep). */
+      const gunXf9 = !!siegeXf9 && !markerView && !liteView;
+      const gunU9 = ((): number => {
+        if (!siegeXf9) return 0;
+        const u9 = Math.min(1, Math.max(0, siegeXf9.u));
+        const e9 = u9 * u9 * (3 - 2 * u9);
+        return siegeXf9.to === 1 ? e9 : 1 - e9;
+      })();
       const idleAim9 = lastAim9 ?? ((last.rotDeg ?? 0) + gunRest9);
       unitOps.push({
         // 포신 가려짐 해결(지적) — 곁 유닛의 z가 포탑을 얇게 자르지 않게 여유 있게.
-        ...last, kind: gunKind, fx: gfx, fy: gfy, z: last.z + 30,
+        ...last, kind: gunXf9 ? "tankturret0" : gunKind, fx: gfx, fy: gfy, z: last.z + 30,
         noShadow: true,   // 그림자는 차체 판이 진다(지적: "탱크 본체와 포탑의 그림자가 따로 두 개")
         /* ★ 겹판(시즈 버팀다리)은 차체 op만의 것이다(지적: "시즈 바디를 그려놓고 또 다리 애니를 넣으니 문제") — `...last`로
            차체 op을 통째로 물려받으며 attach·attachK까지 딸려 와, 포탑 op이 다리 한 벌을 **포탑 각으로** 한 번 더 그렸다.
-           그것이 '엉뚱한 방향의 다리 한 벌 더'였다. */
-        attach: undefined, attach2: undefined, attachK: undefined,
+           그것이 '엉뚱한 방향의 다리 한 벌 더'였다.
+           ★ 전환 창에서는 포탑 op이 **제 겹판**을 든다(요청: "탱크 포신은 포탑으로 들어가고 반대쪽에서 시즈 포신이 나오게 —
+             둘이 동시에"): 포신 없는 포탑 몸에 앞 포신(attach2, 1 → 0)과 뒤 포신(attach, 0 → 1)을 같은 창에서 반대로 움직인다.
+             언시즈는 거꾸로다. */
+        ...(gunXf9
+          ? { attach: "siegebarrel", attachK: 1, attach2: "tankbarrel", attach2K: 1 }
+          : { attach: undefined, attach2: undefined, attachK: undefined, attach2K: undefined }),
         /* 포신 반동 컷(요청) — 차체 판은 컷이 없으므로 몸 op의 pose를 물려받아
-           봐야 늘 0이다. 발포 박자(fireK)가 곧 이 판의 자세다. */
-        pose: fireK ? 2 : 0,
+           봐야 늘 0이다. 발포 박자(fireK)가 곧 이 판의 자세다.
+           ★ 전환 창엔 자세가 '나온 몫' 여섯 칸이다(0~5) — 겹판(tankbarrel·siegebarrel)이 op의 pose를 물려받아 제 길이로
+             구워진다(배율 아님). 여기 한 줄이 위 spread를 덮으므로 여기서 정한다. */
+        pose: gunXf9 ? Math.max(0, Math.min(5, Math.round(gunU9 * 5))) as 0 | 1 | 2 | 3 | 4 | 5 : fireK ? 2 : 0,
         /* 포탑은 **표적을 본다**(요청: "포톤, 터렛, 시즈탱크는 공격방향에 맞게
            포탑부를 돌려줘야함") — 여태 포탑 판이 차체 방향(rotDeg)을 그대로
            물려받아, 옆에서 오는 적을 차체째 돌지 않고는 겨눌 수 없었다. 표적이
