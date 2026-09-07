@@ -3641,7 +3641,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const BAY_Z1 = DOME_Z + 1.25;
       const BAY_YI = 3.05;
       /** 벽 선 밖으로 나오는 경사로 길이(요청: "약간") — 지면에 닿는 끝까지. */
-      const RAMP_OUT = 1.0;
+      const RAMP_OUT = 0.3;   // 1.0은 너무 길었다(지적: "너무 많이 나온거 같아")
       /** 그 높이의 겉벽 반지름 — 받침은 네 단(5.15→5.4 · 5.16 · 5.4→5.37 · 5.46 테), 위는 돔 옆선(t1R). */
       const wallR = (z: number): number => {
         if (z < HULL_Z + 0.8) return 5.15 + 0.25 * ((z - HULL_Z) / 0.8);
@@ -3703,7 +3703,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 밖 토막 — 벽 선에서 지면까지. 두께(TH)만큼 내린 아랫면과 옆면 둘·앞끝 면으로 판을 만든다. */
       {
         const rampOut = polyPath3([rAt(tW, -1), rAt(tW, 1), rAt(1, 1), rAt(1, -1)]);
-        const TH9 = 0.3;
+        const TH9 = 0.18;
         const under9 = (t: number, side: 1 | -1): [number, number, number] => {
           const q9 = rAt(t, side);
           return [q9[0], q9[1], q9[2] - TH9];
