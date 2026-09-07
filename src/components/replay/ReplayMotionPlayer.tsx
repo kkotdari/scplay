@@ -26034,7 +26034,10 @@ export default function ReplayMotionPlayer({
       const el = mapRef.current;
       const bw = el?.offsetWidth ?? 0;
       const bh = el?.offsetHeight ?? 0;
-      if (bw < 4 || bh < 4 || stageSizeRef.current.w <= 0) {
+      /* 상자가 **제 크기(덮는 폭)에 닿은 뒤**에야 잰다(지적: 로딩 때 한번 쿵) — 예전엔 폭 트랜지션 도중의 상자를
+         재서 판을 어긋나게 놓았다. 트랜지션은 걷었지만(CSS), 인라인 폭이 아직 안 실린 첫 프레임도 여기서 거른다. */
+      const cw9 = coverRef.current.w;
+      if (bw < 4 || bh < 4 || stageSizeRef.current.w <= 0 || (cw9 > 0 && Math.abs(bw - cw9) > 1)) {
         if (tries++ < 120) raf = requestAnimationFrame(step);
         return;
       }

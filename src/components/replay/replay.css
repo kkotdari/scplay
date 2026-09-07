@@ -3271,7 +3271,12 @@
 .scr-fs-root { position: absolute; inset: 0; }
 /* 무대 — 지도를 자르는 창이다. 지도는 이보다 크게(cover) 깔리고 여기서 잘린다. */
 .scr-fs-stage { position: absolute; inset: 0; overflow: hidden; }
-.scr-fs-stage > .scr-motion-map { border-radius: 0; }
+/* ★ 무대 안의 지도 상자는 **크기를 넘기지 않는다**(지적: "배율 높게 보니 처음 로딩 때 여백 높이가 한번 쿵하고
+   늘어나") — 위 .scr-motion-map의 width 0.3s 트랜지션은 옛 넓은 배치의 넓어짐용인데, 지도가 무대 안 절대배치가
+   된 뒤로는 첫 렌더의 100% 폭에서 덮는 폭(fsCoverW, 인라인)으로 바뀌는 순간에도 걸렸다. 그 0.3초 동안 상자가
+   자라고, 배율 변환이 그 위에 곱해져 3배면 300px 성장이 900px로 보였다. 자리잡기(initialView)도 그 사이 상자를
+   재서 판을 어긋나게 놓았다. 무대 안에서는 즉시 제 크기로 선다. */
+.scr-fs-stage > .scr-motion-map { border-radius: 0; transition: none; }
 /* 밤하늘 — 무대 바닥이다. 눕힌 보기에서는 지도가 못 채우는 네 귀퉁이에, 평면에서는 위쪽
    여유 도화지(--scr-mapband 띠)에 드러난다(요청: "2D의 위쪽 추가 도화지에도 3D처럼 우주
    배경"). 지도보다 아래에 깔려 지도가 덮는 자리에서는 안 보인다(맵에 병합 X).
