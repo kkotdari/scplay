@@ -21249,12 +21249,14 @@ export const scrDiagModes = (): Set<string> => {
   return new Set(m9 ? m9[1].split(",") : []);
 };
 
-function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan, viewRefs, tilePx, pickedKey, wallMask, maskRects, clipQuad, showShadows, showOverlap, showHp, showCreep, marker: markerProp, markerAt, detailAt, yawAt, moveAt, painter, live, onPainted }: {
+function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan, viewRefs, gesture, tilePx, pickedKey, wallMask, maskRects, clipQuad, showShadows, showOverlap, showHp, showCreep, marker: markerProp, markerAt, detailAt, yawAt, moveAt, painter, live, onPainted }: {
   ops: UnitDrawOp[]; zoom: number; pan: { x: number; y: number };
   /** ★ 붓의 보기 원천(실측: 감기 중 React 붓 팬 (−645.8,−821.7) vs 도착 붓 panRef (−646.2,−822.7)로 1px 어긋난 두 그림이
    *  번갈아 찍혔다). 틱·도착 붓은 부모의 zoomRef·panRef를 읽는데 이 effect는 상태 zoom·pan을 읽어, 렌더 사이에 ref만 바뀌면
    *  둘이 갈렸다. 부모가 그 ref들을 넘기면 이 effect도 **같은 원천**을 읽는다 — 어느 길로 어긋나든 두 그림이 같다. */
   viewRefs?: { z: { current: number }; p: { current: { x: number; y: number } } };
+  /** 손짓이 도는 중인가(부모 xfGestureRef) — 손끝 보기(live)는 **이때만** 쓴다. 손짓이 끝났는데 남은 값은 옛 자리다(위 viewRefs 주석). */
+  gesture?: { current: boolean };
   /** ★ 붓을 React 밖에서 몰 때(4번) — 시계 틱이 여기 넣어 둔 op·효과를 붓이 읽는다(props의 ops·fx보다 앞선다).
    *  driven이 참인 동안 이 effect는 안 칠한다(틱이 칠한다); 멈추면 종전대로 렌더마다 칠한다. */
   opsSrc?: { current: UnitDrawOp[] | null }; fxSrc?: { current: FxOp[] | null }; driven?: { current: boolean };
@@ -23352,7 +23354,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
     /* 손짓이 도는 중이면 상태(props)가 아니라 지금 손끝의 값으로 그린다 — 드래그 중에도
        재생 틱이 계속 리렌더를 내는데, 그때 굳은 지 오래인 배율로 한 장 그리면 화면이
        한 프레임 뒤로 튄다. */
-    const lv = live?.current ?? null;
+    const lv = (gesture ? gesture.current : true) ? (live?.current ?? null) : null;
     /* 굽는 배율은 **언제나 props의 zoom**이다 — props의 zoom이 곧 "마지막으로 굳은
        배율"이고, 손짓 중에 판을 그 배율로 두는 것이 재굽기 폭풍을 막는 방법이다.
        손짓이 굳을 때(굴림 커밋·놓을 때) props가 새 배율로 오면 그때 다시 구워진다. */
@@ -27037,6 +27039,11 @@ export default function ReplayMotionPlayer({
      일하게 하고(리액트 리렌더 0), 커밋은 굴림(300ms)과 놓을 때뿐이다.
      읽는 값이 전부 ref라 정체성이 안정돼 어느 effect에서 불러도 된다. */
   const applyGestureXf = useCallback((repaint = true): void => {
+    /* ★ 손짓이 끝난 뒤의 늦은 부름은 무시한다(실측: 감기 중 React 붓 팬 (−634.4,−1091.6) = 옛 손끝, 틱 붓 panRef 별개) ──
+       드래그·핀치는 마지막 한 장을 rAF에 실어 두는데, 손을 떼는 처리(endGestureXf)가 그 rAF보다 먼저 돌면 뒤늦게 온 rAF가
+       xfLive를 되살리고 panRef를 옮겼다. 정지·감기 중엔 상태가 안 바뀌어 xfLive가 지워질 기회가 없어, React 붓(xfLive)과
+       틱·도착 붓(panRef)이 다른 자리를 번갈아 칠했다. 손짓이 살아 있지 않으면 여기서 아무것도 안 한다. */
+    if (!xfGestureRef.current) return;
     /* ★ 추적 중에는 **옮기는 것만** 막는다(요청: "드래그나 wasd 이동 가장자리 스크롤등
        다 막아야해" · "줌은 변경 가능하게") ────────────────────────────────────────────
        미는 길은 넷이다 — 드래그·wasd·가장자리 밀기·핀치. 그런데 넷 다 이 한 자리를
@@ -30905,7 +30912,7 @@ export default function ReplayMotionPlayer({
 
           <UnitLayer
             ops={unitOps} fx={fxOps} opsSrc={frameOpsRef9} fxSrc={frameFxRef9} driven={drivenRef9}
-            zoom={zoom} pan={pan} viewRefs={viewRefs9} tilePx={tilePx} wallMask={creepMask} maskRects={creepMaskRects}
+            zoom={zoom} pan={pan} viewRefs={viewRefs9} gesture={xfGestureRef} tilePx={tilePx} wallMask={creepMask} maskRects={creepMaskRects}
             /* 손짓(드래그·핀치·휠) 중에는 부모가 이 붓으로 캔버스만 다시 그린다 —
                리액트를 안 거치고, 그린 자리는 손끝 그대로다(xfLive). */
             painter={unitPaintRef} live={xfLiveRef} onPainted={onUnitPainted}
