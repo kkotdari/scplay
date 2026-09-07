@@ -22238,13 +22238,23 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
            가운데가 들어올 때(가려져 안 보이는 판)만 버린다. 같은 크기끼리는 서로 안 버린다. */
         const all9 = sorted.filter((o) => o.clipWalk).sort((a9, b9) => (b9.wFrac ?? 0) - (a9.wFrac ?? 0));
         if (all9.length < 3) return all9;
+        /* ★ '통째로 든다'는 **정말로 통째로**여야 한다(지적: "성큰이 완성됐는데 크립이 안 나타나다가 원래 있던
+           해처리의 크립이 사라지니 그제서야 보임" — 해처리에서 4타일 안) ────────────────────────────────────
+           여태는 큰 판 반지름에서 작은 판 반지름의 85%를 뺀 거리 안에 가운데가 들면 버렸다. 그 15%와 '반지름 차
+           안'이라는 어림이 합쳐져, 해처리 곁에서 자라는 콜로니 얼룩(해처리 판보다 작은 동안)은 해처리 판 **밖으로
+           삐져나오는데도** 버려졌다 — 그래서 성큰의 크립은 해처리가 죽어 그 판이 사라져야 나타났다. 이제 가로·세로
+           각각 '가운데 거리 + 제 반지름 ≤ 남긴 판의 반지름'일 때만 버린다(상자 포함). 세로는 fy(지도 높이 분수)를
+           지도 폭 분수로 바꿔 wFrac·hFrac과 같은 자로 잰다. */
         const keep9: UnitDrawOp[] = [];
+        const fyK9 = mh9 / cw;
         for (const o9 of all9) {
-          const ro9 = (o9.wFrac ?? 0) * 0.5;
+          const rox9 = (o9.wFrac ?? 0) * 0.5;
+          const roy9 = (o9.hFrac ?? o9.wFrac ?? 0) * 0.5;
           if (keep9.some((k9) => {
-            const rk9 = (k9.wFrac ?? 0) * 0.5;
-            const in9 = rk9 - ro9 * 0.85;
-            return in9 > 0 && Math.abs(k9.fx - o9.fx) < in9 && Math.abs(k9.fy - o9.fy) < in9 * (cw / ch);
+            const rkx9 = (k9.wFrac ?? 0) * 0.5;
+            const rky9 = (k9.hFrac ?? k9.wFrac ?? 0) * 0.5;
+            return Math.abs(k9.fx - o9.fx) + rox9 <= rkx9 + 1e-6
+              && Math.abs(k9.fy - o9.fy) * fyK9 + roy9 <= rky9 + 1e-6;
           })) continue;
           keep9.push(o9);
         }
