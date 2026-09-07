@@ -83,6 +83,8 @@ export default function ReplayFogLayer({
      (렌더가 붓보다 늦다) props로 되돌리지 않는다 — 되돌리면 시야가 한 걸음 물러섰다 나온다. 탐색처럼 시각이
      크게 갈리면 props를 따른다. */
   const latestRef = useRef<FogOverride>({ vis, exploredAt, t });
+  /** 밝힌 판의 합(칸마다 가장 이른 밝힘 시각) — 위 paint의 ★ 주석. src는 마지막으로 합친 원본(같은 판이면 건너뛴다). */
+  const mergedRef = useRef<{ src: Uint16Array | null; out: Uint16Array | null }>({ src: null, out: null });
   {
     const lt = latestRef.current;
     if (t >= lt.t - 1e-6 || Math.abs(t - lt.t) > 0.5 || lt.exploredAt.length !== exploredAt.length) {
@@ -95,7 +97,29 @@ export default function ReplayFogLayer({
        손끝 값으로 다시 부른다. 매개변수 이름이 props를 일부러 가린다. */
     const paint = (zoom: number, pan: { x: number; y: number }, ov?: FogOverride): void => {
     if (ov && ov.exploredAt.length === w * h) latestRef.current = ov;
-    const { vis, exploredAt, t } = latestRef.current;
+    const { vis, t } = latestRef.current;
+    /* ★ 밝힌 판은 **잊지 않는다**(지적: "안개 떨림 여전해" — 증거 사진: 몇 초 사이 밝힌 땅의 경계가 띠 하나만큼
+       물러섰다 돌아왔다) ─────────────────────────────────────────────────────────────
+       워커의 밝힌 판(exploredAt)은 장마다 오는 것이 아니라 안개를 다시 쌓은 장에만 실리고, 나머지 장은 '그 시각 이하
+       가장 늦은 판'을 빌려 든다. 빌린 판은 제 시각까지의 밝힘만 알므로, 뒤 시각에서 그 판을 그리면 그 사이에 밝힌
+       칸이 통째로 빠져 경계가 물러선다 — 그 다음 장이 새 판을 들면 도로 나온다. 어느 판을 드느냐는 장의 도착 순서에
+       매이므로 앞뒤로 튄다.
+       판은 '언제 처음 밝혔나'의 시각표라 **작은 쪽이 늘 옳다**: 새 판이 올 때마다 칸마다 min으로 합쳐 두면, 어느
+       장이 어느 판을 들든 그리는 것은 지금까지 안 모든 밝힘이다. 그리기는 여전히 `밝힌 시각 ≤ t`로 거르므로 되감아도
+       뒤에 밝힌 칸이 새어 나오지 않는다 — 시각표 합치기는 되감기에도 안전하다. 지도가 바뀌면(길이 다름) 새로 시작. */
+    const exploredAt = ((): Uint16Array => {
+      const src9 = latestRef.current.exploredAt;
+      const mg9 = mergedRef.current;
+      if (mg9.src === src9 && mg9.out) return mg9.out;
+      if (!mg9.out || mg9.out.length !== src9.length) {
+        mg9.out = src9.slice();
+      } else {
+        const o9 = mg9.out;
+        for (let i = 0; i < src9.length; i += 1) if (src9[i] < o9[i]) o9[i] = src9[i];
+      }
+      mg9.src = src9;
+      return mg9.out;
+    })();
     const cv = cvRef.current;
     if (!cv || w <= 0 || h <= 0) return;
     const box = cv.parentElement;
