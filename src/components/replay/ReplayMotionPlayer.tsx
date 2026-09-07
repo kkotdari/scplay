@@ -2966,9 +2966,10 @@ function tankTurretV2(siege: boolean): ShapeFace[] {
   return out;
 }
 function tankTurret(): ShapeFace[] { return tankTurretV2(false); }
-function siegeLegs(): ShapeFace[] {
+/** 시즈 버팀다리 셋 — `only`를 주면 그 방향의 다리만(전환 홑판을 앞·뒤 두 장으로 가르는 데 쓴다). */
+function siegeLegs(only?: [number, number][]): ShapeFace[] {
   const out: ShapeFace[] = [];
-  for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1]] as [number, number][]) {
+  for (const [dx, dy] of (only ?? [[-1, 0], [1, 0], [0, -1]]) as [number, number][]) {
     // 다리 뿌리(차체 옆구리)와 발목(바깥·아래).
     const r0 = dx ? 2.1 : 2.9;   // 안쪽으로(요청: 고정 다리를 몸 중심 쪽으로) — 2.6/3.2 → 2.1/2.9
     // 바깥으로 더 뻗는다(같은 지적) — 4.1/4.6 → 5.1/5.6.
@@ -10576,11 +10577,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   tanksiegebody: () => withModelSpin(270, () => [...withModelScale(0.8, 1, 1, () => [...tankTracks(), ...tankHull()]), ...siegeLegs()]),
   tanksiegegun: () => turretScaled9(siegeTurret),
   /* 시즈 버팀다리 홑판 — 시즈 전환 동작(요청)에서 탱크 차체 위에 attach로 겹쳐 배율(attachK)로 뻗고 접는다. */
-  /* 다리 홑판의 spin은 **270**이다(지적: "시즈 변신 중에 다리 위치가 잘못됨" → 재지적: 덧붙는 다리가 옛 잘못된 방향) —
-     전환 중 탱크 차체(rotDeg = 앞)에 겹치는데, 시즈 판은 rotDeg = 앞 − 270에 spin 270이라 다리가 차체와 같은 자리에 서려면
-     이 판도 그 270을 져야 한다. 합성 장면으로 전환 중(31.2초)과 시즈(32.5초)의 다리 셋이 같은 자리에 서는 것을 확인했다
-     (0은 90도 어긋났고, 옛 90은 180도 어긋났다). */
-  tanksiegelegs: () => withModelSpin(270, () => siegeLegs()),
+  /* 다리 홑판의 spin은 **0**이다 — 시즈 판은 rotDeg = 앞 − 270에 spin 270이라 그 둘이 상쇄되고, 전환 중 탱크 차체는
+     rotDeg = 앞에 spin 0이므로 겹치는 다리도 0이라야 같은 자리에 선다. (한때 270으로 뒀던 것은 포탑 op이 다리를 한 벌
+     더 그리던 버그 위에서 판단한 값이었다 — 그 버그를 걷고 고해상도로 견주니 0이 시즈 판의 다리 셋과 정확히 겹친다.) */
+  tanksiegelegs: () => siegeLegs([[1, 0], [0, -1]]),
+  tanksiegelegsF: () => siegeLegs([[-1, 0]]),
   /* 벌처(사진 기준 재작도 — 지적: "기존 너무 단순") ────────────────────────────
      사진이 말하는 것:
        · **길다**. 옆에서 본 실루엣이 3:1쯤으로 납작하고, 그 절반이 앞으로 뻗은
@@ -22171,21 +22172,24 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
                길에는 부품별 깊이가 없으니 차례로 그 몫을 낸다: 등을 보일 때는 짐을 먼저
                깔고 몸으로 덮는다(합본 모델에서 짐이 가려지던 그 그림이 그대로 난다). */
           const atSpr9 = op.attach ? unitSprite({ ...op, kind: op.attach }, pxqB, B) : null;
-          const atDraw9 = (): void => {
-            if (!atSpr9) return;
+          /* 둘째 겹판(op.attach2) — 늘 몸 **앞**에 찍는다(시즈 전환의 앞쪽 버팀다리). 같은 배율(attachK)을 탄다. */
+          const at2Spr9 = op.attach2 ? unitSprite({ ...op, kind: op.attach2 }, pxqB, B) : null;
+          const atDrawOf9 = (sp9: typeof atSpr9): void => {
+            if (!sp9) return;
             SPRITE_PERF.blit += 1;
             /* 겹판 배율(op.attachK) — 원점(모델 원점 = 변환의 0,0) 기준이라 시즈 버팀다리가 차체에서 뻗어 나온다. */
             const aK9 = op.attachK ?? 1;
             if (aK9 !== 1) { ctx.save(); ctx.scale(aK9, aK9); }
-            drawTint9(ctx, atSpr9, op.color, pxqB, k, B);   // 물들인 마스크를 몸판 **아래**에(unitSprite의 ★)
+            drawTint9(ctx, sp9, op.color, pxqB, k, B);   // 물들인 마스크를 몸판 **아래**에(unitSprite의 ★)
             ctx.drawImage(
-              atSpr9.cv,
-              (-(atSpr9.pad + pxqB / 2) + atSpr9.ox / B) * k,
-              (-(atSpr9.pad + pxqB / 2) + atSpr9.oy / B) * k,
-              (atSpr9.cv.width / B) * k, (atSpr9.cv.height / B) * k,
+              sp9.cv,
+              (-(sp9.pad + pxqB / 2) + sp9.ox / B) * k,
+              (-(sp9.pad + pxqB / 2) + sp9.oy / B) * k,
+              (sp9.cv.width / B) * k, (sp9.cv.height / B) * k,
             );
             if (aK9 !== 1) ctx.restore();
           };
+          const atDraw9 = (): void => atDrawOf9(atSpr9);
           const rb9 = ((Math.round((op.rotDeg ?? 0) / 22.5) * 22.5) % 360 + 360) % 360;
           // 배율 겹판(버팀다리)은 늘 몸 뒤 — 오므린 다리가 차체 위로 안 비친다.
           const atBack9 = op.attachK !== undefined || (rb9 > 90 && rb9 < 270);
@@ -22198,6 +22202,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
             cw9 * k, ch9 * k,
           );
           if (!atBack9) atDraw9();
+          atDrawOf9(at2Spr9);
           ctx.setTransform(B, 0, 0, B, 0, 0);
           continue;
         }
@@ -29061,8 +29066,8 @@ export default function ReplayMotionPlayer({
        본판만이다 — 별본 기하는 3~7ms라 재생 중 한두 번 구워도 안 아프고, 아팠던 것은
        표(수백 ms)뿐이다. */
     const WARM_KIN9: Record<string, readonly string[]> = {
-      tank: ["tankbody", "tankgun", "tanksiege", "tanksiegebody", "tanksiegegun", "tanksiegelegs"],
-      tanksiege: ["tanksiegebody", "tanksiegegun", "tank", "tankbody", "tankgun", "tanksiegelegs"],
+      tank: ["tankbody", "tankgun", "tanksiege", "tanksiegebody", "tanksiegegun", "tanksiegelegs", "tanksiegelegsF"],
+      tanksiege: ["tanksiegebody", "tanksiegegun", "tank", "tankbody", "tankgun", "tanksiegelegs", "tanksiegelegsF"],
       lurker: ["burrowhole", "lurkerburrow", "lurkerfire"],
       scv: ["scvHold", "loadScvMin", "loadScvGas"],
       probe: ["probeHold", "loadProbeMin", "loadProbeGas"],

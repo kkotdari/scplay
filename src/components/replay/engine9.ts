@@ -1288,7 +1288,7 @@ export const UNIT_SIZE_TUNE: Record<string, number> = {   // 열쇠는 sizeKind(
   observer: 0.8,
   inf: 0.8, fbat: 0.8, ghost: 0.8, htemp: 0.6, dtemp: 0.8,   // 메딕(inf)·파뱃(0.6 → 0.8 재요청)·고스트·하템·다템 — 마린(gunner)은 1.0으로 뺐다(재요청)
   defiler: 1.2,   // 요청(비교 장면)
-  tank: 1.2, tanksiege: 1.2, vulture: 1.2,   // 요청: "시즈·벌처 그리기 1.2배" → 재요청: 일반·변신 중 탱크도 1.2
+  tank: 1.2, tanksiege: 1.2, vulture: 1.1,   // 요청: "시즈·벌처 그리기 1.2배" → 재요청: 일반·변신 중 탱크도 1.2 · 벌처는 1.1
   scv: 0.8, probe: 0.8, drone: 0.8,   // 일꾼류
   /* (전부 걷음 — 요청: "유닛 크기 보정 모두 제거") — 일꾼·보병 0.68, 메딕 0.612,
      질럿 0.85, 템플러 0.808, 커세어 0.85, 마인 0.53, 옵저버 0.17, 스커지 0.7,
@@ -1409,6 +1409,8 @@ export type UnitDrawOp = {
    *  배수로 구워지므로, 몸의 자리 보정을 그대로 쓰고 제 잉크 오프셋만 달리 하면 짐이 제
    *  모형 좌표에 앉는다. */
   attach?: string;
+  /** 둘째 겹판 — 늘 몸 앞에 찍는다(시즈 전환의 앞쪽 버팀다리). attachK를 같이 탄다. */
+  attach2?: string;
   /** 겹쳐 찍는 판만 원점(모델 원점) 기준으로 곱하는 배율 — 시즈 전환의 버팀다리가 몸에서 뻗어 나오고 들어가는
    *  동작이다(요청). 있으면 그 판은 몸 **뒤**에 깐다(오므린 다리가 차체 밖으로 안 비친다). */
   attachK?: number;
@@ -7144,7 +7146,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       // 짐 판은 몸 판 위에 같은 자로 겹쳐 찍는다(위 load0).
       ...(load0 ? { attach: load0 } : {}),
       // 시즈 전환 중이면 버팀다리 판을 몸 뒤에 겹쳐, 배율로 뻗고 접는다(위 legK9).
-      ...(legK9 !== null && !markerView ? { attach: "tanksiegelegs", attachK: legK9 } : {}),
+      ...(legK9 !== null && !markerView ? { attach: "tanksiegelegs", attach2: "tanksiegelegsF", attachK: legK9 } : {}),
       selRing: selNow || undefined,
       // 보임 토글이면 만피여도 표시(요청: 모든 유닛·건물 다 표시).
       hpFrac: Math.max(0.04, Math.min(1, hpNow / Math.max(1, hpFull))),
@@ -7412,7 +7414,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         /* ★ 겹판(시즈 버팀다리)은 차체 op만의 것이다(지적: "시즈 바디를 그려놓고 또 다리 애니를 넣으니 문제") — `...last`로
            차체 op을 통째로 물려받으며 attach·attachK까지 딸려 와, 포탑 op이 다리 한 벌을 **포탑 각으로** 한 번 더 그렸다.
            그것이 '엉뚱한 방향의 다리 한 벌 더'였다. */
-        attach: undefined, attachK: undefined,
+        attach: undefined, attach2: undefined, attachK: undefined,
         /* 포신 반동 컷(요청) — 차체 판은 컷이 없으므로 몸 op의 pose를 물려받아
            봐야 늘 0이다. 발포 박자(fireK)가 곧 이 판의 자세다. */
         pose: fireK ? 2 : 0,
