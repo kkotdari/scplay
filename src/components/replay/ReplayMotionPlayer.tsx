@@ -27782,18 +27782,28 @@ export default function ReplayMotionPlayer({
        반지름은 앞 장 것. 배열은 되쓰고(할당 없음) 판 번호(visVer)로 바뀜을 알린다. */
     const va9 = fa9.visSrc;
     const vb9 = fb9.visSrc;
-    if (va9 && vb9 && va9.length === vb9.length && va9.length > 0) {
-      const vl9 = visLerpRef9.current;
-      if (!vl9.buf || vl9.buf.length !== va9.length) vl9.buf = new Float32Array(va9.length);
-      const out9 = vl9.buf;
+    /* ★ 눈 수가 같아도 **같은 눈들인지** 확인한다(지적: "전혀 다른 시점·장소의 안개가 중간중간 교차되며 난리") —
+       난전에서는 한 장 사이에 죽는 수와 태어나는 수가 같아 길이만 같은 목록이 흔하다. 그러면 바뀐 자리 뒤의 눈이
+       전부 한 칸씩 밀려 이웃의 자리로 미끄러졌다 — 시야 원이 지도를 가로질러 날았다. 눈마다 반지름이 같고 자리
+       차이가 한 장에 걸을 수 있는 만큼(3타일) 안일 때만 잇고, 하나라도 어긋나면 앞 장 것을 그대로 쓴다. */
+    if (va9 && vb9 && va9.length === vb9.length && va9.length > 0 && va9 !== vb9) {
+      let same9 = true;
       for (let i9 = 0; i9 + 2 < va9.length; i9 += 3) {
-        out9[i9] = va9[i9] + (vb9[i9] - va9[i9]) * u9;
-        out9[i9 + 1] = va9[i9 + 1] + (vb9[i9 + 1] - va9[i9 + 1]) * u9;
-        out9[i9 + 2] = va9[i9 + 2];
+        if (va9[i9 + 2] !== vb9[i9 + 2] || Math.abs(va9[i9] - vb9[i9]) > 3 || Math.abs(va9[i9 + 1] - vb9[i9 + 1]) > 3) { same9 = false; break; }
       }
-      vl9.ver += 1;
-      fr9.visSrc = out9;
-      fr9.visVer = vl9.ver;
+      if (same9) {
+        const vl9 = visLerpRef9.current;
+        if (!vl9.buf || vl9.buf.length !== va9.length) vl9.buf = new Float32Array(va9.length);
+        const out9 = vl9.buf;
+        for (let i9 = 0; i9 + 2 < va9.length; i9 += 3) {
+          out9[i9] = va9[i9] + (vb9[i9] - va9[i9]) * u9;
+          out9[i9 + 1] = va9[i9 + 1] + (vb9[i9 + 1] - va9[i9 + 1]) * u9;
+          out9[i9 + 2] = va9[i9 + 2];
+        }
+        vl9.ver += 1;
+        fr9.visSrc = out9;
+        fr9.visVer = vl9.ver;
+      }
     }
     return fr9;
   };
