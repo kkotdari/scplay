@@ -25690,6 +25690,11 @@ export default function ReplayMotionPlayer({
   /** 판 뿌리(.scr-fs-root) — 휠은 지도 상자가 아니라 **판 전체**가 받는다(아래 onWheel). */
   const fsRootRef = useRef<HTMLDivElement | null>(null);
   const [stage, setStage] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+  /** 무대 높이 붙들기(지적: "팬·핀치 뒤 안개·모델이 떨린다") — 무대는 100dvh라 폰의 주소창이 접히고 펴질 때마다 몇 프레임에
+   *  걸쳐 높이가 바뀐다. 그 값이 상태(stage)에 실리면 재중심(centerOnTile)·팬 재죔·덮는 폭·캔버스 크기가 줄줄이 돌아 판이
+   *  들썩였다. 굵은 포인터 기기에서 폭이 같고 높이 변화가 35% 미만이면 붙든 높이를 쓴다. 회전·전체화면 전환·fsOn 토글은
+   *  진짜 변화라 다시 잰다(frameMaxH의 vhHold9와 같은 규칙). */
+  const stageHold9 = useRef<{ w: number; h: number } | null>(null);
   /** 무대 크기를 ref로도 들고 있는다 — 팬 한계를 재는 곳 중에는 **한 번만 걸리는
    *  effect 안**(휠 줌)이 있어서, 상태를 읽으면 그 effect가 만들어질 때의 옛 값(0)에
    *  붙들린다. 그러면 전체화면에서 휠로 축소할 때 한계가 평소 배치의 식으로 셈해져,
@@ -26466,6 +26471,7 @@ export default function ReplayMotionPlayer({
     const h9 = window.innerHeight;
     if (w9 > 0 && h9 > 0) {
       stageSizeRef.current = { w: w9, h: h9 };
+      stageHold9.current = null;   // 새 무대다 — 다음 읽기를 그대로 받는다.
       setStage({ w: w9, h: h9 });
     }
     setFsOn(true);
@@ -26566,10 +26572,18 @@ export default function ReplayMotionPlayer({
        계속 다시 읽어, 실제로 설 때 그 값을 잡는다. */
     let raf9 = 0;
     let ro9: ResizeObserver | null = null;
-    const read = (): void => {
+    const read = (ev?: unknown): void => {
       const el9 = stageRef.current;
       if (!el9) return;
       const v = { w: el9.clientWidth, h: el9.clientHeight };
+      // 주소창 여닫힘은 안 따라간다(위 stageHold9) — 회전·전체화면 전환 사건만 붙든 값을 갈아 끼운다.
+      if (v.w > 0 && v.h > 0 && window.matchMedia?.("(pointer: coarse)").matches) {
+        const force9 = ev instanceof Event
+          && (ev.type === "orientationchange" || ev.type === "fullscreenchange" || ev.type === "webkitfullscreenchange");
+        const m9 = stageHold9.current;
+        if (!force9 && m9 && m9.w === v.w && Math.abs(v.h - m9.h) < m9.h * 0.35) v.h = m9.h;
+        else stageHold9.current = { w: v.w, h: v.h };
+      }
       /* ★ 한 번 제대로 잰 뒤의 **0은 안 믿는다**(지적 4단계: "맵이 까맣게 변함. 미니맵
          오버레이 키면 프레임 안 그려져 있음") ──────────────────────────────────────
          그 둘은 한 뿌리다: 지도의 덮는 폭(fsCoverW)과 미니맵의 '보는 창'이 **모두 무대
@@ -27290,6 +27304,9 @@ export default function ReplayMotionPlayer({
       const el2 = mapRef.current;
       if (!el2) return;
       if (e.cancelable) e.preventDefault();
+      /* 두 손가락이 닿는 순간부터 세로 스크롤도 끊는다(지적: 팬·핀치 뒤 떨림) — 1배에서 시작하는 핀치는 아직 pan-y라,
+         두 손가락이 같이 움직이면 브라우저가 페이지 스크롤로 채가 주소창이 움직일 수 있다. 굳을 때 배율 규칙이 되돌린다. */
+      el2.style.touchAction = "none";
       pinch = {
         d: Math.max(1, dist(e.touches)),
         z: zoomRef.current,
