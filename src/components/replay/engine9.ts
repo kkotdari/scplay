@@ -4731,7 +4731,13 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
            보이게 한다(0.55 → 1.20이면 두 배가 넘는다). */
         const grow9 = Math.min(1, prog / 0.75);
         const stage = BLD_FROM_BLD.has(unit) ? 1 : 0.55 + 0.65 * Math.sqrt(grow9);
-        const beat = race2 === "저그" ? stage * (1 + 0.06 * Math.sin(t * 5.2)) : 1;
+        /* ★ 두근거림은 **크기가 아니라 들썩임**이다(지적: "공사고치 바운스하는데 왜 이렇게 덜덜 떨리지") —
+           여태 stage에 sin을 곱해 상자 크기를 매 프레임 ±6% 흔들었다. 판은 2px 칸으로 양자화해 굽고
+           바닥 가운데에 맞추므로, 크기가 흔들리면 프레임마다 다른 칸의 판이 골라져 잉크 밑변이
+           한 픽셀씩 튀었다 — 그것이 '덜덜'이다. 크기는 stage 그대로 두고 몸만 liftK(그린 폭의
+           배수)로 오르내린다. 판이 한 장이라 튈 것이 없다. */
+        const beat = race2 === "저그" ? stage : 1;
+        const bob9 = race2 === "저그" ? 0.035 * (1 + Math.sin(t * 5.2)) : 0;
         /* 공사 모델은 바닥 맞춤(지적: 소환구보다 훨씬 아래쪽에 실제 건물이 생긴다)
            — 완성 모델은 '들어올린 칸'의 바닥 = 발자국 바닥에 앉는데, 소환구·고치는
            제 작은 상자가 칸 중심(위로 들어올린 앵커)에 걸려 바닥이 발자국보다 위에
@@ -4809,6 +4815,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           ...(race2 === "프로토스"
             ? { groundShadow: true, footRatio: 0.5 }
             : {}),
+          ...(bob9 > 0 ? { liftK: bob9 } : {}),
           color, alpha, noShadow: true,
         });
         /* 공사 애니(요청) — 모델은 캐시 스프라이트라 못 움직이니 CSS 오버레이가
@@ -5770,6 +5777,27 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
   });
       void rW9;
     }
+    /* ★ 저그 건물 **완공 부화**(요청: "그 안에 새 유닛/건물이 나타나게" · 지적: "건물 변태 완료 시 터짐 효과도
+       안 나온다") — 공사 고치가 완공 순간 껍질 파편으로 찢어진다(고치 재질, 발자국 폭의 반).
+       여태 이 효과는 위 **무너짐 고리 안**에 있었다. 그 고리는 첫 줄에서 `!goneAt || t < goneAt || t > goneAt + 1`
+       이면 돌아가므로, 완공 파편은 그 건물이 **나중에 부서지고 그 1초 안**일 때만 — 곧 사실상 한 번도 — 안 났다.
+       제 고리로 뺀다. 시작 건물(sec 0)·날아와 앉은 줄(doneAt = sec)은 제외, 완공 전에 걷힌 것도 제외. */
+    if (qDeath) buildsSrc.forEach(([sec, x, y, unit, raw, gone, , doneAt9], i) => {
+      if (sec <= 0) return;
+      const d9 = doneAt9 ?? 0;
+      if (!(d9 > sec + 0.5) || t < d9 || t - d9 > BLD_FX_SEC * 0.6) return;
+      const goneAt = gone ?? 0;
+      if (goneAt > 0 && t >= goneAt) return;
+      const race = raceOfName9(unit) ?? bases.find((b2) => b2.key === raw)?.race;
+      if (race !== "저그") return;
+      const [hfx9, hfy9] = posFrac(x + footDx(unit), y + footDy(unit));
+      fxOps.push({
+        kind: "burst", fx: hfx9, fy: hfy9, lift: 0, bld: false,
+        size: (FOOTPRINT[unit] ?? [3, 2])[0] * (mapW9 / grid.width) * 0.5,
+        ph: (t - d9) / (BLD_FX_SEC * 0.6),
+        mat: "cocoon", seed: i + 29, tier: 3,
+      });
+    });
     mines.forEach((m, mi) => {
       if (t < m.sec || (m.boom > 0 && t >= m.boom + 1.2)) return;
       const [mfx, mfy] = posFrac(m.x, m.y);
@@ -5961,18 +5989,6 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         ph: (t - goneAt) / BLD_FX_SEC,
         mat: cocoonB9 ? "cocoon" : rk === "terran" ? "mech" : rk, seed: i + 13,
         tier: (FOOTPRINT[unit] ?? [3, 2])[0] <= 2 ? 1 : (FOOTPRINT[unit] ?? [3, 2])[0] === 3 ? 2 : 3,
-      });
-    }
-    /* 저그 건물 **완공 부화**(요청: "그 안에 새 유닛/건물이 나타나게") — 공사 중 고치가 완공 순간 껍질 파편으로
-       찢어진다(고치 재질, 발자국 폭의 반). 시작 건물(sec 0)·날아와 앉은 것은 제외. */
-    if (rk === "zerg" && sec > 0 && (doneAt9 ?? 0) > 0 && t >= (doneAt9 ?? 0) && t - (doneAt9 ?? 0) <= BLD_FX_SEC * 0.6
-      && !(goneAt > 0 && t >= goneAt)) {
-      const [hfx9, hfy9] = posFrac(x + footDx(unit), y + footDy(unit));
-      fxOps.push({
-        kind: "burst", fx: hfx9, fy: hfy9, lift: 0, bld: false,
-        size: (FOOTPRINT[unit] ?? [3, 2])[0] * (mapW9 / grid.width) * 0.5,
-        ph: (t - (doneAt9 ?? 0)) / (BLD_FX_SEC * 0.6),
-        mat: "cocoon", seed: i + 29, tier: 3,
       });
     }
     if (!cocoonB9) dom.push({ k: "collapse", key: `clp-${i}`, x: x + footDx(unit), y: y + footDy(unit), wPct: clpW, rk, flyUp: flyUp9 });
