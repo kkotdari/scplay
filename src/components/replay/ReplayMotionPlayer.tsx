@@ -28599,6 +28599,13 @@ export default function ReplayMotionPlayer({
     holdSeekedRef.current = true;
     holdAtRef.current = t;
     dragRef.current = null;
+    /* ★ 손짓도 여기서 굳혀 끝낸다(실측: 감기 때 "보기 2종 팬x 4.3 팬y 1.7 · react×57 arrive×25") ────────────────
+       누르고 기다리는 400ms 사이 손가락이 슬롭을 넘어 흔들리면 드래그 손짓(beginGestureXf)이 먼저 서 있다. 여태 여기서
+       드래그만 끊고 손짓은 안 끝내, 감기 내내 xfGesture가 켜진 채 손끝 팬(panRef)과 상태 팬(pan)이 몇 px 어긋나 있었다.
+       그 사이 장 도착 붓은 기준 자리에, React 붓은 손끝 자리에 번갈아 칠해 유닛·건물이 떨렸다. */
+    dragPendRef.current = null;
+    if (dragRafRef.current) { cancelAnimationFrame(dragRafRef.current); dragRafRef.current = 0; }
+    endGestureXf();
     setPlaying(false);
     /** 감기 속도(게임초 / 실초) — 20분 판이면 40초/초라 끝에서 끝까지 30초다. */
     const rate = Math.max(8, total / 30);
