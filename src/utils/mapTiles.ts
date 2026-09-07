@@ -451,6 +451,38 @@ export function drawMapGrid(
       }
     }
     const noRampPath = hasRamp ? maskPath((i) => rampQ[i] !== 1, w4, h4, P / 4, 2) : null;
+    /* ★ 램프 곁의 띠·윤곽선은 **덧판에 그려 램프 둘레를 지우고** 얹는다(요청: "램프
+       일부에 경계선 그려진 것"). 클립 마스크(칸 4분의 1 띠)로 가리던 방식은 비스듬한
+       램프에서 샜다 — 단의 길은 계단 모양 칸 경계를 곡선으로 편 것이라 램프 칸 모서리에서
+       반 칸까지 벗어나는데, 4분의 1 띠는 거기 못 미친다. 램프 길을 **같은 곡선**으로 뽑아
+       그 안과 둘레(반 칸 굵기 선)를 destination-out으로 파내면 어느 각도든 같이 휜다.
+       덧판을 못 만들면(문서 없음) 예전 클립으로 물러난다. */
+    const rampPath = hasRamp ? pathOf((i) => ramp[i] === 1) : null;
+    const lay = rampPath && typeof document !== "undefined" ? document.createElement("canvas") : null;
+    if (lay) { lay.width = ctx.canvas.width; lay.height = ctx.canvas.height; }
+    const lctx = lay ? lay.getContext("2d") : null;
+    const overlayOpen = (): CanvasRenderingContext2D => {
+      if (!lctx || !lay) { ctx.save(); if (noRampPath) ctx.clip(noRampPath, "evenodd"); return ctx; }
+      lctx.setTransform(1, 0, 0, 1, 0, 0);
+      lctx.clearRect(0, 0, lay.width, lay.height);
+      lctx.setTransform(ctx.getTransform());
+      return lctx;
+    };
+    const overlayClose = (): void => {
+      if (!lctx || !lay || !rampPath) { ctx.restore(); return; }
+      lctx.globalCompositeOperation = "destination-out";
+      lctx.fillStyle = "#000";
+      lctx.fill(rampPath, "evenodd");
+      lctx.strokeStyle = "#000";
+      lctx.lineWidth = P * 0.7;   // 곡선이 계단 모서리에서 벗어나는 반 칸을 덮는다
+      lctx.lineJoin = "round";
+      lctx.stroke(rampPath);
+      lctx.globalCompositeOperation = "source-over";
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.drawImage(lay, 0, 0);
+      ctx.restore();
+    };
     for (let L = 1; L <= 3; L += 1) {
       const has = (): boolean => {
         for (let i = 0; i < n9; i += 1) if (lvl[i] >= L && isLand(i)) return true;
@@ -458,26 +490,26 @@ export function drawMapGrid(
       };
       if (!has()) continue;
       const pL = pathOf((i) => lvl[i] >= L && isLand(i));
-      // 벽띠 두 겹 — 붙은 쪽이 짙고 바닥으로 갈수록 사라진다.
-      ctx.save();
-      if (noRampPath) ctx.clip(noRampPath, "evenodd");   // 램프 칸에는 절벽 띠를 안 깐다
-      ctx.translate(0, wallUnit * 0.45);
-      ctx.fillStyle = "rgba(6,10,20,0.30)";
-      ctx.fill(pL, "evenodd");
-      ctx.translate(0, wallUnit * 0.55);
-      ctx.fillStyle = "rgba(6,10,20,0.14)";
-      ctx.fill(pL, "evenodd");
-      ctx.restore();
+      // 벽띠 두 겹 — 붙은 쪽이 짙고 바닥으로 갈수록 사라진다. 램프 둘레는 판다.
+      const b9 = overlayOpen();
+      b9.save();
+      b9.translate(0, wallUnit * 0.45);
+      b9.fillStyle = "rgba(6,10,20,0.30)";
+      b9.fill(pL, "evenodd");
+      b9.translate(0, wallUnit * 0.55);
+      b9.fillStyle = "rgba(6,10,20,0.14)";
+      b9.fill(pL, "evenodd");
+      b9.restore();
+      overlayClose();
       ctx.fillStyle = midColor((i) => walk[i] === 1 && lvl[i] === L,
         terrainFill(mt.tileset, L, true, false));
       ctx.fill(pL, "evenodd");
-      /* 마루 테 — 절벽선이 위에서 읽히는 자리다. 곡선을 얇게 한 줄 긋는다. */
-      ctx.save();
-      if (noRampPath) ctx.clip(noRampPath, "evenodd");   // 램프 칸에는 흰 윤곽선도 안 긋는다
-      ctx.strokeStyle = "rgba(255,255,255,0.34)";
-      ctx.lineWidth = Math.max(1, P * 0.09);
-      ctx.stroke(pL);
-      ctx.restore();
+      /* 마루 테 — 절벽선이 위에서 읽히는 자리다. 곡선을 얇게 한 줄 긋는다. 램프 둘레는 판다. */
+      const o9 = overlayOpen();
+      o9.strokeStyle = "rgba(255,255,255,0.34)";
+      o9.lineWidth = Math.max(1, P * 0.09);
+      o9.stroke(pL);
+      overlayClose();
     }
 
     /* ④ 절벽면 — 고도가 있는데 못 걷는 칸. 위에서 제 단 색으로 덮였으므로 여기서
