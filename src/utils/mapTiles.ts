@@ -262,6 +262,43 @@ export function drawMapGrid(
         })();
       }
     }
+    /* ★ 램프 깃발은 **두 고도를 잇는 무리**만 믿는다(지적: "빠른무한에서 언덕(벽) 위 경계가 저렇게 다 날아가") ──
+       깃발(한 칸 안에서 걷는 미니타일의 고도가 갈리는 칸)은 벽·절벽 가장자리의 걷는 칸에도 켜질 수 있다 — 벽 발치의
+       칸은 위 단과 아래 단의 미니타일을 함께 든다. 그런 칸을 램프로 치면 그 둘레의 절벽선(띠·윤곽)을 다 지우고,
+       빠른무한처럼 벽이 긴 맵에서는 언덕 위 경계가 통째로 사라졌다. 램프는 정의상 **두 단을 잇는다**: 깃발 칸을
+       8이웃으로 묶고, 그 무리에 맞닿은 걷는 비램프 칸의 고도가 둘 이상일 때만 램프로 남긴다. 한 단(또는 절벽면)에만
+       붙은 무리는 램프가 아니라 가장자리다 — 깃발을 걷는다. */
+    {
+      const raw = ramp.slice();
+      ramp.fill(0);
+      const seen = new Uint8Array(n9);
+      const stack: number[] = [];
+      for (let s0 = 0; s0 < n9; s0 += 1) {
+        if (raw[s0] !== 1 || seen[s0] === 1) continue;
+        const comp: number[] = [];
+        const levels = new Set<number>();
+        seen[s0] = 1;
+        stack.push(s0);
+        while (stack.length > 0) {
+          const i = stack.pop() as number;
+          comp.push(i);
+          const x = i % w;
+          const y = (i - x) / w;
+          for (let dy = -1; dy <= 1; dy += 1) {
+            for (let dx = -1; dx <= 1; dx += 1) {
+              if (dx === 0 && dy === 0) continue;
+              const xx = x + dx;
+              const yy = y + dy;
+              if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+              const j = yy * w + xx;
+              if (raw[j] === 1) { if (seen[j] === 0) { seen[j] = 1; stack.push(j); } continue; }
+              if (walk[j] === 1) levels.add(lvl[j]);
+            }
+          }
+        }
+        if (levels.size >= 2) for (const i of comp) ramp[i] = 1;
+      }
+    }
     const P = pxPerTile;
     /** 그 판정의 곡선 길 — 좌표가 타일 단위라 픽셀 배수만 곱하면 된다. */
     const pathOf = (test: (i: number) => boolean): Path2D => maskPath(test, w, h, P);
