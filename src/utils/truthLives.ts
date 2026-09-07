@@ -316,7 +316,17 @@ function livesOfTrack(
       born,
       bornX: kX(tr, segStart),
       bornY: kY(tr, segStart),
-      died: ownNext ? ownNext.t : more || gone || selfEnd ? lastT : null,
+      /* ★ 다음 시절로 이어지는 생애(변태·취소)는 **다음 생애가 태어나는 키**에서 끝난다(지적: "드론이
+         건물로 변태하거나 취소하는 짧은 순간 시야가 잠시 꺼져 안개가 다시 덮인다") ────────────
+         덤퍼는 종류가 바뀌는 프레임에 **앞 프레임의 표본**을 한 줄 더 찍고 나서 새 종류의 첫 키를 찍는다
+         (bwdump: 상태·종류가 바뀌면 pending 표본을 먼저 emit). 그래서 앞 생애의 마지막 키(lastT)와 뒤
+         생애의 첫 키 사이에 한 프레임(0.042초)의 **틈**이 있었다 — 그 틈에서는 드론도 죽었고 건물도
+         아직 안 태어나, 그 순간을 안개 판이 다시 쌓으면(재쌓기는 벽시계 100~250ms마다라, 30장/초로
+         짓는 워커 프레임 하나가 틈에 드는 일은 흔하다) 다음 재쌓기까지 제자리가 도로 안개에 덮였다.
+         끝을 다음 첫 키로 당겨 두 생애를 맞붙인다. 같은 몸이 종류만 갈아입는 것이니 그 한 프레임의
+         자리도 같은 자리다. 곁 흐름 자르기(lifeEnd)는 여전히 lastT다 — 앞 시절의 값이 뒤 시절로 새지
+         않게 하는 그 자는 그대로 둔다. */
+      died: ownNext ? ownNext.t : more ? kT(tr, end) : gone || selfEnd ? lastT : null,
       end: ownNext ? "own" : selfEnd ? "self" : more ? "morph" : gone ? "atk" : "",
       ...(handoff ? { handoff: true } : {}),
       bld,
