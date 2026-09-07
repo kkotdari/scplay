@@ -26966,6 +26966,8 @@ export default function ReplayMotionPlayer({
   const fogPaintRef = useRef<((z: number, p: { x: number; y: number }, ov?: FogOverride) => void) | null>(null);
   /** 붓 틱이 마지막으로 안개 층에 넘긴 것 — 같은 판이면 다시 안 칠한다(안개 칠은 등고선·원 채우기라 공짜가 아니다). */
   const fogTickRef9 = useRef<{ vis: Float32Array | null; ver: number | undefined; explored: Uint16Array | null; tq: number; z: number; px: number; py: number }>({ vis: null, ver: undefined, explored: null, tq: -1, z: 0, px: 0, py: 0 });
+  /** 틱·도착 붓이 안개를 마지막으로 칠한 벽시계 — 안개 층의 React effect는 이 붓이 200ms 넘게 쉬었을 때만 메운다(ReplayFogLayer tickAt). */
+  const fogTickAtRef9 = useRef(0);
   /** 미니맵 붓(요청: 드래그·줌 중에도 프레임이 따라온다) — 안개와 같은 규약이다.
    *  평소 배치와 전체화면 미니맵은 서로 배타라 붓 하나를 나눠 쓴다. */
   const miniPaintRef = useRef<((z: number, p: { x: number; y: number }) => void) | null>(null);
@@ -28358,7 +28360,9 @@ export default function ReplayMotionPlayer({
     /* 틱이 안 몰 때(멈춤·감기)는 안개를 여기서 안 칠한다 — 그때는 안개 층의 React effect가 렌더마다(깨움 100ms) 상태 t의
        눈 목록으로 칠한다. 여기서도 칠하면 방금 온 장(tLive)과 렌더가 고른 장(t)이 다른 장일 때 두 안개가 번갈아 난다
        (지적: 감을 때 흔들림). 유닛 캔버스는 두 경로가 같은 객체(frameOpsRef9)를 찍으므로 그 문제가 없다. */
-    if (fr9.visSrc && fr9.explored && fogPaintRef.current && drivenRef9.current) {
+    /* (되돌림) 멈춤·감기 중에도 여기서 칠한다(지적: "안개가 너무 늦게 떠서 품질이 떨어진다") — React 붓과의 번갈음은
+       이제 React 붓이 같은 보기 원천(viewRefs)을 읽고, 이 붓이 200ms 안에 칠했으면 React 붓이 쉬는 것으로 막는다(fogTickAtRef9). */
+    if (fr9.visSrc && fr9.explored && fogPaintRef.current) {
       const ft9 = fogTickRef9.current;
       // 0.25초 → 0.1초(요청: "안개 그리기 빈도 늘리기") — 밝힌 판·눈 목록이 그대로여도 경기 시간 0.1초마다 한 번은 칠한다.
       const tq9 = Math.floor(tNow9 * 10);
@@ -28369,6 +28373,7 @@ export default function ReplayMotionPlayer({
       if (fr9.visSrc !== ft9.vis || fr9.visVer !== ft9.ver || fr9.explored !== ft9.explored || tq9 !== ft9.tq
         || ft9.z !== vz9 || ft9.px !== vx9 || ft9.py !== vy9) {
         ft9.vis = fr9.visSrc; ft9.ver = fr9.visVer; ft9.explored = fr9.explored; ft9.tq = tq9; ft9.z = vz9; ft9.px = vx9; ft9.py = vy9;
+        fogTickAtRef9.current = performance.now();
         if (xfGestureRef.current) {
           // 손짓 중 — 기준 자리에 칠하고 걷힌 변환을 같은 값으로 도로 건다(유닛 캔버스와 같은 까닭, 위 ★).
           const b9 = xfBaseRef.current;
@@ -30894,7 +30899,7 @@ export default function ReplayMotionPlayer({
                 zoom={zoom} pan={pan}
                 tilePx={(mapRef.current?.clientWidth ?? 320) / grid.width}
                 flatK={pitched ? pitchFlat : 1}
-                painter={fogPaintRef} live={xfLiveRef} gesture={xfGestureRef} driven={drivenRef9} viewRefs={viewRefs9}
+                painter={fogPaintRef} live={xfLiveRef} gesture={xfGestureRef} driven={drivenRef9} viewRefs={viewRefs9} tickAt={fogTickAtRef9}
               />
             )}
 

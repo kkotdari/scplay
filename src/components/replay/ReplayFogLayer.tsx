@@ -42,7 +42,7 @@ const FOG_RGB = "5, 8, 14";
 export type FogOverride = { vis: Float32Array; exploredAt: Uint16Array; t: number };
 
 export default function ReplayFogLayer({
-  w, h, exploredAt, t, vis, proj, zoom, pan, tilePx, flatK, className, painter, live, gesture, driven, viewRefs,
+  w, h, exploredAt, t, vis, proj, zoom, pan, tilePx, flatK, className, painter, live, gesture, driven, viewRefs, tickAt,
 }: {
   /** 지도 격자 크기(타일). */
   w: number;
@@ -84,6 +84,9 @@ export default function ReplayFogLayer({
   driven?: { current: boolean };
   /** 붓의 보기 원천(UnitLayer viewRefs 주석) — 있으면 상태 zoom·pan 대신 이 ref를 읽어 유닛 캔버스와 같은 자리에 칠한다. */
   viewRefs?: { z: { current: number }; p: { current: { x: number; y: number } } };
+  /** 틱·도착 붓이 안개를 마지막으로 칠한 벽시계(부모 fogTickAtRef9) — 200ms 안이면 이 effect는 쉰다. 그 붓이 멈춘 뒤(장이
+   *  안 오는 정지 상태)에만 여기서 메워 안개가 늦게 뜨지 않는다. */
+  tickAt?: { current: number };
 }): React.ReactElement {
   const cvRef = useRef<HTMLCanvasElement>(null);
   /** 밝힘 등고선 갈무리 — 밝힌 칸 수가 바뀔 때만 다시 뽑는다. */
@@ -244,6 +247,7 @@ export default function ReplayFogLayer({
     };
     if (painter) painter.current = paint;
     if (gesture?.current || driven?.current) return;   // 손짓 중·틱이 몰 때 — 위 gesture·driven 주석
+    if (tickAt && performance.now() - tickAt.current < 200) return;   // 틱·도착 붓이 방금 칠했다 — 위 tickAt 주석
     const lv = live?.current;
     /* 이 층도 렌더 밖에서 칠한다 — 안 재면 '브라우저' 뺄셈에 숨는다(perf9 머리말). */
     pWrap("붓:안개캔버스", () => paint(lv ? lv.z : (viewRefs ? viewRefs.z.current : zoom), lv ? lv.p : (viewRefs ? viewRefs.p.current : pan)));
