@@ -142,6 +142,8 @@ const emit = (t: number): number => {
   const st = engine.stats();
   post({
     type: "frame", t: f.t, buf: body.buf, strs: body.strs, fog, ms, n: f.unitOps.length, seq: viewSeq, fseq: fogSeq, gen,
+    // 이 장을 지은 시점 원점(PitchGeom9.ox·oy) — 메인이 지형 변환·안개 사영을 이 값에 맞춘다(장과 지도가 늘 같은 눈).
+    ox: view?.geom?.ox ?? 0, oy: view?.geom?.oy ?? 0,
     // 진단 — 짓기의 속(엔진·싸기), 안개 비용·횟수, 리셋 횟수, 워커 시계(주인 t와의 차를 메인이 본다)
     msBuild: t1 - t0, msPack: t2 - t1, fogCost: st.fogCost, fogN: st.fogStamps, resets, cur: clockT(),
   }, transfer);

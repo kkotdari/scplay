@@ -23994,6 +23994,8 @@ export type PackedFrame9 = {
   ms: number; /** 유닛 op 수(진단) */ n: number; /** 시점 차례(시야 사각형이 바뀔 때마다 오른다) */ seq: number;
   /** 세대 — 시점·명령(탐색·감기·재생/정지·배속)마다 오른다(frameWorker gen). 붓은 세대를 섞어 고르지 않는다. */
   gen: number;
+  /** 이 장을 지은 시점 원점(PitchGeom9.ox·oy) — 붓이 그리는 장의 원점을 지형 변환·안개 사영이 따라간다(drawnOrgRef9). */
+  ox: number; oy: number;
   /** 안개 갈래 — 시야 주인·전체시야·안개 켬이 바뀔 때만 오른다. 다른 갈래의 안개 판은 섞어 쓰지 않는다. */
   fseq: number; dec?: Frame9;
   /** 보간용 — 이 장의 유닛 op 열쇠 표(뒤 장으로 쓰일 때 한 번 만든다). */
@@ -24348,6 +24350,10 @@ export default function ReplayMotionPlayer({
    *  되짚기(감기)에서 새 세대의 첫 장은 명령 시각(t0)에서 시작하는데, 그 사이 붓은 옛 세대의 앞 장을 이미 더 나아가
    *  그렸다. 새 세대를 무조건 먼저 고르면 그림이 t0로 되돌아갔다가 다시 나아가는 톱니가 난다(실측: 0.8초 주기). */
   const lastDrawT9 = useRef(-1);
+  /** 붓이 그리는 장의 시점 원점(PackedFrame9.ox·oy) — 지형 CSS 변환과 안개·DOM 효과의 사영이 **이 값**을 쓴다. 굳은
+   *  상태의 원점(pitchGeom().ox·oy)은 워커에 보내는 목표이고, 새 세대의 장이 오기까지 화면은 옛 원점으로 한 몸이어야
+   *  지도와 유닛이 어긋나지 않는다. 바뀌면 지형 변환을 바로 다시 건다(paintFnRef9). */
+  const drawnOrgRef9 = useRef({ ox: 0, oy: 0 });
   const wStatRef = useRef({
     got: 0, used: 0, missed: 0, err: "", sentWorld: 0, sentView: 0, sentCmd: 0,
     /** 워커가 세계를 받아 엔진을 세웠다(ready). 세계를 보낸 뒤 오래 안 오면 진단에 '응답 없음'. */
@@ -24467,7 +24473,7 @@ export default function ReplayMotionPlayer({
       if (dead9) return;
       const m9 = ev.data;
       if (m9.type === "frame" && m9.buf && m9.strs && typeof m9.t === "number") {
-        const pf9: PackedFrame9 = { t: m9.t, buf: m9.buf, strs: m9.strs, fog: m9.fog ?? null, ms: m9.ms ?? 0, n: m9.n ?? 0, seq: m9.seq ?? 0, fseq: m9.fseq ?? 0, gen: m9.gen ?? 0 };
+        const pf9: PackedFrame9 = { t: m9.t, buf: m9.buf, strs: m9.strs, fog: m9.fog ?? null, ms: m9.ms ?? 0, n: m9.n ?? 0, seq: m9.seq ?? 0, fseq: m9.fseq ?? 0, gen: m9.gen ?? 0, ox: m9.ox ?? 0, oy: m9.oy ?? 0 };
         /* ★ 세대 경계(지적: "빨리감기 때 유닛·건물이 흔들린다") — 감기·탐색은 시야가 안 바뀌어 seq가 그대로였고, 되짚기
            **전에** 앞으로 지어 둔 장(옛 세대)이 되짚은 뒤 새로 짓는 장 사이사이에 시각순으로 끼어들어 붓이 두 세대를
            번갈아 골랐다(엔진은 상태를 들고 있어 같은 시각이라도 세대마다 자리가 조금 다르다). 새 세대의 첫 장이 오면
@@ -27562,6 +27568,7 @@ export default function ReplayMotionPlayer({
      이미 새 렌더가 돌았으므로 어긋날 틈이 없다. */
   type PitchGeom9 = {
     w: number; h: number; hPre: number; P: number; S: number; C: number; q: number; cy: number;
+  /** 시점 원점(렌즈 가운데에서의 치우침, 렌즈 px) — engine9 PitchGeom9 주석. */ ox: number; oy: number;
   };
   const pgRef = useRef<PitchGeom9 | null>(null);
   pgRef.current = null;
@@ -27584,7 +27591,11 @@ export default function ReplayMotionPlayer({
     const q = Math.max(0.2, (P - H * S) / P);
     const kFar = P / (P + H * S);
     const cy = (C * H * (1 - q * kFar)) / 2;
-    return { w, h, hPre, P, S, C, q, cy };
+    /* 시점 원점(PitchGeom9 주석) — 굳은 배율·팬에서 화면 가운데가 닿는 지도 지점. 원점은 (q·ox, q·C·oy − cy)에 찍히므로
+       그 자리가 화면 가운데(−pan/z)가 되게 푼다. 팬 0·배율 1이면 cy만큼 아래 지점이 원점이라 옛 그림과 거의 같다. */
+    const ox = pitched ? -pan.x / (zoom * q) : 0;
+    const oy = pitched ? (cy - pan.y / zoom) / (q * C) : 0;
+    return { w, h, hPre, P, S, C, q, cy, ox, oy };
   };
   const pitchGeom = (): PitchGeom9 => {
     pgRef.current ??= pitchGeomRaw();
@@ -27592,10 +27603,16 @@ export default function ReplayMotionPlayer({
   };
   /* (걷음) pitchStyle — 입체일 때 <img>에 입히던 변환이다. 그림이 사라졌다. */
 
+  /** 그리는 장의 원점을 낀 기하 — 안개·DOM 효과·지형 변환이 쓴다(위 drawnOrgRef9). 목표 원점은 pitchGeom()이다. */
+  const drawnGeom9 = (): PitchGeom9 => {
+    const g9 = pitchGeom();
+    const d9 = drawnOrgRef9.current;
+    return d9.ox === g9.ox && d9.oy === g9.oy ? g9 : { ...g9, ox: d9.ox, oy: d9.oy };
+  };
   const pitchK = (y: number): number => {
     if (!pitched) return 1;
-    const { hPre, P, S, q } = pitchGeom();
-    const v = (y / grid.height - 0.5) * hPre;
+    const { hPre, P, S, q, oy } = drawnGeom9();
+    const v = (y / grid.height - 0.5) * hPre - oy;
     return (q * P) / (P - v * S);
   };
   /** 위쪽 여유(배율 1 기준, px) — 지도 윗변 위로 더 끌 수 있는 몫이다(위 panLimit).
@@ -27618,11 +27635,12 @@ export default function ReplayMotionPlayer({
      매 렌더 갱신). */
   const posFrac = (x: number, y: number): [number, number] => {
     if (!pitched) return [x / grid.width, y / grid.height];
-    const { w, h, hPre, P, S, C, q, cy } = pitchGeom();
-    const u = (x / grid.width - 0.5) * w;
-    const v = (y / grid.height - 0.5) * hPre;
+    // 엔진(engine9 posFrac)과 같은 식 — 원점은 그리는 장의 것(drawnGeom9).
+    const { w, h, hPre, P, S, C, q, cy, ox, oy } = drawnGeom9();
+    const u = (x / grid.width - 0.5) * w - ox;
+    const v = (y / grid.height - 0.5) * hPre - oy;
     const k = (q * P) / (P - v * S);
-    return [0.5 + (u * k) / w, 0.5 + (v * C * k - cy) / h];
+    return [0.5 + (q * ox + u * k) / w, 0.5 + (q * C * oy + v * C * k - cy) / h];
   };
   mapFracRef.current = posFrac;
   const posStyle = (x: number, y: number): { left: string; top: string } => {
@@ -27646,12 +27664,13 @@ export default function ReplayMotionPlayer({
    *  평면(90도)에서는 원근이 없어 분수가 곧 자리다. */
   const tileOfFrac = (fx: number, fy: number): [number, number] => {
     if (!pitched) return [fx * grid.width, fy * grid.height];
-    const { w, h, hPre, P, S, C, q, cy } = pitchGeom();
-    const A = ((fy - 0.5) * h + cy) / Math.max(1e-6, C * q * P);
+    // 목표 원점(pitchGeom)의 역함수 — 시야 사각형·미니맵 창·재중심은 굳은 상태의 눈으로 잰다.
+    const { w, h, hPre, P, S, C, q, cy, ox, oy } = pitchGeom();
+    const A = ((fy - 0.5) * h + cy - q * C * oy) / Math.max(1e-6, C * q * P);
     const v = (A * P) / (1 + A * S);
     const k = (q * P) / Math.max(1e-6, P - v * S);
-    const u = ((fx - 0.5) * w) / Math.max(1e-6, k);
-    return [(u / w + 0.5) * grid.width, (v / hPre + 0.5) * grid.height];
+    const u = ((fx - 0.5) * w - q * ox) / Math.max(1e-6, k);
+    return [((u + ox) / w + 0.5) * grid.width, ((v + oy) / hPre + 0.5) * grid.height];
   };
   /** 지금 화면 한가운데에 오는 지도 지점(타일). 상자가 아직 안 서 있으면 null. */
   const viewCenterTile = (): { x: number; y: number } | null => {
@@ -27737,8 +27756,8 @@ export default function ReplayMotionPlayer({
      오른쪽 마커는 왼옆이 보인다. */
   const viewYawOf = (x: number, y: number): number => {
     if (!pitched) return 0;
-    const { w, P } = pitchGeom();
-    const u = (x / grid.width - 0.5) * w;
+    const { w, P, ox } = drawnGeom9();
+    const u = (x / grid.width - 0.5) * w - ox;
     void y; // 자리 호환 — 기울기는 u/P라 세로 좌표가 안 든다.
     /* 요잉이 아니라 시각 밀림의 각(지적: 소실점이 시각을 반영해야 — 돌리면 찌그러짐).
        ShapeIcon이 tan을 취하면 u/P — 지도 남북 선의 소실 기울기 그 값이다(지적:
@@ -27942,7 +27961,7 @@ export default function ReplayMotionPlayer({
   };
   /* 시점 입력이 바뀌면 워커에도 알린다 — 색표는 참조로, 나머지는 값으로 견준다. */
   const viewKey9 = `c${CROWD9.lv}|${engView9.mapW}|${engView9.mapH}|${engView9.tilePx.toFixed(3)}|${engView9.pitched ? 1 : 0}|${engView9.pitchFlat.toFixed(4)}`
-    + `|${engView9.geom.w}|${engView9.geom.h}|${engView9.geom.P.toFixed(1)}|${engView9.viewTeam}|${engView9.visAll ? 1 : 0}|${engView9.fogOn ? 1 : 0}`
+    + `|${engView9.geom.w}|${engView9.geom.h}|${engView9.geom.P.toFixed(1)}|${engView9.geom.ox.toFixed(1)},${engView9.geom.oy.toFixed(1)}|${engView9.viewTeam}|${engView9.visAll ? 1 : 0}|${engView9.fogOn ? 1 : 0}`
     + `|${engView9.qAnim ? 1 : 0}${engView9.qBuildFx ? 1 : 0}${engView9.qDeath ? 1 : 0}${engView9.clickFx ? 1 : 0}`
     + `|${cullRect9 ? `${cullRect9.x0.toFixed(3)},${cullRect9.x1.toFixed(3)},${cullRect9.y0.toFixed(3)},${cullRect9.y1.toFixed(3)}` : "all"}`;
   {
@@ -28205,7 +28224,16 @@ export default function ReplayMotionPlayer({
       if (wPacked9) { if (wPacked9.t === bs9.lastA) bs9.sameA += 1; bs9.lastA = wPacked9.t; }
     }
     if (wPacked9) {
-      if (count9) { wStatRef.current.used += 1; lastDrawT9.current = wPacked9.t; }
+      if (count9) {
+        wStatRef.current.used += 1; lastDrawT9.current = wPacked9.t;
+        const dOrg9 = drawnOrgRef9.current;
+        if (dOrg9.ox !== wPacked9.ox || dOrg9.oy !== wPacked9.oy) {
+          drawnOrgRef9.current = { ox: wPacked9.ox, oy: wPacked9.oy };
+          // 원점이 바뀐 장 — 지형 변환을 같은 눈으로 다시 건다(ReplayMapVector의 pitchXf가 drawnOrgRef9를 읽는다).
+          mapPaintRef.current?.(zoomRef.current, panRef.current);
+          fogTickRef9.current.z = -1;   // 안개도 새 원점으로 다시 칠하게
+        }
+      }
       // 푼 것은 앞 장(그리는 장)과 뒤 장(보간 끝점)만 들고, 그보다 옛 장의 객체는 놓는다(폰 메모리).
       for (const f9 of wFramesRef.current.values()) {
         if (f9.t < wPacked9.t && f9.dec) { f9.dec = undefined; f9.byKey = undefined; }
@@ -30307,8 +30335,13 @@ export default function ReplayMotionPlayer({
                  문자열로 박아 넘기면 그 값이 커밋된 pan·zoom으로 굳어, 손짓 중에는
                  지도가 멈춰 있고 놓는 순간 튄다(그쪽 pitchXf 주석). */
               pitchXf={pitched ? ((z9, p9) => {
-                const { q, cy, P } = pitchGeom();
-                return `translate(${p9.x.toFixed(1)}px, ${p9.y.toFixed(1)}px) scale(${z9}) translateY(${(-cy).toFixed(1)}px) scale(${q.toFixed(4)}) perspective(${P.toFixed(0)}px) rotateX(${pitchTiltDeg.toFixed(2)}deg)`;
+                /* 시점 원점(drawnGeom9의 ox·oy — 그리는 장의 눈)을 낀 변환: 원점을 가운데로 옮겨 기울이고 원근을 먹인 뒤
+                   (ox, C·oy)로 되돌린다. 메인·엔진 posFrac의 식과 같은 자리다(그쪽 주석). ox=oy=0이면 옛 문자열과 같다. */
+                const { q, cy, P, C, ox, oy } = drawnGeom9();
+                const org9 = ox !== 0 || oy !== 0
+                  ? ` translate(${ox.toFixed(1)}px, ${(C * oy).toFixed(1)}px) perspective(${P.toFixed(0)}px) rotateX(${pitchTiltDeg.toFixed(2)}deg) translate(${(-ox).toFixed(1)}px, ${(-oy).toFixed(1)}px)`
+                  : ` perspective(${P.toFixed(0)}px) rotateX(${pitchTiltDeg.toFixed(2)}deg)`;
+                return `translate(${p9.x.toFixed(1)}px, ${p9.y.toFixed(1)}px) scale(${z9}) translateY(${(-cy).toFixed(1)}px) scale(${q.toFixed(4)})${org9}`;
               }) : undefined}
             />
           )}

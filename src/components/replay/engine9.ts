@@ -2381,6 +2381,10 @@ export type FoeRow = {
 };
 export type PitchGeom9 = {
   w: number; h: number; hPre: number; P: number; S: number; C: number; q: number; cy: number;
+  /** 시점 원점(소실점) — 렌즈 가운데에서의 치우침(렌즈 px, 기울이기 전 평면 자). 0,0이면 옛 그림(지도 가운데 고정).
+   *  지적("내 시점은 좌우·앞뒤로 움직이는데 소실점은 가운데 정면 고정이라 어지럽다"): 화면 가운데가 닿는 지도 지점을
+   *  원점으로 두면 눈이 늘 화면 가운데 위에 선다. 굳은 배율·팬에서 나오고(pitchGeomRaw), 장(frame)이 제 원점을 싣는다. */
+  ox: number; oy: number;
 };
 /** 캔버스가 아니라 DOM으로 그리는 효과의 기록 — 메인 스레드가 이것으로 스팬을 만든다. */
 export type DomFx9 =
@@ -3501,24 +3505,27 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     const modeColor = (raw: string, team: 1 | 2 | undefined): string =>
       view.colors[raw] ?? (team === 2 ? TEAM_COLOR[2] : TEAM_COLOR[1]);
     const pitchGeom = (): PitchGeom9 => view.geom;
+    /* 시점 원점(ox·oy — PitchGeom9 주석)을 낀 사영: 원점을 기준으로 기울이고 원근을 먹인 뒤, 원점을 평면 배율(q)로
+       놓은 자리(q·ox, q·C·oy − cy)에 되돌려 놓는다. ox=oy=0이면 옛 식과 같다. 메인(ReplayMotionPlayer)의 같은 이름 셋과
+       식이 같아야 한다 — 한쪽만 고치면 안개·효과와 유닛이 어긋난다. */
     const pitchK = (y: number): number => {
       if (!pitched) return 1;
-      const { hPre, P, S, q } = pitchGeom();
-      const v = (y / grid.height - 0.5) * hPre;
+      const { hPre, P, S, q, oy } = pitchGeom();
+      const v = (y / grid.height - 0.5) * hPre - oy;
       return (q * P) / (P - v * S);
     };
     const posFrac = (x: number, y: number): [number, number] => {
       if (!pitched) return [x / grid.width, y / grid.height];
-      const { w, h, hPre, P, S, C, q, cy } = pitchGeom();
-      const u = (x / grid.width - 0.5) * w;
-      const v = (y / grid.height - 0.5) * hPre;
+      const { w, h, hPre, P, S, C, q, cy, ox, oy } = pitchGeom();
+      const u = (x / grid.width - 0.5) * w - ox;
+      const v = (y / grid.height - 0.5) * hPre - oy;
       const k = (q * P) / (P - v * S);
-      return [0.5 + (u * k) / w, 0.5 + (v * C * k - cy) / h];
+      return [0.5 + (q * ox + u * k) / w, 0.5 + (q * C * oy + v * C * k - cy) / h];
     };
     const viewYawOf = (x: number, y: number): number => {
       if (!pitched) return 0;
-      const { w, P } = pitchGeom();
-      const u = (x / grid.width - 0.5) * w;
+      const { w, P, ox } = pitchGeom();
+      const u = (x / grid.width - 0.5) * w - ox;
       void y;
       return (Math.atan2(u, P) * 180) / Math.PI;
     };
