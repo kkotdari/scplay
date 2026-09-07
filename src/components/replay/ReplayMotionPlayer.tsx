@@ -26959,6 +26959,8 @@ export default function ReplayMotionPlayer({
   /** 임시 변환 손짓(휠·드래그·핀치)이 도는 중인가 — 도는 동안은 상태로 덮지 않는다
    *  (위 onWheel ① 주석). 이름이 wheeling이던 것을 세 손짓이 함께 쓰며 바꿨다. */
   const xfGestureRef = useRef(false);
+  /** 지금 도는 손짓의 '대기 델타 반영' 함수 — 드래그·핀치가 시작할 때 걸고, endGestureXf가 끝내기 직전에 부른다. */
+  const pendFlushRef9 = useRef<(() => void) | null>(null);
   /** 캔버스가 마지막으로 **그려진** 배율·팬 — 손짓의 임시 변환은 이 기준에서의
    *  델타다. 굴림 커밋이 들어오면 아래 effect가 이 기준만 갈아 끼운다. */
   const xfBaseRef = useRef({ z: 1, x: 0, y: 0 });
@@ -27185,16 +27187,28 @@ export default function ReplayMotionPlayer({
   /** 손짓 끝 — 마지막 값을 굳힌다. 렌더가 refs를 다시 상태에 맞춘다. */
   const endGestureXf = useCallback((): void => {
     if (!xfGestureRef.current) return;
+    /* ★ 대기 중인 마지막 한 걸음을 먼저 반영한다(지적: "드래그시 다 못 가서 그리고 툭 이동") — 드래그·핀치는 마지막
+       움직임을 rAF에 실어 두는데, 손을 떼면 그 rAF는 무시된다(applyGestureXf의 문지기). 안 반영하면 그만큼 못 미친
+       자리에서 굳는다. 각 손짓이 제 반영 함수를 걸어 둔다(pendFlushRef9). */
+    pendFlushRef9.current?.();
+    pendFlushRef9.current = null;
+    /* ★ 지형·렌즈·미니맵도 여기서 최종 보기로 옮긴다(지적: "지형도 마지막에 툭 한 번 움직인다") — 대기 델타를 반영하면
+       panRef만 바뀌고 화면은 마지막 rAF 자리에 남는다. 그러면 유닛만 아래에서 최종 자리로 가고 지형은 커밋이 올 때까지
+       한 걸음 뒤에 있다가 툭 따라온다. 손짓 중 프레임마다 하던 일(applyGestureXf + mapPaint·miniPaint)을 여기서 마지막으로
+       한 번 하면, 지형·렌즈·유닛·안개가 **한 블록 안에서** 같은 자리에 선다. */
+    applyGestureXf(false);
+    mapPaintRef.current?.(zoomRef.current, panRef.current);
+    miniPaintRef.current?.(zoomRef.current, panRef.current);
     xfGestureRef.current = false;
     viewDiagPush9("commit", `z${zoomRef.current.toFixed(2)} ${panRef.current.x.toFixed(1)},${panRef.current.y.toFixed(1)}`);
     /* 예약해 둔 한 장은 걷는다 — 손을 뗀 뒤에 도착하면 아래 커밋이 그릴 그림을 한 번
        더 그리는 셈이고, 그 사이에 컴포넌트가 사라지면 없는 캔버스를 잡는다. */
     if (xfRafRef.current) { cancelAnimationFrame(xfRafRef.current); xfRafRef.current = 0; }
-    /* ★ 손끝 보기(xfLive)는 **여기서 안 지운다** — 상태가 아직 안 굳었기 때문이다.
-       여기서 지우면, 커밋이 화면에 닿기 전에 도는 리렌더(재생 틱)가 굳은 지 오래인
-       props 값으로 한 장 그려 화면이 손짓 전 자리로 튀었다가 돌아온다(지적: "배율도
-       튀고"). 상태가 실제로 손끝을 따라잡은 것을 본 뒤에 지운다 — 아래 렌즈 effect의
-       '손짓 아님' 갈래가 그 자리다. */
+    /* ★ 최종 보기로 **여기서 곧장** 한 장 칠한다(같은 지적) — 여태 이 일을 React 커밋(렌즈 effect)에 맡겼는데, 그 사이
+       (폰에서 수십~수백 ms) 지형은 최종 자리에 가 있고 유닛 캔버스는 마지막 걸음만큼 뒤에 남아 있었다. 그것이 '다 못 가서
+       그렸다가 툭'이다. 붓 하나를 재기준으로 부르면 내용이 최종 자리로 가고 임시 변환이 걷힌다 — 커밋 타이밍과 무관하다. */
+    brushSrc9 = "commit";
+    paintFnRef9.current?.(tLiveRef9.current, true);
     setZoom(zoomRef.current);
     setPan({ ...panRef.current });
   }, []);
@@ -27359,9 +27373,15 @@ export default function ReplayMotionPlayer({
     /* ★ 걷기 전에 **칠한다**(지적: "팬 드래그 뒤 조금 이전 위치의 그림") — 틱이 몰 때(driven) 방금 렌더의 UnitLayer
        effect는 안 칠했다. 캔버스 내용은 아직 기준(xfBase) 자리인데 여기서 변환만 걷으면 다음 틱(폰에서 수백 ms)까지
        옛 자리 그림이 보였다가 튄다. 기준이 상태와 다르면 지금 한 장 칠해(붓이 기준을 맞추고 변환을 걷는다) 이음매를 없앤다. */
-    // 붓 하나로 굳은 보기 자리에 한 장 — 붓이 임시 변환을 걷는다(재기준). 거울(상태)과 ref는 이미 같다.
-    brushSrc9 = "commit";
-    paintFnRef9.current?.(tLiveRef9.current, true);
+    /* 굳은 보기와 캔버스에 그려진 보기가 다르면 한 장(전체화면 전환·각도 바뀜처럼 손짓 밖에서 상자가 갈리는 길) —
+       손짓 끝은 endGestureXf가 이미 곧장 칠했으므로 여기서는 대개 건너뛴다. */
+    {
+      const b9 = xfBaseRef.current;
+      if (b9.z !== zoom || b9.x !== pan.x || b9.y !== pan.y) {
+        brushSrc9 = "commit";
+        paintFnRef9.current?.(tLiveRef9.current, true);
+      }
+    }
     if (cv && cv.style.transform) cv.style.transform = "";
     {
       // 안개 캔버스도 — 이 렌더의 ReplayFogLayer effect(자식이 먼저 돈다)가 상태 자리로 칠했으니 변환만 걷는다.
@@ -27424,6 +27444,11 @@ export default function ReplayMotionPlayer({
       /* 두 손가락이 닿는 순간부터 세로 스크롤도 끊는다(지적: 팬·핀치 뒤 떨림) — 1배에서 시작하는 핀치는 아직 pan-y라,
          두 손가락이 같이 움직이면 브라우저가 페이지 스크롤로 채가 주소창이 움직일 수 있다. 굳을 때 배율 규칙이 되돌린다. */
       el2.style.touchAction = "none";
+      // 대기 델타 반영(드래그와 같은 규약) — 손을 뗄 때 endGestureXf가 부른다.
+      pendFlushRef9.current = (): void => {
+        if (pinchRaf) { cancelAnimationFrame(pinchRaf); pinchRaf = 0; }
+        if (pinchPend) { zoomRef.current = pinchPend.z; panRef.current = pinchPend.p; pinchPend = null; }
+      };
       pinch = {
         d: Math.max(1, dist(e.touches)),
         z: zoomRef.current,
@@ -27505,10 +27530,7 @@ export default function ReplayMotionPlayer({
       if (e.touches.length < 2 && pinch) {
         pinch = null;
         gestureRef.current = false;
-        // 대기 중인 마지막 한 장을 먼저 반영한다(드래그의 flushDragPend9와 같은 까닭).
-        if (pinchRaf) { cancelAnimationFrame(pinchRaf); pinchRaf = 0; }
-        if (pinchPend && xfGestureRef.current) { zoomRef.current = pinchPend.z; panRef.current = pinchPend.p; applyGestureXf(false); pinchPend = null; }
-        endGestureXf();
+        endGestureXf();   // 대기 델타는 pendFlushRef9(아래 핀치 시작에서 건다)가 반영한다
       } else if (e.touches.length < 2) {
         gestureRef.current = false;
       }
@@ -28608,7 +28630,6 @@ export default function ReplayMotionPlayer({
        누르고 기다리는 400ms 사이 손가락이 슬롭을 넘어 흔들리면 드래그 손짓(beginGestureXf)이 먼저 서 있다. 여태 여기서
        드래그만 끊고 손짓은 안 끝내, 감기 내내 xfGesture가 켜진 채 손끝 팬(panRef)과 상태 팬(pan)이 몇 px 어긋나 있었다.
        그 사이 장 도착 붓은 기준 자리에, React 붓은 손끝 자리에 번갈아 칠해 유닛·건물이 떨렸다. */
-    flushDragPend9();
     endGestureXf();
     setPlaying(false);
     /** 감기 속도(게임초 / 실초) — 20분 판이면 40초/초라 끝에서 끝까지 30초다. */
@@ -28771,6 +28792,13 @@ export default function ReplayMotionPlayer({
        변환만 움직이고(합성기 전용), 300ms 굴림 커밋이 유닛 캔버스의 빈 가장자리만
        때때로 메운다. 놓을 때 최종 커밋. */
     beginGestureXf();
+    // 대기 델타 반영을 손짓에 걸어 둔다(endGestureXf가 부른다) — 못 미친 자리에서 굳지 않게.
+    pendFlushRef9.current = (): void => {
+      if (dragRafRef.current) { cancelAnimationFrame(dragRafRef.current); dragRafRef.current = 0; }
+      const p9 = dragPendRef.current;
+      dragPendRef.current = null;
+      if (p9) panRef.current = p9;
+    };
     /* 프레임당 한 번(지적: 드래그 버벅임) — pointermove는 120Hz까지 튄다. */
     dragPendRef.current = {
       x: Math.min(maxX, Math.max(-maxX, d.px + (e.clientX - d.sx))),
@@ -28848,16 +28876,7 @@ export default function ReplayMotionPlayer({
       y: Math.min(lim.yTop, Math.max(-lim.y, cy - oy - z1 * uy)),
     });
   };
-  /** 드래그의 대기 델타(dragPend, rAF에 실린 마지막 한 걸음)를 지금 반영한다 — 손짓을 끝내기 **전에**. 안 그러면 늦게 온
-   *  rAF가 무시되어(applyGestureXf의 문지기) 도착점에 살짝 못 미친 자리에서 굳었다가 그 델타가 뒤늦게 튄다(지적). */
-  const flushDragPend9 = (): void => {
-    if (dragRafRef.current) { cancelAnimationFrame(dragRafRef.current); dragRafRef.current = 0; }
-    const np9 = dragPendRef.current;
-    dragPendRef.current = null;
-    if (np9 && xfGestureRef.current) { panRef.current = np9; applyGestureXf(false); }
-  };
   const onMapPointerUp = (e: React.PointerEvent) => {
-    flushDragPend9();
     /* 손짓 끝내기는 **맨 앞**이다(수리: 손짓 표시가 켜진 채 남는 길들) — 아래에는
        감기(holdSeeked)로 먼저 빠져나가는 갈래가 있고, 드래그 도중 감기·핀치가 끼어들면
        dragRef가 지워져 'dragged'가 거짓이 된다. 그 길로 나가면 xfGesture가 켜진 채
