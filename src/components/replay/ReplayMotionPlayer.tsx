@@ -2913,7 +2913,9 @@ function tankTurretV2(siege: boolean, parts?: { body?: boolean; barrel?: boolean
   const HX9 = 1.4;
   const BX9 = HX9 * 0.9;   // 포신은 0.9배 더(요청)
   const hex9: [number, number][] = ([
-    [-0.6, 1.2 * f9], [0.6, 1.2 * f9], [1.4, 0.2 * f9], [1.1, -1.3 * f9], [-1.1, -1.3 * f9], [-1.4, 0.2 * f9],
+    /* 앞변 반폭 0.85(·HX9 = 1.19) — 두 포신(x ±0.42·BX9, 반지름 0.3·BX9 → 바깥 ±0.91, 포구 링 ±1.01)이 앞면 안에 들어가야
+       한다(지적: "포신 나오는 앞면이 너무 좁다"). 옛 0.6(±0.84)은 포신이 앞면 밖으로 삐져나왔다. */
+    [-0.85, 1.2 * f9], [0.85, 1.2 * f9], [1.4, 0.2 * f9], [1.1, -1.3 * f9], [-1.1, -1.3 * f9], [-1.4, 0.2 * f9],
   ] as [number, number][]).map(([hx9, hy9]) => [hx9 * HX9, hy9 * HX9] as [number, number]);
   /* 시즈 모드는 받침 원판만 빼고 **육각 포탑·돔·포신이 함께 살짝 기운다**(요청: 포신이 살짝 하늘을 향하게) —
      포탑 밑면 높이(Z0+0.25)의 x축을 축으로 +y(포신) 쪽이 12도 들린다. 육각은 prismZFaces가 축 정렬이라 기운 꼭짓점으로
@@ -2958,8 +2960,10 @@ function tankTurretV2(siege: boolean, parts?: { body?: boolean; barrel?: boolean
        안 그린다(앞 겹판은 포탑 몸 위에 찍히므로 속에 든 토막이 비쳐서는 안 된다). 다 들어가면(ext 0) 한 토막도 없다. */
     const ext9 = parts?.ext;
     const rc9 = (poseNow === 2 && ext9 === undefined ? 0.6 : 0) + (ext9 !== undefined ? (1 - ext9) * 2.4 * BX9 : 0);
-    const root9 = 0.6 * BX9;
-    const bz9 = ZB9 + (Z0 + 0.95 - ZB9) * BX9;
+    /* 자름선은 **포탑 앞면**(hex9 앞변 y = 1.2·HX9; 포신 x ±0.42·BX9는 그 변 안이다)이다 — 온몸 판에서는 깊이 정렬이
+       포탑 속 토막을 가리지만, 앞 겹판은 포탑 몸 **위에** 찍히므로 앞면 안쪽 토막이 얼굴 위에 비친다. 온몸 판은 안 자른다. */
+    const root9 = ext9 !== undefined ? 1.2 * HX9 : -Infinity;
+    const bz9 = ZB9 + (Z0 + 0.65 - ZB9) * BX9;   // 포탑 가운데(0.95)보다 아래(요청: "탱크 포신 약간 아래로" → "좀 더")
     for (const m of [-1, 1] as const) {
       const bx = m * 0.42 * BX9;
       const kB = kT(bx, 2.0 * BX9) + 0.1;
