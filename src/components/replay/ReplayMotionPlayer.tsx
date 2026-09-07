@@ -2991,8 +2991,14 @@ function tankTurretV2(siege: boolean, parts?: { body?: boolean; barrel?: boolean
 }
 function tankTurret(): ShapeFace[] { return tankTurretV2(false); }
 /** 시즈 버팀다리 셋 — `only`를 주면 그 방향의 다리만(전환 홑판을 앞·뒤 두 장으로 가르는 데 쓴다). */
-function siegeLegs(only?: [number, number][]): ShapeFace[] {
+function siegeLegs(only?: [number, number][],
+  /** 뻗은 몫(0~1) — 전환 홑판만 쓴다(기본 1 = 다 뻗음). 수평 팔이 먼저 옆구리에서 무릎까지 나가고(0~0.6), 수직 기둥이
+   *  무릎에서 땅까지 내려간다(0.4~1). 배율(attachK)로 판을 통째로 키우던 옛 방식은 축이 상자 중심이라 작은 배율에서 다리가
+   *  몸통 **위쪽**에 몰려 보였다(지적: "전환 중 다리가 몸통 가운데가 아니라 위쪽에서 시작"). 뿌리를 옆구리에 못 박는다. */
+  ext = 1): ShapeFace[] {
   const out: ShapeFace[] = [];
+  const eA9 = Math.min(1, ext / 0.6);                       // 수평 팔의 몫
+  const eC9 = Math.max(0, Math.min(1, (ext - 0.4) / 0.6));  // 수직 기둥의 몫
   for (const [dx, dy] of (only ?? [[-1, 0], [1, 0], [0, -1]]) as [number, number][]) {
     // 다리 뿌리(차체 옆구리)와 발목(바깥·아래).
     const r0 = dx ? 2.1 : 2.9;   // 안쪽으로(요청: 고정 다리를 몸 중심 쪽으로) — 2.6/3.2 → 2.1/2.9
@@ -3000,8 +3006,9 @@ function siegeLegs(only?: [number, number][]): ShapeFace[] {
     const r1 = dx ? 4.4 : 5.0;   // 무릎도 같이 안으로 — 5.1/5.6 → 4.4/5.0
     const ax = dx * r0;
     const ay = dy * r0;
-    const fx = dx * r1;
-    const fy = dy * r1;
+    // 무릎(팔 끝)은 뻗은 몫만큼만 나간다 — 다 뻗으면(ext 1) r1.
+    const fx = ax + (dx * r1 - ax) * eA9;
+    const fy = ay + (dy * r1 - ay) * eA9;
     /* 다리 키는 **궤도와 같은 자**를 쓴다(지적: "시즈모드 고정다리 키값조정") —
        여태 다리만 `depthNow × 1.6 − 1`이고 궤도는 `depthNow + H`(×1.0)였다. 자가
        둘이면 깊이가 커질수록 두 눈금이 서로 다른 속도로 벌어져, 어떤 요잉에서는
@@ -3024,7 +3031,7 @@ function siegeLegs(only?: [number, number][]): ShapeFace[] {
     // (걷어냄) ANK_Z — 기둥이 사각뿔 끝까지 곧장 내려간다.
     // ① 수평 팔 — 몸 옆구리에서 무릎까지, 높이가 안 변한다.
     // 윗마디도 **사각기둥**(재요청) — sides 4 + 단면 기준 위(ref [0,0,1])라 윗면·옆면이 반듯이 선다. 굵기 0.38 일정.
-    out.push(...tagKey(paintBase(spirePillar({
+    if (eA9 > 0.05) out.push(...tagKey(paintBase(spirePillar({
       x: 0, y: 0, h: 1, w: 0.38, tipW: 0.38, segs: 2, sides: 4, hold: 1, caps: "none",
       ref: [0, 0, 1],
       path: (t9: number): [number, number, number] =>
@@ -3039,9 +3046,12 @@ function siegeLegs(only?: [number, number][]): ShapeFace[] {
        (0.44각)이 발목 블록에 닿고, 블록 둘레 세 자리에서 **수직** 네모 발 기둥 셋(0.28각)이 내려가 맨 아래 짧은
        사각뿔 끝만 뾰족하다. 옛 비스듬한 발톱·이빨 대신 각진 기둥이다. */
     // 네모 발판은 걷었다(재요청) — 기둥 밑동에서 수직 발 마디 셋이 곧장 나와 각각 땅에 박힌다.
-    out.push(...tagKey(paintBase(
-      boxFaces3(fx, fy, 0.44, 0.44, KNEE_Z - 0.9, 0.9), TANK_STEEL,
+    // 기둥은 무릎에서 내려간 몫(eC9)만큼 — 다 내려오면 z 0.9까지(발 마디가 잇는다).
+    const colH9 = (KNEE_Z - 0.9) * eC9;
+    if (eC9 > 0.02) out.push(...tagKey(paintBase(
+      boxFaces3(fx, fy, 0.44, 0.44, colH9, KNEE_Z - colH9), TANK_STEEL,
     ), key + 0.15));
+    if (eC9 < 0.99) continue;   // 발 마디·발톱은 땅에 닿아야 나온다
     for (const k of [0, 1, 2] as const) {
       const th = Math.atan2(dy, dx) + (k * 2 * Math.PI) / 3;
       const tx = fx + Math.cos(th) * 0.3;
@@ -10604,8 +10614,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   /* 다리 홑판의 spin은 **0**이다 — 시즈 판은 rotDeg = 앞 − 270에 spin 270이라 그 둘이 상쇄되고, 전환 중 탱크 차체는
      rotDeg = 앞에 spin 0이므로 겹치는 다리도 0이라야 같은 자리에 선다. (한때 270으로 뒀던 것은 포탑 op이 다리를 한 벌
      더 그리던 버그 위에서 판단한 값이었다 — 그 버그를 걷고 고해상도로 견주니 0이 시즈 판의 다리 셋과 정확히 겹친다.) */
-  tanksiegelegs: () => siegeLegs([[1, 0], [0, -1]]),
-  tanksiegelegsF: () => siegeLegs([[-1, 0]]),
+  // 전환 다리 홑판 — 자세 0~5가 뻗은 몫 여섯 칸(POSE_KINDS에 등록). 온몸 시즈 판(siegeLegs())은 늘 다 뻗음.
+  tanksiegelegs: () => siegeLegs([[1, 0], [0, -1]], poseNow / 5),
+  tanksiegelegsF: () => siegeLegs([[-1, 0]], poseNow / 5),
   /* ★ 시즈 전환의 포신 동작(요청: "탱크 포신은 포탑으로 들어가고 반대쪽에서 시즈 포신이 나오게 — 둘이 동시에") — 전환 창의
      포탑 op은 포신 없는 포탑 몸(tankturret0)에, 앞 포신(tankbarrel)은 attach2(몸 앞)로 배율 1 → 0, 뒤 포신(siegebarrel)은
      attach(몸 뒤)로 0 → 1. 배율 축이 모델 원점(포탑 링 가운데)이라 포신이 포탑 속으로 들어가고 반대쪽에서 나온다.

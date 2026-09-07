@@ -403,6 +403,7 @@ export const POSE_KINDS: Record<string, { move?: boolean; atk?: boolean; flap?: 
   /* 시즈 전환의 포신 홑판 — 자세 0~5가 '나온 몫' 여섯 칸이다(ReplayMotionPlayer tankbarrel·siegebarrel). 걸음·공격 컷의
      뜻이 아니라, 모든 자세가 판 열쇠에 실리도록 둘 다 켠다. */
   tankbarrel: { move: true, atk: true }, siegebarrel: { move: true, atk: true },
+  tanksiegelegs: { move: true, atk: true }, tanksiegelegsF: { move: true, atk: true },
   gunner: { move: true, atk: true },
   fbat: { move: true, atk: true },
   ghost: { move: true, atk: true },
@@ -6542,6 +6543,11 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
     const legK9 = siegeXf9
       ? 0.3 + 0.7 * Math.min(1, Math.max(0, siegeXf9.to === 1 ? siegeXf9.u : 1 - siegeXf9.u))
       : null;
+    /** 다리가 뻗은 몫을 자세 여섯 칸(0~5)으로 — 겹판(tanksiegelegs·F)이 몸 op의 pose를 물려받아 제 길이로 구워진다.
+     *  배율(legK9)로 판을 키우던 방식은 축이 상자 중심이라 다리가 몸통 위쪽에서 시작해 보였다(지적). */
+    const legPose9: 0 | 1 | 2 | 3 | 4 | 5 = siegeXf9
+      ? Math.max(0, Math.min(5, Math.round(Math.min(1, Math.max(0, siegeXf9.to === 1 ? siegeXf9.u : 1 - siegeXf9.u)) * 5))) as 0 | 1 | 2 | 3 | 4 | 5
+      : 0;
     /* 교전 당김·홀드·잽은 코어가 켜지면 안 돈다(과제 #61) — 코어는 표적까지
        걸어가 사거리에서 멈추는 일을 제 이동 모형으로 이미 했다. 여기서 한 번 더
        끌면 두 모형이 같은 몸을 밀고, 어차피 아래에서 코어 자리로 덮여 버려질
@@ -7155,7 +7161,8 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       // 짐 판은 몸 판 위에 같은 자로 겹쳐 찍는다(위 load0).
       ...(load0 ? { attach: load0 } : {}),
       // 시즈 전환 중이면 버팀다리 판을 몸 뒤에 겹쳐, 배율로 뻗고 접는다(위 legK9).
-      ...(legK9 !== null && !markerView ? { attach: "tanksiegelegs", attach2: "tanksiegelegsF", attachK: legK9 } : {}),
+      // (배율 1 — 뻗는 몫은 아래 pose가 든다. attachK를 두는 것은 붓이 그 겹판을 몸 **뒤**에 두는 표식이라서다.)
+      ...(legK9 !== null && !markerView ? { attach: "tanksiegelegs", attach2: "tanksiegelegsF", attachK: 1 } : {}),
       selRing: selNow || undefined,
       // 보임 토글이면 만피여도 표시(요청: 모든 유닛·건물 다 표시).
       hpFrac: Math.max(0.04, Math.min(1, hpNow / Math.max(1, hpFull))),
@@ -7230,6 +7237,8 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
          공격이 이동을 이긴다(싸우는 중에는 걸음이 멈춘다). 마커 배율에서는
          아예 안 고른다 — 그 칸은 몸을 안 그린다. */
       pose: ((): 0 | 1 | 2 | 3 | 4 | 5 => {
+        // 시즈 전환 창 — 자세는 다리가 뻗은 몫이다(위 legPose9). 차체 판엔 컷이 없어 몸 그림은 안 바뀐다.
+        if (legK9 !== null) return legPose9;
         /* ★ 핵을 유도하는 고스트는 **총 겨눈 자세로 굳는다**(요청: "핵 조준중
            고스트 공격자세로 고정" · "고스트 자세 총 겨눈 상태로 고정") ─────────
            원작에서 핵 유도는 고스트가 표적을 조준한 채 꼼짝 않고 서 있는 일이다.
