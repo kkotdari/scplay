@@ -3637,7 +3637,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        면이라 부감에서 안 보이므로 안 그린다. 현관 캐노피는 인방 위에 그대로 걸린다(기둥 둘은 개구부에 서게 되어
        걷었다). 옛 입구 빛(세 겹 판)은 격납구가 대신한다 — 뒷벽 위에 가는 푸른 띠 하나만 남겼다. */
     if (frontVisible) {
-      const BAY_HW = 1.32;
+      const BAY_HW = 1.05;   // 1.32는 너무 넓었다(지적: "입구 폭이 너무 넓은듯")
       const BAY_Z1 = DOME_Z + 1.25;
       const BAY_YI = 3.05;
       /** 벽 선 밖으로 나오는 경사로 길이(요청: "약간") — 지면에 닿는 끝까지. */
