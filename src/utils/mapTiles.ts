@@ -271,6 +271,18 @@ export function drawMapGrid(
     {
       const raw = ramp.slice();
       ramp.fill(0);
+      /* ★ 램프 칸은 **거의 다 걷는 칸**이다(재지적: 빠른무한에서 언덕 경계선이 일부만 남는다 — 벽 발치 깃발 칸이
+         띄엄띄엄 이어져 무리가 위·아래 단에 다 닿아 위 규칙을 통과했다). 진짜 램프는 미니타일 16개가 거의 다 걷는
+         칸이고, 절벽 가장자리 칸은 절반쯤이 절벽면(못 걷는 미니타일)이다. 걷는 미니타일이 12개 미만이면 깃발을 걷는다. */
+      for (let y = 0; y < h; y += 1) {
+        for (let x = 0; x < w; x += 1) {
+          const i = y * w + x;
+          if (raw[i] !== 1) continue;
+          let nw = 0;
+          for (let my = 0; my < 4; my += 1) for (let mx = 0; mx < 4; mx += 1) if (mt.walkAtMini(x * 4 + mx, y * 4 + my)) nw += 1;
+          if (nw < 12) raw[i] = 0;
+        }
+      }
       const seen = new Uint8Array(n9);
       const stack: number[] = [];
       for (let s0 = 0; s0 < n9; s0 += 1) {
