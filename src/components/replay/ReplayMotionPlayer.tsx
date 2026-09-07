@@ -21249,7 +21249,7 @@ export const scrDiagModes = (): Set<string> => {
   return new Set(m9 ? m9[1].split(",") : []);
 };
 
-function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan, viewRefs, gesture, tilePx, pickedKey, wallMask, maskRects, clipQuad, showShadows, showOverlap, showHp, showCreep, marker: markerProp, markerAt, detailAt, yawAt, moveAt, painter, live, onPainted }: {
+function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx, pickedKey, wallMask, maskRects, clipQuad, showShadows, showOverlap, showHp, showCreep, marker: markerProp, markerAt, detailAt, yawAt, moveAt, painter, live, onPainted }: {
   ops: UnitDrawOp[]; zoom: number; pan: { x: number; y: number };
   /** ★ 붓의 보기 원천(실측: 감기 중 React 붓 팬 (−645.8,−821.7) vs 도착 붓 panRef (−646.2,−822.7)로 1px 어긋난 두 그림이
    *  번갈아 찍혔다). 틱·도착 붓은 부모의 zoomRef·panRef를 읽는데 이 effect는 상태 zoom·pan을 읽어, 렌더 사이에 ref만 바뀌면
@@ -23349,47 +23349,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
     };
     /* 부모가 손짓 중에 쥘 붓을 넘긴다 — 렌더마다 새 ops를 문 채로 갈아 끼운다. */
     if (painter) painter.current = paint;
-    // 틱이 몰고 있으면(재생 중) 여기서는 안 칠한다 — 붓은 이미 프레임마다 틱이 쥔다.
-    if (driven?.current) return;
-    /* 손짓이 도는 중이면 상태(props)가 아니라 지금 손끝의 값으로 그린다 — 드래그 중에도
-       재생 틱이 계속 리렌더를 내는데, 그때 굳은 지 오래인 배율로 한 장 그리면 화면이
-       한 프레임 뒤로 튄다. */
-    const lv = (gesture ? gesture.current : true) ? (live?.current ?? null) : null;
-    /* 굽는 배율은 **언제나 props의 zoom**이다 — props의 zoom이 곧 "마지막으로 굳은
-       배율"이고, 손짓 중에 판을 그 배율로 두는 것이 재굽기 폭풍을 막는 방법이다.
-       손짓이 굳을 때(굴림 커밋·놓을 때) props가 새 배율로 오면 그때 다시 구워진다. */
-    /* ★ **저배율에서는 격프레임으로 그린다**(같은 요청) ────────────────────────────
-       재생 틱은 프레임마다 리렌더를 내고 이 층은 그때마다 한 장을 통째로 다시 칠한다.
-       그런데 1·2배 칸에서 유닛은 프레임당 1픽셀도 안 움직인다 — 같은 그림을 두 번 칠하는
-       셈이다. 한 장 건너 한 장만 칠하면 그 자리에서 **절반**이 빠지고, 건너뛴 프레임은
-       직전 그림이 그대로 남아 있어 화면은 그대로다.
-       손짓 중(lv)에는 절대 안 건너뛴다 — 그때는 손끝을 따라가는 것이 전부다. 자세함
-       칸(4배 이상)도 안 건너뛴다: 거기서는 몸이 크고 컷·효과가 실제로 프레임마다 달라진다.
-       ★ 건너뛸 때 onPainted를 안 부르는 것이 옳다 — 부모는 그 값을 '지금 화면에 있는
-         그림의 보기'로 쓰는데, 안 칠했으면 화면에 있는 것은 여전히 직전 보기의 그림이다. */
-    const lowDetail9 = detailAt !== undefined && (lv ? lv.z : zoom) < detailAt;
-    frameRef.current += 1;
-    /* ★ 건너뛰기는 **보기가 그대로일 때만**이다(지적: "일시정지 상태에서 12배 → 1배로
-       확대 돌아가면 유닛이 확대된 상태로 있음") ────────────────────────────────────
-       위 절약의 전제는 "재생 틱이 프레임마다 오고, 그 사이 그림이 안 바뀐다"였다. 앞은
-       **멈춰 있으면 거짓**이다 — 다음 장이 안 오므로, 배율을 바꾼 그 프레임이 하필
-       건너뛰는 차례면 12배로 그린 직전 그림이 그대로 남는다. 뒤도 거짓이다: 배율·팬이
-       바뀌면 같은 개체라도 그림이 통째로 달라진다.
-       전제를 조건으로 적는다 — 마지막으로 칠한 보기와 지금 보기가 같을 때만 건너뛴다.
-       그러면 재생 중의 절약은 그대로 남고(그때는 보기가 안 바뀐다), 보기가 달라진
-       프레임은 멈춰 있든 아니든 반드시 칠한다. */
-    const vz9 = lv ? lv.z : (viewRefs ? viewRefs.z.current : zoom);
-    const vx9 = lv ? lv.p.x : (viewRefs ? viewRefs.p.current.x : pan.x);
-    const vy9 = lv ? lv.p.y : (viewRefs ? viewRefs.p.current.y : pan.y);
-    const pv9 = paintedRef.current;
-    const sameView9 = !!pv9 && pv9.z === vz9 && pv9.x === vx9 && pv9.y === vy9;
-    if (!(lowDetail9 && !lv && sameView9 && frameRef.current % 2 === 0)) {
-      paintedRef.current = { z: vz9, x: vx9, y: vy9 };
-      // 굽는 크기는 칸으로 올림한다(위 bakeStepOf) — 연속 배율을 그대로 쓰면 판 캐시가 통째로 헛것이 된다.
-      /* 이 한 장이 얼마인지 잰다(perf9) — 이 층은 렌더 **밖**에서 칠하므로, 안 재면
-         그 삯이 통째로 '브라우저' 뺄셈 값에 숨는다. 숨은 값은 못 고친다. */
-      pWrap("붓:유닛캔버스", () => paint(vz9, { x: vx9, y: vy9 }, bakeStepOf(zoom)));
-    }
+    /* ★ 여기서는 안 칠한다(재설계: 그리는 붓 하나) — 유닛 캔버스를 칠하는 것은 부모의 paintFnRef9뿐이다. 이 층은 붓 클로저를
+       내주기만 하고, 렌더로 바뀐 것(배율·팬 거울, 사양 토글, 크기)은 부모가 렌더마다 requestPaint9로 한 장에 모은다. */
   });
   return <canvas ref={ref} className="scr-motion-unitlayer" aria-hidden />;
 }
@@ -24454,10 +24415,9 @@ export default function ReplayMotionPlayer({
   const reactAtRef9 = useRef(0);
   /** 지금의 React 박자(ms) — 핵이 떠 있으면 REACT_STEP_NUKE_MS9, 아니면 REACT_STEP_MS9(렌더가 정한다). */
   const reactStepRef9 = useRef(REACT_STEP_MS9);
-  const paintFnRef9 = useRef<((tNow: number) => void) | null>(null);
+  const paintFnRef9 = useRef<((tNow: number, rebase?: boolean) => void) | null>(null);
   const frameOpsRef9 = useRef<UnitDrawOp[] | null>(null);
   const frameFxRef9 = useRef<FxOp[] | null>(null);
-  const drivenRef9 = useRef(false);
   /** 주인의 지금 상태(렌더마다 갱신) — 프레임 버림·안개 판 정리의 자. */
   const cmdNowRef9 = useRef<{ playing: boolean; t: number; speed: number }>({ playing: false, t: 0, speed: 1 });
   /** 워커에 보낸 마지막 명령 — 바뀔 때만 다시 보낸다(주인의 명령은 매 프레임이 아니다). */
@@ -24570,8 +24530,8 @@ export default function ReplayMotionPlayer({
            정확히 그 시각의 장을 지어 보내도, 탐색·팬·줌으로 시야가 바뀌어 새 장이 와도 안 그려졌다. 붓은 ref로 곧장 칠하고
            (React 없이), 안개·DOM 효과·미니맵은 React 박자를 한 번 깨워(100ms에 한 번) 따라오게 한다. 지금 시각보다 앞선
            장(미리 지은 것)은 그릴 것이 없으니 안 깨운다. */
-        if (!drivenRef9.current && pf9.t <= cmdNowRef9.current.t + 0.05) {
-          paintFnRef9.current?.(tLiveRef9.current);
+        if (!clockRef.current && pf9.t <= cmdNowRef9.current.t + 0.05) {
+          requestPaint9();   // 붓 하나에 청한다(다음 rAF에 한 장)
           if (pausedWakeRef9.current === null) {
             pausedWakeRef9.current = window.setTimeout(() => { pausedWakeRef9.current = null; setPausedTick9((n9) => n9 + 1); }, 100);
           }
@@ -25292,7 +25252,7 @@ export default function ReplayMotionPlayer({
    *  추적을 켜기 전 자리에 그대로 멈춰 있었다 — 끄는 순간 그 옛 자리로 튀었다. 끌 때 추적 카메라의 마지막
    *  팬을 panBase에 옮겨 심는다. 시점(이름 누르기)으로 추적이 풀리는 길도 같은 문을 지난다. */
   const stopTrack9 = (): void => {
-    if (trackRaw && trackCamRef.current.raw === trackRaw) setPan({ ...trackCamRef.current.pan });
+    if (trackRaw && trackCamRef.current.raw === trackRaw) setView9(zoomRef.current, { ...trackCamRef.current.pan });
     setTrackRaw(null);
   };
   const toggleTrack = (key: string): void => {
@@ -25302,7 +25262,7 @@ export default function ReplayMotionPlayer({
     /* 켜는 순간 **한 번만** 당겨 준다(요청: 배율은 기본 줌인 값, 사다리에서) — 그 뒤로는
        사람이 마음대로 바꾼다(요청: "줌은 변경 가능하게"). 끌 때는 안 되돌린다: 보던
        배율이 갑자기 튀면 추적을 껐다 켜는 것만으로 화면이 요동친다. */
-    if (on9) setZoom(ZOOM_TAP);
+    if (on9) setView9(ZOOM_TAP, panRef.current);
   };
   /** 태그 → 그 태그의 유닛 생애들 — 변태로 갈린 생애가 같은 태그를 나눠 쓴다. */
   /* 걷기는 추적을 켤 때 워커에 청한다 — 세계가 바뀌었으면(worldGen9) 다시. */
@@ -26471,13 +26431,13 @@ export default function ReplayMotionPlayer({
            살린다 — 못 주는 것은 각 하나뿐이다. */
         setPitchDeg(pitchAllowed() ? deg : PITCH_DEGS[0]);
         z9 = Math.min(ZOOM_MAX, Math.max(1, initialView.z));
-        setZoom(z9);
+        zoomRef.current = z9; setZoom(z9);
         raf = requestAnimationFrame(step);
         return;
       }
       viewDoneRef.current = true;
       const lim = panLimit(z9);
-      setPan({
+      setView9(z9, {
         x: Math.min(lim.x, Math.max(-lim.x, (0.5 - initialView.cx) * bw * z9)),
         y: Math.min(lim.yTop, Math.max(-lim.y, (0.5 - initialView.cy) * bh * z9)),
       });
@@ -26968,18 +26928,37 @@ export default function ReplayMotionPlayer({
   const fogPaintRef = useRef<((z: number, p: { x: number; y: number }, ov?: FogOverride) => void) | null>(null);
   /** 붓 틱이 마지막으로 안개 층에 넘긴 것 — 같은 판이면 다시 안 칠한다(안개 칠은 등고선·원 채우기라 공짜가 아니다). */
   const fogTickRef9 = useRef<{ vis: Float32Array | null; ver: number | undefined; explored: Uint16Array | null; tq: number; z: number; px: number; py: number }>({ vis: null, ver: undefined, explored: null, tq: -1, z: 0, px: 0, py: 0 });
-  /** 틱·도착 붓이 안개를 마지막으로 칠한 벽시계 — 안개 층의 React effect는 이 붓이 200ms 넘게 쉬었을 때만 메운다(ReplayFogLayer tickAt). */
-  const fogTickAtRef9 = useRef(0);
+  /** ★ 그리는 붓 하나(재설계) — 유닛·안개 캔버스를 칠하는 것은 paintFnRef9뿐이다. React effect·장 도착·탐색·거울 갱신은
+   *  여기로 "칠해 달라"고만 하고, 다음 rAF에 한 장으로 모은다. 재생 틱이 돌면 그 틱이 곧 칠하므로 아무것도 안 한다. */
+  const paintReqRef9 = useRef(0);
+  const requestPaint9 = useCallback((fog9 = false): void => {
+    if (fog9) fogTickRef9.current.z = -1;   // 안개도 반드시(층이 새로 서거나 바뀜)
+    if (clockRef.current) return;
+    if (paintReqRef9.current) return;
+    paintReqRef9.current = requestAnimationFrame(() => {
+      paintReqRef9.current = 0;
+      brushSrc9 = "req";
+      paintFnRef9.current?.(tLiveRef9.current);
+    });
+  }, []);
+  // 렌더마다 — 멈춘 채 무언가(거울·토글·크기·탐색) 바뀌었으면 붓 하나가 한 장 칠한다. 재생 중엔 무동작.
+  useEffect(() => { requestPaint9(); });
+  const requestFogPaint9 = useCallback((): void => requestPaint9(true), [requestPaint9]);
   /** 미니맵 붓(요청: 드래그·줌 중에도 프레임이 따라온다) — 안개와 같은 규약이다.
    *  평소 배치와 전체화면 미니맵은 서로 배타라 붓 하나를 나눠 쓴다. */
   const miniPaintRef = useRef<((z: number, p: { x: number; y: number }) => void) | null>(null);
   const zoomRef = useRef(zoom);
   const panRef = useRef(pan);
+  /** ★ 보는 눈 하나(재설계) — 보기의 진실은 zoomRef·panRef뿐이다. React 상태 zoom·pan은 UI(단추·미니맵·링크·한계)용
+   *  거울이고 어떤 붓도 상태를 읽지 않는다. 상태를 바꾸는 모든 자리는 이 함수를 지난다(ref를 먼저 쓰고 거울을 맞춘다). */
+  const setView9 = useCallback((z9: number, p9: { x: number; y: number }): void => {
+    zoomRef.current = z9; panRef.current = p9; setZoom(z9); setPan(p9);
+  }, []);
+  /** 미니맵 등이 '지금 보기'를 읽는 창 — 늘 ref를 비춘다(손끝 보기 xfLive를 따로 두던 것을 걷었다). */
+  const viewLive9 = useMemo(() => ({ get current(): { z: number; p: { x: number; y: number } } { return { z: zoomRef.current, p: panRef.current }; } }), []);
   /** 임시 변환 손짓(휠·드래그·핀치)이 도는 중인가 — 도는 동안은 상태로 덮지 않는다
    *  (위 onWheel ① 주석). 이름이 wheeling이던 것을 세 손짓이 함께 쓰며 바꿨다. */
   const xfGestureRef = useRef(false);
-  /** 붓들이 나눠 읽는 보기 원천 한 벌(UnitLayer·ReplayFogLayer의 viewRefs 주석). 정체성을 고정해 deps를 안 태운다. */
-  const viewRefs9 = useMemo(() => ({ z: zoomRef, p: panRef }), []);
   /** 캔버스가 마지막으로 **그려진** 배율·팬 — 손짓의 임시 변환은 이 기준에서의
    *  델타다. 굴림 커밋이 들어오면 아래 effect가 이 기준만 갈아 끼운다. */
   const xfBaseRef = useRef({ z: 1, x: 0, y: 0 });
@@ -26989,7 +26968,6 @@ export default function ReplayMotionPlayer({
   /** 지금 손끝의 보기 — 손짓이 도는 동안만 값이 있다. UnitLayer는 이 값이 있으면
    *  props(굳은 상태) 대신 이것으로 그린다: 손짓 중에도 재생 틱이 리렌더를 내는데,
    *  그때 굳은 지 오래인 배율로 한 장 그리면 화면이 한 프레임 뒤로 튄다. */
-  const xfLiveRef = useRef<{ z: number; p: { x: number; y: number } } | null>(null);
   /** 캔버스를 마지막으로 **그린** 시각(ms) — 손짓 중 다시 그리는 삯을 여기서 조인다. */
   const xfPaintAtRef = useRef(0);
   /** 휠이 굴린 몫을 연속으로 쌓아 두는 자리(칸으로 끊기 **전**의 배율) — 0이면 아직
@@ -27030,10 +27008,8 @@ export default function ReplayMotionPlayer({
    *  자리에 맞게 잘림"). 자르기 조건 자체는 JSX 스타일과 같은 것을 쓴다. */
   const clipBoxRef = useRef({ fsCover: false, pitched: false });
   clipBoxRef.current = { fsCover: fsCoverW > 0, pitched };
-  if (!xfGestureRef.current) {
-    zoomRef.current = zoom;
-    panRef.current = pan;
-  }
+  /* (걷어냄) 렌더가 상태로 ref를 덮던 줄 — 재설계(보는 눈 하나): 보기의 진실은 zoomRef·panRef뿐이고 상태는 거울이다.
+     상태를 바꾸는 자리는 전부 setView9를 지나 ref를 먼저 쓴다. */
   /* 손짓 임시 변환 한 벌(드래그 버벅임 수리) — 휠이 쓰던 수법을 셋이 같이 쓴다:
      손짓이 도는 동안 렌즈·효과층·유닛 캔버스를 CSS 변환으로만 움직여 **합성기만**
      일하게 하고(리액트 리렌더 0), 커밋은 굴림(300ms)과 놓을 때뿐이다.
@@ -27058,7 +27034,6 @@ export default function ReplayMotionPlayer({
     const z1 = zoomRef.current;
     const px = panRef.current.x;
     const py = panRef.current.y;
-    xfLiveRef.current = { z: z1, p: { x: px, y: py } };
     /* 배율이 실제로 바뀐 시각을 적어 둔다 — 아래 다시 그리기가 '지금 줌 중인가'를
        이 값으로 판단한다(손가락이 잠깐 멈춘 프레임까지 줌으로 쳐 준다: 250ms). */
     if (z1 !== xfLastZRef.current) {
@@ -27171,10 +27146,8 @@ export default function ReplayMotionPlayer({
          손짓 한 번에 종류마다 판을 다시 굽는 일이 없다(그것이 진짜 삯이다).
          기준 갈아끼움·변환 걷기는 그린 쪽(onUnitPainted·paint)이 함께 한다. */
       const t0 = performance.now();
-      brushSrc9 = "xf"; brushAT9 = -1;
-      unitPaintRef.current?.(z1, panRef.current, zoomCommitRef.current);
-      xfCvXfRef.current = "";   // 붓이 기준을 손끝으로 갈아 끼우며 변환을 걷었다
-      if (fogCv9) { fogPaintRef.current?.(z1, panRef.current); fogCv9.style.transform = ""; }
+      brushSrc9 = "xf";
+      paintFnRef9.current?.(tLiveRef9.current, true);   // 붓 하나 — 손끝 보기로 다시 칠하고 변환을 걷는다(재기준)
       /* 배경도 **손끝 배율로** 다시 굽는다(요청: "확대 축소시 모델은 그렇다쳐도 맵을
          실시간으로 그리기") — 여태 배경은 굳은 zoom만 보고 있어서, 확대하는 내내
          1배로 구운 그림이 CSS로 늘어난 채(흐릿하게) 따라오다가 손을 떼야 또렷해졌다.
@@ -27362,7 +27335,6 @@ export default function ReplayMotionPlayer({
     /* 손짓이 끝났고 상태도 이 렌더로 굳었다 — 이제 손끝 보기를 걷는다(위 endGestureXf
        주석). 자식은 이 렌더에서 이미 그렸는데, 그때 쓴 손끝 값과 지금 상태가 같은
        값이라 그림은 한 톨도 안 바뀐다. */
-    xfLiveRef.current = null;
     const lens = lensRef.current;
     if (lens) {
       /* 배율이 1이어도 **팬은 걸어야 한다**(지적: "전체화면시 맵은 안움직이고 모델들만
@@ -27387,13 +27359,10 @@ export default function ReplayMotionPlayer({
     /* ★ 걷기 전에 **칠한다**(지적: "팬 드래그 뒤 조금 이전 위치의 그림") — 틱이 몰 때(driven) 방금 렌더의 UnitLayer
        effect는 안 칠했다. 캔버스 내용은 아직 기준(xfBase) 자리인데 여기서 변환만 걷으면 다음 틱(폰에서 수백 ms)까지
        옛 자리 그림이 보였다가 튄다. 기준이 상태와 다르면 지금 한 장 칠해(붓이 기준을 맞추고 변환을 걷는다) 이음매를 없앤다. */
-    {
-      const b9 = xfBaseRef.current;
-      // 틀린 자리 그림이 남지 않게 늘 한 장(유닛 기준이 같아도 안개는 틱이 맡으므로 — 위 fogTickRef9의 보기 비교).
-      void b9;
-      if (cv && drivenRef9.current && paintFnRef9.current) { paintFnRef9.current(tLiveRef9.current); if (BRUSH_LOG9.length) BRUSH_LOG9[BRUSH_LOG9.length - 1].src = "commit"; }
-    }
-    if (cv) cv.style.transform = "";
+    // 붓 하나로 굳은 보기 자리에 한 장 — 붓이 임시 변환을 걷는다(재기준). 거울(상태)과 ref는 이미 같다.
+    brushSrc9 = "commit";
+    paintFnRef9.current?.(tLiveRef9.current, true);
+    if (cv && cv.style.transform) cv.style.transform = "";
     {
       // 안개 캔버스도 — 이 렌더의 ReplayFogLayer effect(자식이 먼저 돈다)가 상태 자리로 칠했으니 변환만 걷는다.
       const fcv9 = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-fog");
@@ -27766,7 +27735,7 @@ export default function ReplayMotionPlayer({
     const z = zoomRef.current;
     const lim = panLimit(z);
     viewDiagPush9("center", `${tx.toFixed(1)},${ty.toFixed(1)}`);
-    setPan({
+    setView9(z, {
       x: Math.min(lim.x, Math.max(-lim.x, (0.5 - fx) * r.width * z)),
       y: Math.min(lim.yTop, Math.max(-lim.y, (0.5 - fy) * r.height * z)),
     });
@@ -28066,7 +28035,6 @@ export default function ReplayMotionPlayer({
   cmdNowRef9.current = { playing: playing9, t, speed };
   // 밖에서 t가 바뀌었으면(탐색) 틱의 살아 있는 시계도 거기로.
   if (t !== tFromTickRef9.current) tLiveRef9.current = t;
-  drivenRef9.current = playing9;
   {
     // #diag=view — 렌더마다 보기 상태를 견줘 바뀐 것만 적는다(위 viewDiag9).
     const d9 = viewDiag9.current;
@@ -28328,7 +28296,7 @@ export default function ReplayMotionPlayer({
     return lastFrameRef9.current[count9 ? 1 : 0] ?? lastFrameRef9.current[count9 ? 0 : 1] ?? EMPTY_FRAME9;
   };
   /* 틱의 붓 — 살아 있는 시각으로 프레임을 골라 op·효과를 ref에 두고 유닛 캔버스를 곧장 칠한다(React 없이). */
-  paintFnRef9.current = (tNow9: number): void => {
+  paintFnRef9.current = (tNow9: number, rebase9 = false): void => {
     /* fps 계측(요청: "#diag=fps로 오른쪽 귀퉁이에 프레임 오버레이만 작게") — 붓이 칠한 장을 벽시계 0.5초마다
        세어 SCR_DIAG.fps에 적는다. 진단이 꺼져 있으면 셈만 하고(싸다) 아무것도 안 그린다. */
     {
@@ -28356,13 +28324,22 @@ export default function ReplayMotionPlayer({
        제 박자로 한다. */
     brushAT9 = lastDrawT9.current;
     brushInst9 = instIdRef9.current;
-    brushSrc9 = drivenRef9.current ? "tick" : "arrive";
-    if (xfGestureRef.current) {
+    if (brushSrc9 === "react") brushSrc9 = "tick";   // 부르는 쪽이 안 세웠으면 재생 틱이다
+    /* 재기준(rebase9): 손짓 붓·커밋이 부른다 — 손끝 보기로 칠하고 임시 변환을 걷는다(붓이 걷는다). */
+    const atBase9 = xfGestureRef.current && !rebase9;
+    if (atBase9) {
       const b9 = xfBaseRef.current;
       unitPaintRef.current?.(b9.z, { x: b9.x, y: b9.y }, zoomCommitRef.current);
       const cvG9 = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-unitlayer");
       if (cvG9 && xfCvXfRef.current) { cvG9.style.transformOrigin = "center"; cvG9.style.transform = xfCvXfRef.current; }
-    } else unitPaintRef.current?.(zoomRef.current, panRef.current, zoomCommitRef.current);
+    } else {
+      unitPaintRef.current?.(zoomRef.current, panRef.current, zoomCommitRef.current);
+      if (rebase9) {
+        xfCvXfRef.current = "";
+        const fcvR9 = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-fog");
+        if (fcvR9 && fcvR9.style.transform) fcvR9.style.transform = "";
+      }
+    }
     /* ★ 안개도 붓 박자로(지적: "유닛은 부드럽게 움직이는데 안개는 뚝뚝 끊겨서 변하는 느낌") — 안개 층은 React
        props(100ms 박자)로만 다시 그려졌다. 붓이 고른 장의 안개(눈 목록·밝힌 판)가 지난 틱과 다르면 곧장 안개
        층에 넘겨 칠한다 — 워커가 쌓는 안개 판(40ms 간격)이 그대로 화면 박자가 된다. 밝힌 판은 시각으로 거르므로
@@ -28370,21 +28347,20 @@ export default function ReplayMotionPlayer({
     /* 틱이 안 몰 때(멈춤·감기)는 안개를 여기서 안 칠한다 — 그때는 안개 층의 React effect가 렌더마다(깨움 100ms) 상태 t의
        눈 목록으로 칠한다. 여기서도 칠하면 방금 온 장(tLive)과 렌더가 고른 장(t)이 다른 장일 때 두 안개가 번갈아 난다
        (지적: 감을 때 흔들림). 유닛 캔버스는 두 경로가 같은 객체(frameOpsRef9)를 찍으므로 그 문제가 없다. */
-    /* (되돌림) 멈춤·감기 중에도 여기서 칠한다(지적: "안개가 너무 늦게 떠서 품질이 떨어진다") — React 붓과의 번갈음은
-       이제 React 붓이 같은 보기 원천(viewRefs)을 읽고, 이 붓이 200ms 안에 칠했으면 React 붓이 쉬는 것으로 막는다(fogTickAtRef9). */
+    /* 안개도 이 붓이 칠한다(재설계: 그리는 붓 하나) — 유닛과 **같은 장·같은 보기**라 두 층이 어긋날 수가 없다. 눈 목록·
+       밝힌 판·보기가 그대로면 건너뛴다(아래 fogTickRef9). */
     if (fr9.visSrc && fr9.explored && fogPaintRef.current) {
       const ft9 = fogTickRef9.current;
       // 0.25초 → 0.1초(요청: "안개 그리기 빈도 늘리기") — 밝힌 판·눈 목록이 그대로여도 경기 시간 0.1초마다 한 번은 칠한다.
       const tq9 = Math.floor(tNow9 * 10);
       // 보기(배율·팬)도 본다 — 안개 층의 React effect는 틱이 몰 때 안 칠하므로(driven), 커밋·시야 변화 뒤의 자리는 틱이 맡는다.
-      const vz9 = xfGestureRef.current ? xfBaseRef.current.z : zoomRef.current;
-      const vx9 = xfGestureRef.current ? xfBaseRef.current.x : panRef.current.x;
-      const vy9 = xfGestureRef.current ? xfBaseRef.current.y : panRef.current.y;
+      const vz9 = atBase9 ? xfBaseRef.current.z : zoomRef.current;
+      const vx9 = atBase9 ? xfBaseRef.current.x : panRef.current.x;
+      const vy9 = atBase9 ? xfBaseRef.current.y : panRef.current.y;
       if (fr9.visSrc !== ft9.vis || fr9.visVer !== ft9.ver || fr9.explored !== ft9.explored || tq9 !== ft9.tq
         || ft9.z !== vz9 || ft9.px !== vx9 || ft9.py !== vy9) {
         ft9.vis = fr9.visSrc; ft9.ver = fr9.visVer; ft9.explored = fr9.explored; ft9.tq = tq9; ft9.z = vz9; ft9.px = vx9; ft9.py = vy9;
-        fogTickAtRef9.current = performance.now();
-        if (xfGestureRef.current) {
+        if (atBase9) {
           // 손짓 중 — 기준 자리에 칠하고 걷힌 변환을 같은 값으로 도로 건다(유닛 캔버스와 같은 까닭, 위 ★).
           const b9 = xfBaseRef.current;
           fogPaintRef.current(b9.z, { x: b9.x, y: b9.y }, { vis: fr9.visSrc, exploredAt: fr9.explored, t: tNow9 });
@@ -28638,13 +28614,22 @@ export default function ReplayMotionPlayer({
     /** 감기 속도(게임초 / 실초) — 20분 판이면 40초/초라 끝에서 끝까지 30초다. */
     const rate = Math.max(8, total / 30);
     let last = performance.now();
+    let mirrorAt9 = 0;
     const step = (now: number): void => {
       const dt = Math.min(0.2, (now - last) / 1000);
       last = now;
       const nv = Math.min(total, Math.max(0, holdAtRef.current + dir * rate * dt));
       holdAtRef.current = nv;
-      setT(nv);
-      setDone(nv >= total);
+      /* 붓 하나: 살아 있는 시각을 곧장 밀고 칠해 달라고 한다. React 거울(t)은 100ms마다 — 렌더 폭풍 없이 시간 표시·
+         탐색바만 따라온다(재생 틱과 같은 박자). tFromTick을 같이 적어 렌더가 tLive를 되돌리지 않게 한다. */
+      tLiveRef9.current = nv;
+      requestPaint9();
+      if (now - mirrorAt9 >= REACT_STEP_MS9 || nv >= total) {
+        mirrorAt9 = now;
+        tFromTickRef9.current = nv;
+        setT(nv);
+        setDone(nv >= total);
+      }
       holdRafRef.current = requestAnimationFrame(step);
     };
     holdRafRef.current = requestAnimationFrame(step);
@@ -28656,6 +28641,7 @@ export default function ReplayMotionPlayer({
       stopHold();
       if (!holdOnRef.current) return;
       holdOnRef.current = false;
+      { const tl9 = tLiveRef9.current; tFromTickRef9.current = tl9; setT(tl9); }   // 거울을 감긴 시각에 맞춘다
       if (holdWasPlaying.current) setPlaying(true);
     };
     window.addEventListener("pointerup", end);
@@ -28840,8 +28826,7 @@ export default function ReplayMotionPlayer({
     const z0 = zoomRef.current;
     const lim = panLimit(z1);
     const k = z1 / z0;
-    setZoom(z1);
-    setPan({
+    setView9(z1, {
       x: Math.min(lim.x, Math.max(-lim.x, panRef.current.x * k)),
       y: Math.min(lim.yTop, Math.max(-lim.y, panRef.current.y * k)),
     });
@@ -28858,8 +28843,7 @@ export default function ReplayMotionPlayer({
     const ux = (cx - ox - panRef.current.x) / z0;
     const uy = (cy - oy - panRef.current.y) / z0;
     const lim = panLimit(z1);
-    setZoom(z1);
-    setPan({
+    setView9(z1, {
       x: Math.min(lim.x, Math.max(-lim.x, cx - ox - z1 * ux)),
       y: Math.min(lim.yTop, Math.max(-lim.y, cy - oy - z1 * uy)),
     });
@@ -30917,16 +30901,16 @@ export default function ReplayMotionPlayer({
                 zoom={zoom} pan={pan}
                 tilePx={(mapRef.current?.clientWidth ?? 320) / grid.width}
                 flatK={pitched ? pitchFlat : 1}
-                painter={fogPaintRef} live={xfLiveRef} gesture={xfGestureRef} driven={drivenRef9} viewRefs={viewRefs9} tickAt={fogTickAtRef9}
+                painter={fogPaintRef} onNeedPaint={requestFogPaint9}
               />
             )}
 
           <UnitLayer
-            ops={unitOps} fx={fxOps} opsSrc={frameOpsRef9} fxSrc={frameFxRef9} driven={drivenRef9}
-            zoom={zoom} pan={pan} viewRefs={viewRefs9} gesture={xfGestureRef} tilePx={tilePx} wallMask={creepMask} maskRects={creepMaskRects}
+            ops={unitOps} fx={fxOps} opsSrc={frameOpsRef9} fxSrc={frameFxRef9}
+            zoom={zoom} pan={pan} tilePx={tilePx} wallMask={creepMask} maskRects={creepMaskRects}
             /* 손짓(드래그·핀치·휠) 중에는 부모가 이 붓으로 캔버스만 다시 그린다 —
                리액트를 안 거치고, 그린 자리는 손끝 그대로다(xfLive). */
-            painter={unitPaintRef} live={xfLiveRef} onPainted={onUnitPainted}
+            painter={unitPaintRef} onPainted={onUnitPainted}
             /* 사양 라디오 × 배율 칸(요청) — 둘 다 켜져야 켜진다. 칸 2 이하는 몸만.
                칸 판정은 **문턱을 넘겨** 캔버스가 그리는 배율로 한다(손짓 중 한 박자
                늦지 않게) — 여기 boolean은 사양 라디오 몫만 진다. */
@@ -31415,10 +31399,11 @@ translate: `${(-(Math.round((-fp9 * (1 - dropP9 ** 2) - hp9 * 0.275 - hp9 * 1.42
   const fsSeek = (mx: number, my: number): void => {
     if (fsCoverW <= 0 || fsCoverH <= 0) return;
     const [fx, fy] = miniProject(mx, my);
-    const lim = panLimit(zoom);
-    setPan({
-      x: Math.min(lim.x, Math.max(-lim.x, (0.5 - fx) * fsCoverW * zoom)),
-      y: Math.min(lim.yTop, Math.max(-lim.y, (0.5 - fy) * fsCoverH * zoom)),
+    const zS9 = zoomRef.current;
+    const lim = panLimit(zS9);
+    setView9(zS9, {
+      x: Math.min(lim.x, Math.max(-lim.x, (0.5 - fx) * fsCoverW * zS9)),
+      y: Math.min(lim.yTop, Math.max(-lim.y, (0.5 - fy) * fsCoverH * zS9)),
     });
   };
   /* ★ 전체화면을 껐다 켜면 미니맵을 **다시 칠한다**(지적: "전체화면 off 시 미니맵이
@@ -31444,8 +31429,7 @@ translate: `${(-(Math.round((-fp9 * (1 - dropP9 ** 2) - hp9 * 0.275 - hp9 * 1.42
     closePicked9();   // 미니맵 위 휠 배율도 팝업을 닫는다(요청).
     const [fx9, fy9] = miniProject(mx, my);
     const lim9 = panLimit(z9);
-    setZoom(z9);
-    setPan({
+    setView9(z9, {
       x: Math.min(lim9.x, Math.max(-lim9.x, (0.5 - fx9) * fsCoverW * z9)),
       y: Math.min(lim9.y, Math.max(-lim9.y, (0.5 - fy9) * fsCoverH * z9)),
     });
@@ -31573,7 +31557,7 @@ translate: `${(-(Math.round((-fp9 * (1 - dropP9 ** 2) - hp9 * 0.275 - hp9 * 1.42
                 tick={t}
                 viewAt={fsViewAt}
                 zoom={zoom} pan={pan}
-                painter={miniPaintRef} live={xfLiveRef}
+                painter={miniPaintRef} live={viewLive9}
                 onSeek={fsSeek}
                 onWheelZoom={fsWheelZoom}
                 unproject={miniUnproject}

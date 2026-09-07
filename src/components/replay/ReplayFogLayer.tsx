@@ -28,7 +28,6 @@ import React, { useEffect, useRef } from "react";
  *   투영(proj)에 태워 지형과 같은 평면에 눕힌다. */
 
 import { contoursOf, chaikin, type Loop } from "../../utils/contour";
-import { pWrap } from "./perf9";
 /** 작은 기기인가 — ReplayMotionPlayer의 그 판별과 같은 자다(위 B의 주석). */
 const smallDev9 = typeof window !== "undefined"
   && !!window.matchMedia?.("(pointer: coarse)").matches
@@ -42,7 +41,7 @@ const FOG_RGB = "5, 8, 14";
 export type FogOverride = { vis: Float32Array; exploredAt: Uint16Array; t: number };
 
 export default function ReplayFogLayer({
-  w, h, exploredAt, t, vis, proj, zoom, pan, tilePx, flatK, className, painter, live, gesture, driven, viewRefs, tickAt,
+  w, h, exploredAt, t, vis, proj, zoom, pan, tilePx, flatK, className, painter, onNeedPaint,
 }: {
   /** 지도 격자 크기(타일). */
   w: number;
@@ -67,26 +66,8 @@ export default function ReplayFogLayer({
    *  (휠·핀치·드래그)이 도는 동안 부모가 이 붓을 그대로 쥐고 **손끝 배율·팬**으로
    *  다시 그린다. 유닛 캔버스·지도 벡터층이 쓰는 것과 같은 수법이다. */
   painter?: { current: ((z: number, p: { x: number; y: number }, ov?: FogOverride) => void) | null };
-  /** 지금 손끝의 보기 — 손짓이 도는 동안만 값이 있다(지적: "드래그시 안개가 깜빡거리며
-   *  튀는 현상"). 손짓 중에는 재생 틱이 계속 리렌더를 내는데, 그때 **굳은 지 오래인**
-   *  zoom·pan(props)으로 한 장 그리면 안개만 한 프레임 뒤로 튄다. 유닛 캔버스가
-   *  같은 까닭으로 같은 칸을 본다. */
-  live?: { current: { z: number; p: { x: number; y: number } } | null };
-  /** 손짓(휠·드래그·핀치)이 도는 중인가 — 도는 동안은 이 effect가 안 칠한다(지적: "지도는 안 흔들리고 안개·유닛만
-   *  흔들린다"). 그동안 안개 캔버스는 유닛 캔버스와 같은 규약이다: 내용은 기준(손짓 붓의 xfBase) 자리에 두고 같은
-   *  CSS 이동으로 미끄러진다 — 여기서 손끝 자리로 칠해 버리면 내용과 변환이 겹쳐 두 배로 밀린다. 손짓 붓과 틱이
-   *  기준 자리에 칠한다. 놓아 굳는 렌더에서는 이 값이 이미 거짓이라 여기서 다시 칠한다. */
-  gesture?: { current: boolean };
-  /** 재생 틱이 붓을 몰고 있나(부모 drivenRef9) — 참이면 이 effect는 안 칠한다(지적: "안개는 그냥 재생 중에도 흔들린다").
-   *  틱은 살아 있는 시각(tLive)의 눈 목록으로 매 장 칠하는데, 이 effect가 렌더마다 상태 t(100ms까지 뒤)의 눈 목록으로
-   *  또 칠하니 두 시각의 안개가 번갈아 났다. 유닛 캔버스(UnitLayer driven)와 같은 게이트다. 시야가 바뀌어도 틱이
-   *  보기를 견줘 다시 칠한다(부모 fogTickRef9). */
-  driven?: { current: boolean };
-  /** 붓의 보기 원천(UnitLayer viewRefs 주석) — 있으면 상태 zoom·pan 대신 이 ref를 읽어 유닛 캔버스와 같은 자리에 칠한다. */
-  viewRefs?: { z: { current: number }; p: { current: { x: number; y: number } } };
-  /** 틱·도착 붓이 안개를 마지막으로 칠한 벽시계(부모 fogTickAtRef9) — 200ms 안이면 이 effect는 쉰다. 그 붓이 멈춘 뒤(장이
-   *  안 오는 정지 상태)에만 여기서 메워 안개가 늦게 뜨지 않는다. */
-  tickAt?: { current: number };
+  /** 안개가 바뀌었다(props·크기)고 부모에게 알린다 — 부모의 붓 하나(paintFnRef9)가 다음 rAF에 칠한다(재설계: 그리는 붓 하나). */
+  onNeedPaint?: () => void;
 }): React.ReactElement {
   const cvRef = useRef<HTMLCanvasElement>(null);
   /** 밝힘 등고선 갈무리 — 밝힌 칸 수가 바뀔 때만 다시 뽑는다. */
@@ -246,11 +227,9 @@ export default function ReplayFogLayer({
     ctx.globalAlpha = 1;
     };
     if (painter) painter.current = paint;
-    if (gesture?.current || driven?.current) return;   // 손짓 중·틱이 몰 때 — 위 gesture·driven 주석
-    if (tickAt && performance.now() - tickAt.current < 200) return;   // 틱·도착 붓이 방금 칠했다 — 위 tickAt 주석
-    const lv = live?.current;
-    /* 이 층도 렌더 밖에서 칠한다 — 안 재면 '브라우저' 뺄셈에 숨는다(perf9 머리말). */
-    pWrap("붓:안개캔버스", () => paint(lv ? lv.z : (viewRefs ? viewRefs.z.current : zoom), lv ? lv.p : (viewRefs ? viewRefs.p.current : pan)));
+    /* ★ 여기서는 안 칠한다(재설계: 그리는 붓 하나) — 안개를 칠하는 것은 부모의 paintFnRef9뿐이다. 이 층은 붓 클로저를 내주고
+       "안개가 바뀌었다"(props·크기)고만 알린다. 부모는 다음 rAF에 유닛과 같은 보기·같은 장으로 한 장 칠한다. */
+    onNeedPaint?.();
   });
 
   return <canvas ref={cvRef} className={className} aria-hidden />;
