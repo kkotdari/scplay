@@ -25811,6 +25811,12 @@ export default function ReplayMotionPlayer({
        그 값이 커지므로 상한(200px)을 둔다. */
   const frameRef = useRef<HTMLDivElement | null>(null);
   const [frameMaxH, setFrameMaxH] = useState(0);
+  /** 폰의 창 높이 붙들기(지적: "드래그·팬 뒤에 안개·모델이 위아래·좌우로 떨린다") — 아래 read가 쓰는 innerHeight는
+   *  모바일에서 **주소창이 접히고 펴질 때마다** 바뀐다(스크롤 한 번에 수십 px, 그것도 몇 프레임에 걸쳐). 그때마다 예산이
+   *  바뀌면 무대 높이 → 폭(높이가 폭을 정한다) → 캔버스 크기·타일 px이 줄줄이 바뀌어 판 전체가 들썩였다. 폭이 그대로이고
+   *  높이 변화가 35% 미만이면 주소창(또는 그 비슷한 브라우저 UI)으로 보고 **처음 잰 높이를 그대로 쓴다**. 폭이 바뀌면(회전)
+   *  다시 잰다. 자판(40~50%)은 넘겨 진짜 변화로 친다. */
+  const vhHold9 = useRef<{ w: number; h: number } | null>(null);
   useLayoutEffect(() => {
     const el = frameRef.current;
     if (!el || typeof window === "undefined") return undefined;
@@ -25836,7 +25842,13 @@ export default function ReplayMotionPlayer({
          채로 **못 박힌다** — 되찾을 길이 없다.
          남는 것은 숨 쉴 자리 하나(12)뿐이다. */
       const below9 = 12;
-      const want = Math.round(Math.min(1400, Math.max(300, window.innerHeight - above - below9)));
+      let ih9 = window.innerHeight;
+      if (window.matchMedia?.("(pointer: coarse)").matches) {
+        const m9 = vhHold9.current;
+        if (m9 && m9.w === window.innerWidth && Math.abs(ih9 - m9.h) < m9.h * 0.35) ih9 = m9.h;
+        else vhHold9.current = { w: window.innerWidth, h: ih9 };
+      }
+      const want = Math.round(Math.min(1400, Math.max(300, ih9 - above - below9)));
       // 2px 안쪽 흔들림은 무시한다 — 아래 관찰자와 서로 되먹임하지 않게.
       setFrameMaxH((v) => (Math.abs(v - want) > 2 ? want : v));
       /* ★ 판이 실제로 앉은 자리를 **바깥에 알린다**(지적: "상세에서 타이틀 로우가 중앙정렬이
@@ -26938,6 +26950,10 @@ export default function ReplayMotionPlayer({
       const cb = clipBoxRef.current;
       box.style.overflow = cb.fsCover ? "visible"
         : (z1 > 1 || cb.pitched ? "hidden" : "");
+      /* 확대 중엔 세로 스크롤도 지도 몫이다(지적: 드래그·팬 뒤 떨림) — .scr-motion-map은 pan-y라, 확대한 채 세로로
+         끌면 브라우저가 페이지 스크롤로 채가(touchmove가 cancelable이 아니게 되고 pointercancel이 온다) 주소창이
+         움직이고 판이 들썩였다. 1배로 돌아오면 CSS의 pan-y로 되돌린다. */
+      box.style.touchAction = z1 > 1 ? "none" : "";
     }
     if (!repaint) return;
     /* 캔버스 다시 그리기는 **프레임당 한 번**으로 묶는다(요청: 줌 연속 렌더) — 휠은
@@ -27222,6 +27238,8 @@ export default function ReplayMotionPlayer({
     }
     const cv = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-unitlayer");
     if (cv) cv.style.transform = "";
+    // 굳은 배율로 touch-action도 못 박는다(위 applyGestureXf와 같은 규칙 — 한 손 줌이 떼며 되돌린 값을 여기서 바로잡는다).
+    if (mapRef.current) mapRef.current.style.touchAction = zoom > 1 ? "none" : "";
     /* ★ fsOn이 목록에 있어야 한다(지적: "확대한 상태에서 전체화면 온오프시 이상한거다 /
        지도는 확대가 안되고 / 화면상에 있던 모델이 그대로 남아있는 현상") — 전체화면은
        지도를 판 안(.scr-fs-stage)으로 옮겨 심으므로 렌즈 상자가 **새로 난다**. 새 상자의
@@ -28599,7 +28617,7 @@ export default function ReplayMotionPlayer({
     const qzU = quickZoomRef.current;
     if (qzU && qzU.id === e.pointerId) {
       quickZoomRef.current = null;
-      if (mapRef.current) mapRef.current.style.touchAction = "";
+      if (mapRef.current) mapRef.current.style.touchAction = zoomRef.current > 1 ? "none" : "";
       if (qzU.live) {
         stopHold();
         tapRef.current = null;
