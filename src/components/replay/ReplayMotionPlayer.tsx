@@ -30249,6 +30249,11 @@ export default function ReplayMotionPlayer({
                 : Math.min(Math.max(ly, vy09 + PH9 + 14 + PAD9), vy19 - PAD9);
             return (
               <div
+                /* ★ 집은 몸이 바뀌면 상자를 **새로 세운다**(지적: "인포 팝업을 연속으로 열 때 기존 팝업 글자가 남아서
+                   섞여 보인다") — 여태 상자 하나를 되쓰며 글자만 갈았다. 이 상자는 backdrop-filter(블러) 층이라
+                   자리와 글자가 같은 프레임에 바뀌면 합성기가 옛 글자 판을 한 박자 더 비춰 새 글자와 겹쳐 보였다.
+                   열쇠를 집은 몸으로 두면 다른 몸을 집는 순간 DOM이 통째로 새것이라 옛 판이 남을 데가 없다. */
+                key={picked}
                 className="scr-motion-info"
                 style={{
                   left: Math.round(cx9),
