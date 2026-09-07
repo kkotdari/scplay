@@ -7387,6 +7387,9 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
          (차체 +180)을 본다(요청: "포신은 뒤쪽 향해야 함 — 일반 모드일 때랑 반대"). */
       const aimKey9 = holdKey;
       if (foeDeg !== null) aimMemRef.current.set(aimKey9, foeDeg);
+      /* 시즈·언시즈 창에서는 겨누던 각을 **잊는다**(지적: "겨누던 각은 리셋이야 시즈 언시즈하면") — 창이 끝나면 대기
+         방향(탱크 앞·시즈 뒤)에서 새로 시작한다. */
+      if (siegeXf9) aimMemRef.current.delete(aimKey9);
       const lastAim9 = aimMemRef.current.get(aimKey9);
       // 시즈 대기 포신은 **앞**(지적: "idle 상태에서 시즈모드 탱크는 포신이 뒤쪽을 향하고 있음") — 차체 spin 270에 맞춰 +180.
       /* 시즈 대기 포신 = 차체 **뒤**(뒤 고정 다리 쪽). 셈: 몸 판은 spin 270으로 굽고 rotDeg hdg로 찍으니 뒤 다리(모형 −y)는
@@ -7406,6 +7409,10 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         // 포신 가려짐 해결(지적) — 곁 유닛의 z가 포탑을 얇게 자르지 않게 여유 있게.
         ...last, kind: gunKind, fx: gfx, fy: gfy, z: last.z + 30,
         noShadow: true,   // 그림자는 차체 판이 진다(지적: "탱크 본체와 포탑의 그림자가 따로 두 개")
+        /* ★ 겹판(시즈 버팀다리)은 차체 op만의 것이다(지적: "시즈 바디를 그려놓고 또 다리 애니를 넣으니 문제") — `...last`로
+           차체 op을 통째로 물려받으며 attach·attachK까지 딸려 와, 포탑 op이 다리 한 벌을 **포탑 각으로** 한 번 더 그렸다.
+           그것이 '엉뚱한 방향의 다리 한 벌 더'였다. */
+        attach: undefined, attachK: undefined,
         /* 포신 반동 컷(요청) — 차체 판은 컷이 없으므로 몸 op의 pose를 물려받아
            봐야 늘 0이다. 발포 박자(fireK)가 곧 이 판의 자세다. */
         pose: fireK ? 2 : 0,
