@@ -24344,6 +24344,10 @@ export default function ReplayMotionPlayer({
   const fogSeqRef9 = useRef({ key: "", seq: 0, seen: 0, firstT: -1 });
   /** 본 가장 높은 세대(위 PackedFrame9.gen) — 붓은 이 세대의 장을 먼저 고른다. */
   const genSeenRef9 = useRef({ seen: 0 });
+  /** 붓이 마지막으로 그린 앞 장의 시각 — 고르기는 이보다 뒤 시각의 장으로 **되돌아가지 않는다**(아래 pickWorkerFrame9).
+   *  되짚기(감기)에서 새 세대의 첫 장은 명령 시각(t0)에서 시작하는데, 그 사이 붓은 옛 세대의 앞 장을 이미 더 나아가
+   *  그렸다. 새 세대를 무조건 먼저 고르면 그림이 t0로 되돌아갔다가 다시 나아가는 톱니가 난다(실측: 0.8초 주기). */
+  const lastDrawT9 = useRef(-1);
   const wStatRef = useRef({
     got: 0, used: 0, missed: 0, err: "", sentWorld: 0, sentView: 0, sentCmd: 0,
     /** 워커가 세계를 받아 엔진을 세웠다(ready). 세계를 보낸 뒤 오래 안 오면 진단에 '응답 없음'. */
@@ -24470,10 +24474,8 @@ export default function ReplayMotionPlayer({
            그 시각 이후의 옛 세대 장은 버린다. 그보다 이른 옛 장은 새 장이 올 때까지 이어 주는 몫이라 둔다(아래 고르기가
            새 세대를 먼저 본다). */
         const gq9 = genSeenRef9.current;
-        if (pf9.gen > gq9.seen) {
-          gq9.seen = pf9.gen;
-          for (const [k9, f9] of frames9) if (f9.gen < pf9.gen && f9.t >= pf9.t - 1e-6) frames9.delete(k9);
-        }
+        // 옛 세대의 앞 장은 **안 버린다** — 새 세대가 그린 자리를 따라잡을 때까지 그 장들로 앞으로 잇는다(위 lastDrawT9).
+        if (pf9.gen > gq9.seen) gq9.seen = pf9.gen;
         /* ★ 안개 갈래가 바뀌면 옛 갈래의 장·안개 판을 **그 시각부터** 걷는다(지적: "추적 끄면 갑자기 안개 계산을 여러 번
            하듯 깜빡임") — 추적을 끄면 시야 주인이 그 사람 → 전체로 바뀌어 안개가 통째로 다른데, 워커가 앞서 지어 둔
            옛 시야의 장들이 새 장 사이사이로 계속 와 그 안개 판이 시각순으로 끼어들었다. 아래 seq 규칙이 옛 **장**은
@@ -28008,6 +28010,10 @@ export default function ReplayMotionPlayer({
       if (f9.gen === gs9) { if (!best || f9.t > best.t) best = f9; }
       else if (!bestOld || f9.t > bestOld.t) bestOld = f9;
     }
+    /* 되돌아가지 않기(위 lastDrawT9) — 앞으로 가는 중(tNow ≥ 마지막 그린 시각)에 새 세대의 장이 마지막 그린 시각보다
+       뒤에 있고 옛 세대에 더 나아간 장이 있으면 옛 세대로 잇는다. 새 세대가 따라잡는 순간 그쪽으로 넘어간다. */
+    const ld9 = lastDrawT9.current;
+    if (best && bestOld && tNow9 >= ld9 - 1e-6 && best.t < ld9 - 1e-6 && bestOld.t > best.t) best = bestOld;
     if (!best) best = bestOld;
     if (best && tNow9 - best.t <= near9) return best;
     let next: PackedFrame9 | null = null;
@@ -28199,7 +28205,7 @@ export default function ReplayMotionPlayer({
       if (wPacked9) { if (wPacked9.t === bs9.lastA) bs9.sameA += 1; bs9.lastA = wPacked9.t; }
     }
     if (wPacked9) {
-      if (count9) wStatRef.current.used += 1;
+      if (count9) { wStatRef.current.used += 1; lastDrawT9.current = wPacked9.t; }
       // 푼 것은 앞 장(그리는 장)과 뒤 장(보간 끝점)만 들고, 그보다 옛 장의 객체는 놓는다(폰 메모리).
       for (const f9 of wFramesRef.current.values()) {
         if (f9.t < wPacked9.t && f9.dec) { f9.dec = undefined; f9.byKey = undefined; }
