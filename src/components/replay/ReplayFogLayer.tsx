@@ -120,8 +120,13 @@ export default function ReplayFogLayer({
     if (!cv || w <= 0 || h <= 0) return;
     const box = cv.parentElement;
     if (!box) return;
-    const cw = box.clientWidth;
-    const ch = box.clientHeight;
+    /* 캔버스는 상자보다 사방으로 넓다(CSS --scr-mapover) — 끌 때 드러날 바깥을 미리 채워 두려는 여유다(요청).
+       굽는 크기는 캔버스(cw·ch)이고, 지도 좌표는 **상자**(mw9·mh9) 기준이라 그 몫(over9)만큼 옮겨 그린다. 0이면 옛 셈. */
+    const cw = cv.clientWidth || box.clientWidth;
+    const ch = cv.clientHeight || box.clientHeight;
+    const over9 = Math.max(0, (cw - box.clientWidth) / 2);
+    const mw9 = Math.max(1, cw - 2 * over9);
+    const mh9 = Math.max(1, ch - 2 * over9);
     if (cw <= 0 || ch <= 0) return;
     /* 작은 기기는 1.5배로(실기: 전체화면에서 이 층 하나가 1390² = 7.4MB) — 안개는
        등고선을 Chaikin으로 깎아 그리는 **부드러운 막**이라, 1.5배를 화면 배율로 늘려도
@@ -173,8 +178,8 @@ export default function ReplayFogLayer({
     }
 
     // ── ② 화면 사상 — 유닛 캔버스(UnitLayer)와 **같은 식**이라야 층이 안 어긋난다.
-    const zx = (fx: number): number => (fx - 0.5) * cw * zoom + cw / 2 + pan.x;
-    const zy = (fy: number): number => (fy - 0.5) * ch * zoom + ch / 2 + pan.y;
+    const zx = (fx: number): number => (fx - 0.5) * mw9 * zoom + mw9 / 2 + over9 + pan.x;
+    const zy = (fy: number): number => (fy - 0.5) * mh9 * zoom + mh9 / 2 + over9 + pan.y;
 
     // ── ③ 안개를 통째로 깔고, 밝힌 곳과 보이는 곳을 판다 ──────────────────────
     /* ★ 안개는 **지도 위에만** 깔린다(지적: 3D에서 하늘 아래가 까맣다) ─────────────────

@@ -19257,6 +19257,9 @@ const DEV9 = smallDevice9 ? {
   /** 워커 시야 여유(화면 배수) · 앞으로 지을 한도(벽시계 초·MB) · 요잉을 늘 여덟 칸으로 */
   // 앞 한도 4 → 6MB(진단: 3배 장당 163KB — 4MB면 0.8초, 6MB면 1.2초. 지난 장은 이제 한도에 안 든다(frameWorker)).
   cullMargin: 0.5, aheadSec: 1.5, aheadMB: 6, yaw8Always: true,
+  /** 유닛·안개 캔버스를 화면 밖으로 더 그려 두는 여유(px, 사방) — 끌 때 새로 드러나는 가장자리가 이미 채워져 있게(요청).
+   *  면적이 그만큼 늘어 칠하는 삯·메모리가 는다(폰 390×676에 32px이면 1.2배). 폰은 짐이 크니 작게. */
+  overPx: 32,
 } : {
   name: "pc",
   spriteMB: 128, bldSpriteMB: 64,
@@ -19266,6 +19269,7 @@ const DEV9 = smallDevice9 ? {
   /* 앞 한도 10 → 24MB(진단: PC 3배에서 장당 220KB라 10MB가 0.7초 만에 차, 3초 예산이 있어도 앞이 0.7초뿐이었다 —
      굽기 한 번(최악 41ms)이나 GC에 뒤장이 비기 딱 좋은 여유다. 24MB면 220KB로 3.6초). */
   cullMargin: 1, aheadSec: 3, aheadMB: 24, yaw8Always: false,
+  overPx: 64,
 };
 /* 덜어내기 단(요청: "모바일에서 그려야 할 대상이 많을 때 버벅임 방지 — 화면 내 유닛 수 문턱으로
    2·3·4번 적용") ─────────────────────────────────────────────────────────────
@@ -21335,8 +21339,12 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          자리) — 그 몫을 CSS에서 되읽는다(부모가 지도, 나 자신이 지도+여유). 좌표 사상은
          **지도 크기**로 하고 그린 뒤 여유만큼 내린다: 그래야 분수 0~1이 여전히 지도의
          위·아래 끝이고, 늘린 몫은 지도 밖으로 솟은 그림만 받는다. */
-      const band9 = Math.max(0, ch - (cv.parentElement?.clientHeight ?? ch));
-      const mh9 = Math.max(1, ch - band9);
+      /* 여유(over9) — 캔버스가 상자보다 사방으로 넓다(CSS --scr-mapover). 지도 좌표는 **상자** 기준이므로 그 몫만큼
+         옮겨 그린다. 여유 자리는 끌 때 드러날 바깥이라 미리 채워 둔다(요청). 0이면 옛 셈과 같다. */
+      const over9 = Math.max(0, (cw - (cv.parentElement?.clientWidth ?? cw)) / 2);
+      const band9 = Math.max(0, ch - (cv.parentElement?.clientHeight ?? ch) - 2 * over9);
+      const mw9 = Math.max(1, cw - 2 * over9);
+      const mh9 = Math.max(1, ch - band9 - 2 * over9);
       if (!cw || !ch) return;
       /* 선명한 확대(지적: 확대가 선명하게 돼야) — 렌즈의 CSS 확대에 태우면 배킹 해상도가
          줌을 따라 커져야 해서 한계(4096px)에 막혀 흐려졌다. 이제 캔버스는 렌즈 밖에서
@@ -21410,8 +21418,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          떠 있음은 아래 hover 분기의 발밑 타원만 말한다. */
       // 렌즈 CSS(translate(pan) scale(zoom), 원점 가운데)와 같은 사상 — 분수 자리를
       // 확대·팬이 실린 화면 픽셀로 푼다.
-      const zx = (f: number): number => (f - 0.5) * cw * zoom + cw / 2 + pan.x;
-      const zy = (f: number): number => (f - 0.5) * mh9 * zoom + mh9 / 2 + pan.y + band9;
+      const zx = (f: number): number => (f - 0.5) * mw9 * zoom + mw9 / 2 + over9 + pan.x;
+      const zy = (f: number): number => (f - 0.5) * mh9 * zoom + mh9 / 2 + over9 + pan.y + band9;
       /* 공중은 늘 위층(지적: 공중 유닛이 뒤·아래 건물에 가려짐) — 화가 순서에서 공중
          유닛을 통째로 지상·건물 위로 올린다. 공중끼리는 제 z 순서 그대로다. */
       /* 화면 밖 선별(지적: 줌·드래그 버벅임) — 이완·겹침·그리기 전에 뷰포트 밖(여유
@@ -21450,7 +21458,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
            가르는 자는 발자리다: 발이 상자 안(vy0 ≥ 여유)이면 그 몸이 위로 아무리 솟아도
            다 그린다 — 그 유닛은 지금 보이는 것이고, 발을 누르면 잡힌다. 발이 상자 위끝
            보다 위면 그 유닛은 창 밖이라 한 톨도 안 그린다. 배율·이동과 무관한 한 줄이다. */
-        if (band9 > 0 && vy0 < band9 - 0.5) return false;
+        if (band9 > 0 && vy0 < over9 + band9 - 0.5) return false;
         return vx0 >= -ex0 && vx0 <= cw + ex0 && vy0 >= -ex0 && vy0 <= ch + ex0;
       };
       /* 그리는 차례(z 순)는 **ops가 그대로면 그대로다** — 손짓 중에는 같은 ops로 여러
@@ -22401,7 +22409,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
            그래서 **캔버스 좌표로 한 겹 더** 가둔다 — 여유 띠는 어떤 셈이 틀려도 안 칠해진다. */
         if (band9 > 0) {
           ctx.beginPath();
-          ctx.rect(0, band9, cw, ch - band9);
+          ctx.rect(0, over9 + band9, cw, ch - over9 - band9);
           ctx.clip();
         }
         ctx.beginPath();
@@ -30327,6 +30335,9 @@ export default function ReplayMotionPlayer({
                일이 없다. 가로세로비만 남긴다 — 덮기가 0인(꼭 맞는) 프레임에서 높이를
                내는 것이 이 값이다. */
             aspectRatio: `${grid.width} / ${grid.height}`,
+            /* 유닛·안개 캔버스의 여유(위 DEV9.overPx) — CSS가 이 값만큼 사방으로 넓혀 잡고, 붓은 제 크기와 상자 크기의
+               차에서 그 몫을 되읽어 좌표를 옮긴다(UnitLayer over9·ReplayFogLayer over9). */
+            ["--scr-mapover" as string]: `${DEV9.overPx}px`,
             /* ★ 확대·입체에서는 지도가 스스로 자르는데, **위쪽만은 여유만큼 열어 둔다**
                (요청) — overflow는 네 변을 한꺼번에 자르므로 clip-path로 바꾼다. 위 여유를
                음수 inset으로 주면 좌우·아래는 상자에서 자르고 위만 그만큼 더 그린다. */
