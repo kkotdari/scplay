@@ -42,7 +42,7 @@ const FOG_RGB = "5, 8, 14";
 export type FogOverride = { vis: Float32Array; exploredAt: Uint16Array; t: number };
 
 export default function ReplayFogLayer({
-  w, h, exploredAt, t, vis, proj, zoom, pan, tilePx, flatK, className, painter, live,
+  w, h, exploredAt, t, vis, proj, zoom, pan, tilePx, flatK, className, painter, live, gesture,
 }: {
   /** 지도 격자 크기(타일). */
   w: number;
@@ -72,6 +72,11 @@ export default function ReplayFogLayer({
    *  zoom·pan(props)으로 한 장 그리면 안개만 한 프레임 뒤로 튄다. 유닛 캔버스가
    *  같은 까닭으로 같은 칸을 본다. */
   live?: { current: { z: number; p: { x: number; y: number } } | null };
+  /** 손짓(휠·드래그·핀치)이 도는 중인가 — 도는 동안은 이 effect가 안 칠한다(지적: "지도는 안 흔들리고 안개·유닛만
+   *  흔들린다"). 그동안 안개 캔버스는 유닛 캔버스와 같은 규약이다: 내용은 기준(손짓 붓의 xfBase) 자리에 두고 같은
+   *  CSS 이동으로 미끄러진다 — 여기서 손끝 자리로 칠해 버리면 내용과 변환이 겹쳐 두 배로 밀린다. 손짓 붓과 틱이
+   *  기준 자리에 칠한다. 놓아 굳는 렌더에서는 이 값이 이미 거짓이라 여기서 다시 칠한다. */
+  gesture?: { current: boolean };
 }): React.ReactElement {
   const cvRef = useRef<HTMLCanvasElement>(null);
   /** 밝힘 등고선 갈무리 — 밝힌 칸 수가 바뀔 때만 다시 뽑는다. */
@@ -231,6 +236,7 @@ export default function ReplayFogLayer({
     ctx.globalAlpha = 1;
     };
     if (painter) painter.current = paint;
+    if (gesture?.current) return;   // 손짓 중 — 위 gesture 주석
     const lv = live?.current;
     /* 이 층도 렌더 밖에서 칠한다 — 안 재면 '브라우저' 뺄셈에 숨는다(perf9 머리말). */
     pWrap("붓:안개캔버스", () => paint(lv ? lv.z : zoom, lv ? lv.p : pan));

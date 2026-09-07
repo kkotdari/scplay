@@ -27015,7 +27015,11 @@ export default function ReplayMotionPlayer({
        아래 유닛·지도 다시 그리기는 삯이 커서 문턱(need9)으로 솎는데, 안개는 벡터라
        한 장에 1ms가 안 든다. 솎는 쪽에 같이 묶어 두면 지도는 CSS 변환으로 매 프레임
        미끄러지는데 안개만 문턱마다 툭툭 따라가 두 층이 어긋나 보인다. */
-    fogPaintRef.current?.(z1, panRef.current);
+    /* (바뀜) 안개는 이제 유닛 캔버스와 **같은 규약**이다(지적: "지도는 절대 안 흔들리고 안개·유닛·건물만 흔들린다") —
+       여태 매 손짓 프레임 손끝 자리로 다시 칠했는데, 지도는 합성기 변환으로 곧장 움직이고 캔버스 내용은 사파리에서 한
+       프레임 늦게 올라와 안개만 지도보다 한 발 늦게 따라왔다(빠른 끌기에서 몇 px씩 어긋났다 붙는 것이 떨림). 내용은
+       기준(xfBase) 자리에 두고 아래 캔버스 변환을 유닛 캔버스와 함께 건다. 재기준 때 함께 다시 칠한다. */
+    const fogCv9 = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-fog");
     /* 미니맵도 매 프레임이다(요청) — 작은 캔버스 한 장이라 안개와 같은 값(1ms 미만)이고,
        문턱으로 솎으면 지도는 미끄러지는데 프레임만 툭툭 따라가 어긋나 보인다. */
     miniPaintRef.current?.(z1, panRef.current);
@@ -27062,6 +27066,7 @@ export default function ReplayMotionPlayer({
       const t0 = performance.now();
       unitPaintRef.current?.(z1, panRef.current, zoomCommitRef.current);
       xfCvXfRef.current = "";   // 붓이 기준을 손끝으로 갈아 끼우며 변환을 걷었다
+      if (fogCv9) { fogPaintRef.current?.(z1, panRef.current); fogCv9.style.transform = ""; }
       /* 배경도 **손끝 배율로** 다시 굽는다(요청: "확대 축소시 모델은 그렇다쳐도 맵을
          실시간으로 그리기") — 여태 배경은 굳은 zoom만 보고 있어서, 확대하는 내내
          1배로 구운 그림이 CSS로 늘어난 채(흐릿하게) 따라오다가 손을 떼야 또렷해졌다.
@@ -27075,6 +27080,7 @@ export default function ReplayMotionPlayer({
         : `translate(${(px - s9 * b.x).toFixed(2)}px, ${(py - s9 * b.y).toFixed(2)}px) scale(${s9.toFixed(4)})`;
       cv.style.transform = xf9;
       xfCvXfRef.current = xf9;
+      if (fogCv9) { fogCv9.style.transformOrigin = "center"; fogCv9.style.transform = xf9; }
     }
   }, []);
   /** 손짓 시작 — 이미 도는 중이면 기준을 안 건드린다(휠→드래그 이어짐 등). */
@@ -27280,6 +27286,11 @@ export default function ReplayMotionPlayer({
       }
     }
     if (cv) cv.style.transform = "";
+    {
+      // 안개 캔버스도 — 이 렌더의 ReplayFogLayer effect(자식이 먼저 돈다)가 상태 자리로 칠했으니 변환만 걷는다.
+      const fcv9 = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-fog");
+      if (fcv9 && fcv9.style.transform) fcv9.style.transform = "";
+    }
     xfCvXfRef.current = "";
     // 굳은 배율로 touch-action도 못 박는다(위 applyGestureXf와 같은 규칙 — 한 손 줌이 떼며 되돌린 값을 여기서 바로잡는다).
     if (mapRef.current) mapRef.current.style.touchAction = zoom > 1 ? "none" : "";
@@ -28205,7 +28216,13 @@ export default function ReplayMotionPlayer({
       const tq9 = Math.floor(tNow9 * 4);
       if (fr9.visSrc !== ft9.vis || fr9.visVer !== ft9.ver || fr9.explored !== ft9.explored || tq9 !== ft9.tq) {
         ft9.vis = fr9.visSrc; ft9.ver = fr9.visVer; ft9.explored = fr9.explored; ft9.tq = tq9;
-        fogPaintRef.current(zoomRef.current, panRef.current, { vis: fr9.visSrc, exploredAt: fr9.explored, t: tNow9 });
+        if (xfGestureRef.current) {
+          // 손짓 중 — 기준 자리에 칠하고 걷힌 변환을 같은 값으로 도로 건다(유닛 캔버스와 같은 까닭, 위 ★).
+          const b9 = xfBaseRef.current;
+          fogPaintRef.current(b9.z, { x: b9.x, y: b9.y }, { vis: fr9.visSrc, exploredAt: fr9.explored, t: tNow9 });
+          const fcv9 = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-fog");
+          if (fcv9 && xfCvXfRef.current) { fcv9.style.transformOrigin = "center"; fcv9.style.transform = xfCvXfRef.current; }
+        } else fogPaintRef.current(zoomRef.current, panRef.current, { vis: fr9.visSrc, exploredAt: fr9.explored, t: tNow9 });
       }
     }
   };
@@ -30709,7 +30726,7 @@ export default function ReplayMotionPlayer({
                 zoom={zoom} pan={pan}
                 tilePx={(mapRef.current?.clientWidth ?? 320) / grid.width}
                 flatK={pitched ? pitchFlat : 1}
-                painter={fogPaintRef} live={xfLiveRef}
+                painter={fogPaintRef} live={xfLiveRef} gesture={xfGestureRef}
               />
             )}
 
