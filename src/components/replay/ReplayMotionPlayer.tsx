@@ -163,13 +163,25 @@ const PITCH_3D = PITCH_DEGS[1];
  *  길을 우리는 아직 모른다 — 모르는 것을 아는 척하고 내주느니 문을 닫는다.
  *  자는 **손가락**이다(pointer: coarse): 폰·태블릿이 걸리고, 터치 노트북은 주 포인터가
  *  마우스라 안 걸린다. 창이 없는 자리(노드·서버 렌더)는 참이다 — 막을 화면이 없다. */
+/** 손가락 기기의 3D 문턱(요청: "모바일 3D 오픈, 대신 벤치마킹 빡세게") — 입체 벤치(benchDevice9 deep)를 세 번 재어
+ *  **중앙값**으로(PC 판정은 두 번 중 최소) PC 기준(CROWD_BENCH3D_MS9 = 16)보다 좁은 12ms 안이어야 연다. 한 번 재면 굳는다. */
+const MOBILE_3D_BENCH_MS9 = 12;
+const mobile3d9 = { ok: null as boolean | null, ms: -1 };
 const pitchAllowed = (): boolean => {
   if (typeof window === "undefined" || !window.matchMedia) return true;
-  return !window.matchMedia("(pointer: coarse)").matches;
+  if (!window.matchMedia("(pointer: coarse)").matches) return true;
+  if (mobile3d9.ok === null) {
+    const a9 = [benchDevice9(true), benchDevice9(true), benchDevice9(true)].sort((x9, y9) => x9 - y9);
+    mobile3d9.ms = a9[1];
+    mobile3d9.ok = a9[1] > 0 && a9[1] <= MOBILE_3D_BENCH_MS9;
+  }
+  return mobile3d9.ok;
 };
 /** 입체를 못 내줄 때 한 번 알린다 — 화면에 아무 반응이 없으면 '버튼이 고장'으로 읽힌다. */
 const pitchDenied = (): void => {
-  replayToast("3D 보기는 PC에서만 가능해요", { kind: "info" });
+  replayToast(mobile3d9.ms >= 0
+    ? `3D 보기가 이 기기엔 무거워요 (벤치 ${mobile3d9.ms.toFixed(0)}ms · 기준 ${MOBILE_3D_BENCH_MS9}ms)`
+    : "3D 보기는 PC에서만 가능해요", { kind: "info" });
 };
 /** 그 각에서 땅이 눌리는 정도(세로/가로) — sin(시점각)이다. 90도면 1(안 눌림=평면),
  *  30도면 0.5. 화면에 눕는 것(그림자·선택 링·트레이서)은 전부 이 값을 곱한다. */
@@ -28287,7 +28299,8 @@ export default function ReplayMotionPlayer({
        (지적: 감을 때 흔들림). 유닛 캔버스는 두 경로가 같은 객체(frameOpsRef9)를 찍으므로 그 문제가 없다. */
     if (fr9.visSrc && fr9.explored && fogPaintRef.current && drivenRef9.current) {
       const ft9 = fogTickRef9.current;
-      const tq9 = Math.floor(tNow9 * 4);
+      // 0.25초 → 0.1초(요청: "안개 그리기 빈도 늘리기") — 밝힌 판·눈 목록이 그대로여도 경기 시간 0.1초마다 한 번은 칠한다.
+      const tq9 = Math.floor(tNow9 * 10);
       // 보기(배율·팬)도 본다 — 안개 층의 React effect는 틱이 몰 때 안 칠하므로(driven), 커밋·시야 변화 뒤의 자리는 틱이 맡는다.
       const vz9 = xfGestureRef.current ? xfBaseRef.current.z : zoomRef.current;
       const vx9 = xfGestureRef.current ? xfBaseRef.current.x : panRef.current.x;
