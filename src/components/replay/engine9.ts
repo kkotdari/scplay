@@ -1969,6 +1969,31 @@ export const st9Span = (name: string | undefined): boolean => !!(name && FX_BEAM
 export const HIT_FX_K = 0.72;
 /** 몸 상자 가운데에서 효과·조준점까지 더 올리는 몫(상자 비) — 0.10이었다(머리 위). */
 export const BODY_MID_K9 = 0.02;
+/* ★ 효과는 **그려진 몸의 한가운데**에서 난다(지적: "유닛·건물 피격·사망·파괴 효과를 중앙에 내는데 발바닥이 아니라
+   그려진 것의 중앙이어야 하는데 캔버스 발바닥의 중앙으로 그리는 듯") ─────────────────────────────────────────
+   여태 유닛은 발 원점에서 (0.24 + 0.02)·상자 위 — 곧 **판(상자)의 한가운데**였고, 건물 파괴는 발자국 한가운데(높이 0)
+   였다. 모델의 잉크는 상자 안에서 종류마다 다른 자리에 앉으므로(마린은 상자 가운데보다 2칸 아래, 뮤탈은 위) 상자
+   가운데는 몸 가운데가 아니다. 아래 두 표는 model-shot과 같은 굽기로 모델마다 잉크의 **질량 중심**을 잰 값이다
+   (16-상자 좌표, [평면(top), 입체(base)]). 정규화 배수(MODEL_NORM·BLD_NORM)는 굽기가 곱하므로 여기서도 곱한다.
+   · 유닛: 발 원점은 (8, 12 | 12.6)이고 판의 상자 가운데는 발 원점에서 0.24·상자 위에 놓인다(UnitLayer의 by9).
+     몸 가운데의 들기 = (원점 y − 잉크 중심 y)·배수/16 × 상자 px.
+   · 건물: 잉크 바닥을 발자국 아랫변(지면선)에 앉히므로 '잉크 바닥→중심'(BLD_INK_MID9)에 배수·그리는 변을 곱하고,
+     효과 앵커(발자국 가운데)에서 아랫변까지를 뺀다.
+   다시 재려면 scripts/model-shot.mjs 사본에 잉크 질량 중심 출력을 붙여 돌린다(이 표를 낸 방법). */
+export const UNIT_INK_CY9: Record<string, [number, number]> = { gunner: [10.34, 10.41], fbat: [10.19, 10.17], ghost: [10.31, 10.30], inf: [10.36, 10.36], mine: [11.58, 12.07], vulture: [9.35, 8.86], tank: [10.93, 11.05], tanksiege: [11.00, 11.11], goliath: [9.64, 9.20], reaver: [10.85, 10.76], wraith: [8.15, 7.36], bc: [9.02, 8.55], valk: [7.92, 7.04], vessel: [9.40, 9.04], muta: [8.01, 7.42], guardian: [7.10, 5.96], devourer: [8.57, 8.06], scourge: [6.21, 4.75], queen: [7.21, 6.12], corsair: [8.64, 8.01], scout: [7.33, 6.43], carrier: [8.87, 8.34], arbiter: [10.32, 10.34], observer: [9.48, 9.04], interceptor: [6.06, 4.61], scarab: [11.02, 11.27], dship: [7.42, 6.72], shuttle: [8.04, 7.19], ovie: [9.19, 8.70], zealot: [9.44, 9.25], dtemp: [9.48, 9.18], goon: [9.54, 9.22], htemp: [8.89, 8.37], archon: [8.57, 7.97], darchon: [8.57, 7.96], zling: [10.07, 10.11], hydra: [8.41, 7.63], ultra: [10.31, 9.49], lurker: [9.55, 9.23], defiler: [11.70, 12.00], scv: [7.82, 6.68], probe: [9.86, 9.73], drone: [9.65, 9.34], larva: [11.33, 11.65], egg: [10.69, 10.80], lurkeregg: [11.60, 11.69], mutacocoon: [9.40, 9.06] };
+export const BLD_INK_MID9: Record<string, [number, number]> = { diamond: [3.98, 4.65], trapezoid: [2.31, 2.37], tombFlat: [2.83, 2.49], coil: [4.27, 3.81], sunken: [4.16, 3.86], spore: [3.94, 4.32], turret: [4.88, 5.86], creep: [3.35, 3.36], tomb: [4.14, 4.48], pyramidWide: [4.76, 5.05], gate: [3.07, 3.23], hatchery: [3.78, 4.15], lair: [4.40, 4.84], hive: [5.14, 5.58], pool: [3.47, 3.07], cube: [5.39, 6.08], factory: [3.96, 4.35], plane: [5.38, 6.02], dome: [3.83, 3.99], arch: [2.75, 3.18], comsat: [2.99, 3.45], queensnest: [4.06, 4.02], nsilo: [2.81, 3.20], mshop: [2.84, 2.85], ctower: [2.70, 3.27], covert: [1.82, 1.92], physlab: [2.00, 2.22], refinery: [3.60, 3.92], assim: [3.29, 3.72], extract: [4.29, 4.60], academy: [4.31, 4.72], ebay: [4.33, 4.45], armory: [3.48, 3.78], scifac: [2.91, 3.09], forge: [4.47, 4.55], cyber: [3.30, 3.63], citadel: [3.37, 3.78], archives: [2.28, 2.14], robobay: [3.04, 3.35], observatory: [3.57, 3.76], fleetbeacon: [2.40, 2.42], tribunal: [2.43, 2.62], sbattery: [2.33, 2.20], evo: [4.16, 4.26], hydraden: [4.62, 4.77], spire: [6.66, 7.21], gspire: [6.49, 6.29], dmound: [4.51, 4.42], cavern: [5.26, 5.30], nydus: [3.96, 3.77] };
+/** 유닛 몸 가운데의 들기 — 발 원점에서 위로, **상자 px의 비**. 표에 없는 종류는 원점 2.2칸 위(보병 언저리). */
+export const unitMidK9 = (kind: string, pitchView: boolean): number => {
+  const cy = UNIT_INK_CY9[kind] ?? UNIT_INK_CY9[NORM_PAIR[kind] ?? ""] ?? UNIT_INK_CY9[kind.replace(/body$/, "")];
+  const anchor = pitchView ? 12.6 : 12;
+  const c = cy ? cy[pitchView ? 1 : 0] : anchor - 2.2;
+  return Math.max(0, ((anchor - c) * modelNormOf(kind)) / 16);
+};
+/** 건물 몸 가운데가 잉크 바닥(지면선)에서 얼마나 위인가 — **그리는 변의 비**. 표에 없으면 3.5칸. */
+export const bldMidK9 = (kind: string, pitchView: boolean): number => {
+  const m = BLD_INK_MID9[kind];
+  return ((m ? m[pitchView ? 1 : 0] : 3.5) * bldNormOf(kind)) / 16;
+};
 export const FX_IMPACT: Record<string, {
   r: number; g: [number, string][]; ring?: string;
   /** 세로 눌림(1이면 원) — 지면에 눕듯 넓적하게 퍼지는 피격에 준다. */
@@ -3436,6 +3461,15 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     const tilePx = view.tilePx;
     const mapW9 = view.mapW;
     const mapH9 = view.mapH;
+    /** 건물 몸 가운데가 효과 앵커(발자국 한가운데)에서 얼마나 위인가(px) — 위 bldMidK9 주석. 그리는 변은 발자국
+     *  폭 × BLD_DRAW_K × 종류 보정(완성 건물 op의 drawK와 같은 식). */
+    const bldMidLift9 = (unit: string): number => {
+      const fp = FOOTPRINT[unit] ?? [3, 2];
+      const sk = SHAPE_KIND[unit] ?? "";
+      const tPx = mapW9 / grid.width;
+      const side = fp[0] * tPx * BLD_DRAW_K * (BLD_DRAW_TUNE[sk] ?? 1);
+      return side * bldMidK9(sk, pitched) - (fp[1] / 2) * tPx * (pitched ? pitchFlat : 1);
+    };
     const viewTeam = view.viewTeam;
     const visAll = view.visAll;
     const fogOn = view.fogOn;
@@ -5008,7 +5042,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
              몸을 그린 폭의 그 배수만큼 띄우는데(그 자리 주석), 불티는 발자국
              언저리에 그대로 남아 커맨드센터가 날아가는 동안 그 **밑에서** 텄다.
              같은 식을 쓴다. */
-        const bLift9 = bw9 * 0.3 + bFlyPx9;
+        const bLift9 = bldMidLift9(unit) + bFlyPx9;   // 몸 가운데(위 bldMidLift9) — 옛 발자국 폭·0.3 어림을 걷음
         if (bShieldUp9) {
           fxOps.push({
             kind: "shield", fx: bfx9, fy: bfy9, lift: bLift9,
@@ -6045,7 +6079,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     if (t >= goneAt && t - goneAt <= BLD_FX_SEC) {
       const [bfx9, bfy9] = posFrac(x + footDx(unit), y + footDy(unit));
       fxOps.push({
-        kind: "burst", fx: bfx9, fy: bfy9, lift: flyUp9, bld: !cocoonB9,
+        kind: "burst", fx: bfx9, fy: bfy9, lift: (cocoonB9 ? 0 : bldMidLift9(unit)) + flyUp9, bld: !cocoonB9,   // 몸 가운데에서(지적)
         size: (FOOTPRINT[unit] ?? [3, 2])[0] * (mapW9 / grid.width) * (cocoonB9 ? 0.5 : 1),
         ph: (t - goneAt) / BLD_FX_SEC,
         mat: cocoonB9 ? "cocoon" : rk === "terran" ? "mech" : rk, seed: i + 13,
@@ -6737,7 +6771,9 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
          그대로 따른다 — 들기 몫의 두 배다(터지는 불꽃이 몸보다 위로 솟는다). */
       /* 지적("지상은 너무 낮고 공중은 너무 높다"): 지상은 발밑(0)이 아니라 몸 한가운데(몸 폭의 0.3)에서, 공중은 들기의
          두 배가 아니라 1.25배에서 터진다. */
-      const dieLift = uAir ? airLiftPxOf(dpy) * 1.25 : diePx9 * 0.3;
+      // 몸 가운데는 종류별 잉크 중심(위 unitMidK9) — 지상·공중 같은 식이고 공중은 들기를 더한다.
+      const dieLift = (uAir ? airLiftPxOf(dpy) : 0)
+        + diePx9 * unitMidK9(drawUnit === "" ? unitMarkerKind("", race) : (UNIT_3D[drawUnit] ?? ""), pitched);
       /* ★ **파편 폭발**(요청: 단순한 페이드아웃 확대 말고 덩어리가 파편화되어 터지는 꼴 — 기계는
          화염·연기, 프로토스는 플라즈마화, 저그는 살점·피떡) — 캔버스 burst op으로 그린다(2배부터).
          자는 보이는 몸 폭. 그 아래 칸은 옛 DOM 여운 하나만 남긴다. */
@@ -7436,7 +7472,9 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
        sy − px·0.24 − lift). 잉크는 상자의 3분의 1 남짓이라 그 위 0.10·상자는 잉크 높이의
        30%쯤 더 올라간 자리, 곧 머리 위였다. 몸 가운데에 거의 붙인다. 조준(foeBody9)도 같은
        비를 쓴다 — 트레이서가 겨누는 점과 불티가 터지는 점은 한 자여야 한다. */
-    const liftPx9 = fxBody + fxPx * BODY_MID_K9;
+    /* ★ 몸 가운데는 종류별 잉크 중심으로(위 unitMidK9 — 지적: "그려진 것의 중앙이어야"). 옛 (0.24 + 0.02)·상자는
+       판의 상자 가운데였다. */
+    const liftPx9 = airLift9 + fxPx * unitMidK9(kindMain, pitched);
     /* 맞는 쪽 불티(요청: 크기도 몸에 맞게) — 몸 상자의 0.42배, 가슴 높이.
        싸우는 중이어도 맞으면 띄운다 — 맞는 것과 때리는 것은 따로다. */
     /* 프로토스는 실드가 먼저 깎인다(요청) — 남은 비율이 체력 몫보다 크면 아직
@@ -7540,8 +7578,8 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
        몸 크기로 셈해, 트레이서 끝과 건물 불티 자리가 달랐다(지적: "트레이서가 노리는 중심과
        피격효과의 중심이 좀 다르게 계산되나"). */
     const foeBody9 = foe.bld && foe.k && FOOTPRINT[foe.k]
-      ? FOOTPRINT[foe.k][0] * (mapW9 / grid.width) * 0.3
-      : foePx9 * (0.24 + BODY_MID_K9);
+      ? bldMidLift9(foe.k)
+      : foePx9 * unitMidK9(foe.uk && isKnownKind(foe.uk) ? (UNIT_3D[foe.uk] ?? kindMain) : kindMain, pitched);
     const aimDeg = (fx9: number, fy9: number, fAir: boolean): number => {
       const tPx9 = mapW9 / grid.width;
       const ddx = (fx9 - pos.x) * tPx9;
