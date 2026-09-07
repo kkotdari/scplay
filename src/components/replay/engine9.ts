@@ -833,7 +833,13 @@ export const MORPH_SINK9 = 0.3;
 /** 부화 미끄럼(초) — 알·고치에서 나온 몸이 알 자리에서 제 첫 자리까지 걸어 나오는 시간(지적: "라바 변태알에서
  *  나온 유닛이 순간이동"). 원작은 부화 순간 새 몸을 알 곁의 빈 자리에 **놓는다**(place_completed_unit) — 참값의
  *  첫 키가 이미 그 자리라 화면에서는 알에서 한두 타일 떨어진 곳에 툭 나타났다. 그리는 자리만 알에서 이어 준다. */
-export const HATCH_SLIDE_SEC = 0.35;
+export const HATCH_SLIDE_SEC = 0.6;   // 0.35는 "순식간"이었다(지적)
+/** 부화 미끄럼을 살피는 창(초) — 태어난 지 이보다 오래된 몸은 완성 키를 안 찾는다(알 갈라지는 애니가 1~2초). */
+export const HATCH_SCAN_SEC9 = 4;
+/** 알·러커알·뮤탈 고치의 종류 번호(bwUnitNames) — 부화 미끄럼은 이 셋에서 나온 몸만. */
+const EGG_ID9 = 36;
+const LURKER_EGG_ID9 = 97;
+const COCOON_ID9 = 59;
 /** 변태·취소 자국이 남는 시간(초). */
 /** 평면(2D)의 바닥 눌림 — 이 화면은 평면에서도 지면을 2:1로 눕힌다(원작 이동 마커의
  *  관례이고, 건물 접지 그림자가 쓰는 값이 이것이다). 자리 사상(posFrac)은 입체에서만
@@ -6619,21 +6625,35 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         break;
       }
     }
-    /* ★ 부화 미끄럼(위 HATCH_SLIDE_SEC) — 이 생애의 첫 키 바로 앞 키가 **다른 종류**(알·러커알·고치)면 변태에서
-       이어진 몸이다. 그 앞 키의 자리(알이 있던 자리)에서 제 첫 자리까지 짧게 미끄러져 나온다. 원자취는 그대로다
-       (그리는 자리만). 너무 멀면(6타일 넘게 — 자취가 끊긴 것) 안 잇는다. 드론의 고치 미끄럼과는 겹치지 않는다. */
-    if (!slid9 && t - e.born < HATCH_SLIDE_SEC && e.walk.n > 0 && e.walk.i0 > 0) {
+    /* ★ 부화 미끄럼(위 HATCH_SLIDE_SEC) — 앞 키가 알·러커알·고치인 몸은 변태에서 이어진 몸이다(지적: "변태알에서
+       다음 위치로 순식간 이동 … 애초에 좌표가 다른 이유"). 좌표가 다른 까닭은 원작에 있다(order_ZergBirth):
+       알이 갈라지는 동안 종류만 새 유닛으로 바뀌고 자리는 알 그대로다가, **완성되는 그 프레임에** 나는 것은
+       위로 42px(1.3타일) 올리고 한 알에서 둘 나오는 것(저글링·스커지)은 알의 두 슬롯으로 벌린다. 덤퍼는 세 프레임마다
+       보므로 그 옮김이 참값에 0.13초짜리 점프로 실린다. 라바·알 자리는 정확하다 — 옮기는 것은 부화 순간이다.
+       그래서 **완성 키**(이 생애에서 done이 처음 켜지는 키)를 기준으로, 그 전까지는 알 자리에 두고 그 뒤
+       HATCH_SLIDE_SEC 동안 참값 자리로 미끄러진다. 그리는 자리만이라 앞뒤 동선에는 안 실린다. 너무 멀면(6타일 —
+       자취가 끊긴 것) 안 잇는다. 드론의 고치 미끄럼과는 겹치지 않는다. */
+    if (!slid9 && t - e.born < HATCH_SCAN_SEC9 && e.walk.n > 0 && e.walk.i0 > 0) {
       const tr9 = e.walk.tr;
       const i0 = e.walk.i0;
-      if (tr9.types[i0 - 1] !== tr9.types[i0]) {
-        const px9 = tr9.kxy[(i0 - 1) * 2] / 32;
-        const py9 = tr9.kxy[(i0 - 1) * 2 + 1] / 32;
-        const d9 = Math.hypot(pos.x - px9, pos.y - py9);
-        if (d9 > 0.15 && d9 < 6) {
-          const u9 = Math.max(0, (t - e.born) / HATCH_SLIDE_SEC);
-          const k9 = u9 * u9 * (3 - 2 * u9);
-          morphDx9 = (px9 - pos.x) * (1 - k9);
-          morphDy9 = (py9 - pos.y) * (1 - k9);
+      const pv9 = tr9.types[i0 - 1];
+      if (pv9 !== tr9.types[i0] && (pv9 === EGG_ID9 || pv9 === LURKER_EGG_ID9 || pv9 === COCOON_ID9)) {
+        /* 완성 키 — 첫 키 뒤 여덟 키 안에서 찾는다(부화 애니 동안은 키가 거의 안 난다). 없으면 첫 키. */
+        let j9 = i0;
+        const jEnd9 = Math.min(i0 + e.walk.n, i0 + 8);
+        while (j9 < jEnd9 && tr9.done[j9] === 0) j9 += 1;
+        if (j9 >= jEnd9) j9 = i0;
+        const tJ9 = kT(tr9, j9);
+        if (t < tJ9 + HATCH_SLIDE_SEC) {
+          const px9 = tr9.kxy[(i0 - 1) * 2] / 32;
+          const py9 = tr9.kxy[(i0 - 1) * 2 + 1] / 32;
+          const d9 = Math.hypot(pos.x - px9, pos.y - py9);
+          if (d9 > 0.05 && d9 < 6) {
+            const u9 = t < tJ9 ? 0 : Math.min(1, (t - tJ9) / HATCH_SLIDE_SEC);
+            const k9 = u9 * u9 * (3 - 2 * u9);
+            morphDx9 = (px9 - pos.x) * (1 - k9);
+            morphDy9 = (py9 - pos.y) * (1 - k9);
+          }
         }
       }
     }
