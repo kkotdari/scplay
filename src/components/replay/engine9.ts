@@ -1034,6 +1034,8 @@ export const NORM_PAIR: Record<string, string> = {
   tankgun: "tankbody", tanksiegegun: "tanksiegebody",
   /* 시즈 버팀다리 홑판(전환 동작용 attach) — 시즈 차체와 같은 자라야 다 펴진 순간 구운 시즈 판과 이어진다. */
   tanksiegelegs: "tanksiegebody",
+  /* 앞쪽 다리 홑판(attach2)도 같은 자 — 짝이 없으면 배수 1로 구워져 앞 다리만 딴 크기로 보였다(지적: "왼쪽 옆 다리만 크게"). */
+  tanksiegelegsF: "tanksiegebody",
   /* 버로우한 럴커 두 별본 — 흙 구멍이 같은 크기라야 버로우 자리가 종류마다 안 흔들린다. */
   lurkerburrow: "burrowhole", lurkerfire: "burrowhole",
   /* 짐을 든 일꾼도 **맨몸 배수 그대로**다(요청: 일꾼별 자원 들기 모델) — 짐이 늘어난
