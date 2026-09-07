@@ -10399,11 +10399,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     return out;
   },
   // (걷어냄) nukedome — 핵 화구 모델(요청: 모델링 제거). 게임 화면에서는 안 쓰이고 도록에만 있었다.
-  tank: () => [...tankTracks(), ...tankHull(), ...tankTurret()],
+  // 동체+궤도 폭 0.8배(요청, 포탑 제외) — 모형 x만 줄인다(withModelScale는 회전 앞에 곱한다).
+  tank: () => [...withModelScale(0.8, 1, 1, () => [...tankTracks(), ...tankHull()]), ...tankTurret()],
   /* 발포 반동용 분해(요청: 발포 시 포탑·포신만 움직이게) — 차체와 포탑을 딴 판으로
      구워, 쏘는 순간 포탑 판만 살짝 밀렸다 돌아온다. 갤러리·v1은 합본(tank)을 그대로
      쓰고 v2 렌더만 이 짝을 쓴다. */
-  tankbody: () => [...tankTracks(), ...tankHull()],
+  tankbody: () => withModelScale(0.8, 1, 1, () => [...tankTracks(), ...tankHull()]),
   tankgun: () => tankTurret(),
   /* 시즈 모드(사진 기준) — 네 귀퉁이로 편 버팀다리 + 한 단 솟은 포탑 + 긴 포신.
      궤도·차체는 평상시와 **같은 부품**이다(지적: 두 모드의 몸통이 달라 보였다). */
@@ -10412,9 +10413,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   // 시즈 모드는 +180(요청: "시즈모드 180도 요잉") — 90 → 270. 포탑의 대기 방향(engine9 idleAim9)도 같이 돌렸다.
   /* 도록 합성 포탑: 바깥 spin 270이 포탑에도 걸리므로 안쪽 180을 더해 총 90 = 엔진 대기 +90(차체 뒤)과 같은 배치.
      (지적: "도록엔 반대로 된 듯" — 안쪽 0이면 총 270이라 포신이 차체 앞을 봤다.) */
-  tanksiege: () => withModelSpin(270, () => [...tankTracks(), ...siegeLegs(), ...tankHull(), ...withModelSpin(180, siegeTurret)]),
+  tanksiege: () => withModelSpin(270, () => [...withModelScale(0.8, 1, 1, () => [...tankTracks(), ...tankHull()]), ...siegeLegs(), ...withModelSpin(180, siegeTurret)]),
   /* 발포 반동용 분해(요청) — 시즈 차체/포탑·포신 분리판. */
-  tanksiegebody: () => withModelSpin(270, () => [...tankTracks(), ...siegeLegs(), ...tankHull()]),
+  tanksiegebody: () => withModelSpin(270, () => [...withModelScale(0.8, 1, 1, () => [...tankTracks(), ...tankHull()]), ...siegeLegs()]),
   tanksiegegun: () => siegeTurret(),
   /* 시즈 버팀다리 홑판 — 시즈 전환 동작(요청)에서 탱크 차체 위에 attach로 겹쳐 배율(attachK)로 뻗고 접는다. */
   tanksiegelegs: () => withModelSpin(90, () => siegeLegs()),
