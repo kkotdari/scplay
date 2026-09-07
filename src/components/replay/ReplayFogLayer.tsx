@@ -42,7 +42,7 @@ const FOG_RGB = "5, 8, 14";
 export type FogOverride = { vis: Float32Array; exploredAt: Uint16Array; t: number };
 
 export default function ReplayFogLayer({
-  w, h, exploredAt, t, vis, proj, zoom, pan, tilePx, flatK, className, painter, live, gesture,
+  w, h, exploredAt, t, vis, proj, zoom, pan, tilePx, flatK, className, painter, live, gesture, driven,
 }: {
   /** 지도 격자 크기(타일). */
   w: number;
@@ -77,6 +77,11 @@ export default function ReplayFogLayer({
    *  CSS 이동으로 미끄러진다 — 여기서 손끝 자리로 칠해 버리면 내용과 변환이 겹쳐 두 배로 밀린다. 손짓 붓과 틱이
    *  기준 자리에 칠한다. 놓아 굳는 렌더에서는 이 값이 이미 거짓이라 여기서 다시 칠한다. */
   gesture?: { current: boolean };
+  /** 재생 틱이 붓을 몰고 있나(부모 drivenRef9) — 참이면 이 effect는 안 칠한다(지적: "안개는 그냥 재생 중에도 흔들린다").
+   *  틱은 살아 있는 시각(tLive)의 눈 목록으로 매 장 칠하는데, 이 effect가 렌더마다 상태 t(100ms까지 뒤)의 눈 목록으로
+   *  또 칠하니 두 시각의 안개가 번갈아 났다. 유닛 캔버스(UnitLayer driven)와 같은 게이트다. 시야가 바뀌어도 틱이
+   *  보기를 견줘 다시 칠한다(부모 fogTickRef9). */
+  driven?: { current: boolean };
 }): React.ReactElement {
   const cvRef = useRef<HTMLCanvasElement>(null);
   /** 밝힘 등고선 갈무리 — 밝힌 칸 수가 바뀔 때만 다시 뽑는다. */
@@ -236,7 +241,7 @@ export default function ReplayFogLayer({
     ctx.globalAlpha = 1;
     };
     if (painter) painter.current = paint;
-    if (gesture?.current) return;   // 손짓 중 — 위 gesture 주석
+    if (gesture?.current || driven?.current) return;   // 손짓 중·틱이 몰 때 — 위 gesture·driven 주석
     const lv = live?.current;
     /* 이 층도 렌더 밖에서 칠한다 — 안 재면 '브라우저' 뺄셈에 숨는다(perf9 머리말). */
     pWrap("붓:안개캔버스", () => paint(lv ? lv.z : zoom, lv ? lv.p : pan));

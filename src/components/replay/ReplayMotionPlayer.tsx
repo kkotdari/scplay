@@ -24345,10 +24345,14 @@ export default function ReplayMotionPlayer({
   const [fpsTick9, setFpsTick9] = useState(0);
   void fpsTick9;
   /** 보간 op 풀 — 개체 열쇠마다 op 객체 하나를 두고 장이 바뀌어도 그 객체에 값만 덮어쓴다(그리기마다 객체를 안 만든다). */
-  const lerpPoolRef9 = useRef<Map<string, UnitDrawOp>>(new Map());
-  /** 눈 목록 보간용 되쓰는 배열과 판 번호(아래 lerpFrame9). */
-  const visLerpRef9 = useRef<{ buf: Float32Array | null; ver: number }>({ buf: null, ver: 0 });
-  const lerpFrameRef9 = useRef<{ frame: Frame9; ops: UnitDrawOp[] } | null>(null);
+  /* ★ 풀·되쓰는 배열은 **부르는 쪽마다 따로**(칸 0 = 렌더 경로 frameAt9(t) · 칸 1 = 틱 경로 frameAt9(tLive)) ─────
+     지적: "감을 때 유닛·건물이 흔들리고 안개는 재생 중에도 흔들린다". 두 경로가 한 풀을 나눠 쓰면 렌더가 상태 t(틱보다
+     100ms까지 뒤)로 같은 객체·배열에 값을 덮어쓰고, 붓이 그 객체(frameOpsRef9·안개 눈 목록)를 곧 찍으므로 그림이
+     't 자리'와 'tLive 자리'를 번갈아 났다. 서로 다른 객체를 쓰면 한 경로의 셈이 다른 경로의 그림을 못 건드린다. */
+  const lerpPoolRef9 = useRef<[Map<string, UnitDrawOp>, Map<string, UnitDrawOp>]>([new Map(), new Map()]);
+  /** 눈 목록 보간용 되쓰는 배열과 판 번호(아래 lerpFrame9) — 경로별. */
+  const visLerpRef9 = useRef<[{ buf: Float32Array | null; ver: number }, { buf: Float32Array | null; ver: number }]>([{ buf: null, ver: 0 }, { buf: null, ver: 0 }]);
+  const lerpFrameRef9 = useRef<[{ frame: Frame9; ops: UnitDrawOp[] } | null, { frame: Frame9; ops: UnitDrawOp[] } | null]>([null, null]);
   /** 붓 박자 통계(진단) — t 걸음(ms)·같은 앞 장을 되풀이한 횟수·뒤 장이 없던 횟수. */
   const brushStatRef9 = useRef({ lastT: -1, stepSum: 0, stepMax: 0, stepN: 0, lastA: -1, sameA: 0, noB: 0, gapB: 0, draws: 0 });
   /** 워커에 마지막으로 보낸(보낼) 세계 — 워커가 늦게 서면(동적 import) 그때 다시 보낸다. */
@@ -26869,7 +26873,7 @@ export default function ReplayMotionPlayer({
    *  배율 갈무리 없이 매번 손끝 값으로 곧장 그린다. */
   const fogPaintRef = useRef<((z: number, p: { x: number; y: number }, ov?: FogOverride) => void) | null>(null);
   /** 붓 틱이 마지막으로 안개 층에 넘긴 것 — 같은 판이면 다시 안 칠한다(안개 칠은 등고선·원 채우기라 공짜가 아니다). */
-  const fogTickRef9 = useRef<{ vis: Float32Array | null; ver: number | undefined; explored: Uint16Array | null; tq: number }>({ vis: null, ver: undefined, explored: null, tq: -1 });
+  const fogTickRef9 = useRef<{ vis: Float32Array | null; ver: number | undefined; explored: Uint16Array | null; tq: number; z: number; px: number; py: number }>({ vis: null, ver: undefined, explored: null, tq: -1, z: 0, px: 0, py: 0 });
   /** 미니맵 붓(요청: 드래그·줌 중에도 프레임이 따라온다) — 안개와 같은 규약이다.
    *  평소 배치와 전체화면 미니맵은 서로 배타라 붓 하나를 나눠 쓴다. */
   const miniPaintRef = useRef<((z: number, p: { x: number; y: number }) => void) | null>(null);
@@ -27281,9 +27285,9 @@ export default function ReplayMotionPlayer({
        옛 자리 그림이 보였다가 튄다. 기준이 상태와 다르면 지금 한 장 칠해(붓이 기준을 맞추고 변환을 걷는다) 이음매를 없앤다. */
     {
       const b9 = xfBaseRef.current;
-      if (cv && drivenRef9.current && paintFnRef9.current && (b9.z !== zoom || b9.x !== pan.x || b9.y !== pan.y)) {
-        paintFnRef9.current(tLiveRef9.current);
-      }
+      // 틀린 자리 그림이 남지 않게 늘 한 장(유닛 기준이 같아도 안개는 틱이 맡으므로 — 위 fogTickRef9의 보기 비교).
+      void b9;
+      if (cv && drivenRef9.current && paintFnRef9.current) paintFnRef9.current(tLiveRef9.current);
     }
     if (cv) cv.style.transform = "";
     {
@@ -28050,7 +28054,7 @@ export default function ReplayMotionPlayer({
    *  뒤 장(b)에서 같은 개체(lerpKey9)를 찾아 자리·방향을 t의 비율로 섞는다 — 장 밀도와 무관하게 매끄럽다. 뒤 장이
    *  없으면(워커가 뒤처짐) 앞 장 그대로. 자세·z·알파는 앞 장 것이다. 보간 op는 장마다 한 번 복사해 두고 제자리에서
    *  값만 바꾼다(그리기마다 객체를 안 만든다). */
-  const lerpFrame9 = (a9: PackedFrame9, tNow9: number): Frame9 => {
+  const lerpFrame9 = (a9: PackedFrame9, tNow9: number, slot9: 0 | 1): Frame9 => {
     const fa9 = decodeFrame9(a9);
     const bs9 = brushStatRef9.current;
     if (tNow9 <= a9.t + 1e-6) return fa9;
@@ -28068,9 +28072,9 @@ export default function ReplayMotionPlayer({
     }
     /* 보간 프레임은 하나를 계속 쓴다 — op 객체는 개체 열쇠별 풀에서 꺼내 앞 장의 값을 덮어쓴다. 그림자 발자국 배열도
        풀 객체의 것을 재사용한다(길이가 다를 때만 새로). 열쇠 없는 op(효과·장식)는 앞 장 객체 그대로. */
-    const pool9 = lerpPoolRef9.current;
-    let lf9 = lerpFrameRef9.current;
-    if (!lf9) { lf9 = { frame: { ...fa9 }, ops: [] }; lerpFrameRef9.current = lf9; }
+    const pool9 = lerpPoolRef9.current[slot9];
+    let lf9 = lerpFrameRef9.current[slot9];
+    if (!lf9) { lf9 = { frame: { ...fa9 }, ops: [] }; lerpFrameRef9.current[slot9] = lf9; }
     /* ★ op **배열은 그리기마다 새로** 만든다(지적: "뮤탈리스크가 아예 안 그려짐") — 붓의 정렬 캐시가 배열의 정체성으로
        '같은 ops면 다시 안 정렬'하므로, 배열 하나를 되쓰면 첫 그리기의 목록이 영영 남아 뒤에 시야에 든 개체가 안 그려진다.
        객체는 풀에서 되쓰고 배열 하나만 새로 — 그리기당 할당 하나다. */
@@ -28136,7 +28140,7 @@ export default function ReplayMotionPlayer({
         if (va9[i9 + 2] !== vb9[i9 + 2] || Math.abs(va9[i9] - vb9[i9]) > 3 || Math.abs(va9[i9 + 1] - vb9[i9 + 1]) > 3) { same9 = false; break; }
       }
       if (same9) {
-        const vl9 = visLerpRef9.current;
+        const vl9 = visLerpRef9.current[slot9];
         if (!vl9.buf || vl9.buf.length !== va9.length) vl9.buf = new Float32Array(va9.length);
         const out9 = vl9.buf;
         for (let i9 = 0; i9 + 2 < va9.length; i9 += 3) {
@@ -28167,7 +28171,7 @@ export default function ReplayMotionPlayer({
       for (const f9 of wFramesRef.current.values()) {
         if (f9.t < wPacked9.t && f9.dec) { f9.dec = undefined; f9.byKey = undefined; }
       }
-      const fr9 = wPacked9.t <= tNow9 ? lerpFrame9(wPacked9, tNow9) : decodeFrame9(wPacked9);
+      const fr9 = wPacked9.t <= tNow9 ? lerpFrame9(wPacked9, tNow9, count9 ? 1 : 0) : decodeFrame9(wPacked9);
       lastFrameRef9.current = fr9;
       return fr9;
     }
@@ -28211,11 +28215,19 @@ export default function ReplayMotionPlayer({
        props(100ms 박자)로만 다시 그려졌다. 붓이 고른 장의 안개(눈 목록·밝힌 판)가 지난 틱과 다르면 곧장 안개
        층에 넘겨 칠한다 — 워커가 쌓는 안개 판(40ms 간격)이 그대로 화면 박자가 된다. 밝힌 판은 시각으로 거르므로
        같은 판이라도 0.25초마다는 한 번 칠한다. */
-    if (fr9.visSrc && fr9.explored && fogPaintRef.current) {
+    /* 틱이 안 몰 때(멈춤·감기)는 안개를 여기서 안 칠한다 — 그때는 안개 층의 React effect가 렌더마다(깨움 100ms) 상태 t의
+       눈 목록으로 칠한다. 여기서도 칠하면 방금 온 장(tLive)과 렌더가 고른 장(t)이 다른 장일 때 두 안개가 번갈아 난다
+       (지적: 감을 때 흔들림). 유닛 캔버스는 두 경로가 같은 객체(frameOpsRef9)를 찍으므로 그 문제가 없다. */
+    if (fr9.visSrc && fr9.explored && fogPaintRef.current && drivenRef9.current) {
       const ft9 = fogTickRef9.current;
       const tq9 = Math.floor(tNow9 * 4);
-      if (fr9.visSrc !== ft9.vis || fr9.visVer !== ft9.ver || fr9.explored !== ft9.explored || tq9 !== ft9.tq) {
-        ft9.vis = fr9.visSrc; ft9.ver = fr9.visVer; ft9.explored = fr9.explored; ft9.tq = tq9;
+      // 보기(배율·팬)도 본다 — 안개 층의 React effect는 틱이 몰 때 안 칠하므로(driven), 커밋·시야 변화 뒤의 자리는 틱이 맡는다.
+      const vz9 = xfGestureRef.current ? xfBaseRef.current.z : zoomRef.current;
+      const vx9 = xfGestureRef.current ? xfBaseRef.current.x : panRef.current.x;
+      const vy9 = xfGestureRef.current ? xfBaseRef.current.y : panRef.current.y;
+      if (fr9.visSrc !== ft9.vis || fr9.visVer !== ft9.ver || fr9.explored !== ft9.explored || tq9 !== ft9.tq
+        || ft9.z !== vz9 || ft9.px !== vx9 || ft9.py !== vy9) {
+        ft9.vis = fr9.visSrc; ft9.ver = fr9.visVer; ft9.explored = fr9.explored; ft9.tq = tq9; ft9.z = vz9; ft9.px = vx9; ft9.py = vy9;
         if (xfGestureRef.current) {
           // 손짓 중 — 기준 자리에 칠하고 걷힌 변환을 같은 값으로 도로 건다(유닛 캔버스와 같은 까닭, 위 ★).
           const b9 = xfBaseRef.current;
@@ -30726,7 +30738,7 @@ export default function ReplayMotionPlayer({
                 zoom={zoom} pan={pan}
                 tilePx={(mapRef.current?.clientWidth ?? 320) / grid.width}
                 flatK={pitched ? pitchFlat : 1}
-                painter={fogPaintRef} live={xfLiveRef} gesture={xfGestureRef}
+                painter={fogPaintRef} live={xfLiveRef} gesture={xfGestureRef} driven={drivenRef9}
               />
             )}
 
