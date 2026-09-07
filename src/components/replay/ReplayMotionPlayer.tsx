@@ -22546,23 +22546,61 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
                밝아져 흰 심이 선 시안 테 하나가 몸을 감싼다. 금빛은 어디에도 없다. 선 굵기는 타일 자(tz9)로 폰을 맞춘다. */
             const a9 = envShield(p9);
             if (a9 <= 0.02) continue;
-            const sc9 = 0.9 + p9 * 0.2;                       // scale .9 → 1.1
+            /* ★ **우산 같은 구 껍질**(요청: "구 형태로 — 윗부분은 채워지고 아래로 갈수록 투명해지는 보호막. 위에서
+               2/3쯤까지만 보이되 칼같지 않게 자리마다 다른 높이에서 스러지고, 위도 완전 불투명이 아니라 반투명. 색은
+               청색") ───────────────────────────────────────────────────────────────────────────────────
+               원 테두리 하나였던 것을 걷고, 공의 윗둥을 감싼 반투명 청색 껍질로 그린다:
+                 · 모양은 원의 윗호 + 아랫변은 **자리마다 다른 높이**의 물결선(각도의 결정론 해시 — 프레임마다 같은
+                   모양이라 떨리지 않는다). 평균은 위에서 2/3 지점(가운데 아래 r/3), ±0.15r로 흔든다.
+                 · 채움은 위(반투명 청색 0.5)에서 물결선 언저리(0)로 스러지는 세로 그러데이션이라 가장자리가 부드럽다.
+                 · 구 느낌은 왼위 하이라이트(옅은 흰빛) 한 겹과, 윗호를 따라 도는 밝은 테(양 끝으로 갈수록 옅어짐)로. */
+            const sc9 = 0.92 + p9 * 0.16;
             const r9 = ((f.size ?? 6) / 2) * zoom * sc9;
             const cy9 = ay - r9 * 0.1;
+            const N9 = 12;
+            const seed9 = Math.round(f.fx * 9973 + f.fy * 7919);
+            const kAt9 = (i9: number): number => {
+              const h9 = Math.sin(seed9 * 0.37 + i9 * 12.9898) * 43758.5453;
+              return 0.33 + ((h9 - Math.floor(h9)) - 0.5) * 0.3;   // 0.18 ~ 0.48 (아래로 +)
+            };
+            const dome9 = new Path2D();
+            const k0 = kAt9(0);
+            const kN = kAt9(N9);
+            const xl9 = ax - r9 * Math.sqrt(Math.max(0, 1 - k0 * k0));
+            const xr9 = ax + r9 * Math.sqrt(Math.max(0, 1 - kN * kN));
+            const aL9 = Math.atan2(k0 * r9, xl9 - ax);       // 왼 끝(π 언저리)
+            const aR9 = Math.atan2(kN * r9, xr9 - ax);       // 오른 끝(0 언저리)
+            dome9.moveTo(xl9, cy9 + k0 * r9);
+            dome9.arc(ax, cy9, r9, aL9, aR9 + Math.PI * 2, false);   // 윗호 — 각을 키우며(캔버스 시계) 180·270(꼭대기)·360을 지난다
+            for (let i9 = N9 - 1; i9 >= 1; i9 -= 1) {
+              const x9 = xl9 + (xr9 - xl9) * (i9 / N9);
+              dome9.lineTo(x9, cy9 + kAt9(i9) * r9);
+            }
+            dome9.closePath();
             ctx.globalAlpha = a9;
-            const g9 = ctx.createRadialGradient(ax, cy9, r9 * 0.5, ax, cy9, r9);
-            g9.addColorStop(0, "rgba(90,190,255,0)");
-            g9.addColorStop(0.68, "rgba(90,190,255,0.2)");
-            g9.addColorStop(0.9, "rgba(170,235,255,0.55)");
-            g9.addColorStop(1, "rgba(235,250,255,0)");
-            ctx.fillStyle = g9;
+            // 스러짐은 물결선의 평균 높이(r/3)에서 거의 0이 되게 — 그래야 들쭉날쭉한 아랫변이 칼같이 안 읽힌다.
+            const lg9 = ctx.createLinearGradient(0, cy9 - r9, 0, cy9 + r9 * 0.34);
+            lg9.addColorStop(0, "rgba(70,140,255,0.5)");
+            lg9.addColorStop(0.4, "rgba(70,140,255,0.36)");
+            lg9.addColorStop(0.75, "rgba(80,150,255,0.12)");
+            lg9.addColorStop(1, "rgba(90,160,255,0)");
+            ctx.fillStyle = lg9;
+            ctx.fill(dome9);
+            // 왼위 하이라이트 — 구의 빛 받는 자리.
+            const hg9 = ctx.createRadialGradient(ax - r9 * 0.35, cy9 - r9 * 0.45, 0, ax - r9 * 0.35, cy9 - r9 * 0.45, r9 * 0.8);
+            hg9.addColorStop(0, "rgba(220,240,255,0.28)");
+            hg9.addColorStop(1, "rgba(220,240,255,0)");
+            ctx.fillStyle = hg9;
+            ctx.fill(dome9);
+            // 윗호 테 — 꼭대기가 밝고 양 끝으로 옅어진다.
+            const sg9 = ctx.createLinearGradient(0, cy9 - r9, 0, cy9 + r9 * 0.35);
+            sg9.addColorStop(0, "rgba(190,225,255,0.85)");
+            sg9.addColorStop(0.7, "rgba(150,200,255,0.35)");
+            sg9.addColorStop(1, "rgba(150,200,255,0)");
+            ctx.strokeStyle = sg9;
+            ctx.lineWidth = Math.max(0.6, 0.3 * tz9);
             ctx.beginPath();
-            ctx.arc(ax, cy9, r9, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.strokeStyle = "rgba(230,250,255,0.9)";
-            ctx.lineWidth = Math.max(0.6, 0.35 * tz9);
-            ctx.beginPath();
-            ctx.arc(ax, cy9, r9 * 0.93, 0, Math.PI * 2);
+            ctx.arc(ax, cy9, r9 * 0.97, aL9, aR9 + Math.PI * 2, false);
             ctx.stroke();
             continue;
           }
