@@ -25695,6 +25695,15 @@ export default function ReplayMotionPlayer({
    *  들썩였다. 굵은 포인터 기기에서 폭이 같고 높이 변화가 35% 미만이면 붙든 높이를 쓴다. 회전·전체화면 전환·fsOn 토글은
    *  진짜 변화라 다시 잰다(frameMaxH의 vhHold9와 같은 규칙). */
   const stageHold9 = useRef<{ w: number; h: number } | null>(null);
+  /** `#diag=view` — 보기 상태(팬·배율·무대·예산·창 높이)가 최근 3초에 몇 번, 어느 길로 바뀌었나(지적: "팬·핀치·감기 뒤
+   *  안개·모델이 떨린다" — 에뮬레이터로는 재현이 안 돼, 폰에서 어느 상태가 흔들리는지 이 줄로 읽는다). 렌더마다 값을 견줘
+   *  바뀐 것만 적고, 재죔(clamp)·재중심(center)·손짓 커밋(commit)·무대 붙들기(stagehold)는 그 자리에서 적는다. */
+  const viewDiag9 = useRef<{ ev: { t: number; k: string; v: string }[]; last: Record<string, string> }>({ ev: [], last: {} });
+  const viewDiagPush9 = (k: string, v: string): void => {
+    const d9 = viewDiag9.current;
+    d9.ev.push({ t: performance.now(), k, v });
+    if (d9.ev.length > 200) d9.ev.splice(0, d9.ev.length - 200);
+  };
   /** 무대 크기를 ref로도 들고 있는다 — 팬 한계를 재는 곳 중에는 **한 번만 걸리는
    *  effect 안**(휠 줌)이 있어서, 상태를 읽으면 그 effect가 만들어질 때의 옛 값(0)에
    *  붙들린다. 그러면 전체화면에서 휠로 축소할 때 한계가 평소 배치의 식으로 셈해져,
@@ -26581,8 +26590,10 @@ export default function ReplayMotionPlayer({
         const force9 = ev instanceof Event
           && (ev.type === "orientationchange" || ev.type === "fullscreenchange" || ev.type === "webkitfullscreenchange");
         const m9 = stageHold9.current;
-        if (!force9 && m9 && m9.w === v.w && Math.abs(v.h - m9.h) < m9.h * 0.35) v.h = m9.h;
-        else stageHold9.current = { w: v.w, h: v.h };
+        if (!force9 && m9 && m9.w === v.w && Math.abs(v.h - m9.h) < m9.h * 0.35) {
+          if (v.h !== m9.h) viewDiagPush9("stagehold", `${v.h}→${m9.h}`);
+          v.h = m9.h;
+        } else stageHold9.current = { w: v.w, h: v.h };
       }
       /* ★ 한 번 제대로 잰 뒤의 **0은 안 믿는다**(지적 4단계: "맵이 까맣게 변함. 미니맵
          오버레이 키면 프레임 안 그려져 있음") ──────────────────────────────────────
@@ -26825,6 +26836,7 @@ export default function ReplayMotionPlayer({
     const clY9 = (v9: number): number => Math.min(topY, Math.max(-maxY, v9));
     // 붓들이 읽는 ref를 먼저 죈다 — 상태 갱신을 기다리면 한 박자 늦는다(위 주석).
     panRef.current = { x: cl9(panRef.current.x, maxX), y: clY9(panRef.current.y) };
+    viewDiagPush9("clamp", `${panRef.current.x.toFixed(1)},${panRef.current.y.toFixed(1)}`);
     setPan((p) => {
       const nx = cl9(p.x, maxX);
       const ny = clY9(p.y);
@@ -27081,6 +27093,7 @@ export default function ReplayMotionPlayer({
   const endGestureXf = useCallback((): void => {
     if (!xfGestureRef.current) return;
     xfGestureRef.current = false;
+    viewDiagPush9("commit", `z${zoomRef.current.toFixed(2)} ${panRef.current.x.toFixed(1)},${panRef.current.y.toFixed(1)}`);
     /* 예약해 둔 한 장은 걷는다 — 손을 뗀 뒤에 도착하면 아래 커밋이 그릴 그림을 한 번
        더 그리는 셈이고, 그 사이에 컴포넌트가 사라지면 없는 캔버스를 잡는다. */
     if (xfRafRef.current) { cancelAnimationFrame(xfRafRef.current); xfRafRef.current = 0; }
@@ -27601,6 +27614,7 @@ export default function ReplayMotionPlayer({
     const [fx, fy] = posFrac(tx, ty);
     const z = zoomRef.current;
     const lim = panLimit(z);
+    viewDiagPush9("center", `${tx.toFixed(1)},${ty.toFixed(1)}`);
     setPan({
       x: Math.min(lim.x, Math.max(-lim.x, (0.5 - fx) * r.width * z)),
       y: Math.min(lim.yTop, Math.max(-lim.y, (0.5 - fy) * r.height * z)),
@@ -27893,6 +27907,16 @@ export default function ReplayMotionPlayer({
   // 밖에서 t가 바뀌었으면(탐색) 틱의 살아 있는 시계도 거기로.
   if (t !== tFromTickRef9.current) tLiveRef9.current = t;
   drivenRef9.current = playing9;
+  {
+    // #diag=view — 렌더마다 보기 상태를 견줘 바뀐 것만 적는다(위 viewDiag9).
+    const d9 = viewDiag9.current;
+    const cur9: Record<string, string> = {
+      pan: `${pan.x.toFixed(1)},${pan.y.toFixed(1)}`, zoom: zoom.toFixed(3), stage: `${stage.w}x${stage.h}`,
+      budget: String(frameMaxH), ih: String(typeof window !== "undefined" ? window.innerHeight : 0),
+    };
+    for (const k9 of Object.keys(cur9)) if (d9.last[k9] !== undefined && d9.last[k9] !== cur9[k9]) viewDiagPush9(k9, cur9[k9]);
+    d9.last = cur9;
+  }
   {
     const w9 = frameWorkerRef.current;
     const c9 = cmdSentRef9.current;
@@ -29816,6 +29840,21 @@ export default function ReplayMotionPlayer({
                   /* 프레임 워커 — on/준비중/off · 받은/쓴/놓친 장수 · 한 장 짓는 ms · op·KB · 앞 · 시야 · [속] · 오류(⚠). */
                   <div style={{ wordBreak: "break-all" }}>워커 {SCR_DIAG.worker || "-"}</div>
                 )}
+                {dm9("view") && ((): React.ReactNode => {
+                  /* 보기 상태 변화(위 viewDiag9) — 최근 3초의 종류별 횟수, 지금 값, 마지막 여덟 사건(몇 초 전). */
+                  const d9 = viewDiag9.current;
+                  const now9 = performance.now();
+                  const recent9 = d9.ev.filter((e9) => now9 - e9.t < 3000);
+                  const cnt9: Record<string, number> = {};
+                  for (const e9 of recent9) cnt9[e9.k] = (cnt9[e9.k] ?? 0) + 1;
+                  return (
+                    <div style={{ wordBreak: "break-all" }}>
+                      보기 3초: {Object.entries(cnt9).map(([k9, n9]) => `${k9}×${n9}`).join(" ") || "-"}
+                      {` · 지금 팬 ${d9.last.pan ?? "-"} 배율 ${d9.last.zoom ?? "-"} 무대 ${d9.last.stage ?? "-"} 예산 ${d9.last.budget ?? "-"} 창 ${d9.last.ih ?? "-"}`}
+                      {` · 최근 ${recent9.slice(-8).map((e9) => `${e9.k}@${((now9 - e9.t) / 1000).toFixed(1)}s`).join(" ") || "-"}`}
+                    </div>
+                  );
+                })()}
               </div>
   ) : null;
   /** 확대 버튼에 적을 값 — 화면의 지금 배율이다(핀치·더블탭·휠·한 손 줌 공통). 칸에
