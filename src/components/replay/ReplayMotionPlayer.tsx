@@ -24089,6 +24089,8 @@ export default function ReplayMotionPlayer({
   void fpsTick9;
   /** 보간 op 풀 — 개체 열쇠마다 op 객체 하나를 두고 장이 바뀌어도 그 객체에 값만 덮어쓴다(그리기마다 객체를 안 만든다). */
   const lerpPoolRef9 = useRef<Map<string, UnitDrawOp>>(new Map());
+  /** 눈 목록 보간용 되쓰는 배열과 판 번호(아래 lerpFrame9). */
+  const visLerpRef9 = useRef<{ buf: Float32Array | null; ver: number }>({ buf: null, ver: 0 });
   const lerpFrameRef9 = useRef<{ frame: Frame9; ops: UnitDrawOp[] } | null>(null);
   /** 붓 박자 통계(진단) — t 걸음(ms)·같은 앞 장을 되풀이한 횟수·뒤 장이 없던 횟수. */
   const brushStatRef9 = useRef({ lastT: -1, stepSum: 0, stepMax: 0, stepN: 0, lastA: -1, sameA: 0, noB: 0, gapB: 0, draws: 0 });
@@ -26572,7 +26574,7 @@ export default function ReplayMotionPlayer({
    *  배율 갈무리 없이 매번 손끝 값으로 곧장 그린다. */
   const fogPaintRef = useRef<((z: number, p: { x: number; y: number }, ov?: FogOverride) => void) | null>(null);
   /** 붓 틱이 마지막으로 안개 층에 넘긴 것 — 같은 판이면 다시 안 칠한다(안개 칠은 등고선·원 채우기라 공짜가 아니다). */
-  const fogTickRef9 = useRef<{ vis: Float32Array | null; explored: Uint16Array | null; tq: number }>({ vis: null, explored: null, tq: -1 });
+  const fogTickRef9 = useRef<{ vis: Float32Array | null; ver: number | undefined; explored: Uint16Array | null; tq: number }>({ vis: null, ver: undefined, explored: null, tq: -1 });
   /** 미니맵 붓(요청: 드래그·줌 중에도 프레임이 따라온다) — 안개와 같은 규약이다.
    *  평소 배치와 전체화면 미니맵은 서로 배타라 붓 하나를 나눠 쓴다. */
   const miniPaintRef = useRef<((z: number, p: { x: number; y: number }) => void) | null>(null);
@@ -27758,6 +27760,9 @@ export default function ReplayMotionPlayer({
         if (s9.rotDeg !== undefined && n9.rotDeg !== undefined) o9.rotDeg = lerpAng9(s9.rotDeg, n9.rotDeg, u9);
         if (s9.headDeg !== undefined && n9.headDeg !== undefined) o9.headDeg = lerpAng9(s9.headDeg, n9.headDeg, u9);
         if (s9.rise !== undefined && n9.rise !== undefined) o9.rise = s9.rise + (n9.rise - s9.rise) * u9;
+        /* 들썩임(고치의 liftK)도 잇는다(지적: "고치 바운스 잔떨림 심해짐") — 높은 배속에서는 장 하나가 경기 시간
+           반 초를 덮어, 장마다 굳은 사인값이 그대로 튀었다. 두 장 사이를 이으면 배속과 무관하게 매끄럽다. */
+        if (s9.liftK !== undefined && n9.liftK !== undefined) o9.liftK = s9.liftK + (n9.liftK - s9.liftK) * u9;
         const sp9 = s9.shadowPts; const np9 = n9.shadowPts; const op9 = o9.shadowPts;
         if (sp9 && np9 && op9 && sp9.length === np9.length && op9.length === sp9.length) {
           for (let j9 = 0; j9 < sp9.length; j9 += 1) op9[j9] = sp9[j9] + (np9[j9] - sp9[j9]) * u9;
@@ -27769,7 +27774,27 @@ export default function ReplayMotionPlayer({
     if (pool9.size > src9.length * 3 + 200) pool9.clear();
     const fr9 = lf9.frame;
     fr9.t = fa9.t; fr9.unitOps = ops9; fr9.fxOps = fa9.fxOps; fr9.miniExtra = fa9.miniExtra; fr9.gasBusy = fa9.gasBusy; fr9.dom = fa9.dom;
-    fr9.explored = fa9.explored; fr9.visNow = fa9.visNow; fr9.visSrc = fa9.visSrc;
+    fr9.explored = fa9.explored; fr9.visNow = fa9.visNow; fr9.visSrc = fa9.visSrc; fr9.visVer = undefined;
+    /* ★ **눈 목록도 잇는다**(지적: "안개 떨림 더 심해짐 — 그려야 할 데이터를 잘 못 찾는 느낌") ──────────────────
+       유닛은 앞·뒤 장 사이를 보간해 매끄럽게 걷는데 안개(눈 목록)는 앞 장의 것을 그대로 썼다. 높은 배속에서는 장
+       하나가 경기 시간 반 초를 덮으므로 시야 원이 몸에서 떨어져 장마다 툭툭 뛰었다 — 몸은 매끄럽고 안개만 튀니
+       떨림으로 읽힌다. 두 장의 눈 수가 같으면(개체 출몰이 없는 대부분의 장) 자리(x·y)를 같은 몫으로 잇는다.
+       반지름은 앞 장 것. 배열은 되쓰고(할당 없음) 판 번호(visVer)로 바뀜을 알린다. */
+    const va9 = fa9.visSrc;
+    const vb9 = fb9.visSrc;
+    if (va9 && vb9 && va9.length === vb9.length && va9.length > 0) {
+      const vl9 = visLerpRef9.current;
+      if (!vl9.buf || vl9.buf.length !== va9.length) vl9.buf = new Float32Array(va9.length);
+      const out9 = vl9.buf;
+      for (let i9 = 0; i9 + 2 < va9.length; i9 += 3) {
+        out9[i9] = va9[i9] + (vb9[i9] - va9[i9]) * u9;
+        out9[i9 + 1] = va9[i9 + 1] + (vb9[i9 + 1] - va9[i9 + 1]) * u9;
+        out9[i9 + 2] = va9[i9 + 2];
+      }
+      vl9.ver += 1;
+      fr9.visSrc = out9;
+      fr9.visVer = vl9.ver;
+    }
     return fr9;
   };
   /** 시각 t의 프레임 — 설계도를 골라(pickWorkerFrame9) 앞·뒤 장 사이를 보간한다. count9면 붓 통계도 센다(틱). */
@@ -27823,8 +27848,8 @@ export default function ReplayMotionPlayer({
     if (fr9.visSrc && fr9.explored && fogPaintRef.current) {
       const ft9 = fogTickRef9.current;
       const tq9 = Math.floor(tNow9 * 4);
-      if (fr9.visSrc !== ft9.vis || fr9.explored !== ft9.explored || tq9 !== ft9.tq) {
-        ft9.vis = fr9.visSrc; ft9.explored = fr9.explored; ft9.tq = tq9;
+      if (fr9.visSrc !== ft9.vis || fr9.visVer !== ft9.ver || fr9.explored !== ft9.explored || tq9 !== ft9.tq) {
+        ft9.vis = fr9.visSrc; ft9.ver = fr9.visVer; ft9.explored = fr9.explored; ft9.tq = tq9;
         fogPaintRef.current(zoomRef.current, panRef.current, { vis: fr9.visSrc, exploredAt: fr9.explored, t: tNow9 });
       }
     }

@@ -2346,6 +2346,8 @@ export type DomFx9 =
 export type Frame9 = {
   t: number; unitOps: UnitDrawOp[]; fxOps: FxOp[]; miniExtra: MiniDot[]; gasBusy: string[]; dom: DomFx9[];
   explored: Uint16Array | null; visNow: Uint8Array | null; visSrc: Float32Array;
+  /** 붓이 앞·뒤 장 사이로 눈 목록을 보간해 냈을 때의 판 번호 — 같은 배열을 되쓰므로 참조 대신 이 수로 바뀜을 안다. */
+  visVer?: number;
 };
 /** 워커 프레임이 아직 없을 때 드는 빈 프레임 — 지도만 그려진다. */
 export const EMPTY_FRAME9: Frame9 = {
