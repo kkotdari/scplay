@@ -26905,6 +26905,9 @@ export default function ReplayMotionPlayer({
    *  한 프레임에 여러 번 올 수 있는데, 그때마다 캔버스를 그리면 같은 그림을 두세 번
    *  그리는 셈이다. 한 프레임에 한 장으로 묶는다. */
   const xfRafRef = useRef(0);
+  /** 유닛 캔버스에 마지막으로 건 임시 변환 문자열(위 xfBase 기준 델타) — 손짓 중 틱이 기준 자리에 다시 칠한 뒤 **같은
+   *  값**을 도로 건다(붓이 걷어 버리므로). 값이 안 바뀌면 합성기가 움직일 일이 없다. 재기준(다시 칠함)은 ""로 되돌린다. */
+  const xfCvXfRef = useRef("");
   /** 캔버스가 한 장 그려질 때마다 — 그 보기가 곧 임시 변환의 기준이다(자식이 부른다). */
   const onUnitPainted = useCallback((z9: number, p9: { x: number; y: number }): void => {
     xfBaseRef.current = { z: z9, x: p9.x, y: p9.y };
@@ -27058,6 +27061,7 @@ export default function ReplayMotionPlayer({
          기준 갈아끼움·변환 걷기는 그린 쪽(onUnitPainted·paint)이 함께 한다. */
       const t0 = performance.now();
       unitPaintRef.current?.(z1, panRef.current, zoomCommitRef.current);
+      xfCvXfRef.current = "";   // 붓이 기준을 손끝으로 갈아 끼우며 변환을 걷었다
       /* 배경도 **손끝 배율로** 다시 굽는다(요청: "확대 축소시 모델은 그렇다쳐도 맵을
          실시간으로 그리기") — 여태 배경은 굳은 zoom만 보고 있어서, 확대하는 내내
          1배로 구운 그림이 CSS로 늘어난 채(흐릿하게) 따라오다가 손을 떼야 또렷해졌다.
@@ -27067,8 +27071,10 @@ export default function ReplayMotionPlayer({
     }
     if (cv) {
       cv.style.transformOrigin = "center";
-      cv.style.transform = s9 === 1 && px === b.x && py === b.y ? ""
+      const xf9 = s9 === 1 && px === b.x && py === b.y ? ""
         : `translate(${(px - s9 * b.x).toFixed(2)}px, ${(py - s9 * b.y).toFixed(2)}px) scale(${s9.toFixed(4)})`;
+      cv.style.transform = xf9;
+      xfCvXfRef.current = xf9;
     }
   }, []);
   /** 손짓 시작 — 이미 도는 중이면 기준을 안 건드린다(휠→드래그 이어짐 등). */
@@ -27264,7 +27270,17 @@ export default function ReplayMotionPlayer({
       }
     }
     const cv = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-unitlayer");
+    /* ★ 걷기 전에 **칠한다**(지적: "팬 드래그 뒤 조금 이전 위치의 그림") — 틱이 몰 때(driven) 방금 렌더의 UnitLayer
+       effect는 안 칠했다. 캔버스 내용은 아직 기준(xfBase) 자리인데 여기서 변환만 걷으면 다음 틱(폰에서 수백 ms)까지
+       옛 자리 그림이 보였다가 튄다. 기준이 상태와 다르면 지금 한 장 칠해(붓이 기준을 맞추고 변환을 걷는다) 이음매를 없앤다. */
+    {
+      const b9 = xfBaseRef.current;
+      if (cv && drivenRef9.current && paintFnRef9.current && (b9.z !== zoom || b9.x !== pan.x || b9.y !== pan.y)) {
+        paintFnRef9.current(tLiveRef9.current);
+      }
+    }
     if (cv) cv.style.transform = "";
+    xfCvXfRef.current = "";
     // 굳은 배율로 touch-action도 못 박는다(위 applyGestureXf와 같은 규칙 — 한 손 줌이 떼며 되돌린 값을 여기서 바로잡는다).
     if (mapRef.current) mapRef.current.style.touchAction = zoom > 1 ? "none" : "";
     /* ★ fsOn이 목록에 있어야 한다(지적: "확대한 상태에서 전체화면 온오프시 이상한거다 /
@@ -28167,7 +28183,19 @@ export default function ReplayMotionPlayer({
     frameFxRef9.current = fr9.fxOps;
     opsRef.current = fr9.unitOps;
     crowdTick9(fr9.unitOps.length, pitched);   // 덜어내기 단 — 미달 기기에서 유닛 수만으로(입체는 제 판정)
-    unitPaintRef.current?.(zoomRef.current, panRef.current, zoomCommitRef.current);
+    /* ★ 손짓 중엔 **기준(xfBase) 자리에** 칠한다(지적: "팬 드래그 뒤 조금 이전 위치의 그림이 그려진다") ─────────
+       여태 틱은 손끝 팬으로 칠하고 붓이 임시 변환을 걷었다 — 캔버스 내용과 CSS 변환이 **같은 프레임에 함께** 바뀐다.
+       사파리는 캔버스 내용을 변환보다 한 프레임 늦게 올릴 수 있어, 그 프레임엔 옛 내용이 걷힌 변환으로(= 조금
+       이전 자리에) 보였다가 다음 프레임에 제자리로 온다. 드래그 내내 틱마다 그 일이 나니 떨림이다.
+       그래서 손짓 동안 틱은 기준 자리에 새 장만 칠하고(내용만 바뀜), 걷힌 변환을 **같은 문자열로** 도로 건다 —
+       스타일은 결국 안 바뀐 셈이라 합성기가 움직이지 않는다. 기준을 손끝으로 옮기는 일(재기준)은 xfPaintNow 하나가
+       제 박자로 한다. */
+    if (xfGestureRef.current) {
+      const b9 = xfBaseRef.current;
+      unitPaintRef.current?.(b9.z, { x: b9.x, y: b9.y }, zoomCommitRef.current);
+      const cvG9 = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-unitlayer");
+      if (cvG9 && xfCvXfRef.current) { cvG9.style.transformOrigin = "center"; cvG9.style.transform = xfCvXfRef.current; }
+    } else unitPaintRef.current?.(zoomRef.current, panRef.current, zoomCommitRef.current);
     /* ★ 안개도 붓 박자로(지적: "유닛은 부드럽게 움직이는데 안개는 뚝뚝 끊겨서 변하는 느낌") — 안개 층은 React
        props(100ms 박자)로만 다시 그려졌다. 붓이 고른 장의 안개(눈 목록·밝힌 판)가 지난 틱과 다르면 곧장 안개
        층에 넘겨 칠한다 — 워커가 쌓는 안개 판(40ms 간격)이 그대로 화면 박자가 된다. 밝힌 판은 시각으로 거르므로
