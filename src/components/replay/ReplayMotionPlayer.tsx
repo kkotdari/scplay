@@ -24911,9 +24911,17 @@ export default function ReplayMotionPlayer({
      (아래 toggleTrack). */
   const [trackRaw, setTrackRaw] = useState<string | null>(initialTrack ?? null);
   /** 추적 켜기·끄기 — 시야(viewRaw)를 함께 끌고 다닌다. 끄면 시야도 전체로 돌아간다. */
+  /** 추적을 끈다 — **보던 자리에 머문다**(요청: "추적 보다가 끄면 맵 위치가 기존에 보던 곳으로 돌아가는데
+   *  그러지 않게 추적이 보고 있던 곳에서 유지"). 추적 중의 팬은 trackView가 렌더마다 내는 값이라 panBase는
+   *  추적을 켜기 전 자리에 그대로 멈춰 있었다 — 끄는 순간 그 옛 자리로 튀었다. 끌 때 추적 카메라의 마지막
+   *  팬을 panBase에 옮겨 심는다. 시점(이름 누르기)으로 추적이 풀리는 길도 같은 문을 지난다. */
+  const stopTrack9 = (): void => {
+    if (trackRaw && trackCamRef.current.raw === trackRaw) setPan({ ...trackCamRef.current.pan });
+    setTrackRaw(null);
+  };
   const toggleTrack = (key: string): void => {
     const on9 = trackRaw !== key;
-    setTrackRaw(on9 ? key : null);
+    if (on9) setTrackRaw(key); else stopTrack9();
     setViewRaw(on9 ? key : null);
     /* 켜는 순간 **한 번만** 당겨 준다(요청: 배율은 기본 줌인 값, 사다리에서) — 그 뒤로는
        사람이 마음대로 바꾼다(요청: "줌은 변경 가능하게"). 끌 때는 안 되돌린다: 보던
@@ -29161,11 +29169,11 @@ export default function ReplayMotionPlayer({
               title={viewRaw === m.key ? `${m.name} 시점 끄기` : `${m.name} 시점으로 보기`}
               /* 시점을 손으로 고르면 추적은 놓는다 — 추적이 켜 둔 시야를 그 자리에서
                  갈아 끼우면, 카메라만 딴 사람을 따라가는 짝짝이 화면이 된다. */
-              onClick={() => { setTrackRaw(null); setViewRaw((v) => (v === m.key ? null : m.key)); }}
+              onClick={() => { stopTrack9(); setViewRaw((v) => (v === m.key ? null : m.key)); }}
               onKeyDown={(ev) => {
                 if (ev.key !== "Enter" && ev.key !== " ") return;
                 ev.preventDefault();
-                setTrackRaw(null);
+                stopTrack9();
                 setViewRaw((v) => (v === m.key ? null : m.key));
               }}
             >
