@@ -2100,6 +2100,8 @@ export const SCR_DIAG: {
   worker: string;
   /** 덜어내기(폰 과밀) — "N단 평균ms 유닛수". */
   crowd: string;
+  /** `#diag=brush` — 유닛 붓의 최근 2초: 누가(틱·React·손짓·커밋) 몇 번, 보기(배율·팬) 가짓수와 팬 범위, 장 시각의 되돌림 수. */
+  brush: string;
   /** 붓이 실제로 칠한 초당 장 수(벽시계, 0.5초마다 갱신) — `#diag=fps`의 작은 오버레이가 읽는다. */
   fps: number;
   /** 이 프레임의 효과 op을 '갈래:무기'로 센다 — "이 무기가 안 나간다"는 신고를 눈이
@@ -2125,7 +2127,7 @@ export const SCR_DIAG: {
 } = {
   dpr: 0, unitCss: "", unitBack: "", unitB: 0,
   mapCss: "", mapBack: "", ppt: 0, needed: 0, scale: 0, unitScale: 0,
-  areaCap: 0, allocOk: true, zoom: 0, fx: {}, prod: "", worker: "", crowd: "", fps: 0,
+  areaCap: 0, allocOk: true, zoom: 0, fx: {}, prod: "", worker: "", crowd: "", brush: "", fps: 0,
   truthVer: 0, truthTrust: -1, truthWhy: "",
 };
 /** #diag가 켜져 있나 — 주소가 바뀌지 않는 한 한 번만 읽는다. */

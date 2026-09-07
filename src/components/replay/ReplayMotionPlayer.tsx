@@ -525,6 +525,31 @@ function winRow(
   return faces;
 }
 let poseNow = 0;
+/** `#diag=brush`(지적: "아직도 떨린다" — 실기기에서 어느 붓이 어긋나는지 가리려고) — 유닛 붓이 칠할 때마다 한 줄 적는
+ *  고리(최근 120). src는 부르는 쪽이 세운다: tick(재생 틱) · arrive(멈춘 채 장 도착) · xf(손짓 붓) · commit(손짓 끝) ·
+ *  react(UnitLayer effect). aT는 그 붓이 든 앞 장의 시각(틱 계열만). */
+const BRUSH_LOG9: { at: number; src: string; z: number; px: number; py: number; n: number; aT: number; xf: string }[] = [];
+let brushSrc9 = "react";
+let brushAT9 = -1;
+const brushLogPush9 = (z: number, px: number, py: number, n: number, xf: string): void => {
+  BRUSH_LOG9.push({ at: performance.now(), src: brushSrc9, z, px, py, n, aT: brushAT9, xf });
+  if (BRUSH_LOG9.length > 120) BRUSH_LOG9.splice(0, BRUSH_LOG9.length - 120);
+  brushSrc9 = "react";
+};
+/** 최근 2초 요약 — 진단 줄이 부른다. */
+const brushLogSummary9 = (): string => {
+  const now9 = performance.now();
+  const rs9 = BRUSH_LOG9.filter((r9) => now9 - r9.at < 2000);
+  if (!rs9.length) return "-";
+  const cnt9: Record<string, number> = {};
+  for (const r9 of rs9) cnt9[r9.src] = (cnt9[r9.src] ?? 0) + 1;
+  const views9 = new Set(rs9.map((r9) => `${r9.z.toFixed(3)}|${r9.px.toFixed(1)}|${r9.py.toFixed(1)}`));
+  const pxs9 = rs9.map((r9) => r9.px); const pys9 = rs9.map((r9) => r9.py);
+  let back9 = 0; let prevT9 = -1;
+  for (const r9 of rs9) { if (r9.aT >= 0) { if (prevT9 >= 0 && r9.aT < prevT9 - 1e-6) back9 += 1; prevT9 = r9.aT; } }
+  const xfs9 = rs9.filter((r9) => r9.xf).length;
+  return `${Object.entries(cnt9).map(([k9, n9]) => `${k9}×${n9}`).join(" ")} · 보기 ${views9.size}종 팬x ${(Math.max(...pxs9) - Math.min(...pxs9)).toFixed(1)} 팬y ${(Math.max(...pys9) - Math.min(...pys9)).toFixed(1)} · 장 되돌림 ${back9} · 변환有 ${xfs9}`;
+};
 /** SCV가 자원을 안고 있는가(요청: "scv 가스나 미네랄 들때는 팔을 안으로 굽혀서 들기")
  *  — 굽는 동안만 서는 깃발(sunkenFire와 같은 결). scvMin·scvGas 빌더가 세우고 scv
  *  빌더가 읽는다. 둘은 별개 kind라 캐시 열쇠는 이미 갈린다. */
@@ -21279,6 +21304,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, driven, zoom, pan,
       const cv = ref.current;
       if (!cv) return;
       const ops = opsSrc?.current ?? opsProp;
+      if (scrDiagOn()) brushLogPush9(zoom, pan.x, pan.y, ops.length, cv.style.transform);
       const fx = fxSrc?.current ?? fxProp;
       /* 지난 판에서 덜어낸 판들을 여기서 놓는다(위 RELEASE_Q9) — 이 시점에는 어느
          op도 옛 판을 안 들고 있다. */
@@ -27114,6 +27140,7 @@ export default function ReplayMotionPlayer({
          손짓 한 번에 종류마다 판을 다시 굽는 일이 없다(그것이 진짜 삯이다).
          기준 갈아끼움·변환 걷기는 그린 쪽(onUnitPainted·paint)이 함께 한다. */
       const t0 = performance.now();
+      brushSrc9 = "xf"; brushAT9 = -1;
       unitPaintRef.current?.(z1, panRef.current, zoomCommitRef.current);
       xfCvXfRef.current = "";   // 붓이 기준을 손끝으로 갈아 끼우며 변환을 걷었다
       if (fogCv9) { fogPaintRef.current?.(z1, panRef.current); fogCv9.style.transform = ""; }
@@ -27333,7 +27360,7 @@ export default function ReplayMotionPlayer({
       const b9 = xfBaseRef.current;
       // 틀린 자리 그림이 남지 않게 늘 한 장(유닛 기준이 같아도 안개는 틱이 맡으므로 — 위 fogTickRef9의 보기 비교).
       void b9;
-      if (cv && drivenRef9.current && paintFnRef9.current) paintFnRef9.current(tLiveRef9.current);
+      if (cv && drivenRef9.current && paintFnRef9.current) { paintFnRef9.current(tLiveRef9.current); if (BRUSH_LOG9.length) BRUSH_LOG9[BRUSH_LOG9.length - 1].src = "commit"; }
     }
     if (cv) cv.style.transform = "";
     {
@@ -28284,6 +28311,8 @@ export default function ReplayMotionPlayer({
        그래서 손짓 동안 틱은 기준 자리에 새 장만 칠하고(내용만 바뀜), 걷힌 변환을 **같은 문자열로** 도로 건다 —
        스타일은 결국 안 바뀐 셈이라 합성기가 움직이지 않는다. 기준을 손끝으로 옮기는 일(재기준)은 xfPaintNow 하나가
        제 박자로 한다. */
+    brushAT9 = lastDrawT9.current;
+    brushSrc9 = drivenRef9.current ? "tick" : "arrive";
     if (xfGestureRef.current) {
       const b9 = xfBaseRef.current;
       unitPaintRef.current?.(b9.z, { x: b9.x, y: b9.y }, zoomCommitRef.current);
@@ -29976,6 +30005,9 @@ export default function ReplayMotionPlayer({
                 {dm9("worker") && (
                   /* 프레임 워커 — on/준비중/off · 받은/쓴/놓친 장수 · 한 장 짓는 ms · op·KB · 앞 · 시야 · [속] · 오류(⚠). */
                   <div style={{ wordBreak: "break-all" }}>워커 {SCR_DIAG.worker || "-"}</div>
+                )}
+                {dm9("brush") && (
+                  <div style={{ wordBreak: "break-all" }}>붓 2초: {brushLogSummary9()}</div>
                 )}
                 {dm9("view") && ((): React.ReactNode => {
                   /* 보기 상태 변화(위 viewDiag9) — 최근 3초의 종류별 횟수, 지금 값, 마지막 여덟 사건(몇 초 전). */
