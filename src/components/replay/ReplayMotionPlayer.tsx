@@ -26955,6 +26955,12 @@ export default function ReplayMotionPlayer({
   const miniPaintRef = useRef<((z: number, p: { x: number; y: number }) => void) | null>(null);
   const zoomRef = useRef(zoom);
   const panRef = useRef(pan);
+  /* ★ 추적 중에는 **추적이 눈의 주인**이다(지적: "추적모드 고장 — 지도가 늘 정가운데") ────────────────────────────
+     보기의 진실은 zoomRef·panRef 하나인데(재설계), 추적의 팬은 상태가 아니라 렌더가 그때그때 내는 값(trackView·위
+     trackLockRef)이다. 렌더가 상태로 ref를 덮던 줄을 걷으면서 그 값이 눈에 안 실려, 붓은 굳은 팬(대개 0,0)으로
+     칠했다 — 지도가 가운데에 붙박였다. 추적이 켜져 있는 동안은 그 값을 곧장 눈에 쓴다(손짓은 trackLockRef가
+     막으므로 다투지 않는다). */
+  if (trackLockRef.current) panRef.current = trackLockRef.current;
   /** ★ 보는 눈 하나(재설계) — 보기의 진실은 zoomRef·panRef뿐이다. React 상태 zoom·pan은 UI(단추·미니맵·링크·한계)용
    *  거울이고 어떤 붓도 상태를 읽지 않는다. 상태를 바꾸는 모든 자리는 이 함수를 지난다(ref를 먼저 쓰고 거울을 맞춘다). */
   const setView9 = useCallback((z9: number, p9: { x: number; y: number }): void => {
