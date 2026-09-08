@@ -1741,7 +1741,8 @@ export const BUILD_STAGES = 5;
  *  좌표 규약은 CSS 시절 그대로다: fx/fy는 렌즈 분수 앵커, 길이·오프셋은 **렌즈 px**
  *  (그릴 때 zoom을 곱한다), deg는 CSS rotate와 같은 시계방향(0 = 화면 아래)이다. */
 export type FxOp = {
-  kind: "beam" | "shot" | "spike" | "erupt" | "hit" | "shield" | "cage" | "tether" | "burst";
+  kind: "beam" | "shot" | "spike" | "erupt" | "hit" | "shield" | "cage" | "tether" | "burst" | "warp";
+  /** warp(프로토스 소환 완료의 섬광): 자리·크기(size)·진행(ph)만 쓴다. 원작은 워프가 끝나는 순간 한 번 친다. */
   /** burst(죽음·파괴 폭발): 낱개 흩뿌림의 씨앗(개체마다 다르게) · 건물이면 bld. */
   seed?: number; bld?: boolean;
   /** burst: 몸집 단(1 작음·2 보통·3 큼) — 파편의 **수**가 이 단으로 갈리고 크기는 조금만 커진다(요청). */
@@ -5030,6 +5031,19 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       }
       // 소환 마무리 — 건물이 0에서 1로 배어 나온다(위 warpIn9).
       if (warpIn9) alpha *= warpU9;
+      /* ★ 소환 완료의 **섬광**(요청) — 원작은 워프가 끝나는 순간 한 번 친다. 폭발이 아니라 '문이 닫히는 빛'이라
+         짧다(0.22초): 흰 심이 확 텄다가 꺼지고 청백 고리가 한 번 퍼진다(그리는 쪽 kind "warp").
+         안 보이는 자리(안개·잔상)에서는 안 친다 — 기억으로 남은 건물이 지금 소환되는 것처럼 보이면 안 된다. */
+      const WARP_FLASH_SEC9 = 0.22;
+      if (race2 === "프로토스" && qBuildFx && !razed && !flownFrom && sec > 0 && alpha > 0.2
+        && t >= doneAt && t - doneAt <= WARP_FLASH_SEC9) {
+        const [wfx9, wfy9] = posFrac(x + footDx(unit), y + footDy(unit));
+        fxOps.push({
+          kind: "warp", fx: wfx9, fy: wfy9, lift: bldMidLift9(unit),
+          size: (FOOTPRINT[unit] ?? [3, 2])[0] * (mapW9 / grid.width) * 0.6,
+          ph: (t - doneAt) / WARP_FLASH_SEC9,
+        });
+      }
       /* 건물 체력과 '맞은 순간'(요청: 피격 표현 재검토) — 자취가 내려간 마지막
          변곡점이 곧 이 건물이 맞은 때다. 체력바와 피격 불티가 같은 자를 쓴다. */
       /* ★ 이 건물의 **생애 줄**을 한 번만 고른다 — 체력(아래)과 표적(방어 사격)이

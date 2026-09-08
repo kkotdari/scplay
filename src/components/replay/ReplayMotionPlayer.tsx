@@ -22560,6 +22560,26 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             drawBurst9(ctx, f, ax, ay, zoom, p9, tz9);
             continue;
           }
+          if (f.kind === "warp") {
+            /* ★ 프로토스 소환 완료의 **섬광**(요청) — 원작은 워프가 끝나는 순간 한 번 친다. 폭발이 아니라
+               '문이 닫히는 빛'이라 짧고(0.22초) 조각도 연기도 없다: 흰 심이 확 텄다가 곧 꺼지고, 그 둘레로
+               얇은 청백 고리가 한 번 퍼져 나간다. 완공이 잦아도 눈을 안 찌르게 세기는 낮게 잡았다. */
+            const R9 = (f.size ?? 4) * zoom;
+            const eo9 = 1 - (1 - p9) * (1 - p9);          // 고리는 빠르게 퍼지고
+            const fa9 = Math.max(0, 1 - p9) ** 1.4;       // 빛은 뒤로 갈수록 빨리 준다
+            ctx.globalAlpha = 0.55 * fa9;
+            ctx.fillStyle = "#f2fbff";
+            ctx.beginPath(); ctx.arc(ax, ay, R9 * (0.42 + 0.18 * eo9) * (0.5 + 0.5 * fa9), 0, Math.PI * 2); ctx.fill();
+            ctx.globalAlpha = 0.3 * fa9;
+            ctx.fillStyle = "#9fd4ff";
+            ctx.beginPath(); ctx.arc(ax, ay, R9 * (0.6 + 0.35 * eo9), 0, Math.PI * 2); ctx.fill();
+            ctx.globalAlpha = 0.75 * (1 - p9);
+            ctx.strokeStyle = "#dff1ff";
+            ctx.lineWidth = Math.max(0.8, R9 * 0.06 * (1 - p9));
+            ctx.beginPath(); ctx.arc(ax, ay, R9 * (0.35 + 1.05 * eo9), 0, Math.PI * 2); ctx.stroke();
+            ctx.globalAlpha = 1;
+            continue;
+          }
           if (f.kind === "hit") {
             /* 피격은 **두 겹**이다(요청: "피격시 무조건 주황색 폭발로 처리되는데") ──
                  ① 때린 무기의 제 그림(FX_IMPACT) — 시즈는 크게 터지고 히드라 가시는
@@ -23956,6 +23976,7 @@ const FX_MIN_ZOOM: Record<FxOp["kind"], number> = {
   shield: 4,   // 실드 피격은 다른 피격과 같은 문턱(요청) — 실드가 있든 없든 '맞았다'가 같은 배율에서 읽혀야 한다.
   tether: DEEP_MIN_ZOOM,
   burst: 2,   // 죽음·파괴 폭발 — 2배부터 캔버스로(그 아래는 DOM 여운 하나)
+  warp: 2,    // 프로토스 소환 완료의 섬광 — 폭발과 같은 칸(둘 다 '그 자리에서 무슨 일이 있었다'를 말한다)
 };
 /** 배치의 바닥(detailAt: 폰 8배)을 **안 타는** 갈래 — 제 칸(FX_MIN_ZOOM)이 곧 실제 칸이다.
  *
@@ -23967,7 +23988,7 @@ const FX_MIN_ZOOM: Record<FxOp["kind"], number> = {
  *    표에는 이미 2배로 적혀 있었는데(cage: 2) 배치 바닥과 **둘 중 늦은 쪽**을 쓰는 규칙에
  *    걸려 폰에서는 8배였다. 그 바닥을 안 타게 한다.
  *  나머지(피격·실드막·승하차 줄)는 꾸밈이라 바닥을 그대로 탄다. */
-const FX_NO_FLOOR = new Set<FxOp["kind"]>(["beam", "shot", "cage", "burst"]);
+const FX_NO_FLOOR = new Set<FxOp["kind"]>(["beam", "shot", "cage", "burst", "warp"]);
 /* ★ 켠다(지적: "프로토스 실드 피격효과를 금색이 아니라 플라즈마 빛으로") — 꺼 둔 동안 실드 op가 아래 갈래에서
    **안 걸러지고** 총구 번쩍임 기본 갈래(FX_BEAM.base, 금빛)로 흘러 들어갔다. 그 금빛 번쩍임이 곧 '금색 실드
    피격'이었다. 이제 실드 막을 플라즈마 빛(흰 심·시안 테)으로 제대로 그리고, 꺼도 아래로 안 흘러가게 막는다. */
