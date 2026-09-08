@@ -3422,6 +3422,40 @@ let mineralVar = 0;
    각별로 굽는다. 혀는 기둥 하나라 면이 몸의 몇십 분의 일이고 잉크도 작아, 열여섯 칸을
    다 구워도 몸 한 벌 값이 안 된다. 화질은 한 톨도 안 내준다.
    `sunkenfire`(몸 + 혀 합본)는 도록·옛 자리를 위해 남긴다 — 지도는 이제 몸 + attach다. */
+/** 성큰의 **낫 발** 하나 — 뿌리는 몸에 묻히고 바깥으로 뻗다 끝에서 내려앉는 휜 칼이다.
+ *  칠을 안 하므로 그리는 쪽이 임자 색을 넣는다(accent 규약).
+ *  ★ 함수로 뽑은 까닭(요청: "크립콜로니에 성큰 임자색 발 중 오른쪽 3개만 이식") — 크립 콜로니가 **같은 발**을
+ *    써야 둘이 한 계보로 읽힌다. 각도·길이·굵기만 받아 두 자리에서 같은 식을 돌린다. */
+const sunkenFootFaces = (
+  ang: number, len: number, w9: number,
+  o9: { z0?: number; kAdd?: number; color?: string; oval?: number; arc?: number; tipW?: number } = {},
+): ShapeFace[] => {
+  const a9 = (ang * Math.PI) / 180;
+  const dx = Math.sin(a9);
+  const dy = Math.cos(a9);
+  const zRoot9 = 1.5 + (o9.z0 ?? 0);
+  const zTip9 = 0.35 + (o9.z0 ?? 0);
+  const arcK9 = o9.arc ?? 1.05;
+  const f9 = spirePillar({
+    x: 0, y: 0, h: 1, w: w9 * 0.62, tipW: o9.tipW ?? 0.30, oval: o9.oval ?? 1.85, caps: "top",
+    segs: 12, sides: 7, hold: 0.15, taper: 0.85,
+    path: (t9: number): [number, number, number] => {
+      const r9 = 1.6 + len * t9;
+      const up9 = Math.sin(Math.PI * t9) * arcK9;
+      const side9 = Math.sin(Math.PI * t9) * 0.55;
+      return [
+        dx * r9 - dy * side9,
+        dy * r9 + dx * side9,
+        zRoot9 + (zTip9 - zRoot9) * t9 + up9,
+      ];
+    },
+  });
+  return tagKey(o9.color ? paintBase(f9, o9.color) : f9,
+    depthNow(dx * 3.4, dy * 3.4) * 1.6 + 1 + (o9.kAdd ?? 0));
+};
+/** 성큰 발 여섯의 각·길이·굵기 — 뒤 셋과 **오른쪽 셋**으로 나눠 둔다(크립은 오른쪽 셋만 이식한다). */
+const SUNKEN_FEET_L9: [number, number, number][] = [[-160, 5.4, 1.86], [-105, 6.2, 2.10], [-45, 5.8, 1.98]];
+const SUNKEN_FEET_R9: [number, number, number][] = [[25, 6.4, 2.16], [85, 5.5, 1.92], [145, 5.2, 1.80]];
 const sunkenTongueFaces = (): ShapeFace[] => {
   /* 더 통통하고 두 배 길게, 위로 솟았다 아래로 휘는 활 모양(요청) — leanY·curveY로는
      z가 t에 정비례해 곧게만 오르므로, 등뼈를 직접 그린다: y는 앞으로 곧게 나가고
@@ -6543,50 +6577,43 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        ★ 굵기가 밑동만의 일이 아니라는 것이 이 자리의 요점이다 — 부피는 밑동 × 붙듦
          구간이라, 밑동만 보고 배수를 매기면 ②처럼 두 배로 뛴다. 그래서 네 값(밑동·
          hold·taper·tipW)을 함께 중간으로 옮긴다. */
-    for (const [ang, len, w9] of [
-      [-160, 5.4, 1.86], [-105, 6.2, 2.10], [-45, 5.8, 1.98],
-      [25, 6.4, 2.16], [85, 5.5, 1.92], [145, 5.2, 1.80],
-    ] as [number, number, number][]) {
-      const a9 = (ang * Math.PI) / 180;
-      const dx = Math.sin(a9);
-      const dy = Math.cos(a9);
-      const reach9 = len;   // 공격 컷에서도 날은 평소 그대로(위 지적)
-      /* 낫 날을 **프리미티브 곡선**으로(요청: "성큰 사방으러 뻗은 다리들 프리미티브로
-         자연스러운 곡선형태로 변경") ─────────────────────────────────────────────
-         여태 hornFaces였다. 그건 화면 좌표에 친 베지에 리본이라 두께가 없다: 앞에서
-         보면 굵고 옆에서 보면 종이처럼 사라지고, 제 그늘도 없어 여섯 날이 겹치면
-         어느 것이 앞인지 안 읽혔다(럴커 다리를 spikeHorn으로 옮긴 것과 같은 까닭).
-         그런데 spikeHorn의 휨은 **평면 방향**이라(수직 몫이 0.2뿐) 낫이 안 된다.
-         그래서 등뼈를 직접 그린다: 반지름은 곧게 뻗고, z는 뿌리에서 한 번 솟았다
-         끝에서 내려앉는 포물선이며, 옆으로도 한 번 부푼다 — 그 셋이 겹치면 곧은
-         칼이 아니라 휘어 도는 낫이 된다. 마디를 열둘로 나눠 곡선이 매끈하다. */
-      const zRoot9 = 1.5;
-      const zTip9 = 0.35;   // (공격 컷에서 2.9로 들던 것을 걷었다 — 위 지적)
-      const arcK9 = 1.05;
-      /* 뾰족한 창이 아니라 **혓바닥**이다(요청: "성큰 발들 뾰족한 형태보다는 혓바닥
-         느낌으로") — 끝을 0.02(바늘)로 몰던 것을 0.34로 뭉툭하게 끝내고, 굵기를
-         오래 붙들었다가(hold 0.22 · taper 0.7) 끝에서만 부드럽게 준다. 단면도 한 번
-         더 눕혀(oval 2.1) 폭이 두께의 두 배가 되게 한다: 넓적하고 도톰한 살이 뻗어
-         나온 결이다. 끝은 뚜껑을 덮어(caps top) 잘린 관이 아니라 닫힌 혀끝이 된다. */
-      /* 다리는 **개인색**이다(요청: "성큰 다리 색이 흰색 고정인데 개인색으로 적용")
-         — ivory()로 상아빛을 박아 두어, 어느 임자의 성큰이든 흰 낫 여섯을 두르고
-         있었다. 칠을 안 하면 그리는 쪽이 임자 색을 넣는다(accent 규약). 성큰은
-         사방으로 뻗은 이 여섯이 실루엣의 대부분이라, 여기가 임자 색을 맡는 것이
-         멀리서도 가장 잘 읽힌다 — 대신 가운데 주둥이는 저그 기본색으로 내린다(아래). */
-      out.push(...tagKey(spirePillar({
-        x: 0, y: 0, h: 1, w: w9 * 0.62, tipW: 0.30, oval: 1.85, caps: "top",
-        segs: 12, sides: 7, hold: 0.15, taper: 0.85,
-        path: (t9: number): [number, number, number] => {
-          const r9 = 1.6 + reach9 * t9;
-          const up9 = Math.sin(Math.PI * t9) * arcK9;
-          const side9 = Math.sin(Math.PI * t9) * 0.55;
-          return [
-            dx * r9 - dy * side9,
-            dy * r9 + dx * side9,
-            zRoot9 + (zTip9 - zRoot9) * t9 + up9,
-          ];
-        },
-      }), depthNow(dx * 3.4, dy * 3.4) * 1.6 + 1));
+    for (const [ang, len, w9] of [...SUNKEN_FEET_L9, ...SUNKEN_FEET_R9]) {
+      out.push(...sunkenFootFaces(ang, len, w9));
+    }
+    /* ★ 왼쪽의 **큰 발** 하나(요청: "왼쪽에 다른 발의 2배 크기로 높고 두껍고 긴 검회색 발 추가 — 위쪽에 작은
+       상아색 가시 여러 개가 박힘") ────────────────────────────────────────────────────────────────────────
+       나머지 여섯이 사방으로 눕는 낫이라면 이것은 몸을 **떠받치는 다리**다. 그래서 셋을 함께 키운다: 길이 2배·
+       굵기 2배에, 뿌리를 한 뼘 높여(z0) 아치가 더 크게 솟는다. 색은 등가시와 같은 검회색이라 개인색 여섯과
+       한눈에 갈린다 — 그 여섯은 임자를 말하고 이것은 몸의 뼈를 말한다.
+       가시는 그 등을 따라 박는다: 아치 위쪽(t 0.35~0.8)에서 바깥·위로 삐치는 작은 상아 뿔 다섯. */
+    {
+      const BIG_ANG9 = -78;      // 화면 왼쪽(모델 좌표) — 기존 −105·−45 사이의 빈 자리다.
+      const BIG_LEN9 = 9.2;      // 다른 발(5.2~6.4)의 한 배 반 남짓 — 자는 '두 배'지만 낫처럼 눕지 않고 아치로 솟는다
+      const BIG_W9 = 3.6;        // 굵기는 두 배(1.8~2.16 → 3.6)
+      const BIG_Z09 = 0.7;       // 뿌리를 높여 더 높이 솟는다
+      const BIG_ARC9 = 2.2;      // 아치 — 낫(1.05)의 두 배로 솟아 '눕는 칼'이 아니라 '떠받치는 다리'로 읽힌다
+      /* 단면을 **둥글게**(oval 1.85 → 1.15) — 낫의 납작한 단면을 그대로 키우면 벽처럼 보인다(첫 판이 그랬다).
+         끝도 뭉툭하게(0.30 → 0.62) 잘라 발끝이 땅을 짚는 것으로 읽히게 한다. */
+      out.push(...sunkenFootFaces(BIG_ANG9, BIG_LEN9, BIG_W9,
+        { z0: BIG_Z09, color: "#41474f", kAdd: 0.5, oval: 1.15, arc: BIG_ARC9, tipW: 0.62 }));
+      const ab9 = (BIG_ANG9 * Math.PI) / 180;
+      const bdx9 = Math.sin(ab9);
+      const bdy9 = Math.cos(ab9);
+      for (const [t9, sw9, sl9] of [
+        [0.3, 0.5, 1.9], [0.42, 0.58, 2.3], [0.54, 0.54, 2.1], [0.66, 0.46, 1.8], [0.78, 0.38, 1.4],
+      ] as [number, number, number][]) {
+        const r9 = 1.6 + BIG_LEN9 * t9;
+        const up9 = Math.sin(Math.PI * t9) * BIG_ARC9;
+        const zz9 = 1.5 + BIG_Z09 + (0.35 - 1.5) * t9 + up9;
+        const side9 = Math.sin(Math.PI * t9) * 0.55;
+        const bx9 = bdx9 * r9 - bdy9 * side9;
+        const by9 = bdy9 * r9 + bdx9 * side9;
+        // 등에서 위·바깥으로 삐친다 — 옆으로 조금(0.35), 위로 많이.
+        out.push(...tagKey(ivory(spikeHorn(
+          bx9, by9, zz9 + 0.9,
+          bx9 + bdx9 * 0.45, by9 + bdy9 * 0.45, zz9 + 0.9 + sl9, sw9, undefined, 5, 0.4, bdx9 * 0.3, bdy9 * 0.3,
+        )), depthNow(bx9, by9) * 1.6 + 2));
+      }
     }
     /* 구릿빛 촉수 그루터기 넷은 걷었다(지적: 성큰 위 굴뚝 제거) — 굵고 곧게 서서
        촉수가 아니라 굴뚝 넷으로 읽혔다. 가운데 큰 촉수 하나만 남긴다. */
@@ -6703,6 +6730,47 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         [screenCircle(ax9, ay9, 0.78), 1, "#3a1d16"] as ShapeFace,
         capFace(screenCircle(ax9, ay9 + 0.06, 0.52), 0.55),
       ], depthNow(EGG_X, EGG_Y + EGG_R) * 1.6 + 10));
+    }
+    /* ★ 가운데 **생체 포신**(요청: "스포어 가운데 생체 포신(대각선 위를 향한 구멍)체 하나 추가") ──────────────
+       굴뚝은 앞서 요청으로 왼쪽으로 비켜났고(아래), 그 바람에 알 한가운데가 비었다. 스포어가 하는 일은 하늘을
+       쏘는 것이니 그 자리에 **비스듬히 하늘을 겨눈 살덩이 포신**이 서는 것이 맞다.
+       꼴은 굴뚝과 다르게 잡는다 — 곧게 서서 나팔로 벌어지는 대롱이 아니라, 알에서 **자라 나온 것처럼** 밑동이
+       굵고 끝으로 갈수록 가늘어지며 앞위로 기운 살 기둥이다. 끝에는 상아빛 테를 두르고 그 안을 어둡게 파
+       **구멍이 대각선 위를 보게** 한다(테와 구멍은 기둥 축에 수직인 원반이라, 어느 시점에서 봐도 기울어진
+       아가리로 읽힌다). */
+    {
+      const GX9 = EGG_X + 0.15;
+      const GY9 = EGG_Y - 0.1;
+      const GZ9 = 4.4;                 // 알 위에서 자라 나온다
+      const GL9 = 4.0;                 // 포신 길이
+      const TILT9 = (66 * Math.PI) / 180;   // 지면에서 잰 각 — 대각선 위(카메라가 내려다보므로 52도는 눕는 대포로 읽혔다)
+      const gdx9 = 0;
+      const gdy9 = Math.cos(TILT9);
+      const gdz9 = Math.sin(TILT9);
+      const gk9 = depthNow(GX9, GY9 + gdy9 * GL9 * 0.5) * 1.6 + 11.5;
+      out.push(...tagKey(paintBase(spirePillar({
+        x: 0, y: 0, h: 1, w: 1.25, tipW: 0.66, segs: 7, sides: 10, hold: 0.1, taper: 1.15,
+        path: (t9: number): [number, number, number] => [
+          GX9 + gdx9 * GL9 * t9,
+          GY9 + gdy9 * GL9 * t9,
+          GZ9 + gdz9 * GL9 * t9,
+        ],
+      }), SKIN), gk9));
+      /* 아가리 — 기둥 끝에 상아 테를 두르고 그 안을 어둡게 판다. 원반을 기둥 축에 수직으로 눕히려면 화면
+         타원이 필요한데, 여기서는 축이 화면 위쪽을 향하므로 납작한 타원 둘로 충분하다(테·구멍). */
+      const tipX9 = GX9 + gdx9 * GL9;
+      const tipY9 = GY9 + gdy9 * GL9;
+      const tipZ9 = GZ9 + gdz9 * GL9;
+      const [mx9, my9] = project(tipX9, tipY9, tipZ9);
+      /** 화면 타원 하나 — 기둥 축에 수직인 원반의 투영이다(축이 기울수록 세로가 눌린다). */
+      const ell9 = (cx9: number, cy9: number, rx9: number, ry9: number): string =>
+        `M${(cx9 - rx9).toFixed(2)} ${cy9.toFixed(2)}`
+        + `a${rx9.toFixed(2)} ${ry9.toFixed(2)} 0 1 0 ${(rx9 * 2).toFixed(2)} 0`
+        + `a${rx9.toFixed(2)} ${ry9.toFixed(2)} 0 1 0-${(rx9 * 2).toFixed(2)} 0Z`;
+      out.push(...tagKey([
+        [ell9(mx9, my9, 0.92, 0.92 * Math.cos(TILT9) + 0.24), 1, IVORY] as ShapeFace,
+        [ell9(mx9, my9, 0.58, 0.58 * Math.cos(TILT9) + 0.16), 1, "#2a1410"] as ShapeFace,
+      ], gk9 + 0.2));
     }
     /* 알 위를 넘어가는 큰 뿔 — 뒤에서 솟아 앞으로 감긴다(사진의 굽은 뿔).
        굴뚝이 알 한가운데를 차지하므로 뿔은 한 뼘 왼쪽으로 비켜 지나간다. */
@@ -6849,6 +6917,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         bx9, by9, CR_Z0 + zr9,
         dxr * (rr9 + 1.5), dyr * (rr9 + 1.5), CR_Z0 + tz9, 0.9, undefined, 6, 0.4, dxr, dyr,
       )), depthNow(bx9, by9) * 1.6));
+    }
+    /* ★ 성큰의 **오른쪽 발 셋**을 이식한다(요청) — 크립 콜로니는 성큰·스포어가 자라 나오는 앞 단계다.
+       그 계보가 실루엣에도 있어야 "이게 자라면 저것이 된다"가 읽힌다. 그래서 성큰과 **같은 식**(sunkenFootFaces)을
+       그대로 쓰고, 여섯 중 오른쪽 셋만 가져온다 — 여섯을 다 두르면 크립이 성큰과 구분이 안 된다.
+       칠을 안 하므로 성큰에서와 같이 **임자색**이다. 뿌리는 받침 윗면(CR_Z0)에 맞춰 올린다 — 크립의 몸은
+       성큰보다 한 뼘 높은 받침 위에 앉기 때문이다.
+       ★ **pc에 넣는다** — 크립은 raceBase(out, "zerg", pc)로 끝나므로 out에 넣으면 안 칠한 면이 저그 기본색으로
+       칠해진다(성큰은 out을 그대로 돌려주어 안 칠한 면이 곧 임자색이다). 같은 발을 두 자리에서 같은 색으로
+       내려면 크립에서는 개인색 목록으로 들어가야 한다. */
+    for (const [ang, len, w9] of SUNKEN_FEET_R9) {
+      pc.push(...sunkenFootFaces(ang, len, w9, { z0: CR_Z0 - 0.5 }));
     }
     return raceBase(out, "zerg", pc);
   }),
