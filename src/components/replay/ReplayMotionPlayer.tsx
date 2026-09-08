@@ -27961,6 +27961,14 @@ export default function ReplayMotionPlayer({
     if (viewKeyRef.current === null) { viewKeyRef.current = key; return; }
     if (viewKeyRef.current === key) return;
     viewKeyRef.current = key;
+    /* ★ 링크가 준 자리를 아직 쥐고 있으면 **재중심은 물러난다**(지적: PC에서 공유 링크가 늘 정가운데) ─────────
+       실기기 진단이 그대로 적어 놨다: `stage×7 center×7 clamp×8 link×1`. PC는 첫 몇 초에 무대가 일곱 번
+       다시 서고, 그때마다 이 '보던 자리 지키기'가 돈다. 그런데 그것이 기억한 자리(centerRef)는 링크가 앉기
+       **전**의 것 — 곧 지도 한가운데다. 그래서 앉혀 놓은 자리를 일곱 번 걷어차 가운데로 끌고 갔고, 첫 걷어참의
+       setView9가 붙든 자리마저 놓아 버려(link×1) 다시 앉히지도 못했다. 폰은 무대가 한 번에 서서 안 걸렸다.
+       둘은 같은 일을 겨루는 장치다 — '방금까지 보던 자리'와 '링크가 시킨 자리'. 링크가 살아 있는 동안(사람이
+       손대기 전 · 배치가 선 뒤 5초)은 링크가 임자다. 그 뒤로는 종전대로 이것이 지킨다. */
+    if (linkHoldRef9.current) return;
     const want = holdRef.current ?? centerRef.current;
     if (!want) return;
     holdRef.current = want;
