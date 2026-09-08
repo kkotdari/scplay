@@ -982,7 +982,7 @@ export const MODEL_NORM: Record<string, number> = {
   guardian: 0.754,  // 다리 옆으로 곧게 뒤 재측정(model-norm)
   gunner: 1.327,  // 팔 길이 고정 뒤 model-norm 재측정
   htemp: 1.220,  // 재측정(model-norm) — 다리 1.2배·굽힘 반 뒤
-  hydra: 0.685,
+  hydra: 0.618,  // 머리장식 셋(가운데 삼각 뿔이 길어졌다)·가슴 갑옷판 뒤 재측정(model-norm)
   inf: 1.514,  // 상자 상한(원한 배수 1.615)
   interceptor: 1.555,  // 재측정(model-norm)
   larva: 1.350,  // 상자 상한(원한 배수 1.466)
