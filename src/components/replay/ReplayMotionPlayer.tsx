@@ -21016,8 +21016,24 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
     ctx.globalAlpha = 0.35 * (1 - p * 0.7);
     ctx.fillStyle = "#b07a62";
     ctx.beginPath(); ctx.ellipse(ax, ay + W * 0.1, rr, rr * 0.42, 0, 0, Math.PI * 2); ctx.fill();
+  } else if (bld) {
+    /* ★ 프로토스 **건물**은 종전대로 **플라즈마 폭발**이다(지적: "프로토스 건물이 왜 플라즈마 폭발구가 아니라
+       사이오닉 연기도 나는 거 같지") ─────────────────────────────────────────────────────────────────────
+       아래 연기는 **유닛**의 죽음을 다시 짠 것인데(원작의 프로토스 몸은 터지지 않고 기운으로 풀린다), 이 갈래가
+       결(mat)만 보고 갈려 있어 건물까지 함께 끌려갔다. 건물은 원작에서도 터진다 — 푸른 플라즈마 구가 부풀며
+       옅어지고 가운데에 흰 에너지 심이 선다. 그 그림을 되돌린다(겹 셋 + 밝은 테). 조각은 여전히 안 낸다. */
+    const R9 = W * (0.22 + 0.78 * ease);
+    const fade = 1 - p;
+    ctx.globalAlpha = 0.32 * fade; ctx.fillStyle = "#3a8fff";
+    ctx.beginPath(); ctx.arc(ax, ay, R9, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 0.45 * fade; ctx.fillStyle = "#8fd0ff";
+    ctx.beginPath(); ctx.arc(ax, ay, R9 * 0.7, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = Math.min(1, 1.1 * fade) ** 0.8; ctx.fillStyle = "#ffffff";
+    ctx.beginPath(); ctx.arc(ax, ay, R9 * 0.38 * (1 - p * 0.5), 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 0.6 * fade; ctx.strokeStyle = "#cfeaff"; ctx.lineWidth = Math.max(0.8, W * 0.03);
+    ctx.beginPath(); ctx.arc(ax, ay, R9, 0, Math.PI * 2); ctx.stroke();
   } else {
-    /* ★ 프로토스 — **사이오닉 연기로 사라진다**(요청: "원작과 유사하게") ────────────────────────────────────────
+    /* ★ 프로토스 **유닛** — **사이오닉 연기로 사라진다**(요청: "원작과 유사하게") ────────────────────────────
        원작의 프로토스는 터져 흩어지지 않는다. 몸이 푸른 기운으로 풀리면서 그 자리에 연기가 피어올라 스러진다.
        여태 이 자리는 부푸는 푸른 구 하나(플라즈마 폭발)라 기계의 불덩이와 문법이 같았다 — 터지는 그림이었다.
        셋으로 다시 짠다:
