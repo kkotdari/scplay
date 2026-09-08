@@ -3707,7 +3707,8 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
      *  튀게 하는 재료다(지적: "테란 건설시 스파크랑 일꾼 위치 안맞음"). 아래 개체 고리가
      *  어차피 전부 훑으므로 여기서 함께 담는다 — 건물마다 개체를 다시 훑으면 난전에서
      *  건물 수 × 개체 수가 된다. */
-    const workerSpots: { raw: string; x: number; y: number }[] = [];
+    /** 일꾼의 지금 자리 — mv는 '지금 걷는 중인가'다(용접 불티가 그 값으로 켜지고 꺼진다). */
+    const workerSpots: { raw: string; x: number; y: number; mv: boolean }[] = [];
     /* v2 개체의 지금 위치(태그별) — 참값 표적(order_target)이 가리키는 그 몸을 찾는 지도. */
     const entPosByTag = new Map<number, FoeRow>();
     /** ★ **나를 겨누는 쪽**(표적 태그 → 그 표적을 겨눈 몸) — 참값 표적을 뒤집은 색인이다.
@@ -3809,7 +3810,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         }
         // 아비터 은신장·디텍터(전수조사) — 이번 프레임 위치를 명단에 올린다.
         if (e.unit === "SCV" || e.unit === "Probe" || e.unit === "Drone") {
-          workerSpots.push({ raw: e.raw, x: q.x, y: q.y });
+          workerSpots.push({ raw: e.raw, x: q.x, y: q.y, mv: q.moving });
         }
         if (e.unit === "Arbiter") arbiterSpots.push({ raw: e.raw, x: q.x, y: q.y });
         if (DETECTOR_UNITS.has(e.unit)) detectorSpots.push({ team: row.team, x: q.x, y: q.y });
@@ -4767,7 +4768,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
          페이드(fade)는 그대로 남긴다: 그건 정말로 걷히는 건물의 것이다. */
       /* 시점 보기의 **잔상**은 여기서 흐려진다(위 bldSeen9 주석) — 밝혀 뒀지만
          지금은 안 보이는 적 건물은 '기억'이라 반쯤만 그린다. */
-      const alpha = fade * fogDim9;
+      let alpha = fade * fogDim9;
       const color = modeColor(raw, team);
       if (addonPlus) {
         // 모델 없는 부속건물 폴백 — + 하나(캔버스 전환 첫 판이 모델까지 +로 덮던
@@ -4791,6 +4792,19 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       const wFrac = (wTiles / grid.width) * mkK;
       const hFrac = (hTiles / grid.width) * mkK;
       const race2 = raceOfName9(unit) ?? bases.find((b) => b.key === raw)?.race;   // 건물의 종족은 이름이 정한다(마인드 컨트롤된 드론의 건물)
+      /* ★ 프로토스 **소환 마무리**(요청: "프로토스 건물 완공시 페이드인 — 원작의 느낌으로") ────────────────
+         원작의 프로토스 건물은 지어지는 것이 아니라 **워프된다**: 소환의 빛덩이 안에서 건물이 서서히 배어
+         나와 또렷해지고, 다 되면 빛이 스러진다. 여태 이 자리는 완공 순간 소환구가 사라지고 건물이 **툭**
+         나타났다 — 워프가 아니라 교체였다.
+         마지막 0.8초를 겹치는 구간으로 둔다: 소환구는 옅어지며 물러나고(소환구 op의 alpha), 건물은 0에서 1로
+         배어 나온다(아래 alpha에 곱한다). 결은 부드럽게(smoothstep) — 선형이면 시작과 끝이 툭 끊긴다. */
+      const WARP_FADE_SEC9 = 0.8;
+      const warpIn9 = race2 === "프로토스" && raising && doneAt - t <= WARP_FADE_SEC9;
+      const warpU9 = ((): number => {
+        if (!warpIn9) return 1;
+        const u9 = Math.min(1, Math.max(0, 1 - (doneAt - t) / WARP_FADE_SEC9));
+        return u9 * u9 * (3 - 2 * u9);
+      })();
       /* (걷어냄) **합성 건설 SCV** — 공사 중 건물 귀퉁이에 SCV 한 기를 지어
          세우던 자리다. 유추 시절에는 어느 일꾼이 짓는지 알 수 없어 필요했지만,
          참값에는 **그 SCV가 제 자취로 이미 거기 서 있다**. 겹쳐 그리면 일꾼이
@@ -4930,7 +4944,8 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
             ? { groundShadow: true, footRatio: 0.5 }
             : {}),
           ...(pulse9 !== 1 ? { pulseK: pulse9 } : {}),
-          color, alpha, noShadow: true,
+          // 마무리 구간에서는 소환구가 옅어지며 물러난다(위 warpIn9) — 건물이 그만큼 배어 나온다.
+          color, alpha: warpIn9 ? alpha * (1 - warpU9) : alpha, noShadow: true,
         });
         /* 공사 애니(요청) — 모델은 캐시 스프라이트라 못 움직이니 CSS 오버레이가
            맡는다: 테란 빨간 불 깜빡, 저그 심장 박동, 프로토스 소환 글로우. */
@@ -4958,41 +4973,63 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
            이제 발자국 곁(반폭 + 1.5타일)에 선 그 임자의 일꾼 중 가장 가까운 것을
            찾아 그 자리에서 튀긴다. 못 찾으면(자취가 없는 옛 기록) 옛 순회로
            물러난다 — 아무 데서도 안 튀는 것보다는 낫다. */
-        const bldr9 = race2 !== "테란" ? null : ((): { x: number; y: number } | null => {
+        /* ★ 짓는 일꾼은 **서 있는 쪽을 먼저** 고른다(요청: "용접 불빛 위치 SCV 앞쪽(안쪽)이랑 잘 맞춰봐
+           타이밍이랑") — 발자국 곁에 여럿이 있으면 지나가는 일꾼이 더 가까울 수 있는데, 용접하는 것은 **선**
+           일꾼이다. 서 있는 것 중 가장 가까운 것을 먼저 찾고, 없을 때만 걷는 것까지 본다. */
+        const bldr9 = race2 !== "테란" ? null : ((): { x: number; y: number; mv: boolean } | null => {
           const rr9 = Math.max(boxW, boxH) / 2 + 1.5;
-          let best9: { x: number; y: number } | null = null;
+          let best9: { x: number; y: number; mv: boolean } | null = null;
           let bd9 = rr9 * rr9;
           for (const wk9 of workerSpots) {
             if (wk9.raw !== raw) continue;
             const dx9 = wk9.x - centerX;
             const dy9 = wk9.y - centerY;
             const d9 = dx9 * dx9 + dy9 * dy9;
-            if (d9 < bd9) { bd9 = d9; best9 = wk9; }
+            if (d9 >= bd9) continue;
+            // 선 일꾼이 이미 잡혔으면 걷는 일꾼으로는 안 바꾼다.
+            if (best9 && !best9.mv && wk9.mv) continue;
+            bd9 = d9; best9 = wk9;
           }
           return best9;
         })();
+        /* 불티는 일꾼의 **앞쪽(건물 쪽)**에서 튄다(같은 요청) — 여태 일꾼의 자리 그대로라 불티가 몸 한가운데,
+           곧 등이나 옆구리에서 났다. 용접기는 건물을 향해 뻗어 있으니 그 방향으로 반 타일 남짓 밀어 놓는다
+           (건물 가까이 붙어 선 일꾼이면 그만큼만 — 건물 안으로 파고들지 않게 거리의 60%를 넘지 않는다). */
+        const weld9 = bldr9 ? ((): { x: number; y: number } => {
+          const dx9 = centerX - bldr9.x;
+          const dy9 = centerY - bldr9.y;
+          const d9 = Math.hypot(dx9, dy9) || 1;
+          const st9 = Math.min(0.55, d9 * 0.6);
+          return { x: bldr9.x + (dx9 / d9) * st9, y: bldr9.y + (dy9 / d9) * st9 };
+        })() : null;
         const CORNER_SEC = 6;
         const cIdx = (Math.floor(t / CORNER_SEC) + i) % 4;
         const cDx = (cIdx === 0 || cIdx === 3 ? -1 : 1) * (boxW / 2 - 0.7);
         const cDy = (cIdx === 0 || cIdx === 1 ? 1 : -1) * (boxH / 2 - 0.5);
-        const bfxX = race2 === "테란" ? (bldr9 ? bldr9.x : bodyX + cDx) : bodyX;
-        const bfxY = race2 === "테란" ? (bldr9 ? bldr9.y : bodyY + cDy)
+        const bfxX = race2 === "테란" ? (weld9 ? weld9.x : bodyX + cDx) : bodyX;
+        const bfxY = race2 === "테란" ? (weld9 ? weld9.y : bodyY + cDy)
           : bodyY + boxH / 2 - modelHT / 2;
         /* 멈춰 선 공사에는 불티가 없다(요청: 테란 건설 중단) — 아무도 안 붙어
            있다. 잔상에도 없다(지적: "잔상부분에 다른 유닛이 소환구 소환한 css
            효과가 나오는듯") — 기억으로 남은 자리에서 용접 불티가 튀고 소환구가
            빛나면, 안 보이는 곳의 공사를 실시간으로 들여다보는 꼴이 된다. */
-        if (!qBuildFx || halted || bldFrozen9) return null;
         /* 프로토스 소환구의 글로우는 **모델 안**에 굽는다(지적: DOM 글로우가 구 중심과 어긋남 — warpin 빌더 주석).
            DOM 글로우는 안 낸다. */
-        if (race2 === "프로토스") return null;
-        dom.push({
-          k: "buildfx", key: `bfx-${i}`, x: bfxX, y: bfxY, z: z + 1,
-          race: race2 === "저그" ? "zerg" : race2 === "프로토스" ? "toss" : "terran", i,
-          ws: race2 === "테란" ? Math.max(0.3, tilePx / 5) : 0,
-        });
-        return null;
+        /* 타이밍(같은 요청) — **걷는 동안은 안 튄다**. 용접은 서서 하는 일이고, 자리를 옮기는 동안 불티가
+           따라다니면 그건 용접이 아니라 발밑에서 나는 불꽃으로 보인다. 서면 다시 튄다. */
+        if (qBuildFx && !halted && !bldFrozen9 && race2 !== "프로토스" && !(bldr9 && bldr9.mv)) {
+          dom.push({
+            k: "buildfx", key: `bfx-${i}`, x: bfxX, y: bfxY, z: z + 1,
+            race: race2 === "저그" ? "zerg" : "terran", i,
+            ws: race2 === "테란" ? Math.max(0.3, tilePx / 5) : 0,
+          });
+        }
+        /* ★ 마무리 구간이면 **여기서 안 멈춘다**(위 warpIn9) — 아래로 흘러 완성 건물까지 함께 그려야
+           소환구와 건물이 겹친다. 그 밖의 공사 구간은 종전대로 여기서 끝난다. */
+        if (!warpIn9) return null;
       }
+      // 소환 마무리 — 건물이 0에서 1로 배어 나온다(위 warpIn9).
+      if (warpIn9) alpha *= warpU9;
       /* 건물 체력과 '맞은 순간'(요청: 피격 표현 재검토) — 자취가 내려간 마지막
          변곡점이 곧 이 건물이 맞은 때다. 체력바와 피격 불티가 같은 자를 쓴다. */
       /* ★ 이 건물의 **생애 줄**을 한 번만 고른다 — 체력(아래)과 표적(방어 사격)이
