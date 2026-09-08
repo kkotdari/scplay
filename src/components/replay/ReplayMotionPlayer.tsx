@@ -21019,23 +21019,39 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
       ctx.fillStyle = "#eaf6ff";
       ctx.beginPath(); ctx.arc(ax, ay, W * 0.34 * (0.6 + 0.4 * fl9), 0, Math.PI * 2); ctx.fill();
     }
+    /* 뭉치의 꼴은 **불꽃 혀**다(요청: "연기가 약간 화염처럼 생겼으면") — 둥근 구름이면 김이 서리는 것처럼 읽힌다.
+       밑이 넓고 위로 뾰족한 혀를 그리되 끝을 좌우로 기울여(tilt) 낱개마다 다르게 흔들리게 한다. 색은 사이오닉
+       푸른빛 그대로다 — 꼴만 불꽃이고 결은 여전히 기운이다. */
+    const tongue9 = (x9: number, y9: number, w9: number, h9: number, tl9: number): void => {
+      ctx.beginPath();
+      ctx.moveTo(x9 - w9, y9);
+      ctx.quadraticCurveTo(x9 - w9 * 0.95, y9 - h9 * 0.55, x9 + tl9 * h9 * 0.38, y9 - h9);
+      ctx.quadraticCurveTo(x9 + w9 * 0.95, y9 - h9 * 0.55, x9 + w9, y9);
+      ctx.quadraticCurveTo(x9, y9 + h9 * 0.3, x9 - w9, y9);
+      ctx.closePath();
+      ctx.fill();
+    };
     const NP9 = 6;
     for (let i9 = 0; i9 < NP9; i9 += 1) {
       const a09 = rnd() * Math.PI * 2;
       const sp9 = W * (0.10 + rnd() * 0.24);      // 옆으로 흩는 몫
       const up9 = W * (0.55 + rnd() * 0.55);      // 떠오르는 몫
+      const wob9 = (rnd() - 0.5) * 1.6;           // 혀끝이 기우는 쪽(낱개 고정)
       const dly9 = (i9 / NP9) * 0.35;             // 한꺼번에 안 뜬다
       const q9 = (p - dly9) / Math.max(0.05, 1 - dly9);
       if (q9 <= 0) continue;
       const eq9 = 1 - (1 - Math.min(1, q9)) * (1 - Math.min(1, q9));
       const x9 = ax + Math.cos(a09) * sp9 * eq9;
       const y9 = ay + Math.sin(a09) * sp9 * eq9 * 0.5 - up9 * eq9;
-      const r9 = W * (0.13 + 0.32 * eq9) * (0.75 + (i9 % 3) * 0.18);
+      const r9 = W * (0.12 + 0.28 * eq9) * (0.75 + (i9 % 3) * 0.18);
+      // 너울(flicker) — 위상에 따라 혀 길이가 흔들려 살아 있는 불처럼 읽힌다.
+      const fk9 = 1 + 0.22 * Math.sin(p * 17 + i9 * 2.3);
       const al9 = Math.max(0, 1 - q9) ** 1.3;
+      const tl9 = wob9 + Math.sin(p * 11 + i9) * 0.25;
       ctx.globalAlpha = 0.20 * al9; ctx.fillStyle = "#5f9de8";
-      ctx.beginPath(); ctx.arc(x9, y9, r9, 0, Math.PI * 2); ctx.fill();
-      ctx.globalAlpha = 0.26 * al9; ctx.fillStyle = "#bfe0ff";
-      ctx.beginPath(); ctx.arc(x9, y9, r9 * 0.58, 0, Math.PI * 2); ctx.fill();
+      tongue9(x9, y9 + r9 * 0.5, r9 * 0.92, r9 * 2.3 * fk9, tl9);
+      ctx.globalAlpha = 0.28 * al9; ctx.fillStyle = "#bfe0ff";
+      tongue9(x9, y9 + r9 * 0.35, r9 * 0.5, r9 * 1.45 * fk9, tl9 * 0.8);
     }
     ctx.globalAlpha = 0.24 * fade * fade;
     ctx.fillStyle = "#6aa8ff";
