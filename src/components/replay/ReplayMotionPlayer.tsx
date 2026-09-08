@@ -27196,13 +27196,14 @@ export default function ReplayMotionPlayer({
          ③ 판(스프라이트)은 **굳은 배율로 구운 것을 그대로 쓴다**(zoomCommit) — 진짜
             비싼 일은 그리기가 아니라 종류마다 판을 다시 굽는 것이고, 그건 손을 뗄 때 한다.
        팬만 하는 손짓은 종전 규칙 그대로다(45ms 바닥·움직임 12px 문턱). */
-    const zooming = now9 - xfZoomAtRef.current < 250;
-    const need9 = zooming
-      ? Math.min(400, xfPaintMsRef.current * 1.2)
-      : Math.min(400, Math.max(45, xfPaintMsRef.current * 2.5));
-    const moved9 = zooming
-      ? (moved >= 2 || Math.abs(s9 - 1) >= 0.0015)
-      : (moved >= 12 || Math.abs(s9 - 1) >= 0.01);
+    /* ★ 팬도 **연속으로 그린다**(요청: "팬·드래그시 실시간으로 모델을 그릴 순 없나 · 안개도") ────────────────────
+       재생 중에는 붓이 이미 매 프레임 유닛·안개를 다시 그린다. 그런데 팬만은 문턱(45ms 바닥·12px)으로 솎고 있어,
+       끄는 동안에는 재생보다 오히려 인색했다 — 새로 드러나는 가장자리가 그 문턱만큼 비어 보인 까닭이다. 옛 문턱은
+       팬 한 프레임이 **React 커밋 한 번**이던 시절의 값이고, 지금 붓은 React 밖에 있다(재설계).
+       줌이 쓰던 자기 조절을 그대로 쓴다: 다음 사이 = 직전 한 장이 든 시간 × 1.2. 곧 그리기에 쓰는 몫이 늘 절반
+       밑이라 느린 기기에서도 손짓이 안 느려지고, 빠른 기기에서는 매 프레임이 된다. 그 사이는 CSS 이동이 잇는다. */
+    const need9 = Math.min(400, xfPaintMsRef.current * 1.2);
+    const moved9 = moved >= 1 || Math.abs(s9 - 1) >= 0.0015;
     if (gap9 >= need9 && moved9) {
       /* 판은 굳은 배율(zoomCommit)로 구운 것을 그대로 쓴다 — 블릿 배율만 달라지므로
          손짓 한 번에 종류마다 판을 다시 굽는 일이 없다(그것이 진짜 삯이다).
@@ -28399,20 +28400,17 @@ export default function ReplayMotionPlayer({
     brushAT9 = lastDrawT9.current;
     brushInst9 = instIdRef9.current;
     if (brushSrc9 === "react") brushSrc9 = "tick";   // 부르는 쪽이 안 세웠으면 재생 틱이다
-    /* 재기준(rebase9): 손짓 붓·커밋이 부른다 — 손끝 보기로 칠하고 임시 변환을 걷는다(붓이 걷는다). */
-    const atBase9 = xfGestureRef.current && !rebase9;
-    if (atBase9) {
-      const b9 = xfBaseRef.current;
-      unitPaintRef.current?.(b9.z, { x: b9.x, y: b9.y }, zoomCommitRef.current);
-      const cvG9 = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-unitlayer");
-      if (cvG9 && xfCvXfRef.current) { cvG9.style.transformOrigin = "center"; cvG9.style.transform = xfCvXfRef.current; }
-    } else {
-      unitPaintRef.current?.(zoomRef.current, panRef.current, zoomCommitRef.current);
-      if (rebase9) {
-        xfCvXfRef.current = XF_ID9;
-        const fcvR9 = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-fog");
-        if (fcvR9 && fcvR9.style.transform !== XF_ID9) { fcvR9.style.transformOrigin = "center"; fcvR9.style.transform = XF_ID9; }
-      }
+    /* ★ 붓은 **늘 지금 보기(panRef)에** 그린다(요청: "팬·드래그시 실시간으로 모델을 그릴 순 없나 · 안개도") ─────────
+       여태 손짓 중에는 기준(xfBase) 자리에 그리고 CSS로만 밀었다. 그러면 새로 드러나는 쪽은 그린 적이 없어 영영 빈다 —
+       손을 떼야 채워졌다. 이제 누가 부르든 지금 보기에 그리고, 임시 변환은 '지금 보기 − 그려진 보기'의 차일 뿐이다
+       (그린 직후엔 0이라 항등). 못 그린 프레임만 그 차가 남아 CSS가 잇는다. rebase9는 부르는 쪽을 가르는 표식으로만 남는다. */
+    void rebase9;
+    unitPaintRef.current?.(zoomRef.current, panRef.current, zoomCommitRef.current);
+    {
+      // 내용이 지금 보기다 — 두 캔버스의 임시 변환은 항등으로 되돌린다(안 그러면 두 번 먹는다).
+      xfCvXfRef.current = XF_ID9;
+      const fcvR9 = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-fog");
+      if (fcvR9 && fcvR9.style.transform !== XF_ID9) { fcvR9.style.transformOrigin = "center"; fcvR9.style.transform = XF_ID9; }
     }
     /* ★ 안개도 붓 박자로(지적: "유닛은 부드럽게 움직이는데 안개는 뚝뚝 끊겨서 변하는 느낌") — 안개 층은 React
        props(100ms 박자)로만 다시 그려졌다. 붓이 고른 장의 안개(눈 목록·밝힌 판)가 지난 틱과 다르면 곧장 안개
@@ -28428,19 +28426,13 @@ export default function ReplayMotionPlayer({
       // 0.25초 → 0.1초(요청: "안개 그리기 빈도 늘리기") — 밝힌 판·눈 목록이 그대로여도 경기 시간 0.1초마다 한 번은 칠한다.
       const tq9 = Math.floor(tNow9 * 10);
       // 보기(배율·팬)도 본다 — 안개 층의 React effect는 틱이 몰 때 안 칠하므로(driven), 커밋·시야 변화 뒤의 자리는 틱이 맡는다.
-      const vz9 = atBase9 ? xfBaseRef.current.z : zoomRef.current;
-      const vx9 = atBase9 ? xfBaseRef.current.x : panRef.current.x;
-      const vy9 = atBase9 ? xfBaseRef.current.y : panRef.current.y;
+      const vz9 = zoomRef.current;
+      const vx9 = panRef.current.x;
+      const vy9 = panRef.current.y;
       if (fr9.visSrc !== ft9.vis || fr9.visVer !== ft9.ver || fr9.explored !== ft9.explored || tq9 !== ft9.tq
         || ft9.z !== vz9 || ft9.px !== vx9 || ft9.py !== vy9) {
         ft9.vis = fr9.visSrc; ft9.ver = fr9.visVer; ft9.explored = fr9.explored; ft9.tq = tq9; ft9.z = vz9; ft9.px = vx9; ft9.py = vy9;
-        if (atBase9) {
-          // 손짓 중 — 기준 자리에 칠하고 걷힌 변환을 같은 값으로 도로 건다(유닛 캔버스와 같은 까닭, 위 ★).
-          const b9 = xfBaseRef.current;
-          fogPaintRef.current(b9.z, { x: b9.x, y: b9.y }, { vis: fr9.visSrc, exploredAt: fr9.explored, t: tNow9 });
-          const fcv9 = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-fog");
-          if (fcv9 && xfCvXfRef.current) { fcv9.style.transformOrigin = "center"; fcv9.style.transform = xfCvXfRef.current; }
-        } else fogPaintRef.current(zoomRef.current, panRef.current, { vis: fr9.visSrc, exploredAt: fr9.explored, t: tNow9 });
+        fogPaintRef.current(zoomRef.current, panRef.current, { vis: fr9.visSrc, exploredAt: fr9.explored, t: tNow9 });
       }
     }
   };
