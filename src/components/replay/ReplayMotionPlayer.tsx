@@ -26469,7 +26469,14 @@ export default function ReplayMotionPlayer({
          타이밍이라 되는 날과 안 되는 날이 갈렸다. 덮는 폭은 팬 한계의 유일한 자이니 설 때까지 기다린다.
          다만 **끝내 안 서면** 그냥 진행한다 — 여기서 영영 물러나면 링크의 배율·각까지 통째로 잃는다(옛 꼴로 되돌아감). */
       const ready9 = bw >= 4 && bh >= 4 && stageSizeRef.current.w > 0 && cw9 > 0 && Math.abs(bw - cw9) <= 1;
-      if (!ready9 && tries++ < 120) {
+      /* ★ 못 선 까닭 둘은 **무게가 다르다**(지적: 게이트가 열려도 남는 두 번째 구멍) ─────
+         · 덮는 폭이 **0**이다 — 팬 한계(panLimit)가 통째로 0이라, 여기서 앉히면 받은 자리가
+           그 0에 눌려 **정가운데**가 된다. 앉히느니만 못한 자리라 오래(10초) 기다린다.
+         · 폭이 아직 **안 맞는다**(트랜지션·리플로 중) — 값은 있으니 늦어도 그 값으로
+           앉히고, 어긋난 몫은 붙든 자리(linkHoldRef9)가 배치가 서면 고친다. 2초면 넉넉하다. */
+      const soft9 = bw >= 4 && bh >= 4 && stageSizeRef.current.w > 0 && cw9 > 0;
+      tries += 1;
+      if (!ready9 && (soft9 ? tries < 120 : tries < 600)) {
         raf = requestAnimationFrame(step);
         return;
       }
