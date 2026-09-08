@@ -525,6 +525,12 @@ function winRow(
   return faces;
 }
 let poseNow = 0;
+/** ★ 캔버스의 '변환 없음' 값 — 빈 문자열이 아니라 **항등 변환**이다(지적: "다 그려지면 툭 움직여") ─────────────────
+ *  변환이 걸린 요소는 브라우저가 제 합성 레이어로 올려 두는데, 변환을 지우면(빈 문자열) 그 층에서 내려와 다시
+ *  래스터한다. 그 오르내림이 프레임을 하나 먹으면, 내용은 새 자리로 갔는데 화면은 옛 픽셀을 변환 없이 한 프레임
+ *  더 보여 준다 — 그것이 '다 그리고 나서 한 번 툭'이다(사파리에서 열에 두 번). 항등 변환을 두면 층이 유지돼
+ *  내용 갱신과 변환 변경이 늘 같은 프레임에 실린다. 그림은 "없음"과 똑같다. */
+const XF_ID9 = "translate(0px, 0px) scale(1)";
 /** `#diag=brush`(지적: "아직도 떨린다" — 실기기에서 어느 붓이 어긋나는지 가리려고) — 유닛 붓이 칠할 때마다 한 줄 적는
  *  고리(최근 120). src는 부르는 쪽이 세운다: tick(재생 틱) · arrive(멈춘 채 장 도착) · xf(손짓 붓) · commit(손짓 끝) ·
  *  react(UnitLayer effect). aT는 그 붓이 든 앞 장의 시각(틱 계열만). */
@@ -23344,7 +23350,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          몫이 **두 번** 먹혀 한 프레임 튄다. 여태 그 걷어내기를 부모의 렌즈 effect가
          했는데, 그 effect는 zoom·pan **상태**가 바뀔 때만 돈다 — 손짓 중에는 상태가
          안 바뀌므로 한 번도 안 돌았고, 그 사이 재생 틱이 낸 리렌더마다 그림이 튀었다. */
-      if (cv.style.transform) cv.style.transform = "";
+      if (cv.style.transform !== XF_ID9) { cv.style.transformOrigin = "center"; cv.style.transform = XF_ID9; }
       onPainted?.(zoom, pan);
     };
     /* 부모가 손짓 중에 쥘 붓을 넘긴다 — 렌더마다 새 ops를 문 채로 갈아 끼운다. */
@@ -26989,7 +26995,7 @@ export default function ReplayMotionPlayer({
   const xfRafRef = useRef(0);
   /** 유닛 캔버스에 마지막으로 건 임시 변환 문자열(위 xfBase 기준 델타) — 손짓 중 틱이 기준 자리에 다시 칠한 뒤 **같은
    *  값**을 도로 건다(붓이 걷어 버리므로). 값이 안 바뀌면 합성기가 움직일 일이 없다. 재기준(다시 칠함)은 ""로 되돌린다. */
-  const xfCvXfRef = useRef("");
+  const xfCvXfRef = useRef(XF_ID9);
   /** 캔버스가 한 장 그려질 때마다 — 그 보기가 곧 임시 변환의 기준이다(자식이 부른다). */
   const onUnitPainted = useCallback((z9: number, p9: { x: number; y: number }): void => {
     xfBaseRef.current = { z: z9, x: p9.x, y: p9.y };
@@ -27078,7 +27084,7 @@ export default function ReplayMotionPlayer({
       const s9 = z1 / b9.z;
       const cv9 = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-unitlayer");
       const fg9 = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-fog");
-      const xf9 = s9 === 1 && px === b9.x && py === b9.y ? ""
+      const xf9 = s9 === 1 && px === b9.x && py === b9.y ? XF_ID9
         : `translate(${(px - s9 * b9.x).toFixed(2)}px, ${(py - s9 * b9.y).toFixed(2)}px) scale(${s9.toFixed(4)})`;
       xfCvXfRef.current = xf9;
       if (cv9) { cv9.style.transformOrigin = "center"; cv9.style.transform = xf9; }
@@ -27381,13 +27387,13 @@ export default function ReplayMotionPlayer({
         paintFnRef9.current?.(tLiveRef9.current, true);
       }
     }
-    if (cv && cv.style.transform) cv.style.transform = "";
+    if (cv && cv.style.transform !== XF_ID9) { cv.style.transformOrigin = "center"; cv.style.transform = XF_ID9; }
     {
       // 안개 캔버스도 — 이 렌더의 ReplayFogLayer effect(자식이 먼저 돈다)가 상태 자리로 칠했으니 변환만 걷는다.
       const fcv9 = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-fog");
-      if (fcv9 && fcv9.style.transform) fcv9.style.transform = "";
+      if (fcv9 && fcv9.style.transform !== XF_ID9) { fcv9.style.transformOrigin = "center"; fcv9.style.transform = XF_ID9; }
     }
-    xfCvXfRef.current = "";
+    xfCvXfRef.current = XF_ID9;
     // 굳은 배율로 touch-action도 못 박는다(위 applyGestureXf와 같은 규칙 — 한 손 줌이 떼며 되돌린 값을 여기서 바로잡는다).
     if (mapRef.current) mapRef.current.style.touchAction = zoom > 1 ? "none" : "";
     /* ★ fsOn이 목록에 있어야 한다(지적: "확대한 상태에서 전체화면 온오프시 이상한거다 /
@@ -28356,9 +28362,9 @@ export default function ReplayMotionPlayer({
     } else {
       unitPaintRef.current?.(zoomRef.current, panRef.current, zoomCommitRef.current);
       if (rebase9) {
-        xfCvXfRef.current = "";
+        xfCvXfRef.current = XF_ID9;
         const fcvR9 = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-fog");
-        if (fcvR9 && fcvR9.style.transform) fcvR9.style.transform = "";
+        if (fcvR9 && fcvR9.style.transform !== XF_ID9) { fcvR9.style.transformOrigin = "center"; fcvR9.style.transform = XF_ID9; }
       }
     }
     /* ★ 안개도 붓 박자로(지적: "유닛은 부드럽게 움직이는데 안개는 뚝뚝 끊겨서 변하는 느낌") — 안개 층은 React
