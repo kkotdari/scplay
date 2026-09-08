@@ -541,7 +541,7 @@ const linkLog9 = (s9: string): void => {
 /** 손짓 중 한 장이 이 시간을 넘으면 **무거운 자리**로 본다(3D·난전) — 그때는 끄는 동안 다시 그리기를 미루고
  *  CSS 미끄러짐에 맡긴다(아래 xfPaintNow의 ★). 55ms면 60Hz 기준 세 프레임을 통째로 먹는다는 뜻이다. */
 const XF_HEAVY_MS9 = 55;
-/** 손끝이 이만큼 멈춰 있으면 '한 박자 쉰 것'으로 보고 무거운 자리에서도 한 장 그린다. */
+/** 손끝이 이만큼 멈춰 있으면 '한 박자 쉰 것'으로 보고 무거운 자리에서도 한 장 그린다(마무리 한 장의 시계). */
 const XF_STILL_MS9 = 140;
 /** 무거운 자리라도 마지막으로 그린 뒤 상자의 이만큼을 넘게 밀었으면 그린다 — 빈 가장자리의 상한이다. */
 const XF_FAR_FRAC9 = 0.25;
@@ -550,6 +550,9 @@ const XF_FAR_FRAC9 = 0.25;
  *  react(UnitLayer effect). aT는 그 붓이 든 앞 장의 시각(틱 계열만). */
 const BRUSH_LOG9: { at: number; src: string; z: number; px: number; py: number; n: number; aT: number; xf: string; inst: number }[] = [];
 let brushSrc9 = "react";
+/** 손짓 중 **직전 한 장이 든 시간**(ms) — 붓(UnitLayer)이 배킹을 내릴지 가리는 자다. 부모(xfPaintNow)가 적는다.
+ *  모듈 전역인 까닭: 붓은 React 밖에서 불리고 부모의 ref를 못 본다(같은 결의 brushSrc9 옆자리). */
+const xfMsRef9 = { v: 8 };
 let brushAT9 = -1;
 /** 재생기 인스턴스 번호(마운트 순) — 한 페이지에 재생기가 둘이면 진단 고리에 섞이므로 가른다. 렌더가 세운다. */
 let INST_SEQ9 = 0;
@@ -21326,7 +21329,7 @@ export const scrDiagModes = (): Set<string> => {
   return new Set(m9 ? m9[1].split(",") : []);
 };
 
-function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx, pickedKey, wallMask, maskRects, clipQuad, showShadows, showOverlap, showHp, showCreep, marker: markerProp, markerAt, detailAt, yawAt, moveAt, painter, live, onPainted }: {
+function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx, pickedKey, wallMask, maskRects, clipQuad, showShadows, showOverlap, showHp, showCreep, marker: markerProp, markerAt, detailAt, yawAt, moveAt, painter, live, gesture, onPainted }: {
   ops: UnitDrawOp[]; zoom: number; pan: { x: number; y: number };
   /** ★ 붓의 보기 원천(실측: 감기 중 React 붓 팬 (−645.8,−821.7) vs 도착 붓 panRef (−646.2,−822.7)로 1px 어긋난 두 그림이
    *  번갈아 찍혔다). 틱·도착 붓은 부모의 zoomRef·panRef를 읽는데 이 effect는 상태 zoom·pan을 읽어, 렌더 사이에 ref만 바뀌면
@@ -21421,6 +21424,12 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          화면 픽셀(dpr) 그대로라 늘 또렷하고, 화면 밖 마커는 걸러 깊은 줌일수록 그릴
          것이 오히려 준다. */
       const dpr = window.devicePixelRatio || 1;
+      /* ★ 손짓이 도는 동안은 **덜 칠한다**(요청: "이동 시 더 빠르게 시점 변경") ─────────────────────────────
+         계측이 가리키는 병목은 셈이 아니라 **칠하는 픽셀**이다(표본의 3분의 2가 네이티브 칠하기·합성).
+         이 깃발이 그 동안 둘을 접는다: ① 접지·부양 그림자(몸마다 한 겹 더 칠하는 몫) ② 배킹 배수(아래 Bd).
+         자세함 문턱(detail)은 안 내린다 — 그쪽은 **판 열쇠를 바꿔** 손짓 시작마다 판을 새로 굽게 만든다.
+         그림자와 배킹은 열쇠와 무관해 껐다 켜도 굽는 일이 없다. 손을 떼면 그 프레임에 제대로 한 장 그린다. */
+      const gest9 = gesture?.current === true;
       /* ★ **저배율에서는 배킹을 화면 픽셀 1배로 내린다**(요청: "사진처럼 그릴요소가 엄청
          많을때 버벅임을 좀 해결할수있는 방법") ────────────────────────────────────
          계측(scripts/perf-check.mjs — 1000유닛·PC폭·CPU 4배 조임)이 가리키는 자리다:
@@ -21442,8 +21451,18 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          우선이다(더 낮은 쪽). */
       const capSmall9 = smallDevice9 && zoom >= 6 ? 2 : Infinity;
       const B = Math.min(dpr, DPRCAP9, capSmall9, 4096 / Math.max(cw, ch, 1));
-      const bw = Math.round(cw * B);
-      const bh = Math.round(ch * B);
+      /* ★ 손짓이 도는 동안은 **배킹을 줄여 칠한다**(요청: "이동 시 더 빠르게 시점 변경") ─────────────────────
+         병목은 셈이 아니라 칠하는 **픽셀 수**이고(계측: 표본의 3분의 2가 네이티브 칠하기), 그 수는 배킹 배수의
+         제곱으로 는다. 끄는 동안 0.7배로 내리면 픽셀이 절반이 된다 — 그만큼 한 장이 싸지고, 주 실마리가 그만큼
+         빨리 비어 손끝을 따라온다. 흐려지는 것은 **끄는 동안뿐**이고, 손을 떼면 그 프레임에 제 배킹으로 다시
+         칠한다(endGestureXf의 마지막 한 장).
+         ★ **판(스프라이트)을 굽는 자는 안 건드린다** — 굽기는 여전히 B를 본다(unitBakeCap·pxq·buildingSprite).
+           그 자까지 내리면 손짓을 시작할 때마다 판을 통째로 새로 굽는 꼴이라 되레 느려진다. 여기서 바뀌는 것은
+           '그린 판을 화면 픽셀 몇 개에 얹나' 하나뿐이다(판 px → CSS px 환산은 그대로 B다).
+         가벼운 자리에서는 안 내린다(직전 한 장이 25ms 아래면 그대로) — 흐릴 까닭이 없다. */
+      const Bd = gest9 && xfMsRef9.v >= 25 ? B * 0.7 : B;
+      const bw = Math.round(cw * Bd);
+      const bh = Math.round(ch * Bd);
       if (cv.width !== bw) cv.width = bw;
       if (cv.height !== bh) cv.height = bh;
       /* 진단 수치는 **켜져 있을 때만** 적는다 — 여기는 프레임마다 도는 자리라,
@@ -21481,7 +21500,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       /* 등급도 굽는 배율을 따른다 — 손짓 중에 등급이 바뀌면 그 프레임에 판을 통째로
          다시 구워야 한다(굽는 크기를 못 박아 둔 뜻이 없어진다). */
       lodSetZoom(bakeZoom);
-      ctx.setTransform(B, 0, 0, B, 0, 0);
+      ctx.setTransform(Bd, 0, 0, Bd, 0, 0);
       ctx.clearRect(0, 0, cw, ch);
       /* (제거·요청) 도형 드롭섀도 — 건물·유닛 그림자를 다 걷었다(떠다니는 것 제외).
          떠 있음은 아래 hover 분기의 발밑 타원만 말한다. */
@@ -21796,7 +21815,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           /* 접지 그림자(재재지적: 해처리가 떠 있다) — 상자 바닥 어림이 아니라 구운
              판의 실제 바닥 픽셀(contentBottom)에 붙인다. 모델이 상자를 다 안 채워도
              발이 그림자에 닿는다. */
-          if (op.groundShadow && showShadows !== false && CROWD9.lv === 0 && detail) {
+          if (op.groundShadow && showShadows !== false && CROWD9.lv === 0 && detail && !gest9) {
             /* 바닥 '발자국'만 덮는다(정정: 칸(hPx)은 모델 높이까지 포함해, 칸 기준 타원은
                건물을 통째로 감싸는 큰 원이었다 — 내접으로 바꿔도 거의 그대로라 "적용 안
                됨"으로 보였다). 발자국 깊이 = 폭 × footRatio, 자리는 칸 바닥에 붙인다. */
@@ -21986,14 +22005,14 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             // 모델 면으로 그리는 길 — save 스택 대신 setTransform 합성(모델 (8,16) 앵커).
             const ty9 = (groundY ?? sy + hPx / 2)
               - (op.airPx !== undefined ? op.airPx * zoom : wPx * (op.liftK ?? 0));
-            ctx.setTransform(B * s, 0, 0, B * s, B * (sx - 8 * s), B * (ty9 - 16 * s));
+            ctx.setTransform(Bd * s, 0, 0, Bd * s, Bd * (sx - 8 * s), Bd * (ty9 - 16 * s));
             ctx.shadowColor = "transparent";
             for (const [d, o, fill] of faces) {
               ctx.globalAlpha = op.alpha * shadeBoost(o, fill);
               ctx.fillStyle = fill ?? op.color;
               ctx.fill(pathOf(d));
             }
-            ctx.setTransform(B, 0, 0, B, 0, 0);
+            ctx.setTransform(Bd, 0, 0, Bd, 0, 0);
           }
           continue;
         }
@@ -22093,7 +22112,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         const groundOy9 = sy - px * 0.24 + (((op.flat ? 12 : 12.6) - 8) / 16) * px;
         /* ★ 덜어내기 중에도 **공중 유닛 그림자는 남긴다**(요청: "떠있는 위치가 안 읽혀서") — 타원 하나라 값이
            거의 없고, 그림자가 없으면 나는 몸의 높이·자리를 읽을 길이 없다. 부양 지상 유닛 그림자만 덜어낸다. */
-        if (hover && !op.noShadow && showShadows !== false && (CROWD9.lv === 0 || op.air) && detail) {
+        if (hover && !op.noShadow && showShadows !== false && (CROWD9.lv === 0 || op.air) && detail && !gest9) {
           ctx.shadowColor = "transparent";
           /* 떠다니는 지상 유닛(일꾼·벌처·아콘류)은 겨우 발밑만 떠 있다(지적: 그림자가
              너무 크고 진해) — 높이 나는 공중 유닛보다 작고 옅은 타원. */
@@ -22148,7 +22167,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              가로는 footX 그대로다(앞선 지적: 그림자·링이 몸과 안 맞음). */
           ctx.ellipse(sx, groundY ?? groundOy9, shw * 1.1, shw * (op.air ? 0.5 : 0.42) * (op.pitch ? pitchFlatNow : 1), 0, 0, Math.PI * 2);
           ctx.fill();
-        } else if (showShadows !== false && CROWD9.lv === 0 && detail && !op.air && !op.clipWalk && !op.noShadow) {
+        } else if (showShadows !== false && CROWD9.lv === 0 && detail && !gest9 && !op.air && !op.clipWalk && !op.noShadow) {
           /* ★ noShadow도 여기서 본다(지적: "버로우 럴커·마인은 그림자 안 그려야 자연스럽" · "다른 저그 버로우도")
              — 위 부양 갈래만 그 깃발을 보고, 땅에 선 몸의 작은 그림자는 안 봤다. 마인은 op에 noShadow가
              이미 실려 있었는데도 그림자가 났던 까닭이다. 버로우한 몸은 엔진이 같은 깃발을 싣는다. */
@@ -22273,7 +22292,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           const rr9 = (rot * Math.PI) / 180;
           const rc9 = Math.cos(rr9);
           const rs9 = Math.sin(rr9);
-          ctx.setTransform(B * rc9, B * rs9, -B * rs9, B * rc9, B * bx9, B * by9);
+          ctx.setTransform(Bd * rc9, Bd * rs9, -Bd * rs9, Bd * rc9, Bd * bx9, Bd * by9);
         } else {
           /* ★ 자리를 **기기픽셀 정수로** 스냅한다(지적: "모델은 전체화면만 선명") ──────
              판 크기를 격자에 맞춰도 **찍는 자리가 반 픽셀 어긋나면** 캔버스가 스프라이트를
@@ -22287,8 +22306,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              전체를 보는 배율에서는 유닛의 한 걸음이 프레임당 1 기기픽셀에 못 미쳐(1배·타일 6px·초당 1.5타일이면
              30장에 0.3px), 정수로 죄면 몇 장에 한 번씩 한 픽셀을 툭툭 뛴다. 그 배율의 몸은 예닐곱 픽셀이라
              재표본의 흐림은 눈에 안 들고, 걸음이 끊기는 것만 보인다. 자세함 문턱(detailAt) 위에서만 스냅한다. */
-          if (detail) ctx.setTransform(B, 0, 0, B, Math.round(B * bx9), Math.round(B * by9));
-          else ctx.setTransform(B, 0, 0, B, B * bx9, B * by9);
+          if (detail) ctx.setTransform(Bd, 0, 0, Bd, Math.round(Bd * bx9), Math.round(Bd * by9));
+          else ctx.setTransform(Bd, 0, 0, Bd, Bd * bx9, Bd * by9);
         }
         if (spr) {
           /* ★ 블릿 배율은 **자리를 잡을 때 쓴 그 배율**(kU)이다(지적: "dpr 1에서 지도상
@@ -22395,7 +22414,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           );
           if (!atBack9) atDraw9();
           atDrawOf9(at2Spr9, op.attach2K);   // 둘째 겹판은 제 배율(attach2K)이 있으면 그것을, 없으면 attachK를 탄다
-          ctx.setTransform(B, 0, 0, B, 0, 0);
+          ctx.setTransform(Bd, 0, 0, Bd, 0, 0);
           continue;
         }
         // 스프라이트를 못 구우면 예전 직접 그리기로 — 이 갈래도 센다(비싼 길이다).
@@ -22408,7 +22427,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           ctx.fillStyle = fill ?? op.color;
           ctx.fill(pathOf(d));
         }
-        ctx.setTransform(B, 0, 0, B, 0, 0);
+        ctx.setTransform(Bd, 0, 0, Bd, 0, 0);
       }
       };
       /* 크립은 지형을 못 넘는다(요청: 벽·램프·다리) — 크립 판(clipWalk, z가 제일 낮다)만
@@ -27053,7 +27072,7 @@ export default function ReplayMotionPlayer({
    *  배율 갈무리 없이 매번 손끝 값으로 곧장 그린다. */
   const fogPaintRef = useRef<((z: number, p: { x: number; y: number }, ov?: FogOverride) => void) | null>(null);
   /** 붓 틱이 마지막으로 안개 층에 넘긴 것 — 같은 판이면 다시 안 칠한다(안개 칠은 등고선·원 채우기라 공짜가 아니다). */
-  const fogTickRef9 = useRef<{ vis: Float32Array | null; ver: number | undefined; explored: Uint16Array | null; tq: number; z: number; px: number; py: number }>({ vis: null, ver: undefined, explored: null, tq: -1, z: 0, px: 0, py: 0 });
+  const fogTickRef9 = useRef<{ vis: Float32Array | null; ver: number | undefined; explored: Uint16Array | null; tq: number; z: number; px: number; py: number; at: number }>({ vis: null, ver: undefined, explored: null, tq: -1, z: 0, px: 0, py: 0, at: 0 });
   /** ★ 그리는 붓 하나(재설계) — 유닛·안개 캔버스를 칠하는 것은 paintFnRef9뿐이다. React effect·장 도착·탐색·거울 갱신은
    *  여기로 "칠해 달라"고만 하고, 다음 rAF에 한 장으로 모은다. 재생 틱이 돌면 그 틱이 곧 칠하므로 아무것도 안 한다. */
   const paintReqRef9 = useRef(0);
@@ -27073,6 +27092,8 @@ export default function ReplayMotionPlayer({
   /** 미니맵 붓(요청: 드래그·줌 중에도 프레임이 따라온다) — 안개와 같은 규약이다.
    *  평소 배치와 전체화면 미니맵은 서로 배타라 붓 하나를 나눠 쓴다. */
   const miniPaintRef = useRef<((z: number, p: { x: number; y: number }) => void) | null>(null);
+  /** 미니맵을 마지막으로 다시 그린 시각 — 손짓 중에는 이 시계로 뜸하게 그린다(위 applyGestureXf). */
+  const miniAtRef9 = useRef(0);
   const zoomRef = useRef(zoom);
   const panRef = useRef(pan);
   /* ★ 추적 중에는 **추적이 눈의 주인**이다(지적: "추적모드 고장 — 지도가 늘 정가운데") ────────────────────────────
@@ -27267,7 +27288,15 @@ export default function ReplayMotionPlayer({
       if (cv9) { cv9.style.transformOrigin = "center"; cv9.style.transform = xf9; }
       if (fg9) { fg9.style.transformOrigin = "center"; fg9.style.transform = xf9; }
       mapPaintRef.current?.(z1, panRef.current);
-      miniPaintRef.current?.(z1, panRef.current);
+      /* ★ 미니맵은 손짓 중 **뜸하게** 다시 그린다(요청: "이동 시 더 빠르게 시점 변경") ────────────────────────
+         이 한 줄이 손짓 프레임마다 미니맵 캔버스를 통째로 다시 그린다(지형 판 + 개체 점 수백). 그런데 미니맵이
+         손짓 중에 말하는 것은 '지금 어디를 보나'(흰 네모)뿐이고, 그건 초당 열 번이면 눈에 끊겨 보이지 않는다.
+         남는 몫은 그대로 손끝을 받는 데 쓰인다 — 렌즈·지형·캔버스 옮기기는 여기서 계속 매 프레임 돈다. */
+      const mnow9 = performance.now();
+      if (mnow9 - miniAtRef9.current >= 100) {
+        miniAtRef9.current = mnow9;
+        miniPaintRef.current?.(z1, panRef.current);
+      }
     }
     if (!repaint) return;
     /* 캔버스 다시 그리기는 **프레임당 한 번**으로 묶는다(요청: 줌 연속 렌더) — 휠은
@@ -27370,6 +27399,9 @@ export default function ReplayMotionPlayer({
          1배로 구운 그림이 CSS로 늘어난 채(흐릿하게) 따라오다가 손을 떼야 또렷해졌다.
          벡터층이 배율을 √2 칸으로 갈무리하므로 손짓 한 번에 두세 번만 다시 굽는다. */
       xfPaintMsRef.current = performance.now() - t0;
+      xfMsRef9.v = xfPaintMsRef.current;   // 붓이 읽는다(위 xfMsRef9) — 배킹을 내릴지 가리는 자.
+      // 손짓 한 장이 든 시간 — 계측 도구가 읽는다(#diag=draw의 자와 같은 자).
+      SCR_DIAG.xfms = Math.round(xfPaintMsRef.current);
       return;
     }
   }, []);
@@ -28595,9 +28627,18 @@ export default function ReplayMotionPlayer({
       const vz9 = zoomRef.current;
       const vx9 = panRef.current.x;
       const vy9 = panRef.current.y;
-      if (fr9.visSrc !== ft9.vis || fr9.visVer !== ft9.ver || fr9.explored !== ft9.explored || tq9 !== ft9.tq
-        || ft9.z !== vz9 || ft9.px !== vx9 || ft9.py !== vy9) {
+      const need9 = fr9.visSrc !== ft9.vis || fr9.visVer !== ft9.ver || fr9.explored !== ft9.explored || tq9 !== ft9.tq
+        || ft9.z !== vz9 || ft9.px !== vx9 || ft9.py !== vy9;
+      /* ★ 손짓이 도는 동안 안개는 **뜸하게** 칠한다(요청: "이동 시 더 빠르게 시점 변경") ────────────────────
+         안개 판은 화면을 통째로 덮는 한 겹이라 한 장 값이 유닛에 맞먹는다. 그런데 끄는 동안 안개가 말하는
+         것은 '어디가 밝혀졌나' 하나뿐이고 그건 손끝을 따라 실시간일 까닭이 없다 — 그 사이는 CSS가 같은
+         그림을 밀어 준다(유닛 캔버스와 같은 규약). 150ms마다 한 번이면 새로 드러나는 가장자리도 눈에 안 빈다.
+         손을 떼면 그 프레임에 제 자리로 한 장 칠한다(endGestureXf). */
+      const FOG_GEST_MS9 = 150;
+      const gnow9 = pNow();
+      if (need9 && !(xfGestureRef.current && gnow9 - (ft9.at ?? 0) < FOG_GEST_MS9)) {
         ft9.vis = fr9.visSrc; ft9.ver = fr9.visVer; ft9.explored = fr9.explored; ft9.tq = tq9; ft9.z = vz9; ft9.px = vx9; ft9.py = vy9;
+        ft9.at = gnow9;
         fogPaintRef.current(zoomRef.current, panRef.current, { vis: fr9.visSrc, exploredAt: fr9.explored, t: tNow9 });
       }
     }
@@ -31142,6 +31183,8 @@ export default function ReplayMotionPlayer({
             /* 손짓(드래그·핀치·휠) 중에는 부모가 이 붓으로 캔버스만 다시 그린다 —
                리액트를 안 거치고, 그린 자리는 손끝 그대로다(xfLive). */
             painter={unitPaintRef} onPainted={onUnitPainted}
+            /* 손짓이 도는가 — 그림자를 그 동안 접는다(위 gest9). */
+            gesture={xfGestureRef}
             /* 사양 라디오 × 배율 칸(요청) — 둘 다 켜져야 켜진다. 칸 2 이하는 몸만.
                칸 판정은 **문턱을 넘겨** 캔버스가 그리는 배율로 한다(손짓 중 한 박자
                늦지 않게) — 여기 boolean은 사양 라디오 몫만 진다. */

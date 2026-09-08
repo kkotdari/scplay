@@ -2095,6 +2095,8 @@ export const SCR_DIAG: {
    *  393.33이면 배킹은 1179인데 화면은 1180이고, 그 어긋남은 clientWidth로는 안 보인다. */
   unitScale: number;
   areaCap: number; allocOk: boolean; zoom: number;
+  /** 손짓 중 한 장이 든 시간(ms) — 끄는 동안의 반응은 이 값이 정한다(계측 도구가 읽는다). */
+  xfms: number;
   /** 생산 색인 요약(#diag) — "(임자|건물종류)=건수". 비어 있으면 호스트 찾기 실패다. */
   prod: string;
   /** 프레임 워커 상태 — on/off · 받은 수 · 쓴 수 · 놓친 수. */
@@ -2128,7 +2130,7 @@ export const SCR_DIAG: {
 } = {
   dpr: 0, unitCss: "", unitBack: "", unitB: 0,
   mapCss: "", mapBack: "", ppt: 0, needed: 0, scale: 0, unitScale: 0,
-  areaCap: 0, allocOk: true, zoom: 0, fx: {}, prod: "", worker: "", crowd: "", brush: "", fps: 0,
+  areaCap: 0, allocOk: true, zoom: 0, xfms: 0, fx: {}, prod: "", worker: "", crowd: "", brush: "", fps: 0,
   truthVer: 0, truthTrust: -1, truthWhy: "",
 };
 /** #diag가 켜져 있나 — 주소가 바뀌지 않는 한 한 번만 읽는다. */
