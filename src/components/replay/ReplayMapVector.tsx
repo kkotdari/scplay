@@ -28,11 +28,6 @@ import { pWrap, pCount, PERF9, DPRCAP9 } from "./perf9";
  *   다시 구웠고, 그 40%를 벗어나는 순간 새 자리가 그제서야 칠해져 번쩍였다. 이제
  *   구워 둔 창 안에 머무는 동안은 effect가 곧장 빠져나가므로, 드래그 중에는 한 번도
  *   다시 안 굽는다 — 다시 굽는 때는 배율·상자·보기가 바뀔 때뿐이다. */
-/** 입체에서 앞뒤 변을 휘는 몫 — **판 세로의 %**다(양 끝에서 이만큼 깎고 가운데는 0).
- *  지형은 눕히기 전 판에서 clip-path로, 안개·유닛 캔버스는 그 곡선을 사영한 화면 폴리곤으로 같은 몫을 깎는다
- *  (한 자리에서 내야 셋의 실루엣이 안 갈린다). */
-export const BOW_PCT9 = 4.5;
-
 export default function ReplayMapVector({
   grid, zoom, pan, pitched, style, painter, tileFrac, pitchSig, pitchXf, pitchKAt,
 }: {
@@ -247,34 +242,6 @@ export default function ReplayMapVector({
       /* 평면으로 돌아오면 **지워야 한다** — 이 값은 리액트가 아니라 우리가 손으로 걸어
          둔 것이라, 안 지우면 입체 변환이 그대로 남아 평면 지도가 기운 채로 선다. */
       boxRef.current.style.transform = pitchXf ? pitchXf(zoom, pan) : "";
-      /* ★ 입체의 앞뒤 변을 **활로 휜다**(지적: "3D 아래변이 직선인 게 이상하다 — 넓은 땅을 실제로 보면
-         직선으로 안 보인다") ────────────────────────────────────────────────────────────────────
-         맞는 지적이다. 직선 보존 투영(핀홀·지금 우리 CSS perspective)에서는 평면의 직선이 반드시 직선으로
-         맺히지만, 사람 눈과 광각 렌즈는 직선 보존이 아니다 — 시야가 넓을수록 긴 직선은 활처럼 읽힌다
-         (파노라마의 휜 지평선이 그것이다). 우리 화면은 아래변이 폭을 통째로 가로지르는 넓은 화각이라, 곧은
-         변이 '납작한 판때기'로 보인다.
-         투영 자체를 곡면으로 바꾸는 것은 지형·유닛·안개의 사상을 다 갈아야 하는 큰 일이라, 먼저 **실루엣**만
-         휜다: 판을 눕히기 **전**의 제 자리에서 앞뒤 변의 양 끝을 2차 곡선으로 깎으면, 원근 변환이 그 곡선을
-         그대로 화면의 곡선으로 옮긴다(사영은 원뿔곡선을 원뿔곡선으로 보낸다). 눈이 '넓은 땅'을 읽는 단서는
-         거의 이 실루엣이라, 안쪽이 직선 투영이어도 티가 안 난다. 값은 스타일 한 줄이라 굽기·그리기와 무관하다. */
-      const BOW9 = BOW_PCT9;
-      if (pitched) {
-        const pt9: string[] = [];
-        const N9 = 16;
-        for (let k9 = 0; k9 <= N9; k9 += 1) {
-          const x9 = (k9 / N9) * 100;
-          const u9 = (x9 - 50) / 50;
-          pt9.push(`${x9.toFixed(2)}% ${(BOW9 * u9 * u9).toFixed(2)}%`);
-        }
-        for (let k9 = N9; k9 >= 0; k9 -= 1) {
-          const x9 = (k9 / N9) * 100;
-          const u9 = (x9 - 50) / 50;
-          pt9.push(`${x9.toFixed(2)}% ${(100 - BOW9 * u9 * u9).toFixed(2)}%`);
-        }
-        boxRef.current.style.clipPath = `polygon(${pt9.join(",")})`;
-      } else if (boxRef.current.style.clipPath) {
-        boxRef.current.style.clipPath = "";
-      }
     }
     if (!cv || !bw || !bh) return;
 

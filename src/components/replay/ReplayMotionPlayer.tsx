@@ -23,7 +23,7 @@ import {
 } from "../../utils/replayTechNames";
 import type { ReplayMapGrid } from "./mapGrid";
 import { revalidateReplayMap } from "./useReplayMap";
-import ReplayMapVector, { BOW_PCT9 } from "./ReplayMapVector";
+import ReplayMapVector from "./ReplayMapVector";
 import { AIR_UNITS } from "../../utils/statsMix";
 import { BLD_STATS, UNIT_BUILD_SEC, UNIT_STATS } from "./unitStats";
 /* 사거리는 이 파일이 들고 있던 상수(ENGAGE_SIGHT_TILES 9, 방어 건물 7/7/7/8/6, 벙커 안
@@ -24514,8 +24514,6 @@ export default function ReplayMotionPlayer({
   /** 지금의 React 박자(ms) — 핵이 떠 있으면 REACT_STEP_NUKE_MS9, 아니면 REACT_STEP_MS9(렌더가 정한다). */
   const reactStepRef9 = useRef(REACT_STEP_MS9);
   const paintFnRef9 = useRef<((tNow: number, rebase?: boolean) => void) | null>(null);
-  /** 입체 실루엣의 활 — 안개·유닛 캔버스에 사영한 폴리곤을 걸어 준다(아래 render 본문에서 심는다). */
-  const bowClipRef9 = useRef<(() => void) | null>(null);
   const frameOpsRef9 = useRef<UnitDrawOp[] | null>(null);
   const frameFxRef9 = useRef<FxOp[] | null>(null);
   /** 주인의 지금 상태(렌더마다 갱신) — 프레임 버림·안개 판 정리의 자. */
@@ -27939,52 +27937,6 @@ export default function ReplayMotionPlayer({
    *    → A ≡ ((fy−0.5)·h + cy)/(C·q·P) = v/(P − vS) → v = A·P/(1 + A·S)
    *    → k가 정해지고,  u = (fx−0.5)·w/k
    *  평면(90도)에서는 원근이 없어 분수가 곧 자리다. */
-  /* ★ 입체 실루엣의 활을 **캔버스에 걸어 준다**(지적: "3D 아래변이 직선인 게 이상하다 — 넓은 땅을 실제로 보면
-     직선으로 안 보인다") ────────────────────────────────────────────────────────────────────────────────
-     지형은 눕히기 전 판에서 clip-path로 앞뒤 변을 깎지만(ReplayMapVector의 BOW_PCT9), 안개·유닛은 화면 좌표로
-     그리는 캔버스라 같은 곡선을 **사영해서** 깎아야 셋의 실루엣이 하나로 읽힌다. 판 위의 활을 posFrac으로 화면
-     분수로 옮기고, 붓이 쓰는 것과 같은 식으로 캔버스 px를 낸다(zx·zy와 같은 줄).
-     유닛 캔버스는 **아래만** 깎는다 — 위는 열어 두어야 맨 뒷줄의 키 큰 몸이 안 잘린다(그 여유가 곧 --scr-mapband다). */
-  bowClipRef9.current = (): void => {
-    const el9 = mapRef.current;
-    if (!el9) return;
-    const fcv9 = el9.querySelector<HTMLCanvasElement>(".scr-motion-fog");
-    const ucv9 = el9.querySelector<HTMLCanvasElement>(".scr-motion-unitlayer");
-    const bw9 = el9.clientWidth;
-    const bh9 = el9.clientHeight;
-    if (!pitched || bw9 < 4 || bh9 < 4) {
-      if (fcv9?.style.clipPath) fcv9.style.clipPath = "";
-      if (ucv9?.style.clipPath) ucv9.style.clipPath = "";
-      return;
-    }
-    const z9 = zoomRef.current;
-    const px9 = panRef.current.x;
-    const py9 = panRef.current.y;
-    const bow9 = BOW_PCT9 / 100;
-    const N9 = 16;
-    const at9 = (mxf9: number, myf9: number): [number, number] => {
-      const [fx9, fy9] = posFrac(mxf9 * grid.width, myf9 * grid.height);
-      return [(fx9 - 0.5) * bw9 * z9 + bw9 / 2 + px9, (fy9 - 0.5) * bh9 * z9 + bh9 / 2 + py9];
-    };
-    const far9: [number, number][] = [];
-    const near9: [number, number][] = [];
-    for (let k9 = 0; k9 <= N9; k9 += 1) {
-      const u9 = (k9 / N9 - 0.5) * 2;
-      const d9 = bow9 * u9 * u9;
-      far9.push(at9(k9 / N9, d9));
-      near9.push(at9(k9 / N9, 1 - d9));
-    }
-    const px2 = (p9: [number, number], dy9: number): string => `${p9[0].toFixed(1)}px ${(p9[1] + dy9).toFixed(1)}px`;
-    if (fcv9) {
-      fcv9.style.clipPath = `polygon(${[...far9, ...near9.slice().reverse()].map((p9) => px2(p9, 0)).join(",")})`;
-    }
-    if (ucv9) {
-      // 위는 열어 둔다 — 상자 밖 위쪽까지 넉넉히 덮고 아래변만 활로 깎는다.
-      const dy9 = Math.max(0, ucv9.clientHeight - bh9);
-      const top9 = `-9999px -9999px, 9999px -9999px`;
-      ucv9.style.clipPath = `polygon(${top9},${[...near9].reverse().map((p9) => px2(p9, dy9)).join(",")})`;
-    }
-  };
   const tileOfFrac = (fx: number, fy: number): [number, number] => {
     if (!pitched) return [fx * grid.width, fy * grid.height];
     // 목표 원점(pitchGeom)의 역함수 — 시야 사각형·미니맵 창·재중심은 굳은 상태의 눈으로 잰다.
@@ -28626,11 +28578,6 @@ export default function ReplayMotionPlayer({
       const fcvR9 = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-fog");
       if (fcvR9 && fcvR9.style.transform !== XF_ID9) { fcvR9.style.transformOrigin = "center"; fcvR9.style.transform = XF_ID9; }
     }
-    /* ★ 입체의 앞뒤 변을 **활로 휜다**(지적: "3D 아래변이 직선인 게 이상하다") — 지형은 눕히기 전 판에서
-       clip-path로 깎는데(ReplayMapVector), 안개·유닛은 화면 좌표로 그리는 캔버스라 그 곡선을 **사영해서** 깎아야
-       실루엣이 하나로 읽힌다. 판 위의 활을 posFrac으로 화면 분수로 옮기고, 붓이 쓰는 것과 같은 식(zx·zy)으로
-       캔버스 px를 낸다. 값은 점 서른 몇 개 셈이라 한 장 그리는 삯에 견주면 없는 것과 같다. */
-    bowClipRef9.current?.();
     /* ★ 안개도 붓 박자로(지적: "유닛은 부드럽게 움직이는데 안개는 뚝뚝 끊겨서 변하는 느낌") — 안개 층은 React
        props(100ms 박자)로만 다시 그려졌다. 붓이 고른 장의 안개(눈 목록·밝힌 판)가 지난 틱과 다르면 곧장 안개
        층에 넘겨 칠한다 — 워커가 쌓는 안개 판(40ms 간격)이 그대로 화면 박자가 된다. 밝힌 판은 시각으로 거르므로
