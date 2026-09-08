@@ -531,6 +531,13 @@ let poseNow = 0;
  *  더 보여 준다 — 그것이 '다 그리고 나서 한 번 툭'이다(사파리에서 열에 두 번). 항등 변환을 두면 층이 유지돼
  *  내용 갱신과 변환 변경이 늘 같은 프레임에 실린다. 그림은 "없음"과 똑같다. */
 const XF_ID9 = "translate(0px, 0px) scale(1)";
+/** 공유 링크의 자리 앉히기 발자취(`#diag=view`의 '링크' 줄) — 실기기에서만 나는 어긋남을 눈으로 보려는 자다.
+ *  앉히는 자리와 다시 앉히는 자리가 여기 한 줄씩 적는다(최근 12줄). */
+const linkDiag9: string[] = [];
+const linkLog9 = (s9: string): void => {
+  linkDiag9.push(s9);
+  if (linkDiag9.length > 12) linkDiag9.shift();
+};
 /** 손짓 중 한 장이 이 시간을 넘으면 **무거운 자리**로 본다(3D·난전) — 그때는 끄는 동안 다시 그리기를 미루고
  *  CSS 미끄러짐에 맡긴다(아래 xfPaintNow의 ★). 55ms면 60Hz 기준 세 프레임을 통째로 먹는다는 뜻이다. */
 const XF_HEAVY_MS9 = 55;
@@ -26448,6 +26455,11 @@ export default function ReplayMotionPlayer({
      기다려도 안 서면 그냥 포기한다 — 못 옮긴 채로라도 재생은 돌아야 한다. */
   const viewDoneRef = useRef(false);
   useEffect(() => {
+    if (!initialView) linkLog9("받은 자리 없음(링크에 z·cx·cy가 안 실렸거나 읽는 쪽이 안 넘겼다)");
+    else linkLog9(`받음 z${initialView.z} ${initialView.cx},${initialView.cy} 각${initialView.deg}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialView]);
+  useEffect(() => {
     if (!initialView || viewDoneRef.current) return undefined;
     let raf = 0;
     let tries = 0;
@@ -26488,6 +26500,9 @@ export default function ReplayMotionPlayer({
         return;
       }
       if (!placed9) {
+        linkLog9(`통과 ${tries}프레임 상자 ${bw}x${bh} 덮 ${cw9.toFixed(0)} 무대 ${stageSizeRef.current.w}x${stageSizeRef.current.h}${ready9 ? "" : " ⚠못선채"}`);
+      }
+      if (!placed9) {
         placed9 = true;
         /* 각도는 우리가 가진 칸 중 가장 가까운 것으로 붙인다 — 링크가 낡아 없는 값이
            와도 화면이 어긋나지 않는다. */
@@ -26509,10 +26524,12 @@ export default function ReplayMotionPlayer({
          자리(PC의 넓은 배치)에서는 이 한 번이 옛 상자에서 난 값이라 딴 데를 가리킨다. */
       linkHoldRef9.current = { cx: initialView.cx, cy: initialView.cy, until: 0 };
       const lim = panLimit(z9);
-      setView9(z9, {
-        x: Math.min(lim.x, Math.max(-lim.x, (0.5 - initialView.cx) * bw * z9)),
-        y: Math.min(lim.yTop, Math.max(-lim.y, (0.5 - initialView.cy) * bh * z9)),
-      }, true);
+      const wx9 = (0.5 - initialView.cx) * bw * z9;
+      const wy9 = (0.5 - initialView.cy) * bh * z9;
+      const gx9 = Math.min(lim.x, Math.max(-lim.x, wx9));
+      const gy9 = Math.min(lim.yTop, Math.max(-lim.y, wy9));
+      linkLog9(`앉힘 z${z9} 바람 ${wx9.toFixed(0)},${wy9.toFixed(0)} 한계 ${lim.x.toFixed(0)}/${lim.y.toFixed(0)}·${lim.yTop.toFixed(0)} → ${gx9.toFixed(0)},${gy9.toFixed(0)} 상자 ${bw}x${bh}`);
+      setView9(z9, { x: gx9, y: gy9 }, true);
     };
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
@@ -27071,6 +27088,7 @@ export default function ReplayMotionPlayer({
     const ny9 = Math.min(lim9.yTop, Math.max(-lim9.y, (0.5 - hold9.cy) * bh9 * z9));
     if (Math.abs(nx9 - panRef.current.x) < 0.5 && Math.abs(ny9 - panRef.current.y) < 0.5) return;
     viewDiagPush9("link", `${nx9.toFixed(1)},${ny9.toFixed(1)}`);
+    linkLog9(`다시 ${panRef.current.x.toFixed(0)},${panRef.current.y.toFixed(0)} → ${nx9.toFixed(0)},${ny9.toFixed(0)} 상자 ${bw9}x${bh9} 한계 ${lim9.x.toFixed(0)}/${lim9.y.toFixed(0)}`);
     setView9(z9, { x: nx9, y: ny9 }, true);
     // panLimit·setView9는 안 바뀌는 클로저다 — 목록에 넣으면 선언 전(TDZ)에 읽힌다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -30234,6 +30252,7 @@ export default function ReplayMotionPlayer({
                       보기 3초: {Object.entries(cnt9).map(([k9, n9]) => `${k9}×${n9}`).join(" ") || "-"}
                       {` · 지금 팬 ${d9.last.pan ?? "-"} 배율 ${d9.last.zoom ?? "-"} 무대 ${d9.last.stage ?? "-"} 예산 ${d9.last.budget ?? "-"} 창 ${d9.last.ih ?? "-"}`}
                       {` · 최근 ${recent9.slice(-8).map((e9) => `${e9.k}@${((now9 - e9.t) / 1000).toFixed(1)}s`).join(" ") || "-"}`}
+                      <div>링크: {linkDiag9.join(" ‖ ") || "-"}</div>
                     </div>
                   );
                 })()}
