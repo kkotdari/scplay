@@ -26461,8 +26461,16 @@ export default function ReplayMotionPlayer({
       /* 상자가 **제 크기(덮는 폭)에 닿은 뒤**에야 잰다(지적: 로딩 때 한번 쿵) — 예전엔 폭 트랜지션 도중의 상자를
          재서 판을 어긋나게 놓았다. 트랜지션은 걷었지만(CSS), 인라인 폭이 아직 안 실린 첫 프레임도 여기서 거른다. */
       const cw9 = coverRef.current.w;
-      if (bw < 4 || bh < 4 || stageSizeRef.current.w <= 0 || (cw9 > 0 && Math.abs(bw - cw9) > 1)) {
-        if (tries++ < 120) raf = requestAnimationFrame(step);
+      /* ★ 덮는 폭이 **설 때까지** 기다린다(지적: 공유 링크의 자리가 안 앉고 늘 정가운데) ─────────────────────────
+         여태 조건이 `cw9 > 0 && …`이라 **덮는 폭이 0인 프레임을 '다 섰다'로 읽고 통과**시켰다. 그 0은 무대를 잰
+         자(stageSizeRef)가 채워진 뒤에도 한 커밋 동안 남는다 — 덮는 폭은 무대 상태에서 나고 coverRef는 렌더에서
+         적히기 때문이다. 그 틈으로 빠져나가면 팬 한계(panLimit)가 `cov.w <= 0`을 보고 한계를 통째로 0으로 주고,
+         받은 자리는 그 0에 눌려 정가운데가 된다(배율은 앞 걸음에서 이미 걸린 뒤라 '6배인데 가운데'가 난다).
+         타이밍이라 되는 날과 안 되는 날이 갈렸다. 덮는 폭은 팬 한계의 유일한 자이니 설 때까지 기다린다.
+         다만 **끝내 안 서면** 그냥 진행한다 — 여기서 영영 물러나면 링크의 배율·각까지 통째로 잃는다(옛 꼴로 되돌아감). */
+      const ready9 = bw >= 4 && bh >= 4 && stageSizeRef.current.w > 0 && cw9 > 0 && Math.abs(bw - cw9) <= 1;
+      if (!ready9 && tries++ < 120) {
+        raf = requestAnimationFrame(step);
         return;
       }
       if (!placed9) {
