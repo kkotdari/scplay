@@ -26491,11 +26491,14 @@ export default function ReplayMotionPlayer({
         return;
       }
       viewDoneRef.current = true;
+      /* 앉힌 뒤에도 **5초 동안은 붙들고 있는다**(위 linkHoldRef9) — 배치가 늦게 서는
+         자리(PC의 넓은 배치)에서는 이 한 번이 옛 상자에서 난 값이라 딴 데를 가리킨다. */
+      linkHoldRef9.current = { cx: initialView.cx, cy: initialView.cy, until: 0 };
       const lim = panLimit(z9);
       setView9(z9, {
         x: Math.min(lim.x, Math.max(-lim.x, (0.5 - initialView.cx) * bw * z9)),
         y: Math.min(lim.yTop, Math.max(-lim.y, (0.5 - initialView.cy) * bh * z9)),
-      });
+      }, true);
     };
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
@@ -27012,9 +27015,52 @@ export default function ReplayMotionPlayer({
   if (trackLockRef.current) panRef.current = trackLockRef.current;
   /** ★ 보는 눈 하나(재설계) — 보기의 진실은 zoomRef·panRef뿐이다. React 상태 zoom·pan은 UI(단추·미니맵·링크·한계)용
    *  거울이고 어떤 붓도 상태를 읽지 않는다. 상태를 바꾸는 모든 자리는 이 함수를 지난다(ref를 먼저 쓰고 거울을 맞춘다). */
-  const setView9 = useCallback((z9: number, p9: { x: number; y: number }): void => {
+  /** 링크가 준 자리를 **아직 우리가 쥐고 있나** — 사람이 보기를 건드리면 그 순간 놓는다.
+   *  ★ 까닭(지적: "모바일 배치에선 잘되는데 PC 배치에선 안 돼") ─────────────────────────
+   *  받은 자리를 **한 번만** 앉히는 것이 화근이었다. 그 한 번이 언제인지는 배치가 정하는데,
+   *  PC 배치는 늦게 선다: 넓은 배치(wide)는 부모 폭을 관찰자로 재고서야 켜지고(그 전까지는
+   *  좁은 배치의 상자다), 그때 무대·덮는 폭·팬 한계가 통째로 다시 난다. 앉힌 뒤에 자가
+   *  바뀌므로, 맞게 앉혔어도 그 값이 새 상자에서는 딴 자리다.
+   *  그래서 '한 번'을 버리고 **붙들었다가 배치가 바뀔 때마다 다시 앉힌다**. 받은 자리는
+   *  픽셀이 아니라 **지도 분수**(cx·cy)라 어느 상자에서든 같은 곳을 가리킨다 — 자가 바뀌면
+   *  분수에서 픽셀을 새로 내면 그만이다. 사람이 손을 대면(끌기·핀치·휠·미니맵·추적) 그
+   *  순간 놓아, 우리가 남의 보기를 되돌리는 일은 없다. 못 놓은 채 오래 남지도 않게 **배치가
+   *  처음 선 뒤로** 5초에서 끊는다 — 배치는 그 안에 다 서고, 한참 뒤의 창 크기 바뀜까지
+   *  되돌리면 그게 더 이상하다. 시계를 마운트가 아니라 '선 뒤'로 재는 까닭은, 늦게 서는
+   *  자리에서는 서기도 전에 시간이 다 되어 도로 제자리이기 때문이다. */
+  const linkHoldRef9 = useRef<{ cx: number; cy: number; until: number } | null>(null);
+  const setView9 = useCallback((z9: number, p9: { x: number; y: number }, keepLink9 = false): void => {
+    // 사람이 낸 보기다 — 링크가 쥐고 있던 자리를 놓는다(위 linkHoldRef9).
+    if (!keepLink9) linkHoldRef9.current = null;
     zoomRef.current = z9; panRef.current = p9; setZoom(z9); setPan(p9);
   }, []);
+  /* 배치가 다시 설 때마다 링크의 자리를 **다시 앉힌다**(위 linkHoldRef9) — 죔(clamp)
+     레이아웃 이펙트보다 **뒤에** 서야 한다(선언 차례가 곧 도는 차례다): 죔이 먼저 옛 팬을
+     새 한계로 자르고, 그다음 여기서 분수로 새로 낸다. */
+  useLayoutEffect(() => {
+    const hold9 = linkHoldRef9.current;
+    if (!hold9) return;
+    // 추적이 몰고 있으면 놓는다 — 카메라와 서로 밀 까닭이 없다.
+    if (trackRaw) { linkHoldRef9.current = null; return; }
+    const el9 = mapRef.current;
+    const bw9 = el9?.offsetWidth ?? 0;
+    const bh9 = el9?.offsetHeight ?? 0;
+    /* 배치가 아직 안 섰으면 **시계도 안 센다** — 5초는 '선 뒤로 5초'라는 뜻이다. 여기서
+       시간으로 먼저 놓아 버리면, 늦게 서는 자리(PC)에서는 놓은 뒤에 배치가 서서 도로 제자리다. */
+    if (bw9 < 4 || bh9 < 4 || coverRef.current.w <= 0) return;
+    // 배치가 처음 선 순간부터 시계를 건다(0은 아직 안 걸린 것).
+    if (hold9.until === 0) hold9.until = Date.now() + 5000;
+    else if (Date.now() > hold9.until) { linkHoldRef9.current = null; return; }
+    const z9 = zoomRef.current;
+    const lim9 = panLimit(z9);
+    const nx9 = Math.min(lim9.x, Math.max(-lim9.x, (0.5 - hold9.cx) * bw9 * z9));
+    const ny9 = Math.min(lim9.yTop, Math.max(-lim9.y, (0.5 - hold9.cy) * bh9 * z9));
+    if (Math.abs(nx9 - panRef.current.x) < 0.5 && Math.abs(ny9 - panRef.current.y) < 0.5) return;
+    viewDiagPush9("link", `${nx9.toFixed(1)},${ny9.toFixed(1)}`);
+    setView9(z9, { x: nx9, y: ny9 }, true);
+    // panLimit·setView9는 안 바뀌는 클로저다 — 목록에 넣으면 선언 전(TDZ)에 읽힌다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage.w, stage.h, fsOn, pitched, wide, zoom, panRoom, trackRaw]);
   /** 미니맵 등이 '지금 보기'를 읽는 창 — 늘 ref를 비춘다(손끝 보기 xfLive를 따로 두던 것을 걷었다). */
   const viewLive9 = useMemo(() => ({ get current(): { z: number; p: { x: number; y: number } } { return { z: zoomRef.current, p: panRef.current }; } }), []);
   /** 임시 변환 손짓(휠·드래그·핀치)이 도는 중인가 — 도는 동안은 상태로 덮지 않는다
@@ -27234,6 +27280,8 @@ export default function ReplayMotionPlayer({
        이동·줌 시에도") — 휠·핀치·드래그(슬롭 지난 뒤)·가장자리 밀기·WASD가 모두 이 문을 지나므로 여기 한 곳이면
        된다. 단추·키보드 배율(zoomStep9·zoomTo·fsWheelZoom)은 이 문을 안 지나 따로 닫는다. */
     closePicked9();
+    // 사람의 손짓이다 — 링크가 쥐고 있던 자리를 여기서 놓는다(위 linkHoldRef9).
+    linkHoldRef9.current = null;
     xfGestureRef.current = true;
     xfPaintAtRef.current = performance.now();
     zoomRawRef.current = zoomRef.current;
@@ -29182,6 +29230,7 @@ export default function ReplayMotionPlayer({
           x: Math.min(lim9.x, Math.max(-lim9.x, panRef.current.x * kk9)),
           y: Math.min(lim9.yTop, Math.max(-lim9.y, panRef.current.y * kk9)),
         };
+        linkHoldRef9.current = null;   // 키보드 배율도 사람의 조작이다(위 linkHoldRef9).
         zoomRef.current = z9;
         panRef.current = np9;
         setZoom(z9);
