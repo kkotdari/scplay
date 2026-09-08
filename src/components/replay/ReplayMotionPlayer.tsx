@@ -6928,9 +6928,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        성큰보다 한 뼘 높은 받침 위에 앉기 때문이다.
        ★ **pc에 넣는다** — 크립은 raceBase(out, "zerg", pc)로 끝나므로 out에 넣으면 안 칠한 면이 저그 기본색으로
        칠해진다(성큰은 out을 그대로 돌려주어 안 칠한 면이 곧 임자색이다). 같은 발을 두 자리에서 같은 색으로
-       내려면 크립에서는 개인색 목록으로 들어가야 한다. */
+       내려면 크립에서는 개인색 목록으로 들어가야 한다.
+       ★ **발만 45도 돌린다**(요청: "본체는 두고 발 세 개만 45도 요잉") — 모델 스핀은 몸까지 통째로 돌리므로
+       쓸 수 없다. 각도에 45를 더하면 셋이 제자리에서 함께 돈다. */
     for (const [ang, len, w9] of SUNKEN_FEET_R9) {
-      pc.push(...sunkenFootFaces(ang, len, w9, { z0: CR_Z0 - 0.5 }));
+      pc.push(...sunkenFootFaces(ang + 45, len, w9, { z0: CR_Z0 - 0.5 }));
     }
     return raceBase(out, "zerg", pc);
   }),
@@ -16767,7 +16769,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           return [Math.sin(th9) * ar9, ay9 + Math.cos(th9) * ar9 * 0.72, az9 + 0.1];
         },
         // 양 끝(가슴 앞)은 얇게 빠져 살에 스미고, 등에서 가장 두껍다.
-        widthOf: (t9: number): number => 0.5 + 0.62 * Math.sin(Math.PI * t9),
+        // 두께 반(요청: "갑옷 두께 반으로 줄이기") — 0.5+0.62 → 0.25+0.31. 감싸는 넓이는 그대로다.
+        widthOf: (t9: number): number => 0.25 + 0.31 * Math.sin(Math.PI * t9),
       });
       out.push(...tagKey(arc9, 6.4 + depthNow(0, ay9 - 1.2) * 1.6));
     }
@@ -16798,10 +16801,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         path: (t9: number): [number, number, number] => {
           const hw9 = crestHalf(t9);
           // 45도로 뒤·위(같은 몫씩) + 가장자리는 아래로 휜다(u²에 비례). 길이는 갈비마다 다르다(len9).
+          /* ★ 끝이 **위로 솟는다**(요청: 사진의 붉은 표시처럼 삼각으로) — 여태 45도 직선이라 끝이 비스듬히
+             잘린 모서리였다. 뒤로 가는 몫(y)은 끝으로 갈수록 줄이고(1 − 0.45t) 오르는 몫(z)은 늘려(t²)
+             날 끝이 하늘로 꺾여 올라간다. 가운데가 가장 길고(len9) 가장 많이 솟아 실루엣이 삼각으로 모인다. */
+          const e9 = t9 * len9;
           return [
             u9 * hw9,
-            headAt[1] - 2.8 * t9 * len9,
-            headAt[2] + 0.3 + 2.8 * t9 * len9 - u9 * u9 * (0.35 + 1.15 * t9),
+            headAt[1] - 2.8 * e9,
+            headAt[2] + 0.3 + 2.8 * e9 + 1.35 * len9 * t9 * t9 * t9 - u9 * u9 * (0.35 + 1.15 * t9),
           ];
         },
         /* 갈비끼리 **겹치게** 넓힌다(요청: "이마부터 머리장식 끝까지 한 면으로 이어져야")

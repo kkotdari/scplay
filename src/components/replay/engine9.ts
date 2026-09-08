@@ -982,7 +982,7 @@ export const MODEL_NORM: Record<string, number> = {
   guardian: 0.754,  // 다리 옆으로 곧게 뒤 재측정(model-norm)
   gunner: 1.327,  // 팔 길이 고정 뒤 model-norm 재측정
   htemp: 1.220,  // 재측정(model-norm) — 다리 1.2배·굽힘 반 뒤
-  hydra: 0.686,  // 머리장식 끝선 삼각·가슴 갑옷판 뒤 재측정(model-norm의 **top 모드** 표 — 앞 커밋이 base 모드 값 0.618을 잘못 실었다)
+  hydra: 0.653,  // 머리장식 끝이 솟고 갑옷이 얇아진 뒤 재측정(model-norm의 **top 모드** 표 — base 모드 값을 실으면 안 된다)
   inf: 1.514,  // 상자 상한(원한 배수 1.615)
   interceptor: 1.555,  // 재측정(model-norm)
   larva: 1.350,  // 상자 상한(원한 배수 1.466)
@@ -1672,7 +1672,7 @@ export const BLD_NORM: Record<string, number> = {
   coil: 1.337,
   comsat: 1.366,
   covert: 1.467,  // 사진 재작도 뒤 재측정(bld-norm)
-  creep: 1.121,  // ×0.8(요청: 그리기 0.8배) · 성큰 발 셋 이식 + 요잉 −45도 뒤 재측정 1.401 · 옛 1.232
+  creep: 1.063,  // ×0.8(요청: 그리기 0.8배) · 발 셋 이식·본체 요잉 −45도·발만 +45도 뒤 재측정 1.329 · 옛 1.232
   ctower: 1.555,
   cube: 1.112,
   cyber: 1.578,  // ×0.8(요청: 그려지는 크기 0.8배)
