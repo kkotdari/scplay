@@ -21003,18 +21003,43 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
     ctx.fillStyle = "#b07a62";
     ctx.beginPath(); ctx.ellipse(ax, ay + W * 0.1, rr, rr * 0.42, 0, 0, Math.PI * 2); ctx.fill();
   } else {
-    /* 플라즈마 **구형 폭발**(재요청): 푸른빛 구가 부풀며 옅어지고 가운데는 하얀 에너지 심 — 겹 셋(바깥
-       푸른빛·가운데 연푸른빛·흰 심)에 밝은 테. 납작하게 안 누르고 정원(구)이다. 조각은 안 낸다. */
-    const R9 = W * (0.22 + 0.78 * ease);
+    /* ★ 프로토스 — **사이오닉 연기로 사라진다**(요청: "원작과 유사하게") ────────────────────────────────────────
+       원작의 프로토스는 터져 흩어지지 않는다. 몸이 푸른 기운으로 풀리면서 그 자리에 연기가 피어올라 스러진다.
+       여태 이 자리는 부푸는 푸른 구 하나(플라즈마 폭발)라 기계의 불덩이와 문법이 같았다 — 터지는 그림이었다.
+       셋으로 다시 짠다:
+         ① 흰 심 — 몸이 풀리는 첫 순간만 짧게(앞 4분의 1). 폭발이 아니라 '빛으로 풀림'의 표식이다.
+         ② 피어오르는 연기 — 씨앗으로 흩은 뭉치 여섯이 조금씩 늦게 떠서 위로 오르며 부풀고 옅어진다. 뭉치마다
+            겉(옅은 남빛)과 속(연푸른)을 겹쳐 가장자리가 무르게 읽힌다.
+         ③ 바닥 잔광 — 몸이 있던 자리에 남는 옅고 납작한 푸른 기운. 빨리 스러진다.
+       조각은 여전히 안 낸다(아래 낱개 고리가 toss를 0으로 건너뛴다). */
     const fade = 1 - p;
-    ctx.globalAlpha = 0.32 * fade; ctx.fillStyle = "#3a8fff";
-    ctx.beginPath(); ctx.arc(ax, ay, R9, 0, Math.PI * 2); ctx.fill();
-    ctx.globalAlpha = 0.45 * fade; ctx.fillStyle = "#8fd0ff";
-    ctx.beginPath(); ctx.arc(ax, ay, R9 * 0.7, 0, Math.PI * 2); ctx.fill();
-    ctx.globalAlpha = Math.min(1, 1.1 * fade) ** 0.8; ctx.fillStyle = "#ffffff";
-    ctx.beginPath(); ctx.arc(ax, ay, R9 * 0.38 * (1 - p * 0.5), 0, Math.PI * 2); ctx.fill();
-    ctx.globalAlpha = 0.6 * fade; ctx.strokeStyle = "#cfeaff"; ctx.lineWidth = Math.max(0.8, W * 0.03);
-    ctx.beginPath(); ctx.arc(ax, ay, R9, 0, Math.PI * 2); ctx.stroke();
+    const fl9 = Math.max(0, 1 - p * 4);
+    if (fl9 > 0) {
+      ctx.globalAlpha = fl9 ** 0.7;
+      ctx.fillStyle = "#eaf6ff";
+      ctx.beginPath(); ctx.arc(ax, ay, W * 0.34 * (0.6 + 0.4 * fl9), 0, Math.PI * 2); ctx.fill();
+    }
+    const NP9 = 6;
+    for (let i9 = 0; i9 < NP9; i9 += 1) {
+      const a09 = rnd() * Math.PI * 2;
+      const sp9 = W * (0.10 + rnd() * 0.24);      // 옆으로 흩는 몫
+      const up9 = W * (0.55 + rnd() * 0.55);      // 떠오르는 몫
+      const dly9 = (i9 / NP9) * 0.35;             // 한꺼번에 안 뜬다
+      const q9 = (p - dly9) / Math.max(0.05, 1 - dly9);
+      if (q9 <= 0) continue;
+      const eq9 = 1 - (1 - Math.min(1, q9)) * (1 - Math.min(1, q9));
+      const x9 = ax + Math.cos(a09) * sp9 * eq9;
+      const y9 = ay + Math.sin(a09) * sp9 * eq9 * 0.5 - up9 * eq9;
+      const r9 = W * (0.13 + 0.32 * eq9) * (0.75 + (i9 % 3) * 0.18);
+      const al9 = Math.max(0, 1 - q9) ** 1.3;
+      ctx.globalAlpha = 0.20 * al9; ctx.fillStyle = "#5f9de8";
+      ctx.beginPath(); ctx.arc(x9, y9, r9, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 0.26 * al9; ctx.fillStyle = "#bfe0ff";
+      ctx.beginPath(); ctx.arc(x9, y9, r9 * 0.58, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 0.24 * fade * fade;
+    ctx.fillStyle = "#6aa8ff";
+    ctx.beginPath(); ctx.ellipse(ax, ay + W * 0.1, W * (0.28 + 0.26 * ease), W * (0.11 + 0.1 * ease), 0, 0, Math.PI * 2); ctx.fill();
   }
   // ② 낱개 — 결의 팔레트 셋을 돌려 쓰고, 중력은 살점이 가장 무겁다.
   // 살은 세 톤을 섞는다(재지적): 테란 생체는 빨강·살색·검붉음, 저그는 검붉음·보라·갈색. 핏방울은 따로.
