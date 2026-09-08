@@ -531,6 +531,13 @@ let poseNow = 0;
  *  더 보여 준다 — 그것이 '다 그리고 나서 한 번 툭'이다(사파리에서 열에 두 번). 항등 변환을 두면 층이 유지돼
  *  내용 갱신과 변환 변경이 늘 같은 프레임에 실린다. 그림은 "없음"과 똑같다. */
 const XF_ID9 = "translate(0px, 0px) scale(1)";
+/** 손짓 중 한 장이 이 시간을 넘으면 **무거운 자리**로 본다(3D·난전) — 그때는 끄는 동안 다시 그리기를 미루고
+ *  CSS 미끄러짐에 맡긴다(아래 xfPaintNow의 ★). 55ms면 60Hz 기준 세 프레임을 통째로 먹는다는 뜻이다. */
+const XF_HEAVY_MS9 = 55;
+/** 손끝이 이만큼 멈춰 있으면 '한 박자 쉰 것'으로 보고 무거운 자리에서도 한 장 그린다. */
+const XF_STILL_MS9 = 140;
+/** 무거운 자리라도 마지막으로 그린 뒤 상자의 이만큼을 넘게 밀었으면 그린다 — 빈 가장자리의 상한이다. */
+const XF_FAR_FRAC9 = 0.25;
 /** `#diag=brush`(지적: "아직도 떨린다" — 실기기에서 어느 붓이 어긋나는지 가리려고) — 유닛 붓이 칠할 때마다 한 줄 적는
  *  고리(최근 120). src는 부르는 쪽이 세운다: tick(재생 틱) · arrive(멈춘 채 장 도착) · xf(손짓 붓) · commit(손짓 끝) ·
  *  react(UnitLayer effect). aT는 그 붓이 든 앞 장의 시각(틱 계열만). */
@@ -27097,6 +27104,10 @@ export default function ReplayMotionPlayer({
    *  중'인지 가리는 자다. 팬만 하는 손짓과는 다시 그리는 규칙이 다르다(아래). */
   const xfLastZRef = useRef(0);
   const xfZoomAtRef = useRef(0);
+  /** 손끝이 마지막으로 **움직인** 시각 — 무거운 자리에서 '아직 끄는 중인가'를 가른다(아래 xfPaintNow의 ★). */
+  const xfMoveAtRef9 = useRef(0);
+  /** 손끝이 멈추면 한 장 그리려고 걸어 둔 시계(0이면 없음) — 움직임이 끊기면 rAF도 안 오므로 시계가 대신 부른다. */
+  const xfIdleRef9 = useRef(0);
   /** 이번 프레임에 다시 그리기를 예약해 둔 rAF 손잡이(0이면 없음) — 휠·포인터 사건은
    *  한 프레임에 여러 번 올 수 있는데, 그때마다 캔버스를 그리면 같은 그림을 두세 번
    *  그리는 셈이다. 한 프레임에 한 장으로 묶는다. */
@@ -27150,6 +27161,8 @@ export default function ReplayMotionPlayer({
     const z1 = zoomRef.current;
     const px = panRef.current.x;
     const py = panRef.current.y;
+    // 손끝이 움직인 시각 — 이 자리는 값이 바뀌었을 때만 불린다(드래그 rAF의 '안 움직였으면 안 그린다').
+    xfMoveAtRef9.current = performance.now();
     /* 배율이 실제로 바뀐 시각을 적어 둔다 — 아래 다시 그리기가 '지금 줌 중인가'를
        이 값으로 판단한다(손가락이 잠깐 멈춘 프레임까지 줌으로 쳐 준다: 250ms). */
     if (z1 !== xfLastZRef.current) {
@@ -27175,12 +27188,13 @@ export default function ReplayMotionPlayer({
     const box = mapRef.current;
     if (box) {
       const cb = clipBoxRef.current;
-      box.style.overflow = cb.fsCover ? "visible"
-        : (z1 > 1 || cb.pitched ? "hidden" : "");
+      const ov9 = cb.fsCover ? "visible" : (z1 > 1 || cb.pitched ? "hidden" : "");
+      if (box.style.overflow !== ov9) box.style.overflow = ov9;
       /* 확대 중엔 세로 스크롤도 지도 몫이다(지적: 드래그·팬 뒤 떨림) — .scr-motion-map은 pan-y라, 확대한 채 세로로
          끌면 브라우저가 페이지 스크롤로 채가(touchmove가 cancelable이 아니게 되고 pointercancel이 온다) 주소창이
          움직이고 판이 들썩였다. 1배로 돌아오면 CSS의 pan-y로 되돌린다. */
-      box.style.touchAction = z1 > 1 ? "none" : "";
+      const ta9 = z1 > 1 ? "none" : "";
+      if (box.style.touchAction !== ta9) box.style.touchAction = ta9;
     }
     /* ★ 유닛·안개 캔버스와 지형·미니맵도 **여기서 같은 순간에** 옮긴다(지적: "지형도 마지막에 툭 한 번 움직인다") ──
        실측(팬 프로브): 끄는 동안 렌즈는 −220인데 유닛·안개·지형은 −210으로 **늘 한 프레임 뒤**였다. CSS 이동을 값비싼
@@ -27265,10 +27279,34 @@ export default function ReplayMotionPlayer({
        밑이라 느린 기기에서도 손짓이 안 느려지고, 빠른 기기에서는 매 프레임이 된다. 그 사이는 CSS 이동이 잇는다. */
     const need9 = Math.min(400, xfPaintMsRef.current * 1.2);
     const moved9 = moved >= 1 || Math.abs(s9 - 1) >= 0.0015;
+    /* ★ **한 장이 무거우면 끄는 동안은 안 그린다**(지적: "3D 보기에서 드래그·팬 시 바로바로 시점이 바뀌지 않고
+       놓아야만 바뀐다") ────────────────────────────────────────────────────────────────────────────────────
+       까닭은 자기 조절(need9)의 사각지대다. 그 셈은 '그리기에 쓰는 몫을 절반 밑으로'까지만 지키는데, 한 장이
+       200ms면 절반을 지켜도 **한 장을 그리는 200ms 동안 주 실마리가 통째로 막힌다**. 그 사이 들어온 손가락
+       움직임(pointermove)도, 그것이 걸 CSS 미끄러짐도 다 밀린다 — 그래서 끄는 내내 화면이 굳어 있다가 손을
+       떼면 한꺼번에 따라오는 꼴이 된다. 3D가 유독 그런 것은 한 장 값이 평면의 몇 배라서다(줄마다 원근을 먹인
+       모델 + 지형 다시 굽기).
+       무거운 자리에서는 **미끄러짐이 그리기보다 낫다**: 그리기를 미루면 주 실마리가 비어 손끝을 바로 따라간다.
+       미룬 그림은 두 자리에서 따라잡는다 — ① 손끝이 한 박자(140ms) 쉬면, ② 마지막으로 그린 뒤 상자의 4분의 1을
+       넘게 밀었으면(빈 가장자리의 상한). 손을 떼는 순간은 endGestureXf가 최종 보기로 한 장 칠하므로 그대로다.
+       가벼운 자리(평면·한산한 판)는 종전대로 실시간이다 — 문턱을 넘지 않으면 이 갈래를 안 탄다. */
+    const box9 = mapRef.current?.offsetWidth ?? 0;
+    if (xfPaintMsRef.current >= XF_HEAVY_MS9
+      && !(box9 > 0 && moved >= box9 * XF_FAR_FRAC9)
+      && now9 - xfMoveAtRef9.current < XF_STILL_MS9) {
+      if (!xfIdleRef9.current) {
+        xfIdleRef9.current = window.setTimeout(() => {
+          xfIdleRef9.current = 0;
+          if (xfGestureRef.current) xfPaintNow();
+        }, XF_STILL_MS9);
+      }
+      return;
+    }
     if (gap9 >= need9 && moved9) {
       /* 판은 굳은 배율(zoomCommit)로 구운 것을 그대로 쓴다 — 블릿 배율만 달라지므로
          손짓 한 번에 종류마다 판을 다시 굽는 일이 없다(그것이 진짜 삯이다).
          기준 갈아끼움·변환 걷기는 그린 쪽(onUnitPainted·paint)이 함께 한다. */
+      if (xfIdleRef9.current) { window.clearTimeout(xfIdleRef9.current); xfIdleRef9.current = 0; }
       const t0 = performance.now();
       brushSrc9 = "xf";
       paintFnRef9.current?.(tLiveRef9.current, true);   // 붓 하나 — 손끝 보기로 다시 칠하고 변환을 걷는다(재기준)
@@ -27308,6 +27346,8 @@ export default function ReplayMotionPlayer({
        자리에서 굳는다. 각 손짓이 제 반영 함수를 걸어 둔다(pendFlushRef9). */
     pendFlushRef9.current?.();
     pendFlushRef9.current = null;
+    // 미뤄 둔 한 장의 시계는 걷는다 — 아래에서 최종 보기로 곧장 칠한다(위 XF_HEAVY_MS9).
+    if (xfIdleRef9.current) { window.clearTimeout(xfIdleRef9.current); xfIdleRef9.current = 0; }
     /* ★ 지형·렌즈·미니맵도 여기서 최종 보기로 옮긴다(지적: "지형도 마지막에 툭 한 번 움직인다") — 대기 델타를 반영하면
        panRef만 바뀌고 화면은 마지막 rAF 자리에 남는다. 그러면 유닛만 아래에서 최종 자리로 가고 지형은 커밋이 올 때까지
        한 걸음 뒤에 있다가 툭 따라온다. 손짓 중 프레임마다 하던 일(applyGestureXf + mapPaint·miniPaint)을 여기서 마지막으로
