@@ -24581,22 +24581,33 @@ const LIVE3D_ON9 = typeof location !== "undefined" && /[?&]live3d=1/.test(locati
  *  붓이 장을 바꿔 그릴 때마다 그 장의 원점(ox)을 적고, 방향이 뒤집힌 횟수를 센다.
  *  왕복이 **원점에서 나면** back이 오르고(그러면 장 고르기·보내기 쪽), 원점은 곧게 가는데 화면만
  *  흔들리면 back이 0이다(그러면 붓의 변환·지형 층 쪽). 2초 창으로 굴린다. */
-const ORG9 = { at: 0, last: NaN as number, dir: 0, steps: 0, back: 0, sLast: 0, bLast: 0, dNow: 0 };
+const ORG9 = {
+  at: 0, last: NaN as number, lastLive: NaN as number,
+  steps: 0, rev: 0, lag: 0, sLast: 0, rLast: 0, lLast: 0,
+};
+/** 그린 장의 원점 한 걸음 — **손끝 원점과 견줘서** 잰다.
+ *  ★ 앞 판은 '그린 원점의 방향이 뒤집힌 횟수'를 셌는데, 그러면 **손가락이 방향을 바꾼 것**과
+ *    **파이프라인이 거꾸로 간 것**이 한 칸에 섞인다(실측 17걸음 뒤로1 / 10걸음 뒤로4 — 어느 쪽인지
+ *    가릴 수가 없었다). 이제 같은 순간의 손끝 원점과 견준다: 손끝은 앞으로 가는데 그린 원점만
+ *    뒤로 가면 **역행**이다. 그 수가 0이 아니면 왕복은 파이프라인의 것이고, 0이면 손짓의 것이다.
+ *  최대 뒤짐(lag)은 그린 원점이 손끝에서 얼마나 떨어졌나의 최대값 — 화면에서 보이는 어긋남의 크기다. */
 const orgNote9 = (ox: number, liveOx: number): void => {
   const now9 = typeof performance !== "undefined" ? performance.now() : Date.now();
   if (ORG9.at === 0) ORG9.at = now9;
   if (now9 - ORG9.at >= 2000) {
-    ORG9.sLast = ORG9.steps; ORG9.bLast = ORG9.back;
-    ORG9.steps = 0; ORG9.back = 0; ORG9.at = now9;
+    ORG9.sLast = ORG9.steps; ORG9.rLast = ORG9.rev; ORG9.lLast = ORG9.lag;
+    ORG9.steps = 0; ORG9.rev = 0; ORG9.lag = 0; ORG9.at = now9;
   }
-  ORG9.dNow = liveOx - ox;
-  if (Number.isFinite(ORG9.last) && ox !== ORG9.last) {
-    const d9 = Math.sign(ox - ORG9.last);
+  const lag9 = Math.abs(liveOx - ox);
+  if (lag9 > ORG9.lag) ORG9.lag = lag9;
+  if (Number.isFinite(ORG9.last) && Number.isFinite(ORG9.lastLive) && ox !== ORG9.last) {
     ORG9.steps += 1;
-    if (ORG9.dir !== 0 && d9 !== 0 && d9 !== ORG9.dir) ORG9.back += 1;
-    if (d9 !== 0) ORG9.dir = d9;
+    const dd9 = Math.sign(ox - ORG9.last);          // 그린 원점이 간 쪽
+    const dl9 = Math.sign(liveOx - ORG9.lastLive);  // 손끝 원점이 간 쪽
+    if (dd9 !== 0 && dl9 !== 0 && dd9 !== dl9) ORG9.rev += 1;
   }
   ORG9.last = ox;
+  ORG9.lastLive = liveOx;
 };
 /** 손짓 중 시야를 흘려보내는 **최소** 간격(ms) — 손짓 프레임(rAF)마다 한 번이 목표라 바닥만 깔아 둔다.
  *  ★ 120ms에서 8ms로 내렸다(지적: "드래그 중 좌우로 시점이 흔들흔들하는데?") ─────────────────────────
@@ -31006,7 +31017,7 @@ export default function ReplayMotionPlayer({
                       {/* 손짓 한 장 값과 그때의 **배킹 몫** — 몫이 내려갔는데도 값이 안 내려오면
                           벽은 픽셀이 아니라 장수(찍기)다. 그 둘을 나란히 봐야 다음 칼을 정할 수 있다. */}
                       {/* 그린 장의 원점 발자국 — 걸음/뒤로/지금 어긋남(위 ORG9). 왕복의 자리를 가른다. */}
-                      {" · 원점 "}{ORG9.sLast}걸음 뒤로{ORG9.bLast} Δ{ORG9.dNow.toFixed(0)}
+                      {" · 원점 "}{ORG9.sLast}걸음 역행{ORG9.rLast} 최대Δ{ORG9.lLast.toFixed(0)}
                       {" · 손짓 "}{SCR_DIAG.xfms}ms{SCR_DIAG.xfms >= XF_HEAVY_MS9 ? "(미룸)" : ""}
                       {xfBackK9.k !== 1 ? ` 배킹×${xfBackK9.k}` : ""}
                     </div>
