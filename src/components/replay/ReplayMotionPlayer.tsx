@@ -27960,8 +27960,17 @@ export default function ReplayMotionPlayer({
        미룬 그림은 두 자리에서 따라잡는다 — ① 손끝이 한 박자(140ms) 쉬면, ② 마지막으로 그린 뒤 상자의 4분의 1을
        넘게 밀었으면(빈 가장자리의 상한). 손을 떼는 순간은 endGestureXf가 최종 보기로 한 장 칠하므로 그대로다.
        가벼운 자리(평면·한산한 판)는 종전대로 실시간이다 — 문턱을 넘지 않으면 이 갈래를 안 탄다. */
+    /* ★ 실시간 원근을 켠 손짓은 **매 프레임 다시 그린다**(지적: "왕복이 둘 다 있는데 가벼운 장면은 덜하고
+       무거운 장면은 심한 차이") ─────────────────────────────────────────────────────────────────────
+       그 '덜하다/심하다'가 곧 까닭이다. 다시 그리는 사이는 CSS로 미는데, 미는 것은 **순수한 옮기기**라
+       그 사이의 원근이 얼어 있다: 멀리 있는 몸은 실제보다 덜(혹은 더) 움직였다가 다시 그리는 순간 제자리로
+       튄다 — 한 유닛으로 보면 그것이 좌우 왕복이고, 폭은 **다시 그린 뒤 흐른 시간 × 손 속도**다. 무거우면
+       그 사이가 기니 폭이 커진다.
+       그래서 이 손짓에서는 미룸도 박자 조절도 걷는다 — 프레임마다 다시 그리면 얼어 있는 구간 자체가 없다.
+       대가는 무거운 자리에서 프레임이 떨어지는 것인데, 그것이 이 깃발(?live3d=1)의 뜻이다. */
+    const live3d9 = liveViewOkRef9.current;
     const box9 = mapRef.current?.offsetWidth ?? 0;
-    if (xfPaintMsRef.current >= XF_HEAVY_MS9
+    if (!live3d9 && xfPaintMsRef.current >= XF_HEAVY_MS9
       && !(box9 > 0 && moved >= box9 * XF_FAR_FRAC9)
       && now9 - xfMoveAtRef9.current < XF_STILL_MS9) {
       if (!xfIdleRef9.current) {
@@ -27972,7 +27981,7 @@ export default function ReplayMotionPlayer({
       }
       return;
     }
-    if (gap9 >= need9 && moved9) {
+    if ((live3d9 || gap9 >= need9) && moved9) {
       /* 판은 굳은 배율(zoomCommit)로 구운 것을 그대로 쓴다 — 블릿 배율만 달라지므로
          손짓 한 번에 종류마다 판을 다시 굽는 일이 없다(그것이 진짜 삯이다).
          기준 갈아끼움·변환 걷기는 그린 쪽(onUnitPainted·paint)이 함께 한다. */
