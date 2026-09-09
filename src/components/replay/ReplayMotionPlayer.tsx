@@ -24583,7 +24583,7 @@ const LIVE3D_ON9 = typeof location !== "undefined" && /[?&]live3d=1/.test(locati
  *  흔들리면 back이 0이다(그러면 붓의 변환·지형 층 쪽). 2초 창으로 굴린다. */
 const ORG9 = {
   at: 0, last: NaN as number, lastLive: NaN as number,
-  steps: 0, rev: 0, lag: 0, sLast: 0, rLast: 0, lLast: 0,
+  steps: 0, rev: 0, lag: 0, sLast: 0, rLast: 0, lLast: 0, now: 0,
 };
 /** 그린 장의 원점 한 걸음 — **손끝 원점과 견줘서** 잰다.
  *  ★ 앞 판은 '그린 원점의 방향이 뒤집힌 횟수'를 셌는데, 그러면 **손가락이 방향을 바꾼 것**과
@@ -24599,6 +24599,7 @@ const orgNote9 = (ox: number, liveOx: number): void => {
     ORG9.steps = 0; ORG9.rev = 0; ORG9.lag = 0; ORG9.at = now9;
   }
   const lag9 = Math.abs(liveOx - ox);
+  ORG9.now = lag9;
   if (lag9 > ORG9.lag) ORG9.lag = lag9;
   if (Number.isFinite(ORG9.last) && Number.isFinite(ORG9.lastLive) && ox !== ORG9.last) {
     ORG9.steps += 1;
@@ -24981,6 +24982,8 @@ export default function ReplayMotionPlayer({
    *  상태의 원점(pitchGeom().ox·oy)은 워커에 보내는 목표이고, 새 세대의 장이 오기까지 화면은 옛 원점으로 한 몸이어야
    *  지도와 유닛이 어긋나지 않는다. 바뀌면 지형 변환을 바로 다시 건다(paintFnRef9). */
   const drawnOrgRef9 = useRef({ ox: 0, oy: 0 });
+  /** 마지막으로 **그린 장의 세대** — 고르기가 이보다 낮은 세대로는 안 내려간다(아래 ★ 단조 규칙). */
+  const drawnGenRef9 = useRef(-Infinity);
   /* ★ **손짓 중에도 시야(원근 원점)를 흘려보낸다**(요청: "드래그를 놓았을 때 시점이 바뀌는 건 여전한데") ────
      3D의 원근 원점(geom.ox·oy)은 팬·배율에서 나오고, 그 값이 워커에 보내는 시야 열쇠에 들어간다. 그런데
      손짓 중에는 상태(zoom·pan)가 안 움직이므로(refs만 움직인다) 렌더가 안 돌고, 그래서 **원점이 얼어 있었다**:
@@ -29027,17 +29030,27 @@ export default function ReplayMotionPlayer({
        이제 '지금 시각 이하'인 장들 가운데 **세대가 가장 높은 것**을 고르고, 같은 세대 안에서 가장 늦은 장을
        쓴다. 세대는 단조로 오르므로 원점이 뒤로 가는 일이 없다. 시각이 조금 뒤진 장을 드는 경우가 생기지만,
        그 차는 한 장 간격(수십 ms)이고 어긋난 원근보다 훨씬 덜 보인다. */
+    /* ★ **세대는 뒤로 안 간다**(계측: 손끝이 앞으로 가는데 그린 원점이 뒤로 간 걸음 4~8회) ────────────
+       고르는 길이 셋인데(지금 시각 이하 / 되돌림 이음쇠 / 앞의 첫 장) 앞의 첫 장 갈래가 **세대를 안 봤다**:
+       워커 시계가 주인보다 앞서면 새 장들이 죄다 앞에 떨어지고, 그때 이 갈래가 '가장 이른 장'을 집는데 그것이
+       옛 세대일 수 있다 — 그러면 원근이 한 걸음 뒤로 간다. 마지막으로 그린 세대를 기억해 **그보다 낮은 세대는
+       후보에서 뺀다**(그런 후보밖에 없으면 어쩔 수 없이 든다 — 빈 화면보다 낫다). 세 갈래가 함께 이 자를 쓴다. */
+    const gMin9 = drawnGenRef9.current;
+    const okGen9 = (f9: PackedFrame9): boolean => f9.gen >= gMin9;
+    let anyNew9 = false;
+    for (const f9 of frames9.values()) if (okGen9(f9)) { anyNew9 = true; break; }
+    const pass9 = (f9: PackedFrame9): boolean => !anyNew9 || okGen9(f9);
     let bestGen9 = -Infinity;
     let best: PackedFrame9 | null = null;
     let bestOld: PackedFrame9 | null = null;
     for (const f9 of frames9.values()) {
-      if (f9.t > tNow9 + 1e-6) continue;
+      if (f9.t > tNow9 + 1e-6 || !pass9(f9)) continue;
       if (f9.gen > bestGen9) { bestGen9 = f9.gen; best = f9; }
       else if (f9.gen === bestGen9 && (!best || f9.t > best.t)) best = f9;
     }
     // 옛 세대의 가장 늦은 장 — 아래 '되돌아가지 않기'가 쓰는 이음쇠다(손짓 밖에서만).
     for (const f9 of frames9.values()) {
-      if (f9.t > tNow9 + 1e-6 || f9.gen >= bestGen9) continue;
+      if (f9.t > tNow9 + 1e-6 || f9.gen >= bestGen9 || !pass9(f9)) continue;
       if (!bestOld || f9.t > bestOld.t) bestOld = f9;
     }
     /* 되돌아가지 않기(위 lastDrawT9) — 앞으로 가는 중(tNow ≥ 마지막 그린 시각)에 새 세대의 장이 마지막 그린 시각보다
@@ -29057,10 +29070,13 @@ export default function ReplayMotionPlayer({
       && tNow9 >= ld9 - 1e-6 && best.t < ld9 - 1e-6 && bestOld.t > best.t) best = bestOld;
     if (!best) best = bestOld;
     if (best && tNow9 - best.t <= near9) return best;
+    /* 앞의 첫 장 — 여기도 **세대가 가장 높은 것 먼저**다(위 ★). 같은 세대 안에서 가장 이른 장. */
     let next: PackedFrame9 | null = null;
+    let nextGen9 = -Infinity;
     for (const f9 of frames9.values()) {
-      if (f9.t < tNow9) continue;
-      if (!next || f9.t < next.t) next = f9;
+      if (f9.t < tNow9 || !pass9(f9)) continue;
+      if (f9.gen > nextGen9) { nextGen9 = f9.gen; next = f9; }
+      else if (f9.gen === nextGen9 && (!next || f9.t < next.t)) next = f9;
     }
     if (next && next.t - tNow9 <= near9) return next;
     return null;
@@ -29249,6 +29265,7 @@ export default function ReplayMotionPlayer({
       if (count9) {
         wStatRef.current.used += 1; lastDrawT9.current = wPacked9.t;
         orgNote9(wPacked9.ox, pitchGeomLiveRef9.current?.().ox ?? wPacked9.ox);
+        if (wPacked9.gen > drawnGenRef9.current) drawnGenRef9.current = wPacked9.gen;
         const dOrg9 = drawnOrgRef9.current;
         if (dOrg9.ox !== wPacked9.ox || dOrg9.oy !== wPacked9.oy) {
           drawnOrgRef9.current = { ox: wPacked9.ox, oy: wPacked9.oy };
@@ -31019,7 +31036,7 @@ export default function ReplayMotionPlayer({
                       {/* 손짓 한 장 값과 그때의 **배킹 몫** — 몫이 내려갔는데도 값이 안 내려오면
                           벽은 픽셀이 아니라 장수(찍기)다. 그 둘을 나란히 봐야 다음 칼을 정할 수 있다. */}
                       {/* 그린 장의 원점 발자국 — 걸음/뒤로/지금 어긋남(위 ORG9). 왕복의 자리를 가른다. */}
-                      {" · 원점 "}{ORG9.sLast}걸음 역행{ORG9.rLast} 최대Δ{ORG9.lLast.toFixed(0)}
+                      {" · 원점 "}{ORG9.sLast}걸음 역행{ORG9.rLast} Δ{ORG9.now.toFixed(0)}/최대{ORG9.lLast.toFixed(0)}
                       {" · 손짓 "}{SCR_DIAG.xfms}ms{SCR_DIAG.xfms >= XF_HEAVY_MS9 ? "(미룸)" : ""}
                       {xfBackK9.k !== 1 ? ` 배킹×${xfBackK9.k}` : ""}
                     </div>
