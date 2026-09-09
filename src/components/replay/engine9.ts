@@ -973,7 +973,7 @@ export const MODEL_NORM: Record<string, number> = {
   droneGas: 1.040,
   droneMin: 1.071,
   dship: 0.712,  // 포드 축소·안쪽 이동 뒤 재측정(model-norm)
-  dtemp: 0.892,  // 재측정(model-norm) — 발목 펴기 0.25·발 0.9배·몸통 밑동 3.85 뒤
+  dtemp: 0.938,  // 재측정(model-norm) — 검 팔을 들어 굽힌 뒤(칼이 몸 앞으로 와 잉크 폭이 줄었다)
   egg: 1.237,   // 정수리를 둥글게 한 뒤 model-norm 재측정
   fbat: 1.229,
   ghost: 1.552,  // 상자 상한(원한 배수 1.723)
