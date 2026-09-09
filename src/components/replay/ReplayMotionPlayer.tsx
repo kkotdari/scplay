@@ -8725,6 +8725,62 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const CZ0 = 0.35;          // 드럼 밑
     const CZ1 = 6.10;          // 드럼 꼭대기 — 걷어낸 두건의 꼭대기와 같은 높이
     const CCZ9 = CZ0 + CR9 + 0.85;   // 반구의 중심 높이(자른 면의 가운데보다 조금 아래)
+    /* 반구를 **앞으로 민다**(요청) — 자른 면은 y −CR9 ~ +CR9의 네모라 가운데를 벗어나도 여전히
+       그 면에 얹힌다. 뒤 돛이 −y에 있으므로 앞은 +y다. 반구의 띠·알도 이 값을 함께 쓴다. */
+    const DY9 = 0.6;
+    /** 어떤 높이 z에서 반구를 자른 원의 반지름(+ 겉면에서 살짝 띄운 몫). */
+    const domeR9 = (z9: number, off9: number): number =>
+      Math.sqrt(Math.max(0.0004, CR9 * CR9 - (z9 - CCZ9) * (z9 - CCZ9))) + off9;
+    /** 반구 겉면의 한 점 — 높이 z와 둘레 몫 f(0~1, 0이 −y쪽 끝 · 1이 +y쪽 끝)로. */
+    const domeP9 = (z9: number, f9: number, off9: number): [number, number, number] => {
+      const r9 = domeR9(z9, off9);
+      const ph9 = (f9 - 0.5) * Math.PI;
+      return [Math.cos(ph9) * r9, DY9 + Math.sin(ph9) * r9, z9];
+    };
+    /** ★ 반구를 두르는 **수평 띠** — 어떤 높이에서 구를 자르면 (x, y) 평면의 원이고 반구는 그중
+     *  x ≥ 0 쪽 반이다. 그 반원을 따라 사각 조각을 잇는다(높이도 나눠 구를 따라 휘게). */
+    const domeBand9 = (zA9: number, zB9: number, col9?: string): ShapeFace[] => {
+      const out9: ShapeFace[] = [];
+      const NZ9 = 3;
+      const NP9 = 10;
+      for (let j9 = 0; j9 < NZ9; j9 += 1) {
+        const z09 = zA9 + ((zB9 - zA9) * j9) / NZ9;
+        const z19 = zA9 + ((zB9 - zA9) * (j9 + 1)) / NZ9;
+        for (let i9 = 0; i9 < NP9; i9 += 1) {
+          /* 둘레는 **반원을 다 돌지 않는다**(0.12~0.88) — 다 돌면 띠의 두 끝이 드럼 옆구리까지
+             나와 몸을 감는 굴렁쇠로 보인다. 반구의 낯짝에만 얹혀야 띠로 읽힌다. */
+          const f09 = 0.12 + (i9 / NP9) * 0.76;
+          const f19 = 0.12 + ((i9 + 1) / NP9) * 0.76;
+          const ph9 = ((f09 + f19) / 2 - 0.5) * Math.PI;
+          const lit9 = faceLight(Math.cos(ph9), Math.sin(ph9), 0.1);
+          if (!lit9.visible) continue;
+          const d9 = polyPath3([
+            domeP9(z09, f09, 0.03), domeP9(z09, f19, 0.03),
+            domeP9(z19, f19, 0.03), domeP9(z19, f09, 0.03),
+          ]);
+          out9.push([d9, 1, col9] as ShapeFace, ...lit9.face(d9));
+        }
+      }
+      return out9;
+    };
+    /** 반구 겉면에 눕힌 **타원 알** — 높이·둘레 두 방향으로 벌린다. */
+    const domeOval9 = (z09: number, f09: number, dz9: number, df9: number, col9: string): ShapeFace[] => {
+      const ph09 = (f09 - 0.5) * Math.PI;
+      if (facingRatio(Math.cos(ph09), Math.sin(ph09)) <= 0.05) return [];
+      return [[polyPath3(Array.from({ length: 14 }, (_, i9) => {
+        const th9 = (i9 / 14) * Math.PI * 2;
+        return domeP9(z09 + Math.sin(th9) * dz9, f09 + Math.cos(th9) * df9, 0.05);
+      })), 1, col9] as ShapeFace];
+    };
+    /** 드럼 껍질에 눕힌 **타원 알** — 각 a와 높이 z를 중심으로 벌린다(껍질은 π/2~3π/2의 반원). */
+    const drumOval9 = (a09: number, z09: number, da9: number, dz9: number, col9: string): ShapeFace[] => {
+      if (facingRatio(Math.cos(a09), Math.sin(a09)) <= 0.05) return [];
+      return [[polyPath3(Array.from({ length: 14 }, (_, i9) => {
+        const th9 = (i9 / 14) * Math.PI * 2;
+        const a9 = a09 + Math.cos(th9) * da9;
+        return [Math.cos(a9) * (CR9 + 0.05), Math.sin(a9) * (CR9 + 0.05), z09 + Math.sin(th9) * dz9] as [number, number, number];
+      })), 1, col9] as ShapeFace];
+    };
     /** 몸을 한 바퀴 두르는 **띠** — 껍질 바로 밖에 눕힌 사각 조각들이다.
      *  ★ cylinderFaces3를 안 쓰는 까닭: 그것은 뚜껑이 달린 통이라, 몸과 반지름이 같은 자리에
      *    두면 그 뚜껑이 몸 꼭대기를 통째로 덮어 창백한 접시가 된다(첫 판이 그랬다).
@@ -8772,9 +8828,6 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       push9([1, 0, 0], [[0, -CR9, CZ0], [0, CR9, CZ0], [0, CR9, CZ1], [0, -CR9, CZ1]]);
       /* ② 반구 — 바닥이 드럼의 자른 면(x = 0)에 붙고 오른쪽(+x)으로 부푼다.
          u는 밑동(0)에서 끝(1)까지, 그 자리의 x는 R·sin, 고리 반지름은 R·cos다. */
-      /* 반구를 **앞으로 민다**(요청: "반구부품 앞으로 밀고") — 자른 면은 y −CR9 ~ +CR9의 네모라
-         가운데를 벗어나도 여전히 그 면에 얹힌다. 뒤 돛이 −y에 있으므로 앞은 +y다. */
-      const DY9 = 0.6;
       const MS9 = 5;
       const hp9 = (u9: number, b9: number): [number, number, number] => {
         const rr9 = CR9 * Math.cos((Math.PI / 2) * u9);
@@ -8811,14 +8864,22 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           q9(a9 + hw9, CZ1 - 0.5), q9(a9 - hw9, CZ1 - 0.5),
         ]), 1, "#5aecd8"] as ShapeFace);
       }
-      out9.push(...ringBand9(CZ1 - 1.15, CZ1 - 0.85, 0.06, GEM9));
+      /* (걷어냄) 몸을 두르던 연한 아쿠아 테 — 재요청. 몸을 가로로 한 번 더 끊어 드럼이
+         토막 나 보였고, 아래 임자색 수평띠 둘과 자리를 다퉜다.
+         ★ 대신 **타원 알**을 드럼과 반구에 둘씩 박는다(재요청) — 껍질을 따라 휘게 그린다
+           (평평한 판을 얹으면 둥근 몸에서 떠 보인다). */
+      out9.push(...drumOval9(Math.PI * 0.72, CZ1 - 1.5, 0.30, 0.62, GEM_LIT9));
+      out9.push(...drumOval9(Math.PI * 1.28, CZ1 - 1.5, 0.30, 0.62, GEM_LIT9));
+      out9.push(...domeOval9(CCZ9 + 0.95, 0.30, 0.42, 0.12, GEM_LIT9));
+      out9.push(...domeOval9(CCZ9 + 0.95, 0.70, 0.42, 0.12, GEM_LIT9));
       /* ★ 반구 아래의 **구 받침**(요청: "반구 아래 구형태 부품 받침") — 반구가 자른 면에서
          앞으로 밀려 나오니 그 아래가 비었다. 공 하나를 받쳐 반구가 얹혀 있는 꼴로 만든다
          (옆선을 sin으로 주면 그대로 구다). */
       out9.push(...spirePillar({
         x: 0, y: 0, h: 1, w: 1, segs: 7, sides: 12, caps: "none", trueNormal: true,
-        path: (t9: number): [number, number, number] => [CR9 * 0.52, DY9, CZ0 + 0.15 + 1.5 * t9],
-        widthOf: (t9: number): number => 0.75 * Math.sin(Math.PI * t9) + 0.02,
+        // 지면(z 0)에서 시작해 반구 밑동(1.2)을 지나도록 — 공이 땅을 딛고 반구를 받친다(재요청).
+        path: (t9: number): [number, number, number] => [CR9 * 0.52, DY9, 1.75 * t9],
+        widthOf: (t9: number): number => 0.87 * Math.sin(Math.PI * t9) + 0.02,
       }));
       /* (아래로 옮김) 꼭대기의 큰 알 — 임자색 둥근 데칼(키 40) 위에 얹혀야 하므로 몸(flask)이
          아니라 바깥에서 키 41로 그린다. 몸 안에 두면 데칼이 알을 덮는다. */
@@ -8879,20 +8940,22 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          끝을 뾰족하게(0.7) 좁힌 건 두건 뿔이 그 위로 지나가며 묻히지 않게 하려는 것이다.
          옆 날개와 달리 렌즈 점은 안 박았다 — 이 날개의 앞면은 어느 높이에서든 두건이나
          뿔에 정확히 가려, 점을 찍어 봐야 한 번도 안 보인다. */
-      /* ★ 뒤 팔을 **돛의 축을 지나도록** 뻗는다(지적: "뒷날개팔 위치랑 날개 위치가 안맞음") —
-         끝이 −4.3이라 돛(축 −4.6)의 앞 모서리에 못 미쳐 틈이 보였다. 축 너머(−5.2)까지 밀어
-         넣으면 판의 두께·너비를 어떻게 잡든 관이 판 속에 묻혀 틈이 생길 수 없다. */
-      ...tubeFaces(0, -0.9, 0, -5.2, 0.32, 3.2),
+      /* ★ 돛을 **뒤로 밀어 팔 끝에 붙인다**(재요청) — 앞 판은 돛의 축이 −4.6이라 앞 모서리가
+         −3.3까지 나와 팔을 통째로 삼켰다. 축을 −5.6으로 물리면 그 높이(z 3.2)의 앞 모서리가
+         −4.32이므로, 팔을 −4.6까지만 뻗어도 0.28이 겹쳐 붙는다 — 팔은 드러나고 틈은 없다. */
+      ...tubeFaces(0, -0.9, 0, -4.6, 0.32, 3.2),
       /* ★ 뒤 날개는 **돛**이다(요청: "돗처럼 평평한 면 … 면이 양옆을 바라봄") — 단면의
          기준축(ref)을 앞뒤(y)로 두면 u가 앞뒤, v가 좌우다. oval을 0.13으로 눌러 좌우로
          얇게 만들면 판의 **면이 ±x를 본다**. 옆 날개보다 크고(높이 6.2·앞뒤 폭 2.7)
          위로 갈수록 좁아져, 두건 뿔이 그 위를 지나가도 묻히지 않는다. */
-      /* 돛에 **두께를 조금 준다**(요청) — oval 0.13 → 0.26이라 반두께가 0.18 → 0.35다.
-         날이 아니라 판으로 읽히고, 그 두께가 곧 아래 데칼이 앉을 앞면이 된다. */
+      /* 돛의 **두께를 더 준다**(재요청: "데칼이 옆으로 안 삐져나오게") — oval 0.13 → 0.26 → 0.40.
+         ★ 두께(v)는 widthOf에 oval을 곱한 값이라 **위로 갈수록 함께 얇아진다**: 0.26에서는
+           맨 위 네모 자리(t 0.80)의 반두께가 0.212라 반폭 0.30짜리 네모가 양옆으로 삐져나왔다.
+           0.40이면 그 자리도 0.326이라 네모(아래에서 0.26으로 줄였다)가 온전히 얹힌다. */
       ...spirePillar({
-        x: 0, y: 0, h: 1, w: 1, segs: 5, sides: 8, ref: [0, 1, 0], oval: 0.26,
+        x: 0, y: 0, h: 1, w: 1, segs: 5, sides: 8, ref: [0, 1, 0], oval: 0.40,
         caps: "both", trueNormal: true,
-        path: (t9: number): [number, number, number] => [0, -4.6, 1.4 + 6.2 * t9],
+        path: (t9: number): [number, number, number] => [0, -5.6, 1.4 + 6.2 * t9],
         widthOf: (t9: number): number => 1.35 * (1 - 0.62 * t9 * t9),
       }),
       /* ★ 데칼을 **옆면에서 두께의 앞면으로** 옮긴다(재요청: "옆면에 있는 데칼은 두께로 생기는
@@ -8902,21 +8965,21 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          물러나므로(widthOf가 줄어든다) 네모도 그 선을 따라 물러나며 판에 붙어 있다. */
       ...((): ShapeFace[] => {
         if (facingRatio(0, 1) <= 0.05) return [];
-        const half9 = 0.30;
+        const half9 = 0.26;
         const wAt9 = (t9: number): number => 1.35 * (1 - 0.62 * t9 * t9);
         return Array.from({ length: 5 }, (_, k9) => {
           const t9 = 0.16 + k9 * 0.16;
           const z09 = 1.4 + 6.2 * t9;
           const z19 = z09 + half9 * 2;
-          const y09 = -4.6 + wAt9(t9) + 0.02;
-          const y19 = -4.6 + wAt9(t9 + (half9 * 2) / 6.2) + 0.02;
+          const y09 = -5.6 + wAt9(t9) + 0.02;
+          const y19 = -5.6 + wAt9(t9 + (half9 * 2) / 6.2) + 0.02;
           return [polyPath3([
             [-half9, y09, z09], [half9, y09, z09], [half9, y19, z19], [-half9, y19, z19],
           ]), 1, GEM9] as ShapeFace;
         });
       })(),
       // 돛 뿌리의 알 하나 — 팔과 돛이 만나는 자리를 끊어 준다.
-      ...tagKey(gem(0, -4.3, 3.3, 0.26, 0.7), partKey(0, -4.3, 3.3) + 2.5),
+      ...tagKey(gem(0, -4.45, 3.3, 0.26, 0.7), partKey(0, -4.45, 3.3) + 2.5),
       // 양옆 팔 + 세로 날개(보는 사람 기준 왼쪽이 −x다).
       ...wing(-1),
       ...wing(1),
@@ -8930,9 +8993,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          드럼의 평평한 꼭대기에 둥근 판 한 장을 얹는다: 위에서 내려다보는 화면에서 가장 넓게
          드러나는 면이고, 그 한가운데에 큰 알이 앉아 '흰 판 위의 하늘색 알'이 된다(사진의 그것).
          드럼 반쪽의 무게중심(−CR9·0.42)에 놓아 반달 뚜껑 안에 온전히 든다. */
-      ...tagKey([bodyFace(discPath3(-CR9 * 0.42, 0, CZ1 + 0.02, CR9 * 0.52))], 40),
+      /* 크기를 줄인다(재요청: "윗면 빠져나오지 않게") — 반지름 CR9·0.52(=1.04)에 중심 −0.84라
+         x가 +0.2까지 나가 반달 뚜껑(x ≤ 0)을 넘었다. 반지름 0.68 · 중심 −1.05면 −1.73~−0.37로 온전히 든다. */
+      ...tagKey([bodyFace(discPath3(-CR9 * 0.525, 0, CZ1 + 0.02, 0.68))], 40),
       /* 그 데칼 한가운데의 큰 알 — 사진의 '흰 판 위 하늘색 알'이다. 키 41이라 데칼 위다. */
-      ...tagKey(gem(-CR9 * 0.42, 0, CZ1 + 0.04, 0.48, 0.7), 41),
+      ...tagKey(gem(-CR9 * 0.525, 0, CZ1 + 0.04, 0.42, 0.7), 41),
+      /* ★ 임자색 **수평 띠 둘씩**(재요청) — 드럼에 둘, 반구에 둘. 알(점)이 아니라 넓은 띠라야
+         멀리서도 임자가 읽힌다. 반구의 띠는 구를 따라 휘게 그린다(domeBand9). */
+      ...tagKey(ringBand9(CZ0 + 0.45, CZ0 + 1.05, 0.02), 40),
+      ...tagKey(ringBand9(CZ1 - 1.45, CZ1 - 0.95, 0.02), 40),
+      ...tagKey(domeBand9(CCZ9 - 1.05, CCZ9 - 0.62), 40),
+      ...tagKey(domeBand9(CCZ9 + 0.35, CCZ9 + 0.75), 40),
     ]);
   },
   /* 템플러 아카이브(리디자인, 실물 참고) — 큰 황금 공 몸에 테 물린 파란 렌즈가
@@ -9118,7 +9189,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          위에 반지름 0.34짜리 돔 하나만 얹는다. 빛깔은 그대로 청록 발광이다. */
       ...paintBase(domeFaces3(0, 0, 0.34 * DK9, 0.26 * HB9, 0.85 * HB9), glowLit("#c9fff6", CYAN)),
     ], 3));
-    // ② 발판 여섯 — 몸 둘레에 **땅에 붙은 넓은 판**(재요청: 꽃잎 말고 발판처럼). 바깥이 더 넓은 사다리꼴.
+    /* ② 발판 여섯 — 몸 둘레에 **땅에 붙은 넓은 판**(재요청: 꽃잎 말고 발판처럼).
+       ★ 사다리꼴을 **뒤집는다**(재요청: "바깥쪽이 좁고 안쪽이 넓은 사다리꼴에 바깥쪽 모서리
+         둥글게") — 여태는 바깥이 더 넓어(안 1.05 · 밖 1.45) 판이 꽃잎처럼 벌어졌다. 안을 넓히고
+         (1.5) 밖을 좁히면(0.85) 몸에서 뻗어 나가는 받침다리로 읽힌다. 바깥 끝은 점 넷을 호에
+         찍어 둥글린다 — 모서리를 각지게 두면 이 크기에서 못처럼 뾰족해 보인다. */
     for (let k9 = 0; k9 < 6; k9 += 1) {
       const a9 = (k9 / 6) * Math.PI * 2 + Math.PI / 6;
       const cx9 = Math.cos(a9); const cy9 = Math.sin(a9);
@@ -9129,8 +9204,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 앞뒤 길이(반지름 방향)만 0.8배 더(재요청) → 또 0.8배(재재요청) — 폭(w)은 SK9 그대로.
       const sr9 = (r9: number): number => 4.15 + (r9 - 4.15) * SK9 * 0.8 * 0.8;
       out.push(...tagKey(paintBase(prismZFaces([
-        at9(sr9(2.6), -1.05 * SK9), at9(sr9(2.6), 1.05 * SK9), at9(sr9(5.3), 1.45 * SK9),
-        at9(sr9(5.7), 0.5 * SK9), at9(sr9(5.7), -0.5 * SK9), at9(sr9(5.3), -1.45 * SK9),
+        at9(sr9(2.6), -1.5 * SK9), at9(sr9(2.6), 1.5 * SK9),
+        at9(sr9(5.05), 0.85 * SK9),
+        at9(sr9(5.45), 0.62 * SK9), at9(sr9(5.68), 0.33 * SK9),
+        at9(sr9(5.75), 0), at9(sr9(5.68), -0.33 * SK9), at9(sr9(5.45), -0.62 * SK9),
+        at9(sr9(5.05), -0.85 * SK9),
       ], 0, 0.32, true), GOLD), K(cx9 * 4.4, cy9 * 4.4, 0.4)));
     }
     // ③ 뒤에서 솟는 파이프 셋 — **부채살**(재요청): 뒤 가운데 한 점에서 나와 오를수록 옆으로 벌어진다.
