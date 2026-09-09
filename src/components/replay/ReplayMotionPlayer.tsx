@@ -24577,6 +24577,27 @@ function viewKeyOf9(v9: EngineView9): string {
  *    3D 미달 기기에서는 한 장이 그 몇 배라 성립하지 않는다 — 원점을 얼려 두는 편(종전 동작)이 옳다.
  *  그래서 길과 계측은 그대로 두고 기본을 끔으로 돌린다. 가벼운 자리에서 손으로 켜 보려면 ?live3d=1. */
 const LIVE3D_ON9 = typeof location !== "undefined" && /[?&]live3d=1/.test(location.search);
+/** ★ **그린 장의 원점 발자국**(왕복 잡기) — 짐작이 세 번 빗나가 자리를 눈으로 보기로 한다.
+ *  붓이 장을 바꿔 그릴 때마다 그 장의 원점(ox)을 적고, 방향이 뒤집힌 횟수를 센다.
+ *  왕복이 **원점에서 나면** back이 오르고(그러면 장 고르기·보내기 쪽), 원점은 곧게 가는데 화면만
+ *  흔들리면 back이 0이다(그러면 붓의 변환·지형 층 쪽). 2초 창으로 굴린다. */
+const ORG9 = { at: 0, last: NaN as number, dir: 0, steps: 0, back: 0, sLast: 0, bLast: 0, dNow: 0 };
+const orgNote9 = (ox: number, liveOx: number): void => {
+  const now9 = typeof performance !== "undefined" ? performance.now() : Date.now();
+  if (ORG9.at === 0) ORG9.at = now9;
+  if (now9 - ORG9.at >= 2000) {
+    ORG9.sLast = ORG9.steps; ORG9.bLast = ORG9.back;
+    ORG9.steps = 0; ORG9.back = 0; ORG9.at = now9;
+  }
+  ORG9.dNow = liveOx - ox;
+  if (Number.isFinite(ORG9.last) && ox !== ORG9.last) {
+    const d9 = Math.sign(ox - ORG9.last);
+    ORG9.steps += 1;
+    if (ORG9.dir !== 0 && d9 !== 0 && d9 !== ORG9.dir) ORG9.back += 1;
+    if (d9 !== 0) ORG9.dir = d9;
+  }
+  ORG9.last = ox;
+};
 /** 손짓 중 시야를 흘려보내는 **최소** 간격(ms) — 손짓 프레임(rAF)마다 한 번이 목표라 바닥만 깔아 둔다.
  *  ★ 120ms에서 8ms로 내렸다(지적: "드래그 중 좌우로 시점이 흔들흔들하는데?") ─────────────────────────
  *  흔들림은 **사영 중심이 계단으로 따라오기 때문**이다. 붓은 손끝을 따라 매끄럽게 미는데(CSS·다시 그리기)
@@ -29214,6 +29235,7 @@ export default function ReplayMotionPlayer({
     if (wPacked9) {
       if (count9) {
         wStatRef.current.used += 1; lastDrawT9.current = wPacked9.t;
+        orgNote9(wPacked9.ox, pitchGeomLiveRef9.current?.().ox ?? wPacked9.ox);
         const dOrg9 = drawnOrgRef9.current;
         if (dOrg9.ox !== wPacked9.ox || dOrg9.oy !== wPacked9.oy) {
           drawnOrgRef9.current = { ox: wPacked9.ox, oy: wPacked9.oy };
@@ -30983,6 +31005,8 @@ export default function ReplayMotionPlayer({
                           안 보여, "3D 드래그가 왜 실시간이 아닌가"를 눈으로 확인할 길이 없었다. */}
                       {/* 손짓 한 장 값과 그때의 **배킹 몫** — 몫이 내려갔는데도 값이 안 내려오면
                           벽은 픽셀이 아니라 장수(찍기)다. 그 둘을 나란히 봐야 다음 칼을 정할 수 있다. */}
+                      {/* 그린 장의 원점 발자국 — 걸음/뒤로/지금 어긋남(위 ORG9). 왕복의 자리를 가른다. */}
+                      {" · 원점 "}{ORG9.sLast}걸음 뒤로{ORG9.bLast} Δ{ORG9.dNow.toFixed(0)}
                       {" · 손짓 "}{SCR_DIAG.xfms}ms{SCR_DIAG.xfms >= XF_HEAVY_MS9 ? "(미룸)" : ""}
                       {xfBackK9.k !== 1 ? ` 배킹×${xfBackK9.k}` : ""}
                     </div>
