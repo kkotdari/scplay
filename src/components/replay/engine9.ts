@@ -1294,7 +1294,9 @@ export const UNIT_SIZE_TUNE: Record<string, number> = {   // 열쇠는 sizeKind(
   archon: 1.2, darchon: 1.2, corsair: 0.8, interceptor: 0.8, larva: 0.4, egg: 0.4,
   muta: 0.8, scourge: 0.6, ultra: 1.4, guardian: 0.8, lurkeregg: 0.6, mutacocoon: 0.8,
   observer: 0.8,
-  inf: 0.8, fbat: 0.8, ghost: 0.8, htemp: 0.6, dtemp: 0.8,   // 메딕(inf)·파뱃(0.6 → 0.8 재요청)·고스트·하템·다템 — 마린(gunner)은 1.0으로 뺐다(재요청)
+  inf: 0.8, fbat: 0.8, ghost: 0.8,   // 메딕(inf)·파뱃(0.6 → 0.8 재요청)·고스트 — 마린(gunner)은 1.0으로 뺐다(재요청)
+  /* 하템(0.6)·다템(0.8)도 뺐다(요청: "둘 다 1로") — 하템만 유독 작아 다템과 나란히 서면 차가 컸다.
+     빼면 원작 상자 비율 그대로다(htemp 24×24 · dtemp 24×26). */
   defiler: 1.2,   // 요청(비교 장면)
   tank: 1.2, tanksiege: 1.2, vulture: 1.1,   // 요청: "시즈·벌처 그리기 1.2배" → 재요청: 일반·변신 중 탱크도 1.2 · 벌처는 1.1
   scv: 0.8, probe: 0.8, drone: 0.8,   // 일꾼류
