@@ -20260,8 +20260,13 @@ const BAKE_MS_PER_FRAME9 = DEV9.bakeMsPerFrame;
  *  천장을 넘으면 **이번 프레임엔 아예 안 그린다**(판 없이 null). 몇 기가 한두 프레임 늦게 나타나는
  *  것은 그 난전에서 눈에 안 띄지만 259ms 덜컥임은 보인다 — 다음 프레임에 예산이 되살아나 곧 들어온다. */
 const BAKE_HARD_MS9 = DEV9.bakeMsPerFrame * 3;
+/* ★ **손짓 중에는 천장을 3분의 1로**(계측: 손짓 127ms(미룸) — 그 안에 대타 없는 몸을 굽는 몫이 섞여 있다).
+   끄는 동안 새 판을 굽는 것은 이미 막았지만(gestBake9), 대타가 하나도 없는 몸은 그래도 굽는다 —
+   그 예외의 상한이 평소와 같으면 손짓 한 장에 36ms가 얹힌다. 끄는 동안에는 12ms(폰 8ms)까지만 굽고
+   나머지는 다음 장으로 미룬다: 손끝을 따라가는 것이 그 순간의 유일한 일이다. */
 const bakeHardOk9 = (): boolean =>
-  SPRITE_PERF.bakeMs + SPRITE_PERF.bldBakeMs < BAKE_HARD_MS9;
+  SPRITE_PERF.bakeMs + SPRITE_PERF.bldBakeMs
+    < (gestBake9.v ? DEV9.bakeMsPerFrame : BAKE_HARD_MS9);
 /** 지금 손짓(드래그·핀치)이 도는가 — 붓(UnitLayer)이 프레임마다 적고, 굽기 문지기가 읽는다. */
 const gestBake9 = { v: false };
 /** 이 프레임에 굽기를 더 해도 되나 — 장수와 시간, 그리고 손짓 여부를 함께 본다. */
