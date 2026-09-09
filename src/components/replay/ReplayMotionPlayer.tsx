@@ -24576,7 +24576,15 @@ function viewKeyOf9(v9: EngineView9): string {
  *    곧 실시간 원근은 '**매 프레임 다시 그릴 수 있을 때**'만 성립한다(한 장 16ms 언저리). 배율 6·1000기·
  *    3D 미달 기기에서는 한 장이 그 몇 배라 성립하지 않는다 — 원점을 얼려 두는 편(종전 동작)이 옳다.
  *  그래서 길과 계측은 그대로 두고 기본을 끔으로 돌린다. 가벼운 자리에서 손으로 켜 보려면 ?live3d=1. */
-const LIVE3D_ON9 = typeof location !== "undefined" && /[?&]live3d=1/.test(location.search);
+/** 손으로 젖히는 자 — `?live3d=1` 강제 켬 · `?live3d=0` 강제 끔 · 없으면 자동(아래). */
+const LIVE3D_FORCE9: boolean | null = typeof location === "undefined" ? null
+  : /[?&]live3d=1/.test(location.search) ? true
+    : /[?&]live3d=0/.test(location.search) ? false : null;
+/** ★ 기본은 **3D 벤치를 통과한 기기만**(요청: "3D 벤치 통과 기기에서만 기본 켬") ─────────────────────
+ *  실시간 원근은 손짓 중 장을 매 프레임 다시 그릴 수 있을 때만 성립한다. 그 힘을 재는 자가 이미 있다 —
+ *  진입 때 한 번 재는 입체 벤치(CROWD9.bench3 · 기준 CROWD_BENCH3D_MS9)다. 미달 기기(weak3)는 종전처럼
+ *  원점을 얼려 두고 손을 뗄 때 맞춘다. 손짓이 시작될 때 한 번 읽는다(벤치는 첫 렌더에서 굳는다). */
+const live3dOn9 = (): boolean => LIVE3D_FORCE9 ?? (CROWD9.bench3 >= 0 && !CROWD9.weak3);
 /** ★ **그린 장의 원점 발자국**(왕복 잡기) — 짐작이 세 번 빗나가 자리를 눈으로 보기로 한다.
  *  붓이 장을 바꿔 그릴 때마다 그 장의 원점(ox)을 적고, 방향이 뒤집힌 횟수를 센다.
  *  왕복이 **원점에서 나면** back이 오르고(그러면 장 고르기·보내기 쪽), 원점은 곧게 가는데 화면만
@@ -28077,7 +28085,7 @@ export default function ReplayMotionPlayer({
     /* 밀림 기준을 지금 원점에 못 박는다 — 끄는 동안 판 열쇠가 안 흔들리게(PitchGeom9.sox의 ★).
        끝나면 endGestureXf가 풀어, 손을 뗀 그 프레임에 제 기울기로 한 번 맞춰진다. */
     shearOxRef9.current = pitchGeomLiveRef9.current?.().ox ?? null;
-    liveViewOkRef9.current = LIVE3D_ON9 && pitchDegRef9.current < 90;
+    liveViewOkRef9.current = live3dOn9() && pitchDegRef9.current < 90;
     xfPaintAtRef.current = performance.now();
     zoomRawRef.current = zoomRef.current;
     xfBaseRef.current = { z: zoomRef.current, x: panRef.current.x, y: panRef.current.y };
@@ -31067,7 +31075,7 @@ export default function ReplayMotionPlayer({
                           실시간 원근이 켜졌나(on)·접혔나(접힘)·꺼졌나(off). 파생값만으로는 못 가른다. */}
                       {" · 원점 그린"}{ORG9.ox.toFixed(0)}{"/지금"}{ORG9.live.toFixed(0)}
                       {" 세대"}{ORG9.gen}{"·차례"}{ORG9.seq}{"/보냄"}{wStatRef.current.sentView}
-                      {" "}{LIVE3D_ON9 ? (liveViewOkRef9.current ? "live" : "접힘") : "off"}
+                      {" "}{live3dOn9() ? (liveViewOkRef9.current ? "live" : "접힘") : "off"}
                       {" · "}{ORG9.sLast}걸음 역행{ORG9.rLast}
                       {" · 손짓 "}{SCR_DIAG.xfms}ms{SCR_DIAG.xfms >= XF_HEAVY_MS9 ? "(미룸)" : ""}
                       {xfBackK9.k !== 1 ? ` 배킹×${xfBackK9.k}` : ""}
