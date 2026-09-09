@@ -24564,8 +24564,15 @@ function viewKeyOf9(v9: EngineView9): string {
     + `|${v9.qAnim ? 1 : 0}${v9.qBuildFx ? 1 : 0}${v9.qDeath ? 1 : 0}${v9.clickFx ? 1 : 0}`
     + `|${v9.cull ? `${v9.cull.x0.toFixed(3)},${v9.cull.x1.toFixed(3)},${v9.cull.y0.toFixed(3)},${v9.cull.y1.toFixed(3)}` : "all"}`;
 }
-/** 손짓 중 시야를 흘려보내는 간격(ms) — 이보다 잦게 보내면 워커가 앞장을 짓다 말고 다시 짓기만 한다. */
-const LIVE_VIEW_MS9 = 120;
+/** 손짓 중 시야를 흘려보내는 **최소** 간격(ms) — 손짓 프레임(rAF)마다 한 번이 목표라 바닥만 깔아 둔다.
+ *  ★ 120ms에서 8ms로 내렸다(지적: "드래그 중 좌우로 시점이 흔들흔들하는데?") ─────────────────────────
+ *  흔들림은 **사영 중심이 계단으로 따라오기 때문**이다. 붓은 손끝을 따라 매끄럽게 미는데(CSS·다시 그리기)
+ *  설계도의 원근 중심은 보낸 그 순간에 못 박혀 있어, 다음 장이 올 때까지 유닛이 조금씩 잘못된 원근으로
+ *  끌려갔다가 새 장에서 제자리로 튄다 — 그 주기가 곧 보낸 간격이고, 어긋남의 크기는 손 속도 × 간격이다.
+ *  간격을 프레임 하나로 줄이면 그 어긋남이 **한 프레임 몫**(16ms × 손 속도, 몇 px)으로 떨어져 눈에 안 띈다.
+ *  대가는 워커가 끄는 동안 앞장을 못 짓고 지금 장만 짓는 것인데, 끄는 동안은 그것이 맞는 일이다
+ *  (짓기 한 장 ~10ms이라 초당 예순 장 언저리를 낼 수 있다). 손을 떼면 곧바로 앞을 다시 채운다. */
+const LIVE_VIEW_MS9 = 8;
 export default function ReplayMotionPlayer({
   grid, endSec, bases: basesIn, teamOfRaw, active = true, winnerTeam, side,
   onDetailClose, loadUnitTracks, initialSec, initialSpeed, initialView, initialTrack,
@@ -24968,7 +24975,13 @@ export default function ReplayMotionPlayer({
        보낸 그 순간에 지금 시각보다 앞선 장을 걷으면, 다음 장이 올 때까지는 지금 장 하나로 잇고 그 뒤로는
        새 원점만 남는다. 지금 시각 이하의 장은 남긴다 — 화면에 지금 떠 있는 그림이라, 걷으면 빈 화면이 된다. */
     const tNow9 = tLiveRef9.current;
-    for (const [k9, f9] of wFramesRef.current) if (f9.t > tNow9 + 1e-6) wFramesRef.current.delete(k9);
+    /* 걷는 것은 **옛 차례의 앞장**뿐이다 — 방금 보낸 차례(sentView)보다 이른 차례로 지어졌고 지금 시각보다
+       앞선 장들이다. 지금 차례의 장은 원근이 맞으니 그대로 두고(앞으로 잇는 몫이다), 지금 시각 이하의 장도
+       남긴다(화면에 떠 있는 그림이라 걷으면 빈 화면이 된다). */
+    const seq9 = wStatRef.current.sentView;
+    for (const [k9, f9] of wFramesRef.current) {
+      if (f9.seq < seq9 && f9.t > tNow9 + 1e-6) wFramesRef.current.delete(k9);
+    }
   }, []);
   const instIdRef9 = useRef(0);
   const lastPlaying9 = useRef<boolean | null>(null);
@@ -27913,15 +27926,14 @@ export default function ReplayMotionPlayer({
        팬 한 프레임이 **React 커밋 한 번**이던 시절의 값이고, 지금 붓은 React 밖에 있다(재설계).
        줌이 쓰던 자기 조절을 그대로 쓴다: 다음 사이 = 직전 한 장이 든 시간 × 1.2. 곧 그리기에 쓰는 몫이 늘 절반
        밑이라 느린 기기에서도 손짓이 안 느려지고, 빠른 기기에서는 매 프레임이 된다. 그 사이는 CSS 이동이 잇는다. */
-    /* ★ 손끝 원근 흘려보내기는 **꺼 둔다**(지적: "드래그 중 좌우로 시점이 흔들흔들하는데?") ─────────────
-       까닭은 붓과 설계도가 **다른 시점으로** 그리기 때문이다. 설계도의 사영 중심(원점)은 보낸 그 순간의
-       손끝이고, 붓은 그 뒤로도 계속 움직인 **지금** 손끝으로 옮겨 그린다 — 그 어긋남이 보낸 간격만큼
-       쌓였다가 새 장이 오면 한 번에 고쳐진다. 그것이 좌우 흔들림이다(간격을 줄이면 흔들림이 잦아질 뿐이다).
-       제대로 고치려면 **끄는 동안의 붓이 지금 손끝이 아니라 그 장의 시점으로 그리고**, 손끝까지의 나머지는
-       지금도 있는 CSS 미끄러짐이 메워야 한다 — 그러면 내용과 원점이 늘 한 짝이라 흔들릴 자리가 없다.
-       그 손질은 붓의 보기 고르기를 건드리므로 따로 한다. 그때까지는 종전대로 — 원근은 손을 뗄 때 맞춰진다.
-       (보내는 길 postLiveView9와 세대 규칙은 그대로 둔다. 다시 켤 때 이 한 줄만 되살리면 된다.) */
-    // postLiveView9();
+    /* ★ 입체의 **원근 중심을 손짓 프레임마다** 손끝에 맞춘다(위 LIVE_VIEW_MS9의 ★ — 흔들림의 까닭과 셈) ────
+       그리기를 미루는 무거운 프레임에서도 보낸다: 미루는 것은 이쪽 붓의 일이고 설계도를 짓는 것은 워커의
+       일이라 서로 막을 까닭이 없다. 보내기 자체는 postMessage 한 번이라 이 실마리에 얹히는 값이 없다.
+       ★ 왜 '붓이 그 장의 시점으로 그리고 CSS가 나머지를 메우는' 길이 아닌가 — 그 둘은 **같은 그림**이다.
+         붓의 배율·팬은 옮기고 늘릴 뿐이라, 어느 보기로 그리고 그 차를 CSS로 메우든 최종 화소는 똑같다.
+         갈리는 것은 오직 **설계도의 사영 중심**이다: 흔들림은 그 중심이 계단으로 따라오는 데서 나므로,
+         고치는 자리도 거기(보내는 간격) 하나뿐이다. */
+    postLiveView9();
     const need9 = Math.min(400, xfPaintMsRef.current * 1.2);
     const moved9 = moved >= 1 || Math.abs(s9 - 1) >= 0.0015;
     /* ★ **한 장이 무거우면 끄는 동안은 안 그린다**(지적: "3D 보기에서 드래그·팬 시 바로바로 시점이 바뀌지 않고
