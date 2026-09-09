@@ -19809,6 +19809,15 @@ const bakeCanvas = (side: number): HTMLCanvasElement | null => {
   const cv9 = document.createElement("canvas");
   cv9.width = side;
   cv9.height = side;
+  /* ★ 빌림터의 판은 **읽을 판**이다(계측: 2초에 굽기 767ms 가운데 **훑기 599ms** — 78%) ─────────────
+     굽는 자리는 이 판에 모형을 그리고 곧바로 잉크를 훑는다(contentBox의 getImageData). 그런데 브라우저는
+     기본으로 캔버스를 GPU에 얹으므로, 그 한 줄이 GPU→CPU **되읽기**가 되어 파이프라인을 세운다 — 한 장에
+     수십 ms가 나던 값(최악판 probe 120ms)의 대부분이 여기였다.
+     첫 문맥을 `willReadFrequently`로 열면 브라우저가 이 판을 CPU 메모리에 두고, 되읽기가 메모리 복사가 된다.
+     이 판은 **화면에 안 나간다** — 다 구우면 잉크만큼 잘라 새 판(cropToInk)에 옮겨 담고 여기로 돌아온다.
+     그래서 CPU에 두어도 찍기(blit)는 한 톨도 안 느려진다: 화면에 찍히는 것은 잘라 낸 그 새 판이다.
+     빌림터에서 되쓰는 길(위)은 이미 있는 문맥을 그대로 얻으므로 이 규약이 그대로 이어진다. */
+  cv9.getContext("2d", { willReadFrequently: true });
   return cv9;
 };
 /** 다 쓴 굽는 판을 돌려준다 — 빌림터가 차면 가장 오래된 것을 그 자리에서 놓는다. */
