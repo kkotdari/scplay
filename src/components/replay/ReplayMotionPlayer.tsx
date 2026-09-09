@@ -25017,7 +25017,9 @@ export default function ReplayMotionPlayer({
     viewSentRef9.current = { key: key9, colors: col9 };
     wStatRef.current.sentView += 1;
     // 안개 갈래는 안 바뀐다(시야 주인·전체시야·안개 켬 셋이 그대로다) — 지금 번호를 그대로 싣는다.
-    w9.postMessage({ type: "view", view: v9, seq: wStatRef.current.sentView, fogSeq: fogSeqRef9.current.seq });
+    /* live: 끄는 중의 시야다 — 워커는 앞으로 안 짓고 지금 한 장만 짓는다(frameWorker의 ★).
+       그래야 시야 하나에 뭉치 하나가 안 붙어 큐가 안 밀린다(계측: 뒤짐 403px · 역행 8/19). */
+    w9.postMessage({ type: "view", view: v9, seq: wStatRef.current.sentView, fogSeq: fogSeqRef9.current.seq, live: true });
     /* ★ (걷어냄) 여기서 **앞장을 버리던 자리** — 지적: "드래그 중에는 변화가 없다가 놓으면 시점이 막 흔들려
        한동안". 그 증상의 범인이 이 세 줄이었다 ────────────────────────────────────────────────────────
        120ms마다 보내던 시절엔 옛 원점의 앞장이 새 장과 섞여(교차) 보였고, 그래서 보낼 때 앞장을 걷었다.

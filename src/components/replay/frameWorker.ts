@@ -43,7 +43,8 @@ type WorldMsg = {
 };
 /** 참값 — 메인이 transfer로 **넘긴** 것(메인에는 껍데기만 남는다). 개체 표(entData)는 여기서 스스로 만든다. */
 type TruthMsg = { type: "truth"; truth: TruthTracks | null };
-type ViewMsg = { type: "view"; view: EngineView9; seq?: number; /** 안개 갈래(시야 주인·전체시야·안개 켬이 바뀔 때만 오른다) */ fogSeq?: number };
+type ViewMsg = { type: "view"; view: EngineView9; seq?: number; /** 안개 갈래(시야 주인·전체시야·안개 켬이 바뀔 때만 오른다) */ fogSeq?: number;
+  /** 손짓이 도는 중의 시야인가 — 참이면 앞으로 안 짓고 **지금 한 장**만 짓는다(아래 ★). */ live?: boolean };
 type CmdMsg = { type: "cmd"; playing: boolean; t0: number; speed: number; aheadSec?: number; aheadBytes?: number };
 type WantMsg = { type: "want"; what: "walks"; raw?: string };
 type Msg = WorldMsg | TruthMsg | ViewMsg | CmdMsg | WantMsg;
@@ -280,7 +281,24 @@ if (inWorker9) self.onmessage = (ev: MessageEvent<Msg>): void => {
       if (engine) engine.setView(view); else rebuildEngine();
       // 시점·시야·색이 바뀌면 지어 둔 설계도는 옛 것이다 — 기억은 두고 지금 시각부터 다시.
       nextT = -1;
-      pump();
+      /* ★ **끄는 동안의 시야는 '지금 한 장'만 짓는다**(m.live) — 계측: 그린 장의 원점이 손끝에서 최대 403px
+         뒤지고 19걸음 중 8번 역행했다 ────────────────────────────────────────────────────────────────
+         까닭이 여기였다. 평소 pump는 한 번에 여덟 장 또는 60ms까지 **앞으로** 짓는다. 그런데 손짓 중에는
+         시야가 프레임마다(16ms) 오므로, 시야 하나마다 60ms짜리 뭉치가 붙어 큐가 계속 밀린다 — 워커는
+         한참 전 손끝으로 지은 장을 뒤늦게 내보내고(뒤짐 400px), 밀린 뭉치들이 뒤섞여 나오니 메인이 고른
+         장의 원점이 앞뒤로 오갔다(역행). 흔들림의 진짜 자리다.
+         멈춰 있을 때도 같은 이유로 막혔다 — 그 갈래는 '그 시각의 장이 창 안에 있으면 안 짓는다'인데,
+         시야만 바뀐 경우에도 옛 시야로 지은 장이 그 자리에 있어 **한 장도 안 지었다**.
+         그래서 live 시야는: 지어 둔 것을 버리고(옛 시야다) **딱 한 장**을 지금 시각으로 짓는다. 앞으로
+         짓는 일은 손을 뗀 뒤 평소 pump가 이어서 한다. 한 시야에 한 장이면 큐가 안 밀린다. */
+      if (m.live) {
+        const cur9 = clockT();
+        restartFrom(cur9, false);
+        emit(cur9);
+        nextT = cur9 + stepNow();
+        if (pumpTimer !== 0) { clearTimeout(pumpTimer); pumpTimer = 0; }
+        pumpTimer = setTimeout(() => { pumpTimer = 0; pump(); }, 120) as unknown as number;
+      } else pump();
     } else if (m.type === "cmd") {
       gen += 1;
       clock = {
