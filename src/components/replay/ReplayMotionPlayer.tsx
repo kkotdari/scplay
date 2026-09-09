@@ -19200,10 +19200,17 @@ function resolveShapeFaces(
 /* 내용물 상자(재지적: 유닛·그림자·선택 고리가 다 안 맞음) — 바닥(y)만이 아니라 실제
    그려진 픽셀의 가로 중심(cx)까지 잰다. 내용물이 16-상자 안에서 치우친 모델은 상자
    중심에 붙인 그림자·링이 몸과 어긋났다. 전 픽셀 스캔, 캐시당 한 번. */
+/** 잉크 훑기(getImageData)에 든 시간 — 굽기 한 장의 값이 어디서 오는지 가르는 자다(아래 ★).
+ *  판을 GPU가 들고 있으면 이 한 줄이 파이프라인을 세워(readback) 수십 ms가 되기도 한다. */
+const SCAN_MS9 = { frame: 0, win: 0, last: 0 };
 function contentBox(cv: HTMLCanvasElement): { bot: number; cx: number; top: number; w: number } {
+  const tS9 = pNow();
   const c2 = cv.getContext("2d", { willReadFrequently: true });
   if (!c2 || cv.width === 0 || cv.height === 0) return { bot: cv.height, cx: cv.width / 2, top: 0, w: cv.width };
   const { data, width, height } = c2.getImageData(0, 0, cv.width, cv.height);
+  const scan9 = pNow() - tS9;
+  SCAN_MS9.frame += scan9;
+  SCAN_MS9.win += scan9;
   let bot = 0;
   let top = height;
   let minX = width;
@@ -20079,6 +20086,9 @@ export const SPRITE_PERF = {
       worstFrame: w.worstFrame, worstFrameBake: w.worstFrameBake, blit: w.blit,
     };
     SPRITE_PERF.scanDom();
+    /* 훑기 시간도 같은 창으로 돌린다 — 마지막 창 값을 남기고 다음 창을 0에서 다시 센다. */
+    SCAN_MS9.last = SCAN_MS9.win;
+    SCAN_MS9.win = 0;
     w.t0 = now; w.frames = 0; w.bake = 0; w.bldBake = 0; w.ms = 0; w.bldMs = 0;
     w.evict = 0; w.bldEvict = 0; w.defer = 0; w.bldDefer = 0; w.worst = 0; w.worstKind = "";
     w.worstFrame = 0; w.worstFrameBake = 0; w.blit = 0;
@@ -20165,6 +20175,7 @@ function perfFrame(ms: number): void {
   p.bake = 0; p.hit = 0; p.blit = 0; p.direct = 0;
   p.bldBake = 0; p.bldHit = 0; p.bldBlit = 0;
   p.bakeMs = 0; p.bldBakeMs = 0;
+  SCAN_MS9.frame = 0;
   p.evict = 0; p.bldEvict = 0; p.defer = 0; p.bldDefer = 0;
   // 굽기 예산도 프레임마다 되돌린다(위 UNIT_BAKE_PER_FRAME·BLD_BAKE_PER_FRAME).
   unitBakeLeft9 = UNIT_BAKE_PER_FRAME;
@@ -30782,6 +30793,10 @@ export default function ReplayMotionPlayer({
                       {SPRITE_PERF.wLast.bldBake}장 {SPRITE_PERF.wLast.bldMs.toFixed(0)}ms
                       {" · 버림 "}U{SPRITE_PERF.wLast.evict}/B{SPRITE_PERF.wLast.bldEvict}
                       {" · 미룸 "}U{SPRITE_PERF.wLast.defer}/B{SPRITE_PERF.wLast.bldDefer}
+                      {/* ★ 그 굽기 가운데 **잉크 훑기**(getImageData)가 얼마인가 — 판을 GPU가 들고 있으면
+                          이 한 줄이 파이프라인을 세워(readback) 한 장에 수십 ms가 되기도 한다. 굽기 시간이
+                          모형 짓기(면·경로)에서 오는지 이 훑기에서 오는지에 따라 다음 칼이 갈린다. */}
+                      {" · 훑기 "}{Math.round(SCAN_MS9.last)}ms
                     </div>
                     <div>
                       찍기{" "}
