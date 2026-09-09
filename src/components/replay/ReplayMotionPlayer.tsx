@@ -24584,6 +24584,8 @@ const LIVE3D_ON9 = typeof location !== "undefined" && /[?&]live3d=1/.test(locati
 const ORG9 = {
   at: 0, last: NaN as number, lastLive: NaN as number,
   steps: 0, rev: 0, lag: 0, sLast: 0, rLast: 0, lLast: 0, now: 0,
+  /** 마지막으로 그린 장의 원값 — 파생값(Δ)만 보면 '늘 어긋남'과 '가끔 튐'을 못 가른다(실측 Δ지금=Δ최대). */
+  ox: 0, live: 0, gen: 0, seq: 0,
 };
 /** 그린 장의 원점 한 걸음 — **손끝 원점과 견줘서** 잰다.
  *  ★ 앞 판은 '그린 원점의 방향이 뒤집힌 횟수'를 셌는데, 그러면 **손가락이 방향을 바꾼 것**과
@@ -24600,6 +24602,8 @@ const orgNote9 = (ox: number, liveOx: number): void => {
   }
   const lag9 = Math.abs(liveOx - ox);
   ORG9.now = lag9;
+  ORG9.ox = ox;
+  ORG9.live = liveOx;
   if (lag9 > ORG9.lag) ORG9.lag = lag9;
   if (Number.isFinite(ORG9.last) && Number.isFinite(ORG9.lastLive) && ox !== ORG9.last) {
     ORG9.steps += 1;
@@ -29265,6 +29269,8 @@ export default function ReplayMotionPlayer({
       if (count9) {
         wStatRef.current.used += 1; lastDrawT9.current = wPacked9.t;
         orgNote9(wPacked9.ox, pitchGeomLiveRef9.current?.().ox ?? wPacked9.ox);
+        ORG9.gen = wPacked9.gen;
+        ORG9.seq = wPacked9.seq;
         if (wPacked9.gen > drawnGenRef9.current) drawnGenRef9.current = wPacked9.gen;
         const dOrg9 = drawnOrgRef9.current;
         if (dOrg9.ox !== wPacked9.ox || dOrg9.oy !== wPacked9.oy) {
@@ -31036,7 +31042,12 @@ export default function ReplayMotionPlayer({
                       {/* 손짓 한 장 값과 그때의 **배킹 몫** — 몫이 내려갔는데도 값이 안 내려오면
                           벽은 픽셀이 아니라 장수(찍기)다. 그 둘을 나란히 봐야 다음 칼을 정할 수 있다. */}
                       {/* 그린 장의 원점 발자국 — 걸음/뒤로/지금 어긋남(위 ORG9). 왕복의 자리를 가른다. */}
-                      {" · 원점 "}{ORG9.sLast}걸음 역행{ORG9.rLast} Δ{ORG9.now.toFixed(0)}/최대{ORG9.lLast.toFixed(0)}
+                      {/* 원값 그대로 — 그린 장의 원점/지금 손끝 원점, 그 장의 세대·차례, 보낸 차례,
+                          실시간 원근이 켜졌나(on)·접혔나(접힘)·꺼졌나(off). 파생값만으로는 못 가른다. */}
+                      {" · 원점 그린"}{ORG9.ox.toFixed(0)}{"/지금"}{ORG9.live.toFixed(0)}
+                      {" 세대"}{ORG9.gen}{"·차례"}{ORG9.seq}{"/보냄"}{wStatRef.current.sentView}
+                      {" "}{LIVE3D_ON9 ? (liveViewOkRef9.current ? "live" : "접힘") : "off"}
+                      {" · "}{ORG9.sLast}걸음 역행{ORG9.rLast}
                       {" · 손짓 "}{SCR_DIAG.xfms}ms{SCR_DIAG.xfms >= XF_HEAVY_MS9 ? "(미룸)" : ""}
                       {xfBackK9.k !== 1 ? ` 배킹×${xfBackK9.k}` : ""}
                     </div>
