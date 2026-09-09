@@ -29039,11 +29039,21 @@ export default function ReplayMotionPlayer({
        워커 시계가 주인보다 앞서면 새 장들이 죄다 앞에 떨어지고, 그때 이 갈래가 '가장 이른 장'을 집는데 그것이
        옛 세대일 수 있다 — 그러면 원근이 한 걸음 뒤로 간다. 마지막으로 그린 세대를 기억해 **그보다 낮은 세대는
        후보에서 뺀다**(그런 후보밖에 없으면 어쩔 수 없이 든다 — 빈 화면보다 낫다). 세 갈래가 함께 이 자를 쓴다. */
+    /* ★ **없으면 옛 세대로 안 내려간다 — 마지막으로 그린 장을 그대로 둔다**(지적: "장이 늦게 온다 해도
+       이전 걸 쓰면 되는데 굳이 옛날 걸 써서 흔들리게 하느냐") ─────────────────────────
+       앞 판은 세대 바닥을 지키되 '그 바닥을 넘는 후보가 하나도 없으면 어쩔 수 없이 옛 세대를 든다'는 빗장이
+       있었다(anyNew). 그런데 손짓 중에는 워커가 시야 하나마다 다시 서므로 새 세대의 장이 오기 전 잠깐 후보가
+       비는 일이 흔하다 — 그때마다 이 빗장이 열려 **옛 원점**의 장을 집었고, 다음 프레임에 새 장이 오면 도로
+       돌아왔다. 그것이 남아 있던 역행이다. 빈 화면이 걱정돼 둔 빗장이지만 비지 않는다: 고르기가 아무것도 못
+       고르면 붓은 마지막으로 그린 장을 그대로 든다(frameAt9의 lastFrameRef9). 시각이 몇십 ms 멈추는 것은 안
+       보이고 원근이 뒤로 갔다 오는 것은 보인다.
+       다만 워커가 새로 서면 세대가 0부터 다시 매겨지므로, 남은 장의 세대가 죄다 바닥보다 낮으면(= 세대 자가
+       바뀌었다) 바닥을 푼다 — 그러지 않으면 영영 마지막 장에 얼어붙는다. */
+    let maxGen9 = -Infinity;
+    for (const f9 of frames9.values()) if (f9.gen > maxGen9) maxGen9 = f9.gen;
+    if (maxGen9 < drawnGenRef9.current) drawnGenRef9.current = -Infinity;
     const gMin9 = drawnGenRef9.current;
-    const okGen9 = (f9: PackedFrame9): boolean => f9.gen >= gMin9;
-    let anyNew9 = false;
-    for (const f9 of frames9.values()) if (okGen9(f9)) { anyNew9 = true; break; }
-    const pass9 = (f9: PackedFrame9): boolean => !anyNew9 || okGen9(f9);
+    const pass9 = (f9: PackedFrame9): boolean => f9.gen >= gMin9;
     let bestGen9 = -Infinity;
     let best: PackedFrame9 | null = null;
     let bestOld: PackedFrame9 | null = null;
