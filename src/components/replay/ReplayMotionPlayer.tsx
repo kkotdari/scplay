@@ -15733,19 +15733,26 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        판은 납작한 기둥(oval 3.2)으로 짠다 — 반지름 방향으로 넓고 접선 방향으로 얇다. */
     /* 어깨는 **금판만**(요청: 임자색 반구 제거) — 판은 팔 뿌리(±1.3, −0.2, 5.7) 위에서
        바깥·아래로 흘러내려 어깨 관절을 덮는다. 뿌리엔 금 관절 공 하나. */
-    ...([-1, 1] as const).flatMap((m9): ShapeFace[] => [
-      ...tagKey(paintBase(domeFaces3(m9 * 0.85, 0.3, 0.3, 0.26, 5.5), P_GOLD),
-        depthNow(m9 * 0.85, 0.3) * 1.6 + 1.5),
-      // 판은 1/3 크기(재요청) — 길이·폭·처짐 모두 1/3.
-      ...tagKey(paintBase(spirePillar({
-        x: 0, y: 0, h: 1, w: 1, segs: 4, sides: 6, oval: 3.2, caps: "none",
-        ref: [m9, -0.2, 0],
-        path: (t9: number): [number, number, number] => [
-          m9 * (0.75 + 0.32 * t9), 0.3 - 0.08 * t9, 5.85 - 0.25 * t9 - 0.17 * t9 * t9,
-        ],
-        widthOf: (t9: number): number => 0.17 - 0.1 * t9 * t9,
-      }), P_GOLD), depthNow(m9 * 1.6, -0.35) * 1.6 + 1.6),
-    ]),
+    /* 갑주 전체를 **1.2배**로(요청: "질럿 어깨 갑옷 크기 1.2배 확대") — 관절 공의 반지름과
+       판의 뻗는 몫·처짐·폭에 같은 배수를 건다. 뿌리 자리(어깨)는 안 옮긴다: 거기서부터
+       바깥으로 자라야 어깨가 넓어지지, 통째로 밀면 몸에서 뜬다. */
+    ...([-1, 1] as const).flatMap((m9): ShapeFace[] => {
+      const k9 = 1.2;
+      return [
+        ...tagKey(paintBase(domeFaces3(m9 * 0.85, 0.3, 0.3 * k9, 0.26 * k9, 5.5), P_GOLD),
+          depthNow(m9 * 0.85, 0.3) * 1.6 + 1.5),
+        // 판은 1/3 크기(재요청) — 길이·폭·처짐 모두 1/3. 그 위에 위 배수를 곱한다.
+        ...tagKey(paintBase(spirePillar({
+          x: 0, y: 0, h: 1, w: 1, segs: 4, sides: 6, oval: 3.2, caps: "none",
+          ref: [m9, -0.2, 0],
+          path: (t9: number): [number, number, number] => [
+            m9 * (0.75 + 0.32 * k9 * t9), 0.3 - 0.08 * k9 * t9,
+            5.85 - 0.25 * k9 * t9 - 0.17 * k9 * t9 * t9,
+          ],
+          widthOf: (t9: number): number => (0.17 - 0.1 * t9 * t9) * k9,
+        }), P_GOLD), depthNow(m9 * 1.6, -0.35) * 1.6 + 1.6),
+      ];
+    }),
     /* ④ 가슴 보석 — 흉갑 한가운데 청옥. 앞을 볼 때만 뜨는 볼록 렌즈다. */
     ...lensFaces({
       x: 0, y: 0.62, z: 5.0, nx: 0, ny: 1, r: 0.24, bulge: 0.3, lift: 3,
