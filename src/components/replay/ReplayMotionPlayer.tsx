@@ -8772,10 +8772,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       push9([1, 0, 0], [[0, -CR9, CZ0], [0, CR9, CZ0], [0, CR9, CZ1], [0, -CR9, CZ1]]);
       /* ② 반구 — 바닥이 드럼의 자른 면(x = 0)에 붙고 오른쪽(+x)으로 부푼다.
          u는 밑동(0)에서 끝(1)까지, 그 자리의 x는 R·sin, 고리 반지름은 R·cos다. */
+      /* 반구를 **앞으로 민다**(요청: "반구부품 앞으로 밀고") — 자른 면은 y −CR9 ~ +CR9의 네모라
+         가운데를 벗어나도 여전히 그 면에 얹힌다. 뒤 돛이 −y에 있으므로 앞은 +y다. */
+      const DY9 = 0.6;
       const MS9 = 5;
       const hp9 = (u9: number, b9: number): [number, number, number] => {
         const rr9 = CR9 * Math.cos((Math.PI / 2) * u9);
-        return [CR9 * Math.sin((Math.PI / 2) * u9), Math.cos(b9) * rr9, CCZ9 + Math.sin(b9) * rr9];
+        return [CR9 * Math.sin((Math.PI / 2) * u9), DY9 + Math.cos(b9) * rr9, CCZ9 + Math.sin(b9) * rr9];
       };
       for (let j9 = 0; j9 < MS9; j9 += 1) {
         const u09 = j9 / MS9;
@@ -8786,7 +8789,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           const um9 = (u09 + u19) / 2;
           const bm9 = (b09 + b19) / 2;
           const q9 = hp9(um9, bm9);
-          push9([q9[0], q9[1], q9[2] - CCZ9], [hp9(u09, b09), hp9(u09, b19), hp9(u19, b19), hp9(u19, b09)]);
+          push9([q9[0], q9[1] - DY9, q9[2] - CCZ9], [hp9(u09, b09), hp9(u09, b19), hp9(u19, b19), hp9(u19, b09)]);
         }
       }
       /* ★ 아쿠아 디테일(요청: "사진처럼 아쿠아색 부품들 디테일 추가") — 사진의 이 건물은 금
@@ -8809,11 +8812,16 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ]), 1, "#5aecd8"] as ShapeFace);
       }
       out9.push(...ringBand9(CZ1 - 1.15, CZ1 - 0.85, 0.06, GEM9));
-      /* 큰 알 하나 — 사진에서 이 건물의 얼굴 노릇을 하는 그 하늘색 알이다.
-         ★ 반구의 **이마**에는 못 박는다 — domeFaces3는 늘 위(+z)로 부푸는 자라, 옆(+x)을
-           보는 반구 겉면에 두면 알이 통째로 반구 속에 묻힌다(첫 판에서 안 보였다).
-           드럼의 평평한 꼭대기가 그 알이 앉을 자리다: 위를 보는 면이라 알도 위로 부푼다. */
-      out9.push(...gem(-CR9 * 0.5, 0, CZ1, 0.5, 0.7));
+      /* ★ 반구 아래의 **구 받침**(요청: "반구 아래 구형태 부품 받침") — 반구가 자른 면에서
+         앞으로 밀려 나오니 그 아래가 비었다. 공 하나를 받쳐 반구가 얹혀 있는 꼴로 만든다
+         (옆선을 sin으로 주면 그대로 구다). */
+      out9.push(...spirePillar({
+        x: 0, y: 0, h: 1, w: 1, segs: 7, sides: 12, caps: "none", trueNormal: true,
+        path: (t9: number): [number, number, number] => [CR9 * 0.52, DY9, CZ0 + 0.15 + 1.5 * t9],
+        widthOf: (t9: number): number => 0.75 * Math.sin(Math.PI * t9) + 0.02,
+      }));
+      /* (아래로 옮김) 꼭대기의 큰 알 — 임자색 둥근 데칼(키 40) 위에 얹혀야 하므로 몸(flask)이
+         아니라 바깥에서 키 41로 그린다. 몸 안에 두면 데칼이 알을 덮는다. */
       // 배 둘레의 작은 알 다섯 — 아쿠아 테 아래에 고르게 박는다.
       for (let i9 = 0; i9 < 5; i9 += 1) {
         const a9 = Math.PI / 2 + ((i9 + 0.5) / 5) * Math.PI;
@@ -8833,18 +8841,24 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* ★ 양팔 끝은 **쌀알**이다(요청) — 판이 아니라 회전체라 어느 쪽에서 봐도 통통하다.
        옆선을 sin의 제곱근으로 주면 가운데가 부르고 두 끝이 좁아지는 그 낟알 꼴이 된다
        (sin 그대로면 두 끝이 너무 뾰족해 잎이 되고, 상수면 통이 된다). */
+    /* 팔 길이 20% 증가(요청) — 관은 x 0.9에서 3.6까지 2.7이었으니 3.24로 늘려 끝이 4.14다.
+       쌀알도 같은 몫만큼 밖으로 나간다(끝에서 0.7 떨어진 자리를 지킨다) — 안 옮기면 팔만
+       길어지고 날개는 제자리에 남아 관이 날개를 뚫고 나온다. */
+    const ARM_TIP9 = 0.9 + 2.7 * 1.2;   // 4.14
+    const WING_X9 = ARM_TIP9 + 0.7;     // 4.84
     const wing = (m: 1 | -1): ShapeFace[] => [
-      ...tubeFaces(m * 0.9, -0.2, m * 3.6, -0.2, 0.3, 3),
+      ...tubeFaces(m * 0.9, -0.2, m * ARM_TIP9, -0.2, 0.3, 3),
       ...spirePillar({
         x: 0, y: 0, h: 1, w: 1, segs: 8, sides: 12, caps: "none", trueNormal: true,
-        path: (t9: number): [number, number, number] => [m * 4.3, -0.2, 1.5 + 5.2 * t9],
-        widthOf: (t9: number): number => 0.72 * Math.sqrt(Math.sin(Math.PI * t9)) + 0.03,
+        path: (t9: number): [number, number, number] => [m * WING_X9, -0.2, 1.5 + 5.2 * t9],
+        // 굵기 감소(요청) — 0.72 → 0.52. 길이는 그대로라 낟알이 한결 홀쭉해진다.
+        widthOf: (t9: number): number => 0.52 * Math.sqrt(Math.sin(Math.PI * t9)) + 0.03,
       }),
       // 쌀알 허리의 금테 한 줄 + 그 위의 알 — 알은 쌀알보다 한 단 위 키라야 안 묻힌다.
       ...tagKey([
-        ...paintBase(cylinderFaces3(m * 4.3, -0.2, 0.76, 0.26, 3.95), GEM_RIM9),
-        ...gem(m * 4.3, -0.2 + 0.62, 4.35, 0.3, 0.7),
-      ], partKey(m * 4.3, 0.42, 4.35) + 2.5),   // 키에 높이를 태운다(model-depth-check의 자)
+        ...paintBase(cylinderFaces3(m * WING_X9, -0.2, 0.56, 0.24, 3.95), GEM_RIM9),
+        ...gem(m * WING_X9, -0.2 + 0.44, 4.3, 0.24, 0.7),
+      ], partKey(m * WING_X9, 0.24, 4.3) + 2.5),   // 키에 높이를 태운다(model-depth-check의 자)
     ];
     return raceBase([
       /* (제거·요청: "받침원판 제거") — 발치에 깔던 금 원판을 걷는다. 물병 굽이
@@ -8860,23 +8874,34 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          기준축(ref)을 앞뒤(y)로 두면 u가 앞뒤, v가 좌우다. oval을 0.13으로 눌러 좌우로
          얇게 만들면 판의 **면이 ±x를 본다**. 옆 날개보다 크고(높이 6.2·앞뒤 폭 2.7)
          위로 갈수록 좁아져, 두건 뿔이 그 위를 지나가도 묻히지 않는다. */
+      /* 돛에 **두께를 조금 준다**(요청) — oval 0.13 → 0.26이라 반두께가 0.18 → 0.35다.
+         날이 아니라 판으로 읽히고, 그 두께가 곧 아래 데칼이 앉을 앞면이 된다. */
       ...spirePillar({
-        x: 0, y: 0, h: 1, w: 1, segs: 5, sides: 8, ref: [0, 1, 0], oval: 0.13,
+        x: 0, y: 0, h: 1, w: 1, segs: 5, sides: 8, ref: [0, 1, 0], oval: 0.26,
         caps: "both", trueNormal: true,
         path: (t9: number): [number, number, number] => [0, -4.6, 1.4 + 6.2 * t9],
         widthOf: (t9: number): number => 1.35 * (1 - 0.62 * t9 * t9),
       }),
-      /* 돛 면의 청록 살 셋(사진의 그 세로 줄) — 판이 ±x를 보므로 살도 양면에 하나씩 눕힌다.
-         판의 반두께가 1.35 × 0.13이라 겉면은 x ±0.18 언저리다 — 그 바로 밖(0.20)에 둔다. */
-      ...([-1, 1] as const).flatMap((sx9): ShapeFace[] => {
-        if (facingRatio(sx9, 0) <= 0.05) return [];
-        return ([-1, 0, 1] as const).map((k9) => [polyPath3([
-          [sx9 * 0.20, -4.6 + k9 * 0.62 - 0.11, 2.3],
-          [sx9 * 0.20, -4.6 + k9 * 0.62 + 0.11, 2.3],
-          [sx9 * 0.20, -4.6 + k9 * 0.42 + 0.09, 6.4],
-          [sx9 * 0.20, -4.6 + k9 * 0.42 - 0.09, 6.4],
-        ]), 1, GEM9] as ShapeFace);
-      }),
+      /* ★ 데칼을 **옆면에서 두께의 앞면으로** 옮긴다(재요청: "옆면에 있는 데칼은 두께로 생기는
+         앞면에 넣고 정사각형이 세로로 늘어선 모양으로") ─────────────────────────────────────
+         돛의 u축이 앞뒤(y)이므로 판의 앞 모서리는 y = −4.6 + widthOf(t)이고, 그 모서리의 폭은
+         두께(±0.35)다. 거기에 정사각형을 세로로 다섯 올린다 — 앞 모서리가 위로 갈수록 뒤로
+         물러나므로(widthOf가 줄어든다) 네모도 그 선을 따라 물러나며 판에 붙어 있다. */
+      ...((): ShapeFace[] => {
+        if (facingRatio(0, 1) <= 0.05) return [];
+        const half9 = 0.30;
+        const wAt9 = (t9: number): number => 1.35 * (1 - 0.62 * t9 * t9);
+        return Array.from({ length: 5 }, (_, k9) => {
+          const t9 = 0.16 + k9 * 0.16;
+          const z09 = 1.4 + 6.2 * t9;
+          const z19 = z09 + half9 * 2;
+          const y09 = -4.6 + wAt9(t9) + 0.02;
+          const y19 = -4.6 + wAt9(t9 + (half9 * 2) / 6.2) + 0.02;
+          return [polyPath3([
+            [-half9, y09, z09], [half9, y09, z09], [half9, y19, z19], [-half9, y19, z19],
+          ]), 1, GEM9] as ShapeFace;
+        });
+      })(),
       // 돛 뿌리의 알 하나 — 팔과 돛이 만나는 자리를 끊어 준다.
       ...tagKey(gem(0, -4.3, 3.3, 0.26, 0.7), partKey(0, -4.3, 3.3) + 2.5),
       // 양옆 팔 + 세로 날개(보는 사람 기준 왼쪽이 −x다).
@@ -8887,14 +8912,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* (걷어냄) 두건 뒤로 솟던 뿔과 그 앞 렌즈 — 요청: "위쪽 절두체랑 잎 제거". 두건이
          없어지니 그 위에 얹히던 이 둘도 설 자리가 없다. */
     ], "toss", [
-      /* ★ 임자 색은 **사진의 흰 판**이다(요청: "흰색 임자색이고") — 두 자락으로 나눈다.
-           · 배 — 드럼 아래쪽을 넉넉히(높이 1.9) 두르는 넓은 띠. 사진에서 흰 골판이 덮은
-             그 자리이고, 장식 없는 넓은 면이라 통째로 칠하기 좋다.
-           · 어깨 — 아쿠아 테 바로 아래의 좁은 한 줄. 배 하나만이면 위에서 내려다보는
-             화면에서 임자 색이 몸에 가려 잘 안 보인다(테 아래는 늘 드러난다).
-         알·테·홈 같은 점은 제 색으로 둔다 — 개인색은 넓은 면이 지는 것이 이 파일의 규약이다. */
-      ...tagKey(ringBand9(CZ0 + 0.35, CZ0 + 2.25, 0.02), 40),
-      ...tagKey(ringBand9(CZ1 - 0.82, CZ1 - 0.42, 0.02), 40),
+      /* ★ 임자 색은 **둥근 데칼 한 장**이다(재요청: "임자색 띠 두개 제거하고 임자색 원형
+         데칼로 변경") — 띠 둘은 몸을 가로로 두 번 끊어 드럼이 세 토막으로 보였다.
+         드럼의 평평한 꼭대기에 둥근 판 한 장을 얹는다: 위에서 내려다보는 화면에서 가장 넓게
+         드러나는 면이고, 그 한가운데에 큰 알이 앉아 '흰 판 위의 하늘색 알'이 된다(사진의 그것).
+         드럼 반쪽의 무게중심(−CR9·0.42)에 놓아 반달 뚜껑 안에 온전히 든다. */
+      ...tagKey([bodyFace(discPath3(-CR9 * 0.42, 0, CZ1 + 0.02, CR9 * 0.52))], 40),
+      /* 그 데칼 한가운데의 큰 알 — 사진의 '흰 판 위 하늘색 알'이다. 키 41이라 데칼 위다. */
+      ...tagKey(gem(-CR9 * 0.42, 0, CZ1 + 0.04, 0.48, 0.7), 41),
     ]);
   },
   /* 템플러 아카이브(리디자인, 실물 참고) — 큰 황금 공 몸에 테 물린 파란 렌즈가
