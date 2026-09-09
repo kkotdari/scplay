@@ -8847,7 +8847,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const ARM_TIP9 = 0.9 + 2.7 * 1.2;   // 4.14
     const WING_X9 = ARM_TIP9 + 0.7;     // 4.84
     const wing = (m: 1 | -1): ShapeFace[] => [
-      ...tubeFaces(m * 0.9, -0.2, m * ARM_TIP9, -0.2, 0.3, 3),
+      /* ★ 관을 **쌀알 속까지** 뻗는다(지적: "양팔날개가 팔끝에서 떨어져있음") — 관 끝은 4.14인데
+         쌀알은 z 3에서 x 4.37부터라 0.23이 비어 있었다. 보이는 팔 길이는 쌀알이 시작하는 자리가
+         정하므로, 끝을 쌀알 속(4.9)에 묻어도 길이는 안 달라지고 틈만 사라진다. */
+      ...tubeFaces(m * 0.9, -0.2, m * (WING_X9 + 0.06), -0.2, 0.3, 3),
       ...spirePillar({
         x: 0, y: 0, h: 1, w: 1, segs: 8, sides: 12, caps: "none", trueNormal: true,
         path: (t9: number): [number, number, number] => [m * WING_X9, -0.2, 1.5 + 5.2 * t9],
@@ -8855,8 +8858,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         widthOf: (t9: number): number => 0.52 * Math.sqrt(Math.sin(Math.PI * t9)) + 0.03,
       }),
       // 쌀알 허리의 금테 한 줄 + 그 위의 알 — 알은 쌀알보다 한 단 위 키라야 안 묻힌다.
+      /* ★ 허리 테는 **뚜껑 없는 관**으로 짠다(지적: "날개 중간에 단면이 비쳐보임") —
+         cylinderFaces3는 위아래 뚜껑이 달린 통이라, 쌀알 허리에 끼우면 그 뚜껑이 낟알을
+         가로로 자른 **단면**으로 보인다. 뚜껑을 끄면 띠만 남는다. */
       ...tagKey([
-        ...paintBase(cylinderFaces3(m * WING_X9, -0.2, 0.56, 0.24, 3.95), GEM_RIM9),
+        ...paintBase(spirePillar({
+          x: 0, y: 0, h: 1, w: 1, segs: 1, sides: 12, caps: "none", trueNormal: true,
+          path: (t9: number): [number, number, number] => [m * WING_X9, -0.2, 3.9 + 0.3 * t9],
+          widthOf: (): number => 0.56,
+        }), GEM_RIM9),
         ...gem(m * WING_X9, -0.2 + 0.44, 4.3, 0.24, 0.7),
       ], partKey(m * WING_X9, 0.24, 4.3) + 2.5),   // 키에 높이를 태운다(model-depth-check의 자)
     ];
@@ -8869,7 +8879,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          끝을 뾰족하게(0.7) 좁힌 건 두건 뿔이 그 위로 지나가며 묻히지 않게 하려는 것이다.
          옆 날개와 달리 렌즈 점은 안 박았다 — 이 날개의 앞면은 어느 높이에서든 두건이나
          뿔에 정확히 가려, 점을 찍어 봐야 한 번도 안 보인다. */
-      ...tubeFaces(0, -0.9, 0, -4.3, 0.32, 3.2),
+      /* ★ 뒤 팔을 **돛의 축을 지나도록** 뻗는다(지적: "뒷날개팔 위치랑 날개 위치가 안맞음") —
+         끝이 −4.3이라 돛(축 −4.6)의 앞 모서리에 못 미쳐 틈이 보였다. 축 너머(−5.2)까지 밀어
+         넣으면 판의 두께·너비를 어떻게 잡든 관이 판 속에 묻혀 틈이 생길 수 없다. */
+      ...tubeFaces(0, -0.9, 0, -5.2, 0.32, 3.2),
       /* ★ 뒤 날개는 **돛**이다(요청: "돗처럼 평평한 면 … 면이 양옆을 바라봄") — 단면의
          기준축(ref)을 앞뒤(y)로 두면 u가 앞뒤, v가 좌우다. oval을 0.13으로 눌러 좌우로
          얇게 만들면 판의 **면이 ±x를 본다**. 옆 날개보다 크고(높이 6.2·앞뒤 폭 2.7)
