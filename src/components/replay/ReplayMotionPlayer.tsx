@@ -24949,11 +24949,15 @@ export default function ReplayMotionPlayer({
   const colorTableRef9 = useRef<Record<string, string> | null>(null);
   const pitchGeomLiveRef9 = useRef<(() => PitchGeom9) | null>(null);
   const liveViewAtRef9 = useRef(0);
+  /** ★ 이 손짓에서 원근을 따라가게 할까 — **손짓이 시작될 때 한 번** 정하고 끝까지 지킨다(계측: 아래 ★★).
+   *  도중에 켜고 끄면 재는 값 자체가 그 조치의 결과라 진동한다(배킹 몫에서 이미 겪었다). */
+  const liveViewOkRef9 = useRef(false);
   const postLiveView9 = useCallback((): void => {
     const w9 = frameWorkerRef.current;
     const base9 = engViewRef9.current;
     const geomOf9 = pitchGeomLiveRef9.current;
     if (!w9 || !base9 || !base9.pitched || !geomOf9) return;
+    if (!liveViewOkRef9.current) return;   // 이 손짓은 종전대로 — 원근은 손을 뗄 때 맞춘다(위 ★)
     const now9 = performance.now();
     if (now9 - liveViewAtRef9.current < LIVE_VIEW_MS9) return;
     const v9: EngineView9 = { ...base9, geom: geomOf9() };
@@ -27983,6 +27987,19 @@ export default function ReplayMotionPlayer({
     linkHoldRef9.current = null;
     xfGestureRef.current = true;
     xfBackK9.k = 1;   // 새 손짓은 제 배킹에서 시작한다 — 무거우면 그 안에서 내려간다(위 ★)
+    /* ★★ 원근을 손끝에 맞추는 일은 **가벼운 자리에서만** 한다(계측: 배율 6·입체·949기에서
+       손짓 한 장이 23 → **240ms**로 뛰었다 — 미룸으로 떨어져 끄는 동안 화면이 아예 멎고, 놓는
+       순간 쌓인 장이 몰려 한동안 출렁였다. 앞 0.0초·7장 · 시계차 −0.7초가 그 자국이다) ────────
+       까닭은 원근 중심이 움직이면 **판 열쇠가 통째로 흔들리기** 때문이다: 유닛마다의 좌우 시점(vq)이
+       중심에서 나오므로, 중심이 프레임마다 밀리면 개체들이 시점 칸을 계속 넘나들며 새 판을 부른다
+       (그 판에서 2초에 유닛 125장·건물 168장을 굽고 건물 판 188장을 버렸다). 사영을 다시 하는 값이
+       아니라 **다시 굽는 값**이 벽이다.
+       그래서 손짓을 시작할 때 한 번 재고 정한다 — 덜어내기 단이 서 있지 않고(사람이 적고 기기가
+       버티고) 최근 최악 프레임이 40ms 아래인 자리에서만 따라간다. 그 밖에서는 종전대로, 원근은
+       손을 뗄 때 맞춰진다. 한 손짓 안에서는 안 바꾼다(도중에 뒤집으면 진동한다). */
+    liveViewOkRef9.current = pitchDegRef9.current < 90
+      && CROWD9.lv === 0
+      && SPRITE_PERF.wLast.worstFrame > 0 && SPRITE_PERF.wLast.worstFrame < 40;
     xfPaintAtRef.current = performance.now();
     zoomRawRef.current = zoomRef.current;
     xfBaseRef.current = { z: zoomRef.current, x: panRef.current.x, y: panRef.current.y };
