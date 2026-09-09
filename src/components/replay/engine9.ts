@@ -1706,7 +1706,7 @@ export const BLD_NORM: Record<string, number> = {
   pyramidWide: 1.045,  // 재측정(bld-norm) — 기둥 5.5·원기둥 받침·표창 길이 원복 뒤
   queensnest: 1.145,   // 재측정(bld-norm) — 돔 5.6으로 키운 뒤(옛 1.148)
   refinery: 1.456,  // 아래판 뒤를 줄이고 뒤 드럼을 앞으로 당긴 뒤 bld-norm 재측정(1.394 →)
-  robobay: 1.408,  // 재측정 1.760 × 0.8(요청: 그려지는 크기 0.8배) — 원판 0.8·날개 0.6·−45도 뒤
+  robobay: 1.527,  // 재측정 1.909 × 0.8(요청: 그려지는 크기 0.8배) — 가운데 결정을 작은 반구로 바꾼 뒤
   sbattery: 1.951,  // 빨대 다리 뒤 재측정(bld-norm)
   scifac: 1.445,  // 재작도 + 삼중탑 제거·왼판 축소 뒤 재측정(bld-norm)
   spire: 1.548,  // 상자 상한에 걸림

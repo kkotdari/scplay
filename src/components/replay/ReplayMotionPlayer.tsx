@@ -8985,10 +8985,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       capFace(discPath3(0, 0, 1.61 * HB9, 2.6 * DK9), 0.62),
       capFace(discPath3(0, 0, 1.2 * HB9, 1.8 * DK9), 0.5),
       capFace(discPath3(0, 0, 0.85 * HB9, 1.0 * DK9), 0.35),
-      ...paintBase(spirePillar({
-        x: 0, y: 0, z0: 0.8, h: 2.2, w: 0.5, tipW: 0, segs: 3, sides: 6,
-        widthOf: (t9: number): number => 0.5 * (1 - t9) ** 0.6, fill: glowLit("#c9fff6", CYAN),
-      }), glowLit("#c9fff6", CYAN)),
+      /* ★ 가운데 보석은 **아주 작은 반구**다(요청) — 여태 이 자리는 높이 2.2짜리 뾰족한
+         결정 기둥이라, 우묵한 대접 속에서 솟아 나와 이 건물의 실루엣을 반이나 차지했다.
+         우묵한 속에 알 하나가 박힌 그림이 사진의 그것이다: 대접 맨 안쪽 계단(z 0.85·반지름 1.0)
+         위에 반지름 0.34짜리 돔 하나만 얹는다. 빛깔은 그대로 청록 발광이다. */
+      ...paintBase(domeFaces3(0, 0, 0.34 * DK9, 0.26 * HB9, 0.85 * HB9), glowLit("#c9fff6", CYAN)),
     ], 3));
     // ② 발판 여섯 — 몸 둘레에 **땅에 붙은 넓은 판**(재요청: 꽃잎 말고 발판처럼). 바깥이 더 넓은 사다리꼴.
     for (let k9 = 0; k9 < 6; k9 += 1) {
