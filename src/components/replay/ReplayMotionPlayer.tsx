@@ -26187,9 +26187,18 @@ export default function ReplayMotionPlayer({
   }, []);
   useEffect(() => () => { if (tailTimer9.current) window.clearTimeout(tailTimer9.current); }, []);
   /* 단축키 Z·X — 안내(ReplayGuide)가 적어 둔 그 둘이다. 버튼을 안 그리는 화면에서는 듣지 않는다(함수가
-     없으면 그 키도 없다). 글 치는 칸·수식키에서는 안 듣고, 한글 자판에서도 듣도록 키 자리(e.code)로 본다. */
+     없으면 그 키도 없다). 글 치는 칸·수식키에서는 안 듣고, 한글 자판에서도 듣도록 키 자리(e.code)로 본다.
+     ★ 자격은 **홀로 있는가**다(지적: "목록 페이지는 카드마다 재생기가 서니까 Z 한 번에 N개가 같이 반응해 —
+       예전엔 앱이 soleView로 가려 줬는데 그 가림막이 모듈 안으로 들어오면서 없어졌어") ────────────────────
+       창(window)에 붙는 판이라 인스턴스마다 하나씩 붙는다. 활동 목록은 카드마다 재생기가 하나씩이라 그
+       판이 N개가 되고, Z 한 번에 N개가 함께 답한다 — 버튼을 옮겨 오면서 앱이 지고 있던 가림막을 함께
+       가져왔어야 했다. 자는 이미 있다: soleView(상세 모달이거나 이 경기를 가리키는 게임 페이지) — 아래
+       주 키보드 판이 쓰는 그 자격과 같은 것이다. 전체화면(fsOn)도 홀로 있는 자리라 함께 연다.
+       `wide`는 안 본다 — 주 키보드 판이 옛 대역으로 남겨 둔 값인데, 넓은 카드가 여럿인 목록에서는
+       이 병을 그대로 되살린다(그 자리 주석의 그 사고다). */
   useEffect(() => {
     if (!onScrap && !onShare) return undefined;
+    if (!soleView && !fsOn) return undefined;
     const onKey9 = (e: KeyboardEvent): void => {
       const k9 = e.code === "KeyZ" ? "scrap" : e.code === "KeyX" ? "share" : null;
       if (!k9 || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
@@ -26201,7 +26210,7 @@ export default function ReplayMotionPlayer({
     };
     window.addEventListener("keydown", onKey9);
     return () => window.removeEventListener("keydown", onKey9);
-  }, [onScrap, onShare, runTail9]);
+  }, [onScrap, onShare, runTail9, soleView, fsOn]);
   const openGuide9 = (): void => {
     if (onGuide) { onGuide(); return; }
     try { window.history.pushState({ scrGuide: 1 }, ""); guidePushed9.current = true; } catch { guidePushed9.current = false; }
