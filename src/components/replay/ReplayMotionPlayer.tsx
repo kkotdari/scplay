@@ -1299,7 +1299,7 @@ function protossFace(fill?: string, lift = 0, s = 1): ShapeFace[] {
         const v9 = Math.sin(a9) * hh9;   // 짧은 쪽(위가 +)
         const ct9 = Math.cos(0.28);
         const st9 = Math.sin(0.28);
-        const ex9 = m9 * 0.15 * s + m9 * (u9 * ct9 - v9 * st9);
+        const ex9 = m9 * 0.19 * s + m9 * (u9 * ct9 - v9 * st9);   // 눈 사이를 조금 띄운다(요청) — 0.15 → 0.19
         const ez9 = 6.45 + L9 + (u9 * st9 + v9 * ct9);
         // 그 자리의 껍질 앞면 — 달걀의 마디 t를 z에서 풀고 반지름에서 y를 낸다.
         const t9 = Math.max(0, Math.min(1, (ez9 - 5.95 - L9) / 1.05));
@@ -1411,6 +1411,11 @@ function protossLegs(
    *  축으로 돌린다. 회전이라 길이가 보존되므로 다리가 짧아지지 않는다. 발·발가락은 이 회전을 함께 받아
    *  정강이와의 관계를 지킨다(뜬 채 다리를 접은 자세). */
   tuck = 0,
+  /** ★ 정강이 **아래쪽 이만큼**을 임자 색 소매로 두른다(요청: "하템 하지 아래쪽 반만 임자색으로
+   *  두르기") — 0이면 안 두르고, 0.5면 아래 절반이다. 칠하지 않은 면이 곧 임자 색이라는 이 파일의
+   *  규약을 그대로 쓴다(fill을 주면 고정색이 되어 요청이 뒤집힌다). 마디를 색으로 쪼개지 않고
+   *  **덧씌우는** 까닭: 쪼개면 이음매에 뚜껑이 생겨 각도에 따라 단면이 비친다. */
+  teamShin = 0,
 ): ShapeFace[] {
   const paint = (f: ShapeFace[], c?: string): ShapeFace[] => (c ? paintBase(f, c) : f);
   /* 다리 길이 줄이기(요청: 하이템플러는 짧게) — 엉덩이(3.95)를 축으로 z를 눌러
@@ -1496,6 +1501,27 @@ function protossLegs(
       ...suitLimb(ankle, toe, 0.27, 0.18, 0.31,
         { sides: 7, caps: "none", trueNormal: true, key: kF, tag: "leg.foot" }),
     ], shinFill));
+    /* 임자 색 소매 — 정강이의 아래쪽 teamShin만큼을 덮는다(위 ★). 굵기는 그 자리 정강이의
+       옆선(2차 베지에)을 그대로 풀어 0.02만 키운 값이라, 어디서도 정강이가 소매를 뚫지 않는다. */
+    if (teamShin > 0) {
+      const s09 = 1 - Math.min(1, teamShin);
+      const shW9 = (t9: number): number => (1 - t9) * (1 - t9) * 0.45 * thin
+        + 2 * (1 - t9) * t9 * 0.56 * thin + t9 * t9 * 0.38 * thin;
+      const shP9 = (t9: number): [number, number, number] => [
+        knee[0] + (ankle[0] - knee[0]) * t9,
+        knee[1] + (ankle[1] - knee[1]) * t9,
+        knee[2] + (ankle[2] - knee[2]) * t9,
+      ];
+      /* ★ 소매도 **suitLimb으로** 짠다 — 손으로 기둥을 세웠더니 45도에서 안 보였다. 까닭은 키다:
+         suitLimb의 키는 `depthNow(마디 한가운데) + max(w0,w1) + o.key`인데 손으로 세운 기둥은
+         o.key 몫만 실어, 앞의 두 항만큼 정강이에게 졌다. 같은 함수로 지으면 그 셈이 저절로 같아지고
+         붙박이(+0.35)만큼만 위로 올라간다. */
+      out.push(...suitLimb(
+        shP9(s09), ankle,
+        shW9(s09) + 0.02, 0.38 * thin + 0.02, shW9((s09 + 1) / 2) + 0.02,
+        { sides: 7, caps: "none", trueNormal: true, key: kS + 0.35, tag: "leg.shin.team" },
+      ));
+    }
     /* 발은 **두 갈래 발가락**이다(요청: "프로토스 보병류 발은 scv 발같은 발가락 2개
        형태의 발 모양으로") — 삼각 말굽 한 장을 걷고, SCV 발굽과 같은 결로 짠다:
        발목 앞에서 갈라진 납작한 발가락 둘이 앞으로 뻗고, 밑은 수평·발등만 경사라
@@ -16165,7 +16191,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 길이 1.2배(0.68 → 0.816)·굽힘 반(bend 0.5)(요청: "다리가 너무 심하게 구부린 듯 좀 더 펴고 길이도 1.2배로").
       // 다리 굵기 0.72배(지적: 너무 두꺼움) · 굽힘 0.7(질럿 1.4의 반) · 길이 0.816 → 0.95 → 1.14(재요청: 1.2배)
       // 정강이만 무릎에서 0.6rad(34도) 위로 접는다(요청: 떠다니는 자세) — 허벅지는 그대로.
-      ...protossLegs(P_GOLD, P_GOLD, L, 1.14, 0, 0.72, 0.7, 0.6),
+      ...protossLegs(P_GOLD, P_GOLD, L, 1.14, 0, 0.72, 0.7, 0.6, 0.5),   // 정강이 아래 절반은 임자 색(요청)
       ...protossTorso(P_GOLD, L),
       ...protossNeck(P_GOLD, L),
       /* 앞가리개(요청) — 허리부터 발목까지. 몸에 딱 붙인다(재지적: 떠 보였다).
