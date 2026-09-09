@@ -29003,8 +29003,14 @@ export default function ReplayMotionPlayer({
        잇는다"는 뜻인데, 손짓 중의 옛 세대는 **옛 원점**이라 자리가 조금 뒤진 것이 아니라 사영이 통째로 다르다.
        끄는 동안에는 시각의 매끄러움보다 원근이 맞는 편이 낫다 — 40ms 낡은 자리는 안 보이지만 어긋난 원근은
        보인다. 손을 떼면 곧바로 종전 규칙으로 돌아간다. */
+    /* ★ 되돌리더라도 **원점이 같은 장으로만**(지적: "놓으면 딱 한 번 이전으로 돌아갔다가 오는듯") ────────
+       손을 뗀 그 프레임에 이 규칙이 되살아나(손짓 중에는 꺼 둔다) 시각이 더 나아간 옛 세대의 장을 집는데,
+       그 장은 **옛 원점**이라 원근이 한 걸음 뒤로 갔다가 다음 장에서 돌아온다 — 놓을 때 딱 한 번 나던 그
+       왕복이다. 이 규칙의 뜻은 '세대가 갈렸어도 시각은 앞으로 잇자'이지 '원근을 되돌리자'가 아니므로,
+       원점이 같은 장(탐색·배속처럼 시야가 안 바뀐 세대 전환)에만 건다. */
     if (!xfGestureRef.current
-      && best && bestOld && tNow9 >= ld9 - 1e-6 && best.t < ld9 - 1e-6 && bestOld.t > best.t) best = bestOld;
+      && best && bestOld && bestOld.ox === best.ox && bestOld.oy === best.oy
+      && tNow9 >= ld9 - 1e-6 && best.t < ld9 - 1e-6 && bestOld.t > best.t) best = bestOld;
     if (!best) best = bestOld;
     if (best && tNow9 - best.t <= near9) return best;
     let next: PackedFrame9 | null = null;
