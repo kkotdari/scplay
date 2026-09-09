@@ -28964,13 +28964,28 @@ export default function ReplayMotionPlayer({
     const near9 = Math.max(2, speed * 2);
     /* 새 세대 먼저(위 genSeenRef9) — 새 세대의 장이 지금 시각 이하에 하나라도 있으면 그 세대에서만 고른다. 아직 없으면
        (첫 장이 앞에 있거나 오는 중) 옛 세대의 가장 늦은 장으로 잇는다. 세대를 섞어 번갈아 고르는 일이 없다. */
-    const gs9 = genSeenRef9.current.seen;
+    /* ★ 고르는 자를 **'본 가장 높은 세대'에서 '그릴 수 있는 가장 높은 세대'로** 바꾼다(지적: 가벼운 장면에서도
+       "시점 되돌림 왔다갔다") ────────────────────────────────────────────────────────────────────────────
+       앞 판은 genSeen(받은 것 중 가장 높은 세대)의 장만 후보로 두고, 그 세대에 **지금 시각 이하의 장이 아직
+       없으면** 옛 세대에서 '시각이 가장 늦은 장'으로 이었다. 그런데 워커의 시계는 주인보다 조금 앞서므로 새
+       세대의 첫 장은 흔히 앞에 떨어진다 — 그러면 한 프레임은 옛 세대(옛 원점), 다음 프레임은 새 세대(새 원점),
+       그 다음에 또 새 세대가 앞에 떨어지며 옛 세대… 로 **원점이 앞뒤로 오간다**. 손짓 중에는 세대가 프레임마다
+       나므로 그 왕복이 곧 시점이 왔다갔다 하는 그림이다.
+       이제 '지금 시각 이하'인 장들 가운데 **세대가 가장 높은 것**을 고르고, 같은 세대 안에서 가장 늦은 장을
+       쓴다. 세대는 단조로 오르므로 원점이 뒤로 가는 일이 없다. 시각이 조금 뒤진 장을 드는 경우가 생기지만,
+       그 차는 한 장 간격(수십 ms)이고 어긋난 원근보다 훨씬 덜 보인다. */
+    let bestGen9 = -Infinity;
     let best: PackedFrame9 | null = null;
     let bestOld: PackedFrame9 | null = null;
     for (const f9 of frames9.values()) {
       if (f9.t > tNow9 + 1e-6) continue;
-      if (f9.gen === gs9) { if (!best || f9.t > best.t) best = f9; }
-      else if (!bestOld || f9.t > bestOld.t) bestOld = f9;
+      if (f9.gen > bestGen9) { bestGen9 = f9.gen; best = f9; }
+      else if (f9.gen === bestGen9 && (!best || f9.t > best.t)) best = f9;
+    }
+    // 옛 세대의 가장 늦은 장 — 아래 '되돌아가지 않기'가 쓰는 이음쇠다(손짓 밖에서만).
+    for (const f9 of frames9.values()) {
+      if (f9.t > tNow9 + 1e-6 || f9.gen >= bestGen9) continue;
+      if (!bestOld || f9.t > bestOld.t) bestOld = f9;
     }
     /* 되돌아가지 않기(위 lastDrawT9) — 앞으로 가는 중(tNow ≥ 마지막 그린 시각)에 새 세대의 장이 마지막 그린 시각보다
        뒤에 있고 옛 세대에 더 나아간 장이 있으면 옛 세대로 잇는다. 새 세대가 따라잡는 순간 그쪽으로 넘어간다. */
