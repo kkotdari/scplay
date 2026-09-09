@@ -553,6 +553,9 @@ let brushSrc9 = "react";
 /** 손짓 중 **직전 한 장이 든 시간**(ms) — 붓(UnitLayer)이 배킹을 내릴지 가리는 자다. 부모(xfPaintNow)가 적는다.
  *  모듈 전역인 까닭: 붓은 React 밖에서 불리고 부모의 ref를 못 본다(같은 결의 brushSrc9 옆자리). */
 const xfMsRef9 = { v: 8 };
+/** 손짓 한 번 동안의 **배킹 몫**(1 · 0.7 · 0.5 · 0.4) — 한 손짓 안에서는 **내려가기만 한다**(아래 ★).
+ *  손짓이 시작될 때 1로 되돌린다(beginGestureXf). */
+const xfBackK9 = { k: 1 };
 let brushAT9 = -1;
 /** 재생기 인스턴스 번호(마운트 순) — 한 페이지에 재생기가 둘이면 진단 고리에 섞이므로 가른다. 렌더가 세운다. */
 let INST_SEQ9 = 0;
@@ -21790,9 +21793,16 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          0.5배(픽셀 4분의 1)로 내려, 그리기가 미룸 문턱 아래로 떨어지게 한다 — 그러면 다음 손짓 프레임
          부터는 미루지 않고 **손끝을 따라 그린다**. 스스로 되돌아오는 고리다: 싸진 한 장이 xfMsRef9를
          낮추고, 낮아진 값이 다시 그리기를 열고, 손을 떼면 제 배킹으로 한 장 또렷하게 칠한다. */
-      const Bd = gest9
-        ? (xfMsRef9.v >= XF_HEAVY_MS9 ? B * 0.5 : xfMsRef9.v >= 25 ? B * 0.7 : B)
-        : B;
+      /* ★ 몫은 **한 손짓 안에서 내려가기만 한다**(계측: 손짓 48ms → 87ms(미룸)) ─────────────────────
+         값이 오르내리면 스스로 진동한다: 무거워서 0.7로 내리면 다음 장이 싸져 보이고(<55) 도로 1로
+         올라가고, 그러면 다시 무거워진다 — 재는 값 자체가 그 조치의 결과라 그렇다. 한 손짓 동안은
+         가장 낮았던 몫을 지키고, 손을 뗄 때 1로 되돌린다(제 배킹으로 마지막 한 장을 칠한다).
+         셋째 칸(0.4)을 더한다 — 이제 남은 벽이 칠하는 픽셀이라(찍기 602장/프레임), 그 칸이 실제로 쓰인다. */
+      const kWant9 = xfMsRef9.v >= 70 ? 0.4
+        : xfMsRef9.v >= XF_HEAVY_MS9 ? 0.5
+          : xfMsRef9.v >= 25 ? 0.7 : 1;
+      if (gest9) { if (kWant9 < xfBackK9.k) xfBackK9.k = kWant9; } else xfBackK9.k = 1;
+      const Bd = gest9 ? B * xfBackK9.k : B;
       const bw = Math.round(cw * Bd);
       const bh = Math.round(ch * Bd);
       if (cv.width !== bw) cv.width = bw;
@@ -27881,6 +27891,7 @@ export default function ReplayMotionPlayer({
     // 사람의 손짓이다 — 링크가 쥐고 있던 자리를 여기서 놓는다(위 linkHoldRef9).
     linkHoldRef9.current = null;
     xfGestureRef.current = true;
+    xfBackK9.k = 1;   // 새 손짓은 제 배킹에서 시작한다 — 무거우면 그 안에서 내려간다(위 ★)
     xfPaintAtRef.current = performance.now();
     zoomRawRef.current = zoomRef.current;
     xfBaseRef.current = { z: zoomRef.current, x: panRef.current.x, y: panRef.current.y };
@@ -30778,7 +30789,10 @@ export default function ReplayMotionPlayer({
                       {/* ★ 손짓 한 장(요청으로 낸다) — 끄는 동안 다시 그릴지 미룰지를 가르는 **그 값**이다
                           (XF_HEAVY_MS9 = 55ms를 넘으면 미룬다). 여태 SCR_DIAG.xfms에 적기만 하고 어디에도
                           안 보여, "3D 드래그가 왜 실시간이 아닌가"를 눈으로 확인할 길이 없었다. */}
+                      {/* 손짓 한 장 값과 그때의 **배킹 몫** — 몫이 내려갔는데도 값이 안 내려오면
+                          벽은 픽셀이 아니라 장수(찍기)다. 그 둘을 나란히 봐야 다음 칼을 정할 수 있다. */}
                       {" · 손짓 "}{SCR_DIAG.xfms}ms{SCR_DIAG.xfms >= XF_HEAVY_MS9 ? "(미룸)" : ""}
+                      {xfBackK9.k !== 1 ? ` 배킹×${xfBackK9.k}` : ""}
                     </div>
                   </>
                 )}
