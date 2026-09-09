@@ -27995,6 +27995,16 @@ export default function ReplayMotionPlayer({
          벡터층이 배율을 √2 칸으로 갈무리하므로 손짓 한 번에 두세 번만 다시 굽는다. */
       xfPaintMsRef.current = performance.now() - t0;
       xfMsRef9.v = xfPaintMsRef.current;   // 붓이 읽는다(위 xfMsRef9) — 배킹을 내릴지 가리는 자.
+      /* ★ 한 장이 두 프레임을 넘으면 실시간 원근을 **이 손짓 동안 접는다**(지적: "무거운 장면에선 여러 번
+         왔다갔다") ────────────────────────────────────────────────────────────────────────────────
+         실시간 원근은 '얼어 있는 구간이 없을 때'만 성립하는데, 한 장이 33ms를 넘으면 그리는 사이가 곧 그
+         구간이 된다(그 사이는 CSS가 순수한 옮기기로 밀어 원근이 얼어 있다). 그러면 다시 그릴 때마다 튀고,
+         무거울수록 자주·크게 튄다.
+         접는 방향은 **한쪽뿐이다** — 한 번 접으면 이 손짓이 끝날 때까지 안 편다. 켰다 껐다 하면 재는 값이
+         곧 그 조치의 결과라 진동한다(배킹 몫에서 이미 겪었다). 접으면 워커에 새 원점을 안 보내므로 원근이
+         그 자리에서 멎고, 남은 손짓은 종전대로 CSS가 매끄럽게 민다 — 왕복 대신 '원근은 그대로, 자리는 따라옴'
+         이 된다. 손을 떼면 그 프레임에 제자리로 맞춰진다. */
+      if (liveViewOkRef9.current && xfPaintMsRef.current > 33) liveViewOkRef9.current = false;
       // 손짓 한 장이 든 시간 — 계측 도구가 읽는다(#diag=draw의 자와 같은 자).
       SCR_DIAG.xfms = Math.round(xfPaintMsRef.current);
       return;
