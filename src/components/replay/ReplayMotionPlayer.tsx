@@ -1194,13 +1194,62 @@ const P_PLASMA = "#e4f6ff";
      · 정수리에서 **두개골이 뒤로 길게** 뻗는다(가늘어지는 원뿔).
    눈은 얼굴 앞면의 형광 초록 점 한 쌍 — 앞을 볼 때만 뜬다.
    fill 없이 부르면 색 없는 몸판이라 아콘의 dark() 실루엣이 그대로 집어 간다. */
+/** 얼굴 달걀의 축 y — 마디 t(0 턱 … 1 정수리)에서. 눈·왕관이 껍질 위에 앉으려면 이 자가 필요하다. */
+const pFaceAx9 = (t9: number): number => 0.78 - 0.5 * t9;
+/** 얼굴 달걀의 반지름 — 같은 t에서. */
+const pFaceR9 = (t9: number, s = 1): number => 0.33 * s * Math.sin(Math.PI * (0.1 + 0.8 * t9)) + 0.05 * s;
+/** 껍질 위의 한 점 — (x, z)를 주면 그 자리의 앞면 y를 풀어 돌려준다(달걀은 높이의 함수라 닫힌 식이다). */
+const pFaceOn9 = (x9: number, z9: number, lift9: number, s = 1, out9 = 0): [number, number, number] => {
+  const t9 = Math.max(0, Math.min(1, (z9 - 5.95 - lift9) / 1.05));
+  const r9 = pFaceR9(t9, s);
+  const dy9 = Math.sqrt(Math.max(0, r9 * r9 - x9 * x9));
+  return [x9, pFaceAx9(t9) + dy9 + out9, z9];
+};
+/** ★ 이마에서 정수리 너머로 얹는 **마름모 판**(요청: "머리 이마부터 정수리너머까지 마름모형의 판
+ *  (투구나 왕관느낌?) 붙이기") — 꼭짓점마다 껍질에 앉히므로 머리를 따라 휘고, 어느 각도에서도
+ *  떠 보이지 않는다. gem을 주면 이마 한가운데에 보석 한 알을 박는다(하이템플러의 왕관). */
+function protossCrown(fill: string, lift = 0, s = 1, gem?: string): ShapeFace[] {
+  const L9 = lift;
+  /** 마름모 한 바퀴 — |cos|+|sin|로 나누면 원이 마름모가 된다(꼭짓점 넷). */
+  const ring9 = (hx9: number, z09: number, z19: number, out9: number): string => polyPath3(
+    Array.from({ length: 20 }, (_, i9) => {
+      const a9 = (i9 / 20) * Math.PI * 2;
+      const c9 = Math.cos(a9);
+      const n9 = Math.sin(a9);
+      const k9 = 1 / (Math.abs(c9) + Math.abs(n9) || 1);
+      const zc9 = (z09 + z19) / 2;
+      const hz9 = (z19 - z09) / 2;
+      return pFaceOn9(hx9 * c9 * k9, zc9 + hz9 * n9 * k9 + L9, L9, s, out9);
+    }),
+  );
+  const out: ShapeFace[] = [];
+  // 판 — 이마(z 6.30)에서 정수리 너머(z 7.05)까지. 껍질에서 0.03만 띄워 테가 살게 한다.
+  out.push(...tagKey(paintBase([[ring9(0.30 * s, 6.30, 7.05, 0.03 * s), 1] as ShapeFace], fill),
+    depthNow(0, 0.85) * 1.6 + 0.75));
+  // 안쪽 테 — 같은 마름모를 조금 작게 겹쳐 두 겹으로 보이게(왕관의 테두리).
+  out.push(...tagKey([[ring9(0.20 * s, 6.44, 6.92, 0.045 * s), 0.35, "#000"] as ShapeFace],
+    depthNow(0, 0.85) * 1.6 + 0.78));
+  if (gem) {
+    // 이마 보석 — 마름모 앞쪽 꼭짓점 언저리에 박은 한 알(겉 알 + 흰 심).
+    out.push(...tagKey([
+      [polyPath3(Array.from({ length: 12 }, (_, i9) => {
+        const a9 = (i9 / 12) * Math.PI * 2;
+        return pFaceOn9(Math.cos(a9) * 0.12 * s, 6.42 + L9 + Math.sin(a9) * 0.105 * s, L9, s, 0.075 * s);
+      })), 1, gem] as ShapeFace,
+      [polyPath3(Array.from({ length: 12 }, (_, i9) => {
+        const a9 = (i9 / 12) * Math.PI * 2;
+        return pFaceOn9(Math.cos(a9) * 0.055 * s, 6.42 + L9 + Math.sin(a9) * 0.048 * s, L9, s, 0.09 * s);
+      })), 0.9, "#ffffff"] as ShapeFace,
+    ], depthNow(0, 0.9) * 1.6 + 0.82));
+  }
+  return out;
+}
 function protossFace(fill?: string, lift = 0, s = 1): ShapeFace[] {
   const L9 = lift;
-  const R9 = 0.33 * s;
   const out: ShapeFace[] = [];
-  /** 얼굴 달걀의 축 y와 반지름 — 눈을 껍질 위에 앉히려면 이 둘이 필요하다(아래 ★). */
-  const faceAx9 = (t9: number): number => 0.78 - 0.5 * t9;
-  const faceR9 = (t9: number): number => R9 * Math.sin(Math.PI * (0.1 + 0.8 * t9)) + 0.05 * s;
+  /** 얼굴 달걀의 축 y와 반지름 — 눈을 껍질 위에 앉히려면 이 둘이 필요하다(위 pFace*와 같은 자). */
+  const faceAx9 = pFaceAx9;
+  const faceR9 = (t9: number): number => pFaceR9(t9, s);
   // 얼굴 달걀 — 턱(앞 아래)에서 정수리(뒤 위)로 기울어 선다.
   const face9 = spirePillar({
     x: 0, y: 0, h: 1, w: 1, tipW: 1, segs: 7, sides: 10, hold: 0,
@@ -15663,6 +15712,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         return tagKey(out9, key9);
       }),
     ...protossFace(P_SKIN),   // 키는 protossFace가 부품마다 매긴다(얼굴·꼬리·눈이 서로 가린다)
+    // 투구 — 이마에서 정수리 너머로 얹은 마름모 금판(요청).
+    ...protossCrown(P_GOLD),
     /* ③ 케이블 다발 — 뒤통수에서 등으로 늘어지는 신경삭. 가운데 굵은 한 줄(기존
        마디 체인) + 좌우로 가는 두 가닥(사진 1·6의 다발). 다발은 개인색. */
     /* ★ 다발은 **짧고 곧게 떨어진다**(요청: "질럿 머리 묶음 길이 20% 줄이고 각도 더 수직에 가깝게 바닥으로")
@@ -15672,35 +15723,52 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        내려가는 몫은 1.11배. 둘을 합치면 길이가 0.8배다(5.37 → 4.30). 굵기·색·마디 나눔은 그대로다.
        옆 가닥 둘도 같은 자를 지난다 — 안 그러면 가운데 줄만 서고 가닥이 뒤에 남는다. */
     ...((): ShapeFace[] => {
-      const BR_Y9 = -0.7;
-      const BR_Z9 = 6.75;
-      /** 뒤통수 뿌리에서의 변위를 다시 재는 자 — 뒤(y)는 0.4배, 아래(z)는 1.11배. */
-      const br9 = (y9: number, z9: number): [number, number, number] =>
-        [0, BR_Y9 + (y9 - BR_Y9) * 0.4, BR_Z9 + (z9 - BR_Z9) * 1.11];
-      const brY9 = (y9: number): number => BR_Y9 + (y9 - BR_Y9) * 0.4;
-      const brZ9 = (z9: number): number => BR_Z9 + (z9 - BR_Z9) * 1.11;
-      /** 굵기 배수(요청: "머리 묶음 굵기 20% 축소") — 마디 다섯과 옆 가닥이 한 값을 나눠 쓴다.
-       *  끝 구슬은 안 탄다(그건 앞선 요청으로 이미 제 크기를 받았다). */
-      const BW9 = 0.8;
+      /* ★ 다발을 **뒤통수에서 뒤로 나왔다가 확 꺾여** 떨어지게 다시 짠다(요청: "머리묶음 지름 반으로
+         줄이고 위쪽을 확 구부려서 뒤통수에서 뿌리가 나오게") ─────────────────────────────────────
+         앞 판은 뿌리에서 곧장 아래로 흐르는 사선 하나라, 뿌리가 뒤통수에서 '나온다'기보다 정수리
+         뒤에 매달린 줄로 읽혔다. 마디마다 좌표를 손보는 대신 **등뼈 하나(brPath9)**를 두고 마디는
+         그 위의 구간으로 잡는다 — 그러면 굽힘을 한 자리에서만 고치면 되고 옆 가닥도 저절로 따라온다.
+         등뼈는 3차 베지에다: 처음에는 z가 거의 안 내리고 y만 뒤로 빠지다가(뒤통수에서 나오는 결),
+         가운데에서 확 꺾여 아래로 떨어진다.
+         지름은 절반(0.8 → 0.4)이다. */
+      const BW9 = 0.4;
+      const brPath9 = (t9: number): [number, number, number] => {
+        const u9 = 1 - t9;
+        const bz = (p0: number, c1: number, c2: number, p3: number): number =>
+          u9 * u9 * u9 * p0 + 3 * u9 * u9 * t9 * c1 + 3 * u9 * t9 * t9 * c2 + t9 * t9 * t9 * p3;
+        return [0, bz(-0.55, -1.72, -2.02, -1.86), bz(6.80, 6.74, 5.05, 3.05)];
+      };
+      /** 등뼈 위의 한 마디 — 두 t 사이를 굵기 w로 잇는다. */
+      const seg9 = (t09: number, t19: number, w9: number): ShapeFace[] =>
+        pLimb(brPath9(t09), brPath9(t19), w9 * BW9);
+      const tip9 = brPath9(1);
+      const pre9 = brPath9(0.93);
+      /** 끝 마디의 방향 — 끝 원통이 다발과 한 줄로 이어지게 쓴다. */
+      const dl9 = Math.hypot(tip9[1] - pre9[1], tip9[2] - pre9[2]) || 1;
+      const dy9 = (tip9[1] - pre9[1]) / dl9;
+      const dz9 = (tip9[2] - pre9[2]) / dl9;
       return [
-        ...pLimb(br9(-0.7, 6.75), br9(-1.9, 5.75), 0.62 * BW9),
-        ...paintBase(pLimb(br9(-1.85, 5.79), br9(-2.15, 5.55), 0.72 * BW9), P_GOLD),
-        ...pLimb(br9(-2.1, 5.59), br9(-3.3, 4.5), 0.58 * BW9),
-        ...pLimb(br9(-3.25, 4.54), br9(-4.45, 3.4), 0.52 * BW9),
-        ...paintBase(pLimb(br9(-4.35, 3.49), br9(-4.7, 3.16), 0.6 * BW9), P_GOLD),
-        /* ★ 끝 구슬은 **작게, 끝의 한가운데에**(요청: "끝 공 크기 줄이고 위치 머리 묶음 끝의 가운데와 맞추기")
-           — 여태 자리가 마지막 마디보다 더 아래·뒤(−4.95, 2.9)라 다발에서 떨어져 매달린 혹으로 보였고,
-           크기도 마디(0.6)보다 커 끝이 부풀었다. 마지막 마디의 **끝점 그대로**를 중심으로 삼고 반지름을
-           0.4 → 0.24로 줄인다(마디 굵기의 절반). 바닥 빛무리도 같은 자리·같은 비로 줄인다. */
-        ...paintBase(domeFaces3(0, brY9(-4.7), 0.24, 0.24, brZ9(3.16)), P_PLASMA),
-        [groundEllipse(...project(0, brY9(-4.7), brZ9(3.16)), 0.3, 0.3), 0.45, P_PLASMA] as ShapeFace,
+        ...seg9(0, 0.30, 0.62),
+        ...paintBase(seg9(0.30, 0.38, 0.72), P_GOLD),
+        ...seg9(0.38, 0.64, 0.58),
+        ...seg9(0.64, 0.90, 0.52),
+        ...paintBase(seg9(0.90, 1, 0.6), P_GOLD),
+        /* ★ 끝은 **구가 아니라 짧은 원통**이다(요청) — 구는 다발 끝에 매달린 혹으로 읽혔다.
+           마지막 마디의 방향 그대로 한 토막 더 잇고, 두 끝 단면을 그려 잘린 관으로 보이게 한다. */
+        ...paintBase(suitLimb(
+          tip9,
+          [0, tip9[1] + dy9 * 0.42, tip9[2] + dz9 * 0.42],
+          0.26 * BW9 * 2.4, 0.26 * BW9 * 2.4, 0.26 * BW9 * 2.4,
+          { sides: 8, caps: "both", trueNormal: true, tag: "braid.tip" },
+        ), P_PLASMA),
+        [groundEllipse(...project(0, tip9[1] + dy9 * 0.2, tip9[2] + dz9 * 0.2), 0.3, 0.3), 0.45, P_PLASMA] as ShapeFace,
+        // 옆 가닥 둘 — 같은 등뼈를 타되 옆으로 벌어졌다 모인다(안 그러면 가운데 줄만 서고 가닥이 남는다).
         ...([-1, 1] as const).flatMap((m9) => tagKey(paintBase(spirePillar({
           x: 0, y: 0, h: 1, w: 0.16 * BW9, tipW: 0.05 * BW9, segs: 6, sides: 4, caps: "none",
-          path: (t9: number): [number, number, number] => [
-            m9 * (0.3 + 0.25 * Math.sin(Math.PI * t9)),
-            brY9(-0.75 - 2.9 * t9),
-            brZ9(6.55 - 2.6 * t9 - 0.9 * t9 * t9),
-          ],
+          path: (t9: number): [number, number, number] => {
+            const b9 = brPath9(Math.min(1, 0.06 + 0.94 * t9));
+            return [m9 * (0.3 + 0.25 * Math.sin(Math.PI * t9)) * BW9 * 2.5, b9[1], b9[2]];
+          },
         }), "#3a4258"), depthNow(m9 * 0.4, -1.8) * 1.6 - 0.5)),
       ];
     })(),
@@ -15722,11 +15790,20 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     ...([-1, 1] as const).flatMap((m9): ShapeFace[] => {
       /** 관의 등뼈 — 관과 그 밑동을 감는 띠가 **같은 곡선**을 쓴다. 따로 적으면
        *  언젠가 갈리고, 갈리는 순간 띠가 관에서 벗어난다(이 파일의 단골 사고다). */
+      /* ★ 관을 **뿌리(가슴 끝)를 못 박은 채 1.25배로 키우고 더 대각 위로** 보낸다(요청: "몸통 파이프
+         장식 지름 20프로 축소 및 크기 25프로 확대. 뿌리는 고정하고 대각 위로 더 가게") ────────────
+         키우는 자는 곡선을 손대는 것이 아니라 **가슴 끝에서의 변위에 배수를 거는 것**이다 — 그래야
+         조종점을 하나씩 옮기다 곡선이 무너지는 일이 없다. 등 끝은 그만큼 뒤로 밀리므로 조종점의
+         y 끝을 몸 안쪽(+0.06)으로 당겨 두었다: 키운 뒤에도 등판 속에 묻힌다.
+         마루 조종점은 그대로 둔다 — 1.25배만으로도 마루가 6.74 → 7.14로 올라 어깨를 넘는 결이
+         충분히 가팔라진다(더 올리면 머리 위로 넘어가 '고리 손잡이'로 읽힌다 — 아래 z 조종점의 ★). */
+      const HP_K9 = 1.25;
+      const HP0_9: [number, number, number] = [0.34, 0.58, 5.15];
       const horn9 = (t9: number): [number, number, number] => {
         const u9 = 1 - t9;
         const bz = (p0: number, c1: number, c2: number, p3: number): number =>
           u9 * u9 * u9 * p0 + 3 * u9 * u9 * t9 * c1 + 3 * u9 * t9 * t9 * c2 + t9 * t9 * t9 * p3;
-        return [
+        const raw9: [number, number, number] = [
           /* 두 끝은 **가슴·등 한가운데 가까이**로 모은다(지시: "양끝을 좀더 가슴과 등
              중앙쪽으로 모으기") — 어깨 밖(1.70)으로 벌어졌다가 다시 오므라든다.
              ★ 끝을 몸 옆(0.6 언저리)에 두면 어깨 갑주(알 중심 x 1.42·반지름 0.9가
@@ -15735,15 +15812,21 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
              맞음") — 두 끝을 가운데로 모은 뒤에도 마루를 1.6까지 내밀면, 옆에서 볼 때
              정면에 세운 **큰 고리**가 된다(끝은 붙어 있는데 마루만 멀어 그렇다).
              1.15면 어깨 폭 언저리라 관이 어깨를 타고 넘는 결로 읽힌다. */
-          m9 * bz(0.34, 1.10, 1.15, 0.36),
-          // 앞(+0.58)에서 뒤(−0.20)로 — 이 한 축이 '가슴에서 등으로'다.
-          bz(0.58, 1.05, -1.20, -0.20),
+          bz(0.34, 1.10, 1.15, 0.36),
+          // 앞(+0.58)에서 뒤(+0.06)로 — 이 한 축이 '가슴에서 등으로'다(끝은 위 ★대로 안쪽으로 당겼다).
+          bz(0.58, 1.05, -1.20, 0.06),
           /* 흉갑에서 솟아 **어깨 위를 넘고**(마루 6.74) 등판 높이로 내린다.
              ★ 마루를 낮춘 까닭 — 조종점을 7.35·7.85로 두었을 때 실제 마루가 7.04였고,
                그 높이는 **머리 옆**이다(목 끝 6.28 위로 얼굴이 선다). 그러면 어깨를 넘는
                관이 아니라 머리 곁에 세워 둔 **고리 손잡이**로 읽힌다. 6.74면 어깨 갑주
                (알 z 5.6에서 솟는다) 바로 위를 스치고 지나간다 — 묻히지도, 뜨지도 않는다. */
           bz(5.15, 7.05, 7.35, 5.55),
+        ];
+        // 가슴 끝을 못 박고 변위만 키운다.
+        return [
+          m9 * (HP0_9[0] + (raw9[0] - HP0_9[0]) * HP_K9),
+          HP0_9[1] + (raw9[1] - HP0_9[1]) * HP_K9,
+          HP0_9[2] + (raw9[2] - HP0_9[2]) * HP_K9,
         ];
       };
       /* ★ 붙박이를 2 → **3**으로(지적: "질럿 어깨갑주가 몸통 관에 안 가려짐 — 파이프") ───────────────
@@ -15761,7 +15844,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           x: 0, y: 0, h: 1, w: 1, segs: 12, sides: 8, caps: "both",
           path: horn9,
           // 두께 10% 축소(요청: "어깨 파이프도 두께 10% 축소") — 0.18 → 0.162. 감는 띠도 같은 비로 준다.
-          widthOf: (): number => 0.162,
+          // 지름 20% 축소(요청) — 0.162 → 0.130. 감는 띠도 같은 비로 준다.
+          widthOf: (): number => 0.130,
         }), P_GOLD), hKey9),
         /* ★ 개인색 띠(요청: "질럿 어깨뿔 아래쪽 감싸는 띠") ────────────────────────────
            뿔 밑동을 한 바퀴 감는 고리다. **칠하지 않는 것이 곧 개인색이다** — 여기서
@@ -15780,7 +15864,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           path: (t9: number): [number, number, number] => horn9(0.10 + 0.20 * t9),
           /* 관과 같은 비로 줄인다(0.26 → 0.234) — 띠가 관보다 덜 줄면 헐거워지고, 더 줄면 관의 모서리가
              띠를 뚫는다(팔각 관의 모서리 반지름은 0.162/cos22.5° = 0.175이므로 0.234는 넉넉하다). */
-          widthOf: (): number => 0.234,
+          widthOf: (): number => 0.187,
         }), hKey9 + 0.6),
       ];
     }),
@@ -15811,9 +15895,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        *  바깥·위로 뻗어 상체가 역삼각으로 읽힌다. */
       /** 갑주를 통째로 바깥으로 미는 몫(요청: "어깨갑주 살짝 바깥쪽으로 이동") — 판과 관절 공이 같은 값을 쓴다. */
       const out9 = 0.17;
+      /** 뻗는 몫만 키우는 배수(요청: "어깨갑주 너비 20% 확대 — 뿌리는 고정하고 밖으로 늘림") —
+       *  뿌리(t=0)는 그대로고 t가 붙은 항에만 걸린다. */
+      const w9 = 1.2;
       const sp9 = (t9: number): [number, number, number] => [
-        m9 * (0.75 + out9 + 0.32 * k9 * t9), 0.3 - 0.08 * k9 * t9,
-        5.85 + 0.28 * k9 * t9 - 0.17 * k9 * t9 * t9,
+        m9 * (0.75 + out9 + 0.32 * k9 * w9 * t9), 0.3 - 0.08 * k9 * w9 * t9,
+        5.85 + (0.28 * k9 * t9 - 0.17 * k9 * t9 * t9) * w9,
       ];
       const spW9 = (t9: number): number => (0.17 - 0.1 * t9 * t9) * k9;
       const pKey9 = depthNow(m9 * 1.6, -0.35) * 1.6 + 1.6;
@@ -16082,6 +16169,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       })(), depthNow(0, 0.24) * 1.6 + 1.0),
       // 얼굴 — 공통 턱주가리(요청). 정수리 뿔·뒤 장식 뿔은 제거.
       ...protossFace(P_SKIN, L),   // 키는 protossFace가 부품마다 매긴다
+      // 왕관 — 이마에서 정수리로, 한가운데 보석 한 알(요청).
+      ...protossCrown(P_GOLD, L, 1, "#5fa8ff"),
       // 어깨 갑옷 한 쌍 — 개인색.
       /* 어깨판(재요청) — 반구 대신 끝이 뾰족하고 살짝 위로 솟는 판. 몸에서 바깥·위로
          뻗는 납작한 뿔(spikeHorn)로 낸다. */
