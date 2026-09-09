@@ -20275,6 +20275,13 @@ const SUB_MAX_HARD9 = 2.5;
    것**을 쓴다. 흐릿한 것은 잠깐이다 — 손짓 중에는 어차피 옛 판을 늘려 보이고 있었고
    (bakeZoom), 그 뒤로 프레임마다 예산만큼 진짜 판이 차오르며 또렷해진다. 폭탄 같은
    한 프레임(굽기 수십 장 + 수거 대기 수십 장)이 1초 남짓의 점진 선명화로 바뀐다. */
+/** 입체 건물 판의 크기 사다리 — 한 옥타브를 열둘로 끊는다(칸 사이 5.9%·이상값과 최대 2.9%). */
+const BLD_LADDER9 = 12;
+const bldLadder9 = (want9: number, B: number): number => {
+  if (!(want9 > 0)) return want9;
+  const r9 = Math.round(Math.log2(want9) * BLD_LADDER9) / BLD_LADDER9;
+  return Math.max(4, Math.round(2 ** r9 * B) / B);
+};
 /** 대타로 쓸 크기를 고른다 — 크거나 같은 것 우선, 없으면 문턱 안쪽의 작은 것. */
 const pickSubSize9 = (
   list: { s: number; k: string }[], want: number, cap = SUB_MAX_UP9,
@@ -22071,6 +22078,14 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          **한 주소로 A/B가 된다**(그림자 탓인지 판이 큰 탓인지를 가르는 유일한 길). */
       const bodyShadow = showOverlap !== false && !NOSHADOW9 && CROWD9.lv === 0   // 덜어내기 1단부터 끔
         && zoom >= SHADOW_MIN_ZOOM && !marker;
+      /* ★ **그림자 끄기는 프레임에 한 번**(계측: 찍기 417장/프레임에 최악프레임 100ms — 그중 굽기는 37ms뿐) ──
+         여기 있던 `ctx.shadowColor = "transparent"` 열넷은 개체 하나를 그리는 동안 아홉 번까지 다시 적혔다.
+         한 프레임 400개면 3600번이고, 그 대입은 그때마다 색 문자열을 파싱한다.
+         그런데 이 캔버스는 shadowBlur가 0이다 — 몸 그림자는 런타임 shadowBlur가 아니라 **구워 둔 그림자 판**
+         (shadowPlate)으로 찍는다. blur가 0이면 shadowColor는 아무 일도 안 한다. 곧 그 대입 전부가 헛일이었다.
+         프레임 머리에서 한 번 끄고(blur까지 못 박아 뒤에 누가 켜도 이 자리에서 다시 0이다) 안쪽 대입은 걷는다. */
+      ctx.shadowBlur = 0;
+      ctx.shadowColor = "transparent";
       for (const op of list) {
         const sx = zx(op.fx);
         const sy = zy(op.fy);
@@ -22083,7 +22098,6 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         /* ── 저배율 마커(요청) — save() 앞에서 갈라져 op마다의 save/restore·그림자·판
            조회를 통째로 건너뛴다. 상태는 alpha·fillStyle만 만지므로 저장이 필요 없다. */
         if (marker && !op.textGlyph && !op.clipWalk) {
-          ctx.shadowColor = "transparent";
           ctx.globalAlpha = op.alpha;
           ctx.fillStyle = op.color;
           if (op.wFrac !== undefined && op.hFrac !== undefined) {
@@ -22139,7 +22153,6 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         const hover = op.air || HOVER_UNIT_SET.has(op.kind);
         if (op.textGlyph) {
           // 부속건물 + 같은 글자 하나 — 스팬 글자와 같은 굵기·가운데 앵커.
-          ctx.shadowColor = "transparent";
           ctx.globalAlpha = op.alpha;
           ctx.fillStyle = op.color;
           ctx.font = `700 ${op.sizePx * zoom}px sans-serif`;
@@ -22154,7 +22167,6 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           const hPx = op.hFrac * cw * zoom;
           if (op.boxFit === "fill") {
             // 맨 네모(전용 도형 없는 건물) — 상자를 그대로 채운다(.scr-motion-sq).
-            ctx.shadowColor = "transparent";
             ctx.globalAlpha = op.alpha;
             ctx.fillStyle = op.color;
             ctx.fillRect(sx - wPx / 2, sy - hPx / 2, wPx, hPx);
@@ -22178,7 +22190,16 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           /* 판 크기를 기기픽셀 격자에 맞춘다 — 유닛 pxq와 같은 까닭이다(그쪽 주석):
              짝수 CSS px로 죄면 블릿 배율(k = sidePx / sideQ)이 1이 아니게 되고, 1에
              가까운 비정수 배율이 모델을 고르게 뭉갠다. 격자에 맞추면 k가 1이 된다. */
-          const sideWant = Math.max(4, Math.round((sidePx * bakeZoom / zoom) * B) / B);
+          const sideRaw9 = Math.max(4, Math.round((sidePx * bakeZoom / zoom) * B) / B);
+          /* ★ **입체에서는 굽는 크기를 비의 사다리에 앉힌다**(계측: 2초에 건물 221장 194ms) ─────────────
+             입체에서 건물의 크기는 **화면에서의 깊이**가 정한다(원근). 그래서 화면을 조금만 밀어도 건물마다
+             원하는 크기가 조금씩 달라지고, 위 격자는 그것을 기기픽셀 한 톨까지 따라간다 — 곧 열쇠가 한 톨마다
+             갈려 같은 건물이 판을 수십 벌 굽는다. 손짓 뒤마다 200장 넘게 다시 굽던 몫이 이것이다(굽는 값도
+             값이지만, 그렇게 갈린 판이 보관 예산을 먹어 캐시가 영영 안 차는 것이 더 아프다).
+             한 옥타브를 열두 칸으로 끊어 그 칸에 앉힌다 — 이웃 칸과의 차가 5.9%, 이상값과의 차는 최대 2.9%다.
+             남는 차이는 블릿 배율(k)이 이미 진다(아래 `bspr.side !== sideWant`). 평면(2D)에서는 크기가 배율로만
+             바뀌고 그 배율은 이미 칸으로 죄어 있으므로 종전대로 격자에 딱 맞춰 굽는다(k = 1, 가장 또렷하다). */
+          const sideWant = op.pitch ? bldLadder9(sideRaw9, B) : sideRaw9;
           /* ★ **크립은 배율도 시점도 안 탄다**(지적: "크립 아직도 메모리 터져 — 구현 방식
              근본적인 수정 필요") ────────────────────────────────────────────────────────
              크립 얼룩은 3차원 모형이 아니라 **땅에 누운 무늬 한 장**인데, 여태 다른 건물과
@@ -22280,7 +22301,6 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
               ? Math.max(wPx * 0.7, inkW9 * 0.88)
               : inkW9 * 0.72;
             const fdPx = footW * (op.footRatio ?? 0.6) * squish;
-            ctx.shadowColor = "transparent";
             // 검정 그림자로 롤백(지적: "그림자의 개인색 적용 롤백") — 임자 색을 눌러 칠하던
             // 것을 걷고 예전 검정으로 돌아간다. 짙기는 별개 지적으로 올려 둔 값이라 유지:
             // 이제 뜬 건물만 그림자를 지므로 공중 유닛과 같은 짙기다.
@@ -22312,7 +22332,9 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
                다른 크기가 올 수 있다(buildingSpriteBake의 ★). */
             /* 고치 두근거림(op.pulseK)은 여기 블릿 배율에만 얹는다 — 아래 bLeft9·bTop9가 k로 가로 가운데·잉크
                바닥을 잡으므로, 배율이 흔들려도 발은 땅 그 자리다. 판은 안 다시 굽는다. */
-            const k = (decal9 || bspr.side !== sideWant || bakeZoom !== zoom
+            /* 사다리에 앉힌 판(입체)은 **늘 제 크기로 늘려 찍는다** — 판 크기가 요청과 최대 2.9% 다르므로
+               1:1로 찍으면 건물이 사다리 칸을 따라 크기가 계단으로 튄다(위 sideWant의 ★). */
+            const k = (decal9 || op.pitch || bspr.side !== sideWant || bakeZoom !== zoom
               ? sidePx / bspr.side : 1) * (op.pulseK ?? 1);
             // 겹친 것만 살짝 그림자(확대 적용: 유닛·건물 공통).
             /* 크립은 그림자를 안 진다(지적: "크립은 그림자 없어야 자연스럽게 이어지지")
@@ -22322,7 +22344,6 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             /* 그림자는 아래 블릿 직전에 **구워 둔 판**으로 찍는다(shadowPlate 주석) —
                여기서는 자격만 정한다. */
             const bShadow9 = bodyShadow && !op.clipWalk && !op.inkCenter;
-            ctx.shadowColor = "transparent";
             ctx.globalAlpha = op.alpha;
             /* 발은 땅에(보정과 짝) — 상자 바닥에 맞추면 모델의 잉크 바닥이 상자보다
                위에 있는 만큼의 틈이 배율만큼 함께 커져 건물이 떠 보인다. 그린 픽셀의
@@ -22443,7 +22464,6 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             const ty9 = (groundY ?? sy + hPx / 2)
               - (op.airPx !== undefined ? op.airPx * zoom : wPx * (op.liftK ?? 0));
             ctx.setTransform(Bd * s, 0, 0, Bd * s, Bd * (sx - 8 * s), Bd * (ty9 - 16 * s));
-            ctx.shadowColor = "transparent";
             for (const [d, o, fill] of faces) {
               ctx.globalAlpha = op.alpha * shadeBoost(o, fill);
               ctx.fillStyle = fill ?? op.color;
@@ -22550,7 +22570,6 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         /* ★ 덜어내기 중에도 **공중 유닛 그림자는 남긴다**(요청: "떠있는 위치가 안 읽혀서") — 타원 하나라 값이
            거의 없고, 그림자가 없으면 나는 몸의 높이·자리를 읽을 길이 없다. 부양 지상 유닛 그림자만 덜어낸다. */
         if (hover && !op.noShadow && showShadows !== false && (CROWD9.lv === 0 || op.air) && detail && !gest9) {
-          ctx.shadowColor = "transparent";
           /* 떠다니는 지상 유닛(일꾼·벌처·아콘류)은 겨우 발밑만 떠 있다(지적: 그림자가
              너무 크고 진해) — 높이 나는 공중 유닛보다 작고 옅은 타원. */
           // 그림자 살짝 축소(지적) — 높이 나는 만큼 발밑 그림자는 작고 옅게.
@@ -22616,7 +22635,6 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
                통째로 빠져 있었다. 도록에 실렸나는 그리기가 알 일이 아니다: 건물·자원은
                위 상자 갈래에서 이미 갈라져 나갔고, 크립 판만 빼면 여기 남는 것은 전부
                '땅에 선 몸'이다. */
-          ctx.shadowColor = "transparent";
           // 짙기 상향(지적) — 0.15 → 0.32. 색만 검정으로 롤백(지적: "그림자의 개인색 적용 롤백").
           // 다시 한 단 연하게(요청: "유닛 및 뜬 건물 그림자 살짝 연하게") — 0.32 → 0.23.
           ctx.globalAlpha = op.alpha * 0.23;
@@ -22642,7 +22660,6 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
            색은 임자 색이다(요청: 흰색 말고 개인색) — 누가 잡은 유닛인지 링만 보고 안다.
            공중 유닛은 링도 공중이다(지적: 유닛 바닥에) — 들린 몸의 바닥선에 붙인다. */
         if (op.selRing) {
-          ctx.shadowColor = "transparent";
           /* 선 굵기는 화면 고정(지적: 링은 UI 요소 — 확대에 굵어지면 안 됨) — 반지름은
              유닛(px)을 따라가되 굵기에서 zoom을 뺀다. */
           /* ★ 굵기를 되돌린다(지적: "유닛 선택링이 안나와") — 두 번의 "더 가늘게"가
@@ -22685,7 +22702,6 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              실제 몸 폭(inkW)이고, 눕는 몫도 그쪽과 한 값이라 둘이 따로 놀지 않는다.
              링(0.55)보다 조금만 크게(0.62) — 링을 삼키지 않으면서 발밑에 깔린다. */
         if (op.tint) {
-          ctx.shadowColor = "transparent";
           ctx.globalAlpha = op.alpha * 0.32;
           ctx.fillStyle = op.tint;
           ctx.beginPath();
@@ -22712,7 +22728,6 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              아래로") — 몸은 lift만큼 떠 있으므로 그만큼 함께 올려야 발치에 붙는다.
              지상 유닛은 lift가 0이라 예전과 같은 자리다. */
           const by2 = footY - lift + Math.max(2, px * 0.11);   // 살짝 아래로(지적)
-          ctx.shadowColor = "transparent";
           ctx.globalAlpha = op.alpha * 0.9;
           ctx.fillStyle = "rgba(10, 14, 10, 0.75)";
           ctx.fillRect(bx2 - 0.5, by2 - 0.5, bw2 + 1, bh2 + 1);
@@ -22789,7 +22804,6 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             );
             trimBoth9();
             if (sh9) {
-              ctx.shadowColor = "transparent";
               ctx.globalAlpha = op.alpha;
               SPRITE_PERF.blit += 1;
               ctx.drawImage(
@@ -22801,7 +22815,6 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
               );
             }
           }
-          ctx.shadowColor = "transparent";
           ctx.globalAlpha = op.alpha;
           SPRITE_PERF.blit += 1;
           /* 자른 판을 제 자리에 되돌린다 — 원래 판의 왼위 모서리가 있던 곳에서
@@ -22856,7 +22869,6 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         }
         // 스프라이트를 못 구우면 예전 직접 그리기로 — 이 갈래도 센다(비싼 길이다).
         SPRITE_PERF.direct += 1;
-        ctx.shadowColor = "transparent";
         const ds9 = px / 16;
         ctx.transform(ds9, 0, 0, ds9, -8 * ds9, -8 * ds9);
         for (const [d, o, fill] of faces) {
