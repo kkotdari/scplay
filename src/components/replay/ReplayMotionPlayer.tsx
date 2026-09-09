@@ -24565,6 +24565,18 @@ function viewKeyOf9(v9: EngineView9): string {
     + `|${v9.qAnim ? 1 : 0}${v9.qBuildFx ? 1 : 0}${v9.qDeath ? 1 : 0}${v9.clickFx ? 1 : 0}`
     + `|${v9.cull ? `${v9.cull.x0.toFixed(3)},${v9.cull.x1.toFixed(3)},${v9.cull.y0.toFixed(3)},${v9.cull.y1.toFixed(3)}` : "all"}`;
 }
+/** ★ 끄는 동안의 실시간 원근은 **기본으로 끈다**(주소에 `?live3d=1`이면 켠다) ────────────────────────
+ *  지적 둘로 자리가 드러났다: "흔들림 발생했어. 그리고 두 번째 드래그부터 시점 변화 X".
+ *  ① 두 번째부터 안 되던 것 — 문을 '최근 2초의 최악 프레임'으로 여닫았는데, 그 창에 **방금 끈 드래그
+ *    자신의 무거운 프레임**이 들어간다. 첫 드래그가 문을 닫고 그 뒤로 영영 안 열렸다. 스스로를 재는 자였다.
+ *  ② 흔들림 — 이것이 구조다. 끄는 동안 붓은 **매 프레임 다시 그리지 않는다**(무거우면 미루고 그 사이는
+ *    CSS로 민다). CSS 밀기는 순수한 옮기기라 **그 시점의 원근이 얼어 있는 것**과 같고, 다시 그리는 순간
+ *    새 원점의 사영으로 **건너뛴다**. 원점이 프레임마다 움직이면 그 건너뜀이 다시 그릴 때마다 나고, 다시
+ *    그리는 박자가 고르지 않으니 좌우로 흔들려 보인다.
+ *    곧 실시간 원근은 '**매 프레임 다시 그릴 수 있을 때**'만 성립한다(한 장 16ms 언저리). 배율 6·1000기·
+ *    3D 미달 기기에서는 한 장이 그 몇 배라 성립하지 않는다 — 원점을 얼려 두는 편(종전 동작)이 옳다.
+ *  그래서 길과 계측은 그대로 두고 기본을 끔으로 돌린다. 가벼운 자리에서 손으로 켜 보려면 ?live3d=1. */
+const LIVE3D_ON9 = typeof location !== "undefined" && /[?&]live3d=1/.test(location.search);
 /** 손짓 중 시야를 흘려보내는 **최소** 간격(ms) — 손짓 프레임(rAF)마다 한 번이 목표라 바닥만 깔아 둔다.
  *  ★ 120ms에서 8ms로 내렸다(지적: "드래그 중 좌우로 시점이 흔들흔들하는데?") ─────────────────────────
  *  흔들림은 **사영 중심이 계단으로 따라오기 때문**이다. 붓은 손끝을 따라 매끄럽게 미는데(CSS·다시 그리기)
@@ -28005,8 +28017,7 @@ export default function ReplayMotionPlayer({
     /* 밀림 기준을 지금 원점에 못 박는다 — 끄는 동안 판 열쇠가 안 흔들리게(PitchGeom9.sox의 ★).
        끝나면 endGestureXf가 풀어, 손을 뗀 그 프레임에 제 기울기로 한 번 맞춰진다. */
     shearOxRef9.current = pitchGeomLiveRef9.current?.().ox ?? null;
-    liveViewOkRef9.current = pitchDegRef9.current < 90
-      && (SPRITE_PERF.wLast.worstFrame === 0 || SPRITE_PERF.wLast.worstFrame < 120);
+    liveViewOkRef9.current = LIVE3D_ON9 && pitchDegRef9.current < 90;
     xfPaintAtRef.current = performance.now();
     zoomRawRef.current = zoomRef.current;
     xfBaseRef.current = { z: zoomRef.current, x: panRef.current.x, y: panRef.current.y };
