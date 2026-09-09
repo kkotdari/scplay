@@ -24556,6 +24556,16 @@ const lerpAng9 = (a: number, b: number, u: number): number => {
   return a + d * u;
 };
 
+/** 워커에 보낸 시야를 견주는 열쇠 — 렌더가 보내는 자리와 손짓이 보내는 자리가 함께 쓴다. */
+function viewKeyOf9(v9: EngineView9): string {
+  return `c${v9.crowd}|${v9.mapW}|${v9.mapH}|${v9.tilePx.toFixed(3)}|${v9.pitched ? 1 : 0}|${v9.pitchFlat.toFixed(4)}`
+    + `|${v9.geom.w}|${v9.geom.h}|${v9.geom.P.toFixed(1)}|${v9.geom.ox.toFixed(1)},${v9.geom.oy.toFixed(1)}`
+    + `|${v9.viewTeam}|${v9.visAll ? 1 : 0}|${v9.fogOn ? 1 : 0}`
+    + `|${v9.qAnim ? 1 : 0}${v9.qBuildFx ? 1 : 0}${v9.qDeath ? 1 : 0}${v9.clickFx ? 1 : 0}`
+    + `|${v9.cull ? `${v9.cull.x0.toFixed(3)},${v9.cull.x1.toFixed(3)},${v9.cull.y0.toFixed(3)},${v9.cull.y1.toFixed(3)}` : "all"}`;
+}
+/** 손짓 중 시야를 흘려보내는 간격(ms) — 이보다 잦게 보내면 워커가 앞장을 짓다 말고 다시 짓기만 한다. */
+const LIVE_VIEW_MS9 = 120;
 export default function ReplayMotionPlayer({
   grid, endSec, bases: basesIn, teamOfRaw, active = true, winnerTeam, side,
   onDetailClose, loadUnitTracks, initialSec, initialSpeed, initialView, initialTrack,
@@ -24919,6 +24929,38 @@ export default function ReplayMotionPlayer({
    *  상태의 원점(pitchGeom().ox·oy)은 워커에 보내는 목표이고, 새 세대의 장이 오기까지 화면은 옛 원점으로 한 몸이어야
    *  지도와 유닛이 어긋나지 않는다. 바뀌면 지형 변환을 바로 다시 건다(paintFnRef9). */
   const drawnOrgRef9 = useRef({ ox: 0, oy: 0 });
+  /* ★ **손짓 중에도 시야(원근 원점)를 흘려보낸다**(요청: "드래그를 놓았을 때 시점이 바뀌는 건 여전한데") ────
+     3D의 원근 원점(geom.ox·oy)은 팬·배율에서 나오고, 그 값이 워커에 보내는 시야 열쇠에 들어간다. 그런데
+     손짓 중에는 상태(zoom·pan)가 안 움직이므로(refs만 움직인다) 렌더가 안 돌고, 그래서 **원점이 얼어 있었다**:
+     워커는 옛 원점으로 계속 설계도를 짓고 붓은 그것을 밀어서(translate) 보여 줄 뿐이라 원근이 안 따라오다가,
+     손을 떼는 순간 상태가 굳으며 새 원점으로 다시 사영돼 툭 바뀐다.
+     이제 손짓이 그리는 자리에서 **손끝 기하**로 시야를 다시 보낸다(LIVE_VIEW_MS9 간격). 워커는 새 원점으로
+     설계도를 지어 보내고, 원점이 바뀐 장이 도착하면 지형·안개도 같은 눈으로 다시 칠해진다(drawnOrgRef9의 그 길).
+     간격을 두는 까닭은 원점이 바뀔 때마다 워커가 앞장을 버리고 다시 짓기 때문이다 — 너무 잦으면 짓기만 하다
+     한 장도 못 낸다. 평면(2D)에서는 원점이 0이라 아무 일도 안 한다. */
+  const engViewRef9 = useRef<EngineView9 | null>(null);
+  const colorTableRef9 = useRef<Record<string, string> | null>(null);
+  const pitchGeomLiveRef9 = useRef<(() => PitchGeom9) | null>(null);
+  const liveViewAtRef9 = useRef(0);
+  const postLiveView9 = useCallback((): void => {
+    const w9 = frameWorkerRef.current;
+    const base9 = engViewRef9.current;
+    const geomOf9 = pitchGeomLiveRef9.current;
+    if (!w9 || !base9 || !base9.pitched || !geomOf9) return;
+    const now9 = performance.now();
+    if (now9 - liveViewAtRef9.current < LIVE_VIEW_MS9) return;
+    const v9: EngineView9 = { ...base9, geom: geomOf9() };
+    const key9 = viewKeyOf9(v9);
+    const sent9 = viewSentRef9.current;
+    if (sent9 && sent9.key === key9) return;
+    liveViewAtRef9.current = now9;
+    const col9 = colorTableRef9.current ?? sent9?.colors;
+    if (!col9) return;
+    viewSentRef9.current = { key: key9, colors: col9 };
+    wStatRef.current.sentView += 1;
+    // 안개 갈래는 안 바뀐다(시야 주인·전체시야·안개 켬 셋이 그대로다) — 지금 번호를 그대로 싣는다.
+    w9.postMessage({ type: "view", view: v9, seq: wStatRef.current.sentView, fogSeq: fogSeqRef9.current.seq });
+  }, []);
   const instIdRef9 = useRef(0);
   const lastPlaying9 = useRef<boolean | null>(null);
   const wStatRef = useRef({
@@ -27862,6 +27904,11 @@ export default function ReplayMotionPlayer({
        팬 한 프레임이 **React 커밋 한 번**이던 시절의 값이고, 지금 붓은 React 밖에 있다(재설계).
        줌이 쓰던 자기 조절을 그대로 쓴다: 다음 사이 = 직전 한 장이 든 시간 × 1.2. 곧 그리기에 쓰는 몫이 늘 절반
        밑이라 느린 기기에서도 손짓이 안 느려지고, 빠른 기기에서는 매 프레임이 된다. 그 사이는 CSS 이동이 잇는다. */
+    /* ★ 입체의 **원근 원점은 손짓 프레임마다** 손끝을 따라간다(위 postLiveView9) — 그리기를 미루는
+       무거운 프레임에서도 보낸다: 미루는 것은 이쪽 붓의 일이고, 설계도를 짓는 것은 워커의 일이라
+       서로 막을 까닭이 없다. 보내기 자체는 postMessage 한 번이라 이 실마리에 얹히는 값이 없다.
+       (제 간격은 그 함수가 쥔다 — LIVE_VIEW_MS9.) */
+    postLiveView9();
     const need9 = Math.min(400, xfPaintMsRef.current * 1.2);
     const moved9 = moved >= 1 || Math.abs(s9 - 1) >= 0.0015;
     /* ★ **한 장이 무거우면 끄는 동안은 안 그린다**(지적: "3D 보기에서 드래그·팬 시 바로바로 시점이 바뀌지 않고
@@ -28381,7 +28428,10 @@ export default function ReplayMotionPlayer({
   };
   const pgRef = useRef<PitchGeom9 | null>(null);
   pgRef.current = null;
-  const pitchGeomRaw = (): PitchGeom9 => {
+  /* ★ 배율·팬을 **인자로** 받는다(요청: 드래그 중에도 원근이 따라오게) — 원점(ox·oy)은 팬·배율에서
+     나오므로, 손끝 값으로도 같은 셈을 할 수 있어야 손짓 중의 시야를 워커에 흘려보낼 수 있다.
+     렌더가 부르는 자리는 상태(zoom·pan)를 그대로 넘긴다 — 값이 한 톨도 안 달라진다. */
+  const pitchGeomAt9 = (z9: number, p9: { x: number; y: number }): PitchGeom9 => {
     const el = mapRef.current;
     const w = el?.clientWidth ?? 320;
     const h = el?.clientHeight ?? 220;
@@ -28402,14 +28452,19 @@ export default function ReplayMotionPlayer({
     const cy = (C * H * (1 - q * kFar)) / 2;
     /* 시점 원점(PitchGeom9 주석) — 굳은 배율·팬에서 화면 가운데가 닿는 지도 지점. 원점은 (q·ox, q·C·oy − cy)에 찍히므로
        그 자리가 화면 가운데(−pan/z)가 되게 푼다. 팬 0·배율 1이면 cy만큼 아래 지점이 원점이라 옛 그림과 거의 같다. */
-    const ox = pitched ? -pan.x / (zoom * q) : 0;
-    const oy = pitched ? (cy - pan.y / zoom) / (q * C) : 0;
+    const ox = pitched ? -p9.x / (z9 * q) : 0;
+    const oy = pitched ? (cy - p9.y / z9) / (q * C) : 0;
     return { w, h, hPre, P, S, C, q, cy, ox, oy };
   };
+  const pitchGeomRaw = (): PitchGeom9 => pitchGeomAt9(zoom, pan);
   const pitchGeom = (): PitchGeom9 => {
     pgRef.current ??= pitchGeomRaw();
     return pgRef.current;
   };
+  /** 손끝 기하 — 손짓 중에는 상태가 안 움직이므로(refs만 움직인다) 여기서 지금 값을 본다. */
+  const pitchGeomLive9 = (): PitchGeom9 => pitchGeomAt9(zoomRef.current, panRef.current);
+  // 손짓이 부르는 자리(postLiveView9)는 렌더 밖이라 ref로 건넨다.
+  pitchGeomLiveRef9.current = pitchGeomLive9;
   /* (걷음) pitchStyle — 입체일 때 <img>에 입히던 변환이다. 그림이 사라졌다. */
 
   /** 그리는 장의 원점을 낀 기하 — 안개·DOM 효과·지형 변환이 쓴다(위 drawnOrgRef9). 목표 원점은 pitchGeom()이다. */
@@ -28776,11 +28831,13 @@ export default function ReplayMotionPlayer({
     // `#noscan` 해시(도구용) — 두리번을 끈다.
     ...(typeof location !== "undefined" && /noscan/.test(location.hash) ? { noIdleScan: true } : {}),
   };
-  /* 시점 입력이 바뀌면 워커에도 알린다 — 색표는 참조로, 나머지는 값으로 견준다. */
-  const viewKey9 = `c${CROWD9.lv}|${engView9.mapW}|${engView9.mapH}|${engView9.tilePx.toFixed(3)}|${engView9.pitched ? 1 : 0}|${engView9.pitchFlat.toFixed(4)}`
-    + `|${engView9.geom.w}|${engView9.geom.h}|${engView9.geom.P.toFixed(1)}|${engView9.geom.ox.toFixed(1)},${engView9.geom.oy.toFixed(1)}|${engView9.viewTeam}|${engView9.visAll ? 1 : 0}|${engView9.fogOn ? 1 : 0}`
-    + `|${engView9.qAnim ? 1 : 0}${engView9.qBuildFx ? 1 : 0}${engView9.qDeath ? 1 : 0}${engView9.clickFx ? 1 : 0}`
-    + `|${cullRect9 ? `${cullRect9.x0.toFixed(3)},${cullRect9.x1.toFixed(3)},${cullRect9.y0.toFixed(3)},${cullRect9.y1.toFixed(3)}` : "all"}`;
+  /* 시점 입력이 바뀌면 워커에도 알린다 — 색표는 참조로, 나머지는 값으로 견준다.
+     열쇠 만들기는 모듈 자리의 viewKeyOf9다 — 손짓 중에 손끝 기하로 다시 보내는 자리(postLiveView9)와
+     **같은 자**를 써야 한다. 둘이 갈리면 같은 시야를 두 번 보내거나 바뀐 시야를 안 보낸다. */
+  const viewKey9 = viewKeyOf9(engView9);
+  /* 손짓 중에 보낼 밑감 — 렌더마다 최신으로 갈아 둔다(손짓 중에는 렌더가 안 도니 마지막 것이 곧 지금 것이다). */
+  engViewRef9.current = engView9;
+  colorTableRef9.current = colorTable9;
   {
     const w9 = frameWorkerRef.current;
     const sent9 = viewSentRef9.current;
