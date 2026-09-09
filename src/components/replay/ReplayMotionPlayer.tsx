@@ -8706,10 +8706,34 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          없다. 그래서 면을 직접 짠다: 반원 껍질(사각 띠) + 자른 면 한 장 + 위 반달 뚜껑, 그리고
          반구는 밑동에서 끝까지 도는 띠다. 명암은 다른 부품과 같은 자(faceLight)로 매기고,
          등진 면은 그 자가 걷어 준다(보임 판정) — 그래서 안벽이 안 비친다. */
-    const CR9 = 1.45;          // 드럼 반지름 = 반구 반지름
+    /* ★ 몸통을 **두건이 서 있던 높이까지** 키운다(요청: "위쪽 절두체랑 잎 제거하고 아래 부품들을
+       그 높이까지 확대") — 두건 꼭대기가 6.1이었으므로 드럼을 거기까지 세운다. 반지름도 함께
+       키워(1.45 → 2.0) 키만 큰 막대가 되지 않게 한다. 반구는 자른 면의 한가운데에 앉아
+       위아래로 여유를 남긴다(드럼이 반구보다 높다 — 사진의 그 비례다). */
+    const CR9 = 2.0;           // 드럼 반지름 = 반구 반지름
     const CZ0 = 0.35;          // 드럼 밑
-    const CZ1 = 3.35;          // 드럼 꼭대기(높이 3.0 ≈ 지름 2.9라 반구가 자른 면을 거의 채운다)
-    const CCZ9 = (CZ0 + CZ1) / 2;   // 반구의 중심 높이
+    const CZ1 = 6.10;          // 드럼 꼭대기 — 걷어낸 두건의 꼭대기와 같은 높이
+    const CCZ9 = CZ0 + CR9 + 0.85;   // 반구의 중심 높이(자른 면의 가운데보다 조금 아래)
+    /** 몸을 한 바퀴 두르는 **띠** — 껍질 바로 밖에 눕힌 사각 조각들이다.
+     *  ★ cylinderFaces3를 안 쓰는 까닭: 그것은 뚜껑이 달린 통이라, 몸과 반지름이 같은 자리에
+     *    두면 그 뚜껑이 몸 꼭대기를 통째로 덮어 창백한 접시가 된다(첫 판이 그랬다).
+     *    띠는 옆면만 있으면 된다. 등진 조각은 faceLight의 보임 판정이 걷는다. */
+    const ringBand9 = (zA9: number, zB9: number, rOff9: number, col9?: string): ShapeFace[] => {
+      const out9: ShapeFace[] = [];
+      const NR9 = 20;
+      const rp9 = (a9: number, z9: number): [number, number, number] =>
+        [Math.cos(a9) * (CR9 + rOff9), Math.sin(a9) * (CR9 + rOff9), z9];
+      for (let i9 = 0; i9 < NR9; i9 += 1) {
+        const a09 = (i9 / NR9) * Math.PI * 2;
+        const a19 = ((i9 + 1) / NR9) * Math.PI * 2;
+        const am9 = (a09 + a19) / 2;
+        const lit9 = faceLight(Math.cos(am9), Math.sin(am9), 0);
+        if (!lit9.visible) continue;
+        const d9 = polyPath3([rp9(a09, zA9), rp9(a19, zA9), rp9(a19, zB9), rp9(a09, zB9)]);
+        out9.push([d9, 1, col9] as ShapeFace, ...lit9.face(d9));
+      }
+      return out9;
+    };
     const NA9 = 14;            // 한 바퀴를 나누는 수
     const flask: ShapeFace[] = ((): ShapeFace[] => {
       const out9: ShapeFace[] = [];
@@ -8732,6 +8756,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 위 뚜껑 — 반달 한 장.
       push9([0, 0, 1], Array.from({ length: NA9 + 1 },
         (_, i9) => dp9(Math.PI / 2 + (i9 / NA9) * Math.PI, CZ1)));
+      /* 자른 면 — x = 0의 네모 한 장. 반구가 그 한가운데를 덮지만 **반구보다 위는 안 덮으므로**
+         이 면이 없으면 거기에 구멍이 뚫린다(첫 판에서 꼭대기가 한 입 베어 문 꼴이었다). */
+      push9([1, 0, 0], [[0, -CR9, CZ0], [0, CR9, CZ0], [0, CR9, CZ1], [0, -CR9, CZ1]]);
       /* ② 반구 — 바닥이 드럼의 자른 면(x = 0)에 붙고 오른쪽(+x)으로 부푼다.
          u는 밑동(0)에서 끝(1)까지, 그 자리의 x는 R·sin, 고리 반지름은 R·cos다. */
       const MS9 = 5;
@@ -8751,8 +8778,27 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           push9([q9[0], q9[1], q9[2] - CCZ9], [hp9(u09, b09), hp9(u09, b19), hp9(u19, b19), hp9(u19, b09)]);
         }
       }
-      // 목테 — 두건이 앉을 자리를 끊는다(자리는 종전 그대로).
-      out9.push(...paintBase(cylinderFaces3(0, 0, 0.62, 0.25, 3.6), "#8a6f2a"));
+      /* ★ 아쿠아 디테일(요청: "사진처럼 아쿠아색 부품들 디테일 추가") — 사진의 이 건물은 금
+         덩어리가 아니라 금 사이로 청록이 새어 나오는 몸이다. 셋을 얹는다.
+           · 드럼 껍질을 세로로 가르는 **가는 홈 넷** — 껍질 바로 밖(반지름 +0.04)에 눕힌 띠라
+             몸을 따라 휘고, 등진 것은 faceLight가 걷는다.
+           · 드럼 위쪽을 두르는 **테 한 줄** — 금 몸에 한 칸을 끊어 준다.
+           · 반구 이마의 **눈 한 알** — 이 건물이 어디를 보는지 말해 준다. */
+      const AQ9 = glowLit("#c9fff6", "#5aecd8");
+      for (let i9 = 0; i9 < 4; i9 += 1) {
+        const a9 = Math.PI / 2 + ((i9 + 0.5) / 4) * Math.PI;
+        const hw9 = 0.13;
+        const q9 = (aa9: number, z9: number): [number, number, number] =>
+          [Math.cos(aa9) * (CR9 + 0.04), Math.sin(aa9) * (CR9 + 0.04), z9];
+        const lit9 = faceLight(Math.cos(a9), Math.sin(a9), 0);
+        if (!lit9.visible) continue;
+        out9.push([polyPath3([
+          q9(a9 - hw9, CZ0 + 0.5), q9(a9 + hw9, CZ0 + 0.5),
+          q9(a9 + hw9, CZ1 - 0.5), q9(a9 - hw9, CZ1 - 0.5),
+        ]), 1, "#5aecd8"] as ShapeFace);
+      }
+      out9.push(...ringBand9(CZ1 - 1.15, CZ1 - 0.85, 0.06, "#5aecd8"));
+      out9.push(...paintBase(domeFaces3(CR9 * 0.62, 0, 0.34, 0.26, CCZ9 + 0.55), AQ9));
       return out9;
     })();
     /* 지적: "아둔 양 날개를 더 얇고 긴형태로 변경" — 길이 3.3 → 5.2로 늘리고 두께는
@@ -8798,14 +8844,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 물병 받침 + 배에 박힌 렌즈 점 셋.
       ...flask,
       lens(-1.15, 2, 1.5), lens(0.2, 2.25, 1.35), lens(1.15, 1.8, 1.6),
-      // 두건 뒤로 솟는 뿔과 그 앞 렌즈 — 개인색 두건(키 40) 위에 얹힌다.
-      ...tagKey([...hornFaces(0, -0.7, 6, 0, -1.5, 8, 1), lens(0, 0.85, 5.1)], 41),
+      /* (걷어냄) 두건 뒤로 솟던 뿔과 그 앞 렌즈 — 요청: "위쪽 절두체랑 잎 제거". 두건이
+         없어지니 그 위에 얹히던 이 둘도 설 자리가 없다. */
     ], "toss", [
-      /* 개인색은 앞으로 숙인 각진 두건(재지적: 뿔·렌즈 같은 특이 포인트 말고 넓은
-         면에 페인트 칠하듯) — 장식 없는 넓은 판이라 통째로 칠하기 좋다. 뒤로 솟는
-         뿔과 렌즈 점은 제 색으로 둔다. 물병 목이 z 4.2에서 끝나 두건도 3.4 → 3.9로
-         같이 올렸다. */
-      ...tagKey([...frustumFaces3(0, -0.3, 2.4, 2, 1.5, 1.3, 2.2, 3.9)], 40),
+      /* ★ 개인색이 **두건에서 드럼의 넓은 띠로** 옮겨 왔다 — 두건을 걷었으니(요청) 그 몫을
+         받을 넓은 면이 필요하다. 드럼 꼭대기 아래를 한 뼘(높이 1.2) 두르면 장식 없는 넓은
+         면이라 통째로 칠하기 좋고, 어느 각도에서도 한 자락이 보인다(앞선 규약 그대로:
+         뿔·렌즈 같은 점이 아니라 넓은 면에 페인트 칠하듯). */
+      ...tagKey(ringBand9(CZ1 - 2.6, CZ1 - 1.4, 0.02), 40),
     ]);
   },
   /* 템플러 아카이브(리디자인, 실물 참고) — 큰 황금 공 몸에 테 물린 파란 렌즈가
