@@ -43,6 +43,12 @@ export {
      · atkCutOf·flapCutOf — 시각 t에서 어느 컷인가. 재생기와 **같은 문**을 쓰므로
        도록의 박자가 지도의 박자와 안 갈린다(그 함수들의 ★ 주석이 그 사고를 적어 두었다).
      · poseCutsOf    — 그 종류가 **어느 컷을 갖나**(걸음·공격·날갯짓). 없는 칸은
-       도록이 idle로 갈음한다. */
-export { SHAPE_GALLERY, ShapeIcon, poseTempoOf, poseCutsOf, atkCutOf, flapCutOf, shapeMapTiles } from "./ReplayMotionPlayer";
+       도록이 idle로 갈음한다.
+     · shapeFitBox   — **여러 컷을 한 창으로** 재 준다(지적: "모션컷에 따라 모델 확대율이
+       달라짐"). ShapeIcon의 fit은 그 컷의 잉크에 창을 맞추므로 자세가 갈리면 배율이
+       흔들린다. 모션 창처럼 같은 모델의 컷을 나란히 놓는 자리는 이걸로 상자를 하나
+       얻어 세 칸에 fitBox로 내린다 — 창이 못 박히고 움직임만 남는다. */
+export {
+  SHAPE_GALLERY, ShapeIcon, poseTempoOf, poseCutsOf, atkCutOf, flapCutOf, shapeMapTiles, shapeFitBox,
+} from "./ReplayMotionPlayer";
 export type { ShapeGalleryItem } from "./ReplayMotionPlayer";

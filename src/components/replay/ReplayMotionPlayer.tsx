@@ -23938,6 +23938,59 @@ export function FxModel({
     </span>
   );
 }
+/** 잉크 상자(도록 "최대"가 재는 그 상자) — 면 목록에 실제로 칠해진 넓이의 합집합이다.
+ *  acc를 주면 거기에 더해 넓힌다(여러 컷·여러 각을 한 상자로 묶을 때). 빈 목록이면 그대로. */
+type InkBox9 = { x0: number; y0: number; x1: number; y1: number };
+function inkBox9(faces: ShapeFace[] | undefined, acc?: InkBox9): InkBox9 | undefined {
+  let b9 = acc;
+  for (const [d9] of faces ?? []) {
+    const [a9, c9, e9, f9] = pathBox(d9);
+    if (!b9) { b9 = { x0: a9, y0: c9, x1: e9, y1: f9 }; continue; }
+    if (a9 < b9.x0) b9.x0 = a9;
+    if (c9 < b9.y0) b9.y0 = c9;
+    if (e9 > b9.x1) b9.x1 = e9;
+    if (f9 > b9.y1) b9.y1 = f9;
+  }
+  return b9;
+}
+/** 잉크 상자 → viewBox 넉 자. 여백은 **짧은 변**의 비율이다(긴 변 기준이면 가늘고 긴
+ *  모델의 짧은 쪽에만 여백이 몰린다). 기본 0.12는 도록의 값이다. */
+function inkView9(b9: InkBox9 | undefined, pad?: number): string | undefined {
+  if (!b9 || !(b9.x1 > b9.x0) || !(b9.y1 > b9.y0)) return undefined;
+  const p9 = Math.min(b9.x1 - b9.x0, b9.y1 - b9.y0) * (pad ?? 0.12);
+  return `${(b9.x0 - p9).toFixed(3)} ${(b9.y0 - p9).toFixed(3)} `
+    + `${(b9.x1 - b9.x0 + p9 * 2).toFixed(3)} ${(b9.y1 - b9.y0 + p9 * 2).toFixed(3)}`;
+}
+/** ★ 여러 컷을 **한 창**으로(지적: "모션컷에 따라 모델 확대율이 달라짐") ───────────────
+ *  ShapeIcon의 fit은 그 컷의 잉크에 창을 맞추므로, 자세가 갈리면(팔을 뻗고 다리를 벌리고)
+ *  실루엣과 함께 창도 갈리고 모델이 컷마다 커졌다 작아졌다 한다. 도록의 모션 창처럼
+ *  **같은 모델의 여러 컷을 나란히** 놓는 자리에서는 그 흔들림이 곧 거짓말이다.
+ *  부르는 쪽이 이 함수로 컷들을 미리 훑어 한 상자를 얻고 그것을 세 칸의 fitBox로 내리면,
+ *  창이 못 박혀 컷 사이에 오직 **모델의 움직임만** 남는다.
+ *  면 목록은 ShapeIcon과 같은 문(resolveShapeFaces·같은 캐시)을 지나므로, 한 번 구운
+ *  각·컷을 다시 훑는 것은 거의 공짜다. */
+export function shapeFitBox(kind: string, opts?: {
+  /** 요잉(도) — 안 주면 지도의 기본 자세(BUILDING_BASE_YAW)다. ShapeIcon과 같은 규약. */
+  rotDeg?: number;
+  /** 훑을 컷들 — 안 주면 여섯 컷 모두. 그 종류가 안 가진 컷은 idle과 같은 면이라 해가 없다. */
+  poses?: readonly (0 | 1 | 2 | 3 | 4 | 5)[];
+  flat?: boolean;
+  viewYaw?: number;
+  pitchView?: boolean;
+  /** 여백(짧은 변 비율) — ShapeIcon의 fitPad와 같은 뜻·같은 기본값(0.12). */
+  fitPad?: number;
+}): string | undefined {
+  const poses9 = opts?.poses ?? ([0, 1, 2, 3, 4, 5] as const);
+  let box9: InkBox9 | undefined;
+  for (const p9 of poses9) {
+    /* 컷은 모듈 전역 깃발이라 **굽기 직전에** 세우고 끝나면 되돌린다(ShapeIcon과 같은 규약). */
+    poseNow = p9;
+    const r9 = resolveShapeFaces(kind, opts?.rotDeg ?? BUILDING_BASE_YAW, opts?.flat, opts?.viewYaw, opts?.pitchView);
+    poseNow = 0;
+    box9 = inkBox9(r9.faces, box9);
+  }
+  return inkView9(box9, opts?.fitPad);
+}
 export function ShapeIcon({
   kind, className, faces: facesOverride, rotDeg, flat, keepRatio, viewYaw, pitchView, wide, fit, fitPad, fitBox: fitBoxProp,
   spin, pose,
@@ -24014,27 +24067,15 @@ export function ShapeIcon({
     })();
   const faces = resolved.faces;
   const rot = resolved.rot;
-  /* 잉크 상자 — 칠해진 패스를 다 훑어 합집합을 낸다. 선 굵기·둥근 마감이 살짝 넘치므로
-     짧은 변의 3%를 사방에 여유로 둔다. 아무것도 안 칠해졌으면(빈 목록) 여느 창으로. */
+  /* 잉크 상자 — 칠해진 패스를 다 훑어 합집합을 낸다(inkBox9). 여백은 짧은 변의 12%다
+     (요청: "최대화에서도 패딩좀 넉넉히 줘서 안 답답해 보이게" — 처음의 3%는 사실상
+     잉크에 창을 딱 붙인 값이라 칸 테두리에 모델이 닿아 답답했다). 아무것도 안 칠해졌으면
+     (빈 목록) 여느 창으로.
+     ★ 자를 shapeFitBox와 **함께 쓴다** — 밖에서 못 박아 내려 준 창(fitBoxProp)과 여기서
+       잰 창이 갈리면 같은 모델이 자리마다 다른 배율로 서기 때문이다. */
   let fitBox: string | undefined = fitBoxProp;
   if (!fitBox && fit && faces && faces.length) {
-    let bx0 = Infinity; let by0 = Infinity; let bx1 = -Infinity; let by1 = -Infinity;
-    for (const [d9] of faces) {
-      const [a9, b9, c9, e9] = pathBox(d9);
-      if (a9 < bx0) bx0 = a9;
-      if (b9 < by0) by0 = b9;
-      if (c9 > bx1) bx1 = c9;
-      if (e9 > by1) by1 = e9;
-    }
-    if (bx1 > bx0 && by1 > by0) {
-      /* 여백은 짧은 변의 3% → 12%(요청: "최대화에서도 패딩좀 넉넉히 줘서 안 답답해
-         보이게") — 3%는 사실상 잉크에 창을 딱 붙인 값이라, 칸 테두리에 모델이 닿아
-         답답했다. 긴 변이 아니라 **짧은 변**을 기준으로 잡는 것은 그대로 둔다: 긴
-         변 기준이면 가늘고 긴 모델(스커지·배틀크루저)의 짧은 쪽에만 여백이 몰린다. */
-      const pad9 = Math.min(bx1 - bx0, by1 - by0) * (fitPad ?? 0.12);
-      fitBox = `${(bx0 - pad9).toFixed(3)} ${(by0 - pad9).toFixed(3)} `
-        + `${(bx1 - bx0 + pad9 * 2).toFixed(3)} ${(by1 - by0 + pad9 * 2).toFixed(3)}`;
-    }
+    fitBox = inkView9(inkBox9(faces), fitPad);
   }
   const uid9 = useId().replace(/[^a-zA-Z0-9]/g, "");
   /** 창(viewBox)의 네 수 — 광택 그러데이션과 가리개가 이 상자를 그대로 덮는다. */
