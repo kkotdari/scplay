@@ -973,7 +973,7 @@ export const MODEL_NORM: Record<string, number> = {
   droneGas: 1.040,
   droneMin: 1.071,
   dship: 0.712,  // 포드 축소·안쪽 이동 뒤 재측정(model-norm)
-  dtemp: 0.875,  // 재측정(model-norm)
+  dtemp: 0.890,  // 재측정(model-norm) — 무릎 굽힘 0.6·발 0.75배 뒤
   egg: 1.237,   // 정수리를 둥글게 한 뒤 model-norm 재측정
   fbat: 1.229,
   ghost: 1.552,  // 상자 상한(원한 배수 1.723)
@@ -981,7 +981,7 @@ export const MODEL_NORM: Record<string, number> = {
   goon: 0.655,  // 재측정(model-norm)
   guardian: 0.754,  // 다리 옆으로 곧게 뒤 재측정(model-norm)
   gunner: 1.327,  // 팔 길이 고정 뒤 model-norm 재측정
-  htemp: 1.220,  // 재측정(model-norm) — 다리 1.2배·굽힘 반 뒤
+  htemp: 1.237,  // 재측정(model-norm) — 굽힘 0.25·발 0.75배 뒤
   hydra: 0.652,  // 머리장식 확대·머리 위 시작·길이 +20%·폭 −20%·마름모 허리 0.75 뒤 재측정(model-norm의 **top 모드** 표)
   inf: 1.514,  // 상자 상한(원한 배수 1.615)
   interceptor: 1.555,  // 재측정(model-norm)
@@ -1023,7 +1023,7 @@ export const MODEL_NORM: Record<string, number> = {
   vessel: 0.898,  // 방패 접힘 축·뾰족 위끝 뒤 재측정(model-norm)
   vulture: 0.666,   // 0.833 × 0.8(요청: "벌처랑 마인 0.8배")
   wraith: 0.894,  // 재측정(model-norm)
-  zealot: 0.949,  // 머리 묶음(길이 0.8배·22도·굵기 0.8배)·어깨 관 0.9배 뒤 재측정(model-norm의 top 모드) · 옛 0.803
+  zealot: 0.963,  // 무릎 굽힘 0.6·발 0.75배 뒤 재측정(model-norm의 top 모드) · 옛 0.949
   zling: 0.758,
   // tankgun: 없음 — 짝이라 소스의 NORM_PAIR가 tankbody 배수로 접는다.
   // tanksiegegun: 없음 — 짝이라 소스의 NORM_PAIR가 tanksiegebody 배수로 접는다.
@@ -1295,8 +1295,7 @@ export const UNIT_SIZE_TUNE: Record<string, number> = {   // 열쇠는 sizeKind(
   muta: 0.8, scourge: 0.6, ultra: 1.4, guardian: 0.8, lurkeregg: 0.6, mutacocoon: 0.8,
   observer: 0.8,
   inf: 0.8, fbat: 0.8, ghost: 0.8,   // 메딕(inf)·파뱃(0.6 → 0.8 재요청)·고스트 — 마린(gunner)은 1.0으로 뺐다(재요청)
-  /* 하템(0.6)·다템(0.8)도 뺐다(요청: "둘 다 1로") — 하템만 유독 작아 다템과 나란히 서면 차가 컸다.
-     빼면 원작 상자 비율 그대로다(htemp 24×24 · dtemp 24×26). */
+  htemp: 0.9,   // 0.6 → 1(요청) → 0.9(재요청). 다템은 표에서 빠져 1이다(원작 상자 24×24 대 24×26).
   defiler: 1.2,   // 요청(비교 장면)
   tank: 1.2, tanksiege: 1.2, vulture: 1.1,   // 요청: "시즈·벌처 그리기 1.2배" → 재요청: 일반·변신 중 탱크도 1.2 · 벌처는 1.1
   scv: 0.8, probe: 0.8, drone: 0.8,   // 일꾼류
