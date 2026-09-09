@@ -1198,31 +1198,57 @@ function protossFace(fill?: string, lift = 0, s = 1): ShapeFace[] {
   const L9 = lift;
   const R9 = 0.33 * s;
   const out: ShapeFace[] = [];
+  /** 얼굴 달걀의 축 y와 반지름 — 눈을 껍질 위에 앉히려면 이 둘이 필요하다(아래 ★). */
+  const faceAx9 = (t9: number): number => 0.78 - 0.5 * t9;
+  const faceR9 = (t9: number): number => R9 * Math.sin(Math.PI * (0.1 + 0.8 * t9)) + 0.05 * s;
   // 얼굴 달걀 — 턱(앞 아래)에서 정수리(뒤 위)로 기울어 선다.
   const face9 = spirePillar({
     x: 0, y: 0, h: 1, w: 1, tipW: 1, segs: 7, sides: 10, hold: 0,
-    path: (t9: number): [number, number, number] =>
-      [0, 0.78 - 0.5 * t9, 5.95 + L9 + 1.05 * t9],
-    widthOf: (t9: number): number => R9 * Math.sin(Math.PI * (0.1 + 0.8 * t9)) + 0.05 * s,
+    path: (t9: number): [number, number, number] => [0, faceAx9(t9), 5.95 + L9 + 1.05 * t9],
+    widthOf: faceR9,
   });
-  out.push(...(fill ? paintBase(face9, fill) : face9));
-  // 두개골 — 정수리에서 뒤로 길게 가늘어진다.
+  out.push(...tagKey(fill ? paintBase(face9, fill) : face9, depthNow(0, 0.5) * 1.6 + 0.7));
+  /* 두개골(머리 꼬리) — 정수리에서 뒤로 길게 가늘어진다.
+     ★ 키를 **제 자리 깊이로** 따로 매긴다(지적: "머리 꼬리가 머리통에 안가려짐") — 여태 얼굴·꼬리·눈이
+       바깥에서 감긴 tagKey 하나로 **같은 키**를 나눠 가져, 그리는 차례(배열 순서)가 곧 앞뒤였다.
+       꼬리는 얼굴 뒤에 적혀 있으니 어느 각도에서도 얼굴 위에 그려졌다. 꼬리의 한가운데는 y −0.5로
+       얼굴(0.5)보다 한참 뒤이므로, 같은 자로 재기만 하면 앞에서는 얼굴이 이기고 뒤로 돌면 꼬리가 이긴다. */
   const skull9 = spikeHorn(
     0, 0.28, 6.95 + L9, 0, -1.35 * s, 6.55 + L9, 0.3 * s,
     undefined, 7, 0.16, 0, -0.15,
   );
-  out.push(...(fill ? paintBase(skull9, fill) : skull9));
-  // 눈 한 쌍 — 형광 초록 점. 앞을 볼 때만.
+  out.push(...tagKey(fill ? paintBase(skull9, fill) : skull9, depthNow(0, -0.5 * s) * 1.6 + 0.7));
+  /* ★ 눈 — **얼굴 껍질 위에 앉힌 아몬드**다(지적: "눈이 좀 이상 … 사선 각도에서 부자연스러워") ────
+     여태 눈은 y를 0.66에 못 박은 팔각 원반이었다. 그런데 그 높이에서 껍질의 앞면은 y 0.9 언저리다 —
+     눈이 머리 **속에 0.24쯤 박혀** 있었고, 얼굴과 같은 키로 나중에 그려져 껍질을 뚫고 비쳤다. 정면에서는
+     그럭저럭이라도 사선으로 돌면 눈만 제자리에 남아 얼굴에서 떨어진 것처럼 보인다.
+     이제 꼭짓점마다 **그 자리의 껍질 y**를 풀어 앉힌다 — 달걀은 높이의 함수로 반지름이 나오므로
+     y = 축y + √(r² − x²)로 닫힌 식이다. 그러면 눈이 얼굴을 따라 휘고, 어느 각도에서도 껍질에 붙어 있다.
+     모양도 원에서 **아몬드**로 바꾸고 바깥쪽 끝을 16도 올려 프로토스의 눈매를 낸다. 어두운 눈두덩을
+     한 겹 깔아 밝은 심이 그 위에 뜨게 한다(두 겹이라야 점이 아니라 눈으로 읽힌다). */
   if (facingRatio(0, 1) > 0.08) {
+    const eyeAt9 = (m9: 1 | -1, hw9: number, hh9: number): string => polyPath3(
+      Array.from({ length: 12 }, (_, i9) => {
+        const a9 = (i9 / 12) * Math.PI * 2;
+        const u9 = Math.cos(a9) * hw9;   // 눈매의 긴 쪽(바깥이 +)
+        const v9 = Math.sin(a9) * hh9;   // 짧은 쪽(위가 +)
+        const ct9 = Math.cos(0.28);
+        const st9 = Math.sin(0.28);
+        const ex9 = m9 * 0.15 * s + m9 * (u9 * ct9 - v9 * st9);
+        const ez9 = 6.45 + L9 + (u9 * st9 + v9 * ct9);
+        // 그 자리의 껍질 앞면 — 달걀의 마디 t를 z에서 풀고 반지름에서 y를 낸다.
+        const t9 = Math.max(0, Math.min(1, (ez9 - 5.95 - L9) / 1.05));
+        const r9 = faceR9(t9);
+        const dy9 = Math.sqrt(Math.max(0, r9 * r9 - ex9 * ex9));
+        return [ex9, faceAx9(t9) + dy9 + 0.012 * s, ez9] as [number, number, number];
+      }),
+    );
+    const eKey9 = depthNow(0, 0.9) * 1.6 + 0.7;
     for (const m9 of [-1, 1] as const) {
-      out.push([polyPath3(Array.from({ length: 8 }, (_, i9) => {
-        const a9 = (i9 / 8) * Math.PI * 2;
-        return [
-          m9 * 0.14 * s + Math.cos(a9) * 0.05 * s,
-          0.66,
-          6.42 + L9 + Math.sin(a9) * 0.045 * s,
-        ] as [number, number, number];
-      })), 1, "#4fe36b"] as ShapeFace);
+      out.push(...tagKey([
+        [eyeAt9(m9, 0.155 * s, 0.075 * s), 0.85, "#22303c"] as ShapeFace,   // 눈두덩
+        [eyeAt9(m9, 0.115 * s, 0.045 * s), 1, "#4fe36b"] as ShapeFace,      // 빛나는 심
+      ], eKey9));
     }
   }
   return out;
@@ -1299,9 +1325,9 @@ function pLimb(
   const k9 = key ?? (depthNow((a[0] + b[0]) / 2, (a[1] + b[1]) / 2) * 1.6 - 0.4);
   /* ★ 배흘림(요청: "팔다리 모든 마디를 강하지 않은 배흘림형으로") — 배(mid)는 2차 베지에의
      제어점이라 실제 한가운데 굵기는 (w0 + 2·mid + w1)/4다. 0.55에서는 그 값이 두 끝 평균의
-     1.07배라 눈에 거의 안 들었다. 0.59로 올리면 1.12배 — 마디가 곧은 막대가 아니라 살짝 배가
+     1.07배라 눈에 거의 안 들었다. 0.65로 올리면 1.18배(재요청: 조금만 강하게) — 마디가 막대가 아니라 배가
      부른 꼴로 읽히되, 부풀어 보이지는 않는 선이다. */
-  return suitLimb(a, b, w * 0.5, w * 0.46, w * 0.59, { sides: 7, caps: "none", trueNormal: true, key: k9, tag: "limb" });
+  return suitLimb(a, b, w * 0.5, w * 0.46, w * 0.65, { sides: 7, caps: "none", trueNormal: true, key: k9, tag: "limb" });
 }
 /** 프로토스 다리 한 쌍 — 테란과 같은 뿔기둥 마디로 짠다. 다만 프로토스는 **역관절**
  *  (디지티그레이드)이다: 무릎이 앞으로 크게 나오고 발목이 뒤로 물러났다가 긴 발이
@@ -1394,15 +1420,15 @@ function protossLegs(
     const kT = depthNow((hip[0] + knee[0]) / 2, (hip[1] + knee[1]) / 2) * 1.6 - 0.9;
     const kS = depthNow((knee[0] + ankle[0]) / 2, (knee[1] + ankle[1]) / 2) * 1.6 - 0.9;
     const kF = depthNow((ankle[0] + toe[0]) / 2, (ankle[1] + toe[1]) / 2) * 1.6 - 0.9;
-    // 배흘림은 팔과 같은 자(위 pLimb의 ★) — 한가운데가 두 끝 평균의 1.12배가 되게 배를 올린다.
-    out.push(...paint(suitLimb(hip, knee, 0.38 * thin, 0.33 * thin, 0.44 * thin,
+    // 배흘림은 팔과 같은 자(위 pLimb의 ★) — 한가운데가 두 끝 평균의 1.18배가 되게 배를 올린다.
+    out.push(...paint(suitLimb(hip, knee, 0.38 * thin, 0.33 * thin, 0.48 * thin,
       { sides: 7, caps: "none", trueNormal: true, key: kT, tag: "leg.thigh" }), thighFill));
     out.push(...paint([
       // 정강이·발 단면은 안 그린다(지적: 하지 단면이 대퇴에 안 가려짐) — 두 끝이 다 남의 몸속이다.
-      ...suitLimb(knee, ankle, 0.45 * thin, 0.38 * thin, 0.51 * thin,
+      ...suitLimb(knee, ankle, 0.45 * thin, 0.38 * thin, 0.56 * thin,
         { sides: 7, caps: "none", trueNormal: true, key: kS, tag: "leg.shin" }),
       // 발은 작고 예리하게(요청: 프로토스 인간형 발이 투박하고 큼) — 0.38/0.3/0.36 → 0.27/0.18/0.25.
-      ...suitLimb(ankle, toe, 0.27, 0.18, 0.28,
+      ...suitLimb(ankle, toe, 0.27, 0.18, 0.31,
         { sides: 7, caps: "none", trueNormal: true, key: kF, tag: "leg.foot" }),
     ], shinFill));
     /* 발은 **두 갈래 발가락**이다(요청: "프로토스 보병류 발은 scv 발같은 발가락 2개
@@ -15636,7 +15662,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         }
         return tagKey(out9, key9);
       }),
-    ...tagKey(protossFace(P_SKIN), depthNow(0, 0.4) * 1.6 + 0.7),
+    ...protossFace(P_SKIN),   // 키는 protossFace가 부품마다 매긴다(얼굴·꼬리·눈이 서로 가린다)
     /* ③ 케이블 다발 — 뒤통수에서 등으로 늘어지는 신경삭. 가운데 굵은 한 줄(기존
        마디 체인) + 좌우로 가는 두 가닥(사진 1·6의 다발). 다발은 개인색. */
     /* ★ 다발은 **짧고 곧게 떨어진다**(요청: "질럿 머리 묶음 길이 20% 줄이고 각도 더 수직에 가깝게 바닥으로")
@@ -15950,7 +15976,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        머리가, 뒤에선 몸통이 이긴다. */
     /* ★ 후드를 걷었으니 얼굴도 제자리로(−0.35 → 0) — 내려 둔 까닭이 '잘린 단면이 후드
        위로 삐지지 않게'였고, 그 후드가 이제 없다. */
-    ...tagKey(protossFace(P_SKIN, 0), depthNow(0, 0.4) * 1.6 + 0.7),
+    ...protossFace(P_SKIN, 0),   // 키는 protossFace가 부품마다 매긴다
     // 왼팔 두 마디 — 금색.
     /* 왼팔(−x) — 상완 1.45 · 하완 1.2로 오른팔과 **같다**(요청). 어깨·손만 두고 팔꿈치는 푼다. */
     /* ★ 팔 뿌리는 **몸통 어깨선 위**(지적: "팔이 어깨랑 안 붙어 있고 각도에 따라 상완이
@@ -16002,14 +16028,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        뒤로 흐르는 갈기가 얹힐 뿐 뚜껑이 없다. 돔을 씌우니 두상이 통째로 가려져 종족이
        안 읽혔다. 공통 얼굴(protossFace)이 그대로 드러나게 걷는다.
        그늘 속 초록 눈 한 쌍은 그대로 둔다 — 그것이 이 유닛의 표식이다. */
-    ...(facingRatio(0, 1) > 0.1
-      ? ([-1, 1] as const).map((m9) => [polyPath3(Array.from({ length: 8 }, (_, i9) => {
-        const a9 = (i9 / 8) * Math.PI * 2;
-        return [
-          m9 * 0.2 + Math.cos(a9) * 0.07, 0.78, 6.0 + Math.sin(a9) * 0.05,
-        ] as [number, number, number];
-      })), 1, "#4fe07a"] as ShapeFace)
-      : []),
+    /* (걷어냄) 다크만의 초록 눈 한 쌍 — 얼굴(protossFace)이 이미 눈을 그리는데 이것이 그 아래
+       (z 6.0)에 한 쌍 더 있어 눈이 두 줄로 보였다. 공통 얼굴의 눈이 아몬드로 바뀌며 얼굴 껍질에
+       앉았으므로 이 덧눈은 자리가 없다. 색도 사실상 같았다(#4fe07a 대 #4fe36b). */
   ];
   })(),
   /* 하이 템플러(요청) — 떠 있는 로브: 바닥에서 띄운 짧은 로브 통 + 머리, 발밑 부양 빛. */
@@ -16052,7 +16073,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         return [bodyFace(d), sideFace(d, 0.14)];
       })(), depthNow(0, 0.24) * 1.6 + 1.0),
       // 얼굴 — 공통 턱주가리(요청). 정수리 뿔·뒤 장식 뿔은 제거.
-      ...tagKey(protossFace(P_SKIN, L), depthNow(0, 0.4) * 1.6 + 0.7),
+      ...protossFace(P_SKIN, L),   // 키는 protossFace가 부품마다 매긴다
       // 어깨 갑옷 한 쌍 — 개인색.
       /* 어깨판(재요청) — 반구 대신 끝이 뾰족하고 살짝 위로 솟는 판. 몸에서 바깥·위로
          뻗는 납작한 뿔(spikeHorn)로 낸다. */
