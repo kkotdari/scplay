@@ -2393,6 +2393,16 @@ export type PitchGeom9 = {
    *  지적("내 시점은 좌우·앞뒤로 움직이는데 소실점은 가운데 정면 고정이라 어지럽다"): 화면 가운데가 닿는 지도 지점을
    *  원점으로 두면 눈이 늘 화면 가운데 위에 선다. 굳은 배율·팬에서 나오고(pitchGeomRaw), 장(frame)이 제 원점을 싣는다. */
   ox: number; oy: number;
+  /** ★ **밀림 기준 원점**(요청: 드래그 중에도 원근이 따라오게 — 그 손질의 마지막 조각) ────────────────
+   *  좌우 시각 밀림(viewYawOf)만 이 값을 쓴다. 자리 사영은 위 ox·oy 그대로다.
+   *  왜 따로 두나 — 밀림 각은 **굽는 판의 열쇠**에 들어간다(6도 칸). 그런데 그 각은 개체의 화면 x에서
+   *  나오므로, 끌 때 원점이 프레임마다 밀리면 개체들이 칸 경계를 계속 넘나들며 새 판을 부른다(실측:
+   *  배율 6·1000기에서 2초에 유닛 125장·건물 168장을 굽고 건물 판 188장을 버렸다 — 건물은 안 움직이니
+   *  오직 이 각 때문이다). 그 폭풍이 손짓 한 장을 23 → 240ms로 만들었다.
+   *  그래서 **자리는 따라가고 기울기만 얼린다**: 끄는 동안 이 값을 손짓 시작 값으로 못 박으면 판 열쇠가
+   *  한 톨도 안 바뀌고, 손을 떼면 제자리로 돌아온다. 낡는 것은 모델이 좌우로 기운 정도뿐이라(가장자리에서
+   *  몇 도) 자리가 어긋나는 것과 달리 눈에 잘 안 띈다. */
+  sox: number;
 };
 /** 캔버스가 아니라 DOM으로 그리는 효과의 기록 — 메인 스레드가 이것으로 스팬을 만든다. */
 export type DomFx9 =
@@ -3536,8 +3546,9 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     };
     const viewYawOf = (x: number, y: number): number => {
       if (!pitched) return 0;
-      const { w, P, ox } = pitchGeom();
-      const u = (x / grid.width - 0.5) * w - ox;
+      // 밀림만 제 기준 원점(sox)을 쓴다 — 자리 사영은 ox다(PitchGeom9.sox의 ★).
+      const { w, P, sox } = pitchGeom();
+      const u = (x / grid.width - 0.5) * w - sox;
       void y;
       return (Math.atan2(u, P) * 180) / Math.PI;
     };

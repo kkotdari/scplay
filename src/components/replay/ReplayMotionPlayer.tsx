@@ -24560,6 +24560,7 @@ const lerpAng9 = (a: number, b: number, u: number): number => {
 function viewKeyOf9(v9: EngineView9): string {
   return `c${v9.crowd}|${v9.mapW}|${v9.mapH}|${v9.tilePx.toFixed(3)}|${v9.pitched ? 1 : 0}|${v9.pitchFlat.toFixed(4)}`
     + `|${v9.geom.w}|${v9.geom.h}|${v9.geom.P.toFixed(1)}|${v9.geom.ox.toFixed(1)},${v9.geom.oy.toFixed(1)}`
+    + `|${v9.geom.sox.toFixed(1)}`
     + `|${v9.viewTeam}|${v9.visAll ? 1 : 0}|${v9.fogOn ? 1 : 0}`
     + `|${v9.qAnim ? 1 : 0}${v9.qBuildFx ? 1 : 0}${v9.qDeath ? 1 : 0}${v9.clickFx ? 1 : 0}`
     + `|${v9.cull ? `${v9.cull.x0.toFixed(3)},${v9.cull.x1.toFixed(3)},${v9.cull.y0.toFixed(3)},${v9.cull.y1.toFixed(3)}` : "all"}`;
@@ -24952,6 +24953,8 @@ export default function ReplayMotionPlayer({
   /** ★ 이 손짓에서 원근을 따라가게 할까 — **손짓이 시작될 때 한 번** 정하고 끝까지 지킨다(계측: 아래 ★★).
    *  도중에 켜고 끄면 재는 값 자체가 그 조치의 결과라 진동한다(배킹 몫에서 이미 겪었다). */
   const liveViewOkRef9 = useRef(false);
+  /** 손짓 중 못 박아 둔 **밀림 기준 원점** — 손짓 밖에서는 null(제 원점을 따른다). PitchGeom9.sox의 ★. */
+  const shearOxRef9 = useRef<number | null>(null);
   const postLiveView9 = useCallback((): void => {
     const w9 = frameWorkerRef.current;
     const base9 = engViewRef9.current;
@@ -27994,12 +27997,16 @@ export default function ReplayMotionPlayer({
        중심에서 나오므로, 중심이 프레임마다 밀리면 개체들이 시점 칸을 계속 넘나들며 새 판을 부른다
        (그 판에서 2초에 유닛 125장·건물 168장을 굽고 건물 판 188장을 버렸다). 사영을 다시 하는 값이
        아니라 **다시 굽는 값**이 벽이다.
-       그래서 손짓을 시작할 때 한 번 재고 정한다 — 덜어내기 단이 서 있지 않고(사람이 적고 기기가
-       버티고) 최근 최악 프레임이 40ms 아래인 자리에서만 따라간다. 그 밖에서는 종전대로, 원근은
-       손을 뗄 때 맞춰진다. 한 손짓 안에서는 안 바꾼다(도중에 뒤집으면 진동한다). */
+       ★ 그 폭풍은 이제 **밀림 기준을 얼려**(아래 shearOxRef9 · PitchGeom9.sox) 끊었다 — 끄는 동안 판
+         열쇠가 한 톨도 안 바뀌므로, 좁혀 뒀던 문(덜어내기 단 0 · 최악 프레임 40ms)을 연다. 남는 값은
+         장을 풀고 칠하는 몫뿐이라 난전에서도 견딜 만하다. 다만 아주 무거운 자리(최악 프레임 120ms
+         이상 — 굽기가 아직 밀려 있거나 기기가 버거운 때)는 그대로 막는다: 거기서는 원근보다 손끝을
+         따라가는 것이 먼저다. 한 손짓 안에서는 안 바꾼다(도중에 뒤집으면 진동한다). */
+    /* 밀림 기준을 지금 원점에 못 박는다 — 끄는 동안 판 열쇠가 안 흔들리게(PitchGeom9.sox의 ★).
+       끝나면 endGestureXf가 풀어, 손을 뗀 그 프레임에 제 기울기로 한 번 맞춰진다. */
+    shearOxRef9.current = pitchGeomLiveRef9.current?.().ox ?? null;
     liveViewOkRef9.current = pitchDegRef9.current < 90
-      && CROWD9.lv === 0
-      && SPRITE_PERF.wLast.worstFrame > 0 && SPRITE_PERF.wLast.worstFrame < 40;
+      && (SPRITE_PERF.wLast.worstFrame === 0 || SPRITE_PERF.wLast.worstFrame < 120);
     xfPaintAtRef.current = performance.now();
     zoomRawRef.current = zoomRef.current;
     xfBaseRef.current = { z: zoomRef.current, x: panRef.current.x, y: panRef.current.y };
@@ -28013,6 +28020,7 @@ export default function ReplayMotionPlayer({
   /** 손짓 끝 — 마지막 값을 굳힌다. 렌더가 refs를 다시 상태에 맞춘다. */
   const endGestureXf = useCallback((): void => {
     if (!xfGestureRef.current) return;
+    shearOxRef9.current = null;   // 밀림 기준을 푼다 — 아래 마지막 한 장이 제 기울기로 그린다(sox의 ★)
     /* ★ 대기 중인 마지막 한 걸음을 먼저 반영한다(지적: "드래그시 다 못 가서 그리고 툭 이동") — 드래그·핀치는 마지막
        움직임을 rAF에 실어 두는데, 손을 떼면 그 rAF는 무시된다(applyGestureXf의 문지기). 안 반영하면 그만큼 못 미친
        자리에서 굳는다. 각 손짓이 제 반영 함수를 걸어 둔다(pendFlushRef9). */
@@ -28458,16 +28466,19 @@ export default function ReplayMotionPlayer({
      그래서 렌더마다 비우고 처음 부를 때 한 번만 잰다. 렌더 밖에서 부르는 자리(지도
      벡터층이 mapFracRef로 쥔 posFrac)는 마지막 렌더의 값을 쓰는데, 그 사이 상자가 갈렸다면
      이미 새 렌더가 돌았으므로 어긋날 틈이 없다. */
-  type PitchGeom9 = {
-    w: number; h: number; hPre: number; P: number; S: number; C: number; q: number; cy: number;
-  /** 시점 원점(렌즈 가운데에서의 치우침, 렌즈 px) — engine9 PitchGeom9 주석. */ ox: number; oy: number;
-  };
+  /* (걷어냄) 여기 있던 **같은 이름의 지역 타입** — 필드가 하나 늘 때마다 두 곳을 고쳐야 했고,
+     실제로 sox를 더할 때 이 그림자가 바깥 타입을 가려 넘기는 자리마다 어긋났다. engine9의 것을
+     그대로 쓴다(이 파일 머리에서 이미 import한다). */
   const pgRef = useRef<PitchGeom9 | null>(null);
   pgRef.current = null;
   /* ★ 배율·팬을 **인자로** 받는다(요청: 드래그 중에도 원근이 따라오게) — 원점(ox·oy)은 팬·배율에서
      나오므로, 손끝 값으로도 같은 셈을 할 수 있어야 손짓 중의 시야를 워커에 흘려보낼 수 있다.
      렌더가 부르는 자리는 상태(zoom·pan)를 그대로 넘긴다 — 값이 한 톨도 안 달라진다. */
-  const pitchGeomAt9 = (z9: number, p9: { x: number; y: number }): PitchGeom9 => {
+  const pitchGeomAt9 = (
+    z9: number, p9: { x: number; y: number },
+    /** 밀림 기준 원점을 밖에서 못 박을 때(손짓 중 — PitchGeom9.sox의 ★). 안 주면 제 원점(ox)과 같다. */
+    sox9?: number,
+  ): PitchGeom9 => {
     const el = mapRef.current;
     const w = el?.clientWidth ?? 320;
     const h = el?.clientHeight ?? 220;
@@ -28490,15 +28501,17 @@ export default function ReplayMotionPlayer({
        그 자리가 화면 가운데(−pan/z)가 되게 푼다. 팬 0·배율 1이면 cy만큼 아래 지점이 원점이라 옛 그림과 거의 같다. */
     const ox = pitched ? -p9.x / (z9 * q) : 0;
     const oy = pitched ? (cy - p9.y / z9) / (q * C) : 0;
-    return { w, h, hPre, P, S, C, q, cy, ox, oy };
+    return { w, h, hPre, P, S, C, q, cy, ox, oy, sox: sox9 ?? ox };
   };
   const pitchGeomRaw = (): PitchGeom9 => pitchGeomAt9(zoom, pan);
   const pitchGeom = (): PitchGeom9 => {
     pgRef.current ??= pitchGeomRaw();
     return pgRef.current;
   };
-  /** 손끝 기하 — 손짓 중에는 상태가 안 움직이므로(refs만 움직인다) 여기서 지금 값을 본다. */
-  const pitchGeomLive9 = (): PitchGeom9 => pitchGeomAt9(zoomRef.current, panRef.current);
+  /** 손끝 기하 — 손짓 중에는 상태가 안 움직이므로(refs만 움직인다) 여기서 지금 값을 본다.
+   *  밀림 기준(sox)은 손짓이 시작될 때 얼린 값이다(shearOxRef9 · PitchGeom9.sox의 ★). */
+  const pitchGeomLive9 = (): PitchGeom9 =>
+    pitchGeomAt9(zoomRef.current, panRef.current, shearOxRef9.current ?? undefined);
   // 손짓이 부르는 자리(postLiveView9)는 렌더 밖이라 ref로 건넨다.
   pitchGeomLiveRef9.current = pitchGeomLive9;
   /* (걷음) pitchStyle — 입체일 때 <img>에 입히던 변환이다. 그림이 사라졌다. */
@@ -28664,8 +28677,9 @@ export default function ReplayMotionPlayer({
      오른쪽 마커는 왼옆이 보인다. */
   const viewYawOf = (x: number, y: number): number => {
     if (!pitched) return 0;
-    const { w, P, ox } = drawnGeom9();
-    const u = (x / grid.width - 0.5) * w - ox;
+    // 밀림만 제 기준 원점(sox)을 쓴다 — 엔진의 viewYawOf와 같은 자다(PitchGeom9.sox의 ★).
+    const { w, P, sox } = drawnGeom9();
+    const u = (x / grid.width - 0.5) * w - sox;
     void y; // 자리 호환 — 기울기는 u/P라 세로 좌표가 안 든다.
     /* 요잉이 아니라 시각 밀림의 각(지적: 소실점이 시각을 반영해야 — 돌리면 찌그러짐).
        ShapeIcon이 tan을 취하면 u/P — 지도 남북 선의 소실 기울기 그 값이다(지적:
