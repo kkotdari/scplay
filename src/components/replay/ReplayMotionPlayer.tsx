@@ -20368,8 +20368,13 @@ const drawTint9 = (
   ctx.drawImage(cv,
     (-(spr.pad + pxqB / 2) + tn.ox / B) * k, (-(spr.pad + pxqB / 2) + tn.oy / B) * k, (cv.width / B) * k, (cv.height / B) * k);
 };
+/** 예산이 다했는데 대타도 없을 때 굽는 **작은 판**의 몫 — 넓이가 9분의 1이라 삯도 그만큼이다
+ *  (실측: 최악판 109ms → 12ms 언저리). 늘려 찍으므로 잠깐 흐리고, 이 판은 다음 프레임의 대타로 남는다. */
+const BAKE_SMALL_K9 = 3;
 function unitSprite(
   op: UnitDrawOp, pxq: number, B: number,
+  /** 예산을 안 보고 굽는다 — 위 작은 판을 구울 때만 참이다(아래 ★). */
+  force9 = false,
 ): UnitPlate9 | null {
   const rotB = op.rotDeg !== undefined
     ? ((Math.round(op.rotDeg / 22.5) * 22.5) % 360 + 360) % 360 : -1;
@@ -20398,7 +20403,7 @@ function unitSprite(
      찾아 그것을 돌려준다(부르는 쪽이 판의 실제 크기를 l·pad에서 되읽어 배율을 맞춘다).
      '가까움'은 비로 잰다(로그 거리) — 2배 큰 판과 절반짜리 판 중 어느 쪽이 덜 무른지는
      차가 아니라 비가 정한다. */
-  if (!bakeOk9(unitBakeLeft9)) {
+  if (!force9 && !bakeOk9(unitBakeLeft9)) {
     const sizes9 = SPRITE_SIZES.get(subKey);
     if (sizes9) {
       const best9 = pickSubSize9(sizes9, pxq, SUB_MAX_HARD9)
@@ -20419,6 +20424,15 @@ function unitSprite(
         return alt9;
       }
     }
+    /* ★ 대타가 **하나도 없으면 작게 굽는다**(계측: 예산을 넣고도 최악프레임 242ms · 그중 굽기 209ms) ─────
+       예산의 구멍이 여기였다. 한 번도 안 구운 열쇠는 대타가 없어 이 문을 그냥 지나 **제 크기로** 구웠고,
+       배율 6·입체의 그 한 장이 109ms다(최악판 probe). 큰 싸움에서는 그런 열쇠가 프레임마다 여럿이라
+       예산이 뜻을 잃는다.
+       안 굽는 길은 없다 — 그러면 그 유닛이 화면에서 사라진다. 대신 **넓이를 9분의 1로** 줄여 굽는다:
+       삯도 그만큼이고(109 → 12ms 언저리), 늘려 찍으니 잠깐 흐릴 뿐이며, 그 판이 곧 다음 프레임의
+       대타가 되어 예산이 열릴 때 제 크기가 조용히 갈아 끼워진다. */
+    const small9 = Math.max(8, Math.round(pxq / BAKE_SMALL_K9));
+    if (small9 < pxq) { poseNow = 0; return unitSprite(op, small9, B, true); }
   }
   unitBakeLeft9 -= 1;
   SPRITE_PERF.bake += 1;
@@ -21049,6 +21063,8 @@ function buildingSprite(op: UnitDrawOp, sideQ: number, B: number): BldSprite | n
 const TALL_BLD_KINDS9 = new Set(["gspire", "spire", "hive", "lair", "pyramidWide", "hydraden", "plane", "extract", "archives", "tribunal"]);
 function buildingSpriteBake(
   op: UnitDrawOp, sideQ: number, B: number,
+  /** 예산을 안 보고 굽는다 — 작은 판을 구울 때만 참이다(유닛 쪽 ★와 같은 손). */
+  force9 = false,
 ): BldSprite | null {
   /* ★ 건물의 시각 밀림 칸을 6도 → **12도**로(지적: "유독 저그 쪽만 더 심해") ────────────
      밀림 각(viewYaw)은 **화면 자리**가 정한다. 그래서 같은 종류의 건물이 화면을 가로질러
@@ -21085,7 +21101,7 @@ function buildingSpriteBake(
   }
   /* ★ 예산이 다했으면 이번 프레임엔 안 굽고, 같은 건물의 **가장 가까운 크기**를 돌려준다
      (부르는 쪽이 판의 실제 크기 bspr.side로 배율을 맞춘다 — 유닛 쪽과 같은 약이다). */
-  if (!bakeOk9(bldBakeLeft9)) {
+  if (!force9 && !bakeOk9(bldBakeLeft9)) {
     const sizes9 = BLD_SPRITE_SIZES.get(subKey);
     if (sizes9) {
       const best9 = pickSubSize9(sizes9, sideQ, SUB_MAX_HARD9)
@@ -21098,6 +21114,9 @@ function buildingSpriteBake(
         return alt9;
       }
     }
+    // 대타가 하나도 없으면 작게 굽는다(유닛 쪽 ★와 같은 약 — 건물 판은 더 크므로 이득도 더 크다).
+    const small9 = Math.max(8, Math.round(sideQ / BAKE_SMALL_K9));
+    if (small9 < sideQ) return buildingSpriteBake(op, small9, B, true);
   }
   bldBakeLeft9 -= 1;
   SPRITE_PERF.bldBake += 1;
