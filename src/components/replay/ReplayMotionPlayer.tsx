@@ -19598,7 +19598,7 @@ const DEV9 = smallDevice9 ? {
      1단 — 땅 그림자·몸 그림자 끔(붓) · 죽음·피격 파편 반(붓) · 홀수 개체 트레이서 생략(엔진, view.crowd)
      2단 — 피격 불티 통째로 생략(붓) · 죽음 파편 3분의 1(붓)
    안 빼는 것: 유닛 본체 판·원거리 트레이서 자체(절반은 남는다)·죽음 여운·미니맵 점. */
-const CROWD9 = { lv: 0, weak: false, k: 1, bench: -1, units: 0, force: -1, bench3: -1, weak3: false, k3: 1 };
+const CROWD9 = { lv: 0, weak: false, k: 1, bench: -1, units: 0, force: -1, bench3: -1, weak3: false, k3: 1, re: 0 };
 const CROWD_BENCH_MS9 = 24;          // 2D: 이 위면 미달 기기(실측 PC 7ms · 헤드리스 SW 래스터 19ms)
 /* 3D는 따로 낮춘다(요청: "벤치 기준을 좀 낮추는 건?") — 3D 짐은 벤치가 재는 채우기 말고도 판 가짓수·큰 판
    굽기가 얹혀, 같은 자로는 '충분'이 후하다. PC 실측 8ms는 넉넉히 통과하고, 그 두 배 언저리부터 미달로 본다. */
@@ -19648,6 +19648,43 @@ function crowdInit9(): void {
      perf-check(--crowd)에서 덜어낸 값을 잴 때 쓴다. */
   const m9 = typeof window !== "undefined" ? /crowd=(\d)/.exec(window.location.hash) : null;
   if (m9) c.force = Math.min(2, Number(m9[1]));
+  crowdRecheck9();
+}
+/** ★ **벤치를 유휴에 다시 잰다**(지적: 실측 PC 7ms인데 27ms로 찍혀 미달 판정 — 단 "너무 늦게는 의미없으니
+ *  초반에") ────────────────────────────────────────────────────────────────────────────────────────
+ *  첫 재기는 파싱·첫 판 굽기·GC와 겹친다. 두 번 돌려 작은 쪽을 쓰지만 그 둘이 나란히 붙어 있어 둘 다 같은
+ *  짐을 진다 — 그래서 한 벌을 더, 이번엔 **떨어뜨려서** 잰다. 오염된 재기는 큰 값이 나올 뿐이라 '작은 쪽만
+ *  갈아 끼운다'가 걸러 준다(값이 나빠지는 일은 없다).
+ *  한 번의 유휴에 **한 판만** 잰다 — 한 판이 30ms 언저리라 몰아 재면 그것이 곧 끊김이다. 유휴가 안 오면
+ *  0.7초 만에 끊고 잰다(늦게 재면 뜻이 없다 — 그 사이 단·문턱은 이미 부풀린 값으로 돌아간다). */
+let crowdReQ9: boolean[] | null = null;
+function crowdRecheck9(): void {
+  if (typeof window === "undefined" || crowdReQ9) return;
+  crowdReQ9 = [false, true, false, true];   // 2D·3D 두 벌
+  const ric9 = (window as unknown as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+  const plan9 = (): void => {
+    if (!crowdReQ9 || crowdReQ9.length === 0) { crowdReQ9 = null; return; }
+    if (ric9) ric9(() => step9(), { timeout: 700 });
+    else window.setTimeout(step9, 400);
+  };
+  const step9 = (): void => {
+    const q9 = crowdReQ9;
+    if (!q9 || q9.length === 0) { crowdReQ9 = null; return; }
+    const deep9 = q9.shift() as boolean;
+    const ms9 = benchDevice9(deep9);
+    const c9 = CROWD9;
+    if (ms9 > 0) {
+      if (deep9) {
+        if (c9.bench3 < 0 || ms9 < c9.bench3) {
+          c9.bench3 = ms9; c9.weak3 = ms9 > CROWD_BENCH3D_MS9; c9.k3 = ms9 > CROWD_BENCH3D_MS9 * 2 ? 0.5 : 1; c9.re += 1;
+        }
+      } else if (c9.bench < 0 || ms9 < c9.bench) {
+        c9.bench = ms9; c9.weak = ms9 > CROWD_BENCH_MS9; c9.k = ms9 > CROWD_BENCH_MS9 * 2 ? 0.5 : 1; c9.re += 1;
+      }
+    }
+    plan9();
+  };
+  plan9();
 }
 /** 매 장 — 유닛 op 수만 보고 단을 정한다(미달 기기에서만). deep이면 입체 판정(weak3·k3)을 쓴다. */
 function crowdTick9(units: number, deep = false): void {
@@ -20189,6 +20226,9 @@ function perfFrame(ms: number): void {
   // 굽기 예산도 프레임마다 되돌린다(위 UNIT_BAKE_PER_FRAME·BLD_BAKE_PER_FRAME).
   unitBakeLeft9 = UNIT_BAKE_PER_FRAME;
   bldBakeLeft9 = BLD_BAKE_PER_FRAME;
+  /* 되돌린 예산을 **먼저 미룬 것들에 쓴다**(위 BAKE_WANT9의 ★) — 이 자리는 프레임이 열리는
+     자리다(tick 맨 앞에서 부른다). 여기서 쓴 몫은 이 프레임의 굽기로 그대로 잡힌다. */
+  drainBakeWant9();
 }
 const SPRITE_CACHE = new Map<string, UnitPlate9>();
 const spriteBytes = { n: 0 };
@@ -20407,6 +20447,35 @@ const drawTint9 = (
 /** 예산이 다했는데 대타도 없을 때 굽는 **작은 판**의 몫 — 넓이가 9분의 1이라 삯도 그만큼이다
  *  (실측: 최악판 109ms → 12ms 언저리). 늘려 찍으므로 잠깐 흐리고, 이 판은 다음 프레임의 대타로 남는다. */
 const BAKE_SMALL_K9 = 3;
+/** ★ **미룬 것의 대기표 — 큰 몸부터 굽는다**(계측: 2초에 미룸 U3042/B1624) ────────────────────────
+ *  예산은 프레임마다 되돌아오는데, 그 예산을 **무엇에 쓸지**는 여태 아무도 안 골랐다: 그리는 차례가
+ *  곧 굽는 차례라 화면 뒤쪽의 점만 한 몸이 예산을 먼저 먹고, 앞의 큰 몸은 대타(늘려 찍은 흐린 판)로
+ *  남는 일이 잦다. 큰 몸이 흐린 것은 보이고 작은 몸이 흐린 것은 안 보이므로 이건 거꾸로다.
+ *  미룬 열쇠를 크기와 함께 적어 두었다가, 다음 프레임이 열리는 자리에서 **큰 것부터** 예산이 닿는
+ *  데까지 굽는다. 총량은 그대로고 순서만 바뀐다. 적는 것은 미룬 자리뿐이라 값이 없다. */
+const BAKE_WANT9 = new Map<string, { op: UnitDrawOp; pxq: number; B: number }>();
+/** 대기표 상한 — 넘으면 오래된 것부터 버린다(Map은 넣은 차례를 지킨다). 다음 프레임에 또 청해 온다. */
+const BAKE_WANT_MAX9 = 300;
+const bakeWant9 = (key9: string, op: UnitDrawOp, pxq: number, B: number): void => {
+  if (BAKE_WANT9.has(key9)) return;
+  if (BAKE_WANT9.size >= BAKE_WANT_MAX9) {
+    const first9 = BAKE_WANT9.keys().next();
+    if (!first9.done) BAKE_WANT9.delete(first9.value);
+  }
+  BAKE_WANT9.set(key9, { op, pxq, B });
+};
+/** 프레임이 열릴 때 — 대기표를 큰 것부터 굽는다. 예산이 닫히면 그만두고, 못 구운 것은 이 프레임에
+ *  다시 청해 와 대기표에 도로 오른다(그래서 여기서는 통째로 비운다). */
+function drainBakeWant9(): void {
+  const n9 = BAKE_WANT9.size;
+  if (n9 === 0 || !bakeOk9(unitBakeLeft9)) { if (n9 > 0) BAKE_WANT9.clear(); return; }
+  const arr9 = [...BAKE_WANT9.values()].sort((a9, b9) => b9.pxq - a9.pxq);
+  BAKE_WANT9.clear();
+  for (const w9 of arr9) {
+    if (!bakeOk9(unitBakeLeft9)) break;
+    unitSprite(w9.op, w9.pxq, w9.B);
+  }
+}
 function unitSprite(
   op: UnitDrawOp, pxq: number, B: number,
   /** 예산을 안 보고 굽는다 — 위 작은 판을 구울 때만 참이다(아래 ★). */
@@ -20457,6 +20526,7 @@ function unitSprite(
         SPRITE_PERF.hit += 1;
         SPRITE_PERF.defer += 1;
         poseNow = 0;
+        bakeWant9(key, { ...op }, pxq, B);   // 대기표에 적는다 — 다음 프레임에 큰 것부터(위 ★)
         return alt9;
       }
     }
@@ -20470,7 +20540,7 @@ function unitSprite(
     /* 천장을 넘었으면 작은 판도 안 굽는다(위 BAKE_HARD_MS9) — 이번 프레임엔 이 몸을 안 그린다. */
     if (!bakeHardOk9()) { poseNow = 0; SPRITE_PERF.defer += 1; return null; }
     const small9 = Math.max(8, Math.round(pxq / BAKE_SMALL_K9));
-    if (small9 < pxq) { poseNow = 0; return unitSprite(op, small9, B, true); }
+    if (small9 < pxq) { poseNow = 0; bakeWant9(key, { ...op }, pxq, B); return unitSprite(op, small9, B, true); }
   }
   unitBakeLeft9 -= 1;
   SPRITE_PERF.bake += 1;
@@ -29401,7 +29471,7 @@ export default function ReplayMotionPlayer({
   {
     const c9 = CROWD9;
     const grade9 = (w9: boolean, k9: number): string => (w9 ? (k9 < 1 ? "심한미달" : "미달") : "충분");
-    SCR_DIAG.crowd = `벤치 2D ${c9.bench.toFixed(0)}ms ${grade9(c9.weak, c9.k)} · 3D ${c9.bench3.toFixed(0)}ms ${grade9(c9.weak3, c9.k3)}${c9.force >= 0 ? " 강제" : ""} · ${pitched ? "3D" : "2D"} ${c9.lv}단 ${c9.units}기`;
+    SCR_DIAG.crowd = `벤치 2D ${c9.bench.toFixed(0)}ms ${grade9(c9.weak, c9.k)} · 3D ${c9.bench3.toFixed(0)}ms ${grade9(c9.weak3, c9.k3)}${c9.force >= 0 ? " 강제" : ""}${CROWD9.re > 0 ? ` ↻${CROWD9.re}` : ""} · ${pitched ? "3D" : "2D"} ${c9.lv}단 ${c9.units}기`;
     const st9 = wStatRef.current;
     const wait9 = !st9.ready && st9.worldAt > 0 ? (pNow() - st9.worldAt) / 1000 : 0;
     let ahead9 = -1e9;
@@ -31052,6 +31122,8 @@ export default function ReplayMotionPlayer({
                       {SPRITE_PERF.wLast.bldBake}장 {SPRITE_PERF.wLast.bldMs.toFixed(0)}ms
                       {" · 버림 "}U{SPRITE_PERF.wLast.evict}/B{SPRITE_PERF.wLast.bldEvict}
                       {" · 미룸 "}U{SPRITE_PERF.wLast.defer}/B{SPRITE_PERF.wLast.bldDefer}
+                      {/* 대기표에 남은 수(위 BAKE_WANT9) — 큰 것부터 굽고 남은 몫이다. */}
+                      {BAKE_WANT9.size > 0 ? ` 대기${BAKE_WANT9.size}` : ""}
                       {/* ★ 그 굽기 가운데 **잉크 훑기**(getImageData)가 얼마인가 — 판을 GPU가 들고 있으면
                           이 한 줄이 파이프라인을 세워(readback) 한 장에 수십 ms가 되기도 한다. 굽기 시간이
                           모형 짓기(면·경로)에서 오는지 이 훑기에서 오는지에 따라 다음 칼이 갈린다. */}
