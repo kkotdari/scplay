@@ -8697,44 +8697,79 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const [px2, py2] = project(lx, ly, lz);
       return topFace(groundEllipse(px2, py2, 0.34, 0.28), 0.45);
     };
-    /* 지적: "밭침은 저런 반구형이 아니라 물병모양 입체" — 엎어 놓은 밥그릇(domeFaces3)을
-       걷고 회전체 기둥(spirePillar)으로 다시 세웠다. 굵기를 배(3.0)에서 오래 붙들었다가
-       (hold 0.22) 어깨에서 급히 오므려(taper 2.4) 목(0.95)까지 뽑으면 물병 옆선이 나온다.
-       배보다 아래가 더 잘록한 진짜 병목 굽을 내려고 기둥 둘을 겹쳐도 봤지만, 아래 기둥의
-       윗 뚜껑이 배 높이에 접시 같은 턱으로 삐져나와 못 쓴다 — 내려다보는 시점이라 가장
-       굵은 자리 아래는 어차피 제 배에 가려 안 보이니, 한 기둥이면 족하다. 발치 금 테가
-       바닥에서 병굽 노릇을 하고, 목에 두른 테가 두건 앉을 자리를 끊어 준다. */
-    /* 배가 둥근 진짜 물병으로(지적: "아둔도 아래기둥이 동그란 살짝 긴 물병모양임") —
-       한 기둥으로는 굵기가 밑에서 위로 **줄기만** 해서, 굽에서 배까지 곧게 벌어진
-       원뿔이 됐다. 기둥 둘을 이음매에서 **같은 굵기(2.85)로 맞물려** 세우면 아래는
-       좁은 굽에서 배로 부풀고 위는 배에서 목으로 오므라든다 — 그 둘이 만나 둥근 배가
-       난다. 예전 주석이 겹치기를 포기한 것은 넓은 쪽을 아래에 두어 윗 뚜껑이 접시처럼
-       삐져나왔기 때문이고, 굵기를 맞물리면 그 턱이 안 생긴다.
-       배를 3.0 → 2.85로 줄여 같은 키에서 조금 더 길쭉해 보이게 했고, 꼭대기(4.2)는
-       그대로라 목테·두건·뿔은 한 톨도 안 움직인다. */
-    /* 가운데 지름을 **반으로**(요청: "시타델 — 받침원판 제거 · 가운데 지름 반으로")
-       — 물병 배가 반지름 2.85라 날개 셋과 두건까지 다 덮는 덩치였다. 배 2.85 → 1.45,
-       굽 1.75 → 0.9, 목 0.95 → 0.5, 목테 1.2 → 0.62. 높이는 한 톨도 안 건드려
-       두건·뿔·날개가 앉는 자리는 그대로다. */
-    const flask: ShapeFace[] = [
-      ...spirePillar({
-        x: 0, y: 0, z0: 0.1, h: 1.75, w: 0.9, tipW: 1.45,
-        segs: 7, sides: 16, hold: 0.05, taper: 1.4, caps: "bottom",
-      }),
-      ...spirePillar({
-        x: 0, y: 0, z0: 1.85, h: 2.35, w: 1.45, tipW: 0.5,
-        segs: 9, sides: 16, hold: 0.1, taper: 2.2, caps: "none",
-      }),
-      ...paintBase(cylinderFaces3(0, 0, 0.62, 0.25, 3.6), "#8a6f2a"),
-    ];
+    /* ★ 몸통을 **반드럼 + 반구**로 다시 짠다(요청: 사진 대조) ─────────────────────────────
+       사진의 아둔 몸통은 물병이 아니다. 왼쪽은 **드럼통을 세로로 반 갈라** 자른 면이 오른쪽을
+       보게 세운 꼴이고, 오른쪽은 그 자른 면에 **바닥째 붙은 반구**다. 둘이 만나 한쪽은 각지고
+       한쪽은 둥근, 그 비대칭이 이 건물의 표식이다(물병은 어느 쪽에서 봐도 같은 회전체라
+       그 표식이 없었다).
+       ★ 반쪽은 spirePillar로 못 짠다 — 그 함수는 한 바퀴를 다 도는 회전체라 '반'이라는 개념이
+         없다. 그래서 면을 직접 짠다: 반원 껍질(사각 띠) + 자른 면 한 장 + 위 반달 뚜껑, 그리고
+         반구는 밑동에서 끝까지 도는 띠다. 명암은 다른 부품과 같은 자(faceLight)로 매기고,
+         등진 면은 그 자가 걷어 준다(보임 판정) — 그래서 안벽이 안 비친다. */
+    const CR9 = 1.45;          // 드럼 반지름 = 반구 반지름
+    const CZ0 = 0.35;          // 드럼 밑
+    const CZ1 = 3.35;          // 드럼 꼭대기(높이 3.0 ≈ 지름 2.9라 반구가 자른 면을 거의 채운다)
+    const CCZ9 = (CZ0 + CZ1) / 2;   // 반구의 중심 높이
+    const NA9 = 14;            // 한 바퀴를 나누는 수
+    const flask: ShapeFace[] = ((): ShapeFace[] => {
+      const out9: ShapeFace[] = [];
+      const push9 = (n9: [number, number, number], pts9: [number, number, number][]): void => {
+        const lit9 = faceLight(n9[0], n9[1], n9[2]);
+        if (!lit9.visible) return;
+        const d9 = polyPath3(pts9);
+        out9.push(bodyFace(d9), ...lit9.face(d9));
+      };
+      /* ① 반드럼 — 자른 면이 x = 0이고 몸은 왼쪽(−x)에 있다. 껍질은 각 π/2 ~ 3π/2다. */
+      const dp9 = (a9: number, z9: number): [number, number, number] =>
+        [Math.cos(a9) * CR9, Math.sin(a9) * CR9, z9];
+      for (let i9 = 0; i9 < NA9; i9 += 1) {
+        const a09 = Math.PI / 2 + (i9 / NA9) * Math.PI;
+        const a19 = Math.PI / 2 + ((i9 + 1) / NA9) * Math.PI;
+        const am9 = (a09 + a19) / 2;
+        push9([Math.cos(am9), Math.sin(am9), 0],
+          [dp9(a09, CZ0), dp9(a19, CZ0), dp9(a19, CZ1), dp9(a09, CZ1)]);
+      }
+      // 위 뚜껑 — 반달 한 장.
+      push9([0, 0, 1], Array.from({ length: NA9 + 1 },
+        (_, i9) => dp9(Math.PI / 2 + (i9 / NA9) * Math.PI, CZ1)));
+      /* ② 반구 — 바닥이 드럼의 자른 면(x = 0)에 붙고 오른쪽(+x)으로 부푼다.
+         u는 밑동(0)에서 끝(1)까지, 그 자리의 x는 R·sin, 고리 반지름은 R·cos다. */
+      const MS9 = 5;
+      const hp9 = (u9: number, b9: number): [number, number, number] => {
+        const rr9 = CR9 * Math.cos((Math.PI / 2) * u9);
+        return [CR9 * Math.sin((Math.PI / 2) * u9), Math.cos(b9) * rr9, CCZ9 + Math.sin(b9) * rr9];
+      };
+      for (let j9 = 0; j9 < MS9; j9 += 1) {
+        const u09 = j9 / MS9;
+        const u19 = (j9 + 1) / MS9;
+        for (let i9 = 0; i9 < NA9; i9 += 1) {
+          const b09 = (i9 / NA9) * Math.PI * 2;
+          const b19 = ((i9 + 1) / NA9) * Math.PI * 2;
+          const um9 = (u09 + u19) / 2;
+          const bm9 = (b09 + b19) / 2;
+          const q9 = hp9(um9, bm9);
+          push9([q9[0], q9[1], q9[2] - CCZ9], [hp9(u09, b09), hp9(u09, b19), hp9(u19, b19), hp9(u19, b09)]);
+        }
+      }
+      // 목테 — 두건이 앉을 자리를 끊는다(자리는 종전 그대로).
+      out9.push(...paintBase(cylinderFaces3(0, 0, 0.62, 0.25, 3.6), "#8a6f2a"));
+      return out9;
+    })();
     /* 지적: "아둔 양 날개를 더 얇고 긴형태로 변경" — 길이 3.3 → 5.2로 늘리고 두께는
        0.65 → 0.5(끝 0.32)로 깎았다. 함께 날개 판을 90도 돌려 세운 것이 핵심이다:
        건물은 지도에서 늘 요잉 0으로만 그려지는데(방향값이 없다) 예전처럼 판이 바깥을
        보고 서 있으면 영영 옆날로만 보여 막대기 두 개로 읽힌다. 판이 시청자를 보게
        돌리면 얇고 긴 날개꼴이 그대로 드러난다. 팔도 그만큼 가늘게(0.4 → 0.3) 뽑았다. */
+    /* ★ 양팔 끝은 **쌀알**이다(요청) — 판이 아니라 회전체라 어느 쪽에서 봐도 통통하다.
+       옆선을 sin의 제곱근으로 주면 가운데가 부르고 두 끝이 좁아지는 그 낟알 꼴이 된다
+       (sin 그대로면 두 끝이 너무 뾰족해 잎이 되고, 상수면 통이 된다). */
     const wing = (m: 1 | -1): ShapeFace[] => [
       ...tubeFaces(m * 0.9, -0.2, m * 3.6, -0.2, 0.3, 3),
-      ...frustumFaces3(m * 4.3, -0.2, 1.7, 0.5, 0.75, 0.32, 5.2, 1.5),
+      ...spirePillar({
+        x: 0, y: 0, h: 1, w: 1, segs: 8, sides: 12, caps: "none", trueNormal: true,
+        path: (t9: number): [number, number, number] => [m * 4.3, -0.2, 1.5 + 5.2 * t9],
+        widthOf: (t9: number): number => 0.72 * Math.sqrt(Math.sin(Math.PI * t9)) + 0.03,
+      }),
       lens(m * 4.3, 0.05, 4.2),
     ];
     return raceBase([
@@ -8747,7 +8782,16 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          옆 날개와 달리 렌즈 점은 안 박았다 — 이 날개의 앞면은 어느 높이에서든 두건이나
          뿔에 정확히 가려, 점을 찍어 봐야 한 번도 안 보인다. */
       ...tubeFaces(0, -0.9, 0, -4.3, 0.32, 3.2),
-      ...frustumFaces3(0, -4.6, 2.7, 0.5, 0.7, 0.32, 6.2, 1.4),
+      /* ★ 뒤 날개는 **돛**이다(요청: "돗처럼 평평한 면 … 면이 양옆을 바라봄") — 단면의
+         기준축(ref)을 앞뒤(y)로 두면 u가 앞뒤, v가 좌우다. oval을 0.13으로 눌러 좌우로
+         얇게 만들면 판의 **면이 ±x를 본다**. 옆 날개보다 크고(높이 6.2·앞뒤 폭 2.7)
+         위로 갈수록 좁아져, 두건 뿔이 그 위를 지나가도 묻히지 않는다. */
+      ...spirePillar({
+        x: 0, y: 0, h: 1, w: 1, segs: 5, sides: 8, ref: [0, 1, 0], oval: 0.13,
+        caps: "both", trueNormal: true,
+        path: (t9: number): [number, number, number] => [0, -4.6, 1.4 + 6.2 * t9],
+        widthOf: (t9: number): number => 1.35 * (1 - 0.62 * t9 * t9),
+      }),
       // 양옆 팔 + 세로 날개(보는 사람 기준 왼쪽이 −x다).
       ...wing(-1),
       ...wing(1),
