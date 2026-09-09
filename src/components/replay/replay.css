@@ -1308,7 +1308,7 @@
 .scr-motion-mobrow .scr-kakao-share-btn {
   margin-left: auto;
   /* 좌우 여백을 죈다(요청: "장면공유 버튼 좌우 패딩 축소") — 10 → 6. */
-  height: 24px; min-height: 0; padding: 0 6px; font-size: 11px; gap: 4px;
+  height: 24px; min-height: 0; padding: 0 6px; font-size: 11px; gap: 4px; font-weight: 600;
   white-space: nowrap; line-height: 1; flex: 0 0 auto;
   background: #fff; color: #10151a; border: 1px solid #fff; border-radius: 8px;
   box-shadow: var(--lit-pill-glow);
@@ -3631,7 +3631,13 @@
      (.scr-light-theme — utils/theme.ts) 아래 라이트 규칙도 그대로 걸린다. */
 .scr-fs-bottom-tail .scr-kakao-share-btn {
   /* 좌우 여백을 죈다(요청) — 12 → 7. */
-  height: 26px; min-height: 0; padding: 0 7px; font-size: 11px; gap: 4px;
+  /* ★ 글자 무게를 **여기서 못 박는다**(지적: "장면 스크랩만 폰트 무게가 달라 보이네") — 이 줄에 서는 셋
+     (스크랩·공유·사용법)은 출신이 제각각이라 무게가 갈렸다: 앱의 공유는 제 버튼 규칙(.scr-btn 600), 모듈의
+     사용법은 브라우저 기본(400), 스크랩은 `font-weight: inherit`이라 **부모의 무게**를 받아 왔다(앱이 옛
+     방식으로 꽂던 시절의 중립 값이다). 한 줄에 선 같은 알약 셋이 세 무게로 보이던 까닭이다.
+     한 값(600)으로 못 박으면 출신과 무관하게 셋이 같다 — 이 규칙은 세 버튼 모두에 걸린다(스크랩도 같은
+     .scr-kakao-share-btn을 단다). */
+  height: 26px; min-height: 0; padding: 0 7px; font-size: 11px; gap: 4px; font-weight: 600;
   white-space: nowrap; line-height: 1;
   background: #fff; color: #10151a; border: 1px solid #fff; border-radius: 8px;
   box-shadow: var(--lit-pill-glow);
@@ -3658,7 +3664,7 @@
 .scr-fs-bottom-tail .scr-scrapbtn, .scr-motion-mobrow .scr-scrapbtn {
   display: inline-flex; align-items: center; justify-content: center;
   height: 26px; min-height: 0; padding: 0 7px; font-size: 11px; gap: 4px; margin: 0;
-  white-space: nowrap; line-height: 1; flex: 0 0 auto; font-weight: inherit;
+  white-space: nowrap; line-height: 1; flex: 0 0 auto;
   background: #fff; color: #10151a; border: 1px solid #fff; border-radius: 8px;
   box-shadow: var(--lit-pill-glow);
 }
