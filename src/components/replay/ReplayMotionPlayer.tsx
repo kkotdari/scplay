@@ -15589,12 +15589,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         [0, BR_Y9 + (y9 - BR_Y9) * 0.4, BR_Z9 + (z9 - BR_Z9) * 1.11];
       const brY9 = (y9: number): number => BR_Y9 + (y9 - BR_Y9) * 0.4;
       const brZ9 = (z9: number): number => BR_Z9 + (z9 - BR_Z9) * 1.11;
+      /** 굵기 배수(요청: "머리 묶음 굵기 20% 축소") — 마디 다섯과 옆 가닥이 한 값을 나눠 쓴다.
+       *  끝 구슬은 안 탄다(그건 앞선 요청으로 이미 제 크기를 받았다). */
+      const BW9 = 0.8;
       return [
-        ...pLimb(br9(-0.7, 6.75), br9(-1.9, 5.75), 0.62),
-        ...paintBase(pLimb(br9(-1.85, 5.79), br9(-2.15, 5.55), 0.72), P_GOLD),
-        ...pLimb(br9(-2.1, 5.59), br9(-3.3, 4.5), 0.58),
-        ...pLimb(br9(-3.25, 4.54), br9(-4.45, 3.4), 0.52),
-        ...paintBase(pLimb(br9(-4.35, 3.49), br9(-4.7, 3.16), 0.6), P_GOLD),
+        ...pLimb(br9(-0.7, 6.75), br9(-1.9, 5.75), 0.62 * BW9),
+        ...paintBase(pLimb(br9(-1.85, 5.79), br9(-2.15, 5.55), 0.72 * BW9), P_GOLD),
+        ...pLimb(br9(-2.1, 5.59), br9(-3.3, 4.5), 0.58 * BW9),
+        ...pLimb(br9(-3.25, 4.54), br9(-4.45, 3.4), 0.52 * BW9),
+        ...paintBase(pLimb(br9(-4.35, 3.49), br9(-4.7, 3.16), 0.6 * BW9), P_GOLD),
         /* ★ 끝 구슬은 **작게, 끝의 한가운데에**(요청: "끝 공 크기 줄이고 위치 머리 묶음 끝의 가운데와 맞추기")
            — 여태 자리가 마지막 마디보다 더 아래·뒤(−4.95, 2.9)라 다발에서 떨어져 매달린 혹으로 보였고,
            크기도 마디(0.6)보다 커 끝이 부풀었다. 마지막 마디의 **끝점 그대로**를 중심으로 삼고 반지름을
@@ -15602,7 +15605,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ...paintBase(domeFaces3(0, brY9(-4.7), 0.24, 0.24, brZ9(3.16)), P_PLASMA),
         [groundEllipse(...project(0, brY9(-4.7), brZ9(3.16)), 0.3, 0.3), 0.45, P_PLASMA] as ShapeFace,
         ...([-1, 1] as const).flatMap((m9) => tagKey(paintBase(spirePillar({
-          x: 0, y: 0, h: 1, w: 0.16, tipW: 0.05, segs: 6, sides: 4, caps: "none",
+          x: 0, y: 0, h: 1, w: 0.16 * BW9, tipW: 0.05 * BW9, segs: 6, sides: 4, caps: "none",
           path: (t9: number): [number, number, number] => [
             m9 * (0.3 + 0.25 * Math.sin(Math.PI * t9)),
             brY9(-0.75 - 2.9 * t9),
@@ -15661,7 +15664,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
              단면은 팔각 — 관은 둥근 물건이고, 육각은 어느 요잉에서 모서리가 도드라진다. */
           x: 0, y: 0, h: 1, w: 1, segs: 12, sides: 8, caps: "both",
           path: horn9,
-          widthOf: (): number => 0.18,
+          // 두께 10% 축소(요청: "어깨 파이프도 두께 10% 축소") — 0.18 → 0.162. 감는 띠도 같은 비로 준다.
+          widthOf: (): number => 0.162,
         }), P_GOLD), hKey9),
         /* ★ 개인색 띠(요청: "질럿 어깨뿔 아래쪽 감싸는 띠") ────────────────────────────
            뿔 밑동을 한 바퀴 감는 고리다. **칠하지 않는 것이 곧 개인색이다** — 여기서
@@ -15678,7 +15682,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ...tagKey(spirePillar({
           x: 0, y: 0, h: 1, w: 1, segs: 2, sides: 10, caps: "none", trueNormal: true,
           path: (t9: number): [number, number, number] => horn9(0.10 + 0.20 * t9),
-          widthOf: (): number => 0.26,
+          /* 관과 같은 비로 줄인다(0.26 → 0.234) — 띠가 관보다 덜 줄면 헐거워지고, 더 줄면 관의 모서리가
+             띠를 뚫는다(팔각 관의 모서리 반지름은 0.162/cos22.5° = 0.175이므로 0.234는 넉넉하다). */
+          widthOf: (): number => 0.234,
         }), hKey9 + 0.6),
       ];
     }),

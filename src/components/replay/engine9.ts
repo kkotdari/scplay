@@ -1023,7 +1023,7 @@ export const MODEL_NORM: Record<string, number> = {
   vessel: 0.898,  // 방패 접힘 축·뾰족 위끝 뒤 재측정(model-norm)
   vulture: 0.666,   // 0.833 × 0.8(요청: "벌처랑 마인 0.8배")
   wraith: 0.894,  // 재측정(model-norm)
-  zealot: 0.948,  // 머리 묶음을 짧고 곧게(길이 0.8배·22도) 세운 뒤 재측정(model-norm의 top 모드) · 옛 0.803
+  zealot: 0.949,  // 머리 묶음(길이 0.8배·22도·굵기 0.8배)·어깨 관 0.9배 뒤 재측정(model-norm의 top 모드) · 옛 0.803
   zling: 0.758,
   // tankgun: 없음 — 짝이라 소스의 NORM_PAIR가 tankbody 배수로 접는다.
   // tanksiegegun: 없음 — 짝이라 소스의 NORM_PAIR가 tanksiegebody 배수로 접는다.
