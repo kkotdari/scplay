@@ -19552,8 +19552,8 @@ const DEV9 = smallDevice9 ? {
   spriteMB: 32 * smallBudgetK9 * dprBudgetK9, bldSpriteMB: 16 * smallBudgetK9 * dprBudgetK9,
   /** 지도 벡터층이 비워 두는 몫(MB) · 데칼 굽기 한 변 상한 · 굽는 판 한 장/빌림터 상한(MB) */
   mapFreedMB: 14, decalBakeMax: 192, bakeOneMB: 3, bakePoolMB: 6,
-  /** 프레임당 굽는 장수(유닛/건물) */
-  unitBakePerFrame: 1, bldBakePerFrame: 1,
+  /** 프레임당 굽는 장수(유닛/건물) · 프레임당 굽기 **시간**(ms, 아래 ★) */
+  unitBakePerFrame: 1, bldBakePerFrame: 1, bakeMsPerFrame: 8,
   /** 피격 불티 수 배수 · 죽음 파편 수 · 효과 래스터 예산(MB) · 접지 그림자 최소 배율 */
   hitShardK: 0.6, dieShards: 12, fxRasterMB: 6, shadowGroundMinZoom: 3,
   /** 워커 시야 여유(화면 배수) · 앞으로 지을 한도(벽시계 초·MB) · 요잉을 늘 여덟 칸으로 */
@@ -19563,7 +19563,7 @@ const DEV9 = smallDevice9 ? {
   name: "pc",
   spriteMB: 128, bldSpriteMB: 64,
   mapFreedMB: 0, decalBakeMax: 768, bakeOneMB: 8, bakePoolMB: 24,   // 크립 굽기 상한 384 → 768(지적: PC에서 화질 낮은 게 보임)
-  unitBakePerFrame: 3, bldBakePerFrame: 3,
+  unitBakePerFrame: 3, bldBakePerFrame: 3, bakeMsPerFrame: 12,
   hitShardK: 1, dieShards: 24, fxRasterMB: 24, shadowGroundMinZoom: 0,
   /* 앞 한도 10 → 24MB(진단: PC 3배에서 장당 220KB라 10MB가 0.7초 만에 차, 3초 예산이 있어도 앞이 0.7초뿐이었다 —
      굽기 한 번(최악 41ms)이나 GC에 뒤장이 비기 딱 좋은 여유다. 24MB면 220KB로 3.6초). */
@@ -20240,6 +20240,22 @@ const noteSub9 = (
   if (map.size > SPRITE_SIZES_MAX) map.clear();
   map.set(sub, [{ s: size, k: key }]);
 };
+/* ★ 굽기는 **장수만이 아니라 시간으로도** 죈다(계측: 3D 드래그 중 "최악프레임 109ms · 그중 굽기 111ms ·
+   최악판 droneHold 104ms · 미룸 U412/B237") ────────────────────────────────────────────────────────
+   장수 예산(PC 3장)은 판 한 장이 3~5ms일 때 잡은 값이다. 배율 6·입체에서는 판 한 장이 30~100ms라
+   세 장이면 프레임이 통째로 넘어간다 — 그 프레임에 그리기는 한 톨도 안 늦었는데 굽기가 109ms를 먹었다.
+   시간으로 죄면 판이 큰 자리에서 저절로 한 장(또는 0장)이 된다: 이미 이 프레임에 예산만큼 구웠으면
+   나머지는 **대타 판**(같은 모델의 다른 크기)으로 그리고 다음 프레임에 마저 굽는다. 그림은 잠깐 흐릴
+   뿐이고(대타는 늘려 찍는다), 화면은 안 멈춘다.
+   ★ **손짓 중에는 아예 안 굽는다** — 끄는 동안 새로 굽는 것은 '지금 당장'일 까닭이 가장 적은 일이고,
+     그 한 장이 손끝을 100ms씩 붙든다. 대타가 아예 없는 종류(한 번도 안 구운 모델)만 굽는다 —
+     그것까지 미루면 그 유닛이 화면에서 사라진다. 손을 떼면 그 프레임부터 예산대로 마저 굽는다. */
+const BAKE_MS_PER_FRAME9 = DEV9.bakeMsPerFrame;
+/** 지금 손짓(드래그·핀치)이 도는가 — 붓(UnitLayer)이 프레임마다 적고, 굽기 문지기가 읽는다. */
+const gestBake9 = { v: false };
+/** 이 프레임에 굽기를 더 해도 되나 — 장수와 시간, 그리고 손짓 여부를 함께 본다. */
+const bakeOk9 = (left9: number): boolean => left9 > 0 && !gestBake9.v
+  && SPRITE_PERF.bakeMs + SPRITE_PERF.bldBakeMs < BAKE_MS_PER_FRAME9;
 const UNIT_BAKE_PER_FRAME = DEV9.unitBakePerFrame;
 let unitBakeLeft9 = UNIT_BAKE_PER_FRAME;
 /* ★ **건물도 같다 — 오히려 더하다**(계측: 저그 본진을 배율 6·12로 확대해 재 봤다) ─────
@@ -20382,7 +20398,7 @@ function unitSprite(
      찾아 그것을 돌려준다(부르는 쪽이 판의 실제 크기를 l·pad에서 되읽어 배율을 맞춘다).
      '가까움'은 비로 잰다(로그 거리) — 2배 큰 판과 절반짜리 판 중 어느 쪽이 덜 무른지는
      차가 아니라 비가 정한다. */
-  if (unitBakeLeft9 <= 0) {
+  if (!bakeOk9(unitBakeLeft9)) {
     const sizes9 = SPRITE_SIZES.get(subKey);
     if (sizes9) {
       const best9 = pickSubSize9(sizes9, pxq, SUB_MAX_HARD9)
@@ -21069,7 +21085,7 @@ function buildingSpriteBake(
   }
   /* ★ 예산이 다했으면 이번 프레임엔 안 굽고, 같은 건물의 **가장 가까운 크기**를 돌려준다
      (부르는 쪽이 판의 실제 크기 bspr.side로 배율을 맞춘다 — 유닛 쪽과 같은 약이다). */
-  if (bldBakeLeft9 <= 0) {
+  if (!bakeOk9(bldBakeLeft9)) {
     const sizes9 = BLD_SPRITE_SIZES.get(subKey);
     if (sizes9) {
       const best9 = pickSubSize9(sizes9, sideQ, SUB_MAX_HARD9)
@@ -21709,6 +21725,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          자세함 문턱(detail)은 안 내린다 — 그쪽은 **판 열쇠를 바꿔** 손짓 시작마다 판을 새로 굽게 만든다.
          그림자와 배킹은 열쇠와 무관해 껐다 켜도 굽는 일이 없다. 손을 떼면 그 프레임에 제대로 한 장 그린다. */
       const gest9 = gesture?.current === true;
+      gestBake9.v = gest9;   // 굽기 문지기가 읽는다(위 bakeOk9) — 끄는 동안은 새 판을 안 굽는다
       /* ★ **저배율에서는 배킹을 화면 픽셀 1배로 내린다**(요청: "사진처럼 그릴요소가 엄청
          많을때 버벅임을 좀 해결할수있는 방법") ────────────────────────────────────
          계측(scripts/perf-check.mjs — 1000유닛·PC폭·CPU 4배 조임)이 가리키는 자리다:
