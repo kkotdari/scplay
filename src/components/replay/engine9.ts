@@ -1668,7 +1668,7 @@ export const BLD_NORM: Record<string, number> = {
   armory: 1.223,
   assim: 1.627,  // 재작 뒤 재측정(bld-norm)
   cavern: 1.082,
-  citadel: 1.861,  // 반드럼+반구 몸통·쌀알 날개 뒤 재측정(bld-norm 2.326) × 0.8(요청: 그려지는 크기 0.8배)
+  citadel: 1.846,  // 알·테·홈 얹은 뒤 재측정(bld-norm 2.307) × 0.8(요청: 그려지는 크기 0.8배)
   cocoon: 2.018,
   coil: 1.337,
   comsat: 1.366,
