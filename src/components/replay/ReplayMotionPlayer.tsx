@@ -30233,7 +30233,13 @@ export default function ReplayMotionPlayer({
    *  표시(현황 데이터 미표시 종족까지만 항상 표시)"). 누가 어느 팀에서 무슨 종족으로
    *  하고 있나는 판을 껐어도 늘 읽혀야 하는 것이고, 숫자 다섯은 '지금 자세히 보겠다'를
    *  켰을 때의 것이다. 자리·글자 크기는 켠 꼴과 같다 — 표에서 지표 칸만 빠진다. */
-  const teamCol = (team: 1 | 2, rows = false, bare = false) => {
+  /** small — 지도 **위에 얹히는** 판(항시표시 로스터)이다(요청: "로스터쪽 요소들 좀 크기
+   *  줄이고 갭 줄여서 로스터가 차지하는 영역을 줄일수 있을까"). 그 판에서는 줄 하나가
+   *  먹는 세로가 곧 가려지는 지형이라, 줄 높이를 정하는 두 조각(아바타·종족 배지)을 한 단
+   *  줄인다. 기둥(사이드바)의 로스터는 제 칸에 서므로 그대로다.
+   *  ★ 폭이 아니라 **어느 판이냐**로 가른다 — 아바타가 서는 구간이 뷰포트 1160px 이상이라
+   *    폭으로 가르면 정작 아바타가 보이는 화면에서 안 걸린다(그 판이 곧 이 판이다). */
+  const teamCol = (team: 1 | 2, rows = false, bare = false, small = false) => {
     /* 한 팀에 몇이냐가 이름 길이를 정한다(요청) — 칸 폭은 고정인데 그 폭을 사람 수로
        나눠 쓰므로, 넷이면 세 자·셋이면 네 자·둘이면 여섯 자·혼자면 통째로다. */
     /* ★ 밀리는 **한 테이블**이다(요청: "재생 플레이어의 로스터도 똑같이 한 테이블로") —
@@ -30347,8 +30353,10 @@ export default function ReplayMotionPlayer({
                 /* 프사는 **꽂혀 있고 켜져 있어야** 그린다(chrome.ts) — 앱이 주는가와
                    이 화면에서 쓸 것인가는 다른 물음이라 둘 다 본다. */
                 const Av9 = replayAvatarOn(avatars);
+                /* 지도 위 판은 한 단 작게(요청: 로스터가 먹는 자리 줄이기) — 줄 높이를
+                   정하는 것이 이 동그라미다(22 → 18이면 줄이 4px 낮아진다). */
                 return Av9
-                  ? <Av9 member={{ id: m.memberId, nickname: m.name, avatar: m.avatar }} size={22} />
+                  ? <Av9 member={{ id: m.memberId, nickname: m.name, avatar: m.avatar }} size={small ? 18 : 22} />
                   : null;
               })()}
             </span>
@@ -30367,7 +30375,8 @@ export default function ReplayMotionPlayer({
                     (size 13 이상은 0.62 쪽이 늘 크므로 한 톨도 안 달라진다). */}
               {(() => {
                 const Rb9 = replayChrome().RaceBadge;
-                return m.race && Rb9 ? <Rb9 race={m.race} circleLetter size={14} /> : null;   // 8 → 14(요청: 1.8배)
+                // 8 → 14(요청: 1.8배) · 지도 위 판만 12(요청: 로스터가 먹는 자리 줄이기)
+                return m.race && Rb9 ? <Rb9 race={m.race} circleLetter size={small ? 12 : 14} /> : null;
               })()}
             </span>
             </span>
@@ -32178,8 +32187,8 @@ translate: `${(-(Math.round((-fp9 * (1 - dropP9 ** 2) - hp9 * 0.275 - hp9 * 1.42
         {rosterMode !== 2 && (
           <div className={cx("scr-fs-panel scr-fs-roster-fixed",
             rosterMode === 0 && "scr-fs-panel-bare")}>
-            {teamCol(1, true, rosterMode === 0)}
-            {teamCol(2, true, rosterMode === 0)}
+            {teamCol(1, true, rosterMode === 0, true)}
+            {teamCol(2, true, rosterMode === 0, true)}
           </div>
         )}
         {/* (걷어냄·요청) 도구 판 — 품질·체력바·마우스 조작 줄(viewRowNode)이 들어 있던
@@ -32295,8 +32304,8 @@ translate: `${(-(Math.round((-fp9 * (1 - dropP9 ** 2) - hp9 * 0.275 - hp9 * 1.42
                 <span>재생할 수 없는 게임이에요</span>
               </div>
               <div className="scr-fs-panel scr-fs-roster-fixed scr-fs-panel-bare">
-                {teamCol(1, true, true)}
-                {teamCol(2, true, true)}
+                {teamCol(1, true, true, true)}
+                {teamCol(2, true, true, true)}
               </div>
             </div>
           </div>

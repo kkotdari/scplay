@@ -435,16 +435,16 @@
    (min-height: 5줄). 줄 꼴에서는 그 다섯이 **옆으로** 눕는데 세로 자리는 그대로 잡혀
    있어, 한 줄이 60px 남짓으로 부풀었다. 옆으로 누우면 밀릴 아래가 없으니 끈다. */
 .scr-motion-teamcol-rows .scr-motion-stats { min-height: 0; }
-.scr-motion-teamcol-rows .scr-motion-teamcol-head { flex: 0 0 auto; gap: 5px; }
+.scr-motion-teamcol-rows .scr-motion-teamcol-head { flex: 0 0 auto; gap: 4px; }
 /* 시점 손잡이(지적: 줄 전체가 눌려 빈 칸까지 범위였다) — 아바타+이름 조각만 누르는
    자리다. 폭은 제 내용만큼이고(위 flex: 0 0 auto), 손가락 기기에서 너무 얇지 않게
    위아래로만 조금 넓힌다. */
-.scr-motion-teamcol-pick { cursor: pointer; padding: 2px 3px; border-radius: 7px; }
+.scr-motion-teamcol-pick { cursor: pointer; padding: 1px 3px; border-radius: 7px; }
 .scr-motion-teamcol-pick:focus-visible { outline: 1px solid rgba(255, 255, 255, 0.5); }
 /* 손잡이 조각은 이제 머리(.scr-motion-teamcol-head) **안**에 산다 — 그 왼쪽에 추적
    버튼이 서면서 머리가 [추적][아바타+이름] 두 칸이 됐다. 옛 배치(머리 자신이 손잡이)의
    가로 정렬을 이 조각이 물려받는다. */
-.scr-motion-teamcol-pick { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.scr-motion-teamcol-pick { display: flex; align-items: center; gap: 5px; min-width: 0; }
 /* 추적 버튼(요청: "로스터 각 멤버 왼쪽에 추적 버튼 추가") — 시점(이름 누르기)과 다른
    손잡이다: 시점은 그 눈으로 밝혀만 보는 것이고, 추적은 카메라까지 그 사람에게 맡긴다.
    ★ 손짓을 **되살려야** 한다 — 로스터는 판 전체가 pointer-events: none이고 아바타·이름
@@ -463,7 +463,22 @@
   line-height: 0;
   transition: background 0.15s ease, color 0.15s ease;
 }
-.scr-motion-track-btn svg { display: block; }@media (hover: hover) {
+.scr-motion-track-btn svg { display: block; }
+/* ★ 지도 위 판(항시표시 로스터)은 **한 단 더 죈다**(요청: "로스터쪽 요소들 좀 크기 줄이고
+   갭 줄여서 로스터가 차지하는 영역을 줄일수 있을까") ──────────────────────────────────
+   이 판은 지도 **위에** 얹히므로 줄 하나가 먹는 세로가 곧 가려지는 지형이다. 기둥
+   (사이드바)의 로스터는 제 칸에 서므로 그대로 두고, 얹힌 판만 줄인다.
+   함께 줄인 것: 아바타 22 → 18 · 종족 배지 14 → 12(그리는 쪽 teamCol의 small) ·
+   아바타 테 바깥 여백 4 → 2(위 .scr-motion-base-ring) · 손잡이 위아래 여백 1 → 0 ·
+   추적 단추 16 → 14 · 조각 사이 여백 한 뼘씩 · 줄 사이 4 → 2.
+   실측(1160px 이상, 아바타가 서는 구간): 줄 높이 34 → 22px · 줄 간격 38 → 24px.
+   누르는 자리는 단추 14px + 아바타 18px이라 손가락에도 잡힌다. */
+.scr-motion .scr-fs-roster-fixed .scr-motion-teamcol.scr-motion-teamcol-rows { gap: 2px; }
+.scr-fs-roster-fixed .scr-motion-teamcol-pick { padding: 0 3px; gap: 4px; }
+.scr-fs-roster-fixed .scr-motion-teamcol-head { gap: 3px; }
+.scr-fs-roster-fixed .scr-motion-track-btn { width: 14px; height: 14px; }
+
+@media (hover: hover) {
   .scr-motion-track-btn:hover { background: rgba(255, 255, 255, 0.28); color: #fff; }
 }
 
@@ -1092,7 +1107,11 @@
 }
 .scr-motion-base { display: inline-flex; flex-direction: column; align-items: center; gap: 1px; }
 /* 아바타 이중 테두리(요청) — 안쪽 개인색·바깥 팀색은 인라인 box-shadow가 칠한다. */
-.scr-motion-base-ring { display: inline-flex; border-radius: 50%; margin: 4px; }
+/* 여백 4 → 2(요청: "로스터쪽 요소들 좀 크기 줄이고 갭 줄여서 로스터가 차지하는 영역을
+   줄일수 있을까") — 이 여백은 줄마다 **위아래로 8px**을 얹어, 한 줄 높이의 4분의 1을
+   테 바깥 빈자리가 먹고 있었다. 아바타 테(box-shadow 2px)가 이웃 줄과 안 붙을 만큼만
+   남긴다: 2 + 줄 사이 2 + 2 = 6px 사이에 테 둘(2+2)이 들어 2px이 남는다. */
+.scr-motion-base-ring { display: inline-flex; border-radius: 50%; margin: 2px; }
 /* 일꾼 수 — 그냥 텍스트, 움직임 없음(요청: 곡괭이질 까딱임과 배지 판을 걷었다). */
 .scr-motion-workers {
   /* 지도 위 글자는 테마를 안 탄다(지적: 라이트에서 검정 글씨) — 바탕(미니맵)이 늘
@@ -3807,14 +3826,18 @@
      자를 뒤집는다 — 이름 칸을 먼저 정하고 판이 거기 맞춘다. 더하는 214px의 내역은
      지표 다섯(26+44+30+28+28 = 156) + 칸 사이 다섯(4×5 = 20) + 줄 여백(5×2 = 10) +
      판 여백(14×2 = 28)이다. 이름을 늘리고 싶으면 --roster-name 하나만 만지면 된다. */
-  --roster-name: 132px;
+  /* 132 → 122(요청: 로스터가 먹는 자리 줄이기) — 칸 안의 조각이 그만큼 줄었다:
+     아바타 −4 · 종족 배지 −2 · 조각 사이 −2 · 추적 단추 −2 = −10px. 칩이 받는 자리는
+     한 픽셀도 안 줄었다. */
+  --roster-name: 122px;
   width: calc(var(--roster-name) + 214px);
 }
 /* 좁은 화면의 짝 — 이름 칸과 판 폭을 **한자리에서** 정한다(위 규칙 바로 뒤여야 덮인다).
    더하는 178px의 내역은 지표 다섯(20+38+26+26+24 = 134) + 칸 사이(2×5 = 10) +
    줄 여백(3×2 = 6) + 판 여백(14×2 = 28)이다 — 이 구간은 판 여백이 아직 14px다. */
 @media (max-width: 1159px) {
-  .scr-fs-roster-fixed { --roster-name: 112px; width: calc(var(--roster-name) + 178px); }
+  /* 112 → 106 — 이 구간은 아바타가 안 서므로 줄어든 것은 배지·여백·단추(−6)뿐이다. */
+  .scr-fs-roster-fixed { --roster-name: 106px; width: calc(var(--roster-name) + 178px); }
 }
 .scr-fs-layer.is-fs .scr-fs-roster-fixed { top: calc(max(var(--safe-top, 0px), 10px)); }
 /* ★ 판만 걷은 꼴(요청: "자리는 활성화시와 같게하고 패널은 미표시") — 바탕·테두리·
@@ -3949,9 +3972,11 @@
      `margin: -1px -4px`가 걸려 있어(아래 .scr-motion-teamrow) 칠만 넓어지고 칸이 받는
      폭은 그대로다. 위 두 구간은 음수 여백이 없어 줄 여백이 실제로 자리를 먹는다.
      아주 좁은 기기에서 판이 화면을 넘지 않게 뷰포트로 한 번 더 막는다. */
+  /* 여백 7 → 5 · 팀 사이 4 → 3(요청: 로스터가 먹는 자리 줄이기) — 더하는 값도 그만큼
+     줄어든다(지표 134 + 칸 사이 10 + 판 여백 5×2 = 154). */
   .scr-fs-roster-fixed {
-    width: min(calc(var(--roster-name) + 158px), calc(100vw - 10px));
-    padding: 7px; gap: 4px; left: 5px;
+    width: min(calc(var(--roster-name) + 160px), calc(100vw - 10px));
+    padding: 5px; gap: 3px; left: 5px;
   }
   /* 프레임에서는 노치가 없으므로 판을 가장자리에 바짝 붙인다(전체화면은 safe-top). */
   .scr-fs-layer:not(.is-fs) .scr-fs-roster-fixed { top: 5px; }
@@ -3967,7 +3992,11 @@
   .scr-motion .scr-fs-roster-fixed .scr-motion-teamcol-name { font-size: 9px; }
   .scr-motion .scr-fs-roster-fixed .scr-motion-teamcol-cols { font-size: 6px; }
   .scr-motion .scr-fs-roster-fixed .scr-motion-teamhead { font-size: 8px; }
-  .scr-motion .scr-fs-roster-fixed .scr-motion-teamcol.scr-motion-teamcol-rows { gap: 3px; }
+  /* ★ 한 줄을 통째로 죈다(요청: 로스터가 먹는 자리 줄이기) — 줄 사이만 여기서
+     한 뼘 더 줄인다:
+       · 아바타 테 바깥 여백 4 → 2(위 .scr-motion-base-ring)
+       · 손잡이·단추·조각 사이(위 .scr-fs-roster-fixed 규칙 — 모든 폭에 함께 건다)
+     이 구간은 아바타가 안 서므로 줄 높이를 정하는 것은 이름칩이다. */
   /* 상자는 **줄 클래스**에 건다(위 .scr-motion-teamrow 주석) — 사람 줄에만 걸어 두면
      라벨 줄이 그 음수 여백만큼 오른쪽으로 밀려 표가 어긋난다. */
   .scr-fs-roster-fixed .scr-motion-teamrow { padding: 1px 4px; margin: -1px -4px; }
