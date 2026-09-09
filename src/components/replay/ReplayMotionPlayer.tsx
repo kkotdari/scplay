@@ -1311,19 +1311,23 @@ function protossLegs(
   const out: ShapeFace[] = [];
   for (const m of [-1, 1] as const) {
     const st = m * stride;   // 오른다리가 나가면 왼다리는 물러난다.
-    const hip: [number, number, number] = [m * 0.5, -0.3, Z(3.95)];
+    /* ★ 고관절을 **몸 안쪽**으로(요청: "다리가 너무 바깥쪽 양옆에 붙은 느낌") — 0.5 → 0.26. 골반 폭이
+       몸통 반폭에 가깝게 좁아져 두 다리가 몸 아래에서 시작한다. 무릎·발목·발끝도 한 단씩만 안으로 당겨
+       (0.82→0.72 · 0.95→0.86 · 1.04→0.96) 팔자 벌림은 남기되 전체가 몸 밑으로 모인다 — 고관절만 당기면
+       허벅지가 바깥으로 뻗쳐 가랑이가 벌어진 꼴이 된다. */
+    const hip: [number, number, number] = [m * 0.26, -0.3, Z(3.95)];
     /* ★ 걸음에도 **허벅지·정강이 길이는 그대로**(요청: 질럿·템플러류도 같은 함수로) —
        suitLegs와 같은 결이다. 발목·발끝만 보폭대로 옮기고 무릎은 서 있을 때의 두 마디
        길이로 푼다(jointBetween, 앞으로 굽힘). */
-    const ankle0: [number, number, number] = [m * 0.95, -0.75, Z(1)];
+    const ankle0: [number, number, number] = [m * 0.86, -0.75, Z(1)];
     // 무릎 높이에서 엉덩이~발목 직선의 y — 굽힘(bend)이 0이면 여기, 1이면 본디 자리(0.3).
     const kneeLineY9 = hip[1] + (ankle0[1] - hip[1]) * ((hip[2] - Z(2.2)) / Math.max(1e-6, hip[2] - ankle0[2]));
-    const knee0: [number, number, number] = [m * 0.82, kneeLineY9 + (0.3 - kneeLineY9) * bend, Z(2.2)];
+    const knee0: [number, number, number] = [m * 0.72, kneeLineY9 + (0.3 - kneeLineY9) * bend, Z(2.2)];
     const Lt9 = Math.hypot(knee0[0] - hip[0], knee0[1] - hip[1], knee0[2] - hip[2]);
     const Ls9 = Math.hypot(ankle0[0] - knee0[0], ankle0[1] - knee0[1], ankle0[2] - knee0[2]);
     const ankle: [number, number, number] = [ankle0[0], ankle0[1] + st * 1.2, ankle0[2] + Math.max(0, st) * 0.2];
     const knee: [number, number, number] = st === 0 ? knee0 : jointBetween(hip, ankle, Lt9, Ls9, [0, 1, 0.1]);
-    const toe: [number, number, number] = [m * 1.04, 0.5 + st * 1.2, Z(0.15) + Math.max(0, st) * 0.15];
+    const toe: [number, number, number] = [m * 0.96, 0.5 + st * 1.2, Z(0.15) + Math.max(0, st) * 0.15];
     /* 하지가 허벅지보다 굵다(요청) — 허벅지 0.6, 정강이 0.72, 발목 0.58. 마디마다
        배가 부풀게 mid를 따로 줘, 곧은 막대가 아니라 근육 붙은 마디로 읽힌다. */
     // 굵기 ×1.25(사진 대조 — 질럿1·4의 다리 갑판은 지금보다 한 뼘 굵다).
