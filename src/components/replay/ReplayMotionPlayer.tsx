@@ -8787,12 +8787,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      *    띠는 옆면만 있으면 된다. 등진 조각은 faceLight의 보임 판정이 걷는다. */
     const ringBand9 = (zA9: number, zB9: number, rOff9: number, col9?: string): ShapeFace[] => {
       const out9: ShapeFace[] = [];
-      const NR9 = 20;
+      const NR9 = 12;
       const rp9 = (a9: number, z9: number): [number, number, number] =>
         [Math.cos(a9) * (CR9 + rOff9), Math.sin(a9) * (CR9 + rOff9), z9];
+      /* ★ 띠는 **드럼만** 두른다(재요청: "드럼과 반구 각각에 두르는 거, 한번에 두르는 게 아니라")
+         — 한 바퀴를 다 돌면 반구까지 함께 감아 몸 전체를 묶은 굴렁쇠가 된다. 드럼의 껍질은
+         π/2 ~ 3π/2의 반원이므로 띠도 딱 그만큼만 돈다. 반구의 띠는 domeBand9가 따로 두른다. */
       for (let i9 = 0; i9 < NR9; i9 += 1) {
-        const a09 = (i9 / NR9) * Math.PI * 2;
-        const a19 = ((i9 + 1) / NR9) * Math.PI * 2;
+        const a09 = Math.PI / 2 + (i9 / NR9) * Math.PI;
+        const a19 = Math.PI / 2 + ((i9 + 1) / NR9) * Math.PI;
         const am9 = (a09 + a19) / 2;
         const lit9 = faceLight(Math.cos(am9), Math.sin(am9), 0);
         if (!lit9.visible) continue;
@@ -8948,12 +8951,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          기준축(ref)을 앞뒤(y)로 두면 u가 앞뒤, v가 좌우다. oval을 0.13으로 눌러 좌우로
          얇게 만들면 판의 **면이 ±x를 본다**. 옆 날개보다 크고(높이 6.2·앞뒤 폭 2.7)
          위로 갈수록 좁아져, 두건 뿔이 그 위를 지나가도 묻히지 않는다. */
-      /* 돛의 **두께를 더 준다**(재요청: "데칼이 옆으로 안 삐져나오게") — oval 0.13 → 0.26 → 0.40.
-         ★ 두께(v)는 widthOf에 oval을 곱한 값이라 **위로 갈수록 함께 얇아진다**: 0.26에서는
-           맨 위 네모 자리(t 0.80)의 반두께가 0.212라 반폭 0.30짜리 네모가 양옆으로 삐져나왔다.
-           0.40이면 그 자리도 0.326이라 네모(아래에서 0.26으로 줄였다)가 온전히 얹힌다. */
+      /* 돛의 두께는 **0.26에서 멈춘다**(재요청: "뒷날개폭을 더 늘리면 안될거 같고 데칼의 폭을
+         줄여야할듯") — 0.40으로 키웠더니 돛이 판이 아니라 기둥으로 굵어졌다. 두께(v)는
+         widthOf에 oval을 곱한 값이라 위로 갈수록 함께 얇아지고, 맨 위 네모 자리(t 0.80)의
+         반두께가 0.212다. 그러니 **네모 쪽을 그 안에 들어가게** 줄인다(아래 half9 0.17). */
       ...spirePillar({
-        x: 0, y: 0, h: 1, w: 1, segs: 5, sides: 8, ref: [0, 1, 0], oval: 0.40,
+        x: 0, y: 0, h: 1, w: 1, segs: 5, sides: 8, ref: [0, 1, 0], oval: 0.26,
         caps: "both", trueNormal: true,
         path: (t9: number): [number, number, number] => [0, -5.6, 1.4 + 6.2 * t9],
         widthOf: (t9: number): number => 1.35 * (1 - 0.62 * t9 * t9),
@@ -8965,7 +8968,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          물러나므로(widthOf가 줄어든다) 네모도 그 선을 따라 물러나며 판에 붙어 있다. */
       ...((): ShapeFace[] => {
         if (facingRatio(0, 1) <= 0.05) return [];
-        const half9 = 0.26;
+        const half9 = 0.17;   // 맨 위 자리의 돛 반두께(0.212)보다 작아야 옆으로 안 삐진다.
         const wAt9 = (t9: number): number => 1.35 * (1 - 0.62 * t9 * t9);
         return Array.from({ length: 5 }, (_, k9) => {
           const t9 = 0.16 + k9 * 0.16;
