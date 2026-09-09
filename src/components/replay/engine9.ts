@@ -973,7 +973,7 @@ export const MODEL_NORM: Record<string, number> = {
   droneGas: 1.040,
   droneMin: 1.071,
   dship: 0.712,  // 포드 축소·안쪽 이동 뒤 재측정(model-norm)
-  dtemp: 0.915,  // 재측정(model-norm) — 역관절 다리(굽힘 1.4·발목 반 펴기·발 0.375배) 뒤
+  dtemp: 0.904,  // 재측정(model-norm) — 역관절 다리(굽힘 1.4·발목 반 펴기·발 0.75배) 뒤
   egg: 1.237,   // 정수리를 둥글게 한 뒤 model-norm 재측정
   fbat: 1.229,
   ghost: 1.552,  // 상자 상한(원한 배수 1.723)
@@ -981,7 +981,7 @@ export const MODEL_NORM: Record<string, number> = {
   goon: 0.655,  // 재측정(model-norm)
   guardian: 0.754,  // 다리 옆으로 곧게 뒤 재측정(model-norm)
   gunner: 1.327,  // 팔 길이 고정 뒤 model-norm 재측정
-  htemp: 1.264,  // 재측정(model-norm) — 역관절 다리(굽힘 0.7·발목 반 펴기·발 0.375배) 뒤
+  htemp: 1.203,  // 재측정(model-norm) — 역관절 다리(굽힘 0.7·발목 반 펴기·발 0.75배)·다리 길이 0.95 뒤
   hydra: 0.652,  // 머리장식 확대·머리 위 시작·길이 +20%·폭 −20%·마름모 허리 0.75 뒤 재측정(model-norm의 **top 모드** 표)
   inf: 1.514,  // 상자 상한(원한 배수 1.615)
   interceptor: 1.555,  // 재측정(model-norm)
@@ -1023,7 +1023,7 @@ export const MODEL_NORM: Record<string, number> = {
   vessel: 0.898,  // 방패 접힘 축·뾰족 위끝 뒤 재측정(model-norm)
   vulture: 0.666,   // 0.833 × 0.8(요청: "벌처랑 마인 0.8배")
   wraith: 0.894,  // 재측정(model-norm)
-  zealot: 0.968,  // 역관절 다리(굽힘 1.4·발목 반 펴기·발 0.375배) 뒤 재측정(model-norm의 top 모드) · 옛 0.949
+  zealot: 0.956,  // 역관절 다리(굽힘 1.4·발목 반 펴기·발 0.75배) 뒤 재측정(model-norm의 top 모드) · 옛 0.949
   zling: 0.758,
   // tankgun: 없음 — 짝이라 소스의 NORM_PAIR가 tankbody 배수로 접는다.
   // tanksiegegun: 없음 — 짝이라 소스의 NORM_PAIR가 tanksiegebody 배수로 접는다.
