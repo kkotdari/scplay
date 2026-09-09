@@ -6,7 +6,7 @@ import {
 import { createPortal } from "react-dom";
 import { useBgm } from "./useBgm";
 import RosterTableIcon from "./RosterTableIcon";
-import { BookOpen, Crosshair, Map as MapIcon, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Users } from "lucide-react";
+import { BookOpen, Bookmark, Crosshair, Map as MapIcon, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Users } from "lucide-react";
 import ReplayGuide from "./ReplayGuide";
 /* 미니맵 — 이제 **제 오버레이 판**이고 제 아이콘으로 여닫는다(요청: "미니맵 오버레이
    및 아이콘 추가"). 도구 판 안에 세들어 살던 시절과 달리, 켜고 끄는 것이 이것 하나다. */
@@ -24478,7 +24478,7 @@ const lerpAng9 = (a: number, b: number, u: number): number => {
 export default function ReplayMotionPlayer({
   grid, endSec, bases: basesIn, teamOfRaw, active = true, winnerTeam, side,
   onDetailClose, loadUnitTracks, initialSec, initialSpeed, initialView, initialTrack,
-  clockKey, shareNode, onGuide, guide = true, avatars,
+  clockKey, shareNode, onScrap, scrapLabel = "장면 스크랩", onGuide, guide = true, avatars,
   soleView, melee,
   onFinish,
 }: {
@@ -24545,6 +24545,16 @@ export default function ReplayMotionPlayer({
   soleView?: boolean;
   /** 진행바 아래 공유 버튼(요청: 케밥은 그대로, 별도 버튼) — 시계 옆에 앉는다. */
   shareNode?: React.ReactNode;
+  /** ★ 장면 스크랩 — 함수를 주면 **버튼째** 여기서 그린다(지적: "버튼은 css까지 먹여서 네가 만들어서 기본값 제공해
+   *  줘야지, 갖다 쓰는 쪽은 사용 여부 판단하고 기능만 붙이는 거고") ──────────────────────────────────────────────
+   *  여태 스크랩은 앱이 제 버튼을 지어 공유 슬롯(shareNode)에 함께 꽂는 물건이었다. 그러다 보니 같은 줄에 선 셋
+   *  (스크랩·공유·사용법) 가운데 스크랩만 앱의 기본 버튼 꼴로 남아, 이 파일의 CSS가 뒤늦게 그 꼴을 따라잡는
+   *  술래잡기가 됐다(.scr-scrapbtn 규칙이 그 자취다). 꼴을 가진 쪽이 버튼도 가져야 한다.
+   *  앱이 지는 것은 **담는 일**뿐이다 — 자리·꼴·단축키(Z)·완료 표시는 여기 몫이다. 안 주면 안 그린다.
+   *  참(또는 참으로 풀리는 약속)을 돌려주면 잠깐 "담았어요"로 바뀐다. */
+  onScrap?: () => boolean | void | Promise<boolean | void>;
+  /** 스크랩 버튼의 글씨 — 기본 "장면 스크랩". */
+  scrapLabel?: string;
   /** 사용법(요청: 공통) — 공유 버튼 옆 '사용법' 버튼. 기본은 재생기가 제 덮개(ReplayGuide)를 띄우고, onGuide를 주면 앱이 대신
    *  연다(제 라우팅으로 띄우고 싶을 때). guide=false면 버튼을 안 낸다. */
   onGuide?: () => void;
@@ -26127,6 +26137,38 @@ export default function ReplayMotionPlayer({
      칸을 되돌려(back) 같은 길로 닫는다. */
   const [guideOpen9, setGuideOpen9] = useState(false);
   const guidePushed9 = useRef(false);
+  /* ★ 장면 스크랩(위 onScrap 주석) — 담는 일은 앱이 하고, **누름·완료 표시·단축키**는 여기서 한다.
+     참을 돌려주면 1.8초 동안 "담았어요"로 바뀐다(공유 버튼의 "링크 복사됨"과 같은 결).
+     약속이면 풀릴 때까지 기다린다 — 앱이 제목 창을 띄우고 저장까지 하는 동안은 아직 '담은' 것이 아니다. */
+  const [scrapDone9, setScrapDone9] = useState(false);
+  const scrapTimer9 = useRef(0);
+  const onScrapRef9 = useRef(onScrap);
+  onScrapRef9.current = onScrap;
+  const runScrap9 = useCallback(async (): Promise<void> => {
+    const f9 = onScrapRef9.current;
+    if (!f9) return;
+    let ok9: boolean | void = undefined;
+    try { ok9 = await f9(); } catch { ok9 = undefined; }
+    if (ok9 !== true) return;
+    setScrapDone9(true);
+    if (scrapTimer9.current) window.clearTimeout(scrapTimer9.current);
+    scrapTimer9.current = window.setTimeout(() => { scrapTimer9.current = 0; setScrapDone9(false); }, 1800);
+  }, []);
+  useEffect(() => () => { if (scrapTimer9.current) window.clearTimeout(scrapTimer9.current); }, []);
+  /* 단축키 Z — 안내(ReplayGuide)가 적어 둔 그 키다. 버튼을 안 그리는 화면(onScrap 없음)에서는
+     듣지 않는다. 글 치는 칸·수식키에서는 안 듣고, 한글 자판에서도 듣도록 키 자리(e.code)로 본다. */
+  useEffect(() => {
+    if (!onScrap) return undefined;
+    const onKey9 = (e: KeyboardEvent): void => {
+      if (e.code !== "KeyZ" || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+      const t9 = e.target as HTMLElement | null;
+      if (t9 && (t9.tagName === "INPUT" || t9.tagName === "TEXTAREA" || t9.isContentEditable)) return;
+      e.preventDefault();
+      void runScrap9();
+    };
+    window.addEventListener("keydown", onKey9);
+    return () => window.removeEventListener("keydown", onKey9);
+  }, [onScrap, runScrap9]);
   const openGuide9 = (): void => {
     if (onGuide) { onGuide(); return; }
     try { window.history.pushState({ scrGuide: 1 }, ""); guidePushed9.current = true; } catch { guidePushed9.current = false; }
@@ -32293,6 +32335,20 @@ translate: `${(-(Math.round((-fp9 * (1 - dropP9 ** 2) - hp9 * 0.275 - hp9 * 1.42
             {controlsNode}
             {/* 꼬리 줄(요청: 재생부 셋째 줄) — 스크랩·공유(shareNode) 옆에 사용법. 격자가 이 줄을 통째로 준다(replay.css). */}
             <div className="scr-fs-bottom-tail">
+              {/* ★ 장면 스크랩 — 앱이 onScrap을 주면 여기서 그린다(위 프롭 주석). 차례는 안내(ReplayGuide)와 같다:
+                  스크랩(Z) → 공유(X) → 사용법. 꼴은 같은 줄의 공유·사용법과 한 벌이다(.scr-scrapbtn). */}
+              {onScrap && (
+                <button
+                  type="button"
+                  className={cx("scr-kakao-share-btn scr-scrapbtn", scrapDone9 && "is-done")}
+                  onClick={() => { void runScrap9(); }}
+                  aria-label={scrapLabel}
+                  title={`${scrapLabel} (Z)`}
+                >
+                  <Bookmark />
+                  {scrapDone9 ? "담았어요" : scrapLabel}
+                </button>
+              )}
               {shareNode}
               {guide && (
                 <button type="button" className="scr-kakao-share-btn scr-guide-btn" onClick={openGuide9} aria-label="사용법" title="사용법">

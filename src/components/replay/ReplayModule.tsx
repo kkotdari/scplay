@@ -7,7 +7,7 @@ import "./replay.css";
 /* 리플레이 재생 모듈 — 페이지 안에 통째로 꽂는 한 벌.
    맵 이름 줄부터 지도·조작부·전체화면까지 담는다. **경기라는 것을 모른다** — 들어오는 것은
    지도 격자, 로스터 몇 줄, 자취를 가져오는 함수, 머리 줄에 적을 글자뿐이다.
-   댓글·공유·스크랩은 안 만들고 슬롯(side·shareNode)으로 받기만 한다: 앱마다 다른 물건이라
+   댓글·공유는 안 만들고 슬롯(side·shareNode)으로 받기만 한다: 앱마다 다른 물건이라
    여기 두면 옮긴 쪽에서 두 벌이 된다.
    붙이는 법과 함께 챙길 것은 이 폴더의 README.md에 있다. */
 
@@ -56,8 +56,16 @@ export interface ReplayModuleProps {
   onFinish?: () => void;
   /** 확대 창을 닫는 길 — 있으면 재생기가 닫기 단추를 낸다. */
   onDetailClose?: () => void;
-  /** 진행바 아래 슬롯 — 공유·스크랩처럼 **앱의 것**을 여기 꽂는다. */
+  /** 진행바 아래 슬롯 — 공유처럼 **앱의 것**을 여기 꽂는다. */
   shareNode?: ReactNode;
+  /** ★ 장면 스크랩 — 함수를 주면 재생기가 **버튼째** 그린다(요청: "버튼은 css까지 먹여서
+   *  네가 만들어서 기본값 제공해 줘야지, 갖다 쓰는 쪽은 사용 여부 판단하고 기능만 붙이는
+   *  거고"). 앱은 담는 일만 하면 된다 — 꼴·자리·단축키(Z)·완료 표시는 모듈의 몫이다.
+   *  안 주면 버튼을 안 그린다(그것이 곧 '사용 여부 판단'이다).
+   *  참을 돌려주면(또는 참으로 풀리는 약속이면) 잠깐 "담았어요"로 바뀐다. */
+  onScrap?: () => boolean | void | Promise<boolean | void>;
+  /** 스크랩 버튼의 글씨 — 기본 "장면 스크랩". */
+  scrapLabel?: string;
   /** 사용법 버튼(공통) — 앱이 제 라우팅으로 열고 싶으면 onGuide, 버튼을 안 내려면 guide=false. */
   onGuide?: () => void;
   guide?: boolean;
@@ -74,7 +82,7 @@ export default function ReplayModule({
   grid, endSec, bases, teamOfRaw, loadUnitTracks,
   head, winnerTeam, melee, soleView, active = true,
   initialSec, initialSpeed, initialView, initialTrack, clockKey,
-  onFinish, onDetailClose, shareNode, onGuide, guide, side, menu, avatars,
+  onFinish, onDetailClose, shareNode, onScrap, scrapLabel, onGuide, guide, side, menu, avatars,
 }: ReplayModuleProps) {
   const win = head?.win ?? null;
   /* 배지는 **양쪽에 다 세우고 한쪽만 감춘다** — 반대쪽을 아예 안 그리면 좌우 자리 폭이
@@ -124,6 +132,8 @@ export default function ReplayModule({
         initialTrack={initialTrack}
         clockKey={clockKey}
         shareNode={shareNode}
+        onScrap={onScrap}
+        scrapLabel={scrapLabel}
         onGuide={onGuide}
         guide={guide}
         onDetailClose={onDetailClose}
