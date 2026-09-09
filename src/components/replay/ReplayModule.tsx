@@ -63,9 +63,16 @@ export interface ReplayModuleProps {
    *  거고"). 앱은 담는 일만 하면 된다 — 꼴·자리·단축키(Z)·완료 표시는 모듈의 몫이다.
    *  안 주면 버튼을 안 그린다(그것이 곧 '사용 여부 판단'이다).
    *  참을 돌려주면(또는 참으로 풀리는 약속이면) 잠깐 "담았어요"로 바뀐다. */
-  onScrap?: () => boolean | void | Promise<boolean | void>;
+  onScrap?: () => string | boolean | void | Promise<string | boolean | void>;
   /** 스크랩 버튼의 글씨 — 기본 "장면 스크랩". */
   scrapLabel?: string;
+  /** ★ 장면 공유 — 스크랩과 **같은 규약**이다(지적: "스크랩 버튼, 공유 버튼은 쓰는 쪽에서
+   *  쓸지 말지 선택하는 거고 함수도 알아서 연결해야 해"). 주면 버튼이 서고(단축키 X),
+   *  안 주면 안 선다. 공유하는 일(카카오·공유 시트·링크 복사)만 앱이 붙인다.
+   *  글을 돌려주면 그 글이, 참이면 "링크 복사됨"이 잠깐 뜬다. */
+  onShare?: () => string | boolean | void | Promise<string | boolean | void>;
+  /** 공유 버튼의 글씨 — 기본 "장면 공유". */
+  shareLabel?: string;
   /** 사용법 버튼(공통) — 앱이 제 라우팅으로 열고 싶으면 onGuide, 버튼을 안 내려면 guide=false. */
   onGuide?: () => void;
   guide?: boolean;
@@ -82,7 +89,8 @@ export default function ReplayModule({
   grid, endSec, bases, teamOfRaw, loadUnitTracks,
   head, winnerTeam, melee, soleView, active = true,
   initialSec, initialSpeed, initialView, initialTrack, clockKey,
-  onFinish, onDetailClose, shareNode, onScrap, scrapLabel, onGuide, guide, side, menu, avatars,
+  onFinish, onDetailClose, shareNode, onScrap, scrapLabel, onShare, shareLabel,
+  onGuide, guide, side, menu, avatars,
 }: ReplayModuleProps) {
   const win = head?.win ?? null;
   /* 배지는 **양쪽에 다 세우고 한쪽만 감춘다** — 반대쪽을 아예 안 그리면 좌우 자리 폭이
@@ -134,6 +142,8 @@ export default function ReplayModule({
         shareNode={shareNode}
         onScrap={onScrap}
         scrapLabel={scrapLabel}
+        onShare={onShare}
+        shareLabel={shareLabel}
         onGuide={onGuide}
         guide={guide}
         onDetailClose={onDetailClose}

@@ -6,7 +6,7 @@ import {
 import { createPortal } from "react-dom";
 import { useBgm } from "./useBgm";
 import RosterTableIcon from "./RosterTableIcon";
-import { BookOpen, Bookmark, Crosshair, Map as MapIcon, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Users } from "lucide-react";
+import { BookOpen, Bookmark, Crosshair, Map as MapIcon, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Share2, Users } from "lucide-react";
 import ReplayGuide from "./ReplayGuide";
 /* 미니맵 — 이제 **제 오버레이 판**이고 제 아이콘으로 여닫는다(요청: "미니맵 오버레이
    및 아이콘 추가"). 도구 판 안에 세들어 살던 시절과 달리, 켜고 끄는 것이 이것 하나다. */
@@ -24478,7 +24478,8 @@ const lerpAng9 = (a: number, b: number, u: number): number => {
 export default function ReplayMotionPlayer({
   grid, endSec, bases: basesIn, teamOfRaw, active = true, winnerTeam, side,
   onDetailClose, loadUnitTracks, initialSec, initialSpeed, initialView, initialTrack,
-  clockKey, shareNode, onScrap, scrapLabel = "장면 스크랩", onGuide, guide = true, avatars,
+  clockKey, shareNode, onScrap, scrapLabel = "장면 스크랩", onShare, shareLabel = "장면 공유",
+  onGuide, guide = true, avatars,
   soleView, melee,
   onFinish,
 }: {
@@ -24552,9 +24553,19 @@ export default function ReplayMotionPlayer({
    *  술래잡기가 됐다(.scr-scrapbtn 규칙이 그 자취다). 꼴을 가진 쪽이 버튼도 가져야 한다.
    *  앱이 지는 것은 **담는 일**뿐이다 — 자리·꼴·단축키(Z)·완료 표시는 여기 몫이다. 안 주면 안 그린다.
    *  참(또는 참으로 풀리는 약속)을 돌려주면 잠깐 "담았어요"로 바뀐다. */
-  onScrap?: () => boolean | void | Promise<boolean | void>;
+  onScrap?: () => string | boolean | void | Promise<string | boolean | void>;
   /** 스크랩 버튼의 글씨 — 기본 "장면 스크랩". */
   scrapLabel?: string;
+  /** ★ 장면 공유 — 스크랩과 **같은 규약**이다(지적: "스크랩 버튼, 공유 버튼은 쓰는 쪽에서 쓸지 말지 선택하는
+   *  거고 함수도 알아서 연결해야 해") — 함수를 주면 버튼째 여기서 그리고, 안 주면 안 그린다. 단축키는 X다
+   *  (안내에 적힌 그 키). 앱이 지는 것은 **공유하는 일**뿐이다: 카카오든 navigator.share든 링크 복사든
+   *  앱마다 다른 물건이라 그 속은 안 건드린다.
+   *  글(문자열)을 돌려주면 그 글이, 참을 돌려주면 기본 글("링크 복사됨")이 1.8초 동안 뜬다.
+   *  ※ shareNode(슬롯)는 그대로 남는다 — 제 꼴을 가진 버튼(카카오 알약 따위)을 꽂던 옛 길이다. 둘 다 주면
+   *    모듈의 버튼이 서고 그 옆에 슬롯이 함께 선다. */
+  onShare?: () => string | boolean | void | Promise<string | boolean | void>;
+  /** 공유 버튼의 글씨 — 기본 "장면 공유". */
+  shareLabel?: string;
   /** 사용법(요청: 공통) — 공유 버튼 옆 '사용법' 버튼. 기본은 재생기가 제 덮개(ReplayGuide)를 띄우고, onGuide를 주면 앱이 대신
    *  연다(제 라우팅으로 띄우고 싶을 때). guide=false면 버튼을 안 낸다. */
   onGuide?: () => void;
@@ -26137,38 +26148,43 @@ export default function ReplayMotionPlayer({
      칸을 되돌려(back) 같은 길로 닫는다. */
   const [guideOpen9, setGuideOpen9] = useState(false);
   const guidePushed9 = useRef(false);
-  /* ★ 장면 스크랩(위 onScrap 주석) — 담는 일은 앱이 하고, **누름·완료 표시·단축키**는 여기서 한다.
-     참을 돌려주면 1.8초 동안 "담았어요"로 바뀐다(공유 버튼의 "링크 복사됨"과 같은 결).
-     약속이면 풀릴 때까지 기다린다 — 앱이 제목 창을 띄우고 저장까지 하는 동안은 아직 '담은' 것이 아니다. */
-  const [scrapDone9, setScrapDone9] = useState(false);
-  const scrapTimer9 = useRef(0);
+  /* ★ 꼬리 줄의 두 버튼(스크랩·공유) — **하는 일만 앱이 붙이고** 나머지는 여기 몫이다(지적: "쓰는 쪽에서
+     쓸지 말지 선택하는 거고 함수도 알아서 연결해야 해"). 누름·완료 표시·단축키가 그 나머지다.
+     완료 표시 규약은 하나다 — 글(문자열)을 돌려주면 그 글이, 참을 돌려주면 기본 글이 1.8초 뜬다. 약속이면
+     풀릴 때까지 기다린다: 앱이 제목 창을 띄우고 저장하거나 공유 시트를 여는 동안은 아직 끝난 것이 아니다. */
+  const [tailDone9, setTailDone9] = useState<{ k: "scrap" | "share"; s: string } | null>(null);
+  const tailTimer9 = useRef(0);
   const onScrapRef9 = useRef(onScrap);
   onScrapRef9.current = onScrap;
-  const runScrap9 = useCallback(async (): Promise<void> => {
-    const f9 = onScrapRef9.current;
+  const onShareRef9 = useRef(onShare);
+  onShareRef9.current = onShare;
+  const runTail9 = useCallback(async (k9: "scrap" | "share"): Promise<void> => {
+    const f9 = k9 === "scrap" ? onScrapRef9.current : onShareRef9.current;
     if (!f9) return;
-    let ok9: boolean | void = undefined;
-    try { ok9 = await f9(); } catch { ok9 = undefined; }
-    if (ok9 !== true) return;
-    setScrapDone9(true);
-    if (scrapTimer9.current) window.clearTimeout(scrapTimer9.current);
-    scrapTimer9.current = window.setTimeout(() => { scrapTimer9.current = 0; setScrapDone9(false); }, 1800);
+    let r9: string | boolean | void;
+    try { r9 = await f9(); } catch { r9 = undefined; }
+    if (r9 !== true && typeof r9 !== "string") return;
+    setTailDone9({ k: k9, s: typeof r9 === "string" ? r9 : k9 === "scrap" ? "담았어요" : "링크 복사됨" });
+    if (tailTimer9.current) window.clearTimeout(tailTimer9.current);
+    tailTimer9.current = window.setTimeout(() => { tailTimer9.current = 0; setTailDone9(null); }, 1800);
   }, []);
-  useEffect(() => () => { if (scrapTimer9.current) window.clearTimeout(scrapTimer9.current); }, []);
-  /* 단축키 Z — 안내(ReplayGuide)가 적어 둔 그 키다. 버튼을 안 그리는 화면(onScrap 없음)에서는
-     듣지 않는다. 글 치는 칸·수식키에서는 안 듣고, 한글 자판에서도 듣도록 키 자리(e.code)로 본다. */
+  useEffect(() => () => { if (tailTimer9.current) window.clearTimeout(tailTimer9.current); }, []);
+  /* 단축키 Z·X — 안내(ReplayGuide)가 적어 둔 그 둘이다. 버튼을 안 그리는 화면에서는 듣지 않는다(함수가
+     없으면 그 키도 없다). 글 치는 칸·수식키에서는 안 듣고, 한글 자판에서도 듣도록 키 자리(e.code)로 본다. */
   useEffect(() => {
-    if (!onScrap) return undefined;
+    if (!onScrap && !onShare) return undefined;
     const onKey9 = (e: KeyboardEvent): void => {
-      if (e.code !== "KeyZ" || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+      const k9 = e.code === "KeyZ" ? "scrap" : e.code === "KeyX" ? "share" : null;
+      if (!k9 || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+      if (k9 === "scrap" ? !onScrap : !onShare) return;
       const t9 = e.target as HTMLElement | null;
       if (t9 && (t9.tagName === "INPUT" || t9.tagName === "TEXTAREA" || t9.isContentEditable)) return;
       e.preventDefault();
-      void runScrap9();
+      void runTail9(k9);
     };
     window.addEventListener("keydown", onKey9);
     return () => window.removeEventListener("keydown", onKey9);
-  }, [onScrap, runScrap9]);
+  }, [onScrap, onShare, runTail9]);
   const openGuide9 = (): void => {
     if (onGuide) { onGuide(); return; }
     try { window.history.pushState({ scrGuide: 1 }, ""); guidePushed9.current = true; } catch { guidePushed9.current = false; }
@@ -32340,13 +32356,25 @@ translate: `${(-(Math.round((-fp9 * (1 - dropP9 ** 2) - hp9 * 0.275 - hp9 * 1.42
               {onScrap && (
                 <button
                   type="button"
-                  className={cx("scr-kakao-share-btn scr-scrapbtn", scrapDone9 && "is-done")}
-                  onClick={() => { void runScrap9(); }}
+                  className={cx("scr-kakao-share-btn scr-scrapbtn", tailDone9?.k === "scrap" && "is-done")}
+                  onClick={() => { void runTail9("scrap"); }}
                   aria-label={scrapLabel}
                   title={`${scrapLabel} (Z)`}
                 >
                   <Bookmark />
-                  {scrapDone9 ? "담았어요" : scrapLabel}
+                  {tailDone9?.k === "scrap" ? tailDone9.s : scrapLabel}
+                </button>
+              )}
+              {onShare && (
+                <button
+                  type="button"
+                  className={cx("scr-kakao-share-btn scr-sharebtn", tailDone9?.k === "share" && "is-done")}
+                  onClick={() => { void runTail9("share"); }}
+                  aria-label={shareLabel}
+                  title={`${shareLabel} (X)`}
+                >
+                  <Share2 />
+                  {tailDone9?.k === "share" ? tailDone9.s : shareLabel}
                 </button>
               )}
               {shareNode}

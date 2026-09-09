@@ -3674,6 +3674,11 @@
 }
 .scr-light-theme .scr-fs-bottom-tail .scr-scrapbtn svg, .scr-light-theme .scr-motion-mobrow .scr-scrapbtn svg { color: var(--text); }
 .scr-light-theme .scr-fs-bottom-tail .scr-scrapbtn.is-done, .scr-light-theme .scr-motion-mobrow .scr-scrapbtn.is-done { color: #2f8f4c; }
+/* 장면 공유 버튼(모듈이 그리는 쪽 — onShare) — 꼴은 위 .scr-kakao-share-btn 알약을 그대로 쓰고(같은 요소에 두
+   클래스를 단다), 여기서는 완료 표시만 스크랩과 같은 결로 초록 글자다. */
+.scr-fs-bottom-tail .scr-sharebtn.is-done, .scr-motion-mobrow .scr-sharebtn.is-done { color: #2f8f4c; }
+.scr-light-theme .scr-fs-bottom-tail .scr-sharebtn.is-done,
+.scr-light-theme .scr-motion-mobrow .scr-sharebtn.is-done { color: #2f8f4c; }
 
 /* PC 전체화면의 기둥은 두 칸씩 앉힌다 — 208px(좁은 창은 148px) 기둥에 넷을 한 줄로
    세우면 칸이 37~52px이라 '일꾼 14'가 안 든다. 지도 옆 기둥(.scr-motion-side)과 같은
