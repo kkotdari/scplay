@@ -25814,7 +25814,8 @@ export default function ReplayMotionPlayer({
   /* ★ worldEnts9 문을 걷었다(재지적: "처음에 안개 깜빡임 여전") — 참값(entData)이 있으면 안개는 켜진 것이다. 워커의
      첫 세계 표(개체 없음)가 올 때까지 안개를 끄면 지도가 밝게 한 번 보였다가 안개가 덮이는 깜빡임이 났다. 첫 장이
      오기 전에는 아래 fogHold9(전부 안개)를 그린다 — 밝았다 어두워지는 대신 어두운 채로 시작해 걷힌다. */
-  const fogOn = !!entData && entData.lives.length > 0;
+  /** 안개를 셈할 재료가 있나 — 자취가 있는 경기인가. 켤지 말지는 아래 fogOn이 정한다. */
+  const fogReady9 = !!entData && entData.lives.length > 0;
   void worldEnts9;
   const gw9 = grid.width;
   const gh9 = grid.height;
@@ -26051,6 +26052,31 @@ export default function ReplayMotionPlayer({
   pitchDegRef9.current = pitchDeg;
   const pitched = pitchDeg < 90;
   const pitchFlat = flatOf(pitchDeg);
+  /* ★ **입체 보기에서는 안개를 안 쓴다**(요청: "3D 보기 진입시 안개가 걷힌다는 토스트 띄우고
+     안개 미사용") ─────────────────────────────────────────────────────────────────────
+     안개는 칸마다 '언제 처음 봤나'를 쌓아 판 셋을 굽고, 그 판을 땅에 얹어 그린다. 입체에서는
+     그 땅이 기울어 있어 판을 사영해 다시 그려야 하고, 그것이 가장 비싼 층 위에 한 겹 더
+     얹힌다. 입체가 무거운 기기에서 먼저 무너지던 자리가 여기다.
+     그래서 입체에서는 안개를 통째로 끈다 — 걷힌 지도를 보여 주는 편이 끊기는 안개보다 낫다.
+     사람에게는 **토스트로 한 번** 알린다(아래): 화면이 갑자기 밝아지는 것은 설명 없이 두면
+     고장으로 읽힌다. */
+  const fogOn = fogReady9 && !pitched;
+  /** 이 진입에서 이미 알렸나 — 3D에 머무는 동안 각도 칸을 옮겨도 다시 안 띄운다. */
+  const fog3dToldRef9 = useRef(false);
+  useEffect(() => {
+    if (!pitched) { fog3dToldRef9.current = false; return; }
+    if (fog3dToldRef9.current || !fogReady9) return;
+    fog3dToldRef9.current = true;
+    /* 자리는 지도 한가운데 — 토스트는 body로 포털되므로 무대 상자를 여기서 재서 넘긴다. */
+    const box9 = stageRef.current?.getBoundingClientRect();
+    replayToast("입체 보기에서는 안개가 걷혀요", {
+      kind: "info",
+      ...(box9 && box9.width > 0
+        ? { at: { x: box9.left + box9.width / 2, y: box9.top + box9.height / 2 } }
+        : {}),
+    });
+  }, [pitched, fogReady9]);
+
   /** 땅을 눕히는 각(=90도 − 시점각) — CSS rotateX에 그대로 들어간다. */
   const pitchTiltDeg = 90 - pitchDeg;
   /* 컴포넌트 밖에서 그리는 둘에게 각을 내려 준다 — 캔버스 층(UnitLayer)의 그림자·링과
@@ -28999,8 +29025,15 @@ export default function ReplayMotionPlayer({
   const fogHold9 = useMemo(() => (fogOn
     ? { explored: new Uint16Array(gw9 * gh9).fill(65535), visNow: new Uint8Array(gw9 * gh9) }
     : null), [fogOn, gw9, gh9]);
-  const exploredAt = frame9.explored ?? fogHold9?.explored ?? null;
-  const visNow = frame9.visNow ?? fogHold9?.visNow ?? null;
+  /** 진짜 안개 판을 한 번이라도 받았나 — 받은 뒤로는 위 자리표(전부 안개)를 안 쓴다.
+   *  ★ 입체에서 평면으로 **돌아올 때**를 위해서다(요청으로 3D에서는 안개를 끈다) — 갈래가
+   *    바뀌면 새 안개 판이 올 때까지 100ms쯤 비는데, 그 사이를 이 자리표로 메우면 지도가
+   *    새까맣게 한 번 번쩍인다. 자리표의 몫은 **첫 로딩**의 '밝았다 어두워짐'을 막는 것이고
+   *    그건 처음 한 번이면 족하다. 그 뒤의 빈 순간은 안개 없이 지나가는 편이 눈에 낫다. */
+  const fogSeenRef9 = useRef(false);
+  if (frame9.explored) fogSeenRef9.current = true;
+  const exploredAt = frame9.explored ?? (fogSeenRef9.current ? null : fogHold9?.explored) ?? null;
+  const visNow = frame9.visNow ?? (fogSeenRef9.current ? null : fogHold9?.visNow) ?? null;
   /** DOM 효과 기록 → 스팬. 죽음 여운(dieat)만은 낮은 배율에서 효과 시트로 보낸다(캔버스 burst는 2배부터). */
   /* 입체(3D)에서 CSS 효과의 자·눕기(지적: "스캔 등 CSS 효과가 눕지 않음 · 피격·사망 등 CSS 효과가 너무
      크게 나옴") — 캔버스 op의 자(unitGlyphPx)는 깊이 배율 pitchK(y)를 먹는데, DOM 효과의 폭은 '지도 폭의
