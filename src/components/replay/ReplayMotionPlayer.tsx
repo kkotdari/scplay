@@ -28955,7 +28955,18 @@ export default function ReplayMotionPlayer({
   /* 시점 입력이 바뀌면 워커에도 알린다 — 색표는 참조로, 나머지는 값으로 견준다.
      열쇠 만들기는 모듈 자리의 viewKeyOf9다 — 손짓 중에 손끝 기하로 다시 보내는 자리(postLiveView9)와
      **같은 자**를 써야 한다. 둘이 갈리면 같은 시야를 두 번 보내거나 바뀐 시야를 안 보낸다. */
-  const viewKey9 = viewKeyOf9(engView9);
+  /* ★ **손짓 중에는 이 자리도 손끝 기하로 잰다**(지적: "역행이 0이어야 했잖아") ───────────────────────
+     보내는 자리가 둘이라는 것을 놓쳤다 — 여기(렌더가 부른다)와 postLiveView9(손짓이 부른다). 손짓 중에는
+     상태(pan·zoom)가 얼어 있으므로 여기서 만드는 geom은 **손짓이 시작된 자리의 원점**이다. 그런데 React는
+     손짓 중에도 REACT_STEP_MS9(100ms)마다 렌더가 도니, 그때마다 얼어붙은 열쇠가 라이브 열쇠와 달라
+     "시야가 바뀌었다"가 되어 **옛 원점을 새 차례·새 세대로** 보냈다. 고르기는 세대가 올랐으니 그것을 그리고,
+     다음 라이브 전송에 원점이 도로 앞으로 간다 — 세대는 앞으로 가는데 원점만 뒤로 가는 그 역행이다.
+     (세대 단조는 원점 단조가 아니다. 앞 판이 못 잡은 까닭이 이것이다.)
+     그러니 손짓이 원근을 따라가는 동안에는 여기서도 **손끝 기하**로 열쇠를 만들고 그것을 보낸다 — 대개
+     라이브가 방금 보낸 것과 같은 열쇠라 아무것도 안 보내게 된다. 손을 떼면 저절로 종전 자리로 돌아온다. */
+  const liveGeom9 = xfGestureRef.current && liveViewOkRef9.current ? pitchGeomLiveRef9.current : null;
+  const sendView9: EngineView9 = liveGeom9 ? { ...engView9, geom: liveGeom9() } : engView9;
+  const viewKey9 = viewKeyOf9(sendView9);
   /* 손짓 중에 보낼 밑감 — 렌더마다 최신으로 갈아 둔다(손짓 중에는 렌더가 안 도니 마지막 것이 곧 지금 것이다). */
   engViewRef9.current = engView9;
   colorTableRef9.current = colorTable9;
@@ -28970,7 +28981,7 @@ export default function ReplayMotionPlayer({
       const fogKey9 = `${engView9.viewTeam}|${engView9.visAll ? 1 : 0}|${engView9.fogOn ? 1 : 0}`;
       const fq9 = fogSeqRef9.current;
       if (fq9.key !== fogKey9) { fq9.key = fogKey9; fq9.seq += 1; }
-      w9.postMessage({ type: "view", view: engView9, seq: wStatRef.current.sentView, fogSeq: fq9.seq });
+      w9.postMessage({ type: "view", view: sendView9, seq: wStatRef.current.sentView, fogSeq: fq9.seq, ...(liveGeom9 ? { live: true } : {}) });
     }
   }
   /* 명령(요청: 주인 → 설계 일꾼, 바뀔 때만) — 재생/정지·배속·탐색. 탐색은 "보낸 명령으로 예측한 시각과 지금 t의
