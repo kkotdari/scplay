@@ -981,7 +981,7 @@ export const MODEL_NORM: Record<string, number> = {
   goon: 0.655,  // 재측정(model-norm)
   guardian: 0.754,  // 다리 옆으로 곧게 뒤 재측정(model-norm)
   gunner: 1.327,  // 팔 길이 고정 뒤 model-norm 재측정
-  htemp: 1.147,  // 재측정(model-norm) — 정강이 0.6rad 접기(뜬 자세)까지 반영
+  htemp: 1.142,  // 재측정(model-norm) — 왕관(살 다섯·보석)까지 반영
   hydra: 0.652,  // 머리장식 확대·머리 위 시작·길이 +20%·폭 −20%·마름모 허리 0.75 뒤 재측정(model-norm의 **top 모드** 표)
   inf: 1.514,  // 상자 상한(원한 배수 1.615)
   interceptor: 1.555,  // 재측정(model-norm)
@@ -1023,7 +1023,7 @@ export const MODEL_NORM: Record<string, number> = {
   vessel: 0.898,  // 방패 접힘 축·뾰족 위끝 뒤 재측정(model-norm)
   vulture: 0.666,   // 0.833 × 0.8(요청: "벌처랑 마인 0.8배")
   wraith: 0.894,  // 재측정(model-norm)
-  zealot: 0.954,  // 투구·관 1.25배·묶음 재작도 뒤 재측정(model-norm의 top 모드) · 옛 0.955
+  zealot: 0.972,  // 투구·관(마루 6.71)·묶음 재작도 뒤 재측정(model-norm의 top 모드) · 옛 0.955
   zling: 0.758,
   // tankgun: 없음 — 짝이라 소스의 NORM_PAIR가 tankbody 배수로 접는다.
   // tanksiegegun: 없음 — 짝이라 소스의 NORM_PAIR가 tanksiegebody 배수로 접는다.
