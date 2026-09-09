@@ -20251,6 +20251,14 @@ const noteSub9 = (
      그 한 장이 손끝을 100ms씩 붙든다. 대타가 아예 없는 종류(한 번도 안 구운 모델)만 굽는다 —
      그것까지 미루면 그 유닛이 화면에서 사라진다. 손을 떼면 그 프레임부터 예산대로 마저 굽는다. */
 const BAKE_MS_PER_FRAME9 = DEV9.bakeMsPerFrame;
+/** 한 프레임 굽기의 **천장**(ms) — 부드러운 예산을 넘어도 대타가 없으면 작게라도 굽는데(아래 ★),
+ *  그 작은 판마저 수십 장이면 다시 프레임을 넘긴다(계측: 최악프레임 259ms · 그중 굽기 204ms ·
+ *  2초에 유닛 213장 1187ms — 958기가 얽힌 한 장에서 처음 보는 열쇠가 프레임마다 수십이었다).
+ *  천장을 넘으면 **이번 프레임엔 아예 안 그린다**(판 없이 null). 몇 기가 한두 프레임 늦게 나타나는
+ *  것은 그 난전에서 눈에 안 띄지만 259ms 덜컥임은 보인다 — 다음 프레임에 예산이 되살아나 곧 들어온다. */
+const BAKE_HARD_MS9 = DEV9.bakeMsPerFrame * 3;
+const bakeHardOk9 = (): boolean =>
+  SPRITE_PERF.bakeMs + SPRITE_PERF.bldBakeMs < BAKE_HARD_MS9;
 /** 지금 손짓(드래그·핀치)이 도는가 — 붓(UnitLayer)이 프레임마다 적고, 굽기 문지기가 읽는다. */
 const gestBake9 = { v: false };
 /** 이 프레임에 굽기를 더 해도 되나 — 장수와 시간, 그리고 손짓 여부를 함께 본다. */
@@ -20431,6 +20439,8 @@ function unitSprite(
        안 굽는 길은 없다 — 그러면 그 유닛이 화면에서 사라진다. 대신 **넓이를 9분의 1로** 줄여 굽는다:
        삯도 그만큼이고(109 → 12ms 언저리), 늘려 찍으니 잠깐 흐릴 뿐이며, 그 판이 곧 다음 프레임의
        대타가 되어 예산이 열릴 때 제 크기가 조용히 갈아 끼워진다. */
+    /* 천장을 넘었으면 작은 판도 안 굽는다(위 BAKE_HARD_MS9) — 이번 프레임엔 이 몸을 안 그린다. */
+    if (!bakeHardOk9()) { poseNow = 0; SPRITE_PERF.defer += 1; return null; }
     const small9 = Math.max(8, Math.round(pxq / BAKE_SMALL_K9));
     if (small9 < pxq) { poseNow = 0; return unitSprite(op, small9, B, true); }
   }
@@ -31703,7 +31713,13 @@ export default function ReplayMotionPlayer({
             /* ★ 작은 기기는 요잉을 늘 여덟 칸으로(지적: 폰 6배 대규모 교전에서 판 굽기·버림이 초당 35장 —
                판 예산 36MB가 찬 채 LRU가 굽고 버리기를 되풀이했다. dpr 2로 눌러도 그대로였으니 픽셀이 아니라
                **판의 가짓수**다: 종류×요잉 16×색×자세. 요잉을 여덟 칸으로 하면 가짓수가 반으로 준다). */
-            yawAt={DEV9.yaw8Always || liteFlag9 ? Infinity : wide ? ZOOM_STEPS[2] : ZOOM_STEPS[3]}
+            /* ★ 난전에서는 배율과 무관하게 **여덟 칸**이다(계측: 배율 6·958기에서 2초에 판 213장 1187ms —
+               처음 보는 열쇠가 끝없이 났다). 판 열쇠의 요잉 칸이 열여섯이라, 같은 종류·같은 자세도 방향이
+               한 칸 다르면 새 판이다. 덜어내기 단이 선 자리(미달 기기 + 60기 이상)에서 여덟 칸으로 눕히면
+               **열쇠 수가 절반**이 되고, 45도 칸은 22.5도 칸의 부분집합이라 이미 구운 판이 그대로 쓰인다
+               (갈아엎는 전환이 아니다). 조용한 화면에서는 종전대로 열여섯 칸이다. */
+            yawAt={DEV9.yaw8Always || liteFlag9 || CROWD9.lv >= 1
+              ? Infinity : wide ? ZOOM_STEPS[2] : ZOOM_STEPS[3]}
             moveAt={wide ? ZOOM_STEPS[1] : ZOOM_STEPS[2]}
             /* 크립을 가두는 맵 모서리(재지적: 3D에서 크립이 영역을 벗어남) — 입체는 원근
                투영된 사다리꼴이라 네 모서리를 posFrac으로 투영해 넘긴다. 평면은 단위
