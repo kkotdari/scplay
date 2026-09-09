@@ -981,7 +981,7 @@ export const MODEL_NORM: Record<string, number> = {
   goon: 0.655,  // 재측정(model-norm)
   guardian: 0.754,  // 다리 옆으로 곧게 뒤 재측정(model-norm)
   gunner: 1.327,  // 팔 길이 고정 뒤 model-norm 재측정
-  htemp: 1.145,  // 재측정(model-norm) — 다리 길이 1.14·발목 펴기 0.25·발 0.9배·몸통 밑동 3.85 뒤
+  htemp: 1.147,  // 재측정(model-norm) — 정강이 0.6rad 접기(뜬 자세)까지 반영
   hydra: 0.652,  // 머리장식 확대·머리 위 시작·길이 +20%·폭 −20%·마름모 허리 0.75 뒤 재측정(model-norm의 **top 모드** 표)
   inf: 1.514,  // 상자 상한(원한 배수 1.615)
   interceptor: 1.555,  // 재측정(model-norm)

@@ -1311,6 +1311,11 @@ function protossLegs(
   /** 무릎 굽힘 배수(요청: "하이템플러 다리가 너무 심하게 구부린 듯 좀 더 펴고") — 1이면 본디 굽힘, 0이면 엉덩이~발목
    *  직선 위에 무릎이 놓인다(곧은 다리). 앞으로 튀어나온 무릎의 몫(y)만 줄인다. */
   bend = 1,
+  /** ★ 정강이를 무릎에서 **위로 접는 각**(라디안, 요청: "하템은 공중에 떠다니니까 두번째마디를 더 위로
+   *  굽혀줘 첫째마디는 그대로 두고") — 허벅지(엉덩이~무릎)는 한 톨도 안 건드리고 정강이 벡터만 무릎을
+   *  축으로 돌린다. 회전이라 길이가 보존되므로 다리가 짧아지지 않는다. 발·발가락은 이 회전을 함께 받아
+   *  정강이와의 관계를 지킨다(뜬 채 다리를 접은 자세). */
+  tuck = 0,
 ): ShapeFace[] {
   const paint = (f: ShapeFace[], c?: string): ShapeFace[] => (c ? paintBase(f, c) : f);
   /* 다리 길이 줄이기(요청: 하이템플러는 짧게) — 엉덩이(3.95)를 축으로 z를 눌러
@@ -1333,8 +1338,18 @@ function protossLegs(
     const knee0: [number, number, number] = [m * 0.72, kneeLineY9 + (0.3 - kneeLineY9) * bend, Z(2.2)];
     const Lt9 = Math.hypot(knee0[0] - hip[0], knee0[1] - hip[1], knee0[2] - hip[2]);
     const Ls9 = Math.hypot(ankle0[0] - knee0[0], ankle0[1] - knee0[1], ankle0[2] - knee0[2]);
-    const ankle: [number, number, number] = [ankle0[0], ankle0[1] + st * 1.2, ankle0[2] + Math.max(0, st) * 0.2];
-    const knee: [number, number, number] = st === 0 ? knee0 : jointBetween(hip, ankle, Lt9, Ls9, [0, 1, 0.1]);
+    const ankleR9: [number, number, number] = [ankle0[0], ankle0[1] + st * 1.2, ankle0[2] + Math.max(0, st) * 0.2];
+    const knee: [number, number, number] = st === 0 ? knee0 : jointBetween(hip, ankleR9, Lt9, Ls9, [0, 1, 0.1]);
+    /** 무릎을 축으로 한 접기(위 tuck) — 정강이·발·발가락이 모두 이 손을 지난다. */
+    const tuckAt9 = (q: [number, number, number]): [number, number, number] => {
+      if (tuck === 0) return q;
+      const vy9 = q[1] - knee[1];
+      const vz9 = q[2] - knee[2];
+      const c9 = Math.cos(tuck);
+      const s9 = Math.sin(tuck);
+      return [q[0], knee[1] + vy9 * c9 + vz9 * s9, knee[2] - vy9 * s9 + vz9 * c9];
+    };
+    const ankle: [number, number, number] = tuckAt9(ankleR9);
     /* ★ 발 마디(발목→발끝) — 길이 **0.375배**, 발목 각은 **절반만큼 편다**(요청: "첫째 두째 마디
        다리사이가 더 굽히고 두째셋째 사이는 더 펴지게 셋째마디 50프로 더 줄여줘") ─────────────────
        무릎을 더 굽히고(bend) 발목을 펴고 발마디를 짧게 하면 프로토스 특유의 **역관절 다리**가 된다:
@@ -1361,7 +1376,7 @@ function protossLegs(
         ankle[2] + rz9 + ((sdz9 / sl9) * rl9 - rz9) * ANKLE_FLAT9,
       ];
     };
-    const toe: [number, number, number] = footAt9([m * 0.96, 0.5 + st * 1.2, Z(0.15) + Math.max(0, st) * 0.15]);
+    const toe: [number, number, number] = footAt9(tuckAt9([m * 0.96, 0.5 + st * 1.2, Z(0.15) + Math.max(0, st) * 0.15]));
     /* 하지가 허벅지보다 굵다(요청) — 허벅지 0.6, 정강이 0.72, 발목 0.58. 마디마다
        배가 부풀게 mid를 따로 줘, 곧은 막대가 아니라 근육 붙은 마디로 읽힌다. */
     // 굵기 ×1.25(사진 대조 — 질럿1·4의 다리 갑판은 지금보다 한 뼘 굵다).
@@ -1395,7 +1410,7 @@ function protossLegs(
     /* 발가락도 **걸음 몫을 탄다**(지적: "질럿 다크 다리가 부품이 몇개는 따로노는데")
        — 무릎·발목·발끝만 stride를 받고 이 두 갈래는 상수 자리에 남아 있어서, 다리가
        앞으로 나가면 발가락만 제자리에 서 있었다. 발목·발끝과 **같은 식**을 쓴다. */
-    const [fx, fy, fz] = footAt9([m * 1.06, 0.28 + st * 1.2, Z(0.02) + Math.max(0, st) * 0.15]);
+    const [fx, fy, fz] = footAt9(tuckAt9([m * 1.06, 0.28 + st * 1.2, Z(0.02) + Math.max(0, st) * 0.15]));
     for (const s9 of [-1, 1] as const) {
       out.push(...paint(tagKey(spirePillar({
         x: 0, y: 0, h: 1, w: 1, segs: 2, sides: 6, oval: 1.8, caps: "none",
@@ -15742,21 +15757,48 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 갑주 전체를 **1.2배**로(요청: "질럿 어깨 갑옷 크기 1.2배 확대") — 관절 공의 반지름과
        판의 뻗는 몫·처짐·폭에 같은 배수를 건다. 뿌리 자리(어깨)는 안 옮긴다: 거기서부터
        바깥으로 자라야 어깨가 넓어지지, 통째로 밀면 몸에서 뜬다. */
+    /* ★ 갑주는 **임자 색**이고 그 위에 **대각선 금 띠**가 한 줄(요청: "질럿 어깨 갑주 1.2배 더 확대 및
+       임자색으로 칠하고 대각선 프로토스금색 띠 넣기") ────────────────────────────────────────────
+       · 크기 — 1.2배에서 한 번 더 1.2배라 1.44다(관절 공·판의 뻗는 몫·처짐·폭 모두).
+       · 임자 색 — 이 렌더러에서는 **칠하지 않는 것이 곧 임자 색**이다. 판의 paintBase를 걷는다
+         (fill을 주면 고정색이 되어 요청이 뒤집힌다). 뿌리의 관절 공은 금색으로 남긴다 — 팔이 물리는
+         자리라 임자 색이 여기까지 오면 어깨가 통째로 한 덩이가 되어 층이 안 읽힌다.
+       · 금 띠 — 판을 가로지르는 한 줄이다. 판의 등뼈를 따라가되 앞뒤(v) 쪽으로 함께 미끄러지게 해
+         **대각선**으로 눕힌다. 반지름은 판의 얇은 쪽 반두께 언저리라 겉으로 살짝 도드라진다.
+         끝 단면은 안 그린다 — 두 끝이 판 속에 묻힌 토막이다. 키는 판보다 한 단 위. */
     ...([-1, 1] as const).flatMap((m9): ShapeFace[] => {
-      const k9 = 1.2;
+      const k9 = 1.44;
+      /** 판의 등뼈 — 띠도 이 길을 쓴다(두 몸이 어긋나지 않게 한 자리에서 낸다). */
+      const sp9 = (t9: number): [number, number, number] => [
+        m9 * (0.75 + 0.32 * k9 * t9), 0.3 - 0.08 * k9 * t9,
+        5.85 - 0.25 * k9 * t9 - 0.17 * k9 * t9 * t9,
+      ];
+      const spW9 = (t9: number): number => (0.17 - 0.1 * t9 * t9) * k9;
+      const pKey9 = depthNow(m9 * 1.6, -0.35) * 1.6 + 1.6;
       return [
         ...tagKey(paintBase(domeFaces3(m9 * 0.85, 0.3, 0.3 * k9, 0.26 * k9, 5.5), P_GOLD),
           depthNow(m9 * 0.85, 0.3) * 1.6 + 1.5),
-        // 판은 1/3 크기(재요청) — 길이·폭·처짐 모두 1/3. 그 위에 위 배수를 곱한다.
-        ...tagKey(paintBase(spirePillar({
+        // 판은 1/3 크기(재요청) — 길이·폭·처짐 모두 1/3. 그 위에 위 배수를 곱한다. **안 칠한다**(임자 색).
+        ...tagKey(spirePillar({
           x: 0, y: 0, h: 1, w: 1, segs: 4, sides: 6, oval: 3.2, caps: "none",
           ref: [m9, -0.2, 0],
-          path: (t9: number): [number, number, number] => [
-            m9 * (0.75 + 0.32 * k9 * t9), 0.3 - 0.08 * k9 * t9,
-            5.85 - 0.25 * k9 * t9 - 0.17 * k9 * t9 * t9,
-          ],
-          widthOf: (t9: number): number => (0.17 - 0.1 * t9 * t9) * k9,
-        }), P_GOLD), depthNow(m9 * 1.6, -0.35) * 1.6 + 1.6),
+          path: sp9,
+          widthOf: spW9,
+        }), pKey9),
+        /* 대각선 금 띠 — 등뼈의 t 0.18~0.72를 지나며 앞뒤로 −0.5 → +0.5만큼 미끄러진다.
+           단면은 **판과 같은 기준축**(ref)을 써서 판의 얇은 쪽으로만 도드라지고(반두께 + 0.045),
+           판의 너른 쪽으로는 좁다(oval 0.62 → 반폭 0.18) — 그래야 사슴뿔 같은 막대가 아니라
+           판 위에 누운 한 줄 띠로 읽힌다. */
+        ...tagKey(paintBase(spirePillar({
+          x: 0, y: 0, h: 1, w: 1, segs: 3, sides: 8, oval: 0.62, caps: "none", trueNormal: true,
+          ref: [m9, -0.2, 0],
+          path: (t9: number): [number, number, number] => {
+            const b9 = sp9(0.18 + 0.54 * t9);
+            const u9 = -0.5 + 1.0 * t9;
+            return [b9[0], b9[1] + u9, b9[2] + u9 * 0.25];
+          },
+          widthOf: (t9: number): number => spW9(0.18 + 0.54 * t9) + 0.045,
+        }), P_GOLD), pKey9 + 0.6),
       ];
     }),
     /* ④ 가슴 보석 — 흉갑 한가운데 청옥. 앞을 볼 때만 뜨는 볼록 렌즈다. */
@@ -15975,7 +16017,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 다리는 금색(재지적) — 다리 길이 축소(요청): 엉덩이 축으로 0.68배.
       // 길이 1.2배(0.68 → 0.816)·굽힘 반(bend 0.5)(요청: "다리가 너무 심하게 구부린 듯 좀 더 펴고 길이도 1.2배로").
       // 다리 굵기 0.72배(지적: 너무 두꺼움) · 굽힘 0.7(질럿 1.4의 반) · 길이 0.816 → 0.95 → 1.14(재요청: 1.2배)
-      ...protossLegs(P_GOLD, P_GOLD, L, 1.14, 0, 0.72, 0.7),
+      // 정강이만 무릎에서 0.6rad(34도) 위로 접는다(요청: 떠다니는 자세) — 허벅지는 그대로.
+      ...protossLegs(P_GOLD, P_GOLD, L, 1.14, 0, 0.72, 0.7, 0.6),
       ...protossTorso(P_GOLD, L),
       ...protossNeck(P_GOLD, L),
       /* 앞가리개(요청) — 허리부터 발목까지. 몸에 딱 붙인다(재지적: 떠 보였다) —
