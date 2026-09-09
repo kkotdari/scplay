@@ -24960,6 +24960,15 @@ export default function ReplayMotionPlayer({
     wStatRef.current.sentView += 1;
     // 안개 갈래는 안 바뀐다(시야 주인·전체시야·안개 켬 셋이 그대로다) — 지금 번호를 그대로 싣는다.
     w9.postMessage({ type: "view", view: v9, seq: wStatRef.current.sentView, fogSeq: fogSeqRef9.current.seq });
+    /* ★ 옛 원점으로 **미리 지어 둔 앞장을 그 자리에서 버린다**(지적: "원근은 따라오려고 하는데 이전 원근하고
+       교차되는 오류가 있어") ─────────────────────────────────────────────────────────────────────────
+       워커는 시야가 바뀌면 지금 시각부터 새로 짓지만(nextT = -1), 이미 보내 둔 **앞선 장**들은 메인의 버퍼에
+       그대로 남아 있다. 그 장들은 옛 원점의 사영이라, 시각으로 고르는 붓이 새 원점의 장과 그것들을 번갈아
+       집는다 — 두 원근이 교차하는 그 그림이다(옛 장을 밀어내는 규칙은 새 장이 **도착한 뒤에야** 돈다).
+       보낸 그 순간에 지금 시각보다 앞선 장을 걷으면, 다음 장이 올 때까지는 지금 장 하나로 잇고 그 뒤로는
+       새 원점만 남는다. 지금 시각 이하의 장은 남긴다 — 화면에 지금 떠 있는 그림이라, 걷으면 빈 화면이 된다. */
+    const tNow9 = tLiveRef9.current;
+    for (const [k9, f9] of wFramesRef.current) if (f9.t > tNow9 + 1e-6) wFramesRef.current.delete(k9);
   }, []);
   const instIdRef9 = useRef(0);
   const lastPlaying9 = useRef<boolean | null>(null);
@@ -28914,7 +28923,12 @@ export default function ReplayMotionPlayer({
     /* 되돌아가지 않기(위 lastDrawT9) — 앞으로 가는 중(tNow ≥ 마지막 그린 시각)에 새 세대의 장이 마지막 그린 시각보다
        뒤에 있고 옛 세대에 더 나아간 장이 있으면 옛 세대로 잇는다. 새 세대가 따라잡는 순간 그쪽으로 넘어간다. */
     const ld9 = lastDrawT9.current;
-    if (best && bestOld && tNow9 >= ld9 - 1e-6 && best.t < ld9 - 1e-6 && bestOld.t > best.t) best = bestOld;
+    /* ★ 손짓 중에는 이 되돌림을 **끈다**(같은 지적) — 이 규칙은 "새 세대가 아직 뒤처졌으면 옛 세대로 앞으로
+       잇는다"는 뜻인데, 손짓 중의 옛 세대는 **옛 원점**이라 자리가 조금 뒤진 것이 아니라 사영이 통째로 다르다.
+       끄는 동안에는 시각의 매끄러움보다 원근이 맞는 편이 낫다 — 40ms 낡은 자리는 안 보이지만 어긋난 원근은
+       보인다. 손을 떼면 곧바로 종전 규칙으로 돌아간다. */
+    if (!xfGestureRef.current
+      && best && bestOld && tNow9 >= ld9 - 1e-6 && best.t < ld9 - 1e-6 && bestOld.t > best.t) best = bestOld;
     if (!best) best = bestOld;
     if (best && tNow9 - best.t <= near9) return best;
     let next: PackedFrame9 | null = null;
