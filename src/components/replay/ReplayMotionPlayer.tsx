@@ -21739,7 +21739,14 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
            그 자까지 내리면 손짓을 시작할 때마다 판을 통째로 새로 굽는 꼴이라 되레 느려진다. 여기서 바뀌는 것은
            '그린 판을 화면 픽셀 몇 개에 얹나' 하나뿐이다(판 px → CSS px 환산은 그대로 B다).
          가벼운 자리에서는 안 내린다(직전 한 장이 25ms 아래면 그대로) — 흐릴 까닭이 없다. */
-      const Bd = gest9 && xfMsRef9.v >= 25 ? B * 0.7 : B;
+      /* ★ 무거운 자리에서는 **한 단 더**(계측: 실기 3D 드래그에서 최악프레임 83ms · 그중 굽기 0ms —
+         곧 순수한 칠하기다). 0.7배는 픽셀이 절반이라 83ms를 55ms 밑으로 못 내린다. 55ms를 넘으면
+         0.5배(픽셀 4분의 1)로 내려, 그리기가 미룸 문턱 아래로 떨어지게 한다 — 그러면 다음 손짓 프레임
+         부터는 미루지 않고 **손끝을 따라 그린다**. 스스로 되돌아오는 고리다: 싸진 한 장이 xfMsRef9를
+         낮추고, 낮아진 값이 다시 그리기를 열고, 손을 떼면 제 배킹으로 한 장 또렷하게 칠한다. */
+      const Bd = gest9
+        ? (xfMsRef9.v >= XF_HEAVY_MS9 ? B * 0.5 : xfMsRef9.v >= 25 ? B * 0.7 : B)
+        : B;
       const bw = Math.round(cw * Bd);
       const bh = Math.round(ch * Bd);
       if (cv.width !== bw) cv.width = bw;
@@ -30655,6 +30662,10 @@ export default function ReplayMotionPlayer({
                       {SPRITE_PERF.wLast.worst.toFixed(0)}ms
                       {" · 최악프레임 "}{SPRITE_PERF.wLast.worstFrame.toFixed(0)}ms
                       {" (그중 굽기 "}{SPRITE_PERF.wLast.worstFrameBake.toFixed(0)}ms) · 마커 {SPRITE_PERF.dom.markers}개
+                      {/* ★ 손짓 한 장(요청으로 낸다) — 끄는 동안 다시 그릴지 미룰지를 가르는 **그 값**이다
+                          (XF_HEAVY_MS9 = 55ms를 넘으면 미룬다). 여태 SCR_DIAG.xfms에 적기만 하고 어디에도
+                          안 보여, "3D 드래그가 왜 실시간이 아닌가"를 눈으로 확인할 길이 없었다. */}
+                      {" · 손짓 "}{SCR_DIAG.xfms}ms{SCR_DIAG.xfms >= XF_HEAVY_MS9 ? "(미룸)" : ""}
                     </div>
                   </>
                 )}
