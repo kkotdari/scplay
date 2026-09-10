@@ -6,7 +6,7 @@ import {
 import { createPortal } from "react-dom";
 import { useBgm } from "./useBgm";
 import RosterTableIcon from "./RosterTableIcon";
-import { BookOpen, Bookmark, Crosshair, Map as MapIcon, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Share2, Users } from "lucide-react";
+import { BookOpen, Bookmark, Crosshair, Eye, EyeOff, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Share2, Users } from "lucide-react";
 import ReplayGuide from "./ReplayGuide";
 /* 미니맵 — 이제 **제 오버레이 판**이고 제 아이콘으로 여닫는다(요청: "미니맵 오버레이
    및 아이콘 추가"). 도구 판 안에 세들어 살던 시절과 달리, 켜고 끄는 것이 이것 하나다. */
@@ -27189,6 +27189,16 @@ export default function ReplayMotionPlayer({
   /* 사용법 덮개(요청: 공통) — 열면 history에 한 칸 밀어 뒤로가기(폰의 제스처 포함)가 덮개를 닫게 한다. 닫기 버튼은 그
      칸을 되돌려(back) 같은 길로 닫는다. */
   const [guideOpen9, setGuideOpen9] = useState(false);
+  /** ★ **오버레이 숨기기**(요청: "오른쪽 아래 사용법 버튼 대신 도구 숨기기 아이콘 버튼 추가:
+   *  누르면 모든 오버레이가 숨겨지고 숨기기 아이콘 있던 자리에 오버레이 보이기 버튼이 존재,
+   *  누르면 이전 오버레이 상태 그대로 복구") ────────────────────────────────────────────
+   *  '이전 상태 그대로'가 요점이라 **아무 상태도 안 건드린다** — 판에 클래스 한 겹을 얹어
+   *  CSS가 걷을 뿐이다. 로스터 단수·미니맵·아이콘 줄·재생바의 상태는 손대지 않으므로,
+   *  다시 켜면 저절로 있던 그대로다(끌 때 상태를 지웠다가 되살리는 길은 어딘가 한 칸을
+   *  반드시 흘린다).
+   *  단추 자신은 안 걷는다 — 꼬리 줄에 그대로 남아 아이콘만 눈(Eye)으로 바뀐다. 조종부의
+   *  다른 줄들이 사라지면 격자의 그 줄들이 0으로 접혀, 단추는 제자리(오른쪽 아래)에 선다. */
+  const [fsHide9, setFsHide9] = useState(false);
   const guidePushed9 = useRef(false);
   /* ★ 꼬리 줄의 두 버튼(스크랩·공유) — **하는 일만 앱이 붙이고** 나머지는 여기 몫이다(지적: "쓰는 쪽에서
      쓸지 말지 선택하는 거고 함수도 알아서 연결해야 해"). 누름·완료 표시·단축키가 그 나머지다.
@@ -28109,7 +28119,7 @@ export default function ReplayMotionPlayer({
    *    셈: 미니맵이 지도 한 귀퉁이를 가리니 필요할 때 부르자). 원작에서도 미니맵은 늘
    *    떠 있는 것이고, 확대해서 보는 판일수록 '지금 어디를 보고 있나'가 먼저 필요하다.
    *    가리는 것이 싫으면 제 아이콘으로 끈다. */
-  const [fsMiniOn, setFsMiniOn] = useState(true);
+  /* (걷어냄) 미니맵 여닫이 상태 — 그 단추를 걷었다(위 ★). 미니맵은 늘 선다. */
   /* 배경 음악(요청) — 켜기·끄기와 곡 고르기는 전부 useBgm 안이다. 기기 음량·무음을
      따르는 방법(아무것도 안 건드리기)과 안드로이드의 한계가 그 파일 머리에 적혀 있다.
      재생 여부를 넘긴다(요청: "재생 멈추면 음악도 멈추기") — 일시정지·되감기 잡고
@@ -28166,6 +28176,7 @@ export default function ReplayMotionPlayer({
       setStage({ w: w9, h: h9 });
     }
     setFsOn(true);
+    setFsHide9(false);   // 들어갈 때는 늘 보이는 채로(위 fsHide9) — 지난번에 걷어 둔 것이 따라오면 조작부를 잃는다
     /* 그리드(로스터 현황 표)는 **들어갈 때마다 꺼진 채로** 시작한다(요청: "그리드 진입시
        비활성화로") — 전체화면을 켜는 뜻은 지도를 크게 보겠다는 것이고, 숫자 다섯 칸은
        그때 필요하면 부르는 것이다. 꺼져도 이름·종족은 남으므로 누가 하는지는 안 잃는다.
@@ -32068,24 +32079,10 @@ export default function ReplayMotionPlayer({
           {rosterMode === 1 ? <RosterTableIcon size={18} /> : <Users size={18} />}
         </button>
       )}
-      {/* 미니맵 오버레이(요청) — 로스터와 같은 자리·같은 결의 여닫이다. 아이콘은 지도
-          모양: 이 버튼이 여는 것이 '작은 지도' 그 자체다. */}
-      {/* ★ 미니맵 여닫이는 **전체화면에만** 둔다(요청: "미니맵 버튼은 없어도 되겠지
-          일반 화면 모드에서는") — 일반 화면에서 미니맵은 지도 밖 독에 제 자리를 갖는다.
-          지도를 가리지 않으니 끌 까닭이 없고, 끄면 왼쪽 칸이 비어 배치만 흔들린다.
-          전체화면은 사정이 다르다 — 거기서는 지도 위에 얹히므로 여닫이가 필요하다. */}
-      {fsOn && (
-        <button
-          type="button"
-          className={cx("scr-motion-litbtn scr-motion-mapbtn", fsMiniOn && "is-on")}
-          onClick={() => setFsMiniOn((v) => !v)}
-          aria-pressed={fsMiniOn}
-          aria-label={fsMiniOn ? "미니맵 숨기기" : "미니맵 보이기"}
-          title="미니맵"
-        >
-          <MapIcon size={18} />
-        </button>
-      )}
+      {/* (걷어냄·요청: "지도 토글 제거") — 전체화면의 미니맵 여닫이 아이콘이 있던 자리다.
+          미니맵은 이제 왼쪽 아래 구석에 조종부와 밑변을 맞춰 앉고, 그 오른쪽이 통째로
+          조작부다 — 지도를 가리는 자리가 아니라 **독의 한 칸**이라 끌 까닭이 없어졌다.
+          오버레이를 통째로 걷고 싶으면 꼬리 줄의 숨기기 단추 하나가 그 일을 한다. */}
       {/* ★ 배속·각도·확대는 **지도 위에 값으로** 선다(요청: "배속/각도도 사이드패널이나
           오버레이에서 제거하고 맵 버튼로우로 옮겨서 상시 노출 · 버튼은 아이콘이 아닌
           실제 적용된 수치를 표현 · 확대축소도 버튼추가하고 배속이랑 안헷갈리게") ──────
@@ -33442,7 +33439,8 @@ translate: `${(-(Math.round((-fp9 * (1 - dropP9 ** 2) - hp9 * 0.275 - hp9 * 1.42
      가로세로비를 지도와 같게 주므로 평소에는 덮는 몫이 0이다(=꼭 맞는다). */
   const stageNode = (
     <div
-      className={cx("scr-motion", "scr-fs-layer", fsOn && "is-fs", !fsUi && "is-idle")}
+      className={cx("scr-motion", "scr-fs-layer", fsOn && "is-fs", !fsUi && "is-idle",
+        fsOn && fsHide9 && "is-uihide")}
       /* 프레임일 때의 크기 — 지도와 같은 가로세로비다(위). 전체화면에서는 CSS가
          화면을 채우므로 이 값이 안 쓰인다(is-fs가 덮는다). */
       /* 프레임 크기 — 비는 **지도 것**이라 크롭 0이 기본이고(지적: PC에서 높이가 낮음),
@@ -33506,7 +33504,7 @@ translate: `${(-(Math.round((-fp9 * (1 - dropP9 ** 2) - hp9 * 0.275 - hp9 * 1.42
             패널로 인식가능") — 미니맵은 제 테두리를 가진 네모라, 그 밖에 또 판을 두르면
             테두리가 겹으로 서고 그 사이 여백이 지도를 가린다. 자리 잡는 몫만 남긴다
             (.scr-fs-minipanel이 그 일을 이제 스스로 한다). */}
-        {(fsOn ? fsMiniOn : true) && (
+        {(
           <div className="scr-fs-minipanel">
             <div className="scr-motion-minibox">
               <ReplayFullscreenMinimap
@@ -33617,7 +33615,23 @@ translate: `${(-(Math.round((-fp9 * (1 - dropP9 ** 2) - hp9 * 0.275 - hp9 * 1.42
                 </button>
               )}
               {shareNode}
-              {guide && (
+              {/* ★ 전체화면의 꼬리는 **숨기기 단추**다(요청) — 사용법은 지도가 곧 화면인
+                  자리에서 덮개를 하나 더 얹는 것이라, 그 구석은 '지금 보고 있는 것을
+                  가리는 것들을 걷는' 손잡이가 쓴다. 프레임에서는 종전대로 사용법이다
+                  (거기서는 오버레이가 지도 밖 독이라 걷을 까닭이 없다). */}
+              {fsOn ? (
+                <button
+                  type="button"
+                  className="scr-kakao-share-btn scr-fs-hidebtn"
+                  onClick={() => setFsHide9((v9) => !v9)}
+                  aria-pressed={fsHide9}
+                  aria-label={fsHide9 ? "오버레이 보이기" : "도구 숨기기"}
+                  title={fsHide9 ? "오버레이 보이기" : "도구 숨기기"}
+                >
+                  {fsHide9 ? <Eye /> : <EyeOff />}
+                  {fsHide9 ? "보이기" : "숨기기"}
+                </button>
+              ) : guide && (
                 <button type="button" className="scr-kakao-share-btn scr-guide-btn" onClick={openGuide9} aria-label="사용법" title="사용법">
                   <BookOpen />
                   사용법
