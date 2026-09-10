@@ -20381,16 +20381,6 @@ const DEV9 = smallDevice9 ? {
   /** 워커 시야 여유(화면 배수) · 앞으로 지을 한도(벽시계 초·MB) · 요잉을 늘 여덟 칸으로 */
   // 앞 한도 4 → 6MB(진단: 3배 장당 163KB — 4MB면 0.8초, 6MB면 1.2초. 지난 장은 이제 한도에 안 든다(frameWorker)).
   cullMargin: 0.5, aheadSec: 1.5, aheadMB: 6, yaw8Always: true,
-  /** ★ 핵·스톰이 떠 있는 동안의 React 박자(ms) — **폰은 죈다**(지적: "핵폭발 시 모바일에서
-   *  페이지가 다운") ────────────────────────────────────────────────────────────────────
-   *  핵 낙하·폭발은 CSS 애니메이션을 재생 시각으로 긁는(paused + delay) 방식이라 React
-   *  갱신 박자가 곧 그 효과의 프레임이다. 그래서 그동안만 0(= 그리기 틱마다)으로 올려
-   *  두었는데, 그 한 틱이 **이 컴포넌트의 전체 렌더**다 — 개체 천여 기의 DOM 마커·로스터·
-   *  건물 줄·미니맵 점이 다 다시 만들어진다. 평소 10Hz이던 것이 폰에서 45Hz가 되니 다섯
-   *  배 가까운 짐이 몇 초 내리 걸리고, 그 사이 굽기·워커 장까지 겹쳐 페이지가 선다.
-   *  폰은 25Hz(40ms)로 되돌린다 — 이 값은 0으로 올리기 **전에 쓰던 값**이고, 그때 문제는
-   *  '덜 매끄럽다'였지 '멈춘다'가 아니었다. 매끄러움과 안 죽는 것 사이라면 뒤가 먼저다. */
-  nukeStepMs: 40,
 } : {
   name: "pc",
   spriteMB: 128, bldSpriteMB: 64,
@@ -20400,7 +20390,6 @@ const DEV9 = smallDevice9 ? {
   /* 앞 한도 10 → 24MB(진단: PC 3배에서 장당 220KB라 10MB가 0.7초 만에 차, 3초 예산이 있어도 앞이 0.7초뿐이었다 —
      굽기 한 번(최악 41ms)이나 GC에 뒤장이 비기 딱 좋은 여유다. 24MB면 220KB로 3.6초). */
   cullMargin: 1, aheadSec: 3, aheadMB: 24, yaw8Always: false,
-  nukeStepMs: 0,   // PC는 그리기 틱마다(위 폰 쪽 ★)
 };
 /* 덜어내기 단(요청: "모바일에서 그려야 할 대상이 많을 때 버벅임 방지 — 화면 내 유닛 수 문턱으로
    2·3·4번 적용") ─────────────────────────────────────────────────────────────
@@ -20508,6 +20497,22 @@ function crowdRecheck9(): void {
     plan9();
   };
   plan9();
+}
+/** ★ 핵·스톰이 떠 있는 동안의 React 박자(ms) — **벤치로 가른다**(지적: "핵폭발 시 모바일에서
+ *  페이지가 다운" → "폰만 돌린다기보다 벤치에 맞게 제한하면 어때?") ────────────────────────
+ *  핵 낙하·폭발은 CSS 애니메이션을 재생 시각으로 긁는(paused + delay) 방식이라 React 갱신
+ *  박자가 곧 그 효과의 프레임이다. 그래서 그동안만 0(= 그리기 틱마다)으로 올려 두었는데, 그
+ *  한 틱이 **이 컴포넌트의 전체 렌더**다 — 개체 천여 기의 DOM 마커·로스터·건물 줄·미니맵
+ *  점이 다 다시 만들어진다. 평소 10Hz이던 것이 45Hz가 되면 다섯 배 가까운 짐이 핵 창 내내
+ *  걸리고, 그 사이 판 굽기·워커 장까지 겹쳐 페이지가 선다.
+ *  가르는 자는 **기기 종류가 아니라 힘**이다 — 빠른 폰은 0으로 매끄럽게 두고, 느린 PC는
+ *  죄어야 한다. 이 판이 이미 힘을 재 두었으므로(CROWD9.bench) 그 값을 그대로 쓴다:
+ *    충분 0(그리기 틱마다) · 미달 40(25Hz) · 심한 미달 60(17Hz).
+ *  아직 안 쟀으면 40으로 시작한다 — 처음 한 번은 안전한 쪽이 옳다(핵은 되돌릴 수 없다). */
+function nukeStep9(): number {
+  const c9 = CROWD9;
+  if (c9.bench < 0) return 40;
+  return c9.weak ? (c9.k < 1 ? 60 : 40) : 0;
 }
 /** 매 장 — 유닛 op 수만 보고 단을 정한다(미달 기기에서만). deep이면 입체 판정(weak3·k3)을 쓴다. */
 function crowdTick9(units: number, deep = false): void {
@@ -25433,7 +25438,7 @@ export const playbackViewOf = new Map<string, {
 const EMPTY_ARR9: never[] = [];
 /** React 상태 t를 올리는 간격(ms) — 유닛 캔버스는 틱이 프레임마다 칠하고, React는 이 박자로만 렌더한다(4번). */
 const REACT_STEP_MS9 = 100;
-/* (옮김) 핵·스톰 동안의 React 박자 — 기기마다 달라야 해서 DEV9.nukeStepMs로 갔다(그쪽 ★). */
+/* (옮김) 핵·스톰 동안의 React 박자 — 기기의 **힘**으로 갈라야 해서 nukeStep9로 갔다(CROWD9 옆 ★). */
 /** 워커가 보낸 설계도 한 장 — 숫자 배열(unpack9로 푼다) + 안개(바뀐 장에만) + 짓기 ms. 푼 결과는 dec에 붙인다. */
 export type PackedFrame9 = {
   t: number; buf: Float32Array; strs: string[];
@@ -26031,7 +26036,7 @@ export default function ReplayMotionPlayer({
   const pausedWakeRef9 = useRef<number | null>(null);
   void pausedTick9;
   const reactAtRef9 = useRef(0);
-  /** 지금의 React 박자(ms) — 핵이 떠 있으면 DEV9.nukeStepMs, 아니면 REACT_STEP_MS9(렌더가 정한다). */
+  /** 지금의 React 박자(ms) — 핵이 떠 있으면 nukeStep9(), 아니면 REACT_STEP_MS9(렌더가 정한다). */
   const reactStepRef9 = useRef(REACT_STEP_MS9);
   const paintFnRef9 = useRef<((tNow: number, rebase?: boolean) => void) | null>(null);
   const frameOpsRef9 = useRef<UnitDrawOp[] | null>(null);
@@ -31676,11 +31681,11 @@ export default function ReplayMotionPlayer({
                상태표(STATUS_CASTS.Irradiate.dur)와 **같은 값**이어야 한다. */
             : c[3] === "Irradiate" ? STATUS_CASTS.Irradiate.dur
               : c[3] === "Scanner Sweep" ? SCAN_DETECT_SEC : CAST_HOLD_SEC));
-  /* 재생 시각으로 칸·애니를 긁는 DOM 효과가 떠 있는 동안만 React 박자를 올린다(DEV9.nukeStepMs — 폰은 25Hz로 죈다) — 핵(낙하·폭발을
+  /* 재생 시각으로 칸·애니를 긁는 DOM 효과가 떠 있는 동안만 React 박자를 올린다(nukeStep9 — 벤치가 미달이면 25Hz·심한 미달이면 17Hz로 죈다) — 핵(낙하·폭발을
      paused+delay로 긁는다)과 스톰(칸이 초당 9.6개라 10Hz로 뽑으면 칸을 건너뛰거나 두 번 든다). 나머지 캐스트는 제 CSS
      애니메이션이 알아서 돈다. */
   reactStepRef9.current = castsNow.some((c9) => c9[3] === "Nuclear Strike" || c9[3] === "Psionic Storm")
-    ? DEV9.nukeStepMs : REACT_STEP_MS9;
+    ? nukeStep9() : REACT_STEP_MS9;
 
   /* (걷어냄) 수송·드랍 어림 한 벌 — 드랍/태움 신호(drops·loads)와 수송선 자취로
      '내린 자리·태운 자리'를 짚던 어림이다. 재료가 전부 v1 부대 트랙이라 요약 폐지 뒤로는
