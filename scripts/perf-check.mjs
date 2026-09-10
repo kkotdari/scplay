@@ -1315,6 +1315,9 @@ const sprite = await page.evaluate(() => window.__spritePerf.line());
 const topLines = has("--top")
   ? await page.evaluate(() => `건물\n${window.__spriteTop("b")}\n유닛\n${window.__spriteTop("u")}`)
   : null;
+/* 리액트 한 장(SCR_DIAG.react) — 렌더+커밋의 최근 1초. 핵·스톰이 뜨면 박자가 25~60Hz로
+   오르므로(nukeStep9), 한 장이 그 박자보다 길면 그때부터 주 실마리가 막힌다. */
+try { console.log(`[리액트] ${await page.evaluate(() => (window.__scrDiag && window.__scrDiag.react) || "(진단 없음)")}`); } catch { console.log("[리액트] (못 읽음)"); }
 // 프레임 워커 상태(SCR_DIAG.worker) — on/off · 받은 수 · 쓴 수 · 놓친 수.
 try { console.log(`[워커] ${await page.evaluate(() => (window.__scrDiag && window.__scrDiag.worker) || "(진단 없음)")}`); console.log(`[덜어내기] ${await page.evaluate(() => (window.__scrDiag && window.__scrDiag.crowd) || "(폰 아님·진단 없음)")}`); } catch (e) { console.log("[워커] (못 읽음)", String(e).slice(0, 80)); }
 if (has("--msgsize")) {

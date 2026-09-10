@@ -20539,6 +20539,26 @@ function crowdRecheck9(): void {
   };
   plan9();
 }
+/** ★ React 한 장(렌더 + 커밋) 계량기(조사: "핵폭발 멈춤") ────────────────────────────────
+ *  핵·스톰이 떠 있는 동안 React 박자를 25~60Hz로 올리는데(아래 nukeStep9), 그 한 장이 이 커다란
+ *  컴포넌트의 **전체 렌더**다. 한 장이 박자보다 길면 주 실마리가 통째로 막혀 페이지가 선다 —
+ *  그 둘(한 장 값 · 박자)을 나란히 봐야 '멈춤'이 짐작이 아니라 수가 된다. */
+const REACTM9 = { at: 0, n: 0, sum: 0, max: 0, t0: 0, avg: -1 };
+function noteReact9(ms9: number): void {
+  /* 창을 넘겨도 남는 **미끄러지는 평균**(EMA) — 박자를 가르는 자가 이것이다(아래 nukeStep9).
+     창 안의 합만 쓰면 창을 넘긴 직후 한 장도 안 잰 상태가 되어 판정이 한 번씩 옛 규칙으로 떨어진다. */
+  REACTM9.avg = REACTM9.avg < 0 ? ms9 : REACTM9.avg * 0.85 + ms9 * 0.15;
+  REACTM9.n += 1;
+  REACTM9.sum += ms9;
+  if (ms9 > REACTM9.max) REACTM9.max = ms9;
+  const now9 = pNow();
+  if (REACTM9.at === 0) { REACTM9.at = now9; return; }
+  if (now9 - REACTM9.at < 1000) return;
+  const per9 = (REACTM9.n * 1000) / (now9 - REACTM9.at);
+  SCR_DIAG.react = `${per9.toFixed(0)}장/s · 평균 ${(REACTM9.sum / Math.max(1, REACTM9.n)).toFixed(0)}ms`
+    + ` · 최악 ${REACTM9.max.toFixed(0)}ms · 몫 ${Math.min(999, (REACTM9.sum * 100) / (now9 - REACTM9.at)).toFixed(0)}%`;
+  REACTM9.at = now9; REACTM9.n = 0; REACTM9.sum = 0; REACTM9.max = 0;
+}
 /** ★ 핵·스톰이 떠 있는 동안의 React 박자(ms) — **벤치로 가른다**(지적: "핵폭발 시 모바일에서
  *  페이지가 다운" → "폰만 돌린다기보다 벤치에 맞게 제한하면 어때?") ────────────────────────
  *  핵 낙하·폭발은 CSS 애니메이션을 재생 시각으로 긁는(paused + delay) 방식이라 React 갱신
@@ -20551,9 +20571,47 @@ function crowdRecheck9(): void {
  *    충분 0(그리기 틱마다) · 미달 40(25Hz) · 심한 미달 60(17Hz).
  *  아직 안 쟀으면 40으로 시작한다 — 처음 한 번은 안전한 쪽이 옳다(핵은 되돌릴 수 없다). */
 function nukeStep9(): number {
+  /* ★ 이제는 **잰 값**으로 가른다(조사: "핵폭발 멈춤") ────────────────────────────────
+     벤치(2D 한 판 ms)는 기기의 힘이지 이 컴포넌트 한 장의 값이 아니다. 실측(perf-check,
+     CPU 4배 조임·366기)에서 React 한 장은 **20ms**였는데, 이 함수는 그 기기에 40ms(25Hz)를
+     주고 있었다 — 한 장 20ms를 25Hz로 돌리면 주 실마리의 절반이 React 몫이고, 거기에
+     판 굽기·붓·워커 장이 겹치면 그대로 선다. '충분'으로 읽힌 기기에는 0(그리기 틱마다)을
+     주고 있었으니 더하다.
+     그래서 박자를 **한 장 값에 매단다**: 박자 = 평균 × 2.5, 곧 React가 주 실마리의 40%를
+     넘게 먹지 않는다. 한 장이 5ms인 기기는 12ms(≈매 프레임)까지 내려가고, 40ms인 기기는
+     100ms로 죈다. 아직 못 쟀으면 옛 규칙(벤치)으로 시작한다. */
+  const avg9 = REACTM9.avg;
+  if (avg9 >= 0) return Math.min(150, Math.round(avg9 * 2.5));
   const c9 = CROWD9;
   if (c9.bench < 0) return 40;
   return c9.weak ? (c9.k < 1 ? 60 : 40) : 0;
+}
+/** ★ 핵 연출의 시계를 **붓 박자로** 긁는다(같은 조사) ────────────────────────────────
+ *  폭발(충격파·섬광·구름)은 순수한 CSS 애니메이션이고, 재생기가 하는 일은 `animationDelay`
+ *  한 줄을 재생 시각으로 적어 주는 것뿐이다. 그런데 그 한 줄을 **React 렌더**가 적고 있어,
+ *  폭발이 매끄러우려면 이 큰 컴포넌트를 통째로 60Hz로 다시 그려야 했다 — 그게 멈춤의 뿌리다.
+ *  글줄 몇 개를 적는 일이니 붓이 프레임마다 곧장 적는다. React는 제 박자(100ms)로 스팬을
+ *  세우고 지우기만 한다. 두 자리가 **같은 시각(tLive)**을 보므로 서로 안 다툰다. */
+function nukeClockTick9(root: HTMLElement, tNow: number): void {
+  const list9 = root.querySelectorAll<HTMLElement>(".scr-motion-nukefx[data-nksec]");
+  for (let i = 0; i < list9.length; i += 1) {
+    const el9 = list9[i];
+    const sec9 = Number(el9.dataset.nksec);
+    if (!Number.isFinite(sec9)) continue;
+    const age9 = tNow - sec9;
+    const boom9 = `${NUKE_FALL_SEC - age9}s`;
+    const aim9 = `${-age9}s`;
+    const kids9 = el9.children;
+    for (let k = 0; k < kids9.length; k += 1) {
+      const ch9 = kids9[k];
+      if (!(ch9 instanceof HTMLElement)) continue;
+      const cl9 = ch9.classList;
+      const d9 = cl9.contains("scr-motion-nuke-wave") || cl9.contains("scr-motion-nuke-flash")
+        || cl9.contains("scr-motion-nuke-cloud") ? boom9
+        : cl9.contains("scr-motion-nuke-dot") || cl9.contains("scr-motion-nuke-smoke") ? aim9 : "";
+      if (d9 && ch9.style.animationDelay !== d9) ch9.style.animationDelay = d9;
+    }
+  }
 }
 /** 매 장 — 유닛 op 수만 보고 단을 정한다(미달 기기에서만). deep이면 입체 판정(weak3·k3)을 쓴다. */
 function crowdTick9(units: number, deep = false): void {
@@ -24928,8 +24986,13 @@ export function FxModel({
         (ch9 - bh9 * sc9) / 2 - by0 * sc9);
       // 색 없는 면이 곧 임자 색(SVG의 currentColor와 같은 규약) — 감싸개의 color를 읽는다.
       const cur9 = window.getComputedStyle(cv).color || "#fff";
-      // 도는 이펙트만 캐시한다(위 FX_RASTER_CACHE) — 한 번 그리는 것은 되쓸 일이 없다.
-      const key9 = spin === undefined ? "" : `${kind}|${spin}|${flat ? 1 : 0}|${pitchView ? 1 : 0}`
+      /* ★ **도는 것만** 캐시하던 것을 걷는다(조사: "핵폭발 멈춤") ────────────────────────
+         '한 번 그리는 것은 되쓸 일이 없다'가 틀린 자리가 있었다 — 떨어지는 핵탄두다. 그 몸은
+         spin이 아니라 rotDeg(22.5도 칸 × 32)로 도는데, spin이 없으니 열쇠가 빈 글자였다:
+         낙하 2초 동안 React가 다시 그릴 때마다(핵 창에는 25~60Hz) 면을 풀고 캔버스를 통째로
+         다시 칠했다. 칸은 32개뿐이라 캐시에 들어가면 그 뒤로는 blit 한 번이다.
+         열쇠에 spin 자리를 -1로 두어 도는 것과 안 섞이게만 한다. LRU·바이트 상한은 그대로다. */
+      const key9 = `${kind}|${spin ?? -1}|${flat ? 1 : 0}|${pitchView ? 1 : 0}`
         + `|${viewYaw ?? 0}|${rotDeg}|${fit ? 1 : 0}|${cw9}x${ch9}|${cur9}`;
       const hit9 = key9 ? FX_RASTER_CACHE.get(key9) : undefined;
       if (hit9) {
@@ -25720,6 +25783,10 @@ export default function ReplayMotionPlayer({
   guide?: boolean;
   // (삭제·요청) caps — 자막 표시를 걷으면서 함께.
 }) {
+  /* ★ 이 렌더가 든 시간을 잰다(조사: "핵폭발 멈춤") — 여기서 재고, 커밋 뒤 effect에서 넘긴다.
+     핵·스톰 동안 박자가 25~60Hz로 오르므로(nukeStep9), 한 장이 그 박자보다 길면 그때부터
+     주 실마리가 통째로 막힌다. #diag=draw의 "리액트" 줄이 그 둘을 나란히 보인다. */
+  const rT09 = pNow();
   /* 렌더 함수 **전체**에 든 JS 시간 — 준비·mapNode만 재면 그 사이 수백 줄의
      훅과 useMemo가 안 잡힌다. 프레임주기에서 이것과 커밋을 빼야 브라우저 몫이 남는다. */
   const pRender9 = PERF9 ? pNow() : 0;
@@ -25728,6 +25795,8 @@ export default function ReplayMotionPlayer({
      끝난 시각을 빼면 딱 그 몫이 나온다. 의존성을 안 주어 프레임마다 돈다. */
   useLayoutEffect(() => {
     if (PERF9 && perfState9.renderEnd) pAdd("커밋(리액트·DOM)", pNow() - perfState9.renderEnd);
+    /* 렌더 + 커밋(이 훅은 커밋 **직후·칠하기 전**에 돈다)이 이 한 장의 값이다 — 위 rT09의 ★. */
+    noteReact9(pNow() - rT09);
   });
   /* ★ 관전자는 **아예 없는 사람으로 친다**(요청: "관전자 자동 숨김 / 플레이어 로드시
      기본적으로 관전자쪽 화면은 안 보이게" → "관전자는 로스터에서도 제거") ──────────────
@@ -26079,6 +26148,8 @@ export default function ReplayMotionPlayer({
   const reactAtRef9 = useRef(0);
   /** 지금의 React 박자(ms) — 핵이 떠 있으면 nukeStep9(), 아니면 REACT_STEP_MS9(렌더가 정한다). */
   const reactStepRef9 = useRef(REACT_STEP_MS9);
+  /** 핵·스톰 연출이 떠 있나 — 붓이 이 깃발일 때만 핵 시계를 긁는다(위 nukeClockTick9). */
+  const nukeOnRef9 = useRef(false);
   const paintFnRef9 = useRef<((tNow: number, rebase?: boolean) => void) | null>(null);
   const frameOpsRef9 = useRef<UnitDrawOp[] | null>(null);
   const frameFxRef9 = useRef<FxOp[] | null>(null);
@@ -30538,6 +30609,9 @@ export default function ReplayMotionPlayer({
     }
     /* 창 넘김은 **블록 끝**에서 — 위에서 넘기면 붓은 이 창, 칠은 다음 창에 들어가 '칠 > 붓'이 난다. */
     fogMeterTick9();
+    /* 핵 연출의 시계 — 글줄 몇 줄이라 붓 프레임마다 적는다(위 nukeClockTick9의 ★).
+       이걸 React 렌더에 맡기던 것이 "핵폭발 시 페이지 다운"의 뿌리였다. */
+    if (nukeOnRef9.current && mapRef.current) nukeClockTick9(mapRef.current, tNow9);
     /* ★ 안개 캔버스의 임시 변환 — **칠했으면 항등, 안 칠했으면 그 사이의 차**다(위 fogXfRef9).
        여태 무조건 항등으로 지워, 안 칠한 프레임에서 옛 그림이 새 자리에 그냥 섰다. */
     {
@@ -31804,8 +31878,12 @@ export default function ReplayMotionPlayer({
   /* 재생 시각으로 칸·애니를 긁는 DOM 효과가 떠 있는 동안만 React 박자를 올린다(nukeStep9 — 벤치가 미달이면 25Hz·심한 미달이면 17Hz로 죈다) — 핵(낙하·폭발을
      paused+delay로 긁는다)과 스톰(칸이 초당 9.6개라 10Hz로 뽑으면 칸을 건너뛰거나 두 번 든다). 나머지 캐스트는 제 CSS
      애니메이션이 알아서 돈다. */
-  reactStepRef9.current = castsNow.some((c9) => c9[3] === "Nuclear Strike" || c9[3] === "Psionic Storm")
-    ? nukeStep9() : REACT_STEP_MS9;
+  const nukeOn9 = castsNow.some((c9) => c9[3] === "Nuclear Strike" || c9[3] === "Psionic Storm");
+  reactStepRef9.current = nukeOn9 ? nukeStep9() : REACT_STEP_MS9;
+  nukeOnRef9.current = nukeOn9;
+  /* 핵 연출이 보는 시각 — **붓의 시각**이다(위 nukeClockTick9). React의 t는 100ms 박자라
+     그것으로 적으면 붓이 프레임마다 적는 값과 다투어 애니가 한 프레임씩 뒷걸음친다. */
+  const tNuke9 = clockRef.current ? Math.max(t, tLiveRef9.current) : t;
 
   /* (걷어냄) 수송·드랍 어림 한 벌 — 드랍/태움 신호(drops·loads)와 수송선 자취로
      '내린 자리·태운 자리'를 짚던 어림이다. 재료가 전부 v1 부대 트랙이라 요약 폐지 뒤로는
@@ -32254,6 +32332,9 @@ export default function ReplayMotionPlayer({
                       {/* 안개 붓 계량기(위 FOGM9) — 손짓 중 안개만 뒤처지는 신고를 수로 가른다. */}
                       {SCR_DIAG.fog ? ` · 안개[${SCR_DIAG.fog}]` : ""}
                       {xfBackK9.k !== 1 ? ` 배킹×${xfBackK9.k}` : ""}
+                      {/* React 한 장(위 REACTM9) — 핵·스톰이 뜨면 박자가 25~60Hz로 오른다.
+                          '박자'와 '한 장 값'을 나란히 둔다: 한 장이 박자보다 길면 그때부터 밀린다. */}
+                      {SCR_DIAG.react ? ` · 리액트[박자${reactStepRef9.current}ms · ${SCR_DIAG.react}]` : ""}
                     </div>
                   </>
                 )}
@@ -33309,7 +33390,7 @@ export default function ReplayMotionPlayer({
                 /* 핵(정정) — 런치가 아니라 실제 착탄에 폭발(지적): 낙하 동안은 표적 점, 마지막
                    2초에 탄두가 내려오고, NUKE_FALL_SEC부터 폭발 광원. 크기는 실제 피해 반경
                    (4타일)에 맞춘 지름 8타일 상자에 %로 그리고 살짝 투명하다(지적). */
-                const age = t - sec;
+                const age = tNuke9 - sec;
                 /** 낙하 진행률 0~1 — 창(NUKE_DROP_SEC)의 어디까지 왔나. 높이·흐려짐이
                  *  같은 값을 쓴다(둘이 갈리면 탄두가 안 보이는 채로 내려온다). */
                 const dropP9 = Math.min(1, Math.max(0,
@@ -33373,6 +33454,8 @@ export default function ReplayMotionPlayer({
                         그 창에 다른 시전이 걸칠 일도 그만큼 잦아진다. */
                     key={`nk-${sec}-${x}-${y}`}
                     className="scr-motion-nukefx"
+                    /* 붓이 이 자국으로 제 시계를 적는다(위 nukeClockTick9). */
+                    data-nksec={sec}
                     style={{
                       ...posStyle(x, y),
                       /* ★ 폭발은 **터지는 범위만큼**이다 — 그 범위는 이 파일이 이미

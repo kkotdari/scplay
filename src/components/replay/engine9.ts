@@ -2114,6 +2114,9 @@ export const SCR_DIAG: {
   /** 안개 붓의 최근 1초 — "붓N 칠M 같음S 자료없음X 미룸D". 손짓 중 안개만 뒤처지는 신고를
    *  눈이 아니라 수로 가리려고 둔다(어느 단계에서 끊기는지가 이 넷으로 갈린다). */
   fog: string;
+  /** React 한 장(렌더+커밋)의 최근 1초 — "N장/s · 평균ms · 최악ms · 몫%". 핵·스톰이 뜨면
+   *  박자가 25~60Hz로 오르는데(nukeStep9), 한 장이 그 박자보다 길면 주 실마리가 막힌다. */
+  react: string;
   /** 이 프레임의 효과 op을 '갈래:무기'로 센다 — "이 무기가 안 나간다"는 신고를 눈이
    *  아니라 수로 가리려고 둔다(트레이서는 0.2초짜리라 스크린샷 한 장으로는 못 가린다).
    *  #diag가 켜져 있을 때만 채운다. */
@@ -2137,7 +2140,7 @@ export const SCR_DIAG: {
 } = {
   dpr: 0, unitCss: "", unitBack: "", unitB: 0,
   mapCss: "", mapBack: "", ppt: 0, needed: 0, scale: 0, unitScale: 0,
-  areaCap: 0, allocOk: true, zoom: 0, xfms: 0, fx: {}, prod: "", worker: "", crowd: "", brush: "", fps: 0, fog: "",
+  areaCap: 0, allocOk: true, zoom: 0, xfms: 0, fx: {}, prod: "", worker: "", crowd: "", brush: "", fps: 0, fog: "", react: "",
   truthVer: 0, truthTrust: -1, truthWhy: "",
 };
 /** #diag가 켜져 있나 — 주소가 바뀌지 않는 한 한 번만 읽는다. */
