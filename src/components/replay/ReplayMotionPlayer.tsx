@@ -20381,6 +20381,16 @@ const DEV9 = smallDevice9 ? {
   /** 워커 시야 여유(화면 배수) · 앞으로 지을 한도(벽시계 초·MB) · 요잉을 늘 여덟 칸으로 */
   // 앞 한도 4 → 6MB(진단: 3배 장당 163KB — 4MB면 0.8초, 6MB면 1.2초. 지난 장은 이제 한도에 안 든다(frameWorker)).
   cullMargin: 0.5, aheadSec: 1.5, aheadMB: 6, yaw8Always: true,
+  /** ★ 핵·스톰이 떠 있는 동안의 React 박자(ms) — **폰은 죈다**(지적: "핵폭발 시 모바일에서
+   *  페이지가 다운") ────────────────────────────────────────────────────────────────────
+   *  핵 낙하·폭발은 CSS 애니메이션을 재생 시각으로 긁는(paused + delay) 방식이라 React
+   *  갱신 박자가 곧 그 효과의 프레임이다. 그래서 그동안만 0(= 그리기 틱마다)으로 올려
+   *  두었는데, 그 한 틱이 **이 컴포넌트의 전체 렌더**다 — 개체 천여 기의 DOM 마커·로스터·
+   *  건물 줄·미니맵 점이 다 다시 만들어진다. 평소 10Hz이던 것이 폰에서 45Hz가 되니 다섯
+   *  배 가까운 짐이 몇 초 내리 걸리고, 그 사이 굽기·워커 장까지 겹쳐 페이지가 선다.
+   *  폰은 25Hz(40ms)로 되돌린다 — 이 값은 0으로 올리기 **전에 쓰던 값**이고, 그때 문제는
+   *  '덜 매끄럽다'였지 '멈춘다'가 아니었다. 매끄러움과 안 죽는 것 사이라면 뒤가 먼저다. */
+  nukeStepMs: 40,
 } : {
   name: "pc",
   spriteMB: 128, bldSpriteMB: 64,
@@ -20390,6 +20400,7 @@ const DEV9 = smallDevice9 ? {
   /* 앞 한도 10 → 24MB(진단: PC 3배에서 장당 220KB라 10MB가 0.7초 만에 차, 3초 예산이 있어도 앞이 0.7초뿐이었다 —
      굽기 한 번(최악 41ms)이나 GC에 뒤장이 비기 딱 좋은 여유다. 24MB면 220KB로 3.6초). */
   cullMargin: 1, aheadSec: 3, aheadMB: 24, yaw8Always: false,
+  nukeStepMs: 0,   // PC는 그리기 틱마다(위 폰 쪽 ★)
 };
 /* 덜어내기 단(요청: "모바일에서 그려야 할 대상이 많을 때 버벅임 방지 — 화면 내 유닛 수 문턱으로
    2·3·4번 적용") ─────────────────────────────────────────────────────────────
@@ -25422,9 +25433,7 @@ export const playbackViewOf = new Map<string, {
 const EMPTY_ARR9: never[] = [];
 /** React 상태 t를 올리는 간격(ms) — 유닛 캔버스는 틱이 프레임마다 칠하고, React는 이 박자로만 렌더한다(4번). */
 const REACT_STEP_MS9 = 100;
-/** 핵이 떠 있는 동안의 React 박자(ms) — 핵 낙하·폭발은 CSS 애니메이션을 재생 시각으로 긁는(paused + delay) 방식이라
- *  React 갱신 박자가 곧 그 효과의 프레임이다(지적: 핵 낙하·폭발 프레임이 낮아 보임). 그동안만 25Hz로 올린다. */
-const REACT_STEP_NUKE_MS9 = 0;   // 40 → 0(지적: 25Hz로도 안 매끄러움) — 핵·스톰 동안은 그리기 틱마다(폰 45Hz·PC 60Hz) 렌더한다.
+/* (옮김) 핵·스톰 동안의 React 박자 — 기기마다 달라야 해서 DEV9.nukeStepMs로 갔다(그쪽 ★). */
 /** 워커가 보낸 설계도 한 장 — 숫자 배열(unpack9로 푼다) + 안개(바뀐 장에만) + 짓기 ms. 푼 결과는 dec에 붙인다. */
 export type PackedFrame9 = {
   t: number; buf: Float32Array; strs: string[];
@@ -26022,7 +26031,7 @@ export default function ReplayMotionPlayer({
   const pausedWakeRef9 = useRef<number | null>(null);
   void pausedTick9;
   const reactAtRef9 = useRef(0);
-  /** 지금의 React 박자(ms) — 핵이 떠 있으면 REACT_STEP_NUKE_MS9, 아니면 REACT_STEP_MS9(렌더가 정한다). */
+  /** 지금의 React 박자(ms) — 핵이 떠 있으면 DEV9.nukeStepMs, 아니면 REACT_STEP_MS9(렌더가 정한다). */
   const reactStepRef9 = useRef(REACT_STEP_MS9);
   const paintFnRef9 = useRef<((tNow: number, rebase?: boolean) => void) | null>(null);
   const frameOpsRef9 = useRef<UnitDrawOp[] | null>(null);
@@ -30394,18 +30403,18 @@ export default function ReplayMotionPlayer({
          것은 '어디가 밝혀졌나' 하나뿐이고 그건 손끝을 따라 실시간일 까닭이 없다 — 그 사이는 CSS가 같은
          그림을 밀어 준다(유닛 캔버스와 같은 규약). 150ms마다 한 번이면 새로 드러나는 가장자리도 눈에 안 빈다.
          손을 떼면 그 프레임에 제 자리로 한 장 칠한다(endGestureXf). */
-      /* ★ **가벼운 자리에서는 안 죈다**(지적: "제스처 중 유닛층은 괜찮은데 안개만 느리다")
+      /* ★ 손짓 중에도 **안 죈다**(지적: "제스처 중 유닛층은 괜찮은데 안개만 느리다" → "빼줘")
          ────────────────────────────────────────────────────────────────────────────────
          죄는 근거는 '그 사이는 CSS가 같은 그림을 밀어 준다'였는데, 미는 것만으로는 **새로
          드러나는 가장자리**를 못 채운다 — 안개 판은 그때의 보기만큼만 덮으므로, 끄는 쪽
-         가장자리에는 칠한 적 없는 띠가 남는다. 그 띠가 다음 칠까지(150ms) 버티는 것이
-         '안개만 느리다'의 정체다. 유닛 층은 같은 문제를 **매 프레임 다시 그려서** 푼다.
-         그래서 자를 유닛과 같은 것으로 맞춘다: 이 블록 자체가 붓 한 장 안에 있으므로,
-         죄지 않으면 **유닛과 정확히 같은 박자**로 칠해진다.
-         죔은 무거운 자리에만 남긴다 — 손짓 한 장이 이미 XF_HEAVY_MS9(55ms)를 넘는 자리
-         에서는 이 한 겹이 프레임을 통째로 먹어, 안개를 맞추려다 화면 전체가 밀린다.
-         (앞판은 '배율이 바뀔 때만 45ms'였다. 옮기기에서도 같은 띠가 나므로 갈래를 없앤다.) */
-      const FOG_GEST_MS9 = xfPaintMsRef.current >= XF_HEAVY_MS9 ? 150 : 0;
+         가장자리에는 칠한 적 없는 띠가 남는다. 그 띠가 다음 칠까지 버티는 것이 '안개만
+         느리다'의 정체다. 유닛 층은 같은 문제를 매 프레임 다시 그려서 푼다.
+         이 블록 자체가 붓 한 장 안에 있으므로, 죄지 않으면 **유닛과 정확히 같은 박자**다 —
+         붓이 미루는 자리에서는 안개도 함께 미뤄지고, 붓이 매 프레임 그리면 안개도 그렇다.
+         한동안 무거운 자리(손짓 한 장 ≥ XF_HEAVY_MS9)에만 죔을 남겨 두었는데, 그 문턱은
+         **실측이 아니라 짐작**이었다(그리기 값을 따로 재는 자가 없다). 짐작으로 눈에 보이는
+         흠을 남기느니 걷는다 — 정말 무거우면 붓 자체가 미루므로 이 한 겹만 따로 죌 까닭이 없다. */
+      const FOG_GEST_MS9 = 0;
       const gnow9 = pNow();
       if (need9 && !(xfGestureRef.current && gnow9 - (ft9.at ?? 0) < FOG_GEST_MS9)) {
         ft9.vis = fr9.visSrc; ft9.ver = fr9.visVer; ft9.explored = fr9.explored; ft9.tq = tq9; ft9.z = vz9; ft9.px = vx9; ft9.py = vy9;
@@ -31667,11 +31676,11 @@ export default function ReplayMotionPlayer({
                상태표(STATUS_CASTS.Irradiate.dur)와 **같은 값**이어야 한다. */
             : c[3] === "Irradiate" ? STATUS_CASTS.Irradiate.dur
               : c[3] === "Scanner Sweep" ? SCAN_DETECT_SEC : CAST_HOLD_SEC));
-  /* 재생 시각으로 칸·애니를 긁는 DOM 효과가 떠 있는 동안만 React 박자를 올린다(위 REACT_STEP_NUKE_MS9) — 핵(낙하·폭발을
+  /* 재생 시각으로 칸·애니를 긁는 DOM 효과가 떠 있는 동안만 React 박자를 올린다(DEV9.nukeStepMs — 폰은 25Hz로 죈다) — 핵(낙하·폭발을
      paused+delay로 긁는다)과 스톰(칸이 초당 9.6개라 10Hz로 뽑으면 칸을 건너뛰거나 두 번 든다). 나머지 캐스트는 제 CSS
      애니메이션이 알아서 돈다. */
   reactStepRef9.current = castsNow.some((c9) => c9[3] === "Nuclear Strike" || c9[3] === "Psionic Storm")
-    ? REACT_STEP_NUKE_MS9 : REACT_STEP_MS9;
+    ? DEV9.nukeStepMs : REACT_STEP_MS9;
 
   /* (걷어냄) 수송·드랍 어림 한 벌 — 드랍/태움 신호(drops·loads)와 수송선 자취로
      '내린 자리·태운 자리'를 짚던 어림이다. 재료가 전부 v1 부대 트랙이라 요약 폐지 뒤로는
