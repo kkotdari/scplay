@@ -6391,42 +6391,47 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 반지름 2.0 — 머리 상자(폭 3.6, 반폭 1.8)보다 넓어야 판의 테와 나선의 바깥 감김이
          상자 둘레로 드러난다. 1.55로 잡았더니 상자 밑에 통째로 숨었다(첫 판). 좁아진 윗변
          (3.4)보다 조금 넘치지만, 회전판은 원래 받침에 얹혀 도는 물건이라 테가 나와야 맞다. */
-      /* 반지름 2.6 — 받침 윗변(3.4, 반폭 1.7)보다 0.9 넘쳐야 머리 상자(반폭 1.8) 둘레로
-         테가 드러난다. 2.0·2.25로는 상자 밑에 거의 다 숨었다(첫·둘째 판). */
-      const RP9 = 2.6;          // 회전판 반지름
-      // 받침보다 한 단 짙게 — 같은 회색이면 받침의 한 겹으로 보여 '얹힌 판'이 안 읽힌다.
-      faces.push(...paintBase(cylinderFaces3(0, BY9, RP9, 0.9, TZ9), "#5b6674"));
+      /* 반지름 1.5 — **받침 윗면(3.4, 반폭 1.7)보다 작게**(재요청). 넘치게 두면 받침 위에
+         얹힌 판이 아니라 처마가 된다. 머리 밑동(5.8)과 받침 꼭대기(5.1) 사이가 벌어져 있으니,
+         판의 옆면이 그 틈에서 띠처럼 드러난다 — 넓히지 않아도 '얹혀 도는 판'으로 읽힌다. */
+      const RP9 = 1.5;          // 회전판 반지름
+      /* 받침보다 한 단 짙게 — 같은 회색이면 받침의 한 겹으로 보여 '얹힌 판'이 안 읽힌다.
+         ★ 키를 **명시한다**(재요청: "키값 조정 필요") — 판은 cylinderFaces3의 제 키를,
+           나선은 키가 아예 없어 '직전 키를 물려받는' 자였다. 둘이 갈리면 나선이 판 뒤로
+           밀린다. partKey(자리·높이)로 한 값을 주면 받침 위·머리(키 20) 아래에 고정된다. */
+      const TKEY9 = partKey(0, BY9, TZ9 + 0.5);
+      faces.push(...tagKey(paintBase(cylinderFaces3(0, BY9, RP9, 0.9, TZ9), "#5b6674"), TKEY9));
+      /* ★ 판의 테를 두르는 **톱니 열둘**(정정: "나선이 아니라 톱니바퀴야") ─────────────────
+         앞 판은 아르키메데스 나선 한 줄이었다 — 태엽을 감긴 용수철로 읽은 것이 어긋났다.
+         톱니바퀴는 테에서 밖으로 돋은 이가 돌아가며 박힌 것이라, 판의 옆선이 곧 그 신원이다.
+         이 하나는 테에서 0.24 나온 사다리꼴 기둥이고(바깥이 좁다), 판보다 살짝 낮게 얹어
+         위에서 내려다볼 때 판의 윗면과 이가 층으로 갈린다. */
       {
-        const lit9 = faceLight(0, 0, 1);
-        if (lit9.visible) {
-          /* 나선은 **머리 상자 밖의 고리 안에서** 감는다(반지름 1.5 → 2.1, 한 바퀴 반) —
-             상자(반폭 1.8×1.4)가 판의 한가운데를 덮으므로, 안쪽까지 감아 봐야 안 보인다.
-             바깥 고리에서 풀려 나가는 한 줄이면 상자 둘레로 소용돌이가 그대로 읽힌다. */
-          const NS9 = 40;
-          const TURN9 = 1.5;                      // 감는 바퀴 수
-          const R09 = 1.9;
-          const K9 = (RP9 - 0.15 - R09) / (TURN9 * Math.PI * 2);
-          const HW9 = 0.1;                        // 띠 반폭
-          const sp9 = (th9: number, off9: number): [number, number, number] => {
-            const r9 = R09 + K9 * th9 + off9;
-            return [Math.cos(th9) * r9, BY9 + Math.sin(th9) * r9, TZ9 + 0.92];
-          };
-          for (let i9 = 0; i9 < NS9; i9 += 1) {
-            const t09 = (i9 / NS9) * TURN9 * Math.PI * 2;
-            const t19 = ((i9 + 1) / NS9) * TURN9 * Math.PI * 2;
-            faces.push([polyPath3([
-              sp9(t09, -HW9), sp9(t09, HW9), sp9(t19, HW9), sp9(t19, -HW9),
-            ]), 1, "#3c434e"] as ShapeFace);
-          }
+        const NT9 = 12;
+        const TH9 = 0.24;            // 이가 테 밖으로 나온 길이
+        const teeth9: ShapeFace[] = [];
+        for (let k9 = 0; k9 < NT9; k9 += 1) {
+          const a9 = (k9 / NT9) * Math.PI * 2;
+          const w09 = 0.16;          // 뿌리 반각(라디안)
+          const w19 = 0.09;          // 끝 반각 — 바깥이 좁은 사다리꼴
+          const pt9 = (r9: number, da9: number): [number, number] =>
+            [Math.cos(a9 + da9) * r9, BY9 + Math.sin(a9 + da9) * r9];
+          teeth9.push(...paintBase(prismZFaces([
+            pt9(RP9 - 0.05, -w09), pt9(RP9 - 0.05, w09),
+            pt9(RP9 + TH9, w19), pt9(RP9 + TH9, -w19),
+          ], TZ9 + 0.12, 0.62, true), "#4a525f"));
         }
+        faces.push(...tagKey(teeth9, TKEY9 + 0.05));
       }
       /* ★ 받침 **왼쪽에 붙은 통**(요청: "아래는 드럼통 위는 반구형, 둘 합친 높이가 받침과
          동일") — 받침 높이가 BH9이므로 반구의 반지름 R을 빼고 남은 만큼이 드럼의 키다.
          자리는 그 높이 언저리(z 1.8)의 벽 반폭에 반지름을 더한 만큼 왼쪽으로, 0.25만 물려
          붙인다 — 벽이 기울어 있으니 반폭을 그 높이에서 다시 재야 뜨지도 파묻히지도 않는다. */
       {
-        const DR9 = 1.0;
-        const DH9 = BH9 - DR9;
+        /* 지름 1.2배(재요청) — 반지름 1.0 → 1.2. 높이는 살짝 줄인다: 반구의 반지름을 뺀
+           나머지에서 0.35를 더 덜어, 합친 키가 받침(4.55)보다 한 뼘 낮은 4.2가 된다. */
+        const DR9 = 1.2;
+        const DH9 = BH9 - DR9 - 0.35;
         const DX9 = -(half9(1.8) + DR9 - 0.25);
         faces.push(...paintBase(cylinderFaces3(DX9, BY9, DR9, DH9, 0), "#7e8a9c"));
         faces.push(...paintBase(domeFaces3(DX9, BY9, DR9, DR9, DH9), "#7e8a9c"));
