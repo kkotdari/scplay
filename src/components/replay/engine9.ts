@@ -2111,6 +2111,9 @@ export const SCR_DIAG: {
   brush: string;
   /** 붓이 실제로 칠한 초당 장 수(벽시계, 0.5초마다 갱신) — `#diag=fps`의 작은 오버레이가 읽는다. */
   fps: number;
+  /** 안개 붓의 최근 1초 — "붓N 칠M 같음S 자료없음X 미룸D". 손짓 중 안개만 뒤처지는 신고를
+   *  눈이 아니라 수로 가리려고 둔다(어느 단계에서 끊기는지가 이 넷으로 갈린다). */
+  fog: string;
   /** 이 프레임의 효과 op을 '갈래:무기'로 센다 — "이 무기가 안 나간다"는 신고를 눈이
    *  아니라 수로 가리려고 둔다(트레이서는 0.2초짜리라 스크린샷 한 장으로는 못 가린다).
    *  #diag가 켜져 있을 때만 채운다. */
@@ -2134,7 +2137,7 @@ export const SCR_DIAG: {
 } = {
   dpr: 0, unitCss: "", unitBack: "", unitB: 0,
   mapCss: "", mapBack: "", ppt: 0, needed: 0, scale: 0, unitScale: 0,
-  areaCap: 0, allocOk: true, zoom: 0, xfms: 0, fx: {}, prod: "", worker: "", crowd: "", brush: "", fps: 0,
+  areaCap: 0, allocOk: true, zoom: 0, xfms: 0, fx: {}, prod: "", worker: "", crowd: "", brush: "", fps: 0, fog: "",
   truthVer: 0, truthTrust: -1, truthWhy: "",
 };
 /** #diag가 켜져 있나 — 주소가 바뀌지 않는 한 한 번만 읽는다. */
