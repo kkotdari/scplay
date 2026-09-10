@@ -33,10 +33,13 @@ const smallDev9 = typeof window !== "undefined"
   && !!window.matchMedia?.("(pointer: coarse)").matches
   && Math.max(window.screen?.width ?? 0, window.screen?.height ?? 0) <= 1180;
 
-/** 안개 판이 상자보다 더 갖는 여유(px) — 손짓 한 프레임의 밀림·줄임을 이 안에 가둔다(아래 ★).
- *  부모(재생기)도 이 값을 읽어 '칠해 둔 자리가 상자를 아직 덮는가'를 잰다 — 두 자리가 같은 자여야 한다. */
-export const fogPad9 = (cw: number, ch: number): number =>
-  Math.round(Math.min(120, Math.max(cw, ch) * 0.08));
+/** 안개 판이 상자보다 **한 축에서** 더 갖는 여유(px) — 손짓 한 프레임의 밀림·줄임을 이 안에 가둔다.
+ *  부모(재생기)도 이 값을 읽어 '칠해 둔 자리가 상자를 아직 덮는가'를 재고, 넘으면 그만큼만 민다.
+ *  ★ 축마다 제 길이의 15%다(예전엔 긴 변 하나로 두 축에 같은 값을 줬다) — 세로로 긴 폰에서 가로 여유가
+ *    쓸데없이 커져 넓이(곧 메모리·칠하는 삯)만 먹었다. 축마다 같은 비면 줄일 수 있는 배율의 바닥이
+ *    두 축에서 같아진다(1/1.3 ≈ 0.77) — 한 프레임에 그보다 더 줄이는 손짓은 그만큼만 따라간다. */
+export const fogPad9 = (len: number): number =>
+  Math.round(Math.min(200, Math.max(48, len * 0.15)));
 /** 밝힘 등고선을 다시 뽑는 최소 간격(ms) — 폰은 더 뜸하게(위 ①의 ★). */
 const CT_MS9 = smallDev9 ? 240 : 120;
 /** 밝혔지만 안 보이는 칸의 덮개 짙기(0~1). */
@@ -150,16 +153,17 @@ export default function ReplayFogLayer({
        고치는 자리는 하나다: 판을 상자보다 PAD만큼 크게 잡고 그만큼 옮겨 그린다. 그러면 한 프레임 동안의
        밀림·줄임이 전부 **이미 칠해 둔** 자리 안에서 일어난다. 삯은 넓이 (1+2·0.08)² ≈ 1.35배뿐이고, 지도
        사각형 밖은 어차피 안 칠하므로(아래 사다리꼴) 실제 그리는 몫은 그대로다. */
-    const PAD = fogPad9(cw, ch);
-    const vw = cw + PAD * 2;
-    const vh = ch + PAD * 2;
+    const PADX = fogPad9(cw);
+    const PADY = fogPad9(ch);
+    const vw = cw + PADX * 2;
+    const vh = ch + PADY * 2;
     if (cv.width !== Math.round(vw * B) || cv.height !== Math.round(vh * B)) {
       cv.width = Math.round(vw * B);
       cv.height = Math.round(vh * B);
     }
-    if (cv.style.width !== `${vw}px` || cv.style.left !== `${-PAD}px`) {
-      cv.style.left = `${-PAD}px`;
-      cv.style.top = `${-PAD}px`;
+    if (cv.style.width !== `${vw}px` || cv.style.left !== `${-PADX}px`) {
+      cv.style.left = `${-PADX}px`;
+      cv.style.top = `${-PADY}px`;
       cv.style.width = `${vw}px`;
       cv.style.height = `${vh}px`;
     }
@@ -230,8 +234,8 @@ export default function ReplayFogLayer({
 
     // ── ② 화면 사상 — 유닛 캔버스(UnitLayer)와 **같은 식**이라야 층이 안 어긋난다.
     // 판이 상자보다 PAD만큼 크므로(위) 같은 식에 PAD만 더한다 — 사상 자체는 유닛 캔버스와 그대로 같다.
-    const zx = (fx: number): number => (fx - 0.5) * cw * zoom + cw / 2 + pan.x + PAD;
-    const zy = (fy: number): number => (fy - 0.5) * ch * zoom + ch / 2 + pan.y + PAD;
+    const zx = (fx: number): number => (fx - 0.5) * cw * zoom + cw / 2 + pan.x + PADX;
+    const zy = (fy: number): number => (fy - 0.5) * ch * zoom + ch / 2 + pan.y + PADY;
 
     // ── ③ 안개를 통째로 깔고, 밝힌 곳과 보이는 곳을 판다 ──────────────────────
     /* ★ 안개는 **지도 위에만** 깔린다(지적: 3D에서 하늘 아래가 까맣다) ─────────────────
@@ -242,17 +246,24 @@ export default function ReplayFogLayer({
        지도의 네 귀퉁이를 같은 사상(proj)으로 옮겨 그 안만 칠한다 — 원근 사영은 직선을
        직선으로 보내므로 네 점이면 사다리꼴이 정확히 난다(평면에서는 판과 똑같은 네모다). */
     ctx.fillStyle = `rgba(${FOG_RGB}, 1)`;
-    ctx.beginPath();
-    for (let i = 0; i < 4; i += 1) {
-      const cxg = i === 1 || i === 2 ? w : 0;
-      const cyg = i >= 2 ? h : 0;
-      const [fx, fy] = proj(cxg, cyg);
-      const px = zx(fx);
-      const py = zy(fy);
-      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    if (flat) {
+      /* 평면에서는 지도가 **네모**다 — 길 하나를 짓는 대신 사각형 한 번으로 칠한다(같은 화소). */
+      const rx09 = zx(0);
+      const ry09 = zy(0);
+      ctx.fillRect(rx09, ry09, zx(1) - rx09, zy(1) - ry09);
+    } else {
+      ctx.beginPath();
+      for (let i = 0; i < 4; i += 1) {
+        const cxg = i === 1 || i === 2 ? w : 0;
+        const cyg = i >= 2 ? h : 0;
+        const [fx, fy] = proj(cxg, cyg);
+        const px = zx(fx);
+        const py = zy(fy);
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
     }
-    ctx.closePath();
-    ctx.fill();
     ctx.globalCompositeOperation = "destination-out";
     // 밝힌 곳 — 등고선 길을 채워 그만큼 알파를 덜어낸다(1 → DIM).
     ctx.globalAlpha = 1 - DIM;

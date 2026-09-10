@@ -568,8 +568,8 @@ function xfDelta9(b: { z: number; x: number; y: number }, z: number, px: number,
    섞이고, 손짓은 대개 1초를 못 채운다. 그래서 통을 둘로 나눈다 — 손짓 프레임은 손짓 통에만
    쌓고, 손짓이 든 창은 **그대로 붙들어 둔다**(다음 손짓까지 안 지운다). 손가락을 떼고 찍어도
    그 창의 수가 남아 있다. */
-type FogCnt9 = { brush: number; paint: number; same: number; nosrc: number; defer: number; now: number; ms: number };
-const fogCnt9 = (): FogCnt9 => ({ brush: 0, paint: 0, same: 0, nosrc: 0, defer: 0, now: 0, ms: 0 });
+type FogCnt9 = { brush: number; paint: number; same: number; nosrc: number; defer: number; now: number; ms: number; pms: number };
+const fogCnt9 = (): FogCnt9 => ({ brush: 0, paint: 0, same: 0, nosrc: 0, defer: 0, now: 0, ms: 0, pms: 0 });
 /* ★ 손짓 통에는 **그 창에서 손짓이 실제로 돈 시간**도 쌓는다 — 안 그러면 수를 못 읽는다:
    1초 창에 손짓이 0.1초만 들었으면 '붓4'는 초당 40번이라는 뜻이고, 0.9초 들었으면 초당
    4번이라는 뜻이다(둘은 정반대 진단이다). 붓이 잇달아 불린 사이만 더한다. */
@@ -580,6 +580,7 @@ const fogBin9 = (): FogCnt9 => (FOGM9.gest ? FOGM9.g : FOGM9.idle);
 const fogStr9 = (c9: FogCnt9, rate9 = false): string =>
   `붓${c9.brush}${rate9 && c9.ms > 60 ? `(${((c9.brush * 1000) / c9.ms).toFixed(0)}/s)` : ""}`
   + ` 칠${c9.paint} 같음${c9.same} 없음${c9.nosrc} 미룸${c9.defer} 즉시${c9.now}`
+  + (c9.paint + c9.now > 0 ? ` 장${(c9.pms / (c9.paint + c9.now)).toFixed(1)}ms` : "")
   + (rate9 ? ` ${(c9.ms / 1000).toFixed(2)}초` : "");
 function fogMeterTick9(): void {
   const now9 = pNow();
@@ -28922,6 +28923,9 @@ export default function ReplayMotionPlayer({
   const fogXfRef9 = useRef({ z: 0, x: 0, y: 0 });
   /** 칠해 둔 안개가 상자를 못 덮는 몫(px) — 손끝이 재고(applyGestureXf) 다음 rAF가 갚는다(xfPaintNow). */
   const fogGapRef9 = useRef(0);
+  /** 이 프레임에 안개를 이미 한 장 칠했나 — 손끝 사건은 프레임에 두 번까지 오므로 한 번으로 못박는다.
+   *  푸는 자리는 손짓 rAF(xfPaintNow)다: rAF는 프레임에 한 번이니 그 자체가 프레임의 자다. */
+  const fogDoneRef9 = useRef(false);
   /** 캔버스가 한 장 그려질 때마다 — 그 보기가 곧 임시 변환의 기준이다(자식이 부른다). */
   const onUnitPainted = useCallback((z9: number, p9: { x: number; y: number }): void => {
     xfBaseRef.current = { z: z9, x: p9.x, y: p9.y };
@@ -29027,33 +29031,52 @@ export default function ReplayMotionPlayer({
            넘은 그만큼이 곧 안 칠한 띠다. 그러니 여유에 기대지 말고 **재서** 넘으면 지금 칠한다:
            칠하는 삯은 이제 등고선 갈무리 + 길 하나 + 원 몇이라(위 군살 덜기) 손짓 프레임에 얹어도
            되는 몫이고, 넘는 프레임에서만 든다. 이러면 빈 띠는 구조적으로 안 난다. */
+        /* ★ 안개도 손끝을 **그대로** 따라간다(지시: "가장 1순위는 손끝 제스처와 화면이 일치하게 움직이는
+           것이지 안개 빈 띠가 우선이 아니다") ────────────────────────────────────────────────────────
+           한때 '덮는 자리 밖으로는 안 민다'로 잘라 봤다 — 빈 띠는 안 나지만 그 프레임 동안 안개만 손끝과
+           다른 자리에 선다. 그건 이 판의 첫째 규칙을 어기는 것이다. 미는 것은 늘 정확히 밀고, **못 덮으면
+           그 자리에서 한 장 칠한다** — 한 장이 2.2ms(실측)라 그 프레임에 얹을 수 있는 몫이고, 프레임당
+           한 번으로 못박아(fogDoneRef9) 손끝 사건이 두 번 와도 두 장이 안 된다. 그래서 무거운 프레임에
+           rAF가 늦어도(유닛 한 장이 80ms인 자리) 합성되는 그림에는 빈 띠가 없다. */
         const fb9 = fogXfRef9.current;
-        const s9f = fb9.z > 0 ? z1 / fb9.z : 1;
-        const tx9 = px - s9f * fb9.x;
-        const ty9 = py - s9f * fb9.y;
         const bw9 = box?.clientWidth ?? 0;
         const bh9 = box?.clientHeight ?? 0;
-        const pd9 = fogPad9(bw9, bh9);
+        const pdx9 = fogPad9(bw9);
+        const pdy9 = fogPad9(bh9);
         const cx9 = bw9 / 2;
         const cy9 = bh9 / 2;
-        /* 칠한 판이 덮는 구간은 상자 좌표로 [−pad, 폭+pad]를 변환에 태운 것 — 그 밖이 남으면 틈이다. */
-        const gap9 = bw9 > 0 && bh9 > 0 && fb9.z > 0 ? Math.max(
-          cx9 + s9f * (-pd9 - cx9) + tx9,
-          bw9 - (cx9 + s9f * (bw9 + pd9 - cx9) + tx9),
-          cy9 + s9f * (-pd9 - cy9) + ty9,
-          bh9 - (cy9 + s9f * (bh9 + pd9 - cy9) + ty9),
-        ) : 0;
-        /* 여기서 **칠하지는 않는다**(지적: 빈 띠는 사라졌는데 "팬 핀치가 무거워졌네") — 손끝 사건은
-           프레임마다 한 번이 아니라 폰에서 두 번까지 오고(120Hz), 그 자리에서 칠하면 한 프레임에 두 장이
-           되는 데다 입력 처리 자체가 그만큼 밀린다. 재기만 하고 **다음 rAF 한 장**(xfPaintNow 머리)에
-           맡긴다 — rAF는 화면에 그리기 **전에** 돌므로, 그 프레임은 빈 띠 없이 합성된다. */
-        if (gap9 > 0.5) {
-          fogGapRef9.current = gap9;
-          FOGM9.gap = Math.max(FOGM9.gap, gap9);
+        if (fb9.z > 0 && bw9 > 0 && bh9 > 0) {
+          const s09 = z1 / fb9.z;
+          /* 못 덮는 몫 — 판은 상자 좌표 [−여유, 폭+여유]를 이 변환에 태운 만큼 덮는다. */
+          const gapOf9 = (c9: number, p9: number, t9: number): number =>
+            Math.max(t9 - (s09 * c9 + s09 * p9 - c9), (c9 - s09 * (c9 + p9)) - t9);
+          const gap9 = Math.max(gapOf9(cx9, pdx9, px - s09 * fb9.x), gapOf9(cy9, pdy9, py - s09 * fb9.y));
+          if (gap9 > 0.5) {
+            FOGM9.gap = Math.max(FOGM9.gap, gap9);
+            if (!fogDoneRef9.current && fogPaintRef.current) {
+              fogDoneRef9.current = true;          // 이 프레임 몫은 썼다(다음 rAF가 푼다)
+              fogGapRef9.current = 0;
+              const pt09 = pNow();
+              fogPaintRef.current(z1, panRef.current);
+              FOGM9.g.pms += pNow() - pt09;
+              fogXfRef9.current = { z: z1, x: px, y: py };
+              const ft9 = fogTickRef9.current;
+              ft9.z = z1; ft9.px = px; ft9.py = py; ft9.at = pt09;
+              FOGM9.gest = true;
+              FOGM9.g.now += 1;
+            } else {
+              fogGapRef9.current = gap9;           // 이 프레임엔 못 칠했다 — 다음 rAF가 갚는다
+            }
+          }
         }
         const fx9 = xfDelta9(fogXfRef9.current, z1, px, py);
         fg9.style.transformOrigin = "center";
         if (fg9.style.transform !== fx9) fg9.style.transform = fx9;
+        /* 안 움직이는 막 — 손짓 중 · 평면 · 지도가 상자를 덮을 때만(위 CSS의 ★). */
+        if (box) {
+          const bg9 = xfGestureRef.current && !clipBoxRef.current.pitched && z1 > 1.001;
+          if (box.classList.contains("is-fogbg") !== bg9) box.classList.toggle("is-fogbg", bg9);
+        }
       }
       mapPaintRef.current?.(z1, panRef.current);
       /* ★ 미니맵은 손짓 중 **뜸하게** 다시 그린다(요청: "이동 시 더 빠르게 시점 변경") ────────────────────────
@@ -29089,9 +29112,12 @@ export default function ReplayMotionPlayer({
        안개 한 장은 이제 등고선 갈무리 + 길 하나 + 원 몇이라(군살 덜기) 유닛과 같은 자로 잴 것이 아니다.
        그러니 **못 덮을 때만, 프레임에 한 번** 여기서 먼저 갚는다 — 유닛이 미뤄지든 말든 안개는 늘 상자를
        덮는다. 갚고 나면 아래 붓의 안개 블록은 '같음'으로 지나간다(같은 보기·같은 판). */
+    fogDoneRef9.current = false;   // 새 프레임 — 손끝이 다시 한 장 쓸 수 있다(위 fogDoneRef9)
     if (fogGapRef9.current > 0.5 && fogPaintRef.current) {
       fogGapRef9.current = 0;
+      const pt09 = pNow();
       fogPaintRef.current(z1, panRef.current);
+      FOGM9.g.pms += pNow() - pt09;
       fogXfRef9.current = { z: z1, x: px, y: py };
       const ft9 = fogTickRef9.current;
       ft9.z = z1; ft9.px = px; ft9.py = py; ft9.at = performance.now();
@@ -29282,6 +29308,7 @@ export default function ReplayMotionPlayer({
     mapPaintRef.current?.(zoomRef.current, panRef.current);
     miniPaintRef.current?.(zoomRef.current, panRef.current);
     xfGestureRef.current = false;
+    mapRef.current?.classList.remove("is-fogbg");   // 손을 뗐다 — 안 움직이는 막은 걷는다(위 ★)
     viewDiagPush9("commit", `z${zoomRef.current.toFixed(2)} ${panRef.current.x.toFixed(1)},${panRef.current.y.toFixed(1)}`);
     /* 예약해 둔 한 장은 걷는다 — 손을 뗀 뒤에 도착하면 아래 커밋이 그릴 그림을 한 번
        더 그리는 셈이고, 그 사이에 컴포넌트가 사라지면 없는 캔버스를 잡는다. */
@@ -30601,7 +30628,9 @@ export default function ReplayMotionPlayer({
       if (need9 && !(xfGestureRef.current && gnow9 - (ft9.at ?? 0) < FOG_GEST_MS9)) {
         ft9.vis = fr9.visSrc; ft9.ver = fr9.visVer; ft9.explored = fr9.explored; ft9.tq = tq9; ft9.z = vz9; ft9.px = vx9; ft9.py = vy9;
         ft9.at = gnow9;
+        const pt09 = pNow();
         fogPaintRef.current(zoomRef.current, panRef.current, { vis: fr9.visSrc, exploredAt: fr9.explored, t: tNow9 });
+        fogBin9().pms += pNow() - pt09;
         fogXfRef9.current = { z: vz9, x: vx9, y: vy9 };   // 이 보기로 칠했다 — 임시 변환의 새 기준
         fogGapRef9.current = 0;                            // 못 덮던 빚도 이 한 장으로 갚혔다
         fogBin9().paint += 1;
@@ -33225,6 +33254,9 @@ export default function ReplayMotionPlayer({
               덮여도 되는 것들이다 — 제 팀 유닛은 늘 밝은 자리에 있고(시야의 임자다),
               잔상 건물은 원작에서도 안개 밑에 잠겨 보인다. 마법 효과 층(z 7000)은
               이보다 위라 안개에 안 잠긴다. */}
+          {/* 안 움직이는 막(위 CSS의 ★) — 손짓 동안만 켜진다. 안개 판이 못 덮는 띠에 비쳐
+              '밝은 구멍' 대신 '아직 안 밝힌 검정'이 서게 한다. */}
+          {fogOn && exploredAt && visNow && <div className="scr-motion-fogbg" aria-hidden />}
           {fogOn && exploredAt && visNow && (
               <ReplayFogLayer
                 className="scr-motion-fog"
