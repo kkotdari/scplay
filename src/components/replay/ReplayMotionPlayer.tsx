@@ -6410,6 +6410,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const ft = pvt(PL9, PH9);
       const bb = pvt(-PL9, 0);
       const bt = pvt(-PL9, PH9);
+      /** 포드 자리 하나 — 길이(dy)·높이(t)·좌우(x)로 준다. 앞면 구멍과 미사일이 이 자를 함께 쓴다. */
+      const P3 = (dy9: number, t9: number, x9: number): [number, number, number] => {
+        const q9 = pvt(dy9, t9);
+        return [rx + x9, q9[0], q9[1]];
+      };
       const front = polyPath3([
         [rx - 0.75, fb[0], fb[1]], [rx + 0.75, fb[0], fb[1]],
         [rx + 0.75, ft[0], ft[1]], [rx - 0.75, ft[0], ft[1]],
@@ -6442,8 +6447,59 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          faceLight 판정(재지적: 옆면이 한쪽뿐이라 가려지거나 남았다) — 앞·뒤는 기운
          법선(0,±0.96,0.27), 옆은 (±1,0)로 보이는 면만 제 음영과 함께. */
       const faces: ShapeFace[] = [];
+      /* ★ 앞면은 **푹 패인 포구**다(요청: "양쪽 포드 앞면은 속으로 푹 패여있고 미사일 세개가
+         포구에서 살짝 튀어나와있음") ────────────────────────────────────────────────────────
+         평평한 판 한 장이던 앞면을 셋으로 나눈다.
+           · 테두리 넷 — 바깥 모서리(±0.75 · t 0~PH9)와 구멍 모서리(±0.52 · t 0.55~PH9−0.55)
+             사이의 띠. 이것이 남아야 '판에 뚫린 구멍'으로 읽힌다.
+           · 속벽 넷 — 구멍 모서리에서 0.6 안으로 들어간 안쪽 모서리까지. 안을 향한 면이라
+             어둡게 깔아 깊이가 보이게 한다.
+           · 바닥 한 장 — 그 안쪽 모서리를 메우는 판.
+         그리고 미사일 셋을 그 속에서 내밀어 **끝만 포구 밖으로** 0.18 나오게 한다.
+         면 차례가 곧 앞뒤다(같은 키 묶음) — 테두리·속벽·바닥을 먼저, 미사일을 나중에 얹는다. */
       const fr = faceLight(0, 0.96, 0.27);
-      if (fr.visible) faces.push(bodyFace(front), ...fr.face(front));
+      if (fr.visible) {
+        const OX9 = 0.75; const OT0 = 0; const OT1 = PH9;          // 바깥 모서리
+        const HX9 = 0.52; const HT0 = 0.55; const HT1 = PH9 - 0.55; // 구멍 모서리
+        const IX9 = 0.44; const IT0 = 0.75; const IT1 = PH9 - 0.75; // 안쪽(패인) 모서리
+        const DEP9 = 0.6;
+        // 테두리 넷 — 위·아래·좌·우.
+        for (const q9 of [
+          [[-OX9, OT1], [OX9, OT1], [HX9, HT1], [-HX9, HT1]],
+          [[-OX9, OT0], [OX9, OT0], [HX9, HT0], [-HX9, HT0]],
+          [[-OX9, OT0], [-OX9, OT1], [-HX9, HT1], [-HX9, HT0]],
+          [[OX9, OT0], [OX9, OT1], [HX9, HT1], [HX9, HT0]],
+        ] as [number, number][][]) {
+          const d9 = polyPath3(q9.map(([x9, t9]) => P3(PL9, t9, x9)));
+          faces.push(bodyFace(d9), ...fr.face(d9));
+        }
+        // 속벽 넷 — 구멍에서 안으로. 안을 보는 면이라 어둡다.
+        for (const [h9, i9] of [
+          [[[-HX9, HT1], [HX9, HT1]], [[IX9, IT1], [-IX9, IT1]]],
+          [[[-HX9, HT0], [HX9, HT0]], [[IX9, IT0], [-IX9, IT0]]],
+          [[[-HX9, HT0], [-HX9, HT1]], [[-IX9, IT1], [-IX9, IT0]]],
+          [[[HX9, HT0], [HX9, HT1]], [[IX9, IT1], [IX9, IT0]]],
+        ] as [number, number][][][]) {
+          faces.push([polyPath3([
+            ...h9.map(([x9, t9]) => P3(PL9, t9, x9)),
+            ...i9.map(([x9, t9]) => P3(PL9 - DEP9, t9, x9)),
+          ]), 0.42, "#000"] as ShapeFace);
+        }
+        // 바닥 — 패인 자리의 맨 안쪽.
+        faces.push([polyPath3([
+          P3(PL9 - DEP9, IT0, -IX9), P3(PL9 - DEP9, IT0, IX9),
+          P3(PL9 - DEP9, IT1, IX9), P3(PL9 - DEP9, IT1, -IX9),
+        ]), 0.58, "#000"] as ShapeFace);
+        // 미사일 셋 — 포구에서 0.18만 내민다. 끝은 고깔로 닫는다.
+        for (const tc9 of [PH9 * 0.30, PH9 * 0.5, PH9 * 0.70]) {
+          faces.push(...paintBase(spirePillar({
+            x: 0, y: 0, h: 1, w: 1, segs: 5, sides: 8, caps: "none", trueNormal: true,
+            path: (u9: number): [number, number, number] => P3(PL9 - DEP9 + 0.78 * u9, tc9, 0),
+            widthOf: (u9: number): number => (u9 < 0.68 ? 0.185
+              : 0.185 * Math.sqrt(Math.max(0.0004, 1 - ((u9 - 0.68) / 0.32) ** 2))),
+          }), "#a8322a"));
+        }
+      }
       const bk = faceLight(0, -0.96, 0.27);
       if (bk.visible) faces.push(bodyFace(backQ), ...bk.face(backQ));
       for (const m2 of [1, -1] as const) {
