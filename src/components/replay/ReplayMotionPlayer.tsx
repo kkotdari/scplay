@@ -563,14 +563,27 @@ function xfDelta9(b: { z: number; x: number; y: number }, z: number, px: number,
  *    같음 — 보기·자료가 그대로라 건너뜀(팬 중에는 0이어야 한다)
  *    없음 — 그 장에 안개 자료가 없어 건너뜀(워커가 못 서는 중)
  *    미룸 — applyGestureXf가 무거워서 되돌아간 횟수(붓을 아예 안 부른 프레임) */
-const FOGM9 = { at: 0, brush: 0, paint: 0, same: 0, nosrc: 0, defer: 0 };
+/* ★ **손짓 창을 따로 센다**(1차 계측: 평소에는 붓56 칠36 미룸0 — 멀쩡했다) ────────────────
+   신고는 '손짓 중'인데 계량기는 그 순간을 못 집었다: 1초 창이 손짓 앞뒤의 멀쩡한 프레임과
+   섞이고, 손짓은 대개 1초를 못 채운다. 그래서 통을 둘로 나눈다 — 손짓 프레임은 손짓 통에만
+   쌓고, 손짓이 든 창은 **그대로 붙들어 둔다**(다음 손짓까지 안 지운다). 손가락을 떼고 찍어도
+   그 창의 수가 남아 있다. */
+type FogCnt9 = { brush: number; paint: number; same: number; nosrc: number; defer: number };
+const fogCnt9 = (): FogCnt9 => ({ brush: 0, paint: 0, same: 0, nosrc: 0, defer: 0 });
+const FOGM9 = { at: 0, gest: false, idle: fogCnt9(), g: fogCnt9(), gShow: "" };
+/** 지금 쌓을 통 — 손짓 프레임인가로 가른다. */
+const fogBin9 = (): FogCnt9 => (FOGM9.gest ? FOGM9.g : FOGM9.idle);
+const fogStr9 = (c9: FogCnt9): string =>
+  `붓${c9.brush} 칠${c9.paint} 같음${c9.same} 없음${c9.nosrc} 미룸${c9.defer}`;
 function fogMeterTick9(): void {
   const now9 = pNow();
   if (FOGM9.at === 0) { FOGM9.at = now9; return; }
   if (now9 - FOGM9.at < 1000) return;
-  SCR_DIAG.fog = `붓${FOGM9.brush} 칠${FOGM9.paint} 같음${FOGM9.same} 없음${FOGM9.nosrc} 미룸${FOGM9.defer}`;
+  if (FOGM9.g.brush > 0 || FOGM9.g.defer > 0) FOGM9.gShow = fogStr9(FOGM9.g);
+  SCR_DIAG.fog = `${fogStr9(FOGM9.idle)}${FOGM9.gShow ? ` · 손짓[${FOGM9.gShow}]` : ""}`;
   FOGM9.at = now9;
-  FOGM9.brush = 0; FOGM9.paint = 0; FOGM9.same = 0; FOGM9.nosrc = 0; FOGM9.defer = 0;
+  FOGM9.idle = fogCnt9();
+  FOGM9.g = fogCnt9();
 }
 const XF_HEAVY_MS9 = 55;
 /** 손끝이 이만큼 멈춰 있으면 '한 박자 쉰 것'으로 보고 무거운 자리에서도 한 장 그린다(마무리 한 장의 시계). */
@@ -29035,7 +29048,7 @@ export default function ReplayMotionPlayer({
     if (!live3d9 && xfPaintMsRef.current >= XF_HEAVY_MS9
       && !(box9 > 0 && moved >= box9 * XF_FAR_FRAC9)
       && now9 - xfMoveAtRef9.current < XF_STILL_MS9) {
-      FOGM9.defer += 1;
+      FOGM9.gest = true; fogBin9().defer += 1;
       if (!xfIdleRef9.current) {
         xfIdleRef9.current = window.setTimeout(() => {
           xfIdleRef9.current = 0;
@@ -30411,9 +30424,10 @@ export default function ReplayMotionPlayer({
        (지적: 감을 때 흔들림). 유닛 캔버스는 두 경로가 같은 객체(frameOpsRef9)를 찍으므로 그 문제가 없다. */
     /* 안개도 이 붓이 칠한다(재설계: 그리는 붓 하나) — 유닛과 **같은 장·같은 보기**라 두 층이 어긋날 수가 없다. 눈 목록·
        밝힌 판·보기가 그대로면 건너뛴다(아래 fogTickRef9). */
-    FOGM9.brush += 1;
+    FOGM9.gest = xfGestureRef.current;
+    fogBin9().brush += 1;
     fogMeterTick9();
-    if (!(fr9.visSrc && fr9.explored && fogPaintRef.current)) FOGM9.nosrc += 1;
+    if (!(fr9.visSrc && fr9.explored && fogPaintRef.current)) fogBin9().nosrc += 1;
     if (fr9.visSrc && fr9.explored && fogPaintRef.current) {
       const ft9 = fogTickRef9.current;
       // 0.25초 → 0.1초(요청: "안개 그리기 빈도 늘리기") — 밝힌 판·눈 목록이 그대로여도 경기 시간 0.1초마다 한 번은 칠한다.
@@ -30447,8 +30461,8 @@ export default function ReplayMotionPlayer({
         ft9.at = gnow9;
         fogPaintRef.current(zoomRef.current, panRef.current, { vis: fr9.visSrc, exploredAt: fr9.explored, t: tNow9 });
         fogXfRef9.current = { z: vz9, x: vx9, y: vy9 };   // 이 보기로 칠했다 — 임시 변환의 새 기준
-        FOGM9.paint += 1;
-      } else FOGM9.same += 1;
+        fogBin9().paint += 1;
+      } else fogBin9().same += 1;
     }
     /* ★ 안개 캔버스의 임시 변환 — **칠했으면 항등, 안 칠했으면 그 사이의 차**다(위 fogXfRef9).
        여태 무조건 항등으로 지워, 안 칠한 프레임에서 옛 그림이 새 자리에 그냥 섰다. */
