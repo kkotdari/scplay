@@ -3617,7 +3617,9 @@
   --scr-mini-w: calc(var(--scr-mini-h) * var(--scr-mini-ar, 1));
 }
 @media (min-width: 1160px) {
-  .scr-fs-layer.is-fs .scr-fs-root { --scr-mini-k: 3; }
+  /* 3 → **2.25**(요청: "PC 전체화면에서 미니맵 높이 25프로 축소") — 실측 449 → 337px.
+     조작부 줄 사이를 벌리면서 이 배수가 그대로면 미니맵이 화면의 절반에 닿았다. */
+  .scr-fs-layer.is-fs .scr-fs-root { --scr-mini-k: 2.25; }
 }
 .scr-fs-layer.is-fs .scr-fs-minipanel .scr-fs-minimap { width: 100%; height: var(--scr-mini-h); }
 .scr-fs-bottom {
@@ -3730,6 +3732,20 @@
 .scr-fs-bottom .scr-motion-range { grid-column: 2; grid-row: 2; width: 100%; }
 /* 꼬리 줄만 제 여백으로 띄운다 — 줄 사이 0의 예외(위 row-gap). */
 .scr-fs-bottom > .scr-fs-bottom-tail { grid-column: 1 / -1; grid-row: 3; justify-content: flex-start; margin-top: 3px; }
+/* ★ **넓은 화면은 줄 사이를 다시 연다**(요청: "피시에서 조작부 줄간격 늘리고") ────────────
+   줄 사이를 0으로 죈 까닭은 지도 위에 얹힌 이 판의 높이가 곧 가려지는 지형이라서였다
+   (폰에서 그 몫이 크다). PC는 화면이 넓어 그 손해가 작고, 오히려 세 줄이 붙어 한 덩이로
+   뭉쳐 보인다. 여기서만 도로 벌린다 — 줄 사이 8, 시각은 위로 한 뼘 더 띄우고 아래로는
+   덜 겹치게(−12 → −6), 꼬리도 한 단 멀리. */
+@media (min-width: 1160px) {
+  .scr-fs-bottom { row-gap: 8px; }
+  .scr-fs-bottom .scr-motion-clockwrap { margin-top: 10px; margin-bottom: -6px; }
+  .scr-fs-bottom > .scr-fs-bottom-tail { margin-top: 6px; }
+  /* ※ 미니맵은 여기서 **손으로 안 키운다** — 두 배치 다 조작부의 키에서 나온다.
+     프레임은 재생기가 오른 칸(버튼 줄 윗변 ~ 꼬리 줄 아랫변)을 재서 --scr-dock-mini에
+     얹고(그 손값을 여기서 적어도 곧 덮인다), 전체화면은 --scr-mini-h가 그 키의 배수다.
+     그래서 위에서 줄 사이를 벌린 만큼 **미니맵이 저절로 따라 커진다**(실측 122 → 143). */
+}
 .scr-fs-bottom .scr-kakao-share-btn { margin-left: 0; }
 .scr-fs-layer .scr-fs-bottom > .scr-motion-bar-controls { height: auto; }
 
