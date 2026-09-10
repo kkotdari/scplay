@@ -31533,9 +31533,19 @@ export default function ReplayMotionPlayer({
      뒤로는 리렌더가 한참 가벼워져 33ms 예산 안에 든다. 시간은 매 틱 어김없이
      쌓으므로(accRef) 재생 속도는 어느 주기든 같다. */
   const clockRef = useRef<{ raf: number; last: number; acc: number; drawn: number } | null>(null);
-  /* 핀치 중 재생 그리기 정지(지적: 확대축소 시 미니맵이 떨리고 튐) — 폰에서 20Hz
-     리렌더 하나가 수십 ms라, 핀치 커밋이 그 뒤에 줄 서며 제스처가 밀렸다. 두 손가락이
-     닿아 있는 동안은 시간도 표시도 멈추고 손짓에만 프레임을 쓴다. */
+  /* (걷어냄) 핀치 중 **재생 정지** — 두 손가락이 닿아 있는 동안 시간도 표시도 멈추던 자리다.
+     ★ 왜 걷었나(지적: "제스처 중 안개 빈 공간이 생기고 **동시에** 핵폭발 시 멈춘다 — 둘이
+       같이 나는 게 더 이상하다") ─────────────────────────────────────────────────────
+       이상하지 않다. 둘은 **한 줄에서 나온 한 가지**였다: 핀치 동안 `acc = 0`이라 시간이
+       안 가고, 그러면 붓 틱(paintFnRef9)도 React 틱(setT)도 안 돈다.
+         · 붓이 안 도니 안개가 새로 드러나는 자리를 못 채운다 → 빈 띠
+         · React가 안 도니 핵·스톰(재생 시각으로 CSS 애니를 긁는 효과)이 얼어붙는다
+       유닛만 멀쩡해 보인 것은 손짓 쪽(applyGestureXf)이 CSS 변환으로 밀고 제 박자로 한 장씩
+       칠하기 때문이다 — 즉 '유닛은 괜찮다'가 붓이 돈다는 증거가 아니었다.
+       멈춤을 넣은 까닭("폰에서 20Hz 리렌더 하나가 수십 ms")은 붓이 React 안에 있던 시절의
+       것이다. 지금 붓은 React 밖이고 React는 100ms 박자다. 게다가 **한 손 드래그는 이 깃발을
+       안 세우는데** 거기서는 아무 문제가 없었다 — 핀치만 다르게 둘 까닭이 사라졌다.
+       한 번에 뛰는 몫은 아래 80ms 상한(advWall9)이 이미 막는다. */
   const gestureRef = useRef(false);
   useEffect(() => {
     if (!playing || !active) return undefined;
@@ -31615,7 +31625,7 @@ export default function ReplayMotionPlayer({
         hold9.win = 0;
         hold9.winDt = 0;
       }
-      const acc = gestureRef.current || warmingRef.current || holding9
+      const acc = warmingRef.current || holding9
         ? 0 : (c?.acc ?? 0) + dt;
       const drawnAt = c?.drawn ?? 0;
       const draw = acc > 0 && now - drawnAt >= drawGapMs();
