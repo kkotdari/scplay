@@ -6,7 +6,7 @@ import {
 import { createPortal } from "react-dom";
 import { useBgm } from "./useBgm";
 import RosterTableIcon from "./RosterTableIcon";
-import { BookOpen, Bookmark, Crosshair, Eye, EyeOff, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Share2, Users } from "lucide-react";
+import { BookOpen, Bookmark, Crosshair, Eye, EyeOff, Map as MapIcon, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Share2, Users } from "lucide-react";
 import ReplayGuide from "./ReplayGuide";
 /* 미니맵 — 이제 **제 오버레이 판**이고 제 아이콘으로 여닫는다(요청: "미니맵 오버레이
    및 아이콘 추가"). 도구 판 안에 세들어 살던 시절과 달리, 켜고 끄는 것이 이것 하나다. */
@@ -27191,7 +27191,8 @@ export default function ReplayMotionPlayer({
   const [guideOpen9, setGuideOpen9] = useState(false);
   /** ★ **오버레이 숨기기**(요청: "오른쪽 아래 사용법 버튼 대신 도구 숨기기 아이콘 버튼 추가:
    *  누르면 모든 오버레이가 숨겨지고 숨기기 아이콘 있던 자리에 오버레이 보이기 버튼이 존재,
-   *  누르면 이전 오버레이 상태 그대로 복구") ────────────────────────────────────────────
+   *  누르면 이전 오버레이 상태 그대로 복구" · 정정: "도구만 숨겨야 하는데 로스터 미니맵까지
+   *  숨기면 안 돼") ─────────────────────────────────────────────────────────────────────
    *  '이전 상태 그대로'가 요점이라 **아무 상태도 안 건드린다** — 판에 클래스 한 겹을 얹어
    *  CSS가 걷을 뿐이다. 로스터 단수·미니맵·아이콘 줄·재생바의 상태는 손대지 않으므로,
    *  다시 켜면 저절로 있던 그대로다(끌 때 상태를 지웠다가 되살리는 길은 어딘가 한 칸을
@@ -28119,7 +28120,7 @@ export default function ReplayMotionPlayer({
    *    셈: 미니맵이 지도 한 귀퉁이를 가리니 필요할 때 부르자). 원작에서도 미니맵은 늘
    *    떠 있는 것이고, 확대해서 보는 판일수록 '지금 어디를 보고 있나'가 먼저 필요하다.
    *    가리는 것이 싫으면 제 아이콘으로 끈다. */
-  /* (걷어냄) 미니맵 여닫이 상태 — 그 단추를 걷었다(위 ★). 미니맵은 늘 선다. */
+  const [fsMiniOn, setFsMiniOn] = useState(true);
   /* 배경 음악(요청) — 켜기·끄기와 곡 고르기는 전부 useBgm 안이다. 기기 음량·무음을
      따르는 방법(아무것도 안 건드리기)과 안드로이드의 한계가 그 파일 머리에 적혀 있다.
      재생 여부를 넘긴다(요청: "재생 멈추면 음악도 멈추기") — 일시정지·되감기 잡고
@@ -32079,10 +32080,26 @@ export default function ReplayMotionPlayer({
           {rosterMode === 1 ? <RosterTableIcon size={18} /> : <Users size={18} />}
         </button>
       )}
-      {/* (걷어냄·요청: "지도 토글 제거") — 전체화면의 미니맵 여닫이 아이콘이 있던 자리다.
-          미니맵은 이제 왼쪽 아래 구석에 조종부와 밑변을 맞춰 앉고, 그 오른쪽이 통째로
-          조작부다 — 지도를 가리는 자리가 아니라 **독의 한 칸**이라 끌 까닭이 없어졌다.
-          오버레이를 통째로 걷고 싶으면 꼬리 줄의 숨기기 단추 하나가 그 일을 한다. */}
+      {/* 미니맵 오버레이(요청) — 로스터와 같은 자리·같은 결의 여닫이다. 아이콘은 지도
+          모양: 이 버튼이 여는 것이 '작은 지도' 그 자체다. 전체화면에만 둔다 — 일반 화면
+          에서 미니맵은 지도 밖 독에 제 자리를 가져 지도를 안 가린다.
+          ★ 한 번 걷었다가 **되돌렸다**(요청: "지도 토글 제거" → 정정: "미니맵 숨기기
+            버튼은 있어야겠다 복구") — 미니맵이 조종부와 밑변을 맞춰 내려앉으며 덜 가리게
+            됐지만 그 구석도 여전히 지도라, 걷어 보고 싶을 때가 있다. 아래 '도구 숨기기'는
+            조작 손잡이만 걷으므로(로스터·미니맵은 남긴다) 겹치지 않는다 — 미니맵을 걷는
+            길은 이 단추 하나뿐이다. */}
+      {fsOn && (
+        <button
+          type="button"
+          className={cx("scr-motion-litbtn scr-motion-mapbtn", fsMiniOn && "is-on")}
+          onClick={() => setFsMiniOn((v) => !v)}
+          aria-pressed={fsMiniOn}
+          aria-label={fsMiniOn ? "미니맵 숨기기" : "미니맵 보이기"}
+          title="미니맵"
+        >
+          <MapIcon size={18} />
+        </button>
+      )}
       {/* ★ 배속·각도·확대는 **지도 위에 값으로** 선다(요청: "배속/각도도 사이드패널이나
           오버레이에서 제거하고 맵 버튼로우로 옮겨서 상시 노출 · 버튼은 아이콘이 아닌
           실제 적용된 수치를 표현 · 확대축소도 버튼추가하고 배속이랑 안헷갈리게") ──────
@@ -33504,7 +33521,7 @@ translate: `${(-(Math.round((-fp9 * (1 - dropP9 ** 2) - hp9 * 0.275 - hp9 * 1.42
             패널로 인식가능") — 미니맵은 제 테두리를 가진 네모라, 그 밖에 또 판을 두르면
             테두리가 겹으로 서고 그 사이 여백이 지도를 가린다. 자리 잡는 몫만 남긴다
             (.scr-fs-minipanel이 그 일을 이제 스스로 한다). */}
-        {(
+        {(fsOn ? fsMiniOn : true) && (
           <div className="scr-fs-minipanel">
             <div className="scr-motion-minibox">
               <ReplayFullscreenMinimap
@@ -33625,11 +33642,11 @@ translate: `${(-(Math.round((-fp9 * (1 - dropP9 ** 2) - hp9 * 0.275 - hp9 * 1.42
                   className="scr-kakao-share-btn scr-fs-hidebtn"
                   onClick={() => setFsHide9((v9) => !v9)}
                   aria-pressed={fsHide9}
-                  aria-label={fsHide9 ? "오버레이 보이기" : "도구 숨기기"}
-                  title={fsHide9 ? "오버레이 보이기" : "도구 숨기기"}
+                  aria-label={fsHide9 ? "도구 보이기" : "도구 숨기기"}
+                  title={fsHide9 ? "도구 보이기" : "도구 숨기기"}
                 >
                   {fsHide9 ? <Eye /> : <EyeOff />}
-                  {fsHide9 ? "보이기" : "숨기기"}
+                  {fsHide9 ? "도구 보이기" : "도구 숨기기"}
                 </button>
               ) : guide && (
                 <button type="button" className="scr-kakao-share-btn scr-guide-btn" onClick={openGuide9} aria-label="사용법" title="사용법">
