@@ -33,6 +33,8 @@ const smallDev9 = typeof window !== "undefined"
   && !!window.matchMedia?.("(pointer: coarse)").matches
   && Math.max(window.screen?.width ?? 0, window.screen?.height ?? 0) <= 1180;
 
+/** 밝힘 등고선을 다시 뽑는 최소 간격(ms) — 폰은 더 뜸하게(위 ①의 ★). */
+const CT_MS9 = smallDev9 ? 240 : 120;
 /** 밝혔지만 안 보이는 칸의 덮개 짙기(0~1). */
 const DIM = 0.6;
 /** 안개 색 — 순검정이 아니라 푸른 밤. 순검정은 지형색을 통째로 죽인다. */
@@ -41,7 +43,7 @@ const FOG_RGB = "5, 8, 14";
 export type FogOverride = { vis: Float32Array; exploredAt: Uint16Array; t: number };
 
 export default function ReplayFogLayer({
-  w, h, exploredAt, t, vis, proj, zoom, pan, tilePx, flatK, className, painter, onNeedPaint,
+  w, h, exploredAt, t, vis, proj, zoom, pan, tilePx, flatK, flat, className, painter, onNeedPaint,
 }: {
   /** 지도 격자 크기(타일). */
   w: number;
@@ -60,6 +62,8 @@ export default function ReplayFogLayer({
   tilePx: number;
   /** 입체 보기의 바닥 눌림 — 시야 원의 세로 반지름에 곱한다(평면이면 1). */
   flatK: number;
+  /** 평면 보기인가(눕히지 않았나) — 참이면 사상이 **1차식**이라 등고선을 캔버스 변환으로 한 번에 옮긴다(아래 ③). */
+  flat?: boolean;
   className?: string;
   /** 붓 넘기는 자리(지적: "줌시 맵은 변하는데 시야안개는 안변해서 이상함 바로 같이
    *  변하게 벡터니까 가능할듯") — 맞다, 벡터라 다시 그리는 삯이 거의 없다. 손짓
@@ -70,8 +74,9 @@ export default function ReplayFogLayer({
   onNeedPaint?: () => void;
 }): React.ReactElement {
   const cvRef = useRef<HTMLCanvasElement>(null);
-  /** 밝힘 등고선 갈무리 — 밝힌 칸 수가 바뀔 때만 다시 뽑는다. */
-  const ctRef = useRef<{ count: number; loops: Loop[] } | null>(null);
+  /** 밝힘 등고선 갈무리 — 아래 ①의 규칙(판이 바뀌고 · 뜸하게)으로만 다시 뽑는다.
+   *  `path`는 같은 고리를 **타일 자리** 그대로 담은 길이다(평면 빠른 길, 아래 ③). */
+  const ctRef = useRef<{ count: number; loops: Loop[]; path: Path2D | null; at: number; ver: number; t: number } | null>(null);
   const fldRef = useRef<{ n: number; f: Float32Array; tmp: Float32Array } | null>(null);
   /* ★ 붓이 React 밖에서 넘기는 최신 안개(지적: "유닛은 부드러운데 안개는 뚝뚝") — React 상태 t는 100ms 박자라
      props의 vis/exploredAt만 쓰면 안개가 초당 열 번만 바뀐다. 붓 틱이 고른 장의 안개를 painter의 셋째 인자로
@@ -80,7 +85,7 @@ export default function ReplayFogLayer({
      크게 갈리면 props를 따른다. */
   const latestRef = useRef<FogOverride>({ vis, exploredAt, t });
   /** 밝힌 판의 합(칸마다 가장 이른 밝힘 시각) — 위 paint의 ★ 주석. src는 마지막으로 합친 원본(같은 판이면 건너뛴다). */
-  const mergedRef = useRef<{ src: Uint16Array | null; out: Uint16Array | null }>({ src: null, out: null });
+  const mergedRef = useRef<{ src: Uint16Array | null; out: Uint16Array | null; ver: number }>({ src: null, out: null, ver: 0 });
   {
     const lt = latestRef.current;
     if (t >= lt.t - 1e-6 || Math.abs(t - lt.t) > 0.5 || lt.exploredAt.length !== exploredAt.length) {
@@ -114,6 +119,9 @@ export default function ReplayFogLayer({
         for (let i = 0; i < src9.length; i += 1) if (src9[i] < o9[i]) o9[i] = src9[i];
       }
       mg9.src = src9;
+      /* 합친 판은 **자리를 그대로 두고 고친다**(같은 배열) — 그러니 '바뀌었나'를 배열 동일성으로 못 본다.
+         합칠 때마다 올리는 이 표가 그 자다(아래 ①이 이 표로 등고선 다시 뽑기를 가른다). */
+      mg9.ver += 1;
       return mg9.out;
     })();
     const cv = cvRef.current;
@@ -156,39 +164,64 @@ export default function ReplayFogLayer({
     ctx.setTransform(B, 0, 0, B, 0, 0);
     ctx.clearRect(0, 0, vw, vh);
 
-    // ── ① 밝힘 등고선 — 밝힌 칸 수가 바뀌었을 때만 다시 뽑는다 ────────────────
+    // ── ① 밝힘 등고선 — 판이 바뀌고, 그것도 뜸하게만 다시 뽑는다(아래 ★) ──────
     const n = w * h;
     let fb = fldRef.current;
     if (!fb || fb.n !== n) {
       fb = { n, f: new Float32Array(n), tmp: new Float32Array(n) };
       fldRef.current = fb;
     }
-    let count = 0;
-    for (let i = 0; i < n; i += 1) if (exploredAt[i] <= t) count += 1;
-    if (!ctRef.current || ctRef.current.count !== count) {
-      const { f, tmp } = fb;
-      for (let i = 0; i < n; i += 1) f[i] = exploredAt[i] <= t ? 1 : 0;
-      /* 한 겹만 흐린다 — 등고선은 아래 Chaikin이 다시 깎으므로 여기서 많이 흐리면
-         밝힌 자리가 실제보다 줄어든다. 이건 타일 모서리를 죽이는 몫이다. */
-      for (let y = 0; y < h; y += 1) {
-        const r = y * w;
-        for (let x = 0; x < w; x += 1) {
-          const l = f[r + (x > 0 ? x - 1 : 0)];
-          const c = f[r + x];
-          const g = f[r + (x < w - 1 ? x + 1 : w - 1)];
-          tmp[r + x] = (l + 2 * c + g) * 0.25;
-        }
-      }
-      for (let x = 0; x < w; x += 1) {
+    /* ★ 등고선은 **뜸하게** 다시 뽑는다(요청: "부드럽게 그리기 위한 로직이 많이 붙은 것 같은데 덜 수 있나") ──
+       한 번 뽑는 삯이 만만찮다 — 128² 밭에서 밭 짓기+마칭 스퀘어+Chaikin 두 번이 PC 2.3ms(폰은 그 몇 배)다.
+       그런데 여태 판단 자는 '밝힌 칸 수가 바뀌었나' 하나뿐이라, 경기 중에는 칸이 쉬지 않고 늘어 **붓 프레임마다**
+       (손짓 중 초당 49번) 다시 뽑을 수 있었다. 그게 이 층에 남은 가장 큰 군살이다.
+       늦어도 되는 까닭: 이 등고선은 '밝혔지만 **지금은 안 보이는**' 자리의 테다. 방금 밝혀진 자리는 그 순간
+       시야 원(아래 ③, 매 프레임 그린다) 안이라 이미 훤하다 — 등고선이 늦게 따라와도 눈에 뵈는 데가 없다.
+       그래서 판이 바뀌었거나 시각이 흐른 프레임에만 칸을 세고(보기만 바뀐 손짓 프레임은 세지도 않는다),
+       다시 뽑기는 기기별 간격(CT_MS9)으로 죈다. 탐색·되감기처럼 **크게** 갈린 때는 그 자리에서 뽑는다. */
+    const mgv9 = mergedRef.current.ver;
+    const ct9 = ctRef.current;
+    if (!ct9 || ct9.ver !== mgv9 || ct9.t !== t) {
+      let count = 0;
+      for (let i = 0; i < n; i += 1) if (exploredAt[i] <= t) count += 1;
+      const now9 = typeof performance === "undefined" ? Date.now() : performance.now();
+      const jump9 = !ct9 || Math.abs(count - ct9.count) > n / 64;
+      if (ct9) { ct9.ver = mgv9; ct9.t = t; }
+      if (!ct9 || (ct9.count !== count && (jump9 || now9 - ct9.at >= CT_MS9))) {
+        const { f, tmp } = fb;
+        for (let i = 0; i < n; i += 1) f[i] = exploredAt[i] <= t ? 1 : 0;
+        /* 한 겹만 흐린다 — 등고선은 아래 Chaikin이 다시 깎으므로 여기서 많이 흐리면
+           밝힌 자리가 실제보다 줄어든다. 이건 타일 모서리를 죽이는 몫이다. */
         for (let y = 0; y < h; y += 1) {
-          const u = tmp[(y > 0 ? y - 1 : 0) * w + x];
-          const c = tmp[y * w + x];
-          const dn = tmp[(y < h - 1 ? y + 1 : h - 1) * w + x];
-          f[y * w + x] = (u + 2 * c + dn) * 0.25;
+          const r = y * w;
+          for (let x = 0; x < w; x += 1) {
+            const l = f[r + (x > 0 ? x - 1 : 0)];
+            const c = f[r + x];
+            const g = f[r + (x < w - 1 ? x + 1 : w - 1)];
+            tmp[r + x] = (l + 2 * c + g) * 0.25;
+          }
         }
+        for (let x = 0; x < w; x += 1) {
+          for (let y = 0; y < h; y += 1) {
+            const u = tmp[(y > 0 ? y - 1 : 0) * w + x];
+            const c = tmp[y * w + x];
+            const dn = tmp[(y < h - 1 ? y + 1 : h - 1) * w + x];
+            f[y * w + x] = (u + 2 * c + dn) * 0.25;
+          }
+        }
+        const loops = contoursOf(f, w, h).map((lp) => chaikin(chaikin(lp)));
+        /* 평면에서 쓸 길은 **타일 자리 그대로** 여기서 한 번 짓는다(아래 ③) — 화면 자리는 배율·팬을 타므로
+           칠할 때마다 달라지지만, 타일 자리는 등고선이 바뀔 때까지 그대로다. */
+        const path9 = new Path2D();
+        for (const lp of loops) {
+          const m9 = lp.length / 2;
+          if (m9 < 3) continue;
+          path9.moveTo(lp[0], lp[1]);
+          for (let i = 1; i < m9; i += 1) path9.lineTo(lp[i * 2], lp[i * 2 + 1]);
+          path9.closePath();
+        }
+        ctRef.current = { count, loops, path: path9, at: now9, ver: mgv9, t };
       }
-      const loops = contoursOf(f, w, h).map((lp) => chaikin(chaikin(lp)));
-      ctRef.current = { count, loops };
     }
 
     // ── ② 화면 사상 — 유닛 캔버스(UnitLayer)와 **같은 식**이라야 층이 안 어긋난다.
@@ -207,7 +240,8 @@ export default function ReplayFogLayer({
     ctx.fillStyle = `rgba(${FOG_RGB}, 1)`;
     ctx.beginPath();
     for (let i = 0; i < 4; i += 1) {
-      const [cxg, cyg] = [[0, 0], [w, 0], [w, h], [0, h]][i];
+      const cxg = i === 1 || i === 2 ? w : 0;
+      const cyg = i >= 2 ? h : 0;
       const [fx, fy] = proj(cxg, cyg);
       const px = zx(fx);
       const py = zy(fy);
@@ -218,18 +252,34 @@ export default function ReplayFogLayer({
     ctx.globalCompositeOperation = "destination-out";
     // 밝힌 곳 — 등고선 길을 채워 그만큼 알파를 덜어낸다(1 → DIM).
     ctx.globalAlpha = 1 - DIM;
-    ctx.beginPath();
-    for (const lp of ctRef.current.loops) {
-      const m = lp.length / 2;
-      for (let i = 0; i < m; i += 1) {
-        const [fx, fy] = proj(lp[i * 2], lp[i * 2 + 1]);
-        const px = zx(fx);
-        const py = zy(fy);
-        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    /* ★ 평면에서는 점을 **하나도 안 옮긴다**(같은 요청: 군살 덜기) ─────────────────────────
+       Chaikin 두 번을 거친 등고선은 점이 수천이다(실측 128² 밭에서 7천). 여태 칠할 때마다 그 점을
+       전부 proj → zx/zy로 밀어 길을 새로 지었다 — 손짓 중이면 초당 마흔아홉 번이다.
+       그런데 평면 사상은 fx = x/w, 화면 = (fx−0.5)·cw·zoom + … 이라 x에 대한 **1차식**이다. 1차식은
+       캔버스 변환이 공짜로 해 주는 일이므로, 타일 자리로 한 번 지어 둔 길(위 ①의 path)을 그대로 놓고
+       변환만 갈아 끼우면 된다. 눕힌 보기(원근)만 옛길로 점마다 민다. */
+    const ctn9 = ctRef.current;
+    const cpath9 = ctn9?.path ?? null;
+    if (flat && cpath9) {
+      const kx9 = (cw * zoom) / w;
+      const ky9 = (ch * zoom) / h;
+      ctx.setTransform(B * kx9, 0, 0, B * ky9, B * zx(0), B * zy(0));
+      ctx.fill(cpath9, "evenodd");
+      ctx.setTransform(B, 0, 0, B, 0, 0);
+    } else {
+      ctx.beginPath();
+      for (const lp of ctn9?.loops ?? []) {
+        const m = lp.length / 2;
+        for (let i = 0; i < m; i += 1) {
+          const [fx, fy] = proj(lp[i * 2], lp[i * 2 + 1]);
+          const px = zx(fx);
+          const py = zy(fy);
+          if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
       }
-      ctx.closePath();
+      ctx.fill("evenodd");
     }
-    ctx.fill("evenodd");
     /* 지금 보이는 곳 — **진짜 원**을 판다. 시야는 본디 원들의 합집합이라, 격자를
        거치지 않고 그대로 그리면 어느 배율에서도 계단이 없다. */
     ctx.globalAlpha = 1;

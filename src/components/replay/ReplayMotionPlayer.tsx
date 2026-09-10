@@ -33092,7 +33092,7 @@ export default function ReplayMotionPlayer({
                 vis={frame9.visSrc} proj={posFrac}
                 zoom={zoom} pan={pan}
                 tilePx={(mapRef.current?.clientWidth ?? 320) / grid.width}
-                flatK={pitched ? pitchFlat : 1}
+                flatK={pitched ? pitchFlat : 1} flat={!pitched}
                 painter={fogPaintRef} onNeedPaint={requestFogPaint9}
               />
             )}
