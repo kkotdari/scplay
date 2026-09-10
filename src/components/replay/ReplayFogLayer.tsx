@@ -128,14 +128,33 @@ export default function ReplayFogLayer({
        테가 계단으로 읽히지 않는다. 그림자 판을 낮춰 구운 것과 같은 결이다. */
     const B = Math.min(smallDev9 ? 1.5 : 2,
       typeof window === "undefined" ? 1 : (window.devicePixelRatio || 1));
-    if (cv.width !== Math.round(cw * B) || cv.height !== Math.round(ch * B)) {
-      cv.width = Math.round(cw * B);
-      cv.height = Math.round(ch * B);
+    /* ★ 안개 판은 상자보다 **한 뼘 크다**(지적: "제스쳐중 안개 빈공간이 생긴다" — 팬·핀치 둘 다) ──────────
+       계량기가 손짓 중 안개를 초당 49장, 붓 프레임마다 빠짐없이 칠하는 것을 보였다(붓7 칠7 같음0 미룸0).
+       그러니 빈 띠는 **박자**가 아니라 **덮는 넓이** 몫이다: 손끝은 포인터 사건에서 곧장 CSS 변환으로 판을
+       밀고(applyGestureXf), 새로 칠하는 것은 그 다음 rAF다. 그 한 프레임 동안 판은 제가 칠해 둔 자리 밖으로
+       나가고 — 끌기면 뒤쪽 가장자리에 '움직인 만큼'의 띠가, 줌아웃이면 (1−s)/2씩 사방에 테가 — 그 자리에는
+       칠한 픽셀이 없다. 유닛 층도 기하가 똑같지만 그쪽 빈 띠는 **투명**이라 눈에 안 띄고, 안개의 빈 띠는
+       덮여 있어야 할 지도가 통째로 밝게 드러나는 구멍이라 곧장 읽힌다 — 그것이 "유닛층은 괜찮은데 안개만"이다.
+       고치는 자리는 하나다: 판을 상자보다 PAD만큼 크게 잡고 그만큼 옮겨 그린다. 그러면 한 프레임 동안의
+       밀림·줄임이 전부 **이미 칠해 둔** 자리 안에서 일어난다. 삯은 넓이 (1+2·0.08)² ≈ 1.35배뿐이고, 지도
+       사각형 밖은 어차피 안 칠하므로(아래 사다리꼴) 실제 그리는 몫은 그대로다. */
+    const PAD = Math.round(Math.min(120, Math.max(cw, ch) * 0.08));
+    const vw = cw + PAD * 2;
+    const vh = ch + PAD * 2;
+    if (cv.width !== Math.round(vw * B) || cv.height !== Math.round(vh * B)) {
+      cv.width = Math.round(vw * B);
+      cv.height = Math.round(vh * B);
+    }
+    if (cv.style.width !== `${vw}px` || cv.style.left !== `${-PAD}px`) {
+      cv.style.left = `${-PAD}px`;
+      cv.style.top = `${-PAD}px`;
+      cv.style.width = `${vw}px`;
+      cv.style.height = `${vh}px`;
     }
     const ctx = cv.getContext("2d");
     if (!ctx) return;
     ctx.setTransform(B, 0, 0, B, 0, 0);
-    ctx.clearRect(0, 0, cw, ch);
+    ctx.clearRect(0, 0, vw, vh);
 
     // ── ① 밝힘 등고선 — 밝힌 칸 수가 바뀌었을 때만 다시 뽑는다 ────────────────
     const n = w * h;
@@ -173,8 +192,9 @@ export default function ReplayFogLayer({
     }
 
     // ── ② 화면 사상 — 유닛 캔버스(UnitLayer)와 **같은 식**이라야 층이 안 어긋난다.
-    const zx = (fx: number): number => (fx - 0.5) * cw * zoom + cw / 2 + pan.x;
-    const zy = (fy: number): number => (fy - 0.5) * ch * zoom + ch / 2 + pan.y;
+    // 판이 상자보다 PAD만큼 크므로(위) 같은 식에 PAD만 더한다 — 사상 자체는 유닛 캔버스와 그대로 같다.
+    const zx = (fx: number): number => (fx - 0.5) * cw * zoom + cw / 2 + pan.x + PAD;
+    const zy = (fy: number): number => (fy - 0.5) * ch * zoom + ch / 2 + pan.y + PAD;
 
     // ── ③ 안개를 통째로 깔고, 밝힌 곳과 보이는 곳을 판다 ──────────────────────
     /* ★ 안개는 **지도 위에만** 깔린다(지적: 3D에서 하늘 아래가 까맣다) ─────────────────
