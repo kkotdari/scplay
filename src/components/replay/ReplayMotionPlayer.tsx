@@ -11,7 +11,7 @@ import ReplayGuide from "./ReplayGuide";
 /* 미니맵 — 이제 **제 오버레이 판**이고 제 아이콘으로 여닫는다(요청: "미니맵 오버레이
    및 아이콘 추가"). 도구 판 안에 세들어 살던 시절과 달리, 켜고 끄는 것이 이것 하나다. */
 import ReplayFullscreenMinimap, { type MiniDot } from "./ReplayFullscreenMinimap";
-import ReplayFogLayer, { type FogOverride } from "./ReplayFogLayer";
+import ReplayFogLayer, { fogPad9, type FogOverride } from "./ReplayFogLayer";
 /* (걷어냄) PillTabs — 품질 알약이 있던 시절의 것(도구 판과 함께 미사용). */
 import { cx } from "./cx";
 /* 프사·종족 배지·알림은 **앱이 꽂는다**(chrome.ts 머리말) — 모듈은 그 구현을 안 갖는다. */
@@ -568,23 +568,27 @@ function xfDelta9(b: { z: number; x: number; y: number }, z: number, px: number,
    섞이고, 손짓은 대개 1초를 못 채운다. 그래서 통을 둘로 나눈다 — 손짓 프레임은 손짓 통에만
    쌓고, 손짓이 든 창은 **그대로 붙들어 둔다**(다음 손짓까지 안 지운다). 손가락을 떼고 찍어도
    그 창의 수가 남아 있다. */
-type FogCnt9 = { brush: number; paint: number; same: number; nosrc: number; defer: number; ms: number };
-const fogCnt9 = (): FogCnt9 => ({ brush: 0, paint: 0, same: 0, nosrc: 0, defer: 0, ms: 0 });
+type FogCnt9 = { brush: number; paint: number; same: number; nosrc: number; defer: number; now: number; ms: number };
+const fogCnt9 = (): FogCnt9 => ({ brush: 0, paint: 0, same: 0, nosrc: 0, defer: 0, now: 0, ms: 0 });
 /* ★ 손짓 통에는 **그 창에서 손짓이 실제로 돈 시간**도 쌓는다 — 안 그러면 수를 못 읽는다:
    1초 창에 손짓이 0.1초만 들었으면 '붓4'는 초당 40번이라는 뜻이고, 0.9초 들었으면 초당
    4번이라는 뜻이다(둘은 정반대 진단이다). 붓이 잇달아 불린 사이만 더한다. */
-const FOGM9 = { at: 0, gest: false, was: false, last: 0, idle: fogCnt9(), g: fogCnt9(), gShow: "" };
+/** `gap`은 '칠해 둔 자리가 상자를 못 덮은 가장 큰 몫'(px) · `nowAt`은 그때 곧장 칠한 마지막 시각. */
+const FOGM9 = { at: 0, gest: false, was: false, last: 0, gap: 0, nowAt: 0, idle: fogCnt9(), g: fogCnt9(), gShow: "" };
 /** 지금 쌓을 통 — 손짓 프레임인가로 가른다. */
 const fogBin9 = (): FogCnt9 => (FOGM9.gest ? FOGM9.g : FOGM9.idle);
 const fogStr9 = (c9: FogCnt9, rate9 = false): string =>
   `붓${c9.brush}${rate9 && c9.ms > 60 ? `(${((c9.brush * 1000) / c9.ms).toFixed(0)}/s)` : ""}`
-  + ` 칠${c9.paint} 같음${c9.same} 없음${c9.nosrc} 미룸${c9.defer}`
+  + ` 칠${c9.paint} 같음${c9.same} 없음${c9.nosrc} 미룸${c9.defer} 즉시${c9.now}`
   + (rate9 ? ` ${(c9.ms / 1000).toFixed(2)}초` : "");
 function fogMeterTick9(): void {
   const now9 = pNow();
   if (FOGM9.at === 0) { FOGM9.at = now9; return; }
   if (now9 - FOGM9.at < 1000) return;
-  if (FOGM9.g.brush > 0 || FOGM9.g.defer > 0) FOGM9.gShow = fogStr9(FOGM9.g, true);
+  if (FOGM9.g.brush > 0 || FOGM9.g.defer > 0 || FOGM9.g.now > 0) {
+    FOGM9.gShow = `${fogStr9(FOGM9.g, true)} 틈${FOGM9.gap.toFixed(0)}px`;
+    FOGM9.gap = 0;
+  }
   /* 손짓 칸은 **늘 보인다**(빈 채로라도) — 안 보이면 사용자가 '새 판이 안 실렸나'와 '아직
      안 끌었나'를 못 가른다(실제로 한 번 헛걸음했다). 아직 없으면 '대기'라고 적는다. */
   SCR_DIAG.fog = `${fogStr9(FOGM9.idle)} · 손짓[${FOGM9.gShow || "대기"}]`;
@@ -28943,9 +28947,46 @@ export default function ReplayMotionPlayer({
       /* 안개는 **제 기준**으로 민다(위 fogXfRef9) — 유닛과 다른 박자로 칠해지므로 같은
          델타를 걸면 그만큼 어긋난 자리에 선다. */
       if (fg9) {
-        const fx9 = xfDelta9(fogXfRef9.current, z1, px, py);
-        fg9.style.transformOrigin = "center";
-        if (fg9.style.transform !== fx9) fg9.style.transform = fx9;
+        /* ★ 밀어 놓고도 **상자를 못 덮으면 그 자리에서 한 장 칠한다**(지적: 판을 한 뼘 키운 뒤에도
+           "아직 빈 띠가 보여") ─────────────────────────────────────────────────────────────────
+           여유(fogPad9)는 한 프레임의 움직임을 담자는 것인데, 빠른 던지기(플릭)는 한 프레임에
+           그 여유를 넘는다 — 6배에서 손끝 3000px/s면 프레임당 90px이고 폰 여유는 67px이다.
+           넘은 그만큼이 곧 안 칠한 띠다. 그러니 여유에 기대지 말고 **재서** 넘으면 지금 칠한다:
+           칠하는 삯은 이제 등고선 갈무리 + 길 하나 + 원 몇이라(위 군살 덜기) 손짓 프레임에 얹어도
+           되는 몫이고, 넘는 프레임에서만 든다. 이러면 빈 띠는 구조적으로 안 난다. */
+        const fb9 = fogXfRef9.current;
+        const s9f = fb9.z > 0 ? z1 / fb9.z : 1;
+        const tx9 = px - s9f * fb9.x;
+        const ty9 = py - s9f * fb9.y;
+        const bw9 = box?.clientWidth ?? 0;
+        const bh9 = box?.clientHeight ?? 0;
+        const pd9 = fogPad9(bw9, bh9);
+        const cx9 = bw9 / 2;
+        const cy9 = bh9 / 2;
+        /* 칠한 판이 덮는 구간은 상자 좌표로 [−pad, 폭+pad]를 변환에 태운 것 — 그 밖이 남으면 틈이다. */
+        const gap9 = bw9 > 0 && bh9 > 0 && fb9.z > 0 ? Math.max(
+          cx9 + s9f * (-pd9 - cx9) + tx9,
+          bw9 - (cx9 + s9f * (bw9 + pd9 - cx9) + tx9),
+          cy9 + s9f * (-pd9 - cy9) + ty9,
+          bh9 - (cy9 + s9f * (bh9 + pd9 - cy9) + ty9),
+        ) : 0;
+        const gnow9 = performance.now();
+        if (gap9 > 0.5) FOGM9.gap = Math.max(FOGM9.gap, gap9);
+        if (gap9 > 0.5 && fogPaintRef.current && gnow9 - FOGM9.nowAt >= 8) {
+          FOGM9.nowAt = gnow9;
+          fogPaintRef.current(z1, panRef.current);
+          fogXfRef9.current = { z: z1, x: px, y: py };
+          const ft9 = fogTickRef9.current;
+          ft9.z = z1; ft9.px = px; ft9.py = py; ft9.at = gnow9;
+          fg9.style.transformOrigin = "center";
+          if (fg9.style.transform !== XF_ID9) fg9.style.transform = XF_ID9;
+          FOGM9.gest = true;
+          FOGM9.g.now += 1;
+        } else {
+          const fx9 = xfDelta9(fogXfRef9.current, z1, px, py);
+          fg9.style.transformOrigin = "center";
+          if (fg9.style.transform !== fx9) fg9.style.transform = fx9;
+        }
       }
       mapPaintRef.current?.(z1, panRef.current);
       /* ★ 미니맵은 손짓 중 **뜸하게** 다시 그린다(요청: "이동 시 더 빠르게 시점 변경") ────────────────────────

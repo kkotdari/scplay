@@ -33,6 +33,10 @@ const smallDev9 = typeof window !== "undefined"
   && !!window.matchMedia?.("(pointer: coarse)").matches
   && Math.max(window.screen?.width ?? 0, window.screen?.height ?? 0) <= 1180;
 
+/** 안개 판이 상자보다 더 갖는 여유(px) — 손짓 한 프레임의 밀림·줄임을 이 안에 가둔다(아래 ★).
+ *  부모(재생기)도 이 값을 읽어 '칠해 둔 자리가 상자를 아직 덮는가'를 잰다 — 두 자리가 같은 자여야 한다. */
+export const fogPad9 = (cw: number, ch: number): number =>
+  Math.round(Math.min(120, Math.max(cw, ch) * 0.08));
 /** 밝힘 등고선을 다시 뽑는 최소 간격(ms) — 폰은 더 뜸하게(위 ①의 ★). */
 const CT_MS9 = smallDev9 ? 240 : 120;
 /** 밝혔지만 안 보이는 칸의 덮개 짙기(0~1). */
@@ -146,7 +150,7 @@ export default function ReplayFogLayer({
        고치는 자리는 하나다: 판을 상자보다 PAD만큼 크게 잡고 그만큼 옮겨 그린다. 그러면 한 프레임 동안의
        밀림·줄임이 전부 **이미 칠해 둔** 자리 안에서 일어난다. 삯은 넓이 (1+2·0.08)² ≈ 1.35배뿐이고, 지도
        사각형 밖은 어차피 안 칠하므로(아래 사다리꼴) 실제 그리는 몫은 그대로다. */
-    const PAD = Math.round(Math.min(120, Math.max(cw, ch) * 0.08));
+    const PAD = fogPad9(cw, ch);
     const vw = cw + PAD * 2;
     const vh = ch + PAD * 2;
     if (cv.width !== Math.round(vw * B) || cv.height !== Math.round(vh * B)) {
