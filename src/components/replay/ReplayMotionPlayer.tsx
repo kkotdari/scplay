@@ -26769,7 +26769,7 @@ export default function ReplayMotionPlayer({
     /* 켜는 순간 **한 번만** 당겨 준다(요청: 배율은 기본 줌인 값, 사다리에서) — 그 뒤로는
        사람이 마음대로 바꾼다(요청: "줌은 변경 가능하게"). 끌 때는 안 되돌린다: 보던
        배율이 갑자기 튀면 추적을 껐다 켜는 것만으로 화면이 요동친다. */
-    if (on9) setView9(ZOOM_TAP, panRef.current);
+    if (on9) setView9(trackZoom9(), panRef.current);   // 폭에 비례 — 가로 24타일(위 trackZoom9)
   };
   /** 태그 → 그 태그의 유닛 생애들 — 변태로 갈린 생애가 같은 태그를 나눠 쓴다. */
   /* 걷기는 추적을 켤 때 워커에 청한다 — 세계가 바뀌었으면(worldGen9) 다시. */
@@ -27420,6 +27420,23 @@ export default function ReplayMotionPlayer({
       winH,
     };
   }, []);
+  /* ★ 추적을 켤 때 맞출 배율 — **화면 가로에 드는 타일 수**로 정한다(요청: "6배 고정이
+     아닌 폭에 비례해서 실제 게임에서 화면에 들어가는 가로 타일수 1.2배 정도로") ──────────
+     6배는 어느 상자에서 잰 값도 아닌 사다리의 한 칸(ZOOM_TAP)이었다. 그래서 폰 세로에서는
+     너무 좁고 넓은 전체화면에서는 헐렁했다 — 같은 배율이라도 보이는 타일 수가 상자 모양에
+     따라 갑절 넘게 갈리기 때문이다.
+     자를 뒤집는다: 보일 타일 수를 못 박고 배율을 그 결과로 낸다.
+       타일당 px = cov.w × z ÷ 격자폭 · 보이는 타일 = winW ÷ 타일당 px
+       ⇒ z = winW × 격자폭 ÷ (cov.w × 보일 타일 수)
+     실제 게임 화면은 640px 폭에 타일 32px이라 가로 **20타일**이고, 그 1.2배가 24타일이다.
+     (winW는 배율과 무관한 값이라 panLimit(1)에서 꺼내 쓴다.) */
+  const TRACK_TILES9 = 24;
+  const trackZoom9 = (): number => {
+    const cov9 = coverRef.current;
+    const win9 = panLimit(1).winW;
+    if (!(cov9.w > 0) || !(win9 > 0) || !(grid.width > 0)) return ZOOM_TAP;
+    return Math.min(ZOOM_MAX, Math.max(1, (win9 * grid.width) / (cov9.w * TRACK_TILES9)));
+  };
   /** 지도가 무대를 채우는 폭 — 비율은 지킨다.
    *
    *  ★ **전체화면만 덮고(cover), 프레임에서는 높이에 맞춘다**(요청: "모바일 게임상세
@@ -27749,8 +27766,8 @@ export default function ReplayMotionPlayer({
     if (!trackRaw || !trackAt) return null;
     const cov9 = coverRef.current;
     if (cov9.w < 4 || cov9.h < 4) return null;
-    /* 배율은 **사람 몫**이다(요청: "줌은 변경 가능하게") — 추적은 켜는 순간 사다리의
-       기본 줌인 칸으로 한 번 밀어 주고(toggleTrack), 그 뒤로는 지금 배율을 따른다. */
+    /* 배율은 **사람 몫**이다(요청: "줌은 변경 가능하게") — 추적은 켜는 순간 화면 폭에
+       맞춘 배율로 한 번 밀어 주고(toggleTrack · trackZoom9), 그 뒤로는 지금 배율을 따른다. */
     const z9 = zoom;
     const lim9 = panLimit(z9);
     /* ★ 자리를 **지도와 같은 사상으로** 잰다(지적: "추적 기능이 3D에서 엉뚱한 데를
@@ -29169,6 +29186,7 @@ export default function ReplayMotionPlayer({
     const dist = (t: TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
     /** 두 손가락의 가운데가 지도 안인가 — 지도 밖에서 시작한 손짓은 페이지 몫이다. */
     const twoInMap = (e: TouchEvent): boolean => e.touches.length === 2
+      && !onCtl9(e.touches[0]) && !onCtl9(e.touches[1])
       && inMap((e.touches[0].clientX + e.touches[1].clientX) / 2,
         (e.touches[0].clientY + e.touches[1].clientY) / 2);
     const onTS = (e: TouchEvent) => {
@@ -29183,7 +29201,7 @@ export default function ReplayMotionPlayer({
         const t9 = e.touches[0];
         if (lt9 && performance.now() - lt9.t <= DTAP_MS
           && Math.hypot(t9.clientX - lt9.x, t9.clientY - lt9.y) <= DTAP_SLOP
-          && inMap(t9.clientX, t9.clientY)) {
+          && !onCtl9(t9) && inMap(t9.clientX, t9.clientY)) {
           if (e.cancelable) e.preventDefault();
         }
       }
@@ -29220,7 +29238,7 @@ export default function ReplayMotionPlayer({
       const t1 = e.touches[0];
       /* 지도 안에서 난 손짓만 우리 몫이다 — 문서에서 받으므로(아래 등록 주석) 좌표로
          가른다. 지도 밖의 스크롤·확대는 브라우저에 그대로 넘긴다. */
-      const inside = !!t1 && inMap(t1.clientX, t1.clientY);
+      const inside = !!t1 && !onCtl9(t1) && inMap(t1.clientX, t1.clientY);
       gestureRef.current = e.touches.length >= 2 && inside;
       /* 삼키는 건 지도 조작일 때만(재재지적: 모바일에서 아래로 스와이프가 안 됨) —
          무조건 preventDefault가 확대 안 한 한 손가락 스와이프(페이지 스크롤)까지
@@ -29305,6 +29323,22 @@ export default function ReplayMotionPlayer({
     const inMap = (x: number, y: number): boolean => {
       const r = mapBox();
       return !!r && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    };
+    /* ★ 손짓이 **조작부에서** 났나(지적: "모바일 전체화면에서 재생바 끌기가 안 되는 듯 터치가
+       안 잡히나") ────────────────────────────────────────────────────────────────────────
+       잡히기는 잡혔다 — 아래 onTM이 그 손짓의 **기본 동작을 끊고** 있었다.
+         if (inside && (손가락 둘 || zoom > 1 || 한손줌)) e.preventDefault();
+       전체화면에서 지도 상자는 화면 전체(inset:0)이고 조작부는 그 위에 겹쳐 선다 — 곧 재생바를
+       만지는 손가락도 **좌표로는 '지도 안'**이다. 게다가 전체화면은 대개 확대 상태(추적이면 늘)라
+       `zoom > 1`이 참이어서, 재생바 위의 모든 한 손가락 touchmove가 삼켜졌다. 탐색바는 브라우저의
+       기본 동작으로 끌리는 <input type=range>라, 기본 동작이 끊기면 손잡이가 아예 안 따라온다
+       (touch-action: none을 이미 준 것과는 별개다 — 그건 브라우저의 스크롤 채감을 막는 자다).
+       조작부는 무대의 **형제**라 포인터로도 지도에 안 흘러가므로, 여기서 삼킬 까닭이 애초에 없다.
+       터치 사건의 target은 **손가락이 처음 닿은** 요소라 touchmove에서도 그대로 쓸 수 있다. */
+    const onCtl9 = (t?: Touch): boolean => {
+      const el9 = t?.target;
+      return el9 instanceof Element
+        && !!el9.closest(".scr-fs-ui, .scr-motion-bar, input, select, textarea");
     };
     /* (제거·요청: "인포팝업 때문에 더블탭/클릭 줌은 제거") — 여기 있던 것은 더블탭
        확대 갈래 전부다: 탭 시작 추적(onDocTS·onDocTM), 두 번째 탭 판정(onDocTE),
