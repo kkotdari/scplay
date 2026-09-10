@@ -573,8 +573,8 @@ const fogCnt9 = (): FogCnt9 => ({ brush: 0, paint: 0, same: 0, nosrc: 0, defer: 
 /* ★ 손짓 통에는 **그 창에서 손짓이 실제로 돈 시간**도 쌓는다 — 안 그러면 수를 못 읽는다:
    1초 창에 손짓이 0.1초만 들었으면 '붓4'는 초당 40번이라는 뜻이고, 0.9초 들었으면 초당
    4번이라는 뜻이다(둘은 정반대 진단이다). 붓이 잇달아 불린 사이만 더한다. */
-/** `gap`은 '칠해 둔 자리가 상자를 못 덮은 가장 큰 몫'(px) · `nowAt`은 그때 곧장 칠한 마지막 시각. */
-const FOGM9 = { at: 0, gest: false, was: false, last: 0, gap: 0, nowAt: 0, idle: fogCnt9(), g: fogCnt9(), gShow: "" };
+/** `gap`은 '칠해 둔 자리가 상자를 못 덮은 가장 큰 몫'(px) — 손짓 칸의 `즉시N`이 그걸 갚은 장수다. */
+const FOGM9 = { at: 0, gest: false, was: false, last: 0, gap: 0, idle: fogCnt9(), g: fogCnt9(), gShow: "" };
 /** 지금 쌓을 통 — 손짓 프레임인가로 가른다. */
 const fogBin9 = (): FogCnt9 => (FOGM9.gest ? FOGM9.g : FOGM9.idle);
 const fogStr9 = (c9: FogCnt9, rate9 = false): string =>
@@ -28849,6 +28849,8 @@ export default function ReplayMotionPlayer({
    *  제자리로 튄다).
    *  그래서 안개는 제 기준을 따로 든다 — 임시 변환은 늘 '지금 보기 − 이 기준'이다. */
   const fogXfRef9 = useRef({ z: 0, x: 0, y: 0 });
+  /** 칠해 둔 안개가 상자를 못 덮는 몫(px) — 손끝이 재고(applyGestureXf) 다음 rAF가 갚는다(xfPaintNow). */
+  const fogGapRef9 = useRef(0);
   /** 캔버스가 한 장 그려질 때마다 — 그 보기가 곧 임시 변환의 기준이다(자식이 부른다). */
   const onUnitPainted = useCallback((z9: number, p9: { x: number; y: number }): void => {
     xfBaseRef.current = { z: z9, x: p9.x, y: p9.y };
@@ -28970,23 +28972,17 @@ export default function ReplayMotionPlayer({
           cy9 + s9f * (-pd9 - cy9) + ty9,
           bh9 - (cy9 + s9f * (bh9 + pd9 - cy9) + ty9),
         ) : 0;
-        const gnow9 = performance.now();
-        if (gap9 > 0.5) FOGM9.gap = Math.max(FOGM9.gap, gap9);
-        if (gap9 > 0.5 && fogPaintRef.current && gnow9 - FOGM9.nowAt >= 8) {
-          FOGM9.nowAt = gnow9;
-          fogPaintRef.current(z1, panRef.current);
-          fogXfRef9.current = { z: z1, x: px, y: py };
-          const ft9 = fogTickRef9.current;
-          ft9.z = z1; ft9.px = px; ft9.py = py; ft9.at = gnow9;
-          fg9.style.transformOrigin = "center";
-          if (fg9.style.transform !== XF_ID9) fg9.style.transform = XF_ID9;
-          FOGM9.gest = true;
-          FOGM9.g.now += 1;
-        } else {
-          const fx9 = xfDelta9(fogXfRef9.current, z1, px, py);
-          fg9.style.transformOrigin = "center";
-          if (fg9.style.transform !== fx9) fg9.style.transform = fx9;
+        /* 여기서 **칠하지는 않는다**(지적: 빈 띠는 사라졌는데 "팬 핀치가 무거워졌네") — 손끝 사건은
+           프레임마다 한 번이 아니라 폰에서 두 번까지 오고(120Hz), 그 자리에서 칠하면 한 프레임에 두 장이
+           되는 데다 입력 처리 자체가 그만큼 밀린다. 재기만 하고 **다음 rAF 한 장**(xfPaintNow 머리)에
+           맡긴다 — rAF는 화면에 그리기 **전에** 돌므로, 그 프레임은 빈 띠 없이 합성된다. */
+        if (gap9 > 0.5) {
+          fogGapRef9.current = gap9;
+          FOGM9.gap = Math.max(FOGM9.gap, gap9);
         }
+        const fx9 = xfDelta9(fogXfRef9.current, z1, px, py);
+        fg9.style.transformOrigin = "center";
+        if (fg9.style.transform !== fx9) fg9.style.transform = fx9;
       }
       mapPaintRef.current?.(z1, panRef.current);
       /* ★ 미니맵은 손짓 중 **뜸하게** 다시 그린다(요청: "이동 시 더 빠르게 시점 변경") ────────────────────────
@@ -29015,6 +29011,27 @@ export default function ReplayMotionPlayer({
     const z1 = zoomRef.current;
     const px = panRef.current.x;
     const py = panRef.current.y;
+    /* ★ 안개는 **유닛의 박자에 묶이지 않는다**(지적: 빈 띠 · 그 뒤 "팬 핀치가 무거워졌네") ────────────────
+       빈 띠의 뿌리가 여기였다: 안개를 칠하는 것은 아래 붓 한 장(paintFnRef9)인데, 그 붓은 유닛 한 장 값에
+       맞춰 스스로 박자를 늦춘다(need9 = 직전 한 장 × 1.2, 무거우면 아예 미룸). 그래서 유닛이 걸러진 프레임
+       에서는 안개도 안 칠해지는데 CSS 변환은 계속 밀리니, 그 프레임에 안 칠한 띠가 드러났다.
+       안개 한 장은 이제 등고선 갈무리 + 길 하나 + 원 몇이라(군살 덜기) 유닛과 같은 자로 잴 것이 아니다.
+       그러니 **못 덮을 때만, 프레임에 한 번** 여기서 먼저 갚는다 — 유닛이 미뤄지든 말든 안개는 늘 상자를
+       덮는다. 갚고 나면 아래 붓의 안개 블록은 '같음'으로 지나간다(같은 보기·같은 판). */
+    if (fogGapRef9.current > 0.5 && fogPaintRef.current) {
+      fogGapRef9.current = 0;
+      fogPaintRef.current(z1, panRef.current);
+      fogXfRef9.current = { z: z1, x: px, y: py };
+      const ft9 = fogTickRef9.current;
+      ft9.z = z1; ft9.px = px; ft9.py = py; ft9.at = performance.now();
+      const fgc9 = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-fog");
+      if (fgc9) {
+        fgc9.style.transformOrigin = "center";
+        if (fgc9.style.transform !== XF_ID9) fgc9.style.transform = XF_ID9;
+      }
+      FOGM9.gest = true;
+      FOGM9.g.now += 1;
+    }
     /* 유닛 캔버스는 렌즈 밖(그리기 좌표)이라 CSS 변환만으로는 못 따라온다 — 뷰포트
        크기 한 장을 밀면 민 만큼 가장자리가 비고(지적: "드래그시 어느 부분이 통째로
        없어지거나 한 모델 안에서 잘리거나"), 축소 손짓에서는 사방에 빈 띠가 남는다.
@@ -30515,6 +30532,7 @@ export default function ReplayMotionPlayer({
         ft9.at = gnow9;
         fogPaintRef.current(zoomRef.current, panRef.current, { vis: fr9.visSrc, exploredAt: fr9.explored, t: tNow9 });
         fogXfRef9.current = { z: vz9, x: vx9, y: vy9 };   // 이 보기로 칠했다 — 임시 변환의 새 기준
+        fogGapRef9.current = 0;                            // 못 덮던 빚도 이 한 장으로 갚혔다
         fogBin9().paint += 1;
       } else fogBin9().same += 1;
     }
