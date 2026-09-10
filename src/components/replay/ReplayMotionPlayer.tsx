@@ -33465,7 +33465,14 @@ translate: `${(-(Math.round((-fp9 * (1 - dropP9 ** 2) - hp9 * 0.275 - hp9 * 1.42
          넓은 배치에서만, 지도가 쓰던 값 그대로. */
       style={fsOn ? undefined : frameStyle}
     >
-      <div className="scr-fs-root" ref={fsRootRef}>
+      {/* 지도 비를 CSS에 알린다(--scr-mini-ar) — 전체화면의 미니맵은 **키를 먼저 정하고**
+          폭을 그 비로 낸다(요청: "미니맵 영역 높이를 버튼 최대값일 때 오른쪽 조작부 높이에
+          맞춰서"). 폭은 아이콘 줄·조종부의 왼 끝이 함께 보는 값이라(--scr-mini-w) 셋이
+          한 식에서 나와야 안 어긋난다. */}
+      <div
+        className="scr-fs-root" ref={fsRootRef}
+        style={{ ["--scr-mini-ar" as string]: `${grid.width / Math.max(1, grid.height)}` } as React.CSSProperties}
+      >
         <div
           className="scr-fs-stage" ref={stageRef}
           style={{

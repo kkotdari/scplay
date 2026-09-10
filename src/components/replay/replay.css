@@ -3593,6 +3593,21 @@
 .scr-fs-layer.is-fs .scr-fs-minipanel {
   bottom: calc(var(--scr-botpad) / 2 + env(safe-area-inset-bottom, 0px));
 }
+/* ★ 미니맵의 키를 **오른 칸의 키에 맞춘다**(요청: "미니맵 영역 높이를 버튼 최대값일 때
+   오른쪽 조작부 높이에 맞춰서 지정 — 원래보다 좀 낮아질 듯") ────────────────────────────
+   오른 칸은 아래에서 위로 [조종부(--scr-fsbot 실측)] + [사이 6] + [아이콘 줄(44 — 버튼
+   한 줄의 최대 키 --mapbtn-h)]이다. 미니맵은 조종부의 **속바닥**에 밑변을 맞추고 있으므로
+   (위 bottom), 그 아래 여백만큼을 빼면 정확히 아이콘 줄 꼭대기에 윗변이 닿는다.
+   폭은 그 키에서 **지도 비로** 낸다 — 아이콘 줄과 조종부의 왼 끝이 같은 --scr-mini-w를
+   보므로, 셋이 한 식에서 나와야 어긋나지 않는다(그래서 재생기가 비를 --scr-mini-ar로
+   내려 준다). 되먹임은 없다: 조종부의 키는 미니맵과 무관하다.
+   앞판의 clamp(114~174 · PC 176~320)보다 대개 낮아진다 — 그것이 요청의 '좀 낮아질 듯'이다. */
+.scr-fs-layer.is-fs .scr-fs-root {
+  --scr-mini-h: calc(var(--scr-fsbot, 48px) + 6px + 44px
+    - (var(--scr-botpad) / 2 + env(safe-area-inset-bottom, 0px)));
+  --scr-mini-w: calc(var(--scr-mini-h) * var(--scr-mini-ar, 1));
+}
+.scr-fs-layer.is-fs .scr-fs-minipanel .scr-fs-minimap { width: 100%; height: var(--scr-mini-h); }
 .scr-fs-bottom {
   position: absolute; left: 0; right: 0; bottom: 0; padding: 8px 12px;
   /* ★ 바탕을 **안 깐다**(요청: "조작부 패널 배경 효과 제거") — 여기 있던 것은 아래에서
@@ -3673,6 +3688,13 @@
 .scr-fs-bottom .scr-motion-clockwrap {
   grid-column: 2; grid-row: 1; justify-self: end; min-width: 0;
   line-height: 1; gap: 0;
+  /* ★ 진행바 쪽으로 **더 내린다**(요청: "시간 위치 더 낮춰도 될 듯 — 어차피 터치 요소가
+     아니라") ────────────────────────────────────────────────────────────────────────
+     줄 사이는 이미 0인데도 눈에는 떠 보인다. 까닭은 진행바 상자다: 손가락 표적으로 36px을
+     쓰지만 보이는 줄은 6px이라, 그 위에 15px의 **빈 자리**가 있다. 시각은 눌러 쓰는 것이
+     아니므로 그 빈 자리로 내려앉아도 잃는 것이 없다 — 음수 여백으로 겹쳐 넣으면 판의 키도
+     그만큼 준다. 10px은 그 빈 자리(좁은 화면 13 · 손가락 15)보다 작아 진행바를 안 먹는다. */
+  margin-bottom: -10px;
 }
 .scr-fs-bottom .scr-motion-clock { line-height: 1; }
 .scr-fs-bottom .scr-motion-range { grid-column: 2; grid-row: 2; width: 100%; }
@@ -4025,9 +4047,9 @@
    자리를 `.is-fs`로 못 박는 까닭 — 프레임 모드의 미니맵은 폭이 아니라 **높이**
    (--scr-dock-mini)로 서고 버튼 줄도 격자 칸에 앉아, 이 값과 무관하다. 그쪽까지 건드릴
    일이 없으니 전체화면에만 건다. 좁은 화면(<1160)은 아래 제 값이 그대로다. */
-@media (min-width: 1160px) {
-  .scr-fs-layer.is-fs .scr-fs-root { --scr-mini-w: clamp(140px, 44vw, 256px); }
-}
+/* ★ (걷어냄) 그 clamp이 있던 자리다 — 전체화면의 미니맵 폭은 이제 **키에서 나온다**
+   (위 --scr-mini-h · --scr-mini-w). 폭을 여기서 또 못 박으면 키와 폭이 두 자를 쓰게 되어
+   비가 깨지고, 아이콘 줄·조종부의 왼 끝도 미니맵의 실제 변과 어긋난다. */
 @media (max-width: 1159px) {
   /* ★ 폭은 **뿌리의 변수**로 낸다 — 여기서 `width`를 직접 덮으면 버튼 줄의 왼 끝
      (--scr-mini-w를 보는 .scr-motion-mapbtns)과 어긋난다. 둘은 형제라 판에 건 변수가
