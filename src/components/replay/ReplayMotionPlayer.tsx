@@ -4520,20 +4520,22 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        ★ 아래 조각만 **벽이 보일 때** 그린다 — 이 무리의 키(20 + 깊이)는 몸통을 늘 이기므로,
          벽이 뒤로 돌아간 각도에 그리면 몸통을 뚫고 비친다. 위 조각은 지붕 위라 늘 그린다. */
     const BD9 = 1.0;          // 상자 가로(모델 y) — 화면의 가로다
-    const OUT9 = 0.26;        // 벽에서 튀어나온 몫
+    const OUT9 = 0.32;        // 벽에서 튀어나온 몫(앞 낯의 두께)
     const XO9 = -3.2 - OUT9;  // 두 조각이 함께 쓰는 바깥 낯
+    const wallOk9 = faceLight(-1, 0, 0.18).visible;
+    /* ★ 키는 **상자마다, 두 조각이 한 값으로**(지적: "위치가 좀 어긋나는데") ────────────────
+       앞판은 위 조각에는 제 자리 깊이를, 아래 세 조각에는 y = 0으로 잰 **한 값**을 물렸다.
+       그러면 아래 셋이 한 덩이로 정렬되어, 각도에 따라 옆 상자의 앞 낯 위로 얹힌다 — 위와
+       아래가 서로 다른 상자에 붙어 보이는 것이 '어긋남'이었다.
+       한 상자의 두 조각은 같은 자리에서 났으므로 **같은 키**를 물려 늘 함께 서게 한다.
+       (아래 조각만 0.05 앞 — 같은 키면 배열 차례가 앞뒤를 정해 각도에 따라 뒤집힌다.) */
     for (let k = 0; k < 3; k += 1) {
       const by9 = 1.15 - k * 1.15;
-      out.push(...tagKey(boxFaces3(XO9 + 0.5, by9, 1.0, BD9, 0.225, 2.6),
-        20 + depthNow(XO9 + 0.5, by9)));
-    }
-    if (faceLight(-1, 0, 0.18).visible) {
-      const sunk: ShapeFace[] = [];
-      for (let k = 0; k < 3; k += 1) {
-        const by9 = 1.15 - k * 1.15;
-        sunk.push(...boxFaces3(XO9 + OUT9 / 2, by9, OUT9, BD9, 0.55, 2.05));
+      const bk9 = 20 + depthNow(XO9 + 0.5, by9);
+      out.push(...tagKey(boxFaces3(XO9 + 0.5, by9, 1.0, BD9, 0.225, 2.6), bk9));
+      if (wallOk9) {
+        out.push(...tagKey(boxFaces3(XO9 + OUT9 / 2, by9, OUT9, BD9, 0.55, 2.05), bk9 + 0.05));
       }
-      out.push(...tagKey(sunk, 20 + depthNow(XO9, 0) + 0.2));
     }
     if (faceLight(-1, 0, 0.18).visible) {
       /* 초록 창(재지적: "앞쪽 초록창은 반투명 처리하고 더 크게 확대") — 꽉 찬 초록
