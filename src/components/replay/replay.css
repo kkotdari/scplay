@@ -3655,18 +3655,29 @@
   display: grid;
   grid-template-columns: auto 1fr;
   grid-template-rows: auto auto auto;
-  align-items: center; column-gap: 8px; row-gap: 3px;
+  /* ★ 줄 사이를 **0으로** 두고 필요한 곳에만 준다(요청: "윗줄 세로 공간을 많이 줄이는
+     효과 노림") — 여태 3px이 세 줄 사이에 두 번 들어갔는데, 시각 줄 아래의 그 한 뼘은
+     지도를 먹는 값이지 읽기를 돕는 값이 아니다. 꼬리 줄만 제 여백으로 띄운다(아래). */
+  align-items: center; column-gap: 8px; row-gap: 0;
 }
 .scr-fs-bottom > .scr-motion-bar-controls { display: contents; }
-/* ★ 재생 단추는 **진행바의 가운데**에 선다(요청: "프레임 전체화면 공통으로 재생버튼
-   재생바의 가운데로 수평 위치 조정") — 여태 왼쪽 칸에 붙어 있었다. 진행바가 아랫줄을
-   통째로 쓰므로(1 / -1) 그 가운데는 두 칸을 함께 걸쳐야 나온다: 같은 폭을 깔고
-   justify-self로 가운데에 세운다. 시각은 오른쪽 끝에 그대로 있고, 겹치는 칸이지만
-   가운데와 오른쪽 끝이라 서로 닿지 않는다. */
-.scr-fs-bottom .scr-motion-play { grid-column: 1 / -1; grid-row: 1; justify-self: center; }
-.scr-fs-bottom .scr-motion-clockwrap { grid-column: 2; grid-row: 1; justify-self: end; min-width: 0; }
-.scr-fs-bottom .scr-motion-range { grid-column: 1 / -1; grid-row: 2; width: 100%; }
-.scr-fs-bottom > .scr-fs-bottom-tail { grid-column: 1 / -1; grid-row: 3; justify-content: flex-start; }
+/* ★ 재생 단추는 **진행바와 같은 줄 왼쪽**에 선다(요청) ─────────────────────────────
+   앞판은 제 줄을 통째로 차지한 채 가운데에 섰다(그 앞은 왼쪽 끝). 줄 하나를 30px 단추
+   하나에 내주는 셈이라, 지도 위에 얹힌 이 판에서는 그 높이가 곧 가려지는 지형이다.
+   진행바 줄로 내려 붙이면 그 줄은 어차피 진행바의 키(36px)로 서므로 **단추가 공짜로
+   들어간다** — 윗줄은 시각 하나만 남는다.
+   시각은 자리를 그대로 지킨다: 오른쪽 끝은 1fr 칸의 오른 끝이고, 단추가 왼 칸(auto)으로
+   가도 그 끝은 안 움직인다. 대신 **키를 죈다** — 줄 높이(line-height)를 1로 눌러 글꼴이
+   달고 오는 여백을 걷고, 아래 줄 사이도 0이다(위 row-gap). 윗줄이 16+3 → 11px이 된다. */
+.scr-fs-bottom .scr-motion-play { grid-column: 1; grid-row: 2; justify-self: start; }
+.scr-fs-bottom .scr-motion-clockwrap {
+  grid-column: 2; grid-row: 1; justify-self: end; min-width: 0;
+  line-height: 1; gap: 0;
+}
+.scr-fs-bottom .scr-motion-clock { line-height: 1; }
+.scr-fs-bottom .scr-motion-range { grid-column: 2; grid-row: 2; width: 100%; }
+/* 꼬리 줄만 제 여백으로 띄운다 — 줄 사이 0의 예외(위 row-gap). */
+.scr-fs-bottom > .scr-fs-bottom-tail { grid-column: 1 / -1; grid-row: 3; justify-content: flex-start; margin-top: 3px; }
 .scr-fs-bottom .scr-kakao-share-btn { margin-left: 0; }
 .scr-fs-layer .scr-fs-bottom > .scr-motion-bar-controls { height: auto; }
 
