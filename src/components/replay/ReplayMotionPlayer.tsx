@@ -31622,7 +31622,11 @@ export default function ReplayMotionPlayer({
             다만 지워 버리면 줄 높이를 정하는 것이 남은 칸 하나뿐이 되어, 켜고 끌 때 줄이
             **다른 글자의 높이**로 다시 잡힌다(밀리에서는 그 칸마저 비어 2px로 오므라들었다
             — 실측). 같은 요소·같은 글꼴을 두고 보임만 끄면 높이가 정의상 같다. */}
-        <span>일꾼</span>
+        {/* ★ 최소 꼴(1단계)에서 이 칸은 **APM 머리**다(요청: "로스터 1단계에서 APM 헤더
+            추가") — 그 꼴에서 값 줄의 첫 지표 칸에 APM이 앉으므로(아래 bare 줄), 머리도
+            같은 칸이라야 세로줄이 맞는다. 나머지 라벨은 종전대로 감춘다(값이 없는 칸의
+            이름표는 빈 말이다). 감추는 규칙에서 이 칸만 빠지도록 클래스를 단다. */}
+        <span className={cx(bare && "scr-motion-collabel-on")}>{bare ? "APM" : "일꾼"}</span>
         <span>인구</span>
         <span className="scr-motion-stat-min">광물</span>
         <span className="scr-motion-stat-gas">가스</span>
