@@ -580,7 +580,9 @@ function fogMeterTick9(): void {
   if (FOGM9.at === 0) { FOGM9.at = now9; return; }
   if (now9 - FOGM9.at < 1000) return;
   if (FOGM9.g.brush > 0 || FOGM9.g.defer > 0) FOGM9.gShow = fogStr9(FOGM9.g);
-  SCR_DIAG.fog = `${fogStr9(FOGM9.idle)}${FOGM9.gShow ? ` · 손짓[${FOGM9.gShow}]` : ""}`;
+  /* 손짓 칸은 **늘 보인다**(빈 채로라도) — 안 보이면 사용자가 '새 판이 안 실렸나'와 '아직
+     안 끌었나'를 못 가른다(실제로 한 번 헛걸음했다). 아직 없으면 '대기'라고 적는다. */
+  SCR_DIAG.fog = `${fogStr9(FOGM9.idle)} · 손짓[${FOGM9.gShow || "대기"}]`;
   FOGM9.at = now9;
   FOGM9.idle = fogCnt9();
   FOGM9.g = fogCnt9();
