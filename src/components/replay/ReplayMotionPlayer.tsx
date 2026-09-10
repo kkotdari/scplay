@@ -25376,7 +25376,50 @@ const LIVE3D_FORCE9: boolean | null = typeof location === "undefined" ? null
  *  실시간 원근은 손짓 중 장을 매 프레임 다시 그릴 수 있을 때만 성립한다. 그 힘을 재는 자가 이미 있다 —
  *  진입 때 한 번 재는 입체 벤치(CROWD9.bench3 · 기준 CROWD_BENCH3D_MS9)다. 미달 기기(weak3)는 종전처럼
  *  원점을 얼려 두고 손을 뗄 때 맞춘다. 손짓이 시작될 때 한 번 읽는다(벤치는 첫 렌더에서 굳는다). */
-const live3dOn9 = (): boolean => LIVE3D_FORCE9 ?? (CROWD9.bench3 >= 0 && !CROWD9.weak3);
+/* ★ **① 벤치 문턱을 live3d 몫으로 떼어낸다**(지적: "미달 문턱이 좀 높은가") ────────────────────────
+   `weak3` 하나가 두 일을 겸하고 있었다 — ㉠ 3D에서 유닛 간이화(단 내림) ㉡ 손짓 중 실시간 원근.
+   ㉠은 못 미치면 조금씩 깎는 완만한 조정이고 ㉡은 껐다 켜기다. 한 숫자로 둘을 다 정하니 ㉠에 맞춘
+   보수적인 값이 ㉡까지 막았다.
+   게다가 그 값 자체가 어긋나 있었다: `benchDevice9(true)`는 2D보다 화소를 2.87배 칠하는데
+   (스프라이트 61²/36², 타원 24×10/14×6) 문턱은 24 → 16ms로 **낮췄다**. 곧 3D를 통과하려면
+   2D 기준 6ms여야 하니 화소당으로 4배 엄격했다(실측 헤드리스 2D 15 / 3D 40ms — 비 2.67).
+   그래서 live3d는 화소당 엄격도를 2D와 같게 맞춘 제 문턱을 갖는다: 24 × 2.87 ≈ 69가 이론값이지만,
+   실시간 원근은 '한 장을 프레임 안에 다시 그릴 수 있을 때'만 성립하므로 그렇게까지 늦추지 않고
+   **26ms**(2D 문턱 24와 나란한 값)로 둔다. 간이화 판정(weak3·16ms)은 그대로다. */
+const LIVE3D_BENCH_MS9 = 26;
+/* ★ **② 짐작 대신 실측**(같은 지적) ─────────────────────────────────────────────────────────────
+   벤치는 256×256 채우기 한 판이지 이 판의 한 장 값이 아니다. 그런데 손짓이 도는 동안 **진짜 값**을
+   이미 매 프레임 재고 있다(applyGestureXf의 xfPaintMs — 실시간 원근이 꺼진 손짓에서도 잰다.
+   끄는 동안 밀림 기준을 얼려 두므로 판 열쇠가 안 흔들려, 켠 손짓과 한 장 값이 견줄 만하다).
+   그 값을 최근 24장의 **중앙값**으로 들고, 있으면 그것이 벤치를 대신한다. 중앙값을 쓰는 까닭:
+   최솟값은 한 번 좋은 프레임에 눌려 영영 안 오르고(자리가 무거워져도 켠 채로 있다), 평균은 한 번의
+   튐에 끌려간다. 문턱은 접는 자리(33ms)보다 한 뼘 낮은 24ms — 켤지 말지를 접히기 직전 값으로
+   정하면 켜자마자 접히는 일이 잦다.
+   이로써 첫 재기가 파싱·GC와 겹쳐 부풀어 굳는 문제(crowdRecheck9가 값을 낮추기만 하는 까닭)도
+   사라진다 — 손짓 스무 장이면 기기의 참값이 자를 갈아 끼운다. */
+const LIVE3D_DRAW_MS9 = 24;
+const XF_MS_RING9 = { v: new Float64Array(24), n: 0 };
+/** 손짓 한 장 값을 적는다 — applyGestureXf가 잰 그 값이다. */
+function noteXfMs9(ms9: number): void {
+  if (!(ms9 > 0)) return;
+  const r9 = XF_MS_RING9;
+  r9.v[r9.n % r9.v.length] = ms9;
+  r9.n += 1;
+}
+/** 최근 손짓 장들의 중앙값 — 아직 표본이 모자라면 −1(그러면 벤치를 쓴다). */
+function xfMsMid9(): number {
+  const r9 = XF_MS_RING9;
+  const n9 = Math.min(r9.n, r9.v.length);
+  if (n9 < 12) return -1;
+  const a9 = Array.from(r9.v.subarray(0, n9)).sort((x9, y9) => x9 - y9);
+  return a9[n9 >> 1];
+}
+const live3dOn9 = (): boolean => {
+  if (LIVE3D_FORCE9 !== null) return LIVE3D_FORCE9;
+  const mid9 = xfMsMid9();
+  if (mid9 >= 0) return mid9 <= LIVE3D_DRAW_MS9;          // ② 실측이 있으면 그것이 자다
+  return CROWD9.bench3 >= 0 && CROWD9.bench3 <= LIVE3D_BENCH_MS9;   // ① 없으면 제 문턱의 벤치
+};
 /** ★ **그린 장의 원점 발자국**(왕복 잡기) — 짐작이 세 번 빗나가 자리를 눈으로 보기로 한다.
  *  붓이 장을 바꿔 그릴 때마다 그 장의 원점(ox)을 적고, 방향이 뒤집힌 횟수를 센다.
  *  왕복이 **원점에서 나면** back이 오르고(그러면 장 고르기·보내기 쪽), 원점은 곧게 가는데 화면만
@@ -28836,6 +28879,10 @@ export default function ReplayMotionPlayer({
          벡터층이 배율을 √2 칸으로 갈무리하므로 손짓 한 번에 두세 번만 다시 굽는다. */
       xfPaintMsRef.current = performance.now() - t0;
       xfMsRef9.v = xfPaintMsRef.current;   // 붓이 읽는다(위 xfMsRef9) — 배킹을 내릴지 가리는 자.
+      /* 실측 자에 적는다(위 ② live3dOn9) — 다음 손짓의 판정이 이 값에서 난다.
+         **기울인 손짓만** 적는다: 평면 한 장은 입체보다 훨씬 싸므로, 2D로만 끌던 표본으로
+         입체를 판정하면 버거운 기기까지 켜 준다(재는 짐과 판정할 짐이 달라진다). */
+      if (pitchDegRef9.current > 0) noteXfMs9(xfPaintMsRef.current);
       /* ★ 한 장이 두 프레임을 넘으면 실시간 원근을 **이 손짓 동안 접는다**(지적: "무거운 장면에선 여러 번
          왔다갔다") ────────────────────────────────────────────────────────────────────────────────
          실시간 원근은 '얼어 있는 구간이 없을 때'만 성립하는데, 한 장이 33ms를 넘으면 그리는 사이가 곧 그
@@ -31870,6 +31917,9 @@ export default function ReplayMotionPlayer({
                       {" · 원점 그린"}{ORG9.ox.toFixed(0)}{"/지금"}{ORG9.live.toFixed(0)}
                       {" 세대"}{ORG9.gen}{"·차례"}{ORG9.seq}{"/보냄"}{wStatRef.current.sentView}
                       {" "}{live3dOn9() ? (liveViewOkRef9.current ? "live" : "접힘") : "off"}
+                      {/* 판정의 근거 — 실측 중앙값이 있으면 그것(자), 없으면 벤치. 어느 자로 켜졌나를
+                          못 보면 "왜 안 켜지나"를 또 짐작으로 좇게 된다. */}
+                      {(() => { const m9 = xfMsMid9(); return m9 >= 0 ? `(실측${m9.toFixed(0)}/${LIVE3D_DRAW_MS9}ms)` : `(벤치${CROWD9.bench3.toFixed(0)}/${LIVE3D_BENCH_MS9}ms)`; })()}
                       {" · "}{ORG9.sLast}걸음 역행{ORG9.rLast}
                       {" · 손짓 "}{SCR_DIAG.xfms}ms{SCR_DIAG.xfms >= XF_HEAVY_MS9 ? "(미룸)" : ""}
                       {xfBackK9.k !== 1 ? ` 배킹×${xfBackK9.k}` : ""}
