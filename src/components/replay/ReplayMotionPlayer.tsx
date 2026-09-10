@@ -6435,14 +6435,39 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          앞쪽을 띠로 두름") — 앞면에 붙이면 정면에서만 보이고 옆에서는 사라졌다. 옆면
          앞 끝을 세로로 두르면 어느 쪽에서 봐도 둘 중 하나는 보인다. 면보다 아주 조금
          (0.01) 밖에 띄워 z-싸움을 피한다. */
-      const bandF0 = pvt(PL9, 0.6);
-      const bandF1 = pvt(PL9, PH9 - 0.4);
-      const bandB0 = pvt(PL9 - 0.72, 0.6);
-      const bandB1 = pvt(PL9 - 0.72, PH9 - 0.4);
-      const sideBand = (m2: 1 | -1): string => polyPath3([
-        [rx + m2 * 0.76, bandF0[0], bandF0[1]], [rx + m2 * 0.76, bandF1[0], bandF1[1]],
-        [rx + m2 * 0.76, bandB1[0], bandB1[1]], [rx + m2 * 0.76, bandB0[0], bandB0[1]],
-      ]);
+      /* ★ 임자색 띠는 포드를 **한 바퀴 끊김 없이** 두른다(재요청: "임자색 데칼은 한바퀴 삥
+         둘러줘 끊김 없이") ────────────────────────────────────────────────────────────────
+         앞 판은 양 옆면에만 세로로 붙인 두 조각이라, 옆에서 보면 한쪽만 보이고 위·아래에서
+         끊겼다. 포드의 길이 방향(dy)을 한 자리에 못 박고 그 자리를 **가로지르는 고리**로
+         두르면 윗면 → 오른쪽 → 밑면 → 왼쪽이 이어져 어느 각에서도 끊긴 데가 없다.
+         앞 끝(dy = PL9)은 포구가 패인 자리이므로 그보다 조금 뒤(0.35~1.05)를 두른다. */
+      const BD0 = PL9 - 0.35;   // 띠의 앞 가장자리
+      const BD1 = PL9 - 1.05;   // 띠의 뒤 가장자리
+      /** 고리의 한 조각 — 면의 바깥 법선과 그 면 위 네 점(길이·높이·좌우)으로. */
+      const bandQuad9 = (
+        n9: [number, number, number], pts9: [number, number, number][],
+      ): ShapeFace[] => {
+        const lit9 = faceLight(n9[0], n9[1], n9[2]);
+        if (!lit9.visible) return [];
+        return [bodyFace(polyPath3(pts9))];
+      };
+      const podBand9 = (): ShapeFace[] => [
+        // 윗면 — 기운 판이라 법선은 (0, −sn, c)다.
+        ...bandQuad9([0, -sn, c], [
+          P3(BD0, PH9 + 0.02, -0.75), P3(BD0, PH9 + 0.02, 0.75),
+          P3(BD1, PH9 + 0.02, 0.75), P3(BD1, PH9 + 0.02, -0.75),
+        ]),
+        // 밑면 — 그 반대.
+        ...bandQuad9([0, sn, -c], [
+          P3(BD0, -0.02, -0.75), P3(BD0, -0.02, 0.75),
+          P3(BD1, -0.02, 0.75), P3(BD1, -0.02, -0.75),
+        ]),
+        // 좌·우 옆면.
+        ...([1, -1] as const).flatMap((m2) => bandQuad9([m2, 0, 0], [
+          P3(BD0, 0, m2 * 0.76), P3(BD0, PH9, m2 * 0.76),
+          P3(BD1, PH9, m2 * 0.76), P3(BD1, 0, m2 * 0.76),
+        ])),
+      ];
       /* 포드는 머리 위 얹힘(지적) — 지붕 규칙로 큰 키. 면들은 고정으로 그리지 않고
          faceLight 판정(재지적: 옆면이 한쪽뿐이라 가려지거나 남았다) — 앞·뒤는 기운
          법선(0,±0.96,0.27), 옆은 (±1,0)로 보이는 면만 제 음영과 함께. */
@@ -6490,14 +6515,25 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           P3(PL9 - DEP9, IT0, -IX9), P3(PL9 - DEP9, IT0, IX9),
           P3(PL9 - DEP9, IT1, IX9), P3(PL9 - DEP9, IT1, -IX9),
         ]), 0.58, "#000"] as ShapeFace);
-        // 미사일 셋 — 포구에서 0.18만 내민다. 끝은 고깔로 닫는다.
+        /* 미사일 셋 — 포구에서 0.18만 내민다. 몸통은 붉은 강철, **끝은 초록 탄두**다(재요청:
+           "미사일 끝 탄두형으로 바꾸고 초록색 지름 조금만 확대").
+           ★ 탄두는 고깔이 아니라 **오자이브**다 — 원뿔은 끝이 바늘처럼 뾰족해 이 크기에서
+             미사일이 아니라 가시로 읽힌다. 반지름을 sin의 0.65제곱으로 줄이면 옆선이 볼록하게
+             부풀었다 끝에서 모이는 그 탄두 꼴이 된다. 지름은 0.185 → 0.21로 조금만 키운다. */
+        const MR9 = 0.21;
         for (const tc9 of [PH9 * 0.30, PH9 * 0.5, PH9 * 0.70]) {
+          // 몸통 — 포구 속에서 탄두 밑동까지.
+          faces.push(...paintBase(spirePillar({
+            x: 0, y: 0, h: 1, w: 1, segs: 3, sides: 8, caps: "none", trueNormal: true,
+            path: (u9: number): [number, number, number] => P3(PL9 - DEP9 + 0.48 * u9, tc9, 0),
+            widthOf: (): number => MR9,
+          }), "#a8322a"));
+          // 탄두 — 밑동에서 끝까지 오자이브로 모인다.
           faces.push(...paintBase(spirePillar({
             x: 0, y: 0, h: 1, w: 1, segs: 5, sides: 8, caps: "none", trueNormal: true,
-            path: (u9: number): [number, number, number] => P3(PL9 - DEP9 + 0.78 * u9, tc9, 0),
-            widthOf: (u9: number): number => (u9 < 0.68 ? 0.185
-              : 0.185 * Math.sqrt(Math.max(0.0004, 1 - ((u9 - 0.68) / 0.32) ** 2))),
-          }), "#a8322a"));
+            path: (u9: number): [number, number, number] => P3(PL9 - DEP9 + 0.48 + 0.34 * u9, tc9, 0),
+            widthOf: (u9: number): number => MR9 * Math.sin(Math.PI * (1 - u9) * 0.5) ** 0.65 + 0.004,
+          }), "#4ec95a"));
         }
       }
       const bk = faceLight(0, -0.96, 0.27);
@@ -6515,8 +6551,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       return tagKey([
         ...paintBase(faces, TERRAN_STEEL),
         // 색을 안 준 면이라 임자 색이 든다 — 칠한 뒤에 얹어야 데칼이 살아남는다.
-        ...([1, -1] as const).filter((m2) => faceLight(m2, 0).visible)
-          .map((m2) => bodyFace(sideBand(m2))),
+        ...podBand9(),
       ], 20 + depthNow(rx, 0.2) * 1.6);
     }),
     // 꼭대기 작은 상자 — 머리·포드보다 위라 붙박이 키 26.
