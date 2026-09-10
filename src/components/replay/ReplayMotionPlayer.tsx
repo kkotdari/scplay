@@ -464,6 +464,13 @@ const STORM_STAGES = 8;
 const spinTag = (kind: string): string => (SPIN_KINDS.has(kind) ? String(bldSpinNow) : "0");
 /** 지금 칸의 각(라디안) — 빌더가 제 부품을 이만큼 돌린다. */
 const spinRad = (): number => ((bldSpinNow % SPIN_STEPS) * Math.PI * 2) / SPIN_STEPS;
+/** ★ **n갈래 대칭인 부품**의 각(지적: "도는 거 그림 더 자주 그리기 너무 뚝뚝 끊김") ────────
+ *  날개 셋짜리 팬은 120도만 돌면 처음 그림으로 되돌아온다. 그런데 여태 여덟 칸에 **360도**를
+ *  나눠 담아, 칸이 0·45·90·135…로 갈 때 눈에 보이는 각은 0·45·90·**15**·60·105·30·75가 됐다 —
+ *  여덟 그림이 다 다르기는 한데 **차례가 뒤죽박죽**이라 도는 것이 아니라 떠는 것으로 보였다.
+ *  대칭 몫(2π/n)을 여덟 칸에 나눠 담으면 15도씩 곧게 나아가고, 마지막 칸 다음이 첫 칸과
+ *  정확히 이어진다(대칭이니까). 판 수는 그대로 여덟이다. */
+const spinRadSym = (n: number): number => ((bldSpinNow % SPIN_STEPS) * Math.PI * 2) / (n * SPIN_STEPS);
 /** 굽는 도구(model-shot --spin)가 칸을 세우는 문 — 앱에서는 op.spin이 세운다. */
 export function bldSpinSet(n: number): void {
   bldSpinNow = ((Math.round(n) % SPIN_SLOTS) + SPIN_SLOTS) % SPIN_SLOTS;
@@ -4321,7 +4328,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      *  #15181c는 구멍이 뚫린 것처럼 보여 날개 셋이 허공에 떠 있는 꼴이었고,
      *  #3c424a는 아직 어두워 날개와 대비가 약했다. #5c646f면 뒤판이 판으로 읽히고
      *  그 위의 밝은 날개(#98a1ab)가 또렷하게 뜬다. */
-    const HOLE = "#586373";
+    /* 한 단 더 연하게(요청: "팬 날개 말고 밑판 색 좀 더 연하게") — #15181c(구멍처럼 보임)
+       → #3c424a → #5c646f → #586373 → **#6c7889**. 날개(#959fae)와의 차가 아직 한 단
+       남아 날개는 그대로 뜨고, 뒤판은 '뚫린 데'가 아니라 판으로 읽힌다. */
+    const HOLE = "#6c7889";
     const BLADE = "#959fae";
     const FRAME = "#647083";
     const out: ShapeFace[] = [];
@@ -4346,9 +4356,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        평면 위의 원이라 화면 타원을 직접 그리지 않는다: 중심 C와 그 평면을 이루는 두
        방향 u·v를 받아 P(r,t) = C + r·cos t·u + r·sin t·v 로 모형 좌표를 만들고, 투영은
        polyPath3에 맡긴다. 앞면처럼 기운 벽에서도 원이 벽에 제대로 눕는 이유다. */
+    /** flip — 날개가 휘는 쪽과 도는 쪽을 함께 뒤집는다(요청: "서플라이 **옆면** 팬 날개
+     *  방향 반대로 하고 도는 방향도 반대로" · 정정: "윗면은 말고 옆면만"). 지붕 환풍구는
+     *  종전 그대로다. */
     const fanVent = (
       c: [number, number, number], u: [number, number, number], v: [number, number, number],
-      r: number, key: number,
+      r: number, key: number, flip = false,
     ): void => {
       const P = (rr: number, t: number): [number, number, number] => {
         const ct = Math.cos(t) * rr; const st = Math.sin(t) * rr;
@@ -4365,18 +4378,23 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 날개 셋 — 허브에서 나와 살짝 휘며 넓어진다. 사이는 검은 구멍이 그대로 비친다.
       const SEG = 6;
       for (let k = 0; k < 3; k += 1) {
-        // 상시 회전(요청) — 날개는 제 평면의 각으로 그려지므로 위상 하나면 돈다.
-        const a0 = (k / 3) * Math.PI * 2 + spinRad();
+        /* 상시 회전(요청) — 날개는 제 평면의 각으로 그려지므로 위상 하나면 돈다.
+           ★ 각은 **세 갈래 대칭 몫**으로 잰다(위 spinRadSym) — 여덟 칸이 120도를 15도씩
+             나눠 밟아, 차례가 곧고 마지막 다음이 첫 칸과 이어진다.
+           ★ flip이면 **휘는 쪽과 도는 쪽을 함께** 뒤집는다(옆면 팬) — 둘을 같이 뒤집어야
+             '미는 날'의 관계가 그대로다. */
+        const d9 = flip ? -1 : 1;
+        const a0 = (k / 3) * Math.PI * 2 + d9 * spinRadSym(3);
         const pts: [number, number, number][] = [];
         const rAt = (t: number): number => r * (0.2 + 0.78 * t);
         const half = (t: number): number => 0.16 + 0.52 * t;
         for (let j = 0; j <= SEG; j += 1) {
           const t = j / SEG;
-          pts.push(P(rAt(t), a0 + t * 0.62 - half(t)));
+          pts.push(P(rAt(t), a0 + d9 * t * 0.62 - half(t)));
         }
         for (let j = SEG; j >= 0; j -= 1) {
           const t = j / SEG;
-          pts.push(P(rAt(t), a0 + t * 0.62 + half(t)));
+          pts.push(P(rAt(t), a0 + d9 * t * 0.62 + half(t)));
         }
         parts.push([polyPath3(pts), 1, BLADE] as ShapeFace);
       }
@@ -4397,7 +4415,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const vn = Math.hypot(sl, 1);
       for (const fx of [-1.75, 1.75]) {
         fanVent([fx, wallY(1.2) + 0.06, 1.2], [1, 0, 0], [0, sl / vn, 1 / vn], 0.92,
-          22 + depthNow(fx, 2.7));
+          22 + depthNow(fx, 2.7), true);   // 옆면 팬만 뒤집는다(요청·정정)
       }
     }
     /* 지붕 드럼통 — 앞 판에서 잘못 걷었다가 되살렸다(정정: "옥상의 디스크 말고 바닥의

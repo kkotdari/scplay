@@ -5348,7 +5348,14 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           spin: !qAnim || bldFrozen9 ? 0
             : shapeKind === "forge" || shapeKind === "cyber" || shapeKind === "mshop"
               ? (researching ? Math.floor(t * 1.6 * SPIN_STEPS) % SPIN_STEPS : 0)
-              : Math.floor(t * 0.6 * SPIN_STEPS) % SPIN_STEPS,
+              /* ★ 0.6 → **2.2바퀴/초**(지적: "너무 뚝뚝 끊김") — 칸이 여덟뿐이라 판을
+                 늘리지 않고 매끄럽게 하는 길은 **더 자주 바꾸는 것**이다. 초당 4.8번이던
+                 판 갈아 끼움이 17.6번(57ms마다)이 되어 눈에는 이어져 돈다. 판 수는
+                 그대로 여덟이라 굽기 값은 한 톨도 안 는다(전부 캐시 적중).
+                 서플라이 팬은 세 갈래 대칭이라 한 칸이 15도이므로(빌더의 spinRadSym),
+                 이 걸음은 날개 기준 초당 2.2바퀴가 아니라 **0.73바퀴**다 — 환풍팬으로
+                 알맞은 속도다. */
+              : Math.floor(t * 2.2 * SPIN_STEPS) % SPIN_STEPS,
           /* 원작처럼 45도 요잉(지적) — 2D에도 적용(재지적: 2D도 45도 요잉해야지).
              쐐기의 진범은 요잉이 아니라 hover 그림자의 beginPath 누락이었다. */
           rotDeg: buildingYawOf(),
