@@ -3608,9 +3608,16 @@
    내려 준다). 되먹임은 없다: 조종부의 키는 미니맵과 무관하다.
    앞판의 clamp(114~174 · PC 176~320)보다 대개 낮아진다 — 그것이 요청의 '좀 낮아질 듯'이다. */
 .scr-fs-layer.is-fs .scr-fs-root {
-  --scr-mini-h: calc(var(--scr-fsbot, 48px) + 6px + 44px
-    - (var(--scr-botpad) / 2 + env(safe-area-inset-bottom, 0px)));
+  /* 배수(요청: "PC 전체화면에서는 미니맵 높이 현재의 3배로") — 폰은 화면이 좁아 오른 칸과
+     나란한 1배가 맞고, PC는 화면이 넓어 그 자리가 통째로 남는다. 값 하나만 갈아 끼운다:
+     폭도 이 키에서 나오므로 아이콘 줄·조종부의 왼 끝이 저절로 따라온다. */
+  --scr-mini-k: 1;
+  --scr-mini-h: calc((var(--scr-fsbot, 48px) + 6px + 44px
+    - (var(--scr-botpad) / 2 + env(safe-area-inset-bottom, 0px))) * var(--scr-mini-k));
   --scr-mini-w: calc(var(--scr-mini-h) * var(--scr-mini-ar, 1));
+}
+@media (min-width: 1160px) {
+  .scr-fs-layer.is-fs .scr-fs-root { --scr-mini-k: 3; }
 }
 .scr-fs-layer.is-fs .scr-fs-minipanel .scr-fs-minimap { width: 100%; height: var(--scr-mini-h); }
 .scr-fs-bottom {

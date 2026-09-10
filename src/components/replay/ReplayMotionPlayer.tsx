@@ -540,6 +540,14 @@ const linkLog9 = (s9: string): void => {
 };
 /** 손짓 중 한 장이 이 시간을 넘으면 **무거운 자리**로 본다(3D·난전) — 그때는 끄는 동안 다시 그리기를 미루고
  *  CSS 미끄러짐에 맡긴다(아래 xfPaintNow의 ★). 55ms면 60Hz 기준 세 프레임을 통째로 먹는다는 뜻이다. */
+/** 그려진 보기(b)에서 지금 보기까지의 **임시 변환** — 캔버스 내용은 그대로 두고 합성기만
+ *  민다. 두 캔버스(유닛·안개)가 각자 제 기준으로 이 자를 쓴다. */
+function xfDelta9(b: { z: number; x: number; y: number }, z: number, px: number, py: number): string {
+  if (!(b.z > 0)) return XF_ID9;
+  const s = z / b.z;
+  if (s === 1 && px === b.x && py === b.y) return XF_ID9;
+  return `translate(${(px - s * b.x).toFixed(2)}px, ${(py - s * b.y).toFixed(2)}px) scale(${s.toFixed(4)})`;
+}
 const XF_HEAVY_MS9 = 55;
 /** 손끝이 이만큼 멈춰 있으면 '한 박자 쉰 것'으로 보고 무거운 자리에서도 한 장 그린다(마무리 한 장의 시계). */
 const XF_STILL_MS9 = 140;
@@ -28682,6 +28690,16 @@ export default function ReplayMotionPlayer({
   /** 유닛 캔버스에 마지막으로 건 임시 변환 문자열(위 xfBase 기준 델타) — 손짓 중 틱이 기준 자리에 다시 칠한 뒤 **같은
    *  값**을 도로 건다(붓이 걷어 버리므로). 값이 안 바뀌면 합성기가 움직일 일이 없다. 재기준(다시 칠함)은 ""로 되돌린다. */
   const xfCvXfRef = useRef(XF_ID9);
+  /** ★ 안개 캔버스가 **그려져 있는 보기**(지적: "드래그나 키보드로 지도 이동 시 안개가 늦게
+   *  따라오고 튄다") ─────────────────────────────────────────────────────────────────────
+   *  안개는 손짓 중 150ms마다만 다시 칠한다(FOG_GEST_MS9). 그 사이는 "CSS가 같은 그림을
+   *  밀어 준다"가 규약인데, 붓이 한 장 칠할 때마다 안개 캔버스의 임시 변환을 **항등으로
+   *  되돌리고** 있었다 — 유닛과 같은 취급을 한 것이다. 유닛은 그 프레임에 다시 칠했으니
+   *  항등이 맞지만, 안개는 안 칠한 프레임이 대부분이라 옛 그림이 새 자리에 그냥 서 버린다.
+   *  그것이 '늦게 따라오다 튄다'의 정체다(늦은 것이 아니라 **안 밀린** 것이고, 다음 칠에
+   *  제자리로 튄다).
+   *  그래서 안개는 제 기준을 따로 든다 — 임시 변환은 늘 '지금 보기 − 이 기준'이다. */
+  const fogXfRef9 = useRef({ z: 0, x: 0, y: 0 });
   /** 캔버스가 한 장 그려질 때마다 — 그 보기가 곧 임시 변환의 기준이다(자식이 부른다). */
   const onUnitPainted = useCallback((z9: number, p9: { x: number; y: number }): void => {
     xfBaseRef.current = { z: z9, x: p9.x, y: p9.y };
@@ -28777,7 +28795,13 @@ export default function ReplayMotionPlayer({
         : `translate(${(px - s9 * b9.x).toFixed(2)}px, ${(py - s9 * b9.y).toFixed(2)}px) scale(${s9.toFixed(4)})`;
       xfCvXfRef.current = xf9;
       if (cv9) { cv9.style.transformOrigin = "center"; cv9.style.transform = xf9; }
-      if (fg9) { fg9.style.transformOrigin = "center"; fg9.style.transform = xf9; }
+      /* 안개는 **제 기준**으로 민다(위 fogXfRef9) — 유닛과 다른 박자로 칠해지므로 같은
+         델타를 걸면 그만큼 어긋난 자리에 선다. */
+      if (fg9) {
+        const fx9 = xfDelta9(fogXfRef9.current, z1, px, py);
+        fg9.style.transformOrigin = "center";
+        if (fg9.style.transform !== fx9) fg9.style.transform = fx9;
+      }
       mapPaintRef.current?.(z1, panRef.current);
       /* ★ 미니맵은 손짓 중 **뜸하게** 다시 그린다(요청: "이동 시 더 빠르게 시점 변경") ────────────────────────
          이 한 줄이 손짓 프레임마다 미니맵 캔버스를 통째로 다시 그린다(지형 판 + 개체 점 수백). 그런데 미니맵이
@@ -29051,7 +29075,13 @@ export default function ReplayMotionPlayer({
       /* 이미 떠 있는 조작부 위에 마우스가 있으면 계속 깨어 있는다 — 버튼을 겨누는
          동안 사라지면 누를 수가 없다. */
       if (e.target instanceof Element && e.target.closest(".scr-fs-menubtn")) return;
-      if (e.target instanceof Element && e.target.closest(".scr-fs-ui")) fsWake();
+      /* ★ **이미 떠 있을 때만** 깨어 있게 한다(지적: "엣지 투 스크롤이 안 먹을 때도 있어")
+         ────────────────────────────────────────────────────────────────────────────────
+         뜻은 '버튼을 겨누는 동안 사라지지 않게'였는데, 조건에 '떠 있나'가 빠져 있어 **닫힌
+         조작부를 hover만으로 열었다**. 조종부 줄은 화면 아래 끝에 붙어 있으므로, 아래로
+         밀려고 마우스를 내리는 그 길이 곧 그 판 위다 — 닿는 순간 판이 뜨고, 판이 뜨면
+         엣지 스크롤은 꺼진다(아래 uiOn9). 아래·오른쪽으로 밀 때만 안 먹던 까닭이다. */
+      if (fsUiRef.current && e.target instanceof Element && e.target.closest(".scr-fs-ui")) fsWake();
     };
     const step9 = (now9: number): void => {
       raf9 = requestAnimationFrame(step9);
@@ -29170,6 +29200,8 @@ export default function ReplayMotionPlayer({
       // 안개 캔버스도 — 이 렌더의 ReplayFogLayer effect(자식이 먼저 돈다)가 상태 자리로 칠했으니 변환만 걷는다.
       const fcv9 = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-fog");
       if (fcv9 && fcv9.style.transform !== XF_ID9) { fcv9.style.transformOrigin = "center"; fcv9.style.transform = XF_ID9; }
+      // 안개 기준도 그 자리다 — 안 맞추면 다음 붓이 엉뚱한 차를 걸어 안개가 튄다(위 fogXfRef9).
+      fogXfRef9.current = { z: zoom, x: pan.x, y: pan.y };
     }
     xfCvXfRef.current = XF_ID9;
     // 굳은 배율로 touch-action도 못 박는다(위 applyGestureXf와 같은 규칙 — 한 손 줌이 떼며 되돌린 값을 여기서 바로잡는다).
@@ -30241,12 +30273,9 @@ export default function ReplayMotionPlayer({
        (그린 직후엔 0이라 항등). 못 그린 프레임만 그 차가 남아 CSS가 잇는다. rebase9는 부르는 쪽을 가르는 표식으로만 남는다. */
     void rebase9;
     unitPaintRef.current?.(zoomRef.current, panRef.current, zoomCommitRef.current);
-    {
-      // 내용이 지금 보기다 — 두 캔버스의 임시 변환은 항등으로 되돌린다(안 그러면 두 번 먹는다).
-      xfCvXfRef.current = XF_ID9;
-      const fcvR9 = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-fog");
-      if (fcvR9 && fcvR9.style.transform !== XF_ID9) { fcvR9.style.transformOrigin = "center"; fcvR9.style.transform = XF_ID9; }
-    }
+    xfCvXfRef.current = XF_ID9;
+    // 유닛은 지금 보기로 칠했다 — 그쪽 임시 변환만 항등으로 되돌린다(안 그러면 두 번 먹는다).
+    // ★ 안개는 여기서 안 건드린다 — 이 프레임에 칠했는지는 아래 안개 블록이 안다(위 fogXfRef9의 ★).
     /* ★ 안개도 붓 박자로(지적: "유닛은 부드럽게 움직이는데 안개는 뚝뚝 끊겨서 변하는 느낌") — 안개 층은 React
        props(100ms 박자)로만 다시 그려졌다. 붓이 고른 장의 안개(눈 목록·밝힌 판)가 지난 틱과 다르면 곧장 안개
        층에 넘겨 칠한다 — 워커가 쌓는 안개 판(40ms 간격)이 그대로 화면 박자가 된다. 밝힌 판은 시각으로 거르므로
@@ -30277,6 +30306,17 @@ export default function ReplayMotionPlayer({
         ft9.vis = fr9.visSrc; ft9.ver = fr9.visVer; ft9.explored = fr9.explored; ft9.tq = tq9; ft9.z = vz9; ft9.px = vx9; ft9.py = vy9;
         ft9.at = gnow9;
         fogPaintRef.current(zoomRef.current, panRef.current, { vis: fr9.visSrc, exploredAt: fr9.explored, t: tNow9 });
+        fogXfRef9.current = { z: vz9, x: vx9, y: vy9 };   // 이 보기로 칠했다 — 임시 변환의 새 기준
+      }
+    }
+    /* ★ 안개 캔버스의 임시 변환 — **칠했으면 항등, 안 칠했으면 그 사이의 차**다(위 fogXfRef9).
+       여태 무조건 항등으로 지워, 안 칠한 프레임에서 옛 그림이 새 자리에 그냥 섰다. */
+    {
+      const fcvR9 = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-fog");
+      if (fcvR9) {
+        const fx9 = xfDelta9(fogXfRef9.current, zoomRef.current, panRef.current.x, panRef.current.y);
+        fcvR9.style.transformOrigin = "center";
+        if (fcvR9.style.transform !== fx9) fcvR9.style.transform = fx9;
       }
     }
   };
