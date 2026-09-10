@@ -28185,34 +28185,12 @@ export default function ReplayMotionPlayer({
        주는 아이폰 사파리에서는 CSS 폴백(fixed·inset:0)이 화면이 아니라 **카드**를
        기준으로 깔렸다 — 그래서 화면 맨 위 헤더가 안 덮였다. 오버레이는 이제 body로
        포털하고(아래 fsInner), 전체화면도 문서 뿌리에 건다. */
-    /* ★ 손가락 기기는 **가로로 돌린다**(요청: "가로모드 전체화면은 안 되나") ─────────────
-       지도는 가로로 넓은 그림이고 전체화면의 뜻은 그것을 크게 보는 것이라, 폰 세로에서는
-       상자의 3분의 2가 지도 바깥이었다. 화면 방향 잠금(ScreenOrientation.lock)이 그 답인데
-       조건이 둘 있다: ① **진짜 전체화면 안에서만** 걸린다(아니면 거절한다) ② 손가락 기기만
-       — PC에서는 걸 자리가 아니다(모니터를 돌릴 수는 없다).
-       그래서 requestFullscreen이 **풀린 뒤에** 건다. 안 되는 곳(아이폰 사파리는 div·문서에
-       전체화면 API를 아예 안 준다)에서는 조용히 지나간다 — 그 기기는 CSS 폴백으로 화면을
-       덮으므로 지금 방향 그대로 꽉 찬 화면이 되고, 사람이 돌리면 가로가 된다.
-       나갈 때 푼다(unlock) — 안 풀면 전체화면을 닫은 뒤에도 페이지가 가로로 묶인다. */
-    const land9 = (): void => {
-      if (!coarse) return;
-      const so9 = window.screen?.orientation as
-        (ScreenOrientation & { lock?: (o: string) => Promise<void> }) | undefined;
-      void so9?.lock?.("landscape").catch(() => {});
-    };
     if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
-      void document.documentElement.requestFullscreen().then(land9).catch(() => {});
-    } else if (document.fullscreenElement) {
-      land9();   // 이미 전체화면이면(다른 길로 들어옴) 곧장 건다
+      void document.documentElement.requestFullscreen().catch(() => {});
     }
-  }, [fsWake, coarse]);
+  }, [fsWake]);
   const exitFs = useCallback((): void => {
     setFsOn(false);
-    /* 방향 잠금을 **먼저** 푼다 — 전체화면을 나가면 잠금은 저절로 풀리지만, 브라우저마다
-       그 차례가 달라 잠긴 채로 남는 경우가 있다. 안 잠겨 있으면 아무 일도 안 한다. */
-    const so9 = window.screen?.orientation as
-      (ScreenOrientation & { unlock?: () => void }) | undefined;
-    try { so9?.unlock?.(); } catch { /* 잠근 적 없으면 던진다 — 무시한다 */ }
     if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
   }, []);
   /* 브라우저 쪽에서 나간 것(Esc·시스템 제스처)도 우리 상태에 반영한다. CSS 폴백으로만
