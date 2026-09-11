@@ -21705,6 +21705,7 @@ function unitSprite(
   const key = `${subKey}|${lod}|${pxq}`;
   SPRITE_PERF.colorSet.add(op.color);
   const hit = SPRITE_CACHE.get(key);
+  if (!hit) uniMissWhy9(op.kind, key);   // 왜 빗나갔나(위 uniMissWhy9) — 굽기 회전의 임자를 가른다
   // 찾은 것은 맨 뒤로 — 그래야 맨 앞이 '가장 오래 안 쓴 것'이 된다(LRU).
   if (hit) {
     SPRITE_PERF.hit += 1;
@@ -22357,6 +22358,27 @@ export function stageFaces(faces: ShapeFace[], stg: number): ShapeFace[] {
  *  시점 칸(팬·확대)인지 · 회전 칸(도는 부품)인지 · 불빛(생산 깜빡임)인지 · 단계인지. 종류마다 마지막
  *  열쇠를 적어 두고, 빗나갈 때 첫 번째로 다른 칸의 이름을 센다. 값은 문자열 나누기 한 번이다. */
 const BLD_KEYF9 = ["종류", "회전", "평면", "시점", "기울기", "배킹", "단계", "포탑", "불빛", "회전칸", "LOD", "옆면"];
+/** 유닛 판 열쇠의 칸 이름(아래 subKey와 **같은 차례**여야 한다). */
+const UNI_KEYF9 = ["종류", "회전", "평면", "시점", "기울기", "배킹", "자세", "덩이", "LOD", "크기"];
+const UNI_MISS9 = { last: new Map<string, string>(), why: new Map<string, number>() };
+function uniMissWhy9(kind9: string, key9: string): void {
+  const prev9 = UNI_MISS9.last.get(kind9);
+  UNI_MISS9.last.set(kind9, key9);
+  if (!prev9) return;
+  const a9 = prev9.split("|");
+  const b9 = key9.split("|");
+  for (let i = 0; i < b9.length; i += 1) {
+    if (a9[i] === b9[i]) continue;
+    const n9 = UNI_KEYF9[i] ?? `#${i}`;
+    UNI_MISS9.why.set(n9, (UNI_MISS9.why.get(n9) ?? 0) + 1);
+    return;
+  }
+}
+/** 최근 창의 상위 셋 — 유닛·건물을 같은 꼴로 보인다. */
+function missTop9(m9: Map<string, number>): string {
+  const a9 = [...m9.entries()].sort((x9, y9) => y9[1] - x9[1]).slice(0, 3);
+  return a9.length === 0 ? "-" : a9.map(([k9, v9]) => `${k9}${v9}`).join(" ");
+}
 const BLD_MISS9 = { last: new Map<string, string>(), why: new Map<string, number>() };
 function bldMissWhy9(kind9: string, key9: string): void {
   const prev9 = BLD_MISS9.last.get(kind9);
@@ -32793,6 +32815,8 @@ export default function ReplayMotionPlayer({
                       {` · 배킹[손실${LOST9.n} 검사${LOST9.probe}${SCR_DIAG.allocOk ? "" : " ⚠확보실패"}]`}
                       {/* 메모리 흐름(위 MEMTR9) — 처음·지금·최대가 나란하면 새는 데가 없다. */}
                       {` · 캔버스만듦[총${CVN9.n} 초당${CVN9.rate.toFixed(0)}${CVN9.top ? ` · ${CVN9.top}` : ""}]`}
+                      {/* 판이 왜 갈리나 — 굽기 회전의 임자다(유닛·건물 각각 상위 셋). */}
+                      {` · 판갈림[유닛 ${missTop9(UNI_MISS9.why)} · 건물 ${missTop9(BLD_MISS9.why)}]`}
                       {MEMTR9.n > 0 ? ` · 메모리[처음${MEMTR9.first.toFixed(0)} 지금${MEMTR9.now.toFixed(0)} 최대${MEMTR9.max.toFixed(0)}MB`
                         + ` · 캔버스${MEMTR9.cv}장 ${MEMTR9.cvMB.toFixed(1)} · 판 ${MEMTR9.plMB.toFixed(1)} · 설계도안개 ${MEMTR9.exMB.toFixed(1)}]` : ""}
                     </div>
