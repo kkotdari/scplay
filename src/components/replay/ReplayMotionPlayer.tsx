@@ -23,7 +23,7 @@ import {
 } from "../../utils/replayTechNames";
 import type { ReplayMapGrid } from "./mapGrid";
 import { revalidateReplayMap } from "./useReplayMap";
-import ReplayMapVector, { MAPVEC_LOST9 } from "./ReplayMapVector";
+import ReplayMapVector, { MAPVEC_LOST9, MAPVEC_M9 } from "./ReplayMapVector";
 import { AIR_UNITS } from "../../utils/statsMix";
 import { BLD_STATS, UNIT_BUILD_SEC, UNIT_STATS } from "./unitStats";
 /* 사거리는 이 파일이 들고 있던 상수(ENGAGE_SIGHT_TILES 9, 방어 건물 7/7/7/8/6, 벙커 안
@@ -32882,6 +32882,10 @@ export default function ReplayMotionPlayer({
                       {TICKM9.n > 0 ? ` · 타이머[최악${TICKM9.worst.toFixed(0)}ms ${TICKM9.n}번]` : ""}
                       {/* 캔버스 배킹 손실(위 LOST9) — 잃고 다시 그린 횟수·검사 횟수. */}
                       {` · 배킹[손실${LOST9.n} 검사${LOST9.probe}${SCR_DIAG.allocOk ? "" : " ⚠확보실패"}]`}
+                      {/* 지도 판(위 MAPVEC_M9) — 다시 구운 수·확보 실패·지금 예산과 한 변. 지도가 까만 채로
+                          남는 신고를 '안 구웠나 · 굽다 실패했나'로 가른다. */}
+                      {` · 지도판[구움${MAPVEC_M9.bake} 실패${MAPVEC_M9.fail} 줄임${MAPVEC_M9.shrink}`
+                        + ` 한변${MAPVEC_M9.side} 예산${(MAPVEC_M9.cap / 1e6).toFixed(1)}Mpx]`}
                       {/* 메모리 흐름(위 MEMTR9) — 처음·지금·최대가 나란하면 새는 데가 없다. */}
                       {` · 캔버스만듦[총${CVN9.n} 초당${CVN9.rate.toFixed(0)} 최고${CVN9.peak.toFixed(0)}${CVN9.peakTop ? `(${CVN9.peakTop})` : ""}]`}
                       {/* 되쓰기 창고(위 CVSTORE9) — 든 수·빗나간 수·넣은 수와 지금 쌓인 장수. */}

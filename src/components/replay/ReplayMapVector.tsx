@@ -31,6 +31,12 @@ import { pWrap, pCount, PERF9, DPRCAP9 } from "./perf9";
 /** ★ 캔버스 배킹 손실 표 — 재생기가 올리면 이 층이 다음 칠에서 **처음부터** 다시 굽는다.
  *  (웹킷은 메모리 회수 때 캔버스 배킹을 버린다: 크기·열쇠는 멀쩡한데 그림만 사라진다.) */
 export const MAPVEC_LOST9 = { n: 0 };
+/** ★ 지도 판 계량·예산(실기: 배킹을 잃고도 지도가 까만 채로 남는다) ─────────────────────────────────
+ *  `bake`는 다시 구운 횟수, `fail`은 배킹 확보에 실패한 횟수, `cap`은 지금 예산(화소), `side`는 마지막 판의 한 변.
+ *  ★ **잃을 때마다 예산을 반으로 내린다**(shrink) — 이 판의 가장 큰 캔버스가 지도다(폰에서 1719² = 11.3MB,
+ *    화면 화소의 일곱 배). 기기가 배킹을 거두는 자리에서 그만한 판을 계속 다시 잡는 것은 압박을 되먹이는 짓이다.
+ *    한 번 겪을 때마다 스스로 내려가면, 몇 번 안에 그 기기가 견디는 크기로 자리 잡는다(안 겪는 기기는 그대로다). */
+export const MAPVEC_M9 = { bake: 0, fail: 0, cap: 0, side: 0, shrink: 0 };
 export default function ReplayMapVector({
   grid, zoom, pan, pitched, style, painter, tileFrac, pitchSig, pitchXf, pitchKAt,
 }: {
@@ -245,6 +251,9 @@ export default function ReplayMapVector({
       if (lostSeen9.current !== MAPVEC_LOST9.n) {
         lostSeen9.current = MAPVEC_LOST9.n;
         bakedRef.current = null;
+        /* 잃을 때마다 예산을 반으로(위 MAPVEC_M9의 ★) — 바닥은 화면 한 장 남짓(1.2Mpx). */
+        areaCapRef.current = Math.max(1_200_000, Math.floor(areaCapRef.current / 2));
+        MAPVEC_M9.shrink += 1;
       }
     const cv = cvRef.current;
     const [bw, bh] = box;
@@ -654,6 +663,8 @@ export default function ReplayMapVector({
     }
     if (cv.width !== cw) cv.width = cw;
     if (cv.height !== ch) cv.height = ch;
+    MAPVEC_M9.cap = areaCapRef.current;
+    MAPVEC_M9.side = cw;
     if (scrDiagOn()) {
     SCR_DIAG.mapCss = `${bw}x${bh}`;
     /* ★ 진단이 **거짓말을 못 하게** 고친다 — 앞판은 올림한 정수끼리 견줘 "37/37 100%"를
@@ -672,7 +683,8 @@ export default function ReplayMapVector({
     SCR_DIAG.allocOk = cv.width === cw && cv.height === ch;
     }
     if (cv.width !== cw || cv.height !== ch) {
-      if (areaCap <= 2_000_000) {         // 더 줄일 데가 없다 — 이번 판은 포기한다.
+      MAPVEC_M9.fail += 1;
+      if (areaCap <= 1_200_000) {         // 더 줄일 데가 없다 — 이번 판은 포기한다.
         bakedRef.current = null;
         return;
       }
@@ -699,6 +711,7 @@ export default function ReplayMapVector({
        돌아간 것까지 함께 셌다. 그 둘을 갈라야 "지형을 몇 번 다시 그렸나"에 답할 수 있다.
        어떤 크기로 구웠는지도 함께 남긴다 — 같은 크기를 두 번 구웠다면 그건 낭비다. */
     if (PERF9) pCount(`지형굽기:${cw}x${ch}`, 1);
+    MAPVEC_M9.bake += 1;
     bakedRef.current = { key, tx0, ty0, tx1, ty1, cv, cw, ch, ppt: pptX };
     };
     /* 부모가 손짓 중에 쥘 붓 — 손끝 배율은 이어서 움직이므로 **√2 칸으로 갈무리**해
