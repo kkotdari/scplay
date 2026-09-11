@@ -17,6 +17,7 @@ import { cx } from "./cx";
 /* 프사·종족 배지·알림은 **앱이 꽂는다**(chrome.ts 머리말) — 모듈은 그 구현을 안 갖는다. */
 import { replayAvatarOn, replayChrome, replayToast } from "./chrome";
 import { BUILDING_KO, TECH_KO, UNIT_KO } from "../../utils/replayNames";
+import { TIER_GEN9 } from "./tierTable.gen";
 import {
   ARMOR_WEAPON_PAIRS, UNIT_UPGRADE_TAG, UPGRADE_ONE_LETTER,
   UPGRADE_UNITS, researchKo,
@@ -22222,9 +22223,25 @@ const TIER_TABLE = new Map<string, Map<number, number>>();
  *    한 번만 매겨 두면 된다. 각도는 이제 등급에 영향을 못 준다.
  *  ★ 덤으로 가볍다 — 굽는 판마다 돌던 셈이 종류마다 한 번으로 준다(실측: 면 하나당
  *    2.5µs · 판 하나당 0.79ms였다. 요잉 16방 × 시점 버킷만큼 곱해지던 값이다). */
-function tierTableOf(kind: string): Map<number, number> {
+export function tierTableOf(kind: string): Map<number, number> {
   const hit = TIER_TABLE.get(kind);
   if (hit) return hit;
+  /* ★ **미리 구운 표가 있으면 그것을 든다**(수리: "1배 로딩이 그대로 · 건물이 엄청 늦게 떠") ──
+     계량기가 예열 2763ms/319개를 찍었다 — 개당 8.7ms인데, 방향 판은 면 캐시라 그만큼 안 든다.
+     값은 전부 아래 여덟 방위 굽기(종류당 20~30ms)였다. 그런데 이 표는 **모델 기하만의 함수**라
+     리플레이도 기기도 배율도 안 탄다 — 지을 자리는 사용자의 폰이 아니라 빌드 시각이다.
+     tierTable.gen.ts가 그 자리이고, 여기서는 읽기만 한다(종류 하나에 문자열 한 줄 가르기).
+     표에 없는 종류는 아래 옛길로 떨어진다 — 생성기를 안 돌려도 그림은 안 틀리고 느릴 뿐이다. */
+  const gen9 = TIER_GEN9[kind];
+  if (gen9 !== undefined) {
+    const t9 = new Map<number, number>();
+    if (gen9) {
+      const a9 = gen9.split(" ");
+      for (let i9 = 0; i9 + 1 < a9.length; i9 += 2) t9.set(Number(a9[i9]), Number(a9[i9 + 1]));
+    }
+    TIER_TABLE.set(kind, t9);
+    return t9;
+  }
   const table = new Map<number, number>();
   TIER_TABLE.set(kind, table);
   const builder = Object.prototype.hasOwnProperty.call(SHAPE_BUILDERS, kind)
