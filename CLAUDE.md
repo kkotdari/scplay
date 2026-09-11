@@ -57,7 +57,7 @@ scplayer 쪽 소스를 만졌으면 그쪽에서 `npx tsc --noEmit -p tsconfig.j
   `tintedOf9`로 만들어 되쓴다(상한 8색). 건물 판(`BldSprite.tint`)도 같은 규약이다.
 - 기기 프로필은 `DEV9` 한 표(폰/PC: 판 예산·굽기 상한·프레임당 굽기·불티·효과 래스터·그림자 최소 배율·시야 여유·
   앞 한도(폰 1.5s/4MB·PC 3s/24MB)·요잉 8칸). 새 문턱은 표에 더하고 자리에서는 `DEV9.x`만 읽는다. 기기 판정은 `smallDevice9` 하나.
-- `#diag`는 요약 한 줄, `#diag=draw|mem|worker|truth|all`(쉼표로 여럿)로 용도를 가른다. `mem`에 메모리 어림(memEst9) 줄.
+- `#diag`는 요약 한 줄, `#diag=draw|bake|fog|load|gest|mem|worker|truth|brush|view|all`(쉼표로 여럿)로 용도를 가른다 — draw(화면·덜어내기·프레임) · bake(굽기·판갈림·캔버스) · fog(안개) · load(로딩·지도판·입체) · gest(손짓·원점). 한 주제가 한 줄, 줄 머리에 주제 이름. `mem`에 메모리 어림(memEst9) 줄.
 - 워커는 짓기 시간(ms)에 맞춰 프레임 간격을 벌린다(초당 30장 기본, 최소 8장). 메인은 2초 안의 프레임이면 낡아도 든다.
 - **붓은 React 밖에서**(4번): 시계 틱이 살아 있는 시각(`tLiveRef9`)을 한 걸음(벽시계 ≤80ms) 올리고 `paintFnRef9`로
   설계도를 골라(`frameAt9`: 앞·뒤 장 보간) `unitPaintRef`로 유닛 캔버스를 곧장 칠한다. UnitLayer는 `opsSrc/fxSrc`(ref)를

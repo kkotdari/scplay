@@ -24213,6 +24213,9 @@ if (typeof window !== "undefined") {
   (window as unknown as { __scrDiag?: unknown }).__scrDiag = SCR_DIAG;
 }
 /** 진단의 **용도**(요청: "diag= 파라미터로 용도를 나누던가") — `#diag`만이면 요약 한 줄, `#diag=draw`(그리기·굽기),
+ *  ★ 모드를 주제별로 다시 갈랐다(지적: "diag draw 너무 많아서 정리 · 내용별로 줄바꿈"): `draw`(화면·덜어내기·프레임)
+ *    · `bake`(굽기·판갈림·캔버스) · `fog`(안개) · `load`(로딩·지도판·입체) · `gest`(손짓·원점) · `mem` · `worker` · `truth`
+ *    · `brush` · `view` · `all`. 한 주제가 한 줄이고 줄 머리에 주제 이름이 선다.
  *  `#diag=mem`(메모리), `#diag=worker`(설계 일꾼), `#diag=truth`(참값), `#diag=all`(전부). 쉼표로 여럿(`mem,worker`). */
 export const scrDiagModes = (): Set<string> => {
   if (typeof window === "undefined") return new Set();
@@ -34164,18 +34167,42 @@ export default function ReplayMotionPlayer({
                     {wStatRef.current.err ? ` ⚠ ${wStatRef.current.err}` : ""}
                   </div>
                 )}
+                {/* ★ 진단을 **주제별 줄**로 가른다(지적: "diag draw 너무 많아서 정리 · 내용별로 줄바꿈 — 뭐가 뭔지
+                    눈에 안 들어와") — 한 덩이로 이어 붙이던 것을 모드 넷(draw·bake·fog·load·gest)으로 나누고,
+                    모드 안에서도 한 주제가 한 줄이다. 줄 머리에 주제 이름. `all`은 여전히 전부. */}
                 {dm9("draw") && (
                   <>
                     <div>
-                      유닛 {SCR_DIAG.unitCss}css → {SCR_DIAG.unitBack} (B {SCR_DIAG.unitB.toFixed(2)}
+                      <b>화면</b>{" "}유닛 {SCR_DIAG.unitCss}css → {SCR_DIAG.unitBack} (B {SCR_DIAG.unitB.toFixed(2)}
                       {SCR_DIAG.dpr && SCR_DIAG.unitB < SCR_DIAG.dpr ? ` · 화질 ${Math.round((SCR_DIAG.unitB / SCR_DIAG.dpr) * 100)}%` : ""})
                       {" · 지도 "}{SCR_DIAG.mapBack} · 타일당 {SCR_DIAG.ppt}/{SCR_DIAG.needed}
-                      {SCR_DIAG.crowd ? ` · 덜어내기 ${SCR_DIAG.crowd}` : ""}
                     </div>
+                    {SCR_DIAG.crowd ? <div><b>덜어내기</b>{" "}{SCR_DIAG.crowd}</div> : null}
+                    <div>
+                      <b>프레임</b>{" "}찍기{" "}
+                      {SPRITE_PERF.wLast.frames
+                        ? Math.round(SPRITE_PERF.wLast.blit / SPRITE_PERF.wLast.frames) : 0}장/프레임
+                      {" · 최악프레임 "}{SPRITE_PERF.wLast.worstFrame.toFixed(0)}ms
+                      {" (그중 굽기 "}{SPRITE_PERF.wLast.worstFrameBake.toFixed(0)}ms) · 마커 {SPRITE_PERF.dom.markers}개
+                      {/* 이 판이 본 가장 긴 프레임과 그 몫(위 WORSTF9) — 핵 창 밖의 끊김도 여기 잡힌다. */}
+                      {WORSTF9.ms > 0 ? ` · 최장프레임[${WORSTF9.ms.toFixed(0)}ms ${WORSTF9.parts}]` : ""}
+                      {/* 타이머 틈(위 TICKM9) — rAF와 견줘 '주 실마리가 막혔나 · 그리기만 굶었나'를 가른다. */}
+                      {TICKM9.n > 0 ? ` · 타이머[최악${TICKM9.worst.toFixed(0)}ms ${TICKM9.n}번]` : ""}
+                      {/* 캔버스 배킹 손실(위 LOST9) — 잃고 다시 그린 횟수·검사 횟수. */}
+                      {` · 배킹[손실${LOST9.n} 검사${LOST9.probe}${SCR_DIAG.allocOk ? "" : " ⚠확보실패"}]`}
+                      {/* React 한 장(위 REACTM9) — 핵·스톰이 뜨면 박자가 25~60Hz로 오른다. */}
+                      {SCR_DIAG.react ? ` · 리액트[박자${reactStepRef9.current}ms · ${SCR_DIAG.react}]` : ""}
+                      {/* 지난 핵 창(위 NUKEM9) — 멈춘 뒤에 찍어도 남아 있다. */}
+                      {SCR_DIAG.nukem ? ` · 핵[${SCR_DIAG.nukem}]` : ""}
+                    </div>
+                  </>
+                )}
+                {dm9("bake") && (
+                  <>
                     {/* 굽는 값 — 예산 안이어도 프레임마다 다시 굽고 있으면 버벅인다. '버림'이 0이 아니면 예산 압박이
                         다시 굽기를 부르는 것이고, '미룸'이 쌓이면 프레임 굽기 예산에 일이 밀려 있는 것이다. */}
                     <div>
-                      굽기 {SPRITE_PERF.wLast.secs.toFixed(0)}초 · 유닛{" "}
+                      <b>굽기</b>{" "}{SPRITE_PERF.wLast.secs.toFixed(0)}초 · 유닛{" "}
                       {SPRITE_PERF.wLast.bake}장 {SPRITE_PERF.wLast.ms.toFixed(0)}ms · 건물{" "}
                       {SPRITE_PERF.wLast.bldBake}장 {SPRITE_PERF.wLast.bldMs.toFixed(0)}ms
                       {" · 버림 "}U{SPRITE_PERF.wLast.evict}/B{SPRITE_PERF.wLast.bldEvict}
@@ -34183,78 +34210,67 @@ export default function ReplayMotionPlayer({
                       {/* 대기표에 남은 수(위 BAKE_WANT9) — 큰 것부터 굽고 남은 몫이다. */}
                       {BAKE_WANT9.size > 0 ? ` 대기${BAKE_WANT9.size}` : ""}
                       {/* ★ 그 굽기 가운데 **잉크 훑기**(getImageData)가 얼마인가 — 판을 GPU가 들고 있으면
-                          이 한 줄이 파이프라인을 세워(readback) 한 장에 수십 ms가 되기도 한다. 굽기 시간이
-                          모형 짓기(면·경로)에서 오는지 이 훑기에서 오는지에 따라 다음 칼이 갈린다. */}
+                          이 한 줄이 파이프라인을 세워(readback) 한 장에 수십 ms가 되기도 한다. */}
                       {" · 훑기 "}{Math.round(SCAN_MS9.last)}ms
-                    </div>
-                    <div>
-                      찍기{" "}
-                      {SPRITE_PERF.wLast.frames
-                        ? Math.round(SPRITE_PERF.wLast.blit / SPRITE_PERF.wLast.frames) : 0}장/프레임
                       {" · 최악판 "}{SPRITE_PERF.wLast.worstKind || "-"}{" "}
                       {SPRITE_PERF.wLast.worst.toFixed(0)}ms
-                      {" · 최악프레임 "}{SPRITE_PERF.wLast.worstFrame.toFixed(0)}ms
-                      {" (그중 굽기 "}{SPRITE_PERF.wLast.worstFrameBake.toFixed(0)}ms) · 마커 {SPRITE_PERF.dom.markers}개
-                      {/* ★ 손짓 한 장(요청으로 낸다) — 끄는 동안 다시 그릴지 미룰지를 가르는 **그 값**이다
-                          (XF_HEAVY_MS9 = 55ms를 넘으면 미룬다). 여태 SCR_DIAG.xfms에 적기만 하고 어디에도
-                          안 보여, "3D 드래그가 왜 실시간이 아닌가"를 눈으로 확인할 길이 없었다. */}
-                      {/* 손짓 한 장 값과 그때의 **배킹 몫** — 몫이 내려갔는데도 값이 안 내려오면
-                          벽은 픽셀이 아니라 장수(찍기)다. 그 둘을 나란히 봐야 다음 칼을 정할 수 있다. */}
-                      {/* 그린 장의 원점 발자국 — 걸음/뒤로/지금 어긋남(위 ORG9). 왕복의 자리를 가른다. */}
-                      {/* 원값 그대로 — 그린 장의 원점/지금 손끝 원점, 그 장의 세대·차례, 보낸 차례,
-                          실시간 원근이 켜졌나(on)·접혔나(접힘)·꺼졌나(off). 파생값만으로는 못 가른다. */}
-                      {" · 원점 그린"}{ORG9.ox.toFixed(0)}{"/지금"}{ORG9.live.toFixed(0)}
-                      {" 세대"}{ORG9.gen}{"·차례"}{ORG9.seq}{"/보냄"}{wStatRef.current.sentView}
-                      {" "}{live3dOn9() ? (liveViewOkRef9.current ? "live" : "접힘") : "off"}
-                      {/* 판정의 근거 — 실측 중앙값이 있으면 그것(자), 없으면 벤치. 어느 자로 켜졌나를
-                          못 보면 "왜 안 켜지나"를 또 짐작으로 좇게 된다. */}
-                      {(() => { const m9 = xfMsMid9(); return m9 >= 0 ? `(실측${m9.toFixed(0)}/${LIVE3D_DRAW_MS9}ms)` : `(벤치${CROWD9.bench3.toFixed(0)}/${LIVE3D_BENCH_MS9}ms)`; })()}
-                      {" · "}{ORG9.sLast}걸음 역행{ORG9.rLast}
-                      {" · 손짓 "}{SCR_DIAG.xfms}ms{SCR_DIAG.xfms >= XF_HEAVY_MS9 ? "(미룸)" : ""}
-                      {/* 안개 붓 계량기(위 FOGM9) — 손짓 중 안개만 뒤처지는 신고를 수로 가른다. */}
-                      {SCR_DIAG.fog ? ` · 안개[${SCR_DIAG.fog}]` : ""}
-                      {xfBackK9.k !== 1 ? ` 배킹×${xfBackK9.k}` : ""}
-                      {/* React 한 장(위 REACTM9) — 핵·스톰이 뜨면 박자가 25~60Hz로 오른다.
-                          '박자'와 '한 장 값'을 나란히 둔다: 한 장이 박자보다 길면 그때부터 밀린다. */}
-                      {SCR_DIAG.react ? ` · 리액트[박자${reactStepRef9.current}ms · ${SCR_DIAG.react}]` : ""}
-                      {/* 지난 핵 창(위 NUKEM9) — 멈춘 뒤에 찍어도 남아 있다. */}
-                      {SCR_DIAG.nukem ? ` · 핵[${SCR_DIAG.nukem}]` : ""}
-                      {/* 이 판이 본 가장 긴 프레임과 그 몫(위 WORSTF9) — 핵 창 밖의 끊김도 여기 잡힌다. */}
-                      {WORSTF9.ms > 0 ? ` · 최장프레임[${WORSTF9.ms.toFixed(0)}ms ${WORSTF9.parts}]` : ""}
-                      {/* 타이머 틈(위 TICKM9) — rAF와 견줘 '주 실마리가 막혔나 · 그리기만 굶었나'를 가른다. */}
-                      {TICKM9.n > 0 ? ` · 타이머[최악${TICKM9.worst.toFixed(0)}ms ${TICKM9.n}번]` : ""}
-                      {/* 캔버스 배킹 손실(위 LOST9) — 잃고 다시 그린 횟수·검사 횟수. */}
-                      {` · 배킹[손실${LOST9.n} 검사${LOST9.probe}${SCR_DIAG.allocOk ? "" : " ⚠확보실패"}]`}
-                      {/* 지도 판(위 MAPVEC_M9) — 다시 구운 수·확보 실패·지금 예산과 한 변. 지도가 까만 채로
-                          남는 신고를 '안 구웠나 · 굽다 실패했나'로 가른다. */}
-                      {` · 지도판[구움${MAPVEC_M9.bake} 실패${MAPVEC_M9.fail} 줄임${MAPVEC_M9.shrink}`
-                        + ` 한변${MAPVEC_M9.side} 예산${(MAPVEC_M9.cap / 1e6).toFixed(1)}Mpx`
-                        + ` 굽기${MAPVEC_M9.ms.toFixed(0)}ms(최악${MAPVEC_M9.max.toFixed(0)})`
-                        /* 입체 흐림 조사(지적: "3D에서 맵 선명하지 않은 거 조사") — 타일당 기기픽셀 셋을 나란히:
-                           서피스(합성기가 실제로 래스터하는 해상도) · 배킹(우리가 구운 것) · 요구(화면 맨 앞줄이 보이는 것).
-                           서피스 < 요구면 합성 단계가 병목이고, 배킹 < 요구면 굽기가 병목이다. */
-                        + (pitched && MAPVEC_M9.tiles > 0
-                          ? ` · 입체[R${MAPVEC_M9.r} 창${MAPVEC_M9.css}css→서피스${MAPVEC_M9.surf}px 배킹${MAPVEC_M9.back}px ${MAPVEC_M9.tiles.toFixed(0)}타일`
-                            + ` · 타일당 서피스${(MAPVEC_M9.surf / MAPVEC_M9.tiles).toFixed(0)} 배킹${(MAPVEC_M9.back / MAPVEC_M9.tiles).toFixed(0)} 요구${MAPVEC_M9.need.toFixed(0)}(앞줄×${MAPVEC_M9.pmag.toFixed(2)})]`
-                          : "")
-                        + "]"}
-                      {/* ★ 로딩의 초는 어디로 가나(위 LOAD9) — 메인 실마리를 초 단위로 잡을 수 있는
-                          자리 넷을 나란히 둔다. 합이 곧 '로딩이 기어간 시간'이고, 큰 칸이 다음 칼이다. */}
-                      {` · 로딩[지도판${MAPVEC_M9.ms.toFixed(0)} 참값${LOAD9.truthMs.toFixed(0)}`
-                        + ` 워커세움${LOAD9.wkMs.toFixed(0)} 예열${LOAD9.warmMs.toFixed(0)}ms/${LOAD9.warmN}개]`}
-                      {/* 메모리 흐름(위 MEMTR9) — 처음·지금·최대가 나란하면 새는 데가 없다. */}
-                      {` · 캔버스만듦[총${CVN9.n} 초당${CVN9.rate.toFixed(0)} 최고${CVN9.peak.toFixed(0)}${CVN9.peakTop ? `(${CVN9.peakTop})` : ""}]`}
-                      {/* 되쓰기 창고(위 CVSTORE9) — 든 수·빗나간 수·넣은 수와 지금 쌓인 장수. */}
-                      {` · 창고[든${CVSTORE9.hit} 빗${CVSTORE9.miss} 넣${CVSTORE9.put} 쌓${CVSTORE9.list.length}]`}
-                      {/* 판이 왜 갈리나 — 굽기 회전의 임자다(유닛·건물 각각 상위 셋). */}
-                      {` · 판갈림[유닛 ${missTop9(UNI_MISS9.why)} · 건물 ${missTop9(BLD_MISS9.why)}]`}
-                      {MEMTR9.n > 0 ? ` · 메모리[처음${MEMTR9.first.toFixed(0)} 지금${MEMTR9.now.toFixed(0)} 최대${MEMTR9.max.toFixed(0)}MB`
-                        + ` · 캔버스${MEMTR9.cv}장 ${MEMTR9.cvMB.toFixed(1)} · 판 ${MEMTR9.plMB.toFixed(1)} · 설계도안개 ${MEMTR9.exMB.toFixed(1)}]` : ""}
+                    </div>
+                    {/* 판이 왜 갈리나 — 굽기 회전의 임자다(유닛·건물 각각 상위 셋). */}
+                    <div><b>판갈림</b>{" "}유닛 {missTop9(UNI_MISS9.why)} · 건물 {missTop9(BLD_MISS9.why)}</div>
+                    {/* 캔버스 만듦(위 CVN9)·되쓰기 창고(위 CVSTORE9) — 캔버스를 얼마나 새로 짓고, 얼마나 되쓰나. */}
+                    <div>
+                      <b>캔버스</b>{" "}만듦 총{CVN9.n} 초당{CVN9.rate.toFixed(0)} 최고{CVN9.peak.toFixed(0)}{CVN9.peakTop ? `(${CVN9.peakTop})` : ""}
+                      {` · 창고 든${CVSTORE9.hit} 빗${CVSTORE9.miss} 넣${CVSTORE9.put} 쌓${CVSTORE9.list.length}`}
                     </div>
                   </>
                 )}
+                {dm9("fog") && SCR_DIAG.fog ? (
+                  /* 안개 붓 계량기(위 FOGM9)·역행·떨림 — 안개만 뒤처지거나 떠는 신고를 수로 가른다. */
+                  <div><b>안개</b>{" "}{SCR_DIAG.fog}</div>
+                ) : null}
+                {dm9("load") && (
+                  <>
+                    {/* ★ 로딩의 초는 어디로 가나(위 LOAD9) — 메인 실마리를 초 단위로 잡을 수 있는
+                        자리 넷을 나란히 둔다. 합이 곧 '로딩이 기어간 시간'이고, 큰 칸이 다음 칼이다. */}
+                    <div>
+                      <b>로딩</b>{" "}지도판{MAPVEC_M9.ms.toFixed(0)} 참값{LOAD9.truthMs.toFixed(0)}
+                      {` 워커세움${LOAD9.wkMs.toFixed(0)} 예열${LOAD9.warmMs.toFixed(0)}ms/${LOAD9.warmN}개`}
+                    </div>
+                    {/* 지도 판(위 MAPVEC_M9) — 다시 구운 수·확보 실패·지금 예산과 한 변. 지도가 까만 채로
+                        남는 신고를 '안 구웠나 · 굽다 실패했나'로 가른다. */}
+                    <div>
+                      <b>지도판</b>{" "}구움{MAPVEC_M9.bake} 실패{MAPVEC_M9.fail} 줄임{MAPVEC_M9.shrink}
+                      {` 한변${MAPVEC_M9.side} 예산${(MAPVEC_M9.cap / 1e6).toFixed(1)}Mpx`}
+                      {` 굽기${MAPVEC_M9.ms.toFixed(0)}ms(최악${MAPVEC_M9.max.toFixed(0)})`}
+                    </div>
+                    {/* 입체 흐림 조사(지적: "3D에서 맵 선명하지 않은 거 조사") — 타일당 기기픽셀 셋을 나란히:
+                        서피스(합성기가 실제로 래스터하는 해상도) · 배킹(우리가 구운 것) · 요구(화면 맨 앞줄이 보이는 것).
+                        서피스 < 요구면 합성 단계가 병목이고, 배킹 < 요구면 굽기가 병목이다. */}
+                    {pitched && MAPVEC_M9.tiles > 0 ? (
+                      <div>
+                        <b>입체</b>{" "}R{MAPVEC_M9.r} 창{MAPVEC_M9.css}css→서피스{MAPVEC_M9.surf}px 배킹{MAPVEC_M9.back}px {MAPVEC_M9.tiles.toFixed(0)}타일
+                        {` · 타일당 서피스${(MAPVEC_M9.surf / MAPVEC_M9.tiles).toFixed(0)} 배킹${(MAPVEC_M9.back / MAPVEC_M9.tiles).toFixed(0)} 요구${MAPVEC_M9.need.toFixed(0)}(앞줄×${MAPVEC_M9.pmag.toFixed(2)})`}
+                      </div>
+                    ) : null}
+                  </>
+                )}
+                {dm9("gest") && (
+                  /* 손짓 조사 — 한 장 값(미룸 문턱 XF_HEAVY_MS9)·배킹 몫·그린 장의 원점(ORG9)·세대·차례·실시간 원근 판정. */
+                  <div>
+                    <b>손짓</b>{" "}{SCR_DIAG.xfms}ms{SCR_DIAG.xfms >= XF_HEAVY_MS9 ? "(미룸)" : ""}
+                    {xfBackK9.k !== 1 ? ` 배킹×${xfBackK9.k}` : ""}
+                    {" · 원점 그린"}{ORG9.ox.toFixed(0)}{"/지금"}{ORG9.live.toFixed(0)}
+                    {" 세대"}{ORG9.gen}{"·차례"}{ORG9.seq}{"/보냄"}{wStatRef.current.sentView}
+                    {" "}{live3dOn9() ? (liveViewOkRef9.current ? "live" : "접힘") : "off"}
+                    {(() => { const m9 = xfMsMid9(); return m9 >= 0 ? `(실측${m9.toFixed(0)}/${LIVE3D_DRAW_MS9}ms)` : `(벤치${CROWD9.bench3.toFixed(0)}/${LIVE3D_BENCH_MS9}ms)`; })()}
+                    {" · "}{ORG9.sLast}걸음 역행{ORG9.rLast}
+                  </div>
+                )}
                 {dm9("mem") && (
                   <>
+                    {/* 메모리 흐름(위 MEMTR9) — 처음·지금·최대가 나란하면 새는 데가 없다. */}
+                    {MEMTR9.n > 0 ? <div><b>메모리</b>{` 처음${MEMTR9.first.toFixed(0)} 지금${MEMTR9.now.toFixed(0)} 최대${MEMTR9.max.toFixed(0)}MB`}
+                      {` · 캔버스${MEMTR9.cv}장 ${MEMTR9.cvMB.toFixed(1)} · 판 ${MEMTR9.plMB.toFixed(1)} · 설계도안개 ${MEMTR9.exMB.toFixed(1)}`}</div> : null}
                     {/* 탭이 터지는 자 — 판(오프스크린)과 화면 캔버스는 서로 다른 것이라 더해야 전체다. */}
                     <div>
                       판 유닛 {SPRITE_PERF.last.keys}장 {(SPRITE_PERF.last.bytes / 1048576).toFixed(1)}MB
