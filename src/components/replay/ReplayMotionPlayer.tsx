@@ -26132,14 +26132,25 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
                훑는 길이(len)는 안 건드린다 — 그건 늘 최대 사거리다. */
             const N9 = 7;
             const W9 = 0.28;   // 0.2 → 0.14 → 0.28(재지적: "너무 빨리 나오고 사라지는듯") — 낱개가 솟았다 지는 창
-            const hw9 = (st.w / 2) * tz9 * 0.85 * 1.2;   // ×1.2(요청: 럴커 가시 크기 1.2배)
+            const hw9 = (st.w / 2) * tz9 * 0.85 * 1.2 * 1.2;   // ×1.2(요청: 럴커 가시 크기 1.2배) → 다시 ×1.2(재요청)
             // 높이 2.6 → 3.6 → 5.4(요청: "길이 1.5배 증가") — 땅에서 솟는 뼈라
             // 낮으면 얼룩으로 읽힌다.
-            const HH9 = 4.05 * tz9 * 1.2;   // 5.4 → 4.05(요청: 가시 길이 25% 축소) → ×1.2(재요청)
+            const HH9 = 4.05 * tz9 * 1.2 * 1.2;   // 5.4 → 4.05(요청: 가시 길이 25% 축소) → ×1.2(재요청) → ×1.2(재재요청)
+            /* ★ 낱개의 곡선을 **빨리 솟아 오래 서 있다 빨리 지는** 꼴로(요청: "한 가시의 사이클 시간 줄이고
+               나오는 간격은 그대로, 최대 길이로 멈춰 있는 시간 늘리기") ─────────────────────────────
+               여태 sin(πq)라 창(W9) 내내 오르내리기만 하고 꼭대기에 서 있는 순간이 없었다 — 가시가 '박히는'
+               느낌이 없다. 창 길이(W9)와 앞뒤 간격((1−W9)/N9)은 그대로 두고 그 안의 배분만 바꾼다:
+               첫 22%에 솟고(smoothstep), 50%를 꼭대기에 서 있다가, 마지막 28%에 진다. 오르내림이 짧아지니
+               '사이클'은 빨라 보이고, 멈춤이 길어 가시가 땅에 박혀 있는 시간이 는다. */
+            const env9 = (q: number): number => {
+              if (q < 0.22) { const u = q / 0.22; return u * u * (3 - 2 * u); }
+              if (q > 0.72) { const u = (1 - q) / 0.28; return u * u * (3 - 2 * u); }
+              return 1;
+            };
             for (let i9 = 0; i9 < N9; i9 += 1) {
               const q9 = (p9 - (i9 / N9) * (1 - W9)) / W9;
               if (q9 <= 0 || q9 >= 1) continue;
-              const gz9 = Math.sin(Math.PI * q9);
+              const gz9 = env9(q9);
               const d9 = (L0 * (i9 + 0.5)) / N9;
               const sx9 = x0 + dxx * d9;
               const sy9 = y0 + dyy * d9;
@@ -32238,6 +32249,24 @@ export default function ReplayMotionPlayer({
     if (pool9.size > src9.length * 3 + 200) pool9.clear();
     const fr9 = lf9.frame;
     fr9.t = fa9.t; fr9.unitOps = ops9; fr9.fxOps = fa9.fxOps; fr9.miniExtra = fa9.miniExtra; fr9.gasBusy = fa9.gasBusy;
+    /* ★ **럴커 가시의 위상도 잇는다**(요청: "애니메이션 프레임이 너무 적은 듯 — 프레임 늘려서 부드럽게") ──
+       효과 op은 여태 앞 장 것을 그대로 썼다. 유닛은 두 장 사이를 이어 매끄러운데 가시는 워커 장 박자
+       (30장/초, 폰은 그 아래)로만 위상이 바뀌고, 6배속에서는 장 하나가 경기 시간 0.2초라 한 낱개의
+       창(0.17초)을 통째로 건너뛰었다 — 그것이 '프레임이 적다'다. 프레임을 늘리는 길은 워커가 아니라 여기다:
+       뒤 장에 같은 자리(버로우한 몸이라 자리가 같다)의 가시가 있으면 그 위상까지 u9만큼 잇는다. 위상은
+       앞으로만 돈다(감싸기). 한 장 사이에 반 바퀴 넘게 갔으면 딴 사격이라 안 잇는다. */
+    if (fa9.fxOps.length > 0 && fb9.fxOps.length > 0 && fa9.fxOps.some((o9) => o9.kind === "spike")) {
+      fr9.fxOps = fa9.fxOps.map((o9) => {
+        if (o9.kind !== "spike" || o9.ph === undefined) return o9;
+        const m9 = fb9.fxOps.find((b9) => b9.kind === "spike" && b9.ph !== undefined
+          && Math.abs(b9.fx - o9.fx) < 1e-4 && Math.abs(b9.fy - o9.fy) < 1e-4);
+        if (!m9 || m9.ph === undefined) return o9;
+        let d9 = m9.ph - o9.ph;
+        if (d9 < 0) d9 += 1;
+        if (d9 > 0.5) return o9;
+        return { ...o9, ph: (o9.ph + d9 * u9) % 1 };
+      });
+    }
     fr9.explored = fa9.explored; fr9.visNow = fa9.visNow; fr9.visSrc = fa9.visSrc; fr9.visVer = undefined;
     /* ★ **눈 목록도 잇는다**(지적: "안개 떨림 더 심해짐 — 그려야 할 데이터를 잘 못 찾는 느낌") ──────────────────
        유닛은 앞·뒤 장 사이를 보간해 매끄럽게 걷는데 안개(눈 목록)는 앞 장의 것을 그대로 썼다. 높은 배속에서는 장
