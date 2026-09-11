@@ -139,7 +139,7 @@ const emit = (t: number): number => {
   const still9 = !!clock && !clock.playing && lastT9 >= 0 && Math.abs(t - lastT9) > 0.06;
   const f: Frame9 = engine.build(t, still9);
   const t1 = nowMs();
-  const body = pack9({ unitOps: f.unitOps, fxOps: f.fxOps, miniExtra: f.miniExtra, gasBusy: f.gasBusy, dom: f.dom });
+  const body = pack9({ unitOps: f.unitOps, fxOps: f.fxOps, miniExtra: f.miniExtra, gasBusy: f.gasBusy });
   const t2 = nowMs();
   const transfer: Transferable[] = [body.buf.buffer];
   let fog: { explored: Uint16Array | null; visNow: Uint8Array | null; visSrc: Float32Array } | null = null;

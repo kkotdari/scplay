@@ -1742,7 +1742,7 @@ export const BUILD_STAGES = 5;
  *  좌표 규약은 CSS 시절 그대로다: fx/fy는 렌즈 분수 앵커, 길이·오프셋은 **렌즈 px**
  *  (그릴 때 zoom을 곱한다), deg는 CSS rotate와 같은 시계방향(0 = 화면 아래)이다. */
 export type FxOp = {
-  kind: "beam" | "shot" | "spike" | "erupt" | "hit" | "shield" | "cage" | "tether" | "burst" | "warp" | "wound";
+  kind: "beam" | "shot" | "spike" | "erupt" | "hit" | "shield" | "cage" | "tether" | "burst" | "warp" | "wound" | "dom";
   /** warp(프로토스 소환 완료의 섬광): 자리·크기(size)·진행(ph)만 쓴다. 원작은 워프가 끝나는 순간 한 번 친다. */
   /** burst(죽음·파괴 폭발): 낱개 흩뿌림의 씨앗(개체마다 다르게) · 건물이면 bld. */
   seed?: number; bld?: boolean;
@@ -1793,6 +1793,16 @@ export type FxOp = {
    *  낱개(불꽃 하나)마다 op 하나다: 자리는 fx·fy + mx·my(렌즈 px), 크기는 size,
    *  심함은 tier(1·2), 흩는 씨앗은 seed(0~99), 흔들리는 시계는 clk(초)다. */
   wrace?: "terran" | "zerg" | "toss";
+  /** dom(옛 DOM 효과 층): 갈래 안의 **결** — 시전 갈래(scan·plague…)·종족(terran…)·죽음 결(bio…). */
+  sub?: string;
+  /** dom: 시작부터 흐른 **시각**(초) — 스팬 시절엔 CSS가 붙는 순간부터 제 애니를 돌렸다.
+   *  캔버스에는 붙는 순간이 없으므로 엔진이 나이를 실어 준다. */
+  age?: number;
+  /** dom: 물들일 색(스캔은 쓴 사람의 색으로 그린다 — 요청). */
+  col?: string;
+  /** dom: 바닥에 눕히기(입체) — CSS의 `skewX(요잉) scaleY(눌림)` 자리다.
+   *  캔버스 행렬로는 (1, 0, sky·tan요잉, sky)이므로 그 두 수만 싣는다. */
+  skx?: number; sky?: number;
   /** wound: **효과의 시계**(초) — 불길·피·연기는 제 주기로 끝없이 움직이므로 진행률
    *  하나(ph)로는 못 적는다. 시각을 그대로 실어 붓이 주기마다 나눈다. 멈추면 같이 멈춘다. */
   clk?: number;
@@ -2421,27 +2431,17 @@ export type PitchGeom9 = {
   sox: number;
 };
 /** 캔버스가 아니라 DOM으로 그리는 효과의 기록 — 메인 스레드가 이것으로 스팬을 만든다. */
-export type DomFx9 =
-  | { k: "buildfx"; key: string; x: number; y: number; z: number; race: string; i: number; ws: number }
-  | { k: "mineboom"; key: string; x: number; y: number }
-  | { k: "touchdown"; key: string; x: number; y: number; wPct: number; hPct: number }
-  /** 럴커 버로우 파기의 흙덩이(요청) — 0.15초마다 새 열쇠로 한 움큼씩 튄다. seed로 튀는 방향 갈래를 고른다. */
-  | { k: "dig"; key: string; x: number; y: number; seed: number; wPct: number }
-  | { k: "collapse"; key: string; x: number; y: number; wPct: number; rk: string; flyUp: number }
-  | { k: "castfx"; key: string; x: number; y: number; cls: string; wTiles: number; scan: boolean;
-    /** 시전자(raw) — 스캔은 쓴 사람의 색으로 그린다(요청). */
-    raw: string }
-  | { k: "swarm"; key: string; x: number; y: number }
-  | { k: "dieat"; key: string; x: number; y: number; dk: string; diePx: number; lift: number };
+/* (걷어냄) DomFx9 — 화면이 스팬으로 그리던 효과 기록이다. 전부 캔버스 fx op(kind "dom")으로
+   옮겼으므로 낼 것도, 실어 보낼 것도 없다(요청: "나머지 효과도 캔버스로 옮겨줘"). */
 export type Frame9 = {
-  t: number; unitOps: UnitDrawOp[]; fxOps: FxOp[]; miniExtra: MiniDot[]; gasBusy: string[]; dom: DomFx9[];
+  t: number; unitOps: UnitDrawOp[]; fxOps: FxOp[]; miniExtra: MiniDot[]; gasBusy: string[];
   explored: Uint16Array | null; visNow: Uint8Array | null; visSrc: Float32Array;
   /** 붓이 앞·뒤 장 사이로 눈 목록을 보간해 냈을 때의 판 번호 — 같은 배열을 되쓰므로 참조 대신 이 수로 바뀜을 안다. */
   visVer?: number;
 };
 /** 워커 프레임이 아직 없을 때 드는 빈 프레임 — 지도만 그려진다. */
 export const EMPTY_FRAME9: Frame9 = {
-  t: -1, unitOps: [], fxOps: [], miniExtra: [], gasBusy: [], dom: [],
+  t: -1, unitOps: [], fxOps: [], miniExtra: [], gasBusy: [],
   explored: null, visNow: null, visSrc: new Float32Array(0),
 };
 export type EngineWorld9 = ReturnType<typeof deriveWorld9>;
@@ -3571,7 +3571,6 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     const miniExtra: MiniDot[] = [];
     const gasBusy = new Set<string>();
     const fxOps: FxOp[] = [];
-    const dom: DomFx9[] = [];
     const cull9 = view.cull;
     /** 이 자리가 시야(여유 포함) 안인가 — 밖이면 op를 아예 안 만든다. 밖일 때는 **분수 자리도 함께** 돌려준다:
      *  부르는 쪽이 그 자리에 미니맵 점 하나를 남긴다(miniExtra). */
@@ -5050,11 +5049,14 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         /* 타이밍(같은 요청) — **걷는 동안은 안 튄다**. 용접은 서서 하는 일이고, 자리를 옮기는 동안 불티가
            따라다니면 그건 용접이 아니라 발밑에서 나는 불꽃으로 보인다. 서면 다시 튄다. */
         if (qBuildFx && !halted && !bldFrozen9 && race2 !== "프로토스" && !(bldr9 && bldr9.mv)) {
-          dom.push({
-            k: "buildfx", key: `bfx-${i}`, x: bfxX, y: bfxY, z: z + 1,
-            race: race2 === "저그" ? "zerg" : "terran", i,
-            ws: race2 === "테란" ? Math.max(0.3, tilePx / 5) : 0,
-          });
+          /* 저그는 그림이 없었다(CSS가 display:none) — 테란 용접 불티만 낸다. */
+          if (race2 === "테란") {
+            const [wfx9, wfy9] = posFrac(bfxX, bfxY);
+            fxOps.push({
+              kind: "dom", style: "weld", fx: wfx9, fy: wfy9, lift: 0,
+              size: Math.max(0.3, tilePx / 5), seed: i, age: t,
+            });
+          }
         }
         /* ★ 마무리 구간이면 **여기서 안 멈춘다**(위 warpIn9) — 아래로 흘러 완성 건물까지 함께 그려야
            소환구와 건물이 겹친다. 그 밖의 공사 구간은 종전대로 여기서 끝난다. */
@@ -6033,7 +6035,10 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         });
         return;
       }
-      dom.push({ k: "mineboom", key: `mine-${mi}`, x: m.x, y: m.y });
+      fxOps.push({
+        kind: "dom", style: "mine", fx: mfx, fy: mfy, lift: 0,
+        size: 26, age: t - m.boom, seed: mi,
+      });
     });
     {
     const r9 = buildsSrc.map(([sec, x, y, unit, raw, gone, , doneAt9], i) => {
@@ -6173,7 +6178,14 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
          충격파와 그림자가 같은 바닥에 누워야 한다는 것이 애초의 요청이다. */
       const hPct = Math.abs(posFrac(cx9, cy9 + r9)[1] - posFrac(cx9, cy9 - r9)[1]) * 100
         * (pitched ? 1 : GROUND_SQUISH_2D);
-      dom.push({ k: "touchdown", key: `td-${i}`, x: cx9, y: cy9, wPct, hPct });
+      {
+        const [tfx9, tfy9] = posFrac(cx9, cy9);
+        fxOps.push({
+          kind: "dom", style: "land", fx: tfx9, fy: tfy9, lift: 0,
+          size: (wPct / 100) * mapW9, len: (hPct / 100) * mapW9, age: t - sec,
+          ...(pitched ? { skx: pitchFlat * Math.tan((viewYawOf(cx9, cy9) * Math.PI) / 180), sky: pitchFlat } : {}),
+        });
+      }
     });
     {
     const rW9 = buildsSrc.map(([sec, x, y, unit, raw, gone, liftAt, doneAt9], i) => {
@@ -6231,7 +6243,14 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         tier: (FOOTPRINT[unit] ?? [3, 2])[0] <= 2 ? 1 : (FOOTPRINT[unit] ?? [3, 2])[0] === 3 ? 2 : 3,
       });
     }
-    if (!cocoonB9) dom.push({ k: "collapse", key: `clp-${i}`, x: x + footDx(unit), y: y + footDy(unit), wPct: clpW, rk, flyUp: flyUp9 });
+    if (!cocoonB9) {
+      const cxx9 = x + footDx(unit); const cyy9 = y + footDy(unit);
+      const [cfx9, cfy9] = posFrac(cxx9, cyy9);
+      fxOps.push({
+        kind: "dom", style: "clp", fx: cfx9, fy: cfy9, lift: flyUp9 * pitchK(cyy9),
+        size: (clpW / 100) * mapW9, sub: rk, age: t - goneAt, seed: i,
+      });
+    }
     return null;
   });
       void rW9;
@@ -6939,7 +6958,10 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
             return bt9 < 0.9 ? 1 : bt9 < 1.8 ? 2 : 3;
           })(),
         });
-        dom.push({ k: "dieat", key: `v2die-${ei}`, x: dpx, y: dpy, dk, diePx: diePx9, lift: dieLift });
+        fxOps.push({
+          kind: "dom", style: "die", fx: bfx9, fy: bfy9, lift: dieLift,
+          size: diePx9 * 0.58, sub: dk, age: t - dieAt, seed: ei,
+        });
       }
       return null;
     }
@@ -7172,8 +7194,12 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       const digT0 = burrowNext9 - BURROW_DIG_SEC;
       const nD = Math.floor((t - digT0) / 0.15);
       const wD = Math.abs(posFrac(pos.x + 0.6, pos.y)[0] - posFrac(pos.x - 0.6, pos.y)[0]) * 100;
+      const [dgx9, dgy9] = posFrac(pos.x, pos.y + 0.35);
       for (let j = Math.max(0, nD - 2); j <= nD; j += 1) {
-        dom.push({ k: "dig", key: `dig-${e.tag}-${j}`, x: pos.x, y: pos.y + 0.35, seed: j + e.tag, wPct: wD });
+        fxOps.push({
+          kind: "dom", style: "dig", fx: dgx9, fy: dgy9, lift: 0,
+          size: (wD / 100) * mapW9, seed: j + e.tag, age: t - (digT0 + j * 0.15),
+        });
       }
     }
     const lurkStrike = burrowed && !digging9
@@ -8186,14 +8212,29 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
           if (found9 && !hit9) return null;   // 표적이 죽었다 — 효과도 끝이다.
           if (hit9) { afx9 = hit9.x; afy9 = hit9.y; }
         }
-        dom.push({ k: "castfx", key: `c-${i}`, x: afx9, y: afy9, cls: fx[0], wTiles: fx[1], scan: tech === "Scanner Sweep", raw });
+        {
+          const [cfx9, cfy9] = posFrac(afx9, afy9);
+          fxOps.push({
+            kind: "dom", style: "cast", fx: cfx9, fy: cfy9, lift: 0,
+            size: fx[1] * pitchK(afy9) * (mapW9 / grid.width), sub: fx[0], age: t - sec, seed: i,
+            ...(tech === "Scanner Sweep" ? { col: modeColor(raw, teamOfRaw(raw) ?? 1) } : {}),
+            ...(pitched ? { skx: pitchFlat * Math.tan((viewYawOf(afx9, afy9) * Math.PI) / 180), sky: pitchFlat } : {}),
+          });
+        }
         return null;
       }
     }
     if (tech === "Dark Swarm") {
       /* 다크 스웜(요청) — 갈색 반투명 구름이 우글거린다. 실제 지속(약 60초의
          절반만 표시)과 영역(지름 6타일)에 맞춘다. */
-      dom.push({ k: "swarm", key: `c-${i}`, x, y });
+      {
+        const [sfx9, sfy9] = posFrac(x, y);
+        fxOps.push({
+          kind: "dom", style: "swarm", fx: sfx9, fy: sfy9, lift: 0,
+          size: 6 * pitchK(y) * (mapW9 / grid.width), age: t - sec, seed: i,
+          ...(pitched ? { skx: pitchFlat * Math.tan((viewYawOf(x, y) * Math.PI) / 180), sky: pitchFlat } : {}),
+        });
+      }
       return null;
     }
     if (tech === "Psionic Storm") {
@@ -8226,7 +8267,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
     }
     }
     return {
-      t, unitOps, fxOps, miniExtra, gasBusy: [...gasBusy], dom,
+      t, unitOps, fxOps, miniExtra, gasBusy: [...gasBusy],
       explored: exploredAt, visNow, visSrc: visSrcRef.current,
     };
   };
