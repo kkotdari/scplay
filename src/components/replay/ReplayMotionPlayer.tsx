@@ -2568,6 +2568,15 @@ const NO_CREEP9 = typeof location !== "undefined" && /nocreep/.test(location.has
  *  나는 것과 앞뒤가 맞는다.
  *  짐작을 더 쌓지 않으려고 **끄고 켜서 가른다** — 주소에 #noblend를 붙이면 섞임만 빠지고 나머지는 그대로다. */
 const NO_BLEND9 = typeof location !== "undefined" && /noblend/.test(location.hash);
+/** ★ 진단 스위치 `#nodomfx` — **사멸·붕괴 효과의 DOM 스팬**만 뺀다(지적: "유닛 건물 사멸효과에서 멈추네") ──
+ *  끊긴 프레임의 값이 우리 JS 밖(4351/4367ms)인데 섞임(#noblend)은 무죄였다. 남은 자리에서 가장 그럴듯한 것이
+ *  **층 폭발**이다: 죽음·붕괴 스팬은 저마다 CSS 애니메이션을 달고 태어나는데, 웹킷은 애니메이션이 걸린 층을
+ *  합성 텍스처로 따로 굽는다. 한꺼번에 수십·수백이 태어나면 그 층들을 한 프레임에 다 만들어야 하고, 그것이
+ *  주 실마리를 몇 초씩 세운다(우리 JS는 놀고 있는 채로).
+ *  캔버스 파편(burst)은 그대로 두므로 이 스위치를 켜도 폭발은 보인다 — 여운 스팬만 빠진다. */
+const NO_DOMFX9 = typeof location !== "undefined" && /nodomfx/.test(location.hash);
+/** 이 프레임의 효과 DOM 수와 이제까지의 최대 — 층 폭발이 값인지 수로 가른다. */
+const FXDOM9 = { n: 0, max: 0 };
 function creepSplat(r: number): ShapeFace[] {
   const out: ShapeFace[] = [];
   if (NO_CREEP9) return out;
@@ -30955,6 +30964,7 @@ export default function ReplayMotionPlayer({
           />
         );
       case "collapse":
+        if (NO_DOMFX9) return null;
         return (
           <span
             key={d.key}
@@ -30991,7 +31001,7 @@ export default function ReplayMotionPlayer({
         );
         return null;
       case "dieat":
-        if (zoom >= FX_MIN_ZOOM.burst) return null;
+        if (NO_DOMFX9 || zoom >= FX_MIN_ZOOM.burst) return null;
         dieFx9.push(
           <span
             key={d.key}
@@ -31014,6 +31024,9 @@ export default function ReplayMotionPlayer({
     }
   };
   const domNodes9 = frame9.dom.map(renderDomFx9);
+  /* 효과 DOM이 몇인가(위 FXDOM9) — 한꺼번에 수십·수백이 태어나면 합성 층이 그만큼 만들어진다. */
+  FXDOM9.n = frame9.dom.length;
+  if (FXDOM9.n > FXDOM9.max) FXDOM9.max = FXDOM9.n;
   /* 끌기 문턱(지적: 확대된 상태에서 더블탭이 축소가 아니라 조금씩 이동으로 읽힘) —
      여태 문턱이 없어 손가락이 1px만 굴러도 곧장 팬이었다. 탭할 때마다 지도가 밀리고,
      그 흔들림이 더블탭 판정의 '안 끌린 탭' 기준도 함께 넘겨 확대·축소가 안 걸렸다.
@@ -32531,6 +32544,8 @@ export default function ReplayMotionPlayer({
                       {SCR_DIAG.nukem ? ` · 핵[${SCR_DIAG.nukem}]` : ""}
                       {/* 이 판이 본 가장 긴 프레임과 그 몫(위 WORSTF9) — 핵 창 밖의 끊김도 여기 잡힌다. */}
                       {WORSTF9.ms > 0 ? ` · 최장프레임[${WORSTF9.ms.toFixed(0)}ms ${WORSTF9.parts}]` : ""}
+                      {/* 효과 DOM 수(위 FXDOM9) — 사멸·붕괴 스팬이 한꺼번에 몇이나 서는지. */}
+                      {` · 효과DOM[지금${FXDOM9.n} 최대${FXDOM9.max}${NO_DOMFX9 ? " 끔" : ""}]`}
                     </div>
                   </>
                 )}
