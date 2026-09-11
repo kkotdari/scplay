@@ -20603,6 +20603,7 @@ function nukeMeterTick9(on9: boolean, step9: number): void {
   const now9 = pNow();
   if (on9 && !NUKEM9.on) {
     NUKEM9.on = true; NUKEM9.at = now9; NUKEM9.n = 0; NUKEM9.worst = 0; NUKEM9.react = 0; NUKEM9.last = now9;
+    BLD_MISS9.why.clear();   // 이 창에서 건물 판이 갈린 까닭만 센다(위 bldMissWhy9)
     return;
   }
   if (on9) {
@@ -20629,7 +20630,8 @@ function nukeMeterTick9(on9: boolean, step9: number): void {
   SCR_DIAG.nukem = `최악창 ${secs9.toFixed(1)}초 붓${NUKEM9.n}장(${(NUKEM9.n / secs9).toFixed(0)}/s)`
     + ` · 최악프레임 ${NUKEM9.worst.toFixed(0)}ms[${NUKEM9.parts}] · 리액트 최악 ${NUKEM9.react.toFixed(0)}ms(박자 ${step9}ms)`
     + ` · 굽기창 유닛${w9.bake}장 ${w9.ms.toFixed(0)}ms 건물${w9.bldBake}장 ${w9.bldMs.toFixed(0)}ms`
-    + ` 최악 ${w9.worstFrame.toFixed(0)}ms(굽기 ${w9.worstFrameBake.toFixed(0)})`;
+    + ` 최악 ${w9.worstFrame.toFixed(0)}ms(굽기 ${w9.worstFrameBake.toFixed(0)})`
+    + ` · 건물판 갈림[${bldMissTop9()}]`;
 }
 /** 안개 판의 임시 변환을 걸고, **같은 자리에서** 막 띠까지 세운다 — 틈(px)을 낸다.
  *  ★ 둘을 한 함수로 묶는 까닭(지적: "검정 띠가 계속 보인다") — 앞판은 손끝 자리에서 띠를 세우고 안개는
@@ -22201,6 +22203,30 @@ export function stageFaces(faces: ShapeFace[], stg: number): ShapeFace[] {
   return faces.filter((_, i) => keep.has(gid[i]));
 }
 
+/** ★ 건물 판이 **왜** 빗나갔나(실측: 핵 창에서 건물 261장·573ms를 구웠다) ────────────────────
+ *  굽기가 값의 임자인 것까지는 수로 나왔는데, 한꺼번에 갈린 까닭은 열쇠의 **어느 칸**이 바뀌었느냐다:
+ *  시점 칸(팬·확대)인지 · 회전 칸(도는 부품)인지 · 불빛(생산 깜빡임)인지 · 단계인지. 종류마다 마지막
+ *  열쇠를 적어 두고, 빗나갈 때 첫 번째로 다른 칸의 이름을 센다. 값은 문자열 나누기 한 번이다. */
+const BLD_KEYF9 = ["종류", "회전", "평면", "시점", "기울기", "배킹", "단계", "포탑", "불빛", "회전칸", "LOD", "옆면"];
+const BLD_MISS9 = { last: new Map<string, string>(), why: new Map<string, number>() };
+function bldMissWhy9(kind9: string, key9: string): void {
+  const prev9 = BLD_MISS9.last.get(kind9);
+  BLD_MISS9.last.set(kind9, key9);
+  if (!prev9) return;
+  const a9 = prev9.split("|");
+  const b9 = key9.split("|");
+  for (let i = 0; i < b9.length; i += 1) {
+    if (a9[i] === b9[i]) continue;
+    const n9 = BLD_KEYF9[i] ?? `#${i}`;
+    BLD_MISS9.why.set(n9, (BLD_MISS9.why.get(n9) ?? 0) + 1);
+    return;
+  }
+}
+/** 가장 많이 갈린 칸 셋 — "시점210 회전칸30 불빛21" 꼴. */
+function bldMissTop9(): string {
+  const a9 = [...BLD_MISS9.why.entries()].sort((x9, y9) => y9[1] - x9[1]).slice(0, 3);
+  return a9.length === 0 ? "-" : a9.map(([k9, v9]) => `${k9}${v9}`).join(" ");
+}
 type BldSprite = {
   cv: HTMLCanvasElement; ox: number; oy: number; pad: number; l: number;
   side: number; bot: number; top: number; w: number; cx: number;
@@ -22263,6 +22289,7 @@ function buildingSpriteBake(
     SPRITE_PERF.bldHit += 1;
     BLD_SPRITE_CACHE.delete(key); BLD_SPRITE_CACHE.set(key, hit); return hit;
   }
+  bldMissWhy9(op.kind, key);   // 왜 빗나갔나 — 열쇠의 어느 칸이 갈렸는지 센다(아래 ★)
   /* ★ 예산이 다했으면 이번 프레임엔 안 굽고, 같은 건물의 **가장 가까운 크기**를 돌려준다
      (부르는 쪽이 판의 실제 크기 bspr.side로 배율을 맞춘다 — 유닛 쪽과 같은 약이다). */
   if (!force9 && !bakeOk9(bldBakeLeft9)) {
@@ -22279,6 +22306,14 @@ function buildingSpriteBake(
       }
     }
     // 대타가 하나도 없으면 작게 굽는다(유닛 쪽 ★와 같은 약 — 건물 판은 더 크므로 이득도 더 크다).
+    /* ★ 그 작은 판도 **천장 아래에서만** 굽는다(실측: 핵 창에서 한 프레임 굽기 230ms · 2초에 건물 261장
+       573ms) ─────────────────────────────────────────────────────────────────────────────────────
+       유닛 쪽에는 이 문이 있는데(BAKE_HARD_MS9의 ★) 건물 쪽에는 없었다. force9로 들어가는 이 길은 장수
+       예산도 ms 예산도 **아예 안 본다** — 처음 보는 열쇠가 한꺼번에 수십·수백 장 생기는 순간(핵으로 판이
+       갈리는 그 프레임)에는 그것들을 한 프레임에 다 구웠다. 폰의 천장이 24ms인데 230ms를 쓴 까닭이 이것이다.
+       천장을 넘으면 이번 프레임엔 이 건물을 **안 그린다**: 다음 프레임에 예산이 되살아나 곧 들어오고,
+       한두 프레임 늦게 나타나는 것은 눈에 안 띄지만 230ms 덜컥임은 보인다. */
+    if (!bakeHardOk9()) return null;
     const small9 = Math.max(8, Math.round(sideQ / BAKE_SMALL_K9));
     if (small9 < sideQ) return buildingSpriteBake(op, small9, B, true);
   }
