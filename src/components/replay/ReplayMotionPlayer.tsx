@@ -26518,7 +26518,7 @@ export default function ReplayMotionPlayer({
     /** 장당 유닛 op 수·싼 크기(KB), 지수 평균 — 컬링이 먹는지 본다. */
     ops: 0, kb: 0,
     /** 짓기의 속(지수 평균): 엔진 ms · 싸기 ms · 안개 쌓기 ms, 누적 안개 횟수·리셋 횟수, 워커 시계 − 주인 t(초). */
-    engMs: 0, packMs: 0, fogMs: 0, fogN: 0, resets: 0, skew: 0,
+    engMs: 0, packMs: 0, fogMs: 0, fogN: 0, resets: 0, skew: 0, duty: 0,
   });
   const lastFrameRef9 = useRef<[Frame9 | null, Frame9 | null]>([null, null]);   // 경로별(칸 0 렌더 · 1 틱) — 위 풀과 같은 까닭
   const fpsMeterRef9 = useRef({ n: 0, at: 0 });
@@ -26680,13 +26680,14 @@ export default function ReplayMotionPlayer({
         st9.buildMs = st9.buildMs === 0 ? pf9.ms : st9.buildMs * 0.9 + pf9.ms * 0.1;
         st9.ops = st9.ops === 0 ? pf9.n : st9.ops * 0.9 + pf9.n * 0.1;
         st9.kb = st9.kb === 0 ? pf9.buf.byteLength / 1024 : st9.kb * 0.9 + (pf9.buf.byteLength / 1024) * 0.1;
-        const x9 = m9 as unknown as { msBuild?: number; msPack?: number; fogCost?: number; fogN?: number; resets?: number; cur?: number };
+        const x9 = m9 as unknown as { msBuild?: number; msPack?: number; fogCost?: number; fogN?: number; resets?: number; cur?: number; duty?: number };
         const mix9 = (old9: number, v9: number): number => (old9 === 0 ? v9 : old9 * 0.9 + v9 * 0.1);
         st9.engMs = mix9(st9.engMs, x9.msBuild ?? 0);
         st9.packMs = mix9(st9.packMs, x9.msPack ?? 0);
         st9.fogMs = x9.fogCost ?? st9.fogMs;
         st9.fogN = x9.fogN ?? st9.fogN;
         st9.resets = x9.resets ?? st9.resets;
+        st9.duty = x9.duty ?? st9.duty;   // 워커가 벽시계의 몇 %를 쓰나(위 DUTY9)
         if (typeof x9.cur === "number") st9.skew = x9.cur - cmdNowRef9.current.t;
         const snaps9 = fogSnapsRef9.current;
         if (pf9.fog) {
@@ -31174,7 +31175,7 @@ export default function ReplayMotionPlayer({
     SCR_DIAG.worker = `${frameWorkerRef.current ? (st9.ready ? "on" : "준비중") : "off"} got ${st9.got} used ${st9.used} missed ${st9.missed}`
       + ` 짓기 ${st9.buildMs.toFixed(1)}ms op ${st9.ops.toFixed(0)}·${st9.kb.toFixed(0)}KB 앞 ${wFramesRef.current.size > 0 ? Math.max(0, ahead9).toFixed(1) : "-"}s·${wFramesRef.current.size}장·${(bytes9 / 1048576).toFixed(1)}MB`
       + ` 시야 ${cullRect9 ? `${((cullRect9.x1 - cullRect9.x0) * 100).toFixed(0)}×${((cullRect9.y1 - cullRect9.y0) * 100).toFixed(0)}%` : "전체"}`
-      + ` [엔진 ${st9.engMs.toFixed(0)} 싸기 ${st9.packMs.toFixed(1)} 안개 ${st9.fogMs.toFixed(0)}ms×${st9.fogN} 리셋 ${st9.resets} 시계차 ${st9.skew >= 0 ? "+" : ""}${st9.skew.toFixed(1)}s]`
+      + ` [엔진 ${st9.engMs.toFixed(0)} 싸기 ${st9.packMs.toFixed(1)} 안개 ${st9.fogMs.toFixed(0)}ms×${st9.fogN} 리셋 ${st9.resets} 일 ${st9.duty.toFixed(0)}% 시계차 ${st9.skew >= 0 ? "+" : ""}${st9.skew.toFixed(1)}s]`
       + ((): string => {
         const b9 = brushStatRef9.current;
         return ` 붓: t걸음 ${b9.stepN ? (b9.stepSum / b9.stepN).toFixed(0) : "-"}/${b9.stepMax.toFixed(0)}ms 같은장 ${b9.sameA}/${b9.draws} 뒤장없음 ${b9.noB}(틈 ${b9.gapB})`;

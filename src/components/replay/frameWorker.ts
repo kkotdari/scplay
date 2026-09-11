@@ -79,6 +79,21 @@ let buildMs = 0;
 let built: { t: number; bytes: number }[] = [];
 /** 엔진 기억을 비운 횟수(진단) */
 let resets = 0;
+/** ★ **이 일꾼이 기기를 얼마나 쓰나**(조사: 멈춤의 값이 우리 JS 밖인데 타이머까지 449ms로 늘어진다) ────
+ *  메인이 노는데도 화면이 멎고 타이머마저 늘어지는 꼴은 **기기 전체가 죄이는** 모습이다(열·에너지).
+ *  이 판에서 쉬지 않고 도는 것은 이 일꾼뿐이니, 제가 벽시계의 몇 할을 쓰는지부터 수로 내놓는다.
+ *  duty = 지은 시간 / 흐른 시간. 절반을 넘으면 폰의 두 코어 가운데 하나를 계속 물고 있는 셈이다. */
+const DUTY9 = { work: 0, at: 0, pct: 0 };
+function dutyAdd9(ms9: number): void {
+  DUTY9.work += ms9;
+  const now9 = nowMs();
+  if (DUTY9.at === 0) { DUTY9.at = now9; return; }
+  const span9 = now9 - DUTY9.at;
+  if (span9 < 1000) return;
+  DUTY9.pct = (DUTY9.work * 100) / span9;
+  DUTY9.work = 0;
+  DUTY9.at = now9;
+}
 /** 마지막으로 실어 보낸 안개 판(참조) — 같은 참조면 안 싣는다. 엔진은 바뀔 때만 새 배열을 만든다. */
 let fogSent: { explored: Uint16Array | null; visNow: Uint8Array | null; visSrc: Float32Array | null } = {
   explored: null, visNow: null, visSrc: null,
@@ -143,6 +158,7 @@ const emit = (t: number): number => {
   }
   const ms = nowMs() - t0;
   buildMs = buildMs === 0 ? ms : buildMs * 0.85 + ms * 0.15;
+  dutyAdd9(ms);   // 이 일꾼의 몫(위 DUTY9)
   const st = engine.stats();
   post({
     type: "frame", t: f.t, buf: body.buf, strs: body.strs, fog, ms, n: f.unitOps.length, seq: viewSeq, fseq: fogSeq, gen,
@@ -150,6 +166,7 @@ const emit = (t: number): number => {
     ox: view?.geom?.ox ?? 0, oy: view?.geom?.oy ?? 0,
     // 진단 — 짓기의 속(엔진·싸기), 안개 비용·횟수, 리셋 횟수, 워커 시계(주인 t와의 차를 메인이 본다)
     msBuild: t1 - t0, msPack: t2 - t1, fogCost: st.fogCost, fogN: st.fogStamps, resets, cur: clockT(),
+    duty: DUTY9.pct,
   }, transfer);
   built.push({ t: f.t, bytes });
   return bytes;
