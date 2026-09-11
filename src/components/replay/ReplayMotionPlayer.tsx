@@ -615,6 +615,8 @@ const FOGBACK9 = {
 const FOGJIT9 = {
   prev: null as Float32Array | null, base: null as Float32Array | null,
   move: 0, n: 0, flips: 0, why: "", ratio: 0, net: 0,
+  /** 창을 닫을 때 flips를 여기로 옮긴다 — 안 그러면 줄을 짓기 전에 0으로 지워진다(제 버그). */
+  flipsShow: 0,
 };
 const fogJitTick9 = (vis9: Float32Array): void => {
   if (fogWhy9 !== FOGJIT9.why) { FOGJIT9.flips += 1; FOGJIT9.why = fogWhy9; }
@@ -645,6 +647,7 @@ const fogJitClose9 = (): void => {
     FOGJIT9.ratio = net9 > 1e-6 ? FOGJIT9.move / net9 : 0;
     bs9.set(pv9);
   }
+  FOGJIT9.flipsShow = FOGJIT9.flips;
   FOGJIT9.move = 0; FOGJIT9.n = 0; FOGJIT9.flips = 0;
 };
 /** 칠하기 직전에 부른다 — 목록의 시각을 견줘 뒤로 간 걸음을 센다. */
@@ -664,7 +667,7 @@ const fogBackTick9 = (vis9: Float32Array | null): void => {
 /** 안개 자리 떨림 한 줄 — 걸은 거리·곧은 거리·그 비·길 바뀜. */
 const fogJitStr9 = (): string => `떨림 비${FOGJIT9.ratio.toFixed(1)}`
   + `(곧${FOGJIT9.net.toFixed(0)})`
-  + ` 전환${FOGJIT9.flips}`;
+  + ` 전환${FOGJIT9.flipsShow}`;
 const fogBackStr9 = (): string => {
   const w9 = [...FOGBACK9.ways.entries()].sort((a9, b9) => b9[1] - a9[1]).slice(0, 4)
     .map(([k9, v9]) => `${k9}${v9}`).join(" ");
@@ -27528,9 +27531,7 @@ export default function ReplayMotionPlayer({
      't 자리'와 'tLive 자리'를 번갈아 났다. 서로 다른 객체를 쓰면 한 경로의 셈이 다른 경로의 그림을 못 건드린다. */
   const lerpPoolRef9 = useRef<[Map<string, UnitDrawOp>, Map<string, UnitDrawOp>]>([new Map(), new Map()]);
   /** 눈 목록 보간용 되쓰는 배열과 판 번호(아래 lerpFrame9) — 경로별. */
-  const visLerpRef9 = useRef<[{ buf: Float32Array | null; ver: number; hold: number }, { buf: Float32Array | null; ver: number; hold: number }]>([{ buf: null, ver: 0, hold: 0 }, { buf: null, ver: 0, hold: 0 }]);
-  /** 뒤 장이 없을 때 **든 채로** 넘길 프레임 껍데기(슬롯별 하나 — 그리기마다 안 만든다). */
-  const holdFrameRef9 = useRef<[Frame9 | null, Frame9 | null]>([null, null]);
+  const visLerpRef9 = useRef<[{ buf: Float32Array | null; ver: number }, { buf: Float32Array | null; ver: number }]>([{ buf: null, ver: 0 }, { buf: null, ver: 0 }]);
   const lerpFrameRef9 = useRef<[{ frame: Frame9; ops: UnitDrawOp[] } | null, { frame: Frame9; ops: UnitDrawOp[] } | null]>([null, null]);
   /** 붓 박자 통계(진단) — t 걸음(ms)·같은 앞 장을 되풀이한 횟수·뒤 장이 없던 횟수. */
   const brushStatRef9 = useRef({ lastT: -1, stepSum: 0, stepMax: 0, stepN: 0, lastA: -1, sameA: 0, noB: 0, gapB: 0, draws: 0 });
@@ -31921,18 +31922,10 @@ export default function ReplayMotionPlayer({
          **생짜**를 돌려줬는데, 직전 틱은 앞 장보다 u9만큼 앞선 이은 목록을 냈으므로 그 차이가 곧
          뒤로 당김이다. 이제는 직전에 낸 목록을 든 채 넘긴다(최대 네 틱, 눈 수가 같을 때만).
          앞 장 자체(fa9)는 캐시에 든 그 장이라 건드리면 안 되므로 껍데기 하나에 담아 낸다. */
+      /* (걷어냄) 여기서 **직전 목록을 들고 가던** 갈래 — 위 이음 자리와 같은 까닭이다(계측이
+         집었다: 6배 역행6/60 최대225ms(듦)). 든 목록은 몇 틱 전의 것이라 드는 순간이 곧 역행일
+         수 있다. 앞 장 생짜는 늘 실재하는 장의 것이니 그것을 쓴다. */
       fogWhy9 = "뒤장없음";
-      const vh9 = visLerpRef9.current[slot9];
-      if (vh9.buf && vh9.buf.length > 0 && vh9.hold < 4 && fa9.visSrc && fa9.visSrc.length === vh9.buf.length) {
-        vh9.hold += 1;
-        let hf9 = holdFrameRef9.current[slot9];
-        if (!hf9) { hf9 = { ...fa9 }; holdFrameRef9.current[slot9] = hf9; }
-        else Object.assign(hf9, fa9);
-        hf9.visSrc = vh9.buf;
-        hf9.visVer = vh9.ver;
-        fogWhy9 = "뒤장없음듦";
-        return hf9;
-      }
       return fa9;
     }
     const fb9 = decodeFrame9(b9);
@@ -32006,46 +31999,56 @@ export default function ReplayMotionPlayer({
        전부 한 칸씩 밀려 이웃의 자리로 미끄러졌다 — 시야 원이 지도를 가로질러 날았다. 눈마다 반지름이 같고 자리
        차이가 한 장에 걸을 수 있는 만큼(3타일) 안일 때만 잇고, 하나라도 어긋나면 앞 장 것을 그대로 쓴다. */
     const vl9 = visLerpRef9.current[slot9];
+    /* ★ **짝짓는 자가 너무 헐거웠다**(2차 계측: 3배에서 역행0/59인데 떨림 비 5.3 — 시각은 한
+       번도 안 되돌아갔는데 눈이 곧은 거리의 다섯 배를 걸었다) ────────────────────────────────
+       시간이 아니라 **옆으로** 새고 있었다는 뜻이고, 눈이 옆으로 샐 자리는 하나뿐이다 — 앞·뒤
+       장의 눈을 **차례(index)로 짝짓는 것**. 목록에 신원이 없으므로 한 장 사이에 하나가 죽고
+       하나가 태어나면 그 뒤의 눈이 전부 한 칸씩 밀리고, 그 밀린 짝이 **'반지름 같음 + 3타일
+       안'** 이라는 문을 그냥 통과한다. 본진·밭에서는 같은 종류가 서로 3타일 안에 서 있는 것이
+       예사라, 이 문은 사실상 안 걸린 것과 같았다 — 시야 원이 이웃의 자리로 끌려갔다 제자리로
+       돌아오기를 되풀이한다. 지적한 "과거의 자리로 당겨졌다 다시 돌아와"가 이것이다(과거가
+       아니라 **이웃**의 자리였다).
+       문을 **한 장에 실제로 걸을 수 있는 만큼**으로 좁힌다: 가장 빠른 몸이 초당 대여섯 타일이니
+       두 장 사이 경기 시간 × 5타일, 바닥은 0.3타일이다(장 간격 40ms면 0.2 → 바닥 0.3). 유닛은
+       서로 최소 한 타일은 떨어져 서므로 밀린 짝은 이 문을 못 지난다. 배속이 높아 장 간격이 벌면
+       문이 그만큼 넓어지지만, 그때는 잇는 것 자체가 덜 중요하다(장이 성기면 원래 뚝뚝 간다).
+       ★ 그리고 **전부-아니면-전무로 되돌린다** — 눈마다 가르면 어떤 눈은 이은 자리에, 어떤
+         눈은 앞 장 자리에 있게 되고, 그 갈림이 장마다 뒤집히면 그것 자체가 떨림이다. 한 목록은
+         한 시각에서 와야 한다. */
+    const dt9 = Math.max(1e-3, fb9.t - fa9.t);
+    const tol9 = Math.max(0.3, dt9 * 5);
     if (va9 && vb9 && va9.length === vb9.length && va9.length > 0 && va9 !== vb9) {
-      /* ★ **전부-아니면-전무를 걷어냈다**(지적: "떨림 있는데 원은 줄지 않아. 과거의 자리로
-         당겨졌다 다시 돌아왔다 반복해") ────────────────────────────────────────────────
-         여기 있던 것은 '눈 하나라도 어긋나면 앞 장 것을 그대로'였다. 그 '그대로'가 곧
-         **뒤로 당김**이다: 이은 장은 앞 장보다 u9만큼 앞서 있으므로, 이은 틱과 못 이은 틱이
-         번갈면 시야 원이 한 장 앞 → 앞 장 자리 → 다시 한 장 앞으로 오간다. 반지름은 늘 앞
-         장 것을 베끼니 **원은 안 줄고 자리만** 떤다 — 지적한 그 모습 그대로다.
-         난전에서 길이만 같은 목록(죽은 수 = 태어난 수)은 흔하므로 이 문은 자주 열렸다.
-         이제는 **눈마다** 본다: 반지름이 같고 한 장에 걸을 만큼(3타일) 안이면 잇고, 아니면
-         그 눈만 앞 장 자리에 둔다. 밀린 눈 몇이 한 장 안 움직일 뿐 목록 전체가 안 되돌아간다. */
-      if (!vl9.buf || vl9.buf.length !== va9.length) vl9.buf = new Float32Array(va9.length);
-      const out9 = vl9.buf;
+      let same9 = true;
       for (let i9 = 0; i9 + 2 < va9.length; i9 += 3) {
-        const ok9 = va9[i9 + 2] === vb9[i9 + 2]
-          && Math.abs(va9[i9] - vb9[i9]) <= 3 && Math.abs(va9[i9 + 1] - vb9[i9 + 1]) <= 3;
-        out9[i9] = ok9 ? va9[i9] + (vb9[i9] - va9[i9]) * u9 : va9[i9];
-        out9[i9 + 1] = ok9 ? va9[i9 + 1] + (vb9[i9 + 1] - va9[i9 + 1]) * u9 : va9[i9 + 1];
-        out9[i9 + 2] = va9[i9 + 2];
+        if (va9[i9 + 2] !== vb9[i9 + 2]
+          || Math.abs(va9[i9] - vb9[i9]) > tol9 || Math.abs(va9[i9 + 1] - vb9[i9 + 1]) > tol9) { same9 = false; break; }
       }
-      vl9.ver += 1;
-      vl9.hold = 0;
-      /* 이은 목록의 시각은 두 판 시각을 같은 몫으로 섞은 값이다(위 FOGT9의 ★). */
-      const ta9 = FOGT9.get(va9) ?? fa9.t;
-      const tb9 = FOGT9.get(vb9) ?? fb9.t;
-      FOGT9.set(out9, ta9 + (tb9 - ta9) * u9);
-      fogWhy9 = "이음";
-      fr9.visSrc = out9;
-      fr9.visVer = vl9.ver;
-    } else if (vl9.buf && vl9.buf.length > 0 && vl9.hold < 4 && va9 && va9.length !== vl9.buf.length) {
-      /* 눈 **수**가 바뀐 장(출몰) — 자리를 맞출 길이 없다. 그래도 앞 장 생짜로 돌아가면 위와
-         같은 뒤로 당김이라, 이을 수 있을 때까지 **직전에 낸 목록을 든 채** 넘긴다(최대 네 틱).
-         멈춰 있는 것은 안 읽히고 되돌아가는 것은 읽힌다. */
-      vl9.hold += 1;
-      fogWhy9 = "듦";
-      fr9.visSrc = vl9.buf;
-      fr9.visVer = vl9.ver;
+      if (same9) {
+        if (!vl9.buf || vl9.buf.length !== va9.length) vl9.buf = new Float32Array(va9.length);
+        const out9 = vl9.buf;
+        for (let i9 = 0; i9 + 2 < va9.length; i9 += 3) {
+          out9[i9] = va9[i9] + (vb9[i9] - va9[i9]) * u9;
+          out9[i9 + 1] = va9[i9 + 1] + (vb9[i9 + 1] - va9[i9 + 1]) * u9;
+          out9[i9 + 2] = va9[i9 + 2];
+        }
+        vl9.ver += 1;
+        /* 이은 목록의 시각은 두 판 시각을 같은 몫으로 섞은 값이다(위 FOGT9의 ★). */
+        const ta9 = FOGT9.get(va9) ?? fa9.t;
+        const tb9 = FOGT9.get(vb9) ?? fb9.t;
+        FOGT9.set(out9, ta9 + (tb9 - ta9) * u9);
+        fogWhy9 = "이음";
+        fr9.visSrc = out9;
+        fr9.visVer = vl9.ver;
+      } else {
+        fogWhy9 = "안맞음";
+      }
     } else {
-      vl9.hold = 0;
       fogWhy9 = "앞장";
     }
+    /* (걷어냄) 눈 수가 바뀐 장에서 **직전 목록을 들고 가던** 갈래 — 계측이 그 자리를 그대로
+       집었다(6배: 역행6/60 최대225ms(듦)). 든 목록은 최대 네 틱 전의 것이라, 그 사이에 앞 장
+       생짜가 더 늦은 시각으로 지나갔으면 드는 순간이 곧 역행이다. 되돌림을 막으려고 넣은 것이
+       되돌림을 만들었다 — 앞 장 생짜가 언제나 더 최신이니 그냥 그것을 쓴다. */
     return fr9;
   };
   /** 시각 t의 프레임 — 설계도를 골라(pickWorkerFrame9) 앞·뒤 장 사이를 보간한다. count9면 붓 통계도 센다(틱). */
