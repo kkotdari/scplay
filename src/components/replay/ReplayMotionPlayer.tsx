@@ -20711,6 +20711,15 @@ const NUKEM9 = { on: false, at: 0, n: 0, worst: 0, last: 0, react: 0, parts: "",
  *  그 밖(브라우저 — 합성·GC·레이아웃). 붓 사이의 틈에서 앞의 셋을 빼면 '그 밖'이 남는다.
  *  짐작을 더 쌓지 않기 위한 자다: 어느 칸이 크냐가 곧 다음에 고칠 자리다. */
 const WORK9 = { brush: 0, wk: 0, react: 0 };
+/** ★ **로딩의 초는 어디로 가나**(지적: "1배 로딩은 아직 그대로") ────────────────────────────
+ *  로딩이 기어갈 때 화면이 말해 주는 것은 '밖(브라우저) 606ms'와 '타이머 2297ms 늦음'뿐이었다.
+ *  그 둘은 **누가 잡고 있나**를 안 말한다 — 메인 실마리를 초 단위로 잡을 수 있는 자리는 넷이다:
+ *    지도판  — 지형 전체를 큰 판 하나에 그리는 일(1배·큰 맵이 최악이다. 판마다·몇 번인지 잰다)
+ *    참값    — 자취를 워커에 넘기려고 형식 배열로 싸는 일
+ *    워커세움 — 인라인 워커 한 벌을 만드는 일(번들을 한 번 더 컴파일한다)
+ *    예열    — 모델 면 데우기(rAF로 나눠 굽지만 합이 얼마인지는 따로 못 봤다)
+ *  짐작을 더 쌓지 않으려고 넷을 다 잰다. 이 줄을 한 장 보면 다음 칼이 어디인지 정해진다. */
+const LOAD9 = { mapN: 0, mapMs: 0, mapMax: 0, truthMs: 0, wkMs: 0, warmMs: 0, warmN: 0 };
 /** 붓 사이 틈을 재는 자(위 WORSTF9) — 핵 창과 무관하게 늘 돈다. */
 const FRAMEG9 = { last: 0 };
 /** 이 판이 본 **가장 긴 프레임**과 그 몫 — 핵 창 밖에서도 잰다(실측: 핵과 무관한 1918ms 프레임이 있었다). */
@@ -27230,6 +27239,7 @@ export default function ReplayMotionPlayer({
   const entDataRef9 = useRef<TruthWorld | null>(null);
   const truthSentRef9 = useRef<TruthTracks | null | undefined>(undefined);
   const postTruth9 = (w9: Worker): void => {
+    const lt09 = pNow();
     const tr9 = truthRef9.current;
     if (truthSentRef9.current === tr9) return;
     truthSentRef9.current = tr9;
@@ -27259,6 +27269,7 @@ export default function ReplayMotionPlayer({
         lf9.sites = EMPTY_ARR9; lf9.lifts = EMPTY_ARR9; lf9.cloaks = EMPTY_ARR9; lf9.sieges = EMPTY_ARR9;
       }
     }
+    LOAD9.truthMs += pNow() - lt09;
   };
   useEffect(() => {
     if (typeof Worker === "undefined") { wStatRef.current.err = "Worker 없음"; return undefined; }
@@ -27272,7 +27283,9 @@ export default function ReplayMotionPlayer({
       if (dead9) return;
       const Ctor9 = (mod9 as { default?: unknown }).default;
       if (typeof Ctor9 !== "function") { wStatRef.current.err = "워커 모듈 없음(도구 번들)"; return; }
+      const lw09 = pNow();
       try { w9 = new (Ctor9 as new () => Worker)(); } catch (e9) { wStatRef.current.err = `워커 생성 실패 ${String(e9).slice(0, 80)}`; return; }
+      LOAD9.wkMs = pNow() - lw09;
       wire9(w9);
       frameWorkerRef.current = w9;
       viewSentRef9.current = null;
@@ -32749,6 +32762,7 @@ export default function ReplayMotionPlayer({
          둘을 함께 조이면 한 프레임이 넘기는 몫이 모델 하나 값을 못 넘는다. */
       const t0 = performance.now();
       let n9 = 0;
+      LOAD9.warmN = jobs.length;
       while (i9 < jobs.length && n9 < 8 && performance.now() - t0 < 6) {
         n9 += 1;
         const j9 = jobs[i9];
@@ -32765,6 +32779,7 @@ export default function ReplayMotionPlayer({
           else resolveShapeFaces(j9.kind, j9.rot, flat9, 0, pitched);
         } catch { /* 낯선 종류 하나가 로딩을 통째로 막지 않게 — 그건 재생 중 굽는다. */ }
       }
+      LOAD9.warmMs += performance.now() - t0;
       if (i9 < jobs.length) {
         warmingRef.current = true;
         /* 진행률은 **띄엄띄엄** 올린다 — 프레임마다 상태를 놓으면 그때마다 리렌더가
@@ -33420,7 +33435,12 @@ export default function ReplayMotionPlayer({
                       {/* 지도 판(위 MAPVEC_M9) — 다시 구운 수·확보 실패·지금 예산과 한 변. 지도가 까만 채로
                           남는 신고를 '안 구웠나 · 굽다 실패했나'로 가른다. */}
                       {` · 지도판[구움${MAPVEC_M9.bake} 실패${MAPVEC_M9.fail} 줄임${MAPVEC_M9.shrink}`
-                        + ` 한변${MAPVEC_M9.side} 예산${(MAPVEC_M9.cap / 1e6).toFixed(1)}Mpx]`}
+                        + ` 한변${MAPVEC_M9.side} 예산${(MAPVEC_M9.cap / 1e6).toFixed(1)}Mpx`
+                        + ` 굽기${MAPVEC_M9.ms.toFixed(0)}ms(최악${MAPVEC_M9.max.toFixed(0)})]`}
+                      {/* ★ 로딩의 초는 어디로 가나(위 LOAD9) — 메인 실마리를 초 단위로 잡을 수 있는
+                          자리 넷을 나란히 둔다. 합이 곧 '로딩이 기어간 시간'이고, 큰 칸이 다음 칼이다. */}
+                      {` · 로딩[지도판${MAPVEC_M9.ms.toFixed(0)} 참값${LOAD9.truthMs.toFixed(0)}`
+                        + ` 워커세움${LOAD9.wkMs.toFixed(0)} 예열${LOAD9.warmMs.toFixed(0)}ms/${LOAD9.warmN}개]`}
                       {/* 메모리 흐름(위 MEMTR9) — 처음·지금·최대가 나란하면 새는 데가 없다. */}
                       {` · 캔버스만듦[총${CVN9.n} 초당${CVN9.rate.toFixed(0)} 최고${CVN9.peak.toFixed(0)}${CVN9.peakTop ? `(${CVN9.peakTop})` : ""}]`}
                       {/* 되쓰기 창고(위 CVSTORE9) — 든 수·빗나간 수·넣은 수와 지금 쌓인 장수. */}

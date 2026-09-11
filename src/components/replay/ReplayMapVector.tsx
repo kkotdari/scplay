@@ -36,7 +36,7 @@ export const MAPVEC_LOST9 = { n: 0 };
  *  ★ **잃을 때마다 예산을 반으로 내린다**(shrink) — 이 판의 가장 큰 캔버스가 지도다(폰에서 1719² = 11.3MB,
  *    화면 화소의 일곱 배). 기기가 배킹을 거두는 자리에서 그만한 판을 계속 다시 잡는 것은 압박을 되먹이는 짓이다.
  *    한 번 겪을 때마다 스스로 내려가면, 몇 번 안에 그 기기가 견디는 크기로 자리 잡는다(안 겪는 기기는 그대로다). */
-export const MAPVEC_M9 = { bake: 0, fail: 0, cap: 0, side: 0, shrink: 0 };
+export const MAPVEC_M9 = { bake: 0, fail: 0, cap: 0, side: 0, shrink: 0, ms: 0, max: 0 };
 export default function ReplayMapVector({
   grid, zoom, pan, pitched, style, painter, tileFrac, pitchSig, pitchXf, pitchKAt,
 }: {
@@ -694,6 +694,7 @@ export default function ReplayMapVector({
       return;
     }
     place(tx0, ty0, tx1, ty1);
+    const bt09 = performance.now();
     const ctx = cv.getContext("2d");
     if (!ctx) return;
     ctx.clearRect(0, 0, cw, ch);
@@ -712,6 +713,9 @@ export default function ReplayMapVector({
        어떤 크기로 구웠는지도 함께 남긴다 — 같은 크기를 두 번 구웠다면 그건 낭비다. */
     if (PERF9) pCount(`지형굽기:${cw}x${ch}`, 1);
     MAPVEC_M9.bake += 1;
+    /* 이 한 번이 몇 ms였나(위 MAPVEC_M9) — 1배·큰 맵에서 이 판이 메인 실마리를 초 단위로
+       잡는지가 로딩의 갈림길이다. 합과 최악을 함께 든다(몇 번 굽는지는 bake가 센다). */
+    { const bm9 = performance.now() - bt09; MAPVEC_M9.ms += bm9; if (bm9 > MAPVEC_M9.max) MAPVEC_M9.max = bm9; }
     bakedRef.current = { key, tx0, ty0, tx1, ty1, cv, cw, ch, ppt: pptX };
     };
     /* 부모가 손짓 중에 쥘 붓 — 손끝 배율은 이어서 움직이므로 **√2 칸으로 갈무리**해
