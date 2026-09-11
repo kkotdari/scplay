@@ -2576,7 +2576,7 @@ const NO_BLEND9 = typeof location !== "undefined" && /noblend/.test(location.has
  *  캔버스 파편(burst)은 그대로 두므로 이 스위치를 켜도 폭발은 보인다 — 여운 스팬만 빠진다. */
 const NO_DOMFX9 = typeof location !== "undefined" && /nodomfx/.test(location.hash);
 /** 이 프레임의 효과 DOM 수와 이제까지의 최대 — 층 폭발이 값인지 수로 가른다. */
-const FXDOM9 = { n: 0, max: 0 };
+const FXDOM9 = { n: 0, max: 0, over: 0, overMax: 0 };
 /** ★ **주 실마리가 막혔나, 화면만 굶었나**(조사: 10초 멎었다 풀림 · 메모리는 55MB로 멀쩡) ─────────────
  *  여태 잰 '최장 프레임'은 rAF 사이의 틈이다. 그 틈이 길다고 곧 주 실마리가 막힌 것은 아니다 — rAF는
  *  **그리기 파이프라인**에 매여 있어서, 합성기·GPU가 못 따라오면 JS가 멀쩡해도 안 불린다.
@@ -31226,6 +31226,12 @@ export default function ReplayMotionPlayer({
     ? { transform: `skewX(${viewYawOf(x, y).toFixed(1)}deg) scaleY(${pitchFlat.toFixed(3)})` }
     : {});
   const renderDomFx9 = (d: DomFx9): React.ReactNode => {
+    /* ★ 스위치가 **전부** 빼게 고친다(지적: "스캔이랑 수많은 프로브가 터지고 건물도 실드 피폭 + 붕괴까지
+       효과가 많다") — 앞 판은 사멸·붕괴 둘만 빼서 정작 화면을 덮는 큰 것들(스캔 원·실드 방울·연기)은
+       그대로 남았다. 그래서 "효과를 뺐는데 그대로"라는 잘못된 판정이 나왔다.
+       이 스팬들은 하나하나가 **반투명 그러데이션**이라, 우리 JS는 한 줄도 안 쓰지만 브라우저는 그만큼
+       화면을 덧칠한다(합성기의 오버드로). 큰 원 서른 장이면 화면을 수십 번 다시 칠하는 셈이다. */
+    if (NO_DOMFX9) return null;
     switch (d.k) {
       case "buildfx":
         return (
@@ -31297,7 +31303,6 @@ export default function ReplayMotionPlayer({
           />
         );
       case "collapse":
-        if (NO_DOMFX9) return null;
         return (
           <span
             key={d.key}
@@ -31334,7 +31339,7 @@ export default function ReplayMotionPlayer({
         );
         return null;
       case "dieat":
-        if (NO_DOMFX9 || zoom >= FX_MIN_ZOOM.burst) return null;
+        if (zoom >= FX_MIN_ZOOM.burst) return null;
         dieFx9.push(
           <span
             key={d.key}
@@ -31360,6 +31365,26 @@ export default function ReplayMotionPlayer({
   /* 효과 DOM이 몇인가(위 FXDOM9) — 한꺼번에 수십·수백이 태어나면 합성 층이 그만큼 만들어진다. */
   FXDOM9.n = frame9.dom.length;
   if (FXDOM9.n > FXDOM9.max) FXDOM9.max = FXDOM9.n;
+  /* ★ **덧칠 넓이**(같은 지적) — 층의 수보다 무서운 것은 넓이다. 반투명 층은 겹칠수록 화면을 다시 칠하게
+     하므로, '효과가 화면의 몇 배를 덮나'가 곧 합성기가 지는 짐이다. 스팬마다 폭(타일)을 알고 있으니
+     넓이를 더해 화면 넓이로 나눈다 — 어림이지만 열 배인지 백 배인지는 이 한 수로 갈린다. */
+  {
+    const tpx9 = (mapRef.current?.clientWidth ?? 320) / grid.width;
+    const box9 = Math.max(1, (mapRef.current?.clientWidth ?? 320) * (mapRef.current?.clientHeight ?? 320));
+    let ar9 = 0;
+    for (const d9 of frame9.dom) {
+      const w9 = ((): number => {
+        const any9 = d9 as unknown as { wTiles?: number; wPct?: number; diePx?: number };
+        if (typeof any9.wTiles === "number") return any9.wTiles * tpx9 * zoom;
+        if (typeof any9.wPct === "number") return (any9.wPct / 100) * grid.width * tpx9 * zoom;
+        if (typeof any9.diePx === "number") return any9.diePx * zoom;
+        return tpx9 * zoom;
+      })();
+      ar9 += w9 * w9;
+    }
+    FXDOM9.over = ar9 / box9;
+    if (FXDOM9.over > FXDOM9.overMax) FXDOM9.overMax = FXDOM9.over;
+  }
   /* 끌기 문턱(지적: 확대된 상태에서 더블탭이 축소가 아니라 조금씩 이동으로 읽힘) —
      여태 문턱이 없어 손가락이 1px만 굴러도 곧장 팬이었다. 탭할 때마다 지도가 밀리고,
      그 흔들림이 더블탭 판정의 '안 끌린 탭' 기준도 함께 넘겨 확대·축소가 안 걸렸다.
@@ -32878,7 +32903,7 @@ export default function ReplayMotionPlayer({
                       {/* 이 판이 본 가장 긴 프레임과 그 몫(위 WORSTF9) — 핵 창 밖의 끊김도 여기 잡힌다. */}
                       {WORSTF9.ms > 0 ? ` · 최장프레임[${WORSTF9.ms.toFixed(0)}ms ${WORSTF9.parts}]` : ""}
                       {/* 효과 DOM 수(위 FXDOM9) — 사멸·붕괴 스팬이 한꺼번에 몇이나 서는지. */}
-                      {` · 효과DOM[지금${FXDOM9.n} 최대${FXDOM9.max}${NO_DOMFX9 ? " 끔" : ""}]`}
+                      {` · 효과DOM[지금${FXDOM9.n} 최대${FXDOM9.max} 덧칠${FXDOM9.over.toFixed(1)}×(최대${FXDOM9.overMax.toFixed(1)})${NO_DOMFX9 ? " 끔" : ""}]`}
                       {/* 타이머 틈(위 TICKM9) — rAF와 견줘 '주 실마리가 막혔나 · 그리기만 굶었나'를 가른다. */}
                       {TICKM9.n > 0 ? ` · 타이머[최악${TICKM9.worst.toFixed(0)}ms ${TICKM9.n}번]` : ""}
                       {/* 캔버스 배킹 손실(위 LOST9) — 잃고 다시 그린 횟수·검사 횟수. */}
