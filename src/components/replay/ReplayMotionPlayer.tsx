@@ -2606,7 +2606,7 @@ const MEMTR9 = { first: 0, now: 0, max: 0, n: 0, cv: 0, cvMB: 0, plMB: 0, exMB: 
  *  크기가 아니라 **양**이 남았다. 웹킷에서 캔버스 하나는 제 배킹(iOS면 IOSurface)을 갖는데, 굽고 버리기를
  *  되풀이하면 그 자원이 빠르게 돌고 — 그 회전이 곧 압박이고, 압박의 끝이 '배킹을 거두고 그리기를 멈춤'이다.
  *  판 굽기·물들이기·효과 래스터가 저마다 캔버스를 새로 만든다. 몇 개를 만들고 있는지부터 수로 본다. */
-const CVN9 = { n: 0, win: 0, at: 0, rate: 0, by: new Map<string, number>(), top: "" };
+const CVN9 = { n: 0, win: 0, at: 0, rate: 0, peak: 0, peakTop: "", by: new Map<string, number>(), top: "" };
 function newCanvas9(tag9 = "?"): HTMLCanvasElement {
   CVN9.n += 1;
   CVN9.win += 1;
@@ -2620,6 +2620,9 @@ function newCanvas9(tag9 = "?"): HTMLCanvasElement {
     /* 어느 자리가 만드나 — 상위 셋만 남긴다(창마다 처음부터 센다). */
     CVN9.top = [...CVN9.by.entries()].sort((a9, b9) => b9[1] - a9[1]).slice(0, 3)
       .map(([k9, v9]) => `${k9}${v9}`).join(" ");
+    /* ★ **순간 봉우리**를 붙든다 — 잔잔할 땐 초당 3장인데 큰 싸움에서 360장까지 튄다(실측).
+       평소 값만 보면 그 폭발을 영영 못 본다: 이 판이 무서운 것은 평균이 아니라 그 봉우리다. */
+    if (CVN9.rate > CVN9.peak) { CVN9.peak = CVN9.rate; CVN9.peakTop = CVN9.top; }
     CVN9.by.clear();
   }
   return document.createElement("canvas");
@@ -21472,6 +21475,7 @@ function perfFrame(ms: number): void {
   // 굽기 예산도 프레임마다 되돌린다(위 UNIT_BAKE_PER_FRAME·BLD_BAKE_PER_FRAME).
   unitBakeLeft9 = UNIT_BAKE_PER_FRAME;
   bldBakeLeft9 = BLD_BAKE_PER_FRAME;
+  smallBakeLeft9 = SMALL_BAKE_PER_FRAME9;   // 작게 굽기도 장수로 죈다(위 ★)
   /* 되돌린 예산을 **먼저 미룬 것들에 쓴다**(위 BAKE_WANT9의 ★) — 이 자리는 프레임이 열리는
      자리다(tick 맨 앞에서 부른다). 여기서 쓴 몫은 이 프레임의 굽기로 그대로 잡힌다. */
   drainBakeWant9();
@@ -21585,6 +21589,14 @@ const gestBake9 = { v: false };
 /** 이 프레임에 굽기를 더 해도 되나 — 장수와 시간, 그리고 손짓 여부를 함께 본다. */
 const bakeOk9 = (left9: number): boolean => left9 > 0 && !gestBake9.v
   && SPRITE_PERF.bakeMs + SPRITE_PERF.bldBakeMs < BAKE_MS_PER_FRAME9;
+/** ★ 한 프레임에 **작게 굽는 판**의 상한(실측: 잔잔할 땐 초당 3장인데 순간 360장까지 튄다) ─────────────
+ *  대타가 하나도 없는 몸은 예산을 보지 않고(force9) 작은 판을 굽는 길로 떨어진다 — 장수 예산을 통째로
+ *  비켜 가므로, 처음 보는 열쇠가 한꺼번에 쏟아지는 순간(큰 싸움·방향 전환)에는 한 프레임에 수십 장이
+ *  난다. 캔버스 하나는 제 배킹(iOS면 IOSurface)을 가지므로 그 폭발이 곧 웹킷의 회수(그리기 멎음)를 부른다.
+ *  ms 천장(BAKE_HARD_MS9)만으로는 작은 판이 워낙 싸서 안 걸린다 — **장수**로도 막는다. 넘으면 이번
+ *  프레임엔 그 몸을 안 그린다(다음 프레임에 곧 들어온다). */
+const SMALL_BAKE_PER_FRAME9 = 3;
+let smallBakeLeft9 = SMALL_BAKE_PER_FRAME9;
 const UNIT_BAKE_PER_FRAME = DEV9.unitBakePerFrame;
 let unitBakeLeft9 = UNIT_BAKE_PER_FRAME;
 /* ★ **건물도 같다 — 오히려 더하다**(계측: 저그 본진을 배율 6·12로 확대해 재 봤다) ─────
@@ -21795,9 +21807,14 @@ function unitSprite(
        삯도 그만큼이고(109 → 12ms 언저리), 늘려 찍으니 잠깐 흐릴 뿐이며, 그 판이 곧 다음 프레임의
        대타가 되어 예산이 열릴 때 제 크기가 조용히 갈아 끼워진다. */
     /* 천장을 넘었으면 작은 판도 안 굽는다(위 BAKE_HARD_MS9) — 이번 프레임엔 이 몸을 안 그린다. */
-    if (!bakeHardOk9()) { poseNow = 0; SPRITE_PERF.defer += 1; return null; }
+    if (!bakeHardOk9() || smallBakeLeft9 <= 0) { poseNow = 0; SPRITE_PERF.defer += 1; return null; }
     const small9 = Math.max(8, Math.round(pxq / BAKE_SMALL_K9));
-    if (small9 < pxq) { poseNow = 0; bakeWant9(key, { ...op }, pxq, B); return unitSprite(op, small9, B, true); }
+    if (small9 < pxq) {
+      poseNow = 0;
+      smallBakeLeft9 -= 1;
+      bakeWant9(key, { ...op }, pxq, B);
+      return unitSprite(op, small9, B, true);
+    }
   }
   unitBakeLeft9 -= 1;
   SPRITE_PERF.bake += 1;
@@ -22533,9 +22550,12 @@ function buildingSpriteBake(
        갈리는 그 프레임)에는 그것들을 한 프레임에 다 구웠다. 폰의 천장이 24ms인데 230ms를 쓴 까닭이 이것이다.
        천장을 넘으면 이번 프레임엔 이 건물을 **안 그린다**: 다음 프레임에 예산이 되살아나 곧 들어오고,
        한두 프레임 늦게 나타나는 것은 눈에 안 띄지만 230ms 덜컥임은 보인다. */
-    if (!bakeHardOk9()) return null;
+    if (!bakeHardOk9() || smallBakeLeft9 <= 0) return null;
     const small9 = Math.max(8, Math.round(sideQ / BAKE_SMALL_K9));
-    if (small9 < sideQ) return buildingSpriteBake(op, small9, B, true);
+    if (small9 < sideQ) {
+      smallBakeLeft9 -= 1;
+      return buildingSpriteBake(op, small9, B, true);
+    }
   }
   bldBakeLeft9 -= 1;
   SPRITE_PERF.bldBake += 1;
@@ -32863,7 +32883,7 @@ export default function ReplayMotionPlayer({
                       {/* 캔버스 배킹 손실(위 LOST9) — 잃고 다시 그린 횟수·검사 횟수. */}
                       {` · 배킹[손실${LOST9.n} 검사${LOST9.probe}${SCR_DIAG.allocOk ? "" : " ⚠확보실패"}]`}
                       {/* 메모리 흐름(위 MEMTR9) — 처음·지금·최대가 나란하면 새는 데가 없다. */}
-                      {` · 캔버스만듦[총${CVN9.n} 초당${CVN9.rate.toFixed(0)}${CVN9.top ? ` · ${CVN9.top}` : ""}]`}
+                      {` · 캔버스만듦[총${CVN9.n} 초당${CVN9.rate.toFixed(0)} 최고${CVN9.peak.toFixed(0)}${CVN9.peakTop ? `(${CVN9.peakTop})` : ""}]`}
                       {/* 되쓰기 창고(위 CVSTORE9) — 든 수·빗나간 수·넣은 수와 지금 쌓인 장수. */}
                       {` · 창고[든${CVSTORE9.hit} 빗${CVSTORE9.miss} 넣${CVSTORE9.put} 쌓${CVSTORE9.list.length}]`}
                       {/* 판이 왜 갈리나 — 굽기 회전의 임자다(유닛·건물 각각 상위 셋). */}
