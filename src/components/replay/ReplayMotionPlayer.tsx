@@ -619,6 +619,16 @@ const FOGJIT9 = {
   move: 0, n: 0, flips: 0, why: "", ratio: 0, net: 0,
   /** 신원 → 자리(되쓰는 표) — 아래 ★. */
   idx: new Map<number, number>(),
+  /* ★ **되돌림의 주기로 가른다**(6차 계측: 이음59/60·역행0·전환1인데 비 36.6(곧259)) ────
+     '걸은 거리 ÷ 곧은 거리'는 본진 장면에서 못 쓴다 — 밭을 오가는 일꾼이 6배속 1초 창 안에
+     한두 번 왕복하니 걸은 거리는 크고 순이동은 0에 가깝다. 광부의 왕복과 떨림을 그 자는
+     못 가른다. 가를 수 있는 것은 **방향을 바꾸는 주기**다: 광부는 몇 초(수백 틱)에 한 번,
+     떨림은 한두 틱마다 뒤집는다. 눈마다 직전 걸음의 방향을 기억해 두고, 이번 걸음이 그와
+     반대면 되돌림으로 세되 **직전 되돌림에서 세 틱 안**이면 '짧은 되돌림'(= 떨림)으로
+     따로 센다. 긴 되돌림은 광부다. */
+  st: new Map<number, { dx: number; dy: number; run: number }>(),
+  revShort: 0, revLong: 0, steps: 0,
+  revShortShow: 0, revLongShow: 0, stepsShow: 0,
   /** 창을 닫을 때 flips를 여기로 옮긴다 — 안 그러면 줄을 짓기 전에 0으로 지워진다(제 버그). */
   flipsShow: 0,
 };
@@ -639,10 +649,24 @@ const fogJitTick9 = (vis9: Float32Array): void => {
   const pid9 = FOGJIT9.idx;
   pid9.clear();
   for (let i9 = 0; i9 + 3 < pv9.length; i9 += 4) { const d9 = pv9[i9 + 3]; if (d9 !== 0) pid9.set(d9, i9); }
+  const st9 = FOGJIT9.st;
+  if (st9.size > 6000) st9.clear();
   for (let i9 = 0; i9 + 3 < vis9.length; i9 += 4) {
-    const j9 = pid9.get(vis9[i9 + 3]);
+    const id9 = vis9[i9 + 3];
+    const j9 = pid9.get(id9);
     if (j9 === undefined) continue;
-    m9 += Math.abs(vis9[i9] - pv9[j9]) + Math.abs(vis9[i9 + 1] - pv9[j9 + 1]);
+    const dx9 = vis9[i9] - pv9[j9];
+    const dy9 = vis9[i9 + 1] - pv9[j9 + 1];
+    m9 += Math.abs(dx9) + Math.abs(dy9);
+    if (Math.abs(dx9) + Math.abs(dy9) < 0.01) continue;   // 선 눈은 방향이 없다
+    FOGJIT9.steps += 1;
+    const e9 = st9.get(id9);
+    if (!e9) { st9.set(id9, { dx: dx9, dy: dy9, run: 0 }); continue; }
+    if (dx9 * e9.dx + dy9 * e9.dy < 0) {
+      if (e9.run <= 3) FOGJIT9.revShort += 1; else FOGJIT9.revLong += 1;
+      e9.run = 0;
+    } else e9.run += 1;
+    e9.dx = dx9; e9.dy = dy9;
   }
   FOGJIT9.move += m9;
   FOGJIT9.n += 1;
@@ -667,7 +691,9 @@ const fogJitClose9 = (): void => {
     (FOGJIT9.base as Float32Array).set(pv9);
   }
   FOGJIT9.flipsShow = FOGJIT9.flips;
+  FOGJIT9.revShortShow = FOGJIT9.revShort; FOGJIT9.revLongShow = FOGJIT9.revLong; FOGJIT9.stepsShow = FOGJIT9.steps;
   FOGJIT9.move = 0; FOGJIT9.n = 0; FOGJIT9.flips = 0;
+  FOGJIT9.revShort = 0; FOGJIT9.revLong = 0; FOGJIT9.steps = 0;
 };
 /** 칠하기 직전에 부른다 — 목록의 시각을 견줘 뒤로 간 걸음을 센다. */
 const fogBackTick9 = (vis9: Float32Array | null): void => {
@@ -686,6 +712,7 @@ const fogBackTick9 = (vis9: Float32Array | null): void => {
 /** 안개 자리 떨림 한 줄 — 걸은 거리·곧은 거리·그 비·길 바뀜. */
 const fogJitStr9 = (): string => `떨림 비${FOGJIT9.ratio.toFixed(1)}`
   + `(곧${FOGJIT9.net.toFixed(0)})`
+  + ` 되돌림 짧${FOGJIT9.revShortShow}/긴${FOGJIT9.revLongShow}(걸음${FOGJIT9.stepsShow})`
   + ` 전환${FOGJIT9.flipsShow}`;
 const fogBackStr9 = (): string => {
   const w9 = [...FOGBACK9.ways.entries()].sort((a9, b9) => b9[1] - a9[1]).slice(0, 4)
