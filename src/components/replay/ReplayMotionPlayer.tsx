@@ -20587,6 +20587,37 @@ function nukeStep9(): number {
   if (c9.bench < 0) return 40;
   return c9.weak ? (c9.k < 1 ? 60 : 40) : 0;
 }
+/** 안 움직이는 막의 네 띠를 세운다(위 .scr-motion-fogbg의 ★) — `box`(안개 판이 덮는 네모, 상자 좌표)의
+ *  **밖**을 채운다. null이면 넷 다 걷는다(틈 없음·눕힌 보기·손 뗌). 값이 그대로면 안 적는다. */
+function fogBandSet9(root: HTMLElement, cov: { l: number; t: number; r: number; b: number } | null): void {
+  const wrap9 = root.querySelector<HTMLElement>(".scr-motion-fogbg");
+  if (!wrap9) return;
+  const kid9 = wrap9.children;
+  if (kid9.length < 4) return;
+  const bw9 = root.clientWidth;
+  const bh9 = root.clientHeight;
+  const cl9 = (v9: number, hi9: number): number => Math.max(0, Math.min(hi9, v9));
+  const L9 = cov ? cl9(cov.l, bw9) : 0;
+  const T9 = cov ? cl9(cov.t, bh9) : 0;
+  const R9 = cov ? cl9(cov.r, bw9) : bw9;
+  const B9 = cov ? cl9(cov.b, bh9) : bh9;
+  const put9 = (i9: number, x9: number, y9: number, w9: number, h9: number): void => {
+    const el9 = kid9[i9];
+    if (!(el9 instanceof HTMLElement)) return;
+    const st9 = el9.style;
+    // 넓이가 0이면 자리 값은 안 적는다 — 걷는 프레임마다 네 줄씩 적을 까닭이 없다.
+    if (w9 <= 0.5 || h9 <= 0.5) { if (st9.width !== "0px") { st9.width = "0px"; st9.height = "0px"; } return; }
+    const s9 = [`${x9.toFixed(1)}px`, `${y9.toFixed(1)}px`, `${w9.toFixed(1)}px`, `${h9.toFixed(1)}px`];
+    if (st9.left !== s9[0]) st9.left = s9[0];
+    if (st9.top !== s9[1]) st9.top = s9[1];
+    if (st9.width !== s9[2]) st9.width = s9[2];
+    if (st9.height !== s9[3]) st9.height = s9[3];
+  };
+  put9(0, 0, 0, bw9, T9);                 // 위
+  put9(1, 0, B9, bw9, bh9 - B9);          // 아래
+  put9(2, 0, T9, L9, B9 - T9);            // 왼
+  put9(3, R9, T9, bw9 - R9, B9 - T9);     // 오른
+}
 /** ★ 핵 연출의 시계를 **붓 박자로** 긁는다(같은 조사) ────────────────────────────────
  *  폭발(충격파·섬광·구름)은 순수한 CSS 애니메이션이고, 재생기가 하는 일은 `animationDelay`
  *  한 줄을 재생 시각으로 적어 주는 것뿐이다. 그런데 그 한 줄을 **React 렌더**가 적고 있어,
@@ -29051,6 +29082,18 @@ export default function ReplayMotionPlayer({
           const gapOf9 = (c9: number, p9: number, t9: number): number =>
             Math.max(t9 - (s09 * c9 + s09 * p9 - c9), (c9 - s09 * (c9 + p9)) - t9);
           const gap9 = Math.max(gapOf9(cx9, pdx9, px - s09 * fb9.x), gapOf9(cy9, pdy9, py - s09 * fb9.y));
+          /* 판이 덮는 네모(상자 좌표) — 그 밖의 네 띠에 안 움직이는 막을 세운다(위 CSS의 ★).
+             눕힌 보기에서는 안 세운다: 지도 밖이 밤하늘이라 거기 막을 깔면 하늘이 검어진다. */
+          if (box) {
+            const tx29 = px - s09 * fb9.x;
+            const ty29 = py - s09 * fb9.y;
+            fogBandSet9(box, clipBoxRef.current.pitched ? null : {
+              l: cx9 + s09 * (-pdx9 - cx9) + tx29,
+              t: cy9 + s09 * (-pdy9 - cy9) + ty29,
+              r: cx9 + s09 * (bw9 + pdx9 - cx9) + tx29,
+              b: cy9 + s09 * (bh9 + pdy9 - cy9) + ty29,
+            });
+          }
           if (gap9 > 0.5) {
             FOGM9.gap = Math.max(FOGM9.gap, gap9);
             if (!fogDoneRef9.current && fogPaintRef.current) {
@@ -29072,11 +29115,7 @@ export default function ReplayMotionPlayer({
         const fx9 = xfDelta9(fogXfRef9.current, z1, px, py);
         fg9.style.transformOrigin = "center";
         if (fg9.style.transform !== fx9) fg9.style.transform = fx9;
-        /* 안 움직이는 막 — 손짓 중 · 평면 · 지도가 상자를 덮을 때만(위 CSS의 ★). */
-        if (box) {
-          const bg9 = xfGestureRef.current && !clipBoxRef.current.pitched && z1 > 1.001;
-          if (box.classList.contains("is-fogbg") !== bg9) box.classList.toggle("is-fogbg", bg9);
-        }
+
       }
       mapPaintRef.current?.(z1, panRef.current);
       /* ★ 미니맵은 손짓 중 **뜸하게** 다시 그린다(요청: "이동 시 더 빠르게 시점 변경") ────────────────────────
@@ -29308,7 +29347,7 @@ export default function ReplayMotionPlayer({
     mapPaintRef.current?.(zoomRef.current, panRef.current);
     miniPaintRef.current?.(zoomRef.current, panRef.current);
     xfGestureRef.current = false;
-    mapRef.current?.classList.remove("is-fogbg");   // 손을 뗐다 — 안 움직이는 막은 걷는다(위 ★)
+    if (mapRef.current) fogBandSet9(mapRef.current, null);   // 손을 뗐다 — 막 띠를 걷는다(위 ★)
     viewDiagPush9("commit", `z${zoomRef.current.toFixed(2)} ${panRef.current.x.toFixed(1)},${panRef.current.y.toFixed(1)}`);
     /* 예약해 둔 한 장은 걷는다 — 손을 뗀 뒤에 도착하면 아래 커밋이 그릴 그림을 한 번
        더 그리는 셈이고, 그 사이에 컴포넌트가 사라지면 없는 캔버스를 잡는다. */
@@ -33254,9 +33293,12 @@ export default function ReplayMotionPlayer({
               덮여도 되는 것들이다 — 제 팀 유닛은 늘 밝은 자리에 있고(시야의 임자다),
               잔상 건물은 원작에서도 안개 밑에 잠겨 보인다. 마법 효과 층(z 7000)은
               이보다 위라 안개에 안 잠긴다. */}
-          {/* 안 움직이는 막(위 CSS의 ★) — 손짓 동안만 켜진다. 안개 판이 못 덮는 띠에 비쳐
-              '밝은 구멍' 대신 '아직 안 밝힌 검정'이 서게 한다. */}
-          {fogOn && exploredAt && visNow && <div className="scr-motion-fogbg" aria-hidden />}
+          {/* 안 움직이는 막(위 CSS의 ★) — 안개 판이 못 덮는 네 띠에만 선다. 자리는 손짓이 적는다. */}
+          {fogOn && exploredAt && visNow && (
+            <div className="scr-motion-fogbg" aria-hidden>
+              <i /><i /><i /><i />
+            </div>
+          )}
           {fogOn && exploredAt && visNow && (
               <ReplayFogLayer
                 className="scr-motion-fog"
