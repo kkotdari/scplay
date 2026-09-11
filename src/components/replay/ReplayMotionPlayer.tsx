@@ -24086,10 +24086,16 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             } else if (!pk9) pose = 0;
           }
           /* 요잉 칸 — 죄면 **네 칸**(90도)이다. 45도 칸의 부분집합이라 이미 구운 판이 그대로
-             쓰이고, 판 가짓수만 반으로 준다(갈아엎는 전환이 아니다). */
-          if (liteYaw9 && rotDeg !== undefined) {
-            const q9 = trim9 >= 1 ? 90 : 45;
-            rotDeg = Math.round(rotDeg / q9) * q9;
+             쓰이고, 판 가짓수만 반으로 준다(갈아엎는 전환이 아니다).
+             ★ **건물은 아예 손대지 않는다**(지적: "건물이 서있는 방향 자체가 바뀌어서" ·
+               "건물까지 요잉해서 다 그릴 필요는 없잖아 무조건 45도인데") ────────────────────
+               맞는 말이다. 건물은 모두 한 각(BUILDING_BASE_YAW = 45도)으로 서므로 칸으로
+               나눌 것이 애초에 없다 — 아낄 판이 없는데 틀릴 자리만 있었다: 90도 칸에 넣으면
+               round(45/90)×90 = 90이라 **모든 건물이 돌아갔다**(45도 칸일 때는 45가 그대로
+               45라 우연히 멀쩡했다). 게다가 건물의 방향은 순간의 값이 아니라 **정체**다.
+               죄는 값은 유닛의 회전에 있다(실측: 판갈림 유닛 회전 3892 · 건물은 불빛·포탑뿐). */
+          if (liteYaw9 && rotDeg !== undefined && UNIT_KIND_SET.has(kind)) {
+            rotDeg = Math.round(rotDeg / (trim9 >= 1 ? 90 : 45)) * (trim9 >= 1 ? 90 : 45);
           }
           if (kind !== op.kind || pose !== (op.pose ?? 0) || rotDeg !== op.rotDeg || viewYaw !== op.viewYaw) {
             op = { ...op, kind, pose: pose as UnitDrawOp["pose"], ...(rotDeg !== undefined ? { rotDeg } : {}),
