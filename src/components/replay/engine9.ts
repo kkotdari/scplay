@@ -4564,10 +4564,21 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       if (cull9 && !afloat && !bldPre9.flown[i]) {
         const [in9, dfx9, dfy9] = onScreen9(x, y);
         if (!in9) {
+          /* ★ 화면 밖 점도 **안개 문을 지난다**(지적: "시야 적용했을 때 미니맵에는 적용 안 되는 문제") ──
+             이 갈래는 안개 판정(아래 bldSeen9)보다 **앞**이라, 한 번도 못 본 적 건물이 화면 밖에
+             있으면 미니맵 점으로 그대로 드러났다 — 시야를 걸어도 미니맵이 적 기지를 다 보여 줬다.
+             유닛 쪽은 안개 문이 컬링보다 앞이라 안 샜다. 같은 자(seenAt/seenSince)로 건물도 거른다:
+             한 번도 못 본 자리(0단)면 점을 안 찍고, 잔상(1단)은 원작처럼 점을 남긴다. */
+          const fpm9 = FOOTPRINT[unit] ?? [3, 2];
+          const bteam9 = teamOfRaw(raw) ?? 1;
+          const dotSeen9 = fogOn && !visAll && bteam9 !== viewTeam
+            ? (seenAt(x + fpm9[0] / 2, y + fpm9[1] / 2) === 2 ? 2
+              : seenSince(x + fpm9[0] / 2, y + fpm9[1] / 2, sec) ? 1 : 0) : 2;
+          if (dotSeen9 === 0) return null;
           /* 건물 점은 **한 단 크게** 찍힌다 — 미니맵이 wFrac의 유무로 유닛과
              건물을 가른다(그쪽 uS·bS). 값은 안 읽으므로 0이면 된다. */
           miniExtra.push({
-            fx: dfx9, fy: dfy9, color: modeColor(raw, teamOfRaw(raw) ?? 1), wFrac: 0,
+            fx: dfx9, fy: dfy9, color: modeColor(raw, bteam9), wFrac: 0,
           });
           return null;
         }
