@@ -2602,6 +2602,23 @@ const LOSTQ9 = { want: false };
  *  설계도 · 안개 판)를 더해 두고 **처음·지금·최대**를 나란히 보인다. 셋이 나란하면 새는 데가 없고,
  *  지금이 처음보다 크게 자라 있으면 그 자리를 찾으면 된다. 값은 10초에 한 번 더하기 몇 번이라 없다. */
 const MEMTR9 = { first: 0, now: 0, max: 0, n: 0, cv: 0, cvMB: 0, plMB: 0, exMB: 0 };
+/** ★ **캔버스를 얼마나 만들고 버리나**(조사: 메모리는 34MB로 평평한데 배킹 손실은 계속 난다) ────────────
+ *  크기가 아니라 **양**이 남았다. 웹킷에서 캔버스 하나는 제 배킹(iOS면 IOSurface)을 갖는데, 굽고 버리기를
+ *  되풀이하면 그 자원이 빠르게 돌고 — 그 회전이 곧 압박이고, 압박의 끝이 '배킹을 거두고 그리기를 멈춤'이다.
+ *  판 굽기·물들이기·효과 래스터가 저마다 캔버스를 새로 만든다. 몇 개를 만들고 있는지부터 수로 본다. */
+const CVN9 = { n: 0, win: 0, at: 0, rate: 0 };
+function newCanvas9(): HTMLCanvasElement {
+  CVN9.n += 1;
+  CVN9.win += 1;
+  const now9 = pNow();
+  if (CVN9.at === 0) CVN9.at = now9;
+  else if (now9 - CVN9.at >= 1000) {
+    CVN9.rate = (CVN9.win * 1000) / (now9 - CVN9.at);
+    CVN9.win = 0;
+    CVN9.at = now9;
+  }
+  return document.createElement("canvas");
+}
 function creepSplat(r: number): ShapeFace[] {
   const out: ShapeFace[] = [];
   if (NO_CREEP9) return out;
@@ -20214,7 +20231,7 @@ export function cropToInk(
   const ch9 = whole9 ? cv.height : h;
   const cx9 = whole9 ? 0 : x0;
   const cy9 = whole9 ? 0 : y0;
-  const out = document.createElement("canvas");
+  const out = newCanvas9();
   out.width = cw9;
   out.height = ch9;
   const c = out.getContext("2d");
@@ -20721,10 +20738,25 @@ function memTrendTick9(root: HTMLElement | null, extraMB9 = 0): void {
 }
 /** 배킹을 잃었을 때 — 구워 둔 판을 통째로 버린다(그 판들도 캔버스라 같이 비었다). */
 function dropPlates9(): void {
+  /* ★ 버릴 때는 **놓아 줘야** 한다(오늘 넣은 이 함수의 흠) — Map만 비우면 캔버스 객체는 GC를 기다리는데,
+     iOS의 캔버스 배킹(IOSurface)은 GC가 늦으면 그동안 그대로 잡혀 있다. 되살릴 때마다 메모리가 계단처럼
+     오르던 몫에 이 자리가 있었다. 이 판의 규약대로 크기를 0으로 돌려 곧장 내준다(releaseCanvas). */
+  for (const p9 of SPRITE_CACHE.values()) {
+    RELEASE_Q9.push(p9.cv);
+    const sh9 = (p9 as { sh?: { cv: HTMLCanvasElement } | null }).sh;
+    if (sh9) RELEASE_Q9.push(sh9.cv);
+    if (p9.tint) { RELEASE_Q9.push(p9.tint.cv); releaseTints9(p9.tint); }
+  }
   SPRITE_CACHE.clear(); spriteBytes.n = 0;
+  for (const b9 of BLD_SPRITE_CACHE.values()) {
+    RELEASE_Q9.push(b9.cv);
+    if (b9.tint) { RELEASE_Q9.push(b9.tint.cv); releaseTints9(b9.tint); }
+  }
   BLD_SPRITE_CACHE.clear(); bldSpriteBytes.n = 0;
   BLD_SPRITE_SIZES.clear();
+  for (const c9 of FX_RASTER_CACHE.values()) RELEASE_Q9.push(c9);
   FX_RASTER_CACHE.clear(); FX_RASTER_BYTES.n = 0;
+  flushReleased9();
 }
 /** 지도 밑판 한가운데 화소가 비었나 — 배킹 손실의 증거다(1×1 읽기). 못 읽으면 '아니오'로 친다. */
 function canvasLost9(root: HTMLElement): boolean {
@@ -21006,7 +21038,7 @@ const bakeCanvas = (side: number): HTMLCanvasElement | null => {
     c9.clearRect(0, 0, side, side);
     return cv9;
   }
-  const cv9 = document.createElement("canvas");
+  const cv9 = newCanvas9();
   cv9.width = side;
   cv9.height = side;
   /* ★ 빌림터의 판은 **읽을 판**이다(계측: 2초에 굽기 767ms 가운데 **훑기 599ms** — 78%) ─────────────
@@ -21131,7 +21163,7 @@ function shadowPlate(
   ));
   const cw9 = Math.max(1, Math.ceil(w9 / ds));
   const ch9 = Math.max(1, Math.ceil(h9 / ds));
-  const cv = document.createElement("canvas");
+  const cv = newCanvas9();
   cv.width = cw9;
   cv.height = ch9;
   const c9 = cv.getContext("2d");
@@ -21583,7 +21615,7 @@ const tintedOf9 = (tn: TintPlate9, color: string, bytes: { n: number } = spriteB
   if (got) return got;
   if (typeof document === "undefined") return null;
   const w = tn.cv.width; const h = tn.cv.height;
-  const cv = document.createElement("canvas");
+  const cv = newCanvas9();
   cv.width = w; cv.height = h;
   const tc = cv.getContext("2d");
   if (!tc) return null;
@@ -25288,7 +25320,7 @@ export function FxModel({
         c2.fill(pathOf(d9));
       }
       if (key9) {
-        const copy9 = document.createElement("canvas");
+        const copy9 = newCanvas9();
         copy9.width = cw9; copy9.height = ch9;
         copy9.getContext("2d")?.drawImage(cv, 0, 0);
         FX_RASTER_CACHE.set(key9, copy9);
@@ -25300,6 +25332,7 @@ export function FxModel({
           const [k0, v0] = FX_RASTER_CACHE.entries().next().value as [string, HTMLCanvasElement];
           FX_RASTER_CACHE.delete(k0);
           FX_RASTER_BYTES.n -= v0.width * v0.height * 4;
+          releaseCanvas(v0);   // 배킹을 곧장 내준다(위 dropPlates9의 ★ — GC를 기다리지 않는다)
         }
       }
       /* #diag=fx — 실기기에서 배킹을 눈으로 읽는다(iOS 저해상도 추적). '배킹/상자px'.
@@ -32754,6 +32787,7 @@ export default function ReplayMotionPlayer({
                       {/* 캔버스 배킹 손실(위 LOST9) — 잃고 다시 그린 횟수·검사 횟수. */}
                       {` · 배킹[손실${LOST9.n} 검사${LOST9.probe}${SCR_DIAG.allocOk ? "" : " ⚠확보실패"}]`}
                       {/* 메모리 흐름(위 MEMTR9) — 처음·지금·최대가 나란하면 새는 데가 없다. */}
+                      {` · 캔버스만듦[총${CVN9.n} 초당${CVN9.rate.toFixed(0)}]`}
                       {MEMTR9.n > 0 ? ` · 메모리[처음${MEMTR9.first.toFixed(0)} 지금${MEMTR9.now.toFixed(0)} 최대${MEMTR9.max.toFixed(0)}MB`
                         + ` · 캔버스${MEMTR9.cv}장 ${MEMTR9.cvMB.toFixed(1)} · 판 ${MEMTR9.plMB.toFixed(1)} · 설계도안개 ${MEMTR9.exMB.toFixed(1)}]` : ""}
                     </div>
