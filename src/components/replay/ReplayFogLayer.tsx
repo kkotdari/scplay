@@ -316,7 +316,8 @@ export default function ReplayFogLayer({
     ctx.globalAlpha = 1;
     ctx.beginPath();
     const r0 = tilePx * zoom;
-    for (let i = 0; i + 2 < vis.length; i += 3) {
+    /* 한 눈은 네 칸이다 — x · y · 반지름 · 신원(engine9의 eye ★). 신원은 그리기가 안 쓴다. */
+    for (let i = 0; i + 2 < vis.length; i += 4) {
       const [fx, fy] = proj(vis[i], vis[i + 1]);
       const rr = vis[i + 2] * r0;
       if (rr <= 0.5) continue;

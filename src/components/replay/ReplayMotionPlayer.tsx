@@ -595,6 +595,8 @@ const FOGM9 = { at: 0, gest: false, was: false, last: 0, gap: 0, idle: fogCnt9()
    만든 목록은 두 판 시각을 u9로 섞은 값을 단다. 어느 길로 나온 목록인지(WHY9)도 함께
    적어, 뒤로 간 걸음이 어느 길에서 나오는지까지 한 줄에 나온다. */
 const FOGT9 = new WeakMap<Float32Array, number>();
+/** 뒤 판의 **신원 → 자리** 표 — 판마다 한 번만 짓고 되쓴다(아래 짝짓기의 ★). */
+const VIS_ID9 = new WeakMap<Float32Array, Map<number, number>>();
 /** 지금 낸 눈 목록이 어느 길로 나왔나 — 이음/듦/앞장/뒤장없음/제판. */
 let fogWhy9 = "-";
 const FOGBACK9 = {
@@ -628,7 +630,7 @@ const fogJitTick9 = (vis9: Float32Array): void => {
     return;
   }
   let m9 = 0;
-  for (let i9 = 0; i9 + 2 < vis9.length; i9 += 3) {
+  for (let i9 = 0; i9 + 2 < vis9.length; i9 += 4) {
     m9 += Math.abs(vis9[i9] - pv9[i9]) + Math.abs(vis9[i9 + 1] - pv9[i9 + 1]);
   }
   FOGJIT9.move += m9;
@@ -640,7 +642,7 @@ const fogJitClose9 = (): void => {
   const pv9 = FOGJIT9.prev; const bs9 = FOGJIT9.base;
   if (pv9 && bs9 && pv9.length === bs9.length && FOGJIT9.n > 0) {
     let net9 = 0;
-    for (let i9 = 0; i9 + 2 < pv9.length; i9 += 3) {
+    for (let i9 = 0; i9 + 2 < pv9.length; i9 += 4) {
       net9 += Math.abs(pv9[i9] - bs9[i9]) + Math.abs(pv9[i9 + 1] - bs9[i9 + 1]);
     }
     FOGJIT9.net = net9;
@@ -32088,34 +32090,57 @@ export default function ReplayMotionPlayer({
        ★ 그리고 **전부-아니면-전무로 되돌린다** — 눈마다 가르면 어떤 눈은 이은 자리에, 어떤
          눈은 앞 장 자리에 있게 되고, 그 갈림이 장마다 뒤집히면 그것 자체가 떨림이다. 한 목록은
          한 시각에서 와야 한다. */
+    /* ★ **차례가 아니라 신원으로 짝짓는다**(지적: "이제 안개 뒤로 돌림은 없지만 뚝뚝 끊기네") ──
+       떨림과 끊김은 같은 구멍의 앞뒤 면이었다. 목록에 신원이 없어 **차례**로 짝지으니 한 판
+       사이에 하나가 죽고 하나가 태어나면 뒤의 눈이 전부 한 칸씩 밀려 이웃의 자리로 끌려갔고
+       (떨림), 그 밀린 짝을 거르려고 문을 좁히자 목록 전체가 이음을 포기해 판에서 판으로 툭
+       건너뛰었다(끊김). 어느 쪽도 고칠 수 없는 것은 **짝이 틀린 것을 짝이 맞는지로 가릴 수
+       없기** 때문이다. 그래서 눈 목록에 신원을 실었다(engine9의 eye ★ — 한 눈이 네 칸이다).
+       이제 같은 몸끼리만 잇는다: 뒤 판을 신원 → 자리로 한 번 훑어 표를 짓고(판마다 한 번,
+       WeakMap에 담아 되쓴다), 앞 판의 눈마다 제 짝을 찾아 잇는다. 짝이 없으면(이 사이에 죽은
+       눈) 제자리에 둔다 — 전부-아니면-전무가 필요 없다. 틀린 짝이 아예 안 생기니까.
+       목록의 **길이가 달라도 된다** — 그것이 이 판의 요점이다(여태 길이가 다르면 통째로 포기했다). */
     const dt9 = Math.max(1e-3, fp9 && fp9.b ? fp9.tb - fp9.ta : fb9.t - fa9.t);
-    const tol9 = Math.max(0.3, dt9 * 5);
-    if (va9 && vb9 && va9.length === vb9.length && va9.length > 0 && va9 !== vb9) {
-      let same9 = true;
-      for (let i9 = 0; i9 + 2 < va9.length; i9 += 3) {
-        if (va9[i9 + 2] !== vb9[i9 + 2]
-          || Math.abs(va9[i9] - vb9[i9]) > tol9 || Math.abs(va9[i9 + 1] - vb9[i9 + 1]) > tol9) { same9 = false; break; }
-      }
-      if (same9) {
-        if (!vl9.buf || vl9.buf.length !== va9.length) vl9.buf = new Float32Array(va9.length);
-        const out9 = vl9.buf;
-        for (let i9 = 0; i9 + 2 < va9.length; i9 += 3) {
-          out9[i9] = va9[i9] + (vb9[i9] - va9[i9]) * uv9;
-          out9[i9 + 1] = va9[i9 + 1] + (vb9[i9 + 1] - va9[i9 + 1]) * uv9;
-          out9[i9 + 2] = va9[i9 + 2];
+    /* 신원이 맞아도 한 판에 걸을 수 없는 거리면 안 잇는다 — 태그 되쓰기·순간이동(리콜)
+       한 번에 시야 원이 지도를 가로지르는 것만 막는 빗장이다. */
+    const tol9 = Math.max(2, dt9 * 12);
+    if (va9 && vb9 && va9.length > 0 && vb9.length > 0 && va9 !== vb9) {
+      let map9 = VIS_ID9.get(vb9);
+      if (!map9) {
+        map9 = new Map<number, number>();
+        for (let i9 = 0; i9 + 3 < vb9.length; i9 += 4) {
+          const id9 = vb9[i9 + 3];
+          if (id9 !== 0) map9.set(id9, i9);
         }
-        vl9.ver += 1;
-        /* 이은 목록의 시각은 두 판 시각을 같은 몫으로 섞은 값이다(위 FOGT9의 ★). */
-        const ta9 = FOGT9.get(va9) ?? fa9.t;
-        const tb9 = FOGT9.get(vb9) ?? fb9.t;
-        FOGT9.set(out9, ta9 + (tb9 - ta9) * uv9);
-        fogWhy9 = "이음";
-        fr9.visSrc = out9;
-        fr9.visVer = vl9.ver;
-      } else {
-        fogWhy9 = "안맞음";
-        if (fp9) fr9.visSrc = va9;   // 그 시각의 판(프레임이 든 것보다 늘 제 시각이다)
+        VIS_ID9.set(vb9, map9);
       }
+      if (!vl9.buf || vl9.buf.length !== va9.length) vl9.buf = new Float32Array(va9.length);
+      const out9 = vl9.buf;
+      let hit9 = 0;
+      for (let i9 = 0; i9 + 3 < va9.length; i9 += 4) {
+        const id9 = va9[i9 + 3];
+        const j9 = id9 !== 0 ? map9.get(id9) : undefined;
+        const ok9 = j9 !== undefined
+          && Math.abs(va9[i9] - vb9[j9]) <= tol9 && Math.abs(va9[i9 + 1] - vb9[j9 + 1]) <= tol9;
+        if (ok9 && j9 !== undefined) {
+          hit9 += 1;
+          out9[i9] = va9[i9] + (vb9[j9] - va9[i9]) * uv9;
+          out9[i9 + 1] = va9[i9 + 1] + (vb9[j9 + 1] - va9[i9 + 1]) * uv9;
+        } else {
+          out9[i9] = va9[i9];
+          out9[i9 + 1] = va9[i9 + 1];
+        }
+        out9[i9 + 2] = va9[i9 + 2];
+        out9[i9 + 3] = id9;
+      }
+      vl9.ver += 1;
+      /* 이은 목록의 시각은 두 판 시각을 같은 몫으로 섞은 값이다(위 FOGT9의 ★). */
+      const ta9 = FOGT9.get(va9) ?? fa9.t;
+      const tb9 = FOGT9.get(vb9) ?? fb9.t;
+      FOGT9.set(out9, ta9 + (tb9 - ta9) * uv9);
+      fogWhy9 = hit9 > 0 ? "이음" : "안맞음";
+      fr9.visSrc = out9;
+      fr9.visVer = vl9.ver;
     } else {
       fogWhy9 = "앞장";
       if (fp9) fr9.visSrc = va9;

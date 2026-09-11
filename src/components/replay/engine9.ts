@@ -2398,6 +2398,10 @@ export type FoeRow = {
    *  크기를 알아야 조준 높이가 맞는다. `k`는 **건물 행에만** 실리므로(방어 건물
    *  갈래) 공중 갈래에서는 언제나 undefined였다 — 그 자리를 이 필드가 채운다. */
   uk?: string;
+  /** ★ 이 몸의 **신원**(지적: "안개 뒤로 돌림은 없지만 뚝뚝 끊기네") — 안개 눈 목록이
+   *  앞뒤 판을 **차례가 아니라 이것으로** 짝짓는다. 유닛은 개체 태그(양수), 건물은 줄
+   *  번호(음수)라 서로 안 겹친다. 자세한 까닭은 눈 목록을 짓는 자리(eye)의 ★에. */
+  eid?: number;
   /** 은신·버로우로 '안 보이는' 표적(요청) — 디텍터가 있는 편에게만 표적이 된다. */
   hidden?: boolean;
   /** ★ 스태시스에 갇힌 몸(지적: "걸린 대상을 포탑 등이 공격함 — 원작에선 공격 불가")
@@ -3837,6 +3841,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           x: sIn9 ? sIn9.x : q.x, y: sIn9 ? sIn9.y : q.y,
           air: kc9.air,
           uk: kc9.uk,
+          eid: e.tag > 0 ? e.tag : 0,
         };
         engageFoes.push(row);
         foeEnts.push({ row, e, q, sim: sIn9, kc: kc9 });
@@ -3864,6 +3869,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           bldFoes.push({
             team: teamOfRaw(br) ?? 0,
             x: bx2 + footDx(bu), y: by2 + footDy(bu), air: false, bld: true, k: bu,
+            eid: -(bi + 1),
           });
         }
         if (!["Sunken Colony", "Spore Colony", "Photon Cannon", "Missile Turret", "Bunker"].includes(bu)) continue;
@@ -3876,6 +3882,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         engageFoes.push({
           team: teamOfRaw(br) ?? 0,
           x: bx2 + footDx(bu), y: by2 + footDy(bu), air: false, bld: true, k: bu,
+          eid: -(bi + 1),
         });
         // 방어 디텍터(전수조사) — 터렛·스포어·캐논은 은신을 벗긴다.
         if (bu === "Missile Turret" || bu === "Spore Colony" || bu === "Photon Cannon") {
@@ -4130,21 +4137,31 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           }
         }
       };
-      /** 안개 층이 쓸 눈 목록 — disc를 부를 때마다 여기에도 적는다. */
+      /** 안개 층이 쓸 눈 목록 — disc를 부를 때마다 여기에도 적는다.
+       *  ★ 한 눈은 **네 칸**이다: x · y · 반지름 · **신원(eid)**(지적: "안개 뒤로 돌림은
+       *    없지만 뚝뚝 끊기네") ────────────────────────────────────────────────────────
+       *    붓은 앞뒤 두 판의 눈을 이어 시야 원을 매끄럽게 옮긴다. 그런데 목록에 신원이
+       *    없어 **차례(index)로** 짝지었고, 한 판 사이에 하나가 죽고 하나가 태어나면 그
+       *    뒤의 눈이 전부 한 칸씩 밀려 이웃의 자리로 끌려갔다(그것이 '떨림'이었다).
+       *    그 밀린 짝을 거르려고 문을 좁히니 이번엔 목록 전체가 이음을 포기해 **뚝뚝**
+       *    끊긴다 — 떨림과 끊김은 같은 구멍의 앞뒤 면이다. 차례가 아니라 신원으로 짝지으면
+       *    둘 다 없어진다: 같은 몸끼리만 이어지고, 태어나고 죽은 눈만 안 이어진다.
+       *    유닛은 개체 태그(양수), 건물은 줄 번호(음수)라 서로 안 겹친다. 0은 '신원 없음'
+       *    이라 안 이어진다(자취 없는 옛 기록). */
       const src9: number[] = [];
-      const eye = (cx: number, cy: number, r: number): void => {
-        src9.push(cx, cy, r);
+      const eye = (cx: number, cy: number, r: number, id9 = 0): void => {
+        src9.push(cx, cy, r, id9);
         disc(cx, cy, r);
       };
       /* 눈은 **이 프레임에 실제로 서 있는 것들**이다 — 유닛 명단(engageFoes)과 건물
          명단(bldFoes)이 이미 그 값이라 따로 훑지 않는다(둘 다 위에서 t로 걸러졌다). */
       for (const f9 of engageFoes) {
         if (!visAll && f9.team !== viewTeam) continue;
-        eye(f9.x, f9.y, sightTiles(f9.uk ?? f9.k ?? "Marine"));
+        eye(f9.x, f9.y, sightTiles(f9.uk ?? f9.k ?? "Marine"), f9.eid ?? 0);
       }
       for (const f9 of bldFoes) {
         if (!visAll && f9.team !== viewTeam) continue;
-        eye(f9.x, f9.y, sightTiles(f9.k ?? "Command Center"));
+        eye(f9.x, f9.y, sightTiles(f9.k ?? "Command Center"), f9.eid ?? 0);
       }
       /* ★ **공사 중인 건물도 시야를 갖는다**(물음: "공사중 건물은 원래 시야가 없나?"
          — 없지 않다. 원작은 착공하는 순간 건물 개체를 만들고, 그 개체는 미완성인 채로도
@@ -4156,7 +4173,8 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
          표적'을 고르는 명단이라 그 규칙이 맞지만, 시야는 아니다. 그래서 밝힘 이력은
          착공 시각부터 찍히는데(위 stamp) 정작 지금 시야에는 공사장이 빠져, 짓는 동안
          제자리가 도로 안개에 덮이는 앞뒤 안 맞는 그림이 났다. 여기서 채운다. */
-      for (const b9 of buildsSrc) {
+      for (let bi9 = 0; bi9 < buildsSrc.length; bi9 += 1) {
+        const b9 = buildsSrc[bi9];
         if (!visAll && teamOfRaw(b9[4]) !== viewTeam) continue;
         if (t < b9[0]) continue;                                  // 아직 착공 전
         const gone9 = goneEffOf(b9);
@@ -4164,12 +4182,13 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         const done9 = b9[7] ?? b9[0] + (BUILD_SEC[b9[3]] ?? 30);
         if (t >= done9) continue;                                 // 완성분은 위 명단이 냈다
         const fp9 = FOOTPRINT[b9[3]] ?? [3, 2];
-        eye(b9[1] + fp9[0] / 2, b9[2] + fp9[1] / 2, bldSightAt9(b9[3], t, done9));
+        eye(b9[1] + fp9[0] / 2, b9[2] + fp9[1] / 2, bldSightAt9(b9[3], t, done9), -(bi9 + 1));
       }
       /* 이사 비행 중인 건물은 **나는 자리**에서도 본다(지적: 떠다니는 건물 시야) —
          위 두 명단은 줄에 적힌 붙박이 좌표를 쓰므로 비행 구간이 빠진다. 그리는 쪽과
          같은 곡선으로 지금 자리를 다시 셈해 하나 더 찍는다(겹쳐도 최댓값이라 무해하다). */
-      for (const b9 of buildsSrc) {
+      for (let bi9 = 0; bi9 < buildsSrc.length; bi9 += 1) {
+        const b9 = buildsSrc[bi9];
         if (!visAll && teamOfRaw(b9[4]) !== viewTeam) continue;
         const lift9 = b9[6];
         const land9 = b9[5] ?? 0;   // 이 줄의 gone은 파괴가 아니라 **착륙 시각**이다
@@ -4181,7 +4200,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         const ftag9 = bldTagAt.get(`${b9[4]}|${b9[3]}|${Math.round(b9[1] + fp9[0] / 2)}|${Math.round(b9[2] + fp9[1] / 2)}`);
         const ftr9 = ftag9 !== undefined ? simTracks?.get(ftag9) : undefined;
         const fpos9 = ftr9 ? posAtSim(ftr9, t) : null;
-        if (fpos9) { eye(fpos9.x, fpos9.y, sightTiles(b9[3])); continue; }
+        if (fpos9) { eye(fpos9.x, fpos9.y, sightTiles(b9[3]), -(bi9 + 1)); continue; }
         if (!(land9 > lift9)) continue;
         const to9 = buildsSrc.find(([s2, x2, y2, u2, r2]) => r2 === b9[4] && u2 === b9[3]
           && s2 === land9 && (x2 !== b9[1] || y2 !== b9[2]));
@@ -4189,7 +4208,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         const u9 = Math.min(1, (t - lift9) / Math.max(0.1, land9 - lift9));
         const k9 = u9 * u9 * (3 - 2 * u9);
         eye(b9[1] + (to9[1] - b9[1]) * k9 + fp9[0] / 2,
-          b9[2] + (to9[2] - b9[2]) * k9 + fp9[1] / 2, sightTiles(b9[3]));
+          b9[2] + (to9[2] - b9[2]) * k9 + fp9[1] / 2, sightTiles(b9[3]), -(bi9 + 1));
       }
       visSrcRef.current = Float32Array.from(src9);
       /* 이번 판에 든 시간을 적어 둔다 — 다음 쉬는 간격을 이 값이 정한다(위 ★ 적응 조르기).
