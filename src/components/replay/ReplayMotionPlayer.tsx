@@ -2597,6 +2597,11 @@ const TICKM9 = { worst: 0, n: 0, at: 0 };
 const LOST9 = { n: 0, probe: 0, at: 0, born: typeof performance === "undefined" ? 0 : performance.now() };
 /** 붓(모듈 함수)이 세우고 컴포넌트의 rAF가 받아 가는 표 — ref를 모듈에서 못 보므로 한 칸 둔다. */
 const LOSTQ9 = { want: false };
+/** ★ 메모리가 **시간과 함께 느는가**(물음: "며칠 전엔 안 그랬는데") ────────────────────────────────
+ *  "한참 보다 보면 시작된다"는 꼴은 새는 자리의 전형이다. 10초마다 큰 덩어리(화면 캔버스 · 구운 판 ·
+ *  설계도 · 안개 판)를 더해 두고 **처음·지금·최대**를 나란히 보인다. 셋이 나란하면 새는 데가 없고,
+ *  지금이 처음보다 크게 자라 있으면 그 자리를 찾으면 된다. 값은 10초에 한 번 더하기 몇 번이라 없다. */
+const MEMTR9 = { first: 0, now: 0, max: 0, n: 0 };
 function creepSplat(r: number): ShapeFace[] {
   const out: ShapeFace[] = [];
   if (NO_CREEP9) return out;
@@ -20692,6 +20697,19 @@ function nukeMeterTick9(on9: boolean, step9: number, playing9 = true): void {
     + ` 최악 ${w9.worstFrame.toFixed(0)}ms(굽기 ${w9.worstFrameBake.toFixed(0)})`
     + ` · 건물판 갈림[${bldMissTop9()}]`;
 }
+/** 큰 덩어리를 더해 MB로 — 화면 캔버스(폭×높이×4) · 구운 판 · 설계도·안개 판은 부르는 쪽이 더한다. */
+function memTrendTick9(root: HTMLElement | null, extraMB9 = 0): void {
+  let by9 = 0;
+  if (root) {
+    const cvs9 = root.querySelectorAll<HTMLCanvasElement>("canvas");
+    for (let i9 = 0; i9 < cvs9.length; i9 += 1) by9 += cvs9[i9].width * cvs9[i9].height * 4;
+  }
+  const mb9 = by9 / 1048576 + (spriteBytes.n + bldSpriteBytes.n + FX_RASTER_BYTES.n) / 1048576 + extraMB9;
+  MEMTR9.n += 1;
+  MEMTR9.now = mb9;
+  if (MEMTR9.first === 0) MEMTR9.first = mb9;
+  if (mb9 > MEMTR9.max) MEMTR9.max = mb9;
+}
 /** 배킹을 잃었을 때 — 구워 둔 판을 통째로 버린다(그 판들도 캔버스라 같이 비었다). */
 function dropPlates9(): void {
   SPRITE_CACHE.clear(); spriteBytes.n = 0;
@@ -25266,7 +25284,10 @@ export function FxModel({
         copy9.getContext("2d")?.drawImage(cv, 0, 0);
         FX_RASTER_CACHE.set(key9, copy9);
         FX_RASTER_BYTES.n += cw9 * ch9 * 4;
-        while (FX_RASTER_BYTES.n > FX_RASTER_MAX && FX_RASTER_CACHE.size > 1) {
+        /* ★ **장수도** 죈다(오늘 이 캐시를 '도는 것 말고도' 쓰게 넓혔다) — 웹킷에서 캔버스는 바이트만이
+           아니라 **개수**도 값이다(저마다 배킹과 합성 자원을 든다). 작은 판 수백 장이 큰 판 몇 장보다
+           기기를 더 무겁게 민다. 48장을 넘으면 오래된 것부터 버린다. */
+        while ((FX_RASTER_BYTES.n > FX_RASTER_MAX || FX_RASTER_CACHE.size > 48) && FX_RASTER_CACHE.size > 1) {
           const [k0, v0] = FX_RASTER_CACHE.entries().next().value as [string, HTMLCanvasElement];
           FX_RASTER_CACHE.delete(k0);
           FX_RASTER_BYTES.n -= v0.width * v0.height * 4;
@@ -29291,6 +29312,16 @@ export default function ReplayMotionPlayer({
          압박이 가실 때까지 계속 실패한다 — 그러니 한 번 보고 마는 것이 아니라 빈 동안 되풀이해야
          한다. 검사는 1×1 읽기 둘이고, 되살리기는 3초 쉼이 있어 되돌이가 안 난다(canvasLost9). */
       if (TICKM9.n % 30 === 0) LOSTQ9.want = true;
+      /* 10초마다 메모리 어림 한 번(위 MEMTR9) — 새는 자리가 있나를 수로 본다. */
+      if (TICKM9.n % 100 === 0) {
+        let ex9 = 0;
+        for (const f9 of wFramesRef.current.values()) ex9 += f9.buf.byteLength;
+        for (const sn9 of fogSnapsRef9.current) {
+          ex9 += (sn9.fog?.visSrc?.byteLength ?? 0) + (sn9.fog?.explored?.byteLength ?? 0)
+            + (sn9.fog?.visNow?.byteLength ?? 0);
+        }
+        memTrendTick9(mapRef.current, ex9 / 1048576);
+      }
     }, 100);
     return () => window.clearInterval(id9);
   }, []);
@@ -32690,6 +32721,8 @@ export default function ReplayMotionPlayer({
                       {TICKM9.n > 0 ? ` · 타이머[최악${TICKM9.worst.toFixed(0)}ms ${TICKM9.n}번]` : ""}
                       {/* 캔버스 배킹 손실(위 LOST9) — 잃고 다시 그린 횟수·검사 횟수. */}
                       {` · 배킹[손실${LOST9.n} 검사${LOST9.probe}${SCR_DIAG.allocOk ? "" : " ⚠확보실패"}]`}
+                      {/* 메모리 흐름(위 MEMTR9) — 처음·지금·최대가 나란하면 새는 데가 없다. */}
+                      {MEMTR9.n > 0 ? ` · 메모리[처음${MEMTR9.first.toFixed(0)} 지금${MEMTR9.now.toFixed(0)} 최대${MEMTR9.max.toFixed(0)}MB ${MEMTR9.n}표본]` : ""}
                     </div>
                   </>
                 )}
