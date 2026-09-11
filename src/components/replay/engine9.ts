@@ -1793,6 +1793,10 @@ export type FxOp = {
    *  낱개(불꽃 하나)마다 op 하나다: 자리는 fx·fy + mx·my(렌즈 px), 크기는 size,
    *  심함은 tier(1·2), 흩는 씨앗은 seed(0~99), 흔들리는 시계는 clk(초)다. */
   wrace?: "terran" | "zerg" | "toss";
+  /** dom: 입체 보기인가 — 모델을 굽는 갈래(스톰·핵)가 시점을 함께 받아야 기둥이 눕는다. */
+  pv?: boolean;
+  /** dom: 이 자리의 **깊이 배율**(pitchK) — 붓이 px 상수(탄두 크기·낙하 높이)에 곱한다. */
+  pk?: number;
   /** dom(옛 DOM 효과 층): 갈래 안의 **결** — 시전 갈래(scan·plague…)·종족(terran…)·죽음 결(bio…). */
   sub?: string;
   /** dom: 시작부터 흐른 **시각**(초) — 스팬 시절엔 CSS가 붙는 순간부터 제 애니를 돌렸다.
@@ -3364,7 +3368,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
   let stillNow9 = false;
   const {
     entData, simTracks, buildsSrc, entBldHp, bldTagSpots, droneMorph, buildsDrawOrder, bldNudge,
-    entCombatStart, upsByRaw, marineBornOf, entWalks, nukeLase, castsSrc,
+    entCombatStart, upsByRaw, marineBornOf, entWalks, nukeLase, castsSrc, nukeImpacts,
     goneEffOf, prodByRawType, bldTagAt, leftAt9, tagOrdinals, buildsByType, halls, gasBuildings,
     resStageSeries, gridHasGasFlags, gasHideOf, mines, bldPre9, bldRecMemo, teamOfRaw, bases, grid, total,
   } = world;
@@ -8156,12 +8160,31 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
     {
     const rW9 = castsNow.map(([sec, x, y, tech, raw], i) => {
     if (!TECH_KO[tech]) return null; // 한글명을 모르는 기술은 안 띄운다(요청).
-    /* 핵은 여기서 안 그린다(지적: "핵탄두 건물에 가려짐") — 이 묶음은 렌즈
-       안에 사는데, 렌즈는 will-change로 **제 쌓임 맥락**을 만든다. 그 안에서
-       z를 30000으로 올려 봐야 렌즈 통째가 유닛 캔버스(z 6000)와 겨루므로,
-       캔버스가 그리는 건물이 핵을 덮었다. 핵은 아래 효과 렌즈(.scr-motion-fxlens
-       — 같은 좌표계·같은 변환이면서 캔버스 위에 서는 층)로 옮겼다. */
-    if (tech === "Nuclear Strike") return null;
+    /* ★ 핵도 **캔버스**로(요청: "둘다 옮겨") — 한때 여기서 못 그린 까닭은 렌즈가 제 쌓임
+       맥락을 만들어 안의 z가 유닛 캔버스(6000)와 못 겨룬 것이었다(지적: "핵탄두 건물에
+       가려짐"). 캔버스 fx는 몸을 다 그린 **뒤에** 얹히므로 그 문제 자체가 없다.
+       옮기며 얻는 것이 하나 더 있다: 연출이 CSS 키프레임이 아니라 **나이의 함수**가 되어,
+       배속·일시정지·되감기가 저절로 맞는다. 그 어긋남을 메우려고 붓이 닻을 내려 주던
+       자(nukeClockTick9)와 그 계기(NUKEM9)도 함께 걷혔다. */
+    if (tech === "Nuclear Strike") {
+      const nage9 = t - sec;
+      const landed9 = nukeImpacts.some((nk) => nk.confirmed && nk.x === x && nk.y === y
+        && Math.abs(nk.sec - (sec + NUKE_FALL_SEC)) < 0.5);
+      if (nage9 >= NUKE_FALL_SEC && !landed9) return null;   // 불발은 폭발 없이 표적 점만
+      const [nfx9, nfy9] = posFrac(x, y);
+      fxOps.push({
+        kind: "dom", style: "nuke", fx: nfx9, fy: nfy9, lift: 0,
+        /* 폭발 상자는 **판정 반경과 같은 수**다 — 건물을 걷어내는 반경이 5타일이라
+           지름 10타일이 1.0배다(그림이 더 좁으면 불 밖에 선 건물이 무너진다). */
+        size: 10 * pitchK(y) * (mapW9 / grid.width),
+        pk: pitchK(y), age: nage9, tier: landed9 ? 2 : 1,
+        /* 무늬 칸은 이 핵 하나에 붙박이다(자리·시각에서 뽑는다) — 폭발이 타는 동안
+           무늬가 바뀌면 다른 폭발로 갈아 끼운 것처럼 보인다. */
+        seed: Math.abs(Math.round(sec * 3 + x * 5 + y * 7)),
+        deg: viewYawOf(x, y), pv: pitched, col: modeColor(raw, teamOfRaw(raw) ?? 1),
+      });
+      return null;
+    }
     {
       /* 특징 기술 효과(요청) — 이름 배지 대신 실제 영역 크기의 전용 효과.
          [클래스, 지름(타일)] — 영역은 인게임 어림이다. */
@@ -8238,10 +8261,19 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       return null;
     }
     if (tech === "Psionic Storm") {
-      /* 스톰은 여기(렌즈 안)서 안 그린다 — 렌즈는 유닛 캔버스(z 6000) **아래**
-         스태킹 컨텍스트라 z-index를 아무리 줘도 유닛을 못 덮는다. 낙뢰는 모든
-         유닛 위에 떨어져야 하므로(지시) 캔버스 뒤의 전용 오버레이
-         (.scr-motion-fxlens, 아래 UnitLayer 다음)가 같은 자리에 그린다. */
+      /* ★ 스톰도 **캔버스**로(요청: "둘다 옮겨") — 한때는 렌즈 안에서 못 그렸다(렌즈는 유닛
+         캔버스 아래 스태킹 컨텍스트라 z를 아무리 줘도 유닛을 못 덮었다). 그래서 전용 DOM
+         오버레이가 같은 자리에 섰는데, 이제 fx는 **몸을 다 그린 위에** 얹히므로 그 오버레이가
+         필요 없다. 영역·지속은 그대로다(지름 4.2타일 · 4초).
+         끝의 사그라듦은 없다 — 원작의 스톰은 지속이 끝나는 순간 그대로 그친다. */
+      if (t - sec <= 4) {
+        const [stx9, sty9] = posFrac(x, y);
+        fxOps.push({
+          kind: "dom", style: "storm", fx: stx9, fy: sty9, lift: 0,
+          size: 4.2 * pitchK(y) * (mapW9 / grid.width), age: t - sec,
+          deg: viewYawOf(x, y), pv: pitched, seed: i,
+        });
+      }
       return null;
     }
     /* (제거·요청: 배지 더 이상 사용 안 함) — 전용 효과가 없는 기술의 이름 알약

@@ -2126,188 +2126,23 @@
   100% { transform: scale(0.12); opacity: 0; }
 }
 
-/* ── 핵 연출(정정) — 표적 점 → 낙하 탄두 → 착탄 폭발. 크기는 인라인 width(지름 8타일)가
-   정하고 속은 %로 그린다(지적: 너무 크고 진했다 — 실제 피해 반경 + 살짝 투명). */
-.scr-motion-nukefx {
-  pointer-events: none; z-index: 30000; position: absolute;
-  transform: translate(-50%, -50%); aspect-ratio: 1;
-  display: flex; align-items: center; justify-content: center;
-}
-/* 표적 점 — 착탄 전 깜빡이는 표시등(요청: "핵 조준점 더 빨간색으로 하고 크기 축소하되
-   점이 점멸효과 줘서 잘 보이게") ────────────────────────────────────────────────────
-   주황(255,150,70)은 지도의 흙·크립과 색이 겹쳐 '조준중'이라는 경고로 안 읽혔다. 순수한
-   빨강으로 바꾸고 크기는 6 → 4px으로 줄이되, **꺼졌다 켜지는 점멸**을 준다 — 작아진
-   만큼 눈에 띄는 몫은 밝기 변화가 진다(가만히 켜져 있는 작은 점은 안 보인다).
-   0.55초 주기로 거의 꺼졌다(0.15) 완전히 켜지고(1), 켜질 때 붉은 후광이 함께 부푼다. */
-/* 가로·세로 각각 1/4(요청: "핵 조준점 1/4로 크기 축소") — 점 4 → 1px, 후광도 같은
-   몫으로(7/3 → 2/0.8px). 다시 **반으로**(요청: "조준점 크기도 반으로") — 1 → 0.5px,
-   후광도 같은 몫으로(2/0.8 → 1/0.4px). 탄두를 반으로 줄인 것과 같은 결이다: 이 점은
-   '저기에 떨어진다'만 말하면 되고, 그 몫은 크기가 아니라 **점멸**이 진다 — 거의
-   꺼졌다(0.12) 완전히 켜지는 진폭을 그대로 두므로 작아도 눈에 걸린다.
-   ※ 렌즈 안의 px이라 확대하면 함께 커진다(1배에서 반 픽셀이라 흐린 점으로 보이는
-     것이 맞다 — 원작의 조준점도 그만하다). */
-.scr-motion-nuke-dot {
-  position: absolute; left: 50%; top: 50%; width: 0.5px; height: 0.5px; border-radius: 50%;
-  transform: translate(-50%, -50%); background: #ff1a1a;
-  animation: scr-nuke-dot 0.55s ease-in-out infinite alternate;
-  /* ★ 연출은 **CSS가 제 힘으로 돈다**(조사: 핵폭발 멈춤) — 여태 이 애니는 멈춰 세운 채(paused)
-     재생 시각으로 animationDelay를 프레임마다 고쳐 긁었다. 그 한 줄이 화면 합성에서는 공짜가
-     아니다: 섞임(mix-blend screen)이 걸린 큰 층 셋의 스타일이 초당 예순 번 바뀐다.
-     이제 재생 배속만큼 **길이를 줄여** 그대로 돌린다(--scr-nspd) — 거는 것은 시작할 때 한 번의
-     지연과 재생/멈춤뿐이고, 그 사이는 합성기 몫이라 주 실마리가 비어 있다. */
-  animation-duration: calc(0.55s / var(--scr-nspd, 1));
-}
-@keyframes scr-nuke-dot {
-  from { opacity: 0.12; box-shadow: 0 0 0.5px 0.15px rgba(255, 26, 26, 0.25); }
-  to { opacity: 1; box-shadow: 0 0 1px 0.4px rgba(255, 26, 26, 0.85); }
-}
-/* 핵탄두 꼬리 연기(요청: "꼬리쪽에 연기 효과 추가 가능?") — 꽁무니에서 위로 끌리는
-   한 줄기. 아래가 짙고 위로 갈수록 흩어진다. 좌우로 아주 조금 흔들려 '끌린다'가 된다.
-   자리·크기는 그리는 쪽이 px으로 준다(배율을 손수 곱한 값이라 시트에는 폴백만 둔다). */
-.scr-motion-nuke-smoke {
-  position: absolute; left: 50%; pointer-events: none;
-  width: 6px; height: 24px;
-  transform: translateX(-50%);
-  background: linear-gradient(to top,
-    rgba(214,220,228, 0.42) 0%,
-    rgba(196,204,214, 0.26) 32%,
-    rgba(176,186,198, 0.10) 64%,
-    rgba(176,186,198, 0) 100%);
-  border-radius: 50% / 26%;
-  filter: blur(1px);
-  animation: scr-nuke-smoke 0.85s ease-in-out infinite alternate;
-  /* ★ 연출은 **CSS가 제 힘으로 돈다**(조사: 핵폭발 멈춤) — 여태 이 애니는 멈춰 세운 채(paused)
-     재생 시각으로 animationDelay를 프레임마다 고쳐 긁었다. 그 한 줄이 화면 합성에서는 공짜가
-     아니다: 섞임(mix-blend screen)이 걸린 큰 층 셋의 스타일이 초당 예순 번 바뀐다.
-     이제 재생 배속만큼 **길이를 줄여** 그대로 돌린다(--scr-nspd) — 거는 것은 시작할 때 한 번의
-     지연과 재생/멈춤뿐이고, 그 사이는 합성기 몫이라 주 실마리가 비어 있다. */
-  animation-duration: calc(0.85s / var(--scr-nspd, 1));
-}
-@keyframes scr-nuke-smoke {
-  from { transform: translateX(-53%) scaleX(0.9); }
-  to { transform: translateX(-47%) scaleX(1.08); }
-}
-.scr-motion-nuke-fall {
-  /* 낙하 탄두도 캔버스 문(FxModel)을 지나므로 안의 absolute가 앉을 자리가 필요하다. */
-  position: relative;
-  /* 26 → 18 → **9px**(요청: "탄두 크기 반으로 줄이기") — 이 값은 JS의 NUKE_HEAD_PX와
-     **같아야 한다**(코를 조준점에 맞추는 셈이 그 값의 0.275배를 쓴다).
-     폭발 상자와는 따로 논다: 상자는 판정 반경(10타일)이 정하고, 탄두는 '하늘에서
-     떨어지는 작은 물체'로 보이는 크기가 정한다. */
-  display: inline-flex; width: 22.5px; height: 22.5px;   /* 9 → 22.5(요청: 탄두 2.5배) — JS의 NUKE_HEAD_PX와 같다 */
-  /* (걷어냄) rotate(180deg) — 모델을 화면에서 뒤집어 '탄두가 아래'로 만들던 자리다.
-     이제 모델 자체가 코를 아래로 두고 선다(지적: "핵탄두 모델 떨어지는형태라 아래가
-     코여야해") — 이 판이 쓰이는 자리는 떨어지는 순간 하나뿐이라 그것이 제 모습이고,
-     '어느 쪽이 앞인가'가 스타일시트가 아니라 모델에 적혀 있어야 한다. */
-  animation: scr-nuke-fall 2s linear forwards;
-}
-.scr-motion-nuke-fall .scr-motion-shape-svg { width: 100%; height: 100%; }
-@keyframes scr-nuke-fall {
-  from { translate: 0 -140px; opacity: 0.4; }
-  to { translate: 0 0; opacity: 1; }
-}
-/* 백열 섬광 — 한순간 화면을 때리는 흰 빛(광원: screen 블렌드). 반투명·피해 반경 크기. */
-.scr-motion-nuke-flash {
-  position: absolute; left: 50%; top: 50%; width: 100%; height: 100%;
-  transform: translate(-50%, -50%);
-  background: radial-gradient(circle, rgba(255,255,255,0.6) 0%, rgba(255,240,200,0.35) 30%, transparent 70%);
-  mix-blend-mode: screen;
-  animation: scr-nuke-flash 0.9s ease-out forwards;
-  /* ★ 연출은 **CSS가 제 힘으로 돈다**(조사: 핵폭발 멈춤) — 여태 이 애니는 멈춰 세운 채(paused)
-     재생 시각으로 animationDelay를 프레임마다 고쳐 긁었다. 그 한 줄이 화면 합성에서는 공짜가
-     아니다: 섞임(mix-blend screen)이 걸린 큰 층 셋의 스타일이 초당 예순 번 바뀐다.
-     이제 재생 배속만큼 **길이를 줄여** 그대로 돌린다(--scr-nspd) — 거는 것은 시작할 때 한 번의
-     지연과 재생/멈춤뿐이고, 그 사이는 합성기 몫이라 주 실마리가 비어 있다. */
-  animation-duration: calc(0.9s / var(--scr-nspd, 1));
-}
-/* ★ 이 무리의 애니메이션은 **transform 한 줄로만** 쓴다(지적: "핵 버섯구름 효과가 왜
-   왼쪽으로 치우쳐서 올라가지") ────────────────────────────────────────────────────
-   진범은 CSS의 합성 차례다: 개별 속성 `translate`·`rotate`·`scale`이 먼저 곱해지고
-   **`transform`이 맨 뒤**에 곱해진다. 이 조각들은 가운데 맞춤을 `transform:
-   translate(-50%, …)`로 하고 있었는데, 그 −50%가 앞선 `scale`에 **함께 곱해진다**.
-     scale 0.3일 때 −50% → 실제로는 −15%
-     scale 1.6일 때 −50% → 실제로는 −80%
-   곧 커질수록 왼쪽으로(그리고 위로) 밀려간다 — 자라며 비스듬히 흘러가는 그 그림이다.
-   모델 잉크는 정상이다(실측: nukedome의 잉크 가운데가 뷰박스 한가운데 8.00).
-   고치는 법은 **섞지 않는 것**이다: 가운데 맞춤과 크기를 한 transform 목록에 차례로
-   적으면(translate → scale) 퍼센트가 먼저 풀리고 그다음에 확대돼 자리가 안 흔들린다.
-   ※ 키프레임이 transform을 쓰면 바탕 규칙의 transform을 통째로 덮으므로, 키프레임마다
-     가운데 맞춤을 함께 적어야 한다. */
-@keyframes scr-nuke-flash {
-  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.2); }
-  12% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.35); }
-}
-/* ★ 핵 폭발의 몸은 **모델**이다(요청) — 여기 남는 것은 감싸개 둘뿐이다: 퍼지는 충격파와
-   솟는 버섯구름. 모델은 한 자세만 굽고, 자라고 오르는 몫은 이 규칙들이 진다.
-   (걷어냄) .scr-motion-nuke-scorch / -stem / -domewrap / -ring / -blast — 그을음 원,
-   clip-path 삼각형 기둥, 돔 감싸개, 테두리 원 둘. 모두 **정면 붙박이** 도형이라 지도를
-   돌리거나 눕혀도 저 혼자 정면을 봤다. 그을음·기둥·화구·고리는 이제 모델 안에 있다.
-   ※ 자리·비율은 눈대중이 아니라 **잉크 상자를 재서** 잡았다(하네스 실측) — 두 모델의
-     땅 중심(project(0,0,0) = 상자의 8, 12.6)이 잉크 창의 어디에 오는지로 −translate를
-     정한다. 그래야 폭심이 조준점에 정확히 앉는다.
+/* ── 핵 연출 — **캔버스로 옮겼다**(요청: "둘다 옮겨"). 조준점·꼬리 연기·낙하 탄두·충격파·
+   섬광·버섯구름이 전부 재생기의 drawDomFx9가 그린다. 여기 있던 규칙 열넷을 통째로 걷는다.
+   ★ 옮기며 **연출이 나이의 함수가 되었다** — 스팬 시절엔 CSS 키프레임이라 벽시계로 돌아,
+     배속을 걸면 폭발만 느긋했고 되감으면 안 되돌아갔다. 그 어긋남을 메우려고 붓이 프레임마다
+     닻(animationDelay·재생멈춤)을 내려 주고 React 박자를 60Hz까지 올리던 자들이 있었는데,
+     그림이 캔버스로 오면서 셋 다 필요가 없어졌다.
+   ※ 자리 비율은 눈대중이 아니라 **잉크 상자를 재서** 잡은 값이고, 붓이 그대로 쓴다:
        nukeblast : 창 16.08×7.40, 땅 중심 (50.0%, 50.3%) → 비율 2.173
        nukecloud : 창 17.14×16.92, 땅 중심 (50.0%, 77.9%) → 비율 1.013
-     ★ 이 무리도 위 섬광과 같은 규약이다 — 가운데 맞춤과 크기를 **한 transform 목록**에
-       차례로 적는다(개별 translate 속성과 섞으면 퍼센트가 scale에 곱해져 흘러간다). */
-.scr-motion-nuke-wave {
-  position: absolute; left: 50%; top: 50%; width: 100%; aspect-ratio: 2.173;
-  transform: translate(-50%, -50.3%);
-  transform-origin: 50% 50.3%;
-  mix-blend-mode: screen; pointer-events: none;
-  animation: scr-nuke-wave 2.6s ease-out forwards;
-  /* ★ 연출은 **CSS가 제 힘으로 돈다**(조사: 핵폭발 멈춤) — 여태 이 애니는 멈춰 세운 채(paused)
-     재생 시각으로 animationDelay를 프레임마다 고쳐 긁었다. 그 한 줄이 화면 합성에서는 공짜가
-     아니다: 섞임(mix-blend screen)이 걸린 큰 층 셋의 스타일이 초당 예순 번 바뀐다.
-     이제 재생 배속만큼 **길이를 줄여** 그대로 돌린다(--scr-nspd) — 거는 것은 시작할 때 한 번의
-     지연과 재생/멈춤뿐이고, 그 사이는 합성기 몫이라 주 실마리가 비어 있다. */
-  animation-duration: calc(2.6s / var(--scr-nspd, 1));
-}
-/* ★ **밝을 때 이미 크다**(지적: "크기가 너무 작음 — 실제 터지는 영역까지 확대되게
-   크게") ────────────────────────────────────────────────────────────────────────
-   앞판은 10%에서 0.55배로 밝았다가 끝(투명해지는 자리)에서야 1.05배가 됐다. 그러니
-   **눈에 보이는 동안의 크기는 0.55배**, 곧 6타일 상자에서 3.3타일뿐이었다 — 실제
-   피해 범위의 절반이다. 사람이 보는 것은 '가장 밝을 때의 크기'지 '가장 클 때'가 아니다.
-   이제 12%에 이미 0.95배로 켜지고, 스러지는 동안 1.25배까지 조금 더 밀려 나간다.
-   ※ 여기서 1.0배 = 상자 폭 = **10타일**이다(재지적: "터지는 건물까지 안 퍼진다") —
-     이 재생기가 건물을 걷어내는 반경이 5타일이라, 그림도 같은 수여야 불 밖에서 건물이
-     무너지는 일이 없다. 그 셈은 JSX의 width: pct(10, …) 주석에 있다. */
-@keyframes scr-nuke-wave {
-  0% { opacity: 0; transform: translate(-50%, -50.3%) scale(0.25); }
-  12% { opacity: 1; transform: translate(-50%, -50.3%) scale(0.95); }
-  100% { opacity: 0; transform: translate(-50%, -50.3%) scale(1.25); }
-}
+     폭발 상자 1.0배 = 지름 **10타일**이다 — 이 재생기가 건물을 걷어내는 반경(5타일)과
+     같은 수여야 불 밖에 선 건물이 무너지는 일이 없다(엔진의 Nuclear Strike 갈래 주석). */
 /* 버섯구름 — 발치가 조준점에 못박힌 채 솟으며 부푼다(기준점이 곧 그 발치다). */
 /* 구름도 같은 셈이다(같은 지적: "위로도 그만큼 솟아야 함") — 폭이 상자의 84%에
    1배였으니 밝을 때 지름 5타일, 그만큼 낮았다. 폭을 상자만큼(100%) 주고 부푸는 끝을
    1.7배까지 민다. 솟는 몫도 −13% → −34%로 키운다: 바닥이 6타일로 퍼지는데 구름만
    제자리에서 부풀면 버섯이 아니라 접시가 된다. 기준점이 발치라 아무리 커져도 폭심은
    안 움직인다. */
-.scr-motion-nuke-cloud {
-  position: absolute; left: 50%; top: 50%; width: 100%; aspect-ratio: 1.013;
-  transform: translate(-50%, -77.9%);
-  transform-origin: 50% 77.9%;
-  mix-blend-mode: screen; pointer-events: none;
-  /* 2.8s다 — 한 번 6.5s로 늘렸다가 되돌렸다(요청: "여운을 좀 더 길게" → "페이드아웃
-     시간이 좀 과한거 같아 이전으로 돌려줘 더 스피드감있게"). 핵은 훑어 넘기는 재생
-     한가운데서 터지는 것이라, 구름이 오래 서 있으면 여운이 아니라 화면에 남은 얼룩으로
-     읽힌다. 늘릴 일이 다시 생기면 JSX의 NUKE_BOOM_SEC(착탄 뒤 스팬이 남는 초)도 같이
-     올려야 한다 — 그 창보다 길면 아직 보이는 구름을 DOM에서 걷어내 뚝 끊긴다.
-     ※ 여기 적힌 초는 벽시계가 아니라 **게임 초**다: 재생기가 이 애니메이션을 멈춰
-       세우고 음수 지연으로 제 시각을 찍어 주므로(boomClock9), 배속을 걸면 함께 빨라진다. */
-  animation: scr-nuke-cloud 2.8s ease-out forwards;
-  /* ★ 연출은 **CSS가 제 힘으로 돈다**(조사: 핵폭발 멈춤) — 여태 이 애니는 멈춰 세운 채(paused)
-     재생 시각으로 animationDelay를 프레임마다 고쳐 긁었다. 그 한 줄이 화면 합성에서는 공짜가
-     아니다: 섞임(mix-blend screen)이 걸린 큰 층 셋의 스타일이 초당 예순 번 바뀐다.
-     이제 재생 배속만큼 **길이를 줄여** 그대로 돌린다(--scr-nspd) — 거는 것은 시작할 때 한 번의
-     지연과 재생/멈춤뿐이고, 그 사이는 합성기 몫이라 주 실마리가 비어 있다. */
-  animation-duration: calc(2.8s / var(--scr-nspd, 1));
-}
-@keyframes scr-nuke-cloud {
-  0% { opacity: 0; transform: translate(-50%, -77.9%) translateY(6%) scale(0.3); }
-  16% { opacity: 1; transform: translate(-50%, -77.9%) translateY(-6%) scale(1.05); }
-  100% { opacity: 0; transform: translate(-50%, -77.9%) translateY(-34%) scale(1.7); }
-}
 /* (재구성) 입체 보기 — CSS 3D 빌보드 폐기: 컨테이너 세로 눌림 2.5D로 처리한다(JSX). */
 /* ── 유닛별 전투 효과(요청: 불 대신 무기 특성 — 근접은 없음) ───────────────── */
 /* 예광탄(지적: 공격 효과가 빛뿐이라 누가 쏘고 누가 맞는지 안 보임) — 공격자 마커
@@ -2626,146 +2461,11 @@
 }
 /* ── 특징 기술 효과들 · 다크 스웜 — **캔버스로 옮겼다**(위 큰 주석). 그림의 뜻과 까닭(구름을 큰 한 장이
    아니라 작은 덩이 여럿으로 짓는 사정까지)은 재생기의 drawDomFx9 쪽에 옮겨 적었다. 스톰만 여기 남는다. */
-/* ── 사이오닉 스톰(요청) — 반투명 푸른 구름 + 지지직 번개. 지름은 인라인 width(3타일). */
-.scr-motion-stormfx {
-  pointer-events: none; z-index: 30000; position: absolute;
-  transform: translate(-50%, -50%); aspect-ratio: 1;
-}
-/* (걷어냄) 드론 변태·취소의 자국(.scr-motion-morphfx · @keyframes scr-morph-in/out) —
-   요청("건물 변태 링 효과 제거")으로 걷는다. 쓰던 곳은 재생기의 droneMorph 한 곳뿐이라
-   여기 남겨 두면 죽은 규칙이 된다. */
-/* ★ 효과 모델의 공용 껍데기(FxModel) — **3배로 굽고 3분의 1로 줄인다**(지적: "확대 시
-   화질 깨짐"). 새 효과도 같은 문을 지나므로 이 규칙 하나가 전부에 걸린다.
-   이 층은 렌즈와 같은 변환을 지고, 웹킷은 변환이 걸린 가지를 1배로 한 번 래스터해 두고
-   늘려 붙인다. 그러면 SVG가 벡터인데도 확대에서 뭉갠다. 안쪽 그림의 **레이아웃 크기**를
-   3배로 키우고 같은 몫으로 줄여 놓으면 래스터가 3배 크기에서 일어나 세 배 촘촘한 판이
-   남는다 — 보이는 크기는 한 톨도 안 바뀐다. 기준점은 왼위라 자리도 안 밀린다. */
-.scr-motion-fxmodel { position: absolute; inset: 0; overflow: visible; }
-/* ★ 안은 이제 **캔버스**다(지적: iOS 사파리에서만 스톰·핵이 저해상도) — SVG를 키워
-   접는 과표본(--fxos)은 'SVG를 레이아웃 크기로 래스터해 준다'는 엔진의 호의에 기댔는데,
-   iOS 웹킷은 렌즈 배킹에 1배로 칠한 뒤 GPU로 늘려 그 호의가 없다. 배킹 해상도를 직접
-   쥐는 캔버스로 갈았다(FxModel 주석) — 지도·유닛이 같은 병으로 이미 간 길이다.
-   캔버스는 상자를 꽉 채운다: 배킹이 화면 픽셀 수와 같게 구워지므로 그냥 늘려 붙는다. */
-.scr-motion-fxmodel > canvas {
-  position: absolute; inset: 0; width: 100%; height: 100%; display: block;
-  /* ★ 제 합성층을 **강제로** 받는다(재지적: 캔버스로 갈고도 흐림) — 캔버스가 제 층을
-     받으면 배킹 비트맵이 **텍스처째** GPU로 올라가 렌즈 확대는 그 텍스처를 샘플한다:
-     우리가 구운 해상도가 그대로 산다. 층을 못 받으면 부모(렌즈) 층에 **CSS 크기로
-     눌려 칠해진** 뒤 함께 늘어난다 — 몇백 px짜리 작은 캔버스는 iOS가 가속을 안 태우고
-     부모에 그리는 쪽으로 떨어지곤 한다. translateZ(0)이 그 판정을 못 박는다.
-     ※ 렌즈에 will-change를 걸던 실패와 반대 방향이다 — 그건 **그림을 굽는 컨테이너**라
-       1배로 얼었지만, 캔버스 층의 내용물은 래스터가 아니라 우리 비트맵 그 자체다. */
-  transform: translateZ(0); will-change: transform;
-}
-/* (걷어냄) 원작 스톰의 '영역 가득한 푸른 전기 안개' — 동그란 radial-gradient였다.
-   지적: "스톰 글로우는 원형으로 넣으란 게 아니고 가지 모양을 따라 번짐 효과인데".
-   번짐은 이제 모델이 진다(빌더 storm의 후광 겹 셋) — 그쪽은 애초에 가지를 따라 난
-   면이라 어느 각도에서 굽든 번짐이 가지 모양이고, 요잉·피치·배율을 함께 먹는다.
-   여기 있던 것은 늘 정면 원이라 그 어느 것도 못 했다. */
-/* 바닥 섬광 — 낙뢰가 칠 때 땅이 하얗게 번쩍하는 짧은 스트로브. */
-.scr-motion-storm-flash {
-  position: absolute; inset: 30%; border-radius: 50%;
-  background: radial-gradient(circle, rgba(225, 240, 255, 0.26) 0%, rgba(160, 195, 255, 0.1) 50%, transparent 70%);
-  mix-blend-mode: screen;
-  animation: scr-storm-flash 0.38s steps(1) infinite;
-}
-@keyframes scr-storm-flash {
-  0% { opacity: 0.75; }
-  18% { opacity: 0.1; }
-  55% { opacity: 0.55; }
-  70% { opacity: 0.05; }
-  100% { opacity: 0.75; }
-}
-/* 효과 오버레이(지시: 스톰은 모든 유닛 위에) — 렌즈와 같은 자리·같은 변환(JS 미러)을
-   받되 유닛 캔버스(z 6000) 위에 선다. 렌즈 안은 스태킹 컨텍스트(will-change)라 z-index로는
-   캔버스를 못 넘는다 — 그래서 층 자체를 밖에 세운다. */
-/* ★ 사망 효과 앵커 — 이 스팬은 렌즈가 아니라 **효과 시트**의 자식이다(아이폰 흐림
-   때문에 그리로 옮겼다 — 그 자리 주석). 그런데 마커를 제자리에 앉히는 규칙은
-   `.scr-motion-map > span, .scr-motion-lens > span`에만 걸려 있어, 옮겨 온 이 스팬은
-   **position: static인 채로 left/top이 통째로 무시**됐다. 그러면 그 안의 불덩이
-   (.scr-motion-diefx는 절대배치 50%/50%)가 제 부모가 아니라 **시트**를 기준으로 앉아,
-   모든 폭발이 지도 한가운데 한 점에 7px로 겹쳐 찍혔다 — 화면에서는 안 나는 것과 같고,
-   눈에 띄면 '유닛이 없는 자리에서 터진다'로 보인다(지적 둘이 같은 뿌리였다).
-   렌즈 규칙을 물려 쓰지 않고 제 클래스를 두는 까닭: 그 규칙에는 `scale(var(--mk))`가
-   함께 걸려 있는데, 이 시트는 확대를 레이아웃으로 안으므로 크기에 배율이 이미 손으로
-   곱해져 있다(그 자리 주석). 물려 쓰면 배율이 두 번 걸린다. */
-.scr-motion-fxlens > .scr-motion-dieat { position: absolute; }
-.scr-motion-fxlens {
-  /* ★ 확대를 **레이아웃으로** 안는 시트다(지적: 아이폰에서 CSS 효과 전부 흐림) —
-     inset: 0이 아니라 가운데 앵커 + 인라인 width/height(배율×100%)로 선다. 그 사정과
-     손짓 미러는 JSX 주석에. transform의 기본값은 인라인이 늘 덮는다. */
-  position: absolute; left: 50%; top: 50%; width: 100%; height: 100%;
-  transform: translate(-50%, -50%); transform-origin: center;
-  /* ★ will-change를 걷었다(지적: "사이오닉 스톰 지도 확대시 해상도 낮게 보이는 문제
-     … 다른 효과도 그런지 확인 필요") — 확인했고, 원인은 스톰이 아니라 **이 층**이다.
-     will-change: transform이 걸린 층은 브라우저가 합성 텍스처로 한 번 구워 두고
-     변환만 GPU로 먹인다. 그래서 렌즈가 8배로 확대되면 1배로 구워 둔 텍스처를 8배로
-     늘려 붙인다 — 벡터(SVG)든 그러데이션이든 전부 그 배율의 해상도로 굳는다.
-     스톰이 유독 티가 난 것은 가는 흰 선과 drop-shadow 광채가 그 뭉개짐을 가장 잘
-     드러내기 때문이지, 스톰만의 문제가 아니었다.
-     걷어도 되는 까닭: 이 층에 사는 것은 스톰 스팬 몇 개뿐이라(유닛·건물은 전부
-     캔버스로 갔다) 매 프레임 다시 칠해도 값이 싸다. 스태킹 컨텍스트는 will-change가
-     아니라 position + z-index가 이미 만들고 있으므로, 유닛 캔버스(z 6000) 위에
-     선다는 성질도 그대로다. */
-  pointer-events: none; z-index: 7000;
-}
-/* 생성기(scripts/storm-frames.mjs, 시드 41·87)가 구운 두 판을 번갈아 튼다 — 참고 이미지가
-   윗면 뷰라서, 가지들은 지면을 따라 옆으로 퍼지고 세로 성분은 코어 위 짧은 꼬리뿐이다.
-   판마다 타격점·가지 방향이 달라 교대만으로 지지직이 난다. 반주기 어긋난 같은 keyframes
-   한 벌로 서로 반대 위상.
-   상자: viewBox가 위로 넓다(0 -26 48 74) — 입체 뷰의 기둥 낙뢰 자리다. 지면(0~48)이
-   컨테이너(정사각)에 그대로 앉게 아래 붙이고 위로 74/48만큼 키운다. */
-.scr-motion-storm-frame {
-  position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 154.17%;
-  /* 흰 심지에 파란 광채 — 가닥마다 말고 판 한 장에 걸어 싸게 간다. */
-  /* 광채도 함께 조인다(요청: "스톰 줄기 좀더 가늘고 날카롭게") — 굵기만 줄이면
-     번진 광채가 그 자리를 메워 여전히 통통해 보인다. */
-  /* 광채 반경은 **화면 px**이라 배율을 안 탄다 — 확대할수록 줄기 굵기 대비 광채가
-     얇아져 번개가 맨 흰 선으로 남았다. em이 아니라 px뿐인 drop-shadow의 한계라,
-     반경을 한 단 키워 낮은 배율에서도 확대에서도 광채가 남게 잡는다. */
-  filter: drop-shadow(0 0 1.1px rgba(120, 165, 255, 1)) drop-shadow(0 0 3.6px rgba(70, 110, 255, 0.7));
-  animation: scr-storm-frame 0.32s step-end infinite;
-}
-.scr-motion-storm-fB { animation-delay: -0.16s; }
-@keyframes scr-storm-frame {
-  0% { opacity: 1; }
-  50% { opacity: 0; }
-  100% { opacity: 1; }
-}
-/* 끝은 뾰족하게·꺾임은 각지게(요청: "좀더 가늘고 날카롭게") — 둥근 끝(round)이
-   가닥 끝마다 반지름만큼의 방울을 남겨 번개가 아니라 젖은 붓자국으로 보였다.
-   butt + miter면 꺾임이 그대로 각으로 서고 끝이 잘려 날이 선다. */
-.scr-motion-storm-frame path {
-  fill: none; stroke: #eef5ff; stroke-linejoin: miter; stroke-miterlimit: 6;
-  stroke-linecap: butt;
-  mix-blend-mode: screen;
-}
-/* 가지 굵기 — 원가지·잔가지 두 급. 지면을 기는 가는 선이 결의 핵심이라 얇게 간다. */
-/* ★ 갈래가 갈수록 **가늘어진다**(요청: "선이 다 굵기가 같지 않고 더 세부 가지로 갈수록
-   얇게") — 번개는 한 굵기의 철사가 아니라 갈라질 때마다 얇아지는 물길이다. 세 단으로
-   벌린다: 줄기 0.62 · 잔가지 0.3 · 잔가지의 잔가지(잔가지 안에 든 것) 0.16.
-   가늘수록 옅게도 해 둔다 — 굵기만으로는 이 크기(48 상자)에서 한 단 차이가 안 읽힌다. */
-.scr-motion-storm-frame .scr-storm-main { stroke-width: 0.62; }
-.scr-motion-storm-frame .scr-storm-fork { stroke-width: 0.3; opacity: 0.82; }
-.scr-motion-storm-frame .scr-storm-fork .scr-storm-fork,
-.scr-motion-storm-frame .scr-storm-twig { stroke-width: 0.16; opacity: 0.62; }
-/* 타격점 — 하얗게 타는 코어와 그 둘레의 파란 무리. 참고 이미지의 밝은 덩어리다. */
-/* (걷어냄) .scr-storm-core — 갈래가 시작하는 자리의 흰 동그라미(요청: "중간에 동그란거는
-   뭐야 그거 제거해줘"). 마디를 걷은 것과 같은 까닭이다: 번개는 점에서 뻗어 나오는 것이
-   아니라 한 획으로 내리친다. */
-.scr-motion-storm-frame .scr-storm-core { display: none; }
-/* (걷어냄) .scr-storm-halo — 갈래가 갈라지는 자리의 반투명 원(요청: 삭제). 번개는
-   마디로 이어 붙인 사슬이 아니라 한 획으로 내리치는 것이다. */
-/* 코어 곁에 잘게 튄 흰 점 — 참고 이미지의 타점 주변 파편. */
-.scr-motion-storm-frame .scr-storm-fleck { fill: #dbe9ff; stroke: none; }
-/* 부스러기 — 멀리 흩어진 작은 불티. */
-.scr-motion-storm-frame .scr-storm-spark { fill: rgba(190, 215, 255, 0.8); stroke: none; }
-/* 기둥 낙뢰(지시: 모든 유닛 위 → 높이도 꽤 있는 번개) — 입체 뷰에서만. 평면(90도)은
-   바로 위에서 본 그림이라 높이가 화면에 설 자리가 없다(윗면 뷰 스펙 그대로 낮게). */
-.scr-motion-storm-frame .scr-storm-cols { display: none; }
-.scr-motion-stormfx.scr-storm-pitched .scr-storm-cols { display: inline; }
-.scr-motion-storm-frame .scr-storm-col { stroke-width: 0.44; }
-.scr-motion-storm-frame .scr-storm-colspur { stroke-width: 0.32; opacity: 0.85; }
+/* ── 사이오닉 스톰 — **캔버스로 옮겼다**(요청: "둘다 옮겨"). 그림은 3D 모델(SHAPE_BUILDERS.storm)이고
+   재생기의 drawDomFx9가 그 판을 유닛 캔버스 위에 더하기로 얹는다. 여기 있던 규칙을 통째로 걷는다:
+   감싸개(.scr-motion-stormfx)와 바닥 섬광, 그리고 그보다 앞선 **손으로 구운 SVG 두 판** 시절의
+   규칙 한 벌(.scr-motion-storm-frame 아래)이다. 그 판은 윗면에서 본 그림이라 요잉을 따라 돌지도
+   입체에서 눕지도 못했고, 모델로 갈아탄 뒤로는 아무도 부르지 않는 죽은 글이었다. */
 
 /* 자취 받는 중 알림 — 자취는 서버가 구워 두지만 한 판에 1~2MB라 내려받는 동안 지도가
    비어 보인다. 되고 있다고 알려 줄 자리다. 맵 좌상단, 맵연결 알약 자리 위. */

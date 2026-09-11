@@ -454,12 +454,17 @@ const SPIN_KINDS = new Set<string>([
    종류는 부르는 쪽이 여태처럼 % SPIN_STEPS로 여덟 칸만 쓴다 — 그쪽 열쇠와 판 수는
    그대로다. */
 const SPIN_SLOTS = 32;
-/* 스톰이 돌려 쓰는 벼락 씨앗의 수 — 칸은 `씨앗 × 3 + 단계`라 넷이면 열두 칸이다
-   (SPIN_SLOTS 안에 든다). 씨앗 넷이면 한 바퀴가 1초 남짓이라 되풀이가 눈에 안 밟힌다. */
-const STORM_SEEDS = 4;
+/* 스톰이 돌려 쓰는 벼락 씨앗의 수 — 칸은 `씨앗 × 단계 + 단계`다.
+   ★ 넷 → **둘**, 대신 단계를 여덟 → 열여섯으로(요청: "스톰 한줄기의 생애를 2배로 늘린다") ────
+     줄기의 생애는 '몇 칸 사는가 × 한 칸의 길이'다. 칸 박자(초당 14)는 그대로 두고 사는 칸 수를
+     두 배로 하면 생애가 정확히 두 배가 된다 — 다만 그러면 태어나는 칸을 벌릴 자리가 모자라
+     단계도 함께 두 배여야 한다. 그런데 굽는 판 수는 **씨앗 × 단계**라, 단계를 두 배로 하면서
+     씨앗을 반으로 줄이면 판 수가 그대로다(둘 × 열여섯 = 서른둘). 되풀이가 도는 주기도
+     그대로 2.3초다 — 서로 다른 벼락 넷이 짧게 살던 것이, 벼락 둘이 두 배로 사는 것으로
+     바뀌었을 뿐이다. 굽기 삯 한 톨 안 늘리고 생애만 두 배다. */
+const STORM_SEEDS = 2;
 /** 벼락 하나가 자라는 단계 수 — 스톰 빌더의 STAGES9와 짝이다(칸 = 씨앗 × 이것 + 단계). */
-/** 4 → 8(지적: 세로 줄기가 거의 동시에 생김) — 줄기 다섯이 태어나는 칸을 여덟으로 벌려 띄엄띄엄 내리친다. */
-const STORM_STAGES = 8;
+const STORM_STAGES = 16;
 /** 굽기 열쇠에 박는 회전 칸 — 안 도는 종류는 "0"이라 옛 열쇠와 같다. */
 const spinTag = (kind: string): string => (SPIN_KINDS.has(kind) ? String(bldSpinNow) : "0");
 /** 지금 칸의 각(라디안) — 빌더가 제 부품을 이만큼 돌린다. */
@@ -11177,11 +11182,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        퍼지는 애니메이션") ────────────────────────────────────────────────────────────
        여태는 칸이 곧 다른 벼락이라, 칸이 넘어갈 때마다 아무 상관 없는 무늬로 갈아 끼웠다.
        빨리 돌리면 그것이 곧 깜빡임이라 "끊기는 느낌"이 된다(지적). 이제 칸을
-       `씨앗 × 단계 + 단계`로 읽으면, 이웃한 세 칸이 **같은 벼락의 세 시점**이 된다:
-         0 — 줄기가 아직 내려오는 중(길이 62%)
-         1 — 줄기가 땅에 닿았다(길이 100%)
-         2 — 공중 잔가지와 발밑 가지가 뻗는다
-         3 — 그 잔가지가 한 번 더 갈린다
+       `씨앗 × 단계 + 단계`로 읽으면, 이웃한 칸들이 **같은 벼락의 여러 시점**이 된다:
+         제 칸(bs9) — 줄기가 내려오는 중(길이 50%)
+         +1 — 거의 닿았다(85%)
+         +2 — 땅에 닿았고, 공중 잔가지와 발밑 가지가 뻗기 시작한다
+         +3 이후 — 그 잔가지가 또 갈리고(깊이 3까지), 줄기는 제 수명(4~6칸)만큼 탄다
        난수 수열은 단계와 무관하게 같아야 세 칸이 같은 벼락이다 — 그래서 씨앗은 단계를
        뺀 몫에서만 뽑고, 단계는 **굽는 것을 줄일 뿐**(bolt의 from9) 뽑는 순서를 건드리지
        않는다. */
@@ -11228,7 +11233,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        때까지(8칸) 남았다. 이제 life9 칸만 살고 꺼진다: 줄기 2~3칸, 잔가지·발밑 가지 1~2칸.
        칸 박자도 9.6 → 14/초로 올려(감싸개의 spin) 줄기 하나가 0.14~0.21초 번쩍이고 사라진다. */
     const bolt = (pts: [number, number, number][], w9: number, key9: number,
-      thin9 = false, from9 = 0, grow9 = 1, life9 = 99): void => {
+      lod9 = 0, from9 = 0, grow9 = 1, life9 = 99): void => {
       /* 아직 자라지 않은 마디는 굽지 않는다 — 부르는 쪽의 난수는 이미 다 돌았으므로
          (위 STAGE9 주석) 다음 단계에서 같은 자리에 같은 모양으로 돋아난다. */
       if (STAGE9 < from9 || STAGE9 >= from9 + life9) return;
@@ -11244,7 +11249,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
              한쪽으로 쏠린 파란 테로 보인다(실측). */
           /* 면 수 — 심은 다섯, 후광 겹은 여섯. 겉겹은 넓어서 면이 적으면 모서리가 각져
              '가지에 씌운 각기둥'으로 읽힌다(실측) — 한 겹 늘려 둥글게 만다. */
-          x: 0, y: 0, h: 1, w: 1, segs: Math.max(6, n9 * 2), sides: glow ? 6 : 5,
+          /* 깊은 갈래일수록 마디·면을 줄인다 — 화면에서 한두 화소인 실오라기에 스물네 면을
+             두르는 것은 굽기 삯만 먹는다(깊이를 늘린 만큼 여기서 돌려받는다). */
+          x: 0, y: 0, h: 1, w: 1,
+          segs: Math.max(lod9 >= 2 ? 4 : 6, n9 * (lod9 >= 2 ? 1 : 2)),
+          sides: glow ? (lod9 >= 2 ? 4 : 6) : (lod9 >= 2 ? 4 : 5),
           caps: "none", path: path9,
           widthOf: (t9: number): number => k9
             * (0.34 + 0.66 * (1 - t9) ** 0.8)
@@ -11270,18 +11279,25 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          떨어뜨리면(4.6배 0.07 → 2.4배 0.20 → 1배 0.88) 가장자리로 갈수록 옅어지는
          결이 나온다. 고치 핏줄과 같은 손이고, 캔버스 그림자와 달리 굽기 삯이 면 몇 장
          뿐이다(그림자는 칠 때마다 흐림 연산이 돈다). */
-      /* 잔가지는 번짐을 **한 겹 접는다**(thin9) — 겹 하나가 면 마흔여덟 장인데, 가지는
-         굵기가 줄기의 1/3이라 가장 바깥 겹(5.6배)이 이미 심의 반 픽셀 언저리로 옅어
-         화면에서 값을 못 한다. 가지 수를 늘린 만큼(아래 ★) 굽는 삯을 여기서 돌려받는다. */
-      out.push(...tagKey(thin9 ? [
-        ...tube(w9 * 4, GLOW9, 0.07, true),
-        ...tube(w9 * 2.1, GLOW9, 0.20, true),
-        ...tube(w9, CORE9, 0.88, false),
+      /* ★ **더 번지게**(요청: "더 글로우한 느낌 주기") — 겹을 하나 더 두르고(7.6배) 짙기를
+         전체로 올린다. 번짐은 겹이 지므로 넓은 겹이 늘수록 빛이 가지 모양대로 퍼진다.
+         그리고 그리는 쪽이 이 판을 **더하기(lighter)로** 얹으므로(drawDomFx9의 storm 갈래)
+         같은 짙기라도 화면에서는 훨씬 밝게 탄다 — 옛 DOM 층은 그냥 덮어 그렸다.
+         깊은 갈래는 겹을 접는다 — 굵기가 줄기의 몇 분의 일이라 가장 바깥 겹은 이미
+         심의 반 화소 언저리로 옅어 화면에서 값을 못 한다. */
+      out.push(...tagKey(lod9 >= 2 ? [
+        ...tube(w9 * 3.2, GLOW9, 0.16, true),
+        ...tube(w9, CORE9, 0.92, false),
+      ] : lod9 === 1 ? [
+        ...tube(w9 * 5.0, GLOW9, 0.07, true),
+        ...tube(w9 * 2.6, GLOW9, 0.24, true),
+        ...tube(w9, CORE9, 0.92, false),
       ] : [
-        ...tube(w9 * 5.6, GLOW9, 0.045, true),
-        ...tube(w9 * 3.5, GLOW9, 0.085, true),
-        ...tube(w9 * 2.1, GLOW9, 0.20, true),
-        ...tube(w9, CORE9, 0.88, false),
+        ...tube(w9 * 7.6, GLOW9, 0.05, true),
+        ...tube(w9 * 5.0, GLOW9, 0.075, true),
+        ...tube(w9 * 3.2, GLOW9, 0.13, true),
+        ...tube(w9 * 1.9, GLOW9, 0.26, true),
+        ...tube(w9, CORE9, 0.95, false),
       ], key9));
     };
     /* ① 수직 줄기 다섯 — **저마다 다른 자리에** 내리꽂는다(요청: "무작위로 내리치는").
@@ -11308,7 +11324,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          곧 '띄엄띄엄'이다. */
       /* 태어나는 칸을 **줄기마다 나눠 맡긴다**(지적: 거의 동시에 생김) — 균등에서 뽑으면 둘셋이 한 칸에 몰린다.
          i9번째 줄기는 대략 i9·7/5 칸 언저리(흔들림 0.9칸)에서 나므로 여덟 칸에 걸쳐 차례로 내리친다. */
-      const bs9 = Math.min(STAGES9 - 2, Math.floor((i9 + rnd() * 0.9) * ((STAGES9 - 1) / 5)));
+      /* ★ 첫 줄기는 **반드시 0칸에** 난다(실측: 씨앗이 넘어가는 칸에 한 장도 안 남아 화면이
+         한 프레임 깜빡였다 — 뽑기로만 흩으면 다섯이 모두 늦게 날 수 있다). 나머지 넷은
+         1칸부터 STAGES−4까지 나눠 맡는다 — 마지막 줄기가 제 수명(4~6칸)으로 씨앗의 **끝
+         칸까지** 닿아야 꼬리도 안 빈다(실측: 끝 두세 칸이 비어 거기서도 깜빡였다). 넘치는
+         몫은 씨앗이 갈리며 잘리는데, 그 자리는 새 벼락이 곧장 채우므로 빈틈이 아니다. */
+      const r09 = rnd();
+      const bs9 = i9 === 0 ? 0
+        : Math.min(STAGES9 - 4, 1 + Math.floor((i9 - 1 + r09 * 0.9) * ((STAGES9 - 4) / 4)));
       // 줄기 길이도 살짝씩 다르게(지적) — 시작 높이를 85~115%로.
       const top9 = TOP9 * (0.85 + rnd() * 0.3);
       const tx9 = gx9 + (rnd() - 0.5) * R9 * 0.5; // 꼭대기 자리(살짝 비껴간다)
@@ -11327,7 +11350,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ]);
       }
       // 줄기 굵기는 제각각(요청) — 0.13~0.27.
-      const life9 = 2 + Math.floor(rnd() * 2);        // 줄기 수명 2~3칸(난수 차례는 단계와 무관)
+      /* 줄기 수명 4~6칸(요청: 생애 2배) — 칸 박자는 그대로라 0.29~0.43초 번쩍이고 사라진다. */
+      const life9 = 4 + Math.floor(rnd() * 3);
       /* 잔가지·발밑 가지는 줄기보다 **오래 살지 않는다**(지적: "메인 가지만 남거나 잔가지만 남는 경우 — 자연에선
          잔가지가 같이 사라지거나 먼저 사라진다") — 가지의 끝 칸을 줄기의 끝 칸(endMain9)으로 자른다. */
       const endMain9 = bs9 + life9;
@@ -11335,8 +11359,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const s9 = Math.min(endMain9 - 1, start9);
         return [s9, Math.max(1, Math.min(want9, endMain9 - s9))];
       };
+      /* 내려오는 것도 **두 칸에 걸친다** — 칸이 두 배로 잘게 나뉘었으므로 한 칸에 다 내려오면
+         예전보다 빠르게 꽂히는 셈이 된다. 절반 → 대부분 → 닿음의 세 걸음이다. */
       bolt(pts, 0.13 + rnd() * 0.14, depthNow(gx9, gy9) * 1.6 + 4 + i9 * 0.01,
-        false, bs9, STAGE9 === bs9 ? 0.62 : 1, life9);
+        0, bs9, STAGE9 === bs9 ? 0.5 : STAGE9 === bs9 + 1 ? 0.85 : 1, life9);
       /* ★ **공중 잔가지**(요청: "공중에도 잔가지가 퍼져야 해, 여기저기 여러 높이에서"
          · "잔가지는 꼭 수평은 아니고 수평에서 수직으로도 퍼지고 대각으로도 퍼지고")
          ────────────────────────────────────────────────────────────────────────
@@ -11362,15 +11388,21 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          수도 하나 늘려(1~2 → 2~3) 줄기마다 최대 여섯 갈래가 난다.
          높이는 **칸으로 나눠 하나씩 맡긴다** — 균등에서 뽑으면 두셋이 같은 마디에 겹쳐
          한 자리에서만 터진다(다섯 줄기의 방위를 칸으로 나눈 것과 같은 손이다). */
-      /** 잔가지 한 줄 — 뻗어 난 마디를 돌려준다(그 위에서 곁가지가 또 난다). */
-      const twig9 = (
+      /** ★ 잔가지와 **그 잔가지의 잔가지**(요청: "잔가지를 더 강화한다 잔가지의 잔가지까지!
+       *  뎁스 늘리기") ────────────────────────────────────────────────────────────────
+       *  앞판은 두 단이었다 — 줄기에서 잔가지가 나고, 긴 잔가지만 한 번 더 갈렸다. 진짜 번개가
+       *  복잡해 보이는 까닭은 가지 **수**가 아니라 이 되풀이(갈래가 또 갈린다)라, 스스로를
+       *  부르는 꼴로 바꾸고 깊이를 셋까지 연다. 단을 내려갈수록 짧고(0.38~0.64배) 가늘고
+       *  (0.6배) 짧게 산다 — 잔가지가 줄기보다 오래 남으면 자연스럽지 않다.
+       *  깊이가 늘어난 삯은 굽기 쪽에서 돌려받는다(bolt의 lod9: 깊은 갈래는 겹과 면이 적다). */
+      const twigTree9 = (
         bx9: number, by9: number, bz9: number,
         bang9: number, bzc9: number, blen9: number, bw9: number, bkey9: number,
-        bfrom9: number, blife9 = 2,
-      ): [number, number, number][] => {
+        bfrom9: number, blife9: number, depth9: number,
+      ): void => {
         const hc9 = Math.sqrt(Math.max(0, 1 - bzc9 * bzc9)); // 남은 몫이 수평
         const tp: [number, number, number][] = [[bx9, by9, bz9]];
-        const tseg9 = 4;
+        const tseg9 = depth9 >= 2 ? 3 : 4;
         for (let k9 = 1; k9 <= tseg9; k9 += 1) {
           const u9 = k9 / tseg9;
           const p9 = bang9 + (rnd() - 0.5) * 0.9 * u9;    // 나아갈수록 방위가 흔들린다
@@ -11380,8 +11412,21 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
             Math.max(0.05, bz9 + bzc9 * blen9 * u9 + (rnd() - 0.5) * blen9 * 0.22),
           ]);
         }
-        bolt(tp, bw9, bkey9, true, bfrom9, 1, blife9);
-        return tp;
+        bolt(tp, bw9, bkey9, depth9, bfrom9, 1, blife9);
+        if (depth9 >= 3 || blen9 <= R9 * 0.22) return;
+        /* 갈래 수 — 첫 단은 둘까지, 그 아래는 하나. 아래로 갈수록 벌어지기만 하면
+           덤불이 되어 번개의 결이 사라진다. */
+        const kids9 = depth9 === 1 && rnd() < 0.7 ? 2 : 1;
+        for (let c9 = 0; c9 < kids9; c9 += 1) {
+          const [jx9, jy9, jz9] = tp[1 + Math.floor(rnd() * (tp.length - 2))];
+          let z29 = rnd() * 2 - 1;
+          if (z29 > 0) z29 *= 0.55;                       // 위로 솟는 쪽은 반만
+          const [cs9, cl9] = sub9(bfrom9 + 1, Math.max(1, blife9 - 1));
+          twigTree9(jx9, jy9, jz9,
+            bang9 + (rnd() < 0.5 ? -1 : 1) * (0.55 + rnd() * 0.8), z29,
+            blen9 * (0.38 + rnd() * 0.26), bw9 * 0.6, bkey9 + 0.002 * depth9,
+            cs9, cl9, depth9 + 1);
+        }
       };
       const twigs9 = 2 + Math.floor(rnd() * 2);
       for (let b9 = 0; b9 < twigs9; b9 += 1) {
@@ -11395,16 +11440,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const tl9 = R9 * (0.3 + rnd() * 0.8);
         const tw9 = 0.06 + rnd() * 0.07;
         const kb9 = depthNow(ox9, oy9) * 1.6 + 4 + i9 * 0.01 + 0.005;
-        const tlife9 = 1 + Math.floor(rnd() * 2);     // 잔가지 수명 1~2칸
-        const [ts9, tl9c] = sub9(bs9 + 1, tlife9);
-        const tp9 = twig9(ox9, oy9, oz9, ta9, zc9, tl9, tw9, kb9, ts9, tl9c);
-        if (tl9 <= R9 * 0.6) continue;
-        // 긴 가지만 한 번 더 갈린다 — 갈리는 마디도, 벌어지는 쪽도 뽑는다.
-        const [jx9, jy9, jz9] = tp9[2 + Math.floor(rnd() * 2)];
-        let zc2 = rnd() * 2 - 1;
-        if (zc2 > 0) zc2 *= 0.55;
-        twig9(jx9, jy9, jz9, ta9 + (rnd() < 0.5 ? -1 : 1) * (0.6 + rnd() * 0.8),
-          zc2, tl9 * (0.35 + rnd() * 0.25), tw9 * 0.62, kb9 + 0.002, ...sub9(bs9 + 2, 1));
+        const tlife9 = 2 + Math.floor(rnd() * 3);     // 잔가지 수명 2~4칸(요청: 생애 2배)
+        const [ts9, tl9c] = sub9(bs9 + 2, tlife9);
+        twigTree9(ox9, oy9, oz9, ta9, zc9, tl9, tw9, kb9, ts9, tl9c, 1);
       }
       /* ★ **발밑 가지**(지적: "맨 아래 바닥에 크게 퍼지는 방사형 번개 제거 — 각각의
          줄기에서 뻗어나오는 게 자연스럽다") ──────────────────────────────────────
@@ -11428,8 +11466,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
             0.08 + rnd() * 0.18,
           ]);
         }
+        // 발밑 가지도 생애 2배(2 → 4칸). (from9, grow9, life9) — 전개로 넣으면 수명이 grow9 자리에 들어간다(지적).
         bolt(lp, 0.07 + rnd() * 0.08, depthNow(gx9, gy9) * 1.6 + 2 + i9 * 0.01 + g9 * 0.001,
-          false, sub9(bs9 + 1, 2)[0], 1, sub9(bs9 + 1, 2)[1]);   // (from9, grow9, life9) — 전개로 넣으면 수명이 grow9 자리에 들어가 발밑 가지가 영영 남았다(지적)
+          1, sub9(bs9 + 2, 4)[0], 1, sub9(bs9 + 2, 4)[1]);
       }
     }
     /* (걷어냄·요청: "스톰 바닥의 푸른 원반은 제거") — 발치에 깔던 옅은 빛(R9짜리
@@ -20528,6 +20567,28 @@ const CROWD_BENCH_MS9 = 24;          // 2D: 이 위면 미달 기기(실측 PC 7
 /* 3D는 따로 낮춘다(요청: "벤치 기준을 좀 낮추는 건?") — 3D 짐은 벤치가 재는 채우기 말고도 판 가짓수·큰 판
    굽기가 얹혀, 같은 자로는 '충분'이 후하다. PC 실측 8ms는 넉넉히 통과하고, 그 두 배 언저리부터 미달로 본다. */
 const CROWD_BENCH3D_MS9 = 16;
+/** ★ **낮은 배율에서 더 죈다**(요청: "모바일 벤치에 따라 1,2,3배줌에서 버겁지 않게 더 죄기
+ *  — 효과나 요잉각도 최소화") ────────────────────────────────────────────────────────────
+ *  1~3배는 지도가 통째로 한 화면에 들어오는 칸이라 **그려야 할 개체가 가장 많다**. 그런데 그
+ *  배율에서 유닛 하나는 서너 화소다 — 요잉 여덟 칸도, 꾸밈 효과 한 겹도 화면에서 값을 못 하면서
+ *  삯은 다 치른다. 판 가짓수(종류 × 요잉 × 시점 × 자세)가 특히 그렇다: 굽기가 못 따라가면
+ *  '미룸'이 쌓이고 그것이 곧 버벅임이다.
+ *  그래서 **벤치가 미달인 기기에서만**, 그 칸에서 둘을 더 줄인다(멀쩡한 기기는 그대로다):
+ *    1단(미달)      — 요잉 **네 칸**(90도)·시점 0 · 꾸밈 효과 생략(용접·흙덩이·착지·스웜·상처)
+ *    2단(심한 미달) — 거기에 지역 마법과 트레이서까지 생략. 사건은 죽음 폭발이 말한다.
+ *  안 줄이는 것: 죽음·파괴 폭발 · 소환 섬광 · 우리 · 스톰 · 핵 · 건물 붕괴 — 무슨 일이
+ *  일어났는지를 말하는 것들이다. 입체는 제 벤치(bench3)로 잰다. */
+function lowZoomTrim9(zoom9: number, pitched9: boolean): 0 | 1 | 2 {
+  if (!smallDevice9 || zoom9 > 3) return 0;
+  const c9 = CROWD9;
+  if (c9.force >= 0) return c9.force >= 2 ? 2 : c9.force >= 1 ? 1 : 0;   // #crowd= 강제 단을 그대로 탄다
+  if (!(pitched9 ? c9.weak3 : c9.weak)) return 0;
+  return (pitched9 ? c9.k3 : c9.k) < 1 ? 2 : 1;
+}
+/** 1단에서 생략하는 꾸밈 효과(옛 DOM 갈래의 style) — 없어도 상황이 안 읽히지는 않는 것들. */
+const TRIM1_SKIP9 = new Set(["weld", "dig", "land", "swarm"]);
+/** 2단에서 더 생략하는 것 — 지역 마법의 얼룩·고리. */
+const TRIM2_SKIP9 = new Set(["cast"]);
 const CROWD_UP9 = [60, 120];         // lv → lv+1 올림 유닛 op 수
 const CROWD_DOWN9 = [50, 100];       // lv → lv−1 내림 유닛 op 수
 /** deep — 입체(3D) 몫(지적: "2D는 괜찮은 기기도 3D에선 힘들어함 — 3D 충분 여부도 따로 재라"). 입체의 판은
@@ -20633,33 +20694,9 @@ function noteReact9(ms9: number): void {
     + ` · 최악 ${REACTM9.max.toFixed(0)}ms · 몫 ${Math.min(999, (REACTM9.sum * 100) / (now9 - REACTM9.at)).toFixed(0)}%`;
   REACTM9.at = now9; REACTM9.n = 0; REACTM9.sum = 0; REACTM9.max = 0;
 }
-/** ★ 핵·스톰이 떠 있는 동안의 React 박자(ms) — **벤치로 가른다**(지적: "핵폭발 시 모바일에서
- *  페이지가 다운" → "폰만 돌린다기보다 벤치에 맞게 제한하면 어때?") ────────────────────────
- *  핵 낙하·폭발은 CSS 애니메이션을 재생 시각으로 긁는(paused + delay) 방식이라 React 갱신
- *  박자가 곧 그 효과의 프레임이다. 그래서 그동안만 0(= 그리기 틱마다)으로 올려 두었는데, 그
- *  한 틱이 **이 컴포넌트의 전체 렌더**다 — 개체 천여 기의 DOM 마커·로스터·건물 줄·미니맵
- *  점이 다 다시 만들어진다. 평소 10Hz이던 것이 45Hz가 되면 다섯 배 가까운 짐이 핵 창 내내
- *  걸리고, 그 사이 판 굽기·워커 장까지 겹쳐 페이지가 선다.
- *  가르는 자는 **기기 종류가 아니라 힘**이다 — 빠른 폰은 0으로 매끄럽게 두고, 느린 PC는
- *  죄어야 한다. 이 판이 이미 힘을 재 두었으므로(CROWD9.bench) 그 값을 그대로 쓴다:
- *    충분 0(그리기 틱마다) · 미달 40(25Hz) · 심한 미달 60(17Hz).
- *  아직 안 쟀으면 40으로 시작한다 — 처음 한 번은 안전한 쪽이 옳다(핵은 되돌릴 수 없다). */
-function nukeStep9(): number {
-  /* ★ 이제는 **잰 값**으로 가른다(조사: "핵폭발 멈춤") ────────────────────────────────
-     벤치(2D 한 판 ms)는 기기의 힘이지 이 컴포넌트 한 장의 값이 아니다. 실측(perf-check,
-     CPU 4배 조임·366기)에서 React 한 장은 **20ms**였는데, 이 함수는 그 기기에 40ms(25Hz)를
-     주고 있었다 — 한 장 20ms를 25Hz로 돌리면 주 실마리의 절반이 React 몫이고, 거기에
-     판 굽기·붓·워커 장이 겹치면 그대로 선다. '충분'으로 읽힌 기기에는 0(그리기 틱마다)을
-     주고 있었으니 더하다.
-     그래서 박자를 **한 장 값에 매단다**: 박자 = 평균 × 2.5, 곧 React가 주 실마리의 40%를
-     넘게 먹지 않는다. 한 장이 5ms인 기기는 12ms(≈매 프레임)까지 내려가고, 40ms인 기기는
-     100ms로 죈다. 아직 못 쟀으면 옛 규칙(벤치)으로 시작한다. */
-  const avg9 = REACTM9.avg;
-  if (avg9 >= 0) return Math.min(150, Math.round(avg9 * 2.5));
-  const c9 = CROWD9;
-  if (c9.bench < 0) return 40;
-  return c9.weak ? (c9.k < 1 ? 60 : 40) : 0;
-}
+/* (걷어냄) nukeStep9 — 핵·스톰이 떠 있는 동안 React 박자를 25~60Hz로 올리던 자다.
+   그림이 DOM일 때는 React가 빨라야 연출이 매끄러웠지만, 캔버스로 옮긴 뒤로는 붓이
+   매 프레임 나이로 그리므로 React는 제 박자(100ms)면 족하다. */
 /** ★ 핵 창 계량기(조사: "핵폭발시 멈춤도 똑같아") ─────────────────────────────────────────
  *  멈추는 동안에는 스크린샷을 못 찍는다 — 그러니 핵이 떠 있는 **창 전체**를 재서, 창이 끝난 뒤에도
  *  화면에 남겨 둔다. 무엇이 멈춤의 값인지는 셋으로 갈린다: 프레임이 길었나(최악프레임) · 그게 굽기였나
@@ -20850,49 +20887,10 @@ function fogBandSet9(root: HTMLElement, cov: { l: number; t: number; r: number; 
   put9(2, 0, T9, L9, B9 - T9);            // 왼
   put9(3, R9, T9, bw9 - R9, B9 - T9);     // 오른
 }
-/** ★ 핵 연출의 시계를 **붓 박자로** 긁는다(같은 조사) ────────────────────────────────
- *  폭발(충격파·섬광·구름)은 순수한 CSS 애니메이션이고, 재생기가 하는 일은 `animationDelay`
- *  한 줄을 재생 시각으로 적어 주는 것뿐이다. 그런데 그 한 줄을 **React 렌더**가 적고 있어,
- *  폭발이 매끄러우려면 이 큰 컴포넌트를 통째로 60Hz로 다시 그려야 했다 — 그게 멈춤의 뿌리다.
- *  글줄 몇 개를 적는 일이니 붓이 프레임마다 곧장 적는다. React는 제 박자(100ms)로 스팬을
- *  세우고 지우기만 한다. 두 자리가 **같은 시각(tLive)**을 보므로 서로 안 다툰다. */
-function nukeClockTick9(root: HTMLElement, tNow: number, speed9: number, playing9: boolean): void {
-  const list9 = root.querySelectorAll<HTMLElement>(".scr-motion-nukefx[data-nksec]");
-  if (list9.length === 0) return;
-  const now9 = pNow();
-  const mode9 = `${playing9 ? 1 : 0}|${speed9}`;
-  for (let i = 0; i < list9.length; i += 1) {
-    const el9 = list9[i];
-    const sec9 = Number(el9.dataset.nksec);
-    if (!Number.isFinite(sec9)) continue;
-    /* 닻을 다시 내릴 때만 적는다 — 재생/멈춤·배속이 바뀌었거나, 이 자리가 셈하는 시각과 실제 시각이
-       벌어졌을 때(탐색·끊김)다. 맞물려 도는 동안은 읽고 비교만 하므로 프레임 삯이 없다. */
-    const at9 = Number(el9.dataset.nkat);
-    const t09 = Number(el9.dataset.nkt);
-    const exp9 = playing9 ? t09 + ((now9 - at9) / 1000) * speed9 : t09;
-    if (el9.dataset.nkmode === mode9 && Math.abs(tNow - exp9) < 0.15) continue;
-    el9.dataset.nkmode = mode9;
-    el9.dataset.nkat = `${now9}`;
-    el9.dataset.nkt = `${tNow}`;
-    const age9 = tNow - sec9;
-    /* 길이를 배속만큼 줄여 두었으므로(CSS의 --scr-nspd) 지연도 **실시간 초**로 적는다. */
-    const boom9 = `${(NUKE_FALL_SEC - age9) / speed9}s`;
-    const aim9 = `${-age9 / speed9}s`;
-    const play9 = playing9 ? "running" : "paused";
-    const kids9 = el9.children;
-    for (let k = 0; k < kids9.length; k += 1) {
-      const ch9 = kids9[k];
-      if (!(ch9 instanceof HTMLElement)) continue;
-      const cl9 = ch9.classList;
-      const d9 = cl9.contains("scr-motion-nuke-wave") || cl9.contains("scr-motion-nuke-flash")
-        || cl9.contains("scr-motion-nuke-cloud") ? boom9
-        : cl9.contains("scr-motion-nuke-dot") || cl9.contains("scr-motion-nuke-smoke") ? aim9 : "";
-      if (!d9) continue;
-      if (ch9.style.animationDelay !== d9) ch9.style.animationDelay = d9;
-      if (ch9.style.animationPlayState !== play9) ch9.style.animationPlayState = play9;
-    }
-  }
-}
+/* (걷어냄) nukeClockTick9 — 핵 연출의 CSS 애니메이션에 붓 박자로 닻(animationDelay·재생멈춤)을
+   내려 주던 자다. 그림이 캔버스로 오면서 연출이 **나이의 함수**가 되었으므로 맞춰 줄 시계가 없다:
+   배속·일시정지·되감기가 그림 자체에 들어 있다. */
+
 /** 매 장 — 유닛 op 수만 보고 단을 정한다(미달 기기에서만). deep이면 입체 판정(weak3·k3)을 쓴다. */
 function crowdTick9(units: number, deep = false): void {
   const c = CROWD9;
@@ -22798,7 +22796,7 @@ function tongueW9(ctx: CanvasRenderingContext2D, spr9: HTMLCanvasElement, Bd9: n
 }
 /** 상처 낱개 하나 — f.wrace가 결, f.size가 상자 폭(렌즈 px), f.clk가 시계(초)다.
  *  CSS 시절의 키프레임을 식으로 옮겼다(자리·주기·세기 모두 그 값 그대로). */
-function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: number, zoom: number, Bd9: number): void {
+export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: number, zoom: number, Bd9: number): void {
   const W9 = (f.size ?? 3) * zoom;
   if (W9 < 1.2) return;                       // 한 화소도 안 되는 것은 그리지 않는다
   const x9 = ax + (f.mx ?? 0) * zoom;
@@ -23030,7 +23028,8 @@ const CLODS9: [number, number, number, string][] = [
 ];
 /** 옛 DOM 효과 하나 — f.style이 갈래, f.sub가 결, f.age가 나이(초)다.
  *  CSS 키프레임을 식으로 옮겼다(자리·주기·세기 모두 그 값 그대로). */
-function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: number, zoom: number, Bd9: number): void {
+export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: number,
+  zoom: number, Bd9: number, tz9: number): void {
   const W9 = (f.size ?? 8) * zoom;
   if (W9 < 1) return;
   const u0 = f.age ?? 0;
@@ -23157,6 +23156,141 @@ function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
         ctx.drawImage(spr9, -Math.max(0.4, 0.6 * zoom) / 2, 0, Math.max(0.4, 0.6 * zoom), len9);
       }
       ctx.setTransform(Bd9, 0, 0, Bd9, 0, 0);
+      break;
+    }
+    case "storm": {
+      /* ★ 사이오닉 스톰 — **모델 판을 얹는다**(요청: "둘다 옮겨"). 무늬는 회전 칸(spin)이
+         씨앗이라 칸이 바뀔 때마다 벼락이 통째로 다시 친다(초당 14칸).
+         판 크기는 **칸 전부가 캐시에 들어가도록** 예산으로 죈다 — 한 칸이 너무 크면 캐시가
+         칸마다 어긋나 초당 열네 번 큰 판을 새로 굽는다(옛 지적: "고배율에서 스톰에 뮤탈이
+         많이 맞을 때 느려짐"). 번짐 효과라 조금 흐려도 티가 안 난다.
+         **더하기(lighter)로** 얹는다(요청: "더 글로우한 느낌") — 옛 DOM 층은 그냥 덮어
+         그렸다. 어두운 땅 위에서 후광 겹이 서로 더해져 진짜 빛으로 읽힌다. */
+      const spin9 = Math.floor(u0 * 14) % (STORM_SEEDS * STORM_STAGES);
+      const bud9 = FX_RASTER_MAX / (STORM_SEEDS * STORM_STAGES * 1.5);
+      const want9 = Math.min(W9 * Bd9, Math.sqrt(bud9 / 4), FX_RASTER_CAP);
+      const q9 = Math.max(64, Math.ceil(want9 / 64) * 64);   // 64 칸으로 갈무리 — 배율이 조금 달라져도 다시 안 굽는다
+      const cv9 = fxModelCv9({
+        kind: "storm", spin: spin9, flat: !(f.pv ?? false), pitchView: f.pv ?? false,
+        viewYaw: f.deg ?? 0, cw: q9, ch: q9,
+      });
+      if (cv9) {
+        ctx.globalCompositeOperation = "lighter";
+        ctx.globalAlpha = 1;
+        ctx.drawImage(cv9, ax - W9 / 2, ay - W9 / 2, W9, W9);
+      }
+      break;
+    }
+    case "nuke": {
+      /* ★ 핵 — 조준점 · 떨어지는 탄두와 꼬리 연기 · 폭발(충격파·섬광·버섯구름) ─────────────
+         스팬 시절엔 이 연출이 CSS 키프레임이라 **벽시계**로 돌았다. 배속을 걸면 폭발만 느긋했고,
+         그 어긋남을 메우려고 붓이 프레임마다 닻을 내려 주는 자(nukeClockTick9)까지 있었다.
+         캔버스에서는 전부 **나이의 함수**라 배속·일시정지·되감기가 저절로 맞는다 — 되감으면
+         구름이 도로 밝아진다. 키프레임의 마디는 그대로 옮겼다. */
+      const pk9 = f.pk ?? 1;
+      const hp9 = NUKE_HEAD_PX * pk9 * tz9;     // 탄두 자(타일 8px 기준 — 폰에서 안 커진다)
+      const fp9 = NUKE_FALL_PX * pk9 * tz9;     // 떨어지기 시작하는 높이
+      /* 입체의 낙하 축은 수직이 아니다 — 사영이 높이를 옆으로도 미므로 그만큼 기운다. */
+      const lean9 = f.pv ? Math.tan(((f.deg ?? 0) * Math.PI) / 180) * (VIEW_LEAN_K / 0.9) : 0;
+      const drop9 = Math.min(1, Math.max(0, (u0 - (NUKE_FALL_SEC - NUKE_DROP_SEC)) / NUKE_DROP_SEC));
+      const landed9 = (f.tier ?? 1) >= 2;
+      const spin9 = (f.seed ?? 0) % SPIN_STEPS;
+      if (u0 < NUKE_FALL_SEC && (!landed9 || drop9 <= 0)) {
+        /* 표적 점 — 거의 꺼졌다(0.12) 완전히 켜지길 되풀이한다(0.55초). 작아진 만큼
+           눈에 띄는 몫은 크기가 아니라 **점멸**이 진다. */
+        const b9 = easeW9(triW9(u0 / 0.55 / 2));
+        const r9 = Math.max(0.25, 0.25 * zoom);
+        ctx.globalCompositeOperation = "lighter";
+        ctx.globalAlpha = (0.25 + 0.6 * b9) * 0.8;
+        ctx.drawImage(domSpr9("nglow", (c9, S9) => {
+          radLay9(c9, S9, [[0, "rgba(255,26,26,0.9)"], [0.35, "rgba(255,26,26,0.45)"], [0.72, "rgba(255,26,26,0)"]]);
+        }), ax - r9 * (3 + 3 * b9), ay - r9 * (3 + 3 * b9), r9 * (6 + 6 * b9), r9 * (6 + 6 * b9));
+        ctx.globalCompositeOperation = "source-over";
+        ctx.globalAlpha = 0.12 + 0.88 * b9;
+        ctx.fillStyle = "#ff1a1a";
+        ctx.beginPath(); ctx.arc(ax, ay, r9, 0, Math.PI * 2); ctx.fill();
+        break;
+      }
+      if (u0 < NUKE_FALL_SEC) {
+        /* ★ 낙하는 **가속**이다(h ∝ t²) — 남은 높이를 1 − p²로 준다: 처음엔 거의 제자리에
+           떠 있다가 마지막 순간에 내리꽂힌다. 흐려짐·회전도 같은 곡선을 탄다. */
+        const yh9 = -fp9 * (1 - drop9 ** 2) - hp9 * 0.275;   // 코를 조준점에 맞추는 몫(0.275)
+        const yc9 = yh9 - hp9 * 1.42;                        // 꼬리 연기의 **가운데**
+        /* 옆 밀림은 띠의 **밑동**(가운데 + 키의 절반 아래) 높이로 잰다 — 가운데로 재면
+           밑동이 키의 절반만큼 더 밀려 탄두에서 떨어진다(지적: 연기가 너무 바깥쪽). */
+        const sw9 = hp9 * 0.62; const sh9 = hp9 * 2.6;
+        tongueW9(ctx, domSpr9("nsmoke", (c9, S9) => {
+          const g9 = c9.createLinearGradient(0, S9, 0, 0);
+          g9.addColorStop(0, "rgba(214,220,228,0.42)"); g9.addColorStop(0.32, "rgba(196,204,214,0.26)");
+          g9.addColorStop(0.64, "rgba(176,186,198,0.10)"); g9.addColorStop(1, "rgba(176,186,198,0)");
+          c9.filter = "blur(2px)";
+          c9.fillStyle = g9;
+          c9.beginPath();
+          c9.ellipse(S9 / 2, S9 / 2, S9 * 0.34, S9 * 0.48, 0, 0, Math.PI * 2);
+          c9.fill();
+          c9.filter = "none";
+        }), Bd9, ax + -(yc9 + hp9 * 1.3) * lean9, ay + yc9 + sh9 / 2, sw9, sh9,
+        Math.atan(lean9), 0.25 + 0.6 * drop9);
+        /* ★ **돌면서 떨어진다** — 떨어지는 축이 곧 화면 밖으로 나오는 축이라, 스팬을 돌리는
+           대신 모델의 요잉을 준다(명암·단면이 함께 돌아 몸이 도는 것으로 읽힌다). 두 바퀴를
+           높이와 같은 가속 곡선으로, 반시계로. 각은 22.5도 칸 — 굽기 열쇠가 그 칸이다. */
+        const rd9 = -(Math.round((drop9 ** 2.5 * 720) / 22.5) * 22.5);
+        const qh9 = Math.max(64, Math.min(512, 2 ** Math.ceil(Math.log2(Math.max(1, hp9 * Bd9)))));
+        const cvh9 = fxModelCv9({
+          kind: "nuke", fit: false, rotDeg: rd9, flat: !f.pv, pitchView: f.pv,
+          viewYaw: f.deg ?? 0, cw: qh9, ch: qh9, color: f.col ?? "#fff",
+        });
+        if (cvh9) {
+          ctx.globalAlpha = 0.4 + 0.6 * drop9 ** 2;
+          ctx.drawImage(cvh9, ax + -yh9 * lean9 - hp9 / 2, ay + yh9 - hp9 / 2, hp9, hp9);
+        }
+        break;
+      }
+      /* 폭발 — 땅에 눕는 충격파, 한순간의 백열 섬광, 솟아 부푸는 버섯구름. 셋 다 빛이라
+         **더하기**로 얹는다(옛 mix-blend-mode: screen 자리). 자리 비율(2.173·50.3% ·
+         1.013·77.9%)은 두 모델의 잉크 창에서 잰 값 그대로다 — 그래야 폭심이 조준점에 앉는다. */
+      const ab9 = u0 - NUKE_FALL_SEC;
+      ctx.globalCompositeOperation = "lighter";
+      const qb9 = Math.max(64, Math.min(FX_RASTER_CAP, Math.ceil((W9 * 1.7 * Bd9) / 128) * 128));
+      const uw9 = ab9 / 2.6;
+      if (uw9 < 1) {
+        const k9 = uw9 < 0.12 ? 0.25 + 0.7 * (uw9 / 0.12) : 0.95 + 0.3 * ((uw9 - 0.12) / 0.88);
+        const a9 = uw9 < 0.12 ? uw9 / 0.12 : 1 - (uw9 - 0.12) / 0.88;
+        const cv9 = fxModelCv9({
+          kind: "nukeblast", spin: spin9, flat: !f.pv, pitchView: f.pv, viewYaw: f.deg ?? 0,
+          cw: qb9, ch: Math.round(qb9 / 2.173),
+        });
+        if (cv9 && a9 > 0.01) {
+          const w9 = W9 * k9; const h9 = w9 / 2.173;
+          ctx.globalAlpha = a9;
+          ctx.drawImage(cv9, ax - w9 * 0.5, ay - h9 * 0.503, w9, h9);
+        }
+      }
+      const uf9 = ab9 / 0.9;
+      if (uf9 < 1) {
+        const k9 = uf9 < 0.12 ? 0.2 + 0.8 * (uf9 / 0.12) : 1 + 0.35 * ((uf9 - 0.12) / 0.88);
+        const a9 = uf9 < 0.12 ? uf9 / 0.12 : 1 - (uf9 - 0.12) / 0.88;
+        const w9 = W9 * k9;
+        ctx.globalAlpha = Math.max(0, a9);
+        ctx.drawImage(domSpr9("nflash", (c9, S9) => {
+          radLay9(c9, S9, [[0, "rgba(255,255,255,0.6)"], [0.3, "rgba(255,240,200,0.35)"], [0.7, "rgba(255,240,200,0)"]]);
+        }), ax - w9 / 2, ay - w9 / 2, w9, w9);
+      }
+      const uc9 = ab9 / 2.8;
+      if (uc9 < 1) {
+        const k9 = uc9 < 0.16 ? 0.3 + 0.75 * (uc9 / 0.16) : 1.05 + 0.65 * ((uc9 - 0.16) / 0.84);
+        const ty9 = uc9 < 0.16 ? 6 - 12 * (uc9 / 0.16) : -6 - 28 * ((uc9 - 0.16) / 0.84);
+        const a9 = uc9 < 0.16 ? uc9 / 0.16 : 1 - (uc9 - 0.16) / 0.84;
+        const cv9 = fxModelCv9({
+          kind: "nukecloud", spin: spin9, flat: !f.pv, pitchView: f.pv, viewYaw: f.deg ?? 0,
+          cw: qb9, ch: Math.round(qb9 / 1.013),
+        });
+        if (cv9 && a9 > 0.01) {
+          const w9 = W9 * k9; const h9 = w9 / 1.013;
+          ctx.globalAlpha = a9;
+          ctx.drawImage(cv9, ax - w9 * 0.5, ay - h9 * 0.779 + (ty9 / 100) * h9, w9, h9);
+        }
+      }
       break;
     }
     case "swarm": {
@@ -23641,7 +23775,7 @@ export const scrDiagModes = (): Set<string> => {
   return new Set(m9 ? m9[1].split(",") : []);
 };
 
-function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx, pickedKey, wallMask, maskRects, clipQuad, showShadows, showOverlap, showHp, showCreep, marker: markerProp, markerAt, detailAt, yawAt, moveAt, painter, live, gesture, onPainted }: {
+function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx, pickedKey, wallMask, maskRects, clipQuad, showShadows, showOverlap, showHp, showCreep, marker: markerProp, markerAt, detailAt, yawAt, moveAt, pitched: pitchedProp, painter, live, gesture, onPainted }: {
   ops: UnitDrawOp[]; zoom: number; pan: { x: number; y: number };
   /** ★ 붓의 보기 원천(실측: 감기 중 React 붓 팬 (−645.8,−821.7) vs 도착 붓 panRef (−646.2,−822.7)로 1px 어긋난 두 그림이
    *  번갈아 찍혔다). 틱·도착 붓은 부모의 zoomRef·panRef를 읽는데 이 effect는 상태 zoom·pan을 읽어, 렌더 사이에 ref만 바뀌면
@@ -23681,6 +23815,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
   yawAt?: number;
   /** 걸음·추진 컷이 서는 배율 — 그 아래서는 기본 자세로 그린다(날갯짓은 늘). */
   moveAt?: number;
+  /** 입체 보기인가 — 낮은 배율 죄기(lowZoomTrim9)가 어느 벤치로 잴지 가른다. */
+  pitched?: boolean;
   /** 전투 효과(요청: 이펙트 캔버스 이관) — 몸을 다 그린 뒤 맨 위에 그린다. */
   fx?: FxOp[];
   /** 붓 넘기는 자리(수리: 손짓 중 캔버스 CSS 변환) — 렌더마다 이 칸에 그리기 함수를
@@ -23895,6 +24031,9 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          옛 만드는 쪽 판정(liteView·liteYaw)과 같은 칸에서 같은 답이 나오게 문턱을 그대로 받는다. */
       const lite9 = !detail;
       const liteYaw9 = yawAt !== undefined && zoom < yawAt;
+      /* 낮은 배율 죄기 — 배율은 **지금 칠하는 값**으로 잰다(손짓 중에는 React가 안 돌므로
+         프롭으로 받으면 한 박자 늦는다). 사정은 lowZoomTrim9 주석에. */
+      const trim9 = lowZoomTrim9(zoom, !!pitchedProp);
       const moveOk9 = moveAt === undefined || zoom >= moveAt;
       const sorted = ((): UnitDrawOp[] => {
         const raw9 = sortCacheRef.current.out.filter(inView0);
@@ -23912,7 +24051,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              안 잰다. 입체에서 판 열쇠는 종류 × 요잉 8 × 시점 13칸(±36을 6도로)이라, 온 지도가 보이면 몇천
              장이 되어 굽기가 영영 못 따라간다. 유닛이 몇 px뿐인 배율에서 시점 밀림은 안 읽히므로 1.5배 밑은
              0으로, 그 위 lite 구간은 18도 칸(5칸)으로 접는다 — 판이 13분의 1·2.6분의 1로 준다. */
-          if (liteYaw9 && viewYaw) viewYaw = zoom < 1.5 ? 0 : Math.round(viewYaw / 18) * 18;
+          if (liteYaw9 && viewYaw) viewYaw = zoom < 1.5 || trim9 >= 1 ? 0 : Math.round(viewYaw / 18) * 18;
           if (lite9) {
             if (kind === "tankbody") kind = "tank";
             else if (kind === "tanksiegebody") kind = "tanksiege";
@@ -23922,7 +24061,12 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
               if (!walk9 || !moveOk9 || !(pk9.move || pk9.thrust)) pose = 0;
             } else if (!pk9) pose = 0;
           }
-          if (liteYaw9 && rotDeg !== undefined) rotDeg = Math.round(rotDeg / 45) * 45;
+          /* 요잉 칸 — 죄면 **네 칸**(90도)이다. 45도 칸의 부분집합이라 이미 구운 판이 그대로
+             쓰이고, 판 가짓수만 반으로 준다(갈아엎는 전환이 아니다). */
+          if (liteYaw9 && rotDeg !== undefined) {
+            const q9 = trim9 >= 1 ? 90 : 45;
+            rotDeg = Math.round(rotDeg / q9) * q9;
+          }
           if (kind !== op.kind || pose !== (op.pose ?? 0) || rotDeg !== op.rotDeg || viewYaw !== op.viewYaw) {
             op = { ...op, kind, pose: pose as UnitDrawOp["pose"], ...(rotDeg !== undefined ? { rotDeg } : {}),
               ...(viewYaw !== undefined ? { viewYaw } : {}) };
@@ -24903,6 +25047,16 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              방어 건물이 쏘든 이 한 줄을 지난다. */
           if (zoom < (FX_NO_FLOOR.has(f.kind)
             ? FX_MIN_ZOOM[f.kind] : Math.max(FX_MIN_ZOOM[f.kind], detailAt ?? 0))) continue;
+          /* 낮은 배율 죄기(위 lowZoomTrim9) — 꾸밈부터 덜고, 심하면 트레이서까지 던다.
+             무슨 일이 있었나를 말하는 것(죽음 폭발·소환 섬광·우리·스톰·핵·붕괴)은 남는다. */
+          if (trim9 >= 1) {
+            if (f.kind === "wound") continue;
+            if (f.kind === "dom" && TRIM1_SKIP9.has(f.style ?? "")) continue;
+            if (trim9 >= 2) {
+              if (f.kind === "dom" && TRIM2_SKIP9.has(f.style ?? "")) continue;
+              if (f.kind === "beam" || f.kind === "shot" || f.kind === "spike" || f.kind === "erupt") continue;
+            }
+          }
           const ax = zx(f.fx);
           const ay = zy(f.fy) - f.lift * zoom;
           if (ax < -60 || ax > cw + 60 || ay < -60 || ay > ch + 60) continue;
@@ -24918,7 +25072,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           if (f.kind === "dom") {
             /* 죽음 여운은 캔버스 파편(burst)이 서는 2배 아래에서만 나온다 — 스팬 시절과 같은 칸이다. */
             if (f.style === "die" && zoom >= FX_MIN_ZOOM.burst) continue;
-            drawDomFx9(ctx, f, ax, ay, zoom, Bd);
+            drawDomFx9(ctx, f, ax, ay, zoom, Bd, tz9);
             continue;
           }
           if (f.kind === "warp") {
@@ -25846,186 +26000,87 @@ const FX_RASTER_CAP = 1400;
 const FX_RASTER_CACHE = new Map<string, HTMLCanvasElement>();
 const FX_RASTER_BYTES = { n: 0 };
 const FX_RASTER_MAX = DEV9.fxRasterMB * 1024 * 1024;
-export function FxModel({
-  kind, spin, flat, pitchView, viewYaw, rotDeg = 0, peak = 1, fit = true,
-}: {
-  kind: string;
-  /** 밝은 면 밑에 깔 **번짐 빛**의 색(요청: "스톰 번개 줄기에 글로우 효과 주기") —
-   *  안 넘기면 아무 일도 안 한다. 사정은 아래 그리는 자리 주석에. */
-  /** 회전 칸 — 무늬가 칸마다 갈리는 모델(스톰 등)이 쓴다. */
-  spin?: number;
-  flat?: boolean;
-  pitchView?: boolean;
-  /** ★ 좌우 시점(도) — **중심축이 서는 각**이다(지적: "핵탄두·핵 버섯구름·사이오닉
-   *  스톰 등 모델링으로 된 것들, 3D 모드에서 중심축이 수직이 아닌 각도가 적용돼야
-   *  할 듯 · 다른 모델들처럼") ────────────────────────────────────────────────────
-   *  여태 이 문은 이 값을 **아예 안 받았다**: 아래에서 resolveShapeFaces를 부를 때
-   *  자리에 undefined를 박아 두어, 어떤 효과 모델도 시각 밀림을 못 받았다. 그러면
-   *  사영(shapeOblique의 rx2)에서 `z × 0.5 × 밀림` 항이 통째로 0이라 기둥이 화면에
-   *  **수직으로** 선다 — 곁의 유닛·건물은 화면 가운데에서 멀수록 소실점 쪽으로 기우는데
-   *  버섯구름만 꼿꼿이 섰던 까닭이 이것이다.
-   *  값은 유닛과 **같은 자**로 낸다(viewYawOf: 화면 가운데에서 벌어진 각). 6도 칸으로
-   *  갈무리되므로 판이 무한정 늘지 않는다(최대 열세 장). */
-  viewYaw?: number;
-  /** 모델 요잉(도) — 떨어지며 도는 탄두가 쓴다. 22.5도 칸으로 끊어 주는 것이 예의다. */
-  rotDeg?: number;
-  /** 감싸개가 애니로 **최대 몇 배까지 부풀리나**(없으면 1) — 배킹이 함께 덮어야 한다. */
-  peak?: number;
-  /** 잉크에 창을 맞추나(기본) — 끄면 16-상자 그대로 그린다. 탄두처럼 **상자 대비
-   *  제 크기**가 뜻인 모델은 꺼야 한다(수리: "핵 탄두 대빵 커짐" — 캔버스로 들이며
-   *  무심코 fit을 태워, 16-상자 안 작은 몸이 상자 가득 늘어났다). */
-  fit?: boolean;
-}) {
-  /* ★ 크기는 **상자를 재서** 정한다(수리: "핵 폭발도 대빵 커짐 — 공통으로 잘 처리") ──
-     앞판은 '몇 타일짜리 상자인가(tiles·boxPx)'를 부르는 쪽이 적고 배율·DPR을 곱했는데,
-     두 번 데였다: ① 감싸개가 비정사각(충격파 2.17:1)이면 정사각 배킹을 CSS가 늘려
-     그림이 옆으로 퍼졌고, ② 그 수들이 실제 상자와 어긋나면 조용히 틀렸다.
-     이제 시트(fxlens) 덕에 **clientWidth가 곧 화면 px**이다 — 캔버스가 제 상자를 재서
-     그 비율 그대로 굽고, 잉크는 meet(비율 유지·가운데)로 앉힌다. SVG 시절과 같은
-     기하이고, 수를 적는 자리가 아예 없다. ResizeObserver가 상자 변화(배율 커밋·전체화면
-     전환)를 따라 다시 굽는다. iOS가 이 캔버스를 흐리게 못 만드는 까닭은 시트 주석에. */
-  const cvRef = useRef<HTMLCanvasElement | null>(null);
-  useEffect(() => {
-    const cv = cvRef.current;
-    if (!cv) return undefined;
-    const draw9 = (): void => {
-      const w9 = cv.clientWidth;
-      const h9 = cv.clientHeight;
-      if (!w9 || !h9) return;                       // 관찰자가 상자가 서면 다시 부른다.
-      const dpr9 = Math.min(3, window.devicePixelRatio || 1);
-      // 배킹 배수 — 화면 px × DPR × 애니 최대 배수. 상한은 긴 변에 건다.
-      /* ★ 도는 이펙트는 **모든 칸이 캐시에 들어가는 크기**로만 굽는다(지적: 고배율에서
-         스톰에 뮤탈이 많이 맞을 때 느려짐) — 스톰은 칸이 16(씨앗 4 × 단계 4)이고 초당
-         12번 바뀐다. 12배에서 한 칸이 1400² × 4B ≈ 8MB라 상한(24MB)에 셋밖에 못 들어가고,
-         그러면 매 칸이 캐시를 놓쳐 **초당 12번 큰 캔버스를 새로 굽고 복사**했다(스톰
-         여러 장이면 그만큼 곱). 칸 전부가 들어가도록 한 칸의 예산을 상한 ÷ (칸 수 × 1.5)로
-         잡고 그 안으로 배율을 낮춘다 — 번짐 효과라 조금 흐려도 티가 안 난다. */
-      const budget9 = spin === undefined ? Infinity
-        : FX_RASTER_MAX / (STORM_SEEDS * STORM_STAGES * 1.5);
-      const kBudget9 = Math.sqrt(budget9 / (4 * w9 * h9));
-      const k9 = Math.min(Math.max(1, peak) * dpr9, FX_RASTER_CAP / Math.max(w9, h9), kBudget9);
-      const cw9 = Math.max(1, Math.round(w9 * k9));
-      const ch9 = Math.max(1, Math.round(h9 * k9));
-      /* 면 목록은 ShapeIcon과 같은 문(resolveShapeFaces·같은 캐시)을 지난다 — 회전 칸은
-         굽는 동안만 세우고 되돌린다(모듈 전역 깃발의 규약). */
-      let r9: ReturnType<typeof resolveShapeFaces>;
-      if (spin === undefined) {
-        r9 = resolveShapeFaces(kind, rotDeg, flat, viewYaw, pitchView);
-      } else {
-        bldSpinSet(spin);
-        r9 = resolveShapeFaces(kind, rotDeg, flat, viewYaw, pitchView);
-        bldSpinSet(0);
-      }
-      const faces = r9.faces;
-      if (!faces || faces.length === 0) return;
-      // 창 — 잉크 상자(fit·여백 2%) 또는 16-상자 그대로.
-      let bx0 = 0; let by0 = 0; let bw9 = 16; let bh9 = 16;
-      if (fit) {
-        let x0 = Infinity; let y0 = Infinity; let x1 = -Infinity; let y1 = -Infinity;
-        for (const [d9] of faces) {
-          const [a9, b9, c9, e9] = pathBox(d9);
-          if (a9 < x0) x0 = a9;
-          if (b9 < y0) y0 = b9;
-          if (c9 > x1) x1 = c9;
-          if (e9 > y1) y1 = e9;
-        }
-        if (x1 > x0 && y1 > y0) {
-          const pad9 = Math.min(x1 - x0, y1 - y0) * 0.02;
-          bx0 = x0 - pad9;
-          by0 = y0 - pad9;
-          bw9 = x1 - x0 + pad9 * 2;
-          bh9 = y1 - y0 + pad9 * 2;
-        }
-      }
-      if (cv.width !== cw9 || cv.height !== ch9) {
-        cv.width = cw9;
-        cv.height = ch9;
-      }
-      const c2 = cv.getContext("2d");
-      if (!c2) return;
-      c2.setTransform(1, 0, 0, 1, 0, 0);
-      c2.clearRect(0, 0, cw9, ch9);
-      // meet — 비율 유지, 가운데(SVG의 xMidYMid meet 그대로).
-      const sc9 = Math.min(cw9 / bw9, ch9 / bh9);
-      c2.setTransform(sc9, 0, 0, sc9,
-        (cw9 - bw9 * sc9) / 2 - bx0 * sc9,
-        (ch9 - bh9 * sc9) / 2 - by0 * sc9);
-      // 색 없는 면이 곧 임자 색(SVG의 currentColor와 같은 규약) — 감싸개의 color를 읽는다.
-      const cur9 = window.getComputedStyle(cv).color || "#fff";
-      /* ★ **도는 것만** 캐시하던 것을 걷는다(조사: "핵폭발 멈춤") ────────────────────────
-         '한 번 그리는 것은 되쓸 일이 없다'가 틀린 자리가 있었다 — 떨어지는 핵탄두다. 그 몸은
-         spin이 아니라 rotDeg(22.5도 칸 × 32)로 도는데, spin이 없으니 열쇠가 빈 글자였다:
-         낙하 2초 동안 React가 다시 그릴 때마다(핵 창에는 25~60Hz) 면을 풀고 캔버스를 통째로
-         다시 칠했다. 칸은 32개뿐이라 캐시에 들어가면 그 뒤로는 blit 한 번이다.
-         열쇠에 spin 자리를 -1로 두어 도는 것과 안 섞이게만 한다. LRU·바이트 상한은 그대로다. */
-      const key9 = `${kind}|${spin ?? -1}|${flat ? 1 : 0}|${pitchView ? 1 : 0}`
-        + `|${viewYaw ?? 0}|${rotDeg}|${fit ? 1 : 0}|${cw9}x${ch9}|${cur9}`;
-      const hit9 = key9 ? FX_RASTER_CACHE.get(key9) : undefined;
-      if (hit9) {
-        c2.setTransform(1, 0, 0, 1, 0, 0);
-        c2.globalAlpha = 1;
-        c2.drawImage(hit9, 0, 0);
-        FX_RASTER_CACHE.delete(key9); FX_RASTER_CACHE.set(key9, hit9);   // LRU
-        return;
-      }
-      /* (걷어냄) 캔버스 그림자로 넣던 글로우 — **번짐은 모델이 진다**(지적: "스톰
-         글로우는 원형으로 넣으란 게 아니고 가지 모양을 따라 번짐 효과인데").
-         면들을 한 덩이로 모아 한 번에 번지게 하는 손이었는데, 두 가지로 틀렸다:
-           ① 모델에는 **크기를 말하려고 눕혀 둔 투명도 0의 면**이 있을 수 있다(스톰의
-              '보이지 않는 창'). 안 보이는 면도 경로는 경로라, 덩이에 들어가면 그것이
-              통째로 칠해진다 — 동그란 빛의 정체다.
-           ② 반지름이 칸 폭에 비례해, 좁은 자리에 모인 줄기들의 번짐이 서로 합쳐져
-              결국 둥근 안개가 된다. 가지를 따라가는 결이 거기서 사라진다.
-         번짐이 모양을 따라가야 한다면 그 모양을 아는 것은 **빌더**다 — 스톰은 관을 한
-         겹 더 둘러 해결했다(SHAPE_BUILDERS.storm의 그 자리 주석). 굽기 삯도 그쪽이 싸다:
-         그림자는 칠 때마다 흐림 연산이 돌지만 겹은 면 몇 장이고 한 번만 구워진다. */
-      for (const [d9, o9, fill9] of faces) {
-        c2.globalAlpha = o9;
-        c2.fillStyle = fill9 ?? cur9;
-        c2.fill(pathOf(d9));
-      }
-      if (key9) {
-        const copy9 = newCanvas9("효과");
-        copy9.width = cw9; copy9.height = ch9;
-        copy9.getContext("2d")?.drawImage(cv, 0, 0);
-        FX_RASTER_CACHE.set(key9, copy9);
-        FX_RASTER_BYTES.n += cw9 * ch9 * 4;
-        /* ★ **장수도** 죈다(오늘 이 캐시를 '도는 것 말고도' 쓰게 넓혔다) — 웹킷에서 캔버스는 바이트만이
-           아니라 **개수**도 값이다(저마다 배킹과 합성 자원을 든다). 작은 판 수백 장이 큰 판 몇 장보다
-           기기를 더 무겁게 민다. 48장을 넘으면 오래된 것부터 버린다. */
-        while ((FX_RASTER_BYTES.n > FX_RASTER_MAX || FX_RASTER_CACHE.size > 48) && FX_RASTER_CACHE.size > 1) {
-          const [k0, v0] = FX_RASTER_CACHE.entries().next().value as [string, HTMLCanvasElement];
-          FX_RASTER_CACHE.delete(k0);
-          FX_RASTER_BYTES.n -= v0.width * v0.height * 4;
-          releaseCanvas(v0);   // 배킹을 곧장 내준다(위 dropPlates9의 ★ — GC를 기다리지 않는다)
-        }
-      }
-      /* #diag=fx — 실기기에서 배킹을 눈으로 읽는다(iOS 저해상도 추적). '배킹/상자px'.
-         ★ 맨 #diag에서는 안 찍는다(지적: "핵에 웬 이상한 글자가") — 벤치·워커 줄을 보려고 #diag를
-           켠 사람의 화면에 효과마다 초록 글자가 박혔다. fx 용도(또는 all)로 청했을 때만. */
-      if (typeof location !== "undefined" && /diag=(?:[^#&]*,)?(?:fx|all)\b/.test(location.hash)) {
-        c2.setTransform(1, 0, 0, 1, 0, 0);
-        c2.globalAlpha = 1;
-        c2.font = `bold ${Math.max(10, Math.round(cw9 * 0.09))}px monospace`;
-        c2.fillStyle = "#0f0";
-        c2.strokeStyle = "#000";
-        c2.lineWidth = 3;
-        const t9 = `${cw9}x${ch9}/${Math.round(w9)}`;
-        c2.strokeText(t9, 4, Math.max(12, ch9 * 0.1));
-        c2.fillText(t9, 4, Math.max(12, ch9 * 0.1));
-      }
-    };
-    draw9();
-    const ro9 = typeof ResizeObserver !== "undefined" ? new ResizeObserver(draw9) : null;
-    ro9?.observe(cv);
-    return () => ro9?.disconnect();
-  }, [kind, spin, flat, pitchView, viewYaw, rotDeg, peak, fit]);
-  return (
-    <span className="scr-motion-fxmodel">
-      <canvas ref={cvRef} aria-hidden />
-    </span>
-  );
+/** 효과 모델 한 칸을 **판으로 굽는다** — 캔버스 fx(스톰·핵)가 쓰는 문 ───────────────────────
+ *  (export는 눈으로 보는 도구 몫이다 — scratchpad의 스톰·핵 대조표가 이 둘을 직접 부른다.
+ *   이 파일의 SHAPE_BUILDERS·bldSpinSet을 도구가 부르는 것과 같은 규약이다.)
+ *  여태 굽는 손은 FxModel 안에만 있었다. 스톰·핵을 유닛 캔버스로 들이려면 같은 손이 밖에서도
+ *  필요하다(요청: "둘다 옮겨"). 열쇠·LRU·바이트 상한은 옛 자리 그대로고, 달라진 것은 **굽는
+ *  자리가 곧 캐시**라는 점뿐이다 — 앞판은 제 캔버스에 칠한 뒤 한 장 더 복사했다. */
+export function fxModelCv9(o9: {
+  kind: string; spin?: number; flat?: boolean; pitchView?: boolean;
+  viewYaw?: number; rotDeg?: number; fit?: boolean; cw: number; ch: number; color?: string;
+}): HTMLCanvasElement | null {
+  const { kind, spin, flat, pitchView, viewYaw } = o9;
+  const rotDeg = o9.rotDeg ?? 0;
+  const fit = o9.fit ?? true;
+  const cw9 = Math.max(1, Math.round(o9.cw));
+  const ch9 = Math.max(1, Math.round(o9.ch));
+  const cur9 = o9.color ?? "#fff";
+  const key9 = `${kind}|${spin ?? -1}|${flat ? 1 : 0}|${pitchView ? 1 : 0}`
+    + `|${viewYaw ?? 0}|${rotDeg}|${fit ? 1 : 0}|${cw9}x${ch9}|${cur9}`;
+  const hit9 = FX_RASTER_CACHE.get(key9);
+  if (hit9) { FX_RASTER_CACHE.delete(key9); FX_RASTER_CACHE.set(key9, hit9); return hit9; }
+  /* 면 목록은 ShapeIcon과 같은 문(resolveShapeFaces·같은 캐시)을 지난다 — 회전 칸은
+     굽는 동안만 세우고 되돌린다(모듈 전역 깃발의 규약). */
+  let r9: ReturnType<typeof resolveShapeFaces>;
+  if (spin === undefined) {
+    r9 = resolveShapeFaces(kind, rotDeg, flat, viewYaw, pitchView);
+  } else {
+    bldSpinSet(spin);
+    r9 = resolveShapeFaces(kind, rotDeg, flat, viewYaw, pitchView);
+    bldSpinSet(0);
+  }
+  const faces = r9.faces;
+  if (!faces || faces.length === 0) return null;
+  // 창 — 잉크 상자(fit·여백 2%) 또는 16-상자 그대로.
+  let bx0 = 0; let by0 = 0; let bw9 = 16; let bh9 = 16;
+  if (fit) {
+    let x0 = Infinity; let y0 = Infinity; let x1 = -Infinity; let y1 = -Infinity;
+    for (const [d9] of faces) {
+      const [a9, b9, c9, e9] = pathBox(d9);
+      if (a9 < x0) x0 = a9;
+      if (b9 < y0) y0 = b9;
+      if (c9 > x1) x1 = c9;
+      if (e9 > y1) y1 = e9;
+    }
+    if (x1 > x0 && y1 > y0) {
+      const pad9 = Math.min(x1 - x0, y1 - y0) * 0.02;
+      bx0 = x0 - pad9; by0 = y0 - pad9;
+      bw9 = x1 - x0 + pad9 * 2; bh9 = y1 - y0 + pad9 * 2;
+    }
+  }
+  const cvv9 = newCanvas9("효과");
+  cvv9.width = cw9; cvv9.height = ch9;
+  const c29 = cvv9.getContext("2d");
+  if (!c29) return null;
+  // meet — 비율 유지, 가운데(SVG의 xMidYMid meet 그대로).
+  const sc9 = Math.min(cw9 / bw9, ch9 / bh9);
+  c29.setTransform(sc9, 0, 0, sc9,
+    (cw9 - bw9 * sc9) / 2 - bx0 * sc9, (ch9 - bh9 * sc9) / 2 - by0 * sc9);
+  for (const [d9, op9, fill9] of faces) {
+    c29.globalAlpha = op9;
+    c29.fillStyle = fill9 ?? cur9;
+    c29.fill(pathOf(d9));
+  }
+  FX_RASTER_CACHE.set(key9, cvv9);
+  FX_RASTER_BYTES.n += cw9 * ch9 * 4;
+  /* ★ **장수도** 죈다 — 웹킷에서 캔버스는 바이트만이 아니라 개수도 값이다(저마다 배킹과 합성
+     자원을 든다). 48장을 넘으면 오래된 것부터 버리고 배킹을 곧장 내준다. */
+  /* 장수 상한 48 → **72**(스톰·핵이 함께 캔버스로 온 값) — 스톰이 서른두 칸, 떨어지는 탄두가
+     서른두 칸(22.5도)이라 둘이 겹치면 48로는 서로를 밀어내 매 칸 새로 굽는다. 바이트 상한은
+     그대로라 큰 판이 많아지지는 않는다. */
+  while ((FX_RASTER_BYTES.n > FX_RASTER_MAX || FX_RASTER_CACHE.size > 72) && FX_RASTER_CACHE.size > 1) {
+    const [k0, v0] = FX_RASTER_CACHE.entries().next().value as [string, HTMLCanvasElement];
+    if (v0 === cvv9) break;
+    FX_RASTER_CACHE.delete(k0);
+    FX_RASTER_BYTES.n -= v0.width * v0.height * 4;
+    releaseCanvas(v0);
+  }
+  return cvv9;
 }
+/* (걷어냄) FxModel — 효과 모델을 제 캔버스에 굽고 DOM에 얹던 React 컴포넌트다. 그것을 쓰던
+   자리(스톰·핵의 탄두·충격파·버섯구름)가 전부 유닛 캔버스로 옮겨 가 아무도 부르지 않는다.
+   굽는 손은 위 fxModelCv9로 남았다 — 그쪽이 이 컴포넌트의 알맹이였다. */
 /** 잉크 상자(도록 "최대"가 재는 그 상자) — 면 목록에 실제로 칠해진 넓이의 합집합이다.
  *  acc를 주면 거기에 더해 넓힌다(여러 컷·여러 각을 한 상자로 묶을 때). 빈 목록이면 그대로. */
 type InkBox9 = { x0: number; y0: number; x1: number; y1: number };
@@ -27122,7 +27177,7 @@ export default function ReplayMotionPlayer({
   const pausedWakeRef9 = useRef<number | null>(null);
   void pausedTick9;
   const reactAtRef9 = useRef(0);
-  /** 지금의 React 박자(ms) — 핵이 떠 있으면 nukeStep9(), 아니면 REACT_STEP_MS9(렌더가 정한다). */
+  /** 지금의 React 박자(ms) — 늘 REACT_STEP_MS9다(핵·스톰이 박자를 올리던 자는 걷혔다). */
   const reactStepRef9 = useRef(REACT_STEP_MS9);
   /** 핵·스톰 연출이 떠 있나 — 붓이 이 깃발일 때만 핵 시계를 긁는다(위 nukeClockTick9). */
   const nukeOnRef9 = useRef(false);
@@ -31704,13 +31759,9 @@ export default function ReplayMotionPlayer({
     }
     /* 창 넘김은 **블록 끝**에서 — 위에서 넘기면 붓은 이 창, 칠은 다음 창에 들어가 '칠 > 붓'이 난다. */
     fogMeterTick9();
-    /* 핵 연출의 시계 — 글줄 몇 줄이라 붓 프레임마다 적는다(위 nukeClockTick9의 ★).
-       이걸 React 렌더에 맡기던 것이 "핵폭발 시 페이지 다운"의 뿌리였다. */
+    /* 핵 창 계량기는 남는다 — 멈춤을 재는 자라 그림이 어디에 있든 쓸모가 있다.
+       시계를 긁어 주던 자(nukeClockTick9)는 걷혔다: 연출이 캔버스의 나이 함수라 맞출 것이 없다. */
     nukeMeterTick9(nukeOnRef9.current, reactStepRef9.current, cmdNowRef9.current.playing);
-    if (nukeOnRef9.current && mapRef.current) {
-      const cn9 = cmdNowRef9.current;
-      nukeClockTick9(mapRef.current, tNow9, cn9.speed || 1, cn9.playing);
-    }
     /* ★ 안개 캔버스의 임시 변환 — **칠했으면 항등, 안 칠했으면 그 사이의 차**다(위 fogXfRef9).
        여태 무조건 항등으로 지워, 안 칠한 프레임에서 옛 그림이 새 자리에 그냥 섰다. */
     {
@@ -31739,7 +31790,9 @@ export default function ReplayMotionPlayer({
   {
     const c9 = CROWD9;
     const grade9 = (w9: boolean, k9: number): string => (w9 ? (k9 < 1 ? "심한미달" : "미달") : "충분");
-    SCR_DIAG.crowd = `벤치 2D ${c9.bench.toFixed(0)}ms ${grade9(c9.weak, c9.k)} · 3D ${c9.bench3.toFixed(0)}ms ${grade9(c9.weak3, c9.k3)}${c9.force >= 0 ? " 강제" : ""}${CROWD9.re > 0 ? ` ↻${CROWD9.re}` : ""} · ${pitched ? "3D" : "2D"} ${c9.lv}단 ${c9.units}기`;
+    /* 저배율 죔(위 lowZoomTrim9) — 지금 배율에서 실제로 몇 단인지 그대로 찍는다. */
+    const tr9 = lowZoomTrim9(zoomRef.current, pitched);
+    SCR_DIAG.crowd = `벤치 2D ${c9.bench.toFixed(0)}ms ${grade9(c9.weak, c9.k)} · 3D ${c9.bench3.toFixed(0)}ms ${grade9(c9.weak3, c9.k3)}${c9.force >= 0 ? " 강제" : ""}${CROWD9.re > 0 ? ` ↻${CROWD9.re}` : ""} · ${pitched ? "3D" : "2D"} ${c9.lv}단 ${c9.units}기${tr9 > 0 ? ` · 저배율죔 ${tr9}단` : ""}`;
     const st9 = wStatRef.current;
     const wait9 = !st9.ready && st9.worldAt > 0 ? (pNow() - st9.worldAt) / 1000 : 0;
     let ahead9 = -1e9;
@@ -32857,15 +32910,15 @@ export default function ReplayMotionPlayer({
                상태표(STATUS_CASTS.Irradiate.dur)와 **같은 값**이어야 한다. */
             : c[3] === "Irradiate" ? STATUS_CASTS.Irradiate.dur
               : c[3] === "Scanner Sweep" ? SCAN_DETECT_SEC : CAST_HOLD_SEC));
-  /* 재생 시각으로 칸·애니를 긁는 DOM 효과가 떠 있는 동안만 React 박자를 올린다(nukeStep9 — 벤치가 미달이면 25Hz·심한 미달이면 17Hz로 죈다) — 핵(낙하·폭발을
-     paused+delay로 긁는다)과 스톰(칸이 초당 9.6개라 10Hz로 뽑으면 칸을 건너뛰거나 두 번 든다). 나머지 캐스트는 제 CSS
-     애니메이션이 알아서 돈다. */
+  /* ★ **React 박자를 올리던 자를 걷는다**(핵·스톰이 캔버스로 간 값) ───────────────────────
+     여태 이 둘이 떠 있는 동안에는 React 박자를 100ms에서 25~60Hz까지 끌어올렸다. 그림이
+     재생 시각으로 칸·애니를 긁는 DOM이라, 그러지 않으면 낙하가 뚝뚝 끊기고 스톰이 칸을
+     건너뛰었기 때문이다. 이제 둘 다 붓이 매 프레임 나이로 그리므로 React는 제 박자(100ms)면
+     족하다 — 이 큰 컴포넌트를 초당 예순 번 다시 그리던 일이 통째로 사라진다.
+     깃발만 남긴다: 핵 창 계량기(NUKEM9)가 '언제부터 언제까지가 핵 창인가'로 쓴다. */
   const nukeOn9 = castsNow.some((c9) => c9[3] === "Nuclear Strike" || c9[3] === "Psionic Storm");
-  reactStepRef9.current = nukeOn9 ? nukeStep9() : REACT_STEP_MS9;
+  reactStepRef9.current = REACT_STEP_MS9;
   nukeOnRef9.current = nukeOn9;
-  /* 핵 연출이 보는 시각 — **붓의 시각**이다(위 nukeClockTick9). React의 t는 100ms 박자라
-     그것으로 적으면 붓이 프레임마다 적는 값과 다투어 애니가 한 프레임씩 뒷걸음친다. */
-  const tNuke9 = clockRef.current ? Math.max(t, tLiveRef9.current) : t;
 
   /* (걷어냄) 수송·드랍 어림 한 벌 — 드랍/태움 신호(drops·loads)와 수송선 자취로
      '내린 자리·태운 자리'를 짚던 어림이다. 재료가 전부 v1 부대 트랙이라 요약 폐지 뒤로는
@@ -34296,6 +34349,7 @@ export default function ReplayMotionPlayer({
             yawAt={DEV9.yaw8Always || liteFlag9 || CROWD9.lv >= 1
               ? Infinity : wide ? ZOOM_STEPS[2] : ZOOM_STEPS[3]}
             moveAt={wide ? ZOOM_STEPS[1] : ZOOM_STEPS[2]}
+            pitched={pitched}
             /* 크립을 가두는 맵 모서리(재지적: 3D에서 크립이 영역을 벗어남) — 입체는 원근
                투영된 사다리꼴이라 네 모서리를 posFrac으로 투영해 넘긴다. 평면은 단위
                사각형이 나와 기존 직사각 클립과 같다. */
@@ -34397,279 +34451,16 @@ export default function ReplayMotionPlayer({
               />
             );
           })}
-            {/* 핵(옮김) — 원래는 위 castsNow 묶음 안, 곧 렌즈 안에 있었다. 렌즈는
-                제 쌓임 맥락을 만들어 그 안의 z가 유닛 캔버스와 못 겨룬다(지적: 건물에
-                가려짐). 이 층은 같은 좌표계·같은 변환이면서 캔버스 위에 선다. */}
-            {castsNow.map(([sec, x, y, tech, raw]) => {
-              if (tech !== "Nuclear Strike") return null;
-                /* 핵(정정) — 런치가 아니라 실제 착탄에 폭발(지적): 낙하 동안은 표적 점, 마지막
-                   2초에 탄두가 내려오고, NUKE_FALL_SEC부터 폭발 광원. 크기는 실제 피해 반경
-                   (4타일)에 맞춘 지름 8타일 상자에 %로 그리고 살짝 투명하다(지적). */
-                const age = tNuke9 - sec;
-                /** 낙하 진행률 0~1 — 창(NUKE_DROP_SEC)의 어디까지 왔나. 높이·흐려짐이
-                 *  같은 값을 쓴다(둘이 갈리면 탄두가 안 보이는 채로 내려온다). */
-                const dropP9 = Math.min(1, Math.max(0,
-                  (age - (NUKE_FALL_SEC - NUKE_DROP_SEC)) / NUKE_DROP_SEC));
-                /** 이 핵의 무늬 칸 — 자리·시각에서 뽑아 폭발 내내 안 바뀐다(위 주석). */
-                const nspin9 = Math.abs(Math.round(sec * 3 + x * 5 + y * 7)) % SPIN_STEPS;
-                /* ★ 폭발도 **게임 시간**으로 돈다(지적: "배속을 걸어도 핵 폭발 css 속도가
-                   똑같은데?") ────────────────────────────────────────────────────────
-                   충격파·섬광·구름은 CSS 애니메이션이라 벽시계로 돌았다 — 재생이 ×10으로
-                   달려도 폭발만 제 속도로 느긋했고, 반대로 창(NUKE_BOOM_SEC)은 게임 초로
-                   재는 값이라 배속에서는 아직 밝은 구름을 DOM에서 걷어내 뚝 끊겼다.
-                   바로 위 낙하 탄두가 같은 이유로 이미 CSS를 끄고 손으로 그리고 있다.
-                   여기서는 키프레임을 버리지 않는다 — 애니메이션을 **멈춰 세운 뒤**(paused)
-                   음수 지연으로 "지금 몇 초째인가"를 매 프레임 찍어 준다. 그러면 그림은
-                   시트가 그리고 시계만 재생기가 쥔다: 배속·일시정지·되감기가 전부 그대로
-                   먹는다(되감으면 구름이 도로 밝아진다).
-                   ※ 조준점 점멸·꼬리 연기도 같은 시계를 탄다(지적: "조준점과 연기도 똑같이
-                     게임 애니메이션의 일부야") — 표시등이라 봐서 벽시계에 남겨 뒀던 자리다.
-                     핵이 날아오는 동안 깜빡이고 끌리는 것이니 그 시간도 게임의 시간이 맞다.
-                     끝없이 도는 애니메이션(infinite alternate)이라 지연은 착탄 기준이 아니라
-                     **시전 기준**(age)으로 준다: 어느 순간에 끼어들어 봐도 같은 결의 주기다.
-                     대신 아주 높은 배속에서는 깜빡임이 지지직이 된다 — 0.55초 주기가 ×20이면
-                     28ms라, 30Hz로 그리는 화면이 담을 수 있는 아래로 내려간다(그 배속에서
-                     화면이 어수선한 것은 이 재생기가 이미 감수하는 몫이다). */
-                /* (걷어냄) boomClock9·aimClock9 — 렌더마다 animationDelay를 적어 애니를 긁던 자리다.
-                   이제 CSS가 제 힘으로 돌고(배속만큼 길이를 줄인다), 지연·재생멈춤은 붓이 **닻을 내릴 때만**
-                   적는다(nukeClockTick9). 섞임 걸린 층 셋의 스타일을 초당 수십 번 고치지 않는다. */
-                /* 성공 판정(지적) — 불발이면 폭발 없이 표적 점만 보이다 만다. */
-                /* ★ 타일 자로(지적: "핵탄두 크기가 모바일에서 엄청 크게 나오네") — 이 둘은 '1배 CSS px'라 배율만
-                   곱했는데, 타일 하나가 PC에서는 8px 남짓·폰에서는 3px라(지도가 화면 폭에 맞춰 선다) 같은 px가 폰에서는
-                   지도 대비 2.7배로 컸다. 트레이서·파편과 같은 규약으로 타일 8px 기준 비(tilePx/8)를 곱한다 — PC는
-                   그대로, 폰은 그만큼 준다. 낙하 높이도 같은 자(지도에 비례). */
-                const nukeK9 = ((mapRef.current?.clientWidth ?? 320) / grid.width) / 8;
-                const hp9 = NUKE_HEAD_PX * pitchK(y) * nukeK9;   // 탄두·연기·낙하 높이도 깊이 배율(입체)
-                const fp9 = NUKE_FALL_PX * pitchK(y) * nukeK9;
-                /* 입체의 낙하 축은 수직이 아니다(지적: "3D에서 핵탄두 모델과 연기의 각도가 안 맞고 연기가 맵
-                   안쪽에·너무 수직") — 사영(project)이 높이 z를 x로 z·0.5·밀림(tan 시점각)만큼 밀고 화면 위로는
-                   z·0.8만 올리므로, 이 자리에서 곧게 떨어지는 축은 화면에서 위로 1당 옆으로 0.625·밀림만큼
-                   기운다. 탄두 모델은 그 밀림이 구워져 있는데 연기·낙하 자리는 곧장 위였다. 탄두의 낙하 자리와
-                   연기 자리를 그 축을 따라 옆으로 밀고, 연기 띠는 같은 각으로 돌린다(밑동을 축으로). */
-                /* 0.5(사영의 z→x 밀림) ÷ 0.9(입체 z 눌림, shapeOblique zScaleNow) — 옛 0.625는 눌림 0.8 시절 값이라 밖으로
-                   넘쳤다(지적). */
-                const lean9 = pitched ? Math.tan((viewYawOf(x, y) * Math.PI) / 180) * (VIEW_LEAN_K / 0.9) : 0;
-                const leanDeg9 = (Math.atan(lean9) * 180) / Math.PI;
-                const landed = nukeImpacts.some((nk) =>
-                  nk.confirmed && nk.x === x && nk.y === y && Math.abs(nk.sec - (sec + NUKE_FALL_SEC)) < 0.5);
-                if (age >= NUKE_FALL_SEC && !landed) return null;
-                return (
-                  <span
-                    /* ★ 열쇠는 **이 핵 자신**이다(자리·시각) — 예전엔 castsNow 안의 차례(i)였다.
-                        그 목록은 창이 지난 시전이 빠지며 줄어드는 목록이라, 앞의 것 하나가
-                        만료되면 뒤가 통째로 한 칸씩 당겨진다: 열쇠가 바뀌니 React가 스팬을
-                        갈아 끼우고, CSS 애니메이션이 처음부터 다시 돈다 — 스러지던 구름이
-                        불쑥 다시 밝아진다. 구름을 오래 남기기로 한 이상(NUKE_BOOM_SEC)
-                        그 창에 다른 시전이 걸칠 일도 그만큼 잦아진다. */
-                    key={`nk-${sec}-${x}-${y}`}
-                    className="scr-motion-nukefx"
-                    /* 붓이 이 자국으로 제 시계를 적는다(위 nukeClockTick9). */
-                    data-nksec={sec}
-                    style={{
-                      ...posStyle(x, y),
-                      /* ★ 폭발은 **터지는 범위만큼**이다 — 그 범위는 이 파일이 이미
-                       알고 있다(재지적: "터지는 건물까지 안 퍼지고 너무 좁게 퍼져") ────
-                       여태 이 값은 "원작 핵의 피해 반경은 3타일 남짓"이라는 **어림**이었다.
-                       그런데 이 재생기는 어림이 아니라 제 잣대로 무엇이 죽는지를 정하고
-                       있다 — 위 nukeImpacts와 건물 층이 쓰는 수가 그것이다:
-                         · 건물 — 착탄 언저리에 무너진 줄을 착탄으로 당기는 반경 **5타일**
-                         · 건물 — 파괴 기록과 무관하게 걷어내는 폭심 **4타일**
-                         · 유닛 — 착탄 언저리에 죽은 개체를 증거로 세는 반경 **4타일**
-                       그러니 그림이 반경 3타일이면 **불 밖에 선 건물이 무너진다**. 사용자가
-                       본 것이 정확히 그 어긋남이다.
-                       이제 판정과 **같은 수**를 쓴다: 반경 5 → 지름 **10타일**이 1.0배다.
-                       가장 밝은 순간(0.95배)이 반경 4.75타일이라 폭심 4타일을 넉넉히 덮고,
-                       스러지며 1.25배까지 밀려 나간다.
-                       ※ 두 곳이 같은 수를 봐야 한다 — 판정 반경을 고치면 여기도 함께
-                         고쳐야 '무너지는데 안 타는 건물'이 다시 생기지 않는다.
-                       탄두 크기는 이 값과 별개다(NUKE_HEAD_PX·모델 길이). */
-                    width: pct(10 * pitchK(y), grid.width),
-                    /* 연출 애니의 길이를 배속만큼 줄이는 자(위 CSS의 ★) — 값이 바뀌는 일이 드물다. */
-                    "--scr-nspd": speed,
-                    } as React.CSSProperties}
-                  >
-                    {/* 불발은 끝까지 표적 점이다(수리) — 예전 갈래는 '마지막 2초 & 불발'이
-                        셋째 갈래(폭발)로 흘러, 안 터진 핵이 2초 동안 폭발을 그렸다. */}
-                    {age < NUKE_FALL_SEC - NUKE_DROP_SEC || (age < NUKE_FALL_SEC && !landed) ? (
-                      <span
-                        className="scr-motion-nuke-dot"
-                        /* 시트는 px을 안 키워 준다(레이아웃 확대) — 배율을 손수 곱한다. */
-                        style={{
-                          width: `${Math.max(0.5, 0.5 * zoom)}px`,
-                          height: `${Math.max(0.5, 0.5 * zoom)}px`,
-                        }}
-                      />
-                    ) : age < NUKE_FALL_SEC && landed ? (
-                      /* 낙하를 게임 시간으로 직접(수리: CSS 실시간 애니라 배속에서 탄두가
-                         덜 내려왔는데 폭발로 넘어갔다) — 낙하 창의 진행률로 높이를 잰다.
-                         ★ 창이 2 → 4초다(요청: "핵 떨어지는 속도가 너무 빠름 2배 느리게
-                           재생 — 타이밍 잘 맞추기") — 착탄 시각(NUKE_FALL_SEC)은 그대로
-                           두고 **시작을 2초 당긴다**. 그래야 폭발이 나는 순간이 안 밀린다.
-                         ★ 끝은 0이 아니라 **−코 높이**다(요청: "핵 탄착지가 조준점과 일치
-                           안 함") — 이 스팬은 flex 가운데 맞춤이라 진행률 0에서 몸의
-                           **한가운데**가 조준점에 온다. 탄두가 닿는 자리는 가운데가 아니라
-                           아래 끝(코)이므로, 몸 절반만큼 더 올려야 코가 점에 닿는다. */
-                      <>
-                      {/* ★ 꼬리 연기(요청: "꼬리쪽에 연기 효과 추가 가능?") ──────────────
-                          떨어지는 탄두는 제자리에 뜬 그림이 아니라 **하늘에서 내려오는
-                          것**인데, 몸만 있으면 그 사실이 안 읽힌다. 꽁무니에서 위로 끌리는
-                          연기 한 줄기가 '어디에서 왔나'와 '얼마나 빠른가'를 한꺼번에 말한다.
-                          자리는 탄두와 **같은 자**를 쓴다(같은 translate에 제 키의 절반만
-                          더 올린다) — 두 값을 따로 두면 가속 곡선에서 몸과 연기가 갈린다.
-                          짙기는 낙하 진행률을 탄다: 처음엔 옅고 내리꽂힐수록 짙어진다. */}
-                      <span
-                        className="scr-motion-nuke-smoke"
-                        style={{
-                          width: `${hp9 * 0.62 * zoom}px`,
-                          height: `${hp9 * 2.6 * zoom}px`,
-translate: `${(-(Math.round((-fp9 * (1 - dropP9 ** 2) - hp9 * 0.275 - hp9 * 1.42) * zoom) + hp9 * 1.3 * zoom) * lean9).toFixed(1)}px ${Math.round(
-                            (-fp9 * (1 - dropP9 ** 2) - hp9 * 0.275
-                              - hp9 * 1.42) * zoom)}px`,
-                          /* 옆 밀림은 띠의 **밑동**(가운데 + 키의 절반 아래)의 높이로 잰다 — 가운데 높이로 재면 밑동이 키의
-                             절반만큼 더 밀려 탄두에서 떨어진다(지적: 연기가 너무 바깥쪽). 회전 축도 밑동. */
-                          rotate: `${leanDeg9.toFixed(1)}deg`, transformOrigin: "50% 100%",
-                          opacity: 0.25 + 0.6 * dropP9,
-                        }}
-                      />
-                      <span
-                        className="scr-motion-nuke-fall"
-                        style={{
-                          color: modeColor(raw, teamOfRaw(raw)),
-                          animation: "none",
-                          /* 시트의 px은 화면 px이다 — 배율을 손수 곱한다(CSS의 9px은
-                             시트 밖 폴백일 뿐이다). */
-                          width: `${hp9 * zoom}px`, height: `${hp9 * zoom}px`,
-                          /* ★ **가속도**를 붙인다(요청: "핵탄두 떨어지는 속도 가속도
-                             붙이기") — 떨어지는 것은 시간의 제곱으로 빨라지므로(자유낙하
-                             h ∝ t²) 남은 높이를 **1 − p²** 으로 준다: 처음에는 거의
-                             제자리에 떠 있다가 마지막 순간에 내리꽂힌다.
-                             ★ 앞판은 (1 − p)² 이었다(재지적: "지면에 가까워질수록 갑자기 느려져") —
-                               그 식은 처음에 빨리 떨어지고 땅 근처에서 멈추는 **감속** 곡선이다
-                               (|dh/dp| = 2(1 − p)). 주석이 말하던 것과 반대였다. 회전도 p^2.5로 더 붙인다.
-                             창의 길이(NUKE_DROP_SEC)와 착탄 시각은 그대로다 — 같은 시간
-                             안에서 배분만 바뀐다. 흐려짐도 같은 곡선을 타 늦게 또렷해진다. */
-                          /* ★ 코를 조준점에 맞추는 몫이 **절반이 아니다**(몸을 세우면서
-                             다시 잰다) — 눕힌 시절엔 코가 상자의 아래 끝이라 몸 절반
-                             (0.5)만큼 올리면 맞았다. 선 몸의 코끝은 z 0.5이고, 이 사영
-                             에서 지면은 상자 y 12.6·z 한 칸이 0.89이므로 코는 y 12.16,
-                             곧 상자의 **77.5%** 자리다 — 코는 한 점이 아니라 반지름 0.55에서
-                             닫히는 둥근 머리라 잉크의 아래 끝이 y 12.40이다(하네스 실측).
-                             가운데(50%)와의 차 0.275만큼
-                             올리면 코가 점에 닿는다. */
-                          translate: `${(-Math.round((-fp9 * (1 - dropP9 ** 2) - hp9 * 0.275) * zoom) * lean9).toFixed(1)}px ${Math.round(
-                            (-fp9 * (1 - dropP9 ** 2) - hp9 * 0.275) * zoom)}px`,
-                          opacity: 0.4 + 0.6 * dropP9 ** 2,
-                        }}
-                      >
-                        {/* ★ **돌면서 떨어진다**(요청: "핵탄두 회전하며 떨어지기") ────
-                            이 몸은 바닥면에 눕혀 위에서 내려다보는 그림이라(위 nuke 빌더
-                            주석), 떨어지는 축은 **화면 밖으로 나오는 축**이다. 그 축
-                            둘레로 도는 것이 곧 **요잉**이므로, CSS로 스팬을 돌리는 대신
-                            모델의 요잉을 준다 — 그래야 명암·단면이 함께 돌아 판때기가
-                            빙그르르 도는 것이 아니라 몸이 도는 것으로 읽힌다.
-                            낙하 진행률에 맞춰 두 바퀴(720도) 돌되, 높이와 같은 가속
-                            곡선을 태워 **마지막에 빨라진다**.
-                            ★ 도는 쪽은 **반시계**다(요청) — 이 파일의 rotDeg는 +가
-                              시계방향이므로(resolveShapeFaces 주석) 부호를 뒤집는다.
-                              칸으로 끊는 것은 뒤집기 **전에** 한다: 음수에 Math.round를
-                              걸면 .5가 0 쪽으로 붙어 칸이 한쪽으로 밀린다.
-                            각은 22.5도 칸으로 끊는다 — 굽기 열쇠가 그 칸으로 갈무리하므로
-                            (아래 unitSprite의 rotB) 그보다 잘게 줘 봐야 판만 더 굽는다. */}
-                        {/* 캔버스 문(FxModel)으로 — 탄두는 여태 맨 ShapeIcon이라
-                            과표본 셈을 **아예 안 지나고 있었다**(9px 판을 렌즈가 8배로
-                            늘리면 어느 엔진에서도 뭉갠다). 상자가 px 붙박이라 boxPx로. */}
-                        <FxModel
-                          kind="nuke"
-                          fit={false}
-                          rotDeg={-(Math.round((dropP9 ** 2.5 * 720) / 22.5) * 22.5)}
-                          flat={!pitched} pitchView={pitched} viewYaw={viewYawOf(x, y)}
-                        />
-                      </span>
-                      </>
-                    ) : (
-                      /* ★ 폭발은 **모델**이다(요청: "핵폭발도 모델링으로 하면 더 입체적이고
-                         멋지려나? 충격파 같은 효과도 주고" → "그렇게 해줘") ─────────────
-                         여태 이 자리는 CSS 조각 다섯이었다 — 그을음 원, clip-path 삼각형
-                         기둥, 돔 하나, 테두리 원 둘. 원과 삼각형은 어느 각도에서도 같은
-                         원·삼각형이라, 지도를 돌리거나 눕혀도 폭발만 정면을 봤다. 모델로
-                         두면 요잉·피치를 함께 먹어 **충격파가 실제로 땅을 기고** 버섯이
-                         지도와 같은 각으로 선다.
-                         둘로 나눈다 — 땅에 눕는 충격파(nukeblast)와 솟는 구름(nukecloud).
-                         퍼지고 솟는 몫(시간)은 여전히 CSS가 진다: 모델은 한 자세만 굽고
-                         감싸개가 그것을 키우고 올린다. 프레임마다 다시 굽지 않기 위해서다.
-                         섬광만 CSS로 남긴다 — 그것은 형상이 아니라 **빛**이라 모델로 만들
-                         것이 없다(screen 블렌드 그러데이션이 곧 제 모습이다).
-                         무늬 칸은 이 핵 하나에 붙박이다(자리·시각으로 뽑는다) — 폭발이
-                         타는 동안 무늬가 바뀌면 다른 폭발로 갈아 끼운 것처럼 보인다. */
-                      <>
-                        {/* 충격파 — 땅에 눕는 꽃과 고리. 맨 아래에 깔린다. */}
-                        <span className="scr-motion-nuke-wave">
-                          <FxModel kind="nukeblast" peak={1.25} spin={nspin9}
-                            flat={!pitched} pitchView={pitched} viewYaw={viewYawOf(x, y)} />
-                        </span>
-                        <span className="scr-motion-nuke-flash" />
-                        {/* 버섯구름 — 솟으며 부푼다. 발치가 조준점에 못박힌다. */}
-                        <span className="scr-motion-nuke-cloud">
-                          <FxModel kind="nukecloud" peak={1.7} spin={nspin9}
-                            flat={!pitched} pitchView={pitched} viewYaw={viewYawOf(x, y)} />
-                        </span>
-                      </>
-                    )}
-                  </span>
-                );
-              return null;
-            })}
-            {/* ★ 사이오닉 스톰은 **3D 모델**이다(요청: "멋지다 갈아끼우자") ────────────
-                여태 이 자리는 손으로 구운 SVG 두 판(scripts/storm-frames.mjs, 시드 41·87)을
-                번갈아 트는 CSS 스팬이었다. 그 판은 **윗면에서 본 그림 한 장**이라 요잉을
-                따라 돌지도, 입체 보기에서 눕지도, 확대해도 또렷해지지도 않았다(래스터가
-                아니라 벡터였지만 각도가 붙박이라 결과는 같다).
-                이제 다른 모델과 같은 길을 탄다: 요잉·피치를 받아 굽고, 배율에 맞는 크기로
-                다시 굽는다. 무늬는 회전 칸(spin)이 씨앗이라 칸이 바뀔 때마다 통째로
-                갈린다 — 초당 여섯 칸이면 원작의 무질서한 지지직이 난다.
-                영역·지속은 그대로다(지름 4.2타일 · 4초). */}
-            {castsNow.map(([sec, x, y, tech], i) => {
-              if (tech !== "Psionic Storm") return null;
-              if (t - sec > 4) return null;
-              return (
-                <span
-                  key={`c-${i}`}
-                  className="scr-motion-stormfx"
-                  style={{
-                    ...posStyle(x, y),
-                    width: pct(4.2 * pitchK(y), grid.width),
-                    /* (걷어냄) 끝의 사그라듦 — 마지막 0.8초에 걸쳐 옅어지게 두었던
-                       자리다(요청: "스톰 마지막에 페이드아웃 없애기"). 원작의 스톰은
-                       지속이 끝나는 순간 그대로 그친다: 옅어지는 동안의 반투명한 번개는
-                       '꺼지는 중'이 아니라 '약해진 스톰'으로 읽혀, 피해가 이미 끝난 자리를
-                       아직 위험한 것처럼 보이게 했다. 되살리려면 이 자리에
-                       opacity: Math.min(1, Math.max(0, (4 - (t - sec)) / 0.8)) 한 줄이면 된다. */
-                  }}
-                >
-                  {/* (걷어냄) 영역을 채우던 **동그란 푸른 안개**(.scr-motion-storm-glow)
-                      — 지적: "스톰 글로우는 원형으로 넣으란 게 아니고 가지 모양을 따라
-                      번짐 효과인데". 원반을 모델에서 걷어낸 그때와 같은 이유다(빌더의
-                      '보이지 않는 창' 주석): 화면에서는 번개보다 **둥근 것이 먼저** 읽혀
-                      스톰이 장판으로 보인다. 번짐은 이제 번개 줄기마다 두른 후광 겹이
-                      진다 — 영역도 그 겹이 퍼지는 폭으로 읽힌다.
-                      되돌리려면 이 한 줄(<span className="scr-motion-storm-glow" />)만
-                      살리면 된다. */}
-                  {/* 칸은 시간이 돌린다(초당 6) — 같은 칸이면 늘 같은 무늬라 굽기가
-                      캐시되고, 칸이 바뀌면 번개가 통째로 다시 친다. */}
-                  {/* 모델은 공용 문으로 놓는다(FxModel) — 창 맞춤과 과표본을 그쪽이
-                      한다(그 주석에 두 함정의 사정이 있다). */}
-                  {/* 중심축은 유닛과 같은 각으로 선다(지적) — viewYawOf가 그 자리에서
-                      벌어진 각을 낸다. 이 값이 없으면 번개 기둥만 화면에 수직으로 선다. */}
-                  <FxModel
-                    kind="storm"
-                    spin={Math.floor((t - sec) * 14) % (STORM_SEEDS * STORM_STAGES)}   /* 0.8배(요청) → 다시 20% 감속(재요청) 12 → 9.6 */
-                    flat={!pitched}
-                    pitchView={pitched}
-                    viewYaw={viewYawOf(x, y)}
-                  />
-                </span>
-              );
-            })}
+            {/* (걷어냄) 핵의 DOM 스팬 한 벌 — 조준점·꼬리 연기·낙하 탄두·충격파·섬광·버섯구름이
+                전부 캔버스 fx(kind "dom" · style "nuke")로 옮겼다(요청: "둘다 옮겨").
+                여기 있어야 했던 까닭(렌즈가 유닛 캔버스를 못 덮는다)은 캔버스 fx가 몸을 다 그린
+                위에 얹히면서 사라졌고, 덤으로 연출이 **나이의 함수**가 되어 배속·일시정지·되감기가
+                저절로 맞는다 — CSS 키프레임의 벽시계를 게임 시계에 맞춰 주던 자(nukeClockTick9)와
+                그 계기(NUKEM9)도 함께 걷었다. 사정은 엔진의 Nuclear Strike 갈래에. */}
+            {/* (걷어냄) 사이오닉 스톰의 DOM 스팬 — 캔버스 fx(kind "dom" · style "storm")로 옮겼다
+                (요청: "둘다 옮겨"). 모델·요잉·피치는 그대로고, 그리는 자리만 유닛 캔버스 위다.
+                한때 여기 있어야 했던 까닭(렌즈가 유닛 캔버스를 못 덮는다)은 캔버스 fx가 몸을 다
+                그린 위에 얹히면서 사라졌다. 엔진의 Psionic Storm 갈래에 그 사정이 적혀 있다. */}
           {/* (걷어냄) **드론 변태·취소의 자국** — 요청("드론이 공사 고치로 변태하거나
               취소할 때 효과 추가")으로 넣었다가 요청("건물 변태 링 효과 제거")으로 걷는다.
               안으로 조여드는 고리가 변태, 밖으로 터지는 고리가 취소였다. 되살리려면
