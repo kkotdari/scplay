@@ -299,6 +299,15 @@ const SHAPE_PATHS: Record<string, string> = {};
 /* ── 전면 3D 빌더(요청: 모든 건물·수송선을 3D 도형으로 — 기존 손 작업 대체) ─────────
    전부 project() 기반이라 withYaw로 감싸면 아무 요잉에서나 다시 투영된다.
    표준 시점 결과는 아래 SHAPE_FACES에 한 번 구워 쓴다. */
+/** 회전체 돔 — 반구를 회전체로 세운다(빌보드 domeFaces3의 대체). 옆선은 초타원 (1 − t^p)^(1/p):
+ *  p 2면 정확한 반구, 클수록 꼭대기가 평평하다. 면마다 제 법선이라 빛과 요잉이 산다. */
+function domeMesh9(cx: number, cy: number, r: number, hh: number, z0 = 0, p = 2.2): ShapeFace[] {
+  return spirePillar({
+    x: cx, y: cy, z0, h: hh, w: r, segs: 8, sides: 16, caps: "none",
+    widthOf: (t9: number): number => Math.max(r * 0.04, r * (1 - Math.min(1, t9) ** p) ** (1 / p)),
+  });
+}
+const forgeDome9 = domeMesh9;
 /** 벌어진 다리 + 원반 발(테란 실물 공통) — 몸통 밑에서 바깥-아래로 뻗고 발판이 받친다. */
 function legAndFoot(
   px: number, py: number, zTop: number, lean = 0.1, sz = 1,
@@ -8926,6 +8935,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     }
     return raceBase(out, "terran", pc);
   },
+  /** 포지 돔 — 회전체 반구(초타원 옆선, 위 ★). r 밑반지름 · hh 높이 · z0 밑높이. */
   forge: () => withModelSpin(-90, () => {
     /* 포지(전면 재작도·사진) — 황금 덩치다: 오른뒤에 청록 눈이 박힌 큰 황금 돔,
        앞오른쪽에 같은 눈을 인 작은 돔, 왼쪽에 뾰족한 황금 뿔탑 셋, 그 사이를 잇는
@@ -8939,7 +8949,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 큰 황금 돔(오른뒤) — 위에 청록 눈. 옆구리에 붉은 띠. */
     out.push(...tagKey([
       ...paintBase(cylinderFaces3(2.2, -0.6, 3, 1.4, 0.3), GOLD_D),
-      ...paintBase(domeFaces3(2.2, -0.6, 3, 3.4, 1.7), GOLD),
+      /* ★ 돔을 **진짜 회전체**로(의심: "포지 돔 두 개가 혹시 손그림 아닌지") — 맞았다. domeFaces3는
+         화면 좌표의 빌보드다: 실루엣 베지에 하나에 하이라이트 타원·그늘 초승달을 **정해진 자리**에
+         얹으므로 어느 요잉에서도 같은 그림이고 빛도 안 돈다(모델샷 넉 장의 돔이 똑같았다). 포지는
+         돔이 곧 몸이라 그 티가 가장 크다. 회전체(spirePillar + 옆선)로 세우면 면마다 제 법선으로
+         빛을 받아 요잉·기울기에 따라 명암이 돈다. 옆선은 반구보다 조금 납작한 초타원(p 2.2) —
+         꼭대기가 평평해야 청록 눈이 얹힌다(순수 반구면 정수리가 점이라 눈이 뜬다). */
+      ...paintBase(forgeDome9(2.2, -0.6, 3, 3.4, 1.7), GOLD),
       /* 붉은 띠는 겉면만 두른다(수리: 위 태엽과 같은 결의 비침) — 원통 도형은 실루엣을
          통째로 채우는 몸판 + 밝은 윗면 원반이라, 돔 허리에 끼워 넣은 이 띠가 돔 속에
          숨기는커녕 돔 앞면을 큼직한 원반으로 덮어 버렸다(흰 윗면까지 겹쳐 분홍 얼룩으로
@@ -8971,7 +8987,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     ], depthNow(2.2, -0.6) + 3.5));
     /* 앞오른쪽 작은 돔 — 같은 눈을 인다. */
     out.push(...tagKey([
-      ...paintBase(domeFaces3(2.6, 2.4, 1.6, 1.7, 0.35), GOLD),
+      ...paintBase(forgeDome9(2.6, 2.4, 1.6, 1.7, 0.35), GOLD),   // 작은 돔도 회전체(위 ★)
       [discPath3(2.6, 2.4, 2.08, 0.62), 0.95, CYAN] as ShapeFace,
     ], depthNow(2.6, 2.4) + 1.6));
     /* 왼쪽 황금 뿔탑 셋(사진) — 밑동이 굵고 끝이 뾰족한 첨탑. 세로 골이 있다. */

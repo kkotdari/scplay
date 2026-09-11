@@ -1696,7 +1696,7 @@ export const BLD_NORM: Record<string, number> = {
   extract: 0.822,  // ×0.8(요청: 그리기 0.8배) · 옛 1.027
   factory: 1.493,  // 창·옆 홈·격납구·발판·굴뚝·쐐기 손질 뒤 재측정(bld-norm)
   fleetbeacon: 1.700,  // ×0.8(요청: 그려지는 크기 0.8배)
-  forge: 1.596,  // 발 걷어낸 뒤 재측정(bld-norm)
+  forge: 1.605,   // 돔 둘을 회전체로 바꾼 뒤 bld-norm 재측정
   gate: 2.050,  // 앞뒤 뿔탑 0.8배·발판에 붙인 뒤 재측정(bld-norm)
   geyser: 1.587,
   gspire: 0.917,  // ×0.8(요청: 그려지는 크기 0.8배) · 옛 1.146
