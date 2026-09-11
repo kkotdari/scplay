@@ -20587,6 +20587,36 @@ function nukeStep9(): number {
   if (c9.bench < 0) return 40;
   return c9.weak ? (c9.k < 1 ? 60 : 40) : 0;
 }
+/** 안개 판의 임시 변환을 걸고, **같은 자리에서** 막 띠까지 세운다 — 틈(px)을 낸다.
+ *  ★ 둘을 한 함수로 묶는 까닭(지적: "검정 띠가 계속 보인다") — 앞판은 손끝 자리에서 띠를 세우고 안개는
+ *    다른 자리에서 칠했다. 그래서 칠한 **뒤에도** 옛 띠가 남아, 판이 멀쩡히 덮은 자리(시야로 파 놓은
+ *    구멍)를 검정으로 메웠다. 변환을 거는 자리가 곧 띠를 세우는 자리여야 둘이 어긋날 수 없다. */
+function fogXfApply9(root: HTMLElement, b9: { z: number; x: number; y: number },
+  z9: number, px9: number, py9: number, pitched9: boolean): number {
+  const cv9 = root.querySelector<HTMLCanvasElement>(".scr-motion-fog");
+  if (!cv9) return 0;
+  const xf9 = xfDelta9(b9, z9, px9, py9);
+  cv9.style.transformOrigin = "center";
+  if (cv9.style.transform !== xf9) cv9.style.transform = xf9;
+  const bw9 = root.clientWidth;
+  const bh9 = root.clientHeight;
+  if (!(b9.z > 0) || bw9 <= 0 || bh9 <= 0) { fogBandSet9(root, null); return 0; }
+  const s9 = z9 / b9.z;
+  const tx9 = px9 - s9 * b9.x;
+  const ty9 = py9 - s9 * b9.y;
+  const pdx9 = fogPad9(bw9);
+  const pdy9 = fogPad9(bh9);
+  const cx9 = bw9 / 2;
+  const cy9 = bh9 / 2;
+  const cov9 = {
+    l: cx9 + s9 * (-pdx9 - cx9) + tx9,
+    t: cy9 + s9 * (-pdy9 - cy9) + ty9,
+    r: cx9 + s9 * (bw9 + pdx9 - cx9) + tx9,
+    b: cy9 + s9 * (bh9 + pdy9 - cy9) + ty9,
+  };
+  fogBandSet9(root, pitched9 ? null : cov9);
+  return Math.max(cov9.l, bw9 - cov9.r, cov9.t, bh9 - cov9.b);
+}
 /** 안 움직이는 막의 네 띠를 세운다(위 .scr-motion-fogbg의 ★) — `box`(안개 판이 덮는 네모, 상자 좌표)의
  *  **밖**을 채운다. null이면 넷 다 걷는다(틈 없음·눕힌 보기·손 뗌). 값이 그대로면 안 적는다. */
 function fogBandSet9(root: HTMLElement, cov: { l: number; t: number; r: number; b: number } | null): void {
@@ -26182,7 +26212,7 @@ export default function ReplayMotionPlayer({
   const reactStepRef9 = useRef(REACT_STEP_MS9);
   /** 핵·스톰 연출이 떠 있나 — 붓이 이 깃발일 때만 핵 시계를 긁는다(위 nukeClockTick9). */
   const nukeOnRef9 = useRef(false);
-  const paintFnRef9 = useRef<((tNow: number, rebase?: boolean) => void) | null>(null);
+  const paintFnRef9 = useRef<((tNow: number, rebase?: boolean, fogOnly?: boolean) => void) | null>(null);
   const frameOpsRef9 = useRef<UnitDrawOp[] | null>(null);
   const frameFxRef9 = useRef<FxOp[] | null>(null);
   /** 주인의 지금 상태(렌더마다 갱신) — 프레임 버림·안개 판 정리의 자. */
@@ -28952,11 +28982,6 @@ export default function ReplayMotionPlayer({
    *  제자리로 튄다).
    *  그래서 안개는 제 기준을 따로 든다 — 임시 변환은 늘 '지금 보기 − 이 기준'이다. */
   const fogXfRef9 = useRef({ z: 0, x: 0, y: 0 });
-  /** 칠해 둔 안개가 상자를 못 덮는 몫(px) — 손끝이 재고(applyGestureXf) 다음 rAF가 갚는다(xfPaintNow). */
-  const fogGapRef9 = useRef(0);
-  /** 이 프레임에 안개를 이미 한 장 칠했나 — 손끝 사건은 프레임에 두 번까지 오므로 한 번으로 못박는다.
-   *  푸는 자리는 손짓 rAF(xfPaintNow)다: rAF는 프레임에 한 번이니 그 자체가 프레임의 자다. */
-  const fogDoneRef9 = useRef(false);
   /** 캔버스가 한 장 그려질 때마다 — 그 보기가 곧 임시 변환의 기준이다(자식이 부른다). */
   const onUnitPainted = useCallback((z9: number, p9: { x: number; y: number }): void => {
     xfBaseRef.current = { z: z9, x: p9.x, y: p9.y };
@@ -29062,59 +29087,15 @@ export default function ReplayMotionPlayer({
            넘은 그만큼이 곧 안 칠한 띠다. 그러니 여유에 기대지 말고 **재서** 넘으면 지금 칠한다:
            칠하는 삯은 이제 등고선 갈무리 + 길 하나 + 원 몇이라(위 군살 덜기) 손짓 프레임에 얹어도
            되는 몫이고, 넘는 프레임에서만 든다. 이러면 빈 띠는 구조적으로 안 난다. */
-        /* ★ 안개도 손끝을 **그대로** 따라간다(지시: "가장 1순위는 손끝 제스처와 화면이 일치하게 움직이는
-           것이지 안개 빈 띠가 우선이 아니다") ────────────────────────────────────────────────────────
-           한때 '덮는 자리 밖으로는 안 민다'로 잘라 봤다 — 빈 띠는 안 나지만 그 프레임 동안 안개만 손끝과
-           다른 자리에 선다. 그건 이 판의 첫째 규칙을 어기는 것이다. 미는 것은 늘 정확히 밀고, **못 덮으면
-           그 자리에서 한 장 칠한다** — 한 장이 2.2ms(실측)라 그 프레임에 얹을 수 있는 몫이고, 프레임당
-           한 번으로 못박아(fogDoneRef9) 손끝 사건이 두 번 와도 두 장이 안 된다. 그래서 무거운 프레임에
-           rAF가 늦어도(유닛 한 장이 80ms인 자리) 합성되는 그림에는 빈 띠가 없다. */
-        const fb9 = fogXfRef9.current;
-        const bw9 = box?.clientWidth ?? 0;
-        const bh9 = box?.clientHeight ?? 0;
-        const pdx9 = fogPad9(bw9);
-        const pdy9 = fogPad9(bh9);
-        const cx9 = bw9 / 2;
-        const cy9 = bh9 / 2;
-        if (fb9.z > 0 && bw9 > 0 && bh9 > 0) {
-          const s09 = z1 / fb9.z;
-          /* 못 덮는 몫 — 판은 상자 좌표 [−여유, 폭+여유]를 이 변환에 태운 만큼 덮는다. */
-          const gapOf9 = (c9: number, p9: number, t9: number): number =>
-            Math.max(t9 - (s09 * c9 + s09 * p9 - c9), (c9 - s09 * (c9 + p9)) - t9);
-          const gap9 = Math.max(gapOf9(cx9, pdx9, px - s09 * fb9.x), gapOf9(cy9, pdy9, py - s09 * fb9.y));
-          /* 판이 덮는 네모(상자 좌표) — 그 밖의 네 띠에 안 움직이는 막을 세운다(위 CSS의 ★).
-             눕힌 보기에서는 안 세운다: 지도 밖이 밤하늘이라 거기 막을 깔면 하늘이 검어진다. */
-          if (box) {
-            const tx29 = px - s09 * fb9.x;
-            const ty29 = py - s09 * fb9.y;
-            fogBandSet9(box, clipBoxRef.current.pitched ? null : {
-              l: cx9 + s09 * (-pdx9 - cx9) + tx29,
-              t: cy9 + s09 * (-pdy9 - cy9) + ty29,
-              r: cx9 + s09 * (bw9 + pdx9 - cx9) + tx29,
-              b: cy9 + s09 * (bh9 + pdy9 - cy9) + ty29,
-            });
-          }
-          if (gap9 > 0.5) {
-            FOGM9.gap = Math.max(FOGM9.gap, gap9);
-            if (!fogDoneRef9.current && fogPaintRef.current) {
-              fogDoneRef9.current = true;          // 이 프레임 몫은 썼다(다음 rAF가 푼다)
-              fogGapRef9.current = 0;
-              const pt09 = pNow();
-              fogPaintRef.current(z1, panRef.current);
-              FOGM9.g.pms += pNow() - pt09;
-              fogXfRef9.current = { z: z1, x: px, y: py };
-              const ft9 = fogTickRef9.current;
-              ft9.z = z1; ft9.px = px; ft9.py = py; ft9.at = pt09;
-              FOGM9.gest = true;
-              FOGM9.g.now += 1;
-            } else {
-              fogGapRef9.current = gap9;           // 이 프레임엔 못 칠했다 — 다음 rAF가 갚는다
-            }
-          }
-        }
-        const fx9 = xfDelta9(fogXfRef9.current, z1, px, py);
-        fg9.style.transformOrigin = "center";
-        if (fg9.style.transform !== fx9) fg9.style.transform = fx9;
+        /* ★ 안개도 손끝을 **그대로** 따라간다(지시: "1순위는 손끝 제스처와 화면이 일치하게 움직이는 것") —
+           한때 '덮는 자리 밖으로는 안 민다'로 잘라 봤지만 그건 첫째 규칙을 어기는 것이라 걷었다.
+           ★ 여기서는 **칠하지 않는다**(지시: "핀치나 드래그가 좀 무거워졌다") — 손끝 사건에 캔버스 일을 얹으면
+             입력 처리가 그만큼 밀린다. 칠하는 것은 손짓 rAF 하나이고, 거기서 **유닛보다 먼저** 칠한다
+             (지시: "안개를 유닛보다 먼저 세워줘"). 변환·막 띠는 값이 안 드는 일이라 여기서 손끝과 같은
+             프레임에 건다. */
+        void fg9;
+        const gap9 = box ? fogXfApply9(box, fogXfRef9.current, z1, px, py, clipBoxRef.current.pitched) : 0;
+        if (gap9 > 0.5) FOGM9.gap = Math.max(FOGM9.gap, gap9);
 
       }
       mapPaintRef.current?.(z1, panRef.current);
@@ -29144,30 +29125,6 @@ export default function ReplayMotionPlayer({
     const z1 = zoomRef.current;
     const px = panRef.current.x;
     const py = panRef.current.y;
-    /* ★ 안개는 **유닛의 박자에 묶이지 않는다**(지적: 빈 띠 · 그 뒤 "팬 핀치가 무거워졌네") ────────────────
-       빈 띠의 뿌리가 여기였다: 안개를 칠하는 것은 아래 붓 한 장(paintFnRef9)인데, 그 붓은 유닛 한 장 값에
-       맞춰 스스로 박자를 늦춘다(need9 = 직전 한 장 × 1.2, 무거우면 아예 미룸). 그래서 유닛이 걸러진 프레임
-       에서는 안개도 안 칠해지는데 CSS 변환은 계속 밀리니, 그 프레임에 안 칠한 띠가 드러났다.
-       안개 한 장은 이제 등고선 갈무리 + 길 하나 + 원 몇이라(군살 덜기) 유닛과 같은 자로 잴 것이 아니다.
-       그러니 **못 덮을 때만, 프레임에 한 번** 여기서 먼저 갚는다 — 유닛이 미뤄지든 말든 안개는 늘 상자를
-       덮는다. 갚고 나면 아래 붓의 안개 블록은 '같음'으로 지나간다(같은 보기·같은 판). */
-    fogDoneRef9.current = false;   // 새 프레임 — 손끝이 다시 한 장 쓸 수 있다(위 fogDoneRef9)
-    if (fogGapRef9.current > 0.5 && fogPaintRef.current) {
-      fogGapRef9.current = 0;
-      const pt09 = pNow();
-      fogPaintRef.current(z1, panRef.current);
-      FOGM9.g.pms += pNow() - pt09;
-      fogXfRef9.current = { z: z1, x: px, y: py };
-      const ft9 = fogTickRef9.current;
-      ft9.z = z1; ft9.px = px; ft9.py = py; ft9.at = performance.now();
-      const fgc9 = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-fog");
-      if (fgc9) {
-        fgc9.style.transformOrigin = "center";
-        if (fgc9.style.transform !== XF_ID9) fgc9.style.transform = XF_ID9;
-      }
-      FOGM9.gest = true;
-      FOGM9.g.now += 1;
-    }
     /* 유닛 캔버스는 렌즈 밖(그리기 좌표)이라 CSS 변환만으로는 못 따라온다 — 뷰포트
        크기 한 장을 밀면 민 만큼 가장자리가 비고(지적: "드래그시 어느 부분이 통째로
        없어지거나 한 모델 안에서 잘리거나"), 축소 손짓에서는 사방에 빈 띠가 남는다.
@@ -29250,6 +29207,10 @@ export default function ReplayMotionPlayer({
       && !(box9 > 0 && moved >= box9 * XF_FAR_FRAC9)
       && now9 - xfMoveAtRef9.current < XF_STILL_MS9) {
       FOGM9.gest = true; fogBin9().defer += 1;
+      /* 유닛은 미뤄도 **안개는 칠한다**(위 붓의 ★) — 값이 2.2ms라 미룸의 까닭(주 실마리를 비운다)에
+         걸리지 않고, 이 갈래가 곧 빈 띠가 나던 자리다. */
+      brushSrc9 = "xf";
+      paintFnRef9.current?.(tLiveRef9.current, false, true);
       if (!xfIdleRef9.current) {
         xfIdleRef9.current = window.setTimeout(() => {
           xfIdleRef9.current = 0;
@@ -29290,6 +29251,9 @@ export default function ReplayMotionPlayer({
       SCR_DIAG.xfms = Math.round(xfPaintMsRef.current);
       return;
     }
+    /* 유닛을 안 그리는 프레임(박자·안 움직임)에도 **안개는 프레임마다** 칠한다(위 붓의 ★). */
+    brushSrc9 = "xf";
+    paintFnRef9.current?.(tLiveRef9.current, false, true);
   }, []);
   /** 손짓 시작 — 이미 도는 중이면 기준을 안 건드린다(휠→드래그 이어짐 등). */
   const beginGestureXf = useCallback((): void => {
@@ -30579,10 +30543,10 @@ export default function ReplayMotionPlayer({
     return lastFrameRef9.current[count9 ? 1 : 0] ?? lastFrameRef9.current[count9 ? 0 : 1] ?? EMPTY_FRAME9;
   };
   /* 틱의 붓 — 살아 있는 시각으로 프레임을 골라 op·효과를 ref에 두고 유닛 캔버스를 곧장 칠한다(React 없이). */
-  paintFnRef9.current = (tNow9: number, rebase9 = false): void => {
+  paintFnRef9.current = (tNow9: number, rebase9 = false, fogOnly9 = false): void => {
     /* fps 계측(요청: "#diag=fps로 오른쪽 귀퉁이에 프레임 오버레이만 작게") — 붓이 칠한 장을 벽시계 0.5초마다
        세어 SCR_DIAG.fps에 적는다. 진단이 꺼져 있으면 셈만 하고(싸다) 아무것도 안 그린다. */
-    {
+    if (!fogOnly9) {
       const fm9 = fpsMeterRef9.current;
       fm9.n += 1;
       const now9 = pNow();
@@ -30605,18 +30569,10 @@ export default function ReplayMotionPlayer({
        그래서 손짓 동안 틱은 기준 자리에 새 장만 칠하고(내용만 바뀜), 걷힌 변환을 **같은 문자열로** 도로 건다 —
        스타일은 결국 안 바뀐 셈이라 합성기가 움직이지 않는다. 기준을 손끝으로 옮기는 일(재기준)은 xfPaintNow 하나가
        제 박자로 한다. */
-    brushAT9 = lastDrawT9.current;
-    brushInst9 = instIdRef9.current;
-    if (brushSrc9 === "react") brushSrc9 = "tick";   // 부르는 쪽이 안 세웠으면 재생 틱이다
-    /* ★ 붓은 **늘 지금 보기(panRef)에** 그린다(요청: "팬·드래그시 실시간으로 모델을 그릴 순 없나 · 안개도") ─────────
-       여태 손짓 중에는 기준(xfBase) 자리에 그리고 CSS로만 밀었다. 그러면 새로 드러나는 쪽은 그린 적이 없어 영영 빈다 —
-       손을 떼야 채워졌다. 이제 누가 부르든 지금 보기에 그리고, 임시 변환은 '지금 보기 − 그려진 보기'의 차일 뿐이다
-       (그린 직후엔 0이라 항등). 못 그린 프레임만 그 차가 남아 CSS가 잇는다. rebase9는 부르는 쪽을 가르는 표식으로만 남는다. */
-    void rebase9;
-    unitPaintRef.current?.(zoomRef.current, panRef.current, zoomCommitRef.current);
-    xfCvXfRef.current = XF_ID9;
-    // 유닛은 지금 보기로 칠했다 — 그쪽 임시 변환만 항등으로 되돌린다(안 그러면 두 번 먹는다).
-    // ★ 안개는 여기서 안 건드린다 — 이 프레임에 칠했는지는 아래 안개 블록이 안다(위 fogXfRef9의 ★).
+    /* ★ 안개를 **유닛보다 먼저** 칠한다(지시: "안개를 유닛보다 먼저 세워줘") ─────────────────────────
+       유닛 한 장은 폰 난전에서 80ms까지 가는데 안개 한 장은 2.2ms다(실측). 그런데 여태 순서가 반대라,
+       무거운 프레임에서 손짓 rAF가 유닛을 미루면(xfPaintNow의 미룸 갈래) 안개까지 함께 미뤄져 못 칠한
+       띠가 드러났다. 값싼 쪽이 먼저 서야 굶어도 안 굶는다 — 미루는 갈래에서는 이 붓을 '안개만'으로 부른다. */
     /* ★ 안개도 붓 박자로(지적: "유닛은 부드럽게 움직이는데 안개는 뚝뚝 끊겨서 변하는 느낌") — 안개 층은 React
        props(100ms 박자)로만 다시 그려졌다. 붓이 고른 장의 안개(눈 목록·밝힌 판)가 지난 틱과 다르면 곧장 안개
        층에 넘겨 칠한다 — 워커가 쌓는 안개 판(40ms 간격)이 그대로 화면 박자가 된다. 밝힌 판은 시각으로 거르므로
@@ -30671,7 +30627,6 @@ export default function ReplayMotionPlayer({
         fogPaintRef.current(zoomRef.current, panRef.current, { vis: fr9.visSrc, exploredAt: fr9.explored, t: tNow9 });
         fogBin9().pms += pNow() - pt09;
         fogXfRef9.current = { z: vz9, x: vx9, y: vy9 };   // 이 보기로 칠했다 — 임시 변환의 새 기준
-        fogGapRef9.current = 0;                            // 못 덮던 빚도 이 한 장으로 갚혔다
         fogBin9().paint += 1;
       } else fogBin9().same += 1;
     }
@@ -30683,13 +30638,24 @@ export default function ReplayMotionPlayer({
     /* ★ 안개 캔버스의 임시 변환 — **칠했으면 항등, 안 칠했으면 그 사이의 차**다(위 fogXfRef9).
        여태 무조건 항등으로 지워, 안 칠한 프레임에서 옛 그림이 새 자리에 그냥 섰다. */
     {
-      const fcvR9 = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-fog");
-      if (fcvR9) {
-        const fx9 = xfDelta9(fogXfRef9.current, zoomRef.current, panRef.current.x, panRef.current.y);
-        fcvR9.style.transformOrigin = "center";
-        if (fcvR9.style.transform !== fx9) fcvR9.style.transform = fx9;
+      if (mapRef.current) {
+        fogXfApply9(mapRef.current, fogXfRef9.current, zoomRef.current,
+          panRef.current.x, panRef.current.y, clipBoxRef.current.pitched);
       }
     }
+    if (fogOnly9) return;   // 안개만 청한 부름(위 ★) — 값비싼 유닛 칠하기는 건너뛴다
+    brushAT9 = lastDrawT9.current;
+    brushInst9 = instIdRef9.current;
+    if (brushSrc9 === "react") brushSrc9 = "tick";   // 부르는 쪽이 안 세웠으면 재생 틱이다
+    /* ★ 붓은 **늘 지금 보기(panRef)에** 그린다(요청: "팬·드래그시 실시간으로 모델을 그릴 순 없나 · 안개도") ─────────
+       여태 손짓 중에는 기준(xfBase) 자리에 그리고 CSS로만 밀었다. 그러면 새로 드러나는 쪽은 그린 적이 없어 영영 빈다 —
+       손을 떼야 채워졌다. 이제 누가 부르든 지금 보기에 그리고, 임시 변환은 '지금 보기 − 그려진 보기'의 차일 뿐이다
+       (그린 직후엔 0이라 항등). 못 그린 프레임만 그 차가 남아 CSS가 잇는다. rebase9는 부르는 쪽을 가르는 표식으로만 남는다. */
+    void rebase9;
+    unitPaintRef.current?.(zoomRef.current, panRef.current, zoomCommitRef.current);
+    xfCvXfRef.current = XF_ID9;
+    // 유닛은 지금 보기로 칠했다 — 그쪽 임시 변환만 항등으로 되돌린다(안 그러면 두 번 먹는다).
+    // ★ 안개는 여기서 안 건드린다 — 이 프레임에 칠했는지는 아래 안개 블록이 안다(위 fogXfRef9의 ★).
   };
   const frame9: Frame9 = frameAt9(t, false);
   crowdInit9();   // 진입 때 한 번: 기기 벤치(CROWD9) — 첫 렌더에서 돌고 그 뒤로는 값만 읽는다

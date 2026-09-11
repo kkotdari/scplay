@@ -39,7 +39,7 @@ const smallDev9 = typeof window !== "undefined"
  *    쓸데없이 커져 넓이(곧 메모리·칠하는 삯)만 먹었다. 축마다 같은 비면 줄일 수 있는 배율의 바닥이
  *    두 축에서 같아진다(1/1.3 ≈ 0.77) — 한 프레임에 그보다 더 줄이는 손짓은 그만큼만 따라간다. */
 export const fogPad9 = (len: number): number =>
-  Math.round(Math.min(200, Math.max(48, len * 0.15)));
+  Math.round(Math.min(160, Math.max(40, len * 0.1)));
 /** 밝힘 등고선을 다시 뽑는 최소 간격(ms) — 폰은 더 뜸하게(위 ①의 ★). */
 const CT_MS9 = smallDev9 ? 240 : 120;
 /** 밝혔지만 안 보이는 칸의 덮개 짙기(0~1). */
