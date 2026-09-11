@@ -32680,14 +32680,22 @@ export default function ReplayMotionPlayer({
   const warmingRef = useRef(false);
   useEffect(() => {
     if (!entData || !active) return undefined;
+    /* 벤치를 먼저 세운다 — 아래에서 방향 칸 수를 기기의 힘으로 가른다(crowdInit9는 한 번만 돈다). */
+    crowdInit9();
     /* 이 경기에 나오는 모델 종류 — 유닛은 이름표(UNIT_3D)로, 건물은 SHAPE_KIND로 푼다.
        버로우·일꾼 별본까지 넣으면 조합이 배로 뛰므로 본판만 데운다(그 별본들은 면을
        나눠 쓰지 않지만 수가 적어 재생 중 한두 번 굽고 만다). */
     const kinds = new Set<string>();
+    /* ★ 종류마다 **몇 마리나 쓰나**도 함께 센다(실측: 로딩[예열 1938ms/479개]) ─────────────
+       예열은 이 판에서 가장 큰 값인데, 여태 일감 차례가 **나오는 순서**였다. 그러면 경기에
+       한 마리뿐인 별종이 마린보다 먼저 데워지고, 절반쯤 데운 시점에도 화면에 가장 많은 것이
+       아직 안 되어 있을 수 있다. 많이 쓰는 것부터 데우면 같은 시간에 **화면의 더 많은 몫**이
+       준비된다 — 아래에서 이 수로 차례를 매긴다. */
+    const useN9 = new Map<string, number>();
     for (const e of entData.lives) {
       if (!e.kind) continue;
       const k9 = e.bld ? SHAPE_KIND[e.kind] : UNIT_3D[e.kind];
-      if (k9) kinds.add(k9);
+      if (k9) { kinds.add(k9); useN9.set(k9, (useN9.get(k9) ?? 0) + 1); }
     }
     if (kinds.size === 0) return undefined;
     /* 일감 — 종류마다 **부품 등급표 한 벌 + 방향 판**이다(건물은 방향이 없어 한 벌).
@@ -32746,12 +32754,21 @@ export default function ReplayMotionPlayer({
          더 데우느라 로딩이 두 배로 길었다**. 종류가 마흔이면 640 → 320 일감이다.
          넓은 자리(PC)는 배율에 따라 열여섯 칸을 쓰므로 그대로 둔다. */
       else {
-        const rn9 = DEV9.yaw8Always ? 8 : 16;
+        /* ★ **그릴 칸만** 데운다 — 작은 기기의 붓은 요잉을 늘 여덟 칸(45도)으로 눕히고
+           (DEV9.yaw8Always), 벤치가 미달이면 낮은 배율에서 네 칸(90도)까지 죈다.
+           그러니 미달 기기는 **네 칸**만 데운다 — 나머지 넷은 높은 배율로 올라갈 때
+           그때 굽는다(그 자리는 보이는 유닛이 몇 안 되므로 값이 작다).
+           넓은 자리(PC)는 배율에 따라 열여섯 칸을 쓰므로 그대로다. */
+        const rn9 = !DEV9.yaw8Always ? 16 : CROWD9.weak ? 4 : 8;
         for (let r9 = 0; r9 < rn9; r9 += 1) jobs.push({ kind: k9, rot: (r9 * 360) / rn9 });
       }
     }
     // 다른 유닛의 버로우도 맨 구멍을 쓴다 — 저그가 있으면 무조건 데워 둔다(면 몇 장짜리라 값도 없다).
     if ([...kinds].some((k9) => k9 === "zling" || k9 === "hydra" || k9 === "drone")) pushTable9("burrowhole");
+    /* ★ **많이 쓰는 종류부터**(위 useN9) — 같은 시간에 화면의 더 많은 몫이 준비된다.
+       등급표(table)는 그 종류의 판을 굽기 전에 있어야 하므로 늘 제 방향 판보다 앞이다. */
+    jobs.sort((a9, b9) => ((useN9.get(b9.kind) ?? 0) - (useN9.get(a9.kind) ?? 0))
+      || (Number(!!b9.table) - Number(!!a9.table)));
     let i9 = 0;
     let raf9 = 0;
     let lastPost9 = 0;
