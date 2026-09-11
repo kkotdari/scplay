@@ -20593,7 +20593,7 @@ function nukeStep9(): number {
  *  멈추는 동안에는 스크린샷을 못 찍는다 — 그러니 핵이 떠 있는 **창 전체**를 재서, 창이 끝난 뒤에도
  *  화면에 남겨 둔다. 무엇이 멈춤의 값인지는 셋으로 갈린다: 프레임이 길었나(최악프레임) · 그게 굽기였나
  *  (굽기 창) · React였나(리액트 최악 · 박자). 짐작 대신 이 셋을 읽고 고친다. */
-const NUKEM9 = { on: false, at: 0, n: 0, worst: 0, last: 0, react: 0, parts: "" };
+const NUKEM9 = { on: false, at: 0, n: 0, worst: 0, last: 0, react: 0, parts: "", rec: 0 };
 /** ★ 한 프레임의 값을 **누구 몫인지로 가른다**(실측: 핵 창 최악 프레임 3891ms인데 굽기 0 · 리액트 7ms) ──
  *  그 둘이 아니면 남는 자리는 셋뿐이다: 붓(유닛·안개 칠하기) · 워커 장 받기(푸는 값이 메인 몫이다) ·
  *  그 밖(브라우저 — 합성·GC·레이아웃). 붓 사이의 틈에서 앞의 셋을 빼면 '그 밖'이 남는다.
@@ -20620,9 +20620,13 @@ function nukeMeterTick9(on9: boolean, step9: number): void {
   }
   if (!NUKEM9.on) return;
   NUKEM9.on = false;
+  /* ★ 남기는 것은 **가장 나빴던 창**이다(지적: 멀쩡한 창이 하나 지나면 증거가 지워진다) —
+     멈춤은 어쩌다 한 번이라, 마지막 창만 남기면 정작 그 창을 못 본다. 새 창이 더 나쁠 때만 갈아 끼운다. */
+  if (NUKEM9.worst <= NUKEM9.rec) return;
+  NUKEM9.rec = NUKEM9.worst;
   const secs9 = Math.max(0.001, (now9 - NUKEM9.at) / 1000);
   const w9 = SPRITE_PERF.wLast;
-  SCR_DIAG.nukem = `${secs9.toFixed(1)}초 붓${NUKEM9.n}장(${(NUKEM9.n / secs9).toFixed(0)}/s)`
+  SCR_DIAG.nukem = `최악창 ${secs9.toFixed(1)}초 붓${NUKEM9.n}장(${(NUKEM9.n / secs9).toFixed(0)}/s)`
     + ` · 최악프레임 ${NUKEM9.worst.toFixed(0)}ms[${NUKEM9.parts}] · 리액트 최악 ${NUKEM9.react.toFixed(0)}ms(박자 ${step9}ms)`
     + ` · 굽기창 유닛${w9.bake}장 ${w9.ms.toFixed(0)}ms 건물${w9.bldBake}장 ${w9.bldMs.toFixed(0)}ms`
     + ` 최악 ${w9.worstFrame.toFixed(0)}ms(굽기 ${w9.worstFrameBake.toFixed(0)})`;
