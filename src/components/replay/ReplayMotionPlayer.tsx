@@ -2577,6 +2577,14 @@ const NO_BLEND9 = typeof location !== "undefined" && /noblend/.test(location.has
 const NO_DOMFX9 = typeof location !== "undefined" && /nodomfx/.test(location.hash);
 /** 이 프레임의 효과 DOM 수와 이제까지의 최대 — 층 폭발이 값인지 수로 가른다. */
 const FXDOM9 = { n: 0, max: 0 };
+/** ★ **주 실마리가 막혔나, 화면만 굶었나**(조사: 10초 멎었다 풀림 · 메모리는 55MB로 멀쩡) ─────────────
+ *  여태 잰 '최장 프레임'은 rAF 사이의 틈이다. 그 틈이 길다고 곧 주 실마리가 막힌 것은 아니다 — rAF는
+ *  **그리기 파이프라인**에 매여 있어서, 합성기·GPU가 못 따라오면 JS가 멀쩡해도 안 불린다.
+ *  둘을 가르는 자가 **타이머**다: setInterval은 그리기와 무관하게 주 실마리의 큐에서 돈다.
+ *    · 타이머도 10초 멎었다 → 주 실마리가 통째로 막혔다(JS·GC·레이아웃).
+ *    · 타이머는 100ms대로 멀쩡한데 rAF만 멎었다 → **그리기 쪽**이다(합성·GPU). 고칠 자리가 아주 다르다.
+ *  탭이 뒤로 가면 사파리가 타이머를 1초로 죄므로, 1초 언저리 값은 그 몫으로 읽는다. */
+const TICKM9 = { worst: 0, n: 0, at: 0 };
 function creepSplat(r: number): ShapeFace[] {
   const out: ShapeFace[] = [];
   if (NO_CREEP9) return out;
@@ -29154,6 +29162,19 @@ export default function ReplayMotionPlayer({
   /** 지도 상자를 지금 잘라야 하나 — 손짓 중에는 굳은 상태(zoom)가 아니라 손끝 배율로
    *  정해야 한다(지적: "피시에서 확대하면 배경 미니맵이 틀을 벗어나서 확대됐다가 다시
    *  자리에 맞게 잘림"). 자르기 조건 자체는 JSX 스타일과 같은 것을 쓴다. */
+  /* 타이머 자(위 TICKM9) — 그리기와 무관한 큐에서 100ms마다 돌며 제 틈을 잰다. */
+  useEffect(() => {
+    let last9 = pNow();
+    TICKM9.at = last9;
+    const id9 = window.setInterval(() => {
+      const now9 = pNow();
+      const dt9 = now9 - last9;
+      last9 = now9;
+      TICKM9.n += 1;
+      if (dt9 > TICKM9.worst) TICKM9.worst = dt9;
+    }, 100);
+    return () => window.clearInterval(id9);
+  }, []);
   /* #noblend가 켜져 있으면 지도 상자에 표를 단다(위 NO_BLEND9) — CSS 한 규칙이 섞임을 통째로 끈다. */
   useEffect(() => {
     const el9 = mapRef.current;
@@ -32546,6 +32567,8 @@ export default function ReplayMotionPlayer({
                       {WORSTF9.ms > 0 ? ` · 최장프레임[${WORSTF9.ms.toFixed(0)}ms ${WORSTF9.parts}]` : ""}
                       {/* 효과 DOM 수(위 FXDOM9) — 사멸·붕괴 스팬이 한꺼번에 몇이나 서는지. */}
                       {` · 효과DOM[지금${FXDOM9.n} 최대${FXDOM9.max}${NO_DOMFX9 ? " 끔" : ""}]`}
+                      {/* 타이머 틈(위 TICKM9) — rAF와 견줘 '주 실마리가 막혔나 · 그리기만 굶었나'를 가른다. */}
+                      {TICKM9.n > 0 ? ` · 타이머[최악${TICKM9.worst.toFixed(0)}ms ${TICKM9.n}번]` : ""}
                     </div>
                   </>
                 )}
