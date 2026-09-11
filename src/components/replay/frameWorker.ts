@@ -170,6 +170,7 @@ const emit = (t: number): number => {
     // 진단 — 짓기의 속(엔진·싸기), 안개 비용·횟수, 리셋 횟수, 워커 시계(주인 t와의 차를 메인이 본다)
     msBuild: t1 - t0, msPack: t2 - t1, fogCost: st.fogCost, fogN: st.fogStamps, resets, cur: clockT(),
     duty: DUTY9.pct,
+    gasBurst: st.gasBurst,   // 진단(엔진 noteGasBurst9)
   }, transfer);
   built.push({ t: f.t, bytes });
   return bytes;
