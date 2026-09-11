@@ -20809,6 +20809,49 @@ const DEV9 = smallDevice9 ? {
      굽기 한 번(최악 41ms)이나 GC에 뒤장이 비기 딱 좋은 여유다. 24MB면 220KB로 3.6초). */
   cullMargin: 1, aheadSec: 3, aheadMB: 24, yaw8Always: false,
 };
+/* ★ **PC는 벤치 단으로 예산을 올린다**(요청: "윈도우 크롬에서 CPU·GPU를 최대한 쓸 수 없을까" → 계획 1번) ────
+   위 PC 표는 한 값이라 벤치 7ms짜리 기기도 19ms짜리와 같은 예산(프레임당 굽기 3장·12ms, 앞 3초·24MB)으로
+   놀고 있었다. 진입 벤치(CROWD9.bench — 판 200장 찍기 ms, 실측 PC 7 · 헤드리스 SW 19)로 세 단을 가른다:
+     0 보통(≥16.8ms) — 지금 값 그대로.
+     1 빠름(<16.8)  — 굽기 6장·18ms, 앞 5초·48MB, 판 192/96MB.
+     2 매우 빠름(<8.4) — 굽기 10/8장·24ms, 앞 8초·80MB, 판 256/128MB.
+   ★ 폰은 **안 탄다** — smallDevice9 갈래는 그대로이고, 데스크톱 UA의 아이패드(터치가 있는 PC)도 0단에
+     둔다(터치 기기의 메모리 한도는 벤치로 못 잰다). 유휴 재벤치(crowdRecheck9)가 더 작은 값을 내면 단이
+     오르기만 한다(내려가지 않는다 — 부풀린 첫 값이 내린 단은 짐이지 기기가 아니다). `#tier=N`으로 못 박는다.
+   굽기 ms가 한 장(16.7ms)을 넘는 단은 전투 중 프레임을 먹을 수 있다 — 그 몫은 기존 문(bakeOk9의 프레임당
+   시계·bakeSprint9의 대기표 길이)이 그대로 다스린다. 예산은 상한이지 강제가 아니다. */
+const PC_TIERS9 = [
+  { spriteMB: 128, bldSpriteMB: 64, unitBakePerFrame: 3, bldBakePerFrame: 3, bakeMsPerFrame: 12, aheadSec: 3, aheadMB: 24 },
+  { spriteMB: 192, bldSpriteMB: 96, unitBakePerFrame: 6, bldBakePerFrame: 6, bakeMsPerFrame: 18, aheadSec: 5, aheadMB: 48 },
+  { spriteMB: 256, bldSpriteMB: 128, unitBakePerFrame: 10, bldBakePerFrame: 8, bakeMsPerFrame: 24, aheadSec: 8, aheadMB: 80 },
+] as const;
+const PC_TIER9 = { v: 0, force: -1 };
+/** 워커에 앞 한도를 다시 일러야 한다는 표 — 단이 바뀌면 다음 cmd에 새 aheadSec/MB를 싣는다. */
+const DEV9_DIRTY9 = { v: false };
+const touchPc9 = typeof navigator !== "undefined" && (navigator.maxTouchPoints ?? 0) > 1;
+function applyBenchTier9(bench: number): void {
+  if (smallDevice9 || touchPc9 || !(bench > 0)) return;
+  if (PC_TIER9.force < 0 && typeof window !== "undefined") {
+    const m9 = /tier=(\d)/.exec(window.location.hash);
+    PC_TIER9.force = m9 ? Math.min(2, Number(m9[1])) : -2;   // -2: 살펴봤고 없음
+  }
+  const want9 = PC_TIER9.force >= 0 ? PC_TIER9.force
+    : bench < CROWD_BENCH_MS9 * 0.35 ? 2 : bench < CROWD_BENCH_MS9 * 0.7 ? 1 : 0;
+  if (want9 <= PC_TIER9.v) return;   // 오르기만 한다
+  PC_TIER9.v = want9;
+  const t9 = PC_TIERS9[want9];
+  DEV9.spriteMB = t9.spriteMB; DEV9.bldSpriteMB = t9.bldSpriteMB;
+  DEV9.unitBakePerFrame = t9.unitBakePerFrame; DEV9.bldBakePerFrame = t9.bldBakePerFrame; DEV9.bakeMsPerFrame = t9.bakeMsPerFrame;
+  DEV9.aheadSec = t9.aheadSec; DEV9.aheadMB = t9.aheadMB;
+  // 모듈 초기에 DEV9에서 베낀 값들도 갈아 끼운다(아래 let들).
+  SPRITE_BYTES_MAX = DEV9.spriteMB * 1024 * 1024;
+  BLD_SPRITE_BYTES_MAX = DEV9.bldSpriteMB * 1024 * 1024;
+  BAKE_MS_PER_FRAME9 = DEV9.bakeMsPerFrame;
+  BAKE_HARD_MS9 = DEV9.bakeMsPerFrame * 3;
+  UNIT_BAKE_PER_FRAME = DEV9.unitBakePerFrame;
+  BLD_BAKE_PER_FRAME = DEV9.bldBakePerFrame;
+  DEV9_DIRTY9.v = true;
+}
 /* 덜어내기 단(요청: "모바일에서 그려야 할 대상이 많을 때 버벅임 방지 — 화면 내 유닛 수 문턱으로
    2·3·4번 적용") ─────────────────────────────────────────────────────────────
    ★ 재설계(지적: "이전 값으로 트리거 단을 높이다 보니 ① 이미 한참 버벅인 후 적용됨 ② 풀려도 되는
@@ -20912,7 +20955,7 @@ function crowdInit9(): void {
      perf-check(--crowd)에서 덜어낸 값을 잴 때 쓴다. */
   const m9 = typeof window !== "undefined" ? /crowd=(\d)/.exec(window.location.hash) : null;
   if (m9) c.force = Math.min(2, Number(m9[1]));
-  crowdRecheck9();
+  crowdRecheck9();  applyBenchTier9(c.bench);   // PC 벤치 단(위 PC_TIERS9의 ★)
 }
 /** ★ **벤치를 유휴에 다시 잰다**(지적: 실측 PC 7ms인데 27ms로 찍혀 미달 판정 — 단 "너무 늦게는 의미없으니
  *  초반에") ────────────────────────────────────────────────────────────────────────────────────────
@@ -20944,6 +20987,7 @@ function crowdRecheck9(): void {
         }
       } else if (c9.bench < 0 || ms9 < c9.bench) {
         c9.bench = ms9; c9.weak = ms9 > CROWD_BENCH_MS9; c9.k = ms9 > CROWD_BENCH_MS9 * 2 ? 0.5 : 1; c9.re += 1;
+        applyBenchTier9(ms9);   // 더 작은 값이면 단이 오를 수 있다(위 ★)
       }
     }
     plan9();
@@ -21197,7 +21241,7 @@ function crowdTick9(units: number, deep = false): void {
 }
 /** 파편 수 배수 — 0단 1 · 1단 절반 · 2단 3분의 1. */
 const crowdShardK9 = (): number => (CROWD9.lv >= 2 ? 0.34 : CROWD9.lv === 1 ? 0.5 : 1);
-const SPRITE_BYTES_MAX = DEV9.spriteMB * 1024 * 1024;
+let SPRITE_BYTES_MAX = DEV9.spriteMB * 1024 * 1024;
 /** 판 한 장의 한 변 상한(장치 픽셀) — 이보다 커야 하는 요청은 굽지 않고 **직접 그리기**로
  *  떨어진다(호출부가 판이 없을 때의 길을 이미 갖고 있다). 예산(LRU)은 '여러 장이 쌓여'
  *  터지는 것을 막지만, 한 장이 통째로 거대한 경우는 못 막는다 — 이 문이 그것을 막고,
@@ -21234,7 +21278,7 @@ const unitBakeCap = (B: number): number =>
   Math.max(4, Math.floor(((SPRITE_SIDE_MAX - 1) / B - 4) / 2) * 2);
 const bldBakeCap = (B: number): number =>
   Math.max(4, Math.floor((((SPRITE_SIDE_MAX - 1) / B - 6) / 2.56) / 2) * 2);
-const BLD_SPRITE_BYTES_MAX = DEV9.bldSpriteMB * 1024 * 1024;
+let BLD_SPRITE_BYTES_MAX = DEV9.bldSpriteMB * 1024 * 1024;
 /* ★ 두 예산을 **한 주머니로 나눠 쓴다**(실기 진단: 12배 저그 기지에서 `유닛 49장
    21.3/21MB · 건물 3장 8.3/11MB` — 유닛은 예산에 못 박혀 쫓아내고 다시 굽는데 건물은
    2.7MB를 남기고 있었다) ────────────────────────────────────────────────────────────
@@ -21869,13 +21913,13 @@ const noteSub9 = (
    ★ **손짓 중에는 아예 안 굽는다** — 끄는 동안 새로 굽는 것은 '지금 당장'일 까닭이 가장 적은 일이고,
      그 한 장이 손끝을 100ms씩 붙든다. 대타가 아예 없는 종류(한 번도 안 구운 모델)만 굽는다 —
      그것까지 미루면 그 유닛이 화면에서 사라진다. 손을 떼면 그 프레임부터 예산대로 마저 굽는다. */
-const BAKE_MS_PER_FRAME9 = DEV9.bakeMsPerFrame;
+let BAKE_MS_PER_FRAME9 = DEV9.bakeMsPerFrame;
 /** 한 프레임 굽기의 **천장**(ms) — 부드러운 예산을 넘어도 대타가 없으면 작게라도 굽는데(아래 ★),
  *  그 작은 판마저 수십 장이면 다시 프레임을 넘긴다(계측: 최악프레임 259ms · 그중 굽기 204ms ·
  *  2초에 유닛 213장 1187ms — 958기가 얽힌 한 장에서 처음 보는 열쇠가 프레임마다 수십이었다).
  *  천장을 넘으면 **이번 프레임엔 아예 안 그린다**(판 없이 null). 몇 기가 한두 프레임 늦게 나타나는
  *  것은 그 난전에서 눈에 안 띄지만 259ms 덜컥임은 보인다 — 다음 프레임에 예산이 되살아나 곧 들어온다. */
-const BAKE_HARD_MS9 = DEV9.bakeMsPerFrame * 3;
+let BAKE_HARD_MS9 = DEV9.bakeMsPerFrame * 3;
 /* ★ **손짓 중에는 천장을 3분의 1로**(계측: 손짓 127ms(미룸) — 그 안에 대타 없는 몸을 굽는 몫이 섞여 있다).
    끄는 동안 새 판을 굽는 것은 이미 막았지만(gestBake9), 대타가 하나도 없는 몸은 그래도 굽는다 —
    그 예외의 상한이 평소와 같으면 손짓 한 장에 36ms가 얹힌다. 끄는 동안에는 12ms(폰 8ms)까지만 굽고
@@ -21899,7 +21943,7 @@ const bakeOk9 = (left9: number): boolean => left9 > 0 && !gestBake9.v
  *  프레임엔 그 몸을 안 그린다(다음 프레임에 곧 들어온다). */
 const SMALL_BAKE_PER_FRAME9 = 3;
 let smallBakeLeft9 = SMALL_BAKE_PER_FRAME9;
-const UNIT_BAKE_PER_FRAME = DEV9.unitBakePerFrame;
+let UNIT_BAKE_PER_FRAME = DEV9.unitBakePerFrame;
 let unitBakeLeft9 = UNIT_BAKE_PER_FRAME;
 /* ★ **건물도 같다 — 오히려 더하다**(계측: 저그 본진을 배율 6·12로 확대해 재 봤다) ─────
      배율 6  건물 13판 7.7MB (장당 0.59MB)
@@ -21909,7 +21953,7 @@ let unitBakeLeft9 = UNIT_BAKE_PER_FRAME;
    LRU가 쫓아내고, 쫓겨난 자리를 다시 구우면 굽는 판(여백까지 6.6배 넓이)이 8MB다.
    그 한 장이 한 프레임을 먹는다. 유닛과 같은 약을 쓴다: 프레임마다 굽는 수를 죄고,
    예산이 다한 자리에서는 같은 건물의 다른 크기로 구워 둔 판을 늘려 찍는다. */
-const BLD_BAKE_PER_FRAME = DEV9.bldBakePerFrame;
+let BLD_BAKE_PER_FRAME = DEV9.bldBakePerFrame;
 let bldBakeLeft9 = BLD_BAKE_PER_FRAME;
 const BLD_SPRITE_SIZES = new Map<string, { s: number; k: string }[]>();
 /** 크기(pxq)를 뺀 열쇠 → 그 열쇠로 구워 둔 크기들. 예산이 다한 프레임의 대타를 찾는 자다.
@@ -31939,7 +31983,8 @@ export default function ReplayMotionPlayer({
     /* 심장박동 — 재생 중엔 1초마다 한 번은 보낸다(값이 그대로여도). 워커는 마지막 명령 뒤 2.5초까지만 제 시계로
        굴리므로, 주인이 멎으면(굽기 홀드·백그라운드) 워커도 곧 선다. */
     const beat9 = !!c9 && playing9 && pNow() - c9.at > 1000;
-    if (w9 && (!c9 || c9.playing !== playing9 || c9.speed !== speed || jumped9 || beat9)) {
+    if (w9 && (!c9 || c9.playing !== playing9 || c9.speed !== speed || jumped9 || beat9 || DEV9_DIRTY9.v)) {
+      DEV9_DIRTY9.v = false;   // 단이 바뀐 뒤 첫 cmd가 새 앞 한도를 싣는다(위 applyBenchTier9)
       cmdSentRef9.current = { playing: playing9, t0: t, speed, at: pNow() };
       wStatRef.current.sentCmd += 1;
       // 앞으로 지어 둘 한도는 기기가 정한다 — 폰은 2초·5MB(스크린샷 한 번의 요동에도 터진다), PC는 3초·10MB.
@@ -32566,7 +32611,7 @@ export default function ReplayMotionPlayer({
     const grade9 = (w9: boolean, k9: number): string => (w9 ? (k9 < 1 ? "심한미달" : "미달") : "충분");
     /* 저배율 죔(위 lowZoomTrim9) — 지금 배율에서 실제로 몇 단인지 그대로 찍는다. */
     const tr9 = lowZoomTrim9(zoomRef.current, pitched);
-    SCR_DIAG.crowd = `벤치 2D ${c9.bench.toFixed(0)}ms ${grade9(c9.weak, c9.k)} · 3D ${c9.bench3.toFixed(0)}ms ${grade9(c9.weak3, c9.k3)}${c9.force >= 0 ? " 강제" : ""}${CROWD9.re > 0 ? ` ↻${CROWD9.re}` : ""} · ${pitched ? "3D" : "2D"} ${c9.lv}단 ${c9.units}기${tr9 > 0 ? ` · 저배율죔 ${tr9}단` : NO_TRIM9 ? " · 저배율죔 끔" : ""}${THIN9.n > 0 ? ` · 겹침생략 ${THIN9.n - THIN9.drew}/${THIN9.n}기` : ""}${bakeSprint9.v > 1 ? ` · 굽기질주 ×${bakeSprint9.v}` : ""}`;
+    SCR_DIAG.crowd = `벤치 2D ${c9.bench.toFixed(0)}ms ${grade9(c9.weak, c9.k)} · 3D ${c9.bench3.toFixed(0)}ms ${grade9(c9.weak3, c9.k3)}${c9.force >= 0 ? " 강제" : ""}${CROWD9.re > 0 ? ` ↻${CROWD9.re}` : ""} · ${pitched ? "3D" : "2D"} ${c9.lv}단 ${c9.units}기${tr9 > 0 ? ` · 저배율죔 ${tr9}단` : NO_TRIM9 ? " · 저배율죔 끔" : ""}${THIN9.n > 0 ? ` · 겹침생략 ${THIN9.n - THIN9.drew}/${THIN9.n}기` : ""}${bakeSprint9.v > 1 ? ` · 굽기질주 ×${bakeSprint9.v}` : ""}${!smallDevice9 ? ` · PC ${PC_TIER9.v}단${PC_TIER9.force >= 0 ? "(강제)" : ""}` : ""}`;
     const st9 = wStatRef.current;
     const wait9 = !st9.ready && st9.worldAt > 0 ? (pNow() - st9.worldAt) / 1000 : 0;
     let ahead9 = -1e9;
