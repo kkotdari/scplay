@@ -23,7 +23,7 @@ import {
 } from "../../utils/replayTechNames";
 import type { ReplayMapGrid } from "./mapGrid";
 import { revalidateReplayMap } from "./useReplayMap";
-import ReplayMapVector from "./ReplayMapVector";
+import ReplayMapVector, { MAPVEC_LOST9 } from "./ReplayMapVector";
 import { AIR_UNITS } from "../../utils/statsMix";
 import { BLD_STATS, UNIT_BUILD_SEC, UNIT_STATS } from "./unitStats";
 /* 사거리는 이 파일이 들고 있던 상수(ENGAGE_SIGHT_TILES 9, 방어 건물 7/7/7/8/6, 벙커 안
@@ -2585,6 +2585,18 @@ const FXDOM9 = { n: 0, max: 0 };
  *    · 타이머는 100ms대로 멀쩡한데 rAF만 멎었다 → **그리기 쪽**이다(합성·GPU). 고칠 자리가 아주 다르다.
  *  탭이 뒤로 가면 사파리가 타이머를 1초로 죄므로, 1초 언저리 값은 그 몫으로 읽는다. */
 const TICKM9 = { worst: 0, n: 0, at: 0 };
+/** ★ **캔버스 배킹 손실**(실기 신고: "10초씩 끊겼다 재생됐다 반복 · 오버레이가 사라짐 · 지도는 계속 복구 안 됨") ──
+ *  타이머가 답을 갈랐다: 타이머는 최악 402ms인데 rAF 틈이 15초였다 — 주 실마리는 멀쩡하고 **그리기만** 멎었다.
+ *  그 꼴로 멎었다 풀리고, 풀린 뒤 지도가 빈 채로 남는 것은 웹킷의 알려진 손이다: 메모리를 거둘 때 캔버스의
+ *  **배킹(그림)을 통째로 버린다**. 크기도 열쇠도 그대로라 우리 쪽 '이미 구웠다'는 기억(bakedRef·판 캐시)은
+ *  멀쩡하고, 그래서 **다시 안 그린다** — 그것이 "복구 안 됨"의 정체다.
+ *  그러니 잃었는지 알아채고 처음부터 다시 그리는 길을 둔다. 알아채는 자는 둘:
+ *    ① `contextlost`/`contextrestored` — 사파리 16.4+가 2D 캔버스에도 준다.
+ *    ② 긴 틈(0.7초) 뒤의 **한 점 검사** — 지도 밑판 한가운데 화소가 비었으면 잃은 것이다(1×1 읽기라 싸다).
+ *  다시 그리는 몫: 지도 벡터의 기억(MAPVEC_LOST9) · 판 캐시(스프라이트·건물·효과) · 안개 틱 · 붓 한 장. */
+const LOST9 = { n: 0, probe: 0, at: 0, born: typeof performance === "undefined" ? 0 : performance.now() };
+/** 붓(모듈 함수)이 세우고 컴포넌트의 rAF가 받아 가는 표 — ref를 모듈에서 못 보므로 한 칸 둔다. */
+const LOSTQ9 = { want: false };
 function creepSplat(r: number): ShapeFace[] {
   const out: ShapeFace[] = [];
   if (NO_CREEP9) return out;
@@ -20636,6 +20648,8 @@ function nukeMeterTick9(on9: boolean, step9: number, playing9 = true): void {
     const dt9 = now9 - FRAMEG9.last;
     /* 재생 중일 때만 센다 — 멈춰 있으면 붓은 청할 때만 도니 그 틈은 '느린 프레임'이 아니다.
        상한은 8초: 그보다 긴 것은 탭이 뒤로 갔거나 잠긴 화면이라 이 자의 몫이 아니다. */
+    /* 0.7초 넘게 그리기가 멎었으면 배킹을 의심한다(위 LOST9) — 검사는 다음 rAF에서 한다. */
+    if (playing9 && dt9 > 700) LOSTQ9.want = true;
     if (playing9 && dt9 < 8000 && dt9 > WORSTF9.ms) {
       WORSTF9.ms = dt9;
       const out9 = Math.max(0, dt9 - WORK9.brush - WORK9.wk - WORK9.react);
@@ -20677,6 +20691,32 @@ function nukeMeterTick9(on9: boolean, step9: number, playing9 = true): void {
     + ` · 굽기창 유닛${w9.bake}장 ${w9.ms.toFixed(0)}ms 건물${w9.bldBake}장 ${w9.bldMs.toFixed(0)}ms`
     + ` 최악 ${w9.worstFrame.toFixed(0)}ms(굽기 ${w9.worstFrameBake.toFixed(0)})`
     + ` · 건물판 갈림[${bldMissTop9()}]`;
+}
+/** 배킹을 잃었을 때 — 구워 둔 판을 통째로 버린다(그 판들도 캔버스라 같이 비었다). */
+function dropPlates9(): void {
+  SPRITE_CACHE.clear(); spriteBytes.n = 0;
+  BLD_SPRITE_CACHE.clear(); bldSpriteBytes.n = 0;
+  BLD_SPRITE_SIZES.clear();
+  FX_RASTER_CACHE.clear(); FX_RASTER_BYTES.n = 0;
+}
+/** 지도 밑판 한가운데 화소가 비었나 — 배킹 손실의 증거다(1×1 읽기). 못 읽으면 '아니오'로 친다. */
+function canvasLost9(root: HTMLElement): boolean {
+  const cv9 = root.querySelector<HTMLCanvasElement>(".scr-mapvec-base, .scr-mapvec-sharp");
+  if (!cv9 || cv9.width < 8 || cv9.height < 8) return false;
+  /* 잃었다고 잘못 보면 판을 통째로 버리고 다시 굽는다 — 그 대가가 크므로 문을 좁힌다:
+     ① 첫 몇 초(아직 안 구운 자리)는 안 본다 ② 방금 복구했으면 안 본다(되돌이 방지)
+     ③ 한 점이 아니라 **두 점**이 다 비어야 한다. */
+  const now9 = pNow();
+  if (now9 - LOST9.born < 5000 || now9 - LOST9.at < 3000) return false;
+  try {
+    const c29 = cv9.getContext("2d", { willReadFrequently: true });
+    if (!c29) return false;
+    const blank9 = (x9: number, y9: number): boolean => {
+      const d9 = c29.getImageData(x9, y9, 1, 1).data;
+      return d9[3] === 0 && d9[0] === 0 && d9[1] === 0 && d9[2] === 0;
+    };
+    return blank9(cv9.width >> 1, cv9.height >> 1) && blank9(cv9.width >> 2, cv9.height >> 2);
+  } catch { return false; }
 }
 /** 안개 판의 임시 변환을 걸고, **같은 자리에서** 막 띠까지 세운다 — 틈(px)을 낸다.
  *  ★ 둘을 한 함수로 묶는 까닭(지적: "검정 띠가 계속 보인다") — 앞판은 손끝 자리에서 띠를 세우고 안개는
@@ -26352,6 +26392,8 @@ export default function ReplayMotionPlayer({
   const reactStepRef9 = useRef(REACT_STEP_MS9);
   /** 핵·스톰 연출이 떠 있나 — 붓이 이 깃발일 때만 핵 시계를 긁는다(위 nukeClockTick9). */
   const nukeOnRef9 = useRef(false);
+  /** 긴 틈이 있었다 — 다음 rAF에서 배킹이 살아 있나 한 점 찍어 본다(위 LOST9). */
+  const lostCheckRef9 = useRef(false);
   const paintFnRef9 = useRef<((tNow: number, rebase?: boolean, fogOnly?: boolean) => void) | null>(null);
   const frameOpsRef9 = useRef<UnitDrawOp[] | null>(null);
   const frameFxRef9 = useRef<FxOp[] | null>(null);
@@ -29162,6 +29204,56 @@ export default function ReplayMotionPlayer({
   /** 지도 상자를 지금 잘라야 하나 — 손짓 중에는 굳은 상태(zoom)가 아니라 손끝 배율로
    *  정해야 한다(지적: "피시에서 확대하면 배경 미니맵이 틀을 벗어나서 확대됐다가 다시
    *  자리에 맞게 잘림"). 자르기 조건 자체는 JSX 스타일과 같은 것을 쓴다. */
+  /** 배킹을 다시 채운다 — 기억을 전부 버리고 이번 프레임에 처음부터 그린다(위 LOST9의 ★). */
+  const recoverCanvas9 = useCallback((): void => {
+    LOST9.n += 1;
+    LOST9.at = pNow();
+    MAPVEC_LOST9.n += 1;              // 지도 벡터: '이미 구웠다'는 기억을 버린다
+    dropPlates9();                    // 유닛·건물·효과 판도 캔버스라 함께 비었다
+    fogTickRef9.current.z = -1;       // 안개: 같은 보기여도 다시 칠한다
+    xfBaseRef.current = { z: 0, x: 0, y: 0 };
+    fogXfRef9.current = { z: 0, x: 0, y: 0 };
+    brushSrc9 = "req";
+    paintFnRef9.current?.(tLiveRef9.current, true);
+    mapPaintRef.current?.(zoomRef.current, panRef.current);
+    miniPaintRef.current?.(zoomRef.current, panRef.current);
+  }, []);
+  /* 배킹 손실을 **사파리가 알려 줄 때** 곧장 받는다(contextlost/restored는 16.4+) — 못 받는 판에서는
+     아래 긴 틈 뒤의 한 점 검사가 받는다. 지도 상자 안의 캔버스 전부에 건다. */
+  useEffect(() => {
+    const root9 = mapRef.current;
+    if (!root9) return undefined;
+    const on9 = (): void => { recoverCanvas9(); };
+    const list9 = root9.querySelectorAll<HTMLCanvasElement>("canvas");
+    for (let i9 = 0; i9 < list9.length; i9 += 1) {
+      list9[i9].addEventListener("contextrestored", on9);
+      list9[i9].addEventListener("contextlost", on9);
+    }
+    return () => {
+      for (let i9 = 0; i9 < list9.length; i9 += 1) {
+        list9[i9].removeEventListener("contextrestored", on9);
+        list9[i9].removeEventListener("contextlost", on9);
+      }
+    };
+  }, [recoverCanvas9]);
+  /* 긴 틈(그리기가 0.7초 넘게 멎었다) 뒤에는 **한 점을 찍어 본다** — 비었으면 잃은 것이다.
+     붓 틱이 표를 세우고(lostCheckRef9) 여기 rAF가 검사한다: 검사와 복구를 붓 한가운데서 하면
+     그 프레임이 또 길어진다. */
+  useEffect(() => {
+    let raf9 = 0;
+    const loop9 = (): void => {
+      raf9 = requestAnimationFrame(loop9);
+      if (!LOSTQ9.want && !lostCheckRef9.current) return;
+      LOSTQ9.want = false;
+      lostCheckRef9.current = false;
+      const root9 = mapRef.current;
+      if (!root9) return;
+      LOST9.probe += 1;
+      if (canvasLost9(root9)) recoverCanvas9();
+    };
+    raf9 = requestAnimationFrame(loop9);
+    return () => cancelAnimationFrame(raf9);
+  }, [recoverCanvas9]);
   /* 타이머 자(위 TICKM9) — 그리기와 무관한 큐에서 100ms마다 돌며 제 틈을 잰다. */
   useEffect(() => {
     let last9 = pNow();
@@ -32569,6 +32661,8 @@ export default function ReplayMotionPlayer({
                       {` · 효과DOM[지금${FXDOM9.n} 최대${FXDOM9.max}${NO_DOMFX9 ? " 끔" : ""}]`}
                       {/* 타이머 틈(위 TICKM9) — rAF와 견줘 '주 실마리가 막혔나 · 그리기만 굶었나'를 가른다. */}
                       {TICKM9.n > 0 ? ` · 타이머[최악${TICKM9.worst.toFixed(0)}ms ${TICKM9.n}번]` : ""}
+                      {/* 캔버스 배킹 손실(위 LOST9) — 잃고 다시 그린 횟수·검사 횟수. */}
+                      {` · 배킹[손실${LOST9.n} 검사${LOST9.probe}]`}
                     </div>
                   </>
                 )}

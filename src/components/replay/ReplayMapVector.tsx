@@ -28,6 +28,9 @@ import { pWrap, pCount, PERF9, DPRCAP9 } from "./perf9";
  *   다시 구웠고, 그 40%를 벗어나는 순간 새 자리가 그제서야 칠해져 번쩍였다. 이제
  *   구워 둔 창 안에 머무는 동안은 effect가 곧장 빠져나가므로, 드래그 중에는 한 번도
  *   다시 안 굽는다 — 다시 굽는 때는 배율·상자·보기가 바뀔 때뿐이다. */
+/** ★ 캔버스 배킹 손실 표 — 재생기가 올리면 이 층이 다음 칠에서 **처음부터** 다시 굽는다.
+ *  (웹킷은 메모리 회수 때 캔버스 배킹을 버린다: 크기·열쇠는 멀쩡한데 그림만 사라진다.) */
+export const MAPVEC_LOST9 = { n: 0 };
 export default function ReplayMapVector({
   grid, zoom, pan, pitched, style, painter, tileFrac, pitchSig, pitchXf, pitchKAt,
 }: {
@@ -204,6 +207,8 @@ export default function ReplayMapVector({
    *    날아갈 수 있다 — 그래도 열쇠는 멀쩡하니 "이미 구웠다"며 빈 캔버스를 그대로 놓는다.
    *    그림을 지운 자와 그림이 있다고 믿는 자가 다른 것이 이 사고의 얼개다.
    *    캔버스까지 열쇠에 넣으면, 판이 바뀐 순간 '안 구운 것'이 되어 다시 굽는다. */
+  /** 굽기를 마지막으로 버린 표(위 MAPVEC_LOST9) — 배킹이 날아간 뒤 한 번 다시 굽게 한다. */
+  const lostSeen9 = useRef(0);
   const bakedRef = useRef<
     {
       key: string; tx0: number; ty0: number; tx1: number; ty1: number;
@@ -233,6 +238,14 @@ export default function ReplayMapVector({
       /** 손짓 중인가 — 참이면 **절대 다시 굽지 않는다**(아래 hold 주석). */
       hold: boolean = false,
     ): void => {
+      /* ★ 배킹을 잃었으면 **'이미 구웠다'는 기억부터 버린다**(재생기의 MAPVEC_LOST9) ───────────────
+         웹킷은 메모리를 거둘 때 캔버스의 배킹을 통째로 버린다 — 크기도 열쇠도 그대로인데 그림만 없다.
+         그런데 이 층은 '같은 창이면 안 굽는다'가 원칙이라(bakedRef), 그 뒤로는 영영 안 그린다.
+         실기 신고가 정확히 그 꼴이었다: "지도는 계속 복구 안 됨". 표가 오르면 기억을 버리고 다시 굽는다. */
+      if (lostSeen9.current !== MAPVEC_LOST9.n) {
+        lostSeen9.current = MAPVEC_LOST9.n;
+        bakedRef.current = null;
+      }
     const cv = cvRef.current;
     const [bw, bh] = box;
     /* 입체 변환을 **먼저** 건다 — 아래에서 되돌아가는 갈래(지형 대기·굽기 실패)에서도
