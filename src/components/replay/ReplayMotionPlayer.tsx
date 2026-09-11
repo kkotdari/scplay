@@ -87,7 +87,7 @@ import {
 } from "../../utils/shapeOblique";
 import { TEAM_COLOR, type MinimapMarker } from "./markers";
 import {
-  AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, NUKE_BOOM_SEC, NUKE_FALL_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SPIN_STEPS, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
+  AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, NUKE_BOOM_SEC, NUKE_FALL_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SPIN_STEPS, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
 } from "./engine9";
 import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, WorldUi9 } from "./engine9";
 export { isAirUnit, flapCutOf, atkCutOf, unitTilesOf, buildingYawOf, BLD_NORM, BUILD_STAGES, SCR_DIAG, scrDiagOn, deriveWorld9, createEngine9, pickWorldUi9, emptyWorldUi9 } from "./engine9";
@@ -24693,7 +24693,11 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
                하고, 발자국에 앉히는 것은 기울기 전의 중심이다.
                한 번만 재서 같은 종류가 어디에 서든 같은 보정을 받는다(옛 지적: "같은
                넥서스인데 하나만 살짝 오른쪽으로 나온다"). */
-            const ref9 = bop9.viewYaw ? buildingSprite({ ...bop9, viewYaw: 0 }, sideQ, B) : bspr;
+            /* 별본이면 **본판**을 잣대로 굽는다(engine9 bldAnchorKey의 ★) — 열쇠가 본판 것이므로 잣대도
+               본판이어야 한다. 처음 재는 순간이 별본 쪽이면(성큰이 처음 쏠 때) 대역 판의 거친 비가 남는다. */
+            const baseKind9 = BLD_NORM_PAIR[op.kind] ?? op.kind;
+            const ref9 = bop9.viewYaw || baseKind9 !== op.kind
+              ? buildingSprite({ ...bop9, kind: baseKind9, viewYaw: 0 }, sideQ, B) : bspr;
             if (ref9 && ref9.w > 0) {
               bAnc = [(ref9.cx / B) / ref9.l, (ref9.bot / B) / ref9.l];
               BLD_ANCHOR_CACHE.set(bldAnchorKey(op.kind, op.pitch), bAnc);

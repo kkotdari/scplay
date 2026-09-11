@@ -1633,7 +1633,15 @@ export const CONSTRUCT_DROP = 0.55;
  *  아래로 잡혀 그림이 그만큼 **위로 밀린다**. 서 있는 건물은 두 보기의 비가 비슷해 티가
  *  덜 났지만, 크립 판처럼 **바닥에 눕는 데칼**은 눌림이 곧 잉크 전부라 밀림이 크게 보였다.
  *  (같은 까닭으로 BLD_INK_BOX도 이 열쇠를 쓴다 — 부르는 쪽이 같은 열쇠를 지어야 한다.) */
-export const bldAnchorKey = (kind: string, pitchView?: boolean): string => `${kind}|${pitchView ? "p" : "t"}`;
+/* ★ 별본은 **본판의 열쇠**를 쓴다(지적: "성큰 공격시 몸통 들썩 움직이지 않게") ────────────────
+   성큰은 쏠 때 몸판 종류가 sunken ↔ sunkenrear로 갈린다(혀를 따로 겹쳐 찍으려고). 두 판의 면은
+   한 톨도 안 다른데(모델샷으로 확인) 자리 앵커(BLD_ANCHOR_CACHE·BLD_INK_BOX)는 **종류별**이라
+   sunkenrear가 제 앵커를 따로 쟀고, 처음 쏘는 그 프레임은 굽기 예산이 바쁜 때라 **작게 구운
+   대역 판**으로 재어 그 거친 비가 영영 남았다. 종류가 뒤집힐 때마다 몸이 그 차이만큼 옮겨
+   앉는다 — 그것이 들썩임이다. 같은 자리에 서는 별본(BLD_NORM_PAIR)은 본판의 열쇠를 쓰면
+   앵커가 한 벌이라 뒤집혀도 안 움직인다. 고갈 별본(미네랄)도 같은 덕을 본다 — 덩어리가
+   줄어도 자리가 안 튄다. */
+export const bldAnchorKey = (kind: string, pitchView?: boolean): string => `${BLD_NORM_PAIR[kind] ?? kind}|${pitchView ? "p" : "t"}`;
 /** 같은 자리를 **모델 상자 좌표**(16-상자)로 적어 둔 것 [가로중심, 잉크 바닥].
  *  DOM 효과(방어 건물 트레이서)가 모델 위 한 점을 화면에서 다시 찾으려면, 그리기가
  *  실제로 쓴 앵커를 알아야 한다: 판은 상자 (8,16)을 발자국 바닥 가운데에 두고 굽지만,
@@ -2033,7 +2041,7 @@ export const unitMidK9 = (kind: string, pitchView: boolean): number => {
 };
 /** 건물 몸 가운데가 잉크 바닥(지면선)에서 얼마나 위인가 — **그리는 변의 비**. 표에 없으면 3.5칸. */
 export const bldMidK9 = (kind: string, pitchView: boolean): number => {
-  const m = BLD_INK_MID9[kind];
+  const m = BLD_INK_MID9[kind] ?? BLD_INK_MID9[BLD_NORM_PAIR[kind] ?? ""];   // 별본은 본판의 값(위 bldAnchorKey ★)
   return ((m ? m[pitchView ? 1 : 0] : 3.5) * bldNormOf(kind)) / 16;
 };
 export const FX_IMPACT: Record<string, {
@@ -5123,18 +5131,23 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         if (!warpIn9) return null;
       }
       // 소환 마무리 — 건물이 0에서 1로 배어 나온다(위 warpIn9).
+      const alphaPre9 = alpha;   // 페이드를 곱하기 전 값 — 아래 고리의 '보이는 자리인가' 문은 이것을 본다
       if (warpIn9) alpha *= warpU9;
       /* ★ 소환 완료의 **섬광**(요청) — 원작은 워프가 끝나는 순간 한 번 친다. 폭발이 아니라 '문이 닫히는 빛'이라
-         짧다(0.22초): 흰 심이 확 텄다가 꺼지고 청백 고리가 한 번 퍼진다(그리는 쪽 kind "warp").
-         안 보이는 자리(안개·잔상)에서는 안 친다 — 기억으로 남은 건물이 지금 소환되는 것처럼 보이면 안 된다. */
-      const WARP_FLASH_SEC9 = 0.22;
-      if (race2 === "프로토스" && qBuildFx && !razed && !flownFrom && sec > 0 && alpha > 0.2
-        && t >= doneAt && t - doneAt <= WARP_FLASH_SEC9) {
+         짧다: 흰 심이 확 텄다가 꺼지고 청백 고리가 한 번 퍼진다(그리는 쪽 kind "warp").
+         안 보이는 자리(안개·잔상)에서는 안 친다 — 기억으로 남은 건물이 지금 소환되는 것처럼 보이면 안 된다.
+         ★ 고리는 **페이드인과 함께** 간다(요청: "프로토스 건물 완공시 페이드인과 동심원 같이 나오게 타이밍
+           조절") — 여태 고리는 완공 **뒤** 0.22초, 페이드인은 완공 **앞** 0.8초라 둘이 한 번도 안 겹쳤다:
+           건물이 다 배어 나온 다음에야 고리가 퍼졌다. 이제 고리의 시계를 페이드 창(doneAt − 0.8 ~ doneAt)에
+           맞춘다 — 건물이 배어 나오는 동안 고리가 퍼지고, 둘이 같은 순간에 끝난다. '보이는가' 문은 페이드를
+           곱하기 전 알파(alphaPre9)로 본다 — 곱한 뒤 값은 창의 시작에서 0이라 고리가 늘 첫 틱을 놓친다. */
+      if (race2 === "프로토스" && qBuildFx && !razed && !flownFrom && sec > 0 && alphaPre9 > 0.2
+        && t >= doneAt - WARP_FADE_SEC9 && t <= doneAt) {
         const [wfx9, wfy9] = posFrac(x + footDx(unit), y + footDy(unit));
         fxOps.push({
           kind: "warp", fx: wfx9, fy: wfy9, lift: bldMidLift9(unit),
           size: (FOOTPRINT[unit] ?? [3, 2])[0] * (mapW9 / grid.width) * 0.6,
-          ph: (t - doneAt) / WARP_FLASH_SEC9,
+          ph: Math.min(1, Math.max(0, 1 - (doneAt - t) / WARP_FADE_SEC9)),
         });
       }
       /* 건물 체력과 '맞은 순간'(요청: 피격 표현 재검토) — 자취가 내려간 마지막
