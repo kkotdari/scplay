@@ -20580,6 +20580,8 @@ const CROWD_BENCH3D_MS9 = 16;
  *  안 줄이는 것: 죽음·파괴 폭발 · 소환 섬광 · 우리 · 스톰 · 핵 · 건물 붕괴 — 무슨 일이
  *  일어났는지를 말하는 것들이다. 입체는 제 벤치(bench3)로 잰다. */
 const NO_TRIM9 = typeof location !== "undefined" && /notrim/.test(location.hash);
+/** `#nothin` — 겹침생략만 끈다(죄기는 그대로). 유닛이 사라지는 까닭을 가를 때 쓴다. */
+const NO_THIN9 = typeof location !== "undefined" && /nothin/.test(location.hash);
 function lowZoomTrim9(zoom9: number, pitched9: boolean): 0 | 1 | 2 {
   /* 진단 스위치 `#notrim` — 이 죄기를 통째로 끈다. 낮은 배율에서 무엇이 달라졌나를
      한 탭으로 가르는 자다(끄고 켜서 가른다 — 이 판의 규약). */
@@ -20723,6 +20725,10 @@ const WORK9 = { brush: 0, wk: 0, react: 0 };
 const LOAD9 = { mapN: 0, mapMs: 0, mapMax: 0, truthMs: 0, wkMs: 0, warmMs: 0, warmN: 0 };
 /** 겹쳐서 덮일 유닛을 얼마나 뺐나(위 drawList9) — '몇 중 몇을 그렸나'. */
 const THIN9 = { n: 0, drew: 0 };
+/** 죄기 요잉 칸의 **직전 답**(개체별) — 칸 경계에서 방향이 파닥이지 않게 하는 불감대용. */
+const YAWQ9 = new Map<string, number>();
+/** 겹침생략의 **직전 답**(개체별, 1 = 숨김) — 칸 경계에서 깜빡이지 않게 하는 불감대용. */
+const THIN_ST9 = new Map<string, number>();
 /** 붓 사이 틈을 재는 자(위 WORSTF9) — 핵 창과 무관하게 늘 돈다. */
 const FRAMEG9 = { last: 0 };
 /** 이 판이 본 **가장 긴 프레임**과 그 몫 — 핵 창 밖에서도 잰다(실측: 핵과 무관한 1918ms 프레임이 있었다). */
@@ -21648,6 +21654,49 @@ const BLD_SPRITE_SIZES = new Map<string, { s: number; k: string }[]>();
    다른 판이라 열쇠를 그대로 들고 있어야 찾을 수 있다. */
 const SPRITE_SIZES = new Map<string, { s: number; k: string }[]>();
 const SPRITE_SIZES_MAX = 4096;
+/* ★ **방위가 비면 이웃 방위를 빌린다**(지적: "아냐 진짜 없어져 · 아예 안 그린다고 · 유닛을") ─────
+   위 색인(SPRITE_SIZES)은 subKey — 종류·**방위**·납작·시점·기울기·B·자세·속 — 별로 갈린다.
+   그래서 어떤 유닛이 **처음 보는 방위로 돌아선 그 순간**에는 대타가 하나도 없다: 크기만 다른
+   판을 찾는 위 길이 통째로 막히고, 굽기 천장까지 찼으면 그 자리는 `return null`이라 **그 몸을
+   아예 안 그린다**. 유닛이 깜빡이는 것이 아니라 진짜로 사라졌던 자리가 여기다(짐작이 맞았다:
+   "방향이 비어서 그런 거 아닐까").
+   그래서 종류마다 **구워 둔 방위 목록**을 따로 들고, 방위 말고는 모두 같은 subKey 중 각이 가장
+   가까운 것의 판을 빌린다. 한두 프레임 방향이 한 칸 어긋날 뿐이고, 제 방위는 대기표(bakeWant9)
+   에 올라 곧 조용히 갈아 끼워진다. 안 그리는 것보다 언제나 낫다. */
+const SPRITE_SUBS9 = new Map<string, string[]>();
+const noteKindSub9 = (kind: string, sub: string): void => {
+  let l9 = SPRITE_SUBS9.get(kind);
+  if (!l9) { if (SPRITE_SUBS9.size > 512) SPRITE_SUBS9.clear(); l9 = []; SPRITE_SUBS9.set(kind, l9); }
+  if (l9.indexOf(sub) < 0) { l9.push(sub); if (l9.length > 48) l9.shift(); }
+};
+/** 방위만 다른 형제 subKey의 판 — 각이 가장 가까운 것. 없으면 null. */
+const kinPlate9 = (kind: string, sub: string, pxq: number): UnitPlate9 | null => {
+  const subs9 = SPRITE_SUBS9.get(kind);
+  if (!subs9 || subs9.length === 0) return null;
+  const f9 = sub.split("|");
+  const want9 = Number(f9[1]);
+  let best9: UnitPlate9 | null = null;
+  let bd9 = Infinity;
+  for (let i9 = 0; i9 < subs9.length; i9 += 1) {
+    const s9 = subs9[i9];
+    if (s9 === sub) continue;
+    const g9 = s9.split("|");
+    if (g9.length !== f9.length) continue;
+    let ok9 = true;
+    for (let j9 = 0; j9 < f9.length; j9 += 1) { if (j9 !== 1 && g9[j9] !== f9[j9]) { ok9 = false; break; } }
+    if (!ok9) continue;
+    const d9 = Number.isFinite(want9) && want9 >= 0
+      ? Math.abs((((Number(g9[1]) - want9) % 360) + 540) % 360 - 180) : 0;
+    if (d9 >= bd9) continue;
+    const sizes9 = SPRITE_SIZES.get(s9);
+    if (!sizes9) continue;
+    const k9 = pickSubSize9(sizes9, pxq, Infinity);
+    const pl9 = k9 ? SPRITE_CACHE.get(k9) : undefined;
+    if (!pl9) continue;
+    best9 = pl9; bd9 = d9;
+  }
+  return best9;
+};
 /* ★ 장식이 쓰는 **몸 폭은 자세를 안 탄다**(지적: "뮤탈 날갯짓하면서 그림자 크기도
    바뀌는데 그거도 문제 아니야? 보기에도 정신없고") ────────────────────────────────
    그림자·체력바·링은 '그린 잉크의 폭'(spr.w)을 자로 쓴다. 상자가 아니라 실제로 칠한
@@ -21831,8 +21880,15 @@ function unitSprite(
        안 굽는 길은 없다 — 그러면 그 유닛이 화면에서 사라진다. 대신 **넓이를 9분의 1로** 줄여 굽는다:
        삯도 그만큼이고(109 → 12ms 언저리), 늘려 찍으니 잠깐 흐릴 뿐이며, 그 판이 곧 다음 프레임의
        대타가 되어 예산이 열릴 때 제 크기가 조용히 갈아 끼워진다. */
-    /* 천장을 넘었으면 작은 판도 안 굽는다(위 BAKE_HARD_MS9) — 이번 프레임엔 이 몸을 안 그린다. */
-    if (!bakeHardOk9() || smallBakeLeft9 <= 0) { poseNow = 0; SPRITE_PERF.defer += 1; return null; }
+    /* 천장을 넘었으면 작은 판도 안 굽는다(위 BAKE_HARD_MS9). 그래도 **안 그리진 않는다** —
+       방위만 다른 형제 판을 빌린다(위 kinPlate9의 ★). 빌릴 것조차 없을 때만 이 몸을 거른다. */
+    if (!bakeHardOk9() || smallBakeLeft9 <= 0) {
+      poseNow = 0;
+      SPRITE_PERF.defer += 1;
+      const kin9 = kinPlate9(op.kind, subKey, pxq);
+      if (kin9) { SPRITE_PERF.hit += 1; bakeWant9(key, { ...op }, pxq, B); return kin9; }
+      return null;
+    }
     const small9 = Math.max(8, Math.round(pxq / BAKE_SMALL_K9));
     if (small9 < pxq) {
       poseNow = 0;
@@ -21959,6 +22015,7 @@ function unitSprite(
      적이 없고(색인이 늘 비어 있으니 찾을 것이 없다), '굽기를 프레임에 나눠 문다'가
      사실상 건물에만 걸려 있었다. */
   noteSub9(SPRITE_SIZES, subKey, pxq, key);
+  noteKindSub9(op.kind, subKey);
   spriteBytes.n += canvasBytes(cr.cv) + (tint ? canvasBytes(tint.cv) : 0);
   trimBoth9();
   SPRITE_PERF.noteBake(op.kind, pNow() - tBk9, false);
@@ -24139,8 +24196,24 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
                round(45/90)×90 = 90이라 **모든 건물이 돌아갔다**(45도 칸일 때는 45가 그대로
                45라 우연히 멀쩡했다). 게다가 건물의 방향은 순간의 값이 아니라 **정체**다.
                죄는 값은 유닛의 회전에 있다(실측: 판갈림 유닛 회전 3892 · 건물은 불빛·포탑뿐). */
+          /* ★ 칸에 **불감대**를 둔다(지적: "3배 이하에서 유닛이 깜빡여 없어졌다 나타났다 해.
+             방향이 비어서 그런 거 아닐까") — 절반은 맞았다. 그냥 반올림하면 44.9도와 45.1도를
+             오가는 유닛이 틱마다 0도 ↔ 90도로 **홱 돌아간다**(90도 칸에서는 그 뒤집힘이 앞뒤가
+             바뀌는 것이라 깜빡임으로 읽힌다). 게다가 판 열쇠가 둘로 갈려 굽는 줄도 두 배다.
+             그래서 직전에 고른 칸을 기억해 두고, 각이 칸의 0.72(90도 칸이면 65도)를 넘어 멀어질
+             때에만 옮긴다 — 경계에서 20도쯤의 불감대가 생겨 파닥임이 사라진다. */
           if (liteYaw9 && rotDeg !== undefined && UNIT_KIND_SET.has(kind)) {
-            rotDeg = Math.round(rotDeg / (trim9 >= 1 ? 90 : 45)) * (trim9 >= 1 ? 90 : 45);
+            const st9 = trim9 >= 1 ? 90 : 45;
+            let q9 = Math.round(rotDeg / st9) * st9;
+            const pkq9 = op0.pickKey;
+            if (pkq9 !== undefined) {
+              const prev9 = YAWQ9.get(pkq9);
+              if (prev9 !== undefined && prev9 % st9 === 0
+                && Math.abs((((rotDeg - prev9) % 360) + 540) % 360 - 180) < st9 * 0.72) q9 = prev9;
+              if (YAWQ9.size > 8000) YAWQ9.clear();
+              YAWQ9.set(pkq9, q9);
+            }
+            rotDeg = ((q9 % 360) + 360) % 360;
           }
           /* ★ 낮은 배율의 **건물은 한 판으로 앉힌다**(실측: 판갈림 건물 불빛512 포탑358 · 미룸 B226) ──
              건물 판의 열쇠에는 포탑 각(16칸)·창문 불빛(2)·도는 부품 칸이 함께 든다. 그래서 캐논 한
@@ -24177,27 +24250,54 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          · 건물·자원·크립은 안 건드린다(수가 적고 서로 안 겹친다). 고른 개체도 늘 남긴다.
          · 벤치 미달 + 1~3배(저배율죔)에서만 — 멀쩡한 기기와 높은 배율은 종전 그대로다. */
       const drawList9 = ((): UnitDrawOp[] => {
-        if (trim9 < 1 || sorted.length < 64) return sorted;
+        if (NO_THIN9 || trim9 < 1 || sorted.length < 64) { THIN9.n = 0; THIN9.drew = 0; return sorted; }
         const thin9 = (o9: UnitDrawOp): boolean => UNIT_KIND_SET.has(o9.kind)
           && !(pickedKey != null && o9.pickKey === pickedKey);
         /* 칸은 그린 유닛 폭 언저리 — 이보다 잘면 덮이지 않은 것까지 빼고, 굵으면 서로
            떨어져 선 것을 뺀다. 타일 폭의 0.7이 한 유닛의 몸 폭에 가깝다. */
         const cell9 = Math.max(2, (tilePx ?? 8) * zoom * 0.7);
-        const last9 = new Map<number, number>();
-        for (let i9 = 0; i9 < sorted.length; i9 += 1) {
-          const o9 = sorted[i9];
-          if (!thin9(o9)) continue;
-          last9.set(Math.floor(zy(o9.fy) / cell9) * 65536 + Math.floor(zx(o9.fx) / cell9), i9);
-        }
-        if (last9.size === 0) return sorted;
+        /* ★ 칸 경계의 **깜빡임을 없앤다**(지적: "3배 이하에서 유닛이 깜빡여 없어졌다 나타났다 해") ──
+           여기 있던 것은 '한 칸에 하나'였다. 그런데 칸은 화면에 못 박힌 격자라, 이웃해 선 유닛이
+           경계를 조금만 넘나들면 같은 칸 ↔ 다른 칸이 틱마다 뒤집힌다 — 같은 칸이면 지워지고
+           다른 칸이면 그려지니, 가만히 선 유닛이 30Hz로 깜빡였다.
+           고친 자리 둘:
+           · **격자 대신 거리**로 본다 — 이미 남긴 것과의 거리가 칸의 절반 안일 때만 뺀다
+             (격자는 이웃 3×3 칸을 뒤지는 색인으로만 쓴다). 실제로 덮인 것만 빠진다.
+           · 그 거리에 **불감대**를 둔다 — 보이던 것은 0.46칸보다 가까워져야 숨고, 숨은 것은
+             0.78칸보다 멀어져야 다시 나온다. 경계에서 오갈 자리가 없어진다.
+           남길 쪽은 종전대로 화가 순서의 **뒤엣것**(눈에 보이던 그 한 장)이라, 뒤에서부터 훑고
+           끝에 뒤집는다. 건물·자원·크립은 안 건드리고 고른 개체는 늘 남긴다. */
+        if (THIN_ST9.size > 8000) THIN_ST9.clear();
+        const acc9 = new Map<number, number[]>();
+        const ax9: number[] = []; const ay9: number[] = [];
         const out9: UnitDrawOp[] = [];
-        for (let i9 = 0; i9 < sorted.length; i9 += 1) {
+        for (let i9 = sorted.length - 1; i9 >= 0; i9 -= 1) {
           const o9 = sorted[i9];
-          if (!thin9(o9)
-            || last9.get(Math.floor(zy(o9.fy) / cell9) * 65536 + Math.floor(zx(o9.fx) / cell9)) === i9) {
-            out9.push(o9);
+          if (!thin9(o9)) { out9.push(o9); continue; }
+          const sx9 = zx(o9.fx); const sy9 = zy(o9.fy);
+          const pk9 = o9.pickKey;
+          const r9 = cell9 * (pk9 !== undefined && THIN_ST9.get(pk9) === 1 ? 0.78 : 0.46);
+          const cx9 = Math.floor(sx9 / cell9); const cy9 = Math.floor(sy9 / cell9);
+          let cov9 = false;
+          for (let dy9 = -1; dy9 <= 1 && !cov9; dy9 += 1) {
+            for (let dx9 = -1; dx9 <= 1 && !cov9; dx9 += 1) {
+              const lst9 = acc9.get((((cy9 + dy9) & 0xffff) * 65536) + ((cx9 + dx9) & 0xffff));
+              if (!lst9) continue;
+              for (let k9 = 0; k9 < lst9.length; k9 += 1) {
+                const j9 = lst9[k9];
+                if (Math.abs(ax9[j9] - sx9) < r9 && Math.abs(ay9[j9] - sy9) < r9) { cov9 = true; break; }
+              }
+            }
           }
+          if (pk9 !== undefined) { if (cov9) THIN_ST9.set(pk9, 1); else THIN_ST9.delete(pk9); }
+          if (cov9) continue;
+          const ck9 = ((cy9 & 0xffff) * 65536) + (cx9 & 0xffff);
+          const lst9 = acc9.get(ck9);
+          if (lst9) lst9.push(ax9.length); else acc9.set(ck9, [ax9.length]);
+          ax9.push(sx9); ay9.push(sy9);
+          out9.push(o9);
         }
+        out9.reverse();
         THIN9.n = sorted.length; THIN9.drew = out9.length;
         return out9;
       })();
@@ -27288,7 +27388,9 @@ export default function ReplayMotionPlayer({
      't 자리'와 'tLive 자리'를 번갈아 났다. 서로 다른 객체를 쓰면 한 경로의 셈이 다른 경로의 그림을 못 건드린다. */
   const lerpPoolRef9 = useRef<[Map<string, UnitDrawOp>, Map<string, UnitDrawOp>]>([new Map(), new Map()]);
   /** 눈 목록 보간용 되쓰는 배열과 판 번호(아래 lerpFrame9) — 경로별. */
-  const visLerpRef9 = useRef<[{ buf: Float32Array | null; ver: number }, { buf: Float32Array | null; ver: number }]>([{ buf: null, ver: 0 }, { buf: null, ver: 0 }]);
+  const visLerpRef9 = useRef<[{ buf: Float32Array | null; ver: number; hold: number }, { buf: Float32Array | null; ver: number; hold: number }]>([{ buf: null, ver: 0, hold: 0 }, { buf: null, ver: 0, hold: 0 }]);
+  /** 뒤 장이 없을 때 **든 채로** 넘길 프레임 껍데기(슬롯별 하나 — 그리기마다 안 만든다). */
+  const holdFrameRef9 = useRef<[Frame9 | null, Frame9 | null]>([null, null]);
   const lerpFrameRef9 = useRef<[{ frame: Frame9; ops: UnitDrawOp[] } | null, { frame: Frame9; ops: UnitDrawOp[] } | null]>([null, null]);
   /** 붓 박자 통계(진단) — t 걸음(ms)·같은 앞 장을 되풀이한 횟수·뒤 장이 없던 횟수. */
   const brushStatRef9 = useRef({ lastT: -1, stepSum: 0, stepMax: 0, stepN: 0, lastA: -1, sameA: 0, noB: 0, gapB: 0, draws: 0 });
@@ -31673,6 +31775,21 @@ export default function ReplayMotionPlayer({
     if (!b9) {
       bs9.noB += 1;
       for (const f9 of wFramesRef.current.values()) if (f9.t > a9.t + 0.6) { bs9.gapB += 1; break; }
+      /* ★ **뒤 장이 없어도 눈 목록은 안 되돌린다**(같은 지적: "과거의 자리로 당겨졌다 다시 돌아와") ──
+         여기가 떨림의 큰 몫이었다(계측: 뒤장없음 57). 워커가 한 박자 뒤처지면 이 문으로 나가 앞 장
+         **생짜**를 돌려줬는데, 직전 틱은 앞 장보다 u9만큼 앞선 이은 목록을 냈으므로 그 차이가 곧
+         뒤로 당김이다. 이제는 직전에 낸 목록을 든 채 넘긴다(최대 네 틱, 눈 수가 같을 때만).
+         앞 장 자체(fa9)는 캐시에 든 그 장이라 건드리면 안 되므로 껍데기 하나에 담아 낸다. */
+      const vh9 = visLerpRef9.current[slot9];
+      if (vh9.buf && vh9.buf.length > 0 && vh9.hold < 4 && fa9.visSrc && fa9.visSrc.length === vh9.buf.length) {
+        vh9.hold += 1;
+        let hf9 = holdFrameRef9.current[slot9];
+        if (!hf9) { hf9 = { ...fa9 }; holdFrameRef9.current[slot9] = hf9; }
+        else Object.assign(hf9, fa9);
+        hf9.visSrc = vh9.buf;
+        hf9.visVer = vh9.ver;
+        return hf9;
+      }
       return fa9;
     }
     const fb9 = decodeFrame9(b9);
@@ -31745,24 +31862,39 @@ export default function ReplayMotionPlayer({
        난전에서는 한 장 사이에 죽는 수와 태어나는 수가 같아 길이만 같은 목록이 흔하다. 그러면 바뀐 자리 뒤의 눈이
        전부 한 칸씩 밀려 이웃의 자리로 미끄러졌다 — 시야 원이 지도를 가로질러 날았다. 눈마다 반지름이 같고 자리
        차이가 한 장에 걸을 수 있는 만큼(3타일) 안일 때만 잇고, 하나라도 어긋나면 앞 장 것을 그대로 쓴다. */
+    const vl9 = visLerpRef9.current[slot9];
     if (va9 && vb9 && va9.length === vb9.length && va9.length > 0 && va9 !== vb9) {
-      let same9 = true;
+      /* ★ **전부-아니면-전무를 걷어냈다**(지적: "떨림 있는데 원은 줄지 않아. 과거의 자리로
+         당겨졌다 다시 돌아왔다 반복해") ────────────────────────────────────────────────
+         여기 있던 것은 '눈 하나라도 어긋나면 앞 장 것을 그대로'였다. 그 '그대로'가 곧
+         **뒤로 당김**이다: 이은 장은 앞 장보다 u9만큼 앞서 있으므로, 이은 틱과 못 이은 틱이
+         번갈면 시야 원이 한 장 앞 → 앞 장 자리 → 다시 한 장 앞으로 오간다. 반지름은 늘 앞
+         장 것을 베끼니 **원은 안 줄고 자리만** 떤다 — 지적한 그 모습 그대로다.
+         난전에서 길이만 같은 목록(죽은 수 = 태어난 수)은 흔하므로 이 문은 자주 열렸다.
+         이제는 **눈마다** 본다: 반지름이 같고 한 장에 걸을 만큼(3타일) 안이면 잇고, 아니면
+         그 눈만 앞 장 자리에 둔다. 밀린 눈 몇이 한 장 안 움직일 뿐 목록 전체가 안 되돌아간다. */
+      if (!vl9.buf || vl9.buf.length !== va9.length) vl9.buf = new Float32Array(va9.length);
+      const out9 = vl9.buf;
       for (let i9 = 0; i9 + 2 < va9.length; i9 += 3) {
-        if (va9[i9 + 2] !== vb9[i9 + 2] || Math.abs(va9[i9] - vb9[i9]) > 3 || Math.abs(va9[i9 + 1] - vb9[i9 + 1]) > 3) { same9 = false; break; }
+        const ok9 = va9[i9 + 2] === vb9[i9 + 2]
+          && Math.abs(va9[i9] - vb9[i9]) <= 3 && Math.abs(va9[i9 + 1] - vb9[i9 + 1]) <= 3;
+        out9[i9] = ok9 ? va9[i9] + (vb9[i9] - va9[i9]) * u9 : va9[i9];
+        out9[i9 + 1] = ok9 ? va9[i9 + 1] + (vb9[i9 + 1] - va9[i9 + 1]) * u9 : va9[i9 + 1];
+        out9[i9 + 2] = va9[i9 + 2];
       }
-      if (same9) {
-        const vl9 = visLerpRef9.current[slot9];
-        if (!vl9.buf || vl9.buf.length !== va9.length) vl9.buf = new Float32Array(va9.length);
-        const out9 = vl9.buf;
-        for (let i9 = 0; i9 + 2 < va9.length; i9 += 3) {
-          out9[i9] = va9[i9] + (vb9[i9] - va9[i9]) * u9;
-          out9[i9 + 1] = va9[i9 + 1] + (vb9[i9 + 1] - va9[i9 + 1]) * u9;
-          out9[i9 + 2] = va9[i9 + 2];
-        }
-        vl9.ver += 1;
-        fr9.visSrc = out9;
-        fr9.visVer = vl9.ver;
-      }
+      vl9.ver += 1;
+      vl9.hold = 0;
+      fr9.visSrc = out9;
+      fr9.visVer = vl9.ver;
+    } else if (vl9.buf && vl9.buf.length > 0 && vl9.hold < 4 && va9 && va9.length !== vl9.buf.length) {
+      /* 눈 **수**가 바뀐 장(출몰) — 자리를 맞출 길이 없다. 그래도 앞 장 생짜로 돌아가면 위와
+         같은 뒤로 당김이라, 이을 수 있을 때까지 **직전에 낸 목록을 든 채** 넘긴다(최대 네 틱).
+         멈춰 있는 것은 안 읽히고 되돌아가는 것은 읽힌다. */
+      vl9.hold += 1;
+      fr9.visSrc = vl9.buf;
+      fr9.visVer = vl9.ver;
+    } else {
+      vl9.hold = 0;
     }
     return fr9;
   };
