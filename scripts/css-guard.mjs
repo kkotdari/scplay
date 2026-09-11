@@ -25,7 +25,15 @@ const APP_TOKENS = new Set([
 /* 화장이 아니라 **이름표**로만 붙는 것 — 규칙이 없는 게 맞다.
    (예: scr-mapvec-base/sharp은 검진 도구 perf-check --probe-mapvec이 '배율을 따라오는
    판'을 집으려고 단 표식이고, 배치는 부모 .scr-motion-mapvec이 한다.) */
-const MARKERS = new Set(["scr-mapvec-base", "scr-mapvec-sharp"]);
+const MARKERS = new Set([
+  "scr-mapvec-base", "scr-mapvec-sharp",
+  /* 관문을 조이니 드러난 셋(아래 ★) — 모두 **이름표**다. 규칙이 없는 게 맞고, 쓰는 자리는
+     소스에도 CSS에도 선택자로 안 나온다(붙는 몸이 제 화장을 다 진다):
+       scr-motion-pitched   — 지도 상자에 붙는 '입체다' 표(상태를 JS가 아니라 DOM에 남겨 둔다)
+       scr-motion-warmnote  — 굽는 중 글줄. 화장은 .scr-motion-simnote가 진다
+       scr-guide-tbtn-share — 안내의 '장면 공유' 단추. 화장은 .scr-guide-tbtn이 진다 */
+  "scr-motion-pitched", "scr-motion-warmnote", "scr-guide-tbtn-share",
+]);
 
 const files = [];
 (function walk(dir) {
@@ -59,9 +67,16 @@ const missing = [...used]
   .filter((c) => !c.endsWith("-"))                 // 접두어 조각 자체는 이름이 아니다
   .filter((c) => !APP_TOKENS.has(c) && !MARKERS.has(c))
   .filter((c) => !declared.has(c))
-  // 이어 붙이는 자리의 뿌리는 갈래마다 이름이 달라 통짜로는 못 찾는다 — 접두어로 하나라도
-  // 있으면 있는 것으로 본다.
-  .filter((c) => ![...declared].some((d) => d.startsWith(c) || c.startsWith(d.slice(0, -1))))
+  /* ★ 느슨한 접두어 통과를 **이어 붙이는 뿌리에만** 준다(수리: `.scr-motion-fxlens` 규칙이
+     통째로 사라졌는데 이 관문이 통과시켰다 — 그 층이 자리를 잃자 지도 상자가 세로로 늘어났다).
+     옛 줄은 "declared 중 하나가 c로 시작하거나, c가 그것의 **한 글자 짧은 꼴**로 시작하면
+     있는 것으로 본다"였다. 그런데 `.scr-motion` 규칙이 하나 있으면
+     `"scr-motion-무엇이든".startsWith("scr-motio")`가 참이라 **scr-motion-으로 시작하는 이름
+     전부**가 무사통과였다 — 이 파일 클래스의 태반이다. 관문이 그동안 그 갈래를 아예 못 봤다.
+     이제 봐주는 자리는 하나뿐이다: 소스가 `scr-X-${…}`로 **이어 붙이는 뿌리**(prefixes)로
+     시작하고, 그 뿌리로 시작하는 규칙이 실제로 있을 때. */
+  .filter((c) => ![...prefixes].some((p) => p.length >= 5 && c.startsWith(p)
+    && [...declared].some((d) => d.startsWith(p))))
   .sort();
 
 if (missing.length === 0) {
