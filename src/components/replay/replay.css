@@ -2020,127 +2020,13 @@
   18% { opacity: 0.85; }
   100% { opacity: 0; scale: 1; }
 }
-/* ── 다친 건물의 상처(요청) ─────────────────────────────────────────────────────
-   원작은 종족을 안 가리고 불꽃 한 벌만 얹는다(ReplayMotionPlayer의 woundLv 주석에
-   근거를 적어 뒀다). 여기서는 요청대로 종족별로 가른다 — 셋을 하나로 되돌리려면
-   .scr-wound-* 를 .scr-wound-terran 하나로 합치면 된다.
-   문턱(2/3·1/3)과 붙는 자리 수(1개 → 3개)는 원작 규칙 그대로다. */
-.scr-motion-wound {
-  position: absolute; left: 50%; top: 50%;
-  pointer-events: none; border-radius: 50%;
-}
-/* 테란 — 화재. 주황 불길이 일렁이고 그 위로 잿빛 연기가 오른다. */
-/* 테란: 동그란 불덩이가 아니라 **타오르는 불꽃**(요청) — 바닥은 붉은 잉걸 후광만 옅게 깔고, 위로 뾰족하게
-   솟는 혀 둘(노랑 심·주황 몸·끝은 투명)이 저마다 흔들리며 위로 핥는다. 연기는 그 위에서 피어오른다. */
-.scr-wound-terran {
-  background: radial-gradient(circle at 50% 70%,
-    rgba(255, 170, 60, 0.5) 0 16%, rgba(200, 70, 20, 0.28) 40%, transparent 62%);
-  animation: scr-wound-fire 0.62s ease-in-out infinite alternate;
-}
-.scr-wound-terran::before {
-  content: ""; position: absolute; left: 50%; bottom: 42%;
-  width: 34%; height: 150%; translate: -50% 0; transform-origin: 50% 100%;
-  border-radius: 50% 50% 40% 40% / 80% 80% 25% 25%;
-  background: linear-gradient(to top, rgba(255, 120, 30, 0.95) 0%, rgba(255, 200, 70, 0.95) 30%, rgba(255, 240, 160, 0.85) 48%, rgba(255, 140, 40, 0.5) 70%, transparent 100%);
-  filter: blur(0.35px); mix-blend-mode: screen;
-  animation: scr-wound-flame 0.5s ease-in-out infinite alternate;
-}
-/* 테란: 불꽃 + 연기(요청) — 연기는 **체력이 빨간 2단**(.scr-wound-red, 앵커에 붙는다)에서만 피어오른다
-   (요청: "테란 파손효과는 피가 빨갛게 된 경우엔 연기까지 추가"). 1단은 불꽃만. */
-.scr-wound-terran::after { display: none; }
-.scr-wound-red .scr-wound-terran::after {
-  display: block;
-  content: ""; position: absolute; left: 50%; bottom: 100%;
-  width: 62%; aspect-ratio: 1; border-radius: 50%;
-  background: radial-gradient(circle, rgba(120, 120, 118, 0.42) 0 45%, transparent 72%);
-  animation: scr-wound-smoke 2.1s ease-out infinite;
-}
-@keyframes scr-wound-flame {
-  0% { scale: 0.92 0.8; opacity: 0.8; rotate: -4deg; }
-  50% { scale: 1.04 1.05; opacity: 1; rotate: 3deg; }
-  100% { scale: 0.96 1.15; opacity: 0.9; rotate: -2deg; }
-}
-@keyframes scr-wound-fire {
-  0% { opacity: 0.72; scale: 0.88; }
-  100% { opacity: 1; scale: 1.08; }
-}
-@keyframes scr-wound-haze {
-  0% { opacity: 0.5; scale: 0.9; }
-  100% { opacity: 0.85; scale: 1.06; }
-}
-@keyframes scr-wound-smoke {
-  0% { opacity: 0; translate: -50% 0; scale: 0.5; }
-  25% { opacity: 0.55; }
-  100% { opacity: 0; translate: -50% -220%; scale: 1.5; }
-}
-/* 저그 — 피. **뿜어져 나온다**(확인: "저그 건물은? 피같은 액체가 뿜어져 나오는데") —
-   앞선 판은 배어 나와 방울져 흘러내리는 결이었는데, 저그 건물이 다치면 살아 있는 몸이
-   터지듯 체액이 솟구친다. 상처 자국은 그대로 두고 그 위로 줄기가 튀어 오르게 바꾼다:
-   앞이 빠르고(0→35%) 뒤는 포물선으로 떨어지며, 튀는 사이사이 자국이 함께 부푼다. */
-/* 저그: 피격 효과 같은 **피 터짐**(요청) — 붉은 자국 위로 핏방울 둘이 서로 다른 각으로 튀어 오른다. */
-/* ★ 둥근 자국은 걷고 **솟구치는 피만**(요청) — 줄기 둘이 위가 아니라 **좌우 부채꼴**로 퍼진다(::before 왼쪽,
-   ::after 오른쪽). 자국이 없어진 만큼 줄기를 조금 굵게. */
-.scr-wound-zerg { background: none; }
-.scr-wound-zerg::before, .scr-wound-zerg::after {
-  content: ""; position: absolute; left: 50%; top: 46%;
-  width: 34%; aspect-ratio: 1 / 1.8; border-radius: 50% 50% 45% 45%;
-  background: linear-gradient(to top, rgba(140, 20, 24, 0.2), rgba(222, 52, 52, 0.95));
-  box-shadow: 0 0 2px rgba(170, 30, 30, 0.6);
-  /* ★ 포물선(중력)으로(지적: "너무 뚝뚝 끊김 — 자연스럽게 피가 튀고 중력의 효과를 받는 모양새") — 열한 칸 키프레임에
-     x는 등속, y는 y = 10 − 280t + 350t²(위로 솟았다 떨어짐)를 적고 timing은 linear라 칸 사이가 곡선 그대로 이어진다.
-     앞판은 네 칸에 베지어 timing이라 칸마다 멈칫했다. 기울기는 속도 방향을 따라 돌고, 떨어지며 옅어진다. */
-  animation: scr-wound-spurt 1.1s linear infinite;
-}
-.scr-wound-zerg::before { left: 42%; width: 26%; animation: scr-wound-spurt2 1.3s linear infinite; animation-delay: -0.55s; }
-@keyframes scr-wound-spurt2 {
-  0% { translate: -50% 10%; scale: 0.50 0.62; opacity: 0.00; rotate: 15deg; }
-  10% { translate: -65% -14%; scale: 0.62 0.78; opacity: 1.00; rotate: 6deg; }
-  20% { translate: -80% -32%; scale: 0.75 0.94; opacity: 1.00; rotate: -4deg; }
-  30% { translate: -95% -42%; scale: 0.88 1.09; opacity: 1.00; rotate: -14deg; }
-  40% { translate: -110% -46%; scale: 1.00 1.25; opacity: 1.00; rotate: -23deg; }
-  50% { translate: -125% -42%; scale: 1.00 0.90; opacity: 1.00; rotate: -32deg; }
-  60% { translate: -140% -32%; scale: 1.00 0.90; opacity: 1.00; rotate: -42deg; }
-  70% { translate: -155% -15%; scale: 1.00 0.90; opacity: 0.75; rotate: -52deg; }
-  80% { translate: -170% 10%; scale: 1.00 0.90; opacity: 0.50; rotate: -61deg; }
-  90% { translate: -185% 42%; scale: 1.00 0.90; opacity: 0.25; rotate: -70deg; }
-  100% { translate: -200% 80%; scale: 1.00 0.90; opacity: 0.00; rotate: -80deg; }
-}
-@keyframes scr-wound-spurt {
-  0% { translate: -50% 10%; scale: 0.50 0.62; opacity: 0.00; rotate: -15deg; }
-  10% { translate: -35% -14%; scale: 0.62 0.78; opacity: 1.00; rotate: -6deg; }
-  20% { translate: -20% -32%; scale: 0.75 0.94; opacity: 1.00; rotate: 4deg; }
-  30% { translate: -5% -42%; scale: 0.88 1.09; opacity: 1.00; rotate: 14deg; }
-  40% { translate: 10% -46%; scale: 1.00 1.25; opacity: 1.00; rotate: 23deg; }
-  50% { translate: 25% -42%; scale: 1.00 0.90; opacity: 1.00; rotate: 32deg; }
-  60% { translate: 40% -32%; scale: 1.00 0.90; opacity: 1.00; rotate: 42deg; }
-  70% { translate: 55% -15%; scale: 1.00 0.90; opacity: 0.75; rotate: 52deg; }
-  80% { translate: 70% 10%; scale: 1.00 0.90; opacity: 0.50; rotate: 61deg; }
-  90% { translate: 85% 42%; scale: 1.00 0.90; opacity: 0.25; rotate: 70deg; }
-  100% { translate: 100% 80%; scale: 1.00 0.90; opacity: 0.00; rotate: 80deg; }
-}
-/* 프로토스 — **연기**다(확인: "다친건물은 프로토스는 연기 저그는 피 맞아") — 앞선 판은
-   사이언 방전을 주인공으로 두고 연기를 곁들였는데, 그 반대가 맞다. 방전은 걷고 피어
-   오르는 연기 한 벌만 남기되, 프로토스의 연기라 잿빛에 사이언 기가 살짝 돈다. */
-/* 프로토스: 동그란 연기 대신 **세로로 긴 촛불 같은 플라즈마 누출**(요청) — 밑동은 옅은 하늘빛 후광, 그 위로
-   가늘고 긴 불꽃 둘(크기·박자 다름)이 흔들린다. screen 블렌드라 몸 위에서 빛으로 읽힌다. */
-.scr-wound-toss {
-  background: radial-gradient(circle at 50% 70%,
-    rgba(150, 230, 255, 0.45) 0 18%, rgba(90, 170, 220, 0.2) 40%, transparent 62%);
-  animation: scr-wound-haze 1.9s ease-in-out infinite alternate;
-}
-.scr-wound-toss::before, .scr-wound-toss::after {
-  content: ""; position: absolute; left: 50%; bottom: 40%;
-  width: 22%; height: 170%; translate: -50% 0; transform-origin: 50% 100%;
-  border-radius: 50% 50% 45% 45% / 70% 70% 30% 30%;
-  background: linear-gradient(to top, rgba(120, 220, 255, 0.95) 0%, rgba(210, 245, 255, 0.95) 35%, rgba(255, 255, 255, 0.7) 60%, transparent 100%);
-  filter: blur(0.4px); mix-blend-mode: screen;
-  animation: scr-wound-candle 0.55s ease-in-out infinite alternate;
-}
-.scr-wound-toss::after { left: 62%; width: 14%; height: 120%; animation-duration: 0.42s; animation-delay: -0.2s; }
-@keyframes scr-wound-candle {
-  0% { scale: 1 0.82; opacity: 0.75; }
-  100% { scale: 1.08 1.12; opacity: 1; }
-}
+/* ── 다친 건물의 상처 — **캔버스로 옮겼다**(요청: "어쨌든 돔효과 캔버스로 옮기긴 해야하지") ────
+   그림은 재생기의 drawWound9(불꽃·연기·핏줄기 판 여섯 장)가 진다. 여기 있던 규칙을 통째로 걷는다.
+   까닭: 이 효과만은 건물이 성할 때까지 사라지지 않고 `infinite`로 돌았고, 불꽃 하나가 가짜 요소
+   둘에 `filter: blur` + `mix-blend-mode: screen`을 지고 있었다. 흐리기는 그 층을 따로 그린 뒤
+   한 번 더 지나가게 만들고, 섞임은 그 밑의 배경 전체(거대한 유닛 캔버스)를 읽어 오게 한다 —
+   둘 다 넓이와 무관하게 층 수만큼 값이 붙는다(계측: 덧칠은 화면의 0.9배뿐인데도 효과를 빼면
+   멈춤이 사라졌다). 캔버스에서는 같은 겹침이 우리가 이미 칠하는 한 장 안에서 일어난다. */
 .scr-motion-collapse {
   position: absolute; width: 34px; aspect-ratio: 1; height: auto;
   transform: translate(-50%, -50%);

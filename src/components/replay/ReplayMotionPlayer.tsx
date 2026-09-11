@@ -2589,7 +2589,7 @@ const domFxOff9 = (k9: string): boolean => NO_DOMFX9 && (DOMFX_OFF9.size === 0 |
  *  그 밑의 **배경 전체**(우리의 거대한 유닛 캔버스)를 읽어 오게 한다. 둘 다 넓이와 무관하게 값이 붙는다. */
 const NO_BLUR9 = typeof location !== "undefined" && /noblur/.test(location.hash);
 /** 이 프레임의 효과 DOM 수와 이제까지의 최대 — 층 폭발이 값인지 수로 가른다. */
-const FXDOM9 = { n: 0, max: 0, over: 0, overMax: 0, wound: 0, flame: 0, flameMax: 0, cast: 0, clp: 0, die: 0 };
+const FXDOM9 = { n: 0, max: 0, over: 0, overMax: 0, cast: 0, clp: 0, die: 0 };
 /** ★ **주 실마리가 막혔나, 화면만 굶었나**(조사: 10초 멎었다 풀림 · 메모리는 55MB로 멀쩡) ─────────────
  *  여태 잰 '최장 프레임'은 rAF 사이의 틈이다. 그 틈이 길다고 곧 주 실마리가 막힌 것은 아니다 — rAF는
  *  **그리기 파이프라인**에 매여 있어서, 합성기·GPU가 못 따라오면 JS가 멀쩡해도 안 불린다.
@@ -22729,6 +22729,157 @@ const FX_MAT: Record<string, { core: string; drop: string; deep: string; flash: 
   toss: { core: "rgba(143,208,255,0.95)", drop: "rgba(230,244,255,0.95)", deep: "rgba(58,143,255,0.95)", flash: "#ffffff", n: 5, r: 0.66 },
   mech: { core: "rgba(255,138,61,0.95)", drop: "rgba(255,209,102,0.95)", deep: "rgba(255,90,31,0.95)", flash: "#fff4d0", n: 5, r: 0.62 },
 };
+/** 다친 건물의 상처 — **캔버스 판**(요청: "어쨌든 돔효과 캔버스로 옮기긴 해야하지") ──────────────
+ *  스팬 시절의 그림(.scr-wound-*)을 그대로 옮긴 작은 그림 여섯 장이다. 한 번만 굽고 그릴 때는
+ *  blit 한 번이라, 불꽃이 백 개여도 층은 늘지 않는다(옛 판은 불꽃 하나가 가짜 요소 둘에 흐리기와
+ *  섞임을 지고 **끝없이** 돌았다 — 브라우저가 층마다 따로 그리고 배경까지 읽어 왔다).
+ *  기준 상자는 64(둥근 것)·48×128(혀)이고, 그릴 때 제 크기로 늘린다. */
+const WOUND_SPR9 = new Map<string, HTMLCanvasElement>();
+function woundSpr9(name: string): HTMLCanvasElement {
+  const hit9 = WOUND_SPR9.get(name);
+  if (hit9) return hit9;
+  const tongue9 = name === "flame" || name === "candle";
+  const cw9 = tongue9 ? 48 : 64;
+  const ch9 = tongue9 ? 128 : 64;
+  const cv9 = newCanvas9("상처");
+  cv9.width = cw9; cv9.height = ch9;
+  const c2 = cv9.getContext("2d");
+  if (c2) {
+    if (tongue9) {
+      /* 혀 — 밑동이 넓고 끝이 뾰족하다. 그러데이션은 밑에서 위로(CSS의 to top 그대로). */
+      const g9 = c2.createLinearGradient(0, ch9, 0, 0);
+      if (name === "flame") {
+        g9.addColorStop(0, "rgba(255,120,30,0.95)"); g9.addColorStop(0.3, "rgba(255,200,70,0.95)");
+        g9.addColorStop(0.48, "rgba(255,240,160,0.85)"); g9.addColorStop(0.7, "rgba(255,140,40,0.5)");
+        g9.addColorStop(1, "rgba(255,140,40,0)");
+      } else {
+        g9.addColorStop(0, "rgba(120,220,255,0.95)"); g9.addColorStop(0.35, "rgba(210,245,255,0.95)");
+        g9.addColorStop(0.6, "rgba(255,255,255,0.7)"); g9.addColorStop(1, "rgba(255,255,255,0)");
+      }
+      c2.fillStyle = g9;
+      c2.beginPath();
+      /* 통통한 혀 — 밑동에서 곧 제 폭을 채우고 위 3분의 1에서만 좁아진다(CSS의
+         border-radius: 50% 50% 40% 40% / 80% 80% 25% 25% 가 만들던 덩이 꼴이다.
+         바로 뾰족해지면 바늘이 되어 불꽃으로 안 읽힌다). */
+      c2.moveTo(cw9 * 0.5, ch9);
+      c2.bezierCurveTo(cw9 * -0.02, ch9 * 0.94, cw9 * 0.04, ch9 * 0.46, cw9 * 0.28, ch9 * 0.13);
+      c2.bezierCurveTo(cw9 * 0.4, ch9 * -0.02, cw9 * 0.6, ch9 * -0.02, cw9 * 0.72, ch9 * 0.13);
+      c2.bezierCurveTo(cw9 * 0.96, ch9 * 0.46, cw9 * 1.02, ch9 * 0.94, cw9 * 0.5, ch9);
+      c2.closePath(); c2.fill();
+    } else if (name === "drop") {
+      /* 핏방울 — 위가 밝고 아래가 검붉다(CSS의 to top 그대로). 둘레의 옅은 번짐은 box-shadow 자리. */
+      const g9 = c2.createLinearGradient(0, ch9, 0, 0);
+      g9.addColorStop(0, "rgba(140,20,24,0.2)"); g9.addColorStop(1, "rgba(222,52,52,0.95)");
+      c2.fillStyle = g9;
+      c2.beginPath(); c2.ellipse(cw9 / 2, ch9 / 2, cw9 * 0.42, ch9 * 0.47, 0, 0, Math.PI * 2); c2.fill();
+    } else {
+      /* 둥근 후광 셋(잉걸·연기·사이언 아지랑이) — CSS의 radial-gradient 칸을 그대로 옮긴다. */
+      const cy9 = name === "ember" || name === "haze" ? ch9 * 0.7 : ch9 * 0.5;
+      const g9 = c2.createRadialGradient(cw9 / 2, cy9, 0, cw9 / 2, cy9, cw9 / 2);
+      if (name === "ember") {
+        g9.addColorStop(0, "rgba(255,170,60,0.5)"); g9.addColorStop(0.16, "rgba(255,170,60,0.5)");
+        g9.addColorStop(0.4, "rgba(200,70,20,0.28)"); g9.addColorStop(0.62, "rgba(200,70,20,0)");
+      } else if (name === "haze") {
+        g9.addColorStop(0, "rgba(150,230,255,0.45)"); g9.addColorStop(0.18, "rgba(150,230,255,0.45)");
+        g9.addColorStop(0.4, "rgba(90,170,220,0.2)"); g9.addColorStop(0.62, "rgba(90,170,220,0)");
+      } else {
+        g9.addColorStop(0, "rgba(120,120,118,0.42)"); g9.addColorStop(0.45, "rgba(120,120,118,0.42)");
+        g9.addColorStop(0.72, "rgba(120,120,118,0)");
+      }
+      c2.fillStyle = g9;
+      c2.fillRect(0, 0, cw9, ch9);
+    }
+  }
+  WOUND_SPR9.set(name, cv9);
+  return cv9;
+}
+/** 되풀이 삼각파(0→1→0) — CSS의 `alternate`가 하는 일이다. */
+const triW9 = (x9: number): number => { const u9 = x9 - Math.floor(x9); return u9 < 0.5 ? u9 * 2 : 2 - u9 * 2; };
+/** 부드럽게(ease-in-out) — 삼각파의 모서리를 죽인다. */
+const easeW9 = (u9: number): number => u9 * u9 * (3 - 2 * u9);
+/** 밑동을 축으로 세워 그린다 — 혀(불꽃·촛불)는 transform-origin이 50% 100%였다.
+ *  바탕 변환은 (Bd,0,0,Bd,0,0)이므로 돌릴 때도 그 배율을 함께 싣고 끝나면 되돌린다
+ *  (save 스택 대신 setTransform 합성 — 이 자리의 규약이다). */
+function tongueW9(ctx: CanvasRenderingContext2D, spr9: HTMLCanvasElement, Bd9: number,
+  bx9: number, by9: number, w9: number, h9: number, rot9: number, a9: number): void {
+  if (a9 <= 0.01 || w9 < 0.3) return;
+  ctx.globalAlpha = a9;
+  if (rot9 === 0) { ctx.drawImage(spr9, bx9 - w9 / 2, by9 - h9, w9, h9); return; }
+  const c9 = Math.cos(rot9) * Bd9; const s9 = Math.sin(rot9) * Bd9;
+  ctx.setTransform(c9, s9, -s9, c9, Bd9 * bx9, Bd9 * by9);
+  ctx.drawImage(spr9, -w9 / 2, -h9, w9, h9);
+  ctx.setTransform(Bd9, 0, 0, Bd9, 0, 0);
+}
+/** 상처 낱개 하나 — f.wrace가 결, f.size가 상자 폭(렌즈 px), f.clk가 시계(초)다.
+ *  CSS 시절의 키프레임을 식으로 옮겼다(자리·주기·세기 모두 그 값 그대로). */
+function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: number, zoom: number, Bd9: number): void {
+  const W9 = (f.size ?? 3) * zoom;
+  if (W9 < 1.2) return;                       // 한 화소도 안 되는 것은 그리지 않는다
+  const x9 = ax + (f.mx ?? 0) * zoom;
+  const y9 = ay + (f.my ?? 0) * zoom;
+  const top9 = y9 - W9 / 2;                   // 스팬 상자(W×W)의 위 모서리 — CSS의 translate(-50%,-50%)
+  const dl9 = (f.seed ?? 0) / 100;            // animation-delay(0~1초)
+  const t9 = f.clk ?? 0;
+  const lv2 = (f.tier ?? 1) >= 2;
+  const race9 = f.wrace ?? "terran";
+  const op0 = ctx.globalAlpha;
+  const gco0 = ctx.globalCompositeOperation;
+  /* 불빛은 **더하기**로 겹친다 — CSS의 `mix-blend-mode: screen` 자리다. 다만 여기서는 우리가 이미
+     칠하고 있는 한 장 안에서 일어나므로, 합성 층도 배경 읽기도 생기지 않는다(그것이 옮긴 까닭이다). */
+  if (race9 !== "zerg") ctx.globalCompositeOperation = "lighter";
+  if (race9 === "terran" || race9 === "toss") {
+    /* 밑동 후광 — 테란은 잉걸(0.62초), 프로토스는 사이언 아지랑이(1.9초). */
+    const glowP9 = easeW9(triW9((t9 + dl9) / (race9 === "terran" ? 0.62 : 1.9) / 2));
+    const ga9 = race9 === "terran" ? 0.72 + 0.28 * glowP9 : 0.5 + 0.35 * glowP9;
+    const gs9 = race9 === "terran" ? 0.88 + 0.2 * glowP9 : 0.9 + 0.16 * glowP9;
+    ctx.globalAlpha = ga9;
+    ctx.drawImage(woundSpr9(race9 === "terran" ? "ember" : "haze"),
+      x9 - (W9 * gs9) / 2, y9 - (W9 * gs9) / 2, W9 * gs9, W9 * gs9);
+    /* 혀 — 테란은 하나(0.5초), 프로토스는 둘(0.55초·0.42초, 뒤엣것은 오른쪽으로 치우쳐 작다). */
+    const flame9 = woundSpr9(race9 === "terran" ? "flame" : "candle");
+    if (race9 === "terran") {
+      const u9 = easeW9(triW9((t9 + dl9) / 0.5 / 2));
+      tongueW9(ctx, flame9, Bd9, x9, top9 + W9 * 0.58,
+        W9 * 0.34 * (0.92 + 0.12 * u9), W9 * 1.5 * (0.8 + 0.35 * u9),
+        ((-4 + 7 * u9) * Math.PI) / 180, 0.8 + 0.2 * u9);
+    } else {
+      const u9 = easeW9(triW9((t9 + dl9) / 0.55 / 2));
+      tongueW9(ctx, flame9, Bd9, x9, top9 + W9 * 0.6,
+        W9 * 0.22 * (1 + 0.08 * u9), W9 * 1.7 * (0.82 + 0.3 * u9), 0, 0.75 + 0.25 * u9);
+      const v9 = easeW9(triW9((t9 + dl9 + 0.2) / 0.42 / 2));
+      tongueW9(ctx, flame9, Bd9, x9 + W9 * 0.12, top9 + W9 * 0.6,
+        W9 * 0.14 * (1 + 0.08 * v9), W9 * 1.2 * (0.82 + 0.3 * v9), 0, 0.75 + 0.25 * v9);
+    }
+    /* 연기는 **2단(체력 빨강)에서만**(요청) — 상자 위로 피어올라 퍼지며 사라진다(2.1초). */
+    if (race9 === "terran" && lv2) {
+      const s9 = ((t9 + dl9) / 2.1) % 1;
+      const sa9 = s9 < 0.25 ? (s9 / 0.25) * 0.55 : 0.55 * (1 - (s9 - 0.25) / 0.75);
+      const ss9 = W9 * 0.62 * (0.5 + s9);
+      ctx.globalAlpha = Math.max(0, sa9);
+      ctx.drawImage(woundSpr9("smoke"), x9 - ss9 / 2, top9 - ss9 * (0.5 + 2.2 * s9), ss9, ss9);
+    }
+  } else {
+    /* 저그 — 솟구치는 피 둘. x는 등속, y는 포물선(위로 솟았다 떨어짐)이라 중력을 탄다.
+       CSS 키프레임(11칸)의 식을 그대로 쓴다: y% = 10 − 280u + 350u². */
+    const drop9 = woundSpr9("drop");
+    const dw9 = W9 * 0.34; const dh9 = dw9 * 1.8;
+    const oy9 = top9 + W9 * 0.46;
+    const spurt9 = (per9: number, off9: number, w9: number, sx9: number, dir9: number): void => {
+      const u9 = (((t9 + dl9 + off9) / per9) % 1 + 1) % 1;
+      const py9 = (10 - 280 * u9 + 350 * u9 * u9) / 100;
+      const px9 = dir9 * (1.5 * u9);
+      const a9 = u9 < 0.1 ? u9 / 0.1 : u9 < 0.6 ? 1 : Math.max(0, 1 - (u9 - 0.6) / 0.4);
+      const k9 = u9 < 0.4 ? 0.5 + 1.25 * u9 : 1;
+      const hh9 = dh9 * (u9 < 0.4 ? 0.62 + 1.57 * u9 : 0.9);
+      tongueW9(ctx, drop9, Bd9, x9 + W9 * sx9 + px9 * w9, oy9 + py9 * hh9 + hh9,
+        w9 * k9, hh9, (dir9 * (-15 + 95 * u9) * Math.PI) / 180, a9);
+    };
+    spurt9(1.1, 0, dw9, 0, 1);
+    spurt9(1.3, 0.55, W9 * 0.26, -0.08, -1);
+  }
+  ctx.globalAlpha = op0;
+  ctx.globalCompositeOperation = gco0;
+}
 /** 죽음·파괴 **파편 폭발**(요청) ────────────────────────────────────────────────────────
  *  덩어리가 낱개로 갈라져 날아가는 그림 하나로 넷을 낸다 — 결(mat)이 낱개의 색·수·중력과 곁들이는
  *  겹을 정한다.
@@ -24365,6 +24516,10 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             drawBurst9(ctx, f, ax, ay, zoom, p9, tz9);
             continue;
           }
+          if (f.kind === "wound") {
+            drawWound9(ctx, f, ax, ay, zoom, Bd);
+            continue;
+          }
           if (f.kind === "warp") {
             /* ★ 프로토스 소환 완료의 **섬광**(요청) — 원작은 워프가 끝나는 순간 한 번 친다. 폭발이 아니라
                '문이 닫히는 빛'이라 짧고(0.22초) 조각도 연기도 없다: 흰 심이 확 텄다가 곧 꺼지고, 그 둘레로
@@ -25831,6 +25986,9 @@ const FX_MIN_ZOOM: Record<FxOp["kind"], number> = {
   shield: 4,   // 실드 피격은 다른 피격과 같은 문턱(요청) — 실드가 있든 없든 '맞았다'가 같은 배율에서 읽혀야 한다.
   tether: DEEP_MIN_ZOOM,
   burst: 2,   // 죽음·파괴 폭발 — 2배부터 캔버스로(그 아래는 DOM 여운 하나)
+  /* 다친 건물의 상처 — 스팬 시절 칸이 없었으므로(사양 '중'이면 1배에서도 보였다) 1배 그대로 둔다.
+     캔버스로 옮기며 보이는 것이 줄면 안 된다. 아래 FX_NO_FLOOR에 들어 배치 바닥도 안 탄다. */
+  wound: 1,
   warp: 2,    // 프로토스 소환 완료의 섬광 — 폭발과 같은 칸(둘 다 '그 자리에서 무슨 일이 있었다'를 말한다)
 };
 /** 배치의 바닥(detailAt: 폰 8배)을 **안 타는** 갈래 — 제 칸(FX_MIN_ZOOM)이 곧 실제 칸이다.
@@ -25843,7 +26001,7 @@ const FX_MIN_ZOOM: Record<FxOp["kind"], number> = {
  *    표에는 이미 2배로 적혀 있었는데(cage: 2) 배치 바닥과 **둘 중 늦은 쪽**을 쓰는 규칙에
  *    걸려 폰에서는 8배였다. 그 바닥을 안 타게 한다.
  *  나머지(피격·실드막·승하차 줄)는 꾸밈이라 바닥을 그대로 탄다. */
-const FX_NO_FLOOR = new Set<FxOp["kind"]>(["beam", "shot", "cage", "burst", "warp"]);
+const FX_NO_FLOOR = new Set<FxOp["kind"]>(["beam", "shot", "cage", "burst", "warp", "wound"]);
 /* ★ 켠다(지적: "프로토스 실드 피격효과를 금색이 아니라 플라즈마 빛으로") — 꺼 둔 동안 실드 op가 아래 갈래에서
    **안 걸러지고** 총구 번쩍임 기본 갈래(FX_BEAM.base, 금빛)로 흘러 들어갔다. 그 금빛 번쩍임이 곧 '금색 실드
    피격'이었다. 이제 실드 막을 플라즈마 빛(흰 심·시안 테)으로 제대로 그리고, 꺼도 아래로 안 흘러가게 막는다. */
@@ -31268,35 +31426,9 @@ export default function ReplayMotionPlayer({
             ))}
           </span>
         );
-      case "wound":
-        /* 캔버스 **위** 층(dieFx9, fxlens)에 둔다(지적: 파손 효과가 건물 아래에 깔려 잘 안 보임) — 렌즈 안
-           DOM은 유닛 캔버스(z 6000) 밑이라 건물 몸이 덮었다. fxlens는 같은 좌표계·같은 변환으로 캔버스 위에 선다
-           (렌즈의 span 규칙이 안 걸리므로 position만 직접 준다). */
-        dieFx9.push(
-          <span
-            key={d.key}
-            className={`scr-motion-army scr-motion-dot scr-v2fx${d.lv >= 2 ? " scr-wound-red" : ""}`}
-            /* ★ px에 **배율을 손수 곱한다**(지적: "12배에서 건물 파손 효과가 갑자기 너무 작고 공중에 뜬 건물
-               파손효과가 지상에 나오는듯") — 이 층(fxlens)은 폭 자체가 배율×100%라 px이 곧 화면 px이다(위
-               JSX 주석: "px로 적힌 것만 배율을 손수 곱한다"). 엔진이 준 sz·dx·dy·lift는 1배 상자 기준이라
-               곱하지 않으면 크기도 들기도 배율분의 1로 줄어, 확대할수록 작아지고 뜬 건물의 불길이 발밑에
-               깔렸다. 바로 아래 사망 효과(diePx × zoom)와 같은 규약이다. */
-            style={{ ...posStyle(d.x, d.y), position: "absolute", zIndex: Z_FX - 8, ...(d.lift > 0 ? { transform: `translateY(-${zpx9(d.lift)})` } : {}) }}
-          >
-            {d.items.map((it, k9) => (
-              <span
-                key={k9}
-                className={`scr-motion-wound scr-wound-${d.race}`}
-                style={{
-                  width: zpx9(it.sz), height: zpx9(it.sz),
-                  transform: `translate(calc(-50% + ${zpx9(it.dx)}), calc(-50% + ${zpx9(it.dy)}))`,
-                  animationDelay: `${it.delay}s`,
-                }}
-              />
-            ))}
-          </span>,
-        );
-        return null;
+      /* (걷어냄) 파손 상처의 DOM 스팬 — 캔버스 fx(kind "wound", drawWound9)로 옮겼다.
+         이것만은 스팬으로 남아 있었고 하필 가장 비쌌다: 건물이 성할 때까지 사라지지 않고
+         끝없이 도는 데다, 불꽃 하나가 가짜 요소 둘에 흐리기와 섞임을 지고 있었다. */
       case "mineboom":
         return <span key={d.key} className="scr-motion-mineboom" style={{ ...posStyle(d.x, d.y), zIndex: 1500 }} />;
       case "dig":
@@ -31408,15 +31540,13 @@ export default function ReplayMotionPlayer({
      **끝없이**(infinite) 움직인다. 그래서 '지금 몇 개의 불꽃이 쉼 없이 도는가'가 진짜 짐이다 —
      다른 효과는 몇 초 뒤 사라지지만 파손은 건물이 성할 때까지 남는다. */
   {
-    let w9 = 0; let fl9 = 0; let ca9 = 0; let cp9 = 0; let di9 = 0;
+    let ca9 = 0; let cp9 = 0; let di9 = 0;
     for (const d9 of frame9.dom) {
-      if (d9.k === "wound") { w9 += 1; fl9 += (d9 as unknown as { items?: unknown[] }).items?.length ?? 0; }
-      else if (d9.k === "castfx") ca9 += 1;
+      if (d9.k === "castfx") ca9 += 1;
       else if (d9.k === "collapse") cp9 += 1;
       else if (d9.k === "dieat") di9 += 1;
     }
-    FXDOM9.wound = w9; FXDOM9.flame = fl9; FXDOM9.cast = ca9; FXDOM9.clp = cp9; FXDOM9.die = di9;
-    if (fl9 > FXDOM9.flameMax) FXDOM9.flameMax = fl9;
+    FXDOM9.cast = ca9; FXDOM9.clp = cp9; FXDOM9.die = di9;
   }
   /* 끌기 문턱(지적: 확대된 상태에서 더블탭이 축소가 아니라 조금씩 이동으로 읽힘) —
      여태 문턱이 없어 손가락이 1px만 굴러도 곧장 팬이었다. 탭할 때마다 지도가 밀리고,
@@ -32936,7 +33066,7 @@ export default function ReplayMotionPlayer({
                       {/* 이 판이 본 가장 긴 프레임과 그 몫(위 WORSTF9) — 핵 창 밖의 끊김도 여기 잡힌다. */}
                       {WORSTF9.ms > 0 ? ` · 최장프레임[${WORSTF9.ms.toFixed(0)}ms ${WORSTF9.parts}]` : ""}
                       {/* 효과 DOM 수(위 FXDOM9) — 사멸·붕괴 스팬이 한꺼번에 몇이나 서는지. */}
-                      {` · 효과DOM[지금${FXDOM9.n} 최대${FXDOM9.max} 덧칠${FXDOM9.over.toFixed(1)}×(최대${FXDOM9.overMax.toFixed(1)}) · 파손${FXDOM9.wound}/불꽃${FXDOM9.flame}(최대${FXDOM9.flameMax}) 시전${FXDOM9.cast} 붕괴${FXDOM9.clp} 사멸${FXDOM9.die}${NO_DOMFX9 ? ` 끔${DOMFX_OFF9.size > 0 ? `=${[...DOMFX_OFF9].join("+")}` : ""}` : ""}${NO_BLEND9 ? " 섞임끔" : ""}${NO_BLUR9 ? " 흐리기끔" : ""}]`}
+                      {` · 효과DOM[지금${FXDOM9.n} 최대${FXDOM9.max} 덧칠${FXDOM9.over.toFixed(1)}×(최대${FXDOM9.overMax.toFixed(1)}) · 시전${FXDOM9.cast} 붕괴${FXDOM9.clp} 사멸${FXDOM9.die}${NO_DOMFX9 ? ` 끔${DOMFX_OFF9.size > 0 ? `=${[...DOMFX_OFF9].join("+")}` : ""}` : ""}${NO_BLEND9 ? " 섞임끔" : ""}${NO_BLUR9 ? " 흐리기끔" : ""}]`}
                       {/* 타이머 틈(위 TICKM9) — rAF와 견줘 '주 실마리가 막혔나 · 그리기만 굶었나'를 가른다. */}
                       {TICKM9.n > 0 ? ` · 타이머[최악${TICKM9.worst.toFixed(0)}ms ${TICKM9.n}번]` : ""}
                       {/* 캔버스 배킹 손실(위 LOST9) — 잃고 다시 그린 횟수·검사 횟수. */}

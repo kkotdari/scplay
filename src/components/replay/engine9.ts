@@ -1742,7 +1742,7 @@ export const BUILD_STAGES = 5;
  *  좌표 규약은 CSS 시절 그대로다: fx/fy는 렌즈 분수 앵커, 길이·오프셋은 **렌즈 px**
  *  (그릴 때 zoom을 곱한다), deg는 CSS rotate와 같은 시계방향(0 = 화면 아래)이다. */
 export type FxOp = {
-  kind: "beam" | "shot" | "spike" | "erupt" | "hit" | "shield" | "cage" | "tether" | "burst" | "warp";
+  kind: "beam" | "shot" | "spike" | "erupt" | "hit" | "shield" | "cage" | "tether" | "burst" | "warp" | "wound";
   /** warp(프로토스 소환 완료의 섬광): 자리·크기(size)·진행(ph)만 쓴다. 원작은 워프가 끝나는 순간 한 번 친다. */
   /** burst(죽음·파괴 폭발): 낱개 흩뿌림의 씨앗(개체마다 다르게) · 건물이면 bld. */
   seed?: number; bld?: boolean;
@@ -1789,6 +1789,13 @@ export type FxOp = {
   tx?: number; ty?: number;
   /** tether: 반대 끝의 들림(렌즈 px) — 배는 떠 있으므로 이쪽만 따로 든다. 없으면 lift. beam/shot: 표적의 들기. */
   tlift?: number;
+  /** wound(다친 건물의 상처): 그림의 결 — 테란 불길·저그 피·프로토스 플라즈마.
+   *  낱개(불꽃 하나)마다 op 하나다: 자리는 fx·fy + mx·my(렌즈 px), 크기는 size,
+   *  심함은 tier(1·2), 흩는 씨앗은 seed(0~99), 흔들리는 시계는 clk(초)다. */
+  wrace?: "terran" | "zerg" | "toss";
+  /** wound: **효과의 시계**(초) — 불길·피·연기는 제 주기로 끝없이 움직이므로 진행률
+   *  하나(ph)로는 못 적는다. 시각을 그대로 실어 붓이 주기마다 나눈다. 멈추면 같이 멈춘다. */
+  clk?: number;
 };
 /** 트레이서 갈래의 캔버스 값 — CSS(.scr-tracer-*)의 폭·길이·그러데이션을 옮긴 표다.
  *  단위는 렌즈 px(그릴 때 zoom을 곱한다). tri는 쐐기(글레이브·파편·가시), glow는
@@ -2416,7 +2423,6 @@ export type PitchGeom9 = {
 /** 캔버스가 아니라 DOM으로 그리는 효과의 기록 — 메인 스레드가 이것으로 스팬을 만든다. */
 export type DomFx9 =
   | { k: "buildfx"; key: string; x: number; y: number; z: number; race: string; i: number; ws: number }
-  | { k: "wound"; key: string; x: number; y: number; z: number; lift: number; race: string; lv: number; items: { sz: number; dx: number; dy: number; delay: number }[] }
   | { k: "mineboom"; key: string; x: number; y: number }
   | { k: "touchdown"; key: string; x: number; y: number; wPct: number; hPct: number }
   /** 럴커 버로우 파기의 흙덩이(요청) — 0.15초마다 새 열쇠로 한 움큼씩 튄다. seed로 튀는 방향 갈래를 고른다. */
@@ -5216,31 +5222,38 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       /* 건물 손상 효과만 사양 '중'부터다(요청) — 불길·연기·피는 건물마다 스팬을
          여럿 물고 애니도 무겁다. 그리고 그 건물이 얼마나 상했는지는 체력바가 이미
          말하고 있어, 없어도 상황이 안 읽히지는 않는다. */
-      const bldWoundFx: DomFx9 | null = qBuildFx && !bldFrozen9 && woundLv > 0 && !raising
-        && (goneEff === 0 || t < goneEff) ? {
-          /* 자리는 몸 가운데·그 위(요청: 건물 아래에 깔려 안 보임) — 발자국 폭의 0.3만큼 띄워 몸통 위에 앉힌다.
-             수는 상처가 심할수록 많다(요청): 1단 2개 · 2단 5개. 그리는 쪽은 캔버스 위 층(dieFx9)에 둔다. */
-          k: "wound", key: `bw-${i}`, x: centerX, y: centerY, z: z + 4,
-          /* 들기 0.3 → 0.12(지적: "지금 너무 높은데 나오는 경우가 많네") — 몸통 아래쪽에 붙인다. */
-          lift: bFlyPx9 + fp2[0] * bldTile9 * pitchK(centerY) * 0.12,
-          race: race2 === "저그" ? "zerg" : race2 === "프로토스" ? "toss" : "terran",
-          lv: woundLv,   // 2단(체력 빨강)에서만 테란 연기(요청)
-          items: Array.from({ length: woundLv === 2 ? 5 : 2 }, (_, k9) => {
-            const h9 = (i * 2654435761 + k9 * 40503) >>> 0;
-            /* 흩는 폭 ±0.31 → ±0.16(요청: "너무 넓게 퍼뜨리진 말고 갯수 늘릴 때도 중심부 주변으로") —
-               2단에서 다섯이 되어도 몸 가운데 언저리에 모인다. */
-            const ux9 = ((h9 % 1000) / 1000 - 0.5) * 0.32;
-            const uy9 = (((h9 >>> 10) % 1000) / 1000 - 0.5) * 0.32;
+      /* ★ 상처는 **캔버스로** 간다(요청: "어쨌든 돔효과 캔버스로 옮기긴 해야하지") ─────────────────
+         이것만은 DOM 스팬으로 남아 있었고, 하필 이것이 가장 비쌌다. 다른 효과는 몇 초 뒤 사라지지만
+         상처는 **건물이 성할 때까지 남아 끝없이 움직인다**(animation: … infinite). 게다가 불꽃 하나가
+         가짜 요소 둘에 `filter: blur` + `mix-blend-mode: screen`을 지고 있었다 — 흐리기는 그 층을 따로
+         그린 뒤 한 번 더 지나가게 만들고, 섞임은 그 밑의 **배경 전체**(우리의 거대한 유닛 캔버스)를
+         읽어 오게 한다. 둘 다 넓이와 무관하게 층 수만큼 값이 붙는다(계측: 덧칠은 화면의 0.9배뿐인데도
+         효과를 빼면 멈춤이 사라졌다 — 값은 넓이가 아니라 층 하나하나의 성질이었다).
+         캔버스에서는 이 겹침이 우리가 이미 칠하는 한 장 안에서 일어난다(합성 층 0 · 배경 읽기 0).
+         낱개(불꽃 하나)마다 op 하나를 낸다 — 자리·크기 셈은 스팬 시절 그대로다. */
+      if (qBuildFx && !bldFrozen9 && woundLv > 0 && !raising && (goneEff === 0 || t < goneEff)) {
+        /* 들기 0.12 — 몸통 아래쪽에 붙인다(지적: "지금 너무 높은데 나오는 경우가 많네"). */
+        const wLift9 = bFlyPx9 + fp2[0] * bldTile9 * pitchK(centerY) * 0.12;
+        const wRace9 = race2 === "저그" ? "zerg" : race2 === "프로토스" ? "toss" : "terran";
+        /* 수는 상처가 심할수록 많다(요청): 1단 2개 · 2단 5개. */
+        const wN9 = woundLv === 2 ? 5 : 2;
+        for (let k9 = 0; k9 < wN9; k9 += 1) {
+          const h9 = (i * 2654435761 + k9 * 40503) >>> 0;
+          /* 흩는 폭 ±0.16(요청: "너무 넓게 퍼뜨리진 말고 갯수 늘릴 때도 중심부 주변으로"). */
+          const ux9 = ((h9 % 1000) / 1000 - 0.5) * 0.32;
+          const uy9 = (((h9 >>> 10) % 1000) / 1000 - 0.5) * 0.32;
+          fxOps.push({
+            kind: "wound", fx: centerX, fy: centerY, lift: wLift9,
+            /* 살짝 왼쪽으로(지적: "45도 요잉된 모델과 합쳐지니 오른쪽으로 치우친 느낌"). */
+            mx: (ux9 - 0.08) * fp2[0] * bldTile9 * pitchK(centerY),
+            my: uy9 * fp2[1] * bldTile9 * pitchK(centerY) * (pitched ? pitchFlat : 1),
             // 세 종족 모두 20% 축소(요청): 0.34/0.26 → 0.27/0.21.
-            const sz9 = fp2[0] * (woundLv === 2 ? 0.27 : 0.21) * bldTile9 * pitchK(centerY);   // 입체: 깊이 배율
-            /* 살짝 왼쪽으로(지적: "45도 요잉된 모델과 합쳐지니 오른쪽으로 치우친 느낌") — 건물 판은 45도로 요잉해
-               서므로 보이는 몸의 가운데가 발자국 가운데보다 조금 왼쪽이다. 폭의 0.08만큼 왼쪽에 둔다. */
-            return { sz: sz9, dx: (ux9 - 0.08) * fp2[0] * bldTile9 * pitchK(centerY), dy: uy9 * fp2[1] * bldTile9 * pitchK(centerY) * (pitched ? pitchFlat : 1), delay: ((h9 >>> 20) % 100) / 100 };
-          }),
-        } : null;
-      /** 이 건물이 화면에 내보내는 효과 한 벌 — 이제 상처(계속)뿐이다.
-       *  피격 불티·실드막은 위에서 캔버스 fx로 나갔다(그 주석 참조). */
-      const bldFx = bldWoundFx;
+            size: fp2[0] * (woundLv === 2 ? 0.27 : 0.21) * bldTile9 * pitchK(centerY),
+            tier: woundLv === 2 ? 2 : 1, wrace: wRace9,
+            seed: (h9 >>> 20) % 100, clk: t,
+          });
+        }
+      }
       /* 성큰은 쏘는 동안 혓바닥을 내민 판으로 바꾼다(요청: "가시가 나오는 타이밍에
          이 모양이") — 아래 방어 사격이 트레이서를 그리는 조건과 **같은 자**를 쓴다:
          사거리 안에 지상 표적이 있고, 다 지어졌고, 아직 안 걷혔을 때. 조건을 따로
@@ -5826,7 +5839,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
             }
           }
         }
-        if (bldFx) dom.push(bldFx); return null;
+        return null;
       }
       // 전용 도형이 없는 건물 — 발자국 80% 네모(.scr-motion-sq와 같은 채움·0.82).
       unitOps.push({
@@ -5834,7 +5847,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         sizePx: 0, wFrac: wFrac * pulse, hFrac: hFrac * pulse, boxFit: "fill",
         color, alpha: alpha * 0.82, noShadow: true,
       });
-      if (bldFx) dom.push(bldFx); return null;
+      return null;
     });
       void rBD9;
     }
