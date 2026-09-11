@@ -818,7 +818,13 @@
    색은 ReplayFogLayer의 FOG_RGB와 **같은 값**이어야 한다(거기서 5,8,14). */
 /* 진단 스위치(#noblend) — 효과 층의 섞임을 통째로 끈다(재생기의 NO_BLEND9 ★). 끊김의 값이 우리 JS
    밖(밖 4351/4367ms)이라, 브라우저 합성에서 가장 값비싼 자를 하나 빼고 견줘 보는 자리다. */
-.scr-noblend, .scr-noblend * { mix-blend-mode: normal !important; }
+/* ★ **가짜 요소까지** 끈다(고침) — 앞 판은 `.scr-noblend *`뿐이라 ::before·::after를 못 잡았다. 그런데 정작
+   섞임·흐리기를 지고 있는 것은 파손 불꽃(.scr-wound-*::before/::after)처럼 **가짜 요소**다. 그래서 "섞임을
+   껐는데 그대로"라는 판정이 틀렸을 수 있다 — #nodomfx가 둘만 끄던 것과 같은 결함이다. */
+.scr-noblend, .scr-noblend *, .scr-noblend *::before, .scr-noblend *::after { mix-blend-mode: normal !important; }
+/* 진단 스위치(#noblur) — 효과의 흐리기(filter)만 끈다(재생기의 NO_BLUR9 ★). blur가 걸린 층은 따로 그려 한 번
+   더 지나가야 해서, 넓이가 좁아도 층 수만큼 값이 붙는다. 넓이(덧칠 0.9×)가 무죄일 때 남는 자리다. */
+.scr-noblur, .scr-noblur *, .scr-noblur *::before, .scr-noblur *::after { filter: none !important; }
 .scr-motion-fogbg { position: absolute; inset: 0; pointer-events: none; z-index: 5499; }
 .scr-motion-fogbg > i { position: absolute; display: block; width: 0; height: 0; background: rgb(5, 8, 14); }
 /* 자리·크기는 붓이 인라인으로 못박는다(ReplayFogLayer의 PAD) — 판은 상자보다 한 뼘

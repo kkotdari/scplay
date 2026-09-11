@@ -2574,9 +2574,22 @@ const NO_BLEND9 = typeof location !== "undefined" && /noblend/.test(location.has
  *  합성 텍스처로 따로 굽는다. 한꺼번에 수십·수백이 태어나면 그 층들을 한 프레임에 다 만들어야 하고, 그것이
  *  주 실마리를 몇 초씩 세운다(우리 JS는 놀고 있는 채로).
  *  캔버스 파편(burst)은 그대로 두므로 이 스위치를 켜도 폭발은 보인다 — 여운 스팬만 빠진다. */
-const NO_DOMFX9 = typeof location !== "undefined" && /nodomfx/.test(location.hash);
+const DOMFX_M9 = typeof location !== "undefined" ? /nodomfx(?:=([a-z,]+))?/.exec(location.hash) : null;
+/** ★ 갈래만 끄기 `#nodomfx=wound,castfx` — 통째로 끄면 "효과가 값이다"까지만 알고 **어느 효과**인지는 모른다.
+ *  갈래를 하나씩 빼 보면 한 번에 하나씩 지워진다(모르는 이름은 그냥 무시되므로 #nodomfx=wound,diag=draw 도 안전). */
+const DOMFX_OFF9: ReadonlySet<string> = new Set(
+  (DOMFX_M9?.[1] ?? "").split(",").map((x9) => x9.trim()).filter(Boolean),
+);
+const NO_DOMFX9 = !!DOMFX_M9;
+/** 한 갈래가 꺼졌나 — 목록이 비었으면 **전부** 끈 것이다(옛 뜻 그대로). */
+const domFxOff9 = (k9: string): boolean => NO_DOMFX9 && (DOMFX_OFF9.size === 0 || DOMFX_OFF9.has(k9));
+/** ★ 진단 스위치 `#noblur` — 효과의 **흐리기**(filter: blur)만 끈다 ──────────────────────────────
+ *  덧칠 넓이가 화면의 0.9배뿐인데도 효과를 빼면 멈춤이 사라졌다. 그러면 값은 넓이가 아니라 **층 하나하나의
+ *  성질**이다. blur는 그 층을 따로 그린 뒤 한 번 더 지나가게 만들고(별도 render surface), 섞임(screen)은
+ *  그 밑의 **배경 전체**(우리의 거대한 유닛 캔버스)를 읽어 오게 한다. 둘 다 넓이와 무관하게 값이 붙는다. */
+const NO_BLUR9 = typeof location !== "undefined" && /noblur/.test(location.hash);
 /** 이 프레임의 효과 DOM 수와 이제까지의 최대 — 층 폭발이 값인지 수로 가른다. */
-const FXDOM9 = { n: 0, max: 0, over: 0, overMax: 0 };
+const FXDOM9 = { n: 0, max: 0, over: 0, overMax: 0, wound: 0, flame: 0, flameMax: 0, cast: 0, clp: 0, die: 0 };
 /** ★ **주 실마리가 막혔나, 화면만 굶었나**(조사: 10초 멎었다 풀림 · 메모리는 55MB로 멀쩡) ─────────────
  *  여태 잰 '최장 프레임'은 rAF 사이의 틈이다. 그 틈이 길다고 곧 주 실마리가 막힌 것은 아니다 — rAF는
  *  **그리기 파이프라인**에 매여 있어서, 합성기·GPU가 못 따라오면 JS가 멀쩡해도 안 불린다.
@@ -29487,12 +29500,17 @@ export default function ReplayMotionPlayer({
     }, 100);
     return () => window.clearInterval(id9);
   }, []);
-  /* #noblend가 켜져 있으면 지도 상자에 표를 단다(위 NO_BLEND9) — CSS 한 규칙이 섞임을 통째로 끈다. */
+  /* #noblend·#noblur가 켜져 있으면 지도 상자에 표를 단다(위 NO_BLEND9·NO_BLUR9) — CSS 한 규칙씩이 섞임·흐리기를
+     통째로 끈다. 표는 둘 다 붙을 수 있다(#noblend,noblur). */
   useEffect(() => {
     const el9 = mapRef.current;
-    if (!el9 || !NO_BLEND9) return undefined;
-    el9.classList.add("scr-noblend");
-    return () => el9.classList.remove("scr-noblend");
+    if (!el9) return undefined;
+    const cls9: string[] = [];
+    if (NO_BLEND9) cls9.push("scr-noblend");
+    if (NO_BLUR9) cls9.push("scr-noblur");
+    if (cls9.length === 0) return undefined;
+    el9.classList.add(...cls9);
+    return () => el9.classList.remove(...cls9);
   }, []);
   const clipBoxRef = useRef({ fsCover: false, pitched: false });
   clipBoxRef.current = { fsCover: fsCoverW > 0, pitched };
@@ -31231,7 +31249,7 @@ export default function ReplayMotionPlayer({
        그대로 남았다. 그래서 "효과를 뺐는데 그대로"라는 잘못된 판정이 나왔다.
        이 스팬들은 하나하나가 **반투명 그러데이션**이라, 우리 JS는 한 줄도 안 쓰지만 브라우저는 그만큼
        화면을 덧칠한다(합성기의 오버드로). 큰 원 서른 장이면 화면을 수십 번 다시 칠하는 셈이다. */
-    if (NO_DOMFX9) return null;
+    if (domFxOff9(d.k)) return null;
     switch (d.k) {
       case "buildfx":
         return (
@@ -31384,6 +31402,21 @@ export default function ReplayMotionPlayer({
     }
     FXDOM9.over = ar9 / box9;
     if (FXDOM9.over > FXDOM9.overMax) FXDOM9.overMax = FXDOM9.over;
+  }
+  /* ★ **갈래와 불꽃 수**(덧칠 0.9×가 무죄로 나온 뒤) — 넓이가 값이 아니라면 남는 것은 '따로 그려야 하는 층'의
+     수다. 그중 파손(wound)은 하나가 여러 불꽃을 품고, 불꽃마다 가짜 요소 둘이 **흐리기+섞임**을 지고
+     **끝없이**(infinite) 움직인다. 그래서 '지금 몇 개의 불꽃이 쉼 없이 도는가'가 진짜 짐이다 —
+     다른 효과는 몇 초 뒤 사라지지만 파손은 건물이 성할 때까지 남는다. */
+  {
+    let w9 = 0; let fl9 = 0; let ca9 = 0; let cp9 = 0; let di9 = 0;
+    for (const d9 of frame9.dom) {
+      if (d9.k === "wound") { w9 += 1; fl9 += (d9 as unknown as { items?: unknown[] }).items?.length ?? 0; }
+      else if (d9.k === "castfx") ca9 += 1;
+      else if (d9.k === "collapse") cp9 += 1;
+      else if (d9.k === "dieat") di9 += 1;
+    }
+    FXDOM9.wound = w9; FXDOM9.flame = fl9; FXDOM9.cast = ca9; FXDOM9.clp = cp9; FXDOM9.die = di9;
+    if (fl9 > FXDOM9.flameMax) FXDOM9.flameMax = fl9;
   }
   /* 끌기 문턱(지적: 확대된 상태에서 더블탭이 축소가 아니라 조금씩 이동으로 읽힘) —
      여태 문턱이 없어 손가락이 1px만 굴러도 곧장 팬이었다. 탭할 때마다 지도가 밀리고,
@@ -32903,7 +32936,7 @@ export default function ReplayMotionPlayer({
                       {/* 이 판이 본 가장 긴 프레임과 그 몫(위 WORSTF9) — 핵 창 밖의 끊김도 여기 잡힌다. */}
                       {WORSTF9.ms > 0 ? ` · 최장프레임[${WORSTF9.ms.toFixed(0)}ms ${WORSTF9.parts}]` : ""}
                       {/* 효과 DOM 수(위 FXDOM9) — 사멸·붕괴 스팬이 한꺼번에 몇이나 서는지. */}
-                      {` · 효과DOM[지금${FXDOM9.n} 최대${FXDOM9.max} 덧칠${FXDOM9.over.toFixed(1)}×(최대${FXDOM9.overMax.toFixed(1)})${NO_DOMFX9 ? " 끔" : ""}]`}
+                      {` · 효과DOM[지금${FXDOM9.n} 최대${FXDOM9.max} 덧칠${FXDOM9.over.toFixed(1)}×(최대${FXDOM9.overMax.toFixed(1)}) · 파손${FXDOM9.wound}/불꽃${FXDOM9.flame}(최대${FXDOM9.flameMax}) 시전${FXDOM9.cast} 붕괴${FXDOM9.clp} 사멸${FXDOM9.die}${NO_DOMFX9 ? ` 끔${DOMFX_OFF9.size > 0 ? `=${[...DOMFX_OFF9].join("+")}` : ""}` : ""}${NO_BLEND9 ? " 섞임끔" : ""}${NO_BLUR9 ? " 흐리기끔" : ""}]`}
                       {/* 타이머 틈(위 TICKM9) — rAF와 견줘 '주 실마리가 막혔나 · 그리기만 굶었나'를 가른다. */}
                       {TICKM9.n > 0 ? ` · 타이머[최악${TICKM9.worst.toFixed(0)}ms ${TICKM9.n}번]` : ""}
                       {/* 캔버스 배킹 손실(위 LOST9) — 잃고 다시 그린 횟수·검사 횟수. */}
