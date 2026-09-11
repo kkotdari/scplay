@@ -32696,7 +32696,16 @@ export default function ReplayMotionPlayer({
       for (const v9 of WARM_KIN9[k9] ?? []) pushTable9(v9);
       const isBld = !UNIT_KIND_SET.has(k9);
       if (isBld) jobs.push({ kind: k9 });
-      else for (let r9 = 0; r9 < 16; r9 += 1) jobs.push({ kind: k9, rot: r9 * 22.5 });
+      /* ★ **그릴 칸만 데운다**(수리: 큰 판에서 "로딩이 거의 안 됨") ────────────────────────
+         여기는 늘 열여섯 칸(22.5도)을 데웠는데, 작은 기기의 붓은 그 칸을 **한 번도 안 쓴다**:
+         DEV9.yaw8Always가 서 있어 요잉이 늘 여덟 칸(45도)으로 눕고, 낮은 배율에서 죄면 네 칸이다.
+         45도 칸은 22.5도 칸의 부분집합이라 데운 것이 안 쓰이는 것이 아니라, **쓰지도 않을 여덟 칸을
+         더 데우느라 로딩이 두 배로 길었다**. 종류가 마흔이면 640 → 320 일감이다.
+         넓은 자리(PC)는 배율에 따라 열여섯 칸을 쓰므로 그대로 둔다. */
+      else {
+        const rn9 = DEV9.yaw8Always ? 8 : 16;
+        for (let r9 = 0; r9 < rn9; r9 += 1) jobs.push({ kind: k9, rot: (r9 * 360) / rn9 });
+      }
     }
     // 다른 유닛의 버로우도 맨 구멍을 쓴다 — 저그가 있으면 무조건 데워 둔다(면 몇 장짜리라 값도 없다).
     if ([...kinds].some((k9) => k9 === "zling" || k9 === "hydra" || k9 === "drone")) pushTable9("burrowhole");

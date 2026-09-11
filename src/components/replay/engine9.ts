@@ -5243,13 +5243,18 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         const wRace9 = race2 === "저그" ? "zerg" : race2 === "프로토스" ? "toss" : "terran";
         /* 수는 상처가 심할수록 많다(요청): 1단 2개 · 2단 5개. */
         const wN9 = woundLv === 2 ? 5 : 2;
+        /* ★ 앵커는 **자리 분수**다(수리: 불꽃이 화면 밖에 그려지고 있었다) — fx op의 fx·fy는
+           posFrac이 낸 렌즈 분수인데, 스팬 시절의 기록을 옮기며 타일 좌표를 그대로 실었다.
+           타일 64가 분수 64로 읽히니 상자 밖으로 나가 붓이 통째로 걸러 냈다 — 그림이 아예 안
+           나왔다. 다른 갈래는 모두 posFrac을 지나는데 이 하나만 빠져 있었다. */
+        const [wfx9, wfy9] = posFrac(centerX, centerY);
         for (let k9 = 0; k9 < wN9; k9 += 1) {
           const h9 = (i * 2654435761 + k9 * 40503) >>> 0;
           /* 흩는 폭 ±0.16(요청: "너무 넓게 퍼뜨리진 말고 갯수 늘릴 때도 중심부 주변으로"). */
           const ux9 = ((h9 % 1000) / 1000 - 0.5) * 0.32;
           const uy9 = (((h9 >>> 10) % 1000) / 1000 - 0.5) * 0.32;
           fxOps.push({
-            kind: "wound", fx: centerX, fy: centerY, lift: wLift9,
+            kind: "wound", fx: wfx9, fy: wfy9, lift: wLift9,
             /* 살짝 왼쪽으로(지적: "45도 요잉된 모델과 합쳐지니 오른쪽으로 치우친 느낌"). */
             mx: (ux9 - 0.08) * fp2[0] * bldTile9 * pitchK(centerY),
             my: uy9 * fp2[1] * bldTile9 * pitchK(centerY) * (pitched ? pitchFlat : 1),
