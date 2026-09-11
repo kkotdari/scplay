@@ -3127,10 +3127,13 @@ function hazardPanel(
 }
 /** 캐터필러 한 짝 — 알약 슬래브 + 달림면 트랙 링크 + 앞뒤 기동륜 + 위 흙받이.
  *  링크는 위 달림면에 얹는다: 내려다보는 화면에서 실제로 보이는 면이 거기다. */
-function tankTrack(cx: number, yA = -3.6, yB = 3.6): ShapeFace[] {
+function tankTrack(cx: number, yA = -3.6, yB = 3.6, h = 2.6): ShapeFace[] {
   /* 궤도가 실루엣의 절반이다(사진) — 낮은 슬래브로는 옆에 붙은 난간으로 읽혔다.
-     차체만큼 높게(2.6) 세운다. */
-  const H = 2.6;
+     차체만큼 높게(2.6) 세운다.
+     ★ 지름(= 높이)은 짝마다 다를 수 있다(요청: 앞의 작은 캐터필러만 10% 축소) — 알약은
+       바닥 z 0에서 세워 올리므로 이 값만 줄이면 **바닥은 그대로 땅에 닿은 채** 지름이 준다.
+       레일판·기동륜·달림면이 전부 이 값에서 파생되니 함께 준다. */
+  const H = h;
   const W = 1.45;
   /* 궤도 한 짝의 부품들은 **한 자**를 쓴다(지적: "궤도 위 판 안보이고 궤도가 보임") —
      여태 슬래브는 trackFaces가 `depthNow(cx, 가운데) + min(h, …)`로 재고, 그 위에 얹는
@@ -3224,10 +3227,13 @@ function tankTrack(cx: number, yA = -3.6, yB = 3.6): ShapeFace[] {
  *  앞판 쪽)다. 링크·기동륜은 tankTrack이 제 길이에 맞춰 알아서 낸다. */
 /** 앞 궤도는 **안쪽**(요청: 앞의 작은 캐터필러를 안쪽으로) — 뒤 ±2.45, 앞 ±2.0. 차체도 앞 궤도가 붙는 구간만 그만큼 좁다(tankHull). */
 const TRACK_FRONT_IN = 0.45;
+/** 앞 궤도의 지름 몫(요청: "앞쪽 작은 캐터필러 지름(높이) 10% 축소, 바닥은 동일하게
+ *  바닥에 닿게") — 알약을 바닥에서 세우므로 높이만 줄이면 바닥은 제자리다. */
+const TRACK_FRONT_H9 = 0.9;
 function tankTracks(dx = 2.45): ShapeFace[] {
   return ([-dx, dx]).flatMap((cx) => [
     ...tankTrack(cx, -3.6, 1.0),
-    ...tankTrack(cx - Math.sign(cx) * TRACK_FRONT_IN, 1.3, 3.6),
+    ...tankTrack(cx - Math.sign(cx) * TRACK_FRONT_IN, 1.3, 3.6, 2.6 * TRACK_FRONT_H9),
   ]);
 }
 /** 차체 — 궤도 사이 상자 + 사선 앞판 + 빗금 해치 + 옆 장갑 치마 + 꽁무니 통풍구.
