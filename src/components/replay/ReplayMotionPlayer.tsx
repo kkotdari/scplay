@@ -20988,8 +20988,6 @@ const WORK9 = { brush: 0, wk: 0, react: 0 };
 const LOAD9 = { mapN: 0, mapMs: 0, mapMax: 0, truthMs: 0, wkMs: 0, warmMs: 0, warmN: 0 };
 /** 겹쳐서 덮일 유닛을 얼마나 뺐나(위 drawList9) — '몇 중 몇을 그렸나'. */
 const THIN9 = { n: 0, drew: 0 };
-/** 가스 건물 착공 곁 폭발의 출처(진단, 엔진 noteGasBurst9 → 워커 stats) — 마지막 여섯 줄. */
-const GASB9 = { list: [] as string[] };
 /** 죄기 요잉 칸의 **직전 답**(개체별) — 칸 경계에서 방향이 파닥이지 않게 하는 불감대용. */
 const YAWQ9 = new Map<string, number>();
 /** 겹침생략의 **직전 답**(개체별, 1 = 숨김) — 칸 경계에서 깜빡이지 않게 하는 불감대용. */
@@ -27840,8 +27838,7 @@ export default function ReplayMotionPlayer({
         st9.buildMs = st9.buildMs === 0 ? pf9.ms : st9.buildMs * 0.9 + pf9.ms * 0.1;
         st9.ops = st9.ops === 0 ? pf9.n : st9.ops * 0.9 + pf9.n * 0.1;
         st9.kb = st9.kb === 0 ? pf9.buf.byteLength / 1024 : st9.kb * 0.9 + (pf9.buf.byteLength / 1024) * 0.1;
-        const x9 = m9 as unknown as { msBuild?: number; msPack?: number; fogCost?: number; fogN?: number; resets?: number; cur?: number; duty?: number; gasBurst?: string[] };
-        if (x9.gasBurst && x9.gasBurst.length > 0) GASB9.list = x9.gasBurst;   // 진단(엔진 noteGasBurst9)
+        const x9 = m9 as unknown as { msBuild?: number; msPack?: number; fogCost?: number; fogN?: number; resets?: number; cur?: number; duty?: number};
         const mix9 = (old9: number, v9: number): number => (old9 === 0 ? v9 : old9 * 0.9 + v9 * 0.1);
         st9.engMs = mix9(st9.engMs, x9.msBuild ?? 0);
         st9.packMs = mix9(st9.packMs, x9.msPack ?? 0);
@@ -34163,8 +34160,6 @@ export default function ReplayMotionPlayer({
                       {` · 창고[든${CVSTORE9.hit} 빗${CVSTORE9.miss} 넣${CVSTORE9.put} 쌓${CVSTORE9.list.length}]`}
                       {/* 판이 왜 갈리나 — 굽기 회전의 임자다(유닛·건물 각각 상위 셋). */}
                       {` · 판갈림[유닛 ${missTop9(UNI_MISS9.why)} · 건물 ${missTop9(BLD_MISS9.why)}]`}
-                      {/* 가스 건물 착공 곁 폭발의 출처(지적: "어시밀레이터도 짓기 시작할 때 터지고") — 어느 발원지가 냈나. */}
-                      {GASB9.list.length > 0 ? ` · 가스폭발[${GASB9.list.join(" | ")}]` : ""}
                       {MEMTR9.n > 0 ? ` · 메모리[처음${MEMTR9.first.toFixed(0)} 지금${MEMTR9.now.toFixed(0)} 최대${MEMTR9.max.toFixed(0)}MB`
                         + ` · 캔버스${MEMTR9.cv}장 ${MEMTR9.cvMB.toFixed(1)} · 판 ${MEMTR9.plMB.toFixed(1)} · 설계도안개 ${MEMTR9.exMB.toFixed(1)}]` : ""}
                     </div>

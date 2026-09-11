@@ -2266,8 +2266,6 @@ export const MORPH_NEXT: Record<string, string[]> = {
   Lair: ["Hive"],
 };
 /** 뒤 건물(to)이 앞 건물(from)의 후계인가 — 같은 종류의 재건이거나 변태의 다음 단계. */
-/** 가스 건물 착공 곁 폭발의 출처 기록(진단) — createEngine9의 noteGasBurst9가 채우고 stats()로 내보낸다. */
-const GAS_BURST9: string[] = [];
 export const succeedsBld = (from: string, to: string): boolean =>
   to === from || (MORPH_NEXT[from] ?? []).includes(to);
 /** 같은 자리인가 — ±1.5타일은 한 칸 간격으로 붙어 선 콜로니를 서로 삼켰다(지적). */
@@ -3392,21 +3390,6 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     goneEffOf, prodByRawType, bldTagAt, leftAt9, tagOrdinals, buildsByType, halls, gasBuildings,
     resStageSeries, gridHasGasFlags, gasHideOf, mines, bldPre9, bldRecMemo, teamOfRaw, bases, grid, total,
   } = world;
-  /* ★ 진단 — **가스 건물 착공 곁에서 난 폭발**의 출처(지적: "어시밀레이터도 짓기 시작할 때 터지고 소환구
-     생기는 거 봤어" · 드론 → 익스트랙터는 변태로 이었는데 프로토스에서도 난다). 코드로는 셋 중 어느 자리가
-     내는지 못 가렸다(개체 사망 · 건물 무너짐 · 저그 완공 파편). 폭발을 낼 때마다 착공 1.5초·3타일 안의
-     가스 건물이 있으면 어느 자리가 무엇 때문에 냈는지 적어 둔다 — #diag=draw의 가스폭발 칸. */
-  const GAS_KINDS9 = new Set(["Refinery", "Assimilator", "Extractor"]);
-  const noteGasBurst9 = (where: string, info: string, tx: number, ty: number, t: number): void => {
-    for (const [sec, bx, by, unit] of buildsSrc) {
-      if (!GAS_KINDS9.has(unit) || Math.abs(t - sec) > 1.5) continue;
-      const fp = FOOTPRINT[unit] ?? [4, 2];
-      if (Math.hypot(tx - (bx + fp[0] / 2), ty - (by + fp[1] / 2)) > 3) continue;
-      const line = `${sec.toFixed(1)}s ${unit} ← ${where}(${info})`;
-      if (GAS_BURST9[GAS_BURST9.length - 1] !== line) { GAS_BURST9.push(line); if (GAS_BURST9.length > 6) GAS_BURST9.shift(); }
-      return;
-    }
-  };
   const gw9 = grid.width;
   const gh9 = grid.height;
   const FOG_NEVER = 65535;
@@ -6106,7 +6089,6 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       if (goneAt > 0 && t >= goneAt) return;
       const race = raceOfName9(unit) ?? bases.find((b2) => b2.key === raw)?.race;
       if (race !== "저그") return;
-      noteGasBurst9("저그완공파편", `${unit} done=${d9.toFixed(1)}`, x + footDx(unit), y + footDy(unit), t);
       const [hfx9, hfy9] = posFrac(x + footDx(unit), y + footDy(unit));
       fxOps.push({
         kind: "burst", fx: hfx9, fy: hfy9, lift: 0, bld: false,
@@ -6346,7 +6328,6 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     // 절반, 건물 갈래(bld) 아님, 아래 DOM 무너짐(충격파·연기)도 안 낸다.
     const cocoonB9 = !finished9 && rk === "zerg";
     if (t >= goneAt && t - goneAt <= BLD_FX_SEC) {
-      noteGasBurst9("건물무너짐", `${unit} sec=${sec.toFixed(1)} gone=${goneAt.toFixed(1)} done=${(doneAt9 ?? 0).toFixed(1)}`, x + footDx(unit), y + footDy(unit), t);
       const [bfx9, bfy9] = posFrac(x + footDx(unit), y + footDy(unit));
       fxOps.push({
         kind: "burst", fx: bfx9, fy: bfy9, lift: (cocoonB9 ? 0 : bldMidLift9(unit)) + flyUp9, bld: !cocoonB9,   // 몸 가운데에서(지적)
@@ -7060,7 +7041,6 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
          화염·연기, 프로토스는 플라즈마화, 저그는 살점·피떡) — 캔버스 burst op으로 그린다(2배부터).
          자는 보이는 몸 폭. 그 아래 칸은 옛 DOM 여운 하나만 남긴다. */
       if (!leftAt9(e.raw, dieAt)) {   // 나간 사람의 한꺼번 걷힘이면 유닛도 조용히 사라진다(leaveAt9 주석)
-        noteGasBurst9("개체사망", `${e.unit || "무명"}→${drawUnit} end=${e.end || "-"} tag=${e.tag}`, dpx, dpy, t);
         const [bfx9, bfy9] = posFrac(dpx, dpy);
         fxOps.push({
           kind: "burst", fx: bfx9, fy: bfy9, lift: dieLift,
@@ -8414,8 +8394,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
     };
   };
   /** 진단 — 마지막 안개 쌓기 비용(ms)과 누적 횟수. */
-  const stats = (): { fogCost: number; fogStamps: number; gasBurst: string[] } =>
-    ({ fogCost: fogStampRef.current.cost, fogStamps: fogStampN9, gasBurst: GAS_BURST9.slice() });
+  const stats = (): { fogCost: number; fogStamps: number } => ({ fogCost: fogStampRef.current.cost, fogStamps: fogStampN9 });
   return { build, setView, reset, stats, get view() { return view; } };
 }
 
