@@ -5053,8 +5053,9 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         /* 타이밍(같은 요청) — **걷는 동안은 안 튄다**. 용접은 서서 하는 일이고, 자리를 옮기는 동안 불티가
            따라다니면 그건 용접이 아니라 발밑에서 나는 불꽃으로 보인다. 서면 다시 튄다. */
         if (qBuildFx && !halted && !bldFrozen9 && race2 !== "프로토스" && !(bldr9 && bldr9.mv)) {
-          /* 저그는 그림이 없었다(CSS가 display:none) — 테란 용접 불티만 낸다. */
-          if (race2 === "테란") {
+          /* 저그는 그림이 없었다(CSS가 display:none) — 테란 용접 불티만 낸다.
+             난전(덜어내기 1단부터)에서는 아예 안 낸다 — 실 다섯이 한 화소도 안 되는 자리다. */
+          if (race2 === "테란" && crowd9 < 1) {
             const [wfx9, wfy9] = posFrac(bfxX, bfxY);
             fxOps.push({
               kind: "dom", style: "weld", fx: wfx9, fy: wfy9, lift: 0,
@@ -5237,33 +5238,31 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
          효과를 빼면 멈춤이 사라졌다 — 값은 넓이가 아니라 층 하나하나의 성질이었다).
          캔버스에서는 이 겹침이 우리가 이미 칠하는 한 장 안에서 일어난다(합성 층 0 · 배경 읽기 0).
          낱개(불꽃 하나)마다 op 하나를 낸다 — 자리·크기 셈은 스팬 시절 그대로다. */
-      if (qBuildFx && !bldFrozen9 && woundLv > 0 && !raising && (goneEff === 0 || t < goneEff)) {
-        /* 들기 0.12 — 몸통 아래쪽에 붙인다(지적: "지금 너무 높은데 나오는 경우가 많네"). */
-        const wLift9 = bFlyPx9 + fp2[0] * bldTile9 * pitchK(centerY) * 0.12;
-        const wRace9 = race2 === "저그" ? "zerg" : race2 === "프로토스" ? "toss" : "terran";
-        /* 수는 상처가 심할수록 많다(요청): 1단 2개 · 2단 5개. */
-        const wN9 = woundLv === 2 ? 5 : 2;
-        /* ★ 앵커는 **자리 분수**다(수리: 불꽃이 화면 밖에 그려지고 있었다) — fx op의 fx·fy는
-           posFrac이 낸 렌즈 분수인데, 스팬 시절의 기록을 옮기며 타일 좌표를 그대로 실었다.
-           타일 64가 분수 64로 읽히니 상자 밖으로 나가 붓이 통째로 걸러 냈다 — 그림이 아예 안
-           나왔다. 다른 갈래는 모두 posFrac을 지나는데 이 하나만 빠져 있었다. */
+      /* ★ 낱개마다 op을 내던 것을 **건물마다 한 장**으로 줄인다(실측: 워커 일 98% · 짓기 38ms ·
+         앞 0.0s — 지을 여유가 없어 붓이 보간할 뒤 장을 못 받았다. 그 미끄러짐의 몫 하나다).
+         불꽃 다섯이면 op이 다섯이고 그 다섯이 프레임마다 지어져 싸여 건너간다. 흩는 자리는
+         **건물 번호와 불꽃 번호의 순수 함수**라 붓이 같은 해시로 그대로 다시 낼 수 있다 —
+         숫자 셋(퍼짐 가로·세로 자 + 개수)만 실으면 된다.
+         그리고 난전(덜어내기 2단)에서는 아예 안 낸다 — 그 화면에서 불꽃 하나는 한 화소고,
+         건물이 얼마나 상했는지는 체력바가 이미 말한다. */
+      if (qBuildFx && crowd9 < 2 && !bldFrozen9 && woundLv > 0 && !raising
+        && (goneEff === 0 || t < goneEff)) {
         const [wfx9, wfy9] = posFrac(centerX, centerY);
-        for (let k9 = 0; k9 < wN9; k9 += 1) {
-          const h9 = (i * 2654435761 + k9 * 40503) >>> 0;
-          /* 흩는 폭 ±0.16(요청: "너무 넓게 퍼뜨리진 말고 갯수 늘릴 때도 중심부 주변으로"). */
-          const ux9 = ((h9 % 1000) / 1000 - 0.5) * 0.32;
-          const uy9 = (((h9 >>> 10) % 1000) / 1000 - 0.5) * 0.32;
-          fxOps.push({
-            kind: "wound", fx: wfx9, fy: wfy9, lift: wLift9,
-            /* 살짝 왼쪽으로(지적: "45도 요잉된 모델과 합쳐지니 오른쪽으로 치우친 느낌"). */
-            mx: (ux9 - 0.08) * fp2[0] * bldTile9 * pitchK(centerY),
-            my: uy9 * fp2[1] * bldTile9 * pitchK(centerY) * (pitched ? pitchFlat : 1),
-            // 세 종족 모두 20% 축소(요청): 0.34/0.26 → 0.27/0.21.
-            size: fp2[0] * (woundLv === 2 ? 0.27 : 0.21) * bldTile9 * pitchK(centerY),
-            tier: woundLv === 2 ? 2 : 1, wrace: wRace9,
-            seed: (h9 >>> 20) % 100, clk: t,
-          });
-        }
+        const wk9 = bldTile9 * pitchK(centerY);
+        fxOps.push({
+          kind: "wound", fx: wfx9, fy: wfy9,
+          /* 들기 0.12 — 몸통 아래쪽에 붙인다(지적: "지금 너무 높은데 나오는 경우가 많네"). */
+          lift: bFlyPx9 + fp2[0] * wk9 * 0.12,
+          // 세 종족 모두 20% 축소(요청): 0.34/0.26 → 0.27/0.21.
+          size: fp2[0] * (woundLv === 2 ? 0.27 : 0.21) * wk9,
+          /* 흩는 자 — 붓이 ±0.16 안에서 이 폭으로 흩는다(요청: "너무 넓게 퍼뜨리진 말고
+             갯수 늘릴 때도 중심부 주변으로"). 세로는 입체의 눕힘까지 먹는다. */
+          mx: fp2[0] * wk9,
+          my: fp2[1] * wk9 * (pitched ? pitchFlat : 1),
+          /* 수는 상처가 심할수록 많다(요청): 1단 2개 · 2단 5개. */
+          tier: woundLv === 2 ? 2 : 1, wrace: race2 === "저그" ? "zerg" : race2 === "프로토스" ? "toss" : "terran",
+          seed: i, clk: t,
+        });
       }
       /* 성큰은 쏘는 동안 혓바닥을 내민 판으로 바꾼다(요청: "가시가 나오는 타이밍에
          이 모양이") — 아래 방어 사격이 트레이서를 그리는 조건과 **같은 자**를 쓴다:

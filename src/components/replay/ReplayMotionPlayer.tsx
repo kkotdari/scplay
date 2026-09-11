@@ -22803,15 +22803,14 @@ function tongueW9(ctx: CanvasRenderingContext2D, spr9: HTMLCanvasElement,
   ctx.drawImage(spr9, -w9 / 2, -h9, w9, h9);
   ctx.restore();
 }
-/** 상처 낱개 하나 — f.wrace가 결, f.size가 상자 폭(렌즈 px), f.clk가 시계(초)다.
+/** 다친 건물 **하나**의 상처 — 불꽃 여럿을 여기서 흩는다(op은 건물마다 한 장이다).
+ *  흩는 자리는 건물 번호와 불꽃 번호의 **순수 함수**라, 엔진이 쓰던 해시를 그대로 다시 돌린다
+ *  (프레임마다 떨리면 안 된다 — 자리는 무작위가 아니라 결정된 값이다).
+ *  f.wrace가 결 · f.size가 불꽃 상자 · f.mx·my가 흩는 자 · f.tier가 단 · f.clk가 시계(초)다.
  *  CSS 시절의 키프레임을 식으로 옮겼다(자리·주기·세기 모두 그 값 그대로). */
 export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: number, zoom: number, Bd9: number): void {
   const W9 = (f.size ?? 3) * zoom;
   if (W9 < 1.2) return;                       // 한 화소도 안 되는 것은 그리지 않는다
-  const x9 = ax + (f.mx ?? 0) * zoom;
-  const y9 = ay + (f.my ?? 0) * zoom;
-  const top9 = y9 - W9 / 2;                   // 스팬 상자(W×W)의 위 모서리 — CSS의 translate(-50%,-50%)
-  const dl9 = (f.seed ?? 0) / 100;            // animation-delay(0~1초)
   const t9 = f.clk ?? 0;
   const lv2 = (f.tier ?? 1) >= 2;
   const race9 = f.wrace ?? "terran";
@@ -22820,6 +22819,17 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
   /* 불빛은 **더하기**로 겹친다 — CSS의 `mix-blend-mode: screen` 자리다. 다만 여기서는 우리가 이미
      칠하고 있는 한 장 안에서 일어나므로, 합성 층도 배경 읽기도 생기지 않는다(그것이 옮긴 까닭이다). */
   if (race9 !== "zerg") ctx.globalCompositeOperation = "lighter";
+  const sx9 = (f.mx ?? 0) * zoom;
+  const sy9 = (f.my ?? 0) * zoom;
+  /* 수는 상처가 심할수록 많다(요청): 1단 2개 · 2단 5개. */
+  const n9 = lv2 ? 5 : 2;
+  for (let kk9 = 0; kk9 < n9; kk9 += 1) {
+  const h9 = (((f.seed ?? 0) * 2654435761 + kk9 * 40503) >>> 0);
+  /* 흩는 폭 ±0.16 · 살짝 왼쪽으로(−0.08) — 엔진이 쓰던 그 식 그대로다. */
+  const x9 = ax + (((h9 % 1000) / 1000 - 0.5) * 0.32 - 0.08) * sx9;
+  const y9 = ay + ((((h9 >>> 10) % 1000) / 1000 - 0.5) * 0.32) * sy9;
+  const top9 = y9 - W9 / 2;                   // 스팬 상자(W×W)의 위 모서리 — CSS의 translate(-50%,-50%)
+  const dl9 = ((h9 >>> 20) % 100) / 100;      // animation-delay(0~1초)
   if (race9 === "terran" || race9 === "toss") {
     /* 밑동 후광 — 테란은 잉걸(0.62초), 프로토스는 사이언 아지랑이(1.9초). */
     const glowP9 = easeW9(triW9((t9 + dl9) / (race9 === "terran" ? 0.62 : 1.9) / 2));
@@ -22869,6 +22879,7 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
     };
     spurt9(1.1, 0, dw9, 0, 1);
     spurt9(1.3, 0.55, W9 * 0.26, -0.08, -1);
+  }
   }
   ctx.globalAlpha = op0;
   ctx.globalCompositeOperation = gco0;
