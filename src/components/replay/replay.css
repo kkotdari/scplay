@@ -2441,6 +2441,12 @@
   position: absolute; left: 50%; top: 50%; width: 0.5px; height: 0.5px; border-radius: 50%;
   transform: translate(-50%, -50%); background: #ff1a1a;
   animation: scr-nuke-dot 0.55s ease-in-out infinite alternate;
+  /* ★ 연출은 **CSS가 제 힘으로 돈다**(조사: 핵폭발 멈춤) — 여태 이 애니는 멈춰 세운 채(paused)
+     재생 시각으로 animationDelay를 프레임마다 고쳐 긁었다. 그 한 줄이 화면 합성에서는 공짜가
+     아니다: 섞임(mix-blend screen)이 걸린 큰 층 셋의 스타일이 초당 예순 번 바뀐다.
+     이제 재생 배속만큼 **길이를 줄여** 그대로 돌린다(--scr-nspd) — 거는 것은 시작할 때 한 번의
+     지연과 재생/멈춤뿐이고, 그 사이는 합성기 몫이라 주 실마리가 비어 있다. */
+  animation-duration: calc(0.55s / var(--scr-nspd, 1));
 }
 @keyframes scr-nuke-dot {
   from { opacity: 0.12; box-shadow: 0 0 0.5px 0.15px rgba(255, 26, 26, 0.25); }
@@ -2461,6 +2467,12 @@
   border-radius: 50% / 26%;
   filter: blur(1px);
   animation: scr-nuke-smoke 0.85s ease-in-out infinite alternate;
+  /* ★ 연출은 **CSS가 제 힘으로 돈다**(조사: 핵폭발 멈춤) — 여태 이 애니는 멈춰 세운 채(paused)
+     재생 시각으로 animationDelay를 프레임마다 고쳐 긁었다. 그 한 줄이 화면 합성에서는 공짜가
+     아니다: 섞임(mix-blend screen)이 걸린 큰 층 셋의 스타일이 초당 예순 번 바뀐다.
+     이제 재생 배속만큼 **길이를 줄여** 그대로 돌린다(--scr-nspd) — 거는 것은 시작할 때 한 번의
+     지연과 재생/멈춤뿐이고, 그 사이는 합성기 몫이라 주 실마리가 비어 있다. */
+  animation-duration: calc(0.85s / var(--scr-nspd, 1));
 }
 @keyframes scr-nuke-smoke {
   from { transform: translateX(-53%) scaleX(0.9); }
@@ -2492,6 +2504,12 @@
   background: radial-gradient(circle, rgba(255,255,255,0.6) 0%, rgba(255,240,200,0.35) 30%, transparent 70%);
   mix-blend-mode: screen;
   animation: scr-nuke-flash 0.9s ease-out forwards;
+  /* ★ 연출은 **CSS가 제 힘으로 돈다**(조사: 핵폭발 멈춤) — 여태 이 애니는 멈춰 세운 채(paused)
+     재생 시각으로 animationDelay를 프레임마다 고쳐 긁었다. 그 한 줄이 화면 합성에서는 공짜가
+     아니다: 섞임(mix-blend screen)이 걸린 큰 층 셋의 스타일이 초당 예순 번 바뀐다.
+     이제 재생 배속만큼 **길이를 줄여** 그대로 돌린다(--scr-nspd) — 거는 것은 시작할 때 한 번의
+     지연과 재생/멈춤뿐이고, 그 사이는 합성기 몫이라 주 실마리가 비어 있다. */
+  animation-duration: calc(0.9s / var(--scr-nspd, 1));
 }
 /* ★ 이 무리의 애니메이션은 **transform 한 줄로만** 쓴다(지적: "핵 버섯구름 효과가 왜
    왼쪽으로 치우쳐서 올라가지") ────────────────────────────────────────────────────
@@ -2529,6 +2547,12 @@
   transform-origin: 50% 50.3%;
   mix-blend-mode: screen; pointer-events: none;
   animation: scr-nuke-wave 2.6s ease-out forwards;
+  /* ★ 연출은 **CSS가 제 힘으로 돈다**(조사: 핵폭발 멈춤) — 여태 이 애니는 멈춰 세운 채(paused)
+     재생 시각으로 animationDelay를 프레임마다 고쳐 긁었다. 그 한 줄이 화면 합성에서는 공짜가
+     아니다: 섞임(mix-blend screen)이 걸린 큰 층 셋의 스타일이 초당 예순 번 바뀐다.
+     이제 재생 배속만큼 **길이를 줄여** 그대로 돌린다(--scr-nspd) — 거는 것은 시작할 때 한 번의
+     지연과 재생/멈춤뿐이고, 그 사이는 합성기 몫이라 주 실마리가 비어 있다. */
+  animation-duration: calc(2.6s / var(--scr-nspd, 1));
 }
 /* ★ **밝을 때 이미 크다**(지적: "크기가 너무 작음 — 실제 터지는 영역까지 확대되게
    크게") ────────────────────────────────────────────────────────────────────────
@@ -2563,6 +2587,12 @@
      ※ 여기 적힌 초는 벽시계가 아니라 **게임 초**다: 재생기가 이 애니메이션을 멈춰
        세우고 음수 지연으로 제 시각을 찍어 주므로(boomClock9), 배속을 걸면 함께 빨라진다. */
   animation: scr-nuke-cloud 2.8s ease-out forwards;
+  /* ★ 연출은 **CSS가 제 힘으로 돈다**(조사: 핵폭발 멈춤) — 여태 이 애니는 멈춰 세운 채(paused)
+     재생 시각으로 animationDelay를 프레임마다 고쳐 긁었다. 그 한 줄이 화면 합성에서는 공짜가
+     아니다: 섞임(mix-blend screen)이 걸린 큰 층 셋의 스타일이 초당 예순 번 바뀐다.
+     이제 재생 배속만큼 **길이를 줄여** 그대로 돌린다(--scr-nspd) — 거는 것은 시작할 때 한 번의
+     지연과 재생/멈춤뿐이고, 그 사이는 합성기 몫이라 주 실마리가 비어 있다. */
+  animation-duration: calc(2.8s / var(--scr-nspd, 1));
 }
 @keyframes scr-nuke-cloud {
   0% { opacity: 0; transform: translate(-50%, -77.9%) translateY(6%) scale(0.3); }

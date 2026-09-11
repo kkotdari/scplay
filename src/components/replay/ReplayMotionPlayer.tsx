@@ -20549,6 +20549,7 @@ function noteReact9(ms9: number): void {
   /* 창을 넘겨도 남는 **미끄러지는 평균**(EMA) — 박자를 가르는 자가 이것이다(아래 nukeStep9).
      창 안의 합만 쓰면 창을 넘긴 직후 한 장도 안 잰 상태가 되어 판정이 한 번씩 옛 규칙으로 떨어진다. */
   REACTM9.avg = REACTM9.avg < 0 ? ms9 : REACTM9.avg * 0.85 + ms9 * 0.15;
+  if (NUKEM9.on && ms9 > NUKEM9.react) NUKEM9.react = ms9;   // 핵 창 몫(아래 NUKEM9)
   REACTM9.n += 1;
   REACTM9.sum += ms9;
   if (ms9 > REACTM9.max) REACTM9.max = ms9;
@@ -20586,6 +20587,33 @@ function nukeStep9(): number {
   const c9 = CROWD9;
   if (c9.bench < 0) return 40;
   return c9.weak ? (c9.k < 1 ? 60 : 40) : 0;
+}
+/** ★ 핵 창 계량기(조사: "핵폭발시 멈춤도 똑같아") ─────────────────────────────────────────
+ *  멈추는 동안에는 스크린샷을 못 찍는다 — 그러니 핵이 떠 있는 **창 전체**를 재서, 창이 끝난 뒤에도
+ *  화면에 남겨 둔다. 무엇이 멈춤의 값인지는 셋으로 갈린다: 프레임이 길었나(최악프레임) · 그게 굽기였나
+ *  (굽기 창) · React였나(리액트 최악 · 박자). 짐작 대신 이 셋을 읽고 고친다. */
+const NUKEM9 = { on: false, at: 0, n: 0, worst: 0, last: 0, react: 0 };
+function nukeMeterTick9(on9: boolean, step9: number): void {
+  const now9 = pNow();
+  if (on9 && !NUKEM9.on) {
+    NUKEM9.on = true; NUKEM9.at = now9; NUKEM9.n = 0; NUKEM9.worst = 0; NUKEM9.react = 0; NUKEM9.last = now9;
+    return;
+  }
+  if (on9) {
+    const dt9 = now9 - NUKEM9.last;
+    NUKEM9.last = now9;
+    NUKEM9.n += 1;
+    if (dt9 > NUKEM9.worst) NUKEM9.worst = dt9;
+    return;
+  }
+  if (!NUKEM9.on) return;
+  NUKEM9.on = false;
+  const secs9 = Math.max(0.001, (now9 - NUKEM9.at) / 1000);
+  const w9 = SPRITE_PERF.wLast;
+  SCR_DIAG.nukem = `${secs9.toFixed(1)}초 붓${NUKEM9.n}장(${(NUKEM9.n / secs9).toFixed(0)}/s)`
+    + ` · 최악프레임 ${NUKEM9.worst.toFixed(0)}ms · 리액트 최악 ${NUKEM9.react.toFixed(0)}ms(박자 ${step9}ms)`
+    + ` · 굽기창 유닛${w9.bake}장 ${w9.ms.toFixed(0)}ms 건물${w9.bldBake}장 ${w9.bldMs.toFixed(0)}ms`
+    + ` 최악 ${w9.worstFrame.toFixed(0)}ms(굽기 ${w9.worstFrameBake.toFixed(0)})`;
 }
 /** 안개 판의 임시 변환을 걸고, **같은 자리에서** 막 띠까지 세운다 — 틈(px)을 낸다.
  *  ★ 둘을 한 함수로 묶는 까닭(지적: "검정 띠가 계속 보인다") — 앞판은 손끝 자리에서 띠를 세우고 안개는
@@ -20654,15 +20682,29 @@ function fogBandSet9(root: HTMLElement, cov: { l: number; t: number; r: number; 
  *  폭발이 매끄러우려면 이 큰 컴포넌트를 통째로 60Hz로 다시 그려야 했다 — 그게 멈춤의 뿌리다.
  *  글줄 몇 개를 적는 일이니 붓이 프레임마다 곧장 적는다. React는 제 박자(100ms)로 스팬을
  *  세우고 지우기만 한다. 두 자리가 **같은 시각(tLive)**을 보므로 서로 안 다툰다. */
-function nukeClockTick9(root: HTMLElement, tNow: number): void {
+function nukeClockTick9(root: HTMLElement, tNow: number, speed9: number, playing9: boolean): void {
   const list9 = root.querySelectorAll<HTMLElement>(".scr-motion-nukefx[data-nksec]");
+  if (list9.length === 0) return;
+  const now9 = pNow();
+  const mode9 = `${playing9 ? 1 : 0}|${speed9}`;
   for (let i = 0; i < list9.length; i += 1) {
     const el9 = list9[i];
     const sec9 = Number(el9.dataset.nksec);
     if (!Number.isFinite(sec9)) continue;
+    /* 닻을 다시 내릴 때만 적는다 — 재생/멈춤·배속이 바뀌었거나, 이 자리가 셈하는 시각과 실제 시각이
+       벌어졌을 때(탐색·끊김)다. 맞물려 도는 동안은 읽고 비교만 하므로 프레임 삯이 없다. */
+    const at9 = Number(el9.dataset.nkat);
+    const t09 = Number(el9.dataset.nkt);
+    const exp9 = playing9 ? t09 + ((now9 - at9) / 1000) * speed9 : t09;
+    if (el9.dataset.nkmode === mode9 && Math.abs(tNow - exp9) < 0.15) continue;
+    el9.dataset.nkmode = mode9;
+    el9.dataset.nkat = `${now9}`;
+    el9.dataset.nkt = `${tNow}`;
     const age9 = tNow - sec9;
-    const boom9 = `${NUKE_FALL_SEC - age9}s`;
-    const aim9 = `${-age9}s`;
+    /* 길이를 배속만큼 줄여 두었으므로(CSS의 --scr-nspd) 지연도 **실시간 초**로 적는다. */
+    const boom9 = `${(NUKE_FALL_SEC - age9) / speed9}s`;
+    const aim9 = `${-age9 / speed9}s`;
+    const play9 = playing9 ? "running" : "paused";
     const kids9 = el9.children;
     for (let k = 0; k < kids9.length; k += 1) {
       const ch9 = kids9[k];
@@ -20671,7 +20713,9 @@ function nukeClockTick9(root: HTMLElement, tNow: number): void {
       const d9 = cl9.contains("scr-motion-nuke-wave") || cl9.contains("scr-motion-nuke-flash")
         || cl9.contains("scr-motion-nuke-cloud") ? boom9
         : cl9.contains("scr-motion-nuke-dot") || cl9.contains("scr-motion-nuke-smoke") ? aim9 : "";
-      if (d9 && ch9.style.animationDelay !== d9) ch9.style.animationDelay = d9;
+      if (!d9) continue;
+      if (ch9.style.animationDelay !== d9) ch9.style.animationDelay = d9;
+      if (ch9.style.animationPlayState !== play9) ch9.style.animationPlayState = play9;
     }
   }
 }
@@ -30634,7 +30678,11 @@ export default function ReplayMotionPlayer({
     fogMeterTick9();
     /* 핵 연출의 시계 — 글줄 몇 줄이라 붓 프레임마다 적는다(위 nukeClockTick9의 ★).
        이걸 React 렌더에 맡기던 것이 "핵폭발 시 페이지 다운"의 뿌리였다. */
-    if (nukeOnRef9.current && mapRef.current) nukeClockTick9(mapRef.current, tNow9);
+    nukeMeterTick9(nukeOnRef9.current, reactStepRef9.current);
+    if (nukeOnRef9.current && mapRef.current) {
+      const cn9 = cmdNowRef9.current;
+      nukeClockTick9(mapRef.current, tNow9, cn9.speed || 1, cn9.playing);
+    }
     /* ★ 안개 캔버스의 임시 변환 — **칠했으면 항등, 안 칠했으면 그 사이의 차**다(위 fogXfRef9).
        여태 무조건 항등으로 지워, 안 칠한 프레임에서 옛 그림이 새 자리에 그냥 섰다. */
     {
@@ -32369,6 +32417,8 @@ export default function ReplayMotionPlayer({
                       {/* React 한 장(위 REACTM9) — 핵·스톰이 뜨면 박자가 25~60Hz로 오른다.
                           '박자'와 '한 장 값'을 나란히 둔다: 한 장이 박자보다 길면 그때부터 밀린다. */}
                       {SCR_DIAG.react ? ` · 리액트[박자${reactStepRef9.current}ms · ${SCR_DIAG.react}]` : ""}
+                      {/* 지난 핵 창(위 NUKEM9) — 멈춘 뒤에 찍어도 남아 있다. */}
+                      {SCR_DIAG.nukem ? ` · 핵[${SCR_DIAG.nukem}]` : ""}
                     </div>
                   </>
                 )}
@@ -33455,15 +33505,9 @@ export default function ReplayMotionPlayer({
                      대신 아주 높은 배속에서는 깜빡임이 지지직이 된다 — 0.55초 주기가 ×20이면
                      28ms라, 30Hz로 그리는 화면이 담을 수 있는 아래로 내려간다(그 배속에서
                      화면이 어수선한 것은 이 재생기가 이미 감수하는 몫이다). */
-                const boomClock9 = {
-                  animationDelay: `${NUKE_FALL_SEC - age}s`,
-                  animationPlayState: "paused",
-                } as const;
-                /** 착탄 전(조준점·꼬리 연기)의 시계 — 시전 시각이 0이다. */
-                const aimClock9 = {
-                  animationDelay: `${-age}s`,
-                  animationPlayState: "paused",
-                } as const;
+                /* (걷어냄) boomClock9·aimClock9 — 렌더마다 animationDelay를 적어 애니를 긁던 자리다.
+                   이제 CSS가 제 힘으로 돌고(배속만큼 길이를 줄인다), 지연·재생멈춤은 붓이 **닻을 내릴 때만**
+                   적는다(nukeClockTick9). 섞임 걸린 층 셋의 스타일을 초당 수십 번 고치지 않는다. */
                 /* 성공 판정(지적) — 불발이면 폭발 없이 표적 점만 보이다 만다. */
                 /* ★ 타일 자로(지적: "핵탄두 크기가 모바일에서 엄청 크게 나오네") — 이 둘은 '1배 CSS px'라 배율만
                    곱했는데, 타일 하나가 PC에서는 8px 남짓·폰에서는 3px라(지도가 화면 폭에 맞춰 선다) 같은 px가 폰에서는
@@ -33515,7 +33559,9 @@ export default function ReplayMotionPlayer({
                          고쳐야 '무너지는데 안 타는 건물'이 다시 생기지 않는다.
                        탄두 크기는 이 값과 별개다(NUKE_HEAD_PX·모델 길이). */
                     width: pct(10 * pitchK(y), grid.width),
-                    }}
+                    /* 연출 애니의 길이를 배속만큼 줄이는 자(위 CSS의 ★) — 값이 바뀌는 일이 드물다. */
+                    "--scr-nspd": speed,
+                    } as React.CSSProperties}
                   >
                     {/* 불발은 끝까지 표적 점이다(수리) — 예전 갈래는 '마지막 2초 & 불발'이
                         셋째 갈래(폭발)로 흘러, 안 터진 핵이 2초 동안 폭발을 그렸다. */}
@@ -33526,7 +33572,6 @@ export default function ReplayMotionPlayer({
                         style={{
                           width: `${Math.max(0.5, 0.5 * zoom)}px`,
                           height: `${Math.max(0.5, 0.5 * zoom)}px`,
-                          ...aimClock9,
                         }}
                       />
                     ) : age < NUKE_FALL_SEC && landed ? (
@@ -33559,7 +33604,6 @@ translate: `${(-(Math.round((-fp9 * (1 - dropP9 ** 2) - hp9 * 0.275 - hp9 * 1.42
                              절반만큼 더 밀려 탄두에서 떨어진다(지적: 연기가 너무 바깥쪽). 회전 축도 밑동. */
                           rotate: `${leanDeg9.toFixed(1)}deg`, transformOrigin: "50% 100%",
                           opacity: 0.25 + 0.6 * dropP9,
-                          ...aimClock9,
                         }}
                       />
                       <span
@@ -33634,13 +33678,13 @@ translate: `${(-(Math.round((-fp9 * (1 - dropP9 ** 2) - hp9 * 0.275 - hp9 * 1.42
                          타는 동안 무늬가 바뀌면 다른 폭발로 갈아 끼운 것처럼 보인다. */
                       <>
                         {/* 충격파 — 땅에 눕는 꽃과 고리. 맨 아래에 깔린다. */}
-                        <span className="scr-motion-nuke-wave" style={boomClock9}>
+                        <span className="scr-motion-nuke-wave">
                           <FxModel kind="nukeblast" peak={1.25} spin={nspin9}
                             flat={!pitched} pitchView={pitched} viewYaw={viewYawOf(x, y)} />
                         </span>
-                        <span className="scr-motion-nuke-flash" style={boomClock9} />
+                        <span className="scr-motion-nuke-flash" />
                         {/* 버섯구름 — 솟으며 부푼다. 발치가 조준점에 못박힌다. */}
-                        <span className="scr-motion-nuke-cloud" style={boomClock9}>
+                        <span className="scr-motion-nuke-cloud">
                           <FxModel kind="nukecloud" peak={1.7} spin={nspin9}
                             flat={!pitched} pitchView={pitched} viewYaw={viewYawOf(x, y)} />
                         </span>
