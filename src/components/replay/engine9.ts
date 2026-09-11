@@ -2633,21 +2633,6 @@ export function deriveWorld9(inp: {
   })();
   const bldRecMemo = new Map<string, { born: number; tag: number; hp: Ticks; tgt?: Ticks }>();
   const buildsSrc = buildsV2;
-  /* ★ 진단 — **가스 건물 착공 곁에서 난 폭발**의 출처(지적: "어시밀레이터도 짓기 시작할 때 터지고 소환구
-     생기는 거 봤어" · 드론 → 익스트랙터는 변태로 이었는데 프로토스에서도 난다). 코드로는 셋 중 어느 자리가
-     내는지 못 가렸다(개체 사망 · 건물 무너짐 · 저그 완공 파편). 폭발을 낼 때마다 착공 1.5초·3타일 안의
-     가스 건물이 있으면 어느 자리가 무엇 때문에 냈는지 적어 둔다 — #diag=draw의 가스폭발 칸. */
-  const GAS_KINDS9 = new Set(["Refinery", "Assimilator", "Extractor"]);
-  const noteGasBurst9 = (where: string, info: string, tx: number, ty: number, t: number): void => {
-    for (const [sec, bx, by, unit] of buildsSrc) {
-      if (!GAS_KINDS9.has(unit) || Math.abs(t - sec) > 1.5) continue;
-      const fp = FOOTPRINT[unit] ?? [4, 2];
-      if (Math.hypot(tx - (bx + fp[0] / 2), ty - (by + fp[1] / 2)) > 3) continue;
-      const line = `${sec.toFixed(1)}s ${unit} ← ${where}(${info})`;
-      if (GAS_BURST9[GAS_BURST9.length - 1] !== line) { GAS_BURST9.push(line); if (GAS_BURST9.length > 6) GAS_BURST9.shift(); }
-      return;
-    }
-  };
   const buildsDrawOrder = (() => buildsSrc.map((_, i) => i)
     .sort((a, b) => buildsSrc[a][2] - buildsSrc[b][2]))();
   const bldNudge = (() => {
@@ -3407,6 +3392,21 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     goneEffOf, prodByRawType, bldTagAt, leftAt9, tagOrdinals, buildsByType, halls, gasBuildings,
     resStageSeries, gridHasGasFlags, gasHideOf, mines, bldPre9, bldRecMemo, teamOfRaw, bases, grid, total,
   } = world;
+  /* ★ 진단 — **가스 건물 착공 곁에서 난 폭발**의 출처(지적: "어시밀레이터도 짓기 시작할 때 터지고 소환구
+     생기는 거 봤어" · 드론 → 익스트랙터는 변태로 이었는데 프로토스에서도 난다). 코드로는 셋 중 어느 자리가
+     내는지 못 가렸다(개체 사망 · 건물 무너짐 · 저그 완공 파편). 폭발을 낼 때마다 착공 1.5초·3타일 안의
+     가스 건물이 있으면 어느 자리가 무엇 때문에 냈는지 적어 둔다 — #diag=draw의 가스폭발 칸. */
+  const GAS_KINDS9 = new Set(["Refinery", "Assimilator", "Extractor"]);
+  const noteGasBurst9 = (where: string, info: string, tx: number, ty: number, t: number): void => {
+    for (const [sec, bx, by, unit] of buildsSrc) {
+      if (!GAS_KINDS9.has(unit) || Math.abs(t - sec) > 1.5) continue;
+      const fp = FOOTPRINT[unit] ?? [4, 2];
+      if (Math.hypot(tx - (bx + fp[0] / 2), ty - (by + fp[1] / 2)) > 3) continue;
+      const line = `${sec.toFixed(1)}s ${unit} ← ${where}(${info})`;
+      if (GAS_BURST9[GAS_BURST9.length - 1] !== line) { GAS_BURST9.push(line); if (GAS_BURST9.length > 6) GAS_BURST9.shift(); }
+      return;
+    }
+  };
   const gw9 = grid.width;
   const gh9 = grid.height;
   const FOG_NEVER = 65535;
