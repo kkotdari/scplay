@@ -29162,6 +29162,12 @@ export default function ReplayMotionPlayer({
     const lyr = el.closest(".scr-fs-layer") as HTMLElement | null;
     if (!lyr) return;
     const read = (): void => {
+      /* ★ **도구를 숨긴 동안은 안 잰다**(지적: "모바일 전체화면에서 도구 숨기면 미니맵이 작아짐") ──
+         전체화면 미니맵의 키는 이 실측(--scr-fsbot-m)에서 파생된다(--scr-mini-h). 도구 숨기기
+         (is-uihide)는 조종부의 줄들을 display:none으로 걷어 이 상자가 한 줄로 줄고, 관찰자가 그
+         줄어든 키를 그대로 올려 미니맵까지 따라 줄었다. 숨긴 것은 도구지 미니맵이 아니다 —
+         숨긴 동안은 마지막 실측을 그대로 두고, 다시 보이면 관찰자가 제 값을 도로 잰다. */
+      if (lyr.classList.contains("is-uihide")) return;
       const h9 = Math.round(el.getBoundingClientRect().height);
       if (h9 > 0) lyr.style.setProperty("--scr-fsbot-m", `${h9}px`);
       /* ★ 미니맵 키를 오른쪽 조작부에 맞춘다(요청: "미니맵 높이하고 오른쪽 조작부 높이가 맞아야지") — 프레임 모드의 독은
