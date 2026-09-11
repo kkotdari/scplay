@@ -21485,10 +21485,19 @@ function perfFrame(ms: number): void {
   p.bakeMs = 0; p.bldBakeMs = 0;
   SCAN_MS9.frame = 0;
   p.evict = 0; p.bldEvict = 0; p.defer = 0; p.bldDefer = 0;
-  // 굽기 예산도 프레임마다 되돌린다(위 UNIT_BAKE_PER_FRAME·BLD_BAKE_PER_FRAME).
-  unitBakeLeft9 = UNIT_BAKE_PER_FRAME;
-  bldBakeLeft9 = BLD_BAKE_PER_FRAME;
-  smallBakeLeft9 = SMALL_BAKE_PER_FRAME9;   // 작게 굽기도 장수로 죈다(위 ★)
+  /* 굽기 예산도 프레임마다 되돌린다(위 UNIT_BAKE_PER_FRAME·BLD_BAKE_PER_FRAME).
+     ★ **채우는 동안에는 예산을 늘린다**(지적: "재생되기까지 오래 걸려") ─────────────────
+       평소 예산(폰: 프레임당 유닛 1장·건물 1장·8ms)은 **부드러운 재생을 지키려고** 잡은
+       값이다. 그런데 처음 들어와 화면을 채우는 동안에는 지킬 부드러움이 아직 없다 —
+       그 예산으로 천 장을 구우면 프레임당 한 장씩, 곧 분 단위다(실측: 미룸 U878/B226).
+       미뤄 둔 것이 많으면 그만큼 예산을 키운다: 덜컥임을 **진행으로 바꾸는** 것이 그
+       구간에서는 이득이다. 줄이 빠지면 저절로 평소 예산으로 돌아온다(sprint9가 0이 된다).
+       손짓 중에는 안 키운다 — 그때는 손끝을 따라가는 것이 유일한 일이다(gestBake9). */
+  const q9 = p.w.defer + p.w.bldDefer;
+  bakeSprint9.v = gestBake9.v ? 1 : q9 > 400 ? 6 : q9 > 120 ? 3 : 1;
+  unitBakeLeft9 = UNIT_BAKE_PER_FRAME * bakeSprint9.v;
+  bldBakeLeft9 = BLD_BAKE_PER_FRAME * bakeSprint9.v;
+  smallBakeLeft9 = SMALL_BAKE_PER_FRAME9 * bakeSprint9.v;   // 작게 굽기도 장수로 죈다(위 ★)
   /* 되돌린 예산을 **먼저 미룬 것들에 쓴다**(위 BAKE_WANT9의 ★) — 이 자리는 프레임이 열리는
      자리다(tick 맨 앞에서 부른다). 여기서 쓴 몫은 이 프레임의 굽기로 그대로 잡힌다. */
   drainBakeWant9();
@@ -21596,12 +21605,15 @@ const BAKE_HARD_MS9 = DEV9.bakeMsPerFrame * 3;
    나머지는 다음 장으로 미룬다: 손끝을 따라가는 것이 그 순간의 유일한 일이다. */
 const bakeHardOk9 = (): boolean =>
   SPRITE_PERF.bakeMs + SPRITE_PERF.bldBakeMs
-    < (gestBake9.v ? DEV9.bakeMsPerFrame : BAKE_HARD_MS9);
+    < (gestBake9.v ? DEV9.bakeMsPerFrame : BAKE_HARD_MS9 * bakeSprint9.v);
+/** 채우는 동안 예산을 몇 배로 키우나(1·3·6) — 위 프레임 열기에서 미뤄 둔 장수로 정한다. */
 /** 지금 손짓(드래그·핀치)이 도는가 — 붓(UnitLayer)이 프레임마다 적고, 굽기 문지기가 읽는다. */
 const gestBake9 = { v: false };
+/** 채우는 동안의 굽기 예산 배수(1·3·6) — 미뤄 둔 장수가 정한다(위 프레임 열기의 ★). */
+const bakeSprint9 = { v: 1 };
 /** 이 프레임에 굽기를 더 해도 되나 — 장수와 시간, 그리고 손짓 여부를 함께 본다. */
 const bakeOk9 = (left9: number): boolean => left9 > 0 && !gestBake9.v
-  && SPRITE_PERF.bakeMs + SPRITE_PERF.bldBakeMs < BAKE_MS_PER_FRAME9;
+  && SPRITE_PERF.bakeMs + SPRITE_PERF.bldBakeMs < BAKE_MS_PER_FRAME9 * bakeSprint9.v;
 /** ★ 한 프레임에 **작게 굽는 판**의 상한(실측: 잔잔할 땐 초당 3장인데 순간 360장까지 튄다) ─────────────
  *  대타가 하나도 없는 몸은 예산을 보지 않고(force9) 작은 판을 굽는 길로 떨어진다 — 장수 예산을 통째로
  *  비켜 가므로, 처음 보는 열쇠가 한꺼번에 쏟아지는 순간(큰 싸움·방향 전환)에는 한 프레임에 수십 장이
@@ -24108,10 +24120,15 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             if (kind === "tankbody") kind = "tank";
             else if (kind === "tanksiegebody") kind = "tanksiege";
             const pk9 = POSE_KINDS[kind];
-            if (pk9 && !pk9.flap) {
+            /* ★ 죄면 **날갯짓도 접는다**(지적: "모바일 저배율에서 고배율마냥 디테일하게 그릴
+               필요는 없지") — 날갯짓은 '세부가 아니라 살아 있다는 표시'라 낮은 배율에서도
+               남겨 두던 자리다. 그런데 1~3배에서 뮤탈은 일고여덟 화소다: 날개가 접혔는지
+               폈는지는 안 읽히면서, 판 열쇠는 자세마다 하나씩 더 갈린다(그만큼 굽는 줄이 길다).
+               배율을 올리면 그대로 돌아온다. */
+            if (pk9 && !pk9.flap && trim9 < 1) {
               const walk9 = pose === 1 || pose === 3;
               if (!walk9 || !moveOk9 || !(pk9.move || pk9.thrust)) pose = 0;
-            } else if (!pk9) pose = 0;
+            } else if (!pk9 || trim9 >= 1) pose = 0;
           }
           /* 요잉 칸 — 죄면 **네 칸**(90도)이다. 45도 칸의 부분집합이라 이미 구운 판이 그대로
              쓰이고, 판 가짓수만 반으로 준다(갈아엎는 전환이 아니다).
@@ -24125,9 +24142,24 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           if (liteYaw9 && rotDeg !== undefined && UNIT_KIND_SET.has(kind)) {
             rotDeg = Math.round(rotDeg / (trim9 >= 1 ? 90 : 45)) * (trim9 >= 1 ? 90 : 45);
           }
-          if (kind !== op.kind || pose !== (op.pose ?? 0) || rotDeg !== op.rotDeg || viewYaw !== op.viewYaw) {
+          /* ★ 낮은 배율의 **건물은 한 판으로 앉힌다**(실측: 판갈림 건물 불빛512 포탑358 · 미룸 B226) ──
+             건물 판의 열쇠에는 포탑 각(16칸)·창문 불빛(2)·도는 부품 칸이 함께 든다. 그래서 캐논 한
+             종류가 서른두 판으로 갈라지고, 그 판들이 프레임당 한 장씩만 구워지는 줄에 서서 화면이
+             한참 비어 있다. 그런데 1~3배에서 건물은 아홉에서 스물몇 화소다 — 포탑이 어디를 보는지도,
+             창에 불이 켜졌는지도, 팬이 도는지도 그 크기에서는 읽히지 않는다.
+             그 셋을 못 박으면 종류마다 **한 판**이 되어 줄이 통째로 사라진다. 배율을 올리면 그대로
+             돌아온다(죄기는 3배 이하·미달 기기에서만 선다). */
+          let head9 = op.headDeg;
+          let lit9 = op.lit;
+          let spin9 = op.spin;
+          if (trim9 >= 1 && !UNIT_KIND_SET.has(kind)) {
+            head9 = undefined; lit9 = false; spin9 = 0;
+          }
+          if (kind !== op.kind || pose !== (op.pose ?? 0) || rotDeg !== op.rotDeg || viewYaw !== op.viewYaw
+            || head9 !== op.headDeg || lit9 !== op.lit || spin9 !== op.spin) {
             op = { ...op, kind, pose: pose as UnitDrawOp["pose"], ...(rotDeg !== undefined ? { rotDeg } : {}),
-              ...(viewYaw !== undefined ? { viewYaw } : {}) };
+              ...(viewYaw !== undefined ? { viewYaw } : {}),
+              headDeg: head9, lit: lit9, spin: spin9 };
           }
           out9.push(op);
         }
@@ -31890,7 +31922,7 @@ export default function ReplayMotionPlayer({
     const grade9 = (w9: boolean, k9: number): string => (w9 ? (k9 < 1 ? "심한미달" : "미달") : "충분");
     /* 저배율 죔(위 lowZoomTrim9) — 지금 배율에서 실제로 몇 단인지 그대로 찍는다. */
     const tr9 = lowZoomTrim9(zoomRef.current, pitched);
-    SCR_DIAG.crowd = `벤치 2D ${c9.bench.toFixed(0)}ms ${grade9(c9.weak, c9.k)} · 3D ${c9.bench3.toFixed(0)}ms ${grade9(c9.weak3, c9.k3)}${c9.force >= 0 ? " 강제" : ""}${CROWD9.re > 0 ? ` ↻${CROWD9.re}` : ""} · ${pitched ? "3D" : "2D"} ${c9.lv}단 ${c9.units}기${tr9 > 0 ? ` · 저배율죔 ${tr9}단` : NO_TRIM9 ? " · 저배율죔 끔" : ""}${THIN9.n > 0 ? ` · 겹침생략 ${THIN9.n - THIN9.drew}/${THIN9.n}기` : ""}`;
+    SCR_DIAG.crowd = `벤치 2D ${c9.bench.toFixed(0)}ms ${grade9(c9.weak, c9.k)} · 3D ${c9.bench3.toFixed(0)}ms ${grade9(c9.weak3, c9.k3)}${c9.force >= 0 ? " 강제" : ""}${CROWD9.re > 0 ? ` ↻${CROWD9.re}` : ""} · ${pitched ? "3D" : "2D"} ${c9.lv}단 ${c9.units}기${tr9 > 0 ? ` · 저배율죔 ${tr9}단` : NO_TRIM9 ? " · 저배율죔 끔" : ""}${THIN9.n > 0 ? ` · 겹침생략 ${THIN9.n - THIN9.drew}/${THIN9.n}기` : ""}${bakeSprint9.v > 1 ? ` · 굽기질주 ×${bakeSprint9.v}` : ""}`;
     const st9 = wStatRef.current;
     const wait9 = !st9.ready && st9.worldAt > 0 ? (pNow() - st9.worldAt) / 1000 : 0;
     let ahead9 = -1e9;
