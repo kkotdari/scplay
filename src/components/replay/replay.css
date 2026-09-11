@@ -3396,14 +3396,19 @@
      아바타 −4 · 종족 배지 −2 · 조각 사이 −2 · 추적 단추 −2 = −10px. 칩이 받는 자리는
      한 픽셀도 안 줄었다. */
   --roster-name: 122px;
-  width: calc(var(--roster-name) + 184px);
+  /* ★ 폭은 **내용이 정한다**(지적 사진: 로스터 판이 좁아 APM 칸이 밖으로 빠져나감) ────────
+     여태 판 폭을 '이름칸 + 지표 다섯 + 사이 + 여백'을 **손으로 더한 수**로 못 박았는데, 그 합이
+     세 자리(기본·1159 이하·좁은 폰)에 따로 있어 격자(--roster-cols·gap·padding)를 손볼 때마다
+     한 자리씩 어긋났다 — 좁은 폰 자리는 격자가 150인데 144로 더해 6px가 모자랐다. 판이 제
+     격자에 맞춰 서게 두면(fit-content) 그 셈이 사라진다. 켠 꼴·끈 꼴은 내용이 같아 폭도 같다. */
+  width: fit-content;
 }
 /* 좁은 화면의 짝 — 이름 칸과 판 폭을 **한자리에서** 정한다(위 규칙 바로 뒤여야 덮인다).
    더하는 150px의 내역은 지표 다섯(20+38+26+26+24 = 134) + 칸 사이(2×5 = 10) +
    줄 여백(3×2 = 6)이다 — 판 여백은 위 규칙의 ★대로 안 센다. */
 @media (max-width: 1159px) {
   /* 112 → 106 — 이 구간은 아바타가 안 서므로 줄어든 것은 배지·여백·단추(−6)뿐이다. */
-  .scr-fs-roster-fixed { --roster-name: 106px; width: calc(var(--roster-name) + 150px); }
+  .scr-fs-roster-fixed { --roster-name: 106px; }
 }
 .scr-fs-layer.is-fs .scr-fs-roster-fixed { top: calc(max(var(--safe-top, 0px), 10px)); }
 /* ★ 판만 걷은 꼴(요청: "자리는 활성화시와 같게하고 패널은 미표시") — 바탕·테두리·
@@ -3541,7 +3546,7 @@
   /* 여백 7 → 5 · 팀 사이 4 → 3(요청: 로스터가 먹는 자리 줄이기) — 더하는 값도 그만큼
      줄어든다(지표 134 + 칸 사이 10 + 판 여백 5×2 = 154). */
   .scr-fs-roster-fixed {
-    width: min(calc(var(--roster-name) + 144px), calc(100vw - 10px));
+    max-width: calc(100vw - 10px);   /* 폭은 내용(위 fit-content) — 아주 좁은 기기만 뷰포트로 막는다 */
     padding: 5px; gap: 3px; left: 5px;
   }
   /* 프레임에서는 노치가 없으므로 판을 가장자리에 바짝 붙인다(전체화면은 safe-top). */
