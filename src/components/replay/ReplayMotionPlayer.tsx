@@ -20599,8 +20599,25 @@ const NUKEM9 = { on: false, at: 0, n: 0, worst: 0, last: 0, react: 0, parts: "",
  *  그 밖(브라우저 — 합성·GC·레이아웃). 붓 사이의 틈에서 앞의 셋을 빼면 '그 밖'이 남는다.
  *  짐작을 더 쌓지 않기 위한 자다: 어느 칸이 크냐가 곧 다음에 고칠 자리다. */
 const WORK9 = { brush: 0, wk: 0, react: 0 };
+/** 붓 사이 틈을 재는 자(위 WORSTF9) — 핵 창과 무관하게 늘 돈다. */
+const FRAMEG9 = { last: 0 };
+/** 이 판이 본 **가장 긴 프레임**과 그 몫 — 핵 창 밖에서도 잰다(실측: 핵과 무관한 1918ms 프레임이 있었다). */
+const WORSTF9 = { ms: 0, parts: "", at: "" };
 function nukeMeterTick9(on9: boolean, step9: number): void {
   const now9 = pNow();
+  /* 붓 사이의 틈을 늘 잰다 — 핵 창은 그중 한 도막일 뿐이다. 첫 장·오래 멈춘 뒤(2초 넘는 틈)는 안 센다:
+     멈춤·탐색·백그라운드는 '느린 프레임'이 아니라 아예 안 도는 시간이라 섞으면 자가 거짓이 된다. */
+  if (FRAMEG9.last > 0) {
+    const dt9 = now9 - FRAMEG9.last;
+    if (dt9 < 2000 && dt9 > WORSTF9.ms) {
+      WORSTF9.ms = dt9;
+      const out9 = Math.max(0, dt9 - WORK9.brush - WORK9.wk - WORK9.react);
+      WORSTF9.parts = `붓${WORK9.brush.toFixed(0)} 워커${WORK9.wk.toFixed(0)}`
+        + ` 리액트${WORK9.react.toFixed(0)} 밖${out9.toFixed(0)}`;
+      WORSTF9.at = `${SPRITE_PERF.bldBake}건물/${SPRITE_PERF.bake}유닛`;
+    }
+  }
+  FRAMEG9.last = now9;
   if (on9 && !NUKEM9.on) {
     NUKEM9.on = true; NUKEM9.at = now9; NUKEM9.n = 0; NUKEM9.worst = 0; NUKEM9.react = 0; NUKEM9.last = now9;
     BLD_MISS9.why.clear();   // 이 창에서 건물 판이 갈린 까닭만 센다(위 bldMissWhy9)
@@ -20619,6 +20636,7 @@ function nukeMeterTick9(on9: boolean, step9: number): void {
     WORK9.brush = 0; WORK9.wk = 0; WORK9.react = 0;
     return;
   }
+  WORK9.brush = 0; WORK9.wk = 0; WORK9.react = 0;   // 창 밖에서도 틈마다 비운다(위 WORSTF9)
   if (!NUKEM9.on) return;
   NUKEM9.on = false;
   /* ★ 남기는 것은 **가장 나빴던 창**이다(지적: 멀쩡한 창이 하나 지나면 증거가 지워진다) —
@@ -26452,9 +26470,28 @@ export default function ReplayMotionPlayer({
         /* 버림 — 주인 시각보다 반 초 지난 장(붓은 t 이하 가장 늦은 장 하나만 쓴다), 워커가 지을 수 있는 앞(벽시계 3초 +
            2.5초 여유)·배속을 넘어 앞선 장(탐색 전 옛 자리). 안개 판은 15초 뒤·같은 앞 밖. */
         const tNow9 = cmdNowRef9.current.t;
-        const aheadMax9 = 6 * Math.max(1, cmdNowRef9.current.speed) + 1;
+        /* ★ 앞 창을 **기기 예산으로** 좁힌다(실측: 폰에서 앞 2.5초에 225장·14.9MB를 들고 있었다) ─────────
+           워커에게는 폰이면 벽시계 1.5초·6MB만 지으라고 이르면서(DEV9.aheadSec·aheadMB), 정작 메인이 들고
+           있는 창은 '6초 × 배속 + 1'이라 훨씬 넓었다. 워커가 짓기 2ms로 빨리 지으면 그 창이 빽빽이 차
+           수백 장이 쌓인다 — 붓은 그중 한 장만 쓰는데, 남은 몫은 고스란히 메모리·GC다(계측에서 굽기도
+           React도 아닌 1918ms 프레임이 나온 자리가 여기로 의심된다).
+           같은 자(DEV9)로 맞춘다: 앞은 예산 초 × 배속 + 1초, 그리고 바이트가 예산을 넘으면 **가장 먼
+           앞 장부터** 버린다. 붓이 드는 것은 늘 't 이하 가장 늦은 장'이라 앞을 잘라도 안 굶는다. */
+        const aheadMax9 = DEV9.aheadSec * Math.max(1, cmdNowRef9.current.speed) + 1;
         if (frames9.size > 8) {
           for (const [k9, f9] of frames9) if (f9.t < tNow9 - 0.5 || f9.t > tNow9 + aheadMax9) frames9.delete(k9);
+          let by9 = 0;
+          for (const f9 of frames9.values()) by9 += f9.buf.byteLength;
+          const cap9 = DEV9.aheadMB * 1024 * 1024;
+          if (by9 > cap9) {
+            const far9 = [...frames9.entries()].sort((a9, b9) => b9[1].t - a9[1].t);
+            for (const [k9, f9] of far9) {
+              if (by9 <= cap9 || frames9.size <= 8) break;
+              if (f9.t <= tNow9) break;   // 지난 장은 안 버린다 — 그것이 지금 그리는 장이다
+              frames9.delete(k9);
+              by9 -= f9.buf.byteLength;
+            }
+          }
         }
         if (snaps9.length > 4) {
           const keep9 = snaps9.filter((sn9) => sn9.t >= tNow9 - 15 && sn9.t <= tNow9 + aheadMax9 + 2);
@@ -32475,6 +32512,8 @@ export default function ReplayMotionPlayer({
                       {SCR_DIAG.react ? ` · 리액트[박자${reactStepRef9.current}ms · ${SCR_DIAG.react}]` : ""}
                       {/* 지난 핵 창(위 NUKEM9) — 멈춘 뒤에 찍어도 남아 있다. */}
                       {SCR_DIAG.nukem ? ` · 핵[${SCR_DIAG.nukem}]` : ""}
+                      {/* 이 판이 본 가장 긴 프레임과 그 몫(위 WORSTF9) — 핵 창 밖의 끊김도 여기 잡힌다. */}
+                      {WORSTF9.ms > 0 ? ` · 최장프레임[${WORSTF9.ms.toFixed(0)}ms ${WORSTF9.parts}]` : ""}
                     </div>
                   </>
                 )}
