@@ -20219,6 +20219,8 @@ export function cropToInk(
    *  BAKE_POOL)일 때 쓴다. 안 그러면 다음 굽기가 그 판을 지우는 순간, 보관함에 든
    *  스프라이트가 통째로 빈 그림이 된다. */
   forceCopy = false,
+  /** 계량용 이름표 — 어느 자리가 판을 만드는지 가른다(진단의 캔버스만듦). */
+  tag9 = "훑기",
 ): { cv: HTMLCanvasElement; ox: number; oy: number } {
   /* 2화소 — 잉크 상자가 훑기가 아니라 **되돌린 값**일 수 있어서다(위 inkBoxOf의 ⚠).
      되돌린 상자는 안티에일리어싱 한 화소만큼 좁을 수 있으므로 한 화소를 더 남긴다. */
@@ -20237,7 +20239,7 @@ export function cropToInk(
   const cx9 = whole9 ? 0 : x0;
   const cy9 = whole9 ? 0 : y0;
   const out = takeStored9(cw9, ch9) ?? ((): HTMLCanvasElement => {
-    const c9 = newCanvas9("훑기");
+    const c9 = newCanvas9(tag9);
     c9.width = cw9;
     c9.height = ch9;
     return c9;
@@ -21090,13 +21092,14 @@ const RELEASE_Q9: HTMLCanvasElement[] = [];
  *  대개 **같은 몇 가지**다(같은 종류·같은 배율의 판이 방향만 달리 다시 구워지므로).
  *  그래서 놓을 때 버리지 말고 크기별로 몇 장 두었다가, 다음에 같은 크기를 찾으면 그것을 준다.
  *  배킹이 새로 나고 죽는 일이 없어지므로 회전이 곧 0에 가까워진다. 창고는 장수·바이트로 죈다. */
-const CVSTORE9 = { list: [] as HTMLCanvasElement[], bytes: 0 };
+const CVSTORE9 = { list: [] as HTMLCanvasElement[], bytes: 0, hit: 0, miss: 0, put: 0 };
 const CVSTORE_MAX9 = 24;
 const CVSTORE_BYTES9 = 6 * 1024 * 1024;
 /** 그 크기의 판을 창고에서 꺼낸다(없으면 null) — 꺼낸 판은 비워서 준다. */
 function takeStored9(w9: number, h9: number): HTMLCanvasElement | null {
   const i9 = CVSTORE9.list.findIndex((c9) => c9.width === w9 && c9.height === h9);
-  if (i9 < 0) return null;
+  if (i9 < 0) { CVSTORE9.miss += 1; return null; }
+  CVSTORE9.hit += 1;
   const [cv9] = CVSTORE9.list.splice(i9, 1);
   CVSTORE9.bytes -= w9 * h9 * 4;
   const c9 = cv9.getContext("2d");
@@ -21115,6 +21118,7 @@ function storeCanvas9(cv9: HTMLCanvasElement): void {
   }
   CVSTORE9.list.push(cv9);
   CVSTORE9.bytes += by9;
+  CVSTORE9.put += 1;
 }
 /** 미뤄 둔 판들을 실제로 놓는다 — 그리기 한 판의 첫머리에서 부른다(되쓰기 창고로 간다). */
 function flushReleased9(): void {
@@ -21897,10 +21901,10 @@ function unitSprite(
   const maskBox9 = tintCv9 ? inkBoxOf(tintCv9, `${memo9}|tm`, B * pad, B * pad, (B * pxq) / 16) : null;
   // 몸판은 **합 상자**로 자른다 — 자(bot·cx·w)가 옛 온 판과 같아야 발밑·중심·체력바가 안 움직인다.
   const box = unionInkBox9(bodyBox9, maskBox9);
-  const cr = cropToInk(cv, box, true);
+  const cr = cropToInk(cv, box, true, "훑기U");
   let tint: TintPlate9 | null = null;
   if (tintCv9 && maskBox9 && maskBox9.w > 1) {
-    const mcr = cropToInk(tintCv9, maskBox9, true);
+    const mcr = cropToInk(tintCv9, maskBox9, true, "훑기U탈");
     tint = { cv: mcr.cv, ox: mcr.ox, oy: mcr.oy, gloss: lod >= 3 };
   }
   /* 자르고 난 **원판**은 빌림터로 돌려준다(위 ★) — 다음 굽기가 같은 한 변이면 그대로
@@ -22657,10 +22661,10 @@ function buildingSpriteBake(
   const maskBoxB9 = tintCvB9 ? inkBoxOf(tintCvB9, `${memoB9}|tm`, B * (pad + sideQ / 2) - 8 * s9, B * (pad + sideQ) - 16 * s9, s9) : null;
   // 몸판은 합 상자로 자른다(자·발밑·중심이 옛 온 판과 같게).
   const box9 = unionInkBox9(bodyBoxB9, maskBoxB9);
-  const cr9 = cropToInk(cv, box9, true);
+  const cr9 = cropToInk(cv, box9, true, "훑기B");
   let tintB9: TintPlate9 | null = null;
   if (tintCvB9 && maskBoxB9 && maskBoxB9.w > 1) {
-    const mcr = cropToInk(tintCvB9, maskBoxB9, true);
+    const mcr = cropToInk(tintCvB9, maskBoxB9, true, "훑기B탈");
     tintB9 = { cv: mcr.cv, ox: mcr.ox, oy: mcr.oy, gloss: lod >= 3 };
   }
   freeBakeCanvas(cv);
@@ -32860,6 +32864,8 @@ export default function ReplayMotionPlayer({
                       {` · 배킹[손실${LOST9.n} 검사${LOST9.probe}${SCR_DIAG.allocOk ? "" : " ⚠확보실패"}]`}
                       {/* 메모리 흐름(위 MEMTR9) — 처음·지금·최대가 나란하면 새는 데가 없다. */}
                       {` · 캔버스만듦[총${CVN9.n} 초당${CVN9.rate.toFixed(0)}${CVN9.top ? ` · ${CVN9.top}` : ""}]`}
+                      {/* 되쓰기 창고(위 CVSTORE9) — 든 수·빗나간 수·넣은 수와 지금 쌓인 장수. */}
+                      {` · 창고[든${CVSTORE9.hit} 빗${CVSTORE9.miss} 넣${CVSTORE9.put} 쌓${CVSTORE9.list.length}]`}
                       {/* 판이 왜 갈리나 — 굽기 회전의 임자다(유닛·건물 각각 상위 셋). */}
                       {` · 판갈림[유닛 ${missTop9(UNI_MISS9.why)} · 건물 ${missTop9(BLD_MISS9.why)}]`}
                       {MEMTR9.n > 0 ? ` · 메모리[처음${MEMTR9.first.toFixed(0)} 지금${MEMTR9.now.toFixed(0)} 최대${MEMTR9.max.toFixed(0)}MB`
