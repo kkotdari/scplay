@@ -26565,6 +26565,29 @@ export default function ReplayMotionPlayer({
           let k9 = snaps9.length;
           while (k9 > 0 && snaps9[k9 - 1].t > pf9.t) k9 -= 1;
           snaps9.splice(k9, 0, { t: pf9.t, fseq: pf9.fseq, fog: pf9.fog });
+          /* ★ **뒤로 드는 판은 성기게 든다**(실측: 안개판 45.5MB·872장 — 이 판이 새는 자리였다) ──────────
+             창은 6초로 맞다. 터진 것은 **들어오는 밀도**다: 워커가 초당 여든 장씩 보내니 6초에 팔백 장이고,
+             큰 지도는 한 장이 52KB(밝힘 시각표 w·h·2 + 눈 목록)라 그대로 45MB가 된다. 메모리가 계단처럼
+             40 → 71MB로 오르던 몫이 이것이고, 그 끝이 배킹 손실(그리기 멎음)이다.
+             쓰임새를 보면 성길 수 있다 — 이 목록은 **제 안개를 못 실은 장**에 붙여 주는 예비지, 살아 있는
+             화면의 자가 아니다(장은 대개 제 안개를 갖고 온다). 그러니
+               · 최근 1.5초는 그대로 둔다(지금 그리는 자리라 촘촘해야 한다)
+               · 그보다 오래된 것은 0.25초에 한 장만 남긴다(되감기 몫엔 그 눈금이면 넉넉하다)
+               · 그래도 여든 장을 넘으면 오래된 것부터 버린다(어떤 경우에도 상한이 있게)
+             이러면 6초 창이 팔백 장이 아니라 예순 장 안팎, 곧 45MB가 3MB가 된다. */
+          const keepT9 = pf9.t - 1.5;
+          let wr9 = 0;
+          let lastKept9 = -Infinity;
+          for (let i9 = 0; i9 < snaps9.length; i9 += 1) {
+            const sn9 = snaps9[i9];
+            const dense9 = sn9.t >= keepT9 || sn9.t - lastKept9 >= 0.25 || i9 === snaps9.length - 1;
+            if (!dense9) continue;
+            if (sn9.t < keepT9) lastKept9 = sn9.t;
+            snaps9[wr9] = sn9;
+            wr9 += 1;
+          }
+          if (wr9 !== snaps9.length) snaps9.length = wr9;
+          if (snaps9.length > 80) snaps9.splice(0, snaps9.length - 80);
         }
         /* 버림 — 주인 시각보다 반 초 지난 장(붓은 t 이하 가장 늦은 장 하나만 쓴다), 워커가 지을 수 있는 앞(벽시계 3초 +
            2.5초 여유)·배속을 넘어 앞선 장(탐색 전 옛 자리). 안개 판은 15초 뒤·같은 앞 밖. */
