@@ -31631,11 +31631,16 @@ export default function ReplayMotionPlayer({
         const sf9 = snaps9[i9];
         if (!sf9.fog.explored || sf9.fog.explored.length === cells9) { any9 = sf9.fog; break; }
       }
-      /* 판이 하나도 없으면 **마지막으로 그린 장의 안개**를 잇는다(같은 지적) — 안개 판이 없는 장을 '안개 없음'
-         으로 그리면 안개 층이 내려간다. 지도 크기가 맞는 것만. */
+      /* ★ **차례를 뒤집는다**(지적: "가끔 안개가 뒤 시각의 안개로 왔다갔다 흔들린다") ─────────────────
+         위 any9는 시각을 안 보고 고른 **가장 최근** 판이라, 워커가 앞서 지어 둔 장의 안개 —
+         곧 **미래의 안개**다. 여태 그것을 먼저 집었으므로, 제 판이 아직 안 온 장은 미래로 한 번
+         튀었다가 다음 장에서 제자리로 돌아왔다. 잇달아 그러면 두 시각 사이를 오가는 흔들림이다.
+         이어야 할 것은 **지금 화면에 있는 안개**다 — 마지막으로 그린 장의 것이면 튀는 일이 없고,
+         제 판이 오는 순간 조용히 갈린다. 미래 판은 그릴 것이 아예 없는 **첫 로딩**의 몫으로만 남긴다
+         (그 자리가 원래 any9를 둔 까닭이다 — '다 걷힘'으로 떨어지는 첫 깜빡임 막기). */
       const lf9 = lastFrameRef9.current[1] ?? lastFrameRef9.current[0];
-      const last9 = any9 ?? (lf9 && lf9.explored && lf9.explored.length === cells9
-        ? { explored: lf9.explored, visNow: lf9.visNow, visSrc: lf9.visSrc } : null);
+      const last9 = (lf9 && lf9.explored && lf9.explored.length === cells9
+        ? { explored: lf9.explored, visNow: lf9.visNow, visSrc: lf9.visSrc } : null) ?? any9;
       fog9 = last9 ? { explored: last9.explored, visNow: last9.visNow, visSrc: last9.visSrc }
         : { explored: null, visNow: null, visSrc: new Float32Array(0) };
     }

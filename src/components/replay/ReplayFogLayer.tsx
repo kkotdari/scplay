@@ -91,11 +91,24 @@ export default function ReplayFogLayer({
      (렌더가 붓보다 늦다) props로 되돌리지 않는다 — 되돌리면 시야가 한 걸음 물러섰다 나온다. 탐색처럼 시각이
      크게 갈리면 props를 따른다. */
   const latestRef = useRef<FogOverride>({ vis, exploredAt, t });
+  /** 붓이 마지막으로 제 안개를 넘긴 **벽시계** — props로 되돌릴지 가리는 자(아래 ★). */
+  const ovAtRef = useRef(0);
   /** 밝힌 판의 합(칸마다 가장 이른 밝힘 시각) — 위 paint의 ★ 주석. src는 마지막으로 합친 원본(같은 판이면 건너뛴다). */
   const mergedRef = useRef<{ src: Uint16Array | null; out: Uint16Array | null; ver: number }>({ src: null, out: null, ver: 0 });
   {
+    /* ★ **props로 되돌리는 자리를 좁힌다**(지적: "안개가 과거로 갔다 현재로 왔다 덜덜덜 떨린다") ────────
+       여태 조건이 `t >= lt.t`였다. 곧 React의 시각이 붓이 마지막에 칠한 시각과 같거나 뒤이기만 하면
+       props의 안개로 갈아탔다 — 그런데 그 둘은 **서로 다른 장**을 본다:
+         붓   — 살아 있는 시각(tLive)으로 고른 장(가장 최신)
+         props — React의 t(100ms 박자)로 고른 장(한 걸음 뒤진 장일 수 있다)
+       React의 t는 붓의 tLive를 따라가므로 박자가 넘어가는 순간마다 `t >= lt.t`가 참이 되고, 그때
+       **한 걸음 뒤진 장의 눈 목록**으로 갈아탔다가 다음 붓 장에서 되돌아온다. 그 왕복이 곧 떨림이다
+       (밝힌 판은 min으로 합쳐 두어 안 물러서지만, 지금 시야의 눈 목록은 그대로 뒤로 간다).
+       붓이 살아 있는 동안에는 붓이 주인이다. props는 붓이 한동안 안 칠했을 때(멈춤·첫 장)나 탐색으로
+       시각이 크게 갈릴 때만 든다 — 그 둘이 원래 이 자리가 필요했던 까닭이다. */
     const lt = latestRef.current;
-    if (t >= lt.t - 1e-6 || Math.abs(t - lt.t) > 0.5 || lt.exploredAt.length !== exploredAt.length) {
+    const idle9 = typeof performance !== "undefined" && performance.now() - ovAtRef.current > 300;
+    if (idle9 || Math.abs(t - lt.t) > 0.5 || lt.exploredAt.length !== exploredAt.length) {
       latestRef.current = { vis, exploredAt, t };
     }
   }
@@ -104,7 +117,10 @@ export default function ReplayFogLayer({
     /* 한 장 그리기를 함수로 뽑았다 — 상태(zoom·pan)로 한 번, 손짓 중에는 부모가
        손끝 값으로 다시 부른다. 매개변수 이름이 props를 일부러 가린다. */
     const paint = (zoom: number, pan: { x: number; y: number }, ov?: FogOverride): void => {
-    if (ov && ov.exploredAt.length === w * h) latestRef.current = ov;
+    if (ov && ov.exploredAt.length === w * h) {
+      latestRef.current = ov;
+      ovAtRef.current = typeof performance !== "undefined" ? performance.now() : 0;
+    }
     const { vis, t } = latestRef.current;
     /* ★ 밝힌 판은 **잊지 않는다**(지적: "안개 떨림 여전해" — 증거 사진: 몇 초 사이 밝힌 땅의 경계가 띠 하나만큼
        물러섰다 돌아왔다) ─────────────────────────────────────────────────────────────
