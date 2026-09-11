@@ -20550,6 +20550,7 @@ function noteReact9(ms9: number): void {
      창 안의 합만 쓰면 창을 넘긴 직후 한 장도 안 잰 상태가 되어 판정이 한 번씩 옛 규칙으로 떨어진다. */
   REACTM9.avg = REACTM9.avg < 0 ? ms9 : REACTM9.avg * 0.85 + ms9 * 0.15;
   if (NUKEM9.on && ms9 > NUKEM9.react) NUKEM9.react = ms9;   // 핵 창 몫(아래 NUKEM9)
+  WORK9.react += ms9;                                        // 이 틈에서 React가 쓴 몫(위 WORK9)
   REACTM9.n += 1;
   REACTM9.sum += ms9;
   if (ms9 > REACTM9.max) REACTM9.max = ms9;
@@ -20592,7 +20593,12 @@ function nukeStep9(): number {
  *  멈추는 동안에는 스크린샷을 못 찍는다 — 그러니 핵이 떠 있는 **창 전체**를 재서, 창이 끝난 뒤에도
  *  화면에 남겨 둔다. 무엇이 멈춤의 값인지는 셋으로 갈린다: 프레임이 길었나(최악프레임) · 그게 굽기였나
  *  (굽기 창) · React였나(리액트 최악 · 박자). 짐작 대신 이 셋을 읽고 고친다. */
-const NUKEM9 = { on: false, at: 0, n: 0, worst: 0, last: 0, react: 0 };
+const NUKEM9 = { on: false, at: 0, n: 0, worst: 0, last: 0, react: 0, parts: "" };
+/** ★ 한 프레임의 값을 **누구 몫인지로 가른다**(실측: 핵 창 최악 프레임 3891ms인데 굽기 0 · 리액트 7ms) ──
+ *  그 둘이 아니면 남는 자리는 셋뿐이다: 붓(유닛·안개 칠하기) · 워커 장 받기(푸는 값이 메인 몫이다) ·
+ *  그 밖(브라우저 — 합성·GC·레이아웃). 붓 사이의 틈에서 앞의 셋을 빼면 '그 밖'이 남는다.
+ *  짐작을 더 쌓지 않기 위한 자다: 어느 칸이 크냐가 곧 다음에 고칠 자리다. */
+const WORK9 = { brush: 0, wk: 0, react: 0 };
 function nukeMeterTick9(on9: boolean, step9: number): void {
   const now9 = pNow();
   if (on9 && !NUKEM9.on) {
@@ -20603,7 +20609,13 @@ function nukeMeterTick9(on9: boolean, step9: number): void {
     const dt9 = now9 - NUKEM9.last;
     NUKEM9.last = now9;
     NUKEM9.n += 1;
-    if (dt9 > NUKEM9.worst) NUKEM9.worst = dt9;
+    if (dt9 > NUKEM9.worst) {
+      NUKEM9.worst = dt9;
+      const out9 = Math.max(0, dt9 - WORK9.brush - WORK9.wk - WORK9.react);
+      NUKEM9.parts = `붓${WORK9.brush.toFixed(0)} 워커${WORK9.wk.toFixed(0)}`
+        + ` 리액트${WORK9.react.toFixed(0)} 밖${out9.toFixed(0)}`;
+    }
+    WORK9.brush = 0; WORK9.wk = 0; WORK9.react = 0;
     return;
   }
   if (!NUKEM9.on) return;
@@ -20611,7 +20623,7 @@ function nukeMeterTick9(on9: boolean, step9: number): void {
   const secs9 = Math.max(0.001, (now9 - NUKEM9.at) / 1000);
   const w9 = SPRITE_PERF.wLast;
   SCR_DIAG.nukem = `${secs9.toFixed(1)}초 붓${NUKEM9.n}장(${(NUKEM9.n / secs9).toFixed(0)}/s)`
-    + ` · 최악프레임 ${NUKEM9.worst.toFixed(0)}ms · 리액트 최악 ${NUKEM9.react.toFixed(0)}ms(박자 ${step9}ms)`
+    + ` · 최악프레임 ${NUKEM9.worst.toFixed(0)}ms[${NUKEM9.parts}] · 리액트 최악 ${NUKEM9.react.toFixed(0)}ms(박자 ${step9}ms)`
     + ` · 굽기창 유닛${w9.bake}장 ${w9.ms.toFixed(0)}ms 건물${w9.bldBake}장 ${w9.bldMs.toFixed(0)}ms`
     + ` 최악 ${w9.worstFrame.toFixed(0)}ms(굽기 ${w9.worstFrameBake.toFixed(0)})`;
 }
@@ -26332,6 +26344,8 @@ export default function ReplayMotionPlayer({
     const wire9 = (wk9: Worker): void => {
     wk9.onmessage = (ev: MessageEvent<{ type: string; message?: string; ui?: WorldUi9 } & Partial<PackedFrame9>>) => {
       if (dead9) return;
+      /* 이 실마리에서 워커 장을 받는 값(위 WORK9) — 푸는 것은 워커여도 **받는 것은 메인**이다. */
+      const wk09 = pNow();
       const m9 = ev.data;
       if (m9.type === "frame" && m9.buf && m9.strs && typeof m9.t === "number") {
         const pf9: PackedFrame9 = { t: m9.t, buf: m9.buf, strs: m9.strs, fog: m9.fog ?? null, ms: m9.ms ?? 0, n: m9.n ?? 0, seq: m9.seq ?? 0, fseq: m9.fseq ?? 0, gen: m9.gen ?? 0, ox: m9.ox ?? 0, oy: m9.oy ?? 0 };
@@ -26433,6 +26447,7 @@ export default function ReplayMotionPlayer({
         wk9.terminate();
         frameWorkerRef.current = null;
       }
+      WORK9.wk += pNow() - wk09;
     };
     /* 워커 스크립트가 못 서거나(모듈 워커 미지원·문법) 잡히지 않은 채 던지면 여기로 온다. Safari는
        message가 빈 문자열일 때가 있어 자리(파일:줄)도 함께 적는다 — 빈 err는 '문제 없음'으로 보인다. */
@@ -30588,6 +30603,8 @@ export default function ReplayMotionPlayer({
   };
   /* 틱의 붓 — 살아 있는 시각으로 프레임을 골라 op·효과를 ref에 두고 유닛 캔버스를 곧장 칠한다(React 없이). */
   paintFnRef9.current = (tNow9: number, rebase9 = false, fogOnly9 = false): void => {
+    /* 이 붓 한 장이 든 시간(위 WORK9) — 프레임 틈을 누구 몫인지로 가르는 자다. */
+    const bw09 = pNow();
     /* fps 계측(요청: "#diag=fps로 오른쪽 귀퉁이에 프레임 오버레이만 작게") — 붓이 칠한 장을 벽시계 0.5초마다
        세어 SCR_DIAG.fps에 적는다. 진단이 꺼져 있으면 셈만 하고(싸다) 아무것도 안 그린다. */
     if (!fogOnly9) {
@@ -30691,7 +30708,7 @@ export default function ReplayMotionPlayer({
           panRef.current.x, panRef.current.y, clipBoxRef.current.pitched);
       }
     }
-    if (fogOnly9) return;   // 안개만 청한 부름(위 ★) — 값비싼 유닛 칠하기는 건너뛴다
+    if (fogOnly9) { WORK9.brush += pNow() - bw09; return; }   // 안개만 청한 부름(위 ★)
     brushAT9 = lastDrawT9.current;
     brushInst9 = instIdRef9.current;
     if (brushSrc9 === "react") brushSrc9 = "tick";   // 부르는 쪽이 안 세웠으면 재생 틱이다
@@ -30703,7 +30720,7 @@ export default function ReplayMotionPlayer({
     unitPaintRef.current?.(zoomRef.current, panRef.current, zoomCommitRef.current);
     xfCvXfRef.current = XF_ID9;
     // 유닛은 지금 보기로 칠했다 — 그쪽 임시 변환만 항등으로 되돌린다(안 그러면 두 번 먹는다).
-    // ★ 안개는 여기서 안 건드린다 — 이 프레임에 칠했는지는 아래 안개 블록이 안다(위 fogXfRef9의 ★).
+    WORK9.brush += pNow() - bw09;
   };
   const frame9: Frame9 = frameAt9(t, false);
   crowdInit9();   // 진입 때 한 번: 기기 벤치(CROWD9) — 첫 렌더에서 돌고 그 뒤로는 값만 읽는다
