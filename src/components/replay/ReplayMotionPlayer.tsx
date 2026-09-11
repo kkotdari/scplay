@@ -32565,6 +32565,16 @@ export default function ReplayMotionPlayer({
                         for (const f9 of wFramesRef.current.values()) b9 += f9.buf.byteLength;
                         return b9;
                       })() / 1048576).toFixed(1)}MB {wFramesRef.current.size}장
+                      {/* 안개 판 갈무리(fogSnapsRef9) — 되감기용으로 15초를 들고 있다. 칸당 explored가
+                          w·h·2바이트라 큰 지도에서는 이 줄이 설계도보다 무거울 수 있다. */}
+                      {" · 안개판 "}{(((): number => {
+                        let b9 = 0;
+                        for (const sn9 of fogSnapsRef9.current) {
+                          b9 += (sn9.fog?.visSrc?.byteLength ?? 0) + (sn9.fog?.explored?.byteLength ?? 0)
+                            + (sn9.fog?.visNow?.byteLength ?? 0);
+                        }
+                        return b9;
+                      })() / 1048576).toFixed(1)}MB {fogSnapsRef9.current.length}장
                     </div>
                     <div style={{ fontSize: "0.92em", opacity: 0.85 }}>{SPRITE_PERF.dom.list || "-"}</div>
                     {/* 자바스크립트 쪽 큰 덩어리의 어림(memEst9) — 참값은 워커에 넘긴 뒤라 메인은 껍데기만 남아야 한다. */}
