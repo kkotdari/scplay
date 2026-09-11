@@ -4077,7 +4077,25 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
        *    유닛은 개체 태그(양수), 건물은 줄 번호(음수)라 서로 안 겹친다. 0은 '신원 없음'
        *    이라 안 이어진다(자취 없는 옛 기록). */
       const src9: number[] = [];
-      const eye = (cx: number, cy: number, r: number, id9 = 0): void => { src9.push(cx, cy, r, id9); };
+      /* ★ **같은 신원은 한 눈**(지적: "두 개 이상의 시야 경계가 거의 유사하면서 살짝씩 바뀌면
+         문제가 생기는 것 같기도") ────────────────────────────────────────────────────────
+         건물은 아래 고리 여럿에 겹쳐 든다: 다 지어진 명단(bldFoes)은 **줄에 적힌 붙박이 자리**로
+         눈을 내고, 이사 비행 고리는 **나는 자리**로 또 낸다 — 같은 신원(−줄번호)이 두 자리에
+         선다. 그러면 붓의 신원 짝짓기가 앞 장의 붙박이 눈을 뒤 장의 나는 눈과 이어, 떠난
+         자리에서 **유령 원 하나가 진짜 원을 살짝 뒤따라** 미끄러지고, 멀어져 빗장을 넘으면
+         도로 붙박이 자리로 튄다. 경계 둘이 거의 같은 자리에서 살짝씩 갈리는 그 그림이다.
+         (방어 건물도 두 명단에 함께 들지만 같은 자리라 그림은 안 달랐다.)
+         신원마다 자리 하나만 둔다 — 나중에 낸 것이 이긴다. 뜬 건물은 나는 자리가 나중이라
+         그것이 남고, 떠난 자리에는 눈이 없다(원작도 그렇다: 뜬 건물은 나는 자리에서 본다). */
+      const at9 = new Map<number, number>();
+      const eye = (cx: number, cy: number, r: number, id9 = 0): void => {
+        if (id9 !== 0) {
+          const j9 = at9.get(id9);
+          if (j9 !== undefined) { src9[j9] = cx; src9[j9 + 1] = cy; src9[j9 + 2] = r; return; }
+          at9.set(id9, src9.length);
+        }
+        src9.push(cx, cy, r, id9);
+      };
       /* 눈은 **이 프레임에 실제로 서 있는 것들**이다 — 유닛 명단(engageFoes)과 건물
          명단(bldFoes)이 이미 그 값이라 따로 훑지 않는다(둘 다 위에서 t로 걸러졌다). */
       for (const f9 of engageFoes) {
