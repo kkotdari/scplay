@@ -20236,9 +20236,12 @@ export function cropToInk(
   const ch9 = whole9 ? cv.height : h;
   const cx9 = whole9 ? 0 : x0;
   const cy9 = whole9 ? 0 : y0;
-  const out = newCanvas9("훑기");
-  out.width = cw9;
-  out.height = ch9;
+  const out = takeStored9(cw9, ch9) ?? ((): HTMLCanvasElement => {
+    const c9 = newCanvas9("훑기");
+    c9.width = cw9;
+    c9.height = ch9;
+    return c9;
+  })();
   const c = out.getContext("2d");
   if (!c) return { cv, ox: 0, oy: 0 };
   c.drawImage(cv, cx9, cy9, cw9, ch9, 0, 0, cw9, ch9);
@@ -21029,7 +21032,11 @@ const BAKE_POOL: HTMLCanvasElement[] = [];
    한 장 상한도 12배·dpr 3의 유닛 판(702² = 2.0MB)이 확실히 들어가게 3MB로 올린다.
    ★ 빌림터는 예산 압박이 오면 통째로 놓는다(trimSpriteCache의 ★) — 그래서 이 몫이
      판 예산과 겹쳐 메모리를 밀어 올리지는 않는다. */
-const BAKE_POOL_MAX = 3;
+/* ★ 3 → 16(실측: `캔버스만듦[초당360 · 훑기153 빌림122 물들이기68]`) — 빌림터가 **같은 한 변**만 되쓰는데
+   유닛은 종류·배율마다 한 변이 달라, 세 칸으로는 거의 늘 빗나가 초당 백스물두 장을 새로 만들고 있었다.
+   캔버스 하나는 제 배킹(iOS면 IOSurface)을 갖고, 그 회전이 곧 웹킷의 회수(=그리기 멎음)를 부른다.
+   칸을 늘려도 **바이트로 죄므로**(BAKE_POOL_BYTES) 메모리 봉우리는 그대로고, 압박이 오면 통째로 놓는다. */
+const BAKE_POOL_MAX = 16;
 const BAKE_ONE_MAX = DEV9.bakeOneMB * 1024 * 1024;
 const BAKE_POOL_BYTES = DEV9.bakePoolMB * 1024 * 1024;
 /** 그 크기의 굽는 판을 빌린다 — 빌림터에 있으면 지워서 주고, 없으면 새로 짓는다. */
@@ -21043,6 +21050,9 @@ const bakeCanvas = (side: number): HTMLCanvasElement | null => {
     c9.clearRect(0, 0, side, side);
     return cv9;
   }
+  /* ★ 굽는 판만은 **창고에서 안 꺼낸다** — 이 판은 곧바로 잉크를 훑는(getImageData) 자리라 첫 문맥을
+     `willReadFrequently`로 열어야 한다(아래 ★). 창고의 판은 그 규약 없이 열린 것일 수 있어, 꺼내 쓰면
+     훑기가 GPU 되읽기로 떨어진다(그 값이 한때 2초에 599ms였다). 여기는 빌림터(BAKE_POOL)로 되쓴다. */
   const cv9 = newCanvas9("빌림");
   cv9.width = side;
   cv9.height = side;
@@ -21074,9 +21084,41 @@ const freeBakeCanvas = (cv: HTMLCanvasElement): void => {
  *  에 비운다(그때는 어느 op도 옛 판을 안 들고 있다). 늦춰 봐야 16ms라, 수거를 기다리는
  *  것과는 자릿수가 다르다. */
 const RELEASE_Q9: HTMLCanvasElement[] = [];
-/** 미뤄 둔 판들을 실제로 놓는다 — 그리기 한 판의 첫머리에서 부른다. */
+/** ★ **놓는 판을 곧장 버리지 않고 되쓴다**(실측: 초당 360장을 새로 만들고 있었다) ─────────────────
+ *  이 판의 판(스프라이트·마스크)은 `cropToInk`가 새 캔버스에 옮겨 담아 만든다 — 곧 굽는 횟수만큼
+ *  캔버스가 나고, 쫓겨난 판의 캔버스는 크기 0으로 놓여 사라진다. 그런데 나는 크기와 죽는 크기는
+ *  대개 **같은 몇 가지**다(같은 종류·같은 배율의 판이 방향만 달리 다시 구워지므로).
+ *  그래서 놓을 때 버리지 말고 크기별로 몇 장 두었다가, 다음에 같은 크기를 찾으면 그것을 준다.
+ *  배킹이 새로 나고 죽는 일이 없어지므로 회전이 곧 0에 가까워진다. 창고는 장수·바이트로 죈다. */
+const CVSTORE9 = { list: [] as HTMLCanvasElement[], bytes: 0 };
+const CVSTORE_MAX9 = 24;
+const CVSTORE_BYTES9 = 6 * 1024 * 1024;
+/** 그 크기의 판을 창고에서 꺼낸다(없으면 null) — 꺼낸 판은 비워서 준다. */
+function takeStored9(w9: number, h9: number): HTMLCanvasElement | null {
+  const i9 = CVSTORE9.list.findIndex((c9) => c9.width === w9 && c9.height === h9);
+  if (i9 < 0) return null;
+  const [cv9] = CVSTORE9.list.splice(i9, 1);
+  CVSTORE9.bytes -= w9 * h9 * 4;
+  const c9 = cv9.getContext("2d");
+  if (!c9) return null;
+  c9.setTransform(1, 0, 0, 1, 0, 0);
+  c9.clearRect(0, 0, w9, h9);
+  return cv9;
+}
+/** 판을 창고에 둔다 — 자리가 없거나 너무 크면 그냥 놓는다. */
+function storeCanvas9(cv9: HTMLCanvasElement): void {
+  const by9 = cv9.width * cv9.height * 4;
+  if (cv9.width < 2 || by9 > CVSTORE_BYTES9 / 2
+    || CVSTORE9.list.length >= CVSTORE_MAX9 || CVSTORE9.bytes + by9 > CVSTORE_BYTES9) {
+    releaseCanvas(cv9);
+    return;
+  }
+  CVSTORE9.list.push(cv9);
+  CVSTORE9.bytes += by9;
+}
+/** 미뤄 둔 판들을 실제로 놓는다 — 그리기 한 판의 첫머리에서 부른다(되쓰기 창고로 간다). */
 function flushReleased9(): void {
-  for (let i = 0; i < RELEASE_Q9.length; i += 1) releaseCanvas(RELEASE_Q9[i]);
+  for (let i = 0; i < RELEASE_Q9.length; i += 1) storeCanvas9(RELEASE_Q9[i]);
   RELEASE_Q9.length = 0;
 }
 /** 두 보관함을 **함께** 죈다 — 한쪽이 자라면 상대의 몫이 그만큼 줄어드는 식이므로
@@ -21620,8 +21662,11 @@ const tintedOf9 = (tn: TintPlate9, color: string, bytes: { n: number } = spriteB
   if (got) return got;
   if (typeof document === "undefined") return null;
   const w = tn.cv.width; const h = tn.cv.height;
-  const cv = newCanvas9("물들이기");
-  cv.width = w; cv.height = h;
+  const cv = takeStored9(w, h) ?? ((): HTMLCanvasElement => {
+    const c9 = newCanvas9("물들이기");
+    c9.width = w; c9.height = h;
+    return c9;
+  })();
   const tc = cv.getContext("2d");
   if (!tc) return null;
   tc.drawImage(tn.cv, 0, 0);
