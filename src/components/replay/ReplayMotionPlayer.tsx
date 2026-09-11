@@ -605,6 +605,48 @@ const FOGBACK9 = {
   /** 칠한 걸음 수 */ all: 0,
   /** 길별 걸음 수 */ ways: new Map<string, number>(),
 };
+/* ★ **자리로 잰다**(1차 계측 결과: 역행0/60 — 눈 목록의 시각은 한 번도 안 되돌아갔다) ──
+   그러면 범인은 '어느 자료를 집었나'가 아니라 '그 자료가 어디에 있나'다. 그것을 재는 자는
+   **눈이 실제로 움직인 거리**다: 창 하나 동안 눈 하나가 **걸은 총 거리**와 **처음에서 끝까지의
+   곧은 거리**를 견준다. 곧게 가면 둘이 같고(비 1.0), 앞뒤로 떨면 총 거리만 몇 배로 는다
+   (비 3~10). 어느 자료를 집었는지와 무관하게 **화면에서 떨었나**만 말하는 자다.
+   길이 바뀐 장(출몰)은 짝을 못 맞추므로 그 창을 새로 연다.
+   함께 세는 것 — 전환: 목록이 나온 길이 장마다 바뀐 횟수(이음↔앞장이 번갈면 톱니다). */
+const FOGJIT9 = {
+  prev: null as Float32Array | null, base: null as Float32Array | null,
+  move: 0, n: 0, flips: 0, why: "", ratio: 0, net: 0,
+};
+const fogJitTick9 = (vis9: Float32Array): void => {
+  if (fogWhy9 !== FOGJIT9.why) { FOGJIT9.flips += 1; FOGJIT9.why = fogWhy9; }
+  const pv9 = FOGJIT9.prev;
+  if (!pv9 || pv9.length !== vis9.length) {
+    FOGJIT9.prev = Float32Array.from(vis9);
+    FOGJIT9.base = Float32Array.from(vis9);
+    FOGJIT9.move = 0; FOGJIT9.n = 0;
+    return;
+  }
+  let m9 = 0;
+  for (let i9 = 0; i9 + 2 < vis9.length; i9 += 3) {
+    m9 += Math.abs(vis9[i9] - pv9[i9]) + Math.abs(vis9[i9 + 1] - pv9[i9 + 1]);
+  }
+  FOGJIT9.move += m9;
+  FOGJIT9.n += 1;
+  pv9.set(vis9);
+};
+/** 창을 닫으며 '걸은 거리 / 곧은 거리'를 셈한다 — 1.0이면 곧게, 크면 떤 것이다. */
+const fogJitClose9 = (): void => {
+  const pv9 = FOGJIT9.prev; const bs9 = FOGJIT9.base;
+  if (pv9 && bs9 && pv9.length === bs9.length && FOGJIT9.n > 0) {
+    let net9 = 0;
+    for (let i9 = 0; i9 + 2 < pv9.length; i9 += 3) {
+      net9 += Math.abs(pv9[i9] - bs9[i9]) + Math.abs(pv9[i9 + 1] - bs9[i9 + 1]);
+    }
+    FOGJIT9.net = net9;
+    FOGJIT9.ratio = net9 > 1e-6 ? FOGJIT9.move / net9 : 0;
+    bs9.set(pv9);
+  }
+  FOGJIT9.move = 0; FOGJIT9.n = 0; FOGJIT9.flips = 0;
+};
 /** 칠하기 직전에 부른다 — 목록의 시각을 견줘 뒤로 간 걸음을 센다. */
 const fogBackTick9 = (vis9: Float32Array | null): void => {
   if (!vis9) return;
@@ -619,6 +661,10 @@ const fogBackTick9 = (vis9: Float32Array | null): void => {
   }
   FOGBACK9.was = t9;
 };
+/** 안개 자리 떨림 한 줄 — 걸은 거리·곧은 거리·그 비·길 바뀜. */
+const fogJitStr9 = (): string => `떨림 비${FOGJIT9.ratio.toFixed(1)}`
+  + `(곧${FOGJIT9.net.toFixed(0)})`
+  + ` 전환${FOGJIT9.flips}`;
 const fogBackStr9 = (): string => {
   const w9 = [...FOGBACK9.ways.entries()].sort((a9, b9) => b9[1] - a9[1]).slice(0, 4)
     .map(([k9, v9]) => `${k9}${v9}`).join(" ");
@@ -642,7 +688,8 @@ function fogMeterTick9(): void {
   }
   /* 손짓 칸은 **늘 보인다**(빈 채로라도) — 안 보이면 사용자가 '새 판이 안 실렸나'와 '아직
      안 끌었나'를 못 가른다(실제로 한 번 헛걸음했다). 아직 없으면 '대기'라고 적는다. */
-  SCR_DIAG.fog = `${fogStr9(FOGM9.idle)} · 손짓[${FOGM9.gShow || "대기"}] · ${fogBackStr9()}`;
+  fogJitClose9();
+  SCR_DIAG.fog = `${fogStr9(FOGM9.idle)} · 손짓[${FOGM9.gShow || "대기"}] · ${fogBackStr9()} · ${fogJitStr9()}`;
   FOGBACK9.n = 0; FOGBACK9.all = 0; FOGBACK9.worst = 0; FOGBACK9.why = ""; FOGBACK9.ways.clear();
   FOGM9.at = now9;
   FOGM9.idle = fogCnt9();
@@ -32093,7 +32140,9 @@ export default function ReplayMotionPlayer({
       /* 계측: 지금 칠할 목록이 전 장보다 이른 시각인가(위 FOGBACK9의 ★). 칠할지 말지를
          가리기 **전에** 센다 — 같은 목록이라 건너뛴 장은 뒤로 간 것이 아니므로 여기서
          was가 그대로 유지되는 것이 맞다. */
-      fogBackTick9(fr9.visSrc);
+      /* 이 둘은 **진단이 켜졌을 때만** 돈다 — 떨림 자는 눈 목록을 한 벌 베껴 두고 장마다
+         훑으므로(눈 1500이면 18KB·4500번) 평소에 낼 값이 아니다. */
+      if (scrDiagOn()) { fogBackTick9(fr9.visSrc); fogJitTick9(fr9.visSrc); }
       const ft9 = fogTickRef9.current;
       // 0.25초 → 0.1초(요청: "안개 그리기 빈도 늘리기") — 밝힌 판·눈 목록이 그대로여도 경기 시간 0.1초마다 한 번은 칠한다.
       const tq9 = Math.floor(tNow9 * 10);
