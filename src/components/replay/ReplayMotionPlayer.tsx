@@ -26563,7 +26563,11 @@ export default function ReplayMotionPlayer({
           }
         }
         if (snaps9.length > 4) {
-          const keep9 = snaps9.filter((sn9) => sn9.t >= tNow9 - 15 && sn9.t <= tNow9 + aheadMax9 + 2);
+          /* ★ 뒤로 드는 안개 판을 15초 → **6초**로 줄인다(실측: 폰에서 안개판만 8.8MB·168장) ──────────
+             한 장이 밝힘 시각표(w·h·2바이트)라 128² 지도면 32KB, 큰 지도면 그 네 배다. 이 판을 드는 까닭은
+             '조금 되감아도 안개가 안 튀게'인데, 6초면 그 몫을 다 한다(되감기는 어차피 워커가 다시 짓는다).
+             배킹 손실(위 LOST9)은 기기 전체의 메모리 압박에서 오므로, 우리 봉우리를 낮추는 것이 곧 덜 잃는 길이다. */
+          const keep9 = snaps9.filter((sn9) => sn9.t >= tNow9 - 6 && sn9.t <= tNow9 + aheadMax9 + 2);
           if (keep9.length !== snaps9.length) fogSnapsRef9.current = keep9.length > 0 ? keep9 : snaps9.slice(-1);
         }
       } else if (m9.type === "worldui" && m9.ui) {
@@ -29204,12 +29208,18 @@ export default function ReplayMotionPlayer({
   /** 지도 상자를 지금 잘라야 하나 — 손짓 중에는 굳은 상태(zoom)가 아니라 손끝 배율로
    *  정해야 한다(지적: "피시에서 확대하면 배경 미니맵이 틀을 벗어나서 확대됐다가 다시
    *  자리에 맞게 잘림"). 자르기 조건 자체는 JSX 스타일과 같은 것을 쓴다. */
-  /** 배킹을 다시 채운다 — 기억을 전부 버리고 이번 프레임에 처음부터 그린다(위 LOST9의 ★). */
-  const recoverCanvas9 = useCallback((): void => {
+  /** 배킹을 다시 채운다 — 기억을 버리고 이번 프레임에 처음부터 그린다(위 LOST9의 ★).
+   *  ★ `hard9`를 가른 까닭(신고: "다시 돌다가 또 멈춰") ─────────────────────────────────────
+   *    첫 판은 되살릴 때마다 판(스프라이트) 캐시를 통째로 버렸다. 그런데 배킹을 잃는 자리는
+   *    **메모리 압박**이고, 판을 다 버리면 그 직후에 수백 장을 다시 굽는다 — 압박이 가시기도 전에
+   *    다시 크게 집는 셈이라 그대로 되돌이(멈춤 → 복구 → 또 멈춤)가 된다.
+   *    그래서 판 버리기는 **확실한 신호**(contextlost/restored · 처음 알아챈 손실)에만 하고,
+   *    '아직 비어 있으니 다시 그려 보자'는 되풀이에서는 지도만 다시 굽는다. */
+  const recoverCanvas9 = useCallback((hard9: boolean): void => {
     LOST9.n += 1;
     LOST9.at = pNow();
     MAPVEC_LOST9.n += 1;              // 지도 벡터: '이미 구웠다'는 기억을 버린다
-    dropPlates9();                    // 유닛·건물·효과 판도 캔버스라 함께 비었다
+    if (hard9) dropPlates9();         // 유닛·건물·효과 판도 캔버스라 함께 비었을 수 있다
     fogTickRef9.current.z = -1;       // 안개: 같은 보기여도 다시 칠한다
     xfBaseRef.current = { z: 0, x: 0, y: 0 };
     fogXfRef9.current = { z: 0, x: 0, y: 0 };
@@ -29223,7 +29233,7 @@ export default function ReplayMotionPlayer({
   useEffect(() => {
     const root9 = mapRef.current;
     if (!root9) return undefined;
-    const on9 = (): void => { recoverCanvas9(); };
+    const on9 = (): void => { recoverCanvas9(true); };
     const list9 = root9.querySelectorAll<HTMLCanvasElement>("canvas");
     for (let i9 = 0; i9 < list9.length; i9 += 1) {
       list9[i9].addEventListener("contextrestored", on9);
@@ -29249,11 +29259,22 @@ export default function ReplayMotionPlayer({
       const root9 = mapRef.current;
       if (!root9) return;
       LOST9.probe += 1;
-      if (canvasLost9(root9)) recoverCanvas9();
+      /* 비어 있으면 되살린다 — **처음 한 번만** 판까지 버리고(위 hard9), 그 뒤 되풀이는 지도만. */
+      if (canvasLost9(root9)) recoverCanvas9(LOST9.n === 0);
     };
     raf9 = requestAnimationFrame(loop9);
     return () => cancelAnimationFrame(raf9);
   }, [recoverCanvas9]);
+  /* 탭이 뒤로 갔다 오면 배킹을 잃었기 쉽다(웹킷이 안 보이는 탭의 그림을 먼저 거둔다) — 돌아올 때 한 번 본다. */
+  useEffect(() => {
+    const on9 = (): void => { if (!document.hidden) LOSTQ9.want = true; };
+    document.addEventListener("visibilitychange", on9);
+    window.addEventListener("pageshow", on9);
+    return () => {
+      document.removeEventListener("visibilitychange", on9);
+      window.removeEventListener("pageshow", on9);
+    };
+  }, []);
   /* 타이머 자(위 TICKM9) — 그리기와 무관한 큐에서 100ms마다 돌며 제 틈을 잰다. */
   useEffect(() => {
     let last9 = pNow();
@@ -29264,6 +29285,12 @@ export default function ReplayMotionPlayer({
       last9 = now9;
       TICKM9.n += 1;
       if (dt9 > TICKM9.worst) TICKM9.worst = dt9;
+      /* ★ 3초마다 **스스로 살핀다**(신고: "금방 돌아오진 않아" · 지도가 까만 채로 남는다) —
+         배킹을 잃은 뒤 그림이 안 돌아오는 자리는 둘이다: 우리가 안 그렸거나, 다시 그리려다
+         **배킹 확보에 실패**했거나(압박이 가시기 전). 앞엣것은 한 번 되살리면 끝이지만 뒤엣것은
+         압박이 가실 때까지 계속 실패한다 — 그러니 한 번 보고 마는 것이 아니라 빈 동안 되풀이해야
+         한다. 검사는 1×1 읽기 둘이고, 되살리기는 3초 쉼이 있어 되돌이가 안 난다(canvasLost9). */
+      if (TICKM9.n % 30 === 0) LOSTQ9.want = true;
     }, 100);
     return () => window.clearInterval(id9);
   }, []);
@@ -32662,7 +32689,7 @@ export default function ReplayMotionPlayer({
                       {/* 타이머 틈(위 TICKM9) — rAF와 견줘 '주 실마리가 막혔나 · 그리기만 굶었나'를 가른다. */}
                       {TICKM9.n > 0 ? ` · 타이머[최악${TICKM9.worst.toFixed(0)}ms ${TICKM9.n}번]` : ""}
                       {/* 캔버스 배킹 손실(위 LOST9) — 잃고 다시 그린 횟수·검사 횟수. */}
-                      {` · 배킹[손실${LOST9.n} 검사${LOST9.probe}]`}
+                      {` · 배킹[손실${LOST9.n} 검사${LOST9.probe}${SCR_DIAG.allocOk ? "" : " ⚠확보실패"}]`}
                     </div>
                   </>
                 )}
