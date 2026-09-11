@@ -151,8 +151,16 @@ const NUKE_HEAD_PX = 22.5;   // 3.6 → 9 → 22.5(요청: 핵탄두 2.5배 — 
      바닥이 반으로 눌리고, 각의 함수인 원근도 함께 세진다(가까운 변 / 먼 변 1.75 → 2.17).
      30도는 옛 눈금 사다리의 **바닥 그 값**이고(그때 "30도 정도까지"가 요청이었다), 이
      화면이 감당하도록 이미 셈해 둔 가장 낮은 각이다 — 새로 시험할 자리가 아니다. */
-const PITCH_DEGS = [90, 30] as const;
-/** 입체(3D) 한 칸 — 버튼이 켜질 때 쓰는 각. */
+/** `#pitch=NN` — 입체 시점각을 주소로 정한다(요청: "45도로 볼 수 있는 키워드") — 15~80도만 받고, 그 밖은 무시한다.
+ *  예) `…#pitch=45` · 진단과 함께 `…#diag=draw&pitch=45`. 없으면 기본 30도. 3D 버튼·공유 링크의 각 칸이 모두 이 값을 쓴다. */
+const PITCH_HASH9 = ((): number | null => {
+  const m9 = typeof location !== "undefined" ? /pitch=(\d{1,2})/.exec(location.hash) : null;
+  if (!m9) return null;
+  const v9 = Number(m9[1]);
+  return v9 >= 15 && v9 <= 80 ? v9 : null;
+})();
+const PITCH_DEGS = [90, PITCH_HASH9 ?? 30] as const;
+/** 입체(3D) 한 칸 — 버튼이 켜질 때 쓰는 각(기본 30도, `#pitch=`로 바꾼다). */
 const PITCH_3D = PITCH_DEGS[1];
 /** ★ 이 기기에 입체를 내주나 — **손가락 기기에는 안 준다**(지시: "모바일에서 3D 전환하려고
  *  하면 토스트 띄워서 3D보기는 PC에서만 가능해요 라고 띄우자 / 공유주소로 들어온 경우
