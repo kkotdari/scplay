@@ -205,6 +205,10 @@ function inBrowser({ KINDS, MODES, BUCKETS, VQ_PROBE, SCALES, FOOT_Y, NORM_ANCHO
       c.translate(-an[0], -an[1]);
     }
     for (const f of faces) {
+      /* ★ **자 재기에서 빼라고 표식이 붙은 면은 건너뛴다**(shapeOblique의 boxSkip) —
+         몸에서 멀리 뻗은 가느다란 부품(스타포트 안테나) 하나가 잉크 상자를 제 길이만큼
+         늘려 본체를 작게 만들던 자리다. 모양은 그대로 그려지고 이 자에서만 빠진다. */
+      if (f[6] === 1) continue;
       c.globalAlpha = shadeBoost(f[1], f[2]);
       c.fillStyle = f[2] ?? "#fff";
       try { c.fill(new Path2D(f[0])); } catch (e) { /* 못 읽는 패스는 건너뛴다 */ }

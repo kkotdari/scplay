@@ -77,7 +77,7 @@ import { spaceBackdropUrl } from "./spaceBackdrop";
    표 자체는 utils에 그대로 둔다 — 원작 값의 기록이다. */
 import {
   annulusPath, bandPath, bodyFace, capFace, curvePath3, depthNow, fine, groundEllipse,
-  LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake,
+  LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip,
   type ShapeFace,
   boxFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project,
   domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio,
@@ -87,7 +87,7 @@ import {
 } from "../../utils/shapeOblique";
 import { TEAM_COLOR, type MinimapMarker } from "./markers";
 import {
-  AIR_LIFT_K, AIR_LIFT_REF, BLD_DRAW_K, BLD_DRAW_TUNE, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, NUKE_BOOM_SEC, NUKE_FALL_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SPIN_STEPS, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
+  AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, NUKE_BOOM_SEC, NUKE_FALL_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SPIN_STEPS, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
 } from "./engine9";
 import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, WorldUi9 } from "./engine9";
 export { isAirUnit, flapCutOf, atkCutOf, unitTilesOf, buildingYawOf, BLD_NORM, BUILD_STAGES, SCR_DIAG, scrDiagOn, deriveWorld9, createEngine9, pickWorldUi9, emptyWorldUi9 } from "./engine9";
@@ -301,7 +301,7 @@ const SHAPE_PATHS: Record<string, string> = {};
    표준 시점 결과는 아래 SHAPE_FACES에 한 번 구워 쓴다. */
 /** 벌어진 다리 + 원반 발(테란 실물 공통) — 몸통 밑에서 바깥-아래로 뻗고 발판이 받친다. */
 function legAndFoot(
-  px: number, py: number, zTop: number, lean = 0.1,
+  px: number, py: number, zTop: number, lean = 0.1, sz = 1,
 ): ShapeFace[] {
   /* 테란 건물은 바닥이 떠 있다 — 몸통이 다리 위에 얹히고, 다리는 아래로 내려가
      그 밑에 발판이 달린다.
@@ -324,16 +324,22 @@ function legAndFoot(
      기둥 굵기는 한 단 줄였다(지적: "테란 건물 다리들 굵기 조금씩 감소") — 반지름
      0.5→0.42, 끝 0.44→0.36이다. 발판은 그대로 둬 다리가 가늘어진 만큼 발이 더
      또렷하게 받치는 꼴이 된다. */
+  /* sz는 **굵기 배수**다(요청: "발판다리와 발판 크기 1.2배 확대") — 기둥 반지름·발판
+     지름·발판 두께가 함께 커진다. 다리의 **키**는 부르는 쪽이 zTop으로 정하므로 여기서
+     안 건드린다: 굵게 하면서 낮추는 것(같은 요청의 "다리 높이는 오히려 40프로 축소")이
+     한 자리에서 따로 걸린다. 기둥이 내려앉는 바닥도 발판이 두꺼워진 만큼 함께 올린다. */
   const k9 = depthNow(px, py) > 0 ? -40 : -40.2;
+  const fh9 = 0.4 * sz;
+  const z09 = 0.38 * sz;
   return [
     ...tagKey(paintBase(spirePillar({
-      x: 0, y: 0, h: 1, w: 0.42, tipW: 0.36, segs: 1, sides: 6, hold: 0.35, caps: "none",
+      x: 0, y: 0, h: 1, w: 0.42 * sz, tipW: 0.36 * sz, segs: 1, sides: 6, hold: 0.35, caps: "none",
       path: (t9: number): [number, number, number] => [
-        px * (1 - lean + lean * t9), py * (1 - lean + lean * t9), zTop - (zTop - 0.38) * t9,
+        px * (1 - lean + lean * t9), py * (1 - lean + lean * t9), zTop - (zTop - z09) * t9,
       ],
     }), "#8b929a"), k9),
     ...tagKey(paintBase(spirePillar({
-      x: px, y: py, z0: 0, h: 0.4, w: 0.98, tipW: 0.8,
+      x: px, y: py, z0: 0, h: fh9, w: 0.98 * sz, tipW: 0.8 * sz,
       segs: 1, sides: 8, hold: 0.45, caps: "both",
     }), "#5d636b"), k9 - 0.1),
   ];
@@ -5012,7 +5018,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        원작에서도 스타포트는 다리 위에 올라선 격납고라, 그 아래로 지형이 비치는 것이
        이 건물의 표식이다. 몸통·착륙판·앞 구조물은 전부 이 값에서 파생되므로 함께
        올라가고, 발 여섯도 제 길이를 그만큼 늘린다(legAndFoot의 위 끝이 이 값이다). */
-    const BODY_Z0 = 2.3;    // 몸통 밑 — 발 위로 떠 있다(다리 길이가 이 값이다).
+    /* ★ 다리는 **굵게, 낮게**(요청: "발판다리와 발판 크기 1.2배 확대하고 그 상태에서
+       다리 높이는 오히려 40프로 축소. 몸체가 아래로 좀 내려오겠지?") ─────────────────
+       2.3 → 1.38(0.6배). 몸통·착륙판·앞 구조물이 전부 이 값에서 파생되므로 건물 전체가
+       그만큼 내려앉고, 그만큼 **잉크 상자의 세로가 줄어** 같은 채움 목표 안에서 몸이
+       실해진다(스타게이트 잎을 모은 것과 같은 결이다). 굵기는 legAndFoot의 sz 1.2. */
+    const BODY_Z0 = 1.38;   // 몸통 밑 — 발 위로 떠 있다(다리 길이가 이 값이다).
+    const LEG_SZ = 1.2;     // 다리·발판 굵기 배수
     /* 몸통 높이 1.2배(요청) — 2.25 → 2.7. 착륙판(PAD_Z)과 그 위의 모든 것이 이 값을
        따라 함께 올라간다. 앞 구조물 둘도 같은 배수로 키운다(아래 FRONT_H1·FRONT_H2). */
     const BODY_H = 2.25 * 1.2;
@@ -5026,7 +5038,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 몸통 반지름(4.75~5.15) 안에서 시작해야 다리가 안 뜬다(수리: 5.35는 밖이었다).
       const fx9 = Math.sin(a9) * 4.55;
       const fy9 = Math.cos(a9) * 4.55;
-      out.push(...legAndFoot(fx9, fy9, BODY_Z0 + 0.25, 0.04));
+      out.push(...legAndFoot(fx9, fy9, BODY_Z0 + 0.25, 0.04, LEG_SZ));
     }
 
     /* 낮은 팔각 몸통 — **위도 막는다**(지적: "본건물과 옥상(선착장)의 틈이 벌어졌다").
@@ -5113,7 +5125,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const bodyR = (z9: number): number => {
           const t9 = Math.min(1, Math.max(0, (z9 - BODY_Z0) / BODY_H));
           const k8 = t9 <= 0.4 ? 0 : (t9 - 0.4) / 0.6;
-          return 5.15 + (4.75 - 5.15) * (1 - k8) + 0.03;
+          /* ★ 팔각의 **내접 반지름**으로 앉힌다(지적 사진: 아가리가 몸에서 떨어져 비스듬히
+             떠 있다) — spirePillar의 w·tipW는 꼭짓점까지의 외접 반지름인데 아가리는 면
+             **한가운데**에 난다. 그 차이가 cos(22.5도) = 0.924라, 외접값을 그대로 쓰면 벽보다
+             7.6%(0.4 남짓) 밖에 판이 떠 선다. 어느 요잉에서는 그 틈이 몸 실루엣 밖으로
+             삐져나와 '떠서 기울어진 마름모'가 된다. 0.03은 z-싸움 막이다. */
+          return (5.15 + (4.75 - 5.15) * (1 - k8)) * Math.cos(Math.PI / 8) + 0.03;
         };
         const quad = (hw: number, zB: number, zT: number): string => {
           const rb = bodyR(zB);
@@ -5137,7 +5154,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           const z9 = dz0 + dh * (0.16 + k9 * 0.27);
           door.push([quad(1.4, z9, z9 + dh * 0.15), 0.82, winLit("#ffe790")] as ShapeFace);
         }
-        out.push(...tagKey(door, 58));
+        /* ★ 키를 **깊이로** 준다(지적 사진: 아가리가 안테나 팔과 옆 구조물 위에 떠서
+           그려짐) — 붙박이 58은 이 모델의 어느 키보다도 높아, 아가리가 제 앞을 지나는
+           것들(안테나 44~45+깊이 · 앞 구조물 46~47+깊이)까지 죄다 덮었다. 아가리는
+           몸통 벽에 난 구멍이지 맨 앞의 판이 아니다. 앞 구조물과 **같은 식**(46 + 깊이
+           × 1.6)으로 매기면 셋이 제 앞뒤대로 선다. */
+        out.push(...tagKey(door, 46 + depthNow(dsx * 5.05, dsy * 5.05) * 1.6));
       }
     }
 
@@ -5163,22 +5185,30 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const bx9 = sx9 * 4.0;
       const by9 = sy9 * 4.0;
       /* 안테나를 길게(요청) — 7.15에서 7.55로. 8.3까지 뽑았더니 16칸 모델 상자(±8)를
-         넘겨 끝 마디가 잘렸다. 마디 반지름(0.5)까지 세면 7.55가 상한이다. */
+         넘겨 끝 마디가 잘렸다. 마디 반지름(0.5)까지 세면 7.55가 상한이다.
+         ★ 안테나는 **자 재기에서 뺀다**(요청: "지금 안테나가 자리를 차지하는 거 같아" →
+           "그냥 유지하고 위치 잡을 때 배제하랬지") ────────────────────────────────────
+           진단이 맞았다. 정규화는 잉크 상자에 배수를 맞추는데 안테나는 몸에서 가장 멀리
+           뻗은 잉크라, 제 길이만큼 상자를 늘리고 그만큼 **본체가 작게** 그려졌다(실측:
+           안테나를 자에서 빼면 배수 1.200 → 아래 수치). 모양은 그대로 두고 boxSkip 표식만
+           씌운다 — 그리는 쪽은 그 칸을 안 보고, 자를 재는 도구(bld-norm)만 건너뛴다. */
       const tx9 = sx9 * 7.55;
       const ty9 = sy9 * 7.55;
       const dep9 = depthNow(tx9, ty9);
-      out.push(...tagKey(paintBase(spirePillar({
+      out.push(...boxSkip(tagKey(paintBase(spirePillar({
         x: 0, y: 0, h: 1, w: 0.34, tipW: 0.28, segs: 1, sides: 6, hold: 0.25, caps: "none",
         path: (t9: number): [number, number, number] => [
           bx9 + (tx9 - bx9) * t9, by9 + (ty9 - by9) * t9, PAD_Z + 0.42 + 0.22 * t9,
         ],
-      }), "#636f81"), 44 + dep9));
+      }), "#636f81"), 44 + dep9)));
       /* 끝 부품은 수직으로 가늘고 길게(요청) — 여태 반지름 0.5의 납작한 원통 + 돔이라
-         '뭉툭한 혹'으로 보였다. 이제 얇은 받침 위에 가는 장대가 곧게 선다. */
-      out.push(...tagKey(paintBase([
+         '뭉툭한 혹'으로 보였다. 이제 얇은 받침 위에 가는 장대가 곧게 선다.
+         뒤 안테나는 끝이 상자 밖이라 마디를 안 단다(위 ★) — 달아 봐야 안 그려지고,
+         혹 걸쳐 그려지면 그 몫이 도로 상자를 늘린다. */
+      out.push(...boxSkip(tagKey(paintBase([
         ...cylinderFaces3(tx9, ty9, 0.26, 0.16, PAD_Z + 0.56),
         ...cylinderFaces3(tx9, ty9, 0.13, 1.85, PAD_Z + 0.7),
-      ], "#47505d"), 45 + dep9));
+      ], "#47505d"), 45 + dep9)));
     }
 
     /* 개인색 — 착륙판 둘레에 눕힌 길쭉한 슬래브 넷(스프라이트의 파랑). 팔과 어긋난
@@ -20580,8 +20610,14 @@ const CROWD_BENCH3D_MS9 = 16;
  *  안 줄이는 것: 죽음·파괴 폭발 · 소환 섬광 · 우리 · 스톰 · 핵 · 건물 붕괴 — 무슨 일이
  *  일어났는지를 말하는 것들이다. 입체는 제 벤치(bench3)로 잰다. */
 const NO_TRIM9 = typeof location !== "undefined" && /notrim/.test(location.hash);
-/** `#nothin` — 겹침생략만 끈다(죄기는 그대로). 유닛이 사라지는 까닭을 가를 때 쓴다. */
-const NO_THIN9 = typeof location !== "undefined" && /nothin/.test(location.hash);
+/* ★ **겹침생략은 기본으로 끈다**(지적: "유닛 사라짐 — 그대로고 #nothin 붙이면 해결됨") ────────
+   격자를 거리로 바꾸고 불감대를 둬도 사라짐이 남았다. 남을 수밖에 없다: 이 손질이 하는 일이
+   **덮인 유닛을 안 그리는 것**이라, 판정이 아무리 좋아져도 '덮였다'가 틀리는 순간 유닛이 없다.
+   그리고 이것으로 벌려던 것(1배 로딩)은 실측에서 안 벌렸다 — 찍기는 2235 → 918로 줄었는데
+   로딩은 그대로였다("겹침생략은 많이 됐지만 로딩은 그대로야"). 값은 안 벌고 눈에 띄는 흠만
+   남으니 꺼 둔다. 코드는 남긴다(`#thin`으로 켠다) — 찍기 수를 가를 때 쓸 자다. */
+const THIN_ON9 = typeof location !== "undefined" && /(^|[#&])thin/.test(location.hash)
+  && !/nothin/.test(location.hash);
 function lowZoomTrim9(zoom9: number, pitched9: boolean): 0 | 1 | 2 {
   /* 진단 스위치 `#notrim` — 이 죄기를 통째로 끈다. 낮은 배율에서 무엇이 달라졌나를
      한 탭으로 가르는 자다(끄고 켜서 가른다 — 이 판의 규약). */
@@ -21713,7 +21749,16 @@ const kinPlate9 = (kind: string, sub: string, pxq: number): UnitPlate9 | null =>
    기다리지 말고 **본 것 중 가장 작은 자세 번호**의 값을 쓴다. 대기 컷이 있는 종류는
    여전히 0의 값이고, 날갯짓만 하는 종류는 컷 1의 값으로 못 박힌다 — 어느 쪽이든 컷이
    바뀌어도 안 흔들리는 한 값이라는 것이 요점이다(어느 컷의 값인지가 아니라). */
-const INK_W_RATIO9 = new Map<string, { pose: number; r: number }>();
+/* ★ **방위도 안 탄다**(지적: "scv가 각도에 따라 그림자가 엄청 넓어지네") ───────────────
+   위 두 문단이 '자세'를 못 박았는데 **방위**가 그대로 남아 있었다. 실측(scripts 밖 계측기로
+   16방위 잉크 폭): scv 4.88 ~ 6.75(1.38배) · probe 1.29배 · 고스트 1.40배. 모델이 앞뒤로
+   길면 옆에서 볼 때 실루엣이 넓어지는 것이라 그림 자체는 옳지만, 그 값을 **그림자**의 자로
+   쓰면 제자리에서 도는 일꾼의 발자국이 방위마다 1.4배로 벌어졌다 좁아진다. 그림자는 발자국
+   이고 발자국은 도는 것이 아니다(체력바·링·오라도 같다 — 몸이 도는 동안 폭이 변하면 안 된다).
+   그래서 열쇠에서 방위를 빼고, 본 방위들의 **평균**을 자로 쓴다(방위마다 처음 잰 값 하나만
+   적어 두므로 한 번 차면 안 흔들린다). 자세 규약은 그대로다 — 본 것 중 가장 작은 자세 번호의
+   값만 모으고, 더 작은 자세가 오면 처음부터 다시 모은다. */
+const INK_W_RATIO9 = new Map<string, { pose: number; by: Map<number, number>; r: number }>();
 /* (걷어냄·요청: 부작용이 더 크다) dpr 1 판의 언샤프 마스크(sharpenPlate9) — 경계를 굳히면 계단·밝은 테가 났다.
    dpr 1도 굽는 그대로 쓴다. */
 /** 임자 색 마스크(2번: 임자 색을 굽지 말고 그릴 때 입히기) — 판 열쇠에서 색을 뺐다. 개인색 면은 몸판에서 빼고
@@ -24250,7 +24295,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          · 건물·자원·크립은 안 건드린다(수가 적고 서로 안 겹친다). 고른 개체도 늘 남긴다.
          · 벤치 미달 + 1~3배(저배율죔)에서만 — 멀쩡한 기기와 높은 배율은 종전 그대로다. */
       const drawList9 = ((): UnitDrawOp[] => {
-        if (NO_THIN9 || trim9 < 1 || sorted.length < 64) { THIN9.n = 0; THIN9.drew = 0; return sorted; }
+        if (!THIN_ON9 || trim9 < 1 || sorted.length < 64) { THIN9.n = 0; THIN9.drew = 0; return sorted; }
         const thin9 = (o9: UnitDrawOp): boolean => UNIT_KIND_SET.has(o9.kind)
           && !(pickedKey != null && o9.pickKey === pickedKey);
         /* 칸은 그린 유닛 폭 언저리 — 이보다 잘면 덮이지 않은 것까지 빼고, 굵으면 서로
@@ -24786,17 +24831,26 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
            그러니 장식이 상자(px)가 아니라 이 몸 폭(inkW)을 봐야 한다. 그러면 "바는 제
            유닛보다 넓지 않다" 같은 조건이 종류를 안 가리고 식만으로 보장된다. */
         /** 이 종류·방위·보기의 장식용 몸 폭 비 — 자세 0에서 잰 값 하나를 모든 컷이 쓴다. */
-        const inkKey9 = `${op.kind}|${Math.round((op.rotDeg ?? 0) / 22.5)}`
-          + `|${op.flat ? 1 : 0}|${pitchTag(op.pitch)}`;
+        /* 짐을 든 일꾼은 **맨몸과 같은 자**를 쓴다(NORM_PAIR) — 아니면 밭을 오갈 때마다
+           짐만큼 그림자가 넓어졌다 좁아진다(그 집합의 옛 주석이 말한 그 깜빡임이다). */
+        const inkKey9 = `${NORM_PAIR[op.kind] ?? op.kind}|${op.flat ? 1 : 0}|${pitchTag(op.pitch)}`;
+        const inkB9 = ((Math.round((op.rotDeg ?? 0) / 22.5) % 16) + 16) % 16;
         const inkR9 = spr && spr.w > 0 && pxqB > 0 ? (spr.w / B) / pxqB : 0;
         const inkW = ((): number => {
-          const got9 = INK_W_RATIO9.get(inkKey9);
           const pose9 = op.pose ?? 0;
+          let got9 = INK_W_RATIO9.get(inkKey9);
           if (inkR9 > 0 && (!got9 || pose9 < got9.pose)) {
-            INK_W_RATIO9.set(inkKey9, { pose: pose9, r: inkR9 });
-            return inkR9 * px;
+            if (INK_W_RATIO9.size > 1024) INK_W_RATIO9.clear();
+            got9 = { pose: pose9, by: new Map(), r: 0 };
+            INK_W_RATIO9.set(inkKey9, got9);
           }
-          const r9 = got9 ? got9.r : inkR9;
+          if (inkR9 > 0 && got9 && pose9 === got9.pose && !got9.by.has(inkB9)) {
+            got9.by.set(inkB9, inkR9);
+            let sum9 = 0;
+            got9.by.forEach((v9) => { sum9 += v9; });
+            got9.r = sum9 / got9.by.size;
+          }
+          const r9 = got9 && got9.r > 0 ? got9.r : inkR9;
           return r9 > 0 ? r9 * px : px * inkK;
         })();
         const footY = spr

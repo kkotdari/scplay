@@ -449,6 +449,17 @@ export function tagKey(faces: ShapeFace[], key: number): ShapeFace[] {
   const pid = partSeq;
   return faces.map(([p, o, f, , l]) => [p, o, f, key, l, pid] as ShapeFace);
 }
+/** 이 면들을 **자 재기에서 뺀다**(요청: "그냥 유지하고 위치잡을 때 배제하랬지") ─────────
+ *  정규화는 잉크 상자에 배수를 맞춘다. 그래서 몸에서 멀리 뻗은 가느다란 부품(스타포트
+ *  안테나 같은) 하나가 상자를 제 길이만큼 늘리고, 그만큼 **건물 본체가 작게** 그려진다 —
+ *  장대 하나가 건물의 크기를 깎는 셈이다. 모양은 그대로 두고 자에서만 빼는 표식이 이것이다.
+ *  ⚠ 표식은 일곱째 칸이라 면을 고쳐 쓰는 헬퍼(paintBase·tagKey·trim…)가 떨어뜨린다 —
+ *    **맨 마지막에** 씌워라. 그리는 쪽은 이 칸을 안 보므로 화면은 그대로다. */
+export function boxSkip(faces: ShapeFace[]): ShapeFace[] {
+  return faces.map((f) => [f[0], f[1], f[2], f[3], f[4], f[5], 1] as unknown as ShapeFace);
+}
+/** 그 표식이 붙었나 — 자를 재는 도구(bld-norm·model-norm)만 본다. */
+export const isBoxSkip = (f: ShapeFace): boolean => (f as unknown as unknown[])[6] === 1;
 /** 부품 깊이 정렬(지적: 요잉으로 뒤로 간 부품이 앞 부품 위에 그려져 '비쳐 보임') —
  *  깊이 있는 면은 뒤→앞으로, 깊이 없는 면은 직전 깊이를 물려받아(장식은 제 부품에
  *  붙어 다닌다) 안정 정렬한다. 맨 앞의 무깊이 면(바닥 그림자·스플랫)은 맨 뒤 층이다. */

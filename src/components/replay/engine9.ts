@@ -1701,7 +1701,7 @@ export const BLD_NORM: Record<string, number> = {
   nydus: 1.184,
   observatory: 1.599,  // 재측정 1.999 × 0.8(요청: 그려지는 크기 0.8배) — 바닥 관 제거·마름모 팔 뒤
   physlab: 1.468,  // 사진 재작도 뒤 재측정(bld-norm)
-  plane: 1.200,   // 높이 1.4배 후 bld-norm 재측정
+  plane: 1.226,   // 다리 낮춤·안테나 자 제외(boxSkip) 후 bld-norm 재측정
   pool: 1.159,  // ×0.8(요청: 그려지는 크기 0.8배) · 옛 1.449
   pyramidWide: 1.045,  // 재측정(bld-norm) — 기둥 5.5·원기둥 받침·표창 길이 원복 뒤
   queensnest: 1.145,   // 재측정(bld-norm) — 돔 5.6으로 키운 뒤(옛 1.148)
