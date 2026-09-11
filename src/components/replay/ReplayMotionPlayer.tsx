@@ -27004,6 +27004,8 @@ export type PackedFrame9 = {
   gen: number;
   /** 이 장을 지은 시점 원점(PitchGeom9.ox·oy) — 붓이 그리는 장의 원점을 지형 변환·안개 사영이 따라간다(drawnOrgRef9). */
   ox: number; oy: number;
+  /** 이 장의 눈 목록(x·y·반지름·신원 × n) — 장마다 온다(엔진 eyes9 ★). 안개가 꺼졌으면 null. */
+  eyes: Float32Array | null;
   /** 안개 갈래 — 시야 주인·전체시야·안개 켬이 바뀔 때만 오른다. 다른 갈래의 안개 판은 섞어 쓰지 않는다. */
   fseq: number; dec?: Frame9;
   /** 보간용 — 이 장의 유닛 op 열쇠 표(뒤 장으로 쓰일 때 한 번 만든다). */
@@ -27495,6 +27497,9 @@ export default function ReplayMotionPlayer({
   const wFramesRef = useRef<Map<number, PackedFrame9>>(new Map());
   /** 워커가 보낸 안개 판들(바뀐 장에만 실린다) — 장을 풀 때 그 시각 이하 가장 늦은 판을 붙인다. */
   const fogSnapsRef9 = useRef<{ t: number; fseq: number; fog: NonNullable<PackedFrame9["fog"]> }[]>([]);
+  /** ★ **프레임마다 온 눈 목록**(엔진 eyes9 ★) — 시각순. 붓은 안개 판이 아니라 이것으로 앞뒤를 잇는다(fogPairFor9).
+   *  뒤로는 2초만 든다(되감기용이 아니다 — 되감으면 워커가 새로 짓는다). 장당 8KB 남짓. */
+  const eyeSnapsRef9 = useRef<{ t: number; fseq: number; vis: Float32Array }[]>([]);
   /** 안개 갈래 — 시야 주인·전체시야·안개 켬(fogKey)이 바뀔 때마다 오르고 시야 명령에 실린다. */
   const fogSeqRef9 = useRef({ key: "", seq: 0, seen: 0, firstT: -1 });
   /** 본 가장 높은 세대(위 PackedFrame9.gen) — 붓은 이 세대의 장을 먼저 고른다. */
@@ -27694,7 +27699,7 @@ export default function ReplayMotionPlayer({
       const wk09 = pNow();
       const m9 = ev.data;
       if (m9.type === "frame" && m9.buf && m9.strs && typeof m9.t === "number") {
-        const pf9: PackedFrame9 = { t: m9.t, buf: m9.buf, strs: m9.strs, fog: m9.fog ?? null, ms: m9.ms ?? 0, n: m9.n ?? 0, seq: m9.seq ?? 0, fseq: m9.fseq ?? 0, gen: m9.gen ?? 0, ox: m9.ox ?? 0, oy: m9.oy ?? 0 };
+        const pf9: PackedFrame9 = { t: m9.t, buf: m9.buf, strs: m9.strs, fog: m9.fog ?? null, eyes: m9.eyes ?? null, ms: m9.ms ?? 0, n: m9.n ?? 0, seq: m9.seq ?? 0, fseq: m9.fseq ?? 0, gen: m9.gen ?? 0, ox: m9.ox ?? 0, oy: m9.oy ?? 0 };
         /* ★ 세대 경계(지적: "빨리감기 때 유닛·건물이 흔들린다") — 감기·탐색은 시야가 안 바뀌어 seq가 그대로였고, 되짚기
            **전에** 앞으로 지어 둔 장(옛 세대)이 되짚은 뒤 새로 짓는 장 사이사이에 시각순으로 끼어들어 붓이 두 세대를
            번갈아 골랐다(엔진은 상태를 들고 있어 같은 시각이라도 세대마다 자리가 조금 다르다). 새 세대의 첫 장이 오면
@@ -27715,6 +27720,8 @@ export default function ReplayMotionPlayer({
           for (const [k9, f9] of frames9) if (f9.fseq < pf9.fseq && f9.t >= pf9.t - 1e-6) frames9.delete(k9);
           const keepS9 = fogSnapsRef9.current.filter((sn9) => !(sn9.fseq < pf9.fseq && sn9.t >= pf9.t - 1e-6));
           if (keepS9.length !== fogSnapsRef9.current.length) fogSnapsRef9.current = keepS9;
+          const keepE9 = eyeSnapsRef9.current.filter((sn9) => !(sn9.fseq < pf9.fseq && sn9.t >= pf9.t - 1e-6));
+          if (keepE9.length !== eyeSnapsRef9.current.length) eyeSnapsRef9.current = keepE9;
         } else if (pf9.fseq < fq9.seen && pf9.t >= fq9.firstT - 1e-6) {
           return;   // 새 갈래가 이미 시작된 시각의 옛 갈래 장 — 장도 판도 안 받는다
         }
@@ -27750,6 +27757,19 @@ export default function ReplayMotionPlayer({
         st9.resets = x9.resets ?? st9.resets;
         st9.duty = x9.duty ?? st9.duty;   // 워커가 벽시계의 몇 %를 쓰나(위 DUTY9)
         if (typeof x9.cur === "number") st9.skew = x9.cur - cmdNowRef9.current.t;
+        if (pf9.eyes && pf9.eyes.length > 0) {
+          const es9 = eyeSnapsRef9.current;
+          let ke9 = es9.length;
+          while (ke9 > 0 && es9[ke9 - 1].t > pf9.t) ke9 -= 1;
+          es9.splice(ke9, 0, { t: pf9.t, fseq: pf9.fseq, vis: pf9.eyes });
+          FOGT9.set(pf9.eyes, pf9.t);
+          // 뒤로 2초만 — 그 앞은 붓이 다시 볼 일이 없다(되감으면 워커가 새로 짓고 세대가 바뀐다).
+          const cutT9 = tLiveRef9.current - 2;
+          let drop9 = 0;
+          while (drop9 < es9.length - 1 && es9[drop9].t < cutT9) drop9 += 1;
+          if (drop9 > 0) es9.splice(0, drop9);
+          if (es9.length > 400) es9.splice(0, es9.length - 400);
+        }
         const snaps9 = fogSnapsRef9.current;
         if (pf9.fog) {
           // 시각순으로 꽂는다(거의 늘 끝).
@@ -27827,7 +27847,7 @@ export default function ReplayMotionPlayer({
              통째로 내려갔다가 첫 새 장에서 되살아났다. 참값을 다시 실을 때마다(세계 표가 다시 올 때마다)
              그 깜빡임이 났다. 옛 장이 100ms쯤 낡은 것이 안개가 사라지는 것보다 훨씬 낫다. */
         frames9.clear();
-        fogSnapsRef9.current = [];
+        fogSnapsRef9.current = []; eyeSnapsRef9.current = [];
       } else if (m9.type === "walks") {
         setEntWalks9((m9 as unknown as { entWalks: EngineWorld9["entWalks"] }).entWalks ?? []);
       } else if (m9.type === "ready") {
@@ -27860,7 +27880,7 @@ export default function ReplayMotionPlayer({
       console.error("[scplay] 프레임 워커 messageerror");
     };
     };
-    return () => { dead9 = true; w9?.terminate(); frameWorkerRef.current = null; frames9.clear(); fogSnapsRef9.current = []; };
+    return () => { dead9 = true; w9?.terminate(); frameWorkerRef.current = null; frames9.clear(); fogSnapsRef9.current = []; eyeSnapsRef9.current = []; };
   }, []);
   /* 세계의 작은 조각(지도·기지·팀·길이) — 참값·개체는 안 싣는다(참값은 위 postTruth9로 한 번 넘기고, 개체 표는
      워커가 참값에서 스스로 만든다). 이 조각이 바뀌면 워커가 든 참값으로 다시 센다. */
@@ -31918,6 +31938,25 @@ export default function ReplayMotionPlayer({
    *  감싸는 이웃한 두 판을 골라 그 사이를 잇는다. 워커가 앞으로 지어 두므로 뒤 판은 대개 있다.
    *  갈래(fseq)가 같고 간격이 0.6초 안일 때만 — 성기게 든 옛 판끼리 이으면 반 초를 가로지른다. */
   const fogPairFor9 = (t9: number, fseq9: number): { a: Float32Array; b: Float32Array | null; ta: number; tb: number } | null => {
+    /* ★ 프레임마다 온 눈(eyeSnapsRef9)이 있으면 **그것으로** 잇는다 — 장 간격이 40ms라 몸과 같은
+       결이다(지적: "비행유닛·부양건물에서 떨림" — 엔진 eyes9 ★). 안개 판은 그것이 없을 때의 예비다. */
+    const es9 = eyeSnapsRef9.current;
+    let ie9 = -1;
+    for (let k9 = es9.length - 1; k9 >= 0; k9 -= 1) {
+      const e9 = es9[k9];
+      if (e9.t <= t9 + 1e-6 && e9.fseq === fseq9 && e9.vis.length > 0) { ie9 = k9; break; }
+    }
+    if (ie9 >= 0) {
+      const e09 = es9[ie9];
+      let e19: (typeof es9)[number] | null = null;
+      for (let k9 = ie9 + 1; k9 < es9.length; k9 += 1) {
+        const e9 = es9[k9];
+        if (e9.fseq !== fseq9 || e9.vis.length === 0) continue;
+        if (e9.t > e09.t + 1e-6) { e19 = e9; break; }
+      }
+      if (e19 && (e19.t - e09.t > 0.6 || e19.t <= t9)) e19 = null;
+      return { a: e09.vis, b: e19 ? e19.vis : null, ta: e09.t, tb: e19 ? e19.t : e09.t };
+    }
     const snaps9 = fogSnapsRef9.current;
     let i9 = -1;
     for (let k9 = snaps9.length - 1; k9 >= 0; k9 -= 1) {
@@ -31976,6 +32015,7 @@ export default function ReplayMotionPlayer({
     pf9.dec = {
       t: pf9.t, unitOps: body9.unitOps, fxOps: body9.fxOps, miniExtra: body9.miniExtra, gasBusy: body9.gasBusy,
       explored: fog9.explored, visNow: fog9.visNow, visSrc: fog9.visSrc,
+      eyes: pf9.eyes ?? EMPTY_FRAME9.eyes,
     };
     return pf9.dec;
   };

@@ -156,12 +156,15 @@ const emit = (t: number): number => {
     if (fog.visNow) { transfer.push(fog.visNow.buffer); bytes += fog.visNow.byteLength; }
     transfer.push(fog.visSrc.buffer); bytes += fog.visSrc.byteLength;
   }
+  /* 눈 목록은 **장마다** 싣는다(엔진의 eyes9 ★) — 8KB 남짓이라 transfer로 넘긴다. 안개 판(fog)은 종전대로 바뀐 장에만. */
+  const eyes = f.eyes.length > 0 ? f.eyes.slice() : null;
+  if (eyes) { transfer.push(eyes.buffer); bytes += eyes.byteLength; }
   const ms = nowMs() - t0;
   buildMs = buildMs === 0 ? ms : buildMs * 0.85 + ms * 0.15;
   dutyAdd9(ms);   // 이 일꾼의 몫(위 DUTY9)
   const st = engine.stats();
   post({
-    type: "frame", t: f.t, buf: body.buf, strs: body.strs, fog, ms, n: f.unitOps.length, seq: viewSeq, fseq: fogSeq, gen,
+    type: "frame", t: f.t, buf: body.buf, strs: body.strs, fog, eyes, ms, n: f.unitOps.length, seq: viewSeq, fseq: fogSeq, gen,
     // 이 장을 지은 시점 원점(PitchGeom9.ox·oy) — 메인이 지형 변환·안개 사영을 이 값에 맞춘다(장과 지도가 늘 같은 눈).
     ox: view?.geom?.ox ?? 0, oy: view?.geom?.oy ?? 0,
     // 진단 — 짓기의 속(엔진·싸기), 안개 비용·횟수, 리셋 횟수, 워커 시계(주인 t와의 차를 메인이 본다)

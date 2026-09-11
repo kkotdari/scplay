@@ -2447,13 +2447,16 @@ export type PitchGeom9 = {
 export type Frame9 = {
   t: number; unitOps: UnitDrawOp[]; fxOps: FxOp[]; miniExtra: MiniDot[]; gasBusy: string[];
   explored: Uint16Array | null; visNow: Uint8Array | null; visSrc: Float32Array;
+  /** ★ **이 장의 눈 목록**(x·y·반지름·신원 × n) — 안개 판(visSrc)과 달리 **프레임마다** 낸다(지적: "비행유닛·부양건물에서
+   *  떨림") — 까닭은 엔진의 eyes9 ★에. 붓은 이것으로 앞뒤 장의 눈을 잇는다. */
+  eyes: Float32Array;
   /** 붓이 앞·뒤 장 사이로 눈 목록을 보간해 냈을 때의 판 번호 — 같은 배열을 되쓰므로 참조 대신 이 수로 바뀜을 안다. */
   visVer?: number;
 };
 /** 워커 프레임이 아직 없을 때 드는 빈 프레임 — 지도만 그려진다. */
 export const EMPTY_FRAME9: Frame9 = {
   t: -1, unitOps: [], fxOps: [], miniExtra: [], gasBusy: [],
-  explored: null, visNow: null, visSrc: new Float32Array(0),
+  explored: null, visNow: null, visSrc: new Float32Array(0), eyes: new Float32Array(0),
 };
 export type EngineWorld9 = ReturnType<typeof deriveWorld9>;
 export function deriveWorld9(inp: {
@@ -4051,6 +4054,89 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     const FOG_MAX_MS = 250;   // 400 → 250 — 느린 기기에서도 초당 넉 장은 새로 쌓는다
     /** 경기 시간이 이만큼 튀면(되감기·건너뛰기) 즉시 다시 쌓는다(초). */
     const FOG_JUMP_SEC = 2;
+    /* ★ **눈 목록은 프레임마다 낸다**(지적: "비행유닛에서 떨림 목격 · 부양건물") ─────────────
+       여태 눈 목록은 안개 판(visNow)을 다시 쌓을 때만 새로 났다 — 판은 삯에 맞춰 30~250ms
+       (벽시계)마다 쌓이니 6배속이면 그 사이가 경기 시간 0.2~1.5초다. 붓은 그 성긴 두 판을
+       **직선**으로 잇는데 몸은 40ms 장마다 잇는다. 뮤탈처럼 빠르게 곡선으로 나는 것은 원이 그
+       직선 위에서 몸 둘레를 헤엄치고, 그 거리가 짝짓기 빗장을 넘으면 아예 안 이어져 판 경계에서
+       툭 뛴다. 지상은 느리고 직선이라 안 띄고, 홀로 움직이는 것(공중·뜬 건물)에서만 보인다.
+       눈 자리를 모으는 고리는 값싸다(비싼 것은 원 찍기다) — 그래서 고리를 조르기 밖으로 꺼내
+       프레임마다 돌리고, 원 찍기는 그 목록을 받아 종전 박자대로 쌓는다. 붓은 이 프레임 눈으로
+       잇는다(장 간격 40ms — 몸과 같은 결). */
+    const eyes9 = ((): Float32Array => {
+      if (!fogOn) return EMPTY_FRAME9.eyes;
+      /** 안개 층이 쓸 눈 목록 — disc를 부를 때마다 여기에도 적는다.
+       *  ★ 한 눈은 **네 칸**이다: x · y · 반지름 · **신원(eid)**(지적: "안개 뒤로 돌림은
+       *    없지만 뚝뚝 끊기네") ────────────────────────────────────────────────────────
+       *    붓은 앞뒤 두 판의 눈을 이어 시야 원을 매끄럽게 옮긴다. 그런데 목록에 신원이
+       *    없어 **차례(index)로** 짝지었고, 한 판 사이에 하나가 죽고 하나가 태어나면 그
+       *    뒤의 눈이 전부 한 칸씩 밀려 이웃의 자리로 끌려갔다(그것이 '떨림'이었다).
+       *    그 밀린 짝을 거르려고 문을 좁히니 이번엔 목록 전체가 이음을 포기해 **뚝뚝**
+       *    끊긴다 — 떨림과 끊김은 같은 구멍의 앞뒤 면이다. 차례가 아니라 신원으로 짝지으면
+       *    둘 다 없어진다: 같은 몸끼리만 이어지고, 태어나고 죽은 눈만 안 이어진다.
+       *    유닛은 개체 태그(양수), 건물은 줄 번호(음수)라 서로 안 겹친다. 0은 '신원 없음'
+       *    이라 안 이어진다(자취 없는 옛 기록). */
+      const src9: number[] = [];
+      const eye = (cx: number, cy: number, r: number, id9 = 0): void => { src9.push(cx, cy, r, id9); };
+      /* 눈은 **이 프레임에 실제로 서 있는 것들**이다 — 유닛 명단(engageFoes)과 건물
+         명단(bldFoes)이 이미 그 값이라 따로 훑지 않는다(둘 다 위에서 t로 걸러졌다). */
+      for (const f9 of engageFoes) {
+        if (!visAll && f9.team !== viewTeam) continue;
+        eye(f9.x, f9.y, sightTiles(f9.uk ?? f9.k ?? "Marine"), f9.eid ?? 0);
+      }
+      for (const f9 of bldFoes) {
+        if (!visAll && f9.team !== viewTeam) continue;
+        eye(f9.x, f9.y, sightTiles(f9.k ?? "Command Center"), f9.eid ?? 0);
+      }
+      /* ★ **공사 중인 건물도 시야를 갖는다**(물음: "공사중 건물은 원래 시야가 없나?"
+         — 없지 않다. 원작은 착공하는 순간 건물 개체를 만들고, 그 개체는 미완성인 채로도
+         시야를 낸다. 다만 그 크기는 제 시야가 아니라 **4타일**이다 — OpenBW bwgame.h의
+         unit_sight_range가 미완성 땅 건물(선 건물의 변태 제외)에 32*4를 돌려준다(앞 판의
+         "줄이는 갈래가 없다"는 말은 틀렸다 — 위 UNBUILT_SIGHT_TILES 주석). 파일런을 적진에
+         박아 정찰하는 것도 그 4타일이다.
+         그런데 여기 명단(bldFoes)은 **다 지어진 것만** 담는다 — 그쪽은 '방어 건물의
+         표적'을 고르는 명단이라 그 규칙이 맞지만, 시야는 아니다. 그래서 밝힘 이력은
+         착공 시각부터 찍히는데(위 stamp) 정작 지금 시야에는 공사장이 빠져, 짓는 동안
+         제자리가 도로 안개에 덮이는 앞뒤 안 맞는 그림이 났다. 여기서 채운다. */
+      for (let bi9 = 0; bi9 < buildsSrc.length; bi9 += 1) {
+        const b9 = buildsSrc[bi9];
+        if (!visAll && teamOfRaw(b9[4]) !== viewTeam) continue;
+        if (t < b9[0]) continue;                                  // 아직 착공 전
+        const gone9 = goneEffOf(b9);
+        if (gone9 > 0 && t >= gone9) continue;                    // 걷힌 뒤
+        const done9 = b9[7] ?? b9[0] + (BUILD_SEC[b9[3]] ?? 30);
+        if (t >= done9) continue;                                 // 완성분은 위 명단이 냈다
+        const fp9 = FOOTPRINT[b9[3]] ?? [3, 2];
+        eye(b9[1] + fp9[0] / 2, b9[2] + fp9[1] / 2, bldSightAt9(b9[3], t, done9), -(bi9 + 1));
+      }
+      /* 이사 비행 중인 건물은 **나는 자리**에서도 본다(지적: 떠다니는 건물 시야) —
+         위 두 명단은 줄에 적힌 붙박이 좌표를 쓰므로 비행 구간이 빠진다. 그리는 쪽과
+         같은 곡선으로 지금 자리를 다시 셈해 하나 더 찍는다(겹쳐도 최댓값이라 무해하다). */
+      for (let bi9 = 0; bi9 < buildsSrc.length; bi9 += 1) {
+        const b9 = buildsSrc[bi9];
+        if (!visAll && teamOfRaw(b9[4]) !== viewTeam) continue;
+        const lift9 = b9[6];
+        const land9 = b9[5] ?? 0;   // 이 줄의 gone은 파괴가 아니라 **착륙 시각**이다
+        if (lift9 === undefined || t < lift9 || (land9 > 0 && t > land9)) continue;
+        const fp9 = FOOTPRINT[b9[3]] ?? [3, 2];
+        /* ★ 참값 자취가 있으면 **그 자리**에 눈을 둔다(지적: "부양 중 건물도 시야만큼 안개 걷히게") — 여태는 착륙 줄이
+           있는 비행만 두 자리 사이 보간으로 냈다. 아직 안 앉은 건물·제자리에서 떠 있는 건물·격추 전 건물은 눈이 없어
+           떠 있는 동안 제 둘레가 안개였다. 자취가 없는 옛 기록만 보간으로 물러난다. */
+        const ftag9 = bldTagAt.get(`${b9[4]}|${b9[3]}|${Math.round(b9[1] + fp9[0] / 2)}|${Math.round(b9[2] + fp9[1] / 2)}`);
+        const ftr9 = ftag9 !== undefined ? simTracks?.get(ftag9) : undefined;
+        const fpos9 = ftr9 ? posAtSim(ftr9, t) : null;
+        if (fpos9) { eye(fpos9.x, fpos9.y, sightTiles(b9[3]), -(bi9 + 1)); continue; }
+        if (!(land9 > lift9)) continue;
+        const to9 = buildsSrc.find(([s2, x2, y2, u2, r2]) => r2 === b9[4] && u2 === b9[3]
+          && s2 === land9 && (x2 !== b9[1] || y2 !== b9[2]));
+        if (!to9) continue;
+        const u9 = Math.min(1, (t - lift9) / Math.max(0.1, land9 - lift9));
+        const k9 = u9 * u9 * (3 - 2 * u9);
+        eye(b9[1] + (to9[1] - b9[1]) * k9 + fp9[0] / 2,
+          b9[2] + (to9[2] - b9[2]) * k9 + fp9[1] / 2, sightTiles(b9[3]), -(bi9 + 1));
+      }
+      return Float32Array.from(src9);
+    })();
     const pFogVis9 = PERF9 ? pNow() : 0;
     const visNow = ((): Uint8Array | null => {
       if (!fogOn) return null;
@@ -4137,80 +4223,9 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           }
         }
       };
-      /** 안개 층이 쓸 눈 목록 — disc를 부를 때마다 여기에도 적는다.
-       *  ★ 한 눈은 **네 칸**이다: x · y · 반지름 · **신원(eid)**(지적: "안개 뒤로 돌림은
-       *    없지만 뚝뚝 끊기네") ────────────────────────────────────────────────────────
-       *    붓은 앞뒤 두 판의 눈을 이어 시야 원을 매끄럽게 옮긴다. 그런데 목록에 신원이
-       *    없어 **차례(index)로** 짝지었고, 한 판 사이에 하나가 죽고 하나가 태어나면 그
-       *    뒤의 눈이 전부 한 칸씩 밀려 이웃의 자리로 끌려갔다(그것이 '떨림'이었다).
-       *    그 밀린 짝을 거르려고 문을 좁히니 이번엔 목록 전체가 이음을 포기해 **뚝뚝**
-       *    끊긴다 — 떨림과 끊김은 같은 구멍의 앞뒤 면이다. 차례가 아니라 신원으로 짝지으면
-       *    둘 다 없어진다: 같은 몸끼리만 이어지고, 태어나고 죽은 눈만 안 이어진다.
-       *    유닛은 개체 태그(양수), 건물은 줄 번호(음수)라 서로 안 겹친다. 0은 '신원 없음'
-       *    이라 안 이어진다(자취 없는 옛 기록). */
-      const src9: number[] = [];
-      const eye = (cx: number, cy: number, r: number, id9 = 0): void => {
-        src9.push(cx, cy, r, id9);
-        disc(cx, cy, r);
-      };
-      /* 눈은 **이 프레임에 실제로 서 있는 것들**이다 — 유닛 명단(engageFoes)과 건물
-         명단(bldFoes)이 이미 그 값이라 따로 훑지 않는다(둘 다 위에서 t로 걸러졌다). */
-      for (const f9 of engageFoes) {
-        if (!visAll && f9.team !== viewTeam) continue;
-        eye(f9.x, f9.y, sightTiles(f9.uk ?? f9.k ?? "Marine"), f9.eid ?? 0);
-      }
-      for (const f9 of bldFoes) {
-        if (!visAll && f9.team !== viewTeam) continue;
-        eye(f9.x, f9.y, sightTiles(f9.k ?? "Command Center"), f9.eid ?? 0);
-      }
-      /* ★ **공사 중인 건물도 시야를 갖는다**(물음: "공사중 건물은 원래 시야가 없나?"
-         — 없지 않다. 원작은 착공하는 순간 건물 개체를 만들고, 그 개체는 미완성인 채로도
-         시야를 낸다. 다만 그 크기는 제 시야가 아니라 **4타일**이다 — OpenBW bwgame.h의
-         unit_sight_range가 미완성 땅 건물(선 건물의 변태 제외)에 32*4를 돌려준다(앞 판의
-         "줄이는 갈래가 없다"는 말은 틀렸다 — 위 UNBUILT_SIGHT_TILES 주석). 파일런을 적진에
-         박아 정찰하는 것도 그 4타일이다.
-         그런데 여기 명단(bldFoes)은 **다 지어진 것만** 담는다 — 그쪽은 '방어 건물의
-         표적'을 고르는 명단이라 그 규칙이 맞지만, 시야는 아니다. 그래서 밝힘 이력은
-         착공 시각부터 찍히는데(위 stamp) 정작 지금 시야에는 공사장이 빠져, 짓는 동안
-         제자리가 도로 안개에 덮이는 앞뒤 안 맞는 그림이 났다. 여기서 채운다. */
-      for (let bi9 = 0; bi9 < buildsSrc.length; bi9 += 1) {
-        const b9 = buildsSrc[bi9];
-        if (!visAll && teamOfRaw(b9[4]) !== viewTeam) continue;
-        if (t < b9[0]) continue;                                  // 아직 착공 전
-        const gone9 = goneEffOf(b9);
-        if (gone9 > 0 && t >= gone9) continue;                    // 걷힌 뒤
-        const done9 = b9[7] ?? b9[0] + (BUILD_SEC[b9[3]] ?? 30);
-        if (t >= done9) continue;                                 // 완성분은 위 명단이 냈다
-        const fp9 = FOOTPRINT[b9[3]] ?? [3, 2];
-        eye(b9[1] + fp9[0] / 2, b9[2] + fp9[1] / 2, bldSightAt9(b9[3], t, done9), -(bi9 + 1));
-      }
-      /* 이사 비행 중인 건물은 **나는 자리**에서도 본다(지적: 떠다니는 건물 시야) —
-         위 두 명단은 줄에 적힌 붙박이 좌표를 쓰므로 비행 구간이 빠진다. 그리는 쪽과
-         같은 곡선으로 지금 자리를 다시 셈해 하나 더 찍는다(겹쳐도 최댓값이라 무해하다). */
-      for (let bi9 = 0; bi9 < buildsSrc.length; bi9 += 1) {
-        const b9 = buildsSrc[bi9];
-        if (!visAll && teamOfRaw(b9[4]) !== viewTeam) continue;
-        const lift9 = b9[6];
-        const land9 = b9[5] ?? 0;   // 이 줄의 gone은 파괴가 아니라 **착륙 시각**이다
-        if (lift9 === undefined || t < lift9 || (land9 > 0 && t > land9)) continue;
-        const fp9 = FOOTPRINT[b9[3]] ?? [3, 2];
-        /* ★ 참값 자취가 있으면 **그 자리**에 눈을 둔다(지적: "부양 중 건물도 시야만큼 안개 걷히게") — 여태는 착륙 줄이
-           있는 비행만 두 자리 사이 보간으로 냈다. 아직 안 앉은 건물·제자리에서 떠 있는 건물·격추 전 건물은 눈이 없어
-           떠 있는 동안 제 둘레가 안개였다. 자취가 없는 옛 기록만 보간으로 물러난다. */
-        const ftag9 = bldTagAt.get(`${b9[4]}|${b9[3]}|${Math.round(b9[1] + fp9[0] / 2)}|${Math.round(b9[2] + fp9[1] / 2)}`);
-        const ftr9 = ftag9 !== undefined ? simTracks?.get(ftag9) : undefined;
-        const fpos9 = ftr9 ? posAtSim(ftr9, t) : null;
-        if (fpos9) { eye(fpos9.x, fpos9.y, sightTiles(b9[3]), -(bi9 + 1)); continue; }
-        if (!(land9 > lift9)) continue;
-        const to9 = buildsSrc.find(([s2, x2, y2, u2, r2]) => r2 === b9[4] && u2 === b9[3]
-          && s2 === land9 && (x2 !== b9[1] || y2 !== b9[2]));
-        if (!to9) continue;
-        const u9 = Math.min(1, (t - lift9) / Math.max(0.1, land9 - lift9));
-        const k9 = u9 * u9 * (3 - 2 * u9);
-        eye(b9[1] + (to9[1] - b9[1]) * k9 + fp9[0] / 2,
-          b9[2] + (to9[2] - b9[2]) * k9 + fp9[1] / 2, sightTiles(b9[3]), -(bi9 + 1));
-      }
-      visSrcRef.current = Float32Array.from(src9);
+      // 원 찍기는 이 장의 눈 목록(eyes9)을 그대로 돈다 — 고르는 고리는 밖(프레임마다)으로 옮겼다.
+      for (let i9 = 0; i9 + 3 < eyes9.length; i9 += 4) disc(eyes9[i9], eyes9[i9 + 1], eyes9[i9 + 2]);
+      visSrcRef.current = eyes9;
       /* 이번 판에 든 시간을 적어 둔다 — 다음 쉬는 간격을 이 값이 정한다(위 ★ 적응 조르기).
          기기가 느려지거나 눈이 늘면 삯이 커지고, 그러면 저절로 더 오래 쉰다. */
       fs9.cost = pNow() - now9;
@@ -8326,7 +8341,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
     }
     return {
       t, unitOps, fxOps, miniExtra, gasBusy: [...gasBusy],
-      explored: exploredAt, visNow, visSrc: visSrcRef.current,
+      explored: exploredAt, visNow, visSrc: visSrcRef.current, eyes: eyes9,
     };
   };
   /** 진단 — 마지막 안개 쌓기 비용(ms)과 누적 횟수. */
