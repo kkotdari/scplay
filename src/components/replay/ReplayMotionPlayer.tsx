@@ -617,21 +617,32 @@ const FOGBACK9 = {
 const FOGJIT9 = {
   prev: null as Float32Array | null, base: null as Float32Array | null,
   move: 0, n: 0, flips: 0, why: "", ratio: 0, net: 0,
+  /** 신원 → 자리(되쓰는 표) — 아래 ★. */
+  idx: new Map<number, number>(),
   /** 창을 닫을 때 flips를 여기로 옮긴다 — 안 그러면 줄을 짓기 전에 0으로 지워진다(제 버그). */
   flipsShow: 0,
 };
 const fogJitTick9 = (vis9: Float32Array): void => {
   if (fogWhy9 !== FOGJIT9.why) { FOGJIT9.flips += 1; FOGJIT9.why = fogWhy9; }
-  const pv9 = FOGJIT9.prev;
-  if (!pv9 || pv9.length !== vis9.length) {
+  let pv9 = FOGJIT9.prev;
+  if (!pv9) {
     FOGJIT9.prev = Float32Array.from(vis9);
     FOGJIT9.base = Float32Array.from(vis9);
     FOGJIT9.move = 0; FOGJIT9.n = 0;
     return;
   }
+  if (pv9.length !== vis9.length) { FOGJIT9.prev = new Float32Array(vis9.length); FOGJIT9.prev.set(vis9); pv9 = FOGJIT9.prev; }
+  /* ★ 계량기도 **신원으로** 짝지어야 한다(4차 뒤 재점검) — 목록의 차례는 눈이 나고 죽을
+     때마다 밀리므로, 차례로 견주면 **다른 눈의 자리**와 재게 된다. 그러면 고쳐 놓고도 비가
+     크게 나온다(잰 자가 틀린 것이다). 신원이 같은 눈끼리만 잰다. */
   let m9 = 0;
-  for (let i9 = 0; i9 + 2 < vis9.length; i9 += 4) {
-    m9 += Math.abs(vis9[i9] - pv9[i9]) + Math.abs(vis9[i9 + 1] - pv9[i9 + 1]);
+  const pid9 = FOGJIT9.idx;
+  pid9.clear();
+  for (let i9 = 0; i9 + 3 < pv9.length; i9 += 4) { const d9 = pv9[i9 + 3]; if (d9 !== 0) pid9.set(d9, i9); }
+  for (let i9 = 0; i9 + 3 < vis9.length; i9 += 4) {
+    const j9 = pid9.get(vis9[i9 + 3]);
+    if (j9 === undefined) continue;
+    m9 += Math.abs(vis9[i9] - pv9[j9]) + Math.abs(vis9[i9 + 1] - pv9[j9 + 1]);
   }
   FOGJIT9.move += m9;
   FOGJIT9.n += 1;
@@ -640,14 +651,20 @@ const fogJitTick9 = (vis9: Float32Array): void => {
 /** 창을 닫으며 '걸은 거리 / 곧은 거리'를 셈한다 — 1.0이면 곧게, 크면 떤 것이다. */
 const fogJitClose9 = (): void => {
   const pv9 = FOGJIT9.prev; const bs9 = FOGJIT9.base;
-  if (pv9 && bs9 && pv9.length === bs9.length && FOGJIT9.n > 0) {
+  if (pv9 && bs9 && FOGJIT9.n > 0) {
     let net9 = 0;
-    for (let i9 = 0; i9 + 2 < pv9.length; i9 += 4) {
-      net9 += Math.abs(pv9[i9] - bs9[i9]) + Math.abs(pv9[i9 + 1] - bs9[i9 + 1]);
+    const bi9 = FOGJIT9.idx;
+    bi9.clear();
+    for (let i9 = 0; i9 + 3 < bs9.length; i9 += 4) { const d9 = bs9[i9 + 3]; if (d9 !== 0) bi9.set(d9, i9); }
+    for (let i9 = 0; i9 + 3 < pv9.length; i9 += 4) {
+      const j9 = bi9.get(pv9[i9 + 3]);
+      if (j9 === undefined) continue;
+      net9 += Math.abs(pv9[i9] - bs9[j9]) + Math.abs(pv9[i9 + 1] - bs9[j9 + 1]);
     }
     FOGJIT9.net = net9;
     FOGJIT9.ratio = net9 > 1e-6 ? FOGJIT9.move / net9 : 0;
-    bs9.set(pv9);
+    if (bs9.length !== pv9.length) FOGJIT9.base = new Float32Array(pv9.length);
+    (FOGJIT9.base as Float32Array).set(pv9);
   }
   FOGJIT9.flipsShow = FOGJIT9.flips;
   FOGJIT9.move = 0; FOGJIT9.n = 0; FOGJIT9.flips = 0;
