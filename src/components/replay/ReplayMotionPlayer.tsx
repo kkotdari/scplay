@@ -20720,6 +20720,8 @@ const WORK9 = { brush: 0, wk: 0, react: 0 };
  *    예열    — 모델 면 데우기(rAF로 나눠 굽지만 합이 얼마인지는 따로 못 봤다)
  *  짐작을 더 쌓지 않으려고 넷을 다 잰다. 이 줄을 한 장 보면 다음 칼이 어디인지 정해진다. */
 const LOAD9 = { mapN: 0, mapMs: 0, mapMax: 0, truthMs: 0, wkMs: 0, warmMs: 0, warmN: 0 };
+/** 겹쳐서 덮일 유닛을 얼마나 뺐나(위 drawList9) — '몇 중 몇을 그렸나'. */
+const THIN9 = { n: 0, drew: 0 };
 /** 붓 사이 틈을 재는 자(위 WORSTF9) — 핵 창과 무관하게 늘 돈다. */
 const FRAMEG9 = { last: 0 };
 /** 이 판이 본 **가장 긴 프레임**과 그 몫 — 핵 창 밖에서도 잰다(실측: 핵과 무관한 1918ms 프레임이 있었다). */
@@ -24114,6 +24116,42 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         }
         return out9;
       })();
+      /* ★ **어차피 덮일 유닛은 안 그린다**(요청: "유닛은 유닛으로 그려야 해. 뭉친 유닛을
+         적게 그리는 건 괜찮으려나") ─────────────────────────────────────────────────────
+         낮은 배율에서 유닛 하나는 서너 화소다. 뭉친 부대는 같은 화소 몇 개를 수십 번
+         덮어 칠하는데, **화면에 남는 것은 맨 나중에 찍은 한 장뿐**이다 — 그 아래 것들은
+         한 톨도 안 보이면서 찍는 값은 다 치른다(실측: 찍기 2235장/프레임 · 최악 프레임 505ms).
+         그래서 화면을 유닛 크기만 한 칸으로 나누고, 한 칸에서 **맨 나중에 찍힐 하나**만
+         남긴다. 점으로 바꾸는 것과 다르다: 남은 것은 그대로 **제 모습의 유닛**이고,
+         빠지는 것은 그것에 가려 안 보였을 것들뿐이다.
+         · 화가 순서의 **뒤엣것**을 남긴다 — 그것이 곧 눈에 보이던 그 한 장이다.
+         · 건물·자원·크립은 안 건드린다(수가 적고 서로 안 겹친다). 고른 개체도 늘 남긴다.
+         · 벤치 미달 + 1~3배(저배율죔)에서만 — 멀쩡한 기기와 높은 배율은 종전 그대로다. */
+      const drawList9 = ((): UnitDrawOp[] => {
+        if (trim9 < 1 || sorted.length < 64) return sorted;
+        const thin9 = (o9: UnitDrawOp): boolean => UNIT_KIND_SET.has(o9.kind)
+          && !(pickedKey != null && o9.pickKey === pickedKey);
+        /* 칸은 그린 유닛 폭 언저리 — 이보다 잘면 덮이지 않은 것까지 빼고, 굵으면 서로
+           떨어져 선 것을 뺀다. 타일 폭의 0.7이 한 유닛의 몸 폭에 가깝다. */
+        const cell9 = Math.max(2, (tilePx ?? 8) * zoom * 0.7);
+        const last9 = new Map<number, number>();
+        for (let i9 = 0; i9 < sorted.length; i9 += 1) {
+          const o9 = sorted[i9];
+          if (!thin9(o9)) continue;
+          last9.set(Math.floor(zy(o9.fy) / cell9) * 65536 + Math.floor(zx(o9.fx) / cell9), i9);
+        }
+        if (last9.size === 0) return sorted;
+        const out9: UnitDrawOp[] = [];
+        for (let i9 = 0; i9 < sorted.length; i9 += 1) {
+          const o9 = sorted[i9];
+          if (!thin9(o9)
+            || last9.get(Math.floor(zy(o9.fy) / cell9) * 65536 + Math.floor(zx(o9.fx) / cell9)) === i9) {
+            out9.push(o9);
+          }
+        }
+        THIN9.n = sorted.length; THIN9.drew = out9.length;
+        return out9;
+      })();
       /* ── (걷어냄) **겹침 이완** — 이것이 '슬라이딩'의 진범이었다 ────────────────
          지적: "슬라이딩 문제를 완전 잘못 짚은거 같아 … 진짜 원인은 유닛 겹침 허용과
          관련있을거 같거든? 그쪽을 파봐". 맞았다.
@@ -25048,9 +25086,9 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           ctx.restore();
         }
         ctx.restore();
-        paintOps(sorted.filter((o) => !o.clipWalk));
+        paintOps(drawList9.filter((o) => !o.clipWalk));
       } else {
-        paintOps(sorted);
+        paintOps(drawList9);
       }
       /* ── 전투 효과(요청: 이펙트 캔버스 이관) — 몸을 다 그린 위에 얹는다. CSS 키프레임
          이던 애니메이션은 전부 **위상(ph)의 함수**다: 캔버스는 어차피 틱마다 다시
@@ -31835,7 +31873,7 @@ export default function ReplayMotionPlayer({
     const grade9 = (w9: boolean, k9: number): string => (w9 ? (k9 < 1 ? "심한미달" : "미달") : "충분");
     /* 저배율 죔(위 lowZoomTrim9) — 지금 배율에서 실제로 몇 단인지 그대로 찍는다. */
     const tr9 = lowZoomTrim9(zoomRef.current, pitched);
-    SCR_DIAG.crowd = `벤치 2D ${c9.bench.toFixed(0)}ms ${grade9(c9.weak, c9.k)} · 3D ${c9.bench3.toFixed(0)}ms ${grade9(c9.weak3, c9.k3)}${c9.force >= 0 ? " 강제" : ""}${CROWD9.re > 0 ? ` ↻${CROWD9.re}` : ""} · ${pitched ? "3D" : "2D"} ${c9.lv}단 ${c9.units}기${tr9 > 0 ? ` · 저배율죔 ${tr9}단` : NO_TRIM9 ? " · 저배율죔 끔" : ""}`;
+    SCR_DIAG.crowd = `벤치 2D ${c9.bench.toFixed(0)}ms ${grade9(c9.weak, c9.k)} · 3D ${c9.bench3.toFixed(0)}ms ${grade9(c9.weak3, c9.k3)}${c9.force >= 0 ? " 강제" : ""}${CROWD9.re > 0 ? ` ↻${CROWD9.re}` : ""} · ${pitched ? "3D" : "2D"} ${c9.lv}단 ${c9.units}기${tr9 > 0 ? ` · 저배율죔 ${tr9}단` : NO_TRIM9 ? " · 저배율죔 끔" : ""}${THIN9.n > 0 ? ` · 겹침생략 ${THIN9.n - THIN9.drew}/${THIN9.n}기` : ""}`;
     const st9 = wStatRef.current;
     const wait9 = !st9.ready && st9.worldAt > 0 ? (pNow() - st9.worldAt) / 1000 : 0;
     let ahead9 = -1e9;
