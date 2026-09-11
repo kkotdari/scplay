@@ -2606,16 +2606,21 @@ const MEMTR9 = { first: 0, now: 0, max: 0, n: 0, cv: 0, cvMB: 0, plMB: 0, exMB: 
  *  크기가 아니라 **양**이 남았다. 웹킷에서 캔버스 하나는 제 배킹(iOS면 IOSurface)을 갖는데, 굽고 버리기를
  *  되풀이하면 그 자원이 빠르게 돌고 — 그 회전이 곧 압박이고, 압박의 끝이 '배킹을 거두고 그리기를 멈춤'이다.
  *  판 굽기·물들이기·효과 래스터가 저마다 캔버스를 새로 만든다. 몇 개를 만들고 있는지부터 수로 본다. */
-const CVN9 = { n: 0, win: 0, at: 0, rate: 0 };
-function newCanvas9(): HTMLCanvasElement {
+const CVN9 = { n: 0, win: 0, at: 0, rate: 0, by: new Map<string, number>(), top: "" };
+function newCanvas9(tag9 = "?"): HTMLCanvasElement {
   CVN9.n += 1;
   CVN9.win += 1;
+  CVN9.by.set(tag9, (CVN9.by.get(tag9) ?? 0) + 1);
   const now9 = pNow();
   if (CVN9.at === 0) CVN9.at = now9;
   else if (now9 - CVN9.at >= 1000) {
     CVN9.rate = (CVN9.win * 1000) / (now9 - CVN9.at);
     CVN9.win = 0;
     CVN9.at = now9;
+    /* 어느 자리가 만드나 — 상위 셋만 남긴다(창마다 처음부터 센다). */
+    CVN9.top = [...CVN9.by.entries()].sort((a9, b9) => b9[1] - a9[1]).slice(0, 3)
+      .map(([k9, v9]) => `${k9}${v9}`).join(" ");
+    CVN9.by.clear();
   }
   return document.createElement("canvas");
 }
@@ -20231,7 +20236,7 @@ export function cropToInk(
   const ch9 = whole9 ? cv.height : h;
   const cx9 = whole9 ? 0 : x0;
   const cy9 = whole9 ? 0 : y0;
-  const out = newCanvas9();
+  const out = newCanvas9("훑기");
   out.width = cw9;
   out.height = ch9;
   const c = out.getContext("2d");
@@ -21038,7 +21043,7 @@ const bakeCanvas = (side: number): HTMLCanvasElement | null => {
     c9.clearRect(0, 0, side, side);
     return cv9;
   }
-  const cv9 = newCanvas9();
+  const cv9 = newCanvas9("빌림");
   cv9.width = side;
   cv9.height = side;
   /* ★ 빌림터의 판은 **읽을 판**이다(계측: 2초에 굽기 767ms 가운데 **훑기 599ms** — 78%) ─────────────
@@ -21163,7 +21168,7 @@ function shadowPlate(
   ));
   const cw9 = Math.max(1, Math.ceil(w9 / ds));
   const ch9 = Math.max(1, Math.ceil(h9 / ds));
-  const cv = newCanvas9();
+  const cv = newCanvas9("그림자");
   cv.width = cw9;
   cv.height = ch9;
   const c9 = cv.getContext("2d");
@@ -21615,7 +21620,7 @@ const tintedOf9 = (tn: TintPlate9, color: string, bytes: { n: number } = spriteB
   if (got) return got;
   if (typeof document === "undefined") return null;
   const w = tn.cv.width; const h = tn.cv.height;
-  const cv = newCanvas9();
+  const cv = newCanvas9("물들이기");
   cv.width = w; cv.height = h;
   const tc = cv.getContext("2d");
   if (!tc) return null;
@@ -25320,7 +25325,7 @@ export function FxModel({
         c2.fill(pathOf(d9));
       }
       if (key9) {
-        const copy9 = newCanvas9();
+        const copy9 = newCanvas9("효과");
         copy9.width = cw9; copy9.height = ch9;
         copy9.getContext("2d")?.drawImage(cv, 0, 0);
         FX_RASTER_CACHE.set(key9, copy9);
@@ -32787,7 +32792,7 @@ export default function ReplayMotionPlayer({
                       {/* 캔버스 배킹 손실(위 LOST9) — 잃고 다시 그린 횟수·검사 횟수. */}
                       {` · 배킹[손실${LOST9.n} 검사${LOST9.probe}${SCR_DIAG.allocOk ? "" : " ⚠확보실패"}]`}
                       {/* 메모리 흐름(위 MEMTR9) — 처음·지금·최대가 나란하면 새는 데가 없다. */}
-                      {` · 캔버스만듦[총${CVN9.n} 초당${CVN9.rate.toFixed(0)}]`}
+                      {` · 캔버스만듦[총${CVN9.n} 초당${CVN9.rate.toFixed(0)}${CVN9.top ? ` · ${CVN9.top}` : ""}]`}
                       {MEMTR9.n > 0 ? ` · 메모리[처음${MEMTR9.first.toFixed(0)} 지금${MEMTR9.now.toFixed(0)} 최대${MEMTR9.max.toFixed(0)}MB`
                         + ` · 캔버스${MEMTR9.cv}장 ${MEMTR9.cvMB.toFixed(1)} · 판 ${MEMTR9.plMB.toFixed(1)} · 설계도안개 ${MEMTR9.exMB.toFixed(1)}]` : ""}
                     </div>
