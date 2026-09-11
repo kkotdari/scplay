@@ -2560,6 +2560,14 @@ function zergFace(y: number, z: number, s = 1, fill = ZERG_FLESH): ShapeFace[] {
  *  덩굴 조각들. */
 /** `#nocreep` 해시(도구용: scene-sheet 격자 비교) — 모델에 구운 크립 갈퀴도 함께 뺀다. */
 const NO_CREEP9 = typeof location !== "undefined" && /nocreep/.test(location.hash);
+/** ★ 진단 스위치 `#noblend` — 효과 층의 **섞임**(mix-blend-mode: screen)을 통째로 끈다 ───────────────────
+ *  실측이 여기까지 왔다: 끊긴 프레임의 값이 4367ms인데 그중 붓 2 · 워커 12 · 리액트 2, **밖 4351**이다.
+ *  곧 우리 JS는 놀고 있고 브라우저가 4초를 쓴다 — 합성·레이아웃·GC 셋 중 하나다. 그 가운데 이 판이 iOS에서
+ *  가장 크게 무는 것이 섞임이다: 섞인 층은 제 뒤의 배경(여기서는 지도 1713² · 유닛 786² 캔버스)을 되읽어야
+ *  해서, 웹킷이 그 순간 합성을 소프트웨어로 떨어뜨리는 일이 있다. 핵·스톰·시전 고리가 한꺼번에 뜰 때 끊김이
+ *  나는 것과 앞뒤가 맞는다.
+ *  짐작을 더 쌓지 않으려고 **끄고 켜서 가른다** — 주소에 #noblend를 붙이면 섞임만 빠지고 나머지는 그대로다. */
+const NO_BLEND9 = typeof location !== "undefined" && /noblend/.test(location.hash);
 function creepSplat(r: number): ShapeFace[] {
   const out: ShapeFace[] = [];
   if (NO_CREEP9) return out;
@@ -20603,13 +20611,15 @@ const WORK9 = { brush: 0, wk: 0, react: 0 };
 const FRAMEG9 = { last: 0 };
 /** 이 판이 본 **가장 긴 프레임**과 그 몫 — 핵 창 밖에서도 잰다(실측: 핵과 무관한 1918ms 프레임이 있었다). */
 const WORSTF9 = { ms: 0, parts: "", at: "" };
-function nukeMeterTick9(on9: boolean, step9: number): void {
+function nukeMeterTick9(on9: boolean, step9: number, playing9 = true): void {
   const now9 = pNow();
   /* 붓 사이의 틈을 늘 잰다 — 핵 창은 그중 한 도막일 뿐이다. 첫 장·오래 멈춘 뒤(2초 넘는 틈)는 안 센다:
      멈춤·탐색·백그라운드는 '느린 프레임'이 아니라 아예 안 도는 시간이라 섞으면 자가 거짓이 된다. */
   if (FRAMEG9.last > 0) {
     const dt9 = now9 - FRAMEG9.last;
-    if (dt9 < 2000 && dt9 > WORSTF9.ms) {
+    /* 재생 중일 때만 센다 — 멈춰 있으면 붓은 청할 때만 도니 그 틈은 '느린 프레임'이 아니다.
+       상한은 8초: 그보다 긴 것은 탭이 뒤로 갔거나 잠긴 화면이라 이 자의 몫이 아니다. */
+    if (playing9 && dt9 < 8000 && dt9 > WORSTF9.ms) {
       WORSTF9.ms = dt9;
       const out9 = Math.max(0, dt9 - WORK9.brush - WORK9.wk - WORK9.react);
       WORSTF9.parts = `붓${WORK9.brush.toFixed(0)} 워커${WORK9.wk.toFixed(0)}`
@@ -29135,6 +29145,13 @@ export default function ReplayMotionPlayer({
   /** 지도 상자를 지금 잘라야 하나 — 손짓 중에는 굳은 상태(zoom)가 아니라 손끝 배율로
    *  정해야 한다(지적: "피시에서 확대하면 배경 미니맵이 틀을 벗어나서 확대됐다가 다시
    *  자리에 맞게 잘림"). 자르기 조건 자체는 JSX 스타일과 같은 것을 쓴다. */
+  /* #noblend가 켜져 있으면 지도 상자에 표를 단다(위 NO_BLEND9) — CSS 한 규칙이 섞임을 통째로 끈다. */
+  useEffect(() => {
+    const el9 = mapRef.current;
+    if (!el9 || !NO_BLEND9) return undefined;
+    el9.classList.add("scr-noblend");
+    return () => el9.classList.remove("scr-noblend");
+  }, []);
   const clipBoxRef = useRef({ fsCover: false, pitched: false });
   clipBoxRef.current = { fsCover: fsCoverW > 0, pitched };
   /* (걷어냄) 렌더가 상태로 ref를 덮던 줄 — 재설계(보는 눈 하나): 보기의 진실은 zoomRef·panRef뿐이고 상태는 거울이다.
@@ -30771,7 +30788,7 @@ export default function ReplayMotionPlayer({
     fogMeterTick9();
     /* 핵 연출의 시계 — 글줄 몇 줄이라 붓 프레임마다 적는다(위 nukeClockTick9의 ★).
        이걸 React 렌더에 맡기던 것이 "핵폭발 시 페이지 다운"의 뿌리였다. */
-    nukeMeterTick9(nukeOnRef9.current, reactStepRef9.current);
+    nukeMeterTick9(nukeOnRef9.current, reactStepRef9.current, cmdNowRef9.current.playing);
     if (nukeOnRef9.current && mapRef.current) {
       const cn9 = cmdNowRef9.current;
       nukeClockTick9(mapRef.current, tNow9, cn9.speed || 1, cn9.playing);

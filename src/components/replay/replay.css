@@ -816,6 +816,9 @@
    본디 '칠한 적 없는 곳'이라 막(안 밝힌 검정)이 정확한 답이고, 판 안쪽은 한 톨도 안 건드린다.
    자리는 재생기가 프레임마다 인라인으로 적는다(applyGestureXf) — 틈이 없으면 넷 다 0이다.
    색은 ReplayFogLayer의 FOG_RGB와 **같은 값**이어야 한다(거기서 5,8,14). */
+/* 진단 스위치(#noblend) — 효과 층의 섞임을 통째로 끈다(재생기의 NO_BLEND9 ★). 끊김의 값이 우리 JS
+   밖(밖 4351/4367ms)이라, 브라우저 합성에서 가장 값비싼 자를 하나 빼고 견줘 보는 자리다. */
+.scr-noblend, .scr-noblend * { mix-blend-mode: normal !important; }
 .scr-motion-fogbg { position: absolute; inset: 0; pointer-events: none; z-index: 5499; }
 .scr-motion-fogbg > i { position: absolute; display: block; width: 0; height: 0; background: rgb(5, 8, 14); }
 /* 자리·크기는 붓이 인라인으로 못박는다(ReplayFogLayer의 PAD) — 판은 상자보다 한 뼘
