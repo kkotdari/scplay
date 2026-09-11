@@ -587,6 +587,44 @@ const fogCnt9 = (): FogCnt9 => ({ brush: 0, paint: 0, same: 0, nosrc: 0, defer: 
    4번이라는 뜻이다(둘은 정반대 진단이다). 붓이 잇달아 불린 사이만 더한다. */
 /** `gap`은 '칠해 둔 자리가 상자를 못 덮은 가장 큰 몫'(px) — 손짓 칸의 `즉시N`이 그걸 갚은 장수다. */
 const FOGM9 = { at: 0, gest: false, was: false, last: 0, gap: 0, idle: fogCnt9(), g: fogCnt9(), gShow: "" };
+/* ★ **안개가 뒤로 간 걸음을 센다**(지적: "과거의 자리로 당겨졌다 다시 돌아와 덜덜덜" ·
+   세 번 짚어 세 번 다 빗나갔다) ────────────────────────────────────────────────────
+   눈으로는 더 못 가른다. 재는 자는 하나면 된다 — **칠할 때마다, 지금 칠하는 눈 목록이
+   어느 시각의 것인가**. 그 값이 전 장보다 작으면 그 한 장이 곧 '과거로 당겨짐'이다.
+   목록의 시각은 WeakMap으로 따라다닌다: 워커가 보낸 안개 판은 그 장의 시각을, 이어서
+   만든 목록은 두 판 시각을 u9로 섞은 값을 단다. 어느 길로 나온 목록인지(WHY9)도 함께
+   적어, 뒤로 간 걸음이 어느 길에서 나오는지까지 한 줄에 나온다. */
+const FOGT9 = new WeakMap<Float32Array, number>();
+/** 지금 낸 눈 목록이 어느 길로 나왔나 — 이음/듦/앞장/뒤장없음/제판. */
+let fogWhy9 = "-";
+const FOGBACK9 = {
+  /** 직전에 칠한 목록의 시각(-1이면 아직 없음) */ was: -1,
+  /** 뒤로 간 걸음 수 */ n: 0,
+  /** 가장 크게 뒤로 간 폭(초) */ worst: 0,
+  /** 그때의 길 */ why: "",
+  /** 칠한 걸음 수 */ all: 0,
+  /** 길별 걸음 수 */ ways: new Map<string, number>(),
+};
+/** 칠하기 직전에 부른다 — 목록의 시각을 견줘 뒤로 간 걸음을 센다. */
+const fogBackTick9 = (vis9: Float32Array | null): void => {
+  if (!vis9) return;
+  const t9 = FOGT9.get(vis9);
+  FOGBACK9.all += 1;
+  FOGBACK9.ways.set(fogWhy9, (FOGBACK9.ways.get(fogWhy9) ?? 0) + 1);
+  if (t9 === undefined) { FOGBACK9.ways.set("모름", (FOGBACK9.ways.get("모름") ?? 0) + 1); return; }
+  if (FOGBACK9.was >= 0 && t9 < FOGBACK9.was - 1e-4) {
+    FOGBACK9.n += 1;
+    const d9 = FOGBACK9.was - t9;
+    if (d9 > FOGBACK9.worst) { FOGBACK9.worst = d9; FOGBACK9.why = fogWhy9; }
+  }
+  FOGBACK9.was = t9;
+};
+const fogBackStr9 = (): string => {
+  const w9 = [...FOGBACK9.ways.entries()].sort((a9, b9) => b9[1] - a9[1]).slice(0, 4)
+    .map(([k9, v9]) => `${k9}${v9}`).join(" ");
+  return `역행${FOGBACK9.n}/${FOGBACK9.all}${FOGBACK9.worst > 0 ? ` 최대${(FOGBACK9.worst * 1000).toFixed(0)}ms(${FOGBACK9.why})` : ""}`
+    + (w9 ? ` [${w9}]` : "");
+};
 /** 지금 쌓을 통 — 손짓 프레임인가로 가른다. */
 const fogBin9 = (): FogCnt9 => (FOGM9.gest ? FOGM9.g : FOGM9.idle);
 const fogStr9 = (c9: FogCnt9, rate9 = false): string =>
@@ -604,7 +642,8 @@ function fogMeterTick9(): void {
   }
   /* 손짓 칸은 **늘 보인다**(빈 채로라도) — 안 보이면 사용자가 '새 판이 안 실렸나'와 '아직
      안 끌었나'를 못 가른다(실제로 한 번 헛걸음했다). 아직 없으면 '대기'라고 적는다. */
-  SCR_DIAG.fog = `${fogStr9(FOGM9.idle)} · 손짓[${FOGM9.gShow || "대기"}]`;
+  SCR_DIAG.fog = `${fogStr9(FOGM9.idle)} · 손짓[${FOGM9.gShow || "대기"}] · ${fogBackStr9()}`;
+  FOGBACK9.n = 0; FOGBACK9.all = 0; FOGBACK9.worst = 0; FOGBACK9.why = ""; FOGBACK9.ways.clear();
   FOGM9.at = now9;
   FOGM9.idle = fogCnt9();
   FOGM9.g = fogCnt9();
@@ -27611,6 +27650,7 @@ export default function ReplayMotionPlayer({
           let k9 = snaps9.length;
           while (k9 > 0 && snaps9[k9 - 1].t > pf9.t) k9 -= 1;
           snaps9.splice(k9, 0, { t: pf9.t, fseq: pf9.fseq, fog: pf9.fog });
+          FOGT9.set(pf9.fog.visSrc, pf9.t);   // 이 목록이 어느 시각의 것인가(위 FOGT9의 ★)
           /* ★ **뒤로 드는 판은 성기게 든다**(실측: 안개판 45.5MB·872장 — 이 판이 새는 자리였다) ──────────
              창은 6초로 맞다. 터진 것은 **들어오는 밀도**다: 워커가 초당 여든 장씩 보내니 6초에 팔백 장이고,
              큰 지도는 한 장이 52KB(밝힘 시각표 w·h·2 + 눈 목록)라 그대로 45MB가 된다. 메모리가 계단처럼
@@ -31824,7 +31864,7 @@ export default function ReplayMotionPlayer({
   const lerpFrame9 = (a9: PackedFrame9, tNow9: number, slot9: 0 | 1): Frame9 => {
     const fa9 = decodeFrame9(a9);
     const bs9 = brushStatRef9.current;
-    if (tNow9 <= a9.t + 1e-6) return fa9;
+    if (tNow9 <= a9.t + 1e-6) { fogWhy9 = "제장"; return fa9; }
     const b9 = pickNextFrame9(a9);
     if (!b9) {
       bs9.noB += 1;
@@ -31834,6 +31874,7 @@ export default function ReplayMotionPlayer({
          **생짜**를 돌려줬는데, 직전 틱은 앞 장보다 u9만큼 앞선 이은 목록을 냈으므로 그 차이가 곧
          뒤로 당김이다. 이제는 직전에 낸 목록을 든 채 넘긴다(최대 네 틱, 눈 수가 같을 때만).
          앞 장 자체(fa9)는 캐시에 든 그 장이라 건드리면 안 되므로 껍데기 하나에 담아 낸다. */
+      fogWhy9 = "뒤장없음";
       const vh9 = visLerpRef9.current[slot9];
       if (vh9.buf && vh9.buf.length > 0 && vh9.hold < 4 && fa9.visSrc && fa9.visSrc.length === vh9.buf.length) {
         vh9.hold += 1;
@@ -31842,6 +31883,7 @@ export default function ReplayMotionPlayer({
         else Object.assign(hf9, fa9);
         hf9.visSrc = vh9.buf;
         hf9.visVer = vh9.ver;
+        fogWhy9 = "뒤장없음듦";
         return hf9;
       }
       return fa9;
@@ -31938,6 +31980,11 @@ export default function ReplayMotionPlayer({
       }
       vl9.ver += 1;
       vl9.hold = 0;
+      /* 이은 목록의 시각은 두 판 시각을 같은 몫으로 섞은 값이다(위 FOGT9의 ★). */
+      const ta9 = FOGT9.get(va9) ?? fa9.t;
+      const tb9 = FOGT9.get(vb9) ?? fb9.t;
+      FOGT9.set(out9, ta9 + (tb9 - ta9) * u9);
+      fogWhy9 = "이음";
       fr9.visSrc = out9;
       fr9.visVer = vl9.ver;
     } else if (vl9.buf && vl9.buf.length > 0 && vl9.hold < 4 && va9 && va9.length !== vl9.buf.length) {
@@ -31945,10 +31992,12 @@ export default function ReplayMotionPlayer({
          같은 뒤로 당김이라, 이을 수 있을 때까지 **직전에 낸 목록을 든 채** 넘긴다(최대 네 틱).
          멈춰 있는 것은 안 읽히고 되돌아가는 것은 읽힌다. */
       vl9.hold += 1;
+      fogWhy9 = "듦";
       fr9.visSrc = vl9.buf;
       fr9.visVer = vl9.ver;
     } else {
       vl9.hold = 0;
+      fogWhy9 = "앞장";
     }
     return fr9;
   };
@@ -32041,6 +32090,10 @@ export default function ReplayMotionPlayer({
     fogBin9().brush += 1;
     if (!(fr9.visSrc && fr9.explored && fogPaintRef.current)) fogBin9().nosrc += 1;
     if (fr9.visSrc && fr9.explored && fogPaintRef.current) {
+      /* 계측: 지금 칠할 목록이 전 장보다 이른 시각인가(위 FOGBACK9의 ★). 칠할지 말지를
+         가리기 **전에** 센다 — 같은 목록이라 건너뛴 장은 뒤로 간 것이 아니므로 여기서
+         was가 그대로 유지되는 것이 맞다. */
+      fogBackTick9(fr9.visSrc);
       const ft9 = fogTickRef9.current;
       // 0.25초 → 0.1초(요청: "안개 그리기 빈도 늘리기") — 밝힌 판·눈 목록이 그대로여도 경기 시간 0.1초마다 한 번은 칠한다.
       const tq9 = Math.floor(tNow9 * 10);
