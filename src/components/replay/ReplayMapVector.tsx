@@ -36,7 +36,9 @@ export const MAPVEC_LOST9 = { n: 0 };
  *  ★ **잃을 때마다 예산을 반으로 내린다**(shrink) — 이 판의 가장 큰 캔버스가 지도다(폰에서 1719² = 11.3MB,
  *    화면 화소의 일곱 배). 기기가 배킹을 거두는 자리에서 그만한 판을 계속 다시 잡는 것은 압박을 되먹이는 짓이다.
  *    한 번 겪을 때마다 스스로 내려가면, 몇 번 안에 그 기기가 견디는 크기로 자리 잡는다(안 겪는 기기는 그대로다). */
-export const MAPVEC_M9 = { bake: 0, fail: 0, cap: 0, side: 0, shrink: 0, ms: 0, max: 0 };
+/* 입체 칸(r·css·surf·back·tiles·need·pmag)은 3D 흐림 조사용이다(지적: "3D에서 맵 선명하지 않은 거 조사") —
+   합성 서피스(창 css × R × dpr)·배킹·화면 요구를 **타일당 기기픽셀**로 나란히 놓아 어느 층이 병목인지 가른다. */
+export const MAPVEC_M9 = { bake: 0, fail: 0, cap: 0, side: 0, shrink: 0, ms: 0, max: 0, r: 0, css: 0, surf: 0, back: 0, tiles: 0, need: 0, pmag: 1 };
 export default function ReplayMapVector({
   grid, zoom, pan, pitched, style, painter, tileFrac, pitchSig, pitchXf, pitchKAt,
 }: {
@@ -473,6 +475,10 @@ export default function ReplayMapVector({
         )));
         const R9 = Math.max(1, Math.min(8, Math.ceil(cv.width / Math.max(1, cssW9)),
           Math.floor((iosLike9 ? 3200 : 8192) / Math.max(1, cssW9)), surfCap9));
+        if (cv !== baseRef.current) {   // 선명한 창만 적는다(밑판은 R 1이라 값이 없다)
+          MAPVEC_M9.r = R9; MAPVEC_M9.css = Math.round(cssW9); MAPVEC_M9.surf = Math.round(cssW9 * R9 * dpr);
+          MAPVEC_M9.back = cv.width; MAPVEC_M9.tiles = ax1 - ax0;
+        }
         cv.style.transformOrigin = "0 0";
         cv.style.transform = R9 > 1 ? `scale(${(1 / R9).toFixed(4)})` : "";
         cv.style.left = `${((ax0 / w) * 100).toFixed(4)}%`;
@@ -582,6 +588,7 @@ export default function ReplayMapVector({
        예산 안에 넉넉히 들어 또렷해지고, 맨 앞줄 창만 1보다 큰 값을 받는다. */
     const pmag9 = pitched && pitchKAt ? Math.max(0.2, pitchKAt(vy1)) : 1;
     const needed = Math.max(0.001, (bw * dpr * zBake * pmag9) / w);
+    MAPVEC_M9.need = needed; MAPVEC_M9.pmag = pmag9;
     /* ★ 타일당 상한은 **512**다(수리: 같은 지적의 진짜 범인) — 여기 있던 256은 화면이
        요구하는 값과 무관한 어림 상한이라, **dpr 3 기기에서만** 물렸다: 아이폰
        전체화면(상자 844 · dpr 3)은 배율 13부터 요구가 258을 넘어 256에 잘리고, 16배

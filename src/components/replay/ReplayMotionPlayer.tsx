@@ -34051,7 +34051,15 @@ export default function ReplayMotionPlayer({
                           남는 신고를 '안 구웠나 · 굽다 실패했나'로 가른다. */}
                       {` · 지도판[구움${MAPVEC_M9.bake} 실패${MAPVEC_M9.fail} 줄임${MAPVEC_M9.shrink}`
                         + ` 한변${MAPVEC_M9.side} 예산${(MAPVEC_M9.cap / 1e6).toFixed(1)}Mpx`
-                        + ` 굽기${MAPVEC_M9.ms.toFixed(0)}ms(최악${MAPVEC_M9.max.toFixed(0)})]`}
+                        + ` 굽기${MAPVEC_M9.ms.toFixed(0)}ms(최악${MAPVEC_M9.max.toFixed(0)})`
+                        /* 입체 흐림 조사(지적: "3D에서 맵 선명하지 않은 거 조사") — 타일당 기기픽셀 셋을 나란히:
+                           서피스(합성기가 실제로 래스터하는 해상도) · 배킹(우리가 구운 것) · 요구(화면 맨 앞줄이 보이는 것).
+                           서피스 < 요구면 합성 단계가 병목이고, 배킹 < 요구면 굽기가 병목이다. */
+                        + (pitched && MAPVEC_M9.tiles > 0
+                          ? ` · 입체[R${MAPVEC_M9.r} 창${MAPVEC_M9.css}css→서피스${MAPVEC_M9.surf}px 배킹${MAPVEC_M9.back}px ${MAPVEC_M9.tiles.toFixed(0)}타일`
+                            + ` · 타일당 서피스${(MAPVEC_M9.surf / MAPVEC_M9.tiles).toFixed(0)} 배킹${(MAPVEC_M9.back / MAPVEC_M9.tiles).toFixed(0)} 요구${MAPVEC_M9.need.toFixed(0)}(앞줄×${MAPVEC_M9.pmag.toFixed(2)})]`
+                          : "")
+                        + "]"}
                       {/* ★ 로딩의 초는 어디로 가나(위 LOAD9) — 메인 실마리를 초 단위로 잡을 수 있는
                           자리 넷을 나란히 둔다. 합이 곧 '로딩이 기어간 시간'이고, 큰 칸이 다음 칼이다. */}
                       {` · 로딩[지도판${MAPVEC_M9.ms.toFixed(0)} 참값${LOAD9.truthMs.toFixed(0)}`
