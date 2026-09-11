@@ -308,6 +308,70 @@ function domeMesh9(cx: number, cy: number, r: number, hh: number, z0 = 0, p = 2.
   });
 }
 const forgeDome9 = domeMesh9;
+/** X축으로 눕힌 **반원통 지붕**(요청: "포지 임자색 상자 위에 임자색 반원통") — 축은 x, 길이 len,
+ *  반지름 r, 바닥 높이 zt. 둘레 조각마다 제 법선(0, cosθ, sinθ)으로 보임·빛을 재므로(faceLight)
+ *  요잉·부감에 따라 그늘이 돈다. 양 끝은 반원 단면. 색을 안 주면 임자색(accent)이다. */
+function vaultX9(cx: number, cy: number, zt: number, len: number, r: number, sides = 10): ShapeFace[] {
+  const out: ShapeFace[] = [];
+  const body: string[] = [];
+  const x0 = cx - len / 2;
+  const x1 = cx + len / 2;
+  const at = (i: number, rr = r): [number, number] => {
+    const th = (Math.PI * i) / sides;
+    return [cy + rr * Math.cos(th), zt + rr * Math.sin(th)];
+  };
+  for (let i = 0; i < sides; i += 1) {
+    const thm = (Math.PI * (i + 0.5)) / sides;
+    const { visible, face } = faceLight(0, Math.cos(thm), Math.sin(thm));
+    if (!visible) continue;
+    const [ya, za] = at(i);
+    const [yb, zb] = at(i + 1);
+    const d = polyPath3([[x0, ya, za], [x1, ya, za], [x1, yb, zb], [x0, yb, zb]]);
+    body.push(d);
+    out.push(...face(d));
+  }
+  for (const sg of [1, -1] as const) {
+    const { visible, face } = faceLight(sg, 0);
+    if (!visible) continue;
+    const cap = polyPath3(Array.from({ length: sides + 1 }, (_, i) => {
+      const [y, z] = at(i);
+      return [sg > 0 ? x1 : x0, y, z] as [number, number, number];
+    }));
+    body.push(cap);
+    out.push(...face(cap));
+  }
+  return [bodyFace(body.join(" ")), ...out];
+}
+/** 위 반원통을 두르는 **띠**(요청: "금띠도 그 위에 맞춰서 배치") — x = gx에 반폭 bw, 두께 th의 고리.
+ *  겉띠(반지름 r+th)와 양 옆 테(두께면)를 조각마다 제 법선으로 낸다. */
+function hoopX9(gx: number, cy: number, zt: number, r: number, bw: number, th: number, sides = 10): ShapeFace[] {
+  const out: ShapeFace[] = [];
+  const at = (i: number, rr: number): [number, number] => {
+    const a = (Math.PI * i) / sides;
+    return [cy + rr * Math.cos(a), zt + rr * Math.sin(a)];
+  };
+  const ro = r + th;
+  for (let i = 0; i < sides; i += 1) {
+    const thm = (Math.PI * (i + 0.5)) / sides;
+    const [ya, za] = at(i, ro);
+    const [yb, zb] = at(i + 1, ro);
+    const outer = faceLight(0, Math.cos(thm), Math.sin(thm));
+    if (outer.visible) {
+      const d = polyPath3([[gx - bw, ya, za], [gx + bw, ya, za], [gx + bw, yb, zb], [gx - bw, yb, zb]]);
+      out.push(bodyFace(d), ...outer.face(d));
+    }
+    for (const sg of [1, -1] as const) {
+      const edge = faceLight(sg, 0);
+      if (!edge.visible) continue;
+      const [yi, zi] = at(i, r);
+      const [yj, zj] = at(i + 1, r);
+      const x = gx + sg * bw;
+      const d = polyPath3([[x, yi, zi], [x, ya, za], [x, yb, zb], [x, yj, zj]]);
+      out.push(bodyFace(d), ...edge.face(d));
+    }
+  }
+  return out;
+}
 /** 벌어진 다리 + 원반 발(테란 실물 공통) — 몸통 밑에서 바깥-아래로 뻗고 발판이 받친다. */
 function legAndFoot(
   px: number, py: number, zTop: number, lean = 0.1, sz = 1,
@@ -9018,15 +9082,21 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          골 셋이 그대로라 비율이 깨진다. 폭·깊이·높이와 **골의 굵기·간격·자리**를 한
          비(K9)로 함께 줄인다. 상자 중심(−2.4, 2.3)은 그대로 두어 자리는 안 옮긴다. */
       const K9 = 2 / 3;
+      const BW9 = 3.6 * K9;   // 상자 폭(x)
+      const BD9 = 2.6 * K9;   // 상자 깊이(y)
+      const BZT9 = 0.3 + 1.7 * K9;   // 상자 윗면 높이
       const blk: ShapeFace[] = [
-        ...boxFaces3(-2.4, -0.6, 3.6 * K9, 2.6 * K9, 1.7 * K9, 0.3),
+        ...boxFaces3(-2.4, -0.6, BW9, BD9, 1.7 * K9, 0.3),
+        /* ★ 상자 위에 **임자색 반원통**을 얹는다(요청: "포지 임자색 상자 위에 임자색 반원통을 얹어줘
+           금띠도 그 위에 맞춰서 배치") — 축은 x(상자의 긴 변), 반지름은 상자 깊이의 반이라 지붕이 상자
+           옆면과 딱 맞물린다. 색을 안 주니 임자색(accent). 금띠 셋은 이 지붕을 **두르는 고리**로 옮겼다
+           — 여태 윗면에 눕힌 납작한 막대였다. */
+        ...vaultX9(-2.4, -0.6, BZT9, BW9, BD9 / 2, 10),
       ];
-      // 골은 셋만(요청: 장식 축소). 곁 혹도 걷는다.
+      // 띠는 셋만(요청: 장식 축소). 자리는 종전 막대와 같은 x.
       for (let k = 0; k < 3; k += 1) {
-        // 골 자리도 상자 중심을 축으로 같은 비로 모은다.
         const gx = -2.4 + (-3.5 + k * 1.1 - (-2.4)) * K9;
-        blk.push(...paintBase(
-          boxFaces3(gx, -0.6, 0.3 * K9, 2.7 * K9, 0.34 * K9, 2 * K9), GOLD_D));
+        blk.push(...paintBase(hoopX9(gx, -0.6, BZT9, BD9 / 2, 0.15 * K9, 0.11, 10), GOLD_D));
       }
       pc.push(...tagKey(blk, depthNow(-2.4, -0.6) + 1.3));
     }
