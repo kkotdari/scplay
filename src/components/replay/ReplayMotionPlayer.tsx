@@ -27532,6 +27532,12 @@ export default function ReplayMotionPlayer({
   const lerpPoolRef9 = useRef<[Map<string, UnitDrawOp>, Map<string, UnitDrawOp>]>([new Map(), new Map()]);
   /** 눈 목록 보간용 되쓰는 배열과 판 번호(아래 lerpFrame9) — 경로별. */
   const visLerpRef9 = useRef<[{ buf: Float32Array | null; ver: number }, { buf: Float32Array | null; ver: number }]>([{ buf: null, ver: 0 }, { buf: null, ver: 0 }]);
+  /** ★ 눈 목록의 **단조 빗장**(슬롯별) — 마지막으로 **낸** 목록 한 벌과 그 시각. 아래 ★ 참고. */
+  const visMonoRef9 = useRef<[{ buf: Float32Array | null; ver: number; t: number }, { buf: Float32Array | null; ver: number; t: number }]>(
+    [{ buf: null, ver: 0, t: -1 }, { buf: null, ver: 0, t: -1 }],
+  );
+  /** 빗장이 걸린 장을 담아 낼 껍데기(슬롯별 하나) — 앞 장 캐시를 못 건드리므로. */
+  const holdFrameRef9 = useRef<[Frame9 | null, Frame9 | null]>([null, null]);
   const lerpFrameRef9 = useRef<[{ frame: Frame9; ops: UnitDrawOp[] } | null, { frame: Frame9; ops: UnitDrawOp[] } | null]>([null, null]);
   /** 붓 박자 통계(진단) — t 걸음(ms)·같은 앞 장을 되풀이한 횟수·뒤 장이 없던 횟수. */
   const brushStatRef9 = useRef({ lastT: -1, stepSum: 0, stepMax: 0, stepN: 0, lastA: -1, sameA: 0, noB: 0, gapB: 0, draws: 0 });
@@ -31925,7 +31931,26 @@ export default function ReplayMotionPlayer({
       /* (걷어냄) 여기서 **직전 목록을 들고 가던** 갈래 — 위 이음 자리와 같은 까닭이다(계측이
          집었다: 6배 역행6/60 최대225ms(듦)). 든 목록은 몇 틱 전의 것이라 드는 순간이 곧 역행일
          수 있다. 앞 장 생짜는 늘 실재하는 장의 것이니 그것을 쓴다. */
+      /* 이 갈래도 **출구의 단조 빗장**을 지난다(아래 ★) — 뒤 장이 없다고 앞 장 생짜로
+         떨어지면 그것 역시 되돌아가는 걸음이다. 앞 장 자체(fa9)는 캐시에 든 그 장이라
+         못 건드리므로, 빗장이 걸릴 때만 껍데기 하나에 담아 낸다. */
       fogWhy9 = "뒤장없음";
+      const mb9 = visMonoRef9.current[slot9];
+      const cb9 = fa9.visSrc;
+      if (cb9 && cb9.length > 0 && mb9.buf && mb9.t >= 0 && mb9.buf.length === cb9.length) {
+        const cbT9 = FOGT9.get(cb9) ?? fa9.t;
+        if (cbT9 < mb9.t - 1e-4 && mb9.t - cbT9 < 1) {
+          fogWhy9 = "뒤장없음빗장";
+          let hf9 = holdFrameRef9.current[slot9];
+          if (!hf9) { hf9 = { ...fa9 }; holdFrameRef9.current[slot9] = hf9; }
+          else Object.assign(hf9, fa9);
+          hf9.visSrc = mb9.buf;
+          hf9.visVer = mb9.ver;
+          return hf9;
+        }
+        if (!mb9.buf || mb9.buf.length !== cb9.length) mb9.buf = new Float32Array(cb9.length);
+        mb9.buf.set(cb9); mb9.t = cbT9; mb9.ver += 1; FOGT9.set(mb9.buf, cbT9);
+      }
       return fa9;
     }
     const fb9 = decodeFrame9(b9);
@@ -32044,6 +32069,37 @@ export default function ReplayMotionPlayer({
       }
     } else {
       fogWhy9 = "앞장";
+    }
+    /* ★ **출구에 단조 빗장**(3차 계측: 역행8/60 최대200ms(앞장) · 전환18) ────────────────────
+       짝짓는 문을 죄자 이음이 줄고 **앞장**이 주력이 됐는데, 역행이 정확히 그 앞장에서 났다.
+       구조는 이렇다 — 이음은 눈을 뒤 장까지 u9만큼 밀어 놓는다. 다음 틱에 못 이으면(짝이 안
+       맞거나 뒤 장이 없으면) 앞 장 **생짜**로 떨어지는데, 그 자리는 방금 민 것보다 최대 한 장
+       간격만큼 **뒤**다. 그 왕복이 전환18이고 곧 떨림이다.
+       고치는 자리는 갈래 하나하나가 아니라 **출구**다: 이 붓이 내는 목록은 시각이 **뒤로 가지
+       않는다**. 방금 낸 목록보다 이른 것이 나오면 그것을 버리고 **방금 낸 것을 그대로 다시**
+       낸다 — 멈춘 것은 안 읽히고 되돌아가는 것은 읽힌다(이 판의 결론이다).
+       ※ 탐색·세대 갈림으로 시각이 크게 뒤로 가면(1초 넘게) 빗장을 푼다 — 안 그러면 영영 옛
+         목록에 얼어붙는다. 눈 수가 바뀐 장도 받는다(다른 목록을 억지로 들 까닭이 없다).
+       ※ 낸 목록은 한 벌 **베껴** 둔다 — 이음 버퍼는 다음 틱이 덮어쓰므로 가리키기만 하면
+         빗장이 제 것을 잃는다. 눈 400이면 4.8KB 옮기기다. */
+    const cand9 = fr9.visSrc;
+    const mo9 = visMonoRef9.current[slot9];
+    if (cand9 && cand9.length > 0) {
+      const cT9 = FOGT9.get(cand9) ?? fa9.t;
+      const back9 = mo9.buf !== null && mo9.t >= 0 && cT9 < mo9.t - 1e-4;
+      if (back9 && mo9.buf && mo9.t - cT9 < 1 && mo9.buf.length === cand9.length) {
+        fogWhy9 = "빗장";
+        fr9.visSrc = mo9.buf;
+        fr9.visVer = mo9.ver;
+      } else {
+        if (!mo9.buf || mo9.buf.length !== cand9.length) mo9.buf = new Float32Array(cand9.length);
+        mo9.buf.set(cand9);
+        mo9.t = cT9;
+        mo9.ver += 1;
+        FOGT9.set(mo9.buf, cT9);
+        fr9.visSrc = mo9.buf;
+        fr9.visVer = mo9.ver;
+      }
     }
     /* (걷어냄) 눈 수가 바뀐 장에서 **직전 목록을 들고 가던** 갈래 — 계측이 그 자리를 그대로
        집었다(6배: 역행6/60 최대225ms(듦)). 든 목록은 최대 네 틱 전의 것이라, 그 사이에 앞 장
