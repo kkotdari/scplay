@@ -31856,6 +31856,33 @@ export default function ReplayMotionPlayer({
     }
     return any9;
   };
+  /** ★ **안개는 제 흐름이다 — 판끼리 잇는다**(4차 계측: 역행0/60 · 떨림 비1.2 · 전환17) ────
+   *  빗장으로 되돌아감은 멎었는데 떨림이 '잘아진 채' 남았다(지적). 남은 것은 **걸음의 들쭉날쭉**
+   *  이다: 예순 장 중 열여섯(앞장8 안맞음8)이 이음 없이 생짜 판으로 툭 건너뛴다.
+   *  까닭은 구조에 있었다 — 눈 목록을 **프레임 짝**(앞 장·뒤 장)에서 뽑았다. 안개 판은 프레임
+   *  보다 성기게 실리므로 두 프레임이 같은 판을 들면 이을 것이 없고(앞장), 프레임 짝이 우연히
+   *  건너뛴 두 판을 물면 짝짓기가 어긋난다(안맞음). 프레임의 박자는 안개의 박자가 아니다.
+   *  안개 판은 제 시각을 지닌 제 흐름이니 **판끼리** 이으면 그 둘이 통째로 사라진다: 지금 시각을
+   *  감싸는 이웃한 두 판을 골라 그 사이를 잇는다. 워커가 앞으로 지어 두므로 뒤 판은 대개 있다.
+   *  갈래(fseq)가 같고 간격이 0.6초 안일 때만 — 성기게 든 옛 판끼리 이으면 반 초를 가로지른다. */
+  const fogPairFor9 = (t9: number, fseq9: number): { a: Float32Array; b: Float32Array | null; ta: number; tb: number } | null => {
+    const snaps9 = fogSnapsRef9.current;
+    let i9 = -1;
+    for (let k9 = snaps9.length - 1; k9 >= 0; k9 -= 1) {
+      const sf9 = snaps9[k9];
+      if (sf9.t <= t9 + 1e-6 && sf9.fseq === fseq9 && sf9.fog.visSrc.length > 0) { i9 = k9; break; }
+    }
+    if (i9 < 0) return null;
+    const s09 = snaps9[i9];
+    let s19: (typeof snaps9)[number] | null = null;
+    for (let k9 = i9 + 1; k9 < snaps9.length; k9 += 1) {
+      const sf9 = snaps9[k9];
+      if (sf9.fseq !== fseq9 || sf9.fog.visSrc.length === 0) continue;
+      if (sf9.t > s09.t + 1e-6) { s19 = sf9; break; }
+    }
+    if (s19 && (s19.t - s09.t > 0.6 || s19.t <= t9)) s19 = null;
+    return { a: s09.fog.visSrc, b: s19 ? s19.fog.visSrc : null, ta: s09.t, tb: s19 ? s19.t : s09.t };
+  };
   const decodeFrame9 = (pf9: PackedFrame9): Frame9 => {
     if (pf9.dec) {
       /* ★ 안개 판을 **다시 고른다**(지적: "안개가 가끔 엄청 떨리는 경우 있음 — 드래그하거나 시간 지나면 없어짐") —
@@ -31936,7 +31963,9 @@ export default function ReplayMotionPlayer({
          못 건드리므로, 빗장이 걸릴 때만 껍데기 하나에 담아 낸다. */
       fogWhy9 = "뒤장없음";
       const mb9 = visMonoRef9.current[slot9];
-      const cb9 = fa9.visSrc;
+      /* 여기서도 프레임이 든 것이 아니라 **그 시각의 안개 판**을 쓴다(위 fogPairFor9의 ★). */
+      const fpb9 = fogPairFor9(tNow9, a9.fseq);
+      const cb9 = fpb9 ? fpb9.a : fa9.visSrc;
       if (cb9 && cb9.length > 0 && mb9.buf && mb9.t >= 0 && mb9.buf.length === cb9.length) {
         const cbT9 = FOGT9.get(cb9) ?? fa9.t;
         if (cbT9 < mb9.t - 1e-4 && mb9.t - cbT9 < 1) {
@@ -31950,6 +31979,14 @@ export default function ReplayMotionPlayer({
         }
         if (!mb9.buf || mb9.buf.length !== cb9.length) mb9.buf = new Float32Array(cb9.length);
         mb9.buf.set(cb9); mb9.t = cbT9; mb9.ver += 1; FOGT9.set(mb9.buf, cbT9);
+      }
+      if (cb9 !== fa9.visSrc && cb9.length > 0) {
+        let hb9 = holdFrameRef9.current[slot9];
+        if (!hb9) { hb9 = { ...fa9 }; holdFrameRef9.current[slot9] = hb9; }
+        else Object.assign(hb9, fa9);
+        hb9.visSrc = cb9;
+        hb9.visVer = undefined;
+        return hb9;
       }
       return fa9;
     }
@@ -32017,8 +32054,13 @@ export default function ReplayMotionPlayer({
        하나가 경기 시간 반 초를 덮으므로 시야 원이 몸에서 떨어져 장마다 툭툭 뛰었다 — 몸은 매끄럽고 안개만 튀니
        떨림으로 읽힌다. 두 장의 눈 수가 같으면(개체 출몰이 없는 대부분의 장) 자리(x·y)를 같은 몫으로 잇는다.
        반지름은 앞 장 것. 배열은 되쓰고(할당 없음) 판 번호(visVer)로 바뀜을 알린다. */
-    const va9 = fa9.visSrc;
-    const vb9 = fb9.visSrc;
+    /* 눈 목록의 짝은 **프레임이 아니라 안개 판**에서 고른다(위 fogPairFor9의 ★). 못 고르면
+       종전대로 앞·뒤 장의 것을 쓴다(첫 장·탐색 직후). */
+    const fp9 = fogPairFor9(tNow9, a9.fseq);
+    const va9 = fp9 ? fp9.a : fa9.visSrc;
+    const vb9 = fp9 ? fp9.b : fb9.visSrc;
+    const uv9 = fp9 && fp9.b && fp9.tb > fp9.ta
+      ? Math.min(1, Math.max(0, (tNow9 - fp9.ta) / (fp9.tb - fp9.ta))) : u9;
     /* ★ 눈 수가 같아도 **같은 눈들인지** 확인한다(지적: "전혀 다른 시점·장소의 안개가 중간중간 교차되며 난리") —
        난전에서는 한 장 사이에 죽는 수와 태어나는 수가 같아 길이만 같은 목록이 흔하다. 그러면 바뀐 자리 뒤의 눈이
        전부 한 칸씩 밀려 이웃의 자리로 미끄러졌다 — 시야 원이 지도를 가로질러 날았다. 눈마다 반지름이 같고 자리
@@ -32040,7 +32082,7 @@ export default function ReplayMotionPlayer({
        ★ 그리고 **전부-아니면-전무로 되돌린다** — 눈마다 가르면 어떤 눈은 이은 자리에, 어떤
          눈은 앞 장 자리에 있게 되고, 그 갈림이 장마다 뒤집히면 그것 자체가 떨림이다. 한 목록은
          한 시각에서 와야 한다. */
-    const dt9 = Math.max(1e-3, fb9.t - fa9.t);
+    const dt9 = Math.max(1e-3, fp9 && fp9.b ? fp9.tb - fp9.ta : fb9.t - fa9.t);
     const tol9 = Math.max(0.3, dt9 * 5);
     if (va9 && vb9 && va9.length === vb9.length && va9.length > 0 && va9 !== vb9) {
       let same9 = true;
@@ -32052,23 +32094,25 @@ export default function ReplayMotionPlayer({
         if (!vl9.buf || vl9.buf.length !== va9.length) vl9.buf = new Float32Array(va9.length);
         const out9 = vl9.buf;
         for (let i9 = 0; i9 + 2 < va9.length; i9 += 3) {
-          out9[i9] = va9[i9] + (vb9[i9] - va9[i9]) * u9;
-          out9[i9 + 1] = va9[i9 + 1] + (vb9[i9 + 1] - va9[i9 + 1]) * u9;
+          out9[i9] = va9[i9] + (vb9[i9] - va9[i9]) * uv9;
+          out9[i9 + 1] = va9[i9 + 1] + (vb9[i9 + 1] - va9[i9 + 1]) * uv9;
           out9[i9 + 2] = va9[i9 + 2];
         }
         vl9.ver += 1;
         /* 이은 목록의 시각은 두 판 시각을 같은 몫으로 섞은 값이다(위 FOGT9의 ★). */
         const ta9 = FOGT9.get(va9) ?? fa9.t;
         const tb9 = FOGT9.get(vb9) ?? fb9.t;
-        FOGT9.set(out9, ta9 + (tb9 - ta9) * u9);
+        FOGT9.set(out9, ta9 + (tb9 - ta9) * uv9);
         fogWhy9 = "이음";
         fr9.visSrc = out9;
         fr9.visVer = vl9.ver;
       } else {
         fogWhy9 = "안맞음";
+        if (fp9) fr9.visSrc = va9;   // 그 시각의 판(프레임이 든 것보다 늘 제 시각이다)
       }
     } else {
       fogWhy9 = "앞장";
+      if (fp9) fr9.visSrc = va9;
     }
     /* ★ **출구에 단조 빗장**(3차 계측: 역행8/60 최대200ms(앞장) · 전환18) ────────────────────
        짝짓는 문을 죄자 이음이 줄고 **앞장**이 주력이 됐는데, 역행이 정확히 그 앞장에서 났다.
