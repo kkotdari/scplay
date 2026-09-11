@@ -366,6 +366,32 @@ export function truthWorld(truth: TruthTracks, buildSecOf: BuildSecOf): TruthWor
   gameEnd9 = truth.tracks.reduce((m9, tr9) => (tr9.kt.length ? Math.max(m9, tr9.kt[tr9.kt.length - 1]) : m9), 0);
   const lives: TruthLife[] = [];
   for (const tr of truth.tracks) lives.push(...livesOfTrack(tr, truth.orders, buildSecOf));
+  /* ★ 드론 → 익스트랙터는 **변태**다(지적: "가끔 가스 지을 때 한 번 폭파되면서 짓기 시작하는 거 왜 그래?") ──
+     원작은 저그 건물 가운데 익스트랙터 **하나만** 다르게 짓는다: 다른 건물은 드론 자신이 건물로 바뀌지만(같은
+     개체·같은 자취 → 위 more/"morph"), 익스트랙터는 드론을 **없애고** 간헐천 개체를 건물로 바꾼다(익스트랙터
+     트릭이 되는 까닭). 그래서 드론 자취가 GONE으로 끝나 'atk'(사라짐)로 적혔고, 화면은 그 자리에 저그 사망
+     폭발을 냈다 — 가스를 지을 때마다 한 번 터진 것이 그것이다('가끔'은 저그일 때만이라서다).
+     한 자취 안에서는 알 길이 없어 여기서 잇는다: 같은 임자의 익스트랙터 생애가 그 죽음 직후(1.2초 안) 그 곁
+     (4타일 = 128px)에 태어나면 드론의 끝을 변태로 다시 적는다 — 사망 효과가 안 나고 몸은 그 순간 걷힌다. */
+  const extracts9 = lives.filter((l9) => l9.kind === "Extractor");
+  if (extracts9.length > 0) {
+    const byTag9 = new Map<number, TruthTrack>();
+    for (const tr of truth.tracks) byTag9.set(tr.tag, tr);
+    for (const l9 of lives) {
+      if (l9.kind !== "Drone" || l9.end !== "atk" || l9.died === null) continue;
+      const tr9 = byTag9.get(l9.tag);
+      if (!tr9 || tr9.kt.length === 0) continue;
+      let li9 = tr9.kt.length - 1;
+      while (li9 > 0 && kT(tr9, li9) > l9.died) li9 -= 1;
+      const dx9 = kX(tr9, li9);
+      const dy9 = kY(tr9, li9);
+      const d9 = l9.died;
+      if (extracts9.some((x9) => x9.owner === l9.owner && x9.born >= d9 - 0.15 && x9.born <= d9 + 1.2
+        && Math.abs(x9.bornX - dx9) <= 160 && Math.abs(x9.bornY - dy9) <= 160)) {
+        l9.end = "morph";
+      }
+    }
+  }
   return {
     /* 임자 번호는 자취의 것을 그대로 쓴다 — 표와 자취가 **같은 곳에서** 오므로 둘만
        짝이 맞으면 된다. 화면 로스터와는 이름으로 잇는다. */
