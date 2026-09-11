@@ -20578,7 +20578,11 @@ const CROWD_BENCH3D_MS9 = 16;
  *    2단(심한 미달) — 거기에 지역 마법과 트레이서까지 생략. 사건은 죽음 폭발이 말한다.
  *  안 줄이는 것: 죽음·파괴 폭발 · 소환 섬광 · 우리 · 스톰 · 핵 · 건물 붕괴 — 무슨 일이
  *  일어났는지를 말하는 것들이다. 입체는 제 벤치(bench3)로 잰다. */
+const NO_TRIM9 = typeof location !== "undefined" && /notrim/.test(location.hash);
 function lowZoomTrim9(zoom9: number, pitched9: boolean): 0 | 1 | 2 {
+  /* 진단 스위치 `#notrim` — 이 죄기를 통째로 끈다. 낮은 배율에서 무엇이 달라졌나를
+     한 탭으로 가르는 자다(끄고 켜서 가른다 — 이 판의 규약). */
+  if (NO_TRIM9) return 0;
   if (!smallDevice9 || zoom9 > 3) return 0;
   const c9 = CROWD9;
   if (c9.force >= 0) return c9.force >= 2 ? 2 : c9.force >= 1 ? 1 : 0;   // #crowd= 강제 단을 그대로 탄다
@@ -22782,17 +22786,22 @@ const triW9 = (x9: number): number => { const u9 = x9 - Math.floor(x9); return u
 /** 부드럽게(ease-in-out) — 삼각파의 모서리를 죽인다. */
 const easeW9 = (u9: number): number => u9 * u9 * (3 - 2 * u9);
 /** 밑동을 축으로 세워 그린다 — 혀(불꽃·촛불)는 transform-origin이 50% 100%였다.
- *  바탕 변환은 (Bd,0,0,Bd,0,0)이므로 돌릴 때도 그 배율을 함께 싣고 끝나면 되돌린다
- *  (save 스택 대신 setTransform 합성 — 이 자리의 규약이다). */
-function tongueW9(ctx: CanvasRenderingContext2D, spr9: HTMLCanvasElement, Bd9: number,
+ *  돌릴 때는 바탕 변환 **위에** 겹치고 save/restore로 돌려놓는다(아래 ★). */
+function tongueW9(ctx: CanvasRenderingContext2D, spr9: HTMLCanvasElement,
   bx9: number, by9: number, w9: number, h9: number, rot9: number, a9: number): void {
   if (a9 <= 0.01 || w9 < 0.3) return;
   ctx.globalAlpha = a9;
   if (rot9 === 0) { ctx.drawImage(spr9, bx9 - w9 / 2, by9 - h9, w9, h9); return; }
-  const c9 = Math.cos(rot9) * Bd9; const s9 = Math.sin(rot9) * Bd9;
-  ctx.setTransform(c9, s9, -s9, c9, Bd9 * bx9, Bd9 * by9);
+  /* ★ 바탕 변환을 **짐작하지 않는다**(수리: "트레이서 위치도 이상하고") ─────────────────────
+     앞판은 끝나고 setTransform(Bd,0,0,Bd,0,0)로 되돌렸다. 그것은 '이 자리의 바탕은 늘 그것'이라는
+     짐작인데, 한 번이라도 틀리면 **그 뒤에 그리는 것이 전부 밀린다** — 효과 다음에 그려지는
+     트레이서가 어긋난 것이 그 모양이다. save/restore는 무엇이든 있던 그대로 돌려놓는다.
+     삯도 문제가 안 된다: 파편 수천 개가 아니라 효과 몇 개당 한 번이다. */
+  ctx.save();
+  const c9 = Math.cos(rot9); const s9 = Math.sin(rot9);
+  ctx.transform(c9, s9, -s9, c9, bx9, by9);
   ctx.drawImage(spr9, -w9 / 2, -h9, w9, h9);
-  ctx.setTransform(Bd9, 0, 0, Bd9, 0, 0);
+  ctx.restore();
 }
 /** 상처 낱개 하나 — f.wrace가 결, f.size가 상자 폭(렌즈 px), f.clk가 시계(초)다.
  *  CSS 시절의 키프레임을 식으로 옮겼다(자리·주기·세기 모두 그 값 그대로). */
@@ -22823,15 +22832,15 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
     const flame9 = woundSpr9(race9 === "terran" ? "flame" : "candle");
     if (race9 === "terran") {
       const u9 = easeW9(triW9((t9 + dl9) / 0.5 / 2));
-      tongueW9(ctx, flame9, Bd9, x9, top9 + W9 * 0.58,
+      tongueW9(ctx, flame9, x9, top9 + W9 * 0.58,
         W9 * 0.34 * (0.92 + 0.12 * u9), W9 * 1.5 * (0.8 + 0.35 * u9),
         ((-4 + 7 * u9) * Math.PI) / 180, 0.8 + 0.2 * u9);
     } else {
       const u9 = easeW9(triW9((t9 + dl9) / 0.55 / 2));
-      tongueW9(ctx, flame9, Bd9, x9, top9 + W9 * 0.6,
+      tongueW9(ctx, flame9, x9, top9 + W9 * 0.6,
         W9 * 0.22 * (1 + 0.08 * u9), W9 * 1.7 * (0.82 + 0.3 * u9), 0, 0.75 + 0.25 * u9);
       const v9 = easeW9(triW9((t9 + dl9 + 0.2) / 0.42 / 2));
-      tongueW9(ctx, flame9, Bd9, x9 + W9 * 0.12, top9 + W9 * 0.6,
+      tongueW9(ctx, flame9, x9 + W9 * 0.12, top9 + W9 * 0.6,
         W9 * 0.14 * (1 + 0.08 * v9), W9 * 1.2 * (0.82 + 0.3 * v9), 0, 0.75 + 0.25 * v9);
     }
     /* 연기는 **2단(체력 빨강)에서만**(요청) — 상자 위로 피어올라 퍼지며 사라진다(2.1초). */
@@ -22855,7 +22864,7 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
       const a9 = u9 < 0.1 ? u9 / 0.1 : u9 < 0.6 ? 1 : Math.max(0, 1 - (u9 - 0.6) / 0.4);
       const k9 = u9 < 0.4 ? 0.5 + 1.25 * u9 : 1;
       const hh9 = dh9 * (u9 < 0.4 ? 0.62 + 1.57 * u9 : 0.9);
-      tongueW9(ctx, drop9, Bd9, x9 + W9 * sx9 + px9 * w9, oy9 + py9 * hh9 + hh9,
+      tongueW9(ctx, drop9, x9 + W9 * sx9 + px9 * w9, oy9 + py9 * hh9 + hh9,
         w9 * k9, hh9, (dir9 * (-15 + 95 * u9) * Math.PI) / 180, a9);
     };
     spurt9(1.1, 0, dw9, 0, 1);
@@ -23046,10 +23055,12 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
   const lay9 = (draw9: () => void): void => {
     if (f.skx === undefined) { draw9(); return; }
     const sy9 = f.sky ?? 1;
-    /* (ax, ay)를 축으로: X = x + skx·(y−ay) · Y = ay + sky·(y−ay). 바탕 배율 Bd를 함께 싣는다. */
-    ctx.setTransform(Bd9, 0, Bd9 * f.skx, Bd9 * sy9, -Bd9 * f.skx * ay, Bd9 * ay * (1 - sy9));
+    /* (ax, ay)를 축으로: X = x + skx·(y−ay) · Y = ay + sky·(y−ay). 바탕 변환 **위에** 겹치고
+       save/restore로 돌려놓는다(위 tongueW9의 ★ — 바탕을 짐작하면 뒤엣것이 다 밀린다). */
+    ctx.save();
+    ctx.transform(1, 0, f.skx, sy9, -f.skx * ay, ay * (1 - sy9));
     draw9();
-    ctx.setTransform(Bd9, 0, 0, Bd9, 0, 0);
+    ctx.restore();
   };
   switch (f.style) {
     case "die": {
@@ -23151,11 +23162,11 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
         const deg9 = -90 + (k9 - 2) * 34 + ((i9 * 13 + k9 * 29) % 22) - 11;
         const a9 = ((deg9 + 90) * Math.PI) / 180;       // CSS의 0도는 아래쪽이다
         const c9 = Math.cos(a9); const s9 = Math.sin(a9);
-        const bx9 = ax + -s9 * 0.2 * ws9; const by9 = ay + c9 * 0.2 * ws9;
-        ctx.setTransform(Bd9 * c9, Bd9 * s9, -Bd9 * s9, Bd9 * c9, Bd9 * bx9, Bd9 * by9);
+        ctx.save();
+        ctx.transform(c9, s9, -s9, c9, ax + -s9 * 0.2 * ws9, ay + c9 * 0.2 * ws9);
         ctx.drawImage(spr9, -Math.max(0.4, 0.6 * zoom) / 2, 0, Math.max(0.4, 0.6 * zoom), len9);
+        ctx.restore();
       }
-      ctx.setTransform(Bd9, 0, 0, Bd9, 0, 0);
       break;
     }
     case "storm": {
@@ -23229,7 +23240,7 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
           c9.ellipse(S9 / 2, S9 / 2, S9 * 0.34, S9 * 0.48, 0, 0, Math.PI * 2);
           c9.fill();
           c9.filter = "none";
-        }), Bd9, ax + -(yc9 + hp9 * 1.3) * lean9, ay + yc9 + sh9 / 2, sw9, sh9,
+        }), ax + -(yc9 + hp9 * 1.3) * lean9, ay + yc9 + sh9 / 2, sw9, sh9,
         Math.atan(lean9), 0.25 + 0.6 * drop9);
         /* ★ **돌면서 떨어진다** — 떨어지는 축이 곧 화면 밖으로 나오는 축이라, 스팬을 돌리는
            대신 모델의 요잉을 준다(명암·단면이 함께 돌아 몸이 도는 것으로 읽힌다). 두 바퀴를
@@ -23302,10 +23313,11 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
         const pb9 = tri9((u0 + 0.4) / 2.7 / 2);
         const kb9 = (1.03 - 0.07 * pb9) * 0.9; const rb9 = ((7 - 14 * pb9) * Math.PI) / 180;
         const one9 = (spr9: HTMLCanvasElement, k9: number, rot9: number, al9: number): void => {
+          ctx.save();
           ctx.globalAlpha = al9;
           ctx.translate(ax, ay); ctx.rotate(rot9); ctx.translate(-ax, -ay);
           ctx.drawImage(spr9, ax - (W9 * k9) / 2, ay - (W9 * k9) / 2, W9 * k9, W9 * k9);
-          ctx.translate(ax, ay); ctx.rotate(-rot9); ctx.translate(-ax, -ay);
+          ctx.restore();
         };
         one9(swarmSpr9(false), ka9, ra9, 0.82 + 0.18 * pa9);
         one9(swarmSpr9(true), kb9, rb9, 0.72 + 0.26 * pb9);
@@ -23377,10 +23389,11 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
         const rot9 = ((u0 % 1) / 1) * Math.PI * 2;
         ctx.globalCompositeOperation = "lighter";
         lay9(() => {
+          ctx.save();
           ctx.globalAlpha = 1;
           ctx.translate(ax, ay); ctx.rotate(rot9); ctx.translate(-ax, -ay);
           ctx.drawImage(recallSpr9(), ax - W9 / 2, ay - W9 / 2, W9, W9);
-          ctx.translate(ax, ay); ctx.rotate(-rot9); ctx.translate(-ax, -ay);
+          ctx.restore();
         });
         break;
       }
@@ -31792,7 +31805,7 @@ export default function ReplayMotionPlayer({
     const grade9 = (w9: boolean, k9: number): string => (w9 ? (k9 < 1 ? "심한미달" : "미달") : "충분");
     /* 저배율 죔(위 lowZoomTrim9) — 지금 배율에서 실제로 몇 단인지 그대로 찍는다. */
     const tr9 = lowZoomTrim9(zoomRef.current, pitched);
-    SCR_DIAG.crowd = `벤치 2D ${c9.bench.toFixed(0)}ms ${grade9(c9.weak, c9.k)} · 3D ${c9.bench3.toFixed(0)}ms ${grade9(c9.weak3, c9.k3)}${c9.force >= 0 ? " 강제" : ""}${CROWD9.re > 0 ? ` ↻${CROWD9.re}` : ""} · ${pitched ? "3D" : "2D"} ${c9.lv}단 ${c9.units}기${tr9 > 0 ? ` · 저배율죔 ${tr9}단` : ""}`;
+    SCR_DIAG.crowd = `벤치 2D ${c9.bench.toFixed(0)}ms ${grade9(c9.weak, c9.k)} · 3D ${c9.bench3.toFixed(0)}ms ${grade9(c9.weak3, c9.k3)}${c9.force >= 0 ? " 강제" : ""}${CROWD9.re > 0 ? ` ↻${CROWD9.re}` : ""} · ${pitched ? "3D" : "2D"} ${c9.lv}단 ${c9.units}기${tr9 > 0 ? ` · 저배율죔 ${tr9}단` : NO_TRIM9 ? " · 저배율죔 끔" : ""}`;
     const st9 = wStatRef.current;
     const wait9 = !st9.ready && st9.worldAt > 0 ? (pNow() - st9.worldAt) / 1000 : 0;
     let ahead9 = -1e9;
