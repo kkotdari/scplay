@@ -2601,7 +2601,7 @@ const LOSTQ9 = { want: false };
  *  "한참 보다 보면 시작된다"는 꼴은 새는 자리의 전형이다. 10초마다 큰 덩어리(화면 캔버스 · 구운 판 ·
  *  설계도 · 안개 판)를 더해 두고 **처음·지금·최대**를 나란히 보인다. 셋이 나란하면 새는 데가 없고,
  *  지금이 처음보다 크게 자라 있으면 그 자리를 찾으면 된다. 값은 10초에 한 번 더하기 몇 번이라 없다. */
-const MEMTR9 = { first: 0, now: 0, max: 0, n: 0 };
+const MEMTR9 = { first: 0, now: 0, max: 0, n: 0, cv: 0, cvMB: 0, plMB: 0, exMB: 0 };
 function creepSplat(r: number): ShapeFace[] {
   const out: ShapeFace[] = [];
   if (NO_CREEP9) return out;
@@ -20699,14 +20699,23 @@ function nukeMeterTick9(on9: boolean, step9: number, playing9 = true): void {
 }
 /** 큰 덩어리를 더해 MB로 — 화면 캔버스(폭×높이×4) · 구운 판 · 설계도·안개 판은 부르는 쪽이 더한다. */
 function memTrendTick9(root: HTMLElement | null, extraMB9 = 0): void {
+  /* ★ **어느 덩어리가 자라나**를 함께 남긴다(신고: 되살릴 때마다 40 → 46 → 56 → 60 → 67MB) ─────────
+     합만 보면 '자란다'까지밖에 못 안다. 셋으로 갈라 두면 한 줄로 자리가 잡힌다:
+       · 캔버스 **장수**가 는다 → DOM에 캔버스가 쌓인다(붙였다 떼는 자리가 안 떼고 있다).
+       · 장수는 그대로인데 MB가 는다 → 판이 **커진다**(굽는 창·배킹 배수).
+       · 판(스프라이트)·설계도·안개가 는다 → 그쪽 예산이 새는 것이다. */
   let by9 = 0;
+  let n9 = 0;
   if (root) {
     const cvs9 = root.querySelectorAll<HTMLCanvasElement>("canvas");
-    for (let i9 = 0; i9 < cvs9.length; i9 += 1) by9 += cvs9[i9].width * cvs9[i9].height * 4;
+    n9 = cvs9.length;
+    for (let i9 = 0; i9 < n9; i9 += 1) by9 += cvs9[i9].width * cvs9[i9].height * 4;
   }
-  const mb9 = by9 / 1048576 + (spriteBytes.n + bldSpriteBytes.n + FX_RASTER_BYTES.n) / 1048576 + extraMB9;
+  const cvMB9 = by9 / 1048576;
+  const plMB9 = (spriteBytes.n + bldSpriteBytes.n + FX_RASTER_BYTES.n) / 1048576;
+  const mb9 = cvMB9 + plMB9 + extraMB9;
   MEMTR9.n += 1;
-  MEMTR9.now = mb9;
+  MEMTR9.now = mb9; MEMTR9.cv = n9; MEMTR9.cvMB = cvMB9; MEMTR9.plMB = plMB9; MEMTR9.exMB = extraMB9;
   if (MEMTR9.first === 0) MEMTR9.first = mb9;
   if (mb9 > MEMTR9.max) MEMTR9.max = mb9;
 }
@@ -32722,7 +32731,8 @@ export default function ReplayMotionPlayer({
                       {/* 캔버스 배킹 손실(위 LOST9) — 잃고 다시 그린 횟수·검사 횟수. */}
                       {` · 배킹[손실${LOST9.n} 검사${LOST9.probe}${SCR_DIAG.allocOk ? "" : " ⚠확보실패"}]`}
                       {/* 메모리 흐름(위 MEMTR9) — 처음·지금·최대가 나란하면 새는 데가 없다. */}
-                      {MEMTR9.n > 0 ? ` · 메모리[처음${MEMTR9.first.toFixed(0)} 지금${MEMTR9.now.toFixed(0)} 최대${MEMTR9.max.toFixed(0)}MB ${MEMTR9.n}표본]` : ""}
+                      {MEMTR9.n > 0 ? ` · 메모리[처음${MEMTR9.first.toFixed(0)} 지금${MEMTR9.now.toFixed(0)} 최대${MEMTR9.max.toFixed(0)}MB`
+                        + ` · 캔버스${MEMTR9.cv}장 ${MEMTR9.cvMB.toFixed(1)} · 판 ${MEMTR9.plMB.toFixed(1)} · 설계도안개 ${MEMTR9.exMB.toFixed(1)}]` : ""}
                     </div>
                   </>
                 )}
