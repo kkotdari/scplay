@@ -14004,7 +14004,8 @@ export default function ReplayMotionPlayer({
         >
           <span className="scr-motion-mapval-num">×{speed}</span>
         </button>
-        {pickMenu9("speed", SPEEDS.map((s9) => ({ label: `×${s9}`, on: speed === s9, act: () => setSpeed(s9) })))}
+        {/* 사다리처럼 **작은 값이 아래**(요청) — 목록이 위로 펼쳐지니 버튼 가까이가 ×1이다. */}
+        {pickMenu9("speed", [...SPEEDS].reverse().map((s9) => ({ label: `×${s9}`, on: speed === s9, act: () => setSpeed(s9) })))}
       </span>
       {/* 확대는 **다른 손잡이와 값을 나눠 쓴다**(요청: "다른 수단으로 확대축소해도 값
           같이 연동되게") — 여기 적히는 것은 이 버튼이 기억하는 값이 아니라 화면의
@@ -14025,7 +14026,7 @@ export default function ReplayMotionPlayer({
             {zoomText}
           </span>
         </button>
-        {pickMenu9("zoom", ZOOM_STEPS.map((z9) => ({ label: `${z9}배`, on: Math.abs(zoomLive - z9) < 1e-3, act: () => zoomTo(z9) })))}
+        {pickMenu9("zoom", [...ZOOM_STEPS].reverse().map((z9) => ({ label: `${z9}배`, on: Math.abs(zoomLive - z9) < 1e-3, act: () => zoomTo(z9) })))}
       </span>
       {/* ★ 색 전환(요청: "색 전환 아이콘버튼 추가 오버레이에선 제거" → "색전환 버튼은
           전체화면 아니어도 지도에 표시로 변경 기존 버툰부에서 제거") ────────────────
@@ -14076,10 +14077,10 @@ export default function ReplayMotionPlayer({
         >
           <Music size={18} />
         </button>
-        {/* 곡 목록(요청: "노래도 목록으로 · 항상 처음부터") — 맨 위 '끄기', 그 아래 열 곡. 고른 곡은 처음부터 튼다(useBgm.pick). */}
+        {/* 곡 목록(요청: "노래도 목록으로 · 항상 처음부터") — 열 곡, 맨 아래 '끄기'(요청: 끄기는 맨 아래). 고른 곡은 처음부터(useBgm.pick). */}
         {pickMenu9("bgm", [
-          { label: "끄기", on: !bgm.on, act: () => { if (bgm.on) bgm.toggle(); } },
           ...bgm.tracks.map((t9, i9) => ({ label: t9, on: bgm.on && bgm.index === i9, act: () => bgm.pick(i9) })),
+          { label: "끄기", on: !bgm.on, act: () => { if (bgm.on) bgm.toggle(); } },
         ], true)}
       </span>
       <button
