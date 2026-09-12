@@ -103,10 +103,17 @@ export type Bgm = {
   /** 누름 한 번 = 켜기/끄기. */
   toggle: () => void;
   /** 지금 걸린 곡 이름 — 버튼 툴팁에 적는다(켜져 있을 때만 읽힌다). 한 곡도 안 건
-   *  동안만 null이고, 꺼도 그 곡 이름은 남는다 — 끄기가 곡을 버리는 것이 아니라
-   *  **재우는** 것이라(아래 toggle) 다시 켜면 그 곡이 이어진다. */
+   *  동안만 null이고, 꺼도 그 곡 이름은 남는다. */
   now: string | null;
+  /** 곡 목록(제목) — 버튼의 목록이 이것을 편다(요청: "노래도 목록으로"). */
+  tracks: readonly string[];
+  /** 지금 걸린 곡의 목록 번호(없으면 null). */
+  index: number | null;
+  /** 목록에서 한 곡을 골라 **처음부터** 튼다 — 켜 둔 뜻도 함께 켠다. */
+  pick: (i: number) => void;
 };
+/** 곡 제목 목록 — 파일 차례 그대로. */
+const BGM_TITLES = BGM_FILES.map(titleOf);
 
 /**
  * @param playing 재생기가 **지금 돌고 있나**(요청: "재생 멈추면 음악도 멈추기") —
@@ -118,6 +125,7 @@ export type Bgm = {
 export function useBgm(playing = true): Bgm {
   const [on, setOn] = useState(false);
   const [now, setNow] = useState<string | null>(null);
+  const [index, setIndex] = useState<number | null>(null);
   const elRef = useRef<HTMLAudioElement | null>(null);
   /** 이번 바퀴의 차례와 지금 몇 번째인가. */
   const orderRef = useRef<number[]>([]);
@@ -157,29 +165,13 @@ export function useBgm(playing = true): Bgm {
       orderRef.current = shuffled(BGM_FILES.length, first ? undefined : last);
       atRef.current = 0;
     }
-    const f = BGM_FILES[orderRef.current[atRef.current]];
+    const fi9 = orderRef.current[atRef.current];
+    const f = BGM_FILES[fi9];
     atRef.current += 1;
     a.src = srcOf(f);
     setNow(titleOf(f));
-    /* ★ **시작 지점도 섞는다**(요청: "음악 시작 시간도 랜덤") — 곡을 섞어도 늘 그 곡의
-       머리부터면 판을 열 때마다 같은 도입부 열 가지 중 하나를 듣는다. 아무 데서나
-       시작하면 열 곡이 훨씬 넓게 들린다.
-       ★ **첫 곡에만** 건다 — 이어지는 곡까지 매번 중간부터 끊어 틀면 그건 '음악'이
-         아니라 라디오 주파수를 돌리는 소리가 된다. 판을 켤 때 한 번만 어디쯤에서
-         집어 든다.
-       뒤쪽 3할은 뺀다 — 끝자락에서 집으면 몇 초 듣고 다음 곡으로 넘어간다.
-       길이는 메타데이터가 와야 알 수 있으므로 그때 한 번 듣고 스스로 걷히는 귀를 단다.
-       (건너뛰기는 서버가 바이트 범위를 받아 줘야 한다 — 정적 호스팅은 다 받아 주고,
-        오히려 처음부터 받지 않아 **덜 내려받는다**.) */
-    if (first) {
-      const seek9 = (): void => {
-        a.removeEventListener("loadedmetadata", seek9);
-        const d9 = a.duration;
-        if (!Number.isFinite(d9) || d9 < 30) return;   // 짧은 곡은 그냥 처음부터.
-        try { a.currentTime = Math.random() * d9 * 0.7; } catch { /* 못 감으면 처음부터 */ }
-      };
-      a.addEventListener("loadedmetadata", seek9);
-    }
+    setIndex(fi9);
+    /* (걷어냄) 첫 곡의 시작 지점을 섞던 것 — 요청: "항상 처음부터 재생". 어느 길로 걸리든 곡은 머리부터다. */
     return a.play();
   }, [audio]);
 
@@ -291,6 +283,14 @@ export function useBgm(playing = true): Bgm {
     try { localStorage.setItem(KEY, nv ? "1" : "0"); } catch { /* 사파리 사생활 모드 */ }
     const a = audio();
     if (nv) {
+      /* ★ 켜면 **처음부터**(요청: "항상 처음부터 재생") — 옛 규약은 끈 자리에서 이어 틀었다("껐다 켜면 이어서").
+         이제 걸린 곡이 있으면 그 곡의 머리로 되감아 튼다. 재생 일시정지·판 떠남의 재우기(resume)는 그대로 이어진다 —
+         그건 사람이 음악을 만진 것이 아니다. */
+      if (a.src) {
+        try { a.currentTime = 0; } catch { /* 아직 못 감으면 그대로 */ }
+        a.play().catch(() => armFirstGesture());
+        return;
+      }
       /* 누름의 그 자리에서 튼다(위 next 주석) — 여기서 막힐 일은 사실상 없다.
          멈춰 있어도 튼다: 사람이 음악 버튼을 방금 눌렀는데 아무 소리도 안 나면 버튼이
          고장 난 것으로 읽힌다. 이 한 번은 그 뜻을 그대로 따르고, 다음 일시정지부터
@@ -338,5 +338,21 @@ export function useBgm(playing = true): Bgm {
     });
   }, [next, audio]);
 
-  return { on, toggle, now };
+  /** 목록에서 고른 곡을 **처음부터** 튼다(요청) — 켜 둔 뜻도 켠다. 섞인 차례는 이 곡을 뺀 새 바퀴로 이어 간다. */
+  const pick = useCallback((i: number) => {
+    const f = BGM_FILES[i];
+    if (!f) return;
+    onRef.current = true;
+    setOn(true);
+    try { localStorage.setItem(KEY, "1"); } catch { /* 사파리 사생활 모드 */ }
+    const a = audio();
+    a.src = srcOf(f);   // src를 갈면 자리는 0이다 — 처음부터.
+    setNow(titleOf(f));
+    setIndex(i);
+    orderRef.current = shuffled(BGM_FILES.length).filter((x9) => x9 !== i);
+    atRef.current = 0;
+    a.play().catch(() => armFirstGesture());
+  }, [audio, armFirstGesture]);
+
+  return { on, toggle, now, tracks: BGM_TITLES, index, pick };
 }

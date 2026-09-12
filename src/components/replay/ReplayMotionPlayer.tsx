@@ -112,9 +112,8 @@ export type MotionBase = Omit<MinimapMarker, "x" | "y"> & { x?: number; y?: numb
    원장으로만 남는다. 유닛 위치는 명령 기반 추정이다: 리플레이에는 위치·죽음이 안 남아서,
    이 자취는 "그 사람 부대가 어디서 무엇을 하고 있었나"의 어림이다. */
 
-/** 배속 갈래(요청: 1·2·3·5·10·20) — 뜯어보는 ×1부터 훑어 넘기는 ×20까지. */
-// ×3을 걷고 기본은 ×2(요청: 배속 정리 — x1 x2 x5 x10 x20, 기본 2).
-const SPEEDS = [1, 2, 5, 10, 20] as const;
+/** 배속 사다리 — 두 배씩 넷(요청: "배속 사다리 1 2 4 8"). 옛 1·2·5·10·20은 걷었다; 링크의 &s=가 옛 값이면 가장 가까운 칸으로 앉힌다. */
+const SPEEDS = [1, 2, 4, 8] as const;
 /** 탄두가 내려오는 창(초) — 착탄 시각은 위 값 그대로 두고 **시작만 당긴다**(요청: 2배
  *  느리게). 그래야 터지는 순간이 안 밀린다. */
 const NUKE_DROP_SEC = 4;
@@ -6650,7 +6649,7 @@ export const playbackClockOf = new Map<string, number>();
  *  읽는 쪽은 안 따라와, 12배에서 공유한 장면이 받는 쪽에서 8배로 열렸다.
  *  DEEP_MIN_ZOOM이 8에 못 박혀 밀려 있던 것과 **같은 갈래의 흠**이다: 사다리에 매인 수를
  *  두 곳에 적으면 언젠가 한쪽만 고쳐진다. 값을 내보내 자를 하나로 둔다. */
-export const PLAYBACK_ZOOM_MAX = 12;
+export const PLAYBACK_ZOOM_MAX = 8;   // 확대 사다리의 맨 위(요청: 1-2-4-8)
 /** 경기별 **지금 배속**(요청: 공유 파라미터에 속도 추가) — 시각·자리와 같은 결이다:
  *  받는 쪽이 같은 장면을 보려면 '어디를'과 '언제'뿐 아니라 '얼마나 빠르게'도 같아야 한다.
  *  1배는 안 싣는다(기본값이라 주소만 길어진다 — &t=·&z=와 같은 규약). */
@@ -8374,8 +8373,9 @@ export default function ReplayMotionPlayer({
      원하면 올리면 된다. 링크가 배속을 실어 왔으면(&s=) 그것으로 시작한다 — 보낸 사람이
      보던 그 장면에는 속도도 들어 있다. */
   const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(() => {
-    const v9 = SPEEDS.find((s9) => s9 === initialSpeed);
-    return v9 ?? 1;
+    if (initialSpeed === undefined || !(initialSpeed > 1)) return 1;
+    // 옛 링크의 5·10·20도 받는다 — 가장 가까운 칸(5 → 4, 10·20 → 8).
+    return SPEEDS.reduce((b9, s9) => (Math.abs(s9 - initialSpeed) < Math.abs(b9 - initialSpeed) ? s9 : b9), SPEEDS[0]);
   });
   /* 배속도 시각·자리와 같은 결로 적어 둔다(위 playbackSpeedOf) — 공유 버튼이 &s=로 싣는다.
      시계 적기(playbackClockOf)와 나란히 두고 싶지만 그쪽은 speed가 서기 전이라 여기다. */
@@ -8517,7 +8517,9 @@ export default function ReplayMotionPlayer({
        또렷하게 보는' 자리가 아니다. */
   /** 진단 오버레이(#diag) — 주소로 켠다. 한 번만 읽는다(주소가 바뀌면 새로고침). */
   const [diagOn] = useState(scrDiagOn);
-  const ZOOM_STEPS = [1, 2, 3, 6, 12];
+  /* 두 배씩 넷으로(요청: "확대 사다리 1-2-4-8로 변경") — 문턱은 칸 번호를 읽으므로 따라온다: 넓은 자리 자세히 2배·요잉 4배,
+     좁은 자리 이동 자세 4배·자세히 8배. 더블탭은 둘째 위 칸(4). 맨 위 8은 굽기 상한 안이라 또렷하다. */
+  const ZOOM_STEPS = [1, 2, 4, 8];
   /** 더블클릭·더블탭이 **한 번에 뛰는** 배율(요청: "더블클릭 시 맨 위가 아니라 한 칸
    *  아래로") — 이어서 늘리는 길(휠·핀치·한 손 줌)의 상한은 ZOOM_MAX 그대로다. 한 번에
    *  뛰는 자리만 **한 칸 낮다**: 맨 위 칸은 화면에 유닛 한둘만 남아 무슨 상황인지가 안
@@ -9570,6 +9572,22 @@ export default function ReplayMotionPlayer({
      재생 여부를 넘긴다(요청: "재생 멈추면 음악도 멈추기") — 일시정지·되감기 잡고
      있는 동안은 음악도 함께 잠든다. */
   const bgm = useBgm(playing);
+  /* ★ 배속·확대·음악 버튼은 누르면 **위로 목록이 펼쳐진다**(요청: "누르면 선택지가 위로 나오는 형태" · "노래도 목록으로") —
+     누를 때마다 한 칸씩 돌던 것을 걷었다: 원하는 값으로 한 번에 간다. 바깥을 누르거나 Esc면 닫힌다(붙잡기 단계에서 듣는다 —
+     지도의 손짓이 사건을 삼켜도 먼저 온다). 한 번에 하나만 열린다. */
+  const [pick9, setPick9] = useState<"speed" | "zoom" | "bgm" | null>(null);
+  useEffect(() => {
+    if (!pick9) return;
+    const off9 = (e9: Event): void => {
+      const t9 = e9.target as Element | null;
+      if (t9 && typeof t9.closest === "function" && t9.closest(".scr-motion-pick")) return;
+      setPick9(null);
+    };
+    const key9 = (e9: KeyboardEvent): void => { if (e9.key === "Escape") setPick9(null); };
+    window.addEventListener("pointerdown", off9, true);
+    window.addEventListener("keydown", key9, true);
+    return () => { window.removeEventListener("pointerdown", off9, true); window.removeEventListener("keydown", key9, true); };
+  }, [pick9]);
   const fsUiRef = useRef(true);
   fsUiRef.current = fsUi;
   const fsHideRef = useRef(0);
@@ -13883,6 +13901,25 @@ export default function ReplayMotionPlayer({
   /** 확대 버튼에 적을 값 — 화면의 지금 배율이다(핀치·더블탭·휠·한 손 줌 공통). 칸에
    *  딱 떨어지면 정수(4배), 손짓으로 온 어중간한 값이면 소수 한 자리(3.6배)다. */
   const zoomText = `${zoomLive >= 9.95 ? Math.round(zoomLive) : Math.round(zoomLive * 10) / 10}배`;
+  /** 위로 펼치는 목록(위 pick9) — 고르면 닫힌다. list9는 곡 목록처럼 긴 것(왼맞춤·스크롤). */
+  const pickMenu9 = (
+    kind9: "speed" | "zoom" | "bgm", items9: { label: string; on: boolean; act: () => void }[], list9 = false,
+  ): React.ReactNode => (pick9 === kind9 ? (
+    <ul className={cx("scr-motion-pickmenu", list9 && "is-list")} role="menu">
+      {items9.map((it9) => (
+        <li key={it9.label}>
+          <button
+            type="button" role="menuitemradio" aria-checked={it9.on}
+            className={cx("scr-motion-pickitem", it9.on && "is-on")}
+            onClick={() => { it9.act(); setPick9(null); }}
+          >
+            {it9.label}
+          </button>
+        </li>
+      ))}
+    </ul>
+  ) : null);
+  const pickToggle9 = (kind9: "speed" | "zoom" | "bgm"): void => setPick9((p9) => (p9 === kind9 ? null : kind9));
   const mapBtnRow = (
     <div
       // (걷어냄) is-up — 도구 판이 없어져 밀어 줄 것이 없다(요청).
@@ -13953,45 +13990,43 @@ export default function ReplayMotionPlayer({
           ★ 셋을 가르는 것은 **작은 이름표**다(요청: 배속과 안 헷갈리게) — ×2 하나만
             적으면 배속인지 확대인지 알 수 없다. 위에 '배속·보기·확대'를 한 줄로 얹어
             두면 값이 같은 꼴(×2)이어도 서로 안 섞인다. */}
-      <button
-        type="button"
-        /* 기본값이 아니면 켜진 꼴로(요청: "x1 1배 2D 가 기본값이고 다른 값이면 적용 css") —
-           셋 다 같은 자다: 배속 ×1 · 확대 1배 · 보기 2D가 아무것도 안 건드린 상태이고,
-           거기서 벗어난 값만 버튼이 밝아져 '지금 뭘 만져 뒀는지'가 줄에서 바로 읽힌다. */
-        className={cx("scr-motion-litbtn scr-motion-mapbtn scr-motion-mapval", speed !== 1 && "is-on")}
-        onClick={() => setSpeed((v) => {
-          const i = SPEEDS.indexOf(v as typeof SPEEDS[number]);
-          return SPEEDS[(i < 0 ? 0 : i + 1) % SPEEDS.length];
-        })}
-        aria-label={`배속 ${speed}배 — 누르면 다음 배속`}
-        title="배속"
-      >
-        <span className="scr-motion-mapval-num">×{speed}</span>
-      </button>
+      <span className="scr-motion-pick">
+        <button
+          type="button"
+          /* 기본값이 아니면 켜진 꼴로(요청: "x1 1배 2D 가 기본값이고 다른 값이면 적용 css") —
+             셋 다 같은 자다: 배속 ×1 · 확대 1배 · 보기 2D가 아무것도 안 건드린 상태이고,
+             거기서 벗어난 값만 버튼이 밝아져 '지금 뭘 만져 뒀는지'가 줄에서 바로 읽힌다. */
+          className={cx("scr-motion-litbtn scr-motion-mapbtn scr-motion-mapval", speed !== 1 && "is-on")}
+          onClick={() => pickToggle9("speed")}
+          aria-haspopup="menu" aria-expanded={pick9 === "speed"}
+          aria-label={`배속 ${speed}배 — 누르면 목록`}
+          title="배속"
+        >
+          <span className="scr-motion-mapval-num">×{speed}</span>
+        </button>
+        {pickMenu9("speed", SPEEDS.map((s9) => ({ label: `×${s9}`, on: speed === s9, act: () => setSpeed(s9) })))}
+      </span>
       {/* 확대는 **다른 손잡이와 값을 나눠 쓴다**(요청: "다른 수단으로 확대축소해도 값
           같이 연동되게") — 여기 적히는 것은 이 버튼이 기억하는 값이 아니라 화면의
           지금 배율(zoomLive)이라, 핀치·더블탭·휠·한 손 줌으로 바꿔도 그대로 따라온다.
           누르면 배율 사다리(ZOOM_STEPS)를 한 칸 올리고 맨 위에서는 1배로 돌아온다. */}
-      <button
-        type="button"
-        className={cx("scr-motion-litbtn scr-motion-mapbtn scr-motion-mapval", zoomLive !== 1 && "is-on")}
-        onClick={() => {
-          /* 한 칸 위로, 맨 위에서는 1배로 돌아온다 — 사잇값에서도 **한 칸만** 오른다
-             (위 zoomNext 주석: 3.8이면 4이지 8이 아니다). */
-          zoomTo(zoomNext(zoomLive, true) ?? ZOOM_STEPS[0]);
-        }}
-        aria-label={`확대 ${zoomLive.toFixed(1)}배 — 누르면 다음 단계`}
-        title="확대"
-      >
-        {/* 값끼리 서로 안 헷갈리게 **꼴을 달리 적는다**(이름표를 걷은 뒤의 몫) —
-            배속은 앞에 ×(×2), 확대는 뒤에 배(4배), 보기는 2D/3D다. 세 토큰이 서로
-            안 겹치므로 라벨 없이도 어느 값인지 읽힌다.
-            핀치로 온 어중간한 값은 글자가 길어지므로(3.6배) 한 단 작게 적는다 —
-            동그라미 안에 들어가야 한다. */}
-        <span className={cx("scr-motion-mapval-num", zoomText.length >= 4 && "is-long")}>
-          {zoomText}
-        </span>
-      </button>
+      <span className="scr-motion-pick">
+        <button
+          type="button"
+          className={cx("scr-motion-litbtn scr-motion-mapbtn scr-motion-mapval", zoomLive !== 1 && "is-on")}
+          onClick={() => pickToggle9("zoom")}
+          aria-haspopup="menu" aria-expanded={pick9 === "zoom"}
+          aria-label={`확대 ${zoomLive.toFixed(1)}배 — 누르면 목록`}
+          title="확대"
+        >
+          {/* 값끼리 서로 안 헷갈리게 **꼴을 달리 적는다** — 배속은 앞에 ×(×2), 확대는 뒤에 배(4배), 보기는 2D/3D다.
+              핀치로 온 어중간한 값은 글자가 길어지므로(3.6배) 한 단 작게 적는다 — 동그라미 안에 들어가야 한다. */}
+          <span className={cx("scr-motion-mapval-num", zoomText.length >= 4 && "is-long")}>
+            {zoomText}
+          </span>
+        </button>
+        {pickMenu9("zoom", ZOOM_STEPS.map((z9) => ({ label: `${z9}배`, on: Math.abs(zoomLive - z9) < 1e-3, act: () => zoomTo(z9) })))}
+      </span>
       {/* ★ 색 전환(요청: "색 전환 아이콘버튼 추가 오버레이에선 제거" → "색전환 버튼은
           전체화면 아니어도 지도에 표시로 변경 기존 버툰부에서 제거") ────────────────
           개인색·팀색은 **지도를 보면서** 바꾸는 것이다 — 누가 누구 편인지 헷갈릴 때
@@ -14030,16 +14065,23 @@ export default function ReplayMotionPlayer({
           아이콘은 하나고 **켜지면 밝아진다**(로스터·색 전환과 같은 결). 끈 꼴이 기본
           상태라 따로 표시하지 않는다 — 이 줄에서 밝은 것이 곧 '지금 켜 둔 것'이다.
           누르는 그 순간에 재생을 시작해야 브라우저가 허락한다(자동재생 규칙). */}
-      <button
-        type="button"
-        className={cx("scr-motion-litbtn scr-motion-mapbtn", bgm.on && "is-on")}
-        onClick={bgm.toggle}
-        aria-pressed={bgm.on}
-        aria-label={bgm.on ? "배경 음악 끄기" : "배경 음악 켜기"}
-        title={bgm.on ? `음악 — ${bgm.now ?? "재생 중"} (누르면 끔)` : "음악 켜기"}
-      >
-        <Music size={18} />
-      </button>
+      <span className="scr-motion-pick">
+        <button
+          type="button"
+          className={cx("scr-motion-litbtn scr-motion-mapbtn", bgm.on && "is-on")}
+          onClick={() => pickToggle9("bgm")}
+          aria-haspopup="menu" aria-expanded={pick9 === "bgm"}
+          aria-label="배경 음악 — 누르면 곡 목록"
+          title={bgm.on ? `음악 — ${bgm.now ?? "재생 중"}` : "음악"}
+        >
+          <Music size={18} />
+        </button>
+        {/* 곡 목록(요청: "노래도 목록으로 · 항상 처음부터") — 맨 위 '끄기', 그 아래 열 곡. 고른 곡은 처음부터 튼다(useBgm.pick). */}
+        {pickMenu9("bgm", [
+          { label: "끄기", on: !bgm.on, act: () => { if (bgm.on) bgm.toggle(); } },
+          ...bgm.tracks.map((t9, i9) => ({ label: t9, on: bgm.on && bgm.index === i9, act: () => bgm.pick(i9) })),
+        ], true)}
+      </span>
       <button
         type="button"
         className="scr-motion-litbtn scr-motion-mapbtn"

@@ -281,7 +281,33 @@
   white-space: nowrap;
 }
 /* 손짓으로 온 어중간한 값(3.6배)은 다섯 글자라 44px 동그라미에 안 든다 — 한 단 줄인다. */
-.scr-motion-mapval-num.is-long { font-size: 10px; letter-spacing: -0.02em; }/* ★ 좁은 화면의 아이콘 줄 — 가장자리에 바짝 · 조종부 바로 위 · 크기 80%(요청 셋) ────
+.scr-motion-mapval-num.is-long { font-size: 10px; letter-spacing: -0.02em; }
+/* ★ 값 버튼의 **위로 펼치는 목록**(요청: 배속·확대·음악 — 누르면 선택지가 위로) ─────────────────────────────
+   감싸개(.scr-motion-pick)가 버튼 대신 줄의 flex 항목이 되고(같은 44px 바탕·줄어듦), 목록은 그 위에 절대배치로 선다.
+   숫자 목록은 가운데 맞춤, 곡 목록(is-list)은 왼맞춤에 길이 상한·스크롤. */
+.scr-motion-mapbtns .scr-motion-pick {
+  position: relative; display: flex; flex: 0 1 44px; min-width: 0; justify-content: center;
+}
+.scr-motion-pickmenu {
+  position: absolute; bottom: calc(100% + 6px); right: 0;
+  margin: 0; padding: 4px; list-style: none;
+  display: flex; flex-direction: column; gap: 2px;
+  min-width: 100%;
+  background: rgba(14, 18, 26, 0.94); color: #eef2f7;
+  border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  z-index: 7600;
+}
+.scr-motion-pickmenu.is-list { min-width: 168px; max-height: min(60vh, 360px); overflow-y: auto; }
+.scr-motion-pickitem {
+  display: block; width: 100%; padding: 6px 12px; border: none; border-radius: 8px;
+  background: transparent; color: inherit; cursor: pointer;
+  font-family: inherit; font-size: 13px; font-weight: 700; line-height: 1.4;
+  font-variant-numeric: tabular-nums; text-align: center; white-space: nowrap;
+}
+.scr-motion-pickmenu.is-list .scr-motion-pickitem { text-align: left; font-weight: 600; }
+@media (hover: hover) { .scr-motion-pickitem:hover { background: rgba(255, 255, 255, 0.12); } }
+.scr-motion-pickitem.is-on { background: rgba(255, 255, 255, 0.92); color: #10151a; }/* ★ 좁은 화면의 아이콘 줄 — 가장자리에 바짝 · 조종부 바로 위 · 크기 80%(요청 셋) ────
    · 오른쪽 8 → 5px(요청: "오버레이들이 너무 안쪽에 떠").
    · 밑값 60 → 52px(요청: "버튼줄도 그만큼 내려야지") — 아래 조종부 줄이 76에서 48px로
      돌아왔으므로(진행바 자리 되돌리기) 그만큼 따라 내린다. 48에 한 뼘(4)을 띄운 값이다.
@@ -304,6 +330,8 @@
   /* 높이를 못 박지 않는다(지적: 버튼은 원형 유지) — 이 줄이 height: 31을 박아 두면 줄이 좁아 폭만 줄 때 타원이 된다.
      폭은 31을 바라되(flex-basis·max-width) 세로는 위 기본 규칙의 aspect-ratio가 폭을 따른다. */
   .scr-motion-mapbtns button.scr-motion-mapbtn { flex-basis: 31px; width: 31px; max-width: 31px; height: auto; }
+  .scr-motion-mapbtns .scr-motion-pick { flex-basis: 31px; }
+  .scr-motion-pickitem { font-size: 12px; padding: 5px 10px; }
   .scr-motion-mapbtns button.scr-motion-mapbtn svg { width: 13px; height: 13px; }
   .scr-motion-mapbtns button.scr-motion-mapval { font-size: 10px; }
   .scr-motion-mapval-num.is-long { font-size: 8px; }
