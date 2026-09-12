@@ -2137,6 +2137,8 @@ export const SCR_DIAG: {
   prod: string;
   /** 프레임 워커 상태 — on/off · 받은 수 · 쓴 수 · 놓친 수. */
   worker: string;
+  /** 굽기 일꾼(ReplayMotionPlayer의 BAKEW9) — #diag=bake의 '굽기일꾼' 줄. */
+  bakew: string;
   /** 덜어내기(폰 과밀) — "N단 평균ms 유닛수". */
   crowd: string;
   /** `#diag=brush` — 유닛 붓의 최근 2초: 누가(틱·React·손짓·커밋) 몇 번, 보기(배율·팬) 가짓수와 팬 범위, 장 시각의 되돌림 수. */
@@ -2174,7 +2176,7 @@ export const SCR_DIAG: {
 } = {
   dpr: 0, unitCss: "", unitBack: "", unitB: 0,
   mapCss: "", mapBack: "", ppt: 0, needed: 0, scale: 0, unitScale: 0,
-  areaCap: 0, allocOk: true, zoom: 0, xfms: 0, fx: {}, prod: "", worker: "", crowd: "", brush: "", fps: 0, fog: "", react: "", nukem: "",
+  areaCap: 0, allocOk: true, zoom: 0, xfms: 0, fx: {}, prod: "", worker: "", bakew: "", crowd: "", brush: "", fps: 0, fog: "", react: "", nukem: "",
   truthVer: 0, truthTrust: -1, truthWhy: "",
 };
 /** #diag가 켜져 있나 — 주소가 바뀌지 않는 한 한 번만 읽는다. */

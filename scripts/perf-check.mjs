@@ -1321,7 +1321,7 @@ try { console.log(`[리액트] ${await page.evaluate(() => (window.__scrDiag && 
 // 안개 붓(SCR_DIAG.fog) — 최근 1초의 붓/칠/장당 ms. '한 장이 얼마인가'가 손짓 중 되칠기의 자다.
 try { console.log(`[안개] ${await page.evaluate(() => (window.__scrDiag && window.__scrDiag.fog) || "(진단 없음)")}`); } catch { console.log("[안개] (못 읽음)"); }
 // 프레임 워커 상태(SCR_DIAG.worker) — on/off · 받은 수 · 쓴 수 · 놓친 수.
-try { console.log(`[워커] ${await page.evaluate(() => (window.__scrDiag && window.__scrDiag.worker) || "(진단 없음)")}`); console.log(`[덜어내기] ${await page.evaluate(() => (window.__scrDiag && window.__scrDiag.crowd) || "(폰 아님·진단 없음)")}`); } catch (e) { console.log("[워커] (못 읽음)", String(e).slice(0, 80)); }
+try { console.log(`[워커] ${await page.evaluate(() => (window.__scrDiag && window.__scrDiag.worker) || "(진단 없음)")}`); console.log(`[덜어내기] ${await page.evaluate(() => (window.__scrDiag && window.__scrDiag.crowd) || "(폰 아님·진단 없음)")}`); console.log(`[굽기일꾼] ${await page.evaluate(() => (window.__scrDiag && window.__scrDiag.bakew) || "(진단 없음)")}`); } catch (e) { console.log("[워커] (못 읽음)", String(e).slice(0, 80)); }
 if (has("--msgsize")) {
   const r = await page.evaluate(() => {
     const st = window.__msgStat; if (!st) return "없음";

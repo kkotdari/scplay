@@ -54,7 +54,7 @@ for (const [i, s] of SHEETS.entries()) {
 }
 
 // 목록 — 도록 표({ kind, label, group, race })를 그대로 읽는다.
-const src = readFileSync(join(ROOT, "src", "components", "replay", "ReplayMotionPlayer.tsx"), "utf8");
+const src = readFileSync(join(ROOT, "src", "components", "replay", "bake9.ts"), "utf8")   /* 도록 표(SHAPE_GALLERY)는 bake9.ts에 있다 */;
 const rows = [...src.matchAll(/\{ kind: "([^"]+)", label: "([^"]+)", group: "([^"]+)", race: "([^"]+)" \}/g)]
   .map(([, kind, label, group, race]) => ({ kind, label, group, race }));
 const lines = [];

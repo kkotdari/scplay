@@ -28,7 +28,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const SRC = join(ROOT, "src/components/replay/ReplayMotionPlayer.tsx");
+const SRC = join(ROOT, "src/components/replay/bake9.ts");   // 모델 빌더는 bake9.ts로 옮겨졌다(굽기 일꾼 분리)
 const BASE = join(ROOT, "scripts/model-depth-baseline.json");
 
 /** SHAPE_BUILDERS 객체의 본문만 잘라 낸다 — 표(MUZZLE_ANCHOR 등)까지 훑으면 이름이 겹친다. */

@@ -57,7 +57,17 @@ scplayer 쪽 소스를 만졌으면 그쪽에서 `npx tsc --noEmit -p tsconfig.j
   `tintedOf9`로 만들어 되쓴다(상한 8색). 건물 판(`BldSprite.tint`)도 같은 규약이다.
 - 기기 프로필은 `DEV9` 한 표(폰/PC: 판 예산·굽기 상한·프레임당 굽기·불티·효과 래스터·그림자 최소 배율·시야 여유·
   앞 한도(폰 1.5s/4MB·PC 3s/24MB)·요잉 8칸). 새 문턱은 표에 더하고 자리에서는 `DEV9.x`만 읽는다. 기기 판정은 `smallDevice9` 하나.
-- `#diag`는 요약 한 줄, `#diag=draw|bake|fog|load|gest|mem|worker|truth|brush|view|all`(쉼표로 여럿)로 용도를 가른다 — draw(화면·덜어내기·프레임) · bake(굽기·판갈림·캔버스) · fog(안개) · load(로딩·지도판·입체) · gest(손짓·원점). 한 주제가 한 줄, 줄 머리에 주제 이름. `mem`에 메모리 어림(memEst9) 줄.
+  PC는 진입 벤치로 세 단(`DEV9.tiers` = PC_TIERS9: 판 예산·프레임당 굽기·앞 한도)을 오른다(`#tier=N` 강제). 폰 표(PHONE_TIERS9)는
+  한 줄이라 단이 없다 — 폰에 열려면 그 표에 줄을 더한다. 굽기 일꾼 수도 표의 값(`DEV9.bakeWorkers`: PC 1~2 · 폰 0)이다.
+- **굽기 일꾼**(`bakeWorker.ts`, `#diag=bake`의 '굽기일꾼' 줄): PC에서 판 굽기를 OffscreenCanvas 워커가 하고 ImageBitmap을 transfer로
+  돌려준다(`BAKEW9`). 메인은 열쇠·보관함·예산·대타를 그대로 들고, 처음 보는 열쇠는 대기표(`BAKE_WANT9`)에 적어 프레임이 열릴 때 큰 것부터
+  일꾼에 청한다 — 그 프레임은 대타(다른 크기·이웃 요잉·작은 판)를 찍고 판이 오면 갈아 끼운다(멈춘 화면은 `BAKE_REPAINT9`로 한 장 다시).
+  판 굽기 자체(`rasterUnit9`·`rasterBld9`)와 모델 빌더·표·헬퍼는 **`bake9.ts`**(DOM 없음 — 캔버스는 `BAKE_ENV9`의 손으로만: 메인 DOM
+  캔버스 / 일꾼 OffscreenCanvas)에 있다. 빌더를 고치면 bake9.ts를 고친다(model-depth-check·doc-catalog도 그 파일을 읽는다). 모듈 전역
+  깃발(pose·head·lit·spin·lod·pitchFlat)은 세터(`poseSet9`·`pitchFlatSet9`…)로만 세운다. 일꾼에는 메인 깃발이 없어 lod·pitchFlat은 청할 때
+  싣고, 진단 해시(#pitch·#nocreep)는 워커 name으로 간다(`hashNow9`). `#bakeworker=N`(0 끔). 못 띄우면 옛 인라인 굽기로 돈다.
+  ⚠ bake9.ts의 **문 차례**는 원본 그대로여야 한다 — 파생 빌더 등록문(`SHAPE_BUILDERS.x = …`)이 `SHAPE_FACES` 표보다 앞에 있어야 한다.
+- `#diag`는 요약 한 줄, `#diag=draw|bake|fog|load|gest|mem|worker|truth|brush|view|all`(쉼표로 여럿)로 용도를 가른다 — draw(화면·덜어내기·프레임) · bake(굽기·굽기일꾼·판갈림·캔버스) · fog(안개) · load(로딩·지도판·입체) · gest(손짓·원점). 한 주제가 한 줄, 줄 머리에 주제 이름. `mem`에 메모리 어림(memEst9) 줄.
 - 워커는 짓기 시간(ms)에 맞춰 프레임 간격을 벌린다(초당 30장 기본, 최소 8장). 메인은 2초 안의 프레임이면 낡아도 든다.
 - **붓은 React 밖에서**(4번): 시계 틱이 살아 있는 시각(`tLiveRef9`)을 한 걸음(벽시계 ≤80ms) 올리고 `paintFnRef9`로
   설계도를 골라(`frameAt9`: 앞·뒤 장 보간) `unitPaintRef`로 유닛 캔버스를 곧장 칠한다. UnitLayer는 `opsSrc/fxSrc`(ref)를
@@ -66,5 +76,5 @@ scplayer 쪽 소스를 만졌으면 그쪽에서 `npx tsc --noEmit -p tsconfig.j
 - 엔진은 늘 **자세히** 낸다(요잉 16칸·모든 자세·탱크 차체+포탑). 낮은 배율 간이화는 붓(UnitLayer)의
   `detailAt`·`yawAt`·`moveAt`가 한다. 배율·팬 자체는 프레임에 안 실린다(시야 사각형만).
 - 계측: `node scripts/perf-check.mjs [--msgsize]`(vite 번들이 기본) — `[워커] on got/used/missed`로 워커가 쓰였는지,
-  `--msgsize`로 장당 바이트·op 수를 본다. 워커 번들의 `process.env.NODE_ENV`는 vite.config의 define이 박는다(사파리).
+  `--msgsize`로 장당 바이트·op 수를 본다. `--wide --cpu 1`이 PC 판(굽기 일꾼 `[굽기일꾼]` 줄이 on이어야 한다). 워커 번들의 `process.env.NODE_ENV`는 vite.config의 define이 박는다(사파리).
   esbuild 도구 번들(model-shot 등, perf-check `--esbuild`)에는 워커가 없어 유닛 프레임이 안 그려진다.
