@@ -24372,6 +24372,11 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           : xfMsRef9.v >= 25 ? 0.7 : 1;
       if (gest9) { if (kWant9 < xfBackK9.k) xfBackK9.k = kWant9; } else xfBackK9.k = 1;
       const Bd = gest9 ? B * xfBackK9.k : B;
+      /* ★ 그림자도 **배킹과 같은 자로** 접는다(지적: "드래그 중에 그림자 없어지는 거 봤어") — 위 깃발은 손짓이면
+         무조건 그림자를 접었는데, 배킹은 손짓 프레임이 25ms를 넘을 때만 내린다. 6ms 벤치 PC의 손짓 프레임은
+         그 문턱 한참 아래라 접을 까닭이 없고, 접으면 끌 때마다 그림자가 깜빡 사라진다. 배킹을 내린 손짓
+         (xfBackK9.k < 1)에서만 같이 접는다 — 무거운 기기에서 덜어내던 몫은 그대로다. */
+      const shFold9 = gest9 && xfBackK9.k < 1;
       const bw = Math.round(cw * Bd);
       const bh = Math.round(ch * Bd);
       if (cv.width !== bw) cv.width = bw;
@@ -24857,7 +24862,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           /* 접지 그림자(재재지적: 해처리가 떠 있다) — 상자 바닥 어림이 아니라 구운
              판의 실제 바닥 픽셀(contentBottom)에 붙인다. 모델이 상자를 다 안 채워도
              발이 그림자에 닿는다. */
-          if (op.groundShadow && showShadows !== false && CROWD9.lv === 0 && detail && !gest9) {
+          if (op.groundShadow && showShadows !== false && CROWD9.lv === 0 && detail && !shFold9) {
             /* 바닥 '발자국'만 덮는다(정정: 칸(hPx)은 모델 높이까지 포함해, 칸 기준 타원은
                건물을 통째로 감싸는 큰 원이었다 — 내접으로 바꿔도 거의 그대로라 "적용 안
                됨"으로 보였다). 발자국 깊이 = 폭 × footRatio, 자리는 칸 바닥에 붙인다. */
@@ -25162,7 +25167,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         const groundOy9 = sy - px * 0.24 + (((op.flat ? 12 : 12.6) - 8) / 16) * px;
         /* ★ 덜어내기 중에도 **공중 유닛 그림자는 남긴다**(요청: "떠있는 위치가 안 읽혀서") — 타원 하나라 값이
            거의 없고, 그림자가 없으면 나는 몸의 높이·자리를 읽을 길이 없다. 부양 지상 유닛 그림자만 덜어낸다. */
-        if (hover && !op.noShadow && showShadows !== false && (CROWD9.lv === 0 || op.air) && detail && !gest9) {
+        if (hover && !op.noShadow && showShadows !== false && (CROWD9.lv === 0 || op.air) && detail && !shFold9) {
           /* 떠다니는 지상 유닛(일꾼·벌처·아콘류)은 겨우 발밑만 떠 있다(지적: 그림자가
              너무 크고 진해) — 높이 나는 공중 유닛보다 작고 옅은 타원. */
           // 그림자 살짝 축소(지적) — 높이 나는 만큼 발밑 그림자는 작고 옅게.
@@ -25216,7 +25221,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              가로는 footX 그대로다(앞선 지적: 그림자·링이 몸과 안 맞음). */
           ctx.ellipse(sx, groundY ?? groundOy9, shw * 1.1, shw * (op.air ? 0.5 : 0.42) * (op.pitch ? pitchFlatNow : 1), 0, 0, Math.PI * 2);
           ctx.fill();
-        } else if (showShadows !== false && CROWD9.lv === 0 && detail && !gest9 && !op.air && !op.clipWalk && !op.noShadow) {
+        } else if (showShadows !== false && CROWD9.lv === 0 && detail && !shFold9 && !op.air && !op.clipWalk && !op.noShadow) {
           /* ★ noShadow도 여기서 본다(지적: "버로우 럴커·마인은 그림자 안 그려야 자연스럽" · "다른 저그 버로우도")
              — 위 부양 갈래만 그 깃발을 보고, 땅에 선 몸의 작은 그림자는 안 봤다. 마인은 op에 noShadow가
              이미 실려 있었는데도 그림자가 났던 까닭이다. 버로우한 몸은 엔진이 같은 깃발을 싣는다. */
@@ -35189,7 +35194,7 @@ export default function ReplayMotionPlayer({
             /* 손짓(드래그·핀치·휠) 중에는 부모가 이 붓으로 캔버스만 다시 그린다 —
                리액트를 안 거치고, 그린 자리는 손끝 그대로다(xfLive). */
             painter={unitPaintRef} onPainted={onUnitPainted}
-            /* 손짓이 도는가 — 그림자를 그 동안 접는다(위 gest9). */
+            /* 손짓이 도는가 — 배킹을 내린 손짓에서만 그림자를 접는다(위 shFold9). */
             gesture={xfGestureRef}
             /* 사양 라디오 × 배율 칸(요청) — 둘 다 켜져야 켜진다. 칸 2 이하는 몸만.
                칸 판정은 **문턱을 넘겨** 캔버스가 그리는 배율로 한다(손짓 중 한 박자
