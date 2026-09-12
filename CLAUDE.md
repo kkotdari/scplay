@@ -57,7 +57,7 @@ scplayer 쪽 소스를 만졌으면 그쪽에서 `npx tsc --noEmit -p tsconfig.j
   `tintedOf9`로 만들어 되쓴다(상한 8색). 건물 판(`BldSprite.tint`)도 같은 규약이다.
 - 기기 프로필은 `DEV9` 한 표(폰/PC: 판 예산·굽기 상한·프레임당 굽기·불티·효과 래스터·그림자 최소 배율·시야 여유·
   앞 한도(폰 1.5s/4MB·PC 3s/24MB)·요잉 8칸). 새 문턱은 표에 더하고 자리에서는 `DEV9.x`만 읽는다. 기기 판정은 `smallDevice9` 하나.
-  PC는 진입 벤치로 세 단(`DEV9.tiers` = PC_TIERS9: 판 예산·프레임당 굽기·앞 한도)을 오른다(`#tier=N` 강제). 폰 표(PHONE_TIERS9)는
+  PC는 진입 벤치로 네 단(`DEV9.tiers` = PC_TIERS9: 판 예산·프레임당 굽기·앞 한도·일꾼 수; 3단은 deviceMemory 8GB가 확인될 때)을 오른다(`#tier=N` 강제). 폰 표(PHONE_TIERS9)는
   한 줄이라 단이 없다 — 폰에 열려면 그 표에 줄을 더한다. 굽기 일꾼 수도 표의 값(`DEV9.bakeWorkers`: PC 1~2 · 폰 0)이다.
 - **굽기 일꾼**(`bakeWorker.ts`, `#diag=bake`의 '굽기일꾼' 줄): PC에서 판 굽기를 OffscreenCanvas 워커가 하고 ImageBitmap을 transfer로
   돌려준다(`BAKEW9`). 메인은 열쇠·보관함·예산·대타를 그대로 들고, 처음 보는 열쇠는 대기표(`BAKE_WANT9`)에 적어 프레임이 열릴 때 큰 것부터

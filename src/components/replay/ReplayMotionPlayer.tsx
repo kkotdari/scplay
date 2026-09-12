@@ -795,7 +795,8 @@ const dprBudgetK9 = ((): number => {
 /* ★ 기기 프로필(5번) — 폰/PC로 갈리던 문턱을 한 표에 모았다. 새 문턱은 여기에 더하고 자리에서는 DEV9.x만 읽는다.
    (기기 판정은 smallDevice9 하나다: 손가락 기기 + 작은 화면, 또는 메모리 4GB 이하.) */
 /** 벤치 단 한 줄 — 프로필(DEV9)마다 제 표를 든다(아래 applyBenchTier9). 0단이 그 프로필의 기본값이다. */
-type BenchTier9 = { spriteMB: number; bldSpriteMB: number; unitBakePerFrame: number; bldBakePerFrame: number; bakeMsPerFrame: number; aheadSec: number; aheadMB: number };
+type BenchTier9 = { spriteMB: number; bldSpriteMB: number; unitBakePerFrame: number; bldBakePerFrame: number; bakeMsPerFrame: number; aheadSec: number; aheadMB: number;
+  /** 굽기 일꾼 수(있으면 DEV9.bakeWorkers를 덮는다 — 일꾼은 단이 정해진 뒤 뜬다). */ bakeWorkers?: number };
 /* PC의 세 단(아래 ★ 주석) — 폰 표(PHONE_TIERS9)는 지금 한 줄뿐이라 단이 안 오른다. 폰에도 단을 열려면 그 표에 줄을
    더하면 된다(문턱·오르기만 하는 규칙·#tier= 강제는 그대로 탄다) — 설계는 기기를 안 가린다(요청: "모바일에도 이식할 수
    있게 개방적으로 · 단수 적용도 마찬가지"). */
@@ -803,6 +804,12 @@ const PC_TIERS9: readonly BenchTier9[] = [
   { spriteMB: 128, bldSpriteMB: 64, unitBakePerFrame: 3, bldBakePerFrame: 3, bakeMsPerFrame: 12, aheadSec: 3, aheadMB: 24 },
   { spriteMB: 192, bldSpriteMB: 96, unitBakePerFrame: 6, bldBakePerFrame: 6, bakeMsPerFrame: 18, aheadSec: 5, aheadMB: 48 },
   { spriteMB: 256, bldSpriteMB: 128, unitBakePerFrame: 10, bldBakePerFrame: 8, bakeMsPerFrame: 24, aheadSec: 8, aheadMB: 80 },
+  /* ★ 3단 **매우 높음**(실기 진단, 2단·2.77배·입체: 굽기 2초 창 버림 U42/B31 · 미룸 U3852 · 일꾼 버림 53873) — 2단의 판 예산
+     (256/128MB)이 입체의 시점 변종(유닛 시점 4675·건물 옆면 938)을 못 담아 LRU가 계속 쫓아내고 일꾼이 그것을 다시 굽고
+     있었다. 굽기는 이제 일꾼 몫이라 프레임은 안 서지만, 쫓겨난 판이 돌아올 때까지 대타(흐린 판)로 보인다. 예산을 두 배로,
+     일꾼은 코어 12 이상이면 셋. 메모리 8GB(deviceMemory — 크로뮴만 낸다)가 확인되는 기기에서만 오른다. */
+  { spriteMB: 512, bldSpriteMB: 256, unitBakePerFrame: 10, bldBakePerFrame: 8, bakeMsPerFrame: 24, aheadSec: 8, aheadMB: 80,
+    bakeWorkers: typeof navigator !== "undefined" && (navigator.hardwareConcurrency ?? 4) >= 12 ? 3 : 2 },
 ];
 const PHONE_TIERS9: readonly BenchTier9[] = [
   { spriteMB: 32 * smallBudgetK9 * dprBudgetK9, bldSpriteMB: 16 * smallBudgetK9 * dprBudgetK9, unitBakePerFrame: 1, bldBakePerFrame: 1, bakeMsPerFrame: 8, aheadSec: 1.5, aheadMB: 6 },
@@ -843,6 +850,7 @@ const DEV9 = smallDevice9 ? {
      0 보통(≥16.8ms) — 지금 값 그대로.
      1 빠름(<16.8)  — 굽기 6장·18ms, 앞 5초·48MB, 판 192/96MB.
      2 매우 빠름(<8.4) — 굽기 10/8장·24ms, 앞 8초·80MB, 판 256/128MB.
+     3 매우 빠름 + 메모리 8GB — 판 512/256MB · 일꾼 셋(코어 12↑) (표의 ★).
    ★ 폰은 **안 탄다** — smallDevice9 갈래는 그대로이고, 데스크톱 UA의 아이패드(터치가 있는 PC)도 0단에
      둔다(터치 기기의 메모리 한도는 벤치로 못 잰다). 유휴 재벤치(crowdRecheck9)가 더 작은 값을 내면 단이
      오르기만 한다(내려가지 않는다 — 부풀린 첫 값이 내린 단은 짐이지 기기가 아니다). `#tier=N`으로 못 박는다.
@@ -865,7 +873,7 @@ const PC_TIER9 = { v: 0, force: -1 };
    첫 벤치는 렌더 중에 돌아 fn이 아직 없으니 level만 적어 두고, 꽂히는 순간 그 값을 한 번 보인다. */
 const QUALITY9 = { level: "", fn: null as ((lv: string) => void) | null };
 const qualityLevel9 = (): string =>
-  smallDevice9 ? (CROWD9.weak ? "매우 낮음" : "낮음") : PC_TIER9.v >= 2 ? "높음" : PC_TIER9.v === 1 ? "보통" : "낮음";
+  smallDevice9 ? (CROWD9.weak ? "매우 낮음" : "낮음") : PC_TIER9.v >= 3 ? "매우 높음" : PC_TIER9.v === 2 ? "높음" : PC_TIER9.v === 1 ? "보통" : "낮음";
 /** 벤치·단이 정해지거나 바뀐 자리에서 부른다 — 눈금이 달라졌을 때만 알린다. */
 function qualityNote9(): void {
   const lv9 = qualityLevel9();
@@ -886,16 +894,18 @@ function applyBenchTier9(bench: number): void {
     PC_TIER9.force = m9 ? Math.min(top9, Number(m9[1])) : -2;   // -2: 살펴봤고 없음
   }
   const want9 = Math.min(top9, PC_TIER9.force >= 0 ? PC_TIER9.force
-    : bench < CROWD_BENCH_MS9 * 0.35 ? 2 : bench < CROWD_BENCH_MS9 * 0.7 ? 1 : 0);
+    : bench < CROWD_BENCH_MS9 * 0.35 ? (deviceMem9 >= 8 ? 3 : 2) : bench < CROWD_BENCH_MS9 * 0.7 ? 1 : 0);
   if (want9 <= PC_TIER9.v) return;   // 오르기만 한다
   PC_TIER9.v = want9;
   const t9 = tiers9[want9];
   DEV9.spriteMB = t9.spriteMB; DEV9.bldSpriteMB = t9.bldSpriteMB;
   DEV9.unitBakePerFrame = t9.unitBakePerFrame; DEV9.bldBakePerFrame = t9.bldBakePerFrame; DEV9.bakeMsPerFrame = t9.bakeMsPerFrame;
   DEV9.aheadSec = t9.aheadSec; DEV9.aheadMB = t9.aheadMB;
+  if (t9.bakeWorkers !== undefined) DEV9.bakeWorkers = t9.bakeWorkers;   // 일꾼은 이 뒤에 뜬다(crowdInit9의 bakeWorkersStart9)
   // 모듈 초기에 DEV9에서 베낀 값들도 갈아 끼운다(아래 let들).
   SPRITE_BYTES_MAX = DEV9.spriteMB * 1024 * 1024;
   BLD_SPRITE_BYTES_MAX = DEV9.bldSpriteMB * 1024 * 1024;
+  SPRITE_TOTAL_MAX = SPRITE_BYTES_MAX + BLD_SPRITE_BYTES_MAX + DEV9.mapFreedMB * 1024 * 1024;   // 두 몫이 나눠 쓰는 총량도 같이(위 budgetNow9)
   BAKE_MS_PER_FRAME9 = DEV9.bakeMsPerFrame;
   BAKE_HARD_MS9 = DEV9.bakeMsPerFrame * 3;
   UNIT_BAKE_PER_FRAME = DEV9.unitBakePerFrame;
@@ -1333,8 +1343,8 @@ let BLD_SPRITE_BYTES_MAX = DEV9.bldSpriteMB * 1024 * 1024;
    넘어 다시 굽기를 되풀이하던 자리라, 같은 총량 안에서 이쪽에 주는 편이 남는 장사다.
    ※ 짝이 되는 값은 ReplayMapVector의 areaCapRef다 — 한쪽만 고치면 총량이 어긋난다. */
 const MAP_FREED_MB = DEV9.mapFreedMB;
-const SPRITE_TOTAL_MAX = SPRITE_BYTES_MAX + BLD_SPRITE_BYTES_MAX
-  + MAP_FREED_MB * 1024 * 1024;
+let SPRITE_TOTAL_MAX = SPRITE_BYTES_MAX + BLD_SPRITE_BYTES_MAX
+  + MAP_FREED_MB * 1024 * 1024;   // 벤치 단이 오르면 applyBenchTier9가 다시 잰다(let)
 /* ★ 몫에는 **바닥이 있어야 한다**(실기 계측: "판 유닛 58장 9.2MB · 건물 37장 36.6MB") ──
    여기 있던 식은 `max(제 몫의 4분의 1, 총량 − 상대가 쓴 만큼)`이었다. 곧 **먼저 자란
    쪽이 임자**가 되는 식이다: 건물은 판이 화면에 들어오는 순간 한 번에 굽히고 그 뒤로는
@@ -2111,7 +2121,9 @@ function drainBakeWant9(): void {
    ★ 일꾼에는 메인의 깃발이 없다: lod·pitchFlat은 청할 때 실어 보내고(열쇠와 같은 값), 자세·포탑·불빛·회전은 op로
      래스터 함수가 스스로 세운다(bake9의 rasterUnit9·rasterBld9). 진단 해시는 워커 name으로 간다(hashNow9). */
 type BakeReq9 = { key: string; sub: string; op: UnitDrawOp; q: number; B: number; lod: number; bld: boolean; at: number; w: number };
-const BAKEW_INFLIGHT9 = 6;
+/* 6 → 12(실기: 일꾼 버림 53873 — 판이 한꺼번에 갈리는 프레임에 대기표가 12장을 훌쩍 넘어 다음 프레임으로 미뤄졌다). 일꾼 한 장이
+   3ms 안팎이라 열두 장이 36ms — 한 프레임 남짓만 앞서 쌓인다. */
+const BAKEW_INFLIGHT9 = 12;
 const BAKEW9 = {
   on: false, why: "", starting: false,
   workers: [] as Worker[], busy: [] as number[],
@@ -3864,7 +3876,10 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          무조건 그림자를 접었는데, 배킹은 손짓 프레임이 25ms를 넘을 때만 내린다. 6ms 벤치 PC의 손짓 프레임은
          그 문턱 한참 아래라 접을 까닭이 없고, 접으면 끌 때마다 그림자가 깜빡 사라진다. 배킹을 내린 손짓
          (xfBackK9.k < 1)에서만 같이 접는다 — 무거운 기기에서 덜어내던 몫은 그대로다. */
-      const shFold9 = gest9 && xfBackK9.k < 1;
+      /* 빠른 PC(벤치 1단 이상)는 손짓 중에도 안 접는다(재지적: "드래그 시 바닥 그림자 없어짐 여전") — 배킹 몫(xfBackK9)은
+         **손짓의 첫 장** 하나가 25ms를 넘겨도 그 손짓 내내 낮게 붙들리므로(오르내림 방지) 거의 매 끌기에 걸렸다. 그림자
+         한 겹은 판 찍기 한 번 값이라 그 기기에서는 접어 버는 것이 없다. 폰과 0단 PC는 옛 규칙 그대로. */
+      const shFold9 = gest9 && xfBackK9.k < 1 && (smallDevice9 || PC_TIER9.v === 0);
       const bw = Math.round(cw * Bd);
       const bh = Math.round(ch * Bd);
       if (cv.width !== bw) cv.width = bw;
@@ -14178,10 +14193,6 @@ export default function ReplayMotionPlayer({
           {!warmAt && bakeHold && (
             <span className="scr-motion-simnote scr-motion-warmnote">모델 굽는 중…</span>
           )}
-          {/* 재생 품질(위 QUALITY9) — 진입·벤치 변경 때 오른쪽 위에 3초. */}
-          {qualityNote && (
-            <span className="scr-motion-qualitynote">재생품질: {qualityNote}</span>
-          )}
           {/* (걷어냄·요청: "미니맵 연결해주세요는 이제 없애야해") — "미연결 상태에선
              유닛이 벽을 뚫고 다녀요"라는 한 줄이 여기 있었다. 그 말은 지형(벽)을 미니맵
              그림에서 어림하던 시절의 것이다: 그림이 없으면 벽도 없었다.
@@ -15220,6 +15231,11 @@ export default function ReplayMotionPlayer({
               )}
             </div>
           </div>
+          {/* 재생 품질(위 QUALITY9) — 진입·벤치 변경 때 무대 오른쪽 위에 3초. 지도 상자 안에 두면 배율·팬·입체 변환을
+              같이 받아 끌 때 따라 움직였다(지적: "잘 안 보이고 움직여") — 무대는 변환을 안 받는다. */}
+          {qualityNote && (
+            <span className="scr-motion-qualitynote">재생품질 {qualityNote}</span>
+          )}
         </div>
       </div>
     </div>
