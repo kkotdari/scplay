@@ -3963,7 +3963,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          판으로 덮인다(앞서 지적). 둘 다 못 이기는 싸움이라 **원인을 줄인다** — 깊이를 1.1로
          얕게 파면 같은 25도에서 새는 몫이 0.46이라 가는 문틀로도 덮이고, 속에 눕는 경사로도
          짧아져 몸 위에 놓인 큰 판으로 안 보인다. */
-      const BAY_YI = 4.42;
+      /* 깊이는 원래대로다(요청: "격납구 깊이 원복") — 얕게 파는 것은 증상을 줄이는 자였고,
+         진짜 임자는 아래 문틀(벽에 덧대는 판)이라 거기서 고친다. */
+      const BAY_YI = 3.05;
       /** 벽 선 밖으로 나오는 경사로 길이(요청: "약간") — 지면에 닿는 끝까지. */
       const RAMP_OUT = 0.3;   // 1.0은 너무 길었다(지적: "너무 많이 나온거 같아")
       /** 그 높이의 겉벽 반지름 — 받침은 네 단(5.15→5.4 · 5.16 · 5.4→5.37 · 5.46 테), 위는 돔 옆선(t1R). */
@@ -3994,7 +3996,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          깊이만큼 위·옆으로 새는 얇은 쐐기가 문틀 밖에 남곤 했다. 옆벽이 없는 각에서는
          뒷벽과 경사로만으로도 '파인 곳'이 읽힌다. */
       for (const sx9 of [-1, 1] as const) {
-        if (facingRatio(-sx9, 0) <= 0.3) continue;
+        if (facingRatio(-sx9, 0) <= 0.12) continue;
         bay.push([polyPath3([
           [sx9 * BAY_HW, BAY_YI, Z0], [sx9 * BAY_HW, wallY(Z0, BAY_HW), Z0],
           [sx9 * BAY_HW, wallY(BAY_Z1, BAY_HW), BAY_Z1], [sx9 * BAY_HW, BAY_YI, BAY_Z1],
@@ -4053,15 +4055,35 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          윗부분이 인방 위로 올라와 비치는 몫이 그것이다. 호는 x로 잘라 각으로 바꾸고 몇 조각으로 쪼개 spirePillar
          옆면과 같은 규칙(bodyFace + faceLight)으로 명암을 준다. */
       const frame: ShapeFace[] = [];
-      const wallStrip = (z0: number, z1: number, x0: number, x1: number, n9: number, fill: string): void => {
+      /* ★ 문틀은 **벽의 면 경계에 맞춰** 쪼갠다(지적: "덧대는 건물 표면 판, 그게 문제") ─────
+         이 판은 겉벽을 한 번 더 그린 것이라 벽과 똑같이 보여야 한다. 그런데 벽은 다면체다 —
+         선체는 16면, 돔은 14면짜리 기둥(spirePillar)이라 면마다 제 법선으로 명암이 갈린다.
+         여태 이 판은 제 폭을 n9 등분해 그 조각의 **한가운데 각**으로 명암을 매겼다. 조각
+         경계가 벽의 면 경계와 안 맞으니 한 조각이 벽의 두 면에 걸치고, 그 조각의 톤은 어느
+         쪽과도 안 맞는다 — 그래서 사선에서 입구 둘레만 민무늬 딴 판으로 떠 보였다.
+         기둥의 꼭짓점 각은 (i+0.5)·2π/n(제 u축 기준)이고, 여기서 쓰는 각 α와는 α = π/2 − a로
+         맞물린다. 그 경계마다 잘라 조각을 만들면 조각 하나가 곧 벽의 면 하나이고, 그 한가운데
+         각이 곧 그 면의 법선이라 명암까지 저절로 같아진다. 면 경계는 높이와 무관하게 고정된
+         각이므로 위아래 고리가 같은 α를 쓴다(반지름만 제 높이의 것을 쓴다). */
+      const wallStrip = (z0: number, z1: number, x0: number, x1: number, _n9: number, fill: string): void => {
         const r0 = wallR(z0) + 0.012;
-        const r1 = wallR(Math.min(z1, z1 - 1e-4)) + 0.012;
+        const r1 = wallR(z1 - 1e-4) + 0.012;
         const aOf = (x: number, r: number): number => Math.asin(Math.max(-0.999, Math.min(0.999, x / r)));
         const a0l = aOf(x0, r0); const a1l = aOf(x1, r0); const a0h = aOf(x0, r1); const a1h = aOf(x1, r1);
-        for (let i9 = 0; i9 < n9; i9 += 1) {
-          const u0 = i9 / n9; const u1 = (i9 + 1) / n9;
-          const aA = a0l + (a1l - a0l) * u0; const aB = a0l + (a1l - a0l) * u1;
-          const aC = a0h + (a1h - a0h) * u1; const aD = a0h + (a1h - a0h) * u0;
+        const sides9 = z0 < DOME_Z ? 16 : 14;          // 선체 16면 · 돔 14면(제 빌더의 sides)
+        const cutsL: number[] = [a0l]; const cutsH: number[] = [a0h];
+        for (let k9 = -sides9; k9 <= sides9; k9 += 1) {
+          const aC = Math.PI / 2 - ((k9 + 0.5) * Math.PI * 2) / sides9;
+          if (aC > Math.min(a0l, a0h) + 1e-4 && aC < Math.max(a1l, a1h) - 1e-4) {
+            cutsL.push(aC); cutsH.push(aC);
+          }
+        }
+        cutsL.push(a1l); cutsH.push(a1h);
+        cutsL.sort((p9, q9) => p9 - q9); cutsH.sort((p9, q9) => p9 - q9);
+        for (let i9 = 0; i9 + 1 < cutsL.length; i9 += 1) {
+          const aA = cutsL[i9]; const aB = cutsL[i9 + 1];
+          const aD = cutsH[i9]; const aC = cutsH[i9 + 1];
+          if (aB - aA < 1e-3) continue;
           const d9 = polyPath3([
             [r0 * Math.sin(aA), r0 * Math.cos(aA), z0], [r0 * Math.sin(aB), r0 * Math.cos(aB), z0],
             [r1 * Math.sin(aC), r1 * Math.cos(aC), z1], [r1 * Math.sin(aD), r1 * Math.cos(aD), z1],
