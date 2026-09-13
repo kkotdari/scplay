@@ -3934,22 +3934,49 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        기둥(spirePillar)의 등뼈를 그 법선으로 놓고 굵기를 √(1−t²)로 주면 그 반구다. 자리는
        그 높이의 겉벽 반지름에서 풀어(선체는 밑으로 갈수록 넓어지는 절두체다) 늘 벽에 물린다. */
     for (const sx9 of [-1, 1] as const) {
+      /* ★ **4분구**다(요청: "반구도 반으로 잘라야 해") — 벽에 붙이는 반구를 한 번 더, 이번엔
+         **수평으로** 자른다. 그러면 뒤(벽)와 아래(선반)가 둘 다 평평해져, 벽에 얹힌 차양처럼
+         읽힌다. 온 반구는 아랫배가 벽 밖으로 늘어져 공에 가까웠다.
+         기둥(spirePillar)으로는 못 낸다 — 그 단면은 닫힌 다각형이라 반원을 못 준다. 그래서
+         구면을 손으로 짠다: 축(벽 법선) 방향 t, 단면 각 φ(0~π, 0이 옆·π/2가 위)로 훑으며
+         네모를 깐다. 구의 법선은 곧 (중심 → 그 점)이라 명암·등진 면 걷기가 제 값으로 붙는다. */
       const bz9 = DOME_Z - 0.92;
       const wr9 = bz9 < HULL_Z + 0.8 ? 5.15 + 0.25 * ((bz9 - HULL_Z) / 0.8) : 5.4;
       const aa9 = Math.asin(Math.min(0.95, 2.55 / wr9));
       const nx9 = Math.sin(aa9) * sx9;
       const ny9 = Math.cos(aa9);
+      const ux9 = ny9;                 // u = n × ẑ — 단면의 가로 방향
+      const uy9 = -nx9;
       const br9 = 0.84;
-      const r09 = wr9 - 0.26;          // 밑면은 벽 속으로 한 뼘 물린다(틈이 안 나게)
+      const r09 = wr9 - 0.2;           // 밑면(벽 쪽)은 벽 속으로 조금 물린다
       const k9 = depthNow(nx9 * wr9, ny9 * wr9) * 1.6 + 4;
-      out.push(...tagKey(paintBase(spirePillar({
-        x: 0, y: 0, h: 1, w: br9, segs: 7, sides: 14, caps: "none",
-        trueNormal: true, ref: [0, 0, 1],
-        widthOf: (t9: number): number => br9 * Math.sqrt(Math.max(0, 1 - t9 * t9)),
-        path: (t9: number): [number, number, number] => [
-          nx9 * (r09 + br9 * t9), ny9 * (r09 + br9 * t9), bz9,
-        ],
-      }), SILVER), k9));
+      const NT9 = 5;
+      const NP9 = 7;
+      const at9 = (t9: number, ph9: number): [number, number, number] => {
+        const rho9 = br9 * Math.sqrt(Math.max(0, 1 - t9 * t9));
+        return [
+          nx9 * (r09 + br9 * t9) + ux9 * rho9 * Math.cos(ph9),
+          ny9 * (r09 + br9 * t9) + uy9 * rho9 * Math.cos(ph9),
+          bz9 + rho9 * Math.sin(ph9),
+        ];
+      };
+      const dome9: ShapeFace[] = [];
+      for (let i9 = 0; i9 < NT9; i9 += 1) {
+        const t0 = i9 / NT9; const t1 = (i9 + 1) / NT9;
+        for (let j9 = 0; j9 < NP9; j9 += 1) {
+          const p0 = (j9 / NP9) * Math.PI; const p1 = ((j9 + 1) / NP9) * Math.PI;
+          const d9 = polyPath3([at9(t0, p0), at9(t0, p1), at9(t1, p1), at9(t1, p0)]);
+          const tm9 = (t0 + t1) / 2; const pm9 = (p0 + p1) / 2;
+          const sq9 = Math.sqrt(Math.max(0, 1 - tm9 * tm9));
+          const mnx = nx9 * tm9 + ux9 * sq9 * Math.cos(pm9);
+          const mny = ny9 * tm9 + uy9 * sq9 * Math.cos(pm9);
+          const mnz = sq9 * Math.sin(pm9);
+          const fl9 = faceLight(mnx, mny, mnz);
+          if (!fl9.visible) continue;
+          dome9.push(bodyFace(d9), ...fl9.face(d9));
+        }
+      }
+      out.push(...tagKey(paintBase(dome9, SILVER), k9));
     }
 
     /* 입구 왼쪽 갑판 두 판은 걷었다(요청) — 통로 판과 그 끝 난간이었는데, 현관 지붕이
