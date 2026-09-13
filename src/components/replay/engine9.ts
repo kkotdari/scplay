@@ -2147,6 +2147,10 @@ export const SCR_DIAG: {
   xfms: number;
   /** 생산 색인 요약(#diag) — "(임자|건물종류)=건수". 비어 있으면 호스트 찾기 실패다. */
   prod: string;
+  /** 지금 이 프레임에 **불이 켜진 건물이 몇인가**(진단: "이 건물 활성시 불이 안 들어와").
+   *  0이면 켜는 자(생산·연구 맞대기)가 못 켠 것이고, 1 이상인데 화면이 어두우면 판
+   *  굽기 쪽이다 — 신고를 눈이 아니라 수로 가르는 자다. */
+  litN: number;
   /** 프레임 워커 상태 — on/off · 받은 수 · 쓴 수 · 놓친 수. */
   worker: string;
   /** 굽기 일꾼(ReplayMotionPlayer의 BAKEW9) — #diag=bake의 '굽기일꾼' 줄. */
@@ -2188,7 +2192,7 @@ export const SCR_DIAG: {
 } = {
   dpr: 0, unitCss: "", unitBack: "", unitB: 0,
   mapCss: "", mapBack: "", ppt: 0, needed: 0, scale: 0, unitScale: 0,
-  areaCap: 0, allocOk: true, zoom: 0, xfms: 0, fx: {}, prod: "", worker: "", bakew: "", crowd: "", brush: "", fps: 0, fog: "", react: "", nukem: "",
+  areaCap: 0, allocOk: true, zoom: 0, xfms: 0, fx: {}, prod: "", litN: 0, worker: "", bakew: "", crowd: "", brush: "", fps: 0, fog: "", react: "", nukem: "",
   truthVer: 0, truthTrust: -1, truthWhy: "",
 };
 /** #diag가 켜져 있나 — 주소가 바뀌지 않는 한 한 번만 읽는다. */
@@ -8416,6 +8420,14 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         if (t - at9 <= GAS_LIT_HOLD) o9.lit = true;
       }
     }
+    }
+    /* 진단 — 이 프레임에 불이 켜진 건물 수(위 SCR_DIAG.litN). "활성인데 불이 안 들어온다"는
+       신고를 눈이 아니라 수로 가른다: 0이면 켜는 자(생산·연구 맞대기)가 못 켠 것이고,
+       1 이상인데 화면이 어두우면 그 판을 굽는 쪽이다. 진단이 꺼져 있으면 안 센다. */
+    if (scrDiagOn()) {
+      let ln9 = 0;
+      for (const o9 of unitOps) if (o9.lit) ln9 += 1;
+      SCR_DIAG.litN = ln9;
     }
     return {
       t, unitOps, fxOps, miniExtra, gasBusy: [...gasBusy],

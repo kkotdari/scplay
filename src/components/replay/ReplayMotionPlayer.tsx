@@ -13786,6 +13786,10 @@ export default function ReplayMotionPlayer({
                     </div>
                     {/* 굽기 일꾼(위 BAKEW9) — on/off(까닭) · 보냄/받음 · 날아감/대기 · 왕복 · 일꾼 안 굽기 ms. */}
                     <div><b>굽기일꾼</b>{" "}{SCR_DIAG.bakew || "-"}</div>
+                    {/* 건물 불빛(요청 신고: "활성시 불이 안 들어와") — 생산 색인이 비었는지,
+                        켜진 건물이 0인지를 수로 가른다. 0이면 켜는 자가 문제고, 1 이상인데
+                        화면이 어두우면 그 판을 굽는 쪽이다. */}
+                    <div><b>불빛</b>{" "}켠건물 {SCR_DIAG.litN} · 생산색인 {SCR_DIAG.prod || "-"}</div>
                     {/* 판이 왜 갈리나 — 굽기 회전의 임자다(유닛·건물 각각 상위 셋). */}
                     <div><b>판갈림</b>{" "}유닛 {missTop9(UNI_MISS9.why)} · 건물 {missTop9(BLD_MISS9.why)}</div>
                     {/* 캔버스 만듦(위 CVN9)·되쓰기 창고(위 CVSTORE9) — 캔버스를 얼마나 새로 짓고, 얼마나 되쓰나. */}
