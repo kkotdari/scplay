@@ -3345,9 +3345,17 @@ export function deriveWorld9(inp: {
       for (let mi9 = 0; mi9 < mates9.length; mi9 += 1) {
         const j9 = mates9[mi9];
         const [s2, x2, y2, u2, , g2, l2] = buildsSrc[j9];
-        if (sec9 > 0 && u2 === unit9 && (x2 !== x9 || y2 !== y9)) {
-          if (l2 !== undefined && (g2 ?? 0) === sec9) land9 = true;
-          if (!fl9 && (g2 ?? 0) > 0 && (g2 ?? 0) === sec9) fl9 = buildsSrc[j9];
+        /* ★ 앞 줄이 **어디서 날아왔든** 착륙으로 본다(요청: "테란 건물 랜딩시 잠깐
+           안 보였다 페이드인되는 거 없애고 계속 보이게") — 여기 조건에 '앞 줄이 다른
+           자리(x2!==x9 || y2!==y9)'가 붙어 있어, 띄웠다 **제자리에 도로 앉히는** 흔한
+           경우가 착륙으로 안 잡혔다. 그러면 앉은 줄이 갓 지은 건물 취급이라 1.2초
+           페이드인을 타고, 그 첫 순간은 fade가 0이라 아예 안 그려진다 — 눈에는
+           '잠깐 사라졌다 스르륵 나타남'으로 보인다. 시각 맞춤도 **딱 같음**에서 한 틱
+           여유로 바꾼다: 앞 줄의 끝과 뒤 줄의 시작이 자료에서 미세하게 어긋나면
+           같은 증상이 그대로 난다. */
+        if (sec9 > 0 && u2 === unit9 && j9 !== i9 && Math.abs((g2 ?? 0) - sec9) <= 0.35) {
+          if (l2 !== undefined) land9 = true;
+          if (!fl9 && (g2 ?? 0) > 0 && (x2 !== x9 || y2 !== y9)) fl9 = buildsSrc[j9];
         }
         if (j9 !== i9 && s2 > sec9 && s2 < sa9
           && Math.hypot(x2 - x9, y2 - y9) <= SAME_SITE_TILES && succeedsBld(unit9, u2)) {
