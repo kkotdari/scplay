@@ -4189,12 +4189,25 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ], kV9 + 0.02));
       }
     }
-    // 바깥 판 어깨의 밝은 띠(기존 포인트 유지) — 제 판을 따라다닌다.
+    /* ★ 바깥 판 옥상의 **연한 가로 띠를 걷고 세로 갈라짐 선**을 긋는다(요청) — 밝은 띠는
+       지붕을 앞뒤로 잘라 '판이 두 장'처럼 보이게 했고, 벤트가 뒤로 물러난 뒤로는 그 자리만
+       허옇게 떠 있었다. 앞뒤로 길게 난 짙은 실선 둘은 지붕을 세로로 쪼개 넓은 철판이 이어
+       붙은 결을 낸다 — 지붕 넓이는 그대로 두면서 크기만 읽히게 하는 자다.
+       선은 벤트 **앞쪽**에서만 긋는다: 벤트와 그 임자색 받침판을 가로지르면 부품 위에 금이
+       간 꼴이 된다. */
+    const SEAM9 = "#3d434c";
+    const SEAMW9 = 0.05;                       // 선 반폭
     for (const sx9 of [-1, 1] as const) {
-      out.push(...tagKey([topFace(polyPath3([
-        [sx9 * PX - 1.1, 2.6, PTOP], [sx9 * PX + 1.1, 2.6, PTOP],
-        [sx9 * PX + 1.1, 1.7, PTOP], [sx9 * PX - 1.1, 1.7, PTOP],
-      ]), 0.3)], depthNow(sx9 * PX, 0) * 1.6 + 0.3));
+      const k9 = depthNow(sx9 * PX, 0) * 1.6 + 0.3;
+      const y09 = VF9 + VPAD9 + 0.25;
+      const y19 = PD / 2 - 0.3;
+      for (const dx9 of [-0.82, 0.82]) {
+        const xs9 = sx9 * PX + dx9;
+        out.push(...tagKey(paintBase([bodyFace(polyPath3([
+          [xs9 - SEAMW9, y09, PTOP], [xs9 + SEAMW9, y09, PTOP],
+          [xs9 + SEAMW9, y19, PTOP], [xs9 - SEAMW9, y19, PTOP],
+        ]))], SEAM9), k9));
+      }
     }
     /* ★ 띠 둘로 간다(요청: "임자색 띠 두께 반으로 줄이고, 그 조금 위에 간격을 두고 검회색 같은 두께
        창문띠를 추가(현재 창문 대체)") ─────────────────────────────────────────────────────────
@@ -4314,7 +4327,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          셋을 눈금으로 흩어 놓는 대신 밑면(PZ)에서 쌓아 올려, 판 높이를 다시 고쳐도
          아래 절반 안에 머문다. */
       const PZA = PZ + 1.0;                // 아래 관 높이 — 반구까지 몸 밑면 위에 얹힌다
-      const br9 = 0.95;                    // 반구
+      const br9 = 1.14;                    // 반구(요청: 1.2배)
+      const bz9 = PZA + 0.45;              // 반구는 관보다 조금 위(요청)
       const ya9 = -PD / 2 + 1.5;
       const yf9 = PD / 2 - 0.8;
       /* 아래 관은 반구의 **앞 가장자리에서** 시작한다(요청: "반구랑 파이프 안 겹치게") —
@@ -4322,7 +4336,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          반구가 벽에 붙은 채 x로 부풀므로 관이 지나는 x(xa9)에서의 단면 반지름을 실제로
          풀어(√(r²−Δx²)) 그만큼만 앞으로 물린다 — 눈금으로 어림하면 각도에 따라 겹친다. */
       const dx9 = xa9 - (PX + PW / 2);
-      const ys9 = ya9 + Math.sqrt(Math.max(0, br9 * br9 - dx9 * dx9)) - 0.05;
+      const dz9 = PZA - bz9;
+      const ys9 = ya9 + Math.sqrt(Math.max(0, br9 * br9 - dx9 * dx9 - dz9 * dz9)) - 0.05;
       out.push(...tagKey(run9(Array.from({ length: 5 }, (_9, i9) => {
         const t9 = i9 / 4;
         return [xa9, ys9 + (yf9 - ys9) * t9, PZA + 0.2 * t9 * t9] as [number, number, number];
@@ -4335,7 +4350,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         trueNormal: true, ref: [0, 0, 1],
         widthOf: (t9: number): number => br9 * Math.sqrt(Math.max(0, 1 - t9 * t9)),
         path: (t9: number): [number, number, number] => [
-          PX + PW / 2 + br9 * t9, ya9, PZA,
+          PX + PW / 2 + br9 * t9, ya9, bz9,
         ],
       }), PIPE9), kP9 - 0.02));
       /* 위 관은 **ㄷ자**로 꺾는다(요청) — 앞으로 갔다 위로 올라 다시 뒤로 돌아온다.
