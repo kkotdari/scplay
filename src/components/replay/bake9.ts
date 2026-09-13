@@ -265,7 +265,7 @@ export function legAndFoot(
     }));
   }
   return [
-    ...tagKey(paintBase(shin9, "#8b929a"), k9),
+    ...tagKey(paintBase(shin9, "#979490"), k9),
     /* 발판은 **살짝 납작한 반구**다(요청: "현재 절두체에서 살짝 납작한 반구로 변경(공용
        헬퍼에 변경 적용)") — 팔각 절두체는 위아래가 다 평평해 어느 각에서 봐도 같은 사다리꼴
        이라, 여러 건물의 발이 나란히 서면 나무 토막을 늘어놓은 것처럼 보였다. 밑동 지름은
@@ -274,7 +274,7 @@ export function legAndFoot(
     ...tagKey(paintBase(spirePillar({
       x: px, y: py, z0: 0, h: 0.58 * sz, w: 0.98 * sz, segs: 5, sides: 10, caps: "none",
       widthOf: (t9: number): number => 0.98 * sz * Math.sqrt(Math.max(0, 1 - t9 * t9)),
-    }), "#5d636b"), k9 - 0.1),
+    }), "#66635f"), k9 - 0.1),
   ];
 }
 
@@ -2503,7 +2503,16 @@ export function paintBase(faces: ShapeFace[], base: string): ShapeFace[] {
 /* 테란은 한 단 진한 쇠다(요청: "stain된 전쟁의 쇠붙이 — 좀 더 진한 쇠색이면서 광택과
    때묻음이 공존") — 은회색 #65696e를 건메탈 #575c63으로 내리고, 얼룩은 아래
    stainOf9가 면(패널)마다 낸다. 광택은 glossFaces의 볼록한 자가 그대로 세운다. */
-export const RACE_BASE_TONE = { terran: "#6b778d", toss: "#d6be45", zerg: "#b9724a" } as const;   // 테란: 푸른기 더·더 진하게(요청) → 한 번 더 푸르게·아주 살짝 어둡게(#76808f → #6b778d, 밝기 −7%)
+/* ★ 테란 바탕을 **따뜻한 건메탈**로 돌린다(요청: 원작 렌더 그림을 대며 "테란 기본색이 너무
+   다르지 최대한 비슷하게") — 두 그림에서 채도 낮은 쇠 화소만 골라 재 보면 이랬다:
+     원작 평균 (80,78,83) — 거의 중성, 밝은 쪽(80분위)은 (127,111,98)로 **따뜻**
+     이 판 평균 (96,103,119) — 파랑이 +23이나 앞서고 중간값이 한 단 밝다
+   곧 어긋남은 '은색이냐'가 아니라 **푸른기와 밝기** 둘이다. 굽는 색은 tone9을 한 번 더
+   지나므로(휘도 ×0.88 · 채도 ×1.12) 화면에 (80,78,76)으로 앉을 값을 거꾸로 풀어 적는다.
+   ★ 따뜻하게 **기울이되 물들이지는 않는다**(첫 판의 실패: 바탕을 (89,84,76)까지 밀었더니
+     강철이 아니라 모래빛 카키가 됐다) — 원작의 쇠는 평균이 거의 중성(80,78,83)이고 따뜻한
+     것은 **빛 받은 쪽**(127,111,98)뿐이다. 온기는 바탕이 아니라 광이 진다. */
+export const RACE_BASE_TONE = { terran: "#5a5856", toss: "#d6be45", zerg: "#b9724a" } as const;   // 테란: 푸른 은색(#6b778d) → 따뜻한 건메탈(요청: 원작 그림에 맞춤)
 /* ★ **때 얼룩** — 칠 안 한 테란 면마다 쇠색 네 벌 중 하나를 **결정적으로** 고른다.
    무작위면 굽을 때마다 판이 달라져 캐시가 거짓말이 된다 — 면의 경로 문자열을 해시해
    같은 면은 언제나 같은 얼룩을 받는다. 네 벌은 기준(#575c63)의 위아래 5%와, 갈빛이
@@ -2525,11 +2534,16 @@ export const RACE_BASE_TONE = { terran: "#6b778d", toss: "#d6be45", zerg: "#b972
  *  어두운 색을 쓰면 그늘이 '빛이 덜 든 같은 금속'으로 읽힌다. 광색과 짝이다.
  *  ★ 이 색은 **두 번 칠하지 않기 위한 표식** 노릇도 한다(glossFaces 주석). */
 export const RACE_GLOSS_SHADE: Partial<Record<keyof typeof RACE_BASE_TONE, string>> = {
-  terran: "#0d1219",
+  /* 그늘도 바탕을 따라 **따뜻한 먹**으로(요청: 색 맞춤) — 푸른 먹(#0d1219)을 따뜻한 쇠 위에
+     얹으면 그늘만 보랏빛으로 떠, 바탕을 아무리 맞춰도 어두운 쪽이 옛 색을 물고 있다. */
+  terran: "#121110",
   toss: "#1a1708",
 };
 export const RACE_GLOSS_LIT: Partial<Record<keyof typeof RACE_BASE_TONE, string>> = {
-  terran: "#dde4ec",   // 광에도 푸른기 살짝
+  /* 광도 **따뜻한 흰빛**이다(요청: "광택을 은은히") — 원작 그림의 밝은 쪽(80분위)은
+     (127,111,98)로 확실히 따뜻하다. 푸른 광(#dde4ec)을 따뜻한 쇠에 얹으면 젖은 돌처럼
+     식은 색이 된다. 순백이 아닌 까닭은 그대로다 — 순백은 바탕색을 씻는다. */
+  terran: "#ece5da",
   // 프로토스는 **따뜻한** 광이다 — 금에 푸른 광을 얹으면 도금이 벗겨진 놋쇠로 보인다.
   toss: "#fff3cf",
 };
@@ -2578,10 +2592,17 @@ export function glossFaces(
      검은 덮개 곡선의 상한을 0.60 → 0.43으로, 테란 배수는 0.58 → 0.7(곡선이 낮아진 만큼
      되돌려 테란만 밋밋해지지 않게). */
   const shK9 = tone === "terran" ? 0.7 : 1;
+  /* ★ 테란 광은 **은은해야 한다**(요청: "광택을 은은히 넣어줄수 있나") — 흰 광의 꼭대기가
+     0.43이라, 카메라가 내려다보는 이 판에서는 화면의 대부분을 차지하는 윗면이 통째로
+     그 값을 받아 몸이 허옇게 떴다(실측: 몸 평균 휘도 121 대 원작 79). 꼭대기를 0.31로
+     내리면 밝은 면이 '빛나는 판'이 아니라 '빛이 스친 쇠'가 된다 — 광을 없애는 것이
+     아니라 **폭을 좁히는** 것이라, 가장 잘 받는 면 하나만 여전히 도드라진다.
+     프로토스는 그대로다(금은 세게 빛나야 금이다). */
+  const hiK9 = tone === "terran" ? 0.68 : 1;
   return faces.map(([d, o, f, k, l, n]) => {
     if (f !== "#fff" && f !== "#000") return [d, o, f, k, l, n] as ShapeFace;
     const o9 = f === "#fff"
-      ? 0.05 + 0.38 * Math.min(1, o / 0.2) ** 1.8
+      ? 0.05 + 0.38 * hiK9 * Math.min(1, o / 0.2) ** 1.8
       : (0.07 + 0.36 * Math.min(1, o / 0.38) ** 1.1) * shK9;
     const f9 = f === "#fff" ? (hi9 ?? f) : (sh9 ?? f);
     return [d, o9, f9, k, l, n] as ShapeFace;
@@ -4433,7 +4454,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          한다 — 처음엔 거꾸로 올려 부르는 바람에 통이 0.9r만큼 떠 몸속에 파묻혔다. 화면 한 칸이
          모델 z 한 칸이 아니므로(내려다보는 몫만큼 눌린다) 눈금은 눈으로 맞춘 0.62r다. */
       out.push(...tagKey(paintBase(
-        tubeFaces(-DRX9, DRY9, DRX9, DRY9, DRR9, DRZ9 - DRR9 * 0.62), "#79828f",
+        tubeFaces(-DRX9, DRY9, DRX9, DRY9, DRR9, DRZ9 - DRR9 * 0.62), "#858280",
       ), DRUM_K9));
       /* 드럼통 겉면 → 앞 다리 기둥의 **보이는 한가운데** — 기둥은 위 끝(1.45+LIFT)에서
          발판 꼭대기(0.58·FK9)까지만 드러나므로, 그 둘의 가운데라야 팔이 기둥 한복판에
@@ -4562,7 +4583,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 벤트는 **어두운 회색**이다(요청) — 몸과 같은 은색이면 지붕에 얹힌 부품이 아니라
        지붕이 솟은 것으로 읽힌다. 명암 덮개(흰 윗면·검은 옆면)는 제 색을 이미 들고 있어
        paintBase가 안 건드린다 — 바탕이 깔린 몸판만 어두워진다. */
-    const VENTC9 = "#464c56";
+    const VENTC9 = "#4f4c49";
     for (const sx9 of [-1, 1] as const) {
       const k9 = depthNow(sx9 * PX, 0) * 1.6 + 0.3;
       pc.push(...tagKey(boxFaces3(
@@ -8910,7 +8931,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           x: 0, y: 0, h: 1, w: w0, tipW: w1, segs: 2, sides: 6, hold: 0.2, caps: "both",
           path: (t9: number): [number, number, number] =>
             [x0 + (x1 - x0) * t9, y0 + (y1 - y0) * t9, z0 + (z1 - z0) * t9],
-        }), "#8b929a");
+        }), "#979490");
       out.push(...tagKey([
         // 윗팔 — 바닥에 수평하게 앞뒤로만.
         ...seg(ax, ay, AZ, kx, ky, AZ, 0.46, 0.42),
