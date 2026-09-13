@@ -3925,20 +3925,31 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        테두리 갑판의 좌우에 따로 놓인 부품처럼 보였다. 안으로 당기면 입구를 사이에 낀
        한 쌍으로 읽힌다. 갑판은 돔 밑(4.9)과 받침 테(5.4) 사이의 고리라, 당기는 만큼
        앞(y)으로 나가야 그 고리 위에 남는다 — 반지름 5.15 원을 따라 옮긴다. */
-    for (const bx9 of [-2.55, 2.55]) {
-      /* ★ 내리면 **앞으로도 나가야 한다**(지적: "아래로만 내리면 안 되고 앞으로도 옮겼어야
-         해 — 아래쪽이 지름이 넓잖아") — 선체는 밑으로 갈수록 넓어지는 절두체(HULL_Z에서
-         5.15, 0.8 올라가 5.4)라, 높이를 내린 자리의 겉면은 그만큼 **바깥**에 있다. 자리를
-         눈금으로 박아 두면 내릴수록 몸속으로 파고든다. 그 높이의 겉면 반지름을 실제로 풀어
-         거기서 반 통만큼(0.38) 물려 앉히면, 어느 높이로 옮겨도 늘 벽에 반쯤 박힌다. */
+    /* ★ **앞 반쪽만 남긴 참 반구**로 짠다(지적: "건물 속에 박혀 있는 뒤가 보여서 이상하다")
+       ────────────────────────────────────────────────────────────────────────────────
+       공용 halfSphereFaces3는 **화면 좌표**의 돔이다 — 위 반원 + 아래로 부푼 타원이라, 벽에
+       반쯤 박아 두어도 박힌 뒤쪽까지 통째로 그려지고 그게 벽 위에 얹혀 보인다(키가 벽보다
+       위다). 여기 필요한 것은 벽의 **법선 방향으로 누운** 반구다: 밑면(평평한 쪽)을 벽 속에
+       두고 둥근 쪽만 밖으로 부풀리면, 몸속 절반은 아예 면이 없어 비칠 것도 없다.
+       기둥(spirePillar)의 등뼈를 그 법선으로 놓고 굵기를 √(1−t²)로 주면 그 반구다. 자리는
+       그 높이의 겉벽 반지름에서 풀어(선체는 밑으로 갈수록 넓어지는 절두체다) 늘 벽에 물린다. */
+    for (const sx9 of [-1, 1] as const) {
       const bz9 = DOME_Z - 0.92;
-      const seatR9 = (bz9 < HULL_Z + 0.8
-        ? 5.15 + 0.25 * ((bz9 - HULL_Z) / 0.8)
-        : 5.4) - 0.38;
-      const by9 = Math.sqrt(Math.max(0.01, seatR9 * seatR9 - bx9 * bx9));
-      const k9 = depthNow(bx9, by9) * 1.6 + 4;
-      out.push(...tagKey(paintBase(cylinderFaces3(bx9, by9, 0.9, 0.1, bz9 - 0.1), SILVER), k9));
-      out.push(...tagKey(halfSphereFaces3(bx9, by9, bz9, 0.84, SILVER), k9 + 0.01));
+      const wr9 = bz9 < HULL_Z + 0.8 ? 5.15 + 0.25 * ((bz9 - HULL_Z) / 0.8) : 5.4;
+      const aa9 = Math.asin(Math.min(0.95, 2.55 / wr9));
+      const nx9 = Math.sin(aa9) * sx9;
+      const ny9 = Math.cos(aa9);
+      const br9 = 0.84;
+      const r09 = wr9 - 0.26;          // 밑면은 벽 속으로 한 뼘 물린다(틈이 안 나게)
+      const k9 = depthNow(nx9 * wr9, ny9 * wr9) * 1.6 + 4;
+      out.push(...tagKey(paintBase(spirePillar({
+        x: 0, y: 0, h: 1, w: br9, segs: 7, sides: 14, caps: "none",
+        trueNormal: true, ref: [0, 0, 1],
+        widthOf: (t9: number): number => br9 * Math.sqrt(Math.max(0, 1 - t9 * t9)),
+        path: (t9: number): [number, number, number] => [
+          nx9 * (r09 + br9 * t9), ny9 * (r09 + br9 * t9), bz9,
+        ],
+      }), SILVER), k9));
     }
 
     /* 입구 왼쪽 갑판 두 판은 걷었다(요청) — 통로 판과 그 끝 난간이었는데, 현관 지붕이
