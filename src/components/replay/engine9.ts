@@ -1728,7 +1728,7 @@ export const BLD_NORM: Record<string, number> = {
   tombFlat: 1.724,   // 높이 1.1배·계단 2/3·그리기 크기 원복 뒤 재측정
   trapezoid: 2.487,
   tribunal: 1.563,  // ×0.8(요청: 그려지는 크기 0.8배)
-  turret: 1.905,  // 머리 0.6 더 올리고 톱니를 키운 뒤 다시 잼
+  turret: 1.899,  // 포드를 팔자로 굴린 뒤 재측정(bld-norm) — 잉크 폭 9.05 → 8.98
   warpin: 2.196,
 };
 
