@@ -3882,7 +3882,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 캐노피를 한 번 더 줄인다(요청: "크기 특히 앞뒤 길이 축소") — 앞뒤 2.1 → 1.25,
        폭 2.5 → 2.1. **뒷변은 붙박이**다: 이 지붕은 돔 살에 등을 대고 앞으로 내미는 것이라
        뒤가 움직이면 돔에서 떨어져 허공에 뜬다. 그래서 뒷변(3.7)을 잡고 앞으로만 줄인다. */
-    const CANOPY_Z = T2_Z;
+    /* 캐노피도 개구부를 따라 내려간다(요청) — 인방(BAY_Z1) 바로 위에 걸려야 현관 지붕이다.
+       2층 갑판 높이(T2_Z)에 못 박혀 있어 문이 낮아진 뒤로는 혼자 허공에 떠 있었다. */
+    const CANOPY_Z = DOME_Z + 0.45 + 0.18;
     const CNP_D = 1.25;
     const CNP_Y = 3.7 + CNP_D / 2;
     out.push(...tagKey(paintBase(boxFaces3(0, CNP_Y, 2.1, CNP_D, 0.14, CANOPY_Z), SILVER),
@@ -3950,28 +3952,31 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const br9 = 0.84;
       const r09 = wr9 - 0.2;           // 밑면(벽 쪽)은 벽 속으로 조금 물린다
       const k9 = depthNow(nx9 * wr9, ny9 * wr9) * 1.6 + 4;
-      const NT9 = 5;
-      const NP9 = 7;
-      const at9 = (t9: number, ph9: number): [number, number, number] => {
-        const rho9 = br9 * Math.sqrt(Math.max(0, 1 - t9 * t9));
+      const NT9 = 6;   // 꼭대기(θ) 칸
+      const NP9 = 7;   // 둘레(φ) 칸
+      /* ★ 꼭지점은 **위**다(요청) — 축을 벽 법선이 아니라 ẑ로 둔다. θ는 꼭대기에서 내려오는
+         각(0~π/2)이라 θ=0이 곧 꼭대기이고, φ는 벽을 따라 도는 각(−π/2~π/2)이라 그 두 끝이
+         벽에 붙는 평평한 단면이 된다. 곧 밑은 선반에, 뒤는 벽에 붙고 꼭대기가 하늘을 본다. */
+      const at9 = (th9: number, ph9: number): [number, number, number] => {
+        const st9 = Math.sin(th9);
         return [
-          nx9 * (r09 + br9 * t9) + ux9 * rho9 * Math.cos(ph9),
-          ny9 * (r09 + br9 * t9) + uy9 * rho9 * Math.cos(ph9),
-          bz9 + rho9 * Math.sin(ph9),
+          nx9 * (r09 + br9 * st9 * Math.cos(ph9)) + ux9 * br9 * st9 * Math.sin(ph9),
+          ny9 * (r09 + br9 * st9 * Math.cos(ph9)) + uy9 * br9 * st9 * Math.sin(ph9),
+          bz9 + br9 * Math.cos(th9),
         ];
       };
       const dome9: ShapeFace[] = [];
       for (let i9 = 0; i9 < NT9; i9 += 1) {
-        const t0 = i9 / NT9; const t1 = (i9 + 1) / NT9;
+        const th0 = (i9 / NT9) * (Math.PI / 2); const th1 = ((i9 + 1) / NT9) * (Math.PI / 2);
         for (let j9 = 0; j9 < NP9; j9 += 1) {
-          const p0 = (j9 / NP9) * Math.PI; const p1 = ((j9 + 1) / NP9) * Math.PI;
-          const d9 = polyPath3([at9(t0, p0), at9(t0, p1), at9(t1, p1), at9(t1, p0)]);
-          const tm9 = (t0 + t1) / 2; const pm9 = (p0 + p1) / 2;
-          const sq9 = Math.sqrt(Math.max(0, 1 - tm9 * tm9));
-          const mnx = nx9 * tm9 + ux9 * sq9 * Math.cos(pm9);
-          const mny = ny9 * tm9 + uy9 * sq9 * Math.cos(pm9);
-          const mnz = sq9 * Math.sin(pm9);
-          const fl9 = faceLight(mnx, mny, mnz);
+          const p0 = -Math.PI / 2 + (j9 / NP9) * Math.PI;
+          const p1 = -Math.PI / 2 + ((j9 + 1) / NP9) * Math.PI;
+          const d9 = polyPath3([at9(th0, p0), at9(th0, p1), at9(th1, p1), at9(th1, p0)]);
+          const tm9 = (th0 + th1) / 2; const pm9 = (p0 + p1) / 2;
+          const sm9 = Math.sin(tm9);
+          const mnx = nx9 * sm9 * Math.cos(pm9) + ux9 * sm9 * Math.sin(pm9);
+          const mny = ny9 * sm9 * Math.cos(pm9) + uy9 * sm9 * Math.sin(pm9);
+          const fl9 = faceLight(mnx, mny, Math.cos(tm9));
           if (!fl9.visible) continue;
           dome9.push(bodyFace(d9), ...fl9.face(d9));
         }
@@ -3992,7 +3997,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        걷었다). 옛 입구 빛(세 겹 판)은 격납구가 대신한다 — 뒷벽 위에 가는 푸른 띠 하나만 남겼다. */
     if (frontVisible) {
       const BAY_HW = 1.05 * 0.8;   // 1.32 → 1.05 → 폭 20% 더 축소(요청). 경사로 폭(RW)이 이 값을 탄다.
-      const BAY_Z1 = DOME_Z + 1.25;
+      /* 개구부 윗머리를 훨씬 낮춘다(요청) — 1.25는 2층 돔 아랫도리를 반이나 파고들어
+         입구가 격납고처럼 컸다. 0.45면 사람·일꾼이 드나드는 문 높이로 읽힌다.
+         현관 캐노피도 이 값을 따라 내려간다(아래 CANOPY_Z). */
+      const BAY_Z1 = DOME_Z + 0.45;
       /* ★ 격납구를 **얕게** 판다(지적: "사선에서 입구 판 거 가리는 추가 판이 위치가 잘못됐나")
          ───────────────────────────────────────────────────────────────────────────
          이 짜임은 속을 몸 **위** 키로 그리고 개구부 둘레를 덧그려 가리는 자다. 그러면 사선에서
@@ -4047,10 +4055,16 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const RY0 = BAY_YI + 0.06;
       const RZ0 = DOME_Z;
       const RY_W = wallY(Z0, RW);                // 벽 선(선체 밑 높이의 겉벽 y)
-      const RY1 = RY_W + RAMP_OUT;                // 지면에 닿는 끝
-      const RZ1 = 0;
+      /* ★ 끝은 **바닥에 깔린다**(요청: "바닥에 수평으로 깔리는 부분 추가 — 경사로가 꺾여진
+         느낌") — 여태는 비스듬한 판이 지면에 닿는 선에서 그냥 끝나, 닿았다기보다 잘린
+         것으로 보였다. 지면에 닿는 자리(RYG)까지 내려온 뒤 거기서 한 뼘 더 평평하게
+         나가면, 그 꺾임이 곧 '땅에 놓인 발판'이 된다. 홈(살)도 이 자를 그대로 탄다. */
+      const RYG = RY_W + RAMP_OUT;                // 지면에 닿는 자리
+      const RFLAT = 0.62;                         // 바닥에 깔리는 평평한 끝
+      const RY1 = RYG + RFLAT;                    // 판의 맨 끝
+      const tg9 = (RYG - RY0) / (RY1 - RY0);      // 꺾이는 t
       const rAt = (t: number, side: 1 | -1): [number, number, number] => [
-        side * RW, RY0 + (RY1 - RY0) * t, RZ0 + (RZ1 - RZ0) * t];
+        side * RW, RY0 + (RY1 - RY0) * t, t >= tg9 ? 0 : RZ0 * (1 - t / tg9)];
       const tW = (RY_W - RY0) / (RY1 - RY0);      // 벽 선의 t
       const rampIn = polyPath3([rAt(0, -1), rAt(0, 1), rAt(tW, 1), rAt(tW, -1)]);
       bay.push([rampIn, 1, SILVER] as ShapeFace, topFace(rampIn, 0.16));
