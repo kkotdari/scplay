@@ -4060,6 +4060,16 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const FK9 = 1.5;    // 발판 크기
     const FO9 = 1.38;   // 자리 밀어내기(제 방향·요청으로 한 번 더 바깥)
     const LW9 = 0.8;    // 기둥 굵기(요청: 두께 20% 축소 — 발판은 그대로)
+    /* ★ 몸 **밑에 매달린 것들**(드럼통·팔·앞 가운데 다리)은 어느 요잉에서도 **몸 뒤**다
+       (지적: "아직도 건물 아래 있는데 안 가려진다") — 한때 제 깊이로 세워 봤지만 그건
+       틀린 자다: 이것들은 몸보다 **앞**이 아니라 **아래**에 있다(드럼통은 앞 끝조차 앞면과
+       나란하다). 제 깊이를 주면 몸통 상자의 키가 그 **한가운데**로 매겨진 탓에 앞쪽 절반이
+       통째로 몸 위로 올라와, 앞면을 뚫고 통이 떠 버린다. 몸 뒤로 못박으면 몸 실루엣 **아래로**
+       삐져나온 아랫배와, 건물 밖까지 나간 팔·다리만 남는다 — 다리(−40)가 여태 지켜 온 규약과
+       같은 자리다. 앞뒤로 누운 드럼통은 좌우 두 토막이 제 반쪽 깊이로 갈려, 그 안에서의
+       앞뒤(팔·다리와의 순서)는 그대로 맞는다. */
+    const DRUM_K9 = -39.9;
+    const ARM_K9 = -39.95;
     /* ★ 네 모서리 다리는 **ㄱ자**다(요청) — 몸 밑에서 가로로 나와 제자리에서 꺾여 내려온다.
        가로 팔이 몸 밑면(PZ)보다 조금 아래에 놓이게 zTop을 내려, 팔이 몸에 먹히지 않고
        드러난다. 앞뒤 **가운데 둘만은 꺾이지 않은 수직 기둥**이고(요청), 몸에는 아래의
@@ -4078,7 +4088,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        드럼통 옆면, 팔의 키값 조정 필요") — −40대에 못박히면 몸 앞에 선 다리가 몸 뒤로
        가 버려, 앞에서 볼 때 다리·발판이 건물 옆면에 잘려 나갔다. */
     out.push(...legAndFoot(0, FLY9, 1.45 + LIFT, 0, FK9, {
-      legW: LW9, key: depthNow(0, FLY9) * 1.6 + 0.3,
+      legW: LW9, key: -40,
     }));
     out.push(...legAndFoot(0, -MLY9, 1.45 + LIFT, 0, FK9, { legW: LW9 }));
     /* ★ 가운데 다리는 **삼각으로 모이는 팔 둘**로 몸에 붙는다(요청) — 이 둘만 몸통 앞뒤로
@@ -4108,22 +4118,28 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            두 토막은 가운데서 만나고 색이 같아 이음매가 안 보인다. 몸통과 같은 눈금(×1.6)에
            +0.3이라, 앞에서는 몸 앞에 뒤에서는 몸 뒤에 선다. */
       for (const sh9 of [-1, 1] as const) {
-        out.push(...tagKey(paintBase(rodFaces(
+        /* 바깥 끝 원판만 한 단 어둡게 — 통 색 그대로면 옆으로 누운 원기둥이 납작한 판으로
+           보인다(지적: "드럼통 옆면 구분이 안 되고"). rodFaces는 두 끝 원판을 맨 앞에 싣고,
+           paintBase는 색이 **없는** 면만 칠하므로 여기서 미리 칠해 두면 그 면만 남는다. */
+        const rf9 = rodFaces(
           sh9 * DRX9, DRY9, DRZ9, 0, DRY9, DRZ9, DRR9 * 2,
-        ), "#79828f"), depthNow(sh9 * DRX9 * 0.5, DRY9) * 1.6 + 0.3));
+        );
+        rf9[0] = [rf9[0][0], rf9[0][1], "#59616d", rf9[0][3], rf9[0][4], rf9[0][5]];
+        out.push(...tagKey(paintBase(rf9, "#79828f"),
+          DRUM_K9 + depthNow(sh9 * DRX9 * 0.5, DRY9) * 0.002));
       }
       // 드럼통 두 끝 → 앞 다리의 중간
       const MID9 = (1.45 + LIFT + 0.38 * FK9) / 2 + 0.12;
-      /* 팔은 rodFaces가 제 두 끝의 깊이로 내는 키를 그대로 쓴다 — 앞에서는 몸 앞에,
-         뒤에서는 몸 뒤에 선다. 한 값으로 못박으면 둘 중 하나가 늘 틀린다. */
+      /* 팔도 드럼통과 같은 문을 탄다 — 앞면이 보일 때만 제 깊이, 아니면 몸 뒤. */
       for (const sx9 of [-1, 1] as const) {
         /* 팔은 드럼통의 **앞쪽 겉면**에서 시작한다(지적: "팔은 드럼통 표면에서 시작해야
            하는데 뒤까지 들어가 있네") — 여태 시작점이 통의 **축**(뒤쪽 y) 위라, 팔이
            안쪽으로 꺾여 오는 동안 통 속을 한참 지나고서야 밖으로 나왔다. 겉면(y+반지름)
            에서 떠나면 y가 줄지 않으므로 어디서도 통을 안 뚫는다. */
-        out.push(...rodFaces(
+        const arm9 = rodFaces(
           sx9 * (DRX9 - 0.25), DRY9 + DRR9 * 0.92, DRZ9 - DRR9 * 0.1, 0, FLY9, MID9, 0.24,
-        ));
+        );
+        out.push(...tagKey(arm9, ARM_K9));
       }
     }
     if (facingRatio(0, -1) > 0.12) {
@@ -4214,7 +4230,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const k9 = depthNow(sx9 * PX, 0) * 1.6 + 0.3;
       pc.push(...tagKey(boxFaces3(sx9 * PX, VC9, (0.95 + VPAD9) * 2, VL9 + VPAD9 * 2, 0.2, PTOP), k9));
       out.push(...tagKey(paintBase(
-        rampVent(sx9 * PX, 0.95, VB9, VF9, PTOP + 0.2, 1.24, 2), VENTC9,
+        rampVent(sx9 * PX, 0.95, VB9, VF9, PTOP + 0.2, 0.76, 2), VENTC9,
       ), k9 + 0.02));
     }
     /* ★ 가운데 지붕 벤트는 **경사로가 아니라 평평한 팔각 두께판**이다(요청: "사각형이 아닌
