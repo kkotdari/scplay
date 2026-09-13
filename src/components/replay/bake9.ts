@@ -4117,9 +4117,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
             [cx9 + dx9 + 0.36, py9, 6.1 + LIFT], [cx9 + dx9 - 0.36, py9, 6.1 + LIFT],
           ], key9);
         }
+        /* ★ 데칼은 **그 면의 좌우폭을 꽉 채운다**(요청) — 여태 ±0.85로 판 두께(PW 2.7, 반 1.35)보다
+           좁아, 붉은 띠 양옆에 맨 벽이 남아 '붙여 둔 스티커'로 읽혔다. 판 폭 그대로 두르면 그 면이
+           통째로 임자 색 띠가 된다(아래 가운데 판·옆면도 같은 자). */
         pc.push(...tagKey([bodyFace(polyPath3([
-          [cx9 - 0.85, py9, 2.6 + LIFT], [cx9 + 0.85, py9, 2.6 + LIFT],
-          [cx9 + 0.85, py9, 4.1 + LIFT], [cx9 - 0.85, py9, 4.1 + LIFT],
+          [cx9 - PW / 2, py9, 2.6 + LIFT], [cx9 + PW / 2, py9, 2.6 + LIFT],
+          [cx9 + PW / 2, py9, 4.1 + LIFT], [cx9 - PW / 2, py9, 4.1 + LIFT],
         ]))], key9));
       }
       // 가운데 판 앞면 — 창 하나 · 데칼 하나.
@@ -4129,8 +4132,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         [0.42, my9, 5.6 + LIFT], [-0.42, my9, 5.6 + LIFT],
       ], keyM);
       pc.push(...tagKey([bodyFace(polyPath3([
-        [-0.75, my9, 2.5 + LIFT], [0.75, my9, 2.5 + LIFT],
-        [0.75, my9, 3.9 + LIFT], [-0.75, my9, 3.9 + LIFT],
+        [-MW / 2, my9, 2.5 + LIFT], [MW / 2, my9, 2.5 + LIFT],
+        [MW / 2, my9, 3.9 + LIFT], [-MW / 2, my9, 3.9 + LIFT],
       ]))], keyM));
     }
     /* 옆면(±x) — 개인색은 앞뒤로 긴 가로띠 하나(요청: "작은 네모말고 가로띠로 길게"),
@@ -4140,8 +4143,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const xw9 = sx9 * (PW / 2 + PX + 0.03);
       const key9 = depthNow(sx9 * PX, 0) * 1.6 + 0.3;
       pc.push(...tagKey([bodyFace(polyPath3([
-        [xw9, -3.05, 2.7 + LIFT], [xw9, 3.05, 2.7 + LIFT],
-        [xw9, 3.05, 3.7 + LIFT], [xw9, -3.05, 3.7 + LIFT],
+        [xw9, -PD / 2, 2.7 + LIFT], [xw9, PD / 2, 2.7 + LIFT],
+        [xw9, PD / 2, 3.7 + LIFT], [xw9, -PD / 2, 3.7 + LIFT],
       ]))], key9));
       for (const dy9 of [-2, 0, 2]) {
         win([
