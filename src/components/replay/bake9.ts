@@ -6,7 +6,7 @@ import { GAP9, pNow } from "./perf9";
 import { cx } from "./cx";
 import { TIER_GEN9 } from "./tierTable.gen";
 import { kT } from "../../utils/openbwTracks";
-import { annulusPath, bandPath, bodyFace, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash } from "../../utils/shapeOblique";
+import { annulusPath, bandPath, bodyFace, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9 } from "../../utils/shapeOblique";
 import { BUILD_STAGES, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, SPIN_STEPS, bldNormOf, modelInkOf, modelNormOf } from "./engine9";
 import { type UnitDrawOp } from "./engine9";
 /** 주소 해시(`#pitch=`·`#nocreep` 같은 진단 스위치) — 굽기 일꾼 안에서는 location.hash가 빈 문자열(blob 주소)이라,
@@ -4379,7 +4379,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        다리는 저절로 대각선으로 나간다(가운데 다리는 앞뒤로만 간다 — x가 0이라). 발이 커진 만큼
        바깥으로 나가야 서로 안 겹치고 몸 아래에 파묻히지도 않는다. */
     const FK9 = 1.5;    // 발판 크기
-    const FO9 = 1.38;   // 자리 밀어내기(제 방향·요청으로 한 번 더 바깥)
+    /* 1.38 → 1.72(요청: "배럭은 발을 더 바깥으로 벌려줘") — 원작 렌더와 나란히 놓고 재니
+       실루엣의 세로/가로가 0.87 대 1.05로, 우리 배럭이 제 폭 대비 22% 높아 보였다. 그 몫의
+       절반은 키가 아니라 **발 너비**다: 원작은 네 발이 몸통 밖으로 훨씬 벌어져 바닥이 넓다. */
+    const FO9 = 1.72;   // 자리 밀어내기(제 방향·요청으로 한 번 더 바깥)
     const LW9 = 0.8;    // 기둥 굵기(요청: 두께 20% 축소 — 발판은 그대로)
     /* ★ 몸 **밑에 매달린 것들**(드럼통·팔·앞 가운데 다리)은 어느 요잉에서도 **몸 뒤**다
        (지적: "아직도 건물 아래 있는데 안 가려진다") — 한때 제 깊이로 세워 봤지만 그건
@@ -20799,7 +20802,7 @@ export function resolveShapeFaces(
     /* 기본은 정면(지적: 사선이 어색) — rotDeg 0이 요잉 0(정면 아래)이 되도록 굽는다.
        건물은 rotDeg가 없어 좌우 시점(vq)만 받는다. */
     // 16방향(요청: 원작 스프라이트처럼 22.5도 스텝) — 자연스러운 회전 단위.
-    const bucket = rotDeg !== undefined ? ((Math.round(rotDeg / 22.5) * 22.5) % 360 + 360) % 360 : 0;
+    const bucket = rotDeg !== undefined ? yawBucket9(rotDeg) : 0;
     /* ★ 열쇠에 **회전 칸(spinTag)**도 실린다(지적: "회전 설정한 포지 톱니바퀴 코어
        디스크 서플 팬 아무것도 안돌아") — 원인이 정확히 이 한 줄이었다. 굽는 판의
        열쇠(buildingSpriteBake)에는 spinTag가 있었는데, **면 목록을 만드는 이 캐시**
