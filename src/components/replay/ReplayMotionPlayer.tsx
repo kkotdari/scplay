@@ -822,7 +822,7 @@ const DEV9 = smallDevice9 ? {
   /** 프레임당 굽는 장수(유닛/건물) · 프레임당 굽기 **시간**(ms, 아래 ★) */
   unitBakePerFrame: 1, bldBakePerFrame: 1, bakeMsPerFrame: 8,
   /** 피격 불티 수 배수 · 죽음 파편 수 · 효과 래스터 예산(MB) · 접지 그림자 최소 배율 */
-  hitShardK: 0.6, dieShards: 12, fxRasterMB: 6, shadowGroundMinZoom: 3,
+  hitShardK: 0.6, dieShards: 12, fxRasterMB: 6, shadowGroundMinZoom: 4,   // 사다리(1-2-4-8)의 셋째 칸 — 옛 3배는 이제 어느 칸도 아니다
   /** 워커 시야 여유(화면 배수) · 앞으로 지을 한도(벽시계 초·MB) · 요잉을 늘 여덟 칸으로 */
   // 앞 한도 4 → 6MB(진단: 3배 장당 163KB — 4MB면 0.8초, 6MB면 1.2초. 지난 장은 이제 한도에 안 든다(frameWorker)).
   cullMargin: 0.5, aheadSec: 1.5, aheadMB: 6, yaw8Always: true,
@@ -960,7 +960,7 @@ function lowZoomTrim9(zoom9: number, pitched9: boolean): 0 | 1 | 2 {
   /* 진단 스위치 `#notrim` — 이 죄기를 통째로 끈다. 낮은 배율에서 무엇이 달라졌나를
      한 탭으로 가르는 자다(끄고 켜서 가른다 — 이 판의 규약). */
   if (NO_TRIM9) return 0;
-  if (!smallDevice9 || zoom9 > 3) return 0;
+  if (!smallDevice9 || zoom9 > 4) return 0;   // 사다리(1-2-4-8)의 아래 세 칸 — 옛 '1~3배'가 가리키던 그 자리다
   const c9 = CROWD9;
   if (c9.force >= 0) return c9.force >= 2 ? 2 : c9.force >= 1 ? 1 : 0;   // #crowd= 강제 단을 그대로 탄다
   if (!(pitched9 ? c9.weak3 : c9.weak)) return 0;
@@ -4003,6 +4003,9 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          프롭으로 받으면 한 박자 늦는다). 사정은 lowZoomTrim9 주석에. */
       const trim9 = lowZoomTrim9(zoom, !!pitchedProp);
       const moveOk9 = moveAt === undefined || zoom >= moveAt;
+      /* 체력바·승하차 줄이 서는가 — 제 칸(DEEP_MIN_ZOOM)과 **배치 바닥**(detailAt) 중 늦은 쪽이다(효과 갈래의 fxMinZoom과 같은 규약).
+         PC는 바닥이 2배라 4배부터, 폰은 바닥이 8배라 8배부터 — 사다리를 갈아도 두 배치의 뜻이 그대로 산다. */
+      const deepOk9 = zoom >= Math.max(DEEP_MIN_ZOOM, detailAt ?? 0);
       const sorted = ((): UnitDrawOp[] => {
         const raw9 = sortCacheRef.current.out.filter(inView0);
         if (!lite9 && !liteYaw9) return raw9;
@@ -4542,7 +4545,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
               }
             }
             /* 건물 체력바(요청) — 다친 건물 위에만. 유닛 바와 같은 3색. */
-            if (showHp !== false && zoom >= DEEP_MIN_ZOOM && op.hpFrac !== undefined && op.hpFrac > 0
+            if (showHp !== false && deepOk9 && op.hpFrac !== undefined && op.hpFrac > 0
               && (op.hpShow || (pickedKey != null && op.pickKey === pickedKey))) {   // 맞은 지 잠깐·선택된 개체만(요청)
               /* 원작 폭(요청: 절대값에 비례 — 옛 잉크 폭·발자국 폭 자는 걷었다) — 엔진이 실어 온 게임 px 폭을 화면 px로
                  (지도 폭 분수 × 지도 화면 폭). 두께는 원작 5게임px과 우리 최소 두께 중 큰 쪽. */
@@ -4827,7 +4830,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         }
         /* 체력바(요청: 체력을 지니고 다니는 생애주기) — 다친 유닛 머리 위에 원작풍
            바: 초록(>66%)·노랑(>33%)·빨강. 성한 유닛에는 안 띄워 화면을 아낀다. */
-        if (showHp !== false && zoom >= DEEP_MIN_ZOOM && op.hpFrac !== undefined && op.hpFrac > 0
+        if (showHp !== false && deepOk9 && op.hpFrac !== undefined && op.hpFrac > 0
               && (op.hpShow || (pickedKey != null && op.pickKey === pickedKey))) {   // 맞은 지 잠깐·선택된 개체만(요청)
           // 원작 폭(요청) — 건물 쪽(bw3)과 같은 자. 옛 잉크 폭·체력 보정 자는 걷었다.
           const bw2 = Math.max(3, (op.hpBarFrac ?? 0) * cw * zoom);
@@ -6487,9 +6490,12 @@ const TRACER_MIN_ZOOM = 2;
      ※ 값을 사다리 배열에서 읽어 오지는 않는다 — ZOOM_STEPS는 컴포넌트 안이고 여기는
        모듈 스코프다. 대신 **몇째 칸인지**를 이름과 주석에 박아, 사다리를 또 갈 때
        같이 갈아야 한다는 것이 눈에 띄게 둔다. */
-/** 체력바·실드막·승하차 줄이 서는 칸 — 사다리 `[1,2,3,6,12]`의 **넷째(6배)**.
- *  기능(읽기) 쪽이라 몸이 충분히 커진 뒤에 선다. */
-const DEEP_MIN_ZOOM = 6;
+/** 체력바·실드막·승하차 줄이 서는 칸 — 사다리 `[1,2,4,8]`의 **셋째(4배)**.
+ *  ★ 사다리를 1-2-4-8로 갈면서(요청) 옛 값 6이 어느 칸도 안 가리키게 됐다 — 실제로는 8배로 밀려, PC에서
+ *    "4배에서 체력바 추가"(요청)가 깨져 있었다. 이제 사다리에 **4배가 실제로 있으므로** 그 칸을 그대로 적는다.
+ *  ★ 폰은 여기서도 **배치 바닥**(detailAt: 좁은 자리 8배)을 함께 본다(아래 두 자리의 deepOk9) — 요청
+ *    "2·4배는 정말 단순하게"가 폰 몫이라, 셋째 칸으로 내려도 폰의 4배는 종전대로 비어 있다. */
+const DEEP_MIN_ZOOM = 4;
 /** 겹침 그림자가 서는 칸 — **첫째(1배), 곧 늘 켜짐**이다.
  *
  *  가는 길이 두 걸음이었다.
