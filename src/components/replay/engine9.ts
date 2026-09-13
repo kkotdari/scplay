@@ -973,7 +973,7 @@ export const MODEL_NORM: Record<string, number> = {
   droneGas: 1.040,
   droneMin: 1.071,
   dship: 0.712,  // 포드 축소·안쪽 이동 뒤 재측정(model-norm)
-  dtemp: 0.938,  // 재측정(model-norm) — 검 팔을 들어 굽힌 뒤(칼이 몸 앞으로 와 잉크 폭이 줄었다)
+  dtemp: 0.867,  // 재측정(model-norm) — 망토를 1.2배로 늘리고 들어 올린 뒤(잉크 폭 5.48 → 6.26)
   egg: 1.237,   // 정수리를 둥글게 한 뒤 model-norm 재측정
   fbat: 1.229,
   ghost: 1.552,  // 상자 상한(원한 배수 1.723)
@@ -5402,7 +5402,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
              2×2 발자국의 작은 판이라 48장이라도 몇 MB이고, 도는 동안 같은 48장을 되쓴다. 겨눌 때도 같은 칸. */
           const HEAD_STEP9 = unit === "Missile Turret" ? 7.5 : 22.5;
           const sweep9 = unit === "Missile Turret"
-            ? ((Math.round(((t * 48 + centerX * 37 + centerY * 53) % 360) / HEAD_STEP9) * HEAD_STEP9) % 360 + 360)   // 24 → 48°/s(요청: 2배) % 360
+            ? ((Math.round(((t * 96 + centerX * 37 + centerY * 53) % 360) / HEAD_STEP9) * HEAD_STEP9) % 360 + 360)   // 24 → 48 → 96°/s(요청: 두 번에 걸쳐 2배씩 — 3.75초에 한 바퀴) % 360
             : undefined;
           const f9 = foeOfTgt9(rec9?.tgt);
           if (!f9) return sweep9;
