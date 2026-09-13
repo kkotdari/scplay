@@ -4598,8 +4598,16 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const VENTC9 = "#4c4c4c";
     for (const sx9 of [-1, 1] as const) {
       const k9 = depthNow(sx9 * PX, 0) * 1.6 + 0.3;
-      pc.push(...tagKey(boxFaces3(
-        sx9 * PX, VC9, (0.95 + VPAD9) * 2 * 1.2, VL9 + VPAD9 * 2, 0.2 * 1.2, PTOP), k9));
+      /** 임자색 받침판의 두께. */
+      const VPH9 = 0.2 * 1.2;
+      /** 그 **아래에 한 장 더** 까는 기본 은색 판(요청) — 높이는 임자색 판의 1.5배다.
+       *  색을 안 칠하면 raceBase가 테란 기본색을 입힌다(out에 넣는 까닭). 지붕과 임자색
+       *  판 사이에 은색 켜가 한 단 들어가, 벤트가 지붕에 바로 붙지 않고 대 위에 올라선다. */
+      const VSH9 = VPH9 * 1.5;
+      const VPW9 = (0.95 + VPAD9) * 2 * 1.2;
+      const VPD9 = VL9 + VPAD9 * 2;
+      out.push(...tagKey(boxFaces3(sx9 * PX, VC9, VPW9, VPD9, VSH9, PTOP), k9));
+      pc.push(...tagKey(boxFaces3(sx9 * PX, VC9, VPW9, VPD9, VPH9, PTOP + VSH9), k9 + 0.005));
       /* ★ 경사로 **몸체는 테란 기본 은색**이고, 어두운 벤트는 그 **윗 경사면에 한 치 작게
          얹힌 판**이다(요청: "본체는 테란 기본색이고 윗 경사면에 윗면보다 살짝 작은 벤트를
          붙인다는 표현이 더 맞을듯") — 여태는 경사로 전체가 어두운 부품이고 그 밑에 은색을
@@ -4615,10 +4623,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const VWK9 = VK9 * 1.2;
       const vf9 = VB9 + VL9 * VK9;
       out.push(...tagKey(
-        rampVent(sx9 * PX, 0.95 * VWK9, VB9, vf9, PTOP + 0.2 * 1.2, 0.95 * VWK9, 0), k9 + 0.01,
+        rampVent(sx9 * PX, 0.95 * VWK9, VB9, vf9, PTOP + VSH9 + VPH9, 0.95 * VWK9, 0), k9 + 0.01,
       ));
       out.push(...tagKey(
-        slopePanel9(sx9 * PX, 0.95 * VWK9, VB9, vf9, PTOP + 0.2 * 1.2, 0.95 * VWK9), k9 + 0.02,
+        slopePanel9(sx9 * PX, 0.95 * VWK9, VB9, vf9, PTOP + VSH9 + VPH9, 0.95 * VWK9), k9 + 0.02,
       ));
     }
     /* ★ 가운데 지붕 벤트는 **경사로가 아니라 평평한 팔각 두께판**이다(요청: "사각형이 아닌
