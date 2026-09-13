@@ -4304,12 +4304,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       };
       /* 자리는 **옆면 아래 절반**이다(요청) — 지붕 밑에 붙어 있던 것을 내리면 위쪽이 트여
          벤트가 살고, 굵어진 관이 몸 아래를 지나는 배관으로 읽힌다. */
-      const PR_A = 0.6;                    // 아래 관(굵기 2.5배)
-      const PR_B = 0.5;                    // 위 관
+      const PR_A = 0.45;                   // 아래 관(굵기 25% 축소·요청)
+      const PR_B = 0.375;                  // 위 관
       const xa9 = PX + PW / 2 + PR_A * 0.55;
       const xb9 = PX + PW / 2 + PR_B * 0.55;
-      const PZA = 2.85;                    // 아래 관 높이 — 반구까지 몸 밑면 위에 얹힌다
-      const br9 = 1.35;                    // 반구(요청: 크게)
+      /* ★ 배관 한 벌이 통째로 **옆면 아래쪽 절반**에 든다(요청) — 벽은 PZ~PTOP이고 그
+         한가운데가 (PZ+PTOP)/2다. 반구 지름·관 둘·둘 사이 틈을 다 합친 키가 그 절반을
+         넘으면 어느 하나는 위로 삐져나오므로, 가장 큰 반구가 몫을 양보한다(1.35 → 0.95).
+         셋을 눈금으로 흩어 놓는 대신 밑면(PZ)에서 쌓아 올려, 판 높이를 다시 고쳐도
+         아래 절반 안에 머문다. */
+      const PZA = PZ + 1.0;                // 아래 관 높이 — 반구까지 몸 밑면 위에 얹힌다
+      const br9 = 0.95;                    // 반구
       const ya9 = -PD / 2 + 1.5;
       const yf9 = PD / 2 - 0.8;
       /* 아래 관은 반구의 **앞 가장자리에서** 시작한다(요청: "반구랑 파이프 안 겹치게") —
@@ -4320,7 +4325,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const ys9 = ya9 + Math.sqrt(Math.max(0, br9 * br9 - dx9 * dx9)) - 0.05;
       out.push(...tagKey(run9(Array.from({ length: 5 }, (_9, i9) => {
         const t9 = i9 / 4;
-        return [xa9, ys9 + (yf9 - ys9) * t9, PZA + 0.35 * t9 * t9] as [number, number, number];
+        return [xa9, ys9 + (yf9 - ys9) * t9, PZA + 0.2 * t9 * t9] as [number, number, number];
       }), PR_A), kP9));
       /* ★ 반구는 **밑면이 옆면에 붙는다**(정정) — 여태 축을 앞뒤(y)로 두어 판 뒤쪽으로
          둥글게 튀어나온 알이었다. 축을 벽의 법선(+x)으로 돌리면 납작한 밑면이 벽에 딱
@@ -4341,8 +4346,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          그 사이의 세로 토막이 한 덩이로 뭉쳐 굽이가 사라진다. 돌아오는 윗줄은 짧게 끊어
          아랫줄이 드러나게 둔다. */
       /* 위 관도 반구 앞에서 시작하고(겹침 금지) 아래 관 위로 한 뼘 띄운다. */
-      const zc9 = 4.35;
-      const zd9 = 6.0;
+      const zc9 = PZA + 1.05;
+      const zd9 = zc9 + 1.0;
       out.push(...tagKey(run9([
         [xb9, ys9 + 0.2, zc9], [xb9, yf9, zc9], [xb9, yf9, zd9], [xb9, 0.8, zd9],
       ], PR_B), kP9 + 0.01));
