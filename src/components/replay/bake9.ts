@@ -3705,8 +3705,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            띠에 걸린 빛이 아니라 따로 붙은 조각으로 읽혔다. 띠는 제 몸 명암만으로 충분하다. */
         /* 띠 한가운데를 세로로 가르는 **임자색 줄** — 1층에만, 더 얇고 더 짧게(요청).
            색을 안 주면 임자 색이 칠해진다. 구리보다 한 겹 밖(+0.05)이라 늘 그 위에 얹힌다. */
-        bodyFace(arcBand(aMid, 0.055, t1R(zB + 0.55) + 0.05, t1R(zT - 0.55) + 0.05,
-          zB + 0.55, zT - 0.55)),
+        /* 줄의 **시작점(위 끝)은 1층 꼭대기에 맞춘다**(요청) — 구리띠와 같은 자리에서 시작해야
+           한 부품에 그은 줄로 읽힌다. 아래로는 더 내려 길이를 늘렸다(0.55 → 0.25 남김). */
+        bodyFace(arcBand(aMid, 0.055, t1R(zB + 0.25) + 0.05, t1R(zT) + 0.05, zB + 0.25, zT)),
       ], 2.2));
       /* ★ 띠는 **2층 돔까지 이어진다**(요청) — 1층 꼭대기에서 끊기면 위층이 맨살로 남아
          띠가 중간에 잘린 자국처럼 보였다. 2층은 기둥 반지름이 다르므로(t3R) 같은 각·같은
@@ -3716,6 +3717,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const zT2 = T2_Z + 0.85 - 0.04;   // = MOD_Z − 0.04 (MOD_Z는 아래서 선언된다)
       out.push(...tagKey([
         [arcBand(aMid, 0.26, t3R(zB2) + 0.03, t3R(zT2) + 0.03, zB2, zT2), 1, COPPER] as ShapeFace,
+        /* 2층 띠에도 같은 폭의 임자색 줄을 넣되 **더 짧고, 아랫끝을 2층 밑에 맞춘다**(요청) —
+           1층 줄은 위 끝을, 2층 줄은 아래 끝을 제 켜의 경계에 맞추니, 갑판을 사이에 두고 둘이
+           서로를 마주 보는 짝이 된다. */
+        bodyFace(arcBand(aMid, 0.055, t3R(zB2) + 0.05, t3R(zB2 + 0.5) + 0.05, zB2, zB2 + 0.5)),
+        /* 2층 띠에도 같은 폭의 임자색 줄을 넣되 **더 짧고, 아랫끝을 2층 밑에 맞춘다**(요청) —
+           1층 줄은 위 끝을, 2층 줄은 아래 끝을 제 켜의 경계에 맞추니, 갑판을 사이에 두고 둘이
+           서로를 마주 보는 짝이 된다. */
+        bodyFace(arcBand(aMid, 0.055, t3R(zB2) + 0.05, t3R(zB2 + 0.5) + 0.05, zB2, zB2 + 0.5)),
       ], 8.4));
     }
 
@@ -3884,11 +3893,37 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        뒤가 움직이면 돔에서 떨어져 허공에 뜬다. 그래서 뒷변(3.7)을 잡고 앞으로만 줄인다. */
     /* 캐노피도 개구부를 따라 내려간다(요청) — 인방(BAY_Z1) 바로 위에 걸려야 현관 지붕이다.
        2층 갑판 높이(T2_Z)에 못 박혀 있어 문이 낮아진 뒤로는 혼자 허공에 떠 있었다. */
+    /* ★ 현관 지붕을 **급한 경사면 + 옆 삼각**으로 바꾼다(요청: "경사로와 옆면으로, 경사는
+       75도쯤 급하게") — 납작한 판때기는 어느 각에서 봐도 종잇장이 앞으로 뻗은 꼴이라 차양으로
+       안 읽혔다. 뒤(돔에 붙는 변)가 높고 앞으로 미끄러져 내려오는 면에 옆 삼각 둘을 달면
+       그것이 곧 처마다. 급한 각은 내민 몫으로 푼다 — tan75 ≈ 3.73이므로 0.3만 내밀어도
+       1.1이 내려앉는다(각을 눈금이 아니라 식으로 두어, 내민 몫을 바꿔도 각이 지켜진다). */
     const CANOPY_Z = DOME_Z + 0.45 + 0.18;
-    const CNP_D = 1.25;
-    const CNP_Y = 3.7 + CNP_D / 2;
-    out.push(...tagKey(paintBase(boxFaces3(0, CNP_Y, 2.1, CNP_D, 0.14, CANOPY_Z), SILVER),
-      depthNow(0, CNP_Y) * 1.6 + 7));
+    const CNP_D = 0.3;                                     // 앞으로 내민 몫
+    const CNP_H = CNP_D * Math.tan((75 * Math.PI) / 180);  // 그 각에서 오는 높이
+    const CNP_W = 1.05;                                    // 반폭
+    const CNP_Y0 = 3.7;                                    // 뒤(돔에 붙는 변)
+    const CNP_Y1 = CNP_Y0 + CNP_D;
+    const CNP_ZT = CANOPY_Z + CNP_H;
+    {
+      const cn9: ShapeFace[] = [];
+      const slope9 = polyPath3([
+        [-CNP_W, CNP_Y0, CNP_ZT], [CNP_W, CNP_Y0, CNP_ZT],
+        [CNP_W, CNP_Y1, CANOPY_Z], [-CNP_W, CNP_Y1, CANOPY_Z],
+      ]);
+      const sl9 = Math.hypot(CNP_D, CNP_H) || 1;
+      const flS9 = faceLight(0, CNP_H / sl9, CNP_D / sl9);
+      cn9.push(bodyFace(slope9), ...(flS9.visible ? flS9.face(slope9) : [sideFace(slope9, 0.3)]));
+      for (const m9 of [-1, 1] as const) {
+        const tri9 = polyPath3([
+          [m9 * CNP_W, CNP_Y0, CNP_ZT], [m9 * CNP_W, CNP_Y0, CANOPY_Z],
+          [m9 * CNP_W, CNP_Y1, CANOPY_Z],
+        ]);
+        const fl9 = faceLight(m9, 0, 0);
+        if (fl9.visible) cn9.push(bodyFace(tri9), ...fl9.face(tri9));
+      }
+      out.push(...tagKey(paintBase(cn9, SILVER), depthNow(0, CNP_Y1) * 1.6 + 7));
+    }
     /* 캐노피 기둥 둘은 걷었다 — 정면 격납구(아래)가 그 자리를 파고 들어와 기둥이 개구부 한가운데 서게 됐다.
        캐노피는 인방 위에 걸린다. */
     /* 상자와 드럼통은 3층 기둥 옆구리에 붙인다(요청: "캐노피 위 상자랑 드럼통 파묻힘
