@@ -111,7 +111,7 @@ export const TOP_Z_PRESS9 = 0.82;
    그 이상으로 보여" — 56을 넣어도 반올림이 45나 67.5로 되돌렸다). 그래서 이 한 값만
    그대로 지난다. 판 수는 안 는다 — 건물이 쓰는 각이 하나인 것은 그대로다. */
 /** 건물의 기본 요잉(도). engine9의 BUILDING_BASE_YAW가 이 값이다. */
-export const BLD_YAW9 = 60;   // 45 → 55 → 60(요청)
+export const BLD_YAW9 = 30;   // 45 → 55 → 60 → 30(요청: 뜻이 반대였다)
 /** 굽는 요잉 칸 — 굽기·앵커가 **같은 식**을 써야 앵커가 제 부품을 안 벗어난다. */
 export function yawBucket9(rotDeg: number): number {
   if (Math.abs(rotDeg - BLD_YAW9) < 1e-6) return BLD_YAW9;
