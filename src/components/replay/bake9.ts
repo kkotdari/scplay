@@ -1586,14 +1586,25 @@ export function paleTeam(faces: ShapeFace[], k = 0.24): ShapeFace[] {
  *      까치발이 된다(spirePillar의 그 주석). 미는 것은 단면이라 밑창은 수평 그대로다.
  *    · caps "both" — 밑창과 발목이 **평평한 뚜껑**이다. trueNormal로 등진 면을 안 그려 속이 안 비친다.
  *  키는 부르는 쪽이 준다(정강이보다 아래여야 발이 다리를 안 가린다).
- *  @param k 크기 배수 · @param back 발목이 뒤로 물러나는 몫(모델 단위) */
+ *  ★ **발목이 향하는 쪽을 준다**(요청: 터렛 조종수는 "발바닥이 앞을 보게 … 발목과 발 각도가 120도 정도") —
+ *    선 몸은 밑창이 땅을 보므로 이 축이 곧 위(기본 [0,0,1])지만, 앉아서 다리를 편 몸은 발등이 젖혀져 밑창이
+ *    **앞**을 본다. 축을 그 반대(뒤·위)로 주면 단면이 축에 수직이라 밑창이 그대로 그 평면에 선다 —
+ *    앞코·뒤축·발등의 결은 한 부품 안에서 그대로 따라 돈다.
+ *  @param cx,cy,cz 밑창 한가운데 · @param k 크기 배수 · @param back 발목이 발 뒤쪽으로 물러나는 몫
+ *  @param up 밑창에서 발목으로 가는 방향(길이는 안 본다) */
 export function bootFaces(
   cx: number, cy: number, cz: number, k = 1, back = 0.3 * k, fill?: string,
+  up: [number, number, number] = [0, 0, 1],
 ): ShapeFace[] {
+  const H9 = 0.62 * k;
+  const l9 = Math.hypot(up[0], up[1], up[2]) || 1;
+  const n9: [number, number, number] = [up[0] / l9, up[1] / l9, up[2] / l9];
   return spirePillar({
-    x: cx, y: cy, z0: cz, h: 0.62 * k, w: 1,
+    x: cx, y: cy, z0: cz, h: H9, w: 1,
     segs: 5, sides: 12, oval: 1.8, caps: "both", trueNormal: true,
     ref: [1, 0, 0], fill,
+    path: (t9: number): [number, number, number] =>
+      [cx + n9[0] * H9 * t9, cy + n9[1] * H9 * t9, cz + n9[2] * H9 * t9],
     widthOf: (t9: number): number => (0.2 + 0.22 * Math.cos((t9 * Math.PI) / 2) ** 1.2) * k,
     skewV: (_u9: number, t9: number): number => -back * t9,
   });
@@ -6457,8 +6468,21 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* ★ 몸을 1.2배로 키우고 팔다리를 **바깥으로 벌린다**(재요청: "조종수 크기 1.2배 확대, 팔 다리 더 바깥으로,
          특히 팔은 손이 포드 옆면에 붙게") — 포드 안쪽 벽이 x ±1.45이므로 손을 ±1.34에 두면 주먹(반지름 0.29)이
          그 벽에 닿는다. 조종간도 그 자리로 따라가, 손잡이가 포드에 달린 것처럼 읽힌다. */
-      /** 부품 하나의 깊이 키 — 포드와 같은 자(20 + 깊이 × 1.6). */
-      const pk9 = (x9: number, y9: number): number => 20 + depthNow(x9, y9) * 1.6;
+      /** 부품 하나의 깊이 키 — 포드와 같은 자(20 + 깊이 × 1.6).
+       *  ★ 다만 **포드 사이에 가둔다**(지적: "포드 뒤에 있는 팔다리가 비치네") — 포드의 키는 제 한가운데
+       *    (y 0.2) 하나로 매기는데 포드는 앞뒤로 5.4나 되는 긴 상자다. 그래서 앞으로 뻗은 팔·다리가 그
+       *    한가운데보다 앞서면, 실제로는 포드 **뒤**에 있는데도 키가 이겨 포드 위에 그려졌다(비침이 아니라
+       *    차례다 — 포구 속은 이미 불투명하다). 조종수는 어느 각에서도 포드 둘 **사이**에 있으므로,
+       *    앞 포드는 못 이기고 뒤 포드에는 안 지게 가둔다. 두 포드의 키가 거의 같은 각(정면)에서는 포드가
+       *    조종수를 화면에서 안 덮으므로 가두지 않는다. */
+      const pk9 = (x9: number, y9: number): number => {
+        const v9 = 20 + depthNow(x9, y9) * 1.6;
+        const a9 = 20 + depthNow(2.2, 0.2) * 1.6;
+        const b9 = 20 + depthNow(-2.2, 0.2) * 1.6;
+        const hi9 = Math.max(a9, b9) - 0.05;
+        const lo9 = Math.min(a9, b9) + 0.05;
+        return hi9 <= lo9 ? v9 : Math.min(hi9, Math.max(lo9, v9));
+      };
       const out9: ShapeFace[] = [];
       // 좌석 판 — 등받이 앞에 붙어 나온 걸상.
       /* (걷어냄) 좌석 판 — 몸통 앞·아래에 놓인 상자라, 비스듬히 내려다보는 이 화면에서 그 윗면이 조종수의
@@ -6491,28 +6515,60 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ), pk9(m9 * 0.8, FY9 + 0.12)));
       }
       // 헬멧 — 짙은 녹색 구에 앞창 한 조각.
-      out9.push(...tagKey(sphereFaces3(0, FY9 + 0.17, HIP9 + 2.18, 0.66, HELM9), pk9(0, FY9 + 0.17)));
+      /* 헬멧은 **반구**다(요청: "헬멧도 구가 아니라 반구 형태로") — 온 구는 목 아래까지 둥글어 머리통이
+         공으로 읽혔다. 밑을 목에서 끊은 돔이면 헬멧을 눌러쓴 꼴이 된다. */
+      out9.push(...tagKey(paintBase(
+        domeFaces3(0, FY9 + 0.17, 0.64, 0.6, HIP9 + 1.86), HELM9,
+      ), pk9(0, FY9 + 0.17)));
       /* (걷어냄) 헬멧 앞창 상자(재요청: "헬멧의 네모 상자 뭐야 제거") — 얼굴 자리에 붙인 어두운 판인데,
          이 크기에서는 얼굴이 아니라 헬멧에 박힌 네모 조각으로 읽혔다. 민 헬멧 하나가 낫다. */
       /* 다리는 **쫙 편다**(요청) — 엉덩이에서 앞으로 거의 수평으로 뻗고 끝에 발이 붙는다.
          rodFaces는 제 깊이 키를 달므로 tagKey로 머리 무리의 자로 덮어쓴다. */
       for (const m9 of [-1, 1] as const) {
+        /* ★ 무릎을 **아주 살짝** 굽힌다(요청: "팔다리 관절 추가해서 아주 살짝씩 구부리기") — 한 막대로 뻗은
+           다리는 사람이 아니라 각목이다. 두 마디 합(2.10)을 엉덩이–발목 거리(1.99)보다 한 뼘만 길게 두면
+           jointBetween이 그 차이만큼만 무릎을 띄운다(앞·위로). 마디는 suitLimb이라 무릎에서 굵기가 이어진다. */
+        const hp9: [number, number, number] = [m9 * 0.46, FY9 + 0.66, HIP9 + 0.1];
+        const an9: [number, number, number] = [m9 * 0.82, FY9 + 2.55, HIP9 - 0.4];
+        const kn9 = jointBetween(hp9, an9, 1.08, 1.02, [m9 * 0.25, 0.2, 0.85]);
+        out9.push(...tagKey(paintBase(suitLimb(hp9, kn9, 0.28, 0.24, 0.31,
+          { sides: 7, caps: "none", trueNormal: true, tag: "leg.thigh" }), TERRAN_STEEL),
+        pk9((hp9[0] + kn9[0]) / 2, (hp9[1] + kn9[1]) / 2)));
+        out9.push(...tagKey(paintBase(suitLimb(kn9, an9, 0.24, 0.2, 0.27,
+          { sides: 7, caps: "none", trueNormal: true, tag: "leg.shin" }), TERRAN_STEEL),
+        pk9((kn9[0] + an9[0]) / 2, (kn9[1] + an9[1]) / 2)));
+        /* 군화는 보병 넷과 **같은 공통 부품**이다(위 bootFaces) — 다만 앉은 몸이라 **밑창이 앞을 본다**
+           (요청: "발바닥이 앞을 보게 … 발목과 발 각도가 120도 정도"). 정강이가 앞·아래 15°로 뻗으므로,
+           발목 각 120°면 발은 앞·위 45°로 젖혀지고 밑창은 그 수직인 앞·아래 45°를 본다. 밑창에서 발목으로
+           가는 축은 그 반대인 **뒤·위 45°**다. 밑창 한가운데는 발목(정강이 끝)에서 그 축만큼 앞·아래로 내린 자리. */
+        const FK9 = 0.9;                                  // 군화 크기
+        const FH9 = 0.62 * FK9;                           // 밑창→발목 길이
+        const FB9 = 0.3 * FK9;                            // 발목이 발 뒤쪽으로 물러나는 몫(bootFaces의 back)
+        const D9 = Math.SQRT1_2;                          // cos45 = sin45
+        /* ★ 발목 뚜껑의 한가운데를 정강이 끝(an9)에 **정확히** 앉힌다(지적: "발목 위치가 안 맞고") —
+           bootFaces는 발목 뚜껑을 발 길이 방향으로 back만큼 뒤로 민다(skewV). 그 몫을 안 되먹이면 뚜껑이
+           정강이 끝에서 뒤·아래로 그만큼 어긋난다. 밑창 자리 = 발목 − 축×길이 + 뒤로민몫×발길이방향. */
+        const fy9 = an9[1] + D9 * FH9 + FB9 * D9;         // 밑창 한가운데(앞으로)
+        const fz9 = an9[2] - D9 * FH9 + FB9 * D9;         // 밑창 한가운데(아래로)
         out9.push(...tagKey(paintBase(
-          rodFaces(m9 * 0.46, FY9 + 0.66, HIP9 + 0.10, m9 * 0.82, FY9 + 2.55, HIP9 - 0.40, 0.50), TERRAN_STEEL,
-        ), pk9(m9 * 0.60, FY9 + 1.6)));
-        // 군화는 보병 넷과 **같은 공통 부품**이다(요청) — 위 bootFaces.
-        out9.push(...tagKey(paintBase(
-          bootFaces(m9 * 0.82, FY9 + 2.9, HIP9 - 0.72, 0.9), TERRAN_STEEL,
-        ), pk9(m9 * 0.82, FY9 + 2.9)));
+          bootFaces(m9 * 0.82, fy9, fz9, FK9, FB9, undefined, [0, -D9, D9]), TERRAN_STEEL,
+        ), pk9(m9 * 0.82, fy9)));
       }
-      /* 양팔은 앞으로 뻗어 **조종간**을 쥔다(요청) — 어깨에서 앞아래로 내려와 손이 손잡이에 닿는다. */
+      /* 양팔은 앞으로 뻗어 **조종간**을 쥔다(요청) — 어깨에서 앞아래로 내려와 손이 손잡이에 닿는다.
+         ★ 팔은 **보병과 같은 사슬**(armChain)이다(요청: "손도 파이어뱃과 같이 손으로 조종간을 쥐고 있는
+           형태(손가락 있는)") — 상완 → 하완 → 손등 → 손가락이 끝점·굵기를 물려받아 이어지므로, 막대 하나에
+           공 하나를 붙이던 옛 손과 달리 손가락이 손잡이를 감싼다. 팔꿈치도 jointBetween으로 살짝 굽힌다.
+           armChain의 key는 depthNow×1.6에 **더하는 밑수**라, 머리 무리의 기준 20을 그대로 주면 pk9와 같은 자다. */
       for (const m9 of [-1, 1] as const) {
-        out9.push(...tagKey(paintBase(
-          rodFaces(m9 * 0.84, FY9 + 0.28, HIP9 + 1.22, m9 * 1.30, FY9 + 1.60, HIP9 + 0.72, 0.38), TERRAN_STEEL,
-        ), pk9(m9 * 1.07, FY9 + 0.92)));
-        out9.push(...tagKey(paintBase(
-          sphereFaces3(m9 * 1.34, FY9 + 1.72, HIP9 + 0.70, 0.26), TERRAN_STEEL,
-        ), pk9(m9 * 1.34, FY9 + 1.72) + 0.01));
+        const sh9: [number, number, number] = [m9 * 0.84, FY9 + 0.28, HIP9 + 1.22];
+        const wr9: [number, number, number] = [m9 * 1.2, FY9 + 1.46, HIP9 + 0.76];
+        const el9 = jointBetween(sh9, wr9, 0.62, 0.56, [m9 * 0.7, -0.4, -0.45]);
+        /* ★ armChain은 제 마디마다 키를 매기므로(깊이×1.6 + 밑수) **가두는 자(pk9)를 안 탄다** — 그대로 두면
+           앞으로 뻗은 손이 앞 포드를 이겨 포구 위에 그려졌다(지적). 한 덩이로 다시 매겨 조종수의 자에 태운다:
+           마디 사이 차례는 배열 순서(상완 → 하완 → 손)가 그대로 지킨다. */
+        out9.push(...tagKey(armChain(sh9, el9, wr9, {
+          upper: 0.36, fore: 0.32, fill: TERRAN_STEEL, handFill: "#6c7683", hand: true, key: 20,
+        }), pk9(m9 * 1.0, FY9 + 0.9)));
         // 손잡이 — 손 아래위로 선 짧은 막대.
         out9.push(...tagKey(paintBase(
           rodFaces(m9 * 1.34, FY9 + 1.74, HIP9 + 0.24, m9 * 1.34, FY9 + 1.74, HIP9 + 1.02, 0.20), GUN_BLACK,
