@@ -262,9 +262,14 @@ export function legAndFoot(
   }
   return [
     ...tagKey(paintBase(shin9, "#8b929a"), k9),
+    /* 발판은 **살짝 납작한 반구**다(요청: "현재 절두체에서 살짝 납작한 반구로 변경(공용
+       헬퍼에 변경 적용)") — 팔각 절두체는 위아래가 다 평평해 어느 각에서 봐도 같은 사다리꼴
+       이라, 여러 건물의 발이 나란히 서면 나무 토막을 늘어놓은 것처럼 보였다. 밑동 지름은
+       그대로 두고(발자국이 바뀌면 건물마다 정규화를 다시 재야 한다) 위만 둥글게 덮는다.
+       높이는 지름의 반이 조금 넘는 정도라 공처럼 솟지 않고 눌린 채로 남는다. */
     ...tagKey(paintBase(spirePillar({
-      x: px, y: py, z0: 0, h: fh9, w: 0.98 * sz, tipW: 0.8 * sz,
-      segs: 1, sides: 8, hold: 0.45, caps: "both",
+      x: px, y: py, z0: 0, h: 0.58 * sz, w: 0.98 * sz, segs: 5, sides: 10, caps: "none",
+      widthOf: (t9: number): number => 0.98 * sz * Math.sqrt(Math.max(0, 1 - t9 * t9)),
     }), "#5d636b"), k9 - 0.1),
   ];
 }
@@ -4069,7 +4074,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        같은 자리다. 앞뒤로 누운 드럼통은 좌우 두 토막이 제 반쪽 깊이로 갈려, 그 안에서의
        앞뒤(팔·다리와의 순서)는 그대로 맞는다. */
     const DRUM_K9 = -39.9;
-    const ARM_K9 = -39.95;
+    /* 팔은 **다리보다 한 단 뒤**다(지적: "팔이 안 가려지네") — 팔이 다리 기둥 위로 그어지면
+       기둥에 붙은 것이 아니라 기둥을 가로지른 막대로 보인다. 발판(−40.1)보다는 앞이라
+       위아래 순서는 그대로 남는다. */
+    const ARM_K9 = -40.05;
     /* ★ 네 모서리 다리는 **ㄱ자**다(요청) — 몸 밑에서 가로로 나와 제자리에서 꺾여 내려온다.
        가로 팔이 몸 밑면(PZ)보다 조금 아래에 놓이게 zTop을 내려, 팔이 몸에 먹히지 않고
        드러난다. 앞뒤 **가운데 둘만은 꺾이지 않은 수직 기둥**이고(요청), 몸에는 아래의
@@ -4106,7 +4114,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const DRR9 = 1.02;           // 반지름(요청: 1.5배)
       const DRX9 = 1.73;           // 축 길이 반(요청: 1.5배) — 가운데 판 폭보다 조금 넓다
       const DRZ9 = PZ - 0.16;      // 축 높이 — 밑배가 몸 아래로 나온다(바닥엔 안 닿는다)
-      const DRY9 = MD / 2 - DRR9;  // 앞 끝이 앞면과 나란하다
+      const DRY9 = MD / 2 - DRR9 * 0.72;  // 앞 끝이 앞면에서 한 뼘만 나온다(요청: 더 앞으로)
       /* ★ 통은 기둥(spirePillar)이 아니라 **막대(rodFaces) 두 토막**으로 짠다 ─────────────
          · 끝이 까맣던 까닭(지적: "드럼통 옆면 아직 까맣게 나오는 거 같고") — 기둥의 뚜껑은
            그 법선이 광원을 등지면 **아예 안 그린다**. 그러면 뚫린 끝으로 반대편 안쪽 벽이
@@ -4117,19 +4125,22 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            갈라 **제 반쪽의 깊이**로 각각 매기면 어느 요잉에서도 옆 상자와의 앞뒤가 맞는다.
            두 토막은 가운데서 만나고 색이 같아 이음매가 안 보인다. 몸통과 같은 눈금(×1.6)에
            +0.3이라, 앞에서는 몸 앞에 뒤에서는 몸 뒤에 선다. */
-      for (const sh9 of [-1, 1] as const) {
-        /* 바깥 끝 원판만 한 단 어둡게 — 통 색 그대로면 옆으로 누운 원기둥이 납작한 판으로
-           보인다(지적: "드럼통 옆면 구분이 안 되고"). rodFaces는 두 끝 원판을 맨 앞에 싣고,
-           paintBase는 색이 **없는** 면만 칠하므로 여기서 미리 칠해 두면 그 면만 남는다. */
-        const rf9 = rodFaces(
-          sh9 * DRX9, DRY9, DRZ9, 0, DRY9, DRZ9, DRR9 * 2,
-        );
-        rf9[0] = [rf9[0][0], rf9[0][1], "#59616d", rf9[0][3], rf9[0][4], rf9[0][5]];
-        out.push(...tagKey(paintBase(rf9, "#79828f"),
-          DRUM_K9 + depthNow(sh9 * DRX9 * 0.5, DRY9) * 0.002));
+      /* ★ 통은 **한 토막**이다(지적: "드럼통 면이 왜 바둑판처럼 생겼어??") — 좌우 반쪽으로
+         갈라 놨더니 가운데에 두 반쪽의 끝 원판이 서고, 반쪽마다 제 그늘 띠가 따로 깔려
+         세로 이음매 하나 × 가로 그늘선 하나 = 바둑판이 됐다. 어차피 몸 뒤에 못박는 부품이라
+         반쪽마다 키를 가를 까닭도 없다.
+         두 끝 원판만 한 단 어둡게 — 통 색 그대로면 누운 원기둥이 납작한 판으로 보인다.
+         rodFaces는 두 끝 원판을 맨 앞에 싣고 paintBase는 색이 **없는** 면만 칠하므로,
+         여기서 미리 칠한 둘만 어둡게 남는다. */
+      const rf9 = rodFaces(-DRX9, DRY9, DRZ9, DRX9, DRY9, DRZ9, DRR9 * 2);
+      for (const i9 of [0, 1]) {
+        rf9[i9] = [rf9[i9][0], rf9[i9][1], "#59616d", rf9[i9][3], rf9[i9][4], rf9[i9][5]];
       }
-      // 드럼통 두 끝 → 앞 다리의 중간
-      const MID9 = (1.45 + LIFT + 0.38 * FK9) / 2 + 0.12;
+      out.push(...tagKey(paintBase(rf9, "#79828f"), DRUM_K9));
+      /* 드럼통 겉면 → 앞 다리 기둥의 **보이는 한가운데** — 기둥은 위 끝(1.45+LIFT)에서
+         발판 꼭대기(0.58·FK9)까지만 드러나므로, 그 둘의 가운데라야 팔이 기둥 한복판에
+         물린다. 발판이 반구가 되며 꼭대기가 올라간 만큼 이 값도 따라 올라간다. */
+      const MID9 = (1.45 + LIFT + 0.58 * FK9) / 2;
       /* 팔도 드럼통과 같은 문을 탄다 — 앞면이 보일 때만 제 깊이, 아니면 몸 뒤. */
       for (const sx9 of [-1, 1] as const) {
         /* 팔은 드럼통의 **앞쪽 겉면**에서 시작한다(지적: "팔은 드럼통 표면에서 시작해야
@@ -4137,7 +4148,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            안쪽으로 꺾여 오는 동안 통 속을 한참 지나고서야 밖으로 나왔다. 겉면(y+반지름)
            에서 떠나면 y가 줄지 않으므로 어디서도 통을 안 뚫는다. */
         const arm9 = rodFaces(
-          sx9 * (DRX9 - 0.25), DRY9 + DRR9 * 0.92, DRZ9 - DRR9 * 0.1, 0, FLY9, MID9, 0.24,
+          sx9 * (DRX9 - 0.25), DRY9 + DRR9 * 0.92, DRZ9 - DRR9 * 0.1,
+          0, FLY9 - 0.22, MID9, 0.24,
         );
         out.push(...tagKey(arm9, ARM_K9));
       }
@@ -4214,7 +4226,31 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        줄여 얹고, 그보다 사방 한 뼘 넓은 판을 밑에 깔면 벤트가 '판 위에 놓인 부품'으로 읽힌다.
        줄이는 자리는 **가운데를 지킨다**(옛 −2.9~1.5의 한가운데 −0.7) — 뒤나 앞으로 몰면 지붕의
        무게가 한쪽으로 쏠린다. */
-    /* 길이는 한 번 더 10% 늘리고 높이는 20% 낮추며, 자리는 **옥상 맨 뒤**다(요청) —
+    /** 경사면에 얹는 어두운 통풍판 — 경사로의 윗면보다 사방 한 치 작다(요청).
+     *  경사면 위의 자리는 t(0=뒤위, 1=앞아래)로 재어 면을 따라 눕는다. */
+    const slopePanel9 = (
+      cx: number, hw: number, yB: number, yF: number, zBase: number, hi: number,
+    ): ShapeFace[] => {
+      const zTop = zBase + hi;
+      const at9 = (t9: number): [number, number] => [yB + (yF - yB) * t9, zTop - hi * t9];
+      const w9 = hw * 0.74;
+      const quad9 = (ta: number, tb: number): string => {
+        const [ya, za] = at9(ta);
+        const [yb, zb] = at9(tb);
+        return polyPath3([
+          [cx - w9, ya, za], [cx + w9, ya, za], [cx + w9, yb, zb], [cx - w9, yb, zb],
+        ]);
+      };
+      const f9: ShapeFace[] = [[quad9(0.12, 0.88), 1, VENTC9]];
+      // 살 — 밝은 줄과 그 아래 검은 골이 짝을 이룬다(다른 벤트와 같은 결).
+      for (let i9 = 1; i9 <= 2; i9 += 1) {
+        const t09 = 0.12 + (0.76 * i9) / 3;
+        f9.push(topFace(quad9(t09 - 0.09, t09 - 0.02), 0.3));
+        f9.push(sideFace(quad9(t09 - 0.02, t09 + 0.06), 0.5));
+      }
+      return f9;
+    };
+        /* 길이는 한 번 더 10% 늘리고 높이는 20% 낮추며, 자리는 **옥상 맨 뒤**다(요청) —
        지붕 한가운데 있던 것을 뒤로 붙이면 앞쪽 지붕이 비어 앞면 띠·데칼이 살고, 옆에서
        보면 뒤가 높고 앞이 트인 실루엣이 된다. */
     const VL9 = ((1.5 - -2.9) / 3) * 1.1;  // 앞뒤 길이
@@ -4229,9 +4265,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     for (const sx9 of [-1, 1] as const) {
       const k9 = depthNow(sx9 * PX, 0) * 1.6 + 0.3;
       pc.push(...tagKey(boxFaces3(sx9 * PX, VC9, (0.95 + VPAD9) * 2, VL9 + VPAD9 * 2, 0.2, PTOP), k9));
-      out.push(...tagKey(paintBase(
-        rampVent(sx9 * PX, 0.95, VB9, VF9, PTOP + 0.2, 0.76, 2), VENTC9,
-      ), k9 + 0.02));
+      /* ★ 경사로 **몸체는 테란 기본 은색**이고, 어두운 벤트는 그 **윗 경사면에 한 치 작게
+         얹힌 판**이다(요청: "본체는 테란 기본색이고 윗 경사면에 윗면보다 살짝 작은 벤트를
+         붙인다는 표현이 더 맞을듯") — 여태는 경사로 전체가 어두운 부품이고 그 밑에 은색을
+         한 장 깔아 테두리만 내던 자였다. 뒤집으면 부품 하나가 아니라 '은색 대 위의 통풍판'
+         으로 읽히고, 옆 삼각과 뒷벽까지 자연히 은색으로 남는다.
+         색을 안 칠하면 raceBase가 테란 기본 은색을 입히므로 경사로는 그대로 두면 된다. */
+      out.push(...tagKey(rampVent(sx9 * PX, 0.95, VB9, VF9, PTOP + 0.2, 0.95, 0), k9 + 0.01));
+      out.push(...tagKey(slopePanel9(sx9 * PX, 0.95, VB9, VF9, PTOP + 0.2, 0.95), k9 + 0.02));
     }
     /* ★ 가운데 지붕 벤트는 **경사로가 아니라 평평한 팔각 두께판**이다(요청: "사각형이 아닌
        8각형(모서리가 살짝 깎인 직사각형 느낌)") — 옆 판의 경사 벤트와 같은 꼴을 세 번 쓰니
@@ -4319,7 +4360,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        바깥 벽에 **그어진** 것으로 읽힌 까닭이다. 이제 덩이마다 제 앞면을 꽉 채우고, 제 옆면으로
        한 뼘(WRAP9)만 감아 돈다. 깊이가 다른 덩이는 그만큼 앞뒤로 어긋난 자리에서 감기므로
        튀어나온 덩이를 띠가 **감싼** 꼴이 된다. 높이(ZB9)는 다섯이 같아 한 줄로 이어 읽힌다. */
-    const ZB9 = 2.95 + LIFT;     // 임자색 띠 밑
+    const ZB9 = 2.0 + LIFT;      // 임자색 띠 밑(요청: 띠·창문·세로 데칼을 다 같이 더 아래로)
     const ZW9 = ZB9 + BTH9 + BGAP9;   // 창문띠 밑
     /* 감아 도는 길이는 **덩이 깊이의 몫**이다(지적: "옆면의 띠가 너무 일찍 끝남. 좀 더
        뒤까지") — 한 눈금(0.9)으로 고정하니 깊이 7.6짜리 판에서는 앞 모서리만 살짝 물고
@@ -4366,7 +4407,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          아래를 임자색 띠 바로 위까지 내려 창문띠를 가로지르며 지붕까지 잇는다. */
       pc.push(...tagKey([bodyFace(polyPath3([
         [-0.68, my9, ZB9 + BTH9 + 0.12], [0.68, my9, ZB9 + BTH9 + 0.12],
-        [0.68, my9, MTOP - 0.25], [-0.68, my9, MTOP - 0.25],
+        [0.68, my9, MTOP - 1.15], [-0.68, my9, MTOP - 1.15],
       ]))], keyM));
     }
     /* ★ 오른쪽(+x) 옆면의 **구부러진 파이프 둘**과 그 뒤끝의 **반구 부품**(요청: 사진) —
