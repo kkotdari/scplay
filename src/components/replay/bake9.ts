@@ -3926,9 +3926,16 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        한 쌍으로 읽힌다. 갑판은 돔 밑(4.9)과 받침 테(5.4) 사이의 고리라, 당기는 만큼
        앞(y)으로 나가야 그 고리 위에 남는다 — 반지름 5.15 원을 따라 옮긴다. */
     for (const bx9 of [-2.55, 2.55]) {
-      const by9 = Math.sqrt(Math.max(0.01, 5.15 * 5.15 - bx9 * bx9)) - 1.35;
-      /* 한 단 더 내린다(요청) — 입구 쪽으로 당기니 돔 살에 얹힌 자리가 되어 높아 보였다. */
+      /* ★ 내리면 **앞으로도 나가야 한다**(지적: "아래로만 내리면 안 되고 앞으로도 옮겼어야
+         해 — 아래쪽이 지름이 넓잖아") — 선체는 밑으로 갈수록 넓어지는 절두체(HULL_Z에서
+         5.15, 0.8 올라가 5.4)라, 높이를 내린 자리의 겉면은 그만큼 **바깥**에 있다. 자리를
+         눈금으로 박아 두면 내릴수록 몸속으로 파고든다. 그 높이의 겉면 반지름을 실제로 풀어
+         거기서 반 통만큼(0.38) 물려 앉히면, 어느 높이로 옮겨도 늘 벽에 반쯤 박힌다. */
       const bz9 = DOME_Z - 0.92;
+      const seatR9 = (bz9 < HULL_Z + 0.8
+        ? 5.15 + 0.25 * ((bz9 - HULL_Z) / 0.8)
+        : 5.4) - 0.38;
+      const by9 = Math.sqrt(Math.max(0.01, seatR9 * seatR9 - bx9 * bx9));
       const k9 = depthNow(bx9, by9) * 1.6 + 4;
       out.push(...tagKey(paintBase(cylinderFaces3(bx9, by9, 0.9, 0.1, bz9 - 0.1), SILVER), k9));
       out.push(...tagKey(halfSphereFaces3(bx9, by9, bz9, 0.84, SILVER), k9 + 0.01));

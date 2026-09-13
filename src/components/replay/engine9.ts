@@ -4674,8 +4674,14 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
          격추되면 참값이 **죽은 자리**를 마지막 자리로 한 줄 더 세운다 — 시작과 끝이 같은 길이 0짜리다.
          그 줄이 있다는 것만 보고 '착륙'으로 읽어, 격추가 사뿐히 내려앉고(여기) 폭발도 걸렸다(아래
          landed9). 뒤 줄이 실제로 **살아 있어야**(제 길이 ≥ 0.1초) 착륙이다. */
+      /* ★ 시각 맞춤은 **딱 같음이 아니라 한 틱 여유**다(지적: "랜딩 시 효과 없이 그냥 툭
+         내려오는 경우가 있음") — 앞 줄의 끝(goneAt)과 뒤 줄의 시작(s2)이 자료에서 미세하게
+         어긋나면 `s2 === goneAt`이 빗나가 착륙이 아닌 것으로 읽혔고, 그러면 내려앉는 이음
+         (down9)이 통째로 빠져 건물이 공중에서 그냥 사라졌다가 다음 줄이 땅에 툭 선다.
+         페이드 쪽은 이미 여유로 고쳤는데(bldPre9.landed) 여기만 남아 있었다. */
       const landsAt9 = liftAt !== undefined && goneAt > liftAt
-        && buildsSrc.some(([s2,,, u2, r2, g2]) => r2 === raw && u2 === unit && s2 === goneAt && g2 - s2 >= 0.1);
+        && buildsSrc.some(([s2,,, u2, r2, g2]) => r2 === raw && u2 === unit
+          && Math.abs(s2 - goneAt) <= 0.35 && g2 - s2 >= 0.1);
       /* 이사 비행 중인가 — 떠 있는 건물만 그림자를 지니는 데 쓴다(요청). */
       let landing = false;
       /** 지금 얼마나 떠 있나(0 땅 ~ 1 최고) — 몸을 띄우는 몫이 이 값을 탄다. */
@@ -6329,7 +6335,8 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
        이어서면 앉은 것이고, 없으면 공중에서 끝난 것이다. */
     // 길이 0짜리 뒤 줄은 착륙이 아니라 **격추한 자리**다(위 landsAt9의 ★와 같은 자).
     const landed9 = liftAt !== undefined && goneAt > liftAt
-      && buildsSrc.some(([s2,,, u2, r2, g2]) => r2 === raw && u2 === unit && s2 === goneAt && g2 - s2 >= 0.1);
+      && buildsSrc.some(([s2,,, u2, r2, g2]) => r2 === raw && u2 === unit
+        && Math.abs(s2 - goneAt) <= 0.35 && g2 - s2 >= 0.1);
     if (landed9) return null;
     if (leftAt9(raw, goneAt)) return null;   // 나간 사람의 한꺼번 걷힘 — 폭발·무너짐 없이 사라진다(leaveAt9 주석)
     // 후계가 선 자리는 무너진 것이 아니라 변태·재건이다(위 succeedsBld와 같은 자).
