@@ -4097,14 +4097,21 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const DRX9 = 1.73;           // 축 길이 반(요청: 1.5배) — 가운데 판 폭보다 조금 넓다
       const DRZ9 = PZ - 0.16;      // 축 높이 — 밑배가 몸 아래로 나온다(바닥엔 안 닿는다)
       const DRY9 = MD / 2 - DRR9;  // 앞 끝이 앞면과 나란하다
-      out.push(...tagKey(paintBase(spirePillar({
-        x: 0, y: 0, h: 1, w: DRR9, segs: 3, sides: 12, caps: "both",
-        trueNormal: true, ref: [0, 0, 1],
-        widthOf: () => DRR9,
-        path: (t9: number): [number, number, number] => [-DRX9 + 2 * DRX9 * t9, DRY9, DRZ9],
-      /* 드럼통도 **제 깊이 키**다 — 가운데 판 앞면보다 앞에 나와 있고 몸 밑면보다 아래로
-         내려와 있어, 뒤로 못박으면 앞에서 볼 때 몸이 그 윗배를 통째로 덮는다. */
-      }), "#79828f"), depthNow(0, DRY9) * 1.6 + 0.3));
+      /* ★ 통은 기둥(spirePillar)이 아니라 **막대(rodFaces) 두 토막**으로 짠다 ─────────────
+         · 끝이 까맣던 까닭(지적: "드럼통 옆면 아직 까맣게 나오는 거 같고") — 기둥의 뚜껑은
+           그 법선이 광원을 등지면 **아예 안 그린다**. 그러면 뚫린 끝으로 반대편 안쪽 벽이
+           들여다보이는데, 그 벽은 등진 면이라 42% 검정을 덮어쓴 채다. 막대는 두 끝에 늘
+           불투명한 원판을 놓아 그런 구멍이 없다.
+         · 키(지적: "드럼통 키 맞아 지금?") — 앞뒤로 누운 긴 물건은 키 하나로 못 맞춘다.
+           한가운데 깊이로 매기면 x가 큰 쪽 끝이 제 옆 상자보다 앞서거나 뒤처진다. 좌우로
+           갈라 **제 반쪽의 깊이**로 각각 매기면 어느 요잉에서도 옆 상자와의 앞뒤가 맞는다.
+           두 토막은 가운데서 만나고 색이 같아 이음매가 안 보인다. 몸통과 같은 눈금(×1.6)에
+           +0.3이라, 앞에서는 몸 앞에 뒤에서는 몸 뒤에 선다. */
+      for (const sh9 of [-1, 1] as const) {
+        out.push(...tagKey(paintBase(rodFaces(
+          sh9 * DRX9, DRY9, DRZ9, 0, DRY9, DRZ9, DRR9 * 2,
+        ), "#79828f"), depthNow(sh9 * DRX9 * 0.5, DRY9) * 1.6 + 0.3));
+      }
       // 드럼통 두 끝 → 앞 다리의 중간
       const MID9 = (1.45 + LIFT + 0.38 * FK9) / 2 + 0.12;
       /* 팔은 rodFaces가 제 두 끝의 깊이로 내는 키를 그대로 쓴다 — 앞에서는 몸 앞에,
