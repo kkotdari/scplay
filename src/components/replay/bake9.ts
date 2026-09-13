@@ -241,8 +241,12 @@ export function legAndFoot(
   const z09 = 0.38 * sz;
   const bend9 = o.bend ?? 0;
   const lw9 = (o.legW ?? 1) * sz;
+  /** 기둥 반지름 — 요청("테란 건물 공통: 발판의 다리 지름 20% 축소")으로 0.42·0.36에서
+   *  한 단 더 내렸다. 발판(sz)은 안 건드린다 — 가늘어진 만큼 발이 더 또렷하게 받친다. */
+  const RW9 = 0.336 * lw9;
+  const RT9 = 0.288 * lw9;
   const shin9 = spirePillar({
-    x: 0, y: 0, h: 1, w: 0.42 * lw9, tipW: 0.36 * lw9, segs: 1, sides: 6, hold: 0.35,
+    x: 0, y: 0, h: 1, w: RW9, tipW: RT9, segs: 1, sides: 6, hold: 0.35,
     caps: bend9 > 0 ? "top" : "none",
     path: bend9 > 0
       ? (t9: number): [number, number, number] => [px, py, zTop - (zTop - z09) * t9]
@@ -253,8 +257,8 @@ export function legAndFoot(
   if (bend9 > 0) {
     // 가로 팔 — 몸 밑 안쪽에서 제자리까지. 끝은 세로 기둥 속에 물리므로 안 덮는다.
     shin9.push(...spirePillar({
-      x: 0, y: 0, h: 1, w: 0.42 * lw9, segs: 1, sides: 6, caps: "bottom",
-      widthOf: () => 0.42 * lw9,
+      x: 0, y: 0, h: 1, w: RW9, segs: 1, sides: 6, caps: "bottom",
+      widthOf: () => RW9,
       path: (t9: number): [number, number, number] => [
         px * (1 - bend9 * (1 - t9)), py * (1 - bend9 * (1 - t9)), zTop,
       ],
@@ -4327,8 +4331,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        — 두께 1.9 → 1.15, 깊이 7 → 5.2. 판 셋(2.4~2.7 두께, 6.4~7.6 깊이)보다 확실히
        물러나야 어느 각도에서도 판이 덩치를 쥐고 이 상자는 이음매로만 읽힌다. */
     const GW = 1.15;
-    const GD = 5.2;
-    const GH = 4.6;
+    const GD = 5.2 * 1.2;   // 앞뒤 20% 증가(요청)
+    const GH = 4.6 * 1.1;   // 높이 10% 증가(요청)
     const GZ = 1.55 + LIFT;
     const PTOP = PZ + PH;   // 바깥 판 지붕
     const MTOP = PZ + MH;   // 가운데 판 지붕
@@ -4357,23 +4361,35 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        가로 팔이 몸 밑면(PZ)보다 조금 아래에 놓이게 zTop을 내려, 팔이 몸에 먹히지 않고
        드러난다. 앞뒤 **가운데 둘만은 꺾이지 않은 수직 기둥**이고(요청), 몸에는 아래의
        삼각 팔 둘로만 매달린다 — ㄱ 팔까지 있으면 다리 하나에 버팀이 둘이라 어수선하다. */
+    /* ★ 여섯 자리를 한 번 더 옮긴다(요청: "각각 안쪽으로 10프로 이동 / 뒤쪽 세개는
+       추가로 앞쪽으로 80프로 이동") — FI9는 **모두**에게 걸리는 안쪽 몫이고, BF9는
+       **뒤쪽 셋**(뒤 모서리 둘 + 뒤 가운데 하나)의 y에만 더 걸리는 몫이다. 80%를 앞으로
+       옮기면 남는 것이 0.2라 뒤 다리들이 몸 밑 한가운데 가까이 모인다 — 발이 실루엣
+       바깥으로 덜 나가고, 앞다리 셋과의 간격이 벌어져 앞뒤가 읽힌다. */
+    const FI9 = 0.9;    // 안쪽으로 10%(요청) — 여섯 자리 모두
+    const BF9 = 0.2;    // 뒤쪽 셋의 y에 남는 몫(앞으로 80% 이동)
     for (const [lx9, ly9] of [
       [-3.9, 3.4], [3.9, 3.4], [-3.9, -3.4], [3.9, -3.4],
     ] as [number, number][]) {
-      out.push(...legAndFoot(lx9 * FO9, ly9 * FO9, PZ - 0.16, 0, FK9, { bend: 0.42, legW: LW9 }));
+      const fy9 = ly9 * FO9 * FI9 * (ly9 < 0 ? BF9 : 1);
+      out.push(...legAndFoot(lx9 * FO9 * FI9, fy9, PZ - 0.16, 0, FK9, { bend: 0.42, legW: LW9 }));
     }
     /* 앞 가운데 다리는 **드럼통 팔만큼 더 앞으로** 나간다(요청) — 팔이 몸 앞면이 아니라
        그 아래 드럼통에서 나오므로, 다리가 여태 자리에 있으면 팔이 뒤로 누워 버린다.
        뒤 가운데 다리는 그대로다(요청). */
     const MLY9 = 3.7 * FO9;
     const FLY9 = MLY9 + 0.95;   // 드럼통이 커진 만큼 한 발 더 앞으로(요청)
+    /** 앞 가운데 다리의 실제 y — 안쪽 몫만 탄다(앞쪽 셋이라 BF9는 안 탄다). */
+    const FLY_A9 = FLY9 * FI9;
+    /** 뒤 가운데 다리의 실제 y(부호는 −) — 안쪽 몫 위에 앞으로 80%가 더 걸린다. */
+    const MLY_A9 = MLY9 * FI9 * BF9;
     /* 앞 가운데 다리는 몸보다 한참 앞(y FLY9)이라 **제 깊이 키**를 쓴다(지적: "다리와
        드럼통 옆면, 팔의 키값 조정 필요") — −40대에 못박히면 몸 앞에 선 다리가 몸 뒤로
        가 버려, 앞에서 볼 때 다리·발판이 건물 옆면에 잘려 나갔다. */
-    out.push(...legAndFoot(0, FLY9, 1.45 + LIFT, 0, FK9, {
+    out.push(...legAndFoot(0, FLY_A9, 1.45 + LIFT, 0, FK9, {
       legW: LW9, key: -40,
     }));
-    out.push(...legAndFoot(0, -MLY9, 1.45 + LIFT, 0, FK9, { legW: LW9 }));
+    out.push(...legAndFoot(0, -MLY_A9, 1.45 + LIFT, 0, FK9, { legW: LW9 }));
     /* ★ 가운데 다리는 **삼각으로 모이는 팔 둘**로 몸에 붙는다(요청) — 이 둘만 몸통 앞뒤로
        나와 있어, 다른 다리처럼 몸 밑에서 곧장 내려오면 허공에 선 장대로 보였다.
        앞쪽은 한 발 더 간다(요청): 몸 앞면이 아니라 **몸 밑 앞에 가로로 누운 드럼통**에서
@@ -4431,14 +4447,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            에서 떠나면 y가 줄지 않으므로 어디서도 통을 안 뚫는다. */
         const arm9 = rodFaces(
           sx9 * (DRX9 - 0.25), DRY9 + DRR9 * 0.92, DRZ9 - DRR9 * 0.1,
-          0, FLY9 - 0.22, MID9, 0.24,
+          0, FLY_A9 - 0.22, MID9, 0.24,
         );
         out.push(...tagKey(arm9, ARM_K9));
       }
     }
     if (facingRatio(0, -1) > 0.12) {
       for (const sx9 of [-1, 1] as const) {
-        out.push(...rodFaces(0, -MLY9, 1.45 + LIFT + 0.1, sx9 * 0.78, -3.7, 2.62, 0.24));
+        /* 팔의 몸 쪽 끝도 다리를 따라간다 — 다리가 앞으로 온 만큼 뒤로 길게 남으면
+           몸 밑을 가로지르는 막대가 된다. 다리에서 한 뼘 뒤(1.35)까지만 뻗는다. */
+        out.push(...rodFaces(
+          0, -MLY_A9, 1.45 + LIFT + 0.1, sx9 * 0.78, -MLY_A9 - 1.35, 2.62, 0.24));
       }
     }
     /* 키는 제 자리 깊이 하나로(지적: 배럭 키값) — 붙박이 상수가 깊이 항보다 커서
@@ -4546,7 +4565,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const VENTC9 = "#464c56";
     for (const sx9 of [-1, 1] as const) {
       const k9 = depthNow(sx9 * PX, 0) * 1.6 + 0.3;
-      pc.push(...tagKey(boxFaces3(sx9 * PX, VC9, (0.95 + VPAD9) * 2, VL9 + VPAD9 * 2, 0.2, PTOP), k9));
+      pc.push(...tagKey(boxFaces3(
+        sx9 * PX, VC9, (0.95 + VPAD9) * 2 * 1.2, VL9 + VPAD9 * 2, 0.2 * 1.2, PTOP), k9));
       /* ★ 경사로 **몸체는 테란 기본 은색**이고, 어두운 벤트는 그 **윗 경사면에 한 치 작게
          얹힌 판**이다(요청: "본체는 테란 기본색이고 윗 경사면에 윗면보다 살짝 작은 벤트를
          붙인다는 표현이 더 맞을듯") — 여태는 경사로 전체가 어두운 부품이고 그 밑에 은색을
@@ -4557,12 +4577,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          벤트가 판 밖으로 조금 걸친다. 키우는 기준은 **뒤 끝**(VB9)이다: 이 벤트는 옥상 맨 뒤에
          붙어 있어, 한가운데를 기준으로 키우면 뒤가 지붕 밖으로 넘어간다. */
       const VK9 = 1.2;
+      /** 너비·높이만 한 번 더 20%(요청: "벤트 받침 + 벤트 크기 20프로 확대(너비 높이 다)")
+       *  — 앞뒤 길이는 VK9 그대로다. 받침도 같은 몫으로 커져 벤트를 여전히 두르고 있다. */
+      const VWK9 = VK9 * 1.2;
       const vf9 = VB9 + VL9 * VK9;
       out.push(...tagKey(
-        rampVent(sx9 * PX, 0.95 * VK9, VB9, vf9, PTOP + 0.2, 0.95 * VK9, 0), k9 + 0.01,
+        rampVent(sx9 * PX, 0.95 * VWK9, VB9, vf9, PTOP + 0.2 * 1.2, 0.95 * VWK9, 0), k9 + 0.01,
       ));
       out.push(...tagKey(
-        slopePanel9(sx9 * PX, 0.95 * VK9, VB9, vf9, PTOP + 0.2, 0.95 * VK9), k9 + 0.02,
+        slopePanel9(sx9 * PX, 0.95 * VWK9, VB9, vf9, PTOP + 0.2 * 1.2, 0.95 * VWK9), k9 + 0.02,
       ));
     }
     /* ★ 가운데 지붕 벤트는 **경사로가 아니라 평평한 팔각 두께판**이다(요청: "사각형이 아닌
