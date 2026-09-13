@@ -960,7 +960,7 @@ function lowZoomTrim9(zoom9: number, pitched9: boolean): 0 | 1 | 2 {
   /* 진단 스위치 `#notrim` — 이 죄기를 통째로 끈다. 낮은 배율에서 무엇이 달라졌나를
      한 탭으로 가르는 자다(끄고 켜서 가른다 — 이 판의 규약). */
   if (NO_TRIM9) return 0;
-  if (!smallDevice9 || zoom9 > 4) return 0;   // 사다리(1-2-4-8)의 아래 세 칸 — 옛 '1~3배'가 가리키던 그 자리다
+  if (!smallDevice9 || zoom9 > 2) return 0;   // 간이 칸(1·2배)에서만 — 4배는 이제 자세한 칸이다(위 liteView의 ★)
   const c9 = CROWD9;
   if (c9.force >= 0) return c9.force >= 2 ? 2 : c9.force >= 1 ? 1 : 0;   // #crowd= 강제 단을 그대로 탄다
   if (!(pitched9 ? c9.weak3 : c9.weak)) return 0;
@@ -4004,7 +4004,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       const trim9 = lowZoomTrim9(zoom, !!pitchedProp);
       const moveOk9 = moveAt === undefined || zoom >= moveAt;
       /* 체력바·승하차 줄이 서는가 — 제 칸(DEEP_MIN_ZOOM)과 **배치 바닥**(detailAt) 중 늦은 쪽이다(효과 갈래의 fxMinZoom과 같은 규약).
-         PC는 바닥이 2배라 4배부터, 폰은 바닥이 8배라 8배부터 — 사다리를 갈아도 두 배치의 뜻이 그대로 산다. */
+         두 배치 모두 지금은 4배부터다(폰 바닥도 4배로 내렸다 — 아래 detailAt의 ★). 바닥이 다시 갈려도 이 규약이 따라간다. */
       const deepOk9 = zoom >= Math.max(DEEP_MIN_ZOOM, detailAt ?? 0);
       const sorted = ((): UnitDrawOp[] => {
         const raw9 = sortCacheRef.current.out.filter(inView0);
@@ -6533,7 +6533,7 @@ const SHADOW_GROUND_MIN_ZOOM = DEV9.shadowGroundMinZoom;
 /** ★ 전투 효과가 **갈래마다** 서는 칸 — 요청: "2배에서 전투효과: 가시 분출 우리 /
  *  4배에서 전투효과: 피격 / 나머지는 다 8배부터 노출".
  *  여기 적힌 것은 **사다리(가장 이른 칸)** 이고, 실제 칸은 배치의 바닥과 함께 잰다
- *  (`fxMinZoom`) — 좁은 자리(폰)는 바닥이 8배라 트레이서 말고는 전부 8배로 눌린다.
+ *  (`fxMinZoom`) — 좁은 자리(폰)의 바닥은 4배다(detailAt), 그래서 피격·실드는 4배·트레이서는 2배다.
  *  갈래를 이렇게 가르는 까닭은 **한 프레임에 몇 개가 뜨느냐**가 갈래마다 다르기 때문이다:
  *   · 가시·분출·우리 — 드물게 몇 개, 게다가 큼직해 작은 몸 옆에서도 읽힌다.
  *   · 피격 — 난전이면 유닛 수만큼 터진다. 2배에서는 화면이 불티로 덮여 몸이 안 보인다.
@@ -8214,7 +8214,7 @@ export default function ReplayMotionPlayer({
     /* 켜는 순간 **한 번만** 당겨 준다(요청: 배율은 기본 줌인 값, 사다리에서) — 그 뒤로는
        사람이 마음대로 바꾼다(요청: "줌은 변경 가능하게"). 끌 때는 안 되돌린다: 보던
        배율이 갑자기 튀면 추적을 껐다 켜는 것만으로 화면이 요동친다. */
-    if (on9) setView9(trackZoom9(), panRef.current);   // 폭에 비례 — 가로 24타일(위 trackZoom9)
+    if (on9) setView9(trackZoom9(), panRef.current);   // 켤 때 한 번 4배로(위 trackZoom9) — 그 뒤 수동 변경은 그대로 열려 있다
   };
   /** 태그 → 그 태그의 유닛 생애들 — 변태로 갈린 생애가 같은 태그를 나눠 쓴다. */
   /* 걷기는 추적을 켤 때 워커에 청한다 — 세계가 바뀌었으면(worldGen9) 다시. */
@@ -8883,23 +8883,13 @@ export default function ReplayMotionPlayer({
       winH,
     };
   }, []);
-  /* ★ 추적을 켤 때 맞출 배율 — **화면 가로에 드는 타일 수**로 정한다(요청: "6배 고정이
-     아닌 폭에 비례해서 실제 게임에서 화면에 들어가는 가로 타일수 1.2배 정도로") ──────────
-     6배는 어느 상자에서 잰 값도 아닌 사다리의 한 칸(ZOOM_TAP)이었다. 그래서 폰 세로에서는
-     너무 좁고 넓은 전체화면에서는 헐렁했다 — 같은 배율이라도 보이는 타일 수가 상자 모양에
-     따라 갑절 넘게 갈리기 때문이다.
-     자를 뒤집는다: 보일 타일 수를 못 박고 배율을 그 결과로 낸다.
-       타일당 px = cov.w × z ÷ 격자폭 · 보이는 타일 = winW ÷ 타일당 px
-       ⇒ z = winW × 격자폭 ÷ (cov.w × 보일 타일 수)
-     실제 게임 화면은 640px 폭에 타일 32px이라 가로 **20타일**이고, 그 1.2배가 24타일이다.
-     (winW는 배율과 무관한 값이라 panLimit(1)에서 꺼내 쓴다.) */
-  const TRACK_TILES9 = 24;
-  const trackZoom9 = (): number => {
-    const cov9 = coverRef.current;
-    const win9 = panLimit(1).winW;
-    if (!(cov9.w > 0) || !(win9 > 0) || !(grid.width > 0)) return ZOOM_TAP;
-    return Math.min(ZOOM_MAX, Math.max(1, (win9 * grid.width) / (cov9.w * TRACK_TILES9)));
-  };
+  /* ★ 추적을 켤 때 맞출 배율 — **4배 고정**이다(요청: "추적모드 선택 시 기본 배율을 타일 수로 계산하던 걸
+     취소하고 4배로 고정할게 · 수동으로 변경은 계속 오픈") ─────────────────────────────────────────────
+     한동안 '화면 가로에 드는 타일 수(24타일)'로 배율을 냈다. 상자 모양이 달라도 보이는 넓이가 같다는 점은
+     좋았지만, 그 값이 사다리에 없는 어중간한 배율(3.7배 같은)이라 굽는 판이 칸에서 풀리고 사람이 기대하는
+     칸과도 어긋났다. 사다리를 1·2·4·8로 줄인 지금 4배가 곧 '전투 하나를 들여다보는 칸'이다.
+     못 박는 것은 **켤 때의 한 번**뿐이다 — 그 뒤로 휠·핀치·버튼으로 바꾸는 길은 그대로 열려 있다. */
+  const trackZoom9 = (): number => ZOOM_STEPS[2];
   /** 지도가 무대를 채우는 폭 — 비율은 지킨다.
    *
    *  ★ **전체화면만 덮고(cover), 프레임에서는 높이에 맞춘다**(요청: "모바일 게임상세
@@ -9917,8 +9907,10 @@ export default function ReplayMotionPlayer({
          한 자리라도 새면 이 손잡이가 덮어쓴다 — 그리고 이쪽은 커서를 **지도 상자 안으로
          죄므로** 늘 한 구석(미니맵이 앉은 왼쪽 아래)을 축으로 삼는다. 두 자리에서 막는다.
          도구 판과 같은 손이다(제 안이 스크롤되는 자리는 흘려보낸다). */
+      /* 곡 목록도 제 안이 스크롤된다(지적: "음악 목록 스크롤 시 뒤 맵이 스크롤이 돼") — 도구 판·미니맵과 같은 손이다.
+         CSS의 overscroll-behavior가 **페이지** 연쇄를 막고, 이 줄이 **지도 줌**으로 새는 것을 막는다(둘 다 있어야 한다). */
       if (e.target instanceof Element
-        && e.target.closest(".scr-fs-toolpanel, .scr-fs-minipanel, .scr-fs-minimap")) return;
+        && e.target.closest(".scr-fs-toolpanel, .scr-fs-minipanel, .scr-fs-minimap, .scr-motion-pickmenu")) return;
       onWheel(e);
     };
     // passive:false 라야 브라우저의 페이지 스크롤을 막을 수 있다.
@@ -11344,12 +11336,15 @@ export default function ReplayMotionPlayer({
      통일했을걸?") — 맞다, 8배로 올라간 것은 그 뒤 "2·4배는 정말 단순하게"(f4b8e9f)가
      폰 부하를 두고 한 요청이다. 넓은 자리(PC)는 그 부담이 없다(요청: "PC는 2배에서
      전투효과 자세컷 포탑판 모두 추가 4배에서 체력바 추가") — 1배만 간이로 두고 2배부터
-     자세 컷·요잉 열여섯 칸·포탑 판·전투 효과 셈을 다 돌린다. 좁은 자리는 8배 그대로.
+     자세 컷·요잉 열여섯 칸·포탑 판·전투 효과 셈을 다 돌린다. 좁은 자리는 4배부터다(사다리를 줄이며 당겼다 — 아래 liteView의 ★).
      ⚠ 만드는 쪽(이 값)과 그리는 쪽(detailAt) 둘 다 내려야 한다 — 여기서만 내리면
      굽기는 자세해지는데 그리는 쪽이 걸러 아무것도 안 보이고, 반대면 없는 값을 그린다. */
   /* 문턱의 자는 **배치가 모바일로 바뀌는 기점(wide, 상자 폭 860px) 하나**다(요청: 기준이 둘이면
      헷갈린다 — 기기 기준으로 갈라 봤다가 되돌림). 좁은 상자에 앉힌 PC도 폰 문턱을 쓴다. */
-  const liteView = zoomStep <= (wide ? 0 : 2);
+  /* ★ 좁은 자리의 간이 칸은 **아래 두 칸(1·2배)**이다(요청: "4배는 이전의 6배와 비슷한 거라 자세해야 해") —
+     사다리가 1·2·3·6·12에서 1·2·4·8로 줄면서 칸 수가 하나 빠졌다. 칸 번호를 그대로 두면 옛 3배 자리(간이의 맨 위)에
+     새 4배가 앉아, 옛 6배에 해당하는 칸이 통째로 간이가 된다. 한 칸 당겨 새 4배가 옛 6배의 자리를 잇게 한다. */
+  const liteView = zoomStep <= (wide ? 0 : 1);
   /** ★ **요잉만은 셋째 칸까지 묶는다**(요청: "요잉 4배까지는 축소") — 배치를 안 가린다.
    *  굽는 판은 요잉 칸마다 한 벌이라 열여섯 칸은 여덟 칸의 두 배를 굽고 두 배를 이고
    *  있는다. 그 배율에서도 22.5도와 45도 사이의 차이는 몸 윤곽 한두 픽셀이라, 치르는
@@ -11357,7 +11352,7 @@ export default function ReplayMotionPlayer({
    *  ※ 요청 당시의 사다리는 1·2·4·8·16이라 '4배까지'였다. 지금 사다리(1·2·3·6·12)에서는
    *    그 자리가 3배다 — 판정은 **칸 번호**로 걸려 있어 사다리를 갈아도 뜻이 안 갈린다.
    *  (계측: PC 2배에서 판 47장 ↔ 51장 — 4배는 판이 커서 그 몫이 더 크다.) */
-  const liteYaw = zoomStep <= (wide ? 1 : 2);
+  const liteYaw = zoomStep <= 1;   // 두 배치 모두 셋째 칸(4배)부터 열여섯 칸 — 위 liteView의 ★와 같은 당김이다.
   /** ★ 트레이서가 서는 칸(요청: "모든 트레이서류 2배 줌부터 나오게 수정") — 여태
    *  트레이서는 간이 보기(liteView) 뒤에 숨어 **맨 위 바로 아래 칸부터**였다: 재료를
    *  만드는 쪽은 표적 찾기 자체를 접었고(wantFoe9), 그리는 쪽은 detailAt으로 층을
@@ -14795,9 +14790,12 @@ export default function ReplayMotionPlayer({
                필요해보여" → "PC는 2배에서 전투효과 자세컷 포탑판 모두 추가 4배에서 체력바
                추가") — 넓은 자리는 지도 상자가 1024px이라 2배면 한 유닛이 열댓 픽셀이고,
                그 크기에서 그림자·불티가 없으면 몸이 바닥에서 떠 보인다. 좁은 자리(폰)는
-               종전 문턱(8배) 그대로다 — 같은 2배라도 유닛이 대여섯 픽셀이고, 화면에 남는
-               유닛 수는 가장 많은 칸이라 삯을 그대로 다 치른다. */
-            detailAt={liteFlag9 ? Infinity : wide ? ZOOM_STEPS[1] : ZOOM_STEPS[3]}
+               한 칸 위인 **4배**부터다 — 같은 2배라도 유닛이 대여섯 픽셀이고, 화면에 남는
+               유닛 수는 가장 많은 칸이라 삯을 그대로 다 치른다.
+               ★ 폰의 바닥이 8 → 4배다(요청: "4배는 이전의 6배와 비슷한 거라 자세해야 해") — 사다리가
+                 1·2·3·6·12에서 1·2·4·8로 한 칸 줄었으므로, 칸 번호를 그대로 두면 옛 6배의 자리를
+                 이을 칸이 없어진다. 위 liteView와 같은 당김이다. */
+            detailAt={liteFlag9 ? Infinity : wide ? ZOOM_STEPS[1] : ZOOM_STEPS[2]}
             /* 붓 쪽 간이화 문턱(엔진은 늘 자세히 낸다 — UnitLayer의 ★ 주석): 요잉 열여섯 칸은 넓은
                자리 셋째 칸(3배)·좁은 자리 넷째 칸(6배)부터, 걸음·추진 컷은 넓은 자리 2배·좁은 자리 3배부터. */
             /* ★ 작은 기기는 요잉을 늘 여덟 칸으로(지적: 폰 6배 대규모 교전에서 판 굽기·버림이 초당 35장 —
@@ -14809,8 +14807,8 @@ export default function ReplayMotionPlayer({
                **열쇠 수가 절반**이 되고, 45도 칸은 22.5도 칸의 부분집합이라 이미 구운 판이 그대로 쓰인다
                (갈아엎는 전환이 아니다). 조용한 화면에서는 종전대로 열여섯 칸이다. */
             yawAt={DEV9.yaw8Always || liteFlag9 || CROWD9.lv >= 1
-              ? Infinity : wide ? ZOOM_STEPS[2] : ZOOM_STEPS[3]}
-            moveAt={wide ? ZOOM_STEPS[1] : ZOOM_STEPS[2]}
+              ? Infinity : ZOOM_STEPS[2]}
+            moveAt={ZOOM_STEPS[1]}
             pitched={pitched}
             /* 크립을 가두는 맵 모서리(재지적: 3D에서 크립이 영역을 벗어남) — 입체는 원근
                투영된 사다리꼴이라 네 모서리를 posFrac으로 투영해 넘긴다. 평면은 단위

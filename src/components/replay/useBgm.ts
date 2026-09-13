@@ -120,7 +120,7 @@ const BGM_TITLES = BGM_FILES.map(titleOf);
  *   음악은 판의 분위기지 라디오가 아니다. 일시정지는 '이 장면을 들여다보는' 순간이라
  *   거기서 음악만 계속 흐르면, 멈춘 화면과 흐르는 소리가 서로 다른 말을 한다.
  *   끄는 것이 아니라 **재우는** 것이라 켜 둔 뜻(on)도 아이콘도 그대로고, 다시 재생을
- *   누르면 끊긴 자리에서 이어진다 — 판을 떠났다 돌아올 때(blur/focus)와 같은 결이다.
+ *   누르면 끊긴 자리에서 이어진다. (판을 떠날 때 재우던 것은 걷었다 — 아래 '걷어냄' 자리.)
  */
 export function useBgm(playing = true): Bgm {
   const [on, setOn] = useState(false);
@@ -200,13 +200,13 @@ export function useBgm(playing = true): Bgm {
     window.addEventListener("keydown", go, true);
   }, [playOrNext]);
 
-  /** 소리를 **다시 낸다** — 셋이 다 참일 때만이다: 켜 둔 뜻 · 재생 중 · 판이 보임.
+  /** 소리를 **다시 낸다** — 둘이 다 참일 때만이다: 켜 둔 뜻 · 재생 중.
    *  하나라도 어긋나면 아무 일도 안 한다(부르는 쪽이 조건을 또 따질 일이 없다).
    *  곡이 아직 안 걸렸으면(멈춘 채로 들어와 첫 곡을 아직 안 튼 경우) 첫 곡부터 튼다.
    *  막히면 첫 누름을 기다린다 — 자동재생 규칙의 문은 '처음 한 번'뿐이라 대개는
    *  그냥 난다. */
   const resume = useCallback(() => {
-    if (!onRef.current || !playingRef.current || document.hidden) return;
+    if (!onRef.current || !playingRef.current) return;
     const a = audio();
     if (!a.src) { next(true).catch(() => armFirstGesture()); return; }
     void a.play().catch(() => armFirstGesture());
@@ -251,30 +251,10 @@ export function useBgm(playing = true): Bgm {
     };
   }, [audio, next]);
 
-  /* ★ 판을 떠나면 **멈춘다**(요청: "음악은 블러 시 멈추기") ──────────────────────────
-     다른 앱·다른 창으로 넘어갔는데 음악만 남아 흐르면, 사람은 소리의 출처를 못 찾는다
-     (탭을 여럿 열어 두면 더 그렇다). 돌아오면 이어서 튼다 — 끈 것이 아니라 **멈춘 것**
-     이라, 켜 둔 뜻(onRef)은 그대로 두고 소리만 재운다. 아이콘도 켜진 얼굴 그대로다.
-     두 귀를 함께 단다: 창 포커스(blur/focus)는 PC에서, 보임(visibilitychange)은 폰에서
-     각각 확실히 온다 — 한쪽만 달면 기기에 따라 안 멈추거나 안 돌아온다.
-     ⚠ 돌아왔을 때의 play()는 사람의 누름 밖이지만, 이미 한 번 소리를 낸 대라 브라우저가
-       막지 않는다(자동재생 규칙은 '처음 한 번'의 문이다). 그래도 막히면 조용히 둔다 —
-       다음 누름에 armFirstGesture가 살린다. */
-  useEffect(() => {
-    const a = audio();
-    const sleep9 = (): void => { if (onRef.current) a.pause(); };
-    // 돌아왔을 때의 판정은 resume이 통째로 진다 — '재생 중인가'까지 함께 본다.
-    const wake9 = (): void => { resume(); };
-    const vis9 = (): void => { if (document.hidden) sleep9(); else wake9(); };
-    window.addEventListener("blur", sleep9);
-    window.addEventListener("focus", wake9);
-    document.addEventListener("visibilitychange", vis9);
-    return () => {
-      window.removeEventListener("blur", sleep9);
-      window.removeEventListener("focus", wake9);
-      document.removeEventListener("visibilitychange", vis9);
-    };
-  }, [audio, resume]);
+  /* (걷어냄) 판을 떠나면 재우던 것(blur·focus·visibilitychange) ─────────────────────────────────────────
+     요청: "blur 시 음악 멈춤, 재생 멈춤 안 되게". 옛 까닭은 '소리의 출처를 못 찾는다'였는데, 다른 창에서 일하며
+     틀어 두는 쪽을 택한다. 브라우저가 미디어 세션 손잡이(알림창의 멈춤)를 주므로 끄는 길은 사람에게 남아 있다.
+     재생(시각)이 멈추면 음악도 재우는 규약은 그대로다(위 playing) — 그건 판 안의 일이다. */
 
   const toggle = useCallback(() => {
     const nv = !onRef.current;

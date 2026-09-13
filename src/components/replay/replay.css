@@ -298,7 +298,11 @@
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   z-index: 7600;
 }
-.scr-motion-pickmenu.is-list { min-width: 168px; max-height: min(60vh, 360px); overflow-y: auto; }
+/* 제 안에서만 구른다(지적: "음악 목록 스크롤 시 뒤 맵이 스크롤이 돼") — contain이 **페이지**로 번지는 연쇄를
+   끊고, 지도 줌으로 새는 것은 휠 손잡이가 막는다(ReplayMotionPlayer의 onWheelHost). */
+.scr-motion-pickmenu.is-list {
+  min-width: 168px; max-height: min(60vh, 360px); overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y;
+}
 .scr-motion-pickitem {
   display: block; width: 100%; padding: 6px 12px; border: none; border-radius: 8px;
   background: transparent; color: inherit; cursor: pointer;
