@@ -3750,23 +3750,53 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 구리 상자 아래 회색 받침판을 키운다(요청: "그 회색 상자도 더 확대해야함 너비와
        높이 모두") — 캐노피 위의 짐과 이 판이 맞닿는 자리라 판이 작으면 짐이 허공에
        걸린 것처럼 보인다. 3.2×2.85×0.26 → 4.05×3.5×0.5(한 번 키웠다가 조금 줄인 값). */
-    out.push(...tagKey(paintBase(boxFaces3(0, 0.2, 4.05, 3.5, 0.5, MOD_Z - 0.46), STEEL), 30.6));
-    out.push(...tagKey(paintBase(boxFaces3(0, 0.2, 2.6, 2.25, 1.48, MOD_Z), COPPER), 31));
+    /* 꼭대기 황동 상자와 그 아래 은색 판을 **20% 줄인다**(요청) — 한 배수로 묶어 두면
+       창·꼭대기 그릇처럼 이 상자에 얹힌 것들이 따로 놀지 않는다. */
+    const MK9 = 0.8;
+    /* ★ 꼭대기 짐은 **정 가운데**다(지적: "정 가운데에 올라간 거 맞는지") — 은판·구리
+       상자·구리 링·그릇이 다 y 0.2에 있었다. 3층 기둥은 (0,0)이 축이라 그만큼 앞으로
+       밀려 앉은 꼴이었고, 부감에서 짐이 기둥 앞턱에 걸친 것처럼 보였다. 0.2를 걷는다. */
+    out.push(...tagKey(paintBase(
+      boxFaces3(0, 0, 4.05 * MK9, 3.5 * MK9, 0.5 * MK9, MOD_Z - 0.46 * MK9), STEEL,
+    ), 30.6));
+    out.push(...tagKey(paintBase(
+      boxFaces3(0, 0, 2.6 * MK9, 2.25 * MK9, 1.48 * MK9, MOD_Z), COPPER,
+    ), 31));
     /* 앞면 장식(창)은 앞이 보일 때만 — 뒤로 돌린 각도에서도 그리면 몸 위로 떠올라
        팔처럼 삐져나와 보였다. */
     const frontVisible = faceLight(0, 1).visible;
     if (frontVisible) {
+      const wx9 = 1.08 * MK9;
+      const wy9 = 2.25 * MK9 / 2 + 0.005;   // 구리 상자 앞면(가운데가 0이다)
       out.push(...tagKey([
-        [polyPath3([[-1.08, 1.33, MOD_Z + 0.34], [1.08, 1.33, MOD_Z + 0.34],
-          [1.08, 1.33, MOD_Z + 1.0], [-1.08, 1.33, MOD_Z + 1.0]]), 1, GLASS] as ShapeFace,
-        topFace(polyPath3([[-1.08, 1.34, MOD_Z + 0.82], [1.08, 1.34, MOD_Z + 0.82],
-          [1.08, 1.34, MOD_Z + 1.0], [-1.08, 1.34, MOD_Z + 1.0]]), 0.4),
+        [polyPath3([[-wx9, wy9, MOD_Z + 0.34 * MK9], [wx9, wy9, MOD_Z + 0.34 * MK9],
+          [wx9, wy9, MOD_Z + 1.0 * MK9], [-wx9, wy9, MOD_Z + 1.0 * MK9]]), 1, GLASS] as ShapeFace,
+        topFace(polyPath3([[-wx9, wy9 + 0.01, MOD_Z + 0.82 * MK9], [wx9, wy9 + 0.01, MOD_Z + 0.82 * MK9],
+          [wx9, wy9 + 0.01, MOD_Z + 1.0 * MK9], [-wx9, wy9 + 0.01, MOD_Z + 1.0 * MK9]]), 0.4),
       ], 32));
     }
-    // 꼭대기 — 구리 링 위의 작은 은색 돔.
-    const TOP_Z = MOD_Z + 1.48;
-    out.push(...tagKey(paintBase(cylinderFaces3(0, 0.2, 1.22, 0.16, TOP_Z), COPPER), 32.6));
-    out.push(...tagKey(paintBase(domeFaces3(0, 0.2, 0.98, 0.72, TOP_Z), SILVER), 33));
+    /* 꼭대기 — 구리 링 위에 **움푹 팬 반구**(요청: "옥상은 반대로 반구형으로 움푹 패인 거").
+       볼록한 돔을 뒤집는 자는 실루엣이 아니라 **명암**이다: 테두리 판을 깔고 그 안쪽을
+       한 겹 어둡게 덮은 뒤, 빛을 **먼 쪽(화면 위) 안벽**에만 초승달로 남긴다. 볼록한 반구는
+       정수리(가운데)가 밝고 아랫배가 그늘인데, 그릇은 그 반대로 가장자리 안쪽이 밝고
+       가운데가 어둡다 — 같은 타원을 쓰고도 오목하게 읽히는 까닭이 이것이다. */
+    const TOP_Z = MOD_Z + 1.48 * MK9;
+    out.push(...tagKey(paintBase(cylinderFaces3(0, 0, 1.22 * MK9, 0.16, TOP_Z), COPPER), 32.6));
+    {
+      const BR9 = 0.98 * MK9;               // 그릇 테두리 반지름
+      const BI9 = BR9 * 0.82;               // 팬 속
+      const bz9 = TOP_Z + 0.16;
+      const [bx9, by9] = project(0, 0, bz9);
+      const ry9 = BI9 * groundSquashNow();
+      // 먼 쪽(화면 위) 안벽의 빛 — 속 타원의 위 호와 그보다 납작한 호 사이.
+      const lit9 = `M${bx9 - BI9} ${by9}A${BI9} ${ry9} 0 0 1 ${bx9 + BI9} ${by9}`
+        + `A${BI9} ${ry9 * 0.42} 0 0 0 ${bx9 - BI9} ${by9}Z`;
+      out.push(...tagKey([
+        ...paintBase([bodyFace(discPath3(0, 0, bz9, BR9))], SILVER),
+        capFace(discPath3(0, 0, bz9, BI9), 0.46),
+        topFace(lit9, 0.3),
+      ], 33));
+    }
 
     /* 선체 둘레 장갑 패널 상자 열 개는 걷었다(요청: "아래쪽에 달린 상자모양들은 다
        제거해도 될듯") — 돔이 층으로 갈리며 실루엣이 이미 복잡해져, 밑동의 상자들이
@@ -3794,9 +3824,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        갭을 둔다(요청) — 붙여 놓으면 한 덩어리로 뭉개진다. */
     /* 현관 지붕을 2층 옥상 높이에 맞춘다(요청) — 잘린 갑판과 같은 켜라야 지붕이
        기둥에서 뻗어 나온 것으로 읽힌다. 폭도 줄였다(3.4 → 2.5). */
+    /* 캐노피를 한 번 더 줄인다(요청: "크기 특히 앞뒤 길이 축소") — 앞뒤 2.1 → 1.25,
+       폭 2.5 → 2.1. **뒷변은 붙박이**다: 이 지붕은 돔 살에 등을 대고 앞으로 내미는 것이라
+       뒤가 움직이면 돔에서 떨어져 허공에 뜬다. 그래서 뒷변(3.7)을 잡고 앞으로만 줄인다. */
     const CANOPY_Z = T2_Z;
-    out.push(...tagKey(paintBase(boxFaces3(0, 4.75, 2.5, 2.1, 0.24, CANOPY_Z), SILVER),
-      depthNow(0, 4.75) * 1.6 + 7));
+    const CNP_D = 1.25;
+    const CNP_Y = 3.7 + CNP_D / 2;
+    out.push(...tagKey(paintBase(boxFaces3(0, CNP_Y, 2.1, CNP_D, 0.24, CANOPY_Z), SILVER),
+      depthNow(0, CNP_Y) * 1.6 + 7));
     /* 캐노피 기둥 둘은 걷었다 — 정면 격납구(아래)가 그 자리를 파고 들어와 기둥이 개구부 한가운데 서게 됐다.
        캐노피는 인방 위에 걸린다. */
     /* 상자와 드럼통은 3층 기둥 옆구리에 붙인다(요청: "캐노피 위 상자랑 드럼통 파묻힘
@@ -3817,7 +3852,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       return 2.28 + (T3_RB - 2.28) * (1 - k) ** 0.62;
     };
     const LOAD_Z = T2_Z + 0.3;
-    const LOAD_H = 0.6;
+    const LOAD_H = 1.2;   // 높이 2배(요청) — 상자·드럼통이 함께 탄다
     const T3_R = t3R(LOAD_Z);
     const boxHX = 0.92;
     const boxHY = 0.78;
@@ -3833,12 +3868,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ...cylinderFaces3(drumX, drumY, 0.42, LOAD_H, LOAD_Z),
       ...cylinderFaces3(drumX, drumY, 0.46, 0.08, LOAD_Z + LOAD_H - 0.08),
     ], SILVER), depthNow(drumX, drumY) * 1.6 + 9));
-    // 입구 양옆 — 엎어 놓은 그릇. 돔 밑(4.9)과 받침 테(5.4) 사이 갑판에 박힌다.
+    /* 입구 양옆 — 엎어 놓은 그릇. 돔 밑(4.9)과 받침 테(5.4) 사이 갑판에 박힌다.
+       ★ 공용 **반구 프리미티브**(halfSphereFaces3)로 바꿨다(요청) — domeFaces3는 높이를
+       따로 받는 '눌린 돔'이라 밑동 테두리와 굽은 옆선의 비가 제각각이었고, 작게 그릴수록
+       옆선이 곧게 서서 통처럼 보였다. 반구 프리미티브는 위 반원 + 밑동 타원이라 어느
+       크기에서도 공을 반 자른 꼴이고, 명암도 호를 따라 도는 초승달 한 쌍으로 붙는다. */
     for (const bx9 of [-3.95, 3.95]) {
-      out.push(...tagKey(paintBase([
-        ...cylinderFaces3(bx9, 3.2, 0.9, 0.1, DOME_Z - 0.08),
-        ...domeFaces3(bx9, 3.2, 0.84, 0.64, DOME_Z + 0.02),
-      ], SILVER), depthNow(bx9, 3.2) * 1.6 + 4));
+      const k9 = depthNow(bx9, 3.2) * 1.6 + 4;
+      out.push(...tagKey(paintBase(cylinderFaces3(bx9, 3.2, 0.9, 0.1, DOME_Z - 0.08), SILVER), k9));
+      out.push(...tagKey(halfSphereFaces3(bx9, 3.2, DOME_Z + 0.02, 0.84, SILVER), k9 + 0.01));
     }
 
     /* 입구 왼쪽 갑판 두 판은 걷었다(요청) — 통로 판과 그 끝 난간이었는데, 현관 지붕이
@@ -21319,7 +21357,15 @@ export function stageFaces(faces: ShapeFace[], stg: number): ShapeFace[] {
   }
   // 같은 차례면 칠하는 순서대로 — 안쪽이 먼저다.
   const order = rank.map((_, i) => i).sort((a, b) => rank[a] - rank[b] || a - b);
-  const keep = new Set(order.slice(0, Math.max(1, Math.round((n * stg) / BUILD_STAGES))));
+  /* ★ 첫 단계에 **더 많이 보여 준다**(요청: "공사 중일 때 처음에 부품을 더 보이는 게 낫겠다")
+     — 부품 수를 진행률에 곧장 비례시키면(n·stg/5) 1단계에 겨우 5분의 1이라, 커맨드센터처럼
+     맨 아래 부품이 가는 고리 하나인 모델은 허공에 고리만 뜬 그림이 된다. 지수를 한 번 눌러
+     앞을 부풀리면(0.55제곱) 1단계에 이미 40%가 서서 '짓는 중인 덩치'로 읽히고, 뒤 단계는
+     차이가 줄지만 어차피 그때는 실루엣이 이미 잡혀 있어 눈에 덜 띈다.
+     단계별 몫: 1→41% · 2→60% · 3→75% · 4→89%(이전 20/40/60/80%).
+     바닥을 둘로 둔다 — 부품이 아주 적은 모델에서도 외톨이 하나만 뜨지 않게. */
+  const frac9 = (stg / BUILD_STAGES) ** 0.55;
+  const keep = new Set(order.slice(0, Math.max(2, Math.round(n * frac9))));
   return faces.filter((_, i) => keep.has(gid[i]));
 }
 /** 굽는 동안만 포탑 각을 세워 둔다(위 headYawNow 주석) — 열쇠를 짓기 **전**에 서야
