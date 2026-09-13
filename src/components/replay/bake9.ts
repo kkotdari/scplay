@@ -3995,14 +3995,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const PX = 3.95;        // 바깥 판의 x 중심
     const PW = 2.7;         // 바깥 판 두께(x)
     const PD = 7.6;         // 판 깊이(y)
-    const PH = 7.2;         // 바깥 판 높이
+    /* ★ 바깥 판이 가운데보다 **살짝 낮다**(요청) — 여태 바깥 7.2 · 가운데 5.8이라 가운데가
+       움푹 꺼져 세 판이 'ㅗ'를 뒤집은 꼴이었다. 사진의 배럭은 가운데 몸채가 가장 높고 양옆이
+       한 뼘 낮다. 두 값을 맞바꾸되 차는 반 칸만 둔다(6.7 대 7.2) — 크게 벌리면 가운데가
+       탑처럼 솟는다. */
+    const PH = 6.7;         // 바깥 판 높이
     const MW = 2.4;         // 가운데 판 두께
     /* ★ 앞뒤 깊이는 **바깥 판과 같다**(지적: "세번째판이 1/5번째 판과 앞뒤 깊이가 달라
        맞춰야해") — 가운데 판을 '한 뼘 작게' 두면서 두께(MW)와 높이(MH)만이 아니라
        깊이까지 6.4로 줄여 놨었다. 판 셋은 **나란히 선 형제**라 앞뒤로 들쭉날쭉하면
        한 덩이로 안 읽힌다. 작게 두는 몫은 두께와 높이가 이미 지고 있다. */
     const MD = PD;
-    const MH = 5.8;
+    const MH = 7.2;
     const PZ = 1.05 + LIFT; // 판 밑면
     /** 사이 상자 — 판보다 얇고·낮고·얕다. 판에 물려 이음매 노릇만 한다. */
     const GX = 1.95;
@@ -4016,12 +4020,28 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const PTOP = PZ + PH;   // 바깥 판 지붕
     const MTOP = PZ + MH;   // 가운데 판 지붕
     // 다리 여섯 — 앞뒤 세 쌍. 가운데 다리는 몸통 안쪽으로.
-    out.push(
-      ...legAndFoot(-3.9, 3.4, 1.45 + LIFT), ...legAndFoot(0, 3.7, 1.45 + LIFT),
-      ...legAndFoot(3.9, 3.4, 1.45 + LIFT),
-      ...legAndFoot(-3.9, -3.4, 1.45 + LIFT), ...legAndFoot(0, -3.7, 1.45 + LIFT),
-      ...legAndFoot(3.9, -3.4, 1.45 + LIFT),
-    );
+    /* ★ 발판을 **1.5배로 키우고 제 방향으로 바깥으로 민다**(요청: "모서리 쪽은 대각선 방향") —
+       '제 방향'은 곧 몸 한가운데에서 그 다리로 향하는 방향이므로, 자리를 한 배수로 밀면 모서리
+       다리는 저절로 대각선으로 나간다(가운데 다리는 앞뒤로만 간다 — x가 0이라). 발이 커진 만큼
+       바깥으로 나가야 서로 안 겹치고 몸 아래에 파묻히지도 않는다. */
+    const FK9 = 1.5;    // 발판 크기
+    const FO9 = 1.2;    // 자리 밀어내기(제 방향)
+    for (const [lx9, ly9] of [
+      [-3.9, 3.4], [0, 3.7], [3.9, 3.4], [-3.9, -3.4], [0, -3.7], [3.9, -3.4],
+    ] as [number, number][]) {
+      out.push(...legAndFoot(lx9 * FO9, ly9 * FO9, 1.45 + LIFT, 0.1, FK9));
+    }
+    /* ★ 앞 가운데 다리는 **삼각으로 모이는 팔 둘**로 몸에 붙는다(요청) — 이 다리만 몸통
+       앞(y 4.44)으로 나와 있어, 다른 다리처럼 몸 밑에서 곧장 내려오면 허공에 선 장대로
+       보였다. 몸 앞면 두 곳에서 뻗은 팔이 다리 머리 한 점에 모이면 그 삼각이 버팀대로
+       읽힌다. 보이는 쪽만 그린다 — 반대쪽 팔은 몸을 뚫고 비칠 자리다. */
+    for (const sy9 of [1, -1] as const) {
+      if (facingRatio(0, sy9) <= 0.12) continue;
+      const ty9 = sy9 * 3.7 * FO9;
+      for (const sx9 of [-1, 1] as const) {
+        out.push(...rodFaces(0, ty9, 1.45 + LIFT + 0.1, sx9 * 0.78, sy9 * 3.7, 2.62, 0.24));
+      }
+    }
     /* 키는 제 자리 깊이 하나로(지적: 배럭 키값) — 붙박이 상수가 깊이 항보다 커서
        요잉과 무관하게 순서를 지배하던 것을 고친 자리다. 판 셋과 사이 상자는 나란히 선
        것들이라 제 자리 깊이만으로 앞뒤가 옳고, 위에 얹힌 벤트·띠만 제 판의 깊이에
@@ -4084,11 +4104,50 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       }
       return f;
     };
+    /* ★ 옆 판의 벤트는 **앞뒤를 3분의 1로** 줄이고 밑에 **임자색 납작판**을 깐다(요청: "벤트보다
+       커서 삐져나와 보이게") — 지붕을 길게 덮던 경사로가 건물 실루엣을 통째로 먹고 있었다. 짧게
+       줄여 얹고, 그보다 사방 한 뼘 넓은 판을 밑에 깔면 벤트가 '판 위에 놓인 부품'으로 읽힌다.
+       줄이는 자리는 **가운데를 지킨다**(옛 −2.9~1.5의 한가운데 −0.7) — 뒤나 앞으로 몰면 지붕의
+       무게가 한쪽으로 쏠린다. */
+    const VL9 = (1.5 - -2.9) / 3;          // 새 앞뒤 길이 — 옛 4.4의 3분의 1
+    const VC9 = (-2.9 + 1.5) / 2;          // 옛 한가운데
+    const VB9 = VC9 - VL9 / 2;             // 뒤
+    const VF9 = VC9 + VL9 / 2;             // 앞
+    const VPAD9 = 0.42;                    // 밑판이 벤트보다 넓은 몫
     for (const sx9 of [-1, 1] as const) {
-      out.push(...tagKey(rampVent(sx9 * PX, 0.95, -2.9, 1.5, PTOP, 1.55, 3),
-        depthNow(sx9 * PX, 0) * 1.6 + 0.3));
+      const k9 = depthNow(sx9 * PX, 0) * 1.6 + 0.3;
+      pc.push(...tagKey(boxFaces3(sx9 * PX, VC9, (0.95 + VPAD9) * 2, VL9 + VPAD9 * 2, 0.2, PTOP), k9));
+      out.push(...tagKey(rampVent(sx9 * PX, 0.95, VB9, VF9, PTOP + 0.2, 1.55, 2), k9 + 0.02));
     }
-    out.push(...tagKey(rampVent(0, 0.66, -2.1, 0.9, MTOP, 1.05, 2), depthNow(0, 0) * 1.6 + 0.3));
+    /* ★ 가운데 지붕 벤트는 **경사로가 아니라 평평한 팔각 두께판**이다(요청: "사각형이 아닌
+       8각형(모서리가 살짝 깎인 직사각형 느낌)") — 옆 판의 경사 벤트와 같은 꼴을 세 번 쓰니
+       지붕이 한 가지 무늬로 덮여 가운데가 안 읽혔다. 네 모서리를 깎은 직사각 판은 위에서 봐도
+       옆에서 봐도 '뚜껑'으로 읽혀, 경사 벤트 둘 사이에서 제 노릇을 한다. */
+    {
+      const VW9 = 0.95;                 // 좌우 반폭
+      const VYB = -2.0;
+      const VYF = 1.4;
+      const VTH = 0.5;                  // 두께
+      const VCUT = 0.42;                // 모서리 깎는 몫
+      const oct9: [number, number][] = [
+        [-VW9 + VCUT, VYB], [VW9 - VCUT, VYB], [VW9, VYB + VCUT], [VW9, VYF - VCUT],
+        [VW9 - VCUT, VYF], [-VW9 + VCUT, VYF], [-VW9, VYF - VCUT], [-VW9, VYB + VCUT],
+      ];
+      const kV9 = depthNow(0, 0) * 1.6 + 0.3;
+      out.push(...tagKey(prismZFaces(oct9, MTOP, VTH, true), kV9));
+      // 뚜껑 위 격자 — 밝은 살과 그 뒤의 검은 골이 짝을 이룬다(다른 벤트와 같은 결).
+      for (let i9 = 1; i9 <= 3; i9 += 1) {
+        const y09 = VYB + ((VYF - VYB) * i9) / 4;
+        const barV = (ya: number, yb: number): string => polyPath3([
+          [-VW9 * 0.7, ya, MTOP + VTH], [VW9 * 0.7, ya, MTOP + VTH],
+          [VW9 * 0.7, yb, MTOP + VTH], [-VW9 * 0.7, yb, MTOP + VTH],
+        ]);
+        out.push(...tagKey([
+          topFace(barV(y09 - 0.24, y09 - 0.06), 0.3),
+          topFace(barV(y09 - 0.06, y09 + 0.16), -0.35),
+        ], kV9 + 0.02));
+      }
+    }
     // 바깥 판 어깨의 밝은 띠(기존 포인트 유지) — 제 판을 따라다닌다.
     for (const sx9 of [-1, 1] as const) {
       out.push(...tagKey([topFace(polyPath3([
@@ -4096,61 +4155,113 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         [sx9 * PX + 1.1, 1.7, PTOP], [sx9 * PX - 1.1, 1.7, PTOP],
       ]), 0.3)], depthNow(sx9 * PX, 0) * 1.6 + 0.3));
     }
-    /** 노란 창(요청: "노란 네모 창문도 앞과 옆면에 몇개씩") — 불이 켜진 유리라 음영을
-     *  안 태우고 제 색 그대로 앉는다. 벽보다 아주 조금 밖에 눕혀 z-싸움을 피한다. */
-    // 붉은기 도는 노랑(요청: "중심은 노랗고 주변이 주황으로 번지는 느낌")
-    const GLASS = winLit("#ffb54a");
-    const win = (
-      pts: [number, number, number][], key: number,
-    ): void => { out.push(...tagKey(paintBase([bodyFace(polyPath3(pts))], GLASS), key)); };
+    /* ★ 띠 둘로 간다(요청: "임자색 띠 두께 반으로 줄이고, 그 조금 위에 간격을 두고 검회색 같은 두께
+       창문띠를 추가(현재 창문 대체)") ─────────────────────────────────────────────────────────
+       노란 네모 창 여럿을 걷고, 면마다 **같은 두께의 띠 두 줄**로 바꾼다: 아래가 임자 색, 한 뼘 띄고
+       위가 검회색 창문띠다. 낱개 창은 배율이 낮아지면 점으로 흩어지는데, 가로로 이은 띠는 어느
+       배율에서도 한 줄로 남아 건물의 허리선을 만든다. 두 줄이 같은 두께·같은 폭이라 나란히 읽힌다. */
+    const WINB9 = "#2e333b";     // 창문띠 — 검회색
+    const BTH9 = 0.75;           // 띠 두께(옛 임자색 띠 1.5의 절반)
+    const BGAP9 = 0.4;           // 두 띠 사이
+    /** 가로 띠 한 장 — 면의 좌우폭을 꽉 채운다(앞서 고친 자). */
+    const band9 = (
+      x0: number, x1: number, py: number, z0: number, key: number, fill?: string,
+    ): ShapeFace[] => tagKey(fill
+      ? paintBase([bodyFace(polyPath3([
+        [x0, py, z0], [x1, py, z0], [x1, py, z0 + BTH9], [x0, py, z0 + BTH9],
+      ]))], fill)
+      : [bodyFace(polyPath3([
+        [x0, py, z0], [x1, py, z0], [x1, py, z0 + BTH9], [x0, py, z0 + BTH9],
+      ]))], key);
+    /** 옆면(±x)의 가로 띠 — 앞뒤(y)로 길다. */
+    const bandY9 = (
+      xw: number, y0: number, y1: number, z0: number, key: number, fill?: string,
+    ): ShapeFace[] => tagKey(fill
+      ? paintBase([bodyFace(polyPath3([
+        [xw, y0, z0], [xw, y1, z0], [xw, y1, z0 + BTH9], [xw, y0, z0 + BTH9],
+      ]))], fill)
+      : [bodyFace(polyPath3([
+        [xw, y0, z0], [xw, y1, z0], [xw, y1, z0 + BTH9], [xw, y0, z0 + BTH9],
+      ]))], key);
+    /* ★ 띠는 **다섯 덩이를 저마다 감아 돈다**(요청 두 가지를 한 자리에서):
+        · "앞면(사이 건물에도 추가)부터 옆면 앞부분 조금까지만 두르기"
+        · "건물 옆면의 튀어나온 부분을 감싸듯 둘러져야 함"
+       여태는 판 셋의 앞면과 바깥 옆면에만 띠를 그었다. 그런데 이 몸은 앞뒤 깊이가 다른 덩이
+       다섯(바깥 판 둘·사이 상자 둘·가운데 판)이 나란히 선 꼴이라, 바깥 옆면 하나에 앞뒤로 길게
+       그은 줄은 그 다섯의 들쭉날쭉한 앞면과 아무 관계가 없었다 — 띠가 몸을 **두른** 게 아니라
+       바깥 벽에 **그어진** 것으로 읽힌 까닭이다. 이제 덩이마다 제 앞면을 꽉 채우고, 제 옆면으로
+       한 뼘(WRAP9)만 감아 돈다. 깊이가 다른 덩이는 그만큼 앞뒤로 어긋난 자리에서 감기므로
+       튀어나온 덩이를 띠가 **감싼** 꼴이 된다. 높이(ZB9)는 다섯이 같아 한 줄로 이어 읽힌다. */
+    const ZB9 = 2.95 + LIFT;     // 임자색 띠 밑
+    const ZW9 = ZB9 + BTH9 + BGAP9;   // 창문띠 밑
+    const WRAP9 = 0.9;           // 옆면으로 감아 도는 길이
+    const BLK9: readonly (readonly [number, number, number])[] = [
+      [-PX, PW / 2, PD / 2], [-GX, GW / 2, GD / 2], [0, MW / 2, MD / 2],
+      [GX, GW / 2, GD / 2], [PX, PW / 2, PD / 2],
+    ];
+    for (const [bx9, bhw9, bhd9] of BLK9) {
+      // 앞면(±y) — 그 면의 좌우폭을 꽉 채운 두 줄.
+      for (const sy9 of [1, -1] as const) {
+        if (facingRatio(0, sy9) <= 0.12) continue;
+        const py9 = sy9 * (bhd9 + 0.03);
+        const key9 = depthNow(bx9, sy9 * bhd9 * 2) * 1.6 + 0.3;
+        pc.push(...band9(bx9 - bhw9, bx9 + bhw9, py9, ZB9, key9));
+        out.push(...band9(bx9 - bhw9, bx9 + bhw9, py9, ZW9, key9, WINB9));
+      }
+      // 옆면(±x) — 앞 끝에서 한 뼘만.
+      for (const sx9 of [1, -1] as const) {
+        if (facingRatio(sx9, 0) <= 0.12) continue;
+        const xw9 = bx9 + sx9 * (bhw9 + 0.03);
+        for (const sy9 of [1, -1] as const) {
+          if (facingRatio(0, sy9) <= 0.12) continue;
+          const key9 = depthNow(bx9 + sx9 * bhw9 * 2, sy9 * bhd9) * 1.6 + 0.3;
+          pc.push(...bandY9(xw9, sy9 * (bhd9 - WRAP9), sy9 * bhd9, ZB9, key9));
+          out.push(...bandY9(xw9, sy9 * (bhd9 - WRAP9), sy9 * bhd9, ZW9, key9, WINB9));
+        }
+      }
+    }
+    /* 가운데 판 앞면의 **세로 임자색 데칼**(요청) — 두 띠 위에서 지붕 밑까지 곧게 선다.
+       가운데 판만 가지므로 어느 각에서도 셋 중 가운데가 어디인지 읽힌다. */
     for (const sy9 of [1, -1] as const) {
       if (facingRatio(0, sy9) <= 0.12) continue;
-      const py9 = sy9 * (PD / 2 + 0.03);
       const my9 = sy9 * (MD / 2 + 0.03);
-      // 바깥 판 앞면 — 창 둘 · 그 아래 개인색 데칼 하나.
-      for (const sx9 of [-1, 1] as const) {
-        const cx9 = sx9 * PX;
-        const key9 = depthNow(cx9, sy9 * PD) * 1.6 + 0.3;
-        for (const dx9 of [-0.68, 0.68]) {
-          win([
-            [cx9 + dx9 - 0.36, py9, 5.3 + LIFT], [cx9 + dx9 + 0.36, py9, 5.3 + LIFT],
-            [cx9 + dx9 + 0.36, py9, 6.1 + LIFT], [cx9 + dx9 - 0.36, py9, 6.1 + LIFT],
-          ], key9);
-        }
-        /* ★ 데칼은 **그 면의 좌우폭을 꽉 채운다**(요청) — 여태 ±0.85로 판 두께(PW 2.7, 반 1.35)보다
-           좁아, 붉은 띠 양옆에 맨 벽이 남아 '붙여 둔 스티커'로 읽혔다. 판 폭 그대로 두르면 그 면이
-           통째로 임자 색 띠가 된다(아래 가운데 판·옆면도 같은 자). */
-        pc.push(...tagKey([bodyFace(polyPath3([
-          [cx9 - PW / 2, py9, 2.6 + LIFT], [cx9 + PW / 2, py9, 2.6 + LIFT],
-          [cx9 + PW / 2, py9, 4.1 + LIFT], [cx9 - PW / 2, py9, 4.1 + LIFT],
-        ]))], key9));
-      }
-      // 가운데 판 앞면 — 창 하나 · 데칼 하나.
       const keyM = depthNow(0, sy9 * MD) * 1.6 + 0.3;
-      win([
-        [-0.42, my9, 4.9 + LIFT], [0.42, my9, 4.9 + LIFT],
-        [0.42, my9, 5.6 + LIFT], [-0.42, my9, 5.6 + LIFT],
-      ], keyM);
       pc.push(...tagKey([bodyFace(polyPath3([
-        [-MW / 2, my9, 2.5 + LIFT], [MW / 2, my9, 2.5 + LIFT],
-        [MW / 2, my9, 3.9 + LIFT], [-MW / 2, my9, 3.9 + LIFT],
+        [-0.34, my9, ZW9 + BTH9 + 0.35], [0.34, my9, ZW9 + BTH9 + 0.35],
+        [0.34, my9, MTOP - 0.25], [-0.34, my9, MTOP - 0.25],
       ]))], keyM));
     }
-    /* 옆면(±x) — 개인색은 앞뒤로 긴 가로띠 하나(요청: "작은 네모말고 가로띠로 길게"),
-       그 위에 노란 창 셋. */
-    for (const sx9 of [1, -1] as const) {
-      if (facingRatio(sx9, 0) <= 0.12) continue;
-      const xw9 = sx9 * (PW / 2 + PX + 0.03);
-      const key9 = depthNow(sx9 * PX, 0) * 1.6 + 0.3;
-      pc.push(...tagKey([bodyFace(polyPath3([
-        [xw9, -PD / 2, 2.7 + LIFT], [xw9, PD / 2, 2.7 + LIFT],
-        [xw9, PD / 2, 3.7 + LIFT], [xw9, -PD / 2, 3.7 + LIFT],
-      ]))], key9));
-      for (const dy9 of [-2, 0, 2]) {
-        win([
-          [xw9, dy9 - 0.42, 5 + LIFT], [xw9, dy9 + 0.42, 5 + LIFT],
-          [xw9, dy9 + 0.42, 5.9 + LIFT], [xw9, dy9 - 0.42, 5.9 + LIFT],
-        ], key9);
+    /* ★ 오른쪽(+x) 옆면의 **구부러진 파이프 둘**과 그 뒤끝의 **반구 부품**(요청: 사진) —
+       모델 오른쪽에만 다는 비대칭 장식이라 그쪽이 보일 때만 그린다. 파이프는 뒤에서 시작해
+       앞으로 가며 지붕 쪽으로 휜다(z가 t²로 올라 뒤는 완만하고 앞에서 꺾인다). 벽에 반쯤
+       묻히게 x를 잡아 '붙어 있는 관'으로 읽힌다. 뒤끝의 반구는 관이 벽 속에서 나오는 아가리다. */
+    if (facingRatio(1, 0) > 0.12) {
+      const kP9 = depthNow(PX + PW, 0) * 1.6 + 0.5;
+      const PIPE9 = "#7d8794";
+      /* 둘은 **높이를 넉넉히 벌린다**(1.15) — 비스듬한 시점에서 z는 눌려 보이므로, 조금만
+         띄우면 화면에서 한 덩이로 붙어 두 개로 안 읽힌다. */
+      for (const [pz9, pr9] of [[PTOP - 2.2, 0.24], [PTOP - 1.05, 0.2]] as const) {
+        const xp9 = PX + PW / 2 + pr9 * 0.55;
+        const yb9 = -PD / 2 + 0.55;
+        const yf9 = PD / 2 - 0.8;
+        out.push(...tagKey(paintBase(spirePillar({
+          x: 0, y: 0, h: 1, w: pr9, segs: 14, sides: 8, caps: "top",
+          trueNormal: true, ref: [0, 0, 1],
+          widthOf: () => pr9,
+          path: (t9: number): [number, number, number] => [
+            xp9, yb9 + (yf9 - yb9) * t9, pz9 + 1.15 * t9 * t9,
+          ],
+        }), PIPE9), kP9));
+        // 뒤끝 반구 — 뒤로 둥글게 닫히고 앞에서 관 굵기로 이어진다.
+        const br9 = pr9 * 1.7;
+        out.push(...tagKey(paintBase(spirePillar({
+          x: 0, y: 0, h: 1, w: br9, segs: 6, sides: 10, caps: "none",
+          trueNormal: true, ref: [0, 0, 1],
+          widthOf: (t9: number): number => br9 * Math.sqrt(Math.max(0, 1 - (1 - t9) * (1 - t9))),
+          path: (t9: number): [number, number, number] => [
+            xp9, yb9 - br9 * (1 - t9), pz9,
+          ],
+        }), PIPE9), kP9 - 0.02));
       }
     }
     return raceBase(out, "terran", pc);

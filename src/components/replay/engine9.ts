@@ -1689,7 +1689,7 @@ export const BLD_NORM: Record<string, number> = {
   covert: 1.467,  // 사진 재작도 뒤 재측정(bld-norm)
   creep: 1.150,  // ×0.8(요청: 그리기 0.8배) · 발 셋 이식·요잉·촛대·촛대 가시 뒤 재측정 1.438 · 옛 1.232
   ctower: 1.555,
-  cube: 1.112,
+  cube: 0.986,
   cyber: 1.578,  // ×0.8(요청: 그려지는 크기 0.8배)
   diamond: 1.905,  // 상자 상한에 걸림
   dmound: 1.111,
