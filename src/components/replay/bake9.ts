@@ -4077,7 +4077,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          새는 몫은 격납구 깊이(BAY_YI에서 겉벽까지 ≈2.2) × 옆을 보는 정도이고, 그 '옆을
          보는 정도'가 곧 facingRatio(1,0)이다. 정면(0)에서는 가는 문설주만 남고, 돌수록
          딱 필요한 만큼만 넓어진다. 입구 폭을 줄인 뒤로 이 차이가 더 두드러졌다. */
-      const FW = 0.3 + 2.2 * Math.min(1, Math.abs(facingRatio(1, 0)));
+      /* 격납구를 얕게 판 뒤로는 **문틀도 그만큼 얇아야 한다**(지적: 사선에서 그 판이 눈에
+         띈다) — 새는 몫은 깊이(BAY_YI에서 겉벽까지 ≈0.7) × 옆을 보는 정도라, 여기에 맞춰
+         자란다. 깊이를 셈에서 직접 쓰므로 나중에 깊이를 바꿔도 폭이 따라온다. 문틀은
+         결국 벽을 한 번 더 그린 판이라, 넓을수록 벽의 결(다면체 면·명암)과 어긋난 민무늬
+         자국으로 드러난다 — 덮을 수 있는 만큼만 좁게 두는 것이 최선이다. */
+      const FW = 0.26 + (5.15 - BAY_YI) * 1.15 * Math.min(1, Math.abs(facingRatio(1, 0)));
       const bands: [number, number, string][] = [
         [HULL_Z, HULL_Z + 0.8, SILVER], [HULL_Z + 0.8, HULL_Z + 0.94, STEEL],
         [HULL_Z + 0.94, HULL_Z + 1.1, SILVER], [HULL_Z + 1.1, DOME_Z, STEEL],
