@@ -3701,9 +3701,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       out.push(...tagKey([
         [arcBand(aMid, 0.26, t1R(zB) + 0.03, t1R(zT) + 0.03, zB, zT), 1, COPPER] as ShapeFace,
         topFace(arcBand(aMid, 0.245, t1R(zT - 0.3) + 0.05, t1R(zT) + 0.05, zT - 0.3, zT), 0.22),
-        /* 띠 한가운데를 세로로 가르는 **임자색 줄**(요청) — 색을 안 주면 임자 색이 칠해진다.
-           구리보다 한 겹 밖(+0.02)에 둬 어느 각에서도 구리 위에 얹힌다. */
-        bodyFace(arcBand(aMid, 0.095, t1R(zB) + 0.05, t1R(zT) + 0.05, zB, zT)),
+        /* 띠 한가운데를 세로로 가르는 **임자색 줄** — 1층에만, 더 얇고 더 짧게(요청).
+           색을 안 주면 임자 색이 칠해진다. 구리보다 한 겹 밖(+0.05)이라 늘 그 위에 얹힌다. */
+        bodyFace(arcBand(aMid, 0.055, t1R(zB + 0.55) + 0.05, t1R(zT - 0.55) + 0.05,
+          zB + 0.55, zT - 0.55)),
       ], 2.2));
       /* ★ 띠는 **2층 돔까지 이어진다**(요청) — 1층 꼭대기에서 끊기면 위층이 맨살로 남아
          띠가 중간에 잘린 자국처럼 보였다. 2층은 기둥 반지름이 다르므로(t3R) 같은 각·같은
@@ -3713,7 +3714,6 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const zT2 = T2_Z + 0.85 - 0.04;   // = MOD_Z − 0.04 (MOD_Z는 아래서 선언된다)
       out.push(...tagKey([
         [arcBand(aMid, 0.26, t3R(zB2) + 0.03, t3R(zT2) + 0.03, zB2, zT2), 1, COPPER] as ShapeFace,
-        bodyFace(arcBand(aMid, 0.095, t3R(zB2) + 0.05, t3R(zT2) + 0.05, zB2, zT2)),
       ], 8.4));
     }
 
@@ -3782,25 +3782,36 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        판이 상자보다 사방 0.6씩 넓고 상자는 키가 큰 탓에 **먼 쪽 테두리가 상자 뒤로 가려**
        가까운 쪽에만 테가 남았다. 그 한쪽 테가 곧 '밀려 앉은 것'으로 읽힌다. 테를 0.2로
        좁히면 어느 각에서도 판이 상자 밑의 굽으로만 보여 어긋남이 안 생긴다. */
+    /* ★ 꼭대기 더미의 **밑을 2층 옥상(MOD_Z)에 딱 맞춘다**(지적: "3층 부품 높이가 잘못
+       설정돼 있는 것 같다 — 2층 옥상에 딱 맞는지 확인해 봐"). 그 지적이 옳았다: 은판을
+       MOD_Z − 0.768에서 시작해 두어 판이 기둥 속에 0.77이나 잠겨 윗면만 0.03 내밀었고,
+       그 위에 얹을 구리 받침은 다시 MOD_Z에서 시작해 판을 파고들었다. 두 켜가 서로를
+       뚫으니 어느 켜가 어느 켜 위인지가 안 읽혔고, 그게 '센터가 안 맞는' 느낌으로 왔다.
+       이제 **은판 밑 = MOD_Z**로 두고 그 위로 받침 드럼·절두체를 차곡차곡 쌓는다. */
+    const PLT_H = 1.0 * MK9;            // 은판 높이
+    const DRM_H = 0.32;                 // 황동 받침 드럼 높이
+    const FR_H = 1.48 * MK9;            // 절두체 높이
+    const FR_W0 = 2.6 * MK9;            // 절두체 밑 가로(전폭)
+    const FR_D0 = 2.25 * MK9;           // 절두체 밑 세로
+    const FR_W1 = FR_W0 * 0.9;          // 거의 수직 — 위가 한 뼘만 좁다
+    const FR_D1 = FR_D0 * 0.9;
+    /* 받침은 절두체보다 **작되**(요청) 너무 작으면 절두체 밑에 완전히 숨는다 — 절두체
+       밑 반폭(FR_W0/2)의 0.92쯤이면 옆에서 볼 때 황동 목이 한 줄로 드러난다. */
+    const DRM_R = FR_W0 * 0.46;
+    const DRM_Z = MOD_Z + PLT_H;
+    const FR_ZB = DRM_Z + DRM_H;
     out.push(...tagKey(paintBase(
-      /* 높이만 2배다(요청) — 윗면은 제자리(구리 상자 밑)에 두고 **아래로** 자란다:
-         위로 키우면 구리 상자의 밑동을 먹는다. */
-      boxFaces3(0, 0, 2.6 * MK9 + 0.4, 2.25 * MK9 + 0.4, 1.0 * MK9, MOD_Z - 0.96 * MK9), STEEL,
+      boxFaces3(0, 0, FR_W0 + 0.4, FR_D0 + 0.4, PLT_H, MOD_Z), STEEL,
     ), 30.6));
     /* ★ 꼭대기 황동 덩이를 **낮은 드럼 받침 + 거의 수직인 절두체**로 다시 짠다(요청) —
        네모 상자는 위에 얹히는 둥근 그릇과 아래의 둥근 기둥 사이에서 홀로 각져 겉돌았다.
        경사를 거의 안 주면(밑 1.38 → 위 1.2) 상자의 듬직함은 남고 둥근 켜와는 이어진다. */
-    const FR_ZB = MOD_Z + 0.32;          // 절두체 밑(받침 드럼 위)
-    const FR_H = 1.48 * MK9;
-    const FR_RB = 1.38 * MK9;
-    const FR_RT = 1.2 * MK9;
     out.push(...tagKey(paintBase(
-      cylinderFaces3(0, 0, FR_RB + 0.2, 0.32, MOD_Z), COPPER,
+      cylinderFaces3(0, 0, DRM_R, DRM_H, DRM_Z), COPPER,
     ), 30.8));
-    out.push(...tagKey(paintBase(spirePillar({
-      x: 0, y: 0, z0: FR_ZB, h: FR_H, w: FR_RB, tipW: FR_RT,
-      segs: 1, sides: 12, hold: 0.5, caps: "top",
-    }), COPPER), 31));
+    out.push(...tagKey(paintBase(
+      frustumFaces3(0, 0, FR_W0, FR_D0, FR_W1, FR_D1, FR_H, FR_ZB), COPPER,
+    ), 31));
     /* 앞면 장식(창)은 앞이 보일 때만 — 뒤로 돌린 각도에서도 그리면 몸 위로 떠올라
        팔처럼 삐져나와 보였다. */
     const frontVisible = faceLight(0, 1).visible;
@@ -3809,7 +3820,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const wx9 = 0.62 * MK9;
       const wz0 = FR_ZB + FR_H * 0.3;
       const wz1 = FR_ZB + FR_H * 0.72;
-      const wy9 = (FR_RB + FR_RT) / 2 + 0.02;
+      const wy9 = (FR_D0 + FR_D1) / 4 + 0.02;   // 절두체 앞면의 한가운데 켜
       out.push(...tagKey([
         [polyPath3([[-wx9, wy9, wz0], [wx9, wy9, wz0],
           [wx9, wy9, wz1], [-wx9, wy9, wz1]]), 1, GLASS] as ShapeFace,
@@ -3825,8 +3836,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 황동 원판은 걷었다(요청) — 패인 그릇을 **절두체 윗면에 바로** 이식한다. */
     const TOP_Z = FR_ZB + FR_H;
     {
-      const BR9 = FR_RT;                    // 그릇 테두리 = 절두체 윗면
-      const BI9 = BR9 * 0.78;               // 팬 속
+      const BR9 = Math.min(FR_W1, FR_D1) * 0.34;   // 절두체 윗면보다 **작은** 그릇(요청)
+      const BI9 = BR9 * 0.76;               // 팬 속
       const bz9 = TOP_Z;
       const [bx9, by9] = project(0, 0, bz9);
       const ry9 = BI9 * groundSquashNow();
