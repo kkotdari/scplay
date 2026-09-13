@@ -3737,8 +3737,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const ty9 = -Math.sin(a9);
       /* 데칼을 위로 올린다(요청) — 맨 밑까지 이어지는 띠가 아니라 기둥 중턱에서
          끊기는 판이다. 아래를 1.05만큼 띄워 밑판·테두리에 안 닿게 한다. */
-      const zB = DOME_Z + 1.05;
-      const zT = T2_Z - 0.12;
+      /* 위아래로 더 길게(요청) — 1.05만큼 띄우고 위를 0.12 남기던 것을 0.55 / 0.04로
+         줄여 판이 돔 살을 세로로 길게 가로지른다. */
+      const zB = DOME_Z + 0.55;
+      const zT = T2_Z - 0.04;
       const seal = (rB: number, rT: number, hw: number): string =>
         polyPath3([
           [sx9 * rB - tx9 * hw, sy9 * rB - ty9 * hw, zB],
@@ -3748,7 +3750,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ]);
       out.push(...tagKey([
         bodyFace(seal(t1R(zB) + 0.02, t1R(zT) + 0.02, 0.42)),
-        topFace(seal(t1R(zT - 0.3) + 0.04, t1R(zT) + 0.04, 0.42), 0.2),
+        /* (걷어냄) 판 윗머리의 흰 덧면 — 구리띠의 것과 같은 자였다(지적: "흰색 네모가
+           겹쳐져 있는데 그거 제거"). 임자 색 위에 흰색을 얹으면 그 임자의 색이 아니라
+           허연 네모가 겹친 것으로 보인다. */
       /* 키는 2층 기둥(2) 바로 위 고정값이다(요청: "데칼은 2층 기둥에 완전 부착") —
          자리별 depthNow를 태우면 뒤쪽 데칼이 3층 기둥(8)보다 앞서거나 뒤서며 떠 보였다.
          앞을 향한 것만 그리므로 한 값이면 충분하다. */
@@ -3859,15 +3863,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        제거해도 될듯") — 돔이 층으로 갈리며 실루엣이 이미 복잡해져, 밑동의 상자들이
        테두리를 톱니처럼 만들고 있었다. 그 사이에 켜져 있던 호박색 항행등만 남긴다:
        등은 상자가 아니라 선체에 박힌 점이고, 밤바다의 배처럼 둘레를 읽게 해 준다. */
-    for (let k9 = 0; k9 < 10; k9 += 2) {
-      const a9 = ((k9 + 0.5) / 10) * Math.PI * 2;
-      const sx9 = Math.sin(a9);
-      const sy9 = Math.cos(a9);
-      if (facingRatio(sx9, sy9) <= 0.05) continue;
-      out.push(...tagKey(paintBase(
-        cylinderFaces3(sx9 * 5.06, sy9 * 5.06, 0.2, 0.14, HULL_Z + 0.42), LAMP,
-      ), depthNow(sx9 * 5.3, sy9 * 5.3) * 1.6 + 2));
-    }
+    /* (걷어냄) 선체 둘레의 호박색 항행등 다섯 — 요청("노란색 납작한 버튼 같은 게 몇 개
+       있는데 본체 아래쪽에 그것도 제거"). 밤바다의 배처럼 둘레를 읽게 하려던 점이었는데,
+       납작한 원반이라 어느 각에서도 노란 단추로만 보였다. */
 
     /* 입구 구조물(요청: "입구 위로 캐노피느낌(은색)과 그 위에 상자형태(은색)와 작은
        드럼통 배치, 입구 양 옆에 그릇 뒤집은거 같은 모양") — 돔 밑을 받침보다 좁게
@@ -3930,7 +3928,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     for (const bx9 of [-2.55, 2.55]) {
       const by9 = Math.sqrt(Math.max(0.01, 5.15 * 5.15 - bx9 * bx9)) - 1.35;
       /* 한 단 더 내린다(요청) — 입구 쪽으로 당기니 돔 살에 얹힌 자리가 되어 높아 보였다. */
-      const bz9 = DOME_Z - 0.42;
+      const bz9 = DOME_Z - 0.92;
       const k9 = depthNow(bx9, by9) * 1.6 + 4;
       out.push(...tagKey(paintBase(cylinderFaces3(bx9, by9, 0.9, 0.1, bz9 - 0.1), SILVER), k9));
       out.push(...tagKey(halfSphereFaces3(bx9, by9, bz9, 0.84, SILVER), k9 + 0.01));
