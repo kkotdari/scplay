@@ -4347,29 +4347,47 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 창문띠는 **불이 들어온다**(요청: "배럭 창문 안 깜빡임") — 다른 건물의 창과 같은 규약으로
        winLit에 매단다: 그 건물이 도는 동안은 불빛, 멈추면 WIN_DARK로 식는다. 여태 이 띠만
        붙박이 검회색이라, 배럭만 혼자 밤새 불이 꺼진 채였다. */
-    const WINB9 = winLit("#f0b04a");   // 창문띠 — 켜지면 노란 불빛, 꺼지면 검회색
+    /* 창문띠는 **두 겹**이다(요청: "메인은 더 순수 노란색이고 현재 색으로 번지는 느낌") —
+       띠 전체에 주황을 깔고 그 한가운데에 더 좁은 순노랑 심을 얹는다. 한 톤으로 칠하면 띠가
+       그냥 노란 판인데, 심과 번짐이 갈리면 유리 안에서 불이 새어 나오는 결이 난다. 꺼지면
+       둘 다 WIN_DARK라 그냥 검회색 한 줄로 가라앉는다(다른 건물 창과 같은 규약). */
+    const WINB9 = winLit("#f0b04a");   // 번짐 겹 — 주황
+    const WINC9 = winLit("#ffe790");   // 심 — 순노랑
     const BTH9 = 0.75;           // 띠 두께(옛 임자색 띠 1.5의 절반)
+    const WCK9 = 0.46;           // 심이 띠에서 차지하는 높이 몫
     const BGAP9 = 0.4;           // 두 띠 사이
     /** 가로 띠 한 장 — 면의 좌우폭을 꽉 채운다(앞서 고친 자). */
     const band9 = (
       x0: number, x1: number, py: number, z0: number, key: number, fill?: string,
+      th9 = BTH9,
     ): ShapeFace[] => tagKey(fill
       ? paintBase([bodyFace(polyPath3([
-        [x0, py, z0], [x1, py, z0], [x1, py, z0 + BTH9], [x0, py, z0 + BTH9],
+        [x0, py, z0], [x1, py, z0], [x1, py, z0 + th9], [x0, py, z0 + th9],
       ]))], fill)
       : [bodyFace(polyPath3([
-        [x0, py, z0], [x1, py, z0], [x1, py, z0 + BTH9], [x0, py, z0 + BTH9],
+        [x0, py, z0], [x1, py, z0], [x1, py, z0 + th9], [x0, py, z0 + th9],
       ]))], key);
     /** 옆면(±x)의 가로 띠 — 앞뒤(y)로 길다. */
     const bandY9 = (
       xw: number, y0: number, y1: number, z0: number, key: number, fill?: string,
+      th9 = BTH9,
     ): ShapeFace[] => tagKey(fill
       ? paintBase([bodyFace(polyPath3([
-        [xw, y0, z0], [xw, y1, z0], [xw, y1, z0 + BTH9], [xw, y0, z0 + BTH9],
+        [xw, y0, z0], [xw, y1, z0], [xw, y1, z0 + th9], [xw, y0, z0 + th9],
       ]))], fill)
       : [bodyFace(polyPath3([
-        [xw, y0, z0], [xw, y1, z0], [xw, y1, z0 + BTH9], [xw, y0, z0 + BTH9],
+        [xw, y0, z0], [xw, y1, z0], [xw, y1, z0 + th9], [xw, y0, z0 + th9],
       ]))], key);
+    /** 창문띠 한 장 — 번짐 겹 위에 심을 얹는다. */
+    const winB9 = (x0: number, x1: number, py: number, key: number): ShapeFace[] => [
+      ...band9(x0, x1, py, ZW9, key, WINB9),
+      ...band9(x0, x1, py, ZW9 + BTH9 * (1 - WCK9) / 2, key, WINC9, BTH9 * WCK9),
+    ];
+    /** 옆면(±x)의 창문띠 — 같은 두 겹. */
+    const winBY9 = (xw: number, y0: number, y1: number, key: number): ShapeFace[] => [
+      ...bandY9(xw, y0, y1, ZW9, key, WINB9),
+      ...bandY9(xw, y0, y1, ZW9 + BTH9 * (1 - WCK9) / 2, key, WINC9, BTH9 * WCK9),
+    ];
     /* ★ 띠는 **다섯 덩이를 저마다 감아 돈다**(요청 두 가지를 한 자리에서):
         · "앞면(사이 건물에도 추가)부터 옆면 앞부분 조금까지만 두르기"
         · "건물 옆면의 튀어나온 부분을 감싸듯 둘러져야 함"
@@ -4401,7 +4419,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            그 위에 얹는 띠도 같은 자리에 +0.3만 얹으면 제 덩이를 따라 앞뒤가 옳다. */
         const key9 = depthNow(bx9, 0) * 1.6 + 0.3;
         pc.push(...band9(bx9 - bhw9, bx9 + bhw9, py9, ZB9, key9));
-        out.push(...band9(bx9 - bhw9, bx9 + bhw9, py9, ZW9, key9, WINB9));
+        out.push(...winB9(bx9 - bhw9, bx9 + bhw9, py9, key9));
       }
       // 옆면(±x) — 앞 끝에서 한 뼘만.
       for (const sx9 of [1, -1] as const) {
@@ -4412,7 +4430,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           const key9 = depthNow(bx9, 0) * 1.6 + 0.3;
           const wl9 = wrap9(bhd9);
           pc.push(...bandY9(xw9, sy9 * (bhd9 - wl9), sy9 * bhd9, ZB9, key9));
-          out.push(...bandY9(xw9, sy9 * (bhd9 - wl9), sy9 * bhd9, ZW9, key9, WINB9));
+          out.push(...winBY9(xw9, sy9 * (bhd9 - wl9), sy9 * bhd9, key9));
         }
       }
     }
