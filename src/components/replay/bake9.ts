@@ -3672,59 +3672,94 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     };
     /* 돔 양옆 큰 구리 세로띠(요청) — 평평한 네모로 붙이면 모서리가 돔 밖으로
        삐져나오므로(현 5도짜리 활을 네모가 못 따라간다) 호를 여러 마디로 나눈
-       띠로 낸다. 좌우 두 자리(±90도)에만 넣어 '양쪽 옆'이라는 말 그대로다. */
-    const arcBand = (
-      aMid: number, half: number, rB: number, rT: number, zB: number, zT: number,
-    ): string => {
-      const pts: [number, number, number][] = [];
-      const N = 7;
-      for (let i = 0; i <= N; i += 1) {
-        const a = aMid - half + (half * 2 * i) / N;
-        pts.push([Math.sin(a) * rB, Math.cos(a) * rB, zB]);
+       띠로 낸다. 좌우 두 자리(±90도)에만 넣어 '양쪽 옆'이라는 말 그대로다.
+       여태는 켜마다 따로 뜬 **납작한 판** 둘이라 갑판에서 끊겨 보였다 — 두께를 주고
+       한 줄로 잇는다(요청: "황동띠에 두께를 부여하고 1-2층 이어지게"). */
+    /** 띠 한 조각(리브) — **두께가 있는** 세로 띠다(요청: "황동띠에 두께를 부여").
+     *  겉면을 벽에서 thk만큼 띄우고 양 옆벽과 위·아래 마구리로 그 틈을 메운다.
+     *  호를 여러 마디로 나눠 뽑으므로 돔의 굽이를 그대로 탄다(네모 판은 못 탄다).
+     *  shelfR을 주면 아랫 마구리를 그 반지름까지 넓혀 **아래 켜 겉면과 만나는 턱**을 덮는다
+     *  — 1층·2층 기둥의 반지름 차(3.55 → 3.10)를 이 한 장이 이어 준다. */
+    const ribFaces9 = (
+      aMid: number, half: number, zB: number, zT: number,
+      rOf: (z: number) => number, thk: number, fill: string | undefined,
+      shelfR?: number,
+    ): ShapeFace[] => {
+      const NZ = 6;
+      const NA = 7;
+      const zs = Array.from({ length: NZ + 1 }, (_, i9) => zB + ((zT - zB) * i9) / NZ);
+      const at = (a9: number, z9: number, dr: number): [number, number, number] => {
+        const r9 = rOf(z9) + dr;
+        return [Math.sin(a9) * r9, Math.cos(a9) * r9, z9];
+      };
+      const arcPts = (z9: number, dr: number, rev: boolean): [number, number, number][] =>
+        Array.from({ length: NA + 1 }, (_, i9) =>
+          at(aMid - half + (half * 2 * (rev ? NA - i9 : i9)) / NA, z9, dr));
+      const fs: ShapeFace[] = [];
+      // 색을 안 주면(fill === undefined) 임자 색이 칠해진다 — 세로 줄이 그 자리다.
+      const put = (d: string, over?: ShapeFace[]): void => {
+        fs.push(fill !== undefined ? ([d, 1, fill] as ShapeFace) : bodyFace(d));
+        if (over) fs.push(...over);
+      };
+      // 겉면 — 아래 호 → 오른 모서리 → 위 호 → 왼 모서리.
+      const sk: [number, number, number][] = [...arcPts(zs[0], thk, false)];
+      for (let i9 = 1; i9 < zs.length; i9 += 1) sk.push(at(aMid + half, zs[i9], thk));
+      sk.push(...arcPts(zs[zs.length - 1], thk, true));
+      for (let i9 = zs.length - 2; i9 >= 1; i9 -= 1) sk.push(at(aMid - half, zs[i9], thk));
+      put(polyPath3(sk));
+      // 옆벽 둘 — 법선은 호의 접선 방향이다(바깥쪽 반지름 방향이 아니다).
+      for (const s9 of [-1, 1] as const) {
+        const a9 = aMid + s9 * half;
+        const lit = faceLight(s9 * Math.cos(a9), -s9 * Math.sin(a9));
+        if (!lit.visible) continue;
+        for (let i9 = 0; i9 + 1 < zs.length; i9 += 1) {
+          const d9 = polyPath3([
+            at(a9, zs[i9], 0), at(a9, zs[i9], thk),
+            at(a9, zs[i9 + 1], thk), at(a9, zs[i9 + 1], 0),
+          ]);
+          put(d9, lit.face(d9));
+        }
       }
-      for (let i = N; i >= 0; i -= 1) {
-        const a = aMid - half + (half * 2 * i) / N;
-        pts.push([Math.sin(a) * rT, Math.cos(a) * rT, zT]);
+      // 윗 마구리 — 하늘을 보므로 한 단 밝다.
+      const dT = polyPath3([...arcPts(zT, thk, false), ...arcPts(zT, 0, true)]);
+      put(dT, [topFace(dT, 0.16)]);
+      // 아랫 마구리 — 턱을 덮을 때만 위를 보고, 아니면 아래를 봐 어둡다.
+      if (shelfR !== undefined) {
+        const dr2 = shelfR - rOf(zB);
+        const dS = polyPath3([...arcPts(zB, thk, false), ...arcPts(zB, dr2, true)]);
+        put(dS, [topFace(dS, 0.16)]);
+      } else {
+        const dB = polyPath3([...arcPts(zB, 0, false), ...arcPts(zB, thk, true)]);
+        put(dB, [sideFace(dB, 0.22)]);
       }
-      return polyPath3(pts);
+      return fs;
     };
     for (const side9 of [1, -1]) {
       const aMid = (side9 * Math.PI) / 2;
       const sx9 = Math.sin(aMid);
       const sy9 = Math.cos(aMid);
       if (facingRatio(sx9, sy9) <= 0.02) continue;
-      /* 좁고 긴 세로줄이다(요청: "세로로 길게 2층 위에서 아래로 칠한다는 느낌") —
-         2층 기둥 꼭대기에서 밑동까지 한 번에 내리긋는다. 앞서 위쪽만 짧게 칠했더니
-         띠가 아니라 얼룩으로 보였다. 폭은 좁은 채로 두고(반각 0.26) 길이만 늘린다. */
+      /* ★ 띠는 1층 밑동에서 2층 꼭대기까지 **한 줄로 이어진다**(요청: "1-2층 이어지게").
+         두 켜는 반지름 함수가 다르므로(t1R·t3R) 조각은 둘이지만 갑판(T2_Z)에서 z를 딱
+         맞물려 끊긴 자리가 없고, 2층 조각의 아랫 마구리가 그 반지름 차를 턱으로 덮는다.
+         키를 켜마다 따로 매기는 까닭은 깊이다 — 1층 조각이 3층 기둥(키 8)보다 앞서면
+         뒤쪽 돔이 띠 위로 올라온다. 조각 둘이 제 켜에 붙어야 순서가 맞는다. */
+      const THK9 = 0.15;
+      const STR9 = 0.055;   // 임자색 세로 줄의 반각
       const zB = DOME_Z + 0.04;
-      const zT = T2_Z - 0.04;
-      out.push(...tagKey([
-        [arcBand(aMid, 0.26, t1R(zB) + 0.03, t1R(zT) + 0.03, zB, zT), 1, COPPER] as ShapeFace,
-        /* (걷어냄) 띠 윗머리의 흰 덧면 — 질문("임자색 데칼 밑에 흰 네모는 뭐야?")의 정체가
-           이것이다. 구리 위에 22% 흰색을 얹은 판이라 구리도 은색도 아닌 **베이지 네모**가 되어,
-           띠에 걸린 빛이 아니라 따로 붙은 조각으로 읽혔다. 띠는 제 몸 명암만으로 충분하다. */
-        /* 띠 한가운데를 세로로 가르는 **임자색 줄** — 1층에만, 더 얇고 더 짧게(요청).
-           색을 안 주면 임자 색이 칠해진다. 구리보다 한 겹 밖(+0.05)이라 늘 그 위에 얹힌다. */
-        /* 줄의 **시작점(위 끝)은 1층 꼭대기에 맞춘다**(요청) — 구리띠와 같은 자리에서 시작해야
-           한 부품에 그은 줄로 읽힌다. 아래로는 더 내려 길이를 늘렸다(0.55 → 0.25 남김). */
-        bodyFace(arcBand(aMid, 0.055, t1R(zB + 0.25) + 0.05, t1R(zT) + 0.05, zB + 0.25, zT)),
-      ], 2.2));
-      /* ★ 띠는 **2층 돔까지 이어진다**(요청) — 1층 꼭대기에서 끊기면 위층이 맨살로 남아
-         띠가 중간에 잘린 자국처럼 보였다. 2층은 기둥 반지름이 다르므로(t3R) 같은 각·같은
-         폭으로 한 마디 더 두른다. 두 마디는 갑판(T2_Z)에서 만나고, 그 자리의 반지름 차
-         (3.55 → 3.1)가 그대로 한 단 들어간 턱이 된다 — 실루엣을 따라가는 자다. */
-      const zB2 = T2_Z + 0.02;
       const zT2 = T2_Z + 0.85 - 0.04;   // = MOD_Z − 0.04 (MOD_Z는 아래서 선언된다)
+      /* 세로 줄도 함께 이어진다(요청) — 구리 겉면(벽+THK9) 위에 얇게(0.04) 얹혀
+         같은 각·같은 폭으로 두 켜를 타고 오른다. 위 끝만 2층 중턱에서 멈춘다. */
       out.push(...tagKey([
-        [arcBand(aMid, 0.26, t3R(zB2) + 0.03, t3R(zT2) + 0.03, zB2, zT2), 1, COPPER] as ShapeFace,
-        /* 2층 띠에도 같은 폭의 임자색 줄을 넣되 **더 짧고, 아랫끝을 2층 밑에 맞춘다**(요청) —
-           1층 줄은 위 끝을, 2층 줄은 아래 끝을 제 켜의 경계에 맞추니, 갑판을 사이에 두고 둘이
-           서로를 마주 보는 짝이 된다. */
-        bodyFace(arcBand(aMid, 0.055, t3R(zB2) + 0.05, t3R(zB2 + 0.5) + 0.05, zB2, zB2 + 0.5)),
-        /* 2층 띠에도 같은 폭의 임자색 줄을 넣되 **더 짧고, 아랫끝을 2층 밑에 맞춘다**(요청) —
-           1층 줄은 위 끝을, 2층 줄은 아래 끝을 제 켜의 경계에 맞추니, 갑판을 사이에 두고 둘이
-           서로를 마주 보는 짝이 된다. */
-        bodyFace(arcBand(aMid, 0.055, t3R(zB2) + 0.05, t3R(zB2 + 0.5) + 0.05, zB2, zB2 + 0.5)),
+        ...ribFaces9(aMid, 0.26, zB, T2_Z, t1R, THK9, COPPER),
+        ...ribFaces9(aMid, STR9, zB + 0.25, T2_Z, (z9) => t1R(z9) + THK9, 0.04, undefined),
+        /* 키는 임자색 데칼(2.4)보다 위다 — 띠가 두꺼워진 뒤로 옆 데칼이 띠 위를
+           가로질러 들러붙어 보였다. 튀어나온 쪽이 가리는 것이 맞다. */
+      ], 2.5));
+      out.push(...tagKey([
+        ...ribFaces9(aMid, 0.26, T2_Z, zT2, t3R, THK9, COPPER, t1R(T2_Z) + THK9),
+        ...ribFaces9(aMid, STR9, T2_Z, T2_Z + 0.5, (z9) => t3R(z9) + THK9, 0.04, undefined,
+          t1R(T2_Z) + THK9 + 0.04),
       ], 8.4));
     }
 
@@ -8029,9 +8064,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         )), depthNow(bx9, by9) * 1.6 + 9.5));
       }
     }
-    // 옆 가시 셋 — 뿌리를 둔덕 옆면 위에 정확히 두고 바깥·위로 뻗는다.
-    // 가시도 둔덕과 같은 밑값 위다 — 뿌리·끝 z에 CR_Z0을 함께 얹는다.
-    for (const [ang, tz9] of [[-150, 3.3], [-90, 3.1], [-30, 3.2]] as [number, number][]) {
+    /* 옆 가시 셋 — 뿌리를 둔덕 옆면 위에 정확히 두고 바깥·위로 뻗는다.
+       가시도 둔덕과 같은 밑값 위다 — 뿌리·끝 z에 CR_Z0을 함께 얹는다.
+       ★ **더 수직에 가깝게, 더 높게**(요청) — 바깥으로 1.5 뻗고 1.9 오르던 51도짜리라
+         둔덕에 기대 누운 뿔로 보였다. 뻗는 길이를 0.7로 줄이고 끝 높이를 1.5씩 올려
+         79도로 세운다 — 끝이 초(6.15) 어깨께에 닿아 실루엣에 가시가 선다.
+         휘는 손잡이(마지막 두 인자)도 절반으로 줄여 곧게 오른다. */
+    for (const [ang, tz9] of [[-150, 4.8], [-90, 4.6], [-30, 4.7]] as [number, number][]) {
       const a9 = (ang * Math.PI) / 180;
       const dxr = Math.sin(a9);
       const dyr = Math.cos(a9);
@@ -8041,7 +8080,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const by9 = dyr * rr9;
       out.push(...tagKey(ivory(spikeHorn(
         bx9, by9, CR_Z0 + zr9,
-        dxr * (rr9 + 1.5), dyr * (rr9 + 1.5), CR_Z0 + tz9, 0.9, undefined, 6, 0.4, dxr, dyr,
+        dxr * (rr9 + 0.7), dyr * (rr9 + 0.7), CR_Z0 + tz9, 0.9, undefined, 6, 0.4,
+        dxr * 0.5, dyr * 0.5,
       )), depthNow(bx9, by9) * 1.6));
     }
     /* ★ 성큰의 **오른쪽 발 셋**을 이식한다(요청) — 크립 콜로니는 성큰·스포어가 자라 나오는 앞 단계다.
@@ -8426,17 +8466,21 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 아홉을 ±112도에 두른다(요청: "창 더 안쪽까지 추가") — 처음엔 다섯을 ±50도에
          몰았더니 0도에서 오른쪽 통의 창이 하나도 안 났고, 일곱(±84도)으로도 두 통이
          마주 보는 안쪽 낯은 비어 있었다. 통 둘레의 5분의 3을 덮으면 바깥에서 안쪽까지
-         줄이 이어져, 어느 각에서 봐도 끊기지 않는다. */
-      const WN9 = 9;
+         줄이 이어져, 어느 각에서 봐도 끊기지 않는다.
+         ★ **창 하나를 가로·세로 2.5배로 키운다**(요청) — 그러면 한 창이 둘레의 44도를
+           먹으므로 28도 간격에 아홉을 두면 서로 포개진다. 간격을 52도로 벌리고 수를
+           다섯으로 줄인다(요청: "창문 수는 줄겠지") — 덮는 둘레(±126도)는 오히려 넓어
+           어느 각에서도 줄이 끊기지 않는다. */
+      const WN9 = 5;
       const WU9 = 0.62;                       // 창이 앉는 높이(통 높이의 몫)
       const WZ9 = VH * WU9;
-      const WHZ = 0.32;                       // 반높이
-      const WHA = 0.155;                      // 반폭(라디안)
+      const WHZ = 0.8;                        // 반높이(0.32 → 2.5배)
+      const WHA = 0.3875;                     // 반폭(라디안, 0.155 → 2.5배)
       const outA9 = Math.atan2(px, py);       // 통이 가운데에서 벗어난 방향
       const wr9 = vatR(WU9) * 1.03;
       const win9: ShapeFace[] = [];
       for (let k9 = 0; k9 < WN9; k9 += 1) {
-        const aw9 = outA9 + (((k9 - (WN9 - 1) / 2) * 28) * Math.PI) / 180;
+        const aw9 = outA9 + (((k9 - (WN9 - 1) / 2) * 52) * Math.PI) / 180;
         if (facingRatio(Math.sin(aw9), Math.cos(aw9)) <= 0.12) continue;
         const pt9 = (da: number, dz: number): [number, number, number] =>
           [px + Math.sin(aw9 + da) * wr9, py + Math.cos(aw9 + da) * wr9, WZ9 + dz];
