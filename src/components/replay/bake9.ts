@@ -205,7 +205,11 @@ export function legAndFoot(
    *  팔과 세로 기둥이 갈려 받침으로 읽힌다. legW는 발판(sz)은 그대로 두고 **기둥만**
    *  굵기를 조절한다 — 두 요청("발판 1.5배" · "다리 두께 20% 축소")이 서로 반대라 한
    *  배수로는 못 낸다. */
-  o: { bend?: number; legW?: number } = {},
+  /** key를 주면 −40대 못박기 대신 그 키를 쓴다(발판은 한 단 뒤) — 몸 **앞으로 멀리**
+   *  나온 다리에 쓴다. 못박기는 '다리는 제 몸통을 가로지르면 안 된다'는 규칙인데,
+   *  몸 밖에 선 다리는 가로지를 몸이 없다: 그 자리에서는 도리어 몸이 다리를 덮어
+   *  버려 앞에 선 것이 뒤에 있는 것처럼 보인다. */
+  o: { bend?: number; legW?: number; key?: number } = {},
 ): ShapeFace[] {
   /* 테란 건물은 바닥이 떠 있다 — 몸통이 다리 위에 얹히고, 다리는 아래로 내려가
      그 밑에 발판이 달린다.
@@ -232,7 +236,7 @@ export function legAndFoot(
      지름·발판 두께가 함께 커진다. 다리의 **키**는 부르는 쪽이 zTop으로 정하므로 여기서
      안 건드린다: 굵게 하면서 낮추는 것(같은 요청의 "다리 높이는 오히려 40프로 축소")이
      한 자리에서 따로 걸린다. 기둥이 내려앉는 바닥도 발판이 두꺼워진 만큼 함께 올린다. */
-  const k9 = depthNow(px, py) > 0 ? -40 : -40.2;
+  const k9 = o.key ?? (depthNow(px, py) > 0 ? -40 : -40.2);
   const fh9 = 0.4 * sz;
   const z09 = 0.38 * sz;
   const bend9 = o.bend ?? 0;
@@ -4014,7 +4018,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /** 몸통을 통째로 올리는 값(요청: "다리 길이 조금만 높이기") — 다리는 z 0.38에서
      *  시작하므로 몸이 오른 만큼 그대로 드러나는 다리가 된다. 지붕 위에 얹히는 것들도
      *  이 값을 함께 탄다. */
-    const LIFT = 0.36;
+    /* ★ 값을 키우면 **다리의 세로 기둥만 길어진다**(요청: "발판 다리 수직부품만 높이 늘리기
+       — 결과적으로 본건물 전체가 더 위로") — 발판은 제 두께만큼 바닥에 눌러앉아 있고
+       (legAndFoot이 z09를 발 두께로 잡는다) 몸과 다리의 위 끝만 이 값을 타므로, 둘의
+       차인 기둥 길이가 그대로 늘어난다. 지붕·띠·배관처럼 몸에 얹힌 것은 전부 PZ에서
+       풀어 두어 함께 올라간다. */
+    const LIFT = 1.16;
     /** 판 셋 — 바깥 둘은 크고 두껍게, 가운데는 한 뼘 작게. */
     const PX = 3.95;        // 바깥 판의 x 중심
     const PW = 2.7;         // 바깥 판 두께(x)
@@ -4060,18 +4069,59 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     ] as [number, number][]) {
       out.push(...legAndFoot(lx9 * FO9, ly9 * FO9, PZ - 0.16, 0, FK9, { bend: 0.42, legW: LW9 }));
     }
-    for (const sy9 of [1, -1] as const) {
-      out.push(...legAndFoot(0, sy9 * 3.7 * FO9, 1.45 + LIFT, 0, FK9, { legW: LW9 }));
-    }
-    /* ★ 앞 가운데 다리는 **삼각으로 모이는 팔 둘**로 몸에 붙는다(요청) — 이 다리만 몸통
-       앞(y 4.44)으로 나와 있어, 다른 다리처럼 몸 밑에서 곧장 내려오면 허공에 선 장대로
-       보였다. 몸 앞면 두 곳에서 뻗은 팔이 다리 머리 한 점에 모이면 그 삼각이 버팀대로
-       읽힌다. 보이는 쪽만 그린다 — 반대쪽 팔은 몸을 뚫고 비칠 자리다. */
-    for (const sy9 of [1, -1] as const) {
-      if (facingRatio(0, sy9) <= 0.12) continue;
-      const ty9 = sy9 * 3.7 * FO9;
+    /* 앞 가운데 다리는 **드럼통 팔만큼 더 앞으로** 나간다(요청) — 팔이 몸 앞면이 아니라
+       그 아래 드럼통에서 나오므로, 다리가 여태 자리에 있으면 팔이 뒤로 누워 버린다.
+       뒤 가운데 다리는 그대로다(요청). */
+    const MLY9 = 3.7 * FO9;
+    const FLY9 = MLY9 + 0.95;   // 드럼통이 커진 만큼 한 발 더 앞으로(요청)
+    /* 앞 가운데 다리는 몸보다 한참 앞(y FLY9)이라 **제 깊이 키**를 쓴다(지적: "다리와
+       드럼통 옆면, 팔의 키값 조정 필요") — −40대에 못박히면 몸 앞에 선 다리가 몸 뒤로
+       가 버려, 앞에서 볼 때 다리·발판이 건물 옆면에 잘려 나갔다. */
+    out.push(...legAndFoot(0, FLY9, 1.45 + LIFT, 0, FK9, {
+      legW: LW9, key: depthNow(0, FLY9) * 1.6 + 0.3,
+    }));
+    out.push(...legAndFoot(0, -MLY9, 1.45 + LIFT, 0, FK9, { legW: LW9 }));
+    /* ★ 가운데 다리는 **삼각으로 모이는 팔 둘**로 몸에 붙는다(요청) — 이 둘만 몸통 앞뒤로
+       나와 있어, 다른 다리처럼 몸 밑에서 곧장 내려오면 허공에 선 장대로 보였다.
+       앞쪽은 한 발 더 간다(요청): 몸 앞면이 아니라 **몸 밑 앞에 가로로 누운 드럼통**에서
+       팔이 나오고, 다리의 머리가 아니라 **중간쯤**에 물린다. 팔이 낮게 깔리면 다리가
+       그 팔에 얹힌 꼴이 되어, 긴 앞다리가 몸에서 매달린 것이 아니라 받쳐진 것으로 읽힌다.
+       드럼통·팔의 키는 발(−40.1)과 다리(−40)보다 앞이고 어느 몸통보다도 뒤인 −39.9대라,
+       요잉이 어떻든 몸을 안 덮고 다리 앞에 선다 — 그래서 보이는 쪽 가리기가 필요 없다. */
+    {
+      /* ★ 드럼통은 **건물 밖으로 안 나간다**(요청) — 앞 끝을 가운데 판 앞면(MD/2)에 딱
+         맞춘다. 몸이 덮어 안 보일 걱정은 없다: 통이 몸 **밑면(PZ)보다 아래**로 내려와
+         있어 그 아랫배가 실루엣 밖으로 드러나고, 윗배만 몸에 물려 '붙어 있는' 것이 된다.
+         자리를 반지름으로 풀어 두면 지름을 다시 키워도 앞면을 안 넘는다. */
+      const DRR9 = 1.02;           // 반지름(요청: 1.5배)
+      const DRX9 = 1.73;           // 축 길이 반(요청: 1.5배) — 가운데 판 폭보다 조금 넓다
+      const DRZ9 = PZ - 0.16;      // 축 높이 — 밑배가 몸 아래로 나온다(바닥엔 안 닿는다)
+      const DRY9 = MD / 2 - DRR9;  // 앞 끝이 앞면과 나란하다
+      out.push(...tagKey(paintBase(spirePillar({
+        x: 0, y: 0, h: 1, w: DRR9, segs: 3, sides: 12, caps: "both",
+        trueNormal: true, ref: [0, 0, 1],
+        widthOf: () => DRR9,
+        path: (t9: number): [number, number, number] => [-DRX9 + 2 * DRX9 * t9, DRY9, DRZ9],
+      /* 드럼통도 **제 깊이 키**다 — 가운데 판 앞면보다 앞에 나와 있고 몸 밑면보다 아래로
+         내려와 있어, 뒤로 못박으면 앞에서 볼 때 몸이 그 윗배를 통째로 덮는다. */
+      }), "#79828f"), depthNow(0, DRY9) * 1.6 + 0.3));
+      // 드럼통 두 끝 → 앞 다리의 중간
+      const MID9 = (1.45 + LIFT + 0.38 * FK9) / 2 + 0.12;
+      /* 팔은 rodFaces가 제 두 끝의 깊이로 내는 키를 그대로 쓴다 — 앞에서는 몸 앞에,
+         뒤에서는 몸 뒤에 선다. 한 값으로 못박으면 둘 중 하나가 늘 틀린다. */
       for (const sx9 of [-1, 1] as const) {
-        out.push(...rodFaces(0, ty9, 1.45 + LIFT + 0.1, sx9 * 0.78, sy9 * 3.7, 2.62, 0.24));
+        /* 팔은 드럼통의 **앞쪽 겉면**에서 시작한다(지적: "팔은 드럼통 표면에서 시작해야
+           하는데 뒤까지 들어가 있네") — 여태 시작점이 통의 **축**(뒤쪽 y) 위라, 팔이
+           안쪽으로 꺾여 오는 동안 통 속을 한참 지나고서야 밖으로 나왔다. 겉면(y+반지름)
+           에서 떠나면 y가 줄지 않으므로 어디서도 통을 안 뚫는다. */
+        out.push(...rodFaces(
+          sx9 * (DRX9 - 0.25), DRY9 + DRR9 * 0.92, DRZ9 - DRR9 * 0.1, 0, FLY9, MID9, 0.24,
+        ));
+      }
+    }
+    if (facingRatio(0, -1) > 0.12) {
+      for (const sx9 of [-1, 1] as const) {
+        out.push(...rodFaces(0, -MLY9, 1.45 + LIFT + 0.1, sx9 * 0.78, -3.7, 2.62, 0.24));
       }
     }
     /* 키는 제 자리 깊이 하나로(지적: 배럭 키값) — 붙박이 상수가 깊이 항보다 커서
@@ -4201,7 +4251,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const k9 = depthNow(sx9 * PX, 0) * 1.6 + 0.3;
       const y09 = VF9 + VPAD9 + 0.25;
       const y19 = PD / 2 - 0.3;
-      for (const dx9 of [-0.82, 0.82]) {
+      for (const dx9 of [0]) {   // 한 줄(요청)
         const xs9 = sx9 * PX + dx9;
         out.push(...tagKey(paintBase([bodyFace(polyPath3([
           [xs9 - SEAMW9, y09, PTOP], [xs9 + SEAMW9, y09, PTOP],
@@ -4248,7 +4298,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        튀어나온 덩이를 띠가 **감싼** 꼴이 된다. 높이(ZB9)는 다섯이 같아 한 줄로 이어 읽힌다. */
     const ZB9 = 2.95 + LIFT;     // 임자색 띠 밑
     const ZW9 = ZB9 + BTH9 + BGAP9;   // 창문띠 밑
-    const WRAP9 = 0.9;           // 옆면으로 감아 도는 길이
+    /* 감아 도는 길이는 **덩이 깊이의 몫**이다(지적: "옆면의 띠가 너무 일찍 끝남. 좀 더
+       뒤까지") — 한 눈금(0.9)으로 고정하니 깊이 7.6짜리 판에서는 앞 모서리만 살짝 물고
+       끊겨, 두른 것이 아니라 모서리에 찍은 점으로 보였다. 깊이의 0.62를 두르되 한 자를
+       넘지 않게 잡아, 얕은 사이 상자에서도 뒷면까지 새지 않는다. */
+    const wrap9 = (hd9: number): number => Math.min(2.45, hd9 * 0.62);
     const BLK9: readonly (readonly [number, number, number])[] = [
       [-PX, PW / 2, PD / 2], [-GX, GW / 2, GD / 2], [0, MW / 2, MD / 2],
       [GX, GW / 2, GD / 2], [PX, PW / 2, PD / 2],
@@ -4273,8 +4327,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         for (const sy9 of [1, -1] as const) {
           if (facingRatio(0, sy9) <= 0.12) continue;
           const key9 = depthNow(bx9, 0) * 1.6 + 0.3;
-          pc.push(...bandY9(xw9, sy9 * (bhd9 - WRAP9), sy9 * bhd9, ZB9, key9));
-          out.push(...bandY9(xw9, sy9 * (bhd9 - WRAP9), sy9 * bhd9, ZW9, key9, WINB9));
+          const wl9 = wrap9(bhd9);
+          pc.push(...bandY9(xw9, sy9 * (bhd9 - wl9), sy9 * bhd9, ZB9, key9));
+          out.push(...bandY9(xw9, sy9 * (bhd9 - wl9), sy9 * bhd9, ZW9, key9, WINB9));
         }
       }
     }
