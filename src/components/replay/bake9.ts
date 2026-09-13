@@ -3942,7 +3942,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          기둥(spirePillar)으로는 못 낸다 — 그 단면은 닫힌 다각형이라 반원을 못 준다. 그래서
          구면을 손으로 짠다: 축(벽 법선) 방향 t, 단면 각 φ(0~π, 0이 옆·π/2가 위)로 훑으며
          네모를 깐다. 구의 법선은 곧 (중심 → 그 점)이라 명암·등진 면 걷기가 제 값으로 붙는다. */
-      const bz9 = DOME_Z - 0.92;
+      const bz9 = DOME_Z - 0.72;   // 살짝만 올린다(요청)
       const wr9 = bz9 < HULL_Z + 0.8 ? 5.15 + 0.25 * ((bz9 - HULL_Z) / 0.8) : 5.4;
       const aa9 = Math.asin(Math.min(0.95, 2.55 / wr9));
       const nx9 = Math.sin(aa9) * sx9;
@@ -4060,7 +4060,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          것으로 보였다. 지면에 닿는 자리(RYG)까지 내려온 뒤 거기서 한 뼘 더 평평하게
          나가면, 그 꺾임이 곧 '땅에 놓인 발판'이 된다. 홈(살)도 이 자를 그대로 탄다. */
       const RYG = RY_W + RAMP_OUT;                // 지면에 닿는 자리
-      const RFLAT = 0.62;                         // 바닥에 깔리는 평평한 끝
+      const RFLAT = 0.62 * 0.6;                   // 바닥에 깔리는 평평한 끝(요청: 0.6배)
       const RY1 = RYG + RFLAT;                    // 판의 맨 끝
       const tg9 = (RYG - RY0) / (RY1 - RY0);      // 꺾이는 t
       const rAt = (t: number, side: 1 | -1): [number, number, number] => [
