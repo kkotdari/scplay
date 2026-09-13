@@ -6333,9 +6333,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ];
       /* 공사장 노랑·검정 대각선 띠 — **바닥 가까이**(z 0.25~1.4) 네 벽을 한 바퀴 두른다.
          빗금은 위 끝을 벽을 따라 옆으로 밀어(skew) 비스듬해진다. */
-      /* 임자 색 띠 — 해저드 바로 위(z 1.55~2.15). 칠하지 않는다: 안 칠한 면이 임자 색을
-         받는 자리다. 붙어 선 터렛 여럿에서 누구 것인지를 이 띠 하나가 답한다. */
-      const HZ0 = 0.25, HZ1 = 1.4, TZ0 = 1.55, TZ1 = 2.15;
+      /* ★ 받침의 **임자 색 띠를 걷고 흰 테두리 둘**을 둔다(요청: "받침의 임자색 띠 제거하고 대신 해저드 띠
+         위아래로 흰톤의 가는 띠 테두리 추가") — 임자 색은 이제 회전판의 톱니가 맡는다(아래 ★). 해저드 띠는
+         맨살 벽에 바로 붙어 있어 위아래 경계가 흐렸는데, 가는 흰 테를 두르면 그 띠가 **박아 넣은 판**으로 읽힌다. */
+      const HZ0 = 0.25, HZ1 = 1.975;   // 띠 높이 1.15 → **1.725**(요청: 1.5배) — 밑을 고정하고 위만 올린다
+      const RW9 = 0.13;   // 흰 테두리 두께
       for (const [nx9, ny9] of [[0, 1], [0, -1], [1, 0], [-1, 0]] as [number, number][]) {
         if (facingRatio(nx9, ny9) < 0.05) continue;
         const w9 = (t9: number, z9: number): [number, number, number] =>
@@ -6350,9 +6352,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
               w9(Math.min(1, a9 + 0.055), HZ1), w9(Math.min(1, t9 + 0.055), HZ1)]), 1, "#1b1e23"],
           ] as ShapeFace[], bandKey9 + 0.01));
         }
-        faces.push(...tagKey([
-          [polyPath3([w9(0, TZ0), w9(1, TZ0), w9(1, TZ1), w9(0, TZ1)]), 1],
-        ] as ShapeFace[], bandKey9));
+        // 해저드 띠를 위아래로 두르는 가는 흰 테.
+        for (const [a9, b9] of [[HZ0 - RW9 - 0.02, HZ0 - 0.02], [HZ1 + 0.02, HZ1 + RW9 + 0.02]] as [number, number][]) {
+          faces.push(...tagKey([
+            [polyPath3([w9(0, a9), w9(1, a9), w9(1, b9), w9(0, b9)]), 1, "#dfe5ec"],
+          ] as ShapeFace[], bandKey9));
+        }
       }
       /* ★ 받침 위의 **태엽 회전판**(요청) — 머리가 얹혀 도는 자리다. 낮은 원판 하나에
          아르키메데스 나선 한 줄을 얹는다: r = r0 + k·θ로 두 바퀴를 감으면 시계 태엽의 그
@@ -6410,10 +6415,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           const pt9 = (r9: number, da9: number): [number, number] =>
             [Math.cos(a9 + da9) * r9, BY9 + Math.sin(a9 + da9) * r9];
           const [mx9, my9] = pt9(RP9 + TH9 * 0.5, 0);
-          faces.push(...tagKey(paintBase(prismZFaces([
+          /* ★ 톱니만 **임자 색**이다(요청: "회전축 톱니바퀴의 톱니만 임자색으로") — 받침에서 걷은 임자 색이
+             여기로 온다. 칠하지 않은 면이 임자 색을 받는 규약이라 paintBase를 안 태운다(판은 제 회색 그대로).
+             열둘이 판을 빙 두르므로 어느 요잉에서도 서넛은 눈에 든다 — 넓은 띠 하나보다 오히려 잘 읽힌다. */
+          faces.push(...tagKey(prismZFaces([
             pt9(RP9 - 0.05, -w09), pt9(RP9 - 0.05, w09),
             pt9(RP9 + TH9, w19), pt9(RP9 + TH9, -w19),
-          ], TZT9, THH9, true), "#4a525f"), partKey(mx9, my9, TZT9 + THH9 * 0.5)));
+          ], TZT9, THH9, true), partKey(mx9, my9, TZT9 + THH9 * 0.5)));
         }
       }
       /* ★ 받침 **왼쪽에 붙은 통**(요청: "아래는 드럼통 위는 반구형, 둘 합친 높이가 받침과
@@ -6431,7 +6439,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            곳(밑변)에 반지름을 더하고 0.1 띄우면 어느 높이에서도 안 겹친다. */
         const DX9 = -(BB9 / 2 + DR9 + 0.1);
         faces.push(...paintBase(cylinderFaces3(DX9, BY9, DR9, DH9, 0), "#7e8a9c"));
-        faces.push(...paintBase(domeFaces3(DX9, BY9, DR9, DR9, DH9), "#7e8a9c"));
+        // 윗 반구만 한 단 **흰톤**으로(요청) — 통과 뚜껑이 한 덩이로 뭉쳐 보이던 것을 갈라 준다.
+        faces.push(...paintBase(domeFaces3(DX9, BY9, DR9, DR9, DH9), "#b3bdc9"));
       }
       return faces;
     })(),
@@ -6461,6 +6470,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          (한 덩어리로 묶으면 등급 솎기가 통째로 걷거나 통째로 남긴다). */
     ...((): ShapeFace[] => {
       const HELM9 = "#2f4a37";          // 짙은 녹색 헬멧(요청)
+      /* ★ 조종수의 몸은 **테란 기본 은색보다 흰톤**이다(요청) — 판·포드가 다 #8392a9라 같은 색 몸이 그 속에
+         묻혔다. 한 단 밝고 푸른기를 뺀 흰 강철로 올려, 작은 몸이 큰 쇠붙이 사이에서 스스로 뜨게 한다. */
+      const SUIT9 = "#c6ced9";          // 조종수 갑옷
+      const GLOVE9 = "#9aa5b3";         // 손등·손가락 — 갑옷보다 한 단 눌러 손이 팔에서 갈린다
       const VISOR9 = "#1b2a20";         // 헬멧 앞창 — 헬멧보다 한 단 어둡게
       const SEAT9 = "#4c545f";          // 좌석 판 — 회전판보다 한 단 어둡게(조종수와 갈리게)
       const HIP9 = 7.75;                // 앉은 엉덩이 높이
@@ -6503,22 +6516,28 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         widthOf: (u9: number): number => (u9 < 0.22 ? 0.58 - (0.08 * u9) / 0.22
           : u9 < 0.62 ? 0.5 + (0.36 * (u9 - 0.22)) / 0.4
             : 0.86 - (0.16 * (u9 - 0.62)) / 0.38),
-      }), TERRAN_STEEL), pk9(0, FY9 + 0.12)));
+      }), SUIT9), pk9(0, FY9 + 0.12)));
       // 목 — 몸통과 헬멧 사이를 한 뼘 띄워, 둘이 한 덩어리로 안 뭉치게.
       out9.push(...tagKey(paintBase(
-        cylinderFaces3(0, FY9 + 0.14, 0.3, 0.32, HIP9 + 1.6), TERRAN_STEEL,
+        cylinderFaces3(0, FY9 + 0.14, 0.3, 0.32, HIP9 + 1.6), SUIT9,
       ), pk9(0, FY9 + 0.14) + 0.01));
       // 어깨판 둘 — 몸통 위 양쪽에 걸친 짧은 통.
       for (const m9 of [-1, 1] as const) {
-        out9.push(...tagKey(paintBase(
-          cylinderFaces3(m9 * 0.8, FY9 + 0.12, 0.44, 0.44, HIP9 + 1.16), TERRAN_STEEL,
-        ), pk9(m9 * 0.8, FY9 + 0.12)));
+        // 어깨갑옷만 **임자 색**이다(요청) — 칠하지 않은 면이 임자 색을 받는 규약이라 paintBase를 안 태운다.
+        out9.push(...tagKey(
+          cylinderFaces3(m9 * 0.8, FY9 + 0.12, 0.44, 0.44, HIP9 + 1.16),
+          pk9(m9 * 0.8, FY9 + 0.12),
+        ));
       }
       // 헬멧 — 짙은 녹색 구에 앞창 한 조각.
       /* 헬멧은 **반구**다(요청: "헬멧도 구가 아니라 반구 형태로") — 온 구는 목 아래까지 둥글어 머리통이
          공으로 읽혔다. 밑을 목에서 끊은 돔이면 헬멧을 눌러쓴 꼴이 된다. */
       out9.push(...tagKey(paintBase(
-        domeFaces3(0, FY9 + 0.17, 0.64, 0.6, HIP9 + 1.86), HELM9,
+        /* 높이 0.6 → **0.86**에 옆선을 타원으로(재요청: "헬멧 높이 너무 낮다 — 자연스러운 반구로 높이 확보") —
+           domeFaces3의 기본 옆선은 2차 베지에라 한가운데가 타원 **밖으로** 부풀어, 옆이 곧게 서다 꼭대기에서
+           꺾이는 모난 실루엣이 난다. round를 켜면 3차 베지에로 바뀌어 진짜 반구의 옆선이 된다.
+           반지름은 0.64 → 0.6으로 한 뼘 줄인다 — 높이만 올리면 버섯이 되고, 좁히면서 올려야 머리통이다. */
+        domeFaces3(0, FY9 + 0.17, 0.6, 0.86, HIP9 + 1.82, true), HELM9,
       ), pk9(0, FY9 + 0.17)));
       /* (걷어냄) 헬멧 앞창 상자(재요청: "헬멧의 네모 상자 뭐야 제거") — 얼굴 자리에 붙인 어두운 판인데,
          이 크기에서는 얼굴이 아니라 헬멧에 박힌 네모 조각으로 읽혔다. 민 헬멧 하나가 낫다. */
@@ -6532,10 +6551,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const an9: [number, number, number] = [m9 * 0.82, FY9 + 2.55, HIP9 - 0.4];
         const kn9 = jointBetween(hp9, an9, 1.08, 1.02, [m9 * 0.25, 0.2, 0.85]);
         out9.push(...tagKey(paintBase(suitLimb(hp9, kn9, 0.28, 0.24, 0.31,
-          { sides: 7, caps: "none", trueNormal: true, tag: "leg.thigh" }), TERRAN_STEEL),
+          { sides: 7, caps: "none", trueNormal: true, tag: "leg.thigh" }), SUIT9),
         pk9((hp9[0] + kn9[0]) / 2, (hp9[1] + kn9[1]) / 2)));
         out9.push(...tagKey(paintBase(suitLimb(kn9, an9, 0.24, 0.2, 0.27,
-          { sides: 7, caps: "none", trueNormal: true, tag: "leg.shin" }), TERRAN_STEEL),
+          { sides: 7, caps: "none", trueNormal: true, tag: "leg.shin" }), SUIT9),
         pk9((kn9[0] + an9[0]) / 2, (kn9[1] + an9[1]) / 2)));
         /* 군화는 보병 넷과 **같은 공통 부품**이다(위 bootFaces) — 다만 앉은 몸이라 **밑창이 앞을 본다**
            (요청: "발바닥이 앞을 보게 … 발목과 발 각도가 120도 정도"). 정강이가 앞·아래 15°로 뻗으므로,
@@ -6551,7 +6570,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const fy9 = an9[1] + D9 * FH9 + FB9 * D9;         // 밑창 한가운데(앞으로)
         const fz9 = an9[2] - D9 * FH9 + FB9 * D9;         // 밑창 한가운데(아래로)
         out9.push(...tagKey(paintBase(
-          bootFaces(m9 * 0.82, fy9, fz9, FK9, FB9, undefined, [0, -D9, D9]), TERRAN_STEEL,
+          bootFaces(m9 * 0.82, fy9, fz9, FK9, FB9, undefined, [0, -D9, D9]), SUIT9,
         ), pk9(m9 * 0.82, fy9)));
       }
       /* 양팔은 앞으로 뻗어 **조종간**을 쥔다(요청) — 어깨에서 앞아래로 내려와 손이 손잡이에 닿는다.
@@ -6567,7 +6586,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            앞으로 뻗은 손이 앞 포드를 이겨 포구 위에 그려졌다(지적). 한 덩이로 다시 매겨 조종수의 자에 태운다:
            마디 사이 차례는 배열 순서(상완 → 하완 → 손)가 그대로 지킨다. */
         out9.push(...tagKey(armChain(sh9, el9, wr9, {
-          upper: 0.36, fore: 0.32, fill: TERRAN_STEEL, handFill: "#6c7683", hand: true, key: 20,
+          upper: 0.36, fore: 0.32, fill: SUIT9, handFill: GLOVE9, hand: true, key: 20,
         }), pk9(m9 * 1.0, FY9 + 0.9)));
         // 손잡이 — 손 아래위로 선 짧은 막대.
         out9.push(...tagKey(paintBase(
@@ -6631,9 +6650,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          앞 판은 양 옆면에만 세로로 붙인 두 조각이라, 옆에서 보면 한쪽만 보이고 위·아래에서
          끊겼다. 포드의 길이 방향(dy)을 한 자리에 못 박고 그 자리를 **가로지르는 고리**로
          두르면 윗면 → 오른쪽 → 밑면 → 왼쪽이 이어져 어느 각에서도 끊긴 데가 없다.
-         앞 끝(dy = PL9)은 포구가 패인 자리이므로 그보다 조금 뒤(0.35~1.05)를 두른다. */
-      const BD0 = PL9 - 0.35;   // 띠의 앞 가장자리
-      const BD1 = PL9 - 1.05;   // 띠의 뒤 가장자리
+         ★ 띠를 **앞 끝에 붙인다**(요청: "포드의 임자색 띠를 앞끝에 맞춰 이동하고 앞 단면도 임자색으로") —
+           앞 단면(포구 테두리)도 임자 색이 되므로, 띠를 그 뒤에 떨어뜨려 두면 임자 색이 두 토막으로 끊긴다.
+           앞 끝에 맞추면 테두리와 띠가 이어져 포드 앞머리가 통째로 임자 색 고리가 된다. */
+      const BD0 = PL9;          // 띠의 앞 가장자리 — 포구 테두리와 맞닿는다
+      const BD1 = PL9 - 0.62;   // 띠의 뒤 가장자리
       /** 고리의 한 조각 — 면의 바깥 법선과 그 면 위 네 점(길이·높이·좌우)으로. */
       const bandQuad9 = (
         n9: [number, number, number], pts9: [number, number, number][],
@@ -6663,6 +6684,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          faceLight 판정(재지적: 옆면이 한쪽뿐이라 가려지거나 남았다) — 앞·뒤는 기운
          법선(0,±0.96,0.27), 옆은 (±1,0)로 보이는 면만 제 음영과 함께. */
       const faces: ShapeFace[] = [];
+      /** 포구 테두리(앞 단면) — 임자 색이라 몸판을 칠한 **뒤에** 얹는다(위 ★). */
+      const rimF9: ShapeFace[] = [];
       /* ★ 앞면은 **푹 패인 포구**다(요청: "양쪽 포드 앞면은 속으로 푹 패여있고 미사일 세개가
          포구에서 살짝 튀어나와있음") ────────────────────────────────────────────────────────
          평평한 판 한 장이던 앞면을 셋으로 나눈다.
@@ -6679,7 +6702,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const HX9 = 0.52; const HT0 = 0.55; const HT1 = PH9 - 0.55; // 구멍 모서리
         const IX9 = 0.44; const IT0 = 0.75; const IT1 = PH9 - 0.75; // 안쪽(패인) 모서리
         const DEP9 = 0.6;
-        // 테두리 넷 — 위·아래·좌·우.
+        /* 테두리 넷 — 위·아래·좌·우. **임자 색**이다(요청: "앞 단면도 임자색으로") — 그래서 몸판을 칠하는
+           paintBase 뒤에 얹는다(칠하기 전에 넣으면 은색이 든다). 아래 rimF9가 그 몫이다. */
         for (const q9 of [
           [[-OX9, OT1], [OX9, OT1], [HX9, HT1], [-HX9, HT1]],
           [[-OX9, OT0], [OX9, OT0], [HX9, HT0], [-HX9, HT0]],
@@ -6687,7 +6711,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           [[OX9, OT0], [OX9, OT1], [HX9, HT1], [HX9, HT0]],
         ] as [number, number][][]) {
           const d9 = polyPath3(q9.map(([x9, t9]) => P3(PL9, t9, x9)));
-          faces.push(bodyFace(d9), ...fr.face(d9));
+          rimF9.push(bodyFace(d9), ...fr.face(d9));
         }
         // 속벽 넷 — 구멍에서 안으로. 안을 보는 면이라 어둡다.
         for (const [h9, i9] of [
@@ -6748,6 +6772,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ...paintBase(faces, TERRAN_STEEL),
         // 색을 안 준 면이라 임자 색이 든다 — 칠한 뒤에 얹어야 데칼이 살아남는다.
         ...podBand9(),
+        ...rimF9,
       ], 20 + depthNow(rx, 0.2) * 1.6);
     }),
     // 꼭대기 작은 상자 — 머리·포드보다 위라 붙박이 키 26.
