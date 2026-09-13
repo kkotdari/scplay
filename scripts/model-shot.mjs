@@ -42,9 +42,10 @@ const OUT = String(flag("--out", join(tmpdir(), "model-shot.png")));
 
 /* ── 브라우저에 넣을 번들 — model-norm.mjs와 같은 진입점을 쓴다 ─────────────── */
 const ENTRY = `
-import { SHAPE_BUILDERS, poseSet, bldLitSet, headYawSet, bldSpinSet } from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
+import { SHAPE_BUILDERS, poseSet, bldLitSet, headYawSet, bldSpinSet, tone9 } from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
 import { lodFilter, withPitchView, withTopView, withViewShear, withYaw, bake, zsorted }
   from ${JSON.stringify(join(ROOT, "src/utils/shapeOblique"))};
+window.__tone = tone9;
 window.__bake = (kind, rot, mode, lod, pose, lit, head, spin) => {
   const builder = SHAPE_BUILDERS[kind];
   if (!builder) return null;
@@ -118,7 +119,8 @@ function inBrowser({ KINDS, ROTS, MODE, CELL, LOD, BG, COLOR, POSE, LIT, HEAD, S
       if (faces) {
         for (const f of faces) {
           c.globalAlpha = shadeBoost(f[1], f[2]);
-          c.fillStyle = f[2] ?? COLOR;
+          // 앱과 같은 색감 문(bake9.tone9) — 이걸 안 태우면 눈으로 보는 그림이 앱보다 밝다.
+          c.fillStyle = window.__tone(f[2] ?? COLOR);
           try { c.fill(new Path2D(f[0])); } catch (e) { /* 못 읽는 패스는 건너뛴다 */ }
         }
       }

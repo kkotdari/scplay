@@ -20677,6 +20677,47 @@ SHAPE_GALLERY.push(...AUX_GALLERY);
 export const shadeBoost = (o: number, fill?: string): number =>
   (fill && o < 1 ? Math.min(0.7, o * 1.25) : o);
 
+/* ── 화면 색감 한 손잡이(요청: "전체적으로 빛을 줄인다고 해야하나 원작의 진하고 살짝
+   어두운 색감") ────────────────────────────────────────────────────────────────────
+   원작 스프라이트는 좁은 팔레트로 **어두운 바탕에 밝은 점을 뿌려** 결을 내는 그림이라,
+   면을 통째로 칠하는 이 판보다 한 단 어둡고 한 단 진하다. 빌더를 예순다섯 개 고칠 일이
+   아니다 — 고정색이 캔버스로 들어가는 **문 한 곳**에서 전부 이 자를 지나게 한다.
+   휘도를 TONE_DARK만큼 내리고(빛을 줄인다), 그 휘도를 축으로 색을 TONE_SAT만큼 벌린다
+   (어두워진 만큼 색이 묻히지 않게 — 지도 쪽 SHOW_GAMMA·SHOW_SAT와 같은 결이다).
+   흰 덮개(#fff)는 그만큼 수그러들고 검은 덮개(#000)는 그대로라, 하이라이트만 줄고
+   그늘은 남는다. 임자 색도 같은 문을 지난다 — 몸만 어두워지면 임자 면이 혼자 뜬다. */
+/** 휘도 곱(1이면 그대로). */
+export const TONE_DARK = 0.88;
+/** 채도 곱(1이면 그대로) — 휘도를 축으로 벌린다. */
+export const TONE_SAT = 1.12;
+const TONE_MAP9 = new Map<string, string>();
+/** 고정색 한 칸을 원작 색감으로 옮긴다. 16진수(#rgb·#rrggbb·#rrggbbaa)만 손대고
+ *  rgba()·그러데이션 같은 것은 그대로 돌려준다(값은 몇 백 가지뿐이라 표에 담아 둔다). */
+export function tone9(col: string): string {
+  if (col.charCodeAt(0) !== 35) return col;
+  const got = TONE_MAP9.get(col);
+  if (got !== undefined) return got;
+  const h9 = col.slice(1);
+  let r9 = -1; let g9 = 0; let b9 = 0; let tail = "";
+  if (h9.length === 3) {
+    r9 = parseInt(h9[0] + h9[0], 16); g9 = parseInt(h9[1] + h9[1], 16); b9 = parseInt(h9[2] + h9[2], 16);
+  } else if (h9.length === 6 || h9.length === 8) {
+    const n9 = parseInt(h9.slice(0, 6), 16);
+    r9 = (n9 >> 16) & 255; g9 = (n9 >> 8) & 255; b9 = n9 & 255;
+    tail = h9.slice(6);
+  }
+  if (r9 < 0 || Number.isNaN(r9) || Number.isNaN(g9) || Number.isNaN(b9)) {
+    TONE_MAP9.set(col, col);
+    return col;
+  }
+  const l9 = (0.299 * r9 + 0.587 * g9 + 0.114 * b9) * TONE_DARK;
+  const cl = (v9: number): number =>
+    Math.max(0, Math.min(255, Math.round(l9 + (v9 * TONE_DARK - l9) * TONE_SAT)));
+  const out = `#${((cl(r9) << 16) | (cl(g9) << 8) | cl(b9)).toString(16).padStart(6, "0")}${tail}`;
+  TONE_MAP9.set(col, out);
+  return out;
+}
+
 export function resolveShapeFaces(
   kind: string, rotDeg?: number, flat?: boolean, viewYaw?: number, pitchView?: boolean,
 ): { faces: ShapeFace[] | undefined; rot: number } {
@@ -20988,10 +21029,12 @@ export function silhouetteLight(c2: BakeCtx9, cv: BakeCv9): void {
   c2.globalCompositeOperation = "source-atop";
   c2.globalAlpha = 1;
   const g = c2.createLinearGradient(0, 0, cv.width, cv.height);
-  g.addColorStop(0, "rgba(255,255,255,0.14)");
+  /* 흰 쪽 0.14 → 0.09, 그늘 0.20 → 0.26(요청: 빛을 줄이고 진하게) — 판 위에 비스듬히
+     깔리는 이 한 겹이 모델 전체의 '반짝임'을 쥐고 있다. tone9와 같은 결로 낮춘다. */
+  g.addColorStop(0, "rgba(255,255,255,0.09)");
   g.addColorStop(0.42, "rgba(255,255,255,0)");
   g.addColorStop(0.58, "rgba(0,0,0,0)");
-  g.addColorStop(1, "rgba(0,0,0,0.20)");
+  g.addColorStop(1, "rgba(0,0,0,0.26)");
   c2.fillStyle = g;
   c2.fillRect(0, 0, cv.width, cv.height);
   c2.globalCompositeOperation = "source-over";
@@ -21187,7 +21230,7 @@ export function rasterUnit9(op: UnitDrawOp, pxq: number, B: number, lod: number)
       continue;
     }
     c2.globalAlpha = shadeBoost(o, fill);
-    c2.fillStyle = op.solid ?? fill ?? op.color;
+    c2.fillStyle = tone9(op.solid ?? fill ?? op.color);
     c2.fill(pathOf(d));
   }
   if (lod >= 3) silhouetteLight(c2, cv);
@@ -21708,7 +21751,7 @@ export function rasterBld9(op: UnitDrawOp, sideQ: number, B: number, lod: number
         continue;
       }
       c2.globalAlpha = shadeBoost(o, fill);
-      c2.fillStyle = fill ?? op.color;
+      c2.fillStyle = tone9(fill ?? op.color);
       c2.fill(pathOf(d));
     }
     if (lod >= 3) silhouetteLight(c2, cv);

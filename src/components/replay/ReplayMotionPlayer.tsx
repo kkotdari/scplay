@@ -91,9 +91,9 @@ import {
 } from "./engine9";
 import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, WorldUi9 } from "./engine9";
 import {
-  pitchFlatSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, SPRITE_SIDE_MAX, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, rasterUnit9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
+  pitchFlatSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, SPRITE_SIDE_MAX, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, rasterUnit9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, tone9, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
 } from "./bake9";
-export { LIMB_LOG, TURRET_BACK9, SHAPE_BUILDERS, ctx2d9, BAKE_ENV9, cropToInk, rasterUnit9, pathBox, tierTableOf, autoTier, stageFaces, rasterBld9, SHAPE_GALLERY, poseSet, poseSet9, bldLitSet, headYawSet, bldSpinSet, bldSpinRawSet9, lodSetCap, lodSetZoom, lodNoteFrame } from "./bake9";
+export { LIMB_LOG, TURRET_BACK9, SHAPE_BUILDERS, ctx2d9, BAKE_ENV9, cropToInk, rasterUnit9, pathBox, tierTableOf, autoTier, stageFaces, rasterBld9, SHAPE_GALLERY, poseSet, poseSet9, bldLitSet, headYawSet, bldSpinSet, bldSpinRawSet9, lodSetCap, lodSetZoom, lodNoteFrame, tone9, TONE_DARK, TONE_SAT } from "./bake9";
 export type { BakeCv9, BakeCtx9, RasterOut9, ShapeGalleryItem } from "./bake9";
 export { isAirUnit, flapCutOf, atkCutOf, unitTilesOf, buildingYawOf, BLD_NORM, BUILD_STAGES, SCR_DIAG, scrDiagOn, deriveWorld9, createEngine9, pickWorldUi9, emptyWorldUi9 } from "./engine9";
 export type { BuildRow, CastRow, FxOp, Frame9, EngineWorld9, EngineView9, WorldUi9 } from "./engine9";
@@ -2041,7 +2041,9 @@ const tintedOf9 = (tn: TintPlate9, color: string, bytes: { n: number } = spriteB
   if (!tc) return null;
   tc.drawImage(tn.cv, 0, 0);
   tc.globalCompositeOperation = "source-in";
-  tc.fillStyle = color;
+  /* 임자 색도 tone9을 지난다(요청: 전체 색감) — 몸만 어두워지면 임자 면이 혼자 뜬다.
+     표(tn.by)의 열쇠는 **원래 색**이라 색표·미니맵 점·조작부 칩은 그대로다. */
+  tc.fillStyle = tone9(color);
   tc.fillRect(0, 0, w, h);
   // 임자 면에는 광택을 안 얹는다(지적: 포톤 톱니 임자색이 흐림 — 왼위 14% 흰 빛이 임자색을 씻었다). gloss는 남겨 두되 안 쓴다.
   void tn.gloss;
@@ -4588,7 +4590,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             ctx.setTransform(Bd * s, 0, 0, Bd * s, Bd * (sx - 8 * s), Bd * (ty9 - 16 * s));
             for (const [d, o, fill] of faces) {
               ctx.globalAlpha = op.alpha * shadeBoost(o, fill);
-              ctx.fillStyle = fill ?? op.color;
+              ctx.fillStyle = tone9(fill ?? op.color);
               ctx.fill(pathOf(d));
             }
             ctx.setTransform(Bd, 0, 0, Bd, 0, 0);
@@ -5004,7 +5006,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         ctx.transform(ds9, 0, 0, ds9, -8 * ds9, -8 * ds9);
         for (const [d, o, fill] of faces) {
           ctx.globalAlpha = op.alpha * shadeBoost(o, fill);
-          ctx.fillStyle = fill ?? op.color;
+          ctx.fillStyle = tone9(fill ?? op.color);
           ctx.fill(pathOf(d));
         }
         ctx.setTransform(Bd, 0, 0, Bd, 0, 0);
@@ -6389,7 +6391,7 @@ export function ShapeIcon({
             대비로 보이던 이유다. 몸판(덮개색 없는 면)은 그대로라 색은 안 변한다. */}
         {faces
           ? faces.map(([d, op, fill], i) => (
-            <path key={i} d={d} fill={fill ?? "currentColor"} opacity={shadeBoost(op, fill)} />
+            <path key={i} d={d} fill={fill ? tone9(fill) : "currentColor"} opacity={shadeBoost(op, fill)} />
           ))
           : <path d={SHAPE_PATHS[kind]} fill="currentColor" />}
       </g>
