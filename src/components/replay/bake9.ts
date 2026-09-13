@@ -3700,7 +3700,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const zT = T2_Z - 0.04;
       out.push(...tagKey([
         [arcBand(aMid, 0.26, t1R(zB) + 0.03, t1R(zT) + 0.03, zB, zT), 1, COPPER] as ShapeFace,
-        topFace(arcBand(aMid, 0.245, t1R(zT - 0.3) + 0.05, t1R(zT) + 0.05, zT - 0.3, zT), 0.22),
+        /* (걷어냄) 띠 윗머리의 흰 덧면 — 질문("임자색 데칼 밑에 흰 네모는 뭐야?")의 정체가
+           이것이다. 구리 위에 22% 흰색을 얹은 판이라 구리도 은색도 아닌 **베이지 네모**가 되어,
+           띠에 걸린 빛이 아니라 따로 붙은 조각으로 읽혔다. 띠는 제 몸 명암만으로 충분하다. */
         /* 띠 한가운데를 세로로 가르는 **임자색 줄** — 1층에만, 더 얇고 더 짧게(요청).
            색을 안 주면 임자 색이 칠해진다. 구리보다 한 겹 밖(+0.05)이라 늘 그 위에 얹힌다. */
         bodyFace(arcBand(aMid, 0.055, t1R(zB + 0.55) + 0.05, t1R(zT - 0.55) + 0.05,
@@ -3791,8 +3793,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const PLT_H = 1.0 * MK9;            // 은판 높이
     const DRM_H = 0.32;                 // 황동 받침 드럼 높이
     const FR_H = 1.48 * MK9;            // 절두체 높이
-    const FR_W0 = 2.6 * MK9;            // 절두체 밑 가로(전폭)
-    const FR_D0 = 2.25 * MK9;           // 절두체 밑 세로
+    /* 가운데 꼭대기 상자는 가로세로 1.2배다(요청 — 드럼통 옆 상자가 아니라 그 위 한가운데
+       것이다). 받침판·받침 드럼·꼭대기 그릇이 다 이 값에서 나오므로 한 자리만 고친다. */
+    const FR_W0 = 2.6 * MK9 * 1.2;      // 절두체 밑 가로(전폭)
+    const FR_D0 = 2.25 * MK9 * 1.2;     // 절두체 밑 세로
     const FR_W1 = FR_W0 * 0.9;          // 거의 수직 — 위가 한 뼘만 좁다
     const FR_D1 = FR_D0 * 0.9;
     /* 받침은 절두체보다 **작되**(요청) 너무 작으면 절두체 밑에 완전히 숨는다 — 절두체
@@ -3883,7 +3887,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const CANOPY_Z = T2_Z;
     const CNP_D = 1.25;
     const CNP_Y = 3.7 + CNP_D / 2;
-    out.push(...tagKey(paintBase(boxFaces3(0, CNP_Y, 2.1, CNP_D, 0.24, CANOPY_Z), SILVER),
+    out.push(...tagKey(paintBase(boxFaces3(0, CNP_Y, 2.1, CNP_D, 0.14, CANOPY_Z), SILVER),
       depthNow(0, CNP_Y) * 1.6 + 7));
     /* 캐노피 기둥 둘은 걷었다 — 정면 격납구(아래)가 그 자리를 파고 들어와 기둥이 개구부 한가운데 서게 됐다.
        캐노피는 인방 위에 걸린다. */
@@ -4051,7 +4055,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           frame.push([d9, 1, fill] as ShapeFace, ...(fl9.visible ? fl9.face(d9) : [sideFace(d9, 0.42)]));
         }
       };
-      const FW = 1.3;   // 옆 띠 폭 — 요잉으로 옆벽이 새는 몫(깊이 2.3 × sin)을 덮는다
+      /* ★ 문틀 폭은 **요잉을 따라 자란다**(지적: "가리기 위한 면 추가한 거 위치나 크기가
+         어색하다") — 붙박이 1.3은 격납구가 새는 **최악**(많이 돌았을 때)에 맞춘 값이라,
+         정면에서는 샐 것이 없는데도 폭 4.3짜리 민무늬 은색 판이 돔 앞을 통째로 덮었다.
+         새는 몫은 격납구 깊이(BAY_YI에서 겉벽까지 ≈2.2) × 옆을 보는 정도이고, 그 '옆을
+         보는 정도'가 곧 facingRatio(1,0)이다. 정면(0)에서는 가는 문설주만 남고, 돌수록
+         딱 필요한 만큼만 넓어진다. 입구 폭을 줄인 뒤로 이 차이가 더 두드러졌다. */
+      const FW = 0.3 + 2.2 * Math.min(1, Math.abs(facingRatio(1, 0)));
       const bands: [number, number, string][] = [
         [HULL_Z, HULL_Z + 0.8, SILVER], [HULL_Z + 0.8, HULL_Z + 0.94, STEEL],
         [HULL_Z + 0.94, HULL_Z + 1.1, SILVER], [HULL_Z + 1.1, DOME_Z, STEEL],
@@ -4084,7 +4094,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         return polyPath3(pts);
       };
       out.push(...tagKey([
-        [sector9(3.08, 3.56, T2_Z + 0.012, 0.8), 1, SILVER] as ShapeFace,
+        /* 부채꼴도 문틀과 같은 폭 감각으로 — 개구부 반폭 + 문틀을 그 반지름의 각으로 옮긴다. */
+        [sector9(3.08, 3.56, T2_Z + 0.012,
+          Math.min(0.8, Math.asin(Math.min(0.95, (BAY_HW + FW) / 3.3)))), 1, SILVER] as ShapeFace,
       ], KB + 0.1));
     }
     out.push(
