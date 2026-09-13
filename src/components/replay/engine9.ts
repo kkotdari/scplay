@@ -704,8 +704,11 @@ export const SHOT_TILES_PER_SEC = 14;
  *  차량·기계·일꾼·공중은 원작에서도 제자리에서 두리번거리지 않는다. */
 /* 테란 바이오닉(요청: 사망 효과 "바이오닉-빨강 … 메카닉-주황폭발") — 살로 된 몸은
    터지는 것이 아니라 피가 튄다. 저그·프로토스는 종족 자체가 결을 정하므로 이 명단은
-   테란에만 물어본다. SCV는 기계를 입은 사람이라 원작에서도 피가 튄다. */
-export const BIONIC_UNITS = new Set(["Marine", "Firebat", "Medic", "Ghost", "SCV"]);
+   테란에만 물어본다.
+   ★ **SCV는 뺐다**(요청: "scv 사망효과는 생체가 아니라 기계로 적용해야함") — 여기 있던 까닭은
+     '기계를 입은 사람'이었는데, 화면에서 죽는 것은 그 작업복 덩어리다. 원작도 SCV가 터질 때
+     불꽃·파편을 낸다. 이 명단은 사망·피격 효과의 결에만 쓰이므로(다른 쓰임 없음) 이 한 줄이 전부다. */
+export const BIONIC_UNITS = new Set(["Marine", "Firebat", "Medic", "Ghost"]);
 export const IDLE_SCAN = new Set(["Marine", "Firebat", "Ghost", "Medic", "Zergling", "Hydralisk", "Zealot"]);
 /** 두리번 주기(초) — [어림]. iscript의 wait 값을 못 읽어 눈대중으로 잡은 박자다. */
 export const IDLE_SCAN_SEC = 3.2;
@@ -4644,8 +4647,14 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
        *  이어서면 앉은 것이다(자리를 옮겼든 제자리든). 없으면 공중에서 끝난
        *  것이다: 격추. flyTo는 여기에 '자리가 달라야 한다'를 더한 것이라
        *  제자리 착륙을 못 잡는다 — 내려앉힐지 말지는 이쪽으로 묻는다. */
+      /* ★ 뒤에 붙는 줄이 **길이 0이면 착륙이 아니다**(지적: "떠있는 건물 파괴효과가 안 나옴 + 바닥으로
+         떨어짐 효과가 있는데 이건 없이 그냥 공중에서 터지고 끝났으면") ────────────────────────────
+         한 생애는 자리마다 한 줄이고, 뒤 줄의 시작이 앞 줄의 끝이다(buildsV2). 그런데 공중에서
+         격추되면 참값이 **죽은 자리**를 마지막 자리로 한 줄 더 세운다 — 시작과 끝이 같은 길이 0짜리다.
+         그 줄이 있다는 것만 보고 '착륙'으로 읽어, 격추가 사뿐히 내려앉고(여기) 폭발도 걸렸다(아래
+         landed9). 뒤 줄이 실제로 **살아 있어야**(제 길이 ≥ 0.1초) 착륙이다. */
       const landsAt9 = liftAt !== undefined && goneAt > liftAt
-        && buildsSrc.some(([s2,,, u2, r2]) => r2 === raw && u2 === unit && s2 === goneAt);
+        && buildsSrc.some(([s2,,, u2, r2, g2]) => r2 === raw && u2 === unit && s2 === goneAt && g2 - s2 >= 0.1);
       /* 이사 비행 중인가 — 떠 있는 건물만 그림자를 지니는 데 쓴다(요청). */
       let landing = false;
       /** 지금 얼마나 떠 있나(0 땅 ~ 1 최고) — 몸을 띄우는 몫이 이 값을 탄다. */
@@ -6297,8 +6306,9 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
        공중에서 맞아 죽은 건물이 소리 없이 사라졌다. 가르는 자는 몸을 그리는
        쪽과 **같다**(위 landsAt9) — goneAt에 같은 사람의 같은 건물이 새 줄로
        이어서면 앉은 것이고, 없으면 공중에서 끝난 것이다. */
+    // 길이 0짜리 뒤 줄은 착륙이 아니라 **격추한 자리**다(위 landsAt9의 ★와 같은 자).
     const landed9 = liftAt !== undefined && goneAt > liftAt
-      && buildsSrc.some(([s2,,, u2, r2]) => r2 === raw && u2 === unit && s2 === goneAt);
+      && buildsSrc.some(([s2,,, u2, r2, g2]) => r2 === raw && u2 === unit && s2 === goneAt && g2 - s2 >= 0.1);
     if (landed9) return null;
     if (leftAt9(raw, goneAt)) return null;   // 나간 사람의 한꺼번 걷힘 — 폭발·무너짐 없이 사라진다(leaveAt9 주석)
     // 후계가 선 자리는 무너진 것이 아니라 변태·재건이다(위 succeedsBld와 같은 자).

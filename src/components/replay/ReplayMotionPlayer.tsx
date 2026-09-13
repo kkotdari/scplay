@@ -4486,6 +4486,21 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              바닥을 쓴다 — 그건 '땅에 닿는 자리'라 장식이 아니라 실제 발이다. */
           /* 건물도 같은 자다(위 유닛 스냅 주석) — 왼위 모서리를 기기픽셀 격자에 얹는다. */
           const bLeft9 = Math.round((sx - (bspr.pad + bspr.side / 2) * k) * B) / B;
+            /* ★ 격자에 얹는 것은 **자른 판의 왼위**여야 한다(지적: "포톤캐논, 터렛처럼 동작이 있는 건물들이
+               위치가 살짝씩 떨린다") ───────────────────────────────────────────────────────────────
+               여태 격자에 얹은 것은 **자르기 전** 판의 모서리(bLeft9·bTop9)이고, 실제로 찍는 자리는 거기에
+               자른 몫(ox·oy, 기기픽셀)을 더한 값이라 **소수점이 남았다**. 붙박이 건물은 판이 안 바뀌니 그
+               소수점도 늘 같아 티가 안 난다. 그런데 포탑이 돌거나(터렛) 톱니가 돌거나(포톤) 혓바닥이
+               드나드는(성큰) 건물은 **프레임마다 다른 판**이고, 판마다 잉크 상자가 조금씩 달라 ox·oy의
+               소수점이 매번 바뀐다(실측: 터렛의 잉크 가로중심이 머리 각에 따라 0.46 모형단위를 오간다).
+               그 소수점이 바뀔 때마다 브라우저가 판을 다시 표본해 테두리가 재합성되는데, 그것이 눈에는
+               **제자리 떨림**으로 보인다.
+               자른 판의 왼위를 한 번에 격자에 얹고, 그림자·물들인 마스크에는 **같은 밀림**을 먹인다
+               (따로 얹으면 셋이 최대 1픽셀씩 어긋나 몸에서 뜬다). */
+            const bPx9 = Math.round((bLeft9 + (bspr.ox / B) * k) * B) / B;
+            const bPy9 = Math.round((bTop9 + (bspr.oy / B) * k) * B) / B;
+            const bSx9 = bPx9 - (bLeft9 + (bspr.ox / B) * k);
+            const bSy9 = bPy9 - (bTop9 + (bspr.oy / B) * k);
             if (bShadow9) {
               /* ★ 그림자 판도 **예산에 든다**(실기 진단: 건물 16.5/16MB — 예산을
                  넘겨 있었다) — shadowPlate는 바이트만 더하고 덜어내지는 않아, 판마다
@@ -4498,8 +4513,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
                 SPRITE_PERF.bldBlit += 1;
                 ctx.drawImage(
                   bsh9.cv,
-                  bLeft9 + (bspr.ox / B) * k - bsh9.pad * k,
-                  bTop9 + (bspr.oy / B) * k - bsh9.pad * k + Math.max(1, sidePx * 0.04),
+                  bPx9 - bsh9.pad * k,
+                  bPy9 - bsh9.pad * k + Math.max(1, sidePx * 0.04),
                   bsh9.w * k, bsh9.h * k,
                 );
               }
@@ -4508,7 +4523,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
               const tcv9 = tintedOf9(bspr.tint, op.color, bldSpriteBytes);
               if (tcv9) {
                 SPRITE_PERF.bldBlit += 1;
-                ctx.drawImage(tcv9, bLeft9 + (bspr.tint.ox / B) * k, bTop9 + (bspr.tint.oy / B) * k, (tcv9.width / B) * k, (tcv9.height / B) * k);
+                ctx.drawImage(tcv9, bLeft9 + (bspr.tint.ox / B) * k + bSx9, bTop9 + (bspr.tint.oy / B) * k + bSy9, (tcv9.width / B) * k, (tcv9.height / B) * k);
               }
             }
             SPRITE_PERF.bldBlit += 1;
@@ -4516,7 +4531,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             // 전 판의 왼위 모서리다.
             ctx.drawImage(
               bspr.cv,
-              bLeft9 + (bspr.ox / B) * k, bTop9 + (bspr.oy / B) * k,
+              bPx9, bPy9,
               (bspr.cv.width / B) * k, (bspr.cv.height / B) * k,
             );
             /* ★ 겹쳐 찍는 판(op.attach) — 성큰의 혓바닥이다(유닛 쪽 짐과 같은 규약).
