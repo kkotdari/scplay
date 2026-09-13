@@ -4312,10 +4312,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const br9 = 1.35;                    // 반구(요청: 크게)
       const ya9 = -PD / 2 + 1.5;
       const yf9 = PD / 2 - 0.8;
-      // 아래 관 — 앞으로 가며 완만히 오른다. 이것만 반구에서 시작한다(요청).
+      /* 아래 관은 반구의 **앞 가장자리에서** 시작한다(요청: "반구랑 파이프 안 겹치게") —
+         여태는 반구의 한가운데에서 출발해 관의 뒷토막이 통째로 반구 속에 묻혀 있었다.
+         반구가 벽에 붙은 채 x로 부풀므로 관이 지나는 x(xa9)에서의 단면 반지름을 실제로
+         풀어(√(r²−Δx²)) 그만큼만 앞으로 물린다 — 눈금으로 어림하면 각도에 따라 겹친다. */
+      const dx9 = xa9 - (PX + PW / 2);
+      const ys9 = ya9 + Math.sqrt(Math.max(0, br9 * br9 - dx9 * dx9)) - 0.05;
       out.push(...tagKey(run9(Array.from({ length: 5 }, (_9, i9) => {
         const t9 = i9 / 4;
-        return [xa9, ya9 + (yf9 - ya9) * t9, PZA + 0.7 * t9 * t9] as [number, number, number];
+        return [xa9, ys9 + (yf9 - ys9) * t9, PZA + 0.35 * t9 * t9] as [number, number, number];
       }), PR_A), kP9));
       /* ★ 반구는 **밑면이 옆면에 붙는다**(정정) — 여태 축을 앞뒤(y)로 두어 판 뒤쪽으로
          둥글게 튀어나온 알이었다. 축을 벽의 법선(+x)으로 돌리면 납작한 밑면이 벽에 딱
@@ -4335,10 +4340,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          문제") — 비스듬한 시점에서 z는 눌려, 관 굵기(1.0)보다 높이 차가 크지 않으면 두 줄과
          그 사이의 세로 토막이 한 덩이로 뭉쳐 굽이가 사라진다. 돌아오는 윗줄은 짧게 끊어
          아랫줄이 드러나게 둔다. */
-      const zc9 = 4.3;
-      const zd9 = 6.25;
+      /* 위 관도 반구 앞에서 시작하고(겹침 금지) 아래 관 위로 한 뼘 띄운다. */
+      const zc9 = 4.35;
+      const zd9 = 6.0;
       out.push(...tagKey(run9([
-        [xb9, -PD / 2 + 0.9, zc9], [xb9, yf9, zc9], [xb9, yf9, zd9], [xb9, 0.1, zd9],
+        [xb9, ys9 + 0.2, zc9], [xb9, yf9, zc9], [xb9, yf9, zd9], [xb9, 0.8, zd9],
       ], PR_B), kP9 + 0.01));
     }
     return raceBase(out, "terran", pc);
