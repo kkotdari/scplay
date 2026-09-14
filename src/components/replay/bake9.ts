@@ -15301,18 +15301,24 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        앞뒤(y)로 못 박으면 단면의 u가 시위(코드), v가 두께다. 시위는 뿌리 0.62 → 끝 0.28로 줄고
        두께는 시위의 0.32라 도톰한 날개가 된다. 뒤·바깥·아래로 뻗는 방향은 그대로.
        키는 윗날개와 같은 점의 깊이에서 한 단 아래(그 사연은 옛 주석: 늘 윗날개 뒤). */
+    // 뒤끝을 윗날개처럼 **뾰족하게**(요청) — 시위 0.62 → 0.28로 줄던 것을 (1−t)^0.9로 한 점에 모은다. 끝 뚜껑은 걷는다.
     const lowWing = (m2: 1 | -1): ShapeFace[] => tagKey(paintBase(spirePillar({
-      x: 0, y: 0, h: 1, w: 1, segs: 4, sides: 8, ref: [0, 1, 0], caps: "both", oval: 0.3, trueNormal: true,
+      x: 0, y: 0, h: 1, w: 1, segs: 5, sides: 8, ref: [0, 1, 0], caps: "bottom", oval: 0.3, trueNormal: true,
       path: (t: number): [number, number, number] => [
         // 뒤로 갈수록 덜 벌어진다(재지적): 바깥 0.75 → 0.32, 대신 뒤로 조금 더(0.95 → 1.1).
         m2 * (ARB_LOW_X + 0.32 * t - 0.12 * Math.max(0, (t - 0.5) / 0.5) ** 2), 0.4 - 1.1 * t, 5.68 - 0.6 * t,   // 뒤끝 살짝 안으로(요청)
       ],
       // 시위를 반 넘게 줄여 얇상하게(재지적): 0.62 → 0.26.
-      widthOf: (t: number): number => 0.26 * (1 - 0.5 * t),
+      widthOf: (t: number): number => Math.max(0.02, 0.26 * (1 - t) ** 0.9),
     }), TOSS_GOLD_M), depthNow(m2 * ARB_WING_X, 0.3) + 1.35 - 0.9);
+    /* ★ 윗날개와 몸통을 잇는 **얇은 판**(요청) — 몸 돔(반지름 0.45) 허리 높이에 가로로 깐 얇은 슬래브(x ±0.62,
+       y −0.55~0.5, 두께 0.06). 양 끝이 윗날개의 안쪽 평면(x ±0.58)에 물린다. 키는 몸(제 깊이)과 날개(+1.35) 사이. */
+    const bridge9: ShapeFace[] = tagKey(paintBase(boxFaces3(0, -0.03, 1.24, 1.05, 0.06, 5.86), TOSS_GOLD_M),
+      depthNow(0, 0) + 0.7);
     return [
       ...lowWing(-1),
       ...lowWing(1),
+      ...bridge9,
       ...wing(-1),
       ...wing(1),
       ...decal(-1),
