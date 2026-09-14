@@ -21330,15 +21330,24 @@ export function faceGrain9(d: string): {
       aLo: lo9 - cy, aHi: hi9 - cy, bLo: bx0 - cx, bHi: bx1 - cx, cx, cy, up: true,
     };
   }
-  // 누운 낯 — 두 모서리 갈래 중 **더 서 있는 쪽**이 U다(줄이 뻗는 쪽).
-  const base = long.reduce((p9, q9) => (q9.l > p9.l ? q9 : p9), long[0]);
+  /* 누운 낯 — 두 모서리 갈래 중 **모형에서 더 긴 쪽**이 U다(줄이 뻗는 쪽).
+     ★ 한때 '화면에서 더 서 있는 쪽'을 골랐는데 그것이 틀렸다(지적: "오른쪽 두 개가 잘못됨,
+       스크래치 방향이 갑자기 바뀌었음") — 요잉이 어느 각을 넘는 순간 두 모서리의 기울기
+       차례가 뒤집혀 지붕의 결이 90도 홱 돌았다. 화면의 성질로 고르면 요잉을 탈 수밖에 없다.
+     ★ **모형 길이**는 화면 길이에서 되돌릴 수 있다. 바닥에 누운 벡터 (X, Y)는 화면에
+       (X, Y·눌림)로 실리므로(project: z=0이면 sy는 ry·squash뿐), 화면 (dx, dy)를 준 모서리의
+       모형 길이는 hypot(dx, dy/눌림)이다. 요잉은 바닥면 안의 **회전**이라 길이를 안 바꾸므로
+       이 자는 어느 각에서도 같은 답을 낸다 — 결이 요잉을 따라 **돌기만** 하고 안 뒤집힌다.
+       비스듬한 낯(경사 벤트 등)에서는 어림이지만, 값이 각을 따라 이어지므로 뒤집힘이 없다. */
+  const sq9 = groundSquashNow() || 0.45;
+  const mlen9 = (e: { dx: number; dy: number }): number => Math.hypot(e.dx, e.dy / sq9);
+  const base = long.reduce((p9, q9) => (mlen9(q9) > mlen9(p9) ? q9 : p9), long[0]);
   const bux = base.dx / base.l; const buy = base.dy / base.l;
   let other = long.find((e) => Math.abs((e.dx * bux + e.dy * buy) / e.l) < 0.85);
   if (!other) other = { dx: -buy * base.l, dy: bux * base.l, l: base.l };
   const oux = other.dx / other.l; const ouy = other.dy / other.l;
-  const uFirst = Math.abs(buy) >= Math.abs(ouy);
-  let ux = uFirst ? bux : oux; let uy = uFirst ? buy : ouy;
-  const vx = uFirst ? oux : bux; const vy = uFirst ? ouy : buy;
+  let ux = bux; let uy = buy;
+  const vx = oux; const vy = ouy;
   // U는 화면 아래를 향하게 둔다 — 그래야 aLo가 늘 '위'다.
   if (uy < 0) { ux = -ux; uy = -uy; }
   const det = ux * vy - uy * vx;
