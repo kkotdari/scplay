@@ -520,6 +520,12 @@ export function atkCutOf(
      메딕에게는 쿨다운이라는 것 자체가 없다(무기가 없어 cd가 폴백 0.6초로 잡힌다).
      치료 자세를 붙잡고, 박동은 노란 불빛(ATTACK_FX "heal")이 맡는다. */
   if (kindMain === "inf") return 2;
+  /* 울트라 — 상체를 **왼쪽으로, 오른쪽으로** 휘두른다(요청): 컷 4(왼)·5(오른)를 쿨다운 앞 36%에 나눠 태운다. */
+  if (kindMain === "ultra") {
+    if (ph < 0.18) return POSE_ATK_L;
+    if (ph < 0.36) return POSE_ATK_R;
+    return 0;
+  }
   if (ph < 0.35) return 2;
   return flapHz ? flapCutOf(flapHz, t) : 0;
 }

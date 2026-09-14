@@ -19322,20 +19322,28 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     }
     /** 다리가 길어진 만큼 몸을 통째로 올린다 — 엉덩이 자리(z 4.3)에 몸 밑이 맞물린다. */
     const BODY_UP = 1.3;
+    /* ★ 공격은 **상체를 좌우로 휘두르기**(요청: "집게발 모으기가 아니라 상체(집게발 포함)를 좌우로 휘두르는 걸로,
+       휘두를 때 살짝 반달모양으로 좌우에서 위로") — 앞몸 덩이·어깨판·앞 등가시 한 쌍·얼굴·머리장식·팔·낫을 한
+       묶음(upper9)으로 허리(원점) 둘레로 ±22도 돌리고, 돌린 컷에서는 0.35 들어 올린다(반달 호의 양 끝이 위). 컷은
+       atkCutOf의 울트라 갈래(POSE_ATK_L → POSE_ATK_R)가 낸다. 골반·쐐기·뒤 등가시·다리는 안 돈다. */
+    const swU9 = poseNow === POSE_ATK_L ? 1 : poseNow === POSE_ATK_R ? -1 : 0;
+    const upper9 = (fn: () => void): void => withModelZOff(swU9 ? 0.35 : 0, () => withModelSpin(swU9 * 22, fn));
     /* ── 몸 ── 앞뒤로 길고 **앞몸(가슴)과 뒷몸(골반)이 나뉜다**(지적) — 한 덩이 절두체는
        통짜 상자로 보였다. 실제 울트라는 어깨가 크게 부푼 앞몸, 잘록한 허리, 그보다 조금
        작은 골반 덩이가 이어진 꼴이다. 셋을 따로 세우고 허리를 낮고 좁게 눌러 그 이음이
        눈에 보이게 한다. 각 덩이는 아래 판 + 위 판 두 층이라 각진 결이 살아 있다. */
     // 앞몸(가슴·어깨) — 가장 넓고 높다.
-    out.push(...tagKey(paintBase(
-      frustumFaces3(0, 1.1, 6.2, 4.4, 5.2, 3.7, 2, 2.4 + BODY_UP), HIDE),
-    depthNow(0, 1.1) * 1.6));
-    out.push(...tagKey(paintBase(
-      frustumFaces3(0, 0.85, 5.4, 3.6, 3.9, 2.7, 1.7, 4.3 + BODY_UP), PLATE),
-    depthNow(0, 0.85) * 1.6 + 1));
-    out.push(...tagKey(paintBase(
-      pyramidFaces3(0, 0.6, 3.6, 2.6, 1.5, 5.9 + BODY_UP), PLATE),
-    depthNow(0, 0.6) * 1.6 + 2));
+    upper9(() => {
+      out.push(...tagKey(paintBase(
+        frustumFaces3(0, 1.1, 6.2, 4.4, 5.2, 3.7, 2, 2.4 + BODY_UP), HIDE),
+      depthNow(0, 1.1) * 1.6));
+      out.push(...tagKey(paintBase(
+        frustumFaces3(0, 0.85, 5.4, 3.6, 3.9, 2.7, 1.7, 4.3 + BODY_UP), PLATE),
+      depthNow(0, 0.85) * 1.6 + 1));
+      out.push(...tagKey(paintBase(
+        pyramidFaces3(0, 0.6, 3.6, 2.6, 1.5, 5.9 + BODY_UP), PLATE),
+      depthNow(0, 0.6) * 1.6 + 2));
+    });
     // 허리 — 좁고 낮은 이음. 여기가 꺼져야 앞뒤 두 덩이가 갈려 보인다.
     out.push(...tagKey(paintBase(
       frustumFaces3(0, -1.5, 4, 2.4, 3.6, 2.2, 1.5, 2.5 + BODY_UP), HIDE),
@@ -19379,23 +19387,26 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     depthNow(0, -3.9) * 1.6 + 2));
     /* 어깨 갑옷 판 둘 = **임자 색**(요청: 나머지 흰 부분) — 앞몸 양옆에 비스듬히 붙는
        각진 판. 사진에서 가장 크게 드러나는 창백한 자리라 임자를 여기서 읽는다. */
-    for (const m9 of [-1, 1] as const) {
-      out.push(...tagKey(frustumFaces3(m9 * 2.85, 1.3, 1.5, 4.2, 1.05, 3.1, 1.5, 3.9 + BODY_UP),
-        depthNow(m9 * 2.85, 1.3) * 1.6 + 3));
-    }
+    upper9(() => {
+      for (const m9 of [-1, 1] as const) {
+        out.push(...tagKey(frustumFaces3(m9 * 2.85, 1.3, 1.5, 4.2, 1.05, 3.1, 1.5, 3.9 + BODY_UP),
+          depthNow(m9 * 2.85, 1.3) * 1.6 + 3));
+      }
+    });
     /* 등가시 — 앞몸 등마루에서 골반까지 줄지어 뒤로 눕는다. 짙은 색이라 창백한
        어깨판과 갈린다. */
-    for (const [sx9, sy9, sz9, tw9] of [
-      [-1.5, 0.9, 7.5, 0.68], [1.5, 0.9, 7.5, 0.68],
-      [-1.2, -1.4, 6.4, 0.56], [1.2, -1.4, 6.4, 0.56],
-      [-1.15, -3.6, 6.7, 0.58], [1.15, -3.6, 6.7, 0.58],
-      [-0.7, -5, 5.8, 0.44], [0.7, -5, 5.8, 0.44],
-    ] as [number, number, number, number][]) {
+    const spikeU9 = (sx9: number, sy9: number, sz9: number, tw9: number): void => {
       out.push(...tagKey(paintBase(spikeHorn(
         sx9 * 0.8, sy9 + 0.5, sz9 - 1.2 + BODY_UP, sx9 * 1.6, sy9 - 1.6, sz9 + BODY_UP, tw9,
         undefined, 5, 0.5, sx9 * 0.4, -0.8,
       ), DARK), depthNow(sx9, sy9) * 1.6 + 4));
-    }
+    };
+    upper9(() => { spikeU9(-1.5, 0.9, 7.5, 0.68); spikeU9(1.5, 0.9, 7.5, 0.68); });   // 앞 한 쌍은 상체와 함께 돈다
+    for (const [sx9, sy9, sz9, tw9] of [
+      [-1.2, -1.4, 6.4, 0.56], [1.2, -1.4, 6.4, 0.56],
+      [-1.15, -3.6, 6.7, 0.58], [1.15, -3.6, 6.7, 0.58],
+      [-0.7, -5, 5.8, 0.44], [0.7, -5, 5.8, 0.44],
+    ] as [number, number, number, number][]) spikeU9(sx9, sy9, sz9, tw9);
     /* ── 머리 ── 저그 공용 두개골(요청: "저그 유닛 얼굴은 다 이런형태야 … 다 바꾸자
        이참에") ─────────────────────────────────────────────────────────────────
        여기에는 **구 하나와 눈 한 쌍**만 있었다. 그때는 그것이 나은 답이었다: 각진
@@ -19405,16 +19416,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        두개골·주둥이·아래턱·아가리가 한 벌이라, 각져도 갑옷판으로 안 읽힌다. 옛 구의
        지름(2.4)에 맞춰 1.5배로 키운다. 눈은 공용 얼굴이 제 자리에 달고 나온다. */
     // 머리 키는 **제 자리 깊이**(지적: 머리가 몸에 안 가려짐) — 붙박이 12면 뒤를 봐도 몸 위에 떴다.
+    upper9(() => {
     out.push(...tagKey(zergFace(3.3, 3.9, 1.5, PLATE), depthNow(0, 3.9) * 1.6 + 2));
     /* ★ 머리 뒤의 **큰 머리장식 갑판 한 장**(요청: "히드라처럼 큰 머리장식 갑판, 1장으로, 너비가 넓은 형태") — 이마 뒤
        (y 2.9, z 5.3)에서 45도로 뒤·위로 뻗는 얇은 판(oval 0.1, ref x라 u가 너비·v가 두께). 너비는 뿌리 반폭 1.3에서
        0.55 지점 2.7까지 벌어졌다가 끝에서 0.5로 모여 방패꼴이고, 가장자리는 skewV로 앞·아래로 처져(cu²) 목을 감싼다.
        색은 겉 갑옷 판(PLATE). 키는 얼굴(y 3.9 기준 +2)보다 뒤, 몸통·등가시보다는 앞(+2.5). */
+    // 1.2배·살짝 앞으로(재요청): 시작 y 2.9 → 3.15, 길이·너비 ×1.2(UCK9)
+    const UCK9 = 1.2;
     out.push(...tagKey(paintBase(spirePillar({
       x: 0, y: 0, h: 1, w: 1, segs: 7, sides: 8, oval: 0.1, caps: "none", ref: [1, 0, 0], trueNormal: true,
-      path: (t9: number): [number, number, number] => [0, 2.9 - 2.7 * t9, 5.3 + 2.5 * t9],
-      widthOf: (t9: number): number => (t9 < 0.55 ? 1.3 + (2.7 - 1.3) * (t9 / 0.55) : 2.7 - (2.7 - 0.5) * ((t9 - 0.55) / 0.45) ** 1.3),
-      skewV: (cu9: number, t9: number): number => -0.55 * cu9 * cu9 * (0.4 + 0.6 * t9),
+      path: (t9: number): [number, number, number] => [0, 3.15 - 2.7 * UCK9 * t9, 5.3 + 2.5 * UCK9 * t9],
+      widthOf: (t9: number): number => UCK9 * (t9 < 0.55 ? 1.3 + (2.7 - 1.3) * (t9 / 0.55) : 2.7 - (2.7 - 0.5) * ((t9 - 0.55) / 0.45) ** 1.3),
+      skewV: (cu9: number, t9: number): number => -0.55 * UCK9 * cu9 * cu9 * (0.4 + 0.6 * t9),
     }), PLATE), depthNow(0, 2.0) * 1.6 + 2.5));
     /* ── 낫 한 쌍 ── **고유색(상아빛)이다**(요청) — 임자 색이 아니다. 밖·앞으로 크게
        감긴다. 넷이 아니라 둘이다(지적: "갈고리는 한 쌍인데 지금 두 쌍") — 낮게
@@ -19430,7 +19444,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        거기서 앞·바깥·아래로 두 마디가 뻗고 손목에서 낫이 난다. */
     /* 공격 컷(요청) — 카이저 낫을 **안·앞으로 후려친다**. 어깨는 몸에 박혀 있으니
        팔꿈치·손목만 안쪽으로 모이며 앞으로 나가고, 낫이 몸 앞에서 엇갈린다. */
-    const atU9 = poseNow === 2 ? 1 : 0;
+    const atU9 = 0;   // (걷어냄) 컷 2의 '집게 모으기' — 공격은 이제 상체 휘두르기(upper9)다
     for (const m of [-1, 1] as const) {
       const shx = m * 2.45;
       const shy = 2.7;
@@ -19450,6 +19464,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       out.push(...tagKey(ivory(claw3(m, 2.05, wrz - 0.1,
         Math.abs(wrx) - 0.75 * 2.05, wry - 0.45 * 2.05)), 15));
     }
+    });
     return out;
   },
 
