@@ -6147,7 +6147,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            phase −π/2로 꼭짓점(빗변이 만나는 모)이 바깥을 보고 평평한 변이 본체에 붙는다. 안쪽 휨은 1.3 → 0.8로
            약하게. (밑 반폭을 1.7로 넓혔다가 원복 — "밑면이 더 넓어야"는 기둥이 아니라 **피라미드** 밑면이었다.) */
         ...tagKey(spirePillar({
-          x: px, y: py, z0: 0.4, h: 6.4, w: 1.2, tipW: 0.28, sides: 3, segs: 6, fill: "#d4bd3c",
+          x: px, y: py, z0: 0.4, h: 6.4, w: 1.2, tipW: 0.1, sides: 3, segs: 6, fill: "#d4bd3c",   // 끝 0.28 → 0.1(첨탑을 걷어 뾰족하게)
           oval: 0.75, phase: -Math.PI / 2, ref: [-py / Math.hypot(px, py), px / Math.hypot(px, py), 0],
           curveX: (-px / Math.hypot(px, py)) * 0.4, curveY: (-py / Math.hypot(px, py)) * 0.4,   // 0.8 → 0.4(재요청: 더 약하게)
         }), pillarKey9(px, py, 1.5)),   // 받침판(+1.3)보다 한 단 앞 — 기둥이 받침판 위에 선다
@@ -6166,13 +6166,22 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            그 셋이 늘 같은 낯이라 '지금 일하고 있다'가 실루엣에서 안 읽혔다.
            glowLit은 그 깃발 하나를 보고 색을 고른다 — 꺼지면 식은 아쿠아, 켜지면 흰빛에
            가깝게. 모양은 그대로고 색만 갈리므로 굽는 삯도 안 는다. */
-        ...tagKey(spirePillar({
-          // 방패 끝(안쪽으로 0.4 기운 자리)에서 이어 선다 — 몸 끝(0.3)을 감싸는 0.33, 기욺도 같은 비로 잇는다.
-          x: px + (-px / Math.hypot(px, py)) * 0.4, y: py + (-py / Math.hypot(px, py)) * 0.4,
-          z0: 6.8, h: 2.1, w: 0.33, tipW: 0.02, sides: 8, segs: 2,
-          leanX: (-px / Math.hypot(px, py)) * 0.4, leanY: (-py / Math.hypot(px, py)) * 0.4,
-          fill: glowLit("#e6fffb", "#83f7e8"),
-        }), pillarKey9(px, py, 1.6)),
+        /* ★ 보석은 기둥 **위**가 아니라 **위쪽 바깥면에 박힌다**(재요청) — 꼭대기에 꽂던 아쿠아 첨탑을 걷고, 방패의
+           바깥 모(삼각 꼭짓점 능선) 위 t 0.78(z 5.4)에 쌍뿔 보석을 반쯤 묻어 세운다. 능선 자리 = 축(안쪽 휨 0.4·t²)
+           + 바깥·0.75·r(t)(oval 0.75, 꼭짓점이 바깥). 반폭 0.38이라 바깥으로 그만큼 튀어나오고 안쪽 반은 몸에 든다.
+           키: 바깥면이 시청자를 볼 때만 기둥(+1.5) 앞(+1.6), 등질 때는 뒤(+1.4)라 몸에 가려진다. 방패 끝은 뾰족하게. */
+        ...((): ShapeFace[] => {
+          const r9 = Math.hypot(px, py); const ox9 = px / r9; const oy9 = py / r9;
+          const tg9 = 0.78; const rg9 = 1.2 + (0.1 - 1.2) * tg9;
+          const off9 = 0.75 * rg9 - 0.4 * tg9 * tg9;
+          const gx9 = px + ox9 * off9; const gy9 = py + oy9 * off9;
+          const lift9 = depthNow(px + ox9, py + oy9) > depthNow(px, py) ? 1.6 : 1.4;
+          return tagKey(spirePillar({
+            x: gx9, y: gy9, z0: 0.4 + 6.4 * tg9 - 0.75, h: 1.5, w: 0.38, sides: 6, segs: 4,
+            widthOf: (t9) => 0.38 * (1 - Math.abs(2 * t9 - 1)),
+            fill: glowLit("#e6fffb", "#83f7e8"),
+          }), pillarKey9(px, py, lift9));
+        })(),
         // (걷어냄) 기둥 어깨의 타원 하이라이트 — 리본 시절의 광택 대용이었다. 진짜 원뿔은 면마다 빛을 받는다.
       ];
     })()));
