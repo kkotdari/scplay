@@ -21551,7 +21551,6 @@ export function glowBake9(
   const [, lgy9] = lightScreenDir();
   /** 모형 축의 화면 방향 — 누운 낯의 결이 이 자를 탄다(안 주면 정면 자세로 어림). */
   const gax9 = axes ?? grainAxes9(0);
-  const HI9 = `rgba(${GLOW9.hue}, ${GLOW9.glow})`;
   const FL9 = `rgba(${GLOW9.hue}, ${GLOW9.glow * GLOW9.flat})`;
   /** 결의 밝은 줄 — 겹의 천장을 다 쓴다(글로우 몫에 안 눌린다). */
   const BR9 = `rgba(${GLOW9.hue}, 1)`;
@@ -21672,13 +21671,8 @@ export function glowBake9(
       g2.globalCompositeOperation = "source-over";
       g2.globalAlpha = k9;
       if (d2) { d2.globalCompositeOperation = "source-over"; d2.globalAlpha = 1; }
-    } else if (!shady9) {
-      /* 테란이 아닌 낯은 결이 없다 — 띠 자리에 옛 광택만 얹는다. */
-      g2.fillStyle = HI9;
-      g2.globalAlpha = k9 * 0.7;
-      g2.fillRect(aA9, gr9.bLo, aB9 - aA9, gr9.bHi - gr9.bLo);
-      g2.globalAlpha = k9;
     }
+    // (테란이 아닌 낯은 **결만** 없다 — 띠와 그 심은 위에서 이미 깔았다.)
     g2.restore();
     if (d2) d2.restore();
   }
