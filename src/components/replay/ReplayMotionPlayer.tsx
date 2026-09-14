@@ -91,7 +91,7 @@ import {
 } from "./engine9";
 import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, WorldUi9 } from "./engine9";
 import {
-  pitchFlatSet9, brushOn9, brushSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, spriteSideMax9, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, rasterUnit9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, tone9, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
+  pitchFlatSet9, brushOn9, brushSet9, glowOn9, glowSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, spriteSideMax9, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, rasterUnit9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, tone9, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
 } from "./bake9";
 export { LIMB_LOG, TURRET_BACK9, SHAPE_BUILDERS, ctx2d9, BAKE_ENV9, cropToInk, rasterUnit9, pathBox, tierTableOf, autoTier, stageFaces, rasterBld9, SHAPE_GALLERY, poseSet, poseSet9, bldLitSet, headYawSet, bldSpinSet, bldSpinRawSet9, lodSetCap, lodSetZoom, lodNoteFrame, tone9, TONE_DARK, TONE_SAT, silhouetteLight, glowBake9, grainAxes9, GLOW9 } from "./bake9";
 export type { BakeCv9, BakeCtx9, RasterOut9, ShapeGalleryItem } from "./bake9";
@@ -1031,6 +1031,9 @@ function crowdInit9(): void {
      **맨 위 단**에 올랐을 때만 켠다(applyBenchTier9의 ★). 폰은 단이 하나뿐이라 꺼진 채로
      끝난다. ⚠ 이 줄은 applyBenchTier9 **앞**이라야 한다 — 뒤에 두면 단이 정한 값을 덮는다. */
   brushSet9(false);
+  /* ★ 폰의 **매우 낮음**(벤치 미달)은 글로우도 끈다(요청: "재생품질 매우 낮음에서 메모리가 부족한 거 같거든 글로우와
+     스크래치 다 끄기") — 스크래치(결)는 위에서 이미 폰 전체가 껐다. 글로우는 판마다 캔버스 한 장을 더 빌린다. */
+  glowSet9(!(smallDevice9 && c.weak));
   crowdRecheck9();  applyBenchTier9(c.bench);   // PC 벤치 단(위 PC_TIERS9의 ★)
   bakeWorkersStart9();   // 굽기 일꾼(위 BAKEW9) — 기기 표(DEV9.bakeWorkers)가 0이면 안 띄운다
   qualityNote9();        // 첫 눈금(위 QUALITY9) — 렌더 중이라 fn은 아직 없고 level만 적힌다
@@ -1065,6 +1068,7 @@ function crowdRecheck9(): void {
         }
       } else if (c9.bench < 0 || ms9 < c9.bench) {
         c9.bench = ms9; c9.weak = ms9 > CROWD_BENCH_MS9; c9.k = ms9 > CROWD_BENCH_MS9 * 2 ? 0.5 : 1; c9.re += 1;
+        glowSet9(!(smallDevice9 && c9.weak));   // 미달이 풀리면 글로우도 돌아온다(위 ★)
         applyBenchTier9(ms9);   // 더 작은 값이면 단이 오를 수 있다(위 ★)
         qualityNote9();         // 폰의 미달이 풀렸을 수도 있다(위 QUALITY9)
       }
@@ -2236,7 +2240,7 @@ function bakeFlush9(): void {
     const id9 = BAKEW9.nextId; BAKEW9.nextId += 1;
     BAKEW9.inflight.set(id9, { key: key9, sub: w9.sub, op: w9.op, q: w9.pxq, B: w9.B, lod: w9.lod, bld: !!w9.bld, at: pNow(), w: wi9 });
     BAKEW9.keys.add(key9); BAKEW9.busy[wi9] += 1; BAKEW9.sent += 1;
-    BAKEW9.workers[wi9].postMessage({ type: "bake", id: id9, bld: !!w9.bld, op: w9.op, q: w9.pxq, B: w9.B, lod: w9.lod, pitchFlat: pitchFlatNow, brush: brushOn9 });
+    BAKEW9.workers[wi9].postMessage({ type: "bake", id: id9, bld: !!w9.bld, op: w9.op, q: w9.pxq, B: w9.B, lod: w9.lod, pitchFlat: pitchFlatNow, brush: brushOn9, glow: glowOn9 });
   }
 }
 /** 일꾼이 판을 돌려줬다 — 보관함·색인·바이트에 꽂는다(메인이 굽던 자리와 같은 규약). 멈춘 화면이면 붓을 깨운다. */

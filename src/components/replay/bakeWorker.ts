@@ -14,11 +14,11 @@
  *  ⚠ 이 파일은 bake9(모델 빌더·래스터)만 든다 — React·DOM 없음. 진단 해시(#pitch·#nocreep)는 메인이 워커 name에
  *    실어 보낸다(bake9의 hashNow9). 폰은 지금 이 일꾼을 안 띄운다(DEV9.bakeWorkers 0) — 띄우는 조건만 바꾸면 폰에도
  *    같은 길이 열린다(설계는 기기를 안 가린다). */
-import { BAKE_ENV9, BAKE_NIL9, brushSet9, pitchFlatSet9, rasterBld9, rasterUnit9, type RasterOut9 } from "./bake9";
+import { BAKE_ENV9, BAKE_NIL9, brushSet9, glowSet9, pitchFlatSet9, rasterBld9, rasterUnit9, type RasterOut9 } from "./bake9";
 import type { UnitDrawOp } from "./engine9";
 
 type EnvMsg = { type: "env"; oneMax: number; poolBytes: number; sideMax: number };
-type BakeMsg = { type: "bake"; id: number; bld: boolean; op: UnitDrawOp; q: number; B: number; lod: number; pitchFlat: number; brush?: boolean };
+type BakeMsg = { type: "bake"; id: number; bld: boolean; op: UnitDrawOp; q: number; B: number; lod: number; pitchFlat: number; brush?: boolean; glow?: boolean };
 type Msg = EnvMsg | BakeMsg;
 
 /** 돌려주는 판 — 캔버스 자리에 ImageBitmap. */
@@ -36,6 +36,7 @@ const post9 = (m: unknown, transfer?: Transferable[]): void => {
 let pitchFlatLast9 = -1;
 /** 결(긁힌 광택)을 굽나 — 메인의 깃발이 일꾼에 없으므로 청할 때 실려 온다(폰은 끈다). */
 let brushLast9: boolean | null = null;
+let glowLast9: boolean | null = null;
 
 if (inWorker9) {
   BAKE_ENV9.mk = () => new OffscreenCanvas(0, 0);
@@ -51,6 +52,8 @@ if (inWorker9) {
       if (m.pitchFlat !== pitchFlatLast9) { pitchFlatLast9 = m.pitchFlat; pitchFlatSet9(m.pitchFlat); }
       const br9 = m.brush !== false;
       if (br9 !== brushLast9) { brushLast9 = br9; brushSet9(br9); }
+      const gl9 = m.glow !== false;
+      if (gl9 !== glowLast9) { glowLast9 = gl9; glowSet9(gl9); }
       const r = m.bld ? rasterBld9(m.op, m.q, m.B, m.lod) : rasterUnit9(m.op, m.q, m.B, m.lod);
       if (!r) { post9({ type: "done", id: m.id, out: null, ms: performance.now() - t0, why: BAKE_NIL9.why }); BAKE_NIL9.why = ""; return; }
       /* transferToImageBitmap은 그 캔버스를 비운다 — 잘라 담은 판(BAKE_ENV9.out)은 여기서 새로 만든 것이라 그대로 버린다. */

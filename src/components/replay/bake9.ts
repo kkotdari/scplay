@@ -21917,6 +21917,10 @@ export const BRUSH9 = {
    같은 값을 들어야 한다 — 청할 때 실어 보낸다(lod·pitchFlat과 같은 규약). */
 export let brushOn9 = true;
 export function brushSet9(on: boolean): void { brushOn9 = on; }
+/** 글로우 겹(glowBake9)을 켤까 — 폰의 '매우 낮음'(벤치 미달)은 끈다(요청: "재생품질 매우 낮음에서 메모리가 부족한 거
+ *  같거든 글로우와 스크래치 다 끄기") — 글로우는 판마다 같은 크기의 캔버스를 한 장 더 빌려 칠하므로 메모리·시간이 든다. */
+export let glowOn9 = true;
+export function glowSet9(on: boolean): void { glowOn9 = on; }
 /** 테란 금속의 광 색 — 이 색을 쓴 낯에 결을 세운다. */
 const BRUSH_TONE9 = RACE_GLOSS_LIT.terran;
 /** 테란 금속의 그늘 색 — 빛을 등진 낯이다. 여기도 결은 있다(옅게). */
@@ -22588,7 +22592,7 @@ export function rasterUnit9(op: UnitDrawOp, pxq: number, B: number, lod: number)
   }
   // 기울기는 **모델의 16-상자**에 건다(판이 아니라) — silhouetteLight의 ★.
   if (lod >= 3) silhouetteLight(c2, cv, { x: pad * B, y: pad * B, w: pxq * B, h: pxq * B });
-  if (lod >= 3) {
+  if (lod >= 3 && glowOn9) {
     glowBake9(c2, cv, B, { x: pad * B, y: pad * B, w: pxq * B, h: pxq * B }, faces,
       grainAxes9(op.rotDeg ?? 0, op.flat, op.pitch));
   }
@@ -23116,7 +23120,7 @@ export function rasterBld9(op: UnitDrawOp, sideQ: number, B: number, lod: number
     if (lod >= 3) silhouetteLight(c2, cv, { x: pad * B, y: pad * B, w: sideQ * B, h: sideQ * B });
     /* 데칼(크립 카펫)은 빼 둔다 — 땅에 누운 단색 한 겹이라 번질 것이 없고, 판이 가장
        커서 값만 든다(실측: 이 한 종이 최악 판을 400 → 573ms로 끌어올렸다). */
-    if (lod >= 3 && !DECAL_KINDS.has(op.kind)) {
+    if (lod >= 3 && glowOn9 && !DECAL_KINDS.has(op.kind)) {
       glowBake9(c2, cv, B, { x: pad * B, y: pad * B, w: sideQ * B, h: sideQ * B }, faces,
         grainAxes9(op.rotDeg ?? 0, op.flat, op.pitch));
     }
