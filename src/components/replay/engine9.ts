@@ -2435,7 +2435,15 @@ export const ENGAGE_SKIP = new Set([
    — 공중인가·이름·표적 자격·버로우 가능·상시 은신은 **시간과 무관**한데 프레임마다
    다시 셈하고 있었다. 개체 객체를 열쇠로 삼는 WeakMap이라 개체가 사라지면 같이 사라지고,
    훅이 아니라서 부르는 자리를 안 가린다. */
-export interface EntConst9 { air: boolean; uk: string | undefined; noBody: boolean; burrowable: boolean; alwaysCloak: boolean }
+/** 제 힘으로 **은신할 수 있는** 유닛(요청: "사베 부품 안 보임" — 늘 희미했다) ────────────
+ *  참값의 상태 바이트에 실린 은신 깃발(openbwTracks의 0x20)을 **종류를 안 가리고** 믿었더니,
+ *  그 깃발이 서는 다른 사정(디텍터·특수 상태)까지 은신으로 읽혀 사이언스 베슬 같은 몸이
+ *  내내 알파 0.4로 그려졌다 — 부품이 안 보인다는 말이 그것이다. 원작에서 제 은신을 켤 수
+ *  있는 것은 레이스와 고스트뿐이고, 다크템플러·옵저버는 늘 은신(alwaysCloak)이며, 나머지는
+ *  **아비터 은신장**으로만 은신한다(그 판정은 arbiterSpots가 따로 한다). 그러니 개체가 든
+ *  은신 창은 이 명단의 종류에서만 받는다. */
+export const SELF_CLOAK_UNITS = new Set(["Wraith", "Ghost"]);
+export interface EntConst9 { air: boolean; uk: string | undefined; noBody: boolean; burrowable: boolean; alwaysCloak: boolean; canCloak: boolean }
 export const entConst9 = new WeakMap<object, EntConst9>();
 export const constOf9 = (e: { unit: string }): EntConst9 => {
   let c = entConst9.get(e);
@@ -2446,6 +2454,7 @@ export const constOf9 = (e: { unit: string }): EntConst9 => {
       noBody: NO_BODY_UNITS.has(e.unit),
       burrowable: BURROWABLE.has(e.unit),
       alwaysCloak: e.unit === "Dark Templar" || e.unit === "Observer",
+      canCloak: SELF_CLOAK_UNITS.has(e.unit),
     };
     entConst9.set(e, c);
   }
@@ -4071,7 +4080,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
            을 새로 만들었다(프레임당 셋 × 964). 하는 일은 같다. 아비터가 없는 판이 태반이라
            그쪽은 길이 검사로 통째로 건너뛴다. */
         let cloaked9 = kc9.alwaysCloak;
-        if (!cloaked9) {
+        if (!cloaked9 && kc9.canCloak) {   // 제 은신을 켤 수 있는 종류만(위 SELF_CLOAK_UNITS)
           for (let ci9 = 0; ci9 < e.cloaks.length; ci9 += 1) {
             const cc9 = e.cloaks[ci9];
             if (t >= cc9[0] && t < cc9[1]) { cloaked9 = true; break; }
@@ -7444,7 +7453,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
           탐지는 보이게 할 뿐 은신을 푸는 게 아니다. 은신이면 늘 0.4.
        ② 상대 편의 개인 시야에서는 **보는 편의 탐지**가 있어야만 보인다 — 없으면 아예 안 그린다(원작처럼
           안 보이다가, 탐지되면 은신 상태로 나타난다). 전체 보기·제 편은 늘 은신 상태로 보인다. */
-    const cloakedNow9 = e.cloaks.some(([ca, cb]) => t >= ca && t < cb)
+    const cloakedNow9 = (SELF_CLOAK_UNITS.has(drawUnit) && e.cloaks.some(([ca, cb]) => t >= ca && t < cb))
       || drawUnit === "Dark Templar" || drawUnit === "Observer"
       || (drawUnit !== "Arbiter" && arbiterSpots.some((asp) =>
         asp.raw === e.raw && Math.hypot(asp.x - pos.x, asp.y - pos.y) <= 4.5));
@@ -7504,7 +7513,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         if (burrowed) st.push("땅속");
         /* 은신(요청) — 연구로 켠 창(e.cloaks)과 늘 은신인 둘. 아비터 은신장은
            곁 유닛 사정이라 이 자리에서 모른다. */
-        if (e.cloaks.some(([ca2, cb2]) => t >= ca2 && t < cb2)
+        if ((SELF_CLOAK_UNITS.has(e.unit) && e.cloaks.some(([ca2, cb2]) => t >= ca2 && t < cb2))
           || e.unit === "Dark Templar" || e.unit === "Observer") st.push("은신");
         const actSt2 = e.statuses.find(([sa4, sb4]) => t >= sa4 && t < sb4);
         if (actSt2) st.push(STATUS_KO[actSt2[2]] ?? actSt2[2]);
