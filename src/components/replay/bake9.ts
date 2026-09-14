@@ -21196,7 +21196,15 @@ const GLOW_HI9 = new Set<string>(["#fff", ...Object.values(RACE_GLOSS_LIT)]);
 /* ── 긁힌 광택띠(요청: "테란만의 광택 질감 … 긁힌 듯한 광택띠, 금속을 표현해 주는 거") ──
    브러시드 메탈은 **결이 한 방향으로 누운** 금속이다. 그래서 무늬가 화면이 아니라 **낯의
    결**을 따라야 한다 — 글로우가 이미 낯마다 제 축(faceAxis9: 위 모서리 방향)을 재고 있으니
-   그 축 위에 가는 줄 몇 가닥을 눕히면 된다.
+   그 자를 쓴다.
+   ★ 결은 낯의 **세로**로 선다(지적: "결 방향은 수직이 나을 것 같고") — 위 모서리를 따라
+     눕히면 결이 지붕·옆판마다 다른 쪽으로 흘러 판이 미끄러져 보였다. 위 모서리와 **직각**
+     으로 세우면 어느 낯에서도 결이 중력 쪽을 가리켜 한 덩이로 읽힌다.
+   ★ **얇은 선을 많이, 면도 섞는다**(지적) — 가닥의 대부분은 머리카락처럼 얇은 선이고,
+     몇 가닥만 여러 배 굵은 띠(면)다. 굵기가 고르면 줄무늬 천이 되지 청소한 금속이 안 된다.
+   ★ 자리는 **양 끝으로 쏠린다**(지적: "선은 디테일 표시로만, 끝이나 끊어지는 부분에
+     써주면 될 듯") — 고르게 뿌리면 무늬가 되고, 모서리 가까이 모으면 판의 끝과 이음매를
+     짚는 디테일이 된다. −1~1의 자리를 |t|^(1/edge)로 굽혀 양 끝에 모은다.
    ★ 밝은 줄과 **어두운 줄**이 함께 있어야 '긁힌' 것으로 읽힌다. 그런데 이 겹은 마지막에
      "lighter"로 얹히므로 검정은 아무 일도 안 한다(더해도 0이다). 그래서 어두운 줄은
      **깔린 글로우를 파내서**(destination-out) 낸다 — 둘레보다 빛이 덜 오르니 눈에는
@@ -21210,10 +21218,16 @@ const GLOW_HI9 = new Set<string>(["#fff", ...Object.values(RACE_GLOSS_LIT)]);
 export const BRUSH9 = {
   /** 0이면 끔 — 결 한 가닥의 세기(글로우 겹 안에서의 알파). */
   a: 0.8,
-  /** 16-상자 한 칸(1)마다 놓는 가닥 수 — 낯이 클수록 결이 는다. */
-  per: 2,
-  /** 결의 굵기(16-상자 자). */
-  w: 0.06,
+  /** 16-상자 한 칸(1)마다 놓는 가닥 수 — 낯이 넓을수록 결이 는다. */
+  per: 5,
+  /** 얇은 선의 굵기(16-상자 자). */
+  w: 0.022,
+  /** 가닥 중 **면**(넓은 띠)이 될 몫(0이면 선만). */
+  band: 0.22,
+  /** 면의 굵기 배수 — w에 곱한다. */
+  bandW: 7,
+  /** 양 끝 쏠림(1이면 고르게, 클수록 모서리에 모인다). */
+  edge: 2.2,
   /** 어두운 고랑의 몫(0이면 밝은 결만, 1이면 반반) — 파내는 알파에 곱한다. */
   dark: 0.75,
 };
@@ -21381,23 +21395,32 @@ export function glowBake9(
     g2.fillRect(-ax.len, lo9, ax.len * 2, span9x);
     /* ── 긁힌 결 ── 이 낯의 결 방향(= 돌린 자리의 가로)으로 가는 줄을 눕힌다. 밝은 줄은
        더 얹고, 어두운 줄은 깔린 빛을 파내 고랑을 만든다(BRUSH9의 ★). */
-    if (BRUSH9.a > 0 && fl9 === BRUSH_TONE9 && span9x > BRUSH9.w * 3) {
+    if (BRUSH9.a > 0 && fl9 === BRUSH_TONE9 && ax.len > BRUSH9.w * 3) {
       const rnd9 = brushSeed9(d9);
-      const n9 = Math.max(2, Math.round(span9x * BRUSH9.per));
+      const n9 = Math.max(3, Math.round(ax.len * 2 * BRUSH9.per));
+      const ex9 = 1 / Math.max(0.2, BRUSH9.edge);
       for (let i9 = 0; i9 < n9; i9 += 1) {
-        const q9 = lo9 + span9x * ((i9 + rnd9() * 0.9) / n9);
-        const w9 = BRUSH9.w * (0.5 + rnd9() * 1.3);
+        /* −1~1을 굽혀 양 끝으로 민다(지수 < 1이면 가운데가 비고 모서리가 밴다). */
+        const t9 = rnd9() * 2 - 1;
+        const u9 = Math.sign(t9) * Math.abs(t9) ** ex9;
+        const x9 = u9 * ax.len;
+        const wide9 = rnd9() < BRUSH9.band;
+        const w9 = BRUSH9.w * (wide9 ? BRUSH9.bandW * (0.6 + rnd9() * 0.8)
+          : 0.5 + rnd9() * 1.2);
         const s9 = rnd9();
+        /* 면은 선보다 훨씬 옅다 — 같은 세기로 깔면 판이 통째로 하얘진다. */
+        const soft9 = wide9 ? 0.22 : 1;
         if (s9 < 0.5) {
           g2.globalCompositeOperation = "source-over";
-          g2.globalAlpha = k9 * BRUSH9.a * (0.35 + s9);
+          g2.globalAlpha = k9 * BRUSH9.a * soft9 * (0.35 + s9);
           g2.fillStyle = HI9;
         } else {
           g2.globalCompositeOperation = "destination-out";
-          g2.globalAlpha = BRUSH9.a * BRUSH9.dark * (s9 - 0.2);
+          g2.globalAlpha = BRUSH9.a * BRUSH9.dark * soft9 * (s9 - 0.2);
           g2.fillStyle = "#000";
         }
-        g2.fillRect(-ax.len, q9, ax.len * 2, w9);
+        // 결은 낯의 **세로**다 — 위 모서리와 직각으로, 낯의 위 끝에서 아래 끝까지.
+        g2.fillRect(x9 - w9 / 2, lo9, w9, span9x);
       }
       g2.globalCompositeOperation = "source-over";
       g2.globalAlpha = k9;
