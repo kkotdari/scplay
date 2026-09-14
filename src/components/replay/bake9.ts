@@ -21291,79 +21291,50 @@ function brushSeed9(pid: number): () => number {
  *    **가로선이 낯을 온전히 가로지르는** 구간이 곧 그 둘 사이다.
  *  누운 낯은 U·V가 곧 두 모서리라 띠가 저절로 낯을 가로지른다 — 자를 일이 없다. */
 export function faceGrain9(d: string): {
-  /** 줄이 **뻗는** 방향(화면 단위 벡터) — 그 낯의 '세로' 모서리다. */
-  ux: number; uy: number;
-  /** 줄이 **늘어서는** 방향 — 그 낯의 '가로' 모서리다. */
-  vx: number; vy: number;
-  /** 띠가 놓일 수 있는 U 눈금의 양 끝 — aLo가 화면에서 위다. */
+  /** 줄을 늘어놓을 화면 x의 양 끝. */
+  x0: number; x1: number;
+  /** 낯 전체의 화면 y — 옅은 결이 이만큼 뻗는다. */
+  yLo: number; yHi: number;
+  /** 수평 띠가 놓일 수 있는 화면 y — 가로선이 낯을 **온전히 가로지르는** 구간이다. */
   aLo: number; aHi: number;
-  /** 줄을 늘어놓을 V 눈금의 양 끝. */
-  bLo: number; bHi: number;
-  /** 그 V 폭이 **모형에서** 얼마인가 — 긁힌 간격을 물리 값으로 잡는 자다. */
+  /** 그 가로 폭이 **모형에서** 얼마인가 — 긁힌 간격을 물리 값으로 잡는 자다. */
   mB: number;
-  cx: number; cy: number;
 } | null {
   const pts: [number, number][] = [];
   const re9 = /[ML]\s*(-?[\d.]+)[ ,]+(-?[\d.]+)/g;
   let m9 = re9.exec(d);
   while (m9) { pts.push([Number(m9[1]), Number(m9[2])]); m9 = re9.exec(d); }
   if (pts.length < 3) return null;
-  let cx = 0; let cy = 0;
-  for (const [x9, y9] of pts) { cx += x9; cy += y9; }
-  cx /= pts.length; cy /= pts.length;
-  const seg: { dx: number; dy: number; l: number }[] = [];
-  let maxL = 0;
+  let x0 = Infinity; let x1 = -Infinity; let yLo = Infinity; let yHi = -Infinity;
+  for (const [x9, y9] of pts) {
+    if (x9 < x0) x0 = x9;
+    if (x9 > x1) x1 = x9;
+    if (y9 < yLo) yLo = y9;
+    if (y9 > yHi) yHi = y9;
+  }
+  if (!(x1 - x0 > 1e-6) || !(yHi - yLo > 1e-6)) return null;
+  /* 띠의 위아래 끝은 **꼭짓점 y의 둘째·끝에서 둘째**다. 상자의 맨 위에서 띠를 시작하면
+     그 자리는 기운 위 모서리가 지나는 곳이라, 수평 띠가 그 모서리에 잘려 쐐기가 된다. */
+  const ys = pts.map((q9) => q9[1]).sort((p9, q9) => p9 - q9);
+  const aLo = ys[Math.min(1, ys.length - 1)];
+  const aHi = ys[Math.max(0, ys.length - 2)];
+  /* 가로 폭의 **모형 길이** — 그 낯의 가로 모서리는 바닥에 누운 벡터라 화면 (dx, dy)에서
+     모형은 (dx, dy/눌림)이다. 가장 긴 모서리의 기울기를 상자 폭에 실어 되돌린다. */
+  const sq9 = groundSquashNow() || 0.45;
+  let bx9 = 0; let by9 = 0; let bl9 = 0;
   for (let i = 0; i < pts.length; i += 1) {
     const a9 = pts[i];
     const b9 = pts[(i + 1) % pts.length];
     const dx = b9[0] - a9[0];
     const dy = b9[1] - a9[1];
-    const l = Math.hypot(dx, dy);
-    if (l > 1e-6) { seg.push({ dx, dy, l }); maxL = Math.max(maxL, l); }
+    const l9 = Math.hypot(dx, dy);
+    if (Math.abs(dx) / (l9 || 1) >= 0.12 && l9 > bl9) { bl9 = l9; bx9 = dx; by9 = dy; }
   }
-  if (!seg.length || maxL <= 0) return null;
-  const long = seg.filter((e) => e.l >= maxL * 0.25);
-  /* ★ 결은 **그 낯에 붙은 데칼**이다(지적: "스크래치는 면의 데칼 같은 거야. 근데 카메라에
-     따라 왜 원근도 요·롤·피치도 안 먹냐고") — 그러니 자를 화면에서 가져오면 안 된다.
-     낯이 평면 다각형이면 **제 모서리 둘이 곧 그 평면의 두 축**이고, 그 둘은 이미 투영을
-     지나왔다. 그 자로 그리면 요잉·피치·눌림이 전부 저절로 실린다: 낯이 돌면 결도 돌고,
-     낯이 눌리면 결도 눌린다. 여태는 벽에서 자를 화면 세로·가로로 **덮어썼다** — 그래서
-     결만 카메라를 안 따랐다.
-     ★ 어느 모서리가 '세로'인가는 **모형의 성질**로 고른다(화면으로 고르면 어느 각에서
-       차례가 뒤집혀 결이 홱 돈다 — 앞서 겪은 버그다):
-         · 화면 x가 0인 모서리가 있으면 그것이 **세계의 수직**이다(이 투영에서 z는 화면 x에
-           한 톨도 안 실린다). 벽·기둥이 여기 든다.
-         · 없으면(누운 낯) 모형에서 **더 짧은 쪽**을 세로로 삼는다. 긴 쪽은 대개 앞뒤라
-           정면에서 화면 세로로 서서 벽의 결과 한 줄로 이어진다.
-       모형 길이는 화면에서 되돌린다: 바닥에 누운 벡터 (X, Y)는 화면에 (X, Y·눌림)으로
-       실리므로 모형 길이는 hypot(dx, dy/눌림)이고, 요잉은 그 값을 안 바꾼다. */
-  const sq9 = groundSquashNow() || 0.45;
-  const mlen9 = (e: { dx: number; dy: number }): number => Math.hypot(e.dx, e.dy / sq9);
-  const vert9 = long.filter((e) => Math.abs(e.dx) / e.l < 0.12);
-  const base = vert9.length
-    ? vert9.reduce((p9, q9) => (q9.l > p9.l ? q9 : p9), vert9[0])
-    : long.reduce((p9, q9) => (mlen9(q9) < mlen9(p9) ? q9 : p9), long[0]);
-  const bux = base.dx / base.l; const buy = base.dy / base.l;
-  let other = long.find((e) => Math.abs((e.dx * bux + e.dy * buy) / e.l) < 0.85);
-  if (!other) other = { dx: -buy * base.l, dy: bux * base.l, l: base.l };
-  let ux = bux; let uy = buy;
-  const vx = other.dx / other.l; const vy = other.dy / other.l;
-  // U는 화면 아래를 향하게 둔다 — 그래야 aLo가 늘 '위'다.
-  if (uy < 0) { ux = -ux; uy = -uy; }
-  const det = ux * vy - uy * vx;
-  if (Math.abs(det) < 1e-6) return null;
-  let aLo = Infinity; let aHi = -Infinity; let bLo = Infinity; let bHi = -Infinity;
-  for (const [x9, y9] of pts) {
-    const px = x9 - cx; const py = y9 - cy;
-    const a9 = (px * vy - py * vx) / det;
-    const b9 = (py * ux - px * uy) / det;
-    aLo = Math.min(aLo, a9); aHi = Math.max(aHi, a9);
-    bLo = Math.min(bLo, b9); bHi = Math.max(bHi, b9);
-  }
-  if (!(aHi - aLo > 1e-6) || !(bHi - bLo > 1e-6)) return null;
+  const sl9 = Math.abs(bx9) > 1e-6 ? by9 / bx9 : 0;
   return {
-    ux, uy, vx, vy, aLo, aHi, bLo, bHi,
-    mB: (bHi - bLo) * Math.hypot(vx, vy / sq9), cx, cy,
+    x0, x1, yLo, yHi,
+    aLo: aHi - aLo > 1e-6 ? aLo : yLo, aHi: aHi - aLo > 1e-6 ? aHi : yHi,
+    mB: (x1 - x0) * Math.hypot(1, sl9 / sq9),
   };
 }
 /** 판 한 장에 글로우를 굽는다 — 면을 다 칠한 **뒤** 부른다.
@@ -21408,7 +21379,7 @@ export function glowBake9(
      16화소만 잘라 아무것도 안 그려진다. 부르는 쪽의 변환을 그대로 얹는다. */
   g2.setTransform(prev);
   /* 화면에서의 광원 방향 — 판 하나에 한 번만 잰다(모형이 돌아도 빛은 세계에 고정이다). */
-  const [lgx9, lgy9] = lightScreenDir();
+  const [, lgy9] = lightScreenDir();
   const HI9 = `rgba(${GLOW9.hue}, ${GLOW9.glow})`;
   const FL9 = `rgba(${GLOW9.hue}, ${GLOW9.glow * GLOW9.flat})`;
   /** 결의 밝은 줄 — 겹의 천장을 다 쓴다(글로우 몫에 안 눌린다). */
@@ -21436,7 +21407,7 @@ export function glowBake9(
     if (!(k9 > 0)) continue;
     const gr9 = faceGrain9(d9);
     g2.globalAlpha = k9;
-    if (!gr9 || Math.max(gr9.aHi - gr9.aLo, gr9.bHi - gr9.bLo) < minS9) {
+    if (!gr9 || Math.max(gr9.aHi - gr9.aLo, gr9.x1 - gr9.x0) < minS9) {
       // 너무 작은 낯은 고른 몫만 — 띠를 앉힐 자리가 없다.
       if (shady9) continue;
       g2.fillStyle = FL9;
@@ -21451,31 +21422,27 @@ export function glowBake9(
       g2.fillStyle = FL9;
       g2.fill(pa9);
     }
-    /* ② 광택 띠 + 결 — 낯의 자(U·V)로 옮겨 앉는다. 벽에서는 U가 화면 세로 · V가 화면
-       가로라 줄은 정확히 수직이고 띠는 정확히 수평이다. 누운 낯에서는 U·V가 그 낯의
-       두 모서리라, 결이 면의 기울기를 타고 눕되 향하는 결은 벽과 같다. */
-    g2.transform(gr9.ux, gr9.uy, gr9.vx, gr9.vy, gr9.cx, gr9.cy);
+    /* ② 광택 띠 + 결 — 둘 다 **화면 자**로 고정이다(요청: "방향은 정면 위에서 봤을 때
+       세로로 고정, 요잉을 해도 고정"). 곧 줄은 늘 수직이고 띠는 늘 수평이다. 낯의 축을
+       따라 눕히던 것을 걷었다 — 눕히면 지붕·옆판마다 결이 딴 쪽으로 흘러 판이 미끄러진다. */
     const aH9 = gr9.aHi - gr9.aLo;
-    /* 띠의 **자리는 빛**이 정한다(BRUSH9의 ★④) — 결 축 U를 화면 광원 방향 L과 재어
-       (1 + L·U)/2를 한가운데로 삼고, 낯 안에 들도록 끝을 민다. */
-    const lu9 = Math.max(-1, Math.min(1, lgx9 * gr9.ux + lgy9 * gr9.uy));
-    const cU9 = 0.5 + (lu9 / 2) * BRUSH9.lit;
+    /* 띠의 **자리는 빛**이 정한다 — 화면 광원의 세로 몫으로 낯 안에서 위아래로 민다. */
+    const cU9 = 0.5 + (Math.max(-1, Math.min(1, lgy9)) / 2) * BRUSH9.lit;
     let aA9 = gr9.aLo + aH9 * Math.max(0, Math.min(1 - BRUSH9.h, cU9 - BRUSH9.h / 2));
     const aB9 = aA9 + aH9 * BRUSH9.h;
     if (aB9 > gr9.aHi) aA9 = gr9.aHi - aH9 * BRUSH9.h;
     if (BRUSH9.a > 0 && (fl9 === BRUSH_TONE9 || shady9)) {
-      /* 씨앗은 **부품 번호**다 — 요잉이 바뀌어도 같은 부품이면 같은 결이다(BRUSH9의 ★①). */
+      /* 씨앗은 **부품 번호**다 — 요잉이 바뀌어도 같은 부품이면 같은 결이다. */
       const rnd9 = brushSeed9(f9[5] ?? (i9f + 1));
-      const wB9 = gr9.bHi - gr9.bLo;
-      /* 낱수는 **모형 폭 ÷ 간격**이다(★⑤) — 요잉이 모형 폭을 안 바꾸므로 각을 안 탄다. */
+      const wB9 = gr9.x1 - gr9.x0;
+      /* 낱수는 **모형 폭 ÷ 간격**이다 — 요잉이 모형 폭을 안 바꾸므로 각을 안 탄다. */
       const n9 = Math.max(3, Math.min(160, Math.round(gr9.mB / BRUSH9.pitch)));
-      /** 모형 자 → 화면 V 눈금(낯이 비스듬할수록 작아진다 = 원근). */
+      /** 모형 자 → 화면 자(낯이 비스듬할수록 작아진다 = 원근). */
       const mk9 = wB9 / Math.max(1e-4, gr9.mB);
       for (let i9 = 0; i9 < n9; i9 += 1) {
-        const b9 = gr9.bLo + wB9 * ((i9 + rnd9() * 0.85) / n9);
+        const b9 = gr9.x0 + wB9 * ((i9 + rnd9() * 0.85) / n9);
         const wide9 = rnd9() < BRUSH9.band;
-        /* 굵은 줄 중 몇은 **면**으로 읽히게 꽉 채운다(요청) — 나머지 굵은 줄은 옅게 깐다.
-           굵은 줄을 죄다 제 세기로 깔면 띠가 통째로 하얘진다. */
+        /* 굵은 줄 중 몇은 **면**으로 읽히게 꽉 채운다 — 나머지 굵은 줄은 옅게 깐다. */
         const solid9 = wide9 && rnd9() < BRUSH9.solid;
         const w9 = mk9 * BRUSH9.w * (wide9 ? BRUSH9.bandW * (0.6 + rnd9() * 0.8)
           : 0.45 + rnd9() * 1.1);
@@ -21491,12 +21458,12 @@ export function glowBake9(
           g2.globalCompositeOperation = "destination-out";
           g2.fillStyle = "#000";
         }
-        /* 결은 낯 **전체**에 있고(옅게), 광택 띠 안에서만 환하다(★③). */
+        /* 결은 낯 **전체**에 있고(옅게), 광택 띠 안에서만 환하다. */
         g2.globalAlpha = al9 * BRUSH9.dim;
-        g2.fillRect(gr9.aLo, b9 - w9 / 2, gr9.aHi - gr9.aLo, w9);
+        g2.fillRect(b9 - w9 / 2, gr9.yLo, w9, gr9.yHi - gr9.yLo);
         if (!shady9) {
           g2.globalAlpha = al9 * (1 - BRUSH9.dim);
-          g2.fillRect(aA9, b9 - w9 / 2, aB9 - aA9, w9);
+          g2.fillRect(b9 - w9 / 2, aA9, w9, aB9 - aA9);
         }
       }
       g2.globalCompositeOperation = "source-over";
@@ -21505,7 +21472,7 @@ export function glowBake9(
       /* 테란이 아닌 낯은 결이 없다 — 띠 자리에 옛 광택만 얹는다. */
       g2.fillStyle = HI9;
       g2.globalAlpha = k9 * 0.7;
-      g2.fillRect(aA9, gr9.bLo, aB9 - aA9, gr9.bHi - gr9.bLo);
+      g2.fillRect(gr9.x0, aA9, gr9.x1 - gr9.x0, aB9 - aA9);
       g2.globalAlpha = k9;
     }
     g2.restore();
