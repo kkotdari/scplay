@@ -1,0 +1,37 @@
+/* 총구 앵커표 — **미리 구운 것**(자동 생성) ──────────────────────────────────────────
+ *  만드는 법: `node scripts/muzzle-table.mjs` · 검사: `node scripts/muzzle-table.mjs --check`
+ *  손으로 고치지 않는다 — 값은 빌더의 markMuzzle9(bake9)가 적은 점이다(모형 좌표 [x(우), y(앞), z(위)],
+ *  빌더를 감싼 배율·옮김·회전을 거친 판의 자). 엔진(engine9 MUZZLE_ANCHOR)이 손 표 위에 덮어쓴다.
+ *  ★ 모델을 고치면 이 표도 다시 뽑는다. 검사 모드가 어긋남을 잡는다. */
+export const MUZZLE_GEN9: Record<string, [number, number, number]> = {
+  arbiter: [0, 1.3, 2.56],
+  bc: [0, 4.93, 4.59],
+  corsair: [0, 2.28, 5.43],
+  defiler: [0, 1.93, 1.48],
+  devourer: [0, 2.5, 4.43],
+  drone: [0, 1.22, 4.18],
+  droneGas: [0, 1.22, 4.18],
+  droneHold: [0, 1.22, 4.18],
+  droneMin: [0, 1.22, 4.18],
+  fbat: [0, 2.82, 2.5],
+  ghost: [0.4, 3.6, 3.42],
+  goliath: [0, 3.52, 5.15],
+  goon: [0, 1.6, 5.1],
+  guardian: [0, 1.93, 7.75],
+  gunner: [-0.43, 2.76, 3.43],
+  hydra: [0, 3.2, 5.75],
+  inf: [-0.97, 1.37, 1.15],
+  lurker: [0, 2.37, 3.05],
+  muta: [0, 0.85, 5.91],
+  queen: [0, 3.19, 8.49],
+  reaver: [0, 2.81, 1.07],
+  scout: [0, 4.5, 6.83],
+  tank: [0.42, 3.02, 3.45],
+  tanksiege: [0, 3.73, 5.07],
+  ultra: [0, 4.13, 4.05],
+  valk: [0, 3.5, 5.4],
+  vulture: [0, -0.5, 5.45],
+  wraith: [0, 3.1, 3.88],
+  zealot: [2.45, 2.5, 1.96],
+  zling: [0, 2.17, 1.74],
+};

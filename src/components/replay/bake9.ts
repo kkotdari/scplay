@@ -6,7 +6,7 @@ import { GAP9, pNow } from "./perf9";
 import { cx } from "./cx";
 import { TIER_GEN9 } from "./tierTable.gen";
 import { kT } from "../../utils/openbwTracks";
-import { FACE_GRAIN9, loftZFaces, annulusPath, bandPath, bodyFace, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
+import { FACE_GRAIN9, loftZFaces, modelPoint9, annulusPath, bandPath, bodyFace, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
 import { BUILD_STAGES, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, SPIN_STEPS, bldNormOf, modelInkOf, modelNormOf } from "./engine9";
 import { type UnitDrawOp } from "./engine9";
 /** 주소 해시(`#pitch=`·`#nocreep` 같은 진단 스위치) — 굽기 일꾼 안에서는 location.hash가 빈 문자열(blob 주소)이라,
@@ -512,6 +512,28 @@ export function winRow(
     }
   }
   return faces;
+}
+/* ── 총구 표식(요청: "트레이서들 시작점을 실제 총구나 포구 입 등으로 맞추는 작업") ────────
+   여태 총구 앵커(engine9 MUZZLE_ANCHOR)는 빌더의 부품 좌표를 **손으로 베껴 적은 표**였다.
+   그 뒤 모델이 여러 번 다시 짜이면서(배율·옮김·회전 감싸기, 부품 재배치) 표는 그대로
+   남아, 마린의 총구가 몸 두 칸 밖 허공에 서 있었다(muzzle-sheet로 실측).
+   이제 **빌더가 제 총구를 스스로 적는다** — 총열·포신을 짜는 그 줄에서 markMuzzle9로
+   끝점을 찍으면, 그 점이 빌더를 감싼 withModelScale·Shift·Spin을 거친 판의 모형 좌표로
+   기록된다(modelPoint9). 표는 빌드 시각에 뽑는다(scripts/muzzle-table.mjs →
+   muzzleTable.gen.ts) — 엔진(일꾼)은 bake9를 못 들므로 값만 받는다.
+   ★ 모델을 고치면 등급표처럼 이 표도 다시 뽑는다(--check가 어긋남을 잡는다). */
+export const MUZZLE_PROBE9: { p: [number, number, number] | null; hard: boolean } = { p: null, hard: false };
+/** 빌더 안에서 총구(포구·입) 끝점을 적는다 — 그 빌더의 부품 좌표 그대로 준다. 한 빌더에
+ *  여러 총구가 있으면(골리앗 두 포드) 그 가운데를 주거나 대표 하나를 준다. */
+export function markMuzzle9(x: number, y: number, z: number): void {
+  MUZZLE_PROBE9.p = modelPoint9(x, y, z);
+  MUZZLE_PROBE9.hard = true;
+}
+/** 공용 부품(저그 얼굴)이 적는 **무른** 표식 — 빌더가 명시한 표식이 있으면 물러나고, 한 판에
+ *  여러 번 불리면 첫 것만 남는다(러커의 둘째 작은 얼굴처럼 곁 부품이 덮어쓰지 않게). */
+export function markMuzzleSoft9(x: number, y: number, z: number): void {
+  if (MUZZLE_PROBE9.p) return;
+  MUZZLE_PROBE9.p = modelPoint9(x, y, z);
 }
 export let poseNow = 0;
 /** SCV가 자원을 안고 있는가(요청: "scv 가스나 미네랄 들때는 팔을 안으로 굽혀서 들기")
@@ -2346,6 +2368,8 @@ export function zergEyes(y: number, z: number, sp: number, r: number, lift = 3):
  *  tagKey로 감싸면 된다. 그때도 머리뼈 → 턱 → 입선 → 부리 → 송곳니 → 눈 차례다. */
 export function zergFace(y: number, z: number, s = 1, fill = ZERG_FLESH): ShapeFace[] {
   const out: ShapeFace[] = [];
+  // 아가리 — 이 얼굴을 쓰는 저그의 '총구'다(가시·산·촉수가 여기서 난다). 빌더가 따로 적으면 그쪽이 이긴다.
+  markMuzzleSoft9(0, y + 0.55 * s, z + 0.1 * s);
   /* ★ 그리는 차례는 **턱 → 아가리 → 머리뼈**다(지적: "저그 공통 머리의 윗턱 윗면이
      비쳐보이는거 같아") — 이 얼굴은 호출자가 통째로 한 키로 감싸므로 배열 차례가 곧
      앞뒤다. 여태 머리뼈를 먼저 그렸는데, 턱은 위가 넓은 절두체라 그 윗면이 카메라를
@@ -3165,6 +3189,7 @@ export function tankTurretV2(siege: boolean, parts?: { body?: boolean; barrel?: 
       if (a1 - a0 > 0.05) out.push(...tagKey(paintBase(tubeFaces(bx, a0, bx, a1, 0.3 * BX9, bz9), GUNMETAL), kB));
       const b0 = Math.max(root9, 2.45 * BX9 - rc9); const b1 = 3.0 * BX9 - rc9;
       if (b1 - b0 > 0.05) out.push(...tagKey(paintBase(tubeFaces(bx, b0, bx, b1, 0.38 * BX9, bz9, fwd9), GUNMETAL), kB + 0.05));
+      if (m > 0) markMuzzle9(bx, 3.0 * BX9 - rc9, bz9);   // 오른 포신 끝(전환 홑판에서는 뽑힌 몫과 무관하게 제 끝)
     }
   } else {
     // ④ 시즈 모드 — 돌아앉은 본체의 긴 앞면에서 굵고 긴 포신 하나(기울여 살짝 하늘을 본다). 반동 1.1.
@@ -3180,6 +3205,7 @@ export function tankTurretV2(siege: boolean, parts?: { body?: boolean; barrel?: 
         T9(0, (1.0 + 3.04 * extS9 * t9) * BX9 - rcS9, ZB9 + (Z0 + 1.0 + rise9 * extS9 * t9 - ZB9) * BX9),
       widthOf: (t9: number): number => (0.6 - 0.07 * extS9 * t9) * BX9,
     }), TANK_STEEL), kT(0, 2.0 * BX9) + 0.2));
+    markMuzzle9(...T9(0, (1.0 + 3.04 * extS9) * BX9 - rcS9, ZB9 + (Z0 + 1.0 + rise9 * extS9 - ZB9) * BX9));   // 소염기 끝
   }
   return out;
 }
@@ -12458,6 +12484,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     out.push(...tagKey(tubeFaces(0, -1.62, 0, -1.03, 0.62, 5.5), depthNow(0, -1.32) * 1.6 + 3));   // 임자색 띠
     out.push(...tagKey(paintBase(tubeFaces(0, -1.05, 0, -0.5, 0.62, 5.5), BRASS9),
       depthNow(0, -0.78) * 1.6 + 3));
+    markMuzzle9(0, -0.5, 5.5);   // 유탄 발사기 드럼의 앞끝
     out.push(...tagKey(paintBase(tubeFaces(0, -3.35, 0, -2.9, 0.5, 5.5, true), "#8f6f30"),
       depthNow(0, -3.1) * 1.6 + 3));
     /* 탄 사람 — 갑판 위로 나온 상반신만. 웅크려 앞으로 기운 몸통 + 헬멧 + 앞으로
@@ -12624,6 +12651,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         out.push(...tagKey(paintBase([
           ...tubeFaces(bx9, 3.16 - rc9, bx9, 3.52 - rc9, 0.28, bz9, true),
         ], GUNMETAL), key + 0.6));
+        if (m > 0) markMuzzle9(0, 3.52 - rc9, bz9);   // 소염기 끝 — 두 포드의 가운데(lanes9가 좌우로 가른다)
       }
     }
     /* **헬파이어 미사일 팩**(자료) — 어깨 위에 얹힌 발사대 한 쌍.
@@ -12669,6 +12697,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       0, Y09 - LEN9 * u9,
       0.72 + (2.1 + bd9 * 0.5) * Math.sin(Math.PI * Math.min(1, u9 ** 0.85)) + 0.4 * u9,
     ];
+    markMuzzle9(...SP9(0.03));   // 앞 집게 — 스캐럽이 나는 자리
     /** 그 자리의 반폭 — 앞이 좁고 한가운데가 가장 넓으며 꽁무니는 둥글게 닫힌다. */
     // 앞뒤로 갈수록 더 좁아진다(재요청) — 앞 1.68 → 1.14, 꽁무니 1.36 → 0.95, 허리 2.15 그대로.
     const W9 = (u9: number): number => 0.55 + 1.6 * Math.sin(Math.PI * (0.12 + 0.8 * u9));
@@ -12776,6 +12805,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       key9(0, 0.35, 4.7)));
     out.push(...tagKey(raceBase(tubeFaces(0, 0.35, 0, 3.1, 0.34, 3.88, true), "terran")   /* 기본색(요청) */,
       key9(0, 1.7, 3.88)));
+    markMuzzle9(0, 3.1, 3.88);   // 포신 끝
     /* 동체도 **여러 도막으로 나눠 단다**(발키리와 같은 사정 — 그쪽 주석 참고): 경로로 그린
        기둥은 키가 늘 depthNow(0,0)=0이라 길이 4.6짜리 몸이 깊이 0인 점으로 취급된다. */
     const hullPath9 = (t9: number): [number, number, number] => [
@@ -13139,6 +13169,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* ⑧ 야마토 포문 — 머리 앞면 가운데. 앞면 벽 데칼이라 요잉과 함께 돌고, 뒤에선 몸에 가려
        안 그린다. 테를 두 겹으로 둔다(바깥 어두운 테 + 안쪽 밝은 테) — 한 겹이면 구멍이
        벽에 뚫린 점으로만 보이고, 두 겹이면 포문이 벽에서 **파여 들어간** 것으로 읽힌다. */
+    markMuzzle9(0, 4.93, 5.8);   // 야마토 포문
     if (facingRatio(0, 1) > -0.05) {
       const k9 = Math.min(1, (facingRatio(0, 1) + 0.05) / 0.4);
       out.push(...tagKey([
@@ -13240,6 +13271,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       [[-1.265, 1.7, Z(6.284)], [1.265, 1.7, Z(6.284)], [1.034, 2.8, Z(5.964)], [0.605, 3.5, Z(5.35)],
         [-0.605, 3.5, Z(5.35)], [-1.034, 2.8, Z(5.964)]],
       0, 2.6), "terran"), key9(0, 2.6, Z(5.45))));
+    markMuzzle9(0, 3.5, Z(5.29));   // 부리 끝
 
     /* 중간동체 양옆의 **노출 포신 둘**(재지적: 포드가 아니라 포신) — 상자 옆구리를 따라
        가운데 동체 길이(y −0.6~1.7)만큼 길게 뻗고 위아래로 둘씩 겹친다. 반지름 0.17. */
@@ -13663,6 +13695,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         widthOf: (t9: number): number => 0.32 + 0.73 * t9,
         fill: "#6b4732",
       }), depthNow(0, 1) * 1.6 + 12),
+      ...((): ShapeFace[] => { markMuzzle9(0, 0.85, 6.2); return []; })(),   // 입 — 머리 앞아래
       /* 몸통 꼭대기의 동그란 머리와 작은 가시 둘(요청) — 기둥 끝(x 0 · y 0.1 · z 6.9)에
          반구를 씌워 머리로 만들고, 그 뒤위로 짧은 상아 가시 한 쌍을 세운다. 기둥이
          앞으로 휘어 끝이 y 0.1에 있으므로 머리도 그 자리에 앉힌다. */
@@ -14150,6 +14183,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const up9For = (m8: 1 | -1) => (x: number, y: number, z: number): [number, number, number] => [
           m8 * 1.0 + upArmK9 * (x - m8 * 1.0), -0.6 + upArmK9 * (y + 0.6), 5.9 + upArmK9 * (z - 5.9),
         ];
+        { const cp9 = up9For(1)(1.0, 3.0, 5.3); markMuzzle9(0, cp9[1], cp9[2]); }   // 팔 끝 플라즈마 둘의 가운데
         return [
           ...([1, -1] as const).flatMap((m8): ShapeFace[] => {
             const up9 = up9For(m8);
@@ -14243,6 +14277,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       0, -2.9 + 7.4 * t9, 6.0 + 0.18 * Math.sin(Math.PI * t9),
     ];
     const hullW9 = widthCurve([[0, 0.55], [0.32, 1.05], [0.72, 0.82], [1, 0.14]]);
+    markMuzzle9(...hullPath9(1));   // 코끝
     for (const [t0, t1, cap9] of [
       [0, 0.5, "bottom"], [0.5, 1, "top"],
     ] as [number, number, "bottom" | "top"][]) {
@@ -14881,6 +14916,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        spread < 1이 곧 '위아래로 길고 좌우로 얇다'다.
        길이 절반(요청)은 그대로 지킨다: 코 y 1.22 · 꼬리 y −1.8. */
     const ARB_WING_X = 0.58;
+    markMuzzle9(0, 1.3, 5.9);   // 코앞 렌즈
     const wing = (m2: 1 | -1): ShapeFace[] => leafFaces({
       // 등뼈 — 코(앞)에서 꼬리(뒤)로. 가운데가 살짝 위로 볼록하다.
       /* 몸이 1/3로 줄었으니 날개를 안으로 당기고 도톰하게 한다 — 안 그러면 초승달
@@ -16689,6 +16725,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const A = at9(0.34);
         const B = at9(1.15);
         const N = at9(1.65);
+        markMuzzle9(N[0], N[1], N[2]);   // 바늘 끝
         return tagKey([
           ...paintBase(rodFaces(A[0], A[1], A[2], B[0], B[1], B[2], 0.17), WHITE),
           ...paintBase(rodFaces(A[0] - 0.19, A[1], A[2] + 0.05,
@@ -16755,6 +16792,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       GB9[1] + (GM9[1] - GB9[1]) * t9 * GL9 - kick + sway,
       GB9[2] + (GM9[2] - GB9[2]) * t9 * GL9 + dz,
     ];
+    markMuzzle9(...GP9(0.95));   // 총구 — 총열 끝(아래 GP9(0.8 + 0.15))
     return [
       /* 다리도 짙은 은색 — suitLegs의 셋째 자리(_kneeFill)는 지금 쓰이지 않는 값이라
          (그 함수의 이름 앞 밑줄) 여기 은색을 적어 두어도 아무 데도 안 든다. 고스트가
@@ -16958,6 +16996,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          ★ 평상시에는 **어깨 뒤로 멘다**(요청: "고스트 평상시 총 어깨뒤로 메고 다님")
            — 겨눈 자세와 멘 자세는 축이 아예 다르므로(멘 총은 등을 가로질러 비스듬히
            선다) 두 벌을 따로 짠다. 멘 총은 3차원 막대(rodFaces)라야 그 기울기가 난다. */
+      ...((): ShapeFace[] => { markMuzzle9(0.4, 3.6 - kick, 3.42 + dz); return []; })(),   // 총구 — 겨눈 총열 끝
       ...(at
         ? paintBase([
           ...boxFaces3(0.4, 0.85 - kick, 0.3, 1.4, 0.34, 3.25 + dz, ),
@@ -17101,6 +17140,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const y0 = (m9 < 0 ? lp(0.92, 1.36) : lp(1.28, 1.95)) + thr + sway;
         const y1 = y0 + 1.5;
         const gz9 = lp(2.5, 2.99) + dz;
+        if (m9 > 0) markMuzzle9(0, y1 + 0.04, gz9);   // 노즐 끝 — 두 자루의 가운데
         return tagKey([
           ...paintBase([
             ...tubeFaces(gx9, y0, gx9, y1, 0.26, gz9, true),
@@ -17507,6 +17547,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           const L = Math.hypot(dx, dy, dz) || 1;
           const b0: [number, number, number] = [hd[0] + (dx / L) * 0.05, hd[1] + (dy / L) * 0.05, hd[2] + (dz / L) * 0.05 + 0.1];
           const b1: [number, number, number] = [hd[0] + (dx / L) * 2.8, hd[1] + (dy / L) * 2.8, hd[2] + (dz / L) * 2.8 + 0.1];
+          if (m9 > 0) markMuzzle9(b1[0], b1[1], b1[2]);   // 검 끝
           return tagKey(plasmaBlade(b0, b1, 0.95, P_PLASMA, 0.8),
             depthNow((b0[0] + b1[0]) / 2, (b0[1] + b1[1]) / 2) * 1.6 + 1.2);
         })(),
@@ -17947,6 +17988,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          그 둘레로 임자 색 띠가 드러나는데, 1.6은 그 띠가 실낱이었다. 1.85면 갑각 밖으로
          0.6이 남아 위에서 내려다보는 화면에서도 색이 읽힌다. 키도 한 뼘 올려(1.5 → 1.68)
          띠가 세로로도 두툼해진다. */
+      ...((): ShapeFace[] => { markMuzzle9(0, 1.6, 5.1); return []; })(),   // 껍데기 앞면(해치) — 분열탄이 나는 자리
       ...domeFaces3(0, -0.1, 1.85, 1.68, 4.35),
       /* ★ 몸통 사방의 **개인색 판 넷**(요청: "몸통 사방에(다리와 다리 사이) 개인색 파트
          추가 — 사진 참고") ────────────────────────────────────────────────────────────
@@ -18606,6 +18648,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         : 0.85 - 0.34 * ((t9 - 0.74) / 0.26));
     /** 머리 뿌리 — 목 끝 자리. 얼굴·머리장식이 여기서 난다. */
     const headAt = body(1);
+    markMuzzle9(0, headAt[1] + 0.25 + 0.7, headAt[2] - 0.45);   // 아가리 — 가시가 나는 자리
     const out: ShapeFace[] = [];
     /* ① 몸 한 획 — 배(앞)는 밝은 살, 등(뒤)은 짙은 살. 이음매가 없으니 색결도 안 끊긴다. */
     out.push(...tagKey(spirePillar({

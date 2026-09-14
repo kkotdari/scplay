@@ -14,6 +14,7 @@ import { type TruthWorld } from "../../utils/truthLives";
 import { posAtTruth as posAtSim, kN, kS, type TruthTrack, type TruthTracks, TRUTH_ST_CARRY_GAS as ST_CARRY_GAS, TRUTH_ST_CARRY_MIN as ST_CARRY_MIN, TRUTH_ST_BURROW as ST_BURROW, TRUTH_ST_FIGHT as ST_FIGHT, TRUTH_ST_GATHER as ST_GATHER, TRUTH_ST_INSIDE as ST_INSIDE, TRUTH_ST_MOVE as ST_MOVE, kT, tkN, tkT, tkV, tkAt, tkLast, EMPTY_TICKS, type Ticks } from "../../utils/openbwTracks";
 import { posAtW, wT, wX, wY, EMPTY_WALK, type WalkView, type TrackPos } from "../../utils/replayTrack";
 import { project, withPitchView, withTopView, withViewShear, withYaw, yawBucket9, BLD_YAW9 } from "../../utils/shapeOblique";
+import { MUZZLE_GEN9 } from "./muzzleTable.gen";
 import { TEAM_COLOR } from "./markers";
 
 
@@ -749,7 +750,12 @@ export const DEF_FIRE = new Set([
    부위(탱크 포신·히드라 입·마린 총구·매딕 주사기)다. 좌표는 각 빌더의 해당 부품
    좌표에서 따 왔고(마린·고스트는 빌더의 총구 캡 그대로), 표에 없는 유닛만 예전 픽셀
    오프셋(MUZZLE_PX)으로 물러난다. */
-export const MUZZLE_ANCHOR: Record<string, [number, number, number]> = {
+/* ★ 이제 값의 임자는 **빌더**다(요청: "트레이서 시작점을 실제 총구·포구에 맞추는 작업") — 여기
+   손으로 적은 표는 모델이 다시 짜일 때마다 낡았다(muzzle-sheet 실측: 마린 총구가 몸 두 칸 밖).
+   빌더가 markMuzzle9로 적은 점을 빌드 시각에 모은 표(muzzleTable.gen.ts)가 아래 손 표 위에
+   덮어쓰이고, 손 표는 아직 표식이 없는 종류(아콘·캐리어)의 값만 낸다. 모델을 고치면
+   `node scripts/muzzle-table.mjs`로 다시 뽑는다(--check가 어긋남을 잡는다). */
+const MUZZLE_HAND9: Record<string, [number, number, number]> = {
   gunner: [0.15, 2.7, 3.35], ghost: [0.4, 3.6, 3.42], fbat: [0.52, 3.4, 3.15],
   inf: [1.22, 2.05, 3],
   // 탱크 둘은 포탑을 원점에 맞추며 포신이 옮겨졌다(위 tankTurret·siegeTurret 주석) —
@@ -782,6 +788,7 @@ export const MUZZLE_ANCHOR: Record<string, [number, number, number]> = {
   archon: [0, 0, 4.4], reaver: [0, 3.6, 2.4],
   scout: [0, 3.4, 3], corsair: [0, 3.2, 3], carrier: [0, 4.4, 3.6], arbiter: [0, 3.4, 3.4],
 };
+export const MUZZLE_ANCHOR: Record<string, [number, number, number]> = { ...MUZZLE_HAND9, ...MUZZLE_GEN9 };
 /* 방어 건물의 총구 앵커 — 모델 이름(SHAPE_KIND) → 모델 공간 [x(우), y(앞), z(위)].
    좌표는 저마다 제 빌더에서 따 왔다: 포톤은 가운데 포탑 꼭대기의 주사바늘(hornFaces
    끝 z 7.6), 성큰은 가운데 촉수의 아가리(capFace discPath3(0.35, 0.15, 3.7)), 스포어는
@@ -814,7 +821,13 @@ export function muzzlePoint(
   kind: string, rotDeg: number | undefined, viewYaw: number | undefined, pitch: boolean,
 ): [number, number] | null {
   const a = MUZZLE_ANCHOR[kind];
-  return a ? anchorPoint(a, rotDeg, viewYaw, pitch) : null;
+  /* ★ 평면(2D) 보기는 **부감 판**을 탄다(요청: "트레이서 시작점을 실제 총구·포구에 맞추는
+     작업") — 유닛 판은 flat이면 withTopView로 굽는데(unitSprite의 op.flat), 여기서는 그
+     몫을 안 태우고 있었다. 부감은 눌림(TOP_SIN9)과 높이 배수(TOP_COS9·누름)가 기본
+     사영과 다르므로, 앵커의 화면 y가 판의 그 부위와 **체계적으로** 어긋났다 — 총구
+     높이(z)가 큰 유닛일수록 시작점이 몸 위쪽 허공에 떴다. 건물 쪽(muzzleAt9)은 처음부터
+     !pitched를 넘기고 있었고, 유닛만 빠져 있었다. */
+  return a ? anchorPoint(a, rotDeg, viewYaw, pitch, !pitch) : null;
 }
 /** 이미 선 건물이 바뀌어 되는 건물들 — 여기 드는 공사는 고치가 **안 자란다**(지적:
  *  "드론에서 변태시엔 커져야하고 그냥 건물간 변태는 그대로"). 드론이 녹아 되는 건물만
@@ -7704,6 +7717,8 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
     /* 포탑 판(요청: 발포 시 포탑·포신만 움직임) — 쏘는 박자(1.5초 주기 앞 0.18초)에
        포탑만 뒤로 0.4타일 밀렸다 돌아온다. 차체 판(kindMain)은 제자리다. */
     // 포탑 판은 4배부터(요청: 저배율 단순화) — 판이 한 벌 더 굽히는 자리다.
+    /** 포탑 판이 실제로 앉은 자리와 각 — 탱크의 트레이서는 몸이 아니라 **포탑**에서 난다(아래 총구 앵커의 ★). */
+    let turretAt9: { hdg: number; fx: number; fy: number } | null = null;
     if (gunKind && !markerView && !liteView) {
       const fireK = fighting && foeDeg !== null && ((t + ei * 0.7) % 1.5) < 0.18 ? 1 : 0;
       const gdx = foeDeg !== null ? -Math.sin((foeDeg * Math.PI) / 180) : 0;
@@ -7754,6 +7769,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         return siegeXf9.to === 1 ? e9 : 1 - e9;
       })();
       const idleAim9 = lastAim9 ?? ((last.rotDeg ?? 0) + gunRest9);
+      turretAt9 = { hdg: foeDeg !== null ? foeDeg : idleAim9, fx: gfx, fy: gfy };
       unitOps.push({
         // 포신 가려짐 해결(지적) — 곁 유닛의 z가 포탑을 얇게 자르지 않게 여유 있게.
         ...last, kind: gunXf9 ? "tankturret0" : gunKind, fx: gfx, fy: gfy, z: last.z + 30,
@@ -7891,6 +7907,8 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       : race === "프로토스" ? "toss"
         : BIONIC_UNITS.has(drawUnit) ? "bio" : "mech";
     const [fxfx9, fxfy9] = posFrac(ax3, ay3);
+    /** 쏘는 줄기의 원점 — 탱크는 포탑 판의 자리(위 turretAt9), 나머지는 몸이다. 피격 그림은 늘 몸(fxfx9)이다. */
+    const [mzfx9, mzfy9] = turretAt9 ? [turretAt9.fx, turretAt9.fy] : [fxfx9, fxfy9];
     const hitFx9: FxOp | null = hitNow ? (shieldUp9
       /* ★ 실드 막의 자도 **보이는 몸**이다(같은 스크린샷에서 함께 드러났다) —
          fxPx는 모델 상자라 몸의 세 배 남짓이고, 1.05를 곱하면 막 하나가 유닛
@@ -8010,8 +8028,13 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       siegeOn === 1 && fxUnit.startsWith("Siege Tank") ? "Siege Tank (Siege Mode)" : fxUnit,
       race,
     );
+    /* ★ 탱크는 **포탑의 각·자리**로 뽑는다(요청: "트레이서 시작점을 실제 총구·포구에") — 앵커 표의
+       탱크 값은 포탑 판(tankgun)의 자인데, 여태 몸 각(bodyHdg)으로 투영하고 몸 자리에서 내보냈다.
+       포탑은 표적을 향해 따로 돌고(rotDeg foeDeg) 차체 뒤로 물러 앉으므로(TURRET_BACK9), 몸 각으로
+       재면 포신이 겨눈 쪽이 아니라 차체 앞에서 줄기가 났다. 포탑 op이 실제로 쓴 각과 자리를 그대로 든다. */
+    const mzHdg9 = turretAt9 ? turretAt9.hdg : bodyHdg;
     const mzP = atkDeg !== null
-      ? muzzlePoint(fxKind, bodyHdg, viewYawOf(ax3, ay3), pitched) : null;
+      ? muzzlePoint(fxKind, mzHdg9, viewYawOf(ax3, ay3), pitched) : null;
     /** 그 무기의 **원** 쿨다운(초) — 발사 박자다. 날아가는 탄과 번쩍 주기가 쓴다. */
     const fxCdRaw = (() => {
       const pf9 = isKnownKind(fxUnit) ? profileOf(fxUnit) : null;
@@ -8215,7 +8238,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       const spikePh9 = firePhase(`u${holdKey}`, spikeDur9);
       const aimL9 = lockAim(`lk${holdKey}`, spikePh9, beamDeg, 0);
       fxOps.push({
-        kind: "spike", style: "spike", fx: fxfx9, fy: fxfy9, lift: 0,
+        kind: "spike", style: "spike", fx: mzfx9, fy: mzfy9, lift: 0,
         /* ★ 시작점은 **몸 한가운데**다(지적: "럴커 가시 이제보니 시작하는 지점이
            럴커 몸 중앙이 아님") — 여기 실리던 mzx9/mzy9는 muzzlePoint가 낸 **선
            럴커의 주둥이** 자리다(총구 앵커표에 버로우 별본이 없어 lurker 판의 값이
@@ -8269,7 +8292,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       const lanes9: number[] = twin9 ? [-1, 1] : [0];
       for (const s9 of lanes9) {
         fxOps.push({
-          kind: "shot", style: fxName9, fx: fxfx9, fy: fxfy9, lift: liftPx9,
+          kind: "shot", style: fxName9, fx: mzfx9, fy: mzfy9, lift: liftPx9,
           ...tgtFields9(0),
           mx: mzx9 + perp9[0] * s9, my: mzy9 + perp9[1] * s9,
           deg: beamDeg, len: beamLen, u: shotU, d0: launchDeg9,
@@ -8304,7 +8327,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       const mzsx9 = mzx9 - Math.sin(rad9) * surf9;
       const mzsy9 = mzy9 + Math.cos(rad9) * surf9;
       fxOps.push({
-        kind: "beam", style: fxName9, fx: fxfx9, fy: fxfy9, lift: liftPx9,
+        kind: "beam", style: fxName9, fx: mzfx9, fy: mzfy9, lift: liftPx9,
         // 표적 그림을 줄기 끝에 얹는 갈래(TARGET_FX) — 자는 쏘는 몸의 상자(옛 hit op와 같다).
         ...(TARGET_FX.has(fxName9) ? { size: fxPx, splash: true } : {}),
         ...tgtFields9(st9Span(fxName9) ? surf9 + (fxPx / 2) * HIT_FX_K * (FX_IMPACT[fxName9]?.r ?? 0.5) * 0.95 : 0),

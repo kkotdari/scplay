@@ -714,6 +714,14 @@ export function withModelShift<T>(dx: number, dy: number, fn: () => T): T {
     modelXOff = px; modelYOff = py;
   }
 }
+/** 모형 좌표 하나를 **모델 변환만** 태운다(배율·평행이동·회전) — 요잉·시점·사영은 안 탄다.
+ *  빌더가 제 부품 좌표로 적은 점(총구 등)을 그 빌더를 감싼 withModelScale·Shift·Spin을
+ *  거친 '판의 모형 좌표'로 옮기는 데 쓴다. project의 앞 두 줄과 같은 셈이다. */
+export function modelPoint9(x0: number, y0: number, z0: number): [number, number, number] {
+  const z = z0 * modelZK + modelZOff;
+  const [mx, my] = spun(x0 * modelXK + modelXOff, y0 * modelYK + modelYOff);
+  return [mx, my, z];
+}
 /** 모형 좌표 (x,y,z) → 화면 [sx, sy]. y(앞)는 아래로, z(위)는 위로 간다. */
 export function project(x0: number, y0: number, z0: number): [number, number] {
   const z = z0 * modelZK + modelZOff;

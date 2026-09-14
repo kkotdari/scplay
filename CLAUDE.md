@@ -17,6 +17,10 @@
    건물 `node scripts/bld-norm.mjs --kinds <k>` → BLD_NORM
 4. `npx vite build` → `node scripts/model-depth-check.mjs` · 클래스를 새로 붙였으면 `node scripts/css-guard.mjs`(규칙 없는 scr-* 이름이면 실패) (✔ 새로 어긴 모델 없음 이어야 한다; 새 빌더는 partKey 키)
    · **모델을 고쳤으면 `node scripts/tier-table.mjs`로 부품 등급표를 다시 뽑는다**(`--check`로 어긋남 검사).
+   · 총구를 가진 모델을 고쳤으면 **`node scripts/muzzle-table.mjs`로 총구 앵커표도 다시 뽑는다**(`--check`).
+     앵커의 임자는 빌더다 — 총열·포신·아가리를 짜는 줄에서 `markMuzzle9(x,y,z)`(공용 저그 얼굴은 무른 표식)로 끝점을
+     적으면 표(muzzleTable.gen.ts)가 그 값을 싣고 엔진(MUZZLE_ANCHOR)이 손 표 위에 덮어쓴다. 눈으로 볼 때는
+     `node scripts/muzzle-sheet.mjs --kinds <k> --rots 0,90,270 --out <scratch>/x.png`(십자가 총구 위에 앉아야 한다).
      그 표(tierTable.gen.ts)는 모델 기하만의 함수라 빌드 시각에 굽는다 — 안 그러면 폰이 들어올 때마다
      종류마다 여덟 방위를 다시 구워 로딩에서 2~3초를 쓴다(실측). 낡으면 틀린 등급이 실린다.
 5. 커밋 → 브랜치 푸시
