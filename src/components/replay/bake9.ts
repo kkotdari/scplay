@@ -19309,8 +19309,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       out.push(...tagKey(paintBase(spikeHorn(kx9, ky9, kz9, ax9, ay9, az9, 1.12,
         undefined, 8, 0.35, -sx9 * 0.5, 0), HIDE), key9 + 0.1));
       // 정강이받이 — 창백한 판. 칠하지 않는다 = 임자 색.
-      out.push(...tagKey(domeFaces3((kx9 + ax9) / 2, (ky9 + ay9) / 2 + 0.3, 0.6, 0.42,
-        (kz9 + az9) / 2 - 0.22), key9 + 0.2));
+      // (걷어냄·요청) 정강이 위의 임자색 반구 — 발 위의 임자색 혹으로 읽혔다.
       // 발목 관절 + 땅에 닿는 발판.
       out.push(...tagKey(paintBase(domeFaces3(ax9, ay9, 0.62, 0.5, az9 - 0.32), HIDE), key9 + 0.15));
       /* 발판 — 넓은 판이 아니라 발이다(지적: "발판이 너무 크다"). 폭을 2 → 1.1로
@@ -19426,10 +19425,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const UCK9 = 1.2;
     out.push(...tagKey(paintBase(spirePillar({
       x: 0, y: 0, h: 1, w: 1, segs: 7, sides: 8, oval: 0.1, caps: "none", ref: [1, 0, 0], trueNormal: true,
-      path: (t9: number): [number, number, number] => [0, 3.15 - 2.7 * UCK9 * t9, 5.3 + 2.5 * UCK9 * t9],
+      // 뿌리를 **정수리 위**로(재요청): 머리뼈 꼭대기(y 3.2, z 5.5) 바로 위 (3.2, 5.7)에서 난다
+      path: (t9: number): [number, number, number] => [0, 3.2 - 2.7 * UCK9 * t9, 5.7 + 2.5 * UCK9 * t9],
       widthOf: (t9: number): number => UCK9 * (t9 < 0.55 ? 1.3 + (2.7 - 1.3) * (t9 / 0.55) : 2.7 - (2.7 - 0.5) * ((t9 - 0.55) / 0.45) ** 1.3),
       skewV: (cu9: number, t9: number): number => -0.55 * UCK9 * cu9 * cu9 * (0.4 + 0.6 * t9),
-    }), PLATE), depthNow(0, 2.0) * 1.6 + 2.5));
+    }), PLATE), depthNow(0, 3.9) * 1.6 + 2.6));   // 얼굴(+2)보다 앞(지적: "머리장식에 머리가 가려져야") — 정수리 위에서 나는 판이라 위에서 보면 머리 위를 덮는다
     /* ── 낫 한 쌍 ── **고유색(상아빛)이다**(요청) — 임자 색이 아니다. 밖·앞으로 크게
        감긴다. 넷이 아니라 둘이다(지적: "갈고리는 한 쌍인데 지금 두 쌍") — 낮게
        앞으로 뻗던 작은 한 쌍을 걷었다. 넷은 앞이 갈퀴로 뒤덮여 몸이 안 보였다. */
