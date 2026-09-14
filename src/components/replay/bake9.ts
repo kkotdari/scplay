@@ -6,7 +6,7 @@ import { GAP9, pNow } from "./perf9";
 import { cx } from "./cx";
 import { TIER_GEN9 } from "./tierTable.gen";
 import { kT } from "../../utils/openbwTracks";
-import { FACE_GRAIN9, loftZFaces, lowerHalfSphereFaces3, modelPoint9, annulusPath, bandPath, bodyFace, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
+import { FACE_GRAIN9, loftZFaces, modelPoint9, annulusPath, bandPath, bodyFace, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
 import { BUILD_STAGES, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, SPIN_STEPS, bldNormOf, modelInkOf, modelNormOf } from "./engine9";
 import { type UnitDrawOp } from "./engine9";
 /** 주소 해시(`#pitch=`·`#nocreep` 같은 진단 스위치) — 굽기 일꾼 안에서는 location.hash가 빈 문자열(blob 주소)이라,
@@ -3630,7 +3630,8 @@ export const sunkenTongueFaces = (): ShapeFace[] => {
      감싸면 이 판만 표적 쪽으로 돌아간다. 22.5도 열여섯 칸이다. */
   /** 등뼈 — 역 U. t 0 뿌리, 1 끝. */
   /** 뻗은 몫(요청: 공격 컷 넷) — spin 칸 0~3이 1/4~4/4. 칸이 없으면(합본 sunkenfire·도록) 다 뻗는다. */
-  const EXT9 = Math.min(1, (Math.min(3, Math.max(0, bldSpinNow)) + 1) / 4);
+  // 합본(sunkenfire — 도록·저사양 폴백)은 spin 칸을 안 받으므로(SPIN_KINDS 밖) 늘 다 뻗는다 — sunkenFire 깃발이 그 자리다.
+  const EXT9 = sunkenFire ? 1 : Math.min(1, (Math.min(3, Math.max(0, bldSpinNow)) + 1) / 4);
   const spineAll9 = (t9: number): [number, number, number] => {
     const d9 = t9 * LSUM;
     if (d9 <= L1) return [0.25, -0.15, Z0 + d9];                               // 오르는 다리
@@ -3643,17 +3644,24 @@ export const sunkenTongueFaces = (): ShapeFace[] => {
   /** 굵기(온 길이 기준) — 뿌리 0.6에서 호 들머리까지 1.24, 그 뒤 1.56까지. */
   const widthAll9 = (t9: number): number => {
     const t1 = L1 / LSUM;
-    return t9 < t1 ? 0.6 + (1.24 - 0.6) * (t9 / t1) : 1.24 + (1.56 - 1.24) * ((t9 - t1) / (1 - t1));
+    return t9 < t1 ? 0.95 + (1.24 - 0.95) * (t9 / t1) : 1.24 + (1.56 - 1.24) * ((t9 - t1) / (1 - t1));   // 뿌리 0.6 → 0.95(구멍 0.75에 맞춰)
   };
   // 컷은 온 아치의 앞 EXT9 몫만 그린다 — 등뼈·굵기 자를 그 몫으로 접는다.
   const spine9 = (t9: number): [number, number, number] => spineAll9(t9 * EXT9);
   const tip9 = spine9(1);
   const tipR9 = widthAll9(EXT9);
+  /* ★ 끝 반구는 **혀 단면을 따른다**(지적: "반구는 혀 단면에 맞춰야지, 무조건 아래를 보지 말고") — 컷마다 끝이
+     위(오르는 다리)·앞(호)·아래(내려오는 다리)를 보므로 아래로 못 박은 반구는 틀린다. 반구를 따로 그리지 않고
+     **관을 끝 너머로 반지름만큼 더 민다**: 접선 방향으로 뻗는 짧은 마디에 굵기를 원의 옆선 √(1 − t²)으로 주면
+     그 자체가 접선을 축으로 한 반구다. 어느 방향이든 단면과 이어진다. */
+  const eps9 = 0.004;
+  const bk9 = spineAll9(Math.max(0, EXT9 - eps9));
+  const dv9: [number, number, number] = [tip9[0] - bk9[0], tip9[1] - bk9[1], tip9[2] - bk9[2]];
+  const dl9 = Math.hypot(dv9[0], dv9[1], dv9[2]) || 1;
+  const capPath9 = (t9: number): [number, number, number] =>
+    [tip9[0] + (dv9[0] / dl9) * tipR9 * t9, tip9[1] + (dv9[1] / dl9) * tipR9 * t9, tip9[2] + (dv9[2] / dl9) * tipR9 * t9];
   return tagKey(withModelSpin(headYawNow, (): ShapeFace[] => paintBase([
-    /* 끝 반구를 관보다 **먼저** 그린다(지적: "반구가 혀 몸통에 안 가려짐") — 이 판은 통째로 한 키(13)라 배열 차례가
-       곧 앞뒤인데, 반구가 뒤에 오면 그 윗단면(타원)이 관 끝 위에 얹혔다. 먼저 깔면 관의 마지막 마디가 단면을 덮고
-       아래 반원만 관 밑으로 드러난다. */
-    ...lowerHalfSphereFaces3(tip9[0], tip9[1], tip9[2], tipR9),
+
     /* 두께 변화는 **완만하게**(재요청) — 0.5→1.45는 구두주걱이었다. 1.24→1.56이면 통통한 관이다. 마디 30·변 10. */
     /* ★ 단면의 기준축을 **x로 못 박는다**(지적: "안쪽 기둥이 안 보여 · 구부러지는 부분이 약간 뒤틀려 보여") —
        등뼈는 y–z 평면의 아치라 접선이 (0,0,1) → (0,1,0) → (0,0,−1)로 돈다. 기준축을 안 주면 마디마다 '접선과 가장
@@ -3664,9 +3672,19 @@ export const sunkenTongueFaces = (): ShapeFace[] => {
        뿌리 0.6에서 호 들머리(t = L1/LSUM)까지 1.24로 굵어지고, 호와 내려오는 다리는 1.24 → 1.56 그대로다. */
     ...spirePillar({
       x: 0.25, y: -0.15, h: 1, w: 1.24, tipW: 1.56,   // (widthOf가 대신한다)
-      segs: 30, sides: 10, hold: 0.05, taper: 1, caps: "none", ref: [1, 0, 0],
+      /* 끝 고리는 **닫는다**(caps "top") — 반구 마디는 접선 쪽으로 볼록해 카메라가 그 뒤를 볼 때(내려오는 다리 끝)
+         면이 등을 돌려 안 그려지고, 열린 관 속이 검은 타원으로 비쳤다(실측). 끝 원판을 닫으면 그 자리는 관의
+         단면으로 서고, 반구는 보이는 방향에서만 둥근 윤곽을 더한다. */
+      segs: 30, sides: 10, hold: 0.05, taper: 1, caps: "top", ref: [1, 0, 0],
       path: spine9,
       widthOf: (t9: number): number => widthAll9(t9 * EXT9),
+    }),
+    // 끝 반구 — 관을 접선으로 r만큼 더 민 마디(위 ★). 관 끝 고리에서 이어지므로 이음이 없다.
+    ...spirePillar({
+      x: tip9[0], y: tip9[1], h: 1, w: tipR9, tipW: 0.02,
+      segs: 6, sides: 10, hold: 0, taper: 1, caps: "none", ref: [1, 0, 0],
+      path: capPath9,
+      widthOf: (t9: number): number => Math.max(0.02, tipR9 * Math.sqrt(Math.max(0, 1 - t9 * t9))),
     }),
   ], "#c0472b")), 13);   // 더 붉게(요청): #b5713a → #c0472b
 };
@@ -8016,10 +8034,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     out.push(...tagKey(paintBase([
       // 낮게(요청) — 높이 3.2 → 1.9, 밑동도 한 뼘 내린다.
       ...spirePillar({
-        x: 0.2, y: -0.3, z0: 1.9, h: 1.9, w: 1.05, tipW: 0.5,
+        x: 0.2, y: -0.3, z0: 1.9, h: 1.9, w: 1.05, tipW: 0.85,   // 끝 0.5 → 0.85(요청: 구멍을 키운 만큼)
         segs: 4, sides: 10, hold: 0.1, taper: 1.3, leanY: 0.45, curveY: -0.3,
       }),
-      capFace(discPath3(0.35, 0.15, 3.7, 0.46), 0.5),
+      capFace(discPath3(0.35, 0.15, 3.7, 0.75), 0.5),   // 아가리 0.46 → 0.75(요청: "나오는 구멍 좀 더 크게")
     ], RACE_BASE_TONE.zerg), 12));
     markMuzzle9(0.35, 0.15, 3.7);   // 가운데 촉수의 아가리 — 가시가 나는 자리
     /* 쏘는 순간의 혓바닥(요청: "현재 모델에 구릿빛 혓바닥만 추가") — 몸은 한 톨도

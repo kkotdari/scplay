@@ -1241,24 +1241,6 @@ export function halfSphereFaces3(
 /** 화면 1/4구 — 반구를 다시 앞뒤로 갈라 **뒤 절반**만 남긴 껍데기. 위 반원과, 세로로
  *  자른 단면(위로 부푼 타원 호) 사이의 초승달이다. 얼굴가리개 뒤에 한 겹 세우면 그것이
  *  곧 뒤통수를 감싸는 껍데기다. */
-/** 아래로 향한 반구 — halfSphereFaces3의 거울이다(위가 타원 단면, 아래가 반원). 매달린 것의 끝(성큰 혀끝)에
- *  쓴다. 그늘은 아랫배(반원 밑동)에, 빛은 단면 언저리에 든다. */
-export function lowerHalfSphereFaces3(
-  cx: number, cy: number, cz: number, r: number, fill?: string,
-): ShapeFace[] {
-  const [sx, sy] = project(cx, cy, cz);
-  const ry = r * groundSquashNow();
-  // 아래 반원 → 위로 부푼 타원 호(단면)로 닫는다.
-  const d = `M${r2(sx - r)} ${r2(sy)}A${r2(r)} ${r2(r)} 0 0 0 ${r2(sx + r)} ${r2(sy)}`
-    + `A${r2(r)} ${r2(ry)} 0 0 0 ${r2(sx - r)} ${r2(sy)}Z`;
-  const body: ShapeFace = fill ? [d, 1, fill] : bodyFace(d);
-  const shade = `M${r2(sx + r)} ${r2(sy)}A${r2(r)} ${r2(r)} 0 0 1 ${r2(sx - r)} ${r2(sy)}`
-    + `A${r2(r)} ${r2(r * 0.55)} 0 0 0 ${r2(sx + r)} ${r2(sy)}Z`;
-  const gloss = `M${r2(sx - r)} ${r2(sy)}A${r2(r)} ${r2(ry)} 0 0 0 ${r2(sx + r)} ${r2(sy)}`
-    + `A${r2(r)} ${r2(ry * 0.5)} 0 0 1 ${r2(sx - r)} ${r2(sy)}Z`;
-  return tagKey([body, sideFace(shade, OP.sideSoft), topFace(gloss, OP.topSoft)],
-    depthNow(cx, cy) + r);
-}
 export function quarterSphereFaces3(
   cx: number, cy: number, cz: number, r: number, fill?: string,
 ): ShapeFace[] {
