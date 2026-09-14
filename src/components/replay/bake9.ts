@@ -806,6 +806,9 @@ export function spirePillar(o: {
    *  면 명암·깊이·등진 면 걷기는 전부 실제 꼭짓점에서 다시 재므로(trueNormal의 외적,
    *  depthNow(fx, fy)) 미는 쪽이 따로 손댈 것은 없다. */
   skewV?: (u: number, t: number) => number;
+  /** 단면의 **한쪽을 평평하게** — +1이면 v ≥ 0 쪽 점을 v 0 평면으로 눌러 D자 단면(한쪽은 둥글고 한쪽은 평면),
+   *  −1이면 반대쪽. 눌린 점들은 u축 선 위에 퍼져 그 사이 낯이 평면의 띠가 된다(아비터 윗날개의 안쪽 평면). */
+  flatV?: 1 | -1;
   /** 단면의 기준 방향(요청: 잎·방패를 기둥으로 짜기) — 안 주면 축과 가장 어긋난
    *  좌표축을 스스로 고른다. 주면 그 방향이 단면의 **u축**(oval이 안 걸리는 쪽)이 된다.
    *  왜 필요한가: 기둥 단면의 방향은 축 하나로 정해지지 않는다(축 둘레로 굴릴 자유가
@@ -913,7 +916,8 @@ export function spirePillar(o: {
         const a = (i / sides) * Math.PI * 2 + (o.phase ?? Math.PI / sides);
         const cu = Math.cos(a);
         const cs = cu * r;
-        const sn = Math.sin(a) * r * ovalK + (o.skewV ? o.skewV(cu, t) : 0);
+        let sn = Math.sin(a) * r * ovalK + (o.skewV ? o.skewV(cu, t) : 0);
+        if (o.flatV) sn = o.flatV > 0 ? Math.min(0, sn) : Math.max(0, sn);
         return [ax + ux * cs + vx * sn, ay + uy * cs + vy * sn, az + uz * cs + vz * sn] as [number, number, number];
       }));
     }
@@ -961,7 +965,7 @@ export function spirePillar(o: {
         const cl9 = Math.hypot(cx9, cy9, cz9);
         if (cl9 > 1e-6) {
           cx9 /= cl9; cy9 /= cl9; cz9 /= cl9;
-          if (o.skewV) {
+          if (o.skewV || o.flatV) {   // flatV도 감김 규칙으로 — 평면 띠의 중심은 축 평면 위라 '바깥이냐'가 0이다
             /* 밀린 단면에서는 **감김**으로 안팎을 가른다 — 자리로 가리면 틀린다.
                여태는 '면 중심이 등뼈보다 바깥이냐'로 부호를 맞췄다. skewV가 단면을 v로
                밀면 얇은 판(잎은 반두께가 0.2인데 밀림은 1을 넘는다)이 통째로 등뼈
@@ -1073,6 +1077,8 @@ export function leafFaces(o: {
   trueNormal?: boolean;
   /** 단면 시작 각(spirePillar.phase) — 0이면 네 변 단면이 마름모라 세로 접힘 축이 선다. */
   phase?: number;
+  /** 단면 한쪽을 평면으로(spirePillar.flatV). */
+  flatV?: 1 | -1;
 }): ShapeFace[] {
   const wa = Math.min(0.85, Math.max(0.15, o.waist ?? 0.42));
   const sides = o.sides ?? 8;
@@ -1087,7 +1093,7 @@ export function leafFaces(o: {
   const halfPillar = (t0: number, t1: number, end: number, pow: number): ShapeFace[] =>
     spirePillar({
       x: 0, y: 0, h: 1, w: 1, segs, sides, oval: o.spread, caps: "none", fill: o.fill,
-      ref: o.ref, trueNormal: o.trueNormal, phase: o.phase,
+      ref: o.ref, trueNormal: o.trueNormal, phase: o.phase, flatV: o.flatV,
       path: (t: number): [number, number, number] => o.path(t0 + (t1 - t0) * t),
       // t 0이 끝(뿌리 또는 잎끝), t 1이 허리가 되도록 u를 맞춘다.
       widthOf: (t: number): number => halfOf(t, end, pow),
@@ -15225,10 +15231,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 날개를 몸에 **직접** 붙인다(요청: "아비터 몸통과 날개 연결부 제거하고 직접
          붙임") — 관절 관 한 쌍을 걷고 날개 축을 ±0.95에서 ±0.58로 당긴다. 옆 반두께가
          0.24라 안쪽 면이 x 0.34, 몸 돔 반지름 0.45 속에 0.1쯤 묻혀 틈 없이 물린다. */
+      /* ★ 뒤쪽이 **수평으로 살짝 안으로 휜다**(요청) — 꼬리 반(t > 0.45)에서 x를 안쪽으로 0.25까지 제곱으로 당긴다.
+         ★ 안쪽 반은 **평평한 면**(요청) — flatV로 몸 쪽(v = −x·m2 … 오른 날개는 +v) 반을 축 평면에 눌러 D자 단면. */
       path: (t: number): [number, number, number] => {
         const y9 = 1.22 - 3.02 * t;
-        return [m2 * ARB_WING_X, y9, 5.92 + Math.sin(Math.PI * Math.min(1, t * 1.15)) * 0.1];
+        const in9 = 0.25 * Math.max(0, (t - 0.45) / 0.55) ** 2;
+        return [m2 * (ARB_WING_X - in9), y9, 5.92 + Math.sin(Math.PI * Math.min(1, t * 1.15)) * 0.1];
       },
+      flatV: m2,
       /* 정면에서 본 높이를 줄인다(요청) — thick이 곧 위아래 반두께다(0.78 → 0.48).
          ★ 옆두께도 줄인다(요청: "아비터 양 날개 옆두께 줄이기") — 좌우 반폭은
            thick × spread이므로 spread를 1 → 0.5로 내려 0.48 → 0.24로 반 만든다.
@@ -15283,7 +15293,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       x: 0, y: 0, h: 1, w: 1, segs: 4, sides: 8, ref: [0, 1, 0], caps: "both", oval: 0.3, trueNormal: true,
       path: (t: number): [number, number, number] => [
         // 뒤로 갈수록 덜 벌어진다(재지적): 바깥 0.75 → 0.32, 대신 뒤로 조금 더(0.95 → 1.1).
-        m2 * (ARB_LOW_X + 0.32 * t), 0.4 - 1.1 * t, 5.68 - 0.6 * t,
+        m2 * (ARB_LOW_X + 0.32 * t - 0.12 * Math.max(0, (t - 0.5) / 0.5) ** 2), 0.4 - 1.1 * t, 5.68 - 0.6 * t,   // 뒤끝 살짝 안으로(요청)
       ],
       // 시위를 반 넘게 줄여 얇상하게(재지적): 0.62 → 0.26.
       widthOf: (t: number): number => 0.26 * (1 - 0.5 * t),
