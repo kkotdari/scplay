@@ -4417,7 +4417,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        그 아래 드럼통에서 나오므로, 다리가 여태 자리에 있으면 팔이 뒤로 누워 버린다.
        뒤 가운데 다리는 그대로다(요청). */
     const MLY9 = 3.7 * FO9;
-    const FLY9 = MLY9 + 0.95;   // 드럼통이 커진 만큼 한 발 더 앞으로(요청)
+    /* 0.95 → 0.30(요청: "앞쪽 가운데 다리 연결 팔 길이 축소, 다리도 그만큼 살짝 뒤로")
+       — 이 한 값이 팔 길이와 다리 자리를 **함께** 쥔다: 팔은 드럼통 겉면에서 이 다리까지
+       뻗으므로, 다리를 뒤로 물린 몫이 곧 팔이 짧아진 몫이다(앞뒤 y로 −0.59). */
+    const FLY9 = MLY9 + 0.30;
     /** 앞 가운데 다리의 실제 y — 안쪽 몫만 탄다(앞쪽 셋이라 BF9는 안 탄다). */
     const FLY_A9 = FLY9 * FI9;
     /** 뒤 가운데 다리의 실제 y(부호는 −) — 안쪽 몫 위에 앞으로 80%가 더 걸린다. */
@@ -5233,6 +5236,28 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         [ox9(Z1), -0.8, Z1], [ox9(Z1), 0.8, Z1], [gx9(Z1), 0.8, Z1], [gx9(Z1), -0.8, Z1],
       ]), 1, "#4a4a4a"] as ShapeFace);
       out.push(...tagKey(g, 2.5));
+    }
+
+    /* ── 옆면 양 끝의 세로 임자색 띠(요청: "팩토리 옆면 양쪽 좌우 끝에 세로로 긴 개인색
+       데칼, 길이는 높이의 1/4 정도") — **허리 상자의 곧은 벽**에 붙인다: 위아래 절두체는
+       면이 기울어 있어 같은 두께로 띄우면 한쪽은 벽을 파고들고 한쪽은 떠 버린다.
+       길이는 몸 높이(ZB0~ZT)의 1/4이고, 앞뒤 양 끝에서 한 뼘씩 들여 세운다. */
+    {
+      const DL9 = (ZT - ZB0) / 4;             // 길이 — 몸 높이의 1/4
+      const DZ9 = (ZW0 + ZW1) / 2 - DL9 / 2;  // 허리 한가운데
+      const DKW9 = 0.5;                       // 폭(세로로 길게)
+      const DY9 = DW / 2 - 0.55;              // 앞뒤 끝에서 한 뼘 안쪽
+      for (const sx9 of [-1, 1] as const) {
+        if (facingRatio(sx9, 0) <= 0.08) continue;
+        const dx9 = sx9 * (WW / 2 + 0.03);
+        for (const sy9 of [-1, 1] as const) {
+          const y0 = sy9 * DY9 - DKW9 / 2;
+          const y1 = sy9 * DY9 + DKW9 / 2;
+          pc.push(...tagKey([[polyPath3([
+            [dx9, y0, DZ9], [dx9, y1, DZ9], [dx9, y1, DZ9 + DL9], [dx9, y0, DZ9 + DL9],
+          ]), 1] as ShapeFace], 2.55));
+        }
+      }
     }
 
     // ── 앞면 베이 둘 — 세로 홈 좌우, 아래 절두체의 기운 면에 파인 개구부.
