@@ -21241,10 +21241,14 @@ export const BRUSH9 = {
   h: 0.22,
   /** 띠 자리가 빛을 따라 움직이는 폭(0이면 늘 한가운데, 1이면 끝까지 간다). */
   lit: 0.9,
-  /** 낯 하나에 놓는 줄의 수 — **낱수가 붙박이**여야 요잉해도 같은 결이다(아래 ★). */
-  n: 46,
-  /** 얇은 줄의 굵기 — **낯 폭의 몫**이라 낯이 비스듬해지면 결도 함께 좁아진다. */
-  w: 0.011,
+  /** 긁힌 결의 **간격**(모형 자, 16-상자 기준) — 낯마다의 낱수가 아니라 **한 물리 값**이다.
+   *  ★⑤ 큰 판에는 많이, 작은 판에는 적게 난다. 낱수를 못박으면 작은 부품이 과하게 긁히고
+   *    큰 판은 성글어, 한 모델 안에서 결의 자가 제각각이었다(지적: "스크래치가 원근이
+   *    안 먹혀서 혼자만 이상하네"). 모형 폭은 요잉이 안 바꾸므로 낱수도 각을 안 탄다 —
+   *    낯이 비스듬해지면 **같은 낱수가 좁은 자리에 모여** 저절로 촘촘해진다. 그것이 원근이다. */
+  pitch: 0.1,
+  /** 얇은 줄의 굵기 — 같은 모형 자. */
+  w: 0.028,
   /** 줄 중 **굵은 줄**이 될 몫(0이면 얇은 줄만). */
   band: 0.24,
   /** 굵은 줄의 굵기 배수 — w에 곱한다. */
@@ -21295,6 +21299,8 @@ export function faceGrain9(d: string): {
   aLo: number; aHi: number;
   /** 줄을 늘어놓을 V 눈금의 양 끝. */
   bLo: number; bHi: number;
+  /** 그 V 폭이 **모형에서** 얼마인가 — 긁힌 간격을 물리 값으로 잡는 자다(아래 ★⑤). */
+  mB: number;
   cx: number; cy: number;
   /** 서 있는 낯인가 — 참이면 U·V가 화면 세로·가로다. */
   up: boolean;
@@ -21328,9 +21334,15 @@ export function faceGrain9(d: string): {
     const lo9 = ys[Math.min(1, ys.length - 1)];
     const hi9 = ys[Math.max(0, ys.length - 2)];
     if (!(hi9 - lo9 > 1e-6) || !(bx1 - bx0 > 1e-6)) return null;
+    /* V 폭의 **모형 길이** — 벽의 가로 모서리는 바닥에 누운 벡터라, 화면 (dx, dy)에서
+       모형은 (dx, dy/눌림)이다. 그 모서리의 기울기를 상자 폭에 실어 되돌린다. */
+    const sqU9 = groundSquashNow() || 0.45;
+    const hz9 = long.find((e) => Math.abs(e.dx) / e.l >= 0.12);
+    const sl9 = hz9 && Math.abs(hz9.dx) > 1e-6 ? hz9.dy / hz9.dx : 0;
     return {
       ux: 0, uy: 1, vx: 1, vy: 0,
-      aLo: lo9 - cy, aHi: hi9 - cy, bLo: bx0 - cx, bHi: bx1 - cx, cx, cy, up: true,
+      aLo: lo9 - cy, aHi: hi9 - cy, bLo: bx0 - cx, bHi: bx1 - cx,
+      mB: (bx1 - bx0) * Math.hypot(1, sl9 / sqU9), cx, cy, up: true,
     };
   }
   /* 누운 낯 — 두 모서리 갈래 중 **모형에서 더 긴 쪽**이 U다(줄이 뻗는 쪽).
@@ -21364,7 +21376,10 @@ export function faceGrain9(d: string): {
     bLo = Math.min(bLo, b9); bHi = Math.max(bHi, b9);
   }
   if (!(aHi - aLo > 1e-6) || !(bHi - bLo > 1e-6)) return null;
-  return { ux, uy, vx, vy, aLo, aHi, bLo, bHi, cx, cy, up: false };
+  return {
+    ux, uy, vx, vy, aLo, aHi, bLo, bHi,
+    mB: (bHi - bLo) * Math.hypot(vx, vy / sq9), cx, cy, up: false,
+  };
 }
 
 /** 판 한 장에 글로우를 굽는다 — 면을 다 칠한 **뒤** 부른다.
@@ -21468,14 +21483,17 @@ export function glowBake9(
       /* 씨앗은 **부품 번호**다 — 요잉이 바뀌어도 같은 부품이면 같은 결이다(BRUSH9의 ★①). */
       const rnd9 = brushSeed9(f9[5] ?? (i9f + 1));
       const wB9 = gr9.bHi - gr9.bLo;
-      for (let i9 = 0; i9 < BRUSH9.n; i9 += 1) {
-        /* 자리·굵기는 **낯의 몫**이다 — 낯이 비스듬해지면 결도 함께 좁아진다(★②). */
-        const b9 = gr9.bLo + wB9 * ((i9 + rnd9() * 0.85) / BRUSH9.n);
+      /* 낱수는 **모형 폭 ÷ 간격**이다(★⑤) — 요잉이 모형 폭을 안 바꾸므로 각을 안 탄다. */
+      const n9 = Math.max(3, Math.min(160, Math.round(gr9.mB / BRUSH9.pitch)));
+      /** 모형 자 → 화면 V 눈금(낯이 비스듬할수록 작아진다 = 원근). */
+      const mk9 = wB9 / Math.max(1e-4, gr9.mB);
+      for (let i9 = 0; i9 < n9; i9 += 1) {
+        const b9 = gr9.bLo + wB9 * ((i9 + rnd9() * 0.85) / n9);
         const wide9 = rnd9() < BRUSH9.band;
         /* 굵은 줄 중 몇은 **면**으로 읽히게 꽉 채운다(요청) — 나머지 굵은 줄은 옅게 깐다.
            굵은 줄을 죄다 제 세기로 깔면 띠가 통째로 하얘진다. */
         const solid9 = wide9 && rnd9() < BRUSH9.solid;
-        const w9 = wB9 * BRUSH9.w * (wide9 ? BRUSH9.bandW * (0.6 + rnd9() * 0.8)
+        const w9 = mk9 * BRUSH9.w * (wide9 ? BRUSH9.bandW * (0.6 + rnd9() * 0.8)
           : 0.45 + rnd9() * 1.1);
         const s9 = rnd9();
         const soft9 = solid9 ? 1 : (wide9 ? 0.3 : 1);
