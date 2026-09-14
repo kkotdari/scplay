@@ -21498,7 +21498,11 @@ export function grainAxes9(rotDeg: number, flat?: boolean, pitchView?: boolean):
  *      · **누운 낯**(지붕) — 세로 모서리가 없다. U는 모형 +y(정면에서 세로로 보이는 축),
  *        V는 모형 +x다. 둘을 그 판의 요잉으로 투영해 두었으므로(grainAxes9), 요잉하면
  *        결이 지붕과 **함께** 돈다. 그것이 데칼이다. */
-export function faceGrain9(d: string, ax9: ReturnType<typeof grainAxes9>): {
+export function faceGrain9(
+  d: string, ax9: ReturnType<typeof grainAxes9>,
+  /** 이 낯이 **선 벽**인가(그늘 덮개 = sideFace) — 법선을 못 찾았을 때의 갈림이다. */
+  wall9 = false,
+): {
   ux: number; uy: number; vx: number; vy: number;
   /** 띠가 놓일 수 있는 U 눈금의 양 끝 — aLo가 화면에서 위다. */
   aLo: number; aHi: number;
@@ -21527,8 +21531,6 @@ export function faceGrain9(d: string, ax9: ReturnType<typeof grainAxes9>): {
     if (l > 1e-6) { seg.push({ dx, dy, l }); maxL = Math.max(maxL, l); }
   }
   if (!seg.length || maxL <= 0) return null;
-  const long = seg.filter((e) => e.l >= maxL * 0.25);
-  const vert9 = long.filter((e) => Math.abs(e.dx) / e.l < 0.12);
   let ux: number; let uy: number; let vx: number; let vy: number;
   /* ★ 법선을 아는 낯은 **그 낯의 가장 가파른 쪽**을 따른다(지적: "경사면일 때 결 표현이
      좀 안 맞네 — 각 부품을 정면에서 봤을 때 세로로 줄이 쳐져야 하는데") — 투영된 다각형만
@@ -21538,11 +21540,19 @@ export function faceGrain9(d: string, ax9: ReturnType<typeof grainAxes9>): {
   const gr9 = FACE_GRAIN9.get(d);
   if (gr9) {
     [ux, uy, vx, vy] = gr9;
-  } else if (vert9.length) {
-    ux = 0; uy = 1;
-    const hz9 = long.reduce((p9, q9) => (Math.abs(q9.dx) > Math.abs(p9.dx) ? q9 : p9), long[0]);
-    if (Math.abs(hz9.dx) / hz9.l < 0.12) { vx = 1; vy = 0; } else { vx = hz9.dx / hz9.l; vy = hz9.dy / hz9.l; }
+  } else if (wall9) {
+    /* ★ **선 벽**은 화면 세로다 — 이 투영에서 세계의 z는 화면 x에 한 톨도 안 실리므로
+       화면 세로가 곧 세계의 수직이고, 요잉은 z를 축으로 도는 회전이라 벽의 '가장
+       가파른 쪽'은 어느 각에서도 화면 세로 그대로다. 곧 이 갈래는 화면에 못 박은 것이
+       아니라 **모형에 못 박은 것**이다. */
+    ux = 0; uy = 1; vx = 1; vy = 0;
   } else {
+    /* ★ 나머지(누운 낯)는 **모형 축**을 탄다 — 데칼이라 요잉을 함께 돈다.
+       여기 있던 '투영된 다각형에서 세로 모서리를 찾는' 갈래는 걷었다(지적: "헤어라인이
+       모델에 비해 상대 방향이 바뀌지, 그럼 안 된다니까 — 정면에서 보든 옆에서 보든
+       스크래치 방향은 데칼처럼 모델을 따라가야 해"). 그 갈래는 **화면**에 못 박은 자라,
+       같은 낯이라도 요잉에 따라 세로 모서리가 생겼다 없어졌다 하면서 자가 통째로
+       바뀌었다 — 90°·270°에서 결이 홱 도는 까닭이 그것이었다. */
     ux = ax9.gyx; uy = ax9.gyy; vx = ax9.gxx; vy = ax9.gxy;
   }
   // U는 화면 아래를 향하게 둔다 — 그래야 aLo가 늘 '위'다.
@@ -21655,7 +21665,7 @@ export function glowBake9(
     const k9 = shady9 ? BRUSH9.shade
       : Math.max(0, Math.min(1, (f9[1] - GLOW9.litLo) / span9));
     if (!(k9 > 0)) continue;
-    const gr9 = faceGrain9(d9, gax9);
+    const gr9 = faceGrain9(d9, gax9, shady9);
     g2.globalAlpha = k9;
     if (!gr9 || Math.max(gr9.aHi - gr9.aLo, gr9.bHi - gr9.bLo) < minS9) {
       // 너무 작은 낯은 고른 몫만 — 띠를 앉힐 자리가 없다.
