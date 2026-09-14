@@ -6046,6 +6046,61 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      *  깊이 ≈ 6)를 못 이겨 모서리가 기둥 앞으로 튀어나왔다). 뒤 모퉁이의 깊이는 −5 언저리라 −2를 문턱으로 가른다. */
     const pillarKey9 = (px: number, py: number, lift: number): number =>
       depthNow(px, py) > -2 ? bodyKey9 + lift : depthNow(px, py) + lift;
+    /* ★ 모퉁이 받침 — **테란 발판꼴의 둥근 단**을 본체 모퉁이에 **맞물리게 깎은 것**(요청: "테란 건물 발판 같은 도형으로
+       바꾸되 위를 평평하게 하고 조각내서 피라미드 모서리와 맞물리게"). spirePillar 원반은 본체 발자국 위로 올라타
+       모서리 낯을 덮었고, 옛 ㄱ자는 모나서 원작의 둥근 단과 달랐다. 여기서는 높이 단(LV9+1)마다 **원판 − 본체
+       발자국**의 윤곽을 직접 잰다: 그 높이의 본체 반폭 s(z)(밑동 단 0~0.55는 단의 반폭, 그 위는 피라미드 half)로
+       모퉁이 K = (±s, ±s)를 잡고, K에서 바깥 270도(x ≥ s 또는 y ≥ s 쪽)로 광선을 쏘아 원(반지름 r(z), 중심 = 기둥
+       자리)을 빠져나가는 점을 잇는다 — K가 늘 원 안에 있어(기둥 축이 모퉁이 안쪽) 그 영역은 K에서 별꼴이다. 윤곽은
+       [K, 호점 0..NA9]. 원의 반지름은 테란 발판의 눌린 돔(√(1−(k·t)²), k 0.8)이라 어깨가 둥글고, 꼭대기(t 1)는
+       반지름 0.76R로 남아 평평한 윗면이 된다. 단과 단 사이를 사각 낯으로 잇고 윗면을 덮되, **K에 닿는 두 변은 벽을
+       안 세운다** — 그 자리는 본체(단·피라미드)의 낯 그 자체라, 금빛 모서리가 받침의 홈에 끼워진 채로 보인다. 등진
+       낯은 건너뛴다(faceLight). 색은 안 준다(임자색). */
+    const cornerPad9 = (px: number, py: number): ShapeFace[] => {
+      const R9 = 1.45; const H9 = PLINTH_Z9 + 0.45; const K9 = 0.65; const LV9 = 6; const NA9 = 18;   // 윗면 반지름 0.76R(1.1) — 기둥 밑동(1.2×0.9) 둘레로 평평한 단이 남는다
+      const sx9 = Math.sign(px); const sy9 = Math.sign(py);
+      const sAt9 = (za: number): number => (za < PLINTH_Z9
+        ? (BASE_W9 + 0.8) / 2 - 0.3 * (za / PLINTH_Z9)
+        : BASE_W9 / 2 - (BASE_W9 / 2 - TOP_W9 / 2) * ((za - PLINTH_Z9) / 6.4));
+      const rings9: [number, number, number][][] = [];
+      for (let l9 = 0; l9 <= LV9; l9 += 1) {
+        const t9 = l9 / LV9; const za = t9 * H9; const zl = za - PLINTH_Z9;
+        const r9 = R9 * Math.sqrt(Math.max(0.05, 1 - (K9 * t9) * (K9 * t9)));
+        const s9 = sAt9(za); const kx9 = sx9 * s9; const ky9 = sy9 * s9;
+        const ex9 = kx9 - px; const ey9 = ky9 - py;
+        const ring: [number, number, number][] = [[kx9, ky9, zl]];
+        for (let i9 = 0; i9 <= NA9; i9 += 1) {
+          const a9 = -Math.PI / 2 + (i9 / NA9) * Math.PI * 1.5;
+          const dx9 = sx9 * Math.cos(a9); const dy9 = sy9 * Math.sin(a9);
+          const b9 = dx9 * ex9 + dy9 * ey9;
+          const c9 = ex9 * ex9 + ey9 * ey9 - r9 * r9;
+          const rho9 = -b9 + Math.sqrt(Math.max(0, b9 * b9 - c9));
+          ring.push([kx9 + dx9 * rho9, ky9 + dy9 * rho9, zl]);
+        }
+        rings9.push(ring);
+      }
+      const out9: ShapeFace[] = [];
+      const n9 = rings9[0].length;
+      for (let l9 = 0; l9 < LV9; l9 += 1) {
+        const lo9 = rings9[l9]; const hi9 = rings9[l9 + 1];
+        for (let i9 = 1; i9 < n9 - 1; i9 += 1) {   // 0↔1 · n−1↔0(모퉁이 K에 닿는 두 변)은 벽을 안 세운다
+          const j9 = i9 + 1;
+          const e1x = lo9[j9][0] - lo9[i9][0]; const e1y = lo9[j9][1] - lo9[i9][1]; const e1z = lo9[j9][2] - lo9[i9][2];
+          const e2x = hi9[i9][0] - lo9[i9][0]; const e2y = hi9[i9][1] - lo9[i9][1]; const e2z = hi9[i9][2] - lo9[i9][2];
+          let nx9 = e1y * e2z - e1z * e2y; let ny9 = e1z * e2x - e1x * e2z; let nz9 = e1x * e2y - e1y * e2x;
+          const mx9 = (lo9[i9][0] + lo9[j9][0]) / 2 - px; const my9 = (lo9[i9][1] + lo9[j9][1]) / 2 - py;
+          if (nx9 * mx9 + ny9 * my9 < 0) { nx9 = -nx9; ny9 = -ny9; nz9 = -nz9; }
+          const nl9 = Math.hypot(nx9, ny9, nz9) || 1;
+          const fl9 = faceLight(nx9 / nl9, ny9 / nl9, nz9 / nl9);
+          if (!fl9.visible) continue;
+          const w9 = polyPath3([lo9[i9], lo9[j9], hi9[j9], hi9[i9]]);
+          out9.push([w9, 1] as ShapeFace, ...fl9.face(w9));
+        }
+      }
+      const top9 = polyPath3(rings9[LV9]);
+      out9.push([top9, 1] as ShapeFace, topFace(top9, 0.18));
+      return out9;
+    };
     const pillar = (px: number, py: number): ShapeFace[] => withModelZOff(PLINTH_Z9, () => shape(((): ShapeFace[] => {
       return [
         // 받침 원반도 제 깊이(지적: 기둥 바닥의 원들이 안 가려짐).
@@ -6071,9 +6126,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            그 바깥을 이 ㄱ자가 감싼다. */
         /* 받침은 **둥근 팔각 발판**이다(재지적, 원작 그림: 테란 건물 발판 같은 둥근 단) — 한때 ㄱ자로 깎아 끼웠는데
            원작은 모퉁이에 얹힌 둥근 단이다. 땅에서 밑동 단 위까지 한 통(z 0 → 1.0). */
-        ...tagKey(spirePillar({
-          x: px, y: py, z0: -PLINTH_Z9, h: PLINTH_Z9 + 0.45, w: 1.1, tipW: 1.1, sides: 8, segs: 1, caps: "top",
-        }).map((f9) => { f9[3] = pillarKey9(px, py, 1.3); return f9; }), pillarKey9(px, py, 1.3)),
+        /* ★ 테란 발판처럼 **어깨가 둥근 단**, 위는 평평, 본체 모퉁이에 **맞물리게 깎는다**(재요청: "테란 건물 발판
+           같은 도형으로 바꾸되 위를 평평하게 하고 조각내서 피라미드 모서리와 맞물리게") — cornerPad9. */
+        ...tagKey(cornerPad9(px, py), pillarKey9(px, py, 1.3)),
         /* 끝을 도려내고 팁을 꽂는다(재재재지적: 화살촉처럼 튀지 않게) — 팁 원뿔이
            그 높이의 기둥 굵기보다 늘 살짝 굵어 기둥 끝을 완전히 감싼다.
            기둥 몸도 금빛(재작도) — 넷이 통째로 개인색이면 종족이 안 읽힌다. */
@@ -6094,7 +6149,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ...tagKey(spirePillar({
           x: px, y: py, z0: 0.4, h: 6.4, w: 1.2, tipW: 0.28, sides: 3, segs: 6, fill: "#d4bd3c",
           oval: 0.75, phase: -Math.PI / 2, ref: [-py / Math.hypot(px, py), px / Math.hypot(px, py), 0],
-          curveX: (-px / Math.hypot(px, py)) * 0.8, curveY: (-py / Math.hypot(px, py)) * 0.8,
+          curveX: (-px / Math.hypot(px, py)) * 0.4, curveY: (-py / Math.hypot(px, py)) * 0.4,   // 0.8 → 0.4(재요청: 더 약하게)
         }), pillarKey9(px, py, 1.5)),   // 받침판(+1.3)보다 한 단 앞 — 기둥이 받침판 위에 선다
         /* 오벨리스크 보석은 **개인색**이다(지적: "넥서스 사선에서 개인색 장식 포인트가
            안보임") — 여태 여기까지 사이언으로 못 박혀 있어서, 화면에 남은 개인색은
@@ -6112,8 +6167,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            glowLit은 그 깃발 하나를 보고 색을 고른다 — 꺼지면 식은 아쿠아, 켜지면 흰빛에
            가깝게. 모양은 그대로고 색만 갈리므로 굽는 삯도 안 는다. */
         ...tagKey(spirePillar({
-          // 방패 끝(안쪽으로 0.8 기운 자리)에서 이어 선다 — 몸 끝(0.3)을 감싸는 0.33, 기욺도 같은 비로 잇는다.
-          x: px + (-px / Math.hypot(px, py)) * 0.8, y: py + (-py / Math.hypot(px, py)) * 0.8,
+          // 방패 끝(안쪽으로 0.4 기운 자리)에서 이어 선다 — 몸 끝(0.3)을 감싸는 0.33, 기욺도 같은 비로 잇는다.
+          x: px + (-px / Math.hypot(px, py)) * 0.4, y: py + (-py / Math.hypot(px, py)) * 0.4,
           z0: 6.8, h: 2.1, w: 0.33, tipW: 0.02, sides: 8, segs: 2,
           leanX: (-px / Math.hypot(px, py)) * 0.4, leanY: (-py / Math.hypot(px, py)) * 0.4,
           fill: glowLit("#e6fffb", "#83f7e8"),
