@@ -20557,6 +20557,33 @@ for (const k of Object.keys(SHAPE_BUILDERS)) {
   SHAPE_BUILDERS[k] = () => zsorted(orig());
 }
 
+/* ── 테란 기본색 **두 단**(요청: "테란 기본 색을 2개로 나눌 거야 — ① 현재 색 ② 조금 더
+   밝고 푸른빛이 강한 색(커맨드·벙커·서플라이, 그리고 모든 유닛)") ─────────────────────
+   나누는 자리를 빌더 안이 아니라 **여기 한 곳**에 둔다. 까닭: 바탕색(raceBase)과 손칠
+   강철(TERRAN_STEEL)이 이제 **같은 한 값**이므로, 구워 나온 면에서 그 값 하나만 갈아
+   끼우면 그 종류의 '기본색'이 통째로 옮겨진다 — 빌더 서른 개를 고칠 일도, 빌더마다
+   어느 단을 쓰는지 외울 일도 없다. 나중에 어느 종류를 옮기려면 아래 명단에 이름만 더한다.
+   ★ zsorted 감싸기 **뒤에** 둔다 — 색만 갈 뿐 차례는 안 건드리므로 어느 쪽이 먼저든
+     그림은 같지만, 정렬이 끝난 배열을 한 번만 훑는 편이 값이 싸다. */
+/** 밝고 푸른 단 — 현재 기본색(#555a64)보다 휘도 +11%, 파랑이 빨강보다 30만큼 앞선다. */
+export const TERRAN_BASE_LT = "#5a6578";
+/** 그 단을 쓰는 종류 — 커맨드·벙커·서플라이와 **테란 유닛 전부**(부품·짐 변종까지). */
+export const TERRAN_LT_KINDS9: ReadonlySet<string> = new Set<string>([
+  "tomb", "tombFlat", "trapezoid",
+  "scv", "scvMin", "scvGas", "scvHold", "loadScvMin", "loadScvGas",
+  "gunner", "ghost", "fbat", "inf",
+  "vulture", "mine",
+  "tank", "tankbody", "tankgun", "tankturret0", "tankbarrel",
+  "tanksiege", "tanksiegebody", "tanksiegegun", "tanksiegelegs", "tanksiegelegsF", "siegebarrel",
+  "goliath", "wraith", "dship", "vessel", "valk", "bc",
+]);
+for (const k of TERRAN_LT_KINDS9) {
+  const orig = SHAPE_BUILDERS[k];
+  if (!orig) continue;
+  SHAPE_BUILDERS[k] = () => orig().map((f) => (f[2] === RACE_BASE_TONE.terran
+    ? [f[0], f[1], TERRAN_BASE_LT, f[3], f[4], f[5]] as ShapeFace : f));
+}
+
 
 export const SHAPE_FACES: Record<string, ShapeFace[]> = {
   // 3D 빌더 전부를 표준 시점으로 한 번 굽고, 2D 기호(전투 갈래)는 그대로 얹는다.
@@ -21166,6 +21193,44 @@ export const GLOW9 = {
 };
 /** 흰 덮개(광)로 쓰이는 색들 — 종족마다 제 광색이 있고, 안 적힌 종족은 순백이다. */
 const GLOW_HI9 = new Set<string>(["#fff", ...Object.values(RACE_GLOSS_LIT)]);
+/* ── 긁힌 광택띠(요청: "테란만의 광택 질감 … 긁힌 듯한 광택띠, 금속을 표현해 주는 거") ──
+   브러시드 메탈은 **결이 한 방향으로 누운** 금속이다. 그래서 무늬가 화면이 아니라 **낯의
+   결**을 따라야 한다 — 글로우가 이미 낯마다 제 축(faceAxis9: 위 모서리 방향)을 재고 있으니
+   그 축 위에 가는 줄 몇 가닥을 눕히면 된다.
+   ★ 밝은 줄과 **어두운 줄**이 함께 있어야 '긁힌' 것으로 읽힌다. 그런데 이 겹은 마지막에
+     "lighter"로 얹히므로 검정은 아무 일도 안 한다(더해도 0이다). 그래서 어두운 줄은
+     **깔린 글로우를 파내서**(destination-out) 낸다 — 둘레보다 빛이 덜 오르니 눈에는
+     고랑으로 보인다. 색을 안 쓰고 빛의 양만 다루므로 어느 바탕색에서도 결이 같다.
+   ★ 테란 낯에만 건다 — 판별은 그 낯이 쓴 **광 색**이다(glossFaces가 종족마다 제 색으로
+     적어 둔다: 테란 #e0e5ee · 토스 제 금색 · 저그는 흰색 그대로). 종족을 따로 실어 보낼
+     길이 없는 자리에서, 이미 면에 적힌 값이 곧 답이다.
+   ★ 결의 자리는 **패스 글자에서 뽑은 씨앗**으로 정한다 — 굽는 자리마다(판·도록·도구) 따로
+     구워도 같은 무늬라야 한 모델이 한 모델로 보인다. Math.random을 쓰면 굽을 때마다 결이
+     바뀐다. */
+export const BRUSH9 = {
+  /** 0이면 끔 — 결 한 가닥의 세기(글로우 겹 안에서의 알파). */
+  a: 0.8,
+  /** 16-상자 한 칸(1)마다 놓는 가닥 수 — 낯이 클수록 결이 는다. */
+  per: 2,
+  /** 결의 굵기(16-상자 자). */
+  w: 0.06,
+  /** 어두운 고랑의 몫(0이면 밝은 결만, 1이면 반반) — 파내는 알파에 곱한다. */
+  dark: 0.75,
+};
+/** 테란 금속의 광 색 — 이 색을 쓴 낯에만 결을 눕힌다. */
+const BRUSH_TONE9 = RACE_GLOSS_LIT.terran;
+/** 패스 글자 → 0~1 난수 씨앗(같은 낯이면 늘 같은 결). */
+function brushSeed9(d: string): () => number {
+  let h = 2166136261;
+  for (let i = 0; i < d.length; i += 1) { h ^= d.charCodeAt(i); h = Math.imul(h, 16777619); }
+  let x = (h >>> 0) || 1;
+  return (): number => {
+    x ^= x << 13; x >>>= 0;
+    x ^= x >> 17;
+    x ^= x << 5; x >>>= 0;
+    return x / 4294967296;
+  };
+}
 /** 한 낯의 **제 축** — 위 모서리의 방향(ang)과, 그 모서리에 수직인 축에서 잰 위·아래 끝.
  *  ★ 낯마다 따로 잰다 — 하이라이트가 '그 낯의 위쪽'에 들어가려면 화면의 위가 아니라
  *    **그 낯의 위**를 알아야 한다. 상자 옆면이든 지붕이든 위 모서리가 곧 그 낯 안의
@@ -21312,7 +21377,31 @@ export function glowBake9(
     gr.addColorStop(1, FL9);
     g2.fillStyle = gr;
     const lo9 = Math.min(ax.top, ax.bot);
-    g2.fillRect(-ax.len, lo9, ax.len * 2, Math.abs(ax.bot - ax.top));
+    const span9x = Math.abs(ax.bot - ax.top);
+    g2.fillRect(-ax.len, lo9, ax.len * 2, span9x);
+    /* ── 긁힌 결 ── 이 낯의 결 방향(= 돌린 자리의 가로)으로 가는 줄을 눕힌다. 밝은 줄은
+       더 얹고, 어두운 줄은 깔린 빛을 파내 고랑을 만든다(BRUSH9의 ★). */
+    if (BRUSH9.a > 0 && fl9 === BRUSH_TONE9 && span9x > BRUSH9.w * 3) {
+      const rnd9 = brushSeed9(d9);
+      const n9 = Math.max(2, Math.round(span9x * BRUSH9.per));
+      for (let i9 = 0; i9 < n9; i9 += 1) {
+        const q9 = lo9 + span9x * ((i9 + rnd9() * 0.9) / n9);
+        const w9 = BRUSH9.w * (0.5 + rnd9() * 1.3);
+        const s9 = rnd9();
+        if (s9 < 0.5) {
+          g2.globalCompositeOperation = "source-over";
+          g2.globalAlpha = k9 * BRUSH9.a * (0.35 + s9);
+          g2.fillStyle = HI9;
+        } else {
+          g2.globalCompositeOperation = "destination-out";
+          g2.globalAlpha = BRUSH9.a * BRUSH9.dark * (s9 - 0.2);
+          g2.fillStyle = "#000";
+        }
+        g2.fillRect(-ax.len, q9, ax.len * 2, w9);
+      }
+      g2.globalCompositeOperation = "source-over";
+      g2.globalAlpha = k9;
+    }
     g2.restore();
   }
   g2.globalCompositeOperation = "source-over";
