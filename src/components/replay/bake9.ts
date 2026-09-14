@@ -21106,29 +21106,28 @@ export function lodOf(px: number, ptPx = LOD_PX_POINT, dcPx = LOD_PX_DECO): numb
    쓴다(모델이 돌아도 빛은 세계에 고정이라 이 방향은 안 돈다).
    ★ 끄려면 a를 0으로 둔다. 판 여백(pad)도 이 값이 0이면 안 는다. */
 export const GLOW9 = {
-  /* ── ① 낯 전체를 밝히는 몫 ─────────────────────────────────────────────────
-     빛을 받는 낯이 통째로 한 겹 밝아진다. 빛 축(lightScreenDir)을 따라 빛 쪽이 꽉 차고
-     그늘 쪽으로 가며 스러지므로, 어두운 낯에는 아무것도 안 깔린다. */
-  /** 그 몫의 세기(0이면 끔). */
-  face: 0.14,
-  /** 빛 축에서 **꽉 찬 구간**(0=빛 쪽 끝, 1=그늘 쪽 끝). */
-  faceKeep: 0.1,
-  /** 거기서 다 스러지기까지의 폭. */
-  faceFade: 0.55,
-  /* ── ② 그 위에 얹는 스트라이프 하이라이트 ────────────────────────────────
-     경계가 분명한 **가로 줄 두 단**이다(요청). 낯 전체의 몫과 달리 이쪽은 칼같이 끊긴다. */
-  /** 줄의 세기(0이면 끔). */
-  a: 0.34,
+  /* ── 어느 면이 밝은가는 **그 면이 받은 흰 덮개**가 말한다 ────────────────────────────
+     ★ 화면 자리가 아니라 **면의 방향**으로 가른다(요청: 빛이 왼위에서 들어오니 "윗면과
+       앞면이 밝을 거고, 어떤 부위는 더 하이라이트로 밝게 빛나는 거야"). 면의 방향은 이미
+       faceLight가 LIGHT_PLAN과 재어 흰 덮개(#fff·종족 광색)의 알파로 적어 두었다 —
+       윗면(topFace)도 같은 덮개를 쓴다. 그 알파를 0~1로 펴서 이 겹의 세기로 삼으면,
+       빛을 마주 본 낯일수록 밝고 등진 낯은 아예 안 밝아진다. 앞서 쓰던 '화면 왼위쪽을
+       밝히는' 그러데이션은 면의 방향을 몰라, 등진 낯이 화면 왼위에 있으면 밝혔다. */
+  /** 밝기 자의 아래 끝 — 흰 덮개 알파가 이보다 낮으면 안 밝힌다. */
+  litLo: 0.1,
+  /** 밝기 자의 위 끝 — 여기서 1이다(glossFaces의 흰 덮개 꼭대기가 0.54다). */
+  litHi: 0.5,
+  /** 낯 전체를 밝히는 몫의 세기(0이면 끔). */
+  face: 0.34,
+  /** 면마다 눕는 줄의 세기(0이면 끔). */
+  a: 0.55,
   /** 줄이 앉는 **높이** — 그 면의 위 모서리에서 아래 모서리까지를 0~1로 잰 자리다.
-   *  0에 가까우면 위 모서리에 딱 붙는 **베벨 하이라이트**가 된다(요청 그림의 그 느낌). */
+   *  0에 가까우면 위 모서리에 딱 붙는 **베벨 하이라이트**가 된다. */
   bandAt: 0.035,
   /** 줄의 **두께** — 같은 자(면 높이의 몫). */
   bandH: 0.12,
-  /** 줄을 그릴 **가장 작은 면** — 판 한 변 대비 이보다 짧은 면은 건너뛴다(값만 든다). */
+  /** 줄을 그릴 **가장 작은 면** — 16-상자 대비 이보다 짧은 면은 건너뛴다(값만 든다). */
   minSide: 0.055,
-  /** 줄 **경계의 무름** — 0에 가까울수록 칼같이 끊긴다(요청: "경계가 분명하게").
-   *  0으로 두면 계단이 생기므로 한 톨만 남긴다. */
-  edge: 0.012,
   /** 번지는 폭 — **모델 상자 한 변의 몫**이다(절대 픽셀이 아니다: 배율마다 두께가
    *  달라지면 안 된다). 이 몫만큼 줄이 낯을 **벗어나** 흘러넘친다. */
   spill: 0.03,
@@ -21139,6 +21138,8 @@ export const GLOW9 = {
   /** 빛나는 줄의 색 — 순백은 차가워 보인다. */
   hue: "255, 246, 228",
 };
+/** 흰 덮개(광)로 쓰이는 색들 — 종족마다 제 광색이 있고, 안 적힌 종족은 순백이다. */
+const GLOW_HI9 = new Set<string>(["#fff", ...Object.values(RACE_GLOSS_LIT)]);
 /** 한 면의 **수평 줄** 자리 — 그 면의 각도를 따라 눕는다.
  *  ★ 면마다 따로 잰다(요청: "수평 스트라이프 1줄씩 면마다, 면의 각도 고려해서") — 판을
  *    통째로 가로지르는 띠는 여러 면을 한 줄로 꿰어 스캔선처럼 보였다. 면은 저마다 다른
@@ -21216,12 +21217,12 @@ export function faceStripe9(
 }
 
 /** 판 한 장에 글로우를 굽는다 — 면을 다 칠한 **뒤** 부른다.
- *  ★ 두 겹이다(요청: "면 전체 밝게 글로우 + 스트라이프 하이라이트"):
- *      ① **낯 전체** — 빛 축을 따라 빛 쪽이 꽉 차고 그늘 쪽으로 스러지는 무른 몫.
- *         어두운 낯에는 아무것도 안 깔린다.
- *      ② **면마다 수평 줄 한 가닥** — 경계가 칼같은 하이라이트다. 판을 통째로 가로지르는
- *         띠가 아니라 **면마다 제 각도로** 눕는다(faceStripe9). 그 줄만 낯을 조금 벗어나
- *         번지고, 번짐은 destination-over라 몸 위에는 안 겹쳐 경계가 안 뭉개진다.
+ *  ★ 두 겹이고, 둘 다 **그 면이 받은 빛의 몫**을 따른다(GLOW9의 ★):
+ *      ① **낯 전체** — 빛을 마주 본 낯이 통째로 한 겹 밝아진다(윗면·앞면).
+ *      ② **면마다 줄 한 가닥** — 그 위에 얹히는 하이라이트다. 면의 위 모서리에서 각을
+ *         얻어 그 면의 각도로 눕고(faceStripe9), 가장 잘 받는 면일수록 세다.
+ *    ②만 낯을 조금 벗어나 번지고, 그 번짐은 destination-over라 몸 위에는 안 겹쳐
+ *    경계가 안 뭉개진다.
  *  box(모델의 16-상자)를 주면 그 자리만 다룬다. */
 export function glowBake9(
   c2: BakeCtx9, cv: BakeCv9, B: number,
@@ -21229,6 +21230,7 @@ export function glowBake9(
   faces?: ShapeFace[],
 ): void {
   if (!(GLOW9.a > 0) && !(GLOW9.face > 0)) return;
+  if (!faces || faces.length === 0) return;
   void B;
   /** 상자 한 변(장치 픽셀) — 번짐의 자다. */
   const S9 = Math.min(box?.w ?? cv.width, box?.h ?? cv.height);
@@ -21239,78 +21241,70 @@ export function glowBake9(
   const gw = Math.min(cv.width - gx, (box?.w ?? cv.width) + m9 * 2);
   const gh = Math.min(cv.height - gy, (box?.h ?? cv.height) + m9 * 2);
   if (!(gw > 0 && gh > 0)) return;
+  /* ★ **빛을 받은 낯 = 흰 덮개 면 그 자체**다 ─────────────────────────────────────
+     처음엔 몸판을 찾아 그 패스로 덮개를 되짚으려 했는데 안 맞았다: 상자(frustumFaces3)는
+     몸을 **여러 낯을 이어 붙인 한 패스**로 내고, 낯마다의 명암은 **따로 난 제 패스**로
+     얹는다(faceLight가 낯의 법선으로 흰 덮개냐 검은 덮개냐를 가른다). 곧 '빛을 받은 낯'의
+     윤곽을 쥐고 있는 것은 몸판이 아니라 **흰 덮개 면**이다. 그 면을 그대로 자리로 삼고,
+     제 알파를 0~1로 펴서 세기로 쓴다 — 잘 받는 낯일수록 세다. 검은 덮개만 받은 낯은
+     이 목록에 아예 없으므로 한 톨도 안 밝아진다. */
+  const span9 = Math.max(0.01, GLOW9.litHi - GLOW9.litLo);
+  const lit9: { d: string; k: number }[] = [];
+  for (const f9 of faces) {
+    const fl9 = f9[2];
+    if (fl9 === undefined || !GLOW_HI9.has(fl9)) continue;
+    const k9 = Math.max(0, Math.min(1, (f9[1] - GLOW9.litLo) / span9));
+    if (k9 > 0) lit9.push({ d: f9[0], k: k9 });
+  }
+  if (lit9.length === 0) return;
   const gv = bakeCanvas(cv.width);
   if (!gv) return;
   const g2 = ctx2d9(gv);
   if (!g2) { freeBakeCanvas(gv); return; }
-  const cx9 = gx + gw / 2;
-  const cy9 = gy + gh / 2;
-  const R9 = Math.hypot(gw, gh) / 2;
   const prev = c2.getTransform();
-  c2.setTransform(1, 0, 0, 1, 0, 0);
+  const minS9 = GLOW9.minSide * 16;
   c2.save();
-  // ① 낯 전체 — 빛 축을 따라 스러지는 무른 몫.
+  // ① 낯 전체 — 빛을 마주 본 낯이 제 몫만큼 밝아진다.
   if (GLOW9.face > 0) {
-    const [lx9, ly9] = lightScreenDir();
     g2.setTransform(1, 0, 0, 1, 0, 0);
     g2.globalCompositeOperation = "source-over";
     g2.globalAlpha = 1;
     g2.clearRect(gx, gy, gw, gh);
-    g2.drawImage(cv as CanvasImageSource, gx, gy, gw, gh, gx, gy, gw, gh);
-    const gr = g2.createLinearGradient(
-      cx9 + lx9 * R9, cy9 + ly9 * R9, cx9 - lx9 * R9, cy9 - ly9 * R9,
-    );
-    gr.addColorStop(0, `rgba(${GLOW9.hue}, 1)`);
-    gr.addColorStop(Math.max(0, Math.min(1, GLOW9.faceKeep)), `rgba(${GLOW9.hue}, 1)`);
-    gr.addColorStop(Math.min(1, GLOW9.faceKeep + GLOW9.faceFade), `rgba(${GLOW9.hue}, 0)`);
-    gr.addColorStop(1, `rgba(${GLOW9.hue}, 0)`);
-    g2.globalCompositeOperation = "source-in";
-    g2.fillStyle = gr;
-    g2.fillRect(gx, gy, gw, gh);
-    g2.globalCompositeOperation = "source-over";
+    g2.setTransform(prev);
+    g2.fillStyle = `rgb(${GLOW9.hue})`;
+    for (const { d: d9, k: k9 } of lit9) {
+      g2.globalAlpha = k9;
+      g2.fill(pathOf(d9));
+    }
+    g2.globalAlpha = 1;
+    c2.setTransform(1, 0, 0, 1, 0, 0);
     c2.globalCompositeOperation = "lighter";
     c2.globalAlpha = GLOW9.face;
     c2.drawImage(gv as CanvasImageSource, gx, gy, gw, gh, gx, gy, gw, gh);
   }
-  // ② 면마다 수평 줄 한 가닥 — 빌림판에 모아 두었다가 한 번에 얹는다.
-  if (GLOW9.a > 0 && faces && faces.length > 0) {
+  // ② 면마다 줄 한 가닥 — 잘 받는 면일수록 세다.
+  if (GLOW9.a > 0) {
     g2.setTransform(1, 0, 0, 1, 0, 0);
     g2.globalCompositeOperation = "source-over";
     g2.globalAlpha = 1;
     g2.clearRect(gx, gy, gw, gh);
     /* ★ 면 패스는 **모형 자**(16-상자)로 적혀 있다 — 판 픽셀 자로 두고 clip하면 판
-       왼위 16화소만 잘라 아무것도 안 그려진다. 부르는 쪽의 변환(prev)을 그대로 얹어야
-       면이 제자리에 앉는다. 그래서 이 묶음만 모형 자로 돌고, 그늘 지우개는 다시
-       판 픽셀 자로 돌아와서 건다. */
+       왼위 16화소만 잘라 아무것도 안 그려진다. 부르는 쪽의 변환을 그대로 얹는다. */
     g2.setTransform(prev);
     g2.fillStyle = `rgb(${GLOW9.hue})`;
-    /** 가장 작은 면의 문턱 — 모형 자라 16-상자의 몫이다. */
-    const minS9 = GLOW9.minSide * 16;
-    for (const f9 of faces) {
-      // 몸판만 — 흑백 덮개(명암)는 제 알파가 낮아 걸러진다.
-      if (f9[1] < 0.95) continue;
-      const st = faceStripe9(f9[0]);
+    for (const { d: d9, k: k9 } of lit9) {
+      const st = faceStripe9(d9);
       if (!st || st.half * 2 < 0.02 || st.len < minS9) continue;
       g2.save();
-      g2.clip(pathOf(f9[0]));
+      g2.clip(pathOf(d9));
+      g2.globalAlpha = k9;
       g2.translate(st.cx, st.cy);
       g2.rotate(st.ang);
       g2.fillRect(-st.len, st.off - st.half, st.len * 2, st.half * 2);
       g2.restore();
     }
-    /* 그늘진 낯에는 줄도 안 깔린다 — 빛 축 그러데이션으로 그늘 쪽을 지운다(판 픽셀 자). */
-    g2.setTransform(1, 0, 0, 1, 0, 0);
-    const [lx2, ly2] = lightScreenDir();
-    const gr2 = g2.createLinearGradient(
-      cx9 + lx2 * R9, cy9 + ly2 * R9, cx9 - lx2 * R9, cy9 - ly2 * R9,
-    );
-    gr2.addColorStop(0, "rgba(0,0,0,0)");
-    gr2.addColorStop(Math.max(0, Math.min(1, GLOW9.faceKeep + GLOW9.faceFade * 0.8)), "rgba(0,0,0,0)");
-    gr2.addColorStop(1, "rgba(0,0,0,1)");
-    g2.globalCompositeOperation = "destination-out";
-    g2.fillStyle = gr2;
-    g2.fillRect(gx, gy, gw, gh);
-    g2.globalCompositeOperation = "source-over";
+    g2.globalAlpha = 1;
+    c2.setTransform(1, 0, 0, 1, 0, 0);
     c2.globalCompositeOperation = "lighter";
     c2.globalAlpha = GLOW9.a;
     c2.drawImage(gv as CanvasImageSource, gx, gy, gw, gh, gx, gy, gw, gh);
