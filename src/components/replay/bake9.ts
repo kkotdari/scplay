@@ -21180,13 +21180,18 @@ export const GLOW9 = {
   litLo: 0.1,
   /** 밝기 자의 위 끝 — 여기서 1이다(glossFaces의 흰 덮개 꼭대기가 0.54다). */
   litHi: 0.5,
-  /** 겹 전체의 세기(0이면 끔). */
-  a: 0.24,
-  /** 낯 **전체**에 고르게 깔리는 몫(0~1) — 나머지는 위쪽 하이라이트가 진다. */
+  /** 겹 전체의 세기(0이면 끔) — **결이 쓸 수 있는 천장**이기도 하다.
+   *  ★ 0.24 → 0.6으로 올리되 아래 glow로 다시 나눈다(지적: "양도 너무 적고 티도 안 나").
+   *    결은 이 겹 안에 그려지므로 화면에 오를 수 있는 최대가 곧 이 값이었다 — 0.24로는
+   *    알파를 1까지 올려도 24%밖에 못 얹어 결이 안 보였다. 겹을 0.6으로 올리고 글로우가
+   *    쓰는 몫을 0.4로 두면 겉보기(0.6×0.4 = 0.24)는 그대로이고 결만 2.5배 세진다. */
+  a: 0.6,
+  /** 그 천장 중 **글로우**가 쓰는 몫 — 겉보기 세기는 a × glow다. */
+  glow: 0.4,
+  /** 낯 **전체**에 고르게 깔리는 몫(0~1) — 그 위에 광택 띠(BRUSH9)가 얹힌다.
+   *  (옛 topH는 걷었다 — 위쪽 하이라이트의 자리를 이제 BRUSH9.top·h가 쥔다.) */
   flat: 0.4,
-  /** 위쪽 하이라이트가 차지하는 몫 — 그 낯의 위 모서리에서 아래로 이만큼이다. */
-  topH: 0.3,
-  /** 하이라이트를 그릴 **가장 작은 낯** — 16-상자 대비 이보다 짧으면 고른 몫만 깐다. */
+  /** 띠를 그릴 **가장 작은 낯** — 16-상자 대비 이보다 짧으면 고른 몫만 깐다. */
   minSide: 0.04,
   /** 빛의 색 — 순백은 차가워 보인다. */
   hue: "255, 246, 228",
@@ -21194,21 +21199,20 @@ export const GLOW9 = {
 /** 흰 덮개(광)로 쓰이는 색들 — 종족마다 제 광색이 있고, 안 적힌 종족은 순백이다. */
 const GLOW_HI9 = new Set<string>(["#fff", ...Object.values(RACE_GLOSS_LIT)]);
 /* ── 긁힌 광택띠(요청: "테란만의 광택 질감 … 긁힌 듯한 광택띠, 금속을 표현해 주는 거") ──
-   브러시드 메탈은 **결이 한 방향으로 누운** 금속이다. 그래서 무늬가 화면이 아니라 **낯의
-   결**을 따라야 한다 — 글로우가 이미 낯마다 제 축(faceAxis9: 위 모서리 방향)을 재고 있으니
-   그 자를 쓴다.
-   ★ 결은 낯의 **세로**로 선다(지적: "결 방향은 수직이 나을 것 같고") — 위 모서리를 따라
-     눕히면 결이 지붕·옆판마다 다른 쪽으로 흘러 판이 미끄러져 보였다. 위 모서리와 **직각**
-     으로 세우면 어느 낯에서도 결이 중력 쪽을 가리켜 한 덩이로 읽힌다.
-   ★ **얇은 선을 많이, 면도 섞는다**(지적) — 가닥의 대부분은 머리카락처럼 얇은 선이고,
-     몇 가닥만 여러 배 굵은 띠(면)다. 굵기가 고르면 줄무늬 천이 되지 청소한 금속이 안 된다.
-   ★ 자리는 **양 끝으로 쏠린다**(지적: "선은 디테일 표시로만, 끝이나 끊어지는 부분에
-     써주면 될 듯") — 고르게 뿌리면 무늬가 되고, 모서리 가까이 모으면 판의 끝과 이음매를
-     짚는 디테일이 된다. −1~1의 자리를 |t|^(1/edge)로 굽혀 양 끝에 모은다.
+   ★ 결은 **늘 화면 세로**다(지적: "위 모서리가 아니라 그냥 절댓값으로 항상 세로 방향").
+     낯의 축으로 돌리면 지붕·옆판마다 결이 다른 쪽으로 흘러 판이 미끄러져 보였다. 이
+     투영에서 세계의 z는 화면 x에 한 톨도 안 실리므로(project: sx는 z와 무관), **화면
+     세로가 곧 세계의 수직**이다 — 돌리지 않는 것이 물리적으로도 맞다.
+   ★ 낯 **전체**를 덮지 않는다(지적: "전체 면을 덮는 게 아니라, 광택이 이는 부분을
+     스트라이프 영역으로, 그 안에 세로줄을 채워 넣는 거야") — 광택은 낯 상자의 위쪽에
+     가로로 누운 **띠 한 줄**이고, 결은 그 띠 **안에서만** 선다. 온 낯에 결을 깔면 무늬
+     입힌 천이 되고, 띠로 가두면 '거기서 빛이 튄다'가 된다.
+   ★ **얇은 선을 많이, 면도 섞는다**(지적) — 줄의 대부분은 머리카락처럼 얇고, 몇 줄만
+     여러 배 굵다. 굵기가 고르면 줄무늬 천이 되지 청소한 금속이 안 된다.
    ★ 밝은 줄과 **어두운 줄**이 함께 있어야 '긁힌' 것으로 읽힌다. 그런데 이 겹은 마지막에
      "lighter"로 얹히므로 검정은 아무 일도 안 한다(더해도 0이다). 그래서 어두운 줄은
-     **깔린 글로우를 파내서**(destination-out) 낸다 — 둘레보다 빛이 덜 오르니 눈에는
-     고랑으로 보인다. 색을 안 쓰고 빛의 양만 다루므로 어느 바탕색에서도 결이 같다.
+     **깔린 빛을 파내서**(destination-out) 낸다 — 둘레보다 빛이 덜 오르니 눈에는 고랑으로
+     보인다. 색을 안 쓰고 빛의 양만 다루므로 어느 바탕색에서도 결이 같다.
    ★ 테란 낯에만 건다 — 판별은 그 낯이 쓴 **광 색**이다(glossFaces가 종족마다 제 색으로
      적어 둔다: 테란 #e0e5ee · 토스 제 금색 · 저그는 흰색 그대로). 종족을 따로 실어 보낼
      길이 없는 자리에서, 이미 면에 적힌 값이 곧 답이다.
@@ -21216,22 +21220,23 @@ const GLOW_HI9 = new Set<string>(["#fff", ...Object.values(RACE_GLOSS_LIT)]);
      구워도 같은 무늬라야 한 모델이 한 모델로 보인다. Math.random을 쓰면 굽을 때마다 결이
      바뀐다. */
 export const BRUSH9 = {
-  /** 0이면 끔 — 결 한 가닥의 세기(글로우 겹 안에서의 알파). */
-  a: 0.8,
-  /** 16-상자 한 칸(1)마다 놓는 가닥 수 — 낯이 넓을수록 결이 는다. */
-  per: 5,
-  /** 얇은 선의 굵기(16-상자 자). */
-  w: 0.022,
-  /** 가닥 중 **면**(넓은 띠)이 될 몫(0이면 선만). */
-  band: 0.22,
+  /** 0이면 끔 — 줄 한 가닥의 세기(겹 천장 안에서의 알파). */
+  a: 0.95,
+  /** 광택 띠가 시작하는 자리 — 낯 상자 높이의 몫(0이면 맨 위). */
+  top: 0.05,
+  /** 광택 띠의 높이 — 낯 상자 높이의 몫. */
+  h: 0.36,
+  /** 줄 사이 간격(16-상자 자) — 좁을수록 결이 촘촘하다. */
+  pitch: 0.052,
+  /** 얇은 줄의 굵기(16-상자 자). */
+  w: 0.026,
+  /** 줄 중 **면**(굵은 줄)이 될 몫(0이면 얇은 줄만). */
+  band: 0.18,
   /** 면의 굵기 배수 — w에 곱한다. */
-  bandW: 7,
-  /** 양 끝 쏠림(1이면 고르게, 클수록 모서리에 모인다). */
-  edge: 2.2,
-  /** 어두운 고랑의 몫(0이면 밝은 결만, 1이면 반반) — 파내는 알파에 곱한다. */
-  dark: 0.75,
-};
-/** 테란 금속의 광 색 — 이 색을 쓴 낯에만 결을 눕힌다. */
+  bandW: 4.5,
+  /** 어두운 고랑의 몫(0이면 밝은 줄만, 1이면 반반) — 파내는 알파에 곱한다. */
+  dark: 0.6,
+};/** 테란 금속의 광 색 — 이 색을 쓴 낯에만 결을 눕힌다. */
 const BRUSH_TONE9 = RACE_GLOSS_LIT.terran;
 /** 패스 글자 → 0~1 난수 씨앗(같은 낯이면 늘 같은 결). */
 function brushSeed9(d: string): () => number {
@@ -21252,7 +21257,11 @@ function brushSeed9(d: string): () => number {
  *  곡선(A·C·Q)이 섞인 패스는 M·L 꼭짓점만 보므로 어림이지만, 한 겹의 자리로는 넉넉하다. */
 export function faceAxis9(
   d: string,
-): { cx: number; cy: number; ang: number; top: number; bot: number; len: number } | null {
+): {
+  cx: number; cy: number; ang: number; top: number; bot: number; len: number;
+  /** 화면 자(안 돌린) 상자 — 결은 낯의 축이 아니라 **화면 세로**로 서므로 이 자를 쓴다. */
+  bx0: number; bx1: number; by0: number; by1: number;
+} | null {
   const pts: [number, number][] = [];
   const re9 = /[ML]\s*(-?[\d.]+)[ ,]+(-?[\d.]+)/g;
   let m9 = re9.exec(d);
@@ -21307,10 +21316,18 @@ export function faceAxis9(
   /* 돌린 자리에서 +y'는 화면으로 (−sin, cos)다 — cos이 양수면 +y'가 화면 아래를 보므로
      '위'는 작은 쪽이고, 음수면 반대다. */
   const down9 = Math.cos(Math.atan2(uy, ux)) >= 0;
+  let bx0 = Infinity; let bx1 = -Infinity; let by0 = Infinity; let by1 = -Infinity;
+  for (const [x9, y9] of pts) {
+    if (x9 < bx0) bx0 = x9;
+    if (x9 > bx1) bx1 = x9;
+    if (y9 < by0) by0 = y9;
+    if (y9 > by1) by1 = y9;
+  }
   return {
     cx, cy, ang: Math.atan2(uy, ux),
     top: down9 ? qlo : qhi, bot: down9 ? qhi : qlo,
     len: Math.max(0.01, (thi - tlo) / 2 + 0.02),
+    bx0, bx1, by0, by1,
   };
 }
 
@@ -21355,8 +21372,10 @@ export function glowBake9(
   /* ★ 면 패스는 **모형 자**(16-상자)로 적혀 있다 — 판 픽셀 자로 두고 clip하면 판 왼위
      16화소만 잘라 아무것도 안 그려진다. 부르는 쪽의 변환을 그대로 얹는다. */
   g2.setTransform(prev);
-  const HI9 = `rgba(${GLOW9.hue}, 1)`;
-  const FL9 = `rgba(${GLOW9.hue}, ${GLOW9.flat})`;
+  const HI9 = `rgba(${GLOW9.hue}, ${GLOW9.glow})`;
+  const FL9 = `rgba(${GLOW9.hue}, ${GLOW9.glow * GLOW9.flat})`;
+  /** 결의 밝은 줄 — 겹의 천장을 다 쓴다(글로우 몫에 안 눌린다). */
+  const BR9 = `rgba(${GLOW9.hue}, 1)`;
   /* ★ **화가 차례를 그대로 따른다** — 낯을 그리기 앞서 그 낯 자리의 앞선 글로우를 제 알파만큼
      지운다(destination-out). 안 그러면 뒤에 가려 안 보이는 낯의 글로우가 판 맨 위에 얹혀,
      지붕 위로 다리·뒤판의 허연 쐐기가 떠오른다(실제로 그랬다). 안 밝은 낯도 지우기는 한다 —
@@ -21383,46 +21402,44 @@ export function glowBake9(
     }
     g2.save();
     g2.clip(pa9);
-    g2.translate(ax.cx, ax.cy);
-    g2.rotate(ax.ang);
-    const gr = g2.createLinearGradient(0, ax.top, 0, ax.bot);
-    gr.addColorStop(0, HI9);
-    gr.addColorStop(Math.max(0.01, Math.min(1, GLOW9.topH)), FL9);
-    gr.addColorStop(1, FL9);
-    g2.fillStyle = gr;
-    const lo9 = Math.min(ax.top, ax.bot);
-    const span9x = Math.abs(ax.bot - ax.top);
-    g2.fillRect(-ax.len, lo9, ax.len * 2, span9x);
-    /* ── 긁힌 결 ── 이 낯의 결 방향(= 돌린 자리의 가로)으로 가는 줄을 눕힌다. 밝은 줄은
-       더 얹고, 어두운 줄은 깔린 빛을 파내 고랑을 만든다(BRUSH9의 ★). */
-    if (BRUSH9.a > 0 && fl9 === BRUSH_TONE9 && ax.len > BRUSH9.w * 3) {
+    /* ① 낯 **전체**에 고른 몫 — 평평한 한 장은 어디나 같은 각으로 빛을 받는다. */
+    g2.fillStyle = FL9;
+    g2.fill(pa9);
+    /* ② 광택 띠 — 낯 상자의 위쪽에 가로로 눕고, 그 **안에서만** 세로줄이 선다.
+       띠도 줄도 안 돌린다(화면 세로 = 세계의 수직). */
+    const bh9 = ax.by1 - ax.by0;
+    const yA9 = ax.by0 + bh9 * BRUSH9.top;
+    const yB9 = yA9 + bh9 * BRUSH9.h;
+    if (BRUSH9.a > 0 && fl9 === BRUSH_TONE9 && yB9 - yA9 > 0.02) {
       const rnd9 = brushSeed9(d9);
-      const n9 = Math.max(3, Math.round(ax.len * 2 * BRUSH9.per));
-      const ex9 = 1 / Math.max(0.2, BRUSH9.edge);
+      const pit9 = Math.max(0.012, BRUSH9.pitch);
+      const n9 = Math.min(400, Math.max(2, Math.ceil((ax.bx1 - ax.bx0) / pit9)));
       for (let i9 = 0; i9 < n9; i9 += 1) {
-        /* −1~1을 굽혀 양 끝으로 민다(지수 < 1이면 가운데가 비고 모서리가 밴다). */
-        const t9 = rnd9() * 2 - 1;
-        const u9 = Math.sign(t9) * Math.abs(t9) ** ex9;
-        const x9 = u9 * ax.len;
+        const x9 = ax.bx0 + (i9 + rnd9() * 0.8) * pit9;
         const wide9 = rnd9() < BRUSH9.band;
         const w9 = BRUSH9.w * (wide9 ? BRUSH9.bandW * (0.6 + rnd9() * 0.8)
-          : 0.5 + rnd9() * 1.2);
+          : 0.45 + rnd9() * 1.1);
         const s9 = rnd9();
-        /* 면은 선보다 훨씬 옅다 — 같은 세기로 깔면 판이 통째로 하얘진다. */
-        const soft9 = wide9 ? 0.22 : 1;
-        if (s9 < 0.5) {
+        // 면은 얇은 줄보다 옅다 — 같은 세기로 깔면 띠가 통째로 하얘진다.
+        const soft9 = wide9 ? 0.35 : 1;
+        if (s9 < 0.55) {
           g2.globalCompositeOperation = "source-over";
           g2.globalAlpha = k9 * BRUSH9.a * soft9 * (0.35 + s9);
-          g2.fillStyle = HI9;
+          g2.fillStyle = BR9;
         } else {
           g2.globalCompositeOperation = "destination-out";
-          g2.globalAlpha = BRUSH9.a * BRUSH9.dark * soft9 * (s9 - 0.2);
+          g2.globalAlpha = BRUSH9.a * BRUSH9.dark * soft9 * (s9 - 0.25);
           g2.fillStyle = "#000";
         }
-        // 결은 낯의 **세로**다 — 위 모서리와 직각으로, 낯의 위 끝에서 아래 끝까지.
-        g2.fillRect(x9 - w9 / 2, lo9, w9, span9x);
+        g2.fillRect(x9 - w9 / 2, yA9, w9, yB9 - yA9);
       }
       g2.globalCompositeOperation = "source-over";
+      g2.globalAlpha = k9;
+    } else if (fl9 !== BRUSH_TONE9) {
+      /* 테란이 아닌 낯은 결이 없다 — 띠 자리에 옛 봉우리 광택만 얹는다. */
+      g2.fillStyle = HI9;
+      g2.globalAlpha = k9 * 0.7;
+      g2.fillRect(ax.bx0, yA9, ax.bx1 - ax.bx0, yB9 - yA9);
       g2.globalAlpha = k9;
     }
     g2.restore();
