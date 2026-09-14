@@ -514,7 +514,20 @@ export function zsorted(faces: ShapeFace[]): ShapeFace[] {
 /* 세계 광원(요청: 모델을 돌려도 광원은 고정) — 왼쪽에서 약간 앞으로 비춘다. 세로 면의
    평면 법선(모형 기준)을 요잉만큼 돌려 광원과 내적: 왼쪽을 보는 면은 밝고 오른쪽을 보는
    면은 어둡다. 면이 시청자 쪽을 보는지도 여기서 판단한다. */
-const LIGHT_PLAN: [number, number] = [-0.9, 0.45];
+/** 광원의 **평면 방향**(시점 틀 기준) — 앞-왼쪽이다. faceLight가 면 법선과 재는 자다. */
+export const LIGHT_PLAN: [number, number] = [-0.9, 0.45];
+/** 광원의 **높이 몫** — 1이면 평면 크기만큼 위에 있다(대략 45도 위). */
+export const LIGHT_ELEV = 1;
+/** 광원의 **화면 방향**(단위 벡터, y는 아래가 +) — 앞-왼쪽-위를 화면으로 옮긴 값이다.
+ *  평면 몫은 납작비로 눌리고(앞은 화면 아래), 높이 몫은 z 배율만큼 화면 위로 간다.
+ *  지금 값(평면 0.643 · z 0.689)이면 대략 (−0.91, −0.41) — 왼쪽 위다.
+ *  ★ 면 명암(faceLight) · 판 기울기(silhouetteLight) · 글로우가 **이 한 자**를 쓴다. */
+export function lightScreenDir(): [number, number] {
+  const x = LIGHT_PLAN[0];
+  const y = LIGHT_PLAN[1] * groundSquashNow() - LIGHT_ELEV * zScaleNow();
+  const l = Math.hypot(x, y) || 1;
+  return [x / l, y / l];
+}
 export function faceLight(
   nxModel: number, nyModel: number,
   /** 법선의 위 성분(경사면용, 지적: 벙커 하단·넥서스의 기운 옆면이 위 45도 시점에서
