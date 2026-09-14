@@ -965,7 +965,7 @@ export const UNIT_BULK: Record<string, 0 | 1 | 2> = {
 export const MODEL_NORM: Record<string, number> = {
   arbiter: 1.687,  // 상자 상한(원한 배수 2.224)
   archon: 0.480,  // 재측정(model-norm)
-  bc: 0.596,
+  bc: 0.637,   // 날개 스팬 20% 축소·동체 20% 축소 뒤 재측정 비(0.619 → 0.662)로 되올림 · 옛 0.596
   burrowhole: 0.732,
   carrier: 0.644,
   corsair: 1.251,  // 재측정(model-norm) — 위팔 0.8배 뒤
