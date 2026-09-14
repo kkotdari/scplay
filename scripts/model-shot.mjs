@@ -42,11 +42,12 @@ const OUT = String(flag("--out", join(tmpdir(), "model-shot.png")));
 
 /* ── 브라우저에 넣을 번들 — model-norm.mjs와 같은 진입점을 쓴다 ─────────────── */
 const ENTRY = `
-import { SHAPE_BUILDERS, poseSet, bldLitSet, headYawSet, bldSpinSet, tone9, silhouetteLight } from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
+import { SHAPE_BUILDERS, poseSet, bldLitSet, headYawSet, bldSpinSet, tone9, silhouetteLight, glowBake9 } from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
 import { lodFilter, withPitchView, withTopView, withViewShear, withYaw, bake, zsorted }
   from ${JSON.stringify(join(ROOT, "src/utils/shapeOblique"))};
 window.__tone = tone9;
 window.__silho = silhouetteLight;
+window.__glow = glowBake9;
 window.__bake = (kind, rot, mode, lod, pose, lit, head, spin) => {
   const builder = SHAPE_BUILDERS[kind];
   if (!builder) return null;
@@ -136,6 +137,8 @@ function inBrowser({ KINDS, ROTS, MODE, CELL, LOD, BG, COLOR, POSE, LIT, HEAD, S
       if (LOD >= 3) {
         const bw = CELL * ZOOM;
         window.__silho(p2, pc, { x: CELL / 2 - bw / 2 + PAN[0], y: CELL / 2 - bw / 2 + PAN[1], w: bw, h: bw });
+        // 앱과 같은 광원 글로우(판 뒤에 깔리는 흰 번짐) — B는 1이다(이 도구는 dpr를 안 탄다).
+        window.__glow(p2, pc, 1);
       }
       c.drawImage(pc, i * CELL, r * CELL + PAD);
       c.globalAlpha = 1;

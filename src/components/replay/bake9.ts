@@ -21098,6 +21098,65 @@ export function lodOf(px: number, ptPx = LOD_PX_POINT, dcPx = LOD_PX_DECO): numb
 
    광원은 세계 왼쪽 앞(faceLight와 같은 방향)이라 화면에서는 좌상 → 우하다.
    최고 등급(장식까지 그리는 판)에서만 얹는다 — 작게 그릴 땐 어차피 안 보인다. */
+/* ── 광원 글로우(요청: "모델들 광원에 의한 글로우 효과 … 굽는 판에 굽기") ────────────────
+   판 하나를 다 칠한 뒤, **제 실루엣을 광원 쪽으로 조금 밀어 흐린 흰빛으로 깔고 몸 뒤에
+   둔다**(destination-over). 몸 뒤라 안쪽은 몸에 가려 안 보이고, 실루엣 밖으로 삐져나온
+   테두리만 남아 '빛이 번진' 꼴이 된다. 굽는 판은 종류·요잉당 한 번이라 프레임 값은 0이다.
+   광원의 화면 방향은 고정이다 — LIGHT_PLAN(−0.9, +0.45)을 바닥 납작비로 눌러 화면 벡터로
+   쓴다(모델이 돌아도 빛은 세계에 고정이라 이 방향은 안 돈다).
+   ★ 끄려면 a를 0으로 둔다. 판 여백(pad)도 이 값이 0이면 안 는다. */
+export const GLOW9 = {
+  /** 번짐의 세기(0이면 끔). */
+  a: 0.34,
+  /** 번지는 폭(CSS 픽셀). */
+  blur: 3.4,
+  /** 광원 쪽으로 미는 몫(CSS 픽셀). */
+  off: 1.1,
+  /** 유닛 판에 더 두는 여백(CSS 픽셀) — 이만큼이 번질 자리다. 건물은 여백이 이미 넉넉하다. */
+  pad: 5,
+  /** 번지는 빛의 색 — 순백은 차가워 보인다. */
+  hue: "255, 244, 224",
+};
+/** 판 한 장에 글로우를 굽는다 — 면을 다 칠한 **뒤** 부른다.
+ *  box(모델의 16-상자)를 주면 **그 자리만** 다시 그린다 — 흐림 값은 넓이에 비례하는데
+ *  건물 판은 여백까지 쳐서 넓이가 상자의 6.6배다(실측: 이걸 안 죄면 가장 큰 판
+ *  creeppatch2가 400ms → 573ms로 뛴다). 상자 밖으로 삐져나온 몫은 번짐만 잃는다. */
+export function glowBake9(
+  c2: BakeCtx9, cv: BakeCv9, B: number,
+  box?: { x: number; y: number; w: number; h: number },
+): void {
+  if (!(GLOW9.a > 0)) return;
+  const prev = c2.getTransform();
+  c2.setTransform(1, 0, 0, 1, 0, 0);
+  c2.save();
+  c2.globalCompositeOperation = "destination-over";
+  c2.globalAlpha = 1;
+  c2.shadowColor = `rgba(${GLOW9.hue}, ${GLOW9.a})`;
+  c2.shadowBlur = GLOW9.blur * B;
+  /* 광원의 화면 방향 — 화면 y는 아래가 +라 바닥 눌림을 곱한 값을 그대로 쓴다. */
+  c2.shadowOffsetX = -0.9 * GLOW9.off * B;
+  c2.shadowOffsetY = 0.45 * groundSquashNow() * GLOW9.off * B;
+  /* 제 그림을 그대로 다시 그린다 — 몸 뒤(destination-over)라 그림 자체는 안 보이고
+     그림자(= 흰 번짐)만 실루엣 밖에 남는다. 상자를 주면 그 자리만(번질 여유를 더해). */
+  const m9 = (GLOW9.blur + GLOW9.off) * B + 2;
+  if (box) {
+    const gx = Math.max(0, box.x - m9);
+    const gy = Math.max(0, box.y - m9);
+    const gw = Math.min(cv.width - gx, box.w + m9 * 2);
+    const gh = Math.min(cv.height - gy, box.h + m9 * 2);
+    if (gw > 0 && gh > 0) c2.drawImage(cv as CanvasImageSource, gx, gy, gw, gh, gx, gy, gw, gh);
+  } else {
+    c2.drawImage(cv as CanvasImageSource, 0, 0);
+  }
+  c2.restore();
+  c2.shadowColor = "transparent";
+  c2.shadowBlur = 0;
+  c2.shadowOffsetX = 0;
+  c2.shadowOffsetY = 0;
+  c2.globalCompositeOperation = "source-over";
+  c2.setTransform(prev);
+}
+
 export function silhouetteLight(
   c2: BakeCtx9, cv: BakeCv9,
   /** 기울기를 걸 자리(장치 픽셀) — 안 주면 판 전체다.
@@ -21270,7 +21329,9 @@ export function rasterUnit9(op: UnitDrawOp, pxq: number, B: number, lod: number)
   const faces = lodFilter(autoTier(op.kind, `u|${op.kind}|${op.rotDeg ?? 0}|${op.flat ? 1 : 0}|${vq}|${pitchTag(op.pitch)}|${poseTag(op.kind)}`, all), lod);
   /* (제거·요청) 드롭섀도 굽기 — 건물·유닛 그림자를 다 걷어 굽는 판도 그림자 없이 민다.
      pad는 안티에일리어싱 여유만. */
-  const pad = 2;
+  /* 글로우가 켜져 있고 자세히 굽는 판이면 여백을 그만큼 연다 — 번질 자리가 없으면
+     판 테두리에서 잘린다. 건물은 여백이 이미 한 변의 78%라 안 건드려도 된다. */
+  const pad = 2 + (lod >= 3 && GLOW9.a > 0 ? GLOW9.pad : 0);
   const l = pxq + pad * 2;
   const side9 = Math.max(1, Math.ceil(l * B));
   // 너무 큰 판은 굽지 않는다(위 SPRITE_SIDE_MAX) — 직접 그리기로 떨어진다.
@@ -21326,6 +21387,7 @@ export function rasterUnit9(op: UnitDrawOp, pxq: number, B: number, lod: number)
   }
   // 기울기는 **모델의 16-상자**에 건다(판이 아니라) — silhouetteLight의 ★.
   if (lod >= 3) silhouetteLight(c2, cv, { x: pad * B, y: pad * B, w: pxq * B, h: pxq * B });
+  if (lod >= 3) glowBake9(c2, cv, B, { x: pad * B, y: pad * B, w: pxq * B, h: pxq * B });
   /* 마스크 — 같은 변환으로 임자 면만 흰색(음영 알파)으로, 그 뒤에 오는 고정색 면은 제 알파로 파낸다. */
   let tintCv9: BakeCv9 | null = null;
   if (teamSplit9) {
@@ -21848,6 +21910,11 @@ export function rasterBld9(op: UnitDrawOp, sideQ: number, B: number, lod: number
     }
     // 기울기는 **모델의 16-상자**에 건다(판이 아니라) — 건물은 여백이 커서 이게 특히 중요하다.
     if (lod >= 3) silhouetteLight(c2, cv, { x: pad * B, y: pad * B, w: sideQ * B, h: sideQ * B });
+    /* 데칼(크립 카펫)은 빼 둔다 — 땅에 누운 단색 한 겹이라 번질 것이 없고, 판이 가장
+       커서 값만 든다(실측: 이 한 종이 최악 판을 400 → 573ms로 끌어올렸다). */
+    if (lod >= 3 && !DECAL_KINDS.has(op.kind)) {
+      glowBake9(c2, cv, B, { x: pad * B, y: pad * B, w: sideQ * B, h: sideQ * B });
+    }
     /* 임자 색 마스크(유닛과 같은 규약) — 같은 변환으로 임자 면만 흰색(음영 알파), 뒤에 오는 고정 면은 제 알파로 파낸다. */
     let tintCvB9: BakeCv9 | null = null;
     if (teamSplitB9) {
