@@ -21250,85 +21250,89 @@ function brushSeed9(d: string): () => number {
     return x / 4294967296;
   };
 }
-/** 한 낯의 **제 축** — 위 모서리의 방향(ang)과, 그 모서리에 수직인 축에서 잰 위·아래 끝.
- *  ★ 낯마다 따로 잰다 — 하이라이트가 '그 낯의 위쪽'에 들어가려면 화면의 위가 아니라
- *    **그 낯의 위**를 알아야 한다. 상자 옆면이든 지붕이든 위 모서리가 곧 그 낯 안의
- *    '수평'이다(세계의 수평선이 그리로 투영된다).
- *  곡선(A·C·Q)이 섞인 패스는 M·L 꼭짓점만 보므로 어림이지만, 한 겹의 자리로는 넉넉하다. */
-export function faceAxis9(
-  d: string,
-): {
-  cx: number; cy: number; ang: number; top: number; bot: number; len: number;
-  /** 화면 자(안 돌린) 상자 — 결은 낯의 축이 아니라 **화면 세로**로 서므로 이 자를 쓴다. */
-  bx0: number; bx1: number; by0: number; by1: number;
+/** 결의 자 — 한 낯 위에서 **줄이 서는 방향 U**와 **띠가 쌓이는 방향 V**, 그리고 그 자로 잰 상자.
+ *  ★ **서 있는 낯**(벽)은 화면 세로로 선 모서리를 갖는다 — 이 투영에서 세계의 z는 화면 x에
+ *    한 톨도 안 실리므로(project의 sx는 z와 무관), 벽의 세로 모서리는 늘 정확히 화면 세로다.
+ *    그때 U = 화면 세로 · V = 화면 가로다: 줄은 수직이고 **띠는 수평**이다(지적: "스트라이프
+ *    영역은 수평해야 하고. 지금은 수평이 아니지, 정면에서 보면 기울어져 있잖아").
+ *  ★ **누운 낯**(지붕·바닥)은 세로 모서리가 없다. 그 낯의 두 모서리 중 **더 서 있는 쪽**을
+ *    U로, 다른 쪽을 V로 삼는다(지적: "누운 면들은 그 면의 기울기에 맞춰서 표면에 그리되
+ *    방향성만 맞추는 거지") — 결이 면의 기울기를 타고 눕되 향하는 결은 벽과 같다.
+ *  ★ 벽에서 띠의 위아래 끝은 **꼭짓점 y의 둘째·끝에서 둘째**로 잡는다. 상자의 맨 위(by0)에서
+ *    띠를 시작하면 그 자리는 기운 위 모서리가 지나는 곳이라, 수평 띠가 그 모서리에 잘려
+ *    쐐기가 된다 — 정면에서 보면 띠가 기울어 보이던 까닭이 이것이다. 볼록한 네 귀에서
+ *    **가로선이 낯을 온전히 가로지르는** 구간이 곧 그 둘 사이다.
+ *  누운 낯은 U·V가 곧 두 모서리라 띠가 저절로 낯을 가로지른다 — 자를 일이 없다. */
+export function faceGrain9(d: string): {
+  /** 줄이 **뻗는** 방향(화면 단위 벡터) — 벽에서는 화면 아래(0, 1)다. */
+  ux: number; uy: number;
+  /** 줄이 **늘어서는** 방향 — 벽에서는 화면 오른쪽(1, 0)이다. */
+  vx: number; vy: number;
+  /** 띠가 놓일 수 있는 U 눈금의 양 끝 — aLo가 화면에서 위다. */
+  aLo: number; aHi: number;
+  /** 줄을 늘어놓을 V 눈금의 양 끝. */
+  bLo: number; bHi: number;
+  cx: number; cy: number;
+  /** 서 있는 낯인가 — 참이면 U·V가 화면 세로·가로다. */
+  up: boolean;
 } | null {
   const pts: [number, number][] = [];
   const re9 = /[ML]\s*(-?[\d.]+)[ ,]+(-?[\d.]+)/g;
   let m9 = re9.exec(d);
-  while (m9) {
-    pts.push([Number(m9[1]), Number(m9[2])]);
-    m9 = re9.exec(d);
-  }
+  while (m9) { pts.push([Number(m9[1]), Number(m9[2])]); m9 = re9.exec(d); }
   if (pts.length < 3) return null;
+  let cx = 0; let cy = 0;
+  for (const [x9, y9] of pts) { cx += x9; cy += y9; }
+  cx /= pts.length; cy /= pts.length;
+  const seg: { dx: number; dy: number; l: number }[] = [];
   let maxL = 0;
   for (let i = 0; i < pts.length; i += 1) {
     const a9 = pts[i];
     const b9 = pts[(i + 1) % pts.length];
-    maxL = Math.max(maxL, Math.hypot(b9[0] - a9[0], b9[1] - a9[1]));
+    const dx = b9[0] - a9[0];
+    const dy = b9[1] - a9[1];
+    const l = Math.hypot(dx, dy);
+    if (l > 1e-6) { seg.push({ dx, dy, l }); maxL = Math.max(maxL, l); }
   }
-  // 위 모서리 — 두 끝의 가운데가 가장 높은(화면 y가 작은) 변이다. 아주 짧은 변은 뺀다.
-  let bi = -1;
-  let bmid = Infinity;
-  for (let i = 0; i < pts.length; i += 1) {
-    const a9 = pts[i];
-    const b9 = pts[(i + 1) % pts.length];
-    if (Math.hypot(b9[0] - a9[0], b9[1] - a9[1]) < maxL * 0.3) continue;
-    const mid = (a9[1] + b9[1]) / 2;
-    if (mid < bmid) { bmid = mid; bi = i; }
+  if (!seg.length || maxL <= 0) return null;
+  const long = seg.filter((e) => e.l >= maxL * 0.25);
+  // 화면 세로로 선 모서리가 있으면 '서 있는 낯'이다.
+  const upright = long.some((e) => Math.abs(e.dx) / e.l < 0.12);
+  if (upright) {
+    let bx0 = Infinity; let bx1 = -Infinity;
+    for (const [x9] of pts) { bx0 = Math.min(bx0, x9); bx1 = Math.max(bx1, x9); }
+    const ys = pts.map((q) => q[1]).sort((p9, q9) => p9 - q9);
+    const lo9 = ys[Math.min(1, ys.length - 1)];
+    const hi9 = ys[Math.max(0, ys.length - 2)];
+    if (!(hi9 - lo9 > 1e-6) || !(bx1 - bx0 > 1e-6)) return null;
+    return {
+      ux: 0, uy: 1, vx: 1, vy: 0,
+      aLo: lo9 - cy, aHi: hi9 - cy, bLo: bx0 - cx, bHi: bx1 - cx, cx, cy, up: true,
+    };
   }
-  if (bi < 0) return null;
-  const p0 = pts[bi];
-  const p1 = pts[(bi + 1) % pts.length];
-  const ex = p1[0] - p0[0];
-  const ey = p1[1] - p0[1];
-  const el = Math.hypot(ex, ey) || 1;
-  const ux = ex / el;
-  const uy = ey / el;
-  const nx = -uy;
-  const ny = ux;
-  let cx = 0;
-  let cy = 0;
-  for (const [x9, y9] of pts) { cx += x9; cy += y9; }
-  cx /= pts.length; cy /= pts.length;
-  let qlo = Infinity;
-  let qhi = -Infinity;
-  let tlo = Infinity;
-  let thi = -Infinity;
+  // 누운 낯 — 두 모서리 갈래 중 **더 서 있는 쪽**이 U다(줄이 뻗는 쪽).
+  const base = long.reduce((p9, q9) => (q9.l > p9.l ? q9 : p9), long[0]);
+  const bux = base.dx / base.l; const buy = base.dy / base.l;
+  let other = long.find((e) => Math.abs((e.dx * bux + e.dy * buy) / e.l) < 0.85);
+  if (!other) other = { dx: -buy * base.l, dy: bux * base.l, l: base.l };
+  const oux = other.dx / other.l; const ouy = other.dy / other.l;
+  const uFirst = Math.abs(buy) >= Math.abs(ouy);
+  let ux = uFirst ? bux : oux; let uy = uFirst ? buy : ouy;
+  const vx = uFirst ? oux : bux; const vy = uFirst ? ouy : buy;
+  // U는 화면 아래를 향하게 둔다 — 그래야 aLo가 늘 '위'다.
+  if (uy < 0) { ux = -ux; uy = -uy; }
+  const det = ux * vy - uy * vx;
+  if (Math.abs(det) < 1e-6) return null;
+  let aLo = Infinity; let aHi = -Infinity; let bLo = Infinity; let bHi = -Infinity;
   for (const [x9, y9] of pts) {
-    const q = (x9 - cx) * nx + (y9 - cy) * ny;
-    if (q < qlo) qlo = q;
-    if (q > qhi) qhi = q;
-    const t9 = (x9 - cx) * ux + (y9 - cy) * uy;
-    if (t9 < tlo) tlo = t9;
-    if (t9 > thi) thi = t9;
+    const px = x9 - cx; const py = y9 - cy;
+    const a9 = (px * vy - py * vx) / det;
+    const b9 = (py * ux - px * uy) / det;
+    aLo = Math.min(aLo, a9); aHi = Math.max(aHi, a9);
+    bLo = Math.min(bLo, b9); bHi = Math.max(bHi, b9);
   }
-  if (!(qhi - qlo > 0.01)) return null;
-  /* 돌린 자리에서 +y'는 화면으로 (−sin, cos)다 — cos이 양수면 +y'가 화면 아래를 보므로
-     '위'는 작은 쪽이고, 음수면 반대다. */
-  const down9 = Math.cos(Math.atan2(uy, ux)) >= 0;
-  let bx0 = Infinity; let bx1 = -Infinity; let by0 = Infinity; let by1 = -Infinity;
-  for (const [x9, y9] of pts) {
-    if (x9 < bx0) bx0 = x9;
-    if (x9 > bx1) bx1 = x9;
-    if (y9 < by0) by0 = y9;
-    if (y9 > by1) by1 = y9;
-  }
-  return {
-    cx, cy, ang: Math.atan2(uy, ux),
-    top: down9 ? qlo : qhi, bot: down9 ? qhi : qlo,
-    len: Math.max(0.01, (thi - tlo) / 2 + 0.02),
-    bx0, bx1, by0, by1,
-  };
+  if (!(aHi - aLo > 1e-6) || !(bHi - bLo > 1e-6)) return null;
+  return { ux, uy, vx, vy, aLo, aHi, bLo, bHi, cx, cy, up: false };
 }
 
 /** 판 한 장에 글로우를 굽는다 — 면을 다 칠한 **뒤** 부른다.
@@ -21392,10 +21396,10 @@ export function glowBake9(
     if (fl9 === undefined || !GLOW_HI9.has(fl9)) continue;
     const k9 = Math.max(0, Math.min(1, (f9[1] - GLOW9.litLo) / span9));
     if (!(k9 > 0)) continue;
-    const ax = faceAxis9(d9);
+    const gr9 = faceGrain9(d9);
     g2.globalAlpha = k9;
-    if (!ax || ax.len < minS9) {
-      // 너무 작은 낯은 고른 몫만 — 위아래를 가를 만한 자리가 없다.
+    if (!gr9 || Math.max(gr9.aHi - gr9.aLo, gr9.bHi - gr9.bLo) < minS9) {
+      // 너무 작은 낯은 고른 몫만 — 띠를 앉힐 자리가 없다.
       g2.fillStyle = FL9;
       g2.fill(pa9);
       continue;
@@ -21405,17 +21409,19 @@ export function glowBake9(
     /* ① 낯 **전체**에 고른 몫 — 평평한 한 장은 어디나 같은 각으로 빛을 받는다. */
     g2.fillStyle = FL9;
     g2.fill(pa9);
-    /* ② 광택 띠 — 낯 상자의 위쪽에 가로로 눕고, 그 **안에서만** 세로줄이 선다.
-       띠도 줄도 안 돌린다(화면 세로 = 세계의 수직). */
-    const bh9 = ax.by1 - ax.by0;
-    const yA9 = ax.by0 + bh9 * BRUSH9.top;
-    const yB9 = yA9 + bh9 * BRUSH9.h;
-    if (BRUSH9.a > 0 && fl9 === BRUSH_TONE9 && yB9 - yA9 > 0.02) {
+    /* ② 광택 띠 + 결 — 낯의 자(U·V)로 옮겨 앉는다. 벽에서는 U가 화면 세로 · V가 화면
+       가로라 줄은 정확히 수직이고 띠는 정확히 수평이다. 누운 낯에서는 U·V가 그 낯의
+       두 모서리라, 결이 면의 기울기를 타고 눕되 향하는 결은 벽과 같다. */
+    g2.transform(gr9.ux, gr9.uy, gr9.vx, gr9.vy, gr9.cx, gr9.cy);
+    const aH9 = gr9.aHi - gr9.aLo;
+    const aA9 = gr9.aLo + aH9 * BRUSH9.top;
+    const aB9 = aA9 + aH9 * BRUSH9.h;
+    if (BRUSH9.a > 0 && fl9 === BRUSH_TONE9) {
       const rnd9 = brushSeed9(d9);
       const pit9 = Math.max(0.012, BRUSH9.pitch);
-      const n9 = Math.min(400, Math.max(2, Math.ceil((ax.bx1 - ax.bx0) / pit9)));
+      const n9 = Math.min(400, Math.max(2, Math.ceil((gr9.bHi - gr9.bLo) / pit9)));
       for (let i9 = 0; i9 < n9; i9 += 1) {
-        const x9 = ax.bx0 + (i9 + rnd9() * 0.8) * pit9;
+        const b9 = gr9.bLo + (i9 + rnd9() * 0.8) * pit9;
         const wide9 = rnd9() < BRUSH9.band;
         const w9 = BRUSH9.w * (wide9 ? BRUSH9.bandW * (0.6 + rnd9() * 0.8)
           : 0.45 + rnd9() * 1.1);
@@ -21431,15 +21437,15 @@ export function glowBake9(
           g2.globalAlpha = BRUSH9.a * BRUSH9.dark * soft9 * (s9 - 0.25);
           g2.fillStyle = "#000";
         }
-        g2.fillRect(x9 - w9 / 2, yA9, w9, yB9 - yA9);
+        g2.fillRect(aA9, b9 - w9 / 2, aB9 - aA9, w9);
       }
       g2.globalCompositeOperation = "source-over";
       g2.globalAlpha = k9;
-    } else if (fl9 !== BRUSH_TONE9) {
-      /* 테란이 아닌 낯은 결이 없다 — 띠 자리에 옛 봉우리 광택만 얹는다. */
+    } else {
+      /* 테란이 아닌 낯은 결이 없다 — 띠 자리에 옛 광택만 얹는다. */
       g2.fillStyle = HI9;
       g2.globalAlpha = k9 * 0.7;
-      g2.fillRect(ax.bx0, yA9, ax.bx1 - ax.bx0, yB9 - yA9);
+      g2.fillRect(aA9, gr9.bLo, aB9 - aA9, gr9.bHi - gr9.bLo);
       g2.globalAlpha = k9;
     }
     g2.restore();
