@@ -241,10 +241,11 @@ export function legAndFoot(
   const z09 = 0.38 * sz;
   const bend9 = o.bend ?? 0;
   const lw9 = (o.legW ?? 1) * sz;
-  /** 기둥 반지름 — 요청("테란 건물 공통: 발판의 다리 지름 20% 축소")으로 0.42·0.36에서
-   *  한 단 더 내렸다. 발판(sz)은 안 건드린다 — 가늘어진 만큼 발이 더 또렷하게 받친다. */
-  const RW9 = 0.336 * lw9;
-  const RT9 = 0.288 * lw9;
+  /** 기둥 반지름 — 요청("발판의 다리 지름 20% 축소")으로 두 번 내렸다:
+   *  0.42·0.36 → 0.336·0.288 → **0.269·0.23**. 발판(sz)은 안 건드린다 — 가늘어진 만큼
+   *  발이 더 또렷하게 받친다. */
+  const RW9 = 0.269 * lw9;
+  const RT9 = 0.23 * lw9;
   const shin9 = spirePillar({
     x: 0, y: 0, h: 1, w: RW9, tipW: RT9, segs: 1, sides: 6, hold: 0.35,
     caps: bend9 > 0 ? "top" : "none",
