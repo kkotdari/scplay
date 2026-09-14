@@ -14172,7 +14172,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 머리 키(지적: "머리 키값 조정") — 계수 0.1은 사실상 붙박이 9라, 뒤에서도
        머리가 투구 위에 그려졌다. 제 자리 깊이를 온전히 실으면(밑수 6.5) 앞에서는
        투구(6) 위, 뒤에서는 투구가 가린다. */
-    out.push(...tagKey(zergFace(HY, HZ, 0.72), 6.5 + depthNow(0, HY) * 1.6));
+    const FS9 = 0.72 * 1.2;   // 얼굴 1.2배(요청)
+    out.push(...tagKey(zergFace(HY, HZ, FS9), 6.5 + depthNow(0, HY) * 1.6));
     /* 수염은 얼굴에 **붙는다**(지적) — 뿌리를 턱 바로 밑(HY+0.38, HZ−0.2)에 박고
        거기서 늘어진다. 떨어져 있으면 허공에 매달린 실이 된다. */
     for (const [ox9, len9] of [[-0.42, 0.9], [-0.16, 1.15], [0.14, 1.05], [0.4, 0.85]] as
@@ -14180,8 +14181,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       out.push(...tagKey(paintBase(spirePillar({
         x: 0, y: 0, h: 1, w: 0.09, tipW: 0.02, segs: 4, sides: 4, caps: "none",
         path: (t9: number): [number, number, number] => [
-          ox9 + 0.08 * t9, HY + 0.38 + 0.3 * t9,
-          HZ - 0.2 - len9 * t9 + 0.25 * t9 * t9,
+          ox9 + 0.08 * t9, HY + 0.38 * (FS9 / 0.72) + 0.3 * t9,   // 턱 밑 — 얼굴 배수를 따라간다
+          HZ - 0.2 * (FS9 / 0.72) - len9 * t9 + 0.25 * t9 * t9,
         ],
       }), "#a24a3a"), 6.7 + depthNow(ox9, HY + 0.5) * 1.6));
     }
