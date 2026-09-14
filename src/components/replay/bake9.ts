@@ -13308,7 +13308,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         out.push(...tagKey([
           // 미사일을 살짝 뒤로(요청: y −0.3)
           ...paintBase(tubeFaces(mx9, -2.75, mx9, 0.65, mr9, mzTube9), TERRAN_STEEL_D),   // 뒤로 0.6 더 길게(요청)
-          ...paintBase(hornFaces(mx9, 0.65, mz9, mx9, 1.75, mz9, 0.66), TERRAN_STEEL_D),
+          ...paintBase(hornFaces(mx9, 0.65, mz9, mx9, 2.15, mz9, 0.46), TERRAN_STEEL_D),   // 화살촉 더 얇고 뾰족하게(요청): 밑폭 0.66 → 0.46, 길이 1.1 → 1.5
           /* ★ 꼬리는 **진짜 로켓의 꼬리 깃**이다(재요청: "저런 거 말고 진짜 로켓 미사일 꼬리 같은 형태") — 뿔 셋을
              걷고, 몸통에 십자로 붙은 **얇은 사다리꼴 판 넷**(위·아래·좌·우)을 세운다. 뿌리는 몸통을 따라 길게
              (y −1.3 → −1.85), 바깥 변은 짧고(−1.6 → −1.85) 뒤끝에서 만나 앞 변이 뒤로 쓸린 깃이 된다. 판이라
