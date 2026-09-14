@@ -909,6 +909,12 @@ function applyBenchTier9(bench: number): void {
   BAKE_HARD_MS9 = DEV9.bakeMsPerFrame * 3;
   UNIT_BAKE_PER_FRAME = DEV9.unitBakePerFrame;
   BLD_BAKE_PER_FRAME = DEV9.bldBakePerFrame;
+  /* 결(긁힌 광택)은 **맨 위 단에서만** 켠다(요청: "결은 PC에서도 최고 높음에서만 켜기") —
+     계측으로 굽기 값이 +25~30%이고 꼬리가 길다(낯마다 수십 줄을 긋는다). 여력이 확인된
+     기기에서만 얹는 것이 옳다. 단은 오르기만 하므로 이 한 줄이면 켜는 시점도 맞는다.
+     폰은 단이 하나뿐이라(PHONE_TIERS9) 여기 안 들어오고, crowdInit9의 brushSet9(폰 끔)이
+     그대로 남는다. */
+  brushSet9(want9 >= top9);
   DEV9_DIRTY9.v = true;
   qualityNote9();   // 단이 올랐다 — 재생 품질 알림(위 QUALITY9)
 }
@@ -1015,11 +1021,13 @@ function crowdInit9(): void {
      perf-check(--crowd)에서 덜어낸 값을 잴 때 쓴다. */
   const m9 = typeof window !== "undefined" ? /crowd=(\d)/.exec(window.location.hash) : null;
   if (m9) c.force = Math.min(2, Number(m9[1]));
+  /* 결(긁힌 광택)은 기본으로 **꺼 둔다**(요청: "글로우는 켜 주고 스크래치만 끄기" ·
+     "결은 PC에서도 최고 높음에서만 켜기") — 글로우 겹은 낯마다 한 번 칠하고 마는데 결은
+     낯마다 수십 줄을 긋는다(실측: 굽기 +25~30%, 꼬리는 더 길다). PC는 바로 아래 벤치가
+     **맨 위 단**에 올랐을 때만 켠다(applyBenchTier9의 ★). 폰은 단이 하나뿐이라 꺼진 채로
+     끝난다. ⚠ 이 줄은 applyBenchTier9 **앞**이라야 한다 — 뒤에 두면 단이 정한 값을 덮는다. */
+  brushSet9(false);
   crowdRecheck9();  applyBenchTier9(c.bench);   // PC 벤치 단(위 PC_TIERS9의 ★)
-  /* 결(긁힌 광택)은 **폰에서 끈다**(요청: "글로우는 켜 주고 스크래치만 끄기") — 글로우 겹은
-     낯마다 한 번 칠하고 마는데 결은 낯마다 수십 줄을 긋고, 폰은 굽기 일꾼이 없어 그 값이
-     메인 스레드에 그대로 실린다. 기기 판정은 smallDevice9 하나다(그 상수의 ★). */
-  brushSet9(!smallDevice9);
   bakeWorkersStart9();   // 굽기 일꾼(위 BAKEW9) — 기기 표(DEV9.bakeWorkers)가 0이면 안 띄운다
   qualityNote9();        // 첫 눈금(위 QUALITY9) — 렌더 중이라 fn은 아직 없고 level만 적힌다
 }
