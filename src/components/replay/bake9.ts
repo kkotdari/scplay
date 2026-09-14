@@ -6101,6 +6101,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       out9.push([top9, 1] as ShapeFace, topFace(top9, 0.18));
       return out9;
     };
+    const PH9 = 6.4 * 1.2;   // 방패 기둥 키(6.4의 1.2배)
+    const PT9 = 1.8;         // 굵기 taper — 1보다 크면 밑에서 빨리 좁아진다
     const pillar = (px: number, py: number): ShapeFace[] => withModelZOff(PLINTH_Z9, () => shape(((): ShapeFace[] => {
       return [
         // 받침 원반도 제 깊이(지적: 기둥 바닥의 원들이 안 가려짐).
@@ -6147,7 +6149,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            phase −π/2로 꼭짓점(빗변이 만나는 모)이 바깥을 보고 평평한 변이 본체에 붙는다. 안쪽 휨은 1.3 → 0.8로
            약하게. (밑 반폭을 1.7로 넓혔다가 원복 — "밑면이 더 넓어야"는 기둥이 아니라 **피라미드** 밑면이었다.) */
         ...tagKey(spirePillar({
-          x: px, y: py, z0: 0.4, h: 6.4, w: 1.2, tipW: 0.1, sides: 3, segs: 6, fill: "#d4bd3c",   // 끝 0.28 → 0.1(첨탑을 걷어 뾰족하게)
+          // 키 6.4 → PH9(×1.2) · taper PT9로 밑에서 빨리 좁아진다(요청: "기둥 높이 1.2배, 좁아지는 속도 빠르게")
+          x: px, y: py, z0: 0.4, h: PH9, w: 1.2, tipW: 0.1, sides: 3, segs: 6, taper: PT9, fill: "#d4bd3c",   // 끝 0.28 → 0.1(첨탑을 걷어 뾰족하게)
           oval: 0.75, phase: -Math.PI / 2, ref: [-py / Math.hypot(px, py), px / Math.hypot(px, py), 0],
           curveX: (-px / Math.hypot(px, py)) * 0.4, curveY: (-py / Math.hypot(px, py)) * 0.4,   // 0.8 → 0.4(재요청: 더 약하게)
         }), pillarKey9(px, py, 1.5)),   // 받침판(+1.3)보다 한 단 앞 — 기둥이 받침판 위에 선다
@@ -6172,12 +6175,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            키: 바깥면이 시청자를 볼 때만 기둥(+1.5) 앞(+1.6), 등질 때는 뒤(+1.4)라 몸에 가려진다. 방패 끝은 뾰족하게. */
         ...((): ShapeFace[] => {
           const r9 = Math.hypot(px, py); const ox9 = px / r9; const oy9 = py / r9;
-          const tg9 = 0.78; const rg9 = 1.2 + (0.1 - 1.2) * tg9;
+          const tg9 = 0.78; const rg9 = 0.1 + (1.2 - 0.1) * (1 - tg9) ** PT9;   // spirePillar의 taper 식 그대로
           const off9 = 0.75 * rg9 - 0.4 * tg9 * tg9;
           const gx9 = px + ox9 * off9; const gy9 = py + oy9 * off9;
           const lift9 = depthNow(px + ox9, py + oy9) > depthNow(px, py) ? 1.6 : 1.4;
           return tagKey(spirePillar({
-            x: gx9, y: gy9, z0: 0.4 + 6.4 * tg9 - 0.75, h: 1.5, w: 0.38, sides: 6, segs: 4,
+            x: gx9, y: gy9, z0: 0.4 + PH9 * tg9 - 0.75, h: 1.5, w: 0.38, sides: 6, segs: 4,
             widthOf: (t9) => 0.38 * (1 - Math.abs(2 * t9 - 1)),
             fill: glowLit("#e6fffb", "#83f7e8"),
           }), pillarKey9(px, py, lift9));
