@@ -14362,20 +14362,21 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     }), BODY), depthNow(0, -0.3) * 1.6 + 1.2));
     out.push(...tagKey(ivory(spikeHorn(T1[0], T1[1] - 0.1, T1[2], 0, T1[1] + 0.85, T1[2] + 0.15, 0.2, undefined, 5, 0.12, 0, -0.5)),
       depthNow(0, 0.8) * 1.6 + 1.3));
-    /* ③ 팔 + 막 — 어깨(±0.45, 0.5) → 팔꿈치(±1.6, 0.95, 위로) → 끝(±2.8, 0.1). 막은 팔 안쪽: 어깨·팔꿈치·끝·몸 뒤(±0.35, −0.6). */
+    /* ③ 팔 + 막 — 팔이 **바깥 테두리**다(재지적: "팔이 바깥이고 막이 안쪽"): 어깨(±0.45, 0.5) → 팔꿈치(±1.7, 1.1, 앞·바깥·위)
+       → 끝(±2.6, −0.9, 뒤·바깥). 막은 그 안쪽 — 어깨·팔꿈치·끝·(±1.3, −1.0)·몸 뒤(±0.3, −0.7)를 잇는 다각형이 팔 안에 든다. */
     for (const m9 of [-1, 1] as const) {
       const S: [number, number, number] = [m9 * 0.45, 0.5, Z9 + 0.1];
-      const EL: [number, number, number] = [m9 * 1.6, 0.95, Z9 + 0.85];
-      const TP: [number, number, number] = [m9 * 2.8, 0.1, Z9 + 1.15];
-      const BK: [number, number, number] = [m9 * 0.35, -0.6, Z9 - 0.05];
-      const web9 = polyPath3([S, EL, TP, [m9 * 2.0, -0.55, Z9 + 0.7], [m9 * 1.0, -0.85, Z9 + 0.25], BK]);
+      const EL: [number, number, number] = [m9 * 1.7, 1.1, Z9 + 0.7];
+      const TP: [number, number, number] = [m9 * 2.6, -0.9, Z9 + 1.0];
+      const BK: [number, number, number] = [m9 * 0.3, -0.7, Z9 - 0.05];
+      const web9 = polyPath3([S, EL, TP, [m9 * 1.3, -1.0, Z9 + 0.35], BK]);
       const k9 = depthNow(m9 * 1.4, 0.1) * 1.6;
       out.push(...tagKey([
         [web9, 1] as ShapeFace, m9 > 0 ? sideFace(web9, 0.16) : topFace(web9, 0.12),   // 막 — 임자색
         ...paintBase(rodFaces(S[0], S[1], S[2], EL[0], EL[1], EL[2], 0.26), BODY),
         ...paintBase(spikeHorn(EL[0], EL[1], EL[2], TP[0], TP[1], TP[2], 0.22, undefined, 6, 0.1, 0, -0.6), BODY),
         // 손톱 — 팔 끝에서 앞·아래로 굽는 상아 갈고리 하나
-        ...ivory(spikeHorn(TP[0], TP[1], TP[2], TP[0] + m9 * 0.25, TP[1] + 1.0, TP[2] - 0.45, 0.2, undefined, 5, 0.2, m9 * 0.2, 0.9)),
+        ...ivory(spikeHorn(TP[0], TP[1], TP[2], TP[0] + m9 * 0.35, TP[1] - 0.95, TP[2] - 0.4, 0.2, undefined, 5, 0.2, m9 * 0.2, -0.9)),   // 뒤·바깥으로 굽는 손톱
       ], k9));
     }
     return out;
