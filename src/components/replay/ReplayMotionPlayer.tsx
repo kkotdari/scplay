@@ -6085,7 +6085,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
                 const len9 = Math.hypot(vx9, vy9) || 1;
                 /* 튀는 폭 — 길이의 몫과 굵기의 몫 중 작은 쪽이다. 짧은 번개가 제
                    길이만큼 튀면 갈지자가 아니라 뭉치가 된다. */
-                const amp9 = Math.min(len9 * 0.16, st.w * zoom * 2.4);
+                const amp9 = Math.min(len9 * (st.zigAmp ?? 0.16), st.w * zoom * (st.zigW ?? 2.4));
                 // 위상을 씨앗으로 — 번쩍이는 동안 무늬가 몇 번 갈린다(위 zig 주석).
                 const seed9 = Math.floor(p9 * 5);
                 for (let i9 = 1; i9 < n9; i9 += 1) {
