@@ -21106,25 +21106,36 @@ export function lodOf(px: number, ptPx = LOD_PX_POINT, dcPx = LOD_PX_DECO): numb
    쓴다(모델이 돌아도 빛은 세계에 고정이라 이 방향은 안 돈다).
    ★ 끄려면 a를 0으로 둔다. 판 여백(pad)도 이 값이 0이면 안 는다. */
 export const GLOW9 = {
-  /** 번짐의 세기(0이면 끔). */
+  /** 낯 위에 얹히는 광택의 세기(0이면 끔). */
   a: 0.2,
-  /** 빛 축에서 **가장 밝은 자리**(0=빛 쪽 끝, 1=반대쪽 끝) — 여기까지는 그대로 밝다. */
-  keep: 0.1,
-  /** 거기서 다 스러지기까지의 폭. */
-  fade: 0.55,
+  /** 광택이 **가장 밝은 자리**(빛 축에서 0=빛 쪽 끝, 1=그늘 쪽 끝). */
+  peak: 0.38,
+  /** 그 봉우리의 반폭 — 여기까지 오면 다 스러진다. */
+  width: 0.3,
+  /** 빛 쪽 끝의 바닥값 — 봉우리 앞쪽은 0으로 안 떨어뜨린다(가장자리가 뚝 끊기면 판 자국이 난다). */
+  foot: 0.25,
+  /** 번지는 폭 — **모델 상자 한 변의 몫**이다(절대 픽셀이 아니다: 배율마다 두께가
+   *  달라지면 안 된다). 이 몫만큼 광택이 낯을 **벗어나** 흘러넘친다. */
+  spill: 0.03,
+  /** 흘러넘치는 몫의 세기(a에 곱한다). */
+  spillA: 0.6,
+  /** 유닛 판에 더 두는 여백(CSS 픽셀) — 넘친 빛이 앉을 자리다. 건물은 여백이 넉넉하다. */
+  pad: 5,
   /** 번지는 빛의 색 — 순백은 차가워 보인다. */
   hue: "255, 246, 228",
 };
 /** 판 한 장에 글로우를 굽는다 — 면을 다 칠한 **뒤** 부른다.
- *  ★ **면 글로우**다(요청: "림 글로우가 아닌 면 글로우" · "몸 위에서 빛나야지 단 어둠이
- *    지는 부분에는 깔지 말 것") — 가장자리에 테를 두르는 것이 아니라, **빛을 받는 낯 전체**가
- *    한 겹 밝아진다. 만드는 수는 셋뿐이고 흐림이 없어 값도 싸다:
- *      ⓐ 몸 실루엣을 빌림판에 뜬다.
- *      ⓑ 그 안을 **빛 축을 따라가는 그러데이션**으로 채운다(source-in) — 빛 쪽은 꽉 찬
- *        빛 색이고 반대쪽으로 가며 투명해진다. 곧 그늘진 낯에는 아무것도 안 깔린다.
- *      ⓒ 몸 **위에** 더한다(lighter).
- *    실루엣을 벗어나지 않으므로 판 여백이 안 늘고, 흐림 한 번이 사라져 앞선 테 방식보다
- *    싸다(테 방식은 그림자 흐림을 한 번 더 돌렸다).
+ *  ★ **면 글로우**다(요청) — 가장자리에 테를 두르는 것이 아니라 빛을 받는 낯이 밝아진다.
+ *    다만 밋밋한 비탈이 아니라 **가운데에 광택이 돈다**(요청: "실제 글로우처럼 가운데
+ *    광택이 돌게"): 빛 축 위에 봉우리(peak) 하나를 두고 양쪽으로 스러지는 그러데이션이라,
+ *    낯 한복판이 가장 밝고 빛 쪽 끝은 바닥값(foot)만큼, 그늘 쪽은 아예 0이다.
+ *    그리고 그 광택은 **낯을 조금 벗어난다**(요청: "살짝 번져서 면을 벗어나기도 해") —
+ *    같은 그림의 그림자만 흐려 한 겹 더 더하면 봉우리가 밝은 자리에서만 밖으로 흘러넘친다.
+ *    만드는 수:
+ *      ⓐ 몸 실루엣을 빌림판에 뜨고
+ *      ⓑ 그 안을 봉우리 그러데이션으로 채운다(source-in) — 그늘진 낯에는 아무것도 안 깔린다
+ *      ⓒ 몸 위에 더한다(lighter) — 낯 위의 광택
+ *      ⓓ 그 그림의 **그림자만** 흐려 한 겹 더 더한다 — 낯 밖으로 넘친 빛
  *  box(모델의 16-상자)를 주면 그 자리만 다룬다. */
 export function glowBake9(
   c2: BakeCtx9, cv: BakeCv9, B: number,
@@ -21132,10 +21143,14 @@ export function glowBake9(
 ): void {
   if (!(GLOW9.a > 0)) return;
   void B;
-  const gx = Math.max(0, box?.x ?? 0);
-  const gy = Math.max(0, box?.y ?? 0);
-  const gw = Math.min(cv.width - gx, box?.w ?? cv.width);
-  const gh = Math.min(cv.height - gy, box?.h ?? cv.height);
+  /** 상자 한 변(장치 픽셀) — 번짐의 자다. */
+  const S9 = Math.min(box?.w ?? cv.width, box?.h ?? cv.height);
+  const sp9 = GLOW9.spill * S9;
+  const m9 = sp9 * 2 + 2;
+  const gx = Math.max(0, (box?.x ?? 0) - m9);
+  const gy = Math.max(0, (box?.y ?? 0) - m9);
+  const gw = Math.min(cv.width - gx, (box?.w ?? cv.width) + m9 * 2);
+  const gh = Math.min(cv.height - gy, (box?.h ?? cv.height) + m9 * 2);
   if (!(gw > 0 && gh > 0)) return;
   const gv = bakeCanvas(cv.width);
   if (!gv) return;
@@ -21148,28 +21163,43 @@ export function glowBake9(
   g2.globalAlpha = 1;
   // ⓐ 몸 실루엣.
   g2.drawImage(cv as CanvasImageSource, gx, gy, gw, gh, gx, gy, gw, gh);
-  // ⓑ 그 안을 빛 축 그러데이션으로 — 빛 쪽만 차고 그늘 쪽은 비어 있다.
+  // ⓑ 그 안을 **봉우리** 그러데이션으로.
   const cx9 = gx + gw / 2;
   const cy9 = gy + gh / 2;
   const R9 = Math.hypot(gw, gh) / 2;
   const grad = g2.createLinearGradient(
     cx9 + ux9 * R9, cy9 + uy9 * R9, cx9 - ux9 * R9, cy9 - uy9 * R9,
   );
-  grad.addColorStop(0, `rgba(${GLOW9.hue}, 1)`);
-  grad.addColorStop(GLOW9.keep, `rgba(${GLOW9.hue}, 1)`);
-  grad.addColorStop(Math.min(1, GLOW9.keep + GLOW9.fade), `rgba(${GLOW9.hue}, 0)`);
+  const lo9 = Math.max(0, GLOW9.peak - GLOW9.width);
+  const hi = Math.min(1, GLOW9.peak + GLOW9.width);
+  grad.addColorStop(0, `rgba(${GLOW9.hue}, ${GLOW9.foot})`);
+  if (lo9 > 0) grad.addColorStop(lo9, `rgba(${GLOW9.hue}, ${GLOW9.foot})`);
+  grad.addColorStop(GLOW9.peak, `rgba(${GLOW9.hue}, 1)`);
+  grad.addColorStop(hi, `rgba(${GLOW9.hue}, 0)`);
   grad.addColorStop(1, `rgba(${GLOW9.hue}, 0)`);
   g2.globalCompositeOperation = "source-in";
   g2.fillStyle = grad;
   g2.fillRect(gx, gy, gw, gh);
   g2.globalCompositeOperation = "source-over";
-  // ⓒ 몸 **위에** 더한다.
   const prev = c2.getTransform();
   c2.setTransform(1, 0, 0, 1, 0, 0);
   c2.save();
+  // ⓒ 낯 위의 광택.
   c2.globalCompositeOperation = "lighter";
   c2.globalAlpha = GLOW9.a;
   c2.drawImage(gv as CanvasImageSource, gx, gy, gw, gh, gx, gy, gw, gh);
+  // ⓓ 낯을 벗어나 넘친 빛 — 원본은 판 밖에 그리고 **그림자만** 끌어온다.
+  if (sp9 > 0.3 && GLOW9.spillA > 0) {
+    c2.globalAlpha = GLOW9.a * GLOW9.spillA;
+    c2.shadowColor = `rgba(${GLOW9.hue}, 1)`;
+    c2.shadowBlur = sp9;
+    c2.shadowOffsetX = cv.width;
+    c2.shadowOffsetY = 0;
+    c2.drawImage(gv as CanvasImageSource, gx, gy, gw, gh, gx - cv.width, gy, gw, gh);
+    c2.shadowColor = "transparent";
+    c2.shadowBlur = 0;
+    c2.shadowOffsetX = 0;
+  }
   c2.restore();
   c2.globalCompositeOperation = "source-over";
   c2.globalAlpha = 1;
@@ -21359,9 +21389,9 @@ export function rasterUnit9(op: UnitDrawOp, pxq: number, B: number, lod: number)
   const faces = lodFilter(autoTier(op.kind, `u|${op.kind}|${op.rotDeg ?? 0}|${op.flat ? 1 : 0}|${vq}|${pitchTag(op.pitch)}|${poseTag(op.kind)}`, all), lod);
   /* (제거·요청) 드롭섀도 굽기 — 건물·유닛 그림자를 다 걷어 굽는 판도 그림자 없이 민다.
      pad는 안티에일리어싱 여유만. */
-  /* 여백은 안티에일리어싱 몫뿐이다 — 글로우가 몸 **안쪽** 가장자리에 얹히게 바뀐 뒤로
-     번질 자리를 따로 열 까닭이 없어졌다(한때 GLOW9.pad로 5를 더 뒀다). */
-  const pad = 2;
+  /* 글로우가 낯을 조금 벗어나 번지므로(GLOW9.spill) 그만큼 여백을 연다 — 없으면 넘친
+     빛이 판 테두리에서 잘린다. 건물은 여백이 이미 한 변의 78%라 안 건드려도 된다. */
+  const pad = 2 + (lod >= 3 && GLOW9.a > 0 ? GLOW9.pad : 0);
   const l = pxq + pad * 2;
   const side9 = Math.max(1, Math.ceil(l * B));
   // 너무 큰 판은 굽지 않는다(위 SPRITE_SIDE_MAX) — 직접 그리기로 떨어진다.
