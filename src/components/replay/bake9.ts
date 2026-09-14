@@ -7239,6 +7239,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        꼭대기 상자·둘레 슬롯. 밑동(사각기둥 + 공사장 띠)은 위에 그대로 서 있는다.
        withModelSpin은 모형 좌표와 법선을 함께 돌리므로, 돌아간 머리도 광원은 고정이다. */
     ...withModelSpin(headYawNow, (): ShapeFace[] => [
+    // 총구 — 오른 포드 꼭대기(머리 회전 블록 안이라 머리 자다; 엔진이 머리 각으로 다시 돌린다). 왼 포드는 x 부호만 뒤집는다.
+    ...((): ShapeFace[] => { markMuzzle9(2.2, 0.6, 10.8); return []; })(),
     /* 머리 상자는 밑둥 위 얹힘 — 밑둥(키 없음)보다 큰 붙박이 키 2를 갖는다. 둘레
        포드는 이 20을 기준으로 제 자리 깊이만큼 앞뒤로 갈린다(지적: 터렛 키값 — 포드가
        24+깊이라 뒤로 돌아간 포드까지 늘 머리 위에 그려졌다). 20은 밑둥이 제 몫으로
@@ -7694,6 +7696,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        그래서 목은 짧게 곧추세우고, 그 위에 **앞·위로 크게 기운 포신**을 얹은 뒤
        끝에 사이언 포구를 단다. 이제 돌아간 각이 실루엣으로 읽힌다. */
     out.push(...withModelSpin(headYawNow, () => tagKey(((): ShapeFace[] => {
+      markMuzzle9(0, 0.3, 6.9);   // 관 셋의 아가리 속 — 광전자가 나는 자리(머리 회전 블록 안이라 머리 자다)
       /* ★ 포탑은 **곧게 선 관 셋**이다(정정: "포톤캐논 아까 잘못 수정했어. 내말은 꺾이는
          마디를 없애고 기둥은 위로 쭉 곧게 올라가야하고 그 아래에 중간높이, 낮은 높이로
          감싸는 관이 추가되는거야 그리고 그 관들이 사선으로 잘라져있는거고") ─────────────
@@ -7907,6 +7910,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       }),
       capFace(discPath3(0.35, 0.15, 3.7, 0.46), 0.5),
     ], RACE_BASE_TONE.zerg), 12));
+    markMuzzle9(0.35, 0.15, 3.7);   // 가운데 촉수의 아가리 — 가시가 나는 자리
     /* 쏘는 순간의 혓바닥(요청: "현재 모델에 구릿빛 혓바닥만 추가") — 몸은 한 톨도
        안 건드리고, 가운데 촉수의 아가리에서 구릿빛 가시가 앞위로 감겨 나온다.
        가시가 나가는 타이밍에만 이 판을 쓰므로(SHAPE_BUILDERS.sunkenfire), 평소 모습과
@@ -8040,6 +8044,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const tipX9 = GX9 + gdx9 * GL9;
       const tipY9 = GY9 + gdy9 * GL9;
       const tipZ9 = GZ9 + gdz9 * GL9;
+      markMuzzle9(tipX9, tipY9, tipZ9);   // 생체 포신의 아가리 — 포자가 나는 자리
       const [mx9, my9] = project(tipX9, tipY9, tipZ9);
       /** 화면 타원 하나 — 기둥 축에 수직인 원반의 투영이다(축이 기울수록 세로가 눌린다). */
       const ell9 = (cx9: number, cy9: number, rx9: number, ry9: number): string =>
@@ -12484,7 +12489,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     out.push(...tagKey(tubeFaces(0, -1.62, 0, -1.03, 0.62, 5.5), depthNow(0, -1.32) * 1.6 + 3));   // 임자색 띠
     out.push(...tagKey(paintBase(tubeFaces(0, -1.05, 0, -0.5, 0.62, 5.5), BRASS9),
       depthNow(0, -0.78) * 1.6 + 3));
-    markMuzzle9(0, -0.5, 5.5);   // 유탄 발사기 드럼의 앞끝
+    markMuzzle9(0, 6.6, 3.73);   // 코끝 — 두 갈래 가닥이 끝나는 자리(지적: "벌처 코끝에서 나오고")
     out.push(...tagKey(paintBase(tubeFaces(0, -3.35, 0, -2.9, 0.5, 5.5, true), "#8f6f30"),
       depthNow(0, -3.1) * 1.6 + 3));
     /* 탄 사람 — 갑판 위로 나온 상반신만. 웅크려 앞으로 기운 몸통 + 헬멧 + 앞으로

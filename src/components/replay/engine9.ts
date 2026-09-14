@@ -796,10 +796,24 @@ export const MUZZLE_ANCHOR: Record<string, [number, number, number]> = { ...MUZZ
    앞면 총안 셋(y 2.62·z 0.9~1.5)의 가운데.
    유닛과 갈래가 다른 표를 따로 두는 까닭은 좌표계가 다르기 때문이다 — 유닛은 16-상자
    가운데(8,8)가 앵커지만 건물은 발자국 바닥 가운데(8,16)가 앵커다. */
-export const BLD_MUZZLE: Record<string, [number, number, number]> = {
+const BLD_MUZZLE_HAND9: Record<string, [number, number, number]> = {
   coil: [0, 0, 7.2], sunken: [0.35, 0.15, 3.7], spore: [-0.35, 2.6, 2.5],
   // 터렛 z 8.2 → 10.8(요청: 밑받침 1.5배 + 포드 여유) — 새 포드 꼭대기 pvt(1.9, 5)다.
   turret: [2.2, 0.6, 10.8], tombFlat: [0, 2.7, 1.2],
+};
+/* 건물도 임자는 빌더다(유닛 MUZZLE_ANCHOR과 같은 규약) — 표식이 있는 종류만 굽힌 표가 덮어쓴다.
+   벙커(tombFlat)는 쏘는 쪽을 따라 도는 함수(bunkerMuzzleOf)라 표를 안 탄다. */
+export const BLD_MUZZLE: Record<string, [number, number, number]> = {
+  ...BLD_MUZZLE_HAND9,
+  ...Object.fromEntries(["coil", "sunken", "spore", "turret"].filter((k) => MUZZLE_GEN9[k]).map((k) => [k, MUZZLE_GEN9[k]])),
+};
+/** 머리(포탑부)가 도는 방어 건물 — 총구가 머리 자에 있어 겨눈 각만큼 모형에서 돌려야 한다(아래 muzzleAt9). */
+export const HEAD_MUZZLE_KINDS9 = new Set(["turret", "coil"]);
+/** 모형 평면 점을 머리 각(도)만큼 돌린다 — 빌더의 withModelSpin(spun)과 같은 식·같은 부호. */
+export const spinMuzzle9 = (mz: [number, number, number], deg: number): [number, number, number] => {
+  const r = (deg * Math.PI) / 180;
+  const c = Math.cos(r); const sn = Math.sin(r);
+  return [mz[0] * c - mz[1] * sn, mz[0] * sn + mz[1] * c, mz[2]];
 };
 /** 모델 앵커의 16-상자 투영 좌표 — 스프라이트와 **같은** 버킷·밀림·피칭·부감으로
  *  투영한다(굽기와 한 글자라도 다르면 앵커가 제 부품을 벗어난다). */
@@ -5901,8 +5915,16 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
             const dy9 = (gfy9 - cfy9) * mh9 + ((ay9 - ink9[1]) * side9) / 16;
             return [dx9, dy9];
           };
-          const mzModel9 = unit === "Bunker" ? bunkerMuzzleOf(degB)
+          /* ★ 머리가 도는 건물(터렛·포톤)은 총구도 **머리와 함께 돈다**(요청: "터렛·포토·벙커·스포어 등도
+             있어야지") — 표의 값은 머리 자(빌더의 withModelSpin 블록 안)라, 판을 구울 때 머리에 준 각
+             (headDeg − 건물 요잉, buildingSprite의 headYawSet)만큼 모형에서 돌려야 포드·관 위에 앉는다.
+             각은 판이 쓴 것과 같은 칸(HEAD_STEP: 터렛 7.5°·포톤 22.5°)으로 접은 조준각이다. */
+          const headStep9 = unit === "Missile Turret" ? 7.5 : 22.5;
+          const headDegB9 = ((Math.round(degB / headStep9) * headStep9) % 360 + 360) % 360;
+          const mzBase9 = unit === "Bunker" ? bunkerMuzzleOf(degB)
             : shapeKind ? BLD_MUZZLE[shapeKind] : undefined;
+          const mzModel9 = mzBase9 && shapeKind && HEAD_MUZZLE_KINDS9.has(shapeKind)
+            ? spinMuzzle9(mzBase9, headDegB9 - buildingYawOf()) : mzBase9;
           const [mzBx, mzBy] = muzzleAt9(mzModel9);
           /* ★ 미사일 터렛은 **두 발이 나간다**(지적: "미사일 터렛 트레이서에서 미사일
              두 방이야 · 포드가 양쪽 두 개잖아 — 골리앗·발키리 대공·스카우트 대공·
