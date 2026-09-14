@@ -19774,7 +19774,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        요잉에서도 굵기가 제대로 산다. */
     const limbs: ShapeFace[] = [];
     /* ★ 이동 모션(요청) — 떠서 가는 몸의 관성: 모든 다리·집게의 **아래쪽이 뒤·위로 살짝 끌리고**(뿌리에서 발끝으로
-       갈수록 커진다: 뒤로 0.45·위로 0.15), 두 걸음 컷(1↔3)이 번갈아 ±0.07 떨린다(다리마다 부호를 엇갈려 잔떨림).
+       갈수록 커진다: 뒤로 0.7·위로 0.5), 두 걸음 컷(1↔3)이 번갈아 ±0.07 떨린다(다리마다 부호를 엇갈려 잔떨림).
        POSE_KINDS.ovie.move가 컷을 낸다. 정지 컷(0)에서는 0. */
     const wdO9 = walkDir();
     const mvO9 = wdO9 !== 0 ? 1 : 0;
@@ -19884,8 +19884,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const yaw9 = ly < -1 ? -m * (Math.PI / 6) : 0;
         const PX = KX.map((x9) => KX[0] + (x9 - KX[0]) * Math.cos(yaw9));
         const trO9 = wdO9 * 0.07 * (m > 0 ? 1 : -1) * (ly0 > 0 ? 1 : -1);   // 잔떨림 — 좌우·앞뒤로 부호 엇갈림
-        const PY = KX.map((x9, j9) => ly + (x9 - KX[0]) * Math.sin(yaw9) + (-0.45 * mvO9 + trO9) * (j9 / 4));
-        for (let j9 = 0; j9 < KZ.length; j9 += 1) KZ[j9] += 0.15 * mvO9 * (j9 / 4);
+        const PY = KX.map((x9, j9) => ly + (x9 - KX[0]) * Math.sin(yaw9) + (-0.7 * mvO9 + trO9) * (j9 / 4));   // 뒤로 0.45 → 0.7
+        for (let j9 = 0; j9 < KZ.length; j9 += 1) KZ[j9] += 0.5 * mvO9 * (j9 / 4);   // 위로 0.15 → 0.5(재요청: 다리 좀 더 많이 올리기)
         /* 다리 — 배와 같은 자. 층 −0.2면 뿌리(배 속)에서는 배가 이기고, 앞으로
            돈 다리는 제 깊이로 배를 이긴다. */
         const key = depthNow(m * LEG_X9, ly) * 1.6 - 0.2;
