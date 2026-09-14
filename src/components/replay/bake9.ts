@@ -21106,22 +21106,23 @@ export function lodOf(px: number, ptPx = LOD_PX_POINT, dcPx = LOD_PX_DECO): numb
    쓴다(모델이 돌아도 빛은 세계에 고정이라 이 방향은 안 돈다).
    ★ 끄려면 a를 0으로 둔다. 판 여백(pad)도 이 값이 0이면 안 는다. */
 export const GLOW9 = {
-  /** 낯 위에 얹히는 광택의 세기(0이면 끔). */
-  a: 0.2,
-  /** 광택이 **가장 밝은 자리**(빛 축에서 0=빛 쪽 끝, 1=그늘 쪽 끝). */
-  peak: 0.38,
-  /** 그 봉우리의 반폭 — 여기까지 오면 다 스러진다. */
-  width: 0.3,
-  /** 빛 쪽 끝의 바닥값 — 봉우리 앞쪽은 0으로 안 떨어뜨린다(가장자리가 뚝 끊기면 판 자국이 난다). */
-  foot: 0.25,
+  /** 빛나는 줄의 세기(0이면 끔). */
+  a: 0.22,
+  /** 줄의 **시작**(빛 축에서 0=빛 쪽 끝, 1=그늘 쪽 끝). */
+  band0: 0.3,
+  /** 줄의 **끝**. */
+  band1: 0.4,
+  /** 줄 **경계의 무름** — 0에 가까울수록 칼같이 끊긴다(요청: "경계가 분명하게").
+   *  0으로 두면 계단이 생기므로 한 톨만 남긴다. */
+  edge: 0.012,
   /** 번지는 폭 — **모델 상자 한 변의 몫**이다(절대 픽셀이 아니다: 배율마다 두께가
-   *  달라지면 안 된다). 이 몫만큼 광택이 낯을 **벗어나** 흘러넘친다. */
+   *  달라지면 안 된다). 이 몫만큼 줄이 낯을 **벗어나** 흘러넘친다. */
   spill: 0.03,
   /** 흘러넘치는 몫의 세기(a에 곱한다). */
   spillA: 0.6,
   /** 유닛 판에 더 두는 여백(CSS 픽셀) — 넘친 빛이 앉을 자리다. 건물은 여백이 넉넉하다. */
   pad: 5,
-  /** 번지는 빛의 색 — 순백은 차가워 보인다. */
+  /** 빛나는 줄의 색 — 순백은 차가워 보인다. */
   hue: "255, 246, 228",
 };
 /** 판 한 장에 글로우를 굽는다 — 면을 다 칠한 **뒤** 부른다.
@@ -21163,20 +21164,28 @@ export function glowBake9(
   g2.globalAlpha = 1;
   // ⓐ 몸 실루엣.
   g2.drawImage(cv as CanvasImageSource, gx, gy, gw, gh, gx, gy, gw, gh);
-  // ⓑ 그 안을 **봉우리** 그러데이션으로.
+  // ⓑ 그 안을 **줄** 하나로 — 경계가 분명한 띠다.
   const cx9 = gx + gw / 2;
   const cy9 = gy + gh / 2;
   const R9 = Math.hypot(gw, gh) / 2;
   const grad = g2.createLinearGradient(
     cx9 + ux9 * R9, cy9 + uy9 * R9, cx9 - ux9 * R9, cy9 - uy9 * R9,
   );
-  const lo9 = Math.max(0, GLOW9.peak - GLOW9.width);
-  const hi = Math.min(1, GLOW9.peak + GLOW9.width);
-  grad.addColorStop(0, `rgba(${GLOW9.hue}, ${GLOW9.foot})`);
-  if (lo9 > 0) grad.addColorStop(lo9, `rgba(${GLOW9.hue}, ${GLOW9.foot})`);
-  grad.addColorStop(GLOW9.peak, `rgba(${GLOW9.hue}, 1)`);
-  grad.addColorStop(hi, `rgba(${GLOW9.hue}, 0)`);
-  grad.addColorStop(1, `rgba(${GLOW9.hue}, 0)`);
+  /* 줄의 네 마디 — 밖은 0, 안은 1이고 그 사이가 edge만큼뿐이라 경계가 칼같다
+     (요청: "그라데이션 봉우리 말고 줄로 빛난다고 해야 하나, 빛나는 부분의 경계가
+     분명하게"). 봉우리 그러데이션은 낯 전체가 뿌옇게 밝아져 '광택'이 아니라 '안개'였다. */
+  const e9 = Math.max(0.002, GLOW9.edge);
+  const b09 = Math.max(0, Math.min(1, GLOW9.band0));
+  const b19 = Math.max(b09 + e9 * 2, Math.min(1, GLOW9.band1));
+  const st = (t9: number, al: number): void => {
+    grad.addColorStop(Math.max(0, Math.min(1, t9)), `rgba(${GLOW9.hue}, ${al})`);
+  };
+  st(0, 0);
+  st(b09 - e9, 0);
+  st(b09 + e9, 1);
+  st(b19 - e9, 1);
+  st(b19 + e9, 0);
+  st(1, 0);
   g2.globalCompositeOperation = "source-in";
   g2.fillStyle = grad;
   g2.fillRect(gx, gy, gw, gh);
@@ -21188,8 +21197,13 @@ export function glowBake9(
   c2.globalCompositeOperation = "lighter";
   c2.globalAlpha = GLOW9.a;
   c2.drawImage(gv as CanvasImageSource, gx, gy, gw, gh, gx, gy, gw, gh);
-  // ⓓ 낯을 벗어나 넘친 빛 — 원본은 판 밖에 그리고 **그림자만** 끌어온다.
+  /* ⓓ 낯을 **벗어난** 빛 — 원본은 판 밖에 그리고 그림자만 끌어온다.
+     ★ destination-over다(lighter가 아니다) — 몸이 이미 칠해진 자리는 건너뛰고 **빈
+       자리에만** 앉는다. lighter로 얹으면 넘친 몫이 줄 위에도 겹쳐 칼같은 경계를
+       도로 뭉갠다(요청: 경계가 분명하게). 이제 줄은 낯 위에서 또렷하고, 무른 것은
+       실루엣 밖으로 새어 나간 몫뿐이다. */
   if (sp9 > 0.3 && GLOW9.spillA > 0) {
+    c2.globalCompositeOperation = "destination-over";
     c2.globalAlpha = GLOW9.a * GLOW9.spillA;
     c2.shadowColor = `rgba(${GLOW9.hue}, 1)`;
     c2.shadowBlur = sp9;
