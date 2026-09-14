@@ -5140,7 +5140,6 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        전장의 쇠(stainOf9)가 입혀지고, 임자색은 포탑·발끝·베이 속 가로 등이다. */
     const NEAR_BLACK = "#22262c";
     const ROOF = "#2f2f2f";
-    const TEETH = "#c9c9c9";
     const pc: ShapeFace[] = [];
     const out: ShapeFace[] = [];
 
@@ -5383,7 +5382,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       [-2.5, 1.85], [-1.3, 1.85], [0.1, 1.85], [1.3, 1.85], [2.5, 1.85],
       [-2.8, 0.2], [2.8, 0.2], [-2.8, -1.4],
     ] as [number, number][]) {
-      out.push(...tagKey(paintBase(boxFaces3(tx9, ty9, 0.68, 0.38, 0.4, ZT), TEETH), 3.5));
+      /* 성곽 이빨은 **테란 기본색**이다(요청: "팩토리 위의 블럭들 테란 기본색으로") —
+         칠을 안 하면 아래 raceBase가 기본색을 입힌다. 흰 돌(#c9c9c9)로 두었더니 지붕 위
+         여덟 덩이만 따로 노는 밝은 블록이 됐다. */
+      out.push(...tagKey(boxFaces3(tx9, ty9, 0.68, 0.38, 0.4, ZT), 3.5));
     }
     {
       pc.push(...tagKey(boxFaces3(2.1, -1.2, 1.3, 1.05, 0.8, ZT + 0.02), 3.7));
