@@ -10753,9 +10753,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     }
     out.push(...tagKey(paintBase(spirePillar({
       x: 0, y: 0, h: 1, w: 1, segs: 8, sides: 8, oval: 0.5, caps: "none", ref: [0, 0, 1], trueNormal: true,
+      // 호는 **안쪽(몸 쪽)으로 굽는다**(재지적: 방향이 반대) — 두 뿌리(±1.375, 2.38)를 잇되 가운데가 뒤(0, 1.8)로 들어가고 살짝 오른다.
       path: (t9: number): [number, number, number] => {
-        const a9 = ((-30 + 60 * t9) * Math.PI) / 180;
-        return [Math.sin(a9) * 2.75, Math.cos(a9) * 2.75, 0.8 + 0.15 * Math.sin(Math.PI * t9)];
+        const u9 = 1 - t9;
+        return [
+          u9 * u9 * -1.375 + t9 * t9 * 1.375,
+          u9 * u9 * 2.38 + 2 * u9 * t9 * 1.2 + t9 * t9 * 2.38,
+          0.8 + 0.3 * Math.sin(Math.PI * t9),
+        ];
       },
       widthOf: (): number => 0.42,
     }), GOLD9), -2.5 + depthNow(0, 2.75) * 0.3));
