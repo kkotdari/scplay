@@ -21345,7 +21345,14 @@ export function faceGrain9(d: string): {
       mB: (bx1 - bx0) * Math.hypot(1, sl9 / sqU9), cx, cy, up: true,
     };
   }
-  /* 누운 낯 — 두 모서리 갈래 중 **모형에서 더 긴 쪽**이 U다(줄이 뻗는 쪽).
+  /* 누운 낯 — 두 모서리 갈래 중 **모형에서 더 짧은 쪽**이 U다(줄이 뻗는 쪽).
+     ★ 긴 쪽으로 뻗게 두었더니 지붕이 평평해 보였다(지적: "면은 원근이 적용되는데
+       스크래치는 안 되고 있지") — 판의 긴 쪽은 대개 앞뒤(깊이)라 정면에서 화면 세로로
+       투영되고, 그러면 **벽의 세로 결과 한 줄로 이어져** 지붕과 벽이 한 판으로 읽힌다.
+       짧은 쪽으로 뻗으면 지붕의 결이 벽의 결과 엇갈려, 누운 면이 누운 채로 읽힌다.
+     ⚠ 이 고름은 **모형의 성질**이라야 한다 — '화면에서 더 누운 쪽'처럼 화면으로 고르면
+       어느 각에서 차례가 뒤집혀 결이 홱 돈다(앞서 겪은 그 버그다). 그래서 요잉이 못
+       바꾸는 모형 길이로 고른다. 값은 아래 mlen9다.
      ★ 한때 '화면에서 더 서 있는 쪽'을 골랐는데 그것이 틀렸다(지적: "오른쪽 두 개가 잘못됨,
        스크래치 방향이 갑자기 바뀌었음") — 요잉이 어느 각을 넘는 순간 두 모서리의 기울기
        차례가 뒤집혀 지붕의 결이 90도 홱 돌았다. 화면의 성질로 고르면 요잉을 탈 수밖에 없다.
@@ -21356,7 +21363,7 @@ export function faceGrain9(d: string): {
        비스듬한 낯(경사 벤트 등)에서는 어림이지만, 값이 각을 따라 이어지므로 뒤집힘이 없다. */
   const sq9 = groundSquashNow() || 0.45;
   const mlen9 = (e: { dx: number; dy: number }): number => Math.hypot(e.dx, e.dy / sq9);
-  const base = long.reduce((p9, q9) => (mlen9(q9) > mlen9(p9) ? q9 : p9), long[0]);
+  const base = long.reduce((p9, q9) => (mlen9(q9) < mlen9(p9) ? q9 : p9), long[0]);
   const bux = base.dx / base.l; const buy = base.dy / base.l;
   let other = long.find((e) => Math.abs((e.dx * bux + e.dy * buy) / e.l) < 0.85);
   if (!other) other = { dx: -buy * base.l, dy: bux * base.l, l: base.l };
