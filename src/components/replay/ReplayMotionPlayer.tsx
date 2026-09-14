@@ -1413,7 +1413,21 @@ function takeStored9(w9: number, h9: number): HTMLCanvasElement | null {
   CVSTORE9.bytes -= w9 * h9 * 4;
   const c9 = cv9.getContext("2d");
   if (!c9) return null;
+  /* ★ **문맥 상태까지 되돌린다**(지적: "캐리어가 특정 각도에서 안 보임 — 데칼과 광택만
+     보이고 몸은 안 보임", "임자색이 검게 나오는 버그", "새로고침하면 비는 각도가 달라져
+     — 고정은 아니고 랜덤인 듯") ─────────────────────────────────────────────────────
+     되쓰는 캔버스는 그림만 지운다고 새 캔버스가 되지 않는다 — **2D 문맥의 상태가 그대로
+     따라온다**. 여기서 나간 판이 마지막으로 쓰인 자리가 tintedOf9라면 그 문맥은 여전히
+     `source-in`이다. 그 판이 다음에 몸판의 사본 그릇(cropToInk의 BAKE_ENV9.out)으로 나가면
+     `drawImage`가 **비어 있는 바탕과 교집합**을 그린다 — 곧 아무것도 안 그려져 몸판이
+     통째로 빈다. 그 자리에 임자 면은 destination-out으로 이미 파여 있으니, 화면에는
+     데칼(임자 마스크)과 광택만 남고 몸이 사라진다. 임자 마스크 쪽이 그 판을 받으면
+     거꾸로 마스크가 비어, 몸판에 파인 구멍으로 배경이 비쳐 **임자색이 검게** 보인다.
+     어느 판이 나가느냐는 창고 사정이라 각도도 새로고침마다 달라진다 — '랜덤'의 정체다.
+     clearRect는 합성 규칙을 안 타므로 지우기는 늘 되고, 그래서 눈에 안 띄었다. */
   c9.setTransform(1, 0, 0, 1, 0, 0);
+  c9.globalCompositeOperation = "source-over";
+  c9.globalAlpha = 1;
   c9.clearRect(0, 0, w9, h9);
   return cv9;
 }
@@ -2051,12 +2065,18 @@ const tintedOf9 = (tn: TintPlate9, color: string, bytes: { n: number } = spriteB
   })();
   const tc = cv.getContext("2d");
   if (!tc) return null;
+  /* 빌려 온 판은 제 상태를 들고 온다 — 그리기 전에 문맥을 못 박는다(takeStored9의 ★). */
+  tc.setTransform(1, 0, 0, 1, 0, 0);
+  tc.globalCompositeOperation = "source-over";
+  tc.globalAlpha = 1;
   tc.drawImage(tn.cv, 0, 0);
   tc.globalCompositeOperation = "source-in";
   /* 임자 색도 tone9을 지난다(요청: 전체 색감) — 몸만 어두워지면 임자 면이 혼자 뜬다.
      표(tn.by)의 열쇠는 **원래 색**이라 색표·미니맵 점·조작부 칩은 그대로다. */
   tc.fillStyle = tone9(color);
   tc.fillRect(0, 0, w, h);
+  // 쓰고 난 판은 **기본 상태로 돌려 둔다** — 이 판이 창고를 돌아 남의 그릇이 된다(위 ★).
+  tc.globalCompositeOperation = "source-over";
   // 임자 면에는 광택을 안 얹는다(지적: 포톤 톱니 임자색이 흐림 — 왼위 14% 흰 빛이 임자색을 씻었다). gloss는 남겨 두되 안 쓴다.
   void tn.gloss;
   if (!tn.by) tn.by = new Map();
@@ -2067,6 +2087,14 @@ const tintedOf9 = (tn: TintPlate9, color: string, bytes: { n: number } = spriteB
   tn.by.set(color, cv);
   bytes.n += canvasBytes(cv);
   return cv;
+};
+/** 선택 링·상태 오라의 **종류별 몫**(요청: "뮤탈 선택링 크기 너무 큼") ──────────────────
+ *  링의 자는 구운 판의 잉크 폭(inkW)이다 — 대개 그것이 곧 몸이지만, **날개를 활짝 편**
+ *  비행체는 잉크 폭이 몸통이 아니라 **날개 끝에서 끝**이다. 뮤탈은 그 폭이 몸통의 갑절이라
+ *  링이 이웃 링까지 삼켰다. 원작의 선택 원도 날개가 아니라 몸에 걸린다.
+ *  여기 적힌 종류만 그 몫으로 줄인다(안 적힌 종류는 1 — 옛 그림 그대로). */
+const RING_K9: Record<string, number> = {
+  muta: 0.66, scourge: 0.78, devourer: 0.78, guardian: 0.72,
 };
 /** 물들인 마스크를 몸판과 같은 자리에 얹는다(그리기 변환은 부르는 쪽이 세워 둔 상태). */
 const drawTint9 = (
@@ -4823,6 +4851,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              1.1px을 바닥으로 잡는다 — 여전히 한 획짜리 가는 테지만 화소 하나는 채운다.
              배수도 0.034 → 0.06으로 올려 큰 몸에서는 조금 더 또렷하다. */
           const ringW = Math.max(1.1, op.sizePx * inkK * 0.06);
+          const ringK9 = RING_K9[op.kind] ?? 1;
           // 링도 내용물 발끝에(재지적) — 상자 고정 오프셋은 작은 모델에서 몸 아래로 떨어졌다.
           const ringY = op.air ? footY - lift : footY - px * 0.03;
           const ringPath = (): void => {
@@ -4834,7 +4863,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             ctx.save();
             ctx.translate(footX, ringY);
             if (op.pitch && op.viewYaw) ctx.transform(1, 0, Math.tan((op.viewYaw * Math.PI) / 180), 1, 0, 0);
-            ctx.ellipse(0, 0, inkW * 0.55, inkW * 0.31 * (op.pitch ? pitchFlatNow : 1), 0, 0, Math.PI * 2);
+            ctx.ellipse(0, 0, inkW * 0.55 * ringK9, inkW * 0.31 * ringK9 * (op.pitch ? pitchFlatNow : 1), 0, 0, Math.PI * 2);
             ctx.restore();
           };
           /* 검은 테는 걷었다(지적: 깔려면 마우스 마커에도 깔아야 한다) — 링만 두 겹이라
@@ -4858,7 +4887,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           ctx.globalAlpha = op.alpha * 0.32;
           ctx.fillStyle = op.tint;
           ctx.beginPath();
-          const auraR9 = inkW * 0.62;
+          const auraR9 = inkW * 0.62 * (RING_K9[op.kind] ?? 1);
           ctx.ellipse(
             footX, op.air ? footY - lift : footY - px * 0.03,
             auraR9, auraR9 * 0.564 * (op.pitch ? pitchFlatNow : 1), 0, 0, Math.PI * 2,

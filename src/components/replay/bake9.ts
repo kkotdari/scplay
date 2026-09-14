@@ -21117,8 +21117,15 @@ export function inkBoxOf(
     if (s <= 0) return box;
     m = [(box.cx - box.w / 2 - ox) / s, (box.top - oy) / s,
       (box.cx + box.w / 2 - ox) / s, (box.bot - oy) / s];
-    if (INK_MODEL_CACHE.size >= INK_MODEL_MAX) INK_MODEL_CACHE.clear();
-    INK_MODEL_CACHE.set(memo, m);
+    /* ★ **잉크가 없는 판은 기억하지 않는다** — contentBox는 빈 판에서 '판 전체'를 돌려준다
+       (위 `if (bot === 0)`). 그 값을 적어 두면 그 종류·그 각은 판이 제대로 구워진 뒤에도
+       영영 '온 판이 잉크'인 자로 잘리고 앉는다(발밑·중심·체력바가 다 이 자를 쓴다).
+       빈 판은 사고의 결과이지 그 모델의 성질이 아니므로, 다음 굽기에서 다시 잰다. */
+    const blank9 = box.top === 0 && box.bot === cv.height && box.w === cv.width;
+    if (!blank9) {
+      if (INK_MODEL_CACHE.size >= INK_MODEL_MAX) INK_MODEL_CACHE.clear();
+      INK_MODEL_CACHE.set(memo, m);
+    }
   }
   const x0 = ox + m[0] * s;
   const x1 = ox + m[2] * s;
@@ -21979,7 +21986,13 @@ export const bakeCanvas = (side: number): BakeCv9 | null => {
     const [cv9] = BAKE_POOL.splice(i9, 1);
     const c9 = ctx2d9(cv9);
     if (!c9) return null;
+    /* ★ 그림만이 아니라 **문맥 상태**도 되돌린다 — 되쓰는 판은 제 지난 삶의 합성 규칙·
+       알파를 그대로 들고 온다. 지우기(clearRect)는 합성 규칙을 안 타므로 겉보기엔 깨끗한데,
+       다음에 그리는 첫 획이 남의 규칙으로 얹혀 판이 통째로 비거나 검어진다(ReplayMotionPlayer
+       takeStored9의 ★에 그 사고의 전말이 적혀 있다). */
     c9.setTransform(1, 0, 0, 1, 0, 0);
+    c9.globalCompositeOperation = "source-over";
+    c9.globalAlpha = 1;
     c9.clearRect(0, 0, side, side);
     return cv9;
   }
