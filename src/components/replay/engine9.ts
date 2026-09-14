@@ -445,6 +445,7 @@ export const POSE_KINDS: Record<string, { move?: boolean; atk?: boolean; flap?: 
      디바우러(1.7)는 그대로 둔다 — 덩치가 커 느릿한 것이 결이다. */
   muta: { flap: 2.4, atk: true },
   devourer: { flap: 1.7, atk: true },
+  guardian: { flap: 1.4 },   // 뒤 옆구리 날개껍질 한 쌍의 날갯짓(요청) — 덩치가 커 디바우러보다 느긋하게
   zling: { move: true, atk: true },    // 다리 교차 + 낫팔 내리침
   /* (걷어냄) tankbody·tanksiegebody — "포신 앞뒤 이동"으로 적어 두었지만 그 두 판은
      궤도+차체라 포신이 없고, 반동은 이미 **op 자리 밀기**가 한다(포탑 판을 0.09타일
@@ -1017,7 +1018,7 @@ export const MODEL_NORM: Record<string, number> = {
   ghost: 1.601,  // 상자 상한(원한 배수 1.723)
   goliath: 0.678,   // 재측정(model-norm) — 미사일 포드 걷고 포신 하나로(옛 0.671)
   goon: 0.619,  // 재측정(model-norm)
-  guardian: 0.674,  // 다리 옆으로 곧게 뒤 재측정(model-norm)
+  guardian: 0.650,  // 다리 옆으로 곧게 뒤 재측정(model-norm) · 뒤 옆구리 날개껍질·앞집게 앞으로 뒤 ×0.9644(0.703 → 0.678)
   gunner: 1.302,  // 팔 길이 고정 뒤 model-norm 재측정
   htemp: 1.140,  // 재측정(model-norm) — 왕관(살 다섯·보석)까지 반영
   hydra: 0.646,  // 머리장식 확대·머리 위 시작·길이 +20%·폭 −20%·마름모 허리 0.75 뒤 재측정(model-norm의 **top 모드** 표)
