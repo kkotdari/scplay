@@ -1332,13 +1332,13 @@ export const SIZE_REF = gmOf(Object.values(UNIT_BW_TILES));
  *      내구(250 / 350+150)와 인구(4 / 8) 순으로 벌렸다. **폭은 임의다.** */
 export const UNIT_SIZE_TUNE: Record<string, number> = {   // 열쇠는 sizeKind(메딕처럼 원작 치수표에 없는 종류도 받는다)
   /* 도록 크기 보정 페이지(?cal)에서 실측해 준 배수(요청). */
-  archon: 1.2, darchon: 1.2, corsair: 0.8, interceptor: 0.8, larva: 0.4, egg: 0.4,
+  archon: 1.5, darchon: 1.5, corsair: 0.8, interceptor: 0.8, larva: 0.4, egg: 0.4,   // 아콘 둘 1.2 → 1.5(재요청)
   muta: 0.8, scourge: 0.6, ultra: 1.4, guardian: 0.8, lurkeregg: 0.6, mutacocoon: 0.8,
   observer: 0.8,
   inf: 0.8, fbat: 0.8, ghost: 0.8,   // 메딕(inf)·파뱃(0.6 → 0.8 재요청)·고스트 — 마린(gunner)은 1.0으로 뺐다(재요청)
   htemp: 0.9,   // 0.6 → 1(요청) → 0.9(재요청). 다템은 표에서 빠져 1이다(원작 상자 24×24 대 24×26).
   defiler: 1.2,   // 요청(비교 장면)
-  tank: 1.2, tanksiege: 1.2, vulture: 1.1,   // 요청: "시즈·벌처 그리기 1.2배" → 재요청: 일반·변신 중 탱크도 1.2 · 벌처는 1.1
+  tank: 1.5, tanksiege: 1.5, vulture: 1.2,   // 요청: "시즈·벌처 그리기 1.2배" → 재요청: 일반·변신 중 탱크도 1.2 · 벌처는 1.1 → 재재요청: 탱크 1.5 · 벌처 1.2
   /* 일꾼류(scv·probe·drone)는 **1.0이라 표에서 뺐다**(요청: "일꾼 그리기 0.8 → 1.0") —
      0.8은 전체 배수 1.12와 곱해져 0.896이었다. 표에 없으면 곧 1이다. */
   /* (전부 걷음 — 요청: "유닛 크기 보정 모두 제거") — 일꾼·보병 0.68, 메딕 0.612,
