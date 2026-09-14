@@ -1090,10 +1090,13 @@ export function leafFaces(o: {
   /** 허리를 1로 놓은 옆선 — u 0(끝)에서 그 끝의 굵기 비까지 떨어진다. */
   const halfOf = (u: number, end: number, pow: number): number =>
     o.thick * (end + (1 - end) * Math.max(0, u) ** pow);
+  /* flatV는 **뒤 반쪽에서 부호를 뒤집는다** — 뒤 반쪽의 path는 잎끝(t 1)에서 허리로 거슬러 오르므로 접선이 반대고,
+     v = T×u도 반대다(지적: "앞과 뒤 부품이 어긋나 있고 뒤 부품은 바깥쪽이 평면"). */
   const halfPillar = (t0: number, t1: number, end: number, pow: number): ShapeFace[] =>
     spirePillar({
       x: 0, y: 0, h: 1, w: 1, segs, sides, oval: o.spread, caps: "none", fill: o.fill,
-      ref: o.ref, trueNormal: o.trueNormal, phase: o.phase, flatV: o.flatV,
+      ref: o.ref, trueNormal: o.trueNormal, phase: o.phase,
+      flatV: o.flatV ? (t1 < t0 ? (-o.flatV as 1 | -1) : o.flatV) : undefined,
       path: (t: number): [number, number, number] => o.path(t0 + (t1 - t0) * t),
       // t 0이 끝(뿌리 또는 잎끝), t 1이 허리가 되도록 u를 맞춘다.
       widthOf: (t: number): number => halfOf(t, end, pow),
