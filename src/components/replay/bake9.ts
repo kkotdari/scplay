@@ -14070,7 +14070,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         return [
           ...paintBase(suitLimb([m9 * 2.3, ly9, lz9], knee, 0.31 * tk9, 0.29 * tk9, 0.31 * tk9, { sides: 7, caps: "none", trueNormal: true }), "#6b4732"),
           ...paintBase(domeFaces3(kx9, ky9, 0.3 * tk9, 0.26 * tk9, kz9 - 0.1), "#6b4732"),
-          ...paintBase(suitLimb(knee, [fx9, fy9, kz9 - 0.6], 0.27 * tk9, 0.22 * tk9, 0.27 * tk9, { sides: 7, caps: "none", trueNormal: true }), "#6b4732"),
+          // 끝은 뾰족하게(요청): 끝 굵기 0.22 → 0.02, 배 0.27 → 0.24 — 무릎에서 발끝으로 모이는 뿔
+          ...paintBase(suitLimb(knee, [fx9, fy9, kz9 - 0.6], 0.27 * tk9, 0.02, 0.24 * tk9, { sides: 7, caps: "none", trueNormal: true, segs: 5 }), "#6b4732"),
         ];
       })),
   ],
