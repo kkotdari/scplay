@@ -12918,7 +12918,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        뿌리가 넓고 끝이 좁되 끝이 잘려 있다(caps) — 그 잘린 끝에 미사일 걸이가 붙는다. */
     for (const m9 of [-1, 1] as const) {
       out.push(...tagKey(raceBase(spirePillar({
-        x: 0, y: 0, h: 1, w: 1, segs: 5, sides: 8, ref: [0, 1, 0], caps: "both", oval: 0.16,
+        /* 토막 5 → 12(요청) — 날개는 뿌리에서 끝으로 1.85 → 1.0으로 가늘어지는데, 토막이
+           다섯이면 그 테이퍼가 굵은 다섯 단으로 끊겨 옆면에 **빗살무늬**가 섰다(토막마다
+           옆면 법선이 달라 명암이 한 단씩 갈린다). 열둘이면 단이 곱게 이어진다. */
+        x: 0, y: 0, h: 1, w: 1, segs: 12, sides: 8, ref: [0, 1, 0], caps: "both", oval: 0.16,
         path: (t9: number): [number, number, number] => [
           m9 * (1.25 + 3.05 * t9), -0.9 + 0.35 * t9, 5.95 - 0.25 * t9,
         ],
