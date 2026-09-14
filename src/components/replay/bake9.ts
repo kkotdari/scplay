@@ -13695,7 +13695,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         widthOf: (t9: number): number => 0.32 + 0.73 * t9,
         fill: "#6b4732",
       }), depthNow(0, 1) * 1.6 + 12),
-      ...((): ShapeFace[] => { markMuzzle9(0, 0.85, 6.2); return []; })(),   // 입 — 머리 앞아래
+      // 글레이브 웜은 **몸통 끝**(앞아래로 휜 기둥의 가는 끝 = 위 path(0))에서 난다(지적: "뮤탈·디버러는 몸통 끝에서 나옴").
+      ...((): ShapeFace[] => { markMuzzle9(0, 2.6, 3.7); return []; })(),
       /* 몸통 꼭대기의 동그란 머리와 작은 가시 둘(요청) — 기둥 끝(x 0 · y 0.1 · z 6.9)에
          반구를 씌워 머리로 만들고, 그 뒤위로 짧은 상아 가시 한 쌍을 세운다. 기둥이
          앞으로 휘어 끝이 y 0.1에 있으므로 머리도 그 자리에 앉힌다. */
@@ -13869,6 +13870,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       x: 0, y: 0, h: 1, w: 1, tipW: 1, segs: 11, sides: 9, hold: 0,
       path: belly, widthOf: bellyW,
     }), BELLY), 4));
+    markMuzzle9(...belly(1));   // 산 포자는 **몸통 끝**(하반신의 가는 끝)에서 난다(지적: "뮤탈·디버러는 몸통 끝에서 나옴") — 얼굴의 무른 표식보다 이것이 이긴다.
     // 마디 테 + ④ 마디 등 가시.
     for (const tt of [0.22, 0.42, 0.62, 0.8]) {
       const [, by9, bz9] = belly(tt);
