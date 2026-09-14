@@ -12910,7 +12910,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         x: tx9, y: -2.05, h: 1, w: 1, segs: 2, sides: 8, caps: "none",   // 삼각 → 원형(요청)
         path: (t9: number): [number, number, number] => [tx9, -2.05 - 1.35 * t9, tz9],
         widthOf: (t9: number): number => 0.62 - 0.12 * t9,
-      }), RACE_BASE_TONE.terran), key9(tx9, -2.7, tz9)));
+      }), THRUST_DK9), key9(tx9, -2.7, tz9)));
       // 분사구 빛은 **이동할 때만**(요청) — 평소엔 어두운 노즐이다.
       if (poseNow === 1 && facingRatio(0, -1) > 0.05) {
         out.push(...tagKey([
@@ -13285,12 +13285,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        색은 검회색. 뒷면에 2×2로 배치해 뒷면 높이를 꽉 채운다. */
     const TZ0 = Z(5.25); const TZ1 = Z(6.69);
     const TH9 = (TZ1 - TZ0) / 2 - 0.04;      // 한 칸 높이
+    /* 앞뒤 길이(요청: "발키리 추진체 앞뒤 길이 증가") — 0.75 → 1.15. 중심을 뒤로 함께
+       밀어(−2.45 → −2.62) **앞은 제자리, 뒤로만** 자라게 한다: 앞을 늘리면 노즐이
+       뒷동체 속으로 파고들어 앞에서 볼 때 몸을 뚫는다. */
+    const TD9 = 1.15; const TCY9 = -2.62;
     for (const [ex9, ez9] of [[-0.42, TZ0 + 0.02], [0.42, TZ0 + 0.02], [-0.42, TZ0 + 0.06 + TH9], [0.42, TZ0 + 0.06 + TH9]] as [number, number][]) {
       /* 열쇠(지적: 앞에서 보면 추진체가 뒷동체를 뚫고 비침) — 뒷면이 시점을 향할 때만 제
          깊이로(뒷동체 위), 등을 돌리면 뒷동체보다 먼저 그려 뒷동체가 덮는다. */
-      out.push(...tagKey(paintBase(boxFaces3(ex9, -2.45, 0.72, 0.75, TH9, ez9), "#2f2f2f"),   // 더 어둡게(요청)
-        facingRatio(0, -1) > 0.05 ? key9(ex9, -2.45, ez9 + TH9 / 2) + 0.3 : key9(0, -1.35, Z(5.8)) - 1));
-      if (poseNow === 1) out.push(...thrustFlame(ex9, -2.83, ez9 + TH9 / 2, 0.28, "terran", key9(ex9, -3.2, ez9 + TH9 / 2) + 0.4));
+      out.push(...tagKey(paintBase(boxFaces3(ex9, TCY9, 0.72, TD9, TH9, ez9), "#212429"),   // 더 어둡게(재요청)
+        facingRatio(0, -1) > 0.05 ? key9(ex9, TCY9, ez9 + TH9 / 2) + 0.3 : key9(0, -1.35, Z(5.8)) - 1));
+      // 불꽃도 길어진 꽁무니 끝에서 뿜는다 — 안 옮기면 노즐 몸통 속에서 불이 난다.
+      if (poseNow === 1) out.push(...thrustFlame(ex9, TCY9 - TD9 / 2 - 0.06, ez9 + TH9 / 2, 0.28, "terran", key9(ex9, TCY9 - TD9 / 2 - 0.43, ez9 + TH9 / 2) + 0.4));
     }
     return zsorted(out);
   },
@@ -20652,6 +20657,11 @@ for (const k of Object.keys(SHAPE_BUILDERS)) {
  *    두고 파랑-빨강 차만 36 → 28로 좁힌다(#66718a → #6a7286). 색조만 중성 쪽으로 민 것이라
  *    한 단 낮은 기본색과의 밝기 차(두 단을 가르는 구실)는 안 줄어든다. */
 export const TERRAN_BASE_LT = "#6a7286";
+/** 추진체(노즐 블록)의 단 — 기본색보다 뚜렷이 어둡다(요청: "배틀·발키리 추진체 색 더
+ *  어둡게"). 함체와 같은 색을 쓰면 꽁무니가 몸에 섞여 '뿜는 자리'가 안 읽힌다.
+ *  ★ 기본색 값이 아니므로 TERRAN_LT_KINDS9의 갈아끼기를 안 탄다 — 유닛이 둘째 단으로
+ *    밝아져도 추진체는 어두운 채로 남는다. */
+export const THRUST_DK9 = "#3a3f48";
 /** 그 단을 쓰는 종류 — 커맨드·벙커·서플라이와 **테란 유닛 전부**(부품·짐 변종까지). */
 export const TERRAN_LT_KINDS9: ReadonlySet<string> = new Set<string>([
   "tomb", "tombFlat", "trapezoid",
