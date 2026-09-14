@@ -19773,6 +19773,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        갈수록 가늘고, 끝마디만 상아 발톱이다. 화면 띠가 아니라 투영 막대라 어느
        요잉에서도 굵기가 제대로 산다. */
     const limbs: ShapeFace[] = [];
+    /* ★ 이동 모션(요청) — 떠서 가는 몸의 관성: 모든 다리·집게의 **아래쪽이 뒤·위로 살짝 끌리고**(뿌리에서 발끝으로
+       갈수록 커진다: 뒤로 0.45·위로 0.15), 두 걸음 컷(1↔3)이 번갈아 ±0.07 떨린다(다리마다 부호를 엇갈려 잔떨림).
+       POSE_KINDS.ovie.move가 컷을 낸다. 정지 컷(0)에서는 0. */
+    const wdO9 = walkDir();
+    const mvO9 = wdO9 !== 0 ? 1 : 0;
     /* ★ 뿌리 높이 전수 점검(지적: "총체적으로 키값이 오류투성이야 전수조사 필요") ──
        이 한 줄이 다리·집게가 **몸에서 떨어져 나온** 진짜 까닭이다. 여기서 재던 면은
        몸통이 아니라 **몸통보다 깊은 가짜 면**이었다: 세로 반지름으로 RZ9를 썼는데,
@@ -19878,7 +19883,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            거울로 뒤로 벌어진다. */
         const yaw9 = ly < -1 ? -m * (Math.PI / 6) : 0;
         const PX = KX.map((x9) => KX[0] + (x9 - KX[0]) * Math.cos(yaw9));
-        const PY = KX.map((x9) => ly + (x9 - KX[0]) * Math.sin(yaw9));
+        const trO9 = wdO9 * 0.07 * (m > 0 ? 1 : -1) * (ly0 > 0 ? 1 : -1);   // 잔떨림 — 좌우·앞뒤로 부호 엇갈림
+        const PY = KX.map((x9, j9) => ly + (x9 - KX[0]) * Math.sin(yaw9) + (-0.45 * mvO9 + trO9) * (j9 / 4));
+        for (let j9 = 0; j9 < KZ.length; j9 += 1) KZ[j9] += 0.15 * mvO9 * (j9 / 4);
         /* 다리 — 배와 같은 자. 층 −0.2면 뿌리(배 속)에서는 배가 이기고, 앞으로
            돈 다리는 제 깊이로 배를 이긴다. */
         const key = depthNow(m * LEG_X9, ly) * 1.6 - 0.2;
@@ -19949,7 +19956,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /** 집게 갈래의 앞뒤(y) — 갈림점에서 살짝 앞으로 나갔다가 t²로 뒤로 굽는다.
      *  갈래와 그 위의 상아 가시가 **같은 식**을 써야 가시가 갈래에 붙어 따라 굽는다. */
     const clawY9 = (t9: number): number =>
-      forkY9 + (0.08 * t9 - 0.60 * t9 * t9) * CLAW_K9;
+      forkY9 - 0.3 * mvO9 + (0.08 * t9 - 0.60 * t9 * t9) * CLAW_K9 - 0.25 * mvO9 * t9;   // 이동 중 뒤로 끌림(위 ★)
     const forkZ9 = armRZ9 - ARM_LEN9;
     for (const m of [-1, 1] as const) {
       /* ★ 키를 **제 자리에서** 잰다(요청: "집게발 키값 점검") — 여기 있던 것은
@@ -19973,7 +19980,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            것을 0.12로 줄이고, 그만큼 아래(z)로 더 내린다. 매달린 부속은 제 무게로
            떨어져야 '느릿하게 떠 있는 것'으로 읽힌다. */
         path: (t9: number): [number, number, number] =>
-          [m * (ARM_X9 * BK + 0.2 * t9), ARM_Y9 * BK + ARM_FWD9 * t9,
+          [m * (ARM_X9 * BK + 0.2 * t9), ARM_Y9 * BK + ARM_FWD9 * t9 - 0.3 * mvO9 * t9 + wdO9 * 0.05 * m * t9,
             armRZ9 - ARM_LEN9 * t9],
         /* 윗다리를 가늘게(요청: "집게다리의 윗다리 부분 두께 축소") — 0.26~0.56이던
            것을 0.18~0.34로. 갈림점(아래 갈래의 뿌리 굵기 0.34)과 굵기를 맞춰, 팔뚝에서
@@ -20056,8 +20063,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const PCY9 = -(R9 + 0.25); const PCZ9 = bz(CZ - 0.9); const PH9 = 2.3;
     const pouch9: ShapeFace[] = tagKey(paintBase(spirePillar({
       x: 0, y: 0, h: 1, w: 1, segs: 8, sides: 10, caps: "none", oval: 0.5, ref: [1, 0, 0],
-      // 뒤쪽(위 끝)을 살짝 위로 들리게(재요청) — 축을 뒤로 0.3 기울여 위 끝이 뒤, 아래 끝이 몸 쪽
-      path: (t9: number): [number, number, number] => [0, PCY9 - 0.3 * (t9 - 0.5), PCZ9 - PH9 / 2 + PH9 * t9],
+      // 아래쪽이 위로 들리게 피칭(재재요청) — 축을 앞으로 0.45 기울여 **아래 끝이 뒤·위로 걷어 올라가고** 위 끝은 몸 쪽
+      path: (t9: number): [number, number, number] => [0, PCY9 + 0.45 * (t9 - 0.5), PCZ9 - PH9 / 2 + PH9 * t9],
       widthOf: (t9: number): number => Math.max(0.03, 0.7 * BK * Math.sin(Math.PI * t9)),
     }), SHELL), depthNow(0, PCY9) * 1.6 + 0.5 + (PCZ9 - CZ) * 0.55);
     return raceBase([

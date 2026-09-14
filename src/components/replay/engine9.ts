@@ -445,7 +445,8 @@ export const POSE_KINDS: Record<string, { move?: boolean; atk?: boolean; flap?: 
      디바우러(1.7)는 그대로 둔다 — 덩치가 커 느릿한 것이 결이다. */
   muta: { flap: 2.4, atk: true },
   devourer: { flap: 1.7, atk: true },
-  guardian: { flap: 1.4 },   // 뒤 옆구리 날개껍질 한 쌍의 날갯짓(요청) — 덩치가 커 디바우러보다 느긋하게
+  guardian: { flap: 1.4 },
+  ovie: { move: true },   // 이동 모션(요청) — 다리·집게가 뒤·위로 끌리며 잔떨림(두 걸음 컷 1↔3)   // 뒤 옆구리 날개껍질 한 쌍의 날갯짓(요청) — 덩치가 커 디바우러보다 느긋하게
   zling: { move: true, atk: true },    // 다리 교차 + 낫팔 내리침
   /* (걷어냄) tankbody·tanksiegebody — "포신 앞뒤 이동"으로 적어 두었지만 그 두 판은
      궤도+차체라 포신이 없고, 반동은 이미 **op 자리 밀기**가 한다(포탑 판을 0.09타일
