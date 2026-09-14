@@ -21275,6 +21275,10 @@ export const GLOW9 = {
   flat: 0.4,
   /** 띠를 그릴 **가장 작은 낯** — 16-상자 대비 이보다 짧으면 고른 몫만 깐다. */
   minSide: 0.04,
+  /** 번짐(블룸)의 세기 — 겹을 흐려서 한 번 더 얹는 몫(0이면 끔). */
+  bloom: 0.9,
+  /** 흐리는 몫 — 겹을 1/k로 줄였다 도로 키운다. 클수록 넓고 뭉근하게 번진다. */
+  bloomK: 7,
   /** 빛의 색 — 순백은 차가워 보인다(요청으로 한 단 더 밝게: 246,228 → 251,240). */
   hue: "255, 251, 240",
 };
@@ -21623,6 +21627,45 @@ export function glowBake9(
   c2.globalAlpha = GLOW9.a;
   c2.drawImage(gv as CanvasImageSource, gx, gy, gw, gh, gx, gy, gw, gh);
   c2.restore();
+  /* ── 번짐(블룸) ─────────────────────────────────────────────────────────────────
+     ★ 밝기만 올리면 '흰 칠'이지 빛이 아니다(지적: "밝기도 밝기인데 번짐? 글로우한 느낌").
+       빛은 제 둘레로 새어 나간다 — 그래서 같은 겹을 **흐려서 한 번 더** 얹는다.
+     흐리기는 ctx.filter를 안 쓴다(사파리 16.3 이하에 없다) — 겹을 1/k로 **줄였다가 도로
+     키우는** 것으로 낸다. 캔버스의 이중선형 보간이 곧 상자 흐림이고, 줄인 판에 그리므로
+     값도 1/k²이다.
+     ★ 번짐을 **모형 안에 가둔다**(destination-in) — 안 가두면 실루엣 밖으로 빛이 새고,
+       판을 잉크에 맞춰 자르는 자리(cropToInk)가 그만큼 커져 판 크기와 앵커가 흔들린다.
+       낯과 낯 사이로 번지는 몫은 그대로 남으므로 눈에 보이는 효과는 다 얻는다. */
+  if (GLOW9.bloom > 0) {
+    const bl9 = bakeCanvas(cv.width);
+    const b29 = bl9 ? ctx2d9(bl9) : null;
+    if (bl9 && b29) {
+      const k9 = Math.max(2, GLOW9.bloomK);
+      const sw9 = Math.max(1, Math.round(gw / k9));
+      const sh9 = Math.max(1, Math.round(gh / k9));
+      b29.setTransform(1, 0, 0, 1, 0, 0);
+      b29.globalCompositeOperation = "copy";
+      b29.globalAlpha = 1;
+      b29.imageSmoothingEnabled = true;
+      b29.drawImage(gv as CanvasImageSource, gx, gy, gw, gh, 0, 0, sw9, sh9);
+      // 줄인 것을 제자리로 도로 키운다 — 이것이 흐림이다.
+      g2.setTransform(1, 0, 0, 1, 0, 0);
+      g2.globalCompositeOperation = "copy";
+      g2.globalAlpha = 1;
+      g2.imageSmoothingEnabled = true;
+      g2.drawImage(bl9 as CanvasImageSource, 0, 0, sw9, sh9, gx, gy, gw, gh);
+      // 모형 밖으로 샌 몫을 잘라 낸다(위 ★).
+      g2.globalCompositeOperation = "destination-in";
+      g2.drawImage(cv as CanvasImageSource, gx, gy, gw, gh, gx, gy, gw, gh);
+      g2.globalCompositeOperation = "source-over";
+      c2.save();
+      c2.globalCompositeOperation = "lighter";
+      c2.globalAlpha = GLOW9.a * GLOW9.bloom;
+      c2.drawImage(gv as CanvasImageSource, gx, gy, gw, gh, gx, gy, gw, gh);
+      c2.restore();
+      freeBakeCanvas(bl9);
+    }
+  }
   c2.globalCompositeOperation = "source-over";
   c2.globalAlpha = 1;
   c2.setTransform(prev);
