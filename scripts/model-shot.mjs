@@ -42,12 +42,13 @@ const OUT = String(flag("--out", join(tmpdir(), "model-shot.png")));
 
 /* ── 브라우저에 넣을 번들 — model-norm.mjs와 같은 진입점을 쓴다 ─────────────── */
 const ENTRY = `
-import { SHAPE_BUILDERS, poseSet, bldLitSet, headYawSet, bldSpinSet, tone9, silhouetteLight, glowBake9 } from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
+import { SHAPE_BUILDERS, poseSet, bldLitSet, headYawSet, bldSpinSet, tone9, silhouetteLight, glowBake9, grainAxes9 } from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
 import { lodFilter, withPitchView, withTopView, withViewShear, withYaw, bake, zsorted }
   from ${JSON.stringify(join(ROOT, "src/utils/shapeOblique"))};
 window.__tone = tone9;
 window.__silho = silhouetteLight;
 window.__glow = glowBake9;
+window.__axes = grainAxes9;
 window.__bake = (kind, rot, mode, lod, pose, lit, head, spin) => {
   const builder = SHAPE_BUILDERS[kind];
   if (!builder) return null;
@@ -139,7 +140,8 @@ function inBrowser({ KINDS, ROTS, MODE, CELL, LOD, BG, COLOR, POSE, LIT, HEAD, S
         const bx = { x: CELL / 2 - bw / 2 + PAN[0], y: CELL / 2 - bw / 2 + PAN[1], w: bw, h: bw };
         window.__silho(p2, pc, bx);
         // B는 1이다(이 도구는 dpr를 안 탄다).
-        window.__glow(p2, pc, 1, bx, faces || []);
+        window.__glow(p2, pc, 1, bx, faces || [],
+          window.__axes(rot, MODE === "top", MODE === "pitch"));
       }
       p2.restore();
       c.drawImage(pc, i * CELL, r * CELL + PAD);
