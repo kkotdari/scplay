@@ -21346,8 +21346,23 @@ export const BRUSH9 = {
   dim: 0.3,
   /** 그늘진 낯에서의 세기 몫 — 빛을 등져도 긁힌 자국은 그대로 있다. */
   shade: 0.3,
-  /** 어두운 고랑의 몫(0이면 밝은 줄만, 1이면 반반) — 파내는 알파에 곱한다. */
-  dark: 0.6,
+  /** 줄 중 **밝은** 줄의 몫 — 나머지는 어두운 고랑이다.
+   *  ★ 결은 다 밝은 것이 아니다(지적: "실제 원작을 보면 결이 무조건 밝은 건 아니고 검게
+   *    칠해진 데도 있고 … 내 첫 의도는 결이 반사광 띠 안에서 어둡게 보이는 거였어").
+   *    금속의 긁힘은 대개 **빛을 덜 되쏘는 고랑**이라, 반사광이 실린 자리에서 검게 파인다.
+   *    그래서 밝은 줄은 소수(0.28)로 두고 나머지를 고랑으로 판다. 고랑은 깔린 빛을 파내는
+   *    식이라(destination-out) 빛이 실린 만큼만 검어진다 — 띠 안에서 가장 진하고 띠 밖의
+   *    고른 몫 위에서는 옅다. 곧 "반사광 띠 안에서 어둡게"가 저절로 된다. */
+  bright: 0.28,
+  /** 어두운 고랑의 세기 — 아래 두 곳에 함께 걸린다(빛 파내기 + 검은 겹). */
+  dark: 1,
+  /** 검은 겹의 합성 알파 — 고랑을 **바탕보다 어둡게** 만드는 몫(0이면 파내기만).
+   *  ★ 파내기(destination-out)만으로는 깔린 빛을 되돌릴 뿐이라, 빛이 적은 자리에서는
+   *    고랑이 안 보인다. 원작의 금속은 바탕 자체에 검은 결이 파여 있다(참고 그림) —
+   *    그래서 어두운 줄만 따로 한 겹 모아 **모형 위에만**(source-atop) 얹는다. */
+  darkA: 0.45,
+  /** 검은 겹의 색 — 순검정은 구멍처럼 보인다. 바탕보다 한참 어두운 강청이다. */
+  darkHue: "18, 22, 30",
 };
 /* ── 결만 끄는 문(요청: "글로우는 넣고 켜 주고, 반대로 스크래치만 끄기" — 폰에서) ────────
    글로우 겹 자체는 낯마다 한 번 칠하고 마는 값싼 일인데, 결은 낯마다 수십 줄을 긋는다
@@ -21511,15 +21526,27 @@ export function glowBake9(
   if (!gv) return;
   const g2 = ctx2d9(gv);
   if (!g2) { freeBakeCanvas(gv); return; }
+  /* 어두운 결만 따로 모으는 겹 — 빛 겹과 화가 차례를 함께 탄다(아래 ★). */
+  const dv = (brushOn9 && BRUSH9.a > 0 && BRUSH9.darkA > 0) ? bakeCanvas(cv.width) : null;
+  const d2 = dv ? ctx2d9(dv) : null;
   const prev = c2.getTransform();
   const minS9 = GLOW9.minSide * 16;
   g2.setTransform(1, 0, 0, 1, 0, 0);
   g2.globalCompositeOperation = "source-over";
   g2.globalAlpha = 1;
   g2.clearRect(gx, gy, gw, gh);
+  if (d2) {
+    d2.setTransform(1, 0, 0, 1, 0, 0);
+    d2.globalCompositeOperation = "source-over";
+    d2.globalAlpha = 1;
+    d2.clearRect(gx, gy, gw, gh);
+  }
   /* ★ 면 패스는 **모형 자**(16-상자)로 적혀 있다 — 판 픽셀 자로 두고 clip하면 판 왼위
      16화소만 잘라 아무것도 안 그려진다. 부르는 쪽의 변환을 그대로 얹는다. */
   g2.setTransform(prev);
+  if (d2) d2.setTransform(prev);
+  /** 검은 결의 색 — 순검정은 구멍처럼 보인다(BRUSH9.darkHue의 ★). */
+  const DK9 = `rgba(${BRUSH9.darkHue}, 1)`;
   /* 화면에서의 광원 방향 — 판 하나에 한 번만 잰다(모형이 돌아도 빛은 세계에 고정이다). */
   const [, lgy9] = lightScreenDir();
   /** 모형 축의 화면 방향 — 누운 낯의 결이 이 자를 탄다(안 주면 정면 자세로 어림). */
@@ -21541,6 +21568,15 @@ export function glowBake9(
     g2.fillStyle = "#000";
     g2.fill(pa9);
     g2.globalCompositeOperation = "source-over";
+    /* ★ 검은 겹도 **같은 화가 차례**를 탄다 — 안 그러면 뒤에 가린 낯의 결이 판 맨 위로
+       떠올라 지붕 위에 검은 쐐기가 생긴다(빛 겹에서 겪은 그 사고다). */
+    if (d2) {
+      d2.globalCompositeOperation = "destination-out";
+      d2.globalAlpha = Math.max(0, Math.min(1, f9[1]));
+      d2.fillStyle = "#000";
+      d2.fill(pa9);
+      d2.globalCompositeOperation = "source-over";
+    }
     const fl9 = f9[2];
     if (fl9 === undefined) continue;
     /* 그늘진 테란 낯 — 빛은 안 얹지만 **결은 그대로 있다**(BRUSH9의 ★③). */
@@ -21560,6 +21596,8 @@ export function glowBake9(
     }
     g2.save();
     g2.clip(pa9);
+    /* 검은 겹도 **같은 자·같은 오림**을 쓴다 — 안 맞추면 줄이 딴 자리에 딴 각도로 그어진다. */
+    if (d2) { d2.save(); d2.clip(pa9); }
     /* ① 낯 **전체**에 고른 몫 — 평평한 한 장은 어디나 같은 각으로 빛을 받는다.
        그늘진 낯은 안 깐다 — 거기 얹을 빛이 없다. */
     if (!shady9) {
@@ -21569,6 +21607,7 @@ export function glowBake9(
     /* ② 광택 띠 + 결 — **낯의 자(U·V)**로 옮겨 앉는다. 벽은 U가 세계의 수직이라 늘 화면
        세로로 서고, 지붕은 U·V가 모형 축이라 요잉하면 지붕과 함께 돈다(데칼). */
     g2.transform(gr9.ux, gr9.uy, gr9.vx, gr9.vy, gr9.cx, gr9.cy);
+    if (d2) d2.transform(gr9.ux, gr9.uy, gr9.vx, gr9.vy, gr9.cx, gr9.cy);
     const aH9 = gr9.aHi - gr9.aLo;
     /* 띠의 **자리는 빛**이 정한다 — 결 축 U를 화면 광원 방향과 재어 낯 안에서 민다. */
     const lu9 = Math.max(-1, Math.min(1, lgy9 * gr9.uy));
@@ -21598,10 +21637,11 @@ export function glowBake9(
           : 0.45 + rnd9() * 1.1);
         const s9 = rnd9();
         const soft9 = solid9 ? 1 : (wide9 ? 0.3 : 1);
-        const al9 = s9 < 0.55
+        const al9 = s9 < BRUSH9.bright
           ? k9 * BRUSH9.a * soft9 * (0.5 + s9 * 0.9)
-          : BRUSH9.a * BRUSH9.dark * soft9 * (s9 - 0.25) * (shady9 ? k9 : 1);
-        if (s9 < 0.55) {
+          : BRUSH9.a * BRUSH9.dark * soft9 * (s9 - BRUSH9.bright * 0.5) * (shady9 ? k9 : 1);
+        const dk9 = s9 >= BRUSH9.bright;
+        if (!dk9) {
           g2.globalCompositeOperation = "source-over";
           g2.fillStyle = BR9;
         } else {
@@ -21615,9 +21655,23 @@ export function glowBake9(
           g2.globalAlpha = al9 * (1 - BRUSH9.dim);
           g2.fillRect(aA9, b9 - w9 / 2, aB9 - aA9, w9);
         }
+        /* 어두운 줄은 **바탕까지 파고든다** — 파내기만으로는 깔린 빛을 되돌릴 뿐이라
+           빛이 적은 자리에서 고랑이 안 보인다(BRUSH9.darkA의 ★). 띠 안을 더 진하게 둔다:
+           반사광이 실린 자리에서 결이 검게 보이는 것이 원작의 결이다. */
+        if (d2 && dk9) {
+          d2.globalCompositeOperation = "source-over";
+          d2.fillStyle = DK9;
+          d2.globalAlpha = al9 * BRUSH9.dim * 0.8;
+          d2.fillRect(gr9.aLo, b9 - w9 / 2, aH9, w9);
+          if (!shady9) {
+            d2.globalAlpha = al9 * (1 - BRUSH9.dim);
+            d2.fillRect(aA9, b9 - w9 / 2, aB9 - aA9, w9);
+          }
+        }
       }
       g2.globalCompositeOperation = "source-over";
       g2.globalAlpha = k9;
+      if (d2) { d2.globalCompositeOperation = "source-over"; d2.globalAlpha = 1; }
     } else if (!shady9) {
       /* 테란이 아닌 낯은 결이 없다 — 띠 자리에 옛 광택만 얹는다. */
       g2.fillStyle = HI9;
@@ -21626,10 +21680,23 @@ export function glowBake9(
       g2.globalAlpha = k9;
     }
     g2.restore();
+    if (d2) d2.restore();
   }
   g2.globalCompositeOperation = "source-over";
   g2.globalAlpha = 1;
+  if (d2) { d2.globalCompositeOperation = "source-over"; d2.globalAlpha = 1; }
   c2.setTransform(1, 0, 0, 1, 0, 0);
+  /* 검은 결을 **모형 위에만** 얹는다(source-atop) — 실루엣 밖으로 나가면 판을 잉크에
+     맞춰 자르는 자리가 커진다(빛 겹의 번짐과 같은 사정). 빛보다 **먼저** 얹어, 뒤이어
+     더해지는 빛이 고랑 위로도 조금 흐르게 한다. */
+  if (dv) {
+    c2.save();
+    c2.globalCompositeOperation = "source-atop";
+    c2.globalAlpha = BRUSH9.darkA;
+    c2.drawImage(dv as CanvasImageSource, gx, gy, gw, gh, gx, gy, gw, gh);
+    c2.restore();
+    freeBakeCanvas(dv);
+  }
   c2.save();
   c2.globalCompositeOperation = "lighter";
   c2.globalAlpha = GLOW9.a;
