@@ -104,6 +104,14 @@ export const OP = {
 export const GROUND_SQUASH = 0.45;
 /** 평면(2D)에서 모델 높이를 한 번 더 누르는 몫(요청) — 1이면 카메라 각 그대로다. */
 export const TOP_Z_PRESS9 = 0.8;    // 0.82 → 0.75 → 0.8 → 0.9 → 0.85 → 0.8(요청)
+/** 평면(2D)의 **수직 카메라 각**(도) — 바닥 눌림은 sin, 높이 배율은 cos다(한 쌍이라야
+ *  한 각의 그림이 된다). 여기만 고치면 둘이 함께 움직인다.
+ *  ★ 이 각과 TOP_Z_PRESS9는 **딴 손잡이**다: 각은 바닥이 얼마나 눌리는가(지도 격자와의
+ *    정합)를, 누름은 키만 얼마나 낮추는가(원작 실루엣)를 쥔다. 그래서 "지도에 맞는 각"과
+ *    "원작에 맞는 키"는 서로 양보할 일이 아니다 — 각을 지도에 맞추고 누름으로 키를 맞춘다. */
+export const TOP_ELEV9 = 45;   // 45 → 40 → 35 → 30 → 40 → 45
+const TOP_SIN9 = Math.sin((TOP_ELEV9 * Math.PI) / 180);
+const TOP_COS9 = Math.cos((TOP_ELEV9 * Math.PI) / 180);
 /* ── 굽는 요잉 칸 ────────────────────────────────────────────────────────────────
    유닛은 22.5도 열여섯 칸으로 죈다 — 죄지 않으면 종류마다 방향 수만큼 판을 굽는다.
    그런데 **건물은 종류를 통틀어 각이 하나뿐**이라(BLD_YAW9) 죌 까닭이 없고, 죄면
@@ -188,7 +196,7 @@ export function groundSquashNow(): number {
   /* 입체 판 피칭(지적: 납작비가 아니라 피치가 안 맞음) — 지형의 화면 기하에 수치로
      맞춘다: 깊이 = 컨테이너 눌림 0.74 × cos45 ≈ 0.52, 높이 = cos45 ≈ 0.71. 여태
      높이를 0.84~0.94로 거의 안 줄여 모델만 껑충했던 게 피치 불일치의 정체다. */
-  return pitchView ? pitchSquash : topView ? 0.707 : GROUND_SQUASH;
+  return pitchView ? pitchSquash : topView ? TOP_SIN9 : GROUND_SQUASH;
 }
 function zScaleNow(): number {
   // 0.71 → … → 0.94 → 1(지적: 1까지 늘려봐) — 높이 원본 그대로.
@@ -197,7 +205,7 @@ function zScaleNow(): number {
   /* 평면은 cos45(0.707)에 **누름 몫**을 한 번 더 곱한다(요청: "2d에서 모델 공통 높이
      누르기") — 카메라 각과는 딴 손잡이다. 각을 더 올려 누르면 바닥 원까지 둥글어져
      지도 격자와 어긋나는데, 이 몫은 **높이만** 줄여 실루엣을 낮춘다. */
-  return pitchView ? 0.9 : topView ? 0.707 * TOP_Z_PRESS9 : 0.89;   // 0.8 → 0.9(재요청)
+  return pitchView ? 0.9 : topView ? TOP_COS9 * TOP_Z_PRESS9 : 0.89;   // 0.8 → 0.9(재요청)
 }
 function originYNow(): number {
   return pitchView ? 12.6 : topView ? 12 : 12.6;
