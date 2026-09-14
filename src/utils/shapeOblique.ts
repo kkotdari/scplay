@@ -112,9 +112,16 @@ export const TOP_Z_PRESS9 = 0.8;    // 0.82 → 0.75 → 0.8 → 0.9 → 0.85 �
    그대로 지난다. 판 수는 안 는다 — 건물이 쓰는 각이 하나인 것은 그대로다. */
 /** 건물의 기본 요잉(도). engine9의 BUILDING_BASE_YAW가 이 값이다. */
 export const BLD_YAW9 = 40;   // 45 → 55 → 60 → 30 → 40(요청: 수직·수평 모두 40도)
+/** 건물 각이 그대로 지나는 눈금 — 지도의 BLD_YAW9와 **그 45도 배수 형제들**이다.
+ *  도록이 건물을 네·여덟 방위로 보여 줄 때 그 방위가 곧 이 눈금이라(45 눈금을 −5도
+ *  옮긴 것), 130·220·310도 죄이지 않고 지나야 도록의 컷이 지도의 자세를 90도씩 돌린
+ *  그림이 된다. 45의 배수인 유닛 눈금(0·45·90…)은 BLD_YAW9가 45의 배수가 아닌 한
+ *  여기에 안 걸리므로 유닛 쪽은 여태대로 22.5칸에 죄인다. */
+const BLD_YAW_STEP9 = 45;
 /** 굽는 요잉 칸 — 굽기·앵커가 **같은 식**을 써야 앵커가 제 부품을 안 벗어난다. */
 export function yawBucket9(rotDeg: number): number {
-  if (Math.abs(rotDeg - BLD_YAW9) < 1e-6) return BLD_YAW9;
+  const off9 = (((rotDeg - BLD_YAW9) % BLD_YAW_STEP9) + BLD_YAW_STEP9) % BLD_YAW_STEP9;
+  if (off9 < 1e-6 || BLD_YAW_STEP9 - off9 < 1e-6) return ((rotDeg % 360) + 360) % 360;
   return (((Math.round(rotDeg / 22.5) * 22.5) % 360) + 360) % 360;
 }
 

@@ -50,17 +50,26 @@ const BG = argv.includes("--bg")
 const ENTRY = `
 import { createElement as h } from "react";
 import { createRoot } from "react-dom/client";
-import { SHAPE_GALLERY, ShapeIcon } from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
+import { SHAPE_GALLERY, ShapeIcon, galleryYawOf } from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
 window.__docSheet = (group, race, rots, narrow) => {
   const rows = SHAPE_GALLERY.filter((g) => g.group === group && (race === "전체" || g.race === race));
   const host = document.getElementById("host");
   /* 도록 화면(GalleryScreen)의 마크업 그대로다 — 고르기 줄과 돌아가기 버튼만 뺀다
      (그림에는 담을 것이 아니고, 담으면 종이의 절반을 먹는다). 괄호를 깊게 겹치지 않고
      한 칸씩 이름 붙여 짓는다 — 겹치면 닫는 수를 세다 틀린다(첫 판이 그랬다). */
-  const angleCell = (kind, deg) => h("div", { key: deg, className: "scr-doc-angle" }, [
-    h(ShapeIcon, { key: "m", kind, rotDeg: deg, fit: true, className: "scr-doc-svg" }),
-    h("span", { key: "d" }, deg + "\u00b0"),
-  ]);
+  /* 각은 **갈래의 기준각**으로 옮겨 그린다(galleryYawOf) — 건물은 지도에서 각이 하나
+     (40도)뿐이라 45 눈금을 그대로 쓰면 도록의 건물만 지도와 5도 어긋나 선다. 눈금 글자도
+     옮긴 각을 적는다(그림과 숫자가 갈리면 도록이 거짓말을 한다).
+     ★ flat(위에서 본 판)으로 굽는다 — 지도의 2D와 **같은 카메라**다(요청: "전부 2D 지도와
+       같게"). 안 주면 도록 전용 투영(수직 26.8도)이라 같은 모델이 두 화면에서 다른 높이로
+       보였다. */
+  const angleCell = (kind, deg, group) => {
+    const d9 = galleryYawOf(deg, group);
+    return h("div", { key: deg, className: "scr-doc-angle" }, [
+      h(ShapeIcon, { key: "m", kind, rotDeg: d9, flat: true, fit: true, className: "scr-doc-svg" }),
+      h("span", { key: "d" }, d9 + "\u00b0"),
+    ]);
+  };
   const itemRow = (it) => h("section", { key: it.kind, className: "scr-doc-item" }, [
     h("header", { key: "h", className: "scr-doc-itemhead" }, [
       h("h3", { key: "t" }, it.label),
@@ -70,7 +79,7 @@ window.__docSheet = (group, race, rots, narrow) => {
     h("div", {
       key: "a",
       className: "scr-doc-angles" + (narrow ? " is-narrow" : ""),
-    }, rots.map((d) => angleCell(it.kind, d))),
+    }, rots.map((d) => angleCell(it.kind, d, it.group))),
   ]);
   const list = h("div", { className: "scr-doc-list" }, rows.map(itemRow));
   createRoot(host).render(h("div", { className: "scr-doc" }, list));

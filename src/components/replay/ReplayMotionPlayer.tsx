@@ -87,7 +87,7 @@ import {
 } from "../../utils/shapeOblique";
 import { TEAM_COLOR, type MinimapMarker } from "./markers";
 import {
-  AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, NUKE_BOOM_SEC, NUKE_FALL_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SPIN_STEPS, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
+  AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, NUKE_BOOM_SEC, NUKE_FALL_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SPIN_STEPS, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
 } from "./engine9";
 import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, WorldUi9 } from "./engine9";
 import {
@@ -95,7 +95,7 @@ import {
 } from "./bake9";
 export { LIMB_LOG, TURRET_BACK9, SHAPE_BUILDERS, ctx2d9, BAKE_ENV9, cropToInk, rasterUnit9, pathBox, tierTableOf, autoTier, stageFaces, rasterBld9, SHAPE_GALLERY, poseSet, poseSet9, bldLitSet, headYawSet, bldSpinSet, bldSpinRawSet9, lodSetCap, lodSetZoom, lodNoteFrame, tone9, TONE_DARK, TONE_SAT, silhouetteLight, glowBake9, GLOW9 } from "./bake9";
 export type { BakeCv9, BakeCtx9, RasterOut9, ShapeGalleryItem } from "./bake9";
-export { isAirUnit, flapCutOf, atkCutOf, unitTilesOf, buildingYawOf, BLD_NORM, BUILD_STAGES, SCR_DIAG, scrDiagOn, deriveWorld9, createEngine9, pickWorldUi9, emptyWorldUi9 } from "./engine9";
+export { isAirUnit, flapCutOf, atkCutOf, unitTilesOf, buildingYawOf, galleryYawOf, BLD_NORM, BUILD_STAGES, SCR_DIAG, scrDiagOn, deriveWorld9, createEngine9, pickWorldUi9, emptyWorldUi9 } from "./engine9";
 export type { BuildRow, CastRow, FxOp, Frame9, EngineWorld9, EngineView9, WorldUi9 } from "./engine9";
 
 /** 본진 로스터 한 사람 — 위치(x·y)는 이제 요약이 사라져 실려 오지 않을 수 있다.
