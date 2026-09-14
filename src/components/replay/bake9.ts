@@ -10717,47 +10717,86 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   }),
   /* 플릿 비컨(리디자인, 실물 참고) — 낮고 둥근 몸 위에 큰 파란 구슬이 박히고,
      바닥에는 게발처럼 벌어지는 다리들, 왼팔 드럼 포드와 오른쪽 원반. */
+  /* 플릿 비컨(재작도 — 원화, 요청: "받침 형태에 유의") ────────────────────────────────
+     원화가 말하는 것:
+       ① **받침**은 납작한 넓은 접시고, 그 둘레에서 **금빛 팔 여섯**이 불가사리처럼 뻗어 끝이 아래로 말린다. 접시 옆에는
+          청록 빛띠가 돈다.
+       ② 접시 위에 **청록빛 초록 돔** 몸통, 그 위를 **짙은 갈색 띠** 넷이 앞뒤·좌우로 타 넘는다(돔을 묶은 끈).
+       ③ 꼭대기에 **큰 청록 구슬**, 금빛 갈고리 셋이 받쳐 든다.
+       ④ 왼쪽에 위·뒤로 비스듬히 선 **긴 금빛 포신(망원경)** — 끝은 검회색 아가리, 위에 손잡이 혹.
+       ⑤ 오른쪽에 **작은 접시 그릇**, 안이 청록으로 빛난다.
+     개인색은 몸 돔 옆구리의 낮은 혹 넷(앞판 그대로 — 사방이라 어느 각도에서도 둘은 보인다). */
   fleetbeacon: () => {
-    const [gx2, gy2] = project(0, 0.2, 3.5);
-    return raceBase([
-      /* 발치 금 테는 맨 앞에 그린다(지적: 코어 키 검토) — 납작한 원통이라 나중에
-         그리면 몸 아래를 판때기로 덮는다. 프리미티브는 제 몫으로 키(깊이+높이)를
-         달기 때문에 배열 맨 앞에 둬도 소용없어, 다른 부품보다 낮은 키를 못 박는다. */
-      ...tagKey(paintBase(cylinderFaces3(0, 0, 3.4, 0.3, 0.15), "#8a6f2a"), -9),
-      // 게발 다리 — 사방으로 벌어져 끝이 바닥을 짚는다. 개인색 몸(키 0)보다 앞서 그린다.
-      ...tagKey([
-        ...hornFaces(-2, 1.6, 1.6, -3.4, 3, 0.2, 0.9),
-        ...hornFaces(2, 1.6, 1.6, 3.4, 3, 0.2, 0.9),
-        ...hornFaces(-2.8, 0.2, 1.6, -4.4, 0.6, 0.2, 0.9),
-        ...hornFaces(2.8, 0.2, 1.6, 4.4, 0.6, 0.2, 0.9),
-        ...hornFaces(-2, -1.4, 1.5, -3.2, -2.6, 0.2, 0.85),
-        ...hornFaces(2, -1.4, 1.5, 3.2, -2.6, 0.2, 0.85),
-      ], -3),
-      // 낮고 둥근 몸 — 개인색 다리(키 −3)보다 뒤에 온다.
-      ...tagKey(domeFaces3(0, 0, 3.1, 2.3), 0),
-      // 큰 파란 구슬 — 몸 위 얹힘이라 지붕 키(지적: 구슬 가려짐 오류).
-      // 진짜 구로(지적: "코어와 비콘의 구체가 손그림" — 코어 orb9와 같은 규약). 수정구를 감싸던 겉 구는 없다.
-      ...tagKey(sphereFaces3(0, 0.2, 3.5, 1.5, "#b6faf1"), 30),
-    ], "toss", [
-      /* 개인색은 몸 옆구리의 **데칼 넷**이다(요청: "플릿비콘 쓸데없는 장식 제거하고
-         데칼을 넣기") ────────────────────────────────────────────────────────────
-         걷어낸 것: 왼팔 드럼 포드(관 + 원통 + 뚜껑)와 오른 원반(관 + 원통 + 광택).
-         둘은 개인색 자리를 만들려고 붙인 부속이었는데, 정작 무엇을 하는 부품인지
-         읽히지 않아 건물 옆에 붙은 혹으로 보였다(앞선 지적: "부품을 본체에 부착"도
-         그 어색함을 몸 쪽으로 밀어 넣어 덮으려던 것이었다).
-         이제 부속을 세우지 않고, 몸 돔의 옆구리에 작은 판 넷을 박는다. 사방(0·90·
-         180·270도)이라 어느 요잉에서도 둘은 반드시 보인다 — 작게 그려질 때 임자 색이
-         통째로 사라지지 않게 하는 것이 이 자리 선택의 요점이다(트리뷰널 기둥 데칼과
-         같은 규약). 다리·구슬·청록 띠·금 테는 제 색으로 둔다. */
+    const GOLD9 = "#c9a94a";
+    const GOLDD9 = "#8a6f2a";
+    const TEAL9 = "#4f9a86";
+    const STRAP9 = "#4a2e22";
+    const out: ShapeFace[] = [];
+    /* ① 받침 — 넓은 접시(반지름 3.2·높이 0.35) + 청록 빛띠 + 팔 여섯. 팔은 접시 가장자리에서 바깥·위로 살짝 떴다가
+       끝이 땅으로 말리는 납작한 판(oval 0.38), 끝은 뾰족한 발톱. 키는 무엇보다 뒤(−9·−3, 옛 규약). */
+    out.push(...tagKey(paintBase(cylinderFaces3(0, 0, 3.2, 0.35, 0.12), GOLDD9), -9));
+    out.push(...tagKey(paintBase(cylinderFaces3(0, 0, 3.05, 0.14, 0.47), glowLit("#8ff7ea", "#5fb8ac")), -8.5));   // 접시 위 청록 띠
+    for (let i9 = 0; i9 < 6; i9 += 1) {
+      const a9 = ((i9 * 60 + 30) * Math.PI) / 180;
+      const ux9 = Math.sin(a9); const uy9 = Math.cos(a9);
+      out.push(...tagKey(paintBase(spirePillar({
+        x: 0, y: 0, h: 1, w: 1, segs: 6, sides: 8, oval: 0.38, caps: "none", ref: [0, 0, 1], trueNormal: true,
+        path: (t9: number): [number, number, number] => [
+          ux9 * (2.3 + 2.4 * t9), uy9 * (2.3 + 2.4 * t9), 0.55 + 0.5 * Math.sin(Math.PI * t9) - 0.45 * t9 * t9,
+        ],
+        widthOf: (t9: number): number => Math.max(0.05, 0.62 * (1 - t9) ** 0.8 + 0.05),
+      }), GOLD9), -3 + depthNow(ux9 * 3.5, uy9 * 3.5) * 0.3));
+    }
+    /* ② 몸 돔 + 갈색 띠 넷 — 띠는 돔 표면(반지름 2.3·높이 2.0)을 0.05 띄워 타 넘는 가는 관, 앞뒤·좌우로 두 벌. */
+    out.push(...tagKey(paintBase(domeFaces3(0, 0, 2.3, 2.0, 0.5, true), TEAL9), 0));
+    for (const ang9 of [0, 90] as const) {
+      const ra9 = (ang9 * Math.PI) / 180;
+      out.push(...tagKey(paintBase(spirePillar({
+        x: 0, y: 0, h: 1, w: 1, segs: 10, sides: 6, caps: "none",
+        path: (t9: number): [number, number, number] => {
+          const th9 = -0.5 + t9 * (Math.PI + 1.0);
+          const r9 = Math.cos(th9) * 2.32; const zz9 = 0.5 + Math.max(0, Math.sin(th9)) * 2.05 + 0.05;
+          return [Math.sin(ra9) * r9, Math.cos(ra9) * r9, zz9];
+        },
+        widthOf: (): number => 0.17,
+      }), STRAP9), 0.9 + depthNow(0, 0) * 0.01));
+    }
+    /* ③ 구슬 + 갈고리 셋 — 구슬(반지름 1.35, 중심 z 3.7)을 돔 꼭대기에 얹고 금빛 갈고리가 아래에서 감싸 든다. */
+    for (const ang9 of [20, 140, 260] as const) {
+      const ra9 = (ang9 * Math.PI) / 180;
+      const px9 = Math.sin(ra9) * 1.55; const py9 = Math.cos(ra9) * 1.55;
+      out.push(...tagKey(paintBase(spikeHorn(px9, py9, 2.2, px9 * 0.75, py9 * 0.75, 4.2, 0.34, undefined, 6, 0.3, -px9 * 0.3, -py9 * 0.3), GOLD9),
+        20 + depthNow(px9, py9)));
+    }
+    out.push(...tagKey(sphereFaces3(0, 0, 3.7, 1.35, glowLit("#c8fffa", "#8ee6dc")), 30));
+    /* ④ 포신 — 왼쪽 돔 옆구리(−1.6, 0.4, 2.3)에서 위·바깥·뒤로 비스듬히(−3.9, 1.5, 4.6) 뻗는 금빛 관, 끝은 검회색 아가리.
+       위에 손잡이 혹. 키는 돔보다 앞(제 깊이 + 3). */
+    const B0: [number, number, number] = [-1.6, 0.4, 2.3];
+    const B1: [number, number, number] = [-3.9, 1.5, 4.6];
+    out.push(...tagKey([
+      ...paintBase(spirePillar({
+        x: 0, y: 0, h: 1, w: 1, segs: 3, sides: 10, caps: "bottom", trueNormal: true,
+        path: (t9: number): [number, number, number] => [B0[0] + (B1[0] - B0[0]) * t9, B0[1] + (B1[1] - B0[1]) * t9, B0[2] + (B1[2] - B0[2]) * t9],
+        widthOf: (t9: number): number => 0.5 - 0.1 * t9,
+      }), GOLD9),
+      ...paintBase(spirePillar({
+        x: 0, y: 0, h: 1, w: 1, segs: 1, sides: 10, caps: "top", trueNormal: true,
+        path: (t9: number): [number, number, number] => [B1[0] + (B1[0] - B0[0]) * 0.18 * t9, B1[1] + (B1[1] - B0[1]) * 0.18 * t9, B1[2] + (B1[2] - B0[2]) * 0.18 * t9],
+        widthOf: (): number => 0.44,
+      }), "#3a3f48"),
+      ...paintBase(domeFaces3(-2.5, 0.85, 0.3, 0.45, 3.35), GOLDD9),   // 손잡이 혹
+    ], depthNow(-2.7, 0.9) + 3));
+    /* ⑤ 그릇 — 오른쪽(2.3, −0.5)의 작은 금빛 통(반지름 0.75·높이 0.5), 안은 청록 원판. */
+    out.push(...tagKey([
+      ...paintBase(cylinderFaces3(2.3, -0.5, 0.75, 0.55, 1.05), GOLD9),
+      [discPath3(2.3, -0.5, 1.62, 0.58), 1, glowLit("#9ffbee", "#63c2b4")] as ShapeFace,
+    ], depthNow(2.3, -0.5) + 2.2));
+    return raceBase(out, "toss", [
       ...([0, 90, 180, 270] as const).flatMap((ang9) => {
         const a9 = (ang9 * Math.PI) / 180;
-        const dx9 = Math.sin(a9) * 2.55;
-        const dy9 = Math.cos(a9) * 2.55;
-        /* 둥근 무늬다(지적: "비콘 개인색 데칼은 네모 말고 둥글둥글") — 네모 판은
-           프로토스 건물의 곡면 위에서 붙여 놓은 스티커로 읽혔다. 낮은 돔이면 몸에서
-           부풀어 오른 혹이 되어 곡면과 결이 맞는다. 납작해야 하는 것은 그대로다 —
-           높이를 반지름의 3분의 1로 눌러 얹은 공이 아니라 박힌 무늬로 남긴다. */
-        return tagKey(domeFaces3(dx9, dy9, 0.62, 0.22, 0.55), depthNow(dx9, dy9) + 1.6);
+        const dx9 = Math.sin(a9) * 2.0;
+        const dy9 = Math.cos(a9) * 2.0;
+        return tagKey(domeFaces3(dx9, dy9, 0.5, 0.2, 1.05), depthNow(dx9, dy9) + 1.6);
       }),
     ]);
   },
