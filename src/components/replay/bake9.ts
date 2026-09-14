@@ -6,7 +6,7 @@ import { GAP9, pNow } from "./perf9";
 import { cx } from "./cx";
 import { TIER_GEN9 } from "./tierTable.gen";
 import { kT } from "../../utils/openbwTracks";
-import { annulusPath, bandPath, bodyFace, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
+import { FACE_GRAIN9, annulusPath, bandPath, bodyFace, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
 import { BUILD_STAGES, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, SPIN_STEPS, bldNormOf, modelInkOf, modelNormOf } from "./engine9";
 import { type UnitDrawOp } from "./engine9";
 /** 주소 해시(`#pitch=`·`#nocreep` 같은 진단 스위치) — 굽기 일꾼 안에서는 location.hash가 빈 문자열(blob 주소)이라,
@@ -21444,7 +21444,15 @@ export function faceGrain9(d: string, ax9: ReturnType<typeof grainAxes9>): {
   const long = seg.filter((e) => e.l >= maxL * 0.25);
   const vert9 = long.filter((e) => Math.abs(e.dx) / e.l < 0.12);
   let ux: number; let uy: number; let vx: number; let vy: number;
-  if (vert9.length) {
+  /* ★ 법선을 아는 낯은 **그 낯의 가장 가파른 쪽**을 따른다(지적: "경사면일 때 결 표현이
+     좀 안 맞네 — 각 부품을 정면에서 봤을 때 세로로 줄이 쳐져야 하는데") — 투영된 다각형만
+     보고는 기울기를 못 구하므로, 법선을 든 자리(faceLight)가 적어 둔 표를 읽는다
+     (FACE_GRAIN9의 ★). 벽이면 곧장 화면 세로가 나오고, 돔·절두체의 옆구리면 그 자리의
+     자오선이 나온다 — 커맨드의 돔에 줄이 부챗살로 눕는 까닭이다. */
+  const gr9 = FACE_GRAIN9.get(d);
+  if (gr9) {
+    [ux, uy, vx, vy] = gr9;
+  } else if (vert9.length) {
     ux = 0; uy = 1;
     const hz9 = long.reduce((p9, q9) => (Math.abs(q9.dx) > Math.abs(p9.dx) ? q9 : p9), long[0]);
     if (Math.abs(hz9.dx) / hz9.l < 0.12) { vx = 1; vy = 0; } else { vx = hz9.dx / hz9.l; vy = hz9.dy / hz9.l; }
