@@ -20752,10 +20752,11 @@ export const shadeBoost = (o: number, fill?: string): number =>
    (어두워진 만큼 색이 묻히지 않게 — 지도 쪽 SHOW_GAMMA·SHOW_SAT와 같은 결이다).
    흰 덮개(#fff)는 그만큼 수그러들고 검은 덮개(#000)는 그대로라, 하이라이트만 줄고
    그늘은 남는다. 임자 색도 같은 문을 지난다 — 몸만 어두워지면 임자 면이 혼자 뜬다. */
-/** 휘도 곱(1이면 그대로). */
-export const TONE_DARK = 0.88;
-/** 채도 곱(1이면 그대로) — 휘도를 축으로 벌린다. */
-export const TONE_SAT = 1.12;
+/** 휘도 곱(1이면 그대로) — 요청으로 **1로 초기화**했다. 색은 이제 RACE_BASE_TONE·손칠
+ *  색표가 적힌 그대로 나가고, 어둡기·대비는 면 명암(glossFaces)과 실루엣 빛이 진다. */
+export const TONE_DARK = 1;
+/** 채도 곱(1이면 그대로) — 휘도를 축으로 벌린다. 요청으로 **1로 초기화**했다. */
+export const TONE_SAT = 1;
 const TONE_MAP9 = new Map<string, string>();
 /** 고정색 한 칸을 원작 색감으로 옮긴다. 16진수(#rgb·#rrggbb·#rrggbbaa)만 손대고
  *  rgba()·그러데이션 같은 것은 그대로 돌려준다(값은 몇 백 가지뿐이라 표에 담아 둔다). */
@@ -21089,18 +21090,34 @@ export function lodOf(px: number, ptPx = LOD_PX_POINT, dcPx = LOD_PX_DECO): numb
 
    광원은 세계 왼쪽 앞(faceLight와 같은 방향)이라 화면에서는 좌상 → 우하다.
    최고 등급(장식까지 그리는 판)에서만 얹는다 — 작게 그릴 땐 어차피 안 보인다. */
-export function silhouetteLight(c2: BakeCtx9, cv: BakeCv9): void {
+export function silhouetteLight(
+  c2: BakeCtx9, cv: BakeCv9,
+  /** 기울기를 걸 자리(장치 픽셀) — 안 주면 판 전체다.
+   *  ★ **모델의 16-상자를 줘야 한다**(수리: 건물만 이 겹이 거의 안 먹었다) — 굽는 판은
+   *    모델보다 크다: 유닛은 여백이 2px뿐이라 판이 곧 상자지만, 건물은 여백이 한 변의
+   *    78%(판 넓이 2.56배)라 모델이 판 한가운데 39%만 차지한다. 기울기를 판 전체에 걸면
+   *    모델은 그 **가운데 토막**만 보므로, 흰 0.18·검 0.42를 줘도 실제로는 0.06·0.15쯤만
+   *    닿았다. 상자를 주면 모델이 기울기의 처음부터 끝까지를 온전히 받는다. */
+  box?: { x: number; y: number; w: number; h: number },
+): void {
   const prev = c2.getTransform();
   c2.setTransform(1, 0, 0, 1, 0, 0);
   c2.globalCompositeOperation = "source-atop";
   c2.globalAlpha = 1;
-  const g = c2.createLinearGradient(0, 0, cv.width, cv.height);
-  /* 흰 쪽 0.14 → 0.09, 그늘 0.20 → 0.26(요청: 빛을 줄이고 진하게) — 판 위에 비스듬히
-     깔리는 이 한 겹이 모델 전체의 '반짝임'을 쥐고 있다. tone9와 같은 결로 낮춘다. */
-  g.addColorStop(0, "rgba(255,255,255,0.09)");
-  g.addColorStop(0.42, "rgba(255,255,255,0)");
-  g.addColorStop(0.58, "rgba(0,0,0,0)");
-  g.addColorStop(1, "rgba(0,0,0,0.26)");
+  const bx = box?.x ?? 0;
+  const by = box?.y ?? 0;
+  const bw = box?.w ?? cv.width;
+  const bh = box?.h ?? cv.height;
+  const g = c2.createLinearGradient(bx, by, bx + bw, by + bh);
+  /* 흰 0.14 → 0.09 → **0.18**, 그늘 0.20 → 0.26 → **0.42**(요청: "입체감이 더 강해지려면
+     그러데이션을 더 강하게") — 면 명암의 폭을 0.2/0.2로 좁힌 뒤로는 입체감의 상당 부분을
+     이 한 겹이 쥐고 있다. 면 명암은 **같은 방향을 보는 면끼리 밝기가 같아** 큰 지붕 한 장이
+     통째로 균일한 회색이 되는데, 이 겹만이 한 면 **안에서** 왼위→오른아래로 기울여 준다.
+     비어 있던 가운데 띠(0.42~0.58)도 0.46~0.54로 좁혀 기울기가 끊기지 않게 했다. */
+  g.addColorStop(0, "rgba(255,255,255,0.18)");
+  g.addColorStop(0.46, "rgba(255,255,255,0)");
+  g.addColorStop(0.54, "rgba(0,0,0,0)");
+  g.addColorStop(1, "rgba(0,0,0,0.42)");
   c2.fillStyle = g;
   c2.fillRect(0, 0, cv.width, cv.height);
   c2.globalCompositeOperation = "source-over";
@@ -21299,7 +21316,8 @@ export function rasterUnit9(op: UnitDrawOp, pxq: number, B: number, lod: number)
     c2.fillStyle = tone9(op.solid ?? fill ?? op.color);
     c2.fill(pathOf(d));
   }
-  if (lod >= 3) silhouetteLight(c2, cv);
+  // 기울기는 **모델의 16-상자**에 건다(판이 아니라) — silhouetteLight의 ★.
+  if (lod >= 3) silhouetteLight(c2, cv, { x: pad * B, y: pad * B, w: pxq * B, h: pxq * B });
   /* 마스크 — 같은 변환으로 임자 면만 흰색(음영 알파)으로, 그 뒤에 오는 고정색 면은 제 알파로 파낸다. */
   let tintCv9: BakeCv9 | null = null;
   if (teamSplit9) {
@@ -21820,7 +21838,8 @@ export function rasterBld9(op: UnitDrawOp, sideQ: number, B: number, lod: number
       c2.fillStyle = tone9(fill ?? op.color);
       c2.fill(pathOf(d));
     }
-    if (lod >= 3) silhouetteLight(c2, cv);
+    // 기울기는 **모델의 16-상자**에 건다(판이 아니라) — 건물은 여백이 커서 이게 특히 중요하다.
+    if (lod >= 3) silhouetteLight(c2, cv, { x: pad * B, y: pad * B, w: sideQ * B, h: sideQ * B });
     /* 임자 색 마스크(유닛과 같은 규약) — 같은 변환으로 임자 면만 흰색(음영 알파), 뒤에 오는 고정 면은 제 알파로 파낸다. */
     let tintCvB9: BakeCv9 | null = null;
     if (teamSplitB9) {

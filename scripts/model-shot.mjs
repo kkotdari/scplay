@@ -42,10 +42,11 @@ const OUT = String(flag("--out", join(tmpdir(), "model-shot.png")));
 
 /* ── 브라우저에 넣을 번들 — model-norm.mjs와 같은 진입점을 쓴다 ─────────────── */
 const ENTRY = `
-import { SHAPE_BUILDERS, poseSet, bldLitSet, headYawSet, bldSpinSet, tone9 } from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
+import { SHAPE_BUILDERS, poseSet, bldLitSet, headYawSet, bldSpinSet, tone9, silhouetteLight } from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
 import { lodFilter, withPitchView, withTopView, withViewShear, withYaw, bake, zsorted }
   from ${JSON.stringify(join(ROOT, "src/utils/shapeOblique"))};
 window.__tone = tone9;
+window.__silho = silhouetteLight;
 window.__bake = (kind, rot, mode, lod, pose, lit, head, spin) => {
   const builder = SHAPE_BUILDERS[kind];
   if (!builder) return null;
@@ -107,24 +108,36 @@ function inBrowser({ KINDS, ROTS, MODE, CELL, LOD, BG, COLOR, POSE, LIT, HEAD, S
   KINDS.forEach((k, r) => {
     ROTS.forEach((rot, i) => {
       const faces = window.__bake(k, rot, MODE, LOD, POSE, LIT, HEAD, SPIN);
-      c.save();
-      c.translate(i * CELL, r * CELL + PAD);
       c.strokeStyle = "rgba(255,255,255,.12)";
-      c.strokeRect(0.5, 0.5, CELL - 1, CELL - 1);
-      c.beginPath();
-      c.rect(0, 0, CELL, CELL);
-      c.clip();
-      c.translate(CELL / 2 + PAN[0], CELL / 2 + PAN[1]); c.scale(ZOOM, ZOOM); c.translate(-CELL / 2, -CELL / 2);
-      c.scale(CELL / 16, CELL / 16);
+      c.strokeRect(i * CELL + 0.5, r * CELL + PAD + 0.5, CELL - 1, CELL - 1);
+      /* 칸마다 **제 판**에 그린다 — 앱이 판 한 장을 굽는 것과 같은 자리라야
+         실루엣 빛(bake9.silhouetteLight)을 같은 식으로 얹을 수 있다. 그 빛은
+         판 좌표에서 비스듬히 깔리는 한 겹이라, 여러 칸이 한 캔버스를 나눠 쓰면
+         칸이 아니라 시트 전체에 걸린다. */
+      const pc = document.createElement("canvas");
+      pc.width = CELL; pc.height = CELL;
+      const p2 = pc.getContext("2d");
+      p2.save();
+      p2.translate(CELL / 2 + PAN[0], CELL / 2 + PAN[1]); p2.scale(ZOOM, ZOOM); p2.translate(-CELL / 2, -CELL / 2);
+      p2.scale(CELL / 16, CELL / 16);
       if (faces) {
         for (const f of faces) {
-          c.globalAlpha = shadeBoost(f[1], f[2]);
+          p2.globalAlpha = shadeBoost(f[1], f[2]);
           // 앱과 같은 색감 문(bake9.tone9) — 이걸 안 태우면 눈으로 보는 그림이 앱보다 밝다.
-          c.fillStyle = window.__tone(f[2] ?? COLOR);
-          try { c.fill(new Path2D(f[0])); } catch (e) { /* 못 읽는 패스는 건너뛴다 */ }
+          p2.fillStyle = window.__tone(f[2] ?? COLOR);
+          try { p2.fill(new Path2D(f[0])); } catch (e) { /* 못 읽는 패스는 건너뛴다 */ }
         }
       }
-      c.restore();
+      p2.restore();
+      p2.globalAlpha = 1;
+      // 앱과 같은 실루엣 빛(lod 3 이상에서만 얹는다 — rasterUnit9·rasterBld9와 같은 문턱).
+      /* 앱과 같이 **16-상자**에 기울기를 건다 — 칸(CELL)이 아니라 모델이 앉은 자리다.
+         변환을 풀면 모델 0 → CELL/2 − CELL·ZOOM/2 + PAN, 모델 16 → 그 자리 + CELL·ZOOM. */
+      if (LOD >= 3) {
+        const bw = CELL * ZOOM;
+        window.__silho(p2, pc, { x: CELL / 2 - bw / 2 + PAN[0], y: CELL / 2 - bw / 2 + PAN[1], w: bw, h: bw });
+      }
+      c.drawImage(pc, i * CELL, r * CELL + PAD);
       c.globalAlpha = 1;
       c.fillStyle = "#9aa4b0";
       if (i === 0) c.fillText(k, i * CELL + 8, r * CELL + PAD + 6);
