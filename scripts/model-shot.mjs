@@ -129,17 +129,19 @@ function inBrowser({ KINDS, ROTS, MODE, CELL, LOD, BG, COLOR, POSE, LIT, HEAD, S
           try { p2.fill(new Path2D(f[0])); } catch (e) { /* 못 읽는 패스는 건너뛴다 */ }
         }
       }
-      p2.restore();
       p2.globalAlpha = 1;
-      // 앱과 같은 실루엣 빛(lod 3 이상에서만 얹는다 — rasterUnit9·rasterBld9와 같은 문턱).
-      /* 앱과 같이 **16-상자**에 기울기를 건다 — 칸(CELL)이 아니라 모델이 앉은 자리다.
-         변환을 풀면 모델 0 → CELL/2 − CELL·ZOOM/2 + PAN, 모델 16 → 그 자리 + CELL·ZOOM. */
+      /* 실루엣 빛·글로우는 **면 변환을 푼 뒤가 아니라 그 안에서** 부른다(앱의 rasterUnit9과
+         같은 자리) — 글로우는 면 패스를 그대로 clip하므로, 변환을 풀어 버리면 모형 자
+         (16-상자)의 좌표가 판 왼위 16화소로 떨어져 아무것도 안 그려진다.
+         기울기 상자는 앱과 같이 **16-상자**다: 모델 0 → CELL/2 − CELL·ZOOM/2 + PAN. */
       if (LOD >= 3) {
         const bw = CELL * ZOOM;
-        window.__silho(p2, pc, { x: CELL / 2 - bw / 2 + PAN[0], y: CELL / 2 - bw / 2 + PAN[1], w: bw, h: bw });
-        // 앱과 같은 광원 글로우(판 뒤에 깔리는 흰 번짐) — B는 1이다(이 도구는 dpr를 안 탄다).
-        window.__glow(p2, pc, 1);
+        const bx = { x: CELL / 2 - bw / 2 + PAN[0], y: CELL / 2 - bw / 2 + PAN[1], w: bw, h: bw };
+        window.__silho(p2, pc, bx);
+        // B는 1이다(이 도구는 dpr를 안 탄다).
+        window.__glow(p2, pc, 1, bx, faces || []);
       }
+      p2.restore();
       c.drawImage(pc, i * CELL, r * CELL + PAD);
       c.globalAlpha = 1;
       c.fillStyle = "#9aa4b0";

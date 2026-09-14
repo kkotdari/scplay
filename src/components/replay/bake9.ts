@@ -21106,65 +21106,183 @@ export function lodOf(px: number, ptPx = LOD_PX_POINT, dcPx = LOD_PX_DECO): numb
    쓴다(모델이 돌아도 빛은 세계에 고정이라 이 방향은 안 돈다).
    ★ 끄려면 a를 0으로 둔다. 판 여백(pad)도 이 값이 0이면 안 는다. */
 export const GLOW9 = {
-  /** 번짐의 세기(0이면 끔). */
-  a: 0.2,
-  /** 빛 축에서 **가장 밝은 자리**(0=빛 쪽 끝, 1=반대쪽 끝) — 여기까지는 그대로 밝다. */
-  keep: 0.1,
-  /** 거기서 다 스러지기까지의 폭. */
-  fade: 0.55,
-  /** 번지는 빛의 색 — 순백은 차가워 보인다. */
+  /* ── 어느 낯이 밝은가는 **그 낯이 받은 흰 덮개**가 말한다 ──────────────────────────
+     ★ 화면 자리가 아니라 **낯의 방향**으로 가른다(지적: "건물이 40도 요잉 상태에서 빛을
+       받잖아. 배럭 앞면은 정면 위에서 빛이 오니까 **전체 면이 고르게 밝되 위쪽에 더
+       하이라이트**가 들어가면 되는 거야. 지금은 앞면 왼쪽이 오른쪽보다 더 밝은데 그럼
+       이상한 거지"). 앞서 쓰던 '판의 왼위를 밝히는' 그러데이션은 **한 낯 안에서도** 왼쪽이
+       오른쪽보다 밝았다 — 평평한 한 장의 판은 어디나 같은 각으로 빛을 받으므로 그건 틀렸다.
+       낯의 방향은 이미 faceLight가 LIGHT_PLAN과 재어 흰 덮개(#fff·종족 광색)의 알파로
+       적어 두었다(윗면 topFace도 같은 덮개다). 그 알파를 0~1로 펴서 **낯마다 한 값**으로
+       쓰면, 한 낯은 고르게 밝고 낯끼리만 밝기가 갈린다. */
+  /** 밝기 자의 아래 끝 — 흰 덮개 알파가 이보다 낮으면 안 밝힌다. */
+  litLo: 0.1,
+  /** 밝기 자의 위 끝 — 여기서 1이다(glossFaces의 흰 덮개 꼭대기가 0.54다). */
+  litHi: 0.5,
+  /** 겹 전체의 세기(0이면 끔). */
+  a: 0.24,
+  /** 낯 **전체**에 고르게 깔리는 몫(0~1) — 나머지는 위쪽 하이라이트가 진다. */
+  flat: 0.4,
+  /** 위쪽 하이라이트가 차지하는 몫 — 그 낯의 위 모서리에서 아래로 이만큼이다. */
+  topH: 0.3,
+  /** 하이라이트를 그릴 **가장 작은 낯** — 16-상자 대비 이보다 짧으면 고른 몫만 깐다. */
+  minSide: 0.04,
+  /** 빛의 색 — 순백은 차가워 보인다. */
   hue: "255, 246, 228",
 };
+/** 흰 덮개(광)로 쓰이는 색들 — 종족마다 제 광색이 있고, 안 적힌 종족은 순백이다. */
+const GLOW_HI9 = new Set<string>(["#fff", ...Object.values(RACE_GLOSS_LIT)]);
+/** 한 낯의 **제 축** — 위 모서리의 방향(ang)과, 그 모서리에 수직인 축에서 잰 위·아래 끝.
+ *  ★ 낯마다 따로 잰다 — 하이라이트가 '그 낯의 위쪽'에 들어가려면 화면의 위가 아니라
+ *    **그 낯의 위**를 알아야 한다. 상자 옆면이든 지붕이든 위 모서리가 곧 그 낯 안의
+ *    '수평'이다(세계의 수평선이 그리로 투영된다).
+ *  곡선(A·C·Q)이 섞인 패스는 M·L 꼭짓점만 보므로 어림이지만, 한 겹의 자리로는 넉넉하다. */
+export function faceAxis9(
+  d: string,
+): { cx: number; cy: number; ang: number; top: number; bot: number; len: number } | null {
+  const pts: [number, number][] = [];
+  const re9 = /[ML]\s*(-?[\d.]+)[ ,]+(-?[\d.]+)/g;
+  let m9 = re9.exec(d);
+  while (m9) {
+    pts.push([Number(m9[1]), Number(m9[2])]);
+    m9 = re9.exec(d);
+  }
+  if (pts.length < 3) return null;
+  let maxL = 0;
+  for (let i = 0; i < pts.length; i += 1) {
+    const a9 = pts[i];
+    const b9 = pts[(i + 1) % pts.length];
+    maxL = Math.max(maxL, Math.hypot(b9[0] - a9[0], b9[1] - a9[1]));
+  }
+  // 위 모서리 — 두 끝의 가운데가 가장 높은(화면 y가 작은) 변이다. 아주 짧은 변은 뺀다.
+  let bi = -1;
+  let bmid = Infinity;
+  for (let i = 0; i < pts.length; i += 1) {
+    const a9 = pts[i];
+    const b9 = pts[(i + 1) % pts.length];
+    if (Math.hypot(b9[0] - a9[0], b9[1] - a9[1]) < maxL * 0.3) continue;
+    const mid = (a9[1] + b9[1]) / 2;
+    if (mid < bmid) { bmid = mid; bi = i; }
+  }
+  if (bi < 0) return null;
+  const p0 = pts[bi];
+  const p1 = pts[(bi + 1) % pts.length];
+  const ex = p1[0] - p0[0];
+  const ey = p1[1] - p0[1];
+  const el = Math.hypot(ex, ey) || 1;
+  const ux = ex / el;
+  const uy = ey / el;
+  const nx = -uy;
+  const ny = ux;
+  let cx = 0;
+  let cy = 0;
+  for (const [x9, y9] of pts) { cx += x9; cy += y9; }
+  cx /= pts.length; cy /= pts.length;
+  let qlo = Infinity;
+  let qhi = -Infinity;
+  let tlo = Infinity;
+  let thi = -Infinity;
+  for (const [x9, y9] of pts) {
+    const q = (x9 - cx) * nx + (y9 - cy) * ny;
+    if (q < qlo) qlo = q;
+    if (q > qhi) qhi = q;
+    const t9 = (x9 - cx) * ux + (y9 - cy) * uy;
+    if (t9 < tlo) tlo = t9;
+    if (t9 > thi) thi = t9;
+  }
+  if (!(qhi - qlo > 0.01)) return null;
+  /* 돌린 자리에서 +y'는 화면으로 (−sin, cos)다 — cos이 양수면 +y'가 화면 아래를 보므로
+     '위'는 작은 쪽이고, 음수면 반대다. */
+  const down9 = Math.cos(Math.atan2(uy, ux)) >= 0;
+  return {
+    cx, cy, ang: Math.atan2(uy, ux),
+    top: down9 ? qlo : qhi, bot: down9 ? qhi : qlo,
+    len: Math.max(0.01, (thi - tlo) / 2 + 0.02),
+  };
+}
+
 /** 판 한 장에 글로우를 굽는다 — 면을 다 칠한 **뒤** 부른다.
- *  ★ **면 글로우**다(요청: "림 글로우가 아닌 면 글로우" · "몸 위에서 빛나야지 단 어둠이
- *    지는 부분에는 깔지 말 것") — 가장자리에 테를 두르는 것이 아니라, **빛을 받는 낯 전체**가
- *    한 겹 밝아진다. 만드는 수는 셋뿐이고 흐림이 없어 값도 싸다:
- *      ⓐ 몸 실루엣을 빌림판에 뜬다.
- *      ⓑ 그 안을 **빛 축을 따라가는 그러데이션**으로 채운다(source-in) — 빛 쪽은 꽉 찬
- *        빛 색이고 반대쪽으로 가며 투명해진다. 곧 그늘진 낯에는 아무것도 안 깔린다.
- *      ⓒ 몸 **위에** 더한다(lighter).
- *    실루엣을 벗어나지 않으므로 판 여백이 안 늘고, 흐림 한 번이 사라져 앞선 테 방식보다
- *    싸다(테 방식은 그림자 흐림을 한 번 더 돌렸다).
+ *  ★ **낯마다** 한 겹을 얹는다(GLOW9의 ★): 그 낯이 받은 빛의 몫만큼, **낯 전체에 고르게**
+ *    깔고(flat) 거기에 **그 낯의 위쪽**으로 하이라이트를 더한다(topH). 곧 배럭 앞면은
+ *    좌우 어디나 같은 밝기이고 위쪽만 더 빛난다 — 평평한 한 장의 판은 어디나 같은 각으로
+ *    빛을 받으므로 그것이 옳다. 빛을 등진 낯은 목록에 아예 없어 한 톨도 안 밝아진다.
  *  box(모델의 16-상자)를 주면 그 자리만 다룬다. */
 export function glowBake9(
   c2: BakeCtx9, cv: BakeCv9, B: number,
   box?: { x: number; y: number; w: number; h: number },
+  faces?: ShapeFace[],
 ): void {
-  if (!(GLOW9.a > 0)) return;
+  if (!(GLOW9.a > 0) || !faces || faces.length === 0) return;
   void B;
   const gx = Math.max(0, box?.x ?? 0);
   const gy = Math.max(0, box?.y ?? 0);
   const gw = Math.min(cv.width - gx, box?.w ?? cv.width);
   const gh = Math.min(cv.height - gy, box?.h ?? cv.height);
   if (!(gw > 0 && gh > 0)) return;
+  /* 빛을 받은 낯 = **흰 덮개 면 그 자체**다. 상자(frustumFaces3)는 몸을 여러 낯을 이어
+     붙인 한 패스로 내고 낯마다의 명암은 따로 난 제 패스로 얹으므로, '그 낯'의 윤곽을
+     쥔 것은 몸판이 아니라 덮개 면이다. */
+  const span9 = Math.max(0.01, GLOW9.litHi - GLOW9.litLo);
+  let any9 = false;
+  for (const f9 of faces) {
+    const fl9 = f9[2];
+    if (fl9 !== undefined && GLOW_HI9.has(fl9) && f9[1] > GLOW9.litLo) { any9 = true; break; }
+  }
+  if (!any9) return;
   const gv = bakeCanvas(cv.width);
   if (!gv) return;
   const g2 = ctx2d9(gv);
   if (!g2) { freeBakeCanvas(gv); return; }
-  // 빛이 오는 화면 방향 — 면 명암·판 기울기와 **같은 자**다(shapeOblique.lightScreenDir).
-  const [ux9, uy9] = lightScreenDir();
+  const prev = c2.getTransform();
+  const minS9 = GLOW9.minSide * 16;
   g2.setTransform(1, 0, 0, 1, 0, 0);
   g2.globalCompositeOperation = "source-over";
   g2.globalAlpha = 1;
-  // ⓐ 몸 실루엣.
-  g2.drawImage(cv as CanvasImageSource, gx, gy, gw, gh, gx, gy, gw, gh);
-  // ⓑ 그 안을 빛 축 그러데이션으로 — 빛 쪽만 차고 그늘 쪽은 비어 있다.
-  const cx9 = gx + gw / 2;
-  const cy9 = gy + gh / 2;
-  const R9 = Math.hypot(gw, gh) / 2;
-  const grad = g2.createLinearGradient(
-    cx9 + ux9 * R9, cy9 + uy9 * R9, cx9 - ux9 * R9, cy9 - uy9 * R9,
-  );
-  grad.addColorStop(0, `rgba(${GLOW9.hue}, 1)`);
-  grad.addColorStop(GLOW9.keep, `rgba(${GLOW9.hue}, 1)`);
-  grad.addColorStop(Math.min(1, GLOW9.keep + GLOW9.fade), `rgba(${GLOW9.hue}, 0)`);
-  grad.addColorStop(1, `rgba(${GLOW9.hue}, 0)`);
-  g2.globalCompositeOperation = "source-in";
-  g2.fillStyle = grad;
-  g2.fillRect(gx, gy, gw, gh);
+  g2.clearRect(gx, gy, gw, gh);
+  /* ★ 면 패스는 **모형 자**(16-상자)로 적혀 있다 — 판 픽셀 자로 두고 clip하면 판 왼위
+     16화소만 잘라 아무것도 안 그려진다. 부르는 쪽의 변환을 그대로 얹는다. */
+  g2.setTransform(prev);
+  const HI9 = `rgba(${GLOW9.hue}, 1)`;
+  const FL9 = `rgba(${GLOW9.hue}, ${GLOW9.flat})`;
+  /* ★ **화가 차례를 그대로 따른다** — 낯을 그리기 앞서 그 낯 자리의 앞선 글로우를 제 알파만큼
+     지운다(destination-out). 안 그러면 뒤에 가려 안 보이는 낯의 글로우가 판 맨 위에 얹혀,
+     지붕 위로 다리·뒤판의 허연 쐐기가 떠오른다(실제로 그랬다). 안 밝은 낯도 지우기는 한다 —
+     그것이 곧 '가린다'는 뜻이다. */
+  for (const f9 of faces) {
+    const d9 = f9[0];
+    const pa9 = pathOf(d9);
+    g2.globalCompositeOperation = "destination-out";
+    g2.globalAlpha = Math.max(0, Math.min(1, f9[1]));
+    g2.fillStyle = "#000";
+    g2.fill(pa9);
+    g2.globalCompositeOperation = "source-over";
+    const fl9 = f9[2];
+    if (fl9 === undefined || !GLOW_HI9.has(fl9)) continue;
+    const k9 = Math.max(0, Math.min(1, (f9[1] - GLOW9.litLo) / span9));
+    if (!(k9 > 0)) continue;
+    const ax = faceAxis9(d9);
+    g2.globalAlpha = k9;
+    if (!ax || ax.len < minS9) {
+      // 너무 작은 낯은 고른 몫만 — 위아래를 가를 만한 자리가 없다.
+      g2.fillStyle = FL9;
+      g2.fill(pa9);
+      continue;
+    }
+    g2.save();
+    g2.clip(pa9);
+    g2.translate(ax.cx, ax.cy);
+    g2.rotate(ax.ang);
+    const gr = g2.createLinearGradient(0, ax.top, 0, ax.bot);
+    gr.addColorStop(0, HI9);
+    gr.addColorStop(Math.max(0.01, Math.min(1, GLOW9.topH)), FL9);
+    gr.addColorStop(1, FL9);
+    g2.fillStyle = gr;
+    const lo9 = Math.min(ax.top, ax.bot);
+    g2.fillRect(-ax.len, lo9, ax.len * 2, Math.abs(ax.bot - ax.top));
+    g2.restore();
+  }
   g2.globalCompositeOperation = "source-over";
-  // ⓒ 몸 **위에** 더한다.
-  const prev = c2.getTransform();
+  g2.globalAlpha = 1;
   c2.setTransform(1, 0, 0, 1, 0, 0);
   c2.save();
   c2.globalCompositeOperation = "lighter";
@@ -21417,7 +21535,7 @@ export function rasterUnit9(op: UnitDrawOp, pxq: number, B: number, lod: number)
   }
   // 기울기는 **모델의 16-상자**에 건다(판이 아니라) — silhouetteLight의 ★.
   if (lod >= 3) silhouetteLight(c2, cv, { x: pad * B, y: pad * B, w: pxq * B, h: pxq * B });
-  if (lod >= 3) glowBake9(c2, cv, B, { x: pad * B, y: pad * B, w: pxq * B, h: pxq * B });
+  if (lod >= 3) glowBake9(c2, cv, B, { x: pad * B, y: pad * B, w: pxq * B, h: pxq * B }, faces);
   /* 마스크 — 같은 변환으로 임자 면만 흰색(음영 알파)으로, 그 뒤에 오는 고정색 면은 제 알파로 파낸다. */
   let tintCv9: BakeCv9 | null = null;
   if (teamSplit9) {
@@ -21943,7 +22061,7 @@ export function rasterBld9(op: UnitDrawOp, sideQ: number, B: number, lod: number
     /* 데칼(크립 카펫)은 빼 둔다 — 땅에 누운 단색 한 겹이라 번질 것이 없고, 판이 가장
        커서 값만 든다(실측: 이 한 종이 최악 판을 400 → 573ms로 끌어올렸다). */
     if (lod >= 3 && !DECAL_KINDS.has(op.kind)) {
-      glowBake9(c2, cv, B, { x: pad * B, y: pad * B, w: sideQ * B, h: sideQ * B });
+      glowBake9(c2, cv, B, { x: pad * B, y: pad * B, w: sideQ * B, h: sideQ * B }, faces);
     }
     /* 임자 색 마스크(유닛과 같은 규약) — 같은 변환으로 임자 면만 흰색(음영 알파), 뒤에 오는 고정 면은 제 알파로 파낸다. */
     let tintCvB9: BakeCv9 | null = null;
