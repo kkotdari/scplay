@@ -3611,26 +3611,34 @@ export const sunkenTongueFaces = (): ShapeFace[] => {
      역 U는 뿌리에서 **곧게 솟고** 꼭대기를 지나 **곧게 떨어진다**: 앞으로 가는 몫을 (1 − cos πt)/2로 두면
      양 끝에서 y가 멈춰 접선이 수직이 되고, 높이는 sin πt 봉우리에 뿌리(3.4)→땅(0.7) 내리막을 얹는다. */
   const Z0 = 3.4;     // 뿌리(아가리) 높이
-  const Z1 = 0.7;     // 끝 높이 — 끝 반구의 반지름만큼 떠서 땅에 닿는다
-  const TUP = 4.6;    // 봉우리 몫 — 꼭대기 ≈ 6.7
+  const Z1 = 1.4;     // 끝 높이 — 끝 반구의 반지름(1.56)만큼 떠서 땅에 닿는다
+  /* 높이 3배(재재요청: "높이 지금의 3배만큼 올라가기") — 봉우리 몫 4.6 → 13.8, 꼭대기 ≈ 16. */
+  const TUP = 13.8;   // 봉우리 몫
+  /** 앞으로 가는 몫의 **머무름** — (1 − cos πt)/2를 이 지수로 한 번 더 눌러, 뿌리와 끝에서 y가 오래 멈춘 채
+   *  z만 움직이게 한다(재재요청: "위로 수직으로 솟구쳤다가 수직으로 내려오고"). 1이면 반원꼴, 클수록 ㄇ자다. */
+  const SQ9 = 2.2;
   /* 혀만 돈다(요청: "성큰 혀는 공격대상을 향해야 해") — withModelSpin(headYawNow)으로
      감싸면 이 판만 표적 쪽으로 돌아간다. 22.5도 열여섯 칸이다. */
   /** 등뼈 — 역 U. t 0 뿌리, 1 끝. */
-  const spine9 = (t9: number): [number, number, number] => [
-    0.25, -0.15 + (TL * (1 - Math.cos(Math.PI * t9))) / 2,
-    Z0 + (Z1 - Z0) * t9 + TUP * Math.sin(Math.PI * t9),
-  ];
+  const spine9 = (t9: number): [number, number, number] => {
+    const u9 = (1 - Math.cos(Math.PI * t9)) / 2;
+    const a9 = u9 ** SQ9; const b9 = (1 - u9) ** SQ9;
+    return [
+      0.25, -0.15 + TL * (a9 / (a9 + b9)),
+      Z0 + (Z1 - Z0) * t9 + TUP * Math.sin(Math.PI * t9),
+    ];
+  };
   const tip9 = spine9(1);
   return tagKey(withModelSpin(headYawNow, (): ShapeFace[] => paintBase([
     /* 두께 변화는 **완만하게**(재요청) — 0.5→1.45는 구두주걱이었다. 0.62→0.78이면 통통한 관이다.
        마디 18·변 10으로 U가 매끈하다. 끝은 아래 반구가 둥글게 막는다(caps는 뚜껑 원반이라 막힌 관으로 보였다). */
     ...spirePillar({
-      x: 0.25, y: -0.15, h: 1, w: 0.62, tipW: 0.78,
-      segs: 18, sides: 10, hold: 0.05, taper: 1, caps: "none",
+      x: 0.25, y: -0.15, h: 1, w: 1.24, tipW: 1.56,   // 굵기 2배(재재요청)
+      segs: 24, sides: 10, hold: 0.05, taper: 1, caps: "none",
       path: spine9,
     }),
     // 끝 — 반구(요청: "끝은 둥글게 반구로")로 둥글게 닫는다. 끝 굵기와 같은 반지름이라 이음이 없다.
-    ...sphereFaces3(tip9[0], tip9[1], tip9[2], 0.78),
+    ...sphereFaces3(tip9[0], tip9[1], tip9[2], 1.56),
   ], "#b5713a")), 13);
 };
 export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
