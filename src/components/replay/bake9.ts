@@ -6277,8 +6277,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          (widthOf가 그 옆선이다 — 0 → 최대 → 0). 이러면 다른 부품과 같은 사슬을 타므로
          요잉·기울임·명암·가림 차례가 저절로 따라온다. */
       ...spirePillar({
-        x: 0, y: 0, z0: 6.75, h: 3.3, w: 1.35, sides: 6, segs: 4,
-        widthOf: (t9) => 1.35 * (1 - Math.abs(2 * t9 - 1)),
+        // 덜 넙적하게(요청) — 허리 반폭 1.35 → 1.1, 키 3.3 → 3.6.
+        x: 0, y: 0, z0: 6.75, h: 3.6, w: 1.1, sides: 6, segs: 4,
+        widthOf: (t9) => 1.1 * (1 - Math.abs(2 * t9 - 1)),
         // 켜지면 함께 반짝인다(지적) — 첨탑 보석과 같은 규약, 그쪽 ★ 주석 참고.
         fill: glowLit("#c9fff6", "#5aecd8"),
       }),
