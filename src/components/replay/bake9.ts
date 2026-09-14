@@ -13307,17 +13307,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const mzTube9 = mz9 - tubeAxisLift(mr9);
         out.push(...tagKey([
           // 미사일을 살짝 뒤로(요청: y −0.3)
-          ...paintBase(tubeFaces(mx9, -2.15, mx9, 0.65, mr9, mzTube9), TERRAN_STEEL_D),
+          ...paintBase(tubeFaces(mx9, -2.75, mx9, 0.65, mr9, mzTube9), TERRAN_STEEL_D),   // 뒤로 0.6 더 길게(요청)
           ...paintBase(hornFaces(mx9, 0.65, mz9, mx9, 1.75, mz9, 0.66), TERRAN_STEEL_D),
           /* ★ 꼬리는 **진짜 로켓의 꼬리 깃**이다(재요청: "저런 거 말고 진짜 로켓 미사일 꼬리 같은 형태") — 뿔 셋을
              걷고, 몸통에 십자로 붙은 **얇은 사다리꼴 판 넷**(위·아래·좌·우)을 세운다. 뿌리는 몸통을 따라 길게
              (y −1.3 → −1.85), 바깥 변은 짧고(−1.6 → −1.85) 뒤끝에서 만나 앞 변이 뒤로 쓸린 깃이 된다. 판이라
              두께가 없다 — 낯 하나에 법선을 재서 빛을 받되, 등진 쪽은 법선을 뒤집어 어느 쪽에서도 보인다. */
           ...(([[1, 0], [-1, 0], [0, 1], [0, -1]] as const).flatMap(([dx9, dz9]): ShapeFace[] => {
-            const FIN9 = 0.72;   // 0.62 → 0.72, 뿌리 길이 0.55 → 0.7(요청: 꼬리 날개 좀 더 길게)
+            const FIN9 = 0.72;   // 0.62 → 0.72 · 뿌리 길이 0.7 → 1.15, 바깥 변 0.3 → 0.55(재요청: 앞뒤로 더 길쭉하게)
             const q9 = polyPath3([
-              [mx9 + dx9 * mr9, -1.45, mz9 + dz9 * mr9], [mx9 + dx9 * mr9, -2.15, mz9 + dz9 * mr9],
-              [mx9 + dx9 * (mr9 + FIN9), -2.15, mz9 + dz9 * (mr9 + FIN9)], [mx9 + dx9 * (mr9 + FIN9), -1.85, mz9 + dz9 * (mr9 + FIN9)],
+              [mx9 + dx9 * mr9, -1.6, mz9 + dz9 * mr9], [mx9 + dx9 * mr9, -2.75, mz9 + dz9 * mr9],
+              [mx9 + dx9 * (mr9 + FIN9), -2.75, mz9 + dz9 * (mr9 + FIN9)], [mx9 + dx9 * (mr9 + FIN9), -2.2, mz9 + dz9 * (mr9 + FIN9)],
             ]);
             // 판의 법선은 축·d 둘 다에 수직: d가 x면 z, d가 z면 x
             let fl9 = faceLight(dz9, 0, dx9);
