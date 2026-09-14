@@ -15317,7 +15317,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     }), TOSS_GOLD_M), depthNow(m2 * ARB_WING_X, 0.3) + 1.35 - 0.9);
     /* ★ 윗날개와 몸통을 잇는 **얇은 판**(요청) — 몸 돔(반지름 0.45) 허리 높이에 가로로 깐 얇은 슬래브(x ±0.62,
        y −0.55~0.5, 두께 0.06). 양 끝이 윗날개의 안쪽 평면(x ±0.58)에 물린다. 키는 몸(제 깊이)과 날개(+1.35) 사이. */
-    const bridge9: ShapeFace[] = tagKey(paintBase(boxFaces3(0, -0.03, 1.24, 1.05, 0.06, 5.86), TOSS_GOLD_M),
+    // 앞뒤 폭 아주 얇게(재요청): 1.05 → 0.22 — 날개 사이를 가로지르는 가는 살대
+    const bridge9: ShapeFace[] = tagKey(paintBase(boxFaces3(0, 0.05, 1.24, 0.22, 0.06, 5.86), TOSS_GOLD_M),
       depthNow(0, 0) + 0.7);
     return [
       ...lowWing(-1),
