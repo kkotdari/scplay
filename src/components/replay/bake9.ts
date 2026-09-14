@@ -13314,7 +13314,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
              (y −1.3 → −1.85), 바깥 변은 짧고(−1.6 → −1.85) 뒤끝에서 만나 앞 변이 뒤로 쓸린 깃이 된다. 판이라
              두께가 없다 — 낯 하나에 법선을 재서 빛을 받되, 등진 쪽은 법선을 뒤집어 어느 쪽에서도 보인다. */
           ...(([[1, 0], [-1, 0], [0, 1], [0, -1]] as const).flatMap(([dx9, dz9]): ShapeFace[] => {
-            const FIN9 = 0.72;   // 0.62 → 0.72 · 뿌리 길이 0.7 → 1.15, 바깥 변 0.3 → 0.55(재요청: 앞뒤로 더 길쭉하게)
+            const FIN9 = 0.36;   // 0.72 → 0.36(요청: 폭 반으로) · 뿌리 길이 1.15, 바깥 변 0.55
             const q9 = polyPath3([
               [mx9 + dx9 * mr9, -1.6, mz9 + dz9 * mr9], [mx9 + dx9 * mr9, -2.75, mz9 + dz9 * mr9],
               [mx9 + dx9 * (mr9 + FIN9), -2.75, mz9 + dz9 * (mr9 + FIN9)], [mx9 + dx9 * (mr9 + FIN9), -2.2, mz9 + dz9 * (mr9 + FIN9)],
