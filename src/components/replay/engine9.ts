@@ -1031,7 +1031,7 @@ export const MODEL_NORM: Record<string, number> = {
   muta: 0.710,
   mutacocoon: 1.744,  // 상자 상한(원한 배수 1.891)
   observer: 1.835,
-  ovie: 0.801,  // 앞턱을 호로 바꾼 뒤 재측정(model-norm)
+  ovie: 0.792,  // 앞턱을 호로 바꾼 뒤 재측정(model-norm) · 등 혹 넷 걷고 꽁무니 주머니 뒤 ×0.9889(0.813 → 0.804)
   probe: 1.625,  // 다리 두께면을 양쪽으로 고친 뒤 model-norm 재측정
   probeGas: 1.426,
   probeMin: 1.475,
