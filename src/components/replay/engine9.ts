@@ -1018,7 +1018,7 @@ export const MODEL_NORM: Record<string, number> = {
   ghost: 1.601,  // 상자 상한(원한 배수 1.723)
   goliath: 0.678,   // 재측정(model-norm) — 미사일 포드 걷고 포신 하나로(옛 0.671)
   goon: 0.619,  // 재측정(model-norm)
-  guardian: 0.650,  // 다리 옆으로 곧게 뒤 재측정(model-norm) · 뒤 옆구리 날개껍질·앞집게 앞으로 뒤 ×0.9644(0.703 → 0.678)
+  guardian: 0.635,  // 다리 옆으로 곧게 뒤 재측정(model-norm) · 뒤 옆구리 날개껍질·앞집게 앞으로 뒤 0.650(0.703 → 0.678) · 앞집게 호·앞다리 1.5배 뒤 ×0.9764(0.678 → 0.662)
   gunner: 1.302,  // 팔 길이 고정 뒤 model-norm 재측정
   htemp: 1.140,  // 재측정(model-norm) — 왕관(살 다섯·보석)까지 반영
   hydra: 0.646,  // 머리장식 확대·머리 위 시작·길이 +20%·폭 −20%·마름모 허리 0.75 뒤 재측정(model-norm의 **top 모드** 표)
@@ -1031,7 +1031,7 @@ export const MODEL_NORM: Record<string, number> = {
   muta: 0.710,
   mutacocoon: 1.744,  // 상자 상한(원한 배수 1.891)
   observer: 1.835,
-  ovie: 0.792,  // 앞턱을 호로 바꾼 뒤 재측정(model-norm) · 등 혹 넷 걷고 꽁무니 주머니 뒤 ×0.9889(0.813 → 0.804)
+  ovie: 0.797,  // 앞턱을 호로 바꾼 뒤 재측정(model-norm) · 등 혹 넷 걷고 꽁무니 주머니 뒤 0.792(0.813 → 0.804) · 주머니 타원·배 임자색 뒤 ×1.0062(0.804 → 0.809)
   probe: 1.625,  // 다리 두께면을 양쪽으로 고친 뒤 model-norm 재측정
   probeGas: 1.426,
   probeMin: 1.475,

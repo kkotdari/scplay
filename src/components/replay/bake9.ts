@@ -14033,11 +14033,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        앞뒤는 요잉이 정한다. */
     ...tagKey(zergFace(1.3, 5.9, 1.15), depthNow(0, 1.3) * 1.6 + 1),   // 밑값 6 → 1(지적: 머리가 몸에 안 가려짐)
     // 앞 양 집게 — 두 마디로 안쪽으로 굽는다. 짙은 갈색(재지적: 앞다리도).
-    // 앞쪽으로 더(요청): 첫 마디 끝 (3, 2.2) → (2.7, 2.6), 둘째 마디 끝 (2.2, 3.2) → (2.0, 3.8)
-    ...paintBase(hornFaces(1.9, 0.8, 5.9, 2.7, 2.6, 5.6, 0.7), "#6b4732"),
-    ...paintBase(hornFaces(2.7, 2.6, 5.6, 2.0, 3.8, 5.4, 0.5), "#6b4732"),
-    ...paintBase(hornFaces(-1.9, 0.8, 5.9, -2.7, 2.6, 5.6, 0.7), "#6b4732"),
-    ...paintBase(hornFaces(-2.7, 2.6, 5.6, -2.0, 3.8, 5.4, 0.5), "#6b4732"),
+    /* ★ 앞집게는 **앞을 향해 호로 굽는 한 마디**, 1.5배 굵게(재요청) — 두 뿔 마디 대신 spirePillar 곡선: 뿌리
+       (±1.9, 0.8)에서 바깥으로 불룩(sin) 나갔다가 앞(y 4.0)으로 모인다. 밑 반폭 0.43 → 0.65, 끝은 뾰족. */
+    ...([-1, 1] as const).flatMap((m9) => paintBase(spirePillar({
+      x: 0, y: 0, h: 1, w: 0.65, tipW: 0.06, segs: 7, sides: 7, hold: 0.15, taper: 0.9, caps: "bottom",
+      path: (t9: number): [number, number, number] => [
+        m9 * (1.9 + 1.05 * Math.sin(Math.PI * t9)), 0.8 + 3.2 * t9, 5.9 - 0.55 * t9,
+      ],
+    }), "#6b4732")),
     /* 옆 잔다리 — **마디 둘씩, 훨씬 길게**(요청). 한 마디짜리 짧은 뿔은 몸에 붙은
        돌기로만 보였다. 무릎에서 한 번 꺾여 아래로 뻗으면 다리로 읽힌다. 뻗는 거리도
        1.3 → 3.6쯤으로 키운다. 짙은 갈색. */
@@ -14051,16 +14054,21 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            가늘어졌다. 길이는 줄이고(무릎 3.9 → 3.3, 발 5.2 → 4.4) 굵기는 키운다(0.5/0.34 → 0.62/0.5). */
         /* 다리는 **거의 수평**이다(지적: 너무 내려가 있다) — 무릎 1.3·발 1.7씩 떨어지던 것을 0.35·0.6으로 올려
            옆으로 뻗은 게다리로. 내려간 만큼은 바깥으로 더 뻗어(무릎 3.3 → 3.6, 발 4.4 → 5.0) 길이를 지킨다. */
-        const kx9 = m9 * (3.6 + i9 * 0.2);   // 무릎
+        /* ★ 맨 앞 한 쌍(i9 0)은 **1.5배 굵고 앞을 향해 호로 굽는다**(재요청) — 무릎을 앞(+0.7)으로, 발끝은 더 앞
+           (+1.7)·안쪽으로 당겨 두 마디가 앞으로 감기는 활이 된다. 나머지 둘은 그대로. */
+        const fr9 = i9 === 0;
+        const tk9 = fr9 ? 1.5 : 1;
+        const kx9 = m9 * (fr9 ? 3.3 : 3.6 + i9 * 0.2);   // 무릎
         // 뒤로 안 쏠린다(지적: 너무 뒤를 향한다 — 옆면에 거의 수직으로) — 무릎 −1.2 → −0.2, 발 −1.1 → −0.2.
-        const ky9 = ly9 - 0.2;
+        const ky9 = ly9 + (fr9 ? 0.7 : -0.2);
         const kz9 = lz9 - 0.35;
-        const fx9 = m9 * (5.0 + i9 * 0.25);
+        const fx9 = m9 * (fr9 ? 4.2 : 5.0 + i9 * 0.25);
+        const fy9 = fr9 ? ly9 + 1.7 : ky9 - 0.2;
         const knee: [number, number, number] = [kx9, ky9, kz9];
         return [
-          ...paintBase(suitLimb([m9 * 2.3, ly9, lz9], knee, 0.31, 0.29, 0.31, { sides: 7, caps: "none", trueNormal: true }), "#6b4732"),
-          ...paintBase(domeFaces3(kx9, ky9, 0.3, 0.26, kz9 - 0.1), "#6b4732"),
-          ...paintBase(suitLimb(knee, [fx9, ky9 - 0.2, kz9 - 0.6], 0.27, 0.22, 0.27, { sides: 7, caps: "none", trueNormal: true }), "#6b4732"),
+          ...paintBase(suitLimb([m9 * 2.3, ly9, lz9], knee, 0.31 * tk9, 0.29 * tk9, 0.31 * tk9, { sides: 7, caps: "none", trueNormal: true }), "#6b4732"),
+          ...paintBase(domeFaces3(kx9, ky9, 0.3 * tk9, 0.26 * tk9, kz9 - 0.1), "#6b4732"),
+          ...paintBase(suitLimb(knee, [fx9, fy9, kz9 - 0.6], 0.27 * tk9, 0.22 * tk9, 0.27 * tk9, { sides: 7, caps: "none", trueNormal: true }), "#6b4732"),
         ];
       })),
   ],
@@ -19582,7 +19590,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          — 위(1.05)보다 얕게 두었던 것을 위와 같게 맞춘다. 그러면 배와 갑각이 한 타원면의
          **아래·위 절반**이 되어, 아래도 위와 같은 곡률로 둥글게 부푼다. */
     const BELLY_K = 1.05;
-    body.push(...tagKey(domeFaces3(0, 0, R9, -RZ9 * BELLY_K, CZ, true), depthNow(0, 0) * 1.6));
+    /* ★ 배(아래 몸통)는 **임자색**(요청: "본 몸통을 임자색으로") — raceBase의 accent에 넣어 밑칠을 안 받는다. */
+    const belly9: ShapeFace[] = tagKey(domeFaces3(0, 0, R9, -RZ9 * BELLY_K, CZ, true), depthNow(0, 0) * 1.6);
+    body.push(...belly9);
     /* 갑각 — 위를 덮는 돔. 그 위에 앞뒤로 흐르는 이랑 셋을 얹어 딱딱한 껍질로 읽히게
        한다(이것이 '풍선'을 벗는 대목이다). 이랑은 구 표면을 따라 도는 낮은 기둥이라
        어느 요잉에서도 등에 붙어 함께 돈다. */
@@ -19951,8 +19961,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* ★ 꽁무니의 **짙은 갈색 주머니**(요청) — 몸 뒤끝(y −R9 −0.3)에 살짝 아래로 처진 구. 갑각과 같은 짙은 갈색이라
        몸에서 이어진 살주머니로 읽힌다. 키는 혹과 같은 규약: 갑각(+0.5)에 제 앞뒤 깊이와 높이 몫 — 앞에서 보면 몸
        뒤로 들고, 뒤에서 보면 몸 앞에 선다. */
-    const pouch9: ShapeFace[] = tagKey(paintBase(sphereFaces3(0, -(R9 + 0.3), bz(CZ - 0.75), 0.8 * BK), SHELL),
-      depthNow(0, -(R9 + 0.3)) * 1.6 + 0.5 + (bz(CZ - 0.75) - CZ) * 0.55);
+    /* 구가 아니라 **납작하고 위아래로 긴 타원**(재요청) — 세로 축 기둥에 sin 옆선(타원), oval 0.5로 앞뒤(y)를 눌렀다.
+       가로 반폭 0.7·BK, 키 2.3. 중심은 몸 뒤끝에서 살짝 아래. */
+    const PCY9 = -(R9 + 0.25); const PCZ9 = bz(CZ - 0.9); const PH9 = 2.3;
+    const pouch9: ShapeFace[] = tagKey(paintBase(spirePillar({
+      x: 0, y: 0, h: 1, w: 1, segs: 8, sides: 10, caps: "none", oval: 0.5, ref: [1, 0, 0],
+      path: (t9: number): [number, number, number] => [0, PCY9, PCZ9 - PH9 / 2 + PH9 * t9],
+      widthOf: (t9: number): number => Math.max(0.03, 0.7 * BK * Math.sin(Math.PI * t9)),
+    }), SHELL), depthNow(0, PCY9) * 1.6 + 0.5 + (PCZ9 - CZ) * 0.55);
     return raceBase([
       ...limbs,
       ...claws,
@@ -19963,7 +19979,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ...face,
       ...horns,
       ...pouch9,
-    ], "zerg", [...clawGrip]);
+    ], "zerg", [...clawGrip, ...belly9]);
   },
   /* 드랍십(실물 참고) — 양옆 굵은 엔진 포드(앞 단면이 둥글게 보인다) + 가운데 각진
      몸통 + 뒤쪽 수직 꼬리날개. */
