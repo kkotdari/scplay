@@ -853,6 +853,68 @@ export function prismZFaces(
   return tagKey(faces, depthNow(cx, cy) + Math.min(h, rad));
 }
 
+/** 두 단면을 잇는 **다각 뿔대** — prismZFaces(같은 단면을 위로 민 기둥)의 일반형이다.
+ *  아래 단면(planA, zA)과 위 단면(planB, zB)은 꼭짓점 수가 같아야 하고, i번 꼭짓점끼리
+ *  이어진다. 옆면이 기울면 그만큼 법선이 하늘을 향하므로(frustumFaces3의 nzOf와 같은 셈)
+ *  내려다보는 카메라에 그 벽이 밝게 잡힌다.
+ *  왜 필요한가: spirePillar는 단면이 늘 정다각형(또는 눌린 타원)이라 '뒤만 한 면인'
+ *  단면을 못 그리고, prismZFaces는 임의 단면을 그리지만 위아래가 같아 좁아지지 않는다. */
+export function loftZFaces(
+  planA: readonly (readonly [number, number])[], zA: number,
+  planB: readonly (readonly [number, number])[], zB: number,
+  capTop = true,
+): ShapeFace[] {
+  const n = Math.min(planA.length, planB.length);
+  let cx = 0;
+  let cy = 0;
+  for (let i = 0; i < n; i += 1) { cx += planA[i][0] + planB[i][0]; cy += planA[i][1] + planB[i][1]; }
+  cx /= n * 2;
+  cy /= n * 2;
+  const h = zB - zA;
+  let rad = 0;
+  for (let i = 0; i < n; i += 1) {
+    rad = Math.max(rad, Math.hypot(planA[i][0] - cx, planA[i][1] - cy),
+      Math.hypot(planB[i][0] - cx, planB[i][1] - cy));
+  }
+  type Wall = { d: string; n: [number, number]; nz: number; k: number };
+  const walls: Wall[] = [];
+  for (let i = 0; i < n; i += 1) {
+    const j = (i + 1) % n;
+    const ax = (planA[i][0] + planA[j][0]) / 2 - cx;
+    const ay = (planA[i][1] + planA[j][1]) / 2 - cy;
+    const bx = (planB[i][0] + planB[j][0]) / 2 - cx;
+    const by = (planB[i][1] + planB[j][1]) / 2 - cy;
+    const mx = (ax + bx) / 2;
+    const my = (ay + by) / 2;
+    const len = Math.hypot(mx, my) || 1;
+    const eA = Math.hypot(ax, ay);
+    const eB = Math.hypot(bx, by);
+    walls.push({
+      d: polyPath3([
+        [planA[i][0], planA[i][1], zA], [planA[j][0], planA[j][1], zA],
+        [planB[j][0], planB[j][1], zB], [planB[i][0], planB[i][1], zB],
+      ]),
+      n: [mx / len, my / len],
+      nz: (eA - eB) / (Math.hypot(h, eA - eB) || 1),
+      k: facingRatio(mx / len, my / len),
+    });
+  }
+  /* 벽은 **등진 것부터** 그린다(frustumFaces3의 ★와 같은 까닭) — 위가 좁으면 등진 벽도
+     법선의 위 성분으로 '보이는 벽'에 들어, 고정 차례면 그 덮개가 가까운 벽 위에 찍힌다. */
+  walls.sort((a, b) => a.k - b.k);
+  const faces: ShapeFace[] = [];
+  for (const w of walls) {
+    const { visible, face } = faceLight(w.n[0], w.n[1], w.nz);
+    if (!visible) continue;
+    faces.push(bodyFace(w.d), ...face(w.d));
+  }
+  if (capTop) {
+    const top = polyPath3(planB.map(([x, y]) => [x, y, zB] as [number, number, number]));
+    faces.push(bodyFace(top), topFace(top, OP.topSoft));
+  }
+  return tagKey(faces, depthNow(cx, cy) + Math.min(Math.abs(h), rad));
+}
+
 /** 눕힌 다각기둥 — **앞뒤가 밑면**이다(지적: "앞뒤가 밑면인 기둥이야"). 단면(plan)은
  *  (x, z) 평면의 다각형이고, 그것을 y0에서 앞으로 len만큼 민다. prismZFaces가 다각형을
  *  위로 미는 것과 짝이고, prismXFaces(옆으로 미는 것)와는 미는 축이 다르다.

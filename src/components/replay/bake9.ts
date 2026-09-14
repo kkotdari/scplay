@@ -6,7 +6,7 @@ import { GAP9, pNow } from "./perf9";
 import { cx } from "./cx";
 import { TIER_GEN9 } from "./tierTable.gen";
 import { kT } from "../../utils/openbwTracks";
-import { FACE_GRAIN9, annulusPath, bandPath, bodyFace, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
+import { FACE_GRAIN9, loftZFaces, annulusPath, bandPath, bodyFace, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
 import { BUILD_STAGES, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, SPIN_STEPS, bldNormOf, modelInkOf, modelNormOf } from "./engine9";
 import { type UnitDrawOp } from "./engine9";
 /** 주소 해시(`#pitch=`·`#nocreep` 같은 진단 스위치) — 굽기 일꾼 안에서는 location.hash가 빈 문자열(blob 주소)이라,
@@ -13043,24 +13043,42 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          밑에서 위까지 한 기울기라 '위만 깎인' 꼴이 안 나온다 — 마디를 둘로 두고 아래 마디는
          거의 곧게(1.62 → 1.55), 위 마디만 크게 들여(1.55 → 1.10) 그으면 어깨가 생긴다.
          팔각이라 그 꺾임이 여덟 면 모두에 나고, 정면에서는 윗면 양옆의 사선으로 읽힌다. */
-    out.push(...tagKey(raceBase(spirePillar({
-      /* 낮추는 몫은 **밑에서** 가져온다(z0 5.35 → 5.70) — 뚜껑을 내리면 함체 위와 날개
-         뿌리·목 사이에 틈이 벌어져 배가 뚫려 보인다(실제로 그랬다). 뚜껑은 7.10 그대로다. */
-      x: 0, y: -0.6, z0: 5.7, h: 1.4, w: 1.62,
-      /* 뚜껑을 **그린다**(caps) — 안 그리면 어깨가 좁아진 만큼 뚜껑 자리가 열려, 앞에서
-         볼 때 그 구멍으로 배경이 비친다(실제로 그랬다). 대신 위 반폭을 0.95까지 들여
-         드러나는 뚜껑을 작게 하고 어깨의 사선을 더 세운다. */
-      segs: 2, sides: 8, hold: 0, taper: 1, caps: "both",
-      widthOf: widthCurve([[0, 1.62], [0.5, 1.55], [1, 0.95]]),
-    }), "terran"), key9(0, -0.6, 6.4)));
+    /* ★ **뒤는 한 면**이다(요청: "동체 뒷부분은 3면이 아닌 일자로 변경, 추진체가 붙을
+       공간이 있게") — 팔각 기둥은 뒤가 '뒷면 + 빗면 둘'이라, 추진체 셋이 저마다 다른
+       기울기의 면에 얹혀 뿌리가 공중에 떴다. 단면의 뒤 세 변을 **폭을 꽉 채운 한 변**으로
+       갈아 곧은 뒷벽을 만든다: 앞 다섯 꼭짓점은 팔각 그대로 두고 뒤 두 귀만 뒤 평면까지
+       민 육각이다. 뒷벽 깊이(HBY9)는 팔각의 뒷면과 같아 함체가 길어지지도 않는다.
+       ★ spirePillar는 못 쓴다 — 단면이 늘 정다각형(또는 눌린 타원)이라 '뒤만 한 면'을
+         못 그린다. 곧은 아래 마디는 prismZFaces, 좁아지는 어깨는 loftZFaces(새 헬퍼)로
+         두 단면을 이어 만든다. 어깨에서도 뒤 귀는 같은 평면(HBY9)에 남아 **뒷벽은 위까지
+         한 면**이고, 좁아지는 것은 앞과 옆뿐이다. */
+    const HC9 = -0.6;        // 함체 중심 y
+    const HW9 = 1.497;       // 반폭 — 옛 팔각(외접 1.62)의 모서리 x
+    const HS9 = 0.62;        // 팔각의 짧은 쪽
+    const HBY9 = HC9 - HW9;  // 뒷벽 — 옛 팔각 뒷면과 같은 깊이
+    /** 함체 단면 — k는 앞·옆의 오므린 몫이고, 뒤 귀는 늘 뒷벽 평면에 남는다. */
+    const hullPlan9 = (k9h: number): [number, number][] => [
+      [HW9 * k9h, HC9 + HS9 * k9h], [HS9 * k9h, HC9 + HW9 * k9h],
+      [-HS9 * k9h, HC9 + HW9 * k9h], [-HW9 * k9h, HC9 + HS9 * k9h],
+      [-HW9 * k9h, HBY9], [HW9 * k9h, HBY9],
+    ];
+    /* 높이는 그대로 5.70~7.10이다 — 아래 0.75는 곧게(옛 1.62→1.55 구간), 위 0.65에서
+       어깨가 0.586배(옛 반폭 0.95/1.62)로 들어간다. */
+    out.push(...tagKey(raceBase([
+      ...prismZFaces(hullPlan9(1), 5.7, 0.75, false),
+      ...loftZFaces(hullPlan9(1), 6.45, hullPlan9(0.586), 7.1),
+    ], "terran"), key9(0, HC9, 6.4)));
     /* ④-b 갑판판 — 함체 뚜껑을 덮는 얕은 팔각 판(요청: "밝은 갑판판 덮어 주고").
        기둥의 뚜껑 낯은 어두워서, 어깨가 좁아진 만큼 드러난 그 자리가 검은 구멍처럼 보였다.
        같은 평면에 **윗면을 가진 얕은 판**을 한 장 얹으면 그 낯이 밝게 서고(위를 보는 면이라
        광을 받는다) 뚜껑은 그 밑에 묻힌다. 함체 어깨(반폭 0.95)보다 한 뼘 넓게 잡아 테두리가
        한 단 드러나게 한다. */
+    /* 갑판판의 뒤도 함체를 따라 **일자**다 — 팔각 그대로 두면 곧아진 뒷어깨 위에 빈
+       구석이 남아 함체 뚜껑이 드러난다. 뒤 귀는 뒷벽(HBY9)보다 한 뼘 앞(0.07)에 세워
+       판이 벽 밖으로 안 나가게 한다. */
     out.push(...tagKey(raceBase(prismZFaces([
       [0.94, -0.21], [0.39, 0.34], [-0.39, 0.34], [-0.94, -0.21],
-      [-0.94, -0.99], [-0.39, -1.54], [0.39, -1.54], [0.94, -0.99],
+      [-0.94, HBY9 + 0.07], [0.94, HBY9 + 0.07],
     ], 7.05, 0.14), "terran"), key9(0, -0.6, 7.12)));
     /* ⑤ 목 — 앞뒤가 밑면인 눕힌 팔각기둥이라 띠가 관을 두르는 고리가 된다(세워 놓으면 띠가
        위아래로 쌓인 원판이 된다). **폭을 넓혔다**(지적: 0.7 → 1.05) — 좁으면 머리와 몸이
