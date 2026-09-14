@@ -6010,6 +6010,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /** 밑동 단(아래 GOLDD 절두체)의 높이 — 기둥 받침판은 이 단 **위**에 앉는다(요청: "모퉁이는 가려지고
      *  기둥과 밑받침판이 보여야 됨"). 땅(z 0)에 두면 받침판이 단 속에 묻혀 안 보인다. */
     const PLINTH_Z9 = 0.55;
+    /** 본체 절두체의 깊이 키(frustumFaces3와 같은 셈: 가운데 + 앞 모퉁이까지의 깊이) — 기둥이 이 위에 서야 모서리를 덮는다. */
+    const bodyKey9 = depthNow(0, 0) + Math.min(6.4, 4.5 * Math.abs(depthNow(1, 0)) + 4.5 * Math.abs(depthNow(0, 1)));
+    /** 이 모퉁이의 기둥·받침판 키 — **뒤 모퉁이만** 본체 뒤, 앞·옆 모퉁이는 본체 위(지적: "피라미드 모서리가 겉으로
+     *  보이면 안 되고 기둥과 기둥 받침에 가려져야지" — 옆 모퉁이는 깊이가 0 언저리라 +1.3으로는 본체(앞 모퉁이까지의
+     *  깊이 ≈ 6)를 못 이겨 모서리가 기둥 앞으로 튀어나왔다). 뒤 모퉁이의 깊이는 −5 언저리라 −2를 문턱으로 가른다. */
+    const pillarKey9 = (px: number, py: number, lift: number): number =>
+      depthNow(px, py) > -2 ? bodyKey9 + lift : depthNow(px, py) + lift;
     const pillar = (px: number, py: number): ShapeFace[] => withModelZOff(PLINTH_Z9, () => shape(((): ShapeFace[] => {
       return [
         // 받침 원반도 제 깊이(지적: 기둥 바닥의 원들이 안 가려짐).
@@ -6030,7 +6037,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            뒤 모퉁이는 깊이가 음수라 여전히 본체 뒤에 든다. */
         ...tagKey(spirePillar({
           x: px, y: py, z0: -PLINTH_Z9, h: PLINTH_Z9 + 0.45, w: 1.1, tipW: 1.1, sides: 8, segs: 1, caps: "top",
-        }).map((f9) => { f9[3] = depthNow(px, py) + 1.3; return f9; }), depthNow(px, py) + 1.3),
+        }).map((f9) => { f9[3] = pillarKey9(px, py, 1.3); return f9; }), pillarKey9(px, py, 1.3)),
         /* 끝을 도려내고 팁을 꽂는다(재재재지적: 화살촉처럼 튀지 않게) — 팁 원뿔이
            그 높이의 기둥 굵기보다 늘 살짝 굵어 기둥 끝을 완전히 감싼다.
            기둥 몸도 금빛(재작도) — 넷이 통째로 개인색이면 종족이 안 읽힌다. */
@@ -6042,7 +6049,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ...tagKey(spirePillar({
           // 밑동 0.8배(요청: "진짜 기둥의 밑동도 0.8배 — 그 위도 자연스럽게 축소되어 이어지게"): 0.85 → 0.68, 끝 0.3 → 0.24.
           x: px, y: py, z0: 0.4, h: 6.4, w: 0.68, tipW: 0.24, sides: 8, segs: 3, fill: "#d4bd3c",
-        }), depthNow(px, py) + 1.5),   // 받침판(+1.3)보다 한 단 앞 — 기둥이 받침판 위에 선다
+        }), pillarKey9(px, py, 1.5)),   // 받침판(+1.3)보다 한 단 앞 — 기둥이 받침판 위에 선다
         /* 오벨리스크 보석은 **개인색**이다(지적: "넥서스 사선에서 개인색 장식 포인트가
            안보임") — 여태 여기까지 사이언으로 못 박혀 있어서, 화면에 남은 개인색은
            꼭대기 받침 띠 하나뿐이었다. 그 띠는 지붕에 가려 사선에서 거의 안 보인다.
@@ -6061,7 +6068,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ...tagKey(spirePillar({
           x: px, y: py, z0: 6.8, h: 2.1, w: 0.27, tipW: 0.02, sides: 8, segs: 2,   // 몸 끝(0.24)을 감싸는 0.27
           fill: glowLit("#e6fffb", "#83f7e8"),
-        }), depthNow(px, py) + 1.6),
+        }), pillarKey9(px, py, 1.6)),
         // (걷어냄) 기둥 어깨의 타원 하이라이트 — 리본 시절의 광택 대용이었다. 진짜 원뿔은 면마다 빛을 받는다.
       ];
     })()));
