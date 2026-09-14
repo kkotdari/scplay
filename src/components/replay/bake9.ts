@@ -21354,8 +21354,15 @@ export const BRUSH9 = {
    *    식이라(destination-out) 빛이 실린 만큼만 검어진다 — 띠 안에서 가장 진하고 띠 밖의
    *    고른 몫 위에서는 옅다. 곧 "반사광 띠 안에서 어둡게"가 저절로 된다. */
   bright: 0.28,
-  /** 어두운 고랑의 세기 — 아래 두 곳에 함께 걸린다(빛 파내기 + 검은 겹). */
+  /** 어두운 고랑의 세기 — 검은 겹에 걸린다. */
   dark: 1,
+  /** 고랑이 **반사광을 파내는** 몫(0이면 안 판다).
+   *  ★ 0이다(지적: "검정색 스크래치들이 보이는 위에 넓게 반사광이 깔린다는 거였는데") —
+   *    긁힘은 쇠에 파인 자국이고, 반사광은 그 위를 **덮고 지나가는 빛**이다. 고랑이 빛을
+   *    파내면 반사광이 결마다 끊겨 '빛이 결 밑에 깔린' 꼴이 된다. 차례는 이렇다:
+   *      쇠 → 검은 결(source-atop) → 그 위로 넓은 반사광 + 번짐(lighter).
+   *    빛이 더해지는 합성이라 결은 그 아래에서 어둡게 비쳐 남고, 띠는 끊기지 않는다. */
+  carve: 0,
   /** 검은 겹의 합성 알파 — 고랑을 **바탕보다 어둡게** 만드는 몫(0이면 파내기만).
    *  ★ 파내기(destination-out)만으로는 깔린 빛을 되돌릴 뿐이라, 빛이 적은 자리에서는
    *    고랑이 안 보인다. 원작의 금속은 바탕 자체에 검은 결이 파여 있다(참고 그림) —
@@ -21640,19 +21647,24 @@ export function glowBake9(
           ? k9 * BRUSH9.a * soft9 * (0.5 + s9 * 0.9)
           : BRUSH9.a * BRUSH9.dark * soft9 * (s9 - BRUSH9.bright * 0.5) * (shady9 ? k9 : 1);
         const dk9 = s9 >= BRUSH9.bright;
-        if (!dk9) {
-          g2.globalCompositeOperation = "source-over";
-          g2.fillStyle = BR9;
-        } else {
-          g2.globalCompositeOperation = "destination-out";
-          g2.fillStyle = "#000";
-        }
-        /* 결은 낯 **전체**에 있고(옅게), 광택 띠 안에서만 환하다. */
-        g2.globalAlpha = al9 * BRUSH9.dim;
-        g2.fillRect(gr9.aLo, b9 - w9 / 2, aH9, w9);
-        if (!shady9) {
-          g2.globalAlpha = al9 * (1 - BRUSH9.dim);
-          g2.fillRect(aA9, b9 - w9 / 2, aB9 - aA9, w9);
+        /* 어두운 줄은 빛 겹을 **안 판다**(BRUSH9.carve의 ★) — 판 만큼 반사광이 결마다
+           끊긴다. 밝은 줄만 빛 겹에 긋고, 어두운 것은 아래 검은 겹이 진다. */
+        const cv9 = dk9 ? BRUSH9.carve : 1;
+        if (cv9 > 0) {
+          if (!dk9) {
+            g2.globalCompositeOperation = "source-over";
+            g2.fillStyle = BR9;
+          } else {
+            g2.globalCompositeOperation = "destination-out";
+            g2.fillStyle = "#000";
+          }
+          /* 결은 낯 **전체**에 있고(옅게), 광택 띠 안에서만 환하다. */
+          g2.globalAlpha = al9 * BRUSH9.dim * cv9;
+          g2.fillRect(gr9.aLo, b9 - w9 / 2, aH9, w9);
+          if (!shady9) {
+            g2.globalAlpha = al9 * (1 - BRUSH9.dim) * cv9;
+            g2.fillRect(aA9, b9 - w9 / 2, aB9 - aA9, w9);
+          }
         }
         /* 어두운 줄은 **바탕까지 파고든다** — 파내기만으로는 깔린 빛을 되돌릴 뿐이라
            빛이 적은 자리에서 고랑이 안 보인다(BRUSH9.darkA의 ★). 띠 안을 더 진하게 둔다:
