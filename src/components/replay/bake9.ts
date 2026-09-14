@@ -6087,7 +6087,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         /* 받침은 **둥근 팔각 발판**이다(재지적, 원작 그림: 테란 건물 발판 같은 둥근 단) — 한때 ㄱ자로 깎아 끼웠는데
            원작은 모퉁이에 얹힌 둥근 단이다. 땅에서 밑동 단 위까지 한 통(z 0 → 1.0). */
         ...tagKey(spirePillar({
-          x: px, y: py, z0: -PLINTH_Z9, h: PLINTH_Z9 + 0.45, w: 1.1, tipW: 1.1, sides: 8, segs: 1, caps: "top",
+          x: px, y: py, z0: -PLINTH_Z9, h: PLINTH_Z9 + 0.45, w: 1.8, tipW: 1.8, sides: 8, segs: 1, caps: "top",
         }).map((f9) => { f9[3] = pillarKey9(px, py, 1.3); return f9; }), pillarKey9(px, py, 1.3)),
         /* 끝을 도려내고 팁을 꽂는다(재재재지적: 화살촉처럼 튀지 않게) — 팁 원뿔이
            그 높이의 기둥 굵기보다 늘 살짝 굵어 기둥 끝을 완전히 감싼다.
@@ -6102,12 +6102,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            면이 대각 **바깥**을 보게 세운다(u축 = 바깥 방향에 수직인 접선). 끝은 중심 쪽으로 1.3 밀려 기운다. */
         /* ★ 뿌리부터 기울지 않고 **끝으로 가며 휜다**(재지적) — lean(곧게 밀림) 대신 curve(끝으로 갈수록 더해지는
            휨)로 1.3을 준다: 밑동은 수직으로 서고 위로 갈수록 안쪽으로 굽는다. 단면은 **바깥 꼭짓점의 삼각**(재지적:
-           "바깥쪽이 좀 튀어나오는 형태, 삼각뿔마냥") — sides 3에 phase π/2로 꼭짓점 하나가 v축(바깥)을 보고 평평한
-           변이 안쪽(본체 쪽)을 향한다. oval 0.75로 바깥으로 도톰하다. */
+           "바깥쪽이 좀 튀어나오는 형태, 삼각뿔마냥") — sides 3, oval 0.75로 바깥으로 도톰하다.
+           ★ v축은 T×u라 **안쪽**을 본다(π/2는 꼭짓점이 본체 쪽이었다 — 재지적 "빗변이 바깥으로 향하게 돌리고") →
+           phase −π/2로 꼭짓점(빗변이 만나는 모)이 바깥을 보고 평평한 변이 본체에 붙는다. 밑 반폭 1.7 → 끝 0.2로
+           더 극적으로 좁아지고(재지적 "밑면이 더 넓어야"), 안쪽 휨은 1.3 → 0.8로 약하게. 받침 팔각도 1.8로 넓힌다. */
         ...tagKey(spirePillar({
-          x: px, y: py, z0: 0.4, h: 6.4, w: 1.2, tipW: 0.28, sides: 3, segs: 6, fill: "#d4bd3c",
-          oval: 0.75, phase: Math.PI / 2, ref: [-py / Math.hypot(px, py), px / Math.hypot(px, py), 0],
-          curveX: (-px / Math.hypot(px, py)) * 1.3, curveY: (-py / Math.hypot(px, py)) * 1.3,
+          x: px, y: py, z0: 0.4, h: 6.4, w: 1.7, tipW: 0.2, sides: 3, segs: 6, fill: "#d4bd3c",
+          oval: 0.75, phase: -Math.PI / 2, ref: [-py / Math.hypot(px, py), px / Math.hypot(px, py), 0],
+          curveX: (-px / Math.hypot(px, py)) * 0.8, curveY: (-py / Math.hypot(px, py)) * 0.8,
         }), pillarKey9(px, py, 1.5)),   // 받침판(+1.3)보다 한 단 앞 — 기둥이 받침판 위에 선다
         /* 오벨리스크 보석은 **개인색**이다(지적: "넥서스 사선에서 개인색 장식 포인트가
            안보임") — 여태 여기까지 사이언으로 못 박혀 있어서, 화면에 남은 개인색은
@@ -6125,8 +6127,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            glowLit은 그 깃발 하나를 보고 색을 고른다 — 꺼지면 식은 아쿠아, 켜지면 흰빛에
            가깝게. 모양은 그대로고 색만 갈리므로 굽는 삯도 안 는다. */
         ...tagKey(spirePillar({
-          // 방패 끝(안쪽으로 1.3 기운 자리)에서 이어 선다 — 몸 끝(0.3)을 감싸는 0.33, 기욺도 같은 비로 잇는다.
-          x: px + (-px / Math.hypot(px, py)) * 1.3, y: py + (-py / Math.hypot(px, py)) * 1.3,
+          // 방패 끝(안쪽으로 0.8 기운 자리)에서 이어 선다 — 몸 끝(0.3)을 감싸는 0.33, 기욺도 같은 비로 잇는다.
+          x: px + (-px / Math.hypot(px, py)) * 0.8, y: py + (-py / Math.hypot(px, py)) * 0.8,
           z0: 6.8, h: 2.1, w: 0.33, tipW: 0.02, sides: 8, segs: 2,
           leanX: (-px / Math.hypot(px, py)) * 0.4, leanY: (-py / Math.hypot(px, py)) * 0.4,
           fill: glowLit("#e6fffb", "#83f7e8"),
