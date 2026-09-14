@@ -19030,7 +19030,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         : 0.85 - 0.34 * ((t9 - 0.74) / 0.26));
     /** 머리 뿌리 — 목 끝 자리. 얼굴·머리장식이 여기서 난다. */
     const headAt = body(1);
-    markMuzzle9(0, headAt[1] + 0.25 + 0.7, headAt[2] - 0.45);   // 아가리 — 가시가 나는 자리
+    markMuzzle9(0, headAt[1] + 0.25 + 0.6, headAt[2] - 0.28);   // 아가리 — 가시가 나는 자리(재요청: 살짝 높여 입으로 — 얼굴의 아가리 z −0.45+0.1·0.84 언저리)
     const out: ShapeFace[] = [];
     /* ① 몸 한 획 — 배(앞)는 밝은 살, 등(뒤)은 짙은 살. 이음매가 없으니 색결도 안 끊긴다. */
     out.push(...tagKey(spirePillar({
