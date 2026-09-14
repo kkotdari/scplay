@@ -14288,40 +14288,58 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      몸을 반으로 줄이고, 날개는 **앞 가장자리 뼈 + 손가락 사이가 파인 막**으로 다시
      짠다(뮤탈 날개와 같은 규칙, 마디는 둘). 앞아래로 굽은 가시 한 쌍이 표적에
      박히는 그 끝이다. */
+  /* 스커지(재작도 — 원화) ─────────────────────────────────────────────────────────
+     원화가 말하는 것(요청: "커세어랑 비슷한 형태 · 몸은 ㄱ자로 꺾여 있고 꼬리는 앞을 향하고 · 양팔 안쪽에 막 · 팔 끝에
+     날카로운 손톱 하나씩 · 얼굴은 눈코가 없고 이빨만 아래위로"):
+       ① 앞의 **머리 = 아가리**다 — 눈도 코도 없이 위아래 이빨만. 길쭉한 살덩이 앞끝에 상아 이빨을 위·아래 줄로 박는다.
+       ② 몸은 **ㄱ자** — 머리 뒤에서 아래로 꺾여 내려가다 **앞으로** 말려 나오는 꼬리, 끝은 상아 발톱.
+       ③ 양팔은 어깨에서 바깥·뒤로 굽고(팔꿈치 하나), 팔 **안쪽**에 막이 펼쳐진다(팔 – 몸통 사이). 팔 끝은 손톱 하나.
+     색(요청): 몸·팔·꼬리는 **저그 기본색**(RACE_BASE_TONE.zerg), **막이 임자색**(칠하지 않는다). 이빨·손톱·발톱은 상아. */
   scourge: () => {
-    const wing = (m: 1 | -1): ShapeFace[] => {
-      const P = (x: number, y: number, z: number): [number, number, number] => [m * x, y, z];
-      const b0 = P(0.32, 0.2, 6);
-      const b1 = P(1.45, 0.95, 7.05);
-      const b2 = P(2.75, 0.5, 7.6);
-      const f1 = P(1.5, -1.15, 5.95);
-      const f2 = P(2.75, -0.85, 6.55);
-      const web = polyPath3([
-        b0, b1, b2,
-        f2, P(2.05, -0.35, 6.75),
-        f1, P(0.8, -0.3, 5.95),
-        P(0.28, -0.3, 5.8),
-      ]);
-      return [
-        [web, 1, "#c68a62"] as ShapeFace,
-        m > 0 ? sideFace(web, 0.18) : topFace(web, 0.13),
-        ...paintBase(rodFaces(b0[0], b0[1], b0[2], b1[0], b1[1], b1[2], 0.24), "#8a5f43"),
-        ...paintBase(rodFaces(b1[0], b1[1], b1[2], b2[0], b2[1], b2[2], 0.2), "#8a5f43"),
-        ...paintBase(spikeHorn(b1[0], b1[1], b1[2], f1[0], f1[1], f1[2], 0.22,
-          undefined, 5, 0.1, 0, -1), "#8a5f43"),
-        ...paintBase(spikeHorn(b2[0], b2[1], b2[2], f2[0], f2[1], f2[2], 0.2,
-          undefined, 5, 0.1, 0, -1), "#8a5f43"),
-      ];
-    };
-    return [
-      ...tagKey(wing(-1), depthNow(-1.4, 0) * 1.6),
-      ...tagKey(wing(1), depthNow(1.4, 0) * 1.6),
-      // 몸 — 반으로 줄인 작은 구. 개인색이라 칠하지 않는다.
-      ...tagKey(sphereFaces3(0, 0, 6.05, 0.62), depthNow(0, 0) * 1.6 + 2),
-      // 앞으로 굽은 상아 가시 한 쌍 — 들이받는 끝.
-      ...ivory(spikeHorn(-0.3, 0.4, 6.05, -0.5, 1.75, 5.5, 0.3, undefined, 6, 0.2, -0.5, 0.8)),
-      ...ivory(spikeHorn(0.3, 0.4, 6.05, 0.5, 1.75, 5.5, 0.3, undefined, 6, 0.2, 0.5, 0.8)),
-    ];
+    const Z9 = 6.05;
+    const BODY = RACE_BASE_TONE.zerg;
+    const out: ShapeFace[] = [];
+    /* ① 머리 — y 1.7(앞) → −0.5(뒤)의 살덩이, 앞이 뭉툭하고 뒤로 가늘다. */
+    out.push(...tagKey(paintBase(spirePillar({
+      x: 0, y: 0, h: 1, w: 1, segs: 7, sides: 8, caps: "none", ref: [1, 0, 0], trueNormal: true,
+      path: (t9: number): [number, number, number] => [0, 1.7 - 2.2 * t9, Z9 + 0.15 * Math.sin(Math.PI * t9) - 0.15 * t9],
+      widthOf: (t9: number): number => Math.max(0.05, 0.62 * Math.sin(Math.PI * Math.min(1, t9 * 0.85 + 0.15)) ** 0.7),
+    }), BODY), depthNow(0, 0.6) * 1.6 + 2));
+    /* 이빨 — 위·아래 줄 셋씩, 앞끝(y 1.5)에서 앞으로 내민다(위 줄은 아래로, 아래 줄은 위로 살짝 굽는다). */
+    for (const [tx9, up9] of [[-0.3, 1], [0, 1], [0.3, 1], [-0.24, -1], [0.08, -1], [0.34, -1]] as [number, number][]) {
+      const tz9 = Z9 + up9 * 0.2;
+      out.push(...tagKey(ivory(spikeHorn(tx9, 1.35, tz9, tx9 * 1.1, 1.95, tz9 - up9 * 0.32, 0.16, undefined, 5, 0.08, 0, 0.3)),
+        depthNow(0, 1.5) * 1.6 + 2.6));
+    }
+    /* ② 꼬리 — 머리 뒤(0, −0.5, Z9−0.1)에서 아래로 꺾여 앞으로 말린다(2차 베지에), 끝은 앞을 보는 발톱. */
+    const T0: [number, number, number] = [0, -0.45, Z9 - 0.15];
+    const TC: [number, number, number] = [0, -1.9, Z9 - 1.5];
+    const T1: [number, number, number] = [0, 0.7, Z9 - 1.75];
+    const bz9 = (a: number, b: number, c: number, t: number): number => (1 - t) * (1 - t) * a + 2 * (1 - t) * t * b + t * t * c;
+    const tpath9 = (t: number): [number, number, number] => [bz9(T0[0], TC[0], T1[0], t), bz9(T0[1], TC[1], T1[1], t), bz9(T0[2], TC[2], T1[2], t)];
+    out.push(...tagKey(paintBase(spirePillar({
+      x: 0, y: 0, h: 1, w: 1, segs: 9, sides: 7, caps: "none", ref: [1, 0, 0], trueNormal: true,
+      path: tpath9, widthOf: (t9: number): number => 0.3 - 0.2 * t9,
+    }), BODY), depthNow(0, -0.3) * 1.6 + 1.2));
+    out.push(...tagKey(ivory(spikeHorn(T1[0], T1[1] - 0.1, T1[2], 0, T1[1] + 0.85, T1[2] + 0.15, 0.2, undefined, 5, 0.12, 0, -0.5)),
+      depthNow(0, 0.8) * 1.6 + 1.3));
+    /* ③ 팔 + 막 — 어깨(±0.45, 0.5) → 팔꿈치(±1.6, 0.95, 위로) → 끝(±2.8, 0.1). 막은 팔 안쪽: 어깨·팔꿈치·끝·몸 뒤(±0.35, −0.6). */
+    for (const m9 of [-1, 1] as const) {
+      const S: [number, number, number] = [m9 * 0.45, 0.5, Z9 + 0.1];
+      const EL: [number, number, number] = [m9 * 1.6, 0.95, Z9 + 0.85];
+      const TP: [number, number, number] = [m9 * 2.8, 0.1, Z9 + 1.15];
+      const BK: [number, number, number] = [m9 * 0.35, -0.6, Z9 - 0.05];
+      const web9 = polyPath3([S, EL, TP, [m9 * 2.0, -0.55, Z9 + 0.7], [m9 * 1.0, -0.85, Z9 + 0.25], BK]);
+      const k9 = depthNow(m9 * 1.4, 0.1) * 1.6;
+      out.push(...tagKey([
+        [web9, 1] as ShapeFace, m9 > 0 ? sideFace(web9, 0.16) : topFace(web9, 0.12),   // 막 — 임자색
+        ...paintBase(rodFaces(S[0], S[1], S[2], EL[0], EL[1], EL[2], 0.26), BODY),
+        ...paintBase(spikeHorn(EL[0], EL[1], EL[2], TP[0], TP[1], TP[2], 0.22, undefined, 6, 0.1, 0, -0.6), BODY),
+        // 손톱 — 팔 끝에서 앞·아래로 굽는 상아 갈고리 하나
+        ...ivory(spikeHorn(TP[0], TP[1], TP[2], TP[0] + m9 * 0.25, TP[1] + 1.0, TP[2] - 0.45, 0.2, undefined, 5, 0.2, m9 * 0.2, 0.9)),
+      ], k9));
+    }
+    return out;
   },
   /* 퀸(전면 재작도 — 사진 samples/queen1·2.jpg 기준) ──────────────────────────
      사진이 말하는 것:
