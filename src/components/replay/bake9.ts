@@ -14391,7 +14391,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ...paintBase(rodFaces(S[0], S[1], S[2], EL[0], EL[1], EL[2], 0.26), BODY),
         ...paintBase(spikeHorn(EL[0], EL[1], EL[2], TP[0], TP[1], TP[2], 0.22, undefined, 6, 0.1, 0, -0.6), BODY),
         // 손톱 — 팔 끝에서 앞·아래로 굽는 상아 갈고리 하나
-        ...ivory(spikeHorn(TP[0], TP[1], TP[2], TP[0] + m9 * 0.35, TP[1] + 0.95, TP[2] + 0.4, 0.2, undefined, 5, 0.2, m9 * 0.2, 0.9)),   // 손톱 — 피칭 뒤라 앞·위로
+        // 손톱 — 위가 아니라 **안쪽**으로 굽는다(재요청): 끝이 몸 쪽(−m9)·앞으로, 활도 안쪽으로
+        ...ivory(spikeHorn(TP[0], TP[1], TP[2], TP[0] - m9 * 0.7, TP[1] + 0.75, TP[2] - 0.05, 0.2, undefined, 5, 0.25, -m9 * 0.9, 0.3)),
       ], k9));
     }
     return out;
