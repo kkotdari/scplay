@@ -3670,38 +3670,23 @@ export const sunkenTongueFaces = (): ShapeFace[] => {
        u축이 늘 x라 세 마디가 한 결로 이어진다. */
     /* 굵기는 **오르는 다리에서 자란다**(재요청: "올라가는 기둥은 아래는 좀 가늘고 위로 갈수록 지금 굵기") —
        뿌리 0.6에서 호 들머리(t = L1/LSUM)까지 1.24로 굵어지고, 호와 내려오는 다리는 1.24 → 1.56 그대로다. */
-    ...spirePillar({
-      x: 0.25, y: -0.15, h: 1, w: 1.24, tipW: 1.56,   // (widthOf가 대신한다)
-      /* 끝 고리는 **닫는다**(caps "top") — 반구 마디는 접선 쪽으로 볼록해 카메라가 그 뒤를 볼 때(내려오는 다리 끝)
-         면이 등을 돌려 안 그려지고, 열린 관 속이 검은 타원으로 비쳤다(실측). 끝 원판을 닫으면 그 자리는 관의
-         단면으로 서고, 반구는 보이는 방향에서만 둥근 윤곽을 더한다. */
-      segs: 30, sides: 10, hold: 0.05, taper: 1, caps: "none", ref: [1, 0, 0],
-      path: spine9,
-      widthOf: (t9: number): number => widthAll9(t9 * EXT9),
-    }),
-    /* 끝 단면은 **혀 색의 원판**으로 막는다(지적: "단면 비치지 않게") — caps "top"은 동굴 입구 같은 어두운 뚜껑이라
-       단면이 검게 비쳤고, 안 막으면 등진 속벽이 걷혀 배경이 비쳤다. 접선에 수직인 원판을 관 끝 고리 자리에 같은
-       색으로 깔면 반구 밑이 안 보이는 각에서도 막힌 끝으로 읽힌다. */
+    /* ★ 관·끝 원판·반구를 **한 spirePillar**로 짓는다(재재지적: "혀 단면 또 보이네") — 셋을 따로 두면 같은 키 안에서
+       배열 차례로 그려져, 반구 쪽에서 볼 때 나중 것(원판)이 반구를 덮거나 먼저 것(반구)이 몸에 덮였다. 한 기둥이면
+       마디 낯들이 제 깊이로 함께 정렬되므로 끝 반구도 몸도 제 자리에 선다. 등뼈 뒤에 접선 방향으로 반지름(tipR9)만큼
+       이어 붙이고, 굵기를 √(1−s²)로 줄여 반구가 된다(끝 0.02라 구멍이 없다). 마디 48 — 반구 몫(≈7%)에 서너 마디. */
     ...((): ShapeFace[] => {
-      const ux9 = 1; const uy9 = 0; const uz9 = 0;                          // u = x(관의 ref)
-      const dx9 = dv9[0] / dl9; const dy9 = dv9[1] / dl9; const dz9 = dv9[2] / dl9;
-      const vx9 = dy9 * uz9 - dz9 * uy9; const vy9 = dz9 * ux9 - dx9 * uz9; const vz9 = dx9 * uy9 - dy9 * ux9;
-      const vl9 = Math.hypot(vx9, vy9, vz9) || 1;
-      const ring9: [number, number, number][] = Array.from({ length: 12 }, (_, i9) => {
-        const a9 = (i9 / 12) * Math.PI * 2;
-        const c9 = Math.cos(a9) * tipR9; const s9 = Math.sin(a9) * tipR9;
-        return [tip9[0] + ux9 * c9 + (vx9 / vl9) * s9, tip9[1] + uy9 * c9 + (vy9 / vl9) * s9, tip9[2] + uz9 * c9 + (vz9 / vl9) * s9];
+      const bodyL9 = LSUM * EXT9; const fb9 = bodyL9 / (bodyL9 + tipR9);
+      return spirePillar({
+        x: 0.25, y: -0.15, h: 1, w: 1.24, tipW: 0.02,   // (widthOf가 대신한다)
+        segs: 48, sides: 10, hold: 0.05, taper: 1, caps: "none", ref: [1, 0, 0],
+        path: (t9: number): [number, number, number] => (t9 <= fb9 ? spineAll9((t9 / fb9) * EXT9) : capPath9((t9 - fb9) / (1 - fb9))),
+        widthOf: (t9: number): number => {
+          if (t9 <= fb9) return widthAll9((t9 / fb9) * EXT9);
+          const s9 = (t9 - fb9) / (1 - fb9);
+          return Math.max(0.02, tipR9 * Math.sqrt(Math.max(0, 1 - s9 * s9)));
+        },
       });
-      const d9 = polyPath3(ring9);
-      return [[d9, 1] as ShapeFace, sideFace(d9, 0.18)];
     })(),
-    // 끝 반구 — 관을 접선으로 r만큼 더 민 마디(위 ★). 관 끝 고리에서 이어지므로 이음이 없다.
-    ...spirePillar({
-      x: tip9[0], y: tip9[1], h: 1, w: tipR9, tipW: 0.02,
-      segs: 6, sides: 10, hold: 0, taper: 1, caps: "none", ref: [1, 0, 0],
-      path: capPath9,
-      widthOf: (t9: number): number => Math.max(0.02, tipR9 * Math.sqrt(Math.max(0, 1 - t9 * t9))),
-    }),
   ], "#c0472b")), 13);   // 더 붉게(요청): #b5713a → #c0472b
 };
 export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
@@ -6087,7 +6072,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         /* 받침은 **둥근 팔각 발판**이다(재지적, 원작 그림: 테란 건물 발판 같은 둥근 단) — 한때 ㄱ자로 깎아 끼웠는데
            원작은 모퉁이에 얹힌 둥근 단이다. 땅에서 밑동 단 위까지 한 통(z 0 → 1.0). */
         ...tagKey(spirePillar({
-          x: px, y: py, z0: -PLINTH_Z9, h: PLINTH_Z9 + 0.45, w: 1.8, tipW: 1.8, sides: 8, segs: 1, caps: "top",
+          x: px, y: py, z0: -PLINTH_Z9, h: PLINTH_Z9 + 0.45, w: 1.1, tipW: 1.1, sides: 8, segs: 1, caps: "top",
         }).map((f9) => { f9[3] = pillarKey9(px, py, 1.3); return f9; }), pillarKey9(px, py, 1.3)),
         /* 끝을 도려내고 팁을 꽂는다(재재재지적: 화살촉처럼 튀지 않게) — 팁 원뿔이
            그 높이의 기둥 굵기보다 늘 살짝 굵어 기둥 끝을 완전히 감싼다.
@@ -6104,10 +6089,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            휨)로 1.3을 준다: 밑동은 수직으로 서고 위로 갈수록 안쪽으로 굽는다. 단면은 **바깥 꼭짓점의 삼각**(재지적:
            "바깥쪽이 좀 튀어나오는 형태, 삼각뿔마냥") — sides 3, oval 0.75로 바깥으로 도톰하다.
            ★ v축은 T×u라 **안쪽**을 본다(π/2는 꼭짓점이 본체 쪽이었다 — 재지적 "빗변이 바깥으로 향하게 돌리고") →
-           phase −π/2로 꼭짓점(빗변이 만나는 모)이 바깥을 보고 평평한 변이 본체에 붙는다. 밑 반폭 1.7 → 끝 0.2로
-           더 극적으로 좁아지고(재지적 "밑면이 더 넓어야"), 안쪽 휨은 1.3 → 0.8로 약하게. 받침 팔각도 1.8로 넓힌다. */
+           phase −π/2로 꼭짓점(빗변이 만나는 모)이 바깥을 보고 평평한 변이 본체에 붙는다. 안쪽 휨은 1.3 → 0.8로
+           약하게. (밑 반폭을 1.7로 넓혔다가 원복 — "밑면이 더 넓어야"는 기둥이 아니라 **피라미드** 밑면이었다.) */
         ...tagKey(spirePillar({
-          x: px, y: py, z0: 0.4, h: 6.4, w: 1.7, tipW: 0.2, sides: 3, segs: 6, fill: "#d4bd3c",
+          x: px, y: py, z0: 0.4, h: 6.4, w: 1.2, tipW: 0.28, sides: 3, segs: 6, fill: "#d4bd3c",
           oval: 0.75, phase: -Math.PI / 2, ref: [-py / Math.hypot(px, py), px / Math.hypot(px, py), 0],
           curveX: (-px / Math.hypot(px, py)) * 0.8, curveY: (-py / Math.hypot(px, py)) * 0.8,
         }), pillarKey9(px, py, 1.5)),   // 받침판(+1.3)보다 한 단 앞 — 기둥이 받침판 위에 선다
@@ -6156,7 +6141,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        먹어야 해"). 4.6은 축이 모서리 위였고, 4.15면 축이 모서리 안쪽 0.5(대각)라 기둥 몸(밑 반폭 0.68)이 능선을
        삼키고 받침판(반지름 1.1)이 모퉁이를 사방으로 덮는다. 앞 모퉁이의 키는 본체보다 앞이라(위 +1.3/+1.5) 능선이
        기둥 속으로 사라진다. */
-    const PX9 = 4.15;   // 4.9 → 4.5 → 5.0 → 5.5 → 4.6 → 4.15
+    const BASE_W9 = 10.5;   // 피라미드 밑변(9 → 10.5)
+    const TOP_W9 = 2.4;     // 꼭대기 변(2.8 → 2.4)
+    const PX9 = BASE_W9 / 2 - 0.35;   // 4.9 → 4.5 → 5.0 → 5.5 → 4.6 → 4.15(밑변 9) → 밑변 반폭 − 0.35(모서리 안쪽 대각 0.5)
     const out: ShapeFace[] = [...pillar(-PX9, -PX9), ...pillar(PX9, -PX9)];
     // 몸통은 금빛 바탕(재작도) — 프로토스의 바탕색은 골드다.
     /* ★ 본체와 그 장식은 **밑동 단 위**에 앉는다(지적: "피라미드 높이 확인해 봐 — 발판 높이를 고려 안 하고 얹어
@@ -6164,12 +6151,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        표창과 견주면 본체만 반 단 낮게 가라앉아 보였다. 여기부터 빌더 끝까지 z를 단 높이만큼 올린다 — 단과 표창만
        withModelZOff(0)으로 땅에 남긴다(기둥은 제 것으로 같은 값을 다시 세운다). */
     withModelZOff(PLINTH_Z9, () => {
-    out.push(...paintBase(frustumFaces3(0, 0, 9, 9, 2.8, 2.8, 6.4), GOLD9));
+    /* ★ 피라미드 **밑면을 넓히고 위를 더 좁힌다**(지적: "넥서스 밑면이 더 넓어야 할 듯, 더 극적으로 좁아지게") —
+       9 → 10.5, 꼭대기 2.8 → 2.4. half()·밑동 단·기둥 자리(PX9)가 함께 따라간다. */
+    out.push(...paintBase(frustumFaces3(0, 0, BASE_W9, BASE_W9, TOP_W9, TOP_W9, 6.4), GOLD9));
     /* 밑동 한 단(사진) — 몸보다 조금 넓은 짙은 금 받침이 깔려, 피라미드가 땅에서
        솟은 것이 아니라 단 위에 앉은 것으로 읽힌다. */
-    withModelZOff(0, () => out.push(...paintBase(frustumFaces3(0, 0, 9.8, 9.8, 9.2, 9.2, 0.55), GOLDD)));   // 밑동 단은 땅에
+    withModelZOff(0, () => out.push(...paintBase(frustumFaces3(0, 0, BASE_W9 + 0.8, BASE_W9 + 0.8, BASE_W9 + 0.2, BASE_W9 + 0.2, 0.55), GOLDD)));   // 밑동 단은 땅에
     // 앞면 능선 띠 — 경사면을 따라 층층이 가로 띠. 짙은 금으로 그늘을 넣어 층이 산다.
-    const half = (z: number): number => 4.5 - (4.5 - 1.4) * (z / 6.4);
+    const half = (z: number): number => BASE_W9 / 2 - (BASE_W9 / 2 - TOP_W9 / 2) * (z / 6.4);
     for (const bz of [1.4, 3, 4.6]) {
       const w0 = half(bz) - 0.35;
       const w1 = half(bz + 0.6) - 0.35;
