@@ -6110,6 +6110,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const PTIP9 = 0.2;       // 끝 반폭(0.06 → 0.2)
     const PC9 = 0.5;         // 끝의 안쪽 굽힘 양
     const PCP9 = 3.5;        // 굽힘 지수 — 클수록 아래는 곧고 위에서만 꺾인다
+    const PO9 = 0.45;        // 아래쪽의 바깥 기울임(허리에서 최대) — 요청: "아래쪽 시작을 좀 더 바깥쪽으로"
+    /** 축의 **안쪽** 밀림(t) — 바깥 기울임(−)과 끝의 안쪽 굽힘(+)을 겹친 값. path와 보석 자리가 같이 쓴다. */
+    const axOff9 = (t9: number): number => PC9 * t9 ** PCP9 - PO9 * 4 * t9 * (1 - t9);
     const PW9 = 1.15;        // 밑 반폭(1.2 → 0.8 → 1.0 → 1.15 — 전체적으로 넓힘)
     const pillar = (px: number, py: number): ShapeFace[] => withModelZOff(PLINTH_Z9, () => shape(((): ShapeFace[] => {
       return [
@@ -6164,8 +6167,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           oval: 0.75, phase: -Math.PI / 2, ref: [-py / Math.hypot(px, py), px / Math.hypot(px, py), 0],
           /* ★ 축은 **더 수직으로 오르다 위에서 안으로 굽는다**(재요청) — curve(t²) 대신 path로 t^PCP9(3.5)를 준다:
              아래 2/3는 거의 곧고 끝 1/3에서 PC9(0.5)만큼 안쪽으로 꺾인다. (0.8 → 0.4 → 지수 굽힘) */
+          // ★ 아래쪽은 **바깥으로 기울며** 오른다(재요청) — 바깥 밀림 PO9·4t(1−t)(허리에서 최대)에 끝의 안쪽 굽힘을 겹친다.
           path: (t9: number): [number, number, number] => [
-            px + (-px / Math.hypot(px, py)) * PC9 * t9 ** PCP9, py + (-py / Math.hypot(px, py)) * PC9 * t9 ** PCP9, 0.4 + PH9 * t9,
+            px + (-px / Math.hypot(px, py)) * axOff9(t9), py + (-py / Math.hypot(px, py)) * axOff9(t9), 0.4 + PH9 * t9,
           ],
         }), pillarKey9(px, py, 1.5)),   // 받침판(+1.3)보다 한 단 앞 — 기둥이 받침판 위에 선다
         /* 오벨리스크 보석은 **개인색**이다(지적: "넥서스 사선에서 개인색 장식 포인트가
@@ -6190,7 +6194,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ...((): ShapeFace[] => {
           const r9 = Math.hypot(px, py); const ox9 = px / r9; const oy9 = py / r9;
           const tg9 = 0.78; const rg9 = PTIP9 + (PW9 - PTIP9) * (1 - tg9) ** PT9;   // 방패의 widthOf 식 그대로
-          const off9 = 0.75 * rg9 - PC9 * tg9 ** PCP9 - 0.04;   // 능선에서 0.04 안으로 — 평평한 뒷면이 몸에 묻힌다(축 굽힘은 path 식 그대로)
+          const off9 = 0.75 * rg9 - axOff9(tg9) - 0.04;   // 능선에서 0.04 안으로 — 평평한 뒷면이 몸에 묻힌다(축 굽힘은 path 식 그대로)
           const gx9 = px + ox9 * off9; const gy9 = py + oy9 * off9;
           const lift9 = depthNow(px + ox9, py + oy9) > depthNow(px, py) ? 1.6 : 1.4;
           /* ★ 기둥에 붙는 면은 **평평하게 깎는다**(재요청) — 쌍뿔을 축면(접선·z 평면)으로 반 가른 **반쪽 쌍뿔**을 직접
