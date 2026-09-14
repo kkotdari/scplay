@@ -3612,33 +3612,39 @@ export const sunkenTongueFaces = (): ShapeFace[] => {
      양 끝에서 y가 멈춰 접선이 수직이 되고, 높이는 sin πt 봉우리에 뿌리(3.4)→땅(0.7) 내리막을 얹는다. */
   const Z0 = 3.4;     // 뿌리(아가리) 높이
   const Z1 = 1.4;     // 끝 높이 — 끝 반구의 반지름(1.56)만큼 떠서 땅에 닿는다
-  /* 높이 3배(재재요청: "높이 지금의 3배만큼 올라가기") — 봉우리 몫 4.6 → 13.8, 꼭대기 ≈ 16. */
-  const TUP = 13.8;   // 봉우리 몫
-  /** 앞으로 가는 몫의 **머무름** — (1 − cos πt)/2를 이 지수로 한 번 더 눌러, 뿌리와 끝에서 y가 오래 멈춘 채
-   *  z만 움직이게 한다(재재요청: "위로 수직으로 솟구쳤다가 수직으로 내려오고"). 1이면 반원꼴, 클수록 ㄇ자다. */
-  const SQ9 = 4;      // 2.2 → 4(재요청: "꺾이는 반지름 줄이고") — 모서리가 더 각지고 윗변이 더 평평하다
+  /* **아치**다(재재요청: "구부러지는 부분은 호 형태야, ㄷ자가 아니라") — 곧은 다리로 수직으로 솟아, 반원 호로
+     넘어가, 곧은 다리로 수직으로 내려온다. 호의 반지름은 앞뒤 너비의 반(TL/2)이라 다리 둘이 정확히 그 너비에
+     선다. 꼭대기(ZTOP ≈ 16)에서 반지름을 뺀 높이가 호의 중심이다. 세 마디를 **길이 비**로 t에 나눠, 마디가
+     고르게 잘려 굵기 변화도 이음새 없이 이어진다. */
+  const ZTOP = 16;    // 꼭대기(3배 요청 그대로)
+  const R9 = TL / 2;  // 호의 반지름
+  const ZC9 = ZTOP - R9;
+  const L1 = ZC9 - Z0; const LA = Math.PI * R9; const L2 = ZC9 - Z1;
+  const LSUM = L1 + LA + L2;
   /* 혀만 돈다(요청: "성큰 혀는 공격대상을 향해야 해") — withModelSpin(headYawNow)으로
      감싸면 이 판만 표적 쪽으로 돌아간다. 22.5도 열여섯 칸이다. */
   /** 등뼈 — 역 U. t 0 뿌리, 1 끝. */
   const spine9 = (t9: number): [number, number, number] => {
-    const u9 = (1 - Math.cos(Math.PI * t9)) / 2;
-    const a9 = u9 ** SQ9; const b9 = (1 - u9) ** SQ9;
-    return [
-      0.25, -0.15 + TL * (a9 / (a9 + b9)),
-      Z0 + (Z1 - Z0) * t9 + TUP * Math.sin(Math.PI * t9),
-    ];
+    const d9 = t9 * LSUM;
+    if (d9 <= L1) return [0.25, -0.15, Z0 + d9];                               // 오르는 다리
+    if (d9 <= L1 + LA) {                                                         // 반원 호
+      const th9 = (d9 - L1) / R9;                                                // 0 → π
+      return [0.25, -0.15 + R9 * (1 - Math.cos(th9)), ZC9 + R9 * Math.sin(th9)];
+    }
+    return [0.25, -0.15 + TL, ZC9 - (d9 - L1 - LA)];                            // 내려오는 다리
   };
   const tip9 = spine9(1);
   return tagKey(withModelSpin(headYawNow, (): ShapeFace[] => paintBase([
-    /* 두께 변화는 **완만하게**(재요청) — 0.5→1.45는 구두주걱이었다. 0.62→0.78이면 통통한 관이다.
-       마디 18·변 10으로 U가 매끈하다. 끝은 아래 반구가 둥글게 막는다(caps는 뚜껑 원반이라 막힌 관으로 보였다). */
+    /* 끝 반구를 관보다 **먼저** 그린다(지적: "반구가 혀 몸통에 안 가려짐") — 이 판은 통째로 한 키(13)라 배열 차례가
+       곧 앞뒤인데, 반구가 뒤에 오면 그 윗단면(타원)이 관 끝 위에 얹혔다. 먼저 깔면 관의 마지막 마디가 단면을 덮고
+       아래 반원만 관 밑으로 드러난다. */
+    ...lowerHalfSphereFaces3(tip9[0], tip9[1], tip9[2], 1.56),
+    /* 두께 변화는 **완만하게**(재요청) — 0.5→1.45는 구두주걱이었다. 1.24→1.56이면 통통한 관이다. 마디 30·변 10. */
     ...spirePillar({
       x: 0.25, y: -0.15, h: 1, w: 1.24, tipW: 1.56,   // 굵기 2배(재재요청)
-      segs: 24, sides: 10, hold: 0.05, taper: 1, caps: "none",
+      segs: 30, sides: 10, hold: 0.05, taper: 1, caps: "none",
       path: spine9,
     }),
-    // 끝 — **아래로 향한 반구**(재요청: "혀끝 반구 프리미티브로, 구 말고")로 닫는다. 끝 굵기와 같은 반지름이라 이음이 없다.
-    ...lowerHalfSphereFaces3(tip9[0], tip9[1], tip9[2], 1.56),
   ], "#b5713a")), 13);
 };
 export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
