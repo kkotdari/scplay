@@ -6,7 +6,7 @@ import { GAP9, pNow } from "./perf9";
 import { cx } from "./cx";
 import { TIER_GEN9 } from "./tierTable.gen";
 import { kT } from "../../utils/openbwTracks";
-import { FACE_GRAIN9, loftZFaces, modelPoint9, annulusPath, bandPath, bodyFace, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
+import { FACE_GRAIN9, loftZFaces, lowerHalfSphereFaces3, modelPoint9, annulusPath, bandPath, bodyFace, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
 import { BUILD_STAGES, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, SPIN_STEPS, bldNormOf, modelInkOf, modelNormOf } from "./engine9";
 import { type UnitDrawOp } from "./engine9";
 /** 주소 해시(`#pitch=`·`#nocreep` 같은 진단 스위치) — 굽기 일꾼 안에서는 location.hash가 빈 문자열(blob 주소)이라,
@@ -3616,7 +3616,7 @@ export const sunkenTongueFaces = (): ShapeFace[] => {
   const TUP = 13.8;   // 봉우리 몫
   /** 앞으로 가는 몫의 **머무름** — (1 − cos πt)/2를 이 지수로 한 번 더 눌러, 뿌리와 끝에서 y가 오래 멈춘 채
    *  z만 움직이게 한다(재재요청: "위로 수직으로 솟구쳤다가 수직으로 내려오고"). 1이면 반원꼴, 클수록 ㄇ자다. */
-  const SQ9 = 2.2;
+  const SQ9 = 4;      // 2.2 → 4(재요청: "꺾이는 반지름 줄이고") — 모서리가 더 각지고 윗변이 더 평평하다
   /* 혀만 돈다(요청: "성큰 혀는 공격대상을 향해야 해") — withModelSpin(headYawNow)으로
      감싸면 이 판만 표적 쪽으로 돌아간다. 22.5도 열여섯 칸이다. */
   /** 등뼈 — 역 U. t 0 뿌리, 1 끝. */
@@ -3637,8 +3637,8 @@ export const sunkenTongueFaces = (): ShapeFace[] => {
       segs: 24, sides: 10, hold: 0.05, taper: 1, caps: "none",
       path: spine9,
     }),
-    // 끝 — 반구(요청: "끝은 둥글게 반구로")로 둥글게 닫는다. 끝 굵기와 같은 반지름이라 이음이 없다.
-    ...sphereFaces3(tip9[0], tip9[1], tip9[2], 1.56),
+    // 끝 — **아래로 향한 반구**(재요청: "혀끝 반구 프리미티브로, 구 말고")로 닫는다. 끝 굵기와 같은 반지름이라 이음이 없다.
+    ...lowerHalfSphereFaces3(tip9[0], tip9[1], tip9[2], 1.56),
   ], "#b5713a")), 13);
 };
 export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
@@ -6060,10 +6060,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const PX9 = 4.6;   // 4.9 → 4.5 → 5.0 → 5.5 → 4.6
     const out: ShapeFace[] = [...pillar(-PX9, -PX9), ...pillar(PX9, -PX9)];
     // 몸통은 금빛 바탕(재작도) — 프로토스의 바탕색은 골드다.
+    /* ★ 본체와 그 장식은 **밑동 단 위**에 앉는다(지적: "피라미드 높이 확인해 봐 — 발판 높이를 고려 안 하고 얹어
+       놔서 그럴 수 있어") — 맞았다. 본체 절두체가 z 0에서 시작해 단(0.55) 속에 묻혀 있었고, 그래서 기둥 받침판·
+       표창과 견주면 본체만 반 단 낮게 가라앉아 보였다. 여기부터 빌더 끝까지 z를 단 높이만큼 올린다 — 단과 표창만
+       withModelZOff(0)으로 땅에 남긴다(기둥은 제 것으로 같은 값을 다시 세운다). */
+    withModelZOff(PLINTH_Z9, () => {
     out.push(...paintBase(frustumFaces3(0, 0, 9, 9, 2.8, 2.8, 6.4), GOLD9));
     /* 밑동 한 단(사진) — 몸보다 조금 넓은 짙은 금 받침이 깔려, 피라미드가 땅에서
        솟은 것이 아니라 단 위에 앉은 것으로 읽힌다. */
-    out.push(...paintBase(frustumFaces3(0, 0, 9.8, 9.8, 9.2, 9.2, 0.55), GOLDD));
+    withModelZOff(0, () => out.push(...paintBase(frustumFaces3(0, 0, 9.8, 9.8, 9.2, 9.2, 0.55), GOLDD)));   // 밑동 단은 땅에
     // 앞면 능선 띠 — 경사면을 따라 층층이 가로 띠. 짙은 금으로 그늘을 넣어 층이 산다.
     const half = (z: number): number => 4.5 - (4.5 - 1.4) * (z / 6.4);
     for (const bz of [1.4, 3, 4.6]) {
@@ -6140,7 +6145,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        네 경사면 밑변 중앙 방향(0·90·180·270도)으로 8.9까지, 날 사이 오목점은 대각(45도…)으로 반지름 5.0 — 몸
        밑동(반폭 4.5·모서리 6.36) 안쪽이라 판 가운데는 몸이 가리고 날만 삐져나온다. 그리는 차례는 몸·받침보다
        **앞**(키 −1)이라 판 가운데를 받침이 덮는다. 날 끝의 뿔은 마디 없는 4면 뿔(segs 1). */
-    {
+    withModelZOff(0, () => {   // 표창 발판은 땅에
       const TH9 = 0.5;
       // 표창 0.8배(요청) 뒤 길이는 원복(재요청: "길이는 원복하고 폭만 줄인 걸로 유지") — 끝 8.9, 오목점 3.2.
       const STAR_R = 8.9;
@@ -6210,7 +6215,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           ...tri9(br9, apex9, bl9),    // 뒷면(몸 쪽)
         ], depthNow(sx * 7.8, sy * 7.8)));
       }
-    }
+    });
     out.push(...pillar(-PX9, PX9), ...pillar(PX9, PX9));
     /* 옆면 사이언 빗살(사진) — 몸이 금빛이 된 만큼 빗살은 종족 팔레트의 사이언으로
        또렷하게 세운다(전엔 탁한 청록이라 금빛 위에서 묻혔다). */
@@ -6305,6 +6310,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ], GOLDD), depthNow(ox9, oy9) * 1.6 - 2));
       out.push(...tagKey(domeFaces3(ox9, oy9, 0.42, 0.5, 0.8), depthNow(ox9, oy9) * 1.6));
     }
+    });
     return out;
   },
   /* 게이트웨이(실물 점검) — 낮은 사방 경사로 마당 위에 마주 기운 어금니 탑 한 쌍이
