@@ -21281,6 +21281,24 @@ export const GLOW9 = {
   bloomK: 7,
   /** 빛의 색 — 순백은 차가워 보인다(요청으로 한 단 더 밝게: 246,228 → 251,240). */
   hue: "255, 251, 240",
+  /* ── 반사광의 **봉우리** ────────────────────────────────────────────────────
+     ★ 요청: "면 글로우의 하이라이트 광택 부분이 있어야 해, 거의 흰색으로 빛나는."
+       그런데 곧은 띠로 깔았더니 자로 그은 자국이 됐다(지적: "이게 띠 모양도 부자연스럽고,
+       약간 아까 했던 봉우리처럼 어떤 부분에 나타나는 게 나을 것 같기도 해"). 실제 금속의
+       반사광은 낯을 가로지르는 줄이 아니라 **한 자리에서 가장 세고 사방으로 스러지는 얼룩**
+       이다. 그래서 결 축(U)으로 띠 두께의 hotR배, 가로(V)로 낯 폭의 hotW배인 **타원 봉우리**로
+       깐다 — 자를 그 비로 늘려 놓고 원형 그러데이션을 쓰면 타원이 된다. 가장자리가 0으로
+       스러지니 경계가 없고, 자리는 여전히 빛이 정한다(띠의 한가운데).
+     ★ 결보다 **먼저** 깐다 — 검은 결은 아래 겹에 지고 이 겹은 마지막에 더해지므로,
+       "검은 스크래치들이 보이는 위에 넓게 반사광이 깔린다"가 그 차례에서 나온다. */
+  /** 봉우리의 꼭대기 알파(0이면 끔). */
+  hot: 0.85,
+  /** 봉우리의 색 — 꼭대기는 물체 색이 아니라 광원 색이라 거의 흰빛이다. */
+  hotHue: "255, 253, 247",
+  /** 결 축(U)으로 퍼지는 반지름 — 띠 두께(BRUSH9.h)의 배수. */
+  hotR: 1.6,
+  /** 가로(V)로 퍼지는 반지름 — 낯 폭의 몫. 1보다 작아야 낯의 **일부**에 앉는다. */
+  hotW: 0.6,
 };
 /** 흰 덮개(광)로 쓰이는 색들 — 종족마다 제 광색이 있고, 안 적힌 종족은 순백이다. */
 const GLOW_HI9 = new Set<string>(["#fff", ...Object.values(RACE_GLOSS_LIT)]);
@@ -21621,12 +21639,44 @@ export function glowBake9(
     let aA9 = gr9.aLo + aH9 * Math.max(0, Math.min(1 - BRUSH9.h, cU9 - BRUSH9.h / 2));
     const aB9 = aA9 + aH9 * BRUSH9.h;
     if (aB9 > gr9.aHi) aA9 = gr9.aHi - aH9 * BRUSH9.h;
+    /* ③ 반사광의 **봉우리**(GLOW9.hot의 ★) — 띠 한가운데에 앉는 타원 얼룩. 결보다 먼저. */
+    const pcA9 = (aA9 + aB9) / 2;
+    const pcB9 = (gr9.bLo + gr9.bHi) / 2;
+    const pRA9 = Math.max(1e-3, ((aB9 - aA9) / 2) * GLOW9.hotR);
+    const pRB9 = Math.max(1e-3, ((gr9.bHi - gr9.bLo) / 2) * GLOW9.hotW);
+    if (GLOW9.hot > 0 && !shady9) {
+      g2.save();
+      g2.translate(pcA9, pcB9);
+      g2.scale(pRA9, pRB9);
+      const hg9 = g2.createRadialGradient(0, 0, 0, 0, 0, 1);
+      hg9.addColorStop(0, `rgba(${GLOW9.hotHue}, ${GLOW9.hot})`);
+      hg9.addColorStop(0.5, `rgba(${GLOW9.hotHue}, ${GLOW9.hot * 0.45})`);
+      hg9.addColorStop(1, `rgba(${GLOW9.hotHue}, 0)`);
+      g2.globalCompositeOperation = "source-over";
+      g2.globalAlpha = k9;
+      g2.fillStyle = hg9;
+      g2.fillRect(-1, -1, 2, 2);
+      g2.restore();
+    }
     if (brushOn9 && BRUSH9.a > 0 && (fl9 === BRUSH_TONE9 || shady9)) {
       /* 씨앗은 **부품 번호**다 — 요잉이 바뀌어도 같은 부품이면 같은 결이다. */
       const rnd9 = brushSeed9(f9[5] ?? (i9f + 1));
       const wB9 = gr9.bHi - gr9.bLo;
       /* 낱수는 **모형 폭 ÷ 간격**이다 — 요잉이 모형 폭을 안 바꾸므로 각을 안 탄다. */
       const n9 = Math.max(3, Math.min(160, Math.round(gr9.mB / BRUSH9.pitch)));
+      /* 보강한 줄의 **양 끝**도 스러져야 한다 — 결 축으로 잘린 자국을 남기면 봉우리가
+         다시 네모가 된다. 낯마다 한 번 만든 그러데이션을 줄마다 알파만 바꿔 되쓴다. */
+      const bg9 = g2.createLinearGradient(pcA9 - pRA9, 0, pcA9 + pRA9, 0);
+      bg9.addColorStop(0, `rgba(${GLOW9.hue}, 0)`);
+      bg9.addColorStop(0.5, `rgba(${GLOW9.hue}, 1)`);
+      bg9.addColorStop(1, `rgba(${GLOW9.hue}, 0)`);
+      let dg9: CanvasGradient | null = null;
+      if (d2) {
+        dg9 = d2.createLinearGradient(pcA9 - pRA9, 0, pcA9 + pRA9, 0);
+        dg9.addColorStop(0, `rgba(${BRUSH9.darkHue}, 0)`);
+        dg9.addColorStop(0.5, `rgba(${BRUSH9.darkHue}, 1)`);
+        dg9.addColorStop(1, `rgba(${BRUSH9.darkHue}, 0)`);
+      }
       /** 모형 자 → 화면 자(낯이 비스듬할수록 작아진다 = 원근). */
       const mk9 = wB9 / Math.max(1e-4, gr9.mB);
       for (let i9 = 0; i9 < n9; i9 += 1) {
@@ -21636,6 +21686,10 @@ export function glowBake9(
            긁힌 자국이 된다(모여 성긴 데가 생기는 것이 곧 긁힘이다). 씨앗은 그대로
            부품 번호라 요잉이 바뀌어도 같은 무늬다. */
         const b9 = gr9.bLo + wB9 * Math.max(0, Math.min(1, (i9 + rnd9() * 2.4 - 0.7) / n9));
+        /* 줄의 광택 보강은 **봉우리를 따라** 스러진다 — 곧은 띠로 보강하면 자로 그은
+           경계가 생긴다(GLOW9.hot의 ★). 봉우리 중심에서 가로로 멀수록 0으로 간다. */
+        const t9 = (b9 - pcB9) / pRB9;
+        const fal9 = Math.max(0, 1 - t9 * t9);
         const wide9 = rnd9() < BRUSH9.band;
         /* 굵은 줄 중 몇은 **면**으로 읽히게 꽉 채운다 — 나머지 굵은 줄은 옅게 깐다. */
         const solid9 = wide9 && rnd9() < BRUSH9.solid;
@@ -21661,9 +21715,10 @@ export function glowBake9(
           /* 결은 낯 **전체**에 있고(옅게), 광택 띠 안에서만 환하다. */
           g2.globalAlpha = al9 * BRUSH9.dim * cv9;
           g2.fillRect(gr9.aLo, b9 - w9 / 2, aH9, w9);
-          if (!shady9) {
-            g2.globalAlpha = al9 * (1 - BRUSH9.dim) * cv9;
-            g2.fillRect(aA9, b9 - w9 / 2, aB9 - aA9, w9);
+          if (!shady9 && fal9 > 0) {
+            g2.globalAlpha = al9 * (1 - BRUSH9.dim) * cv9 * fal9;
+            if (!dk9) g2.fillStyle = bg9;
+            g2.fillRect(pcA9 - pRA9, b9 - w9 / 2, pRA9 * 2, w9);
           }
         }
         /* 어두운 줄은 **바탕까지 파고든다** — 파내기만으로는 깔린 빛을 되돌릴 뿐이라
@@ -21674,9 +21729,10 @@ export function glowBake9(
           d2.fillStyle = DK9;
           d2.globalAlpha = al9 * BRUSH9.dim * 0.8;
           d2.fillRect(gr9.aLo, b9 - w9 / 2, aH9, w9);
-          if (!shady9) {
-            d2.globalAlpha = al9 * (1 - BRUSH9.dim);
-            d2.fillRect(aA9, b9 - w9 / 2, aB9 - aA9, w9);
+          if (!shady9 && fal9 > 0 && dg9) {
+            d2.globalAlpha = al9 * (1 - BRUSH9.dim) * fal9;
+            d2.fillStyle = dg9;
+            d2.fillRect(pcA9 - pRA9, b9 - w9 / 2, pRA9 * 2, w9);
           }
         }
       }
