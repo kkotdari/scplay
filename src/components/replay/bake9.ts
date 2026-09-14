@@ -12938,6 +12938,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          풀어 쓰므로 한 줄만 고치면 끝까지 따라온다. */
       const WREACH9 = 2.44;
       const WTIPX9 = 1.25 + WREACH9;   // 날개 끝의 x
+      /* 경사가 내려오는 몫 — 0.62 → 0.34(지적: "날개 경사진 부분 경사가 너무 심한 거
+         같아"). 스팬의 1/3(0.81) 동안 내려오므로 기울기가 37도 → 23도가 된다. 날개 끝에
+         매달린 것들은 아래 WTIPZ9에서 풀어 쓰므로 이 한 줄만 고치면 함께 올라온다. */
+      const WDROP9 = 0.34;
+      const WROOTZ9 = 6.28;              // 뿌리 높이
+      const WTIPZ9 = WROOTZ9 - WDROP9;   // 무릎 뒤로 지키는 높이(= 날개 끝)
       const WHR9 = 1.05;          // 뿌리 반폭
       const WHK9 = 0.62;          // 무릎 뒤로 지키는 반폭
       const WYF9 = 0.15;          // 앞 모서리의 y — 몸 옆면에서 수직으로 곧게 뻗는다
@@ -12951,17 +12957,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         x: 0, y: 0, h: 1, w: 1, segs: WSEG9, sides: 4, ref: [0, 1, 0], caps: "both", oval: 0.2,
         path: (t9: number): [number, number, number] => [
           m9 * (1.25 + WREACH9 * t9), WYF9 - whAt9(t9),
-          6.28 - 0.62 * Math.min(1, t9 / WKNEE9),
+          WROOTZ9 - WDROP9 * Math.min(1, t9 / WKNEE9),
         ],
         // 앞뒤 폭(코드) — 경사 구간에서만 좁아지고 그 뒤로는 한 값이다.
         widthOf: whAt9,
-      }), "terran"), key9(m9 * (1.25 + WREACH9 / 2), -0.7, 5.85)));
+      }), "terran"), key9(m9 * (1.25 + WREACH9 / 2), -0.7, WTIPZ9 + 0.15)));
       /* ②-b 날개 **끝 옆면**의 임자색 얇은 상자 셋 — 앞뒤로 늘어선다(지적). 색을 안 주면
          굽는 쪽이 임자 색을 채운다. 날개 끝(WTIPX9)의 바깥 낯에 반쯤 박아 둔다. */
       for (const wy9 of [-0.46, 0, 0.46]) {
         out.push(...tagKey(
-          boxFaces3(m9 * WTIPX9, -0.55 + wy9, 0.26, 0.3, 0.26, 5.53),
-          key9(m9 * (WTIPX9 + 0.12), -0.55 + wy9, 5.66) + 0.5,
+          boxFaces3(m9 * WTIPX9, -0.55 + wy9, 0.26, 0.3, 0.26, WTIPZ9 - 0.13),
+          key9(m9 * (WTIPX9 + 0.12), -0.55 + wy9, WTIPZ9) + 0.5,
         ));
       }
       /* ③ 미사일 둘 — 날개 끝에 **위아래로** 쌓인다. 몸통(관) + 뾰족한 코 + 꼬리 날개 셋.
@@ -12971,7 +12977,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          느낌") — 날개 판이 스팬을 따라 z 5.95 → 5.70이므로, 5.15/6.55는 둘 다 판보다
          위쪽에 치우쳐 '날개 위에 얹힌 둘'로 읽혔다. 4.85/6.25면 판을 사이에 두고 아래
          하나·위 하나가 된다. */
-      for (const mz9 of [4.85, 6.25] as const) {
+      for (const mz9 of [WTIPZ9 - 0.85, WTIPZ9 + 0.55] as const) {
         const mx9 = m9 * (WTIPX9 + 0.2);
         const mr9 = 0.36;
         /* ★ 몸통만 떠 있던 것(지적: "몸통과 앞코/꼬리가 위치가 안 맞음. 몸통만 더 높은 듯")
@@ -12998,14 +13004,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         /* 끝은 관의 **겉면**에서 멈춘다 — 축(mz9)까지 넣으면 가지의 대부분이 관 속에
            묻혀 밖에서는 보이지 않는다(첫 판이 그랬다). 시작도 날개 끝(4.30)이 아니라
            한 뼘 안쪽(4.06)이라야 가지가 판 위로 드러난다. */
-        const mzEnd9 = mz9 + (mz9 > 5.72 ? -mr9 : mr9);
+        const mzEnd9 = mz9 + (mz9 > WTIPZ9 + 0.02 ? -mr9 : mr9);
         out.push(...tagKey(paintBase(spirePillar({
           x: 0, y: 0, h: 1, w: 1, segs: 3, sides: 6, caps: "none",
           path: (t9: number): [number, number, number] => [
-            m9 * (WTIPX9 - 0.24 + 0.46 * t9), -0.52, 5.74 + (mzEnd9 - 5.74) * t9,
+            m9 * (WTIPX9 - 0.24 + 0.46 * t9), -0.52,
+            WTIPZ9 + 0.04 + (mzEnd9 - (WTIPZ9 + 0.04)) * t9,
           ],
           widthOf: (): number => 0.075,
-        }), TERRAN_STEEL_D), key9(m9 * WTIPX9, -0.52, (5.74 + mzEnd9) / 2) + 0.4));
+        }), TERRAN_STEEL_D), key9(m9 * WTIPX9, -0.52, (WTIPZ9 + 0.04 + mzEnd9) / 2) + 0.4));
       }
     }
     /* ④ 함체 — 팔각기둥이고 뚜껑 쪽이 살짝 좁다. 내려다보는 카메라라 여덟 모가 그대로
