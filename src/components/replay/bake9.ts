@@ -14006,10 +14006,21 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   },
   /* 가디언(지적: 꽃게 모양) — 옆으로 넓적한 게딱지 + 앞 양 집게 + 옆 잔다리. */
   guardian: () => [
-    // 게딱지 양옆 회백색(요청).
-    ...paintBase(domeFaces3(-1.2, -0.4, 1.7, 1.1, 5.7), "#d3d7db"),
-    ...paintBase(domeFaces3(1.2, -0.4, 1.7, 1.1, 5.7), "#d3d7db"),
-    ...domeFaces3(0, -0.2, 2.1, 1.4, 5.6),
+    // 게딱지 양옆은 **임자색**(재요청: 흰 부품을 임자색으로), 가운데는 **보라**(재요청) — 색 자리를 맞바꾼다.
+    ...domeFaces3(-1.2, -0.4, 1.7, 1.1, 5.7),
+    ...domeFaces3(1.2, -0.4, 1.7, 1.1, 5.7),
+    ...paintBase(domeFaces3(0, -0.2, 2.1, 1.4, 5.6), "#6d4a86"),
+    /* ★ 등마루의 **갈색 척추 줄기**(요청) — 가운데 돔 꼭대기를 앞뒤로 타는 가는 관(반폭 0.18), 돔 표면(z 5.6 +
+       1.4·√(1−((y+0.2)/2.1)²))에서 0.04 띄워 얹는다. 키는 돔 위(제 깊이 + 1.0). */
+    ...tagKey(paintBase(spirePillar({
+      x: 0, y: 0, h: 1, w: 1, segs: 8, sides: 6, caps: "both",
+      path: (t9: number): [number, number, number] => {
+        const y9 = 1.5 - 3.4 * t9;
+        const u9 = Math.min(0.98, Math.abs((y9 + 0.2) / 2.1));
+        return [0, y9, 5.6 + 1.4 * Math.sqrt(1 - u9 * u9) + 0.04];
+      },
+      widthOf: (t9: number): number => 0.12 + 0.08 * Math.sin(Math.PI * t9),
+    }), "#6b4732"), depthNow(0, -0.2) * 1.6 + 1.0),
     /* ★ 몸 뒤쪽 양옆의 **작은 날개껍질 한 쌍**(요청, 애니메이션 포함) — 게딱지 뒤 옆구리(x ±1.2, y −1.2~−1.9)에
        뿌리를 두고 뒤·바깥으로 뻗는 얇은 다섯모 판. 날갯짓은 디바우러 규약 그대로 — 컷 1 위(+1)·3 아래(−1)·
        가운데(POSE_ATK_L·2) 0·쉼(0) −0.5 — 끝(tip)만 fl9에 비례해 오르내린다(뿌리 축을 도는 근사). 판이라 두께가
@@ -14026,7 +14037,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const nx9 = m9 * 0.55 * fl9; const nz9 = 1;
       let fl = faceLight(nx9, 0, nz9);
       if (!fl.visible) fl = faceLight(-nx9, 0, -nz9);
-      return tagKey([[q9, 1, "#b8bec4"] as ShapeFace, ...fl.face(q9)], depthNow(m9 * 2.0, -2.2) * 1.6 + 0.5);
+      return tagKey([[q9, 1] as ShapeFace, ...fl.face(q9)], depthNow(m9 * 2.0, -2.2) * 1.6 + 0.5);   // 임자색(재요청)
     })),
     /* 얼굴 — 저그 지상 유닛과 같은 것(요청) + 눈. 게딱지 앞머리에 물려 박는다.
        몸이 크니 1.15배. 키는 제 자리 깊이 × 1.6에 한 단(6)을 얹어 게딱지 위에 오되
