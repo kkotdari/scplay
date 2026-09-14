@@ -21291,19 +21291,17 @@ function brushSeed9(pid: number): () => number {
  *    **가로선이 낯을 온전히 가로지르는** 구간이 곧 그 둘 사이다.
  *  누운 낯은 U·V가 곧 두 모서리라 띠가 저절로 낯을 가로지른다 — 자를 일이 없다. */
 export function faceGrain9(d: string): {
-  /** 줄이 **뻗는** 방향(화면 단위 벡터) — 벽에서는 화면 아래(0, 1)다. */
+  /** 줄이 **뻗는** 방향(화면 단위 벡터) — 그 낯의 '세로' 모서리다. */
   ux: number; uy: number;
-  /** 줄이 **늘어서는** 방향 — 벽에서는 화면 오른쪽(1, 0)이다. */
+  /** 줄이 **늘어서는** 방향 — 그 낯의 '가로' 모서리다. */
   vx: number; vy: number;
   /** 띠가 놓일 수 있는 U 눈금의 양 끝 — aLo가 화면에서 위다. */
   aLo: number; aHi: number;
   /** 줄을 늘어놓을 V 눈금의 양 끝. */
   bLo: number; bHi: number;
-  /** 그 V 폭이 **모형에서** 얼마인가 — 긁힌 간격을 물리 값으로 잡는 자다(아래 ★⑤). */
+  /** 그 V 폭이 **모형에서** 얼마인가 — 긁힌 간격을 물리 값으로 잡는 자다. */
   mB: number;
   cx: number; cy: number;
-  /** 서 있는 낯인가 — 참이면 U·V가 화면 세로·가로다. */
-  up: boolean;
 } | null {
   const pts: [number, number][] = [];
   const re9 = /[ML]\s*(-?[\d.]+)[ ,]+(-?[\d.]+)/g;
@@ -21325,51 +21323,31 @@ export function faceGrain9(d: string): {
   }
   if (!seg.length || maxL <= 0) return null;
   const long = seg.filter((e) => e.l >= maxL * 0.25);
-  // 화면 세로로 선 모서리가 있으면 '서 있는 낯'이다.
-  const upright = long.some((e) => Math.abs(e.dx) / e.l < 0.12);
-  if (upright) {
-    let bx0 = Infinity; let bx1 = -Infinity;
-    for (const [x9] of pts) { bx0 = Math.min(bx0, x9); bx1 = Math.max(bx1, x9); }
-    const ys = pts.map((q) => q[1]).sort((p9, q9) => p9 - q9);
-    const lo9 = ys[Math.min(1, ys.length - 1)];
-    const hi9 = ys[Math.max(0, ys.length - 2)];
-    if (!(hi9 - lo9 > 1e-6) || !(bx1 - bx0 > 1e-6)) return null;
-    /* V 폭의 **모형 길이** — 벽의 가로 모서리는 바닥에 누운 벡터라, 화면 (dx, dy)에서
-       모형은 (dx, dy/눌림)이다. 그 모서리의 기울기를 상자 폭에 실어 되돌린다. */
-    const sqU9 = groundSquashNow() || 0.45;
-    const hz9 = long.find((e) => Math.abs(e.dx) / e.l >= 0.12);
-    const sl9 = hz9 && Math.abs(hz9.dx) > 1e-6 ? hz9.dy / hz9.dx : 0;
-    return {
-      ux: 0, uy: 1, vx: 1, vy: 0,
-      aLo: lo9 - cy, aHi: hi9 - cy, bLo: bx0 - cx, bHi: bx1 - cx,
-      mB: (bx1 - bx0) * Math.hypot(1, sl9 / sqU9), cx, cy, up: true,
-    };
-  }
-  /* 누운 낯 — 두 모서리 갈래 중 **모형에서 더 짧은 쪽**이 U다(줄이 뻗는 쪽).
-     ★ 긴 쪽으로 뻗게 두었더니 지붕이 평평해 보였다(지적: "면은 원근이 적용되는데
-       스크래치는 안 되고 있지") — 판의 긴 쪽은 대개 앞뒤(깊이)라 정면에서 화면 세로로
-       투영되고, 그러면 **벽의 세로 결과 한 줄로 이어져** 지붕과 벽이 한 판으로 읽힌다.
-       짧은 쪽으로 뻗으면 지붕의 결이 벽의 결과 엇갈려, 누운 면이 누운 채로 읽힌다.
-     ⚠ 이 고름은 **모형의 성질**이라야 한다 — '화면에서 더 누운 쪽'처럼 화면으로 고르면
-       어느 각에서 차례가 뒤집혀 결이 홱 돈다(앞서 겪은 그 버그다). 그래서 요잉이 못
-       바꾸는 모형 길이로 고른다. 값은 아래 mlen9다.
-     ★ 한때 '화면에서 더 서 있는 쪽'을 골랐는데 그것이 틀렸다(지적: "오른쪽 두 개가 잘못됨,
-       스크래치 방향이 갑자기 바뀌었음") — 요잉이 어느 각을 넘는 순간 두 모서리의 기울기
-       차례가 뒤집혀 지붕의 결이 90도 홱 돌았다. 화면의 성질로 고르면 요잉을 탈 수밖에 없다.
-     ★ **모형 길이**는 화면 길이에서 되돌릴 수 있다. 바닥에 누운 벡터 (X, Y)는 화면에
-       (X, Y·눌림)로 실리므로(project: z=0이면 sy는 ry·squash뿐), 화면 (dx, dy)를 준 모서리의
-       모형 길이는 hypot(dx, dy/눌림)이다. 요잉은 바닥면 안의 **회전**이라 길이를 안 바꾸므로
-       이 자는 어느 각에서도 같은 답을 낸다 — 결이 요잉을 따라 **돌기만** 하고 안 뒤집힌다.
-       비스듬한 낯(경사 벤트 등)에서는 어림이지만, 값이 각을 따라 이어지므로 뒤집힘이 없다. */
+  /* ★ 결은 **그 낯에 붙은 데칼**이다(지적: "스크래치는 면의 데칼 같은 거야. 근데 카메라에
+     따라 왜 원근도 요·롤·피치도 안 먹냐고") — 그러니 자를 화면에서 가져오면 안 된다.
+     낯이 평면 다각형이면 **제 모서리 둘이 곧 그 평면의 두 축**이고, 그 둘은 이미 투영을
+     지나왔다. 그 자로 그리면 요잉·피치·눌림이 전부 저절로 실린다: 낯이 돌면 결도 돌고,
+     낯이 눌리면 결도 눌린다. 여태는 벽에서 자를 화면 세로·가로로 **덮어썼다** — 그래서
+     결만 카메라를 안 따랐다.
+     ★ 어느 모서리가 '세로'인가는 **모형의 성질**로 고른다(화면으로 고르면 어느 각에서
+       차례가 뒤집혀 결이 홱 돈다 — 앞서 겪은 버그다):
+         · 화면 x가 0인 모서리가 있으면 그것이 **세계의 수직**이다(이 투영에서 z는 화면 x에
+           한 톨도 안 실린다). 벽·기둥이 여기 든다.
+         · 없으면(누운 낯) 모형에서 **더 짧은 쪽**을 세로로 삼는다. 긴 쪽은 대개 앞뒤라
+           정면에서 화면 세로로 서서 벽의 결과 한 줄로 이어진다.
+       모형 길이는 화면에서 되돌린다: 바닥에 누운 벡터 (X, Y)는 화면에 (X, Y·눌림)으로
+       실리므로 모형 길이는 hypot(dx, dy/눌림)이고, 요잉은 그 값을 안 바꾼다. */
   const sq9 = groundSquashNow() || 0.45;
   const mlen9 = (e: { dx: number; dy: number }): number => Math.hypot(e.dx, e.dy / sq9);
-  const base = long.reduce((p9, q9) => (mlen9(q9) < mlen9(p9) ? q9 : p9), long[0]);
+  const vert9 = long.filter((e) => Math.abs(e.dx) / e.l < 0.12);
+  const base = vert9.length
+    ? vert9.reduce((p9, q9) => (q9.l > p9.l ? q9 : p9), vert9[0])
+    : long.reduce((p9, q9) => (mlen9(q9) < mlen9(p9) ? q9 : p9), long[0]);
   const bux = base.dx / base.l; const buy = base.dy / base.l;
   let other = long.find((e) => Math.abs((e.dx * bux + e.dy * buy) / e.l) < 0.85);
   if (!other) other = { dx: -buy * base.l, dy: bux * base.l, l: base.l };
-  const oux = other.dx / other.l; const ouy = other.dy / other.l;
   let ux = bux; let uy = buy;
-  const vx = oux; const vy = ouy;
+  const vx = other.dx / other.l; const vy = other.dy / other.l;
   // U는 화면 아래를 향하게 둔다 — 그래야 aLo가 늘 '위'다.
   if (uy < 0) { ux = -ux; uy = -uy; }
   const det = ux * vy - uy * vx;
@@ -21385,10 +21363,9 @@ export function faceGrain9(d: string): {
   if (!(aHi - aLo > 1e-6) || !(bHi - bLo > 1e-6)) return null;
   return {
     ux, uy, vx, vy, aLo, aHi, bLo, bHi,
-    mB: (bHi - bLo) * Math.hypot(vx, vy / sq9), cx, cy, up: false,
+    mB: (bHi - bLo) * Math.hypot(vx, vy / sq9), cx, cy,
   };
 }
-
 /** 판 한 장에 글로우를 굽는다 — 면을 다 칠한 **뒤** 부른다.
  *  ★ **낯마다** 한 겹을 얹는다(GLOW9의 ★): 그 낯이 받은 빛의 몫만큼, **낯 전체에 고르게**
  *    깔고(flat) 거기에 **그 낯의 위쪽**으로 하이라이트를 더한다(topH). 곧 배럭 앞면은
