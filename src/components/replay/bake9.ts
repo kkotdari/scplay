@@ -13237,18 +13237,47 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const whAt9 = (t9: number): number =>
         WHR9 + (WHK9 - WHR9) * Math.min(1, t9 / WKNEE9);
     for (const m9 of [-1, 1] as const) {
-      out.push(...tagKey(raceBase(spirePillar({
-        /* ★ 낯을 줄인다(지적: "날개 면이 저렇게 많을 필요가 없음, 단순하게 가자") —
-           단면을 팔각에서 **넷**으로. ref가 앞뒤(y)라 네 꼭짓점은 앞·뒤·위·아래에 서므로
-           위아래가 각각 **한 장의 평면**이 된다(팔각은 그 자리를 셋씩 쪼개 띠로 보였다). */
-        x: 0, y: 0, h: 1, w: 1, segs: WSEG9, sides: 4, ref: [0, 1, 0], caps: "both", oval: 0.2,
-        path: (t9: number): [number, number, number] => [
-          m9 * (1.25 + WREACH9 * t9), WYF9 - whAt9(t9),
-          WROOTZ9 - WDROP9 * Math.min(1, t9 / WKNEE9),
-        ],
-        // 앞뒤 폭(코드) — 경사 구간에서만 좁아지고 그 뒤로는 한 값이다.
-        widthOf: whAt9,
-      }), "terran"), key9(m9 * (1.25 + WREACH9 / 2), -0.7, WTIPZ9 + 0.15)));
+      /* ★ 날개 판을 **수직 단면의 낱장**으로 직접 짠다(지적: "날개 동체에 붙은 부분이 이상해 — 붙는 모서리는
+         수평이어야 하는데 뒤쪽이 아래로 내려갔잖아") — spirePillar의 단면은 축(path)의 접선에 **수직**이다. 뿌리에서
+         축은 바깥·아래(WDROP9)·뒤(코드 줄어 중심이 물러남)로 함께 기울어 있어, 그에 수직인 뿌리 단면은 앞이 들리고
+         뒤가 처진 채 몸에 붙었다(코드가 수평이 아니었다). 여기서는 역(뿌리·무릎·끝)마다 앞 F(y WYF9)·뒤 B(y
+         WYF9 − 2w)·위 U·아래 D(두께 0.2w) 네 점을 **같은 z**에 세워 코드가 늘 수평이고, 역 사이를 네 장의 사각
+         낯으로 잇고 양 끝을 마름모로 막는다. 낯마다 법선을 재서 빛을 받고 등진 낯은 건너뛴다. */
+      out.push(...tagKey(raceBase(((): ShapeFace[] => {
+        const st9 = [0, WKNEE9, 1].map((t9): [number, number, number, number] => [
+          m9 * (1.25 + WREACH9 * t9), WYF9, WROOTZ9 - WDROP9 * Math.min(1, t9 / WKNEE9), whAt9(t9),
+        ]);
+        const pts9 = st9.map(([x9, yf9, z9, w9]): [number, number, number][] => [
+          [x9, yf9, z9], [x9, yf9 - w9, z9 + 0.2 * w9], [x9, yf9 - 2 * w9, z9], [x9, yf9 - w9, z9 - 0.2 * w9],   // F U B D
+        ]);
+        const quad9 = (p: [number, number, number][], cx9: number, cy9: number, cz9: number): ShapeFace[] => {
+          const ax9 = p[1][0] - p[0][0]; const ay9 = p[1][1] - p[0][1]; const az9 = p[1][2] - p[0][2];
+          const bx9 = p[2][0] - p[0][0]; const by9 = p[2][1] - p[0][1]; const bz9 = p[2][2] - p[0][2];
+          let nx9 = ay9 * bz9 - az9 * by9; let ny9 = az9 * bx9 - ax9 * bz9; let nz9 = ax9 * by9 - ay9 * bx9;
+          const mx9 = (p[0][0] + p[1][0] + p[2][0] + p[3][0]) / 4 - cx9; const my9 = (p[0][1] + p[1][1] + p[2][1] + p[3][1]) / 4 - cy9;
+          const mz9 = (p[0][2] + p[1][2] + p[2][2] + p[3][2]) / 4 - cz9;
+          if (nx9 * mx9 + ny9 * my9 + nz9 * mz9 < 0) { nx9 = -nx9; ny9 = -ny9; nz9 = -nz9; }
+          const nl9 = Math.hypot(nx9, ny9, nz9) || 1;
+          const fl9 = faceLight(nx9 / nl9, ny9 / nl9, nz9 / nl9);
+          if (!fl9.visible) return [];
+          const d9 = polyPath3(p);
+          return [[d9, 1] as ShapeFace, ...fl9.face(d9)];
+        };
+        const f9: ShapeFace[] = [];
+        for (let i9 = 0; i9 < pts9.length - 1; i9 += 1) {
+          const a9 = pts9[i9]; const b9 = pts9[i9 + 1];
+          const cx9 = (a9[0][0] + b9[0][0]) / 2; const cy9 = (a9[1][1] + b9[1][1]) / 2; const cz9 = (a9[0][2] + b9[0][2]) / 2;
+          for (let k9 = 0; k9 < 4; k9 += 1) {
+            const l9 = (k9 + 1) % 4;
+            f9.push(...quad9([a9[k9], a9[l9], b9[l9], b9[k9]], cx9, cy9, cz9));
+          }
+        }
+        // 뿌리·끝 마름모 — 바깥(스팬) 쪽을 보는 법선
+        const r9 = pts9[0]; const e9 = pts9[pts9.length - 1];
+        f9.push(...quad9([r9[0], r9[1], r9[2], r9[3]], r9[1][0] + m9 * 0.5, r9[1][1], r9[1][2]));
+        f9.push(...quad9([e9[0], e9[1], e9[2], e9[3]], e9[1][0] - m9 * 0.5, e9[1][1], e9[1][2]));
+        return f9;
+      })(), "terran"), key9(m9 * (1.25 + WREACH9 / 2), -0.7, WTIPZ9 + 0.15)));
       /* ②-b 날개 **끝 옆면**의 임자색 얇은 상자 셋 — 앞뒤로 늘어선다(지적). 색을 안 주면
          굽는 쪽이 임자 색을 채운다. 날개 끝(WTIPX9)의 바깥 낯에 반쯤 박아 둔다. */
       for (const wy9 of [-0.46, 0, 0.46]) {
