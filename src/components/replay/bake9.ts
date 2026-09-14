@@ -13307,10 +13307,21 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         out.push(...tagKey([
           ...paintBase(tubeFaces(mx9, -1.85, mx9, 0.95, mr9, mzTube9), TERRAN_STEEL_D),
           ...paintBase(hornFaces(mx9, 0.95, mz9, mx9, 2.05, mz9, 0.66), TERRAN_STEEL_D),
-          // 꼬리 날개 더 크게(요청: 화살 깃) — 벌어짐 0.62 → 0.9, 밑폭 0.2 → 0.3
-          ...paintBase(hornFaces(mx9, -1.6, mz9, mx9, -2.45, mz9 + 0.9, 0.3), RACE_BASE_TONE.terran),
-          ...paintBase(hornFaces(mx9, -1.6, mz9, mx9 - 0.9, -2.45, mz9, 0.3), RACE_BASE_TONE.terran),
-          ...paintBase(hornFaces(mx9, -1.6, mz9, mx9 + 0.9, -2.45, mz9, 0.3), RACE_BASE_TONE.terran),
+          /* ★ 꼬리는 **진짜 로켓의 꼬리 깃**이다(재요청: "저런 거 말고 진짜 로켓 미사일 꼬리 같은 형태") — 뿔 셋을
+             걷고, 몸통에 십자로 붙은 **얇은 사다리꼴 판 넷**(위·아래·좌·우)을 세운다. 뿌리는 몸통을 따라 길게
+             (y −1.3 → −1.85), 바깥 변은 짧고(−1.6 → −1.85) 뒤끝에서 만나 앞 변이 뒤로 쓸린 깃이 된다. 판이라
+             두께가 없다 — 낯 하나에 법선을 재서 빛을 받되, 등진 쪽은 법선을 뒤집어 어느 쪽에서도 보인다. */
+          ...(([[1, 0], [-1, 0], [0, 1], [0, -1]] as const).flatMap(([dx9, dz9]): ShapeFace[] => {
+            const FIN9 = 0.62;
+            const q9 = polyPath3([
+              [mx9 + dx9 * mr9, -1.3, mz9 + dz9 * mr9], [mx9 + dx9 * mr9, -1.85, mz9 + dz9 * mr9],
+              [mx9 + dx9 * (mr9 + FIN9), -1.85, mz9 + dz9 * (mr9 + FIN9)], [mx9 + dx9 * (mr9 + FIN9), -1.6, mz9 + dz9 * (mr9 + FIN9)],
+            ]);
+            // 판의 법선은 축·d 둘 다에 수직: d가 x면 z, d가 z면 x
+            let fl9 = faceLight(dz9, 0, dx9);
+            if (!fl9.visible) fl9 = faceLight(-dz9, 0, -dx9);
+            return [[q9, 1, RACE_BASE_TONE.terran] as ShapeFace, ...fl9.face(q9)];
+          })),
         ], key9(mx9, -0.4, mz9)));
         /* ★ 날개 끝 → 미사일을 잇는 **아주 가는 가지**(요청) ────────────────────────────
            여태 미사일 둘은 날개 끝 곁에 **떠 있었다** — 날개 판은 x 4.30에서 끝나고 미사일은
