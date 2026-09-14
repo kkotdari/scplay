@@ -6578,7 +6578,11 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
          0.38초라 회전도 떠오름도 한 결이 되기 전에 끝난다. 짧은 순간에 여러 겹을
          얹으면 읽히는 것이 아니라 어수선해질 뿐이다. 몸은 종전대로 그냥 사라지고,
          '어디로 갔나'는 배와 잇는 점선 하나가 말한다(아래 rideFx). */
-    if (simNow && simNow.state === ST_INSIDE) {
+    /* ★ 죽은 뒤에는 이 문을 안 탄다(지적: "스커지 자폭 시 사망 터짐 효과 안 나옴") — 원작은 죽는 몸을 첫 프레임부터 **숨긴다**
+       (order_Die → hide_unit)라, 덤퍼가 그 프레임들을 us_hidden(= ST_INSIDE)으로 적는다. 자폭하는 스커지·마인·감염 테란은 GONE
+       없이 자취가 끊기는 일이 흔해 마지막 키가 곧 그 '숨은' 키고, died가 그 시각이다 — 그러면 t ≥ died에서 posAtSim이
+       ST_INSIDE를 내 아래 사망 갈래에 닿기 전에 여기서 돌아섰다. 죽은 뒤(t ≥ dieAt)는 사망 갈래가 맡는다. */
+    if (simNow && simNow.state === ST_INSIDE && !(dieAt !== null && t >= dieAt)) {
       /* ★ **가스 건물의 불은 여기서 켠다**(지적: "가스 건물 활성화 반짝임 안
          나오는 듯") ─────────────────────────────────────────────────────────
          불을 켜던 자리(아래 inGas)는 이 문 **한참 뒤**에 있었다. 그런데 원작에서
