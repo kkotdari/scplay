@@ -14056,14 +14056,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            옆으로 뻗은 게다리로. 내려간 만큼은 바깥으로 더 뻗어(무릎 3.3 → 3.6, 발 4.4 → 5.0) 길이를 지킨다. */
         /* ★ 맨 앞 한 쌍(i9 0)은 **1.5배 굵고 앞을 향해 호로 굽는다**(재요청) — 무릎을 앞(+0.7)으로, 발끝은 더 앞
            (+1.7)·안쪽으로 당겨 두 마디가 앞으로 감기는 활이 된다. 나머지 둘은 그대로. */
+        /* ★ 재요청: 둘째 다리(i9 1)는 **길이 1.5배**(뿌리 x 2.3에서 무릎·발까지의 거리를 1.5배), 셋째 다리(i9 2)도 첫째처럼
+           **앞으로 호로 휜다**(굵기는 그대로). */
         const fr9 = i9 === 0;
+        const arc9 = i9 !== 1;            // 첫째·셋째는 앞으로 감기는 활
+        const ln9 = i9 === 1 ? 1.5 : 1;   // 둘째는 길게
         const tk9 = fr9 ? 1.5 : 1;
-        const kx9 = m9 * (fr9 ? 3.3 : 3.6 + i9 * 0.2);   // 무릎
+        const kx9 = m9 * (arc9 ? 3.3 + i9 * 0.1 : 2.3 + (3.8 - 2.3) * ln9);   // 무릎
         // 뒤로 안 쏠린다(지적: 너무 뒤를 향한다 — 옆면에 거의 수직으로) — 무릎 −1.2 → −0.2, 발 −1.1 → −0.2.
-        const ky9 = ly9 + (fr9 ? 0.7 : -0.2);
+        const ky9 = ly9 + (arc9 ? 0.7 : -0.2);
         const kz9 = lz9 - 0.35;
-        const fx9 = m9 * (fr9 ? 4.2 : 5.0 + i9 * 0.25);
-        const fy9 = fr9 ? ly9 + 1.7 : ky9 - 0.2;
+        const fx9 = m9 * (arc9 ? 4.2 + i9 * 0.1 : 2.3 + (5.25 - 2.3) * ln9);
+        const fy9 = arc9 ? ly9 + 1.7 : ky9 - 0.2 * ln9;
         const knee: [number, number, number] = [kx9, ky9, kz9];
         return [
           ...paintBase(suitLimb([m9 * 2.3, ly9, lz9], knee, 0.31 * tk9, 0.29 * tk9, 0.31 * tk9, { sides: 7, caps: "none", trueNormal: true }), "#6b4732"),
@@ -19607,8 +19611,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        만나는 자리에 턱이 생겼다. 그 턱이 곧 버섯의 갓 테두리다. 이제 둘 다 같은 중심
        (CZ)·같은 반지름(R9)에서 갈라져, 몸의 가장 넓은 곳이 그 이음매 하나뿐이다.
        위(1.05)가 아래(0.88)보다 길어 위로 갈수록 좁아지는 알꼴이 된다. */
-    body.push(...tagKey(paintBase(domeFaces3(0, 0, R9, RZ9 * 1.05, CZ, true), SHELL),
-      depthNow(0, 0) * 1.6 + 0.5));
+    /* ★ 갑각(위 몸통)도 **임자색**(재요청: "배가 아니라 몸통 전체") — 이랑·앞턱·뿔은 갈색으로 남아 결을 낸다. */
+    const shell9: ShapeFace[] = tagKey(domeFaces3(0, 0, R9, RZ9 * 1.05, CZ, true), depthNow(0, 0) * 1.6 + 0.5);
+    body.push(...shell9);
     for (const xr0 of [-1.35, 0, 1.35]) {
       const xr = xr0 * BK;
       const rr = Math.sqrt(Math.max(0.05, R9 * R9 - xr * xr)) * 0.99;
@@ -19972,7 +19977,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const PCY9 = -(R9 + 0.25); const PCZ9 = bz(CZ - 0.9); const PH9 = 2.3;
     const pouch9: ShapeFace[] = tagKey(paintBase(spirePillar({
       x: 0, y: 0, h: 1, w: 1, segs: 8, sides: 10, caps: "none", oval: 0.5, ref: [1, 0, 0],
-      path: (t9: number): [number, number, number] => [0, PCY9, PCZ9 - PH9 / 2 + PH9 * t9],
+      // 뒤쪽(위 끝)을 살짝 위로 들리게(재요청) — 축을 뒤로 0.3 기울여 위 끝이 뒤, 아래 끝이 몸 쪽
+      path: (t9: number): [number, number, number] => [0, PCY9 - 0.3 * (t9 - 0.5), PCZ9 - PH9 / 2 + PH9 * t9],
       widthOf: (t9: number): number => Math.max(0.03, 0.7 * BK * Math.sin(Math.PI * t9)),
     }), SHELL), depthNow(0, PCY9) * 1.6 + 0.5 + (PCZ9 - CZ) * 0.55);
     return raceBase([
@@ -19985,7 +19991,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ...face,
       ...horns,
       ...pouch9,
-    ], "zerg", [...clawGrip, ...belly9]);
+    ], "zerg", [...clawGrip, ...belly9, ...shell9]);
   },
   /* 드랍십(실물 참고) — 양옆 굵은 엔진 포드(앞 단면이 둥글게 보인다) + 가운데 각진
      몸통 + 뒤쪽 수직 꼬리날개. */
