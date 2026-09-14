@@ -6102,7 +6102,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       return out9;
     };
     const PH9 = 6.4 * 1.2;   // 방패 기둥 키(6.4의 1.2배)
-    const PT9 = 1.15;        // 굵기 taper — 1보다 크면 밑에서 빨리 좁아진다(1.8은 밑동이 불룩한 배흘림으로 읽혀 1.15로)
+    const PT9 = 0.6;         // 굵기 taper — 1보다 작으면 아래 완만·위 급격(재재요청: "경사가 위로 갈수록 급해야"). 1.8은 거꾸로였다.
     const PW9 = 0.8;         // 밑 반폭(1.2 → 0.8, 홀쭉이)
     const pillar = (px: number, py: number): ShapeFace[] => withModelZOff(PLINTH_Z9, () => shape(((): ShapeFace[] => {
       return [
@@ -6151,7 +6151,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            약하게. (밑 반폭을 1.7로 넓혔다가 원복 — "밑면이 더 넓어야"는 기둥이 아니라 **피라미드** 밑면이었다.) */
         ...tagKey(spirePillar({
           // 키 6.4 → PH9(×1.2) · taper PT9로 밑에서 빨리 좁아진다(요청: "기둥 높이 1.2배, 좁아지는 속도 빠르게")
-          // 배흘림이 아니라 홀쭉이(재요청) — 밑 반폭 1.2 → PW9(0.8), taper 1.8 → 1.15(거의 곧게 가늘어진다)
+          // 홀쭉이(재요청) — 밑 반폭 1.2 → PW9(0.8); 굵기는 위로 갈수록 급하게 준다(PT9 0.6)
           x: px, y: py, z0: 0.4, h: PH9, w: PW9, tipW: 0.1, sides: 3, segs: 6, taper: PT9, fill: "#d4bd3c",   // 끝 0.28 → 0.1(첨탑을 걷어 뾰족하게)
           oval: 0.75, phase: -Math.PI / 2, ref: [-py / Math.hypot(px, py), px / Math.hypot(px, py), 0],
           curveX: (-px / Math.hypot(px, py)) * 0.4, curveY: (-py / Math.hypot(px, py)) * 0.4,   // 0.8 → 0.4(재요청: 더 약하게)
