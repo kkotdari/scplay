@@ -14021,12 +14021,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          3D 등마루가 없다(재지적: "위치가 안 맞고 안 보여"). 뒤 반을 타면 끝이 덩이 실루엣 위로 삐져나오므로 **앞 반만**
          탄다(y 1.6 → 정수리 −0.2) — 앞 밑동에서 정수리까지, 실루엣 안에 든다. 키는 돔(제 깊이 + 1.4)은 물론 옆 돔
          (마주 볼 때 ≈ +2.3)보다도 앞(+2.6)에 — 여태 ×1.6 + 1.0이라 옆에서 볼 때 옆 돔 밑에 묻혔다. */
+    /* ★ 뒤까지 잇는다(재요청) — 뒤 반(y < −0.2)은 높이 몫을 끝(y −1.7)으로 갈수록 0.1까지 눌러, 화면 덩이의 뒤
+       가장자리(y −2.05) 안쪽에서 등을 타고 내려가는 것으로 보이게 한다. */
     ...tagKey(paintBase(spirePillar({
-      x: 0, y: 0, h: 1, w: 1, segs: 6, sides: 6, caps: "both",
+      x: 0, y: 0, h: 1, w: 1, segs: 10, sides: 6, caps: "both",
       path: (t9: number): [number, number, number] => {
-        const y9 = 1.6 - 1.8 * t9;
+        const y9 = 1.6 - 3.3 * t9;
         const u9 = Math.min(0.98, Math.abs((y9 + 0.2) / GB_R9));
-        return [0, y9, 5.6 + GB_H9 * Math.sqrt(1 - u9 * u9) + 0.04];
+        const k9 = y9 >= -0.2 ? 1 : 1 - 0.9 * ((-0.2 - y9) / 1.5);
+        return [0, y9, 5.6 + GB_H9 * Math.sqrt(1 - u9 * u9) * k9 + 0.04];
       },
       widthOf: (t9: number): number => 0.13 + 0.07 * Math.sin(Math.PI * t9),
     }), "#6b4732"), depthNow(0, -0.2) + 2.6),
@@ -14101,14 +14104,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const root9: [number, number, number] = [m9 * 2.3, ly9, lz9];
         /* 앞 두 다리(i9 0·1)의 첫 마디 가운데에 **두꺼운 임자색 띠**(재요청) — 마디보다 살짝 굵은(×1.18) 짧은 고리(길이
            0.3), 색을 안 줘 임자색. 키는 마디(suitLimb: 중점 깊이 + 굵기)보다 한 뼘 앞. */
+        /* 띠 두께 세 배(재요청: 마디의 0.16 → 0.48), 굵기는 마디의 1.1배로 바짝. ★ trueNormal — 눕힌 고리는 축→면
+           방향 어림 법선으로는 등진 벽을 못 걷어 먼 쪽 벽이 다리 위로 비쳤다(지적: "다리에 안 가려짐"). 진짜
+           법선으로 보이는 벽만 남기고, 키는 제 마디 바로 앞(+0.05)에 둔다. */
         const band9: ShapeFace[] = i9 <= 1 ? tagKey(spirePillar({
-          x: 0, y: 0, h: 1, w: 1, segs: 1, sides: 7, caps: "none",
+          x: 0, y: 0, h: 1, w: 1, segs: 1, sides: 8, caps: "none", trueNormal: true,
           path: (t9: number): [number, number, number] => [
-            root9[0] + (knee[0] - root9[0]) * (0.42 + 0.16 * t9), root9[1] + (knee[1] - root9[1]) * (0.42 + 0.16 * t9),
-            root9[2] + (knee[2] - root9[2]) * (0.42 + 0.16 * t9),
+            root9[0] + (knee[0] - root9[0]) * (0.26 + 0.48 * t9), root9[1] + (knee[1] - root9[1]) * (0.26 + 0.48 * t9),
+            root9[2] + (knee[2] - root9[2]) * (0.26 + 0.48 * t9),
           ],
-          widthOf: (): number => 0.30 * tk9 * 1.18,
-        }), depthNow((root9[0] + knee[0]) / 2, (root9[1] + knee[1]) / 2) + 0.31 * tk9 + 0.15) : [];
+          widthOf: (): number => 0.30 * tk9 * 1.1,
+        }), depthNow((root9[0] + knee[0]) / 2, (root9[1] + knee[1]) / 2) + 0.31 * tk9 + 0.05) : [];
         return [
           ...paintBase(suitLimb(root9, knee, 0.31 * tk9, 0.29 * tk9, 0.31 * tk9, { sides: 7, caps: "none", trueNormal: true }), "#6b4732"),
           ...band9,
