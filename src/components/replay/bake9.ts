@@ -3698,6 +3698,9 @@ export const sunkenTongueFaces = (): ShapeFace[] => {
     })(),
   ], "#c0472b")), 13);   // 더 붉게(요청): #b5713a → #c0472b
 };
+/** 가디언 가운데 돔 치수 — 몸·척추·날개껍질 뿌리가 같이 쓴다. */
+const GB_R9 = 1.85;
+const GB_H9 = 1.15;
 export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   /* 커맨드 센터(재작도 — 사진 기준, 기존 비율·자세는 그대로) ─────────────────────
      여태 선체 전체가 개인색이라 종족이 안 읽히고 팀마다 딴 건물처럼 보였다. 테란의
@@ -14007,9 +14010,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   /* 가디언(지적: 꽃게 모양) — 옆으로 넓적한 게딱지 + 앞 양 집게 + 옆 잔다리. */
   guardian: () => [
     // 게딱지 양옆은 **임자색**(재요청: 흰 부품을 임자색으로), 가운데는 **보라**(재요청) — 색 자리를 맞바꾼다.
-    ...domeFaces3(-1.2, -0.4, 1.7, 1.1, 5.7),
-    ...domeFaces3(1.2, -0.4, 1.7, 1.1, 5.7),
-    ...paintBase(domeFaces3(0, -0.2, 2.1, 1.4, 5.6), "#6d4a86"),
+    /* ★ 몸통을 줄인다(지적: "몸통 부품이 이상, 키도 안 맞고 너무 큰 듯") — 옆 돔(반지름 1.7·높이 1.1)이 가운데
+       돔(2.1·1.4)과 크게 겹쳐, 옆에서 볼 때 가까운 옆 돔의 덩이가 가운데를 통째로 덮었다. 옆 돔은 작은 혹(1.15·0.7)
+       으로 바깥(±1.55)에, 가운데는 1.85·1.15로. */
+    ...domeFaces3(-1.55, -0.4, 1.15, 0.7, 5.75),
+    ...domeFaces3(1.55, -0.4, 1.15, 0.7, 5.75),
+    ...paintBase(domeFaces3(0, -0.2, GB_R9, GB_H9, 5.6), "#6d4a86"),
     /* ★ 등마루의 **갈색 척추 줄기**(요청) — 가운데 돔 꼭대기를 앞뒤로 타는 가는 관(반폭 0.12~0.2).
        ★ 돔(domeFaces3)은 **화면 덩이**다 — 밑 타원에서 정수리 한 점(cx, cy, z0+hh)으로 오르는 곡선이라 앞뒤로 도는
          3D 등마루가 없다(재지적: "위치가 안 맞고 안 보여"). 뒤 반을 타면 끝이 덩이 실루엣 위로 삐져나오므로 **앞 반만**
@@ -14019,8 +14025,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       x: 0, y: 0, h: 1, w: 1, segs: 6, sides: 6, caps: "both",
       path: (t9: number): [number, number, number] => {
         const y9 = 1.6 - 1.8 * t9;
-        const u9 = Math.min(0.98, Math.abs((y9 + 0.2) / 2.1));
-        return [0, y9, 5.6 + 1.4 * Math.sqrt(1 - u9 * u9) + 0.04];
+        const u9 = Math.min(0.98, Math.abs((y9 + 0.2) / GB_R9));
+        return [0, y9, 5.6 + GB_H9 * Math.sqrt(1 - u9 * u9) + 0.04];
       },
       widthOf: (t9: number): number => 0.13 + 0.07 * Math.sin(Math.PI * t9),
     }), "#6b4732"), depthNow(0, -0.2) + 2.6),
@@ -14049,12 +14055,23 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // 앞 양 집게 — 두 마디로 안쪽으로 굽는다. 짙은 갈색(재지적: 앞다리도).
     /* ★ 앞집게는 **앞을 향해 호로 굽는 한 마디**, 1.5배 굵게(재요청) — 두 뿔 마디 대신 spirePillar 곡선: 뿌리
        (±1.9, 0.8)에서 바깥으로 불룩(sin) 나갔다가 앞(y 4.0)으로 모인다. 밑 반폭 0.43 → 0.65, 끝은 뾰족. */
-    ...([-1, 1] as const).flatMap((m9) => paintBase(spirePillar({
-      x: 0, y: 0, h: 1, w: 0.65, tipW: 0.06, segs: 7, sides: 7, hold: 0.15, taper: 0.9, caps: "bottom",
-      path: (t9: number): [number, number, number] => [
+    // 앞 2/3는 **상아색**(재요청) — 같은 호를 뿌리 1/3(갈색)·앞 2/3(상아)로 나눠 세운다. 굵기·자리는 한 식.
+    ...([-1, 1] as const).flatMap((m9): ShapeFace[] => {
+      const cp9 = (t9: number): [number, number, number] => [
         m9 * (1.9 + 1.05 * Math.sin(Math.PI * t9)), 0.8 + 3.2 * t9, 5.9 - 0.55 * t9,
-      ],
-    }), "#6b4732")),
+      ];
+      const cw9 = (t9: number): number => 0.06 + (0.65 - 0.06) * (1 - Math.max(0, (t9 - 0.15) / 0.85)) ** 0.9;
+      return [
+        ...paintBase(spirePillar({
+          x: 0, y: 0, h: 1, w: 1, segs: 3, sides: 7, caps: "bottom",
+          path: (t9: number): [number, number, number] => cp9(t9 / 3), widthOf: (t9: number): number => cw9(t9 / 3),
+        }), "#6b4732"),
+        ...paintBase(spirePillar({
+          x: 0, y: 0, h: 1, w: 1, segs: 5, sides: 7, caps: "none",
+          path: (t9: number): [number, number, number] => cp9(1 / 3 + (2 / 3) * t9), widthOf: (t9: number): number => cw9(1 / 3 + (2 / 3) * t9),
+        }), IVORY_DEEP),
+      ];
+    }),
     /* 옆 잔다리 — **마디 둘씩, 훨씬 길게**(요청). 한 마디짜리 짧은 뿔은 몸에 붙은
        돌기로만 보였다. 무릎에서 한 번 꺾여 아래로 뻗으면 다리로 읽힌다. 뻗는 거리도
        1.3 → 3.6쯤으로 키운다. 짙은 갈색. */
@@ -14081,8 +14098,20 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const fx9 = m9 * (2.3 + (1.9 + i9 * 0.1) * ln9);
         const fy9 = ly9 + 1.7 * ln9;
         const knee: [number, number, number] = [kx9, ky9, kz9];
+        const root9: [number, number, number] = [m9 * 2.3, ly9, lz9];
+        /* 앞 두 다리(i9 0·1)의 첫 마디 가운데에 **두꺼운 임자색 띠**(재요청) — 마디보다 살짝 굵은(×1.18) 짧은 고리(길이
+           0.3), 색을 안 줘 임자색. 키는 마디(suitLimb: 중점 깊이 + 굵기)보다 한 뼘 앞. */
+        const band9: ShapeFace[] = i9 <= 1 ? tagKey(spirePillar({
+          x: 0, y: 0, h: 1, w: 1, segs: 1, sides: 7, caps: "none",
+          path: (t9: number): [number, number, number] => [
+            root9[0] + (knee[0] - root9[0]) * (0.42 + 0.16 * t9), root9[1] + (knee[1] - root9[1]) * (0.42 + 0.16 * t9),
+            root9[2] + (knee[2] - root9[2]) * (0.42 + 0.16 * t9),
+          ],
+          widthOf: (): number => 0.30 * tk9 * 1.18,
+        }), depthNow((root9[0] + knee[0]) / 2, (root9[1] + knee[1]) / 2) + 0.31 * tk9 + 0.15) : [];
         return [
-          ...paintBase(suitLimb([m9 * 2.3, ly9, lz9], knee, 0.31 * tk9, 0.29 * tk9, 0.31 * tk9, { sides: 7, caps: "none", trueNormal: true }), "#6b4732"),
+          ...paintBase(suitLimb(root9, knee, 0.31 * tk9, 0.29 * tk9, 0.31 * tk9, { sides: 7, caps: "none", trueNormal: true }), "#6b4732"),
+          ...band9,
           ...paintBase(domeFaces3(kx9, ky9, 0.3 * tk9, 0.26 * tk9, kz9 - 0.1), "#6b4732"),
           // 끝은 뾰족하게(요청): 끝 굵기 0.22 → 0.02, 배 0.27 → 0.24 — 무릎에서 발끝으로 모이는 뿔
           ...paintBase(suitLimb(knee, [fx9, fy9, kz9 - 0.6], 0.27 * tk9, 0.02, 0.24 * tk9, { sides: 7, caps: "none", trueNormal: true, segs: 5 }), "#6b4732"),
