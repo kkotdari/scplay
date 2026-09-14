@@ -6106,8 +6106,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        (수직에 가깝게) — 지금은 반대") — r(t) = tip + (w − tip)·(1 − t)^PT9. 밑동에서 옆선이 많이 누워(급히 가늘어짐)
        위로 갈수록 수직에 가까워지며 가는 바늘로 뾰족하게 선다. 오지브(1 − t^p)는 밑동이 수직·위가 눕는 반대 결이었다.
        widthOf로 직접 준다. */
-    const PT9 = 2.5;         // 벌어짐 지수 — 클수록 밑에서 빨리 가늘어지고 윗도리가 긴 바늘이 된다
-    const PW9 = 1.0;         // 밑 반폭(1.2 → 0.8 → 1.0 — 밑을 벌리는 만큼 되살림)
+    const PT9 = 1.6;         // 벌어짐 지수 — 클수록 밑에서 빨리 가늘어지고 윗도리가 긴 바늘이 된다(2.5 → 1.6: "저 지경으로 뾰족하진 않게")
+    const PTIP9 = 0.2;       // 끝 반폭(0.06 → 0.2)
+    const PW9 = 1.15;        // 밑 반폭(1.2 → 0.8 → 1.0 → 1.15 — 전체적으로 넓힘)
     const pillar = (px: number, py: number): ShapeFace[] => withModelZOff(PLINTH_Z9, () => shape(((): ShapeFace[] => {
       return [
         // 받침 원반도 제 깊이(지적: 기둥 바닥의 원들이 안 가려짐).
@@ -6156,8 +6157,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ...tagKey(spirePillar({
           // 키 6.4 → PH9(×1.2) · taper PT9로 밑에서 빨리 좁아진다(요청: "기둥 높이 1.2배, 좁아지는 속도 빠르게")
           // 홀쭉이(재요청) — 밑 반폭 PW9; 옆선은 밑이 벌어진 바늘(위 PT9 주석)
-          x: px, y: py, z0: 0.4, h: PH9, w: PW9, tipW: 0.06, sides: 3, segs: 8, fill: "#d4bd3c",
-          widthOf: (t9: number): number => 0.06 + (PW9 - 0.06) * (1 - t9) ** PT9,
+          x: px, y: py, z0: 0.4, h: PH9, w: PW9, tipW: PTIP9, sides: 3, segs: 8, fill: "#d4bd3c",
+          widthOf: (t9: number): number => PTIP9 + (PW9 - PTIP9) * (1 - t9) ** PT9,
           oval: 0.75, phase: -Math.PI / 2, ref: [-py / Math.hypot(px, py), px / Math.hypot(px, py), 0],
           curveX: (-px / Math.hypot(px, py)) * 0.4, curveY: (-py / Math.hypot(px, py)) * 0.4,   // 0.8 → 0.4(재요청: 더 약하게)
         }), pillarKey9(px, py, 1.5)),   // 받침판(+1.3)보다 한 단 앞 — 기둥이 받침판 위에 선다
@@ -6182,15 +6183,39 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            키: 바깥면이 시청자를 볼 때만 기둥(+1.5) 앞(+1.6), 등질 때는 뒤(+1.4)라 몸에 가려진다. 방패 끝은 뾰족하게. */
         ...((): ShapeFace[] => {
           const r9 = Math.hypot(px, py); const ox9 = px / r9; const oy9 = py / r9;
-          const tg9 = 0.78; const rg9 = 0.06 + (PW9 - 0.06) * (1 - tg9) ** PT9;   // 방패의 widthOf 식 그대로
-          const off9 = 0.75 * rg9 - 0.4 * tg9 * tg9;
+          const tg9 = 0.78; const rg9 = PTIP9 + (PW9 - PTIP9) * (1 - tg9) ** PT9;   // 방패의 widthOf 식 그대로
+          const off9 = 0.75 * rg9 - 0.4 * tg9 * tg9 - 0.04;   // 능선에서 0.04 안으로 — 평평한 뒷면이 몸에 묻힌다
           const gx9 = px + ox9 * off9; const gy9 = py + oy9 * off9;
           const lift9 = depthNow(px + ox9, py + oy9) > depthNow(px, py) ? 1.6 : 1.4;
-          return tagKey(spirePillar({
-            x: gx9, y: gy9, z0: 0.4 + PH9 * tg9 - 0.75, h: 1.5, w: 0.38, sides: 6, segs: 4,
-            widthOf: (t9) => 0.38 * (1 - Math.abs(2 * t9 - 1)),
-            fill: glowLit("#e6fffb", "#83f7e8"),
-          }), pillarKey9(px, py, lift9));
+          /* ★ 기둥에 붙는 면은 **평평하게 깎는다**(재요청) — 쌍뿔을 축면(접선·z 평면)으로 반 가른 **반쪽 쌍뿔**을 직접
+             세운다: 허리 고리는 접선 방향 양 끝(0°·180°, 깎인 면 위)과 바깥으로 튀어나온 두 점(60°·120°)이고, 위아래
+             꼭짓점은 깎인 면 위에 있다. 바깥 낯 여섯 장(위 셋·아래 셋)과 뒷면 마름모 한 장. 낯마다 법선을 재서 빛을
+             받고 등진 낯은 건너뛴다. */
+          const GW9 = 0.34; const GH9 = 1.5; const zc9 = 0.4 + PH9 * tg9;
+          const ux9 = -oy9; const uy9 = ox9;   // 접선(깎인 면 안의 가로축)
+          const P9 = (a9: number): [number, number, number] =>
+            [gx9 + ux9 * Math.cos(a9) * GW9 + ox9 * Math.sin(a9) * GW9, gy9 + uy9 * Math.cos(a9) * GW9 + oy9 * Math.sin(a9) * GW9, zc9];
+          const ring9 = [P9(0), P9(Math.PI / 3), P9((2 * Math.PI) / 3), P9(Math.PI)];
+          const top9: [number, number, number] = [gx9, gy9, zc9 + GH9 / 2];
+          const bot9: [number, number, number] = [gx9, gy9, zc9 - GH9 / 2];
+          const gem9 = glowLit("#e6fffb", "#83f7e8");
+          const tri9 = (p0: [number, number, number], p1: [number, number, number], p2: [number, number, number], p3?: [number, number, number]): ShapeFace[] => {
+            const ax9 = p1[0] - p0[0]; const ay9 = p1[1] - p0[1]; const az9 = p1[2] - p0[2];
+            const bx9 = p2[0] - p0[0]; const by9 = p2[1] - p0[1]; const bz9 = p2[2] - p0[2];
+            let nx9 = ay9 * bz9 - az9 * by9; let ny9 = az9 * bx9 - ax9 * bz9; let nz9 = ax9 * by9 - ay9 * bx9;
+            const cx9 = (p0[0] + p1[0] + p2[0]) / 3 - gx9; const cy9 = (p0[1] + p1[1] + p2[1]) / 3 - gy9; const cz9 = (p0[2] + p1[2] + p2[2]) / 3 - zc9;
+            if (nx9 * cx9 + ny9 * cy9 + nz9 * cz9 < 0) { nx9 = -nx9; ny9 = -ny9; nz9 = -nz9; }   // 바깥(보석 중심에서 멀어지는 쪽)
+            const nl9 = Math.hypot(nx9, ny9, nz9) || 1;
+            const fl9 = faceLight(nx9 / nl9, ny9 / nl9, nz9 / nl9);
+            if (!fl9.visible) return [];
+            const d9 = polyPath3(p3 ? [p0, p1, p2, p3] : [p0, p1, p2]);
+            return [[d9, 1, gem9] as ShapeFace, ...fl9.face(d9)];
+          };
+          return tagKey([
+            ...tri9(ring9[0], top9, ring9[3], bot9),   // 뒷면(깎인 면) — 몸에 묻히지만 안쪽에서 볼 때 닫힌다
+            ...tri9(ring9[0], ring9[1], top9), ...tri9(ring9[1], ring9[2], top9), ...tri9(ring9[2], ring9[3], top9),
+            ...tri9(ring9[0], bot9, ring9[1]), ...tri9(ring9[1], bot9, ring9[2]), ...tri9(ring9[2], bot9, ring9[3]),
+          ], pillarKey9(px, py, lift9));
         })(),
         // (걷어냄) 기둥 어깨의 타원 하이라이트 — 리본 시절의 광택 대용이었다. 진짜 원뿔은 면마다 빛을 받는다.
       ];
