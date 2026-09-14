@@ -963,51 +963,51 @@ export const UNIT_BULK: Record<string, 0 | 1 | 2> = {
  *  하던 일을 채움 보정이 아니라 이 층으로 옮긴 것이다. 스크립트도 짝은 안 찍는다.
  *  표에 없는 종류는 1(모델 그대로)이다 — 건물이 여기로 떨어진다. */
 export const MODEL_NORM: Record<string, number> = {
-  arbiter: 1.890,  // 상자 상한(원한 배수 2.224)
-  archon: 0.480,  // 재측정(model-norm)
-  bc: 0.680,
+  arbiter: 1.871,  // 상자 상한(원한 배수 2.224)
+  archon: 0.481,  // 재측정(model-norm)
+  bc: 0.675,
   burrowhole: 0.870,
-  carrier: 0.720,
-  corsair: 1.354,  // 재측정(model-norm) — 위팔 0.8배 뒤
-  darchon: 0.496,
-  defiler: 0.855,   // 0.687 → ×1.2(요청: 디파일러 그리기 1.2배)
-  devourer: 0.825,
-  drone: 1.122,  // 재측정(model-norm)
-  droneGas: 1.078,
-  droneMin: 1.117,
-  dship: 0.735,  // 포드 축소·안쪽 이동 뒤 재측정(model-norm)
-  dtemp: 0.884,  // 재측정(model-norm) — 망토를 1.2배로 늘리고 들어 올린 뒤(잉크 폭 5.48 → 6.26)
-  egg: 1.263,   // 정수리를 둥글게 한 뒤 model-norm 재측정
-  fbat: 1.253,
-  ghost: 1.567,  // 상자 상한(원한 배수 1.723)
-  goliath: 0.722,   // 재측정(model-norm) — 미사일 포드 걷고 포신 하나로(옛 0.671)
-  goon: 0.674,  // 재측정(model-norm)
-  guardian: 0.787,  // 다리 옆으로 곧게 뒤 재측정(model-norm)
-  gunner: 1.353,  // 팔 길이 고정 뒤 model-norm 재측정
-  htemp: 1.164,  // 재측정(model-norm) — 왕관(살 다섯·보석)까지 반영
-  hydra: 0.663,  // 머리장식 확대·머리 위 시작·길이 +20%·폭 −20%·마름모 허리 0.75 뒤 재측정(model-norm의 **top 모드** 표)
-  inf: 1.534,  // 상자 상한(원한 배수 1.615)
-  interceptor: 1.622,  // 재측정(model-norm)
-  larva: 1.377,  // 상자 상한(원한 배수 1.466)
-  lurker: 0.613,
-  lurkeregg: 0.921,
-  mine: 0.842,  // 다리를 걷은 뒤 재측정은 1.840이지만 몸 크기를 지키려 옛 값 1.007 유지 → ×0.8(요청: "벌처랑 마인 0.8배")
-  muta: 0.756,
-  mutacocoon: 1.878,  // 상자 상한(원한 배수 1.891)
-  observer: 1.894,
-  ovie: 0.833,  // 앞턱을 호로 바꾼 뒤 재측정(model-norm)
-  probe: 1.785,  // 다리 두께면을 양쪽으로 고친 뒤 model-norm 재측정
-  probeGas: 1.521,
-  probeMin: 1.580,
-  queen: 0.638,
-  reaver: 0.869,  // 재측정(model-norm)
-  scarab: 1.550,  // 상자 상한(원한 배수 1.591)
-  scourge: 1.335,  // 상자 상한(원한 배수 1.327)
-  scout: 0.886,  // 재측정(model-norm)
-  scv: 0.774,  // 하완 1.2배·상완 원통 걷은 뒤 재측정(model-norm) — 옛 0.767
-  scvGas: 0.863,
-  scvMin: 0.872,
-  shuttle: 0.840,  // 재측정(model-norm) — 뒷다리를 더 오므린 뒤
+  carrier: 0.713,
+  corsair: 1.331,  // 재측정(model-norm) — 위팔 0.8배 뒤
+  darchon: 0.495,
+  defiler: 0.849,   // 0.687 → ×1.2(요청: 디파일러 그리기 1.2배)
+  devourer: 0.809,
+  drone: 1.113,  // 재측정(model-norm)
+  droneGas: 1.075,
+  droneMin: 1.110,
+  dship: 0.726,  // 포드 축소·안쪽 이동 뒤 재측정(model-norm)
+  dtemp: 0.863,  // 재측정(model-norm) — 망토를 1.2배로 늘리고 들어 올린 뒤(잉크 폭 5.48 → 6.26)
+  egg: 1.238,   // 정수리를 둥글게 한 뒤 model-norm 재측정
+  fbat: 1.223,
+  ghost: 1.521,  // 상자 상한(원한 배수 1.723)
+  goliath: 0.709,   // 재측정(model-norm) — 미사일 포드 걷고 포신 하나로(옛 0.671)
+  goon: 0.665,  // 재측정(model-norm)
+  guardian: 0.783,  // 다리 옆으로 곧게 뒤 재측정(model-norm)
+  gunner: 1.320,  // 팔 길이 고정 뒤 model-norm 재측정
+  htemp: 1.136,  // 재측정(model-norm) — 왕관(살 다섯·보석)까지 반영
+  hydra: 0.645,  // 머리장식 확대·머리 위 시작·길이 +20%·폭 −20%·마름모 허리 0.75 뒤 재측정(model-norm의 **top 모드** 표)
+  inf: 1.493,  // 상자 상한(원한 배수 1.615)
+  interceptor: 1.608,  // 재측정(model-norm)
+  larva: 1.376,  // 상자 상한(원한 배수 1.466)
+  lurker: 0.607,
+  lurkeregg: 0.911,
+  mine: 0.832,  // 다리를 걷은 뒤 재측정은 1.840이지만 몸 크기를 지키려 옛 값 1.007 유지 → ×0.8(요청: "벌처랑 마인 0.8배")
+  muta: 0.739,
+  mutacocoon: 1.839,  // 상자 상한(원한 배수 1.891)
+  observer: 1.850,
+  ovie: 0.813,  // 앞턱을 호로 바꾼 뒤 재측정(model-norm)
+  probe: 1.765,  // 다리 두께면을 양쪽으로 고친 뒤 model-norm 재측정
+  probeGas: 1.490,
+  probeMin: 1.548,
+  queen: 0.626,
+  reaver: 0.854,  // 재측정(model-norm)
+  scarab: 1.524,  // 상자 상한(원한 배수 1.591)
+  scourge: 1.322,  // 상자 상한(원한 배수 1.327)
+  scout: 0.884,  // 재측정(model-norm)
+  scv: 0.761,  // 하완 1.2배·상완 원통 걷은 뒤 재측정(model-norm) — 옛 0.767
+  scvGas: 0.846,
+  scvMin: 0.854,
+  shuttle: 0.837,  // 재측정(model-norm) — 뒷다리를 더 오므린 뒤
   /* ★ 시즈탱크 넷은 **차체 하나의 값으로 못 박는다**(지적: "정규화 시 포신 튀어나온
      부분과 시즈모드의 고정다리 크기는 빼고 정규화해야") — 스크립트가 재는 잉크 상자에
      합본(tank·tanksiege)은 포신이, 시즈 차체는 네 귀의 버팀다리가 들어가 하나뿐인
@@ -1020,17 +1020,17 @@ export const MODEL_NORM: Record<string, number> = {
      앞 궤도 지름 −10%(요청) 뒤 tankbody 재측정: 0.723 → 0.746. 궤도가 작아진 만큼 잉크 상자가
      줄었으니 배수를 그만큼 올려야 **화면의 탱크 크기는 그대로**이고 앞 궤도만 작아 보인다 —
      안 올리면 앞 궤도를 줄인 몫만큼 탱크 전체가 작아진다. 넷은 여전히 한 값이다(위 ★). */
-  tank: 0.767,
-  tankbody: 0.773,
-  tanksiege: 0.770,
-  tanksiegebody: 0.773,
-  ultra: 0.374,
-  valk: 0.695,   // 앞동체 −10% 뒤 재측정(model-norm) 0.840 → ×0.8(요청: 발키리 그리기 0.8배)
-  vessel: 0.919,  // 방패 접힘 축·뾰족 위끝 뒤 재측정(model-norm)
-  vulture: 0.691,   // 0.833 × 0.8(요청: "벌처랑 마인 0.8배")
-  wraith: 0.923,  // 재측정(model-norm)
-  zealot: 1.001,  // 투구·관(마루 6.36)·묶음 재작도 뒤 재측정(model-norm의 top 모드) · 옛 0.955
-  zling: 0.778,
+  tank: 0.755,
+  tankbody: 0.765,
+  tanksiege: 0.760,
+  tanksiegebody: 0.765,
+  ultra: 0.370,
+  valk: 0.686,   // 앞동체 −10% 뒤 재측정(model-norm) 0.840 → ×0.8(요청: 발키리 그리기 0.8배)
+  vessel: 0.902,  // 방패 접힘 축·뾰족 위끝 뒤 재측정(model-norm)
+  vulture: 0.684,   // 0.833 × 0.8(요청: "벌처랑 마인 0.8배")
+  wraith: 0.915,  // 재측정(model-norm)
+  zealot: 0.974,  // 투구·관(마루 6.36)·묶음 재작도 뒤 재측정(model-norm의 top 모드) · 옛 0.955
+  zling: 0.765,
   // tankgun: 없음 — 짝이라 소스의 NORM_PAIR가 tankbody 배수로 접는다.
   // tanksiegegun: 없음 — 짝이라 소스의 NORM_PAIR가 tanksiegebody 배수로 접는다.
 };
@@ -1699,7 +1699,7 @@ export const BLD_NORM: Record<string, number> = {
   coil: 1.337,
   comsat: 1.366,
   covert: 1.467,  // 사진 재작도 뒤 재측정(bld-norm)
-  creep: 1.149,  // ×0.8(요청: 그리기 0.8배) · 발 셋 이식·요잉·촛대·촛대 가시 뒤 재측정 1.438 · 옛 1.232
+  creep: 1.152,  // ×0.8(요청: 그리기 0.8배) · 발 셋 이식·요잉·촛대·촛대 가시 뒤 재측정 1.438 · 옛 1.232
   ctower: 1.555,
   /* 배럭만 **재본 값의 1.2배**다(요청: "배럭 크기 1.2배") — bld-norm이 내는 0.879는 잉크
      상자를 발자국에 꽉 맞추는 자인데, 이 모델은 발판을 사방으로 넓게 벌려 놔서 그 자에
@@ -1709,7 +1709,7 @@ export const BLD_NORM: Record<string, number> = {
   diamond: 1.905,  // 상자 상한에 걸림
   dmound: 1.111,
   dome: 1.134,  // ×0.8(요청: 그려지는 크기 0.8배)
-  ebay: 1.442,   // 다리 두 마디 20% 축소 뒤 재측정(잉크 폭이 좁아져 배수는 올라간다)
+  ebay: 1.443,   // 다리 두 마디 20% 축소 뒤 재측정(잉크 폭이 좁아져 배수는 올라간다)
   evo: 1.181,  // ×0.8(요청: 그리기 0.8배) · 가운데 장기 경사·뒤 등걸 0.8 뒤 재측정 1.476 · 옛 1.232
   extract: 0.853,  // ×0.8(요청: 그리기 0.8배) · 창 2.5배(다섯) 뒤 재측정 1.066 · 옛 1.027
   factory: 1.522,  // 창·옆 홈·격납구·발판·굴뚝·쐐기 · 다리 기둥 20% 축소 뒤 재측정(bld-norm)
@@ -1735,7 +1735,7 @@ export const BLD_NORM: Record<string, number> = {
   pyramidWide: 1.045,  // 재측정(bld-norm) — 기둥 5.5·원기둥 받침·표창 길이 원복 뒤
   queensnest: 1.145,   // 재측정(bld-norm) — 돔 5.6으로 키운 뒤(옛 1.148)
   refinery: 1.456,  // 아래판 뒤를 줄이고 뒤 드럼을 앞으로 당긴 뒤 bld-norm 재측정(1.394 →)
-  robobay: 1.526,  // 재측정 1.909 × 0.8(요청: 그려지는 크기 0.8배) — 가운데 결정을 작은 반구로 바꾼 뒤
+  robobay: 1.527,  // 재측정 1.909 × 0.8(요청: 그려지는 크기 0.8배) — 가운데 결정을 작은 반구로 바꾼 뒤
   sbattery: 1.951,  // 빨대 다리 뒤 재측정(bld-norm)
   scifac: 1.426,  // 재작도 + 삼중탑 제거·왼판 축소 · 다리 기둥 20% 축소 뒤 재측정(bld-norm)
   spire: 1.548,  // 상자 상한에 걸림
