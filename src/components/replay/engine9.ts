@@ -694,6 +694,14 @@ export const PROJECTILE_FX = new Set([
 /** 탄이 나는 속도(타일/초) — 원작 자료에 탄속 표가 없어 눈으로 읽히는 값으로 잡는다
  *  [어림]. 너무 느리면 궤적이 줄줄이 늘어서고, 너무 빠르면 즉발과 구분이 안 된다. */
 export const SHOT_TILES_PER_SEC = 14;
+/** 갈래마다 **제 탄속**(타일/초) — 여기 없으면 위의 기본값을 쓴다.
+ *  레이저는 빛이라 다른 탄과 같은 속도로 날면 '느린 광탄'으로 보인다(지적: "레이스·배틀
+ *  트레이서 중 레이저 트레이서 속도 좀 더 빠르게"). 표를 따로 둔 까닭: 기본값을 올리면
+ *  가시·글레이브·미사일까지 함께 빨라져 '날아가는 것'이라는 결이 통째로 사라진다. */
+export const FX_SHOT_SPEED: Record<string, number> = { laser: 30, laserBC: 30 };
+/** 이 갈래의 탄속 — 표에 있으면 그 값, 없으면 기본값. */
+export const shotSpeedOf9 = (fx: string | undefined): number =>
+  (fx && FX_SHOT_SPEED[fx]) || SHOT_TILES_PER_SEC;
 /* (걷어냄) 변태 중 모습 — '태어난 뒤 40초 동안은 럴커 알·번데기 고치를 그린다'는
    어림이었다. 개체 기록에 껍질이 안 남던 시절의 대역이다.
    참값에는 껍질이 **제 유닛으로** 실린다(럴커 알 97 · 뮤탈 고치 59). 게다가 태그가
@@ -2020,6 +2028,9 @@ export const FX_BEAM: Record<string, {
      조금 줄여, 길어진 만큼 가늘고 날카로운 광선이 되게 한다. 꼬리도 한 단 길게 끈다. */
   laserBC: { dur: 0.3, w: 0.26, l: 6.2, g: [[0, "rgba(255,240,200,0.98)"], [0.14, "rgba(255,190,90,0.96)"], [0.55, "rgba(255,160,56,0.5)"], [1, "rgba(255,138,32,0)"]], glow: "rgba(255,170,70,0.45)" },
   burst: { dur: 0.22, w: 0.4, l: 2, g: [[0, "rgba(255,244,200,0.95)"], [1, "rgba(255,244,200,0)"]] },
+  /* 포신 스파크 — 날아가는 탄이 아니라 총구에서 잠깐 튀는 불티다(스카우트 지상).
+     길이를 포신 앞 반 칸으로 두고 muzzleLit을 켜 총구가 함께 번쩍이게 한다. */
+  spark: { muzzleLit: true, dur: 0.16, w: 0.55, l: 0.5, g: [[0, "rgba(255,248,214,0.98)"], [0.35, "rgba(255,214,120,0.85)"], [1, "rgba(255,180,60,0)"]], glow: "rgba(255,210,110,0.5)" },
   /* 아콘 — **표적까지 잇는다**(요청, 위 span). 양 끝이 밝고 가운데가 옅은 그러데이션은
      그대로 둔다: 늘여 놓으면 그 꼴이 곧 '두 몸 사이에 걸린 번개'가 된다. */
   /* 아콘 — **표적까지 잇는다**(요청, 위 span·zig). 양 끝이 밝고 가운데가 옅은 그러데이션은
@@ -2087,6 +2098,8 @@ export const FX_IMPACT: Record<string, {
   gun: { r: 0.5, g: [[0, "rgba(255,250,225,0.95)"], [0.5, "rgba(255,200,110,0.4)"], [1, "rgba(255,180,80,0)"]] },
   base: { r: 0.5, g: [[0, "rgba(255,250,225,0.95)"], [0.5, "rgba(255,200,110,0.4)"], [1, "rgba(255,180,80,0)"]] },
   laser: { r: 0.55, g: [[0, "rgba(255,245,220,0.95)"], [0.45, "rgba(255,176,72,0.5)"], [1, "rgba(255,138,32,0)"]] },
+  // 스파크는 닿은 자리에도 작게만 튄다 — 총구의 불티와 같은 색이라야 한 무기로 읽힌다.
+  spark: { r: 0.32, g: [[0, "rgba(255,248,214,0.9)"], [0.5, "rgba(255,214,120,0.45)"], [1, "rgba(255,180,60,0)"]] },
   // 배틀크루저 레이저 — 닿은 빛은 레이스와 같은 색이라야 '같은 무기'로 읽힌다(위 ★).
   laserBC: { r: 0.62, g: [[0, "rgba(255,245,220,0.95)"], [0.45, "rgba(255,176,72,0.5)"], [1, "rgba(255,138,32,0)"]] },
   /* 커세어 — **표적에 넓적한 타원 플라즈마**다(요청: "커세어는 트레이서가 자기 자신
@@ -5920,7 +5933,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
             const dist9 = lenB / Math.max(1, tPxB);
             const flySec9 = Math.min(cd9 * 0.9,
               Math.max(0.05, Math.min(cd9 * 0.4, 0.4),
-                dist9 / Math.max(1, SHOT_TILES_PER_SEC)));
+                dist9 / Math.max(1, shotSpeedOf9(nm9))));
             const ph9 = firePhase(`b${raw}|${unit}|${Math.round(x * 4)}|${Math.round(y * 4)}`, cd9);
             const u9 = (ph9 * cd9) / flySec9;
             // 닿는 순간을 반드시 그린다 — 유닛 쪽과 같은 까닭(위 주석).
@@ -8013,9 +8026,15 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
        표(ATTACK_FX)의 Wraith가 이미 "laser"이므로 여기서는 갈래를 안 적고
        표로 물러나기만 하면 된다 — 한 곳에만 적힌다. */
     /* 스카우트만 금 탄두(요청) — 나머지 셋(골리앗·레이스·발키리)과 터렛은 은색이다. */
+    /* ★ 스카우트의 **지상**은 트레이서가 아니라 포신의 스파크다(지적: "스카우트는 레이저
+       스카우트가 없어야 하는데 원래 … 지상 공격 시라면 포신에 스파크가 살짝 튀는 거야").
+       앞서 골리앗과 한 덩이로 묶어 다발총(burst)을 줬는데, 스카우트의 지상 무기는 날아가는
+       탄이 아니다 — 총구에서 잠깐 튀고 만다. spark는 PROJECTILE_FX에 없어 제자리에서
+       번쩍이고, 길이가 짧아 포신 앞을 벗어나지 않는다. 골리앗은 종전대로 다발총이다. */
     const fxName9 = dualFx9 && foe.air ? (fxUnit === "Scout" ? "missileG" : "missile")
-      : dualFx9 && fxUnit !== "Wraith" ? "burst"
-        : ATTACK_FX[fxUnit];
+      : dualFx9 && fxUnit === "Scout" ? "spark"
+        : dualFx9 && fxUnit !== "Wraith" ? "burst"
+          : ATTACK_FX[fxUnit];
     /** 이 발이 총구에서 표적까지 **나는 데 걸리는 시간**(초) — 지도 위 거리로
      *  잰다(아래 shotU의 ★). 날아가는 탄과 그 탄이 남기는 자국(산성 포자)이
      *  같은 시계를 봐야 '닿는 순간'이 둘에서 갈리지 않는다. */
@@ -8037,7 +8056,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
     const flySec9 = ((cd9v: number, dist9v: number): number => {
       const floor9 = Math.min(cd9v * 0.4, slowAcid9 ? 1.0 : 0.4);
       return Math.min(cd9v * 0.9,
-        Math.max(0.05, floor9, dist9v / Math.max(1, slowAcid9 ? 5 : SHOT_TILES_PER_SEC)));
+        Math.max(0.05, floor9, dist9v / Math.max(1, slowAcid9 ? 5 : shotSpeedOf9(fxName9))));
     })(fxCdRaw, foeDist);
     const shotU = ((): number | null => {
       /* ★ 나는 거리는 **지도 위 거리**로 잰다(지적: "골리앗 스카웃 대공 미사일

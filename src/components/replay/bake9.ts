@@ -21345,6 +21345,13 @@ export const BRUSH9 = {
   /** 어두운 고랑의 몫(0이면 밝은 줄만, 1이면 반반) — 파내는 알파에 곱한다. */
   dark: 0.6,
 };
+/* ── 결만 끄는 문(요청: "글로우는 넣고 켜 주고, 반대로 스크래치만 끄기" — 폰에서) ────────
+   글로우 겹 자체는 낯마다 한 번 칠하고 마는 값싼 일인데, 결은 낯마다 수십 줄을 긋는다
+   (모형 폭 ÷ 간격, 최대 160줄 × 두 벌). 폰은 굽기 일꾼이 없어 그 값이 메인 스레드에
+   그대로 실리므로, 끄는 자리는 **결 하나**면 된다. 굽는 동안만 서는 모듈 깃발이라 일꾼도
+   같은 값을 들어야 한다 — 청할 때 실어 보낸다(lod·pitchFlat과 같은 규약). */
+export let brushOn9 = true;
+export function brushSet9(on: boolean): void { brushOn9 = on; }
 /** 테란 금속의 광 색 — 이 색을 쓴 낯에 결을 세운다. */
 const BRUSH_TONE9 = RACE_GLOSS_LIT.terran;
 /** 테란 금속의 그늘 색 — 빛을 등진 낯이다. 여기도 결은 있다(옅게). */
@@ -21557,7 +21564,7 @@ export function glowBake9(
     let aA9 = gr9.aLo + aH9 * Math.max(0, Math.min(1 - BRUSH9.h, cU9 - BRUSH9.h / 2));
     const aB9 = aA9 + aH9 * BRUSH9.h;
     if (aB9 > gr9.aHi) aA9 = gr9.aHi - aH9 * BRUSH9.h;
-    if (BRUSH9.a > 0 && (fl9 === BRUSH_TONE9 || shady9)) {
+    if (brushOn9 && BRUSH9.a > 0 && (fl9 === BRUSH_TONE9 || shady9)) {
       /* 씨앗은 **부품 번호**다 — 요잉이 바뀌어도 같은 부품이면 같은 결이다. */
       const rnd9 = brushSeed9(f9[5] ?? (i9f + 1));
       const wB9 = gr9.bHi - gr9.bLo;

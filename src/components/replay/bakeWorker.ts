@@ -5,7 +5,7 @@
  *
  *  통신 규약(메인 → 일꾼)
  *    env  { oneMax, poolBytes, sideMax }                 굽기 한도(기기 표 DEV9에서) — 처음 한 번.
- *    bake { id, bld, op, q, B, lod, pitchFlat }           한 장 청함. q = 유닛 pxq / 건물 sideQ.
+ *    bake { id, bld, op, q, B, lod, pitchFlat, brush }    한 장 청함. q = 유닛 pxq / 건물 sideQ.
  *  (일꾼 → 메인)
  *    ready { ok, why }                                    OffscreenCanvas 2D를 열 수 있나 — 못 열면 메인이 인라인으로 돈다.
  *    done  { id, out: {cv, ox, oy, pad, l, box, tint} | null, ms }   판(ImageBitmap, transfer) · 굽는 데 든 ms.
@@ -14,11 +14,11 @@
  *  ⚠ 이 파일은 bake9(모델 빌더·래스터)만 든다 — React·DOM 없음. 진단 해시(#pitch·#nocreep)는 메인이 워커 name에
  *    실어 보낸다(bake9의 hashNow9). 폰은 지금 이 일꾼을 안 띄운다(DEV9.bakeWorkers 0) — 띄우는 조건만 바꾸면 폰에도
  *    같은 길이 열린다(설계는 기기를 안 가린다). */
-import { BAKE_ENV9, BAKE_NIL9, pitchFlatSet9, rasterBld9, rasterUnit9, type RasterOut9 } from "./bake9";
+import { BAKE_ENV9, BAKE_NIL9, brushSet9, pitchFlatSet9, rasterBld9, rasterUnit9, type RasterOut9 } from "./bake9";
 import type { UnitDrawOp } from "./engine9";
 
 type EnvMsg = { type: "env"; oneMax: number; poolBytes: number; sideMax: number };
-type BakeMsg = { type: "bake"; id: number; bld: boolean; op: UnitDrawOp; q: number; B: number; lod: number; pitchFlat: number };
+type BakeMsg = { type: "bake"; id: number; bld: boolean; op: UnitDrawOp; q: number; B: number; lod: number; pitchFlat: number; brush?: boolean };
 type Msg = EnvMsg | BakeMsg;
 
 /** 돌려주는 판 — 캔버스 자리에 ImageBitmap. */
@@ -34,6 +34,8 @@ const post9 = (m: unknown, transfer?: Transferable[]): void => {
   if (transfer && transfer.length > 0) w.postMessage(m, transfer); else w.postMessage(m);
 };
 let pitchFlatLast9 = -1;
+/** 결(긁힌 광택)을 굽나 — 메인의 깃발이 일꾼에 없으므로 청할 때 실려 온다(폰은 끈다). */
+let brushLast9: boolean | null = null;
 
 if (inWorker9) {
   BAKE_ENV9.mk = () => new OffscreenCanvas(0, 0);
@@ -47,6 +49,8 @@ if (inWorker9) {
     const t0 = performance.now();
     try {
       if (m.pitchFlat !== pitchFlatLast9) { pitchFlatLast9 = m.pitchFlat; pitchFlatSet9(m.pitchFlat); }
+      const br9 = m.brush !== false;
+      if (br9 !== brushLast9) { brushLast9 = br9; brushSet9(br9); }
       const r = m.bld ? rasterBld9(m.op, m.q, m.B, m.lod) : rasterUnit9(m.op, m.q, m.B, m.lod);
       if (!r) { post9({ type: "done", id: m.id, out: null, ms: performance.now() - t0, why: BAKE_NIL9.why }); BAKE_NIL9.why = ""; return; }
       /* transferToImageBitmap은 그 캔버스를 비운다 — 잘라 담은 판(BAKE_ENV9.out)은 여기서 새로 만든 것이라 그대로 버린다. */
