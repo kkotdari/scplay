@@ -13183,7 +13183,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* ① 함미 추진체 셋 — 아래 둘, 위 하나. 단면이 삼각형(sides 3)이라 내려다보는 화면에서
        세 모가 그대로 윤곽이 되고, 어두운 회색이라 함체와 확실히 갈린다. 뒤를 볼 때만
        청록 분사구가 든다. */
-    for (const [tx9, tz9] of [[-1.05, 5.55], [1.05, 5.55], [0, 6.75]] as const) {
+    // 추진체 셋을 서로 더 가까이(요청) — 옆 둘 ±1.05 → ±0.8, 위 6.75 → 6.6, 옆 5.55 → 5.65
+    for (const [tx9, tz9] of [[-0.8, 5.65], [0.8, 5.65], [0, 6.6]] as const) {
       out.push(...tagKey(paintBase(spirePillar({
         x: tx9, y: -2.05, h: 1, w: 1, segs: 2, sides: 8, caps: "none",   // 삼각 → 원형(요청)
         path: (t9: number): [number, number, number] => [tx9, -2.05 - 1.35 * t9, tz9],
@@ -13305,17 +13306,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            일이라 지금 시점의 높이 배율을 타야 하고, 그 환산을 tubeAxisLift가 한다. */
         const mzTube9 = mz9 - tubeAxisLift(mr9);
         out.push(...tagKey([
-          ...paintBase(tubeFaces(mx9, -1.85, mx9, 0.95, mr9, mzTube9), TERRAN_STEEL_D),
-          ...paintBase(hornFaces(mx9, 0.95, mz9, mx9, 2.05, mz9, 0.66), TERRAN_STEEL_D),
+          // 미사일을 살짝 뒤로(요청: y −0.3)
+          ...paintBase(tubeFaces(mx9, -2.15, mx9, 0.65, mr9, mzTube9), TERRAN_STEEL_D),
+          ...paintBase(hornFaces(mx9, 0.65, mz9, mx9, 1.75, mz9, 0.66), TERRAN_STEEL_D),
           /* ★ 꼬리는 **진짜 로켓의 꼬리 깃**이다(재요청: "저런 거 말고 진짜 로켓 미사일 꼬리 같은 형태") — 뿔 셋을
              걷고, 몸통에 십자로 붙은 **얇은 사다리꼴 판 넷**(위·아래·좌·우)을 세운다. 뿌리는 몸통을 따라 길게
              (y −1.3 → −1.85), 바깥 변은 짧고(−1.6 → −1.85) 뒤끝에서 만나 앞 변이 뒤로 쓸린 깃이 된다. 판이라
              두께가 없다 — 낯 하나에 법선을 재서 빛을 받되, 등진 쪽은 법선을 뒤집어 어느 쪽에서도 보인다. */
           ...(([[1, 0], [-1, 0], [0, 1], [0, -1]] as const).flatMap(([dx9, dz9]): ShapeFace[] => {
-            const FIN9 = 0.62;
+            const FIN9 = 0.72;   // 0.62 → 0.72, 뿌리 길이 0.55 → 0.7(요청: 꼬리 날개 좀 더 길게)
             const q9 = polyPath3([
-              [mx9 + dx9 * mr9, -1.3, mz9 + dz9 * mr9], [mx9 + dx9 * mr9, -1.85, mz9 + dz9 * mr9],
-              [mx9 + dx9 * (mr9 + FIN9), -1.85, mz9 + dz9 * (mr9 + FIN9)], [mx9 + dx9 * (mr9 + FIN9), -1.6, mz9 + dz9 * (mr9 + FIN9)],
+              [mx9 + dx9 * mr9, -1.45, mz9 + dz9 * mr9], [mx9 + dx9 * mr9, -2.15, mz9 + dz9 * mr9],
+              [mx9 + dx9 * (mr9 + FIN9), -2.15, mz9 + dz9 * (mr9 + FIN9)], [mx9 + dx9 * (mr9 + FIN9), -1.85, mz9 + dz9 * (mr9 + FIN9)],
             ]);
             // 판의 법선은 축·d 둘 다에 수직: d가 x면 z, d가 z면 x
             let fl9 = faceLight(dz9, 0, dx9);
@@ -13392,9 +13394,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        따로 노는 두 덩이가 된다. 띠 둘은 임자 색이고, 목보다 조금만 굵어 살짝 도드라진다. */
     out.push(...tagKey(raceBase(prismYFaces(OCT_XZ(0, 6.02, 1.05, 0.78), 0.9, 2.8), "terran"),
       key9(0, 2.3, 6.02)));
-    for (const by9 of [1.35, 2.5]) {
-      out.push(...tagKey(prismYFaces(OCT_XZ(0, 6.02, 1.16, 0.88), by9, 0.26, false, false),
-        key9(0, by9 + 0.13, 6.02) + 0.6));
+    // 목 임자색 띠 **셋**(요청) — 앞·가운데·뒤에 감고 폭 0.26 → 0.36
+    for (const by9 of [0.95, 2.12, 3.3]) {
+      out.push(...tagKey(prismYFaces(OCT_XZ(0, 6.02, 1.16, 0.88), by9, 0.36, false, false),
+        key9(0, by9 + 0.18, 6.02) + 0.6));
     }
     /* ⑥ 머리 — 윗면이 사다리꼴인데 앞 두 모서리를 뭉뚝하게 깎아 결국 육각이고, 높이감이
        있다. 넓어진 사선 벽은 옆에서 저절로 든다(기둥이 제 벽마다 보임을 판정한다). */
