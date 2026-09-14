@@ -403,6 +403,9 @@ export const MODEL_Z_OFF9: Record<string, number> = {
 export const SPIN_KINDS = new Set<string>([
   "trapezoid", "cyber", "forge", "storm", "nukecloud", "nukeblast",
   "mshop",   // 머신샵 톱니 둘(바닥 톱니판·옆 바퀴 이) — 연구 중에만(요청)
+  /* 성큰 혓바닥의 **공격 컷 넷**(요청: "성큰 공격 애니메이션으로 컷 4개로") — 칸 0~3이 뻗은 몫 1/4~4/4다.
+     엔진이 사격 박자(sunkenPh)를 넷으로 접어 spin에 싣고, 혀 빌더가 그 몫까지만 아치를 그린다. */
+  "sunkentongue",
 ]);
 
 /* 재생 루프가 프레임마다 부른다 — 느린 프레임이 이어지면 등급을 한 단 내리고,
@@ -3626,7 +3629,9 @@ export const sunkenTongueFaces = (): ShapeFace[] => {
   /* 혀만 돈다(요청: "성큰 혀는 공격대상을 향해야 해") — withModelSpin(headYawNow)으로
      감싸면 이 판만 표적 쪽으로 돌아간다. 22.5도 열여섯 칸이다. */
   /** 등뼈 — 역 U. t 0 뿌리, 1 끝. */
-  const spine9 = (t9: number): [number, number, number] => {
+  /** 뻗은 몫(요청: 공격 컷 넷) — spin 칸 0~3이 1/4~4/4. 칸이 없으면(합본 sunkenfire·도록) 다 뻗는다. */
+  const EXT9 = Math.min(1, (Math.min(3, Math.max(0, bldSpinNow)) + 1) / 4);
+  const spineAll9 = (t9: number): [number, number, number] => {
     const d9 = t9 * LSUM;
     if (d9 <= L1) return [0.25, -0.15, Z0 + d9];                               // 오르는 다리
     if (d9 <= L1 + LA) {                                                         // 반원 호
@@ -3635,12 +3640,20 @@ export const sunkenTongueFaces = (): ShapeFace[] => {
     }
     return [0.25, -0.15 + TL, ZC9 - (d9 - L1 - LA)];                            // 내려오는 다리
   };
+  /** 굵기(온 길이 기준) — 뿌리 0.6에서 호 들머리까지 1.24, 그 뒤 1.56까지. */
+  const widthAll9 = (t9: number): number => {
+    const t1 = L1 / LSUM;
+    return t9 < t1 ? 0.6 + (1.24 - 0.6) * (t9 / t1) : 1.24 + (1.56 - 1.24) * ((t9 - t1) / (1 - t1));
+  };
+  // 컷은 온 아치의 앞 EXT9 몫만 그린다 — 등뼈·굵기 자를 그 몫으로 접는다.
+  const spine9 = (t9: number): [number, number, number] => spineAll9(t9 * EXT9);
   const tip9 = spine9(1);
+  const tipR9 = widthAll9(EXT9);
   return tagKey(withModelSpin(headYawNow, (): ShapeFace[] => paintBase([
     /* 끝 반구를 관보다 **먼저** 그린다(지적: "반구가 혀 몸통에 안 가려짐") — 이 판은 통째로 한 키(13)라 배열 차례가
        곧 앞뒤인데, 반구가 뒤에 오면 그 윗단면(타원)이 관 끝 위에 얹혔다. 먼저 깔면 관의 마지막 마디가 단면을 덮고
        아래 반원만 관 밑으로 드러난다. */
-    ...lowerHalfSphereFaces3(tip9[0], tip9[1], tip9[2], 1.56),
+    ...lowerHalfSphereFaces3(tip9[0], tip9[1], tip9[2], tipR9),
     /* 두께 변화는 **완만하게**(재요청) — 0.5→1.45는 구두주걱이었다. 1.24→1.56이면 통통한 관이다. 마디 30·변 10. */
     /* ★ 단면의 기준축을 **x로 못 박는다**(지적: "안쪽 기둥이 안 보여 · 구부러지는 부분이 약간 뒤틀려 보여") —
        등뼈는 y–z 평면의 아치라 접선이 (0,0,1) → (0,1,0) → (0,0,−1)로 돈다. 기준축을 안 주면 마디마다 '접선과 가장
@@ -3653,10 +3666,7 @@ export const sunkenTongueFaces = (): ShapeFace[] => {
       x: 0.25, y: -0.15, h: 1, w: 1.24, tipW: 1.56,   // (widthOf가 대신한다)
       segs: 30, sides: 10, hold: 0.05, taper: 1, caps: "none", ref: [1, 0, 0],
       path: spine9,
-      widthOf: (t9: number): number => {
-        const t1 = L1 / LSUM;
-        return t9 < t1 ? 0.6 + (1.24 - 0.6) * (t9 / t1) : 1.24 + (1.56 - 1.24) * ((t9 - t1) / (1 - t1));
-      },
+      widthOf: (t9: number): number => widthAll9(t9 * EXT9),
     }),
   ], "#c0472b")), 13);   // 더 붉게(요청): #b5713a → #c0472b
 };
@@ -6017,6 +6027,35 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      *  깊이 ≈ 6)를 못 이겨 모서리가 기둥 앞으로 튀어나왔다). 뒤 모퉁이의 깊이는 −5 언저리라 −2를 문턱으로 가른다. */
     const pillarKey9 = (px: number, py: number, lift: number): number =>
       depthNow(px, py) > -2 ? bodyKey9 + lift : depthNow(px, py) + lift;
+    /** 반폭 hw의 본체 발자국 밖에 남는 팔각 받침 조각 — 반평면 하나로 깎은 볼록 조각 둘(Sutherland–Hodgman). */
+    const cornerPadFaces9 = (cx: number, cy: number, r: number, z0: number, h: number): ShapeFace[] => {
+      const HW9 = 4.5;
+      const oct: [number, number][] = Array.from({ length: 8 }, (_, i) => {
+        const a = (i / 8) * Math.PI * 2 + Math.PI / 8;
+        return [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
+      });
+      /** 반평면 f(p) ≥ 0 으로 볼록 다각형을 깎는다. */
+      const clip = (poly: [number, number][], f: (p: [number, number]) => number): [number, number][] => {
+        const out: [number, number][] = [];
+        for (let i = 0; i < poly.length; i += 1) {
+          const a = poly[i]; const b = poly[(i + 1) % poly.length];
+          const fa = f(a); const fb = f(b);
+          if (fa >= 0) out.push(a);
+          if ((fa >= 0) !== (fb >= 0)) {
+            const t = fa / (fa - fb);
+            out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+          }
+        }
+        return out;
+      };
+      const sx = Math.sign(cx); const sy = Math.sign(cy);
+      const outX = clip(oct, (p) => sx * p[0] - HW9);   // 발자국 x 밖
+      const outY = clip(oct, (p) => sy * p[1] - HW9);   // 발자국 y 밖
+      const faces: ShapeFace[] = [];
+      if (outX.length >= 3) faces.push(...prismZFaces(outX, z0, h));
+      if (outY.length >= 3) faces.push(...prismZFaces(outY, z0, h));
+      return faces;
+    };
     const pillar = (px: number, py: number): ShapeFace[] => withModelZOff(PLINTH_Z9, () => shape(((): ShapeFace[] => {
       return [
         // 받침 원반도 제 깊이(지적: 기둥 바닥의 원들이 안 가려짐).
@@ -6035,9 +6074,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            선 받침판(depthNow − 0.3)과 기둥을 이겨 그 아랫도리를 덮었다. 밑이 잘린 기둥은 공중에 뜬 것으로 읽힌다.
            모퉁이 깊이에 1.3을 얹으면 앞 모퉁이에서는 본체를 이기고(받침판이 모퉁이를 덮는다 — 요청의 그 그림),
            뒤 모퉁이는 깊이가 음수라 여전히 본체 뒤에 든다. */
-        ...tagKey(spirePillar({
-          x: px, y: py, z0: -PLINTH_Z9, h: PLINTH_Z9 + 0.45, w: 1.1, tipW: 1.1, sides: 8, segs: 1, caps: "top",
-        }).map((f9) => { f9[3] = pillarKey9(px, py, 1.3); return f9; }), pillarKey9(px, py, 1.3)),
+        /* ★ 받침판을 **깎아서 모퉁이에 끼운다 — 레고처럼**(재요청) — 팔각 원반을 그대로 두면 본체 발자국 위로
+           올라타 모서리 낯을 덮었다. 본체 발자국(반폭 4.5)의 두 변으로 팔각을 깎아, 발자국 **밖**에 남는 ㄱ자만
+           받침으로 세운다. ㄱ자는 오목해서 볼록 다각형 둘(x 밖 조각 · y 밖 조각)로 나눠 세운다 — 겹치는 귀 부분은
+           같은 색·같은 키라 이음이 안 난다. 기둥(밑 반폭 0.68, 축이 모서리 안쪽 0.35)이 모서리 꼭짓점을 삼키고
+           그 바깥을 이 ㄱ자가 감싼다. */
+        ...tagKey(cornerPadFaces9(px, py, 1.1, -PLINTH_Z9, PLINTH_Z9 + 0.45)
+          .map((f9) => { f9[3] = pillarKey9(px, py, 1.3); return f9; }), pillarKey9(px, py, 1.3)),
         /* 끝을 도려내고 팁을 꽂는다(재재재지적: 화살촉처럼 튀지 않게) — 팁 원뿔이
            그 높이의 기둥 굵기보다 늘 살짝 굵어 기둥 끝을 완전히 감싼다.
            기둥 몸도 금빛(재작도) — 넷이 통째로 개인색이면 종족이 안 읽힌다. */

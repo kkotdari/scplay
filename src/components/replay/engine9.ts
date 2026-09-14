@@ -5573,6 +5573,10 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
              돈다(요청: "코어 디스크는 업그레이드 중에만 돌아야함"). 서플라이
              환풍팬은 건물이 서 있는 한 늘 돈다 — 그건 일이 아니라 설비다. */
           spin: !qAnim || bldFrozen9 ? 0
+            /* 성큰은 spin 칸이 **혓바닥의 공격 컷**이다(요청: 컷 넷) — 나와 있는 창(sunkenPh < 0.5)을 넷으로 접어
+               뻗은 몫 1/4~4/4를 준다. 겹판(sunkentongue)이 이 op의 spin을 물려받아 제 몫으로 구워진다. */
+            : shapeKind === "sunken"
+              ? (sunkenOut ? Math.min(3, Math.floor((sunkenPh / 0.5) * 4)) : 0)
             : shapeKind === "forge" || shapeKind === "cyber" || shapeKind === "mshop"
               ? (researching ? Math.floor(t * 1.6 * SPIN_STEPS) % SPIN_STEPS : 0)
               /* ★ 0.6 → **2.2바퀴/초**(지적: "너무 뚝뚝 끊김") — 칸이 여덟뿐이라 판을
