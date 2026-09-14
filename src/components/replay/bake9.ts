@@ -10736,12 +10736,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        끝이 땅으로 말리는 납작한 판(oval 0.38), 끝은 뾰족한 발톱. 키는 무엇보다 뒤(−9·−3, 옛 규약). */
     out.push(...tagKey(paintBase(cylinderFaces3(0, 0, 3.2, 0.35, 0.12), GOLDD9), -9));
     out.push(...tagKey(paintBase(cylinderFaces3(0, 0, 3.05, 0.14, 0.47), glowLit("#8ff7ea", "#5fb8ac")), -8.5));   // 접시 위 청록 띠
-    /* 팔 끝은 **뭉툭하고 둥글게**(재요청: 반폭 0.62 → 0.3으로만 줄고 뚜껑을 덮는다). 앞의 두 팔(±30도)은 따로 두지 않고
-       **하나의 말굽**으로 잇는다(재요청: "정면의 두 다리는 서로 호로 이어지게") — 왼앞 뿌리에서 나가, 반지름 4.4의 호로
-       앞을 돌아, 오른앞 뿌리로 돌아온다. 나머지 넷(±90·±150)은 그대로 낱팔. */
+    /* 팔 끝은 **뭉툭하고 둥글게**(재요청: 반폭 0.62 → 0.3으로만 줄고 뚜껑을 덮는다). 여섯 팔은 모두 낱팔이고, 앞 두 팔
+       (±30도)은 **뒤(뿌리 쪽)가 호로 이어진다**(재재요청: "호는 두 팔 뒤가 이어지게") — 두 뿌리를 접시 앞 가장자리
+       (반지름 2.75, z 0.8) 위로 도는 호가 잇는다. 원화의 앞이 열린 말굽이다. */
     const armW9 = (t9: number): number => 0.3 + 0.32 * (1 - t9) ** 0.8;
-    for (const deg9 of [90, 150, 210, 270]) {
-      const a9 = (deg9 * Math.PI) / 180;
+    for (let i9 = 0; i9 < 6; i9 += 1) {
+      const a9 = ((i9 * 60 + 30) * Math.PI) / 180;
       const ux9 = Math.sin(a9); const uy9 = Math.cos(a9);
       out.push(...tagKey(paintBase(spirePillar({
         x: 0, y: 0, h: 1, w: 1, segs: 6, sides: 8, oval: 0.38, caps: "top", ref: [0, 0, 1], trueNormal: true,
@@ -10751,23 +10751,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         widthOf: armW9,
       }), GOLD9), -3 + depthNow(ux9 * 3.5, uy9 * 3.5) * 0.3));
     }
-    {
-      const HR9 = 4.4;
-      const hp9 = (t9: number): [number, number, number] => {
-        // 0~0.25 왼앞(−30도) 뿌리 → 바깥 · 0.25~0.75 호(−30 → +30도) · 0.75~1 오른앞(+30도) 바깥 → 뿌리
-        let deg9: number; let r9: number; let u9: number;
-        if (t9 < 0.25) { deg9 = -30; u9 = t9 / 0.25; r9 = 2.3 + (HR9 - 2.3) * u9; }
-        else if (t9 < 0.75) { deg9 = -30 + 60 * ((t9 - 0.25) / 0.5); u9 = 1; r9 = HR9; }
-        else { deg9 = 30; u9 = 1 - (t9 - 0.75) / 0.25; r9 = 2.3 + (HR9 - 2.3) * u9; }
-        const a9 = (deg9 * Math.PI) / 180;
-        return [Math.sin(a9) * r9, Math.cos(a9) * r9, 0.55 + 0.5 * Math.sin(Math.PI * u9 * 0.5) - 0.45 * u9 * u9];
-      };
-      out.push(...tagKey(paintBase(spirePillar({
-        x: 0, y: 0, h: 1, w: 1, segs: 16, sides: 8, oval: 0.38, caps: "none", ref: [0, 0, 1], trueNormal: true,
-        path: hp9,
-        widthOf: (t9: number): number => armW9(Math.min(1, Math.min(t9 / 0.25, (1 - t9) / 0.25))),
-      }), GOLD9), -3 + depthNow(0, 3.8) * 0.3));
-    }
+    out.push(...tagKey(paintBase(spirePillar({
+      x: 0, y: 0, h: 1, w: 1, segs: 8, sides: 8, oval: 0.5, caps: "none", ref: [0, 0, 1], trueNormal: true,
+      path: (t9: number): [number, number, number] => {
+        const a9 = ((-30 + 60 * t9) * Math.PI) / 180;
+        return [Math.sin(a9) * 2.75, Math.cos(a9) * 2.75, 0.8 + 0.15 * Math.sin(Math.PI * t9)];
+      },
+      widthOf: (): number => 0.42,
+    }), GOLD9), -2.5 + depthNow(0, 2.75) * 0.3));
     /* ② 몸 돔 + 갈색 띠 넷 — 띠는 돔 표면(반지름 2.3·높이 2.0)을 0.05 띄워 타 넘는 가는 관, 앞뒤·좌우로 두 벌. */
     out.push(...tagKey(paintBase(domeFaces3(0, 0, 2.3, 2.0, 0.5, true), TEAL9), 0));
     for (const ang9 of [0, 90] as const) {
