@@ -22399,7 +22399,9 @@ export function silhouetteLight(
      유닛 수가 그 언저리다.
    ★ 그래도 넘는 것(배틀크루저·캐리어를 16배로 보는 자리)은 종전대로 늘려 찍는다.
      그림이 사라지지는 않고 또렷함만 그 선에서 멈춘다. */
-export const SPRITE_SIDE_MAX = BAKE_ENV9.sideMax;
+/* ★ 상수가 아니라 **함수**다(요청: 16배도 늘려 찍지 말고 제 크기로) — 값은 BAKE_ENV9.sideMax에서 읽는다. 모듈이 뜰 때 붙박이로
+   베끼면 메인이 기기 표(DEV9.bakeSideMax: PC 4096 · 폰 2304)를 나중에 세워도 안 따라온다. 일꾼도 env 메시지로 같은 값을 받는다. */
+export const spriteSideMax9 = (): number => BAKE_ENV9.sideMax;
 export const DECAL_KINDS = new Set(["creeppatch", "creeppatch2", "creeppatch3"]);
 /** 캔버스 한 장이 먹는 바이트 — 픽셀당 RGBA 4바이트. */
 export const canvasBytes = (cv: { width: number; height: number }): number => cv.width * cv.height * 4;
@@ -22533,8 +22535,8 @@ export function rasterUnit9(op: UnitDrawOp, pxq: number, B: number, lod: number)
   const pad = 2;
   const l = pxq + pad * 2;
   const side9 = Math.max(1, Math.ceil(l * B));
-  // 너무 큰 판은 굽지 않는다(위 SPRITE_SIDE_MAX) — 직접 그리기로 떨어진다.
-  if (side9 > SPRITE_SIDE_MAX) { BAKE_NIL9.why = "판큼"; return null; }
+  // 너무 큰 판은 굽지 않는다(spriteSideMax9 — 기기 표의 판 한 변 상한) — 직접 그리기로 떨어진다.
+  if (side9 > spriteSideMax9()) { BAKE_NIL9.why = "판큼"; return null; }
   /* ★ 굽는 판을 **빌려 쓴다**(계측: 최악 판 lurker 79ms · muta 47ms · zealot 72ms) ────
      한 장을 채우는 값은 1ms 남짓인데(sprite-check) 이따금 한 장이 수십 ms로 튄다. 그
      차이는 그림이 아니라 **캔버스 한 장을 새로 짓고 버리는 값**이다: 12배·dpr 3에서 굽는
@@ -23076,8 +23078,8 @@ export function rasterBld9(op: UnitDrawOp, sideQ: number, B: number, lod: number
     const pad = Math.ceil(sideQ * padK) + 2;
     const l = sideQ + pad * 2;
     const side9 = Math.max(1, Math.ceil(l * B));
-    // 너무 큰 판은 굽지 않는다(위 SPRITE_SIDE_MAX) — 직접 그리기로 떨어진다.
-    if (side9 > SPRITE_SIDE_MAX) { BAKE_NIL9.why = "판큼"; return null; }
+    // 너무 큰 판은 굽지 않는다(spriteSideMax9 — 기기 표의 판 한 변 상한) — 직접 그리기로 떨어진다.
+    if (side9 > spriteSideMax9()) { BAKE_NIL9.why = "판큼"; return null; }
     // 굽는 판은 **빌려 쓴다**(위 BAKE_POOL) — 이 판은 잘라 담고 나면 버리는 소모품이다.
     const cv = bakeCanvas(side9);
     if (!cv) { BAKE_NIL9.why = "캔버스없음"; return null; }

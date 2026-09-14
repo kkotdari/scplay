@@ -91,7 +91,7 @@ import {
 } from "./engine9";
 import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, WorldUi9 } from "./engine9";
 import {
-  pitchFlatSet9, brushOn9, brushSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, SPRITE_SIDE_MAX, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, rasterUnit9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, tone9, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
+  pitchFlatSet9, brushOn9, brushSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, spriteSideMax9, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, rasterUnit9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, tone9, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
 } from "./bake9";
 export { LIMB_LOG, TURRET_BACK9, SHAPE_BUILDERS, ctx2d9, BAKE_ENV9, cropToInk, rasterUnit9, pathBox, tierTableOf, autoTier, stageFaces, rasterBld9, SHAPE_GALLERY, poseSet, poseSet9, bldLitSet, headYawSet, bldSpinSet, bldSpinRawSet9, lodSetCap, lodSetZoom, lodNoteFrame, tone9, TONE_DARK, TONE_SAT, silhouetteLight, glowBake9, grainAxes9, GLOW9 } from "./bake9";
 export type { BakeCv9, BakeCtx9, RasterOut9, ShapeGalleryItem } from "./bake9";
@@ -818,7 +818,7 @@ const DEV9 = smallDevice9 ? {
   /** 유닛/건물 판 예산(MB) — 메모리를 부르는 기기는 그 배수. */
   spriteMB: 32 * smallBudgetK9 * dprBudgetK9, bldSpriteMB: 16 * smallBudgetK9 * dprBudgetK9,
   /** 지도 벡터층이 비워 두는 몫(MB) · 데칼 굽기 한 변 상한 · 굽는 판 한 장/빌림터 상한(MB) */
-  mapFreedMB: 14, decalBakeMax: 192, bakeOneMB: 3, bakePoolMB: 6,
+  mapFreedMB: 14, decalBakeMax: 192, bakeOneMB: 3, bakePoolMB: 6, bakeSideMax: 2304,
   /** 프레임당 굽는 장수(유닛/건물) · 프레임당 굽기 **시간**(ms, 아래 ★) */
   unitBakePerFrame: 1, bldBakePerFrame: 1, bakeMsPerFrame: 8,
   /** 피격 불티 수 배수 · 죽음 파편 수 · 효과 래스터 예산(MB) · 접지 그림자 최소 배율 */
@@ -833,7 +833,10 @@ const DEV9 = smallDevice9 ? {
 } : {
   name: "pc",
   spriteMB: 128, bldSpriteMB: 64,
-  mapFreedMB: 0, decalBakeMax: 768, bakeOneMB: 8, bakePoolMB: 24,   // 크립 굽기 상한 384 → 768(지적: PC에서 화질 낮은 게 보임)
+  mapFreedMB: 0, decalBakeMax: 768,   // 크립 굽기 상한 384 → 768(지적: PC에서 화질 낮은 게 보임)
+  /* ★ 16배도 **제 크기로 굽는다**(요청: "늘려 찍지 말고 맞게") — 판 한 변 2304 → 4096(dpr 2에서 CSS 2044px, 배틀크루저
+     16배 1280px이 든다), 한 장 8 → 68MB(4096²·RGBA 67MB), 빌리는 판 주머니 24 → 80MB. 폰은 그대로(2304·3·6). */
+  bakeOneMB: 68, bakePoolMB: 80, bakeSideMax: 4096,
   unitBakePerFrame: 3, bldBakePerFrame: 3, bakeMsPerFrame: 12,
   hitShardK: 1, dieShards: 24, fxRasterMB: 24, shadowGroundMinZoom: 0,
   /* 앞 한도 10 → 24MB(진단: PC 3배에서 장당 220KB라 10MB가 0.7초 만에 차, 3초 예산이 있어도 앞이 0.7초뿐이었다 —
@@ -864,6 +867,7 @@ BAKE_ENV9.out = (w9, h9, tag9) => {
 };
 BAKE_ENV9.oneMax = DEV9.bakeOneMB * 1024 * 1024;
 BAKE_ENV9.poolBytes = DEV9.bakePoolMB * 1024 * 1024;
+BAKE_ENV9.sideMax = DEV9.bakeSideMax;
 const PC_TIER9 = { v: 0, force: -1 };
 /* ★ **재생 품질 알림**(요청: "처음 시작할 때나 벤치 변경 시 맵 오른쪽 위에 토스트로 재생품질: 높음/보통/낮음 3초간") ────
    눈금은 넷이다 — PC는 벤치 단(2단 높음 · 1단 보통 · 0단 낮음), 폰은 낮음이고 벤치 미달(효과를 덜어내는 기기)이면
@@ -1333,9 +1337,9 @@ let SPRITE_BYTES_MAX = DEV9.spriteMB * 1024 * 1024;
      유닛  판 한 변 l = pxq + 2·pad(=2),        장치 픽셀 = ceil(l·B)
      건물  판 한 변 l = sideQ + 2·(ceil(0.78·sideQ) + 2) ≤ 2.56·sideQ + 6 */
 const unitBakeCap = (B: number): number =>
-  Math.max(4, Math.floor(((SPRITE_SIDE_MAX - 1) / B - 4) / 2) * 2);
+  Math.max(4, Math.floor(((spriteSideMax9() - 1) / B - 4) / 2) * 2);
 const bldBakeCap = (B: number): number =>
-  Math.max(4, Math.floor((((SPRITE_SIDE_MAX - 1) / B - 6) / 2.56) / 2) * 2);
+  Math.max(4, Math.floor((((spriteSideMax9() - 1) / B - 6) / 2.56) / 2) * 2);
 let BLD_SPRITE_BYTES_MAX = DEV9.bldSpriteMB * 1024 * 1024;
 /* ★ 두 예산을 **한 주머니로 나눠 쓴다**(실기 진단: 12배 저그 기지에서 `유닛 49장
    21.3/21MB · 건물 3장 8.3/11MB` — 유닛은 예산에 못 박혀 쫓아내고 다시 굽는데 건물은
@@ -1515,7 +1519,7 @@ function shadowPlate(
   const bd = Math.max(1, Math.ceil(blurQ * B * 2));
   const w9 = host.cv.width + bd * 2;
   const h9 = host.cv.height + bd * 2;
-  if (w9 > SPRITE_SIDE_MAX || h9 > SPRITE_SIDE_MAX) { host.sh = null; return null; }
+  if (w9 > spriteSideMax9() || h9 > spriteSideMax9()) { host.sh = null; return null; }
   const pSh9 = PERF9 ? pNow() : 0;
   /* ★ 그림자는 **낮은 해상도로 굽는다**(실기 계측: 12배·dpr 3에서 유닛 판 한 장이
      3.05MB인데 몸은 0.4MB뿐이었다 — 나머지 2.6MB가 이 판이다) ────────────────────
@@ -8598,7 +8602,7 @@ export default function ReplayMotionPlayer({
   /* 두 배씩 넷으로(요청: "확대 사다리 1-2-4-8로 변경") — 문턱은 칸 번호를 읽으므로 따라온다: 넓은 자리 자세히 2배·요잉 4배,
      좁은 자리 이동 자세 4배·자세히 8배. 더블탭은 둘째 위 칸(4). 맨 위 8은 굽기 상한 안이라 또렷하다. */
   /* ★ 16배 칸 추가(요청) — 더블클릭·더블탭은 '둘째 위 칸'(ZOOM_TAP)이라 4 → 8로 저절로 오른다(같은 요청: "더블클릭 시
-     4배가 아니라 8배"). 굽기 상한(unitBakeCap) 밖이라 16배는 8배 판을 늘려 찍는다. */
+     4배가 아니라 8배"). PC는 판 상한을 4096으로 열어 16배도 제 크기로 굽는다(DEV9.bakeSideMax). */
   const ZOOM_STEPS = [1, 2, 4, 8, 16];
   /** 더블클릭·더블탭이 **한 번에 뛰는** 배율(요청: "더블클릭 시 맨 위가 아니라 한 칸
    *  아래로") — 이어서 늘리는 길(휠·핀치·한 손 줌)의 상한은 ZOOM_MAX 그대로다. 한 번에
