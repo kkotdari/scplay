@@ -3675,10 +3675,26 @@ export const sunkenTongueFaces = (): ShapeFace[] => {
       /* 끝 고리는 **닫는다**(caps "top") — 반구 마디는 접선 쪽으로 볼록해 카메라가 그 뒤를 볼 때(내려오는 다리 끝)
          면이 등을 돌려 안 그려지고, 열린 관 속이 검은 타원으로 비쳤다(실측). 끝 원판을 닫으면 그 자리는 관의
          단면으로 서고, 반구는 보이는 방향에서만 둥근 윤곽을 더한다. */
-      segs: 30, sides: 10, hold: 0.05, taper: 1, caps: "top", ref: [1, 0, 0],
+      segs: 30, sides: 10, hold: 0.05, taper: 1, caps: "none", ref: [1, 0, 0],
       path: spine9,
       widthOf: (t9: number): number => widthAll9(t9 * EXT9),
     }),
+    /* 끝 단면은 **혀 색의 원판**으로 막는다(지적: "단면 비치지 않게") — caps "top"은 동굴 입구 같은 어두운 뚜껑이라
+       단면이 검게 비쳤고, 안 막으면 등진 속벽이 걷혀 배경이 비쳤다. 접선에 수직인 원판을 관 끝 고리 자리에 같은
+       색으로 깔면 반구 밑이 안 보이는 각에서도 막힌 끝으로 읽힌다. */
+    ...((): ShapeFace[] => {
+      const ux9 = 1; const uy9 = 0; const uz9 = 0;                          // u = x(관의 ref)
+      const dx9 = dv9[0] / dl9; const dy9 = dv9[1] / dl9; const dz9 = dv9[2] / dl9;
+      const vx9 = dy9 * uz9 - dz9 * uy9; const vy9 = dz9 * ux9 - dx9 * uz9; const vz9 = dx9 * uy9 - dy9 * ux9;
+      const vl9 = Math.hypot(vx9, vy9, vz9) || 1;
+      const ring9: [number, number, number][] = Array.from({ length: 12 }, (_, i9) => {
+        const a9 = (i9 / 12) * Math.PI * 2;
+        const c9 = Math.cos(a9) * tipR9; const s9 = Math.sin(a9) * tipR9;
+        return [tip9[0] + ux9 * c9 + (vx9 / vl9) * s9, tip9[1] + uy9 * c9 + (vy9 / vl9) * s9, tip9[2] + uz9 * c9 + (vz9 / vl9) * s9];
+      });
+      const d9 = polyPath3(ring9);
+      return [[d9, 1] as ShapeFace, sideFace(d9, 0.18)];
+    })(),
     // 끝 반구 — 관을 접선으로 r만큼 더 민 마디(위 ★). 관 끝 고리에서 이어지므로 이음이 없다.
     ...spirePillar({
       x: tip9[0], y: tip9[1], h: 1, w: tipR9, tipW: 0.02,
@@ -6045,35 +6061,6 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      *  깊이 ≈ 6)를 못 이겨 모서리가 기둥 앞으로 튀어나왔다). 뒤 모퉁이의 깊이는 −5 언저리라 −2를 문턱으로 가른다. */
     const pillarKey9 = (px: number, py: number, lift: number): number =>
       depthNow(px, py) > -2 ? bodyKey9 + lift : depthNow(px, py) + lift;
-    /** 반폭 hw의 본체 발자국 밖에 남는 팔각 받침 조각 — 반평면 하나로 깎은 볼록 조각 둘(Sutherland–Hodgman). */
-    const cornerPadFaces9 = (cx: number, cy: number, r: number, z0: number, h: number): ShapeFace[] => {
-      const HW9 = 4.5;
-      const oct: [number, number][] = Array.from({ length: 8 }, (_, i) => {
-        const a = (i / 8) * Math.PI * 2 + Math.PI / 8;
-        return [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
-      });
-      /** 반평면 f(p) ≥ 0 으로 볼록 다각형을 깎는다. */
-      const clip = (poly: [number, number][], f: (p: [number, number]) => number): [number, number][] => {
-        const out: [number, number][] = [];
-        for (let i = 0; i < poly.length; i += 1) {
-          const a = poly[i]; const b = poly[(i + 1) % poly.length];
-          const fa = f(a); const fb = f(b);
-          if (fa >= 0) out.push(a);
-          if ((fa >= 0) !== (fb >= 0)) {
-            const t = fa / (fa - fb);
-            out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
-          }
-        }
-        return out;
-      };
-      const sx = Math.sign(cx); const sy = Math.sign(cy);
-      const outX = clip(oct, (p) => sx * p[0] - HW9);   // 발자국 x 밖
-      const outY = clip(oct, (p) => sy * p[1] - HW9);   // 발자국 y 밖
-      const faces: ShapeFace[] = [];
-      if (outX.length >= 3) faces.push(...prismZFaces(outX, z0, h));
-      if (outY.length >= 3) faces.push(...prismZFaces(outY, z0, h));
-      return faces;
-    };
     const pillar = (px: number, py: number): ShapeFace[] => withModelZOff(PLINTH_Z9, () => shape(((): ShapeFace[] => {
       return [
         // 받침 원반도 제 깊이(지적: 기둥 바닥의 원들이 안 가려짐).
@@ -6097,8 +6084,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            받침으로 세운다. ㄱ자는 오목해서 볼록 다각형 둘(x 밖 조각 · y 밖 조각)로 나눠 세운다 — 겹치는 귀 부분은
            같은 색·같은 키라 이음이 안 난다. 기둥(밑 반폭 0.68, 축이 모서리 안쪽 0.35)이 모서리 꼭짓점을 삼키고
            그 바깥을 이 ㄱ자가 감싼다. */
-        ...tagKey(cornerPadFaces9(px, py, 1.1, -PLINTH_Z9, PLINTH_Z9 + 0.45)
-          .map((f9) => { f9[3] = pillarKey9(px, py, 1.3); return f9; }), pillarKey9(px, py, 1.3)),
+        /* 받침은 **둥근 팔각 발판**이다(재지적, 원작 그림: 테란 건물 발판 같은 둥근 단) — 한때 ㄱ자로 깎아 끼웠는데
+           원작은 모퉁이에 얹힌 둥근 단이다. 땅에서 밑동 단 위까지 한 통(z 0 → 1.0). */
+        ...tagKey(spirePillar({
+          x: px, y: py, z0: -PLINTH_Z9, h: PLINTH_Z9 + 0.45, w: 1.1, tipW: 1.1, sides: 8, segs: 1, caps: "top",
+        }).map((f9) => { f9[3] = pillarKey9(px, py, 1.3); return f9; }), pillarKey9(px, py, 1.3)),
         /* 끝을 도려내고 팁을 꽂는다(재재재지적: 화살촉처럼 튀지 않게) — 팁 원뿔이
            그 높이의 기둥 굵기보다 늘 살짝 굵어 기둥 끝을 완전히 감싼다.
            기둥 몸도 금빛(재작도) — 넷이 통째로 개인색이면 종족이 안 읽힌다. */
@@ -6107,9 +6097,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            낯이라 종잇장으로 읽혔다. spirePillar로 세우면 8각 단면이 면마다 빛을 받고 요잉을 따라 돈다.
            몸은 6.8까지(반폭 0.85 → 0.3), 그 위에 아쿠아 팁 원뿔을 꽂는다 — 팁 밑동(0.34)이 몸 끝(0.3)보다 살짝
            굵어 이음을 감싼다(옛 주석의 그 규약). */
+        /* ★ 촛대가 아니라 **바깥을 향한 방패**다(지적, 원작 그림) — 아래가 두껍고 위로 갈수록 좁아지며 안쪽으로
+           살짝 기운 넓적한 판. 단면을 oval로 눌러 판을 만들고(넓은 쪽 반폭 1.15 → 0.3, 두께비 0.42), ref로 넓은
+           면이 대각 **바깥**을 보게 세운다(u축 = 바깥 방향에 수직인 접선). 끝은 중심 쪽으로 1.3 밀려 기운다. */
+        /* ★ 뿌리부터 기울지 않고 **끝으로 가며 휜다**(재지적) — lean(곧게 밀림) 대신 curve(끝으로 갈수록 더해지는
+           휨)로 1.3을 준다: 밑동은 수직으로 서고 위로 갈수록 안쪽으로 굽는다. 단면은 **바깥 꼭짓점의 삼각**(재지적:
+           "바깥쪽이 좀 튀어나오는 형태, 삼각뿔마냥") — sides 3에 phase π/2로 꼭짓점 하나가 v축(바깥)을 보고 평평한
+           변이 안쪽(본체 쪽)을 향한다. oval 0.75로 바깥으로 도톰하다. */
         ...tagKey(spirePillar({
-          // 밑동 0.8배(요청: "진짜 기둥의 밑동도 0.8배 — 그 위도 자연스럽게 축소되어 이어지게"): 0.85 → 0.68, 끝 0.3 → 0.24.
-          x: px, y: py, z0: 0.4, h: 6.4, w: 0.68, tipW: 0.24, sides: 8, segs: 3, fill: "#d4bd3c",
+          x: px, y: py, z0: 0.4, h: 6.4, w: 1.2, tipW: 0.28, sides: 3, segs: 6, fill: "#d4bd3c",
+          oval: 0.75, phase: Math.PI / 2, ref: [-py / Math.hypot(px, py), px / Math.hypot(px, py), 0],
+          curveX: (-px / Math.hypot(px, py)) * 1.3, curveY: (-py / Math.hypot(px, py)) * 1.3,
         }), pillarKey9(px, py, 1.5)),   // 받침판(+1.3)보다 한 단 앞 — 기둥이 받침판 위에 선다
         /* 오벨리스크 보석은 **개인색**이다(지적: "넥서스 사선에서 개인색 장식 포인트가
            안보임") — 여태 여기까지 사이언으로 못 박혀 있어서, 화면에 남은 개인색은
@@ -6127,7 +6125,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            glowLit은 그 깃발 하나를 보고 색을 고른다 — 꺼지면 식은 아쿠아, 켜지면 흰빛에
            가깝게. 모양은 그대로고 색만 갈리므로 굽는 삯도 안 는다. */
         ...tagKey(spirePillar({
-          x: px, y: py, z0: 6.8, h: 2.1, w: 0.27, tipW: 0.02, sides: 8, segs: 2,   // 몸 끝(0.24)을 감싸는 0.27
+          // 방패 끝(안쪽으로 1.3 기운 자리)에서 이어 선다 — 몸 끝(0.3)을 감싸는 0.33, 기욺도 같은 비로 잇는다.
+          x: px + (-px / Math.hypot(px, py)) * 1.3, y: py + (-py / Math.hypot(px, py)) * 1.3,
+          z0: 6.8, h: 2.1, w: 0.33, tipW: 0.02, sides: 8, segs: 2,
+          leanX: (-px / Math.hypot(px, py)) * 0.4, leanY: (-py / Math.hypot(px, py)) * 0.4,
           fill: glowLit("#e6fffb", "#83f7e8"),
         }), pillarKey9(px, py, 1.6)),
         // (걷어냄) 기둥 어깨의 타원 하이라이트 — 리본 시절의 광택 대용이었다. 진짜 원뿔은 면마다 빛을 받는다.
