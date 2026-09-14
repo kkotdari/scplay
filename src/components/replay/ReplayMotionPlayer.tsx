@@ -2331,7 +2331,15 @@ function unitSprite(
       poseSet9(0);
       SPRITE_PERF.defer += 1;
       const kin9 = kinPlate9(op.kind, subKey, pxq);
-      if (kin9) { SPRITE_PERF.hit += 1; bakeWant9(key, { ...op }, pxq, B, subKey, lod); return kin9; }
+      bakeWant9(key, { ...op }, pxq, B, subKey, lod);   // 빌릴 것이 있든 없든 **대기표에는 적는다**(아래 ★)
+      if (kin9) { SPRITE_PERF.hit += 1; return kin9; }
+      /* ★ 여기서 대기표를 건너뛰면 그 판은 **영영 안 구워질 수 있다**(지적: "탱크 변신 중
+         부품들이 안 보이네") — 천장에 걸린 프레임에서 처음 본 열쇠는 빌릴 형제도 없어
+         그냥 null이었고, 다음 프레임은 그 열쇠를 **다시 청해야** 비로소 줄에 선다.
+         시즈 전환의 홑판(버팀다리·앞뒤 포신)은 자세 여섯 칸이 각각 0.1초쯤만 서 있으므로,
+         그 짧은 창이 바쁜 프레임과 겹치면 한 번도 안 구워진 채 창이 끝난다 — 차체·포탑만
+         남고 부품이 통째로 빠진 그림이 그것이다. 적어 두면 다음 프레임에 큰 것부터 굽는
+         줄(drainBakeWant9)에 올라 곧 따라온다. */
       return null;
     }
     const small9 = Math.max(8, Math.round(pxq / BAKE_SMALL_K9));
@@ -4986,12 +4994,18 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             const aK9 = kOverride9 ?? op.attachK ?? 1;
             if (aK9 <= 0.01) return;
             if (aK9 !== 1) { ctx.save(); ctx.scale(aK9, aK9); }
-            drawTint9(ctx, sp9, op.color, pxqB, k, B);   // 물들인 마스크를 몸판 **아래**에(unitSprite의 ★)
+            /* ★ 겹판도 **제 실제 크기**로 찍는다(몸판이 pxqB를 되읽는 것과 같은 규약) —
+               예산이 닫힌 프레임에는 청한 크기가 아니라 대타(다른 크기·작게 구운 판)가
+               온다. 여태는 몸의 pxqB로 자리와 크기를 잡아, 그런 판이 오면 짐·포신·다리가
+               엉뚱한 자리에 엉뚱한 크기로 찍혔다(같은 크기가 오면 값이 똑같다). */
+            const apx9 = Math.max(1, sp9.l - 2 * sp9.pad);
+            const kA2 = (k * pxqB) / apx9;
+            drawTint9(ctx, sp9, op.color, apx9, kA2, B);   // 물들인 마스크를 몸판 **아래**에(unitSprite의 ★)
             ctx.drawImage(
               sp9.cv,
-              (-(sp9.pad + pxqB / 2) + sp9.ox / B) * k,
-              (-(sp9.pad + pxqB / 2) + sp9.oy / B) * k,
-              (sp9.cv.width / B) * k, (sp9.cv.height / B) * k,
+              (-(sp9.pad + apx9 / 2) + sp9.ox / B) * kA2,
+              (-(sp9.pad + apx9 / 2) + sp9.oy / B) * kA2,
+              (sp9.cv.width / B) * kA2, (sp9.cv.height / B) * kA2,
             );
             if (aK9 !== 1) ctx.restore();
           };
