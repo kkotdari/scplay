@@ -3607,21 +3607,31 @@ export const sunkenTongueFaces = (): ShapeFace[] => {
      z가 t에 정비례해 곧게만 오르므로, 등뼈를 직접 그린다: y는 앞으로 곧게 나가고
      z는 위로 볼록한 포물선(솟았다 내려온다). */
   const TL = 6.6;     // 앞으로 뻗는 거리
-  /* 더 높이 솟았다가 **바닥까지** 떨어진다(요청) — 여태 11/10은 꼭대기 6.4, 끝 4.4로 끝이 공중에 떠 있었다.
-     끝의 z를 끝 반지름(0.6)에 두면 혀끝이 땅에 닿는다: TDN = 3.4 + TUP − 0.6. 꼭대기는 7.4. */
-  const TUP = 19;     // 솟는 몫
-  const TDN = 21.8;   // 내려앉는 몫(t²) — 끝이 땅(z ≈ 0.6)에 닿는다
+  /* **역 U자**다(재요청: "성큰 혀 역 U자로") — 포물선은 뿌리에서 비스듬히 오르고 끝도 비스듬히 내려와 '활'이었다.
+     역 U는 뿌리에서 **곧게 솟고** 꼭대기를 지나 **곧게 떨어진다**: 앞으로 가는 몫을 (1 − cos πt)/2로 두면
+     양 끝에서 y가 멈춰 접선이 수직이 되고, 높이는 sin πt 봉우리에 뿌리(3.4)→땅(0.7) 내리막을 얹는다. */
+  const Z0 = 3.4;     // 뿌리(아가리) 높이
+  const Z1 = 0.7;     // 끝 높이 — 끝 반구의 반지름만큼 떠서 땅에 닿는다
+  const TUP = 4.6;    // 봉우리 몫 — 꼭대기 ≈ 6.7
   /* 혀만 돈다(요청: "성큰 혀는 공격대상을 향해야 해") — withModelSpin(headYawNow)으로
      감싸면 이 판만 표적 쪽으로 돌아간다. 22.5도 열여섯 칸이다. */
-  return tagKey(withModelSpin(headYawNow, (): ShapeFace[] => paintBase(spirePillar({
-    /* 구두주걱 모양(요청) — 뿌리가 가늘고 앞으로 갈수록 두꺼워진다(0.38 → 1.25). */
-    /* 살짝 더 통통하고 부드럽게(요청) — 굵기 0.38→0.5 / 1.25→1.45, 마디 12→18·변 8→10으로 활이 매끈해진다. */
-    x: 0.25, y: -0.15, h: 1, w: 0.5, tipW: 1.45,
-    segs: 18, sides: 10, hold: 0.05, taper: 0.9,
-    path: (t9: number): [number, number, number] => [
-      0.25, -0.15 + TL * t9, 3.4 + TUP * t9 - TDN * t9 * t9,
-    ],
-  }), "#b5713a")), 13);
+  /** 등뼈 — 역 U. t 0 뿌리, 1 끝. */
+  const spine9 = (t9: number): [number, number, number] => [
+    0.25, -0.15 + (TL * (1 - Math.cos(Math.PI * t9))) / 2,
+    Z0 + (Z1 - Z0) * t9 + TUP * Math.sin(Math.PI * t9),
+  ];
+  const tip9 = spine9(1);
+  return tagKey(withModelSpin(headYawNow, (): ShapeFace[] => paintBase([
+    /* 두께 변화는 **완만하게**(재요청) — 0.5→1.45는 구두주걱이었다. 0.62→0.78이면 통통한 관이다.
+       마디 18·변 10으로 U가 매끈하다. 끝은 아래 반구가 둥글게 막는다(caps는 뚜껑 원반이라 막힌 관으로 보였다). */
+    ...spirePillar({
+      x: 0.25, y: -0.15, h: 1, w: 0.62, tipW: 0.78,
+      segs: 18, sides: 10, hold: 0.05, taper: 1, caps: "none",
+      path: spine9,
+    }),
+    // 끝 — 반구(요청: "끝은 둥글게 반구로")로 둥글게 닫는다. 끝 굵기와 같은 반지름이라 이음이 없다.
+    ...sphereFaces3(tip9[0], tip9[1], tip9[2], 0.78),
+  ], "#b5713a")), 13);
 };
 export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   /* 커맨드 센터(재작도 — 사진 기준, 기존 비율·자세는 그대로) ─────────────────────
