@@ -1066,7 +1066,7 @@ export const MODEL_NORM: Record<string, number> = {
   tankbody: 0.687,
   tanksiege: 0.695,
   tanksiegebody: 0.687,
-  ultra: 0.331,
+  ultra: 0.369,   // 팔뚝을 걷고 낫을 몸에 붙인 뒤 ×1.1134(0.344 → 0.383)
   valk: 0.624,   // 앞동체 −10% 뒤 재측정(model-norm) 0.840 → ×0.8(요청: 발키리 그리기 0.8배) · 추진체 연장분 ×0.991
   vessel: 0.869,  // 방패 접힘 축·뾰족 위끝 뒤 재측정(model-norm)
   vulture: 0.612,   // 0.833 × 0.8(요청: "벌처랑 마인 0.8배")

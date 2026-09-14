@@ -14101,7 +14101,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const fx9 = m9 * (2.3 + (1.9 + i9 * 0.1) * ln9);
         const fy9 = ly9 + 1.7 * ln9;
         const knee: [number, number, number] = [kx9, ky9, kz9];
-        const root9: [number, number, number] = [m9 * 2.3, ly9, lz9];
+        const root9: [number, number, number] = [m9 * 1.2, ly9, lz9];   // 2.3 → 1.2(요청: 뿌리가 몸 밖으로 안 나오게) — 가운데 돔(1.85) 속
         /* 앞 두 다리(i9 0·1)의 첫 마디 가운데에 **두꺼운 임자색 띠**(재요청) — 마디보다 살짝 굵은(×1.18) 짧은 고리(길이
            0.3), 색을 안 줘 임자색. 키는 마디(suitLimb: 중점 깊이 + 굵기)보다 한 뼘 앞. */
         /* 띠 두께 세 배(재요청: 마디의 0.16 → 0.48), 굵기는 마디의 1.1배로 바짝. ★ trueNormal — 눕힌 고리는 축→면
@@ -19444,25 +19444,30 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        거기서 앞·바깥·아래로 두 마디가 뻗고 손목에서 낫이 난다. */
     /* 공격 컷(요청) — 카이저 낫을 **안·앞으로 후려친다**. 어깨는 몸에 박혀 있으니
        팔꿈치·손목만 안쪽으로 모이며 앞으로 나가고, 낫이 몸 앞에서 엇갈린다. */
-    const atU9 = 0;   // (걷어냄) 컷 2의 '집게 모으기' — 공격은 이제 상체 휘두르기(upper9)다
+    /* ★ 팔뚝(두 마디 + 팔꿈치 돔)을 걷고 **낫을 몸에 바로 붙인다**(요청: "낫과 몸 이어주는 팔 부품 제거, 대신 낫 뒤쪽을
+       좀 얇게, 1/3은 팔색으로 몸에 바로 이어 붙이기") — 뿌리를 앞몸 옆구리(±2.45, y 2.7, z 4.5+BODY_UP)에 두고 claw3의
+       그 활(2차 베지에)을 같은 비로 그린다. 뿌리 굵기 0.44 → 0.30(×s)으로 얇게. 뿌리 1/3은 갑옷색(PLATE), 나머지는
+       상아. 키는 옛 팔의 자(옆구리 깊이 ×1.6 + 12). */
     for (const m of [-1, 1] as const) {
-      const shx = m * 2.45;
-      const shy = 2.7;
-      const shz = 4.5 + BODY_UP;
-      const elx = m * (3.35 - atU9 * 1.1);
-      const ely = 3.9 + atU9 * 0.7;
-      const elz = 3.5 + BODY_UP - atU9 * 0.3;
-      const wrx = m * (3.5 - atU9 * 2.3);
-      const wry = 4.6 + atU9 * 1.4;
-      const wrz = 4.0 + BODY_UP - atU9 * 0.6;
-      out.push(...tagKey(paintBase([
-        ...rodFaces(shx, shy, shz, elx, ely, elz, 1.0),
-        ...domeFaces3(elx, ely, 0.6, 0.48, elz - 0.3),
-        ...rodFaces(elx, ely, elz, wrx, wry, wrz, 0.76),
-      ], PLATE), depthNow(m * 3, ely) * 1.6 + 12));
-      /* 낫 뿌리를 손목으로 — claw3의 제 뿌리(±0.75s, 0.45s)에서 손목까지의 차만큼 민다. */
-      out.push(...tagKey(ivory(claw3(m, 2.05, wrz - 0.1,
-        Math.abs(wrx) - 0.75 * 2.05, wry - 0.45 * 2.05)), 15));
+      const s9 = 2.05;
+      const P0: [number, number, number] = [m * 2.45, 2.7, 4.5 + BODY_UP];
+      const CP: [number, number, number] = [P0[0] + m * 2.3 * s9, P0[1] + 1.85 * s9, P0[2] + 0.4];
+      const P1: [number, number, number] = [P0[0] + m * 0.2 * s9, P0[1] + 4.05 * s9, P0[2] - 0.55];
+      const bz9 = (a: number, b: number, c: number, t: number): number =>
+        (1 - t) * (1 - t) * a + 2 * (1 - t) * t * b + t * t * c;
+      const cpath9 = (t: number): [number, number, number] => [
+        bz9(P0[0], CP[0], P1[0], t), bz9(P0[1], CP[1], P1[1], t), bz9(P0[2], CP[2], P1[2], t),
+      ];
+      const cw9 = (t: number): number => (0.30 * (1 - t) ** 1.25 + 0.028) * s9;
+      const ck9 = depthNow(m * 2.8, 3.5) * 1.6 + 12;
+      out.push(...tagKey(paintBase(spirePillar({
+        x: 0, y: 0, h: 1, w: 1, segs: 3, sides: 6, oval: 1.75, caps: "bottom",
+        path: (t: number): [number, number, number] => cpath9(t / 3), widthOf: (t: number): number => cw9(t / 3),
+      }), PLATE), ck9));
+      out.push(...tagKey(ivory(spirePillar({
+        x: 0, y: 0, h: 1, w: 1, segs: 7, sides: 6, oval: 1.75, caps: "none",
+        path: (t: number): [number, number, number] => cpath9(1 / 3 + (2 / 3) * t), widthOf: (t: number): number => cw9(1 / 3 + (2 / 3) * t),
+      })), ck9 + 0.1));
     }
     });
     return out;
