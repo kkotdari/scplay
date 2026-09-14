@@ -21216,33 +21216,46 @@ const GLOW_HI9 = new Set<string>(["#fff", ...Object.values(RACE_GLOSS_LIT)]);
    ★ 테란 낯에만 건다 — 판별은 그 낯이 쓴 **광 색**이다(glossFaces가 종족마다 제 색으로
      적어 둔다: 테란 #e0e5ee · 토스 제 금색 · 저그는 흰색 그대로). 종족을 따로 실어 보낼
      길이 없는 자리에서, 이미 면에 적힌 값이 곧 답이다.
-   ★ 결의 자리는 **패스 글자에서 뽑은 씨앗**으로 정한다 — 굽는 자리마다(판·도록·도구) 따로
-     구워도 같은 무늬라야 한 모델이 한 모델로 보인다. Math.random을 쓰면 굽을 때마다 결이
-     바뀐다. */
+   ★ 결은 **그 낯의 성질**이다(지적: "요잉을 해도 이 방향은 면 고유의 성질이야. 빛 방향이
+     바뀐다고 스크래치 위치나 방향이 바뀌진 않잖아") — 그래서 셋을 못박는다.
+       ① 씨앗은 **부품 번호**(pid)다. 패스 글자로 뽑던 것을 걷었다: 패스는 요잉마다 달라져
+          같은 판의 결이 각도마다 통째로 갈렸다. pid는 tagKey를 부른 차례라 어느 각도에서도
+          같은 부품에 같은 번호가 붙는다(shapeOblique의 partSeq 주석).
+       ② 자리와 굵기는 화면 길이가 아니라 **낯의 몫**이다. 낯이 비스듬해지면 결도 함께
+          좁아진다 — 판에 새겨진 자국이 원근에 눌리는 그 꼴이다. 줄의 낱수는 붙박이다.
+       ③ 결은 낯 **전체**에 있고, 광택 띠는 그중 **어디가 환한가**만 정한다. 빛을 등진 낯도
+          옅게(shade) 결을 갖는다 — 빛이 바뀌어도 자국은 그대로다.
+   ★ 굽는 자리마다(판·도록·도구) 따로 구워도 무늬가 같아야 한 모델이 한 모델로 보인다 —
+     Math.random을 쓰면 굽을 때마다 결이 바뀐다. */
 export const BRUSH9 = {
   /** 0이면 끔 — 줄 한 가닥의 세기(겹 천장 안에서의 알파). */
   a: 0.95,
-  /** 광택 띠가 시작하는 자리 — 낯 상자 높이의 몫(0이면 맨 위). */
-  top: 0.05,
-  /** 광택 띠의 높이 — 낯 상자 높이의 몫. */
-  h: 0.36,
-  /** 줄 사이 간격(16-상자 자) — 좁을수록 결이 촘촘하다. */
-  pitch: 0.052,
-  /** 얇은 줄의 굵기(16-상자 자). */
-  w: 0.026,
+  /** 광택 띠가 시작하는 자리 — 낯의 U 눈금(위→아래) 몫. */
+  top: 0.06,
+  /** 광택 띠의 높이 — 같은 몫. */
+  h: 0.34,
+  /** 낯 하나에 놓는 줄의 수 — **낱수가 붙박이**여야 요잉해도 같은 결이다(아래 ★). */
+  n: 26,
+  /** 얇은 줄의 굵기 — **낯 폭의 몫**이라 낯이 비스듬해지면 결도 함께 좁아진다. */
+  w: 0.013,
   /** 줄 중 **면**(굵은 줄)이 될 몫(0이면 얇은 줄만). */
   band: 0.18,
   /** 면의 굵기 배수 — w에 곱한다. */
   bandW: 4.5,
+  /** 광택 띠 **밖**에서의 세기 몫 — 결은 낯 어디에나 있고, 띠에서만 환해진다. */
+  dim: 0.3,
+  /** 그늘진 낯에서의 세기 몫 — 빛을 등져도 긁힌 자국은 그대로 있다. */
+  shade: 0.3,
   /** 어두운 고랑의 몫(0이면 밝은 줄만, 1이면 반반) — 파내는 알파에 곱한다. */
   dark: 0.6,
-};/** 테란 금속의 광 색 — 이 색을 쓴 낯에만 결을 눕힌다. */
+};
+/** 테란 금속의 광 색 — 이 색을 쓴 낯에 결을 세운다. */
 const BRUSH_TONE9 = RACE_GLOSS_LIT.terran;
-/** 패스 글자 → 0~1 난수 씨앗(같은 낯이면 늘 같은 결). */
-function brushSeed9(d: string): () => number {
-  let h = 2166136261;
-  for (let i = 0; i < d.length; i += 1) { h ^= d.charCodeAt(i); h = Math.imul(h, 16777619); }
-  let x = (h >>> 0) || 1;
+/** 테란 금속의 그늘 색 — 빛을 등진 낯이다. 여기도 결은 있다(옅게). */
+const BRUSH_SHADE9 = RACE_GLOSS_SHADE.terran;
+/** 부품 번호 → 0~1 난수 씨앗(같은 부품이면 어느 각도에서도 늘 같은 결). */
+function brushSeed9(pid: number): () => number {
+  let x = (Math.imul(pid + 0x9e3779b9, 2654435761) >>> 0) || 1;
   return (): number => {
     x ^= x << 13; x >>>= 0;
     x ^= x >> 17;
@@ -21384,7 +21397,8 @@ export function glowBake9(
      지운다(destination-out). 안 그러면 뒤에 가려 안 보이는 낯의 글로우가 판 맨 위에 얹혀,
      지붕 위로 다리·뒤판의 허연 쐐기가 떠오른다(실제로 그랬다). 안 밝은 낯도 지우기는 한다 —
      그것이 곧 '가린다'는 뜻이다. */
-  for (const f9 of faces) {
+  for (let i9f = 0; i9f < faces.length; i9f += 1) {
+    const f9 = faces[i9f];
     const d9 = f9[0];
     const pa9 = pathOf(d9);
     g2.globalCompositeOperation = "destination-out";
@@ -21393,22 +21407,30 @@ export function glowBake9(
     g2.fill(pa9);
     g2.globalCompositeOperation = "source-over";
     const fl9 = f9[2];
-    if (fl9 === undefined || !GLOW_HI9.has(fl9)) continue;
-    const k9 = Math.max(0, Math.min(1, (f9[1] - GLOW9.litLo) / span9));
+    if (fl9 === undefined) continue;
+    /* 그늘진 테란 낯 — 빛은 안 얹지만 **결은 그대로 있다**(BRUSH9의 ★③). */
+    const shady9 = fl9 === BRUSH_SHADE9;
+    if (!shady9 && !GLOW_HI9.has(fl9)) continue;
+    const k9 = shady9 ? BRUSH9.shade
+      : Math.max(0, Math.min(1, (f9[1] - GLOW9.litLo) / span9));
     if (!(k9 > 0)) continue;
     const gr9 = faceGrain9(d9);
     g2.globalAlpha = k9;
     if (!gr9 || Math.max(gr9.aHi - gr9.aLo, gr9.bHi - gr9.bLo) < minS9) {
       // 너무 작은 낯은 고른 몫만 — 띠를 앉힐 자리가 없다.
+      if (shady9) continue;
       g2.fillStyle = FL9;
       g2.fill(pa9);
       continue;
     }
     g2.save();
     g2.clip(pa9);
-    /* ① 낯 **전체**에 고른 몫 — 평평한 한 장은 어디나 같은 각으로 빛을 받는다. */
-    g2.fillStyle = FL9;
-    g2.fill(pa9);
+    /* ① 낯 **전체**에 고른 몫 — 평평한 한 장은 어디나 같은 각으로 빛을 받는다.
+       그늘진 낯은 안 깐다 — 거기 얹을 빛이 없다. */
+    if (!shady9) {
+      g2.fillStyle = FL9;
+      g2.fill(pa9);
+    }
     /* ② 광택 띠 + 결 — 낯의 자(U·V)로 옮겨 앉는다. 벽에서는 U가 화면 세로 · V가 화면
        가로라 줄은 정확히 수직이고 띠는 정확히 수평이다. 누운 낯에서는 U·V가 그 낯의
        두 모서리라, 결이 면의 기울기를 타고 눕되 향하는 결은 벽과 같다. */
@@ -21416,32 +21438,40 @@ export function glowBake9(
     const aH9 = gr9.aHi - gr9.aLo;
     const aA9 = gr9.aLo + aH9 * BRUSH9.top;
     const aB9 = aA9 + aH9 * BRUSH9.h;
-    if (BRUSH9.a > 0 && fl9 === BRUSH_TONE9) {
-      const rnd9 = brushSeed9(d9);
-      const pit9 = Math.max(0.012, BRUSH9.pitch);
-      const n9 = Math.min(400, Math.max(2, Math.ceil((gr9.bHi - gr9.bLo) / pit9)));
-      for (let i9 = 0; i9 < n9; i9 += 1) {
-        const b9 = gr9.bLo + (i9 + rnd9() * 0.8) * pit9;
+    if (BRUSH9.a > 0 && (fl9 === BRUSH_TONE9 || shady9)) {
+      /* 씨앗은 **부품 번호**다 — 요잉이 바뀌어도 같은 부품이면 같은 결이다(BRUSH9의 ★①). */
+      const rnd9 = brushSeed9(f9[5] ?? (i9f + 1));
+      const wB9 = gr9.bHi - gr9.bLo;
+      for (let i9 = 0; i9 < BRUSH9.n; i9 += 1) {
+        /* 자리·굵기는 **낯의 몫**이다 — 낯이 비스듬해지면 결도 함께 좁아진다(★②). */
+        const b9 = gr9.bLo + wB9 * ((i9 + rnd9() * 0.85) / BRUSH9.n);
         const wide9 = rnd9() < BRUSH9.band;
-        const w9 = BRUSH9.w * (wide9 ? BRUSH9.bandW * (0.6 + rnd9() * 0.8)
+        const w9 = wB9 * BRUSH9.w * (wide9 ? BRUSH9.bandW * (0.6 + rnd9() * 0.8)
           : 0.45 + rnd9() * 1.1);
         const s9 = rnd9();
         // 면은 얇은 줄보다 옅다 — 같은 세기로 깔면 띠가 통째로 하얘진다.
         const soft9 = wide9 ? 0.35 : 1;
+        const al9 = s9 < 0.55
+          ? k9 * BRUSH9.a * soft9 * (0.35 + s9)
+          : BRUSH9.a * BRUSH9.dark * soft9 * (s9 - 0.25) * (shady9 ? k9 : 1);
         if (s9 < 0.55) {
           g2.globalCompositeOperation = "source-over";
-          g2.globalAlpha = k9 * BRUSH9.a * soft9 * (0.35 + s9);
           g2.fillStyle = BR9;
         } else {
           g2.globalCompositeOperation = "destination-out";
-          g2.globalAlpha = BRUSH9.a * BRUSH9.dark * soft9 * (s9 - 0.25);
           g2.fillStyle = "#000";
         }
-        g2.fillRect(aA9, b9 - w9 / 2, aB9 - aA9, w9);
+        /* 결은 낯 **전체**에 있고(옅게), 광택 띠 안에서만 환하다(★③). */
+        g2.globalAlpha = al9 * BRUSH9.dim;
+        g2.fillRect(gr9.aLo, b9 - w9 / 2, gr9.aHi - gr9.aLo, w9);
+        if (!shady9) {
+          g2.globalAlpha = al9 * (1 - BRUSH9.dim);
+          g2.fillRect(aA9, b9 - w9 / 2, aB9 - aA9, w9);
+        }
       }
       g2.globalCompositeOperation = "source-over";
       g2.globalAlpha = k9;
-    } else {
+    } else if (!shady9) {
       /* 테란이 아닌 낯은 결이 없다 — 띠 자리에 옛 광택만 얹는다. */
       g2.fillStyle = HI9;
       g2.globalAlpha = k9 * 0.7;
