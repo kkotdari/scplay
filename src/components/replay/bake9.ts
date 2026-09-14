@@ -6108,9 +6108,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        widthOf로 직접 준다. */
     const PT9 = 1.6;         // 벌어짐 지수 — 클수록 밑에서 빨리 가늘어지고 윗도리가 긴 바늘이 된다(2.5 → 1.6: "저 지경으로 뾰족하진 않게")
     const PTIP9 = 0.2;       // 끝 반폭(0.06 → 0.2)
-    const PC9 = 0.25;        // 끝의 안쪽 굽힘 양(0.5 → 0.25, 요청: 감기는 정도 약하게)
+    const PC9 = 0.1;         // 끝의 안쪽 굽힘 양(0.5 → 0.25 → 0.1, 재요청: 곡선미보다 직선미)
     const PCP9 = 3.5;        // 굽힘 지수 — 클수록 아래는 곧고 위에서만 꺾인다
-    const PO9 = 0.45;        // 아래쪽의 바깥 기울임(허리에서 최대) — 요청: "아래쪽 시작을 좀 더 바깥쪽으로"
+    const PO9 = 0.3;         // 아래쪽의 바깥 기울임(허리에서 최대) — 요청: "아래쪽 시작을 좀 더 바깥쪽으로" · 0.45 → 0.3(직선미)
     /** 축의 **안쪽** 밀림(t) — 바깥 기울임(−)과 끝의 안쪽 굽힘(+)을 겹친 값. path와 보석 자리가 같이 쓴다. */
     const axOff9 = (t9: number): number => PC9 * t9 ** PCP9 - PO9 * 4 * t9 * (1 - t9);
     const PW9 = 1.15;        // 밑 반폭(1.2 → 0.8 → 1.0 → 1.15 — 전체적으로 넓힘)
@@ -13278,9 +13278,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         out.push(...tagKey([
           ...paintBase(tubeFaces(mx9, -1.85, mx9, 0.95, mr9, mzTube9), TERRAN_STEEL_D),
           ...paintBase(hornFaces(mx9, 0.95, mz9, mx9, 2.05, mz9, 0.66), TERRAN_STEEL_D),
-          ...paintBase(hornFaces(mx9, -1.7, mz9, mx9, -2.35, mz9 + 0.62, 0.2), RACE_BASE_TONE.terran),
-          ...paintBase(hornFaces(mx9, -1.7, mz9, mx9 - 0.62, -2.35, mz9, 0.2), RACE_BASE_TONE.terran),
-          ...paintBase(hornFaces(mx9, -1.7, mz9, mx9 + 0.62, -2.35, mz9, 0.2), RACE_BASE_TONE.terran),
+          // 꼬리 날개 더 크게(요청: 화살 깃) — 벌어짐 0.62 → 0.9, 밑폭 0.2 → 0.3
+          ...paintBase(hornFaces(mx9, -1.6, mz9, mx9, -2.45, mz9 + 0.9, 0.3), RACE_BASE_TONE.terran),
+          ...paintBase(hornFaces(mx9, -1.6, mz9, mx9 - 0.9, -2.45, mz9, 0.3), RACE_BASE_TONE.terran),
+          ...paintBase(hornFaces(mx9, -1.6, mz9, mx9 + 0.9, -2.45, mz9, 0.3), RACE_BASE_TONE.terran),
         ], key9(mx9, -0.4, mz9)));
         /* ★ 날개 끝 → 미사일을 잇는 **아주 가는 가지**(요청) ────────────────────────────
            여태 미사일 둘은 날개 끝 곁에 **떠 있었다** — 날개 판은 x 4.30에서 끝나고 미사일은
