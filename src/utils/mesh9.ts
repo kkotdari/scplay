@@ -51,8 +51,14 @@ const look = (x: number, y: number): number[] | undefined => {
  *  기록점과 **같은 높이**로 보는 것이 옳다 — 그 z 로 x·y 를 되짚으면 자리가 맞는다.
  *  너무 먼 기록점은 안 빌린다(모형 두 칸) — 엉뚱한 높이를 빌리면 장식이 공중에 뜬다. */
 const NEAR_Z9 = 2;
+/** ★ 되찾은 폴리곤 가운데 **높이를 빌려** 지은 것 — 자리가 어림이다(lookNear 의 두 번째 길).
+ *  빌더가 화면 자로 더해 만든 중심(project 표에 없는 점)은 z 를 모르니 가장 가까운 기록점의 z 를 빌린다.
+ *  그렇게 지은 데칼은 몸에 접거나 버린다(제 부품으로 남기면 엉뚱한 자리에 뜬다 — 셔틀 돔의 흰 무늬). */
+export const GUESSED9 = new WeakSet<Poly3>();
+let borrowed9 = false;
 const lookNear = (x: number, y: number): number[] | undefined => {
   const hit = look(x, y); if (hit) return hit;
+  borrowed9 = true;
   let bd = Infinity; let bz: number | undefined;
   for (const [k, v] of PROJ9) {
     const sp = k.indexOf(" ");
@@ -70,6 +76,12 @@ export const BILLBOARD9 = new WeakSet<Poly3>();
 /** glow: 발광 효과 종류 — 화면 원은 불투명해도 구가 아니라 원반이다(2D 가 겹쳐 칠한 동심원 그대로). */
 export function meshFromPath9(d: string, opaque = true, glow = false): Poly3[] | null {
   const tk = d.match(NUM); if (!tk) return null;
+  borrowed9 = false;
+  /** 낼 때 어림 표식을 붙인다 — 높이를 빌린 자리가 하나라도 있으면 그 폴리곤들은 어림이다. */
+  const mark9 = (ps: Poly3[] | null): Poly3[] | null => {
+    if (ps && borrowed9) for (const q9 of ps) GUESSED9.add(q9);
+    return ps;
+  };
   const subs: Sub[] = [];
   let cur: Sub | null = null; let cx = 0, cy = 0; let i = 0; let cmd = "";
   const num = (): number => Number(tk[i++]);
@@ -142,11 +154,11 @@ export function meshFromPath9(d: string, opaque = true, glow = false): Poly3[] |
         out.push(disc);
       }
     }
-    return out.length ? out : null;
+    return mark9(out.length ? out : null);
   }
   const out: Poly3[] = [];
   for (const s9 of subs) { if (s9.ell || s9.pts.length < 3 || s9.pts.length * 2 < s9.pts.length + s9.miss) continue; out.push(s9.pts.flat()); }
-  return out.length ? out : null;
+  return mark9(out.length ? out : null);
 }
 /** meshSphere9 는 mp3(모델 변환)를 거친 링을 낸다 — 여기 점은 이미 모형 공간이라 되돌린 것을 그대로 쓰려면 변환이 항등이어야 한다.
  *  기록은 빌더 밖(withYaw 0, 모델 변환 없음)에서 끝난 뒤 하므로(collectMesh9) 항등이다. */
@@ -275,8 +287,9 @@ export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeF
   let covered = 0; let skipped = 0; const missed: string[] = [];
   /** 부품마다의 **뭉치 번호**(tagKey 의 pid) — 아래에서 같은 뭉치를 모아 닫힌 입체인가를 잰다. */
   const pidAt: (number | undefined)[] = [];
-  for (const f of faces) {
-    /* ── 이 면의 3D 폴리 찾기 — 곁표(헬퍼가 적어 둔 것) → 손수 짠 경로 되찾기 → 여러 조각 이어 붙인 경로. */
+  /** 이 면의 3D 폴리 찾기 — 곁표(헬퍼가 적어 둔 것) → 손수 짠 경로 되찾기 → 여러 조각 이어 붙인 경로.
+   *  되찾기는 MESH9.byD 에 적어 두므로 두 번째 호출은 표 읽기뿐이다(아래 몸 상자 앞잡이가 그 값을 쓴다). */
+  const geomOf9 = (f: ShapeFace): Poly3[] | undefined => {
     let polys = MESH9.byD.get(f[0]);
     if (glow) {
       // 발광 종류: 헬퍼가 구로 적어 둔 화면 원(screenCircle)도 카메라를 보는 원반으로 — 2D 는 동심원을 겹쳐 칠했다
@@ -290,6 +303,38 @@ export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeF
       for (const piece of f[0].split(/(?<=Z) (?=M)/)) { const q = MESH9.byD.get(piece); if (q) acc.push(...q); }
       if (acc.length) polys = acc;
     }
+    return polys && polys.length ? polys : undefined;
+  };
+  /* ★ **불투명 몸의 상자**를 먼저 잰다(2026-09) — 몸 없는 덧칠(제 pid 에 몸 면이 없는 데칼)을 제 부품으로
+     남길지 가리는 자다. 되찾기가 틀려 몸 **밖으로 튄** 것은 2D 에서 몸 안에 있던 무늬이므로 버린다
+     (실측: 라바 등의 마디 구슬이 사영 되짚기에서 z 를 잘못 빌려 몸 위 허공에 사슬로 떴다).
+     굴리며 재면(앞 면들만) 몸보다 먼저 칠하는 데칼이 통째로 걸러진다 — 그래서 앞잡이로 한 번 다 돈다. */
+  const bb9 = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
+  for (const f of faces) {
+    if (f[1] < 0.98 || isOverlay9(f)) continue;
+    const ps9 = geomOf9(f);
+    if (!ps9) continue;
+    for (const q9 of ps9) for (let i9 = 0; i9 + 2 < q9.length; i9 += 3) {
+      if (q9[i9] < bb9[0]) bb9[0] = q9[i9]; if (q9[i9] > bb9[3]) bb9[3] = q9[i9];
+      if (q9[i9 + 1] < bb9[1]) bb9[1] = q9[i9 + 1]; if (q9[i9 + 1] > bb9[4]) bb9[4] = q9[i9 + 1];
+      if (q9[i9 + 2] < bb9[2]) bb9[2] = q9[i9 + 2]; if (q9[i9 + 2] > bb9[5]) bb9[5] = q9[i9 + 2];
+    }
+  }
+  /** 그 기하가 몸 상자 안에 드나 — 되찾기가 틀려 몸 밖으로 튄 덧칠을 걸러 낸다. */
+  const inBody9 = (ps: Poly3[]): boolean => {
+    if (bb9[3] < bb9[0]) return false;
+    /* 여유는 **몸 크기에 비례**한다 — 땅에 번지는 얼룩(저그 둔덕·주둥이)은 몸 상자보다 조금 넓은 것이 맞고,
+       되찾기가 틀려 튄 것은 그보다 한참 멀리 간다. 0.4 + 상자 지름의 12%. */
+    const M9 = 0.4 + 0.12 * Math.max(bb9[3] - bb9[0], bb9[4] - bb9[1], bb9[5] - bb9[2]);
+    for (const q9 of ps) for (let i9 = 0; i9 + 2 < q9.length; i9 += 3) {
+      if (q9[i9] < bb9[0] - M9 || q9[i9] > bb9[3] + M9) return false;
+      if (q9[i9 + 1] < bb9[1] - M9 || q9[i9 + 1] > bb9[4] + M9) return false;
+      if (q9[i9 + 2] < bb9[2] - M9 || q9[i9 + 2] > bb9[5] + M9) return false;
+    }
+    return true;
+  };
+  for (const f of faces) {
+    const polys = geomOf9(f);
     const has9 = !!polys && polys.length > 0;
     if (isOverlay9(f) && (!glow || byD.has(f[0]))) {
       /* ★ 음영 덧칠은 **몸에 접거나 · 제 부품으로 남기거나 · 버린다**. 접을 몸을 두 자로 찾는다:
@@ -305,7 +350,8 @@ export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeF
       const same9 = byD.get(f[0]);
       const at = same9 ?? (f[5] !== undefined ? byPid.get(f[5]) : undefined);
       const k9 = at === undefined ? 1 : (same9 !== undefined ? 1 : areaK9(f[0], parts[at].d));
-      if (!(has9 && k9 < 0.6 && at !== undefined)) {
+      if (!(has9 && polys
+        && (at === undefined ? inBody9(polys) && !polys.some((q9) => GUESSED9.has(q9)) : k9 < 0.6))) {
         if (at !== undefined) {
           const pt = parts[at];
           const a = shadeBoost9(f[1], f[2]) * k9;
