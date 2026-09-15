@@ -839,6 +839,10 @@ export function spirePillar(o: {
    *    얇은 판의 안팎(같은 x·y, 다른 z)이 뒤섞인다. 법선이 진짜일 때는 등진 면을
    *    **아예 안 그리고**(닫힌 관이라 앞면이 늘 덮는다) 깊이에 높이 몫도 태운다. */
   trueNormal?: boolean;
+  /** ★ **이 낯은 안 그린다**(2026-09) — 낯 한가운데(모형 좌표)를 받아 참이면 건너뛴다. 벽에 **진짜 구멍**을
+   *  뚫을 때 쓴다: 2D 는 개구부를 벽 위에 얹고 둘레를 덧댐판으로 가렸지만, GL 은 진짜 깊이라 그 덧댐판이
+   *  속보다 앞에 서서 속을 통째로 먹는다. 부르는 쪽이 빠진 자리를 제 손으로 메운다(커맨드 격납구). */
+  skipFace?: (mx: number, my: number, mz: number) => boolean;
 }): ShapeFace[] {
   const z0 = o.z0 ?? 0;
   const segs = Math.max(1, o.segs ?? 3);
@@ -992,6 +996,8 @@ export function spirePillar(o: {
         }
       }
       if (nz !== undefined && !faceLight(nx, ny, nz).visible) continue;
+      if (o.skipFace
+        && o.skipFace(fx, fy, (lo[i][2] + lo[j][2] + hi[i][2] + hi[j][2]) / 4)) continue;
       const fz9 = nz !== undefined
         ? ((lo[i][2] + lo[j][2] + hi[i][2] + hi[j][2]) / 4) * heightDepthK()
         : (c1[2] - c0[2]) * 0.02;
@@ -3771,6 +3777,27 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ...legAndFoot(-POD_R, -POD_R, HULL_Zz9 + 0.2, 0.035),
       ...legAndFoot(POD_R, -POD_R, HULL_Zz9 + 0.2, 0.035),
     ];
+    /* ★ **정면 격납구의 구멍**(2026-09, 지적: "격납구 처리 및 가리기 위한 덧댐판") ───────────────────────────
+       아래 '정면 격납구'는 오목한 속이다. 화가 차례로만 서는 2D 는 그것을 못 낸다(속은 앞벽보다 뒤·뒷벽보다
+       앞인데 벽이 한 덩이다) — 그래서 속을 벽 **위**에 얹고 둘레를 덧댐판으로 가려 왔다. GL 은 진짜 깊이라
+       그 덧댐판이 속보다 앞에 서서 **속을 통째로 먹는다**(격납구가 민무늬 판으로 읽힘).
+       그래서 GL 에서는 선체·2층 돔의 벽에서 **낯을 빼 진짜 구멍**을 뚫고, 개구부 둘레만 벽으로 메운다.
+       구멍의 각 반폭 0.25rad 이면 선체(16면)는 낯 하나, 돔(14면)은 둘이 빠진다. 2D 는 종전 그대로다. */
+    const GLHOLE9 = MESH9.on ? 0.25 : 0;
+    /** 그 다면체에서 구멍 가장자리의 각(α = π/2 − 기둥각) — 빠진 낯 중 가장 바깥 것의 바깥 꼭짓점이다. */
+    const holeA9 = (sides9: number): number => {
+      const st9 = (Math.PI * 2) / sides9;
+      let e9 = 0;
+      for (let k9 = -sides9; k9 <= sides9; k9 += 1) {
+        const ac9 = Math.PI / 2 - (k9 + 1) * st9;     // 낯 한가운데의 α
+        if (Math.abs(ac9) <= GLHOLE9) e9 = Math.max(e9, Math.abs(ac9) + st9 / 2);
+      }
+      return e9;
+    };
+    /** 이 벽 낯을 구멍에 내줄까 — 앞(+y)을 보고, 각이 창 안이며, 높이가 문 위끝 아래일 때. */
+    const holeSkip9 = (zTop9: number) => (mx9: number, my9: number, mz9: number): boolean =>
+      GLHOLE9 > 0 && my9 > 0 && mz9 < zTop9
+      && Math.abs(Math.PI / 2 - Math.atan2(my9, mx9)) <= GLHOLE9;
     /* 받침 세 단 — 반지름 5.4의 은색 원반. 높이를 1/3로 낮췄다(요청) — 2.47이던 것이
        0.82다. 사진의 선체도 두툼한 통이 아니라 얇은 원반이고, 통이 높으면 그 위의
        층진 돔이 눌려 보인다. 발(pod)도 같은 비로 낮춰야 발이 몸보다 높아지지 않는다. */
@@ -3779,22 +3806,23 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        그 틈이 곧 다리의 키가 된다. */
     out.push(...tagKey(paintBase(spirePillar({
       x: 0, y: 0, z0: HULL_Zz9, h: 0.64, w: 5.15, tipW: 5.4,
-      segs: 1, sides: 16, hold: 0, taper: 1, caps: "bottom",
+      segs: 1, sides: 16, hold: 0, taper: 1, caps: "bottom", skipFace: holeSkip9(1e9),
     }), SILVER), 0.4));
     out.push(...tagKey(paintBase(spirePillar({
       x: 0, y: 0, z0: HULL_Zz9 + 0.64, h: 0.112, w: 5.16, tipW: 5.16,
-      segs: 1, sides: 16, hold: 0.5, caps: "none",
+      segs: 1, sides: 16, hold: 0.5, caps: "none", skipFace: holeSkip9(1e9),
     }), STEEL), 0.5));
     out.push(...tagKey(paintBase(spirePillar({
       x: 0, y: 0, z0: HULL_Zz9 + 0.752, h: 0.224, w: 5.4, tipW: 5.34,
-      segs: 1, sides: 16, hold: 0.5, caps: "top",
+      // GL 은 이 뚜껑을 손수 깐다(아래 격납구) — 구멍으로 들여다보면 그 수평면이 속을 덮기 때문이다.
+      segs: 1, sides: 16, hold: 0.5, caps: GLHOLE9 > 0 ? "none" : "top", skipFace: holeSkip9(1e9),
     }), SILVER), 0.6));
     /* 받침 윗면 테두리는 은색이다. 여태 여기 구리 링을 5.62로 둘렀는데, 돔 밑을
        4.9로 좁히자 그 링이 통째로 드러나 '청동 챙을 두른 접시'가 됐다. 구리는 요청대로
        돔 옆 세로띠와 꼭대기 상자 둘로 몰고, 이 자리는 강철 테두리만 남긴다. */
     out.push(...tagKey(paintBase(spirePillar({
       x: 0, y: 0, z0: HULL_Zz9 + 0.88, h: 0.096, w: 5.46, tipW: 5.46,
-      segs: 1, sides: 16, hold: 0.5, caps: "none",
+      segs: 1, sides: 16, hold: 0.5, caps: "none", skipFace: holeSkip9(1e9),
     }), STEEL), 1.6));
 
     /* ── 층진 돔(요청: "돔을 한번 윗둥을 자르고 그위에 또 돔을 얹는식으로 층을") ──
@@ -3831,6 +3859,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     out.push(...tagKey(paintBase(spirePillar({
       x: 0, y: 0, z0: DOME_Zz9, h: T1_Hz9, w: T1_RB, tipW: T1_RT,
       segs: 4, sides: 14, hold: T1_HOLD, taper: T1_TAPER, caps: "top",
+      // 구멍은 **첫 마디**까지만 — 문 위끝(BAY_Z1)이 그 안에 들고, 남는 조각은 아래 인방이 덮는다.
+      skipFace: holeSkip9(DOME_Zz9 + T1_Hz9 / 4 + 0.01),
     }), SILVER), 2));
     // 둘째 단 — 갑판 위에 얹은 좁은 돔. 아랫단보다 뒤에 서면 안 되니 한 칸 위다.
     /* 3층 돔의 바닥은 2층 돔의 옥상보다 좁아야 한다(요청) — 그래야 잘린 옥상면이
@@ -4271,11 +4301,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const BAY_YI = 3.05;
       /** 벽 선 밖으로 나오는 경사로 길이(요청: "약간") — 지면에 닿는 끝까지. */
       const RAMP_OUT = 0.3;   // 1.0은 너무 길었다(지적: "너무 많이 나온거 같아")
-      /** 그 높이의 겉벽 반지름 — 받침은 네 단(5.15→5.4 · 5.16 · 5.4→5.37 · 5.46 테), 위는 돔 옆선(t1R). */
+      /** 그 높이의 겉벽 반지름 — 받침 네 고리(5.15→5.4 · 5.16 홈 · 5.4 · 5.46 테)와 그 위 돔 옆선(t1R).
+       *  ★ 값을 **선체 기둥들과 맞췄다**(2026-09) — z 코드모드가 남긴 잔차였다: 첫 고리는 높이 0.64를 0.8로
+       *  나눠 꼭대기에서 5.35(참값 5.4)였고, 셋째는 이제 없는 옛 기울기를 쓰고 있었다. 문틀은 이 반지름으로
+       *  벽에 덧대는 판이라, 어긋난 만큼 판이 벽에 파묻히거나 떠서 '위치가 잘못된 덧댐판'으로 보였다. */
       const wallR = (z: number): number => {
-        if (z < HULL_Zz9 + 0.64) return 5.15 + 0.25 * ((z - HULL_Zz9) / 0.8);
+        if (z < HULL_Zz9 + 0.64) return 5.15 + 0.25 * ((z - HULL_Zz9) / 0.64);
         if (z < HULL_Zz9 + 0.752) return 5.16;
-        if (z < HULL_Zz9 + 0.88) return 5.4 - 0.03 * ((z - HULL_Zz9 - 0.94) / 0.16);
+        if (z < HULL_Zz9 + 0.88) return 5.4;
         if (z < DOME_Zz9) return 5.46;
         return t1R(z);
       };
@@ -4374,11 +4407,16 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          맞물린다. 그 경계마다 잘라 조각을 만들면 조각 하나가 곧 벽의 면 하나이고, 그 한가운데
          각이 곧 그 면의 법선이라 명암까지 저절로 같아진다. 면 경계는 높이와 무관하게 고정된
          각이므로 위아래 고리가 같은 α를 쓴다(반지름만 제 높이의 것을 쓴다). */
-      const wallStrip = (z0: number, z1: number, x0: number, x1: number, _n9: number, fill: string): void => {
-        const r0 = wallR(z0) + 0.012;
-        const r1 = wallR(z1 - 0.0001) + 0.012;
+      /** @param aFix 가장자리 각을 **못 박는다**(라디안 α) — null 이면 x 로 잰다. 구멍을 메우는 띠의
+       *   바깥 가장자리는 x 가 아니라 빠진 낯의 꼭짓점 각이라 이 자로 준다.
+       *  @param rOff 벽에서 띄우는 양 — 덧댐판은 +0.012(벽 위에 덧댄다), 구멍 메우기는 0(그 자리가 벽이다). */
+      const wallStrip = (z0: number, z1: number, x0: number, x1: number, _n9: number, fill: string,
+        aFix: [number | null, number | null] = [null, null], rOff = 0.012): void => {
+        const r0 = wallR(z0) + rOff;
+        const r1 = wallR(z1 - 0.0001) + rOff;
         const aOf = (x: number, r: number): number => Math.asin(Math.max(-0.999, Math.min(0.999, x / r)));
-        const a0l = aOf(x0, r0); const a1l = aOf(x1, r0); const a0h = aOf(x0, r1); const a1h = aOf(x1, r1);
+        const a0l = aFix[0] ?? aOf(x0, r0); const a1l = aFix[1] ?? aOf(x1, r0);
+        const a0h = aFix[0] ?? aOf(x0, r1); const a1h = aFix[1] ?? aOf(x1, r1);
         const sides9 = z0 < DOME_Zz9 ? 16 : 14;          // 선체 16면 · 돔 14면(제 빌더의 sides)
         const cutsL: number[] = [a0l]; const cutsH: number[] = [a0h];
         for (let k9 = -sides9; k9 <= sides9; k9 += 1) {
@@ -4414,19 +4452,57 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          결국 벽을 한 번 더 그린 판이라, 넓을수록 벽의 결(다면체 면·명암)과 어긋난 민무늬
          자국으로 드러난다 — 덮을 수 있는 만큼만 좁게 두는 것이 최선이다. */
       const FW = 0.26 + (5.15 - BAY_YI) * 1.15 * Math.min(1, Math.abs(facingRatio(1, 0)));
+      /* ★ 띠의 z 마디는 **벽 고리들과 딱 같다**(2026-09) — 돔 쪽 세 줄은 z 코드모드 잔차로 하나가 위아래가
+         뒤집혀 있었고(0.672 → 0.36) 하나는 문 위끝을 넘어섰다. 돔 밑동은 t1R 의 hold 구간이라 한 줄이면 된다. */
       const bands: [number, number, string][] = [
         [HULL_Zz9, HULL_Zz9 + 0.64, SILVER], [HULL_Zz9 + 0.64, HULL_Zz9 + 0.752, STEEL],
         [HULL_Zz9 + 0.752, HULL_Zz9 + 0.88, SILVER], [HULL_Zz9 + 0.88, DOME_Zz9, STEEL],
-        [DOME_Zz9, DOME_Zz9 + 0.336, SILVER], [DOME_Zz9 + 0.336, DOME_Zz9 + 0.672, SILVER], [DOME_Zz9 + 0.672, BAY_Z1, SILVER],
+        [DOME_Zz9, BAY_Z1, SILVER],
       ];
-      for (const [z0, z1, fill] of bands) {
-        wallStrip(z0, z1, BAY_HW, BAY_HW + FW, 2, fill);
-        wallStrip(z0, z1, -BAY_HW - FW, -BAY_HW, 2, fill);
+      if (GLHOLE9 > 0) {
+        /* GL — 벽에 진짜 구멍이 났으니 이 띠는 덧댐판이 아니라 **빠진 벽 그 자체**다: 벽 자리(rOff 0)에
+           개구부 가장자리(x = ±BAY_HW)에서 구멍 가장자리(빠진 낯의 꼭짓점 각)까지 메운다. */
+        for (const [z0, z1, fill] of bands) {
+          const aE9 = holeA9(z0 < DOME_Zz9 - 1e-6 ? 16 : 14);
+          wallStrip(z0, z1, BAY_HW, 0, 2, fill, [null, aE9], 0);
+          wallStrip(z0, z1, 0, -BAY_HW, 2, fill, [-aE9, null], 0);
+        }
+        /* 인방 — 구멍의 위끝은 돔 첫 마디의 끝이라 문 위끝(BAY_Z1)보다 조금 높다. 그 조각만 메운다. */
+        const aE14 = holeA9(14);
+        wallStrip(BAY_Z1, DOME_Zz9 + T1_Hz9 / 4, 0, 0, 4, SILVER, [-aE14, aE14], 0);
+        /* 천장(인방 밑면) — 2D 는 아래를 보는 낯이라 안 그렸지만, 구멍으로 들여다보면 그 자리가 뚫려
+           돔 속이 보인다. 개구부 안쪽만 한 장 덮는다. */
+        const cd9 = polyPath3([
+          [-BAY_HW, BAY_YI, BAY_Z1], [BAY_HW, BAY_YI, BAY_Z1],
+          [BAY_HW, wallY(BAY_Z1, BAY_HW), BAY_Z1], [-BAY_HW, wallY(BAY_Z1, BAY_HW), BAY_Z1],
+        ]);
+        frame.push([cd9, 1, "#3c4248"] as ShapeFace, sideFace(cd9, 0.3));
+        /* ★ 선체 **윗 뚜껑**(받침 테 윗면)에도 같은 홈을 낸다 — 그 원반은 z = DOME_Z 에 깔린 수평면인데
+           격납구 속(z 0.92~BAY_Z1)을 가로지른다. 수평면은 같은 화면 자리에서 속벽보다 카메라에 가까워,
+           구멍으로 들여다보면 속을 통째로 덮는다(실측: 격납구가 민무늬 판으로 읽혔다). 그래서 프리미티브의
+           뚜껑을 끄고(caps "none") 개구부 자리만 베어 낸 채 손수 깐다 — 둘레는 기둥의 16각 그대로다. */
+        const CR9 = 5.34;                                   // 뚜껑 반지름(기둥의 tipW)
+        const aE16 = holeA9(16);
+        const yE9 = CR9 * Math.cos(aE16);                   // 홈 가장자리가 16각 변에 닿는 자리
+        const cp9: [number, number, number][] = [[BAY_HW, yE9, DOME_Zz9]];
+        for (let i9 = 0; i9 < 16; i9 += 1) {
+          const a9 = Math.PI / 2 - aE16 - (i9 * Math.PI * 2) / 16;
+          cp9.push([CR9 * Math.cos(a9), CR9 * Math.sin(a9), DOME_Zz9]);
+        }
+        cp9.push([-BAY_HW, yE9, DOME_Zz9], [-BAY_HW, BAY_YI, DOME_Zz9], [BAY_HW, BAY_YI, DOME_Zz9]);
+        const capD9 = polyPath3(cp9);
+        const capL9 = faceLight(0, 0, 1);
+        frame.push([capD9, 1, SILVER] as ShapeFace, ...(capL9.visible ? capL9.face(capD9) : []));
+      } else {
+        for (const [z0, z1, fill] of bands) {
+          wallStrip(z0, z1, BAY_HW, BAY_HW + FW, 2, fill);
+          wallStrip(z0, z1, -BAY_HW - FW, -BAY_HW, 2, fill);
+        }
+        // 인방 — 개구부 위. 갑판(T2_Z)까지 두 단.
+        const zm9 = (BAY_Z1 + T2_Z) / 2;
+        wallStrip(BAY_Z1, zm9, -BAY_HW - FW, BAY_HW + FW, 4, SILVER);
+        wallStrip(zm9, T2_Z, -BAY_HW - FW, BAY_HW + FW, 4, SILVER);
       }
-      // 인방 — 개구부 위. 갑판(T2_Z)까지 두 단.
-      const zm9 = (BAY_Z1 + T2_Z) / 2;
-      wallStrip(BAY_Z1, zm9, -BAY_HW - FW, BAY_HW + FW, 4, SILVER);
-      wallStrip(zm9, T2_Z, -BAY_HW - FW, BAY_HW + FW, 4, SILVER);
       out.push(...tagKey(frame, KB + 0.05));
       /* ★ 갑판 덧판 — 뒷벽이 위로 새어 **2층 갑판**(수평면, 몸과 같은 키 2라 격납구 아래)에 비치는 몫은 벽
          문틀로는 못 덮는다. 갑판(T2_Z, 3층 밑동 3.1~잘린 테 3.55)의 앞쪽 부채꼴을 spirePillar 뚜껑과 같은
@@ -4445,11 +4521,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         }
         return polyPath3(pts);
       };
-      out.push(...tagKey([
-        /* 부채꼴도 문틀과 같은 폭 감각으로 — 개구부 반폭 + 문틀을 그 반지름의 각으로 옮긴다. */
-        [sector9(3.08, 3.56, T2_Z + 0.0096,
-          Math.min(0.8, Math.asin(Math.min(0.95, (BAY_HW + FW) / 3.3)))), 1, SILVER] as ShapeFace,
-      ], KB + 0.1));
+      // GL 은 속이 벽 뒤에 서므로 이 덧판이 필요 없다 — 깔면 민무늬 부채꼴이 갑판 위에 드러난다.
+      if (GLHOLE9 === 0) {
+        out.push(...tagKey([
+          /* 부채꼴도 문틀과 같은 폭 감각으로 — 개구부 반폭 + 문틀을 그 반지름의 각으로 옮긴다. */
+          [sector9(3.08, 3.56, T2_Z + 0.0096,
+            Math.min(0.8, Math.asin(Math.min(0.95, (BAY_HW + FW) / 3.3)))), 1, SILVER] as ShapeFace,
+        ], KB + 0.1));
+      }
     }
     out.push(
       ...legAndFoot(-POD_R, POD_R, HULL_Zz9 + 0.2, 0.035),
@@ -5298,8 +5377,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const WB = 7.0; const DB = 5.4;      // 바닥
     const WW = 7.8; const DW = 6.2;      // 허리
     const WT = 6.6; const DT = 5.0;      // 꼭대기
-    out.push(...tagKey(frustumFaces3(0, 0, WB, DB, WW, DW, ZW0z9 - ZB0z9, ZB0z9), 2));
-    out.push(...tagKey(boxFaces3(0, 0, WW, DW, ZW1z9 - ZW0z9, ZW0z9), 2.1));
+    /* ★ 격납구가 보이는 각에서는 **오른쪽(+x) 벽을 프리미티브에서 뺀다**(2026-09) — 그 벽은 아래에서
+       개구부 둘레만 남긴 **구멍 뚫린 벽**으로 손수 짠다. 개구부(z 0.72~2.88)가 아래 절두체와 허리 상자
+       **둘에 걸치므로** 둘 다 뺀다. 위 절두체(z 3.04~)는 개구부 위라 그대로다. */
+    const bayOn9 = facingRatio(1, 0) > 0.06;
+    /** GL(메시 기록) 만 진짜 구멍을 쓴다 — 2D 는 화가 차례라 덧댐판이 있어야 한다(아래). */
+    const glBay9 = MESH9.on;
+    const omitR9 = bayOn9 && glBay9 ? ([1, 0] as const) : undefined;
+    /* 아래 절두체·허리의 **윗면은 안 낸다**(glBay9) — 바로 위에 같은 바닥의 덩이가 앉는 속살인데, 구멍으로
+       들여다보면 그 낯이 속벽보다 카메라에 가까워 격납구를 통째로 메웠다(2D 는 위 덩이가 덮어 보이지 않던 몫). */
+    out.push(...tagKey(frustumFaces3(0, 0, WB, DB, WW, DW, ZW0z9 - ZB0z9, ZB0z9, omitR9, !!omitR9), 2));
+    out.push(...tagKey(boxFaces3(0, 0, WW, DW, ZW1z9 - ZW0z9, ZW0z9, omitR9, !!omitR9), 2.1));
     out.push(...tagKey(frustumFaces3(0, 0, WW, DW, WT, DT, ZTz9 - ZW1z9, ZW1z9), 2.2));
 
     /** 그 높이에서의 앞면 y(3단 프로필) — 홈·베이가 이 자를 쓴다. */
@@ -5504,53 +5592,87 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           2.6,
         ));
       }
-      /* ★ 문틀(가림막) — 격납구 둘레의 옆벽을 한 번 더 그려 속이 사선에서 **문틀 밖으로 비치지 않게** 한다
-         (재지적: "격납구가 깊어서 사선에서 가려져야 하는데 안 가려짐"). 안쪽 벽은 깊이만큼 옆으로 밀려 투영되므로
-         문틀 밖으로 삐져나오는데, 벽 면(x = sxAt(z), y ±fyAt(z))을 개구부만 비운 띠들로 덮으면 그 몫이 가려진다.
-         몸과 같은 재질(색 없음 → raceBase 스테인)·같은 명암이라 이음매가 없다. */
-      const frame: ShapeFace[] = [];
-      const fl9 = faceLight(1, 0, 0.3);
-      const quad9 = (y0f: (z: number) => number, y1f: (z: number) => number, z0: number, z1: number): void => {
-        const d9 = polyPath3([
-          [sxAt(z0) + 0.01, y0f(z0), z0], [sxAt(z0) + 0.01, y1f(z0), z0],
-          [sxAt(z1) + 0.01, y1f(z1), z1], [sxAt(z1) + 0.01, y0f(z1), z1],
-        ]);
-        frame.push([d9, 1] as ShapeFace, ...(fl9.visible ? fl9.face(d9) : [sideFace(d9, 0.4)]));
-      };
-      const zs9 = [ZB0, BZ0, ZW0, ZW1, BZ1, ZT].sort((a9, b9) => a9 - b9);
-      for (let i9 = 0; i9 + 1 < zs9.length; i9 += 1) {
-        const z0 = zs9[i9]; const z1 = zs9[i9 + 1];
-        if (z1 - z0 < 1e-3) continue;
-        const zm9 = (z0 + z1) / 2;
-        if (zm9 < BZ0 || zm9 > BZ1) {
-          quad9((z) => -fyAt(z), (z) => fyAt(z), z0, z1);           // 개구부 위·아래: 벽 전체 폭
-        } else {
-          quad9((z) => -fyAt(z), () => BY0, z0, z1);                 // 왼쪽 띠
-          quad9(() => BY1, (z) => fyAt(z), z0, z1);                  // 오른쪽 띠
-        }
-      }
-      /* ★ 앞·뒷면에도 문틀을 댄다(재지적: "팩토리 사출구가 앞면에도 영향을 줘서 앞면 쪽 키도 신경 써야") — 옆면이
-         거의 모서리로 설 때(facingRatio 0.06 언저리) 깊이 1.55만큼 안쪽에 있는 속벽이 모서리를 넘어 **앞면(또는
-         뒷면) 위로** 투영된다. 옆면 띠만으로는 그 몫이 안 덮여 앞면에 어두운 세로 띠가 생겼다. 앞·뒷면의 오른쪽
-         귀퉁이(x = sxAt − DEEP − 0.3 … sxAt)를 개구부 높이(BZ0~BZ1)만큼 같은 키(2.55)로 한 번 더 덮는다 — 몸과
-         같은 재질·명암이라 이음매가 없고, 앞면 창(z 4.2~)·경사발(z ≤ 0.92)과는 높이가 안 겹친다. */
-      for (const [sy9, ny9] of [[1, 1], [-1, -1]] as [1 | -1, 1 | -1][]) {
-        if (facingRatio(0, ny9) <= 0.04) continue;
-        const flF9 = faceLight(0, ny9, 0.3);
-        /* 높이는 몸 바닥부터 **꼭대기까지** — 속벽은 앞면보다 1.9~4.3 뒤에 있어 화면에서는 그만큼 위로 올라가
-           앞면의 z 2~6 자리에 겹친다(확대 실측). 개구부 높이만 덮으면 위쪽이 그대로 샜다. */
-        const zs2 = [ZB0, ZW0, ZW1, ZT].sort((a9, b9) => a9 - b9);
-        for (let i9 = 0; i9 + 1 < zs2.length; i9 += 1) {
-          const z0 = zs2[i9]; const z1 = zs2[i9 + 1];
-          if (z1 - z0 < 1e-3) continue;
+      /* ★ 개구부는 **붓마다 다르게 낸다**(2026-09, 지적: "격납구 처리 및 가리기 위한 덧댐판") ─────────────
+         화가 차례로만 서는 2D 는 이 오목한 속을 제대로 낼 수가 없다: 속은 앞벽보다 뒤·뒷벽보다 앞인데 두 벽이
+         한 프리미티브라 차례로는 가를 수 없다. 그래서 2D 는 속을 벽 위에 얹고 새는 몫을 덧댐판(문틀·앞뒷면 판)
+         으로 덮어 왔다. GL 은 진짜 깊이가 있으니 그 손이 필요 없고, 오히려 **덧댐판이 속보다 앞에 서서 속을
+         통째로 먹었다**(격납구가 납작한 판으로 읽힘). 두 붓에 각자의 손을 준다:
+           · GL(메시 기록 중) — 옆벽을 프리미티브에서 빼고(위 omitR9) 개구부 둘레만 남긴 **구멍 뚫린 벽**을
+             손수 짠다. 덧댐판은 하나도 안 댄다. 깊이가 속을 벽 뒤에 세운다.
+           · 2D — 종전 그대로(통짜 벽 + 속 + 덧댐판). 스냅샷은 한 톨도 안 바뀐다. */
+      if (glBay9) {
+        const wall: ShapeFace[] = [];
+        const wq9 = (y0f: (z: number) => number, y1f: (z: number) => number, z0: number, z1: number): void => {
           const d9 = polyPath3([
-            [sxAt(z0) - DEEP - 0.6, sy9 * (fyAt(z0) + 0.01), z0], [sxAt(z0) + 0.01, sy9 * (fyAt(z0) + 0.01), z0],
-            [sxAt(z1) + 0.01, sy9 * (fyAt(z1) + 0.01), z1], [sxAt(z1) - DEEP - 0.6, sy9 * (fyAt(z1) + 0.01), z1],
+            [sxAt(z0), y0f(z0), z0], [sxAt(z0), y1f(z0), z0],
+            [sxAt(z1), y1f(z1), z1], [sxAt(z1), y0f(z1), z1],
           ]);
-          frame.push([d9, 1] as ShapeFace, ...(flF9.visible ? flF9.face(d9) : [sideFace(d9, 0.4)]));
+          const nz9 = (sxAt(z0) - sxAt(z1)) / (Math.hypot(z1 - z0, sxAt(z1) - sxAt(z0)) || 1);
+          const fl9 = faceLight(1, 0, nz9);
+          wall.push([d9, 1] as ShapeFace, ...(fl9.visible ? fl9.face(d9) : [sideFace(d9, 0.4)]));
+        };
+        const zs9 = [ZB0z9, BZ0z9, ZW0z9, BZ1z9, ZW1z9].sort((a9, b9) => a9 - b9);
+        for (let i9 = 0; i9 + 1 < zs9.length; i9 += 1) {
+          const z0 = zs9[i9]; const z1 = zs9[i9 + 1];
+          if (z1 - z0 < 1e-3) continue;
+          const zm9 = (z0 + z1) / 2;
+          if (zm9 < BZ0z9 || zm9 > BZ1z9) {
+            wq9((z) => -fyAt(z), (z) => fyAt(z), z0, z1);            // 개구부 위·아래: 벽 전체 폭
+          } else {
+            wq9((z) => -fyAt(z), () => BY0, z0, z1);                 // 개구부 왼쪽 띠
+            wq9(() => BY1, (z) => fyAt(z), z0, z1);                  // 개구부 오른쪽 띠
+          }
         }
+        out.push(...tagKey(wall, 2.5));
+      } else {
+        /* ★ 문틀(가림막) — 격납구 둘레의 옆벽을 한 번 더 그려 속이 사선에서 **문틀 밖으로 비치지 않게** 한다
+           (재지적: "격납구가 깊어서 사선에서 가려져야 하는데 안 가려짐"). 안쪽 벽은 깊이만큼 옆으로 밀려 투영되므로
+           문틀 밖으로 삐져나오는데, 벽 면(x = sxAt(z), y ±fyAt(z))을 개구부만 비운 띠들로 덮으면 그 몫이 가려진다.
+           몸과 같은 재질(색 없음 → raceBase 스테인)·같은 명암이라 이음매가 없다. */
+        const frame: ShapeFace[] = [];
+        const fl9 = faceLight(1, 0, 0.3);
+        const quad9 = (y0f: (z: number) => number, y1f: (z: number) => number, z0: number, z1: number): void => {
+          const d9 = polyPath3([
+            [sxAt(z0) + 0.01, y0f(z0), z0], [sxAt(z0) + 0.01, y1f(z0), z0],
+            [sxAt(z1) + 0.01, y1f(z1), z1], [sxAt(z1) + 0.01, y0f(z1), z1],
+          ]);
+          frame.push([d9, 1] as ShapeFace, ...(fl9.visible ? fl9.face(d9) : [sideFace(d9, 0.4)]));
+        };
+        const zs9 = [ZB0, BZ0, ZW0, ZW1, BZ1, ZT].sort((a9, b9) => a9 - b9);
+        for (let i9 = 0; i9 + 1 < zs9.length; i9 += 1) {
+          const z0 = zs9[i9]; const z1 = zs9[i9 + 1];
+          if (z1 - z0 < 1e-3) continue;
+          const zm9 = (z0 + z1) / 2;
+          if (zm9 < BZ0 || zm9 > BZ1) {
+            quad9((z) => -fyAt(z), (z) => fyAt(z), z0, z1);           // 개구부 위·아래: 벽 전체 폭
+          } else {
+            quad9((z) => -fyAt(z), () => BY0, z0, z1);                 // 왼쪽 띠
+            quad9(() => BY1, (z) => fyAt(z), z0, z1);                  // 오른쪽 띠
+          }
+        }
+        /* ★ 앞·뒷면에도 문틀을 댄다(재지적: "팩토리 사출구가 앞면에도 영향을 줘서 앞면 쪽 키도 신경 써야") — 옆면이
+           거의 모서리로 설 때(facingRatio 0.06 언저리) 깊이 1.55만큼 안쪽에 있는 속벽이 모서리를 넘어 **앞면(또는
+           뒷면) 위로** 투영된다. 옆면 띠만으로는 그 몫이 안 덮여 앞면에 어두운 세로 띠가 생겼다. 앞·뒷면의 오른쪽
+           귀퉁이(x = sxAt − DEEP − 0.3 … sxAt)를 개구부 높이(BZ0~BZ1)만큼 같은 키(2.55)로 한 번 더 덮는다 — 몸과
+           같은 재질·명암이라 이음매가 없고, 앞면 창(z 4.2~)·경사발(z ≤ 0.92)과는 높이가 안 겹친다. */
+        for (const [sy9, ny9] of [[1, 1], [-1, -1]] as [1 | -1, 1 | -1][]) {
+          if (facingRatio(0, ny9) <= 0.04) continue;
+          const flF9 = faceLight(0, ny9, 0.3);
+          /* 높이는 몸 바닥부터 **꼭대기까지** — 속벽은 앞면보다 1.9~4.3 뒤에 있어 화면에서는 그만큼 위로 올라가
+             앞면의 z 2~6 자리에 겹친다(확대 실측). 개구부 높이만 덮으면 위쪽이 그대로 샜다. */
+          const zs2 = [ZB0, ZW0, ZW1, ZT].sort((a9, b9) => a9 - b9);
+          for (let i9 = 0; i9 + 1 < zs2.length; i9 += 1) {
+            const z0 = zs2[i9]; const z1 = zs2[i9 + 1];
+            if (z1 - z0 < 1e-3) continue;
+            const d9 = polyPath3([
+              [sxAt(z0) - DEEP - 0.6, sy9 * (fyAt(z0) + 0.01), z0], [sxAt(z0) + 0.01, sy9 * (fyAt(z0) + 0.01), z0],
+              [sxAt(z1) + 0.01, sy9 * (fyAt(z1) + 0.01), z1], [sxAt(z1) - DEEP - 0.6, sy9 * (fyAt(z1) + 0.01), z1],
+            ]);
+            frame.push([d9, 1] as ShapeFace, ...(flF9.visible ? flF9.face(d9) : [sideFace(d9, 0.4)]));
+          }
+        }
+        out.push(...tagKey(frame, 2.55));
       }
-      out.push(...tagKey(frame, 2.55));
     }
 
     // ── 지붕 — 검은 굴뚝 넷(뒤 판) · 흰 성곽 이빨 · 임자색 포탑(뒤 오른쪽).

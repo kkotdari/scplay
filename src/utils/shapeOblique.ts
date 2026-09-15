@@ -1060,8 +1060,12 @@ export function prismYFaces(
 /** 세운 상자 — frustum의 특수형. 보이는 면·세계 광원은 frustumFaces3가 맡는다. */
 export function boxFaces3(
   cx: number, cy: number, w: number, d: number, h: number, z0 = 0,
+  /** 벽 하나 빼기 — frustumFaces3 의 그 자다(구멍 뚫린 벽을 손으로 짤 때). */
+  omit?: readonly [number, number],
+  /** 윗면 빼기 — frustumFaces3 의 그 자다(위에 같은 바닥의 덩이가 올라앉을 때). */
+  noTop?: boolean,
 ): ShapeFace[] {
-  return frustumFaces3(cx, cy, w, d, w, d, h, z0);
+  return frustumFaces3(cx, cy, w, d, w, d, h, z0, omit, noTop);
 }
 
 /** 세운 원통 — 바닥 중심 (cx,cy), 반지름 r, 높이 h. 몸통 + 밝은 윗면 + 오른쪽 세로 음영. */
@@ -1211,6 +1215,15 @@ export function limbFaces(
  *  세계 광원 밝기로 그린다(요청: 돌려도 광원 고정). 윗면은 항상 밝다. */
 export function frustumFaces3(
   cx: number, cy: number, wB: number, dB: number, wT: number, dT: number, h: number, z0 = 0,
+  /** ★ 이 벽 하나는 **안 그린다**(2026-09) — 그 자리에 부르는 쪽이 **구멍 뚫린 벽**을 손으로 짜 넣을 때 쓴다.
+   *  평면 법선으로 고른다: [1,0] 오른쪽 · [-1,0] 왼쪽 · [0,1] 앞 · [0,-1] 뒤.
+   *  (여태 개구부는 벽을 통째로 두고 속을 그 위에 얹은 뒤 새는 몫을 덧댐판으로 덮었다 — 2D 화가 차례로만
+   *   서는 손이라 GL 의 진짜 깊이에서는 속이 벽에 먹혔다. 구멍이 진짜면 두 붓이 같은 그림을 낸다.) */
+  omit?: readonly [number, number],
+  /** ★ **윗면을 안 그린다**(2026-09) — 바로 위에 같은 바닥의 덩이가 올라앉는 3단 몸통에서 그 낯은 **속살**이다.
+   *  2D 는 위 덩이가 뒤에 칠해져 덮었지만, GL 은 옆벽에 뚫은 개구부로 그 속살이 들여다보였다(팩토리 격납구에서
+   *  아래 절두체의 윗면이 속벽보다 카메라에 가까워 격납구를 통째로 메웠다). 덮이는 낯은 애초에 내지 않는다. */
+  noTop?: boolean,
 ): ShapeFace[] {
   const zt = z0 + h;
   const corners = (w: number, d: number, z: number): [number, number, number][] => [
@@ -1231,7 +1244,7 @@ export function frustumFaces3(
     { d: polyPath3([t[3], t[0], b[0], b[3]]), n: [-1, 0], nz: nzOf(wB / 2, wT / 2) },
   ];
   const out: ShapeFace[] = [];
-  const bodyParts: string[] = [top];
+  const bodyParts: string[] = noTop ? [] : [top];
   /* ★ 벽은 **등진 것부터 앞으로** 정렬해 덮개를 얹는다(지적: 골리앗 어깨 너머 비침) —
      위가 좁은 절두체는 등진 벽도 법선의 위 성분으로 '보이는 벽'에 들어, 고정 차례면
      그 벽의 밝은 덮개가 가까운 벽 위에 찍혀 뒤가 비치는 듯 보였다. 가까운 벽의 덮개가
@@ -1241,13 +1254,15 @@ export function frustumFaces3(
     .sort((a, b) => a.k - b.k)
     .map(({ f }) => f);
   for (const f of ordered) {
+    if (omit && omit[0] === f.n[0] && omit[1] === f.n[1]) continue;
     const { visible, face } = faceLight(f.n[0], f.n[1], f.nz);
     if (!visible) continue;
     bodyParts.push(f.d);
     out.push(...face(f.d));
   }
   return tagKey(
-    [bodyFace(bodyParts.join(" ")), ...out, topFace(top)],
+    [...(bodyParts.length ? [bodyFace(bodyParts.join(" "))] : []), ...out,
+      ...(noTop ? [] : [topFace(top)])],
     depthNow(cx, cy) + Math.min(
       h,
       (Math.max(wB, wT) / 2) * Math.abs(depthNow(1, 0))
