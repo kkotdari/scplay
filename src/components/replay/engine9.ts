@@ -2236,6 +2236,8 @@ export const SCR_DIAG: {
   litN: number;
   /** 프레임 워커 상태 — on/off · 받은 수 · 쓴 수 · 놓친 수. */
   worker: string;
+  /** WebGL 유닛 붓 시제(#gl=1, gl9.ts) — 개체·삼각·메시 수. */
+  gl: string;
   /** 굽기 일꾼(ReplayMotionPlayer의 BAKEW9) — #diag=bake의 '굽기일꾼' 줄. */
   bakew: string;
   /** 덜어내기(폰 과밀) — "N단 평균ms 유닛수". */
@@ -2275,7 +2277,7 @@ export const SCR_DIAG: {
 } = {
   dpr: 0, unitCss: "", unitBack: "", unitB: 0,
   mapCss: "", mapBack: "", ppt: 0, needed: 0, scale: 0, unitScale: 0,
-  areaCap: 0, allocOk: true, zoom: 0, xfms: 0, fx: {}, prod: "", litN: 0, worker: "", bakew: "", crowd: "", brush: "", fps: 0, fog: "", react: "", nukem: "",
+  areaCap: 0, allocOk: true, zoom: 0, xfms: 0, fx: {}, prod: "", litN: 0, worker: "", gl: "", bakew: "", crowd: "", brush: "", fps: 0, fog: "", react: "", nukem: "",
   truthVer: 0, truthTrust: -1, truthWhy: "",
 };
 /** #diag가 켜져 있나 — 주소가 바뀌지 않는 한 한 번만 읽는다. */

@@ -91,3 +91,18 @@ scplayer 쪽 소스를 만졌으면 그쪽에서 `npx tsc --noEmit -p tsconfig.j
 - 검산: `node scripts/model-faces-snap.mjs --out ref.json --zk 0.8`(원본 + 꼭짓점 z배수 = 정답) · `--out new.json`(고친 소스) ·
   `--diff ref.json new.json`(종류별 어긋난 면·버그급). Node 헤드리스, 전 종류 15초.
 - 잉크 중심표(`UNIT_INK_CY9`·`BLD_INK_MID9`)는 `node scripts/ink-center.mjs --emit` 으로 다시 뽑아 engine9 에 붙인다(캔버스 래스터라 브라우저).
+
+## 메시 층·WebGL 시제(2026-09)
+- **메시 층**: 도형 헬퍼(polyPath3·관·뿔·돔·구·원통·원반·고리·곡면판, bake9.rodFaces)가 `MESH9.on` 일 때 면의 경로 문자열을 열쇠로
+  **판 모형 공간 3D 폴리곤**(`Poly3`, 모델 배율·이동·회전은 먹고 요잉·카메라는 안 먹음)을 곁표 `MESH9.byD` 에 적는다. 2D 그림은
+  한 톨도 안 바뀐다(`model-faces-snap --diff` 허용 0.001 로 지킨다). `mesh9.collectMesh9(builder)` 가 빌더 하나를 요잉 0 으로 굽고
+  음영 덧칠 면(얕은 알파의 흰·검·종족 광택색, `isOverlay9`)을 뺀 부품 메시를 낸다. 검사·미리보기: `node scripts/model-mesh.mjs
+  [--kinds a,b] [--svg out.html --rots 0,45,90,180]`(덮임 154종 100%; 미리보기는 html 캔버스 — svg 는 수천 면에서 스크린샷이 멎는다).
+  새 도형 헬퍼를 만들면 `meshPut9(d, polys)` 를 함께 적는다 — 안 적으면 그 부품이 GPU 그림에서 빠진다(덮임 표가 잡는다).
+- **숫자 경로**: polyPath3 가 화면 2D 좌표를 `POLY2` 에 적고 `bake9.pathOf` 가 그 숫자로 Path2D 를 짓는다(문자열 파싱 생략, 판당 약 20%).
+- **WebGL 시제 `#gl=1`**(`gl9.ts`): 평면 시점의 유닛 몸통(짐·포탑 겹판 포함)을 종류·자세별 메시로 GPU 가 그린다. 정점 셰이더가
+  `project` 와 같은 카메라(요잉 → x 원근 48 → y = ry·sin40° − z·cos40°)를 걸고, 자리·배수는 판 블릿과 같은 자(앵커 (sx, sy−px·0.24−lift)
+  · px/16·MODEL_NORM · 원점 (8,12)) — 12배에서 판 그림과 자리·크기가 겹친다. 앞뒤는 깊이 버퍼(개체 차례 칸 + 카메라 가까움), 조명은
+  법선 방향광 양면, 임자색은 uTeam. GL 캔버스(`.scr-motion-gl9`, z 6001)는 유닛 캔버스 위에 같은 상자·같은 손짓 변환으로 얹힌다.
+  아직 캔버스가 맡는 것: 건물·그림자·링·체력바·효과(트레이서는 GL 아래에 깔린다)·입체(pitch) 시점·머리 요잉·불빛·회전 깃발. 판 굽기도
+  아직 돈다(그림자·잉크 폭이 판을 읽는다) — 다음 단계(M4)에서 뗀다. `#diag=draw` 의 'GL' 줄(개체·삼각·메시 수), `perf-check --hash gl=1`.

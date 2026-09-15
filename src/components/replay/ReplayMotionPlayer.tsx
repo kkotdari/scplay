@@ -93,6 +93,7 @@ import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, W
 import {
   pitchFlatSet9, brushOn9, brushSet9, glowOn9, glowSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, spriteSideMax9, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, rasterUnit9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, tone9, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
 } from "./bake9";
+import { glUnits9, GL_ON9 } from "./gl9";
 export { LIMB_LOG, TURRET_BACK9, SHAPE_BUILDERS, ctx2d9, BAKE_ENV9, cropToInk, rasterUnit9, pathBox, tierTableOf, autoTier, stageFaces, rasterBld9, SHAPE_GALLERY, poseSet, poseSet9, bldLitSet, headYawSet, bldSpinSet, bldSpinRawSet9, lodSetCap, lodSetZoom, lodNoteFrame, tone9, TONE_DARK, TONE_SAT, silhouetteLight, glowBake9, grainAxes9, GLOW9 } from "./bake9";
 export type { BakeCv9, BakeCtx9, RasterOut9, ShapeGalleryItem } from "./bake9";
 export { isAirUnit, flapCutOf, atkCutOf, unitTilesOf, buildingYawOf, galleryYawOf, BLD_NORM, BUILD_STAGES, SCR_DIAG, scrDiagOn, deriveWorld9, createEngine9, pickWorldUi9, emptyWorldUi9 } from "./engine9";
@@ -3849,6 +3850,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
   onPainted?: (z: number, p: { x: number; y: number }) => void;
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const glRef = useRef<HTMLCanvasElement>(null);
   /** z 정렬 캐시 — 같은 ops로 두 번 이상 그릴 때(손짓 중 다시 그리기) 정렬을 아낀다. */
   const sortCacheRef = useRef<{ src: UnitDrawOp[] | null; out: UnitDrawOp[] }>({ src: null, out: [] });
   /** 그린 장 수 — 저배율의 격프레임 건너뛰기가 세는 자다(아래 effect 끝). */
@@ -3991,6 +3993,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       lodSetZoom(bakeZoom);
       ctx.setTransform(Bd, 0, 0, Bd, 0, 0);
       ctx.clearRect(0, 0, cw, ch);
+      const gl9 = glUnits9(glRef.current);   // #gl=1 이면 유닛 몸통을 GPU 큐에 넣고, 프레임 끝에서 한 번 그린다(아래)
       /* (제거·요청) 도형 드롭섀도 — 건물·유닛 그림자를 다 걷었다(떠다니는 것 제외).
          떠 있음은 아래 hover 분기의 발밑 타원만 말한다. */
       // 렌즈 CSS(translate(pan) scale(zoom), 원점 가운데)와 같은 사상 — 분수 자리를
@@ -5017,6 +5020,19 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           /* 자른 판을 제 자리에 되돌린다 — 원래 판의 왼위 모서리가 있던 곳에서
              자른 만큼(ox·oy, 기기 픽셀이라 B로 나눈다) 옮겨 그리면, 통째로 그린 것과
              픽셀 단위로 같은 그림이 나온다. */
+          /* ★ WebGL 시제 — 평면 시점의 유닛 몸통(짐·포탑 겹판 포함)은 판 대신 메시로 GPU 큐에 넣는다. 그림자·링·체력바는 위에서
+             캔버스가 이미 그렸다. 자리·배수는 판 블릿과 같은 자다: 앵커 (bx9, by9) · 배수 px/16 · 종류 배수 MODEL_NORM. */
+          if (gl9 && op.flat && !op.pitch && !rot && gl9.has(op.kind, op.pose ?? 0)) {
+            const gax9 = detail ? Math.round(Bd * bx9) / Bd : bx9;
+            const gay9 = detail ? Math.round(Bd * by9) / Bd : by9;
+            const gnrm9 = modelNormOf(op.kind);
+            for (const gk9 of [op.kind, op.attach, op.attach2]) {
+              if (!gk9 || !gl9.has(gk9, op.pose ?? 0)) continue;
+              gl9.push({ kind: gk9, pose: op.pose ?? 0, ax: gax9, ay: gay9, px, nrm: gnrm9, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha });
+            }
+            ctx.setTransform(Bd, 0, 0, Bd, 0, 0);
+            continue;
+          }
           const cw9 = spr.cv.width / B;
           const ch9 = spr.cv.height / B;
           /* ★ 겹쳐 찍는 판(op.attach) — 일꾼이 든 짐이다. **같은 자**로 굽는다: 같은
@@ -6156,6 +6172,12 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          했는데, 그 effect는 zoom·pan **상태**가 바뀔 때만 돈다 — 손짓 중에는 상태가
          안 바뀌므로 한 번도 안 돌았고, 그 사이 재생 틱이 낸 리렌더마다 그림이 튀었다. */
       if (cv.style.transform !== XF_ID9) { cv.style.transformOrigin = "center"; cv.style.transform = XF_ID9; }
+      if (gl9) {
+        gl9.flush(cv.width, cv.height, cw, ch);
+        const gcv9 = gl9.canvas;
+        if (gcv9.style.transform !== cv.style.transform) { gcv9.style.transformOrigin = "center"; gcv9.style.transform = cv.style.transform; }
+        if (scrDiagOn()) SCR_DIAG.gl = `on 개체 ${gl9.stat.inst} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}(${gl9.stat.bakeMs.toFixed(0)}ms)`;
+      }
       onPainted?.(zoom, pan);
     };
     /* 부모가 손짓 중에 쥘 붓을 넘긴다 — 렌더마다 새 ops를 문 채로 갈아 끼운다. */
@@ -6163,7 +6185,11 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
     /* ★ 여기서는 안 칠한다(재설계: 그리는 붓 하나) — 유닛 캔버스를 칠하는 것은 부모의 paintFnRef9뿐이다. 이 층은 붓 클로저를
        내주기만 하고, 렌더로 바뀐 것(배율·팬 거울, 사양 토글, 크기)은 부모가 렌더마다 requestPaint9로 한 장에 모은다. */
   });
-  return <canvas ref={ref} className="scr-motion-unitlayer" aria-hidden />;
+  /* WebGL 시제(#gl=1, gl9.ts) — 유닛 몸통을 GPU 가 그리는 층. 유닛 캔버스와 같은 상자·같은 손짓 변환을 거울처럼 따른다. */
+  return <>
+    <canvas ref={ref} className="scr-motion-unitlayer" aria-hidden />
+    {GL_ON9 ? <canvas ref={glRef} className="scr-motion-unitlayer scr-motion-gl9" aria-hidden /> : null}
+  </>;
 }
 
 /** ★ 효과 층에 **모델을 놓는 공용 문**(요청: "앞으로 추가될 효과들도 이런 일 겪지 않게
@@ -13986,6 +14012,9 @@ export default function ReplayMotionPlayer({
                 {dm9("worker") && (
                   /* 프레임 워커 — on/준비중/off · 받은/쓴/놓친 장수 · 한 장 짓는 ms · op·KB · 앞 · 시야 · [속] · 오류(⚠). */
                   <div style={{ wordBreak: "break-all" }}>워커 {SCR_DIAG.worker || "-"}</div>
+                )}
+                {dm9("draw") && SCR_DIAG.gl && (
+                  <div style={{ wordBreak: "break-all" }}>GL {SCR_DIAG.gl}</div>
                 )}
                 {dm9("brush") && (
                   <div style={{ wordBreak: "break-all" }}>붓 2초: {brushLogSummary9()}</div>
