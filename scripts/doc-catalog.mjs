@@ -10,7 +10,8 @@
  *   3. zerg_units_blue.png     6. zerg_bldgs_blue.png
  * 유닛·건물 시트 모두 임자색 이름(blue)이 붙는다(재요청).
  * 찍는 조건은 doc-sheet.mjs에 넘긴다: 4방위(45·135·225·315) · --narrow · 흰 배경(--bg) ·
- * 폭 660 · dpr 3. 목록(list.txt)은 ReplayMotionPlayer.tsx의 도록 표에서 그대로 읽는다. */
+ * 폭 660 · dpr 3. 목록(list.txt)은 ReplayMotionPlayer.tsx의 도록 표에서 그대로 읽는다.
+ * 그림은 GL 붓(지도와 같은 메시 그림)이 기본이고 `--2d` 면 옛 2D 면 그림이다(doc-sheet.mjs 머리 ★). */
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -27,6 +28,7 @@ const ROTS = String(flag("--rots", "45,135,225,315"));
 const WIDTH = String(flag("--width", "660"));
 const DPR = String(flag("--dpr", "3"));
 const ZIP = !argv.includes("--no-zip");
+const TWO_D = argv.includes("--2d");
 
 const RACE_EN = { 테란: "terran", 프로토스: "protoss", 저그: "zerg" };
 /** 시트 일곱 장 — 차례가 곧 번호다. */
@@ -49,7 +51,7 @@ for (const [i, s] of SHEETS.entries()) {
   const file = join(OUT, nameOf(i, s));
   execFileSync(process.execPath, [
     join(ROOT, "scripts", "doc-sheet.mjs"), "--group", s.group, "--race", s.race,
-    "--rots", ROTS, "--narrow", "--own", OWN, "--bg", "--width", WIDTH, "--dpr", DPR, "--out", file,
+    "--rots", ROTS, "--narrow", "--own", OWN, "--bg", "--width", WIDTH, "--dpr", DPR, "--out", file, ...(TWO_D ? ["--2d"] : []),
   ], { stdio: "inherit" });
 }
 

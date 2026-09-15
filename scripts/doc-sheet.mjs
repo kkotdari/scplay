@@ -12,7 +12,10 @@
  * 화면에서 보는 것과 한 픽셀도 안 다르다.
  * CSS 차례가 요점이다 — 앱 CSS가 먼저, 모듈 CSS가 나중이다(scplay README의 규약).
  * 도록의 `.scr-doc .scr-doc-svg`가 그 규약을 이기려고 한 단 올려 잡혀 있으므로, 차례를
- * 뒤집으면 SVG가 1em(16px)에 갇혀 모델이 점이 된다. */
+ * 뒤집으면 SVG가 1em(16px)에 갇혀 모델이 점이 된다.
+ * ★ 그림은 **GL 붓**(DocIcon9 → gl9 메시, 지도가 그리는 그 그림)이 기본이다(2026-09) — 키값·마주 봄 판정 같은 2D 전용
+ *   어긋남이 도록에 안 실린다. 옛 2D 면 그림(ShapeIcon SVG)은 `--2d` 로 남겨 둔다(폰·#gl=0 이 아직 그 길이라 검토용).
+ *   헤드리스는 소프트웨어 GL 이라 GL → 2D 읽기가 판마다 1~2초다 — DocIcon9 가 한 프레임의 칸을 한 판(4096²)에 모아 한 번 읽는다. */
 
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, writeFileSync, readFileSync, rmSync, existsSync } from "node:fs";
@@ -40,6 +43,8 @@ const NARROW = argv.includes("--narrow");
    고정 연두를 주는데, 종이로 뽑을 때는 다른 색이 필요할 때가 있다(요청: 빨강).
    변수만 덮어쓰면 되는 자리라 앱 CSS를 안 건드린다. */
 const OWN = String(flag("--own", ""));
+/* --2d — GL 붓 대신 옛 2D 면 그림(ShapeIcon SVG)으로 뽑는다(위 ★). */
+const TWO_D = argv.includes("--2d");
 /* --bg — 종이 배경으로 뽑는다(요청: "흰색 배경으로"). 값은 바탕색(기본 #fff).
    어두운 테마 변수 위에 얹는 오버라이드라, 글자·테두리도 함께 잉크색으로 뒤집는다. */
 const bgRaw9 = flag("--bg", "#fff");
@@ -50,7 +55,7 @@ const BG = argv.includes("--bg")
 const ENTRY = `
 import { createElement as h } from "react";
 import { createRoot } from "react-dom/client";
-import { SHAPE_GALLERY, ShapeIcon, galleryYawOf } from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
+import { SHAPE_GALLERY, DocIcon9, galleryYawOf } from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
 window.__docSheet = (group, race, rots, narrow) => {
   const rows = SHAPE_GALLERY.filter((g) => g.group === group && (race === "전체" || g.race === race));
   const host = document.getElementById("host");
@@ -66,7 +71,7 @@ window.__docSheet = (group, race, rots, narrow) => {
   const angleCell = (kind, deg, group) => {
     const d9 = galleryYawOf(deg, group);
     return h("div", { key: deg, className: "scr-doc-angle" }, [
-      h(ShapeIcon, { key: "m", kind, rotDeg: d9, flat: true, fit: true, className: "scr-doc-svg" }),
+      h(DocIcon9, { key: "m", kind, rotDeg: d9, flat: true, fit: true, className: "scr-doc-svg", gl: !window.__doc2d }),
       h("span", { key: "d" }, d9 + "\u00b0"),
     ]);
   };
@@ -154,6 +159,7 @@ await page.evaluate(([a, b, c]) => {
     document.head.appendChild(st);
   }
 }, [appCss, modCss, sheetCss]);
+await page.evaluate((twoD) => { window.__doc2d = twoD; }, TWO_D);
 await page.evaluate((code) => {
   const sc = document.createElement("script");
   sc.type = "module";
@@ -163,8 +169,13 @@ await page.evaluate((code) => {
 await page.waitForFunction(() => typeof window.__docSheet === "function", null, { timeout: 60000 });
 const n = await page.evaluate(([g, r, rots, nw]) => window.__docSheet(g, r, rots, nw),
   [GROUP, RACE, ROTS, NARROW]);
-await page.waitForFunction(() => document.querySelectorAll(".scr-doc-angle svg").length > 0, null, { timeout: 120000 });
+/* 칸이 다 그려질 때까지 — SVG 는 서는 즉시, GL 그림(<img>)은 data-gl9="1"(dataURL 이 실린 뒤). 헤드리스 GL 은 판마다 읽기가
+   느려(1~2초) 넉넉히 기다린다. */
+await page.waitForFunction(() => {
+  const els = [...document.querySelectorAll(".scr-doc-angle svg, .scr-doc-angle img")];
+  return els.length > 0 && els.every((e) => e.tagName.toLowerCase() === "svg" || e.dataset.gl9 === "1");
+}, null, { timeout: 600000 });
 await page.waitForTimeout(400);
 await page.locator("#host").screenshot({ path: OUT });
 await browser.close();
-console.log(`${OUT}  (${GROUP}/${RACE} · ${n}종 · ${ROTS.length}방위)`);
+console.log(`${OUT}  (${GROUP}/${RACE} · ${n}종 · ${ROTS.length}방위 · ${TWO_D ? "2D" : "GL"})`);

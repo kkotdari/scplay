@@ -52,7 +52,7 @@ export {
        흔들린다. 모션 창처럼 같은 모델의 컷을 나란히 놓는 자리는 이걸로 상자를 하나
        얻어 세 칸에 fitBox로 내린다 — 창이 못 박히고 움직임만 남는다. */
 export {
-  SHAPE_GALLERY, ShapeIcon, poseTempoOf, poseCutsOf, atkCutOf, flapCutOf, shapeMapTiles, shapeFitBox,
+  SHAPE_GALLERY, ShapeIcon, DocIcon9, poseTempoOf, poseCutsOf, atkCutOf, flapCutOf, shapeMapTiles, shapeFitBox,
   galleryYawOf,
 } from "./ReplayMotionPlayer";
 export type { ShapeGalleryItem } from "./ReplayMotionPlayer";

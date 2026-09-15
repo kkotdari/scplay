@@ -93,7 +93,7 @@ import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, W
 import {
   pitchFlatSet9, brushOn9, brushSet9, glowOn9, glowSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, spriteSideMax9, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, rasterUnit9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, tone9, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
 } from "./bake9";
-import { glUnits9, glNow9, GL_ON9, GL_WARM9, GL_BLIT9, GL_GLOW_KINDS9, camOf9, CAM_TOP9, type GlUnits9 } from "./gl9";
+import { glUnits9, glNow9, GL_ON9, GL_WARM9, GL_BLIT9, GL_GLOW_KINDS9, camOf9, CAM_TOP9, glIconOk9, glIconRequest9, type GlUnits9 } from "./gl9";
 export { LIMB_LOG, TURRET_BACK9, SHAPE_BUILDERS, ctx2d9, BAKE_ENV9, cropToInk, rasterUnit9, pathBox, tierTableOf, autoTier, stageFaces, rasterBld9, SHAPE_GALLERY, poseSet, poseSet9, bldLitSet, headYawSet, bldSpinSet, bldSpinRawSet9, lodSetCap, lodSetZoom, lodNoteFrame, tone9, TONE_DARK, TONE_SAT, silhouetteLight, glowBake9, grainAxes9, GLOW9 } from "./bake9";
 export type { BakeCv9, BakeCtx9, RasterOut9, ShapeGalleryItem } from "./bake9";
 export { isAirUnit, flapCutOf, atkCutOf, unitTilesOf, buildingYawOf, galleryYawOf, BLD_NORM, BUILD_STAGES, SCR_DIAG, scrDiagOn, deriveWorld9, createEngine9, pickWorldUi9, emptyWorldUi9 } from "./engine9";
@@ -6464,6 +6464,47 @@ export function shapeFitBox(kind: string, opts?: {
     box9 = inkBox9(r9.faces, box9);
   }
   return inkView9(box9, opts?.fitPad);
+}
+/** CSS 색("rgb(r, g, b)" · "#hex") → "#rrggbb"(GL 붓의 hexRgb 는 #hex 만 읽는다). */
+function cssHex9(c: string): string {
+  const m = /rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/.exec(c);
+  if (m) return "#" + [m[1], m[2], m[3]].map((v) => Math.max(0, Math.min(255, Number(v))).toString(16).padStart(2, "0")).join("");
+  return /^#/.test(c.trim()) ? c.trim() : "#64ff64";
+}
+let docBldSet9: Set<string> | null = null;
+/** 도록 아이콘 — GL 붓이 켜져 있으면(GL_ON9 · `gl` 로 못 박음) **화면과 같은 메시 그림**(<img>, gl9.glIconRequest9 가 한 프레임의 청을 모아
+ *  한 번에 그린다)이고, 아니면(폰·`#gl=0`·입체 보기·GL 못 섬·메시 못 지음) ShapeIcon(SVG, 2D 면) 그대로다. 프롭·창 규약(fit·fitPad·fitBox·
+ *  wide·pose·spin)은 ShapeIcon 과 같다 — 도록(GalleryScreen·doc-sheet)이 이것을 쓰면 키값·마주 봄 판정 같은 2D 전용 어긋남 없이
+ *  지도가 그리는 그 그림을 본다. 색은 요소의 currentColor(도록의 --scr-doc-own)다. */
+export function DocIcon9({ kind, rotDeg, pose, spin, flat, fit, fitPad, fitBox, wide, className, gl }: {
+  kind: string; rotDeg?: number; pose?: 0 | 1 | 2 | 3 | 4 | 5; spin?: number; flat?: boolean; fit?: boolean; fitPad?: number; fitBox?: string;
+  wide?: boolean; className?: string;
+  /** GL 로 그릴지 못 박기(안 주면 GL_ON9). */ gl?: boolean;
+}) {
+  const wantGl = (gl ?? GL_ON9) && !!flat && !!SHAPE_BUILDERS[kind];
+  const ref = useRef<HTMLImageElement>(null);
+  const [src, setSrc] = useState<string | null>(null);
+  const [fail, setFail] = useState(false);
+  const useGl = wantGl && !fail && glIconOk9();
+  useLayoutEffect(() => {
+    if (!useGl) return;
+    const el = ref.current; if (!el) return;
+    const r = el.getBoundingClientRect(); const dpr = window.devicePixelRatio || 1;
+    const w = Math.max(1, Math.round((r.width || 16) * dpr)); const h = Math.max(1, Math.round((r.height || r.width || 16) * dpr));
+    const color = cssHex9(getComputedStyle(el).color);
+    let box: [number, number, number, number] | undefined;
+    if (fitBox) { const n9 = fitBox.split(/[\s,]+/).map(Number); box = [n9[0] ?? 0, n9[1] ?? 0, n9[2] ?? 16, n9[3] ?? 16]; }
+    else if (!fit) box = wide ? [-8, -12, 32, 32] : [0, 0, 16, 16];
+    if (!docBldSet9) docBldSet9 = new Set([...SHAPE_GALLERY.filter((g9) => g9.group === "건물").map((g9) => g9.kind), ...DECAL_KINDS]);
+    let live = true;
+    glIconRequest9({
+      kind, bld: docBldSet9.has(kind), rotDeg: rotDeg ?? BUILDING_BASE_YAW, pose: pose ?? 0, spin: spin ?? 0, w, h, color, box, pad: fitPad ?? 0.12,
+      done: (u9) => { if (!live) return; if (u9) setSrc(u9); else setFail(true); },
+    });
+    return () => { live = false; };
+  }, [useGl, kind, rotDeg, pose, spin, fit, fitPad, fitBox, wide]);
+  if (!useGl) return <ShapeIcon kind={kind} rotDeg={rotDeg} pose={pose} spin={spin} flat={flat} fit={fit} fitPad={fitPad} fitBox={fitBox} wide={wide} className={className} />;
+  return <img ref={ref} className={cx("scr-motion-shape-svg", className)} src={src ?? undefined} alt="" aria-hidden draggable={false} data-gl9={src ? "1" : "0"} />;
 }
 export function ShapeIcon({
   kind, className, faces: facesOverride, rotDeg, flat, keepRatio, viewYaw, pitchView, wide, fit, fitPad, fitBox: fitBoxProp,

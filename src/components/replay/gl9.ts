@@ -456,3 +456,82 @@ export function glUnits9(cv: HTMLCanvasElement | null, meshMax = MESH_MAX9): GlU
   (globalThis as unknown as { __gl9?: GlUnits9 | null }).__gl9 = glInst9;   // 진단(perf-check --probe-gl)
   return glInst9;
 }
+
+/* ── 도록 아이콘 배치 그리개(DocIcon9 의 손) ──────────────────────────────────────────────────────────────
+   아이콘마다 GL 문맥을 열 수는 없고(브라우저 상한 16), 헤드리스에서는 GL → 2D 읽기 한 번이 1~2초라, 한 프레임에 모인 청을 **한 GL
+   캔버스(격자, 한 변 4096 상한)에 그리고 한 번 읽어** 칸마다 PNG(dataURL)로 나눠 준다. 아이콘은 <img> 라 캔버스 424장의 메모리가 없다.
+   카메라는 평면(CAM_TOP9)뿐이고 자·원점은 gl-check 와 같다(16-상자: x = 8 + rx · y = 12 + Y). 창(box)은 ShapeIcon 의 viewBox 와 같은
+   16-상자 자 — 없으면 footOf(메시 상자)에 맞춘다(fit, pad 는 짧은 변 비율). */
+export interface GlIconReq9 {
+  kind: string; bld: boolean; rotDeg: number; pose: number; spin: number;
+  /** 칸(기기 px) */ w: number; h: number;
+  /** 임자색(#hex) */ color: string;
+  /** 창 [x, y, w, h](16-상자 자) — 없으면 잉크 맞춤(pad). */ box?: [number, number, number, number]; pad: number;
+  done: (url: string | null) => void;
+}
+const ICON_Q9: GlIconReq9[] = [];
+let iconGl9: GlUnits9 | null | undefined;
+let iconRaf9 = 0;
+const ICON_SIDE9 = 4096;
+/** 아이콘 GL 이 서는가 — 처음 부를 때 숨은 캔버스에 문맥을 연다(못 열면 null 로 굳어 DocIcon9 가 SVG 로 돈다). */
+export function glIconOk9(): boolean {
+  if (iconGl9 === undefined) {
+    if (typeof document === "undefined") { iconGl9 = null; return false; }
+    try { iconGl9 = new GlUnits9(document.createElement("canvas"), 400); } catch (e) { console.warn("[gl9] 아이콘", e); iconGl9 = null; }
+  }
+  return !!iconGl9;
+}
+export function glIconRequest9(req: GlIconReq9): void {
+  if (!glIconOk9()) { req.done(null); return; }
+  ICON_Q9.push(req);
+  if (!iconRaf9) iconRaf9 = requestAnimationFrame(() => { iconRaf9 = 0; glIconFlush9(); });
+}
+type IconCell9 = { req: GlIconReq9; x: number; y: number; w: number; h: number; mesh: GlMesh9 | null };
+function glIconFlush9(): void {
+  const g = iconGl9; if (!g) return;
+  const q = ICON_Q9.splice(0);
+  /* 격자 — 줄 단위로 왼쪽부터 채우고, 한 판(4096²)이 차면 다음 판(판마다 읽기 한 번). */
+  const passes: { items: IconCell9[]; w: number; h: number }[] = [];
+  let items: IconCell9[] = []; let px = 0; let py = 0; let rowH = 0; let W = 0;
+  const close = (): void => { if (items.length) passes.push({ items, w: W, h: py + rowH }); items = []; px = 0; py = 0; rowH = 0; W = 0; };
+  for (const r of q) {
+    const w = Math.min(ICON_SIDE9, Math.max(1, Math.round(r.w))); const h = Math.min(ICON_SIDE9, Math.max(1, Math.round(r.h)));
+    if (px + w > ICON_SIDE9) { px = 0; py += rowH; rowH = 0; }
+    if (py + h > ICON_SIDE9) close();
+    items.push({ req: r, x: px, y: py, w, h, mesh: null }); px += w; rowH = Math.max(rowH, h); W = Math.max(W, px);
+  }
+  close();
+  const cell = document.createElement("canvas"); const cc = cell.getContext("2d");
+  const sheet = document.createElement("canvas"); const sc = sheet.getContext("2d");
+  if (!cc || !sc) { for (const r of q) r.done(null); return; }
+  for (const p of passes) {
+    for (const it of p.items) {
+      const r = it.req;
+      try {
+        it.mesh = r.bld
+          ? g.bldMesh({ kind: r.kind, fx: 0, fy: 0, z: 0, sizePx: 16, color: r.color, alpha: 1, rotDeg: r.rotDeg, spin: r.spin } as UnitDrawOp, 3)
+          : g.unitMesh(r.kind, r.pose, 3);
+      } catch (e) { console.warn("[gl9] 아이콘 메시", r.kind, e); it.mesh = null; }
+      const mesh = it.mesh; if (!mesh) continue;
+      let box = r.box;
+      if (!box) {
+        const f = g.footOf(mesh, -r.rotDeg, CAM_TOP9);
+        const pd = Math.min(f.w, f.bot - f.top) * r.pad;
+        box = [8 + f.cx - f.w / 2 - pd, 12 + f.top - pd, f.w + 2 * pd, f.bot - f.top + 2 * pd];
+      }
+      const k = Math.min(it.w / Math.max(1e-6, box[2]), it.h / Math.max(1e-6, box[3]));
+      const ax = it.x + it.w / 2 - k * (box[0] + box[2] / 2 - 8);
+      const ay = it.y + it.h / 2 - k * (box[1] + box[3] / 2 - 12);
+      g.push({ mesh, ax, ay, k, yoff: 0, yawDeg: -r.rotDeg, color: r.color, alpha: 1, cam: CAM_TOP9, gradR: k * 11.31, gradCy: 0, flat: GL_GLOW_KINDS9.has(r.kind) });
+    }
+    g.flush(p.w, p.h, p.w, p.h);
+    sheet.width = p.w; sheet.height = p.h;
+    sc.drawImage(g.canvas, 0, 0);   // 판마다 읽기 한 번
+    for (const it of p.items) {
+      if (!it.mesh) { it.req.done(null); continue; }
+      cell.width = it.w; cell.height = it.h;
+      cc.drawImage(sheet, it.x, it.y, it.w, it.h, 0, 0, it.w, it.h);
+      it.req.done(cell.toDataURL("image/png"));
+    }
+  }
+}

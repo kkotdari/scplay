@@ -9,6 +9,8 @@
 `4. terran_bldgs_blue.png` `5. protoss_bldgs_blue.png` `6. zerg_bldgs_blue.png`
 `7. extra.png` `list.txt`, 그리고 상위 디렉터리의 `도록.zip`. zip을 사용자에게 보낸다.
 조건(4방위 45·135·225·315 · narrow · 흰 배경 · 임자색 #2b62e8 · 폭 660 · dpr 3)도 스크립트 안에 있다.
+그림은 **GL 붓**(`DocIcon9` → gl9 메시, 지도가 그리는 그 그림)이 기본이다(2026-09) — 키값·마주 봄 판정 같은 2D 전용 어긋남이 도록에
+안 실린다. 옛 2D 면 그림(ShapeIcon SVG)은 `--2d`(폰·`#gl=0` 이 아직 그 길이라 검토용). 앱 도록(scplayer GalleryScreen)도 DocIcon9 다.
 
 ## 모델 손질 루프
 1. `src/components/replay/ReplayMotionPlayer.tsx` 수정 → `npx tsc --noEmit -p tsconfig.json`
@@ -149,6 +151,11 @@ scplayer 쪽 소스를 만졌으면 그쪽에서 `npx tsc --noEmit -p tsconfig.j
     1454² 한 장에 1~2초(실측, 옵션 무관)고 삼각형 채우기도 CPU 다. perf-check 는 기본으로 `#glblit=0`(합성만 뺌 — GL 은 다 돈다)을 붙여
     GL 의 CPU 몫만 잰다(`--glblit` 로 도로 붙임). PC 프로필 gl=0/gl=1 둘 다 p50 67ms(헤드리스 프레임 박자)라 차이가 안 보인다 — GPU 채우기·
     첫 진입 덜컥임은 실기에서만 안다.
+  · **도록 아이콘 `DocIcon9`**(ReplayMotionPlayer): GL 이 켜져 있으면(GL_ON9 · `gl` 프롭) `<img>` 에 메시 그림, 아니면 ShapeIcon(SVG).
+    손은 gl9 `glIconRequest9` — 한 프레임의 청을 모아 숨은 GL 캔버스 한 판(4096² 상한, 격자)에 그리고 **한 번 읽어** 칸마다 PNG dataURL 로
+    나눠 준다(아이콘마다 문맥을 열면 상한 16에 걸리고, 헤드리스는 읽기 한 번이 1~2초). 자·원점은 gl-check 와 같다(16-상자 x = 8 + rx ·
+    y = 12 + Y). 창은 ShapeIcon 의 viewBox 규약 그대로(fit 은 footOf 상자 + 짧은 변 12%·fitBox·wide·16-상자). 평면(flat)만 — 입체 보기는
+    SVG 로 떨어진다. 색은 요소의 currentColor(--scr-doc-own).
   · 진단: `#diag=draw` 'GL' 줄(개체·삼각·메시/상한(굽기 ms·VBO MB)·깊이칸/bit·판으로 떨어진 종류) · `#glshade=0|1|2` · `#gldepth=0` · `#glbias=N` · `#gllod=N` ·
     `#glwarm=0` · `#glblit=0`. 계측 `perf-check --hash gl=0`(캔버스 비교) `--shot x.png --probe-gl`(메시 표: 삼각·색·KB) `--warm 0`. 메시만 따로 보려면 `scripts/model-mesh.mjs`.
   · **전수조사 `node scripts/gl-check.mjs [--kinds a,b] [--rots 45,225] [--worst 40] --out <scratch>/glcheck.png [--json x.json]`** —
