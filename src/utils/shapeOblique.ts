@@ -774,7 +774,9 @@ export function project(x0: number, y0: number, z0: number): [number, number] {
      소실 기울기(ry 항)는 지도와 맞물린 값이라 그대로 두고, 높이에 실리는 밀림만 반으로. */
   const rx2 = rx + ry * groundSquashNow() * viewShear
     + (pitchView ? z * VIEW_LEAN_K * viewShear : 0);
-  return [r2(VIEW.originX + rx2 * f), r2(originYNow() + ry2 * groundSquashNow() - z * zScaleNow())];
+  const X = r2(VIEW.originX + rx2 * f); const Y = r2(originYNow() + ry2 * groundSquashNow() - z * zScaleNow());
+  if (MESH9.on) PROJ9.set(`${X} ${Y}`, [mx, my, z]);
+  return [X, Y];
 }
 
 /* ── 메시 층(2026-09) ─────────────────────────────────────────────────────────────
@@ -787,6 +789,9 @@ export function project(x0: number, y0: number, z0: number): [number, number] {
 /** 3D 폴리곤 — x,y,z 삼중 나열(판 모형 공간). */
 export type Poly3 = number[];
 export const MESH9 = { on: false, byD: new Map<string, Poly3[]>() };
+/** 메시 기록 중 project() 가 낸 화면점 → 판 모형 공간 점. 빌더가 project() 결과로 손수 짠 경로 문자열(번개·얼룩·구 껍질)을
+ *  거꾸로 3D 로 되돌리는 열쇠다(mesh9.meshFromPath9). 열쇠는 경로에 찍히는 꼴 그대로 `${x} ${y}`(r2 반올림). */
+export const PROJ9 = new Map<string, number[]>();
 export function meshOn9(on: boolean): void { MESH9.on = on; if (!on) MESH9.byD.clear(); }
 export function meshPut9(d: string, polys: Poly3[]): void { if (MESH9.on) MESH9.byD.set(d, polys); }
 /** 판 모형 공간 점(모델 변환만) — 메시에 적는 점은 전부 이것을 지난다. */
