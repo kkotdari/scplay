@@ -17253,7 +17253,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       GB9[1] + (GM9[1] - GB9[1]) * t9 * GL9 - kick + sway,
       GB9[2] + (GM9[2] - GB9[2]) * t9 * GL9 + dz,
     ];
-    markMuzzle9(...GP9(0.95));   // 총구 — 총열 끝(아래 GP9(0.8 + 0.15))
+    markMuzzle9(...GP9(0.82));   // 총구 — **총열 끝 그대로**(아래 path의 t·0.82; 0.95는 총열 밖 허공이라 시작점이 앞으로 떨어졌다)
     return [
       /* 다리도 짙은 은색 — suitLegs의 셋째 자리(_kneeFill)는 지금 쓰이지 않는 값이라
          (그 함수의 이름 앞 밑줄) 여기 은색을 적어 두어도 아무 데도 안 든다. 고스트가

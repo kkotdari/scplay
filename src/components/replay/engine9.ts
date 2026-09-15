@@ -1976,7 +1976,8 @@ export const FX_BEAM: Record<string, {
      이다. 그래서 ⓐ 굵기 1.5 → 2.9 · 길이 2 → 3.4로 키우고 ⓑ 그러데이션을 넷 → 여섯 마디로
      늘려 흰 심 → 노랑 → 주황 → 붉은 끝 → 그을음으로 잇고 ⓒ 둘레에 주황 글로우를 둔다.
      글로우가 있어야 화염이 제 빛으로 둘레를 물들여 '뜨겁다'가 된다. */
-  flame: { muzzleLit: true, dur: 0.3, w: 2.9, l: 3.4, glow: "rgba(255,146,48,0.55)", glowW: 1.7, glowA: 0.6, g: [[0, "rgba(255,252,236,0.98)"], [0.1, "rgba(255,238,168,0.98)"], [0.3, "rgba(255,186,68,0.95)"], [0.58, "rgba(255,112,32,0.86)"], [0.82, "rgba(196,52,18,0.45)"], [1, "rgba(96,36,24,0)"]] },
+  // 폭 2.9 → 2.0 · 길이 3.4 → 5.0(요청: "파이어뱃 화염은 폭 줄이고 길이 길게")
+  flame: { muzzleLit: true, dur: 0.3, w: 2.0, l: 5.0, glow: "rgba(255,146,48,0.55)", glowW: 1.7, glowA: 0.6, g: [[0, "rgba(255,252,236,0.98)"], [0.1, "rgba(255,238,168,0.98)"], [0.3, "rgba(255,186,68,0.95)"], [0.58, "rgba(255,112,32,0.86)"], [0.82, "rgba(196,52,18,0.45)"], [1, "rgba(96,36,24,0)"]] },
   spine: { dur: 0.45, w: 0.3, l: 2, g: [[0, "rgba(170,255,90,1)"], [1, "rgba(120,230,40,0)"]], glow: "rgba(150,255,80,0.6)" },
   bolt: { dur: 0.6, w: 0.6, l: 2, g: [[0, "rgba(150,200,255,0.95)"], [1, "rgba(150,200,255,0)"]] },
   // glave w 1.9 → 2.85(요청: 글레이브 1.5배)
@@ -8210,9 +8211,17 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
     /* 배수 축은 땅 원점(8, 12 / 입체 8, 12.6)이다(unitSprite의 noy9와 같다) — 앵커를 원점에서 잰 몫만 배수로
        키우고, 상자 가운데에서 원점까지는 그대로 더한다. */
     const mzOy9 = pitched ? 12.6 : 12;
+    /* ★ 앵커 오프셋은 **판 상자 가운데**에서 잰 값이다 — 그러니 얹는 자리(lift)도 상자 가운데여야 한다(지적:
+       "마린·파이어뱃 트레이서 시작점을 올려서 정확히 총구 끝에 … 확대 배율과도 관계가 있는 듯") ──────────────
+       여태 이 오프셋을 잉크 중심 높이(liftPx9 = unitMidK9·상자)에 얹고 0.1·상자 손값을 더했다. 붓은 상자
+       가운데를 발 자리에서 0.24·상자 위에 찍으므로(UnitLayer by9), 시작점은 판의 총구보다 (0.34 − unitMidK9)·상자만큼
+       **낮게** 났다 — 마린은 0.2·상자(총 높이만큼)다. 상자는 배율에 비례하니 확대할수록 px로 더 벌어졌다(그 지적).
+       손값을 걷고 lift를 상자 가운데(공중 들기 + 0.24·상자)로 둔다 — 아래 mzLift9. 앵커 없는 폴백(MUZZLE_PX)은
+       종전대로 가슴 높이다. */
     const [mzx9, mzy9]: [number, number] = mzP
-      ? [((mzP[0] - 8) * mzS * fxPx) / 16, (((mzOy9 - 8) + (mzP[1] - mzOy9) * mzS) * fxPx) / 16 + 0.1 * fxPx]
+      ? [((mzP[0] - 8) * mzS * fxPx) / 16, (((mzOy9 - 8) + (mzP[1] - mzOy9) * mzS) * fxPx) / 16]
       : [-Math.sin(rad9) * (MUZZLE_PX[fxUnit] ?? 4), Math.cos(rad9) * (MUZZLE_PX[fxUnit] ?? 4)];
+    const mzLift9 = mzP ? airLift9 + fxPx * 0.24 : liftPx9;
     /* ★ 쏘는 쪽에 선을 안 긋고 **표적 위에 직접 그린다**(요청: "커세어는 트레이서가
        자기 자신 쪽엔 없고 대상한테 넙적한 타원 형태로 플라즈마" · 재지적: "커세어
        플라즈마 공격 안 보임") ────────────────────────────────────────────────
@@ -8333,7 +8342,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       const lanes9: number[] = twin9 ? [-1, 1] : [0];
       for (const s9 of lanes9) {
         fxOps.push({
-          kind: "shot", style: fxName9, fx: mzfx9, fy: mzfy9, lift: liftPx9,
+          kind: "shot", style: fxName9, fx: mzfx9, fy: mzfy9, lift: mzLift9,
           ...tgtFields9(0),
           mx: mzx9 + perp9[0] * s9, my: mzy9 + perp9[1] * s9,
           deg: beamDeg, len: beamLen, u: shotU, d0: launchDeg9,
@@ -8370,7 +8379,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       const mzsx9 = mzx9 - Math.sin(rad9) * surf9 * 0.8;
       const mzsy9 = mzy9 + Math.cos(rad9) * surf9 * 0.8;
       fxOps.push({
-        kind: "beam", style: fxName9, fx: mzfx9, fy: mzfy9, lift: liftPx9,
+        kind: "beam", style: fxName9, fx: mzfx9, fy: mzfy9, lift: mzLift9,
         // 표적 그림을 줄기 끝에 얹는 갈래(TARGET_FX) — 자는 쏘는 몸의 상자(옛 hit op와 같다).
         ...(TARGET_FX.has(fxName9) ? { size: fxPx, splash: true } : {}),
         ...tgtFields9(st9Span(fxName9) ? surf9 + (fxPx / 2) * HIT_FX_K * (FX_IMPACT[fxName9]?.r ?? 0.5) * 0.95 : 0),
