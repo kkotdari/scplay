@@ -8,7 +8,7 @@
    · 임자색 면(fill 없음)은 정점의 team 깃발로 표시하고 uTeam 으로 칠한다.
    한계(시제): 유닛만(건물·데칼·그림자·체력바는 캔버스가 그대로), 평면 시점만(pitch 면 캔버스로), 머리 요잉·불빛·회전 깃발은 0. */
 import { SHAPE_BUILDERS, poseSet9, poseNow, headYawSet, headYawNow, headAimNow, bldLitSet, bldLitNow, bldSpinRawSet9, bldSpinNow, stageFaces, headTag, litTag, spinTag } from "./bake9";
-import type { ShapeFace } from "../../utils/shapeOblique";
+import { lodFilter, type ShapeFace } from "../../utils/shapeOblique";
 import { collectMesh9 } from "../../utils/mesh9";
 import type { UnitDrawOp } from "./engine9";
 
@@ -21,26 +21,32 @@ export interface GlInst9 {
   /** 세로 원점 몫(CSS px) — 유닛 (px/16)·4(원점 (8,12) → 상자 가운데) · 건물 −k·bot(잉크 바닥을 바닥선에). */
   yoff: number;
   yawDeg: number; color: string; alpha: number;
+  /** 카메라 — 평면(CAM_TOP9) 또는 입체(camPitch9(눌림, vq)). */
+  cam: GlCam9;
   /** 몸 그림자(2D 의 shadowPlate 몫) — 몸을 검게 dy 만큼 아래에 한 번 더 그린다. */
   shadow?: { dy: number; alpha: number };
 }
+/** 카메라 — squash(앞뒤 납작비)·zk(높이 배율)·lean(z→앞뒤, 입체 0.34)·shear(시각 밀림 tan(vq), 입체만). project() 의 식 그대로. */
+export interface GlCam9 { squash: number; zk: number; lean: number; shear: number; key: string }
 /** 요잉별 화면 상자 — 모델 16-상자 자(배수·px 전): x 폭·x 가운데·바닥(가장 아래 화면 y = ry·sinE − z·cosE 의 최댓값). */
 export interface GlFoot9 { w: number; cx: number; bot: number }
-export interface GlMesh9 { vbo: WebGLBuffer; n: number; verts: Float32Array; foot: Map<number, GlFoot9> }
+export interface GlMesh9 { vbo: WebGLBuffer; n: number; verts: Float32Array; foot: Map<string, GlFoot9> }
 
 const STRIDE = 11;   // pos3 · nrm3 · rgb3 · team1 · alpha1
 const VS = `
 attribute vec3 aPos; attribute vec3 aNrm; attribute vec3 aRgb; attribute float aTeam; attribute float aAlpha;
 uniform vec2 uAnchor; uniform vec3 uScale; uniform vec2 uYaw; uniform vec2 uCanvas; uniform vec2 uCam;
 uniform vec3 uTeam; uniform vec3 uLight; uniform float uAlpha; uniform float uDepth0; uniform float uDepthK; uniform float uPersp;
-uniform vec4 uShade; uniform float uDy;
+uniform vec4 uShade; uniform float uDy; uniform vec2 uLean;
 varying vec4 vCol;
 void main() {
   float rx = aPos.x * uYaw.x + aPos.y * uYaw.y;
   float ry = -aPos.x * uYaw.y + aPos.y * uYaw.x;
   float f = uPersp / (uPersp - clamp(ry, -10.0, 10.0));
-  float X = uAnchor.x + uScale.x * rx * f;
-  float Y = uAnchor.y + uScale.y * (ry * uCam.x - aPos.z * uCam.y) + uScale.z + uDy;
+  // project() 와 같은 식 — 평면: 납작비 sinE·높이 cosE · 입체: 납작비 pitchSquash·높이 0.9, 앞숙임 z·0.34, 시각 밀림 ry·납작비·tan(vq)
+  float ry2 = ry + aPos.z * uLean.x;
+  float X = uAnchor.x + uScale.x * (rx + ry * uCam.x * uLean.y) * f;
+  float Y = uAnchor.y + uScale.y * (ry2 * uCam.x - aPos.z * uCam.y) + uScale.z + uDy;
   float near = ry * uCam.y + aPos.z * uCam.x;
   gl_Position = vec4(X / uCanvas.x * 2.0 - 1.0, 1.0 - Y / uCanvas.y * 2.0, uDepth0 - near * uDepthK, 1.0);
   vec3 n = vec3(aNrm.x * uYaw.x + aNrm.y * uYaw.y, -aNrm.x * uYaw.y + aNrm.y * uYaw.x, aNrm.z);
@@ -60,6 +66,22 @@ const hexRgb = (s: string): [number, number, number] => {
 };
 const TOP_ELEV = (40 * Math.PI) / 180;   // shapeOblique.TOP_ELEV9 와 같은 값
 const CAM: [number, number] = [Math.sin(TOP_ELEV), Math.cos(TOP_ELEV)];
+export const CAM_TOP9: GlCam9 = { squash: CAM[0], zk: CAM[1], lean: 0, shear: 0, key: "t" };
+/** 입체 카메라 — pitchSquash(= pitchFlatNow·0.7)·높이 0.9·앞숙임 0.34·시각 밀림 tan(vq). vq 는 6° 눈금이라 열쇠가 적다. */
+const CAMS9 = new Map<string, GlCam9>();
+/** 카메라 — 평면(vq 0 이면 CAM_TOP9 그대로) 또는 입체(pitchSquash = pitchFlatNow·0.7 · 높이 0.9 · 앞숙임 0.34) + 시각 밀림 tan(vq).
+ *  같은 열쇠면 같은 객체라 그리기에서 유니폼을 한 번만 건다. */
+export function camOf9(pitch: boolean, pitchSquash: number, vq: number): GlCam9 {
+  if (!pitch && !vq) return CAM_TOP9;
+  const key = pitch ? `p${pitchSquash.toFixed(3)}:${vq}` : `t:${vq}`;
+  let c = CAMS9.get(key);
+  if (!c) {
+    const shear = vq ? Math.tan((vq * Math.PI) / 180) : 0;
+    c = pitch ? { squash: pitchSquash, zk: 0.9, lean: 0.34, shear, key } : { squash: CAM[0], zk: CAM[1], lean: 0, shear, key };
+    CAMS9.set(key, c);
+  }
+  return c;
+}
 const LIGHT = ((): [number, number, number] => { const v = [-0.9, 0.45, 1.0]; const l = Math.hypot(v[0], v[1], v[2]); return [v[0] / l, v[1] / l, v[2] / l]; })();
 
 export class GlUnits9 {
@@ -84,7 +106,7 @@ export class GlUnits9 {
     gl.attachShader(p, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(p);
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error("링크: " + gl.getProgramInfoLog(p));
     this.prog = p;
-    for (const u of ["uAnchor", "uScale", "uYaw", "uCanvas", "uCam", "uTeam", "uLight", "uAlpha", "uDepth0", "uDepthK", "uPersp", "uShade", "uDy"]) this.loc[u] = gl.getUniformLocation(p, u);
+    for (const u of ["uAnchor", "uScale", "uYaw", "uCanvas", "uCam", "uTeam", "uLight", "uAlpha", "uDepth0", "uDepthK", "uPersp", "uShade", "uDy", "uLean"]) this.loc[u] = gl.getUniformLocation(p, u);
     for (const a of ["aPos", "aNrm", "aRgb", "aTeam", "aAlpha"]) this.att[a] = gl.getAttribLocation(p, a);
   }
   /** 열쇠별 메시 — 처음 볼 때 run()(빌더를 요잉 0 으로 한 번 돌리는 일, 1~7ms)으로 짓는다. 못 지으면 null 로 굳는다. */
@@ -130,16 +152,16 @@ export class GlUnits9 {
     return mesh;
   }
   /** 유닛 메시 — 종류·자세(머리 요잉 0). */
-  unitMesh(kind: string, pose: number): GlMesh9 | null {
+  unitMesh(kind: string, pose: number, lod = 3): GlMesh9 | null {
     const b = SHAPE_BUILDERS[kind]; if (!b) return null;
-    return this.meshFor(`u:${kind}:${pose}`, () => {
+    return this.meshFor(`u:${kind}:${pose}:${lod}`, () => {
       const prevPose = poseNow;
       poseSet9(pose); headYawSet(0);
-      try { return collectMesh9(b); } finally { poseSet9(prevPose); }
+      try { return collectMesh9(b, lod >= 3 ? undefined : (f: ShapeFace[]) => lodFilter(f, lod)); } finally { poseSet9(prevPose); }
     });
   }
   /** 건물 메시 — 종류 · 건설 단계 · 불빛 · 회전 칸 · 포탑 각(rasterBld9 와 같은 깃발·같은 열쇠 조각). */
-  bldMesh(op: UnitDrawOp): GlMesh9 | null {
+  bldMesh(op: UnitDrawOp, lod = 3): GlMesh9 | null {
     const b = SHAPE_BUILDERS[op.kind]; if (!b) return null;
     const stg = op.buildStage ?? 0;
     const head = op.headDeg === undefined ? 0 : (((op.headDeg - (op.rotDeg ?? 0)) % 360) + 540) % 360 - 180;
@@ -148,14 +170,15 @@ export class GlUnits9 {
     const pH = headYawNow; const pA = headAimNow; const pL = bldLitNow; const pS = bldSpinNow; const pP = poseNow;
     set();
     try {
-      const key = `b:${op.kind}:${stg}:${headTag(op.kind)}:${litTag(op.kind)}:${spinTag(op.kind)}`;
-      return this.meshFor(key, () => { set(); return collectMesh9(b, (f: ShapeFace[]) => stageFaces(f, stg)); });
+      const key = `b:${op.kind}:${stg}:${headTag(op.kind)}:${litTag(op.kind)}:${spinTag(op.kind)}:${lod}`;
+      return this.meshFor(key, () => { set(); return collectMesh9(b, (f: ShapeFace[]) => stageFaces(lod >= 3 ? f : lodFilter(f, lod), stg)); });
     } finally { headYawSet(pH, pA); bldLitSet(pL); bldSpinRawSet9(pS); poseSet9(pP); }
   }
   /** 요잉의 화면 상자 — 모델 16-상자 자. 정점 셰이더와 같은 식으로 모든 꼭짓점을 돌려 재고(메시·각도당 한 번) 기억한다. */
-  footOf(mesh: GlMesh9, yawDeg: number): GlFoot9 {
+  footOf(mesh: GlMesh9, yawDeg: number, cam: GlCam9 = CAM_TOP9): GlFoot9 {
     const yk = Math.round(yawDeg);
-    const got = mesh.foot.get(yk);
+    const key = cam === CAM_TOP9 ? `${yk}` : `${yk}|${cam.key}`;
+    const got = mesh.foot.get(key);
     if (got) return got;
     const th = (yk * Math.PI) / 180; const c = Math.cos(th); const sn = Math.sin(th);
     let minX = Infinity; let maxX = -Infinity; let bot = -Infinity;
@@ -164,11 +187,11 @@ export class GlUnits9 {
       const x = v[i]; const y = v[i + 1]; const z = v[i + 2];
       const rx = x * c + y * sn; const ry = -x * sn + y * c;
       const f = 48 / (48 - Math.max(-10, Math.min(10, ry)));
-      const X = rx * f; const Y = ry * CAM[0] - z * CAM[1];
+      const X = (rx + ry * cam.squash * cam.shear) * f; const Y = (ry + z * cam.lean) * cam.squash - z * cam.zk;
       if (X < minX) minX = X; if (X > maxX) maxX = X; if (Y > bot) bot = Y;
     }
     const ft = { w: maxX - minX, cx: (minX + maxX) / 2, bot };
-    mesh.foot.set(yk, ft);
+    mesh.foot.set(key, ft);
     return ft;
   }
   push(inst: GlInst9): void { this.queue.push(inst); }
@@ -188,7 +211,6 @@ export class GlUnits9 {
     gl.disable(gl.CULL_FACE);
     gl.useProgram(this.prog);
     gl.uniform2f(this.loc.uCanvas, cw, ch);
-    gl.uniform2f(this.loc.uCam, CAM[0], CAM[1]);
     gl.uniform3f(this.loc.uLight, LIGHT[0], LIGHT[1], LIGHT[2]);
     gl.uniform1f(this.loc.uPersp, 48);
     const slot = 2 / (q.length + 1);
@@ -202,11 +224,13 @@ export class GlUnits9 {
       gl.enableVertexAttribArray(this.att.aTeam); gl.vertexAttribPointer(this.att.aTeam, 1, gl.FLOAT, false, STRIDE * F, 9 * F);
       gl.enableVertexAttribArray(this.att.aAlpha); gl.vertexAttribPointer(this.att.aAlpha, 1, gl.FLOAT, false, STRIDE * F, 10 * F);
     };
+    let camNow: GlCam9 | null = null;
     const place = (it: GlInst9): void => {
       const th = (it.yawDeg * Math.PI) / 180;
       gl.uniform2f(this.loc.uAnchor, it.ax, it.ay);
       gl.uniform3f(this.loc.uScale, it.k, it.k, it.yoff);
       gl.uniform2f(this.loc.uYaw, Math.cos(th), Math.sin(th));
+      if (it.cam !== camNow) { camNow = it.cam; gl.uniform2f(this.loc.uCam, it.cam.squash, it.cam.zk); gl.uniform2f(this.loc.uLean, it.cam.lean, it.cam.shear); }
     };
     /* 1) 몸 그림자 — 깊이 없이 검게 아래로 밀어 한 번(2D shadowPlate 의 흐림은 없다). 몸보다 먼저라 뒤 몸 위에는 안 얹힌다. */
     gl.depthMask(false); gl.disable(gl.DEPTH_TEST);

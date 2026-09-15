@@ -93,7 +93,7 @@ import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, W
 import {
   pitchFlatSet9, brushOn9, brushSet9, glowOn9, glowSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, spriteSideMax9, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, rasterUnit9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, tone9, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
 } from "./bake9";
-import { glUnits9, GL_ON9 } from "./gl9";
+import { glUnits9, GL_ON9, camOf9, CAM_TOP9 } from "./gl9";
 export { LIMB_LOG, TURRET_BACK9, SHAPE_BUILDERS, ctx2d9, BAKE_ENV9, cropToInk, rasterUnit9, pathBox, tierTableOf, autoTier, stageFaces, rasterBld9, SHAPE_GALLERY, poseSet, poseSet9, bldLitSet, headYawSet, bldSpinSet, bldSpinRawSet9, lodSetCap, lodSetZoom, lodNoteFrame, tone9, TONE_DARK, TONE_SAT, silhouetteLight, glowBake9, grainAxes9, GLOW9 } from "./bake9";
 export type { BakeCv9, BakeCtx9, RasterOut9, ShapeGalleryItem } from "./bake9";
 export { isAirUnit, flapCutOf, atkCutOf, unitTilesOf, buildingYawOf, galleryYawOf, BLD_NORM, BUILD_STAGES, SCR_DIAG, scrDiagOn, deriveWorld9, createEngine9, pickWorldUi9, emptyWorldUi9 } from "./engine9";
@@ -4392,13 +4392,14 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             : Math.min(sideWant, bldBakeCap(B));
           /* ★ WebGL 시제(#gl=1, gl9.ts) — 평면 시점의 건물 몸(크립 판·얼룩·맨 네모 제외)은 메시가 맡고 판은 안 굽는다.
              자리 자는 판 블릿과 같다: x 는 상자 가운데(sx), y 는 잉크 바닥을 바닥선(groundY − 띄움)에 앉힌다(footOf 의 bot). */
-          const glB9 = gl9 && op.flat && !op.pitch && !decal9 && !op.clipWalk && !op.inkCenter ? gl9.bldMesh(op) : null;
-          const glBf9 = glB9 && gl9 ? gl9.footOf(glB9, -(op.rotDeg ?? 0)) : null;
+          const glB9 = gl9 && !decal9 && !op.clipWalk && !op.inkCenter ? gl9.bldMesh(op, lodOf(sideQ)) : null;
+          const glBcam9 = glB9 ? camOf9(!!op.pitch, pitchFlatNow * 0.7, op.viewYaw ? Math.max(-36, Math.min(36, Math.round(op.viewYaw / 12) * 12)) : 0) : CAM_TOP9;
+          const glBf9 = glB9 && gl9 ? gl9.footOf(glB9, -(op.rotDeg ?? 0), glBcam9) : null;
           const bspr = glB9 ? null : buildingSprite(bop9, sideQ, B);
           if (glBf9 && !BLD_INK_BOX.has(bldAnchorKey(op.kind, op.pitch))) {
-            // 판이 채우던 잉크 상자(총구 앵커 등이 읽는다)도 메시 자로 — 판 자와 같은 좌표(상자 (8,16) 기준)다.
+            // 판이 채우던 잉크 상자(총구 앵커 등이 읽는다)도 메시 자로 — 판 자와 같은 좌표(상자 (8,16) 기준, 원점 줄 12/12.6)다.
             const bnI9 = bldNormOf(op.kind) ?? 1;
-            BLD_INK_BOX.set(bldAnchorKey(op.kind, op.pitch), [8 + bnI9 * glBf9.cx, 16 + bnI9 * (glBf9.bot - 4)]);
+            BLD_INK_BOX.set(bldAnchorKey(op.kind, op.pitch), [8 + bnI9 * glBf9.cx, 16 + bnI9 * (glBf9.bot - (16 - (op.pitch ? 12.6 : 12)))]);
           }
           /* 런타임 채움 보정은 없앴다(과제 #67) — 구운 판의 잉크 폭을 재서 발자국의
              95%가 되게 다시 굽던 자리다. 그 일을 이제 BLD_NORM이 모델 좌표에서 한다.
@@ -4656,10 +4657,10 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             const gay9 = Math.round(((groundY ?? sy + hPx / 2) - gLift9) * B) / B;
             const gax9 = Math.round(sx * B) / B;
             const gsh9 = bodyShadow ? { dy: Math.max(1, sidePx * 0.04), alpha: op.alpha * 0.4 } : undefined;
-            gl9.push({ mesh: glB9, ax: gax9, ay: gay9, k: gk9, yoff: -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, shadow: gsh9 });
+            gl9.push({ mesh: glB9, ax: gax9, ay: gay9, k: gk9, yoff: -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9, shadow: gsh9 });
             if (op.attach) {
-              const gm9 = gl9.bldMesh({ ...op, kind: op.attach });
-              if (gm9) gl9.push({ mesh: gm9, ax: gax9, ay: gay9, k: gk9, yoff: -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha });
+              const gm9 = gl9.bldMesh({ ...op, kind: op.attach }, lodOf(sideQ));
+              if (gm9) gl9.push({ mesh: gm9, ax: gax9, ay: gay9, k: gk9, yoff: -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9 });
             }
             continue;
           }
@@ -4733,8 +4734,9 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         const pxq = Math.min(pxqWant, unitBakeCap(B));
         /* ★ WebGL 시제(#gl=1, gl9.ts) — 평면 시점 유닛 몸통을 메시가 맡으면 **판을 아예 안 굽는다**. 판이 주던 잉크 상자
            (그림자·링·체력바의 자: 폭 w·가운데 cx·바닥 bot)는 메시의 요잉 칸별 화면 상자(footOf)가 같은 자로 준다. */
-        const glM9 = gl9 && op.flat && !op.pitch && !rot ? gl9.unitMesh(op.kind, op.pose ?? 0) : null;
-        const glFt9 = glM9 && gl9 ? gl9.footOf(glM9, -(op.rotDeg ?? 0)) : null;
+        const glM9 = gl9 && !rot ? gl9.unitMesh(op.kind, op.pose ?? 0, lodOf((pxq * modelInkOf(op.kind)) / 16, LOD_INK_POINT, LOD_INK_DECO)) : null;
+        const glCam9 = glM9 ? camOf9(!!op.pitch, pitchFlatNow * 0.7, op.viewYaw ? Math.max(-36, Math.min(36, Math.round(op.viewYaw / 6) * 6)) : 0) : CAM_TOP9;
+        const glFt9 = glM9 && gl9 ? gl9.footOf(glM9, -(op.rotDeg ?? 0), glCam9) : null;
         const spr = glFt9 ? null : unitSprite(op, pxq, B);
         /* ★ **판의 실제 크기**를 되읽는다 — 굽기 예산이 다한 프레임에는 요청과 다른
            크기가 올 수 있다(unitSprite의 ★). 판은 `l = pxq + 2·pad`로 지어졌으므로
@@ -4773,7 +4775,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           return r9 > 0 ? r9 * px : px * inkK;
         })();
         const footY = glFt9
-          ? sy - px * 0.24 + (px / 16) * (modelNormOf(op.kind) * glFt9.bot + 4) - 1   // 판 자와 같은 식(rasterUnit9 의 원점 (8,12)·배수)
+          ? sy - px * 0.24 + (px / 16) * (modelNormOf(op.kind) * glFt9.bot + ((op.flat ? 12 : 12.6) - 8)) - 1   // 판 자와 같은 식(rasterUnit9 의 원점 (8,12/12.6)·배수)
           : spr
             ? sy - px * 0.24 - (spr.pad + pxqB / 2) * kU + (spr.bot / B) * kU - 1
             : sy + px * 0.28;
@@ -5116,7 +5118,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           for (const gkind9 of [op.kind, op.attach, op.attach2]) {
             const gm9 = gkind9 ? (gkind9 === op.kind ? glM9 : gl9.unitMesh(gkind9, op.pose ?? 0)) : null;
             if (!gm9) continue;
-            gl9.push({ mesh: gm9, ax: gax9, ay: gay9, k: gk9, yoff: (px / 16) * 4, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, shadow: gsh9 });
+            gl9.push({ mesh: gm9, ax: gax9, ay: gay9, k: gk9, yoff: (px / 16) * ((op.flat ? 12 : 12.6) - 8), yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glCam9, shadow: gsh9 });
           }
           ctx.setTransform(Bd, 0, 0, Bd, 0, 0);
           continue;
@@ -5258,6 +5260,14 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          그대로 옮긴 값이다. */
       /* 층은 **가장 이른 갈래**에서 서고, 무엇을 그릴지는 아래 고리가 갈래마다 가린다.
          트레이서(2배)가 그 가장 이른 갈래라 여기서는 그것만 보면 된다. */
+      /* ★ GL 그림을 **여기서** 유닛 캔버스에 합성한다 — 몸은 다 큐에 들었고 효과(트레이서·피격)는 아직이라, 효과가 몸 위에 얹힌다. */
+      if (gl9) {
+        gl9.flush(cv.width, cv.height, cw, ch);
+        ctx.setTransform(Bd, 0, 0, Bd, 0, 0);
+        ctx.globalAlpha = 1;
+        ctx.drawImage(gl9.canvas, 0, 0, cw, ch);
+        if (scrDiagOn()) SCR_DIAG.gl = `on 개체 ${gl9.stat.inst} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}(${gl9.stat.bakeMs.toFixed(0)}ms)`;
+      }
       if (fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM)) {
         // scr-tracer: 0%→0 · 10~45%→1 · 70%~→0.
         const envBeam = (p9: number): number =>
@@ -6207,12 +6217,6 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          했는데, 그 effect는 zoom·pan **상태**가 바뀔 때만 돈다 — 손짓 중에는 상태가
          안 바뀌므로 한 번도 안 돌았고, 그 사이 재생 틱이 낸 리렌더마다 그림이 튀었다. */
       if (cv.style.transform !== XF_ID9) { cv.style.transformOrigin = "center"; cv.style.transform = XF_ID9; }
-      if (gl9) {
-        gl9.flush(cv.width, cv.height, cw, ch);
-        const gcv9 = gl9.canvas;
-        if (gcv9.style.transform !== cv.style.transform) { gcv9.style.transformOrigin = "center"; gcv9.style.transform = cv.style.transform; }
-        if (scrDiagOn()) SCR_DIAG.gl = `on 개체 ${gl9.stat.inst} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}(${gl9.stat.bakeMs.toFixed(0)}ms)`;
-      }
       onPainted?.(zoom, pan);
     };
     /* 부모가 손짓 중에 쥘 붓을 넘긴다 — 렌더마다 새 ops를 문 채로 갈아 끼운다. */
@@ -6220,7 +6224,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
     /* ★ 여기서는 안 칠한다(재설계: 그리는 붓 하나) — 유닛 캔버스를 칠하는 것은 부모의 paintFnRef9뿐이다. 이 층은 붓 클로저를
        내주기만 하고, 렌더로 바뀐 것(배율·팬 거울, 사양 토글, 크기)은 부모가 렌더마다 requestPaint9로 한 장에 모은다. */
   });
-  /* WebGL 시제(#gl=1, gl9.ts) — 유닛 몸통을 GPU 가 그리는 층. 유닛 캔버스와 같은 상자·같은 손짓 변환을 거울처럼 따른다. */
+  /* WebGL 붓(#gl=1, gl9.ts) — 몸을 GPU 가 그리는 뒷캔버스. 화면에는 안 보이고(display:none) 붓이 프레임마다 유닛 캔버스에 합성한다. */
   return <>
     <canvas ref={ref} className="scr-motion-unitlayer" aria-hidden />
     {GL_ON9 ? <canvas ref={glRef} className="scr-motion-unitlayer scr-motion-gl9" aria-hidden /> : null}

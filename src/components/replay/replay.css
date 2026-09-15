@@ -929,8 +929,8 @@
   width: 100%; height: calc(100% + var(--scr-mapband, 0px));
   pointer-events: none; z-index: 6000;
 }
-/* WebGL 유닛 층 시제(#gl=1, gl9.ts) — 유닛 캔버스 바로 위에 같은 상자로 얹힌다. 배경은 투명이라 건물·그림자는 아래 캔버스가 비친다. */
-.scr-motion-unitlayer.scr-motion-gl9 { z-index: 6001; }
+/* WebGL 붓(#gl=1, gl9.ts)의 뒷캔버스 — 화면에는 안 보인다. 붓이 프레임마다 유닛 캔버스에 합성한다(효과가 그 위에 얹히게). */
+.scr-motion-unitlayer.scr-motion-gl9 { display: none; }
 /* (삭제) PC 확대 조절바(.scr-motion-zoom) — PC의 확대 기능을 통째로 걷었다(요청). */
 /* 래디우스 없음(요청: 제거) — 화면 폭 확대에서 모서리가 둥글면 가장자리가 뜬다. */
 .scr-motion-canvas {
