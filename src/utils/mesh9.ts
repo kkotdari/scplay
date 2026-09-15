@@ -275,39 +275,46 @@ export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeF
   /** 부품마다의 **뭉치 번호**(tagKey 의 pid) — 아래에서 같은 뭉치를 모아 닫힌 입체인가를 잰다. */
   const pidAt: (number | undefined)[] = [];
   for (const f of faces) {
-    if (isOverlay9(f) && (!glow || byD.has(f[0]))) {
-      /* ★ 음영 덧칠은 **반드시 몸에 접거나 버린다** — 제 부품으로 남기면 안 된다(실측: 보급고 103부품 중 54개가 반투명으로 남아
-         건물이 통째로 비쳐 보였다). 접을 몸을 두 자로 찾는다:
-           ① 같은 경로 — faceLight().face(d) 처럼 몸과 똑같은 패스로 얹히는 덧칠(대부분).
-           ② 같은 부품 번호(tagKey 가 붙인 pid)의 **마지막 몸 면** — 제 꼴을 가진 그늘(원통 옆 그림자·돔 초승달·단면)은 경로가
-              달라 ①로는 못 찾는다. 2D 는 그 그늘을 바로 앞 몸 위에 얹으므로, 같은 부품의 마지막 몸이 곧 그 자리다.
-         둘 다 없으면 버린다(뜬 그림자 고리처럼 몸 없이 땅에 깔리는 덧칠). */
-      const same9 = byD.get(f[0]);
-      const at = same9 ?? (f[5] !== undefined ? byPid.get(f[5]) : undefined);
-      if (at !== undefined) {
-        const pt = parts[at];
-        /* ★ **넓이 몫만큼만 접는다**(2026-09) — ②(같은 부품의 마지막 몸)로 접는 덧칠은 제 꼴이 따로다(원통 옆 초승달·
-           단면 그늘). 그것을 몸 **전체**에 같은 세기로 먹이면 부품이 통째로 어두워진다(실측: 일꾼이 든 미네랄 덩이가
-           2D 의 절반 밝기 — gl-check 밝기비 0.53). 두 경로의 상자 넓이 비로 세기를 눅인다. ①(같은 경로)은 1 이다. */
-        const a = shadeBoost9(f[1], f[2]) * (same9 !== undefined ? 1 : areaK9(f[0], pt.d));
-        if (lum9(f[2] ?? "#fff") > 0.5) pt.ow = 1 - (1 - pt.ow) * (1 - a); else pt.ob = 1 - (1 - pt.ob) * (1 - a);
-      }
-      skipped += 1; continue;
-    }
+    /* ── 이 면의 3D 폴리 찾기 — 곁표(헬퍼가 적어 둔 것) → 손수 짠 경로 되찾기 → 여러 조각 이어 붙인 경로. */
     let polys = MESH9.byD.get(f[0]);
     if (glow) {
       // 발광 종류: 헬퍼가 구로 적어 둔 화면 원(screenCircle)도 카메라를 보는 원반으로 — 2D 는 동심원을 겹쳐 칠했다
       const disc = meshFromPath9(f[0], false, true);
       if (disc && disc.length === 1 && BILLBOARD9.has(disc[0])) polys = disc;
     }
-    if (!polys) { const back = meshFromPath9(f[0], f[1] >= 0.98, glow); if (back) { polys = back; MESH9.byD.set(f[0], back); } }
-    if (!polys && f[0].indexOf("Z M") > 0) {
+    if (!polys || !polys.length) { const back = meshFromPath9(f[0], f[1] >= 0.98, glow); if (back && back.length) { polys = back; MESH9.byD.set(f[0], back); } }
+    if ((!polys || !polys.length) && f[0].indexOf("Z M") > 0) {
       // 다각형 여럿을 이어 붙인 면(폴리 경로 둘 이상) — 조각마다 찾아 합친다.
       const acc: Poly3[] = [];
       for (const piece of f[0].split(/(?<=Z) (?=M)/)) { const q = MESH9.byD.get(piece); if (q) acc.push(...q); }
       if (acc.length) polys = acc;
     }
-    if (!polys) { if (missed.length < 12) missed.push(`${f[2] ?? "(임자)"} a=${f[1]} ${f[0].slice(0, 110)}`); continue; }
+    const has9 = !!polys && polys.length > 0;
+    if (isOverlay9(f) && (!glow || byD.has(f[0]))) {
+      /* ★ 음영 덧칠은 **몸에 접거나 · 제 부품으로 남기거나 · 버린다**. 접을 몸을 두 자로 찾는다:
+           ① 같은 경로 — faceLight().face(d) 처럼 몸과 똑같은 패스로 얹히는 덧칠(대부분).
+           ② 같은 부품 번호(tagKey 가 붙인 pid)의 **마지막 몸 면** — 제 꼴을 가진 그늘(원통 옆 그림자·돔 초승달·단면)은
+              경로가 달라 ①로는 못 찾는다. 2D 는 그 그늘을 바로 앞 몸 위에 얹으므로, 같은 부품의 마지막 몸이 곧 그 자리다.
+         ★ **몸보다 작고 제 기하가 있는 그늘은 접지 않는다**(2026-09) — 접기는 부품 **전체**에 같은 세기를 먹이는 손이라,
+           2D 가 한 자리에만 칠한 그늘을 접으면 그 자리는 옅어지고 나머지가 괜히 어두워져 결이 뭉개진다(실측: 셔틀 돔
+           뒤의 그늘 25%가 넓이 몫 0.2 로 눌려 5%가 되자 돔이 통째로 파랗게 떴다). 그런 그늘은 얇은 판이라 GL 도 그대로
+           그릴 수 있다: 반투명 한 장짜리라 데칼로 잡혀 깊이 편향을 받고(gl9 isDecal), 불투명 몸 위에 섞인다.
+           되찾을 기하가 **없으면**(종족 광택의 초승달 같은 손 경로) 종전처럼 넓이 몫만큼 접는다 — 안 접으면 통째로 사라진다.
+         몸도 없고 기하도 없으면 버린다(땅에 깔리는 그림자 고리). */
+      const same9 = byD.get(f[0]);
+      const at = same9 ?? (f[5] !== undefined ? byPid.get(f[5]) : undefined);
+      const k9 = at === undefined ? 1 : (same9 !== undefined ? 1 : areaK9(f[0], parts[at].d));
+      if (!(has9 && k9 < 0.6 && at !== undefined)) {
+        if (at !== undefined) {
+          const pt = parts[at];
+          const a = shadeBoost9(f[1], f[2]) * k9;
+          if (lum9(f[2] ?? "#fff") > 0.5) pt.ow = 1 - (1 - pt.ow) * (1 - a); else pt.ob = 1 - (1 - pt.ob) * (1 - a);
+        }
+        skipped += 1; continue;
+      }
+      // 작은 그늘 + 제 기하 있음 — 아래로 내려가 제 부품이 된다.
+    }
+    if (!has9 || !polys) { if (missed.length < 12) missed.push(`${f[2] ?? "(임자)"} a=${f[1]} ${f[0].slice(0, 110)}`); continue; }
     covered += 1;
     byD.set(f[0], parts.length);
     if (f[5] !== undefined) byPid.set(f[5], parts.length);

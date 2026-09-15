@@ -20518,40 +20518,56 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const R9 = 2.7;                // 가운데 반지름
       const TH9 = (152 * Math.PI) / 180;   // 앞으로 열린 각(작을수록 입이 넓다)
       const TOP9 = 3.92;              // 마루 높이
-      const THK9 = 0.44;             // 두께
-      /** 각 θ에서의 안·바깥 점 — dz는 위판(두께)을 뽑을 때 얹는다. */
-      const at9 = (th9: number, side9: 1 | -1, dz9: number): [number, number, number] => {
-        const w9 = 0.95 - 0.5 * (Math.abs(th9) / TH9) ** 1.8;
-        /* 뒤 한가운데(θ≈0)의 **안선을 호로 파낸다**(요청: 사과 베어 먹은 듯) — 반각 0.62rad 안에서
-           코사인으로 안선을 바깥으로 밀어, 두께 1.9의 판이 가운데서 0.9만 남는다. */
-        // 파내는 쪽은 **바깥선**(재지적: 반대쪽) — 뒤 가장자리를 안으로 물어 들인다.
-        const bite9 = side9 > 0 ? 1.0 * Math.max(0, Math.cos((th9 / 0.62) * (Math.PI / 2))) : 0;
-        const rr9 = R9 + side9 * w9 - bite9;
-        const x9 = Math.sin(th9) * rr9;
-        const y9 = YC9 - Math.cos(th9) * rr9;
-        /* ★ 두 끝은 **더 내려앉는다**(지적: "앞다리 양끝이 좀 더 아래로 내려오게 기울어져야
-           해") — 높이를 x의 2차식으로만 주면 팔 끝이 안으로 말리며 x가 도로 작아져(1.35)
-           끝이 오히려 **올라간다**. 정면의 역 U는 그대로 두되, 팔을 따라 도는 몫(θ)에 매인
-           내림을 하나 더 얹는다: 그 값은 끝에서만 크게 들므로 가운데 마루는 안 건드린다. */
+      /* ★ **둥근 단면의 테두리로 재작도**(2026-09, 요청: "실루엣에 맞춰 재작도") ────────────────────────────
+         여태 이 말굽은 **납작한 띠**였다(밑판 + 곧은 옆벽 + 윗판). 2D 는 화가 차례라 두 판이 겹쳐 한 덩이 금띠로
+         읽혔는데, GL 은 진짜 깊이·진짜 법선이라 윗판(위를 보는 낯)·속벽(안을 보는 낯)·바깥벽이 저마다 다른
+         밝기로 갈려 테가 **두세 겹으로 감긴 리본**처럼 보였다. 모서리만 깎아도(육모) 밝기 단이 줄 뿐 갈림은 남는다.
+         그래서 단면을 **타원 관**으로 돌린다 — 둘레 각 φ 하나로 바깥·위·안·아래를 잇는 닫힌 단면이라 법선이
+         끊기지 않고 돌고, 어느 각에서 봐도 **둥근 테 하나**로 읽힌다.
+         실루엣은 한 톨도 안 건드린다: 바깥선 R+w−물림·안선 R−w·밑 z·마루 z+두께가 옛 판과 같은 자리다. */
+      const THK9 = 0.62;             // 두께(= 단면 높이)
+      const HZ9 = THK9 / 2;          // 단면 반높이
+      const NP9 = 8;                 // 단면 마디 수
+      /** θ·단면각 φ(0 바깥 · π/2 위 · π 안 · 3π/2 아래)에서의 꼭짓점. */
+      const prof9 = (th9: number, ph9: number): [number, number, number] => {
         const t9 = Math.abs(th9) / TH9;
-        // 끝의 내려앉음을 한 단 더(재지적) — 1.15 → 1.75. 옆으로 흘러내리는 몫(x²)도 조금.
-        return [x9, y9, TOP9 - x9 * x9 * 0.112 - 1.4 * t9 ** 2.2 + dz9];
+        const w9 = Math.max(0.12, 0.95 - 0.5 * t9 ** 1.8);
+        /* 뒤 한가운데(θ≈0)의 **바깥선을 호로 파낸다**(요청: 사과 베어 먹은 듯) — 반각 0.62rad 안에서
+           코사인으로 물어 들인다. 바깥선만 깎이므로 단면의 가운데(rC)와 반폭(wC)을 그 절반씩 줄인다
+           (바깥 R+w−물림 · 안 R−w 가 그대로 나온다). */
+        const bite9 = 1.0 * Math.max(0, Math.cos((th9 / 0.62) * (Math.PI / 2)));
+        const r9 = R9 - bite9 / 2 + Math.max(0.1, w9 - bite9 / 2) * Math.cos(ph9);
+        const x9 = Math.sin(th9) * r9;
+        const y9 = YC9 - Math.cos(th9) * r9;
+        /* ★ 높이는 **x의 2차식**이라 가운데가 마루이고 양옆으로 흘러내린다(정면의 역 U) + 팔을 따라 도는
+           몫(θ)에 매인 내림을 하나 더 얹는다 — 끝에서만 크게 들어 두 끝이 더 내려앉는다. */
+        const zb9 = TOP9 - x9 * x9 * 0.112 - 1.4 * t9 ** 2.2;
+        return [x9, y9, zb9 + HZ9 + HZ9 * Math.sin(ph9)];
       };
       const N9 = 8;                  // 도막 하나의 마디 수
+      const phs9 = Array.from({ length: NP9 }, (_, k9) => (k9 / NP9) * Math.PI * 2);
       for (const [f0, f1] of [[-1, -0.36], [-0.36, 0.36], [0.36, 1]] as const) {
         const ths9 = Array.from({ length: N9 + 1 },
           (_, i9) => TH9 * (f0 + (f1 - f0) * (i9 / N9)));
-        const lo9 = [...ths9.map((t9) => at9(t9, 1, 0)),
-          ...[...ths9].reverse().map((t9) => at9(t9, -1, 0))];
-        const hi9 = [...ths9.map((t9) => at9(t9, 1, THK9)),
-          ...[...ths9].reverse().map((t9) => at9(t9, -1, THK9))];
-        const f9: ShapeFace[] = [[polyPath3(lo9), 1, TOSS_GOLD] as ShapeFace];
-        for (let i9 = 0; i9 < lo9.length; i9 += 1) {
-          const j9 = (i9 + 1) % lo9.length;
-          f9.push([polyPath3([lo9[i9], lo9[j9], hi9[j9], hi9[i9]]), 1, TOSS_GOLD] as ShapeFace);
+        const f9: ShapeFace[] = [];
+        for (let k9 = 0; k9 < NP9; k9 += 1) {
+          const p0 = phs9[k9]; const p1 = phs9[(k9 + 1) % NP9];
+          const up9 = Math.sin((p0 + p1) / 2) > 0.85;   // 마루 켜만 살짝 태운다(2D 의 결)
+          for (let i9 = 0; i9 + 1 < ths9.length; i9 += 1) {
+            const a9 = ths9[i9]; const b9 = ths9[i9 + 1];
+            const d9 = polyPath3([prof9(a9, p0), prof9(b9, p0), prof9(b9, p1), prof9(a9, p1)]);
+            f9.push([d9, 1, TOSS_GOLD] as ShapeFace);
+            if (up9) f9.push(topFace(d9, 0.14));
+          }
         }
-        f9.push([polyPath3(hi9), 1, TOSS_GOLD] as ShapeFace, topFace(polyPath3(hi9), 0.16));
-        const mid9 = at9(TH9 * (f0 + f1) / 2, 0 as unknown as 1, 0);
+        /* 말굽의 **두 끝만** 단면으로 막는다 — 도막끼리 맞대는 자리는 안 막는다(맞댄 뚜껑 둘은
+           같은 자리에 겹쳐 서서 한 장이 앞을 보게 되고, 그 낯의 법선이 옆을 봐 이음매가 선으로 읽힌다). */
+        for (const e9 of [f0 === -1 ? -1 : 0, f1 === 1 ? 1 : 0] as const) {
+          if (e9 === 0) continue;
+          const cap9 = phs9.map((p9) => prof9(TH9 * e9, p9));
+          f9.push([polyPath3(e9 > 0 ? cap9 : [...cap9].reverse()), 1, TOSS_GOLD] as ShapeFace);
+        }
+        const mid9 = prof9((TH9 * (f0 + f1)) / 2, Math.PI / 2);
         out.push(...tagKey(f9, partKey(mid9[0], mid9[1], mid9[2])));
       }
     }
