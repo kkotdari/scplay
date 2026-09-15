@@ -1342,7 +1342,7 @@ export const UNIT_SIZE_TUNE: Record<string, number> = {   // 열쇠는 sizeKind(
   /* 도록 크기 보정 페이지(?cal)에서 실측해 준 배수(요청). */
   archon: 1.6, darchon: 1.6, corsair: 0.8, interceptor: 0.8, larva: 0.4, egg: 0.4,   // 아콘 둘 1.2 → 1.5 → 1.6(재요청)
   muta: 0.9, scourge: 0.6, ultra: 1.4, guardian: 1.0, lurkeregg: 0.6, mutacocoon: 0.8,   // 뮤탈·가디언 0.8 → 1.0 → 뮤탈 0.9(요청)
-  observer: 0.8,
+  observer: 0.6,
   inf: 0.8, fbat: 0.8, ghost: 0.8,   // 메딕(inf)·파뱃(0.6 → 0.8 재요청)·고스트 — 마린(gunner)은 1.0으로 뺐다(재요청)
   htemp: 0.9,   // 0.6 → 1(요청) → 0.9(재요청). 다템은 표에서 빠져 1이다(원작 상자 24×24 대 24×26).
   defiler: 1.2,   // 요청(비교 장면)
