@@ -22,32 +22,45 @@ if (has("--diff")) {
   const i = argv.indexOf("--diff");
   const A = JSON.parse(readFileSync(argv[i + 1], "utf8"));
   const B = JSON.parse(readFileSync(argv[i + 2], "utf8"));
+  const BIG = Number(flag("--big", 0.5));   // 이 이상 어긋나면 '버그급'(도형 단면 차이가 아니라 자리가 틀린 것)
   const nums = (d) => (d.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
   const skel = (d) => d.replace(/-?\d+(?:\.\d+)?/g, "#");
-  let badKinds = 0;
   const rows = [];
+  let badKinds = 0;
   for (const kind of Object.keys(A)) {
-    let total = 0; let miss = 0; let worst = 0; let where = "";
+    let total = 0; let miss = 0; let big = 0; let worst = 0; let where = ""; let sum = 0;
     for (const key of Object.keys(A[kind])) {
       const fa = A[kind][key]; const fb = (B[kind] ?? {})[key] ?? [];
-      // 통: 채움색|골격 — 같은 통 안에서 수치 벡터를 사전순으로 세워 차례대로 짝짓는다.
-      const bucket = (fs) => { const m = new Map(); for (const f of fs) { const k = `${f[2] ?? ""}|${skel(f[0])}`; (m.get(k) ?? m.set(k, []).get(k)).push(nums(f[0])); } for (const v of m.values()) v.sort((p, q) => { for (let j = 0; j < p.length; j += 1) if (p[j] !== q[j]) return p[j] - q[j]; return 0; }); return m; };
+      /* 통: 채움색|골격 — 같은 통 안에서 **가장 가까운 짝**(최대 절대차)을 탐욕으로 잇는다(정렬 짝짓기는 값이
+         조금만 움직여도 차례가 뒤집혀 멀쩡한 면까지 어긋난 것으로 셌다). */
+      const bucket = (fs) => { const m = new Map(); for (const f of fs) { const k = `${f[2] ?? ""}|${skel(f[0])}`; (m.get(k) ?? m.set(k, []).get(k)).push(nums(f[0])); } return m; };
       const ma = bucket(fa); const mb = bucket(fb);
       for (const [k, va] of ma) {
-        const vb = mb.get(k) ?? [];
+        const vb = (mb.get(k) ?? []).slice();
+        const used = new Array(vb.length).fill(false);
         total += va.length;
-        const n = Math.min(va.length, vb.length);
-        miss += va.length - n;
-        for (let j = 0; j < n; j += 1) {
-          let d = 0; for (let q = 0; q < va[j].length; q += 1) d = Math.max(d, Math.abs(va[j][q] - vb[j][q]));
-          if (d > TOL) { miss += 1; if (d > worst) { worst = d; where = `${key} ${k.slice(0, 40)}`; } }
+        for (const p of va) {
+          let best = -1; let bd = Infinity;
+          for (let j = 0; j < vb.length; j += 1) {
+            if (used[j]) continue;
+            const q = vb[j]; let d = 0;
+            for (let t = 0; t < p.length; t += 1) { const e = Math.abs(p[t] - q[t]); if (e > d) { d = e; if (d >= bd) break; } }
+            if (d < bd) { bd = d; best = j; }
+          }
+          if (best < 0) { miss += 1; big += 1; continue; }
+          used[best] = true;
+          sum += bd;
+          if (bd > TOL) miss += 1;
+          if (bd > BIG) big += 1;
+          if (bd > worst) { worst = bd; where = `${key} ${k.slice(0, 30)}`; }
         }
       }
     }
-    if (miss > 0) { badKinds += 1; rows.push(`${kind.padEnd(16)} 어긋난 면 ${String(miss).padStart(5)}/${String(total).padStart(6)}  최대 ${worst.toFixed(2)}  @${where}`); }
+    if (miss > 0) { badKinds += 1; rows.push([big, `${kind.padEnd(16)} 어긋남 ${String(miss).padStart(6)}/${String(total).padStart(6)}  버그급(>${BIG}) ${String(big).padStart(6)}  평균 ${(sum / Math.max(1, total)).toFixed(3)}  최대 ${worst.toFixed(2)}  @${where}`]); }
   }
-  console.log(rows.sort().join("\n"));
-  console.log(`— 어긋난 종류 ${badKinds}/${Object.keys(A).length} (허용 ${TOL})`);
+  rows.sort((a, b) => b[0] - a[0]);
+  console.log(rows.map((r) => r[1]).join("\n"));
+  console.log(`— 어긋난 종류 ${badKinds}/${Object.keys(A).length} (허용 ${TOL}) · 버그급 종류 ${rows.filter((r) => r[0] > 0).length}`);
   process.exit(badKinds ? 1 : 0);
 }
 

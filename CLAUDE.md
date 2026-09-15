@@ -82,3 +82,12 @@ scplayer 쪽 소스를 만졌으면 그쪽에서 `npx tsc --noEmit -p tsconfig.j
 - 계측: `node scripts/perf-check.mjs [--msgsize]`(vite 번들이 기본) — `[워커] on got/used/missed`로 워커가 쓰였는지,
   `--msgsize`로 장당 바이트·op 수를 본다. `--wide --cpu 1`이 PC 판(굽기 일꾼 `[굽기일꾼]` 줄이 on이어야 한다). 워커 번들의 `process.env.NODE_ENV`는 vite.config의 define이 박는다(사파리).
   esbuild 도구 번들(model-shot 등, perf-check `--esbuild`)에는 워커가 없어 유닛 프레임이 안 그려진다.
+
+## 모델 z 좌표 손질(2026-09)
+- 평면 카메라의 높이 누름(`TOP_Z_PRESS9` 0.8)은 **모델 z 좌표 자체로 옮겨 굳혔다**(`scripts/model-z-scale.mjs --k 0.8`): 빌더·헬퍼의
+  z 자리 숫자를 접어 쓴다(리터럴은 값 자체, z 전용 지역 상수는 선언, x·y와 나눠 쓰는 상수는 `NAMEz9` 쌍둥이, 지역 함수는
+  z-return 접기 또는 선형 인자 접기). 못 접는 식은 감싸지 않고 `--report` 에 적는다. 카메라는 이제 정직하다(누름 1.0).
+  앞으로 모델 높이를 바꿀 때는 카메라가 아니라 좌표를 고친다. 순수 기하 커널(spirePillar 등, KERNEL_FN)은 본문을 안 건드린다.
+- 검산: `node scripts/model-faces-snap.mjs --out ref.json --zk 0.8`(원본 + 꼭짓점 z배수 = 정답) · `--out new.json`(고친 소스) ·
+  `--diff ref.json new.json`(종류별 어긋난 면·버그급). Node 헤드리스, 전 종류 15초.
+- 잉크 중심표(`UNIT_INK_CY9`·`BLD_INK_MID9`)는 `node scripts/ink-center.mjs --emit` 으로 다시 뽑아 engine9 에 붙인다(캔버스 래스터라 브라우저).

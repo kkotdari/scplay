@@ -103,7 +103,7 @@ export const OP = {
 /** 바닥 원의 납작비 — 사선 시점에서 눌려 보이는 정도(ry = rx × 0.45). */
 export const GROUND_SQUASH = 0.45;
 /** 평면(2D)에서 모델 높이를 한 번 더 누르는 몫(요청) — 1이면 카메라 각 그대로다. */
-export const TOP_Z_PRESS9 = 0.8;    // 0.82 → 0.75 → 0.8 → 0.9 → 0.85 → 0.8(요청)
+export const TOP_Z_PRESS9 = 1.0;    // 0.82 → 0.75 → 0.8 → 0.9 → 0.85 → 0.8(요청) → 1.0: 그 0.8은 **모델 z 좌표 자체**로 옮겨 굳혔다(scripts/model-z-scale.mjs) — 카메라는 이제 정직하다
 /** 평면(2D)의 **수직 카메라 각**(도) — 바닥 눌림은 sin, 높이 배율은 cos다(한 쌍이라야
  *  한 각의 그림이 된다). 여기만 고치면 둘이 함께 움직인다.
  *  ★ 이 각과 TOP_Z_PRESS9는 **딴 손잡이**다: 각은 바닥이 얼마나 눌리는가(지도 격자와의
@@ -694,7 +694,8 @@ export function withModelZ<T>(k: number, fn: () => T): T {
 let modelZOff = 0;
 export function withModelZOff<T>(dz: number, fn: () => T): T {
   const p = modelZOff;
-  modelZOff = dz;
+  // 모델 z 배수(withModelScale·withModelZ) 안에서는 이 이동도 모델 z라 같은 배수를 탄다.
+  modelZOff = dz * modelZK;
   try {
     return fn();
   } finally {
