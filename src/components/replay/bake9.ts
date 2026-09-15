@@ -19636,9 +19636,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const LEGK9 = 0.8;
       /* 세 쌍 따로(요청): 앞다리는 앞쪽(끝 두 마디)이 안으로 살짝 굽고, 가운데 다리는 0.8배,
          뒷다리는 0.9배에 더 뒤(spread -0.75 → -1.1)를 향한다. */
-      const LEGK3 = [1, 0.8, 0.9];
+      /* 뒷다리는 **과감하게 뒤로 젖힌다**(재요청) — 마디 한 칸이 밖 0.55·뒤 0.66(약 50도 뒤)로,
+         전 길이(밖 0.90·뒤 0.33 = 0.955)의 0.9배(0.86). 0.9배는 LEGK3에, 방향은 reach·spread에. */
+      const LEGK3 = [1, 0.8, 0.81];
       for (const [ry9, spread, reach] of [
-        [2, 0.95, 1], [1.65, 0.55, 1.12], [1.3, -1.1, 1.22],
+        [2, 0.95, 1], [1.65, 0.55, 1.12], [1.3, -2.43, 0.83],
       ] as [number, number, number][]) {
         const idx9 = ry9 === 2 ? 0 : ry9 === 1.65 ? 1 : 2;
         const lk9 = LEGK9 * LEGK3[idx9];
