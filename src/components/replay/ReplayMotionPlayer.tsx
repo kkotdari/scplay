@@ -91,10 +91,10 @@ import {
 } from "./engine9";
 import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, WorldUi9 } from "./engine9";
 import {
-  pitchFlatSet9, brushOn9, brushSet9, glowOn9, glowSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, spriteSideMax9, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, rasterUnit9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, tone9, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
+  pitchFlatSet9, brushOn9, brushSet9, glowOn9, glowSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, spriteSideMax9, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, tone9, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
 } from "./bake9";
-import { glUnits9, glNow9, GL_ON9, GL_WARM9, GL_BLIT9, GL_GLOW_KINDS9, camOf9, CAM_TOP9, glIconOk9, glIconRequest9, type GlUnits9 } from "./gl9";
-export { LIMB_LOG, TURRET_BACK9, SHAPE_BUILDERS, ctx2d9, BAKE_ENV9, cropToInk, rasterUnit9, pathBox, tierTableOf, autoTier, stageFaces, rasterBld9, SHAPE_GALLERY, poseSet, poseSet9, bldLitSet, headYawSet, bldSpinSet, bldSpinRawSet9, lodSetCap, lodSetZoom, lodNoteFrame, tone9, TONE_DARK, TONE_SAT, silhouetteLight, glowBake9, grainAxes9, GLOW9 } from "./bake9";
+import { glUnits9, glNow9, glBakeMsTake9, GL_ON9, GL_WARM9, GL_BLIT9, GL_GLOW_KINDS9, camOf9, CAM_TOP9, glIconOk9, glIconRequest9, type GlUnits9 } from "./gl9";
+export { LIMB_LOG, TURRET_BACK9, SHAPE_BUILDERS, ctx2d9, BAKE_ENV9, cropToInk, pathBox, tierTableOf, autoTier, stageFaces, rasterBld9, SHAPE_GALLERY, poseSet, poseSet9, bldLitSet, headYawSet, bldSpinSet, bldSpinRawSet9, lodSetCap, lodSetZoom, lodNoteFrame, tone9, TONE_DARK, TONE_SAT, silhouetteLight, glowBake9, grainAxes9, GLOW9 } from "./bake9";
 export type { BakeCv9, BakeCtx9, RasterOut9, ShapeGalleryItem } from "./bake9";
 export { isAirUnit, flapCutOf, atkCutOf, unitTilesOf, buildingYawOf, galleryYawOf, BLD_NORM, BUILD_STAGES, SCR_DIAG, scrDiagOn, deriveWorld9, createEngine9, pickWorldUi9, emptyWorldUi9 } from "./engine9";
 export type { BuildRow, CastRow, FxOp, Frame9, EngineWorld9, EngineView9, WorldUi9 } from "./engine9";
@@ -775,80 +775,45 @@ const deviceMem9 = ((): number => {
   if (typeof navigator === "undefined") return 0;
   return (navigator as unknown as { deviceMemory?: number }).deviceMemory ?? 0;
 })();
-/** 작은 기기의 예산 배수 — 메모리를 부르는 만큼만 넓힌다(모르면 1배 = 종전 32/16MB). */
-const smallBudgetK9 = deviceMem9 >= 8 ? 3 : deviceMem9 >= 6 ? 2.5 : deviceMem9 >= 4 ? 1.75 : 1;
-/* ★ 예산은 바이트가 아니라 **화소**로 잡아야 한다(실기 진단: 아이폰 dpr 3 · 배율 6에서
-   `판 유닛 261장 32.0/32MB · 건물 38장 16.5/16MB` — 둘 다 예산에 못 박힌 채였고, 그
-   상태에서 탭이 버려졌다) ────────────────────────────────────────────────────────────
-   같은 그림이라도 dpr이 오르면 판이 **제곱으로** 무거워진다. 그런데 예산은 바이트로
-   못 박혀 있어, dpr 3 화면은 dpr 2 화면과 같은 32MB를 쓰면서 실제로는 화면에 훨씬 적은
-   수의 판밖에 못 담는다 — 그러고도 총량은 그대로 무겁다. 게다가 그 기기는 지도 캔버스
-   한 장에만 이미 2626² × 4 = **27.6MB**를 쓰고 있다(진단의 그 줄). 판 예산 48MB가 거기
-   얹히면 사파리가 버틸 자리가 없다.
-   기준을 dpr 2(이 값들을 처음 잡은 화면)로 두고 그보다 촘촘한 화면에서는 같은 비로
-   내린다. 제곱까지 내리면(화소를 완전히 고정) dpr 3에서 44%가 되어 되굽기가 너무
-   잦아지므로, 절반 몫(선형)만 먹인다 — dpr 3에서 67%다.
-   ※ 값을 죄는 만큼 되굽기는 는다. 그 값은 이제 대타 판(굽기 예산이 다한 프레임)과
-     빌림터가 받아 낸다 — 예산을 죄는 일이 곧 덜컥임이던 시절과는 사정이 다르다. */
-const dprBudgetK9 = ((): number => {
-  if (typeof window === "undefined") return 1;
-  return Math.min(1, 2 / Math.max(1, window.devicePixelRatio || 1));
-})();
 /* ★ 기기 프로필(5번) — 폰/PC로 갈리던 문턱을 한 표에 모았다. 새 문턱은 여기에 더하고 자리에서는 DEV9.x만 읽는다.
    (기기 판정은 smallDevice9 하나다: 손가락 기기 + 작은 화면, 또는 메모리 4GB 이하.) */
-/** 벤치 단 한 줄 — 프로필(DEV9)마다 제 표를 든다(아래 applyBenchTier9). 0단이 그 프로필의 기본값이다. */
-type BenchTier9 = { spriteMB: number; bldSpriteMB: number; unitBakePerFrame: number; bldBakePerFrame: number; bakeMsPerFrame: number; aheadSec: number; aheadMB: number;
-  /** 굽기 일꾼 수(있으면 DEV9.bakeWorkers를 덮는다 — 일꾼은 단이 정해진 뒤 뜬다). */ bakeWorkers?: number };
-/* PC의 세 단(아래 ★ 주석) — 폰 표(PHONE_TIERS9)는 지금 한 줄뿐이라 단이 안 오른다. 폰에도 단을 열려면 그 표에 줄을
+/** 벤치 단 한 줄 — 프로필(DEV9)마다 제 표를 든다(아래 applyBenchTier9). 0단이 그 프로필의 기본값이다.
+ *  판 굽기 길을 걷은 뒤(2026-09) 단이 다스리는 것은 **설계 일꾼의 앞 한도** 하나다(판 예산·프레임당 굽기·굽기 일꾼은 없다).
+ *  단 번호 자체는 여전히 '이 기기가 얼마나 빠른가'의 눈금이라 품질 알림(qualityLevel9)·결(grain)·그림자 접기가 읽는다. */
+type BenchTier9 = { aheadSec: number; aheadMB: number };
+/* PC의 네 단(아래 ★ 주석) — 폰 표(PHONE_TIERS9)는 지금 한 줄뿐이라 단이 안 오른다. 폰에도 단을 열려면 그 표에 줄을
    더하면 된다(문턱·오르기만 하는 규칙·#tier= 강제는 그대로 탄다) — 설계는 기기를 안 가린다(요청: "모바일에도 이식할 수
    있게 개방적으로 · 단수 적용도 마찬가지"). */
 const PC_TIERS9: readonly BenchTier9[] = [
-  { spriteMB: 128, bldSpriteMB: 64, unitBakePerFrame: 3, bldBakePerFrame: 3, bakeMsPerFrame: 12, aheadSec: 3, aheadMB: 24 },
-  { spriteMB: 192, bldSpriteMB: 96, unitBakePerFrame: 6, bldBakePerFrame: 6, bakeMsPerFrame: 18, aheadSec: 5, aheadMB: 48 },
-  { spriteMB: 256, bldSpriteMB: 128, unitBakePerFrame: 10, bldBakePerFrame: 8, bakeMsPerFrame: 24, aheadSec: 8, aheadMB: 80 },
-  /* ★ 3단 **매우 높음**(실기 진단, 2단·2.77배·입체: 굽기 2초 창 버림 U42/B31 · 미룸 U3852 · 일꾼 버림 53873) — 2단의 판 예산
-     (256/128MB)이 입체의 시점 변종(유닛 시점 4675·건물 옆면 938)을 못 담아 LRU가 계속 쫓아내고 일꾼이 그것을 다시 굽고
-     있었다. 굽기는 이제 일꾼 몫이라 프레임은 안 서지만, 쫓겨난 판이 돌아올 때까지 대타(흐린 판)로 보인다. 예산을 두 배로,
-     일꾼은 코어 12 이상이면 셋. 메모리 8GB(deviceMemory — 크로뮴만 낸다)가 확인되는 기기에서만 오른다. */
-  { spriteMB: 512, bldSpriteMB: 256, unitBakePerFrame: 10, bldBakePerFrame: 8, bakeMsPerFrame: 24, aheadSec: 8, aheadMB: 80,
-    bakeWorkers: typeof navigator !== "undefined" && (navigator.hardwareConcurrency ?? 4) >= 12 ? 3 : 2 },
+  { aheadSec: 3, aheadMB: 24 },
+  { aheadSec: 5, aheadMB: 48 },
+  { aheadSec: 8, aheadMB: 80 },
+  /* 3단 **매우 높음** — 메모리 8GB(deviceMemory, 크로뮴만 낸다)가 확인되는 기기에서만 오른다. 앞 한도는 2단과 같고,
+     이 단이 따로 뜻을 갖는 자리는 결(긁힌 광택)과 품질 알림이다. */
+  { aheadSec: 8, aheadMB: 80 },
 ];
 const PHONE_TIERS9: readonly BenchTier9[] = [
-  { spriteMB: 32 * smallBudgetK9 * dprBudgetK9, bldSpriteMB: 16 * smallBudgetK9 * dprBudgetK9, unitBakePerFrame: 1, bldBakePerFrame: 1, bakeMsPerFrame: 8, aheadSec: 1.5, aheadMB: 6 },
+  { aheadSec: 1.5, aheadMB: 6 },
 ];
 const DEV9 = smallDevice9 ? {
   name: "phone",
-  /** 유닛/건물 판 예산(MB) — 메모리를 부르는 기기는 그 배수. */
-  spriteMB: 32 * smallBudgetK9 * dprBudgetK9, bldSpriteMB: 16 * smallBudgetK9 * dprBudgetK9,
-  /** 지도 벡터층이 비워 두는 몫(MB) · 데칼 굽기 한 변 상한 · 굽는 판 한 장/빌림터 상한(MB) */
-  mapFreedMB: 14, decalBakeMax: 192, bakeOneMB: 3, bakePoolMB: 6, bakeSideMax: 2304,
-  /** 프레임당 굽는 장수(유닛/건물) · 프레임당 굽기 **시간**(ms, 아래 ★) */
-  unitBakePerFrame: 1, bldBakePerFrame: 1, bakeMsPerFrame: 8,
+  /** 데칼(크립 얼룩) 굽는 한 변 상한 · 굽는 판 한 장/빌림터 상한(MB) · 판 한 변 상한 — 남은 판은 크립과 효과 래스터뿐이다. */
+  decalBakeMax: 192, bakeOneMB: 3, bakePoolMB: 6, bakeSideMax: 2304,
   /** 피격 불티 수 배수 · 죽음 파편 수 · 효과 래스터 예산(MB) · 접지 그림자 최소 배율 */
-  hitShardK: 0.6, dieShards: 12, fxRasterMB: 6, shadowGroundMinZoom: 4,   // 사다리(1-2-4-8)의 셋째 칸 — 옛 3배는 이제 어느 칸도 아니다
+  hitShardK: 0.6, dieShards: 12, fxRasterMB: 6, shadowGroundMinZoom: 4,   // 사다리(1-2-4-8)의 셋째 칸
   /** 워커 시야 여유(화면 배수) · 앞으로 지을 한도(벽시계 초·MB) · 요잉을 늘 여덟 칸으로 */
-  // 앞 한도 4 → 6MB(진단: 3배 장당 163KB — 4MB면 0.8초, 6MB면 1.2초. 지난 장은 이제 한도에 안 든다(frameWorker)).
   cullMargin: 0.5, aheadSec: 1.5, aheadMB: 6, yaw8Always: true,
-  /** 굽기 일꾼 수(아래 BAKEW9) — 폰은 0(지금 길 그대로). 여는 조건은 이 한 값이다. */
-  bakeWorkers: 0,
   /** 벤치 단 표(위 PHONE_TIERS9 — 한 줄이라 단이 없다). */
   tiers: PHONE_TIERS9,
-  /** GL 붓 메시 상한(벌) — 한 벌은 VBO + 정점 사본(footOf)이라 메모리다(#gl=1 로 폰에서 켤 때). */
+  /** GL 붓 메시 상한(벌) — 한 벌은 VBO + 꼭짓점 사본(footOf)이라 메모리다. */
   glMeshMax: 240,
 } : {
   name: "pc",
-  spriteMB: 128, bldSpriteMB: 64,
-  mapFreedMB: 0, decalBakeMax: 768,   // 크립 굽기 상한 384 → 768(지적: PC에서 화질 낮은 게 보임)
-  /* ★ 16배도 **제 크기로 굽는다**(요청: "늘려 찍지 말고 맞게") — 판 한 변 2304 → 4096(dpr 2에서 CSS 2044px, 배틀크루저
-     16배 1280px이 든다), 한 장 8 → 68MB(4096²·RGBA 67MB), 빌리는 판 주머니 24 → 80MB. 폰은 그대로(2304·3·6). */
+  decalBakeMax: 768,   // 크립 굽기 상한 384 → 768(지적: PC에서 화질 낮은 게 보임)
   bakeOneMB: 68, bakePoolMB: 80, bakeSideMax: 4096,
-  unitBakePerFrame: 3, bldBakePerFrame: 3, bakeMsPerFrame: 12,
   hitShardK: 1, dieShards: 24, fxRasterMB: 24, shadowGroundMinZoom: 0,
-  /* 앞 한도 10 → 24MB(진단: PC 3배에서 장당 220KB라 10MB가 0.7초 만에 차, 3초 예산이 있어도 앞이 0.7초뿐이었다 —
-     굽기 한 번(최악 41ms)이나 GC에 뒤장이 비기 딱 좋은 여유다. 24MB면 220KB로 3.6초). */
+  /* 앞 한도 10 → 24MB(진단: PC 3배에서 장당 220KB라 10MB가 0.7초 만에 차, 3초 예산이 있어도 앞이 0.7초뿐이었다). */
   cullMargin: 1, aheadSec: 3, aheadMB: 24, yaw8Always: false,
-  /* 굽기 일꾼(아래 BAKEW9) — 코어 8 이상이면 둘, 아니면 하나. `#bakeworker=N`(0이면 끔)으로 못 박는다. */
-  bakeWorkers: typeof navigator !== "undefined" && (navigator.hardwareConcurrency ?? 4) >= 8 ? 2 : 1,
   tiers: PC_TIERS9,
   glMeshMax: 600,
 };
@@ -907,18 +872,7 @@ function applyBenchTier9(bench: number): void {
   if (want9 <= PC_TIER9.v) return;   // 오르기만 한다
   PC_TIER9.v = want9;
   const t9 = tiers9[want9];
-  DEV9.spriteMB = t9.spriteMB; DEV9.bldSpriteMB = t9.bldSpriteMB;
-  DEV9.unitBakePerFrame = t9.unitBakePerFrame; DEV9.bldBakePerFrame = t9.bldBakePerFrame; DEV9.bakeMsPerFrame = t9.bakeMsPerFrame;
   DEV9.aheadSec = t9.aheadSec; DEV9.aheadMB = t9.aheadMB;
-  if (t9.bakeWorkers !== undefined) DEV9.bakeWorkers = t9.bakeWorkers;   // 일꾼은 이 뒤에 뜬다(crowdInit9의 bakeWorkersStart9)
-  // 모듈 초기에 DEV9에서 베낀 값들도 갈아 끼운다(아래 let들).
-  SPRITE_BYTES_MAX = DEV9.spriteMB * 1024 * 1024;
-  BLD_SPRITE_BYTES_MAX = DEV9.bldSpriteMB * 1024 * 1024;
-  SPRITE_TOTAL_MAX = SPRITE_BYTES_MAX + BLD_SPRITE_BYTES_MAX + DEV9.mapFreedMB * 1024 * 1024;   // 두 몫이 나눠 쓰는 총량도 같이(위 budgetNow9)
-  BAKE_MS_PER_FRAME9 = DEV9.bakeMsPerFrame;
-  BAKE_HARD_MS9 = DEV9.bakeMsPerFrame * 3;
-  UNIT_BAKE_PER_FRAME = DEV9.unitBakePerFrame;
-  BLD_BAKE_PER_FRAME = DEV9.bldBakePerFrame;
   /* 결(긁힌 광택)은 **맨 위 단에서만** 켠다(요청: "결은 PC에서도 최고 높음에서만 켜기") —
      계측으로 굽기 값이 +25~30%이고 꼬리가 길다(낯마다 수십 줄을 긋는다). 여력이 확인된
      기기에서만 얹는 것이 옳다. 단은 오르기만 하므로 이 한 줄이면 켜는 시점도 맞는다.
@@ -1041,7 +995,6 @@ function crowdInit9(): void {
      스크래치 다 끄기") — 스크래치(결)는 위에서 이미 폰 전체가 껐다. 글로우는 판마다 캔버스 한 장을 더 빌린다. */
   glowSet9(!(smallDevice9 && c.weak));
   crowdRecheck9();  applyBenchTier9(c.bench);   // PC 벤치 단(위 PC_TIERS9의 ★)
-  bakeWorkersStart9();   // 굽기 일꾼(위 BAKEW9) — 기기 표(DEV9.bakeWorkers)가 0이면 안 띄운다
   qualityNote9();        // 첫 눈금(위 QUALITY9) — 렌더 중이라 fn은 아직 없고 level만 적힌다
 }
 /** ★ **벤치를 유휴에 다시 잰다**(지적: 실측 PC 7ms인데 27ms로 찍혀 미달 판정 — 단 "너무 늦게는 의미없으니
@@ -1152,13 +1105,12 @@ function nukeMeterTick9(on9: boolean, step9: number, playing9 = true): void {
       const out9 = Math.max(0, dt9 - WORK9.brush - WORK9.wk - WORK9.react);
       WORSTF9.parts = `붓${WORK9.brush.toFixed(0)} 워커${WORK9.wk.toFixed(0)}`
         + ` 리액트${WORK9.react.toFixed(0)} 밖${out9.toFixed(0)}`;
-      WORSTF9.at = `${SPRITE_PERF.bldBake}건물/${SPRITE_PERF.bake}유닛`;
+      WORSTF9.at = `찍기${SPRITE_PERF.blit}${SPRITE_PERF.direct > 0 ? ` 직접${SPRITE_PERF.direct}` : ""}`;
     }
   }
   FRAMEG9.last = now9;
   if (on9 && !NUKEM9.on) {
     NUKEM9.on = true; NUKEM9.at = now9; NUKEM9.n = 0; NUKEM9.worst = 0; NUKEM9.react = 0; NUKEM9.last = now9;
-    BLD_MISS9.why.clear();   // 이 창에서 건물 판이 갈린 까닭만 센다(위 bldMissWhy9)
     return;
   }
   if (on9) {
@@ -1185,9 +1137,7 @@ function nukeMeterTick9(on9: boolean, step9: number, playing9 = true): void {
   const w9 = SPRITE_PERF.wLast;
   SCR_DIAG.nukem = `최악창 ${secs9.toFixed(1)}초 붓${NUKEM9.n}장(${(NUKEM9.n / secs9).toFixed(0)}/s)`
     + ` · 최악프레임 ${NUKEM9.worst.toFixed(0)}ms[${NUKEM9.parts}] · 리액트 최악 ${NUKEM9.react.toFixed(0)}ms(박자 ${step9}ms)`
-    + ` · 굽기창 유닛${w9.bake}장 ${w9.ms.toFixed(0)}ms 건물${w9.bldBake}장 ${w9.bldMs.toFixed(0)}ms`
-    + ` 최악 ${w9.worstFrame.toFixed(0)}ms(굽기 ${w9.worstFrameBake.toFixed(0)})`
-    + ` · 건물판 갈림[${bldMissTop9()}]`;
+    + ` · 창 찍기${w9.frames ? Math.round(w9.blit / w9.frames) : 0}장/프레임 직접${w9.direct} 최악 ${w9.worstFrame.toFixed(0)}ms`;
 }
 /** 큰 덩어리를 더해 MB로 — 화면 캔버스(폭×높이×4) · 구운 판 · 설계도·안개 판은 부르는 쪽이 더한다. */
 function memTrendTick9(root: HTMLElement | null, extraMB9 = 0): void {
@@ -1204,33 +1154,22 @@ function memTrendTick9(root: HTMLElement | null, extraMB9 = 0): void {
     for (let i9 = 0; i9 < n9; i9 += 1) by9 += cvs9[i9].width * cvs9[i9].height * 4;
   }
   const cvMB9 = by9 / 1048576;
-  const plMB9 = (spriteBytes.n + bldSpriteBytes.n + FX_RASTER_BYTES.n) / 1048576;
+  const plMB9 = FX_RASTER_BYTES.n / 1048576;   // 남은 판은 효과 래스터·크립 얼룩뿐이다(유닛·건물 판 길은 걷었다)
   const mb9 = cvMB9 + plMB9 + extraMB9;
   MEMTR9.n += 1;
   MEMTR9.now = mb9; MEMTR9.cv = n9; MEMTR9.cvMB = cvMB9; MEMTR9.plMB = plMB9; MEMTR9.exMB = extraMB9;
   if (MEMTR9.first === 0) MEMTR9.first = mb9;
   if (mb9 > MEMTR9.max) MEMTR9.max = mb9;
 }
-/** 배킹을 잃었을 때 — 구워 둔 판을 통째로 버린다(그 판들도 캔버스라 같이 비었다). */
+/** 배킹을 잃었을 때 — 구워 둔 판을 통째로 버린다(그 판들도 캔버스라 같이 비었다).
+ *  유닛·건물 판 길을 걷은 뒤로 남은 판은 효과 래스터와 크립 얼룩뿐이다. */
 function dropPlates9(): void {
-  /* ★ 버릴 때는 **놓아 줘야** 한다(오늘 넣은 이 함수의 흠) — Map만 비우면 캔버스 객체는 GC를 기다리는데,
-     iOS의 캔버스 배킹(IOSurface)은 GC가 늦으면 그동안 그대로 잡혀 있다. 되살릴 때마다 메모리가 계단처럼
-     오르던 몫에 이 자리가 있었다. 이 판의 규약대로 크기를 0으로 돌려 곧장 내준다(releaseCanvas). */
-  for (const p9 of SPRITE_CACHE.values()) {
-    RELEASE_Q9.push(p9.cv);
-    const sh9 = (p9 as { sh?: { cv: HTMLCanvasElement } | null }).sh;
-    if (sh9) RELEASE_Q9.push(sh9.cv);
-    if (p9.tint) { RELEASE_Q9.push(p9.tint.cv); releaseTints9(p9.tint); }
-  }
-  SPRITE_CACHE.clear(); spriteBytes.n = 0;
-  for (const b9 of BLD_SPRITE_CACHE.values()) {
-    RELEASE_Q9.push(b9.cv);
-    if (b9.tint) { RELEASE_Q9.push(b9.tint.cv); releaseTints9(b9.tint); }
-  }
-  BLD_SPRITE_CACHE.clear(); bldSpriteBytes.n = 0;
-  BLD_SPRITE_SIZES.clear();
+  /* 버릴 때는 **놓아 줘야** 한다 — Map만 비우면 캔버스 객체는 GC를 기다리는데, iOS의 캔버스 배킹(IOSurface)은
+     GC가 늦으면 그동안 그대로 잡혀 있다. 크기를 0으로 돌려 곧장 내준다(releaseCanvas). */
   for (const c9 of FX_RASTER_CACHE.values()) RELEASE_Q9.push(c9);
   FX_RASTER_CACHE.clear(); FX_RASTER_BYTES.n = 0;
+  for (const cp9 of CREEP_PLATES9.values()) if (cp9) RELEASE_Q9.push(cp9.cv);
+  CREEP_PLATES9.clear();
   flushReleased9();
 }
 /** 지도 밑판 한가운데 화소가 비었나 — 배킹 손실의 증거다(1×1 읽기). 못 읽으면 '아니오'로 친다. */
@@ -1330,61 +1269,6 @@ function crowdTick9(units: number, deep = false): void {
 }
 /** 파편 수 배수 — 0단 1 · 1단 절반 · 2단 3분의 1. */
 const crowdShardK9 = (): number => (CROWD9.lv >= 2 ? 0.34 : CROWD9.lv === 1 ? 0.5 : 1);
-let SPRITE_BYTES_MAX = DEV9.spriteMB * 1024 * 1024;
-/* ── 상한을 넘겨야 할 만큼 크게 그릴 때(지적: "확대시 건물들의 크기 비례가 깨지는
-   현상. 크립 위치도 바뀜") ────────────────────────────────────────────────────────
-   여태 그 경우 굽기가 null을 내고 호출부가 **직접 그리기**로 떨어졌다. 그 길은 같은
-   그림이 아니다 — 굽는 쪽에만 있는 것이 셋이나 빠진다:
-     ① 모델 공간 정규화(MODEL_NORM·BLD_NORM) — 종류마다 배수가 1.2~2.3으로 다르다.
-        빠지면 건물끼리의 크기 비가 통째로 어긋난다. 이 지적의 '비례가 깨진다'가 이것이다.
-     ② 그릴 때만 키우는 몫(drawK 1.2배).
-     ③ 잉크 기준 자리 맞춤(발바닥 bot·가로중심 cx·데칼 가운데 inkCenter). 크립 얼룩은
-        inkCenter로 앉으므로 이 길에서는 자리가 바뀐다 — '크립 위치도 바뀜'이 이것이다.
-   그래서 **떨어뜨리지 않는다**: 상한에 맞는 가장 큰 크기로 굽고, 호출부가 이미 갖고 있는
-   잔차 배율(k = 그릴 크기 ÷ 구운 크기)로 늘려 찍는다. 아주 깊은 확대에서 조금 무를 뿐
-   비율과 자리는 어느 배율에서도 같다.
-   상한 셈은 굽기의 판 크기 식을 그대로 뒤집은 것이다 —
-     유닛  판 한 변 l = pxq + 2·pad(=2),        장치 픽셀 = ceil(l·B)
-     건물  판 한 변 l = sideQ + 2·(ceil(0.78·sideQ) + 2) ≤ 2.56·sideQ + 6 */
-const unitBakeCap = (B: number): number =>
-  Math.max(4, Math.floor(((spriteSideMax9() - 1) / B - 4) / 2) * 2);
-const bldBakeCap = (B: number): number =>
-  Math.max(4, Math.floor((((spriteSideMax9() - 1) / B - 6) / 2.56) / 2) * 2);
-let BLD_SPRITE_BYTES_MAX = DEV9.bldSpriteMB * 1024 * 1024;
-/* ★ 두 예산을 **한 주머니로 나눠 쓴다**(실기 진단: 12배 저그 기지에서 `유닛 49장
-   21.3/21MB · 건물 3장 8.3/11MB` — 유닛은 예산에 못 박혀 쫓아내고 다시 굽는데 건물은
-   2.7MB를 남기고 있었다) ────────────────────────────────────────────────────────────
-   둘로 갈라 둔 것은 '건물 판이 유닛 판을 다 밀어내지 않게' 하려던 칸막이인데, 화면에
-   무엇이 많은지는 자리마다 다르다 — 저그 본진은 일꾼이 스물이고 건물은 셋이다.
-   합은 그대로 두고 칸막이만 무른다: 한쪽의 상한을 `합 − 상대가 지금 쓰는 몫`으로 잡고,
-   제 몫의 4분의 1을 바닥으로 깐다(그래야 한쪽이 다른 쪽을 굶기지 못한다).
-   **최악의 총량은 한 톨도 안 는다** — 두 상한을 동시에 채워도 합은 여전히 같다. */
-/* ★ **지도층에서 던 몫을 여기서 받는다**(요청: "지도 여유분을 줄여 판 예산으로 돌린다")
-   ─────────────────────────────────────────────────────────────────────────────────
-   ReplayMapVector의 캔버스 면적 예산을 8 → 4Mpx로 내렸다(그쪽 ★ 주석: 화질은 안 잃고
-   '끌 때의 여유분'만 준다). 아이폰 dpr 3 기준 그 한 장이 27.6 → 11.8MB이므로 약 16MB가
-   빈다. 그중 14MB를 판 예산으로 옮긴다 — 남은 2MB는 어림의 여유다.
-   **총 메모리는 안 는다**(오히려 2MB 준다). 판 쪽은 저그 12배에서 작업 집합이 예산을
-   넘어 다시 굽기를 되풀이하던 자리라, 같은 총량 안에서 이쪽에 주는 편이 남는 장사다.
-   ※ 짝이 되는 값은 ReplayMapVector의 areaCapRef다 — 한쪽만 고치면 총량이 어긋난다. */
-const MAP_FREED_MB = DEV9.mapFreedMB;
-let SPRITE_TOTAL_MAX = SPRITE_BYTES_MAX + BLD_SPRITE_BYTES_MAX
-  + MAP_FREED_MB * 1024 * 1024;   // 벤치 단이 오르면 applyBenchTier9가 다시 잰다(let)
-/* ★ 몫에는 **바닥이 있어야 한다**(실기 계측: "판 유닛 58장 9.2MB · 건물 37장 36.6MB") ──
-   여기 있던 식은 `max(제 몫의 4분의 1, 총량 − 상대가 쓴 만큼)`이었다. 곧 **먼저 자란
-   쪽이 임자**가 되는 식이다: 건물은 판이 화면에 들어오는 순간 한 번에 굽히고 그 뒤로는
-   안 바뀌므로 늘 먼저 자라고, 그렇게 46MB 가운데 36.6MB를 쥔 채 경기 내내 안 놓았다.
-   정작 계속 갈리는 것은 유닛인데 남은 9MB로 살았다 — 그래서 시간바를 옮기거나 끌면
-   유닛 판이 통째로 갈렸다(실기: 2초에 굽기 301장·버림 299장, 최악 프레임 212ms 중
-   굽기 201ms). 시간이 지나면 괜찮아지는 것은 화면이 멎어 작업 집합이 9MB 안으로
-   들어오기 때문이다.
-   그래서 **상대가 안 쓰더라도 상대 몫만큼은 남겨 둔다** — 상대가 쓴 양을 상대의 바닥
-   아래로는 안 본다. 그러면 두 몫이 총량에서 정확히 균형을 이룬다:
-     유닛  = max(21.3, 46 − max(건물쓴양, 10.7)) → 건물이 아무리 커도 21.3MB는 남는다
-     건물  = max(10.7, 46 − max(유닛쓴양, 21.3)) → 유닛이 바닥에 있어도 24.7MB까지
-   합이 46MB에서 만나고, 남는 몫(지도에서 돌린 14MB)은 여전히 덜 쓰는 쪽이 가져간다. */
-const budgetNow9 = (own: number, otherUsed: number, otherOwn: number): number =>
-  Math.max(own, SPRITE_TOTAL_MAX - Math.max(otherUsed, otherOwn));
 /* ★ **데칼**은 또렷함이 필요 없다 — 굽기 상한을 따로 낮춘다(지적: "모바일에서 저그 본진을
    볼 때 너무 끊긴다") ────────────────────────────────────────────────────────────────
    재 보니 크립 얼룩이 이 화면에서 가장 큰 판이다. 해처리 크립은 15타일이라 해처리 본체
@@ -1402,6 +1286,62 @@ const budgetNow9 = (own: number, otherUsed: number, otherOwn: number): number =>
    물결져 있어 오히려 결에 맞는다. 폰이 더 낮은 것은 화면이 작아 그 부드러움이 안
    보이기 때문이다. */
 const DECAL_BAKE_MAX = DEV9.decalBakeMax;
+/** ★ **크립 얼룩 판** — 지도에서 판(캔버스 그림)으로 남은 **유일한** 것이다(2026-09, 판 굽기 길을 걷으며) ────────────
+ *  크립은 모델이 아니라 **땅**이다: 지형 마스크로 파내고(붓의 destination-out) 이웃 얼룩과 이음매 없이 이어져야 하는데,
+ *  그 두 가지가 2D 캔버스의 일이라 GL 로 옮기지 않았다. 대신 옛 판 기계(예산·LRU·대타·굽기 일꾼·색별 물들이기)는
+ *  통째로 걷고 여기 한 함수만 남긴다 — 열쇠가 무늬 셋 × 보기 둘 × 크기 하나라 **여섯 장**이고, 그 여섯은 경기 내내
+ *  안 바뀐다(크립 색도 한 가지다). 그래서 한 번 구우면 살려 두고, 임자색 마스크도 **구울 때 한 번** 물들여 한 장으로 합친다. */
+type CreepPlate9 = { cv: HTMLCanvasElement; ox: number; oy: number; pad: number; l: number; side: number; bot: number; top: number };
+const CREEP_PLATES9 = new Map<string, CreepPlate9 | null>();
+function creepPlate9(op: UnitDrawOp, B: number): CreepPlate9 | null {
+  /* 굽는 크기는 못 박는다(DEV9.decalBakeMax) — 얼룩은 단색 한 겹이라 늘려 찍어도 결이 안 보이고, 배율을 따라가면
+     줌 칸마다 새 판이 된다. 캔버스 한 변 상한(spriteSideMax9)만 지킨다(판 한 변 l ≤ 2.56·side + 6). */
+  const side9 = Math.max(4, Math.min(DECAL_BAKE_MAX, Math.floor((((spriteSideMax9() - 1) / B - 6) / 2.56) / 2) * 2));
+  const key9 = `${op.kind}|${op.flat ? 1 : 0}|${op.pitch ? 1 : 0}|${side9}|${B}|${op.color}`;
+  const got9 = CREEP_PLATES9.get(key9);
+  if (got9 !== undefined) return got9;
+  let out9: CreepPlate9 | null = null;
+  try {
+    /* 시점(viewYaw)은 **0으로 못 박는다** — 밀림은 딱딱한 모서리를 기울여 보이게 하는 몫인데 얼룩에는 모서리가 없다.
+       판이 자리마다 갈리지도 않고, 잉크 한가운데로 앉으므로(op.inkCenter) 화면을 밀 때 떨리지도 않는다. */
+    const r9 = typeof document !== "undefined" ? rasterBld9({ ...op, viewYaw: 0 }, side9, B, 3) : null;
+    if (r9) {
+      const body9 = r9.cv as HTMLCanvasElement;
+      const tn9 = r9.tint;
+      /* 임자 면(색 없는 밑칠)은 rasterBld9 가 마스크로 따로 낸다 — 크립은 색이 하나뿐이라 여기서 **바로 물들여** 몸판 아래에
+         깔고 한 장으로 합친다(옛 길의 색별 표 tintedOf9 는 여덟 임자색을 위한 것이었다). */
+      const x09 = tn9 ? Math.min(r9.ox, tn9.ox) : r9.ox;
+      const y09 = tn9 ? Math.min(r9.oy, tn9.oy) : r9.oy;
+      const x19 = tn9 ? Math.max(r9.ox + body9.width, tn9.ox + tn9.cv.width) : r9.ox + body9.width;
+      const y19 = tn9 ? Math.max(r9.oy + body9.height, tn9.oy + tn9.cv.height) : r9.oy + body9.height;
+      const cv9 = newCanvas9("크립판");
+      cv9.width = Math.max(1, x19 - x09);
+      cv9.height = Math.max(1, y19 - y09);
+      const c29 = cv9.getContext("2d");
+      if (c29) {
+        if (tn9) {
+          const mv9 = newCanvas9("크립마스크");
+          mv9.width = tn9.cv.width; mv9.height = tn9.cv.height;
+          const m29 = mv9.getContext("2d");
+          if (m29) {
+            m29.drawImage(tn9.cv as HTMLCanvasElement, 0, 0);
+            m29.globalCompositeOperation = "source-in";
+            m29.fillStyle = tone9(op.color);   // 임자색도 tone9 를 지난다(몸과 같은 색감)
+            m29.fillRect(0, 0, mv9.width, mv9.height);
+            c29.drawImage(mv9, tn9.ox - x09, tn9.oy - y09);
+          }
+          releaseCanvas(mv9);
+          releaseCanvas(tn9.cv);
+        }
+        c29.drawImage(body9, r9.ox - x09, r9.oy - y09);
+        out9 = { cv: cv9, ox: x09, oy: y09, pad: r9.pad, l: r9.l, side: side9, bot: r9.box.bot, top: r9.box.top };
+      }
+      releaseCanvas(body9);
+    }
+  } catch (e9) { console.warn("[크립판]", e9); out9 = null; }
+  CREEP_PLATES9.set(key9, out9);
+  return out9;
+}
 /** ★ **한 박자 늦춰** 돌려줄 판들 — 지금 프레임이 손에 쥐고 있을지 모르는 것을 그 자리에서
  *  0으로 만들면 그 몸만 한 프레임 사라진다. 덜어낼 때 여기 담아 두고 **다음 그리기 첫머리**
  *  에 비운다(그때는 어느 op도 옛 판을 안 들고 있다). 늦춰 봐야 16ms라, 수거를 기다리는
@@ -1465,136 +1405,6 @@ function flushReleased9(): void {
   RELEASE_Q9.length = 0;
 }
 /** 두 보관함을 **함께** 죈다 — 한쪽이 자라면 상대의 몫이 그만큼 줄어드는 식이므로
- *  (위 budgetNow9), 자란 쪽만 죄면 합이 총량을 넘긴 채로 한동안 남는다. */
-function trimBoth9(): void {
-  trimSpriteCache(SPRITE_CACHE, spriteBytes,
-    budgetNow9(SPRITE_BYTES_MAX, bldSpriteBytes.n, BLD_SPRITE_BYTES_MAX));
-  trimSpriteCache(BLD_SPRITE_CACHE, bldSpriteBytes,
-    budgetNow9(BLD_SPRITE_BYTES_MAX, spriteBytes.n, SPRITE_BYTES_MAX), true);
-}
-/** 예산을 넘는 동안 가장 오래 안 쓴 것부터 덜어낸다. */
-function trimSpriteCache<T extends { cv: PlateImg9; sh?: ShadowPlate | null; tint?: TintPlate9 | null }>(
-  cache: Map<string, T>, bytes: { n: number }, budget: number, bld = false,
-): void {
-  while (bytes.n > budget && cache.size > 1) {
-    // 쫓아낸 장수를 센다 — 다시 굽는 값의 **원인이 압박인지**를 가르는 수다.
-    if (bld) SPRITE_PERF.bldEvict += 1; else SPRITE_PERF.evict += 1;
-    const oldest = cache.keys().next();
-    if (oldest.done) break;
-    const got = cache.get(oldest.value);
-    // 그림자 판은 몸 판에 매달려 같은 수명을 산다 — 걷을 때 함께 뺀다(아래 shadowPlate).
-    if (got) {
-      bytes.n -= canvasBytes(got.cv) + (got.sh ? canvasBytes(got.sh.cv) : 0) + (got.tint ? canvasBytes(got.tint.cv) : 0);
-      RELEASE_Q9.push(got.cv);
-      if (got.sh) RELEASE_Q9.push(got.sh.cv);
-      if (got.tint) { RELEASE_Q9.push(got.tint.cv); bytes.n -= releaseTints9(got.tint); }
-    }
-    cache.delete(oldest.value);
-    /* ★ 예산이 넘쳐 **덜어내고 있다는 것**이 곧 압박의 신호다 — 그럴 때는 굽는 판
-       빌림터도 함께 놓는다(같은 지적: 사파리가 탭을 버린다). 빌림터는 '다시 굽기를
-       싸게'가 목적이지 '메모리를 쥐고 있기'가 아니므로, 예산을 다투는 순간에는 내주는
-       편이 옳다. 압박이 가시면 다음 굽기가 다시 채운다. */
-    for (const c9 of BAKE_POOL) releaseCanvas(c9);
-    BAKE_POOL.length = 0;
-  }
-}
-/** 판에 **구워 두는** 겹침 그림자 — 그리기마다 돌리던 흐림을 굽기 한 번으로 옮긴다. */
-type ShadowPlate = {
-  cv: HTMLCanvasElement; pad: number;
-  /** 찍을 때의 크기(CSS px) — 판을 낮은 해상도로 구우므로 캔버스 화소 수와 다르다. */
-  w: number; h: number;
-};
-/** 그림자 판을 구울 목표 한 변(기기 px) — 이보다 커지면 그만큼 낮춰 굽는다(아래 ★). */
-const SHADOW_BAKE_SIDE9 = 320;
-/* ★ 흐림은 **판마다 한 번**이면 된다(지시: "1로 가야지 모바일에서도 적용할 수 있잖아")
-   ────────────────────────────────────────────────────────────────────────────────
-   여태는 그릴 때마다 캔버스 shadowBlur를 돌렸다 — 유닛 하나당 한 번, 프레임마다. 이
-   화면에서 가장 비싼 자였다(실측 3배: 붓:유닛캔버스 0.31 → 5.24ms, 최악 프레임 50ms
-   가운데 34.8ms가 이 붓 하나). 그래서 문턱을 깊은 칸에 두고 낮은 배율에서는 아예 껐다.
-   그런데 몸 판은 종류·각도·크기·자세별로 이미 굽고 캐시한다. 그 판의 그림자도 같은
-   수명으로 함께 구워 두면, 프레임에 남는 일은 **그림 하나를 더 찍는 것(blit)** 뿐이다 —
-   흐림 삯이 프레임에서 통째로 사라지고, 그러면 1배에서도(곧 폰에서도) 켤 수 있다.
-   ★ 몸 판은 **한 톨도 안 건드린다** — 잉크 상자(bot·cx·w)가 그림자를 세어 버리면
-     발자리·체력바·링·트레이서 앵커가 통째로 어긋난다(이 파일이 여러 번 데인 자리다).
-     그래서 그림자는 제 판을 따로 갖고, 몸 판의 자·자르기·앵커는 그대로다.
-   ★ 몸은 캔버스 **밖으로 밀어 놓고 그림자만 받는다**(shadowOffsetX = 판 폭) — 안 그러면
-     까만 몸이 함께 찍힌다. 캔버스의 고전 수법이다.
-   ★ 흐림 반지름은 **구운 크기(판 좌표)로** 잡는다 — 판은 그릴 때 k배로 늘어나므로
-     그 안의 흐림도 같이 늘어, 화면에서는 예전의 `화면크기 × 몫`과 같은 값이 된다. */
-function shadowPlate(
-  host: { cv: PlateImg9; sh?: ShadowPlate | null },
-  blurQ: number, alpha: number, B: number, bytes: { n: number },
-): ShadowPlate | null {
-  if (host.sh !== undefined) return host.sh;   // null이면 '못 굽는 판'이라 다시 안 굽는다
-  const bd = Math.max(1, Math.ceil(blurQ * B * 2));
-  const w9 = host.cv.width + bd * 2;
-  const h9 = host.cv.height + bd * 2;
-  if (w9 > spriteSideMax9() || h9 > spriteSideMax9()) { host.sh = null; return null; }
-  const pSh9 = PERF9 ? pNow() : 0;
-  /* ★ 그림자는 **낮은 해상도로 굽는다**(실기 계측: 12배·dpr 3에서 유닛 판 한 장이
-     3.05MB인데 몸은 0.4MB뿐이었다 — 나머지 2.6MB가 이 판이다) ────────────────────
-     흐림 반지름이 그리는 크기에 비례하므로(공중 pxq×0.16), 12배에서 반지름이 110
-     기기픽셀이 된다. 그러면 이 판은 몸 판 사방으로 220px씩 자라 **넓이가 몸의 여섯
-     배**가 된다. 그 탓에 예산 24MB에 판이 여덟 장밖에 안 들어갔고, 뮤탈 여덟 마리가
-     날갯짓으로 자세를 바꿀 때마다 여덟 장이 통째로 갈려 나갔다 — 실기에서 2초에
-     463장을 굽고 483장을 버렸다(굽기 1371ms, 최악 프레임의 91%).
-     그런데 이 판은 **흐린 얼룩**이다. 반지름 110px로 뭉갠 그림에는 화소 눈금이 남아
-     있지 않으므로, 3분의 1로 굽고 세 배로 늘려 찍어도 눈에 드는 차이가 없다(늘리는
-     쪽의 겹선형 보간이 흐림과 같은 일을 한다). 몸 판은 한 톨도 안 건드린다 — 거기는
-     화소 눈금이 곧 그림이다.
-     값: 그림자 판이 9분의 1로 줄어 판 한 장이 3.05MB → 0.7MB가 된다. 같은 예산에
-     여덟 장이 아니라 서른 장 넘게 들어가므로 날갯짓 한 바퀴가 통째로 캐시에 남고,
-     굽기가 멈춘다. 흐림 자체도 넓이·반지름이 함께 줄어 훨씬 싸진다.
-     ★ 흐림이 캔버스 화소로 8보다 얇아지지는 않게 막는다 — 그 아래로 내려가면 늘려
-       찍을 때 얼룩의 테가 계단으로 읽힌다. 작은 판(낮은 배율)은 ds가 1이라 예전 그대로다. */
-  const ds = Math.max(1, Math.min(
-    Math.ceil(Math.max(w9, h9) / SHADOW_BAKE_SIDE9),
-    Math.max(1, Math.floor((blurQ * B) / 8)),
-  ));
-  const cw9 = Math.max(1, Math.ceil(w9 / ds));
-  const ch9 = Math.max(1, Math.ceil(h9 / ds));
-  const cv = newCanvas9("그림자");
-  cv.width = cw9;
-  cv.height = ch9;
-  const c9 = cv.getContext("2d");
-  if (!c9) { host.sh = null; return null; }
-  c9.shadowColor = `rgba(0, 0, 0, ${alpha})`;
-  c9.shadowBlur = (blurQ * B) / ds;
-  c9.shadowOffsetX = cw9;
-  c9.drawImage(host.cv, bd / ds - cw9, bd / ds, host.cv.width / ds, host.cv.height / ds);
-  const out = { cv, pad: bd / B, w: (cw9 * ds) / B, h: (ch9 * ds) / B };
-  host.sh = out;
-  bytes.n += canvasBytes(cv);
-  /* 그림자 굽기도 따로 센다 — 이 판이 굽기 봉우리를 얼마나 키웠는지가 곧 이 줄이다. */
-  if (PERF9) pAdd("굽기:그림자", pNow() - pSh9);
-  return out;
-}
-/* ── 굽기 계측(요청: "추측 금지, 계측부터. … 프레임당 굽는 횟수(캐시 적중률)와
-   `drawImage` 수를 찍어 원인을 확정한 뒤 고친다") ─────────────────────────────────
-   8인전 버벅임의 범인을 **재서** 잡기 위한 자다. 세 수가 답을 가른다:
-     · bake  — 이 프레임에 **새로 구운** 판 수. 이것이 크면 캐시가 안 맞는 것이다.
-     · hit   — 캐시에서 찾아 쓴 수. bake/(bake+hit)이 곧 빗나감 비율이다.
-     · blit  — drawImage 호출 수. 이것이 크면 그리는 양 자체가 문제다.
-   둘을 갈라 재는 까닭: 같은 40fps라도 'bake 200 · blit 400'과 'bake 0 · blit 4000'은
-   고칠 자리가 전혀 다르다. 앞엣것은 캐시 열쇠, 뒤엣것은 그리는 수를 줄여야 한다.
-
-   ★ 열쇠에 무엇이 들어 있나(이 계측이 겨눈 자리) — unitSprite의 캐시 열쇠는
-     `kind|rot|flat|vq|pitch|color|pxq|B|lod`이고, 그중 **color가 임자 색**이다.
-     색 없는 면(개인색 자리)이 구울 때 이미 칠해져 굽히므로 열쇠에 들어갈 수밖에
-     없는데, 그 대가로 **임자가 늘면 같은 유닛의 판이 임자 수만큼 갈린다**. 8인전이면
-     같은 마린이 최대 여덟 벌이다.
-   ★ 계측이 낸 답과 고친 자리 — scripts/sprite-check.mjs로 재니 그 곱셈이 예산을
-     정확히 어디서 넘기는지가 나왔다: 1인 37.7MB(예산 96MB의 39%) · 3인 118% ·
-     8인 301.9MB(314%). 3인부터 넘고 8인이면 세 배라, LRU가 매 프레임 쫓아내고 다시
-     굽는다 — 그것이 버벅임의 얼개였다.
-     고친 것은 **열쇠가 아니라 판의 크기**다(cropToInk). 열쇠에서 색을 빼려면 굽는
-     판을 색과 무관하게 만들어야 하는데, 개인색 면과 고정색 면이 화가 순서로 서로
-     겹쳐 있어 층을 둘로 가르면 가림 순서가 깨진다. 대신 **판의 빈 자리를 없앴다**:
-     굽는 판은 16 모델 단위 정사각인데 잉크는 5.2뿐이라 넓이의 8/9가 투명이었다.
-     잘라 낸 뒤 같은 자로 다시 재니 8인 301.9MB → **42.3MB(44%)**, 7.1배다.
-     예산 안으로 들어왔으니 쫓아내기가 멈춘다. 그림은 한 톨도 안 바뀐다.
-   읽는 법 — 개발자 콘솔에서 `__spritePerf.last`를 보거나, 한 줄 요약은
-     `__spritePerf.line()`. 값은 프레임마다 롤링되고 `last`는 직전 한 판의 합이다. */
 /* ★ **굽는 값을 시간으로 잰다**(지적: "판 용량 문제가 아닌 거 같고" → "저그 건물 또는
    유닛 굽기에 시간이 오래 걸려서 버벅이는 건지") ───────────────────────────────────
    여태 이 계측판이 센 것은 **횟수**뿐이었다. 그런데 횟수는 값이 아니다 — 종류마다
@@ -1610,33 +1420,18 @@ function shadowPlate(
    그리고 이 값들을 **2초 창**으로 모은다 — 프레임 값은 폰 화면에서 눈으로 못 읽는다.
    스크린샷 한 장에 '지난 2초 동안 무엇이 얼마나 구워졌나'가 남아야 판정이 된다. */
 export const SPRITE_PERF = {
+  /* ★ 판 굽기 길을 걷은 뒤(2026-09) 이 계측이 세는 것 ────────────────────────────────────────────
+     몸은 GL 이 그리므로 '굽기·보관·버림·미룸'은 더 없다. 남은 두 수가 붓의 값을 가른다:
+       · **찍기**(blit) — 캔버스에 남은 판 블릿(크립 얼룩 · 효과 래스터)
+       · **직접**(direct) — GL 이 못 맡아 면을 곧장 그린 몸(WebGL 없음·`#gl=0`·메시 못 지음). 비싼 길이라 0이라야 한다.
+     그리고 화면 캔버스 무게(dom)다. GL 메시의 무게는 gl9.stat.bytes 가 따로 센다(#diag=draw 의 GL 줄). */
   /** 이번 프레임 누적 — 프레임 경계(perfFrame)에서 last로 넘기고 0으로 되돌린다. */
-  bake: 0, hit: 0, blit: 0, direct: 0,
-  bldBake: 0, bldHit: 0, bldBlit: 0,
-  /** 이번 프레임에 실제로 **굽는 데 쓴 시간**(ms) — 유닛·건물 따로. */
-  bakeMs: 0, bldBakeMs: 0,
-  /** 예산이 넘쳐 쫓아낸 장수 · 프레임 굽기 예산이 다해 대타로 때운 장수. */
-  evict: 0, bldEvict: 0, defer: 0, bldDefer: 0,
+  blit: 0, direct: 0,
   /** 2초 창 — 폰에서 눈으로 읽을 수 있는 눈금(아래 winRoll). */
-  /* ★ **버벅인 그 프레임이 굽기였나** — 이 한 쌍이 답을 가른다. 가장 오래 걸린 프레임의
-     길이(worstFrame)와 **그 프레임 안에서 굽는 데 쓴 시간**(worstFrameBake)을 같이
-     남긴다. 300ms 프레임의 굽기가 5ms였다면 범인은 굽기가 아니다 — 그 경우 더 이상
-     판 쪽을 파지 않는다. 반대로 둘이 붙어 있으면 굽기가 맞다. */
-  w: {
-    t0: 0, frames: 0, bake: 0, bldBake: 0, ms: 0, bldMs: 0,
-    evict: 0, bldEvict: 0, defer: 0, bldDefer: 0, worst: 0, worstKind: "",
-    worstFrame: 0, worstFrameBake: 0, blit: 0,
-  },
-  /* ★ **화면이 지금 쥐고 있는 캔버스 전부**(지적: "스샷 찍다가 탭 터지기까지 함") ──────
-     판 보관함은 이미 재고 있지만(41/46MB) 그것은 **한 층**일 뿐이다. 화면에는 지도
-     배킹(1713² ≈ 11.7MB) · 유닛(1179² ≈ 5.6MB) · 안개 · 미니맵 · 굽는 빌림터가 더
-     있고, 이들은 서로 다른 파일에 흩어져 있어 합계를 볼 길이 여태 없었다. 사파리가
-     탭을 버리는 것은 **그 합**이 정하는데, 우리는 그 수를 한 번도 본 적이 없다.
-     그래서 문서의 <canvas>를 통째로 훑어 폭×높이×4를 더한다 — 어느 파일이 만들었든,
-     내가 모르는 층이 있어도 잡힌다. 2초에 한 번이라 삯이 없다.
-     ★ 보관함의 판은 문서에 안 붙어 있다(오프스크린) — 그래서 이 값과 판 줄은 **서로
-       다른 것을 세며, 더해야 전체가 된다.** DOM 마커 수도 같이 센다: 유닛 천 개가
-       스팬으로 서 있으면 그 자체가 무시 못 할 몫이다. */
+  w: { t0: 0, frames: 0, blit: 0, direct: 0, worstFrame: 0 },
+  /* ★ **화면이 지금 쥐고 있는 캔버스 전부**(지적: "스샷 찍다가 탭 터지기까지 함") — 지도 배킹·유닛·GL·안개·미니맵이
+     서로 다른 파일에 흩어져 있어 합계를 볼 길이 없었다. 탭이 터지는 것은 **그 합**이 정한다. 문서의 <canvas>를 통째로
+     훑어 폭×높이×4를 더한다(2초에 한 번이라 삯이 없다). DOM 마커 수도 같이 센다. */
   dom: { canvases: 0, canvasMB: 0, markers: 0, list: "", view: "" },
   scanDom(): void {
     if (typeof document === "undefined") return;
@@ -1684,68 +1479,30 @@ export const SPRITE_PERF = {
       markers: document.querySelectorAll(".scr-motion-frame *").length,
     };
   },
-  wLast: {
-    secs: 0, frames: 0, bake: 0, bldBake: 0, ms: 0, bldMs: 0,
-    evict: 0, bldEvict: 0, defer: 0, bldDefer: 0, worst: 0, worstKind: "",
-    worstFrame: 0, worstFrameBake: 0, blit: 0,
-  },
-  /** 한 장을 굽고 나서 부른다 — 창에 값과 '가장 비쌌던 한 장'을 남긴다. */
-  noteBake(kind: string, ms: number, bld: boolean): void {
-    const p = SPRITE_PERF;
-    if (bld) { p.bldBakeMs += ms; p.w.bldMs += ms; } else { p.bakeMs += ms; p.w.ms += ms; }
-    if (ms > p.w.worst) { p.w.worst = ms; p.w.worstKind = kind; }
-  },
+  wLast: { secs: 0, frames: 0, blit: 0, direct: 0, worstFrame: 0 },
   /** 직전 프레임의 값. */
-  last: {
-    bake: 0, hit: 0, blit: 0, direct: 0, bldBake: 0, bldHit: 0, bldBlit: 0, ms: 0,
-    keys: 0, bytes: 0, bldKeys: 0, bldBytes: 0, colors: 0,
-    /** 직전 프레임이 **굽는 데** 쓴 시간 — 재생 틱이 이것으로 '굽는 중'을 안다. */
-    bakeMs: 0,
-  },
-  /** 이번 판에서 본 임자 색의 가짓수 — 열쇠가 색으로 갈리는 몫을 직접 센다. */
-  colorSet: new Set<string>(),
+  last: { blit: 0, direct: 0, ms: 0 },
   /** 2초마다 창을 닫아 wLast로 넘긴다 — 프레임 경계(perfFrame)에서 부른다. */
   winRoll(now: number): void {
-    const p = SPRITE_PERF;
-    const w = p.w;
+    const w = SPRITE_PERF.w;
     if (w.t0 === 0) { w.t0 = now; return; }
     if (now - w.t0 < 2000) return;
-    p.wLast = {
-      secs: (now - w.t0) / 1000, frames: w.frames, bake: w.bake, bldBake: w.bldBake,
-      ms: w.ms, bldMs: w.bldMs, evict: w.evict, bldEvict: w.bldEvict,
-      defer: w.defer, bldDefer: w.bldDefer, worst: w.worst, worstKind: w.worstKind,
-      worstFrame: w.worstFrame, worstFrameBake: w.worstFrameBake, blit: w.blit,
+    SPRITE_PERF.wLast = {
+      secs: (now - w.t0) / 1000, frames: w.frames, blit: w.blit, direct: w.direct, worstFrame: w.worstFrame,
     };
     SPRITE_PERF.scanDom();
-    /* 훑기 시간도 같은 창으로 돌린다 — 마지막 창 값을 남기고 다음 창을 0에서 다시 센다. */
+    /* 훑기 시간도 같은 창으로 돌린다 — 크립 판을 구울 때의 잉크 훑기(getImageData)다. */
     SCAN_MS9.last = SCAN_MS9.win;
     SCAN_MS9.win = 0;
-    w.t0 = now; w.frames = 0; w.bake = 0; w.bldBake = 0; w.ms = 0; w.bldMs = 0;
-    w.evict = 0; w.bldEvict = 0; w.defer = 0; w.bldDefer = 0; w.worst = 0; w.worstKind = "";
-    w.worstFrame = 0; w.worstFrameBake = 0; w.blit = 0;
+    w.t0 = now; w.frames = 0; w.blit = 0; w.direct = 0; w.worstFrame = 0;
   },
   line(): string {
     const l = SPRITE_PERF.last;
-    const tot = l.bake + l.hit;
-    const miss = tot ? ((l.bake / tot) * 100).toFixed(1) : "0.0";
-    return `[sprite] ${l.ms.toFixed(1)}ms · 유닛 굽기 ${l.bake}/${tot}(빗나감 ${miss}%)`
-      + ` blit ${l.blit} 직접 ${l.direct} · 건물 굽기 ${l.bldBake}/${l.bldBake + l.bldHit}`
-      + ` blit ${l.bldBlit} · 보관 유닛 ${l.keys}판 ${(l.bytes / 1048576).toFixed(1)}MB`
-      + ` 건물 ${l.bldKeys}판 ${(l.bldBytes / 1048576).toFixed(1)}MB · 임자색 ${l.colors}가지`
-      + `\n[굽기 ${SPRITE_PERF.wLast.secs.toFixed(1)}초 창] 유닛 ${SPRITE_PERF.wLast.bake}장`
-      + ` ${SPRITE_PERF.wLast.ms.toFixed(0)}ms · 건물 ${SPRITE_PERF.wLast.bldBake}장`
-      + ` ${SPRITE_PERF.wLast.bldMs.toFixed(0)}ms · 버림 U${SPRITE_PERF.wLast.evict}`
-      + `/B${SPRITE_PERF.wLast.bldEvict} · 미룸 U${SPRITE_PERF.wLast.defer}`
-      + ` · 찍기 ${SPRITE_PERF.wLast.frames
-        ? Math.round(SPRITE_PERF.wLast.blit / SPRITE_PERF.wLast.frames) : 0}장/프레임`
-      + `/B${SPRITE_PERF.wLast.bldDefer} · 최악판 ${SPRITE_PERF.wLast.worstKind}`
-      + ` ${SPRITE_PERF.wLast.worst.toFixed(0)}ms · 최악프레임`
-      + ` ${SPRITE_PERF.wLast.worstFrame.toFixed(0)}ms(굽기`
-      + ` ${SPRITE_PERF.wLast.worstFrameBake.toFixed(0)}ms)`
-      + `\n[메모리] 캔버스 ${SPRITE_PERF.dom.canvases}장`
-      + ` ${SPRITE_PERF.dom.canvasMB.toFixed(1)}MB + 판`
-      + ` ${((l.bytes + l.bldBytes) / 1048576).toFixed(1)}MB = `
-      + `${(SPRITE_PERF.dom.canvasMB + (l.bytes + l.bldBytes) / 1048576).toFixed(1)}MB`
+    const w9 = SPRITE_PERF.wLast;
+    return `[붓] ${l.ms.toFixed(1)}ms · 찍기 ${l.blit} · 직접 ${l.direct}`
+      + `\n[${w9.secs.toFixed(1)}초 창] 찍기 ${w9.frames ? Math.round(w9.blit / w9.frames) : 0}장/프레임`
+      + ` · 직접 ${w9.direct} · 최악프레임 ${w9.worstFrame.toFixed(0)}ms`
+      + `\n[메모리] 캔버스 ${SPRITE_PERF.dom.canvases}장 ${SPRITE_PERF.dom.canvasMB.toFixed(1)}MB`
       + ` · 마커 ${SPRITE_PERF.dom.markers}개\n           ${SPRITE_PERF.dom.list}`
       + `\n           ${SPRITE_PERF.dom.view}`;
   },
@@ -1754,354 +1511,23 @@ export const SPRITE_PERF = {
    수 세기(정수 증가 몇 번)라 비용이 없다. 읽는 쪽만 있으면 된다:
      __spritePerf.line()   한 줄 요약
      __spritePerf.last     직전 프레임의 원값
-   8인전에서 이 줄을 두어 번 찍어 두면, 빗나감 비율과 임자색 가짓수가 함께 오르는지
-   (= 열쇠가 색으로 갈리는 것이 범인인지)가 바로 보인다. */
+   `__spritePerf.line()` 한 줄 요약 · `__spritePerf.last` 직전 프레임의 원값. */
 if (typeof window !== "undefined") {
   (window as unknown as Record<string, unknown>).__spritePerf = SPRITE_PERF;
-  /* ★ **무엇이 예산을 먹나** — 열쇠별 무게를 무거운 차례로 준다(지적: "유독 저그 쪽만
-     더 심해"). 합계만으로는 '어느 종류가' 먹는지 못 가른다: 같은 16MB라도 종류 하나가
-     각도 열여섯 벌로 갈려 먹는 것과 종류 마흔이 한 벌씩 먹는 것은 고칠 자리가 다르다.
-     콘솔에서 `__spriteTop()` 한 줄이면 그 갈림이 나온다(기본은 건물, "u"를 주면 유닛). */
-  (window as unknown as Record<string, unknown>).__spriteTop = (
-    which = "b", n = 14,
-  ): string => {
-    const cache = which === "u" ? SPRITE_CACHE : BLD_SPRITE_CACHE;
-    const byKind = new Map<string, { n: number; b: number }>();
-    let tot = 0;
-    for (const [k9, v9] of cache) {
-      const kind9 = k9.slice(0, k9.indexOf("|"));
-      const sh9 = (v9 as { sh?: { cv: HTMLCanvasElement } | null }).sh;
-      const b9 = canvasBytes(v9.cv) + (sh9 ? canvasBytes(sh9.cv) : 0);
-      tot += b9;
-      const got9 = byKind.get(kind9);
-      if (got9) { got9.n += 1; got9.b += b9; } else byKind.set(kind9, { n: 1, b: b9 });
-    }
-    return [`합 ${(tot / 1048576).toFixed(1)}MB · ${cache.size}장`,
-      ...[...byKind.entries()].sort((x9, y9) => y9[1].b - x9[1].b).slice(0, n)
-        .map(([k9, v9]) => `${k9} ${v9.n}장 ${(v9.b / 1048576).toFixed(2)}MB`)].join("\n");
-  };
 }
 /** 프레임 하나가 끝났다 — 이번 프레임 값을 last로 넘기고 0으로 되돌린다. */
 function perfFrame(ms: number): void {
   const p = SPRITE_PERF;
-  p.last = {
-    bake: p.bake, hit: p.hit, blit: p.blit, direct: p.direct,
-    bldBake: p.bldBake, bldHit: p.bldHit, bldBlit: p.bldBlit, ms,
-    bakeMs: p.bakeMs + p.bldBakeMs,
-    keys: SPRITE_CACHE.size, bytes: spriteBytes.n,
-    bldKeys: BLD_SPRITE_CACHE.size, bldBytes: bldSpriteBytes.n,
-    colors: p.colorSet.size,
-  };
-  // 가장 긴 프레임과 **그 프레임의 굽기 몫**을 함께 남긴다(위 ★).
-  if (ms > p.w.worstFrame) { p.w.worstFrame = ms; p.w.worstFrameBake = p.bakeMs + p.bldBakeMs; }
+  p.last = { blit: p.blit, direct: p.direct, ms };
+  if (ms > p.w.worstFrame) p.w.worstFrame = ms;
   p.w.frames += 1;
-  /* ★ **그리는 장수**도 센다 — 낮은 배율(1·2배)에서는 굽기가 0인데도 프레임이 밀린다.
-     거기서 값을 정하는 것은 굽기가 아니라 **프레임마다 찍는 drawImage 수**다(실측: 2배에서
-     유닛 blit 661장). 프레임당 평균으로 보면 '유닛이 몇이라 몇 장을 찍고 있나'가 바로 읽힌다. */
-  p.w.blit += p.blit + p.bldBlit;
-  p.w.bake += p.bake; p.w.bldBake += p.bldBake;
-  p.w.evict += p.evict; p.w.bldEvict += p.bldEvict;
-  p.w.defer += p.defer; p.w.bldDefer += p.bldDefer;
+  /* **그리는 장수**를 센다 — 몸은 GPU 가 그리므로 캔버스에 남은 찍기(크립·효과)와, GL 이 못 맡아 면을 곧장 그린 몸(직접)이
+     프레임 값을 가른다. 프레임당 평균으로 보면 '지금 캔버스가 몇 장을 찍고 있나'가 바로 읽힌다. */
+  p.w.blit += p.blit; p.w.direct += p.direct;
   p.winRoll(typeof performance !== "undefined" ? performance.now() : Date.now());
-  p.bake = 0; p.hit = 0; p.blit = 0; p.direct = 0;
-  p.bldBake = 0; p.bldHit = 0; p.bldBlit = 0;
-  p.bakeMs = 0; p.bldBakeMs = 0;
+  p.blit = 0; p.direct = 0;
   SCAN_MS9.frame = 0;
-  p.evict = 0; p.bldEvict = 0; p.defer = 0; p.bldDefer = 0;
-  /* 굽기 예산도 프레임마다 되돌린다(위 UNIT_BAKE_PER_FRAME·BLD_BAKE_PER_FRAME).
-     ★ **채우는 동안에는 예산을 늘린다**(지적: "재생되기까지 오래 걸려") ─────────────────
-       평소 예산(폰: 프레임당 유닛 1장·건물 1장·8ms)은 **부드러운 재생을 지키려고** 잡은
-       값이다. 그런데 처음 들어와 화면을 채우는 동안에는 지킬 부드러움이 아직 없다 —
-       그 예산으로 천 장을 구우면 프레임당 한 장씩, 곧 분 단위다(실측: 미룸 U878/B226).
-       미뤄 둔 것이 많으면 그만큼 예산을 키운다: 덜컥임을 **진행으로 바꾸는** 것이 그
-       구간에서는 이득이다. 줄이 빠지면 저절로 평소 예산으로 돌아온다(sprint9가 0이 된다).
-       손짓 중에는 안 키운다 — 그때는 손끝을 따라가는 것이 유일한 일이다(gestBake9). */
-  const q9 = p.w.defer + p.w.bldDefer;
-  bakeSprint9.v = gestBake9.v ? 1 : q9 > 400 ? 6 : q9 > 120 ? 3 : 1;
-  unitBakeLeft9 = UNIT_BAKE_PER_FRAME * bakeSprint9.v;
-  bldBakeLeft9 = BLD_BAKE_PER_FRAME * bakeSprint9.v;
-  smallBakeLeft9 = SMALL_BAKE_PER_FRAME9 * bakeSprint9.v;   // 작게 굽기도 장수로 죈다(위 ★)
-  smallBldLeft9 = SMALL_BAKE_PER_FRAME9 * bakeSprint9.v;
-  /* 되돌린 예산을 **먼저 미룬 것들에 쓴다**(위 BAKE_WANT9의 ★) — 이 자리는 프레임이 열리는
-     자리다(tick 맨 앞에서 부른다). 여기서 쓴 몫은 이 프레임의 굽기로 그대로 잡힌다. */
-  drainBakeWant9();
 }
-const SPRITE_CACHE = new Map<string, UnitPlate9>();
-const spriteBytes = { n: 0 };
-/* ★ 한 프레임에 굽는 판의 **수를 죈다**(지적: "저그 본진은 6배까지 괜찮다가 12배 줌하면
-   버벅임이 보여") ────────────────────────────────────────────────────────────────────
-   계측(perf-check --zoom 6 / 12, 폰 390px): 배율 6에서는 판 하나가 102KB인데 12에서는
-   **377KB**다(한 변 307기기픽셀 — 판의 무게는 배율의 제곱을 탄다). 보관 총량은 12.8MB로
-   예산(32MB) 안이라 **쫓겨나서 나는 일이 아니고**, 빗나감도 12.5%에 지나지 않는다.
-   문제는 낱개의 값이다: 그 크기 한 장을 굽는 데 10ms가 든다(헤드리스 기준). 중급 폰은
-   그 네 배라 **한 장이 한 프레임을 통째로 먹는다** — 유닛이 돌아 새 방위 칸에 들어설
-   때마다 한 번씩 덜컥인다. 6배에서 안 그러던 까닭도 같다(장당 값이 4분의 1이다).
-   고치는 길은 셋인데 둘은 값을 치른다: 굽는 크기를 죄면 흐려지고(앞서 지적받은 그
-   블러다), 그냥 안 그리면 한 프레임 깜빡인다. 세 번째가 값이 없다 — **미루는 것**이다.
-   한 프레임에 굽는 수를 죄고, 예산이 다한 자리에서는 같은 모델의 **다른 크기로 이미
-   구워 둔 판**을 늘려(줄여) 찍는다. 한두 프레임 살짝 무를 뿐 곧 제 크기로 갈아 끼워지고,
-   덜컥임은 사라진다. 그래서 '가까운 크기'를 찾을 색인이 하나 필요하다(SPRITE_SIZES). */
-/* ★ 대타는 **큰 판을 먼저 고른다**(지적: "12배 저그 버벅임 시 건물들 디테일이 유실됨 —
-   익스트랙터 창문, 해처리 옥상 가시") ────────────────────────────────────────────────
-   그 유실은 버벅임의 **부작용이 아니라 같은 일**이다. 판의 등급(lod)은 굽는 크기가
-   정하므로, 대타로 온 **작은 판은 애초에 부품이 적게 구워진 판**이다 — 늘려 찍으면
-   흐려지는 데 그치지 않고 창·가시가 아예 없다.
-   고르는 자를 바꾼다: 요청보다 **크거나 같은** 판이 있으면 그중 가장 작은 것을 쓴다
-   (줄여 찍는 것은 부품을 안 잃는다). 없으면 작은 것 중 가장 큰 것을 쓰되, 그마저
-   1.4배 넘게 늘려야 하면 **대타를 포기하고 굽는다** — 그 정도로 흐린 그림을 몇 프레임
-   보여 주느니 한 번 덜컥이는 편이 낫다. */
-const SUB_MAX_UP9 = 1.4;
-/* ★ 예산이 다한 프레임에는 **더 무른 대타까지 받는다**(실기 진단: 테란 132장 14.7MB /
-   저그 122장 27.5MB — 저그 유닛 판이 장당 두 배 무겁다) ────────────────────────────────
-   두 화면 다 합이 30MB 언저리로 상한(32)에 붙어 있는데, 테란은 그 안에 작업 집합이 들고
-   저그는 안 든다. 저그 유닛(히드라·러커·울트라·오버로드)이 테란의 것(마린·SCV)보다
-   **모델이 크기 때문**이다 — 판 무게는 그린 크기의 제곱이라 장당 111KB 대 225KB다.
-   작업 집합이 예산을 넘으면 캐시는 영영 안 찬다. 그때 '가까운 크기가 없으니 굽는다'로
-   물러나면 **한 프레임에 몇 장이고 굽게 된다** — 예산으로 죄어 둔 뜻이 사라진다.
-   그래서 예산이 다한 프레임에서는 문턱을 2.5배까지 늘린다: 한두 프레임 무른 그림을
-   보이더라도 굽기 폭풍은 안 낸다. 예산이 남은 프레임에서는 종전대로 1.4배까지만이다. */
-const SUB_MAX_HARD9 = 2.5;
-/* ★ 예산이 다한 프레임의 **마지막 수단은 '아무 크기나'다**(지적: "급 확대시 탭터짐") ──
-   대타 고르기는 축소(큰 판을 작게)는 무제한 허용하고 확대(작은 판을 늘림)만 2.5배로
-   막는다. 그래서 급 '축소'는 조용한데 급 '확대'는 옛 판이 전부 문턱 밖이라 — 화면의
-   판 전체가 **한 프레임에** 다시 굽힌다. 그 순간 옛 세대(캐시) + 새 세대(막 굽는 것)
-   + 걷혀서 수거를 기다리는 판들이 겹쳐 봉우리가 서고, 화면 캔버스 45MB 위에 얹히면
-   사파리가 탭을 버린다.
-   그래서 프레임의 굽기 예산이 다했으면 2.5배 문턱을 접고 **있는 판 중 가장 가까운
-   것**을 쓴다. 흐릿한 것은 잠깐이다 — 손짓 중에는 어차피 옛 판을 늘려 보이고 있었고
-   (bakeZoom), 그 뒤로 프레임마다 예산만큼 진짜 판이 차오르며 또렷해진다. 폭탄 같은
-   한 프레임(굽기 수십 장 + 수거 대기 수십 장)이 1초 남짓의 점진 선명화로 바뀐다. */
-/** 입체 건물 판의 크기 사다리 — 한 옥타브를 열둘로 끊는다(칸 사이 5.9%·이상값과 최대 2.9%). */
-const BLD_LADDER9 = 12;
-const bldLadder9 = (want9: number, B: number): number => {
-  if (!(want9 > 0)) return want9;
-  const r9 = Math.round(Math.log2(want9) * BLD_LADDER9) / BLD_LADDER9;
-  return Math.max(4, Math.round(2 ** r9 * B) / B);
-};
-/** 대타로 쓸 크기를 고른다 — 크거나 같은 것 우선, 없으면 문턱 안쪽의 작은 것. */
-const pickSubSize9 = (
-  list: { s: number; k: string }[], want: number, cap = SUB_MAX_UP9,
-): string | null => {
-  let up9: { s: number; k: string } | null = null;      // 요청 이상 중 가장 작은 것
-  let down9: { s: number; k: string } | null = null;    // 요청 미만 중 가장 큰 것
-  for (const e9 of list) {
-    if (e9.s >= want) { if (!up9 || e9.s < up9.s) up9 = e9; }
-    else if (!down9 || e9.s > down9.s) down9 = e9;
-  }
-  if (up9) return up9.k;
-  return down9 && want / down9.s <= cap ? down9.k : null;
-};
-/** 색인에 한 줄 적는다 — 같은 열쇠는 한 번만, 여섯 벌까지(오래된 것부터 밀어낸다). */
-const noteSub9 = (
-  map: Map<string, { s: number; k: string }[]>, sub: string, size: number, key: string,
-): void => {
-  const got9 = map.get(sub);
-  if (got9) {
-    if (!got9.some((e9) => e9.k === key)) {
-      got9.push({ s: size, k: key });
-      if (got9.length > 6) got9.shift();
-    }
-    return;
-  }
-  if (map.size > SPRITE_SIZES_MAX) map.clear();
-  map.set(sub, [{ s: size, k: key }]);
-};
-/* ★ 굽기는 **장수만이 아니라 시간으로도** 죈다(계측: 3D 드래그 중 "최악프레임 109ms · 그중 굽기 111ms ·
-   최악판 droneHold 104ms · 미룸 U412/B237") ────────────────────────────────────────────────────────
-   장수 예산(PC 3장)은 판 한 장이 3~5ms일 때 잡은 값이다. 배율 6·입체에서는 판 한 장이 30~100ms라
-   세 장이면 프레임이 통째로 넘어간다 — 그 프레임에 그리기는 한 톨도 안 늦었는데 굽기가 109ms를 먹었다.
-   시간으로 죄면 판이 큰 자리에서 저절로 한 장(또는 0장)이 된다: 이미 이 프레임에 예산만큼 구웠으면
-   나머지는 **대타 판**(같은 모델의 다른 크기)으로 그리고 다음 프레임에 마저 굽는다. 그림은 잠깐 흐릴
-   뿐이고(대타는 늘려 찍는다), 화면은 안 멈춘다.
-   ★ **손짓 중에는 아예 안 굽는다** — 끄는 동안 새로 굽는 것은 '지금 당장'일 까닭이 가장 적은 일이고,
-     그 한 장이 손끝을 100ms씩 붙든다. 대타가 아예 없는 종류(한 번도 안 구운 모델)만 굽는다 —
-     그것까지 미루면 그 유닛이 화면에서 사라진다. 손을 떼면 그 프레임부터 예산대로 마저 굽는다. */
-let BAKE_MS_PER_FRAME9 = DEV9.bakeMsPerFrame;
-/** 한 프레임 굽기의 **천장**(ms) — 부드러운 예산을 넘어도 대타가 없으면 작게라도 굽는데(아래 ★),
- *  그 작은 판마저 수십 장이면 다시 프레임을 넘긴다(계측: 최악프레임 259ms · 그중 굽기 204ms ·
- *  2초에 유닛 213장 1187ms — 958기가 얽힌 한 장에서 처음 보는 열쇠가 프레임마다 수십이었다).
- *  천장을 넘으면 **이번 프레임엔 아예 안 그린다**(판 없이 null). 몇 기가 한두 프레임 늦게 나타나는
- *  것은 그 난전에서 눈에 안 띄지만 259ms 덜컥임은 보인다 — 다음 프레임에 예산이 되살아나 곧 들어온다. */
-let BAKE_HARD_MS9 = DEV9.bakeMsPerFrame * 3;
-/* ★ **손짓 중에는 천장을 3분의 1로**(계측: 손짓 127ms(미룸) — 그 안에 대타 없는 몸을 굽는 몫이 섞여 있다).
-   끄는 동안 새 판을 굽는 것은 이미 막았지만(gestBake9), 대타가 하나도 없는 몸은 그래도 굽는다 —
-   그 예외의 상한이 평소와 같으면 손짓 한 장에 36ms가 얹힌다. 끄는 동안에는 12ms(폰 8ms)까지만 굽고
-   나머지는 다음 장으로 미룬다: 손끝을 따라가는 것이 그 순간의 유일한 일이다. */
-const bakeHardOk9 = (): boolean =>
-  SPRITE_PERF.bakeMs + SPRITE_PERF.bldBakeMs
-    < (gestBake9.v ? DEV9.bakeMsPerFrame : BAKE_HARD_MS9 * bakeSprint9.v);
-/** 채우는 동안 예산을 몇 배로 키우나(1·3·6) — 위 프레임 열기에서 미뤄 둔 장수로 정한다. */
-/** 지금 손짓(드래그·핀치)이 도는가 — 붓(UnitLayer)이 프레임마다 적고, 굽기 문지기가 읽는다. */
-const gestBake9 = { v: false };
-/** 채우는 동안의 굽기 예산 배수(1·3·6) — 미뤄 둔 장수가 정한다(위 프레임 열기의 ★). */
-const bakeSprint9 = { v: 1 };
-/** 이 프레임에 굽기를 더 해도 되나 — 장수와 시간, 그리고 손짓 여부를 함께 본다. */
-const bakeOk9 = (left9: number): boolean => left9 > 0 && !gestBake9.v
-  && SPRITE_PERF.bakeMs + SPRITE_PERF.bldBakeMs < BAKE_MS_PER_FRAME9 * bakeSprint9.v;
-/** ★ 한 프레임에 **작게 굽는 판**의 상한(실측: 잔잔할 땐 초당 3장인데 순간 360장까지 튄다) ─────────────
- *  대타가 하나도 없는 몸은 예산을 보지 않고(force9) 작은 판을 굽는 길로 떨어진다 — 장수 예산을 통째로
- *  비켜 가므로, 처음 보는 열쇠가 한꺼번에 쏟아지는 순간(큰 싸움·방향 전환)에는 한 프레임에 수십 장이
- *  난다. 캔버스 하나는 제 배킹(iOS면 IOSurface)을 가지므로 그 폭발이 곧 웹킷의 회수(그리기 멎음)를 부른다.
- *  ms 천장(BAKE_HARD_MS9)만으로는 작은 판이 워낙 싸서 안 걸린다 — **장수**로도 막는다. 넘으면 이번
- *  프레임엔 그 몸을 안 그린다(다음 프레임에 곧 들어온다). */
-const SMALL_BAKE_PER_FRAME9 = 3;
-let smallBakeLeft9 = SMALL_BAKE_PER_FRAME9;
-/** 굽기 일꾼 모드의 건물 작은 판 계수기(아래 BAKEW9) — 옛 길(폰)은 유닛과 같은 계수기(smallBakeLeft9)를 그대로 나눠 쓴다. */
-let smallBldLeft9 = SMALL_BAKE_PER_FRAME9;
-let UNIT_BAKE_PER_FRAME = DEV9.unitBakePerFrame;
-let unitBakeLeft9 = UNIT_BAKE_PER_FRAME;
-/* ★ **건물도 같다 — 오히려 더하다**(계측: 저그 본진을 배율 6·12로 확대해 재 봤다) ─────
-     배율 6  건물 13판 7.7MB (장당 0.59MB)
-     배율 12 건물  7판 8.6MB (장당 **1.23MB**)
-   폰의 건물 판 예산은 16MB라 12배에서는 **열세 장**이면 찬다. 저그 본진 한 채는 해처리·
-   풀·에보·스파이어·성큰·스포어·익스트랙터에 미네랄까지 그보다 많다 — 곧 예산이 넘쳐
-   LRU가 쫓아내고, 쫓겨난 자리를 다시 구우면 굽는 판(여백까지 6.6배 넓이)이 8MB다.
-   그 한 장이 한 프레임을 먹는다. 유닛과 같은 약을 쓴다: 프레임마다 굽는 수를 죄고,
-   예산이 다한 자리에서는 같은 건물의 다른 크기로 구워 둔 판을 늘려 찍는다. */
-let BLD_BAKE_PER_FRAME = DEV9.bldBakePerFrame;
-let bldBakeLeft9 = BLD_BAKE_PER_FRAME;
-const BLD_SPRITE_SIZES = new Map<string, { s: number; k: string }[]>();
-/** 크기(pxq)를 뺀 열쇠 → 그 열쇠로 구워 둔 크기들. 예산이 다한 프레임의 대타를 찾는 자다.
- *  보관함이 LRU로 쫓아낸 크기가 남아 있을 수 있으므로, 쓰는 쪽이 실물을 다시 확인한다. */
-/* ★ 색인에서 **등급(lod)을 뺀다**(지적: "그냥 보고 있는데 멀쩡히 있던 디테일이 사라지는
-   건 다시 그리는 거네") — 정확한 진단이다. 등급은 굽기 열쇠에 들어 있어서, 기기 벌점이
-   0에서 1로 넘어가는 순간 화면의 **모든 열쇠가 한꺼번에 안 맞고** 그 프레임에 한 세대를
-   통째로 다시 굽는다 — 가장 느린 순간에 가장 큰 삯을 치르는 셈이라 조절기가 스스로 병을
-   키웠다. 게다가 그동안 대타도 못 찾는다(새 등급으로 구워 둔 것이 하나도 없으니까).
-   색인이 등급을 안 보면 그 순간 **옛 등급의 판**이 대타로 선다: 화면은 그대로(오히려 더
-   자세한 채) 있고 새 판은 예산대로 한 장씩 조용히 갈아 끼워진다. 폭풍도 사라짐도 없다.
-   그래서 색인은 크기가 아니라 **{크기, 실제 열쇠}**를 든다 — 같은 크기라도 등급이 다르면
-   다른 판이라 열쇠를 그대로 들고 있어야 찾을 수 있다. */
-const SPRITE_SIZES = new Map<string, { s: number; k: string }[]>();
-const SPRITE_SIZES_MAX = 4096;
-/* ★ **방위가 비면 이웃 방위를 빌린다**(지적: "아냐 진짜 없어져 · 아예 안 그린다고 · 유닛을") ─────
-   위 색인(SPRITE_SIZES)은 subKey — 종류·**방위**·납작·시점·기울기·B·자세·속 — 별로 갈린다.
-   그래서 어떤 유닛이 **처음 보는 방위로 돌아선 그 순간**에는 대타가 하나도 없다: 크기만 다른
-   판을 찾는 위 길이 통째로 막히고, 굽기 천장까지 찼으면 그 자리는 `return null`이라 **그 몸을
-   아예 안 그린다**. 유닛이 깜빡이는 것이 아니라 진짜로 사라졌던 자리가 여기다(짐작이 맞았다:
-   "방향이 비어서 그런 거 아닐까").
-   그래서 종류마다 **구워 둔 방위 목록**을 따로 들고, 방위 말고는 모두 같은 subKey 중 각이 가장
-   가까운 것의 판을 빌린다. 한두 프레임 방향이 한 칸 어긋날 뿐이고, 제 방위는 대기표(bakeWant9)
-   에 올라 곧 조용히 갈아 끼워진다. 안 그리는 것보다 언제나 낫다. */
-const SPRITE_SUBS9 = new Map<string, string[]>();
-const noteKindSub9 = (kind: string, sub: string): void => {
-  let l9 = SPRITE_SUBS9.get(kind);
-  if (!l9) { if (SPRITE_SUBS9.size > 512) SPRITE_SUBS9.clear(); l9 = []; SPRITE_SUBS9.set(kind, l9); }
-  if (l9.indexOf(sub) < 0) { l9.push(sub); if (l9.length > 48) l9.shift(); }
-};
-/** 방위만 다른 형제 subKey의 판 — 각이 가장 가까운 것. 없으면 null. */
-const kinPlate9 = (kind: string, sub: string, pxq: number): UnitPlate9 | null => {
-  const subs9 = SPRITE_SUBS9.get(kind);
-  if (!subs9 || subs9.length === 0) return null;
-  const f9 = sub.split("|");
-  const want9 = Number(f9[1]);
-  let best9: UnitPlate9 | null = null;
-  let bd9 = Infinity;
-  for (let i9 = 0; i9 < subs9.length; i9 += 1) {
-    const s9 = subs9[i9];
-    if (s9 === sub) continue;
-    const g9 = s9.split("|");
-    if (g9.length !== f9.length) continue;
-    let ok9 = true;
-    for (let j9 = 0; j9 < f9.length; j9 += 1) { if (j9 !== 1 && g9[j9] !== f9[j9]) { ok9 = false; break; } }
-    if (!ok9) continue;
-    const d9 = Number.isFinite(want9) && want9 >= 0
-      ? Math.abs((((Number(g9[1]) - want9) % 360) + 540) % 360 - 180) : 0;
-    if (d9 >= bd9) continue;
-    const sizes9 = SPRITE_SIZES.get(s9);
-    if (!sizes9) continue;
-    const k9 = pickSubSize9(sizes9, pxq, Infinity);
-    const pl9 = k9 ? SPRITE_CACHE.get(k9) : undefined;
-    if (!pl9) continue;
-    best9 = pl9; bd9 = d9;
-  }
-  return best9;
-};
-/* ★ 장식이 쓰는 **몸 폭은 자세를 안 탄다**(지적: "뮤탈 날갯짓하면서 그림자 크기도
-   바뀌는데 그거도 문제 아니야? 보기에도 정신없고") ────────────────────────────────
-   그림자·체력바·링은 '그린 잉크의 폭'(spr.w)을 자로 쓴다. 상자가 아니라 실제로 칠한
-   픽셀을 봐야 종류마다 다른 가로세로비에 안 속기 때문이다(그 자리 주석).
-   그런데 날갯짓 컷은 **날개를 폈다 접는다** — 잉크 상자가 컷마다 실제로 넓어졌다
-   좁아진다. 그 값을 그대로 쓰면 그림자와 체력바가 날갯짓에 맞춰 함께 펄떡인다.
-   몸이 커졌다 작아지는 것이 아니라 **자세가 바뀐 것**이므로, 장식의 자는 자세 0(대기)의
-   것으로 못 박는다. 종류·방위·보기마다 한 번만 적어 두고 모든 컷이 그것을 나눠 쓴다.
-   ※ 값은 '판 크기에 대한 비'라 배율이 바뀌어도 그대로 쓴다. */
-/* ★ **자세 0이 아예 안 오는 종류가 있다**(재지적: "그림자 여전히 크기 변하는데?") —
-   나는 저그(뮤탈·디바우러)는 flapCutOf가 1·4·3만 돌려주므로 대기 컷(0)이 한 번도 안
-   선다. 그래서 '자세 0에서 잰 값'을 기다리는 앞판은 이 종류에서 아무것도 못 적었고,
-   장식이 그대로 이번 컷의 잉크를 썼다 — 고친 것이 정작 고쳐야 할 종류만 비켜 갔다.
-   기다리지 말고 **본 것 중 가장 작은 자세 번호**의 값을 쓴다. 대기 컷이 있는 종류는
-   여전히 0의 값이고, 날갯짓만 하는 종류는 컷 1의 값으로 못 박힌다 — 어느 쪽이든 컷이
-   바뀌어도 안 흔들리는 한 값이라는 것이 요점이다(어느 컷의 값인지가 아니라). */
-/* ★ **방위도 안 탄다**(지적: "scv가 각도에 따라 그림자가 엄청 넓어지네") ───────────────
-   위 두 문단이 '자세'를 못 박았는데 **방위**가 그대로 남아 있었다. 실측(scripts 밖 계측기로
-   16방위 잉크 폭): scv 4.88 ~ 6.75(1.38배) · probe 1.29배 · 고스트 1.40배. 모델이 앞뒤로
-   길면 옆에서 볼 때 실루엣이 넓어지는 것이라 그림 자체는 옳지만, 그 값을 **그림자**의 자로
-   쓰면 제자리에서 도는 일꾼의 발자국이 방위마다 1.4배로 벌어졌다 좁아진다. 그림자는 발자국
-   이고 발자국은 도는 것이 아니다(체력바·링·오라도 같다 — 몸이 도는 동안 폭이 변하면 안 된다).
-   그래서 열쇠에서 방위를 빼고, 본 방위들의 **평균**을 자로 쓴다(방위마다 처음 잰 값 하나만
-   적어 두므로 한 번 차면 안 흔들린다). 자세 규약은 그대로다 — 본 것 중 가장 작은 자세 번호의
-   값만 모으고, 더 작은 자세가 오면 처음부터 다시 모은다. */
-const INK_W_RATIO9 = new Map<string, { pose: number; by: Map<number, number>; r: number }>();
-/* (걷어냄·요청: 부작용이 더 크다) dpr 1 판의 언샤프 마스크(sharpenPlate9) — 경계를 굳히면 계단·밝은 테가 났다.
-   dpr 1도 굽는 그대로 쓴다. */
-/** 임자 색 마스크(2번: 임자 색을 굽지 말고 그릴 때 입히기) — 판 열쇠에서 색을 뺐다. 개인색 면은 몸판에서 빼고
- *  이 마스크에 흰색(음영 알파 그대로)으로 굽되, 화가 순서상 그 **위**에 오는 고정색 면은 destination-out으로 파낸다
- *  (가림 순서가 그대로 산다 — 옛 주석의 "층을 둘로 가르면 가림이 깨진다"는 이 파내기로 푼다). 그릴 때 임자 색으로
- *  source-in 물들여 몸판 위에 얹는다. 판 가짓수가 임자 수분의 1이 된다. */
-type TintPlate9 = {
-  cv: PlateImg9; ox: number; oy: number;
-  /** 몸판이 광택(silhouetteLight)을 받았나 — 물들인 마스크에도 같은 광택을 얹는다(지적: 포톤 톱니 임자색이 흐림). */
-  gloss: boolean;
-  /** 색별로 물들인 마스크(한 번 만들어 되쓴다) */
-  by?: Map<string, HTMLCanvasElement>;
-};
-/** 한 마스크가 드는 색별 물들인 판의 상한 — 8인전이면 여덟 벌이다(마스크는 몸판보다 훨씬 작다). */
-const TINT_BY_MAX9 = 8;
-/** 마스크의 물들인 판을 전부 놓는다(쫓아낼 때) — 바이트 합을 돌려준다. */
-const releaseTints9 = (tn: TintPlate9): number => {
-  let b = 0;
-  if (tn.by) { for (const c of tn.by.values()) { b += canvasBytes(c); RELEASE_Q9.push(c); } tn.by.clear(); }
-  return b;
-};
-type UnitPlate9 = { cv: PlateImg9; ox: number; oy: number; pad: number; l: number; bot: number; cx: number; top: number; w: number; tint?: TintPlate9 | null };
-/** 마스크를 임자 색으로 물들인 판 — (마스크, 색)마다 한 번만 만들고 되쓴다(계측: 그릴 때마다 물들이면 찍기가
- *  300 → 451장, 프레임이 1.5배 — 네 번의 캔버스 연산이 유닛마다 붙었다). 마스크는 임자 면 상자만이라 몸판보다 훨씬 작다. */
-const tintedOf9 = (tn: TintPlate9, color: string, bytes: { n: number } = spriteBytes): HTMLCanvasElement | null => {
-  const got = tn.by?.get(color);
-  if (got) return got;
-  if (typeof document === "undefined") return null;
-  const w = tn.cv.width; const h = tn.cv.height;
-  const cv = takeStored9(w, h) ?? ((): HTMLCanvasElement => {
-    const c9 = newCanvas9("물들이기");
-    c9.width = w; c9.height = h;
-    return c9;
-  })();
-  const tc = cv.getContext("2d");
-  if (!tc) return null;
-  /* 빌려 온 판은 제 상태를 들고 온다 — 그리기 전에 문맥을 못 박는다(takeStored9의 ★). */
-  tc.setTransform(1, 0, 0, 1, 0, 0);
-  tc.globalCompositeOperation = "source-over";
-  tc.globalAlpha = 1;
-  tc.drawImage(tn.cv, 0, 0);
-  tc.globalCompositeOperation = "source-in";
-  /* 임자 색도 tone9을 지난다(요청: 전체 색감) — 몸만 어두워지면 임자 면이 혼자 뜬다.
-     표(tn.by)의 열쇠는 **원래 색**이라 색표·미니맵 점·조작부 칩은 그대로다. */
-  tc.fillStyle = tone9(color);
-  tc.fillRect(0, 0, w, h);
-  // 쓰고 난 판은 **기본 상태로 돌려 둔다** — 이 판이 창고를 돌아 남의 그릇이 된다(위 ★).
-  tc.globalCompositeOperation = "source-over";
-  // 임자 면에는 광택을 안 얹는다(지적: 포톤 톱니 임자색이 흐림 — 왼위 14% 흰 빛이 임자색을 씻었다). gloss는 남겨 두되 안 쓴다.
-  void tn.gloss;
-  if (!tn.by) tn.by = new Map();
-  if (tn.by.size >= TINT_BY_MAX9) {
-    const first = tn.by.keys().next();
-    if (!first.done) { const old = tn.by.get(first.value); if (old) { bytes.n -= canvasBytes(old); RELEASE_Q9.push(old); } tn.by.delete(first.value); }
-  }
-  tn.by.set(color, cv);
-  bytes.n += canvasBytes(cv);
-  return cv;
-};
 /** 선택 링·상태 오라의 **종류별 몫**(요청: "뮤탈 선택링 크기 너무 큼") ──────────────────
  *  링의 자는 구운 판의 잉크 폭(inkW)이다 — 대개 그것이 곧 몸이지만, **날개를 활짝 편**
  *  비행체는 잉크 폭이 몸통이 아니라 **날개 끝에서 끝**이다. 뮤탈은 그 폭이 몸통의 갑절이라
@@ -2110,315 +1536,6 @@ const tintedOf9 = (tn: TintPlate9, color: string, bytes: { n: number } = spriteB
 const RING_K9: Record<string, number> = {
   muta: 0.66, scourge: 0.78, devourer: 0.78, guardian: 0.72,
 };
-/** 물들인 마스크를 몸판과 같은 자리에 얹는다(그리기 변환은 부르는 쪽이 세워 둔 상태). */
-const drawTint9 = (
-  ctx: CanvasRenderingContext2D, spr: UnitPlate9, color: string, pxqB: number, k: number, B: number,
-): void => {
-  const tn = spr.tint;
-  if (!tn) return;
-  const cv = tintedOf9(tn, color);
-  if (!cv) return;
-  SPRITE_PERF.blit += 1;
-  ctx.drawImage(cv,
-    (-(spr.pad + pxqB / 2) + tn.ox / B) * k, (-(spr.pad + pxqB / 2) + tn.oy / B) * k, (cv.width / B) * k, (cv.height / B) * k);
-};
-/** 예산이 다했는데 대타도 없을 때 굽는 **작은 판**의 몫 — 넓이가 9분의 1이라 삯도 그만큼이다
- *  (실측: 최악판 109ms → 12ms 언저리). 늘려 찍으므로 잠깐 흐리고, 이 판은 다음 프레임의 대타로 남는다. */
-const BAKE_SMALL_K9 = 3;
-/** ★ **미룬 것의 대기표 — 큰 몸부터 굽는다**(계측: 2초에 미룸 U3042/B1624) ────────────────────────
- *  예산은 프레임마다 되돌아오는데, 그 예산을 **무엇에 쓸지**는 여태 아무도 안 골랐다: 그리는 차례가
- *  곧 굽는 차례라 화면 뒤쪽의 점만 한 몸이 예산을 먼저 먹고, 앞의 큰 몸은 대타(늘려 찍은 흐린 판)로
- *  남는 일이 잦다. 큰 몸이 흐린 것은 보이고 작은 몸이 흐린 것은 안 보이므로 이건 거꾸로다.
- *  미룬 열쇠를 크기와 함께 적어 두었다가, 다음 프레임이 열리는 자리에서 **큰 것부터** 예산이 닿는
- *  데까지 굽는다. 총량은 그대로고 순서만 바뀐다. 적는 것은 미룬 자리뿐이라 값이 없다. */
-/** 대기표 한 줄 — sub·lod·bld는 굽기 일꾼에 청할 때 쓴다(열쇠·색인을 메인이 그대로 들고, 일꾼은 그림만 낸다). */
-type BakeWant9 = { op: UnitDrawOp; pxq: number; B: number; sub?: string; lod?: number; bld?: boolean };
-const BAKE_WANT9 = new Map<string, BakeWant9>();
-/** 대기표 상한 — 넘으면 오래된 것부터 버린다(Map은 넣은 차례를 지킨다). 다음 프레임에 또 청해 온다. */
-const BAKE_WANT_MAX9 = 300;
-const bakeWant9 = (key9: string, op: UnitDrawOp, pxq: number, B: number, sub9?: string, lod9?: number, bld9 = false): void => {
-  if (BAKE_WANT9.has(key9)) return;
-  if (BAKE_WANT9.size >= BAKE_WANT_MAX9) {
-    const first9 = BAKE_WANT9.keys().next();
-    if (!first9.done) BAKE_WANT9.delete(first9.value);
-  }
-  BAKE_WANT9.set(key9, { op, pxq, B, sub: sub9, lod: lod9, bld: bld9 });
-};
-/** 프레임이 열릴 때 — 대기표를 큰 것부터 굽는다. 예산이 닫히면 그만두고, 못 구운 것은 이 프레임에
- *  다시 청해 와 대기표에 도로 오른다(그래서 여기서는 통째로 비운다).
- *  ★ 굽기 일꾼이 켜져 있으면(BAKEW9.on) 메인은 안 굽고 **일꾼에 청한다** — 손짓 중이든 예산이 닫혔든 상관없이
- *    (일꾼의 시간은 메인 프레임이 아니다). 판은 다음 프레임쯤 돌아와 보관함에 꽂힌다. */
-function drainBakeWant9(): void {
-  const n9 = BAKE_WANT9.size;
-  if (BAKEW9.on) { if (n9 > 0) bakeFlush9(); return; }
-  if (n9 === 0 || !bakeOk9(unitBakeLeft9)) { if (n9 > 0) BAKE_WANT9.clear(); return; }
-  const arr9 = [...BAKE_WANT9.values()].sort((a9, b9) => b9.pxq - a9.pxq);
-  BAKE_WANT9.clear();
-  for (const w9 of arr9) {
-    if (!bakeOk9(unitBakeLeft9)) break;
-    if (w9.bld) continue;   // 건물 대기표는 일꾼이 켜졌을 때만 적힌다(아래 buildingSpriteBake) — 인라인 길은 옛 그대로
-    unitSprite(w9.op, w9.pxq, w9.B);
-  }
-}
-/* ★ **굽기 일꾼**(요청: "윈도우 크롬에서 CPU·GPU를 최대한" → 계획 3번; "2번(일꾼)으로 가는 게 맞지 않을까") ──────
-   메인의 붓이 새 열쇠를 만나면 그 프레임에서 직접 구웠다 — 한 장 3ms인데 시점이 갈리면 수백 장이 한 번에 와
-   최장프레임 756ms(붓 571)가 났다. 벤치 단(PC_TIERS9)을 올려도 이 일량은 그대로라 덜컥임 한 번이 길어질 뿐이었다.
-   이제 굽기를 일꾼(bakeWorker.ts, OffscreenCanvas)에 맡긴다: 메인은 열쇠·보관함·예산·대타를 그대로 들고, 처음 보는
-   열쇠는 대기표(BAKE_WANT9)에 적어 프레임이 열릴 때 큰 것부터 일꾼에 청한다. 그 프레임은 대타(다른 크기·이웃 요잉
-   판)를 찍고, 일꾼이 ImageBitmap을 transfer로 돌려주면(복사 없음) 보관함에 꽂아 다음 프레임부터 제 판을 찍는다.
-   · 대타가 하나도 없는 몸의 **작은 판**(force9)은 여전히 메인이 굽는다(넓이 9분의 1, 한두 ms) — 유닛이 한 프레임도
-     안 사라지게 하는 옛 규약 그대로. 그 판도 곧 일꾼의 제 크기 판으로 갈린다.
-   · 손짓 중에도 청한다 — 일꾼의 시간은 메인 프레임이 아니다. 끌면서 판이 도착해 갈린다(옛 길은 손짓 중 안 굽었다).
-   · 일꾼 수는 DEV9.bakeWorkers(PC 코어 8 이상 둘, 아니면 하나 · 폰 0). 일꾼마다 BAKEW_INFLIGHT9장까지만 앞서 보내고
-     나머지는 대기표에 남긴다 — 다음 프레임에 다시 큰 것부터 고르므로 우선순위가 늘 살아 있다.
-   · 못 띄우면(OffscreenCanvas 2D 없음·모듈 없음·던짐) `on`이 거짓이 되어 옛 인라인 길로 돈다 — 진단 '굽기일꾼' 줄에 까닭.
-   · `#bakeworker=N`으로 수를 못 박는다(0이면 끔). 폰에 열 때는 DEV9.bakeWorkers만 올리면 된다 — 이 길은 기기를 안 가린다.
-   ★ 일꾼에는 메인의 깃발이 없다: lod·pitchFlat은 청할 때 실어 보내고(열쇠와 같은 값), 자세·포탑·불빛·회전은 op로
-     래스터 함수가 스스로 세운다(bake9의 rasterUnit9·rasterBld9). 진단 해시는 워커 name으로 간다(hashNow9). */
-type BakeReq9 = { key: string; sub: string; op: UnitDrawOp; q: number; B: number; lod: number; bld: boolean; at: number; w: number };
-/* 6 → 12(실기: 일꾼 버림 53873 — 판이 한꺼번에 갈리는 프레임에 대기표가 12장을 훌쩍 넘어 다음 프레임으로 미뤄졌다). 일꾼 한 장이
-   3ms 안팎이라 열두 장이 36ms — 한 프레임 남짓만 앞서 쌓인다. */
-const BAKEW_INFLIGHT9 = 12;
-const BAKEW9 = {
-  on: false, why: "", starting: false,
-  workers: [] as Worker[], busy: [] as number[],
-  inflight: new Map<number, BakeReq9>(), keys: new Set<string>(), nextId: 1,
-  sent: 0, got: 0, nil: 0, nilWhy: new Map<string, number>(), dup: 0, drop: 0, err: 0, errMsg: "",
-  rttSum: 0, rttMax: 0, bakeSum: 0, bakeMax: 0, bakeMaxKind: "",
-};
-/** 멈춘 화면에서 판이 도착하면 붓 하나를 깨우는 문 — 컴포넌트가 requestPaint9를 꽂는다(재생 중이면 그 함수가 무동작). */
-const BAKE_REPAINT9 = { fn: null as (() => void) | null };
-function bakeWorkersStart9(): void {
-  if (BAKEW9.starting || BAKEW9.workers.length > 0 || typeof window === "undefined") return;
-  let n9 = DEV9.bakeWorkers;
-  const m9 = /bakeworker=(\d)/.exec(window.location.hash);
-  if (m9) n9 = Math.min(3, Number(m9[1]));
-  if (!(n9 > 0)) { BAKEW9.why = m9 ? "끔(#bakeworker=0)" : "기기 표(bakeWorkers 0)"; return; }
-  if (typeof OffscreenCanvas === "undefined") { BAKEW9.why = "OffscreenCanvas 없음"; return; }
-  BAKEW9.starting = true;
-  void import("./bakeWorker?worker&inline").then((mod9) => {
-    const Ctor9 = (mod9 as { default?: unknown }).default;
-    if (typeof Ctor9 !== "function") { BAKEW9.why = "워커 모듈 없음(도구 번들)"; BAKEW9.starting = false; return; }
-    let ready9 = 0;
-    for (let i9 = 0; i9 < n9; i9 += 1) {
-      let w9: Worker;
-      try { w9 = new (Ctor9 as new (o?: { name?: string }) => Worker)({ name: window.location.hash }); }
-      catch (e9) { BAKEW9.why = `워커 생성 실패 ${String(e9).slice(0, 80)}`; BAKEW9.starting = false; return; }
-      const wi9 = i9;
-      w9.onmessage = (ev: MessageEvent<{ type: string; ok?: boolean; why?: string; id?: number; out?: import("./bakeWorker").BakeOut9 | null; ms?: number; message?: string }>) => {
-        const m = ev.data;
-        if (m.type === "ready") {
-          if (m.ok) { ready9 += 1; if (ready9 === n9) { BAKEW9.on = true; BAKEW9.starting = false; } }
-          else bakeWorkersStop9(`2D 못 엶(${m.why ?? ""})`);
-          return;
-        }
-        if (m.type === "done" && typeof m.id === "number") { bakeDone9(wi9, m.id, m.out ?? null, m.ms ?? 0, m.why); return; }
-        if (m.type === "err" && typeof m.id === "number") {
-          const r9 = BAKEW9.inflight.get(m.id);
-          if (r9) { BAKEW9.inflight.delete(m.id); BAKEW9.keys.delete(r9.key); BAKEW9.busy[wi9] -= 1; }
-          BAKEW9.err += 1; BAKEW9.errMsg = m.message ?? "";
-        }
-      };
-      w9.onerror = (ev9) => { bakeWorkersStop9(`워커 오류 ${String(ev9.message ?? ev9).slice(0, 80)}`); };
-      w9.postMessage({ type: "env", oneMax: BAKE_ENV9.oneMax, poolBytes: BAKE_ENV9.poolBytes, sideMax: BAKE_ENV9.sideMax });
-      BAKEW9.workers.push(w9); BAKEW9.busy.push(0);
-    }
-  }).catch((e9) => { BAKEW9.why = `모듈 로드 실패 ${String(e9).slice(0, 80)}`; BAKEW9.starting = false; });
-}
-/** 일꾼을 걷고 인라인 길로 돌아간다 — 날아가던 청은 다음 프레임에 대기표로 다시 오른다. */
-function bakeWorkersStop9(why9: string): void {
-  for (const w9 of BAKEW9.workers) { try { w9.terminate(); } catch { /* 이미 죽었다 */ } }
-  BAKEW9.workers.length = 0; BAKEW9.busy.length = 0;
-  BAKEW9.inflight.clear(); BAKEW9.keys.clear();
-  BAKEW9.on = false; BAKEW9.starting = false; BAKEW9.why = why9;
-}
-/** 프레임이 열릴 때 — 대기표를 큰 것부터 일꾼에 청한다(일꾼마다 BAKEW_INFLIGHT9장까지). 남은 것은 버린다(다음 프레임에 다시 온다). */
-function bakeFlush9(): void {
-  const arr9: [string, BakeWant9][] = [...BAKE_WANT9.entries()].sort((a9, b9) => b9[1].pxq - a9[1].pxq);
-  BAKE_WANT9.clear();
-  for (const [key9, w9] of arr9) {
-    if (BAKEW9.keys.has(key9)) continue;
-    if (w9.bld ? BLD_SPRITE_CACHE.has(key9) : SPRITE_CACHE.has(key9)) continue;
-    if (w9.sub === undefined || w9.lod === undefined) continue;   // 옛 길의 대기표(작은 판 경로) — 일꾼 정보가 없다
-    let wi9 = -1; let least9 = BAKEW_INFLIGHT9;
-    for (let i9 = 0; i9 < BAKEW9.busy.length; i9 += 1) if (BAKEW9.busy[i9] < least9) { least9 = BAKEW9.busy[i9]; wi9 = i9; }
-    if (wi9 < 0) { BAKEW9.drop += 1; continue; }
-    const id9 = BAKEW9.nextId; BAKEW9.nextId += 1;
-    BAKEW9.inflight.set(id9, { key: key9, sub: w9.sub, op: w9.op, q: w9.pxq, B: w9.B, lod: w9.lod, bld: !!w9.bld, at: pNow(), w: wi9 });
-    BAKEW9.keys.add(key9); BAKEW9.busy[wi9] += 1; BAKEW9.sent += 1;
-    BAKEW9.workers[wi9].postMessage({ type: "bake", id: id9, bld: !!w9.bld, op: w9.op, q: w9.pxq, B: w9.B, lod: w9.lod, pitchFlat: pitchFlatNow, brush: brushOn9, glow: glowOn9 });
-  }
-}
-/** 일꾼이 판을 돌려줬다 — 보관함·색인·바이트에 꽂는다(메인이 굽던 자리와 같은 규약). 멈춘 화면이면 붓을 깨운다. */
-function bakeDone9(wi9: number, id9: number, out9: import("./bakeWorker").BakeOut9 | null, ms9: number, why9?: string): void {
-  const r9 = BAKEW9.inflight.get(id9);
-  if (!r9) { if (out9) { out9.cv.close(); out9.tint?.cv.close(); } return; }
-  BAKEW9.inflight.delete(id9); BAKEW9.keys.delete(r9.key); BAKEW9.busy[wi9] = Math.max(0, BAKEW9.busy[wi9] - 1);
-  BAKEW9.got += 1;
-  const rtt9 = pNow() - r9.at; BAKEW9.rttSum += rtt9; if (rtt9 > BAKEW9.rttMax) BAKEW9.rttMax = rtt9;
-  BAKEW9.bakeSum += ms9; if (ms9 > BAKEW9.bakeMax) { BAKEW9.bakeMax = ms9; BAKEW9.bakeMaxKind = r9.op.kind; }
-  if (!out9) { BAKEW9.nil += 1; const k9 = `${r9.bld ? "B" : "U"}:${why9 || "?"}:${r9.op.kind}`; BAKEW9.nilWhy.set(k9, (BAKEW9.nilWhy.get(k9) ?? 0) + 1); return; }
-  const dup9 = r9.bld ? BLD_SPRITE_CACHE.has(r9.key) : SPRITE_CACHE.has(r9.key);
-  if (dup9) { BAKEW9.dup += 1; out9.cv.close(); out9.tint?.cv.close(); return; }
-  const tint9: TintPlate9 | null = out9.tint ? { cv: out9.tint.cv, ox: out9.tint.ox, oy: out9.tint.oy, gloss: out9.tint.gloss } : null;
-  const by9 = canvasBytes(out9.cv) + (tint9 ? canvasBytes(tint9.cv) : 0);
-  if (r9.bld) {
-    const entry9: BldSprite = {
-      cv: out9.cv, ox: out9.ox, oy: out9.oy, pad: out9.pad, l: out9.l, side: r9.q,
-      bot: out9.box.bot, top: out9.box.top, w: out9.box.w, cx: out9.box.cx, tint: tint9,
-    };
-    BLD_SPRITE_CACHE.set(r9.key, entry9);
-    noteSub9(BLD_SPRITE_SIZES, r9.sub, r9.q, r9.key);
-    bldSpriteBytes.n += by9;
-  } else {
-    const entry9: UnitPlate9 = { cv: out9.cv, ox: out9.ox, oy: out9.oy, pad: out9.pad, l: out9.l, ...out9.box, tint: tint9 };
-    SPRITE_CACHE.set(r9.key, entry9);
-    noteSub9(SPRITE_SIZES, r9.sub, r9.q, r9.key);
-    noteKindSub9(r9.op.kind, r9.sub);
-    spriteBytes.n += by9;
-  }
-  trimBoth9();
-  BAKE_REPAINT9.fn?.();
-}
-/** 진단 '굽기일꾼' 줄. */
-function bakewDiag9(): string {
-  const b9 = BAKEW9;
-  const st9 = b9.on ? "on" : b9.starting ? "준비중" : `off${b9.why ? `(${b9.why})` : ""}`;
-  if (!b9.on && b9.sent === 0) return `${st9} · 일꾼 ${DEV9.bakeWorkers}`;
-  return `${st9} · 일꾼 ${b9.workers.length} · 보냄 ${b9.sent} 받음 ${b9.got} 빔 ${b9.nil} 겹침 ${b9.dup} 버림 ${b9.drop}`
-    + ` · 날아감 ${b9.inflight.size} 대기 ${BAKE_WANT9.size}`
-    + ` · 왕복 ${b9.got ? (b9.rttSum / b9.got).toFixed(0) : "-"}/${b9.rttMax.toFixed(0)}ms`
-    + ` · 굽기 ${b9.got ? (b9.bakeSum / b9.got).toFixed(1) : "-"}ms 최악 ${b9.bakeMax.toFixed(0)}ms${b9.bakeMaxKind ? `(${b9.bakeMaxKind})` : ""}`
-    + (b9.nil > 0 ? ` · 빔까닭[${[...b9.nilWhy.entries()].sort((x9, y9) => y9[1] - x9[1]).slice(0, 4).map(([k9, v9]) => `${k9}×${v9}`).join(" ")}]` : "")
-    + (b9.err > 0 ? ` · ⚠오류 ${b9.err} ${b9.errMsg}` : "");
-}
-function unitSprite(
-  op: UnitDrawOp, pxq: number, B: number,
-  /** 예산을 안 보고 굽는다 — 위 작은 판을 구울 때만 참이다(아래 ★). */
-  force9 = false,
-): UnitPlate9 | null {
-  const rotB = op.rotDeg !== undefined
-    ? ((Math.round(op.rotDeg / 22.5) * 22.5) % 360 + 360) % 360 : -1;
-  const vq = op.viewYaw ? Math.max(-36, Math.min(36, Math.round(op.viewYaw / 6) * 6)) : 0;
-  // 등급은 상자가 아니라 이 모델이 실제로 칠하는 잉크 폭으로 정한다(위 LOD_INK_* 참고).
-  const lod = lodOf((pxq * modelInkOf(op.kind)) / 16, LOD_INK_POINT, LOD_INK_DECO);
-  /* 자세 깃발은 **열쇠를 만들기 전에** 세운다 — poseTag가 이 값을 읽고, 아래 면 짜기
-     (resolveShapeFaces → 빌더)도 같은 값을 본다. 끝나면 0으로 되돌린다. */
-  poseSet9(op.pose ?? 0);
-  /* 열쇠를 **크기·등급을 뺀 몫(subKey)과 그 둘**로 가른다 — 위 SPRITE_SIZES가 '같은
-     모델의 다른 크기·다른 등급'을 찾으려면 그 앞부분이 따로 있어야 한다. */
-  /** 대타 색인의 열쇠 — 크기와 **등급**을 뺀 몫이다(위 SPRITE_SIZES의 ★). */
-  // 열쇠에 임자 색이 없다(위 TintPlate9) — 같은 판을 모든 임자가 나눠 쓴다.
-  const subKey = `${op.kind}|${rotB}|${op.flat ? 1 : 0}|${vq}|${pitchTag(op.pitch)}`
-    + `|${B.toFixed(2)}|${poseTag(op.kind)}|${op.solid ?? ""}`;
-  const key = `${subKey}|${lod}|${pxq}`;
-  SPRITE_PERF.colorSet.add(op.color);
-  const hit = SPRITE_CACHE.get(key);
-  if (!hit) uniMissWhy9(op.kind, key);   // 왜 빗나갔나(위 uniMissWhy9) — 굽기 회전의 임자를 가른다
-  // 찾은 것은 맨 뒤로 — 그래야 맨 앞이 '가장 오래 안 쓴 것'이 된다(LRU).
-  if (hit) {
-    SPRITE_PERF.hit += 1;
-    poseSet9(0);
-    SPRITE_CACHE.delete(key); SPRITE_CACHE.set(key, hit); return hit;
-  }
-  /* ★ 예산이 다했으면 **이번 프레임엔 안 굽는다** — 같은 모델의 가장 가까운 크기를
-     찾아 그것을 돌려준다(부르는 쪽이 판의 실제 크기를 l·pad에서 되읽어 배율을 맞춘다).
-     '가까움'은 비로 잰다(로그 거리) — 2배 큰 판과 절반짜리 판 중 어느 쪽이 덜 무른지는
-     차가 아니라 비가 정한다. */
-  if (!force9 && (BAKEW9.on || !bakeOk9(unitBakeLeft9))) {   // 일꾼이 켜져 있으면 늘 이 길(위 BAKEW9)
-    const sizes9 = SPRITE_SIZES.get(subKey);
-    if (sizes9) {
-      const best9 = pickSubSize9(sizes9, pxq, SUB_MAX_HARD9)
-        ?? pickSubSize9(sizes9, pxq, Infinity);   // 마지막 수단(위 ★) — 흐려도 안 터진다
-      const alt9 = best9 ? SPRITE_CACHE.get(best9) : undefined;
-      if (alt9) {
-        /* ★ **대타는 LRU를 안 되살린다**(지적: "12배도 아닌데 모바일 사파리 탭이
-           새로고침돼") ─────────────────────────────────────────────────────────────
-           여기서 delete + set으로 맨 뒤에 다시 꽂으면 그 판은 '방금 쓴 것'이 되어 안
-           쫓겨난다. 그런데 대타는 **옛 세대의 판**이다 — 배율이 바뀌어 새 세대를 굽는
-           동안 옛 세대까지 계속 되살아나면, 폰이 두 세대를 통째로 이고 있게 된다.
-           예산이 막는 것은 합이지만 그 합이 두 배가 되는 셈이라, 사파리가 탭을 버린다.
-           대타는 임시로 빌려 쓰는 그림일 뿐이니 제 나이대로 늙게 둔다 — 새 세대가 다
-           구워지면 옛 세대는 예정대로 쫓겨난다. */
-        SPRITE_PERF.hit += 1;
-        SPRITE_PERF.defer += 1;
-        poseSet9(0);
-        bakeWant9(key, { ...op }, pxq, B, subKey, lod);   // 대기표에 적는다 — 다음 프레임에 큰 것부터(위 ★)
-        return alt9;
-      }
-    }
-    /* ★ 일꾼 모드에서는 **이웃 요잉 판을 먼저**(실기 3단 진단: 유닛 작은 판 63장 390ms/2초 · 최악판 hydra 46ms · 훑기 62ms)
-       — 작은 판도 면을 새로 짜야 해서(HEAD_FACES 빗나감) 메인이 한 장에 6ms, 히드라는 46ms를 썼다. 제 판은 두세 프레임
-       (왕복 55ms) 뒤에 오므로 그 사이는 같은 크기의 이웃 요잉 판(22.5도 어긋남)으로 족하다 — 값이 0이다. 이웃조차 없는
-       처음 보는 종류만 작게 굽는다(옛 길·폰은 그대로: 작은 판이 먼저, 이웃은 천장 뒤의 대타). */
-    if (BAKEW9.on) {
-      const kin9 = kinPlate9(op.kind, subKey, pxq);
-      if (kin9) {
-        poseSet9(0);
-        SPRITE_PERF.hit += 1; SPRITE_PERF.defer += 1;
-        bakeWant9(key, { ...op }, pxq, B, subKey, lod);
-        return kin9;
-      }
-    }
-    /* ★ 대타가 **하나도 없으면 작게 굽는다**(계측: 예산을 넣고도 최악프레임 242ms · 그중 굽기 209ms) ─────
-       예산의 구멍이 여기였다. 한 번도 안 구운 열쇠는 대타가 없어 이 문을 그냥 지나 **제 크기로** 구웠고,
-       배율 6·입체의 그 한 장이 109ms다(최악판 probe). 큰 싸움에서는 그런 열쇠가 프레임마다 여럿이라
-       예산이 뜻을 잃는다.
-       안 굽는 길은 없다 — 그러면 그 유닛이 화면에서 사라진다. 대신 **넓이를 9분의 1로** 줄여 굽는다:
-       삯도 그만큼이고(109 → 12ms 언저리), 늘려 찍으니 잠깐 흐릴 뿐이며, 그 판이 곧 다음 프레임의
-       대타가 되어 예산이 열릴 때 제 크기가 조용히 갈아 끼워진다. */
-    /* 천장을 넘었으면 작은 판도 안 굽는다(위 BAKE_HARD_MS9). 그래도 **안 그리진 않는다** —
-       방위만 다른 형제 판을 빌린다(위 kinPlate9의 ★). 빌릴 것조차 없을 때만 이 몸을 거른다. */
-    if (!bakeHardOk9() || smallBakeLeft9 <= 0) {
-      poseSet9(0);
-      SPRITE_PERF.defer += 1;
-      const kin9 = kinPlate9(op.kind, subKey, pxq);
-      bakeWant9(key, { ...op }, pxq, B, subKey, lod);   // 빌릴 것이 있든 없든 **대기표에는 적는다**(아래 ★)
-      if (kin9) { SPRITE_PERF.hit += 1; return kin9; }
-      /* ★ 여기서 대기표를 건너뛰면 그 판은 **영영 안 구워질 수 있다**(지적: "탱크 변신 중
-         부품들이 안 보이네") — 천장에 걸린 프레임에서 처음 본 열쇠는 빌릴 형제도 없어
-         그냥 null이었고, 다음 프레임은 그 열쇠를 **다시 청해야** 비로소 줄에 선다.
-         시즈 전환의 홑판(버팀다리·앞뒤 포신)은 자세 여섯 칸이 각각 0.1초쯤만 서 있으므로,
-         그 짧은 창이 바쁜 프레임과 겹치면 한 번도 안 구워진 채 창이 끝난다 — 차체·포탑만
-         남고 부품이 통째로 빠진 그림이 그것이다. 적어 두면 다음 프레임에 큰 것부터 굽는
-         줄(drainBakeWant9)에 올라 곧 따라온다. */
-      return null;
-    }
-    const small9 = Math.max(8, Math.round(pxq / BAKE_SMALL_K9));
-    if (small9 < pxq) {
-      poseSet9(0);
-      smallBakeLeft9 -= 1;
-      bakeWant9(key, { ...op }, pxq, B, subKey, lod);
-      return unitSprite(op, small9, B, true);
-    }
-  }
-  unitBakeLeft9 -= 1;
-  SPRITE_PERF.bake += 1;
-  /* ★ 굽는 시간을 **계측판에 올린다**(실측: 최악 프레임 399ms 가운데 붓:유닛캔버스가
-     336ms) — 굽기는 이 붓 **안에서** 도는데, 여태 세는 것은 횟수뿐이라(SPRITE_PERF)
-     콘솔에서만 보였다. 그러면 "덜컥인 그 프레임이 굽기였나"를 화면에서 못 가른다.
-     시간으로 올리면 ⚠최악프레임 줄에 이름이 그대로 찍힌다. */
-  const pBk9 = PERF9 ? pNow() : 0;
-  // 늘 켜 두는 눈금(위 SPRITE_PERF의 ★) — 굽기는 드물고 이미 비싸, 시계 두 번은 공짜다.
-  const tBk9 = pNow();
-  const r9 = rasterUnit9(op, pxq, B, lod);
-  if (!r9) return null;
-  const { pad, l, box } = r9;
-  const cr = { cv: r9.cv as HTMLCanvasElement, ox: r9.ox, oy: r9.oy };
-  const tint: TintPlate9 | null = r9.tint ? { ...r9.tint, cv: r9.tint.cv as HTMLCanvasElement } : null;
-  const entry: UnitPlate9 = { cv: cr.cv, ox: cr.ox, oy: cr.oy, pad, l, ...box, tint };
-  SPRITE_CACHE.set(key, entry);
-  /* ★ 색인에 적는다 — **이 줄이 여태 없었다.** 그래서 유닛 쪽 대타 경로는 한 번도 선
-     적이 없고(색인이 늘 비어 있으니 찾을 것이 없다), '굽기를 프레임에 나눠 문다'가
-     사실상 건물에만 걸려 있었다. */
-  noteSub9(SPRITE_SIZES, subKey, pxq, key);
-  noteKindSub9(op.kind, subKey);
-  spriteBytes.n += canvasBytes(cr.cv) + (tint ? canvasBytes(tint.cv) : 0);
-  trimBoth9();
-  SPRITE_PERF.noteBake(op.kind, pNow() - tBk9, false);
-  if (PERF9) pAdd("굽기:유닛판", pNow() - pBk9);
-  return entry;
-}
 /** 공중은 늘 위층 — 지상 z가 아무리 커도(맵 256타일 × Z_TILE) 못 넘는 값이어야 한다. */
 const Z_AIR = 10000000;
 /* 그림자 색은 검정으로 되돌렸다(지적: "그림자의 개인색 적용 롤백") — 임자 색을 0.34로
@@ -2426,12 +1543,6 @@ const Z_AIR = 10000000;
    noUnusedLocals가 막는 죽은 코드라 정의째 지운다. 짙기(건물 0.5 · 부양 0.5/0.34 ·
    지상 0.32)는 색과 무관한 다른 지적("그림자가 너무 흐려 안 보인다")으로 올려 둔 값이라
    롤백 대상이 아니다 — 색만 되돌린다. */
-/** 건물 모델의 발·가로중심 자리 [cx몫, bot몫] — 구운 판 크기에 대한 비로 잰다.
- *  종류마다 한 번만 재는 것이 핵심이다(지적: 같은 넥서스인데 하나만 살짝 오른쪽으로
- *  나온다): 판은 요잉 6도 칸마다 따로 굽는데, 잉크 테두리 상자의 가로중심은 칸마다
- *  조금씩 달라 같은 건물이 자리마다 다르게 밀렸다. 채움 몫(BLD_FILL_CACHE)과 같은
- *  결로 한 번 재서 모두에게 같은 보정을 준다. */
-const BLD_ANCHOR_CACHE = new Map<string, [number, number]>();
 /* 발자국 대비 그릴 몫 — 기본은 0.95(발자국을 꽉 채운다). 본진 셋만 예외로 넘겨 그린다
    (요청: "넥서스 해처리 커맨드는 예외로 더 크게, 실제 게임처럼") — 원작에서도 이 셋의
    그림은 4×3 발자국을 넘어 앉는다. 레어·하이브는 해처리의 다음 단계라 같은 몫이다. */
@@ -2534,172 +1645,6 @@ export const BLD_FILL_TARGET: Record<string, number> = {
   // 가스 셋은 도로 살짝 올린다(요청: "가스 건물즐 살짝씩 확대") — 0.8 → 0.92.
   refinery: 0.92, assim: 0.92, extract: 0.92,
 };
-const BLD_SPRITE_CACHE = new Map<string, BldSprite>();
-const bldSpriteBytes = { n: 0 };
-
-/** ★ 건물 판이 **왜** 빗나갔나(실측: 핵 창에서 건물 261장·573ms를 구웠다) ────────────────────
- *  굽기가 값의 임자인 것까지는 수로 나왔는데, 한꺼번에 갈린 까닭은 열쇠의 **어느 칸**이 바뀌었느냐다:
- *  시점 칸(팬·확대)인지 · 회전 칸(도는 부품)인지 · 불빛(생산 깜빡임)인지 · 단계인지. 종류마다 마지막
- *  열쇠를 적어 두고, 빗나갈 때 첫 번째로 다른 칸의 이름을 센다. 값은 문자열 나누기 한 번이다. */
-const BLD_KEYF9 = ["종류", "회전", "평면", "시점", "기울기", "배킹", "단계", "포탑", "불빛", "회전칸", "LOD", "옆면"];
-/** 유닛 판 열쇠의 칸 이름(아래 subKey와 **같은 차례**여야 한다). */
-const UNI_KEYF9 = ["종류", "회전", "평면", "시점", "기울기", "배킹", "자세", "덩이", "LOD", "크기"];
-const UNI_MISS9 = { last: new Map<string, string>(), why: new Map<string, number>() };
-function uniMissWhy9(kind9: string, key9: string): void {
-  const prev9 = UNI_MISS9.last.get(kind9);
-  UNI_MISS9.last.set(kind9, key9);
-  if (!prev9) return;
-  const a9 = prev9.split("|");
-  const b9 = key9.split("|");
-  for (let i = 0; i < b9.length; i += 1) {
-    if (a9[i] === b9[i]) continue;
-    const n9 = UNI_KEYF9[i] ?? `#${i}`;
-    UNI_MISS9.why.set(n9, (UNI_MISS9.why.get(n9) ?? 0) + 1);
-    return;
-  }
-}
-/** 최근 창의 상위 셋 — 유닛·건물을 같은 꼴로 보인다. */
-function missTop9(m9: Map<string, number>): string {
-  const a9 = [...m9.entries()].sort((x9, y9) => y9[1] - x9[1]).slice(0, 3);
-  return a9.length === 0 ? "-" : a9.map(([k9, v9]) => `${k9}${v9}`).join(" ");
-}
-const BLD_MISS9 = { last: new Map<string, string>(), why: new Map<string, number>() };
-function bldMissWhy9(kind9: string, key9: string): void {
-  const prev9 = BLD_MISS9.last.get(kind9);
-  BLD_MISS9.last.set(kind9, key9);
-  if (!prev9) return;
-  const a9 = prev9.split("|");
-  const b9 = key9.split("|");
-  for (let i = 0; i < b9.length; i += 1) {
-    if (a9[i] === b9[i]) continue;
-    const n9 = BLD_KEYF9[i] ?? `#${i}`;
-    BLD_MISS9.why.set(n9, (BLD_MISS9.why.get(n9) ?? 0) + 1);
-    return;
-  }
-}
-/** 가장 많이 갈린 칸 셋 — "시점210 회전칸30 불빛21" 꼴. */
-function bldMissTop9(): string {
-  const a9 = [...BLD_MISS9.why.entries()].sort((x9, y9) => y9[1] - x9[1]).slice(0, 3);
-  return a9.length === 0 ? "-" : a9.map(([k9, v9]) => `${k9}${v9}`).join(" ");
-}
-type BldSprite = {
-  cv: PlateImg9; ox: number; oy: number; pad: number; l: number;
-  side: number; bot: number; top: number; w: number; cx: number;
-  /** 임자 색 마스크(유닛과 같은 규약, 위 TintPlate9) — 건물 판 열쇠에도 색이 없다. */
-  tint?: TintPlate9 | null;
-};
-function buildingSprite(op: UnitDrawOp, sideQ: number, B: number): BldSprite | null {
-  const prev9 = headYawNow;
-  headYawSet(op.headDeg === undefined ? 0
-    : (((op.headDeg - (op.rotDeg ?? 0)) % 360) + 540) % 360 - 180, op.headDeg !== undefined);
-  try {
-    return buildingSpriteBake(op, sideQ, B);
-  } finally {
-    headYawSet(prev9, false);
-    bldLitSet(false);
-    bldSpinRawSet9(0);
-  }
-}
-function buildingSpriteBake(
-  op: UnitDrawOp, sideQ: number, B: number,
-  /** 예산을 안 보고 굽는다 — 작은 판을 구울 때만 참이다(유닛 쪽 ★와 같은 손). */
-  force9 = false,
-): BldSprite | null {
-  /* ★ 건물의 시각 밀림 칸을 6도 → **12도**로(지적: "유독 저그 쪽만 더 심해") ────────────
-     밀림 각(viewYaw)은 **화면 자리**가 정한다. 그래서 같은 종류의 건물이 화면을 가로질러
-     늘어서 있으면 저마다 다른 칸에 들어가 **같은 그림이 여러 벌 구워진다**. 6도 칸이면
-     −36~36에서 열세 벌이다.
-     그 줄이 가장 길게 서는 곳이 저그의 성큰·스포어 벽이다(사용자 화면에 성큰 일곱이
-     한 줄로 있었다) — 하나가 0.45MB이니 같은 성큰이 3MB를 먹는다. 실측(perf-check
-     --top, 아이폰 흉내 dpr 3): 간헐천 하나가 **세 벌 2.75MB**로 그 화면의 건물 예산
-     3분의 1이었다. 종류가 아니라 **자리**가 판을 늘리고 있었다.
-     칸을 두 배로 넓히면 벌 수가 절반이다. 잃는 것은 밀림의 결이 최대 6도 어긋나는
-     것인데, 이 밀림은 건물이 화면 가장자리로 갈수록 살짝 기우는 정도의 몫이라 한 칸의
-     차이가 눈에 잘 안 든다(유닛은 종전 6도 그대로 둔다 — 작게 그려져 칸을 넓혀도 얻는
-     것이 적고, 대신 수가 많아 칸 경계를 자주 넘나든다). */
-  const vq = op.viewYaw ? Math.max(-36, Math.min(36, Math.round(op.viewYaw / 12) * 12)) : 0;
-  const lod = lodOf(sideQ);
-  /* 공사 단계(요청: "3단계로 하고 실제 모델의 부품을 일부만 표현하다가 완성되는 형태로
-     수정. 아래쪽 부품부터 표현 → 점점 위로") — stageFaces가 **부품을 골라** 준다.
-     예전에는 굽는 좌표계의 아래쪽만 오려 냈는데, 그건 결과가 같지 않았다(지적):
-     기둥이 반 토막 나고 지붕이 가로로 잘려 '짓는 중'이 아니라 '가려진' 것으로 보였다.
-     단계가 캐시 열쇠에 들어가므로 판은 단계별로 따로 구워져 프레임 비용이 없다. */
-  const stg = op.buildStage ?? 0;
-  /* 불빛 깃발은 **열쇠를 만들기 전에** 세운다 — litTag가 이 값을 읽고, 아래 면 짜기도
-     같은 값으로 돈다. 굽기가 끝나면 반드시 도로 끈다(finally). */
-  bldLitSet(!!op.lit);
-  bldSpinRawSet9(op.spin ?? 0);
-  // 크기(sideQ)를 뺀 몫과 크기로 가른다 — 대타를 찾으려면 앞부분이 따로 있어야 한다.
-  // 열쇠에 임자 색이 없다(유닛과 같은 마스크 규약) — 같은 건물 판을 모든 임자가 나눠 쓴다.
-  const subKey = `${op.kind}|${op.rotDeg ?? 0}|${op.flat ? 1 : 0}|${vq}|${pitchTag(op.pitch)}|${B.toFixed(2)}|${stg}|${headTag(op.kind)}|${litTag(op.kind)}|${spinTag(op.kind)}`;
-  const key = `${subKey}|${lod}|${sideQ}`;
-  const hit = BLD_SPRITE_CACHE.get(key);
-  if (hit) {
-    SPRITE_PERF.bldHit += 1;
-    BLD_SPRITE_CACHE.delete(key); BLD_SPRITE_CACHE.set(key, hit); return hit;
-  }
-  bldMissWhy9(op.kind, key);   // 왜 빗나갔나 — 열쇠의 어느 칸이 갈렸는지 센다(아래 ★)
-  /* ★ 예산이 다했으면 이번 프레임엔 안 굽고, 같은 건물의 **가장 가까운 크기**를 돌려준다
-     (부르는 쪽이 판의 실제 크기 bspr.side로 배율을 맞춘다 — 유닛 쪽과 같은 약이다). */
-  if (!force9 && (BAKEW9.on || !bakeOk9(bldBakeLeft9))) {
-    if (BAKEW9.on) bakeWant9(key, { ...op }, sideQ, B, subKey, lod, true);   // 일꾼에 청한다(위 BAKEW9) — 이 프레임은 대타
-    const sizes9 = BLD_SPRITE_SIZES.get(subKey);
-    if (sizes9) {
-      const best9 = pickSubSize9(sizes9, sideQ, SUB_MAX_HARD9)
-        ?? pickSubSize9(sizes9, sideQ, Infinity);   // 마지막 수단(위 ★)
-      const alt9 = best9 ? BLD_SPRITE_CACHE.get(best9) : undefined;
-      if (alt9) {
-        // 대타는 LRU를 안 되살린다 — 유닛 쪽의 ★ 주석과 같은 까닭이다.
-        SPRITE_PERF.bldHit += 1;
-        SPRITE_PERF.bldDefer += 1;
-        return alt9;
-      }
-    }
-    // 대타가 하나도 없으면 작게 굽는다(유닛 쪽 ★와 같은 약 — 건물 판은 더 크므로 이득도 더 크다).
-    /* ★ 그 작은 판도 **천장 아래에서만** 굽는다(실측: 핵 창에서 한 프레임 굽기 230ms · 2초에 건물 261장
-       573ms) ─────────────────────────────────────────────────────────────────────────────────────
-       유닛 쪽에는 이 문이 있는데(BAKE_HARD_MS9의 ★) 건물 쪽에는 없었다. force9로 들어가는 이 길은 장수
-       예산도 ms 예산도 **아예 안 본다** — 처음 보는 열쇠가 한꺼번에 수십·수백 장 생기는 순간(핵으로 판이
-       갈리는 그 프레임)에는 그것들을 한 프레임에 다 구웠다. 폰의 천장이 24ms인데 230ms를 쓴 까닭이 이것이다.
-       천장을 넘으면 이번 프레임엔 이 건물을 **안 그린다**: 다음 프레임에 예산이 되살아나 곧 들어오고,
-       한두 프레임 늦게 나타나는 것은 눈에 안 띄지만 230ms 덜컥임은 보인다. */
-    /* 일꾼 모드에서는 건물이 제 계수기(smallBldLeft9)를 쓴다 — 모든 건물이 이 길로 오므로 유닛 몫을 다 먹으면
-       유닛이 직접 그리기(가장 비싼 길)로 떨어진다(실측: 직접 606장/프레임 → 700ms). 옛 길은 그대로 나눠 쓴다. */
-    if (!bakeHardOk9() || (BAKEW9.on ? smallBldLeft9 : smallBakeLeft9) <= 0) return null;
-    const small9 = Math.max(8, Math.round(sideQ / BAKE_SMALL_K9));
-    if (small9 < sideQ) {
-      if (BAKEW9.on) smallBldLeft9 -= 1; else smallBakeLeft9 -= 1;
-      return buildingSpriteBake(op, small9, B, true);
-    }
-  }
-  bldBakeLeft9 -= 1;
-  SPRITE_PERF.bldBake += 1;
-  const pBb9 = PERF9 ? pNow() : 0;
-  const tBb9 = pNow();
-  /* ★ 굽는 시각 밀림도 **열쇠의 칸(vq)** 그대로(지적: "3D에서 세로 중앙 좌우쪽 건물들이 자꾸 시점이 흔들리는 문제 —
-     서플라이·터렛처럼 부품이 변하는 경우") — 열쇠는 12도 칸인데 면은 op.viewYaw 원값으로 지어(resolveShapeFaces
-     안에서 6도 칸) 같은 열쇠 안에 두 기하가 섞였다: viewYaw 4도와 −4도는 열쇠가 둘 다 0인데 면은 +6·−6도로 다르다.
-     붙박이 건물은 한 번 굽고 끝이라 안 드러났지만, 포탑 각·불빛처럼 열쇠가 자주 바뀌는 건물은 굽을 때마다 **먼저
-     온 건물의 각**으로 구워져, 같은 열쇠를 나눠 쓰는 이웃 건물의 판이 +6과 −6 사이를 오갔다. 칸 값으로 지으면
-     같은 열쇠는 늘 같은 기하다. */
-  const r9 = rasterBld9(op, sideQ, B, lod);
-  if (!r9) return null;
-  const { pad, l, box: box9 } = r9;
-  const cr9 = { cv: r9.cv as HTMLCanvasElement, ox: r9.ox, oy: r9.oy };
-  const tintB9: TintPlate9 | null = r9.tint ? { ...r9.tint, cv: r9.tint.cv as HTMLCanvasElement } : null;
-  const entry: BldSprite = {
-    cv: cr9.cv, ox: cr9.ox, oy: cr9.oy,
-    pad, l, side: sideQ, bot: box9.bot, top: box9.top, w: box9.w, cx: box9.cx, tint: tintB9,
-  };
-  BLD_SPRITE_CACHE.set(key, entry);
-  // 이 열쇠로 구운 크기를 색인에 적는다(유닛 쪽 SPRITE_SIZES와 같은 규약).
-  noteSub9(BLD_SPRITE_SIZES, subKey, sideQ, key);
-  bldSpriteBytes.n += canvasBytes(cr9.cv) + (tintB9 ? canvasBytes(tintB9.cv) : 0);
-  trimBoth9();
-  SPRITE_PERF.noteBake(op.kind, pNow() - tBb9, true);
-  if (PERF9) pAdd("굽기:건물판", pNow() - pBb9);
-  return entry;
-}
 // 포톤은 플라즈마와 같은 그림이다(CSS의 .scr-tracer-plasma, .scr-tracer-photon 합집합).
 FX_BEAM.photon = FX_BEAM.plasma;
 FX_IMPACT.photon = FX_IMPACT.plasma;
@@ -3944,7 +2889,6 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          자세함 문턱(detail)은 안 내린다 — 그쪽은 **판 열쇠를 바꿔** 손짓 시작마다 판을 새로 굽게 만든다.
          그림자와 배킹은 열쇠와 무관해 껐다 켜도 굽는 일이 없다. 손을 떼면 그 프레임에 제대로 한 장 그린다. */
       const gest9 = gesture?.current === true;
-      gestBake9.v = gest9;   // 굽기 문지기가 읽는다(위 bakeOk9) — 끄는 동안은 새 판을 안 굽는다
       /* ★ **저배율에서는 배킹을 화면 픽셀 1배로 내린다**(요청: "사진처럼 그릴요소가 엄청
          많을때 버벅임을 좀 해결할수있는 방법") ────────────────────────────────────
          계측(scripts/perf-check.mjs — 1000유닛·PC폭·CPU 4배 조임)이 가리키는 자리다:
@@ -4410,7 +3354,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              한 옥타브를 열두 칸으로 끊어 그 칸에 앉힌다 — 이웃 칸과의 차가 5.9%, 이상값과의 차는 최대 2.9%다.
              남는 차이는 블릿 배율(k)이 이미 진다(아래 `bspr.side !== sideWant`). 평면(2D)에서는 크기가 배율로만
              바뀌고 그 배율은 이미 칸으로 죄어 있으므로 종전대로 격자에 딱 맞춰 굽는다(k = 1, 가장 또렷하다). */
-          const sideWant = op.pitch ? bldLadder9(sideRaw9, B) : sideRaw9;
+          const sideWant = sideRaw9;   // (판 사다리는 걷었다 — 이 값은 이제 메시 등급(lodOf)만 정한다)
           /* ★ **크립은 배율도 시점도 안 탄다**(지적: "크립 아직도 메모리 터져 — 구현 방식
              근본적인 수정 필요") ────────────────────────────────────────────────────────
              크립 얼룩은 3차원 모형이 아니라 **땅에 누운 무늬 한 장**인데, 여태 다른 건물과
@@ -4432,68 +3376,37 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
                앉으므로(inkCenter), vq마다 잉크중심이 달라지던 몫이 사라져 **화면을 밀 때
                얼룩이 미세하게 떨리던 것도 함께** 멎는다.
              남는 열쇠는 무늬 셋 × 보기 둘 = **여섯 장**이고, 그 여섯은 경기 내내 안 바뀐다. */
+          /* ★ **크립 얼룩만 판(캔버스)이다** — 크립은 땅 그 자체라 지형 마스크로 파내야 하고(아래 destination-out),
+             그 파내기는 2D 캔버스의 일이다. 그 밖의 건물 몸은 모두 메시(GL)가 그린다 — 유닛·건물의 판 굽기 길은 걷었다(2026-09).
+             크립 판은 무늬 셋 × 보기 둘 = 여섯 장뿐이고 크기도 못 박혀 경기 내내 안 바뀐다(creepPlate9) — 예산·LRU·일꾼이 필요 없다. */
           const decal9 = DECAL_KINDS.has(op.kind);
-          const bop9 = decal9 ? { ...op, viewYaw: 0 } : op;
-          const sideQ = decal9
-            ? Math.min(DECAL_BAKE_MAX, bldBakeCap(B))
-            : Math.min(sideWant, bldBakeCap(B));
-          /* ★ WebGL 시제(#gl=1, gl9.ts) — 평면 시점의 건물 몸(크립 판·얼룩·맨 네모 제외)은 메시가 맡고 판은 안 굽는다.
-             자리 자는 판 블릿과 같다: x 는 상자 가운데(sx), y 는 잉크 바닥을 바닥선(groundY − 띄움)에 앉힌다(footOf 의 bot). */
-          const glB9 = gl9 && !decal9 && !op.clipWalk && !op.inkCenter ? gl9.bldMesh(op, lodOf(sideQ)) : null;
+          if (decal9) {
+            const cp9 = creepPlate9(op, B);
+            if (cp9) {
+              /* 크립은 굽는 크기가 못 박혀 있으므로 늘 늘려(또는 줄여) 찍는다. 자리는 상자가 아니라 **잉크 한가운데**다(op.inkCenter —
+                 보기마다 바닥 눌림이 달라 상자로 맞추면 크립만 아래로 내려간다). 왼위 모서리는 기기픽셀 격자에 얹는다. */
+              const k = (sidePx / cp9.side) * (op.pulseK ?? 1);
+              const inkBot9 = (cp9.bot / B) * k;
+              const bTop9 = Math.round((sy + ((cp9.bot - cp9.top) / B) * k / 2 - inkBot9) * B) / B;
+              const bLeft9 = Math.round((sx - (cp9.pad + cp9.side / 2) * k) * B) / B;
+              const bPx9 = Math.round((bLeft9 + (cp9.ox / B) * k) * B) / B;
+              const bPy9 = Math.round((bTop9 + (cp9.oy / B) * k) * B) / B;
+              ctx.globalAlpha = op.alpha;
+              SPRITE_PERF.blit += 1;
+              ctx.drawImage(cp9.cv, bPx9, bPy9, (cp9.cv.width / B) * k, (cp9.cv.height / B) * k);
+              continue;
+            }
+          }
+          /* 건물 몸 — 메시 한 벌(종류·건설단계·포탑각·불빛·회전·LOD). 자리 자는 옛 판 블릿과 같다: x 는 상자 가운데(sx),
+             y 는 잉크 바닥을 바닥선(groundY − 띄움)에 앉힌다(footOf 의 bot). */
+          const lodB9 = lodOf(sideWant);
+          const glB9 = gl9 ? gl9.bldMesh(op, lodB9) : null;
           const glBcam9 = glB9 ? camOf9(!!op.pitch, pitchFlatNow * 0.7, op.viewYaw ? Math.max(-36, Math.min(36, Math.round(op.viewYaw / 12) * 12)) : 0) : CAM_TOP9;
           const glBf9 = glB9 && gl9 ? gl9.footOf(glB9, -(op.rotDeg ?? 0), glBcam9) : null;
-          const bspr = glB9 ? null : buildingSprite(bop9, sideQ, B);
           if (glBf9 && !BLD_INK_BOX.has(bldAnchorKey(op.kind, op.pitch))) {
             // 판이 채우던 잉크 상자(총구 앵커 등이 읽는다)도 메시 자로 — 판 자와 같은 좌표(상자 (8,16) 기준, 원점 줄 12/12.6)다.
             const bnI9 = bldNormOf(op.kind) ?? 1;
             BLD_INK_BOX.set(bldAnchorKey(op.kind, op.pitch), [8 + bnI9 * glBf9.cx, 16 + bnI9 * (glBf9.bot - (16 - (op.pitch ? 12.6 : 12)))]);
-          }
-          /* 런타임 채움 보정은 없앴다(과제 #67) — 구운 판의 잉크 폭을 재서 발자국의
-             95%가 되게 다시 굽던 자리다. 그 일을 이제 BLD_NORM이 모델 좌표에서 한다.
-             보정이 있으면 모델을 고칠 때마다 화면 크기가 조용히 흔들리고, 16-상자를
-             넘는 종류는 잘린 잉크를 재느라 오차가 겹쳤다. 판도 한 번만 굽는다. */
-          /* ★ 발·가로중심 보정은 **그 판에서 직접** 잰다(지적: "코쿤이 실제 건물위치
-             기준 왼쪽으로 치우침" → "반대로 해처리가 오른쪽으로 치우친건가" — 뒤쪽이
-             맞았다).
-             여태 종류마다 한 번만 재서 모든 판이 그 값을 나눠 썼는데, **잉크 가로중심은
-             요잉 칸(vq)마다 다르다**: 계측(model-norm --json)에서 해처리의 잉크중심이
-             상자 가운데에서 vq 0일 때 −1.94, vq −36일 때 −3.25로 1.3칸을 옮겨 다녔다.
-             발자국의 8%, 4타일 건물이면 0.33타일이다. 한 칸에서 잰 값을 다른 칸에 쓰니
-             지도 어느 쪽에 섰느냐(vq는 x가 정한다)에 따라 건물이 제 발자국에서 좌우로
-             밀렸고, 그 옆의 공사 고치(잉크가 대칭이라 안 밀린다)와 어긋나 보였다.
-             판마다 제 값을 쓰면 어느 칸에서도 잉크중심이 발자국 중심에 온다.
-             옛 주석이 걱정한 '요잉 칸마다 달라져 흔들린다'는 건물에는 해당이 없다 —
-             건물은 제자리에 서 있고 vq는 그 자리가 정하므로 값이 안 흔들린다(이사 비행
-             중에만 6도 눈금으로 조금씩 바뀌는데, 그건 실제로 옮겨 가는 것이 맞다). */
-          let bAnc = BLD_ANCHOR_CACHE.get(bldAnchorKey(op.kind, op.pitch));
-          if (bAnc === undefined) {
-            /* 잣대는 **좌우 시점 0의 판**이다 — 그 판의 잉크중심이 곧 '이 모델이 제
-               16-상자 안에서 얼마나 치우쳐 그려지나'이고, 그것만이 종류의 성질이다.
-               vq가 실린 판의 잉크중심에는 **시각 밀림(withViewShear)**이 섞여 있어,
-               그걸 보정에 쓰면 밀림을 도로 빼 버리는 셈이 된다(건물이 지도 자리에 따라
-               좌우로 밀리던 원인). 밀림은 모델이 실제로 기우는 것이므로 그대로 둬야
-               하고, 발자국에 앉히는 것은 기울기 전의 중심이다.
-               한 번만 재서 같은 종류가 어디에 서든 같은 보정을 받는다(옛 지적: "같은
-               넥서스인데 하나만 살짝 오른쪽으로 나온다"). */
-            /* 별본이면 **본판**을 잣대로 굽는다(engine9 bldAnchorKey의 ★) — 열쇠가 본판 것이므로 잣대도
-               본판이어야 한다. 처음 재는 순간이 별본 쪽이면(성큰이 처음 쏠 때) 대역 판의 거친 비가 남는다. */
-            const baseKind9 = BLD_NORM_PAIR[op.kind] ?? op.kind;
-            const ref9 = glB9 ? null : bop9.viewYaw || baseKind9 !== op.kind
-              ? buildingSprite({ ...bop9, kind: baseKind9, viewYaw: 0 }, sideQ, B) : bspr;
-            if (ref9 && ref9.w > 0) {
-              bAnc = [(ref9.cx / B) / ref9.l, (ref9.bot / B) / ref9.l];
-              BLD_ANCHOR_CACHE.set(bldAnchorKey(op.kind, op.pitch), bAnc);
-            }
-          }
-          /* 같은 잣대를 상자 좌표로도 남긴다(마우스 자국 등 부르는 쪽이 쓴다) — 굽기가
-             상자 (8,16)을 놓는 판 위 자리는 (pad + sideQ/2, pad + sideQ)이므로, 잉크
-             자리와의 차를 16/sideQ로 되돌리면 '잉크 바닥·가로중심이 상자 좌표 어디인가'가
-             나온다. 이쪽은 종류마다 한 번만 — 쓰는 곳이 대략치만 필요로 한다. */
-          if (bAnc && bspr && !BLD_INK_BOX.has(bldAnchorKey(op.kind, op.pitch))) {
-            BLD_INK_BOX.set(bldAnchorKey(op.kind, op.pitch), [
-              8 + ((bspr.cx / B) - (bspr.pad + bspr.side / 2)) * (16 / bspr.side),
-              16 + ((bspr.bot / B) - (bspr.pad + bspr.side)) * (16 / bspr.side),
-            ]);
           }
           /* 접지 그림자(재재지적: 해처리가 떠 있다) — 상자 바닥 어림이 아니라 구운
              판의 실제 바닥 픽셀(contentBottom)에 붙인다. 모델이 상자를 다 안 채워도
@@ -4518,8 +3431,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
                보이는지(groundSquash)를 자리마다 실제로 재어 넘겨받는다. 그 값이 곧
                바닥면의 눌림이라, 그림자가 지면 격자와 같은 각도로 깔린다. */
             const squish = 0.55;
-            const inkW9 = glBf9 ? glBf9.w * (sidePx / 16) * (bldNormOf(op.kind) ?? 1)
-              : bspr && bspr.w > 0 ? (bspr.w / B) * (sidePx / bspr.side) : wPx;
+            const inkW9 = glBf9 ? glBf9.w * (sidePx / 16) * (bldNormOf(op.kind) ?? 1) : wPx;
             /* 2D는 그린 몸에만 맞춘다(지적: 평면에선 건물이 높이까지 바닥 상자 안으로
                눌려 들어가, 발자국 폭(wPx) 바닥은 그린 몸보다 늘 크다) — 발자국 하한을
                걷고 잉크 폭의 0.72만 덮는다. 입체는 종전대로 발자국 하한을 지킨다. */
@@ -4550,154 +3462,6 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             }
             ctx.fill();
           }
-          if (bspr) {
-            /* 상한에 안 걸렸고 손짓 중도 아니면 **구운 크기 그대로**다(1:1) — 위 sideQ 주석. */
-            /* 크립은 굽는 크기가 못 박혀 있으므로 **늘 늘려(또는 줄여) 찍는다** — 1:1로
-               찍으면 배율과 무관하게 늘 못 박은 크기로 나온다. */
-            /* 판의 **실제 크기**로 잰다(bspr.side) — 굽기 예산이 다한 프레임에는 요청과
-               다른 크기가 올 수 있다(buildingSpriteBake의 ★). */
-            /* 고치 두근거림(op.pulseK)은 여기 블릿 배율에만 얹는다 — 아래 bLeft9·bTop9가 k로 가로 가운데·잉크
-               바닥을 잡으므로, 배율이 흔들려도 발은 땅 그 자리다. 판은 안 다시 굽는다. */
-            /* 사다리에 앉힌 판(입체)은 **늘 제 크기로 늘려 찍는다** — 판 크기가 요청과 최대 2.9% 다르므로
-               1:1로 찍으면 건물이 사다리 칸을 따라 크기가 계단으로 튄다(위 sideWant의 ★). */
-            const k = (decal9 || op.pitch || bspr.side !== sideWant || bakeZoom !== zoom
-              ? sidePx / bspr.side : 1) * (op.pulseK ?? 1);
-            // 겹친 것만 살짝 그림자(확대 적용: 유닛·건물 공통).
-            /* 크립은 그림자를 안 진다(지적: "크립은 그림자 없어야 자연스럽게 이어지지")
-               — 크립 판(clipWalk)과 건물 밑 크립 얼룩(inkCenter)은 **땅 그 자체**라
-               떠 있지 않고, 이웃한 판끼리 이음매 없이 이어져야 한다. 드롭섀도가 붙으면
-               판마다 테가 생겨 한 덩어리가 조각보로 갈린다. */
-            /* 그림자는 아래 블릿 직전에 **구워 둔 판**으로 찍는다(shadowPlate 주석) —
-               여기서는 자격만 정한다. */
-            const bShadow9 = bodyShadow && !op.clipWalk && !op.inkCenter;
-            ctx.globalAlpha = op.alpha;
-            /* 발은 땅에(보정과 짝) — 상자 바닥에 맞추면 모델의 잉크 바닥이 상자보다
-               위에 있는 만큼의 틈이 배율만큼 함께 커져 건물이 떠 보인다. 그린 픽셀의
-               실제 바닥(bot)을 발자국 바닥선에 앉힌다. */
-            /* 뜬 건물은 몸만 띄운다(요청: "뜬 건물에 그림자 필요") — 위 그림자는 지면선
-               (groundY) 그대로 깔리므로, 여기서 몸을 올린 몫이 곧 눈에 보이는 높이다. */
-            const inkBot9 = (bAnc ? bAnc[1] * bspr.l : bspr.bot / B) * k;
-            /* 데칼은 잉크 한가운데를 자리에 맞춘다(지적: "2d(90도)에서 저그 크립이 아직도
-               아래로 내려가있어") — 상자 높이로 맞추던 길은 보기마다 답이 달랐다: 평면
-               (90도)은 바닥 눌림이 1이라 크립 얼룩의 잉크가 세로로 길어지고, 입체는 눌려
-               납작해진다. 상자(hFrac)는 한 값이니 그 차이가 그대로 자리 밀림이 됐다.
-               구운 판의 잉크 높이(top~bot)를 여기서 재면 보기와 무관하게 딱 가운데다. */
-            /* 뜬 건물의 높이 — 제 배수(op.liftK)가 정한다. 그림자는 지면선 그대로
-               깔리므로, 벌어진 몫이 곧 눈에 보이는 높이다. 보기별 축소는 없다(위
-               AIR_LIFT_K 주석: 갈래를 걷었다). */
-            /* 뜬 높이는 op이 실어 온 **절대 px**을 먼저 본다(위 airPx) — 그린 폭의
-               배수(liftK)는 몸집이 곧 높이가 되는 옛 자라 폴백으로만 쓴다. */
-            const bLiftPx9 = op.airPx !== undefined ? op.airPx * zoom : wPx * (op.liftK ?? 0);
-            const bTop9 = Math.round((op.inkCenter
-              ? sy + ((bspr.bot - bspr.top) / B) * k / 2 - inkBot9
-              : (groundY ?? sy + hPx / 2) - bLiftPx9 - inkBot9) * B) / B;
-            /* 좌우 어긋남 수리(지적: 건물이 살짝 왼쪽·오른쪽으로 어긋난다) — 상자 중심에
-               맞춰 찍었는데 모델이 제 16-상자 안에서 치우쳐 그려진 것들이 있다. 발자국을
-               채우려 배율을 키우면 그 치우침도 함께 커져 눈에 띈다. 그린 픽셀의 가로
-               중심(cx)을 발자국 중심에 앉힌다 — 바닥(bot)을 땅에 앉힌 것과 같은 결. */
-            /* ★ 가로는 **상자 한가운데**를 발자국 한가운데에 놓는다(지적: "해처리가 캔버스
-             기준 살짝 오른쪽에 있네") — 여태 잉크 가로중심을 놓았다. 그런데 잉크에는
-             한쪽으로 뻗은 장식이 함께 실린다: 해처리는 볏 뿔이 뒤로 크게 굽어 잉크중심이
-             상자 가운데에서 1.94칸이나 왼쪽이고(계측), 그 중심을 발자국에 맞추면 **몸이
-             그만큼 오른쪽으로 밀린다**. 그게 지적한 그림이다.
-             모델의 몸은 이미 상자 한가운데(x 0)를 축으로 지어져 있으므로, 상자 중심을
-             그대로 쓰면 어느 종류든 발자국 한가운데에 앉는다. 세로(발)는 그대로 잉크
-             바닥을 쓴다 — 그건 '땅에 닿는 자리'라 장식이 아니라 실제 발이다. */
-          /* 건물도 같은 자다(위 유닛 스냅 주석) — 왼위 모서리를 기기픽셀 격자에 얹는다. */
-          const bLeft9 = Math.round((sx - (bspr.pad + bspr.side / 2) * k) * B) / B;
-            /* ★ 격자에 얹는 것은 **자른 판의 왼위**여야 한다(지적: "포톤캐논, 터렛처럼 동작이 있는 건물들이
-               위치가 살짝씩 떨린다") ───────────────────────────────────────────────────────────────
-               여태 격자에 얹은 것은 **자르기 전** 판의 모서리(bLeft9·bTop9)이고, 실제로 찍는 자리는 거기에
-               자른 몫(ox·oy, 기기픽셀)을 더한 값이라 **소수점이 남았다**. 붙박이 건물은 판이 안 바뀌니 그
-               소수점도 늘 같아 티가 안 난다. 그런데 포탑이 돌거나(터렛) 톱니가 돌거나(포톤) 혓바닥이
-               드나드는(성큰) 건물은 **프레임마다 다른 판**이고, 판마다 잉크 상자가 조금씩 달라 ox·oy의
-               소수점이 매번 바뀐다(실측: 터렛의 잉크 가로중심이 머리 각에 따라 0.46 모형단위를 오간다).
-               그 소수점이 바뀔 때마다 브라우저가 판을 다시 표본해 테두리가 재합성되는데, 그것이 눈에는
-               **제자리 떨림**으로 보인다.
-               자른 판의 왼위를 한 번에 격자에 얹고, 그림자·물들인 마스크에는 **같은 밀림**을 먹인다
-               (따로 얹으면 셋이 최대 1픽셀씩 어긋나 몸에서 뜬다). */
-            const bPx9 = Math.round((bLeft9 + (bspr.ox / B) * k) * B) / B;
-            const bPy9 = Math.round((bTop9 + (bspr.oy / B) * k) * B) / B;
-            const bSx9 = bPx9 - (bLeft9 + (bspr.ox / B) * k);
-            const bSy9 = bPy9 - (bTop9 + (bspr.oy / B) * k);
-            if (bShadow9) {
-              /* ★ 그림자 판도 **예산에 든다**(실기 진단: 건물 16.5/16MB — 예산을
-                 넘겨 있었다) — shadowPlate는 바이트만 더하고 덜어내지는 않아, 판마다
-                 매달린 그림자가 예산 위로 조용히 넘쳐 있었다. 굽고 나서 한 번 죈다. */
-              const bsh9 = shadowPlate(
-                bspr, Math.max(1.5, bspr.side * 0.06), 0.4, B, bldSpriteBytes,
-              );
-              trimBoth9();
-              if (bsh9) {
-                SPRITE_PERF.bldBlit += 1;
-                ctx.drawImage(
-                  bsh9.cv,
-                  bPx9 - bsh9.pad * k,
-                  bPy9 - bsh9.pad * k + Math.max(1, sidePx * 0.04),
-                  bsh9.w * k, bsh9.h * k,
-                );
-              }
-            }
-            if (bspr.tint) {   // 물들인 마스크를 몸판 **아래**에(unitSprite의 ★ — 건물도 같은 규약)
-              const tcv9 = tintedOf9(bspr.tint, op.color, bldSpriteBytes);
-              if (tcv9) {
-                SPRITE_PERF.bldBlit += 1;
-                ctx.drawImage(tcv9, bLeft9 + (bspr.tint.ox / B) * k + bSx9, bTop9 + (bspr.tint.oy / B) * k + bSy9, (tcv9.width / B) * k, (tcv9.height / B) * k);
-              }
-            }
-            SPRITE_PERF.bldBlit += 1;
-            // 자른 판을 제 자리에 되돌린다(유닛과 같은 규칙) — bLeft9·bTop9는 자르기
-            // 전 판의 왼위 모서리다.
-            ctx.drawImage(
-              bspr.cv,
-              bPx9, bPy9,
-              (bspr.cv.width / B) * k, (bspr.cv.height / B) * k,
-            );
-            /* ★ 겹쳐 찍는 판(op.attach) — 성큰의 혓바닥이다(유닛 쪽 짐과 같은 규약).
-               **같은 자**로 굽는다: 같은 판 크기(sideQ)·같은 배수(NORM_PAIR가 몸 것으로
-               접는다)라, 몸과 똑같은 자리·배율에 제 잉크 오프셋(ox·oy)만 달리 주면
-               혀가 제 모형 좌표(아가리)에 앉는다.
-               차례는 늘 몸 **뒤**다 — 합본에서도 혀는 tagKey 13으로 몸의 지붕(12)보다
-               위였으므로, 나중에 찍는 것이 그 그림 그대로다. */
-            if (op.attach) {
-              const atB9 = buildingSprite({ ...bop9, kind: op.attach }, sideQ, B);
-              if (atB9) {
-                /* 자리는 **16-상자를 겹쳐** 잡는다 — 몸 판의 상자가 화면에서 차지한
-                   네모(왼위 + 크기)를 구한 뒤, 혀 판의 상자를 거기에 포갠다. 예산이
-                   다한 프레임에는 대역 판이 와서 두 판의 side가 다를 수 있으므로
-                   (buildingSpriteBake의 ★), 혀의 배율은 제 side로 따로 낸다. */
-                const boxL9 = bLeft9 + bspr.pad * k;
-                const boxT9 = bTop9 + bspr.pad * k;
-                const kA9 = (bspr.side * k) / atB9.side;
-                SPRITE_PERF.bldBlit += 1;
-                ctx.drawImage(
-                  atB9.cv,
-                  boxL9 - atB9.pad * kA9 + (atB9.ox / B) * kA9,
-                  boxT9 - atB9.pad * kA9 + (atB9.oy / B) * kA9,
-                  (atB9.cv.width / B) * kA9, (atB9.cv.height / B) * kA9,
-                );
-              }
-            }
-            /* 건물 체력바(요청) — 다친 건물 위에만. 유닛 바와 같은 3색. */
-            if (showHp !== false && deepOk9 && op.hpFrac !== undefined && op.hpFrac > 0
-              && (op.hpShow || (pickedKey != null && op.pickKey === pickedKey))) {   // 맞은 지 잠깐·선택된 개체만(요청)
-              /* 원작 폭(요청: 절대값에 비례 — 옛 잉크 폭·발자국 폭 자는 걷었다) — 엔진이 실어 온 게임 px 폭을 화면 px로
-                 (지도 폭 분수 × 지도 화면 폭). 두께는 원작 5게임px과 우리 최소 두께 중 큰 쪽. */
-              // 그리기 루프 안이라 return을 쓰지 않는다 — 폭이 없는 op(없어야 한다)는 최소 폭으로.
-              const bw3 = Math.max(3, (op.hpBarFrac ?? 0) * cw * zoom);
-              const bh3 = Math.max(hpBarH9(zoom), 5 * (bw3 / (op.hpBarW ?? 19)));
-              const bx3 = sx - bw3 / 2;
-              /* 바는 **몸 아래**다(요청: 원작처럼 모델 아래쪽) — 그려진 픽셀의 바닥선
-                 (bspr.bot) 바로 밑이다. 건물은 발자국 아랫변이 곧 땅에 닿는 줄이라,
-                 그 아래에 놓으면 원작의 발치 바와 같은 자리가 된다. */
-              const byTop = bTop9 + (bspr.bot / B) * k + 2 + wPx * 0.03;   // 살짝 아래로(지적)
-              ctx.globalAlpha = op.alpha * 0.9;
-              ctx.fillStyle = "rgba(10, 14, 10, 0.75)";
-              ctx.fillRect(bx3 - 0.5, byTop - 0.5, bw3 + 1, bh3 + 1);
-              drawHpBar(ctx, op, bx3, byTop, bw3, bh3);
-            }
-            continue;
-          }
           if (glB9 && glBf9 && gl9) {
             const gk9 = (sidePx * (op.pulseK ?? 1) / 16) * (bldNormOf(op.kind) ?? 1);
             const gLift9 = op.airPx !== undefined ? op.airPx * zoom : wPx * (op.liftK ?? 0);
@@ -4707,7 +3471,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             const gR9 = sidePx * 0.707; const gCy9 = -8 * gk9;
             gl9.push({ mesh: glB9, ax: gax9, ay: gay9, k: gk9, yoff: -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind) });
             if (op.attach) {
-              const gm9 = gl9.bldMesh({ ...op, kind: op.attach }, lodOf(sideQ));
+              const gm9 = gl9.bldMesh({ ...op, kind: op.attach }, lodB9);
               if (gm9) gl9.push({ mesh: gm9, ax: gax9, ay: gay9, k: gk9, yoff: -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, flat: GL_GLOW_KINDS9.has(op.kind) });
             }
             continue;
@@ -4736,7 +3500,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           continue;
         }
         /* GL 붓이 맡을 몸은 2D 면(요잉 칸별 빌더 굽기, resolveShapeFaces)을 아예 안 짓는다 — 메시는 종류·자세당 한 벌이다. */
-        const glPre9 = gl9 && SHAPE_BUILDERS[op.kind] ? gl9.unitMesh(op.kind, op.pose ?? 0, lodOf((Math.min(Math.max(4, (Math.round((op.sizePx * bakeZoom * B) / 2) * 2) / B), unitBakeCap(B)) * modelInkOf(op.kind)) / 16, LOD_INK_POINT, LOD_INK_DECO)) : null;
+        const glPre9 = gl9 && SHAPE_BUILDERS[op.kind] ? gl9.unitMesh(op.kind, op.pose ?? 0, lodOf((Math.max(4, op.sizePx * bakeZoom) * modelInkOf(op.kind)) / 16, LOD_INK_POINT, LOD_INK_DECO)) : null;
         if (gl9 && !glPre9) GL_MISS9.set(op.kind, (GL_MISS9.get(op.kind) ?? 0) + 1);   // 진단: GL 이 못 맡아 판으로 떨어진 종류
         const { faces, rot } = glPre9 ? { faces: null, rot: 0 } : resolveShapeFaces(op.kind, op.rotDeg, op.flat, op.viewYaw, op.pitch);
         if (!faces && !glPre9) continue;
@@ -4763,39 +3527,12 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           + (op.rise ?? 0) * px;
         /* 판을 먼저 굽는다 — 그림자를 어림 오프셋이 아니라 판의 실제 바닥 픽셀
            (contentBottom)에 붙이기 위해서다(재재지적: 드론이 높이 떠 있다). */
-        /* 상한을 넘겨야 하면 상한 크기로 굽고 아래 kU가 늘려 찍는다(위 unitBakeCap 주석).
-           굽는 크기는 bakeZoom이 정한다 — 손짓 중에는 손짓 시작 배율에 못 박혀, 핀치
-           한 번에 종류마다 수십 벌을 다시 굽지 않는다. 남는 배율 차이는 kU가 진다. */
-        /* ★ 판 크기를 **기기픽셀 격자**에 맞춘다(지적: "맵은 선명하고 모델들만 블러야")
-           ─────────────────────────────────────────────────────────────────────────
-           지도에서 잡은 것과 **같은 병**이다. 여기 있던 `round(x/2)*2`는 판을 짝수
-           CSS px로 죄는데, 화면에 찍는 크기(px)는 그 짝수가 아니다. 그러면 블릿 배율
-           kU가 1이 아니게 되고, 1에 가까우면서 정수가 아닌 배율은 재표본의 최악이라
-           모델이 고르게 뭉갠다. 실측(dpr 3·배율 4):
-               일반(상자 393)  마린 화면 23.33 · 판 24 → 배율 0.9723
-               전체화면(695)   마린 화면 41.27 · 판 42 → 배율 0.9825
-           둘 다 1이 아니고, **작은 쪽(일반 배치)이 늘 더 나쁘다** — 반올림 오차가
-           크기에 반비례하기 때문이다. "일반에서만 모델이 블러"의 정체가 이것이다.
-           격자에 맞춘다: 판을 기기픽셀 정수로 굽고, 찍는 크기도 그 값으로 쓴다(kU=1).
-           크기가 최대 0.5 기기픽셀(dpr 3에서 0.17 CSS px) 달라지는데 그건 눈에 안 든다.
-           상한(unitBakeCap)에 걸릴 때만 kU가 1을 넘는다 — 그때는 늘려 찍는 것이 옳다. */
-        /* 짝수 기기픽셀로 죈다 — 아래 블릿이 판의 **한가운데**(pxq/2)를 기준으로 삼으니
-           홀수면 거기서 반 픽셀이 생겨, 애써 맞춘 격자가 도로 어긋난다. */
-        const pxqWant = Math.max(4, (Math.round((op.sizePx * bakeZoom * B) / 2) * 2) / B);
-        const pxq = Math.min(pxqWant, unitBakeCap(B));
-        /* ★ WebGL 시제(#gl=1, gl9.ts) — 평면 시점 유닛 몸통을 메시가 맡으면 **판을 아예 안 굽는다**. 판이 주던 잉크 상자
-           (그림자·링·체력바의 자: 폭 w·가운데 cx·바닥 bot)는 메시의 요잉 칸별 화면 상자(footOf)가 같은 자로 준다. */
+        /* ★ **몸은 메시가 그린다**(GL 붓) — 판(스프라이트) 길은 걷었다(2026-09). 판이 주던 잉크 상자
+           (그림자·링·체력바의 자: 폭 w·가운데 cx·바닥 bot)는 메시의 요잉 칸별 화면 상자(footOf)가 같은 자로 준다.
+           GL 이 못 서거나(WebGL 없음·`#gl=0`) 메시를 못 지은 종류만 아래 폴백(면 직접 그리기)으로 떨어진다. */
         const glM9 = glPre9 && !rot ? glPre9 : null;
         const glCam9 = glM9 ? camOf9(!!op.pitch, pitchFlatNow * 0.7, op.viewYaw ? Math.max(-36, Math.min(36, Math.round(op.viewYaw / 6) * 6)) : 0) : CAM_TOP9;
         const glFt9 = glM9 && gl9 ? gl9.footOf(glM9, -(op.rotDeg ?? 0), glCam9) : null;
-        const spr = glFt9 ? null : unitSprite(op, pxq, B);
-        /* ★ **판의 실제 크기**를 되읽는다 — 굽기 예산이 다한 프레임에는 요청과 다른
-           크기가 올 수 있다(unitSprite의 ★). 판은 `l = pxq + 2·pad`로 지어졌으므로
-           거꾸로 풀면 그 크기다. 자리·그림자·블릿이 전부 이 값을 써야 대타가 제자리에
-           제 크기로 찍힌다. */
-        const pxqB = spr ? spr.l - 2 * spr.pad : pxq;
-        /* 상한에 안 걸렸으면 **구운 크기 그대로** 찍는다(1:1). 걸렸으면 그만큼 늘린다. */
-        const kU = pxqB === pxqWant && bakeZoom === zoom ? 1 : px / pxqB;
         /* 몸의 실제 폭(화면 px) — contentBox가 이미 재 둔 값이라 공짜다(지적: 체력바가
            몸을 덮는다 / 그림자가 몸만큼 크다 / 링이 몸보다 크다). 정규화가 맞추는 것은
            잉크 **상자**이고 폭 몫은 가로세로비 때문에 종류마다 1.7배까지 남는다 —
@@ -4803,40 +3540,16 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
            그러니 장식이 상자(px)가 아니라 이 몸 폭(inkW)을 봐야 한다. 그러면 "바는 제
            유닛보다 넓지 않다" 같은 조건이 종류를 안 가리고 식만으로 보장된다. */
         /** 이 종류·방위·보기의 장식용 몸 폭 비 — 자세 0에서 잰 값 하나를 모든 컷이 쓴다. */
-        /* 짐을 든 일꾼은 **맨몸과 같은 자**를 쓴다(NORM_PAIR) — 아니면 밭을 오갈 때마다
-           짐만큼 그림자가 넓어졌다 좁아진다(그 집합의 옛 주석이 말한 그 깜빡임이다). */
-        const inkKey9 = `${NORM_PAIR[op.kind] ?? op.kind}|${op.flat ? 1 : 0}|${pitchTag(op.pitch)}`;
-        const inkB9 = ((Math.round((op.rotDeg ?? 0) / 22.5) % 16) + 16) % 16;
-        const inkR9 = spr && spr.w > 0 && pxqB > 0 ? (spr.w / B) / pxqB : 0;
-        const inkW = glFt9 ? glFt9.w * (px / 16) * modelNormOf(op.kind) : ((): number => {
-          const pose9 = op.pose ?? 0;
-          let got9 = INK_W_RATIO9.get(inkKey9);
-          if (inkR9 > 0 && (!got9 || pose9 < got9.pose)) {
-            if (INK_W_RATIO9.size > 1024) INK_W_RATIO9.clear();
-            got9 = { pose: pose9, by: new Map(), r: 0 };
-            INK_W_RATIO9.set(inkKey9, got9);
-          }
-          if (inkR9 > 0 && got9 && pose9 === got9.pose && !got9.by.has(inkB9)) {
-            got9.by.set(inkB9, inkR9);
-            let sum9 = 0;
-            got9.by.forEach((v9) => { sum9 += v9; });
-            got9.r = sum9 / got9.by.size;
-          }
-          const r9 = got9 && got9.r > 0 ? got9.r : inkR9;
-          return r9 > 0 ? r9 * px : px * inkK;
-        })();
+        /* 몸 폭(장식의 자) — 메시의 요잉 칸별 화면 상자(footOf)가 준다. GL 이 못 서는 자리(폴백)만 상자 몫(inkK)으로 어림한다. */
+        const inkW = glFt9 ? glFt9.w * (px / 16) * modelNormOf(op.kind) : px * inkK;
         const footY = glFt9
           ? sy - px * 0.24 + (px / 16) * (modelNormOf(op.kind) * glFt9.bot + ((op.flat ? 12 : 12.6) - 8)) - 1   // 판 자와 같은 식(rasterUnit9 의 원점 (8,12/12.6)·배수)
-          : spr
-            ? sy - px * 0.24 - (spr.pad + pxqB / 2) * kU + (spr.bot / B) * kU - 1
-            : sy + px * 0.28;
+          : sy + px * 0.28;
         /* 내용물 가로 중심(재지적: 그림자·링이 몸과 안 맞음) — 상자 중심이 아니라 실제
            그려진 픽셀의 가운데에 붙인다. */
         const footX = glFt9
           ? sx + (px / 16) * modelNormOf(op.kind) * glFt9.cx
-          : spr
-            ? sx - (spr.pad + pxqB / 2) * kU + (spr.cx / B) * kU
-            : sx;
+          : sx;
         /* ★ 그림자는 **모델의 땅 원점**에 놓는다(지적: "디파일러 그림자 위치가 몸이랑 안맞음(너무 아래)",
            "시즈탱크도 그랬고", "그림자 위치가 안맞는 유닛이 있는 이유가 이해가 안돼") ─────────────
            여태 그림자 타원의 세로 자리는 footY = **판의 가장 아래 잉크 픽셀**이었다. 그 자는 다리 달린
@@ -5044,118 +3757,6 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              재표본의 흐림은 눈에 안 들고, 걸음이 끊기는 것만 보인다. 자세함 문턱(detailAt) 위에서만 스냅한다. */
           if (detail) ctx.setTransform(Bd, 0, 0, Bd, Math.round(Bd * bx9), Math.round(Bd * by9));
           else ctx.setTransform(Bd, 0, 0, Bd, Bd * bx9, Bd * by9);
-        }
-        if (spr) {
-          /* ★ 블릿 배율은 **자리를 잡을 때 쓴 그 배율**(kU)이다(지적: "dpr 1에서 지도상
-             이미지들이 흐린 듯 보인다") ─────────────────────────────────────────────
-             여기 있던 것은 `px / pxq` — 따로 셈한 제2의 배율이었다. 그런데 바로 위에서
-             판 크기를 **기기픽셀 격자에 맞춰** 구워 두었고(pxqWant의 ★ 주석) 앵커(footX·
-             footY·inkW)는 그 뜻대로 kU를 쓰고 있었다: 상한에 안 걸렸으면 kU가 정확히
-             1이라 '구운 그대로 1:1로 찍는다'가 그 약속이다. 그림만 그 약속 밖에 있었다.
-             `px / pxq`는 그 격자 맞춤이 남긴 **잔차**다. 곧 1에 가깝지만 정수가 아닌
-             배율이고, 그것이 재표본의 최악이라는 것은 바로 위 주석이 이미 적어 두었다.
-             왜 dpr 1에서만 도드라지나 — 격자 눈금이 **짝수 기기픽셀**이라, 그 눈금이
-             CSS px으로 얼마인지가 dpr에 반비례한다. dpr 3이면 2/3 CSS px이라 잔차가
-             1.000 언저리지만, dpr 1이면 눈금이 통째로 2 CSS px이다. 실측(모델 상자
-             23.33px): dpr 3에서 판 23.33 → 배율 1.0000이고, dpr 1에서는 판 24 →
-             배율 0.9721이다. 그 4%가 모든 몸을 고르게 뭉갠 정체다.
-             kU를 쓰면 상한에 안 걸린 흔한 자리에서 배율이 정확히 1이 된다: 판 폭도
-             찍는 폭도 같은 정수 기기픽셀이고, 자리도 이미 정수로 스냅해 두었으므로
-             (위 setTransform의 Math.round) 화소가 화소에 그대로 얹힌다.
-             ★ 크기는 최대 1 기기픽셀 달라진다 — 위 격자 맞춤이 이미 받아들인 값이고
-               (그 주석의 "그건 눈에 안 든다"), 뭉갠 그림보다 낫다. 상한에 걸렸거나
-               손짓 중이면 kU가 곧 px/pxq라 예전과 똑같이 늘려 찍는다. */
-          const k = kU;
-          /* 그림자는 **판에 구워 둔 것**을 몸보다 먼저 한 번 찍는다(shadowPlate 주석) —
-             여기서 흐림을 돌리지 않는다. 자리는 몸과 같고 번짐 여백(pad)만큼 벌린 뒤
-             아래로 조금 내린다. 그 '조금'은 값 하나라 삯이 없다. */
-          /* 낮은 배율에서는 지상만 뺀다(위 SHADOW_GROUND_MIN_ZOOM의 ★). */
-          if (bodyShadow && (op.air || zoom >= SHADOW_GROUND_MIN_ZOOM)) {
-            /* ★ **공중은 더 멀리·더 짙게**(지적: "공중유닛 겹침시 그림자 나와야하는데
-               뮤탈모여있는데 안생김") ────────────────────────────────────────────────
-               이 그림자는 몸 바로 아래로 px의 7%(뮤탈이면 두 픽셀 남짓)만 내려간다.
-               지상 유닛은 원작의 충돌 처리가 서로 떼어 놓으니 그 두 픽셀이 이웃의 몸
-               **바깥**에 떨어져 테두리로 읽힌다. 그런데 **공중 유닛은 서로 안 밀어낸다**
-               — 뮤탈 뭉치는 몸이 거의 포개져 날므로, 두 픽셀짜리 그림자는 통째로 위에
-               그려지는 이웃 몸 밑에 깔려 한 점도 안 보인다.
-               게다가 이 그림자는 '띄운 몸이 지는 그림자'이기도 하다: 높이 나는 것일수록
-               멀리 져야 맞다. 공중만 몫을 두 배 반으로 키우고 한 단 짙게 한다 — 겹쳐도
-               이웃 몸 밖으로 삐져나와 어느 것이 위인지가 읽힌다. */
-            // 그림자 판도 예산에 든다 — 건물 쪽의 ★ 주석과 같은 까닭이다.
-            const sh9 = shadowPlate(
-              spr, Math.max(1.5, pxqB * (op.air ? 0.16 : 0.1)),
-              op.air ? 0.55 : 0.4, B, spriteBytes,
-            );
-            trimBoth9();
-            if (sh9) {
-              ctx.globalAlpha = op.alpha;
-              SPRITE_PERF.blit += 1;
-              ctx.drawImage(
-                sh9.cv,
-                (-(spr.pad + pxqB / 2) + spr.ox / B - sh9.pad) * k,
-                (-(spr.pad + pxqB / 2) + spr.oy / B - sh9.pad) * k
-                  + Math.max(1, px * (op.air ? 0.18 : 0.07)),
-                sh9.w * k, sh9.h * k,
-              );
-            }
-          }
-          ctx.globalAlpha = op.alpha;
-          SPRITE_PERF.blit += 1;
-          /* 자른 판을 제 자리에 되돌린다 — 원래 판의 왼위 모서리가 있던 곳에서
-             자른 만큼(ox·oy, 기기 픽셀이라 B로 나눈다) 옮겨 그리면, 통째로 그린 것과
-             픽셀 단위로 같은 그림이 나온다. */
-          const cw9 = spr.cv.width / B;
-          const ch9 = spr.cv.height / B;
-          /* ★ 겹쳐 찍는 판(op.attach) — 일꾼이 든 짐이다. **같은 자**로 굽는다: 같은
-             크기(pxqB)·같은 배수(NORM_PAIR가 맨몸 것으로 접는다)라, 몸과 똑같은 변환에
-             제 잉크 오프셋(ox·oy)만 달리 주면 짐이 제 모형 좌표에 앉는다. 짐 판은 몸의
-             5분의 1 크기라 무게가 25분의 1이다 — 몸을 미네랄·가스로 두 벌 굽던 것을 한
-             벌로 줄이는 값에 견주면 거저다.
-             ★ **앞뒤 차례는 요잉이 정한다** — 짐은 모형의 앞(+y)에 안기므로, 일꾼이 등을
-               보이면(요잉 90~270도) 짐은 몸 **뒤**에 있어야 한다. 한 판씩 겹쳐 찍는
-               길에는 부품별 깊이가 없으니 차례로 그 몫을 낸다: 등을 보일 때는 짐을 먼저
-               깔고 몸으로 덮는다(합본 모델에서 짐이 가려지던 그 그림이 그대로 난다). */
-          const atSpr9 = op.attach ? unitSprite({ ...op, kind: op.attach }, pxqB, B) : null;
-          /* 둘째 겹판(op.attach2) — 늘 몸 **앞**에 찍는다(시즈 전환의 앞쪽 버팀다리). 같은 배율(attachK)을 탄다. */
-          const at2Spr9 = op.attach2 ? unitSprite({ ...op, kind: op.attach2 }, pxqB, B) : null;
-          const atDrawOf9 = (sp9: typeof atSpr9, kOverride9?: number): void => {
-            if (!sp9) return;
-            SPRITE_PERF.blit += 1;
-            /* 겹판 배율(op.attachK) — 원점(모델 원점 = 변환의 0,0) 기준이라 시즈 버팀다리가 차체에서 뻗어 나온다. */
-            const aK9 = kOverride9 ?? op.attachK ?? 1;
-            if (aK9 <= 0.01) return;
-            if (aK9 !== 1) { ctx.save(); ctx.scale(aK9, aK9); }
-            /* ★ 겹판도 **제 실제 크기**로 찍는다(몸판이 pxqB를 되읽는 것과 같은 규약) —
-               예산이 닫힌 프레임에는 청한 크기가 아니라 대타(다른 크기·작게 구운 판)가
-               온다. 여태는 몸의 pxqB로 자리와 크기를 잡아, 그런 판이 오면 짐·포신·다리가
-               엉뚱한 자리에 엉뚱한 크기로 찍혔다(같은 크기가 오면 값이 똑같다). */
-            const apx9 = Math.max(1, sp9.l - 2 * sp9.pad);
-            const kA2 = (k * pxqB) / apx9;
-            drawTint9(ctx, sp9, op.color, apx9, kA2, B);   // 물들인 마스크를 몸판 **아래**에(unitSprite의 ★)
-            ctx.drawImage(
-              sp9.cv,
-              (-(sp9.pad + apx9 / 2) + sp9.ox / B) * kA2,
-              (-(sp9.pad + apx9 / 2) + sp9.oy / B) * kA2,
-              (sp9.cv.width / B) * kA2, (sp9.cv.height / B) * kA2,
-            );
-            if (aK9 !== 1) ctx.restore();
-          };
-          const atDraw9 = (): void => atDrawOf9(atSpr9);
-          const rb9 = ((Math.round((op.rotDeg ?? 0) / 22.5) * 22.5) % 360 + 360) % 360;
-          // 배율 겹판(버팀다리)은 늘 몸 뒤 — 오므린 다리가 차체 위로 안 비친다.
-          const atBack9 = op.attachK !== undefined || (rb9 > 90 && rb9 < 270);
-          if (atBack9) atDraw9();
-          drawTint9(ctx, spr, op.color, pxqB, k, B);   // 물들인 마스크를 몸판 **아래**에(unitSprite의 ★)
-          ctx.drawImage(
-            spr.cv,
-            (-(spr.pad + pxqB / 2) + spr.ox / B) * k,
-            (-(spr.pad + pxqB / 2) + spr.oy / B) * k,
-            cw9 * k, ch9 * k,
-          );
-          if (!atBack9) atDraw9();
-          atDrawOf9(at2Spr9, op.attach2K);   // 둘째 겹판은 제 배율(attach2K)이 있으면 그것을, 없으면 attachK를 탄다
-          ctx.setTransform(Bd, 0, 0, Bd, 0, 0);
-          continue;
         }
         /* ★ WebGL 시제 — 메시가 맡는 몸(위 glFt9)은 판 대신 GPU 큐에 넣는다(짐·포탑 겹판 포함). 그림자·링·체력바는 위에서
            캔버스가 그렸다. 자리·배수는 판 블릿과 같은 자: 앵커 (bx9, by9) · px/16 · MODEL_NORM. 몸 그림자(2D shadowPlate)는
@@ -10314,8 +8915,6 @@ export default function ReplayMotionPlayer({
   // 렌더마다 — 멈춘 채 무언가(거울·토글·크기·탐색) 바뀌었으면 붓 하나가 한 장 칠한다. 재생 중엔 무동작.
   useEffect(() => { requestPaint9(); });
   const requestFogPaint9 = useCallback((): void => requestPaint9(true), [requestPaint9]);
-  // 굽기 일꾼이 판을 돌려주면 멈춘 화면도 한 장 다시 칠한다(위 BAKE_REPAINT9) — 재생 중이면 requestPaint9가 무동작이다.
-  useEffect(() => { BAKE_REPAINT9.fn = () => requestPaint9(); return () => { BAKE_REPAINT9.fn = null; }; }, [requestPaint9]);
   /** 미니맵 붓(요청: 드래그·줌 중에도 프레임이 따라온다) — 안개와 같은 규약이다.
    *  평소 배치와 전체화면 미니맵은 서로 배타라 붓 하나를 나눠 쓴다. */
   const miniPaintRef = useRef<((z: number, p: { x: number; y: number }) => void) | null>(null);
@@ -12432,7 +11031,7 @@ export default function ReplayMotionPlayer({
     const grade9 = (w9: boolean, k9: number): string => (w9 ? (k9 < 1 ? "심한미달" : "미달") : "충분");
     /* 저배율 죔(위 lowZoomTrim9) — 지금 배율에서 실제로 몇 단인지 그대로 찍는다. */
     const tr9 = lowZoomTrim9(zoomRef.current, pitched);
-    SCR_DIAG.crowd = `벤치 2D ${c9.bench.toFixed(0)}ms ${grade9(c9.weak, c9.k)} · 3D ${c9.bench3.toFixed(0)}ms ${grade9(c9.weak3, c9.k3)}${c9.force >= 0 ? " 강제" : ""}${CROWD9.re > 0 ? ` ↻${CROWD9.re}` : ""} · ${pitched ? "3D" : "2D"} ${c9.lv}단 ${c9.units}기${tr9 > 0 ? ` · 저배율죔 ${tr9}단` : NO_TRIM9 ? " · 저배율죔 끔" : ""}${THIN9.n > 0 ? ` · 겹침생략 ${THIN9.n - THIN9.drew}/${THIN9.n}기` : ""}${bakeSprint9.v > 1 ? ` · 굽기질주 ×${bakeSprint9.v}` : ""}${!smallDevice9 ? ` · PC ${PC_TIER9.v}단${PC_TIER9.force >= 0 ? "(강제)" : ""}` : ""}`;
+    SCR_DIAG.crowd = `벤치 2D ${c9.bench.toFixed(0)}ms ${grade9(c9.weak, c9.k)} · 3D ${c9.bench3.toFixed(0)}ms ${grade9(c9.weak3, c9.k3)}${c9.force >= 0 ? " 강제" : ""}${CROWD9.re > 0 ? ` ↻${CROWD9.re}` : ""} · ${pitched ? "3D" : "2D"} ${c9.lv}단 ${c9.units}기${tr9 > 0 ? ` · 저배율죔 ${tr9}단` : NO_TRIM9 ? " · 저배율죔 끔" : ""}${THIN9.n > 0 ? ` · 겹침생략 ${THIN9.n - THIN9.drew}/${THIN9.n}기` : ""}${!smallDevice9 ? ` · PC ${PC_TIER9.v}단${PC_TIER9.force >= 0 ? "(강제)" : ""}` : ""}`;
     const st9 = wStatRef.current;
     const wait9 = !st9.ready && st9.worldAt > 0 ? (pNow() - st9.worldAt) / 1000 : 0;
     let ahead9 = -1e9;
@@ -12441,7 +11040,6 @@ export default function ReplayMotionPlayer({
       if (f9.t - t > ahead9) ahead9 = f9.t - t;
       bytes9 += f9.buf.byteLength + (f9.fog ? f9.fog.visSrc.byteLength + (f9.fog.explored?.byteLength ?? 0) + (f9.fog.visNow?.byteLength ?? 0) : 0);
     }
-    SCR_DIAG.bakew = bakewDiag9();
     SCR_DIAG.worker = `${frameWorkerRef.current ? (st9.ready ? "on" : "준비중") : "off"} got ${st9.got} used ${st9.used} missed ${st9.missed}`
       + ` 짓기 ${st9.buildMs.toFixed(1)}ms op ${st9.ops.toFixed(0)}·${st9.kb.toFixed(0)}KB 앞 ${wFramesRef.current.size > 0 ? Math.max(0, ahead9).toFixed(1) : "-"}s·${wFramesRef.current.size}장·${(bytes9 / 1048576).toFixed(1)}MB`
       + ` 시야 ${cullRect9 ? `${((cullRect9.x1 - cullRect9.x0) * 100).toFixed(0)}×${((cullRect9.y1 - cullRect9.y0) * 100).toFixed(0)}%` : "전체"}`
@@ -13516,7 +12114,7 @@ export default function ReplayMotionPlayer({
          ★ 로딩 표시는 **오래 걸릴 때만** 뜬다(아래 250ms) — 한두 프레임짜리 멈춤에
            띠가 깜빡이면 그것이 더 성가시다. 재생 중에 늘 띄우는 길은 안 쓴다: 그건
            일을 줄이지 않으면서 정작 보고 있는 장면만 가린다. */
-      const bakeMs9 = SPRITE_PERF.last.bakeMs;
+      const bakeMs9 = glBakeMsTake9();   // 이번 프레임에 **메시**를 지은 몫(판 굽기는 걷었다) — 처음 보는 종류가 몰릴 때만 선다
       const hold9 = bakeHoldRef.current;
       const holding9 = c !== null && bakeMs9 >= BAKE_HOLD_MS9 && hold9.ms < BAKE_HOLD_MAX9;
       if (holding9 && c) hold9.ms += now - c.last;
@@ -13975,7 +12573,6 @@ export default function ReplayMotionPlayer({
     return { truth: estBytes9(truth, seen9), ent: estBytes9(entData, seen9), ui: estBytes9(world, seen9), walks: estBytes9(entWalks9, seen9) };
   }, [diagOn, truth, entData, world, entWalks9]);
   const dm9 = (k: string): boolean => diagModes9.has(k) || diagModes9.has("all");
-  const sheetsMB9 = (SPRITE_PERF.last.bytes + SPRITE_PERF.last.bldBytes) / 1048576;
   /* `#diag=fps` — 오른쪽 위 귀퉁이에 **작은 fps 오버레이만**(요청). 다른 진단 글은 안 그린다.
      붓의 fps 계측(paintFnRef9)이 0.5초마다 fpsTick9를 올려 이 숫자만 다시 그린다. */
   const fpsOnly9 = diagModes9.size === 1 && diagModes9.has("fps");
@@ -13998,9 +12595,9 @@ export default function ReplayMotionPlayer({
                 {/* 요약(값 없는 #diag) — 한 줄에 끊김·메모리·워커의 첫 자를 다 둔다. */}
                 {diagModes9.size === 0 && (
                   <div>
-                    최악프레임 {SPRITE_PERF.wLast.worstFrame.toFixed(0)}ms(굽기 {SPRITE_PERF.wLast.worstFrameBake.toFixed(0)})
-                    {" · 굽기 "}{SPRITE_PERF.wLast.bake}장 버림 {SPRITE_PERF.wLast.evict}
-                    {" · 판 "}{sheetsMB9.toFixed(1)}/{(SPRITE_TOTAL_MAX / 1048576).toFixed(0)}MB
+                    최악프레임 {SPRITE_PERF.wLast.worstFrame.toFixed(0)}ms
+                    {" · 찍기 "}{SPRITE_PERF.wLast.frames ? Math.round(SPRITE_PERF.wLast.blit / SPRITE_PERF.wLast.frames) : 0}장/프레임
+                    {SPRITE_PERF.wLast.direct > 0 ? ` · 직접 ${SPRITE_PERF.wLast.direct}` : ""}
                     {" · 캔버스 "}{SPRITE_PERF.dom.canvasMB.toFixed(1)}MB
                     {" · 워커 "}{frameWorkerRef.current ? (wStatRef.current.ready ? "on" : "준비중") : "off"}
                     {" "}{wStatRef.current.buildMs.toFixed(0)}ms
@@ -14023,7 +12620,7 @@ export default function ReplayMotionPlayer({
                       {SPRITE_PERF.wLast.frames
                         ? Math.round(SPRITE_PERF.wLast.blit / SPRITE_PERF.wLast.frames) : 0}장/프레임
                       {" · 최악프레임 "}{SPRITE_PERF.wLast.worstFrame.toFixed(0)}ms
-                      {" (그중 굽기 "}{SPRITE_PERF.wLast.worstFrameBake.toFixed(0)}ms) · 마커 {SPRITE_PERF.dom.markers}개
+                      {SPRITE_PERF.wLast.direct > 0 ? ` · 직접 ${SPRITE_PERF.wLast.direct}` : ""} · 마커 {SPRITE_PERF.dom.markers}개
                       {/* 이 판이 본 가장 긴 프레임과 그 몫(위 WORSTF9) — 핵 창 밖의 끊김도 여기 잡힌다. */}
                       {WORSTF9.ms > 0 ? ` · 최장프레임[${WORSTF9.ms.toFixed(0)}ms ${WORSTF9.parts}]` : ""}
                       {/* 타이머 틈(위 TICKM9) — rAF와 견줘 '주 실마리가 막혔나 · 그리기만 굶었나'를 가른다. */}
@@ -14039,30 +12636,10 @@ export default function ReplayMotionPlayer({
                 )}
                 {dm9("bake") && (
                   <>
-                    {/* 굽는 값 — 예산 안이어도 프레임마다 다시 굽고 있으면 버벅인다. '버림'이 0이 아니면 예산 압박이
-                        다시 굽기를 부르는 것이고, '미룸'이 쌓이면 프레임 굽기 예산에 일이 밀려 있는 것이다. */}
-                    <div>
-                      <b>굽기</b>{" "}{SPRITE_PERF.wLast.secs.toFixed(0)}초 · 유닛{" "}
-                      {SPRITE_PERF.wLast.bake}장 {SPRITE_PERF.wLast.ms.toFixed(0)}ms · 건물{" "}
-                      {SPRITE_PERF.wLast.bldBake}장 {SPRITE_PERF.wLast.bldMs.toFixed(0)}ms
-                      {" · 버림 "}U{SPRITE_PERF.wLast.evict}/B{SPRITE_PERF.wLast.bldEvict}
-                      {" · 미룸 "}U{SPRITE_PERF.wLast.defer}/B{SPRITE_PERF.wLast.bldDefer}
-                      {/* 대기표에 남은 수(위 BAKE_WANT9) — 큰 것부터 굽고 남은 몫이다. */}
-                      {BAKE_WANT9.size > 0 ? ` 대기${BAKE_WANT9.size}` : ""}
-                      {/* ★ 그 굽기 가운데 **잉크 훑기**(getImageData)가 얼마인가 — 판을 GPU가 들고 있으면
-                          이 한 줄이 파이프라인을 세워(readback) 한 장에 수십 ms가 되기도 한다. */}
-                      {" · 훑기 "}{Math.round(SCAN_MS9.last)}ms
-                      {" · 최악판 "}{SPRITE_PERF.wLast.worstKind || "-"}{" "}
-                      {SPRITE_PERF.wLast.worst.toFixed(0)}ms
-                    </div>
-                    {/* 굽기 일꾼(위 BAKEW9) — on/off(까닭) · 보냄/받음 · 날아감/대기 · 왕복 · 일꾼 안 굽기 ms. */}
-                    <div><b>굽기일꾼</b>{" "}{SCR_DIAG.bakew || "-"}</div>
                     {/* 건물 불빛(요청 신고: "활성시 불이 안 들어와") — 생산 색인이 비었는지,
                         켜진 건물이 0인지를 수로 가른다. 0이면 켜는 자가 문제고, 1 이상인데
                         화면이 어두우면 그 판을 굽는 쪽이다. */}
                     <div><b>불빛</b>{" "}켠건물 {SCR_DIAG.litN} · 생산색인 {SCR_DIAG.prod || "-"}</div>
-                    {/* 판이 왜 갈리나 — 굽기 회전의 임자다(유닛·건물 각각 상위 셋). */}
-                    <div><b>판갈림</b>{" "}유닛 {missTop9(UNI_MISS9.why)} · 건물 {missTop9(BLD_MISS9.why)}</div>
                     {/* 캔버스 만듦(위 CVN9)·되쓰기 창고(위 CVSTORE9) — 캔버스를 얼마나 새로 짓고, 얼마나 되쓰나. */}
                     <div>
                       <b>캔버스</b>{" "}만듦 총{CVN9.n} 초당{CVN9.rate.toFixed(0)} 최고{CVN9.peak.toFixed(0)}{CVN9.peakTop ? `(${CVN9.peakTop})` : ""}
@@ -14117,15 +12694,9 @@ export default function ReplayMotionPlayer({
                     {/* 메모리 흐름(위 MEMTR9) — 처음·지금·최대가 나란하면 새는 데가 없다. */}
                     {MEMTR9.n > 0 ? <div><b>메모리</b>{` 처음${MEMTR9.first.toFixed(0)} 지금${MEMTR9.now.toFixed(0)} 최대${MEMTR9.max.toFixed(0)}MB`}
                       {` · 캔버스${MEMTR9.cv}장 ${MEMTR9.cvMB.toFixed(1)} · 판 ${MEMTR9.plMB.toFixed(1)} · 설계도안개 ${MEMTR9.exMB.toFixed(1)}`}</div> : null}
-                    {/* 탭이 터지는 자 — 판(오프스크린)과 화면 캔버스는 서로 다른 것이라 더해야 전체다. */}
-                    <div>
-                      판 유닛 {SPRITE_PERF.last.keys}장 {(SPRITE_PERF.last.bytes / 1048576).toFixed(1)}MB
-                      {" · 건물 "}{SPRITE_PERF.last.bldKeys}장 {(SPRITE_PERF.last.bldBytes / 1048576).toFixed(1)}MB
-                      {" / 합 "}{sheetsMB9.toFixed(1)}/{(SPRITE_TOTAL_MAX / 1048576).toFixed(0)}MB
-                    </div>
                     <div>
                       캔버스 {SPRITE_PERF.dom.canvases}장 {SPRITE_PERF.dom.canvasMB.toFixed(1)}MB
-                      {" + 판 "}{sheetsMB9.toFixed(1)}MB{" = "}{(SPRITE_PERF.dom.canvasMB + sheetsMB9).toFixed(1)}MB
+                      {" + 메시 "}{((glNow9()?.stat.bytes ?? 0) / 1048576).toFixed(1)}MB
                       {" · 설계도 "}{(((): number => {
                         let b9 = 0;
                         for (const f9 of wFramesRef.current.values()) b9 += f9.buf.byteLength;

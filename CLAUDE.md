@@ -58,21 +58,19 @@ scplayer 쪽 소스를 만졌으면 그쪽에서 `npx tsc --noEmit -p tsconfig.j
 - 참값 자리 형식(`openbwTracks.ts`): 키는 `kt`(초 Float32)·`kxy`(픽셀 Int16×2)·`kh`(방향 바이트)·`kst`(상태)로 나눠 들고
   접근자 `kT/kX/kY/kH/kS`로만 읽는다. 체력·인터셉터·표적은 평평한 형식 배열 `Ticks`([초,값,…], 표적은 Float64)이고
   `tkN/tkT/tkV/tkAt/tkLast/tkSlice`로 읽는다. 자리를 바꾸면 접근자만 고친다. 검사: `node scripts/openbw-tracks-check.mjs`.
-- 임자 색은 **굽지 않고 그릴 때 입힌다**(`UnitPlate9.tint`): 판 열쇠에 색이 없고, 개인색 면은 마스크(흰색·음영 알파,
-  화가 순서상 위의 고정 면은 destination-out으로 파냄)로 따로 굽는다. 그릴 때 (마스크, 색)별로 한 번 물들인 판을
-  `tintedOf9`로 만들어 되쓴다(상한 8색). 건물 판(`BldSprite.tint`)도 같은 규약이다.
-- 기기 프로필은 `DEV9` 한 표(폰/PC: 판 예산·굽기 상한·프레임당 굽기·불티·효과 래스터·그림자 최소 배율·시야 여유·
-  앞 한도(폰 1.5s/4MB·PC 3s/24MB)·요잉 8칸). 새 문턱은 표에 더하고 자리에서는 `DEV9.x`만 읽는다. 기기 판정은 `smallDevice9` 하나.
-  PC는 진입 벤치로 네 단(`DEV9.tiers` = PC_TIERS9: 판 예산·프레임당 굽기·앞 한도·일꾼 수; 3단은 deviceMemory 8GB가 확인될 때)을 오른다(`#tier=N` 강제). 폰 표(PHONE_TIERS9)는
-  한 줄이라 단이 없다 — 폰에 열려면 그 표에 줄을 더한다. 굽기 일꾼 수도 표의 값(`DEV9.bakeWorkers`: PC 1~2 · 폰 0)이다.
-- **굽기 일꾼**(`bakeWorker.ts`, `#diag=bake`의 '굽기일꾼' 줄): PC에서 판 굽기를 OffscreenCanvas 워커가 하고 ImageBitmap을 transfer로
-  돌려준다(`BAKEW9`). 메인은 열쇠·보관함·예산·대타를 그대로 들고, 처음 보는 열쇠는 대기표(`BAKE_WANT9`)에 적어 프레임이 열릴 때 큰 것부터
-  일꾼에 청한다 — 그 프레임은 대타(다른 크기·이웃 요잉·작은 판)를 찍고 판이 오면 갈아 끼운다(멈춘 화면은 `BAKE_REPAINT9`로 한 장 다시).
-  판 굽기 자체(`rasterUnit9`·`rasterBld9`)와 모델 빌더·표·헬퍼는 **`bake9.ts`**(DOM 없음 — 캔버스는 `BAKE_ENV9`의 손으로만: 메인 DOM
-  캔버스 / 일꾼 OffscreenCanvas)에 있다. 빌더를 고치면 bake9.ts를 고친다(model-depth-check·doc-catalog도 그 파일을 읽는다). 모듈 전역
-  깃발(pose·head·lit·spin·lod·pitchFlat)은 세터(`poseSet9`·`pitchFlatSet9`…)로만 세운다. 일꾼에는 메인 깃발이 없어 lod·pitchFlat은 청할 때
-  싣고, 진단 해시(#pitch·#nocreep)는 워커 name으로 간다(`hashNow9`). `#bakeworker=N`(0 끔). 못 띄우면 옛 인라인 굽기로 돈다.
+- **판(스프라이트) 굽기 길은 걷었다(2026-09)** — 유닛·건물 몸은 어느 기기에서나 GL 붓이 메시로 그린다(아래 "메시 층·WebGL").
+  함께 걷은 것: `unitSprite`·`buildingSprite(Bake)`·판 보관함·바이트 예산·LRU·대타(같은 종류의 다른 크기)·프레임당 굽기 몫·
+  굽기 일꾼(`bakeWorker.ts`)·색별 물들이기(`tintedOf9`)·그림자 판(`shadowPlate`)·판 크기 사다리·판 갈림 진단. 약 1900줄이다.
+  **캔버스에 남은 판은 크립 얼룩 한 가지**(`creepPlate9`, 무늬 셋 × 보기 둘 = 여섯 장·크기 못 박음·색 하나라 구울 때 물들여 합친다):
+  크립은 모델이 아니라 땅이라 지형 마스크로 파내야(destination-out) 하고 그것은 2D 캔버스의 일이다. 효과 래스터(`FX_RASTER_CACHE`)도 남는다.
+  모델 빌더·표·헬퍼와 크립 래스터(`rasterBld9`)는 **`bake9.ts`**에 있다(DOM 없음 — 캔버스는 `BAKE_ENV9`의 손으로만). 빌더를 고치면
+  bake9.ts를 고친다(model-depth-check·doc-catalog도 그 파일을 읽는다). 모듈 전역 깃발(pose·head·lit·spin·lod·pitchFlat)은
+  세터(`poseSet9`·`pitchFlatSet9`…)로만 세운다.
   ⚠ bake9.ts의 **문 차례**는 원본 그대로여야 한다 — 파생 빌더 등록문(`SHAPE_BUILDERS.x = …`)이 `SHAPE_FACES` 표보다 앞에 있어야 한다.
+- 기기 프로필은 `DEV9` 한 표(폰/PC: 크립 굽기 상한·굽는 판 한도·불티·효과 래스터·그림자 최소 배율·시야 여유·앞 한도(폰 1.5s/6MB·
+  PC 3s/24MB)·요잉 8칸·**GL 메시 상한**(폰 240 · PC 600)). 새 문턱은 표에 더하고 자리에서는 `DEV9.x`만 읽는다. 기기 판정은 `smallDevice9` 하나.
+  PC는 진입 벤치로 네 단(`DEV9.tiers` = PC_TIERS9)을 오르는데, 판 예산이 사라진 뒤로 단이 다스리는 값은 **설계 일꾼의 앞 한도** 하나다
+  (단 번호는 여전히 품질 알림·결(grain)·그림자 접기의 눈금이다). `#tier=N` 강제. 폰 표(PHONE_TIERS9)는 한 줄이라 단이 없다.
 - `#diag`는 요약 한 줄, `#diag=draw|bake|fog|load|gest|mem|worker|truth|brush|view|all`(쉼표로 여럿)로 용도를 가른다 — draw(화면·덜어내기·프레임) · bake(굽기·굽기일꾼·판갈림·캔버스) · fog(안개) · load(로딩·지도판·입체) · gest(손짓·원점). 한 주제가 한 줄, 줄 머리에 주제 이름. `mem`에 메모리 어림(memEst9) 줄.
 - 워커는 짓기 시간(ms)에 맞춰 프레임 간격을 벌린다(초당 30장 기본, 최소 8장). 메인은 2초 안의 프레임이면 낡아도 든다.
 - **붓은 React 밖에서**(4번): 시계 틱이 살아 있는 시각(`tLiveRef9`)을 한 걸음(벽시계 ≤80ms) 올리고 `paintFnRef9`로
@@ -81,6 +79,8 @@ scplayer 쪽 소스를 만졌으면 그쪽에서 `npx tsc --noEmit -p tsconfig.j
   시간 표시·DOM 효과·미니맵·안개는 그 박자다. 탐색으로 t가 밖에서 바뀌면 렌더가 tLive를 맞춘다.
 - 엔진은 늘 **자세히** 낸다(요잉 16칸·모든 자세·탱크 차체+포탑). 낮은 배율 간이화는 붓(UnitLayer)의
   `detailAt`·`yawAt`·`moveAt`가 한다. 배율·팬 자체는 프레임에 안 실린다(시야 사각형만).
+- 붓 계측(`SPRITE_PERF`)이 세는 것도 그만큼 줄었다: **찍기**(캔버스에 남은 판 블릿 = 크립·효과) · **직접**(GL 이 못 맡아 면을 곧장 그린 몸 —
+  0이라야 한다) · 최악 프레임 · 화면 캔버스 무게. 메시 무게·벌 수는 `gl9.stat`(#diag=draw 의 GL 줄)이 따로 낸다.
 - 계측: `node scripts/perf-check.mjs [--msgsize]`(vite 번들이 기본) — `[워커] on got/used/missed`로 워커가 쓰였는지,
   `--msgsize`로 장당 바이트·op 수를 본다. `--wide --cpu 1`이 PC 판(굽기 일꾼 `[굽기일꾼]` 줄이 on이어야 한다). 워커 번들의 `process.env.NODE_ENV`는 vite.config의 define이 박는다(사파리).
   esbuild 도구 번들(model-shot 등, perf-check `--esbuild`)에는 워커가 없어 유닛 프레임이 안 그려진다.
@@ -115,8 +115,8 @@ scplayer 쪽 소스를 만졌으면 그쪽에서 `npx tsc --noEmit -p tsconfig.j
   [--kinds a,b] [--svg out.html --rots 0,45,90,180]`(덮임 154종 100%; 미리보기는 html 캔버스 — svg 는 수천 면에서 스크린샷이 멎는다).
   새 도형 헬퍼를 만들면 `meshPut9(d, polys)` 를 함께 적는다 — 안 적으면 그 부품이 GPU 그림에서 빠진다(덮임 표가 잡는다).
 - **숫자 경로**: polyPath3 가 화면 2D 좌표를 `POLY2` 에 적고 `bake9.pathOf` 가 그 숫자로 Path2D 를 짓는다(문자열 파싱 생략, 판당 약 20%).
-- **WebGL 붓(PC 기본 켬 · `#gl=0` 끔 · `#gl=1` 폰에서도 켬)**(`gl9.ts`): 유닛·건물 몸을 **판 없이** 메시로 GPU 가 그린다. 메시는 열쇠별
-  한 벌(유닛 `u:종류:자세:lod`, 건물 `b:종류:건설단계:포탑각:불빛:회전:lod` — rasterBld9 와 같은 깃발), 상한 600 벌. 정점 셰이더가 `project` 와
+- **WebGL 붓(어느 기기에서나 기본 켬 · `#gl=0` 이면 면을 곧장 그리는 느린 폴백)**(`gl9.ts`): 유닛·건물 몸을 **판 없이** 메시로 GPU 가 그린다.
+  메시는 열쇠별 한 벌(유닛 `u:종류:자세:lod`, 건물 `b:종류:건설단계:포탑각:불빛:회전:lod`), 상한은 기기 표(`DEV9.glMeshMax`: PC 600 · 폰 240). 정점 셰이더가 `project` 와
   같은 카메라(평면 sin40/cos40 · 입체 pitchFlatNow·0.7/0.9/앞숙임 0.34/시각 밀림 tan(vq), `camOf9`)를 걸고, 자리·배수는 판 블릿과 같은 자다
   (유닛 앵커 (sx, sy−px·0.24−lift)·px/16·MODEL_NORM·원점 줄 12/12.6 · 건물 x 상자 가운데, 잉크 바닥을 바닥선−띄움에). 판이 주던 잉크 상자
   (그림자·링·체력바·BLD_INK_BOX)는 `footOf`(메시 꼭짓점을 카메라·요잉으로 돌려 잰 상자)가 같은 자로 준다.
@@ -130,8 +130,8 @@ scplayer 쪽 소스를 만졌으면 그쪽에서 `npx tsc --noEmit -p tsconfig.j
     너무 크면(2.0) 거꾸로 벽 앞으로 튀어나온 부품을 덮는다 — 좁은 창의 가운데 값이다. 구간은 둘뿐이다: 불투명 | 반투명(깊이 안 씀).
   · **덧칠 면은 반드시 몸에 접거나 버린다**(mesh9): ① 같은 경로 ② 같은 부품 번호(pid)의 마지막 몸 면. 제 부품으로 남기면 모델이
     통째로 비쳐 보인다(실측: 보급고 103부품 중 54개가 반투명이었다).
-  · GL 뒷캔버스(`.scr-motion-gl9`, display:none)는 붓이 몸을 다 큐에 넣은 뒤 **효과 전에** 유닛 캔버스에 합성한다. GL 이 켜지면 유닛·건물의
-    2D 면 굽기(resolveShapeFaces)·판 굽기는 안 돈다(데우기도 메시로). 아직 캔버스가 맡는 것: 크립 판·얼룩·맨 네모·그림자 타원·링·체력바·효과.
+  · GL 뒷캔버스(`.scr-motion-gl9`, display:none)는 붓이 몸을 다 큐에 넣은 뒤 **효과 전에** 유닛 캔버스에 합성한다. 캔버스가 맡는 것은
+    크립 얼룩(creepPlate9)·맨 네모·그림자 타원·링·체력바·효과뿐이다. `#gl=0` 이나 WebGL 이 안 설 때만 붓이 면을 곧장 그린다(`SPRITE_PERF.direct`).
   · **손수 짠 경로도 3D 로 되찾는다**(mesh9.meshFromPath9): 기록 중 project() 가 화면점→3D 표(PROJ9)를 적고, 헬퍼 없이 빌더가 짠
     경로(번개·얼룩·screenCircle 구 껍질·groundEllipse 땅 원·annulus 고리·반고리)를 꼭짓점 되찾기로 메시화한다. 불투명 화면 원은 구,
     반투명 화면 원은 카메라를 보는 원반. 되찾기가 안 되는 면은 GL 에서 빠진다(gl-check 가 잡는다).
@@ -143,10 +143,10 @@ scplayer 쪽 소스를 만졌으면 그쪽에서 `npx tsc --noEmit -p tsconfig.j
     효과 메시 열쇠 `f:종류:칸`. 탄두·섬광·연기(모델 아님)는 캔버스에 남는다.
   · GL 캔버스는 **미리곱한 알파**(premultipliedAlpha: true · 셰이더가 rgb·a 를 내고 합성 (ONE, 1−a)) — 예전(SRC_ALPHA 짝)은 알파 채널이
     a² 로 쌓여 반투명 빛무리가 어두웠다(밝기비 0.75 → 1.0). 더하기는 (ONE, ONE).
-  · **폰 준비(2026-09)**: 정점은 **36바이트**(pos·nrm float, rgb·team·alpha·덧칠·빌보드는 정규화 바이트, 부품 차례 float — 예전 float 15개 60B)이고
+  · **폰도 기본 켬(2026-09)** · 정점은 **36바이트**(pos·nrm float, rgb·team·alpha·덧칠·빌보드는 정규화 바이트, 부품 차례 float — 예전 float 15개 60B)이고
     footOf 용 사본은 **겹치지 않는 꼭짓점 xyz 만**(정점 사본 통째 270KB/벌 → 수십 KB). 메시 상한은 기기 표 `DEV9.glMeshMax`(PC 600 · 폰 240;
-    실측 폰 프로필 157벌 24MB → 240벌 37MB). 데우기는 이미 rAF 당 6ms·8벌로 나뉜다. 폰 기본 켬은 **실기(iOS Safari) `#gl=1` 확인 뒤** —
-    GL_ON9 를 폰에서도 참으로 바꾸면 된다.
+    실측 폰 프로필 157벌 24MB → 240벌 37MB). 데우기는 rAF 당 6ms·8벌로 나뉜다. 처음 보는 종류의 메시를 지은 몫은 `glBakeMsTake9()` 가
+    프레임마다 내고, 시계가 그것으로 '굽는 프레임'을 안다(옛 판 굽기의 그 문지기 자리).
   · **헤드리스는 GL 을 못 잰다**: 크로뮴 헤드리스는 소프트웨어 GL(SwiftShader)이라 WebGL 캔버스 → 2D `drawImage` 합성이 ReadPixels 로 서서
     1454² 한 장에 1~2초(실측, 옵션 무관)고 삼각형 채우기도 CPU 다. perf-check 는 기본으로 `#glblit=0`(합성만 뺌 — GL 은 다 돈다)을 붙여
     GL 의 CPU 몫만 잰다(`--glblit` 로 도로 붙임). PC 프로필 gl=0/gl=1 둘 다 p50 67ms(헤드리스 프레임 박자)라 차이가 안 보인다 — GPU 채우기·

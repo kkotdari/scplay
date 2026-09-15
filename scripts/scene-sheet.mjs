@@ -257,7 +257,7 @@ for (const race of RACES) {
   await page.waitForFunction("!!window.__mount");
   await page.evaluate(([m, pl, wj, tb, v]) => window.__mount(m, pl, wj, tb, v),
     [world.motion, world.players, walkFixture, makeTerrain(), { z: ZOOM, cx: 0.5, cy: world.cy, deg: 90 }]);
-  await page.waitForFunction("window.__spritePerf && (window.__spritePerf.last.blit + window.__spritePerf.last.bldBlit) > 0", null, { timeout: 60000 })
+  await page.waitForFunction("(window.__spritePerf && (window.__spritePerf.last.blit + window.__spritePerf.last.direct) > 0) || (window.__glInst9 > 0)", null, { timeout: 60000 })
     .catch(() => console.warn("⚠ 그리기 신호를 못 받았다 — 그래도 찍는다"));
   await page.waitForTimeout(4000);
   const why = await page.evaluate(() => { const d = window.__scrDiag || {}; return JSON.stringify({ truthWhy: d.truthWhy, truth: d.truth, worker: d.worker, crowd: d.crowd }); });

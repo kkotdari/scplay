@@ -128,7 +128,9 @@ export class GlUnits9 {
   readonly meshes = new Map<string, GlMesh9 | null>();
   private queue: GlInst9[] = [];
   /** 진단: 마지막 프레임의 개체 수·삼각형 수·메시 수·메시 굽기 ms. */
-  stat = { inst: 0, tris: 0, bakeMs: 0, meshes: 0, slots: 0, depthBits: 0, /** 살아 있는 메시 VBO 합(바이트) */ bytes: 0 };
+  /** 진단: 마지막 프레임의 개체·삼각형 수 · 메시 벌 수 · 메시 굽기 ms(누적)와 **이번 프레임 몫**(frameBakeMs — 시계가
+   *  '굽는 프레임'을 아는 자) · 깊이 칸/비트 · 살아 있는 메시 VBO 합(바이트). */
+  stat = { inst: 0, tris: 0, bakeMs: 0, frameBakeMs: 0, meshes: 0, slots: 0, depthBits: 0, bytes: 0 };
   /** meshMax: 메시 상한(기기 표 DEV9.glMeshMax — PC 600 · 폰 240; 메시 한 벌은 VBO + footOf 용 정점 사본이라 폰 메모리에 든다). */
   constructor(readonly canvas: HTMLCanvasElement, readonly meshMax = MESH_MAX9) {
     const gl = canvas.getContext("webgl", { alpha: true, premultipliedAlpha: true, antialias: true, depth: true });   // 미리곱한 알파 — 셰이더 출력·합성 함수(ONE, 1−a)와 한 벌
@@ -231,8 +233,8 @@ export class GlUnits9 {
         this.stat.bytes += buf.byteLength;
       }
     } catch (e) { console.warn("[gl9] 메시", key, e); }
-    this.stat.bakeMs += performance.now() - t0;
-    this.stat.meshes += 1;
+    const ms0 = performance.now() - t0;
+    this.stat.bakeMs += ms0; this.stat.frameBakeMs += ms0;
     if (this.meshes.size >= this.meshMax) {
       // 가장 오래된 것부터 버린다(Map 삽입 차례) — 포탑 각·건설 단계처럼 열쇠가 잘게 갈리는 건물이 쌓이지 않게.
       const first = this.meshes.keys().next();
@@ -308,7 +310,7 @@ export class GlUnits9 {
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     const q = this.queue; this.queue = [];
-    this.stat.inst = q.length; this.stat.tris = 0;
+    this.stat.inst = q.length; this.stat.tris = 0; this.stat.meshes = this.meshes.size;
     (globalThis as unknown as { __glInst9?: number }).__glInst9 = q.length;   // 계측(perf-check)이 '그려졌다'를 아는 창
     if (!q.length) return;
     gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LESS);
@@ -420,34 +422,31 @@ export class GlUnits9 {
     if (addNow) gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
   }
 }
-/** #gl=1 — 시제 스위치(메인 스레드에서만 뜻이 있다). */
-/** GL 붓 켬 — `#gl=1` 강제 켬 · `#gl=0` 강제 끔 · 아니면 **PC 에서 기본 켬**(폰은 아직 캔버스: 실기기 확인 뒤 연다).
- *  WebGL 이 안 서면(문맥 실패) glUnits9 가 null 을 굳혀 캔버스 길로 돈다. */
-const smallDev9 = ((): boolean => {
-  if (typeof window === "undefined") return false;
-  const coarse9 = !!window.matchMedia?.("(pointer: coarse)").matches;
-  const side9 = Math.max(window.screen?.width ?? 0, window.screen?.height ?? 0);
-  const mem9 = (navigator as unknown as { deviceMemory?: number }).deviceMemory ?? 0;
-  return (coarse9 && side9 > 0 && side9 <= 1180) || (mem9 > 0 && mem9 <= 4);
-})();
 /** 진단 `#glshade=N` — 음영 겹을 단계별로 끈다(0 덧칠 없음 · 1 면 덧칠 · 2 +실루엣 빛, 기본 2). */
 export const GL_SHADE9 = ((): number => { const m = typeof location !== "undefined" ? /glshade=(\d)/.exec(location.hash) : null; return m ? Number(m[1]) : 2; })();
-/** 진단 `#gllod=N` — GL 메시 등급을 못 박는다(-1 = 판과 같은 자동). `#glwarm=0` — 로딩 데우기에서 GL 메시를 안 짓는다. */
+/** 진단 `#gllod=N` — GL 메시 등급을 못 박는다(-1 = 화면 크기가 정하는 자동). `#glwarm=0` — 로딩 데우기에서 GL 메시를 안 짓는다. */
 export const GL_LOD9 = ((): number => { const m = typeof location !== "undefined" ? /gllod=(\d)/.exec(location.hash) : null; return m ? Number(m[1]) : -1; })();
 export const GL_WARM9 = !(typeof location !== "undefined" && /glwarm=0/.test(location.hash));
 /** 진단 `#gldepth=0` — 깊이 검사를 끄고 화가 차례로만 그린다. */
 export const GL_DEPTH9 = !(typeof location !== "undefined" && /gldepth=0/.test(location.hash));
-/** 데칼 깊이 편향(모델 칸, 유닛 0.8 · 건물 2.0) — 진단 `#glbias=N` 으로 못 박아 본다(-1 = 메시별 기본). */
+/** 데칼 깊이 편향(모델 칸, 유닛 0.8 · 건물 1.3) — 진단 `#glbias=N` 으로 못 박아 본다(-1 = 메시별 기본). */
 export const GL_BIAS9 = ((): number => { const m = typeof location !== "undefined" ? /glbias=([\d.]+)/.exec(location.hash) : null; return m ? Number(m[1]) : -1; })();
 /** 진단 `#glblit=0` — GL 그림을 유닛 캔버스에 **합성하지 않는다**(GL 은 다 돌고 그림만 안 붙는다). 헤드리스 크로뮴(SwiftShader 소프트웨어 GL)은
  *  WebGL 캔버스 → 2D drawImage 가 ReadPixels 로 서서 1454² 한 장에 1~2초가 든다(실측, 옵션과 무관) — 실기 GPU 에는 없는 값이라
  *  perf-check 가 기본으로 붙여 GL 의 CPU 몫(메시 굽기·큐·유니폼)만 잰다. */
 export const GL_BLIT9 = !(typeof location !== "undefined" && /glblit=0/.test(location.hash));
-export const GL_ON9 = typeof location !== "undefined"
-  && (/(^|[#&,])gl=1/.test(location.hash) || (!/(^|[#&,])gl=0/.test(location.hash) && !smallDev9));
+/** GL 붓 켬 — **어느 기기에서나 기본 켬**이다(2026-09: 유닛·건물의 판 굽기 길을 걷으며 폰도 함께 열었다).
+ *  `#gl=0` 이면 붓이 면을 곧장 그린다(판이 없는 느린 폴백 — 비교·수리용). WebGL 이 안 서면(문맥 실패) glUnits9 가
+ *  null 을 굳혀 같은 폴백으로 돈다. */
+export const GL_ON9 = typeof location === "undefined" || !/(^|[#&,])gl=0/.test(location.hash);
 let glInst9: GlUnits9 | null | undefined;
 /** 지금 선 GL 붓(없으면 null) — 붓 밖(데우기 등)에서 메시를 미리 지을 때. */
 export const glNow9 = (): GlUnits9 | null => glInst9 ?? null;
+/** 이번 프레임에 메시를 짓는 데 쓴 ms — 읽고 0으로 돌린다(시계의 '굽는 프레임' 문지기). */
+export const glBakeMsTake9 = (): number => {
+  const g = glInst9; if (!g) return 0;
+  const v = g.stat.frameBakeMs; g.stat.frameBakeMs = 0; return v;
+};
 /** 유닛 층의 GL 붓 — 캔버스가 있을 때 한 번 만든다. 못 만들면(WebGL 없음) null 로 굳어 캔버스 길로 돈다. */
 export function glUnits9(cv: HTMLCanvasElement | null, meshMax = MESH_MAX9): GlUnits9 | null {
   if (!GL_ON9 || !cv) return null;

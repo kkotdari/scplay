@@ -542,7 +542,7 @@ await page.evaluate(([z, d, mw, mh, cx, cy]) => {
 await page.evaluate(([m, pl, wj, tb]) => window.__mount(m, pl, wj, tb), [world.motion, world.players, walkFixture, makeTerrain()]);
 // 재생이 실제로 그려질 때까지 — blit이 돌기 시작하면 준비된 것이다.
 // GL 붓(기본 켬)은 판을 안 찍는다 — 그린 개체 수(__glInst9)로도 준비를 안다.
-await page.waitForFunction("(window.__spritePerf && (window.__spritePerf.last.blit + window.__spritePerf.last.bldBlit) > 0) || (window.__glInst9 > 0)", null, { timeout: 30000 });
+await page.waitForFunction("(window.__spritePerf && (window.__spritePerf.last.blit + window.__spritePerf.last.direct) > 0) || (window.__glInst9 > 0)", null, { timeout: 30000 });
 // 첫 굽기(스프라이트 캐시 채우기)가 가라앉게 잠깐 둔다(--warm <ms>, 0 이면 첫 굽기까지 표본에 든다).
 await page.waitForTimeout(Number(flag("--warm", 2500)));
 
