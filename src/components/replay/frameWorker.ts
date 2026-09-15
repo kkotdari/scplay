@@ -294,6 +294,15 @@ if (inWorker9) self.onmessage = (ev: MessageEvent<Msg>): void => {
         post({ type: "walks", entWalks: m.raw ? all.filter((e) => e.raw === m.raw) : all });
       }
     } else if (m.type === "view") {
+      /* ★ **자(크기)가 바뀐 시야는 지어 둔 장을 버리고 지금 시각부터 다시 짓는다**(지적: "4배 확대 주소로 들어와서 처음
+         불러오면 모델이 크게 나왔다가 제 크기로 바뀜") — 유닛 크기(sizePx)는 시야의 tilePx(지도 상자 폭 ÷ 격자)로 장에
+         구워진다. 첫 시야는 상자가 자리 잡기 전의 폭으로 오고, 자리 잡힌 뒤 새 시야가 와도 여태는 pump가 **앞서 지어 둔
+         자리(nextT)부터** 이어 지었다 — 옛 자로 지은 앞 장(최대 몇 초치)이 시계가 지나갈 때까지 그대로 그려졌다. 메인의
+         옛 차례 걷어내기는 새 장의 시각 이후만 걷으므로 그 사이를 못 메운다. 컬링만 바뀐 시야(팬)는 종전대로 이어 짓는다
+         (옛 장은 제 시야 안에서 여전히 옳다). */
+      const pv9 = view;
+      const scaleChanged9 = !pv9 || pv9.tilePx !== m.view.tilePx || pv9.mapW !== m.view.mapW || pv9.mapH !== m.view.mapH
+        || pv9.pitched !== m.view.pitched || pv9.pitchFlat !== m.view.pitchFlat;
       view = m.view;
       viewSeq = m.seq ?? viewSeq + 1;
       gen += 1;
@@ -318,7 +327,10 @@ if (inWorker9) self.onmessage = (ev: MessageEvent<Msg>): void => {
         nextT = cur9 + stepNow();
         if (pumpTimer !== 0) { clearTimeout(pumpTimer); pumpTimer = 0; }
         pumpTimer = setTimeout(() => { pumpTimer = 0; pump(); }, 120) as unknown as number;
-      } else pump();
+      } else {
+        if (scaleChanged9 && engine && clock) restartFrom(clockT(), false);
+        pump();
+      }
     } else if (m.type === "cmd") {
       gen += 1;
       clock = {
