@@ -93,7 +93,7 @@ import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, W
 import {
   pitchFlatSet9, brushOn9, brushSet9, glowOn9, glowSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, spriteSideMax9, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, rasterUnit9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, tone9, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
 } from "./bake9";
-import { glUnits9, GL_ON9, camOf9, CAM_TOP9 } from "./gl9";
+import { glUnits9, glNow9, GL_ON9, camOf9, CAM_TOP9 } from "./gl9";
 export { LIMB_LOG, TURRET_BACK9, SHAPE_BUILDERS, ctx2d9, BAKE_ENV9, cropToInk, rasterUnit9, pathBox, tierTableOf, autoTier, stageFaces, rasterBld9, SHAPE_GALLERY, poseSet, poseSet9, bldLitSet, headYawSet, bldSpinSet, bldSpinRawSet9, lodSetCap, lodSetZoom, lodNoteFrame, tone9, TONE_DARK, TONE_SAT, silhouetteLight, glowBake9, grainAxes9, GLOW9 } from "./bake9";
 export type { BakeCv9, BakeCtx9, RasterOut9, ShapeGalleryItem } from "./bake9";
 export { isAirUnit, flapCutOf, atkCutOf, unitTilesOf, buildingYawOf, galleryYawOf, BLD_NORM, BUILD_STAGES, SCR_DIAG, scrDiagOn, deriveWorld9, createEngine9, pickWorldUi9, emptyWorldUi9 } from "./engine9";
@@ -225,6 +225,8 @@ const STORM_SEEDS = 2;
  *  더 보여 준다 — 그것이 '다 그리고 나서 한 번 툭'이다(사파리에서 열에 두 번). 항등 변환을 두면 층이 유지돼
  *  내용 갱신과 변환 변경이 늘 같은 프레임에 실린다. 그림은 "없음"과 똑같다. */
 const XF_ID9 = "translate(0px, 0px) scale(1)";
+/** GL 붓이 못 맡아 판으로 떨어진 종류별 횟수(진단 'GL' 줄의 '판으로'). */
+const GL_MISS9 = new Map<string, number>();
 /** 공유 링크의 자리 앉히기 발자취(`#diag=view`의 '링크' 줄) — 실기기에서만 나는 어긋남을 눈으로 보려는 자다.
  *  앉히는 자리와 다시 앉히는 자리가 여기 한 줄씩 적는다(최근 12줄). */
 const linkDiag9: string[] = [];
@@ -4431,7 +4433,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             /* 별본이면 **본판**을 잣대로 굽는다(engine9 bldAnchorKey의 ★) — 열쇠가 본판 것이므로 잣대도
                본판이어야 한다. 처음 재는 순간이 별본 쪽이면(성큰이 처음 쏠 때) 대역 판의 거친 비가 남는다. */
             const baseKind9 = BLD_NORM_PAIR[op.kind] ?? op.kind;
-            const ref9 = bop9.viewYaw || baseKind9 !== op.kind
+            const ref9 = glB9 ? null : bop9.viewYaw || baseKind9 !== op.kind
               ? buildingSprite({ ...bop9, kind: baseKind9, viewYaw: 0 }, sideQ, B) : bspr;
             if (ref9 && ref9.w > 0) {
               bAnc = [(ref9.cx / B) / ref9.l, (ref9.bot / B) / ref9.l];
@@ -4687,8 +4689,11 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           }
           continue;
         }
-        const { faces, rot } = resolveShapeFaces(op.kind, op.rotDeg, op.flat, op.viewYaw, op.pitch);
-        if (!faces) continue;
+        /* GL 붓이 맡을 몸은 2D 면(요잉 칸별 빌더 굽기, resolveShapeFaces)을 아예 안 짓는다 — 메시는 종류·자세당 한 벌이다. */
+        const glPre9 = gl9 && SHAPE_BUILDERS[op.kind] ? gl9.unitMesh(op.kind, op.pose ?? 0, lodOf((Math.min(Math.max(4, (Math.round((op.sizePx * bakeZoom * B) / 2) * 2) / B), unitBakeCap(B)) * modelInkOf(op.kind)) / 16, LOD_INK_POINT, LOD_INK_DECO)) : null;
+        if (gl9 && !glPre9) GL_MISS9.set(op.kind, (GL_MISS9.get(op.kind) ?? 0) + 1);   // 진단: GL 이 못 맡아 판으로 떨어진 종류
+        const { faces, rot } = glPre9 ? { faces: null, rot: 0 } : resolveShapeFaces(op.kind, op.rotDeg, op.flat, op.viewYaw, op.pitch);
+        if (!faces && !glPre9) continue;
         /* 화면 크기는 크기표가 정한다(요청: 모델 정규화 + 원작 치수 크기표) — 옛 '상자
            채움 보정'은 걷었다. 모델이 상자를 채우는 몫은 이제 굽는 쪽(MODEL_NORM)에서
            종류마다 같게 맞춰지고, 남은 몫(MODEL_INK)은 크기표가 미리 나눠 놓았다.
@@ -4734,7 +4739,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         const pxq = Math.min(pxqWant, unitBakeCap(B));
         /* ★ WebGL 시제(#gl=1, gl9.ts) — 평면 시점 유닛 몸통을 메시가 맡으면 **판을 아예 안 굽는다**. 판이 주던 잉크 상자
            (그림자·링·체력바의 자: 폭 w·가운데 cx·바닥 bot)는 메시의 요잉 칸별 화면 상자(footOf)가 같은 자로 준다. */
-        const glM9 = gl9 && !rot ? gl9.unitMesh(op.kind, op.pose ?? 0, lodOf((pxq * modelInkOf(op.kind)) / 16, LOD_INK_POINT, LOD_INK_DECO)) : null;
+        const glM9 = glPre9 && !rot ? glPre9 : null;
         const glCam9 = glM9 ? camOf9(!!op.pitch, pitchFlatNow * 0.7, op.viewYaw ? Math.max(-36, Math.min(36, Math.round(op.viewYaw / 6) * 6)) : 0) : CAM_TOP9;
         const glFt9 = glM9 && gl9 ? gl9.footOf(glM9, -(op.rotDeg ?? 0), glCam9) : null;
         const spr = glFt9 ? null : unitSprite(op, pxq, B);
@@ -5139,7 +5144,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             ctx.translate(8, noy9); ctx.scale(nrm9, nrm9); ctx.translate(-8, -noy9);
           }
         }
-        for (const [d, o, fill] of faces) {
+        for (const [d, o, fill] of faces ?? []) {
           ctx.globalAlpha = op.alpha * shadeBoost(o, fill);
           ctx.fillStyle = tone9(fill ?? op.color);
           ctx.fill(pathOf(d));
@@ -5266,7 +5271,10 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         ctx.setTransform(Bd, 0, 0, Bd, 0, 0);
         ctx.globalAlpha = 1;
         ctx.drawImage(gl9.canvas, 0, 0, cw, ch);
-        if (scrDiagOn()) SCR_DIAG.gl = `on 개체 ${gl9.stat.inst} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}(${gl9.stat.bakeMs.toFixed(0)}ms)`;
+        if (scrDiagOn()) {
+          const miss9 = [...GL_MISS9].sort((a9, b9) => b9[1] - a9[1]).slice(0, 4).map(([k9, n9]) => `${k9}×${n9}`).join(" ");
+          SCR_DIAG.gl = `on 개체 ${gl9.stat.inst} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}(${gl9.stat.bakeMs.toFixed(0)}ms)${miss9 ? " 판으로 " + miss9 : ""}`;
+        }
       }
       if (fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM)) {
         // scr-tracer: 0%→0 · 10~45%→1 · 70%~→0.
@@ -13238,7 +13246,7 @@ export default function ReplayMotionPlayer({
       sunken: ["sunkenrear", "sunkentongue"],
       geyser: ["geyserdry"],
     };
-    const jobs: { kind: string; rot?: number; table?: boolean }[] = [];
+    const jobs: { kind: string; rot?: number; table?: boolean; gl?: "u" | "b" }[] = [];
     const tabled9 = new Set<string>();
     const pushTable9 = (k9: string): void => {
       if (tabled9.has(k9) || !SHAPE_BUILDERS[k9]) return;
@@ -13249,6 +13257,8 @@ export default function ReplayMotionPlayer({
       pushTable9(k9);
       for (const v9 of WARM_KIN9[k9] ?? []) pushTable9(v9);
       const isBld = !UNIT_KIND_SET.has(k9);
+      /* GL 붓(#gl=1)은 요잉 칸별 면이 아니라 종류당 메시 한 벌을 데운다(아래 step9 의 gl 갈래). */
+      if (GL_ON9) { jobs.push({ kind: k9, gl: isBld ? "b" : "u" }); for (const v9 of WARM_KIN9[k9] ?? []) if (SHAPE_BUILDERS[v9]) jobs.push({ kind: v9, gl: "u" }); continue; }
       if (isBld) jobs.push({ kind: k9 });
       /* ★ **그릴 칸만 데운다**(수리: 큰 판에서 "로딩이 거의 안 됨") ────────────────────────
          여기는 늘 열여섯 칸(22.5도)을 데웠는데, 작은 기기의 붓은 그 칸을 **한 번도 안 쓴다**:
@@ -13296,7 +13306,13 @@ export default function ReplayMotionPlayer({
                에서 0.7MB를 굽고 최악 프레임 36 → 127ms). 면은 요잉 칸(vq)만 타므로
                훨씬 적은 수로 실제 쓰임을 덮는다. */
           if (j9.table) tierTableOf(j9.kind);
-          else resolveShapeFaces(j9.kind, j9.rot, flat9, 0, pitched);
+          else if (j9.gl) {
+            const g9 = glNow9();
+            if (g9) {
+              if (j9.gl === "u") g9.unitMesh(j9.kind, 0);
+              else g9.bldMesh({ kind: j9.kind, fx: 0, fy: 0, z: 0, sizePx: 16, color: "#888", alpha: 1 } as UnitDrawOp);
+            }
+          } else resolveShapeFaces(j9.kind, j9.rot, flat9, 0, pitched);
         } catch { /* 낯선 종류 하나가 로딩을 통째로 막지 않게 — 그건 재생 중 굽는다. */ }
       }
       LOAD9.warmMs += performance.now() - t0;

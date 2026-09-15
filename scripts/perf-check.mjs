@@ -540,8 +540,8 @@ await page.evaluate(([z, d, mw, mh, cx, cy]) => {
 await page.evaluate(([m, pl, wj, tb]) => window.__mount(m, pl, wj, tb), [world.motion, world.players, walkFixture, makeTerrain()]);
 // 재생이 실제로 그려질 때까지 — blit이 돌기 시작하면 준비된 것이다.
 await page.waitForFunction("window.__spritePerf && (window.__spritePerf.last.blit + window.__spritePerf.last.bldBlit) > 0", null, { timeout: 30000 });
-// 첫 굽기(스프라이트 캐시 채우기)가 가라앉게 잠깐 둔다.
-await page.waitForTimeout(2500);
+// 첫 굽기(스프라이트 캐시 채우기)가 가라앉게 잠깐 둔다(--warm <ms>, 0 이면 첫 굽기까지 표본에 든다).
+await page.waitForTimeout(Number(flag("--warm", 2500)));
 
 const SHOT = flag("--shot", null);
 /* 독 자(--dockprobe): 미니맵·지도 버튼·꼬리 줄의 화면 자리를 찍는다 — 미니맵 키를 조작부에 맞추는 실측의 검산용. */
@@ -709,7 +709,7 @@ if (SHOT) {
   if (has("--probe-fx")) {
     const r = await page.evaluate(() => {
       const d = window.__scrDiag;
-      return d ? { fx: d.fx, prod: d.prod } : "SCR_DIAG 없음(#diag로 켜야 한다)";
+      return d ? { fx: d.fx, prod: d.prod, gl: d.gl } : "SCR_DIAG 없음(#diag로 켜야 한다)";
     });
     console.log("트레이서:", JSON.stringify(r));
   }

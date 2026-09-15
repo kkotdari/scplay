@@ -33,6 +33,7 @@ export interface GlFoot9 { w: number; cx: number; bot: number }
 export interface GlMesh9 { vbo: WebGLBuffer; n: number; verts: Float32Array; foot: Map<string, GlFoot9> }
 
 const STRIDE = 11;   // pos3 · nrm3 · rgb3 · team1 · alpha1
+const MESH_MAX9 = 600;   // 메시 상한(종류×자세×LOD + 건물 변종) — 넘으면 오래된 것부터
 const VS = `
 attribute vec3 aPos; attribute vec3 aNrm; attribute vec3 aRgb; attribute float aTeam; attribute float aAlpha;
 uniform vec2 uAnchor; uniform vec3 uScale; uniform vec2 uYaw; uniform vec2 uCanvas; uniform vec2 uCam;
@@ -148,6 +149,11 @@ export class GlUnits9 {
     } catch (e) { console.warn("[gl9] 메시", key, e); }
     this.stat.bakeMs += performance.now() - t0;
     this.stat.meshes += 1;
+    if (this.meshes.size >= MESH_MAX9) {
+      // 가장 오래된 것부터 버린다(Map 삽입 차례) — 포탑 각·건설 단계처럼 열쇠가 잘게 갈리는 건물이 쌓이지 않게.
+      const first = this.meshes.keys().next();
+      if (!first.done) { const m = this.meshes.get(first.value); if (m) this.gl.deleteBuffer(m.vbo); this.meshes.delete(first.value); }
+    }
     this.meshes.set(key, mesh);
     return mesh;
   }
@@ -262,6 +268,8 @@ export class GlUnits9 {
 /** #gl=1 — 시제 스위치(메인 스레드에서만 뜻이 있다). */
 export const GL_ON9 = typeof location !== "undefined" && /(^|[#&])gl=1/.test(location.hash);
 let glInst9: GlUnits9 | null | undefined;
+/** 지금 선 GL 붓(없으면 null) — 붓 밖(데우기 등)에서 메시를 미리 지을 때. */
+export const glNow9 = (): GlUnits9 | null => glInst9 ?? null;
 /** 유닛 층의 GL 붓 — 캔버스가 있을 때 한 번 만든다. 못 만들면(WebGL 없음) null 로 굳어 캔버스 길로 돈다. */
 export function glUnits9(cv: HTMLCanvasElement | null): GlUnits9 | null {
   if (!GL_ON9 || !cv) return null;
