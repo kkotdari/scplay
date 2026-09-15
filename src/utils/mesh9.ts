@@ -153,7 +153,9 @@ export function meshFromPath9(d: string, opaque = true, glow = false): Poly3[] |
 
 /** 부품 — ow/ob 는 그 면 위에 얹혀 있던 음영 덧칠(흰·검 얕은 알파, 같은 경로의 topFace/sideFace/faceLight)을 접은 몫(0~1). */
 export interface MeshPart9 { polys: Poly3[]; fill: string; alpha: number; team: boolean; lod: number; ow: number; ob: number; /** 빌보드 원반 부품(카메라를 본다) */ bb?: boolean;
-  /** 그 부품을 낸 면의 경로 — 덧칠을 접을 때 **넓이 몫**을 재는 자다(아래 areaK9). */ d?: string }
+  /** 그 부품을 낸 면의 경로 — 덧칠을 접을 때 **넓이 몫**을 재는 자다(아래 areaK9). */ d?: string;
+  /** **닫힌 입체**의 낯인가 — 붓이 그 낯만 뒷면을 걸러낸다(아래 solidSigns9). */ solid?: boolean;
+  /** 그 낯의 감기가 **안쪽**을 보나 — 참이면 붓이 법선을 뒤집는다. */ flip?: boolean }
 export interface Mesh9 { parts: MeshPart9[]; faces: number; covered: number; skipped: number;
   /** 3D 로 되찾지 못해 **빠진** 면의 경로(앞 12개까지) — GL 에서 사라진 부품을 찾는 자다(model-mesh --dump). */
   missed: string[] }
@@ -172,6 +174,75 @@ export const chroma9 = (fill: string): number => {
   const v = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
   return Math.max(...v) - Math.min(...v);
 };
+/** 폴리 하나의 뉴얼 벡터(길이 = 넓이×2)와 가운데. */
+function face9(p: Poly3): { n: [number, number, number]; c: [number, number, number] } {
+  const k = p.length / 3;
+  let nx = 0; let ny = 0; let nz = 0; let cx = 0; let cy = 0; let cz = 0;
+  for (let i = 0; i < k; i += 1) {
+    const j = (i + 1) % k;
+    const px = p[i * 3]; const py = p[i * 3 + 1]; const pz = p[i * 3 + 2];
+    const qx = p[j * 3]; const qy = p[j * 3 + 1]; const qz = p[j * 3 + 2];
+    nx += (py - qy) * (pz + qz); ny += (pz - qz) * (px + qx); nz += (px - qx) * (py + qy);
+    cx += px; cy += py; cz += pz;
+  }
+  return { n: [nx, ny, nz], c: [cx / k, cy / k, cz / k] };
+}
+/** ★ **닫힌 입체 판정 + 낯마다의 안·바깥**(2026-09) ─────────────────────────────────────────────────
+ *  2D 는 화가 차례로 그려 속면이 늘 나중 면에 덮였다. GL 은 진짜 깊이라 **속면이 이길 수 있다**(실측: 셔틀 말굽
+ *  집게의 속벽이 몸통을 덮었다). 속이 막힌 덩이는 속을 볼 일이 없으니 붓이 뒷면을 걸러내면 그 겹침이 사라진다.
+ *  판정과 방향을 한 번에 낸다:
+ *    ① **다양체**여야 한다 — 모든 모서리를 정확히 두 낯이 나눠 쓴다(열린 껍질·한 장짜리 장식은 여기서 떨어진다).
+ *    ② 감기 차례는 헬퍼마다 뒤섞여 있다(뿔의 뚜껑·돔의 밑판) — 그래서 이웃을 타고 **번져 가며 맞춘다**(BFS):
+ *       공유 모서리를 두 낯이 **같은 방향**으로 돌면 한쪽이 거꾸로다.
+ *    ③ 맞춘 방향으로 부호 있는 부피(발산 정리 Σ(c·n)/6)를 재서 음수면 전부 뒤집는다 — 그러면 법선이 바깥을 본다.
+ *  돌려주는 것은 폴리마다의 부호(+1 그대로 · −1 뒤집기)이고, 다양체가 아니거나 안·바깥이 없으면(뫼비우스) null 이다. */
+function solidSigns9(polys: Poly3[]): number[] | null {
+  if (polys.length < 4) return null;
+  const key9 = (a: number[], i: number): string => `${a[i].toFixed(3)},${a[i + 1].toFixed(3)},${a[i + 2].toFixed(3)}`;
+  /** 모서리(무방향) → [낯 번호, 그 낯이 돈 방향(a<b 면 +1)] 짝 둘 */
+  const edges = new Map<string, [number, number][]>();
+  for (let f = 0; f < polys.length; f += 1) {
+    const p = polys[f];
+    const n = p.length / 3;
+    if (n < 3) return null;
+    for (let i = 0; i < n; i += 1) {
+      const a = key9(p, i * 3); const b = key9(p, ((i + 1) % n) * 3);
+      if (a === b) continue;
+      const fwd = a < b;
+      const k = fwd ? `${a}|${b}` : `${b}|${a}`;
+      const got = edges.get(k);
+      if (got) { if (got.length >= 2) return null; got.push([f, fwd ? 1 : -1]); } else edges.set(k, [[f, fwd ? 1 : -1]]);
+    }
+  }
+  for (const v of edges.values()) if (v.length !== 2) return null;   // 열린 자리 — 껍질이다
+  const sign = new Array<number>(polys.length).fill(0);
+  const adj = new Map<number, [number, number][]>();   // 낯 → [이웃 낯, 같은 방향인가]
+  for (const v of edges.values()) {
+    const f0 = v[0][0]; const d0 = v[0][1]; const f1 = v[1][0]; const d1 = v[1][1];
+    (adj.get(f0) ?? adj.set(f0, []).get(f0))!.push([f1, d0 === d1 ? 1 : 0]);
+    (adj.get(f1) ?? adj.set(f1, []).get(f1))!.push([f0, d0 === d1 ? 1 : 0]);
+  }
+  sign[0] = 1;
+  const q = [0];
+  let seen = 1;
+  while (q.length) {
+    const f = q.pop()!;
+    for (const [g, same] of adj.get(f) ?? []) {
+      // 같은 방향으로 돌았으면 감기가 거꾸로다 → 부호를 뒤집는다.
+      const want = same ? -sign[f] : sign[f];
+      if (sign[g] === 0) { sign[g] = want; seen += 1; q.push(g); }
+      else if (sign[g] !== want) return null;   // 안·바깥이 없다
+    }
+  }
+  if (seen !== polys.length) return null;   // 덩이가 둘 이상 — 한 뭉치로 다루지 않는다
+  let v9 = 0;
+  for (let f = 0; f < polys.length; f += 1) {
+    const fc = face9(polys[f]);
+    v9 += sign[f] * (fc.c[0] * fc.n[0] + fc.c[1] * fc.n[1] + fc.c[2] * fc.n[2]) / 6;
+  }
+  if (v9 < 0) for (let f = 0; f < polys.length; f += 1) sign[f] = -sign[f];
+  return sign;
+}
 /** 음영 덧칠(조명 흉내) 면 — GPU 에선 조명이 대신한다. 얕은 알파(<0.4)의 아주 밝거나(광) 아주 어두운(그늘) 면만
    걸러 낸다 — 종족 광택 색(#0d1016·#1a1708·#fff3cf…)도 여기 든다. 진한 검·흰 부품(알파 1)은 남긴다. */
 export const isOverlay9 = (f: ShapeFace): boolean => {
@@ -201,6 +272,8 @@ export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeF
   const byD = new Map<string, number>();    // 경로 → 그 경로로 마지막에 난 부품(덧칠을 접을 첫째 자리)
   const byPid = new Map<number, number>();  // 부품 번호(ShapeFace[5]) → 그 부품의 마지막 몸 면(둘째 자리)
   let covered = 0; let skipped = 0; const missed: string[] = [];
+  /** 부품마다의 **뭉치 번호**(tagKey 의 pid) — 아래에서 같은 뭉치를 모아 닫힌 입체인가를 잰다. */
+  const pidAt: (number | undefined)[] = [];
   for (const f of faces) {
     if (isOverlay9(f) && (!glow || byD.has(f[0]))) {
       /* ★ 음영 덧칠은 **반드시 몸에 접거나 버린다** — 제 부품으로 남기면 안 된다(실측: 보급고 103부품 중 54개가 반투명으로 남아
@@ -239,6 +312,31 @@ export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeF
     byD.set(f[0], parts.length);
     if (f[5] !== undefined) byPid.set(f[5], parts.length);
     parts.push({ polys, fill: f[2] ?? "", alpha: shadeBoost9(f[1], f[2]), team: f[2] === undefined, lod: f[4] ?? 0, ow: 0, ob: 0, bb: polys.length === 1 && BILLBOARD9.has(polys[0]), d: f[0] });
+    pidAt.push(f[5]);
+  }
+  /* ★ 닫힌 입체 표시 — 빌더는 한 덩이를 낯 여러 장으로 내므로(부품 하나 = 낯 하나), 닫힘은 부품이 아니라
+     **뭉치(pid)** 단위로 잰다. 같은 pid 의 폴리를 모아 solidSigns9 에 넘기고, 나온 부호를 부품마다 나눠 준다. */
+  {
+    const byPid9 = new Map<number, number[]>();
+    for (let i = 0; i < parts.length; i += 1) {
+      const pid = pidAt[i];
+      if (pid === undefined || parts[i].alpha < 0.98) continue;   // 반투명 뭉치는 속이 보여야 한다(유리·빛무리)
+      (byPid9.get(pid) ?? byPid9.set(pid, []).get(pid))!.push(i);
+    }
+    for (const idx of byPid9.values()) {
+      if (idx.length < 4) continue;
+      const all: Poly3[] = [];
+      for (const i of idx) all.push(...parts[i].polys);
+      const sign = solidSigns9(all);
+      if (!sign) continue;
+      let at = 0;
+      for (const i of idx) {
+        let plus = 0; let minus = 0;
+        for (let k = 0; k < parts[i].polys.length; k += 1) { if (sign[at + k] > 0) plus += 1; else minus += 1; }
+        at += parts[i].polys.length;
+        parts[i].solid = true; parts[i].flip = minus > plus;
+      }
+    }
   }
   MESH9.byD.clear();
   return { parts, faces: faces.length, covered, skipped, missed };

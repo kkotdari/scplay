@@ -59,7 +59,7 @@ if (DUMP) {
       let z0 = Infinity, z1 = -Infinity, n = 0;
       for (const poly of p.polys) for (let k = 2; k < poly.length; k += 3) { z0 = Math.min(z0, poly[k]); z1 = Math.max(z1, poly[k]); n += 1; }
       console.log(`  #${String(i).padStart(3)} ${(p.team ? "(임자)" : p.fill).padEnd(9)} a=${p.alpha.toFixed(2)} 폴리${String(p.polys.length).padStart(3)} 점${String(n).padStart(4)} z ${z0.toFixed(2)}~${z1.toFixed(2)}`
-        + `${p.bb ? " 빌보드" : ""}${p.ow > 0.001 ? ` 흰${p.ow.toFixed(2)}` : ""}${p.ob > 0.001 ? ` 검${p.ob.toFixed(2)}` : ""}`);
+        + `${p.solid ? (p.flip ? " 입체↺" : " 입체") : ""}${p.bb ? " 빌보드" : ""}${p.ow > 0.001 ? ` 흰${p.ow.toFixed(2)}` : ""}${p.ob > 0.001 ? ` 검${p.ob.toFixed(2)}` : ""}`);
     });
   }
 }
