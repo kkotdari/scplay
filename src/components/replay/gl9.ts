@@ -27,7 +27,9 @@ export interface GlInst9 {
   gradR: number; gradCy: number;
   /** 몸 그림자 — `ground` 면 **빛 방향으로 바닥(z=0)에 눌러 붙인 진짜 그림자**(아래 uShadow), 아니면 몸을 검게
    *  dy 만큼 아래로 밀어 한 번 더 그린다(떠 있는 몸은 그 벌어짐이 곧 높이로 읽힌다). */
-  shadow?: { ground?: boolean; dy?: number; alpha: number };
+  shadow?: { ground?: boolean; dy?: number; alpha: number;
+    /** **나는 높이**(모형 칸) — 바닥에 눕힐 때 꼭짓점 z 에 더한다. 그만큼 그림자가 빛 방향으로 멀리 눕는다(공중 유닛). */
+    h?: number };
   /** 효과 — add: 더하기 합성(2D 의 lighter) · flat: 음영·실루엣 빛 없이 제 색 그대로(2D 효과판과 같다). 깊이도 안 쓴다. */
   add?: boolean; flat?: boolean;
 }
@@ -51,7 +53,10 @@ uniform vec3 uTeam; uniform vec3 uLight; uniform float uAlpha; uniform float uDe
 uniform vec4 uShade; uniform float uDy; uniform vec2 uLean;
 /* 바닥 그림자 — (빛의 화면 기울기 x, y, 켬). 켜면 꼭짓점을 **빛 방향으로 밀어 z 를 0 으로** 눌러, 몸의 실루엣이
    바닥에 눕는다(2D 의 흐린 판 그림자가 하던 몫을 기하로 낸다 — 높은 부품일수록 멀리 눕는다). */
-uniform vec3 uShadow;
+uniform vec4 uShadow;   // (빛 기울기 x, y, 켬, 나는 높이)
+/* 그림자 켜의 **못 박은 깊이** — 0 이면 안 쓴다. 한 켜의 모든 삼각형이 같은 깊이를 쓰면, 깊이 쓰기를 켠 채
+   LESS 로 그릴 때 **한 화소에 한 번만** 칠해진다(겹친 부품·겹친 개체가 두 번 어두워지지 않는다). */
+uniform float uShZ;
 uniform float uFlat;  // 효과(발광): 1 이면 음영·실루엣 빛·방향광 없이 제 색
 uniform float uDbg;   // 진단 #glshade=0..2(0 덧칠 없음 · 1 덧칠 · 2 +실루엣 빛)
 uniform vec4 uGrad;   // 실루엣 빛(silhouetteLight): 화면 빛 방향 (x,y) · 모델 상자 반지름 R · 상자 가운데의 앵커 기준 세로 몫
@@ -66,8 +71,9 @@ void main() {
   float rx = pc.x * uYaw.x + pc.y * uYaw.y + pd.x;
   float ry = -pc.x * uYaw.y + pc.y * uYaw.x + pd.y;
   /* 그림자: 요잉을 돈 뒤(세계 자)에서 빛 방향으로 밀고 높이를 0 으로 — 몸과 같은 카메라를 타므로 바닥에 딱 눕는다. */
-  rx += aPos.z * uShadow.x * uShadow.z;
-  ry += aPos.z * uShadow.y * uShadow.z;
+  /* 나는 높이(uShadow.w)를 z 에 더해 눕힌다 — 공중 유닛의 그림자는 몸 바로 밑이 아니라 그 높이만큼 빛 방향으로 멀다. */
+  rx += (aPos.z + uShadow.w) * uShadow.x * uShadow.z;
+  ry += (aPos.z + uShadow.w) * uShadow.y * uShadow.z;
   float pz = aPos.z * (1.0 - uShadow.z);
   float f = uPersp / (uPersp - clamp(ry, -10.0, 10.0));
   // project() 와 같은 식 — 평면: 납작비 sinE·높이 cosE · 입체: 납작비 pitchSquash·높이 0.9, 앞숙임 z·0.34, 시각 밀림 ry·납작비·tan(vq)
@@ -77,7 +83,8 @@ void main() {
   float near = ry * uCam.y + pz * uCam.x;
   /* 깊이 = 개체 칸(uDepth0) − 카메라 가까움 − **부품 차례**(aOrd: 빌더가 칠하는 차례, 0→1). 지붕 위 환풍구·장식처럼 같은
      평면에 얹힌 부품은 가까움이 같아 깊이 싸움이 나는데, 2D 는 나중에 칠한 것이 이긴다 — 그 규칙을 작은 편향(aOrd, 모델 칸)으로 준다. */
-  gl_Position = vec4(X / uCanvas.x * 2.0 - 1.0, 1.0 - Y / uCanvas.y * 2.0, uDepth0 - (near + aOrd) * uDepthK, 1.0);
+  gl_Position = vec4(X / uCanvas.x * 2.0 - 1.0, 1.0 - Y / uCanvas.y * 2.0,
+    uShZ > 0.0 ? uShZ : uDepth0 - (near + aOrd) * uDepthK, 1.0);
   vec3 n = normalize(vec3(aNrm.x * uYaw.x + aNrm.y * uYaw.y, -aNrm.x * uYaw.y + aNrm.y * uYaw.x, aNrm.z));
   /* ★ **닫힌 입체의 등진 낯은 걷는다**(aBb 128) — 그 덩이의 뒷면은 어차피 앞면이 깊이로 덮으므로 그림은 안 바뀌고,
      버는 것은 화소 채우기(덩이 넓이의 절반)다. 법선은 mesh9 가 감기를 맞춰 **바깥**을 보게 실어 둔 것이다. */
@@ -175,7 +182,7 @@ export class GlUnits9 {
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error("링크: " + gl.getProgramInfoLog(p));
     this.prog = p;
     this.stat.depthBits = Number(gl.getParameter(gl.DEPTH_BITS)) || 0;
-    for (const u of ["uAnchor", "uScale", "uYaw", "uCanvas", "uCam", "uTeam", "uLight", "uAlpha", "uDepth0", "uDepthK", "uPersp", "uShade", "uDy", "uLean", "uGrad", "uDbg", "uFlat", "uShadow"]) this.loc[u] = gl.getUniformLocation(p, u);
+    for (const u of ["uAnchor", "uScale", "uYaw", "uCanvas", "uCam", "uTeam", "uLight", "uAlpha", "uDepth0", "uDepthK", "uPersp", "uShade", "uDy", "uLean", "uGrad", "uDbg", "uFlat", "uShadow", "uShZ"]) this.loc[u] = gl.getUniformLocation(p, u);
     for (const a of ["aPos", "aNrm", "aRgb", "aTeam", "aAlpha", "aOv", "aOrd", "aBb"]) this.att[a] = gl.getAttribLocation(p, a);
   }
   /** 열쇠별 메시 — 처음 볼 때 run()(빌더를 요잉 0 으로 한 번 돌리는 일, 1~7ms)으로 짓는다. 못 지으면 null 로 굳는다. */
@@ -417,26 +424,34 @@ export class GlUnits9 {
     };
     /* 1) 몸 그림자 — 깊이 없이 몸보다 먼저(뒤 몸 위에는 안 얹힌다). 바닥에 붙은 몸은 **빛 방향으로 눌러 눕히고**(uShadow),
        떠 있는 몸은 검게 아래로 밀어 그린다(그 벌어짐이 높이다). */
-    gl.depthMask(false); gl.disable(gl.DEPTH_TEST);
+    /* ★ **한 화소에 한 겹만**(2026-09) — 그림자는 몸의 삼각형을 그대로 검게 깔므로, 겹친 부품(날개 위 포탑·
+       겹친 개체)마다 알파가 쌓여 실루엣 안에 얼룩이 났다. 켜마다 깊이를 못 박고(uShZ) 깊이 쓰기를 켠 채
+       LESS 로 그리면 같은 깊이의 두 번째 화소가 걸러져 실루엣이 **고르게** 깔린다. 무른 고리(1.1배)는 한 칸
+       더 뒤에 두어 그 위에 본 실루엣이 얹힌다. 몸(≤0.99)보다 뒤라 몸을 안 가린다. */
+    gl.depthMask(true); gl.enable(gl.DEPTH_TEST);
     let shOn9 = false;
     for (const it of q) {
       if (!it.shadow) continue;
       const mesh = it.mesh;
       bind(mesh); place(it);
       const gr9 = !!it.shadow.ground;
-      if (gr9 !== shOn9) { shOn9 = gr9; gl.uniform3f(this.loc.uShadow, SHADOW_K9[0], SHADOW_K9[1], gr9 ? 1 : 0); }
+      gl.uniform4f(this.loc.uShadow, SHADOW_K9[0], SHADOW_K9[1], gr9 ? 1 : 0, it.shadow.h ?? 0);
+      shOn9 = shOn9 || gr9;
       gl.uniform1f(this.loc.uDy, it.shadow.dy ?? 0);
       if (gr9) {
         // 번짐 고리 — 같은 실루엣을 조금 크게(원점은 그대로: uScale 만 키운다) 옅게 먼저 깔아 가장자리를 무르게 한다.
+        gl.uniform1f(this.loc.uShZ, 0.997);
         gl.uniform4f(this.loc.uShade, 0, 0, 0, it.shadow.alpha * SHADOW_BLUR9[1]);
         gl.uniform3f(this.loc.uScale, it.k * SHADOW_BLUR9[0], it.k * SHADOW_BLUR9[0], it.yoff);
         gl.drawArrays(gl.TRIANGLES, 0, mesh.n);
         gl.uniform3f(this.loc.uScale, it.k, it.k, it.yoff);
       }
+      gl.uniform1f(this.loc.uShZ, 0.996);
       gl.uniform4f(this.loc.uShade, 0, 0, 0, it.shadow.alpha);
       gl.drawArrays(gl.TRIANGLES, 0, mesh.n);
     }
-    if (shOn9) gl.uniform3f(this.loc.uShadow, SHADOW_K9[0], SHADOW_K9[1], 0);
+    gl.uniform1f(this.loc.uShZ, 0);
+    if (shOn9) gl.uniform4f(this.loc.uShadow, SHADOW_K9[0], SHADOW_K9[1], 0, 0);
     /* 2) 몸 — 개체 차례로 깊이 칸을 나눠 그린다. */
     gl.depthMask(true); if (GL_DEPTH9) gl.enable(gl.DEPTH_TEST); else gl.disable(gl.DEPTH_TEST);
     gl.uniform4f(this.loc.uShade, 0, 0, 0, 0);

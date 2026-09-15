@@ -3568,7 +3568,10 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         const groundOy9 = sy - px * 0.24 + (((op.flat ? 12 : 12.6) - 8) / 16) * px;
         /* ★ 덜어내기 중에도 **공중 유닛 그림자는 남긴다**(요청: "떠있는 위치가 안 읽혀서") — 타원 하나라 값이
            거의 없고, 그림자가 없으면 나는 몸의 높이·자리를 읽을 길이 없다. 부양 지상 유닛 그림자만 덜어낸다. */
-        if (hover && !op.noShadow && showShadows !== false && (CROWD9.lv === 0 || op.air) && detail && !shFold9) {
+        /** GL 이 이 몸의 **바닥 그림자**를 깔까 — 그러면 공중 유닛의 캔버스 타원은 겹치므로 안 깐다(위 gsh9 주석). */
+        const glShadow9 = !!(glM9 && gl9 && bodyShadow);
+        if (hover && !op.noShadow && showShadows !== false && (CROWD9.lv === 0 || op.air) && detail && !shFold9
+          && !(op.air && glShadow9)) {
           /* 떠다니는 지상 유닛(일꾼·벌처·아콘류)은 겨우 발밑만 떠 있다(지적: 그림자가
              너무 크고 진해) — 높이 나는 공중 유닛보다 작고 옅은 타원. */
           // 그림자 살짝 축소(지적) — 높이 나는 만큼 발밑 그림자는 작고 옅게.
@@ -3768,11 +3771,16 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           const gax9 = detail ? Math.round(Bd * bx9) / Bd : bx9;
           const gay9 = detail ? Math.round(Bd * by9) / Bd : by9;
           const gk9 = (px / 16) * modelNormOf(op.kind);
-          /* 그림자 — 땅에 선 몸은 **빛 방향으로 바닥에 눕히고**(gl9 의 uShadow: 높은 부품이 멀리 눕는다), 떠 있는 몸은
-             종전처럼 아래로 밀어 그린다(벌어진 몫이 곧 나는 높이다 — 발밑 타원은 캔버스가 따로 깐다). */
+          /* ★ 그림자는 **나는 것도 바닥에 눕힌다**(2026-09, 지적: "부양 유닛 그림자가 두 개가 되는 문제") ─────────
+             여태 공중 유닛은 몸을 검게 **아래로 밀어** 한 번 그리고, 그 아래 발밑에 캔버스 타원을 또 깔았다.
+             밀어 놓은 검은 몸은 바닥에 누운 그림자가 아니라 **몸의 복사판**이라, 몸 · 검은 복사판 · 타원이
+             세 겹으로 겹쳐 그림자가 둘로 보였다. 이제 땅에 선 몸과 같은 손을 쓴다:
+               · 꼭짓점 z 에 **나는 높이**(h, 모형 칸)를 더해 눕힌다 — 그만큼 빛 방향으로 멀리 눕는다.
+               · 앵커는 몸과 같으니(몸은 lift 만큼 들려 있다) 화면에서 그 몫을 도로 내린다(dy = lift).
+             캔버스 타원은 공중 유닛에서 걷었다(아래 hover 갈래) — 바닥에 누운 실루엣이 그 몫을 대신한다. */
           const gsh9 = bodyShadow && (op.air || zoom >= SHADOW_GROUND_MIN_ZOOM)
             ? (op.air
-              ? { dy: Math.max(1, px * 0.18), alpha: op.alpha * 0.55 }
+              ? { ground: true, dy: lift, h: lift / Math.max(1e-3, gk9), alpha: op.alpha * 0.22 }
               : { ground: true, alpha: op.alpha * 0.22 }) : undefined;
           for (const gkind9 of [op.kind, op.attach, op.attach2]) {
             const gm9 = gkind9 ? (gkind9 === op.kind ? glM9 : gl9.unitMesh(gkind9, op.pose ?? 0)) : null;
