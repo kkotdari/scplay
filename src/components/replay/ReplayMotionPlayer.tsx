@@ -3467,7 +3467,10 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             const gLift9 = op.airPx !== undefined ? op.airPx * zoom : wPx * (op.liftK ?? 0);
             const gay9 = Math.round(((groundY ?? sy + hPx / 2) - gLift9) * B) / B;
             const gax9 = Math.round(sx * B) / B;
-            const gsh9 = bodyShadow ? { dy: Math.max(1, sidePx * 0.04), alpha: op.alpha * 0.4 } : undefined;
+            const gsh9 = bodyShadow
+              ? (gLift9 > 0.5
+                ? { dy: Math.max(1, sidePx * 0.04 + gLift9), alpha: op.alpha * 0.4 }   // 뜬 건물(이사 중)은 아래로 — 벌어짐이 높이다
+                : { ground: true, alpha: op.alpha * 0.22 }) : undefined;
             const gR9 = sidePx * 0.707; const gCy9 = -8 * gk9;
             gl9.push({ mesh: glB9, ax: gax9, ay: gay9, k: gk9, yoff: -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind) });
             if (op.attach) {
@@ -3765,8 +3768,12 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           const gax9 = detail ? Math.round(Bd * bx9) / Bd : bx9;
           const gay9 = detail ? Math.round(Bd * by9) / Bd : by9;
           const gk9 = (px / 16) * modelNormOf(op.kind);
+          /* 그림자 — 땅에 선 몸은 **빛 방향으로 바닥에 눕히고**(gl9 의 uShadow: 높은 부품이 멀리 눕는다), 떠 있는 몸은
+             종전처럼 아래로 밀어 그린다(벌어진 몫이 곧 나는 높이다 — 발밑 타원은 캔버스가 따로 깐다). */
           const gsh9 = bodyShadow && (op.air || zoom >= SHADOW_GROUND_MIN_ZOOM)
-            ? { dy: Math.max(1, px * (op.air ? 0.18 : 0.07)), alpha: op.alpha * (op.air ? 0.55 : 0.4) } : undefined;
+            ? (op.air
+              ? { dy: Math.max(1, px * 0.18), alpha: op.alpha * 0.55 }
+              : { ground: true, alpha: op.alpha * 0.22 }) : undefined;
           for (const gkind9 of [op.kind, op.attach, op.attach2]) {
             const gm9 = gkind9 ? (gkind9 === op.kind ? glM9 : gl9.unitMesh(gkind9, op.pose ?? 0)) : null;
             if (!gm9) continue;

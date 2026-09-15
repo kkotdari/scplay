@@ -4,6 +4,32 @@
    버린다. 임자색 면(fill 없음)은 fill "" 로 두어 붓이 임자색으로 바꿔 칠한다. */
 import { MESH9, PROJ9, withTopView, withYaw, bake, zsorted, meshSphere9, meshLoft9, type ShapeFace, type Poly3 } from "./shapeOblique";
 
+/** 2D 굽기가 반투명 **색 있는** 면에 얹던 알파 보정 — bake9.shadeBoost 와 **같은 식이어야 한다**(여기서 베낀 까닭은
+ *  mesh9 ← bake9 로 되짚는 import 를 안 만들려고다). 이것을 안 태우면 GL 의 음영 덧칠이 2D 보다 1.25배 옅어
+ *  모델이 통째로 납작해 보인다(실측: 그 자리가 "GL 이 덜 아름답다"의 큰 몫이었다). */
+const shadeBoost9 = (o: number, fill?: string): number => (fill && o < 1 ? Math.min(0.7, o * 1.25) : o);
+/** 되찾은 **원**의 조각 수(고리·빌보드 원반·땅 원반) — 2D 는 진짜 호를 칠하므로 둘레가 매끈한데, 메시는 조각이 적으면
+ *  각이 보인다(실측: 16 조각이면 핵 충격파·워프인 둘레가 다각형으로 읽혔다). 32 면 둘레가 눈에 둥글고, 이 면들은
+ *  효과·장식 몇 장뿐이라 삯이 없다. */
+const RSEG9 = 32;
+/** 두 경로의 **상자 넓이 비**(덧칠/몸, 상한 1) — 경로의 숫자만 훑어 상자를 낸다(요잉 0 의 화면 좌표라 비만 쓴다). */
+function areaK9(dOv: string, dBody?: string): number {
+  if (!dBody) return 1;
+  const box9 = (d: string): number => {
+    const n = d.match(/-?\d+(?:\.\d+)?/g);
+    if (!n || n.length < 4) return 0;
+    let x0 = Infinity; let x1 = -Infinity; let y0 = Infinity; let y1 = -Infinity;
+    for (let i = 0; i + 1 < n.length; i += 2) {
+      const x = +n[i]; const y = +n[i + 1];
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+    }
+    return Math.max(0, x1 - x0) * Math.max(0, y1 - y0);
+  };
+  const b9 = box9(dBody);
+  if (!(b9 > 0)) return 1;
+  return Math.min(1, box9(dOv) / b9);
+}
+
 /* ── 경로 문자열 → 3D 메시 되돌리기 ───────────────────────────────────────────────────────
    헬퍼를 안 거치고 빌더가 project() 결과로 손수 짠 경로(번개·크립 얼룩·구 껍질 screenCircle·땅 원 groundEllipse·고리 annulus)는
    곁표에 메시가 없다. 기록 중 project() 가 적어 둔 화면점→3D 표(PROJ9)로 꼭짓점을 되찾는다:
@@ -70,7 +96,7 @@ export function meshFromPath9(d: string, opaque = true, glow = false): Poly3[] |
     if (subs.length === 2 && subs[1].ell && Math.abs(subs[1].ell.cx - e0.cx) < 0.02 && Math.abs(subs[1].ell.cy - e0.cy) < 0.02) {
       const c3 = look(e0.cx, e0.cy); if (!c3) return null;
       const e1 = subs[1].ell; const ro = Math.max(e0.rx, e1.rx), ri = Math.min(e0.rx, e1.rx);
-      const ring = (r: number): number[][] => { const out: number[][] = []; for (let k = 0; k < 16; k += 1) { const t = (k / 16) * Math.PI * 2; out.push([c3[0] + Math.cos(t) * r, c3[1] + Math.sin(t) * r, c3[2]]); } return out; };
+      const ring = (r: number): number[][] => { const out: number[][] = []; for (let k = 0; k < RSEG9; k += 1) { const t = (k / RSEG9) * Math.PI * 2; out.push([c3[0] + Math.cos(t) * r, c3[1] + Math.sin(t) * r, c3[2]]); } return out; };
       return meshLoft9([ring(ro), ring(ri)], false, false);
     }
     const out: Poly3[] = [];
@@ -79,9 +105,9 @@ export function meshFromPath9(d: string, opaque = true, glow = false): Poly3[] |
       if (s9.ri !== undefined) {
         // 반고리 — 바깥 호와 안 호 사이. sweep 1 이면 화면 위쪽(먼 쪽 = 모형 −y) 반, 0 이면 앞쪽 반
         const far = s9.sweep === 1; const ro = e.rx, ri = s9.ri;
-        const half = (r: number): number[][] => { const o: number[][] = []; for (let k9 = 0; k9 <= 8; k9 += 1) { const t = (k9 / 8) * Math.PI; o.push([c3[0] + Math.cos(t) * r, c3[1] + (far ? -1 : 1) * Math.sin(t) * r, c3[2]]); } return o; };
+        const half = (r: number): number[][] => { const o: number[][] = []; for (let k9 = 0; k9 <= RSEG9 / 2; k9 += 1) { const t = (k9 / (RSEG9 / 2)) * Math.PI; o.push([c3[0] + Math.cos(t) * r, c3[1] + (far ? -1 : 1) * Math.sin(t) * r, c3[2]]); } return o; };
         const A = half(ro), B = half(ri);
-        for (let k9 = 0; k9 < 8; k9 += 1) out.push([...A[k9], ...A[k9 + 1], ...B[k9 + 1], ...B[k9]]);
+        for (let k9 = 0; k9 < RSEG9 / 2; k9 += 1) out.push([...A[k9], ...A[k9 + 1], ...B[k9 + 1], ...B[k9]]);
         continue;
       }
       if (s9.lineAfter || (s9.arcs ?? 0) > 2) continue;   // 타원 꼴이 아닌 것(호 + 직선 섞임)
@@ -90,12 +116,12 @@ export function meshFromPath9(d: string, opaque = true, glow = false): Poly3[] |
         if (opaque && !glow) out.push(...meshSphere9(c3[0], c3[1], c3[2], e.rx));
         else {
           // 반투명 화면 원(빛무리·구 껍질 광택)·발광 종류의 화면 원 — 구가 아니라 카메라를 보는 원반(빌보드)으로 둔다
-          const disc: number[] = []; for (let k = 0; k < 16; k += 1) { const t = (k / 16) * Math.PI * 2; disc.push(c3[0] + Math.cos(t) * e.rx, c3[1] - Math.sin(t) * e.rx * BILL[0], c3[2] + Math.sin(t) * e.rx * BILL[1]); }
+          const disc: number[] = []; for (let k = 0; k < RSEG9; k += 1) { const t = (k / RSEG9) * Math.PI * 2; disc.push(c3[0] + Math.cos(t) * e.rx, c3[1] - Math.sin(t) * e.rx * BILL[0], c3[2] + Math.sin(t) * e.rx * BILL[1]); }
           BILLBOARD9.add(disc);
           out.push(disc);
         }
       } else {
-        const disc: number[] = []; for (let k = 0; k < 12; k += 1) { const t = (k / 12) * Math.PI * 2; disc.push(c3[0] + Math.cos(t) * e.rx, c3[1] + Math.sin(t) * e.rx, c3[2]); }
+        const disc: number[] = []; for (let k = 0; k < RSEG9; k += 1) { const t = (k / RSEG9) * Math.PI * 2; disc.push(c3[0] + Math.cos(t) * e.rx, c3[1] + Math.sin(t) * e.rx, c3[2]); }
         out.push(disc);
       }
     }
@@ -109,7 +135,8 @@ export function meshFromPath9(d: string, opaque = true, glow = false): Poly3[] |
  *  기록은 빌더 밖(withYaw 0, 모델 변환 없음)에서 끝난 뒤 하므로(collectMesh9) 항등이다. */
 
 /** 부품 — ow/ob 는 그 면 위에 얹혀 있던 음영 덧칠(흰·검 얕은 알파, 같은 경로의 topFace/sideFace/faceLight)을 접은 몫(0~1). */
-export interface MeshPart9 { polys: Poly3[]; fill: string; alpha: number; team: boolean; lod: number; ow: number; ob: number; /** 빌보드 원반 부품(카메라를 본다) */ bb?: boolean }
+export interface MeshPart9 { polys: Poly3[]; fill: string; alpha: number; team: boolean; lod: number; ow: number; ob: number; /** 빌보드 원반 부품(카메라를 본다) */ bb?: boolean;
+  /** 그 부품을 낸 면의 경로 — 덧칠을 접을 때 **넓이 몫**을 재는 자다(아래 areaK9). */ d?: string }
 export interface Mesh9 { parts: MeshPart9[]; faces: number; covered: number; skipped: number }
 
 /** #rgb·#rrggbb 휘도(0~1). 못 읽으면 0.5. */
@@ -150,9 +177,14 @@ export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeF
            ② 같은 부품 번호(tagKey 가 붙인 pid)의 **마지막 몸 면** — 제 꼴을 가진 그늘(원통 옆 그림자·돔 초승달·단면)은 경로가
               달라 ①로는 못 찾는다. 2D 는 그 그늘을 바로 앞 몸 위에 얹으므로, 같은 부품의 마지막 몸이 곧 그 자리다.
          둘 다 없으면 버린다(뜬 그림자 고리처럼 몸 없이 땅에 깔리는 덧칠). */
-      const at = byD.get(f[0]) ?? (f[5] !== undefined ? byPid.get(f[5]) : undefined);
+      const same9 = byD.get(f[0]);
+      const at = same9 ?? (f[5] !== undefined ? byPid.get(f[5]) : undefined);
       if (at !== undefined) {
-        const pt = parts[at]; const a = f[1];
+        const pt = parts[at];
+        /* ★ **넓이 몫만큼만 접는다**(2026-09) — ②(같은 부품의 마지막 몸)로 접는 덧칠은 제 꼴이 따로다(원통 옆 초승달·
+           단면 그늘). 그것을 몸 **전체**에 같은 세기로 먹이면 부품이 통째로 어두워진다(실측: 일꾼이 든 미네랄 덩이가
+           2D 의 절반 밝기 — gl-check 밝기비 0.53). 두 경로의 상자 넓이 비로 세기를 눅인다. ①(같은 경로)은 1 이다. */
+        const a = shadeBoost9(f[1], f[2]) * (same9 !== undefined ? 1 : areaK9(f[0], pt.d));
         if (lum9(f[2] ?? "#fff") > 0.5) pt.ow = 1 - (1 - pt.ow) * (1 - a); else pt.ob = 1 - (1 - pt.ob) * (1 - a);
       }
       skipped += 1; continue;
@@ -174,7 +206,7 @@ export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeF
     covered += 1;
     byD.set(f[0], parts.length);
     if (f[5] !== undefined) byPid.set(f[5], parts.length);
-    parts.push({ polys, fill: f[2] ?? "", alpha: f[1], team: f[2] === undefined, lod: f[4] ?? 0, ow: 0, ob: 0, bb: polys.length === 1 && BILLBOARD9.has(polys[0]) });
+    parts.push({ polys, fill: f[2] ?? "", alpha: shadeBoost9(f[1], f[2]), team: f[2] === undefined, lod: f[4] ?? 0, ow: 0, ob: 0, bb: polys.length === 1 && BILLBOARD9.has(polys[0]), d: f[0] });
   }
   MESH9.byD.clear();
   return { parts, faces: faces.length, covered, skipped };

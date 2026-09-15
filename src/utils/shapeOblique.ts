@@ -1294,7 +1294,7 @@ export function meshDome9(cx: number, cy: number, z0: number, r: number, hh: num
   return meshLoft9(rings, true, true);
 }
 /** 구 메시 — 중심 (cx,cy,cz)·반지름 r. zk 로 세로만 눌러 타원구도 낸다. */
-export function meshSphere9(cx: number, cy: number, cz: number, r: number, zk = 1, lat = 8, lon = 12): Poly3[] {
+export function meshSphere9(cx: number, cy: number, cz: number, r: number, zk = 1, lat = 12, lon = 20): Poly3[] {   // 조각 8×12 → 12×20(둘레의 각이 보였다 — 구는 몇 장뿐이라 삯이 없다)
   const rings: number[][][] = [];
   for (let k = 0; k <= lat; k += 1) {
     const ph = -Math.PI / 2 + (k / lat) * Math.PI;
