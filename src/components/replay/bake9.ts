@@ -15523,6 +15523,27 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       path: (t9: number): [number, number, number] => [0, 0, CZ9 - 1.05 * BALL_H9 + 2.1 * BALL_H9 * t9],
       widthOf: ball9,
     }), GOLD9), partKey(0, 0, CZ9)));
+    /* ② 구를 감싸는 **링**(요청) — z축을 축으로 적도를 한 바퀴 도는 띠. 단면은 z와 나란히 선 얇은 판(높이 0.34·두께
+       0.07)이고, 구 표면(1.05)에서 0.17 떨어진 반지름 1.22다. 한 몸으로 지으면 키가 하나라 뒤 호가 구 위에 얹히므로
+       열두 호로 나눠 저마다 제 자리의 깊이 키를 준다. 앞 호(y > 0.8)는 렌즈 통 뒤로 들어가야 하니 키의 y를 0.8에
+       묶는다 — 통(partKey(0, 1.0)+0.3)이 늘 위에 선다. */
+    {
+      const RING_R9 = 1.22;
+      const RING_N9 = 12;
+      for (let i9 = 0; i9 < RING_N9; i9 += 1) {
+        const a0 = (i9 / RING_N9) * Math.PI * 2;
+        const a1 = ((i9 + 1) / RING_N9) * Math.PI * 2;
+        const am = (a0 + a1) / 2;
+        out.push(...tagKey(paintBase(spirePillar({
+          x: 0, y: 0, h: 1, w: 1, segs: 2, sides: 4, caps: "none", oval: 0.2, ref: [0, 0, 1],
+          path: (t9: number): [number, number, number] => {
+            const a9 = a0 + (a1 - a0) * t9;
+            return [RING_R9 * Math.cos(a9), RING_R9 * Math.sin(a9), CZ9];
+          },
+          widthOf: (): number => 0.34,
+        }), GOLD9), partKey(RING_R9 * Math.cos(am), Math.min(0.8, RING_R9 * Math.sin(am)), CZ9)));
+      }
+    }
     /* ③ 앞의 초록 눈 — 짧은 금색 통에 박힌 밝은 렌즈. 통은 제 각도의 끝 단면을 스스로
        그리고(tubeFaces), 렌즈는 앞을 볼 때만 드는 벽 데칼이라 뒤에서는 안 보인다. */
     // 통은 앞뒤로 **납작하게**(요청: "카메라 몸통 앞뒤 납작하게") — 길이 0.7 → 0.36(0.72~1.42 → 0.84~1.2).
