@@ -4390,7 +4390,16 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           const sideQ = decal9
             ? Math.min(DECAL_BAKE_MAX, bldBakeCap(B))
             : Math.min(sideWant, bldBakeCap(B));
-          const bspr = buildingSprite(bop9, sideQ, B);
+          /* ★ WebGL 시제(#gl=1, gl9.ts) — 평면 시점의 건물 몸(크립 판·얼룩·맨 네모 제외)은 메시가 맡고 판은 안 굽는다.
+             자리 자는 판 블릿과 같다: x 는 상자 가운데(sx), y 는 잉크 바닥을 바닥선(groundY − 띄움)에 앉힌다(footOf 의 bot). */
+          const glB9 = gl9 && op.flat && !op.pitch && !decal9 && !op.clipWalk && !op.inkCenter ? gl9.bldMesh(op) : null;
+          const glBf9 = glB9 && gl9 ? gl9.footOf(glB9, -(op.rotDeg ?? 0)) : null;
+          const bspr = glB9 ? null : buildingSprite(bop9, sideQ, B);
+          if (glBf9 && !BLD_INK_BOX.has(bldAnchorKey(op.kind, op.pitch))) {
+            // 판이 채우던 잉크 상자(총구 앵커 등이 읽는다)도 메시 자로 — 판 자와 같은 좌표(상자 (8,16) 기준)다.
+            const bnI9 = bldNormOf(op.kind) ?? 1;
+            BLD_INK_BOX.set(bldAnchorKey(op.kind, op.pitch), [8 + bnI9 * glBf9.cx, 16 + bnI9 * (glBf9.bot - 4)]);
+          }
           /* 런타임 채움 보정은 없앴다(과제 #67) — 구운 판의 잉크 폭을 재서 발자국의
              95%가 되게 다시 굽던 자리다. 그 일을 이제 BLD_NORM이 모델 좌표에서 한다.
              보정이 있으면 모델을 고칠 때마다 화면 크기가 조용히 흔들리고, 16-상자를
@@ -4461,7 +4470,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
                보이는지(groundSquash)를 자리마다 실제로 재어 넘겨받는다. 그 값이 곧
                바닥면의 눌림이라, 그림자가 지면 격자와 같은 각도로 깔린다. */
             const squish = 0.55;
-            const inkW9 = bspr && bspr.w > 0 ? (bspr.w / B) * (sidePx / bspr.side) : wPx;
+            const inkW9 = glBf9 ? glBf9.w * (sidePx / 16) * (bldNormOf(op.kind) ?? 1)
+              : bspr && bspr.w > 0 ? (bspr.w / B) * (sidePx / bspr.side) : wPx;
             /* 2D는 그린 몸에만 맞춘다(지적: 평면에선 건물이 높이까지 바닥 상자 안으로
                눌려 들어가, 발자국 폭(wPx) 바닥은 그린 몸보다 늘 크다) — 발자국 하한을
                걷고 잉크 폭의 0.72만 덮는다. 입체는 종전대로 발자국 하한을 지킨다. */
@@ -4640,6 +4650,19 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             }
             continue;
           }
+          if (glB9 && glBf9 && gl9) {
+            const gk9 = (sidePx * (op.pulseK ?? 1) / 16) * (bldNormOf(op.kind) ?? 1);
+            const gLift9 = op.airPx !== undefined ? op.airPx * zoom : wPx * (op.liftK ?? 0);
+            const gay9 = Math.round(((groundY ?? sy + hPx / 2) - gLift9) * B) / B;
+            const gax9 = Math.round(sx * B) / B;
+            const gsh9 = bodyShadow ? { dy: Math.max(1, sidePx * 0.04), alpha: op.alpha * 0.4 } : undefined;
+            gl9.push({ mesh: glB9, ax: gax9, ay: gay9, k: gk9, yoff: -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, shadow: gsh9 });
+            if (op.attach) {
+              const gm9 = gl9.bldMesh({ ...op, kind: op.attach });
+              if (gm9) gl9.push({ mesh: gm9, ax: gax9, ay: gay9, k: gk9, yoff: -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha });
+            }
+            continue;
+          }
           const { faces } = resolveShapeFaces(op.kind, op.rotDeg, op.flat, op.viewYaw, op.pitch);
           if (faces) {
             // 판(buildingSprite)과 같은 크기 — sidePx처럼 종류 배수(drawK)까지 곱한다.
@@ -4708,7 +4731,11 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
            홀수면 거기서 반 픽셀이 생겨, 애써 맞춘 격자가 도로 어긋난다. */
         const pxqWant = Math.max(4, (Math.round((op.sizePx * bakeZoom * B) / 2) * 2) / B);
         const pxq = Math.min(pxqWant, unitBakeCap(B));
-        const spr = unitSprite(op, pxq, B);
+        /* ★ WebGL 시제(#gl=1, gl9.ts) — 평면 시점 유닛 몸통을 메시가 맡으면 **판을 아예 안 굽는다**. 판이 주던 잉크 상자
+           (그림자·링·체력바의 자: 폭 w·가운데 cx·바닥 bot)는 메시의 요잉 칸별 화면 상자(footOf)가 같은 자로 준다. */
+        const glM9 = gl9 && op.flat && !op.pitch && !rot ? gl9.unitMesh(op.kind, op.pose ?? 0) : null;
+        const glFt9 = glM9 && gl9 ? gl9.footOf(glM9, -(op.rotDeg ?? 0)) : null;
+        const spr = glFt9 ? null : unitSprite(op, pxq, B);
         /* ★ **판의 실제 크기**를 되읽는다 — 굽기 예산이 다한 프레임에는 요청과 다른
            크기가 올 수 있다(unitSprite의 ★). 판은 `l = pxq + 2·pad`로 지어졌으므로
            거꾸로 풀면 그 크기다. 자리·그림자·블릿이 전부 이 값을 써야 대타가 제자리에
@@ -4728,7 +4755,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         const inkKey9 = `${NORM_PAIR[op.kind] ?? op.kind}|${op.flat ? 1 : 0}|${pitchTag(op.pitch)}`;
         const inkB9 = ((Math.round((op.rotDeg ?? 0) / 22.5) % 16) + 16) % 16;
         const inkR9 = spr && spr.w > 0 && pxqB > 0 ? (spr.w / B) / pxqB : 0;
-        const inkW = ((): number => {
+        const inkW = glFt9 ? glFt9.w * (px / 16) * modelNormOf(op.kind) : ((): number => {
           const pose9 = op.pose ?? 0;
           let got9 = INK_W_RATIO9.get(inkKey9);
           if (inkR9 > 0 && (!got9 || pose9 < got9.pose)) {
@@ -4745,14 +4772,18 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           const r9 = got9 && got9.r > 0 ? got9.r : inkR9;
           return r9 > 0 ? r9 * px : px * inkK;
         })();
-        const footY = spr
-          ? sy - px * 0.24 - (spr.pad + pxqB / 2) * kU + (spr.bot / B) * kU - 1
-          : sy + px * 0.28;
+        const footY = glFt9
+          ? sy - px * 0.24 + (px / 16) * (modelNormOf(op.kind) * glFt9.bot + 4) - 1   // 판 자와 같은 식(rasterUnit9 의 원점 (8,12)·배수)
+          : spr
+            ? sy - px * 0.24 - (spr.pad + pxqB / 2) * kU + (spr.bot / B) * kU - 1
+            : sy + px * 0.28;
         /* 내용물 가로 중심(재지적: 그림자·링이 몸과 안 맞음) — 상자 중심이 아니라 실제
            그려진 픽셀의 가운데에 붙인다. */
-        const footX = spr
-          ? sx - (spr.pad + pxqB / 2) * kU + (spr.cx / B) * kU
-          : sx;
+        const footX = glFt9
+          ? sx + (px / 16) * modelNormOf(op.kind) * glFt9.cx
+          : spr
+            ? sx - (spr.pad + pxqB / 2) * kU + (spr.cx / B) * kU
+            : sx;
         /* ★ 그림자는 **모델의 땅 원점**에 놓는다(지적: "디파일러 그림자 위치가 몸이랑 안맞음(너무 아래)",
            "시즈탱크도 그랬고", "그림자 위치가 안맞는 유닛이 있는 이유가 이해가 안돼") ─────────────
            여태 그림자 타원의 세로 자리는 footY = **판의 가장 아래 잉크 픽셀**이었다. 그 자는 다리 달린
@@ -5020,19 +5051,6 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           /* 자른 판을 제 자리에 되돌린다 — 원래 판의 왼위 모서리가 있던 곳에서
              자른 만큼(ox·oy, 기기 픽셀이라 B로 나눈다) 옮겨 그리면, 통째로 그린 것과
              픽셀 단위로 같은 그림이 나온다. */
-          /* ★ WebGL 시제 — 평면 시점의 유닛 몸통(짐·포탑 겹판 포함)은 판 대신 메시로 GPU 큐에 넣는다. 그림자·링·체력바는 위에서
-             캔버스가 이미 그렸다. 자리·배수는 판 블릿과 같은 자다: 앵커 (bx9, by9) · 배수 px/16 · 종류 배수 MODEL_NORM. */
-          if (gl9 && op.flat && !op.pitch && !rot && gl9.has(op.kind, op.pose ?? 0)) {
-            const gax9 = detail ? Math.round(Bd * bx9) / Bd : bx9;
-            const gay9 = detail ? Math.round(Bd * by9) / Bd : by9;
-            const gnrm9 = modelNormOf(op.kind);
-            for (const gk9 of [op.kind, op.attach, op.attach2]) {
-              if (!gk9 || !gl9.has(gk9, op.pose ?? 0)) continue;
-              gl9.push({ kind: gk9, pose: op.pose ?? 0, ax: gax9, ay: gay9, px, nrm: gnrm9, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha });
-            }
-            ctx.setTransform(Bd, 0, 0, Bd, 0, 0);
-            continue;
-          }
           const cw9 = spr.cv.width / B;
           const ch9 = spr.cv.height / B;
           /* ★ 겹쳐 찍는 판(op.attach) — 일꾼이 든 짐이다. **같은 자**로 굽는다: 같은
@@ -5083,6 +5101,23 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           );
           if (!atBack9) atDraw9();
           atDrawOf9(at2Spr9, op.attach2K);   // 둘째 겹판은 제 배율(attach2K)이 있으면 그것을, 없으면 attachK를 탄다
+          ctx.setTransform(Bd, 0, 0, Bd, 0, 0);
+          continue;
+        }
+        /* ★ WebGL 시제 — 메시가 맡는 몸(위 glFt9)은 판 대신 GPU 큐에 넣는다(짐·포탑 겹판 포함). 그림자·링·체력바는 위에서
+           캔버스가 그렸다. 자리·배수는 판 블릿과 같은 자: 앵커 (bx9, by9) · px/16 · MODEL_NORM. 몸 그림자(2D shadowPlate)는
+           GL 이 몸을 검게 아래로 밀어 한 번 더 그린다. */
+        if (glM9 && gl9) {
+          const gax9 = detail ? Math.round(Bd * bx9) / Bd : bx9;
+          const gay9 = detail ? Math.round(Bd * by9) / Bd : by9;
+          const gk9 = (px / 16) * modelNormOf(op.kind);
+          const gsh9 = bodyShadow && (op.air || zoom >= SHADOW_GROUND_MIN_ZOOM)
+            ? { dy: Math.max(1, px * (op.air ? 0.18 : 0.07)), alpha: op.alpha * (op.air ? 0.55 : 0.4) } : undefined;
+          for (const gkind9 of [op.kind, op.attach, op.attach2]) {
+            const gm9 = gkind9 ? (gkind9 === op.kind ? glM9 : gl9.unitMesh(gkind9, op.pose ?? 0)) : null;
+            if (!gm9) continue;
+            gl9.push({ mesh: gm9, ax: gax9, ay: gay9, k: gk9, yoff: (px / 16) * 4, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, shadow: gsh9 });
+          }
           ctx.setTransform(Bd, 0, 0, Bd, 0, 0);
           continue;
         }

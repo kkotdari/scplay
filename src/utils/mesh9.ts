@@ -24,11 +24,12 @@ export const isOverlay9 = (f: ShapeFace): boolean => {
 };
 
 /** 빌더 하나를 요잉 0 평면 시점으로 굽고 메시로 모은다. 굽는 동안만 메시 기록을 켠다. */
-export function collectMesh9(builder: () => ShapeFace[]): Mesh9 {
+export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeFace[]) => ShapeFace[]): Mesh9 {
   MESH9.on = true; MESH9.byD.clear();
   let faces: ShapeFace[];
   try { faces = withTopView(() => bake(() => withYaw(0, builder))); }
   finally { MESH9.on = false; }
+  if (filter) faces = filter(faces);   // 건설 단계(stageFaces) 같은 면 고르기 — 곁표는 그대로라 남은 면만 메시가 된다
   const parts: MeshPart9[] = [];
   let covered = 0; let skipped = 0;
   for (const f of faces) {
