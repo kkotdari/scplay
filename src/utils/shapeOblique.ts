@@ -276,6 +276,7 @@ export function ringFaces3(
 ): ShapeFace[] {
   const [sx, sy] = project(cx, cy, z);
   const d = annulusPath(sx, sy, ro, ri);
+  if (MESH9.on) meshPut9(d, meshLoft9([meshRing9(cx, cy, z, 1, 0, 0, 0, 1, 0, ro, 16), meshRing9(cx, cy, z, 1, 0, 0, 0, 1, 0, ri, 16)], false, false));
   return tagKey([bodyFace(d), topFace(d, OP.topSoft)], depthNow(cx, cy) + ro);
 }
 
@@ -295,6 +296,23 @@ export type Seg3 = readonly [Pt3] | readonly [Pt3, Pt3];
  *    · 등급(LOD)이 붙어 사양에 따라 빠진다.
  *  상자·원통으로는 못 만드는 굽은 등판·꽃잎·집게·아가리가 이 프리미티브의 몫이다. */
 export function curvePath3(start: Pt3, segs: readonly Seg3[], close = true): string {
+  const d = curvePath3Str(start, segs, close);
+  if (MESH9.on) {
+    const poly: number[] = [...mp3(start[0], start[1], start[2])];
+    let prev: Pt3 = start;
+    for (const sg of segs) {
+      if (sg.length === 1) { poly.push(...mp3(sg[0][0], sg[0][1], sg[0][2])); prev = sg[0]; }
+      else {
+        const [c, e] = sg;
+        for (const t of [0.33, 0.66, 1]) { const u = 1 - t; const x = u * u * prev[0] + 2 * u * t * c[0] + t * t * e[0]; const y = u * u * prev[1] + 2 * u * t * c[1] + t * t * e[1]; const z = u * u * prev[2] + 2 * u * t * c[2] + t * t * e[2]; poly.push(...mp3(x, y, z)); }
+        prev = e;
+      }
+    }
+    meshPut9(d, [poly]);
+  }
+  return d;
+}
+function curvePath3Str(start: Pt3, segs: readonly Seg3[], close = true): string {
   const p = (q: Pt3): string => {
     const [x, y] = project(q[0], q[1], q[2]);
     return `${x} ${y}`;
@@ -756,19 +774,66 @@ export function project(x0: number, y0: number, z0: number): [number, number] {
   return [r2(VIEW.originX + rx2 * f), r2(originYNow() + ry2 * groundSquashNow() - z * zScaleNow())];
 }
 
+/* ── 메시 층(2026-09) ─────────────────────────────────────────────────────────────
+   면(ShapeFace)의 경로 문자열은 화면(2D)용이다. GPU 그리기·자료 도구는 **3D 폴리곤**이 필요하므로, 도형 헬퍼가
+   면을 낼 때 그 면의 3D 폴리곤(들)을 경로 문자열을 열쇠로 곁표(MESH9.byD)에 함께 적어 둔다. 점은 **판 모형 공간**
+   (모델 배율·이동·회전(withModelScale·Shift·Spin·ZOff)은 먹고, 요잉·시점·사영은 안 먹은 좌표)이다 — 요잉·카메라는
+   GPU 가 건다. 켜져 있을 때만 적으므로(meshOn9) 평소 굽기 비용은 그대로다.
+   곡선 도형(관·뿔·돔·구·원통·원반·고리·곡면판)은 화면 곡선 그대로 두고 3D 근사 메시를 따로 적는다 — 2D 그림은 한
+   톨도 안 바뀐다(스냅샷 대조로 지킨다). 화면 전용 도형(groundEllipse·screenCircle·bandPath)은 메시가 없다. */
+/** 3D 폴리곤 — x,y,z 삼중 나열(판 모형 공간). */
+export type Poly3 = number[];
+export const MESH9 = { on: false, byD: new Map<string, Poly3[]>() };
+export function meshOn9(on: boolean): void { MESH9.on = on; if (!on) MESH9.byD.clear(); }
+export function meshPut9(d: string, polys: Poly3[]): void { if (MESH9.on) MESH9.byD.set(d, polys); }
+/** 판 모형 공간 점(모델 변환만) — 메시에 적는 점은 전부 이것을 지난다. */
+export const mp3 = (x: number, y: number, z: number): number[] => modelPoint9(x, y, z) as unknown as number[];
+/** 링(둘레 점들) 둘을 잇는 옆면 사각들 + (원하면) 양 끝 뚜껑 — 관·원통·뿔·돔 메시의 공통 재료. */
+export function meshLoft9(rings: number[][][], capA = true, capB = true): Poly3[] {
+  const out: Poly3[] = [];
+  for (let k = 0; k + 1 < rings.length; k += 1) {
+    const a = rings[k]; const b = rings[k + 1]; const n = Math.min(a.length, b.length);
+    for (let i = 0; i < n; i += 1) { const j = (i + 1) % n; out.push([...a[i], ...a[j], ...b[j], ...b[i]]); }
+  }
+  if (capA && rings[0].length > 2) out.push(rings[0].flat());
+  if (capB && rings[rings.length - 1].length > 2) out.push(rings[rings.length - 1].flat());
+  return out;
+}
+/** 축 (ax,ay,az)→(bx,by,bz) 둘레의 원 링 — 반지름 r, sides 등분. 축과 직각인 두 축(u·v)을 세운다. */
+export function meshRing9(cx: number, cy: number, cz: number, ux: number, uy: number, uz: number, vx: number, vy: number, vz: number, r: number, sides: number): number[][] {
+  const out: number[][] = [];
+  for (let i = 0; i < sides; i += 1) {
+    const t = (i / sides) * Math.PI * 2; const c = Math.cos(t) * r; const s9 = Math.sin(t) * r;
+    out.push(mp3(cx + ux * c + vx * s9, cy + uy * c + vy * s9, cz + uz * c + vz * s9));
+  }
+  return out;
+}
+/** 화면 좌표 2D 폴리곤 곁표 — 경로 문자열을 다시 파싱하지 않고 Path2D 를 숫자로 짓는 지름길(bake9 pathOf). */
+export const POLY2 = new Map<string, Float64Array>();
+const POLY2_MAX = 120000;
 /** 3D 꼭짓점 목록 → 닫힌 직선 패스. (곡선이 필요하면 결과 좌표를 Q로 이어 다듬는다.) */
 export function polyPath3(pts: [number, number, number][]): string {
-  const s = pts.map(([x, y, z], i) => {
-    const [sx, sy] = project(x, y, z);
-    return `${i === 0 ? "M" : "L"}${sx} ${sy}`;
-  }).join(" ");
-  return `${s} Z`;
+  const n = pts.length;
+  const xy = new Float64Array(n * 2);
+  let s = "";
+  for (let i = 0; i < n; i += 1) {
+    const [sx, sy] = project(pts[i][0], pts[i][1], pts[i][2]);
+    xy[i * 2] = sx; xy[i * 2 + 1] = sy;
+    s += `${i === 0 ? "M" : " L"}${sx} ${sy}`;
+  }
+  s += " Z";
+  if (POLY2.size >= POLY2_MAX) POLY2.clear();
+  POLY2.set(s, xy);
+  if (MESH9.on) { const poly: number[] = []; for (const q of pts) poly.push(...mp3(q[0], q[1], q[2])); MESH9.byD.set(s, [poly]); }
+  return s;
 }
 
 /** 지면과 평행한 원(높이 z) — 화면에선 납작 타원. */
 export function discPath3(cx: number, cy: number, z: number, r: number): string {
   const [sx, sy] = project(cx, cy, z);
-  return groundEllipse(sx, sy, r, r * groundSquashNow());
+  const d = groundEllipse(sx, sy, r, r * groundSquashNow());
+  if (MESH9.on) meshPut9(d, [meshRing9(cx, cy, z, 1, 0, 0, 0, 1, 0, r, 12).flat()]);
+  return d;
 }
 
 /* 켤레 지름 타원 — 평면 위 원을 투영하면 화면에선 두 켤레 반지름 벡터 u·v로 표현되는
@@ -798,7 +863,9 @@ export function wallDiscPath(
   const [sx, sy] = project(cx, y, cz);
   const [axx, axy] = project(cx + rx, y, cz);
   const [bxx, bxy] = project(cx, y, cz + rz);
-  return conjugateEllipsePath(sx, sy, axx - sx, axy - sy, bxx - sx, bxy - sy);
+  const d = conjugateEllipsePath(sx, sy, axx - sx, axy - sy, bxx - sx, bxy - sy);
+  if (MESH9.on) { const ring: number[] = []; for (let i = 0; i < 12; i += 1) { const t = (i / 12) * Math.PI * 2; ring.push(...mp3(cx + rx * Math.cos(t), y, cz + rz * Math.sin(t))); } meshPut9(d, [ring]); }
+  return d;
 }
 
 /** 벽 무늬의 평면 좌표계 — 중심과 켤레 축을 돌려주어, 부속 장식(팬 날개 등)을 같은
@@ -999,6 +1066,7 @@ export function cylinderFaces3(
     + `a${r2(r)} ${r2(ry)} 0 0 1-${r2(r * 0.65)} ${r2(ry * 0.92)}Z`;
   /* 깊이 키 = 가장 앞점, 단 제 높이만큼만(재지적: 넓고 낮은 받침이 몸통을 덮음) —
      부품이 이웃을 가릴 수 있는 건 제 키 높이까지라, 앞으로 뻗은 만큼을 높이로 자른다. */
+  if (MESH9.on) meshPut9(body, meshLoft9([meshRing9(cx, cy, z0, 1, 0, 0, 0, 1, 0, r, 12), meshRing9(cx, cy, z0 + h, 1, 0, 0, 0, 1, 0, r, 12)]));
   return tagKey(
     [bodyFace(body), sideFace(shade, OP.sideSoft), topFace(groundEllipse(tx, ty, r, ry))],
     depthNow(cx, cy) + Math.min(h, r),
@@ -1201,10 +1269,31 @@ export function domeFaces3(
   const shine = groundEllipse((bx + tx) / 2 - r * 0.25, (by + ty) / 2 - (by - ty) * 0.22, r * 0.4, r * 0.18);
   const shade = `M${r2(tx + r * 0.35)} ${r2(ty + (by - ty) * 0.08)} Q${r2(tx + r)} ${r2(ty + (by - ty) * 0.25)} ${r2(bx + r)} ${r2(by)}`
     + ` Q${r2(bx + r * 0.55)} ${r2(by + ry * 0.6)} ${r2(bx + r * 0.35)} ${r2(by)}Z`;
+  if (MESH9.on) meshPut9(body, meshDome9(cx, cy, z0, r, hh));
   return tagKey(
     [bodyFace(body), sideFace(shade, OP.sideSoft), topFace(shine)],
     depthNow(cx, cy) + Math.min(hh, r),
   );
+}
+/** 돔 메시 — 바닥 원(r) 에서 꼭대기(z0+hh)까지 타원 옆선, 위도 6단·경도 12. hh 가 음수면 아래로 부푼다. */
+export function meshDome9(cx: number, cy: number, z0: number, r: number, hh: number, lat = 6, lon = 12): Poly3[] {
+  const rings: number[][][] = [];
+  for (let k = 0; k <= lat; k += 1) {
+    const ph = (k / lat) * (Math.PI / 2);
+    const rr = k === lat ? r * 0.02 : r * Math.cos(ph);
+    rings.push(meshRing9(cx, cy, z0 + hh * Math.sin(ph), 1, 0, 0, 0, 1, 0, rr, lon));
+  }
+  return meshLoft9(rings, true, true);
+}
+/** 구 메시 — 중심 (cx,cy,cz)·반지름 r. zk 로 세로만 눌러 타원구도 낸다. */
+export function meshSphere9(cx: number, cy: number, cz: number, r: number, zk = 1, lat = 8, lon = 12): Poly3[] {
+  const rings: number[][][] = [];
+  for (let k = 0; k <= lat; k += 1) {
+    const ph = -Math.PI / 2 + (k / lat) * Math.PI;
+    const rr = (k === 0 || k === lat) ? r * 0.02 : r * Math.cos(ph);
+    rings.push(meshRing9(cx, cy, cz + r * zk * Math.sin(ph), 1, 0, 0, 0, 1, 0, rr, lon));
+  }
+  return meshLoft9(rings, true, true);
 }
 
 /** 화면 원 — 납작비도, 시각 밀림도 먹이지 않는 진짜 동그라미.
@@ -1235,6 +1324,7 @@ export function halfSphereFaces3(
     + `A${r2(r)} ${r2(ry * 0.42)} 0 0 0 ${r2(sx + r)} ${r2(sy)}Z`;
   const gloss = `M${r2(sx - r)} ${r2(sy)}A${r2(r)} ${r2(r)} 0 0 1 ${r2(sx + r)} ${r2(sy)}`
     + `A${r2(r)} ${r2(r * 0.78)} 0 0 0 ${r2(sx - r)} ${r2(sy)}Z`;
+  if (MESH9.on) meshPut9(d, meshDome9(cx, cy, cz, r, r));
   return tagKey([body, sideFace(shade, OP.sideSoft), topFace(gloss, OP.topSoft)],
     depthNow(cx, cy) + r);
 }
@@ -1250,6 +1340,7 @@ export function quarterSphereFaces3(
   const d = `M${r2(sx - r)} ${r2(sy)}A${r2(r)} ${r2(r)} 0 0 1 ${r2(sx + r)} ${r2(sy)}`
     + `A${r2(r)} ${r2(ry)} 0 0 0 ${r2(sx - r)} ${r2(sy)}Z`;
   const body: ShapeFace = fill ? [d, 1, fill] : bodyFace(d);
+  if (MESH9.on) meshPut9(d, meshDome9(cx, cy, cz, r, r));
   return tagKey([body, topFace(d, OP.topSoft)], depthNow(cx, cy) + r);
 }
 
@@ -1263,6 +1354,7 @@ export function sphereFaces3(
   const body: ShapeFace = fill
     ? [screenCircle(sx, sy, r), 1, fill]
     : bodyFace(screenCircle(sx, sy, r));
+  if (MESH9.on) meshPut9(body[0], meshSphere9(cx, cy, cz, r));
   return tagKey([
     body,
     sideFace(screenCircle(sx + r * 0.28, sy + r * 0.24, r * 0.68), OP.sideSoft),
@@ -1312,6 +1404,10 @@ export function tubeFaces(
       + ` A${r2(re * k)} ${r2(r * k)} ${ang} 1 1 ${r2(ex + nx2)} ${r2(ey + ny2)} Z`;
   };
   const faces: ShapeFace[] = [bodyFace(endDisc(ax, ay)), bodyFace(endDisc(bx, by))];
+  if (MESH9.on) {
+    const ml9 = Math.hypot(x2 - x1, y2 - y1) || 1; const ux = -(y2 - y1) / ml9; const uy = (x2 - x1) / ml9;
+    meshPut9(faces[0][0], meshLoft9([meshRing9(x1, y1, z, ux, uy, 0, 0, 0, 1, r, 8), meshRing9(x2, y2, z, ux, uy, 0, 0, 0, 1, r, 8)]));
+  }
   if (len >= 0.05) {
     const nx = (-dy / len) * r;
     const ny = (dx / len) * r;
@@ -1332,6 +1428,8 @@ export function tubeFaces(
     const [ex, ey] = fB > 0 ? [bx, by] : [ax, ay];
     faces.push(capFace(endDisc(ex, ey, capOpen ? 0.78 : 0.92), (capOpen ? 0.42 : 0.14) * k));
   }
+  // 메시는 첫 면(끝 원반)에 실었다 — 나머지 면(다른 끝·옆 사각·단면)은 같은 관이라 빈 메시로 표시해 둔다.
+  if (MESH9.on) for (let i = 1; i < faces.length; i += 1) meshPut9(faces[i][0], []);
   const dA = depthNow(x1, y1);
   const dB2 = depthNow(x2, y2);
   return tagKey(faces, (dA + dB2) / 2 + Math.min(r * 2, Math.abs(dA - dB2) / 2));
@@ -1354,6 +1452,15 @@ export function hornFaces(
     + ` L${r2(ax - nx * 0.2)} ${r2(ay - ny * 0.2)} Z`;
   const dRt = depthNow(bx, by);
   const dTp = depthNow(tx, ty);
+  if (MESH9.on) {
+    // 축과 직각인 두 축 — 축이 세로면 x·y, 아니면 (축×z)·(축×그것)
+    const dx3 = tx - bx; const dy3 = ty - by; const dz3 = zt - z0; const L = Math.hypot(dx3, dy3, dz3) || 1;
+    const ax9 = dx3 / L; const ay9 = dy3 / L; const az9 = dz3 / L;
+    let ux9 = -ay9; let uy9 = ax9; let uz9 = 0; const ul = Math.hypot(ux9, uy9);
+    if (ul < 1e-3) { ux9 = 1; uy9 = 0; uz9 = 0; } else { ux9 /= ul; uy9 /= ul; }
+    const vx9 = ay9 * uz9 - az9 * uy9; const vy9 = az9 * ux9 - ax9 * uz9; const vz9 = ax9 * uy9 - ay9 * ux9;
+    meshPut9(body, meshLoft9([meshRing9(bx, by, z0, ux9, uy9, uz9, vx9, vy9, vz9, w / 2, 6), meshRing9(tx, ty, zt, ux9, uy9, uz9, vx9, vy9, vz9, w * 0.02, 6)], true, false));
+  }
   return tagKey(
     [bodyFace(body), sideFace(shade, OP.sideSoft)],
     (dRt + dTp) / 2 + Math.min(Math.abs(zt - z0) + w, Math.abs(dRt - dTp) / 2),

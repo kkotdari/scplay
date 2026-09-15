@@ -6,7 +6,8 @@ import { GAP9, pNow } from "./perf9";
 import { cx } from "./cx";
 import { TIER_GEN9 } from "./tierTable.gen";
 import { kT } from "../../utils/openbwTracks";
-import { FACE_GRAIN9, loftZFaces, modelPoint9, annulusPath, bandPath, bodyFace, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
+import {
+  POLY2, MESH9, meshPut9, meshLoft9, meshRing9, FACE_GRAIN9, loftZFaces, modelPoint9, annulusPath, bandPath, bodyFace, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
 import { BUILD_STAGES, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, SPIN_STEPS, bldNormOf, modelInkOf, modelNormOf } from "./engine9";
 import { type UnitDrawOp } from "./engine9";
 /** 주소 해시(`#pitch=`·`#nocreep` 같은 진단 스위치) — 굽기 일꾼 안에서는 location.hash가 빈 문자열(blob 주소)이라,
@@ -2732,6 +2733,15 @@ export function rodFaces(
     `M${ex + nx} ${ey + ny} A${re} ${r} ${ang} 1 1 ${ex - nx} ${ey - ny}`
     + ` A${re} ${r} ${ang} 1 1 ${ex + nx} ${ey + ny} Z`;
   const faces: ShapeFace[] = [bodyFace(endDisc(ax, ay)), bodyFace(endDisc(bx, by))];
+  if (MESH9.on) {
+    // 메시: 축 (x1,y1,z1)→(x2,y2,z2) 둘레의 8각 관 — 화면 그림은 그대로.
+    const dx3 = x2 - x1; const dy3 = y2 - y1; const dz3 = z2 - z1; const L3 = Math.hypot(dx3, dy3, dz3) || 1;
+    const ax9 = dx3 / L3; const ay9 = dy3 / L3; const az9 = dz3 / L3;
+    let ux9 = -ay9; let uy9 = ax9; let uz9 = 0; const ul = Math.hypot(ux9, uy9);
+    if (ul < 1e-3) { ux9 = 1; uy9 = 0; uz9 = 0; } else { ux9 /= ul; uy9 /= ul; }
+    const vx9 = ay9 * uz9 - az9 * uy9; const vy9 = az9 * ux9 - ax9 * uz9; const vz9 = ax9 * uy9 - ay9 * ux9;
+    meshPut9(faces[0][0], meshLoft9([meshRing9(x1, y1, z1, ux9, uy9, uz9, vx9, vy9, vz9, r, 8), meshRing9(x2, y2, z2, ux9, uy9, uz9, vx9, vy9, vz9, r, 8)]));
+  }
   if (L >= 0.05) {
     faces.push(
       bodyFace(`M${ax + nx} ${ay + ny} L${bx + nx} ${by + ny}`
@@ -2739,6 +2749,7 @@ export function rodFaces(
       sideFace(`M${ax} ${ay} L${bx} ${by} L${bx - nx} ${by - ny} L${ax - nx} ${ay - ny} Z`, 0.2),
     );
   }
+  if (MESH9.on) for (let i = 1; i < faces.length; i += 1) meshPut9(faces[i][0], []);
   const dA = depthNow(x1, y1);
   const dB = depthNow(x2, y2);
   return tagKey(
@@ -21764,9 +21775,19 @@ export function cropToInk(
   return { cv: out, ox: cx9, oy: cy9 };
 }
 export const PATH2D_CACHE = new Map<string, Path2D>();
+/** 경로 → Path2D. 직선 다각형(polyPath3)은 곁표(POLY2)의 숫자로 곧장 짓는다 — 문자열 파싱을 건너뛴다. */
 export const pathOf = (d: string): Path2D => {
   let p = PATH2D_CACHE.get(d);
-  if (!p) { p = new Path2D(d); PATH2D_CACHE.set(d, p); }
+  if (!p) {
+    const xy = POLY2.get(d);
+    if (xy) {
+      p = new Path2D();
+      p.moveTo(xy[0], xy[1]);
+      for (let i = 2; i < xy.length; i += 2) p.lineTo(xy[i], xy[i + 1]);
+      p.closePath();
+    } else p = new Path2D(d);
+    PATH2D_CACHE.set(d, p);
+  }
   return p;
 };
 /* ── 유닛 스프라이트 캐시(수리·지적: 캔버스 전환 뒤 프레임 뚝뚝) — 병목은 프레임마다
