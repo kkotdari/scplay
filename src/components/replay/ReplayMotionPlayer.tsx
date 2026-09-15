@@ -4639,11 +4639,18 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           }
           const { faces } = resolveShapeFaces(op.kind, op.rotDeg, op.flat, op.viewYaw, op.pitch);
           if (faces) {
-            const s = (op.fitWidth ? wPx : Math.min(wPx, hPx)) / 16;
+            // 판(buildingSprite)과 같은 크기 — sidePx처럼 종류 배수(drawK)까지 곱한다.
+            const s = ((op.fitWidth ? wPx : Math.min(wPx, hPx)) * (op.drawK ?? 1)) / 16;
             // 모델 면으로 그리는 길 — save 스택 대신 setTransform 합성(모델 (8,16) 앵커).
             const ty9 = (groundY ?? sy + hPx / 2)
               - (op.airPx !== undefined ? op.airPx * zoom : wPx * (op.liftK ?? 0));
             ctx.setTransform(Bd * s, 0, 0, Bd * s, Bd * (sx - 8 * s), Bd * (ty9 - 16 * s));
+            /* 폴백에도 판과 같은 정규화(BLD_NORM, 발 가운데 (8,16) 축) — 유닛 쪽 폴백의 ★와 같은 까닭이다:
+               첫 진입에 판이 못 선 건물이 이 길로 떨어지면 배수만큼 크기가 달랐다가 판이 오면 튀었다. */
+            {
+              const bn9 = bldNormOf(op.kind);
+              if (bn9 !== undefined && bn9 !== 1) { ctx.translate(8, 16); ctx.scale(bn9, bn9); ctx.translate(-8, -16); }
+            }
             for (const [d, o, fill] of faces) {
               ctx.globalAlpha = op.alpha * shadeBoost(o, fill);
               ctx.fillStyle = tone9(fill ?? op.color);
@@ -5067,6 +5074,18 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         SPRITE_PERF.direct += 1;
         const ds9 = px / 16;
         ctx.transform(ds9, 0, 0, ds9, -8 * ds9, -8 * ds9);
+        /* ★ 폴백에도 **판과 같은 정규화**를 건다(지적: "4배 확대 주소로 들어와서 처음 불러오면 모델이 크게 나왔다가
+           제 크기로 바뀜") — 첫 진입의 큰 배율에서는 처음 보는 열쇠가 프레임마다 수십이라 작은 판 예산·천장이 다하고
+           (unitSprite가 null), 그 몸은 이 길로 떨어진다. 그런데 여기는 모델 좌표를 그대로 찍어 MODEL_NORM(대개 1보다
+           작다 — 배틀 0.63·울트라 0.37)이 빠져 있었다: 판이 찰 때까지 몸이 배수의 역수만큼 크게 나왔다가 판이 오면
+           줄어드는 것이 그 현상이다. 축도 판(rasterUnit9)과 같은 땅 원점(8, 12 / 입체 8, 12.6)이다. */
+        {
+          const nrm9 = modelNormOf(op.kind);
+          if (nrm9 !== 1) {
+            const noy9 = op.flat ? 12 : 12.6;
+            ctx.translate(8, noy9); ctx.scale(nrm9, nrm9); ctx.translate(-8, -noy9);
+          }
+        }
         for (const [d, o, fill] of faces) {
           ctx.globalAlpha = op.alpha * shadeBoost(o, fill);
           ctx.fillStyle = tone9(fill ?? op.color);
