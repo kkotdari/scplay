@@ -15513,27 +15513,35 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        그래서 같은 공을 t로 잘라 아래는 금, 위 한 조각만 칠하지 않는다(그리는 쪽이 임자
        색을 넣는다). 자른 자리의 단면은 안 그린다(caps none) — 두 도막이 같은 고리를
        나눠 쓰므로 겹치면 z 다툼이 난다. */
-    for (const [t0, t1, gold9] of [[0, 0.7, true], [0.7, 1, false]] as const) {
-      const seg9 = spirePillar({
-        x: 0, y: 0, h: 1, w: 1, segs: 5, sides: 10, caps: "none",
-        path: (t9: number): [number, number, number] =>
-          [0, 0, CZ9 - 1.05 + 2.1 * (t0 + (t1 - t0) * t9)],
-        widthOf: (t9: number): number => ball9(t0 + (t1 - t0) * t9),
-      });
-      out.push(...tagKey(gold9 ? paintBase(seg9, GOLD9) : seg9,
-        partKey(0, 0, CZ9 - 1.05 + 2.1 * ((t0 + t1) / 2))));
+    /* ★ 몸은 **온전한 금색 구**다(요청: "몸통 위쪽 임자색 제거 · 몸통을 완전한 구로") — 정수리 조각을
+       임자 색으로 남기던 것을 걷고 한 기둥으로 잇는다. 마디·변을 촘촘히(5·10 → 10·16) 해 각이 안 진다.
+       임자 색은 이제 날개 바깥쪽 띠와 몸 뒷면 도넛 데칼이 진다(아래). */
+    out.push(...tagKey(paintBase(spirePillar({
+      x: 0, y: 0, h: 1, w: 1, segs: 10, sides: 16, caps: "none",
+      path: (t9: number): [number, number, number] => [0, 0, CZ9 - 1.05 + 2.1 * t9],
+      widthOf: ball9,
+    }), GOLD9), partKey(0, 0, CZ9)));
+    /* 몸 뒷면의 **두꺼운 도넛 데칼**(요청: "입체 아닌 구 위의 평면 데칼") — 렌즈와 같은 벽 데칼 규약: 뒤(−y)를
+       볼 때만 들고, 바깥 원(임자 색 = 칠하지 않음) 위에 안쪽 원(금)을 얹어 굵은 고리로 읽힌다. */
+    if (facingRatio(0, -1) > 0.02) {
+      const kb9 = Math.min(1, facingRatio(0, -1) / 0.35);
+      out.push(...tagKey([
+        [wallDiscPath(0, -1.0, CZ9, 0.66, 0.6), 0.95 * kb9] as ShapeFace,
+        [wallDiscPath(0, -1.01, CZ9, 0.3, 0.27), 0.95 * kb9, GOLD9] as ShapeFace,
+      ], partKey(0, -1.0, CZ9) + 0.6));
     }
     /* ③ 앞의 초록 눈 — 짧은 금색 통에 박힌 밝은 렌즈. 통은 제 각도의 끝 단면을 스스로
        그리고(tubeFaces), 렌즈는 앞을 볼 때만 드는 벽 데칼이라 뒤에서는 안 보인다. */
-    out.push(...tagKey(paintBase(tubeFaces(0, 0.72, 0, 1.42, 0.44, CZ9), GOLD9),
-      partKey(0, 1.1, CZ9) + 0.3));
+    // 통은 앞뒤로 **납작하게**(요청: "카메라 몸통 앞뒤 납작하게") — 길이 0.7 → 0.36(0.72~1.42 → 0.84~1.2).
+    out.push(...tagKey(paintBase(tubeFaces(0, 0.84, 0, 1.2, 0.44, CZ9), GOLD9),
+      partKey(0, 1.0, CZ9) + 0.3));
     if (facingRatio(0, 1) > 0.02) {
       const k9 = Math.min(1, facingRatio(0, 1) / 0.35);
       out.push(...tagKey([
         // 렌즈는 관의 축 높이(z + r×0.45)에(재지적: 좀 아래 붙어 있음).
-        [wallDiscPath(0, 1.46, CZ9 + 0.2, 0.36, 0.32), 0.95 * k9, "#2fd66a"] as ShapeFace,
-        [wallDiscPath(0, 1.47, CZ9 + 0.2, 0.17, 0.15), 0.95 * k9, "#d8ffe6"] as ShapeFace,
-      ], partKey(0, 1.5, CZ9) + 0.6));
+        [wallDiscPath(0, 1.24, CZ9 + 0.2, 0.36, 0.32), 0.95 * k9, "#2fd66a"] as ShapeFace,
+        [wallDiscPath(0, 1.25, CZ9 + 0.2, 0.17, 0.15), 0.95 * k9, "#d8ffe6"] as ShapeFace,
+      ], partKey(0, 1.3, CZ9) + 0.6));
     }
     /* ④ 잎날 셋 — 120도씩. 얇은 판이라 축을 뻗는 방향으로 눕히고 단면 기준(ref)을 그
        방향의 **직각**으로 못 박아야 세 장이 저마다 제 바깥쪽으로 납작해진다(안 그러면
@@ -15543,18 +15551,28 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        (눈과 같은 쪽). 뿌리는 몸 표면에 그대로 묻고 끝이 앞으로 나간다. */
     const WK9 = 0.8;
     const WL9 = 1.5 * WK9;
+    /* 날개마다 **바깥쪽 임자색 띠**(요청: "임자색 데칼을 날개 바깥쪽에") — 같은 등뼈·같은 굵기 곡선을 t로
+       세 도막 내어 가운데 도막(0.5~0.78, 끝 쪽)만 칠하지 않는다. 잘린 단면은 안 그린다(같은 고리를 나눠 쓴다). */
+    const wingW9 = widthCurve([[0, 0.42 * WK9], [0.35, 0.72 * WK9], [1, 0.24 * WK9]]);
     for (const ang9 of [90, 210, 330]) {
       const a9 = (ang9 * Math.PI) / 180;
       const dx9 = Math.cos(a9);
       const dz9 = Math.sin(a9);
-      out.push(...tagKey(paintBase(spirePillar({
-        x: 0, y: 0, h: 1, w: 1, segs: 5, sides: 8, caps: "both", oval: 0.16,
-        ref: [-dz9, 0, dx9],
-        path: (t9: number): [number, number, number] => [
-          dx9 * (0.7 + WL9 * t9), 0.15 + 0.62 * t9, CZ9 + dz9 * (0.7 + WL9 * t9),
-        ],
-        widthOf: widthCurve([[0, 0.42 * WK9], [0.35, 0.72 * WK9], [1, 0.24 * WK9]]),
-      }), GOLD9), partKey(dx9 * 1.3, 0.5, CZ9 + dz9 * 1.3)));
+      const wingP9 = (t9: number): [number, number, number] => [
+        dx9 * (0.7 + WL9 * t9), 0.15 + 0.62 * t9, CZ9 + dz9 * (0.7 + WL9 * t9),
+      ];
+      for (const [t0, t1, gold9, caps9] of [
+        [0, 0.5, true, "bottom"], [0.5, 0.78, false, "none"], [0.78, 1, true, "top"],
+      ] as const) {
+        const seg9 = spirePillar({
+          x: 0, y: 0, h: 1, w: 1, segs: t1 - t0 > 0.4 ? 3 : 2, sides: 8, caps: caps9, oval: 0.16,
+          ref: [-dz9, 0, dx9],
+          path: (t9: number): [number, number, number] => wingP9(t0 + (t1 - t0) * t9),
+          widthOf: (t9: number): number => wingW9(t0 + (t1 - t0) * t9),
+        });
+        out.push(...tagKey(gold9 ? paintBase(seg9, GOLD9) : seg9,
+          partKey(dx9 * 1.3, 0.5, CZ9 + dz9 * 1.3) + (t0 + t1) * 0.02));
+      }
     }
     return zsorted(out);
   },
