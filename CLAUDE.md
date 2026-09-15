@@ -91,6 +91,19 @@ scplayer 쪽 소스를 만졌으면 그쪽에서 `npx tsc --noEmit -p tsconfig.j
 - 검산: `node scripts/model-faces-snap.mjs --out ref.json --zk 0.8`(원본 + 꼭짓점 z배수 = 정답) · `--out new.json`(고친 소스) ·
   `--diff ref.json new.json`(종류별 어긋난 면·버그급). Node 헤드리스, 전 종류 15초.
 - 잉크 중심표(`UNIT_INK_CY9`·`BLD_INK_MID9`)는 `node scripts/ink-center.mjs --emit` 으로 다시 뽑아 engine9 에 붙인다(캔버스 래스터라 브라우저).
+- **코드모드가 틀린 자리는 손으로 고쳤다(2026-09, 118종 버그급 → 잔 조각 몇 개)**. 원리: 코드모드는 z **입력**을 접는데 정답은 **꼭짓점** z를
+  접는 것이라, 회전·경로 매개변수·접선에서 z를 만드는 자리는 접을 수 없다. 그런 자리는 설계 좌표 그대로 두고 **꼭짓점으로 나가는 자리에서
+  `Z8`(bake9, 0.8)을 곱한다** — 경로 람다의 return z, 관절 풀이(jointBetween)는 s·w 를 `/Z8` 로 되돌려 풀고 결과 z 에 `*Z8`, 부품 회전
+  (뮤탈 날개 P·포탑 포드 롤·오버로드 bz)은 설계 자로 돌린 뒤 z 에 `*Z8`. 코드모드가 못 본 z 후보: `[x, z]`/`[y, z]` 쌍 표(가디언 다리·
+  벌처 hullPlan·옵저버토리 기둥 키), 기본 매개변수(`tankTrack h = 2.6`), 이름이 z 답지 않은 지역 헬퍼 인자(forgeDome9·rampVent·
+  sunkenFoot arc), `MODEL_Z_OFF9` 표(withModelZOff 는 modelZK 를 곱하므로 표 값 자체를 ×0.8), 화면 원으로 설계한 것(포지 바퀴 —
+  RIM 은 화면 자라 접지 않는다). 남은 잔차(관 단면·구 껍질의 뒷면 판정, 평균 0.02~0.03 모델칸)는 받아들였다.
+- **정답 만들 때**: withModelScale 은 바깥 배수를 덮어쓰므로(곱하지 않음) 제 배수를 거는 빌더(refinery·academy·plane·tank·turret·
+  trapezoid·tombFlat·dship)는 `--zk 0.8` 정답이 틀린다. 평면은 원본 트리(카메라 누름 0.8)를 `--modes top` 으로 뜬 **진실**과, 입체는
+  withModelScale 을 곱셈으로 잠시 고친 원본 트리의 `--zk 0.8` 과 대조한다(model-faces-snap.mjs 머리 주석). `--diff` 는 독점 없는
+  최근접 짝짓기 + `--min 0.2`(잔 조각 제외)로 센다 — 탐욕 짝짓기는 궤도 패드·구 껍질에서 이웃을 가로채 과장했다.
+- 정규화(MODEL_NORM 26종)·잉크 중심표는 코드모드 때 **틀어진 기하로** 재측정한 값이었다 — 기하를 되찾으며 정규화는 코드모드 전 값으로
+  되돌리고 잉크 중심표는 다시 뽑았다.
 
 ## 메시 층·WebGL 시제(2026-09)
 - **메시 층**: 도형 헬퍼(polyPath3·관·뿔·돔·구·원통·원반·고리·곡면판, bake9.rodFaces)가 `MESH9.on` 일 때 면의 경로 문자열을 열쇠로

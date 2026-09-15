@@ -1,5 +1,10 @@
 /* 모델 면 스냅샷·대조기 — 모델 좌표 손질(scripts/model-z-scale.mjs)의 검산 자다.
  *
+ * ★ 정답을 만들 때 주의: withModelScale 은 바깥 배수를 **덮어쓴다**(곱하지 않는다). 그래서 빌더 안에서 제 배수를 거는
+ *   종류(refinery·academy·plane·tank·turret·trapezoid·tombFlat·dship)는 `--zk 0.8` 정답이 틀린다 — 원본 트리에서
+ *   withModelScale 을 곱셈으로 잠시 고치거나(입체 정답), 원본 트리를 카메라 누름(TOP_Z_PRESS9 0.8) 그대로 `--modes top`
+ *   으로 떠서(평면 진실) 대조한다. `--min 0.2` 로 잔 조각을 걸러야 종류별 순위가 뜻을 가진다.
+ *
  *   node scripts/model-faces-snap.mjs --out ref.json --zk 0.8   # 원본 소스 + withModelZ(0.8) = 꼭짓점 단계의 정답
  *   node scripts/model-faces-snap.mjs --out new.json            # 고친 소스 그대로
  *   node scripts/model-faces-snap.mjs --diff ref.json new.json  # 종류마다 안 맞는 면 수를 센다
@@ -23,32 +28,32 @@ if (has("--diff")) {
   const A = JSON.parse(readFileSync(argv[i + 1], "utf8"));
   const B = JSON.parse(readFileSync(argv[i + 2], "utf8"));
   const BIG = Number(flag("--big", 0.5));   // 이 이상 어긋나면 '버그급'(도형 단면 차이가 아니라 자리가 틀린 것)
+  const MIN = Number(flag("--min", 0));     // 이보다 작은 면(화면 상자 한 변)은 안 센다 — 구·관의 잔 조각은 뒷면 판정만 바뀌어도 어긋난다
   const nums = (d) => (d.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
   const skel = (d) => d.replace(/-?\d+(?:\.\d+)?/g, "#");
+  const size = (n) => { let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9; for (let t = 0; t + 1 < n.length; t += 2) { x0 = Math.min(x0, n[t]); x1 = Math.max(x1, n[t + 1 - 1]); y0 = Math.min(y0, n[t + 1]); y1 = Math.max(y1, n[t + 1]); } return Math.max(x1 - x0, y1 - y0); };
   const rows = [];
   let badKinds = 0;
   for (const kind of Object.keys(A)) {
     let total = 0; let miss = 0; let big = 0; let worst = 0; let where = ""; let sum = 0;
     for (const key of Object.keys(A[kind])) {
       const fa = A[kind][key]; const fb = (B[kind] ?? {})[key] ?? [];
-      /* 통: 채움색|골격 — 같은 통 안에서 **가장 가까운 짝**(최대 절대차)을 탐욕으로 잇는다(정렬 짝짓기는 값이
-         조금만 움직여도 차례가 뒤집혀 멀쩡한 면까지 어긋난 것으로 셌다). */
+      /* 통: 채움색|골격 — 같은 통 안에서 **가장 가까운 면**(최대 절대차)을 찾는다. 짝을 독점시키지 않는다 —
+         독점(탐욕) 짝짓기는 비슷한 면이 많은 부품(궤도 패드·구 껍질)에서 이웃을 가로채 멀쩡한 면까지 어긋난 것으로 셌다. */
       const bucket = (fs) => { const m = new Map(); for (const f of fs) { const k = `${f[2] ?? ""}|${skel(f[0])}`; (m.get(k) ?? m.set(k, []).get(k)).push(nums(f[0])); } return m; };
       const ma = bucket(fa); const mb = bucket(fb);
       for (const [k, va] of ma) {
-        const vb = (mb.get(k) ?? []).slice();
-        const used = new Array(vb.length).fill(false);
-        total += va.length;
+        const vb = mb.get(k) ?? [];
         for (const p of va) {
-          let best = -1; let bd = Infinity;
-          for (let j = 0; j < vb.length; j += 1) {
-            if (used[j]) continue;
-            const q = vb[j]; let d = 0;
+          if (MIN > 0 && size(p) < MIN) continue;
+          total += 1;
+          let bd = Infinity;
+          for (const q of vb) {
+            let d = 0;
             for (let t = 0; t < p.length; t += 1) { const e = Math.abs(p[t] - q[t]); if (e > d) { d = e; if (d >= bd) break; } }
-            if (d < bd) { bd = d; best = j; }
+            if (d < bd) bd = d;
           }
-          if (best < 0) { miss += 1; big += 1; continue; }
-          used[best] = true;
+          if (bd === Infinity) { miss += 1; big += 1; continue; }
           sum += bd;
           if (bd > TOL) miss += 1;
           if (bd > BIG) big += 1;
@@ -60,7 +65,7 @@ if (has("--diff")) {
   }
   rows.sort((a, b) => b[0] - a[0]);
   console.log(rows.map((r) => r[1]).join("\n"));
-  console.log(`— 어긋난 종류 ${badKinds}/${Object.keys(A).length} (허용 ${TOL}) · 버그급 종류 ${rows.filter((r) => r[0] > 0).length}`);
+  console.log(`— 어긋난 종류 ${badKinds}/${Object.keys(A).length} (허용 ${TOL}${MIN > 0 ? ` · 최소 면 ${MIN}` : ""}) · 버그급 종류 ${rows.filter((r) => r[0] > 0).length}`);
   process.exit(badKinds ? 1 : 0);
 }
 

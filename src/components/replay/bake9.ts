@@ -104,6 +104,9 @@ export let headAimNow = false;
  *    넘을 때마다 그 비싼 굽기가 한 번씩 돌았다. 저그 기지에 성큰이 여럿 늘어서 있으니
  *    그 일이 끊이지 않는다 — '판 총량은 들어왔는데도 저그만 끊긴다'의 정체다.
  *    각을 쓰는 셋(터렛·포톤캐논·쏘는 성큰)만 열쇠에 각을 싣는다. */
+/** 모델 z 접기 배수(model-z-scale ×0.8)의 이름 — 리터럴로 못 접는 z(경로 매개변수·세로 배수·회전이 섞인 식)에
+ *  **꼭짓점으로 나가는 자리에서** 곱한다. 설계 좌표는 원시값, 이 곱을 지난 값이 판의 z다. */
+export const Z8 = 0.8;
 export const HEAD_KINDS = new Set(["turret", "coil", "sunkenfire", "sunkentongue"]);
 export const headTag = (kind?: string): string =>
   ((headYawNow || headAimNow) && (kind === undefined || HEAD_KINDS.has(kind))
@@ -142,7 +145,7 @@ export function vaultX9(cx: number, cy: number, zt: number, len: number, r: numb
   const x1 = cx + len / 2;
   const at = (i: number, rr = r): [number, number] => {
     const th = (Math.PI * i) / sides;
-    return [cy + rr * Math.cos(th), zt + rr * Math.sin(th)];
+    return [cy + rr * Math.cos(th), zt + rr * Z8 * Math.sin(th)];
   };
   for (let i = 0; i < sides; i += 1) {
     const thm = (Math.PI * (i + 0.5)) / sides;
@@ -172,7 +175,7 @@ export function hoopX9(gx: number, cy: number, zt: number, r: number, bw: number
   const out: ShapeFace[] = [];
   const at = (i: number, rr: number): [number, number] => {
     const a = (Math.PI * i) / sides;
-    return [cy + rr * Math.cos(a), zt + rr * Math.sin(a)];
+    return [cy + rr * Math.cos(a), zt + rr * Z8 * Math.sin(a)];
   };
   const ro = r + th;
   for (let i = 0; i < sides; i += 1) {
@@ -387,19 +390,19 @@ export let bldSpinNow = 0;
  *  gap = (12.6 − y1)·nrm, Δz = (y1 − (12.6 − 2/nrm)) / 0.9(입체 z 배율).
  *  재기 전: scv 13.0/0.767 → 3.34 · probe 10.25/1.738 → −1.33 · drone 12.13/1.078 → 1.54 · htemp 11.25/1.249 → 0.28
  *  · vulture 11.5/0.833 → 1.45. SHAPE_BUILDERS 표 바로 뒤에서 빌더 자체를 감싼다 — 굽기·도록·측정 도구가 다 같은 모델을 본다. */
-export const MODEL_Z_OFF9: Record<string, number> = {
+export const MODEL_Z_OFF9: Record<string, number> = {   // 값은 z 접기(×0.8) 뒤의 모델 단위 — 아래 주석의 셈값에 0.8을 곱한 것
   /* 키에 비례(재요청: "떠있는 유닛 5종이 키에 따라 높이가 달라져야 하네 — 키에 비례해서") — 잉크 높이(model-norm h,
      입체: scv 5.94 · probe 2.55 · drone 3.57 · htemp 5.21 · vulture 4.99, 평균 4.45)에 2칸을 비례시킨다:
      scv 2.67 · probe 1.15 · drone 1.60 · htemp 2.34 · vulture 2.24. */
   /* 아주 많이 낮춤(재요청: "부양 유닛 5종의 높이를 아주 많이 낮춰줘, 지금 다 높이 떠 있어") — 목표를 0.4배로:
      scv 1.07 · probe 0.46 · drone 0.64 · htemp 0.94 · vulture 0.90. 화면 들기(HOVER_RISE_K)도 함께 줄였다(engine9). */
-  scv: 2.59, probe: -2.71, drone: 0.24, htemp: -0.65, vulture: -0.05,
+  scv: 2.072, probe: -2.168, drone: 0.192, htemp: -0.52, vulture: -0.04,
   /* 공중 유닛 — 잉크 **가운데**가 땅 원점에서 뜬 몫(타일)을 레이스에 맞춘다(지적: "프로토스 공중유닛하고 사베가
      다른 유닛들하고 높이가 다르네"). 뜨는 높이(airLiftPxOf)는 모두 같은데 모델마다 몸이 원점 위 어디에 앉았는지가
      달라, 큰 구(사베)·아비터·옵저버는 높고 셔틀·퀸·인터셉터는 낮았다. 셈: model-norm top의 (y0+y1)/2 → 원점(12)
      기준 × 배수 × 그리는 타일(unitTilesOf)/16 = 화면 타일 몫, 레이스(−0.83타일)와의 차를 z(0.78 = top 0.66·pitch
      0.9의 중간)로 되돌린다. 재면 scratchpad/air.json → 이 표. */
-  wraith: 0.00, bc: -1.21, valk: 0.06, vessel: -2.33, dship: 0.45, corsair: 0.01, scout: 0.83, carrier: -1.33, arbiter: -3.34, observer: -1.77, interceptor: 3.05, shuttle: 2.52, muta: -0.29, guardian: 1.73, devourer: 0.11, scourge: 2.57, queen: 2.45, ovie: 0.49, mutacocoon: -0.65,
+  wraith: 0.00, bc: -0.968, valk: 0.048, vessel: -1.864, dship: 0.36, corsair: 0.008, scout: 0.664, carrier: -1.064, arbiter: -2.672, observer: -1.416, interceptor: 2.44, shuttle: 2.016, muta: -0.232, guardian: 1.384, devourer: 0.088, scourge: 2.056, queen: 1.96, ovie: 0.392, mutacocoon: -0.52,
 };
 export const SPIN_KINDS = new Set<string>([
   "trapezoid", "cyber", "forge", "storm", "nukecloud", "nukeblast",
@@ -1227,9 +1230,9 @@ export function protossFace(fill?: string, lift = 0, s = 1): ShapeFace[] {
         const ct9 = Math.cos(0.28);
         const st9 = Math.sin(0.28);
         const ex9 = m9 * 0.19 * s + m9 * (u9 * ct9 - v9 * st9);   // 눈 사이를 조금 띄운다(요청) — 0.15 → 0.19
-        const ez9 = 6.45 + L9 + (u9 * st9 + v9 * ct9);
+        const ez9 = 5.16 + L9 + Z8 * (u9 * st9 + v9 * ct9);
         // 그 자리의 껍질 앞면 — 달걀의 마디 t를 z에서 풀고 반지름에서 y를 낸다.
-        const t9 = Math.max(0, Math.min(1, (ez9 - 5.95 - L9) / 1.05));
+        const t9 = Math.max(0, Math.min(1, (ez9 - 4.76 - L9) / 0.84));
         const r9 = faceR9(t9);
         const dy9 = Math.sqrt(Math.max(0, r9 * r9 - ex9 * ex9));
         return [ex9, faceAx9(t9) + dy9 + 0.012 * s, ez9] as [number, number, number];
@@ -1238,8 +1241,8 @@ export function protossFace(fill?: string, lift = 0, s = 1): ShapeFace[] {
     const eKey9 = depthNow(0, 0.9) * 1.6 + 0.7;
     for (const m9 of [-1, 1] as const) {
       out.push(...tagKey([
-        [eyeAt9(m9, 0.155 * s, 0.06 * s), 0.85, "#22303c"] as ShapeFace,   // 눈두덩
-        [eyeAt9(m9, 0.115 * s, 0.036 * s), 1, "#4fe36b"] as ShapeFace,      // 빛나는 심
+        [eyeAt9(m9, 0.155 * s, 0.075 * s), 0.85, "#22303c"] as ShapeFace,   // 눈두덩
+        [eyeAt9(m9, 0.115 * s, 0.045 * s), 1, "#4fe36b"] as ShapeFace,      // 빛나는 심
       ], eKey9));
     }
   }
@@ -1347,7 +1350,7 @@ export function protossLegs(
   const paint = (f: ShapeFace[], c?: string): ShapeFace[] => (c ? paintBase(f, c) : f);
   /* 다리 길이 줄이기(요청: 하이템플러는 짧게) — 엉덩이(3.95)를 축으로 z를 눌러
      비율만 줄인다. 굽힘 각도와 팔자 벌림은 그대로 남는다. */
-  const Z = (z: number): number => 3.16 + (z - 3.16) * shrink + lift; const Zz9 = (z: number): number => 3.16 + (z - 3.16) * shrink + lift; /* z용 쌍둥이 함수(model-z-scale ×0.8) */
+  const Z = (z: number): number => Z8 * (3.95 + (z - 3.95) * shrink) + lift;   // 설계 z → 접힌 z(lift 는 이미 접힌 값)
   const out: ShapeFace[] = [];
   for (const m of [-1, 1] as const) {
     const st = m * stride;   // 오른다리가 나가면 왼다리는 물러난다.
@@ -1355,18 +1358,18 @@ export function protossLegs(
        몸통 반폭에 가깝게 좁아져 두 다리가 몸 아래에서 시작한다. 무릎·발목·발끝도 한 단씩만 안으로 당겨
        (0.82→0.72 · 0.95→0.86 · 1.04→0.96) 팔자 벌림은 남기되 전체가 몸 밑으로 모인다 — 고관절만 당기면
        허벅지가 바깥으로 뻗쳐 가랑이가 벌어진 꼴이 된다. */
-    const hip: [number, number, number] = [m * 0.26, -0.3, Zz9(3.95)];
+    const hip: [number, number, number] = [m * 0.26, -0.3, Z(3.95)];
     /* ★ 걸음에도 **허벅지·정강이 길이는 그대로**(요청: 질럿·템플러류도 같은 함수로) —
        suitLegs와 같은 결이다. 발목·발끝만 보폭대로 옮기고 무릎은 서 있을 때의 두 마디
        길이로 푼다(jointBetween, 앞으로 굽힘). */
-    const ankle0: [number, number, number] = [m * 0.86, -0.75, Z(0.8)];
+    const ankle0: [number, number, number] = [m * 0.86, -0.75, Z(1)];
     // 무릎 높이에서 엉덩이~발목 직선의 y — 굽힘(bend)이 0이면 여기, 1이면 본디 자리(0.3).
-    const kneeLineY9 = hip[1] + (ankle0[1] - hip[1]) * ((hip[2] - Z(1.76)) / Math.max(1e-6, hip[2] - ankle0[2]));
-    const knee0: [number, number, number] = [m * 0.72, kneeLineY9 + (0.3 - kneeLineY9) * bend, Zz9(2.2)];
+    const kneeLineY9 = hip[1] + (ankle0[1] - hip[1]) * ((hip[2] - Z(2.2)) / Math.max(1e-6, hip[2] - ankle0[2]));
+    const knee0: [number, number, number] = [m * 0.72, kneeLineY9 + (0.3 - kneeLineY9) * bend, Z(2.2)];
     const Lt9 = Math.hypot(knee0[0] - hip[0], knee0[1] - hip[1], knee0[2] - hip[2]);
     const Ls9 = Math.hypot(ankle0[0] - knee0[0], ankle0[1] - knee0[1], ankle0[2] - knee0[2]);
     const ankleR9: [number, number, number] = [ankle0[0], ankle0[1] + st * 1.2, ankle0[2] + Math.max(0, st) * 0.16];
-    const knee: [number, number, number] = st === 0 ? knee0 : jointBetween(hip, ankleR9, Lt9, Ls9, [0, 1, 0.08]);
+    const knee: [number, number, number] = st === 0 ? knee0 : jointBetween(hip, ankleR9, Lt9, Ls9, [0, 1, 0.1]);
     /** 무릎을 축으로 한 접기(위 tuck) — 정강이·발·발가락이 모두 이 손을 지난다. */
     const tuckAt9 = (q: [number, number, number]): [number, number, number] => {
       if (tuck === 0) return q;
@@ -1403,7 +1406,7 @@ export function protossLegs(
         ankle[2] + rz9 + ((sdz9 / sl9) * rl9 - rz9) * ANKLE_FLAT9,
       ];
     };
-    const toe: [number, number, number] = footAt9(tuckAt9([m * 0.96, 0.5 + st * 1.2, Zz9(0.15) + Math.max(0, st) * 0.12]));
+    const toe: [number, number, number] = footAt9(tuckAt9([m * 0.96, 0.5 + st * 1.2, Z(0.15) + Math.max(0, st) * 0.12]));
     /* 하지가 허벅지보다 굵다(요청) — 허벅지 0.6, 정강이 0.72, 발목 0.58. 마디마다
        배가 부풀게 mid를 따로 줘, 곧은 막대가 아니라 근육 붙은 마디로 읽힌다. */
     // 굵기 ×1.25(사진 대조 — 질럿1·4의 다리 갑판은 지금보다 한 뼘 굵다).
@@ -1459,7 +1462,7 @@ export function protossLegs(
     /* 발가락도 **걸음 몫을 탄다**(지적: "질럿 다크 다리가 부품이 몇개는 따로노는데")
        — 무릎·발목·발끝만 stride를 받고 이 두 갈래는 상수 자리에 남아 있어서, 다리가
        앞으로 나가면 발가락만 제자리에 서 있었다. 발목·발끝과 **같은 식**을 쓴다. */
-    const [fx, fy, fz] = footAt9(tuckAt9([m * 1.06, 0.28 + st * 1.2, Zz9(0.02) + Math.max(0, st) * 0.12]));
+    const [fx, fy, fz] = footAt9(tuckAt9([m * 1.06, 0.28 + st * 1.2, Z(0.02) + Math.max(0, st) * 0.12]));
     for (const s9 of [-1, 1] as const) {
       out.push(...paint(tagKey(spirePillar({
         x: 0, y: 0, h: 0.8, w: 1, segs: 2, sides: 6, oval: 1.8, caps: "none",
@@ -1677,7 +1680,7 @@ export function bootFaces(
     segs: 5, sides: 12, oval: 1.8, caps: "both", trueNormal: true,
     ref: [1, 0, 0], fill,
     path: (t9: number): [number, number, number] =>
-      [cx + n9[0] * H9 * t9, cy + n9[1] * H9 * t9, cz + n9[2] * H9 * t9],
+      [cx + n9[0] * H9 * t9, cy + n9[1] * H9 * t9, cz + n9[2] * H9z9 * t9],
     widthOf: (t9: number): number => (0.2 + 0.22 * Math.cos((t9 * Math.PI) / 2) ** 1.2) * k,
     skewV: (_u9: number, t9: number): number => -back * t9,
   });
@@ -1716,7 +1719,7 @@ export function suitLegs(
     const Lt9 = Math.hypot(knee0[0] - hip[0], knee0[1] - hip[1], knee0[2] - hip[2]);
     const Ls9 = Math.hypot(ankle0[0] - knee0[0], ankle0[1] - knee0[1], ankle0[2] - knee0[2]);
     const ankle: [number, number, number] = [ankle0[0], ankle0[1] + st * 1.35, ankle0[2] + Math.max(0, st) * 0.192];
-    const knee: [number, number, number] = st === 0 ? knee0 : jointBetween(hip, ankle, Lt9, Ls9, [0, 1, 0.12]);
+    const knee: [number, number, number] = st === 0 ? knee0 : jointBetween(hip, ankle, Lt9, Ls9, [0, 1, 0.15]);
     /* 마디 뚜껑을 닫고(지적: "다리의 윗단면이 비쳐보이는것") 다리를 늘 몸통보다
        먼저 그린다 — 허벅지 꼭대기는 골반 속, 정강이 꼭대기는 허벅지 속, 정강이 발치는
        군화 속이라 뚜껑이 다 남의 몸 안에 있다. 뚜껑 없는 관은 위에서 보면 속(뒤쪽
@@ -1977,6 +1980,14 @@ export function jointBetween(
   a: [number, number, number], c: [number, number, number], La: number, Lc: number,
   bend: [number, number, number],
 ): [number, number, number] {
+  /* 마디 길이(La·Lc)와 굽힘 방향은 설계 자다 — 양 끝의 z(접힌 값)를 설계 자로 되돌려 풀고, 관절의 z만 다시 접는다(model-z-scale). */
+  const r9 = jointBetweenD([a[0], a[1], a[2] / Z8], [c[0], c[1], c[2] / Z8], La, Lc, bend);
+  return [r9[0], r9[1], r9[2] * Z8];
+}
+function jointBetweenD(
+  a: [number, number, number], c: [number, number, number], La: number, Lc: number,
+  bend: [number, number, number],
+): [number, number, number] {
   const dx = c[0] - a[0]; const dy = c[1] - a[1]; const dz = c[2] - a[2];
   const D = Math.hypot(dx, dy, dz) || 1e-6;
   const ux = dx / D; const uy = dy / D; const uz = dz / D;
@@ -2025,7 +2036,7 @@ export function armChain(
      기둥이 아니라 손등으로 읽히고, 뿌리 굵기가 손목과 같아 이음매가 없다. */
   const dx9 = wr[0] - el[0];
   const dy9 = wr[1] - el[1];
-  const dz9 = wr[2] - el[2];
+  const dz9 = (wr[2] - el[2]) / Z8;   // 손은 설계 자의 팔뚝 방향으로 뻗고, 꼭짓점의 z 만 접는다(model-z-scale)
   const L9 = Math.hypot(dx9, dy9, dz9) || 1;
   const ux9 = dx9 / L9;
   const uy9 = dy9 / L9;
@@ -2034,7 +2045,7 @@ export function armChain(
   const lx9 = -uy9 / ll9;
   const ly9 = ux9 / ll9;
   const at9 = (k9: number, lat9 = 0): [number, number, number] =>
-    [wr[0] + ux9 * k9 + lx9 * lat9, wr[1] + uy9 * k9 + ly9 * lat9, wr[2] + uz9 * k9];
+    [wr[0] + ux9 * k9 + lx9 * lat9, wr[1] + uy9 * k9 + ly9 * lat9, wr[2] + uz9 * k9 * Z8];
   /* 손등의 **폭은 손가락 셋이 늘어선 폭과 같다**(요청: "손등 폭은 손가락 전체의
      폭과 일치") — 손가락은 ±spread에 하나씩·가운데 하나이고 저마다 반지름 fw9이니,
      전체 반폭은 spread + fw9다. 손등의 넓은 쪽 반지름(oval을 태운 값)이 그 값이
@@ -2111,9 +2122,9 @@ export function wallDisc(
   const ux = -ny / nl;
   const uy = nx / nl;
   return polyPath3(Array.from({ length: 12 }, (_, i9) => {
-    const a9 = (i9 / 12) * Math.PI * 2; const a9z9 = (i9 / 12) * Math.PI * 1.6; /* z용 쌍둥이(model-z-scale ×0.8) */
+    const a9 = (i9 / 12) * Math.PI * 2;
     return [
-      cx + ux * Math.cos(a9) * r, cy + uy * Math.cos(a9) * r, cz + Math.sin(a9) * r,
+      cx + ux * Math.cos(a9) * r, cy + uy * Math.cos(a9) * r, cz + Math.sin(a9) * r * Z8,
     ] as [number, number, number];
   }));
 }
@@ -2762,7 +2773,7 @@ export function rodFaces(
    밀어낸 슬래브. 안·바깥 옆판과 대응 점을 잇는 둘레 띠로 채워 어느 각에서도 틈이 없고,
    보이는 옆판엔 음영을 얹는다. 바닥은 z 0. */
 export function trackFaces(cx: number, yA: number, yB: number, h: number, w: number): ShapeFace[] {
-  const rc = h / 1.6;
+  const rc = h / 1.6; const rz = h / 2;   // 앞뒤 둥근 끝의 반지름은 설계 자(h/0.8/2)로, 높이는 접힌 h 그대로(model-z-scale)
   const yAc = yA + rc;
   const yBc = yB - rc;
   const ring = (x: number): [number, number, number][] => {
@@ -2770,11 +2781,11 @@ export function trackFaces(cx: number, yA: number, yB: number, h: number, w: num
     const N = 6;
     for (let i = 0; i <= N; i += 1) { // 앞 반원: 위 → 앞 → 아래.
       const t = Math.PI / 2 - (i / N) * Math.PI;
-      pts.push([x, yBc + Math.cos(t) * rc, rc + Math.sin(t) * rc]);
+      pts.push([x, yBc + Math.cos(t) * rc, rz + Math.sin(t) * rz]);
     }
     for (let i = 0; i <= N; i += 1) { // 뒤 반원: 아래 → 뒤 → 위.
       const t = -Math.PI / 2 - (i / N) * Math.PI;
-      pts.push([x, yAc + Math.cos(t) * rc, rc + Math.sin(t) * rc]);
+      pts.push([x, yAc + Math.cos(t) * rc, rz + Math.sin(t) * rz]);
     }
     return pts;
   };
@@ -2889,7 +2900,7 @@ export function hazardPanel(
 }
 /** 캐터필러 한 짝 — 알약 슬래브 + 달림면 트랙 링크 + 앞뒤 기동륜 + 위 흙받이.
  *  링크는 위 달림면에 얹는다: 내려다보는 화면에서 실제로 보이는 면이 거기다. */
-export function tankTrack(cx: number, yA = -3.6, yB = 3.6, h = 2.6): ShapeFace[] {
+export function tankTrack(cx: number, yA = -3.6, yB = 3.6, h = 2.08): ShapeFace[] {
   /* 궤도가 실루엣의 절반이다(사진) — 낮은 슬래브로는 옆에 붙은 난간으로 읽혔다.
      차체만큼 높게(2.6) 세운다.
      ★ 지름(= 높이)은 짝마다 다를 수 있다(요청: 앞의 작은 캐터필러만 10% 축소) — 알약은
@@ -2912,11 +2923,11 @@ export function tankTrack(cx: number, yA = -3.6, yB = 3.6, h = 2.6): ShapeFace[]
      따라 얇은 판(두께 0.12·길이 0.32)이 0.5 간격으로 붙고, 양옆으로 0.28씩 몸체보다 튀어나온다(옆 테가 톱니 실루엣).
      판마다 겉면·양옆 테·앞뒤 모서리를 제 법선으로 그린다. 바닥면은 안 보이니 반원의 아래쪽 20도까지만. */
   {
-    const rc9 = H / 2; const yAc9 = yA + rc9; const yBc9 = yB - rc9;
+    const rc9 = H / 2; const rcD9 = rc9 / Z8; const yAc9 = yA + rcD9; const yBc9 = yB - rcD9;   // 앞뒤 둥근 끝의 반지름은 설계 자(rcD9), 높이는 접힌 자(rc9)
     /* 한 바퀴 **전부**(재지적: 뒤쪽·바닥 레일판이 튀어나와 보여야) — 바닥 판도 두르고, 옆 돌출 0.28 → 0.4·두께 0.12 →
        0.22로 키워 옆 테가 벽 실루엣 밖(위·아래 모서리, 앞뒤 반원)에서 이빨로 드러나게 한다. */
     const PW9 = W + 0.8; const PL9 = 0.32; const PL9z9 = 0.256; /* z용 쌍둥이(model-z-scale ×0.8) */ const PT9 = 0.22; const PT9z9 = 0.176; /* z용 쌍둥이(model-z-scale ×0.8) */ const GAP9 = 0.5;
-    const capLen9 = rc9 * Math.PI;                           // 한쪽 반원(위 → 아래) 길이
+    const capLen9 = rcD9 * Math.PI;                          // 한쪽 반원(위 → 아래) 길이
     const flat9 = yBc9 - yAc9;
     const total9 = capLen9 * 2 + flat9 * 2;
     const n9 = Math.max(8, Math.round(total9 / GAP9));
@@ -2928,12 +2939,12 @@ export function tankTrack(cx: number, yA = -3.6, yB = 3.6, h = 2.6): ShapeFace[]
         ny9 = 0; nz9 = 1; py9 = yAc9 + s9; pz9 = H;
       } else if (s9 < flat9 + capLen9) {                     // 앞 반원: 위(90도) → 아래(−90도)
         const a9 = Math.PI / 2 - ((s9 - flat9) / capLen9) * Math.PI;
-        ny9 = Math.cos(a9); nz9 = Math.sin(a9); py9 = yBc9 + ny9 * rc9; pz9 = rc9 + nz9 * rc9;
+        ny9 = Math.cos(a9); nz9 = Math.sin(a9); py9 = yBc9 + ny9 * rcD9; pz9 = rc9 + nz9 * rc9;
       } else if (s9 < flat9 * 2 + capLen9) {                 // 바닥(앞 → 뒤)
         ny9 = 0; nz9 = -1; py9 = yBc9 - (s9 - flat9 - capLen9); pz9 = 0;
       } else {                                               // 뒤 반원: 아래(−90도) → 위(90도), 뒤쪽(−y)
         const a9 = -Math.PI / 2 - ((s9 - flat9 * 2 - capLen9) / capLen9) * Math.PI;
-        ny9 = Math.cos(a9); nz9 = Math.sin(a9); py9 = yAc9 + ny9 * rc9; pz9 = rc9 + nz9 * rc9;
+        ny9 = Math.cos(a9); nz9 = Math.sin(a9); py9 = yAc9 + ny9 * rcD9; pz9 = rc9 + nz9 * rc9;
       }
       const ty9 = nz9; const tz9 = -ny9;                     // 접선(진행 방향)
       const P9 = (sx9: number, st9: number, sn9: number): [number, number, number] => [
@@ -3615,7 +3626,7 @@ export const sunkenFootFaces = (
       return [
         dx * r9 - dy * side9,
         dy * r9 + dx * side9,
-        zRoot9 + (zTip9 - zRoot9) * t9 + up9,
+        zRoot9 + (zTip9 - zRoot9) * t9 + up9 * Z8,
       ];
     },
   });
@@ -3633,7 +3644,7 @@ export const sunkenTongueFaces = (): ShapeFace[] => {
   /* **역 U자**다(재요청: "성큰 혀 역 U자로") — 포물선은 뿌리에서 비스듬히 오르고 끝도 비스듬히 내려와 '활'이었다.
      역 U는 뿌리에서 **곧게 솟고** 꼭대기를 지나 **곧게 떨어진다**: 앞으로 가는 몫을 (1 − cos πt)/2로 두면
      양 끝에서 y가 멈춰 접선이 수직이 되고, 높이는 sin πt 봉우리에 뿌리(3.4)→땅(0.7) 내리막을 얹는다. */
-  const Z0 = 3.4; const Z0z9 = 2.72; /* z용 쌍둥이(model-z-scale ×0.8) */     // 뿌리(아가리) 높이
+  const Z0 = 3.4;     // 뿌리(아가리) 높이
   const Z1 = 0.2;     // 끝 높이 — 반구 중심이 거의 땅이라 끝이 땅에 박힌다(재요청: "혀 끝부분은 바닥까지 내려가게")
   /* **아치**다(재재요청: "구부러지는 부분은 호 형태야, ㄷ자가 아니라") — 곧은 다리로 수직으로 솟아, 반원 호로
      넘어가, 곧은 다리로 수직으로 내려온다. 호의 반지름은 앞뒤 너비의 반(TL/2)이라 다리 둘이 정확히 그 너비에
@@ -3642,9 +3653,9 @@ export const sunkenTongueFaces = (): ShapeFace[] => {
   const ZTOP = 10.7;  // 꼭대기 — 16의 2/3(재요청: "높이 2/3")
   /* 호의 반지름을 **줄인다**(재재요청: "회전축 반지름이 더 짧아야") — TL/2(3.3)는 다리 사이가 관 굵기의 두 배였다.
      2.0이면 안쪽 틈이 1.2쯤이라 바싹 굽은 호다. 앞뒤 너비(TL)는 호가 정한다(다리 둘 사이 = 2R). */
-  const R9 = 3.0; const R9z9 = 2.4; /* z용 쌍둥이(model-z-scale ×0.8) */     // 호의 반지름 — 2.0의 1.5배(재요청: "멀리 1.5배" = 다리 사이 6.0)
+  const R9 = 3.0;     // 호의 반지름 — 2.0의 1.5배(재요청: "멀리 1.5배" = 다리 사이 6.0)
   const ZC9 = ZTOP - R9;
-  const L1 = ZC9 - Z0; const LA = Math.PI * R9; const LAz9 = Math.PI * R9z9; /* z용 쌍둥이(model-z-scale ×0.8) */ const L2 = ZC9 - Z1;
+  const L1 = ZC9 - Z0; const LA = Math.PI * R9; const L2 = ZC9 - Z1;
   const LSUM = L1 + LA + L2;
   /* 혀만 돈다(요청: "성큰 혀는 공격대상을 향해야 해") — withModelSpin(headYawNow)으로
      감싸면 이 판만 표적 쪽으로 돌아간다. 22.5도 열여섯 칸이다. */
@@ -3654,12 +3665,12 @@ export const sunkenTongueFaces = (): ShapeFace[] => {
   const EXT9 = sunkenFire ? 1 : Math.min(1, (Math.min(3, Math.max(0, bldSpinNow)) + 1) / 4);
   const spineAll9 = (t9: number): [number, number, number] => {
     const d9 = t9 * LSUM;
-    if (d9 <= L1) return [0.25, -0.15, Z0z9 + d9];                               // 오르는 다리
+    if (d9 <= L1) return [0.25, -0.15, Z0 + d9];                               // 오르는 다리
     if (d9 <= L1 + LA) {                                                         // 반원 호
       const th9 = (d9 - L1) / R9;                                                // 0 → π
-      return [0.25, -0.15 + R9 * (1 - Math.cos(th9)), ZC9 + R9z9 * Math.sin(th9)];
+      return [0.25, -0.15 + R9 * (1 - Math.cos(th9)), ZC9 + R9 * Math.sin(th9)];
     }
-    return [0.25, -0.15 + TL, ZC9 - (d9 - L1 - LAz9)];                            // 내려오는 다리
+    return [0.25, -0.15 + TL, ZC9 - (d9 - L1 - LA)];                            // 내려오는 다리
   };
   /** 굵기(온 길이 기준) — 뿌리 0.6에서 호 들머리까지 1.24, 그 뒤 1.56까지. */
   const widthAll9 = (t9: number): number => {
@@ -3697,9 +3708,12 @@ export const sunkenTongueFaces = (): ShapeFace[] => {
     ...((): ShapeFace[] => {
       const bodyL9 = LSUM * EXT9; const fb9 = bodyL9 / (bodyL9 + tipR9);
       return spirePillar({
-        x: 0.25, y: -0.15, h: 0.8, w: 1.24, tipW: 0.02,   // (widthOf가 대신한다)
+        x: 0.25, y: -0.15, h: 1, w: 1.24, tipW: 0.02,   // (widthOf가 대신한다)
         segs: 48, sides: 10, hold: 0.05, taper: 1, caps: "none", ref: [1, 0, 0],
-        path: (t9: number): [number, number, number] => (t9 <= fb9 ? spineAll9((t9 / fb9) * EXT9) : capPath9((t9 - fb9) / (1 - fb9))),
+        path: (t9: number): [number, number, number] => {   // 등뼈·끝 반구는 설계 자로 풀고 꼭짓점에서 z를 접는다(Z8)
+          const p9 = t9 <= fb9 ? spineAll9((t9 / fb9) * EXT9) : capPath9((t9 - fb9) / (1 - fb9));
+          return [p9[0], p9[1], p9[2] * Z8];
+        },
         widthOf: (t9: number): number => {
           if (t9 <= fb9) return widthAll9((t9 / fb9) * EXT9);
           const s9 = (t9 - fb9) / (1 - fb9);
@@ -4486,7 +4500,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        한 덩이로 안 읽힌다. 작게 두는 몫은 두께와 높이가 이미 지고 있다. */
     const MD = PD;
     const MH = 5.76;
-    const PZ = 1.05 + LIFT; // 판 밑면
+    const PZ = 0.84 + LIFTz9; // 판 밑면
     /** 사이 상자 — 판보다 얇고·낮고·얕다. 판에 물려 이음매 노릇만 한다. */
     const GX = 1.95;
     /* 사이 상자는 더 얇고 더 짧다(재지적: "판 두 개 두께 더 줄이고 앞뒤 길이도 줄이기")
@@ -4762,7 +4776,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const VWK9 = VK9 * 1.2;
       const vf9 = VB9 + VL9 * VK9;
       out.push(...tagKey(
-        rampVent(sx9 * PX, 0.95 * VWK9, VB9, vf9, PTOP + VSH9 + VPH9z9, 0.95 * VWK9, 0), k9 + 0.01,
+        rampVent(sx9 * PX, 0.95 * VWK9, VB9, vf9, PTOP + VSH9 + VPH9z9, 0.76 * VWK9, 0), k9 + 0.01,
       ));
       out.push(...tagKey(
         slopePanel9(sx9 * PX, 0.95 * VWK9, VB9, vf9, PTOP + VSH9 + VPH9z9, 0.76 * VWK9), k9 + 0.02,
@@ -5290,15 +5304,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
 
     /** 그 높이에서의 앞면 y(3단 프로필) — 홈·베이가 이 자를 쓴다. */
     const fyAt = (z9: number): number => {
-      if (z9 <= ZW0z9) return DB / 2 + (DW / 2 - DB / 2) * ((z9 - ZB0z9) / (ZW0 - ZB0));
+      if (z9 <= ZW0z9) return DB / 2 + (DW / 2 - DB / 2) * ((z9 - ZB0z9) / (ZW0z9 - ZB0z9));
       if (z9 <= ZW1z9) return DW / 2;
-      return DW / 2 - (DW / 2 - DT / 2) * ((z9 - ZW1z9) / (ZT - ZW1));
+      return DW / 2 - (DW / 2 - DT / 2) * ((z9 - ZW1z9) / (ZTz9 - ZW1z9));
     };
     /** 그 높이에서의 옆면 x — 경사로 문간이 쓴다. */
     const sxAt = (z9: number): number => {
-      if (z9 <= ZW0z9) return WB / 2 + (WW / 2 - WB / 2) * ((z9 - ZB0z9) / (ZW0 - ZB0));
+      if (z9 <= ZW0z9) return WB / 2 + (WW / 2 - WB / 2) * ((z9 - ZB0z9) / (ZW0z9 - ZB0z9));
       if (z9 <= ZW1z9) return WW / 2;
-      return WW / 2 - (WW / 2 - WT / 2) * ((z9 - ZW1z9) / (ZT - ZW1));
+      return WW / 2 - (WW / 2 - WT / 2) * ((z9 - ZW1z9) / (ZTz9 - ZW1z9));
     };
 
     // ── 윗면 — **가로(x) 골**: 지붕 판 두 장 사이가 낮은 골 바닥이다.
@@ -5900,10 +5914,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const DR9 = 3.15;         // 돔 반지름 — 받침 윗면(3.3) 안에 꽉 차게
     const DH9 = 1.95; const DH9z9 = 1.56; /* z용 쌍둥이(model-z-scale ×0.8) */         // 돔 높이
     /** 받침 옆면의 반지름 — 높이 z에서 벽이 얼마나 나와 있나(세로띠가 이 면을 탄다). */
-    const bodyR9 = (z9: number): number => FB9z9 - (FB9 - FT9) * (z9 / FH9z9);
+    const bodyR9 = (z9: number): number => FB9 - (FB9 - FT9) * (z9 / FH9z9);
     /** 돔 표면의 반지름·높이 — 창을 그 곡면 위에 앉힌다. */
     const domeR9 = (z9: number): number =>
-      DR9 * Math.sqrt(Math.max(0, 1 - ((z9 - FH9z9) / DH9) ** 2));
+      DR9 * Math.sqrt(Math.max(0, 1 - ((z9 - FH9z9) / DH9z9) ** 2));
     const domeZ9 = (r9: number): number =>
       FH9 + DH9 * Math.sqrt(Math.max(0, 1 - (r9 / DR9) ** 2));
 
@@ -6236,7 +6250,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
             const ax9 = p1[0] - p0[0]; const ay9 = p1[1] - p0[1]; const az9 = p1[2] - p0[2];
             const bx9 = p2[0] - p0[0]; const by9 = p2[1] - p0[1]; const bz9 = p2[2] - p0[2];
             let nx9 = ay9 * bz9 - az9 * by9; let ny9 = az9 * bx9 - ax9 * bz9; let nz9 = ax9 * by9 - ay9 * bx9;
-            const cx9 = (p0[0] + p1[0] + p2[0]) / 3 - gx9; const cy9 = (p0[1] + p1[1] + p2[1]) / 3 - gy9; const cz9 = (p0[2] + p1[2] + p2[2]) / 2.4 - zc9;
+            const cx9 = (p0[0] + p1[0] + p2[0]) / 3 - gx9; const cy9 = (p0[1] + p1[1] + p2[1]) / 3 - gy9; const cz9 = (p0[2] + p1[2] + p2[2]) / 3 - zc9;
             if (nx9 * cx9 + ny9 * cy9 + nz9 * cz9 < 0) { nx9 = -nx9; ny9 = -ny9; nz9 = -nz9; }   // 바깥(보석 중심에서 멀어지는 쪽)
             const nl9 = Math.hypot(nx9, ny9, nz9) || 1;
             const fl9 = faceLight(nx9 / nl9, ny9 / nl9, nz9 / nl9);
@@ -6290,8 +6304,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        솟은 것이 아니라 단 위에 앉은 것으로 읽힌다. */
     withModelZOff(0, () => out.push(...paintBase(frustumFaces3(0, 0, BASE_W9 + 0.8, BASE_W9 + 0.8, BASE_W9 + 0.2, BASE_W9 + 0.2, 0.44), GOLDD)));   // 밑동 단은 땅에
     // 앞면 능선 띠 — 경사면을 따라 층층이 가로 띠. 짙은 금으로 그늘을 넣어 층이 산다.
-    const half = (z: number): number => BASE_W9z9 / 2 - (BASE_W9 / 2 - TOP_W9 / 2) * (z / 5.12);
-    for (const bz of [1.4, 3, 4.6]) {
+    const half = (z: number): number => BASE_W9 / 2 - (BASE_W9 / 2 - TOP_W9 / 2) * (z / 5.12);
+    for (const bz of [1.12, 2.4, 3.68]) {
       const w0 = half(bz) - 0.35;
       const w1 = half(bz + 0.48) - 0.35;
       const band = polyPath3([
@@ -7351,7 +7365,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const BH9 = 4.55; const BH9z9 = 3.64; /* z용 쌍둥이(model-z-scale ×0.8) */   // 높이
       const BY9 = 0.4;    // 중심 앞뒤
       /** 벽의 반폭 — 높이에 따라 좁아진다. 띠가 이 자를 함께 써야 벽에 붙어 기운다. */
-      const half9 = (z9: number): number => (BB9z9 + (BT9 - BB9) * (z9 / BH9z9)) / 2;
+      const half9 = (z9: number): number => (BB9 + (BT9 - BB9) * (z9 / BH9z9)) / 2;
       /** 벽 위의 한 점 — t는 그 벽을 가로지르는 0~1, z는 높이. eps만큼 바깥으로 띄운다. */
       const wall9 = (
         nx9: number, ny9: number, t9: number, z9: number, eps9 = 0,
@@ -7595,7 +7609,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            jointBetween이 그 차이만큼만 무릎을 띄운다(앞·위로). 마디는 suitLimb이라 무릎에서 굵기가 이어진다. */
         const hp9: [number, number, number] = [m9 * 0.46, FY9 + 0.66, HIP9 + 0.08];
         const an9: [number, number, number] = [m9 * 0.82, FY9 + 2.55, HIP9 - 0.32];
-        const kn9 = jointBetween(hp9, an9, 1.08, 1.02, [m9 * 0.25, 0.2, 0.68]);
+        const kn9 = jointBetween(hp9, an9, 1.08, 1.02, [m9 * 0.25, 0.2, 0.85]);
         out9.push(...tagKey(paintBase(suitLimb(hp9, kn9, 0.28, 0.24, 0.31,
           { sides: 7, caps: "none", trueNormal: true, tag: "leg.thigh" }), SUIT9),
         pk9((hp9[0] + kn9[0]) / 2, (hp9[1] + kn9[1]) / 2)));
@@ -7627,7 +7641,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       for (const m9 of [-1, 1] as const) {
         const sh9: [number, number, number] = [m9 * 0.84, FY9 + 0.28, HIP9 + 0.976];
         const wr9: [number, number, number] = [m9 * 1.2, FY9 + 1.46, HIP9 + 0.608];
-        const el9 = jointBetween(sh9, wr9, 0.62, 0.56, [m9 * 0.7, -0.4, -0.36]);
+        const el9 = jointBetween(sh9, wr9, 0.62, 0.56, [m9 * 0.7, -0.4, -0.45]);
         /* ★ armChain은 제 마디마다 키를 매기므로(깊이×1.6 + 밑수) **가두는 자(pk9)를 안 탄다** — 그대로 두면
            앞으로 뻗은 손이 앞 포드를 이겨 포구 위에 그려졌다(지적). 한 덩이로 다시 매겨 조종수의 자에 태운다:
            마디 사이 차례는 배열 순서(상완 → 하완 → 손)가 그대로 지킨다. */
@@ -7647,7 +7661,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 미사일 포드(지적) — 옆모습이 마름모가 아니라 직사각형: 위만 미는 전단이 아니라
        상자를 통째로 뒤로 기울인다. 하늘을 향한 기울기는 그대로. */
     ...[-2.2, 2.2].flatMap((rx) => {
-      const c = 0.96; const cz9 = 0.768; /* z용 쌍둥이(model-z-scale ×0.8) */
+      const c = 0.96;
       const sn = 0.27;
       /* 포드는 밑동이 늘어난 몫(+1.7)에 **여유 0.9**를 더 얹어 올린다(요청: "포드기둥
          아래쪽 높이 늘려서 기둥과 포드 사이 여유있게") — 3.2 → 5.8. 여태 포드 밑동이
@@ -7669,14 +7683,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            아니라 평행사변형으로 찌그러진다. 제 앞뒤 축(y)을 두고 (x, z)를 실제로 돌린다:
              x' = x·cosφ − z·sinφ,  z' = x·sinφ + z·cosφ   (축은 포드의 한가운데 높이)
            모든 면·띠·포구가 P3 하나를 지나므로 이 한 줄이 포드 전체에 고르게 걸린다. */
-      const RC9 = 6.9 + (PH9 * c) / 2; const RC9z9 = 5.52 + (PH9 * cz9) / 2; /* z용 쌍둥이(model-z-scale ×0.8) */                 // 롤 축의 높이 — 포드의 한가운데
+      const RC9 = 6.9 + (PH9 * c) / 2;                 // 롤 축의 높이 — 포드의 한가운데
       const PHI9 = Math.sign(rx) * 0.13;               // 기운 각(라디안) — 오른쪽은 +, 왼쪽은 −라 八이 된다
       const rc9 = Math.cos(PHI9); const rs9 = Math.sin(PHI9);
       /** 포드 자리 하나 — 길이(dy)·높이(t)·좌우(x)로 준다. 앞면 구멍과 미사일이 이 자를 함께 쓴다. */
       const P3 = (dy9: number, t9: number, x9: number): [number, number, number] => {
         const q9 = pvt(dy9, t9);
         const dz9 = q9[1] - RC9;
-        return [rx + x9 * rc9 - dz9 * rs9, q9[0], RC9z9 + x9 * rs9 + dz9 * rc9];
+        return [rx + x9 * rc9 - dz9 * rs9, q9[0], Z8 * (RC9 + x9 * rs9 + dz9 * rc9)];
       };
       // 네 면도 P3를 지난다 — 그래야 팔자 기울임이 면·띠·포구에 한꺼번에 걸린다.
       const front = polyPath3([
@@ -7716,12 +7730,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       };
       const podBand9 = (): ShapeFace[] => [
         // 윗면 — 기운 판이라 법선은 (0, −sn, c)다.
-        ...bandQuad9([0, -sn, cz9], [
+        ...bandQuad9([0, -sn, c], [
           P3(BD0, PH9 + 0.02, -0.75), P3(BD0, PH9 + 0.02, 0.75),
           P3(BD1, PH9 + 0.02, 0.75), P3(BD1, PH9 + 0.02, -0.75),
         ]),
         // 밑면 — 그 반대.
-        ...bandQuad9([0, sn, -cz9], [
+        ...bandQuad9([0, sn, -c], [
           P3(BD0, -0.02, -0.75), P3(BD0, -0.02, 0.75),
           P3(BD1, -0.02, 0.75), P3(BD1, -0.02, -0.75),
         ]),
@@ -7980,7 +7994,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          높이, 바깥 두 관은 밑동만 살짝 보인다. 열쇠(headTag)에 'a'가 실려 판이 따로 굽힌다. */
       const TUBES: [number, number][] = headAimNow
         ? [[7.4, 0.66], [5.0, 1.06], [3.4, 1.5]]
-        : [[Z0 + (7.4 - Z0) * 0.5, 0.66], [Z0 + 0.32, 1.06], [Z0 + 0.32, 1.5]];
+        : [[Z0z9 + (5.92 - Z0z9) * 0.5, 0.66], [Z0z9 + 0.256, 1.06], [Z0z9 + 0.256, 1.5]];
       const N9 = 14;
       /** 그 높이의 잘린 테 — s9가 자름의 방향이다(+1이면 앞이 낮다). */
       const ringAt = (r9: number, zT: number, s9 = 0.8): [number, number, number][] =>
@@ -8545,7 +8559,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       [-2.4, -0.6, 2.6, 2.2, 3.4], [0, -0.3, 2.4, 2, 4.2],
       [3.2, 0.6, 2.2, 2.6, 3], [-3, 1.8, 2.2, 2, 2.4],
     ] as [number, number, number, number, number][]) {
-      out.push(...tagKey(paintBase(boxFaces3(bx, by, bw, bh, bz, 0.64), BODY),
+      out.push(...tagKey(paintBase(boxFaces3(bx, by, bw, bh, bz * Z8, 0.64), BODY),
         10 + depthNow(bx, by) * 1.6));
       /* 아래쪽 해저드 띠(정정·사진) — 덩이 앞면 밑동을 노랑·검정 빗금이 두른다. */
       out.push(...tagKey(hazardPanel(bx, by + bh / 2 + 0.03, 0.944, bw * 0.42, 0.24, 4),
@@ -8578,8 +8592,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        수평보다 길다. 밑동 플랜지 테로 '꽂힌 관'으로 읽히게 한다. 토막마다 제 깊이 키. */
     {
       const R9 = 0.26;
-      const ZT9 = 6.3; const ZT9z9 = 5.04; /* z용 쌍둥이(model-z-scale ×0.8) */          // 보 높이 — 높인 천장(4.0) 위로
-      const RE9 = 0.9; const RE9z9 = 0.72; /* z용 쌍둥이(model-z-scale ×0.8) */          // 굽이 반지름
+      const ZT9 = 6.3;          // 보 높이 — 높인 천장(4.0) 위로(설계 자 — 꼭짓점에서 Z8을 곱한다)
+      const RE9 = 0.9;          // 굽이 반지름
       const LH9 = 1.2;          // 수평 몫 — 수직(1.4~1.9)보다 짧다
       for (const [xi9, yi9, zi9] of [
         [-1.6, 2.6, 3.5], [0, 3.6, 4.0], [1.9, 2.4, 3.5],
@@ -8589,12 +8603,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const LT9 = LV9 + LC9 + LH9;
         const p9 = (t9: number): [number, number, number] => {
           const d9 = t9 * LT9;
-          if (d9 <= LV9) return [xi9, yi9, zi9 + d9];
+          if (d9 <= LV9) return [xi9, yi9, (zi9 + d9) * Z8];
           if (d9 <= LV9 + LC9) {
             const a9 = (d9 - LV9) / RE9;
-            return [xi9, yi9 - RE9 + RE9 * Math.cos(a9), ZT9z9 - RE9z9 + RE9z9 * Math.sin(a9)];
+            return [xi9, yi9 - RE9 + RE9 * Math.cos(a9), (ZT9 - RE9 + RE9 * Math.sin(a9)) * Z8];
           }
-          return [xi9, yi9 - RE9 - (d9 - LV9 - LC9), ZT9z9];
+          return [xi9, yi9 - RE9 - (d9 - LV9 - LC9), ZT9 * Z8];
         };
         const SEG9 = 8;
         for (let s9 = 0; s9 < SEG9; s9 += 1) {
@@ -8604,7 +8618,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
             path: (t9: number): [number, number, number] => p9((s9 + t9) / SEG9),
           }), PIPE), 10 + depthNow(mx9, my9) * 1.6 + mz9 * 0.35));
         }
-        out.push(...tagKey(paintBase(cylinderFaces3(xi9, yi9, R9 * 1.5, 0.112, zi9), SILVER),
+        out.push(...tagKey(paintBase(cylinderFaces3(xi9, yi9, R9 * 1.5, 0.112, zi9 * Z8), SILVER),
           10 + depthNow(xi9, yi9) * 1.6 + zi9 * 0.35 + 0.05));
       }
     }
@@ -9758,7 +9772,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          돔이 곧 몸이라 그 티가 가장 크다. 회전체(spirePillar + 옆선)로 세우면 면마다 제 법선으로
          빛을 받아 요잉·기울기에 따라 명암이 돈다. 옆선은 반구보다 조금 납작한 초타원(p 2.2) —
          꼭대기가 평평해야 청록 눈이 얹힌다(순수 반구면 정수리가 점이라 눈이 뜬다). */
-      ...paintBase(forgeDome9(2.2, -0.6, 3, 3.4, 1.7), GOLD),
+      ...paintBase(forgeDome9(2.2, -0.6, 3, 2.72, 1.36), GOLD),
       /* 붉은 띠는 겉면만 두른다(수리: 위 태엽과 같은 결의 비침) — 원통 도형은 실루엣을
          통째로 채우는 몸판 + 밝은 윗면 원반이라, 돔 허리에 끼워 넣은 이 띠가 돔 속에
          숨기는커녕 돔 앞면을 큼직한 원반으로 덮어 버렸다(흰 윗면까지 겹쳐 분홍 얼룩으로
@@ -9790,7 +9804,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     ], depthNow(2.2, -0.6) + 3.5));
     /* 앞오른쪽 작은 돔 — 같은 눈을 인다. */
     out.push(...tagKey([
-      ...paintBase(forgeDome9(2.6, 2.4, 1.6, 1.7, 0.35), GOLD),   // 작은 돔도 회전체(위 ★)
+      ...paintBase(forgeDome9(2.6, 2.4, 1.6, 1.36, 0.28), GOLD),   // 작은 돔도 회전체(위 ★)
       [discPath3(2.6, 2.4, 1.664, 0.62), 0.95, CYAN] as ShapeFace,
     ], depthNow(2.6, 2.4) + 1.6));
     /* 왼쪽 황금 뿔탑 셋(사진) — 밑동이 굵고 끝이 뾰족한 첨탑. 세로 골이 있다. */
@@ -9869,7 +9883,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const CZ = 0;                        // 바퀴 중심(모델 z) — 지면
       /* 반지름 3 → 2.25(요청: "포지 톱니바퀴 반지름 3/4으로 축소") — 이 한 값이
          이빨 높이·둘레 마디 수까지 함께 정한다(아래 R9). */
-      const RIM = 2.25; const RIMz9 = 1.8; /* z용 쌍둥이(model-z-scale ×0.8) */
+      const RIM = 2.25;
       /* ★ 세로만 보정한다 — **요잉은 그대로 먹인다**(지적: "포지 톱니 각도 아직도
          안맞음... +45도에서 정면에서 본거랑 똑같이 보여").
          앞 판은 이 평면의 두 기저를 재서 **역행렬**로 좌표를 잡았다. 그러면 어느
@@ -9883,13 +9897,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          가로축이 줄어들며 자연스럽게 눌린다(실제 원판이 그렇다).
          zScale은 project로 바로 잴 수 있고, 요잉과 무관하다(높이는 안 돈다). */
       const o9 = project(WX0, CY, CZ);
-      const ez9 = project(WX0, CY, CZ + 0.8);
+      const ez9 = project(WX0, CY, CZ + 1);
       const Lz9 = Math.hypot(ez9[0] - o9[0], ez9[1] - o9[1]) || 1;
       /** z 반지름의 모델 배수 — 화면에서 세로가 가로와 같아지는 값이다. */
-      const kZ9 = 1 / Lz9; const kZ9z9 = 0.8 / Lz9; /* z용 쌍둥이(model-z-scale ×0.8) */
+      const kZ9 = 1 / Lz9;
       /** 그 판(모델 x)의 각 a(모델 평면 각)·반지름 배수 s 자리. */
       const at9 = (x9: number, a9: number, s9: number): [number, number, number] =>
-        [x9, CY + Math.cos(a9) * RIM * s9, CZ + Math.sin(a9) * RIMz9 * kZ9 * s9];
+        [x9, CY + Math.cos(a9) * RIM * s9, CZ + Math.sin(a9) * RIM * kZ9 * s9];
       /** 화면 자로 잰 바퀴 반지름 — 이빨 높이·둘레 마디 수를 정하는 데만 쓴다. */
       const R9 = RIM * Lz9 * kZ9;
       /** 가까운 판 — 화가 순서(먼 판 → 옆벽 → 가까운 판)의 기준이다. */
@@ -10034,7 +10048,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           const a9 = spinRad() + (k9 * Math.PI * 2) / 3;
           const pts: [number, number, number][] = [];
           const P9 = (rr9: number, th9: number): [number, number, number] =>
-            [Math.cos(th9) * rr9, -0.2 + Math.sin(th9) * rr9, 3.99];
+            [Math.cos(th9) * rr9, -0.2 + Math.sin(th9) * rr9, 3.192];
           const HW9 = 0.16;
           pts.push(P9(0.28, a9 - HW9 * 2), P9(1.66, a9 - HW9), P9(1.66, a9 + HW9),
             P9(0.28, a9 + HW9 * 2));
@@ -10666,7 +10680,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /** 기둥 셋의 자리·높이 — 아래 들보(다리)도 같은 표에서 끝점을 읽는다. */
     // 낮은 기둥 둘을 더 벌린다(요청): ±2.5 → ±3.4.
     const PILLARS9: [number, number, number, number][] = [
-      [-3.4, 0.4, 3.2, 0], [0, -1.6, 4.4, 1], [3.4, 0.4, 3.2, 0],
+      [-3.4, 0.4, 2.56, 0], [0, -1.6, 3.52, 1], [3.4, 0.4, 2.56, 0],
     ];
     PILLARS9.forEach(([px, py, ph, own9]) => {
       const key = 12 + depthNow(px, py) * 1.6;
@@ -10676,17 +10690,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           x: px, y: py, z0: 0.64, h: ph, w: 0.62, tipW: 0.48,
           segs: 3, sides: 7, hold: 0.35,
         }), GOLD),
-        ...paintBase(cylinderFaces3(px, py, 0.68, 0.272, 0.64 + ph * 0.576), GOLD_D),
+        ...paintBase(cylinderFaces3(px, py, 0.68, 0.272, 0.64 + ph * 0.72), GOLD_D),
       ], key));
       // 임자색은 **기둥의 띠**(요청) — 아래 테를 칠하지 않고 accent로 넘긴다.
-      pc.push(...tagKey(cylinderFaces3(px, py, 0.68, 0.32, 0.64 + ph * 0.32), key + 0.05));
+      pc.push(...tagKey(cylinderFaces3(px, py, 0.68, 0.32, 0.64 + ph * 0.4), key + 0.05));
       void TEAL;
       /* 랜턴 머리 — 청록 발광 알. 불빛은 고유색이라 셋 다 청록으로 돌린다(재지적) —
          가운데 것만 크게 남겨 형태의 강약은 그대로 둔다. */
       out.push(...tagKey(paintBase(own9
         ? [
           ...spirePillar({
-            x: px, y: py, z0: 0.64 + ph * 0.576, h: ph * 0.224, w: 0.7, tipW: 0.95,
+            x: px, y: py, z0: 0.64 + ph * 0.72, h: ph * 0.28, w: 0.7, tipW: 0.95,
             segs: 2, sides: 10, hold: 0.2,
           }),
           ...domeFaces3(px, py, 1.05, 0.92, 0.64 + ph),
@@ -10799,8 +10813,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     out.push(...tagKey(sphereFaces3(0, 0, 2.96, 1.35, glowLit("#c8fffa", "#8ee6dc")), 30));
     /* ④ 포신 — 왼쪽 돔 옆구리(−1.6, 0.4, 2.3)에서 위·바깥·뒤로 비스듬히(−3.9, 1.5, 4.6) 뻗는 금빛 관, 끝은 검회색 아가리.
        위에 손잡이 혹. 키는 돔보다 앞(제 깊이 + 3). */
-    const B0: [number, number, number] = [-1.6, 0.4, 2.3];
-    const B1: [number, number, number] = [-3.9, 1.5, 4.6];
+    const B0: [number, number, number] = [-1.6, 0.4, 1.84];
+    const B1: [number, number, number] = [-3.9, 1.5, 3.68];
     out.push(...tagKey([
       ...paintBase(spirePillar({
         x: 0, y: 0, h: 0.8, w: 1, segs: 3, sides: 10, caps: "bottom", trueNormal: true,
@@ -10809,7 +10823,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       }), GOLD9),
       ...paintBase(spirePillar({
         x: 0, y: 0, h: 0.8, w: 1, segs: 1, sides: 10, caps: "top", trueNormal: true,
-        path: (t9: number): [number, number, number] => [B1[0] + (B1[0] - B0[0]) * 0.18 * t9, B1[1] + (B1[1] - B0[1]) * 0.18 * t9, B1[2] + (B1[2] - B0[2]) * 0.144 * t9],
+        path: (t9: number): [number, number, number] => [B1[0] + (B1[0] - B0[0]) * 0.18 * t9, B1[1] + (B1[1] - B0[1]) * 0.18 * t9, B1[2] + (B1[2] - B0[2]) * 0.18 * t9],
         widthOf: (): number => 0.44,
       }), "#3a3f48"),
       ...paintBase(domeFaces3(-2.5, 0.85, 0.3, 0.36, 2.68), GOLDD9),   // 손잡이 혹
@@ -11198,7 +11212,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     };
     const tips: [number, number, number][] = BR.map(([deg9, bh9], i9) => {
       const [mx9, my9] = ARC(deg9, RR + BEND * (bh9 / 7.3) * inward(i9));
-      return [mx9, my9, 0.3 + bh9] as [number, number, number];
+      return [mx9, my9, (0.3 + bh9) * Z8] as [number, number, number];
     });
     /* 막 — 가지 끝을 잇는 윗변에서 바깥 아래 바닥으로 늘어진다. 양 끝에는 바닥에 닿는
        점을 하나씩 더 붙여, 맨 끝 가지와 지면 사이도 막으로 이어진다(요청).
@@ -11254,11 +11268,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const cx9 = axA + (axB - axA) * T9;
       const cy9 = ayA + (ayB - ayA) * T9;
       const cz9 = azA * (1 - T9);
-      if (cz9 < rz9 * 1.1) return;
+      if (cz9 < rz9 * Z8 * 1.1) return;
       out.push(...tagKey([[polyPath3(Array.from({ length: 15 }, (_, q9) => {
         const a9 = (q9 / 14) * Math.PI * 2;
         return [cx9 + (tx9 / tl9) * Math.cos(a9) * rr9, cy9 + (ty9 / tl9) * Math.cos(a9) * rr9,
-          cz9 + Math.sin(a9) * rz9] as [number, number, number];
+          cz9 + Math.sin(a9) * rz9 * Z8] as [number, number, number];
       })), 0.92, "#2a1512"] as ShapeFace], panelKey(i9) + 0.3));
     };
     for (const [u9, rr9, rz9] of [
@@ -11272,7 +11286,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const [bx9, by9] = ARC(deg9, RR);
       const [tx9, ty9] = ARC(deg9, RR + BEND * (bh9 / 7.3) * inward(i9));
       out.push(...tagKey(paintBase(spirePillar({
-        x: bx9, y: by9, z0: 0.24, h: bh9, w: 0.58, tipW: 0.12,
+        x: bx9, y: by9, z0: 0.24, h: bh9 * Z8, w: 0.58, tipW: 0.12,
         segs: 8, sides: 6, hold: 0.1, taper: 1.4,
         leanX: (tx9 - bx9) * 0.4, leanY: (ty9 - by9) * 0.4,
         curveX: (tx9 - bx9) * 0.6, curveY: (ty9 - by9) * 0.6,
@@ -11314,7 +11328,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         path: (t9: number): [number, number, number] => {
           const a9 = Math.PI * (0.75 * t9);
           const [ex9, ey9] = PB(1.7 + m9 * (1.3 + Math.sin(a9) * 2.3), -1.6 - (1 - Math.cos(a9)) * 2.3);
-          return [ex9, ey9, 1.2 - t9];
+          return [ex9, ey9, 1.2 - t9 * Z8];
         },
       }), HORN), 20 + depthNow(...PB(1.7 + m9 * 3, -3.6)) * 1.6));
     }
@@ -11486,7 +11500,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        한 단씩 올린다(밑동 3.4 → 4.2 · 허리 1.7 → 2.3 · 꼭대기 3.1 → 4.0). 높이는
        그대로라 같은 키에 몸만 굵어진다. gsLoR는 아래 줄기의 옆선을 되짚는 자라
        같은 값으로 함께 옮겨야 붉은 살 띠와 동굴 입구가 줄기에 붙어 있는다. */
-    const gsLoR = (z9: number): number => 2.3 + 1.9 * (0.8 - z9 / GS_W) ** 1.6;
+    const gsLoR = (z9: number): number => 2.3 + 1.9 * (1 - z9 / GS_W) ** 1.6;
     // 아래 줄기 — 넓은 밑동에서 허리로.
     out.push(...tagKey(paintBase(spirePillar({
       x: 0, y: 0.4, z0: 0, h: GS_W, w: 4.2, tipW: 2.3,
@@ -11596,7 +11610,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     out.push(...tagKey(paintBase(domeFaces3(0, 0, 4.6, DH9z9, 0, true), FLESH_R), 0));
     const RING: [number, number, number, number][] = [
       // [단 반지름, 혹 수, 혹 크기, 단 높이]
-      [3.9, 7, 1.15, 1.0 * HK9], [2.9, 6, 0.95, 2.7 * HK9], [1.85, 5, 0.75, 4.0 * HK9],
+      [3.9, 7, 1.15, 0.8 * HK9], [2.9, 6, 0.95, 2.16 * HK9], [1.85, 5, 0.75, 3.2 * HK9],
     ];
     for (const [rr9, n9, br9, bz9] of RING) {
       for (let i9 = 0; i9 < n9; i9 += 1) {
@@ -12129,7 +12143,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     }), STEEL9));
     /* 배럴 테 셋 — 드럼통의 표식이다. 짧은 뚫린 관이라 등진 벽은 trueNormal로 걷는다
        (안 그러면 통 속이 비쳐 보인다 — 시즈 포신 띠에서 겪은 자리). */
-    for (const [z9, w9] of [[7.83, 1.12], [6.18, 1.22], [4.53, 1.1]] as [number, number][]) {
+    for (const [z9, w9] of [[6.264, 1.12], [4.944, 1.22], [3.624, 1.1]] as [number, number][]) {
       out.push(...tagKey(paintBase(spirePillar({
         x: 0, y: 0, z0: z9, h: 0.336, w: w9, tipW: w9, segs: 1, sides: 12,
         caps: "none", trueNormal: true,
@@ -12309,7 +12323,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           x: 0, y: 0, h: 0.8, w: 1,
           segs: Math.max(lod9 >= 2 ? 4 : 6, n9 * (lod9 >= 2 ? 1 : 2)),
           sides: glow ? (lod9 >= 2 ? 4 : 6) : (lod9 >= 2 ? 4 : 5),
-          caps: "none", path: path9,
+          caps: "none", path: (t9: number): [number, number, number] => { const p9 = path9(t9); return [p9[0], p9[1], p9[2] * Z8]; },   // 번개는 설계 z로 자라고 꼭짓점에서 접는다
           widthOf: (t9: number): number => k9
             * (0.34 + 0.66 * (1 - t9) ** 0.8)
             * (0.72 + 0.42 * Math.sin(t9 * 8.5 + ph9)),
@@ -12510,7 +12524,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       for (let g9 = 0; g9 < legs9; g9 += 1) {
         const la9 = away9 + (rnd() - 0.5) * 2.6;     // 바깥쪽으로 벌어진다
         const ll9 = R9 * (0.3 + rnd() * 0.35);
-        const lp: [number, number, number][] = [[gx9, gy9, 0.08]];
+        const lp: [number, number, number][] = [[gx9, gy9, 0.1]];
         const lseg9 = 4;
         for (let k9 = 1; k9 <= lseg9; k9 += 1) {
           const u9 = k9 / lseg9;
@@ -12747,7 +12761,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const out: ShapeFace[] = [];
     /* 몸통 — (x,z) 단면을 뒤에서 앞으로 민 육각 기둥. 낮고 넓적하다. */
     const hullPlan: [number, number][] = [
-      [-1.1, 4.35], [-0.66, 4.95], [0.66, 4.95], [1.1, 4.35], [0.7, 3.85], [-0.7, 3.85],
+      [-1.1, 3.48], [-0.66, 3.96], [0.66, 3.96], [1.1, 3.48], [0.7, 3.08], [-0.7, 3.08],
     ];
     out.push(...paintBase(prismYFaces(hullPlan, -2.9, 4.3, true, true), STEEL));
     /* 칼날 코 — 몸 앞끝에서 한 점으로 좁아지는 납작 화살촉. 사진에서 몸 길이의
@@ -13261,7 +13275,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        세 모가 그대로 윤곽이 되고, 어두운 회색이라 함체와 확실히 갈린다. 뒤를 볼 때만
        청록 분사구가 든다. */
     // 추진체 셋을 서로 더 가까이(요청) — 옆 둘 ±1.05 → ±0.8, 위 6.75 → 6.6, 옆 5.55 → 5.65
-    for (const [tx9, tz9] of [[-0.8, 5.65], [0.8, 5.65], [0, 6.6]] as const) {
+    for (const [tx9, tz9] of [[-0.8, 4.52], [0.8, 4.52], [0, 5.28]] as const) {
       out.push(...tagKey(paintBase(spirePillar({
         x: tx9, y: -2.05, h: 0.8, w: 1, segs: 2, sides: 8, caps: "none",   // 삼각 → 원형(요청)
         path: (t9: number): [number, number, number] => [tx9, -2.05 - 1.35 * t9, tz9],
@@ -13306,8 +13320,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 경사가 내려오는 몫 — **기울기 20도**에서 뽑는다(요청). 경사 구간이 스팬의 절반
          (WREACH9/2 = 1.22)이므로 내려오는 몫은 1.22·tan20도 = 0.44다. 날개 끝에 매달린
          것들은 아래 WTIPZ9에서 풀어 쓰므로 이 한 줄만 고치면 함께 따라 움직인다. */
-      const WDROP9 = 0.44;
-      const WROOTZ9 = 6.28;              // 뿌리 높이
+      const WDROP9 = 0.352;
+      const WROOTZ9 = 5.024;              // 뿌리 높이
       const WTIPZ9 = WROOTZ9 - WDROP9;   // 무릎 뒤로 지키는 높이(= 날개 끝)
       const WHR9 = 1.05;          // 뿌리 반폭
       const WHK9 = 0.62;          // 무릎 뒤로 지키는 반폭
@@ -13333,7 +13347,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           const bx9 = p[2][0] - p[0][0]; const by9 = p[2][1] - p[0][1]; const bz9 = p[2][2] - p[0][2];
           let nx9 = ay9 * bz9 - az9 * by9; let ny9 = az9 * bx9 - ax9 * bz9; let nz9 = ax9 * by9 - ay9 * bx9;
           const mx9 = (p[0][0] + p[1][0] + p[2][0] + p[3][0]) / 4 - cx9; const my9 = (p[0][1] + p[1][1] + p[2][1] + p[3][1]) / 4 - cy9;
-          const mz9 = (p[0][2] + p[1][2] + p[2][2] + p[3][2]) / 3.2 - cz9;
+          const mz9 = (p[0][2] + p[1][2] + p[2][2] + p[3][2]) / 4 - cz9;
           if (nx9 * mx9 + ny9 * my9 + nz9 * mz9 < 0) { nx9 = -nx9; ny9 = -ny9; nz9 = -nz9; }
           const nl9 = Math.hypot(nx9, ny9, nz9) || 1;
           const fl9 = faceLight(nx9 / nl9, ny9 / nl9, nz9 / nl9);
@@ -13371,7 +13385,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          느낌") — 날개 판이 스팬을 따라 z 5.95 → 5.70이므로, 5.15/6.55는 둘 다 판보다
          위쪽에 치우쳐 '날개 위에 얹힌 둘'로 읽혔다. 4.85/6.25면 판을 사이에 두고 아래
          하나·위 하나가 된다. */
-      for (const mz9 of [WTIPZ9 - 0.85, WTIPZ9 + 0.55] as const) {
+      for (const mz9 of [WTIPZ9 - 0.68, WTIPZ9 + 0.44] as const) {
         const mx9 = m9 * (WTIPX9 + 0.2);
         const mr9 = 0.11; const mr9z9 = 0.088; /* z용 쌍둥이(model-z-scale ×0.8) */   // 0.36 → 0.17 → 0.11(재요청: 두께 더) — 몸통만 가늘게, 탄두·깃은 그대로라 **화살**처럼 읽힌다
         /* ★ 몸통만 떠 있던 것(지적: "몸통과 앞코/꼬리가 위치가 안 맞음. 몸통만 더 높은 듯")
@@ -13411,12 +13425,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         /* 끝은 관의 **겉면**에서 멈춘다 — 축(mz9)까지 넣으면 가지의 대부분이 관 속에
            묻혀 밖에서는 보이지 않는다(첫 판이 그랬다). 시작도 날개 끝(4.30)이 아니라
            한 뼘 안쪽(4.06)이라야 가지가 판 위로 드러난다. */
-        const mzEnd9 = mz9 + (mz9 > WTIPZ9 + 0.02 ? -mr9 : mr9);
+        const mzEnd9 = mz9 + (mz9 > WTIPZ9 + 0.016 ? -mr9 : mr9) * Z8;
         out.push(...tagKey(paintBase(spirePillar({
           x: 0, y: 0, h: 0.8, w: 1, segs: 3, sides: 6, caps: "none",
           path: (t9: number): [number, number, number] => [
             m9 * (WTIPX9 - 0.24 + 0.46 * t9), -0.52,
-            WTIPZ9 + 0.032 + (mzEnd9 - (WTIPZ9 + 0.04)) * t9,
+            WTIPZ9 + 0.032 + (mzEnd9 - (WTIPZ9 + 0.032)) * t9,
           ],
           widthOf: (): number => 0.075,
         }), TERRAN_STEEL_D), key9(m9 * WTIPX9, -0.52, (WTIPZ9 + 0.04 + mzEnd9) / 2) + 0.4));
@@ -13503,7 +13517,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        가로가 세로의 두 배 남짓 — 지적대로 '가로로 긴 창'이다).
        줄도 둘이다(z 7.55·7.36). 한 줄이면 아무리 작아도 '띠 하나'로 읽히는데, 두 줄이면
        층이 생겨 벽에 높이가 있다는 것이 읽힌다. */
-    for (const wz9 of [7.5, 7.35]) {
+    for (const wz9 of [6, 5.88]) {
       out.push(...tagKey([
         ...winRow(0, -0.1, wz9, 0, 1, 0.58, 3, 0.044, "#7fd0ff", 0.6),
         ...winRow(0.525, -0.275, wz9, 0.707, 0.707, 0.4, 2, 0.044, "#7fd0ff", 0.6),
@@ -13552,8 +13566,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        전체 높이 1.5배(요청) — 모든 z를 바닥(5.2) 기준으로 1.5배 늘린 Z()로 적는다. */
     const out: ShapeFace[] = [];
     const key9 = partKey;
-    const BZ = 5.2; const BZz9 = 4.16; /* z용 쌍둥이(model-z-scale ×0.8) */
-    const Z = (z9: number): number => BZ + (z9 - BZz9) * 1.5; const Zz9 = (z9: number): number => BZz9 + (z9 - BZ) * 1.2; /* z용 쌍둥이 함수(model-z-scale ×0.8) */
+    const BZ = 5.2;
+    const Z = (z9: number): number => Z8 * (BZ + (z9 - BZ) * 1.5);
     /** 아래 윤곽(lo)과 위 윤곽(hi)이 다를 수 있는 각기둥 — 옆면이 사선(모따기)이 된다. */
     const prism9 = (lo9: [number, number, number][], hi9: [number, number, number][], cx9 = 0, cy9 = 0): ShapeFace[] => {
       const f9: ShapeFace[] = [bodyFace(polyPath3(lo9))];
@@ -13576,13 +13590,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
 
     // 1-가) 조종석 받침은 **직사각 상자**(재지적) — x ±1.6, y −0.6~1.7. 뒤가 뒷동체에 붙는다.
     const DY = 0.55; const CUT = -0.6; const BW = 1.6;
-    out.push(...tagKey(raceBase(boxFaces3(0, DY, BW * 2, 2.3, Zz9(6.3) - Zz9(5.2), Zz9(5.2)), "terran"), key9(0, DY, Z(4.6))));
+    out.push(...tagKey(raceBase(boxFaces3(0, DY, BW * 2, 2.3, Z(6.3) - Z(5.2), Z(5.2)), "terran"), key9(0, DY, Z(5.75))));
     /* 조종석은 **2층 돔**(재지적) — 아래 돔은 위가 잘린 타원 돔(밑 r 1.6 → 절단면 r 1.19),
        그 위에 작은 돔이 올라앉고, 둘 사이에 임자색 고리(옆은 임자색·윗면은 쇠색). */
-    const DH0 = (Z(6.9) - Z(6.3)) * 0.6;   // 아래 돔 절단 높이(25% 축소)
+    const DH0 = (Z(6.9) - Z(6.3)) * 0.75;   // 아래 돔 절단 높이(25% 축소)
     out.push(...tagKey([
       ...raceBase(spirePillar({
-        x: 0, y: DY, z0: Zz9(6.3), h: DH0, w: 1, segs: 3, sides: 14, ref: [1, 0, 0], caps: "top",
+        x: 0, y: DY, z0: Z(6.3), h: DH0, w: 1, segs: 3, sides: 14, ref: [1, 0, 0], caps: "top",
         widthOf: (t9: number): number => BW * Math.sqrt(Math.max(0.05, 1 - ((t9 * 0.6) / 0.9) ** 2)),
       }), "terran"),
       /* 임자색 고리는 **2층 돔 밑동을 두르는 띠**(재요청) — 돔 반지름(0.71)보다 살짝 큰
@@ -13592,7 +13606,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          눕힌다. 면이 하나뿐이라 어느 각도에서도 두께가 안 보이고, 돔이 그 위를 덮는다. */
       ...Array.from({ length: 24 }, (_, k9): ShapeFace => {
         const a0 = (k9 / 24) * Math.PI * 2; const a1 = ((k9 + 1) / 24) * Math.PI * 2;
-        const zb9 = Zz9(6.3) + DH0 + 0.056;
+        const zb9 = Z(6.3) + DH0 + 0.056;
         return bodyFace(polyPath3([
           [Math.sin(a0) * 1.0, DY + Math.cos(a0) * 1.0, zb9], [Math.sin(a0) * 1.13, DY + Math.cos(a0) * 1.13, zb9],
           [Math.sin(a1) * 1.13, DY + Math.cos(a1) * 1.13, zb9], [Math.sin(a1) * 1.0, DY + Math.cos(a1) * 1.0, zb9],
@@ -13603,32 +13617,32 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          spirePillar로 세운 납작한 타원 돔(밑 r 1.0·높이 0.32, 면 14). 면마다 제 명암이 들어
          쇠 재질이 살고 반투명·뚫림이 없다. */
       ...raceBase(spirePillar({
-        x: 0, y: DY, z0: Zz9(6.3) + DH0 + 0.048, h: 0.256, w: 1, segs: 3, sides: 14, ref: [1, 0, 0], caps: "top",
+        x: 0, y: DY, z0: Z(6.3) + DH0 + 0.048, h: 0.256, w: 1, segs: 3, sides: 14, ref: [1, 0, 0], caps: "top",
         // 꼭대기를 평평하게(재요청) — 타원 옆선을 0.75 지점에서 잘라 반지름 0.66의 평평한 윗면.
         widthOf: (t9: number): number => Math.sqrt(Math.max(0, 1 - (t9 * 0.75) ** 2)),
       }), "terran"),
-    ], key9(0, DY, Z(5.52))));
+    ], key9(0, DY, Z(6.9))));
     // 1-나) 뒤 절두체 — 상자 뒤(y −0.6)에 붙되 폭은 상자의 8할(재요청 20% 축소), 뒤로 조금 넓어진다.
     const TW0 = BW * 0.64;   // 0.8 → 0.64 (재요청 20% 축소)
     out.push(...tagKey(raceBase(prism9(
-      [[-TW0, CUT, Zz9(5.25)], [TW0, CUT, Zz9(5.25)], [TW0 + 0.12, -2.1, Zz9(5.25)], [-TW0 - 0.12, -2.1, Zz9(5.25)]],
+      [[-TW0, CUT, Z(5.25)], [TW0, CUT, Z(5.25)], [TW0 + 0.12, -2.1, Z(5.25)], [-TW0 - 0.12, -2.1, Z(5.25)]],
       // 높이 25% 증가(요청): 1.0→1.25 · 1.15→1.44
-      [[-TW0, CUT, Zz9(6.5)], [TW0, CUT, Zz9(6.5)], [TW0 + 0.12, -2.1, Zz9(6.69)], [-TW0 - 0.12, -2.1, Zz9(6.69)]],
-      0, -1.35), "terran"), key9(0, -1.35, Z(4.64))));
+      [[-TW0, CUT, Z(6.5)], [TW0, CUT, Z(6.5)], [TW0 + 0.12, -2.1, Z(6.69)], [-TW0 - 0.12, -2.1, Z(6.69)]],
+      0, -1.35), "terran"), key9(0, -1.35, Z(5.8))));
     // 뒷동체 위 성냥갑 부품(요청) — 폭은 뒷동체의 반(TW0), 길이는 2/3(1.33), 낮은 상자.
-    out.push(...tagKey(raceBase(boxFaces3(0, -1.35, TW0, 1.0, (Zz9(7.05) - Zz9(6.58)) / 2, Zz9(6.58)), "terran"), key9(0, -1.35, Z(5.4))));   // 높이 반(요청)
+    out.push(...tagKey(raceBase(boxFaces3(0, -1.35, TW0, 1.0, (Z(7.05) - Z(6.58)) / 2, Z(6.58)), "terran"), key9(0, -1.35, Z(6.75))));   // 높이 반(요청)
     // 1-다) 부리 — 앞면을 잘라 뭉뚝(끝 반폭 0.85), 윗면 급경사(5.85→5.25), 윗면 양쪽 사선 깎기.
     out.push(...tagKey(raceBase(prism9(
       // 폭 10%·높이 20% 추가 확대(요청): 밑 반폭 1.76, 끝 1.045 · 높이 밑 1.26·끝 0.144
       /* 윗면이 **두 번 꺾여** 내려간다(요청): 밑동(y 1.7)에서 y 2.8까지 완만히(6.41→6.05),
          거기서 코끝(3.5)까지 급히(6.05→5.36). 양옆 마디를 y 2.8에 하나 더 둔다. */
-      [[-BW * 1.1, 1.7, Zz9(5.15)], [BW * 1.1, 1.7, Zz9(5.15)], [1.588, 2.8, Zz9(5.193)], [1.045, 3.5, Zz9(5.22)],
-        [-1.045, 3.5, Zz9(5.22)], [-1.588, 2.8, Zz9(5.193)]],   // 중간 마디 폭 +20%
+      [[-BW * 1.1, 1.7, Z(5.15)], [BW * 1.1, 1.7, Z(5.15)], [1.588, 2.8, Z(5.193)], [1.045, 3.5, Z(5.22)],
+        [-1.045, 3.5, Z(5.22)], [-1.588, 2.8, Z(5.193)]],   // 중간 마디 폭 +20%
       // 높이 10% 축소(재요청): 밑 1.26→1.134 · 무릎 0.857→0.771 · 끝 0.144→0.13
-      [[-1.265, 1.7, Zz9(6.284)], [1.265, 1.7, Zz9(6.284)], [1.034, 2.8, Zz9(5.964)], [0.605, 3.5, Zz9(5.35)],
-        [-0.605, 3.5, Zz9(5.35)], [-1.034, 2.8, Zz9(5.964)]],
-      0, 2.6), "terran"), key9(0, 2.6, Z(4.36))));
-    markMuzzle9(0, 3.5, Zz9(5.29));   // 부리 끝
+      [[-1.265, 1.7, Z(6.284)], [1.265, 1.7, Z(6.284)], [1.034, 2.8, Z(5.964)], [0.605, 3.5, Z(5.35)],
+        [-0.605, 3.5, Z(5.35)], [-1.034, 2.8, Z(5.964)]],
+      0, 2.6), "terran"), key9(0, 2.6, Z(5.45))));
+    markMuzzle9(0, 3.5, Z(5.29));   // 부리 끝
 
     /* 중간동체 양옆의 **노출 포신 둘**(재지적: 포드가 아니라 포신) — 상자 옆구리를 따라
        가운데 동체 길이(y −0.6~1.7)만큼 길게 뻗고 위아래로 둘씩 겹친다. 반지름 0.17. */
@@ -13636,7 +13650,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const GR9 = 0.24;                       // 포신 반지름(확대)
       const px9 = m9 * (BW + GR9);            // 몸 옆면에 딱 붙는다
       // 아래로 조금(Z(5.55) → Z(5.3)), 뒤끝은 더 앞(y −0.15 → 0.2), 색은 한 단 연하게(TERRAN_STEEL).
-      for (const tz9 of [Z(4.24), Z(4.24) + GR9 * 2]) {   // 위아래 포신이 서로 딱 붙는다
+      for (const tz9 of [Z(5.3), Z(5.3) + GR9 * 2 * Z8]) {   // 위아래 포신이 서로 딱 붙는다
         out.push(...tagKey(paintBase(tubeFaces(px9, 0.2, px9, 1.7 + 0.3, GR9, tz9, true), TERRAN_STEEL),
           key9(px9, 0.55, tz9) + 0.2));
       }
@@ -13645,10 +13659,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     for (const m9 of [-1, 1] as const) {
       const X0 = m9 * (TW0 + 0.05); const X1 = m9 * 3.0;
       /* 앞뒤 폭 −20%(요청: 양쪽 날개팔 폭 20% 축소) — 뿌리 1.5 → 1.2, 끝 1.1 → 0.88, 가운데(−1.35)는 그대로. */
-      const rB: [number, number, number] = [X0, -0.75, Zz9(5.25)]; const rF: [number, number, number] = [X0, -1.95, Zz9(5.25)];   // 깊이 = 뒷동체
-      const rT: [number, number, number] = [X0, -0.75, Zz9(6.57)]; const rR: [number, number, number] = [X0, -1.95, Zz9(6.57)];   // 높이 +20%
-      const tB: [number, number, number] = [X1, -0.91, Zz9(5.45)]; const tF: [number, number, number] = [X1, -1.79, Zz9(5.45)];
-      const tT: [number, number, number] = [X1, -0.91, Zz9(5.75)]; const tR: [number, number, number] = [X1, -1.79, Zz9(5.75)];
+      const rB: [number, number, number] = [X0, -0.75, Z(5.25)]; const rF: [number, number, number] = [X0, -1.95, Z(5.25)];   // 깊이 = 뒷동체
+      const rT: [number, number, number] = [X0, -0.75, Z(6.57)]; const rR: [number, number, number] = [X0, -1.95, Z(6.57)];   // 높이 +20%
+      const tB: [number, number, number] = [X1, -0.91, Z(5.45)]; const tF: [number, number, number] = [X1, -1.79, Z(5.45)];
+      const tT: [number, number, number] = [X1, -0.91, Z(5.75)]; const tR: [number, number, number] = [X1, -1.79, Z(5.75)];
       const top9 = polyPath3([rT, rR, tR, tT]);
       const bot9 = polyPath3([rB, rF, tF, tB]);
       const fr9 = polyPath3([rB, rT, tT, tB]);
@@ -13666,11 +13680,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         arm9.push(bodyFace(d9), ...(fl9.visible ? fl9.face(d9) : [sideFace(d9, 0.46)]));
       }
       arm9.push(bodyFace(top9), topFace(top9, 0.22));
-      out.push(...tagKey(raceBase(arm9, "terran"), key9(m9 * 2.1, -1.35, Z(4.64))));
+      out.push(...tagKey(raceBase(arm9, "terran"), key9(m9 * 2.1, -1.35, Z(5.8))));
       /* 방패 — 사다리꼴(위 반폭 0.62·아래 0.82), 높이 Z 기준 2.3, 두께 0.2. 위가 바깥
          (+0.28)·아래가 안(−0.28)으로 기운다. 바깥면은 임자색 판 위에 기본색 속판(모서리 띠),
          안면·테두리 벽은 기본색. */
-      const cy9 = -1.35; const cz0 = Z(4); const cz1 = Z(5.84);
+      const cy9 = -1.35; const cz0 = Z(5.0); const cz1 = Z(7.3);
       const sx9 = (z9: number, off9: number): number =>
         m9 * (3.05 + off9 + 0.28 * ((z9 - (cz0 + cz1) / 2) / (cz1 - cz0)) * 2);
       const trap9 = (off9: number, k9: number): [number, number, number][] => {
@@ -13695,24 +13709,24 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 방패 열쇠는 **팔 열쇠에 묶는다**(지적: 앞뒤에서 팔과 방패 키값이 안 맞음) — 앞뒤
          시점에선 둘의 깊이가 같아 z 몫으로만 갈렸다. 방패 바깥면이 시점을 향하면 팔 위에,
          안면이 보이면(시점이 몸 쪽) 팔이 방패 앞에 있으니 팔 아래에 그린다. */
-      const armKey9 = key9(m9 * 2.1, -1.35, Z(4.64));
+      const armKey9 = key9(m9 * 2.1, -1.35, Z(5.8));
       // 앞뒤(안면이 보이는 자리)에서도 팔이 방패를 가려야 한다(재지적) — 바깥면이 뚜렷이
       // 시점을 향할 때(0.15 넘게)만 방패가 팔 위, 그 밖엔 팔 아래.
       out.push(...tagKey(sh9, facingRatio(m9, 0) > 0.15 ? armKey9 + 0.2 : armKey9 - 0.2));
     }
     /* 추진체 **넷** — 둥근 관이 아니라 **직육면체**(재지적): 단면이 위아래로 긴 직사각,
        색은 검회색. 뒷면에 2×2로 배치해 뒷면 높이를 꽉 채운다. */
-    const TZ0 = Z(4.2); const TZ1 = Z(5.352);
-    const TH9 = (TZ1 - TZ0) / 2 - 0.04;      // 한 칸 높이
+    const TZ0 = Z(5.25); const TZ1 = Z(6.69);
+    const TH9 = (TZ1 - TZ0) / 2 - 0.032;      // 한 칸 높이
     /* 앞뒤 길이(요청: "발키리 추진체 앞뒤 길이 증가") — 0.75 → 1.15. 중심을 뒤로 함께
        밀어(−2.45 → −2.62) **앞은 제자리, 뒤로만** 자라게 한다: 앞을 늘리면 노즐이
        뒷동체 속으로 파고들어 앞에서 볼 때 몸을 뚫는다. */
     const TD9 = 1.15; const TCY9 = -2.62;
-    for (const [ex9, ez9] of [[-0.42, TZ0 + 0.02], [0.42, TZ0 + 0.02], [-0.42, TZ0 + 0.06 + TH9], [0.42, TZ0 + 0.06 + TH9]] as [number, number][]) {
+    for (const [ex9, ez9] of [[-0.42, TZ0 + 0.016], [0.42, TZ0 + 0.016], [-0.42, TZ0 + 0.048 + TH9], [0.42, TZ0 + 0.048 + TH9]] as [number, number][]) {
       /* 열쇠(지적: 앞에서 보면 추진체가 뒷동체를 뚫고 비침) — 뒷면이 시점을 향할 때만 제
          깊이로(뒷동체 위), 등을 돌리면 뒷동체보다 먼저 그려 뒷동체가 덮는다. */
       out.push(...tagKey(paintBase(boxFaces3(ex9, TCY9, 0.72, TD9, TH9, ez9), "#212429"),   // 더 어둡게(재요청)
-        facingRatio(0, -1) > 0.05 ? key9(ex9, TCY9, ez9 + TH9 / 2) + 0.3 : key9(0, -1.35, Z(4.64)) - 1));
+        facingRatio(0, -1) > 0.05 ? key9(ex9, TCY9, ez9 + TH9 / 2) + 0.3 : key9(0, -1.35, Z(5.8)) - 1));
       // 불꽃도 길어진 꽁무니 끝에서 뿜는다 — 안 옮기면 노즐 몸통 속에서 불이 난다.
       if (poseNow === 1) out.push(...thrustFlame(ex9, TCY9 - TD9 / 2 - 0.06, ez9 + TH9 / 2, 0.28, "terran", key9(ex9, TCY9 - TD9 / 2 - 0.43, ez9 + TH9 / 2) + 0.4));
     }
@@ -13920,10 +13934,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        ★ 꺾는 것은 **m2를 곱하기 전 자리**다 — 반대쪽 날개는 x가 뒤집힌 거울이라, 꺾은
          뒤에 뒤집어야 둘이 같은 방향으로 함께 친다. 먼저 뒤집으면 한쪽만 거꾸로 친다. */
     /** 어깨 높이 — 아래 팔뼈 b0와 같은 자리다(펴진 뼈가 이 높이의 수평선이다). */
-    const WZ9 = 6.9; const WZ9z9 = 5.52; /* z용 쌍둥이(model-z-scale ×0.8) */
+    const WZ9 = 6.9;
     /** 팔뼈 마디 넷 — [스팬 x, 앞뒤 y, 높이 z]. 쉴 때의 지그재그는 이 z가 만든다. */
     const BONE9: [number, number, number][] = [
-      [0.25, 0.5, 5.52], [1.75, 0.95, 7.16], [3.2, 0.5, 6.56], [4.75, 0.85, 7.64],
+      [0.25, 0.5, 6.9], [1.75, 0.95, 8.95], [3.2, 0.5, 8.2], [4.75, 0.85, 9.55],
     ];
     /** 마디 셋의 각(도) — 수평에서 잰다. 안 치는 컷은 쉬는 자세 그대로다. */
     const SEG9 = fl9 > 0 ? [20, 45, 100] : fl9 < 0 ? [-38, -90, -128] : null;
@@ -13981,7 +13995,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     })();
     const wing = (m2: 1 | -1): ShapeFace[] => {
       const P = (x: number, y: number, z: number): [number, number, number] => {
-        if (CHAIN9.length === 0) return [m2 * x, y, z];
+        if (CHAIN9.length === 0) return [m2 * x, y, z * Z8];
         let i9 = 0;
         while (i9 < CHAIN9.length - 1 && x > BONE9[i9 + 1][0]) i9 += 1;
         const k9 = CHAIN9[i9];
@@ -13992,7 +14006,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const px9 = k9.jx + dx9 * k9.c - dz9 * k9.s;
         const az9 = k9.jz + dx9 * k9.s + dz9 * k9.c - WZ9;
         // 뿌리 젖힘 — 꺾은 판을 스팬축 둘레로 앞아래에 눕힌다(x는 안 건드린다).
-        return [m2 * px9, SY9 + dy9 * TC9 - az9 * TS9, WZ9z9 + dy9 * TS9 + az9 * TC9];
+        return [m2 * px9, SY9 + dy9 * TC9 - az9 * TS9, Z8 * (WZ9 + dy9 * TS9 + az9 * TC9)];
       };
       // 팔뼈 마디 넷 — 위·아래로 번갈아 꺾인다(자리는 BONE9가 진실이다).
       const b0 = P(...BONE9[0]);
@@ -14000,16 +14014,16 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const b2 = P(...BONE9[2]);
       const b3 = P(...BONE9[3]);
       // 손가락 끝 셋 — 마디마다 뒤·아래로 늘어진다.
-      const f1 = P(1.55, -1.9, 5.72);
-      const f2 = P(3.1, -1.85, 5.56);
-      const f3 = P(4.7, -1.35, 6.52);
+      const f1 = P(1.55, -1.9, 7.15);
+      const f2 = P(3.1, -1.85, 6.95);
+      const f3 = P(4.7, -1.35, 8.15);
       // 막 — 앞 가장자리(팔뼈)를 따라가다 손가락 사이가 오목하게 파인다.
       const web = polyPath3([
         b0, b1, b2, b3,
-        f3, P(3.85, -0.7, 6.8),
-        f2, P(2.4, -0.55, 6.28),
-        f1, P(0.85, -0.45, 5.6),
-        P(0.2, -0.45, 5.28),
+        f3, P(3.85, -0.7, 8.5),
+        f2, P(2.4, -0.55, 7.85),
+        f1, P(0.85, -0.45, 7),
+        P(0.2, -0.45, 6.6),
       ]);
       /* ★ 키를 **제 자리에서 잰다**(지적: "뮤탈 날개가 몸통에 안 가려지네") ──────────
          여태 두 날개가 다 붙박이 24였다 — 몸통 마디(12~14)보다 무조건 높은 수라, 어느
@@ -14020,7 +14034,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          **돌린 뒤(P)** 의 값을 읽어야 접힌 날개의 깊이가 맞는다(y는 이 회전의 축 평면
          밖이라 안 변한다). 몸통 마디도 같은 자(깊이 × 1.6 + 단)로 갈아 두 무리가 같은
          저울에 오른다 — 한쪽만 깊이를 타면 애초에 견줄 수가 없다. */
-      const [wkx9, wky9] = P(2.5, -0.3, 6.56);
+      const [wkx9, wky9] = P(2.5, -0.3, 8.2);
       return tagKey([
         bodyFace(web), m2 > 0 ? sideFace(web, 0.18) : topFace(web, 0.12),
         // 팔뼈·손가락뼈는 막보다 살짝 밝게. 뼈도 입체 막대·기둥이다.
@@ -14091,9 +14105,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     ...tagKey(paintBase(spirePillar({
       x: 0, y: 0, h: 0.8, w: 1, segs: 10, sides: 6, caps: "both",
       path: (t9: number): [number, number, number] => {
-        const y9 = 1.6 - 3.3 * t9; const y9z9 = 1.28 - 2.64 * t9; /* z용 쌍둥이(model-z-scale ×0.8) */
-        const u9 = Math.min(0.784, Math.abs((y9z9 + 0.16) / GB_R9));
-        const k9 = y9 >= -0.2 ? 0.8 : 0.8 - 0.72 * ((-0.2 - y9) / 1.5);
+        const y9 = 1.6 - 3.3 * t9;
+        const u9 = Math.min(0.98, Math.abs((y9 + 0.2) / GB_R9));
+        const k9 = y9 >= -0.2 ? 1 : 1 - 0.9 * ((-0.2 - y9) / 1.5);
         return [0, y9, 4.48 + GB_H9 * Math.sqrt(1 - u9 * u9) * k9 + 0.032];
       },
       widthOf: (t9: number): number => 0.13 + 0.07 * Math.sin(Math.PI * t9),
@@ -14147,7 +14161,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        앞쪽에") — 있던 둘은 y −0.6·−1.5로 둘 다 몸 뒤쪽에 몰려 있어, 옆에서 보면 다리가
        꽁무니에만 달린 꼴이었다. 앞(y +0.3)에 한 마디를 더 세우면 셋이 앞뒤로 고르게
        퍼져 게다리로 읽힌다. 무릎·발끝의 벌어짐(i9로 셈한다)도 셋으로 자연히 부채가 된다. */
-    ...([-1, 1] as const).flatMap((m9) => ([[0.3, 5.75], [-0.6, 5.7], [-1.5, 5.6]] as [number, number][])
+    ...([-1, 1] as const).flatMap((m9) => ([[0.3, 4.6], [-0.6, 4.56], [-1.5, 4.48]] as [number, number][])
       .flatMap(([ly9, lz9], i9) => {
         /* 마디가 푹 들어가지 않는 관(suitLimb, 굵기 일정)으로(재요청) — 뿔(hornFaces)은 이음매에서
            가늘어졌다. 길이는 줄이고(무릎 3.9 → 3.3, 발 5.2 → 4.4) 굵기는 키운다(0.5/0.34 → 0.62/0.5). */
@@ -14377,9 +14391,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         depthNow(0, 1.5) * 1.6 + 2.6));
     }
     /* ② 꼬리 — 머리 뒤(0, −0.5, Z9−0.1)에서 아래로 꺾여 앞으로 말린다(2차 베지에), 끝은 앞을 보는 발톱. */
-    const T0: [number, number, number] = [0, -0.45, Z9 - 0.15];
-    const TC: [number, number, number] = [0, -1.9, Z9 - 1.5];
-    const T1: [number, number, number] = [0, 0.7, Z9 - 1.75];
+    const T0: [number, number, number] = [0, -0.45, Z9z9 - 0.12];
+    const TC: [number, number, number] = [0, -1.9, Z9z9 - 1.2];
+    const T1: [number, number, number] = [0, 0.7, Z9z9 - 1.4];
     const bz9 = (a: number, b: number, c: number, t: number): number => (1 - t) * (1 - t) * a + 2 * (1 - t) * t * b + t * t * c;
     const tpath9 = (t: number): [number, number, number] => [bz9(T0[0], TC[0], T1[0], t), bz9(T0[1], TC[1], T1[1], t), bz9(T0[2], TC[2], T1[2], t)];
     out.push(...tagKey(paintBase(spirePillar({
@@ -14839,8 +14853,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        아랫잎 둘은 길고 조금 좁게(48도). 모서리마다 10도 남짓 틈이 남는다. */
     /* 잎을 가운데로 모은다(요청: "잎끼리 더 가운데로") — 잎 셋이 앉는 원이 곧 말린
        곡률이라 반지름을 줄이면(2.5 → 1.9) 셋이 좁게 모이며 그만큼 더 오므라든다. */
-    const LEAF_R = 1.9; const LEAF_Rz9 = 1.52; /* z용 쌍둥이(model-z-scale ×0.8) */                      // 말린 잎의 반지름(= 곡률)
-    const LEAF_ZC = 5.75; const LEAF_ZCz9 = 4.6; /* z용 쌍둥이(model-z-scale ×0.8) */                    // 잎 셋이 감싸는 축의 높이
+    const LEAF_R = 1.9;                      // 말린 잎의 반지름(= 곡률)
+    const LEAF_ZC = 5.75;                    // 잎 셋이 감싸는 축의 높이
     const LEAF_HALF_T = 0.2;                 // 잎맥 한가운데의 반두께
     const LEAF_CURL = 1.05;                  // 잎 뒤끝이 축 쪽으로 말려 드는 깊이
     /* ★ **앞끝도 오므린다 — 뒤보다 덜**(요청: "캐리어 앞쪽도 뒷쪽처럼 오므리는 형태로
@@ -14998,7 +15012,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const cF9 = curl9(kAt9(s9, yFront(s9)), t9);          // 앞끝의 말림 = 바닥
         const r9 = rOf(t9) - (glue ? c9 : cF9 + (c9 - cF9) * (o9.curlK ?? 1)) + lf;
         const px9 = Math.cos(p9) * r9;
-        const pz9 = LEAF_ZCz9 + Math.sin(p9) * r9;
+        const pz9 = Z8 * (LEAF_ZC + Math.sin(p9) * r9);
         if (!yawR9) return [px9, y9, pz9];
         const ax9 = px9 - pivX9;
         const ay9 = y9 - yMid9;
@@ -15107,7 +15121,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           const a9 = (i9 / 24) * Math.PI * 2;
           const p9 = th9 + Math.cos(a9) * dP9;
           pts9.push([Math.cos(p9) * rC9, yC9 + Math.sin(a9) * dY9,
-            LEAF_ZC + Math.sin(p9) * rC9]);
+            Z8 * (LEAF_ZC + Math.sin(p9) * rC9)]);
         }
         out9.push([polyPath3(pts9), 0.92] as ShapeFace);
       }
@@ -15187,7 +15201,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ref: [0, 1, 0], oval: LEAF_HALF_T / len, trueNormal: true,
         path: (t9: number): [number, number, number] => {
           const p9 = th9 + uOf(t9) * LEAF_ARC;
-          return [Math.cos(p9) * LEAF_R, 0, LEAF_ZCz9 + Math.sin(p9) * LEAF_Rz9];
+          return [Math.cos(p9) * LEAF_R, 0, Z8 * (LEAF_ZC + Math.sin(p9) * LEAF_R)];
         },
         widthOf: wOf,
         /* 뒷부분만 안쪽으로 만다(요청: "세 잎의 뒷부분만 안쪽으로 말아서 모을 수
@@ -15316,7 +15330,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          뒤 테두리는 잎 뒤끝을 반쯤만 따라가는 완만한 곡선이다(backK, 지적). */
       ...coverPlate({
         theta: 90, len: 4.7, arcDeg: 54, arc: 0.62, lenK: 0.25,
-        lift: 0.16, round: 0.45, backK: 0.42, curlK: 0.35, decal: true, win: 5,
+        lift: 0.2, round: 0.45, backK: 0.42, curlK: 0.35, decal: true, win: 5,
       }),
       /* (옮김) 윗잎 덮개의 창 — 여태 여기서 winRow 셋을 손으로 적은 세계 좌표에
          세웠다. 이제 coverPlate가 제 앞 테두리를 따라 낸다(그쪽 ★ 주석) — 판이
@@ -15342,10 +15356,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          벌어지고 앞은 본체에 딱 붙게 오므려진 형태로 요잉 조정") — 잎이 아니라 그 위에
          얹힌 덮개의 이야기다(재확인 지적).
          정면에서 왼쪽(축 둘레 210도)이 −15도, 오른쪽(330도)이 +15도다(요청의 그 값). */
-      ...coverPlate({ theta: 210, len: 5.6, arcDeg: 48, arc: 0.62, lenK: 0.22, lift: 0.128, round: 0.5, backK: 0.55, curlK: 0.3, yawDeg: -15 }),
-      ...coverPlate({ theta: 210, len: 5.6, arcDeg: 48, arc: 0.5, lenK: 0.2, shift: 0.13, lift: 0.288, round: 0.5, backK: 0.35, curlK: 0.3, yawDeg: -15 }),
-      ...coverPlate({ theta: 330, len: 5.6, arcDeg: 48, arc: 0.62, lenK: 0.22, lift: 0.128, round: 0.5, backK: 0.55, curlK: 0.3, yawDeg: 15 }),
-      ...coverPlate({ theta: 330, len: 5.6, arcDeg: 48, arc: 0.5, lenK: 0.2, shift: 0.13, lift: 0.288, round: 0.5, backK: 0.35, curlK: 0.3, yawDeg: 15 }),
+      ...coverPlate({ theta: 210, len: 5.6, arcDeg: 48, arc: 0.62, lenK: 0.22, lift: 0.16, round: 0.5, backK: 0.55, curlK: 0.3, yawDeg: -15 }),
+      ...coverPlate({ theta: 210, len: 5.6, arcDeg: 48, arc: 0.5, lenK: 0.2, shift: 0.13, lift: 0.36, round: 0.5, backK: 0.35, curlK: 0.3, yawDeg: -15 }),
+      ...coverPlate({ theta: 330, len: 5.6, arcDeg: 48, arc: 0.62, lenK: 0.22, lift: 0.16, round: 0.5, backK: 0.55, curlK: 0.3, yawDeg: 15 }),
+      ...coverPlate({ theta: 330, len: 5.6, arcDeg: 48, arc: 0.5, lenK: 0.2, shift: 0.13, lift: 0.36, round: 0.5, backK: 0.35, curlK: 0.3, yawDeg: 15 }),
       /* (걷어냄·지적: "캐리어 윗잎 개인색 데칼은 제거하고 윗잎 덮개의 데칼 크기 확대")
          — 윗잎 등에 눕힌 작은 타원이다. 임자 색을 말하는 자리가 잎과 덮개 둘이었는데,
          두 곳에 나뉘어 있으면 어느 쪽도 제 몫을 못 한다: 잎의 것은 잎맥 곡면 위라 요잉이
@@ -16195,7 +16209,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const R9 = 2.6;
       const H9 = 2.8; const H9z9 = 2.24; /* z용 쌍둥이(model-z-scale ×0.8) */
       /** 그 높이에서의 껍질 반지름(바깥 돔의 타원 옆선) — 관이 이 위를 탄다. */
-      const shellR = (z9: number): number => R9 * Math.sqrt(Math.max(0.03, 1 - (z9 / H9z9) ** 2));
+      const shellR = (z9: number): number => R9 * Math.sqrt(Math.max(0.03, 1 - (z9 / H9) ** 2));
       /* 색은 한 단 죽인다(실측: 노란 껍질 위에서 보라·자주가 튀어 핏줄이 아니라
          무늬로 읽혔다) — 껍질보다 어둡되 채도는 낮게. */
       const COLS = ["#6b5478", "#75563e", "#743f52"];
@@ -16280,7 +16294,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            높이는 반전 이진열이 고른다 — 번호 순서와 값 순서가 어긋나 각도와의 상관이
            끊기면서도, 어느 높이에나 반드시 뿌리가 있다(그 수열의 성질이다).
            해시는 그 위에 흔들림만 얹는다. */
-        const zRoot = 0.22 + vdc9(j9) * 1.75 + h1 * 0.10; const zRootz9 = 0.176 + vdc9(j9) * 1.4 + h1 * 0.08; /* z용 쌍둥이(model-z-scale ×0.8) */
+        const zRoot = 0.22 + vdc9(j9) * 1.75 + h1 * 0.10;
         /** 자라는 방향(0 = 곧게 위, +π/2 = 껍질을 옆으로 감음) — 뿌리가 높을수록 눕는다.
          *  이 한 줄이 '여러 방향으로 퍼진다'의 전부다: 여덟 줄기가 밑동의 수직에서
          *  꼭대기 근처의 수평까지 부채꼴로 갈린다. */
@@ -16315,12 +16329,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const wob = 0.05 + (h1 * 0.5 + 0.5) * 0.05;
         /** 껍질 위 한 점 — 각도·높이를 표면으로 되돌린다. */
         const on = (aa: number, zz: number): [number, number, number] => {
-          const z9 = Math.max(0.04, Math.min(H9 * 0.704, zz));
+          const z9 = Math.max(0.05, Math.min(H9 * 0.88, zz));
           /* 껍질에 **바짝** 붙인다(지적: "몸체에 딱 붙게 위치 조정") — 1.035는 굵던
              시절의 값이다: 관이 굵으면 그 반지름만큼 굽은 면에 묻히므로 그만큼 띄워야
              했다. 굵기를 반으로 줄인 지금은 1.012면 관의 배가 껍질에 닿는다. */
           const r9 = shellR(z9) * 1.012;
-          return [Math.sin(aa) * r9, Math.cos(aa) * r9, z9];
+          return [Math.sin(aa) * r9, Math.cos(aa) * r9, z9 * Z8];
         };
         /** (각도, 높이) 방향을 껍질 위 **길이 자**로 바꿔 돌린다 — 각 1rad이 호 길이
          *  R9에 해당하므로, 돌리기 전에 그 자로 맞춰야 갈라지는 각이 실제 각이 된다. */
@@ -16366,16 +16380,16 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            뿌리는 지면을 따라 퍼지다 끝난다(지적: "혈관이 지면을따라 좀 퍼지다 끝나는
            식") — t는 **바깥 땅 → 껍질 밑동** 방향이고, 앞의 42%는 z를 땅에 붙여 둔다. */
         if (zRoot < 0.7) {
-          const rg9 = shellR(0.04) * 1.62;
-          const rs9 = shellR(zRootz9) * 1.015;
+          const rg9 = shellR(0.05) * 1.62;
+          const rs9 = shellR(zRoot) * 1.015;
           out.push(...paintBase(spirePillar({
             x: 0, y: 0, h: 0.8, w: 0.012, tipW: w0 * 0.9, segs: 8, sides: 5, caps: "none",
             path: (t9: number): [number, number, number] => {
               // 땅에 누운 구간은 각도도 더 흔들린다 — 뻗어 나간 실의 결이다.
               const a9 = a0 + Math.sin(t9 * 2.6 + a0 * 5.3) * wob * (1.1 - t9 * 0.8);
               const r9 = rg9 + (rs9 - rg9) * t9;
-              const u9 = Math.max(0, (t9 - 0.336) / 0.58);
-              return [Math.sin(a9) * r9, Math.cos(a9) * r9, 0.024 + (zRootz9 - 0.024) * u9 ** 1.6];
+              const u9 = Math.max(0, (t9 - 0.42) / 0.58);
+              return [Math.sin(a9) * r9, Math.cos(a9) * r9, Z8 * (0.03 + (zRoot - 0.03) * u9 ** 1.6)];
             },
           }), col));
         }
@@ -17202,11 +17216,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          허리께에 받치고, 치료 컷(hl 1)에서 앞으로 든다. 왼팔은 몸 옆으로 늘어뜨린다. */
       // 팔꿈치는 두 마디 길이(0.71·0.5) 고정으로 푼다(요청: 양팔 길이 같아야).
       ...armChain([-1.02, -0.02, suitShoulderZ()],
-        jointBetween([-1.02, -0.02, suitShoulderZ()], [-1.04, hl(0.42 + swing(-1) * 1.5, 1.05), hl(2, 2.592)], 0.71, 0.5, [-0.7, -0.35, -0.48]),
+        jointBetween([-1.02, -0.02, suitShoulderZ()], [-1.04, hl(0.42 + swing(-1) * 1.5, 1.05), hl(2, 2.592)], 0.71, 0.5, [-0.7, -0.35, -0.6]),
         [-1.04, hl(0.42 + swing(-1) * 1.5, 1.05), hl(2, 2.592)],
         { upper: 0.22, fore: 0.25, fill: WHITE, handFill: "#4d4d4d" }),
       ...armChain([0.98, -0.02, suitShoulderZ()],
-        jointBetween([0.98, -0.02, suitShoulderZ()], [1.0, 0.34 + swing(1) * 1.5, 1.984], 0.71, 0.5, [0.7, -0.35, -0.48]),
+        jointBetween([0.98, -0.02, suitShoulderZ()], [1.0, 0.34 + swing(1) * 1.5, 1.984], 0.71, 0.5, [0.7, -0.35, -0.6]),
         [1.0, 0.34 + swing(1) * 1.5, 1.984],
         { upper: 0.22, fore: 0.25, fill: WHITE, handFill: "#4d4d4d" }),
       /* 주사기 — 오른손이 쥐는 장비다(사진 medic1: 흰 몸통 + 초록 약통 + 앞 바늘).
@@ -17280,9 +17294,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        아니라 '걷느냐'다: 걸으면 총구가 대각선 위로 서고(운반), 서 있거나 쏘면 앞으로
        내려온다(사격). */
     const carry9 = mv && !at ? 1 : 0;
-    const GB9: [number, number, number] = [-0.72, 0.16, 2.86];   // 개머리판(오른 옆구리)
+    const GB9: [number, number, number] = [-0.72, 0.16, 2.288];   // 개머리판(오른 옆구리)
     const GM9: [number, number, number] = [
-      -0.48 + carry9 * 0.3, 2.35 - carry9 * 0.35, 3.34 + carry9 * 0.78,
+      -0.48 + carry9 * 0.3, 2.35 - carry9 * 0.35, 2.672 + carry9 * 0.624,
     ];
     /** 총 축 위의 한 점 — 걸음 흔들림(sway)·반동(kick)·몸 낮춤(dz)을 함께 얹는다. */
     // 총 확대(요청): 길이 1.25배 — 개머리판은 그대로 두고 총구 쪽으로 늘인다.
@@ -17355,8 +17369,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const shR: [number, number, number] = [-1.14, -0.02, suitShoulderZ()];
         const shL: [number, number, number] = [1.18, -0.02, suitShoulderZ()];
         const hR = GP9(0.15); const hL = GP9(0.42);
-        const eR = jointBetween(shR, hR, 1.0, 1.2, [-0.7, -0.35, -0.48]);
-        const eL = jointBetween(shL, hL, 1.0, 1.2, [0.7, -0.35, -0.48]);
+        const eR = jointBetween(shR, hR, 1.0, 1.2, [-0.7, -0.35, -0.6]);
+        const eL = jointBetween(shL, hL, 1.0, 1.2, [0.7, -0.35, -0.6]);
         const dirOf = (sh: [number, number, number], el: [number, number, number]): [number, number, number] =>
           [el[0] - sh[0], el[1] - sh[1], el[2] - sh[2]];
         return [
@@ -17482,12 +17496,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         // 팔꿈치는 두 마디 길이(0.95·0.85) 고정으로 푼다(요청: 양팔 길이 같아야).
         ...armChain([-0.74, 0.02, suitShoulderZ() + 0.24],
           jointBetween([-0.74, 0.02, suitShoulderZ() + 0.24],
-            [lp(-0.78, -0.02), lp(0.3, 0.92) - kick - sway * 1.6, lp(1.904, 2.656) + dz], 0.95, 0.85, [-0.7, -0.35, -0.48]),
+            [lp(-0.78, -0.02), lp(0.3, 0.92) - kick - sway * 1.6, lp(1.904, 2.656) + dz], 0.95, 0.85, [-0.7, -0.35, -0.6]),
           [lp(-0.78, -0.02), lp(0.3, 0.92) - kick - sway * 1.6, lp(1.904, 2.656) + dz],
           { upper: 0.19, fore: 0.21, handFill: "#4d4d4d" }),   // 팔은 임자색(요청)
         ...armChain([0.78, 0.02, suitShoulderZ() + 0.24],
           jointBetween([0.78, 0.02, suitShoulderZ() + 0.24],
-            [lp(0.42, 0.42), lp(0.44, 1.62) - kick, lp(2.896, 2.704) + dz], 0.95, 0.85, [0.7, -0.35, -0.48]),
+            [lp(0.42, 0.42), lp(0.44, 1.62) - kick, lp(2.896, 2.704) + dz], 0.95, 0.85, [0.7, -0.35, -0.6]),
           [lp(0.42, 0.42), lp(0.44, 1.62) - kick, lp(2.896, 2.704) + dz],
           { upper: 0.19, fore: 0.21, handFill: "#4d4d4d" }),   // 팔은 임자색(요청)
       ])(),
@@ -17625,12 +17639,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          두 손으로 쥔다. 오른손(−x)이 뒤 손잡이, 왼손(+x)이 앞을 받친다. */
       // 팔꿈치는 두 마디 길이(0.9·1.2) 고정으로 푼다(요청: 양팔 길이 같아야).
       ...armChain([-1.26, -0.02, suitShoulderZ()],
-        jointBetween([-1.26, -0.02, suitShoulderZ()], [-0.62, lp(0.92, 1.36) + sway, lp(2, 2.384) + dzz9], 0.9, 1.2, [-0.7, -0.35, -0.48]),
+        jointBetween([-1.26, -0.02, suitShoulderZ()], [-0.62, lp(0.92, 1.36) + sway, lp(2, 2.384) + dzz9], 0.9, 1.2, [-0.7, -0.35, -0.6]),
         [-0.62, lp(0.92, 1.36) + sway, lp(2, 2.384) + dzz9],
         // 하완만 임자 색(요청) — 붉은 상완과 짙은 손 사이에 팀의 한 마디가 든다.
         { upper: 0.34, fore: 0.4, fill: RED_D, handFill: "#4d4d4d", foreTeam: true }),
       ...armChain([1.26, -0.02, suitShoulderZ()],
-        jointBetween([1.26, -0.02, suitShoulderZ()], [0.6, lp(1.28, 1.95) + sway, lp(2.016, 2.4) + dzz9], 0.9, 1.2, [0.7, -0.35, -0.48]),
+        jointBetween([1.26, -0.02, suitShoulderZ()], [0.6, lp(1.28, 1.95) + sway, lp(2.016, 2.4) + dzz9], 0.9, 1.2, [0.7, -0.35, -0.6]),
         [0.6, lp(1.28, 1.95) + sway, lp(2.016, 2.4) + dzz9],
         { upper: 0.34, fore: 0.4, fill: RED_D, handFill: "#4d4d4d", foreTeam: true }),
       /* 화염방사기 **두 자루**(정정: "아까처럼 2개로") — 팔마다 한 자루씩, 손 앞에서
@@ -17742,9 +17756,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const BULGE9 = 0.13;                   // 가운데가 바깥으로 부푸는 몫
         /** 세로 진행 v(0 위 ~ 1 아래끝) → 그 줄의 반폭·높이·바깥 밀기. */
         const row9 = (v9: number): { hw: number; z: number; out: number } => (v9 <= 0.5
-          ? { hw: hw9 * (1 + 0.12 * (v9 / 0.5)), z: 4.15 - 0.75 * (v9 / 0.5),
+          ? { hw: hw9 * (1 + 0.12 * (v9 / 0.5)), z: 3.32 - 0.6 * (v9 / 0.5),
             out: 0.1 * (v9 / 0.5) }
-          : { hw: hw9 * 1.12 * (1 - (v9 - 0.5) / 0.5), z: 3.4 - 0.25 * ((v9 - 0.5) / 0.5),
+          : { hw: hw9 * 1.12 * (1 - (v9 - 0.5) / 0.5), z: 2.72 - 0.2 * ((v9 - 0.5) / 0.5),
             out: 0.1 + 0.04 * ((v9 - 0.5) / 0.5) });
         /** 껍질 위의 한 점 — s9는 u의 정규 자리(−1~1), off9는 두께 방향 밀기. */
         const S9 = (v9: number, s9: number, off9: number): [number, number, number] => {
@@ -17874,7 +17888,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          마루 조종점은 그대로 둔다 — 1.25배만으로도 마루가 6.74 → 7.14로 올라 어깨를 넘는 결이
          충분히 가팔라진다(더 올리면 머리 위로 넘어가 '고리 손잡이'로 읽힌다 — 아래 z 조종점의 ★). */
       const HP_K9 = 1.25;
-      const HP0_9: [number, number, number] = [0.34, 0.58, 5.15];
+      const HP0_9: [number, number, number] = [0.34, 0.58, 4.12];
       const horn9 = (t9: number): [number, number, number] => {
         const u9 = 1 - t9;
         const bz = (p0: number, c1: number, c2: number, p3: number): number =>
@@ -17899,7 +17913,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           /* 마루를 두 번 낮췄다(재요청: "각도 좀더 낮게" → "더 낮게") — 7.05·7.35 → 6.65·6.85 → 6.30·6.45.
              1.25배를 곱한 뒤의 실제 마루가 7.14 → 6.71 → 6.36이다. 어깨 갑주의 마루(6.0 언저리) 바로
              위를 스치므로 갑주에 묻히지도, 머리 옆으로 솟지도 않는다. */
-          bz(5.15, 6.30, 6.45, 5.55),
+          bz(4.12, 5.04, 5.16, 4.44),
         ];
         // 가슴 끝을 못 박고 변위만 키운다.
         return [
@@ -18033,7 +18047,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         : [m9 * (2 + g9 * 0.06), 0.75 + aY + g9 * 0.58, 3.2 + g9 * 0.76];
       /* 칼 — 손에서 이어 나간다. 겨눔에서는 앞·위로 서 있고(칼끝을 든 자세),
          잽에서는 **수평으로** 앞으로 내지른다(칼끝 높이가 손과 거의 같다). */
-      const el = jointBetween(sh, hd, 1.2, 1.3, [m9 * 0.8, -0.5, -0.24]);
+      const el = jointBetween(sh, hd, 1.2, 1.3, [m9 * 0.8, -0.5, -0.3]);
       return [
         ...paintBase(pLimb(sh, el, 0.44), "#3a4258"),
         ...paintBase(pLimb(el, hd, 0.6), P_GOLD),
@@ -18100,7 +18114,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        · 팔꿈치 힌트를 **뒤·위**로 준다([0.6, −0.9, 1.1]) — 팔꿈치가 뒤쪽 위 대각선으로 빠지고,
          그러면 상완은 어깨에서 바깥·뒤로 들리고 하완은 거기서 **앞·아래**로 꺾인다.
      검은 하완과 평행이므로(아래) 칼끝도 함께 앞으로 돈다. */
-  const EL_SW9: [number, number, number] = [0.6, -0.9, 0.88];
+  const EL_SW9: [number, number, number] = [0.6, -0.9, 1.1];
   const shR9: [number, number, number] = [0.82, 0.25 + armY(1) * 0.5, 4.48];
   const hdR9: [number, number, number] = [1.45, -0.55 + armY(1) + tipY9 * 0.55, 3.4 + tipZ9 * 0.336];
   const elR9 = jointBetween(shR9, hdR9, 1.45, 1.2, EL_SW9);
@@ -18140,7 +18154,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         pts.push([3.06 - u * 6.12, -3.5 - Math.sin(u * Math.PI) * 0.42,
           1.69 + Math.sin(u * Math.PI * 2.5) * 0.66]);
       }
-      pts.push([-3.24, -3.26, 1.97], [-2.94, -2.3, 2.82], [-2.22, -1.22, 4.39]);
+      pts.push([-3.24, -3.26, 1.576], [-2.94, -2.3, 2.256], [-2.22, -1.22, 3.512]);
       const d = polyPath3(pts);
       /* ★ 망토는 **검회색**이고 임자 색은 세로 띠 둘이 맡는다(요청: "다크템플러 망토 검회색으로 변경하고
          대신 양쪽에 세로 임자띠를 넣는 걸로") ─────────────────────────────────────────────────────
@@ -18168,7 +18182,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          불룩함을 t²로 얹는다. 그러면 t가 곧 '가운데에서 옆 끝까지'가 되어 띠를 끝에 붙일 수 있다. */
       const EV9 = [0, 0.28, 0.58, 0.85, 1];
       const EP9: [number, number, number][] = [
-        [1.25, -0.05, 6.15], [2.22, -1.22, 4.39], [2.94, -2.3, 2.82], [3.24, -3.26, 1.97], [3.06, -3.5, 1.69],
+        [1.25, -0.05, 4.92], [2.22, -1.22, 3.512], [2.94, -2.3, 2.256], [3.24, -3.26, 1.576], [3.06, -3.5, 1.352],
       ];
       /** 오른쪽 옆선 위의 점 — 위 pts의 옆선 조종점을 그대로 잇는다. */
       const edge9 = (v9: number): [number, number, number] => {
@@ -18243,7 +18257,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     ...((): ShapeFace[] => {
       /** 검의 밑동(손) — 하완 끝을 그대로 잇는다. */
       const h9: [number, number, number] =
-        [1.43, -0.62 + armY(1) + tipY9 * 0.55, 4.1 + tipZ9 * 0.42];
+        [1.43, -0.62 + armY(1) + tipY9 * 0.55, 3.28 + tipZ9 * 0.336];
       /** 칼끝 — 쉼에서는 뒤·아래, 컷에 따라 그 몫이 통째로 실린다. */
       /* 검은 **흰 플라즈마**이고 더 크다(요청) — 길이 1.25배, 굵기 0.75 → 0.95. 심은
          푸른빛 도는 흰색. */
@@ -18378,7 +18392,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           [m9 * (1.35 + 0.15 * at9), 0.5 + 0.65 * at9, 2.76 + 3.56 * at9 + L];
         // 팔꿈치는 두 마디 길이(1.3·1.4) 고정으로 푼다(요청) — 내린 팔은 바깥·뒤로 굽고, 든 팔은 곧다.
         const s9: [number, number, number] = [m9 * 1.05, -0.2, 4.56 + L];
-        const e9 = jointBetween(s9, w9, 1.3, 1.4, [m9 * 0.9, -0.4, -0.16]);
+        const e9 = jointBetween(s9, w9, 1.3, 1.4, [m9 * 0.9, -0.4, -0.2]);
         // 손가락은 팔이 내려가면 아래를, 올라가면 위를 향한다.
         const fz9 = -0.56 + 1.12 * at9;
         return [
@@ -18424,10 +18438,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const ul9 = Math.hypot(uX, uY, uZ) || 1;
       uX /= ul9; uY /= ul9; uZ /= ul9;
       const quad = (cx9: number, cy9: number, cz9: number, w9: number): [number, number, number][] => [
-        [cx9 + nX * w9 + uX * w9, cy9 + nY * w9 + uY * w9, cz9 + uZ * w9],
-        [cx9 - nX * w9 + uX * w9, cy9 - nY * w9 + uY * w9, cz9 + uZ * w9],
-        [cx9 - nX * w9 - uX * w9, cy9 - nY * w9 - uY * w9, cz9 - uZ * w9],
-        [cx9 + nX * w9 - uX * w9, cy9 + nY * w9 - uY * w9, cz9 - uZ * w9],
+        [cx9 + nX * w9 + uX * w9, cy9 + nY * w9 + uY * w9, cz9 + uZ * w9 * Z8],
+        [cx9 - nX * w9 + uX * w9, cy9 - nY * w9 + uY * w9, cz9 + uZ * w9 * Z8],
+        [cx9 - nX * w9 - uX * w9, cy9 - nY * w9 - uY * w9, cz9 - uZ * w9 * Z8],
+        [cx9 + nX * w9 - uX * w9, cy9 + nY * w9 - uY * w9, cz9 - uZ * w9 * Z8],
       ];
       const A4 = quad(ax9, ay9, az9, wA9);
       const B4 = quad(bx9, by9, bz9, wB9);
@@ -18463,8 +18477,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          마디가 같은 자리를 물고 있어 모서리가 엇갈렸다. 대퇴는 무릎 못 미쳐 끝내고
          하지는 무릎 조금 아래서 시작해, 사이를 작은 관절 덩이가 잇는다. */
       /** 하지의 두 끝. */
-      const sh0: [number, number, number] = [dx * 3.45, dy * 3.45 + st9 * 0.35, 5.15];
-      const sh1: [number, number, number] = [dx * 4.05, dy * 4.05 + st9, 0.25 + lift9];
+      const sh0: [number, number, number] = [dx * 3.45, dy * 3.45 + st9 * 0.35, 4.12];
+      const sh1: [number, number, number] = [dx * 4.05, dy * 4.05 + st9, (0.25 + lift9) * Z8];
       const key9 = depthNow(dx * 2.4, dy * 2.4);
       /* (걷어냄) 하지 바깥면의 **개인색 역삼각형** — 요청으로 넣었다가 요청("드라군
          다리 데칼 다시 제거하고 대신 개인색 부분 몸통 크기 확대 및 몸통 사방에 개인색
@@ -18627,7 +18641,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         return [
           (u9[0] * c9 + v9[0] * s9) * K9,
           (u9[1] * c9 + v9[1] * s9) * K9,
-          ORB_Z + (u9[2] * c9 + v9[2] * s9) * K9,
+          ORB_Z + (u9[2] * c9 + v9[2] * s9) * K9 * Z8,
         ];
       };
       /* 열두 조각 — 조각이 적으면 가림이 뭉텅뭉텅 끊기고, 많으면 굽는 면이 그만큼
@@ -19568,7 +19582,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        상아. 키는 옛 팔의 자(옆구리 깊이 ×1.6 + 12). */
     for (const m of [-1, 1] as const) {
       const s9 = 2.05;
-      const P0: [number, number, number] = [m * 2.45, 2.7, 4.5 + BODY_UP];
+      const P0: [number, number, number] = [m * 2.45, 2.7, 3.6 + BODY_UPz9];
       const CP: [number, number, number] = [P0[0] + m * 2.3 * s9, P0[1] + 1.85 * s9, P0[2] + 0.32];
       const P1: [number, number, number] = [P0[0] + m * 0.2 * s9, P0[1] + 4.05 * s9, P0[2] - 0.44];
       const bz9 = (a: number, b: number, c: number, t: number): number =>
@@ -19758,7 +19772,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          상자를 한 크기로 맞추므로, 바뀌는 것은 **몸통과 다리·집게의 비**다. 다리와 집게는
          제 치수를 그대로 두므로 그만큼 상대적으로 길고 커진다. */
     const BODY_K = 0.9;
-    const BK = 1.1 * 0.9 * BODY_K; const BKz9 = 0.88 * 0.9 * BODY_K; /* z용 쌍둥이(model-z-scale ×0.8) */   // 몸통 가로 배수
+    const BK = 1.1 * 0.9 * BODY_K;   // 몸통 가로 배수
     /* 몸통 세로 배수(가로 몫 위에 한 번 더) — 1.21 → 1.43(요청: "몸통 위아래가 더 길게").
        가로(BK)는 안 건드리므로 알꼴이 그만큼 더 세로로 길어진다. 이 값 하나가 몸 반지름
        (RZ9)과 높이 사상(bz)을 함께 정하므로, 갑각·이랑·렌즈·뿔·주머니가 다 따라 늘어난다
@@ -19784,10 +19798,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       w9 * SPIKE_K, fill9, sides9, bow9 * SPIKE_K, bowX9, bowY9,
     );
     const R9 = 2.35 * BK;         // 몸 반지름 — 가로
-    const RZ9 = 2.35 * BKZ; const RZ9z9 = 1.88 * BKZ; /* z용 쌍둥이(model-z-scale ×0.8) */       // 몸 반지름 — 세로(돔의 높이를 재는 자)
-    const CZ = 5.2; const CZz9 = 4.16; /* z용 쌍둥이(model-z-scale ×0.8) */               // 몸 중심 높이(안 움직인다 — 여기서 위아래로 늘린다)
+    const RZ9 = 2.35 * BKZ;       // 몸 반지름 — 세로(돔의 높이를 재는 자)
+    const CZ = 5.2;               // 몸 중심 높이(안 움직인다 — 여기서 위아래로 늘린다)
     /** 몸통에 붙는 높이를 커진 몸으로 옮긴다 — 몸 중심에서 재어 세로 배수를 먹인다. */
-    const bz = (z9: number): number => CZ + (z9 - CZz9) * BKZ; const bzz9 = (z9: number): number => CZz9 + (z9 - CZz9) * BKZ; /* z용 쌍둥이 함수(model-z-scale ×0.8) */
+    const bz = (z9: number): number => Z8 * (CZ + (z9 - CZ) * BKZ);
     const body: ShapeFace[] = [];
     /* 배 — 아래로 부푼 물렁한 살. 갑각보다 먼저 그려 갑각이 그 위를 덮는다. */
     /* 배·갑각 둘 다 **진짜 타원면**으로 굽는다(지적: "아직도 버섯같아 … 폭이 더 좁은
@@ -19807,9 +19821,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        ★ 0.88 → 1.05(요청: "몸통 아래가 너무 평평한 듯, 위쪽처럼 아래를 향한 돔 형태로")
          — 위(1.05)보다 얕게 두었던 것을 위와 같게 맞춘다. 그러면 배와 갑각이 한 타원면의
          **아래·위 절반**이 되어, 아래도 위와 같은 곡률로 둥글게 부푼다. */
-    const BELLY_K = 1.05; const BELLY_Kz9 = 0.84; /* z용 쌍둥이(model-z-scale ×0.8) */
+    const BELLY_K = 1.05;
     /* ★ 배(아래 몸통)는 **임자색**(요청: "본 몸통을 임자색으로") — raceBase의 accent에 넣어 밑칠을 안 받는다. */
-    const belly9: ShapeFace[] = tagKey(domeFaces3(0, 0, R9, -RZ9z9 * BELLY_K, CZz9, true), depthNow(0, 0) * 1.6);
+    const belly9: ShapeFace[] = tagKey(domeFaces3(0, 0, R9, -RZ9 * BELLY_K * Z8, CZ * Z8, true), depthNow(0, 0) * 1.6);
     body.push(...belly9);
     /* 갑각 — 위를 덮는 돔. 그 위에 앞뒤로 흐르는 이랑 셋을 얹어 딱딱한 껍질로 읽히게
        한다(이것이 '풍선'을 벗는 대목이다). 이랑은 구 표면을 따라 도는 낮은 기둥이라
@@ -19820,7 +19834,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        (CZ)·같은 반지름(R9)에서 갈라져, 몸의 가장 넓은 곳이 그 이음매 하나뿐이다.
        위(1.05)가 아래(0.88)보다 길어 위로 갈수록 좁아지는 알꼴이 된다. */
     /* ★ 갑각(위 몸통)도 **임자색**(재요청: "배가 아니라 몸통 전체") — 이랑·앞턱·뿔은 갈색으로 남아 결을 낸다. */
-    const shell9: ShapeFace[] = tagKey(domeFaces3(0, 0, R9, RZ9 * 0.84, CZz9, true), depthNow(0, 0) * 1.6 + 0.5);
+    const shell9: ShapeFace[] = tagKey(domeFaces3(0, 0, R9, RZ9 * 1.05 * Z8, CZ * Z8, true), depthNow(0, 0) * 1.6 + 0.5);
     body.push(...shell9);
     for (const xr0 of [-1.35, 0, 1.35]) {
       const xr = xr0 * BK;
@@ -19830,12 +19844,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          쟀다. 둘을 합치면 이랑이 갑각 속으로 0.35쯤 잠긴 채 돌아, 등 꼭대기에 이랑이
          닿지 않는 민 띠가 남았다(정수리가 매끈해 보이던 자리다). 갑각의 자(중심 CZ,
          세로 RZ9×1.05)를 그대로 쓴다. */
-      const rz = rr * ((RZ9 * 0.84) / R9);
+      const rz = rr * ((RZ9 * 1.05) / R9);
       body.push(...tagKey(paintBase(spirePillar({
-        x: 0, y: 0, h: 0.8, w: 1, segs: 8, sides: 5, caps: "none",
+        x: 0, y: 0, h: 1, w: 1, segs: 8, sides: 5, caps: "none",
         path: (t9: number): [number, number, number] => {
-          const a9 = -0.42 + t9 * 2.5; const a9z9 = -0.336 + t9 * 2; /* z용 쌍둥이(model-z-scale ×0.8) */
-          return [xr, Math.cos(a9) * rr, CZz9 + Math.sin(a9) * rz];
+          const a9 = -0.42 + t9 * 2.5;
+          return [xr, Math.cos(a9) * rr, Z8 * (CZ + Math.sin(a9) * rz)];
         },
         widthOf: (t9: number): number => (0.2 + 0.1 * Math.sin(Math.PI * t9)) * BK,
       }), SHELL_LIT), depthNow(xr, 0.4 * BK) * 1.6 + 1.2));
@@ -19848,10 +19862,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const dzJ9 = (0.5 * BKZ) / (RZ9 * BELLY_K);
       const rJ9 = R9 * Math.sqrt(Math.max(0.05, 1 - dzJ9 * dzJ9)) * 1.02;
       body.push(...tagKey(paintBase(spirePillar({
-        x: 0, y: 0, h: 0.8, w: 1, segs: 8, sides: 6, caps: "none",
+        x: 0, y: 0, h: 1, w: 1, segs: 8, sides: 6, caps: "none",
         path: (t9: number): [number, number, number] => {
           const a9 = ((-55 + 110 * t9) * Math.PI) / 180;
-          return [Math.sin(a9) * rJ9, Math.cos(a9) * rJ9, bzz9(CZ - 0.5)];
+          return [Math.sin(a9) * rJ9, Math.cos(a9) * rJ9, bz(CZ - 0.5)];
         },
         widthOf: (t9: number): number => (0.24 + 0.08 * Math.sin(Math.PI * t9)) * BK,
       }), SHELL_LIT), depthNow(0, 1.5 * BK) * 1.6 + 1));
@@ -19861,15 +19875,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const horns: ShapeFace[] = [];
     for (const m of [-1, 1] as const) {
       horns.push(...tagKey(spike(
-        m * 1.5 * BK, 0.95 * BK, bzz9(CZ + 0.6), m * 2.9 * BK, 3.2 * BK, bzz9(CZ + 2.5),
+        m * 1.5 * BK, 0.95 * BK, bz(CZ + 0.6), m * 2.9 * BK, 3.2 * BK, bz(CZ + 2.5),
         0.66 * BK, IVORY_DEEP, 6, 1.1, m * 0.5, 0.9,
       ), depthNow(m * 2.2 * BK, 2 * BK) * 1.6 + 2.5));
       horns.push(...tagKey(spike(
-        m * 1.75 * BK, -1.2 * BK, bzz9(CZ + 0.9), m * 2.85 * BK, -2.9 * BK, bzz9(CZ + 1.9),
+        m * 1.75 * BK, -1.2 * BK, bz(CZ + 0.9), m * 2.85 * BK, -2.9 * BK, bz(CZ + 1.9),
         0.44 * BK, IVORY_DEEP, 6, 0.7, m * 0.6, -0.8,
       ), depthNow(m * 2.3 * BK, -2 * BK) * 1.6 + 2.5));
       horns.push(...tagKey(spike(
-        m * 0.9 * BK, -0.2 * BK, bzz9(CZ + 2.05), m * 1.55 * BK, 0.5 * BK, bzz9(CZ + 3.1),
+        m * 0.9 * BK, -0.2 * BK, bz(CZ + 2.05), m * 1.55 * BK, 0.5 * BK, bz(CZ + 3.1),
         0.3 * BK, IVORY_DEEP, 6, 0.4, m * 0.8, 0.4,
       ), depthNow(m * 1.2 * BK, 0.2 * BK) * 1.6 + 2.6));
     }
@@ -19880,21 +19894,21 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const lx = Math.sin(th) * 2.05 * BK * m;
       const ly = Math.cos(th) * 2.05 * BK;
       return lensFaces({
-        x: lx, y: ly, z: bzz9(CZ + 0.45), nx: lx, ny: ly, r: 1.18 * BK, bulge: 0.31 * BK, tiltDeg: 9,
+        x: lx, y: ly, z: bz(CZ + 0.45), nx: lx, ny: ly, r: 1.18 * BK, bulge: 0.31 * BK, tiltDeg: 9,
       });
     };
     /* 얼굴 — 배 앞아래에 박힌 작은 구 + 사진의 붉게 빛나는 눈 한 쌍. */
     /* 얼굴은 배에 박혀 있으므로 자리가 배를 따라간다 — 제 크기는 가로 몫(BK)만 받는다:
        작은 구를 세로로 1.21배 늘이면 얼굴만 달걀이 된다. */
-    const [fhx, fhy] = project(0, 1.95 * BK, bzz9(3.95));
+    const [fhx, fhy] = project(0, 1.95 * BK, bz(3.95));
     const face: ShapeFace[] = [
       ...tagKey([
         [screenCircle(fhx, fhy, 0.8 * BK), 1, "#6b4732"] as ShapeFace,
         topFace(screenCircle(fhx - 0.26 * BK, fhy - 0.26 * BK, 0.3 * BK), 0.22),
       ], depthNow(0, 1.95 * BK) * 1.6 + 1.5),
       ...([-1, 1] as const).flatMap((m) => lensFaces({
-        x: m * 0.42 * BK, y: 1.95 * BK, z: bzz9(4.35), nx: m * 0.5, ny: 1,
-        r: 0.22 * BK, bulge: 0.15 * BK, lift: 2.4,
+        x: m * 0.42 * BK, y: 1.95 * BK, z: bz(4.35), nx: m * 0.5, ny: 1,
+        r: 0.22 * BK, bulge: 0.15 * BK, lift: 3,
         rim: "#5c1610", fill: "#d8412a", core: "#ff8a5c", glint: "#ffe0cf",
       })),
     ];
@@ -19917,7 +19931,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        ② 거기서 다시 0.35만큼 **살 속으로 밀어 넣는다**(요청: "몸에 쏙 조금씩 넣어줘").
           뿌리가 올라간 만큼 발끝도 같이 올라오므로 다리는 그만큼 짧아 보인다 — 요청이
           허락한 몫이다("다리가 살짝 짧아보이기 OK"). */
-    const BELLY_RZ = RZ9 * BELLY_K; const BELLY_RZz9 = RZ9z9 * BELLY_K; /* z용 쌍둥이(model-z-scale ×0.8) */
+    const BELLY_RZ = RZ9 * BELLY_K;
     /* 매달린 부속의 화가 키(지적: "오버로드 몸통 혹주머니, 다리 발톱 키값 문제 있음") ──
        다리·집게는 배 **밑으로** 늘어진다. 그런데 키를 제 뿌리의 앞뒤 깊이(depthNow)로만
        매기면, 뒤쪽에 붙은 다리는 통째로 배 뒤로 밀린다 — 배 아래로 나온 발끝·발톱까지
@@ -19926,10 +19940,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        아래로 내려간 마디는 어느 각도에서도 몸이 못 가리므로, 그만큼 키를 올려 준다.
        문턱을 계단이 아니라 완만한 비탈(0.4~1.6타일 구간)로 두어 마디 사이에 층이
        안 생긴다. */
-    const BELLY_BOT = CZz9 - BELLY_RZz9;
+    const BELLY_BOT = CZ - BELLY_RZ;
     /** 그 높이가 배 밑으로 얼마나 나왔나(0~1) — 키에 얹을 몫의 자다. */
     const hangK = (z9: number): number =>
-      Math.max(0, Math.min(1, (BELLY_BOT + 0.32 - z9) / 1.2));
+      Math.max(0, Math.min(1, (BELLY_BOT + 0.4 - z9) / 1.2));
     /** 매달림 몫(hangK)의 **방향 자**(지적: "오버로드 몸통 아래부분이 다른 부품들을 못 가린다") — 매달린
      *  부속이 배 밑 테두리에 겹칠 때 배 위로 올라오라고 얹는 +2.6인데, 이 몫이 방향을 안 가려 **몸 뒤로
      *  돌아간** 집게·다리까지 배를 뚫고 나왔다(뒤에서 볼 때 집게의 깊이는 배보다 2.2 낮은데 2.6을 얹으니
@@ -20035,13 +20049,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
                 밑동에 뚜껑을 덮는다(caps bottom). */
           const seg9 = j === 3
             ? paintBase(spirePillar({
-              x: 0, y: 0, h: 0.8, w: KW[j] * 2, tipW: 0.03,
+              x: 0, y: 0, h: 1, w: KW[j] * 2, tipW: 0.03,
               segs: 8, sides: 6, hold: 0.34, taper: 0.9, caps: "bottom",
               path: (t9: number): [number, number, number] => [
-                PX[j] + (PX[j + 1] - PX[j]) * t9, PY[j] + (PY[j + 1] - PY[j]) * t9, KZ[j] + (KZ[j + 1] - KZ[j]) * t9,
+                PX[j] + (PX[j + 1] - PX[j]) * t9, PY[j] + (PY[j + 1] - PY[j]) * t9, Z8 * (KZ[j] + (KZ[j + 1] - KZ[j]) * t9),
               ],
             }), "#4f3625")
-            : rodFaces(PX[j], PY[j], KZ[j], PX[j + 1], PY[j + 1], KZ[j + 1], KW[j] * 2);
+            : rodFaces(PX[j], PY[j], KZ[j] * Z8, PX[j + 1], PY[j + 1], KZ[j + 1] * Z8, KW[j] * 2);
           // 배 밑으로 내려간 마디일수록 몸보다 앞이다(위 hangK 주석).
           limbs.push(...tagKey(seg9,
             key + j * 0.1 + hangK((KZ[j] + KZ[j + 1]) / 2) * 2.6 * hangFace9(m * LEG_X9, ly)));
@@ -20065,9 +20079,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        · 뿌리 x 0.66 → 1.06 — 몸통 바깥으로 옮긴다. 갈림점 x도 그 뿌리에서 다시 재므로
          (forkX9) 팔뚝과 집게가 따로 놀지 않는다. 여태 이 셋이 손으로 적은 수로 흩어져
          있어 하나를 옮기면 나머지가 어긋났다 — 한 자리에서 낸다. */
-    const ARM_X9 = 1.06; const ARM_X9z9 = 0.848; /* z용 쌍둥이(model-z-scale ×0.8) */
-    const ARM_Y9 = 1.4; const ARM_Y9z9 = 1.12; /* z용 쌍둥이(model-z-scale ×0.8) */
-    const ARM_LEN9 = 0.8;
+    const ARM_X9 = 1.06;
+    const ARM_Y9 = 1.4;
+    const ARM_LEN9 = 1;
     const CLAW_K9 = 1.2;
     const armRZ9 = rootZ(ARM_X9 * BK, ARM_Y9 * BK);
     /** 팔뚝이 끝나고 집게가 갈라지는 자리. */
@@ -20103,14 +20117,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const key = depthNow(m * ARM_X9 * BK, ARM_Y9 * BK) * 1.6;
       // 위 절반 — 뿌리는 얇고 갈림점에서 가장 굵다.
       claws.push(...tagKey(spirePillar({
-        x: 0, y: 0, h: 0.8, w: 1, segs: 5, sides: 6, caps: "none",
+        x: 0, y: 0, h: 1, w: 1, segs: 5, sides: 6, caps: "none",
         /* 앞으로 들지 않고 **아래로 축 늘어뜨린다**(지적: "집게다리도 너무 앞으로
            어색하게 들고 있지말고 아래로 축 늘어뜨리기") — 앞뒤(y)로 0.7타일씩 나가던
            것을 0.12로 줄이고, 그만큼 아래(z)로 더 내린다. 매달린 부속은 제 무게로
            떨어져야 '느릿하게 떠 있는 것'으로 읽힌다. */
         path: (t9: number): [number, number, number] =>
           [m * (ARM_X9 * BK + 0.2 * t9), ARM_Y9 * BK + ARM_FWD9 * t9 - 0.3 * mvO9 * t9 + wdO9 * 0.05 * m * t9,
-            armRZ9 - ARM_LEN9 * t9],
+            Z8 * (armRZ9 - ARM_LEN9 * t9)],
         /* 윗다리를 가늘게(요청: "집게다리의 윗다리 부분 두께 축소") — 0.26~0.56이던
            것을 0.18~0.34로. 갈림점(아래 갈래의 뿌리 굵기 0.34)과 굵기를 맞춰, 팔뚝에서
            집게로 넘어가는 자리에 턱이 안 생긴다. */
@@ -20131,12 +20145,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            팔뚝에서 넘어오는 자리도 매끄럽다. 양 끝에 뚜껑을 덮어 단면이 안 비친다
            (걷는 다리 발톱과 같은 지적). */
         clawGrip.push(...tagKey(spirePillar({
-          x: 0, y: 0, h: 0.8, w: 1, segs: 8, sides: 6, caps: "both",
+          x: 0, y: 0, h: 1, w: 1, segs: 8, sides: 6, caps: "both",
           path: (t9: number): [number, number, number] => [
             m * (forkX9 - 0.12 * CLAW_K9 * t9 * t9)
               + s * (0.26 + 0.12 * t9 - 0.30 * t9 * t9) * CLAW_K9,
             clawY9(t9),
-            forkZ9 - 2.08 * CLAW_K9 * t9,
+            Z8 * (forkZ9 - 2.6 * CLAW_K9 * t9),
           ],
           widthOf: (t9: number): number =>
             (0.05 + 0.33 * Math.sin(Math.PI * t9 ** 0.78)) * CLAW_K9,
@@ -20146,7 +20160,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            키에 실린다(지금 값으로 +1.4쯤) — 아래로 늘어진 몫은 여전히 몸에 안 먹히고,
            뒤로 돈 집게는 몸에 가려진다. */
         }), key + 0.1 + (s > 0 ? 0.05 : 0)
-          + hangK(forkZ9 - 0.52 * CLAW_K9) * 2.6 * hangFace9(m * ARM_X9, ARM_Y9)));
+          + hangK(forkZ9 - 0.65 * CLAW_K9) * 2.6 * hangFace9(m * ARM_X9, ARM_Y9)));
       }
       /* ★ 집게 바깥 위의 **상아 가시**(요청: "집게발 바깥 위쪽에 위로 솟은 상아색 가시
          하나씩") — 집게 한 짝에 하나, 갈림점 언저리에서 바깥·위로 솟는다. ─────────────
@@ -20163,12 +20177,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const cbx9 = m * (forkX9 - 0.12 * CLAW_K9 * ct9 * ct9)
           + m * (0.26 + 0.12 * ct9 - 0.30 * ct9 * ct9) * CLAW_K9;
         const cby9 = clawY9(ct9);
-        const cbz9 = forkZ9 - 2.08 * CLAW_K9 * ct9;
+        const cbz9 = forkZ9 - 2.6 * CLAW_K9 * ct9;
         claws.push(...tagKey(spike(
-          cbx9, cby9, cbz9,
-          cbx9 + m * 0.62 * CLAW_K9, cby9 - 0.12, cbz9 + 1.2 * CLAW_K9,
+          cbx9, cby9, cbz9 * Z8,
+          cbx9 + m * 0.62 * CLAW_K9, cby9 - 0.12, Z8 * (cbz9 + 1.5 * CLAW_K9),
           0.34 * CLAW_K9, IVORY_DEEP, 6, 0.4, m * 0.7, -0.2,
-        ), key + 0.2 + hangK(cbz9 + 0.4) * 2.6 * hangFace9(m * ARM_X9, ARM_Y9)));
+        ), key + 0.2 + hangK(cbz9 + 0.5) * 2.6 * hangFace9(m * ARM_X9, ARM_Y9)));
       }
     }
     /* 등 주머니(사진의 흰 부분) — **여기가 개인색이다**(요청). 갑각 위에 몰려 붙은
@@ -20189,13 +20203,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        뒤로 들고, 뒤에서 보면 몸 앞에 선다. */
     /* 구가 아니라 **납작하고 위아래로 긴 타원**(재요청) — 세로 축 기둥에 sin 옆선(타원), oval 0.5로 앞뒤(y)를 눌렀다.
        가로 반폭 0.7·BK, 키 2.3. 중심은 몸 뒤끝에서 살짝 아래. */
-    const PCY9 = -(R9 + 0.25); const PCZ9 = bz(CZz9 - 0.72); const PH9 = 1.84;
+    const PCY9 = -(R9 + 0.25); const PCZ9 = bz(CZ - 0.9); const PH9 = 2.3;
     const pouch9: ShapeFace[] = tagKey(paintBase(spirePillar({
-      x: 0, y: 0, h: 0.8, w: 1, segs: 8, sides: 10, caps: "none", oval: 0.5, ref: [1, 0, 0],
+      x: 0, y: 0, h: 1, w: 1, segs: 8, sides: 10, caps: "none", oval: 0.5, ref: [1, 0, 0],
       // 아래쪽이 위로 들리게 피칭(재재요청) — 축을 앞으로 0.45 기울여 **아래 끝이 뒤·위로 걷어 올라가고** 위 끝은 몸 쪽
-      path: (t9: number): [number, number, number] => [0, PCY9 + 0.45 * (t9 - 0.5), PCZ9 - PH9 / 2 + PH9 * t9],
+      path: (t9: number): [number, number, number] => [0, PCY9 + 0.45 * (t9 - 0.5), PCZ9 + Z8 * (PH9 * t9 - PH9 / 2)],
       widthOf: (t9: number): number => Math.max(0.03, 0.7 * BK * Math.sin(Math.PI * t9)),
-    }), SHELL), depthNow(0, PCY9) * 1.6 + 0.5 + (PCZ9 - CZ) * 0.55);
+    }), SHELL), depthNow(0, PCY9) * 1.6 + 0.5 + (PCZ9 - CZ * Z8) * 0.55);
     return raceBase([
       ...limbs,
       ...claws,
