@@ -56,7 +56,7 @@ const NEAR_Z9 = 2;
  *  그렇게 지은 데칼은 몸에 접거나 버린다(제 부품으로 남기면 엉뚱한 자리에 뜬다 — 셔틀 돔의 흰 무늬). */
 export const GUESSED9 = new WeakSet<Poly3>();
 let borrowed9 = false;
-const lookNear = (x: number, y: number): number[] | undefined => {
+const lookNear = (x: number, y: number, maxD = NEAR_Z9): number[] | undefined => {
   const hit = look(x, y); if (hit) return hit;
   borrowed9 = true;
   let bd = Infinity; let bz: number | undefined;
@@ -65,7 +65,7 @@ const lookNear = (x: number, y: number): number[] | undefined => {
     const d = Math.hypot(+k.slice(0, sp) - x, +k.slice(sp + 1) - y);
     if (d < bd) { bd = d; bz = v[2]; }
   }
-  if (bz === undefined || bd > NEAR_Z9) return undefined;
+  if (bz === undefined || bd > maxD) return undefined;
   return unproject9(x, y, bz);
 };
 interface Sub { pts: number[][]; miss: number; ell?: { cx: number; cy: number; rx: number; ry: number }; sweep?: number; arcs?: number; lineAfter?: boolean; ri?: number }
@@ -86,6 +86,10 @@ export function meshFromPath9(d: string, opaque = true, glow = false): Poly3[] |
   let cur: Sub | null = null; let cx = 0, cy = 0; let i = 0; let cmd = "";
   const num = (): number => Number(tk[i++]);
   // 되찾은 점은 넣고, 못 찾은 점은 센다(빌더가 중점·보간으로 지은 점) — 다각형은 되찾은 점이 셋 이상이고 절반 넘게 되찾혔을 때만 쓴다
+  /* ⚠ 꼭짓점은 **기록된 점만** 쓴다 — 가까운 점의 높이를 빌려(반지름 0.5 화면칸) 귀를 채워 보았더니
+     띠(bandPath)의 네 귀뿐 아니라 온갖 손 면이 엉뚱한 높이로 되살아나 52 종이 나빠졌다(gl-check 평균
+     0.179 → 0.193 · 실드 배터리 0.174 → 0.353 · 캐리어 0.138 → 0.275). 빌리는 길은 **중심 하나**(원·타원)
+     에만 둔다 — 그때는 이웃 부품이 아니라 제 부품의 높이를 물어 오기 때문이다. */
   const put = (x: number, y: number): void => { if (!cur) return; const p = look(x, y); if (p) cur.pts.push(p); else cur.miss += 1; };
   while (i < tk.length) {
     const t = tk[i];
@@ -170,6 +174,9 @@ export interface MeshPart9 { polys: Poly3[]; fill: string; alpha: number; team: 
   /** 그 낯의 감기가 **안쪽**을 보나 — 참이면 붓이 법선을 뒤집는다(부품의 과반). */ flip?: boolean;
   /** 폴리마다의 그 값 — 한 부품 안에서도 감기가 섞인다(헬퍼가 면을 되쓴 자리). 붓은 이것을 먼저 본다. */ flips?: boolean[] }
 export interface Mesh9 { parts: MeshPart9[]; faces: number; covered: number; skipped: number;
+  /** 헬퍼가 **일부러 비워 둔** 면 수 — rodFaces 는 관 하나를 첫 낯에 몰아 적고 나머지 낯(둘째 끝·몸통)에는
+   *  빈 표를 적는다. 그 낯은 빠진 것이 아니라 이미 딴 낯이 낸 것이라, 덮임 셈의 분모에서 뺀다. */
+  blank: number;
   /** 3D 로 되찾지 못해 **빠진** 면의 경로(앞 12개까지) — GL 에서 사라진 부품을 찾는 자다(model-mesh --dump). */
   missed: string[] }
 
@@ -284,7 +291,7 @@ export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeF
   const parts: MeshPart9[] = [];
   const byD = new Map<string, number>();    // 경로 → 그 경로로 마지막에 난 부품(덧칠을 접을 첫째 자리)
   const byPid = new Map<number, number>();  // 부품 번호(ShapeFace[5]) → 그 부품의 마지막 몸 면(둘째 자리)
-  let covered = 0; let skipped = 0; const missed: string[] = [];
+  let covered = 0; let skipped = 0; let blank = 0; const missed: string[] = [];
   /** 부품마다의 **뭉치 번호**(tagKey 의 pid) — 아래에서 같은 뭉치를 모아 닫힌 입체인가를 잰다. */
   const pidAt: (number | undefined)[] = [];
   /** 이 면의 3D 폴리 찾기 — 곁표(헬퍼가 적어 둔 것) → 손수 짠 경로 되찾기 → 여러 조각 이어 붙인 경로.
@@ -361,7 +368,14 @@ export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeF
       }
       // 작은 그늘 + 제 기하 있음 — 아래로 내려가 제 부품이 된다.
     }
-    if (!has9 || !polys) { if (missed.length < 12) missed.push(`${f[2] ?? "(임자)"} a=${f[1]} ${f[0].slice(0, 110)}`); continue; }
+    if (!has9 || !polys) {
+      /* 헬퍼가 일부러 빈 표를 적어 둔 낯은 **빠진 것이 아니다** — 같은 부품의 딴 낯이 그 기하를 통째로 냈다
+         (rodFaces: 첫 끝 낯에 관 하나). 그것을 '되찾기 실패'로 세면 덮임 표가 거짓으로 낮아지고 ⚠ 목록이
+         쓸모를 잃는다(실측: 배럭 16 면 중 12 개가 이것이었다). */
+      if (MESH9.byD.get(f[0])?.length === 0) blank += 1;
+      else if (missed.length < 12) missed.push(`${f[2] ?? "(임자)"} a=${f[1]} ${f[0].slice(0, 110)}`);
+      continue;
+    }
     covered += 1;
     byD.set(f[0], parts.length);
     if (f[5] !== undefined) byPid.set(f[5], parts.length);
@@ -397,5 +411,5 @@ export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeF
     }
   }
   MESH9.byD.clear();
-  return { parts, faces: faces.length, covered, skipped, missed };
+  return { parts, faces: faces.length, covered, skipped, blank, missed };
 }
