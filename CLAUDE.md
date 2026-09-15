@@ -133,9 +133,16 @@ scplayer 쪽 소스를 만졌으면 그쪽에서 `npx tsc --noEmit -p tsconfig.j
   · **손수 짠 경로도 3D 로 되찾는다**(mesh9.meshFromPath9): 기록 중 project() 가 화면점→3D 표(PROJ9)를 적고, 헬퍼 없이 빌더가 짠
     경로(번개·얼룩·screenCircle 구 껍질·groundEllipse 땅 원·annulus 고리·반고리)를 꼭짓점 되찾기로 메시화한다. 불투명 화면 원은 구,
     반투명 화면 원은 카메라를 보는 원반. 되찾기가 안 되는 면은 GL 에서 빠진다(gl-check 가 잡는다).
-  · 캔버스에 남기는 종류 `GL_CANVAS_KINDS9`(warpin·storm·nukeblast·nukecloud·archon·darchon — 화면 효과·반투명 구 겹).
+  · **화면 효과 여섯(warpin·storm·nukeblast·nukecloud·archon·darchon)도 GL 이 맡는다**(`GL_CANVAS_KINDS9` 는 비었다). 발광 종류
+    (`GL_GLOW_KINDS9`)의 규약: ① mesh9 glow — 반투명 흰·검 면은 덧칠이 아니라 **몸**(같은 경로에 몸이 있을 때만 접는다) ② 화면 원은
+    구가 아니라 **카메라를 보는 원반**(빌보드, 정점 aBb — 요잉을 안 돌리고 가운데만 돌린다) ③ 깊이 없이 **화가 차례**(불투명·반투명을
+    안 가른다)·음영 없음(`flat`, uFlat) ④ 폭풍·핵은 **더하기 합성**(`add`, 2D 의 lighter). 폭풍·핵 폭발·핵 구름은 효과 op 이라 붓이
+    GL 큐의 맨 뒤에 `glFxPush9`(판 fxModelCv9 의 fit 자와 같은 자: 모델 상자를 w×h 에 맞춰 가운데에)로 넣고 판은 안 굽는다(`glFx9`).
+    효과 메시 열쇠 `f:종류:칸`. 탄두·섬광·연기(모델 아님)는 캔버스에 남는다.
+  · GL 캔버스는 **미리곱한 알파**(premultipliedAlpha: true · 셰이더가 rgb·a 를 내고 합성 (ONE, 1−a)) — 예전(SRC_ALPHA 짝)은 알파 채널이
+    a² 로 쌓여 반투명 빛무리가 어두웠다(밝기비 0.75 → 1.0). 더하기는 (ONE, ONE).
   · 진단: `#diag=draw` 'GL' 줄(개체·삼각·메시·깊이칸/bit·판으로 떨어진 종류) · `#glshade=0|1|2` · `#gldepth=0` · `#glbias=N` · `#gllod=N` ·
     `#glwarm=0`. 계측 `perf-check --hash gl=0`(캔버스 비교) `--probe-gl`(메시 표) `--warm 0`. 메시만 따로 보려면 `scripts/model-mesh.mjs`.
   · **전수조사 `node scripts/gl-check.mjs [--kinds a,b] [--rots 45,225] [--worst 40] --out <scratch>/glcheck.png [--json x.json]`** —
     종류마다 2D(캔버스 면 그리기)와 GL 을 같은 칸에 그려 실루엣 IoU·색차·밝기비를 재고 나쁜 순으로 표와 [2D,GL] 시트를 낸다.
-    GL 붓을 고치면 이걸로 154종을 다시 돈다(2분). 기준(2026-09): 평균 나쁨 0.199 · 밝기비 0.999 · IoU 중앙 0.93 · 나쁨 0.5 넘는 종류 1(diamond).
+    GL 붓을 고치면 이걸로 154종을 다시 돈다(2분). 기준(2026-09, 효과 여섯 포함·미리곱한 알파 뒤): 평균 나쁨 0.171 · 밝기비 1.02 · 나쁨 0.5 넘는 종류 0.

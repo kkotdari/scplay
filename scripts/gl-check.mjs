@@ -23,7 +23,7 @@ const COLOR = "#4aa3ff";
 const ENTRY = `
 import { SHAPE_BUILDERS, SHAPE_GALLERY, poseSet9, bldLitSet, headYawSet, bldSpinRawSet9, tone9, silhouetteLight, DECAL_KINDS } from ${JSON.stringify(join(ROOT, "src/components/replay/bake9"))};
 import { withTopView, withViewShear, withYaw, bake, zsorted } from ${JSON.stringify(join(ROOT, "src/utils/shapeOblique"))};
-import { GlUnits9, CAM_TOP9, GL_CANVAS_KINDS9 } from ${JSON.stringify(join(ROOT, "src/components/replay/gl9"))};
+import { GlUnits9, CAM_TOP9, GL_CANVAS_KINDS9, GL_GLOW_KINDS9 } from ${JSON.stringify(join(ROOT, "src/components/replay/gl9"))};
 const BLD = new Set(SHAPE_GALLERY.filter((g) => g.group === "건물").map((g) => g.kind));
 window.__kinds = () => Object.keys(SHAPE_BUILDERS);
 window.__run = (kinds, rots, cell, bg, color) => {
@@ -45,7 +45,7 @@ window.__run = (kinds, rots, cell, bg, color) => {
         m = isB ? g.bldMesh({ kind, fx: 0, fy: 0, z: 0, sizePx: 16, color, alpha: 1, rotDeg: rot }, 3) : g.unitMesh(kind, 0, 3);
       } catch (e) { errs[kind] = String(e).slice(0, 80); }
       if (!m) return;
-      g.push({ mesh: m, ax: i * cell + cell / 2, ay: cell / 2, k, yoff: k * 4, yawDeg: -rot, color, alpha: 1, cam: CAM_TOP9, gradR: cell * 0.707, gradCy: 0 });
+      g.push({ mesh: m, ax: i * cell + cell / 2, ay: cell / 2, k, yoff: k * 4, yawDeg: -rot, color, alpha: 1, cam: CAM_TOP9, gradR: cell * 0.707, gradCy: 0, flat: GL_GLOW_KINDS9.has(kind) });   // 발광 종류는 붓과 같이 음영·깊이 없이
     });
     g.flush(gcv.width, gcv.height, gcv.width, gcv.height);
     gx.drawImage(gcv, 0, r * cell);

@@ -93,7 +93,7 @@ import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, W
 import {
   pitchFlatSet9, brushOn9, brushSet9, glowOn9, glowSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, spriteSideMax9, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, rasterUnit9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, tone9, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
 } from "./bake9";
-import { glUnits9, glNow9, GL_ON9, GL_WARM9, camOf9, CAM_TOP9 } from "./gl9";
+import { glUnits9, glNow9, GL_ON9, GL_WARM9, GL_GLOW_KINDS9, camOf9, CAM_TOP9, type GlUnits9 } from "./gl9";
 export { LIMB_LOG, TURRET_BACK9, SHAPE_BUILDERS, ctx2d9, BAKE_ENV9, cropToInk, rasterUnit9, pathBox, tierTableOf, autoTier, stageFaces, rasterBld9, SHAPE_GALLERY, poseSet, poseSet9, bldLitSet, headYawSet, bldSpinSet, bldSpinRawSet9, lodSetCap, lodSetZoom, lodNoteFrame, tone9, TONE_DARK, TONE_SAT, silhouetteLight, glowBake9, grainAxes9, GLOW9 } from "./bake9";
 export type { BakeCv9, BakeCtx9, RasterOut9, ShapeGalleryItem } from "./bake9";
 export { isAirUnit, flapCutOf, atkCutOf, unitTilesOf, buildingYawOf, galleryYawOf, BLD_NORM, BUILD_STAGES, SCR_DIAG, scrDiagOn, deriveWorld9, createEngine9, pickWorldUi9, emptyWorldUi9 } from "./engine9";
@@ -3042,6 +3042,47 @@ const CLODS9: [number, number, number, string][] = [
 ];
 /** 옛 DOM 효과 하나 — f.style이 갈래, f.sub가 결, f.age가 나이(초)다.
  *  CSS 키프레임을 식으로 옮겼다(자리·주기·세기 모두 그 값 그대로). */
+/** GL 이 켜져 있으면 참 — 폭풍·핵 폭발·핵 구름의 모델판은 GL 큐(glFxPush9)가 맡고 여기서는 안 굽는다. */
+let glFx9 = false;
+/** 효과 모델을 GL 큐에 넣는다(판 fxModelCv9 의 fit 자와 같다: 모델 상자를 w×h 에 맞춰 가운데에) — 폭풍은 W×W 한 장,
+ *  핵은 착탄 뒤 폭발 고리(2.6초)·구름(2.8초). 탄두·섬광·연기는 모델이 아니라 캔버스에 남는다. 더하기 합성(add)·음영 없음(flat). */
+export function glFxPush9(gl9: GlUnits9, f: FxOp, ax: number, ay: number, zoom: number): void {
+  const W9 = (f.size ?? 8) * zoom;
+  if (W9 < 1) return;
+  const u0 = f.age ?? 0;
+  if (u0 < 0) return;
+  const vq9 = f.pv && f.deg ? Math.max(-36, Math.min(36, Math.round(f.deg / 6) * 6)) : 0;
+  const cam = f.pv ? camOf9(true, pitchFlatNow * 0.7, vq9) : CAM_TOP9;
+  const put = (kind: string, spin: number, w9: number, h9: number, cx: number, cy: number, alpha: number): void => {
+    if (alpha <= 0.01) return;
+    const mesh = gl9.fxMesh(kind, spin); if (!mesh) return;
+    const bx = gl9.footOf(mesh, 0, cam);
+    const k = Math.min(w9 / Math.max(1e-3, bx.w), h9 / Math.max(1e-3, bx.bot - bx.top));
+    gl9.push({ mesh, ax: cx - k * bx.cx, ay: cy - k * (bx.top + bx.bot) / 2, k, yoff: 0, yawDeg: 0, color: "#fff", alpha, cam, gradR: 1e9, gradCy: 0, add: true, flat: true });
+  };
+  if (f.style === "storm") {
+    put("storm", Math.floor(u0 * 14) % (STORM_SEEDS * STORM_STAGES), W9, W9, ax, ay, 1);
+    return;
+  }
+  if (f.style !== "nuke" || u0 < NUKE_FALL_SEC) return;
+  const ab9 = u0 - NUKE_FALL_SEC;
+  const spin9 = (f.seed ?? 0) % SPIN_STEPS;
+  const uw9 = ab9 / 2.6;
+  if (uw9 < 1) {
+    const k9 = uw9 < 0.12 ? 0.25 + 0.7 * (uw9 / 0.12) : 0.95 + 0.3 * ((uw9 - 0.12) / 0.88);
+    const a9 = uw9 < 0.12 ? uw9 / 0.12 : 1 - (uw9 - 0.12) / 0.88;
+    const w9 = W9 * k9; const h9 = w9 / 2.173;
+    put("nukeblast", spin9, w9, h9, ax, ay - h9 * 0.503 + h9 / 2, a9);
+  }
+  const uc9 = ab9 / 2.8;
+  if (uc9 < 1) {
+    const k9 = uc9 < 0.16 ? 0.3 + 0.75 * (uc9 / 0.16) : 1.05 + 0.65 * ((uc9 - 0.16) / 0.84);
+    const ty9 = uc9 < 0.16 ? 6 - 12 * (uc9 / 0.16) : -6 - 28 * ((uc9 - 0.16) / 0.84);
+    const a9 = uc9 < 0.16 ? uc9 / 0.16 : 1 - (uc9 - 0.16) / 0.84;
+    const w9 = W9 * k9; const h9 = w9 / 1.013;
+    put("nukecloud", spin9, w9, h9, ax, ay - h9 * 0.779 + (ty9 / 100) * h9 + h9 / 2, a9);
+  }
+}
 export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: number,
   zoom: number, Bd9: number, tz9: number): void {
   const W9 = (f.size ?? 8) * zoom;
@@ -3186,7 +3227,7 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
       const bud9 = FX_RASTER_MAX / (STORM_SEEDS * STORM_STAGES * 1.5);
       const want9 = Math.min(W9 * Bd9, Math.sqrt(bud9 / 4), FX_RASTER_CAP);
       const q9 = Math.max(64, Math.ceil(want9 / 64) * 64);   // 64 칸으로 갈무리 — 배율이 조금 달라져도 다시 안 굽는다
-      const cv9 = fxModelCv9({
+      const cv9 = glFx9 ? null : fxModelCv9({
         kind: "storm", spin: spin9, flat: !(f.pv ?? false), pitchView: f.pv ?? false,
         viewYaw: f.deg ?? 0, cw: q9, ch: q9,
       });
@@ -3272,7 +3313,7 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
       if (uw9 < 1) {
         const k9 = uw9 < 0.12 ? 0.25 + 0.7 * (uw9 / 0.12) : 0.95 + 0.3 * ((uw9 - 0.12) / 0.88);
         const a9 = uw9 < 0.12 ? uw9 / 0.12 : 1 - (uw9 - 0.12) / 0.88;
-        const cv9 = fxModelCv9({
+        const cv9 = glFx9 ? null : fxModelCv9({
           kind: "nukeblast", spin: spin9, flat: !f.pv, pitchView: f.pv, viewYaw: f.deg ?? 0,
           cw: qb9, ch: Math.round(qb9 / 2.173),
         });
@@ -3297,7 +3338,7 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
         const k9 = uc9 < 0.16 ? 0.3 + 0.75 * (uc9 / 0.16) : 1.05 + 0.65 * ((uc9 - 0.16) / 0.84);
         const ty9 = uc9 < 0.16 ? 6 - 12 * (uc9 / 0.16) : -6 - 28 * ((uc9 - 0.16) / 0.84);
         const a9 = uc9 < 0.16 ? uc9 / 0.16 : 1 - (uc9 - 0.16) / 0.84;
-        const cv9 = fxModelCv9({
+        const cv9 = glFx9 ? null : fxModelCv9({
           kind: "nukecloud", spin: spin9, flat: !f.pv, pitchView: f.pv, viewYaw: f.deg ?? 0,
           cw: qb9, ch: Math.round(qb9 / 1.013),
         });
@@ -3995,7 +4036,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       lodSetZoom(bakeZoom);
       ctx.setTransform(Bd, 0, 0, Bd, 0, 0);
       ctx.clearRect(0, 0, cw, ch);
-      const gl9 = glUnits9(glRef.current);   // #gl=1 이면 유닛 몸통을 GPU 큐에 넣고, 프레임 끝에서 한 번 그린다(아래)
+      const gl9 = glUnits9(glRef.current);
+      glFx9 = !!gl9;   // 효과 모델(폭풍·핵)도 GL 이 맡는다 — drawDomFx9 가 판을 안 굽게   // #gl=1 이면 유닛 몸통을 GPU 큐에 넣고, 프레임 끝에서 한 번 그린다(아래)
       /* (제거·요청) 도형 드롭섀도 — 건물·유닛 그림자를 다 걷었다(떠다니는 것 제외).
          떠 있음은 아래 hover 분기의 발밑 타원만 말한다. */
       // 렌즈 CSS(translate(pan) scale(zoom), 원점 가운데)와 같은 사상 — 분수 자리를
@@ -4660,10 +4702,10 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             const gax9 = Math.round(sx * B) / B;
             const gsh9 = bodyShadow ? { dy: Math.max(1, sidePx * 0.04), alpha: op.alpha * 0.4 } : undefined;
             const gR9 = sidePx * 0.707; const gCy9 = -8 * gk9;
-            gl9.push({ mesh: glB9, ax: gax9, ay: gay9, k: gk9, yoff: -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, shadow: gsh9 });
+            gl9.push({ mesh: glB9, ax: gax9, ay: gay9, k: gk9, yoff: -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind) });
             if (op.attach) {
               const gm9 = gl9.bldMesh({ ...op, kind: op.attach }, lodOf(sideQ));
-              if (gm9) gl9.push({ mesh: gm9, ax: gax9, ay: gay9, k: gk9, yoff: -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9 });
+              if (gm9) gl9.push({ mesh: gm9, ax: gax9, ay: gay9, k: gk9, yoff: -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, flat: GL_GLOW_KINDS9.has(op.kind) });
             }
             continue;
           }
@@ -5124,7 +5166,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           for (const gkind9 of [op.kind, op.attach, op.attach2]) {
             const gm9 = gkind9 ? (gkind9 === op.kind ? glM9 : gl9.unitMesh(gkind9, op.pose ?? 0)) : null;
             if (!gm9) continue;
-            gl9.push({ mesh: gm9, ax: gax9, ay: gay9, k: gk9, yoff: (px / 16) * ((op.flat ? 12 : 12.6) - 8), yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glCam9, gradR: px * 0.707, gradCy: 0, shadow: gsh9 });
+            gl9.push({ mesh: gm9, ax: gax9, ay: gay9, k: gk9, yoff: (px / 16) * ((op.flat ? 12 : 12.6) - 8), yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glCam9, gradR: px * 0.707, gradCy: 0, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind) });
           }
           ctx.setTransform(Bd, 0, 0, Bd, 0, 0);
           continue;
@@ -5267,6 +5309,19 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       /* 층은 **가장 이른 갈래**에서 서고, 무엇을 그릴지는 아래 고리가 갈래마다 가린다.
          트레이서(2배)가 그 가장 이른 갈래라 여기서는 그것만 보면 된다. */
       /* ★ GL 그림을 **여기서** 유닛 캔버스에 합성한다 — 몸은 다 큐에 들었고 효과(트레이서·피격)는 아직이라, 효과가 몸 위에 얹힌다. */
+      /* ★ 효과 모델(폭풍·핵 폭발·핵 구름)은 GL 큐의 맨 뒤에 선다 — 더하기 합성이라 몸 위에 얹힌다(2D 의 lighter). 판은 안 굽는다. */
+      if (gl9 && fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM)) {
+        for (const f of fx) {
+          if (f.kind !== "dom" || (f.style !== "storm" && f.style !== "nuke")) continue;
+          if (zoom < (FX_NO_FLOOR.has(f.kind) ? FX_MIN_ZOOM[f.kind] : Math.max(FX_MIN_ZOOM[f.kind], detailAt ?? 0))) continue;
+          if (trim9 >= 1 && TRIM1_SKIP9.has(f.style ?? "")) continue;
+          if (trim9 >= 2 && TRIM2_SKIP9.has(f.style ?? "")) continue;
+          const ax = zx(f.fx);
+          const ay = zy(f.fy) - f.lift * zoom;
+          if (ax < -60 || ax > cw + 60 || ay < -60 || ay > ch + 60) continue;
+          glFxPush9(gl9, f, ax, ay, zoom);
+        }
+      }
       if (gl9) {
         gl9.flush(cv.width, cv.height, cw, ch);
         ctx.setTransform(Bd, 0, 0, Bd, 0, 0);

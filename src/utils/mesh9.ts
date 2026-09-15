@@ -22,7 +22,10 @@ const look = (x: number, y: number): number[] | undefined => {
 interface Sub { pts: number[][]; miss: number; ell?: { cx: number; cy: number; rx: number; ry: number }; sweep?: number; arcs?: number; lineAfter?: boolean; ri?: number }
 /** 카메라를 보는 원반의 세로 축 — 평면 카메라(고각 40°)의 화면 위쪽을 모형 공간으로(−y·sinE, +z·cosE). */
 const BILL: [number, number] = [Math.sin((40 * Math.PI) / 180), Math.cos((40 * Math.PI) / 180)];
-export function meshFromPath9(d: string, opaque = true): Poly3[] | null {
+/** 카메라를 보는 원반(빌보드)으로 되찾은 폴리곤 — GL 은 요잉을 안 돌리고 가운데만 돌린다(gl9 aBb). */
+export const BILLBOARD9 = new WeakSet<Poly3>();
+/** glow: 발광 효과 종류 — 화면 원은 불투명해도 구가 아니라 원반이다(2D 가 겹쳐 칠한 동심원 그대로). */
+export function meshFromPath9(d: string, opaque = true, glow = false): Poly3[] | null {
   const tk = d.match(NUM); if (!tk) return null;
   const subs: Sub[] = [];
   let cur: Sub | null = null; let cx = 0, cy = 0; let i = 0; let cmd = "";
@@ -84,10 +87,11 @@ export function meshFromPath9(d: string, opaque = true): Poly3[] | null {
       if (s9.lineAfter || (s9.arcs ?? 0) > 2) continue;   // 타원 꼴이 아닌 것(호 + 직선 섞임)
       const sph = Math.abs(e.rx - e.ry) < 0.02 * e.rx;
       if (sph) {
-        if (opaque) out.push(...meshSphere9(c3[0], c3[1], c3[2], e.rx));
+        if (opaque && !glow) out.push(...meshSphere9(c3[0], c3[1], c3[2], e.rx));
         else {
-          // 반투명 화면 원(빛무리·구 껍질 광택) — 구가 아니라 카메라를 보는 원반(기록 시점 기준)으로 둔다
+          // 반투명 화면 원(빛무리·구 껍질 광택)·발광 종류의 화면 원 — 구가 아니라 카메라를 보는 원반(빌보드)으로 둔다
           const disc: number[] = []; for (let k = 0; k < 16; k += 1) { const t = (k / 16) * Math.PI * 2; disc.push(c3[0] + Math.cos(t) * e.rx, c3[1] - Math.sin(t) * e.rx * BILL[0], c3[2] + Math.sin(t) * e.rx * BILL[1]); }
+          BILLBOARD9.add(disc);
           out.push(disc);
         }
       } else {
@@ -105,7 +109,7 @@ export function meshFromPath9(d: string, opaque = true): Poly3[] | null {
  *  기록은 빌더 밖(withYaw 0, 모델 변환 없음)에서 끝난 뒤 하므로(collectMesh9) 항등이다. */
 
 /** 부품 — ow/ob 는 그 면 위에 얹혀 있던 음영 덧칠(흰·검 얕은 알파, 같은 경로의 topFace/sideFace/faceLight)을 접은 몫(0~1). */
-export interface MeshPart9 { polys: Poly3[]; fill: string; alpha: number; team: boolean; lod: number; ow: number; ob: number }
+export interface MeshPart9 { polys: Poly3[]; fill: string; alpha: number; team: boolean; lod: number; ow: number; ob: number; /** 빌보드 원반 부품(카메라를 본다) */ bb?: boolean }
 export interface Mesh9 { parts: MeshPart9[]; faces: number; covered: number; skipped: number }
 
 /** #rgb·#rrggbb 휘도(0~1). 못 읽으면 0.5. */
@@ -125,7 +129,9 @@ export const isOverlay9 = (f: ShapeFace): boolean => {
 };
 
 /** 빌더 하나를 요잉 0 평면 시점으로 굽고 메시로 모은다. 굽는 동안만 메시 기록을 켠다. */
-export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeFace[]) => ShapeFace[]): Mesh9 {
+/** glow: 발광 효과(아콘·워프인·폭풍·핵) — 반투명 흰·검 면이 음영 덧칠이 아니라 **그 자체가 몸**(빛무리·구 껍질)이다.
+ *  같은 경로에 몸이 있을 때만 접고, 나머지는 반투명 부품으로 남긴다(보통 종류에서는 비쳐 보이게 만드는 바로 그 규칙). */
+export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeFace[]) => ShapeFace[], glow = false): Mesh9 {
   MESH9.on = true; MESH9.byD.clear(); PROJ9.clear();
   let faces: ShapeFace[];
   try { faces = withTopView(() => bake(() => withYaw(0, builder))); }
@@ -137,7 +143,7 @@ export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeF
   const byPid = new Map<number, number>();  // 부품 번호(ShapeFace[5]) → 그 부품의 마지막 몸 면(둘째 자리)
   let covered = 0; let skipped = 0;
   for (const f of faces) {
-    if (isOverlay9(f)) {
+    if (isOverlay9(f) && (!glow || byD.has(f[0]))) {
       /* ★ 음영 덧칠은 **반드시 몸에 접거나 버린다** — 제 부품으로 남기면 안 된다(실측: 보급고 103부품 중 54개가 반투명으로 남아
          건물이 통째로 비쳐 보였다). 접을 몸을 두 자로 찾는다:
            ① 같은 경로 — faceLight().face(d) 처럼 몸과 똑같은 패스로 얹히는 덧칠(대부분).
@@ -152,7 +158,12 @@ export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeF
       skipped += 1; continue;
     }
     let polys = MESH9.byD.get(f[0]);
-    if (!polys) { const back = meshFromPath9(f[0], f[1] >= 0.98); if (back) { polys = back; MESH9.byD.set(f[0], back); } }
+    if (glow) {
+      // 발광 종류: 헬퍼가 구로 적어 둔 화면 원(screenCircle)도 카메라를 보는 원반으로 — 2D 는 동심원을 겹쳐 칠했다
+      const disc = meshFromPath9(f[0], false, true);
+      if (disc && disc.length === 1 && BILLBOARD9.has(disc[0])) polys = disc;
+    }
+    if (!polys) { const back = meshFromPath9(f[0], f[1] >= 0.98, glow); if (back) { polys = back; MESH9.byD.set(f[0], back); } }
     if (!polys && f[0].indexOf("Z M") > 0) {
       // 다각형 여럿을 이어 붙인 면(폴리 경로 둘 이상) — 조각마다 찾아 합친다.
       const acc: Poly3[] = [];
@@ -163,7 +174,7 @@ export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeF
     covered += 1;
     byD.set(f[0], parts.length);
     if (f[5] !== undefined) byPid.set(f[5], parts.length);
-    parts.push({ polys, fill: f[2] ?? "", alpha: f[1], team: f[2] === undefined, lod: f[4] ?? 0, ow: 0, ob: 0 });
+    parts.push({ polys, fill: f[2] ?? "", alpha: f[1], team: f[2] === undefined, lod: f[4] ?? 0, ow: 0, ob: 0, bb: polys.length === 1 && BILLBOARD9.has(polys[0]) });
   }
   MESH9.byD.clear();
   return { parts, faces: faces.length, covered, skipped };

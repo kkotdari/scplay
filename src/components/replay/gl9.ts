@@ -27,28 +27,34 @@ export interface GlInst9 {
   gradR: number; gradCy: number;
   /** 몸 그림자(2D 의 shadowPlate 몫) — 몸을 검게 dy 만큼 아래에 한 번 더 그린다. */
   shadow?: { dy: number; alpha: number };
+  /** 효과 — add: 더하기 합성(2D 의 lighter) · flat: 음영·실루엣 빛 없이 제 색 그대로(2D 효과판과 같다). 깊이도 안 쓴다. */
+  add?: boolean; flat?: boolean;
 }
 /** 카메라 — squash(앞뒤 납작비)·zk(높이 배율)·lean(z→앞뒤, 입체 0.34)·shear(시각 밀림 tan(vq), 입체만). project() 의 식 그대로. */
 export interface GlCam9 { squash: number; zk: number; lean: number; shear: number; key: string }
 /** 요잉별 화면 상자 — 모델 16-상자 자(배수·px 전): x 폭·x 가운데·바닥(가장 아래 화면 y = ry·sinE − z·cosE 의 최댓값). */
-export interface GlFoot9 { w: number; cx: number; bot: number }
+export interface GlFoot9 { w: number; cx: number; bot: number; top: number }
 /** nSolid: 앞쪽 정점 수(불투명 부품) · 그 뒤는 반투명(깊이를 안 쓰고 겹쳐 섞는다).
  *  데칼(한 장짜리 작은 부품 — 2D 가 벽 안쪽에 그려 두고 화가 차례로 위에 얹던 줄무늬·창·환풍구)의 깊이 편향은 정점(aOrd)에 든다. */
 export interface GlMesh9 { vbo: WebGLBuffer; n: number; nSolid: number; bias: number; verts: Float32Array; foot: Map<string, GlFoot9> }
 
-const STRIDE = 14;   // pos3 · nrm3 · rgb3 · team1 · alpha1 · 덧칠 흰1 · 검1 · 부품 차례1
+const STRIDE = 15;   // pos3 · nrm3(빌보드면 원반 가운데) · rgb3 · team1 · alpha1 · 덧칠 흰1 · 검1 · 부품 차례1 · 빌보드1
 const MESH_MAX9 = 600;   // 메시 상한(종류×자세×LOD + 건물 변종) — 넘으면 오래된 것부터
 const VS = `
-attribute vec3 aPos; attribute vec3 aNrm; attribute vec3 aRgb; attribute float aTeam; attribute float aAlpha; attribute vec2 aOv; attribute float aOrd;
+attribute vec3 aPos; attribute vec3 aNrm; attribute vec3 aRgb; attribute float aTeam; attribute float aAlpha; attribute vec2 aOv; attribute float aOrd; attribute float aBb;
 uniform vec2 uAnchor; uniform vec3 uScale; uniform vec2 uYaw; uniform vec2 uCanvas; uniform vec2 uCam;
 uniform vec3 uTeam; uniform vec3 uLight; uniform float uAlpha; uniform float uDepth0; uniform float uDepthK; uniform float uPersp;
 uniform vec4 uShade; uniform float uDy; uniform vec2 uLean;
+uniform float uFlat;  // 효과(발광): 1 이면 음영·실루엣 빛·방향광 없이 제 색
 uniform float uDbg;   // 진단 #glshade=0..2(0 덧칠 없음 · 1 덧칠 · 2 +실루엣 빛)
 uniform vec4 uGrad;   // 실루엣 빛(silhouetteLight): 화면 빛 방향 (x,y) · 모델 상자 반지름 R · 상자 가운데의 앵커 기준 세로 몫
 varying vec4 vCol;
 void main() {
-  float rx = aPos.x * uYaw.x + aPos.y * uYaw.y;
-  float ry = -aPos.x * uYaw.y + aPos.y * uYaw.x;
+  /* 빌보드 원반(aBb): 카메라를 보게 기록한 판이라 요잉을 안 돌린다 — 원반 가운데(aNrm 에 실림)만 돌리고 둘레는 그 자리에서 편다. */
+  vec3 pc = aBb > 0.5 ? aNrm : aPos;
+  vec3 pd = aBb > 0.5 ? aPos - aNrm : vec3(0.0);
+  float rx = pc.x * uYaw.x + pc.y * uYaw.y + pd.x;
+  float ry = -pc.x * uYaw.y + pc.y * uYaw.x + pd.y;
   float f = uPersp / (uPersp - clamp(ry, -10.0, 10.0));
   // project() 와 같은 식 — 평면: 납작비 sinE·높이 cosE · 입체: 납작비 pitchSquash·높이 0.9, 앞숙임 z·0.34, 시각 밀림 ry·납작비·tan(vq)
   float ry2 = ry + aPos.z * uLean.x;
@@ -68,18 +74,18 @@ void main() {
   float t = ((X - uAnchor.x) * uGrad.x + (Y - uAnchor.y - uGrad.w) * uGrad.y) / max(uGrad.z, 1.0);
   float gw = t < -0.08 ? 0.18 * min(1.0, (-t - 0.08) / 0.92) : 0.0;
   float gb = t > 0.08 ? 0.42 * min(1.0, (t - 0.08) / 0.92) : 0.0;
-  if (uDbg < 2.0) { gw = 0.0; gb = 0.0; }
-  vec2 ov = uDbg < 1.0 ? vec2(0.0) : aOv * 0.7;
+  if (uDbg < 2.0 || uFlat > 0.5) { gw = 0.0; gb = 0.0; }
+  vec2 ov = (uDbg < 1.0 || uFlat > 0.5) ? vec2(0.0) : aOv * 0.7;
   vec3 col = mix(base, vec3(1.0), clamp(ov.x + gw, 0.0, 1.0));
   col = mix(col, vec3(0.0), clamp(ov.y + gb, 0.0, 1.0));
   /* 법선 방향광 — 2D 가 곡면(관·원통·돔)에 따로 얹던 초승달 그늘·광택(경로가 달라 메시에 못 접는다)의 몫. 같은 회색 지붕 위의
      회색 드럼이 이것 없이는 안 갈린다. 세기는 시제(M3)에서 눈으로 받아들여진 값 근처(0.62+0.42·|n·L|)를 조금 눅였다. */
-  col *= 0.82 + 0.34 * abs(dot(n, uLight));   // 전수조사(gl-check) 밝기비 GL/2D 0.93 → 1.0 근처로
+  col *= mix(0.82 + 0.34 * abs(dot(n, uLight)), 1.0, uFlat);   // 전수조사(gl-check) 밝기비 GL/2D 0.93 → 1.0 근처로
   vCol = uShade.a > 0.0 ? vec4(uShade.rgb, uShade.a * aAlpha) : vec4(col, aAlpha * uAlpha);
 }`;
 const FS = `
 precision mediump float; varying vec4 vCol;
-void main() { gl_FragColor = vCol; }`;
+void main() { gl_FragColor = vec4(vCol.rgb * vCol.a, vCol.a); }   // 미리곱한 알파 — WebGL 캔버스(premultipliedAlpha)와 합성이 맞아야 반투명(빛무리)이 안 어두워진다`;
 
 const hexRgb = (s: string): [number, number, number] => {
   const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(s.trim());
@@ -92,7 +98,9 @@ const CAM: [number, number] = [Math.sin(TOP_ELEV), Math.cos(TOP_ELEV)];
 export const CAM_TOP9: GlCam9 = { squash: CAM[0], zk: CAM[1], lean: 0, shear: 0, key: "t" };
 /** 입체 카메라 — pitchSquash(= pitchFlatNow·0.7)·높이 0.9·앞숙임 0.34·시각 밀림 tan(vq). vq 는 6° 눈금이라 열쇠가 적다. */
 /** 캔버스(판)에 남기는 종류 — 화면 전용 효과(빛무리·번개·폭발 고리)와 반투명 구 겹으로 그린 아콘: 3D 로 옮기면 뜻이 달라진다. */
-export const GL_CANVAS_KINDS9 = new Set(["warpin", "storm", "nukeblast", "nukecloud", "archon", "darchon"]);
+export const GL_CANVAS_KINDS9 = new Set<string>([]);
+/** 발광 효과 종류 — 반투명 면이 곧 몸(mesh9 glow)이고 음영 없이 제 색으로 그린다(flat). 폭풍·핵은 더하기 합성(add)까지. */
+export const GL_GLOW_KINDS9 = new Set(["warpin", "storm", "nukeblast", "nukecloud", "archon", "darchon"]);
 const CAMS9 = new Map<string, GlCam9>();
 /** 카메라 — 평면(vq 0 이면 CAM_TOP9 그대로) 또는 입체(pitchSquash = pitchFlatNow·0.7 · 높이 0.9 · 앞숙임 0.34) + 시각 밀림 tan(vq).
  *  같은 열쇠면 같은 객체라 그리기에서 유니폼을 한 번만 건다. */
@@ -119,7 +127,7 @@ export class GlUnits9 {
   /** 진단: 마지막 프레임의 개체 수·삼각형 수·메시 수·메시 굽기 ms. */
   stat = { inst: 0, tris: 0, bakeMs: 0, meshes: 0, slots: 0, depthBits: 0 };
   constructor(readonly canvas: HTMLCanvasElement) {
-    const gl = canvas.getContext("webgl", { alpha: true, premultipliedAlpha: false, antialias: true, depth: true });
+    const gl = canvas.getContext("webgl", { alpha: true, premultipliedAlpha: true, antialias: true, depth: true });   // 미리곱한 알파 — 셰이더 출력·합성 함수(ONE, 1−a)와 한 벌
     if (!gl) throw new Error("webgl 없음");
     this.gl = gl;
     const sh = (type: number, src: string): WebGLShader => {
@@ -132,11 +140,11 @@ export class GlUnits9 {
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error("링크: " + gl.getProgramInfoLog(p));
     this.prog = p;
     this.stat.depthBits = Number(gl.getParameter(gl.DEPTH_BITS)) || 0;
-    for (const u of ["uAnchor", "uScale", "uYaw", "uCanvas", "uCam", "uTeam", "uLight", "uAlpha", "uDepth0", "uDepthK", "uPersp", "uShade", "uDy", "uLean", "uGrad", "uDbg"]) this.loc[u] = gl.getUniformLocation(p, u);
-    for (const a of ["aPos", "aNrm", "aRgb", "aTeam", "aAlpha", "aOv", "aOrd"]) this.att[a] = gl.getAttribLocation(p, a);
+    for (const u of ["uAnchor", "uScale", "uYaw", "uCanvas", "uCam", "uTeam", "uLight", "uAlpha", "uDepth0", "uDepthK", "uPersp", "uShade", "uDy", "uLean", "uGrad", "uDbg", "uFlat"]) this.loc[u] = gl.getUniformLocation(p, u);
+    for (const a of ["aPos", "aNrm", "aRgb", "aTeam", "aAlpha", "aOv", "aOrd", "aBb"]) this.att[a] = gl.getAttribLocation(p, a);
   }
   /** 열쇠별 메시 — 처음 볼 때 run()(빌더를 요잉 0 으로 한 번 돌리는 일, 1~7ms)으로 짓는다. 못 지으면 null 로 굳는다. */
-  private meshFor(key: string, run: () => { parts: { polys: number[][]; fill: string; alpha: number; team: boolean; ow: number; ob: number }[] }, bias0 = 0.8): GlMesh9 | null {
+  private meshFor(key: string, run: () => { parts: { polys: number[][]; fill: string; alpha: number; team: boolean; ow: number; ob: number; bb?: boolean }[] }, bias0 = 0.8, glow = false): GlMesh9 | null {
     const got = this.meshes.get(key);
     if (got !== undefined) return got;
     const t0 = performance.now();
@@ -159,8 +167,9 @@ export class GlUnits9 {
       };
       /* 두 구간: 불투명 | 반투명(깊이를 안 쓰고 겹쳐 섞는다). **데칼 편향은 정점(aOrd)에 넣는다** — 그리기 단위로 주면
          반투명 데칼 아닌 면까지 통째로 앞으로 끌려 나온다(실측: 보급고의 반투명 초록 패널이 앞으로 튀어나온 임자색 상자를 덮었다). */
-      const clear = m.parts.filter((p) => p.alpha < 0.98);
-      const solids = m.parts.filter((p) => p.alpha >= 0.98);
+      /* 발광(glow) 종류는 깊이 없이 화가 차례로 그리므로 불투명·반투명을 안 가른다 — 2D 의 겹침(껍질 위에 몸, 몸 위에 고리) 그대로. */
+      const clear = glow ? [] : m.parts.filter((p) => p.alpha < 0.98);
+      const solids = glow ? m.parts : m.parts.filter((p) => p.alpha >= 0.98);
       const parts = [...solids, ...clear];
       const out: number[] = [];
       let nSolid = 0;
@@ -180,7 +189,9 @@ export class GlUnits9 {
             nx += (py - qy) * (pz + qz); ny += (pz - qz) * (px + qx); nz += (px - qx) * (py + qy);
           }
           const nl = Math.hypot(nx, ny, nz) || 1; nx /= nl; ny /= nl; nz /= nl;
-          const put = (i: number): void => { out.push(poly[i * 3], poly[i * 3 + 1], poly[i * 3 + 2], nx, ny, nz, r, g, bl, team, part.alpha, part.ow, part.ob, ord); };
+          const bb = part.bb ? 1 : 0;
+          if (bb) { nx = 0; ny = 0; nz = 0; for (let i = 0; i < n; i += 1) { nx += poly[i * 3]; ny += poly[i * 3 + 1]; nz += poly[i * 3 + 2]; } nx /= n; ny /= n; nz /= n; }   // 빌보드: 법선 자리에 원반 가운데
+          const put = (i: number): void => { out.push(poly[i * 3], poly[i * 3 + 1], poly[i * 3 + 2], nx, ny, nz, r, g, bl, team, part.alpha, part.ow, part.ob, ord, bb); };
           for (let i = 1; i + 1 < n; i += 1) { put(0); put(i); put(i + 1); }
         }
       }
@@ -212,8 +223,8 @@ export class GlUnits9 {
       const prevPose = poseNow;
       poseSet9(pose); headYawSet(0);
       // 판(rasterUnit9)과 같은 등급 걸러내기: 자동 등급표(autoTier — 부품 크기로 등급을 다시 매긴다) 뒤에 lodFilter.
-      try { return collectMesh9(b, lod >= 3 ? undefined : (f: ShapeFace[]) => lodFilter(autoTier(kind, `gl|u|${kind}|${pose}`, f), lod)); } finally { poseSet9(prevPose); }
-    });
+      try { return collectMesh9(b, lod >= 3 ? undefined : (f: ShapeFace[]) => lodFilter(autoTier(kind, `gl|u|${kind}|${pose}`, f), lod), GL_GLOW_KINDS9.has(kind)); } finally { poseSet9(prevPose); }
+    }, GL_GLOW_KINDS9.has(kind) ? 0 : undefined, GL_GLOW_KINDS9.has(kind));
   }
   /** 건물 메시 — 종류 · 건설 단계 · 불빛 · 회전 칸 · 포탑 각(rasterBld9 와 같은 깃발·같은 열쇠 조각). */
   bldMesh(op: UnitDrawOp, lod = 3): GlMesh9 | null {
@@ -229,8 +240,17 @@ export class GlUnits9 {
       const key = `b:${op.kind}:${stg}:${headTag(op.kind)}:${litTag(op.kind)}:${spinTag(op.kind)}:${lod}`;
       /* 건물 데칼 편향 1.3(유닛 0.8) — 빌더가 줄무늬·창을 벽 **안쪽 0.5칸쯤**에 그려 두고 화가 차례로 얹기 때문에 그만큼은 꺼내야
          보이고, 더 밀면 벽 앞으로 튀어나온 부품(보급고 임자색 상자, 0.5칸)을 거꾸로 덮는다. 좁은 창의 가운데 값이다. */
-      return this.meshFor(key, () => { set(); return collectMesh9(b, (f: ShapeFace[]) => stageFaces(lod >= 3 ? f : lodFilter(autoTier(op.kind, `gl|${key}`, f), lod), stg)); }, 1.3);
+      return this.meshFor(key, () => { set(); return collectMesh9(b, (f: ShapeFace[]) => stageFaces(lod >= 3 ? f : lodFilter(autoTier(op.kind, `gl|${key}`, f), lod), stg), GL_GLOW_KINDS9.has(op.kind)); }, GL_GLOW_KINDS9.has(op.kind) ? 0 : 1.3, GL_GLOW_KINDS9.has(op.kind));
     } finally { headYawSet(pH, pA); bldLitSet(pL); bldSpinRawSet9(pS); poseSet9(pP); }
+  }
+  /** 효과 메시 — 폭풍·핵 폭발·핵 구름(fxModelCv9 의 판 대신): 종류 · 회전 칸(spin = 무늬 씨앗). 발광 규약(glow)으로 모은다. */
+  fxMesh(kind: string, spin: number): GlMesh9 | null {
+    const b = SHAPE_BUILDERS[kind]; if (!b) return null;
+    const pS = bldSpinNow;
+    return this.meshFor(`f:${kind}:${spin}`, () => {
+      bldSpinRawSet9(spin);
+      try { return collectMesh9(b, undefined, true); } finally { bldSpinRawSet9(pS); }
+    }, 0, true);
   }
   /** 요잉의 화면 상자 — 모델 16-상자 자. 정점 셰이더와 같은 식으로 모든 꼭짓점을 돌려 재고(메시·각도당 한 번) 기억한다. */
   footOf(mesh: GlMesh9, yawDeg: number, cam: GlCam9 = CAM_TOP9): GlFoot9 {
@@ -239,16 +259,16 @@ export class GlUnits9 {
     const got = mesh.foot.get(key);
     if (got) return got;
     const th = (yk * Math.PI) / 180; const c = Math.cos(th); const sn = Math.sin(th);
-    let minX = Infinity; let maxX = -Infinity; let bot = -Infinity;
+    let minX = Infinity; let maxX = -Infinity; let bot = -Infinity; let top = Infinity;
     const v = mesh.verts;
     for (let i = 0; i < v.length; i += STRIDE) {
       const x = v[i]; const y = v[i + 1]; const z = v[i + 2];
       const rx = x * c + y * sn; const ry = -x * sn + y * c;
       const f = 48 / (48 - Math.max(-10, Math.min(10, ry)));
       const X = (rx + ry * cam.squash * cam.shear) * f; const Y = (ry + z * cam.lean) * cam.squash - z * cam.zk;
-      if (X < minX) minX = X; if (X > maxX) maxX = X; if (Y > bot) bot = Y;
+      if (X < minX) minX = X; if (X > maxX) maxX = X; if (Y > bot) bot = Y; if (Y < top) top = Y;
     }
-    const ft = { w: maxX - minX, cx: (minX + maxX) / 2, bot };
+    const ft = { w: maxX - minX, cx: (minX + maxX) / 2, bot, top };
     mesh.foot.set(key, ft);
     return ft;
   }
@@ -266,7 +286,7 @@ export class GlUnits9 {
     (globalThis as unknown as { __glInst9?: number }).__glInst9 = q.length;   // 계측(perf-check)이 '그려졌다'를 아는 창
     if (!q.length) return;
     gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LESS);
-    gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);   // 미리곱한 알파
     gl.disable(gl.CULL_FACE);
     gl.useProgram(this.prog);
     gl.uniform2f(this.loc.uCanvas, cw, ch);
@@ -322,6 +342,7 @@ export class GlUnits9 {
       gl.enableVertexAttribArray(this.att.aAlpha); gl.vertexAttribPointer(this.att.aAlpha, 1, gl.FLOAT, false, STRIDE * F, 10 * F);
       gl.enableVertexAttribArray(this.att.aOv); gl.vertexAttribPointer(this.att.aOv, 2, gl.FLOAT, false, STRIDE * F, 11 * F);
       gl.enableVertexAttribArray(this.att.aOrd); gl.vertexAttribPointer(this.att.aOrd, 1, gl.FLOAT, false, STRIDE * F, 13 * F);
+      gl.enableVertexAttribArray(this.att.aBb); gl.vertexAttribPointer(this.att.aBb, 1, gl.FLOAT, false, STRIDE * F, 14 * F);
     };
     let camNow: GlCam9 | null = null;
     const place = (it: GlInst9): void => {
@@ -348,6 +369,8 @@ export class GlUnits9 {
     gl.depthMask(true); if (GL_DEPTH9) gl.enable(gl.DEPTH_TEST); else gl.disable(gl.DEPTH_TEST);
     gl.uniform4f(this.loc.uShade, 0, 0, 0, 0);
     gl.uniform1f(this.loc.uDy, 0);
+    gl.uniform1f(this.loc.uFlat, 0);
+    let flatNow = false; let addNow = false;
     for (let i = 0; i < q.length; i += 1) {
       const it = q[i];
       const mesh = it.mesh;
@@ -356,10 +379,19 @@ export class GlUnits9 {
       gl.uniform3f(this.loc.uTeam, tr, tg, tb);
       gl.uniform1f(this.loc.uAlpha, it.alpha);
       gl.uniform1f(this.loc.uDepth0, 1 - slot * (slotOf[i] + 1));
-      gl.drawArrays(gl.TRIANGLES, 0, mesh.nSolid);
-      if (mesh.nSolid < mesh.n) { gl.depthMask(false); gl.drawArrays(gl.TRIANGLES, mesh.nSolid, mesh.n - mesh.nSolid); gl.depthMask(true); }
+      const flat = !!it.flat; const add = !!it.add;
+      if (flat !== flatNow) { flatNow = flat; gl.uniform1f(this.loc.uFlat, flat ? 1 : 0); }
+      /* 더하기 효과(폭풍·핵)는 2D 의 lighter 처럼 깊이 없이 겹쳐 더한다 — 큐의 맨 뒤(몸 다음)에 서므로 몸 위에 얹힌다. */
+      if (add !== addNow) { addNow = add; gl.blendFunc(gl.ONE, add ? gl.ONE : gl.ONE_MINUS_SRC_ALPHA); }
+      /* 발광(flat)·더하기(add) 개체는 깊이 없이 **화가 차례**(메시의 부품 차례 = zsorted)로 겹친다 — 2D 의 동심원·빛무리 그대로. */
+      if (flat || add) { gl.disable(gl.DEPTH_TEST); gl.depthMask(false); gl.drawArrays(gl.TRIANGLES, 0, mesh.n); gl.depthMask(true); if (GL_DEPTH9) gl.enable(gl.DEPTH_TEST); }
+      else {
+        gl.drawArrays(gl.TRIANGLES, 0, mesh.nSolid);
+        if (mesh.nSolid < mesh.n) { gl.depthMask(false); gl.drawArrays(gl.TRIANGLES, mesh.nSolid, mesh.n - mesh.nSolid); gl.depthMask(true); }
+      }
       this.stat.tris += mesh.n / 3;
     }
+    if (addNow) gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
   }
 }
 /** #gl=1 — 시제 스위치(메인 스레드에서만 뜻이 있다). */
