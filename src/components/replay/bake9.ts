@@ -11084,22 +11084,35 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       for (let v9 = 0; v9 < 9; v9 += 1) {
         const a0 = -2.6 + v9 * 0.62;
         if (facingRatio(Math.sin(a0), Math.cos(a0)) < 0.12) continue;
-        const at9 = (aa: number, t9: number): [number, number] => project(
+        /** 그 방위각·높이의 **모형 점** — 돔 겉면을 살짝(0.99) 파고든 자리다. */
+        const at3 = (aa: number, t9: number): [number, number, number] => [
           lx9 + Math.sin(aa) * lobeR(t9) * 0.99,
           ly9 + Math.cos(aa) * lobeR(t9) * 0.99,
           h9 * t9,
-        );
+        ];
+        /* ★ 핏줄은 **3D 사각**으로 짠다(2026-09) — 여태는 사영된 두 점 사이를 **화면 자로** 넓힌 띠(bandPath)였다.
+           그러면 네 귀가 사영 표(PROJ9)에 없어 메시 되찾기가 통째로 실패해 GL 에서 핏줄 90면이 빠졌다(실측).
+           폭은 돔 겉면의 **둘레 방향**(방위각의 접선 (cos a, −sin a, 0))으로 준다 — 판이 살에 붙어 눕는다.
+           그림은 조금 바뀐다(옛 띠는 화면에서 늘 같은 굵기, 이제는 돌아 나갈수록 얇아진다 — 살에 누운 결이다). */
+        const vein9 = (p3: [number, number, number], q3: [number, number, number],
+          aa: number, hw: number): string => {
+          const tx9 = Math.cos(aa) * hw; const ty9 = -Math.sin(aa) * hw;
+          return polyPath3([
+            [p3[0] + tx9, p3[1] + ty9, p3[2]], [q3[0] + tx9, q3[1] + ty9, q3[2]],
+            [q3[0] - tx9, q3[1] - ty9, q3[2]], [p3[0] - tx9, p3[1] - ty9, p3[2]],
+          ]);
+        };
         let ang9 = a0;
-        let prev9 = at9(ang9, 0.72);
+        let prev9 = at3(ang9, 0.72);
         for (let q9 = 1; q9 <= 4; q9 += 1) {
           const t9 = 0.72 - q9 * 0.15;
           ang9 += Math.sin(a0 * 31.7 + q9 * 1.9) * 0.2;
-          const cur9 = at9(ang9, Math.max(0.03, t9));
-          out.push([bandPath(prev9[0], prev9[1], cur9[0], cur9[1], 0.09 - q9 * 0.012),
-            0.5, "#7d2b26"] as ShapeFace);
+          const cur9 = at3(ang9, Math.max(0.03, t9));
+          out.push([vein9(prev9, cur9, ang9, 0.09 - q9 * 0.012), 0.5, "#7d2b26"] as ShapeFace);
           if (q9 === 2) {
-            const br9 = at9(ang9 + (Math.sin(a0 * 53.1) > 0 ? 0.42 : -0.42), Math.max(0.03, t9 - 0.12));
-            out.push([bandPath(cur9[0], cur9[1], br9[0], br9[1], 0.055), 0.5, "#7d2b26"] as ShapeFace);
+            const ba9 = ang9 + (Math.sin(a0 * 53.1) > 0 ? 0.42 : -0.42);
+            const br9 = at3(ba9, Math.max(0.03, t9 - 0.12));
+            out.push([vein9(cur9, br9, ba9, 0.055), 0.5, "#7d2b26"] as ShapeFace);
           }
           prev9 = cur9;
         }
@@ -11578,23 +11591,24 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         },
       }), RACE_BASE_TONE.zerg), 21 + depthNow(dx9, dy9) * 0.4));
     }
-    // 골진 도넛 왕관 — 방사 골 + 가운데 구멍. 뚜껑은 저그 기본색(지적).
-    const [cx2, cy2] = project(0, 0.6, HEAD_Z0 + HEAD_H + 0.08);
-    out.push(...tagKey([[groundEllipse(cx2, cy2, 3.55, 2.05), 1, RACE_BASE_TONE.zerg] as ShapeFace], 22));
-    /* 골도 요잉을 탄다(지적: 뚜껑이 안 돎) — 화면 고정 각이던 골 위치에 현재 요잉을
-       더해, 뚜껑이 함께 도는 것으로 보인다. */
-    const yawRad = Math.atan2(-depthNow(1, 0), depthNow(0, 1));
+    /* 골진 도넛 왕관 — 방사 골 + 가운데 구멍. 뚜껑은 저그 기본색(지적).
+       ★ **화면 자에서 모형 자로 옮겼다**(2026-09) — 뚜껑·골·구멍이 모두 화면 좌표(cx2, cy2 + cos·sin)로
+       짠 납작 타원이었다. 그래서 ① 골 여덟 장이 사영 표에 없어 GL 에서 통째로 빠졌고(실측 8면)
+       ② 손으로 고른 납작비 0.577 이 카메라의 참값과 달라, 되찾은 뚜껑(참 원)과 2D 뚜껑(0.577 타원)이
+       애초에 어긋나 있었다. 모형 자로 두면 골이 저절로 요잉을 타므로 손으로 더하던 yawRad 도 걷는다. */
+    const CRZ9 = HEAD_Z0 + HEAD_H + 0.08;
+    out.push(...tagKey([[discPath3(0, 0.6, CRZ9, 3.55), 1, RACE_BASE_TONE.zerg] as ShapeFace], 22));
     const crown: ShapeFace[] = [];
+    /** 왕관 면의 한 점 — 반지름·각의 모형 자리(뚜껑 평면 위). */
+    const cp9 = (r9: number, a9: number): [number, number, number] =>
+      [Math.cos(a9) * r9, 0.6 + Math.sin(a9) * r9, CRZ9];
     for (const ang of [200, 240, 280, 320, 20, 60, 100, 140]) {
-      const a = (ang * Math.PI) / 180 + yawRad;
+      const a = (ang * Math.PI) / 180;
       // 줄무늬는 보라(지적) — 뚜껑의 저그 기본색 위에 방사 골이 보라로 갈린다.
-      crown.push([`M${cx2 + Math.cos(a) * 1.55} ${cy2 + Math.sin(a) * 0.9}`
-        + ` L${cx2 + Math.cos(a) * 3.35} ${cy2 + Math.sin(a) * 1.94}`
-        + ` L${cx2 + Math.cos(a + 0.16) * 3.35} ${cy2 + Math.sin(a + 0.16) * 1.94}`
-        + ` L${cx2 + Math.cos(a + 0.16) * 1.55} ${cy2 + Math.sin(a + 0.16) * 0.9} Z`,
-      1, PURPLE] as ShapeFace);
+      crown.push([polyPath3([cp9(1.55, a), cp9(3.35, a), cp9(3.35, a + 0.16), cp9(1.55, a + 0.16)]),
+        1, PURPLE] as ShapeFace);
     }
-    crown.push(capFace(groundEllipse(cx2, cy2 - 0.2, 1.15, 0.68), 0.5));
+    crown.push(capFace(discPath3(0, 0.29, CRZ9, 1.15), 0.5));
     out.push(...tagKey(crown, 23));
     return out;
   },
