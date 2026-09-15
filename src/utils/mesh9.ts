@@ -155,7 +155,8 @@ export function meshFromPath9(d: string, opaque = true, glow = false): Poly3[] |
 export interface MeshPart9 { polys: Poly3[]; fill: string; alpha: number; team: boolean; lod: number; ow: number; ob: number; /** 빌보드 원반 부품(카메라를 본다) */ bb?: boolean;
   /** 그 부품을 낸 면의 경로 — 덧칠을 접을 때 **넓이 몫**을 재는 자다(아래 areaK9). */ d?: string;
   /** **닫힌 입체**의 낯인가 — 붓이 그 낯만 뒷면을 걸러낸다(아래 solidSigns9). */ solid?: boolean;
-  /** 그 낯의 감기가 **안쪽**을 보나 — 참이면 붓이 법선을 뒤집는다. */ flip?: boolean }
+  /** 그 낯의 감기가 **안쪽**을 보나 — 참이면 붓이 법선을 뒤집는다(부품의 과반). */ flip?: boolean;
+  /** 폴리마다의 그 값 — 한 부품 안에서도 감기가 섞인다(헬퍼가 면을 되쓴 자리). 붓은 이것을 먼저 본다. */ flips?: boolean[] }
 export interface Mesh9 { parts: MeshPart9[]; faces: number; covered: number; skipped: number;
   /** 3D 로 되찾지 못해 **빠진** 면의 경로(앞 12개까지) — GL 에서 사라진 부품을 찾는 자다(model-mesh --dump). */
   missed: string[] }
@@ -338,10 +339,14 @@ export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeF
       if (!sign) continue;
       let at = 0;
       for (const i of idx) {
-        let plus = 0; let minus = 0;
-        for (let k = 0; k < parts[i].polys.length; k += 1) { if (sign[at + k] > 0) plus += 1; else minus += 1; }
+        /* ★ 감기는 **폴리마다** 싣는다 — 부품의 과반으로 하나만 실으면 소수 쪽 낯이 거꾸로 뒤집혀
+           보이는 낯까지 걷혔다(실측: 케이번·아카데미에서 몇십 화소가 사라졌다). */
+        const fl9: boolean[] = [];
+        for (let k = 0; k < parts[i].polys.length; k += 1) fl9.push(sign[at + k] < 0);
         at += parts[i].polys.length;
-        parts[i].solid = true; parts[i].flip = minus > plus;
+        parts[i].solid = true;
+        parts[i].flips = fl9;
+        parts[i].flip = fl9.filter((v9) => v9).length * 2 > fl9.length;
       }
     }
   }

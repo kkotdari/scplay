@@ -57,9 +57,12 @@ uniform float uDbg;   // 진단 #glshade=0..2(0 덧칠 없음 · 1 덧칠 · 2 +
 uniform vec4 uGrad;   // 실루엣 빛(silhouetteLight): 화면 빛 방향 (x,y) · 모델 상자 반지름 R · 상자 가운데의 앵커 기준 세로 몫
 varying vec4 vCol;
 void main() {
-  /* 빌보드 원반(aBb): 카메라를 보게 기록한 판이라 요잉을 안 돌린다 — 원반 가운데(aNrm 에 실림)만 돌리고 둘레는 그 자리에서 편다. */
-  vec3 pc = aBb > 0.5 ? aNrm : aPos;
-  vec3 pd = aBb > 0.5 ? aPos - aNrm : vec3(0.0);
+  /* aBb 한 칸에 표식 둘이 들었다: **128 닫힌 입체**(등진 낯을 걷는다) · **255 빌보드 원반**(카메라를 본다). */
+  float bill = aBb > 0.9 ? 1.0 : 0.0;
+  float solid = (aBb > 0.4 && aBb < 0.9) ? 1.0 : 0.0;
+  /* 빌보드 원반: 카메라를 보게 기록한 판이라 요잉을 안 돌린다 — 원반 가운데(aNrm 에 실림)만 돌리고 둘레는 그 자리에서 편다. */
+  vec3 pc = bill > 0.5 ? aNrm : aPos;
+  vec3 pd = bill > 0.5 ? aPos - aNrm : vec3(0.0);
   float rx = pc.x * uYaw.x + pc.y * uYaw.y + pd.x;
   float ry = -pc.x * uYaw.y + pc.y * uYaw.x + pd.y;
   /* 그림자: 요잉을 돈 뒤(세계 자)에서 빛 방향으로 밀고 높이를 0 으로 — 몸과 같은 카메라를 타므로 바닥에 딱 눕는다. */
@@ -76,6 +79,11 @@ void main() {
      평면에 얹힌 부품은 가까움이 같아 깊이 싸움이 나는데, 2D 는 나중에 칠한 것이 이긴다 — 그 규칙을 작은 편향(aOrd, 모델 칸)으로 준다. */
   gl_Position = vec4(X / uCanvas.x * 2.0 - 1.0, 1.0 - Y / uCanvas.y * 2.0, uDepth0 - (near + aOrd) * uDepthK, 1.0);
   vec3 n = normalize(vec3(aNrm.x * uYaw.x + aNrm.y * uYaw.y, -aNrm.x * uYaw.y + aNrm.y * uYaw.x, aNrm.z));
+  /* ★ **닫힌 입체의 등진 낯은 걷는다**(aBb 128) — 그 덩이의 뒷면은 어차피 앞면이 깊이로 덮으므로 그림은 안 바뀌고,
+     버는 것은 화소 채우기(덩이 넓이의 절반)다. 법선은 mesh9 가 감기를 맞춰 **바깥**을 보게 실어 둔 것이다. */
+  if (solid > 0.5 && dot(n, vec3(0.0, uCam.y, uCam.x)) < 0.0) {
+    gl_Position = vec4(2.0, 2.0, 2.0, 1.0); vCol = vec4(0.0); return;
+  }
   // 법선의 앞뒤는 감기 차례에 달렸다 — 카메라(0, cosE, sinE) 쪽을 보게 뒤집는다(보이는 면은 늘 카메라를 본다).
   if (dot(n, vec3(0.0, uCam.y, uCam.x)) < 0.0) n = -n;
   vec3 base = mix(aRgb, uTeam, aTeam);
@@ -171,7 +179,7 @@ export class GlUnits9 {
     for (const a of ["aPos", "aNrm", "aRgb", "aTeam", "aAlpha", "aOv", "aOrd", "aBb"]) this.att[a] = gl.getAttribLocation(p, a);
   }
   /** 열쇠별 메시 — 처음 볼 때 run()(빌더를 요잉 0 으로 한 번 돌리는 일, 1~7ms)으로 짓는다. 못 지으면 null 로 굳는다. */
-  private meshFor(key: string, run: () => { parts: { polys: number[][]; fill: string; alpha: number; team: boolean; ow: number; ob: number; bb?: boolean }[] }, bias0 = 0.8, glow = false): GlMesh9 | null {
+  private meshFor(key: string, run: () => { parts: { polys: number[][]; fill: string; alpha: number; team: boolean; ow: number; ob: number; bb?: boolean; solid?: boolean; flip?: boolean; flips?: boolean[] }[] }, bias0 = 0.8, glow = false): GlMesh9 | null {
     const got = this.meshes.get(key);
     if (got !== undefined) return got;
     const t0 = performance.now();
@@ -215,7 +223,8 @@ export class GlUnits9 {
         const team = part.team ? 1 : 0;
         cols.add(part.team ? "team" : part.fill);
         const cr = b255(r), cg = b255(g), cb = b255(bl), ct = team ? 255 : 0, ca = b255(part.alpha), cw = b255(part.ow), ck = b255(part.ob);
-        for (const poly of part.polys) {
+        for (let qi = 0; qi < part.polys.length; qi += 1) {
+          const poly = part.polys[qi];
           const n = poly.length / 3; if (n < 3) continue;
           let nx = 0, ny = 0, nz = 0;
           for (let i = 0; i < n; i += 1) {
@@ -226,8 +235,10 @@ export class GlUnits9 {
           }
           const nl = Math.hypot(nx, ny, nz) || 1; nx /= nl; ny /= nl; nz /= nl;
           const bb = part.bb ? 1 : 0;
+          // 닫힌 입체는 법선이 **바깥**을 봐야 한다 — mesh9 가 감기를 맞춰 준 부호(flip)를 여기서 먹인다.
+          if (part.flips ? part.flips[qi] : part.flip) { nx = -nx; ny = -ny; nz = -nz; }
           if (bb) { nx = 0; ny = 0; nz = 0; for (let i = 0; i < n; i += 1) { nx += poly[i * 3]; ny += poly[i * 3 + 1]; nz += poly[i * 3 + 2]; } nx /= n; ny /= n; nz /= n; }   // 빌보드: 법선 자리에 원반 가운데
-          const cbb = bb ? 255 : 0;
+          const cbb = bb ? 255 : (part.solid ? 128 : 0);
           for (let i = 0; i < n; i += 1) {
             const x = poly[i * 3], y = poly[i * 3 + 1], z = poly[i * 3 + 2];
             const k = `${x},${y},${z}`; if (!ptKeys.has(k)) { ptKeys.add(k); pts.push(x, y, z); }
