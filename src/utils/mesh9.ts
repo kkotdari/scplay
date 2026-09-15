@@ -4,7 +4,8 @@
    버린다. 임자색 면(fill 없음)은 fill "" 로 두어 붓이 임자색으로 바꿔 칠한다. */
 import { MESH9, withTopView, withYaw, bake, type ShapeFace, type Poly3 } from "./shapeOblique";
 
-export interface MeshPart9 { polys: Poly3[]; fill: string; alpha: number; team: boolean; lod: number }
+/** 부품 — ow/ob 는 그 면 위에 얹혀 있던 음영 덧칠(흰·검 얕은 알파, 같은 경로의 topFace/sideFace/faceLight)을 접은 몫(0~1). */
+export interface MeshPart9 { polys: Poly3[]; fill: string; alpha: number; team: boolean; lod: number; ow: number; ob: number }
 export interface Mesh9 { parts: MeshPart9[]; faces: number; covered: number; skipped: number }
 
 /** #rgb·#rrggbb 휘도(0~1). 못 읽으면 0.5. */
@@ -31,9 +32,19 @@ export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeF
   finally { MESH9.on = false; }
   if (filter) faces = filter(faces);   // 건설 단계(stageFaces) 같은 면 고르기 — 곁표는 그대로라 남은 면만 메시가 된다
   const parts: MeshPart9[] = [];
+  const byD = new Map<string, number>();   // 경로 → 그 경로로 마지막에 난 부품(덧칠을 접을 자리)
   let covered = 0; let skipped = 0;
   for (const f of faces) {
-    if (isOverlay9(f)) { skipped += 1; continue; }
+    if (isOverlay9(f)) {
+      /* 음영 덧칠은 따로 그리지 않고 **같은 경로의 몸 면에 접는다** — 2D 가 면마다 얹던 흰(윗면·빛 받는 면)·검(옆면·그늘)
+         덧칠이 그대로 정점 색이 된다. 경로가 다른 덧칠(구의 초승달 광택 등)은 버린다. */
+      const at = byD.get(f[0]);
+      if (at !== undefined) {
+        const pt = parts[at]; const a = f[1];
+        if (lum9(f[2] ?? "#fff") > 0.5) pt.ow = 1 - (1 - pt.ow) * (1 - a); else pt.ob = 1 - (1 - pt.ob) * (1 - a);
+      }
+      skipped += 1; continue;
+    }
     let polys = MESH9.byD.get(f[0]);
     if (!polys && f[0].indexOf("Z M") > 0) {
       // 다각형 여럿을 이어 붙인 면(폴리 경로 둘 이상) — 조각마다 찾아 합친다.
@@ -43,7 +54,8 @@ export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeF
     }
     if (!polys) continue;
     covered += 1;
-    parts.push({ polys, fill: f[2] ?? "", alpha: f[1], team: f[2] === undefined, lod: f[4] ?? 0 });
+    byD.set(f[0], parts.length);
+    parts.push({ polys, fill: f[2] ?? "", alpha: f[1], team: f[2] === undefined, lod: f[4] ?? 0, ow: 0, ob: 0 });
   }
   MESH9.byD.clear();
   return { parts, faces: faces.length, covered, skipped };

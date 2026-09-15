@@ -628,7 +628,8 @@ export function faceLight(
   // 내려다보는 몫 — 납작비가 곧 부감의 세기다(납작할수록 더 위에서 본다).
   const elev = groundSquashNow();
   return {
-    visible: (ny * Math.cos(vphi) - nx * Math.sin(vphi)) + nzModel * elev > 0.02,
+    // 메시 기록 중에는 뒷면도 낸다(MESH9.on) — GPU 가 모델을 아무 각으로나 돌리므로 3D 로는 모든 면이 있어야 한다.
+    visible: MESH9.on || (ny * Math.cos(vphi) - nx * Math.sin(vphi)) + nzModel * elev > 0.02,
     face,
   };
 }
@@ -637,6 +638,8 @@ export function faceLight(
  *  둥근 몸에 붙은 장식(어시밀레이터 알 등)을 모서리에서 뚝 끊지 않고, 돌아 나가며
  *  서서히 줄이는 데 쓴다. */
 export function facingRatio(nxModel: number, nyModel: number): number {
+  // 메시 기록 중에는 '마주 본다'로 답한다 — 마주 볼 때만 그리는 장식(벽 환풍구 등)이 3D 메시에 다 들어가게.
+  if (MESH9.on) return 1;
   const [mnx, mny] = spun(nxModel, nyModel);
   const th = (currentYaw() * Math.PI) / 180;
   const nx = mnx * Math.cos(th) + mny * Math.sin(th);

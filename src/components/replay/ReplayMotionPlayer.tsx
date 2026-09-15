@@ -93,7 +93,7 @@ import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, W
 import {
   pitchFlatSet9, brushOn9, brushSet9, glowOn9, glowSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, spriteSideMax9, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, rasterUnit9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, tone9, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
 } from "./bake9";
-import { glUnits9, glNow9, GL_ON9, camOf9, CAM_TOP9 } from "./gl9";
+import { glUnits9, glNow9, GL_ON9, GL_WARM9, camOf9, CAM_TOP9 } from "./gl9";
 export { LIMB_LOG, TURRET_BACK9, SHAPE_BUILDERS, ctx2d9, BAKE_ENV9, cropToInk, rasterUnit9, pathBox, tierTableOf, autoTier, stageFaces, rasterBld9, SHAPE_GALLERY, poseSet, poseSet9, bldLitSet, headYawSet, bldSpinSet, bldSpinRawSet9, lodSetCap, lodSetZoom, lodNoteFrame, tone9, TONE_DARK, TONE_SAT, silhouetteLight, glowBake9, grainAxes9, GLOW9 } from "./bake9";
 export type { BakeCv9, BakeCtx9, RasterOut9, ShapeGalleryItem } from "./bake9";
 export { isAirUnit, flapCutOf, atkCutOf, unitTilesOf, buildingYawOf, galleryYawOf, BLD_NORM, BUILD_STAGES, SCR_DIAG, scrDiagOn, deriveWorld9, createEngine9, pickWorldUi9, emptyWorldUi9 } from "./engine9";
@@ -4659,10 +4659,11 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             const gay9 = Math.round(((groundY ?? sy + hPx / 2) - gLift9) * B) / B;
             const gax9 = Math.round(sx * B) / B;
             const gsh9 = bodyShadow ? { dy: Math.max(1, sidePx * 0.04), alpha: op.alpha * 0.4 } : undefined;
-            gl9.push({ mesh: glB9, ax: gax9, ay: gay9, k: gk9, yoff: -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9, shadow: gsh9 });
+            const gR9 = sidePx * 0.707; const gCy9 = -8 * gk9;
+            gl9.push({ mesh: glB9, ax: gax9, ay: gay9, k: gk9, yoff: -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, shadow: gsh9 });
             if (op.attach) {
               const gm9 = gl9.bldMesh({ ...op, kind: op.attach }, lodOf(sideQ));
-              if (gm9) gl9.push({ mesh: gm9, ax: gax9, ay: gay9, k: gk9, yoff: -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9 });
+              if (gm9) gl9.push({ mesh: gm9, ax: gax9, ay: gay9, k: gk9, yoff: -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9 });
             }
             continue;
           }
@@ -5123,7 +5124,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           for (const gkind9 of [op.kind, op.attach, op.attach2]) {
             const gm9 = gkind9 ? (gkind9 === op.kind ? glM9 : gl9.unitMesh(gkind9, op.pose ?? 0)) : null;
             if (!gm9) continue;
-            gl9.push({ mesh: gm9, ax: gax9, ay: gay9, k: gk9, yoff: (px / 16) * ((op.flat ? 12 : 12.6) - 8), yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glCam9, shadow: gsh9 });
+            gl9.push({ mesh: gm9, ax: gax9, ay: gay9, k: gk9, yoff: (px / 16) * ((op.flat ? 12 : 12.6) - 8), yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glCam9, gradR: px * 0.707, gradCy: 0, shadow: gsh9 });
           }
           ctx.setTransform(Bd, 0, 0, Bd, 0, 0);
           continue;
@@ -5273,7 +5274,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         ctx.drawImage(gl9.canvas, 0, 0, cw, ch);
         if (scrDiagOn()) {
           const miss9 = [...GL_MISS9].sort((a9, b9) => b9[1] - a9[1]).slice(0, 4).map(([k9, n9]) => `${k9}×${n9}`).join(" ");
-          SCR_DIAG.gl = `on 개체 ${gl9.stat.inst} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}(${gl9.stat.bakeMs.toFixed(0)}ms)${miss9 ? " 판으로 " + miss9 : ""}`;
+          SCR_DIAG.gl = `on 개체 ${gl9.stat.inst} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}(${gl9.stat.bakeMs.toFixed(0)}ms) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit${miss9 ? " 판으로 " + miss9 : ""}`;
         }
       }
       if (fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM)) {
@@ -13258,7 +13259,7 @@ export default function ReplayMotionPlayer({
       for (const v9 of WARM_KIN9[k9] ?? []) pushTable9(v9);
       const isBld = !UNIT_KIND_SET.has(k9);
       /* GL 붓(#gl=1)은 요잉 칸별 면이 아니라 종류당 메시 한 벌을 데운다(아래 step9 의 gl 갈래). */
-      if (GL_ON9) { jobs.push({ kind: k9, gl: isBld ? "b" : "u" }); for (const v9 of WARM_KIN9[k9] ?? []) if (SHAPE_BUILDERS[v9]) jobs.push({ kind: v9, gl: "u" }); continue; }
+      if (GL_ON9 && GL_WARM9) { jobs.push({ kind: k9, gl: isBld ? "b" : "u" }); for (const v9 of WARM_KIN9[k9] ?? []) if (SHAPE_BUILDERS[v9]) jobs.push({ kind: v9, gl: "u" }); continue; }
       if (isBld) jobs.push({ kind: k9 });
       /* ★ **그릴 칸만 데운다**(수리: 큰 판에서 "로딩이 거의 안 됨") ────────────────────────
          여기는 늘 열여섯 칸(22.5도)을 데웠는데, 작은 기기의 붓은 그 칸을 **한 번도 안 쓴다**:

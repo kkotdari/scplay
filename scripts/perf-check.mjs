@@ -539,7 +539,8 @@ await page.evaluate(([z, d, mw, mh, cx, cy]) => {
   Number(flag("--cx", 0.5)), Number(flag("--cy", 0.5))]);
 await page.evaluate(([m, pl, wj, tb]) => window.__mount(m, pl, wj, tb), [world.motion, world.players, walkFixture, makeTerrain()]);
 // 재생이 실제로 그려질 때까지 — blit이 돌기 시작하면 준비된 것이다.
-await page.waitForFunction("window.__spritePerf && (window.__spritePerf.last.blit + window.__spritePerf.last.bldBlit) > 0", null, { timeout: 30000 });
+// GL 붓(기본 켬)은 판을 안 찍는다 — 그린 개체 수(__glInst9)로도 준비를 안다.
+await page.waitForFunction("(window.__spritePerf && (window.__spritePerf.last.blit + window.__spritePerf.last.bldBlit) > 0) || (window.__glInst9 > 0)", null, { timeout: 30000 });
 // 첫 굽기(스프라이트 캐시 채우기)가 가라앉게 잠깐 둔다(--warm <ms>, 0 이면 첫 굽기까지 표본에 든다).
 await page.waitForTimeout(Number(flag("--warm", 2500)));
 
@@ -705,6 +706,21 @@ if (SHOT) {
       };
     });
     console.log("로스터 손짓:", JSON.stringify(r, null, 0));
+  }
+  if (has("--probe-gl")) {
+    // GL 붓의 메시 표 — 열쇠 · 삼각 수 · 부품 색 가짓수(모델 세부가 빠졌는지 보는 자).
+    const r = await page.evaluate(() => {
+      const g = window.__gl9; if (!g) return "GL 없음";
+      const rows = [`stat ${JSON.stringify(g.stat)}`];
+      for (const [k, m] of g.meshes) {
+        if (!m) { rows.push(k + " ∅"); continue; }
+        const cols = new Set(); const v = m.verts;
+        for (let i = 0; i < v.length; i += 14) cols.add(v[i + 9] ? "team" : v[i + 6].toFixed(2) + "," + v[i + 7].toFixed(2) + "," + v[i + 8].toFixed(2));
+        rows.push(`${k} 삼각 ${m.n / 3} 색 ${cols.size}`);
+      }
+      return rows.join("\n");
+    });
+    console.log("GL 메시:\n" + r);
   }
   if (has("--probe-fx")) {
     const r = await page.evaluate(() => {
