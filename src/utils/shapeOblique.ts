@@ -792,6 +792,15 @@ export const MESH9 = { on: false, byD: new Map<string, Poly3[]>() };
 /** 메시 기록 중 project() 가 낸 화면점 → 판 모형 공간 점. 빌더가 project() 결과로 손수 짠 경로 문자열(번개·얼룩·구 껍질)을
  *  거꾸로 3D 로 되돌리는 열쇠다(mesh9.meshFromPath9). 열쇠는 경로에 찍히는 꼴 그대로 `${x} ${y}`(r2 반올림). */
 export const PROJ9 = new Map<string, number[]>();
+/** ★ **화면점 → 모형점 되짚기**(메시 기록 중에만 뜻이 있다) — project() 의 식을 z 를 알 때 그대로 되돌린다.
+ *  손으로 셈한 화면 좌표(사영된 점에서 화면 자로 더한 자리 — 파일런 보석·아둔 링의 청록 띠 따위)에 얹은 원·타원은
+ *  PROJ9 에 기록이 없어 메시가 빠졌다. 그런 자리는 **가까운 기록점의 높이(z)를 빌려** 이 함수로 x·y 를 되찾는다.
+ *  기록은 요잉 0·평면·밀림 0 으로 돌므로(collectMesh9) 식이 짧다: Y → ry, 원근 배수 → rx. */
+export function unproject9(X: number, Y: number, z: number): [number, number, number] {
+  const ry = (Y - originYNow() + z * zScaleNow()) / groundSquashNow();
+  const f = MODEL_PERSP / (MODEL_PERSP - Math.max(-10, Math.min(10, ry)));
+  return [(X - VIEW.originX) / f, ry, z];
+}
 export function meshOn9(on: boolean): void { MESH9.on = on; if (!on) MESH9.byD.clear(); }
 export function meshPut9(d: string, polys: Poly3[]): void { if (MESH9.on) MESH9.byD.set(d, polys); }
 /** 판 모형 공간 점(모델 변환만) — 메시에 적는 점은 전부 이것을 지난다. */

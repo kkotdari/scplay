@@ -16,6 +16,9 @@ const POSE = Number(flag("--pose", 0));
 const SVG = flag("--svg", null);
 const ROTS = String(flag("--rots", "0,45,90,180")).split(",").map(Number);
 const CELL = Number(flag("--cell", 160));
+/* --dump — 그 종류의 **부품 하나하나**를 찍는다(채움색·알파·폴리 수·z 범위·빌보드). 2D 에는 있는데 GL 에서 빠진 면을
+   찾는 자다: 덧칠로 접힌 면(skipped)과 몸으로 남은 부품을 한 줄씩 본다. */
+const DUMP = argv.includes("--dump");
 const ENTRY = `
 import { SHAPE_BUILDERS, poseSet9, headYawSet } from ${JSON.stringify(join(ROOT, "src/components/replay/bake9"))};
 import { collectMesh9 } from ${JSON.stringify(join(ROOT, "src/utils/mesh9"))};
@@ -48,6 +51,18 @@ for (const [kind, m] of Object.entries(res)) {
 rows.sort((a, b) => a[0] - b[0]);
 console.log(rows.map((r) => r[1]).join("\n"));
 console.log(`— ${rows.length}종 · 덮임 ${totC}/${totF} (${Math.round(100 * totC / Math.max(1, totF))}%) · ${Date.now() - t0}ms`);
+if (DUMP) {
+  for (const [kind, m] of Object.entries(res)) {
+    console.log(`\n== ${kind} 면 ${m.faces} · 몸 부품 ${m.parts.length} · 덧칠로 접힘 ${m.skipped} · 되찾기 실패 ${m.faces - m.skipped - m.covered}`);
+    for (const d of m.missed ?? []) console.log(`  ⚠ 빠진 면 ${d}`);
+    m.parts.forEach((p, i) => {
+      let z0 = Infinity, z1 = -Infinity, n = 0;
+      for (const poly of p.polys) for (let k = 2; k < poly.length; k += 3) { z0 = Math.min(z0, poly[k]); z1 = Math.max(z1, poly[k]); n += 1; }
+      console.log(`  #${String(i).padStart(3)} ${(p.team ? "(임자)" : p.fill).padEnd(9)} a=${p.alpha.toFixed(2)} 폴리${String(p.polys.length).padStart(3)} 점${String(n).padStart(4)} z ${z0.toFixed(2)}~${z1.toFixed(2)}`
+        + `${p.bb ? " 빌보드" : ""}${p.ow > 0.001 ? ` 흰${p.ow.toFixed(2)}` : ""}${p.ob > 0.001 ? ` 검${p.ob.toFixed(2)}` : ""}`);
+    });
+  }
+}
 
 /** #rgb/#rrggbb 를 밝기 배수로 곱한 hex — 필터 없이 색에 굽는다(필터는 수천 면에서 매우 느리다). */
 const shadeHex = (fill, k) => {
