@@ -15523,10 +15523,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       path: (t9: number): [number, number, number] => [0, 0, CZ9 - 1.05 * BALL_H9 + 2.1 * BALL_H9 * t9],
       widthOf: ball9,
     }), GOLD9), partKey(0, 0, CZ9)));
-    /* ② 구를 감싸는 **링**(요청) — z축을 축으로 적도를 한 바퀴 도는 띠. 단면은 z와 나란히 선 얇은 판(높이 0.34·두께
-       0.07)이고, 구 표면(1.05)에서 0.17 떨어진 반지름 1.22다. 한 몸으로 지으면 키가 하나라 뒤 호가 구 위에 얹히므로
-       열두 호로 나눠 저마다 제 자리의 깊이 키를 준다. 앞 호(y > 0.8)는 렌즈 통 뒤로 들어가야 하니 키의 y를 0.8에
-       묶는다 — 통(partKey(0, 1.0)+0.3)이 늘 위에 선다. */
+    /* ② 구를 감싸는 **링**(요청) — 처음엔 z축을 축으로 적도를 돌게 했다가 **90도 피칭**(재요청): 이제 y축(앞뒤)을
+       축으로 x–z 평면(y 0)에 세로로 선 고리다. 단면은 y와 나란히 누운 얇은 판(앞뒤 폭 0.34·두께 0.07)이고, 구
+       표면(1.05)에서 0.17 떨어진 반지름 1.22다. 한 몸으로 지으면 키가 하나라 아래 호가 구 위에 얹히므로 열두 호로
+       나눠 저마다 제 높이의 키를 준다 — 위 호는 구 위로, 아래 호는 구 뒤로(카메라가 앞위에서 보므로 아래 호는 구의
+       앞면에 가린다). 날개(y 0.15~0.77)와 렌즈 통(y 0.84~)은 이 평면 앞이라 안 부딪친다. */
     {
       const RING_R9 = 1.22;
       const RING_N9 = 12;
@@ -15535,13 +15536,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const a1 = ((i9 + 1) / RING_N9) * Math.PI * 2;
         const am = (a0 + a1) / 2;
         out.push(...tagKey(paintBase(spirePillar({
-          x: 0, y: 0, h: 1, w: 1, segs: 2, sides: 4, caps: "none", oval: 0.2, ref: [0, 0, 1],
+          x: 0, y: 0, h: 1, w: 1, segs: 2, sides: 4, caps: "none", oval: 0.2, ref: [0, 1, 0],
           path: (t9: number): [number, number, number] => {
             const a9 = a0 + (a1 - a0) * t9;
-            return [RING_R9 * Math.cos(a9), RING_R9 * Math.sin(a9), CZ9];
+            return [RING_R9 * Math.cos(a9), 0, CZ9 + RING_R9 * Math.sin(a9)];
           },
           widthOf: (): number => 0.34,
-        }), GOLD9), partKey(RING_R9 * Math.cos(am), Math.min(0.8, RING_R9 * Math.sin(am)), CZ9)));
+        }), GOLD9), partKey(RING_R9 * Math.cos(am), 0, CZ9 + RING_R9 * Math.sin(am))));
       }
     }
     /* ③ 앞의 초록 눈 — 짧은 금색 통에 박힌 밝은 렌즈. 통은 제 각도의 끝 단면을 스스로
