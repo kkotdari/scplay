@@ -93,7 +93,7 @@ import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, W
 import {
   pitchFlatSet9, brushOn9, brushSet9, glowOn9, glowSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, spriteSideMax9, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, rasterUnit9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, tone9, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
 } from "./bake9";
-import { glUnits9, glNow9, GL_ON9, GL_WARM9, GL_GLOW_KINDS9, camOf9, CAM_TOP9, type GlUnits9 } from "./gl9";
+import { glUnits9, glNow9, GL_ON9, GL_WARM9, GL_BLIT9, GL_GLOW_KINDS9, camOf9, CAM_TOP9, type GlUnits9 } from "./gl9";
 export { LIMB_LOG, TURRET_BACK9, SHAPE_BUILDERS, ctx2d9, BAKE_ENV9, cropToInk, rasterUnit9, pathBox, tierTableOf, autoTier, stageFaces, rasterBld9, SHAPE_GALLERY, poseSet, poseSet9, bldLitSet, headYawSet, bldSpinSet, bldSpinRawSet9, lodSetCap, lodSetZoom, lodNoteFrame, tone9, TONE_DARK, TONE_SAT, silhouetteLight, glowBake9, grainAxes9, GLOW9 } from "./bake9";
 export type { BakeCv9, BakeCtx9, RasterOut9, ShapeGalleryItem } from "./bake9";
 export { isAirUnit, flapCutOf, atkCutOf, unitTilesOf, buildingYawOf, galleryYawOf, BLD_NORM, BUILD_STAGES, SCR_DIAG, scrDiagOn, deriveWorld9, createEngine9, pickWorldUi9, emptyWorldUi9 } from "./engine9";
@@ -833,6 +833,8 @@ const DEV9 = smallDevice9 ? {
   bakeWorkers: 0,
   /** 벤치 단 표(위 PHONE_TIERS9 — 한 줄이라 단이 없다). */
   tiers: PHONE_TIERS9,
+  /** GL 붓 메시 상한(벌) — 한 벌은 VBO + 정점 사본(footOf)이라 메모리다(#gl=1 로 폰에서 켤 때). */
+  glMeshMax: 240,
 } : {
   name: "pc",
   spriteMB: 128, bldSpriteMB: 64,
@@ -848,6 +850,7 @@ const DEV9 = smallDevice9 ? {
   /* 굽기 일꾼(아래 BAKEW9) — 코어 8 이상이면 둘, 아니면 하나. `#bakeworker=N`(0이면 끔)으로 못 박는다. */
   bakeWorkers: typeof navigator !== "undefined" && (navigator.hardwareConcurrency ?? 4) >= 8 ? 2 : 1,
   tiers: PC_TIERS9,
+  glMeshMax: 600,
 };
 /* ★ **PC는 벤치 단으로 예산을 올린다**(요청: "윈도우 크롬에서 CPU·GPU를 최대한 쓸 수 없을까" → 계획 1번) ────
    위 PC 표는 한 값이라 벤치 7ms짜리 기기도 19ms짜리와 같은 예산(프레임당 굽기 3장·12ms, 앞 3초·24MB)으로
@@ -4036,7 +4039,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       lodSetZoom(bakeZoom);
       ctx.setTransform(Bd, 0, 0, Bd, 0, 0);
       ctx.clearRect(0, 0, cw, ch);
-      const gl9 = glUnits9(glRef.current);
+      const gl9 = glUnits9(glRef.current, DEV9.glMeshMax);
       glFx9 = !!gl9;   // 효과 모델(폭풍·핵)도 GL 이 맡는다 — drawDomFx9 가 판을 안 굽게   // #gl=1 이면 유닛 몸통을 GPU 큐에 넣고, 프레임 끝에서 한 번 그린다(아래)
       /* (제거·요청) 도형 드롭섀도 — 건물·유닛 그림자를 다 걷었다(떠다니는 것 제외).
          떠 있음은 아래 hover 분기의 발밑 타원만 말한다. */
@@ -5326,10 +5329,10 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         gl9.flush(cv.width, cv.height, cw, ch);
         ctx.setTransform(Bd, 0, 0, Bd, 0, 0);
         ctx.globalAlpha = 1;
-        ctx.drawImage(gl9.canvas, 0, 0, cw, ch);
+        if (GL_BLIT9) ctx.drawImage(gl9.canvas, 0, 0, cw, ch);   // `#glblit=0`(계측): 헤드리스 SwiftShader 는 이 한 줄이 ReadPixels 로 1~2초다
         if (scrDiagOn()) {
           const miss9 = [...GL_MISS9].sort((a9, b9) => b9[1] - a9[1]).slice(0, 4).map(([k9, n9]) => `${k9}×${n9}`).join(" ");
-          SCR_DIAG.gl = `on 개체 ${gl9.stat.inst} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}(${gl9.stat.bakeMs.toFixed(0)}ms) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit${miss9 ? " 판으로 " + miss9 : ""}`;
+          SCR_DIAG.gl = `on 개체 ${gl9.stat.inst} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}/${gl9.meshMax}(${gl9.stat.bakeMs.toFixed(0)}ms·${(gl9.stat.bytes / 1048576).toFixed(1)}MB) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit${miss9 ? " 판으로 " + miss9 : ""}`;
         }
       }
       if (fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM)) {

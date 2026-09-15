@@ -141,8 +141,16 @@ scplayer 쪽 소스를 만졌으면 그쪽에서 `npx tsc --noEmit -p tsconfig.j
     효과 메시 열쇠 `f:종류:칸`. 탄두·섬광·연기(모델 아님)는 캔버스에 남는다.
   · GL 캔버스는 **미리곱한 알파**(premultipliedAlpha: true · 셰이더가 rgb·a 를 내고 합성 (ONE, 1−a)) — 예전(SRC_ALPHA 짝)은 알파 채널이
     a² 로 쌓여 반투명 빛무리가 어두웠다(밝기비 0.75 → 1.0). 더하기는 (ONE, ONE).
-  · 진단: `#diag=draw` 'GL' 줄(개체·삼각·메시·깊이칸/bit·판으로 떨어진 종류) · `#glshade=0|1|2` · `#gldepth=0` · `#glbias=N` · `#gllod=N` ·
-    `#glwarm=0`. 계측 `perf-check --hash gl=0`(캔버스 비교) `--probe-gl`(메시 표) `--warm 0`. 메시만 따로 보려면 `scripts/model-mesh.mjs`.
+  · **폰 준비(2026-09)**: 정점은 **36바이트**(pos·nrm float, rgb·team·alpha·덧칠·빌보드는 정규화 바이트, 부품 차례 float — 예전 float 15개 60B)이고
+    footOf 용 사본은 **겹치지 않는 꼭짓점 xyz 만**(정점 사본 통째 270KB/벌 → 수십 KB). 메시 상한은 기기 표 `DEV9.glMeshMax`(PC 600 · 폰 240;
+    실측 폰 프로필 157벌 24MB → 240벌 37MB). 데우기는 이미 rAF 당 6ms·8벌로 나뉜다. 폰 기본 켬은 **실기(iOS Safari) `#gl=1` 확인 뒤** —
+    GL_ON9 를 폰에서도 참으로 바꾸면 된다.
+  · **헤드리스는 GL 을 못 잰다**: 크로뮴 헤드리스는 소프트웨어 GL(SwiftShader)이라 WebGL 캔버스 → 2D `drawImage` 합성이 ReadPixels 로 서서
+    1454² 한 장에 1~2초(실측, 옵션 무관)고 삼각형 채우기도 CPU 다. perf-check 는 기본으로 `#glblit=0`(합성만 뺌 — GL 은 다 돈다)을 붙여
+    GL 의 CPU 몫만 잰다(`--glblit` 로 도로 붙임). PC 프로필 gl=0/gl=1 둘 다 p50 67ms(헤드리스 프레임 박자)라 차이가 안 보인다 — GPU 채우기·
+    첫 진입 덜컥임은 실기에서만 안다.
+  · 진단: `#diag=draw` 'GL' 줄(개체·삼각·메시/상한(굽기 ms·VBO MB)·깊이칸/bit·판으로 떨어진 종류) · `#glshade=0|1|2` · `#gldepth=0` · `#glbias=N` · `#gllod=N` ·
+    `#glwarm=0` · `#glblit=0`. 계측 `perf-check --hash gl=0`(캔버스 비교) `--shot x.png --probe-gl`(메시 표: 삼각·색·KB) `--warm 0`. 메시만 따로 보려면 `scripts/model-mesh.mjs`.
   · **전수조사 `node scripts/gl-check.mjs [--kinds a,b] [--rots 45,225] [--worst 40] --out <scratch>/glcheck.png [--json x.json]`** —
     종류마다 2D(캔버스 면 그리기)와 GL 을 같은 칸에 그려 실루엣 IoU·색차·밝기비를 재고 나쁜 순으로 표와 [2D,GL] 시트를 낸다.
     GL 붓을 고치면 이걸로 154종을 다시 돈다(2분). 기준(2026-09, 효과 여섯 포함·미리곱한 알파 뒤): 평균 나쁨 0.171 · 밝기비 1.02 · 나쁨 0.5 넘는 종류 0.

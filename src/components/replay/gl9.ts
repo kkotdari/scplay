@@ -36,10 +36,13 @@ export interface GlCam9 { squash: number; zk: number; lean: number; shear: numbe
 export interface GlFoot9 { w: number; cx: number; bot: number; top: number }
 /** nSolid: 앞쪽 정점 수(불투명 부품) · 그 뒤는 반투명(깊이를 안 쓰고 겹쳐 섞는다).
  *  데칼(한 장짜리 작은 부품 — 2D 가 벽 안쪽에 그려 두고 화가 차례로 위에 얹던 줄무늬·창·환풍구)의 깊이 편향은 정점(aOrd)에 든다. */
-export interface GlMesh9 { vbo: WebGLBuffer; n: number; nSolid: number; bias: number; verts: Float32Array; foot: Map<string, GlFoot9> }
+/** pts: footOf 용 **겹치지 않는 꼭짓점 xyz** 만의 사본(정점 사본을 통째로 들면 메시당 270KB — 폰 메모리) · bytes: VBO 크기 · cols: 색 가짓수(진단). */
+export interface GlMesh9 { vbo: WebGLBuffer; n: number; nSolid: number; bias: number; pts: Float32Array; bytes: number; cols: number; foot: Map<string, GlFoot9> }
 
-const STRIDE = 15;   // pos3 · nrm3(빌보드면 원반 가운데) · rgb3 · team1 · alpha1 · 덧칠 흰1 · 검1 · 부품 차례1 · 빌보드1
-const MESH_MAX9 = 600;   // 메시 상한(종류×자세×LOD + 건물 변종) — 넘으면 오래된 것부터
+/* 정점 36바이트(예전 float 15개 60바이트): pos3·nrm3(빌보드면 원반 가운데) float · rgb3+team1 바이트(정규화) · alpha·덧칠 흰·검·빌보드 바이트(정규화) ·
+   부품 차례 float. 0~1 값은 바이트 정규화로 충분하다(색 자체가 8비트, 알파·덧칠 1/255). 폰에서 메시 표(상한 240벌)가 메모리의 큰 몫이라 줄였다. */
+const STRIDE_B = 36;
+const MESH_MAX9 = 600;   // 메시 상한 기본(종류×자세×LOD + 건물 변종) — 넘으면 오래된 것부터. 기기 표(DEV9.glMeshMax)가 덮는다(폰 240).
 const VS = `
 attribute vec3 aPos; attribute vec3 aNrm; attribute vec3 aRgb; attribute float aTeam; attribute float aAlpha; attribute vec2 aOv; attribute float aOrd; attribute float aBb;
 uniform vec2 uAnchor; uniform vec3 uScale; uniform vec2 uYaw; uniform vec2 uCanvas; uniform vec2 uCam;
@@ -125,8 +128,9 @@ export class GlUnits9 {
   readonly meshes = new Map<string, GlMesh9 | null>();
   private queue: GlInst9[] = [];
   /** 진단: 마지막 프레임의 개체 수·삼각형 수·메시 수·메시 굽기 ms. */
-  stat = { inst: 0, tris: 0, bakeMs: 0, meshes: 0, slots: 0, depthBits: 0 };
-  constructor(readonly canvas: HTMLCanvasElement) {
+  stat = { inst: 0, tris: 0, bakeMs: 0, meshes: 0, slots: 0, depthBits: 0, /** 살아 있는 메시 VBO 합(바이트) */ bytes: 0 };
+  /** meshMax: 메시 상한(기기 표 DEV9.glMeshMax — PC 600 · 폰 240; 메시 한 벌은 VBO + footOf 용 정점 사본이라 폰 메모리에 든다). */
+  constructor(readonly canvas: HTMLCanvasElement, readonly meshMax = MESH_MAX9) {
     const gl = canvas.getContext("webgl", { alpha: true, premultipliedAlpha: true, antialias: true, depth: true });   // 미리곱한 알파 — 셰이더 출력·합성 함수(ONE, 1−a)와 한 벌
     if (!gl) throw new Error("webgl 없음");
     this.gl = gl;
@@ -171,14 +175,23 @@ export class GlUnits9 {
       const clear = glow ? [] : m.parts.filter((p) => p.alpha < 0.98);
       const solids = glow ? m.parts : m.parts.filter((p) => p.alpha >= 0.98);
       const parts = [...solids, ...clear];
-      const out: number[] = [];
+      let total = 0;
+      for (const part of parts) for (const poly of part.polys) { const n = poly.length / 3; if (n >= 3) total += 3 * (n - 2); }
+      const buf = new ArrayBuffer(total * STRIDE_B);
+      const f32 = new Float32Array(buf); const u8 = new Uint8Array(buf);
+      const b255 = (v: number): number => Math.max(0, Math.min(255, Math.round(v * 255)));
+      const ptKeys = new Set<string>(); const pts: number[] = [];
+      const cols = new Set<string>();
+      let vi = 0;
       let nSolid = 0;
       for (let pi = 0; pi < parts.length; pi += 1) {
         const part = parts[pi];
-        if (pi === solids.length) nSolid = out.length / STRIDE;
+        if (pi === solids.length) nSolid = vi;
         const ord = (ordOf.get(part) ?? 0) + (isDecal(part) ? bias : 0);
         const [r, g, bl] = part.team ? [0, 0, 0] : hexRgb(tone9(part.fill));   // 고정색은 2D 와 같은 색감 손잡이(tone9)를 지난다
         const team = part.team ? 1 : 0;
+        cols.add(part.team ? "team" : part.fill);
+        const cr = b255(r), cg = b255(g), cb = b255(bl), ct = team ? 255 : 0, ca = b255(part.alpha), cw = b255(part.ow), ck = b255(part.ob);
         for (const poly of part.polys) {
           const n = poly.length / 3; if (n < 3) continue;
           let nx = 0, ny = 0, nz = 0;
@@ -191,26 +204,39 @@ export class GlUnits9 {
           const nl = Math.hypot(nx, ny, nz) || 1; nx /= nl; ny /= nl; nz /= nl;
           const bb = part.bb ? 1 : 0;
           if (bb) { nx = 0; ny = 0; nz = 0; for (let i = 0; i < n; i += 1) { nx += poly[i * 3]; ny += poly[i * 3 + 1]; nz += poly[i * 3 + 2]; } nx /= n; ny /= n; nz /= n; }   // 빌보드: 법선 자리에 원반 가운데
-          const put = (i: number): void => { out.push(poly[i * 3], poly[i * 3 + 1], poly[i * 3 + 2], nx, ny, nz, r, g, bl, team, part.alpha, part.ow, part.ob, ord, bb); };
+          const cbb = bb ? 255 : 0;
+          for (let i = 0; i < n; i += 1) {
+            const x = poly[i * 3], y = poly[i * 3 + 1], z = poly[i * 3 + 2];
+            const k = `${x},${y},${z}`; if (!ptKeys.has(k)) { ptKeys.add(k); pts.push(x, y, z); }
+          }
+          const put = (i: number): void => {
+            const o = vi * 9; const ob = vi * STRIDE_B;
+            f32[o] = poly[i * 3]; f32[o + 1] = poly[i * 3 + 1]; f32[o + 2] = poly[i * 3 + 2];
+            f32[o + 3] = nx; f32[o + 4] = ny; f32[o + 5] = nz;
+            u8[ob + 24] = cr; u8[ob + 25] = cg; u8[ob + 26] = cb; u8[ob + 27] = ct;
+            u8[ob + 28] = ca; u8[ob + 29] = cw; u8[ob + 30] = ck; u8[ob + 31] = cbb;
+            f32[o + 8] = ord;
+            vi += 1;
+          };
           for (let i = 1; i + 1 < n; i += 1) { put(0); put(i); put(i + 1); }
         }
       }
-      if (out.length) {
+      if (vi) {
         const gl = this.gl;
         const vbo = gl.createBuffer()!;
-        const verts = new Float32Array(out);
         gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
-        gl.bufferData(gl.ARRAY_BUFFER, verts, gl.STATIC_DRAW);
-        const n = out.length / STRIDE;
-        mesh = { vbo, n, nSolid: clear.length ? nSolid : n, bias, verts, foot: new Map() };
+        gl.bufferData(gl.ARRAY_BUFFER, buf, gl.STATIC_DRAW);
+        const n = vi;
+        mesh = { vbo, n, nSolid: clear.length ? nSolid : n, bias, pts: new Float32Array(pts), bytes: buf.byteLength, cols: cols.size, foot: new Map() };
+        this.stat.bytes += buf.byteLength;
       }
     } catch (e) { console.warn("[gl9] 메시", key, e); }
     this.stat.bakeMs += performance.now() - t0;
     this.stat.meshes += 1;
-    if (this.meshes.size >= MESH_MAX9) {
+    if (this.meshes.size >= this.meshMax) {
       // 가장 오래된 것부터 버린다(Map 삽입 차례) — 포탑 각·건설 단계처럼 열쇠가 잘게 갈리는 건물이 쌓이지 않게.
       const first = this.meshes.keys().next();
-      if (!first.done) { const m = this.meshes.get(first.value); if (m) this.gl.deleteBuffer(m.vbo); this.meshes.delete(first.value); }
+      if (!first.done) { const m = this.meshes.get(first.value); if (m) { this.gl.deleteBuffer(m.vbo); this.stat.bytes -= m.bytes; } this.meshes.delete(first.value); }
     }
     this.meshes.set(key, mesh);
     return mesh;
@@ -260,8 +286,8 @@ export class GlUnits9 {
     if (got) return got;
     const th = (yk * Math.PI) / 180; const c = Math.cos(th); const sn = Math.sin(th);
     let minX = Infinity; let maxX = -Infinity; let bot = -Infinity; let top = Infinity;
-    const v = mesh.verts;
-    for (let i = 0; i < v.length; i += STRIDE) {
+    const v = mesh.pts;
+    for (let i = 0; i < v.length; i += 3) {
       const x = v[i]; const y = v[i + 1]; const z = v[i + 2];
       const rx = x * c + y * sn; const ry = -x * sn + y * c;
       const f = 48 / (48 - Math.max(-10, Math.min(10, ry)));
@@ -332,17 +358,17 @@ export class GlUnits9 {
     const slot = 2 / (M + 1);
     this.stat.slots = M;
     gl.uniform1f(this.loc.uDepthK, slot / 80);
-    const F = 4;
     const bind = (mesh: GlMesh9): void => {
       gl.bindBuffer(gl.ARRAY_BUFFER, mesh.vbo);
-      gl.enableVertexAttribArray(this.att.aPos); gl.vertexAttribPointer(this.att.aPos, 3, gl.FLOAT, false, STRIDE * F, 0);
-      gl.enableVertexAttribArray(this.att.aNrm); gl.vertexAttribPointer(this.att.aNrm, 3, gl.FLOAT, false, STRIDE * F, 3 * F);
-      gl.enableVertexAttribArray(this.att.aRgb); gl.vertexAttribPointer(this.att.aRgb, 3, gl.FLOAT, false, STRIDE * F, 6 * F);
-      gl.enableVertexAttribArray(this.att.aTeam); gl.vertexAttribPointer(this.att.aTeam, 1, gl.FLOAT, false, STRIDE * F, 9 * F);
-      gl.enableVertexAttribArray(this.att.aAlpha); gl.vertexAttribPointer(this.att.aAlpha, 1, gl.FLOAT, false, STRIDE * F, 10 * F);
-      gl.enableVertexAttribArray(this.att.aOv); gl.vertexAttribPointer(this.att.aOv, 2, gl.FLOAT, false, STRIDE * F, 11 * F);
-      gl.enableVertexAttribArray(this.att.aOrd); gl.vertexAttribPointer(this.att.aOrd, 1, gl.FLOAT, false, STRIDE * F, 13 * F);
-      gl.enableVertexAttribArray(this.att.aBb); gl.vertexAttribPointer(this.att.aBb, 1, gl.FLOAT, false, STRIDE * F, 14 * F);
+      const U = gl.UNSIGNED_BYTE;
+      gl.enableVertexAttribArray(this.att.aPos); gl.vertexAttribPointer(this.att.aPos, 3, gl.FLOAT, false, STRIDE_B, 0);
+      gl.enableVertexAttribArray(this.att.aNrm); gl.vertexAttribPointer(this.att.aNrm, 3, gl.FLOAT, false, STRIDE_B, 12);
+      gl.enableVertexAttribArray(this.att.aRgb); gl.vertexAttribPointer(this.att.aRgb, 3, U, true, STRIDE_B, 24);
+      gl.enableVertexAttribArray(this.att.aTeam); gl.vertexAttribPointer(this.att.aTeam, 1, U, true, STRIDE_B, 27);
+      gl.enableVertexAttribArray(this.att.aAlpha); gl.vertexAttribPointer(this.att.aAlpha, 1, U, true, STRIDE_B, 28);
+      gl.enableVertexAttribArray(this.att.aOv); gl.vertexAttribPointer(this.att.aOv, 2, U, true, STRIDE_B, 29);
+      gl.enableVertexAttribArray(this.att.aBb); gl.vertexAttribPointer(this.att.aBb, 1, U, true, STRIDE_B, 31);
+      gl.enableVertexAttribArray(this.att.aOrd); gl.vertexAttribPointer(this.att.aOrd, 1, gl.FLOAT, false, STRIDE_B, 32);
     };
     let camNow: GlCam9 | null = null;
     const place = (it: GlInst9): void => {
@@ -413,16 +439,20 @@ export const GL_WARM9 = !(typeof location !== "undefined" && /glwarm=0/.test(loc
 export const GL_DEPTH9 = !(typeof location !== "undefined" && /gldepth=0/.test(location.hash));
 /** 데칼 깊이 편향(모델 칸, 유닛 0.8 · 건물 2.0) — 진단 `#glbias=N` 으로 못 박아 본다(-1 = 메시별 기본). */
 export const GL_BIAS9 = ((): number => { const m = typeof location !== "undefined" ? /glbias=([\d.]+)/.exec(location.hash) : null; return m ? Number(m[1]) : -1; })();
+/** 진단 `#glblit=0` — GL 그림을 유닛 캔버스에 **합성하지 않는다**(GL 은 다 돌고 그림만 안 붙는다). 헤드리스 크로뮴(SwiftShader 소프트웨어 GL)은
+ *  WebGL 캔버스 → 2D drawImage 가 ReadPixels 로 서서 1454² 한 장에 1~2초가 든다(실측, 옵션과 무관) — 실기 GPU 에는 없는 값이라
+ *  perf-check 가 기본으로 붙여 GL 의 CPU 몫(메시 굽기·큐·유니폼)만 잰다. */
+export const GL_BLIT9 = !(typeof location !== "undefined" && /glblit=0/.test(location.hash));
 export const GL_ON9 = typeof location !== "undefined"
   && (/(^|[#&,])gl=1/.test(location.hash) || (!/(^|[#&,])gl=0/.test(location.hash) && !smallDev9));
 let glInst9: GlUnits9 | null | undefined;
 /** 지금 선 GL 붓(없으면 null) — 붓 밖(데우기 등)에서 메시를 미리 지을 때. */
 export const glNow9 = (): GlUnits9 | null => glInst9 ?? null;
 /** 유닛 층의 GL 붓 — 캔버스가 있을 때 한 번 만든다. 못 만들면(WebGL 없음) null 로 굳어 캔버스 길로 돈다. */
-export function glUnits9(cv: HTMLCanvasElement | null): GlUnits9 | null {
+export function glUnits9(cv: HTMLCanvasElement | null, meshMax = MESH_MAX9): GlUnits9 | null {
   if (!GL_ON9 || !cv) return null;
   if (glInst9 !== undefined && (glInst9 === null || glInst9.canvas === cv)) return glInst9;
-  try { glInst9 = new GlUnits9(cv); } catch (e) { console.warn("[gl9]", e); glInst9 = null; }
+  try { glInst9 = new GlUnits9(cv, meshMax); } catch (e) { console.warn("[gl9]", e); glInst9 = null; }
   (globalThis as unknown as { __gl9?: GlUnits9 | null }).__gl9 = glInst9;   // 진단(perf-check --probe-gl)
   return glInst9;
 }

@@ -510,7 +510,9 @@ await page.route("http://perf-check.local/*", (r) => r.fulfill({
 /* 주소 해시 — #diag(진단 표시). */
 /* --crowd N — 덜어내기 단을 강제한다(#crowd=N). 덜어낸 값이 얼마나 주는지 잴 때. */
 /* --hash <x> — 그 밖의 해시 깃발을 그대로 붙인다(예: --hash gl=1 → WebGL 유닛 붓 시제). */
-const hash9 = [has("--diag") ? "diag" : "", has("--crowd") ? `crowd=${flag("--crowd", 2)}` : "", String(flag("--hash", "") || "")].filter(Boolean).join(",");
+/* GL 합성은 기본으로 뺀다(`glblit=0`) — 헤드리스 크로뮴은 소프트웨어 GL(SwiftShader)이라 WebGL 캔버스 → 2D drawImage 가 ReadPixels 로 서서
+   한 장에 1~2초(실측: 1454² · 옵션 무관)다. 실기 GPU 엔 없는 값이라 붙이면 GL 프레임이 통째로 그 값이 된다. `--glblit` 로 도로 붙인다. */
+const hash9 = [has("--diag") ? "diag" : "", has("--crowd") ? `crowd=${flag("--crowd", 2)}` : "", String(flag("--hash", "") || ""), has("--glblit") ? "" : "glblit=0"].filter(Boolean).join(",");
 await page.goto(`http://perf-check.local/${hash9 ? `#${hash9}` : ""}`);
 /* 앱 CSS — 레이어 크기·자리·이펙트가 전부 클래스에 실려 있어 없으면 화면이 안 선다.
    빌드 산출물(dist)의 CSS를 그대로 얹는다(npm run build가 먼저 돌아 있어야 한다). */
@@ -714,9 +716,7 @@ if (SHOT) {
       const rows = [`stat ${JSON.stringify(g.stat)}`];
       for (const [k, m] of g.meshes) {
         if (!m) { rows.push(k + " ∅"); continue; }
-        const cols = new Set(); const v = m.verts;
-        for (let i = 0; i < v.length; i += 14) cols.add(v[i + 9] ? "team" : v[i + 6].toFixed(2) + "," + v[i + 7].toFixed(2) + "," + v[i + 8].toFixed(2));
-        rows.push(`${k} 삼각 ${m.n / 3} 색 ${cols.size}`);
+        rows.push(`${k} 삼각 ${m.n / 3} 색 ${m.cols} ${(m.bytes / 1024).toFixed(0)}KB`);
       }
       return rows.join("\n");
     });
