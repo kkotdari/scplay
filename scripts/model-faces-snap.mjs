@@ -1,0 +1,94 @@
+/* 모델 면 스냅샷·대조기 — 모델 좌표 손질(scripts/model-z-scale.mjs)의 검산 자다.
+ *
+ *   node scripts/model-faces-snap.mjs --out ref.json --zk 0.8   # 원본 소스 + withModelZ(0.8) = 꼭짓점 단계의 정답
+ *   node scripts/model-faces-snap.mjs --out new.json            # 고친 소스 그대로
+ *   node scripts/model-faces-snap.mjs --diff ref.json new.json  # 종류마다 안 맞는 면 수를 센다
+ *
+ * 브라우저 없이 Node에서 빌더를 돌린다(bake9는 DOM이 없다). 전 종류 × 자세(0·1·4) × 모드(top·pitch) × 방위 다섯.
+ * 대조는 채움색·명령 골격이 같은 면끼리 수치 벡터로 짝지어(허용 오차 --tol, 기본 0.03 모델 단위) 센다 —
+ * 깊이 키(f[3])는 z를 타므로 안 본다(고친 소스는 partKey의 z까지 줄어 차례가 달라질 수 있다). */
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, writeFileSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, dirname } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+const argv = process.argv.slice(2);
+const flag = (n, d = null) => { const i = argv.indexOf(n); return i < 0 ? d : (argv[i + 1] ?? true); };
+const has = (n) => argv.includes(n);
+const TOL = Number(flag("--tol", 0.03));
+
+if (has("--diff")) {
+  const i = argv.indexOf("--diff");
+  const A = JSON.parse(readFileSync(argv[i + 1], "utf8"));
+  const B = JSON.parse(readFileSync(argv[i + 2], "utf8"));
+  const nums = (d) => (d.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
+  const skel = (d) => d.replace(/-?\d+(?:\.\d+)?/g, "#");
+  let badKinds = 0;
+  const rows = [];
+  for (const kind of Object.keys(A)) {
+    let total = 0; let miss = 0; let worst = 0; let where = "";
+    for (const key of Object.keys(A[kind])) {
+      const fa = A[kind][key]; const fb = (B[kind] ?? {})[key] ?? [];
+      // 통: 채움색|골격 — 같은 통 안에서 수치 벡터를 사전순으로 세워 차례대로 짝짓는다.
+      const bucket = (fs) => { const m = new Map(); for (const f of fs) { const k = `${f[2] ?? ""}|${skel(f[0])}`; (m.get(k) ?? m.set(k, []).get(k)).push(nums(f[0])); } for (const v of m.values()) v.sort((p, q) => { for (let j = 0; j < p.length; j += 1) if (p[j] !== q[j]) return p[j] - q[j]; return 0; }); return m; };
+      const ma = bucket(fa); const mb = bucket(fb);
+      for (const [k, va] of ma) {
+        const vb = mb.get(k) ?? [];
+        total += va.length;
+        const n = Math.min(va.length, vb.length);
+        miss += va.length - n;
+        for (let j = 0; j < n; j += 1) {
+          let d = 0; for (let q = 0; q < va[j].length; q += 1) d = Math.max(d, Math.abs(va[j][q] - vb[j][q]));
+          if (d > TOL) { miss += 1; if (d > worst) { worst = d; where = `${key} ${k.slice(0, 40)}`; } }
+        }
+      }
+    }
+    if (miss > 0) { badKinds += 1; rows.push(`${kind.padEnd(16)} 어긋난 면 ${String(miss).padStart(5)}/${String(total).padStart(6)}  최대 ${worst.toFixed(2)}  @${where}`); }
+  }
+  console.log(rows.sort().join("\n"));
+  console.log(`— 어긋난 종류 ${badKinds}/${Object.keys(A).length} (허용 ${TOL})`);
+  process.exit(badKinds ? 1 : 0);
+}
+
+const ZK = Number(flag("--zk", 1));
+const ONLY = flag("--kinds", null) ? String(flag("--kinds")).split(",") : null;
+const ROTS = String(flag("--rots", "0,45,90,180,270")).split(",").map(Number);
+const POSES = String(flag("--poses", "0,1,4")).split(",").map(Number);
+const MODES = String(flag("--modes", "top,pitch")).split(",");
+const ENTRY = `
+import { SHAPE_BUILDERS, poseSet9, headYawSet } from ${JSON.stringify(join(ROOT, "src/components/replay/bake9"))};
+import { withYaw, withTopView, withPitchView, withModelZ, bake } from ${JSON.stringify(join(ROOT, "src/utils/shapeOblique"))};
+export function snap(zk, only, rots, poses, modes) {
+  const out = {};
+  const kinds = only ?? Object.keys(SHAPE_BUILDERS);
+  for (const kind of kinds) {
+    const b = SHAPE_BUILDERS[kind]; if (!b) continue;
+    out[kind] = {};
+    for (const pose of poses) for (const mode of modes) for (const rot of rots) {
+      poseSet9(pose); headYawSet(0);
+      const run0 = () => bake(() => withYaw(-rot, b));
+      const run1 = zk !== 1 ? () => withModelZ(zk, run0) : run0;
+      const run2 = mode === "pitch" ? () => withPitchView(run1) : run1;
+      let faces;
+      try { faces = mode === "top" ? withTopView(run2) : run2(); } catch (e) { faces = [["ERR " + String(e).slice(0, 60), 1, ""]]; }
+      out[kind][pose + ":" + mode + ":" + rot] = faces.map((f) => [f[0], f[1], f[2] ?? null]);
+    }
+  }
+  poseSet9(0);
+  return out;
+}
+`;
+const dir = mkdtempSync(join(tmpdir(), "facesnap-"));
+const src = join(dir, "entry.ts"); const outJs = join(dir, "entry.mjs");
+writeFileSync(src, ENTRY);
+execFileSync(process.execPath, [join(ROOT, "node_modules/esbuild/bin/esbuild"), src, "--bundle", "--platform=node", "--format=esm", "--log-level=error",
+  "--define:process.env.NODE_ENV=\"production\"", "--define:import.meta.env={}", `--outfile=${outJs}`], { cwd: ROOT, stdio: ["ignore", "ignore", "inherit"] });
+const mod = await import(pathToFileURL(outJs).href);
+const t0 = Date.now();
+const res = mod.snap(ZK, ONLY, ROTS, POSES, MODES);
+rmSync(dir, { recursive: true, force: true });
+const OUT = String(flag("--out", join(tmpdir(), "faces.json")));
+writeFileSync(OUT, JSON.stringify(res));
+let nf = 0; for (const k of Object.values(res)) for (const v of Object.values(k)) nf += v.length;
+console.log(`${Object.keys(res).length}종 · 면 ${nf} · ${Date.now() - t0}ms → ${OUT}`);
