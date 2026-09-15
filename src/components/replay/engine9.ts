@@ -1013,7 +1013,7 @@ export const MODEL_NORM: Record<string, number> = {
   carrier: 0.644,
   corsair: 1.251,  // 재측정(model-norm) — 위팔 0.8배 뒤
   darchon: 0.496,
-  defiler: 0.750,   // 0.687 → ×1.2(요청: 디파일러 그리기 1.2배)
+  defiler: 0.809,   // 0.687 → ×1.2(요청: 디파일러 그리기 1.2배) → ×(0.700/0.649) 다리 0.8배·뒷다리 뒤로(실측 0.649→0.700)
   devourer: 0.780,
   drone: 0.963,  // 재측정(model-norm)
   droneGas: 0.933,
@@ -1341,7 +1341,7 @@ export const SIZE_REF = gmOf(Object.values(UNIT_BW_TILES));
 export const UNIT_SIZE_TUNE: Record<string, number> = {   // 열쇠는 sizeKind(메딕처럼 원작 치수표에 없는 종류도 받는다)
   /* 도록 크기 보정 페이지(?cal)에서 실측해 준 배수(요청). */
   archon: 1.6, darchon: 1.6, corsair: 0.8, interceptor: 0.8, larva: 0.4, egg: 0.4,   // 아콘 둘 1.2 → 1.5 → 1.6(재요청)
-  muta: 1.0, scourge: 0.6, ultra: 1.4, guardian: 1.0, lurkeregg: 0.6, mutacocoon: 0.8,   // 뮤탈·가디언 0.8 → 1.0(요청)
+  muta: 0.9, scourge: 0.6, ultra: 1.4, guardian: 1.0, lurkeregg: 0.6, mutacocoon: 0.8,   // 뮤탈·가디언 0.8 → 1.0 → 뮤탈 0.9(요청)
   observer: 0.8,
   inf: 0.8, fbat: 0.8, ghost: 0.8,   // 메딕(inf)·파뱃(0.6 → 0.8 재요청)·고스트 — 마린(gunner)은 1.0으로 뺐다(재요청)
   htemp: 0.9,   // 0.6 → 1(요청) → 0.9(재요청). 다템은 표에서 빠져 1이다(원작 상자 24×24 대 24×26).

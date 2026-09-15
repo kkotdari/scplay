@@ -19631,16 +19631,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        같은 쪽에서 첫째·셋째가 함께 나가고 둘째가 반대, 반대쪽은 그 거울이다. */
     const wdD9 = walkDir();
     for (const m2 of [1, -1] as const) {
+      /* 다리 길이 0.8배(요청: "다리길이 20프로 줄이고") — 뿌리(0.7)는 두고 뻗는 몫만 줄인다.
+         맨 뒷다리는 **뒤로 꺾인다**(같은 요청): 앞으로 뻗던 spread 0.2를 음수로. */
+      const LEGK9 = 0.8;
       for (const [ry9, spread, reach] of [
-        [2, 0.95, 1], [1.65, 0.55, 1.12], [1.3, 0.2, 1.22],
+        [2, 0.95, 1], [1.65, 0.55, 1.12], [1.3, -0.75, 1.22],
       ] as [number, number, number][]) {
         const idx9 = ry9 === 2 ? 0 : ry9 === 1.65 ? 1 : 2;
         const stD9 = wdD9 * m2 * (idx9 === 1 ? -1 : 1) * 0.55;
         const key9 = depthNow(m2 * 2, ry9) * 1.6;
         /* 관절 넷 + 발끝 — x는 꾸준히 밖으로, y는 spread만큼 앞으로, z는 거의 그대로.
            가운데 두 마디에서 z가 1.45 → 1.3 → 1.4로 오르내리기만 하는 것이 '수평'이다. */
-        const px = (k: number): number => m2 * (0.7 + k * 1.02 * reach);
-        const py = (k: number): number => ry9 + k * 0.42 * spread + stD9 * (k / 4);
+        const px = (k: number): number => m2 * (0.7 + k * 1.02 * reach * LEGK9);
+        const py = (k: number): number => ry9 + k * 0.42 * spread * LEGK9 + stD9 * (k / 4);
         const PZ = [1.5, 1.45, 1.3, 1.4, 0.12];
         const PW = [0.62, 0.5, 0.42, 0.36];
         for (let j = 0; j < 3; j += 1) {
