@@ -19634,16 +19634,22 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 다리 길이 0.8배(요청: "다리길이 20프로 줄이고") — 뿌리(0.7)는 두고 뻗는 몫만 줄인다.
          맨 뒷다리는 **뒤로 꺾인다**(같은 요청): 앞으로 뻗던 spread 0.2를 음수로. */
       const LEGK9 = 0.8;
+      /* 세 쌍 따로(요청): 앞다리는 앞쪽(끝 두 마디)이 안으로 살짝 굽고, 가운데 다리는 0.8배,
+         뒷다리는 0.9배에 더 뒤(spread -0.75 → -1.1)를 향한다. */
+      const LEGK3 = [1, 0.8, 0.9];
       for (const [ry9, spread, reach] of [
-        [2, 0.95, 1], [1.65, 0.55, 1.12], [1.3, -0.75, 1.22],
+        [2, 0.95, 1], [1.65, 0.55, 1.12], [1.3, -1.1, 1.22],
       ] as [number, number, number][]) {
         const idx9 = ry9 === 2 ? 0 : ry9 === 1.65 ? 1 : 2;
+        const lk9 = LEGK9 * LEGK3[idx9];
+        // 앞다리 굽힘 — 둘째 관절부터 x를 안으로 당긴다(끝으로 갈수록 제곱으로).
+        const bend9 = idx9 === 0 ? 0.12 : 0;
         const stD9 = wdD9 * m2 * (idx9 === 1 ? -1 : 1) * 0.55;
         const key9 = depthNow(m2 * 2, ry9) * 1.6;
         /* 관절 넷 + 발끝 — x는 꾸준히 밖으로, y는 spread만큼 앞으로, z는 거의 그대로.
            가운데 두 마디에서 z가 1.45 → 1.3 → 1.4로 오르내리기만 하는 것이 '수평'이다. */
-        const px = (k: number): number => m2 * (0.7 + k * 1.02 * reach * LEGK9);
-        const py = (k: number): number => ry9 + k * 0.42 * spread * LEGK9 + stD9 * (k / 4);
+        const px = (k: number): number => m2 * (0.7 + k * 1.02 * reach * lk9 - bend9 * Math.max(0, k - 2) ** 2);
+        const py = (k: number): number => ry9 + k * 0.42 * spread * lk9 + stD9 * (k / 4);
         const PZ = [1.5, 1.45, 1.3, 1.4, 0.12];
         const PW = [0.62, 0.5, 0.42, 0.36];
         for (let j = 0; j < 3; j += 1) {
