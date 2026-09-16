@@ -208,7 +208,9 @@ export class GlUnits9 {
    *  '굽는 프레임'을 아는 자) · 깊이 칸/비트 · 살아 있는 메시 VBO 합(바이트). */
   stat = { inst: 0, tris: 0, bakeMs: 0, frameBakeMs: 0, meshes: 0, slots: 0, depthBits: 0, bytes: 0, bloom: 0 };
   /** meshMax: 메시 상한(기기 표 DEV9.glMeshMax — PC 600 · 폰 240; 메시 한 벌은 VBO + footOf 용 정점 사본이라 폰 메모리에 든다). */
-  constructor(readonly canvas: HTMLCanvasElement, readonly meshMax = MESH_MAX9, readonly bloomOn = true) {
+  /* ⚠ meshMax·bloomOn 은 **읽기 전용이 아니다**(2026-09, 폰 세 단) — 벤치 단이 유휴 재기로 오르면 기기 표(DEV9)의
+     값이 바뀌므로, glUnits9 가 다음 칠하기에서 그 벌에 새 값을 일러 준다. */
+  constructor(readonly canvas: HTMLCanvasElement, public meshMax = MESH_MAX9, public bloomOn = true) {
     const gl = canvas.getContext("webgl", { alpha: true, premultipliedAlpha: true, antialias: true, depth: true });   // 미리곱한 알파 — 셰이더 출력·합성 함수(ONE, 1−a)와 한 벌
     if (!gl) throw new Error("webgl 없음");
     this.gl = gl;
@@ -684,7 +686,11 @@ export const glBakeMsTake9 = (): number => {
 /** 유닛 층의 GL 붓 — 캔버스가 있을 때 한 번 만든다. 못 만들면(WebGL 없음) null 로 굳어 캔버스 길로 돈다. */
 export function glUnits9(cv: HTMLCanvasElement | null, meshMax = MESH_MAX9, bloom = true): GlUnits9 | null {
   if (!GL_ON9 || !cv) return null;
-  if (glInst9 !== undefined && (glInst9 === null || glInst9.canvas === cv)) return glInst9;
+  if (glInst9 !== undefined && (glInst9 === null || glInst9.canvas === cv)) {
+    // 단이 올랐으면 새 상한·번짐을 그 벌에 옮긴다(벌은 한 번만 짓는다).
+    if (glInst9) { glInst9.meshMax = meshMax; glInst9.bloomOn = bloom; }
+    return glInst9;
+  }
   try { glInst9 = new GlUnits9(cv, meshMax, bloom); } catch (e) { console.warn("[gl9]", e); glInst9 = null; }
   (globalThis as unknown as { __gl9?: GlUnits9 | null }).__gl9 = glInst9;   // 진단(perf-check --probe-gl)
   return glInst9;

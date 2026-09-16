@@ -713,7 +713,8 @@ if (SHOT) {
     // GL 붓의 메시 표 — 열쇠 · 삼각 수 · 부품 색 가짓수(모델 세부가 빠졌는지 보는 자).
     const r = await page.evaluate(() => {
       const g = window.__gl9; if (!g) return "GL 없음";
-      const rows = [`stat ${JSON.stringify(g.stat)}`];
+      // 벌의 문턱(기기 표·벤치 단이 먹였다) — 메시 상한·번짐 켜짐. 폰 세 단이 제대로 먹었나를 여기서 본다.
+      const rows = [`상한 ${g.meshMax}벌 · 번짐 ${g.bloomOn ? "켬" : "끔"}`, `stat ${JSON.stringify(g.stat)}`];
       for (const [k, m] of g.meshes) {
         if (!m) { rows.push(k + " ∅"); continue; }
         rows.push(`${k} 삼각 ${m.n / 3} 색 ${m.cols} ${(m.bytes / 1024).toFixed(0)}KB`);

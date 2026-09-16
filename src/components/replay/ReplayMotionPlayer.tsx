@@ -777,23 +777,46 @@ const deviceMem9 = ((): number => {
 })();
 /* ★ 기기 프로필(5번) — 폰/PC로 갈리던 문턱을 한 표에 모았다. 새 문턱은 여기에 더하고 자리에서는 DEV9.x만 읽는다.
    (기기 판정은 smallDevice9 하나다: 손가락 기기 + 작은 화면, 또는 메모리 4GB 이하.) */
-/** 벤치 단 한 줄 — 프로필(DEV9)마다 제 표를 든다(아래 applyBenchTier9). 0단이 그 프로필의 기본값이다.
- *  판 굽기 길을 걷은 뒤(2026-09) 단이 다스리는 것은 **설계 일꾼의 앞 한도** 하나다(판 예산·프레임당 굽기·굽기 일꾼은 없다).
- *  단 번호 자체는 여전히 '이 기기가 얼마나 빠른가'의 눈금이라 품질 알림(qualityLevel9)·결(grain)·그림자 접기가 읽는다. */
-type BenchTier9 = { aheadSec: number; aheadMB: number };
-/* PC의 네 단(아래 ★ 주석) — 폰 표(PHONE_TIERS9)는 지금 한 줄뿐이라 단이 안 오른다. 폰에도 단을 열려면 그 표에 줄을
-   더하면 된다(문턱·오르기만 하는 규칙·#tier= 강제는 그대로 탄다) — 설계는 기기를 안 가린다(요청: "모바일에도 이식할 수
-   있게 개방적으로 · 단수 적용도 마찬가지"). */
+/** 벤치 단 한 줄 — 프로필(DEV9)마다 제 표를 든다(아래 applyBenchTier9). **0단이 그 프로필의 기본값**이라
+ *  0단의 값은 DEV9 의 기본값과 같아야 한다(단이 안 오른 기기는 종전 그대로여야 한다).
+ *  `upMs` 는 이 단에 오르는 문턱(진입 벤치 2D ms **이하**) · `up3Ms` 는 **입체 벤치**의 문턱(안 적으면 안 본다) ·
+ *  `minMem` 은 deviceMemory 하한(GB, 안 내는 기기는 못 오른다).
+ *  나머지 칸은 **그 단이 덮어쓰는 DEV9 문턱**이다(안 적으면 그대로 둔다) — 단은 오르기만 하므로 덮어쓰기도 한 방향이다.
+ *  단 번호 자체는 '이 기기가 얼마나 빠른가'의 눈금이라 품질 알림(qualityLevel9)·결(grain)·그림자 접기도 읽는다. */
+type BenchTier9 = {
+  name: string; upMs: number; up3Ms?: number; minMem?: number;
+  aheadSec: number; aheadMB: number;
+  glMeshMax?: number; glBloom?: boolean; glow?: boolean; yaw8Always?: boolean;
+  shadowGroundMinZoom?: number; decalBakeMax?: number; hitShardK?: number; dieShards?: number;
+};
+/* ⚠ 문턱은 **숫자로 적는다** — CROWD_BENCH_MS9(24)는 이 표보다 아래에 선언되므로 여기서 부르면 TDZ 다.
+   PC: 16.8 = 24×0.7 · 8.4 = 24×0.35. */
 const PC_TIERS9: readonly BenchTier9[] = [
-  { aheadSec: 3, aheadMB: 24 },
-  { aheadSec: 5, aheadMB: 48 },
-  { aheadSec: 8, aheadMB: 80 },
+  { name: "낮음", upMs: Infinity, aheadSec: 3, aheadMB: 24 },
+  { name: "보통", upMs: 16.8, aheadSec: 5, aheadMB: 48 },
+  { name: "높음", upMs: 8.4, aheadSec: 8, aheadMB: 80 },
   /* 3단 **매우 높음** — 메모리 8GB(deviceMemory, 크로뮴만 낸다)가 확인되는 기기에서만 오른다. 앞 한도는 2단과 같고,
      이 단이 따로 뜻을 갖는 자리는 결(긁힌 광택)과 품질 알림이다. */
-  { aheadSec: 8, aheadMB: 80 },
+  { name: "매우 높음", upMs: 8.4, minMem: 8, aheadSec: 8, aheadMB: 80 },
 ];
+/* ★ **폰도 세 단이다**(2026-09, 요청: "요즘 폰도 성능차이가 심해서 모바일용 벤치를 별도로 분리하되 3단계로 나누고
+   적절히 기능을 넣고 빼야할거 같아. 최고단계에선 광택 글로우도 넣고") ─────────────────────────────────────
+   여태 폰 표는 한 줄이라 아이폰 최신과 오래된 보급형이 **같은 값**으로 돌았다. 문턱은 PC 와 따로 잡는다(PC 자를
+   비율로 나누면 폰에서는 0단만 나온다):
+     0 낮음  — 진입 벤치가 미달(2D 24ms 초과)인 기기. 종전 폰 값 그대로다(글로우도 꺼진 채) + 낮은 배율 죄기(lowZoomTrim9).
+     1 보통  — 24ms 이하. 글로우를 켜고 앞 한도·메시 상한·파편을 한 칸 올린다.
+     2 높음  — 2D 9ms 이하 **그리고 입체 벤치도 충분**(16ms 이하 — 번짐은 기울인 화면에서 가장 무겁다). **번짐(블룸)**까지 켜고, 요잉을 열여섯 칸으로 풀고, 접지 그림자를 2배율부터 깔고,
+               손짓 중에도 그림자를 안 접는다(아래 shFold9). 크립 얼룩도 한 단 곱게 굽는다.
+   ⚠ minMem 은 안 쓴다 — iOS 사파리는 deviceMemory 를 아예 안 내므로(그래서 smallDevice9 도 화면으로 가른다)
+     메모리를 문턱으로 삼으면 정작 가장 빠른 폰이 0단에 남는다. 메모리에 닿는 값(메시 상한)은 그래서 조심히 올린다
+     (240 → 300 → 360벌 · 실측 240벌 37MB). */
 const PHONE_TIERS9: readonly BenchTier9[] = [
-  { aheadSec: 1.5, aheadMB: 6 },
+  { name: "낮음", upMs: Infinity, aheadSec: 1.5, aheadMB: 6 },
+  { name: "보통", upMs: 24, aheadSec: 2.5, aheadMB: 10,
+    glMeshMax: 300, glow: true, decalBakeMax: 256, hitShardK: 0.8, dieShards: 16 },
+  { name: "높음", upMs: 9, up3Ms: 16, aheadSec: 4, aheadMB: 16,
+    glMeshMax: 360, glow: true, glBloom: true, yaw8Always: false,
+    shadowGroundMinZoom: 2, decalBakeMax: 384, hitShardK: 1, dieShards: 24 },
 ];
 const DEV9 = smallDevice9 ? {
   name: "phone",
@@ -807,8 +830,10 @@ const DEV9 = smallDevice9 ? {
   tiers: PHONE_TIERS9,
   /** GL 붓 메시 상한(벌) — 한 벌은 VBO + 꼭짓점 사본(footOf)이라 메모리다. */
   glMeshMax: 240,
-  /** 번짐(블룸) — 화면 한 겹을 더 칠하는 일이라 **폰은 끈다**(실기에서 값을 재기 전까지. `#glbloom=1` 로 켜 본다). */
+  /** 번짐(블룸) — 화면 한 겹을 더 칠하는 일이라 **0·1단은 끈다**(2단에서 표가 켠다. `#glbloom=0|1` 로 못 박는다). */
   glBloom: false,
+  /** 빛무리(글로우) — 0단(벤치 미달)은 끈 채 시작하고 1단부터 표가 켠다. */
+  glow: false,
 } : {
   name: "pc",
   decalBakeMax: 768,   // 크립 굽기 상한 384 → 768(지적: PC에서 화질 낮은 게 보임)
@@ -819,6 +844,7 @@ const DEV9 = smallDevice9 ? {
   tiers: PC_TIERS9,
   glMeshMax: 600,
   glBloom: true,
+  glow: true,
 };
 /* ★ **PC는 벤치 단으로 예산을 올린다**(요청: "윈도우 크롬에서 CPU·GPU를 최대한 쓸 수 없을까" → 계획 1번) ────
    위 PC 표는 한 값이라 벤치 7ms짜리 기기도 19ms짜리와 같은 예산(프레임당 굽기 3장·12ms, 앞 3초·24MB)으로
@@ -842,15 +868,18 @@ BAKE_ENV9.out = (w9, h9, tag9) => {
 BAKE_ENV9.oneMax = DEV9.bakeOneMB * 1024 * 1024;
 BAKE_ENV9.poolBytes = DEV9.bakePoolMB * 1024 * 1024;
 BAKE_ENV9.sideMax = DEV9.bakeSideMax;
-const PC_TIER9 = { v: 0, force: -1 };
+/** 지금 오른 벤치 단 — 프로필(DEV9.tiers)의 줄 번호다. 폰·PC 둘 다 이 자를 탄다(2026-09 전에는 PC 전용이었다). */
+const TIER9 = { v: 0, force: -1 };
 /* ★ **재생 품질 알림**(요청: "처음 시작할 때나 벤치 변경 시 맵 오른쪽 위에 토스트로 재생품질: 높음/보통/낮음 3초간") ────
    눈금은 넷이다 — PC는 벤치 단(2단 높음 · 1단 보통 · 0단 낮음), 폰은 낮음이고 벤치 미달(효과를 덜어내는 기기)이면
    **매우 낮음**(요청: "모바일은 보통 낮음이겠지 · PC 낮음보다 더 낮으면 매우 낮음"). 벤치는 진입 때 한 번 재고 유휴에
    다시 재어 단이 오를 수 있으므로, 눈금이 **바뀔 때마다** 알린다(같은 값이면 조용하다). 컴포넌트는 fn을 꽂고 3초 뒤 걷는다;
    첫 벤치는 렌더 중에 돌아 fn이 아직 없으니 level만 적어 두고, 꽂히는 순간 그 값을 한 번 보인다. */
 const QUALITY9 = { level: "", fn: null as ((lv: string) => void) | null };
-const qualityLevel9 = (): string =>
-  smallDevice9 ? (CROWD9.weak ? "매우 낮음" : "낮음") : PC_TIER9.v >= 3 ? "매우 높음" : PC_TIER9.v === 2 ? "높음" : PC_TIER9.v === 1 ? "보통" : "낮음";
+const qualityLevel9 = (): string => (smallDevice9
+  /* 폰도 이제 단이 셋이다 — 0단은 벤치 미달(효과를 덜어내는 기기)이면 **매우 낮음**, 아니면 낮음. */
+  ? (TIER9.v >= 2 ? "높음" : TIER9.v === 1 ? "보통" : CROWD9.weak ? "매우 낮음" : "낮음")
+  : TIER9.v >= 3 ? "매우 높음" : TIER9.v === 2 ? "높음" : TIER9.v === 1 ? "보통" : "낮음");
 /** 벤치·단이 정해지거나 바뀐 자리에서 부른다 — 눈금이 달라졌을 때만 알린다. */
 function qualityNote9(): void {
   const lv9 = qualityLevel9();
@@ -863,25 +892,44 @@ const DEV9_DIRTY9 = { v: false };
 const touchPc9 = typeof navigator !== "undefined" && (navigator.maxTouchPoints ?? 0) > 1;
 function applyBenchTier9(bench: number): void {
   const tiers9 = DEV9.tiers;
-  // 프로필 표가 한 줄이면 단이 없다(폰) · 터치가 있는 PC(데스크톱 UA 아이패드)도 0단(메모리 한도를 벤치로 못 잰다).
-  if (tiers9.length < 2 || touchPc9 || !(bench > 0)) return;
+  /* 프로필 표가 한 줄이면 단이 없다 · **데스크톱 UA 의 아이패드**(터치가 있는 PC)는 0단에 둔다 — 메모리 한도를
+     벤치로 못 잰다. ⚠ 폰(smallDevice9)은 이 문에 안 걸린다: 폰은 모두 터치 기기라 걸어 두면 표가 세 줄이어도
+     단이 영영 안 오른다(2026-09 에 폰 표를 세 줄로 늘리며 고친 자리). */
+  if (tiers9.length < 2 || (!smallDevice9 && touchPc9) || !(bench > 0)) return;
   const top9 = tiers9.length - 1;
-  if (PC_TIER9.force < 0 && typeof window !== "undefined") {
+  if (TIER9.force < 0 && typeof window !== "undefined") {
     const m9 = /tier=(\d)/.exec(window.location.hash);
-    PC_TIER9.force = m9 ? Math.min(top9, Number(m9[1])) : -2;   // -2: 살펴봤고 없음
+    TIER9.force = m9 ? Math.min(top9, Number(m9[1])) : -2;   // -2: 살펴봤고 없음
   }
-  const want9 = Math.min(top9, PC_TIER9.force >= 0 ? PC_TIER9.force
-    : bench < CROWD_BENCH_MS9 * 0.35 ? (deviceMem9 >= 8 ? 3 : 2) : bench < CROWD_BENCH_MS9 * 0.7 ? 1 : 0);
-  if (want9 <= PC_TIER9.v) return;   // 오르기만 한다
-  PC_TIER9.v = want9;
+  /** 표가 스스로 문턱을 든다 — 벤치가 그 줄의 upMs 이하이고 메모리 하한(minMem)을 채우는 **가장 높은 줄**. */
+  let lv9 = 0;
+  for (let i9 = 1; i9 <= top9; i9 += 1) {
+    const r9 = tiers9[i9];
+    const ok39 = r9.up3Ms === undefined || (CROWD9.bench3 > 0 && CROWD9.bench3 <= r9.up3Ms);
+    if (bench <= r9.upMs && ok39 && deviceMem9 >= (r9.minMem ?? 0)) lv9 = i9;
+  }
+  const want9 = TIER9.force >= 0 ? TIER9.force : lv9;
+  if (want9 <= TIER9.v) return;   // 오르기만 한다
+  TIER9.v = want9;
   const t9 = tiers9[want9];
   DEV9.aheadSec = t9.aheadSec; DEV9.aheadMB = t9.aheadMB;
+  /* 그 단이 덮어쓰는 문턱들 — 안 적은 칸은 그대로 둔다(0단 = 프로필 기본값이라 아무것도 안 덮는다).
+     자리에서는 다들 DEV9.x 를 **프레임마다 읽으므로** 여기서 갈아 끼우면 곧바로 먹는다(메시 상한·번짐은
+     glUnits9 가 다음 칠하기에서 그 벌에 일러 준다). */
+  if (t9.glMeshMax !== undefined) DEV9.glMeshMax = t9.glMeshMax;
+  if (t9.glBloom !== undefined) DEV9.glBloom = t9.glBloom;
+  if (t9.yaw8Always !== undefined) DEV9.yaw8Always = t9.yaw8Always;
+  if (t9.shadowGroundMinZoom !== undefined) DEV9.shadowGroundMinZoom = t9.shadowGroundMinZoom;
+  if (t9.decalBakeMax !== undefined) DEV9.decalBakeMax = t9.decalBakeMax;
+  if (t9.hitShardK !== undefined) DEV9.hitShardK = t9.hitShardK;
+  if (t9.dieShards !== undefined) DEV9.dieShards = t9.dieShards;
+  if (t9.glow !== undefined) { DEV9.glow = t9.glow; glowSet9(t9.glow); }
   /* 결(긁힌 광택)은 **맨 위 단에서만** 켠다(요청: "결은 PC에서도 최고 높음에서만 켜기") —
      계측으로 굽기 값이 +25~30%이고 꼬리가 길다(낯마다 수십 줄을 긋는다). 여력이 확인된
      기기에서만 얹는 것이 옳다. 단은 오르기만 하므로 이 한 줄이면 켜는 시점도 맞는다.
      폰은 단이 하나뿐이라(PHONE_TIERS9) 여기 안 들어오고, crowdInit9의 brushSet9(폰 끔)이
      그대로 남는다. */
-  brushSet9(want9 >= top9);
+  brushSet9(!smallDevice9 && want9 >= top9);   // 결(긁힌 광택)은 PC 맨 위 단에서만 — 폰은 어느 단에서도 안 켠다
   DEV9_DIRTY9.v = true;
   qualityNote9();   // 단이 올랐다 — 재생 품질 알림(위 QUALITY9)
 }
@@ -994,9 +1042,10 @@ function crowdInit9(): void {
      **맨 위 단**에 올랐을 때만 켠다(applyBenchTier9의 ★). 폰은 단이 하나뿐이라 꺼진 채로
      끝난다. ⚠ 이 줄은 applyBenchTier9 **앞**이라야 한다 — 뒤에 두면 단이 정한 값을 덮는다. */
   brushSet9(false);
-  /* ★ 폰의 **매우 낮음**(벤치 미달)은 글로우도 끈다(요청: "재생품질 매우 낮음에서 메모리가 부족한 거 같거든 글로우와
-     스크래치 다 끄기") — 스크래치(결)는 위에서 이미 폰 전체가 껐다. 글로우는 판마다 캔버스 한 장을 더 빌린다. */
-  glowSet9(!(smallDevice9 && c.weak));
+  /* ★ 글로우는 **단이 정한다**(2026-09, 폰 세 단) — 폰 0단(벤치 미달)은 끈 채로 시작하고 1단부터 표가 켠다
+     (요청: "재생품질 매우 낮음에서 메모리가 부족한 거 같거든 글로우와 스크래치 다 끄기"). PC 는 늘 켬이다.
+     스크래치(결)는 폰이 어느 단에서도 안 켠다. */
+  glowSet9(DEV9.glow);
   crowdRecheck9();  applyBenchTier9(c.bench);   // PC 벤치 단(위 PC_TIERS9의 ★)
   qualityNote9();        // 첫 눈금(위 QUALITY9) — 렌더 중이라 fn은 아직 없고 level만 적힌다
 }
@@ -1027,11 +1076,12 @@ function crowdRecheck9(): void {
       if (deep9) {
         if (c9.bench3 < 0 || ms9 < c9.bench3) {
           c9.bench3 = ms9; c9.weak3 = ms9 > CROWD_BENCH3D_MS9; c9.k3 = ms9 > CROWD_BENCH3D_MS9 * 2 ? 0.5 : 1; c9.re += 1;
+          applyBenchTier9(c9.bench);   // 폰 맨 위 단은 입체 벤치도 본다(up3Ms) — 그 값이 좋아졌으면 단이 오를 수 있다
+          qualityNote9();
         }
       } else if (c9.bench < 0 || ms9 < c9.bench) {
         c9.bench = ms9; c9.weak = ms9 > CROWD_BENCH_MS9; c9.k = ms9 > CROWD_BENCH_MS9 * 2 ? 0.5 : 1; c9.re += 1;
-        glowSet9(!(smallDevice9 && c9.weak));   // 미달이 풀리면 글로우도 돌아온다(위 ★)
-        applyBenchTier9(ms9);   // 더 작은 값이면 단이 오를 수 있다(위 ★)
+        applyBenchTier9(ms9);   // 더 작은 값이면 단이 오를 수 있다(위 ★) — 글로우·번짐도 그 표가 켠다
         qualityNote9();         // 폰의 미달이 풀렸을 수도 있다(위 QUALITY9)
       }
     }
@@ -2944,7 +2994,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       /* 빠른 PC(벤치 1단 이상)는 손짓 중에도 안 접는다(재지적: "드래그 시 바닥 그림자 없어짐 여전") — 배킹 몫(xfBackK9)은
          **손짓의 첫 장** 하나가 25ms를 넘겨도 그 손짓 내내 낮게 붙들리므로(오르내림 방지) 거의 매 끌기에 걸렸다. 그림자
          한 겹은 판 찍기 한 번 값이라 그 기기에서는 접어 버는 것이 없다. 폰과 0단 PC는 옛 규칙 그대로. */
-      const shFold9 = gest9 && xfBackK9.k < 1 && (smallDevice9 || PC_TIER9.v === 0);
+      /* 손짓 중 그림자 접기 — 폰은 **높음 단에서 안 접는다**(2026-09, 폰 세 단). PC 는 0단에서만 접는다. */
+      const shFold9 = gest9 && xfBackK9.k < 1 && (smallDevice9 ? TIER9.v < 2 : TIER9.v === 0);
       const bw = Math.round(cw * Bd);
       const bh = Math.round(ch * Bd);
       if (cv.width !== bw) cv.width = bw;
@@ -11049,7 +11100,7 @@ export default function ReplayMotionPlayer({
     const grade9 = (w9: boolean, k9: number): string => (w9 ? (k9 < 1 ? "심한미달" : "미달") : "충분");
     /* 저배율 죔(위 lowZoomTrim9) — 지금 배율에서 실제로 몇 단인지 그대로 찍는다. */
     const tr9 = lowZoomTrim9(zoomRef.current, pitched);
-    SCR_DIAG.crowd = `벤치 2D ${c9.bench.toFixed(0)}ms ${grade9(c9.weak, c9.k)} · 3D ${c9.bench3.toFixed(0)}ms ${grade9(c9.weak3, c9.k3)}${c9.force >= 0 ? " 강제" : ""}${CROWD9.re > 0 ? ` ↻${CROWD9.re}` : ""} · ${pitched ? "3D" : "2D"} ${c9.lv}단 ${c9.units}기${tr9 > 0 ? ` · 저배율죔 ${tr9}단` : NO_TRIM9 ? " · 저배율죔 끔" : ""}${THIN9.n > 0 ? ` · 겹침생략 ${THIN9.n - THIN9.drew}/${THIN9.n}기` : ""}${!smallDevice9 ? ` · PC ${PC_TIER9.v}단${PC_TIER9.force >= 0 ? "(강제)" : ""}` : ""}`;
+    SCR_DIAG.crowd = `벤치 2D ${c9.bench.toFixed(0)}ms ${grade9(c9.weak, c9.k)} · 3D ${c9.bench3.toFixed(0)}ms ${grade9(c9.weak3, c9.k3)}${c9.force >= 0 ? " 강제" : ""}${CROWD9.re > 0 ? ` ↻${CROWD9.re}` : ""} · ${pitched ? "3D" : "2D"} ${c9.lv}단 ${c9.units}기${tr9 > 0 ? ` · 저배율죔 ${tr9}단` : NO_TRIM9 ? " · 저배율죔 끔" : ""}${THIN9.n > 0 ? ` · 겹침생략 ${THIN9.n - THIN9.drew}/${THIN9.n}기` : ""}${` · ${DEV9.name} ${TIER9.v}단(${DEV9.tiers[TIER9.v].name})${TIER9.force >= 0 ? " 강제" : ""}`}`;
     const st9 = wStatRef.current;
     const wait9 = !st9.ready && st9.worldAt > 0 ? (pNow() - st9.worldAt) / 1000 : 0;
     let ahead9 = -1e9;
