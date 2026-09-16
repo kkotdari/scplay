@@ -132,7 +132,7 @@ function inBrowser({ KINDS, ROTS, MODE, CELL, LOD, BG, COLOR, POSE, LIT, HEAD, S
       /* 실루엣 빛은 **면 변환을 푼 뒤가 아니라 그 안에서** 부른다(앱의 rasterBld9 과 같은 자리).
          기울기 상자는 앱과 같이 **16-상자**다: 모델 0 → CELL/2 − CELL·ZOOM/2 + PAN.
          (옛 광택 겹 __glow 는 걷었다 — 그 코드는 앱에서 한 번도 안 돌던 것이라 지웠다.
-          모델 광택을 눈으로 볼 때는 GL 붓을 쓰는 `scripts/gl-check.mjs` 를 쓴다.) */
+          모델 광택을 눈으로 볼 때는 GL 붓을 쓰는 `scripts/model-gl.mjs` 를 쓴다.) */
       if (LOD >= 3) {
         const bw = CELL * ZOOM;
         const bx = { x: CELL / 2 - bw / 2 + PAN[0], y: CELL / 2 - bw / 2 + PAN[1], w: bw, h: bw };
