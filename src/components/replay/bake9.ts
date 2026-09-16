@@ -16100,7 +16100,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        곡률이라 반지름을 줄이면(2.5 → 1.9) 셋이 좁게 모이며 그만큼 더 오므라든다. */
     const LEAF_R = 1.9;                      // 말린 잎의 반지름(= 곡률)
     const LEAF_ZC = 5.75;                    // 잎 셋이 감싸는 축의 높이
-    const LEAF_HALF_T = 0.2;                 // 잎맥 한가운데의 반두께
+    const LEAF_HALF_T = 0.25;                // 잎맥 한가운데의 반두께(요청: 더 볼록하게 0.2 → 0.25)
     /* 1.05 → 0.86(요청: "세 잎 휘어짐 좀더 부드럽게") — 말림의 꼴(u²)은 그대로 두고 깊이만 낮춘다.
        꼴을 바꾸면(더 높은 거듭제곱) 허리가 평평해지고 끝이 급히 꺾여 오히려 덜 부드럽다. */
     const LEAF_CURL = 0.86;                  // 잎 뒤끝이 축 쪽으로 말려 드는 깊이
@@ -16123,7 +16123,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          u² 로 내리는 꼴이라 잎맥에서 기울기가 0 — 마루가 각지지 않고 부드럽게 솟는다. */
     const LEAF_SEGS9 = 20;
     const LEAF_SIDES9 = 12;
-    const LEAF_RIDGE = 0.34;                 // 잎맥의 등이 호 밖으로 솟는 몫
+    const LEAF_RIDGE = 0.52;                 // 잎맥의 등이 호 밖으로 솟는 몫(요청: 더 볼록하게 0.34 → 0.52)
     /** 잎 등마루 — 호 위의 자리 u(−1 옆끝 … 0 잎맥 … 1 옆끝)에서 반지름에 더할 몫. */
     const ridge9 = (u9: number): number => LEAF_RIDGE * (1 - u9 * u9);
     /** 단면 다각형의 긴 축 끝 꼭짓점은 반지름의 cos(π/n) 자리 — 반길이를 그만큼 키워 준다. */
@@ -19945,17 +19945,58 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          개인색이다(칠하지 않는다): 샘플 3의 파란 망토가 그 자리이고, 하템은 몸이 가늘어
          이 천이 없으면 실루엣이 막대에 가깝다. 두 폭이 등 가운데에서 만나 V로 벌어지고,
          아래로 갈수록 바깥·뒤로 흐른다. */
+      /* ★★ **천은 평평한 한 장이 아니라 몸을 감는 굽은 면이다**(2026-09, 요청: "하템 망토
+         살짝 안쪽을 들어 말아서 몸에 둥글게 말리는 느낌으로 하고 몸도 가려지게") ─────────
+         여태 두 폭은 꼭짓점 다섯짜리 **평면 폴리곤**이었다 — 등 뒤에 곧게 걸린 판이라
+         옆에서 보면 몸통이 천 밖으로 통째로 나왔고, 천이 몸을 두른 것이 아니라 등에 붙인
+         간판으로 읽혔다. 다크템플러 자락에서 세운 그 규약을 그대로 쓴다:
+           · 폭을 **격자**로 짓는다(가로 7 × 세로 8) — 굽은 면은 경계만 맞춰서는 안 되고
+             속까지 쪼개야 곧은 삼각형이 살을 뚫지 않는다(귀 잘라내기).
+           · **바깥으로 갈수록 앞으로 감는다**(WRAP9 · s²) — 어깨에서 가장 세고 밑단으로
+             갈수록 푼다. 그래야 천이 몸통의 옆구리를 돌아 안는다.
+           · **안쪽(등 가운데)은 살짝 들린다**(LIFT9) — 깃이 어깨 위로 올라와 등이 천 밖으로
+             안 드러난다.
+           · 키는 **감긴 제 자리**에서 잰다 — 앞으로 감긴 가까운 폭이 그만큼 큰 키를 받아
+             몸을 덮는다(안 그러면 감아 놓고도 몸 뒤에 깔린다). */
       ...([-1, 1] as const).flatMap((m9): ShapeFace[] => {
-        // 윗변은 **어깨에 딱**(지적: 너무 낮게 달림) — 어깨 뿌리(±1.05, −0.2, 5.7) 바로 위·뒤.
-        const d9 = polyPath3([
-          [m9 * 0.05, -0.35, 5 + L],
-          [m9 * 0.95, -0.45, 4.84 + L],
-          [m9 * 1.14, -1.16, 2.64 + L],
-          [m9 * 0.92, -1.46, 1.2 + L],
-          [m9 * 0.08, -1.28, 1.08 + L],
-        ]);
-        return tagKey([[d9, 1] as ShapeFace, sideFace(d9, 0.2)],
-          depthNow(m9 * 1.1, -1.0) * 1.6 + 0.4);
+        const WRAP9 = 0.82;    // 바깥 끝이 앞으로 감기는 깊이
+        const LIFT9 = 0.34;    // 안쪽(등 가운데)이 들리는 몫
+        /** 안쪽 레일(s 0) — 깃(v 0)에서 밑단(v 1)까지. */
+        const in9 = (v9: number): [number, number, number] =>
+          [0.05 + 0.03 * v9, -0.35 - 0.93 * v9, 5 - 3.92 * v9];
+        /** 바깥 레일(s 1) — 조종점 셋(깃 · 허리 · 밑단)을 v 로 잇는다. */
+        const out19 = (v9: number): [number, number, number] => {
+          const P9: [number, number, number][] = [[0.95, -0.45, 4.84], [1.24, -1.16, 2.64], [1.02, -1.46, 1.2]];
+          const u9 = v9 < 0.55 ? v9 / 0.55 : (v9 - 0.55) / 0.45;
+          const a9 = v9 < 0.55 ? P9[0] : P9[1]; const b9 = v9 < 0.55 ? P9[1] : P9[2];
+          return [a9[0] + (b9[0] - a9[0]) * u9, a9[1] + (b9[1] - a9[1]) * u9, a9[2] + (b9[2] - a9[2]) * u9];
+        };
+        /** 천 위의 한 점 — s 0(등 가운데) … 1(바깥 끝) · v 0(깃) … 1(밑단). */
+        const at9 = (s9: number, v9: number): [number, number, number] => {
+          const a9 = in9(v9); const b9 = out19(v9);
+          const f9 = s9 * s9;   // 감기는 몫은 바깥에서만 온전히 실린다
+          /* ★ **깃의 바깥 끝은 안쪽·아래로 여민다** — 안 여미면 어깨 위 모퉁이가 앞으로
+             뾰족하게 솟아, 감긴 천이 아니라 지느러미로 읽힌다(다크템플러 깃에서 겪은
+             그 자리). 바깥 끝(f9)이면서 깃 쪽(g9)일 때만 걸리게 두 몫을 곱한다. */
+          const g9 = Math.max(0, 1 - v9 / 0.30);
+          const c9 = f9 * f9 * g9 * g9;
+          return [
+            m9 * (a9[0] + (b9[0] - a9[0]) * s9 - 0.24 * c9),
+            a9[1] + (b9[1] - a9[1]) * s9 + WRAP9 * f9 * (1 - 0.6 * v9) - 0.2 * c9,
+            a9[2] + (b9[2] - a9[2]) * s9 + LIFT9 * (1 - s9) * (1 - s9) * (1 - v9) - 0.34 * c9 + L,
+          ];
+        };
+        const f9: ShapeFace[] = [];
+        const NS9 = 7; const NV9 = 8;
+        for (let i9 = 0; i9 < NS9; i9 += 1) {
+          for (let j9 = 0; j9 < NV9; j9 += 1) {
+            const d9 = polyPath3([at9(i9 / NS9, j9 / NV9), at9((i9 + 1) / NS9, j9 / NV9),
+              at9((i9 + 1) / NS9, (j9 + 1) / NV9), at9(i9 / NS9, (j9 + 1) / NV9)]);
+            f9.push([d9, 1] as ShapeFace, sideFace(d9, 0.2));
+          }
+        }
+        const md9 = at9(0.8, 0.3);
+        return tagKey(f9, depthNow(md9[0], md9[1]) * 1.6 + 0.4);
       }),
       /* 로브 앞의 파란 기 줄(사진 1) — 앞가리개 위를 흐르는 가는 세로 줄 둘. */
       ...tagKey(facingRatio(0, 1) > 0.1
@@ -20303,14 +20344,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 공격 컷(요청: "아콘도") — 아콘은 팔을 들어 손끝에서 번개를 놓는다. 평소엔
          밖·아래로 늘어진 팔이 끝점 하나로 들려 앞·위를 겨눈다. */
       const atA9 = poseNow === 2 ? 1 : 0;
+      /* ★ 공격에는 **두 팔을 머리 위로 든다**(요청: "아콘 공격 시 두 팔 들어야 됨") —
+         옛 값은 손끝이 겨우 어깨높이(ORB_Z + 0.08)에서 앞으로 뻗는 꼴이라 '드는' 것이
+         아니라 '내미는' 것이었다. 손끝을 ORB_Z + 1.62 까지 올리고 앞으로 나가는 몫은
+         절반으로 줄인다 — 번개는 치켜든 손끝 사이에서 인다. */
       const A9 = (t9: number): [number, number, number] => {
         const u9 = 1 - t9;
         const bz9 = (p0: number, c1: number, p2: number): number =>
           u9 * u9 * p0 + 2 * u9 * t9 * c1 + t9 * t9 * p2;
         return [
-          m9 * bz9(0.5, 2.6, 2.15 - atA9 * 0.35),
-          bz9(0.3, 0.2 + atA9 * 0.9, 0.45 + atA9 * 2.1),
-          bz9(ORB_Z + 0.64, ORB_Z - 0.4 + atA9 * 1.2, ORB_Z - 2.08 + atA9 * 2.16),
+          m9 * bz9(0.5, 2.6, 2.15 - atA9 * 0.2),
+          bz9(0.3, 0.2 + atA9 * 0.5, 0.45 + atA9 * 1.05),
+          bz9(ORB_Z + 0.64, ORB_Z - 0.4 + atA9 * 2.0, ORB_Z - 2.08 + atA9 * 3.7),
         ];
       };
       const [ax9, ay9] = A9(0.5);
@@ -20320,13 +20365,16 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         path: A9,
         widthOf: (t9: number): number => 0.36 - 0.19 * t9,
       }), FLESH9)), ka9));
-      // 세 갈래 갈퀴 — 손목에서 아래·안으로 말린다.
+      /* 세 갈래 갈퀴 — 손목에서 아래·**바깥**으로 말린다.
+         ★ 안팎이 뒤집혀 있었다(지적: "아콘 손가락 방향이 안팎이 180도 뒤집혀 있음") —
+           끝점의 x 를 `wx9 − m9·0.35` 로, 굽는 쪽을 `−m9` 로 주고 있었다. 둘 다 **몸 쪽**
+           이라 손가락이 제 팔뚝 안으로 말려 들어갔다. 밖으로 벌어져야 손이다. */
       const [wx9, wy9, wz9] = A9(1);
       for (const k9 of [0, 1, 2] as const) {
         const sp9 = (k9 - 1) * 0.36;
         out.push(...tagKey(inky(paintBase(spikeHorn(
-          wx9, wy9 + sp9, wz9, wx9 - m9 * 0.35, wy9 + sp9 * 1.7, wz9 - 1.2, 0.17,
-          FLESH9, 5, 0.42, -m9 * 0.5, -0.4,
+          wx9, wy9 + sp9, wz9, wx9 + m9 * 0.35, wy9 + sp9 * 1.7, wz9 - 1.2, 0.17,
+          FLESH9, 5, 0.42, m9 * 0.5, -0.4,
         ), FLESH9)), ka9 + 0.1 + k9 * 0.01));
       }
     }
@@ -22137,20 +22185,29 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const HZ9 = THK9 / 2;          // 단면 반높이
       const NP9 = 8;                 // 단면 마디 수
       /** θ·단면각 φ(0 바깥 · π/2 위 · π 안 · 3π/2 아래)에서의 꼭짓점. */
+      /* ★ **두 끝은 초승달의 뿔처럼 여민다**(2026-09, 요청: "셔틀 앞 집게의 끝을 초승달의
+         끝처럼 깔끔한 선 처리 형태로") ────────────────────────────────────────────────────
+         여태 끝은 단면을 그대로 둔 채 뚜껑을 덮은 꼴이었다 — 두툼한 관을 톱으로 자른 자리라
+         어느 각에서 봐도 뭉툭한 팔각 마개가 보였다. 초승달의 뿔은 반대다: 살이 **반폭과
+         반두께 둘 다** 줄며 한 선으로 모인다.
+         마지막 22%에서 둘을 함께 죈다(smoothstep 이라 여미는 자리가 각지지 않는다). 끝에서
+         거의 0 이 되므로 **뚜껑도 안 덮는다** — 덮을 단면이 없다. */
       const prof9 = (th9: number, ph9: number): [number, number, number] => {
         const t9 = Math.abs(th9) / TH9;
-        const w9 = Math.max(0.12, 0.95 - 0.5 * t9 ** 1.8);
+        const tp9 = Math.min(1, (1 - t9) / 0.22);
+        const tk9 = tp9 * tp9 * (3 - 2 * tp9);
+        const w9 = Math.max(0.12, 0.95 - 0.5 * t9 ** 1.8) * (0.03 + 0.97 * tk9);
         /* 뒤 한가운데(θ≈0)의 **바깥선을 호로 파낸다**(요청: 사과 베어 먹은 듯) — 반각 0.62rad 안에서
            코사인으로 물어 들인다. 바깥선만 깎이므로 단면의 가운데(rC)와 반폭(wC)을 그 절반씩 줄인다
            (바깥 R+w−물림 · 안 R−w 가 그대로 나온다). */
         const bite9 = 1.0 * Math.max(0, Math.cos((th9 / 0.62) * (Math.PI / 2)));
-        const r9 = R9 - bite9 / 2 + Math.max(0.1, w9 - bite9 / 2) * Math.cos(ph9);
+        const r9 = R9 - bite9 / 2 + Math.max(0.02, w9 - bite9 / 2) * Math.cos(ph9);
         const x9 = Math.sin(th9) * r9;
         const y9 = YC9 - Math.cos(th9) * r9;
         /* ★ 높이는 **x의 2차식**이라 가운데가 마루이고 양옆으로 흘러내린다(정면의 역 U) + 팔을 따라 도는
            몫(θ)에 매인 내림을 하나 더 얹는다 — 끝에서만 크게 들어 두 끝이 더 내려앉는다. */
         const zb9 = TOP9 - x9 * x9 * 0.112 - 1.4 * t9 ** 2.2;
-        return [x9, y9, zb9 + HZ9 + HZ9 * Math.sin(ph9)];
+        return [x9, y9, zb9 + HZ9 + HZ9 * (0.03 + 0.97 * tk9) * Math.sin(ph9)];
       };
       const N9 = 8;                  // 도막 하나의 마디 수
       const phs9 = Array.from({ length: NP9 }, (_, k9) => (k9 / NP9) * Math.PI * 2);
@@ -22168,13 +22225,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
             if (up9) f9.push(topFace(d9, 0.14));
           }
         }
-        /* 말굽의 **두 끝만** 단면으로 막는다 — 도막끼리 맞대는 자리는 안 막는다(맞댄 뚜껑 둘은
-           같은 자리에 겹쳐 서서 한 장이 앞을 보게 되고, 그 낯의 법선이 옆을 봐 이음매가 선으로 읽힌다). */
-        for (const e9 of [f0 === -1 ? -1 : 0, f1 === 1 ? 1 : 0] as const) {
-          if (e9 === 0) continue;
-          const cap9 = phs9.map((p9) => prof9(TH9 * e9, p9));
-          f9.push([polyPath3(e9 > 0 ? cap9 : [...cap9].reverse()), 1, TOSS_GOLD] as ShapeFace);
-        }
+        /* (걷어냄) 두 끝의 단면 뚜껑 — 이제 끝이 한 선으로 여며지므로 덮을 단면이 없다
+           (위 ★). 도막끼리 맞대는 자리는 예나 지금이나 안 막는다. */
         const mid9 = prof9((TH9 * (f0 + f1)) / 2, Math.PI / 2);
         out.push(...tagKey(f9, partKey(mid9[0], mid9[1], mid9[2])));
       }
@@ -22514,21 +22566,18 @@ SHAPE_BUILDERS.interceptor = () => {
   // 다른 소형 비행체(커세어·옵저버)와 같은 고도 — 공중 층에서 키가 튀지 않게.
   const Z9 = 4.64;
   /* ── 몸통 두 덩이(사진) — 좌우로 나란한 **통통한 포드 둘**이 몸의 거의 전부다.
-     ★ **콩가 드럼 꼴**이다(2026-09, 요청: "인터셉터 양쪽 동체 콩가 드럼 형태로") ─────────
-       여태는 반지름이 못 박힌 눕힌 팔각 기둥이라 앞뒤가 똑같은 통조림이었다. 콩가는
-       ㉠ 앞(머리)이 가장 넓고 ㉡ 어깨가 한 번 불룩 부르며 ㉢ 허리로 좁아졌다가 ㉣ 굽에서
-       조금 벌어진다 — 그 넷을 굵기 곡선 하나로 낸다. 단면은 종전과 같은 비로 눌러
-       (가로 0.62 · 세로 0.4 → oval 0.645) 실루엣의 두께가 안 변한다.
+     ★ 꼴은 **가운데 동체와 같은 방추**다(2026-09, 요청: "양쪽 동체 모양이 오히려 가운데
+       동체 모양이 되어야 함") — 한 번 콩가 드럼(앞이 넓고 뒤로 좁아지는 옆선)으로 지었다가
+       되물린 자리다. 셋이 같은 꼴을 나눠 쓰면 세 덩이가 한 몸으로 읽히고, 크기만 달라도
+       가운데가 등뼈로 선다. 단면은 종전과 같은 비로 눌러(가로 0.62 · 세로 0.4 → oval 0.645)
+       실루엣의 두께가 안 변한다.
      ⚠ 단면 축은 **ref 로 못 박는다**([1, 0, 0]) — 축이 y 하나뿐이라 안 주면 기둥이
        제멋대로 고르고, 그러면 눌린 쪽이 위아래가 아니라 좌우가 된다. */
-  const POD_R9 = 0.62;                 // 머리(앞)의 반폭
+  const POD_R9 = 0.62;                 // 허리(가장 굵은 자리)의 반폭
   const POD_Y0 = 1.30; const POD_Y1 = -1.55;
-  /** 콩가 옆선 — t 0(앞 머리) → 1(뒤 굽). */
-  const conga9 = (t9: number): number => {
-    const bel9 = 0.10 * Math.sin(Math.PI * Math.min(1, t9 / 0.5));      // 어깨의 부름
-    const foot9 = 0.09 * Math.max(0, (t9 - 0.80) / 0.20) ** 1.6;        // 굽의 벌어짐
-    return POD_R9 * (1 - 0.34 * t9) + bel9 + foot9;
-  };
+  /** 방추 옆선 — t 0(앞) → 1(뒤). **가운데 동체와 같은 꼴**이다(요청). */
+  const pod9 = (t9: number): number =>
+    POD_R9 * Math.sin(Math.PI * (0.1 + 0.8 * t9)) ** 0.6 + 0.04;
   const pod = (m: number): ShapeFace[] => [
     /* 키(재지적: 옆 띠가 가운데 몸에 안 가려짐) — 통·띠·가운데 몸을 **같은 자**(제 자리 깊이)로 잰다.
        띠는 제 통보다 한 치만 앞, 가운데 몸은 x 0의 제 깊이라 옆에서 보면 먼 통(과 그 띠)을 덮는다. */
@@ -22537,33 +22586,32 @@ SHAPE_BUILDERS.interceptor = () => {
       oval: 0.4 / POD_R9, trueNormal: true,
       path: (t9: number): [number, number, number] =>
         [m * 1.15, POD_Y0 + (POD_Y1 - POD_Y0) * t9, Z9],
-      widthOf: conga9,
+      widthOf: pod9,
     }), GOLD9), depthNow(m * 1.15, -0.1)),
     /* 임자 색은 **통 허리의 두꺼운 띠**(재요청) — 통보다 한 치 굵은 팔각 고리를 가운데에 두른다.
        칠하지 않으므로 그리는 쪽이 임자 색을 넣는다. 가운데 몸에는 아무것도 없다. */
     // 띠는 **불투명·트림 아님**(재지적: 너무 흐림) — 어느 배율에서도 또렷한 임자 색.
-    /* 띠는 콩가의 **머리 테**로 앞쪽에 옮긴다(y 0.62~1.10) — 콩가는 가죽을 죄는 쇠테가
-       머리 바로 밑에 둘리므로, 허리에 두르던 때보다 드럼으로 훨씬 잘 읽힌다. 굵기는
-       그 자리 통 굵기(conga9)보다 한 치 굵게. */
-    ...tagKey(prismYFaces(OCT_XZ(m * 1.15, Z9, conga9(0.08) + 0.075, (conga9(0.08) + 0.075) * (0.4 / POD_R9)),
-      0.62, 0.48, false, false)
-      .map((f) => [f[0], 1] as ShapeFace), depthNow(m * 1.15, 0.86) + 0.15),
+    /* 띠는 다시 **허리**에 두른다 — 방추는 가운데가 가장 굵어 거기가 테의 자리다.
+       굵기는 그 자리 통 굵기(pod9)보다 한 치 굵게. */
+    ...tagKey(prismYFaces(OCT_XZ(m * 1.15, Z9, pod9(0.5) + 0.075, (pod9(0.5) + 0.075) * (0.4 / POD_R9)),
+      -0.3, 0.6, false, false)
+      .map((f) => [f[0], 1] as ShapeFace), depthNow(m * 1.15, -0.1) + 0.15),
     // (걷어냄) 포드 등의 세로 청록 띠 — 재지적: 세로 데칼 제거.
     /* 꽁무니 발광 노즐(사진: 통 뒤끝의 육각형 청록 불) — 뒤를 보일 때만 그린다.
        벽 원반이라 요잉을 타고 저절로 납작해진다. */
     ...(facingRatio(0, -1) > 0.05
       ? tagKey([
         // 단면(y −1.55)에 **정확히** 붙인다(재지적) — 앞뒤 순서는 키가 가른다.
-        [wallDiscPath(m * 1.15, POD_Y1, Z9, 0.34, 0.222), 0.95, GLOW9] as ShapeFace,
-        [wallDiscPath(m * 1.15, POD_Y1, Z9, 0.19, 0.126), 1, "#eaf7ff"] as ShapeFace,
+        [wallDiscPath(m * 1.15, POD_Y1, Z9, 0.30, 0.196), 0.95, GLOW9] as ShapeFace,
+        [wallDiscPath(m * 1.15, POD_Y1, Z9, 0.17, 0.112), 1, "#eaf7ff"] as ShapeFace,
       ], depthNow(m * 1.15, -1.7) + 0.3)
       : []),
     /* 앞끝 에너지도 **동체 단면의 데칼**(재지적: 방추·판 말고) — 통 앞 단면에 붙인 벽 원반. */
     ...(facingRatio(0, 1) > 0.05
       ? tagKey([
         // 통 앞끝은 y 1.3(prismYFaces의 셋째 인자는 길이다) — 그 단면 바로 앞.
-        [wallDiscPath(m * 1.15, POD_Y0, Z9, 0.46, 0.3), 0.95, "#7fffe6"] as ShapeFace,
-        [wallDiscPath(m * 1.15, POD_Y0, Z9, 0.25, 0.166), 1, "#eaf7ff"] as ShapeFace,
+        [wallDiscPath(m * 1.15, POD_Y0, Z9, 0.30, 0.196), 0.95, "#7fffe6"] as ShapeFace,
+        [wallDiscPath(m * 1.15, POD_Y0, Z9, 0.17, 0.112), 1, "#eaf7ff"] as ShapeFace,
       ], depthNow(m * 1.15, 1.45) + 0.3)
       : []),
     /* 양 동체 바깥의 **아주 작은 사다리꼴 날개**(요청) — 통 옆구리에서 바깥으로 짧게. */
@@ -22584,8 +22632,11 @@ SHAPE_BUILDERS.interceptor = () => {
        달걀꼴. 위의 임자 판은 걷었다(임자 색은 통 허리 띠가 맡는다). */
     ...tagKey(paintBase(spirePillar({
       x: 0, y: 0, h: 0.8, w: 1, segs: 6, sides: 10, ref: [1, 0, 0], caps: "both", oval: 0.75, trueNormal: true,
-      path: (t9: number): [number, number, number] => [0, -1.35 + 2.5 * t9, Z9 + 0.24],
-      widthOf: (t9: number): number => 0.66 * Math.sin(Math.PI * (0.1 + 0.8 * t9)) ** 0.6 + 0.04,
+      /* 가운데는 **더 여위고 짧다**(요청: "가운데는 좀 더 배흘림 줄이고 앞뒤 길이 줄이기") —
+         배흘림은 사인의 지수가 정한다(0.6 은 배가 부르고 1 에 가까울수록 곧다): 0.6 → 0.95 ·
+         굵기 0.66 → 0.52. 길이는 2.5 → 1.95(앞뒤로 고르게 물린다). */
+      path: (t9: number): [number, number, number] => [0, -1.05 + 1.95 * t9, Z9 + 0.24],
+      widthOf: (t9: number): number => 0.52 * Math.sin(Math.PI * (0.1 + 0.8 * t9)) ** 0.95 + 0.05,
     }), GOLD9), depthNow(0, -0.1) + 0.05),
     // (걷어냄) 잇는 판 — 재지적: 가운데 몸이 양 통에 **직접** 닿는다(반폭 0.52 → 0.66, 통 안쪽 면 x 0.53 속으로).
     /* ── 앞 포신(사진: 가운데 아래에서 앞으로 튀어나온 짧은 포구) — 몸 밑에서 앞으로
