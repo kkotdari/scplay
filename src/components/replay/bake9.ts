@@ -23906,12 +23906,28 @@ export function stageFaces(faces: ShapeFace[], stg: number): ShapeFace[] {
   const z1 = new Array<number>(n).fill(NaN);
   const gz0 = new Array<number>(ng).fill(Infinity);
   const gz1 = new Array<number>(ng).fill(-Infinity);
+  /** 부품의 평면 자리(모형 x·y 합·개수) — '가운데부터 바깥으로' 세우는 자다. */
+  const gcx = new Array<number>(ng).fill(0);
+  const gcy = new Array<number>(ng).fill(0);
+  const gcn = new Array<number>(ng).fill(0);
+  /** 부품의 3D 상자 [x0, y0, x1, y1] — '무엇이 무엇 안에 들었나'(얹힘)를 잰다. */
+  const gbx = Array.from({ length: ng }, () => [Infinity, Infinity, -Infinity, -Infinity]);
   let has3d9 = false;
   for (let i = 0; i < n; i += 1) {
     const ps = MESH9.byD.get(faces[i][0]);
     if (!ps || ps.length === 0) continue;
     let a9 = Infinity; let b9 = -Infinity;
-    for (const q of ps) for (let j = 2; j < q.length; j += 3) { const z = q[j]; if (z < a9) a9 = z; if (z > b9) b9 = z; }
+    for (const q of ps) {
+      for (let j = 0; j + 2 < q.length; j += 3) {
+        const z = q[j + 2]; if (z < a9) a9 = z; if (z > b9) b9 = z;
+        gcx[gid[i]] += q[j]; gcy[gid[i]] += q[j + 1]; gcn[gid[i]] += 1;
+        const bb9 = gbx[gid[i]];
+        if (q[j] < bb9[0]) bb9[0] = q[j];
+        if (q[j + 1] < bb9[1]) bb9[1] = q[j + 1];
+        if (q[j] > bb9[2]) bb9[2] = q[j];
+        if (q[j + 1] > bb9[3]) bb9[3] = q[j + 1];
+      }
+    }
     if (!(a9 <= b9)) continue;
     z0[i] = a9; z1[i] = b9; has3d9 = true;
     const gg = gid[i];
@@ -23952,15 +23968,58 @@ export function stageFaces(faces: ShapeFace[], stg: number): ShapeFace[] {
      (z0+z1)/2 로 재 봤더니, 벽(가운데 3.0)보다 그 벽에 붙은 띠(가운데 2.2)가 **먼저** 떠서
      "면도 없는데 데칼이 먼저"가 그대로 돌아왔다(실측 그림: 배럭 5단에 띠만 공중에 떠 있다).
      밑변(z0)만이 '얹힌 것은 제 host 보다 높은 데서 시작한다'를 지킨다 — 자는 밑변이다. */
-  /* 같은 밑높이에서는 **부품이 통째로 한 채씩** 선다 — 큰 덩이부터(요청: "큰 부품이 나오고
-     작은 부품이 나와야 함"). 부품 안에서는 다시 바닥 → 벽 → 천장(z 위끝)이다. */
+  /* 같은 밑높이에서는 **부품이 통째로 한 채씩** 선다 — 차례는 **가운데부터 바깥으로**
+     (요청: "같은 높이를 한꺼번에 올리지 말고 가운데부터 올리고 바깥쪽 부품을 올린다던가").
+     실제 공사가 그렇고, 배럭처럼 가운데 동 하나에 좌우 판이 붙는 꼴에서 그 결이 가장 또렷하다.
+     자는 모형 평면(x·y)에서 건물 한가운데까지의 거리이고, 같은 거리면 큰 덩이부터다.
+     부품 안에서는 다시 바닥 → 벽 → 천장(z 위끝)이다. */
   const gArea9 = new Array<number>(ng).fill(0);
   for (let i = 0; i < n; i += 1) gArea9[gid[i]] += area9[i];
+  let mx9 = 0; let my9 = 0; let mn9 = 0;
+  for (let gg = 0; gg < ng; gg += 1) { mx9 += gcx[gg]; my9 += gcy[gg]; mn9 += gcn[gg]; }
+  mx9 /= Math.max(1, mn9); my9 /= Math.max(1, mn9);
+  const gDist9 = new Array<number>(ng).fill(0);
+  for (let gg = 0; gg < ng; gg += 1) {
+    if (gcn[gg] <= 0) continue;
+    gDist9[gg] = Math.hypot(gcx[gg] / gcn[gg] - mx9, gcy[gg] / gcn[gg] - my9);
+  }
   const gRank9 = new Array<number>(ng).fill(0);
-  gArea9.map((_, i) => i).sort((a, b) => gArea9[b] - gArea9[a] || a - b)
+  gArea9.map((_, i) => i)
+    .sort((a, b) => gDist9[a] - gDist9[b] || gArea9[b] - gArea9[a] || a - b)
     .forEach((gg, r) => { gRank9[gg] = r; });
-  const order = key0.map((_, i) => i)
-    .sort((a, b) => key0[a] - key0[b] || gRank9[gid[a]] - gRank9[gid[b]]
+  /* ★★ **얹힌 것은 제 받침보다 절대 먼저 설 수 없다**(2026-09, 재지적: "5단에서 면이 안 섰는데
+     데칼이 먼저 나오면 안 돼") — 밑변(z0) 자만으로는 **드문 자리에서 샌다**: 받침의 밑변과 같은
+     높이에서 시작하거나 더 아래로 흘러내린 장식(치마·테·기둥 밑동을 감는 띠)이 그것이다.
+     이제 3D 상자로 **들었는지**를 직접 본다: 부품 A 의 x·y·z 상자가 B 의 상자 안에 들면(한 뼘
+     여유) A 는 B 에 얹힌 것이다. 그런 A 는 ① 밑변을 B 의 밑변까지 끌어올려 재고(effZ0)
+     ② 같은 밑변이면 '몇 겹 안에 들었나'(level)가 큰 쪽이 뒤로 간다.
+     곧 창·띠·데칼이 제 벽보다 먼저 서는 일이 **자로 막힌다**(그림으로 고르는 값이 아니다).
+     부품은 수십이라 이 겹셈은 굽는 순간 한 번이고, 그 결과는 메시 벌에 실려 캐시된다. */
+  const effZ9 = new Array<number>(ng).fill(0);
+  const lvl9 = new Array<number>(ng).fill(0);
+  for (let gg = 0; gg < ng; gg += 1) effZ9[gg] = gz0[gg] < Infinity ? gz0[gg] : 0;
+  const inside9 = (a: number, b: number): boolean => {
+    const p = gbx[a]; const q = gbx[b];
+    if (!(p[0] > -Infinity) || !(q[0] > -Infinity)) return false;
+    const m9 = 0.02;
+    return p[0] >= q[0] - m9 && p[2] <= q[2] + m9 && p[1] >= q[1] - m9 && p[3] <= q[3] + m9
+      && gz0[a] >= gz0[b] - m9 && gz1[a] <= gz1[b] + m9
+      && (q[2] - q[0]) * (q[3] - q[1]) * (gz1[b] - gz0[b])
+        > (p[2] - p[0]) * (p[3] - p[1]) * (gz1[a] - gz0[a]) + 1e-6;
+  };
+  for (let a9 = 0; a9 < ng; a9 += 1) {
+    for (let b9 = 0; b9 < ng; b9 += 1) {
+      if (a9 === b9 || !inside9(a9, b9)) continue;
+      lvl9[a9] += 1;
+      if (effZ9[b9] > effZ9[a9]) effZ9[a9] = effZ9[b9];
+    }
+  }
+  /** 낯의 밑변 — 제가 얹힌 받침의 밑변까지 끌어올린 값이다(3D 가 없으면 옛 자 그대로). */
+  const kz9 = key0.map((v9, i) => (Number.isNaN(z0[i]) && gz0[gid[i]] === Infinity
+    ? v9 : Math.max(v9, effZ9[gid[i]])));
+  const order = kz9.map((_, i) => i)
+    .sort((a, b) => kz9[a] - kz9[b] || lvl9[gid[a]] - lvl9[gid[b]]
+      || gRank9[gid[a]] - gRank9[gid[b]]
       || key1[a] - key1[b] || area9[b] - area9[a] || a - b);
   const frac9 = BUILD_FRAC9[Math.min(BUILD_FRAC9.length - 1, stg - 1)];
   /* ★★ **칸을 나누는 자는 '높이'가 아니라 '보이는 넓이'다**(2026-09, 지적: "배럭은 3단에서 너무
@@ -23976,7 +24035,7 @@ export function stageFaces(faces: ShapeFace[], stg: number): ShapeFace[] {
        "처음엔 발판 정도만"이 깨진다.
      ⚠ 3D 가 아예 없는 굽기(`#gl=0` 폴백의 2D)에서는 자가 화면 상자라 높이를 못 재므로 옛 자
        (낯 수)로 물러난다. */
-  const zLo9 = key0[order[0]]; const zHi9 = key0[order[n - 1]];
+  const zLo9 = kz9[order[0]]; const zHi9 = kz9[order[n - 1]];
   let keepN9 = Math.max(1, Math.round(n * frac9));
   if (has3d9 && zHi9 > zLo9) {
     /* 자를 수 있는 자리(부품 경계)만 모은다 — 그 사이에서 자르면 상자에 구멍이 난다. */
@@ -23985,13 +24044,13 @@ export function stageFaces(faces: ShapeFace[], stg: number): ShapeFace[] {
     const stops9: number[] = [];
     for (let m9 = 1; m9 <= n; m9 += 1) {
       if (m9 === n || gid[order[m9]] !== gid[order[m9 - 1]]
-        || Math.abs(key0[order[m9]] - key0[order[m9 - 1]]) >= 1e-4) stops9.push(m9);
+        || Math.abs(kz9[order[m9]] - kz9[order[m9 - 1]]) >= 1e-4) stops9.push(m9);
     }
     /* 1단의 바닥 — **맨 아래 층은 통째로**(요청: "발판이 맨 아래라 제일 먼저 나와야 해").
        발판 여섯은 저마다 딴 부품이라 넓이로만 자르면 두어 개만 서서 '한쪽만 놓인 받침'이 된다.
        위로는 높이 10% 로 막는다 — 넓이가 작은 발판을 지나 몸통까지 들어오면 안 된다. */
     let lo9 = 0;
-    while (lo9 < n && key0[order[lo9]] <= zLo9 + (zHi9 - zLo9) * 0.02) lo9 += 1;
+    while (lo9 < n && kz9[order[lo9]] <= zLo9 + (zHi9 - zLo9) * 0.02) lo9 += 1;
     const cap9 = zLo9 + (zHi9 - zLo9) * 0.10;
     /* ★ 칸마다 **반드시 무엇이 늘어난다** — 넓이 몫으로 자리를 고르되, 앞 칸보다 적어도 한
        자리는 뒤여야 한다. 덩이가 몇 개뿐인 모델에서는 넓이만 보면 두세 칸이 같은 그림이 된다
@@ -24005,7 +24064,7 @@ export function stageFaces(faces: ShapeFace[], stg: number): ShapeFace[] {
       if (t9 === stg - 1) {
         let m9 = stops9[k9];
         if (stg === 1) {
-          while (m9 > 1 && key0[order[m9 - 1]] > cap9) m9 -= 1;
+          while (m9 > 1 && kz9[order[m9 - 1]] > cap9) m9 -= 1;
           if (lo9 > m9) m9 = lo9;
         }
         keepN9 = Math.max(1, m9);
