@@ -4576,6 +4576,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      *  요청의 "살짝만"이다 — 0.5 는 앞면을 2.7 → 1.7 로 깎아 너무 컸다(눈으로 확인). 0.35 면
      *  바깥 판 앞면이 2.7 → 2.0(74%) 로 남아 모서리만 접힌 꼴이 된다. */
     const CUT9 = 0.35;
+    /** 앞 모퉁이 둘만 깎는 자 — (+x,+y) · (+x,−y) · (−x,−y) · (−x,+y) 차례다. */
+    const CUT9_F9 = [CUT9, 0, 0, CUT9] as const;
     const PX = 3.95;        // 바깥 판의 x 중심
     const PW = 2.7;         // 바깥 판 두께(x)
     const PD = 7.6;         // 판 깊이(y)
@@ -4772,12 +4774,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        사이 상자 둘은 얇은 이음이라 네모 그대로 둔다. 띠·창도 깎인 만큼 물러나고, 사선 낯에도
        제 토막을 둘러 띠가 모서리에서 끊기지 않는다(아래 BLK9·bandSeg9). */
     for (const sx9 of [-1, 1] as const) {
-      // 줄인 판 — 뒤 낯이 벤트 밑판의 앞 끝(PBK9)이다.
-      out.push(...tagKey(boxOctFaces3(sx9 * PX, PCY9, PW, PDN9, PH, PZ, CUT9),
+      /* 줄인 판 — 뒤 낯이 벤트 밑판의 앞 끝(PBK9)이다. **앞 모퉁이 둘만 깎는다**(2026-09, 요청:
+         "앞쪽 건물 뒤쪽 두 모서리 사선 깎은 거 없애고") — 뒤 모퉁이는 기둥과 맞물리는 자리라
+         거기서 깎으면 판과 기둥 사이에 쐐기꼴 틈이 보인다. */
+      out.push(...tagKey(boxOctFaces3(sx9 * PX, PCY9, PW, PDN9, PH, PZ, CUT9_F9),
         depthNow(sx9 * PX, PCY9) * 1.6));
-      /* 그 뒤의 **사각기둥** — 벤트 밑판과 같은 발자국(VPW9 × VPD9)이고 높이는 판과 같다.
-         네모 그대로다(요청: "사각기둥") — 판만 팔각이라 기둥이 뒤에서 각을 세워 실루엣이 갈린다. */
-      out.push(...tagKey(boxFaces3(sx9 * PX, VC9, VPW9, VPD9, PH, PZ),
+      /* 그 뒤의 기둥 — 벤트 밑판과 같은 발자국(VPW9 × VPD9)이고 높이는 판과 같다.
+         **네 모퉁이를 다 깎는다**(요청) — 뒤에 홀로 선 덩이라 네 각이 다 실루엣에 든다. */
+      out.push(...tagKey(boxOctFaces3(sx9 * PX, VC9, VPW9, VPD9, PH, PZ, CUT9),
         depthNow(sx9 * PX, VC9) * 1.6));
     }
     out.push(...tagKey(boxOctFaces3(0, 0, MW, MD, MH, PZ, CUT9), depthNow(0, 0) * 1.6));
@@ -4876,8 +4880,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        *  색을 안 칠하면 raceBase가 테란 기본색을 입힌다(out에 넣는 까닭). 지붕과 임자색
        *  판 사이에 은색 켜가 한 단 들어가, 벤트가 지붕에 바로 붙지 않고 대 위에 올라선다. */
       const VSH9 = VPH9 * 1.2;
-      out.push(...tagKey(boxFaces3(sx9 * PX, VC9, VPW9, VPD9, VSH9, PTOP), k9));
-      pc.push(...tagKey(boxFaces3(sx9 * PX, VC9, VPW9, VPD9, VPH9z9, PTOP + VSH9), k9 + 0.005));
+      /* 기둥 위의 판 둘도 **같은 몫으로 깎는다**(요청: "기둥과 그 위의 판들의 네 모서리") —
+         발자국이 기둥과 같으니 모서리도 같아야 위아래가 한 덩이로 이어진다. */
+      out.push(...tagKey(boxOctFaces3(sx9 * PX, VC9, VPW9, VPD9, VSH9, PTOP, CUT9), k9));
+      pc.push(...tagKey(boxOctFaces3(sx9 * PX, VC9, VPW9, VPD9, VPH9z9, PTOP + VSH9, CUT9), k9 + 0.005));
       /* ★ 경사로 **몸체는 테란 기본 은색**이고, 어두운 벤트는 그 **윗 경사면에 한 치 작게
          얹힌 판**이다(요청: "본체는 테란 기본색이고 윗 경사면에 윗면보다 살짝 작은 벤트를
          붙인다는 표현이 더 맞을듯") — 여태는 경사로 전체가 어두운 부품이고 그 밑에 은색을
@@ -5026,11 +5032,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const wrap9 = (hd9: number): number => Math.min(2.45, hd9 * 0.62);
     /* 덩이마다 [x 중심, 반폭, 반깊이, **깎인 몫**, **y 중심**] — 큰 판 셋만 팔각이라 깎임이 있고
        사이 상자는 0 이다. 좌우 판은 뒤를 줄여 **y 0 이 아니므로**(PCY9) 중심을 함께 든다. */
-    const BLK9: readonly (readonly [number, number, number, number, number])[] = [
-      [-PX, PW / 2, PDN9 / 2, CUT9, PCY9], [-GX, GW / 2, GD / 2, 0, 0], [0, MW / 2, MD / 2, CUT9, 0],
-      [GX, GW / 2, GD / 2, 0, 0], [PX, PW / 2, PDN9 / 2, CUT9, PCY9],
+    const BLK9: readonly (readonly [number, number, number, number, number, number])[] = [
+      [-PX, PW / 2, PDN9 / 2, CUT9, 0, PCY9], [-GX, GW / 2, GD / 2, 0, 0, 0],
+      [0, MW / 2, MD / 2, CUT9, CUT9, 0],
+      [GX, GW / 2, GD / 2, 0, 0, 0], [PX, PW / 2, PDN9 / 2, CUT9, 0, PCY9],
     ];
-    for (const [bx9, bhw9, bhd9, bc9, bcy9] of BLK9) {
+    for (const [bx9, bhw9, bhd9, bcf9, bcb9, bcy9] of BLK9) {
       // 앞면(±y) — 그 면의 좌우폭을 꽉 채운 두 줄. **깎인 만큼 좌우로 물러난다**.
       for (const sy9 of [1, -1] as const) {
         if (facingRatio(0, sy9) <= 0.12) continue;
@@ -5040,6 +5047,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            띠가 제 앞의 판보다 큰 키를 얻어 판 위로 그려졌다. 몸통 상자가 (cx, 0)으로 정렬되므로
            그 위에 얹는 띠도 같은 자리에 +0.3만 얹으면 제 덩이를 따라 앞뒤가 옳다. */
         const key9 = depthNow(bx9, 0) * 1.6 + 0.3;
+        const bc9 = sy9 > 0 ? bcf9 : bcb9;
         pc.push(...band9(bx9 - bhw9 + bc9, bx9 + bhw9 - bc9, py9, ZB9, key9));
         out.push(...winB9(bx9 - bhw9 + bc9, bx9 + bhw9 - bc9, py9, key9));
       }
@@ -5051,6 +5059,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           if (facingRatio(0, sy9) <= 0.12) continue;
           const key9 = depthNow(bx9, 0) * 1.6 + 0.3;
           const wl9 = wrap9(bhd9);
+          const bc9 = sy9 > 0 ? bcf9 : bcb9;
           const ye9 = bcy9 + sy9 * (bhd9 - bc9);
           const ys9 = bcy9 + sy9 * (bhd9 - wl9);
           pc.push(...bandY9(xw9, ys9, ye9, ZB9, key9));
@@ -5059,9 +5068,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       }
       /* **깎인 모서리의 사선 낯**에도 제 토막을 두른다 — 안 두르면 띠가 모서리마다 끊겨,
          두른 것이 아니라 낯마다 그은 줄로 읽힌다(그 판을 팔각으로 깎은 뜻이 없어진다). */
-      if (bc9 > 0) {
+      if (bcf9 > 0 || bcb9 > 0) {
         for (const sx9 of [1, -1] as const) {
           for (const sy9 of [1, -1] as const) {
+            const bc9 = sy9 > 0 ? bcf9 : bcb9;   // 안 깎은 모퉁이에는 사선 낯이 없다
+            if (bc9 <= 0) continue;
             // 사선 낯의 법선은 대각이다 — 그쪽을 등지면 건너뛴다.
             if (facingRatio(sx9 * Math.SQRT1_2, sy9 * Math.SQRT1_2) <= 0.12) continue;
             const key9 = depthNow(bx9, 0) * 1.6 + 0.3;

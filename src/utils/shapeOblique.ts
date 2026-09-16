@@ -1039,31 +1039,45 @@ export function boxFaces3(
  *  ⚠ `cut` 은 **모서리에서 각 변을 따라 물러나는 길이**다 — 사선 자체의 길이는 그 √2 배다.
  *  ⚠ w/2·d/2 의 절반을 넘기지 마라(넘으면 변이 뒤집힌다) — 여기서 잘라 둔다. */
 export function boxOctFaces3(
-  cx: number, cy: number, w: number, d: number, h: number, z0 = 0, cut = 0.6,
+  cx: number, cy: number, w: number, d: number, h: number, z0 = 0,
+  cut: number | readonly [number, number, number, number] = 0.6,
   omit?: readonly [number, number], noTop?: boolean,
 ): ShapeFace[] {
   const a = w / 2; const b = d / 2;
-  const c = Math.max(0, Math.min(cut, a * 0.5, b * 0.5));
-  if (c <= 0) return boxFaces3(cx, cy, w, d, h, z0, omit, noTop);
+  /* 깎임은 **모퉁이마다** 줄 수 있다(2026-09, 요청: "앞쪽 건물 뒤쪽 두 모서리 사선 깎은 거
+     없애고") — 네 값의 차례는 (+x,+y) · (+x,−y) · (−x,−y) · (−x,+y) 다. 0 이면 그 모퉁이는
+     직각으로 남고 벽이 그만큼 준다(넷 다 0 이면 그냥 네모다). */
+  const cs = (typeof cut === "number" ? [cut, cut, cut, cut] : cut)
+    .map((v) => Math.max(0, Math.min(v, a * 0.5, b * 0.5)));
+  if (!cs.some((v) => v > 0)) return boxFaces3(cx, cy, w, d, h, z0, omit, noTop);
   const zt = z0 + h;
-  /** 평면 팔각의 꼭짓점 여덟 — 앞(+y) 왼쪽에서 시작해 boxFaces3 와 같은 방향으로 돈다. */
-  const plan: [number, number][] = [
-    [-a + c, b], [a - c, b], [a, b - c], [a, -b + c],
-    [a - c, -b], [-a + c, -b], [-a, -b + c], [-a, b - c],
-  ];
+  /** 모퉁이마다 [들어오는 변에서 물러난 점, 나가는 변에서 물러난 점] — 도는 방향은 boxFaces3 와 같다. */
+  const nook = (i: number, c: number): [number, number][] => (
+    i === 0 ? [[a - c, b], [a, b - c]]
+      : i === 1 ? [[a, -b + c], [a - c, -b]]
+        : i === 2 ? [[-a + c, -b], [-a, -b + c]]
+          : [[-a, b - c], [-a + c, b]]);
+  const plan: [number, number][] = [];
+  for (let i = 0; i < 4; i += 1) {
+    const [p0, p1] = nook(i, cs[i]);
+    if (cs[i] > 0) plan.push(p0, p1); else plan.push(p0);   // 안 깎으면 두 점이 한 점이다
+  }
+  plan.unshift(plan.pop() as [number, number]);   // 앞(+y) 왼쪽에서 시작하도록 한 칸 돌린다
+  const n9 = plan.length;
   const at = (z: number): [number, number, number][] =>
     plan.map(([px, py]) => [cx + px, cy + py, z] as [number, number, number]);
   const t = at(zt); const bo = at(z0);
   const top = polyPath3(t);
-  const r2n = Math.SQRT1_2;
-  /** 벽마다의 평면 법선 — 사선 넷은 대각이다. */
-  const nrm: [number, number][] = [
-    [0, 1], [r2n, r2n], [1, 0], [r2n, -r2n],
-    [0, -1], [-r2n, -r2n], [-1, 0], [-r2n, r2n],
-  ];
-  const sides = plan.map((_, i) => ({
-    d: polyPath3([t[i], t[(i + 1) % 8], bo[(i + 1) % 8], bo[i]]), n: nrm[i],
-  }));
+  /** 벽의 평면 법선은 **제 변에서 뽑는다**(변이 몇이든 맞다) — 도는 방향에서 바깥쪽은 (−dy, dx). */
+  const sides = plan.map((p, i) => {
+    const q = plan[(i + 1) % n9];
+    const dx = q[0] - p[0]; const dy = q[1] - p[1];
+    const len = Math.hypot(dx, dy) || 1;
+    return {
+      d: polyPath3([t[i], t[(i + 1) % n9], bo[(i + 1) % n9], bo[i]]),
+      n: [-dy / len, dx / len] as [number, number],
+    };
+  });
   const out: ShapeFace[] = [];
   const bodyParts: string[] = noTop ? [] : [top];
   // 등진 벽부터 앞으로 — frustumFaces3 의 그 차례다(가까운 벽의 덮개가 마지막에 와야 한다).
