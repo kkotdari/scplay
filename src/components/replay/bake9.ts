@@ -3859,6 +3859,37 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          따로 막아야 한다. */
       segs: 1, sides: 16, hold: 0, taper: 1, caps: GLHOLE9 > 0 ? "none" : "bottom", skipFace: holeSkip9(1e9),
     }), SILVER), 0.4));
+    /* ★★ **고리가 안으로 물러나면 밑 고리의 턱이 드러난다 — 그 턱에도 낯이 있어야 한다**
+       (2026-09, 지적: "커맨드 아래 고리 옆면과 윗면 사이에 틈이 있어") — 첫 고리는 5.4 로 벌어져
+       끝나는데 그 위의 홈(둘째 고리)은 5.16 으로 물러난다. 그 사이 폭 0.24 짜리 고리는 **위를 보는
+       면**인데 어느 기둥도 그것을 안 냈다(첫 고리의 뚜껑은 꺼 두었고, 둘째 고리는 더 좁다).
+       뒷면을 걷는 GL 에서는 그 자리에 배경이 비쳐 **받침을 한 바퀴 도는 검은 실금**이 됐다
+       (2D 는 화가 차례라 그 틈이 다른 낯에 덮여 안 보이던 자리다).
+       ⚠ **통 뚜껑으로 메우지 마라** — caps 를 "top" 으로 돌려 봤더니 반지름 5.4 짜리 원반이
+         격납구 문간을 가로질러 **경사로를 덮었다**(실측). 수평면은 같은 화면 자리에서 속벽보다
+         카메라에 가깝다는 그 규약이다. 그러니 **턱만**(5.16~5.4) 낯마다 깔고, 벽이 빠진 그 두 낯
+         (holeSkip9 와 **같은 술어**)은 함께 비운다 — 문턱이 문간을 안 가로지른다.
+       ★ 규약: **이웃 고리의 반지름이 줄면 그 차만큼 턱을 깔아라**(spirePillar 는 제 옆 낯만 낸다). */
+    if (GLHOLE9 > 0) {
+      const led9: ShapeFace[] = [];
+      /** 그 높이의 바닥/천장을 부채꼴 열여섯으로 깐다 — 벽이 빠진 두 낯(격납구)만 비운다. */
+      const slab9 = (z9: number, r9: number, nz9: 1 | -1): void => {
+        for (let i9 = 0; i9 < 16; i9 += 1) {
+          const t0 = (i9 * Math.PI * 2) / 16; const t1 = ((i9 + 1) * Math.PI * 2) / 16;
+          const tm = (t0 + t1) / 2;
+          if (Math.abs(((tm + Math.PI) % (Math.PI * 2)) - Math.PI) <= GLHOLE9) continue;
+          const d9 = polyPath3([
+            [0, 0, z9],
+            [Math.sin(t0) * r9, Math.cos(t0) * r9, z9], [Math.sin(t1) * r9, Math.cos(t1) * r9, z9],
+          ]);
+          const l9 = faceLight(0, 0, nz9);
+          led9.push([d9, 1, SILVER] as ShapeFace, ...(l9.visible ? l9.face(d9) : []));
+        }
+      };
+      slab9(HULL_Zz9 + 0.64, 5.4, 1);      // 홈의 바닥(첫 고리 윗면)
+      slab9(HULL_Zz9 + 0.752, 5.4, -1);    // 홈의 천장(셋째 고리 밑면)
+      out.push(...tagKey(led9, 0.45));
+    }
     out.push(...tagKey(paintBase(spirePillar({
       x: 0, y: 0, z0: HULL_Zz9 + 0.64, h: 0.112, w: 5.16, tipW: 5.16,
       segs: 1, sides: 16, hold: 0.5, caps: "none", skipFace: holeSkip9(1e9),
@@ -4608,7 +4639,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            격납구 속(z 0.92~BAY_Z1)을 가로지른다. 수평면은 같은 화면 자리에서 속벽보다 카메라에 가까워,
            구멍으로 들여다보면 속을 통째로 덮는다(실측: 격납구가 민무늬 판으로 읽혔다). 그래서 프리미티브의
            뚜껑을 끄고(caps "none") 개구부 자리만 베어 낸 채 손수 깐다 — 둘레는 기둥의 16각 그대로다. */
-        const CR9 = 5.34;                                   // 뚜껑 반지름(기둥의 tipW)
+        /* ★★ **뚜껑은 가장 바깥 고리에 맞춘다**(2026-09, 지적: "커맨드 아래 고리 옆면과 윗면 사이에
+           틈이 있어") — 이 뚜껑의 반지름이 셋째 고리의 tipW(5.34)였는데, 받침의 **맨 바깥은 넷째
+           고리(테)의 5.46** 이다. 둘 다 윗면이 DOME_Z 에 있으므로 그 사이 0.12 짜리 고리가 낯 없이
+           **뚫린 채** 남았고, 뒷면을 걷는 GL 에서는 그 자리에 **배경이 비쳐** 테를 따라 도는 검은
+           실금이 됐다(2D 는 화가 차례라 이 틈이 안 보였다).
+           ★ 규약: **뚜껑을 손수 깔 때는 그 높이에서 가장 먼 낯의 반지름으로 재라** — 프리미티브의
+             caps 를 끈 자리에서는 그 기둥 하나만 보고 반지름을 고르기 쉬운데, 같은 높이에 더 넓은
+             이웃이 있으면 그 몫이 그대로 틈이다. */
+        const CR9 = 5.46;                                   // 뚜껑 반지름 — 맨 바깥 테(넷째 고리)에 맞춘다
         const aE16 = holeA9(16);
         const yE9 = CR9 * Math.cos(aE16);                   // 홈 가장자리가 16각 변에 닿는 자리
         const cp9: [number, number, number][] = [[BAY_HW, yE9, DOME_Zz9]];
@@ -8633,19 +8672,52 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const ab9 = (BIG_ANG9 * Math.PI) / 180;
       const bdx9 = Math.sin(ab9);
       const bdy9 = Math.cos(ab9);
-      for (const [t9, sw9, sl9] of [
-        [0.3, 0.5, 1.52], [0.42, 0.58, 1.84], [0.54, 0.54, 1.68], [0.66, 0.46, 1.44], [0.78, 0.38, 1.12],
-      ] as [number, number, number][]) {
+      /* ★★ **다리를 감는 가시는 '등'이 아니라 '둘레'에 박는다**(2026-09, 요청: "성큰 검은 발 가시를
+         크기는 키우고 **다양한 각도로 두르기**") — 여태 다섯은 다 `z + 0.72` 에 앉아 위로만 뻗었다.
+         곧 다리를 감은 것이 아니라 **등에 한 줄로 꽂은 빗**이라, 요잉을 돌리면 옆에서 볼 때 가시가
+         한 줄로 겹쳐 사라졌다. 감으려면 **다리 축을 따르는 틀**이 있어야 한다:
+         · 접선 T 는 등뼈를 수치로 미분해 얻고(아치라 t 마다 방향이 돈다),
+         · 다리가 놓인 평면에 수직한 수평축 A = (−bdy, bdx, 0) 와 T 로 U = T × A 를 세운다
+           (다리가 누운 자리에서 U 는 정확히 위다 — 옛 '위로만'이 이 틀의 roll 0 인 셈이다).
+         · 가시 방향은 `cos(roll)·U + sin(roll)·A` 이고, 뿌리는 그 방향으로 **다리 반지름만큼** 민다.
+         ⚠ 뿌리를 반지름만큼 못 밀면 옆으로 돌린 가시가 살 속에서 시작해 토막으로 보인다 —
+           반지름은 기둥의 자(w 2.23 → tipW 0.62)를 따라 t 와 함께 여윈다.
+         크기는 1.4 배로 키우고(요청) 개수를 다섯 → **여덟**으로 늘려 한 바퀴가 성기지 않게 한다. */
+      const legAt9 = (t9: number): [number, number, number] => {
         const r9 = 1.6 + BIG_LEN9 * t9;
-        const up9 = Math.sin(Math.PI * t9) * BIG_ARC9z9;
-        const zz9 = 1.2 + BIG_Z09 + (0.28 - 1.2) * t9 + up9;
         const side9 = Math.sin(Math.PI * t9) * 0.55;
-        const bx9 = bdx9 * r9 - bdy9 * side9;
-        const by9 = bdy9 * r9 + bdx9 * side9;
-        // 등에서 위·바깥으로 삐친다 — 옆으로 조금(0.35), 위로 많이.
+        return [bdx9 * r9 - bdy9 * side9, bdy9 * r9 + bdx9 * side9,
+          1.2 + BIG_Z09 + (0.28 - 1.2) * t9 + Math.sin(Math.PI * t9) * BIG_ARC9z9];
+      };
+      for (const [t9, sw9, sl9, roll9] of [
+        [0.26, 0.74, 2.12, -62], [0.36, 0.82, 2.58, 34], [0.45, 0.70, 2.24, -18],
+        [0.54, 0.76, 2.36, 78], [0.62, 0.64, 1.96, -96], [0.70, 0.70, 2.08, 12],
+        [0.78, 0.56, 1.64, -44], [0.85, 0.50, 1.44, 56],
+      ] as [number, number, number, number][]) {
+        const p9 = legAt9(t9);
+        const q9 = legAt9(Math.min(1, t9 + 0.02));
+        const b9 = legAt9(Math.max(0, t9 - 0.02));
+        const tv9 = [q9[0] - b9[0], q9[1] - b9[1], q9[2] - b9[2]];
+        const tl9 = Math.hypot(tv9[0], tv9[1], tv9[2]) || 1;
+        const tx9 = tv9[0] / tl9; const ty9 = tv9[1] / tl9; const tz9 = tv9[2] / tl9;
+        // A = 다리 평면에 수직한 수평축 · U = T × A(다리가 누우면 곧 위쪽이다)
+        const ax9 = -bdy9; const ay9 = bdx9;
+        const ux9 = ty9 * 0 - tz9 * ay9; const uy9 = tz9 * ax9 - tx9 * 0; const uz9 = tx9 * ay9 - ty9 * ax9;
+        const ul9 = Math.hypot(ux9, uy9, uz9) || 1;
+        const rr9 = (roll9 * Math.PI) / 180;
+        const cs9 = Math.cos(rr9); const sn9 = Math.sin(rr9);
+        const dx9 = cs9 * (ux9 / ul9) + sn9 * ax9;
+        const dy9 = cs9 * (uy9 / ul9) + sn9 * ay9;
+        const dz9 = cs9 * (uz9 / ul9);
+        const rad9 = 0.98 - 0.52 * t9;   // 기둥의 자를 따라 여위는 다리 반지름
+        const bx9 = p9[0] + dx9 * rad9;
+        const by9 = p9[1] + dy9 * rad9;
+        const bz9 = p9[2] + dz9 * rad9;
         out.push(...tagKey(ivory(spikeHorn(
-          bx9, by9, zz9 + 0.72,
-          bx9 + bdx9 * 0.45, by9 + bdy9 * 0.45, zz9 + 0.72 + sl9, sw9, undefined, 5, 0.4, bdx9 * 0.3, bdy9 * 0.3,
+          bx9, by9, bz9,
+          bx9 + dx9 * sl9, by9 + dy9 * sl9, bz9 + dz9 * sl9, sw9, undefined, 5, 0.4,
+          // 끝을 발끝 쪽으로 살짝 눕힌다 — 곧게 선 뿔보다 '자란 것'으로 읽힌다.
+          tx9 * 0.28, ty9 * 0.28,
         )), depthNow(bx9, by9) * 1.6 + 2));
       }
     }
@@ -23255,6 +23327,10 @@ export function autoTier(kind: string, key: string, faces: ShapeFace[]): ShapeFa
   AUTO_TIER_CACHE.set(key, out);
   return out;
 }
+/** 건설 중 **가장 완성된 단계**가 보여 주는 부품 몫 — 완성과 구분이 서야 하므로 1 에 못 간다. */
+const BUILD_MAX9 = 0.65;
+/** 첫 단계의 몫 — 이보다 낮으면 밑동이 가는 모델(커맨드센터)이 '허공의 고리'가 된다. */
+const BUILD_MIN9 = 0.40;
 export function stageFaces(faces: ShapeFace[], stg: number): ShapeFace[] {
   if (stg <= 0 || stg >= BUILD_STAGES) return faces;
   const gid: number[] = [];
@@ -23311,9 +23387,20 @@ export function stageFaces(faces: ShapeFace[], stg: number): ShapeFace[] {
      맨 아래 부품이 가는 고리 하나인 모델은 허공에 고리만 뜬 그림이 된다. 지수를 한 번 눌러
      앞을 부풀리면(0.55제곱) 1단계에 이미 40%가 서서 '짓는 중인 덩치'로 읽히고, 뒤 단계는
      차이가 줄지만 어차피 그때는 실루엣이 이미 잡혀 있어 눈에 덜 띈다.
-     단계별 몫: 1→41% · 2→60% · 3→75% · 4→89%(이전 20/40/60/80%).
+     ★★ **끝 단계에 상한을 둔다**(2026-09, 요청: "테란 건설단계 후반에 너무 완성이랑 비슷해서 구분이
+     안 돼 — 건설 중 최대 상태는 60이나 70퍼센트로 제한") — 옛 곡선은 마지막 단계가 **89%** 라
+     완성과 거의 같은 실루엣이었다(부품 서른짜리 모델에서 셋 차이). 짓는 중은 **짓는 중으로 읽혀야**
+     하므로 마지막 단계를 0.65 로 못 박는다.
+     ⚠ **위만 눌러서는 안 되고, 아래까지 끌어내려서도 안 된다** — 상한만 곱하면(0.65 × 옛 곡선)
+     1단이 31% 로 내려가 앞선 요청("공사 중일 때 처음에 부품을 더 보이는 게 낫겠다")이 깨진다:
+     실제로 커맨드센터가 **허공에 고리 하나**만 뜬 그림으로 돌아갔다(눈으로 확인).
+     그래서 **양 끝을 다 못 박는다** — 1단 바닥(BUILD_MIN9 0.40)에서 4단 상한(BUILD_MAX9 0.65)까지
+     펴고, 앞을 부풀리던 지수는 구간이 좁아진 만큼 완만하게(0.55 → 0.70) 둔다.
+     단계별 몫: 1→49% · 2→55% · 3→60% · 4→**65%**(이전 41/60/75/89%).
+     ⚠ 단계 사이의 차가 5~6점(부품 서른이면 두 개쯤)으로 좁아진 것은 **값이 아니라 대가**다 —
+       구분이 서야 하는 것은 단계끼리가 아니라 **짓는 중과 완성**이다(그 차가 35점으로 벌어졌다).
      바닥을 둘로 둔다 — 부품이 아주 적은 모델에서도 외톨이 하나만 뜨지 않게. */
-  const frac9 = (stg / BUILD_STAGES) ** 0.55;
+  const frac9 = BUILD_MIN9 + (BUILD_MAX9 - BUILD_MIN9) * ((stg / (BUILD_STAGES - 1)) ** 0.70);
   const keep = new Set(order.slice(0, Math.max(2, Math.round(n * frac9))));
   return faces.filter((_, i) => keep.has(gid[i]));
 }

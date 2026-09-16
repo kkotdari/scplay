@@ -25,6 +25,12 @@ const argv = process.argv.slice(2);
 const flag = (n, d = null) => { const i = argv.indexOf(n); return i < 0 ? d : (argv[i + 1] ?? true); };
 const KINDS = flag("--kinds", null) ? String(flag("--kinds")).split(",") : null;
 const ROTS = String(flag("--rots", "45,225")).split(",").map(Number);
+/** 건설 단계를 칸으로 늘어놓는다(`--stages 1,2,3,4,0` · 0 = 완성) — 요잉은 `--rots` 의 첫 값 하나로 못 박는다.
+ *  stageFaces 의 몫을 눈으로 고를 때 쓴다(단계끼리, 그리고 완성과 얼마나 다른가). */
+const STAGES = flag("--stages", null) ? String(flag("--stages")).split(",").map(Number) : null;
+/** 칸의 머리글 — 단계 보기에서는 "N단", 아니면 "N°". */
+const COLS = STAGES ? STAGES.map((v) => (v ? v + "단" : "완성")) : ROTS.map((v) => v + "°");
+const RS = STAGES ? STAGES.map(() => ROTS[0]) : ROTS;
 const CELL = Number(flag("--cell", 160));
 const ROWS = Number(flag("--rows", flag("--worst", 40)));
 /** 옛 2D 견줌을 켠다 — 2D 폴백(#gl=0·도록 SVG)을 감사할 때만. */
@@ -47,7 +53,7 @@ import { withTopView, withViewShear, withYaw, bake, zsorted } from ${JSON.string
 import { GlUnits9, CAM_TOP9, GL_CANVAS_KINDS9, GL_GLOW_KINDS9 } from ${JSON.stringify(join(ROOT, "src/components/replay/gl9"))};
 const BLD = new Set(SHAPE_GALLERY.filter((g) => g.group === "건물").map((g) => g.kind));
 window.__kinds = () => Object.keys(SHAPE_BUILDERS);
-window.__run = (kinds, rots, cell, bg, color, vs2d) => {
+window.__run = (kinds, rots, cell, bg, color, vs2d, stages) => {
   const shadeBoost = (o, fill) => (fill && o < 1 ? Math.min(0.85, o * 1.45) : o);
   const cols = rots.length; const rows = kinds.length;
   // GL: 한 캔버스에 칸마다 개체 하나
@@ -63,7 +69,7 @@ window.__run = (kinds, rots, cell, bg, color, vs2d) => {
     rots.forEach((rot, i) => {
       let m = null;
       try {
-        m = isB ? g.bldMesh({ kind, fx: 0, fy: 0, z: 0, sizePx: 16, color, alpha: 1, rotDeg: rot }, 3) : g.unitMesh(kind, 0, 3);
+        m = isB ? g.bldMesh({ kind, fx: 0, fy: 0, z: 0, sizePx: 16, color, alpha: 1, rotDeg: rot, buildStage: stages ? stages[i] : 0 }, 3) : g.unitMesh(kind, 0, 3);
       } catch (e) { errs[kind] = String(e).slice(0, 80); }
       if (!m) return;
       g.push({ mesh: m, ax: i * cell + cell / 2, ay: cell / 2, k, yoff: k * 4, yawDeg: -rot, color, alpha: 1, cam: CAM_TOP9, gradR: cell * 0.707, gradCy: 0, flat: GL_GLOW_KINDS9.has(kind) });   // 발광 종류는 붓과 같이 음영·깊이 없이
@@ -144,13 +150,13 @@ window.__sheet = (pairs, cell, rots, bg, glOnly) => {
           if (glOnly) {
             c.drawImage(ib, i * cell, p.row * cell, cell, cell, i * cell, y + PAD, cell, cell);
             c.strokeStyle = "rgba(255,255,255,.15)"; c.strokeRect(i * cell + 0.5, y + PAD + 0.5, cell - 1, cell - 1);
-            c.fillStyle = "#9aa4b0"; c.fillText(rot + "°", i * cell + 4, y + 6);
+            c.fillStyle = "#9aa4b0"; c.fillText(String(rot), i * cell + 4, y + 6);
             return;
           }
           c.drawImage(ia, i * cell, p.row * cell, cell, cell, (i * 2) * cell, y + PAD, cell, cell);
           c.drawImage(ib, i * cell, p.row * cell, cell, cell, (i * 2 + 1) * cell, y + PAD, cell, cell);
           c.strokeStyle = "rgba(255,255,255,.15)"; c.strokeRect((i * 2) * cell + 0.5, y + PAD + 0.5, cell * 2 - 1, cell - 1);
-          c.fillStyle = "#9aa4b0"; c.fillText(rot + "° 2D", (i * 2) * cell + 4, y + 6); c.fillText("GL", (i * 2 + 1) * cell + 4, y + 6);
+          c.fillStyle = "#9aa4b0"; c.fillText(rot + " 2D", (i * 2) * cell + 4, y + 6); c.fillText("GL", (i * 2 + 1) * cell + 4, y + 6);
         });
         c.fillStyle = "#ffd070"; c.fillText(p.label, 4 + cell * 0.45, y + 6);
       });
@@ -183,7 +189,7 @@ const CHUNK = 20;
 const rows = []; const sheets = [];
 for (let i = 0; i < kinds.length; i += CHUNK) {
   const part = kinds.slice(i, i + CHUNK);
-  const r = await page.evaluate(([ks, rots, cell, bg, color, v]) => window.__run(ks, rots, cell, bg, color, v), [part, ROTS, CELL, BG, COLOR, VS2D]);
+  const r = await page.evaluate(([ks, rots, cell, bg, color, v, st]) => window.__run(ks, rots, cell, bg, color, v, st), [part, RS, CELL, BG, COLOR, VS2D, STAGES]);
   r.rows.forEach((row, j) => { rows.push({ ...row, chunk: sheets.length, row: j }); });
   sheets.push({ a: r.a, b: r.b });
 }
@@ -217,7 +223,7 @@ const pick9 = (VS2D ? rows.filter((r) => !r.canvas) : rows).slice(0, ROWS).map((
   a: sheets[r.chunk].a, b: sheets[r.chunk].b, row: r.row,
   label: VS2D ? `${r.kind}  2D차이 ${r.bad.toFixed(2)} (IoU ${r.iou.toFixed(2)} 색차 ${r.cd.toFixed(2)})` : r.kind,
 }));
-const dataUrl = await page.evaluate(([pairs, cell, rots, bg, go]) => window.__sheet(pairs, cell, rots, bg, go), [pick9, CELL, ROTS, BG, !VS2D]);
+const dataUrl = await page.evaluate(([pairs, cell, rots, bg, go]) => window.__sheet(pairs, cell, rots, bg, go), [pick9, CELL, COLS, BG, !VS2D]);
 await browser.close();
 writeFileSync(OUT, Buffer.from(dataUrl.split(",")[1], "base64"));
 console.log(`→ ${OUT}`);
