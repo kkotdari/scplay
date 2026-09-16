@@ -790,15 +790,22 @@ type BenchTier9 = {
   shadowGroundMinZoom?: number; decalBakeMax?: number; hitShardK?: number; dieShards?: number;
 };
 /* ⚠ 문턱은 **숫자로 적는다** — CROWD_BENCH_MS9(24)는 이 표보다 아래에 선언되므로 여기서 부르면 TDZ 다.
-   PC: 16.8 = 24×0.7 · 8.4 = 24×0.35. */
+   ★ **판 굽기 시절 자를 GL 몫만큼 늦춘다**(2026-09, 지적: "폰이나 PC 매우낮음인데 여유가 있어보여서 혹시
+     지금 벤치 기준이 너무 높진 않아?") — 옛 값(16.8 = 24×0.7 · 8.4 = 24×0.35)은 **한 장이 판을 굽고
+     찍는 일**이던 때 정한 것이다. 지금 유닛·건물 몸은 GPU 가 그리고 캔버스에는 크립·효과만 남는다
+     (실측: 폰 프로필 p50 83 → 67ms · CPU 4배 조임 383 → 217ms = 1.24~1.76배). 그런데 문턱을 재는
+     벤치(benchDevice9)는 **여전히 판 찍기**라, 같은 기기가 같은 ms 를 내면서도 실제로는 그만큼 놀고 있었다.
+     그래서 두 문턱을 GL 이 번 몫의 보수적인 값(1.45배)만큼 늦춘다: 16.8 → 24 · 8.4 → 12.
+     ⚠ 벤치 자체를 GL 로 바꾸지는 않았다 — 벤치는 '기기가 얼마나 빠른가'의 눈금이고, GL 은 헤드리스에서
+       소프트웨어라 진입에서 재면 값이 기기가 아니라 드라이버를 잰다. */
 const PC_TIERS9: readonly BenchTier9[] = [
   { name: "낮음", upMs: Infinity, aheadSec: 3, aheadMB: 24 },
-  { name: "보통", upMs: 16.8, aheadSec: 5, aheadMB: 48 },
-  { name: "높음", upMs: 8.4, aheadSec: 8, aheadMB: 80 },
+  { name: "보통", upMs: 24, aheadSec: 5, aheadMB: 48 },
+  { name: "높음", upMs: 12, aheadSec: 8, aheadMB: 80 },
   /* 3단 **매우 높음** — 메모리 8GB(deviceMemory, 크로뮴만 낸다)가 확인되는 기기에서만 오른다. 앞 한도는 2단과 같고,
      이 단이 따로 뜻을 갖는 자리는 결(긁힌 광택)·품질 알림, 그리고 **손짓 중 실시간 원근**(live3d)이다
      (2026-09, 요청: "PC 매우높음에서 3D 제스쳐중 모델도 시점 변화 가능하려나 지금은 지도만 실시간인데"). */
-  { name: "매우 높음", upMs: 8.4, minMem: 8, aheadSec: 8, aheadMB: 80, live3d: true },
+  { name: "매우 높음", upMs: 12, minMem: 8, aheadSec: 8, aheadMB: 80, live3d: true },
 ];
 /* ★ **폰도 세 단이다**(2026-09, 요청: "요즘 폰도 성능차이가 심해서 모바일용 벤치를 별도로 분리하되 3단계로 나누고
    적절히 기능을 넣고 빼야할거 같아. 최고단계에선 광택 글로우도 넣고") ─────────────────────────────────────
@@ -811,11 +818,17 @@ const PC_TIERS9: readonly BenchTier9[] = [
    ⚠ minMem 은 안 쓴다 — iOS 사파리는 deviceMemory 를 아예 안 내므로(그래서 smallDevice9 도 화면으로 가른다)
      메모리를 문턱으로 삼으면 정작 가장 빠른 폰이 0단에 남는다. 메모리에 닿는 값(메시 상한)은 그래서 조심히 올린다
      (240 → 300 → 360벌 · 실측 240벌 37MB). */
+/* ★ 폰 문턱도 같은 까닭으로 늦춘다(2026-09, 같은 지적): 24 → 30 · 9 → 13.
+   그리고 **입체 문턱(up3Ms)이 한 번 더 어긋나 있었다** — benchDevice9(true) 는 2D 판보다 화소를
+   **2.87배**(61²/36² · 타원 24×10/14×6) 칠하는데 문턱은 16 으로 2D(9)보다 오히려 **낮게** 잡혀,
+   화소당으로 재면 2D 자보다 1.6배가 아니라 **4.3배** 엄격했다(2단에 오르려면 2D 기준 5.6ms 여야 했다).
+   이 어긋남은 live3d 문턱에서 한 번 고쳤던 그 어긋남과 같은 것이다(아래 LIVE3D_BENCH_MS9 의 ★).
+   13 × 2.87 ≒ 37 이 화소당 나란한 값이지만 번짐은 기울인 화면에서 가장 무거우니 **28** 로 둔다. */
 const PHONE_TIERS9: readonly BenchTier9[] = [
   { name: "낮음", upMs: Infinity, aheadSec: 1.5, aheadMB: 6 },
-  { name: "보통", upMs: 24, aheadSec: 2.5, aheadMB: 10,
+  { name: "보통", upMs: 30, aheadSec: 2.5, aheadMB: 10,
     glMeshMax: 300, glow: true, decalBakeMax: 256, hitShardK: 0.8, dieShards: 16 },
-  { name: "높음", upMs: 9, up3Ms: 16, aheadSec: 4, aheadMB: 16,
+  { name: "높음", upMs: 13, up3Ms: 28, aheadSec: 4, aheadMB: 16,
     glMeshMax: 360, glow: true, glBloom: true, yaw8Always: false,
     shadowGroundMinZoom: 2, decalBakeMax: 384, hitShardK: 1, dieShards: 24 },
 ];
@@ -939,12 +952,13 @@ function applyBenchTier9(bench: number): void {
   if (t9.dieShards !== undefined) DEV9.dieShards = t9.dieShards;
   if (t9.glow !== undefined) { DEV9.glow = t9.glow; glowSet9(t9.glow); }
   if (t9.live3d !== undefined) DEV9.live3d = t9.live3d;
-  /* 결(긁힌 광택)은 **맨 위 단에서만** 켠다(요청: "결은 PC에서도 최고 높음에서만 켜기") —
-     계측으로 굽기 값이 +25~30%이고 꼬리가 길다(낯마다 수십 줄을 긋는다). 여력이 확인된
-     기기에서만 얹는 것이 옳다. 단은 오르기만 하므로 이 한 줄이면 켜는 시점도 맞는다.
+  /* 결(긁힌 광택)은 **높음(2단)부터** 켠다(2026-09, 지적: "pc는 글로우를 보통이나 높음에서부터
+     넣어도 될거 같고" — PC 에서 단이 가르는 광택은 이것뿐이다. 빛무리(glow)는 PC 라면 0단부터 늘 켜 있다).
+     굽기 값이 +25~30%이고 꼬리가 길지만(낯마다 수십 줄을 긋는다) 그 삯은 판 굽기 때 셈이고,
+     맨 위 단은 메모리 8GB 를 함께 묻는 자라 '빠른데 메모리를 안 내는 기기'가 영영 못 받았다.
      폰은 단이 하나뿐이라(PHONE_TIERS9) 여기 안 들어오고, crowdInit9의 brushSet9(폰 끔)이
      그대로 남는다. */
-  brushSet9(!smallDevice9 && want9 >= top9);   // 결(긁힌 광택)은 PC 맨 위 단에서만 — 폰은 어느 단에서도 안 켠다
+  brushSet9(!smallDevice9 && want9 >= 2);   // 결(긁힌 광택)은 PC 높음(2단)부터 — 폰은 어느 단에서도 안 켠다
   DEV9_DIRTY9.v = true;
   qualityNote9();   // 단이 올랐다 — 재생 품질 알림(위 QUALITY9)
 }
