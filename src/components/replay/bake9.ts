@@ -8249,10 +8249,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       out.push(...tagKey([
         ...cylinderFaces3(0, 0, 3.05, RH, RZ),
         capFace(discPath3(0, 0, RZ + RH + 0.008, 1.95), 0.42),
-        topFace(annulusPath(...((): [number, number, number, number] => {
-          const [ax9, ay9] = project(0, 0, RZ + RH + 0.016);
-          return [ax9, ay9, 3, 2];
-        })()), 0.16),
+        topFace(annulusPath3(0, 0, RZ + RH + 0.016, 3, 2), 0.16),
       ], 1.45));
     }
     /* 톱니는 몸통 밖에(지적: 반쯤 파묻힌 톱니가 통째로 비쳐 어색) — 벽에 살짝만 닿게
@@ -10409,11 +10406,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ...tagKey(cylinderFaces3(0, -0.2, 2.5, 2.64), -6),
       // 위 파란 발광 고리의 금 뚜껑.
       ...tagKey([
-        bodyFace(groundEllipse(cx2, cy2, 1.45, 0.72)),
-        topFace(groundEllipse(cx2, cy2, 1.05, 0.5), 0.25),
+        bodyFace(discPath3(0, -0.2, 2.88, 1.45, 0.72)),
+        topFace(discPath3(0, -0.2, 2.88, 1.05, 0.5), 0.25),
       ], -4.8),
       // 위 파란 발광 고리 — 반투명 판(색을 안 줘 raceBase의 금 바탕이 든다).
-      ...tagKey([[groundEllipse(cx2, cy2, 2.3, 1.15), 0.55] as ShapeFace], -5),
+      ...tagKey([[discPath3(0, -0.2, 2.88, 2.3, 1.15), 0.55] as ShapeFace], -5),
       /* 플라즈마 디스크(재지적: "디스크 크기 줄이고 본체 위에 딱 붙여 올리기") —
          겹쳐 기울인 링 셋을 걷고 원판 한 장만 남긴 데 이어, 받치던 금 축도 걷었다.
          축이 있으면 원판이 본체에서 1.7만큼 떠서 따로 노는 부품으로 보인다. 반지름도
@@ -11310,7 +11307,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          돔보다 넓어 위에서 덮으므로 돔을 그 위 키로 올린다. */
       ...tagKey([
         ...domeFaces3(0, 0, 1.5, 0.76, 0.8),
-        topFace(groundEllipse(gx2, gy2, 0.55, 0.4), 0.4),
+        topFace(discPath3(0, 0, 1.76, 0.55, 0.4), 0.4),
       ], 40),
     ]);
   },
@@ -11883,9 +11880,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 연못도 스파이어 식으로(요청) — 5.9/5.3이라 그레이터만 발자국을 넘게 퍼져 있었다.
        스파이어와 같은 4.7/4.2로 맞춘다. */
     // 연못색은 스파이어와 같은 형광 연두다(요청: 둘 다).
-    const [plx, ply] = project(0, 0.4, 0.016);
-    out.push(sideFace(groundEllipse(plx, ply, 4.7, 2.25), 0.22));
-    out.push([groundEllipse(plx, ply, 4.2, 1.98), 0.85, "#a8ff3d"] as ShapeFace);
+    out.push(sideFace(discPath3(0, 0.4, 0.016, 4.7, 2.25, 24), 0.22));
+    out.push([discPath3(0, 0.4, 0.016, 4.2, 1.98, 24), 0.85, "#a8ff3d"] as ShapeFace);
     /* 아래를 높게·위를 짧게(요청: "기둥 아래쪽을 더 높게잡고 위쪽을 짧게 잡아서 균형
        맞추기") — 아래 9 : 위 15였다. 굵은 밑동이 짧고 가는 허리 위 건물이 길어 위태로워
        보였다. 14 : 10으로 뒤집는다. 꼭대기 높이(24)는 그대로라 아가리·깃 뿔은 안 움직인다. */
@@ -14183,7 +14179,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 구체 짙은 은색(요청).
       // 구 20% 축소(요청) — 2.7 → 2.16. 그늘 초승달·하이라이트도 같은 배수.
       // 구 20% 더 축소(재요청) — 2.16 → 1.73.
-      [groundEllipse(bx, by, 1.73, 1.65), 1, TERRAN_STEEL_D] as ShapeFace,
+      [orbPath3(0, 0, 5.12, 1.73, 1.65), 1, TERRAN_STEEL_D] as ShapeFace,
       sideFace(`M${bx + 0.67} ${by - 1.47} A1.66 1.6 0 0 1 ${bx + 0.67} ${by + 1.47}`
         + ` A2.43 2.37 0 0 0 ${bx + 0.67} ${by - 1.47} Z`, 0.16),
       topFace(shinePath3(0, 0, 5.12, 1.73, -0.58, -0.64, 0.77, 0.64), 0.28),
@@ -19147,7 +19143,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         : [capFace(polyPath3([
           [-0.5, 1.4, 4.16], [0.5, 1.4, 4.16], [0.36, 1.56, 3.8], [-0.36, 1.56, 3.8],
         ]), 0.4)]),
-      topFace(groundEllipse(gx2, gy2, 0.6, 0.4), 0.25),
+      topFace(discPath3(-0.5, -0.5, 4.64, 0.6, 0.4), 0.25),
       ...leg(0),
     ];
   },
@@ -19424,10 +19420,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 노란 눈 — 사진2에서 갑주 한가운데 유일하게 빛나는 점이다. **늘 시청자를 본다**:
        떠 있는 구에는 앞뒤가 없고, 원작 스프라이트도 어느 방향에서나 눈이 이쪽을
        향한다. 모델 좌표 렌즈로 두면 옆으로 돌 때 날처럼 사라진다. */
-    const [ex9, ey9] = project(0, 0.2, ORB_Z + 0.6);
     out.push(...tagKey([
-      [screenCircle(ex9, ey9, 0.46), 0.95, "#3a1a04"] as ShapeFace,
-      [screenCircle(ex9, ey9, 0.34), 1, "#e8a01c"] as ShapeFace,
+      [billPath3(0, 0.2, ORB_Z + 0.6, 0.46), 0.95, "#3a1a04"] as ShapeFace,
+      [billPath3(0, 0.2, ORB_Z + 0.6, 0.34), 1, "#e8a01c"] as ShapeFace,
       // 심·광점은 **눈알 표면의 갓**으로 적는다(shinePath3) — 화면 자로만 찍으면 높이를 빌린다.
       [shinePath3(0, 0.2, ORB_Z + 0.6, 0.34, 0, -0.06, 0.19), 1, "#ffe07a"] as ShapeFace,
       [shinePath3(0, 0.2, ORB_Z + 0.6, 0.34, -0.06, -0.1, 0.08), 1, "#fffbe8"] as ShapeFace,

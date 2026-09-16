@@ -1431,9 +1431,12 @@ const BILL9: [number, number] = [Math.sin((40 * Math.PI) / 180), Math.cos((40 * 
 export const BILLBOARD9 = new WeakSet<Poly3>();
 /** 3D 자리에 뜬 **공** — `screenCircle(project(…), r)` 과 **글자까지 같은 경로**를 내면서
  *  3D 로는 구 껍질을 적는다. 화면 자로만 찍으면 되찾기가 경로를 거꾸로 읽어야 한다. */
-export function orbPath3(cx: number, cy: number, cz: number, r: number): string {
+export function orbPath3(cx: number, cy: number, cz: number, r: number, ryS?: number): string {
   const [sx, sy] = project(cx, cy, cz);
-  const d = screenCircle(sx, sy, r);
+  /* ⚠ `ryS` 는 빌더가 눈으로 살짝 눌러 둔 **화면 세로 반지름**이다 — 그래도 몸은 공이다.
+     되찾기는 경로만 보므로 rx 와 ry 가 2% 넘게 다르면 공이 아니라 **납작한 원반**으로 읽었다
+     (실측: 사이언스 베슬의 몸통 1.73×1.65 가 GL 에서 땅에 누운 판때기였다). */
+  const d = ryS === undefined ? screenCircle(sx, sy, r) : groundEllipse(sx, sy, r, ryS);
   if (MESH9.on) meshPut9(d, meshSphere9(cx, cy, cz, r));
   return d;
 }
