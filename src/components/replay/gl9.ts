@@ -232,13 +232,15 @@ export const GL_GLOW_KINDS9 = new Set(["warpin", "storm", "nukeblast", "nukeclou
 type Gloss9 = readonly [number, number, number, number, number];
 /* 결은 **테란이 제일 세다**(옛 규약: 긁힌 강철은 테란의 결이다). 프로토스 금은 닦은 면이라 옅게,
    저그 살점·그 밖은 안 긁는다. */
-const GLOSS_TERRAN9: Gloss9 = [23, 0.32, 0.50, 0.04, 0.85];
-const GLOSS_TOSS9: Gloss9 = [32, 0.40, 0.70, 0.05, 0.35];
+/* ★ 봉우리를 한 번 **1.45배 올렸다**(2026-09, 지적: "봉우리가 좀 강해야 할 거 같은데") — 허옇게 뜨는 것은
+   **윤기**(넓은 쪽)지 봉우리가 아니다. 봉우리는 좁아 닿는 낯이 적으므로 세게 줘도 반사광 한 점으로 남는다. */
+const GLOSS_TERRAN9: Gloss9 = [23, 0.46, 0.50, 0.04, 0.85];
+const GLOSS_TOSS9: Gloss9 = [32, 0.58, 0.70, 0.05, 0.35];
 /* ⚠ 저그를 처음에 [7.2, 0.28] 로 뒀더니 **알·고치가 허옇게 떴다**(눈으로 확인 · 밝기비 lurkeregg 1.17 → 1.40).
    날카로움 7 은 봉우리가 아니라 **또 하나의 환경광**이다 — 젖은 살은 '넓게 밝은' 것이 아니라 '한 자리가 번들거리는' 것이다.
    그래서 봉우리를 좁히고(14) 세기를 내렸다. 그래도 테란·토스보다는 두 배 넓다. */
-const GLOSS_ZERG9: Gloss9 = [14, 0.18, 0.15, 0.05, 0];
-const GLOSS_NONE9: Gloss9 = [17, 0.10, 0.30, 0.02, 0.15];
+const GLOSS_ZERG9: Gloss9 = [14, 0.26, 0.15, 0.05, 0];
+const GLOSS_NONE9: Gloss9 = [17, 0.14, 0.30, 0.02, 0.15];
 const GLOSS_BY_KIND9 = new Map<string, Gloss9>();
 const glossOf9 = (kind: string): Gloss9 => {
   if (GLOSS_BY_KIND9.size === 0) {
