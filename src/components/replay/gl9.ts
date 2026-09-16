@@ -55,6 +55,9 @@ uniform vec3 uTeam; uniform vec3 uLight; uniform float uAlpha; uniform float uDe
 /** 광택 — x 날카로움 · y 봉우리 세기 · z 제 색에 물드는 몫(금속 1 · 살점 0) · w 넓은 윤기. 종류마다 다르다(glossOf9).
  *  세기 둘(y·w)에는 손잡이(#glspec)와 진단 문(#glshade)이 **CPU 에서 이미 접혀** 있다 — 정점마다 물을 일이 아니다. */
 uniform vec4 uGloss;
+/** 광택을 내는 **빛의 색** — 흰빛이 기본이고, 테란만 찬 강철빛(푸르스름)이다(요청). 봉우리·윤기가 다 이 색을 탄다.
+ *  휘도를 1 로 맞춰 두었으므로 **밝기는 안 변하고 색만** 바뀐다(gl-check 밝기비가 안 흔들린다). */
+uniform vec3 uSpecTint;
 /** 빛과 시선의 **반각**(H) — 둘 다 유니폼이라 프레임에 한 번 내면 된다(정점마다 normalize 하던 것을 걷었다). */
 uniform vec3 uHalf;
 /** 결(긁힌 광택) 세기 — 종류(종족)·화면 배율·손잡이를 **CPU 에서 다 접어** 보낸다. 0 이면 화소가 그 식을 아예 안 돈다. */
@@ -76,6 +79,8 @@ varying vec4 vCol;
 varying vec3 vSpec;
 /** 결의 **줄 눈금** — 낯의 수평 접선에 내린 모형 좌표. 자리의 **1차 함수**라 삼각형 안에서 보간이 정확하다. */
 varying float vGs;
+/** 이 낯이 **결을 받는 재질인가**(0~1) — 아래 ★★ 참고. 낯마다 한 값이라 보간해도 안 흐른다. */
+varying float vRuf;
 void main() {
   /* aBb 한 칸에 표식 셋이 비트로 들었다: **1 빛**(번짐이 문다) · **2 닫힌 입체**(등진 낯을 걷는다) · **4 빌보드 원반**(카메라를 본다). */
   float bits = floor(aBb * 255.0 + 0.5);
@@ -169,6 +174,20 @@ void main() {
   float hl = length(aNrm.xy);
   vec2 gh = hl > 0.08 ? vec2(-aNrm.y, aNrm.x) / hl : vec2(1.0, 0.0);
   vGs = aPos.x * gh.x + aPos.y * gh.y;
+  /* ★★ **결은 재질이지 낯이 아니다**(2026-09, 지적: "원작을 보면 건물 전체에 헤어라인이 있진 않고 보이는
+     부분이 있는 거 같아") — 원작 판을 보면 긁힌 마감은 **큰 맨 강철 장갑판**에만 있고 관·어두운 속·붉은 띠·
+     발판은 맨질하다. 여태는 종족 하나로 켜고 낯을 안 가려, 건물이 통째로 같은 천을 두른 꼴이었다.
+     낯마다 재질을 적을 수는 없으므로(빌더 154종) **이미 있는 두 자로** 가른다:
+     ① **바탕색** — 채도가 있으면(임자색·붉은 띠·플라즈마·창) 페인트지 맨 강철이 아니다. 너무 어두우면
+        속 그늘이고 너무 밝으면 빛나는 낯이다. 가운데 밝기의 무채색 회색만 남긴다.
+     ② **부품 차례**(aOrd) — 그 값으로 흩어 **판마다 마감을 다르게** 준다. 원작도 판마다 다르다(같은
+        회색이어도 어떤 판은 긁혀 있고 어떤 판은 매끈하다). 부품 안에서는 한 값이라 판 한가운데가 안 갈린다. */
+  float lum0 = dot(base, vec3(0.299, 0.587, 0.114));
+  float mx0 = max(base.r, max(base.g, base.b));
+  float sat0 = mx0 > 0.001 ? (mx0 - min(base.r, min(base.g, base.b))) / mx0 : 0.0;
+  vRuf = (1.0 - smoothstep(0.22, 0.45, sat0))
+    * smoothstep(0.20, 0.36, lum0) * (1.0 - smoothstep(0.66, 0.88, lum0))
+    * smoothstep(0.30, 0.55, fract(sin(aOrd * 127.1 + 7.3) * 43758.5453));
   if (uGloss.y > 0.0 || uGloss.w > 0.0) {
   float ndl = max(dot(n, uLight), 0.0);
   /* ⚠ 넓은 윤기는 **어두운 바탕에서 가장 크게 튄다** — 더하는 값이라 검은 낯에서는 그 몫이 곧 배수다
@@ -186,7 +205,7 @@ void main() {
      곱셈 셋이고 꼴도 거의 같다(반값 자리를 맞추면 날카로움 ≒ 1.44 × 옛 지수). */
   float t2 = (1.0 - max(dot(n, uHalf), 0.0)) * uGloss.x;
   float sp = uGloss.y / (1.0 + t2 * t2);
-  vec3 tintS = mix(vec3(1.0), base, uGloss.z);
+  vec3 tintS = mix(uSpecTint, base, uGloss.z);
   vSpec = mix((sp + sheen) * tintS, vec3(0.0), uFlat);
   }
   if (uShade.a > 0.0) { vSpec = vec3(0.0); vCol = vec4(uShade.rgb, uShade.a * aAlpha); }
@@ -194,7 +213,7 @@ void main() {
 }`;
 const FS = `
 precision mediump float;
-varying vec4 vCol; varying vec3 vSpec; varying float vGs;
+varying vec4 vCol; varying vec3 vSpec; varying float vGs; varying float vRuf;
 uniform float uGrain;
 void main() {
   vec3 c = vCol.rgb + vSpec;
@@ -219,7 +238,8 @@ void main() {
     float a = 0.62 + 0.38 * sin(vGs * 3.1 + 0.6);
     float n = (sin(vGs * 34.0) * 0.42 + sin(vGs * 43.1 + 1.3) * 0.33 + sin(vGs * 26.3 + 2.7) * 0.25) * a;
     float g = n * abs(n);
-    c = vCol.rgb * (1.0 + uGrain * 0.012 * g) + vSpec * (1.0 + uGrain * 0.55 * g);
+    float w = uGrain * vRuf;
+    c = vCol.rgb * (1.0 + w * 0.012 * g) + vSpec * (1.0 + w * 0.55 * g);
   }
   gl_FragColor = vec4(c * vCol.a, vCol.a);   // 미리곱한 알파 — WebGL 캔버스(premultipliedAlpha)와 합성이 맞아야 반투명(빛무리)이 안 어두워진다
 }`;
@@ -247,7 +267,17 @@ export const GL_GLOW_KINDS9 = new Set(["warpin", "storm", "nukeblast", "nukeclou
      · 그 밖(자원·지형·중립) — 아주 옅게.
    값은 눈으로 고른다. 효과(uFlat)·번짐 판(uEmit 은 uFlat 을 함께 세운다)에는 안 탄다. */
 /** [날카로움 · 봉우리 · 제 색에 물드는 몫 · 윤기 · **결(긁힌 광택)**] */
-type Gloss9 = readonly [number, number, number, number, number];
+/** 광택 자 — 날카로움 · 봉우리 · 제 색에 물드는 몫 · 윤기 · 결 · **광택을 내는 빛의 색**(rgb). */
+type Gloss9 = readonly [number, number, number, number, number, readonly [number, number, number]];
+/** 기본은 흰빛이다 — 해가 흰빛이고, 광택 색은 재질(물듦)이 낸다. */
+const LIT_WHITE9 = [1, 1, 1] as const;
+/* ★ **테란만 찬 강철빛**(2026-09, 요청: "테란 건물에 빛나는 효과 … 불빛을 좀 청색톤을 넣을 수 있나") —
+   테란의 바탕은 이미 회색이라 흰 광택을 얹으면 회색 위 회색이고(위 ★), 색으로 갈리는 몫이 없다.
+   푸른 쪽으로 기울이면 **같은 밝기에서 색만** 갈려 금속이 차갑게 읽힌다 — 원작 테란의 파란 불빛·
+   청회색 도장과도 같은 결이다.
+   ⚠ 휘도를 1 로 **맞춰 둔다**(0.299·0.82 + 0.587·1.02 + 0.114·1.36 = 1.00) — 색만 바꾸고 밝기는
+     안 건드리므로 gl-check 밝기비도 0.5 선도 안 흔들린다. 색을 더 세게 하려면 이 비를 지키며 기울여라. */
+const LIT_STEEL9 = [0.82, 1.02, 1.36] as const;
 /* 결은 **테란이 제일 세다**(옛 규약: 긁힌 강철은 테란의 결이다). 프로토스 금은 닦은 면이라 옅게,
    저그 살점·그 밖은 안 긁는다. */
 /* ★ 봉우리를 한 번 **1.45배 올렸다**(2026-09, 지적: "봉우리가 좀 강해야 할 거 같은데") — 허옇게 뜨는 것은
@@ -288,13 +318,13 @@ type Gloss9 = readonly [number, number, number, number, number];
      ⚠ 세기를 그대로 두고 넓히기만 하면 그것은 **환경광**이다(옛 저그 날카로움 7 의 실패와 같은 자리) —
        넓힌 배수만큼 세기를 내려야 총량이 안 는다. 둘은 **늘 짝으로** 움직인다.
      ⚠ 윤기 바닥도 0.10 → 0.05 로 내렸다(등진 낯의 몫) — 넓어진 봉우리가 그 자리를 대신 메운다. */
-const GLOSS_TERRAN9: Gloss9 = [4.0, 0.13, 0.30, 0.16, 0.85];
-const GLOSS_TOSS9: Gloss9 = [5.0, 0.11, 0.70, 0.14, 0.35];
+const GLOSS_TERRAN9: Gloss9 = [4.0, 0.13, 0.18, 0.16, 0.85, LIT_STEEL9];
+const GLOSS_TOSS9: Gloss9 = [5.0, 0.11, 0.70, 0.14, 0.35, LIT_WHITE9];
 /* ⚠ 저그를 처음에 [7.2, 0.28] 로 뒀더니 **알·고치가 허옇게 떴다**(눈으로 확인 · 밝기비 lurkeregg 1.17 → 1.40).
    날카로움 7 은 봉우리가 아니라 **또 하나의 환경광**이다 — 젖은 살은 '넓게 밝은' 것이 아니라 '한 자리가 번들거리는' 것이다.
    그래서 봉우리를 좁히고(14) 세기를 내렸다. 그래도 테란·토스보다는 두 배 넓다. */
-const GLOSS_ZERG9: Gloss9 = [3.5, 0.06, 0.15, 0.08, 0];
-const GLOSS_NONE9: Gloss9 = [4.0, 0.03, 0.30, 0.06, 0.15];
+const GLOSS_ZERG9: Gloss9 = [3.5, 0.06, 0.15, 0.08, 0, LIT_WHITE9];
+const GLOSS_NONE9: Gloss9 = [4.0, 0.03, 0.30, 0.06, 0.15, LIT_WHITE9];
 const GLOSS_BY_KIND9 = new Map<string, Gloss9>();
 const glossOf9 = (kind: string): Gloss9 => {
   if (GLOSS_BY_KIND9.size === 0) {
@@ -445,7 +475,7 @@ export class GlUnits9 {
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error("링크: " + gl.getProgramInfoLog(p));
     this.prog = p;
     this.stat.depthBits = Number(gl.getParameter(gl.DEPTH_BITS)) || 0;
-    for (const u of ["uAnchor", "uScale", "uYaw", "uCanvas", "uCam", "uTeam", "uLight", "uAlpha", "uDepth0", "uDepthK", "uPersp", "uShade", "uDy", "uLean", "uGrad", "uDbg", "uFlat", "uShadow", "uShZ", "uEmit", "uGloss", "uHalf", "uGrain"]) this.loc[u] = gl.getUniformLocation(p, u);
+    for (const u of ["uAnchor", "uScale", "uYaw", "uCanvas", "uCam", "uTeam", "uLight", "uAlpha", "uDepth0", "uDepthK", "uPersp", "uShade", "uDy", "uLean", "uGrad", "uDbg", "uFlat", "uShadow", "uShZ", "uEmit", "uGloss", "uSpecTint", "uHalf", "uGrain"]) this.loc[u] = gl.getUniformLocation(p, u);
     for (const a of ["aPos", "aNrm", "aRgb", "aTeam", "aAlpha", "aOv", "aOrd", "aBb"]) this.att[a] = gl.getAttribLocation(p, a);
     /* 번짐 프로그램·사각 — 한 번만 짓는다(실패하면 번짐만 끈다). */
     try {
@@ -764,6 +794,7 @@ export class GlUnits9 {
       gl.enableVertexAttribArray(this.att.aOrd); gl.vertexAttribPointer(this.att.aOrd, 1, gl.FLOAT, false, STRIDE_B, 32);
       const gk = GL_SHADE9 < 1 || !this.specOn ? 0 : GL_SPEC9;
       gl.uniform4f(this.loc.uGloss, mesh.gloss[0], mesh.gloss[1] * gk, mesh.gloss[2], mesh.gloss[3] * gk);
+      gl.uniform3f(this.loc.uSpecTint, mesh.gloss[5][0], mesh.gloss[5][1], mesh.gloss[5][2]);
     };
     let camNow: GlCam9 | null = null;
     const place = (it: GlInst9): void => {
