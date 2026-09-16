@@ -1570,6 +1570,17 @@ export function suitLimb(
    suitZ·어깨선·허리띠·몸통이 전부 여기서 파생되므로 이 둘만 갈면 다 따라온다. */
 export let SUIT_TORSO_Z0 = 1.76;   // 2.2 → ×0.8(model-z-scale — let 이라 도구가 못 접어 손으로)
 export let SUIT_TORSO_H = 1.616;   // 2.02 → ×0.8(model-z-scale — let 이라 도구가 못 접어 손으로)
+/** ★ 마린·파이어뱃은 **다리만 1.2배**다(2026-09, 요청: "마린/파뱃 비율이 이상함" →
+ *  "마린 파뱃만 다리길이만 1.2배") — 키를 통째로 1.2배로 세워 봤더니 어깨·헬멧까지 같이
+ *  커져 덩치만 커질 뿐 비가 안 섰다(메딕·고스트 1.1배와 함께 되돌렸다). 짧아 보이던 것은
+ *  **다리**다.
+ *  suitLegs 의 zk 가 관절 z(골반 1.888 · 무릎 1.072)에만 곱하므로 그 값으로 다리만 길어지고,
+ *  ⚠ **그만큼 그 위가 통째로 올라앉아야 한다**(전례: "다리 수정에 맞게 그 위의 부품들 높이
+ *  내려야지") — 골반이 오른 몫(LEG_RISE9)을 몸통 밑(SUIT_TORSO_Z0)에 더하면 어깨선·허리띠·
+ *  목·머리·팔이 전부 suitZ 에서 파생되므로 함께 따라온다. 발목(0.26)은 안 곱해 발은 땅에 남는다. */
+export const LEG_TALL9 = 1.2;
+/** 다리를 늘린 몫 — suitLegs 의 골반 z(1.888)가 그만큼 올라간다. */
+export const LEG_RISE9 = 1.888 * (LEG_TALL9 - 1);
 /** 체형 비율을 바꿔 굽는 문 — 다 굽고 반드시 되돌린다(sunkenFire 결). */
 export function suitBodyRatio<T>(z0: number, h: number, fn: () => T): T {
   const pz = SUIT_TORSO_Z0;
@@ -17773,7 +17784,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   }),
   /* 마린(실물 참고) — 큰 어깨 뽕 한 쌍의 파워드 아머, 금빛 바이저 머리, 가슴 앞에
      가로로 든 가우스 소총. */
-  gunner: () => {
+  gunner: () => suitBodyRatio(SUIT_TORSO_Z0 + LEG_RISE9, SUIT_TORSO_H, () => {
     /* 몸은 뿔기둥 넷으로 짠다(요청) — 다리·몸통·목·어깨보호구. 칠하지 않은 면은
        임자 색이라, 마린의 전투복 자체가 개인색이고 헬멧 껍데기만 은색이다. */
     /* ★ 임자 색과 은색을 **맞바꾼다**(요청: "마린 어깨랑 허리띠가 임자색이고 나머지
@@ -17833,7 +17844,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 다리도 짙은 은색 — suitLegs의 셋째 자리(_kneeFill)는 지금 쓰이지 않는 값이라
          (그 함수의 이름 앞 밑줄) 여기 은색을 적어 두어도 아무 데도 안 든다. 고스트가
          하듯 바깥에서 칠한다 — 군화처럼 제 색을 가진 조각은 paintBase가 안 덮는다. */
-      ...paintBase(suitLegs(1, 1, undefined, 0.3 * wd), SUIT_SILVER),
+      ...paintBase(suitLegs(1, 1, undefined, 0.3 * wd, 1, LEG_TALL9), SUIT_SILVER),
       // 몸 너비 +10%(요청: "마린 파뱃 몸 너비 10프로 증가") — 공통 −20% 위에 얹는다.
       /* 가슴을 더 넓게(사진: 흉갑이 어깨만큼 벌어진다) — 1.1 → 1.28. 허리 잘록함은
          몸통 프로필(SUIT_TORSO_W)이 그대로 진다. */
@@ -17926,7 +17937,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         widthOf: (): number => 0.1,
       }), GUN_BLACK), depthNow(GM9[0], 1.8) * 1.6 + 1.62),
     ];
-  },
+  }),
   /* 고스트(전면 재작도 — 사진 samples/ghost1·2.jpg 기준) ───────────────────────
      사진이 말하는 것:
        ① **헬멧형이 아니다**(지적) — 뒤통수를 감싸는 흰 두건꼴 껍데기에 **붉게 빛나는
@@ -18067,7 +18078,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        ⑤ 붉은 갑옷. 임자 색은 허리띠와 어깨의 불꽃 데칼이 맡는다(앞선 요청 유지).
      2컷(요청: 전격 애니메이션화) — 이동은 걸음, 공격은 **두 팔뚝을 앞으로 내지르며**
      몸이 따라 숙는 자세다. 화염 자체는 이펙트가 그리므로 몸은 그 내지름만 지면 된다. */
-  fbat: () => {
+  fbat: () => suitBodyRatio(SUIT_TORSO_Z0 + LEG_RISE9, SUIT_TORSO_H, () => {
     const wd = walkDir();            // +1 · −1 · 0 — 걸음 두 컷이 서로 거울이다
     const mv = wd !== 0 ? 1 : 0;
     const at = poseNow === 2 ? 1 : 0;
@@ -18102,7 +18113,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ], "#3d3d3d"),
       /* ③ 몸 — 마린보다 넓다(wide 1.42). 다리는 걸음 컷을 탄다. */
       ...paintBase([
-        ...suitLegs(1, 1, undefined, 0.3 * wd),
+        ...suitLegs(1, 1, undefined, 0.3 * wd, 1, LEG_TALL9),
         ...suitTorso(1, { ...SUIT_TROOPER, wide: 1.42 }),
         ...suitNeck(1),
       ], RED),
@@ -18191,7 +18202,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ...rodFaces(m9 * 1.5, -0.5, 2.08, m9 * 0.4, lp(0.95, 1.4) + thr, lp(2.08, 2.464), 0.17),
       ], "#3d3d3d"), depthNow(m9 * 1.3, -0.4) * 1.6 + 1.0)),
     ];
-  },
+  }),
   /* 질럿(사진 samples/질럿1~7.jpg 기준 재작도 — 공용 프로토스 리그는 유지) ───────
      사진이 말하는 것:
        ① 첫 표식은 **어깨 뒤로 크게 감기는 금색 뿔 활 한 쌍** — 어깨에서 위로 솟았다
@@ -20823,24 +20834,28 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         return [[flank(m9), 1, TERRAN_STEEL] as ShapeFace, ...fl9.face(flank(m9))];
       }),
       [plate, 1, TERRAN_STEEL] as ShapeFace, topFace(plate, 0.18),
-      /* 임자색 데칼은 폭 전체를 두르는 띠가 아니라 등판 가운데의 **직사각형**(요청) —
-         아치(∩) 위에 얹히므로 좌우 변만 아치를 따라 굽고(x ±1.3에서 z 6.64), 앞뒤 변은
-         곧다. */
-      /* 임자색 데칼은 **뒤로 젖힌 날개 문장**(요청) — 앞 꼭짓점에서 좌우로 갈라져 뒤로
-         쓸리며 끝이 뾰족한 두 날개, 가운데는 뒤로 파인 V. 꼭짓점마다 등판 아치 높이
-         (z = 5.7 + 1.25(1−(x/2.6)²), 뒤로 갈수록 0.045/단위 처짐)에 앉힌다. */
+      /* ★ 임자색은 **등판 위를 가로지르는 넓은 띠**다(2026-09, 요청: "드랍십 동체 데칼 제거
+         및 동체 윗면에 넓은 가로띠로 추가") — 여태 있던 날개 문장(데칼)은 걷었다.
+         띠는 아치(∩)를 따라 굽어야 등판에 붙어 보이므로 x 를 열 토막으로 잘라 꼭짓점마다
+         등판 높이에 앉힌다.
+         ⚠ 높이 식은 **판이 쓰는 그 숫자에서 뽑는다**(귀퉁이 4.56 · 2차 조종점 6.152 —
+         2차 곡선의 꼭대기는 끝 + (조종−끝)/2 다). 걷어낸 문장은 그 식을 손으로 적어 두었는데
+         z 좌표 손질(model-z-scale ×0.8) 때 **람다의 return z 라 코드모드가 못 접어** 설계 자
+         (5.7 + 1.25·…) 그대로 남았고, 그래서 1.1~1.9 모형칸 위에 떠 있었다(45도에서 몸과
+         떨어져 날아다녔다 — 지적: "동체 데칼 동체 표면에 붙이기"). */
       ((): ShapeFace => {
-        const zOn = (x9: number, y9: number): number =>
-          5.7 + 1.25 * (1 - (x9 / 2.6) ** 2) + 0.03;   // 뒤 처짐(0.045/단위) 제거 — 등판을 수평으로
-        const P: [number, number][] = [
-          [0, 1.7], [0.42, 1.25], [1.0, 0.75], [2.15, -0.55], [2.35, -1.25],
-          [1.55, -0.85], [0.6, -0.35], [0, -0.9],
-        ];
-        const pts: [number, number, number][] = [
-          ...P.map(([x9, y9]) => [x9, y9, zOn(x9, y9)] as [number, number, number]),
-          ...P.slice(1, -1).reverse().map(([x9, y9]) => [-x9, y9, zOn(x9, y9)] as [number, number, number]),
-        ];
-        return bodyFace(polyPath3(pts));
+        const Z09 = 4.56; const ZC9 = 6.152; const HW9 = 2.6;   // 등판 귀퉁이·조종점·반폭
+        const zOn = (x9: number): number => Z09 + ((ZC9 - Z09) / 2) * (1 - (x9 / HW9) ** 2) + 0.04;
+        const Y09 = -0.3; const Y19 = 1.3;   // 띠의 앞뒤 — 등판 깊이(4.4)의 36%
+        const N9 = 10;
+        const top9: [number, number, number][] = [];
+        const bot9: [number, number, number][] = [];
+        for (let i9 = 0; i9 <= N9; i9 += 1) {
+          const x9 = -HW9 + (2 * HW9 * i9) / N9;
+          top9.push([x9, Y19, zOn(x9)]);
+          bot9.push([x9, Y09, zOn(x9)]);
+        }
+        return bodyFace(polyPath3([...top9, ...bot9.reverse()]));
       })(),
     ], depthNow(0, 0.4)));
     /* 앞 조종석 캐노피(자료 재작도) — 등판 앞머리에 얹힌 유리 상자. 여태 드랍십에
@@ -21734,10 +21749,21 @@ export function gasSacLoad(cx: number, cy: number, cz: number, s = 1): ShapeFace
    금색 틀(요청) — 종족 바탕색과 같은 값이다. */
 /* 나르는 SCV는 **팔을 안으로 굽혀 화물을 안는다**(요청) — 깃발을 세우고 본체를
    구우면 scv 빌더의 팔이 화물 좌우를 감싸는 자세로 갈린다. */
+/* ⚠⚠ **짐도 몸과 같은 z 평행이동을 타야 한다**(2026-09, 지적: "일꾼들 미네랄 가스 든 거
+   위치가 이상함" → "테란·프로토스만 이상하네" → "저그는 괜찮음") — 부양 높이 통일표
+   (MODEL_Z_OFF9)가 **몸만** 올리고 내린다(scv +2.072 · probe −2.168 · drone +0.192).
+   그 표를 먹이는 고리는 `Object.keys(MODEL_Z_OFF9)` 를 도는 자라, 딴 빌더인 짐
+   (load…·mineralLoad 토막)은 제자리에 남았다 — SCV 는 짐이 **2.07 아래**로, 프로브는
+   **2.17 위**로 어긋난다. 드론은 0.19 뿐이라 눈에 안 띄었고, 그래서 "저그는 괜찮다"가
+   곧 범인을 가리키는 말이었다.
+   ★ 짐은 몸에 딸린 부품이니 **같은 자**를 쓴다 — 표가 바뀌어도 함께 따라가도록 표에서 읽는다. */
+const loadZ9 = (k9: string, f9: () => ShapeFace[]): ShapeFace[] =>
+  withModelZOff(MODEL_Z_OFF9[k9] ?? 0, f9);
+
 SHAPE_BUILDERS.scvMin = () => {
   scvCarry = true;
   try {
-    return [...SHAPE_BUILDERS.scv(), ...mineralLoad(0, 3.15, 3.16, 1.0)];
+    return [...SHAPE_BUILDERS.scv(), ...loadZ9("scv", () => mineralLoad(0, 3.15, 3.16, 1.0))];
   } finally { scvCarry = false; }
 };
 
@@ -21752,25 +21778,25 @@ for (const k9 of Object.keys(MODEL_Z_OFF9)) {
 SHAPE_BUILDERS.scvGas = () => {
   scvCarry = true;
   try {
-    return [...SHAPE_BUILDERS.scv(), ...gasBoxLoad(0, 3.15, 3.16, 1.0)];
+    return [...SHAPE_BUILDERS.scv(), ...loadZ9("scv", () => gasBoxLoad(0, 3.15, 3.16, 1.0))];
   } finally { scvCarry = false; }
 };
 
-SHAPE_BUILDERS.probeMin = () => [...SHAPE_BUILDERS.probe(), ...mineralLoad(0, 1.9, 3.48, 0.9)];
+SHAPE_BUILDERS.probeMin = () => [...SHAPE_BUILDERS.probe(), ...loadZ9("probe", () => mineralLoad(0, 1.9, 3.48, 0.9))];
 
-SHAPE_BUILDERS.probeGas = () => [...SHAPE_BUILDERS.probe(), ...gasBoxLoad(0, 1.9, 3.48, 0.9, "#d4bd3c")];
+SHAPE_BUILDERS.probeGas = () => [...SHAPE_BUILDERS.probe(), ...loadZ9("probe", () => gasBoxLoad(0, 1.9, 3.48, 0.9, "#d4bd3c"))];
 
 SHAPE_BUILDERS.droneMin = () => {
   scvCarry = true;
   try {
-    return [...SHAPE_BUILDERS.drone(), ...mineralLoad(0, 2.7, 2.16, 0.95)];
+    return [...SHAPE_BUILDERS.drone(), ...loadZ9("drone", () => mineralLoad(0, 2.7, 2.16, 0.95))];
   } finally { scvCarry = false; }
 };
 
 SHAPE_BUILDERS.droneGas = () => {
   scvCarry = true;
   try {
-    return [...SHAPE_BUILDERS.drone(), ...gasSacLoad(0, 2.7, 2.16, 0.95)];
+    return [...SHAPE_BUILDERS.drone(), ...loadZ9("drone", () => gasSacLoad(0, 2.7, 2.16, 0.95))];
   } finally { scvCarry = false; }
 };
 
@@ -21798,17 +21824,17 @@ SHAPE_BUILDERS.droneHold = () => {
 // 프로브는 짐을 몸 앞에 띄울 뿐 자세가 안 바뀐다 — 맨몸 판을 그대로 쓴다.
 SHAPE_BUILDERS.probeHold = () => SHAPE_BUILDERS.probe();
 
-SHAPE_BUILDERS.loadScvMin = () => mineralLoad(0, 3.15, 3.16, 1.0);
+SHAPE_BUILDERS.loadScvMin = () => loadZ9("scv", () => mineralLoad(0, 3.15, 3.16, 1.0));
 
-SHAPE_BUILDERS.loadScvGas = () => gasBoxLoad(0, 3.15, 3.16, 1.0);
+SHAPE_BUILDERS.loadScvGas = () => loadZ9("scv", () => gasBoxLoad(0, 3.15, 3.16, 1.0));
 
-SHAPE_BUILDERS.loadProbeMin = () => mineralLoad(0, 1.9, 3.48, 0.9);
+SHAPE_BUILDERS.loadProbeMin = () => loadZ9("probe", () => mineralLoad(0, 1.9, 3.48, 0.9));
 
-SHAPE_BUILDERS.loadProbeGas = () => gasBoxLoad(0, 1.9, 3.48, 0.9, "#d4bd3c");
+SHAPE_BUILDERS.loadProbeGas = () => loadZ9("probe", () => gasBoxLoad(0, 1.9, 3.48, 0.9, "#d4bd3c"));
 
-SHAPE_BUILDERS.loadDroneMin = () => mineralLoad(0, 2.7, 2.16, 0.95);
+SHAPE_BUILDERS.loadDroneMin = () => loadZ9("drone", () => mineralLoad(0, 2.7, 2.16, 0.95));
 
-SHAPE_BUILDERS.loadDroneGas = () => gasSacLoad(0, 2.7, 2.16, 0.95);
+SHAPE_BUILDERS.loadDroneGas = () => loadZ9("drone", () => gasSacLoad(0, 2.7, 2.16, 0.95));
 
 /* 부품 깊이 정렬(지적: 일부만 가려지는 파트에서 뒤 요소가 비쳐 보임 — 가장 큰 문제) —
    빌더의 그리기 순서는 표준 시점 기준 고정이라, 요잉으로 뒤로 돌아간 부품이 앞 부품
