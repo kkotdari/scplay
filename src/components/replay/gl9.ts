@@ -7,7 +7,7 @@
    · 조명은 면 법선(뉴얼) 한 방향광 양면 — 2D 의 흑백 덧칠 면은 메시에서 뺐다(mesh9.isOverlay9).
    · 임자색 면(fill 없음)은 정점의 team 깃발로 표시하고 uTeam 으로 칠한다.
    한계(시제): 유닛만(건물·데칼·그림자·체력바는 캔버스가 그대로), 평면 시점만(pitch 면 캔버스로), 머리 요잉·불빛·회전 깃발은 0. */
-import { SHAPE_BUILDERS, poseSet9, poseNow, headYawSet, headYawNow, headAimNow, bldLitSet, bldLitNow, bldSpinRawSet9, bldSpinNow, stageFaces, headTag, litTag, spinTag, tone9, autoTier } from "./bake9";
+import { SHAPE_BUILDERS, SHAPE_GALLERY, poseSet9, poseNow, headYawSet, headYawNow, headAimNow, bldLitSet, bldLitNow, bldSpinRawSet9, bldSpinNow, stageFaces, headTag, litTag, spinTag, tone9, autoTier } from "./bake9";
 import { lodFilter, type ShapeFace } from "../../utils/shapeOblique";
 import { collectMesh9 } from "../../utils/mesh9";
 import type { UnitDrawOp } from "./engine9";
@@ -40,7 +40,7 @@ export interface GlFoot9 { w: number; cx: number; bot: number; top: number }
 /** nSolid: 앞쪽 정점 수(불투명 부품) · 그 뒤는 반투명(깊이를 안 쓰고 겹쳐 섞는다).
  *  데칼(한 장짜리 작은 부품 — 2D 가 벽 안쪽에 그려 두고 화가 차례로 위에 얹던 줄무늬·창·환풍구)의 깊이 편향은 정점(aOrd)에 든다. */
 /** pts: footOf 용 **겹치지 않는 꼭짓점 xyz** 만의 사본(정점 사본을 통째로 들면 메시당 270KB — 폰 메모리) · bytes: VBO 크기 · cols: 색 가짓수(진단). */
-export interface GlMesh9 { vbo: WebGLBuffer; n: number; nSolid: number; bias: number; pts: Float32Array; bytes: number; cols: number; foot: Map<string, GlFoot9>;
+export interface GlMesh9 { vbo: WebGLBuffer; n: number; nSolid: number; bias: number; pts: Float32Array; bytes: number; cols: number; foot: Map<string, GlFoot9>; gloss: Gloss9;
   /** **빛나는 낯이 있나** — 있으면 붓이 번짐 켜에서 이 메시를 한 번 더 그린다(없으면 건너뛴다 — 대부분의 유닛이 그렇다). */
   emit: boolean }
 
@@ -52,6 +52,11 @@ const VS = `
 attribute vec3 aPos; attribute vec3 aNrm; attribute vec3 aRgb; attribute float aTeam; attribute float aAlpha; attribute vec2 aOv; attribute float aOrd; attribute float aBb;
 uniform vec2 uAnchor; uniform vec3 uScale; uniform vec2 uYaw; uniform vec2 uCanvas; uniform vec2 uCam;
 uniform vec3 uTeam; uniform vec3 uLight; uniform float uAlpha; uniform float uDepth0; uniform float uDepthK; uniform float uPersp;
+/** 광택 — x 날카로움 · y 봉우리 세기 · z 제 색에 물드는 몫(금속 1 · 살점 0) · w 넓은 윤기. 종류마다 다르다(glossOf9).
+ *  세기 둘(y·w)에는 손잡이(#glspec)와 진단 문(#glshade)이 **CPU 에서 이미 접혀** 있다 — 정점마다 물을 일이 아니다. */
+uniform vec4 uGloss;
+/** 빛과 시선의 **반각**(H) — 둘 다 유니폼이라 프레임에 한 번 내면 된다(정점마다 normalize 하던 것을 걷었다). */
+uniform vec3 uHalf;
 uniform vec4 uShade; uniform float uDy; uniform vec2 uLean;
 /* 바닥 그림자 — (빛의 화면 기울기 x, y, 켬). 켜면 꼭짓점을 **빛 방향으로 밀어 z 를 0 으로** 눌러, 몸의 실루엣이
    바닥에 눕는다(2D 의 흐린 판 그림자가 하던 몫을 기하로 낸다 — 높은 부품일수록 멀리 눕는다). */
@@ -123,6 +128,40 @@ void main() {
   float rim = pow(1.0 - abs(dot(n, camDir)), 4.0);
   col *= mix(0.78 + 0.32 * nd, 1.0, uFlat);
   col += mix(vec3(0.10 * rim), vec3(0.0), uFlat);
+  /* ★ **광택(스페큘러)**(2026-09, 요청: "셰이더에 스페큘러 항 넣어서 광택 되살려줘 … 금속뿐 아니라
+     저그 살점 윤택도 있고") — 2D 가 판마다 굽던 광택 겹(glowBake9)은 판 길을 걷으며 **부르는 자리가
+     사라졌다**(유일한 호출자 rasterBld9 가 크립만 굽고, 그 크립은 DECAL_KINDS 로 걸러진다). 그 몫을
+     캔버스 그라디언트가 아니라 여기서 낸다.
+     블린-퐁이다: 빛과 시선의 **반각**(H)에 법선이 얼마나 가까운가. 값은 **정점에서 재도 정확하다** —
+     이 메시의 법선은 낯마다 하나(평면 음영)라 한 삼각형 안에서 안 변하고, 그래서 화소마다 다시 재는
+     몫이 한 톨도 없다(그 삯이 이 자를 정점 셰이더에 두는 까닭이다).
+     ⚠ 지수를 크게 주면(64↑) 여덟 조각 관에서 **한 낯만** 하얗게 튄다 — 면이 곡면이 아니라 다면체라
+       그렇다. 그래서 가장 날카로운 프로토스 금도 26 에 그친다.
+     금속은 제 색으로 물든 광택을(금은 금빛으로) · 살점 같은 유전체는 흰 광택을 낸다(uGloss.z). */
+  /* 옛 겹은 **둘**이었다 — ⓐ 빛을 마주 본 낯에 고르게 깔리는 몫(GLOW9.flat · 최대 0.6×0.4×0.4 ≒ 0.10)과
+     ⓑ 그 위 한 자리에서 타는 **반사광 봉우리**(GLOW9.hot · 최대 ≒ 0.20). 하나만 두면 어느 쪽도 안 산다:
+     봉우리만 두면 다면체라 몇 낯만 번쩍이고(실측: 밝기비 +4% — "티가 안 난다"), 고른 몫만 두면
+     물체가 그냥 밝아진다. 그래서 여기서도 둘로 낸다.
+     ⓐ 윤기(sheen): 낯이 빛을 마주 본 만큼(ndl)을 옛 문턱 자리(0.30~0.95)에서 편다 — 저그의 젖은 살에서 가장 세다.
+     ⓑ 봉우리(spec): 블린-퐁. 프로토스 금에서 가장 날카롭고 세다. */
+  /* 끌 때는 **정말로 안 돈다** — uGloss 는 유니폼이라 이 가지는 한 그리기 안에서 한쪽으로만 간다
+     (셰이더가 갈라지지 않는다). 그래야 기기 표(DEV9.glSpec)·#glspec=0 이 삯을 진짜로 던다. */
+  if (uGloss.y > 0.0 || uGloss.w > 0.0) {
+  float ndl = max(dot(n, uLight), 0.0);
+  /* ⚠ 넓은 윤기는 **어두운 바탕에서 가장 크게 튄다** — 더하는 값이라 검은 낯에서는 그 몫이 곧 배수다
+     (실측: 저그 굴 burrowhole 밝기비 1.48 → 1.79 · 러커 굴·알도 같이 떴다. 다들 하늘을 보는
+     납작한 어두운 낯이다). 그래서 윤기는 바탕 밝기를 탄다 — 밝은 껍질은 번들거리고 검은 구멍은
+     검은 채로 있다. 봉우리(ⓑ)는 안 탄다: 젖은 검은 키틴에도 반사광 한 점은 맺힌다. */
+  float lum = dot(base, vec3(0.299, 0.587, 0.114));
+  float sheen = smoothstep(0.30, 0.95, ndl) * uGloss.w * (0.30 + 0.70 * lum);
+  /* ⓑ 봉우리는 **로렌츠 봉우리**로 낸다 — pow(c, e) 는 SwiftShader 에서 exp2·log2 둘이라 정점마다 지면
+     비싸다(실측: 헤드리스 폰 프로필 4배 조임 p50 267 → 375ms). t = (1−c)·날카로움 으로 잰 1/(1+t²) 은
+     곱셈 셋이고 꼴도 거의 같다(반값 자리를 맞추면 날카로움 ≒ 1.44 × 옛 지수). */
+  float t2 = (1.0 - max(dot(n, uHalf), 0.0)) * uGloss.x;
+  float sp = uGloss.y / (1.0 + t2 * t2);
+  vec3 tintS = mix(vec3(1.0), base, uGloss.z);
+  col += mix((sp + sheen) * tintS, vec3(0.0), uFlat);
+  }
   vCol = uShade.a > 0.0 ? vec4(uShade.rgb, uShade.a * aAlpha) : vec4(col, aAlpha * uAlpha);
 }`;
 const FS = `
@@ -143,6 +182,35 @@ export const CAM_TOP9: GlCam9 = { squash: CAM[0], zk: CAM[1], lean: 0, shear: 0,
 export const GL_CANVAS_KINDS9 = new Set<string>([]);
 /** 발광 효과 종류 — 반투명 면이 곧 몸(mesh9 glow)이고 음영 없이 제 색으로 그린다(flat). 폭풍·핵은 더하기 합성(add)까지. */
 export const GL_GLOW_KINDS9 = new Set(["warpin", "storm", "nukeblast", "nukecloud", "archon", "darchon"]);
+/* ★ **광택 자(gloss)는 종족이 든다**(2026-09) — 낯마다 재질을 적으면 빌더 154종을 다 만져야 하고,
+   색으로 짐작하면 틀린다(이 파일이 이미 겪은 자리다 — "색만 보고는 빛과 진한 물감을 못 가른다").
+   그래서 **종류 → 종족** 한 자를 쓴다: 도록 표(SHAPE_GALLERY)가 154종을 이미 종족으로 갈라 놓았다.
+     · 테란  — 칠한 강철. 조금 넓고 조금 약하게, 제 색에 반쯤 물든다.
+     · 프로토스 — 닦은 금·수정. 가장 날카롭고 세며 제 색에 많이 물든다(금빛 광택).
+     · 저그  — 젖은 살점·키틴. **넓고 무른 윤기**다(지수 7) — 날카롭게 주면 벌레가 금속이 된다.
+     · 그 밖(자원·지형·중립) — 아주 옅게.
+   값은 눈으로 고른다. 효과(uFlat)·번짐 판(uEmit 은 uFlat 을 함께 세운다)에는 안 탄다. */
+type Gloss9 = readonly [number, number, number, number];
+const GLOSS_TERRAN9: Gloss9 = [23, 0.32, 0.50, 0.04];
+const GLOSS_TOSS9: Gloss9 = [32, 0.40, 0.70, 0.05];
+/* ⚠ 저그를 처음에 [7.2, 0.28] 로 뒀더니 **알·고치가 허옇게 떴다**(눈으로 확인 · 밝기비 lurkeregg 1.17 → 1.40).
+   날카로움 7 은 봉우리가 아니라 **또 하나의 환경광**이다 — 젖은 살은 '넓게 밝은' 것이 아니라 '한 자리가 번들거리는' 것이다.
+   그래서 봉우리를 좁히고(14) 세기를 내렸다. 그래도 테란·토스보다는 두 배 넓다. */
+const GLOSS_ZERG9: Gloss9 = [14, 0.18, 0.15, 0.05];
+const GLOSS_NONE9: Gloss9 = [17, 0.10, 0.30, 0.02];
+const GLOSS_BY_KIND9 = new Map<string, Gloss9>();
+const glossOf9 = (kind: string): Gloss9 => {
+  if (GLOSS_BY_KIND9.size === 0) {
+    for (const g of SHAPE_GALLERY) {
+      GLOSS_BY_KIND9.set(g.kind, g.race === "저그" ? GLOSS_ZERG9
+        : g.race === "프로토스" ? GLOSS_TOSS9
+          : g.race === "테란" ? GLOSS_TERRAN9 : GLOSS_NONE9);
+    }
+  }
+  return GLOSS_BY_KIND9.get(kind) ?? GLOSS_NONE9;
+};
+/** 메시 열쇠(`u:종류:…` · `b:종류:…` · `f:종류:…`)에서 종류를 떼어 광택 자를 고른다. */
+const glossOfKey9 = (key: string): Gloss9 => glossOf9(key.slice(key.indexOf(":") + 1).split(":")[0]);
 const CAMS9 = new Map<string, GlCam9>();
 /** 카메라 — 평면(vq 0 이면 CAM_TOP9 그대로) 또는 입체(pitchSquash = pitchFlatNow·0.7 · 높이 0.9 · 앞숙임 0.34) + 시각 밀림 tan(vq).
  *  같은 열쇠면 같은 객체라 그리기에서 유니폼을 한 번만 건다. */
@@ -265,7 +333,7 @@ export class GlUnits9 {
   /** meshMax: 메시 상한(기기 표 DEV9.glMeshMax — PC 600 · 폰 240; 메시 한 벌은 VBO + footOf 용 정점 사본이라 폰 메모리에 든다). */
   /* ⚠ meshMax·bloomOn 은 **읽기 전용이 아니다**(2026-09, 폰 세 단) — 벤치 단이 유휴 재기로 오르면 기기 표(DEV9)의
      값이 바뀌므로, glUnits9 가 다음 칠하기에서 그 벌에 새 값을 일러 준다. */
-  constructor(readonly canvas: HTMLCanvasElement, public meshMax = MESH_MAX9, public bloomOn = true) {
+  constructor(readonly canvas: HTMLCanvasElement, public meshMax = MESH_MAX9, public bloomOn = true, public specOn = true) {
     const gl = canvas.getContext("webgl", { alpha: true, premultipliedAlpha: true, antialias: true, depth: true });   // 미리곱한 알파 — 셰이더 출력·합성 함수(ONE, 1−a)와 한 벌
     if (!gl) throw new Error("webgl 없음");
     this.gl = gl;
@@ -279,7 +347,7 @@ export class GlUnits9 {
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error("링크: " + gl.getProgramInfoLog(p));
     this.prog = p;
     this.stat.depthBits = Number(gl.getParameter(gl.DEPTH_BITS)) || 0;
-    for (const u of ["uAnchor", "uScale", "uYaw", "uCanvas", "uCam", "uTeam", "uLight", "uAlpha", "uDepth0", "uDepthK", "uPersp", "uShade", "uDy", "uLean", "uGrad", "uDbg", "uFlat", "uShadow", "uShZ", "uEmit"]) this.loc[u] = gl.getUniformLocation(p, u);
+    for (const u of ["uAnchor", "uScale", "uYaw", "uCanvas", "uCam", "uTeam", "uLight", "uAlpha", "uDepth0", "uDepthK", "uPersp", "uShade", "uDy", "uLean", "uGrad", "uDbg", "uFlat", "uShadow", "uShZ", "uEmit", "uGloss", "uHalf"]) this.loc[u] = gl.getUniformLocation(p, u);
     for (const a of ["aPos", "aNrm", "aRgb", "aTeam", "aAlpha", "aOv", "aOrd", "aBb"]) this.att[a] = gl.getAttribLocation(p, a);
     /* 번짐 프로그램·사각 — 한 번만 짓는다(실패하면 번짐만 끈다). */
     try {
@@ -424,7 +492,7 @@ export class GlUnits9 {
         gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
         gl.bufferData(gl.ARRAY_BUFFER, buf, gl.STATIC_DRAW);
         const n = vi;
-        mesh = { vbo, n, nSolid: clear.length ? nSolid : n, bias, pts: new Float32Array(pts), bytes: buf.byteLength, cols: cols.size, foot: new Map(), emit: m.parts.some((p2) => p2.emit) };
+        mesh = { vbo, n, nSolid: clear.length ? nSolid : n, bias, pts: new Float32Array(pts), bytes: buf.byteLength, cols: cols.size, foot: new Map(), gloss: glossOfKey9(key), emit: m.parts.some((p2) => p2.emit) };
         this.stat.bytes += buf.byteLength;
       }
     } catch (e) { console.warn("[gl9] 메시", key, e); }
@@ -566,6 +634,8 @@ export class GlUnits9 {
       gl.enableVertexAttribArray(this.att.aOv); gl.vertexAttribPointer(this.att.aOv, 2, U, true, STRIDE_B, 29);
       gl.enableVertexAttribArray(this.att.aBb); gl.vertexAttribPointer(this.att.aBb, 1, U, true, STRIDE_B, 31);
       gl.enableVertexAttribArray(this.att.aOrd); gl.vertexAttribPointer(this.att.aOrd, 1, gl.FLOAT, false, STRIDE_B, 32);
+      const gk = GL_SHADE9 < 1 || !this.specOn ? 0 : GL_SPEC9;
+      gl.uniform4f(this.loc.uGloss, mesh.gloss[0], mesh.gloss[1] * gk, mesh.gloss[2], mesh.gloss[3] * gk);
     };
     let camNow: GlCam9 | null = null;
     const place = (it: GlInst9): void => {
@@ -573,7 +643,13 @@ export class GlUnits9 {
       gl.uniform2f(this.loc.uAnchor, it.ax, it.ay);
       gl.uniform3f(this.loc.uScale, it.k, it.k, it.yoff);
       gl.uniform2f(this.loc.uYaw, Math.cos(th), Math.sin(th));
-      if (it.cam !== camNow) { camNow = it.cam; gl.uniform2f(this.loc.uCam, it.cam.squash, it.cam.zk); gl.uniform2f(this.loc.uLean, it.cam.lean, it.cam.shear); }
+      if (it.cam !== camNow) {
+        camNow = it.cam; gl.uniform2f(this.loc.uCam, it.cam.squash, it.cam.zk); gl.uniform2f(this.loc.uLean, it.cam.lean, it.cam.shear);
+        /* 반각 H = 정규화(빛 + 시선) — 시선은 카메라가 정하므로 카메라가 바뀔 때만 다시 낸다. */
+        const hx = LIGHT[0]; const hy = LIGHT[1] + it.cam.zk; const hz = LIGHT[2] + it.cam.squash;
+        const hl = Math.hypot(hx, hy, hz) || 1;
+        gl.uniform3f(this.loc.uHalf, hx / hl, hy / hl, hz / hl);
+      }
       // 실루엣 빛의 화면 방향(lightScreenDir 과 같은 식: 평면 빛에 높이 몫을 얹어 화면 벡터로)
       const lx = -0.9; const ly = 0.45 * it.cam.squash - 1 * it.cam.zk; const ll = Math.hypot(lx, ly) || 1;
       gl.uniform4f(this.loc.uGrad, lx / ll, ly / ll, it.gradR, it.gradCy);
@@ -715,6 +791,12 @@ export const GL_LOD9 = ((): number => { const m = typeof location !== "undefined
 export const GL_WARM9 = !(typeof location !== "undefined" && /glwarm=0/.test(location.hash));
 /** 진단 `#glbloom=0|1` — 번짐(블룸)을 끄거나(0) 못 박아 켠다(1). 안 주면 **기기 표**가 정한다(DEV9.glBloom: PC 켬 · 폰 끔 —
  *  번짐은 화면 한 겹을 더 칠하는 일이라 폰 GPU 에서 값을 실기로 재기 전까지는 안 켠다). */
+/** 광택 세기 손잡이 — `#glspec=0` 끔 · `#glspec=1` 기본 · 사이 값으로 눌러 본다(표 값에 곱한다). */
+export const GL_SPEC9 = ((): number => {
+  const m = typeof location !== "undefined" ? /glspec=([\d.]+)/.exec(location.hash) : null;
+  const v = m ? Number(m[1]) : 1;
+  return Number.isFinite(v) ? Math.max(0, Math.min(4, v)) : 1;
+})();
 export const GL_BLOOM9 = ((): number => {
   const m = typeof location !== "undefined" ? /glbloom=(\d)/.exec(location.hash) : null;
   return m ? Number(m[1]) : -1;
@@ -740,14 +822,14 @@ export const glBakeMsTake9 = (): number => {
   const v = g.stat.frameBakeMs; g.stat.frameBakeMs = 0; return v;
 };
 /** 유닛 층의 GL 붓 — 캔버스가 있을 때 한 번 만든다. 못 만들면(WebGL 없음) null 로 굳어 캔버스 길로 돈다. */
-export function glUnits9(cv: HTMLCanvasElement | null, meshMax = MESH_MAX9, bloom = true): GlUnits9 | null {
+export function glUnits9(cv: HTMLCanvasElement | null, meshMax = MESH_MAX9, bloom = true, spec = true): GlUnits9 | null {
   if (!GL_ON9 || !cv) return null;
   if (glInst9 !== undefined && (glInst9 === null || glInst9.canvas === cv)) {
     // 단이 올랐으면 새 상한·번짐을 그 벌에 옮긴다(벌은 한 번만 짓는다).
-    if (glInst9) { glInst9.meshMax = meshMax; glInst9.bloomOn = bloom; }
+    if (glInst9) { glInst9.meshMax = meshMax; glInst9.bloomOn = bloom; glInst9.specOn = spec; }
     return glInst9;
   }
-  try { glInst9 = new GlUnits9(cv, meshMax, bloom); } catch (e) { console.warn("[gl9]", e); glInst9 = null; }
+  try { glInst9 = new GlUnits9(cv, meshMax, bloom, spec); } catch (e) { console.warn("[gl9]", e); glInst9 = null; }
   (globalThis as unknown as { __gl9?: GlUnits9 | null }).__gl9 = glInst9;   // 진단(perf-check --probe-gl)
   return glInst9;
 }

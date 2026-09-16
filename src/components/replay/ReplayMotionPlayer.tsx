@@ -786,7 +786,7 @@ const deviceMem9 = ((): number => {
 type BenchTier9 = {
   name: string; upMs: number; up3Ms?: number; minMem?: number;
   aheadSec: number; aheadMB: number;
-  glMeshMax?: number; glBloom?: boolean; glow?: boolean; yaw8Always?: boolean; live3d?: boolean;
+  glMeshMax?: number; glBloom?: boolean; glSpec?: boolean; glow?: boolean; yaw8Always?: boolean; live3d?: boolean;
   shadowGroundMinZoom?: number; decalBakeMax?: number; hitShardK?: number; dieShards?: number;
 };
 /* ⚠ 문턱은 **숫자로 적는다** — CROWD_BENCH_MS9(24)는 이 표보다 아래에 선언되므로 여기서 부르면 TDZ 다.
@@ -827,7 +827,7 @@ const PC_TIERS9: readonly BenchTier9[] = [
 const PHONE_TIERS9: readonly BenchTier9[] = [
   { name: "낮음", upMs: Infinity, aheadSec: 1.5, aheadMB: 6 },
   { name: "보통", upMs: 30, aheadSec: 2.5, aheadMB: 10,
-    glMeshMax: 300, glow: true, decalBakeMax: 256, hitShardK: 0.8, dieShards: 16 },
+    glMeshMax: 300, glow: true, glSpec: true, decalBakeMax: 256, hitShardK: 0.8, dieShards: 16 },
   { name: "높음", upMs: 13, up3Ms: 28, aheadSec: 4, aheadMB: 16,
     glMeshMax: 360, glow: true, glBloom: true, yaw8Always: false,
     shadowGroundMinZoom: 2, decalBakeMax: 384, hitShardK: 1, dieShards: 24 },
@@ -846,6 +846,9 @@ const DEV9 = smallDevice9 ? {
   glMeshMax: 240,
   /** 번짐(블룸) — 화면 한 겹을 더 칠하는 일이라 **0·1단은 끈다**(2단에서 표가 켠다. `#glbloom=0|1` 로 못 박는다). */
   glBloom: false,
+  /** 광택(스페큘러) — 정점마다 곱셈 여남은 번이라 GPU 에서는 거의 공짜지만, **0단(벤치 미달)은 끈다**(1단부터 표가 켠다).
+   *  셰이더의 유니폼 가지라 끄면 그 식이 아예 안 돈다. `#glspec=0` 으로 못 박는다. */
+  glSpec: false,
   /** 빛무리(글로우) — 0단(벤치 미달)은 끈 채 시작하고 1단부터 표가 켠다. */
   glow: false,
   /** 손짓 중 실시간 원근을 **재지 않고 켤까**(live3dOn9의 ★) — 폰은 어느 단에서도 안 켠다(제 벤치·실측 자를 탄다). */
@@ -860,6 +863,7 @@ const DEV9 = smallDevice9 ? {
   tiers: PC_TIERS9,
   glMeshMax: 600,
   glBloom: true,
+  glSpec: true,
   glow: true,
   live3d: false,   // 3단(매우 높음)에서 표가 켠다
 };
@@ -945,6 +949,7 @@ function applyBenchTier9(bench: number): void {
      glUnits9 가 다음 칠하기에서 그 벌에 일러 준다). */
   if (t9.glMeshMax !== undefined) DEV9.glMeshMax = t9.glMeshMax;
   if (t9.glBloom !== undefined) DEV9.glBloom = t9.glBloom;
+  if (t9.glSpec !== undefined) DEV9.glSpec = t9.glSpec;
   if (t9.yaw8Always !== undefined) DEV9.yaw8Always = t9.yaw8Always;
   if (t9.shadowGroundMinZoom !== undefined) DEV9.shadowGroundMinZoom = t9.shadowGroundMinZoom;
   if (t9.decalBakeMax !== undefined) DEV9.decalBakeMax = t9.decalBakeMax;
@@ -3066,7 +3071,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       lodSetZoom(bakeZoom);
       ctx.setTransform(Bd, 0, 0, Bd, 0, 0);
       ctx.clearRect(0, 0, cw, ch);
-      const gl9 = glUnits9(glRef.current, DEV9.glMeshMax, DEV9.glBloom);
+      const gl9 = glUnits9(glRef.current, DEV9.glMeshMax, DEV9.glBloom, DEV9.glSpec);
       glFx9 = !!gl9;   // 효과 모델(폭풍·핵)도 GL 이 맡는다 — drawDomFx9 가 판을 안 굽게   // #gl=1 이면 유닛 몸통을 GPU 큐에 넣고, 프레임 끝에서 한 번 그린다(아래)
       /* (제거·요청) 도형 드롭섀도 — 건물·유닛 그림자를 다 걷었다(떠다니는 것 제외).
          떠 있음은 아래 hover 분기의 발밑 타원만 말한다. */
