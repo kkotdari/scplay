@@ -93,7 +93,7 @@ import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, W
 import {
   pitchFlatSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, spriteSideMax9, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, tone9, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
 } from "./bake9";
-import { glUnits9, glNow9, glBakeMsTake9, GL_ON9, GL_WARM9, GL_BLIT9, GL_GLOW_KINDS9, SHADOW_ALPHA9, camOf9, CAM_TOP9, glIconOk9, glIconRequest9, type GlUnits9 } from "./gl9";
+import { glUnits9, glNow9, glBakeMsTake9, GL_ON9, GL_WARM9, GL_BLIT9, GL_GLOW_KINDS9, SHADOW_ALPHA9, camOf9, CAM_TOP9, glIconOk9, glIconRequest9, type GlUnits9, type GlFoot9 } from "./gl9";
 export { LIMB_LOG, TURRET_BACK9, SHAPE_BUILDERS, ctx2d9, BAKE_ENV9, cropToInk, pathBox, tierTableOf, autoTier, stageFaces, rasterBld9, SHAPE_GALLERY, poseSet, poseSet9, bldLitSet, headYawSet, bldSpinSet, bldSpinRawSet9, lodSetCap, lodSetZoom, lodNoteFrame, tone9, TONE_DARK, TONE_SAT, silhouetteLight } from "./bake9";
 export type { BakeCv9, BakeCtx9, RasterOut9, ShapeGalleryItem } from "./bake9";
 export { isAirUnit, flapCutOf, atkCutOf, unitTilesOf, buildingYawOf, galleryYawOf, BLD_NORM, BUILD_STAGES, SCR_DIAG, scrDiagOn, deriveWorld9, createEngine9, pickWorldUi9, emptyWorldUi9 } from "./engine9";
@@ -3477,7 +3477,20 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           const lodB9 = lodOf(sideWant);
           const glB9 = gl9 ? gl9.bldMesh(op, lodB9) : null;
           const glBcam9 = glB9 ? camOf9(!!op.pitch, pitchFlatNow * 0.7, vqOf9(op.viewYaw, true)) : CAM_TOP9;
-          const glBf9 = glB9 && gl9 ? gl9.footOf(glB9, -(op.rotDeg ?? 0), glBcam9) : null;
+          /* ★ 잉크 상자는 **딸림 부품까지 아울러** 잰다(2026-09) — 터렛은 몸의 절반 넘는 몫이 딸림
+             부품(포탑부)이라, 밑동만 재면 상자가 통째로 낮고 좁아져 체력바·링·총구 앵커가 따라 내려온다.
+             각은 **몸의 요잉으로 못 박아** 잰다(도는 각으로 재면 상자가 프레임마다 바뀌어, 성큰이
+             sunkenrear 로 갈릴 때 몸이 들썩이던 그 자리가 된다) — 곧 '머리 각 0 인 통째 모델'의 상자다. */
+          const glBa9 = glB9 && gl9 && op.attach ? gl9.bldMesh({ ...op, kind: op.attach, headDeg: undefined }, lodB9) : null;
+          const glBf9 = glB9 && gl9
+            ? ((): GlFoot9 | null => {
+              const a = gl9.footOf(glB9, -(op.rotDeg ?? 0), glBcam9);
+              if (!glBa9) return a;
+              const b = gl9.footOf(glBa9, -(op.rotDeg ?? 0), glBcam9);
+              const x0 = Math.min(a.cx - a.w / 2, b.cx - b.w / 2); const x1 = Math.max(a.cx + a.w / 2, b.cx + b.w / 2);
+              return { w: x1 - x0, cx: (x0 + x1) / 2, bot: Math.max(a.bot, b.bot), top: Math.min(a.top, b.top) };
+            })()
+            : null;
           if (glBf9 && !BLD_INK_BOX.has(bldAnchorKey(op.kind, op.pitch))) {
             // 판이 채우던 잉크 상자(총구 앵커 등이 읽는다)도 메시 자로 — 판 자와 같은 좌표(상자 (8,16) 기준, 원점 줄 12/12.6)다.
             const bnI9 = bldNormOf(op.kind) ?? 1;
@@ -3549,12 +3562,22 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             const gR9 = sidePx * 0.707; const gCy9 = -8 * gk9;
             gl9.push({ mesh: glB9, ax: gax9, ay: gay9, k: gk9, yoff: -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind) });
             if (op.attach) {
-              const gm9 = gl9.bldMesh({ ...op, kind: op.attach }, lodB9);
-              if (gm9) gl9.push({ mesh: gm9, ax: gax9, ay: gay9, k: gk9, yoff: -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, flat: GL_GLOW_KINDS9.has(op.kind) });
+              /* ★ 딸림 부품은 **제 요잉**을 가질 수 있다(attachRot · bake9 turret 의 ★★) — 도는 머리를
+                 그것으로 돌리면 각이 셰이더 유니폼이라 **메시 열쇠에 안 든다**(터렛 48벌 → 1벌).
+                 각을 안 주면 종전대로 몸의 요잉을 그대로 탄다(성큰 혓바닥). */
+              const arot9 = op.attachRot ?? op.rotDeg ?? 0;
+              /* 메시는 위 상자 잴 때 이미 지은 그 한 벌이다 — 요잉은 **열쇠에 안 드는** 유니폼이라
+                 각이 아무리 돌아도 같은 벌을 되쓴다(그것이 이 갈라내기의 벌이 전부다). */
+              const gm9 = glBa9;
+              if (gm9) gl9.push({ mesh: gm9, ax: gax9, ay: gay9, k: gk9, yoff: -gk9 * glBf9.bot, yawDeg: -arot9, color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, flat: GL_GLOW_KINDS9.has(op.kind) });
             }
             continue;
           }
-          const { faces } = resolveShapeFaces(op.kind, op.rotDeg, op.flat, op.viewYaw, op.pitch);
+          /* ★ 폴백도 **딸림 부품을 그린다**(2026-09) — 여태 op.kind 하나만 그려, `#gl=0`·WebGL 이 안 서는
+             기기에서는 성큰의 혓바닥이 통째로 빠졌다. 터렛이 머리를 딸림 부품으로 가른 뒤로는 그것이
+             '머리 없는 터렛'이 되므로 더는 넘길 수 없다. 각은 GL 과 같은 자다(attachRot ?? rotDeg). */
+          for (const [pk9, prot9] of [[op.kind, op.rotDeg], ...(op.attach ? [[op.attach, op.attachRot ?? op.rotDeg]] : [])] as [string, number | undefined][]) {
+          const { faces } = resolveShapeFaces(pk9, prot9, op.flat, op.viewYaw, op.pitch);
           if (faces) {
             // 판(buildingSprite)과 같은 크기 — sidePx처럼 종류 배수(drawK)까지 곱한다.
             const s = ((op.fitWidth ? wPx : Math.min(wPx, hPx)) * (op.drawK ?? 1)) / 16;
@@ -3563,7 +3586,9 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
               - (op.airPx !== undefined ? op.airPx * zoom : wPx * (op.liftK ?? 0));
             ctx.setTransform(Bd * s, 0, 0, Bd * s, Bd * (sx - 8 * s), Bd * (ty9 - 16 * s));
             /* 폴백에도 판과 같은 정규화(BLD_NORM, 발 가운데 (8,16) 축) — 유닛 쪽 폴백의 ★와 같은 까닭이다:
-               첫 진입에 판이 못 선 건물이 이 길로 떨어지면 배수만큼 크기가 달랐다가 판이 오면 튀었다. */
+               첫 진입에 판이 못 선 건물이 이 길로 떨어지면 배수만큼 크기가 달랐다가 판이 오면 튀었다.
+               딸림 부품도 **몸의 배수**를 쓴다(BLD_NORM_PAIR 가 한 벌로 접는 그 까닭) — 제 배수를 따로
+               가지면 겹쳐 찍을 때 머리가 밑동 위에서 커졌다 작아진다. */
             {
               const bn9 = bldNormOf(op.kind);
               if (bn9 !== undefined && bn9 !== 1) { ctx.translate(8, 16); ctx.scale(bn9, bn9); ctx.translate(-8, -16); }
@@ -3574,6 +3599,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
               ctx.fill(pathOf(d));
             }
             ctx.setTransform(Bd, 0, 0, Bd, 0, 0);
+          }
           }
           continue;
         }

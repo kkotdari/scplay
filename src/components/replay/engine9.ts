@@ -1116,6 +1116,9 @@ export const BLD_NORM_PAIR: Record<string, string> = {
   sunkenfire: "sunken",
   // 혓바닥은 몸과 **같은 배수**라야 겹쳐 찍을 때 아가리에서 나온다(op.attach 규약).
   sunkentongue: "sunken", sunkenrear: "sunken",
+  /* 터렛 밑동·포탑부도 같은 자리에 서는 별본이다 — 배수와 앵커가 한 벌이라야 머리가 밑동 위에 앉는다.
+     (머리를 딸림 부품으로 가른 까닭은 bake9 의 turret ★★ — 도는 각을 메시 열쇠에서 뺀다.) */
+  turretbase: "turret", turrethead: "turret",
   /* 고갈 별본은 본판 배수를 그대로 쓴다 — 안 접으면 정규화가 '줄어든 잉크'를 도로 키워
      덩어리가 줄수록 밭이 커지고, 마른 간헐천이 성한 것보다 커진다. */
   mineral0: "mineral", mineral1: "mineral", mineral2: "mineral", mineral3: "mineral",
@@ -1492,6 +1495,10 @@ export type UnitDrawOp = {
    *  배수로 구워지므로, 몸의 자리 보정을 그대로 쓰고 제 잉크 오프셋만 달리 하면 짐이 제
    *  모형 좌표에 앉는다. */
   attach?: string;
+  /** ★ 딸림 부품만의 **제 요잉**(절대 도) — 없으면 몸의 rotDeg 를 그대로 탄다.
+   *  도는 머리(터렛 포탑부)를 이것으로 돌리면 **각이 메시 열쇠에 안 든다**(bake9 turret 의 ★★):
+   *  몸은 제자리에 서고 머리만 유니폼으로 돌아 메시가 종류당 한 벌로 끝난다. */
+  attachRot?: number;
   /** 둘째 겹판 — 늘 몸 앞에 찍는다(시즈 전환의 앞쪽 버팀다리·앞 포신). attach2K가 없으면 attachK를 같이 탄다. */
   attach2?: string;
   /** 둘째 겹판의 제 배율 — 포신 전환처럼 두 겹판이 서로 반대로 움직일 때. */
@@ -2122,7 +2129,7 @@ export const BODY_MID_K9 = 0.02;
      효과 앵커(발자국 가운데)에서 아랫변까지를 뺀다.
    다시 재려면 scripts/model-shot.mjs 사본에 잉크 질량 중심 출력을 붙여 돌린다(이 표를 낸 방법). */
 export const UNIT_INK_CY9: Record<string, [number, number]> = { scv: [7.81, 8.65], gunner: [10.40, 11.10], ghost: [10.41, 11.09], fbat: [10.32, 11.03], inf: [10.38, 11.08], vulture: [9.30, 10.00], tank: [11.17, 11.78], goliath: [9.79, 10.49], wraith: [8.19, 9.00], dship: [8.37, 9.16], vessel: [9.59, 10.31], valk: [8.23, 9.03], bc: [9.16, 9.91], scvMin: [7.89, 8.73], scvGas: [7.91, 8.75], tanksiege: [11.01, 11.64], mine: [11.66, 12.28], probe: [10.10, 10.80], zealot: [9.66, 10.38], goon: [9.70, 10.42], htemp: [9.16, 9.90], dtemp: [10.12, 10.79], archon: [8.79, 9.57], darchon: [8.78, 9.56], shuttle: [8.30, 9.06], reaver: [10.65, 11.31], observer: [9.39, 10.13], scout: [8.01, 8.82], corsair: [8.68, 9.47], carrier: [9.33, 10.07], interceptor: [6.55, 7.45], scarab: [10.97, 11.63], arbiter: [10.39, 11.08], larva: [11.33, 11.96], egg: [10.77, 11.43], probeMin: [9.89, 10.59], probeGas: [9.69, 10.41], drone: [9.81, 10.53], ovie: [9.17, 9.94], zling: [10.24, 10.93], hydra: [8.86, 9.62], lurker: [9.74, 10.44], muta: [7.54, 8.44], scourge: [7.03, 7.91], queen: [7.85, 8.64], ultra: [9.41, 10.13], defiler: [11.19, 11.83], guardian: [7.64, 8.47], devourer: [8.90, 9.71], lurkeregg: [11.73, 12.26], mutacocoon: [9.51, 10.25], droneMin: [9.83, 10.55], droneGas: [9.80, 10.52], tankbody: [11.24, 11.87], tankgun: [9.82, 10.52], tanksiegebody: [11.18, 11.82], tanksiegegun: [9.59, 10.31], burrowhole: [11.83, 12.44] };
-export const BLD_INK_MID9: Record<string, [number, number]> = { tomb: [4.57, 3.94], trapezoid: [2.59, 2.21], refinery: [4.05, 3.57], cube: [7.19, 6.20], ebay: [5.42, 4.57], tombFlat: [3.37, 2.77], academy: [4.14, 3.61], turret: [5.52, 4.92], factory: [4.35, 3.77], plane: [5.79, 4.93], armory: [4.14, 3.56], scifac: [3.54, 3.00], comsat: [3.20, 2.79], nsilo: [3.23, 2.84], mshop: [2.86, 2.50], ctower: [2.98, 2.63], covert: [2.40, 2.03], physlab: [2.60, 2.25], pyramidWide: [6.05, 5.10], diamond: [4.68, 4.22], assim: [3.82, 3.40], gate: [3.11, 2.65], forge: [4.01, 3.44], coil: [4.88, 4.02], sbattery: [2.60, 2.16], cyber: [3.19, 2.78], citadel: [4.07, 3.46], archives: [3.40, 2.82], dome: [4.10, 3.52], robobay: [3.05, 2.64], observatory: [3.07, 2.66], arch: [3.11, 2.70], fleetbeacon: [3.43, 2.95], tribunal: [3.05, 2.58], warpin: [4.48, 4.48], hatchery: [4.70, 4.00], lair: [5.41, 4.63], hive: [5.95, 5.13], creep: [4.34, 3.61], sunken: [5.10, 4.24], spore: [4.31, 3.73], extract: [4.74, 4.07], pool: [4.46, 3.63], evo: [4.47, 3.75], hydraden: [5.46, 4.88], spire: [6.53, 5.87], gspire: [10.23, 9.26], queensnest: [4.52, 3.81], nydus: [4.32, 3.58], cavern: [4.98, 4.20], dmound: [4.58, 3.83], cocoon: [2.37, 1.94], sunkenfire: [5.94, 5.11], mineral: [3.26, 2.75], mineralb: [4.05, 3.43], mineralc: [3.50, 2.93], geyser: [3.88, 3.47], nuke: [4.19, 3.89], storm: [3.15, 2.92], nukeblast: [5.08, 4.08], nukecloud: [6.69, 5.89], tankbody: [3.07, 2.59], tankgun: [1.75, 1.48], tanksiegebody: [3.60, 3.01], tanksiegegun: [1.88, 1.59], tanksiegelegs: [0.93, 0.76], addonlink: [3.95, 3.41], burrowhole: [2.67, 2.16], lurkerburrow: [2.67, 2.17], lurkerfire: [2.70, 2.21], creeppatch: [4.11, 3.33], creeppatch2: [4.11, 3.33], creeppatch3: [4.12, 3.34] };
+export const BLD_INK_MID9: Record<string, [number, number]> = { tomb: [4.57, 3.94], trapezoid: [2.59, 2.21], refinery: [4.05, 3.57], cube: [7.20, 6.20], ebay: [5.42, 4.57], tombFlat: [3.37, 2.77], academy: [4.14, 3.61], turret: [5.52, 4.92], factory: [4.35, 3.77], plane: [5.79, 4.93], armory: [4.14, 3.56], scifac: [3.54, 3.00], comsat: [3.20, 2.79], nsilo: [3.23, 2.84], mshop: [2.86, 2.50], ctower: [2.98, 2.63], covert: [2.40, 2.03], physlab: [2.60, 2.25], pyramidWide: [6.02, 5.10], diamond: [4.68, 4.22], assim: [3.82, 3.40], gate: [3.07, 2.62], forge: [4.01, 3.44], coil: [4.88, 4.02], sbattery: [2.60, 2.16], cyber: [3.19, 2.78], citadel: [4.07, 3.46], archives: [3.40, 2.82], dome: [4.10, 3.52], robobay: [3.05, 2.64], observatory: [3.07, 2.66], arch: [3.11, 2.70], fleetbeacon: [3.43, 2.95], tribunal: [3.05, 2.58], warpin: [4.48, 4.48], hatchery: [4.70, 4.00], lair: [5.41, 4.63], hive: [5.95, 5.13], creep: [4.34, 3.61], sunken: [5.10, 4.24], spore: [4.31, 3.73], extract: [4.74, 4.07], pool: [4.46, 3.63], evo: [4.47, 3.75], hydraden: [5.46, 4.88], spire: [6.53, 5.87], gspire: [10.23, 9.26], queensnest: [4.52, 3.81], nydus: [4.32, 3.58], cavern: [4.98, 4.20], dmound: [4.58, 3.83], cocoon: [2.37, 1.94], sunkenfire: [5.94, 5.11], mineral: [3.26, 2.75], mineralb: [4.05, 3.43], mineralc: [3.50, 2.93], geyser: [3.88, 3.47], nuke: [4.19, 3.89], storm: [3.15, 2.92], nukeblast: [5.08, 4.08], nukecloud: [6.69, 5.89], tankbody: [3.07, 2.59], tankgun: [1.75, 1.48], tanksiegebody: [3.60, 3.01], tanksiegegun: [1.88, 1.59], tanksiegelegs: [0.93, 0.76], addonlink: [3.95, 3.41], burrowhole: [2.67, 2.16], lurkerburrow: [2.67, 2.17], lurkerfire: [2.70, 2.21], creeppatch: [4.11, 3.33], creeppatch2: [4.11, 3.33], creeppatch3: [4.12, 3.34] };
 /** 유닛 몸 가운데의 들기 — 발 원점에서 위로, **상자 px의 비**. 표에 없는 종류는 원점 2.2칸 위(보병 언저리). */
 export const unitMidK9 = (kind: string, pitchView: boolean): number => {
   const cy = UNIT_INK_CY9[kind] ?? UNIT_INK_CY9[NORM_PAIR[kind] ?? ""] ?? UNIT_INK_CY9[kind.replace(/body$/, "")];
@@ -2130,7 +2137,11 @@ export const unitMidK9 = (kind: string, pitchView: boolean): number => {
   const c = cy ? cy[pitchView ? 1 : 0] : anchor - 2.2;
   return Math.max(0, ((anchor - c) * modelNormOf(kind)) / 16);
 };
-/** 건물 몸 가운데가 잉크 바닥(지면선)에서 얼마나 위인가 — **그리는 변의 비**. 표에 없으면 3.5칸. */
+/** 건물 몸 가운데가 잉크 바닥(지면선)에서 얼마나 위인가 — **그리는 변의 비**. 표에 없으면 3.5칸.
+ *  ⚠ **별본(딸림 부품)은 이 표에 제 줄을 두면 안 된다** — 이 자리(`?? BLD_NORM_PAIR`)가 본판 값으로
+ *  접어 주는 것이 규약인데, 제 줄이 있으면 그것이 이긴다. `ink-center --emit` 은 SHAPE_BUILDERS 를
+ *  다 돌므로 새 별본(turretbase·turrethead 따위)의 줄까지 찍어 낸다 — **붙일 때 그 줄은 빼라**.
+ *  넣으면 밑동과 머리가 저마다의 가운데로 앉아 따로 논다(성큰이 갈릴 때 들썩이던 그 자리다). */
 export const bldMidK9 = (kind: string, pitchView: boolean): number => {
   const m = BLD_INK_MID9[kind] ?? BLD_INK_MID9[BLD_NORM_PAIR[kind] ?? ""];   // 별본은 본판의 값(위 bldAnchorKey ★)
   return ((m ? m[pitchView ? 1 : 0] : 3.5) * bldNormOf(kind)) / 16;
@@ -5549,8 +5560,15 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
              굽느라 한 프레임이 날아갔다. 몸(sunkenrear)은 각을 안 물어 평상시 것과
              합해 **두 벌**로 끝나고, 각별로 굽는 것은 기둥 하나짜리 혀뿐이다.
              쏠 때 둔덕이 솟고 낫날이 서는 몫(sunkenFire 깃발)은 그대로 남는다. */
-          fx: fxF, fy: fyF, z, kind: sunkenOut ? "sunkenrear" : shapeKind,
-          ...(sunkenOut ? { attach: "sunkentongue" } : {}),
+          /* ★ 터렛도 같은 손이다(bake9 turret 의 ★★) — 도는 **포탑부만** 딸림 부품으로 떼고
+             그 각을 attachRot(절대 도)으로 준다. 그러면 밑동·머리 둘 다 각을 열쇠에 안 물어
+             메시가 **2벌**로 끝난다(여태 7.5도 칸 48벌). headDeg 는 op 에 그대로 남는다 —
+             열쇠는 HEAD_KINDS 가 가르므로(turretbase·turrethead 는 그 명단 밖) 안 갈린다. */
+          fx: fxF, fy: fyF, z,
+          kind: shapeKind === "turret" ? "turretbase" : sunkenOut ? "sunkenrear" : shapeKind,
+          ...(shapeKind === "turret"
+            ? { attach: "turrethead", attachRot: headDeg9 ?? buildingYawOf() }
+            : sunkenOut ? { attach: "sunkentongue" } : {}),
           /* 창에 불이 드는 조건(요청: "평소 어둡고 활성 시 노란불") — 이 건물이
              지금 유닛을 뽑거나 연구를 돌리고 있나. 가스 건물(정제소)만은 이 뒤에
              따로 gasBusy가 켠다(일꾼이 안에 들어가 있는 동안). */
