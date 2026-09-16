@@ -4611,14 +4611,21 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const PCY9 = (PD / 2 + PBK9) / 2;
     const PZ = 0.84 + LIFTz9; // 판 밑면
     /** 사이 상자 — 판보다 얇고·낮고·얕다. 판에 물려 이음매 노릇만 한다. */
-    const GX = 1.95;
-    /* 사이 상자는 더 얇고 더 짧다(재지적: "판 두 개 두께 더 줄이고 앞뒤 길이도 줄이기")
-       — 두께 1.9 → 1.15, 깊이 7 → 5.2. 판 셋(2.4~2.7 두께, 6.4~7.6 깊이)보다 확실히
-       물러나야 어느 각도에서도 판이 덩치를 쥐고 이 상자는 이음매로만 읽힌다. */
-    const GW = 1.15;
+    /* ★ 사이 상자는 **양옆 판에 딱 닿는다**(2026-09, 요청: "배럭 건물 사이사이 틈 없게") —
+       여태 두께 1.15 로 x 1.375~2.525 를 채워 가운데 판(±1.2)과 0.175 · 바깥 판(2.6)과
+       0.075 의 **빈 틈**이 남았고, 정면에서 그 틈으로 배경이 비쳤다(자홍 바탕으로 확인).
+       보이는 몫은 두 벽 사이 그대로(1.2~2.6 · 두께 1.4)고, 상자는 **양쪽으로 0.12 씩 더
+       파고든다** — 딱 맞추면 두 벽이 같은 평면에 겹쳐 z 싸움을 하고, 파고들면 이웃 판이
+       제 벽으로 덮으므로 어느 붓에서도 깔끔하다. 얇고 얕은 이음매라는 성격은 그대로다. */
+    const GX = 1.9;         // 가운데 판 벽(1.2)과 바깥 판 벽(2.6)의 한가운데
+    const GVW9 = 2.6 - MW / 2;   // 보이는 두께 — 띠는 이 자를 쓴다
+    const GW = GVW9 + 0.24;      // 실제 두께(양옆 0.12 씩 파고듦)
     const GD = 5.2 * 1.2;   // 앞뒤 20% 증가(요청)
-    const GH = 3.68 * 1.1;   // 높이 10% 증가(요청)
-    const GZ = 1.24 + LIFTz9;
+    /* 밑면은 **판과 같은 높이에서 시작한다**(같은 요청) — 떠 있으면 상자 밑으로 배경이
+       보인다. 윗면 높이는 종전 그대로라 그만큼 키만 자란다. */
+    const GTOP9 = 1.24 + LIFTz9 + 3.68 * 1.1;
+    const GZ = 0.84 + LIFTz9;
+    const GH = GTOP9 - GZ;
     const PTOP = PZ + PH;   // 바깥 판 지붕
     const MTOP = PZ + MH;   // 가운데 판 지붕
     // 다리 여섯 — 앞뒤 세 쌍. 가운데 다리는 몸통 안쪽으로.
@@ -4920,10 +4927,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         [VW9 - VCUT, VYF], [-VW9 + VCUT, VYF], [-VW9, VYF - VCUT], [-VW9, VYB + VCUT],
       ];
       const kV9 = depthNow(0, 0) * 1.6 + 0.3;
-      out.push(...tagKey(paintBase(prismZFaces(oct9, MTOP, VTH, true), VENTC9), kV9));
+      /* ★ 가운데 뚜껑은 **옆 벤트보다 더 검고 살이 촘촘하다**(2026-09, 요청: "가운데 건물 위쪽
+         벤트가 벤트처럼 안 보이는 듯 · 색은 더 검게 하고 가로 살도 늘리기") — 옆 것과 같은
+         #4c4c4c 에 살이 셋이면 살 간격이 1.7 모형칸이라 '줄 그은 판'이지 통풍구가 아니다.
+         살을 일곱으로 늘려 간격을 0.85 로 좁히면 살(0.18)과 골(0.22)이 그 절반을 메워 격자로
+         읽히고, 바탕을 한 단 더 죽여 그 격자가 어두운 속에서 도드라진다. */
+      const VENTM9 = "#2e3033";
+      out.push(...tagKey(paintBase(prismZFaces(oct9, MTOP, VTH, true), VENTM9), kV9));
       // 뚜껑 위 격자 — 밝은 살과 그 뒤의 검은 골이 짝을 이룬다(다른 벤트와 같은 결).
-      for (let i9 = 1; i9 <= 3; i9 += 1) {
-        const y09 = VYB + ((VYF - VYB) * i9) / 4;
+      const NRIB9 = 7;
+      for (let i9 = 1; i9 <= NRIB9; i9 += 1) {
+        const y09 = VYB + ((VYF - VYB) * i9) / (NRIB9 + 1);
         const barV = (ya: number, yb: number): string => polyPath3([
           [-VW9 * 0.7, ya, MTOP + VTH], [VW9 * 0.7, ya, MTOP + VTH],
           [VW9 * 0.7, yb, MTOP + VTH], [-VW9 * 0.7, yb, MTOP + VTH],
@@ -5033,20 +5047,24 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 덩이마다 [x 중심, 반폭, 반깊이, **깎인 몫**, **y 중심**] — 큰 판 셋만 팔각이라 깎임이 있고
        사이 상자는 0 이다. 좌우 판은 뒤를 줄여 **y 0 이 아니므로**(PCY9) 중심을 함께 든다. */
     const BLK9: readonly (readonly [number, number, number, number, number, number])[] = [
-      [-PX, PW / 2, PDN9 / 2, CUT9, 0, PCY9], [-GX, GW / 2, GD / 2, 0, 0, 0],
+      [-PX, PW / 2, PDN9 / 2, CUT9, 0, PCY9], [-GX, GVW9 / 2, GD / 2, 0, 0, 0],
       [0, MW / 2, MD / 2, CUT9, CUT9, 0],
-      [GX, GW / 2, GD / 2, 0, 0, 0], [PX, PW / 2, PDN9 / 2, CUT9, 0, PCY9],
+      [GX, GVW9 / 2, GD / 2, 0, 0, 0], [PX, PW / 2, PDN9 / 2, CUT9, 0, PCY9],
     ];
     for (const [bx9, bhw9, bhd9, bcf9, bcb9, bcy9] of BLK9) {
       // 앞면(±y) — 그 면의 좌우폭을 꽉 채운 두 줄. **깎인 만큼 좌우로 물러난다**.
       for (const sy9 of [1, -1] as const) {
         if (facingRatio(0, sy9) <= 0.12) continue;
         const py9 = bcy9 + sy9 * (bhd9 + 0.03);
-        /* ★ 키의 기준점은 **제 몸통과 같은 자리**(bx9, 0)다(지적: "사이 건물 데칼이 안 가려지는
+        /* ★ 키의 기준점은 **제 몸통과 같은 자리**(bx9, bcy9)다(지적: "사이 건물 데칼이 안 가려지는
            키 문제") — 앞면의 실제 y로 재면 앞으로 튀어나온 값이 되어, 뒤에 물러선 사이 상자의
-           띠가 제 앞의 판보다 큰 키를 얻어 판 위로 그려졌다. 몸통 상자가 (cx, 0)으로 정렬되므로
-           그 위에 얹는 띠도 같은 자리에 +0.3만 얹으면 제 덩이를 따라 앞뒤가 옳다. */
-        const key9 = depthNow(bx9, 0) * 1.6 + 0.3;
+           띠가 제 앞의 판보다 큰 키를 얻어 판 위로 그려졌다. 몸통 상자의 자리에 +0.3만 얹으면
+           제 덩이를 따라 앞뒤가 옳다.
+           ⚠ **y 중심을 0 으로 못 박으면 안 된다**(2026-09, 지적: "앞면 양옆 건물에 창이랑 띠
+           어디 갔지") — 좌우 판을 줄이며 그 중심이 y 0 에서 PCY9(1.19)로 옮겨 갔는데 띠만
+           0 으로 재고 있어, 몸통 키가 띠보다 1.9·depthNow(0,1) 만큼 커졌다. 곧 띠·창이 제 판
+           **뒤로** 깔려 통째로 사라졌다. 키의 기준점은 늘 **그 몸통이 tagKey 에 준 그 자리**다. */
+        const key9 = depthNow(bx9, bcy9) * 1.6 + 0.3;
         const bc9 = sy9 > 0 ? bcf9 : bcb9;
         pc.push(...band9(bx9 - bhw9 + bc9, bx9 + bhw9 - bc9, py9, ZB9, key9));
         out.push(...winB9(bx9 - bhw9 + bc9, bx9 + bhw9 - bc9, py9, key9));
@@ -5057,7 +5075,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const xw9 = bx9 + sx9 * (bhw9 + 0.03);
         for (const sy9 of [1, -1] as const) {
           if (facingRatio(0, sy9) <= 0.12) continue;
-          const key9 = depthNow(bx9, 0) * 1.6 + 0.3;
+          const key9 = depthNow(bx9, bcy9) * 1.6 + 0.3;
           const wl9 = wrap9(bhd9);
           const bc9 = sy9 > 0 ? bcf9 : bcb9;
           const ye9 = bcy9 + sy9 * (bhd9 - bc9);
@@ -5075,7 +5093,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
             if (bc9 <= 0) continue;
             // 사선 낯의 법선은 대각이다 — 그쪽을 등지면 건너뛴다.
             if (facingRatio(sx9 * Math.SQRT1_2, sy9 * Math.SQRT1_2) <= 0.12) continue;
-            const key9 = depthNow(bx9, 0) * 1.6 + 0.3;
+            const key9 = depthNow(bx9, bcy9) * 1.6 + 0.3;
             const ox9 = sx9 * 0.021; const oy9 = sy9 * 0.021;   // 낯 밖으로 살짝(0.03/√2)
             const ax9 = bx9 + sx9 * (bhw9 - bc9) + ox9; const ay9 = bcy9 + sy9 * bhd9 + oy9;
             const bx2 = bx9 + sx9 * bhw9 + ox9; const by2 = bcy9 + sy9 * (bhd9 - bc9) + oy9;
