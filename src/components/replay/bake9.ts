@@ -649,19 +649,39 @@ export function nozzleRim9(
     return [x + Math.cos(a9) * rr9, yy9, z + Math.sin(a9) * rr9];
   };
   const back9 = faceLight(0, -1, 0);
+  const inD9: string[] = []; const inP9: number[][] = [];
   for (let i9 = 0; i9 < n9; i9 += 1) {
     const j9 = i9 + 1;
     // ㉠ 벽을 자른 낯 — 이것이 '두께'다(관 겉 ~ 관 속).
     const dr9 = polyPath3([P9(i9, rOut, y), P9(j9, rOut, y), P9(j9, rIn, y), P9(i9, rIn, y)]);
     /* ⚠ 자른 낯은 **칠한다** — 안 칠하면 임자 색이 들어가(accent 규약) 노즐 둘레에 파란 고리가
-       뜬다(실측). 관의 살을 자른 자리이므로 맨 강철빛이 맞다. */
+       뜬다(실측). 관의 살을 자른 자리이므로 맨 강철빛이 맞다. */    /* ⚠⚠ **잘린 살의 색은 감싸는 관의 색이다**(2026-09, 지적: "색은 맞춰야지 스러스터랑") — 기본값
+       (강철빛)은 테란 관에나 맞고, 프로토스의 금빛 관에 그대로 두면 **딴 금속을 덧댄 것**으로 읽힌다.
+       잘린 낯은 그 관의 살이므로 부르는 자리에서 제 관의 색을 준다(스카우트·캐리어·셔틀). */
     out.push(...(back9.visible
       ? [[dr9, 1, o.fill ?? "#6d757f"] as ShapeFace, ...back9.face(dr9)] : []));
     // ㉡ 관의 속벽 — 법선이 축을 본다(바깥으로 맞추면 먼 쪽이 걸러져 속이 안 보인다).
     const am9 = ((i9 + 0.5) / n9) * Math.PI * 2;
-    const din9 = polyPath3([P9(i9, rIn, y), P9(j9, rIn, y), P9(j9, rIn, y + dep), P9(i9, rIn, y + dep)]);
+    const q9: [number, number, number][] = [P9(i9, rIn, y), P9(j9, rIn, y), P9(j9, rIn, y + dep), P9(i9, rIn, y + dep)];
+    const din9 = polyPath3(q9);
     const lin9 = faceLight(-Math.cos(am9), 0, -Math.sin(am9));
-    if (lin9.visible) out.push([din9, 1, "#272c34"] as ShapeFace, ...lin9.face(din9));
+    if (!lin9.visible) continue;
+    inD9.push(din9);
+    inP9.push(q9.flatMap((t9) => modelPoint9(t9[0], t9[1], t9[2]) as unknown as number[]));
+  }
+  /* ★★ **구멍의 속벽은 데칼이 아니다 — 한 낯씩 내면 깊이 편향이 겉벽을 이긴다**(2026-09, 지적:
+     "캐리어 스러스터 왜저래 회색이 막 삐져나와보여") — 속벽을 낱낱의 한 장짜리 면으로 내면 gl9 의
+     isDecal(폴리 하나 · 3D 지름 2.8 아래)에 걸려 **유닛 0.18 모델칸**을 앞으로 받는다. 그런데 속벽과
+     그것을 감싸는 관의 겉면 사이는 살 두께(캐리어는 겉 반지름 0.4 · 속 0.26 = **0.14**)뿐이라, 편향이
+     그 두께보다 커서 속벽이 겉벽을 이기고 그려졌다 — 금빛 관 자리에 회색 줄무늬 판이 떴다.
+     속벽은 데칼(벽에 붙은 무늬)이 아니라 **몸**이므로 편향을 받을 자리가 아니다. 낯을 하나로 묶어
+     (폴리 여럿 = isDecal 이 아니다) 편향에서 빼면, 겉벽이 제대로 이긴다.
+     ⚠ 그 대신 낯마다 다르던 음영이 한 값이 된다 — 어두운 구멍 속이라 그 몫은 안 아깝다(오히려
+       줄무늬로 읽히던 것이 사라진다). 관 속을 들여다보는 각에서는 속벽·바닥의 색 차가 깊이를 낸다. */
+  if (inD9.length > 0) {
+    const dIn9 = inD9.join(" ");
+    meshPut9(dIn9, inP9 as never[]);
+    out.push([dIn9, 1, "#272c34"] as ShapeFace);
   }
   // ㉢ 속 끝 — 안 깔면 관을 통해 배경이 비친다.
   const dbot9 = polyPath3(Array.from({ length: n9 }, (_, i9) => P9(i9, rIn, y + dep)));
@@ -15851,7 +15871,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           [wallDiscPath(ex9, EY1_9 - 0.05, EZ9, 0.4, 0.27), 0.85, P_PLASMA] as ShapeFace,
         ], partKey(ex9, EY1_9 - 0.05, EZ9) + 0.5));
       }
-      out.push(...nozzleRim9(ex9, EY1_9, EZ9, 0.42, partKey(ex9, EY1_9 - 0.7, EZ9) + 0.3, { sides: 8, th: 0.12, dep: 0.86 }));
+      out.push(...nozzleRim9(ex9, EY1_9, EZ9, 0.42, partKey(ex9, EY1_9 - 0.7, EZ9) + 0.3, { sides: 8, th: 0.12, dep: 0.86, fill: GOLD9 }));
       if (poseNow === 1) out.push(...thrustFlame(ex9, EY1_9 - 0.05, EZ9, 0.4, "toss", partKey(ex9, EY1_9 - 0.7, EZ9) + 0.4));
       /* ⑥ 앞뿔 — 코 위로 뻗는 한 쌍(사진1의 더듬이). 이 둘이 있어야 앞이 '머리'로 읽힌다. */
       out.push(...tagKey(paintBase(
@@ -15921,7 +15941,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const LEAF_R = 1.9;                      // 말린 잎의 반지름(= 곡률)
     const LEAF_ZC = 5.75;                    // 잎 셋이 감싸는 축의 높이
     const LEAF_HALF_T = 0.2;                 // 잎맥 한가운데의 반두께
-    const LEAF_CURL = 1.05;                  // 잎 뒤끝이 축 쪽으로 말려 드는 깊이
+    /* 1.05 → 0.86(요청: "세 잎 휘어짐 좀더 부드럽게") — 말림의 꼴(u²)은 그대로 두고 깊이만 낮춘다.
+       꼴을 바꾸면(더 높은 거듭제곱) 허리가 평평해지고 끝이 급히 꺾여 오히려 덜 부드럽다. */
+    const LEAF_CURL = 0.86;                  // 잎 뒤끝이 축 쪽으로 말려 드는 깊이
     /* ★ **앞끝도 오므린다 — 뒤보다 덜**(요청: "캐리어 앞쪽도 뒷쪽처럼 오므리는 형태로
        가되 좀 덜 오므리기") ─────────────────────────────────────────────────────────
        여태 말림은 뒤 절반(u<0)에만 걸려 있었다("꽃봉오리마냥 뒷부분만"). 그래서 잎 셋이
@@ -16037,7 +16059,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const b9 = yBack(s9);
         const ky9 = (2 * y9 - (f9 + b9)) / Math.max(0.001, f9 - b9);   // −1(뒤)~1(앞)
         const d9 = Math.min(1, Math.hypot(s9, ky9));
-        return o9.lift * (0.55 + 0.75 * Math.sqrt(Math.max(0, 1 - d9 * d9)));
+        /* 가운데 1.30 → 1.45(요청: "등이 살짝만 더 부풀게") — 테두리 몫(0.55)은 그대로 둔다.
+           테두리까지 같이 올리면 판이 통째로 뜨는 것이지 등이 부푸는 것이 아니다. */
+        return o9.lift * (0.55 + 0.90 * Math.sqrt(Math.max(0, 1 - d9 * d9)));
       };
       /* ★ 판의 겉면은 잎의 **뒤 말림을 덜 따라간다**(지적: "윗잎에 붙인 덮개는 등이
          아래로 한번 눌리지 않게") ──────────────────────────────────────────────────
@@ -16345,7 +16369,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           topFace(wallDiscPath(tx, THRUST_Y1 - 0.05, tz, 0.2, 0.136), 0.5),
         ], thrustKey(tx, tz) + 0.3)
         : []),
-      ...nozzleRim9(tx, THRUST_Y1, tz, 0.36, thrustKey(tx, tz) + 0.25, { th: 0.1, dep: 1.5 }),
+      ...nozzleRim9(tx, THRUST_Y1, tz, 0.36, thrustKey(tx, tz) + 0.25, { th: 0.1, dep: 1.5, fill: THRUST_GOLD }),
       ...(poseNow === 1 ? thrustFlame(tx, THRUST_Y1 - 0.05, tz, 0.36, "toss", thrustKey(tx, tz) + 0.35) : []),
     ];
     /* (걷어냄) 아주 작은 옆날개 둘 — 아랫잎 뒤에 2중 덮개가 서면서 꽁무니가 이미
@@ -21856,7 +21880,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           [wallDiscPath(tx, -3.55, 3.08, 0.36, 0.24), 0.85, P_PLASMA] as ShapeFace,
         ], partKey(tx, -3.55, 3.08) + 0.5));
       }
-      out.push(...nozzleRim9(tx, -3.50, 3.08, 0.38, partKey(tx, -4.2, 3.08) + 0.3, { th: 0.1, dep: 0.85 }));
+      out.push(...nozzleRim9(tx, -3.50, 3.08, 0.38, partKey(tx, -4.2, 3.08) + 0.3, { th: 0.1, dep: 0.85, fill: TOSS_GOLD_D }));
       if (poseNow === 1) out.push(...thrustFlame(tx, -3.55, 3.08, 0.38, "toss", partKey(tx, -4.2, 3.08) + 0.4));
     }
     // 아가리 어두운 속은 제거(지적: 앞 검정 반투명 부품) — 빛 줄만 남긴다.

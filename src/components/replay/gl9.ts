@@ -743,7 +743,18 @@ export class GlUnits9 {
          가려야 할 것을 못 가린다. 몸은 멀쩡히 불투명으로 있는데도(실측: 배럭 #373 폴리 5) 그렇다.
          그래서 **크기 문을 반투명에도 똑같이 건다** — 돔 뒤의 초승달 그늘 같은 진짜 데칼은 작아서 그대로 남고,
          벽 한 장은 몸과 같은 깊이에서 겨룬다. */
-      const isDecal = (p: { polys: number[][]; alpha: number }): boolean => {
+      const isDecal = (p: { polys: number[][]; alpha: number; solid?: boolean }): boolean => {
+        /* ★★ **닫힌 입체의 낯은 데칼이 아니다**(2026-09, 지적: "캐리어 스러스터 왜저래 회색이 막
+           삐져나와보여") — 데칼 편향(유닛 0.18 · 건물 0.25 모델칸)은 **같은 평면에 얹힌 무늬**의
+           무승부를 가르는 자다. 그런데 문이 '폴리 하나 + 3D 지름 2.8 아래'뿐이라, 가는 관의 벽
+           한 조각(캐리어 추진관: 길이 1.7 · 반지름 0.4 → 지름 1.8)도 데칼로 잡혀 0.18 앞으로
+           끌려 나왔다. 관의 **먼 쪽 벽**이 그만큼 당겨지면 그 속의 어두운 구멍(살 두께 0.14)을
+           이겨, 들여다본 노즐 속이 금빛으로 찼다(반대로 가까운 쪽 벽이 당겨지면 겉벽을 이겨
+           속벽이 겉으로 튀어나온다 — 같은 병의 앞뒤다).
+           mesh9 가 이미 **닫힌 입체**(다양체 + 감기 일치)를 가려 두었으므로 그 표를 쓴다:
+           닫힌 덩이의 낯은 '벽에 붙은 무늬'가 아니라 **몸**이라 편향을 받을 자리가 아니다.
+           데칼(줄무늬·창·환풍구)은 한 장짜리 열린 판이라 이 문에 안 걸린다. */
+        if (p.solid) return false;
         if (p.polys.length !== 1) return false;
         const poly = p.polys[0]; let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity;
         for (let i = 0; i < poly.length; i += 3) { const x = poly[i], y = poly[i + 1], z = poly[i + 2]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; if (z < z0) z0 = z; if (z > z1) z1 = z; }
