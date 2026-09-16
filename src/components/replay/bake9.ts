@@ -17244,60 +17244,129 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       for (let i9 = 0; i9 < 7; i9 += 1) {
         const a0 = (i9 / 7) * Math.PI * 2 + 0.2;
         const sx9 = Math.sin(a0); const sy9 = Math.cos(a0);
-        const rt9 = 2.75 + (i9 % 3) * 0.16;
+        /* ⚠⚠ **둔덕의 능선을 따라 눕는다**(2026-09, 지적: "받침의 기둥은 능선을 따라 누워야 하고") —
+           앞 판은 알 밑에서 허공으로 뻗어 끝이 들린 '발'이었다. 그림의 그것은 뻗어 나온 것이 아니라
+           **둔덕의 살에 반쯤 묻힌 갈비뼈**다 — 둔덕 꼭대기 테(반지름 2.0·z 0.5)에서 능선을 타고
+           내려와 발치(2.9·z 0.03)에서 끝난다. 둔덕 겉면보다 조금만 도드라지게(+0.06) 두어 '묻힌' 채
+           윤곽만 드러나게 한다. 곧 이것은 받침의 **결**이지 따로 선 부품이 아니다. */
+        const rt9 = 2.86 + (i9 % 3) * 0.1;
         out9.push(...tagKey(spirePillar({
-          x: 0, y: 0, h: 0.8, w: 0.46, tipW: 0.12, segs: 6, sides: 7, hold: 0.18, taper: 0.7, caps: "none",
+          x: 0, y: 0, h: 0.8, w: 0.5, tipW: 0.16, segs: 6, sides: 7, hold: 0.24, taper: 0.8, oval: 0.62, caps: "none",
           path: (t9: number): [number, number, number] => {
-            const r9 = 1.1 + (rt9 - 1.1) * t9;
-            return [sx9 * r9, sy9 * r9, 0.4 - 0.22 * t9 + 0.5 * t9 * t9 * t9];   // 내려갔다 끝에서 든다
+            const r9 = 1.92 + (rt9 - 1.92) * t9;
+            return [sx9 * r9, sy9 * r9, 0.5 - 0.48 * t9 * t9 - 0.05];   // 둔덕 겉면보다 살짝 **아래** — 묻힌 갈비뼈다
           },
-        }), partKey(sx9 * 2.2, sy9 * 2.2, 0.4)));
+        }), partKey(sx9 * 2.4, sy9 * 2.4, 0.35)));
       }
-      /* ★★ **그물은 자로 그은 격자가 아니라 생체 조직이다**(2026-09, 지적: "저렇게 정직한 그물 말고
-         **생체 그물** 같은 형태") — 처음엔 자오선 여섯 + 수평 고리 둘을 고른 간격으로 둘렀다.
-         그것은 알을 감은 힘줄이 아니라 **바구니**다. 산 것의 결은 셋이 다르다:
-         ㉠ **줄이 곧지 않다** — 오르면서 옆으로 굽이친다(각이 느린 사인으로 흔들린다).
-         ㉡ **굵기가 고르지 않다** — 밑동이 굵고 위로 갈수록 여위되, 중간에 한두 번 부푼다.
-         ㉢ **간격·길이가 제각각이다** — 줄마다 시작 각·끝 높이가 다르고, 고리도 높이가 물결친다.
-         흩는 자는 **지표(i)의 함수**다(난수 상태 없이 늘 같은 그림 — 굽는 열쇠가 하나라야 한다). */
-      /** 지표에서 −1~1 사이의 흩는 값 — 난수 대신 쓰는 결정된 자다. */
-      const jit9 = (i9: number, k9: number): number =>
-        Math.sin(i9 * 12.9898 + k9 * 78.233) * 1.0 - Math.trunc(Math.sin(i9 * 12.9898 + k9 * 78.233) * 1.0);
-      // ③ 힘줄 일곱 — 굽이치며 오르고 끝 높이가 저마다 다르다
-      for (let i9 = 0; i9 < 5; i9 += 1) {
-        const a0 = (i9 / 5) * Math.PI * 2 + jit9(i9, 1) * 0.42;
-        const sw9 = 0.20 + jit9(i9, 2) * 0.16;          // 굽이의 폭(라디안)
-        const ph9 = jit9(i9, 3) * 3.0;
-        const uT9 = 0.93 + jit9(i9, 4) * 0.06;          // 끝 높이 — 꼭대기까지 안 가는 줄도 있다
-        const uB9 = 0.03 + Math.max(0, jit9(i9, 5)) * 0.1;
-        const th9 = 0.17 + jit9(i9, 6) * 0.06;   // 가는 철사가 아니라 **살의 이랑**이다(원작 그림)
+      /* ★★ **그릴 것은 거품이 아니라 거품과 거품이 맞닿은 그 테다**(2026-09, 지적 셋을 거쳐:
+         "정직한 그물 말고 생체 그물" → "**동그라미가 이어 붙어 있는** 모양 · 거품 띠 같은 느낌" →
+         "아니 저건 거품이고, 거품 말고 **거품과 거품이 이어지는 그 부분들**") — 세 판을 헛짚었다:
+         ㉠ 자로 그은 격자(바구니) ㉡ 굽이치는 굵은 줄(힘줄) ㉢ 속이 찬 공 무리(구슬).
+         거품 무리에서 눈에 남는 것은 공이 아니라 **공이 맞물린 자리의 테**다(비눗방울 막의 그 선).
+         그래서 **고리를 늘어놓는다**: 껍질에 접하는 평면에 놓인 원 하나가 거품 하나의 테이고,
+         이웃과 반지름의 1.3배 간격으로 두면 테끼리 겹쳐 **동그라미가 이어 붙은 띠**가 된다.
+         ⚠ 고리는 **껍질의 접평면**에 놓여야 한다 — 수평으로 놓으면 알 위쪽에서 껍질을 뚫고 나간다.
+           접평면의 두 축은 둘레 접선 u 와 자오선 접선 v = n × u 다(n 은 회전면의 법선).
+         ⚠ 키는 고리마다 **제 자리 깊이**다 — 한 키로 묶으면 뒤로 돌아간 고리가 껍질 위에 뜬다. */
+      /** 지표에서 0~1 사이의 흩는 값 — 난수 상태 없이 늘 같은 그림(굽는 열쇠가 하나라야 한다). */
+      const jit9 = (i9: number, k9: number): number => {
+        const v9 = Math.sin(i9 * 12.9898 + k9 * 78.233) * 43758.5453;
+        return v9 - Math.floor(v9);
+      };
+      /** 껍질 위 (각, 높이) 자리의 점·법선·접선 둘. */
+      const shell9 = (aa9: number, u9: number): {
+        p: [number, number, number]; n: [number, number, number];
+        tu: [number, number, number]; tv: [number, number, number];
+      } => {
+        const e9 = 0.005;
+        const dr9 = (eR9(Math.min(1, u9 + e9)) - eR9(Math.max(0, u9 - e9))) / (2 * e9);
+        const nl9 = Math.hypot(3.68, dr9) || 1;
+        const nr9 = 3.68 / nl9; const nz9 = -dr9 / nl9;
+        const sx9 = Math.sin(aa9); const sy9 = Math.cos(aa9);
+        const r9 = eR9(u9);
+        return {
+          p: [sx9 * r9, sy9 * r9, 3.68 * u9],
+          n: [sx9 * nr9, sy9 * nr9, nz9],
+          tu: [sy9, -sx9, 0],
+          tv: [-sx9 * nz9, -sy9 * nz9, nr9],
+        };
+      };
+      /** 껍질 **위를 타고 도는 큰 고리 하나** — 거품이 맞닿은 그 테다.
+       *  ⚠ 접평면에 놓은 **납작한 원**으로 그리면 안 된다(요청: "링 크기는 저거의 4~5배") —
+       *    반지름 1.3 짜리 원의 처짐은 r²/2R = 0.41 모델칸이라, 테의 양옆이 껍질에서 훌쩍 떠 버린다.
+       *    그래서 (각, 높이)로 원을 그려 **껍질 위를 타게** 한다.
+       *  ⚠ **완전한 원이면 기계로 찍은 무늬다**(지적) — 반지름을 각의 함수로 흔든다. 단 흔드는 자의
+       *    **최댓값이 1** 이라야 아래 맞물림 셈이 깨지지 않는다(0.80 + 0.14 + 0.06 = 1.00). */
+      const foam9 = (a0: number, u0: number, rr9: number, sd9: number, tn9: number): void => {
+        const NF9 = 16;
+        /* ⚠⚠ **일그러뜨리되 맞닿는 쪽은 안 줄인다**(2026-09, 지적: "닿질 않잖아 서로 닿아야 해 무조건!")
+           — 흔드는 자를 각에 아무렇게나 걸면 하필 **이웃을 향한 쪽**이 패여 테가 안 닿는다(실측).
+           그래서 흔들기의 **마루를 이웃 쪽(tn9)에 못 박는다**: 그 방향에서 배수가 정확히 1 이라 아래
+           맞물림 셈(rᵢ + rⱼ = dᵢⱼ)이 그대로 지켜지고, 반대쪽으로 갈수록 패여 일그러진 꼴이 된다.
+           덤으로 얹는 셋째 마디도 이웃 쪽에서 0 이 되게 sin²((θ−tn)/2) 를 곱한다. */
+        const pt9 = (t9: number): [number, number, number] => {
+          const th9 = t9 * Math.PI * 2;
+          const dt9 = th9 - tn9;
+          const wob9 = 1 - 0.17 * (1 - Math.cos(dt9)) / 2
+            + 0.1 * Math.sin(dt9 * 3 + sd9) * Math.sin(dt9 / 2) ** 2;
+          const u9 = Math.max(0.02, Math.min(0.99, u0 + ((rr9 * wob9) / 3.68) * Math.sin(th9)));
+          const aa9 = a0 + ((rr9 * wob9) / Math.max(0.6, eR9(u9))) * Math.cos(th9);
+          const f9 = shell9(aa9, u9);
+          return [f9.p[0] + f9.n[0] * 0.05, f9.p[1] + f9.n[1] * 0.05, f9.p[2] + f9.n[2] * 0.05];
+        };
         out9.push(...tagKey(spirePillar({
-          x: 0, y: 0, h: 0.8, w: th9, tipW: th9, segs: 16, sides: 5, hold: 0.5, caps: "none",
-          path: (t9: number): [number, number, number] => {
-            const u9 = uB9 + (uT9 - uB9) * t9;
-            const aa9 = a0 + sw9 * Math.sin(2.4 * t9 + ph9);
-            const r9 = eR9(u9) + 0.05;
-            return [Math.sin(aa9) * r9, Math.cos(aa9) * r9, 3.68 * u9];
-          },
-          // 밑동이 굵고 위로 여위되 중간에 한 번 부푼다 — 산 것의 굵기다
-          widthOf: (t9: number): number => th9 * (1.25 - 0.75 * t9) * (1 + 0.28 * Math.sin(Math.PI * t9 * 1.7 + ph9)),
-        }), partKey(Math.sin(a0) * 1.6, Math.cos(a0) * 1.6, 1.9)));
+          x: 0, y: 0, h: 0.8, w: 0.13, tipW: 0.13, segs: NF9, sides: 4, hold: 0.5, caps: "none",
+          path: pt9,
+        }), partKey(Math.sin(a0) * eR9(u0), Math.cos(a0) * eR9(u0), 3.68 * u0) + 0.3));
+      };
+      /* ★★ **테끼리 넘나들지 않고 맞닿기만 한다**(2026-09, 지적: "링끼리 서로 교차 불가, 맞닿기만
+         하기") — 반지름을 손으로 고르면 이웃을 반드시 뚫는다(실측: 처음 판이 그랬다).
+         거품이 서로를 뚫지 않는 것은 물리다 — 그 물리를 한 줄로 쓴다:
+           **반지름 = 가장 가까운 이웃까지 거리의 절반**.
+         그러면 어떤 짝이든 rᵢ + rⱼ ≤ ½dᵢ + ½dⱼ ≤ dᵢⱼ 라 절대 안 겹치고, **서로가 서로의 가장 가까운
+         이웃인 짝**은 정확히 맞닿는다(그 맞닿음이 곧 거품 띠의 그 결이다).
+         ⚠ 거리는 껍질 위 두 점의 **3D 직선 거리**로 잰다 — 표면 거리보다 조금 짧으므로 늘 안전한 쪽이다. */
+      /* 자리는 **황금각 나선**으로 흩는다 — 고른 격자는 무늬가 되고, 난수는 뭉치거나 빈다.
+         나선이면 어느 조각을 봐도 이웃까지의 거리가 비슷해, 위 '절반 규칙'이 테를 고르게 키운다.
+         열넷이면 알 껍질이 테로 거의 덮이고(빈 자리가 거품 사이의 그 틈으로 읽힌다) 낯도 감당된다. */
+      /* ⚠ **테를 키우는 자는 개수다**(2026-09, 요청: "링 크기 더 키우고 · 닿게 · 대략 2배 더") —
+         맞물림 셈이 반지름을 이웃까지의 거리에서 정하므로, 반지름을 손으로 키우면 그 셈이 깨져
+         테가 서로를 뚫는다. 곡면 위의 자리 간격은 1/√N 이라 **넷으로 줄이면 두 배**가 된다. */
+      const NB9 = 4;
+      const cen9: [number, number][] = Array.from({ length: NB9 }, (_, i9) => [
+        i9 * 2.399963 + jit9(i9, 1) * 0.3,
+        0.13 + 0.78 * ((i9 + 0.5) / NB9) + (jit9(i9, 2) - 0.5) * 0.05,
+      ] as [number, number]);
+      const cp9 = cen9.map(([a9, u9]) => shell9(a9, u9).p);
+      const dst9 = (i9: number, j9: number): number =>
+        Math.hypot(cp9[j9][0] - cp9[i9][0], cp9[j9][1] - cp9[i9][1], cp9[j9][2] - cp9[i9][2]);
+      /* 반지름 — 먼저 '가장 가까운 이웃까지의 절반'으로 두고, **느슨한 자리를 세 번 키운다**
+         (rᵢ = min(dᵢⱼ − rⱼ)). 그러면 어느 테든 적어도 한 이웃과 **정확히 맞닿고**(rᵢ + rⱼ = dᵢⱼ)
+         누구도 넘나들지 않는다 — 한 번만 재면 나선의 성긴 자리가 그냥 작게 남는다(실측: 안 닿았다). */
+      const rad9 = cen9.map((_, i9) => {
+        let d9 = Infinity;
+        for (let j9 = 0; j9 < cen9.length; j9 += 1) if (j9 !== i9) d9 = Math.min(d9, dst9(i9, j9));
+        return d9 / 2;
+      });
+      for (let pass9 = 0; pass9 < 3; pass9 += 1) {
+        for (let i9 = 0; i9 < cen9.length; i9 += 1) {
+          let r9 = Infinity;
+          for (let j9 = 0; j9 < cen9.length; j9 += 1) if (j9 !== i9) r9 = Math.min(r9, dst9(i9, j9) - rad9[j9]);
+          rad9[i9] = Math.max(0.3, r9);
+        }
       }
-      // ④ 두르는 힘줄 둘 — 높이가 물결치고 굵기도 고르지 않다(수평 고리가 아니다)
-      for (const [j9, u09] of [[0, 0.3], [1, 0.62]] as [number, number][]) {
-        const wv9 = 0.055 + jit9(j9, 7) * 0.03;
-        const ph9 = jit9(j9, 8) * 3.0;
-        out9.push(...tagKey(spirePillar({
-          x: 0, y: 0, h: 0.8, w: 0.07, tipW: 0.07, segs: 26, sides: 5, hold: 0.5, caps: "none",
-          path: (t9: number): [number, number, number] => {
-            const bb9 = t9 * Math.PI * 2;
-            const u9 = u09 + wv9 * Math.sin(3 * bb9 + ph9) + wv9 * 0.5 * Math.sin(5 * bb9 - ph9);
-            const r9 = eR9(u9) + 0.05;
-            return [Math.sin(bb9) * r9, Math.cos(bb9) * r9, 3.68 * u9];
-          },
-          widthOf: (t9: number): number => 0.15 * (1 + 0.3 * Math.sin(t9 * Math.PI * 2 * 2 + ph9)),
-        }), partKey(0, 0, 3.68 * u09) + 0.1));
-      }
+      cen9.forEach(([a9, u9], i9) => {
+        // 가장 빠듯한 이웃의 방향 — 흔들기의 마루를 그쪽에 둔다(위 ⚠⚠).
+        let bj9 = -1; let sl9 = Infinity;
+        for (let j9 = 0; j9 < cen9.length; j9 += 1) {
+          if (j9 === i9) continue;
+          const g9 = dst9(i9, j9) - rad9[i9] - rad9[j9];
+          if (g9 < sl9) { sl9 = g9; bj9 = j9; }
+        }
+        const da9 = ((cen9[bj9][0] - a9 + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+        const tn9 = Math.atan2((cen9[bj9][1] - u9) * 3.68, da9 * Math.max(0.6, eR9(u9)));
+        foam9(a9, u9, rad9[i9], jit9(i9, 8) * 6.28, tn9);
+      });
       return out9;
     })(),
   ],
