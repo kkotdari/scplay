@@ -1143,8 +1143,11 @@ export function cylinderFaces3(
   /* 깊이 키 = 가장 앞점, 단 제 높이만큼만(재지적: 넓고 낮은 받침이 몸통을 덮음) —
      부품이 이웃을 가릴 수 있는 건 제 키 높이까지라, 앞으로 뻗은 만큼을 높이로 자른다. */
   if (MESH9.on) meshPut9(body, meshLoft9([meshRing9(cx, cy, z0, 1, 0, 0, 0, 1, 0, r, 12), meshRing9(cx, cy, z0 + h, 1, 0, 0, 0, 1, 0, r, 12)]));
+  /* ⚠ 뚜껑은 `discPath3` 로 낸다 — `groundEllipse(tx, ty, r, ry)` 와 **글자까지 같은 경로**를 내면서
+     3D 로 제 자리 고리를 적는다. 화면 자로 두면 뚜껑만 기록이 없어 되찾기로 살아났다(원통을 쓰는
+     빌더가 수십이라, 이 한 줄이 우회로의 가장 큰 덩이였다). */
   return tagKey(
-    [bodyFace(body), sideFace(shade, OP.sideSoft), topFace(groundEllipse(tx, ty, r, ry))],
+    [bodyFace(body), sideFace(shade, OP.sideSoft), topFace(discPath3(cx, cy, z0 + h, r))],
     depthNow(cx, cy) + Math.min(h, r),
   );
 }
