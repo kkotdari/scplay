@@ -4880,7 +4880,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        paintBase가 안 건드린다 — 바탕이 깔린 몸판만 어두워진다. */
     const VENTC9 = "#4c4c4c";
     for (const sx9 of [-1, 1] as const) {
-      const k9 = depthNow(sx9 * PX, 0) * 1.6 + 0.3;
+      /* 키는 **제가 올라앉은 기둥의 자리**(VC9)다 — 벤트 한 벌은 뒤 기둥 위의 부품이라
+         그 덩이를 따라다녀야 한다(y 0 으로 재면 기둥과 4.2·depthNow(0,1) 만큼 어긋난다). */
+      const k9 = depthNow(sx9 * PX, VC9) * 1.6 + 0.3;
       /** 임자색 받침판의 두께. */
       const VPH9 = 0.2 * 1.2; const VPH9z9 = 0.16 * 1.2; /* z용 쌍둥이(model-z-scale ×0.8) */
       /** 그 **아래에 한 장 더** 까는 기본 은색 판(요청) — 높이는 임자색 판의 1.5배다.
@@ -4963,7 +4965,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const SEAM9 = "#424242";
     const SEAMW9 = 0.05;                       // 선 반폭
     for (const sx9 of [-1, 1] as const) {
-      const k9 = depthNow(sx9 * PX, 0) * 1.6 + 0.3;
+      /* ⚠ 키는 **그 판의 자리**(PCY9)다(지적: "양옆 건물 위의 갈라짐 선 안 보임") — 판을
+         줄이며 중심이 y 0 에서 옮겨 갔는데 이 선만 0 으로 재고 있어 판 뒤로 깔렸다. */
+      const k9 = depthNow(sx9 * PX, PCY9) * 1.6 + 0.3;
       const y09 = VF9 + VPAD9 + 0.25;
       const y19 = PD / 2 - 0.3;
       for (const dx9 of [0]) {   // 한 줄(요청)
@@ -5130,7 +5134,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     if (facingRatio(1, 0) > 0.12) {
       /* 키는 **제 판과 같은 기준점**에 +0.42다 — 관은 그 판의 옆벽에 붙은 부품이라 판을
          따라다녀야 한다. 판 바깥의 점으로 재면 요잉에 따라 제 판보다 앞서거나 뒤처진다. */
-      const kP9 = depthNow(PX, 0) * 1.6 + 0.42;
+      const kP9 = depthNow(PX, PCY9) * 1.6 + 0.42;   // 제 판의 자리(위 ⚠와 같은 자)
       const PIPE9 = TERRAN_STEEL;   // 관은 몸보다 한 단 밝은 강철(어두운 회색은 벤트 몫이다)
       /* ★ 관은 공용 **원기둥 프리미티브**로 짠다(요청: "파이프도 프리미티브로") — 눕는 토막은
          tubeFaces(축이 바닥면에 눕는 원기둥), 서는 토막은 cylinderFaces3(세운 원기둥)이다.
