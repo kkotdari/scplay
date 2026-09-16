@@ -5825,9 +5825,25 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const omitR9 = bayOn9 && glBay9 ? ([1, 0] as const) : undefined;
     /* 아래 절두체·허리의 **윗면은 안 낸다**(glBay9) — 바로 위에 같은 바닥의 덩이가 앉는 속살인데, 구멍으로
        들여다보면 그 낯이 속벽보다 카메라에 가까워 격납구를 통째로 메웠다(2D 는 위 덩이가 덮어 보이지 않던 몫). */
-    out.push(...tagKey(frustumFaces3(0, 0, WB, DB, WW, DW, ZW0z9 - ZB0z9, ZB0z9, omitR9, !!omitR9), 2));
-    out.push(...tagKey(boxFaces3(0, 0, WW, DW, ZW1z9 - ZW0z9, ZW0z9, omitR9, !!omitR9), 2.1));
-    out.push(...tagKey(frustumFaces3(0, 0, WW, DW, WT, DT, ZTz9 - ZW1z9, ZW1z9), 2.2));
+    /* ★★ **가운데 패임은 벽에 진짜 구멍을 뚫어야 한다**(2026-09, 지적: "팩토리 앞 옆면 가운데가
+       패여 있잖아. 근데 패여 있으면 각도에 따라 안 보이는 면이 있어야 되는데 그게 잘 안 되고 있어")
+       ────────────────────────────────────────────────────────────────────────────────────
+       옛 짜임은 벽을 통째로 두고 그 **뒤로** 홈(바닥·문설주·문턱·인방)을 얹은 것이었다. 2D 는
+       화가 차례라 홈이 벽 위에 얹혀 패임으로 읽혔지만, GL 은 진짜 깊이라 **벽이 이긴다** — 홈이
+       통째로 덮여 실루엣에 걸친 가장자리 한 줄만 남았다(그래서 '선 두 개'로 보였다).
+       격납구에 쓴 그 손을 그대로 쓴다: 패임이 있는 벽은 프리미티브에서 **빼고**, 가운데 띠를
+       비운 **두 조각**으로 손수 짜고 홈을 그 안에 넣는다. 그러면 두 붓이 같은 그림을 낸다.
+       ⚠ 양옆을 돋우는 길(두둑)도 해 봤다 — 읽히기는 하지만 몸이 통째로 불룩해 보이고 실루엣에
+         혹이 생긴다(실측 그림). 패임은 패임으로 내는 것이 맞다. */
+    const GRV_HW9 = 0.82;   // 패인 가운데의 반폭
+    const GRV_D9 = 0.52;    // 패임 깊이 — 옛 0.38 보다 깊다(요청: "조금만 더 깊게")
+    const OMIT_LO9: [number, number][] = [[0, 1], [0, -1], [-1, 0],
+      ...(bayOn9 && glBay9 ? [[1, 0] as [number, number]] : [])];
+    out.push(...tagKey(frustumFaces3(0, 0, WB, DB, WW, DW, ZW0z9 - ZB0z9, ZB0z9, OMIT_LO9, !!omitR9), 2));
+    out.push(...tagKey(boxFaces3(0, 0, WW, DW, ZW1z9 - ZW0z9, ZW0z9, OMIT_LO9, !!omitR9), 2.1));
+    // 위 절두체는 오른쪽에도 패임을 준다(격납구 위의 남는 낯 — 요청) → 네 벽 다 손수 짠다.
+    out.push(...tagKey(frustumFaces3(0, 0, WW, DW, WT, DT, ZTz9 - ZW1z9, ZW1z9,
+      [[0, 1], [0, -1], [-1, 0], [1, 0]]), 2.2));
 
     /** 그 높이에서의 앞면 y(3단 프로필) — 홈·베이가 이 자를 쓴다. */
     const fyAt = (z9: number): number => {
@@ -5851,67 +5867,108 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ...boxFaces3(0, -(1.03 + 0.75), WT - 0.2, 1.5, 0.112, ZTz9 - 0.048),
     ], 3.05));
 
-    /* ── 앞뒤면 — 세로 홈을 **진짜 입체**로(요청: 색 아닌 실제 패임): 가운데
-       x ±0.8을 0.38 파낸다. 패인 바닥 판(색 없는 면이라 스테인 쇠가 입혀져
-       바깥벽과 같은 재질로 명암만 진다), 시점을 향한 쪽 문설주 벽, 아래 문턱
-       (윗면·밝음)·위 인방(밑면·어두움)까지 전부 실제 면이다. */
-    for (const sgn9 of [1, -1] as const) {
-      if (facingRatio(0, sgn9) <= 0.08) continue;
-      const GD9 = 0.38;   // 홈 깊이
-      const gy9 = (z9: number): number => sgn9 * (fyAt(z9) - GD9);
-      const oy9 = (z9: number): number => sgn9 * fyAt(z9);
-      const Z0 = 0.72; const Z1 = ZTz9 - 0.16;
-      const g: ShapeFace[] = [];
-      for (const [z0, z1] of [[Z0, ZW0z9], [ZW0z9, ZW1z9], [ZW1z9, Z1]] as [number, number][]) {
-        g.push([polyPath3([
-          [-0.8, gy9(z0), z0], [0.8, gy9(z0), z0], [0.8, gy9(z1), z1], [-0.8, gy9(z1), z1],
-        ]), 1] as ShapeFace);
-        for (const m9 of [-1, 1] as const) {
-          if (facingRatio(m9, 0) <= 0.04) continue;
-          g.push([polyPath3([
-            [-m9 * 0.8, gy9(z0), z0], [-m9 * 0.8, oy9(z0), z0],
-            [-m9 * 0.8, oy9(z1), z1], [-m9 * 0.8, gy9(z1), z1],
-          ]), 1, TERRAN_STEEL_D] as ShapeFace);
+    /* ── 가운데 패임 — 벽을 두 조각으로 짜고 그 사이를 파낸다(위 ★★). ────────────────────
+       한 벽에 드는 낯: 바깥 벽 두 조각(프로필 꺾임마다 나눔) · 홈 밖의 가운데 띠(아래·위) ·
+       홈 바닥 · 문설주 둘 · 문턱(위를 봄) · 인방(아래를 봄).
+       ⚠ 손수 짠 벽에도 프리미티브와 **같은 낯 음영**(faceLight)을 얹는다 — 안 얹으면 그 조각만
+         허옇게 떠 벽이 갈려 보인다. */
+    /** 패임이 있는 벽 한 낯 — ax 는 벽의 법선 축("y" 앞뒤 · "x" 옆), s 는 그 부호. */
+    const grvWall9 = (ax: "x" | "y", s: 1 | -1, zA: number, zB: number,
+      gz0: number, gz1: number): ShapeFace[] => {
+      /** 그 높이에서 벽까지의 거리 · 그 벽의 반폭. */
+      const nrm9 = (z9: number): number => (ax === "y" ? fyAt(z9) : sxAt(z9));
+      const ext9 = (z9: number): number => (ax === "y" ? sxAt(z9) : fyAt(z9));
+      const P9 = (u9: number, d9: number, z9: number): [number, number, number] => (ax === "y"
+        ? [u9, s * (nrm9(z9) + d9), z9] : [s * (nrm9(z9) + d9), u9, z9]);
+      /* ★★ **손수 짠 낯은 감기를 맞춰야 한다 — 안 맞으면 법선이 안을 봐 통째로 어두워진다**
+         (2026-09) — 낯의 법선은 mesh9 가 꼭짓점 감기에서 뽑는다(뉴얼). 감기 규약은 사람이 지키는
+         것이고, 여기처럼 좌우 짝을 같은 식으로 적으면 **한쪽은 반드시 뒤집힌다**(u 가 부호를
+         바꾸므로 외적도 부호를 바꾼다). 뒤집힌 낯은 방향광·광택을 등져 받으므로 같은 기하가
+         한 단 어둡게 나온다 — 실측: 위 절두체 벽이 프리미티브 #6a6f75 대 손 낯 #43484e 였다.
+         닫힌 입체는 mesh9 가 감기를 맞춰 주지만(solidSigns9) 이렇게 열린 판은 안 맞춰 준다.
+         그래서 **바라는 바깥 방향을 주고 어긋나면 뒤집는다** — 값이 아니라 규약이다. */
+      const q9 = (pts: [number, number, number][],
+        nx9: number, ny9: number, nz9: number): [number, number, number][] => {
+        const [a9, b9, c9] = pts;
+        const ux = b9[0] - a9[0]; const uy = b9[1] - a9[1]; const uz = b9[2] - a9[2];
+        const vx = c9[0] - a9[0]; const vy = c9[1] - a9[1]; const vz = c9[2] - a9[2];
+        const dot = (uy * vz - uz * vy) * nx9 + (uz * vx - ux * vz) * ny9 + (ux * vy - uy * vx) * nz9;
+        return dot >= 0 ? pts : [...pts].reverse();
+      };
+      /** 이 벽이 보는 바깥 방향(평면 몫). */
+      const OX9 = ax === "y" ? 0 : s; const OY9 = ax === "y" ? s : 0;
+      const segs9 = (a9: number, b9: number): [number, number][] => {
+        const zs = [a9, ...[ZW0z9, ZW1z9].filter((z9) => z9 > a9 + 1e-6 && z9 < b9 - 1e-6), b9];
+        return zs.slice(0, -1).map((z9, k9) => [z9, zs[k9 + 1]] as [number, number]);
+      };
+    const g9: ShapeFace[] = [];
+      /** 몸 낯(색 없는 벽)의 경로들 — **하나로 합쳐** 낸다(아래 ⚠). */
+      const bodyP9: string[] = [];
+      const ov9: ShapeFace[] = [];
+      /** 벽 낯 하나 — 프리미티브와 같은 음영을 얹는다(기운 몫은 프로필 기울기에서 뽑는다).
+       *  ⚠⚠ **몸 낯은 합쳐야 한다**(2026-09) — 낱낱으로 내면 **같은 기하인데 더 어둡다**:
+       *    mesh9 는 같은 경로의 낯 음영을 몸에 접을 때 **상자 넓이 비만큼만** 먹이는데
+       *    (작은 부품이 반토막으로 어두워지던 그 규약), 프리미티브는 네 벽을 한 몸으로 합쳐
+       *    내므로 벽 하나의 음영이 그 비만큼 눅는다. 손수 짠 조각은 경로가 곧 제 몸이라 비가
+       *    1 이 되어 음영이 통째로 먹었다 — 실측: 같은 위 절두체 벽이 #6a6f75 → #43484e.
+       *    그래서 프리미티브와 같은 손을 쓴다: 몸 경로를 이어 붙여 한 낯으로 내고 음영은
+       *    벽마다 따로 얹는다(mesh9 가 이어 붙인 경로의 3D 를 조각마다 되찾는다). */
+      const wall9 = (d9: string, a9: number, b9: number): void => {
+        const dz9 = b9 - a9; const dn9 = nrm9(a9) - nrm9(b9);
+        const nz9 = dn9 / (Math.hypot(dz9, dn9) || 1);
+        const l9 = faceLight(ax === "y" ? 0 : s, ax === "y" ? s : 0, nz9);
+        if (!l9.visible) return;
+        bodyP9.push(d9);
+        ov9.push(...l9.face(d9));
+      };
+      // ① 바깥 벽 — 가운데 띠를 뺀 두 조각
+      for (const m9 of [-1, 1] as const) {
+        for (const [a9, b9] of segs9(zA, zB)) {
+          wall9(polyPath3(q9([P9(m9 * GRV_HW9, 0, a9), P9(m9 * ext9(a9), 0, a9),
+            P9(m9 * ext9(b9), 0, b9), P9(m9 * GRV_HW9, 0, b9)], OX9, OY9, 0)), a9, b9);
         }
       }
-      g.push([polyPath3([
-        [-0.8, oy9(Z0), Z0], [0.8, oy9(Z0), Z0], [0.8, gy9(Z0), Z0], [-0.8, gy9(Z0), Z0],
-      ]), 1, TERRAN_STEEL] as ShapeFace);
-      g.push([polyPath3([
-        [-0.8, oy9(Z1), Z1], [0.8, oy9(Z1), Z1], [0.8, gy9(Z1), Z1], [-0.8, gy9(Z1), Z1],
-      ]), 1, "#4a4a4a"] as ShapeFace);
-      out.push(...tagKey(g, 2.5));
-    }
-    /* ── 옆면에도 같은 세로 홈(요청: "팩토리 옆면에도 앞면과 같은 가운데 패임 추가") — 앞뒤 홈을 x·y만 바꿔
-       옆면(sxAt)에 판다. 홈 바닥·문설주·문턱·인방 모두 같은 규약. */
-    for (const sgn9 of [-1] as const) {   // 오른쪽(+x)은 격납구가 그 자리를 차지한다
-      if (facingRatio(sgn9, 0) <= 0.08) continue;
-      const GD9 = 0.38;
-      const gx9 = (z9: number): number => sgn9 * (sxAt(z9) - GD9);
-      const ox9 = (z9: number): number => sgn9 * sxAt(z9);
-      const Z0 = 0.72; const Z1 = ZTz9 - 0.16;
-      const g: ShapeFace[] = [];
-      for (const [z0, z1] of [[Z0, ZW0z9], [ZW0z9, ZW1z9], [ZW1z9, Z1]] as [number, number][]) {
-        g.push([polyPath3([
-          [gx9(z0), -0.8, z0], [gx9(z0), 0.8, z0], [gx9(z1), 0.8, z1], [gx9(z1), -0.8, z1],
-        ]), 1] as ShapeFace);
-        for (const m9 of [-1, 1] as const) {
-          if (facingRatio(0, m9) <= 0.04) continue;
-          g.push([polyPath3([
-            [gx9(z0), -m9 * 0.8, z0], [ox9(z0), -m9 * 0.8, z0],
-            [ox9(z1), -m9 * 0.8, z1], [gx9(z1), -m9 * 0.8, z1],
-          ]), 1, TERRAN_STEEL_D] as ShapeFace);
+      // ② 가운데 띠의 홈 밖 — 아래와 위
+      for (const [a9, b9] of [[zA, gz0], [gz1, zB]] as [number, number][]) {
+        if (b9 - a9 <= 1e-6) continue;
+        for (const [c9, d0] of segs9(a9, b9)) {
+          wall9(polyPath3(q9([P9(-GRV_HW9, 0, c9), P9(GRV_HW9, 0, c9),
+            P9(GRV_HW9, 0, d0), P9(-GRV_HW9, 0, d0)], OX9, OY9, 0)), c9, d0);
         }
       }
-      g.push([polyPath3([
-        [ox9(Z0), -0.8, Z0], [ox9(Z0), 0.8, Z0], [gx9(Z0), 0.8, Z0], [gx9(Z0), -0.8, Z0],
-      ]), 1, TERRAN_STEEL] as ShapeFace);
-      g.push([polyPath3([
-        [ox9(Z1), -0.8, Z1], [ox9(Z1), 0.8, Z1], [gx9(Z1), 0.8, Z1], [gx9(Z1), -0.8, Z1],
-      ]), 1, "#4a4a4a"] as ShapeFace);
-      out.push(...tagKey(g, 2.5));
+      // ③ 홈 바닥 — 색을 안 줘 벽과 같은 전장의 쇠가 입혀진다(몸에 함께 합친다)
+      for (const [a9, b9] of segs9(gz0, gz1)) {
+        bodyP9.push(polyPath3(q9([P9(-GRV_HW9, -GRV_D9, a9), P9(GRV_HW9, -GRV_D9, a9),
+          P9(GRV_HW9, -GRV_D9, b9), P9(-GRV_HW9, -GRV_D9, b9)], OX9, OY9, 0)));
+      }
+      // ④ 문설주 둘 — 비스듬히 보면 가까운 쪽만 보이고 먼 쪽은 벽에 가려진다(요청의 그 몫)
+      for (const m9 of [-1, 1] as const) {
+        for (const [a9, b9] of segs9(gz0, gz1)) {
+          g9.push([polyPath3(q9([P9(m9 * GRV_HW9, 0, a9), P9(m9 * GRV_HW9, -GRV_D9, a9),
+            P9(m9 * GRV_HW9, -GRV_D9, b9), P9(m9 * GRV_HW9, 0, b9)],
+          ax === "y" ? -m9 : 0, ax === "y" ? 0 : -m9, 0)), 1, TERRAN_STEEL_D] as ShapeFace);
+        }
+      }
+      // ⑤ 문턱(위를 봄 · 밝음) · 인방(아래를 봄 · 어둡다)
+      g9.push([polyPath3(q9([P9(-GRV_HW9, 0, gz0), P9(GRV_HW9, 0, gz0),
+        P9(GRV_HW9, -GRV_D9, gz0), P9(-GRV_HW9, -GRV_D9, gz0)], 0, 0, 1)), 1, TERRAN_STEEL] as ShapeFace);
+      g9.push([polyPath3(q9([P9(-GRV_HW9, 0, gz1), P9(GRV_HW9, 0, gz1),
+        P9(GRV_HW9, -GRV_D9, gz1), P9(-GRV_HW9, -GRV_D9, gz1)], 0, 0, -1)), 1, "#4a4a4a"] as ShapeFace);
+      return [...(bodyP9.length ? [bodyFace(bodyP9.join(" "))] : []), ...ov9, ...g9];
+    };
+    {
+      const GZ0 = 0.72; const GZ1 = ZTz9 - 0.16;
+      for (const sgn9 of [1, -1] as const) {
+        if (facingRatio(0, sgn9) <= 0.08) continue;
+        out.push(...tagKey(grvWall9("y", sgn9, ZB0z9, ZTz9, GZ0, GZ1), 2.5));
+      }
+      if (facingRatio(-1, 0) > 0.08) out.push(...tagKey(grvWall9("x", -1, ZB0z9, ZTz9, GZ0, GZ1), 2.5));
+      /* 오른쪽 옆면은 격납구(z 0.72~2.88)가 아래를 차지한다 — **그 위의 남는 낯**만 파낸다
+         (요청: "오른쪽 옆면 격납구 윗쪽의 남는 면에도 패임 추가"). 위 절두체 구간이다. */
+      if (facingRatio(1, 0) > 0.08) {
+        out.push(...tagKey(grvWall9("x", 1, ZW1z9, ZTz9, ZW1z9 + 0.12, GZ1), 2.52));
+      }
     }
-
     /* ── 옆면 양 끝의 세로 임자색 띠(요청: "팩토리 옆면 양쪽 좌우 끝에 세로로 긴 개인색
        데칼, 길이는 높이의 1/4 정도") — **허리 상자의 곧은 벽**에 붙인다: 위아래 절두체는
        면이 기울어 있어 같은 두께로 띄우면 한쪽은 벽을 파고들고 한쪽은 떠 버린다.

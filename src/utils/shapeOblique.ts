@@ -1066,10 +1066,26 @@ export function prismYFaces(
 }
 
 /** 세운 상자 — frustum의 특수형. 보이는 면·세계 광원은 frustumFaces3가 맡는다. */
+/** 뺄 낯 목록에 이 법선이 들었나 — omit 은 낯 하나([1,0])나 여러 낯([[1,0],[0,1]])을 받는다. */
+const omitHas9 = (
+  omit: readonly [number, number] | readonly (readonly [number, number])[] | undefined,
+  nx: number, ny: number,
+): boolean => {
+  if (!omit) return false;
+  if (typeof omit[0] === "number") {
+    const o = omit as readonly [number, number];
+    return Math.abs(o[0] - nx) < 0.01 && Math.abs(o[1] - ny) < 0.01;
+  }
+  for (const o of omit as readonly (readonly [number, number])[]) {
+    if (Math.abs(o[0] - nx) < 0.01 && Math.abs(o[1] - ny) < 0.01) return true;
+  }
+  return false;
+};
 export function boxFaces3(
   cx: number, cy: number, w: number, d: number, h: number, z0 = 0,
   /** 벽 하나 빼기 — frustumFaces3 의 그 자다(구멍 뚫린 벽을 손으로 짤 때). */
-  omit?: readonly [number, number],
+  /** ★ 여러 낯도 준다(2026-09) — 가운데를 파낸 벽이 셋이면(팩토리 앞·뒤·왼쪽) 한 번에 빼야 한다. */
+  omit?: readonly [number, number] | readonly (readonly [number, number])[],
   /** 윗면 빼기 — frustumFaces3 의 그 자다(위에 같은 바닥의 덩이가 올라앉을 때). */
   noTop?: boolean,
 ): ShapeFace[] {
@@ -1084,7 +1100,8 @@ export function boxFaces3(
 export function boxOctFaces3(
   cx: number, cy: number, w: number, d: number, h: number, z0 = 0,
   cut: number | readonly [number, number, number, number] = 0.6,
-  omit?: readonly [number, number], noTop?: boolean,
+  /** ★ 여러 낯도 준다(2026-09) — 위 omit 과 같은 규약이다. */
+  omit?: readonly [number, number] | readonly (readonly [number, number])[], noTop?: boolean,
 ): ShapeFace[] {
   const a = w / 2; const b = d / 2;
   /* 깎임은 **모퉁이마다** 줄 수 있다(2026-09, 요청: "앞쪽 건물 뒤쪽 두 모서리 사선 깎은 거
@@ -1129,7 +1146,7 @@ export function boxOctFaces3(
     .sort((p, q) => p.k - q.k)
     .map(({ f }) => f);
   for (const f of ordered) {
-    if (omit && Math.abs(omit[0] - f.n[0]) < 0.01 && Math.abs(omit[1] - f.n[1]) < 0.01) continue;
+    if (omitHas9(omit, f.n[0], f.n[1])) continue;
     const { visible, face } = faceLight(f.n[0], f.n[1], 0);
     if (!visible) continue;
     bodyParts.push(f.d);
@@ -1296,7 +1313,8 @@ export function frustumFaces3(
    *  평면 법선으로 고른다: [1,0] 오른쪽 · [-1,0] 왼쪽 · [0,1] 앞 · [0,-1] 뒤.
    *  (여태 개구부는 벽을 통째로 두고 속을 그 위에 얹은 뒤 새는 몫을 덧댐판으로 덮었다 — 2D 화가 차례로만
    *   서는 손이라 GL 의 진짜 깊이에서는 속이 벽에 먹혔다. 구멍이 진짜면 두 붓이 같은 그림을 낸다.) */
-  omit?: readonly [number, number],
+  /** ★ 여러 낯도 준다(2026-09) — 가운데를 파낸 벽이 셋이면(팩토리 앞·뒤·왼쪽) 한 번에 빼야 한다. */
+  omit?: readonly [number, number] | readonly (readonly [number, number])[],
   /** ★ **윗면을 안 그린다**(2026-09) — 바로 위에 같은 바닥의 덩이가 올라앉는 3단 몸통에서 그 낯은 **속살**이다.
    *  2D 는 위 덩이가 뒤에 칠해져 덮었지만, GL 은 옆벽에 뚫은 개구부로 그 속살이 들여다보였다(팩토리 격납구에서
    *  아래 절두체의 윗면이 속벽보다 카메라에 가까워 격납구를 통째로 메웠다). 덮이는 낯은 애초에 내지 않는다. */
@@ -1331,7 +1349,7 @@ export function frustumFaces3(
     .sort((a, b) => a.k - b.k)
     .map(({ f }) => f);
   for (const f of ordered) {
-    if (omit && omit[0] === f.n[0] && omit[1] === f.n[1]) continue;
+    if (omitHas9(omit, f.n[0], f.n[1])) continue;
     const { visible, face } = faceLight(f.n[0], f.n[1], f.nz);
     if (!visible) continue;
     bodyParts.push(f.d);
