@@ -624,14 +624,24 @@ export const thrustStyleNow = (): ThrustStyle =>
  *  셋으로 낸다: ㉠ 테의 **마구리**(두께가 보이는 고리) ㉡ 그 안쪽 **속벽**(깊이) ㉢ 바닥의 어두운 판.
  *  ⚠ 속벽의 법선은 **안쪽**을 봐야 한다(축을 향한다) — 바깥으로 맞추면 먼 쪽이 걸러져 속이 안 보인다.
  *    야마토 아가리에서 쓴 그 규약이다.
- *  자리 규약은 `thrustFlame` 과 같다: 노즐이 −y 를 보고, (x, z) 가 그 축이다. r 은 **불꽃 반지름**
- *  (= 관 안지름 언저리)이고 테는 그보다 lip 만큼 넓다. */
+ *  ★★ **덧붙인 테가 아니라 '관의 벽을 자른 낯'이다**(2026-09, 지적: "스러스터 저렇게 하라는 게
+ *  아니라 실제 스러스터의 **벽면**을 두께감 주라고") — 처음엔 불꽃 반지름 밖으로 테를 한 겹 덧대
+ *  둘렀는데, 그것은 관 앞에 얹은 **고리 부품**이지 관의 두께가 아니었다.
+ *  그래서 자를 바꾼다: 부르는 쪽이 **관 겉 반지름**(rOut)과 **벽 두께**(th)를 준다. 마구리는
+ *  rOut 에서 rOut−th 까지 — 곧 관의 살을 자른 그 낯이고, 그 안쪽은 관의 **속**이다.
+ *  ⚠⚠ **속은 관의 끝까지 파야 한다**(2026-09, 재지적: "뒤에 저렇게 링을 덧대라는 게 아니라 실제로
+ *    옆 벽면들을 두껍게 하라고") — 속벽이 짧으면(옛 기본 0.9·rOut) 관이 아니라 **뒤에 붙인 얕은
+ *    컵**으로 읽힌다. `dep` 에 그 관의 **길이**를 주면 겉벽과 속벽이 나란히 서서 비로소 '두꺼운 벽'이
+ *    된다 — 옛 관은 벽이 한 겹(caps "none")이라 종잇장이었고, 지금은 겉·속 두 겹 + 마구리다.
+ *  자리 규약은 `thrustFlame` 과 같다: 노즐이 −y 를 보고, (x, z) 가 그 축이다.
+ *  ⚠ 마디 수(sides)는 **그 관과 같아야** 한다 — 다르면 마구리가 관 옆선과 어긋나 톱니로 보인다. */
 export function nozzleRim9(
-  x: number, y: number, z: number, r: number, key: number,
-  o: { lip?: number; dep?: number; sides?: number; fill?: string } = {},
+  x: number, y: number, z: number, rOut: number, key: number,
+  o: { th?: number; dep?: number; sides?: number; fill?: string } = {},
 ): ShapeFace[] {
-  const lip = o.lip ?? Math.max(0.07, r * 0.26);
-  const dep = o.dep ?? Math.max(0.16, r * 0.55);
+  const th = Math.min(rOut * 0.55, o.th ?? Math.max(0.07, rOut * 0.24));
+  const rIn = rOut - th;
+  const dep = o.dep ?? Math.max(0.2, rOut * 1.8);   // 기본도 '컵'이 아니라 '관'이 되게 깊게
   const n9 = o.sides ?? 10;
   const out: ShapeFace[] = [];
   const P9 = (i9: number, rr9: number, yy9: number): [number, number, number] => {
@@ -641,14 +651,20 @@ export function nozzleRim9(
   const back9 = faceLight(0, -1, 0);
   for (let i9 = 0; i9 < n9; i9 += 1) {
     const j9 = i9 + 1;
-    const dr9 = polyPath3([P9(i9, r + lip, y), P9(j9, r + lip, y), P9(j9, r, y), P9(i9, r, y)]);
-    if (back9.visible) out.push(o.fill ? [dr9, 1, o.fill] as ShapeFace : bodyFace(dr9), ...back9.face(dr9));
+    // ㉠ 벽을 자른 낯 — 이것이 '두께'다(관 겉 ~ 관 속).
+    const dr9 = polyPath3([P9(i9, rOut, y), P9(j9, rOut, y), P9(j9, rIn, y), P9(i9, rIn, y)]);
+    /* ⚠ 자른 낯은 **칠한다** — 안 칠하면 임자 색이 들어가(accent 규약) 노즐 둘레에 파란 고리가
+       뜬다(실측). 관의 살을 자른 자리이므로 맨 강철빛이 맞다. */
+    out.push(...(back9.visible
+      ? [[dr9, 1, o.fill ?? "#6d757f"] as ShapeFace, ...back9.face(dr9)] : []));
+    // ㉡ 관의 속벽 — 법선이 축을 본다(바깥으로 맞추면 먼 쪽이 걸러져 속이 안 보인다).
     const am9 = ((i9 + 0.5) / n9) * Math.PI * 2;
-    const din9 = polyPath3([P9(i9, r, y), P9(j9, r, y), P9(j9, r, y + dep), P9(i9, r, y + dep)]);
+    const din9 = polyPath3([P9(i9, rIn, y), P9(j9, rIn, y), P9(j9, rIn, y + dep), P9(i9, rIn, y + dep)]);
     const lin9 = faceLight(-Math.cos(am9), 0, -Math.sin(am9));
     if (lin9.visible) out.push([din9, 1, "#272c34"] as ShapeFace, ...lin9.face(din9));
   }
-  const dbot9 = polyPath3(Array.from({ length: n9 }, (_, i9) => P9(i9, r, y + dep)));
+  // ㉢ 속 끝 — 안 깔면 관을 통해 배경이 비친다.
+  const dbot9 = polyPath3(Array.from({ length: n9 }, (_, i9) => P9(i9, rIn, y + dep)));
   out.push([dbot9, 1, "#1a1e24"] as ShapeFace);
   return tagKey(out, key);
 }
@@ -14157,7 +14173,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 막대도 제 키를 스스로 단다(위 ★) — 싸매지 않는다.
       out.push(...tagKey(paintBase(rodFaces(bx9, -0.4, 4.84, bx9, -2.65, 4.84, 0.22), DARK),
         key9(bx9, -1.5, 6.05)));
-      out.push(...nozzleRim9(bx9, -2.60, 4.84, 0.26, key9(bx9, -3.2, 6.05) + 0.3));
+      out.push(...nozzleRim9(bx9, -2.60, 4.84, 0.47, key9(bx9, -3.2, 6.05) + 0.3, { sides: 10, th: 0.13, dep: 0.72 }));
       if (poseNow === 1) out.push(...thrustFlame(bx9, -2.65, 4.84, 0.26, "terran", key9(bx9, -3.2, 6.05) + 0.4));
       /* ⑥ 꼬리날개 — **화살 깃**이다(지적: "긴 변이 팔 옆쪽에 붙는다 · 화살 꼬리 날개
          생각하면 비슷") ─────────────────────────────────────────────────────────────
@@ -14210,7 +14226,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           [wallDiscPath(tx9, -3.45, tz9, 0.4, 0.272), 0.8, "#7fd0ff"] as ShapeFace,
         ], key9(tx9, -3.45, tz9) + 0.5));
       }
-      out.push(...nozzleRim9(tx9, -3.40, tz9, 0.45, key9(tx9, -4.2, tz9) + 0.3));
+      out.push(...nozzleRim9(tx9, -3.40, tz9, 0.50, key9(tx9, -4.2, tz9) + 0.3, { sides: 8, th: 0.14, dep: 1.28 }));
       if (poseNow === 1) out.push(...thrustFlame(tx9, -3.45, tz9, 0.45, "terran", key9(tx9, -4.2, tz9) + 0.4));
     }
     /* ② 날개 — **넓적한 판**이다(지적). 축을 스팬(x)으로 눕히고 단면 기준(ref)을 앞뒤(y)로
@@ -14721,7 +14737,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       out.push(...tagKey(paintBase(boxFaces3(ex9, TCY9, 0.72, TD9, TH9, ez9), "#212429"),   // 더 어둡게(재요청)
         facingRatio(0, -1) > 0.05 ? key9(ex9, TCY9, ez9 + TH9 / 2) + 0.3 : key9(0, -1.35, Z(5.8)) - 1));
       // 불꽃도 길어진 꽁무니 끝에서 뿜는다 — 안 옮기면 노즐 몸통 속에서 불이 난다.
-      out.push(...nozzleRim9(ex9, TCY9 - TD9 / 2 - 0.01, ez9 + TH9 / 2, 0.28, key9(ex9, TCY9 - TD9 / 2 - 0.43, ez9 + TH9 / 2) + 0.3));
+      out.push(...nozzleRim9(ex9, TCY9 - TD9 / 2 - 0.01, ez9 + TH9 / 2, 0.3, key9(ex9, TCY9 - TD9 / 2 - 0.43, ez9 + TH9 / 2) + 0.3, { sides: 8, th: 0.1, dep: TD9 * 0.85 }));
       if (poseNow === 1) out.push(...thrustFlame(ex9, TCY9 - TD9 / 2 - 0.06, ez9 + TH9 / 2, 0.28, "terran", key9(ex9, TCY9 - TD9 / 2 - 0.43, ez9 + TH9 / 2) + 0.4));
     }
     return zsorted(out);
@@ -15835,7 +15851,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           [wallDiscPath(ex9, EY1_9 - 0.05, EZ9, 0.4, 0.27), 0.85, P_PLASMA] as ShapeFace,
         ], partKey(ex9, EY1_9 - 0.05, EZ9) + 0.5));
       }
-      out.push(...nozzleRim9(ex9, EY1_9, EZ9, 0.4, partKey(ex9, EY1_9 - 0.7, EZ9) + 0.3));
+      out.push(...nozzleRim9(ex9, EY1_9, EZ9, 0.42, partKey(ex9, EY1_9 - 0.7, EZ9) + 0.3, { sides: 8, th: 0.12, dep: 0.86 }));
       if (poseNow === 1) out.push(...thrustFlame(ex9, EY1_9 - 0.05, EZ9, 0.4, "toss", partKey(ex9, EY1_9 - 0.7, EZ9) + 0.4));
       /* ⑥ 앞뿔 — 코 위로 뻗는 한 쌍(사진1의 더듬이). 이 둘이 있어야 앞이 '머리'로 읽힌다. */
       out.push(...tagKey(paintBase(
@@ -16329,7 +16345,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           topFace(wallDiscPath(tx, THRUST_Y1 - 0.05, tz, 0.2, 0.136), 0.5),
         ], thrustKey(tx, tz) + 0.3)
         : []),
-      ...nozzleRim9(tx, THRUST_Y1, tz, 0.36, thrustKey(tx, tz) + 0.25),
+      ...nozzleRim9(tx, THRUST_Y1, tz, 0.36, thrustKey(tx, tz) + 0.25, { th: 0.1, dep: 1.5 }),
       ...(poseNow === 1 ? thrustFlame(tx, THRUST_Y1 - 0.05, tz, 0.36, "toss", thrustKey(tx, tz) + 0.35) : []),
     ];
     /* (걷어냄) 아주 작은 옆날개 둘 — 아랫잎 뒤에 2중 덮개가 서면서 꽁무니가 이미
@@ -17198,6 +17214,92 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         return 2.05 * Math.max(0, 1 - (2 * u9 - 1) ** 2) ** 0.38;
       },
     }), "#d9b8a2"),
+    /* ★ **받침과 그물**(2026-09, 요청: "저그 라바 변태 알에 받침(저그 기본색 몸에 임자색 기둥들)과
+       알을 감싸는 임자색 그물 추가") — 알 하나만 서 있으면 '땅에 놓인 달걀'이지 **변태 중인 것**으로
+       안 읽힌다. 원작의 알도 크립이 밀어 올린 받침 위에 앉고 힘줄이 알을 감는다.
+       · 받침 — 저그 기본색의 낮은 둔덕. 알 밑동(반폭 1.36)보다 넓게 깔아 알이 그 위에 앉게 한다.
+       · 기둥 — 받침 테에서 알 어깨로 비스듬히 기대는 짧은 뿔 다섯. 색을 안 주면 임자 색이다.
+       · 그물 — 알 겉면을 타는 **자오선 여섯 + 가로 고리 둘**. 자오선은 알의 옆선 함수를 그대로
+         타므로 어느 높이에서도 껍질에 붙어 있고, 고리는 그 높이의 반폭으로 두른다.
+       ⚠ 겉면에서 0.05 만 띄운다 — 딱 맞추면 같은 평면이라 z 싸움을 하고, 많이 띄우면 그물이
+         알에서 떠 바구니가 된다. */
+    ...((): ShapeFace[] => {
+      const eR9 = (t9: number): number => {
+        const u9 = 0.12 + 0.88 * t9;
+        return 2.05 * Math.max(0, 1 - (2 * u9 - 1) ** 2) ** 0.38;
+      };
+      const out9: ShapeFace[] = [];
+      /* ① 받침 — **저그 기본색의 우툴두툴한 둔덕**(원작 그림: 알 밑에 깔린 어두운 살덩이).
+         매끈한 원뿔로 깔면 '접시'가 된다 — 열두 낯의 반지름을 번갈아 들쭉날쭉하게 해 살덩이로 만든다. */
+      out9.push(...tagKey(paintBase(spirePillar({
+        x: 0, y: 0, z0: 0, h: 0.5, w: 2.62, tipW: 2.0,
+        segs: 2, sides: 12, hold: 0.15, taper: 1, caps: "bottom",
+        widthOf: (t9: number): number => (2.62 - 0.62 * t9) * (1 + 0.06 * Math.sin(t9 * 9.1)),
+      }), RACE_BASE_TONE.zerg), partKey(0, 0, 0.25)));
+      /* ② 임자색 **발톱 일곱** — 원작 그림의 그 왕관이다: 알 밑에서 **바깥으로 뻗어** 끝이
+         살짝 들린 굵은 마디들. 여태 이 자리를 '알을 타고 오르는 가는 기둥'으로 지었는데(두 판),
+         그림의 그것은 **오르는 것이 아니라 뻗는 것**이다 — 알을 쥔 손이 아니라 알을 **받친 발**이다.
+         밑동이 둔덕 속(반지름 1.1)에서 시작해 2.95 까지 나가고, 끝에서 z 가 조금 솟아 발끝처럼 든다.
+         색을 안 주면 임자 색이다(accent 규약). */
+      for (let i9 = 0; i9 < 7; i9 += 1) {
+        const a0 = (i9 / 7) * Math.PI * 2 + 0.2;
+        const sx9 = Math.sin(a0); const sy9 = Math.cos(a0);
+        const rt9 = 2.75 + (i9 % 3) * 0.16;
+        out9.push(...tagKey(spirePillar({
+          x: 0, y: 0, h: 0.8, w: 0.46, tipW: 0.12, segs: 6, sides: 7, hold: 0.18, taper: 0.7, caps: "none",
+          path: (t9: number): [number, number, number] => {
+            const r9 = 1.1 + (rt9 - 1.1) * t9;
+            return [sx9 * r9, sy9 * r9, 0.4 - 0.22 * t9 + 0.5 * t9 * t9 * t9];   // 내려갔다 끝에서 든다
+          },
+        }), partKey(sx9 * 2.2, sy9 * 2.2, 0.4)));
+      }
+      /* ★★ **그물은 자로 그은 격자가 아니라 생체 조직이다**(2026-09, 지적: "저렇게 정직한 그물 말고
+         **생체 그물** 같은 형태") — 처음엔 자오선 여섯 + 수평 고리 둘을 고른 간격으로 둘렀다.
+         그것은 알을 감은 힘줄이 아니라 **바구니**다. 산 것의 결은 셋이 다르다:
+         ㉠ **줄이 곧지 않다** — 오르면서 옆으로 굽이친다(각이 느린 사인으로 흔들린다).
+         ㉡ **굵기가 고르지 않다** — 밑동이 굵고 위로 갈수록 여위되, 중간에 한두 번 부푼다.
+         ㉢ **간격·길이가 제각각이다** — 줄마다 시작 각·끝 높이가 다르고, 고리도 높이가 물결친다.
+         흩는 자는 **지표(i)의 함수**다(난수 상태 없이 늘 같은 그림 — 굽는 열쇠가 하나라야 한다). */
+      /** 지표에서 −1~1 사이의 흩는 값 — 난수 대신 쓰는 결정된 자다. */
+      const jit9 = (i9: number, k9: number): number =>
+        Math.sin(i9 * 12.9898 + k9 * 78.233) * 1.0 - Math.trunc(Math.sin(i9 * 12.9898 + k9 * 78.233) * 1.0);
+      // ③ 힘줄 일곱 — 굽이치며 오르고 끝 높이가 저마다 다르다
+      for (let i9 = 0; i9 < 5; i9 += 1) {
+        const a0 = (i9 / 5) * Math.PI * 2 + jit9(i9, 1) * 0.42;
+        const sw9 = 0.20 + jit9(i9, 2) * 0.16;          // 굽이의 폭(라디안)
+        const ph9 = jit9(i9, 3) * 3.0;
+        const uT9 = 0.93 + jit9(i9, 4) * 0.06;          // 끝 높이 — 꼭대기까지 안 가는 줄도 있다
+        const uB9 = 0.03 + Math.max(0, jit9(i9, 5)) * 0.1;
+        const th9 = 0.17 + jit9(i9, 6) * 0.06;   // 가는 철사가 아니라 **살의 이랑**이다(원작 그림)
+        out9.push(...tagKey(spirePillar({
+          x: 0, y: 0, h: 0.8, w: th9, tipW: th9, segs: 16, sides: 5, hold: 0.5, caps: "none",
+          path: (t9: number): [number, number, number] => {
+            const u9 = uB9 + (uT9 - uB9) * t9;
+            const aa9 = a0 + sw9 * Math.sin(2.4 * t9 + ph9);
+            const r9 = eR9(u9) + 0.05;
+            return [Math.sin(aa9) * r9, Math.cos(aa9) * r9, 3.68 * u9];
+          },
+          // 밑동이 굵고 위로 여위되 중간에 한 번 부푼다 — 산 것의 굵기다
+          widthOf: (t9: number): number => th9 * (1.25 - 0.75 * t9) * (1 + 0.28 * Math.sin(Math.PI * t9 * 1.7 + ph9)),
+        }), partKey(Math.sin(a0) * 1.6, Math.cos(a0) * 1.6, 1.9)));
+      }
+      // ④ 두르는 힘줄 둘 — 높이가 물결치고 굵기도 고르지 않다(수평 고리가 아니다)
+      for (const [j9, u09] of [[0, 0.3], [1, 0.62]] as [number, number][]) {
+        const wv9 = 0.055 + jit9(j9, 7) * 0.03;
+        const ph9 = jit9(j9, 8) * 3.0;
+        out9.push(...tagKey(spirePillar({
+          x: 0, y: 0, h: 0.8, w: 0.07, tipW: 0.07, segs: 26, sides: 5, hold: 0.5, caps: "none",
+          path: (t9: number): [number, number, number] => {
+            const bb9 = t9 * Math.PI * 2;
+            const u9 = u09 + wv9 * Math.sin(3 * bb9 + ph9) + wv9 * 0.5 * Math.sin(5 * bb9 - ph9);
+            const r9 = eR9(u9) + 0.05;
+            return [Math.sin(bb9) * r9, Math.cos(bb9) * r9, 3.68 * u9];
+          },
+          widthOf: (t9: number): number => 0.15 * (1 + 0.3 * Math.sin(t9 * Math.PI * 2 * 2 + ph9)),
+        }), partKey(0, 0, 3.68 * u09) + 0.1));
+      }
+      return out9;
+    })(),
   ],
   cocoon: () => [
     // 가시는 걷었다(지적: 성큰류와 헷갈린다) — 민둥한 겹돔 고치만.
@@ -21547,7 +21649,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // 안쪽 작은 추진체 둘은 **동체 뒤면**(y −1.8)에 붙는다(재지적: 꼬리붐이 아니라). 포드 것은 포드 뒤.
     for (const [tx, tz, tr, ty] of [[-1.0, 4.16, 0.46, -1.8], [1.0, 4.16, 0.46, -1.8], [-2.7, POD_Z, 0.66, -2.95], [2.7, POD_Z, 0.66, -2.95]] as [number, number, number, number][]) {
       out.push(...paintBase(tubeFaces(tx, ty, tx, ty - 1.0, tr, tz), TERRAN_STEEL_D));
-      out.push(...nozzleRim9(tx, ty - 0.95, tz + tr * 0.36, tr * 0.8, depthNow(tx, ty - 2) * 1.6 + 0.9));
+      out.push(...nozzleRim9(tx, ty - 0.95, tz + tr * 0.36, tr * 0.86, depthNow(tx, ty - 2) * 1.6 + 0.9, { th: tr * 0.26, dep: 0.9 }));
       if (poseNow === 1) out.push(...thrustFlame(tx, ty - 1.0, tz + tr * 0.36, tr * 0.8, "terran", depthNow(tx, ty - 2) * 1.6 + 1));
     }
     /* 꼬리(재지적: 축을 몸통에 붙이고 비행기 꼬리 스타일로) — 등판 뒤끝에서 곧장
@@ -21685,7 +21787,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           [wallDiscPath(tx, -3.55, 3.08, 0.36, 0.24), 0.85, P_PLASMA] as ShapeFace,
         ], partKey(tx, -3.55, 3.08) + 0.5));
       }
-      out.push(...nozzleRim9(tx, -3.50, 3.08, 0.38, partKey(tx, -4.2, 3.08) + 0.3));
+      out.push(...nozzleRim9(tx, -3.50, 3.08, 0.38, partKey(tx, -4.2, 3.08) + 0.3, { th: 0.1, dep: 0.85 }));
       if (poseNow === 1) out.push(...thrustFlame(tx, -3.55, 3.08, 0.38, "toss", partKey(tx, -4.2, 3.08) + 0.4));
     }
     // 아가리 어두운 속은 제거(지적: 앞 검정 반투명 부품) — 빛 줄만 남긴다.
