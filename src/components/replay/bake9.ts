@@ -785,6 +785,8 @@ export function heightDepthK(): number {
 export function partKey(x: number, y: number, z: number): number {
   return depthNow(x, y) + z * heightDepthK();
 }
+/** '이 낯은 임자 색이다'를 paintBase 앞까지 들고 가는 표식 — spirePillar 안에서만 산다. */
+const ACC_MARK9 = "\u0000acc";
 export function spirePillar(o: {
   x: number; y: number; z0?: number; h: number; w: number; tipW?: number;
   segs?: number; sides?: number;
@@ -792,6 +794,12 @@ export function spirePillar(o: {
   hold?: number; fill?: string;
   /** 앞(+y)·뒤(-y)를 향한 옆면의 색을 따로 줄 때(요청: 배는 상아색, 등은 갈색). */
   fillFront?: string; fillBack?: string;
+  /** ★ **위를 보는 옆면**의 색을 따로 줄 때(2026-09, 요청: "저글링 몸통과 머리 위쪽 면 임자색으로 ·
+   *  꼬리는 아님") — 앞뒤(fillFront·fillBack)와 같은 갈래인데 가름의 자가 y 부호가 아니라 **높이**다.
+   *  trueNormal 없이도 정확하다: 낯 한가운데가 그 마디의 **축보다 위**면 그 낯은 등 쪽이다
+   *  (관의 윗 반쪽이 곧 등이다). 빈 문자열("")을 주면 **안 칠한다** = 임자 색(accent 규약).
+   *  `topFrom` 은 그 색이 드는 구간의 t 아래끝이다(꼬리처럼 뺄 자리가 있을 때). */
+  fillTop?: string; topFrom?: number;
   /** 축을 직접 그리는 경로(요청: 관절 없이 L자로 구부리기) — t 0~1로 [x,y,z]를 낸다.
    *  주면 x·y·z0·h·lean·curve는 무시되고 이 곡선이 기둥의 등뼈가 된다. */
   path?: (t: number) => [number, number, number];
@@ -949,6 +957,8 @@ export function spirePillar(o: {
     d: string; nx: number; ny: number; dep: number;
     /** 법선의 위 성분 — trueNormal일 때만 실린다(없으면 어림값 0.3). */
     nz?: number;
+    /** 낯 한가운데가 축보다 위인가(fillTop 의 자) — 그 마디의 t 가 topFrom 이상일 때만 참이다. */
+    top?: boolean;
     /** 끝 단면 표시 — 참이면 아래 faces를 그대로 쓴다(옆면 명암 규칙을 안 탄다). */
     cap?: boolean; faces?: ShapeFace[];
   }[] = [];
@@ -1009,9 +1019,12 @@ export function spirePillar(o: {
       const fz9 = nz !== undefined
         ? ((lo[i][2] + lo[j][2] + hi[i][2] + hi[j][2]) / 4) * heightDepthK()
         : (c1[2] - c0[2]) * 0.02;
+      const fzc9 = (lo[i][2] + lo[j][2] + hi[i][2] + hi[j][2]) / 4;
       walls.push({
         d: polyPath3([lo[i], lo[j], hi[j], hi[i]]),
         nx, ny, nz, dep: depthNow(fx, fy) + fz9,
+        top: o.fillTop !== undefined && t0 >= (o.topFrom ?? 0)
+          && fzc9 > (c0[2] + c1[2]) / 2 + 1e-6,
       });
     }
   }
@@ -1043,7 +1056,10 @@ export function spirePillar(o: {
     if (wl.cap) { out.push(...(wl.faces ?? [])); continue; }
     const fl = faceLight(wl.nx, wl.ny, wl.nz ?? 0.3);
     // 앞·뒤 색을 따로 받으면 면 법선의 y 부호로 갈라 칠한다(요청).
-    const side = wl.ny >= 0 ? o.fillFront : o.fillBack;
+    /* ⚠ fillTop 이 빈 문자열(= 임자 색)이면 **표식을 달아 둔다** — 그냥 비워 두면 맨 아래
+       `paintBase(out, o.fill)` 가 몸 색으로 칠해 버린다(실측: 저글링 등이 살색으로 남았다).
+       표식은 돌려주기 직전에 벗긴다 — 그래야 그리는 차례(깊이 정렬)를 안 흩뜨린다. */
+    const side = wl.top ? (o.fillTop === "" ? ACC_MARK9 : o.fillTop) : wl.ny >= 0 ? o.fillFront : o.fillBack;
     out.push(side ? [wl.d, 1, side] as ShapeFace : bodyFace(wl.d),
       ...(fl.visible ? fl.face(wl.d) : [sideFace(wl.d, 0.42)]));
     /* 진짜 법선이 있는 면은 **아래를 볼수록 어둡게** 한 겹 더(수리: 등진 면을 걷고 나니
@@ -1052,7 +1068,9 @@ export function spirePillar(o: {
        바깥 밑면은 그늘지고 윗잎·안쪽 오목면은 밝은 채라 겹친 자리가 읽힌다. */
     if (wl.nz !== undefined && wl.nz < -0.05) out.push(sideFace(wl.d, Math.min(0.3, -wl.nz * 0.32)));
   }
-  return tagKey(o.fill ? paintBase(out, o.fill) : out, depthNow(o.x, o.y));
+  const res9 = o.fill ? paintBase(out, o.fill) : out;
+  return tagKey(o.fillTop === "" ? res9.map((f9) => (f9[2] === ACC_MARK9
+    ? [f9[0], f9[1], undefined, f9[3], f9[4], f9[5]] as ShapeFace : f9)) : res9, depthNow(o.x, o.y));
 }
 /** 잎(공용 도형·요청: "캐리어 잎 세장과 스타게이트 잎 4장, 아비터 날개를 스파이어
  *  필라 두개를 맞붙이는 식으로 바꾼다. 모양은 최대한 유지하되 한계였던 표현을 해낸다")
@@ -1278,12 +1296,19 @@ export const P_TORSO_W = widthCurve([
   [0, 0.6], [0.18, 0.64], [0.42, 0.46], [0.76, 0.78], [0.92, 0.7], [1, 0.4],
 ]);
 /** 목이 몸통에 물리는 자리 — 몸통 꼭대기이자 목의 밑동이다. */
-export const P_NECK_BASE: [number, number, number] = [0, 0.52, 6.05];
+/* ★★ **z 를 접는 코드모드가 못 본 자리였다**(2026-09, 지적: "질럿 머리 위 이상한 부품이 있는데
+   혹시 목인가?" — 목이 맞았다) — 이 표는 `[x, y, z]` 한 줄이라 2026-09 의 높이 접기
+   (model-z-scale ×0.8)가 **z 칸을 못 알아봤다**. 그래서 몸통은 접힌 자(꼭대기 4.84)로
+   서 있는데 목만 옛 자(6.05~6.28)에 남아, **머리 위 1.2칸 허공**에 짧은 통이 떠 있었다
+   (얼굴 달걀은 4.76~5.60이다). 접은 값으로 고친다: 6.05×0.8 · 6.28×0.8.
+   ★ CLAUDE.md 의 '코드모드가 못 본 z 후보' 목록에 **`[x, y, z]` 세 값짜리 표**를 더한다 —
+     이미 적혀 있던 `[x, z]`·`[y, z]` 쌍 표와 같은 갈래다. */
+export const P_NECK_BASE: [number, number, number] = [0, 0.52, 4.84];
 /** 목 끝(머리가 앉는 자리) — 얼굴·목이 이 한 점을 나눠 쓴다. */
 /* 목 끝을 앞·아래로 당긴다(지적: "각도가 너무 뒤로 누웠고 길어 머리에 가려지지도
    않고") — 여태 뒤(y 0.18)로 0.34나 물러나며 0.67 솟아, 얼굴(y 0.5~0.8) 뒤로 길게
    드러난 막대가 됐다. 얼굴 밑동 바로 밑(y 0.5, z 6.28)에 두면 머리가 목을 덮는다. */
-export const P_NECK_TOP: [number, number, number] = [0, 0.5, 6.28];
+export const P_NECK_TOP: [number, number, number] = [0, 0.5, 5.024];
 /* ★ fill이 없으면 **임자색**이다(요청: "질럿 몸통 토르소 임자색으로 변경") — 안 칠한 면이 곧 개인색이라는
    accent 규약을 여기서도 그대로 쓴다. 색을 넘기는 쪽(다크템플러·아콘 등)은 종전 그대로다. */
 export function protossTorso(fill?: string, lift = 0): ShapeFace[] {
@@ -7682,12 +7707,42 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        그러면 되찾을 일이 없고, 돌려도 띠가 링에 붙어 함께 돈다.
        ⚠ 앞뒤도 **제 자리 깊이**로 준다 — 여태 앞 셋·뒤 셋을 링 두 쪽에 갈라 붙였는데, 모형 자에서는
          한 각이 앞뒤 어디에 오는지가 요잉마다 달라 그 가름이 안 선다. */
+    /* ★★ **띠는 링을 감는다 — 낯이 위가 아니라 옆을 본다**(2026-09, 지적: "파일런 띠의 면의
+       방향을 바꿔야 돼 — 지금은 위아래 면인데 사실은 옆면이야, 띠가 옆을 향해서 둘러 있어") —
+       모형 자로 옮길 때 `discPath3`(누운 원반)를 썼더니, 띠가 링 **위에 붙인 동전**이 되었다.
+       띠는 링을 **가로질러 감는 끈**이므로 그 넓은 낯은 링의 바깥·안쪽을 향한 **선 낯**이고,
+       위아래는 끈의 두께만큼의 좁은 마구리다.
+       그래서 링의 단면(안 4.1 ~ 바깥 5.1)을 감싸는 짧은 호 토막으로 짓는다: 바깥 벽·안쪽 벽은
+       세운 낯(법선이 반지름 방향) · 위아래는 그 둘을 잇는 좁은 띠. 링보다 0.06 만큼 밖으로·안으로
+       물려 **파고들게** 둔다(같은 평면이면 z 싸움을 한다 — '나란히 선 덩이 사이의 틈' 규약). */
     const gems: ShapeFace[] = [];
+    const GB_HW9 = 0.135;   // 띠의 반각 — 옛 원반 반지름 0.62를 링 허리(4.6) 위의 호로 옮긴 값
+    const GB_HZ9 = 0.3;     // 링 위아래로 나오는 몫(끈의 두께)
     for (const ang of [30, 90, 150, 210, 270, 330]) {
       const a = (ang * Math.PI) / 180;
       const gx9 = Math.sin(a) * RING_R; const gy9 = Math.cos(a) * RING_R;
-      gems.push(...tagKey([[discPath3(gx9, gy9, PY_M, 0.62), 0.9, "#5aecd8"] as ShapeFace],
-        depthNow(gx9, gy9) + 0.2));
+      const P9 = (da9: number, r9: number, dz9: number): [number, number, number] =>
+        [Math.sin(a + da9) * r9, Math.cos(a + da9) * r9, PY_M + dz9];
+      const N9 = 3;
+      /** 호 토막 한 장 — 두 반지름·두 높이를 잇는 네모(호를 마디로 나눠 굽이를 탄다). */
+      const strip9 = (
+        r0: number, z0: number, r1: number, z1: number, nx9: number, ny9: number, nz9: number,
+      ): ShapeFace[] => {
+        const pts9: [number, number, number][] = [];
+        for (let i9 = 0; i9 <= N9; i9 += 1) pts9.push(P9(-GB_HW9 + (2 * GB_HW9 * i9) / N9, r0, z0));
+        for (let i9 = N9; i9 >= 0; i9 -= 1) pts9.push(P9(-GB_HW9 + (2 * GB_HW9 * i9) / N9, r1, z1));
+        const d9 = polyPath3(pts9);
+        const l9 = faceLight(nx9, ny9, nz9);
+        return [[d9, 0.9, "#5aecd8"] as ShapeFace, ...(l9.visible ? l9.face(d9) : [])];
+      };
+      const RO9 = rxo + 0.06; const RI9 = rxi - 0.06;
+      const sa9 = Math.sin(a); const ca9 = Math.cos(a);
+      gems.push(...tagKey([
+        ...strip9(RO9, GB_HZ9, RO9, -GB_HZ9, sa9, ca9, 0),        // 바깥 벽 — 옆을 본다
+        ...strip9(RI9, -GB_HZ9, RI9, GB_HZ9, -sa9, -ca9, 0),      // 안쪽 벽
+        ...strip9(RI9, GB_HZ9, RO9, GB_HZ9, 0, 0, 1),             // 윗 마구리
+        ...strip9(RO9, -GB_HZ9, RI9, -GB_HZ9, 0, 0, -1),          // 아랫 마구리
+      ], depthNow(gx9, gy9) + 0.2));
     }
     // 뒤 갈고리 → 뒤 링 → 수정 → 앞 링 → 앞 갈고리 순으로 겹친다.
     for (const ang of [180, 120, 240]) out.push(...claw(ang));
@@ -17282,11 +17337,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        청색 고리로 두른다 — 소환되는 빛덩이가 아니라 **테 두른 문**으로 읽힌다. */
     return [
       [billPath3(0, 0, 2.56, 3.05), 1, "#1e7fff"] as ShapeFace,
-      /* 흰 속은 **두 겹**이다 — 그리는 쪽이 색 있는 면의 농도를 0.85로 자르므로
-         (shadeBoost), 한 겹만 깔면 밑의 청색이 15% 비쳐 흰 속이 하늘색이 된다.
-         같은 원을 두 번 깔면 0.98까지 차 흰색이 흰색으로 남는다. */
-      [billPath3(0, 0, 2.56, 2.68), 1, "#f2fbff"] as ShapeFace,
-      [billPath3(0, 0, 2.56, 2.68), 1, "#f2fbff"] as ShapeFace,
+      /* 흰 속은 **두 겹**이었다 — 그리는 쪽이 색 있는 면의 농도를 0.85로 자르므로(shadeBoost)
+         한 겹만 깔면 밑의 청색이 15% 비쳐 흰 속이 하늘색이 되고, 두 겹이면 0.98까지 차 흰색이
+         흰색으로 남는다. ★ 그 '완전한 흰색'이 **눈부심의 임자**였다(2026-09, 지적: "아콘·소환구 등
+         글로우가 너무 강해 눈부셔") — 번짐까지 얹히면 테도 무늬도 안 남는 흰 원이 된다.
+         한 겹으로 줄이고 색도 한 단 눌러, 속이 **아주 옅은 하늘빛**으로 남게 한다. */
+      [billPath3(0, 0, 2.56, 2.68), 1, "#dfeeff"] as ShapeFace,
       topFace(shinePath3(0, 0, 2.56, 2.68, -0.7, -0.7, 1.15), 0.4),
       /* 바깥 테 밖의 빛 번짐 — **글로우는 여기가 임자다**(지적: "소환구 글로우 효과 중심 위치가 안 맞음"). 여태
          DOM 글로우(.scr-bfx-toss)를 발자국 지면 가운데에 따로 붙였는데, 구는 WARP_LIFT만큼 떠 있고 입체에서는
@@ -19563,8 +19619,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          짙은 실루엣이 되어 저절로 살아난다. */
       [billPath3(0, 0, ORB_Z, R), 0.62, "#2f6ff0"] as ShapeFace,
       // 안쪽 두 구를 키운다(요청: 가장 바깥 구의 색은 얇은 테로만) — 0.78 → 0.9, 0.46 → 0.66.
-      [billPath3(0, 0, ORB_Z, R * 0.9), 0.9, "#f7faff"] as ShapeFace,
-      [billPath3(0, 0, ORB_Z, R * 0.66), 1, "#ffffff"] as ShapeFace,
+      /* ★ 흰 심을 **누른다**(2026-09, 지적: "아콘·소환구 등 글로우가 너무 강해 눈부셔") — 0.9/1.0 은
+         반지름의 9할을 **완전한 흰색**으로 채워, 애써 넣은 속 형체(머리·팔·리본)가 한 톨도 안 보였다.
+         빛덩이는 '속이 비쳐야' 빛덩이다 — 0.58/0.82 로 내리고 심의 흰색도 한 단 눌러 푸른빛을 남긴다. */
+      [billPath3(0, 0, ORB_Z, R * 0.9), 0.58, "#e6efff"] as ShapeFace,
+      [billPath3(0, 0, ORB_Z, R * 0.66), 0.82, "#f4f8ff"] as ShapeFace,
     ], 0));
 
     /* ② 속 형체 ─────────────────────────────────────────────────────────────── */
@@ -19803,7 +19862,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     out.push(...tagKey(spirePillar({
       x: 0, y: 0, h: 0.8, w: 1, segs: 16, sides: 9, hold: 0,
       path: spine, widthOf: spineW,
-      fill: "#a5714e", fillFront: ZERG_FLESH, fillBack: DARK,
+      /* ★ **등(위를 보는 낯)은 임자 색이다**(2026-09, 요청: "저글링 몸통과 머리 위쪽 면 임자색으로" →
+         "꼬리는 아님") — 여태 임자 색은 등딱지 셋뿐이라 난전에서 저글링의 임자가 안 읽혔다.
+         fillTop 에 빈 문자열을 주면 **안 칠한 낯**(= 임자 색)이 된다. 꼬리(t < 0.34)는 뺀다. */
+      fill: "#a5714e", fillFront: ZERG_FLESH, fillBack: DARK, fillTop: "", topFrom: 0.34,
     }), 6));
     /* 개인색 등딱지 — 등마루(t 0.4~0.68)를 타는 판 셋. 칠하지 않아 임자 색이 든다.
        몸 획 위에 반쯤 묻히는 낮은 돔이라 어느 요잉에서도 등에 붙어 다닌다. */
