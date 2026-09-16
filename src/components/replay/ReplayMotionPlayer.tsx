@@ -7916,6 +7916,9 @@ export default function ReplayMotionPlayer({
   const viewHRef = useRef(0);
   /** 3D 눌림(2D는 1) — 눕히면 세로가 이만큼으로 줄어 보인다. */
   const pitchKRef = useRef(1);
+  /** 입체 사영의 자 가운데 **팬과 무관한 몫**(C·S·P·q·cy·hPre) — 팬 한계가 위·아래 경계를
+   *  정확히 풀 때 쓴다(아래 panLimit 의 ★★). 평면에서는 null 이다. */
+  const pitchGeoRef9 = useRef<{ C: number; S: number; P: number; q: number; cy: number; hPre: number } | null>(null);
   /** ★ 지도 **윗변 위로 더 끌 수 있는 몫**(px, 배율 1 기준) ─────────────────────────
    *  (지적: "맵 맨 위쪽을 보여 줄 때 모델의 윗부분이 그림 영역을 벗어나 잘려 버린다")
    *
@@ -7959,17 +7962,40 @@ export default function ReplayMotionPlayer({
        **지도 상자**다(그 둘은 그림 여유만큼 다르다).
        가로는 눕혀도 안 줄어든다 — 가까운 변이 상자 폭을 그대로 쓴다(사다리꼴의 밑변). */
     const winH = viewHRef.current > 0 ? viewHRef.current : (st.h > 0 ? st.h : cov.h * k9);
-    const y9 = Math.max(0, (cov.h * k9 * z - winH) / 2);
     /* 위쪽만 더 연다 — 아래·좌우는 그대로다(솟는 방향이 위 하나라 아래는 열 까닭이 없다).
        창의 절반을 넘지는 않는다: 그보다 열면 지도가 아니라 하늘을 보는 창이 된다. */
     const band9 = Math.min(bandRef.current * z, winH * 0.45);
-    return {
-      x: Math.max(0, (cov.w * z - winW) / 2),
-      y: y9,
-      yTop: y9 + Math.max(0, band9),
-      winW,
-      winH,
-    };
+    const x9 = Math.max(0, (cov.w * z - winW) / 2);
+    /* ★★ **입체에서 팬은 평행이동이 아니다 — 한계를 사영에서 직접 풀어야 한다**
+       (2026-09, 지적: "3D 확대시 위쪽 맵 볼 수 없는 문제") ─────────────────────────────
+       눕힌 보기에서 팬은 **시점 원점**(pitchGeom 의 oy)을 함께 옮긴다. 곧 지도가 통째로
+       미끄러지는 것이 아니라 **다시 사영된다** — 아래로 끌면 먼 줄이 지평선에서 풀려
+       내려오므로, 지도 윗변이 화면에 닿는 데 필요한 팬은 '내용 높이 − 창'의 절반보다
+       늘 크다. 그런데 한계는 평면과 같은 식(cov.h·눌림·배율 − 창)/2 으로 재고 있었다.
+       두 값의 차는 배율에 비례해 벌어져(실측 자: 4배에서 창의 0.15배 · 8배에서 0.35배),
+       확대할수록 지도 윗줄에 **영영 못 닿는다**. 반대로 아래쪽은 그 대칭 한계가 되레
+       넉넉해 지도가 끝난 뒤에도 끌렸다.
+       그래서 사영을 그대로 푼다. 원점을 팬에서 푸는 식(ox·oy)을 posFrac 에 넣으면 팬 항이
+       지워지고, 무대 가운데를 기준으로 한 지도 변의 자리가 남는다:
+         Ys(v) = 배율 · C·q·P·v / (P − v·S),  v = ±hPre/2 − oy,  oy = (cy − 팬/배율)/(q·C)
+       윗변이 창 위에 머무는 조건 Ys ≤ −창/2 를, 아랫변이 창 밑에 머무는 조건 Ys ≥ +창/2 를
+       v 에 대해 풀고 다시 팬으로 되돌린 것이 아래 두 줄이다(g 가 단조라 해가 하나다).
+       평면(pitchGeoRef9 가 null)은 종전 식 그대로다 — 거기서는 팬이 진짜 평행이동이다. */
+    const pg9 = pitchGeoRef9.current;
+    if (pg9 && pg9.hPre > 0) {
+      const R9 = winH / (2 * z);
+      const den9 = pg9.C * pg9.q * pg9.P;
+      const vB9 = (R9 * pg9.P) / Math.max(1e-6, den9 + R9 * pg9.S);    // 아랫변이 창 밑에 딱 걸리는 v
+      /* ⚠ 위쪽 해는 **den9 > R9·S9 일 때만** 있다 — 창이 사영보다 크면(낮은 배율) 윗변을
+         창 위까지 올릴 자리가 애초에 없다. 그 자리에서 식을 그냥 풀면 분모가 음이 되어
+         엉뚱한 큰 값이 나오므로(실측: 30도 1배에서 창의 세 배) 0 으로 닫는다. */
+      const vT9 = den9 - R9 * pg9.S > 1e-6 ? -(R9 * pg9.P) / (den9 - R9 * pg9.S) : -pg9.hPre;
+      const up9 = z * (pg9.cy + pg9.q * pg9.C * (pg9.hPre / 2 + vT9));         // 아래로 끌 수 있는 최대(= 윗줄을 본다)
+      const dn9 = z * (pg9.q * pg9.C * (pg9.hPre / 2 - vB9) - pg9.cy);         // 위로 끌 수 있는 최대(= 아랫줄을 본다)
+      return { x: x9, y: Math.max(0, dn9), yTop: Math.max(0, up9) + Math.max(0, band9), winW, winH };
+    }
+    const y9 = Math.max(0, (cov.h * k9 * z - winH) / 2);
+    return { x: x9, y: y9, yTop: y9 + Math.max(0, band9), winW, winH };
   }, []);
   /* ★ 추적을 켤 때 맞출 배율 — **4배 고정**이다(요청: "추적모드 선택 시 기본 배율을 타일 수로 계산하던 걸
      취소하고 4배로 고정할게 · 수동으로 변경은 계속 오픈") ─────────────────────────────────────────────
@@ -10227,6 +10253,10 @@ export default function ReplayMotionPlayer({
    *    손짓이 읽는 값이라(panLimit) 렌더 중 어디서 심든 effect보다는 앞선다. */
   bandRef.current = fsCoverW <= 0
     ? 0 : ((BAND_TILES * fsCoverW) / Math.max(1, grid.width)) * pitchK(0);
+  /* 팬 한계가 읽는 사영의 자(위 pitchGeoRef9) — 팬·배율에 안 매인 몫만 담는다(ox·oy 는 뺀다). */
+  pitchGeoRef9.current = pitched
+    ? ((g9) => ({ C: g9.C, S: g9.S, P: g9.P, q: g9.q, cy: g9.cy, hPre: g9.hPre }))(pitchGeom())
+    : null;
   /** 자리의 0~1 분수 — posStyle(%)과 캔버스 유닛 층이 같은 값을 쓴다. */
   /* 지도 벡터층의 입체 창 굽기가 쓰는 타일→분수 사상(지적: 입체 확대 흐림) —
      posFrac은 렌더마다 새 클로저라 ref로 흘려보내 deps를 안 태운다(값은 아래에서

@@ -103,6 +103,12 @@ export const OP = {
 /** 바닥 원의 납작비 — 사선 시점에서 눌려 보이는 정도(ry = rx × 0.45). */
 export const GROUND_SQUASH = 0.45;
 /** 평면(2D)에서 모델 높이를 한 번 더 누르는 몫(요청) — 1이면 카메라 각 그대로다. */
+/** 입체(3D) 보기의 높이 배수 — **누름 없음**(2026-09, 요청: "3D 높이 눌림 제거").
+ *  0.8 → 0.9 로 두 번 되물렸던 값이다. 평면이 TOP_Z_PRESS9 를 1.0 으로 돌리며 모델 z 좌표
+ *  자체로 눌림을 옮겨 굳혔으므로(model-z-scale), 입체만 카메라에서 한 번 더 누르면 두 보기의
+ *  키가 갈린다 — 같은 모델이 2D 와 3D 에서 다른 높이로 보이는 것이 그 몫이었다.
+ *  ⚠ gl9 의 입체 카메라(zk)도 이 값을 쓴다 — 두 붓이 갈리면 GL 과 폴백의 키가 어긋난다. */
+export const PITCH_ZK9 = 1.0;
 export const TOP_Z_PRESS9 = 1.0;    // 0.82 → 0.75 → 0.8 → 0.9 → 0.85 → 0.8(요청) → 1.0: 그 0.8은 **모델 z 좌표 자체**로 옮겨 굳혔다(scripts/model-z-scale.mjs) — 카메라는 이제 정직하다
 /** 평면(2D)의 **수직 카메라 각**(도) — 바닥 눌림은 sin, 높이 배율은 cos다(한 쌍이라야
  *  한 각의 그림이 된다). 여기만 고치면 둘이 함께 움직인다.
@@ -207,7 +213,7 @@ function zScaleNow(): number {
   /* 평면은 cos45(0.707)에 **누름 몫**을 한 번 더 곱한다(요청: "2d에서 모델 공통 높이
      누르기") — 카메라 각과는 딴 손잡이다. 각을 더 올려 누르면 바닥 원까지 둥글어져
      지도 격자와 어긋나는데, 이 몫은 **높이만** 줄여 실루엣을 낮춘다. */
-  return pitchView ? 0.9 : topView ? TOP_COS9 * TOP_Z_PRESS9 : 0.89;   // 0.8 → 0.9(재요청)
+  return pitchView ? PITCH_ZK9 : topView ? TOP_COS9 * TOP_Z_PRESS9 : 0.89;
 }
 function originYNow(): number {
   return pitchView ? 12.6 : topView ? 12 : 12.6;

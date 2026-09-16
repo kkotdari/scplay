@@ -8,7 +8,7 @@
    · 임자색 면(fill 없음)은 정점의 team 깃발로 표시하고 uTeam 으로 칠한다.
    한계(시제): 유닛만(건물·데칼·그림자·체력바는 캔버스가 그대로), 평면 시점만(pitch 면 캔버스로), 머리 요잉·불빛·회전 깃발은 0. */
 import { SHAPE_BUILDERS, SHAPE_GALLERY, poseSet9, poseNow, headYawSet, headYawNow, headAimNow, bldLitSet, bldLitNow, bldSpinRawSet9, bldSpinNow, stageFaces, headTag, litTag, spinTag, tone9, autoTier } from "./bake9";
-import { lodFilter, type ShapeFace } from "../../utils/shapeOblique";
+import { lodFilter, PITCH_ZK9, type ShapeFace } from "../../utils/shapeOblique";
 import { collectMesh9 } from "../../utils/mesh9";
 import type { UnitDrawOp } from "./engine9";
 
@@ -121,7 +121,7 @@ void main() {
   ry += (aPos.z + uShadow.w) * uShadow.y * uShadow.z;
   float pz = aPos.z * (1.0 - uShadow.z);
   float f = uPersp / (uPersp - clamp(ry, -10.0, 10.0));
-  // project() 와 같은 식 — 평면: 납작비 sinE·높이 cosE · 입체: 납작비 pitchSquash·높이 0.9, 앞숙임 z·0.34, 시각 밀림 ry·납작비·tan(vq)
+  // project() 와 같은 식 — 평면: 납작비 sinE·높이 cosE · 입체: 납작비 pitchSquash·높이 PITCH_ZK9, 앞숙임 z·0.34, 시각 밀림 ry·납작비·tan(vq)
   float ry2 = ry + pz * uLean.x;
   float X = uAnchor.x + uScale.x * (rx + ry * uCam.x * uLean.y) * f;
   float Y = uAnchor.y + uScale.y * (ry2 * uCam.x - pz * uCam.y) + uScale.z + uDy;
@@ -401,7 +401,7 @@ const hexRgb = (s: string): [number, number, number] => {
 const TOP_ELEV = (40 * Math.PI) / 180;   // shapeOblique.TOP_ELEV9 와 같은 값
 const CAM: [number, number] = [Math.sin(TOP_ELEV), Math.cos(TOP_ELEV)];
 export const CAM_TOP9: GlCam9 = { squash: CAM[0], zk: CAM[1], lean: 0, shear: 0, key: "t" };
-/** 입체 카메라 — pitchSquash(= pitchFlatNow·0.7)·높이 0.9·앞숙임 0.34·시각 밀림 tan(vq). vq 는 6° 눈금이라 열쇠가 적다. */
+/** 입체 카메라 — pitchSquash(= pitchFlatNow·0.7)·높이 PITCH_ZK9(누름 없음)·앞숙임 0.34·시각 밀림 tan(vq). vq 는 6° 눈금이라 열쇠가 적다. */
 /** 캔버스(판)에 남기는 종류 — 화면 전용 효과(빛무리·번개·폭발 고리)와 반투명 구 겹으로 그린 아콘: 3D 로 옮기면 뜻이 달라진다. */
 export const GL_CANVAS_KINDS9 = new Set<string>([]);
 /** 발광 효과 종류 — 반투명 면이 곧 몸(mesh9 glow)이고 음영 없이 제 색으로 그린다(flat). 폭풍·핵은 더하기 합성(add)까지. */
@@ -497,7 +497,7 @@ const glossOf9 = (kind: string): Gloss9 => {
 /** 메시 열쇠(`u:종류:…` · `b:종류:…` · `f:종류:…`)에서 종류를 떼어 광택 자를 고른다. */
 const glossOfKey9 = (key: string): Gloss9 => glossOf9(key.slice(key.indexOf(":") + 1).split(":")[0]);
 const CAMS9 = new Map<string, GlCam9>();
-/** 카메라 — 평면(vq 0 이면 CAM_TOP9 그대로) 또는 입체(pitchSquash = pitchFlatNow·0.7 · 높이 0.9 · 앞숙임 0.34) + 시각 밀림 tan(vq).
+/** 카메라 — 평면(vq 0 이면 CAM_TOP9 그대로) 또는 입체(pitchSquash = pitchFlatNow·0.7 · 높이 PITCH_ZK9 · 앞숙임 0.34) + 시각 밀림 tan(vq).
  *  같은 열쇠면 같은 객체라 그리기에서 유니폼을 한 번만 건다. */
 /** ★ **오목 다각형도 제대로 삼각화한다**(2026-09, 지적: "넥서스 … 피라미드에서 나오는 삼각발판") ─────────────
  *  여태 폴리곤은 **0번 꼭짓점 부채꼴**로 갈랐다(put(0)·put(i)·put(i+1)). 그것은 **볼록**하거나 0번에서 별꼴인
@@ -560,7 +560,7 @@ export function camOf9(pitch: boolean, pitchSquash: number, vq: number): GlCam9 
   let c = CAMS9.get(key);
   if (!c) {
     const shear = vq ? Math.tan((vq * Math.PI) / 180) : 0;
-    c = pitch ? { squash: pitchSquash, zk: 0.9, lean: 0.34, shear, key } : { squash: CAM[0], zk: CAM[1], lean: 0, shear, key };
+    c = pitch ? { squash: pitchSquash, zk: PITCH_ZK9, lean: 0.34, shear, key } : { squash: CAM[0], zk: CAM[1], lean: 0, shear, key };
     CAMS9.set(key, c);
   }
   return c;
