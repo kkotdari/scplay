@@ -16113,8 +16113,21 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        식은 뒤와 한 벌이다(u²·가로 몫) — 부호만 다른 같은 곡선이라 허리(u 0)에서 기울기가
        양쪽 다 0이고, 그래서 앞뒤가 턱 없이 하나의 활로 이어진다. */
     const LEAF_CURL_FRONT_K = 0.55;          // 앞끝 말림 = 뒤끝의 몇 배인가
-    /** 팔각 단면의 긴 축 끝 꼭짓점은 반지름의 cos 22.5° 자리 — 반길이를 그만큼 키워 준다. */
-    const OCT_U = Math.cos(Math.PI / 8);
+    /* ★ **잎을 더 잘게 · 등을 더 높게**(2026-09, 요청: "캐리어 잎 좀 더 면수 늘려서 부드러운
+       잎으로 바꾸고 각 잎의 등이 더 높게 솟게") ─────────────────────────────────────────
+       ㉠ 마디·단면을 늘린다(12×8 → 20×12). 잎은 호 위에 눕힌 납작한 기둥이라, 마디가
+         굵으면 말린 등이 다각형으로 각지고 단면이 적으면 옆 테두리가 칼처럼 선다.
+       ㉡ **등마루를 세운다** — 여태 잎은 반지름이 못 박힌 원호라 등이 원통의 한 조각이었다.
+         잎맥(호 한가운데)에서만 반지름을 LEAF_RIDGE 만큼 밀어 올리면, 앞뒤로 흐르는
+         등마루가 서고 옆 테두리는 제자리에 남는다(이웃 잎과의 틈이 안 변한다).
+         u² 로 내리는 꼴이라 잎맥에서 기울기가 0 — 마루가 각지지 않고 부드럽게 솟는다. */
+    const LEAF_SEGS9 = 20;
+    const LEAF_SIDES9 = 12;
+    const LEAF_RIDGE = 0.34;                 // 잎맥의 등이 호 밖으로 솟는 몫
+    /** 잎 등마루 — 호 위의 자리 u(−1 옆끝 … 0 잎맥 … 1 옆끝)에서 반지름에 더할 몫. */
+    const ridge9 = (u9: number): number => LEAF_RIDGE * (1 - u9 * u9);
+    /** 단면 다각형의 긴 축 끝 꼭짓점은 반지름의 cos(π/n) 자리 — 반길이를 그만큼 키워 준다. */
+    const OCT_U = Math.cos(Math.PI / LEAF_SIDES9);
     /** 잎 한 장 — thetaDeg는 축 둘레에서 이 잎이 앉은 각(90=위), len은 잎맥의 앞뒤 반길이,
      *  arcDeg는 잎맥에서 가장자리까지 말린 반각. */
     /** 잎의 깊이 키 — 잎맥 중심의 깊이에 높이 몫을 더한다(데칼도 이 키 위에 얹는다). */
@@ -16170,7 +16183,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const u9 = uOf(t9);
         return (o9.len * Math.sqrt(Math.max(0, 1 - u9 * u9))) / OCT_U + 0.01;
       };
-      const rOf = (t9: number): number => LEAF_R + (wOf(t9) * LEAF_HALF_T) / o9.len + 0.015;
+      /** 덮개가 앉는 잎 겉면의 반지름 — **등마루를 같이 탄다**(안 타면 덮개가 등에 파묻힌다). */
+      const rOf = (t9: number): number =>
+        LEAF_R + ridge9(uOf(t9)) + (wOf(t9) * LEAF_HALF_T) / o9.len + 0.015;
       // 잎과 한 글자도 다르지 않은 말림(그쪽 주석) — 덮개도 같은 호 위에 눕는다.
       const curl9 = (k9: number, t9: number): number =>
         LEAF_CURL * (k9 >= 0 ? LEAF_CURL_FRONT_K : 1) * k9 * k9 * (wOf(t9) / o9.len);
@@ -16446,11 +16461,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         return (len * Math.sqrt(Math.max(0, 1 - u9 * u9))) / OCT_U + 0.01;
       };
       return tagKey(spirePillar({
-        x: 0, y: 0, h: 0.8, w: 1, segs: 12, sides: 8, caps: "none", fill: GOLD9,
+        x: 0, y: 0, h: 0.8, w: 1, segs: LEAF_SEGS9, sides: LEAF_SIDES9, caps: "none", fill: GOLD9,
         ref: [0, 1, 0], oval: LEAF_HALF_T / len, trueNormal: true,
         path: (t9: number): [number, number, number] => {
-          const p9 = th9 + uOf(t9) * LEAF_ARC;
-          return [Math.cos(p9) * LEAF_R, 0, Z8 * (LEAF_ZC + Math.sin(p9) * LEAF_R)];
+          const u9 = uOf(t9);
+          const p9 = th9 + u9 * LEAF_ARC;
+          const r9 = LEAF_R + ridge9(u9);          // 잎맥에서 솟는 등마루
+          return [Math.cos(p9) * r9, 0, Z8 * (LEAF_ZC + Math.sin(p9) * r9)];
         },
         widthOf: wOf,
         /* 뒷부분만 안쪽으로 만다(요청: "세 잎의 뒷부분만 안쪽으로 말아서 모을 수
@@ -20210,15 +20227,20 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           ORB_Z + (u9[2] * c9 + v9[2] * s9) * K9 * Z8,
         ];
       };
-      /* 열두 조각 — 조각이 적으면 가림이 뭉텅뭉텅 끊기고, 많으면 굽는 면이 그만큼
-         늘어난다. 굵기는 마디마다 안 변한다(깔끔한 고리라야 한다 — 지적의 "깔끔한"). */
-      const N9 = 12;
+      /* ★★ **조각 하나가 곧 앞뒤 판정의 알갱이다**(2026-09, 지적: "아콘·다크아콘 링이
+         몸 그림자에 안 가려짐") — 조각마다 **가운뎃점의 깊이**로 키를 다는데, 조각이
+         굵으면 그 한 값이 조각 전체를 끌고 간다. 열두 조각이면 한 조각이 30도, 곧 옆구리
+         조각 하나가 구의 앞에서 뒤까지 **2.4 칸**을 가로지르므로 그 조각은 몸 앞이든
+         뒤든 한쪽으로만 그려진다 — 그래서 고리가 몸 위를 그대로 지나갔다.
+         스물넷으로 쪼갠다(조각 하나 15도 · 1.2칸). 굽는 면이 늘지 않게 마디는 하나로
+         줄인다(조각이 짧아 마디를 더 나눌 까닭이 없다). 굵기는 마디마다 안 변한다. */
+      const N9 = 24;
       for (let i9 = 0; i9 < N9; i9 += 1) {
         const b0 = (i9 / N9) * Math.PI * 2;
         const b1 = ((i9 + 1) / N9) * Math.PI * 2;
         const [mx9, my9] = P9((b0 + b1) / 2);
         out.push(...tagKey(spirePillar({
-          x: 0, y: 0, h: 0.8, w: 1, segs: 2, sides: 4, caps: "none",
+          x: 0, y: 0, h: 0.8, w: 1, segs: 1, sides: 4, caps: "none",
           path: (t9: number): [number, number, number] => P9(b0 + (b1 - b0) * t9),
           widthOf: (): number => w9,
         }), depthNow(mx9, my9) * 1.6));
@@ -20364,16 +20386,22 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           ORB_Z + (u9[2] * c9 + v9[2] * s9) * k9,
         ];
       };
-      const N9 = 3;
+      /* ★★ 조각 하나가 곧 앞뒤 판정의 알갱이다(아콘의 그 ★★ 와 같은 자리) — 세 조각은
+         한 조각이 **76도**라, 구의 뒤에서 앞까지를 한 키로 그린다. 그래서 리본이 갑주 위를
+         통째로 지나갔다(지적). 열여섯으로 쪼개고 마디는 하나로 줄인다. */
+      const N9 = 16;
       for (let i9 = 0; i9 < N9; i9 += 1) {
         const b0 = a0 + ((a1 - a0) * i9) / N9;
         const b1 = a0 + ((a1 - a0) * (i9 + 1)) / N9;
         const [mx9, my9] = P9((b0 + b1) / 2);
         out.push(...tagKey(spirePillar({
-          x: 0, y: 0, h: 0.8, w: 1, segs: 3, sides: 4, caps: "none",
+          x: 0, y: 0, h: 0.8, w: 1, segs: 1, sides: 4, caps: "none",
           path: (t9: number): [number, number, number] => P9(b0 + (b1 - b0) * t9),
-          // 양 끝이 가늘게 스러지는 실 — 잘린 끝이 안 보인다.
-          widthOf: (t9: number): number => w9 * Math.sin(Math.PI * (0.1 + 0.8 * t9)),
+          /* 양 끝이 가늘게 스러지는 실 — 잘린 끝이 안 보인다.
+             ⚠ 굵기는 **호 전체의 자리**로 재야 한다 — 조각의 t 로 재면 조각마다 양 끝이
+               여위어 리본이 구슬 열여섯 개로 끊긴다(조각을 잘게 쪼개며 물린 자리다). */
+          widthOf: (t9: number): number =>
+            w9 * Math.sin(Math.PI * (0.1 + 0.8 * ((i9 + t9) / N9))),
         }), depthNow(mx9, my9) * 1.6));
       }
     };
@@ -22045,7 +22073,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        없어 앞 부품 값을 물려받았고, 집게가 어느 각도에서도 몸통을 이겼다. */
     out.push(...tagKey(domeFaces3(0, -0.6, 2.8, 0.496, 3.04), partKey(0, -0.6, 3.28)));
     // (삭제·지적) 앞부분 검은 반투명 홈 — 정체불명 얼룩으로 보여 걷었다.
-    out.push(topFace(shinePath3(0, -0.6, 3.04, 2.8, -0.9, -1, 1.25, 0.8), 0.25));
+    /* (걷어냄·지적: "셔틀 뒤쪽 위의 광택? 원 떠 있는 거 제거") — 등의 광 한 장을
+       `shinePath3(…, r = 2.8)` 로 놓고 있었는데, 그 자는 **반지름 r 의 구 표면**에 고리를
+       적는다. 이 몸통은 반지름 2.8 에 높이 0.496 인 **납작한 돔**이라 광이 돔 위 2 칸
+       넘는 허공에 떠, 어느 각에서 봐도 회색 원반 하나가 등 뒤에 붕 떠 보였다.
+       ★ shinePath3 는 **공(orbFaces3·domeFaces3 중 반구)에만** 쓴다 — 납작한 돔의 광은
+         그 돔의 제 높이로 놓아야 하고, 없어도 그만이다. */
     // 옆구리 밝은 홈 한 쌍.
     out.push(topFace(discPath3(-2.3, -0.3, 3.12, 0.4, 0.55), 0.4));
     out.push(topFace(discPath3(2.3, -0.3, 3.12, 0.4, 0.55), 0.4));
@@ -22481,33 +22514,56 @@ SHAPE_BUILDERS.interceptor = () => {
   // 다른 소형 비행체(커세어·옵저버)와 같은 고도 — 공중 층에서 키가 튀지 않게.
   const Z9 = 4.64;
   /* ── 몸통 두 덩이(사진) — 좌우로 나란한 **통통한 포드 둘**이 몸의 거의 전부다.
-     눕힌 팔각 기둥이라 앞에서 보면 면이 마주 서고 옆에서 보면 둥근 통으로 읽힌다. */
+     ★ **콩가 드럼 꼴**이다(2026-09, 요청: "인터셉터 양쪽 동체 콩가 드럼 형태로") ─────────
+       여태는 반지름이 못 박힌 눕힌 팔각 기둥이라 앞뒤가 똑같은 통조림이었다. 콩가는
+       ㉠ 앞(머리)이 가장 넓고 ㉡ 어깨가 한 번 불룩 부르며 ㉢ 허리로 좁아졌다가 ㉣ 굽에서
+       조금 벌어진다 — 그 넷을 굵기 곡선 하나로 낸다. 단면은 종전과 같은 비로 눌러
+       (가로 0.62 · 세로 0.4 → oval 0.645) 실루엣의 두께가 안 변한다.
+     ⚠ 단면 축은 **ref 로 못 박는다**([1, 0, 0]) — 축이 y 하나뿐이라 안 주면 기둥이
+       제멋대로 고르고, 그러면 눌린 쪽이 위아래가 아니라 좌우가 된다. */
+  const POD_R9 = 0.62;                 // 머리(앞)의 반폭
+  const POD_Y0 = 1.30; const POD_Y1 = -1.55;
+  /** 콩가 옆선 — t 0(앞 머리) → 1(뒤 굽). */
+  const conga9 = (t9: number): number => {
+    const bel9 = 0.10 * Math.sin(Math.PI * Math.min(1, t9 / 0.5));      // 어깨의 부름
+    const foot9 = 0.09 * Math.max(0, (t9 - 0.80) / 0.20) ** 1.6;        // 굽의 벌어짐
+    return POD_R9 * (1 - 0.34 * t9) + bel9 + foot9;
+  };
   const pod = (m: number): ShapeFace[] => [
     /* 키(재지적: 옆 띠가 가운데 몸에 안 가려짐) — 통·띠·가운데 몸을 **같은 자**(제 자리 깊이)로 잰다.
        띠는 제 통보다 한 치만 앞, 가운데 몸은 x 0의 제 깊이라 옆에서 보면 먼 통(과 그 띠)을 덮는다. */
-    ...tagKey(paintBase(prismYFaces(OCT_XZ(m * 1.15, Z9, 0.62, 0.4), -1.55, 2.85, true, true), GOLD9),
-      depthNow(m * 1.15, -0.1)),
+    ...tagKey(paintBase(spirePillar({
+      x: 0, y: 0, h: 0.8, w: 1, segs: 10, sides: 12, ref: [1, 0, 0], caps: "both",
+      oval: 0.4 / POD_R9, trueNormal: true,
+      path: (t9: number): [number, number, number] =>
+        [m * 1.15, POD_Y0 + (POD_Y1 - POD_Y0) * t9, Z9],
+      widthOf: conga9,
+    }), GOLD9), depthNow(m * 1.15, -0.1)),
     /* 임자 색은 **통 허리의 두꺼운 띠**(재요청) — 통보다 한 치 굵은 팔각 고리를 가운데에 두른다.
        칠하지 않으므로 그리는 쪽이 임자 색을 넣는다. 가운데 몸에는 아무것도 없다. */
     // 띠는 **불투명·트림 아님**(재지적: 너무 흐림) — 어느 배율에서도 또렷한 임자 색.
-    ...tagKey(prismYFaces(OCT_XZ(m * 1.15, Z9, 0.7, 0.464), -0.45, 0.6, false, false)
-      .map((f) => [f[0], 1] as ShapeFace), depthNow(m * 1.15, -0.1) + 0.15),
+    /* 띠는 콩가의 **머리 테**로 앞쪽에 옮긴다(y 0.62~1.10) — 콩가는 가죽을 죄는 쇠테가
+       머리 바로 밑에 둘리므로, 허리에 두르던 때보다 드럼으로 훨씬 잘 읽힌다. 굵기는
+       그 자리 통 굵기(conga9)보다 한 치 굵게. */
+    ...tagKey(prismYFaces(OCT_XZ(m * 1.15, Z9, conga9(0.08) + 0.075, (conga9(0.08) + 0.075) * (0.4 / POD_R9)),
+      0.62, 0.48, false, false)
+      .map((f) => [f[0], 1] as ShapeFace), depthNow(m * 1.15, 0.86) + 0.15),
     // (걷어냄) 포드 등의 세로 청록 띠 — 재지적: 세로 데칼 제거.
     /* 꽁무니 발광 노즐(사진: 통 뒤끝의 육각형 청록 불) — 뒤를 보일 때만 그린다.
        벽 원반이라 요잉을 타고 저절로 납작해진다. */
     ...(facingRatio(0, -1) > 0.05
       ? tagKey([
         // 단면(y −1.55)에 **정확히** 붙인다(재지적) — 앞뒤 순서는 키가 가른다.
-        [wallDiscPath(m * 1.15, -1.55, Z9, 0.44, 0.288), 0.95, GLOW9] as ShapeFace,
-        [wallDiscPath(m * 1.15, -1.55, Z9, 0.24, 0.16), 1, "#eaf7ff"] as ShapeFace,
+        [wallDiscPath(m * 1.15, POD_Y1, Z9, 0.34, 0.222), 0.95, GLOW9] as ShapeFace,
+        [wallDiscPath(m * 1.15, POD_Y1, Z9, 0.19, 0.126), 1, "#eaf7ff"] as ShapeFace,
       ], depthNow(m * 1.15, -1.7) + 0.3)
       : []),
     /* 앞끝 에너지도 **동체 단면의 데칼**(재지적: 방추·판 말고) — 통 앞 단면에 붙인 벽 원반. */
     ...(facingRatio(0, 1) > 0.05
       ? tagKey([
         // 통 앞끝은 y 1.3(prismYFaces의 셋째 인자는 길이다) — 그 단면 바로 앞.
-        [wallDiscPath(m * 1.15, 1.3, Z9, 0.44, 0.288), 0.95, "#7fffe6"] as ShapeFace,
-        [wallDiscPath(m * 1.15, 1.3, Z9, 0.24, 0.16), 1, "#eaf7ff"] as ShapeFace,
+        [wallDiscPath(m * 1.15, POD_Y0, Z9, 0.46, 0.3), 0.95, "#7fffe6"] as ShapeFace,
+        [wallDiscPath(m * 1.15, POD_Y0, Z9, 0.25, 0.166), 1, "#eaf7ff"] as ShapeFace,
       ], depthNow(m * 1.15, 1.45) + 0.3)
       : []),
     /* 양 동체 바깥의 **아주 작은 사다리꼴 날개**(요청) — 통 옆구리에서 바깥으로 짧게. */
