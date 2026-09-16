@@ -23897,9 +23897,16 @@ export function stageFaces(faces: ShapeFace[], stg: number): ShapeFace[] {
   if (n <= 1) return faces;
   /** 부품의 화면 상자 넓이 — '큰 것부터'의 자다. */
   const area9: number[] = boxes.map((b) => Math.max(0, b[2] - b[0]) * Math.max(0, b[3] - b[1]));
-  /* ① 아래에서 위로 — 꼭대기가 낮은(이 좌표계는 y가 아래로 커지므로 y가 큰) 부품부터. */
+  /* ① 아래에서 위로 ─────────────────────────────────────────────────────────────
+     ★ 자는 **밑변**이다(2026-09, 재요청: "발판이 맨 아래라 제일 먼저 나와야 해") — 여태
+       꼭대기(tops)로 줄을 세웠다. 그러면 '가장 낮은 부품'이 아니라 '가장 납작한 부품'이
+       앞에 서므로, 땅에 닿는 발판보다 선체 밑에 납작하게 깔린 판(커맨드 경사로·스타포트
+       애드온 받침)이 먼저 나왔다. 짓는 차례에서 먼저인 것은 **땅에 먼저 닿는 것**이다.
+       밑변(이 좌표계는 y가 아래로 커지므로 y가 큰 쪽)이 낮은 부품부터 세우고, 같으면
+       꼭대기가 낮은 쪽을 앞에 둔다(같은 바닥이면 납작한 것이 받침이다). */
   const rank: number[] = new Array<number>(n).fill(0);
-  tops.map((_, i) => i).sort((a, b) => tops[b] - tops[a])
+  const bots9: number[] = boxes.map((b) => b[3]);
+  bots9.map((_, i) => i).sort((a, b) => bots9[b] - bots9[a] || tops[b] - tops[a])
     .forEach((gi, r) => { rank[gi] = r; });
   /* ② 안쪽에서 바깥쪽으로(요청: "아래에서 위 순서 뿐 아니라 안쪽-바깥쪽 순서 법칙도
      지켜져야해 — 겉의 창문이나 데칼이 그게 붙을 파트보다 먼저 등장하지 않게") ────────
@@ -23948,6 +23955,11 @@ export function stageFaces(faces: ShapeFace[], stg: number): ShapeFace[] {
      ⚠ 마지막 단계(4단)와 완성의 차는 40점이다 — 구분이 서야 하는 것은 단계끼리가 아니라
        **짓는 중과 완성**이다. */
   const frac9 = BUILD_FRAC9[Math.min(BUILD_FRAC9.length - 1, stg - 1)];
+  /* ⚠ (안 넣었다) '땅에 닿는 부품은 1단에서 다 세운다'는 바닥 — **화면 자로는 못 잰다**.
+     여기 상자는 사영된 화면 상자라, 같은 높이의 발판이라도 **깊이가 다르면 화면 밑변이 다르다**
+     (부감 사영에서 화면 y = a + 0.643·ry − 0.766·z 이므로 z=0 인 땅도 한 줄이 아니다).
+     '가장 낮은 자리에서 한 뼘' 같은 띠는 그래서 가까운 발만 골라내 뜻이 없다. 밑변 차례가
+     이미 발판을 맨 앞에 세우므로 그것으로 족하다. */
   const keep = new Set(order.slice(0, Math.max(1, Math.round(n * frac9))));
   return faces.filter((_, i) => keep.has(gid[i]));
 }
