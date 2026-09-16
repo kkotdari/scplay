@@ -26,7 +26,7 @@ export const MUZZLE_GEN9: Record<string, [number, number, number]> = {
   muta: [0, 2.6, 2.73],
   queen: [0, 3.19, 6.79],
   reaver: [0, 2.81, 0.85],
-  scout: [0, 4.5, 5.46],
+  scout: [0, 5.9, 5.46],
   spore: [1.26, 1.54, 6.44],
   sunken: [0.35, 0.15, 2.96],
   sunkenfire: [0.35, 0.15, 2.96],

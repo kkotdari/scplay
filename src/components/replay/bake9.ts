@@ -14970,8 +14970,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* ① 동체 — 꼬리에서 코까지 한 기둥. 축을 y로 눕히고 ref를 x로 못 박으면 단면의 u가
        가로 폭, v가 높이다. oval로 v를 눌러 납작한 몸을 만들고 widthOf로 코를 좁힌다.
        도막 둘로 나눠 달아야 코와 꼬리가 저마다 제 차례를 갖는다. */
+    /* 동체를 **앞으로 길게**(요청: "동체길이 좀더 길게(앞쪽으로)") — 7.4 → 8.8(코끝 y 4.5 → 5.9).
+       꼬리(−2.9)는 그대로라 늘어나는 몫이 전부 앞이다. 총구 앵커(markMuzzle9)는 코끝을 따라 옮겨 간다. */
     const hullPath9 = (t9: number): [number, number, number] => [
-      0, -2.9 + 7.4 * t9, 4.8 + 0.144 * Math.sin(Math.PI * t9),
+      0, -2.9 + 8.8 * t9, 4.8 + 0.144 * Math.sin(Math.PI * t9),
     ];
     const hullW9 = widthCurve([[0, 0.55], [0.32, 1.05], [0.72, 0.82], [1, 0.14]]);
     markMuzzle9(...hullPath9(1));   // 코끝
@@ -14998,23 +15000,52 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          끝에서 급히 내려가야 '휘었다'로 읽힌다. 곧게 떨어뜨리면 그냥 기운 판이다. */
       const rx9 = m9 * 0.8;
       const tx9 = m9 * 3.7;
+      /* ★ 주익을 **앞으로**(요청: "스카우트 날개 좀더 앞쪽으로(거의 동체에서 수직으로 옆으로 향하게)") —
+         뒤로 쓸리는 몫(y −2.9, 스팬과 같아 45도 후퇴익)을 −0.55 로 줄여 날개가 동체에 거의 **수직**으로
+         옆으로 뻗는다. 뿌리도 반 칸 앞(0.35 → 0.5)이다. 끝이 아래로 처지는 결(z)은 그대로 둔다. */
+      /* 뿌리를 **뒤로** 옮긴다(재요청: "스카우트 날개 좀 뒤로 이동시키고") — 0.5 → −0.4. 쓸림(0.55)은 그대로라
+         날개는 여전히 동체에 거의 수직이고, 자리만 카혼 엔진 뒤쪽으로 물러난다. */
+      const wy0_9 = -0.4; const wSw9 = 0.55;
       out.push(...tagKey(paintBase(spirePillar({
         x: 0, y: 0, h: 0.8, w: 1, segs: 6, sides: 8, ref: [0, 1, 0], caps: "both", oval: 0.15,
         path: (t9: number): [number, number, number] => [
-          rx9 + (tx9 - rx9) * t9, 0.35 - 2.9 * t9, 4.8 - 0.92 * t9 * t9,
+          rx9 + (tx9 - rx9) * t9, wy0_9 - wSw9 * t9, 4.8 - 0.92 * t9 * t9,
         ],
         widthOf: widthCurve([[0, 1.35], [1, 0.5]]),
-      }), GOLD9), partKey(m9 * 2.3, -1.0, 4.48)));
+      }), GOLD9), partKey(m9 * 2.3, wy0_9 - wSw9 * 0.5, 4.48)));
       /* ④ 날개 데칼 — 임자 색 한 자락. 날개 윤곽 안쪽으로 물려 두어 어느 요잉에서도 금색
          테두리가 남는다(칠을 안 하므로 그리는 쪽이 임자 색을 넣는다). */
       out.push(...tagKey(spirePillar({
         x: 0, y: 0, h: 0.8, w: 1, segs: 5, sides: 6, ref: [0, 1, 0], caps: "none", oval: 0.1,
         path: (t9: number): [number, number, number] => [
-          rx9 + (tx9 - rx9) * (0.15 + 0.7 * t9), 0.2 - 2.9 * (0.15 + 0.7 * t9),
+          rx9 + (tx9 - rx9) * (0.15 + 0.7 * t9), wy0_9 - 0.15 - wSw9 * (0.15 + 0.7 * t9),
           4.848 - 0.92 * (0.15 + 0.7 * t9) ** 2,
         ],
         widthOf: (): number => 0.32,
-      }), partKey(m9 * 2.3, -1.0, 4.56) + 0.3));
+      }), partKey(m9 * 2.3, wy0_9 - wSw9 * 0.5, 4.56) + 0.3));
+      /* ★ ⑦ **카혼(콩가) 엔진** — 날개와 동체 사이에 앉은 통 하나(요청 + 사진: "날개와 동체 사이에 카혼이라는
+         악기몸통 모양의 엔진이 있어야하고 그엔진은 스카우트사진처럼 살짝 대각선앞쪽을 향해야하고
+         앞쪽표면을 임자색 띠로 두름") ────────────────────────────────────────────────────────
+         콩가의 옆선 그대로다: 발(뒤)이 가늘고 배가 불렀다가 머리(앞)에서 살짝 좁아진다(widthCurve).
+         축은 **살짝 대각선 앞·바깥**을 본다(뒤 x 1.42 → 앞 1.72 · y −1.75 → 1.35). 앞 테두리 한 자락은
+         칠하지 않아 임자 색이 들고(사진의 청록 링), 통보다 5% 굵어 테로 도드라진다. */
+      {
+        const ea9: [number, number, number] = [m9 * 1.42, -1.75, 4.42];
+        const eb9: [number, number, number] = [m9 * 1.72, 1.35, 4.52];
+        const ep9 = (t9: number): [number, number, number] => [
+          ea9[0] + (eb9[0] - ea9[0]) * t9, ea9[1] + (eb9[1] - ea9[1]) * t9, ea9[2] + (eb9[2] - ea9[2]) * t9,
+        ];
+        const ew9 = widthCurve([[0, 0.3], [0.25, 0.46], [0.62, 0.58], [0.86, 0.54], [1, 0.45]]);
+        out.push(...tagKey(paintBase(spirePillar({
+          x: 0, y: 0, h: 0.8, w: 1, segs: 8, sides: 10, ref: [0, 0, 1], caps: "both",
+          path: ep9, widthOf: ew9,
+        }), GOLD9), partKey(m9 * 1.57, -0.2, 4.47)));
+        out.push(...tagKey(spirePillar({
+          x: 0, y: 0, h: 0.8, w: 1, segs: 2, sides: 10, ref: [0, 0, 1], caps: "none",
+          path: (t9: number): [number, number, number] => ep9(0.82 + 0.16 * t9),
+          widthOf: (t9: number): number => ew9(0.82 + 0.16 * t9) * 1.05,
+        }), partKey(m9 * 1.7, 1.2, 4.52) + 0.4));
+      }
       /* ⑤ 엔진 나셀 — 등 뒤에 얹힌 짧은 관(재요청: 아래로 0.3). 뒤를 볼 때만 플라즈마가 든다. */
       const ex9 = m9 * 0.55;   // 더 안쪽으로(재요청: 0.85 → 0.55), 높이도 아래로(6.25 → 5.85)
       const EZ9 = 4.68;
@@ -15029,8 +15060,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       if (poseNow === 1) out.push(...thrustFlame(ex9, -3.35, EZ9, 0.38, "toss", partKey(ex9, -4.0, EZ9) + 0.4));
       /* ⑥ 앞뿔 — 코 위로 뻗는 한 쌍(사진1의 더듬이). 이 둘이 있어야 앞이 '머리'로 읽힌다. */
       out.push(...tagKey(paintBase(
-        spikeHorn(m9 * 0.5, 1.9, 4.96, m9 * 0.85, 3.9, 5.08, 0.18, undefined, 5), GOLD9,
-      ), partKey(m9 * 0.7, 2.9, 5.04)));
+        spikeHorn(m9 * 0.5, 2.6, 4.96, m9 * 0.85, 4.8, 5.08, 0.18, undefined, 5), GOLD9,   // 코가 길어진 만큼 앞으로(+0.7/+0.9)
+      ), partKey(m9 * 0.7, 3.6, 5.04)));
     }
     return zsorted(out);
   },
@@ -16613,9 +16644,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const PIPE9 = ["#dbb9a0", "#d5b29a", "#e0c0a6", "#d0aa93"];
         /* 수·마디는 **삯을 보고** 정한다 — 44개 × 마디 11 × 6각이면 이 한 종류가 메시 5175 낯(전체의 8%)이 된다.
            마디 8 × 5각이면 눈에 보이는 뭉침은 그대로면서 낯이 절반이다(실측 5175 → 3079).
-           수는 144(요청: 72 에서 두 배). 그만큼 마디·낯을 줄인다(마디 9 · 4각) — 관 굵기가 0.1 언저리라
-           4각이어도 화면에서는 둥근 관으로 읽힌다(이 종류만 메시 7000 낯을 넘기지 않게). */
-        const NP9 = 144;
+           수는 173(요청: 144 에서 1.2배). 그만큼 마디·낯을 줄인다(마디 8 · 4각) — 관 굵기가 0.06 언저리라
+           4각이어도 화면에서는 둥근 관으로 읽힌다(이 종류만 메시 8000 낯을 넘기지 않게). */
+        const NP9 = 173;
         for (let i9 = 0; i9 < NP9; i9 += 1) {
           /* ★ 좌우 **거울 대칭은 걷었다**(재요청: "좌우대칭으로 하지 마 자연스럽게 해야지") ────────────────
              핏줄이 대칭을 지키는 까닭(잉크 가로중심이 곧 건물이 앉는 자리)은 **판 굽기 시절**의 것이다:
@@ -16663,7 +16694,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
              0.42~1.64 였지만 호가 말려 드는 탓에 눈에 보이는 크기는 거기서 거기였다. 제 해시(u4)를
              제곱꼴로 태워 **짧은 것은 더 짧고 긴 것은 훨씬 길게** 흩는다(0.38~2.3배). */
           const g4 = Math.sin(j9 * 61.7 + 5.1); const u4 = g4 * 0.5 + 0.5;
-          const len9 = (0.38 + u4 ** 1.7 * 1.92) * 0.84;   // 호(+곧은 앞머리)의 전체 길이
+          const len9 = (0.38 + u4 ** 1.7 * 1.92) * 0.84 * 1.25;   // 호(+곧은 앞머리)의 전체 길이(반지름 키우기)
           const bendK9 = j9 % 10;
           const sgn9 = g2 > 0 ? 1 : -1;
           /** 굽는 쪽(ψ) — π/2 면 위로, 0·π 면 옆으로, 그 사이가 대각이다. 열에 셋은 위·셋은 대각·넷은 옆. */
@@ -16671,8 +16702,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
             ? Math.PI / 2 + (u1 - 0.5) * 0.5                       // 위(열에 둘)
             : bendK9 < 4 ? sgn9 * (Math.PI / 4 + (u1 - 0.5) * 0.4) // 대각(열에 둘)
               : sgn9 * ((u1 - 0.5) * 0.5);                        // 옆(열에 여섯 — 거의 눕는다)
-          /** 도는 각 — 반원(π)에서 1.45π 까지. 클수록 끝이 제 뿌리 쪽으로 말려 든다. */
-          const phi9 = Math.PI * (1.0 + u3 * 0.45);
+          /** 도는 각 — 반원(π)에서 1.25π 까지. 클수록 끝이 제 뿌리 쪽으로 말려 든다.
+           *  ★ 굽는 **반지름을 키운다**(재요청) — R = 호 길이 / Φ 라, 각을 좁히고(1.45π → 1.25π)
+           *  길이를 1.25배 늘리면 R 이 1.45배가 된다. '반원 이상'은 그대로 지킨다. */
+          const phi9 = Math.PI * (1.0 + u3 * 0.25);
 
           const w9 = (0.16 + u2 * 0.18) * 0.64 * 0.9 * 0.6;  // 관 굵기(요청: 20%×2 · 10% · 0.6배 축소)
           /* ★ 셋에 하나는 **곧게 뻗다가 휜다**(재요청: "1/3 정도는 그냥 바깥으로 쭉 뻗다가 휘어야해
@@ -16684,7 +16717,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           const R9p2 = arc9 / phi9;
           const cp9 = Math.cos(psi9); const sp9 = Math.sin(psi9);
           const face9 = paintBase(spirePillar({
-            x: 0, y: 0, h: 0.8, w: w9, tipW: w9 * 0.5, segs: 9, sides: 4, caps: "none", taper: 1,
+            x: 0, y: 0, h: 0.8, w: w9, tipW: w9 * 0.5, segs: 8, sides: 4, caps: "none", taper: 1,
             path: (t9: number): [number, number, number] => {
               const d9 = len9 * t9;                      // 관을 따라 걸은 거리
               const th9 = d9 <= lead9 ? 0 : (phi9 * (d9 - lead9)) / arc9;
