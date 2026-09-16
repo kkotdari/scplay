@@ -4026,7 +4026,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         if (GL_BLIT9) ctx.drawImage(gl9.canvas, 0, 0, cw, ch);   // `#glblit=0`(계측): 헤드리스 SwiftShader 는 이 한 줄이 ReadPixels 로 1~2초다
         if (scrDiagOn()) {
           const miss9 = [...GL_MISS9].sort((a9, b9) => b9[1] - a9[1]).slice(0, 4).map(([k9, n9]) => `${k9}×${n9}`).join(" ");
-          SCR_DIAG.gl = `on 개체 ${gl9.stat.inst} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}/${gl9.meshMax}(${gl9.stat.bakeMs.toFixed(0)}ms·${(gl9.stat.bytes / 1048576).toFixed(1)}MB) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit 번짐 ${gl9.stat.bloom}${miss9 ? " 판으로 " + miss9 : ""}`;
+          SCR_DIAG.gl = `on 개체 ${gl9.stat.inst} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}/${gl9.meshMax}(${gl9.stat.bakeMs.toFixed(0)}ms·${(gl9.stat.bytes / 1048576).toFixed(1)}MB${gl9.stat.evict ? "·버림 " + gl9.stat.evict : ""}) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit 번짐 ${gl9.stat.bloom}${miss9 ? " 판으로 " + miss9 : ""}`;
         }
       }
       if (fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM)) {

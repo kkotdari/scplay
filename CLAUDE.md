@@ -351,6 +351,18 @@ scplayer 쪽 소스를 만졌으면 그쪽에서 `npx tsc --noEmit -p tsconfig.j
     footOf 용 사본은 **겹치지 않는 꼭짓점 xyz 만**(정점 사본 통째 270KB/벌 → 수십 KB). 메시 상한은 기기 표 `DEV9.glMeshMax`(PC 600 · 폰 240;
     실측 폰 프로필 157벌 24MB → 240벌 37MB). 데우기는 rAF 당 6ms·8벌로 나뉜다. 처음 보는 종류의 메시를 지은 몫은 `glBakeMsTake9()` 가
     프레임마다 내고, 시계가 그것으로 '굽는 프레임'을 안다(옛 판 굽기의 그 문지기 자리).
+  · ★ **메시 보관함은 LRU 여야 한다**(2026-09, 지적: "모바일에서 화면 이동도 안 하고 유닛 변화도 거의 없는데
+    모델 굽는 중이 계속 나오는 현상") — `meshFor` 가 **찾았을 때 다시 안 넣어** 버리는 자가 Map 의 **삽입 차례**를
+    보고 있었다(FIFO). 삽입 차례는 '얼마나 오래되었나'이지 '얼마나 안 쓰나'가 아니다 — 매 프레임 쓰는 메시일수록
+    먼저 늙어, 상한에 닿는 순간 **가장 많이 쓰는 것부터** 버려지고 곧바로 다시 지어져 다음 것을 밀어낸다.
+    · 갈리는 자리는 **열쇠 churn** 이다: 포탑 각(headTag)·건설 단계·불빛·회전 칸 때문에 새 열쇠가 끊이지 않는다.
+      정책만 떼어내 흉내 낸 값(상한 240 · 늘 쓰는 메시 150벌 · 600프레임): 새 열쇠가 프레임당 둘이면 FIFO 는
+      **늘 쓰는 메시를 프레임당 3.25벌** 다시 굽고, 하나뿐이어도 1.5벌이다. LRU 는 **0**이다.
+      ⚠ churn 이 없으면 둘이 **똑같다**(한 번 다시 구우면 그것이 곧 맨 뒤가 되므로) — 짧은 계측으로는 못 가른다.
+    · 그래서 화면이 한 톨도 안 움직여도 굽기가 영영 이어지고, '모델 굽는 중' 띠가 안 꺼진다. 게다가 시계가
+      **굽는 프레임에는 시간을 안 보내므로**(BAKE_HOLD) 유닛도 거의 안 움직인다 — 그 둘이 한 뿌리였다.
+    · 진단: `#diag=draw` GL 줄의 `버림 N` (`stat.evict`). **0 이 아니면 보관함이 좁다**. 상한을 손으로 바꿔 재현하려면
+      `#glmesh=N`.
   · **헤드리스는 GL 을 못 잰다**: 크로뮴 헤드리스는 소프트웨어 GL(SwiftShader)이라 WebGL 캔버스 → 2D `drawImage` 합성이 ReadPixels 로 서서
     1454² 한 장에 1~2초(실측, 옵션 무관)고 삼각형 채우기도 CPU 다. perf-check 는 기본으로 `#glblit=0`(합성만 뺌 — GL 은 다 돈다)을 붙여
     GL 의 CPU 몫만 잰다(`--glblit` 로 도로 붙임). PC 프로필 gl=0/gl=1 둘 다 p50 67ms(헤드리스 프레임 박자)라 차이가 안 보인다 — GPU 채우기·
@@ -360,7 +372,7 @@ scplayer 쪽 소스를 만졌으면 그쪽에서 `npx tsc --noEmit -p tsconfig.j
     나눠 준다(아이콘마다 문맥을 열면 상한 16에 걸리고, 헤드리스는 읽기 한 번이 1~2초). 자·원점은 gl-check 와 같다(16-상자 x = 8 + rx ·
     y = 12 + Y). 창은 ShapeIcon 의 viewBox 규약 그대로(fit 은 footOf 상자 + 짧은 변 12%·fitBox·wide·16-상자). 평면(flat)만 — 입체 보기는
     SVG 로 떨어진다. 색은 요소의 currentColor(--scr-doc-own).
-  · 진단: `#diag=draw` 'GL' 줄(개체·삼각·메시/상한(굽기 ms·VBO MB)·깊이칸/bit·번짐 개체 수·판으로 떨어진 종류) · `#glshade=0|1|2` · `#gldepth=0` · `#glbias=N` · `#gllod=N` · `#glbloom=0|1` ·
+  · 진단: `#diag=draw` 'GL' 줄(개체·삼각·메시/상한(굽기 ms·VBO MB·**버림**)·깊이칸/bit·번짐 개체 수·판으로 떨어진 종류) · `#glmesh=N` · `#glspec=0|N` · `#glgrain=0|N` · `#glshade=0|1|2` · `#gldepth=0` · `#glbias=N` · `#gllod=N` · `#glbloom=0|1` ·
     `#glwarm=0` · `#glblit=0`. 계측 `perf-check --hash gl=0`(캔버스 비교) `--shot x.png --probe-gl`(메시 표: 삼각·색·KB) `--warm 0`. 메시만 따로 보려면 `scripts/model-mesh.mjs`.
   · **전수조사 `node scripts/gl-check.mjs [--kinds a,b] [--rots 45,225] [--worst 40] [--hash glbloom=0] --out <scratch>/glcheck.png [--json x.json]`** —
     종류마다 2D(캔버스 면 그리기)와 GL 을 같은 칸에 그려 실루엣 IoU·색차·밝기비를 재고 나쁜 순으로 표와 [2D,GL] 시트를 낸다.

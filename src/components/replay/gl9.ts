@@ -372,7 +372,8 @@ export class GlUnits9 {
   /** 진단: 마지막 프레임의 개체 수·삼각형 수·메시 수·메시 굽기 ms. */
   /** 진단: 마지막 프레임의 개체·삼각형 수 · 메시 벌 수 · 메시 굽기 ms(누적)와 **이번 프레임 몫**(frameBakeMs — 시계가
    *  '굽는 프레임'을 아는 자) · 깊이 칸/비트 · 살아 있는 메시 VBO 합(바이트). */
-  stat = { inst: 0, tris: 0, bakeMs: 0, frameBakeMs: 0, meshes: 0, slots: 0, depthBits: 0, bytes: 0, bloom: 0 };
+  /** evict: 상한에 걸려 버린 메시 수(누적) — **0 이 아니면 보관함이 좁다**. 늘 굽고 있다는 뜻이라 진단에 낸다. */
+  stat = { inst: 0, tris: 0, bakeMs: 0, frameBakeMs: 0, meshes: 0, slots: 0, depthBits: 0, bytes: 0, bloom: 0, evict: 0 };
   /** meshMax: 메시 상한(기기 표 DEV9.glMeshMax — PC 600 · 폰 240; 메시 한 벌은 VBO + footOf 용 정점 사본이라 폰 메모리에 든다). */
   /* ⚠ meshMax·bloomOn 은 **읽기 전용이 아니다**(2026-09, 폰 세 단) — 벤치 단이 유휴 재기로 오르면 기기 표(DEV9)의
      값이 바뀌므로, glUnits9 가 다음 칠하기에서 그 벌에 새 값을 일러 준다. */
@@ -454,7 +455,14 @@ export class GlUnits9 {
   /** 열쇠별 메시 — 처음 볼 때 run()(빌더를 요잉 0 으로 한 번 돌리는 일, 1~7ms)으로 짓는다. 못 지으면 null 로 굳는다. */
   private meshFor(key: string, run: () => { parts: { polys: number[][]; fill: string; alpha: number; team: boolean; ow: number; ob: number; bb?: boolean; solid?: boolean; flip?: boolean; flips?: boolean[]; emit?: boolean }[] }, bias0 = 0.8, glow = false): GlMesh9 | null {
     const got = this.meshes.get(key);
-    if (got !== undefined) return got;
+    /* ★ 찾았으면 **맨 뒤로 옮긴다**(2026-09, 지적: "모바일에서 화면 이동도 안 하고 유닛 변화도 거의 없는데
+       모델 굽는 중이 계속 나오는 현상") ───────────────────────────────────────────────────────────
+       이 줄이 없어서 보관함이 **LRU 가 아니라 FIFO** 였다. 버리는 자는 Map 의 삽입 차례를 보는데, 찾았을 때
+       다시 안 넣으면 **매 프레임 쓰는 메시일수록 먼저 늙는다** — 상한에 닿는 순간 가장 많이 쓰는 것부터 버려지고,
+       그것이 곧바로 다시 지어져 맨 뒤에 들어가며 다음 것을 밀어낸다. 화면이 한 톨도 안 움직여도 굽기가 영영
+       이어진다(그래서 '굽는 중' 띠가 안 꺼지고, 시계가 굽는 프레임마다 시간을 안 보내 유닛도 거의 안 움직였다).
+       삽입 차례는 '얼마나 오래되었나'이지 '얼마나 안 쓰나'가 아니다 — 지우고 다시 넣어 **쓴 차례**로 만든다. */
+    if (got !== undefined) { this.meshes.delete(key); this.meshes.set(key, got); return got; }
     const t0 = performance.now();
     let mesh: GlMesh9 | null = null;
     try {
@@ -541,10 +549,15 @@ export class GlUnits9 {
     } catch (e) { console.warn("[gl9] 메시", key, e); }
     const ms0 = performance.now() - t0;
     this.stat.bakeMs += ms0; this.stat.frameBakeMs += ms0;
-    if (this.meshes.size >= this.meshMax) {
-      // 가장 오래된 것부터 버린다(Map 삽입 차례) — 포탑 각·건설 단계처럼 열쇠가 잘게 갈리는 건물이 쌓이지 않게.
+    /* 가장 **안 쓴** 것부터 버린다(위 ★ 로 Map 차례가 곧 쓴 차례다) — 포탑 각·건설 단계처럼 열쇠가 잘게
+       갈리는 건물이 쌓이지 않게. while 인 까닭은 단이 상한을 **내릴** 수도 있기 때문이다(그때 한 번에 줄인다). */
+    while (this.meshes.size >= this.meshMax) {
       const first = this.meshes.keys().next();
-      if (!first.done) { const m = this.meshes.get(first.value); if (m) { this.gl.deleteBuffer(m.vbo); this.stat.bytes -= m.bytes; } this.meshes.delete(first.value); }
+      if (first.done) break;
+      const m = this.meshes.get(first.value);
+      if (m) { this.gl.deleteBuffer(m.vbo); this.stat.bytes -= m.bytes; }
+      this.meshes.delete(first.value);
+      this.stat.evict += 1;
     }
     this.meshes.set(key, mesh);
     return mesh;
@@ -849,6 +862,12 @@ export const GL_SPEC9 = ((): number => {
   const v = m ? Number(m[1]) : 1;
   return Number.isFinite(v) ? Math.max(0, Math.min(4, v)) : 1;
 })();
+/** 메시 보관함 상한 손잡이 — `#glmesh=N`(기기 표를 덮는다). 보관함이 좁을 때의 굽기 되풀이를 재현할 때 쓴다. */
+export const GL_MESH_MAX9 = ((): number => {
+  const m = typeof location !== "undefined" ? /glmesh=(\d+)/.exec(location.hash) : null;
+  const v = m ? Number(m[1]) : -1;
+  return Number.isFinite(v) && v > 0 ? v : -1;
+})();
 /** 결 세기 손잡이 — `#glgrain=0` 끔 · `#glgrain=1` 기본 · 사이/위 값으로 눌러 본다(표 값에 곱한다). */
 export const GL_GRAIN9 = ((): number => {
   const m = typeof location !== "undefined" ? /glgrain=([\d.]+)/.exec(location.hash) : null;
@@ -884,10 +903,10 @@ export function glUnits9(cv: HTMLCanvasElement | null, meshMax = MESH_MAX9, bloo
   if (!GL_ON9 || !cv) return null;
   if (glInst9 !== undefined && (glInst9 === null || glInst9.canvas === cv)) {
     // 단이 올랐으면 새 상한·번짐을 그 벌에 옮긴다(벌은 한 번만 짓는다).
-    if (glInst9) { glInst9.meshMax = meshMax; glInst9.bloomOn = bloom; glInst9.specOn = spec; }
+    if (glInst9) { glInst9.meshMax = GL_MESH_MAX9 > 0 ? GL_MESH_MAX9 : meshMax; glInst9.bloomOn = bloom; glInst9.specOn = spec; }
     return glInst9;
   }
-  try { glInst9 = new GlUnits9(cv, meshMax, bloom, spec); } catch (e) { console.warn("[gl9]", e); glInst9 = null; }
+  try { glInst9 = new GlUnits9(cv, GL_MESH_MAX9 > 0 ? GL_MESH_MAX9 : meshMax, bloom, spec); } catch (e) { console.warn("[gl9]", e); glInst9 = null; }
   (globalThis as unknown as { __gl9?: GlUnits9 | null }).__gl9 = glInst9;   // 진단(perf-check --probe-gl)
   return glInst9;
 }
