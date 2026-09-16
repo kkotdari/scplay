@@ -7328,7 +7328,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   }),
   /* 파일런(정정 둘) — 고리를 수정 허리께로 더 올리고(지적), 수정은 매끈한 육각
      보석으로 다듬었다: 위 뾰족·어깨·허리·아래 뾰족이 좌우대칭. */
-  diamond: () => {
+  /* ★ 파일런은 **−45도 돌려 세운다**(요청: "파일런 −45도 요잉") — 모델 자체를 돌리므로
+     2D·GL·도록이 한 자를 쓴다(SHAPE_ROT 은 2D 길만 타서 GL 이 안 따라온다). */
+  diamond: () => withModelSpin(-45, (): ShapeFace[] => {
     /* 파일런(사진 참고) — 위아래로 뾰족한 큰 파란 수정을 가운데 두고, 그 허리를
        수평 링이 감싼다. 링 둘레에는 세로 갈고리 여섯이 위아래로 뻗고, 링 자체엔
        청록 띠가 점점이 박힌다. 자체 그림자는 없다(공용 groundShadow가 맡는다). */
@@ -7424,7 +7426,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       depthNow(0, RING_R)));
     for (const ang of [0, 60, 300]) out.push(...claw(ang));
     return out;
-  },
+  }),
   /* 로보틱스(실물 참고, 곡선의 미) — 둥근 대야와 도톰한 링 테두리, 어두운 격자 구덩이,
      테두리의 매끈한 흰 가시, 그리고 테두리에서 구덩이 위로 부드럽게 굽어 드리우는 팔. */
   dome: () => {

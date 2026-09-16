@@ -491,9 +491,17 @@ export class GlUnits9 {
       const ordOf = new Map(m.parts.map((p, i) => [p, (i / Math.max(1, m.parts.length - 1)) * 0.3 + Math.min(0.4, i * 0.004)] as const));
       /* 데칼 판정 — 한 장짜리 폴리곤이면서 작거나(대각 < 2.8) 반투명한 부품. 2D 모델은 줄무늬·창·환풍구를 벽 살짝 안쪽에 그려 두고
          화가 차례로 위에 얹었다 — 진짜 깊이로는 벽에 묻힌다. 데칼은 뒤 구간에 모아 깊이 편향으로 그린다. */
+      /* ★ **데칼은 작아야 데칼이다**(2026-09, 지적: "배럭 큰 세 개 건물 사이 두 개 건물이 반투명하게 보이고
+         가려져야 할 부분도 안 가려지는 현상" · "파일런 −45도 요잉") ────────────────────────────────────────
+         여기 `if (p.alpha < 0.98) return true;` 가 **크기를 안 묻고** 있었다. 그런데 편향을 받아야 하는 데칼은
+         '벽 안쪽에 그려 둔 줄무늬·창·환풍구'처럼 **작은** 것이고, `frustumFaces3` 는 벽마다 제 음영 덮개를
+         **한 장짜리 반투명 면**으로 낸다 — 배럭 판의 벽 덮개(대각선 5.5칸)가 통째로 데칼로 잡혀 **1.3 모델칸**
+         앞으로 끌려 나왔다. 그러면 뒤 판의 덮개가 앞 판을 이기고 그 위에 그려져, 앞 판이 비쳐 보이고
+         가려야 할 것을 못 가린다. 몸은 멀쩡히 불투명으로 있는데도(실측: 배럭 #373 폴리 5) 그렇다.
+         그래서 **크기 문을 반투명에도 똑같이 건다** — 돔 뒤의 초승달 그늘 같은 진짜 데칼은 작아서 그대로 남고,
+         벽 한 장은 몸과 같은 깊이에서 겨룬다. */
       const isDecal = (p: { polys: number[][]; alpha: number }): boolean => {
         if (p.polys.length !== 1) return false;
-        if (p.alpha < 0.98) return true;
         const poly = p.polys[0]; let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity;
         for (let i = 0; i < poly.length; i += 3) { const x = poly[i], y = poly[i + 1], z = poly[i + 2]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; if (z < z0) z0 = z; if (z > z1) z1 = z; }
         return Math.hypot(x1 - x0, y1 - y0, z1 - z0) < 2.8;
