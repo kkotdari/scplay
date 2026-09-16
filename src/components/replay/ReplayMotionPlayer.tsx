@@ -4979,6 +4979,38 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             ctx.lineTo(N20[0], N20[1]);
             ctx.closePath();
             ctx.fill();
+          } else if (st.cone) {
+            /* ★ **원뿔 줄기**(화염방사) — 뿌리에서 좁고 앞으로 갈수록 넓어진다(요청: "파뱃
+               트레이서 시작점은 좀 좁고 앞으로 가면서 넓어지는 형태여야 함 · 야구 방망이
+               느낌"). 굵기 하나로 긋는 획은 어디서나 폭이 같아 '뿜는 불'이 아니라 **막대**로
+               읽힌다. 같은 길 위에 사다리꼴을 채우고 **양 끝을 둥글게** 닫으면 방망이 꼴이 된다.
+               ⚠ 뿌리는 lx9(총구)다 — 이 갈래는 muzzleLit 이라 그러데이션 0쪽이 총구다. */
+            const vx7 = dx9 - lx9; const vy7 = dy9 - ly9;
+            const vl7 = Math.hypot(vx7, vy7) || 1;
+            const ux7 = vx7 / vl7; const uy7 = vy7 / vl7;
+            const nx7 = -uy7; const ny7 = ux7;
+            const au7 = Math.atan2(uy7, ux7);
+            /** 뿌리·앞 끝의 **반**폭(화면 px) — ex 는 번짐 켜가 밖으로 더 두르는 몫이다. */
+            const cone7 = (ex7: number): void => {
+              const h07 = Math.max(0.3, (st.w * zoom * (st.cone as readonly [number, number])[0]) / 2) + ex7;
+              const h17 = Math.max(0.5, (st.w * zoom * (st.cone as readonly [number, number])[1]) / 2) + ex7;
+              ctx.beginPath();
+              ctx.moveTo(lx9 + nx7 * h07, ly9 + ny7 * h07);
+              ctx.lineTo(dx9 + nx7 * h17, dy9 + ny7 * h17);
+              ctx.arc(dx9, dy9, h17, au7 + Math.PI / 2, au7 - Math.PI / 2, true);
+              ctx.lineTo(lx9 - nx7 * h07, ly9 - ny7 * h07);
+              ctx.arc(lx9, ly9, h07, au7 - Math.PI / 2, au7 + Math.PI / 2, true);
+              ctx.closePath();
+              ctx.fill();
+            };
+            if (st.glow) {
+              ctx.fillStyle = st.glow;
+              ctx.globalAlpha = a9 * (st.glowA ?? 0.3);
+              cone7(st.w * zoom * ((st.glowW ?? 2.6) - 1) / 2);
+              ctx.globalAlpha = a9;
+            }
+            ctx.fillStyle = g9;
+            cone7(0);
           } else {
             /* 길 하나를 두 번 긋는다(번짐 + 몸) — 꺾인 갈래는 두 획이 **같은 마디**를
                지나야 하므로 길을 여기서 한 번만 짓는다. */

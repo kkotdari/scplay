@@ -5968,13 +5968,21 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           0.82, winLit("#ffe790")] as ShapeFace);   // 심 — 노랑
       }
       out.push(...tagKey(win, 60));
-      // 긴 구조물 옆구리의 안전 빗금.
+      /* ★ 안전 빗금은 **앞면 가로폭을 꽉 채운다**(2026-09, 요청: "스타포트 앞면 해저드
+         데칼을 폭을 앞면 가로폭에 맞게 늘리고 위치도 맞추기") — 여태 x −2.4~0.3 의 다섯
+         줄이라, 폭 5.8 짜리 앞면(② 끝 구조물)의 **왼쪽 절반에 치우쳐** 붙어 있었다.
+         반폭에서 0.1 만 물러난 자리를 줄 수로 나눠 채운다 — 간격을 폭에서 셈하므로
+         앞면을 다시 키워도 빗금이 따라온다(붙박이 0.55 로 두면 또 어긋난다). */
+      const HZ_HW9 = 5.8 / 2 - 0.1;                      // ②의 반폭에서 조금 물러난 자리
+      const HZ_N9 = 11;                                  // 줄 수(간격 ≈ 0.51 — 옛 0.55와 같은 결)
+      const HZ_P9 = (HZ_HW9 * 2 - 0.5) / (HZ_N9 - 1);    // 마지막 줄의 끝이 딱 반대쪽 끝에 선다
+      const cl9 = (v9: number): number => Math.max(-HZ_HW9, Math.min(HZ_HW9, v9));
       const warn: ShapeFace[] = [];
-      for (let k9 = 0; k9 < 5; k9 += 1) {
-        const u9 = -2.4 + k9 * 0.55;
+      for (let k9 = 0; k9 < HZ_N9; k9 += 1) {
+        const u9 = -HZ_HW9 + k9 * HZ_P9;
         warn.push([polyPath3([
-          [u9, 8.34, BODY_Z0z9 - 0.064], [u9 + 0.26, 8.34, BODY_Z0z9 - 0.064],
-          [u9 + 0.5, 8.34, BODY_Z0z9 + 0.192], [u9 + 0.24, 8.34, BODY_Z0z9 + 0.192],
+          [cl9(u9), 8.34, BODY_Z0z9 - 0.064], [cl9(u9 + 0.26), 8.34, BODY_Z0z9 - 0.064],
+          [cl9(u9 + 0.5), 8.34, BODY_Z0z9 + 0.192], [cl9(u9 + 0.24), 8.34, BODY_Z0z9 + 0.192],
         ]), 1, k9 % 2 === 0 ? AMBER : "#21252c"] as ShapeFace);
       }
       out.push(...tagKey(warn, 59));
@@ -10011,7 +10019,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        가려지게") — 바닥이 0.44 라 받침이 땅에 거의 붙어 있어 다리가 '건물 밑의 기둥'이 아니라
        '옆에 놓인 받침'으로 보였다. **윗면(1.32)은 못 박고 밑면만 0.44 → 0.74 로** 올린다:
        위에 얹힌 것들이 전부 절대 z(1.24·1.44·2.04…)라 받침 윗면이 움직이면 통째로 어긋난다. */
-    out.push(...tagKey(frustumFaces3(0, 0, 8.4, 6.4, 7.6, 5.6, 0.58, 0.74), 0));
+    /* ★ 본체는 **키 +20% · 좌우 −10%**다(2026-09, 요청: "사이언스 퍼실리티 본체 높이 20프로
+       늘리고 좌우 길이 10프로 축소") — 넓고 납작한 판이라 건물이 아니라 '받침대'로 읽혔다.
+       ⚠ 키는 **위로** 늘린다(밑면 0.74 고정) — 밑을 내리면 앞서 올려 둔 다리 가림이 도로
+       풀린다. 위에 얹힌 것들은 절대 z 라 그만큼 받침 속으로 더 앉을 뿐 틈이 안 생긴다. */
+    const SF_WK9 = 0.9; const SF_HK9 = 1.2;
+    out.push(...tagKey(frustumFaces3(0, 0, 8.4 * SF_WK9, 6.4, 7.6 * SF_WK9, 5.6, 0.58 * SF_HK9, 0.74), 0));
 
     /* ── 발판 넷 — **테란 공통 다리·발판**(정정: "다른 테란 건물들 발판과 같은 모델로").
        ★ 자리를 안으로 들인다(같은 요청) — 3.0·3.0 → **2.5·2.4**. 받침의 밑면 반깊이가 3.2 인데
@@ -10088,11 +10101,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        절두체는 축 정렬이라 폭·깊이만 바꿔 끼우고, 청록 띠는 왼 모서리(−x)에서 앞 모서리(+y)로 간다. */
     {
       const bx9 = 3.15; const by9 = 0.3; const S9 = 0.8; const Z09 = 0.72;
+      /** 좌우(x)만 한 번 더 −20%(요청: "오른쪽 위의 상자도 좌우 길이 20프로 축소") —
+       *  앞뒤(y)·키는 그대로라 상자가 옆으로만 얇아진다. 창살·청록 띠도 그 낯을 따라 들어온다. */
+      const BX9 = 0.8;
       const zz9 = (z: number): number => Z09 + (z - Z09) * S9;
       const k9 = 10 + depthNow(bx9, by9) * 1.6;
-      out.push(...tagKey(frustumFaces3(bx9, by9, 2.7 * S9, 2.6 * S9, 2.3 * S9, 2.2 * S9, 1.84 * S9, Z09), k9));   // 테란 기본색
+      out.push(...tagKey(frustumFaces3(bx9, by9, 2.7 * S9 * BX9, 2.6 * S9, 2.3 * S9 * BX9, 2.2 * S9, 1.84 * S9, Z09), k9));   // 테란 기본색
       if (facingRatio(1, 0) > 0.08) {
-        const fx9 = bx9 + 1.32 * S9;
+        const fx9 = bx9 + 1.32 * S9 * BX9;
         const win9: ShapeFace[] = [[polyPath3([
           [fx9, by9 + 1.0 * S9, zz9(1.08)], [fx9, by9 - 1.0 * S9, zz9(1.08)],
           [fx9, by9 - 0.93 * S9, zz9(2.2)], [fx9, by9 + 0.93 * S9, zz9(2.2)],
@@ -10106,7 +10122,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         }
         out.push(...tagKey(win9, k9 + 0.4));
       }
-      out.push(...tagKey(paintBase(boxFaces3(bx9, by9 + 1.15 * S9, 2.1 * S9, 0.16 * S9, 0.112 * S9, zz9(2.56)), TEAL), k9 + 0.5));
+      out.push(...tagKey(paintBase(boxFaces3(bx9, by9 + 1.15 * S9, 2.1 * S9 * BX9, 0.16 * S9, 0.112 * S9, zz9(2.56)), TEAL), k9 + 0.5));
     }
 
     // ── 뒤왼쪽 안테나 팔 — 비스듬한 가는 기둥과 가로대 둘(사진 왼뒤 크레인).
@@ -18090,8 +18106,20 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const lp = (a9: number, b9: number): number => a9 + (b9 - a9) * at;
     const RED = "#b83a2c";           // 갑옷 붉은색
     const RED_D = "#8f2b20";         // 그늘진 팔 붉은색
-    void thr; void dz; void sway; void lp; void RED_D;   // 팔·무기 삭제로 잠시 안 쓰인다 — 리디자인 때 되살린다.
+    void dz;   // 걸음 낮춤은 z 쌍둥이(dzz9)가 쓴다 — 이 값 자체는 안 쓰인다.
     const TANK = TERRAN_STEEL;          // 등 연료통 회색
+    /** 팔 길이 배수(요청: "파뱃 팔길이 0.9배") — 마디와 손목 자리에 함께 건다. */
+    const AK9 = 0.9;
+    /** 어깨 자리. */
+    const SH9 = (m9: -1 | 1): [number, number, number] => [m9 * 1.26, -0.02, suitShoulderZ()];
+    /** 손목 자리 — 설계 자리를 어깨 기준으로 AK9 만큼 당긴 값이다. */
+    const WR9 = (m9: -1 | 1): [number, number, number] => {
+      const d9: [number, number, number] = m9 < 0
+        ? [-0.62, lp(0.92, 1.36) + sway, lp(2, 2.384) + dzz9]
+        : [0.6, lp(1.28, 1.95) + sway, lp(2.016, 2.4) + dzz9];
+      const s9 = SH9(m9);
+      return [s9[0] + (d9[0] - s9[0]) * AK9, s9[1] + (d9[1] - s9[1]) * AK9, s9[2] + (d9[2] - s9[2]) * AK9];
+    };
     return [
       /* ① 등 연료통 둘 — 어깨 위로 솟는다. 먼저 그려 어깨판이 밑동을 덮는다.
          뚜껑을 돔으로 닫아 위에서 봐도 속이 안 비친다. */
@@ -18173,22 +18201,22 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          아니라(정정: "손은 있고 양손으로 화염방사기의 방아쇠를 당긴다") 화염방사기를
          두 손으로 쥔다. 오른손(−x)이 뒤 손잡이, 왼손(+x)이 앞을 받친다. */
       // 팔꿈치는 두 마디 길이(0.9·1.2) 고정으로 푼다(요청: 양팔 길이 같아야).
-      ...armChain([-1.26, -0.02, suitShoulderZ()],
-        jointBetween([-1.26, -0.02, suitShoulderZ()], [-0.62, lp(0.92, 1.36) + sway, lp(2, 2.384) + dzz9], 0.9, 1.2, [-0.7, -0.35, -0.6]),
-        [-0.62, lp(0.92, 1.36) + sway, lp(2, 2.384) + dzz9],
+      /* ★ 팔 −10%(2026-09, 요청: "파뱃 팔길이 0.9배") — **마디 길이와 손목 자리를 함께**
+         어깨 기준으로 당긴다(AK9). 하나만 줄이면 jointBetween 이 못 닿아 팔꿈치가 펴진 채
+         굳는다. 화염방사기는 손이 쥐는 것이라 같은 손목을 따라 같이 당긴다. */
+      ...([-1, 1] as const).flatMap((m9) => armChain(SH9(m9),
+        jointBetween(SH9(m9), WR9(m9), 0.9 * AK9, 1.2 * AK9, [m9 * 0.7, -0.35, -0.6]),
+        WR9(m9),
         // 하완만 임자 색(요청) — 붉은 상완과 짙은 손 사이에 팀의 한 마디가 든다.
-        { upper: 0.34, fore: 0.4, fill: RED_D, handFill: "#4d4d4d", foreTeam: true }),
-      ...armChain([1.26, -0.02, suitShoulderZ()],
-        jointBetween([1.26, -0.02, suitShoulderZ()], [0.6, lp(1.28, 1.95) + sway, lp(2.016, 2.4) + dzz9], 0.9, 1.2, [0.7, -0.35, -0.6]),
-        [0.6, lp(1.28, 1.95) + sway, lp(2.016, 2.4) + dzz9],
-        { upper: 0.34, fore: 0.4, fill: RED_D, handFill: "#4d4d4d", foreTeam: true }),
+        { upper: 0.34, fore: 0.4, fill: RED_D, handFill: "#4d4d4d", foreTeam: true })),
       /* 화염방사기 **두 자루**(정정: "아까처럼 2개로") — 팔마다 한 자루씩, 손 앞에서
          곧게 나간다. 굵은 통 + 곁의 가는 통 하나, 끝에 점화 테. 손보다 위 키다. */
       ...([-1, 1] as const).flatMap((m9) => {
-        const gx9 = m9 * (m9 < 0 ? 0.62 : 0.6);
-        const y0 = (m9 < 0 ? lp(0.92, 1.36) : lp(1.28, 1.95)) + thr + sway;
+        const w9 = WR9(m9);
+        const gx9 = w9[0];
+        const y0 = w9[1] + thr;   // 손목에서 내지르는 몫만 더한다(sway 는 손목이 이미 든다)
         const y1 = y0 + 1.5;
-        const gz9 = lp(2, 2.392) + dzz9;
+        const gz9 = w9[2];
         if (m9 > 0) markMuzzle9(0, y1 + 0.04, gz9);   // 노즐 끝 — 두 자루의 가운데
         return tagKey([
           ...paintBase([

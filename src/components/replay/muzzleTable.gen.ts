@@ -14,7 +14,7 @@ export const MUZZLE_GEN9: Record<string, [number, number, number]> = {
   droneGas: [0, 1.22, 3.34],
   droneHold: [0, 1.22, 3.34],
   droneMin: [0, 1.22, 3.34],
-  fbat: [0, 2.82, 2.2],
+  fbat: [0, 2.69, 2.32],
   ghost: [0.4, 3.6, 3.01],
   goliath: [0, 3.52, 4.12],
   goon: [0, 1.6, 4.08],
