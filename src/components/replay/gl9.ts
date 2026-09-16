@@ -58,6 +58,11 @@ uniform vec4 uGloss;
 /** 광택을 내는 **빛의 색** — 흰빛이 기본이고, 테란만 찬 강철빛(푸르스름)이다(요청). 봉우리·윤기가 다 이 색을 탄다.
  *  휘도를 1 로 맞춰 두었으므로 **밝기는 안 변하고 색만** 바뀐다(gl-check 밝기비가 안 흔들린다). */
 uniform vec3 uSpecTint;
+/** 넓은 낯의 **전구 반사 얼룩** — xyz 는 빛 쪽에 잡은 중심(세계 자, 모형 칸) · w 는 세기.
+ *  거울 반사로는 못 내는 몫이라 자리로 그린다(아래 ★★). */
+uniform vec4 uGlint;
+/** 그 얼룩의 **종족 몫** — 파일런이 0.5 선에 닿지 않게 테란만 제값이다(위 표). */
+uniform float uGlintK;
 /** 빛과 시선의 **반각**(H) — 둘 다 유니폼이라 프레임에 한 번 내면 된다(정점마다 normalize 하던 것을 걷었다). */
 uniform vec3 uHalf;
 /** 결(긁힌 광택) 세기 — 종류(종족)·화면 배율·손잡이를 **CPU 에서 다 접어** 보낸다. 0 이면 화소가 그 식을 아예 안 돈다. */
@@ -211,8 +216,30 @@ void main() {
      곱셈 셋이고 꼴도 거의 같다(반값 자리를 맞추면 날카로움 ≒ 1.44 × 옛 지수). */
   float t2 = (1.0 - max(dot(n, uHalf), 0.0)) * uGloss.x;
   float sp = uGloss.y / (1.0 + t2 * t2);
-  vec3 tintS = mix(uSpecTint, base, uGloss.z);
-  vSpec = mix((sp + sheen) * tintS, vec3(0.0), uFlat);
+  /* ★★ **넓은 낯의 '전구 반사'는 거울 반사로는 못 낸다 — 얼룩으로 그려야 한다**(2026-09, 요청: "넓은
+     면에도 봉우리가 있어서 전구나 태양빛이 반사되듯한 강한 부분이 있으면 좋겠는데 되나?") ──────────
+     셈이 분명하다. 이 카메라는 40도로 **내려다본다**(시선 c = (0, cos40, sin40)). 세운 낯(nz = 0)이
+     어떤 빛을 거울로 비치려면 그 빛이 반사 방향 r = 2(n·c)n − c 에 있어야 하는데, 그 **z 성분은 늘
+     −0.643** 이다 — 곧 **지평선 아래**다. 빛을 어디에 놓아도(해든 전구든, 평행광이든 점광원이든)
+     세운 벽에는 거울 반사가 안 맺힌다. 벽이 비추는 것은 하늘이 아니라 땅이기 때문이다.
+     · 점광원으로 바꿔 반각을 정점마다 재 보는 길도 재 봤지만(자리에 따라 H 가 도는 길), 위 한계는
+       그대로다 — 자리마다 값이 조금 달라질 뿐 최고값이 0.68 을 못 넘는다.
+     그래서 이것은 **그리는 몫**이다: 빛 쪽 한 점을 잡고 거기서 멀어질수록 여위는 **밝은 얼룩**을
+     모형 자리에 얹는다. 옛 2D 광택 겹(glowBake9)이 캔버스 그라디언트로 하던 바로 그 몫이고,
+     판 길을 걷으며 사라졌던 것이다 — 이제 모형 공간이라 **요잉을 돌려도 얼룩이 같이 돈다**.
+     ⚠ 자리는 **요잉을 먹인** 모형 좌표(rx, ry, z)라야 한다 — aPos 를 그대로 쓰면 개체가 돌 때 얼룩이
+       몸에 붙어 같이 돌아, 빛이 아니라 무늬가 된다. 얼룩의 중심(uGlint.xyz)은 세계 자라 안 돈다.
+     ⚠ 등진 낯에는 안 얹는다(×ndl) — 빛을 등진 판에 반사가 맺히면 그건 빛이 아니라 발광이다. */
+  vec3 dg9 = vec3(rx, ry, aPos.z) - uGlint.xyz;
+  float glint = uGlint.w * uGlintK * uGloss.y * ndl / (1.0 + dot(dg9, dg9) * 0.11);
+  /* ★ **푸른빛은 센 자리에만**(2026-09, 요청: "강하게 빛나는 곳은 푸른색을 입히고 아닌 곳은 원래색이
+     나오게") — 여태 광택 전체에 한 색을 먹여 판이 통째로 차가웠다. 세기로 갈라, 약한 자리는 **제
+     바탕색**(물듦)으로 두고 센 자리만 찬 강철빛으로 넘어가게 한다. 곧 **물듦은 약한 쪽의 색**이고
+     uSpecTint 는 **센 쪽의 색**이다 — 그래서 테란 물듦을 0.18 → 0.55 로 도로 올렸다. */
+  float amt = sp + sheen + glint;
+  float hot = smoothstep(0.08, 0.30, amt);
+  vec3 tintS = mix(mix(vec3(1.0), base, uGloss.z), uSpecTint, hot);
+  vSpec = mix(amt * tintS, vec3(0.0), uFlat);
   }
   if (uShade.a > 0.0) { vSpec = vec3(0.0); vCol = vec4(uShade.rgb, uShade.a * aAlpha); }
   else vCol = vec4(col, aAlpha * uAlpha);
@@ -297,8 +324,11 @@ export const GL_GLOW_KINDS9 = new Set(["warpin", "storm", "nukeblast", "nukeclou
      · 그 밖(자원·지형·중립) — 아주 옅게.
    값은 눈으로 고른다. 효과(uFlat)·번짐 판(uEmit 은 uFlat 을 함께 세운다)에는 안 탄다. */
 /** [날카로움 · 봉우리 · 제 색에 물드는 몫 · 윤기 · **결(긁힌 광택)**] */
-/** 광택 자 — 날카로움 · 봉우리 · 제 색에 물드는 몫 · 윤기 · 결 · **광택을 내는 빛의 색**(rgb). */
-type Gloss9 = readonly [number, number, number, number, number, readonly [number, number, number]];
+/** 광택 자 — 날카로움 · 봉우리 · **약한 쪽 색**(제 바탕에 물드는 몫) · 윤기 · 결 · **센 쪽 빛의 색**(rgb)
+ *  · **전구 반사 얼룩의 몫**.
+ *  ⚠ 얼룩 몫은 **파일런이 정한다** — 종족 구분 없이 주면 diamond 가 0.500 으로 선에 닿는다(실측).
+ *  테란만 제값이고 나머지는 절반 아래다. */
+type Gloss9 = readonly [number, number, number, number, number, readonly [number, number, number], number];
 /** 기본은 흰빛이다 — 해가 흰빛이고, 광택 색은 재질(물듦)이 낸다. */
 const LIT_WHITE9 = [1, 1, 1] as const;
 /* ★ **테란만 찬 강철빛**(2026-09, 요청: "테란 건물에 빛나는 효과 … 불빛을 좀 청색톤을 넣을 수 있나") —
@@ -348,13 +378,13 @@ const LIT_STEEL9 = [0.82, 1.02, 1.36] as const;
      ⚠ 세기를 그대로 두고 넓히기만 하면 그것은 **환경광**이다(옛 저그 날카로움 7 의 실패와 같은 자리) —
        넓힌 배수만큼 세기를 내려야 총량이 안 는다. 둘은 **늘 짝으로** 움직인다.
      ⚠ 윤기 바닥도 0.10 → 0.05 로 내렸다(등진 낯의 몫) — 넓어진 봉우리가 그 자리를 대신 메운다. */
-const GLOSS_TERRAN9: Gloss9 = [4.0, 0.24, 0.18, 0.16, 0.85, LIT_STEEL9];
-const GLOSS_TOSS9: Gloss9 = [5.0, 0.13, 0.70, 0.14, 0.35, LIT_WHITE9];
+const GLOSS_TERRAN9: Gloss9 = [4.0, 0.24, 0.55, 0.16, 0.85, LIT_STEEL9, 1.0];
+const GLOSS_TOSS9: Gloss9 = [5.0, 0.13, 0.70, 0.14, 0.35, LIT_WHITE9, 0.40];
 /* ⚠ 저그를 처음에 [7.2, 0.28] 로 뒀더니 **알·고치가 허옇게 떴다**(눈으로 확인 · 밝기비 lurkeregg 1.17 → 1.40).
    날카로움 7 은 봉우리가 아니라 **또 하나의 환경광**이다 — 젖은 살은 '넓게 밝은' 것이 아니라 '한 자리가 번들거리는' 것이다.
    그래서 봉우리를 좁히고(14) 세기를 내렸다. 그래도 테란·토스보다는 두 배 넓다. */
-const GLOSS_ZERG9: Gloss9 = [3.5, 0.08, 0.15, 0.08, 0, LIT_WHITE9];
-const GLOSS_NONE9: Gloss9 = [4.0, 0.04, 0.30, 0.06, 0.15, LIT_WHITE9];
+const GLOSS_ZERG9: Gloss9 = [3.5, 0.08, 0.15, 0.08, 0, LIT_WHITE9, 0.60];
+const GLOSS_NONE9: Gloss9 = [4.0, 0.04, 0.30, 0.06, 0.15, LIT_WHITE9, 0.50];
 const GLOSS_BY_KIND9 = new Map<string, Gloss9>();
 const glossOf9 = (kind: string): Gloss9 => {
   if (GLOSS_BY_KIND9.size === 0) {
@@ -505,7 +535,7 @@ export class GlUnits9 {
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error("링크: " + gl.getProgramInfoLog(p));
     this.prog = p;
     this.stat.depthBits = Number(gl.getParameter(gl.DEPTH_BITS)) || 0;
-    for (const u of ["uAnchor", "uScale", "uYaw", "uCanvas", "uCam", "uTeam", "uLight", "uAlpha", "uDepth0", "uDepthK", "uPersp", "uShade", "uDy", "uLean", "uGrad", "uDbg", "uFlat", "uShadow", "uShZ", "uEmit", "uGloss", "uSpecTint", "uHalf", "uGrain"]) this.loc[u] = gl.getUniformLocation(p, u);
+    for (const u of ["uAnchor", "uScale", "uYaw", "uCanvas", "uCam", "uTeam", "uLight", "uAlpha", "uDepth0", "uDepthK", "uPersp", "uShade", "uDy", "uLean", "uGrad", "uDbg", "uFlat", "uShadow", "uShZ", "uEmit", "uGloss", "uSpecTint", "uGlint", "uGlintK", "uHalf", "uGrain"]) this.loc[u] = gl.getUniformLocation(p, u);
     for (const a of ["aPos", "aNrm", "aRgb", "aTeam", "aAlpha", "aOv", "aOrd", "aBb"]) this.att[a] = gl.getAttribLocation(p, a);
     /* 번짐 프로그램·사각 — 한 번만 짓는다(실패하면 번짐만 끈다). */
     try {
@@ -767,6 +797,9 @@ export class GlUnits9 {
     gl.useProgram(this.prog);
     gl.uniform2f(this.loc.uCanvas, cw, ch);
     gl.uniform3f(this.loc.uLight, LIGHT[0], LIGHT[1], LIGHT[2]);
+    /* 전구 반사 얼룩의 중심 — 빛 쪽 7 모형칸에 잡는다(모델 상자가 16칸이라 그 언저리가 낯 위에 앉는다).
+       세계 자라 개체마다 안 바뀌고, 셰이더는 요잉을 먹인 자리로 거리를 잰다. */
+    gl.uniform4f(this.loc.uGlint, LIGHT[0] * 7, LIGHT[1] * 7, LIGHT[2] * 7, GL_SHADE9 >= 1 ? 0.8 * GL_SPEC9 : 0);
     gl.uniform1f(this.loc.uPersp, 48);
     gl.uniform1f(this.loc.uDbg, GL_SHADE9);
     /* ★ 깊이 칸은 개체 수가 아니라 **겹침**으로 나눈다 — 개체마다 칸을 주면 400기 화면에서 칸이 0.005 라 16비트 깊이 버퍼에서는
@@ -825,6 +858,7 @@ export class GlUnits9 {
       const gk = GL_SHADE9 < 1 || !this.specOn ? 0 : GL_SPEC9;
       gl.uniform4f(this.loc.uGloss, mesh.gloss[0], mesh.gloss[1] * gk, mesh.gloss[2], mesh.gloss[3] * gk);
       gl.uniform3f(this.loc.uSpecTint, mesh.gloss[5][0], mesh.gloss[5][1], mesh.gloss[5][2]);
+      gl.uniform1f(this.loc.uGlintK, mesh.gloss[6]);
     };
     let camNow: GlCam9 | null = null;
     const place = (it: GlInst9): void => {
