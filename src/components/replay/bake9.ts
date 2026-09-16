@@ -1570,17 +1570,16 @@ export function suitLimb(
    suitZ·어깨선·허리띠·몸통이 전부 여기서 파생되므로 이 둘만 갈면 다 따라온다. */
 export let SUIT_TORSO_Z0 = 1.76;   // 2.2 → ×0.8(model-z-scale — let 이라 도구가 못 접어 손으로)
 export let SUIT_TORSO_H = 1.616;   // 2.02 → ×0.8(model-z-scale — let 이라 도구가 못 접어 손으로)
-/** ★ 마린·파이어뱃은 **다리만 1.2배**다(2026-09, 요청: "마린/파뱃 비율이 이상함" →
- *  "마린 파뱃만 다리길이만 1.2배") — 키를 통째로 1.2배로 세워 봤더니 어깨·헬멧까지 같이
- *  커져 덩치만 커질 뿐 비가 안 섰다(메딕·고스트 1.1배와 함께 되돌렸다). 짧아 보이던 것은
- *  **다리**다.
- *  suitLegs 의 zk 가 관절 z(골반 1.888 · 무릎 1.072)에만 곱하므로 그 값으로 다리만 길어지고,
- *  ⚠ **그만큼 그 위가 통째로 올라앉아야 한다**(전례: "다리 수정에 맞게 그 위의 부품들 높이
- *  내려야지") — 골반이 오른 몫(LEG_RISE9)을 몸통 밑(SUIT_TORSO_Z0)에 더하면 어깨선·허리띠·
- *  목·머리·팔이 전부 suitZ 에서 파생되므로 함께 따라온다. 발목(0.26)은 안 곱해 발은 땅에 남는다. */
-export const LEG_TALL9 = 1.2;
-/** 다리를 늘린 몫 — suitLegs 의 골반 z(1.888)가 그만큼 올라간다. */
-export const LEG_RISE9 = 1.888 * (LEG_TALL9 - 1);
+/** ★ 테란 보병 넷은 **키가 1.1배**다(2026-09, 요청: "마린 파뱃 다리길이 원복하고 테란
+ *  보병 전체 높이를 1.1배로") — 마린·파뱃만 다리를 1.2배로 늘려 봤고(그 전엔 키를 1.2·1.1배로
+ *  세워 봤고) 둘 다 되돌렸다. 남는 자는 **넷에 같은 몫**이다: 보병끼리의 비는 이미 서 있고
+ *  모자란 것은 다른 유닛에 견준 키였다.
+ *  모형 공간의 z 배수(withModelScale 의 kz)라 꼭짓점에 굳는다 — 그리기 배수(MODEL_NORM)가
+ *  아니라 모델 제 좌표가 바뀐다.
+ *  ⚠ **정규화(MODEL_NORM)는 다시 재지 않는다** — 재면 잉크 상자가 커진 만큼 배수가 줄어
+ *  폭까지 같이 작아진다(비만 서고 키는 제자리다). 요청이 '높이를 1.1배'이므로 재측정 값으로
+ *  덮지 않는다(BLD_NORM 에 손으로 눌러 둔 값과 같은 규약). */
+export const SUIT_TALL9 = 1.1;
 /** 체형 비율을 바꿔 굽는 문 — 다 굽고 반드시 되돌린다(sunkenFire 결). */
 export function suitBodyRatio<T>(z0: number, h: number, fn: () => T): T {
   const pz = SUIT_TORSO_Z0;
@@ -17618,7 +17617,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   // 비율 살짝 되돌림(재지적) — 몸통 1.72 → 1.82, 다리 1.08 → 1.04.
   /* 다리 −10%(zk 0.94)만큼 몸통도 내린다(지적: "다리 수정에 맞게 그 위의 부품들
      높이 내려야지") — 골반 z 2.36×0.94 ≈ 2.22가 새 다리 꼭대기다. */
-  inf: () => suitBodyRatio(1.824, 1.456, () => {
+  inf: () => withModelScale(1, 1, SUIT_TALL9, () => suitBodyRatio(1.824, 1.456, () => {
     const G = 0.9;
     /* 걸음 컷(요청: 애니메이션) — 다리가 벌어지고 팔은 **다리와 교차**로 흔든다
        (지적: "걸을때 팔 앞뒤로 흔드는거는 다리와 반대방향이 앞으로 나가게 교차야").
@@ -17734,7 +17733,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          맨 얼굴·머리카락·눈을 몇 판 돌려 봤지만 내려다보는 화면에서는 늘 대머리로
          읽혔다. 얼굴을 통째로 걷고, 보병 공용 머리에 **거의 불투명한**(0.85) 하늘빛
          유리를 쓴다 — 마린과 같은 구조, 색만 의무병의 것이다. */
-      ...suitHelmet(-0.12, 3.568, 0.52, WHITE, "#8fb8cf", 1, 0.85, undefined, true),
+      /* 헬멧 −10%(2026-09, 요청: "파뱃, 메딕 헬멧 크기 0.9배로 축소") — 반지름 하나가
+         껍데기·유리·밑동 테를 다 쥐므로 여기만 곱하면 머리 한 벌이 같이 준다. */
+      ...suitHelmet(-0.12, 3.568, 0.52 * 0.9, WHITE, "#8fb8cf", 1, 0.85, undefined, true),
       /* ③ 앞 자락 — 앞을 볼 때만 그린다(지적: "매딕 앞가리개 몸다리에 안가려짐").
          뒤를 볼 때는 애초에 보일 것이 없는 한 장의 껍데기다. */
       ...(facingRatio(0, 1) > 0.05
@@ -17781,10 +17782,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ], depthNow(A[0], A[1]) * 1.6 + 1.4);
       })(),
     ];
-  }),
+  })),
   /* 마린(실물 참고) — 큰 어깨 뽕 한 쌍의 파워드 아머, 금빛 바이저 머리, 가슴 앞에
      가로로 든 가우스 소총. */
-  gunner: () => suitBodyRatio(SUIT_TORSO_Z0 + LEG_RISE9, SUIT_TORSO_H, () => {
+  gunner: () => withModelScale(1, 1, SUIT_TALL9, () => {
     /* 몸은 뿔기둥 넷으로 짠다(요청) — 다리·몸통·목·어깨보호구. 칠하지 않은 면은
        임자 색이라, 마린의 전투복 자체가 개인색이고 헬멧 껍데기만 은색이다. */
     /* ★ 임자 색과 은색을 **맞바꾼다**(요청: "마린 어깨랑 허리띠가 임자색이고 나머지
@@ -17844,7 +17845,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 다리도 짙은 은색 — suitLegs의 셋째 자리(_kneeFill)는 지금 쓰이지 않는 값이라
          (그 함수의 이름 앞 밑줄) 여기 은색을 적어 두어도 아무 데도 안 든다. 고스트가
          하듯 바깥에서 칠한다 — 군화처럼 제 색을 가진 조각은 paintBase가 안 덮는다. */
-      ...paintBase(suitLegs(1, 1, undefined, 0.3 * wd, 1, LEG_TALL9), SUIT_SILVER),
+      ...paintBase(suitLegs(1, 1, undefined, 0.3 * wd), SUIT_SILVER),
       // 몸 너비 +10%(요청: "마린 파뱃 몸 너비 10프로 증가") — 공통 −20% 위에 얹는다.
       /* 가슴을 더 넓게(사진: 흉갑이 어깨만큼 벌어진다) — 1.1 → 1.28. 허리 잘록함은
          몸통 프로필(SUIT_TORSO_W)이 그대로 진다. */
@@ -17948,7 +17949,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        ④ 긴 C-10 저격소총 — 총열이 몸보다 길고 붉은 마디가 박힌다.
      어깨 갑옷은 없다(요청: "고스트 어깨갑옷 제거") — 그것이 있으면 마린과 안 갈린다.
      2컷(요청: 전격 애니메이션화) — 이동은 걸음, 공격은 총이 뒤로 밀리는 반동이다. */
-  ghost: () => {
+  ghost: () => withModelScale(1, 1, SUIT_TALL9, () => {
     const G = 0.62;
     const DARK = "#4a4a4a";       // ② 짙은 잿빛 장갑(팔다리)
     const WHITE = "#e6eaee";      // 가슴판·두건
@@ -18063,7 +18064,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ? paintBase(tubeFaces(0.4, 2.1 - kick, 0.4, 2.34 - kick, 0.2, 2.736 + dz), RED)
         : paintBase(rodFaces(0.08, -0.72, 3.12, 0.2, -0.74, 3.36, 0.2), RED)),
     ];
-  },
+  }),
   /* 파이어뱃(전면 재작도 — 원작 외형 기준, 요청: "기존 모델들 무시하고 재작도")
      ─────────────────────────────────────────────────────────────────────────
      옛 판의 가장 큰 오류는 **총을 한 자루 들고 있었다**는 것이다. 파이어뱃은 총을
@@ -18078,7 +18079,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        ⑤ 붉은 갑옷. 임자 색은 허리띠와 어깨의 불꽃 데칼이 맡는다(앞선 요청 유지).
      2컷(요청: 전격 애니메이션화) — 이동은 걸음, 공격은 **두 팔뚝을 앞으로 내지르며**
      몸이 따라 숙는 자세다. 화염 자체는 이펙트가 그리므로 몸은 그 내지름만 지면 된다. */
-  fbat: () => suitBodyRatio(SUIT_TORSO_Z0 + LEG_RISE9, SUIT_TORSO_H, () => {
+  fbat: () => withModelScale(1, 1, SUIT_TALL9, () => {
     const wd = walkDir();            // +1 · −1 · 0 — 걸음 두 컷이 서로 거울이다
     const mv = wd !== 0 ? 1 : 0;
     const at = poseNow === 2 ? 1 : 0;
@@ -18113,7 +18114,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ], "#3d3d3d"),
       /* ③ 몸 — 마린보다 넓다(wide 1.42). 다리는 걸음 컷을 탄다. */
       ...paintBase([
-        ...suitLegs(1, 1, undefined, 0.3 * wd, 1, LEG_TALL9),
+        ...suitLegs(1, 1, undefined, 0.3 * wd),
         ...suitTorso(1, { ...SUIT_TROOPER, wide: 1.42 }),
         ...suitNeck(1),
       ], RED),
@@ -18161,7 +18162,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 바이저는 사진(firebat1·3)의 그 **큰 금빛 창**이다 — 공용 머리(suitHelmet)가
          앞을 보는 볼록 원판으로 낸다. 파이어뱃의 창은 마린보다 크다(vk 1.2). */
       // 헬멧 밑동 테는 개인색(요청) — 붉은 껍데기와 금빛 창 사이의 팀 표식.
-      ...suitHelmet(-0.12, 3.616, 0.74, "#d4614c", "#e8b93c", 1, 1, undefined, true),
+      // 헬멧 −10%(요청: "파뱃, 메딕 헬멧 크기 0.9배로 축소") — 메딕과 같은 몫이다.
+      ...suitHelmet(-0.12, 3.616, 0.74 * 0.9, "#d4614c", "#e8b93c", 1, 1, undefined, true),
       /* 가슴 등 한 쌍(사진 firebat2) — 흉갑에 박힌 파란 렌즈 둘. */
       ...([-1, 1] as const).flatMap((m8) => lensFaces({
         x: m8 * 0.42, y: 0.66, z: 3.024, nx: m8 * 0.3, ny: 1, r: 0.19, bulge: 0.3, lift: 1.92,
