@@ -618,6 +618,40 @@ export type ThrustStyle = "flame" | "disc" | "drum" | "halo";
 export const THRUST_STYLE_DEFAULT: ThrustStyle = "drum";   // 고름: 3번 드럼통(+ 번지는 에너지)
 export const thrustStyleNow = (): ThrustStyle =>
   ((globalThis as unknown as { __thrustStyle?: ThrustStyle }).__thrustStyle) ?? THRUST_STYLE_DEFAULT;
+/** ★★ **노즐의 테에 두께를 준다**(2026-09, 요청: "배틀·캐리어·드랍·발키리 등 추진체(스러스터)
+ *  있는 유닛들 추진체 면 두께감 주기") — 추진체 관은 죄다 `caps: "none"` 이라 **끝이 종잇장**이었다.
+ *  옆에서 보면 관이 그냥 잘려 있고, 뒤에서 보면 속이 훤히 뚫려 배경이 보인다.
+ *  셋으로 낸다: ㉠ 테의 **마구리**(두께가 보이는 고리) ㉡ 그 안쪽 **속벽**(깊이) ㉢ 바닥의 어두운 판.
+ *  ⚠ 속벽의 법선은 **안쪽**을 봐야 한다(축을 향한다) — 바깥으로 맞추면 먼 쪽이 걸러져 속이 안 보인다.
+ *    야마토 아가리에서 쓴 그 규약이다.
+ *  자리 규약은 `thrustFlame` 과 같다: 노즐이 −y 를 보고, (x, z) 가 그 축이다. r 은 **불꽃 반지름**
+ *  (= 관 안지름 언저리)이고 테는 그보다 lip 만큼 넓다. */
+export function nozzleRim9(
+  x: number, y: number, z: number, r: number, key: number,
+  o: { lip?: number; dep?: number; sides?: number; fill?: string } = {},
+): ShapeFace[] {
+  const lip = o.lip ?? Math.max(0.07, r * 0.26);
+  const dep = o.dep ?? Math.max(0.16, r * 0.55);
+  const n9 = o.sides ?? 10;
+  const out: ShapeFace[] = [];
+  const P9 = (i9: number, rr9: number, yy9: number): [number, number, number] => {
+    const a9 = (i9 / n9) * Math.PI * 2;
+    return [x + Math.cos(a9) * rr9, yy9, z + Math.sin(a9) * rr9];
+  };
+  const back9 = faceLight(0, -1, 0);
+  for (let i9 = 0; i9 < n9; i9 += 1) {
+    const j9 = i9 + 1;
+    const dr9 = polyPath3([P9(i9, r + lip, y), P9(j9, r + lip, y), P9(j9, r, y), P9(i9, r, y)]);
+    if (back9.visible) out.push(o.fill ? [dr9, 1, o.fill] as ShapeFace : bodyFace(dr9), ...back9.face(dr9));
+    const am9 = ((i9 + 0.5) / n9) * Math.PI * 2;
+    const din9 = polyPath3([P9(i9, r, y), P9(j9, r, y), P9(j9, r, y + dep), P9(i9, r, y + dep)]);
+    const lin9 = faceLight(-Math.cos(am9), 0, -Math.sin(am9));
+    if (lin9.visible) out.push([din9, 1, "#272c34"] as ShapeFace, ...lin9.face(din9));
+  }
+  const dbot9 = polyPath3(Array.from({ length: n9 }, (_, i9) => P9(i9, r, y + dep)));
+  out.push([dbot9, 1, "#1a1e24"] as ShapeFace);
+  return tagKey(out, key);
+}
 export function thrustFlame(
   x: number, y: number, z: number, r: number, race: "terran" | "toss", key: number,
 ): ShapeFace[] {
@@ -4036,12 +4070,24 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       aMid: number, half: number, zB: number, zT: number,
       rOf: (z: number) => number, thk: number, fill: string | undefined,
       shelfR?: number,
+      /** 몸이 꺾이는 z(기둥 마디 경계) — 표본에 반드시 들어간다(아래 ★★). */
+      zKinks?: number[],
     ): ShapeFace[] => {
       /** 안쪽 면이 벽 속으로 파고드는 몫 — 낯 한가운데의 들어간 몫 + 한 뼘. */
       const sink9 = (z9: number): number => -(rOf(z9) * SAG9 + 0.03);
       const NZ = 6; const NZz9 = 4.8; /* z용 쌍둥이(model-z-scale ×0.8) */
       const NA = 7;
-      const zs = Array.from({ length: NZ + 1 }, (_, i9) => zB + ((zT - zB) * i9) / NZ);
+      /* ★★ **몸이 꺾이는 자리를 표본에 넣는다**(2026-09, 지적: "임자색 데칼은 잘 보여! 이제 황동색만
+         처리하면 될 듯") — 임자색 데칼에서 고친 그 자리다(아래 paintArc9 의 ★★). 이 띠도 고른 간격의
+         z 표본만 썼는데, 기둥은 마디 경계(segs 4·3)에서 **볼록하게 꺾인다**. 표본이 그 자리를 안 지나면
+         띠의 겉면이 꺾임을 곧게 가로질러 살 속으로 꺼지고, 그 몫이 두께(0.05)보다 커서 토막토막 묻혔다.
+         마디 경계를 표본에 합쳐 **띠도 몸과 같은 자리에서 꺾이게** 한다. */
+      const zs = (() => {
+        const q9 = new Set<number>();
+        for (let i9 = 0; i9 <= NZ; i9 += 1) q9.add(zB + ((zT - zB) * i9) / NZ);
+        for (const zk9 of zKinks ?? []) if (zk9 > zB + 1e-6 && zk9 < zT - 1e-6) q9.add(zk9);
+        return [...q9].sort((a9, b9) => a9 - b9);
+      })();
       const at = (a9: number, z9: number, dr: number): [number, number, number] => {
         const r9 = rOf(z9) + dr;
         return [Math.sin(a9) * r9, Math.cos(a9) * r9, z9];
@@ -4055,12 +4101,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         fs.push(fill !== undefined ? ([d, 1, fill] as ShapeFace) : bodyFace(d));
         if (over) fs.push(...over);
       };
-      // 겉면 — 아래 호 → 오른 모서리 → 위 호 → 왼 모서리.
-      const sk: [number, number, number][] = [...arcPts(zs[0], thk, false)];
-      for (let i9 = 1; i9 < zs.length; i9 += 1) sk.push(at(aMid + half, zs[i9], thk));
-      sk.push(...arcPts(zs[zs.length - 1], thk, true));
-      for (let i9 = zs.length - 2; i9 >= 1; i9 -= 1) sk.push(at(aMid - half, zs[i9], thk));
-      put(polyPath3(sk));
+      /* 겉면 — **격자로 쪼갠다**(위 ★★). 한 장으로 짜면 테두리 점은 다 벽 밖에 있어도 삼각화가
+         그 사이를 곧은 삼각형으로 메워 속이 꺼진다(그것이 '황동띠가 안 보인다'의 까닭이었다). */
+      for (let j9 = 0; j9 + 1 < zs.length; j9 += 1) {
+        for (let i9 = 0; i9 < NA; i9 += 1) {
+          const a0 = aMid - half + (half * 2 * i9) / NA;
+          const a1 = aMid - half + (half * 2 * (i9 + 1)) / NA;
+          put(polyPath3([
+            at(a0, zs[j9], thk), at(a1, zs[j9], thk),
+            at(a1, zs[j9 + 1], thk), at(a0, zs[j9 + 1], thk),
+          ]));
+        }
+      }
       // 옆벽 둘 — 법선은 호의 접선 방향이다(바깥쪽 반지름 방향이 아니다).
       for (const s9 of [-1, 1] as const) {
         const a9 = aMid + s9 * half;
@@ -4100,20 +4152,23 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          뒤쪽 돔이 띠 위로 올라온다. 조각 둘이 제 켜에 붙어야 순서가 맞는다. */
       const THK9 = 0.15;
       const STR9 = 0.055;   // 임자색 세로 줄의 반각
+      /** 기둥이 꺾이는 z — 1층은 마디 넷, 3층은 셋(spirePillar 의 segs 와 같아야 한다). */
+      const K1_9 = [1, 2, 3].map((i9) => DOME_Zz9 + (T1_Hz9 * i9) / 4);
+      const K3_9 = [1, 2].map((i9) => T2_Z + (0.68 * i9) / 3);
       const zB = DOME_Zz9 + 0.032;
       const zT2 = T2_Z + 0.68 - 0.032;   // = MOD_Z − 0.04 (MOD_Z는 아래서 선언된다)
       /* 세로 줄도 함께 이어진다(요청) — 구리 겉면(벽+THK9) 위에 얇게(0.04) 얹혀
          같은 각·같은 폭으로 두 켜를 타고 오른다. 위 끝만 2층 중턱에서 멈춘다. */
       out.push(...tagKey([
-        ...ribFaces9(aMid, 0.26, zB, T2_Z, t1Rw, THK9, COPPER),
-        ...ribFaces9(aMid, STR9, zB + 0.2, T2_Z, (z9) => t1Rw(z9) + THK9, 0.04, undefined),
+        ...ribFaces9(aMid, 0.26, zB, T2_Z, t1Rw, THK9, COPPER, undefined, K1_9),
+        ...ribFaces9(aMid, STR9, zB + 0.2, T2_Z, (z9) => t1Rw(z9) + THK9, 0.04, undefined, undefined, K1_9),
         /* 키는 임자색 데칼(2.4)보다 위다 — 띠가 두꺼워진 뒤로 옆 데칼이 띠 위를
            가로질러 들러붙어 보였다. 튀어나온 쪽이 가리는 것이 맞다. */
       ], 2.5));
       out.push(...tagKey([
-        ...ribFaces9(aMid, 0.26, T2_Z, zT2, t3Rw, THK9, COPPER, t1Rw(T2_Z) + THK9),
+        ...ribFaces9(aMid, 0.26, T2_Z, zT2, t3Rw, THK9, COPPER, t1Rw(T2_Z) + THK9, K3_9),
         ...ribFaces9(aMid, STR9, T2_Z, T2_Z + 0.4, (z9) => t3Rw(z9) + THK9, 0.04, undefined,
-          t1Rw(T2_Z) + THK9 + 0.04),
+          t1Rw(T2_Z) + THK9 + 0.04, K3_9),
       ], 8.4));
     }
 
@@ -4150,32 +4205,59 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            0.089 뜨고, 그렇다고 딱 맞추면 낯을 건너는 자리에서 살에 묻혀 안 보인다. 그래서
            **내접 반지름**(낯 한가운데)에 놓아 절대 밖으로 안 나가게 하고, 묻히는 몫은 데칼
            깊이 편향(gl9 isDecal · 건물 0.25 모델칸)이 앞으로 당겨 준다. 2D 는 키가 몸 위다. */
-      const paintArc9 = (aMid9: number, half9: number): string => {
-        const NA9 = 5; const NZ9 = 5;
-        /* ★★ **내접 반지름에 놓으면 낯 모퉁이에서 살에 묻힌다**(2026-09, 지적: "1층 돔의 옆 데칼들이
-           깊이가 안 맞아서 안 보여") — 낯 한가운데는 내접이 맞지만, 데칼이 낯 한가운데에 있으란 법이 없다
-           (데칼 열둘 · 낯 열넷). 낯 모퉁이 쪽으로 밀린 데칼은 **0.21 모델칸까지** 벽 속에 잠기는데,
-           데칼 깊이 편향이 0.25 라 아슬아슬하게 살아남거나 그냥 사라졌다.
-           ★ 이 단면은 **정십사각형이고 꼭짓점 위상이 0** 이다(실측: atan2(x, y) = k·360/14). 그러면
-             어느 방향의 벽까지의 거리를 **정확히** 셀 수 있다 — 낯 한가운데에서 벗어난 각 d 에 대해
-             R·cos(π/n)/cos(d). 그 위에 0.02 만 띄우면 어느 자리에서도 벽에 딱 붙는다. */
+      /* ★★ **굽은 벽에 붙이는 큰 판은 한 장으로 짜면 안 된다 — 격자로 쪼개라**(2026-09, 지적:
+         "커맨드 데칼 문제는 아직도 미해결인데" + 그림) — 자리 셈(아래 at9)은 맞았는데도 데칼이
+         살에 잠겨 토막토막 났다. 까닭은 **자리가 아니라 채우기**였다:
+         ㉠ 이 데칼은 폴리곤 **한 장**이었다. 테두리 점은 다 벽 위에 있어도, 삼각화(귀 잘라내기)가
+            그 사이를 **곧은 삼각형**으로 메우므로 판의 속이 벽의 굽이를 가로질러 **안으로 꺼진다**.
+            돔 옆선은 taper 0.42 라 위로 갈수록 급히 좁아지는 **볼록한 꺾임**이고, 판이 그 꺾임을
+            네 개나 건너므로(마디 4) 꺼지는 몫이 0.1 모델칸을 넘는다.
+         ㉡ 가로도 같다 — 단면이 십사각형이라 **꼭짓점에서 벽이 볼록**하다. 데칼이 그 꼭짓점을
+            건너면 두 낯에 걸친 곧은 면이 그 사이로 파고든다.
+         ㉢ 게다가 이 판은 커서(높이 1.3 이상) gl9 의 `isDecal`(대각선 < 2.8) 문에 안 걸린다 —
+            곧 **깊이 편향도 못 받는다**. 0.02 띄운 것만으로 버텨야 하는데 ㉠㉡ 이 그보다 크다.
+         고침은 하나다: **꺾이는 자리를 표본에 넣고 격자로 쪼갠다**. z 는 기둥의 마디 경계를,
+         각은 십사각형의 꼭짓점 각을 반드시 표본에 넣으면, 조각마다 네 꼭짓점이 **같은 낯의 같은
+         띠** 위에 있어 그 사이가 평면이다 — 어느 조각도 벽을 파고들 수가 없다.
+         ★ 규약: **굽은 몸에 붙는 판은 몸이 꺾이는 자리에서 함께 꺾어라**(띠 ribFaces9 가 이미 그 자다). */
+      const paintArc9 = (aMid9: number, half9: number): ShapeFace[] => {
+        /* ★ 이 단면은 **정십사각형이고 꼭짓점 위상이 0** 이다(실측: atan2(x, y) = k·360/14). 그러면
+           어느 방향의 벽까지의 거리를 **정확히** 셀 수 있다 — 낯 한가운데에서 벗어난 각 d 에 대해
+           R·cos(π/n)/cos(d). 그 위에 0.02 만 띄우면 어느 자리에서도 벽에 딱 붙는다. */
         const ST9 = (Math.PI * 2) / PILL_SIDES9;
         const at9 = (aa9: number, zz9: number): [number, number, number] => {
           const d9 = (((aa9 % ST9) + ST9) % ST9) - ST9 / 2;   // 가장 가까운 낯 한가운데에서 벗어난 각
           const r9 = (t1Rw(zz9) * Math.cos(Math.PI / PILL_SIDES9)) / Math.cos(d9) + 0.02;
           return [Math.sin(aa9) * r9, Math.cos(aa9) * r9, zz9];
         };
-        const arc9 = (zz9: number, rev9: boolean): [number, number, number][] =>
-          Array.from({ length: NA9 + 1 }, (_, i9) =>
-            at9(aMid9 - half9 + (half9 * 2 * (rev9 ? NA9 - i9 : i9)) / NA9, zz9));
-        const pts9: [number, number, number][] = [...arc9(zB, false)];
-        for (let j9 = 1; j9 < NZ9; j9 += 1) pts9.push(at9(aMid9 + half9, zB + ((zT - zB) * j9) / NZ9));
-        pts9.push(...arc9(zT, true));
-        for (let j9 = NZ9 - 1; j9 >= 1; j9 -= 1) pts9.push(at9(aMid9 - half9, zB + ((zT - zB) * j9) / NZ9));
-        return polyPath3(pts9);
+        // z 표본 — 양 끝 + 기둥이 꺾이는 마디 경계(segs 4)
+        const zs9: number[] = [zB];
+        for (let i9 = 1; i9 < 4; i9 += 1) {
+          const zk9 = DOME_Zz9 + (T1_Hz9 * i9) / 4;
+          if (zk9 > zB + 1e-6 && zk9 < zT - 1e-6) zs9.push(zk9);
+        }
+        zs9.push(zT);
+        // 각 표본 — 양 끝 + 단면이 꺾이는 꼭짓점 각(k·ST9)
+        const a0f = aMid9 - half9; const a1f = aMid9 + half9;
+        const as9: number[] = [a0f];
+        for (let k9 = Math.ceil(a0f / ST9); k9 <= Math.floor(a1f / ST9); k9 += 1) {
+          const av9 = k9 * ST9;
+          if (av9 > a0f + 1e-6 && av9 < a1f - 1e-6) as9.push(av9);
+        }
+        as9.push(a1f);
+        const fs9: ShapeFace[] = [];
+        for (let j9 = 0; j9 + 1 < zs9.length; j9 += 1) {
+          for (let i9 = 0; i9 + 1 < as9.length; i9 += 1) {
+            fs9.push(bodyFace(polyPath3([
+              at9(as9[i9], zs9[j9]), at9(as9[i9 + 1], zs9[j9]),
+              at9(as9[i9 + 1], zs9[j9 + 1]), at9(as9[i9], zs9[j9 + 1]),
+            ])));
+          }
+        }
+        return fs9;
       };
       out.push(...tagKey([
-        bodyFace(paintArc9(a9, 0.42 / t1Rw((zB + zT) / 2))),
+        ...paintArc9(a9, 0.42 / t1Rw((zB + zT) / 2)),
         /* (걷어냄) 판 윗머리의 흰 덧면 — 구리띠의 것과 같은 자였다(지적: "흰색 네모가
            겹쳐져 있는데 그거 제거"). 임자 색 위에 흰색을 얹으면 그 임자의 색이 아니라
            허연 네모가 겹친 것으로 보인다. */
@@ -14075,6 +14157,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 막대도 제 키를 스스로 단다(위 ★) — 싸매지 않는다.
       out.push(...tagKey(paintBase(rodFaces(bx9, -0.4, 4.84, bx9, -2.65, 4.84, 0.22), DARK),
         key9(bx9, -1.5, 6.05)));
+      out.push(...nozzleRim9(bx9, -2.60, 4.84, 0.26, key9(bx9, -3.2, 6.05) + 0.3));
       if (poseNow === 1) out.push(...thrustFlame(bx9, -2.65, 4.84, 0.26, "terran", key9(bx9, -3.2, 6.05) + 0.4));
       /* ⑥ 꼬리날개 — **화살 깃**이다(지적: "긴 변이 팔 옆쪽에 붙는다 · 화살 꼬리 날개
          생각하면 비슷") ─────────────────────────────────────────────────────────────
@@ -14127,6 +14210,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           [wallDiscPath(tx9, -3.45, tz9, 0.4, 0.272), 0.8, "#7fd0ff"] as ShapeFace,
         ], key9(tx9, -3.45, tz9) + 0.5));
       }
+      out.push(...nozzleRim9(tx9, -3.40, tz9, 0.45, key9(tx9, -4.2, tz9) + 0.3));
       if (poseNow === 1) out.push(...thrustFlame(tx9, -3.45, tz9, 0.45, "terran", key9(tx9, -4.2, tz9) + 0.4));
     }
     /* ② 날개 — **넓적한 판**이다(지적). 축을 스팬(x)으로 눕히고 단면 기준(ref)을 앞뒤(y)로
@@ -14637,6 +14721,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       out.push(...tagKey(paintBase(boxFaces3(ex9, TCY9, 0.72, TD9, TH9, ez9), "#212429"),   // 더 어둡게(재요청)
         facingRatio(0, -1) > 0.05 ? key9(ex9, TCY9, ez9 + TH9 / 2) + 0.3 : key9(0, -1.35, Z(5.8)) - 1));
       // 불꽃도 길어진 꽁무니 끝에서 뿜는다 — 안 옮기면 노즐 몸통 속에서 불이 난다.
+      out.push(...nozzleRim9(ex9, TCY9 - TD9 / 2 - 0.01, ez9 + TH9 / 2, 0.28, key9(ex9, TCY9 - TD9 / 2 - 0.43, ez9 + TH9 / 2) + 0.3));
       if (poseNow === 1) out.push(...thrustFlame(ex9, TCY9 - TD9 / 2 - 0.06, ez9 + TH9 / 2, 0.28, "terran", key9(ex9, TCY9 - TD9 / 2 - 0.43, ez9 + TH9 / 2) + 0.4));
     }
     return zsorted(out);
@@ -15750,6 +15835,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           [wallDiscPath(ex9, EY1_9 - 0.05, EZ9, 0.4, 0.27), 0.85, P_PLASMA] as ShapeFace,
         ], partKey(ex9, EY1_9 - 0.05, EZ9) + 0.5));
       }
+      out.push(...nozzleRim9(ex9, EY1_9, EZ9, 0.4, partKey(ex9, EY1_9 - 0.7, EZ9) + 0.3));
       if (poseNow === 1) out.push(...thrustFlame(ex9, EY1_9 - 0.05, EZ9, 0.4, "toss", partKey(ex9, EY1_9 - 0.7, EZ9) + 0.4));
       /* ⑥ 앞뿔 — 코 위로 뻗는 한 쌍(사진1의 더듬이). 이 둘이 있어야 앞이 '머리'로 읽힌다. */
       out.push(...tagKey(paintBase(
@@ -16243,6 +16329,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           topFace(wallDiscPath(tx, THRUST_Y1 - 0.05, tz, 0.2, 0.136), 0.5),
         ], thrustKey(tx, tz) + 0.3)
         : []),
+      ...nozzleRim9(tx, THRUST_Y1, tz, 0.36, thrustKey(tx, tz) + 0.25),
       ...(poseNow === 1 ? thrustFlame(tx, THRUST_Y1 - 0.05, tz, 0.36, "toss", thrustKey(tx, tz) + 0.35) : []),
     ];
     /* (걷어냄) 아주 작은 옆날개 둘 — 아랫잎 뒤에 2중 덮개가 서면서 꽁무니가 이미
@@ -21460,6 +21547,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // 안쪽 작은 추진체 둘은 **동체 뒤면**(y −1.8)에 붙는다(재지적: 꼬리붐이 아니라). 포드 것은 포드 뒤.
     for (const [tx, tz, tr, ty] of [[-1.0, 4.16, 0.46, -1.8], [1.0, 4.16, 0.46, -1.8], [-2.7, POD_Z, 0.66, -2.95], [2.7, POD_Z, 0.66, -2.95]] as [number, number, number, number][]) {
       out.push(...paintBase(tubeFaces(tx, ty, tx, ty - 1.0, tr, tz), TERRAN_STEEL_D));
+      out.push(...nozzleRim9(tx, ty - 0.95, tz + tr * 0.36, tr * 0.8, depthNow(tx, ty - 2) * 1.6 + 0.9));
       if (poseNow === 1) out.push(...thrustFlame(tx, ty - 1.0, tz + tr * 0.36, tr * 0.8, "terran", depthNow(tx, ty - 2) * 1.6 + 1));
     }
     /* 꼬리(재지적: 축을 몸통에 붙이고 비행기 꼬리 스타일로) — 등판 뒤끝에서 곧장
@@ -21597,6 +21685,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           [wallDiscPath(tx, -3.55, 3.08, 0.36, 0.24), 0.85, P_PLASMA] as ShapeFace,
         ], partKey(tx, -3.55, 3.08) + 0.5));
       }
+      out.push(...nozzleRim9(tx, -3.50, 3.08, 0.38, partKey(tx, -4.2, 3.08) + 0.3));
       if (poseNow === 1) out.push(...thrustFlame(tx, -3.55, 3.08, 0.38, "toss", partKey(tx, -4.2, 3.08) + 0.4));
     }
     // 아가리 어두운 속은 제거(지적: 앞 검정 반투명 부품) — 빛 줄만 남긴다.
