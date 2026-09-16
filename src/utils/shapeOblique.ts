@@ -236,12 +236,22 @@ export const capFace = (d: string, opacity: number = OP.cap, lod: number = LOD_F
  *  시각 밀림 중이면 타원도 같이 기울인다(지적: 파일런·포토·소환구 원반만 안 기울어
  *  첨탑과 어긋난 롤로 보임) — 밀림 행렬 [[1,sh],[0,1]]을 입힌 타원도 타원이라,
  *  주축·각을 풀어 회전 타원 호로 그린다. */
+/** ★ **우회로 진단** — 화면 자로 낸 경로가 어느 빌더 줄에서 났는지 적어 둔다
+ *  (`scripts/recov-sites.mjs` 가 켠다. 평소엔 off 라 값이 0 이다). 되찾기로 살아난 면의
+ *  경로를 이 표에 물으면 **고칠 줄이 그대로 나온다** — 경로 숫자를 눈으로 뒤질 일이 없다. */
+export const SITE9 = { on: false, byD: new Map<string, string>() };
+export function siteMark9(d: string): string {
+  if (!SITE9.on) return d;
+  const ls = (new Error().stack ?? "").split("\n").slice(2);
+  SITE9.byD.set(d, (ls.find((l) => !l.includes("shapeOblique")) ?? ls[0] ?? "").trim());
+  return d;
+}
 export const groundEllipse = (
   cx: number, cy: number, rx: number, ry: number = rx * groundSquashNow(),
 ): string => {
   if (!viewShear) {
-    return `M${r2(cx - rx)} ${r2(cy)}a${r2(rx)} ${r2(ry)} 0 1 0 ${r2(rx * 2)} 0`
-      + `a${r2(rx)} ${r2(ry)} 0 1 0-${r2(rx * 2)} 0Z`;
+    return siteMark9(`M${r2(cx - rx)} ${r2(cy)}a${r2(rx)} ${r2(ry)} 0 1 0 ${r2(rx * 2)} 0`
+      + `a${r2(rx)} ${r2(ry)} 0 1 0-${r2(rx * 2)} 0Z`);
   }
   const b = viewShear * ry;
   const t = rx * rx + b * b;
@@ -253,8 +263,8 @@ export const groundEllipse = (
   const ux = R1 * Math.cos(ang);
   const uy = R1 * Math.sin(ang);
   const angDeg = r2((ang * 180) / Math.PI);
-  return `M${r2(cx - ux)} ${r2(cy - uy)}a${r2(R1)} ${r2(R2)} ${angDeg} 1 0 ${r2(2 * ux)} ${r2(2 * uy)}`
-    + `a${r2(R1)} ${r2(R2)} ${angDeg} 1 0 ${r2(-2 * ux)} ${r2(-2 * uy)}Z`;
+  return siteMark9(`M${r2(cx - ux)} ${r2(cy - uy)}a${r2(R1)} ${r2(R2)} ${angDeg} 1 0 ${r2(2 * ux)} ${r2(2 * uy)}`
+    + `a${r2(R1)} ${r2(R2)} ${angDeg} 1 0 ${r2(-2 * ux)} ${r2(-2 * uy)}Z`);
 };
 
 /** 지면과 평행한 **고리**(도넛) 패스 — 바깥 타원 안에 안 타원을 반대로 감아 뚫는다
@@ -820,10 +830,15 @@ export function polyPath3(pts: [number, number, number][]): string {
 }
 
 /** 지면과 평행한 원(높이 z) — 화면에선 납작 타원. */
-export function discPath3(cx: number, cy: number, z: number, r: number): string {
+export function discPath3(cx: number, cy: number, z: number, r: number, ryS?: number): string {
+  const sq = groundSquashNow();
+  const ry = ryS ?? r * sq;
   const [sx, sy] = project(cx, cy, z);
-  const d = groundEllipse(sx, sy, r, r * groundSquashNow());
-  if (MESH9.on) meshPut9(d, [meshRing9(cx, cy, z, 1, 0, 0, 0, 1, 0, r, 12).flat()]);
+  const d = groundEllipse(sx, sy, r, ry);
+  /* ★ `ryS` 는 **화면 자** 세로 반지름이다(빌더가 눈으로 고른 납작한 타원 — 그림자·얼룩).
+     경로는 종전 groundEllipse 그대로 내고, 3D 로는 그 타원을 **땅에 누운 고리**로 적는다:
+     화면 세로가 ryS 가 되려면 모형 y 반지름이 ryS/납작비 라야 한다. */
+  if (MESH9.on) meshPut9(d, [meshRing9(cx, cy, z, 1, 0, 0, 0, r > 0 ? ry / (sq * r) : 1, 0, r, 12).flat()]);
   return d;
 }
 
@@ -1388,8 +1403,8 @@ export function meshSphere9(cx: number, cy: number, cz: number, r: number, zk = 
  *  기울어야 맞지만, **떠 있는 공은 그러면 안 된다**(지적: "구 형태가 찌그러져 보인다").
  *  구는 회전 대칭이라 어느 방향에서 봐도 투영이 원이다. */
 export const screenCircle = (cx: number, cy: number, r: number): string =>
-  `M${r2(cx - r)} ${r2(cy)}a${r2(r)} ${r2(r)} 0 1 0 ${r2(r * 2)} 0`
-  + `a${r2(r)} ${r2(r)} 0 1 0-${r2(r * 2)} 0Z`;
+  siteMark9(`M${r2(cx - r)} ${r2(cy)}a${r2(r)} ${r2(r)} 0 1 0 ${r2(r * 2)} 0`
+    + `a${r2(r)} ${r2(r)} 0 1 0-${r2(r * 2)} 0Z`);
 
 /** 화면 반구 — 구의 **위 절반**. 구(sphereFaces3)와 같은 자를 쓴다: 중심만 투영하고
  *  반지름은 화면 원이라 어느 요잉에서도 안 찌그러진다. 잘린 밑면은 카메라가 내려다보는

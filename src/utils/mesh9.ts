@@ -160,7 +160,7 @@ export interface MeshPart9 { polys: Poly3[]; fill: string; alpha: number; team: 
   emit?: boolean }
 export interface Mesh9 { parts: MeshPart9[]; faces: number; covered: number; skipped: number;
   /** 손수 짠 경로를 되찾기로 살린 면 수 — 우회로의 크기다(0 이 목표). */ recovered?: number;
-  /** 그 낯들의 경로(앞 40개) — 어느 줄이 우회로인지 짚는 실마리. */ recovPaths?: string[];
+  /** 그 낯들의 경로 — 어느 줄이 우회로인지 짚는 실마리(scripts/recov-sites.mjs 가 이것으로 빌더 줄을 찾는다). */ recovPaths?: string[];
   /** 헬퍼가 **일부러 비워 둔** 면 수 — rodFaces 는 관 하나를 첫 낯에 몰아 적고 나머지 낯(둘째 끝·몸통)에는
    *  빈 표를 적는다. 그 낯은 빠진 것이 아니라 이미 딴 낯이 낸 것이라, 덮임 셈의 분모에서 뺀다. */
   blank: number;
@@ -321,7 +321,7 @@ export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeF
       if (back && back.length) {
         polys = back; MESH9.byD.set(f[0], back);
         recovered += 1;
-        if (recovPaths.length < 40) recovPaths.push(f[0]);
+        recovPaths.push(f[0]);
       }
     }
     return polys && polys.length ? polys : undefined;

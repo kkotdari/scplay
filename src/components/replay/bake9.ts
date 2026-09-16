@@ -7672,7 +7672,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       arm.push(...hornFaces(0, 2.35, 5.36, 0, 1.45, 4.08, 0.66));
       // 청록 발광 — 꼭대기 구슬과 집게 사이 심.
       arm.push(...paintBase(domeFaces3(0, -2.9, 0.72, 0.496, 6.64), "#5aecd8"));
-      arm.push([groundEllipse(...project(0, 2.5, 5.24), 0.5, 0.5), 0.6, "#b6faf1"] as ShapeFace);
+      arm.push([discPath3(0, 2.5, 5.24, 0.5, 0.5), 0.6, "#b6faf1"] as ShapeFace);
       out.push(...tagKey(arm, 30));
     }
     /* 사진 디테일(요청) — 밑동에 금 무늬 골을 판다. 대야 테를 두르던 청록 띠는
@@ -8949,9 +8949,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         segs: 3, sides: 12, hold: 0.2,
       }), "#21252c"),
       capFace(discPath3(0, -0.3, 5.28, 1.38), 0.55),
-      [groundEllipse(...project(-0.1, -0.15, 5.84), 1.1, 0.66), 0.16, "#80ff96", 0, 3] as ShapeFace,
-      [groundEllipse(...project(-0.25, 0.0, 6.48), 1.45, 0.86), 0.1, "#80ff96", 0, 3] as ShapeFace,
-      [groundEllipse(...project(-0.42, 0.15, 7.08), 1.8, 1.02), 0.06, "#80ff96", 0, 3] as ShapeFace,
+      [discPath3(-0.1, -0.15, 5.84, 1.1, 0.66), 0.16, "#80ff96", 0, 3] as ShapeFace,
+      [discPath3(-0.25, 0.0, 6.48, 1.45, 0.86), 0.1, "#80ff96", 0, 3] as ShapeFace,
+      [discPath3(-0.42, 0.15, 7.08, 1.8, 1.02), 0.06, "#80ff96", 0, 3] as ShapeFace,
     ], 10 + depthNow(0, -0.3) * 1.6 + 1.2));
     /* 관 셋 — 가운데는 입구 천장, **양옆은 앞 드럼통 옥상 가운데에 꽂힌다**(정정:
        "양옆 파이프는 드럼통 옥상 가운데 앵커링"). 드럼 돔 꼭대기(z≈3.5)에서 수직으로
@@ -9201,9 +9201,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const top9 = 0.24 + ph + 0.32;
       for (const [dz, gr, ga] of [[0, 0.55, 0.3], [1.0, 0.85, 0.18], [2.0, 1.15, 0.1]] as
         [number, number, number][]) {
-        out.push(...tagKey([[groundEllipse(
-          ...project(wx9 + dz * 0.1, wy9 + dz * 0.15, top9 + dz), gr * k9, gr * k9 * 0.6,
-        ), ga, "#80ff96"] as ShapeFace], 20 + depthNow(px, py)));
+        out.push(...tagKey([[discPath3(wx9 + dz * 0.1, wy9 + dz * 0.15, top9 + dz, gr * k9, gr * k9 * 0.6, ), ga, "#80ff96"] as ShapeFace], 20 + depthNow(px, py)));
       }
     }
     // 개인색은 몸을 타넘는 가운데 활 띠 둘(위 own9) — 덧붙였던 원판은 걷어냈다(요청).
@@ -9378,17 +9376,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       out.push(...tagKey([
         ...paintBase(domeFaces3(mx9, my9 + 0.15, 1.15, 0.4, mz9 - 0.2),
           lit9 ? "#3f7a2e" : "#8a4a2a"),
-        capFace(groundEllipse(...project(mx9, my9 + 0.35, mz9 + 0.04), 0.72, 0.42),
+        capFace(discPath3(mx9, my9 + 0.35, mz9 + 0.04, 0.72, 0.42),
           lit9 ? 0.18 : 0.62),
         ...(lit9
           ? [
             /* 아가리 속에서 새는 빛 — 넓고 옅은 겹 위에 작고 밝은 심. 두 겹이라야
                '구멍 속이 빛난다'로 읽힌다(한 겹은 얹어 놓은 딱지로 보인다). */
-            [groundEllipse(...project(mx9, my9 + 0.3, mz9 + 0.016), 0.95, 0.56), 0.4,
+            [discPath3(mx9, my9 + 0.3, mz9 + 0.016, 0.95, 0.56), 0.4,
               "#7dff4a"] as ShapeFace,
-            [groundEllipse(...project(mx9, my9 + 0.35, mz9 + 0.048), 0.6, 0.34), 0.95,
+            [discPath3(mx9, my9 + 0.35, mz9 + 0.048, 0.6, 0.34), 0.95,
               "#7dff4a"] as ShapeFace,
-            [groundEllipse(...project(mx9, my9 + 0.38, mz9 + 0.072), 0.3, 0.17), 1,
+            [discPath3(mx9, my9 + 0.38, mz9 + 0.072, 0.3, 0.17), 1,
               "#f2fff0"] as ShapeFace,
           ]
           : []),
@@ -9415,9 +9413,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        — 리파이너리 굴뚝·간헐천과 같은 표현: 위로 갈수록 넓고 옅어지는 초록 타원 세 켜.
        가스라 3티어(저사양에선 걷힌다). 애벌레 등마루(꼭대기 z≈3.7, y≈1) 위에 세운다. */
     out.push(...tagKey([
-      [groundEllipse(...project(-0.1, 0.9, 3.68), 1.15, 0.7), 0.18, "#80ff96", 0, 3] as ShapeFace,
-      [groundEllipse(...project(-0.25, 1.05, 4.32), 1.5, 0.9), 0.11, "#80ff96", 0, 3] as ShapeFace,
-      [groundEllipse(...project(-0.42, 1.2, 4.92), 1.85, 1.05), 0.06, "#80ff96", 0, 3] as ShapeFace,
+      [discPath3(-0.1, 0.9, 3.68, 1.15, 0.7), 0.18, "#80ff96", 0, 3] as ShapeFace,
+      [discPath3(-0.25, 1.05, 4.32, 1.5, 0.9), 0.11, "#80ff96", 0, 3] as ShapeFace,
+      [discPath3(-0.42, 1.2, 4.92, 1.85, 1.05), 0.06, "#80ff96", 0, 3] as ShapeFace,
     ], depthNow(0, 1) * 1.6 + 3));
     return out;
   }),
@@ -9926,7 +9924,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      정규화·부품 등급표·총구 앵커가 모두 그 자세로 다시 재어지고, 도록·미니맵·붓이 한 자세를 쓴다. */
   armory: () => withModelSpin(-45, () => {
     /* ★ 화면 자 타원을 **모형 자 원반**으로(2026-09, 요청: "우회로 없애고 … 승격하는 과정 없앨 수
-       있어?") — `groundEllipse(...project(x, y, z), …)` 는 3D 기록이 없어 메시가 이웃에서 높이를
+       있어?") — `discPath3(x, y, z, …)` 는 3D 기록이 없어 메시가 이웃에서 높이를
        빌린다. `discPath3` 는 같은 그림을 그리면서 제 3D 를 적는다(눌림은 groundSquashNow 가 건다). */
     const rim = (ang: number): ShapeFace => {
       const a = (ang * Math.PI) / 180;
@@ -11091,7 +11089,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ]
         : domeFaces3(px, py, 0.72, 0.64, 0.64 + ph), CYAN),
       key + 1));
-      out.push(...tagKey([[groundEllipse(...project(px, py, 1.344 + ph), 0.42, 0.42), 0.55,
+      out.push(...tagKey([[discPath3(px, py, 1.344 + ph, 0.42, 0.42), 0.55,
         "#e0fffb"] as ShapeFace], key + 2));
     });
     /* ★ 기둥끼리 잇는 **다리**(요청·사진: "기둥간 연결하는 다리들이 있음 — 전부 바닥쪽에
@@ -12951,7 +12949,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          **투명도 0의 같은 원**을 눕혀 두면 잉크는 그대로고 눈에는 아무것도 없다 —
          이 모델의 물리 크기를 말하는 자는 이제 이 보이지 않는 창이다. */
     out.push(...tagKey([
-      [groundEllipse(...project(0, 0, 0.04), R9, R9 * groundSquashNow()),
+      [discPath3(0, 0, 0.04, R9, R9 * groundSquashNow()),
         0, "#000"] as ShapeFace,
     ], depthNow(0, 0) * 1.6 - 1));
     return out;
@@ -13570,7 +13568,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        태운 윗면 한 장이 곧 창이다). */
     out.push(...tagKey([
       ...paintBase(domeFaces3(0, 1.1, 0.52, 0.336, 5.16), "#2f2f2f"),
-      topFace(groundEllipse(...project(0, 1.2, 5.48), 0.34, 0.26), 0.34),
+      topFace(discPath3(0, 1.2, 5.48, 0.34, 0.26), 0.34),
     ], key9(0, 1.1, 6.6) + 0.3));
     /* ③ 주익 둘 — **보통 비행기 날개**(지적) ─────────────────────────────────────────
        앞판은 잎(leafFaces)이었다 — 뿌리도 끝도 뾰족한 마름모라 비행기 날개가 아니라
@@ -18420,7 +18418,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           0.26 * BW9 * 2.4, 0.26 * BW9 * 2.4, 0.26 * BW9 * 2.4,
           { sides: 8, caps: "both", trueNormal: true, tag: "braid.tip" },
         ), P_PLASMA),
-        [groundEllipse(...project(0, tip9[1] + dy9 * 0.2, tip9[2] + dz9 * 0.16), 0.3, 0.3), 0.45, P_PLASMA] as ShapeFace,
+        [discPath3(0, tip9[1] + dy9 * 0.2, tip9[2] + dz9 * 0.16, 0.3, 0.3), 0.45, P_PLASMA] as ShapeFace,
         // 옆 가닥 둘 — 같은 등뼈를 타되 옆으로 벌어졌다 모인다(안 그러면 가운데 줄만 서고 가닥이 남는다).
         ...([-1, 1] as const).flatMap((m9) => tagKey(paintBase(spirePillar({
           x: 0, y: 0, h: 0.8, w: 0.16 * BW9, tipW: 0.05 * BW9, segs: 6, sides: 4, caps: "none",
@@ -21047,8 +21045,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // (삭제·지적) 앞부분 검은 반투명 홈 — 정체불명 얼룩으로 보여 걷었다.
     out.push(topFace(shinePath3(0, -0.6, 3.04, 2.8, -0.9, -1, 1.25, 0.8), 0.25));
     // 옆구리 밝은 홈 한 쌍.
-    out.push(topFace(groundEllipse(...project(-2.3, -0.3, 3.12), 0.4, 0.55), 0.4));
-    out.push(topFace(groundEllipse(...project(2.3, -0.3, 3.12), 0.4, 0.55), 0.4));
+    out.push(topFace(discPath3(-2.3, -0.3, 3.12, 0.4, 0.55), 0.4));
+    out.push(topFace(discPath3(2.3, -0.3, 3.12, 0.4, 0.55), 0.4));
     // 등 뒤 엔진 짐 — 하나만 남기고 밝은 사이언색(요청).
     out.push(...paintBase(domeFaces3(0, -2.3, 0.95, 0.64, 3.36), "#b6faf1"));
     /* 꼬리 금색 추진체 둘(요청: "셔틀 — 꼬리에 금색 추진체 둘") — 몸통 꽁무니에서
@@ -21456,9 +21454,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 초록 김 — 위로 갈수록 넓고 옅어지는 세 켜. 이것도 가스라 3티어(요청).
       // 마른 간헐천은 김도 안 오른다(위 고갈 주석).
       if (!geyserDry) out.push(...fine(tagKey([
-        [groundEllipse(...project(cx9 - 0.1, cy9 + 0.15, h9 + 0.72), rim * 0.8, rim * 0.5), 0.15, GAS] as ShapeFace,
-        [groundEllipse(...project(cx9 - 0.25, cy9 + 0.3, h9 + 1.44), rim * 1.05, rim * 0.62), 0.09, GAS] as ShapeFace,
-        [groundEllipse(...project(cx9 - 0.4, cy9 + 0.45, h9 + 2.16), rim * 1.3, rim * 0.72), 0.05, GAS] as ShapeFace,
+        [discPath3(cx9 - 0.1, cy9 + 0.15, h9 + 0.72, rim * 0.8, rim * 0.5), 0.15, GAS] as ShapeFace,
+        [discPath3(cx9 - 0.25, cy9 + 0.3, h9 + 1.44, rim * 1.05, rim * 0.62), 0.09, GAS] as ShapeFace,
+        [discPath3(cx9 - 0.4, cy9 + 0.45, h9 + 2.16, rim * 1.3, rim * 0.72), 0.05, GAS] as ShapeFace,
       ], key + 1)));
     };
     // 분화구는 반대로 키운다(정정: "분화구들은 크기 증가") — 2.6/1.35/1.0 → 3.2/1.85/1.35.
