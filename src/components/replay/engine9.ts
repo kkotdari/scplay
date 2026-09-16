@@ -5751,7 +5751,12 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           const LINK_IN = 1.3;
           /* 본건물 쪽은 덜 물린다(요청: "테란 애드온 연결부 본건물 쪽 길이 줄이기") — 1.3 → 0.55. 통로가 본체
              안으로 깊이 파고들던 몫이 줄어 본체 쪽 길이가 짧아지고 가운데도 부속 쪽으로 옮겨 간다. */
-          const LINK_IN_MAIN = 0.55;
+          /* ★ **스타포트만 본체 쪽으로 더 깊이 뻗는다**(2026-09, 요청: "스타포트의 경우 애드온
+             연결부를 좀 더 길게 늘리기 — 스타포트 쪽으로") — 스타포트는 뒤쪽이 착륙판이라 벽이
+             다른 건물보다 안으로 들어가 있어, 같은 0.55 로는 통로가 벽에 못 닿고 허공에서 시작한다.
+             1.55 면 그만큼 본체 속으로 파고들어 두 건물이 이어진 것으로 읽힌다(가운데도 함께 옮겨
+             가므로 부속 쪽 끝은 그대로다). */
+          const LINK_IN_MAIN = par[3] === "Starport" ? 1.55 : 0.55;
           const leftEdge = par && parBox
             ? par[1] + footDx(par[3]) + parBox[2] + parBox[0] / 2 - LINK_IN_MAIN
             : bodyX - boxW / 2 - 1.2;
@@ -5762,7 +5767,8 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           /* 길이는 위아래로 죈다 — 부모를 죄어도 발자국 표가 틀린 옛 기록에서
              터무니없이 긴 값이 나올 수 있고, 길이가 곧 모형 배수라 그때 통로가
              건물보다 커진다. 통로는 두 건물 사이를 잇는 짧은 목이다. */
-          const linkW = Math.max(1.2, Math.min(3.2, (rightEdge - leftEdge) * (2 / 3)));
+          const linkW = Math.max(1.2, Math.min(par[3] === "Starport" ? 4.2 : 3.2,
+            (rightEdge - leftEdge) * (2 / 3)));
           /* 자리(요청 셋을 거친 자리) — −0.18 → −0.38 → −0.62 → **−0.12**.
              ★ 마지막 요청이 "애드온 연결부 바닥으로 내리기"다. 이 한 수는
                통로가 앉는 **지면선**이라, 뒤로 밀수록(음수가 클수록) 화면에서는

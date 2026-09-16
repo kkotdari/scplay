@@ -910,6 +910,11 @@ export function prismZFaces(
   /** 윗면을 덮을지 — 남의 몸에 두르는 띠는 뚜껑이 몸속에 묻혀 있어 그리면 안 된다
    *  (그리면 그 원판이 몸을 덮는다). 그런 토막은 false로 벽만 남긴다. */
   capTop = true,
+  /** ★ **이 벽은 안 그린다**(2026-09, 요청: "배틀크루저 포구는 튀어나오는 게 아니라 오히려 함몰") —
+   *  벽 한가운데(모형 좌표)를 받아 참이면 건너뛴다. spirePillar 의 `skipFace` 와 같은 규약이고
+   *  쓰임도 같다: 벽에 **진짜 구멍**을 뚫고 그 둘레를 부르는 쪽이 제 손으로 메운다.
+   *  ⚠ 뚜껑(capTop·밑면)은 이 문을 안 지난다 — 필요하면 따로 막아라. */
+  skipFace?: (mx: number, my: number, mz: number) => boolean,
 ): ShapeFace[] {
   const n = plan.length;
   let cx = 0;
@@ -928,6 +933,7 @@ export function prismZFaces(
     const len = Math.hypot(mx, my) || 1;
     const { visible, face } = faceLight(mx / len, my / len);
     if (!visible) continue;
+    if (skipFace && skipFace((plan[i][0] + plan[j][0]) / 2, (plan[i][1] + plan[j][1]) / 2, z0 + h / 2)) continue;
     const d = polyPath3([
       [plan[i][0], plan[i][1], z0], [plan[j][0], plan[j][1], z0],
       [plan[j][0], plan[j][1], z0 + h], [plan[i][0], plan[i][1], z0 + h],

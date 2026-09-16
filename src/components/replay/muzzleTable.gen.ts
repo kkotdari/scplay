@@ -5,7 +5,7 @@
  *  ★ 모델을 고치면 이 표도 다시 뽑는다. 검사 모드가 어긋남을 잡는다. */
 export const MUZZLE_GEN9: Record<string, [number, number, number]> = {
   arbiter: [0, 1.3, 2.05],
-  bc: [0, 4.93, 3.67],
+  bc: [0, 4.95, 3.67],
   coil: [0, 0.3, 5.52],
   corsair: [0, 2.28, 5.19],
   defiler: [0, 1.93, 1.18],

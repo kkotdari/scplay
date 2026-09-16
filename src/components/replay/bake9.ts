@@ -7826,10 +7826,20 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const zM = PY_M - 0.48;
     const zT = PY_T;
     const w = 2.6;
-    const eq: [number, number][] = [[w, 0], [0, w], [-w, 0], [0, -w]];
-    for (let i = 0; i < 4; i += 1) {
+    /* ★ **낯을 늘린다**(2026-09, 요청: "파일런 중심 수정의 면 더 늘리기") — 넷이면 어느 각에서나
+       큰 삼각형 두 장뿐이라 '수정'이 아니라 종이 접기로 읽힌다. 여덟이면 위아래 합쳐 열여섯 낯이라
+       모서리마다 밝기가 갈려 깎은 돌이 된다(면 수는 곧 광택이 설 자리다).
+       ⚠ 허리는 **정팔각**이 아니라 네 모서리가 살짝 더 나온 꼴로 둔다 — 원작의 수정은 네모난 몸이고
+         정팔각으로 깎으면 둥근 구슬로 읽힌다(반지름을 0.82 로 눌러 사이 꼭짓점을 안으로 들인다). */
+    const EQ_N9 = 8;
+    const eq: [number, number][] = Array.from({ length: EQ_N9 }, (_, i9) => {
+      const a9 = (i9 / EQ_N9) * Math.PI * 2;
+      const r9 = i9 % 2 === 0 ? w : w * 0.82;
+      return [Math.cos(a9) * r9, Math.sin(a9) * r9] as [number, number];
+    });
+    for (let i = 0; i < EQ_N9; i += 1) {
       const [x1, y1] = eq[i];
-      const [x2, y2] = eq[(i + 1) % 4];
+      const [x2, y2] = eq[(i + 1) % EQ_N9];
       let nx = (x1 + x2) / 2;
       let ny = (y1 + y2) / 2;
       const nl = Math.hypot(nx, ny) || 1;
@@ -14200,6 +14210,29 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         f9.push(...quad9([e9[0], e9[1], e9[2], e9[3]], e9[1][0] - m9 * 0.5, e9[1][1], e9[1][2]));
         return f9;
       })(), "terran"), key9(m9 * (1.25 + WREACH9 / 2), -0.7, WTIPZ9 + 0.15)));
+      /* ★ **날개 뿌리의 임자색 데칼**(2026-09, 요청: "배틀크루저 동체와 날개 붙는 부분, 날개 위에
+         앞뒤로 잇는 데칼 추가" → "임자색 데칼") — 동체와 날개가 만나는 자리는 지금 회색 위에 회색이라
+         이음매가 안 읽힌다. 날개 **윗면**에 앞뒤를 잇는 띠를 한 줄 얹으면 그 자리가 '붙인 자리'로
+         읽히고, 색을 안 주므로 임자 색이 든다(accent 규약).
+         ⚠ 날개 윗면은 마루(U)를 가운데 두고 앞뒤로 꺾인 두 낯이다 — 띠도 그 둘을 따라 꺾어야
+           마루 위에 뜬 판때기가 안 된다. z 로 0.035 만 띄운다(같은 평면이면 z 싸움을 한다). */
+      out.push(...tagKey(((): ShapeFace[] => {
+        const LIFT9 = 0.035;
+        const at9 = (t9: number): [number, number, number][] => {
+          const x9 = m9 * (1.25 + WREACH9 * t9);
+          const z9 = WROOTZ9 - WDROP9 * Math.min(1, t9 / WKNEE9);
+          const w9 = whAt9(t9);
+          return [[x9, WYF9, z9 + LIFT9], [x9, WYF9 - w9, z9 + 0.16 * w9 + LIFT9], [x9, WYF9 - 2 * w9, z9 + LIFT9]];
+        };
+        const A9 = at9(0.02); const B9 = at9(0.26);
+        const f9: ShapeFace[] = [];
+        for (const [i9, nz9] of [[0, 0.3], [1, -0.3]] as [number, number][]) {
+          const d9 = polyPath3([A9[i9], A9[i9 + 1], B9[i9 + 1], B9[i9]]);
+          const l9 = faceLight(0, nz9, 0.95);
+          if (l9.visible) f9.push(bodyFace(d9), ...l9.face(d9));
+        }
+        return f9;
+      })(), key9(m9 * (1.25 + WREACH9 * 0.14), -0.7, WROOTZ9 + 0.2) + 0.4));
       /* ②-b 날개 **끝 옆면**의 임자색 얇은 상자 셋 — 앞뒤로 늘어선다(지적). 색을 안 주면
          굽는 쪽이 임자 색을 채운다. 날개 끝(WTIPX9)의 바깥 낯에 반쯤 박아 둔다. */
       for (const wy9 of [-0.46, 0, 0.46]) {
@@ -14315,16 +14348,22 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        따로 노는 두 덩이가 된다. 띠 둘은 임자 색이고, 목보다 조금만 굵어 살짝 도드라진다. */
     out.push(...tagKey(raceBase(prismYFaces(OCT_XZ(0, 4.816, 1.05, 0.624), 0.9, 2.8), "terran"),
       key9(0, 2.3, 6.02)));
-    // 목 임자색 띠 **셋**(요청) — 앞·가운데·뒤에 감고 폭 0.26 → 0.36
+    /* 목 임자색 띠 **셋**(요청) — 앞·가운데·뒤에 감고 폭 0.26 → 0.36 → **0.72**
+       (2026-09, 요청: "배틀 목의 임자색 띠 두께 각각 2배로") — 목이 굵어진 뒤 0.36 은 실처럼
+       가늘어 임자가 안 읽혔다. 띠 사이 간격(1.17)의 6할이라 아직 '세 줄'로 갈린다. */
     for (const by9 of [0.95, 2.12, 3.3]) {
-      out.push(...tagKey(prismYFaces(OCT_XZ(0, 4.816, 1.16, 0.704), by9, 0.36, false, false),
-        key9(0, by9 + 0.18, 6.02) + 0.6));
+      /* ⚠ 띠는 목에 **바싹** 붙는다(2026-09, 지적: "지금 헐겁게 두르고 있음") — 목이 1.05·0.624 인데
+         띠가 1.16·0.704 라 0.11·0.08 이나 떠 있었다. 굵기를 두 배로 키우자 그 틈이 그대로 두 배로
+         보였다(넓은 띠일수록 뜬 몫이 더 눈에 띈다). 0.04·0.03 만 내어 **파고들 듯** 두른다. */
+      out.push(...tagKey(prismYFaces(OCT_XZ(0, 4.816, 1.09, 0.655), by9, 0.72, false, false),
+        key9(0, by9 + 0.36, 6.02) + 0.6));
     }
     /* ⑥ 머리 — 윗면이 사다리꼴인데 앞 두 모서리를 뭉뚝하게 깎아 결국 육각이고, 높이감이
        있다. 넓어진 사선 벽은 옆에서 저절로 든다(기둥이 제 벽마다 보임을 판정한다). */
+    /* 앞벽에는 **진짜 구멍**을 뚫는다(아래 ⑧ 야마토 아가리) — 그 둘레는 거기서 손수 메운다. */
     out.push(...tagKey(raceBase(prismZFaces([
       [-1.95, 3.4], [1.95, 3.4], [1.2, 4.35], [0.6, 4.95], [-0.6, 4.95], [-1.2, 4.35],
-    ], 4.12, 1.24), "terran"), key9(0, 4.0, 5.9)));
+    ], 4.12, 1.24, true, (mx9, my9) => my9 > 4.9 && Math.abs(mx9) < 0.1), "terran"), key9(0, 4.0, 5.9)));
     /* ⑦ 함교 — 앞 두 모서리를 깎아 앞벽 하나 + 대각벽 둘. 창은 벽마다 하나씩, 벽 폭의
        대부분을 차지하는 납작한 띠창이다(건물 창과 같은 부품이라 유리 낯도 같다).
        ★ **성냥갑처럼 납작하게**(요청: "조종부는 이미지엔 없지만 남겨 주되 성냥갑처럼
@@ -14370,15 +14409,55 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* ⑧ 야마토 포문 — 머리 앞면 가운데. 앞면 벽 데칼이라 요잉과 함께 돌고, 뒤에선 몸에 가려
        안 그린다. 테를 두 겹으로 둔다(바깥 어두운 테 + 안쪽 밝은 테) — 한 겹이면 구멍이
        벽에 뚫린 점으로만 보이고, 두 겹이면 포문이 벽에서 **파여 들어간** 것으로 읽힌다. */
-    markMuzzle9(0, 4.93, 4.64);   // 야마토 포문
-    if (facingRatio(0, 1) > -0.05) {
-      const k9 = Math.min(1, (facingRatio(0, 1) + 0.05) / 0.4);
-      out.push(...tagKey([
-        // 야마토 포구 축소(요청) 0.78 → 0.56 · 포문 위 작은 점 둘은 제거(요청)
-        [wallDiscPath(0, 4.93, 4.64, 0.56, 0.36), 0.55 * k9, "#3d4653"] as ShapeFace,
-        topFace(wallDiscPath(0, 4.93, 4.64, 0.4, 0.256), 0.2 * k9),
-        capFace(wallDiscPath(0, 4.93, 4.64, 0.26, 0.16), 0.62 * k9),
-      ], key9(0, 4.95, 5.8) + 0.8));
+    markMuzzle9(0, 4.95, 4.64);   // 야마토 포문 — 앞벽에 파인 아가리
+    /* ★★ **포구는 내민 것이 아니라 파인 것이다**(2026-09, 요청: "배틀크루저 앞에 야마토 포 구
+       아가리 패기" → "튀어나오는 게 아니라 오히려 함몰") — 처음엔 앞으로 내민 목(collar) 안을
+       팠다. 벽을 안 뚫어도 되는 길이었지만, 그것은 함몰이 아니라 **돌출**이다.
+       그래서 머리 앞벽(prismZFaces 의 그 한 낯)을 **skipFace 로 빼고**, 빠진 자리를
+       ㉠ 구멍 둘레의 앞벽 조각 ㉡ 뒤로 파고드는 깔때기 ㉢ 바닥의 발광 렌즈로 메운다.
+       ★ 오목한 속을 GL 이 제대로 내려면 낯의 법선이 **아가리 안쪽**을 봐야 한다 — spirePillar 의
+         trueNormal 은 축의 **바깥**으로 맞추므로(그러면 먼 쪽이 걸러져 속이 안 보인다) 손으로 짠다.
+         깔때기의 안쪽 법선은 `(−cos·dY, dR, −sin·dY)` 다(원통이면 축을 향하고 벌어질수록 아가리 밖).
+       ⚠ 구멍 반지름은 앞벽이 담을 수 있는 크기여야 한다 — 앞벽은 x ±0.6 · z 4.12~5.36 이라
+         0.42 가 상한 언저리다(밑변까지 0.52). */
+    {
+      const MX9 = 0; const MZ9 = 4.64; const WY9 = 4.95;
+      const R0 = 0.42;                      // 구멍(테) 반지름
+      const R1 = 0.13; const YB9 = WY9 - 0.62;   // 바닥
+      const NM9 = 14;
+      const fs9: ShapeFace[] = [];
+      const dY9 = WY9 - YB9; const dR9 = R0 - R1;
+      const nl9 = Math.hypot(dY9, dR9) || 1;
+      /** 앞벽 네모(x ±0.6 · z 4.12~5.36)의 테두리를 그 방향으로 뻗어 만나는 점. */
+      const rect9 = (aa9: number): [number, number, number] => {
+        const cx9 = Math.cos(aa9); const sz9 = Math.sin(aa9);
+        const tx9 = Math.abs(cx9) < 1e-6 ? Infinity : 0.6 / Math.abs(cx9);
+        const tz9 = Math.abs(sz9) < 1e-6 ? Infinity : (sz9 > 0 ? 5.36 - MZ9 : MZ9 - 4.12) / Math.abs(sz9);
+        const tt9 = Math.min(tx9, tz9);
+        return [MX9 + cx9 * tt9, WY9, MZ9 + sz9 * tt9];
+      };
+      for (let i9 = 0; i9 < NM9; i9 += 1) {
+        const a0 = (i9 / NM9) * Math.PI * 2; const a1 = ((i9 + 1) / NM9) * Math.PI * 2;
+        const am9 = (a0 + a1) / 2;
+        const ca9 = Math.cos(am9); const sa9 = Math.sin(am9);
+        const P9 = (aa9: number, r9: number, y9: number): [number, number, number] =>
+          [MX9 + Math.cos(aa9) * r9, y9, MZ9 + Math.sin(aa9) * r9];
+        // ㉠ 빠진 앞벽 메우기 — 구멍 테에서 네모 테두리까지
+        const dw9 = polyPath3([P9(a0, R0, WY9), rect9(a0), rect9(a1), P9(a1, R0, WY9)]);
+        const lw9 = faceLight(0, 1, 0);
+        if (lw9.visible) fs9.push(...raceBase([bodyFace(dw9)], "terran"), ...lw9.face(dw9));
+        // ㉡ 깔때기 속 — 법선이 안쪽을 본다
+        const din9 = polyPath3([P9(a0, R0, WY9), P9(a1, R0, WY9), P9(a1, R1, YB9), P9(a0, R1, YB9)]);
+        const lin9 = faceLight(-ca9 * (dY9 / nl9), dR9 / nl9, -sa9 * (dY9 / nl9));
+        if (lin9.visible) fs9.push([din9, 1, "#2f3540"] as ShapeFace, ...lin9.face(din9));
+      }
+      // ㉢ 바닥의 발광 렌즈
+      const dbot9 = polyPath3(Array.from({ length: NM9 }, (_, i9) => {
+        const aa9 = (i9 / NM9) * Math.PI * 2;
+        return [MX9 + Math.cos(aa9) * R1, YB9, MZ9 + Math.sin(aa9) * R1] as [number, number, number];
+      }));
+      fs9.push([dbot9, 0.85, "#7fd0ff"] as ShapeFace);
+      out.push(...tagKey(fs9, key9(0, 4.6, 4.64) + 0.2));
     }
     return zsorted(out);
   },
