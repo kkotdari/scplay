@@ -20,6 +20,12 @@ const K = Number(flag("--k", 0.8));
 const FILE = join(ROOT, String(flag("--file", "src/components/replay/bake9.ts")));
 const SIG_FILES = ["src/utils/shapeOblique.ts", "src/components/replay/bake9.ts"].map((f) => join(ROOT, f));
 const DRY = has("--dry");
+/** ★ **자리를 좁혀 접는다**(2026-09, 요청: "모델의 초기값 자체를 새로 옮겨서 생성") —
+ *  `--only 이름1,이름2` 를 주면 그 이름의 **선언 안에 든 편집만** 쓴다. 종류 몇만 키를
+ *  고칠 때, 파일 전체를 접으면 안 되기 때문이다. 이름은 빌더 속성(gunner…)·함수 선언
+ *  (suitLegs…)·모듈 상수(SUIT_TORSO_Z0…) 셋 다 받는다.
+ *  ⚠ 쌍둥이 선언(NAMEz9)은 원 선언문 **뒤**에 붙으므로 그 선언도 --only 에 넣어야 한다. */
+const ONLY = flag("--only", null) ? new Set(String(flag("--only")).split(",")) : null;
 
 const Z_NAMES = new Set(["z", "z0", "z1", "z2", "z3", "z9", "zt", "zt9", "zb", "zc", "cz", "cz9", "bz", "bz9", "tz", "tz9", "gz", "gz9",
   "zA", "zB", "zTop", "zBot", "h", "h9", "hh", "hh9", "height", "dz", "dz9", "lift", "lift9", "rz", "rz9", "zLo", "zHi", "zoff", "dzc", "zc9", "hz9", "zBase", "zRoot9", "zTip9", "zT", "zB", "zd9", "zm9", "zTop9", "zBot9"]);
@@ -197,9 +203,9 @@ const DECIDE = { zOnly: new Set(), fnZ: new Set(), fnPt: new Map(), twin: new Ma
 let refs = { z: new Map(), all: new Map(), calls: new Map(), callsZ: new Map(), ptReq: new Map(), elemReq: new Map(), ptOf: new Set() };
 const addSet = (m, k, v) => { let s = m.get(k); if (!s) { s = new Set(); m.set(k, s); } s.add(v); };
 let mode = "analyze";   // "analyze" | "edit"
-const edits = [];       // {start, end, text}
+let edits = [];       // {start, end, text}
 const wraps = [];       // 보고
-const twinsOut = [];    // {declStmtEnd, text}
+let twinsOut = [];    // {declStmtEnd, text}
 const sfRef = { sf: null };
 const lineOf = (n) => sfRef.sf.getLineAndCharacterOfPosition(n.getStart()).line + 1;
 
@@ -647,6 +653,25 @@ for (const [fn, name] of DECIDE.twinFn) {
     const rt = fn.type ? `: ${text(fn.type)}` : "";
     twinsOut.push({ pos: stmt.getEnd(), text: ` const ${name} = (${params})${rt} => ${scaleZ(rets[0])}; /* z용 쌍둥이 함수(model-z-scale ×${K}) */` });
   } else wraps.push(`${lineOf(fn)}: 쌍둥이 함수 본문이 블록이라 못 만듦 ${name}`);
+}
+// --only — 이름 붙은 선언의 자리 안에 든 편집만 남긴다
+let spans = null;
+if (ONLY) {
+  spans = [];
+  const walk = (n) => {
+    let nm = null; let node = n;
+    if (ts.isPropertyAssignment(n) && n.name) nm = n.name.getText();
+    else if (ts.isFunctionDeclaration(n) && n.name) nm = n.name.text;
+    else if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name)) { nm = n.name.text; node = n.parent.parent; }
+    if (nm && ONLY.has(nm)) spans.push([node.getStart(), node.getEnd()]);
+    ts.forEachChild(n, walk);
+  };
+  walk(sf);
+  const miss = [...ONLY].filter((k) => !spans.length || !spans.some(() => true));
+  console.log(`--only ${[...ONLY].join(",")} → 자리 ${spans.length}곳${miss.length ? " ⚠못 찾음 " + miss.join(",") : ""}`);
+  const inSpan = (a, b) => spans.some(([s0, e0]) => a >= s0 && b <= e0);
+  edits = edits.filter((e) => inSpan(e.start, e.end));
+  twinsOut = twinsOut.filter((t) => inSpan(t.pos, t.pos));
 }
 // 겹치는 편집은 바깥 것만
 edits.sort((a, b) => a.start - b.start || b.end - a.end);

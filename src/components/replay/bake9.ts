@@ -1568,18 +1568,17 @@ export function suitLimb(
 /* ★ let이다(요청: "메딕 상체 길이 축소 하체길이 그만큼 증가") — 체형 비율을 종류
    하나만 다르게 주려면 이 두 값을 굽는 동안 갈아끼울 문이 필요하다(suitBodyRatio).
    suitZ·어깨선·허리띠·몸통이 전부 여기서 파생되므로 이 둘만 갈면 다 따라온다. */
-export let SUIT_TORSO_Z0 = 1.76;   // 2.2 → ×0.8(model-z-scale — let 이라 도구가 못 접어 손으로)
-export let SUIT_TORSO_H = 1.616;   // 2.02 → ×0.8(model-z-scale — let 이라 도구가 못 접어 손으로)
-/** ★ 테란 보병 넷은 **키가 1.1배**다(2026-09, 요청: "마린 파뱃 다리길이 원복하고 테란
- *  보병 전체 높이를 1.1배로") — 마린·파뱃만 다리를 1.2배로 늘려 봤고(그 전엔 키를 1.2·1.1배로
- *  세워 봤고) 둘 다 되돌렸다. 남는 자는 **넷에 같은 몫**이다: 보병끼리의 비는 이미 서 있고
- *  모자란 것은 다른 유닛에 견준 키였다.
- *  모형 공간의 z 배수(withModelScale 의 kz)라 꼭짓점에 굳는다 — 그리기 배수(MODEL_NORM)가
- *  아니라 모델 제 좌표가 바뀐다.
- *  ⚠ **정규화(MODEL_NORM)는 다시 재지 않는다** — 재면 잉크 상자가 커진 만큼 배수가 줄어
- *  폭까지 같이 작아진다(비만 서고 키는 제자리다). 요청이 '높이를 1.1배'이므로 재측정 값으로
- *  덮지 않는다(BLD_NORM 에 손으로 눌러 둔 값과 같은 규약). */
-export const SUIT_TALL9 = 1.1;
+export let SUIT_TORSO_Z0 = 1.936;   // 2.2 → ×0.8 → ×1.1(model-z-scale — let 이라 도구가 못 접어 손으로)
+export let SUIT_TORSO_H = 1.7776;   // 2.02 → ×0.8 → ×1.1(model-z-scale — let 이라 도구가 못 접어 손으로)
+/* ★ 테란 보병 넷의 **키 1.1배는 소스 숫자에 굳혔다**(2026-09, 요청: "테란 보병 전체 높이를
+   1.1배로" → 지적: "모델의 초기값 자체를 새로 옮겨서 생성하라고 했는데 왜 그렇게 안 했어") —
+   처음엔 `withModelScale(1, 1, 1.1, …)` 로 감쌌다. 그것도 모형 공간에 먹지만 **원시값이 아니다**:
+   소스를 읽는 사람은 옛 숫자를 보고, 코드모드·검산 도구도 옛 값을 잡는다.
+   `scripts/model-z-scale.mjs --k 1.1 --only gunner,fbat,ghost,inf,suitLegs,SUIT_TORSO_Z0,SUIT_TORSO_H`
+   로 그 네 빌더와 보병 전용 뼈대의 z 자리 숫자만 접었다(`--only` 는 이때 더한 손잡이다 —
+   파일 전체를 접으면 안 되니까). `let` 인 두 상수는 도구가 못 접어 손으로 접었다.
+   ⚠ 남는 잔차: 헬멧 돔처럼 **반지름이 곧 높이**인 자리는 접히지 않는다(×0.8 때 118종을 손으로
+   고친 그 자리와 같다). 눈으로는 안 보이고, 그 값은 래퍼판과의 면 대조에 남아 있다. */
 /** 체형 비율을 바꿔 굽는 문 — 다 굽고 반드시 되돌린다(sunkenFire 결). */
 export function suitBodyRatio<T>(z0: number, h: number, fn: () => T): T {
   const pz = SUIT_TORSO_Z0;
@@ -1734,16 +1733,16 @@ export function suitLegs(
     // 다리를 한 뼘 짧게(사진: 상체가 크고 다리가 짧다) — 골반 2.62 → 2.5.
     /* 다리를 한 단 더 짧게(사진: 상체가 크고 다리가 짧다) — 골반 2.5 → 2.18,
        무릎 1.5 → 1.22, 발목 0.3 → 0.24. 마디 비는 그대로라 걸음은 안 달라진다. */
-    const hip: [number, number, number] = [m * 0.54 * spread, -0.05 - LEG_BACK, 1.888 * zk];
+    const hip: [number, number, number] = [m * 0.54 * spread, -0.05 - LEG_BACK, 2.0768 * zk];
     /* ★ 걸음에도 **허벅지·정강이 길이는 그대로**(요청: 양다리 길이 같아야) — 여태 무릎을
        보폭에 비례해 손으로 밀어, 내딛는 다리의 마디가 서 있는 다리보다 길어졌다. 이제
        발목만 보폭대로 옮기고 무릎은 두 마디 길이(서 있을 때 값)로 푼다(앞으로 굽힘). */
-    const knee0: [number, number, number] = [m * 0.6 * spread, 0.14 - LEG_BACK, 1.072 * zk];
+    const knee0: [number, number, number] = [m * 0.6 * spread, 0.14 - LEG_BACK, 1.1792 * zk];
     const ankle0: [number, number, number] = [m * 0.58 * spread, -0.02 - LEG_BACK, 0.26];
     const Lt9 = Math.hypot(knee0[0] - hip[0], knee0[1] - hip[1], knee0[2] - hip[2]);
     const Ls9 = Math.hypot(ankle0[0] - knee0[0], ankle0[1] - knee0[1], ankle0[2] - knee0[2]);
-    const ankle: [number, number, number] = [ankle0[0], ankle0[1] + st * 1.35, ankle0[2] + Math.max(0, st) * 0.192];
-    const knee: [number, number, number] = st === 0 ? knee0 : jointBetween(hip, ankle, Lt9, Ls9, [0, 1, 0.15]);
+    const ankle: [number, number, number] = [ankle0[0], ankle0[1] + st * 1.35, ankle0[2] + Math.max(0, st) * 0.2112];
+    const knee: [number, number, number] = st === 0 ? knee0 : jointBetween(hip, ankle, Lt9, Ls9, [0, 1, 0.165]);
     /* 마디 뚜껑을 닫고(지적: "다리의 윗단면이 비쳐보이는것") 다리를 늘 몸통보다
        먼저 그린다 — 허벅지 꼭대기는 골반 속, 정강이 꼭대기는 허벅지 속, 정강이 발치는
        군화 속이라 뚜껑이 다 남의 몸 안에 있다. 뚜껑 없는 관은 위에서 보면 속(뒤쪽
@@ -1782,7 +1781,7 @@ export function suitLegs(
     {
       const bx9 = m * 0.58 * spread;
       const by9 = 0.16 - LEG_BACK + st * 1.35;
-      const bz9 = Math.max(0, st) * 0.208;
+      const bz9 = Math.max(0, st) * 0.2288;
       /* 구두 — 밑은 평평하고 **앞코와 뒤꿈치가 둥글다**(지적: "원통을 제거하고 뒷꿈치를
          둥글게 처리하라고"). 앞서 뒤축에 관(원통)을 덧대 봤더니 구두가 아니라 굽이
          따로 붙은 꼴이 됐다 — 덧대는 것이 아니라 **깎는 것**이 맞다.
@@ -17633,7 +17632,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   // 비율 살짝 되돌림(재지적) — 몸통 1.72 → 1.82, 다리 1.08 → 1.04.
   /* 다리 −10%(zk 0.94)만큼 몸통도 내린다(지적: "다리 수정에 맞게 그 위의 부품들
      높이 내려야지") — 골반 z 2.36×0.94 ≈ 2.22가 새 다리 꼭대기다. */
-  inf: () => withModelScale(1, 1, SUIT_TALL9, () => suitBodyRatio(1.824, 1.456, () => {
+  inf: () => suitBodyRatio(2.0064, 1.6016, () => {
     const G = 0.9;
     /* 걸음 컷(요청: 애니메이션) — 다리가 벌어지고 팔은 **다리와 교차**로 흔든다
        (지적: "걸을때 팔 앞뒤로 흔드는거는 다리와 반대방향이 앞으로 나가게 교차야").
@@ -17659,17 +17658,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 몸에 붙인다(지적: "아프론도 몸에 붙이기") — 윗변 y 0.62 → 0.5, 아랫단 0.8 →
        0.7. 앞을 볼 때만 그리고 키가 몸보다 높으므로, 붙여도 몸에 먹히지 않는다
        (옛 "몸에 가려짐"은 깊이 문제였고 그건 facingRatio 갈래가 이미 풀었다). */
-    const apron = polyPath3([[-0.44, 0.5, 2.44], [0.44, 0.5, 2.44],
-      [0.34, 0.7, 0.68], [0.22, 0.7, 0.784], [0.1, 0.7, 0.68], [-0.02, 0.7, 0.784],
-      [-0.14, 0.7, 0.68], [-0.26, 0.7, 0.768], [-0.34, 0.7, 0.68]]);
+    const apron = polyPath3([[-0.44, 0.5, 2.684], [0.44, 0.5, 2.684],
+      [0.34, 0.7, 0.748], [0.22, 0.7, 0.8624], [0.1, 0.7, 0.748], [-0.02, 0.7, 0.8624],
+      [-0.14, 0.7, 0.748], [-0.26, 0.7, 0.8448], [-0.34, 0.7, 0.748]]);
     /** 자락 위의 세로 주름 — 옅은 그늘 줄 셋. 위(허리)에서 아래로 갈수록 벌어진다. */
     const apronFold = (u9: number): string => polyPath3([
-      [u9 * 0.3 - 0.015, 0.51, 2.36], [u9 * 0.3 + 0.015, 0.51, 2.36],
-      [u9 * 0.38 + 0.02, 0.71, 0.84], [u9 * 0.38 - 0.02, 0.71, 0.84],
+      [u9 * 0.3 - 0.015, 0.51, 2.596], [u9 * 0.3 + 0.015, 0.51, 2.596],
+      [u9 * 0.38 + 0.02, 0.71, 0.924], [u9 * 0.38 - 0.02, 0.71, 0.924],
     ]);
     /** 개인색 포인트 — 밑단 위 가로 띠(칠하지 않아 임자 색이 든다). */
-    const apronBand = polyPath3([[-0.36, 0.69, 1.136], [0.36, 0.69, 1.136],
-      [0.35, 0.69, 0.944], [-0.35, 0.69, 0.944]]);
+    const apronBand = polyPath3([[-0.36, 0.69, 1.2496], [0.36, 0.69, 1.2496],
+      [0.35, 0.69, 1.0384], [-0.35, 0.69, 1.0384]]);
     /* ② 적십자 — 큰 어깨판 바깥면에 박힌다. 판이 커진 만큼 십자도 키운다(반길이
        0.29 → 0.42). 판의 바깥·앞을 함께 보는 법선이라 어느 쪽으로 돌아도 한쪽은 뜬다. */
     const cross = (m: 1 | -1): ShapeFace[] => {
@@ -17700,16 +17699,16 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          답하기 좋다. 칠을 걷으면 이 렌더러의 규약대로 임자 색이 든다 — 뒤판의 흰
          무늬와 그릴은 제 색으로 남겨 상자의 결이 안 사라진다. */
       ...tagKey([
-        ...frustumFaces3(0, -0.72, 1.06, 0.52, 1.22, 0.56, 0.84, 2.36),
-        ...frustumFaces3(0, -0.74, 1.22, 0.56, 0.82, 0.4, 0.272, 3.2),
+        ...frustumFaces3(0, -0.72, 1.06, 0.52, 1.22, 0.56, 0.924, 2.596),
+        ...frustumFaces3(0, -0.74, 1.22, 0.56, 0.82, 0.4, 0.2992, 3.52),
         ...(facingRatio(0, -1) > 0.1
           ? [
-            [polyPath3([[-0.16, -1.02, 3.16], [0.16, -1.02, 3.16],
-              [0.16, -1.02, 2.48], [-0.16, -1.02, 2.48]]), 1, "#dfe3e6"] as ShapeFace,
-            [polyPath3([[-0.42, -1.02, 2.976], [0.42, -1.02, 2.976],
-              [0.42, -1.02, 2.752], [-0.42, -1.02, 2.752]]), 1, "#dfe3e6"] as ShapeFace,
-            [polyPath3([[-0.4, -1.02, 2.464], [0.4, -1.02, 2.464],
-              [0.4, -1.02, 2.384], [-0.4, -1.02, 2.384]]), 1, "#727272"] as ShapeFace,
+            [polyPath3([[-0.16, -1.02, 3.476], [0.16, -1.02, 3.476],
+              [0.16, -1.02, 2.728], [-0.16, -1.02, 2.728]]), 1, "#dfe3e6"] as ShapeFace,
+            [polyPath3([[-0.42, -1.02, 3.2736], [0.42, -1.02, 3.2736],
+              [0.42, -1.02, 3.0272], [-0.42, -1.02, 3.0272]]), 1, "#dfe3e6"] as ShapeFace,
+            [polyPath3([[-0.4, -1.02, 2.7104], [0.4, -1.02, 2.7104],
+              [0.4, -1.02, 2.6224], [-0.4, -1.02, 2.6224]]), 1, "#727272"] as ShapeFace,
           ]
           : []),
       ], depthNow(0, -0.75) * 1.6 + 0.4),
@@ -17729,7 +17728,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 어깨판을 바깥으로(지적: "메딕 어깨보호구가 너무 안쪽인") — 뿌리 0.56G →
          0.8G. 판의 바깥 끝이 팔 뿌리 위를 덮는 자리다. */
       ...([-1, 1] as const).flatMap((m8) => tagKey(paintBase(
-        quarterDome(m8 * 0.8 * G, -0.1, suitShoulderZ() + 0.064, 0.78 * G, m8, 0, undefined, 0.176), WHITE,
+        quarterDome(m8 * 0.8 * G, -0.1, suitShoulderZ() + 0.0704, 0.78 * G, m8, 0, undefined, 0.1936), WHITE,
       ), depthNow(m8 * 1.3 * G, -0.1) * 1.6 + 1.4)),
       ...cross(-1),
       ...cross(1),
@@ -17751,7 +17750,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          유리를 쓴다 — 마린과 같은 구조, 색만 의무병의 것이다. */
       /* 헬멧 −10%(2026-09, 요청: "파뱃, 메딕 헬멧 크기 0.9배로 축소") — 반지름 하나가
          껍데기·유리·밑동 테를 다 쥐므로 여기만 곱하면 머리 한 벌이 같이 준다. */
-      ...suitHelmet(-0.12, 3.568, 0.52 * 0.9, WHITE, "#8fb8cf", 1, 0.85, undefined, true),
+      ...suitHelmet(-0.12, 3.9248, 0.52 * 0.9, WHITE, "#8fb8cf", 1, 0.85, undefined, true),
       /* ③ 앞 자락 — 앞을 볼 때만 그린다(지적: "매딕 앞가리개 몸다리에 안가려짐").
          뒤를 볼 때는 애초에 보일 것이 없는 한 장의 껍데기다. */
       ...(facingRatio(0, 1) > 0.05
@@ -17766,12 +17765,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          허리께에 받치고, 치료 컷(hl 1)에서 앞으로 든다. 왼팔은 몸 옆으로 늘어뜨린다. */
       // 팔꿈치는 두 마디 길이(0.71·0.5) 고정으로 푼다(요청: 양팔 길이 같아야).
       ...armChain([-1.02, -0.02, suitShoulderZ()],
-        jointBetween([-1.02, -0.02, suitShoulderZ()], [-1.04, hl(0.42 + swing(-1) * 1.5, 1.05), hl(2, 2.592)], 0.71, 0.5, [-0.7, -0.35, -0.6]),
-        [-1.04, hl(0.42 + swing(-1) * 1.5, 1.05), hl(2, 2.592)],
+        jointBetween([-1.02, -0.02, suitShoulderZ()], [-1.04, hl(0.42 + swing(-1) * 1.5, 1.05), hl(2.2, 2.8512)], 0.71, 0.5, [-0.7, -0.35, -0.66]),
+        [-1.04, hl(0.42 + swing(-1) * 1.5, 1.05), hl(2.2, 2.8512)],
         { upper: 0.22, fore: 0.25, fill: WHITE, handFill: "#4d4d4d" }),
       ...armChain([0.98, -0.02, suitShoulderZ()],
-        jointBetween([0.98, -0.02, suitShoulderZ()], [1.0, 0.34 + swing(1) * 1.5, 1.984], 0.71, 0.5, [0.7, -0.35, -0.6]),
-        [1.0, 0.34 + swing(1) * 1.5, 1.984],
+        jointBetween([0.98, -0.02, suitShoulderZ()], [1.0, 0.34 + swing(1) * 1.5, 2.1824], 0.71, 0.5, [0.7, -0.35, -0.66]),
+        [1.0, 0.34 + swing(1) * 1.5, 2.1824],
         { upper: 0.22, fore: 0.25, fill: WHITE, handFill: "#4d4d4d" }),
       /* 주사기 — 오른손이 쥐는 장비다(사진 medic1: 흰 몸통 + 초록 약통 + 앞 바늘).
          손끝 자리에서 하완 축을 그대로 이어 뻗으므로 팔과 겹치지 않는다. */
@@ -17792,16 +17791,16 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         markMuzzle9(N[0], N[1], N[2]);   // 바늘 끝
         return tagKey([
           ...paintBase(rodFaces(A[0], A[1], A[2], B[0], B[1], B[2], 0.17), WHITE),
-          ...paintBase(rodFaces(A[0] - 0.19, A[1], A[2] + 0.04,
-            B[0] - 0.19, B[1] - 0.06, B[2] + 0.04, 0.11), "#3fd06a"),
+          ...paintBase(rodFaces(A[0] - 0.19, A[1], A[2] + 0.044,
+            B[0] - 0.19, B[1] - 0.06, B[2] + 0.044, 0.11), "#3fd06a"),
           ...paintBase(hornFaces(B[0], B[1], B[2], N[0], N[1], N[2], 0.09), TERRAN_STEEL),
         ], depthNow(A[0], A[1]) * 1.6 + 1.4);
       })(),
     ];
-  })),
+  }),
   /* 마린(실물 참고) — 큰 어깨 뽕 한 쌍의 파워드 아머, 금빛 바이저 머리, 가슴 앞에
      가로로 든 가우스 소총. */
-  gunner: () => withModelScale(1, 1, SUIT_TALL9, () => {
+  gunner: () => {
     /* 몸은 뿔기둥 넷으로 짠다(요청) — 다리·몸통·목·어깨보호구. 칠하지 않은 면은
        임자 색이라, 마린의 전투복 자체가 개인색이고 헬멧 껍데기만 은색이다. */
     /* ★ 임자 색과 은색을 **맞바꾼다**(요청: "마린 어깨랑 허리띠가 임자색이고 나머지
@@ -17821,7 +17820,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const mv = wd !== 0 ? 1 : 0;     // 걷는 중인가(몸 낮춤·팔 흔들에 쓴다)
     const at = poseNow === 2 ? 1 : 0;
     const kick = 0.16 * at;    // 공격 컷에서 총·팔이 뒤로 밀리는 몫
-    const dz = -0.08 * mv;      // 걸을 때 몸이 낮아지는 몫
+    const dz = -0.088 * mv;      // 걸을 때 몸이 낮아지는 몫
     /* 팔도 흔든다(요청: "이동시 다리만 움직이지말고 팔도 앞뒤로 흔들게") — 마린은 두
        손이 총에 붙어 있어 팔을 따로 흔들 수는 없다. 대신 **총과 두 팔을 한 덩이로**
        앞으로 내밀었다 당긴다: 걸을 때 총구가 위아래·앞뒤로 까딱이는 그 결이다. */
@@ -17878,19 +17877,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 바이저는 은색 반투명(정정: 금빛 → "은색반투명으로") — 유리 너머로 뒤 껍데기가
       // 옅게 비쳐 헬멧이 빈 유리구로 읽힌다.
       // 유리는 껍데기보다 짙은 은색이어야 바이저로 갈려 읽힌다(같은 톤이면 통짜 은구).
-      ...suitHelmet(-0.32, 3.472, 0.62, TERRAN_STEEL, "#101318", 1, 0.72),   // 유리 앞은 짙은 검정(요청)
+      ...suitHelmet(-0.32, 3.8192, 0.62, TERRAN_STEEL, "#101318", 1, 0.72),   // 유리 앞은 짙은 검정(요청)
       /* 헬멧 귀 원판(사진 marine1 — 바이저 좌우의 둥근 볼트) — 껍데기 옆에 붙는 짧은
          원통. 머리와 같은 붙박이 키(+6)라 몸통에 안 먹힌다. */
       ...([-1, 1] as const).flatMap((m8) => tagKey(paintBase(
-        quarterDome(m8 * 0.56, -0.28, 3.488, 0.17, m8, 0, undefined, 0, 1), TERRAN_STEEL,
+        quarterDome(m8 * 0.56, -0.28, 3.8368, 0.17, m8, 0, undefined, 0, 1), TERRAN_STEEL,
       ), depthNow(0, -0.28) * 1.6 + 6.2)),
       /* 가슴 통풍구 한 쌍(사진 marine1 — 흉갑 위쪽의 원형 그릴 둘) — 앞을 볼 때만
          그리는 어두운 원판 + 속의 밝은 심. 모델 좌표의 세로 판이라 몸과 함께 돈다. */
       ...(facingRatio(0, 1) > 0.1
         ? ([-1, 1] as const).flatMap((m8) => tagKey([
           // 가슴판 위 좌우(사진) — 목에 안 걸리게 조금 작고 낮게, 앞면 밖으로.
-          [wallDisc(m8 * 0.44, 0.56, 2.976, 0.14, 0, 1), 1, "#3d3d3d"] as ShapeFace,
-          [wallDisc(m8 * 0.44, 0.58, 2.976, 0.075, 0, 1), 0.8, "#727272"] as ShapeFace,
+          [wallDisc(m8 * 0.44, 0.56, 3.2736, 0.14, 0, 1), 1, "#3d3d3d"] as ShapeFace,
+          [wallDisc(m8 * 0.44, 0.58, 3.2736, 0.075, 0, 1), 0.8, "#727272"] as ShapeFace,
         ], depthNow(m8 * 0.46, 0.47) * 1.6 + 1.7))
         : []),
       /* 두 팔 — 위팔은 어깨보호구 밑에서 나와 앞-아래로 내려가고, 팔꿈치에서 굽어
@@ -17919,8 +17918,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const shR: [number, number, number] = [-1.14, -0.02, suitShoulderZ()];
         const shL: [number, number, number] = [1.18, -0.02, suitShoulderZ()];
         const hR = GP9(0.15); const hL = GP9(0.42);
-        const eR = jointBetween(shR, hR, 1.0, 1.2, [-0.7, -0.35, -0.6]);
-        const eL = jointBetween(shL, hL, 1.0, 1.2, [0.7, -0.35, -0.6]);
+        const eR = jointBetween(shR, hR, 1.0, 1.2, [-0.7, -0.35, -0.66]);
+        const eL = jointBetween(shL, hL, 1.0, 1.2, [0.7, -0.35, -0.66]);
         const dirOf = (sh: [number, number, number], el: [number, number, number]): [number, number, number] =>
           [el[0] - sh[0], el[1] - sh[1], el[2] - sh[2]];
         return [
@@ -17934,7 +17933,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          몸통에 짧은 총열(ref를 x로 못 박고 oval 2.7이 그 비를 낸다). 두 손 위 키(+1.6)
          라 손에 안 묻힌다. */
       ...tagKey(paintBase(spirePillar({
-        x: 0, y: 0, h: 0.8, w: 1, segs: 4, sides: 6, oval: 2.7, caps: "both",
+        x: 0, y: 0, h: 0.88, w: 1, segs: 4, sides: 6, oval: 2.7, caps: "both",
         ref: [1, 0, 0],
         path: (t9: number): [number, number, number] => GP9(t9 * 0.82),   // 총몸을 늘이고 총열은 짧게(재요청: 총열이 너무 튀어나오지 않게)
         widthOf: (): number => 0.17,   // 굵기 1.3배(요청) 0.13 → 0.17
@@ -17944,17 +17943,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          끝 토막을 같은 단면(ref x · oval 2.7)으로 살짝 굵게 한 바퀴 두른다. 칠하지 않아
          임자 색이 든다. */
       ...tagKey(spirePillar({
-        x: 0, y: 0, h: 0.8, w: 0.2, tipW: 0.2, segs: 1, sides: 6, oval: 2.7, ref: [1, 0, 0],
+        x: 0, y: 0, h: 0.88, w: 0.2, tipW: 0.2, segs: 1, sides: 6, oval: 2.7, ref: [1, 0, 0],
         caps: "none", trueNormal: true,
         path: (t9: number): [number, number, number] => GP9(0.72 + 0.1 * t9),
       }), depthNow(GB9[0], 1.0) * 1.6 + 1.7),
       ...tagKey(paintBase(spirePillar({
-        x: 0, y: 0, h: 0.8, w: 1, segs: 3, sides: 6, caps: "top",
+        x: 0, y: 0, h: 0.88, w: 1, segs: 3, sides: 6, caps: "top",
         path: (t9: number): [number, number, number] => GP9(0.8 + 0.15 * t9),
         widthOf: (): number => 0.1,
       }), GUN_BLACK), depthNow(GM9[0], 1.8) * 1.6 + 1.62),
     ];
-  }),
+  },
   /* 고스트(전면 재작도 — 사진 samples/ghost1·2.jpg 기준) ───────────────────────
      사진이 말하는 것:
        ① **헬멧형이 아니다**(지적) — 뒤통수를 감싸는 흰 두건꼴 껍데기에 **붉게 빛나는
@@ -17965,7 +17964,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        ④ 긴 C-10 저격소총 — 총열이 몸보다 길고 붉은 마디가 박힌다.
      어깨 갑옷은 없다(요청: "고스트 어깨갑옷 제거") — 그것이 있으면 마린과 안 갈린다.
      2컷(요청: 전격 애니메이션화) — 이동은 걸음, 공격은 총이 뒤로 밀리는 반동이다. */
-  ghost: () => withModelScale(1, 1, SUIT_TALL9, () => {
+  ghost: () => {
     const G = 0.62;
     const DARK = "#4a4a4a";       // ② 짙은 잿빛 장갑(팔다리)
     const WHITE = "#e6eaee";      // 가슴판·두건
@@ -17980,7 +17979,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        없어 이 컷이 비어 있다). 굽는 컷 하나가 늘 뿐이다. */
     const at = poseNow === 2 ? 1 : poseNow === POSE_ATK_L ? 0.5 : 0;
     const kick = 0.18 * at;       // ④ 반동 — 총과 두 팔이 뒤로 밀린다
-    const dz = wd !== 0 ? -0.064 : 0;
+    const dz = wd !== 0 ? -0.0704 : 0;
     const sway = -0.12 * wd;
     /** 든 정도(0 평상시 — 총을 어깨 뒤로 멘다 · 1 공격 컷 — 겨눈다). */
     const lp = (a9: number, b9: number): number => a9 + (b9 - a9) * at;
@@ -17997,30 +17996,30 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ...([-1, 1] as const).flatMap((m8): ShapeFace[] => {
         if (facingRatio(m8, 0) < 0.12) return [];
         return tagKey([[polyPath3([
-          [m8 * 0.62, -0.12, 1.584], [m8 * 0.62, 0.1, 1.584],
-          [m8 * 0.63, 0.08, 1.104], [m8 * 0.63, -0.1, 1.104],
+          [m8 * 0.62, -0.12, 1.7424], [m8 * 0.62, 0.1, 1.7424],
+          [m8 * 0.63, 0.08, 1.2144], [m8 * 0.63, -0.1, 1.2144],
         ]), 1, RED] as ShapeFace], depthNow(m8 * 0.6, 0) * 1.6 - 0.6);
       }),
       /* ② 가슴 한복판을 흐르는 붉은 줄 — 앞을 볼 때만. 모델 좌표의 세로 판이라
          요잉·앞숙임을 몸과 똑같이 탄다. */
       ...(facingRatio(0, 1) > 0.1
         ? tagKey([[polyPath3([
-          [-0.1, 0.42, 3.36], [0.1, 0.42, 3.36], [0.1, 0.46, 2.176], [-0.1, 0.46, 2.176],
+          [-0.1, 0.42, 3.696], [0.1, 0.42, 3.696], [0.1, 0.46, 2.3936], [-0.1, 0.46, 2.3936],
         ]), 1, RED] as ShapeFace], depthNow(0, 0.44) * 1.6 + 1.6)
         : []),
       /* ③ 등 배낭 + 안테나 — 어깨 뒤에서 위로 솟는 가는 막대. 고스트의 실루엣에서
          유일하게 몸 밖으로 나오는 조각이라 멀리서도 눈에 걸린다. */
-      ...paintBase(boxFaces3(0, -0.5, 0.86, 0.42, 0.92, 2.48), DARK),
-      ...paintBase(rodFaces(-0.34, -0.62, 3.36, -0.5, -0.86, 4.88, 0.055), TERRAN_STEEL),
-      ...paintBase(domeFaces3(-0.5, -0.86, 0.1, 0.08, 4.88), RED),
+      ...paintBase(boxFaces3(0, -0.5, 0.86, 0.42, 1.012, 2.728), DARK),
+      ...paintBase(rodFaces(-0.34, -0.62, 3.696, -0.5, -0.86, 5.368, 0.055), TERRAN_STEEL),
+      ...paintBase(domeFaces3(-0.5, -0.86, 0.1, 0.088, 5.368), RED),
       /* ① 두건 + 외눈 바이저 — 뒤통수를 감싸는 흰 껍데기(뒤로 향한 4분구) 앞에
          붉은 렌즈 하나가 박힌다. 렌즈는 앞을 볼 때만 뜬다(뒤통수엔 눈이 없다). */
-      ...tagKey(quarterDome(0, -0.12, 3.552, 0.42, 0, -1, undefined, 0.128),   // 헬멧 껍데기 — 임자색(요청)
+      ...tagKey(quarterDome(0, -0.12, 3.9072, 0.42, 0, -1, undefined, 0.1408),   // 헬멧 껍데기 — 임자색(요청)
         depthNow(0, -0.3) * 1.6 + 3.2),
-      ...tagKey(paintBase(domeFaces3(0, 0.02, 0.31, 0.272, 3.568), DARK),
+      ...tagKey(paintBase(domeFaces3(0, 0.02, 0.31, 0.2992, 3.9248), DARK),
         depthNow(0, 0.02) * 1.6 + 3.3),
       ...lensFaces({
-        x: 0, y: 0.24, z: 3.664, nx: 0, ny: 1, r: 0.2, bulge: 0.4, lift: 2.88,
+        x: 0, y: 0.24, z: 4.0304, nx: 0, ny: 1, r: 0.2, bulge: 0.4, lift: 3.168,
         rim: "#5a1712", back: "#3a0f0c", fill: "#e03a2c", core: "#ff8a72", glint: "#ffe0d6",
       }),
       /* 팔 — 어깨 자리에서 나오고 길다. 오른손(−x)이 방아쇠, 왼손이 앞 손잡이다.
@@ -18029,7 +18028,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          크지 않은, 어깨 관절만 덮는 작은 4분구다(사진 ghost2의 흰 어깨 판).
          팔 뿌리(±0.74, suitShoulderZ()+0.3) 바로 위에 앉는다. */
       ...([-1, 1] as const).flatMap((m8) => tagKey(paintBase(
-        quarterDome(m8 * 0.5, 0.02, suitShoulderZ() + 0.272, 0.42, m8, 0, undefined, 0.08, 0.7),
+        quarterDome(m8 * 0.5, 0.02, suitShoulderZ() + 0.2992, 0.42, m8, 0, undefined, 0.088, 0.7),
         WHITE,
       ), depthNow(m8 * 0.8, 0.02) * 1.6 + 1.5)),
       /* 팔 — 평상시엔 몸 옆으로 내리고, 공격 컷에서만 총을 들어 겨눈다. */
@@ -18044,15 +18043,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            싣는다 — 총줄을 쥔 손은 걸어도 그 자리다. */
         // 고스트는 가장 가는 팔(요청: 두께로 유닛의 성격을 낸다) — 상완 0.19·하완 0.21.
         // 팔꿈치는 두 마디 길이(0.95·0.85) 고정으로 푼다(요청: 양팔 길이 같아야).
-        ...armChain([-0.74, 0.02, suitShoulderZ() + 0.24],
-          jointBetween([-0.74, 0.02, suitShoulderZ() + 0.24],
-            [lp(-0.78, -0.02), lp(0.3, 0.92) - kick - sway * 1.6, lp(1.904, 2.656) + dz], 0.95, 0.85, [-0.7, -0.35, -0.6]),
-          [lp(-0.78, -0.02), lp(0.3, 0.92) - kick - sway * 1.6, lp(1.904, 2.656) + dz],
+        ...armChain([-0.74, 0.02, suitShoulderZ() + 0.264],
+          jointBetween([-0.74, 0.02, suitShoulderZ() + 0.264],
+            [lp(-0.78, -0.02), lp(0.3, 0.92) - kick - sway * 1.6, lp(2.0944, 2.9216) + dz], 0.95, 0.85, [-0.7, -0.35, -0.66]),
+          [lp(-0.78, -0.02), lp(0.3, 0.92) - kick - sway * 1.6, lp(2.0944, 2.9216) + dz],
           { upper: 0.19, fore: 0.21, handFill: "#4d4d4d" }),   // 팔은 임자색(요청)
-        ...armChain([0.78, 0.02, suitShoulderZ() + 0.24],
-          jointBetween([0.78, 0.02, suitShoulderZ() + 0.24],
-            [lp(0.42, 0.42), lp(0.44, 1.62) - kick, lp(2.896, 2.704) + dz], 0.95, 0.85, [0.7, -0.35, -0.6]),
-          [lp(0.42, 0.42), lp(0.44, 1.62) - kick, lp(2.896, 2.704) + dz],
+        ...armChain([0.78, 0.02, suitShoulderZ() + 0.264],
+          jointBetween([0.78, 0.02, suitShoulderZ() + 0.264],
+            [lp(0.42, 0.42), lp(0.44, 1.62) - kick, lp(3.1856, 2.9744) + dz], 0.95, 0.85, [0.7, -0.35, -0.66]),
+          [lp(0.42, 0.42), lp(0.44, 1.62) - kick, lp(3.1856, 2.9744) + dz],
           { upper: 0.19, fore: 0.21, handFill: "#4d4d4d" }),   // 팔은 임자색(요청)
       ])(),
       /* ④ C-10 저격소총 — 노리쇠는 상자, 총열은 관 프리미티브라 총구가 요잉을 탄다.
@@ -18060,15 +18059,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          ★ 평상시에는 **어깨 뒤로 멘다**(요청: "고스트 평상시 총 어깨뒤로 메고 다님")
            — 겨눈 자세와 멘 자세는 축이 아예 다르므로(멘 총은 등을 가로질러 비스듬히
            선다) 두 벌을 따로 짠다. 멘 총은 3차원 막대(rodFaces)라야 그 기울기가 난다. */
-      ...((): ShapeFace[] => { markMuzzle9(0.4, 3.6 - kick, 2.736 + dz); return []; })(),   // 총구 — 겨눈 총열 끝
+      ...((): ShapeFace[] => { markMuzzle9(0.4, 3.6 - kick, 3.0096 + dz); return []; })(),   // 총구 — 겨눈 총열 끝
       ...(at
         ? paintBase([
-          ...boxFaces3(0.4, 0.85 - kick, 0.3, 1.4, 0.272, 2.6 + dz, ),
-          ...tubeFaces(0.4, 1.5 - kick, 0.4, 3.6 - kick, 0.16, 2.736 + dz, true),
+          ...boxFaces3(0.4, 0.85 - kick, 0.3, 1.4, 0.2992, 2.86 + dz, ),
+          ...tubeFaces(0.4, 1.5 - kick, 0.4, 3.6 - kick, 0.16, 3.0096 + dz, true),
         ], GUN_BLACK)
         : paintBase([
-          ...rodFaces(-0.42, -0.62, 1.96, 0.5, -0.78, 3.92, 0.16),
-          ...rodFaces(-0.42, -0.62, 1.96, -0.66, -0.58, 1.48, 0.2),
+          ...rodFaces(-0.42, -0.62, 2.156, 0.5, -0.78, 4.312, 0.16),
+          ...rodFaces(-0.42, -0.62, 2.156, -0.66, -0.58, 1.628, 0.2),
         ], GUN_BLACK)),
       /* ★ (걷어냄) 겨눔 컷의 **쥔 주먹 둘**(지적: "고스트 액션 포즈에서 손덩이 두 개 제거")
          ─────────────────────────────────────────────────────────────────────────────
@@ -18077,10 +18076,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          손이 두 겹이 되어, 총을 쥔 것이 아니라 총에 혹이 둘 붙은 꼴로 읽혔다.
          지우면 팔이 데려온 손이 그대로 총을 쥔다. */
       ...(at
-        ? paintBase(tubeFaces(0.4, 2.1 - kick, 0.4, 2.34 - kick, 0.2, 2.736 + dz), RED)
-        : paintBase(rodFaces(0.08, -0.72, 3.12, 0.2, -0.74, 3.36, 0.2), RED)),
+        ? paintBase(tubeFaces(0.4, 2.1 - kick, 0.4, 2.34 - kick, 0.2, 3.0096 + dz), RED)
+        : paintBase(rodFaces(0.08, -0.72, 3.432, 0.2, -0.74, 3.696, 0.2), RED)),
     ];
-  }),
+  },
   /* 파이어뱃(전면 재작도 — 원작 외형 기준, 요청: "기존 모델들 무시하고 재작도")
      ─────────────────────────────────────────────────────────────────────────
      옛 판의 가장 큰 오류는 **총을 한 자루 들고 있었다**는 것이다. 파이어뱃은 총을
@@ -18095,7 +18094,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        ⑤ 붉은 갑옷. 임자 색은 허리띠와 어깨의 불꽃 데칼이 맡는다(앞선 요청 유지).
      2컷(요청: 전격 애니메이션화) — 이동은 걸음, 공격은 **두 팔뚝을 앞으로 내지르며**
      몸이 따라 숙는 자세다. 화염 자체는 이펙트가 그리므로 몸은 그 내지름만 지면 된다. */
-  fbat: () => withModelScale(1, 1, SUIT_TALL9, () => {
+  fbat: () => {
     const wd = walkDir();            // +1 · −1 · 0 — 걸음 두 컷이 서로 거울이다
     const mv = wd !== 0 ? 1 : 0;
     const at = poseNow === 2 ? 1 : 0;
@@ -18127,18 +18126,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          무지갯빛 유리 뚜껑이 얹힌다. 여태 세운 것은 어깨 위로 한참 솟는 굴뚝 둘이라
          배낭이 사람보다 커 보였다. */
       ...paintBase([
-        ...cylinderFaces3(-0.68, -1.18, 0.42, 1, 2.52),
-        ...cylinderFaces3(0.68, -1.18, 0.42, 1, 2.52),
+        ...cylinderFaces3(-0.68, -1.18, 0.42, 1.1, 2.772),
+        ...cylinderFaces3(0.68, -1.18, 0.42, 1.1, 2.772),
       ], TANK),
       // 뚜껑 — 사진의 그 무지갯빛 유리. 두 통을 알아보게 하는 표식이다.
       ...paintBase([
-        ...domeFaces3(-0.68, -1.18, 0.4, 0.272, 3.52),
-        ...domeFaces3(0.68, -1.18, 0.4, 0.272, 3.52),
+        ...domeFaces3(-0.68, -1.18, 0.4, 0.2992, 3.872),
+        ...domeFaces3(0.68, -1.18, 0.4, 0.2992, 3.872),
       ], "#bfe4d8"),
       // 통 허리의 검은 조임 테 — 통이 하나로 안 뭉치게 결을 낸다.
       ...paintBase([
-        ...cylinderFaces3(-0.68, -1.18, 0.45, 0.16, 3.04),
-        ...cylinderFaces3(0.68, -1.18, 0.45, 0.16, 3.04),
+        ...cylinderFaces3(-0.68, -1.18, 0.45, 0.176, 3.344),
+        ...cylinderFaces3(0.68, -1.18, 0.45, 0.176, 3.344),
       ], "#3d3d3d"),
       /* ③ 몸 — 마린보다 넓다(wide 1.42). 다리는 걸음 컷을 탄다. */
       ...paintBase([
@@ -18150,7 +18149,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          마린의 공용 어깨판(0.66)으로는 어깨가 있는지도 안 보인다. 몸통 폭의 절반쯤을
          덮는 4분구(0.94)를 바깥·위로 기울여 얹는다. 그 위에 불꽃 데칼이 온다. */
       ...([-1, 1] as const).map((m8) => tagKey(paintBase(
-        quarterDome(m8 * 0.92, -0.12, 2.768, 0.8, m8, 0, undefined, 0.208), RED,
+        quarterDome(m8 * 0.92, -0.12, 3.0448, 0.8, m8, 0, undefined, 0.2288), RED,
       ), depthNow(m8 * 1.1, -0.12) * 1.6 + 1.4)).flat(),
       /* ⑤ 어깨 옆면 불꽃 데칼(앞선 요청 유지) — 혀 셋이 위로 타오르는 무늬. 칠을
          안 해야 임자 색이 온다. 모델 좌표의 세로 판(법선 ±x)이라 요잉·앞숙임을
@@ -18168,15 +18167,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            들이고 그 단면에 드는 크기(0.9)로 줄인다. */
         // 더 위로(지적: "파뱃 데칼 더 위로 어깨보호구에 맞게") — 3.28 → 3.75.
         const d8 = polyPath3(FLAME.map(([u8, v8]) =>
-          [m8 * 1.45, -0.14 + u8 * 0.9, 3 + v8 * 0.72]));
+          [m8 * 1.45, -0.14 + u8 * 0.9, 3.3 + v8 * 0.792]));
         return tagKey([[d8, 1] as ShapeFace], depthNow(m8 * 1.3, -0.12) * 1.6 + 1.7);
       }),
       /* 무릎 데칼 한 쌍(사진 firebat2 — 무릎에 노란 불꽃 문양) — 무릎 앞에 붙는
          작은 노란 원판. 앞을 볼 때만 그린다. */
       ...(facingRatio(0, 1) > 0.1
         ? ([-1, 1] as const).flatMap((m8) => tagKey([
-          [wallDisc(m8 * 0.6, 0.32, 1.072, 0.2, 0, 1), 1, "#e8c33a"] as ShapeFace,
-          [wallDisc(m8 * 0.6, 0.34, 1.088, 0.1, 0, 1), 1, "#b83a2c"] as ShapeFace,
+          [wallDisc(m8 * 0.6, 0.32, 1.1792, 0.2, 0, 1), 1, "#e8c33a"] as ShapeFace,
+          [wallDisc(m8 * 0.6, 0.34, 1.1968, 0.1, 0, 1), 1, "#b83a2c"] as ShapeFace,
         ], depthNow(m8 * 0.6, 0.32) * 1.6 - 0.5))
         : []),
       // 허리띠 — 임자 색. 공용 띠(suitBelt)가 몸 너비(1.42)에서 반지름을 뽑는다.
@@ -18191,10 +18190,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          앞을 보는 볼록 원판으로 낸다. 파이어뱃의 창은 마린보다 크다(vk 1.2). */
       // 헬멧 밑동 테는 개인색(요청) — 붉은 껍데기와 금빛 창 사이의 팀 표식.
       // 헬멧 −10%(요청: "파뱃, 메딕 헬멧 크기 0.9배로 축소") — 메딕과 같은 몫이다.
-      ...suitHelmet(-0.12, 3.616, 0.74 * 0.9, "#d4614c", "#e8b93c", 1, 1, undefined, true),
+      ...suitHelmet(-0.12, 3.9776, 0.74 * 0.9, "#d4614c", "#e8b93c", 1, 1, undefined, true),
       /* 가슴 등 한 쌍(사진 firebat2) — 흉갑에 박힌 파란 렌즈 둘. */
       ...([-1, 1] as const).flatMap((m8) => lensFaces({
-        x: m8 * 0.42, y: 0.66, z: 3.024, nx: m8 * 0.3, ny: 1, r: 0.19, bulge: 0.3, lift: 1.92,
+        x: m8 * 0.42, y: 0.66, z: 3.3264, nx: m8 * 0.3, ny: 1, r: 0.19, bulge: 0.3, lift: 2.112,
         rim: "#2a3550", back: "#16233c", fill: "#3f7fe0", core: "#8fc0ff", glint: "#e6f1ff",
       })),
       /* 두 팔(재작) — 넷 중 **가장 굵다**(0.34 → 0.40). 파이어뱃은 건틀릿 팔이
@@ -18205,7 +18204,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          어깨 기준으로 당긴다(AK9). 하나만 줄이면 jointBetween 이 못 닿아 팔꿈치가 펴진 채
          굳는다. 화염방사기는 손이 쥐는 것이라 같은 손목을 따라 같이 당긴다. */
       ...([-1, 1] as const).flatMap((m9) => armChain(SH9(m9),
-        jointBetween(SH9(m9), WR9(m9), 0.9 * AK9, 1.2 * AK9, [m9 * 0.7, -0.35, -0.6]),
+        jointBetween(SH9(m9), WR9(m9), 0.9 * AK9, 1.2 * AK9, [m9 * 0.7, -0.35, -0.66]),
         WR9(m9),
         // 하완만 임자 색(요청) — 붉은 상완과 짙은 손 사이에 팀의 한 마디가 든다.
         { upper: 0.34, fore: 0.4, fill: RED_D, handFill: "#4d4d4d", foreTeam: true })),
@@ -18221,18 +18220,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         return tagKey([
           ...paintBase([
             ...tubeFaces(gx9, y0, gx9, y1, 0.26, gz9, true),
-            ...tubeFaces(gx9 + m9 * 0.24, y0 + 0.14, gx9 + m9 * 0.24, y1 - 0.16, 0.1, gz9 + 0.08, true),
+            ...tubeFaces(gx9 + m9 * 0.24, y0 + 0.14, gx9 + m9 * 0.24, y1 - 0.16, 0.1, gz9 + 0.088, true),
           ], GUNMETAL),
           ...paintBase(tubeFaces(gx9, y1 - 0.12, gx9, y1 + 0.04, 0.3, gz9), "#e07b2a"),
         ], depthNow(gx9, (y0 + y1) / 2) * 1.6 + 1.62);
       }),
       /* 호스 — 등 연료통 밑동에서 옆구리를 돌아 총 뒤끝으로. 좌우 한 짝씩. */
       ...([-1, 1] as const).flatMap((m9) => tagKey(paintBase([
-        ...rodFaces(m9 * 0.78, -1.05, 2.4, m9 * 1.5, -0.5, 2.08, 0.17),
-        ...rodFaces(m9 * 1.5, -0.5, 2.08, m9 * 0.4, lp(0.95, 1.4) + thr, lp(2.08, 2.464), 0.17),
+        ...rodFaces(m9 * 0.78, -1.05, 2.64, m9 * 1.5, -0.5, 2.288, 0.17),
+        ...rodFaces(m9 * 1.5, -0.5, 2.288, m9 * 0.4, lp(0.95, 1.4) + thr, lp(2.288, 2.7104), 0.17),
       ], "#3d3d3d"), depthNow(m9 * 1.3, -0.4) * 1.6 + 1.0)),
     ];
-  }),
+  },
   /* 질럿(사진 samples/질럿1~7.jpg 기준 재작도 — 공용 프로토스 리그는 유지) ───────
      사진이 말하는 것:
        ① 첫 표식은 **어깨 뒤로 크게 감기는 금색 뿔 활 한 쌍** — 어깨에서 위로 솟았다
