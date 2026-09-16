@@ -1434,7 +1434,12 @@ const CINE_CLASS_K9 = {
   big: 0.36,      // 대형 지상(울트라·리버·아콘) — 생체 중에서는 이 칸만 안 작아진다(요청)
   air: 0.36,      // 소형 비행선(레이스·스카웃·뮤탈)
   air2: 0.50,     // 중형 비행선(수송·과학선·아비터·오버로드)
-  cap: 0.80,      // 함선(배틀크루저·캐리어) — 홀 다음으로 크다
+  /* 함선(배틀크루저·캐리어) — 홀 다음으로 크다.
+     ★ **한 번 더 대담하게**(2026-09, 요청: "캐리어·배틀 크기 좀 더 대담하게 키우기") —
+       0.80 → 0.93. 설정에서 이 둘은 500m·1km 짜리 성채라, 홀보다 한참 작으면 '함선'의
+       뜻이 안 산다. 프로토스 배수(1.07)가 얹히므로 캐리어가 **4.78타일** — 홀의 4.8 에
+       코앞까지 붙는다. 그 위로는 못 간다(위 규약: 어느 칸도 홀을 못 넘는다). */
+  cap: 0.93,
 } as const;
 /** 종족 배수 — 프로토스는 크고 저그는 작다(설정 기준). */
 const CINE_RACE_K9: Record<string, number> = { t: 1, p: 1.07, z: 0.95 };
@@ -1460,12 +1465,18 @@ const CINE_KIND9: Record<string, [keyof typeof CINE_CLASS_K9, "t" | "p" | "z"]> 
   egg: ["small", "z"], lurkeregg: ["small", "z"], mutacocoon: ["small", "z"],
   burrowhole: ["small", "z"],
 };
-/** 그 종류의 시네마틱 목표 폭(타일) — 홀 폭 × 등급 분수 × 종족 배수. */
+/** ★ **등급으로 못 담는 한 종류만의 몫**(2026-09, 요청: "시네마틱 비율에서 캐리어 대비
+ *  인터셉터 크기 줄여야 해") — 인터셉터는 '소형 생체' 칸(저글링·스커지·거미지뢰)에 얹혀
+ *  있었는데, 그 칸을 내리면 저글링까지 함께 작아진다. 설정의 인터셉터는 길이 30m 남짓이라
+ *  캐리어(500m)의 **17분의 1** 이다 — 옛 표는 8분의 1 이었다. 이 한 종류만 0.55 를 곱해
+ *  그 비를 맞춘다(캐리어 4.78 : 인터셉터 0.28 = 16.9배). */
+const CINE_TUNE9: Record<string, number> = { interceptor: 0.55 };
+/** 그 종류의 시네마틱 목표 폭(타일) — 홀 폭 × 등급 분수 × 종족 배수 × 종류 배수. */
 export const cineUnitTiles9 = (sizeKind: string): number => {
   const e9 = CINE_KIND9[sizeKind];
   const cls9 = e9 ? CINE_CLASS_K9[e9[0]]
     : CINE_CLASS_K9[(UNIT_BULK[sizeKind] ?? 1) === 0 ? "small" : (UNIT_BULK[sizeKind] ?? 1) === 2 ? "big" : "veh"];
-  return CINE_HALL_T9 * cls9 * (e9 ? CINE_RACE_K9[e9[1]] : 1);
+  return CINE_HALL_T9 * cls9 * (e9 ? CINE_RACE_K9[e9[1]] : 1) * (CINE_TUNE9[sizeKind] ?? 1);
 };
 /** 자원 둘의 시네마틱 폭(타일) — 자는 건물·유닛과 같은 홀 분수다(요청: "미네랄 간헐천도"). */
 export const cineResTiles9 = (gas: boolean, base: number): number => {
