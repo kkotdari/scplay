@@ -5564,7 +5564,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // 몸 바닥이 ZB0(0.6)이라 다리는 거의 안 보이고 발판만 남는다. 키는 legAndFoot이 제 것(몸 뒤)을 단다.
     for (const sx9 of [-1, 1] as const) {
       for (const sy9 of [-1, 1] as const) {
-        out.push(...legAndFoot(sx9 * 3.0, sy9 * 2.0, ZB0z9 + 0.08, 0.03));
+        // 같은 까닭으로 한 뼘 안으로(요청) — 3.0·2.0 → 2.7·1.8 이라야 기둥 꼭대기가 몸 밑에 든다.
+        out.push(...legAndFoot(sx9 * 2.7, sy9 * 1.8, ZB0z9 + 0.08, 0.03));
       }
     }
 
@@ -5806,9 +5807,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // 짧고 어두운 발 여섯 — 둘레에 박힌다. 스프라이트의 발은 기둥이 아니라 굽이다.
     for (const deg9 of [30, 90, 150, 210, 270, 330]) {
       const a9 = (deg9 * Math.PI) / 180;
-      // 몸통 반지름(4.75~5.15) 안에서 시작해야 다리가 안 뜬다(수리: 5.35는 밖이었다).
-      const fx9 = Math.sin(a9) * 4.55;
-      const fy9 = Math.cos(a9) * 4.55;
+      /* 몸통 반지름(4.75~5.15) 안에서 시작해야 다리가 안 뜬다(수리: 5.35는 밖이었다).
+         ★ 4.55 → **4.15**(2026-09, 요청: "다리들 윗면 안 보이게 안쪽으로 좀 이동") — 몸통은
+           **팔각**이라 반지름이 자리마다 다르다: 모서리에서는 4.75 지만 변 한가운데에서는
+           4.75·cos22.5° = **4.39** 뿐이다. 발이 30·90·150… 도라 변 한가운데에 앉는 것이 있고,
+           그 셋은 4.55 가 몸 밖이라 **기둥 꼭대기가 드러났다**. 가장 좁은 자(4.39)보다 안으로 넣는다. */
+      const fx9 = Math.sin(a9) * 4.15;
+      const fy9 = Math.cos(a9) * 4.15;
       out.push(...legAndFoot(fx9, fy9, BODY_Z0z9 + 0.2, 0.04, LEG_SZ));
     }
 
@@ -5941,9 +5946,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        슬래브와 앞 구조물이 드러난다. 5.05 → 4.15. */
     out.push(...tagKey(paintBase(cylinderFaces3(0, 0, 4.15, 0.256, PAD_Z), GREY), 40));
     out.push(...tagKey([
-      [discPath3(0, 0, PAD_Z + 0.24, 3.75), 1, PADTOP] as ShapeFace,
-      capFace(discPath3(0, 0, PAD_Z + 0.248, 3.25), 0.26),
-      topFace(discPath3(0, 0, PAD_Z + 0.256, 2.25), 0.15),
+      /* ★ **판 면은 테의 윗면보다 위여야 한다**(2026-09, 지적: "스타포트 착륙판 색도 고치고") —
+         테(cylinderFaces3, 높이 0.256)의 **윗 뚜껑**이 PAD_Z + 0.256 인데 베이지 판이 +0.24 라
+         그 밑에 깔려 있었다. 2D 는 화가 차례가 나중에 칠한 판을 덮어 줘 멀쩡히 베이지였지만,
+         진짜 깊이에서는 회색 뚜껑이 판을 **통째로 가린다**(GL 에서 착륙판이 회색이던 까닭).
+         ★ 2D 에서 '나중에 칠한다'로 세운 층은 GL 에서 **높이로 갚아야** 한다 — 같은 종류의 어긋남이
+           여럿 있었다(넥서스 받침·고치 이음매). 세 겹을 테 위로 0.04 올린다. */
+      [discPath3(0, 0, PAD_Z + 0.28, 3.75), 1, PADTOP] as ShapeFace,
+      capFace(discPath3(0, 0, PAD_Z + 0.288, 3.25), 0.26),
+      topFace(discPath3(0, 0, PAD_Z + 0.296, 2.25), 0.15),
     ], 42));
 
     /* 안테나는 셋이고 120도 간격이다(지적) — 넷을 90도로 두었더니 앞의 긴 구조물과
