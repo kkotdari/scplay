@@ -91,10 +91,10 @@ import {
 } from "./engine9";
 import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, WorldUi9 } from "./engine9";
 import {
-  pitchFlatSet9, brushOn9, brushSet9, glowOn9, glowSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, spriteSideMax9, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, tone9, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
+  pitchFlatSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, spriteSideMax9, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, tone9, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
 } from "./bake9";
 import { glUnits9, glNow9, glBakeMsTake9, GL_ON9, GL_WARM9, GL_BLIT9, GL_GLOW_KINDS9, SHADOW_ALPHA9, camOf9, CAM_TOP9, glIconOk9, glIconRequest9, type GlUnits9 } from "./gl9";
-export { LIMB_LOG, TURRET_BACK9, SHAPE_BUILDERS, ctx2d9, BAKE_ENV9, cropToInk, pathBox, tierTableOf, autoTier, stageFaces, rasterBld9, SHAPE_GALLERY, poseSet, poseSet9, bldLitSet, headYawSet, bldSpinSet, bldSpinRawSet9, lodSetCap, lodSetZoom, lodNoteFrame, tone9, TONE_DARK, TONE_SAT, silhouetteLight, glowBake9, grainAxes9, GLOW9 } from "./bake9";
+export { LIMB_LOG, TURRET_BACK9, SHAPE_BUILDERS, ctx2d9, BAKE_ENV9, cropToInk, pathBox, tierTableOf, autoTier, stageFaces, rasterBld9, SHAPE_GALLERY, poseSet, poseSet9, bldLitSet, headYawSet, bldSpinSet, bldSpinRawSet9, lodSetCap, lodSetZoom, lodNoteFrame, tone9, TONE_DARK, TONE_SAT, silhouetteLight } from "./bake9";
 export type { BakeCv9, BakeCtx9, RasterOut9, ShapeGalleryItem } from "./bake9";
 export { isAirUnit, flapCutOf, atkCutOf, unitTilesOf, buildingYawOf, galleryYawOf, BLD_NORM, BUILD_STAGES, SCR_DIAG, scrDiagOn, deriveWorld9, createEngine9, pickWorldUi9, emptyWorldUi9 } from "./engine9";
 export type { BuildRow, CastRow, FxOp, Frame9, EngineWorld9, EngineView9, WorldUi9 } from "./engine9";
@@ -786,7 +786,7 @@ const deviceMem9 = ((): number => {
 type BenchTier9 = {
   name: string; upMs: number; up3Ms?: number; minMem?: number;
   aheadSec: number; aheadMB: number;
-  glMeshMax?: number; glBloom?: boolean; glSpec?: boolean; glow?: boolean; yaw8Always?: boolean; live3d?: boolean;
+  glMeshMax?: number; glBloom?: boolean; glSpec?: boolean; yaw8Always?: boolean; live3d?: boolean;
   shadowGroundMinZoom?: number; decalBakeMax?: number; hitShardK?: number; dieShards?: number;
 };
 /* ⚠ 문턱은 **숫자로 적는다** — CROWD_BENCH_MS9(24)는 이 표보다 아래에 선언되므로 여기서 부르면 TDZ 다.
@@ -827,9 +827,9 @@ const PC_TIERS9: readonly BenchTier9[] = [
 const PHONE_TIERS9: readonly BenchTier9[] = [
   { name: "낮음", upMs: Infinity, aheadSec: 1.5, aheadMB: 6 },
   { name: "보통", upMs: 30, aheadSec: 2.5, aheadMB: 10,
-    glMeshMax: 300, glow: true, glSpec: true, shadowGroundMinZoom: 2, decalBakeMax: 256, hitShardK: 0.8, dieShards: 16 },
+    glMeshMax: 300, glSpec: true, glBloom: true, shadowGroundMinZoom: 2, decalBakeMax: 256, hitShardK: 0.8, dieShards: 16 },
   { name: "높음", upMs: 13, up3Ms: 28, aheadSec: 4, aheadMB: 16,
-    glMeshMax: 360, glow: true, glBloom: true, yaw8Always: false,
+    glMeshMax: 360, glBloom: true, yaw8Always: false,
     shadowGroundMinZoom: 1, decalBakeMax: 384, hitShardK: 1, dieShards: 24 },
 ];
 const DEV9 = smallDevice9 ? {
@@ -849,8 +849,6 @@ const DEV9 = smallDevice9 ? {
   /** 광택(스페큘러) — 정점마다 곱셈 여남은 번이라 GPU 에서는 거의 공짜지만, **0단(벤치 미달)은 끈다**(1단부터 표가 켠다).
    *  셰이더의 유니폼 가지라 끄면 그 식이 아예 안 돈다. `#glspec=0` 으로 못 박는다. */
   glSpec: false,
-  /** 빛무리(글로우) — 0단(벤치 미달)은 끈 채 시작하고 1단부터 표가 켠다. */
-  glow: false,
   /** 손짓 중 실시간 원근을 **재지 않고 켤까**(live3dOn9의 ★) — 폰은 어느 단에서도 안 켠다(제 벤치·실측 자를 탄다). */
   live3d: false,
 } : {
@@ -864,7 +862,6 @@ const DEV9 = smallDevice9 ? {
   glMeshMax: 600,
   glBloom: true,
   glSpec: true,
-  glow: true,
   live3d: false,   // 3단(매우 높음)에서 표가 켠다
 };
 /* ★ **PC는 벤치 단으로 예산을 올린다**(요청: "윈도우 크롬에서 CPU·GPU를 최대한 쓸 수 없을까" → 계획 1번) ────
@@ -955,15 +952,7 @@ function applyBenchTier9(bench: number): void {
   if (t9.decalBakeMax !== undefined) DEV9.decalBakeMax = t9.decalBakeMax;
   if (t9.hitShardK !== undefined) DEV9.hitShardK = t9.hitShardK;
   if (t9.dieShards !== undefined) DEV9.dieShards = t9.dieShards;
-  if (t9.glow !== undefined) { DEV9.glow = t9.glow; glowSet9(t9.glow); }
   if (t9.live3d !== undefined) DEV9.live3d = t9.live3d;
-  /* 결(긁힌 광택)은 **높음(2단)부터** 켠다(2026-09, 지적: "pc는 글로우를 보통이나 높음에서부터
-     넣어도 될거 같고" — PC 에서 단이 가르는 광택은 이것뿐이다. 빛무리(glow)는 PC 라면 0단부터 늘 켜 있다).
-     굽기 값이 +25~30%이고 꼬리가 길지만(낯마다 수십 줄을 긋는다) 그 삯은 판 굽기 때 셈이고,
-     맨 위 단은 메모리 8GB 를 함께 묻는 자라 '빠른데 메모리를 안 내는 기기'가 영영 못 받았다.
-     폰은 단이 하나뿐이라(PHONE_TIERS9) 여기 안 들어오고, crowdInit9의 brushSet9(폰 끔)이
-     그대로 남는다. */
-  brushSet9(!smallDevice9 && want9 >= 2);   // 결(긁힌 광택)은 PC 높음(2단)부터 — 폰은 어느 단에서도 안 켠다
   DEV9_DIRTY9.v = true;
   qualityNote9();   // 단이 올랐다 — 재생 품질 알림(위 QUALITY9)
 }
@@ -1070,16 +1059,9 @@ function crowdInit9(): void {
      perf-check(--crowd)에서 덜어낸 값을 잴 때 쓴다. */
   const m9 = typeof window !== "undefined" ? /crowd=(\d)/.exec(window.location.hash) : null;
   if (m9) c.force = Math.min(2, Number(m9[1]));
-  /* 결(긁힌 광택)은 기본으로 **꺼 둔다**(요청: "글로우는 켜 주고 스크래치만 끄기" ·
-     "결은 PC에서도 최고 높음에서만 켜기") — 글로우 겹은 낯마다 한 번 칠하고 마는데 결은
-     낯마다 수십 줄을 긋는다(실측: 굽기 +25~30%, 꼬리는 더 길다). PC는 바로 아래 벤치가
-     **맨 위 단**에 올랐을 때만 켠다(applyBenchTier9의 ★). 폰은 단이 하나뿐이라 꺼진 채로
-     끝난다. ⚠ 이 줄은 applyBenchTier9 **앞**이라야 한다 — 뒤에 두면 단이 정한 값을 덮는다. */
-  brushSet9(false);
-  /* ★ 글로우는 **단이 정한다**(2026-09, 폰 세 단) — 폰 0단(벤치 미달)은 끈 채로 시작하고 1단부터 표가 켠다
-     (요청: "재생품질 매우 낮음에서 메모리가 부족한 거 같거든 글로우와 스크래치 다 끄기"). PC 는 늘 켬이다.
-     스크래치(결)는 폰이 어느 단에서도 안 켠다. */
-  glowSet9(DEV9.glow);
+  /* ★ **2D 광택 겹(glow)·결(brush) 스위치는 걷었다**(2026-09, 요청: "죽은 글로우 코드 걷어내고") —
+     그것을 쓰던 glowBake9 는 판 굽기 길을 걷으며 부르는 자리가 사라져 한 번도 안 돌았는데, 표에는 켜진
+     것처럼 적혀 있어 '켜 있는데 안 보인다'는 혼동을 두 번 냈다. 모델 광택은 GL 셰이더가 낸다(DEV9.glSpec). */
   crowdRecheck9();  applyBenchTier9(c.bench);   // PC 벤치 단(위 PC_TIERS9의 ★)
   qualityNote9();        // 첫 눈금(위 QUALITY9) — 렌더 중이라 fn은 아직 없고 level만 적힌다
 }
@@ -3661,10 +3643,13 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         const groundOy9 = sy - px * 0.24 + (((op.flat ? 12 : 12.6) - 8) / 16) * px;
         /* ★ 덜어내기 중에도 **공중 유닛 그림자는 남긴다**(요청: "떠있는 위치가 안 읽혀서") — 타원 하나라 값이
            거의 없고, 그림자가 없으면 나는 몸의 높이·자리를 읽을 길이 없다. 부양 지상 유닛 그림자만 덜어낸다. */
-        /** GL 이 이 몸의 **바닥 그림자**를 깔까 — 그러면 공중 유닛의 캔버스 타원은 겹치므로 안 깐다(위 gsh9 주석). */
-        const glShadow9 = !!(glM9 && gl9 && bodyShadow);
+        /** GL 이 이 몸의 **바닥 그림자**를 깔까 — 그러면 캔버스 타원은 겹치므로 안 깐다(아래 gsh9 와 **같은 조건**).
+         *  ⚠ 여기 문이 `op.air && …` 였다 — 공중만 걸러서, **부양 지상 유닛**(일꾼·벌처·아콘류)은 배율이
+         *    문턱을 넘으면 메시 그림자와 타원을 **둘 다** 받았다(공중에서 한 번 고쳤던 '그림자가 둘'과 같은 자리다).
+         *    이제 타원은 GL 바닥 그림자가 **안 깔리는 프레임의 대타**로만 남는다(덜어내기 · 손짓 중 접힘 · 낮은 배율). */
+        const glShadow9 = !!(glM9 && gl9 && bodyShadow && (op.air || zoom >= shadowGroundMinZoom9()));
         if (hover && !op.noShadow && showShadows !== false && (CROWD9.lv === 0 || op.air) && detail && !shFold9
-          && !(op.air && glShadow9)) {
+          && !glShadow9) {
           /* 떠다니는 지상 유닛(일꾼·벌처·아콘류)은 겨우 발밑만 떠 있다(지적: 그림자가
              너무 크고 진해) — 높이 나는 공중 유닛보다 작고 옅은 타원. */
           // 그림자 살짝 축소(지적) — 높이 나는 만큼 발밑 그림자는 작고 옅게.

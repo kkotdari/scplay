@@ -506,8 +506,6 @@ let partSeq = 0;
  *  같은 모델의 같은 부품이 각도가 달라도 같은 번호를 받는다. */
 export function bake<T>(fn: () => T): T {
   partSeq = 0;
-  // 결 자 표도 판마다 새로 적는다 — 안 비우면 요잉이 다른 판의 자가 섞인다.
-  FACE_GRAIN9.clear();
   return fn();
 }
 /** 부품 면들에 중심 깊이를 매긴다 — 손 면 묶음이 제 자리를 밝힐 때 쓴다. */
@@ -565,17 +563,6 @@ export function lightScreenDir(): [number, number] {
   const l = Math.hypot(x, y) || 1;
   return [x / l, y / l];
 }
-/** 낯의 **결 방향 표** — 패스 글자 → [줄이 뻗는 화면 방향 U, 줄이 늘어서는 방향 V].
- *  ★ 왜 표인가(지적: "커맨드 등등의 건물에서 경사면일 때 결 표현이 좀 안 맞네 — 각 부품을
- *    정면에서 봤을 때 세로로 줄이 쳐져야 하는데") ──────────────────────────────────────
- *    결은 그 면의 **가장 가파른 쪽**(경사면의 '아래')을 따라야 한다. 그런데 투영된 다각형만
- *    보고는 그 방향을 못 구한다 — 이 투영은 (X, Y, Z) → (X, Y·눌림 − Z·높이)라 알맹이가
- *    한 줄 죽는다(방향 (0, 높이, 눌림)을 더해도 그림이 같다). 곧 면의 기울기는 **투영 뒤에는
- *    남아 있지 않은 정보**다. 그것을 아는 자리는 법선을 들고 있는 faceLight뿐이다.
- *    면 배열(ShapeFace)에 칸을 더하면 면을 고쳐 쓰는 헬퍼 열댓이 그 칸을 떨어뜨리므로
- *    (이 파일 맨 위 ⚠), 패스 글자를 열쇠로 한 곁 표에 적어 둔다 — 패스는 어느 헬퍼도 안 고친다.
- *    표는 굽기 한 판마다 비운다(bake). */
-export const FACE_GRAIN9 = new Map<string, [number, number, number, number]>();
 export function faceLight(
   nxModel: number, nyModel: number,
   /** 법선의 위 성분(경사면용, 지적: 벙커 하단·넥서스의 기운 옆면이 위 45도 시점에서
@@ -591,33 +578,7 @@ export function faceLight(
   const nx = mnx * c + mny * sn;
   const ny = -mnx * sn + mny * c;
   const dot = nx * LIGHT_PLAN[0] + ny * LIGHT_PLAN[1];
-  /* 이 낯의 **결 자**를 적어 둔다(FACE_GRAIN9의 ★) — 법선이 손에 있는 유일한 자리다.
-       · 가장 가파른 쪽 g = (nx·nz, ny·nz, −(nx²+ny²)) — 면 안에서 z가 가장 빨리 내려가는 쪽.
-         벽(nz 0)이면 (0,0,−1) 곧 곧장 아래고, 돔의 옆구리면 바깥-아래, 지붕(nx=ny=0)이면
-         0이라 자가 없다(그때는 부르는 쪽이 모형 축으로 물러난다).
-       · 그와 직각인 **수평** 쪽 h = (−ny, nx, 0).
-     둘을 화면으로 옮긴다: (X, Y, Z) → (X, Y·눌림 − Z·높이). */
-  const nzF = nzModel;
-  const hxy = Math.hypot(nx, ny);
   const face = (d: string): ShapeFace[] => {
-    if (hxy > 1e-3) {
-      const sq = groundSquashNow();
-      const zs = zScaleNow();
-      const gx = nx * nzF;
-      const gy = ny * nzF;
-      const gz = -(nx * nx + ny * ny);
-      let ux = gx;
-      let uy = gy * sq - gz * zs;
-      const ul = Math.hypot(ux, uy);
-      if (ul > 1e-6) {
-        ux /= ul; uy /= ul;
-        let vx = -ny;
-        let vy = nx * sq;
-        const vl = Math.hypot(vx, vy) || 1;
-        vx /= vl; vy /= vl;
-        FACE_GRAIN9.set(d, [ux, uy, vx, vy]);
-      }
-    }
     if (dot > 0.3) return [topFace(d, Math.min(0.2, (dot - 0.3) * 0.3 + 0.08))];
     if (dot < -0.1) return [sideFace(d, Math.min(0.38, (-dot - 0.1) * 0.45 + 0.12))];
     return [];

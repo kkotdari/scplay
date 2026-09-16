@@ -29,9 +29,6 @@ const ROTS = String(flag("--rots", "0,45,90,180,270")).split(",").map(Number);
 const MODE = String(flag("--mode", "base"));          // base(도록) · top(지도 기본) · pitch
 const CELL = Number(flag("--cell", 220));
 const LOD = Number(flag("--lod", 3));
-/* --noglow — 광택·결(glowBake9) 겹을 안 얹는다. 결의 긁힘 자리는 면 경로의 해시로 잡히므로, z 를 한 톨만 고쳐도
-   무늬가 통째로 갈린다 — 두 트리의 그림을 화소로 견줄 때는 그 잡음을 빼야 진짜 어긋남이 보인다. */
-const NOGLOW = argv.includes("--noglow");
 const POSE = Number(flag("--pose", 0));          // 0 기본 · 1 이동 컷 · 2 공격 컷
 const THRUST = flag("--thrust") ? String(flag("--thrust")) : "";   // 추진 불빛 꼴 후보(flame·disc·drum·halo)
 const LIT = argv.includes("--lit");               // 건물 창문에 불 켜기(활성 상태)
@@ -45,13 +42,11 @@ const OUT = String(flag("--out", join(tmpdir(), "model-shot.png")));
 
 /* ── 브라우저에 넣을 번들 — model-norm.mjs와 같은 진입점을 쓴다 ─────────────── */
 const ENTRY = `
-import { SHAPE_BUILDERS, poseSet, bldLitSet, headYawSet, bldSpinSet, tone9, silhouetteLight, glowBake9, grainAxes9 } from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
+import { SHAPE_BUILDERS, poseSet, bldLitSet, headYawSet, bldSpinSet, tone9, silhouetteLight } from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
 import { lodFilter, withPitchView, withTopView, withViewShear, withYaw, bake, zsorted }
   from ${JSON.stringify(join(ROOT, "src/utils/shapeOblique"))};
 window.__tone = tone9;
 window.__silho = silhouetteLight;
-window.__glow = glowBake9;
-window.__axes = grainAxes9;
 window.__bake = (kind, rot, mode, lod, pose, lit, head, spin) => {
   const builder = SHAPE_BUILDERS[kind];
   if (!builder) return null;
@@ -90,7 +85,7 @@ function bundle() {
 }
 
 /** 페이지 안에서 도는 그리개 — 바깥 스코프를 못 보므로 필요한 값은 전부 인자로. */
-function inBrowser({ KINDS, ROTS, MODE, CELL, LOD, BG, COLOR, POSE, LIT, HEAD, SPIN, ZOOM, PAN, THRUST, NOGLOW }) {
+function inBrowser({ KINDS, ROTS, MODE, CELL, LOD, BG, COLOR, POSE, LIT, HEAD, SPIN, ZOOM, PAN, THRUST }) {
   if (THRUST) window.__thrustStyle = THRUST;
   /* 앱의 그 함수와 **똑같아야 한다**(ReplayMotionPlayer의 shadeBoost) — `o < 1` 조건이
      여기만 빠져 있어서, 불투명도 1인 몸판까지 0.85로 깔렸다. 그 탓에 이 도구로 뽑은
@@ -134,17 +129,14 @@ function inBrowser({ KINDS, ROTS, MODE, CELL, LOD, BG, COLOR, POSE, LIT, HEAD, S
         }
       }
       p2.globalAlpha = 1;
-      /* 실루엣 빛·글로우는 **면 변환을 푼 뒤가 아니라 그 안에서** 부른다(앱의 rasterUnit9과
-         같은 자리) — 글로우는 면 패스를 그대로 clip하므로, 변환을 풀어 버리면 모형 자
-         (16-상자)의 좌표가 판 왼위 16화소로 떨어져 아무것도 안 그려진다.
-         기울기 상자는 앱과 같이 **16-상자**다: 모델 0 → CELL/2 − CELL·ZOOM/2 + PAN. */
-      if (LOD >= 3 && !NOGLOW) {
+      /* 실루엣 빛은 **면 변환을 푼 뒤가 아니라 그 안에서** 부른다(앱의 rasterBld9 과 같은 자리).
+         기울기 상자는 앱과 같이 **16-상자**다: 모델 0 → CELL/2 − CELL·ZOOM/2 + PAN.
+         (옛 광택 겹 __glow 는 걷었다 — 그 코드는 앱에서 한 번도 안 돌던 것이라 지웠다.
+          모델 광택을 눈으로 볼 때는 GL 붓을 쓰는 `scripts/gl-check.mjs` 를 쓴다.) */
+      if (LOD >= 3) {
         const bw = CELL * ZOOM;
         const bx = { x: CELL / 2 - bw / 2 + PAN[0], y: CELL / 2 - bw / 2 + PAN[1], w: bw, h: bw };
         window.__silho(p2, pc, bx);
-        // B는 1이다(이 도구는 dpr를 안 탄다).
-        window.__glow(p2, pc, 1, bx, faces || [],
-          window.__axes(rot, MODE === "top", MODE === "pitch"));
       }
       p2.restore();
       c.drawImage(pc, i * CELL, r * CELL + PAD);
@@ -190,7 +182,7 @@ await page.route("http://model-shot.local/*", (r) => r.fulfill({
 await page.goto("http://model-shot.local/");
 await page.addScriptTag({ content: js, type: "module" });
 await page.waitForFunction("!!window.__bake");
-const dataUrl = await page.evaluate(inBrowser, { KINDS, ROTS, MODE, CELL, LOD, BG, COLOR, POSE, LIT, HEAD, SPIN, ZOOM, PAN, THRUST, NOGLOW });
+const dataUrl = await page.evaluate(inBrowser, { KINDS, ROTS, MODE, CELL, LOD, BG, COLOR, POSE, LIT, HEAD, SPIN, ZOOM, PAN, THRUST });
 await browser.close();
 writeFileSync(OUT, Buffer.from(dataUrl.split(",")[1], "base64"));
 console.log(OUT);
