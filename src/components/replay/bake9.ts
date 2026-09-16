@@ -1733,6 +1733,25 @@ export function bootFaces(
     skewV: (_u9: number, t9: number): number => -back * t9,
   });
 }
+/** ★ **다리 관절 자리 — 다리에 얹는 표식은 이 자를 써야 걸음을 따라간다**(2026-09, 지적:
+ *  "고스트 다리 옆 빨간 데칼이 움직일 때 안 따라다님") — 그 데칼은 모형 좌표에 **못 박은**
+ *  네모였다. 다리는 컷마다 보폭만큼 흔들리는데 표식만 제자리에 남으니, 걸을 때 허벅지가
+ *  표식을 빠져나간다. `suitLegs` 가 쓰는 그 식을 여기로 빼 **둘이 같은 자리를 본다**.
+ *  ⚠ 무릎은 보폭이 있으면 두 마디 길이로 푼다(jointBetween) — 손으로 밀면 마디가 늘어난다. */
+export function suitLegJoints9(m: -1 | 1, spread: number, stride = 0, zk = 1): {
+  hip: [number, number, number]; knee: [number, number, number]; ankle: [number, number, number];
+} {
+  const st = m * stride;
+  const LEG_BACK = 0.2;
+  const hip: [number, number, number] = [m * 0.54 * spread, -0.05 - LEG_BACK, 2.0768 * zk];
+  const knee0: [number, number, number] = [m * 0.6 * spread, 0.14 - LEG_BACK, 1.1792 * zk];
+  const ankle0: [number, number, number] = [m * 0.58 * spread, -0.02 - LEG_BACK, 0.26];
+  const Lt9 = Math.hypot(knee0[0] - hip[0], knee0[1] - hip[1], knee0[2] - hip[2]);
+  const Ls9 = Math.hypot(ankle0[0] - knee0[0], ankle0[1] - knee0[1], ankle0[2] - knee0[2]);
+  const ankle: [number, number, number] = [ankle0[0], ankle0[1] + st * 1.35, ankle0[2] + Math.max(0, st) * 0.2112];
+  const knee: [number, number, number] = st === 0 ? knee0 : jointBetween(hip, ankle, Lt9, Ls9, [0, 1, 0.165]);
+  return { hip, knee, ankle };
+}
 export function suitLegs(
   g: number, spread = g, _kneeFill?: string, stride = 0,
   /** 다리 굵기만의 배수(지적: "다리 굵기도 살짝 줄여야해 메딕은") — 자리(관절)는
@@ -1750,24 +1769,10 @@ export function suitLegs(
   for (const m of [-1, 1] as const) {
     /* 오른다리가 나가면 왼다리는 물러난다(부호가 m이다). 앞다리는 무릎이 들리므로
        무릎 자리가 조금 높고, 뒤 다리는 발끝이 뒤로 남는다. */
-    const st = m * stride;   // 부호가 컷(1/3)에서 오므로 두 컷이 서로 거울이 된다
-    /* 다리를 뒤로 민다(지적: "다리 헬멧 뒤로 밀기 너무 앞임") — 몸통은 앞으로 기운
-       자세인데 다리가 그 앞에 서 있어, 옆에서 보면 상체가 다리에 얹힌 것이 아니라
-       다리 뒤에 붙은 꼴이었다. 세 마디를 같은 몫(0.2)만큼 물린다. */
-    const LEG_BACK = 0.2;
-    // 다리를 한 뼘 짧게(사진: 상체가 크고 다리가 짧다) — 골반 2.62 → 2.5.
-    /* 다리를 한 단 더 짧게(사진: 상체가 크고 다리가 짧다) — 골반 2.5 → 2.18,
-       무릎 1.5 → 1.22, 발목 0.3 → 0.24. 마디 비는 그대로라 걸음은 안 달라진다. */
-    const hip: [number, number, number] = [m * 0.54 * spread, -0.05 - LEG_BACK, 2.0768 * zk];
-    /* ★ 걸음에도 **허벅지·정강이 길이는 그대로**(요청: 양다리 길이 같아야) — 여태 무릎을
-       보폭에 비례해 손으로 밀어, 내딛는 다리의 마디가 서 있는 다리보다 길어졌다. 이제
-       발목만 보폭대로 옮기고 무릎은 두 마디 길이(서 있을 때 값)로 푼다(앞으로 굽힘). */
-    const knee0: [number, number, number] = [m * 0.6 * spread, 0.14 - LEG_BACK, 1.1792 * zk];
-    const ankle0: [number, number, number] = [m * 0.58 * spread, -0.02 - LEG_BACK, 0.26];
-    const Lt9 = Math.hypot(knee0[0] - hip[0], knee0[1] - hip[1], knee0[2] - hip[2]);
-    const Ls9 = Math.hypot(ankle0[0] - knee0[0], ankle0[1] - knee0[1], ankle0[2] - knee0[2]);
-    const ankle: [number, number, number] = [ankle0[0], ankle0[1] + st * 1.35, ankle0[2] + Math.max(0, st) * 0.2112];
-    const knee: [number, number, number] = st === 0 ? knee0 : jointBetween(hip, ankle, Lt9, Ls9, [0, 1, 0.165]);
+    /* 관절 자리는 **suitLegJoints9** 한 곳에서 낸다(위 ★) — 다리에 얹는 표식이 같은 자를 쓴다.
+       (보폭 부호가 컷(1/3)에서 오므로 두 컷이 서로 거울이 된다 · 다리는 몸통보다 0.2 뒤로 물린다 ·
+        걸음에도 허벅지·정강이 길이는 그대로 — 발목만 옮기고 무릎은 두 마디 길이로 푼다.) */
+    const { hip, knee, ankle } = suitLegJoints9(m, spread, stride, zk);
     /* 마디 뚜껑을 닫고(지적: "다리의 윗단면이 비쳐보이는것") 다리를 늘 몸통보다
        먼저 그린다 — 허벅지 꼭대기는 골반 속, 정강이 꼭대기는 허벅지 속, 정강이 발치는
        군화 속이라 뚜껑이 다 남의 몸 안에 있다. 뚜껑 없는 관은 위에서 보면 속(뒤쪽
@@ -1805,8 +1810,8 @@ export function suitLegs(
          어느 각도에서도 정강이가 위다. */
     {
       const bx9 = m * 0.58 * spread;
-      const by9 = 0.16 - LEG_BACK + st * 1.35;
-      const bz9 = Math.max(0, st) * 0.2288;
+      const by9 = ankle[1] + 0.18;   // 발목 자리(suitLegJoints9)에서 발등만큼 앞
+      const bz9 = Math.max(0, m * stride) * 0.2288;
       /* 구두 — 밑은 평평하고 **앞코와 뒤꿈치가 둥글다**(지적: "원통을 제거하고 뒷꿈치를
          둥글게 처리하라고"). 앞서 뒤축에 관(원통)을 덧대 봤더니 구두가 아니라 굽이
          따로 붙은 꼴이 됐다 — 덧대는 것이 아니라 **깎는 것**이 맞다.
@@ -7665,20 +7670,72 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const ryi = rxi * 0.45;
     /** 갈고리·보석이 걸리는 링 허리 반지름. */
     const RING_R = 4.6;
-    const ringBack = `M${cx - rxo} ${cy} A${rxo} ${ryo} 0 0 1 ${cx + rxo} ${cy} L${cx + rxi} ${cy} A${rxi} ${ryi} 0 0 0 ${cx - rxi} ${cy} Z`;
-    const ringFront = `M${cx - rxo} ${cy} A${rxo} ${ryo} 0 0 0 ${cx + rxo} ${cy} L${cx + rxi} ${cy} A${rxi} ${ryi} 0 0 1 ${cx - rxi} ${cy} Z`;
-    if (MESH9.on) {
-      /* 화면에는 0.45로 더 납작하게 그리지만 **모형 자리는 PY_M 높이의 둥근 반고리**다 —
-         갈고리(claw)와 청록 띠가 이미 반지름 RING_R 짜리 원 위에 선다. 뒤쪽은 모형 −y 반쪽. */
-      const halfRing9 = (far: boolean): number[] => {
-        const q9: number[] = []; const NH9 = 16; const sg9 = far ? -1 : 1;
-        for (let i9 = 0; i9 <= NH9; i9 += 1) { const t9 = (i9 / NH9) * Math.PI; q9.push(...modelPoint9(-rxo * Math.cos(t9), sg9 * rxo * Math.sin(t9), PY_M)); }
-        for (let i9 = NH9; i9 >= 0; i9 -= 1) { const t9 = (i9 / NH9) * Math.PI; q9.push(...modelPoint9(-rxi * Math.cos(t9), sg9 * rxi * Math.sin(t9), PY_M)); }
-        return q9;
-      };
-      meshPut9(ringBack, [halfRing9(true)]);
-      meshPut9(ringFront, [halfRing9(false)]);
-    }
+    /* ★★ **고리의 낯은 지면과 수직이다**(2026-09, 지적: "파일런 고리를 바꿔야지 — 보석 말고,
+       고리의 면이 지면과 수직인 고리 말이야") — 여태 이것은 PY_M 높이에 **납작하게 누운 워셔**였다
+       (안 4.1 ~ 바깥 5.1 의 고리 판). 화면에서는 0.45로 눌린 타원이라 그럴듯했지만, 진짜 깊이에서는
+       위를 보는 판 한 장이라 낮은 각에서 종잇장으로 사라지고 갈고리도 그 위에 얹힌 꼴이 된다.
+       원작의 파일런 테는 **세워 놓은 굴렁쇠**다 — 낯이 바깥·안쪽(지면과 수직)을 본다.
+       그래서 반지름 RING_R 짜리 **관의 벽**으로 다시 짓는다: 스물네 낯 × 높이 2·RING_HH9.
+       ⚠ 앞뒤를 **반씩 갈라** 둔다 — 수정이 그 사이에 서야 '고리가 수정을 감았다'로 읽히므로
+         화가 차례가 뒤 반 → 수정 → 앞 반이어야 한다(옛 ringBack/ringFront 가 하던 일이다).
+       ⚠ 옛 자리(rxo·rxi)는 가로로 1.0 을 차지했다 — 그 폭을 그대로 **세워** 높이로 준다(±0.5). */
+    const RING_HH9 = 0.5;
+    const RING_N9 = 24;
+    /* ★ **띠에 두께를 준다**(2026-09, 요청: "띠 자체도 두께감 주기") — 벽 한 겹은 어느 각에서
+       종잇장으로 읽힌다. 안팎 두 벽 + 위아래 마구리로 **속이 빈 관**을 만든다(반두께 BAND_TH9). */
+    const BAND_TH9 = 0.13;
+    /** 세운 관의 벽 한 겹 — 반지름 r9 · 가운데 높이 zc9 · 높이 반 hh9 · nsg9 −1 이면 안쪽을 보는 벽. */
+    const hoop9 = (
+      far9: boolean, r9: number, zc9: number, hh9: number, fill9?: string, nsg9: 1 | -1 = 1,
+    ): ShapeFace[] => {
+      const fs9: ShapeFace[] = [];
+      for (let i9 = 0; i9 < RING_N9; i9 += 1) {
+        const a0 = (i9 / RING_N9) * Math.PI * 2; const a1 = ((i9 + 1) / RING_N9) * Math.PI * 2;
+        const am9 = (a0 + a1) / 2;
+        const mx9 = Math.sin(am9); const my9 = Math.cos(am9);
+        if ((my9 < 0) !== far9) continue;
+        const P9 = (aa9: number, dz9: number): [number, number, number] =>
+          [Math.sin(aa9) * r9, Math.cos(aa9) * r9, zc9 + dz9];
+        const d9 = polyPath3([P9(a0, -hh9), P9(a1, -hh9), P9(a1, hh9), P9(a0, hh9)]);
+        const l9 = faceLight(mx9 * nsg9, my9 * nsg9, 0);
+        fs9.push(fill9 ? [d9, 1, fill9] as ShapeFace : bodyFace(d9),
+          ...(l9.visible ? l9.face(d9) : [sideFace(d9, 0.3)]));
+      }
+      return fs9;
+    };
+    /** 관의 마구리(위·아래를 보는 고리 낯) — 안 ri9 ~ 바깥 ro9. */
+    const capRing9 = (far9: boolean, z9: number, nz9: 1 | -1, ri9: number, ro9: number, fill9?: string): ShapeFace[] => {
+      const fs9: ShapeFace[] = [];
+      for (let i9 = 0; i9 < RING_N9; i9 += 1) {
+        const a0 = (i9 / RING_N9) * Math.PI * 2; const a1 = ((i9 + 1) / RING_N9) * Math.PI * 2;
+        const am9 = (a0 + a1) / 2;
+        if ((Math.cos(am9) < 0) !== far9) continue;
+        const Q9 = (aa9: number, rr9: number): [number, number, number] =>
+          [Math.sin(aa9) * rr9, Math.cos(aa9) * rr9, z9];
+        const d9 = nz9 > 0
+          ? polyPath3([Q9(a0, ri9), Q9(a0, ro9), Q9(a1, ro9), Q9(a1, ri9)])
+          : polyPath3([Q9(a1, ri9), Q9(a1, ro9), Q9(a0, ro9), Q9(a0, ri9)]);
+        const l9 = faceLight(0, 0, nz9);
+        fs9.push(fill9 ? [d9, 1, fill9] as ShapeFace : bodyFace(d9),
+          ...(l9.visible ? l9.face(d9) : [sideFace(d9, 0.3)]));
+      }
+      return fs9;
+    };
+    /** 띠 한 쪽(앞 또는 뒤) — 안팎 벽 + 위아래 마구리. */
+    const bandFaces9 = (far9: boolean): ShapeFace[] => [
+      ...hoop9(far9, RING_R + BAND_TH9, PY_M, RING_HH9),
+      ...hoop9(far9, RING_R - BAND_TH9, PY_M, RING_HH9, undefined, -1),
+      ...capRing9(far9, PY_M + RING_HH9, 1, RING_R - BAND_TH9, RING_R + BAND_TH9, CLAW9),
+      ...capRing9(far9, PY_M - RING_HH9, -1, RING_R - BAND_TH9, RING_R + BAND_TH9, CLAW9),
+    ];
+    /* ★ **고리 위아래에 금 테두리**(2026-09, 요청: "고리 위아래에 금색 띠 테두리 추가" →
+       "더 두껍게") — 띠의 위아래 마구리를 금으로 깔고(위 bandFaces9), 그 아래로 겉벽에도
+       금 띠를 한 뼘씩 두른다. 두께 0.07 → **0.17**(요청) · 겉으로 0.04 내어 파고들게 둔다. */
+    const RIM_HH9 = 0.17;
+    const rim9 = (far9: boolean): ShapeFace[] => [
+      ...hoop9(far9, RING_R + BAND_TH9 + 0.04, PY_M + RING_HH9 - RIM_HH9, RIM_HH9, CLAW9),
+      ...hoop9(far9, RING_R + BAND_TH9 + 0.04, PY_M - RING_HH9 + RIM_HH9, RIM_HH9, CLAW9),
+    ];
     /* 세로 갈고리 — 링 자리에서 위·아래로 뻗는 한 쌍의 뿔. 끝이 안쪽으로 모여
        수정을 감싼다. */
     /* 갈고리는 링에 안 가린다(지적) — 링은 무깊이 손 면이라 직전 깊이를 물려받아
@@ -7715,40 +7772,54 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        그래서 링의 단면(안 4.1 ~ 바깥 5.1)을 감싸는 짧은 호 토막으로 짓는다: 바깥 벽·안쪽 벽은
        세운 낯(법선이 반지름 방향) · 위아래는 그 둘을 잇는 좁은 띠. 링보다 0.06 만큼 밖으로·안으로
        물려 **파고들게** 둔다(같은 평면이면 z 싸움을 한다 — '나란히 선 덩이 사이의 틈' 규약). */
+    /* ★★ **보석은 띠가 아니라 보석이다**(2026-09, 요청: "파일런 보석 금색으로 수정하고 모양도
+       보석 형태로 수정") — 여태 이 여섯은 고리를 가로질러 감는 **청록 끈**이었다. 원작의 파일런
+       테에 박힌 것은 끈이 아니라 **깎아 세운 보석**이고, 색도 테를 두르는 갈고리와 같은 금이다.
+       그래서 바깥을 향한 **양뿔(비피라미드)**로 짓는다: 고리 겉면에서 밖으로 솟은 꼭지 하나와
+       고리 속에 묻힌 꼭지 하나를, 접선·수직이 이루는 네모 허리가 잇는다. 낯이 여덟이라 어느
+       각에서도 모서리가 빛을 갈라 '깎은 돌'로 읽힌다.
+       ⚠ 허리는 고리 겉면보다 **조금 안**(+0.06)에 둔다 — 딱 맞추면 겉벽과 같은 평면이라 z 싸움을
+         한다. 뒤 꼭지는 고리 속(−0.16)에 묻어 어느 각에서도 밑동이 안 보인다. */
     const gems: ShapeFace[] = [];
-    const GB_HW9 = 0.135;   // 띠의 반각 — 옛 원반 반지름 0.62를 링 허리(4.6) 위의 호로 옮긴 값
-    const GB_HZ9 = 0.3;     // 링 위아래로 나오는 몫(끈의 두께)
+    const GEM_OUT9 = 0.42;   // 바깥 꼭지가 고리 겉에서 솟는 몫
+    const GEM_HW9 = 0.30;    // 허리 반폭(접선 쪽)
+    /* ★ 보석은 **띠 밖으로 솟는다**(2026-09, 요청: "파일런 보석들 위아래 길이 늘려서 띠 밖으로
+       삐져나가게") — 허리 반높이 0.34 는 고리 높이(±0.5) 안에 들어 '고리에 그린 무늬'로 읽혔다.
+       0.78 이면 위아래로 0.28 씩 솟아 **박아 넣은 돌**이 된다(금 테두리 두 줄을 가로지른다). */
+    const GEM_HZ9 = 0.78;    // 허리 반높이 — 고리 높이(0.5)보다 커야 밖으로 솟는다
     for (const ang of [30, 90, 150, 210, 270, 330]) {
       const a = (ang * Math.PI) / 180;
-      const gx9 = Math.sin(a) * RING_R; const gy9 = Math.cos(a) * RING_R;
-      const P9 = (da9: number, r9: number, dz9: number): [number, number, number] =>
-        [Math.sin(a + da9) * r9, Math.cos(a + da9) * r9, PY_M + dz9];
-      const N9 = 3;
-      /** 호 토막 한 장 — 두 반지름·두 높이를 잇는 네모(호를 마디로 나눠 굽이를 탄다). */
-      const strip9 = (
-        r0: number, z0: number, r1: number, z1: number, nx9: number, ny9: number, nz9: number,
-      ): ShapeFace[] => {
-        const pts9: [number, number, number][] = [];
-        for (let i9 = 0; i9 <= N9; i9 += 1) pts9.push(P9(-GB_HW9 + (2 * GB_HW9 * i9) / N9, r0, z0));
-        for (let i9 = N9; i9 >= 0; i9 -= 1) pts9.push(P9(-GB_HW9 + (2 * GB_HW9 * i9) / N9, r1, z1));
-        const d9 = polyPath3(pts9);
-        const l9 = faceLight(nx9, ny9, nz9);
-        return [[d9, 0.9, "#5aecd8"] as ShapeFace, ...(l9.visible ? l9.face(d9) : [])];
-      };
-      const RO9 = rxo + 0.06; const RI9 = rxi - 0.06;
-      const sa9 = Math.sin(a); const ca9 = Math.cos(a);
-      gems.push(...tagKey([
-        ...strip9(RO9, GB_HZ9, RO9, -GB_HZ9, sa9, ca9, 0),        // 바깥 벽 — 옆을 본다
-        ...strip9(RI9, -GB_HZ9, RI9, GB_HZ9, -sa9, -ca9, 0),      // 안쪽 벽
-        ...strip9(RI9, GB_HZ9, RO9, GB_HZ9, 0, 0, 1),             // 윗 마구리
-        ...strip9(RO9, -GB_HZ9, RI9, -GB_HZ9, 0, 0, -1),          // 아랫 마구리
-      ], depthNow(gx9, gy9) + 0.2));
+      const ex9 = Math.sin(a); const ey9 = Math.cos(a);          // 바깥 방향
+      const tx9 = Math.cos(a); const ty9 = -Math.sin(a);         // 접선 방향
+      const gx9 = ex9 * RING_R; const gy9 = ey9 * RING_R;
+      /** 고리 겉면에서 밖으로 d9 · 접선으로 u9 · 위로 v9 만큼 간 자리. */
+      const G9 = (d9: number, u9: number, v9: number): [number, number, number] =>
+        [gx9 + ex9 * d9 + tx9 * u9, gy9 + ey9 * d9 + ty9 * u9, PY_M + v9];
+      const tip9 = G9(BAND_TH9 + GEM_OUT9, 0, 0);
+      const back9 = G9(-0.16, 0, 0);
+      const belt9: [number, number, number][] = [
+        G9(BAND_TH9 + 0.02, GEM_HW9, 0), G9(BAND_TH9 + 0.02, 0, GEM_HZ9),
+        G9(BAND_TH9 + 0.02, -GEM_HW9, 0), G9(BAND_TH9 + 0.02, 0, -GEM_HZ9),
+      ];
+      const fs9: ShapeFace[] = [];
+      for (let i9 = 0; i9 < 4; i9 += 1) {
+        const p9 = belt9[i9]; const q9 = belt9[(i9 + 1) % 4];
+        for (const [apex9, sgn9] of [[tip9, 1], [back9, -1]] as [[number, number, number], 1 | -1][]) {
+          const d9 = sgn9 > 0 ? polyPath3([apex9, p9, q9]) : polyPath3([apex9, q9, p9]);
+          // 낯의 법선은 바깥 방향과 허리 자리의 어림 — 깎은 돌이라 낯마다 밝기가 갈려야 한다.
+          const nx9 = ex9 * (sgn9 > 0 ? 0.72 : 0.3) + (tx9 * (p9[0] + q9[0] - 2 * gx9)) * 0.4;
+          const ny9 = ey9 * (sgn9 > 0 ? 0.72 : 0.3) + (ty9 * (p9[1] + q9[1] - 2 * gy9)) * 0.4;
+          const nz9 = (p9[2] + q9[2] - 2 * PY_M) * 0.9;
+          const l9 = faceLight(nx9, ny9, nz9);
+          fs9.push([d9, 1, CLAW9] as ShapeFace, ...(l9.visible ? l9.face(d9) : [sideFace(d9, 0.34)]));
+        }
+      }
+      gems.push(...tagKey(fs9, depthNow(gx9, gy9) + 0.2));
     }
     // 뒤 갈고리 → 뒤 링 → 수정 → 앞 링 → 앞 갈고리 순으로 겹친다.
     for (const ang of [180, 120, 240]) out.push(...claw(ang));
     // 링은 색을 안 준다 = 임자 색(요청). 금색은 두르는 갈고리들이 맡는다.
-    out.push(...tagKey([bodyFace(ringBack), sideFace(ringBack, 0.3),
-      ], depthNow(0, -RING_R)));
+    out.push(...tagKey([...bandFaces9(true), ...rim9(true)], depthNow(0, -RING_R)));
     /* 수정 — 네 모서리 양뿔(비피라미드)을 모델 좌표 삼각면으로 짠다: 요잉에 통째로
        돌고, 보이는 면만 그려 속면이 안 비친다. 위가 더 길고 뾰족하다(사진). */
     const zB = PY_B;
@@ -7777,8 +7848,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       }
     }
     out.push(...gems);
-    out.push(...tagKey([bodyFace(ringFront), topFace(ringFront, 0.22)],
-      depthNow(0, RING_R)));
+    out.push(...tagKey([...bandFaces9(false), ...rim9(false)], depthNow(0, RING_R)));
     for (const ang of [0, 60, 300]) out.push(...claw(ang));
     return out;
   }),
@@ -18364,14 +18434,30 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 가슴판은 임자 색이다 — 고스트를 팀으로 가르는 자리는 여기 하나뿐이다.
       ...paintBase(suitTorso(G, SUIT_TROOPER), WHITE),
       ...paintBase(suitNeck(G), DARK),
-      /* 허벅지 옆 붉은 무늬 한 쌍(사진 ghost2 — 다리 옆을 타는 붉은 표식) — 옆을
-         볼 때만 그리는 세로 판. */
+      /* 허벅지 옆 붉은 무늬 한 쌍(사진 ghost2 — 다리 옆을 타는 붉은 표식) — 옆을 볼 때만 그린다.
+         ★★ **표식은 제가 붙은 마디를 타야 한다**(2026-09, 지적: "고스트 다리 옆 빨간 데칼이
+         움직일 때 안 따라다님") — 여태 이 네모는 모형 좌표에 **못 박혀** 있었다(x ±0.62 · z 1.21~1.74).
+         다리는 컷마다 보폭만큼 흔들리는데 표식만 제자리에 남으니, 걷는 컷에서 허벅지가 표식을
+         빠져나가 허공에 붉은 조각만 남는다.
+         이제 다리와 **같은 자**(suitLegJoints9)로 골반·무릎을 얻어 그 사이를 타고 앉는다:
+         · 축을 따라 t 0.18~0.78 구간, · 바깥(±x)으로 허벅지 반지름만큼 밀고,
+         · 폭은 축과 x축에 모두 수직인 방향으로 ±0.11(옛 네모와 같은 폭).
+         ★ 규약: **다리·팔에 얹는 띠·표식은 그 마디의 관절 자리에서 지어라** — 자세가 있는 모델에서
+           모형 좌표 상수는 '서 있는 컷'에서만 맞는 값이다. */
       ...([-1, 1] as const).flatMap((m8): ShapeFace[] => {
         if (facingRatio(m8, 0) < 0.12) return [];
-        return tagKey([[polyPath3([
-          [m8 * 0.62, -0.12, 1.7424], [m8 * 0.62, 0.1, 1.7424],
-          [m8 * 0.63, 0.08, 1.2144], [m8 * 0.63, -0.1, 1.2144],
-        ]), 1, RED] as ShapeFace], depthNow(m8 * 0.6, 0) * 1.6 - 0.6);
+        const { hip: hp9, knee: kn9 } = suitLegJoints9(m8, 0.62, 0.28 * wd);
+        const at9x = (t9: number): [number, number, number] =>
+          [hp9[0] + (kn9[0] - hp9[0]) * t9, hp9[1] + (kn9[1] - hp9[1]) * t9, hp9[2] + (kn9[2] - hp9[2]) * t9];
+        const A9 = at9x(0.18); const B9 = at9x(0.78);
+        const dy9 = B9[1] - A9[1]; const dz9 = B9[2] - A9[2];
+        const dl9 = Math.hypot(dy9, dz9) || 1;
+        const uy9 = (dz9 / dl9) * 0.11; const uz9 = (-dy9 / dl9) * 0.11;   // 축·x축에 모두 수직인 폭
+        const RX9 = m8 * 0.295;   // 허벅지 반지름만큼 바깥으로(옛 ±0.62 − 골반 ±0.335)
+        const P9 = (q9: [number, number, number], sg9: 1 | -1): [number, number, number] =>
+          [q9[0] + RX9, q9[1] + sg9 * uy9, q9[2] + sg9 * uz9];
+        return tagKey([[polyPath3([P9(A9, 1), P9(A9, -1), P9(B9, -1), P9(B9, 1)]), 1, RED] as ShapeFace],
+          depthNow(A9[0] + RX9, A9[1]) * 1.6 - 0.6);
       }),
       /* ② 가슴 한복판을 흐르는 붉은 줄 — 앞을 볼 때만. 모델 좌표의 세로 판이라
          요잉·앞숙임을 몸과 똑같이 탄다. */
