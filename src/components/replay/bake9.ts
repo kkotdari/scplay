@@ -23862,7 +23862,7 @@ export function autoTier(kind: string, key: string, faces: ShapeFace[]): ShapeFa
   AUTO_TIER_CACHE.set(key, out);
   return out;
 }
-/** 건설 단계별 **높이** 몫 — 1~9단이고 10단(= BUILD_STAGES)은 완성이라 표에 없다
+/** 건설 단계별 **보이는 넓이** 몫 — 1~9단이고 10단(= BUILD_STAGES)은 완성이라 표에 없다
  *  (그 자리는 faces 를 통째로 낸다).
  *  ★★ **자를 '낯 수'에서 '높이'로 바꿨다**(2026-09) — 낯 수로 자르면 **낯이 몰린 자리에서
  *  멈춘다**: 배럭은 발판 여섯이 잘게 쪼갠 돔이라 **낯의 절반이 z 1.36 아래**에 있고(실측
@@ -23871,7 +23871,7 @@ export function autoTier(kind: string, key: string, faces: ShapeFace[]): ShapeFa
  *  드는 낯을 세운다. 낯은 통째로 드므로(밑변 기준) 잘린 단면이 안 생긴다.
  *  ⚠ 마지막 단계가 0.72 인 것은 값이다 — 꼭대기의 살창·뚜껑·안테나가 남아야 '짓는 중'과
  *    '완성'이 갈린다(단계끼리의 구분은 열 칸이라 저절로 선다). */
-const BUILD_FRAC9 = [0.10, 0.18, 0.26, 0.34, 0.42, 0.50, 0.58, 0.65, 0.72];
+const BUILD_FRAC9 = [0.03, 0.07, 0.13, 0.22, 0.33, 0.45, 0.57, 0.69, 0.82];
 /** 건설 중 보여 줄 낯을 고른다 — **낮은 것부터**.
  *  ★★ **자는 화면이 아니라 모델의 높이(z)다**(2026-09, 지적: "지금 보면 앞 발판은 먼저
  *  나오는데 뒷발판들이 제일 나중에 생겨 — 실제 공사라면 말이 안 돼") ───────────────────
@@ -23918,9 +23918,26 @@ export function stageFaces(faces: ShapeFace[], stg: number): ShapeFace[] {
     if (a9 < gz0[gg]) gz0[gg] = a9;
     if (b9 > gz1[gg]) gz1[gg] = b9;
   }
-  /** 낯의 화면 상자 — 크기(같은 높이면 큰 것부터)와 3D 없는 자리의 대타로 쓴다. */
+  /** 낯의 화면 상자 — 3D 가 없는 자리의 대타 자다. */
   const box = faces.map((f) => pathBox(f[0]));
-  const area9 = box.map((b) => Math.max(0, b[2] - b[0]) * Math.max(0, b[3] - b[1]));
+  /** 낯이 화면에서 **실제로 덮는 넓이**(구두끈 공식) ─────────────────────────────────────
+   *  ⚠ 상자 넓이로 재면 **가는 사선이 판을 이긴다** — 다리 막대는 기울어 놓인 얇은 판인데 그
+   *    상자는 크고 꽉 찬 것으로 잡힌다(실측: 배럭에서 다리·발판이 넓이의 절반을 차지해 열 칸
+   *    중 다섯 칸을 먹었다). 칠해지는 몫을 재야 칸이 고르게 나뉜다.
+   *  숫자 경로 표(POLY2)에 꼭짓점이 이미 있으므로 파싱 없이 바로 잰다. 없으면 상자로 물러난다. */
+  const area9 = faces.map((f, i) => {
+    const xy = POLY2.get(f[0]);
+    if (!xy || xy.length < 6) {
+      const b = box[i];
+      return Math.max(0, b[2] - b[0]) * Math.max(0, b[3] - b[1]);
+    }
+    let a9 = 0;
+    for (let k = 0, m = xy.length / 2; k < m; k += 1) {
+      const j = (k + 1) % m;
+      a9 += xy[k * 2] * xy[j * 2 + 1] - xy[j * 2] * xy[k * 2 + 1];
+    }
+    return Math.abs(a9) / 2;
+  });
   const key0: number[] = new Array<number>(n);
   const key1: number[] = new Array<number>(n);
   for (let i = 0; i < n; i += 1) {
@@ -23931,18 +23948,70 @@ export function stageFaces(faces: ShapeFace[], stg: number): ShapeFace[] {
     key0[i] = Number.isNaN(a9) ? -box[i][3] : a9;
     key1[i] = Number.isNaN(b9) ? -box[i][1] : b9;
   }
+  /* ⚠ **한가운데 높이로 재면 안 된다** — 넣었다가 걷었다(2026-09). 키 다른 덩이를 나누려고
+     (z0+z1)/2 로 재 봤더니, 벽(가운데 3.0)보다 그 벽에 붙은 띠(가운데 2.2)가 **먼저** 떠서
+     "면도 없는데 데칼이 먼저"가 그대로 돌아왔다(실측 그림: 배럭 5단에 띠만 공중에 떠 있다).
+     밑변(z0)만이 '얹힌 것은 제 host 보다 높은 데서 시작한다'를 지킨다 — 자는 밑변이다. */
+  /* 같은 밑높이에서는 **부품이 통째로 한 채씩** 선다 — 큰 덩이부터(요청: "큰 부품이 나오고
+     작은 부품이 나와야 함"). 부품 안에서는 다시 바닥 → 벽 → 천장(z 위끝)이다. */
+  const gArea9 = new Array<number>(ng).fill(0);
+  for (let i = 0; i < n; i += 1) gArea9[gid[i]] += area9[i];
+  const gRank9 = new Array<number>(ng).fill(0);
+  gArea9.map((_, i) => i).sort((a, b) => gArea9[b] - gArea9[a] || a - b)
+    .forEach((gg, r) => { gRank9[gg] = r; });
   const order = key0.map((_, i) => i)
-    .sort((a, b) => key0[a] - key0[b] || key1[a] - key1[b] || area9[b] - area9[a] || a - b);
+    .sort((a, b) => key0[a] - key0[b] || gRank9[gid[a]] - gRank9[gid[b]]
+      || key1[a] - key1[b] || area9[b] - area9[a] || a - b);
   const frac9 = BUILD_FRAC9[Math.min(BUILD_FRAC9.length - 1, stg - 1)];
-  /* 높이로 자른다 — 그 몫만큼의 z 아래에 **밑변**이 드는 낯까지. 3D 가 아예 없는 굽기
-     (2D 폴백)에서는 자가 화면 상자라 높이로 못 재므로 옛 자(낯 수)로 물러난다. */
+  /* ★★ **칸을 나누는 자는 '높이'가 아니라 '보이는 넓이'다**(2026-09, 지적: "배럭은 3단에서 너무
+     한꺼번에 다 올라와") — 높이를 고르게 나누면 **그 높이에 무엇이 얼마나 있는지**를 안 본다.
+     배럭은 다리·발판이 높이의 7% 에 낯 341장(전체의 절반)을 몰아 놓고, 몸통 셋의 벽은 z0
+     1.27~2.6 한 뼘에 모여 있다 — 그래서 한 칸이 그 뼘을 통째로 지나며 건물이 한꺼번에 솟았다.
+     열 칸이 고르게 자라려면 **칸마다 비슷한 몫의 그림이 더해져야** 한다: 낯의 화면 넓이를
+     밑변 차례로 쌓아 그 누적이 표의 몫에 닿는 자리를 자른다.
+     ⚠ 자른 자리는 **부품 경계에 스냅한다** — 같은 밑변의 같은 부품(상자 한 채의 여덟 벽)은 다
+       들거나 다 빠져야 한다. 안 그러면 벽 몇 장만 선 '구멍 난 상자'가 된다. 층 전체로 스냅하지는
+       않는다 — 같은 높이에서 시작하는 덩이가 여럿이면(배럭 몸통 셋) **한 채씩** 서야 한다.
+     ⚠ 1단만은 높이로도 막는다 — 넓이로만 고르면 발판(넓이가 작다)을 지나 몸통까지 들어와
+       "처음엔 발판 정도만"이 깨진다.
+     ⚠ 3D 가 아예 없는 굽기(`#gl=0` 폴백의 2D)에서는 자가 화면 상자라 높이를 못 재므로 옛 자
+       (낯 수)로 물러난다. */
   const zLo9 = key0[order[0]]; const zHi9 = key0[order[n - 1]];
   let keepN9 = Math.max(1, Math.round(n * frac9));
   if (has3d9 && zHi9 > zLo9) {
-    const cut9 = zLo9 + (zHi9 - zLo9) * frac9;
-    let m9 = 0;
-    while (m9 < n && key0[order[m9]] <= cut9) m9 += 1;
-    keepN9 = Math.max(1, m9);
+    /* 자를 수 있는 자리(부품 경계)만 모은다 — 그 사이에서 자르면 상자에 구멍이 난다. */
+    let tot9 = 0;
+    const cum9 = order.map((i9) => (tot9 += area9[i9]));
+    const stops9: number[] = [];
+    for (let m9 = 1; m9 <= n; m9 += 1) {
+      if (m9 === n || gid[order[m9]] !== gid[order[m9 - 1]]
+        || Math.abs(key0[order[m9]] - key0[order[m9 - 1]]) >= 1e-4) stops9.push(m9);
+    }
+    /* 1단의 바닥 — **맨 아래 층은 통째로**(요청: "발판이 맨 아래라 제일 먼저 나와야 해").
+       발판 여섯은 저마다 딴 부품이라 넓이로만 자르면 두어 개만 서서 '한쪽만 놓인 받침'이 된다.
+       위로는 높이 10% 로 막는다 — 넓이가 작은 발판을 지나 몸통까지 들어오면 안 된다. */
+    let lo9 = 0;
+    while (lo9 < n && key0[order[lo9]] <= zLo9 + (zHi9 - zLo9) * 0.02) lo9 += 1;
+    const cap9 = zLo9 + (zHi9 - zLo9) * 0.10;
+    /* ★ 칸마다 **반드시 무엇이 늘어난다** — 넓이 몫으로 자리를 고르되, 앞 칸보다 적어도 한
+       자리는 뒤여야 한다. 덩이가 몇 개뿐인 모델에서는 넓이만 보면 두세 칸이 같은 그림이 된다
+       (실측: 배럭 1·2단, 4·5단이 똑같았다). 표는 아홉 칸이라 여기서 한 번에 다 푼다. */
+    let si9 = -1;
+    for (let t9 = 0; t9 < BUILD_FRAC9.length; t9 += 1) {
+      let k9 = 0;
+      while (k9 < stops9.length - 1 && cum9[stops9[k9] - 1] < tot9 * BUILD_FRAC9[t9]) k9 += 1;
+      if (k9 <= si9) k9 = Math.min(stops9.length - 1, si9 + 1);
+      si9 = k9;
+      if (t9 === stg - 1) {
+        let m9 = stops9[k9];
+        if (stg === 1) {
+          while (m9 > 1 && key0[order[m9 - 1]] > cap9) m9 -= 1;
+          if (lo9 > m9) m9 = lo9;
+        }
+        keepN9 = Math.max(1, m9);
+        break;
+      }
+    }
   }
   /* ⚠ **같은 경로의 덧칠은 제 몸과 떨어지면 안 된다** — 음영 덧칠(topFace·sideFace)은 몸과
      경로가 글자까지 같아 열쇠도 같으므로 늘 붙어 서는데, 자르는 자리가 그 사이에 떨어지면
