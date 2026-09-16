@@ -1467,6 +1467,12 @@ export const cineUnitTiles9 = (sizeKind: string): number => {
     : CINE_CLASS_K9[(UNIT_BULK[sizeKind] ?? 1) === 0 ? "small" : (UNIT_BULK[sizeKind] ?? 1) === 2 ? "big" : "veh"];
   return CINE_HALL_T9 * cls9 * (e9 ? CINE_RACE_K9[e9[1]] : 1);
 };
+/** 자원 둘의 시네마틱 폭(타일) — 자는 건물·유닛과 같은 홀 분수다(요청: "미네랄 간헐천도"). */
+export const cineResTiles9 = (gas: boolean, base: number): number => {
+  if (CINE9 <= 0) return base;
+  const t9 = CINE_HALL_T9 * (gas ? 0.42 : 0.30);
+  return base + (t9 - base) * CINE9;
+};
 /** 건물의 **홀 폭에 대한 분수** — 홀이 1 이고 나머지는 그 아래다. */
 const CINE_BLD_FRAC9: Record<string, number> = {
   // 본진홀 셋 — 이 값이 자다
@@ -6283,7 +6289,11 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     /* 간헐천만 1.2배(요청: "간헐천 그려지는 크기 1.2배 확대") — 3.2 → 3.84.
        제 발자국이 4×2라 그 안에 여전히 든다(그 위에 서는 가스 건물이 3.0~4.0폭
        이라 덮는 관계도 그대로다). 미네랄은 이번 요청 밖이라 안 건드린다. */
-    const wTiles = gasSpot ? 3.84 * 0.8 : 2.4;   // 간헐천 0.8배(요청, 비교 장면)
+    /* 시네마틱에서는 자원도 **홀 기준 분수**로 줄인다(요청: "미네랄 간헐천도") — 지금 크기는
+       홀의 절반(미네랄 0.50 · 간헐천 0.64)인데, 설정으로 보면 광맥 덩이와 가스 분출구는
+       건물보다 훨씬 작은 지물이다. 간헐천 0.42 · 미네랄 0.30 으로 둔다(간헐천이 더 크다). */
+    const wBase9 = gasSpot ? 3.84 * 0.8 : 2.4;
+    const wTiles = cineResTiles9(gasSpot, wBase9);
     unitOps.push({
       fx, fy,
       /* 자원도 높이를 가진다(지적: 뒤 사물을 가려야) — 990 바닥층이 아니라 건물과
