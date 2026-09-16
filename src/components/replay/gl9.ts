@@ -1285,6 +1285,13 @@ export interface GlIconReq9 {
   /** 칸(기기 px) */ w: number; h: number;
   /** 임자색(#hex) */ color: string;
   /** 창 [x, y, w, h](16-상자 자) — 없으면 잉크 맞춤(pad). */ box?: [number, number, number, number]; pad: number;
+  /* ★★ **PNG 왕복을 건너뛰는 길**(2026-09, 지적: "도록 팝업 회전이 뚝뚝 끊긴다") ─────────────────────
+     기본 길은 칸을 `toDataURL("image/png")` 로 싸서 <img> 에 물린다 — 한 장을 낼 때마다 **PNG 인코딩 +
+     브라우저의 비동기 디코딩**을 치른다. 한 번 그리고 마는 도록 목록에서는 값이 안 나가지만, 팝업이
+     프레임마다 각을 바꿔 다시 청하면 그 왕복이 곧 프레임 상한이 된다(칸 셋 × 240px, 실측 체감 십몇 장).
+     `blit` 을 주면 그 왕복을 통째로 건너뛰고 **모아 그린 판에서 제 칸만 곧장 찍어** 준다 — 부르는 쪽은
+     <canvas> 를 두고 여기서 받은 자리를 그대로 옮기면 된다. 그때 done 은 빈 글자로 온다(실패는 null). */
+  blit?: (src: HTMLCanvasElement, sx: number, sy: number, sw: number, sh: number) => void;
   done: (url: string | null) => void;
 }
 const ICON_Q9: GlIconReq9[] = [];
@@ -1347,6 +1354,7 @@ function glIconFlush9(): void {
     sc.drawImage(g.canvas, 0, 0);   // 판마다 읽기 한 번
     for (const it of p.items) {
       if (!it.mesh) { it.req.done(null); continue; }
+      if (it.req.blit) { it.req.blit(sheet, it.x, it.y, it.w, it.h); it.req.done(""); continue; }
       cell.width = it.w; cell.height = it.h;
       cc.drawImage(sheet, it.x, it.y, it.w, it.h, 0, 0, it.w, it.h);
       it.req.done(cell.toDataURL("image/png"));

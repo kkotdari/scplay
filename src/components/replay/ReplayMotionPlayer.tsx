@@ -5289,8 +5289,8 @@ function cssHex9(c: string): string {
   return /^#/.test(c.trim()) ? c.trim() : "#64ff64";
 }
 let docBldSet9: Set<string> | null = null;
-/** 도록 아이콘 — GL 붓이 켜져 있으면(GL_ON9 · `gl` 로 못 박음) **화면과 같은 메시 그림**(<img>, gl9.glIconRequest9 가 한 프레임의 청을 모아
- *  한 번에 그린다)이고, 아니면(폰·`#gl=0`·입체 보기·GL 못 섬·메시 못 지음) ShapeIcon(SVG, 2D 면) 그대로다. 프롭·창 규약(fit·fitPad·fitBox·
+/** 도록 아이콘 — GL 붓이 켜져 있으면(GL_ON9 · `gl` 로 못 박음) **화면과 같은 메시 그림**(<canvas>, gl9.glIconRequest9 가 한 프레임의 청을 모아
+ *  한 번에 그려 제 칸을 곧장 찍어 준다)이고, 아니면(폰·`#gl=0`·입체 보기·GL 못 섬·메시 못 지음) ShapeIcon(SVG, 2D 면) 그대로다. 프롭·창 규약(fit·fitPad·fitBox·
  *  wide·pose·spin)은 ShapeIcon 과 같다 — 도록(GalleryScreen·doc-sheet)이 이것을 쓰면 키값·마주 봄 판정 같은 2D 전용 어긋남 없이
  *  지도가 그리는 그 그림을 본다. 색은 요소의 currentColor(도록의 --scr-doc-own)다. */
 export function DocIcon9({ kind, rotDeg, pose, spin, flat, fit, fitPad, fitBox, wide, className, gl }: {
@@ -5299,8 +5299,7 @@ export function DocIcon9({ kind, rotDeg, pose, spin, flat, fit, fitPad, fitBox, 
   /** GL 로 그릴지 못 박기(안 주면 GL_ON9). */ gl?: boolean;
 }) {
   const wantGl = (gl ?? GL_ON9) && !!flat && !!SHAPE_BUILDERS[kind];
-  const ref = useRef<HTMLImageElement>(null);
-  const [src, setSrc] = useState<string | null>(null);
+  const ref = useRef<HTMLCanvasElement>(null);
   const [fail, setFail] = useState(false);
   const useGl = wantGl && !fail && glIconOk9();
   useLayoutEffect(() => {
@@ -5316,12 +5315,28 @@ export function DocIcon9({ kind, rotDeg, pose, spin, flat, fit, fitPad, fitBox, 
     let live = true;
     glIconRequest9({
       kind, bld: docBldSet9.has(kind), rotDeg: rotDeg ?? BUILDING_BASE_YAW, pose: pose ?? 0, spin: spin ?? 0, w, h, color, box, pad: fitPad ?? 0.12,
-      done: (u9) => { if (!live) return; if (u9) setSrc(u9); else setFail(true); },
+      /* ★★ 판을 **곧장 찍는다**(2026-09, 지적: "도록 팝업 회전이 뚝뚝 끊긴다") — 옛 길은 칸마다
+         PNG(dataURL)를 만들어 <img> 에 물렸다. 한 장을 낼 때마다 PNG 인코딩과 브라우저의 **비동기
+         디코딩**을 치르므로, 팝업처럼 프레임마다 각을 바꿔 다시 청하는 자리에서는 그 왕복이 곧
+         프레임 상한이 된다(칸 셋 × 240px). 캔버스로 받으면 모아 그린 판에서 제 칸만 옮기는 복사
+         하나뿐이고, 그 프레임 안에서 끝나므로 각과 그림이 안 어긋난다.
+         ⚠ 처음 크기는 **1×1** 로 둔다 — 캔버스는 <img> 와 달리 기본 지름(300×150)이 있어, 높이가
+           `auto` 인 자리(도록 목록)에서 그 2:1 비가 그대로 칸의 높이가 된다. 1×1 이면 <img> 가
+           그림 전에 내던 것과 같은 정사각이라 옛 배치가 한 톨도 안 바뀐다. */
+      blit: (sc9, sx9, sy9, sw9, sh9) => {
+        const c9 = ref.current; if (!c9) return;
+        if (c9.width !== sw9 || c9.height !== sh9) { c9.width = sw9; c9.height = sh9; }
+        const g2 = c9.getContext("2d"); if (!g2) return;
+        g2.clearRect(0, 0, sw9, sh9);
+        g2.drawImage(sc9, sx9, sy9, sw9, sh9, 0, 0, sw9, sh9);
+        c9.dataset.gl9 = "1";   // doc-sheet 가 기다리는 표식
+      },
+      done: (u9) => { if (live && u9 === null) setFail(true); },
     });
     return () => { live = false; };
   }, [useGl, kind, rotDeg, pose, spin, fit, fitPad, fitBox, wide]);
   if (!useGl) return <ShapeIcon kind={kind} rotDeg={rotDeg} pose={pose} spin={spin} flat={flat} fit={fit} fitPad={fitPad} fitBox={fitBox} wide={wide} className={className} />;
-  return <img ref={ref} className={cx("scr-motion-shape-svg", className)} src={src ?? undefined} alt="" aria-hidden draggable={false} data-gl9={src ? "1" : "0"} />;
+  return <canvas ref={ref} width={1} height={1} className={cx("scr-motion-shape-svg", className)} aria-hidden data-gl9="0" />;
 }
 export function ShapeIcon({
   kind, className, faces: facesOverride, rotDeg, flat, keepRatio, viewYaw, pitchView, wide, fit, fitPad, fitBox: fitBoxProp,
