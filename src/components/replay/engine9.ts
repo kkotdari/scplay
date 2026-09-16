@@ -1386,9 +1386,9 @@ export const UNIT_SIZE_GLOBAL: number = 1.2;
 export const unitTilesOf = (drawKind: string, sizeKind: string, bulk: 0 | 1 | 2): number => {
   const bw0 = UNIT_BW_TILES[sizeKind] ?? CLASS_TILES[bulk];
   const bw = SIZE_CONTRAST_C === 1 ? bw0 : SIZE_REF * (bw0 / SIZE_REF) ** SIZE_CONTRAST_C;
-  return bw * SPRITE_OVERHANG * (16 / modelInkOf(drawKind))
-    * (UNIT_SIZE_TUNE[sizeKind as keyof typeof UNIT_BW_RAW] ?? 1) * UNIT_SIZE_GLOBAL
-    * cineUnitK9(sizeKind);
+  const t9 = bw * SPRITE_OVERHANG * (16 / modelInkOf(drawKind))
+    * (UNIT_SIZE_TUNE[sizeKind as keyof typeof UNIT_BW_RAW] ?? 1) * UNIT_SIZE_GLOBAL;
+  return CINE9 <= 0 ? t9 : t9 + (cineUnitTiles9(sizeKind) - t9) * CINE9;
 };
 /* ────────────────────────────────────────────────────────────────────────────────────────
    ★★ **시네마틱 크기**(요청: "인게임 크기 비율 말고 실제 설정상 크기와 가깝게 — 건물은
@@ -1396,8 +1396,8 @@ export const unitTilesOf = (drawKind: string, sizeKind: string, bulk: 0 | 1 | 2)
    크기 차이도. 일단은 파라미터로 켤 수 있게") ────────────────────────────────────────────
    손잡이는 **하나**(`#cine=N`, 0~1)다. 0 이 지금 그대로이고 1 이 설정 비율에 가장 가깝다.
    그 하나가 넷을 함께 움직인다:
-     ① 건물 ×(1 + 0.35N)          — 건물이 전장의 덩치가 된다(bldDrawK9)
-     ② 유닛 전체는 등급 표가 직접 든다(공통 몫을 따로 곱하지 않는다 — 곱이 겹치면 못 읽는다)
+     ① 자는 **본진홀의 폭**(CINE_HALL_T9)이고, 모든 크기는 그것에 대한 **분수**다.
+     ② 건물·유닛이 같은 자를 쓴다 — 표를 보면 누가 누구보다 큰지가 바로 읽힌다.
      ③ 등급·종족 배수만으로 칸을 벌린다 — **원작 치수 지수(SIZE_CONTRAST)는 안 건드린다**
         ⚠ 둘을 함께 올리면 **곱으로 겹쳐** 함선이 지도를 덮는다(실측: 지수 +0.7N 에
           배틀크루저가 7.7 → 18.7타일 · 큰/작은 비 4.5 → 31.9배 · +0.25N 에도 13.4타일).
@@ -1411,20 +1411,26 @@ export const unitTilesOf = (drawKind: string, sizeKind: string, bulk: 0 | 1 | 2)
    ⚠ 설정 치수를 **그대로** 쓸 수는 없다: 배틀크루저가 1km, 캐리어가 500m 다(마린의 500배).
      그 비를 화면에 옮기면 함선 한 채가 지도를 덮는다. 그래서 '칸'의 순서와 간격만 지키고
      비는 눅인다 — 아래 표가 그 눅임이다(한 칸에 1.2~1.5배). */
+/** ★ **자는 본진홀이다**(2026-09, 요청: "크기는 본진홀 건물이 기준이야 그게 제일 크니까 —
+ *  그걸 기준으로 다른 모델들 크기를 정하는 거야") — 그래서 시네마틱 크기는 '지금 크기에 배수를
+ *  얹는' 자가 아니라 **홀의 폭을 1 로 둔 분수표**다. 배수로 주면 함선이 홀보다 커진다(실측:
+ *  옛 짜임에서 캐리어 10.1타일 대 커맨드 6.5타일 — 규약이 뒤집혔다). 분수로 주면 표를 보면
+ *  누가 누구보다 큰지가 바로 읽히고, 어떤 칸도 1 을 못 넘는다. */
+const CINE_HALL_T9 = 7.0;
 let CINE9 = 0;
 /** 시네마틱 세기(0~1)를 세운다 — 붓은 `#cine=N`, 워커는 view.cine 으로 같은 값을 넣는다. */
 export const cineSet9 = (v: number): void => { CINE9 = Math.max(0, Math.min(1, v || 0)); };
 export const cineNow9 = (): number => CINE9;
-/** 등급 배수 — 보병 < 일꾼 < 소형 지상 < 전차 < 대형 지상 < 소형 비행 < 중형 비행 < 함선. */
+/** 등급별 **홀 폭에 대한 분수** — 보병 < 소형생체 … < 함선 < 홀(1). 어느 칸도 1 을 안 넘는다. */
 const CINE_CLASS_K9 = {
-  inf: 0.70,      // 보병(사람 크기)
-  work: 0.80,     // 일꾼
-  small: 0.74,    // 소형 지상 생체(저글링·스커지·인터셉터)
-  veh: 1.00,      // 전차·차량 — 이 칸이 기준(1)이다
-  big: 1.12,      // 대형 지상(울트라·리버·아콘)
-  air: 1.12,      // 소형 비행선
-  air2: 1.24,     // 중형 비행선(수송·과학선·아비터·오버로드)
-  cap: 1.28,      // 함선(배틀크루저·캐리어) — 더 키우면 한 채가 화면 폭의 3할을 넘는다
+  inf: 0.13,      // 보병(사람 크기 — 홀의 8분의 1)
+  work: 0.17,     // 일꾼(차량이다 — 보병보다 크다)
+  small: 0.10,    // 소형 생체(저글링·스커지·인터셉터)
+  veh: 0.28,      // 전차·차량
+  big: 0.32,      // 대형 지상(울트라·리버·아콘)
+  air: 0.36,      // 소형 비행선(레이스·스카웃·뮤탈)
+  air2: 0.50,     // 중형 비행선(수송·과학선·아비터·오버로드)
+  cap: 0.80,      // 함선(배틀크루저·캐리어) — 홀 다음으로 크다
 } as const;
 /** 종족 배수 — 프로토스는 크고 저그는 작다(설정 기준). */
 const CINE_RACE_K9: Record<string, number> = { t: 1, p: 1.07, z: 0.95 };
@@ -1450,17 +1456,38 @@ const CINE_KIND9: Record<string, [keyof typeof CINE_CLASS_K9, "t" | "p" | "z"]> 
   egg: ["small", "z"], lurkeregg: ["small", "z"], mutacocoon: ["small", "z"],
   burrowhole: ["small", "z"],
 };
-/** 그 종류의 시네마틱 배수(세기 0 이면 1). */
-export const cineUnitK9 = (sizeKind: string): number => {
-  if (CINE9 <= 0) return 1;
+/** 그 종류의 시네마틱 목표 폭(타일) — 홀 폭 × 등급 분수 × 종족 배수. */
+export const cineUnitTiles9 = (sizeKind: string): number => {
   const e9 = CINE_KIND9[sizeKind];
   const cls9 = e9 ? CINE_CLASS_K9[e9[0]]
     : CINE_CLASS_K9[(UNIT_BULK[sizeKind] ?? 1) === 0 ? "small" : (UNIT_BULK[sizeKind] ?? 1) === 2 ? "big" : "veh"];
-  const rk9 = e9 ? CINE_RACE_K9[e9[1]] : 1;
-  return 1 + (cls9 * rk9 - 1) * CINE9;
+  return CINE_HALL_T9 * cls9 * (e9 ? CINE_RACE_K9[e9[1]] : 1);
 };
-/** 건물의 그리기 배수 — 시네마틱에서 커진다(요청: "건물은 크고 유닛은 작게"). */
-export const bldDrawK9 = (): number => BLD_DRAW_K * (1 + 0.35 * CINE9);
+/** 건물의 **홀 폭에 대한 분수** — 홀이 1 이고 나머지는 그 아래다. */
+const CINE_BLD_FRAC9: Record<string, number> = {
+  // 본진홀 셋 — 이 값이 자다
+  tomb: 1, pyramidWide: 1, hatchery: 0.86, lair: 0.94, hive: 1,
+  // 큰 생산·기술 건물
+  factory: 0.72, plane: 0.78, scifac: 0.74, gate: 0.72, arch: 0.78, dome: 0.68,
+  gspire: 0.72, cavern: 0.70, citadel: 0.66, archives: 0.66, tribunal: 0.68,
+  // 중간
+  cube: 0.62, academy: 0.56, armory: 0.56, ebay: 0.52, forge: 0.56, cyber: 0.60,
+  robobay: 0.52, observatory: 0.54, fleetbeacon: 0.58, refinery: 0.62, assim: 0.62,
+  extract: 0.52, pool: 0.56, evo: 0.54, hydraden: 0.56, spire: 0.60, queensnest: 0.54,
+  dmound: 0.54, nydus: 0.50, sbattery: 0.44,
+  // 작은 것
+  trapezoid: 0.34, turret: 0.30, tombFlat: 0.36, comsat: 0.28, nsilo: 0.40, mshop: 0.30,
+  ctower: 0.28, covert: 0.28, physlab: 0.28, diamond: 0.30, coil: 0.34, creep: 0.34,
+  sunken: 0.40, sunkenfire: 0.40, spore: 0.40,
+};
+/** 건물의 그리기 배수 — 시네마틱에서는 **홀 기준 목표 폭**에 맞춘다.
+ *  @param fpW 발자국 폭(타일) · @param tune 부르는 쪽이 뒤에 곱하는 종류 보정(여기서 나눠 둔다). */
+export const bldDrawK9 = (shapeKind: string, fpW = 3, tune = 1): number => {
+  if (CINE9 <= 0) return BLD_DRAW_K;
+  const t9 = CINE_HALL_T9 * (CINE_BLD_FRAC9[shapeKind] ?? 0.5);
+  const k9 = t9 / (Math.max(0.5, fpW) * (tune || 1));
+  return BLD_DRAW_K + (k9 - BLD_DRAW_K) * CINE9;
+};
 /** 일꾼 모델 — 겹침 이완에서 제 일꾼끼리는 서로 안 밀어낸다(지적: 자원 곁 포개짐 허용). */
 export const WORKER_KIND_SET = new Set([
   "scv", "probe", "drone",
@@ -3769,7 +3796,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       const fp = FOOTPRINT[unit] ?? [3, 2];
       const sk = SHAPE_KIND[unit] ?? "";
       const tPx = mapW9 / grid.width;
-      const side = fp[0] * tPx * bldDrawK9() * (BLD_DRAW_TUNE[sk] ?? 1);
+      const side = fp[0] * tPx * bldDrawK9(sk, fp[0], BLD_DRAW_TUNE[sk] ?? 1) * (BLD_DRAW_TUNE[sk] ?? 1);
       return side * bldMidK9(sk, pitched) - (fp[1] / 2) * tPx * (pitched ? pitchFlat : 1);
     };
     const viewTeam = view.viewTeam;
@@ -5243,7 +5270,8 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           /* 종류별 배수는 **제 모델을 그릴 때만**(테란 공사) 얹는다 — 저그 고치·
              프로토스 소환구·폴백 공사장은 종류를 안 가리는 공용 모델이라, 거기에
              스파이어의 몫을 얹으면 고치만 커진다. */
-          drawK: bldDrawK9()
+          drawK: bldDrawK9(shapeKind, FOOTPRINT[unit]?.[0] ?? 3,
+            race2 === "테란" ? (BLD_DRAW_TUNE[shapeKind] ?? 1) : 1)
             * (race2 === "테란" ? (BLD_DRAW_TUNE[shapeKind] ?? 1) : 1),
           pickWip: true,
           /* 상태 줄 — 테란은 '건설 중단'을 따로 말한다(요청): 일꾼이 떠나거나
@@ -5732,7 +5760,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           pickKey: `b${raw}|${unit}|${Math.round(x * 4)}|${Math.round(y * 4)}`,
           pickName: unit, pickRaw: raw, pickBld: true, pickX: x, pickY: y,
           pickRep: myOrd === repOrd, pickTag: myTag9,
-          drawK: bldDrawK9() * (BLD_DRAW_TUNE[shapeKind] ?? 1),
+          drawK: bldDrawK9(shapeKind, FOOTPRINT[unit]?.[0] ?? 3, BLD_DRAW_TUNE[shapeKind] ?? 1) * (BLD_DRAW_TUNE[shapeKind] ?? 1),
           /* 땅에 앉은 건물은 그림자를 안 진다(요청: 건물 바닥 그림자는 제거) —
              건물은 발자국이 곧 제 자리라 바닥 타원이 정보를 더하지 않고, 모델
              발치에 검은 테를 둘러 도형을 흐리기만 했다. 떠 있는 건물만 제 것으로

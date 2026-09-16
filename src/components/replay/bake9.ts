@@ -23908,39 +23908,56 @@ export function scaffold9(cx: number, cy: number, h: number): ShapeFace[] {
       }
     }
   }
-  /* ③ **층 바닥 + 되돌이 계단**(재요청: "계단이 좀 어색해 · 층 바닥도") ─────────────────
-     옛 짜임은 판 하나가 네 칸에 한 바퀴 돌며 떠 있는 꼴이라, 계단이 아니라 **공중에 흩어진
-     널판**으로 읽혔다. 실제 비계는 층마다 **바닥판(발판)**이 깔리고, 그 사이를 **한 번
-     꺾이는 계단**(switchback)이 잇는다 — 그 둘을 그대로 짓는다.
-     층 바닥은 반쪽만 깐다(나머지 반이 계단 구멍이고, 그 구멍으로 아래 층이 보인다).
-     계단은 그 구멍 쪽에서 오르고 층마다 **방향이 뒤집힌다** — 그래서 되돌이다. */
-  const LV9 = 1.30;                                  // 층 사이 높이
-  const nLv9 = Math.max(1, Math.floor((hh9 - 0.25) / LV9));
+  /* ③ **경사로 + 층 바닥 + 층마다 가로 파이프 넷**(재요청: "계단이 계단으로 안 읽혀 —
+     판때기 말고 진짜 면을 만들고 · 층 바닥은 기둥에 붙은 부분이 있어야 하고 · 층을 나타내는
+     가로 파이프 네 개가 기둥 간 연결되어야 해 · 계단 말고 경사로로") ────────────────────
+     · 옛 짜임은 **떠 있는 판때기 넷**이었다 — 디딤판만 있고 오르는 면이 없어 계단으로 안
+       읽혔고, 층 바닥도 기둥에 안 닿아 공중에 뜬 널로 보였다.
+     · 이제 오르는 것은 **경사로 한 장**이다: 기울어진 판을 여섯 낯짜리 덩이(윗면·밑면·옆면
+       넷)로 지어 옆에서 봐도 두께가 있고, 층마다 방향이 뒤집혀 되돌이가 된다.
+     · 층 바닥은 경사로가 끝나는 쪽에 깔리고 **폭이 기둥 중심을 지나** 기둥에 물린다.
+     · 층 높이(LV9)는 **경사로의 달림**과 맞춰야 한다 — 0.95 면 달림 0.71 에 기울기 53도로
+       사다리가 아니라 계단으로 읽힌다(1.30 에서는 70도라 사다리였다). */
+  const LV9 = 0.95;
+  /** 기울어진 판 한 장 — 여섯 낯짜리 덩이다(윗면·밑면·옆면 넷). y 가 ya→yb 로 가며 za→zb 로 오른다. */
+  const ramp9 = (hw9: number, ya9: number, yb9: number, za9: number, zb9: number, th9: number): ShapeFace[] => {
+    const P9 = (sx9: number, sy9: number, dz9: number): [number, number, number] =>
+      [cx + sx9 * hw9, cy + (sy9 < 0 ? ya9 : yb9), (sy9 < 0 ? za9 : zb9) + dz9];
+    const up9 = polyPath3([P9(-1, -1, th9), P9(1, -1, th9), P9(1, 1, th9), P9(-1, 1, th9)]);
+    const dn9 = polyPath3([P9(-1, -1, 0), P9(-1, 1, 0), P9(1, 1, 0), P9(1, -1, 0)]);
+    const fs9: ShapeFace[] = [[up9, 1, "#767e87"] as ShapeFace, topFace(up9, 0.16), [dn9, 1, DKS9] as ShapeFace];
+    for (const sx9 of [-1, 1] as const) {
+      fs9.push([polyPath3([P9(sx9, -1, 0), P9(sx9, -1, th9), P9(sx9, 1, th9), P9(sx9, 1, 0)]), 1, DKS9] as ShapeFace);
+    }
+    for (const sy9 of [-1, 1] as const) {
+      fs9.push([polyPath3([P9(-1, sy9, 0), P9(-1, sy9, th9), P9(1, sy9, th9), P9(1, sy9, 0)]), 1, DKS9] as ShapeFace);
+    }
+    return fs9;
+  };
+  const nLv9 = Math.max(1, Math.floor((hh9 - 0.2) / LV9));
   for (let lv9 = 1; lv9 <= nLv9; lv9 += 1) {
     const z9 = lv9 * LV9;
-    const sg9 = lv9 % 2 === 0 ? 1 : -1;              // 층마다 바닥이 놓이는 쪽이 바뀐다
-    // 층 바닥 — 사각형의 반쪽(폭은 꽉, 깊이는 절반)
+    const sg9 = lv9 % 2 === 0 ? 1 : -1;              // 경사로가 올라 닿는 쪽(층마다 뒤집힌다)
+    // 경사로 — 아래 층 바닥에서 이 층 바닥까지
+    out.push(...tagKey(ramp9(
+      S9 * 0.86, -sg9 * S9, sg9 * S9 * 0.52, z9 - LV9 + 0.07, z9, 0.07,
+    ), key9(z9 - LV9 / 2)));
+    // 층 바닥 — 경사로 끝에서 기둥까지. 폭이 기둥 중심을 지나 **기둥에 물린다**.
     out.push(...tagKey(paintBase(boxFaces3(
-      cx, cy + sg9 * S9 * 0.5, S9 * 2, S9, 0.07, z9,
-    ), "#767e87"), key9(z9)));
-    // 그 아래 층에서 올라오는 계단 — 구멍 쪽에서 네 단으로 오른다
-    for (let k9 = 0; k9 < 4; k9 += 1) {
-      const zz9 = z9 - LV9 + (k9 + 1) * (LV9 / 4.4);
-      out.push(...tagKey(paintBase(boxFaces3(
-        cx, cy - sg9 * S9 * (0.82 - k9 * 0.36), S9 * 1.7, S9 * 0.40, 0.055, zz9,
-      ), DKS9), key9(zz9)));
-    }
-    // 층 난간 — 바닥 쪽 두 기둥을 잇는 가는 띠(층이 있다고 말해 주는 자다)
-    out.push(...tagKey(paintBase(boxFaces3(
-      cx, cy + sg9 * (S9 + 0.02), S9 * 2 + PW9, PW9 * 0.6, 0.05, z9 + 0.34,
-    ), STEEL9), key9(z9 + 0.34)));
+      cx, cy + sg9 * (S9 * 0.76 + PW9 * 0.5), S9 * 2 + PW9, S9 * 0.48 + PW9, 0.07, z9,
+    ), "#767e87"), key9(z9) + 0.01));
   }
-  /* ④ 가로대 — 기둥 넷을 묶는다(층 사이 중간 높이에 둔다 — 층 바닥과 겹치지 않게). */
-  for (let i9 = 0; i9 <= nLv9; i9 += 1) {
-    const z9 = Math.min(hh9 - 0.1, i9 * LV9 + LV9 / 2);
-    if (z9 <= 0.6 || z9 >= hh9 - 0.1) continue;
-    out.push(...tagKey(paintBase(boxFaces3(cx, cy, S9 * 2 + PW9, PW9 * 0.6, 0.06, z9), STEEL9), key9(z9)));
-    out.push(...tagKey(paintBase(boxFaces3(cx, cy, PW9 * 0.6, S9 * 2 + PW9, 0.06, z9), STEEL9), key9(z9) + 0.01));
+  /* ④ **층마다 가로 파이프 넷** — 기둥 넷을 한 바퀴 잇는다(요청). 층이 있다고 말해 주는 자다. */
+  for (let lv9 = 1; lv9 <= nLv9 + 1; lv9 += 1) {
+    const z9 = Math.min(hh9 - 0.06, lv9 * LV9 + 0.30);
+    if (z9 <= 0.7) continue;
+    const C9: [number, number][] = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+    for (let k9 = 0; k9 < 4; k9 += 1) {
+      const a9 = C9[k9]; const b9 = C9[(k9 + 1) % 4];
+      out.push(...tagKey(paintBase(rodFaces(
+        cx + a9[0] * S9, cy + a9[1] * S9, z9, cx + b9[0] * S9, cy + b9[1] * S9, z9, PW9 * 0.66,
+      ), STEEL9), key9(z9) + 0.02));
+    }
   }
   // ⑤ 꼭대기 판
   out.push(...tagKey(paintBase(boxFaces3(cx, cy, S9 * 2 + 0.24, S9 * 2 + 0.24, 0.1, hh9), STEEL9), key9(hh9)));

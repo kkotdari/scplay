@@ -680,7 +680,8 @@ cineSet9(CINE_HASH9);
 export const shapeMapTiles = (kind: string): number => {
   const bld = BLD_NAME_OF_KIND[kind];
   if (bld) {
-    return buildingBox(bld)[0] * bldDrawK9() * (BLD_DRAW_TUNE[kind] ?? 1);
+    return buildingBox(bld)[0]
+      * bldDrawK9(kind, buildingBox(bld)[0], BLD_DRAW_TUNE[kind] ?? 1) * (BLD_DRAW_TUNE[kind] ?? 1);
   }
   // 자원 둘은 건물표에 없다 — 지도가 그리는 상자 그대로다(위 자원 층의 wTiles).
   if (kind.startsWith("mineral")) return 2.4;   // 꼴·고갈 별본 모두 같은 상자다.
