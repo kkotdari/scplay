@@ -3497,9 +3497,18 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              각은 **몸의 요잉으로 못 박아** 잰다(도는 각으로 재면 상자가 프레임마다 바뀌어, 성큰이
              sunkenrear 로 갈릴 때 몸이 들썩이던 그 자리가 된다) — 곧 '머리 각 0 인 통째 모델'의 상자다. */
           const glBa9 = glB9 && gl9 && op.attach ? gl9.bldMesh({ ...op, kind: op.attach, headDeg: undefined }, lodB9) : null;
-          const glBf9 = glB9 && gl9
+          /* ★★ **도는 부품은 잉크 상자를 흔들면 안 된다**(2026-09, 지적: "포지는 톱니바퀴만이 아니라
+             전체가 들썩였는데") — 바로 위 ★ 의 '머리 각으로 재지 마라'와 같은 자리인데, 회전 칸(spin)
+             쪽은 안 막혀 있었다. 포지 톱니는 칸마다 이가 실루엣 밖으로 들고 나므로 상자의 **바닥이
+             칸마다 0.33 모델칸 움직인다**(실측, 요잉 45·315 · 요잉 90 에서 0.17). 붓은 그 바닥을
+             바닥선에 앉히므로 **건물이 통째로** 그만큼 오르내렸다 — 톱니만 손봐서는 안 잡히는 몫이다.
+             상자는 **칸 0 의 모델**로 잰다: 도는 부품이 아무리 움직여도 건물의 자리는 안 흔들린다.
+             ⚠ 값은 안 든다 — 안 도는 종류는 메시 열쇠가 같아(spinTag "0") 같은 벌이 그대로 오고,
+               도는 종류만 칸 0 한 벌을 더 쥔다(그 벌은 안 도는 프레임에서 어차피 쓰인다). */
+          const glBbox9 = (glB9 && gl9 && (op.spin ?? 0) !== 0 ? gl9.bldMesh({ ...op, spin: 0 }, lodB9) : glB9) ?? glB9;
+          const glBf9 = glBbox9 && gl9
             ? ((): GlFoot9 | null => {
-              const a = gl9.footOf(glB9, -(op.rotDeg ?? 0), glBcam9);
+              const a = gl9.footOf(glBbox9, -(op.rotDeg ?? 0), glBcam9);
               if (!glBa9) return a;
               const b = gl9.footOf(glBa9, -(op.rotDeg ?? 0), glBcam9);
               const x0 = Math.min(a.cx - a.w / 2, b.cx - b.w / 2); const x1 = Math.max(a.cx + a.w / 2, b.cx + b.w / 2);
