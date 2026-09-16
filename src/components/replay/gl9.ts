@@ -612,7 +612,7 @@ export class GlUnits9 {
   private queue: GlInst9[] = [];
   /** 번짐 — 전체 화면 사각 프로그램·사각 VBO·1/4 크기 판 둘(핑퐁). 처음 쓸 때 짓고, 크기가 바뀌면 다시 짓는다. */
   private fx: { prog: WebGLProgram; loc: Record<string, WebGLUniformLocation | null>; aXY: number; vbo: WebGLBuffer } | null = null;
-  private bl: { fb: WebGLFramebuffer; tex: WebGLTexture }[] = [];
+  private bl: { fb: WebGLFramebuffer; tex: WebGLTexture; db?: WebGLRenderbuffer }[] = [];
   private blW = 0; private blH = 0; private blFail = false;
   /** 진단: 마지막 프레임의 개체 수·삼각형 수·메시 수·메시 굽기 ms. */
   /** 진단: 마지막 프레임의 개체·삼각형 수 · 메시 벌 수 · 메시 굽기 ms(누적)와 **이번 프레임 몫**(frameBakeMs — 시계가
@@ -657,7 +657,7 @@ export class GlUnits9 {
     if (this.blFail || !this.fx) return false;
     if (w === this.blW && h === this.blH && this.bl.length === 2) return true;
     const gl = this.gl;
-    for (const b of this.bl) { gl.deleteFramebuffer(b.fb); gl.deleteTexture(b.tex); }
+    for (const b of this.bl) { gl.deleteFramebuffer(b.fb); gl.deleteTexture(b.tex); if (b.db) gl.deleteRenderbuffer(b.db); }
     this.bl = [];
     for (let i = 0; i < 2; i += 1) {
       const tex = gl.createTexture()!;
@@ -670,13 +670,28 @@ export class GlUnits9 {
       const fb = gl.createFramebuffer()!;
       gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
       gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+      /* ★★ **번짐 판에도 깊이가 있어야 한다 — 없으면 뒤쪽 불빛이 몸을 뚫고 나온다**(2026-09, 지적:
+         "뒤쪽 불빛이 막 뚫고 나오네") — 번짐은 빛나는 낯만 한 번 더 그려 흐린 뒤 화면에 **더하는** 자라,
+         가려진 낯이 판에 남으면 그 몫이 그대로 몸 위에 더해진다(배럭 뒤 낯의 창띠가 앞 판을 뚫고 빛났다).
+         '어차피 뭉개지는 그림이라 앞뒤가 안 중요하다'던 옛 주석은 **번짐끼리의 앞뒤**만 참이었다 — 몸에
+         가려지는지는 별개고, 그것이 안 보면 빛이 벽을 통과한다.
+         그래서 첫 판(기하를 그리는 판)에만 깊이 버퍼를 붙인다. 1/4 자라 깊이도 거칠지만 번짐 자체가
+         흐린 그림이라 그 거칢은 안 보인다. 둘째 판은 흐리기 사각만 그리므로 깊이가 없다. */
+      let db: WebGLRenderbuffer | undefined;
+      if (i === 0) {
+        db = gl.createRenderbuffer()!;
+        gl.bindRenderbuffer(gl.RENDERBUFFER, db);
+        gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, w, h);
+        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, db);
+        gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+      }
       if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        gl.deleteFramebuffer(fb); gl.deleteTexture(tex);
-        for (const b of this.bl) { gl.deleteFramebuffer(b.fb); gl.deleteTexture(b.tex); }
+        gl.deleteFramebuffer(fb); gl.deleteTexture(tex); if (db) gl.deleteRenderbuffer(db);
+        for (const b of this.bl) { gl.deleteFramebuffer(b.fb); gl.deleteTexture(b.tex); if (b.db) gl.deleteRenderbuffer(b.db); }
         this.bl = []; this.blFail = true; return false;
       }
-      this.bl.push({ fb, tex });
+      this.bl.push({ fb, tex, db });
     }
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     this.blW = w; this.blH = h;
@@ -1108,12 +1123,39 @@ export class GlUnits9 {
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.bl[0].fb);
         gl.viewport(0, 0, w4, h4);
         gl.clearColor(0, 0, 0, 0);
-        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.depthMask(true);   // 깊이 지우기는 쓰기 마스크가 열려 있어야 먹는다
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         gl.useProgram(this.prog);
-        gl.disable(gl.DEPTH_TEST); gl.depthMask(false);
+        gl.uniform4f(this.loc.uShade, 0, 0, 0, 0);
+        /* ★ **가릴 수 있는 몸만 깊이를 깐다** — 번짐 상자(가위)에 화면 상자가 걸치는 개체만 고른다.
+           화소는 가위가 이미 버리지만 정점 몫은 안 버리므로, 빛나는 개체 둘뿐인 화면에서 지도의
+           모든 몸을 한 번 더 돌 까닭이 없다. footOf 는 이미 캐시된 값이다. */
+        const bx0 = sx0 - PAD9; const bx1 = sx1 + PAD9; const by0 = sy0 - PAD9; const by1 = sy1 + PAD9;
+        const hits9 = (it: typeof q[number]): boolean => {
+          const ft = this.footOf(it.mesh, it.yawDeg, it.cam);
+          const cx0 = it.ax + it.k * (ft.cx - ft.w / 2); const cx1 = it.ax + it.k * (ft.cx + ft.w / 2);
+          const cy0 = it.ay + it.yoff + it.k * ft.top; const cy1 = it.ay + it.yoff + it.k * ft.bot;
+          return cx1 >= bx0 && cx0 <= bx1 && cy1 >= by0 && cy0 <= by1;
+        };
+        // ① 깊이만 — 색은 안 쓰고(colorMask) 불투명 몸의 깊이만 깐다(본 그림이 깊이를 쓰는 그 몫).
+        gl.colorMask(false, false, false, false);
+        gl.depthMask(true); gl.enable(gl.DEPTH_TEST);
+        gl.uniform1f(this.loc.uEmit, 0);
+        gl.uniform1f(this.loc.uFlat, 0);
+        for (let i = 0; i < q.length; i += 1) {
+          const it = q[i];
+          if (it.flat || it.add) continue;   // 발광·더하기 개체는 본 그림에서도 깊이를 안 쓴다
+          if (!hits9(it)) continue;
+          bind(it.mesh); place(it);
+          gl.uniform1f(this.loc.uAlpha, it.alpha);
+          gl.uniform1f(this.loc.uDepth0, 1 - slot * (slotOf[i] + 1));
+          gl.drawArrays(gl.TRIANGLES, 0, it.mesh.nSolid);
+        }
+        gl.colorMask(true, true, true, true);
+        // ② 빛나는 낯 — 같은 깊이 자에서 재고(제 깊이는 그대로 통과해야 하므로 LEQUAL) 깊이는 안 쓴다.
+        gl.depthMask(false); gl.depthFunc(gl.LEQUAL);
         gl.uniform1f(this.loc.uEmit, 1);
         gl.uniform1f(this.loc.uFlat, 1);
-        gl.uniform4f(this.loc.uShade, 0, 0, 0, 0);
         for (let i = 0; i < q.length; i += 1) {
           const it = q[i];
           if (!it.mesh.emit) continue;
@@ -1122,9 +1164,15 @@ export class GlUnits9 {
           bind(it.mesh); place(it);
           gl.uniform3f(this.loc.uTeam, tr, tg, tb);
           gl.uniform1f(this.loc.uAlpha, it.alpha);
-          gl.uniform1f(this.loc.uDepth0, 0.5);
+          /* 발광·더하기 개체(폭풍·아콘)는 본 그림에서도 깊이 없이 몸 위에 얹히는 빛이다 — 번짐도 그대로 둔다. */
+          const noZ9 = !!it.flat || !!it.add;
+          if (noZ9) gl.disable(gl.DEPTH_TEST);
+          gl.uniform1f(this.loc.uDepth0, 1 - slot * (slotOf[i] + 1));
           gl.drawArrays(gl.TRIANGLES, 0, it.mesh.n);
+          if (noZ9) gl.enable(gl.DEPTH_TEST);
         }
+        gl.depthFunc(gl.LESS);
+        gl.disable(gl.DEPTH_TEST); gl.depthMask(false);
         gl.uniform1f(this.loc.uEmit, 0);
         gl.uniform1f(this.loc.uFlat, 0);
         // 가로 → 세로로 흐린다(핑퐁). 걸음은 1/4 판의 텍셀 배수다.
