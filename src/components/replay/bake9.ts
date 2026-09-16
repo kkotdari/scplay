@@ -3733,7 +3733,14 @@ export const sunkenTongueFaces = (): ShapeFace[] => {
   const dl9 = Math.hypot(dv9[0], dv9[1], dv9[2]) || 1;
   const capPath9 = (t9: number): [number, number, number] =>
     [tip9[0] + (dv9[0] / dl9) * tipR9 * t9, tip9[1] + (dv9[1] / dl9) * tipR9 * t9, tip9[2] + (dv9[2] / dl9) * tipR9 * t9];
-  return tagKey(withModelSpin(headYawNow, (): ShapeFace[] => paintBase([
+  /* ★ **표적이 없을 때의 기본 방향은 오른쪽이다**(2026-09, 요청: "성큰 발사 시 혀의 기본
+     방향은 우측 방향으로 해 줘 — 도록에서 그렇게 나오게") — 혀는 모형 자로 +y(앞)를 향해
+     자라므로, 각을 안 받으면 화면에서 아래를 찔렀다. 도록·저사양 합본(sunkenfire)이 그 자리다.
+     ⚠ 겨누는 중에는 **한 톨도 안 건드린다** — 그 각은 표적이 정한 절대 각이다. 두 자리를
+       가르는 문은 `headAimNow`(headYawSet 의 둘째 인자)이고, 굽는 열쇠도 그 둘을
+       이미 가른다(headTag 의 "a" 꼬리) — 같은 열쇠에 두 그림이 실리지 않는다. */
+  const baseDeg9 = headAimNow ? 0 : -90;
+  return tagKey(withModelSpin(headYawNow + baseDeg9, (): ShapeFace[] => paintBase([
 
     /* 두께 변화는 **완만하게**(재요청) — 0.5→1.45는 구두주걱이었다. 1.24→1.56이면 통통한 관이다. 마디 30·변 10. */
     /* ★ 단면의 기준축을 **x로 못 박는다**(지적: "안쪽 기둥이 안 보여 · 구부러지는 부분이 약간 뒤틀려 보여") —
@@ -3881,9 +3888,27 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const T1_HOLD = 0.2;
     const T1_TAPER = 0.42;
     const T2_Z = DOME_Zz9 + T1_Hz9;   // 4.07 — 갑판
-    /** 아랫단 겉면의 반지름 — 데칼·구리띠를 돔 살에 딱 붙이려면 같은 식을 써야 한다. */
+    /* ★ **기둥이 실제로 세운 벽은 곧은 사다리꼴 몇 칸**이다 — spirePillar 는 높이를 segs 칸으로
+       나눠 칸마다 곧게 세운다. 매끄러운 반지름 식(t1R)은 그 현보다 **밖**에 있다(taper 0.42 ·
+       맨 위 칸 한가운데에서 0.206 모델칸 — 다각형 사지타 0.089 의 두 배가 넘는다). 띠·데칼은
+       그 **현 위**에 놓아야 벽에 붙는다. */
+    const chordR9 = (rOf: (z: number) => number, z0: number, h: number, segs: number) =>
+      (z9: number): number => {
+        const t9 = Math.max(0, Math.min(1, (z9 - z0) / h));
+        const f9 = t9 * segs; const i9 = Math.min(segs - 1, Math.floor(f9)); const u9 = f9 - i9;
+        return rOf(z0 + (h * i9) / segs) * (1 - u9) + rOf(z0 + (h * (i9 + 1)) / segs) * u9;
+      };
+    /** 아랫단 겉면의 반지름 — 데칼·구리띠를 돔 살에 딱 붙이려면 같은 식을 써야 한다.
+     *  ⚠⚠ **분모는 기둥이 실제로 선 높이(T1_Hz9)다**(2026-09, 지적: "커맨드 데칼 아직도 위가
+     *  본체에서 뜨네" · "황동판과 그 부근 데칼도 뭔가 안 보이는 부분이 있어") — 여기만 z 접기
+     *  (model-z-scale ×0.8) 전 값 `T1_H`(2.22)로 나누고 있었다. 기둥은 `T1_Hz9`(1.776)로 서므로
+     *  꼭대기에서 t 가 1 이 아니라 **0.8** 이 되어, 벽이 3.55 인 자리에 띠·데칼을 **4.32** 에
+     *  놓았다(0.77 모델칸 밖). 위로 갈수록 벌어지니 '위가 뜬다'로 보였고, 반대로 아래 칸에서는
+     *  살에 묻혀 '안 보이는 부분'이 났다.
+     *  ★ z 접기 쌍둥이(`NAMEz9`)를 쓰는 값은 **그 식을 쓰는 자리도 함께** 쌍둥이로 바꿔야 한다 —
+     *    코드모드는 좌표를 접지, 그 좌표를 나누는 분모까지 따라가지는 않는다. */
     const t1R = (z: number): number => {
-      const t = Math.max(0, Math.min(1, (z - DOME_Zz9) / T1_H));
+      const t = Math.max(0, Math.min(1, (z - DOME_Zz9) / T1_Hz9));
       if (t <= T1_HOLD) return T1_RB;
       const k = (t - T1_HOLD) / (1 - T1_HOLD);
       return T1_RT + (T1_RB - T1_RT) * (1 - k) ** T1_TAPER;
@@ -3916,6 +3941,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const k = (t - 0.08) / 0.92;
       return 2.28 + (T3_RB - 2.28) * (1 - k) ** 0.62;
     };
+    /** 띠·데칼이 쓰는 **벽 그 자체**의 반지름(위 chordR9) — 기둥의 마디 수와 같아야 한다. */
+    const t1Rw = chordR9(t1R, DOME_Zz9, T1_Hz9, 4);
+    const t3Rw = chordR9(t3R, T2_Z, 0.68, 3);
     /* 돔 양옆 큰 구리 세로띠(요청) — 평평한 네모로 붙이면 모서리가 돔 밖으로
        삐져나오므로(현 5도짜리 활을 네모가 못 따라간다) 호를 여러 마디로 나눈
        띠로 낸다. 좌우 두 자리(±90도)에만 넣어 '양쪽 옆'이라는 말 그대로다.
@@ -4008,15 +4036,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 세로 줄도 함께 이어진다(요청) — 구리 겉면(벽+THK9) 위에 얇게(0.04) 얹혀
          같은 각·같은 폭으로 두 켜를 타고 오른다. 위 끝만 2층 중턱에서 멈춘다. */
       out.push(...tagKey([
-        ...ribFaces9(aMid, 0.26, zB, T2_Z, t1R, THK9, COPPER),
-        ...ribFaces9(aMid, STR9, zB + 0.2, T2_Z, (z9) => t1R(z9) + THK9, 0.04, undefined),
+        ...ribFaces9(aMid, 0.26, zB, T2_Z, t1Rw, THK9, COPPER),
+        ...ribFaces9(aMid, STR9, zB + 0.2, T2_Z, (z9) => t1Rw(z9) + THK9, 0.04, undefined),
         /* 키는 임자색 데칼(2.4)보다 위다 — 띠가 두꺼워진 뒤로 옆 데칼이 띠 위를
            가로질러 들러붙어 보였다. 튀어나온 쪽이 가리는 것이 맞다. */
       ], 2.5));
       out.push(...tagKey([
-        ...ribFaces9(aMid, 0.26, T2_Z, zT2, t3R, THK9, COPPER, t1R(T2_Z) + THK9),
-        ...ribFaces9(aMid, STR9, T2_Z, T2_Z + 0.4, (z9) => t3R(z9) + THK9, 0.04, undefined,
-          t1R(T2_Z) + THK9 + 0.04),
+        ...ribFaces9(aMid, 0.26, T2_Z, zT2, t3Rw, THK9, COPPER, t1Rw(T2_Z) + THK9),
+        ...ribFaces9(aMid, STR9, T2_Z, T2_Z + 0.4, (z9) => t3Rw(z9) + THK9, 0.04, undefined,
+          t1Rw(T2_Z) + THK9 + 0.04),
       ], 8.4));
     }
 
@@ -4056,7 +4084,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const paintArc9 = (aMid9: number, half9: number): string => {
         const NA9 = 5; const NZ9 = 5;
         const at9 = (aa9: number, zz9: number): [number, number, number] => {
-          const r9 = t1R(zz9) * Math.cos(Math.PI / PILL_SIDES9) + 0.02;
+          const r9 = t1Rw(zz9) * Math.cos(Math.PI / PILL_SIDES9) + 0.02;
           return [Math.sin(aa9) * r9, Math.cos(aa9) * r9, zz9];
         };
         const arc9 = (zz9: number, rev9: boolean): [number, number, number][] =>
@@ -4069,7 +4097,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         return polyPath3(pts9);
       };
       out.push(...tagKey([
-        bodyFace(paintArc9(a9, 0.42 / t1R((zB + zT) / 2))),
+        bodyFace(paintArc9(a9, 0.42 / t1Rw((zB + zT) / 2))),
         /* (걷어냄) 판 윗머리의 흰 덧면 — 구리띠의 것과 같은 자였다(지적: "흰색 네모가
            겹쳐져 있는데 그거 제거"). 임자 색 위에 흰색을 얹으면 그 임자의 색이 아니라
            허연 네모가 겹친 것으로 보인다. */
@@ -4156,35 +4184,43 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           [wx9, wy9 + 0.01, wz1], [-wx9, wy9 + 0.01, wz1]]), 0.4),
       ], 32));
     }
-    /* 꼭대기 — 구리 링 위에 **움푹 팬 반구**(요청: "옥상은 반대로 반구형으로 움푹 패인 거").
-       볼록한 돔을 뒤집는 자는 실루엣이 아니라 **명암**이다: 테두리 판을 깔고 그 안쪽을
-       한 겹 어둡게 덮은 뒤, 빛을 **먼 쪽(화면 위) 안벽**에만 초승달로 남긴다. 볼록한 반구는
-       정수리(가운데)가 밝고 아랫배가 그늘인데, 그릇은 그 반대로 가장자리 안쪽이 밝고
-       가운데가 어둡다 — 같은 타원을 쓰고도 오목하게 읽히는 까닭이 이것이다. */
-    /* 황동 원판은 걷었다(요청) — 패인 그릇을 **절두체 윗면에 바로** 이식한다. */
+    /* 꼭대기 — 절두체 윗면에 **진짜로 파인 그릇**(요청: "옥상은 반대로 반구형으로 움푹 패인 거").
+       ★★ **명암으로 흉내 낸 패임은 GL 에서 안 통한다**(2026-09, 지적: "꼭대기의 반구로 패인
+       부분 표현이 이상함") — 여태 이 자리는 은 원반 + 그보다 작은 어두운 원반 + 먼 쪽 안벽의
+       초승달, 셋을 **겹쳐 칠한 그림**이었다. 화가 차례로만 서는 2D 에서는 그것이 오목해 보이지만,
+       진짜 깊이를 가진 GL 에서는 **같은 높이에 깔린 판 세 장**이라 그냥 얼룩이다.
+       이제 기하로 판다: 테(고리) → 안벽(입구에서 바닥까지 좁아지는 띠) → 바닥 원반. */
     const TOP_Z = FR_ZB + FR_Hz9;
     {
-      const BR9 = Math.min(FR_W1, FR_D1) * 0.34;   // 절두체 윗면보다 **작은** 그릇(요청)
-      const BI9 = BR9 * 0.76;               // 팬 속
+      const BR9 = Math.min(FR_W1, FR_D1) * 0.34;   // 그릇 바깥 테
+      const BI9 = BR9 * 0.76;                      // 그릇 입구
+      const BF9 = BI9 * 0.42;                      // 그릇 바닥
+      const BD9 = BR9 * 0.52;                      // 파인 깊이
       const bz9 = TOP_Z;
-      const [bx9, by9] = project(0, 0, bz9);
-      const ry9 = BI9 * groundSquashNow();
-      // 먼 쪽(화면 위) 안벽의 빛 — 속 타원의 위 호와 그보다 납작한 호 사이.
-      const lit9 = `M${bx9 - BI9} ${by9}A${BI9} ${ry9} 0 0 1 ${bx9 + BI9} ${by9}`
-        + `A${BI9} ${ry9 * 0.42} 0 0 0 ${bx9 - BI9} ${by9}Z`;
-      if (MESH9.on) {
-        /* 화면 호 둘 사이의 초승달이지만 **3D 자리는 그 높이의 평평한 조각**이다 — 패임은
-           기하가 아니라 명암으로 낸 것이라 진짜 안벽이 없다. 먼 쪽(모형 −y) 반쪽이다. */
-        const cr9: number[] = []; const NC9 = 12;
-        for (let i9 = 0; i9 <= NC9; i9 += 1) { const t9 = (i9 / NC9) * Math.PI; cr9.push(...modelPoint9(-BI9 * Math.cos(t9), -BI9 * Math.sin(t9), bz9)); }
-        for (let i9 = NC9; i9 >= 0; i9 -= 1) { const t9 = (i9 / NC9) * Math.PI; cr9.push(...modelPoint9(-BI9 * Math.cos(t9), -BI9 * 0.42 * Math.sin(t9), bz9)); }
-        meshPut9(lit9, [cr9]);
+      const NB9 = 14;                              // 기둥과 같은 낯 수
+      const key9 = 33;
+      // ① 테 — 입구 둘레의 은빛 고리(가운데를 뚫어 두어야 속이 보인다).
+      out.push(...tagKey(paintBase([bodyFace(annulusPath3(0, 0, bz9, BR9, BI9))], SILVER), key9));
+      // ② 안벽 — 입구에서 바닥으로 좁아지는 띠. 낯마다 제 법선으로 음영을 받는다.
+      const wall9: ShapeFace[] = [];
+      for (let i9 = 0; i9 < NB9; i9 += 1) {
+        const a0 = (i9 / NB9) * Math.PI * 2;
+        const a1 = ((i9 + 1) / NB9) * Math.PI * 2;
+        const am = (a0 + a1) / 2;
+        const d9 = polyPath3([
+          [Math.sin(a0) * BI9, Math.cos(a0) * BI9, bz9],
+          [Math.sin(a1) * BI9, Math.cos(a1) * BI9, bz9],
+          [Math.sin(a1) * BF9, Math.cos(a1) * BF9, bz9 - BD9],
+          [Math.sin(a0) * BF9, Math.cos(a0) * BF9, bz9 - BD9],
+        ]);
+        /* 법선은 **축을 향한다**(그릇의 속이다) — 볼록한 돔과 부호가 반대라, 빛을 마주 본
+           바깥쪽 안벽이 어둡고 **먼 쪽 안벽이 밝다**. 오목해 보이는 까닭이 바로 그 뒤집힘이다. */
+        const lit9 = faceLight(-Math.sin(am), -Math.cos(am));
+        wall9.push(...paintBase([bodyFace(d9)], STEEL), ...lit9.face(d9));
       }
-      out.push(...tagKey([
-        ...paintBase([bodyFace(discPath3(0, 0, bz9, BR9))], SILVER),
-        capFace(discPath3(0, 0, bz9, BI9), 0.46),
-        topFace(lit9, 0.3),
-      ], 33));
+      out.push(...tagKey(wall9, key9 + 0.2));
+      // ③ 바닥 — 가장 어둡다.
+      out.push(...tagKey([[discPath3(0, 0, bz9 - BD9, BF9), 1, "#3c4046"] as ShapeFace], key9 + 0.4));
     }
 
     /* 선체 둘레 장갑 패널 상자 열 개는 걷었다(요청: "아래쪽에 달린 상자모양들은 다
@@ -11395,11 +11431,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      ★ 임자 색은 **띠**다 — 고리·막대·다리에 짧은 마디를 안 칠한 채 끼우면 그 자리에 팀색이
        든다(몸판 하나를 통째로 칠하면 파란 판때기가 된다는, 이 판의 오랜 규약). */
   sbattery: () => {
-    const RING_R = 2.55;     // 고리 한가운데의 반지름
+    /* 고리를 20% 줄이고 그만큼 **수평 다리를 늘린다**(요청) — 무릎(KNEE9)은 그대로 두므로
+       뿌리가 안으로 들어온 몫이 그대로 수평 자락의 길이가 된다(1.25 → 1.76). */
+    const RING_R = 2.04;     // 고리 한가운데의 반지름(옛 2.55)
     const RING_W = 0.28;     // 고리 단면 반지름
     const RING_Z = 1.2;      // 고리 높이 = 다리 무릎 높이
-    const ORB_Z9 = 3.76;     // 떠 있는 구슬의 중심
-    const ORB_R9 = 0.8;
+    /* 막대는 **살짝 아래를 향하고** 구슬도 그 자리로 내려온다(요청) — 위로 모으던 때는
+       구슬이 지붕처럼 얹혀 고리가 받침으로 보였다. 아래로 모으면 고리 **안**에 맺힌 빛이 된다. */
+    const ORB_Z9 = 0.9;      // 맺히는 자리 — 고리 높이보다 한 뼘 아래
+    const ORB_R9 = 0.2;      // 구슬 0.25배(요청 · 옛 0.8)
     const GEM9 = "#5aecd8";
     /** 고리를 도는 한 토막 — a0~a1 을 쓸어 만든 관이다. 띠는 같은 자리에 조금 굵게 얹는다. */
     const ringArc9 = (a0: number, a1: number, w9: number, fill?: string): ShapeFace[] =>
@@ -11422,8 +11462,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const at9 = (r9: number, z9: number): [number, number, number] => [sx * r9, sy * r9, z9];
       if (own) {
         // 임자색 띠 — 수평 자락의 한가운데에 조금 굵게 끼운 마디.
-        const [p0x, p0y, p0z] = at9(2.98, RING_Z);
-        const [p1x, p1y, p1z] = at9(3.3, RING_Z);
+        const [p0x, p0y, p0z] = at9(2.8, RING_Z);
+        const [p1x, p1y, p1z] = at9(3.16, RING_Z);
         return rodFaces(p0x, p0y, p0z, p1x, p1y, p1z, 0.44);
       }
       return [
@@ -11438,12 +11478,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* ⚠ 막대 끝은 구슬 **밖**에서 멈춘다 — 처음엔 r 0.62·z 2.46 까지 뻗어 구슬(중심에서
        0.86) 속에 통째로 묻혔다. 구슬은 '떠 있는' 것이라야 하므로 보석과 구슬 사이에 한 뼘을
        남긴다(끝에서 구슬 중심까지 1.17 > 0.86). */
-    const ROD_T9: [number, number] = [1.0, 3.0];   // 끝의 반지름·높이
+    const ROD_T9: [number, number] = [0.75, 0.98];   // 끝의 반지름·높이 — 고리보다 아래다
     const rodAt9 = (deg9: number, t9: number): [number, number, number] => {
       const a9 = (deg9 * Math.PI) / 180;
       const r0 = RING_R + 0.05;
       const r9 = r0 + (ROD_T9[0] - r0) * t9;
-      return [Math.sin(a9) * r9, Math.cos(a9) * r9, (RING_Z + 0.15) + (ROD_T9[1] - RING_Z - 0.15) * t9];
+      return [Math.sin(a9) * r9, Math.cos(a9) * r9, (RING_Z + 0.1) + (ROD_T9[1] - RING_Z - 0.1) * t9];
     };
     const out: ShapeFace[] = [];
     // ① 고리 — 임자색 마디 셋을 빼고 금으로 두른다(막대 사이사이가 그 자리다).
@@ -11468,7 +11508,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const a9 = (deg9 * Math.PI) / 180;
       const key9 = partKey(Math.sin(a9) * 1.7, Math.cos(a9) * 1.7, (RING_Z + ROD_T9[1]) / 2);
       out.push(...tagKey(paintBase(rodFaces(p0[0], p0[1], p0[2], p1[0], p1[1], p1[2], 0.22), TOSS_GOLD), key9));
-      out.push(...tagKey(sphereFaces3(p1[0], p1[1], p1[2], 0.3, GEM9), key9 + 0.3));
+      out.push(...tagKey(sphereFaces3(p1[0], p1[1], p1[2], 0.24, GEM9), key9 + 0.3));
     }
     /* ④ 가운데 구슬 — 세 막대가 가리키는 자리에 떠 있다. 어느 부품보다 앞이다
        (막대 끝이 그 아래를 두르므로 키를 못 박지 않으면 요잉에 따라 구슬이 막대 뒤로 간다). */
@@ -11485,7 +11525,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 다리의 임자색 마디 여덟.
       ...LEGS9.flatMap((ang) => {
         const a9 = (ang * Math.PI) / 180;
-        return tagKey(leg(ang, true), partKey(Math.sin(a9) * 3.14, Math.cos(a9) * 3.14, RING_Z) + 0.2);
+        return tagKey(leg(ang, true), partKey(Math.sin(a9) * 2.98, Math.cos(a9) * 2.98, RING_Z) + 0.2);
       }),
       // 막대의 임자색 마디 셋.
       ...ROD9.flatMap((deg9) => {
