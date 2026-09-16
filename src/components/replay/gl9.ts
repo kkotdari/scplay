@@ -32,6 +32,9 @@ export interface GlInst9 {
     h?: number };
   /** 효과 — add: 더하기 합성(2D 의 lighter) · flat: 음영·실루엣 빛 없이 제 색 그대로(2D 효과판과 같다). 깊이도 안 쓴다. */
   add?: boolean; flat?: boolean;
+  /** **연기 위에 서는 몸** — 건물과 공중 유닛이다(2026-09, 요청: "다크 스웜 연기에 공중 유닛이나
+   *  건물은 가려지면 안 돼"). 붓이 `maskOver` 로 이것들만 한 번 더 그려 연기에서 그 실루엣을 파낸다. */
+  over?: boolean;
 }
 /** 카메라 — squash(앞뒤 납작비)·zk(높이 배율)·lean(z→앞뒤, 입체 0.34)·shear(시각 밀림 tan(vq), 입체만). project() 의 식 그대로. */
 export interface GlCam9 { squash: number; zk: number; lean: number; shear: number; key: string }
@@ -785,6 +788,23 @@ export class GlUnits9 {
     return ft;
   }
   push(inst: GlInst9): void { this.queue.push(inst); }
+  /** 지난 flush 가 그린 큐 — 연기 마스크가 그중 `over` 만 다시 그린다. */
+  private lastQ: GlInst9[] = [];
+  /** **연기 마스크** — 지난 flush 의 큐에서 `over`(건물·공중 유닛)만 캔버스에 다시 그린다.
+   *  그림자는 뺀다(땅에 눕는 그림자는 연기 **아래**다). 그린 것이 있으면 참을 내고, 그때
+   *  `canvas` 의 알파가 곧 '연기가 덮으면 안 되는 자리'다. 프레임 통계는 되돌린다. */
+  maskOver(bw: number, bh: number, cw: number, ch: number): boolean {
+    const keep = this.lastQ;
+    const sel = keep.filter((it) => it.over);
+    if (!sel.length) return false;
+    const st = { ...this.stat };
+    const bl = this.bloomOn; this.bloomOn = false;
+    this.queue = sel.map((it) => (it.shadow ? { ...it, shadow: undefined } : it));
+    this.flush(bw, bh, cw, ch);
+    this.bloomOn = bl; this.lastQ = keep;
+    Object.assign(this.stat, st);
+    return true;
+  }
   /** 프레임 하나 — 캔버스 크기(기기 px)·CSS 크기를 맞추고 큐를 차례로 그린다. */
   flush(bw: number, bh: number, cw: number, ch: number): void {
     const gl = this.gl; const cv = this.canvas;
@@ -793,7 +813,7 @@ export class GlUnits9 {
     gl.viewport(0, 0, bw, bh);
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    const q = this.queue; this.queue = [];
+    const q = this.queue; this.queue = []; this.lastQ = q;
     this.stat.inst = q.length; this.stat.tris = 0; this.stat.meshes = this.meshes.size;
     (globalThis as unknown as { __glInst9?: number }).__glInst9 = q.length;   // 계측(perf-check)이 '그려졌다'를 아는 창
     if (!q.length) return;

@@ -1998,6 +1998,35 @@ const swarmSpr9 = (b9: boolean): HTMLCanvasElement => domSpr9(`swarm:${b9 ? "b" 
     c9.fillRect(0, 0, S9, S9);
   }
 }, 192);
+/** 다크 스웜 구름 한 벌 — 두 판이 서로 반대로 천천히 돌며 우글거린다(끝이 없다).
+ *  마스크로 실루엣을 파내려면 **딴 판에** 한 번 그려야 하므로 그리는 자를 따로 뗐다. */
+export function drawSwarm9(c9: CanvasRenderingContext2D, f: FxOp, ax: number, ay: number, zoom: number): void {
+  const W9 = (f.size ?? 8) * zoom;
+  const u0 = f.age ?? 0;
+  if (W9 < 1 || u0 < 0) return;
+  const tri9 = (x9: number): number => { const v9 = x9 - Math.floor(x9); return v9 < 0.5 ? v9 * 2 : 2 - v9 * 2; };
+  const pa9 = tri9(u0 / 3.6 / 2);
+  const ka9 = 0.97 + 0.06 * pa9; const ra9 = ((-4 + 8 * pa9) * Math.PI) / 180;
+  const pb9 = tri9((u0 + 0.4) / 2.7 / 2);
+  const kb9 = (1.03 - 0.07 * pb9) * 0.9; const rb9 = ((7 - 14 * pb9) * Math.PI) / 180;
+  const one9 = (spr9: HTMLCanvasElement, k9: number, rot9: number, al9: number): void => {
+    c9.save();
+    c9.globalAlpha = al9;
+    c9.translate(ax, ay); c9.rotate(rot9); c9.translate(-ax, -ay);
+    c9.drawImage(spr9, ax - (W9 * k9) / 2, ay - (W9 * k9) / 2, W9 * k9, W9 * k9);
+    c9.restore();
+  };
+  one9(swarmSpr9(false), ka9, ra9, 0.82 + 0.18 * pa9);
+  one9(swarmSpr9(true), kb9, rb9, 0.72 + 0.26 * pb9);
+}
+/** 연기를 그리는 딴 판 — 화면 캔버스에서는 실루엣을 파낼 수가 없다(파낸 자리에 이미 그린 몸이 있다). */
+let swarmCv9: HTMLCanvasElement | null = null;
+export function swarmPlate9(w9: number, h9: number): HTMLCanvasElement {
+  if (!swarmCv9) swarmCv9 = document.createElement("canvas");
+  if (swarmCv9.width !== w9) swarmCv9.width = w9;
+  if (swarmCv9.height !== h9) swarmCv9.height = h9;
+  return swarmCv9;
+}
 /** 스캔 별가루 — 네 갈래 별(CSS의 clip-path 다각형 그대로), 작은 별 하나를 45도로 겹친다. */
 const dustSpr9 = (): HTMLCanvasElement => domSpr9("dust", (c9, S9) => {
   const star9 = (k9: number, al9: number, rot9: number): void => {
@@ -2373,23 +2402,9 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
       break;
     }
     case "swarm": {
-      /* 다크 스웜 — 두 벌이 서로 반대로 천천히 돌며 우글거린다(끝이 없다). */
-      const tri9 = (x9: number): number => { const v9 = x9 - Math.floor(x9); return v9 < 0.5 ? v9 * 2 : 2 - v9 * 2; };
-      lay9(() => {
-        const pa9 = tri9(u0 / 3.6 / 2);
-        const ka9 = 0.97 + 0.06 * pa9; const ra9 = ((-4 + 8 * pa9) * Math.PI) / 180;
-        const pb9 = tri9((u0 + 0.4) / 2.7 / 2);
-        const kb9 = (1.03 - 0.07 * pb9) * 0.9; const rb9 = ((7 - 14 * pb9) * Math.PI) / 180;
-        const one9 = (spr9: HTMLCanvasElement, k9: number, rot9: number, al9: number): void => {
-          ctx.save();
-          ctx.globalAlpha = al9;
-          ctx.translate(ax, ay); ctx.rotate(rot9); ctx.translate(-ax, -ay);
-          ctx.drawImage(spr9, ax - (W9 * k9) / 2, ay - (W9 * k9) / 2, W9 * k9, W9 * k9);
-          ctx.restore();
-        };
-        one9(swarmSpr9(false), ka9, ra9, 0.82 + 0.18 * pa9);
-        one9(swarmSpr9(true), kb9, rb9, 0.72 + 0.26 * pb9);
-      });
+      /* 다크 스웜 — GL 이 서면 붓이 **몸을 그린 바로 뒤에** 마스크와 함께 얹는다(공중 유닛·건물을
+         안 가리게). 여기로 오는 것은 폴백(#gl=0)뿐이라 종전처럼 통째로 덮는다. */
+      lay9(() => drawSwarm9(ctx, f, ax, ay, zoom));
       break;
     }
     case "cast": {
@@ -3560,7 +3575,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
                 ? { dy: Math.max(1, sidePx * 0.04 + gLift9), alpha: op.alpha * 0.4 }   // 뜬 건물(이사 중)은 아래로 — 벌어짐이 높이다
                 : { ground: true, alpha: op.alpha * SHADOW_ALPHA9 }) : undefined;
             const gR9 = sidePx * 0.707; const gCy9 = -8 * gk9;
-            gl9.push({ mesh: glB9, ax: gax9, ay: gay9, k: gk9, yoff: -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind) });
+            gl9.push({ mesh: glB9, ax: gax9, ay: gay9, k: gk9, yoff: -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind), over: true });
             if (op.attach) {
               /* ★ 딸림 부품은 **제 요잉**을 가질 수 있다(attachRot · bake9 turret 의 ★★) — 도는 머리를
                  그것으로 돌리면 각이 셰이더 유니폼이라 **메시 열쇠에 안 든다**(터렛 48벌 → 1벌).
@@ -3569,7 +3584,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
               /* 메시는 위 상자 잴 때 이미 지은 그 한 벌이다 — 요잉은 **열쇠에 안 드는** 유니폼이라
                  각이 아무리 돌아도 같은 벌을 되쓴다(그것이 이 갈라내기의 벌이 전부다). */
               const gm9 = glBa9;
-              if (gm9) gl9.push({ mesh: gm9, ax: gax9, ay: gay9, k: gk9, yoff: -gk9 * glBf9.bot, yawDeg: -arot9, color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, flat: GL_GLOW_KINDS9.has(op.kind) });
+              if (gm9) gl9.push({ mesh: gm9, ax: gax9, ay: gay9, k: gk9, yoff: -gk9 * glBf9.bot, yawDeg: -arot9, color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, flat: GL_GLOW_KINDS9.has(op.kind), over: true });
             }
             continue;
           }
@@ -3889,7 +3904,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           for (const gkind9 of [op.kind, op.attach, op.attach2]) {
             const gm9 = gkind9 ? (gkind9 === op.kind ? glM9 : gl9.unitMesh(gkind9, op.pose ?? 0)) : null;
             if (!gm9) continue;
-            gl9.push({ mesh: gm9, ax: gax9, ay: gay9, k: gk9, yoff: (px / 16) * ((op.flat ? 12 : 12.6) - 8), yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glCam9, gradR: px * 0.707, gradCy: 0, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind) });
+            gl9.push({ mesh: gm9, ax: gax9, ay: gay9, k: gk9, yoff: (px / 16) * ((op.flat ? 12 : 12.6) - 8), yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glCam9, gradR: px * 0.707, gradCy: 0, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind), over: !!op.air });
           }
           ctx.setTransform(Bd, 0, 0, Bd, 0, 0);
           continue;
@@ -4045,11 +4060,55 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           glFxPush9(gl9, f, ax, ay, zoom);
         }
       }
+      /** 연기를 마스크와 함께 이미 얹었나 — 그러면 아래 효과 고리에서 다시 안 그린다. */
+      let swarmDone9 = false;
       if (gl9) {
         gl9.flush(cv.width, cv.height, cw, ch);
         ctx.setTransform(Bd, 0, 0, Bd, 0, 0);
         ctx.globalAlpha = 1;
         if (GL_BLIT9) ctx.drawImage(gl9.canvas, 0, 0, cw, ch);   // `#glblit=0`(계측): 헤드리스 SwiftShader 는 이 한 줄이 ReadPixels 로 1~2초다
+        /* ★ **다크 스웜은 연기라 공중 유닛·건물을 안 가린다**(2026-09, 요청) — 몸을 다 그린
+           **바로 뒤**에 연기를 얹되, 그 둘의 실루엣은 파낸다. 셋을 순서대로 한다:
+             ① `gl9.maskOver` — 방금 그린 큐에서 건물·공중 유닛만 캔버스에 다시 그린다(그림자는 뺀다).
+             ② 연기를 **딴 판**에 그린다 — 화면 캔버스에서는 파낼 수가 없다(파낼 자리에 이미 몸이 있다).
+             ③ `destination-out` 으로 ①을 파내고 한 번에 얹는다.
+           지상 유닛은 ①에 없으므로 종전대로 연기 밑에 남는다(연기의 뜻이 거기 있다).
+           연기가 화면에 없는 프레임은 이 가지에 아예 안 든다 — GL 한 판이 공짜가 아니다. */
+        if (fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM) && trim9 < 1
+          && zoom >= FX_MIN_ZOOM.dom) {
+          const sw9 = fx.filter((f9) => f9.kind === "dom" && f9.style === "swarm"
+            && zx(f9.fx) > -60 && zx(f9.fx) < cw + 60
+            && zy(f9.fy) - f9.lift * zoom > -60 && zy(f9.fy) - f9.lift * zoom < ch + 60);
+          if (sw9.length && gl9.maskOver(cv.width, cv.height, cw, ch)) {
+            const pl9 = swarmPlate9(cv.width, cv.height);
+            const s9 = pl9.getContext("2d");
+            if (s9) {
+              s9.setTransform(1, 0, 0, 1, 0, 0);
+              s9.globalCompositeOperation = "source-over";
+              s9.clearRect(0, 0, pl9.width, pl9.height);
+              for (const f9 of sw9) {
+                const sax9 = zx(f9.fx); const say9 = zy(f9.fy) - f9.lift * zoom;
+                s9.setTransform(Bd, 0, 0, Bd, 0, 0);
+                // 바닥에 눕히는 자(입체) — drawDomFx9 의 lay9 와 같은 식이다.
+                if (f9.skx !== undefined) {
+                  const sky9 = f9.sky ?? 1;
+                  s9.transform(1, 0, f9.skx, sky9, -f9.skx * say9, say9 * (1 - sky9));
+                }
+                drawSwarm9(s9, f9, sax9, say9, zoom);
+              }
+              s9.setTransform(1, 0, 0, 1, 0, 0);
+              s9.globalCompositeOperation = "destination-out";
+              s9.drawImage(gl9.canvas, 0, 0);
+              s9.globalCompositeOperation = "source-over";
+              ctx.save();
+              ctx.setTransform(1, 0, 0, 1, 0, 0);
+              ctx.globalAlpha = 1;
+              ctx.drawImage(pl9, 0, 0);
+              ctx.restore();
+              swarmDone9 = true;
+            }
+          }
+        }
         if (scrDiagOn()) {
           const miss9 = [...GL_MISS9].sort((a9, b9) => b9[1] - a9[1]).slice(0, 4).map(([k9, n9]) => `${k9}×${n9}`).join(" ");
           SCR_DIAG.gl = `on 개체 ${gl9.stat.inst} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}/${gl9.meshMax}(${gl9.stat.bakeMs.toFixed(0)}ms·${(gl9.stat.bytes / 1048576).toFixed(1)}MB${gl9.stat.evict ? "·버림 " + gl9.stat.evict : ""}) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit 번짐 ${gl9.stat.bloom}${miss9 ? " 판으로 " + miss9 : ""}`;
@@ -4108,6 +4167,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           if (f.kind === "dom") {
             /* 죽음 여운은 캔버스 파편(burst)이 서는 2배 아래에서만 나온다 — 스팬 시절과 같은 칸이다. */
             if (f.style === "die" && zoom >= FX_MIN_ZOOM.burst) continue;
+            if (f.style === "swarm" && swarmDone9) continue;   // 위에서 마스크와 함께 얹었다
             drawDomFx9(ctx, f, ax, ay, zoom, Bd, tz9);
             continue;
           }
