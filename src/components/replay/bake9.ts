@@ -5139,10 +5139,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // 몸통 옆구리 골 — 앞이 보일 때만.
     if (facingRatio(0, 1) > 0.12) {
       const rib: ShapeFace[] = [];
+      // 골도 사면을 따라간다 — 못 박은 y 2.75 는 위에서 벽 밖으로 튀어나왔다(아래 wallY 와 같은 흠).
+      const ry0 = 2.8 - (0.4 / 2.08) * 0.24 + 0.03; const ry1 = 2.8 - (0.4 / 2.08) * 1.92 + 0.03;
       for (let k = 0; k < 6; k += 1) {
         rib.push(sideFace(polyPath3([
-          [-3 + k * 1.05, 2.75, 0.24], [-2.5 + k * 1.05, 2.75, 0.24],
-          [-2.5 + k * 1.05, 2.75, 1.92], [-3 + k * 1.05, 2.75, 1.92],
+          [-3 + k * 1.05, ry0, 0.24], [-2.5 + k * 1.05, ry0, 0.24],
+          [-2.5 + k * 1.05, ry1, 1.92], [-3 + k * 1.05, ry1, 1.92],
         ]), 0.32));
       }
       out.push(...tagKey(rib, 1 + depthNow(0, 2.7) * 1.6));
@@ -5212,7 +5214,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 앞면 환풍구 둘 — 앞벽은 위로 좁아지는 사면이라 높이마다 벽의 y가 다르다.
        벽을 따라 올라가는 방향(0, dy/dz, 1)을 단위로 만들어 v로 주면 원이 사면에 눕는다.
        벽에서 살짝(0.06) 앞으로 띄워 몸통 면과 겹쳐 깜빡이지 않게 했다. */
-    const wallY = (z9: number): number => 2.24 - (0.4 / 2.6) * z9;
+    /* ★ 앞벽의 y(2026-09 수리, 지적: "서플라이 앞면 데칼 및 초록 불빛 위치 조정 · 옆면 팬 두 개 위치 조정") ──
+       몸통은 5.6 → 4.8 로 좁아지는 사면이라 반깊이가 2.8 → 2.4 다(높이 2.08). 그런데 이 자는 `2.24 − 0.4/2.6·z`
+       였다 — **z 코드모드가 x·y 치수를 z 로 보고 0.8 을 곱한 흔적**이다(2.8×0.8 = 2.24 · 높이 2.6×0.8 = 2.08 인데
+       나누는 쪽은 옛 2.6 이 남았다). 그래서 이 자로 앉힌 것들(앞면 팬 둘)이 벽보다 0.5 쯤 **안쪽**에 떠 있었다:
+       2D 는 화가 차례로 벽 위에 얹혀 자리만 어긋나 보였고, GL 은 진짜 깊이라 몸통에 반쯤 파묻혔다. */
+    const wallY = (z9: number): number => 2.8 - (0.4 / 2.08) * z9;
     if (facingRatio(0, 1) > 0.12) {
       const sl = -0.4 / 2.2;
       const vn = Math.hypot(sl, 1);
@@ -5294,7 +5301,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          가려질 걱정이 없다. */
     /* 앞벽은 아래가 넓고 위가 좁은 사면이라(3.6→3.2) 높이마다 벽의 x가 다르다. wallX가
        그 기울기를 재 주므로 벽에 붙이는 것들의 네 귀가 벽 평면에 정확히 눕는다. */
-    const wallX = (z9: number): number => -(2.88 - (0.4 / 2.6) * z9) - 0.06;
+    /* 같은 흠이 x 자에도 있었다(3.6×0.8 = 2.88) — 초록 창·해저드 띠가 벽보다 0.7 쯤 안쪽에 떠 있었고,
+       그래서 임자색 상자 줄(제 자리는 −3.2 로 맞아 있었다)과 높이가 겹쳐 보였다. 몸통은 7.2 → 6.4 라 반폭 3.6 → 3.2 다. */
+    const wallX = (z9: number): number => -(3.6 - (0.4 / 2.08) * z9) - 0.06;
     /* ★ **앞을 본체 앞에 딱 맞추고, 그 아래를 벽에 그려 파묻힌 척한다**(요청: "임자색 상자
        앞을 본체 앞이랑 딱 맞추고 그 위치에 맞춰 앞면 위쪽에 임자색 상자를 대서 파묻힌 걸로
        보이게 — 눈속임") ──────────────────────────────────────────────────────────────
@@ -6852,7 +6861,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        굵기 규칙(w·tipW·hold·taper)은 path를 주면 그대로 살지만 깎기를 얹어야 하므로
        widthOf로 옮겨 적는다 — 값은 옛것 그대로다. */
     /* 두 기둥을 **꽤 많이** 줄인다(요청, 사진 참조) — 축 6.85 → 4.2, 밑동 1.5 → 0.95, 자리 ±1.85 → ±1.35. */
-    const gatePc9: ShapeFace[] = [];   // 기둥 옆면 임자색 데칼(아래 gated로)
+    const gatePc9: ShapeFace[] = [];   // 기둥 바깥 옆낯의 금색 데칼(아래 gated로)
     for (const mx9 of [-1.35, 1.35]) {
       const W0_9 = 0.95;
       const W1_9 = 0.36;
@@ -6933,22 +6942,35 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 데칼은 옆면 폭에 **딱 맞는 띠**로, 위끝·아래끝에서 각각 가운데 근처까지 이어진다(요청). 축이 굽으므로
          한 장이 아니라 t를 잘게 나눈 조각 띠로 면을 따라간다. 아래 띠의 위끝은 **가파른 사다리꼴**(마지막 22%에서
          폭이 1 → 0.35로 조인다). 위 띠는 위끝(t 0.98)에서 0.58까지, 아래 띠는 밑동(0.06)에서 0.42까지. */
+      /* ★ 데칼은 기둥의 **바깥 옆낯**(±x)에 **딱 붙어** 앉는다(2026-09, 재요청: "옆면에 맞춰서 딱 붙게
+         이동 · 원작 보니 데칼이 금색") ──────────────────────────────────────────────────────────
+         한 번은 앞낯(+y)으로 옮겼는데 그것은 지적을 잘못 읽은 것이었다 — 자리가 아니라 **띄움**이 문제였다.
+         spirePillar 의 반지름은 w 그대로(widthAt)이고 네모 단면의 꼭짓점이 45도에 서므로 낯은 축에서
+         w·cos45 = 0.707w 떨어져 있다. 첫 판은 w/2 로 두어 데칼이 낯 **안쪽에 묻혔다**. 이제 0.707w
+         (+0.03 살짝 띄움)로 옆낯에 붙이고, 띠의 폭은 그 낯의 폭(±0.707w) 그대로 잡는다.
+         도록·지도의 방위는 대각(45·135·225·315)이라 이 낯이 늘 보인다 — 정면 0°에서만 모로 선다.
+         ★ 색은 **프로토스 기본 금색**이다(요청: 원작이 금색) — 임자색이 아니다. 기둥 살이 조금 어두운
+           금(#d4bd3c)이라 기본 금(#e6d063)을 얹으면 같은 금붙이의 덧판으로 읽힌다.
+         ★ 한 띠를 **한 부품으로** 묶는다 — 조각마다 tagKey 를 부르면 조각 하나하나가 '한 장짜리 작은 부품'이라
+           붓이 데칼로 보고 깊이 편향(1.3 모델칸)을 얹는데, 기둥 두께가 1.3 쯤이라 등진 쪽 띠가 기둥을 뚫고
+           비쳤다. 여섯 조각을 한 부품으로 묶으면 편향이 안 걸리고 깊이가 제대로 가린다. */
       const face9 = (t9: number): { x: number; y: number; z: number; hw: number } => {
         const w9 = base9(t9) * (1 - CUT_K9 * cut9(t9));
+        const hw9 = w9 * Math.SQRT1_2;
         return {
-          /* spirePillar의 반지름은 w 그대로(widthAt)이고 네모 단면의 꼭짓점은 45도에 서므로 옆면은 축에서
-             w·cos45 = 0.707w 떨어져 있다. w/2로 두면 데칼이 면 안쪽에 묻힌다(지적). */
-          x: mx9 + Math.sign(mx9) * (xoff9(t9) + (W0_9 * 0.5 * CUT_K9) * cut9(t9) + w9 * Math.SQRT1_2 + 0.03),
+          x: mx9 + Math.sign(mx9) * (xoff9(t9) + (W0_9 * 0.5 * CUT_K9) * cut9(t9) + hw9 + 0.03),
           y: 0,
-          z: h - 0.35 + AXIS9 * t9,
-          hw: w9 * Math.SQRT1_2,
+          /* ⚠ z 는 **z 쌍둥이**로 센다(hz9·AXIS9z9) — 첫 판은 화면 자(h·AXIS9)를 그대로 써서
+             띠가 기둥보다 1.25배 높이 올라가, GL 에서 기둥 위 허공에 금색 조각으로 떴다. */
+          z: hz9 - 0.28 + AXIS9z9 * t9,
+          hw: hw9,
         };
       };
       const strip9 = (t0: number, t1: number, taperTop: boolean): void => {
-        /* 등진 면의 데칼은 안 낸다(지적: "기둥 데칼이 뒤에 있는데도 비쳐 보임") — 데칼 키가 기둥 위라 바깥 면이
-           카메라를 등져도 기둥을 뚫고 보였다. 바깥 면의 법선(±x)이 카메라를 향할 때만 그린다. */
+        // 바깥 옆낯이 카메라를 향할 때만(2D). GL 은 깊이가 가린다.
         if (facingRatio(Math.sign(mx9), 0) <= 0.05) return;
         const N9 = 6;
+        const q9: ShapeFace[] = [];
         for (let i9 = 0; i9 < N9; i9 += 1) {
           const ta9 = t0 + ((t1 - t0) * i9) / N9;
           const tb9 = t0 + ((t1 - t0) * (i9 + 1)) / N9;
@@ -6959,10 +6981,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           };
           const fa9 = face9(ta9); const fb9 = face9(tb9);
           const ha9 = fa9.hw * kOf9(ta9); const hb9 = fb9.hw * kOf9(tb9);
-          gatePc9.push(...tagKey([bodyFace(polyPath3([
+          q9.push(bodyFace(polyPath3([
             [fa9.x, fa9.y - ha9, fa9.z], [fa9.x, fa9.y + ha9, fa9.z], [fb9.x, fb9.y + hb9, fb9.z], [fb9.x, fb9.y - hb9, fb9.z],
-          ]))], 30 + depthNow(mx9, 0) * 1.6 + 0.4));
+          ])));
         }
+        gatePc9.push(...tagKey(paintBase(q9, RACE_BASE_TONE.toss), 30 + depthNow(mx9, 0) * 1.6 + 0.4));
       };
       strip9(0.06, 0.42, true);
       strip9(0.98, 0.58, false);
@@ -9684,7 +9707,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   /* 아머리(실물 참고) — 가운데 우물 드럼(어두운 속·테두리 빛 눈금·비스듬한 뚜껑 판),
   /* 아머리(실물 참고) — 가운데 우물 드럼(어두운 속·테두리 빛 눈금·비스듬한 뚜껑 판),
      둘레의 각진 첨탑 둘과 빛나는 기둥 포스트 둘, 방사 팔 모듈. */
-  armory: () => {
+  /* ★ **−45도 돌려 세운다**(2026-09, 요청: "아모리·트리뷰널 −45도 요잉 — 앞으로 요잉 같은 건 모델 기본값
+     자체를 변경") — 그리는 쪽에서 돌리지 않고 **모델의 기본 자세**를 바꾼다(withModelSpin). 그래야 잉크 상자·
+     정규화·부품 등급표·총구 앵커가 모두 그 자세로 다시 재어지고, 도록·미니맵·붓이 한 자세를 쓴다. */
+  armory: () => withModelSpin(-45, () => {
     const rim = (ang: number): ShapeFace => {
       const a = (ang * Math.PI) / 180;
       const [px2, py2] = project(Math.sin(a) * 2.1, Math.cos(a) * 2.1, 2.4);
@@ -9753,7 +9779,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         return [bodyFace(d9), topFace(d9, 0.24)];
       })(), 10),
     ]);
-  },
+  }),
   /* 사이언스 퍼실리티(정정: 엔베가 아니라 이 건물이었다) — 드럼 발 위에 떠 있는
      둥근 층층 플랫폼, 가운데 큰 갈빗살 돔(농구공 반쪽), 원통 모듈, 초록 불 띠. */
   scifac: () => {
@@ -10974,7 +11000,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   },
   /* 아비터 트리뷰널(정정 둘) — 불가사리 팔 네 개의 바닥은 유지하되, 위 구슬 대신
      돔 둘레에서 서로 마주 보며 안으로 기운 짧은 기둥 다섯. */
-  tribunal: () => {
+  // −45도 돌려 세운다(요청) — 위 아머리의 ★와 같은 손.
+  tribunal: () => withModelSpin(-45, () => {
     const arm = (ang: number): ShapeFace[] => {
       const a = (ang * Math.PI) / 180;
       return hornFaces(
@@ -11028,7 +11055,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ...postDecal(180), ...postDecal(108), ...postDecal(252),
       ...postDecal(36), ...postDecal(-36),
     ]);
-  },
+  }),
   /* 실드 배터리(정정 둘) — 몸은 얇게, 다리는 빨대: 가늘게 수평으로 뻗다가 끝이
      구부러져 땅에 꽂힌다. */
   sbattery: () => {

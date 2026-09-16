@@ -1305,7 +1305,22 @@ export function domeFaces3(
   const shine = groundEllipse((bx + tx) / 2 - r * 0.25, (by + ty) / 2 - (by - ty) * 0.22, r * 0.4, r * 0.18);
   const shade = `M${r2(tx + r * 0.35)} ${r2(ty + (by - ty) * 0.08)} Q${r2(tx + r)} ${r2(ty + (by - ty) * 0.25)} ${r2(bx + r)} ${r2(by)}`
     + ` Q${r2(bx + r * 0.55)} ${r2(by + ry * 0.6)} ${r2(bx + r * 0.35)} ${r2(by)}Z`;
-  if (MESH9.on) meshPut9(body, meshDome9(cx, cy, z0, r, hh));
+  if (MESH9.on) {
+    meshPut9(body, meshDome9(cx, cy, z0, r, hh));
+    /* 광(shine)은 빌더가 **화면 자로** 얹은 타원이라, 그 중심이 PROJ9 에 없어 되찾기가 **높이를 빌린다** —
+       가까운 기록점이 딴 부품이면 광이 그 위로 떠오른다(실측: −45도로 돌려 세운 트리뷰널의 광이 돔이 아니라
+       기둥 꼭대기에 붙어 회색 타원으로 떴다). 그러니 여기서 3D 를 적는다: 돔 **표면에 붙는 작은 타원 조각**
+       (빛이 드는 왼·뒤쪽 위). 2D 는 한 톨도 안 바뀐다(경로 문자열은 그대로다). */
+    const shx9 = cx - r * 0.25; const shy9 = cy - r * 0.18;
+    const shp9: number[] = []; const SHN9 = 12;
+    for (let i9 = 0; i9 < SHN9; i9 += 1) {
+      const a9 = (i9 / SHN9) * Math.PI * 2;
+      const x9 = shx9 + Math.cos(a9) * r * 0.4; const y9 = shy9 + Math.sin(a9) * r * 0.3;
+      const t9 = Math.min(1, Math.hypot((x9 - cx) / r, (y9 - cy) / r));
+      shp9.push(...mp3(x9, y9, z0 + hh * Math.sqrt(Math.max(0, 1 - t9 * t9))));
+    }
+    meshPut9(shine, [shp9]);
+  }
   return tagKey(
     [bodyFace(body), sideFace(shade, OP.sideSoft), topFace(shine)],
     depthNow(cx, cy) + Math.min(hh, r),

@@ -160,9 +160,14 @@ export function camOf9(pitch: boolean, pitchSquash: number, vq: number): GlCam9 
 const LIGHT = ((): [number, number, number] => { const v = [-0.9, 0.45, 1.0]; const l = Math.hypot(v[0], v[1], v[2]); return [v[0] / l, v[1] / l, v[2] / l]; })();
 /** 바닥 그림자의 기울기 — 높이 z 의 꼭짓점이 바닥에서 얼마나 밀리나(= −평면빛/높이빛, shapeOblique 의 LIGHT_PLAN·LIGHT_ELEV 와 같은 자). */
 const SHADOW_K9: [number, number] = [0.5, -0.25];   // 빛을 더 높이(0.9/−0.45 는 그림자가 몸의 갑절로 길었다)
-/** 그림자의 **번짐** — 같은 실루엣을 조금 크게 한 번 더 깔아 가장자리를 무르게 한다(2D 의 흐린 판 그림자 몫).
- *  [배수, 알파 몫] — 큰 것을 먼저, 그다음 제 크기를 얹는다. 삯은 그리기 한 번이다. */
-const SHADOW_BLUR9: [number, number] = [1.1, 0.55];
+/** ★ 그림자의 **번짐 고리는 걷었다**(2026-09, 지적: "연한 거 진한 거 한 장씩 두 장이 겹친다") ─────────────
+ *  같은 실루엣을 1.1 배로 한 번 더 옅게 깔아 가장자리를 무르게 하려던 손이다. 그런데 배수는 **앵커를 축으로**
+ *  걸리므로 고리가 실루엣을 감싸는 것이 아니라 **비스듬히 밀린 복사판**이 된다 — 부품마다 진한 타원 옆에
+ *  옅은 타원이 하나씩 붙어 그림자가 둘로 읽혔다(실측: 사이언스 베슬의 포드 넷이 각각 두 겹). 무르게 하려면
+ *  배수가 아니라 화면 자로 사방 조금씩 밀어 여러 번 깔아야 하는데(진짜 팽창), 그리기가 개체마다 네 번 더 든다.
+ *  바닥에 눕힌 실루엣은 원래 해가 만드는 **단단한 그림자**이므로 한 겹으로 둔다 — 대신 알파를 조금 올린다
+ *  (고리와 겹쳐 0.31 쯤으로 보이던 속을 한 겹 0.26 으로 맞춘다). */
+export const SHADOW_ALPHA9 = 0.26;
 
 /* ★ **번짐(블룸)** — 빛나는 낯만 1/4 크기 판에 한 번 더 그리고, 가로·세로로 흐린 뒤 화면에 **더한다**.
    2D 판에는 없던 몫이다(판은 색을 굽는 자라 빛이 새어 나올 수가 없었다). 밝기 문턱으로 고르지 않는 까닭:
@@ -531,14 +536,6 @@ export class GlUnits9 {
       gl.uniform4f(this.loc.uShadow, SHADOW_K9[0], SHADOW_K9[1], gr9 ? 1 : 0, it.shadow.h ?? 0);
       shOn9 = shOn9 || gr9;
       gl.uniform1f(this.loc.uDy, it.shadow.dy ?? 0);
-      if (gr9) {
-        // 번짐 고리 — 같은 실루엣을 조금 크게(원점은 그대로: uScale 만 키운다) 옅게 먼저 깔아 가장자리를 무르게 한다.
-        gl.uniform1f(this.loc.uShZ, 0.997);
-        gl.uniform4f(this.loc.uShade, 0, 0, 0, it.shadow.alpha * SHADOW_BLUR9[1]);
-        gl.uniform3f(this.loc.uScale, it.k * SHADOW_BLUR9[0], it.k * SHADOW_BLUR9[0], it.yoff);
-        gl.drawArrays(gl.TRIANGLES, 0, mesh.n);
-        gl.uniform3f(this.loc.uScale, it.k, it.k, it.yoff);
-      }
       gl.uniform1f(this.loc.uShZ, 0.996);
       gl.uniform4f(this.loc.uShade, 0, 0, 0, it.shadow.alpha);
       gl.drawArrays(gl.TRIANGLES, 0, mesh.n);
