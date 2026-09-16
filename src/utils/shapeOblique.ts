@@ -767,7 +767,16 @@ export function unproject9(X: number, Y: number, z: number): [number, number, nu
   return [(X - VIEW.originX) / f, ry, z];
 }
 export function meshOn9(on: boolean): void { MESH9.on = on; if (!on) MESH9.byD.clear(); }
-export function meshPut9(d: string, polys: Poly3[]): void { if (MESH9.on) MESH9.byD.set(d, polys); }
+/** 면의 3D 폴리곤을 곁표에 적는다(열쇠 = 경로 문자열).
+ *  ⚠ **빈 표는 이미 있는 기하를 못 지운다** — 빈 표는 '이 낯의 기하는 딴 낯이 낸다'는 표식이지 '없다'가 아니다.
+ *  관·막대가 제 둘째 낯에 빈 표를 적을 때 그 경로가 딴 부품(구 껍질 따위)과 글자까지 같으면, 없앤 것이
+ *  아니라 **그 부품을 지우는** 꼴이 된다(실측: 핵 사일로에서 지름 0.6 짜리 구 하나가 그렇게 사라졌다.
+ *  덮임 표에도 안 걸린다 — 빈 표는 분모에서 빠지므로 '일부러 비운 낯'으로 세어졌다). */
+export function meshPut9(d: string, polys: Poly3[]): void {
+  if (!MESH9.on) return;
+  if (polys.length === 0 && (MESH9.byD.get(d)?.length ?? 0) > 0) return;
+  MESH9.byD.set(d, polys);
+}
 /** 판 모형 공간 점(모델 변환만) — 메시에 적는 점은 전부 이것을 지난다. */
 export const mp3 = (x: number, y: number, z: number): number[] => modelPoint9(x, y, z) as unknown as number[];
 /** 링(둘레 점들) 둘을 잇는 옆면 사각들 + (원하면) 양 끝 뚜껑 — 관·원통·뿔·돔 메시의 공통 재료. */
