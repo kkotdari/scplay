@@ -23864,9 +23864,10 @@ export function autoTier(kind: string, key: string, faces: ShapeFace[]): ShapeFa
 }
 /** 건설 단계별 부품 몫(요청: "처음엔 10프로정도로 시작해서 10-20-40-60-100") — 1~4단이고
  *  5단(= BUILD_STAGES)은 완성이라 표에 없다(그 자리는 faces 를 통째로 낸다).
+ *  10·20·40·60 → **5·20·35·50**(재요청: "처음에 5 — 거의 밑판이나 발판 정도만 보여야함").
  *  ⚠ 곡선(지수)으로 내지 않는다 — 요청이 숫자로 온 값이고, 식으로 맞추면 다음에 한 칸만
  *    바꾸고 싶을 때 네 값이 함께 움직인다. */
-const BUILD_FRAC9 = [0.10, 0.20, 0.40, 0.60];
+const BUILD_FRAC9 = [0.05, 0.20, 0.35, 0.50];
 export function stageFaces(faces: ShapeFace[], stg: number): ShapeFace[] {
   if (stg <= 0 || stg >= BUILD_STAGES) return faces;
   const gid: number[] = [];
@@ -23927,6 +23928,13 @@ export function stageFaces(faces: ShapeFace[], stg: number): ShapeFace[] {
       if (b === a) break;   // 넓이 내림차순이라 여기까지가 '나보다 큰 것'이다
       const p = boxes[b];
       if (q[0] > p[2] || p[0] > q[2] || q[1] > p[3] || p[1] > q[3]) continue;
+      /* ★ **'얹힌 것'과 '받치는 것'을 밑변으로 가른다**(2026-09, 재요청: "처음에 5 — 거의 밑판이나
+         발판 정도만 보여야함") — 큰 것이 먼저라는 자만 두면 **다리도 몸 뒤로 밀린다**(다리는 몸과
+         겹치고 몸보다 작다). 그러면 1단이 '허공에 뜬 몸통'이라 짓는 중으로 안 읽힌다.
+         가름은 밑변 하나다: 얹힌 것(창·데칼·지붕 뚜껑)은 제 밑변이 받침의 밑변 **위**에 있고,
+         받치는 것(다리·발판)은 그 **아래**로 뻗는다. 아래로 뻗는 것은 이 문을 안 지나 ①의
+         아래에서 위로 차례를 그대로 지킨다 — 곧 발판이 먼저 서고 몸이 그 위에 앉는다. */
+      if (q[3] > p[3] + 0.01) continue;
       if (rank[b] > rank[a]) rank[a] = rank[b];
     }
   }
