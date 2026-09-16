@@ -68,8 +68,9 @@ uniform vec4 uGlint;
 uniform float uGlintK;
 /** 빛과 시선의 **반각**(H) — 둘 다 유니폼이라 프레임에 한 번 내면 된다(정점마다 normalize 하던 것을 걷었다). */
 uniform vec3 uHalf;
-/** 결(긁힌 광택) 세기 — 종류(종족)·화면 배율·손잡이를 **CPU 에서 다 접어** 보낸다. 0 이면 화소가 그 식을 아예 안 돈다. */
-uniform float uGrain;
+/* (걷어냄) 꼭짓점 셰이더의 uGrain — 여기서는 한 번도 안 읽었고, 화소 쪽이 vec2 가 되면서
+   **같은 이름·다른 형**이 되어 링크가 터진다. 결은 화소마다의 일이라 화소 셰이더만 든다.
+   ⚠⚠ 이 주석에 역따옴표를 쓰면 TS1005 로 터진다(셰이더가 JS 템플릿 문자열 안이다) — 세 번째다. */
 uniform vec4 uShade; uniform float uDy; uniform vec2 uLean;
 /* 바닥 그림자 — (빛의 화면 기울기 x, y, 켬). 켜면 꼭짓점을 **빛 방향으로 밀어 z 를 0 으로** 눌러, 몸의 실루엣이
    바닥에 눕는다(2D 의 흐린 판 그림자가 하던 몫을 기하로 낸다 — 높은 부품일수록 멀리 눕는다). */
@@ -256,7 +257,10 @@ void main() {
 const FS = `
 precision mediump float;
 varying vec4 vCol; varying vec3 vSpec; varying vec3 vGr;
-uniform float uGrain;
+/** x = 결 세기 · y = **가장 굵은 옥타브의 몫**(나머지 넷은 uGrainA). */
+uniform vec2 uGrain;
+/** 결 옥타브 **둘째~다섯째의 몫**(첫째는 1 − 합) — CPU 가 배율(k)을 보고 나이퀴스트로 깎아 보낸다. */
+uniform vec4 uGrainA;
 void main() {
   vec3 c = vCol.rgb + vSpec;
   /* ★★ **긁힘은 되풀이가 아니라 드문 사건이다**(2026-09, 지적: "테란 스크래치 … 메탈 헤어라인 느낌이
@@ -276,10 +280,28 @@ void main() {
        사실도 아니고, 화소보다 촘촘한 줄은 결이 아니라 물결무늬다(WebGL1 은 dFdx 가 없어 스스로 못 줄인다).
      ⚠ 값은 **화소마다**다 — 그래서 CPU 가 uGrain 에 그 페이드를 접어 보내고(작으면 0), 0 이면 이 가지를
        통째로 건너뛴다. 유니폼 가지라 한 그리기 안에서 갈라지지 않는다. */
-  if (uGrain > 0.0) {
+  if (uGrain.x > 0.0) {
     float s9 = vGr.x;
-    float a = 0.62 + 0.38 * sin(s9 * 3.1 + 0.6);
-    float n = (sin(s9 * 44.2) * 0.42 + sin(s9 * 56.0 + 1.3) * 0.33 + sin(s9 * 34.2 + 2.7) * 0.25) * a;
+    /* ⚠ 세기 봉투도 **잘게** — 3.1 은 파장이 모형 두 칸이라, 가까이서 보면 그 마루가 폭 100화소짜리
+       **넓은 띠**로 읽혔다(줄이 아니라 얼룩이다). 9.0 으로 올리고 흔들 폭도 좁힌다. */
+    float a = 0.80 + 0.20 * sin(s9 * 9.0 + 0.6);
+    /* ★★ **결은 배율을 타야 한다**(2026-09, 지적: "테란의 메탈 결 — 스케일을 생각하면 결이 훨씬 더
+       얇아야 하고 밀도도 높아야 해") — 여태 주파수 셋이 **못 박혀** 있어서, 가까이 갈수록 줄이 촘촘해지는
+       것이 아니라 그냥 **굵어졌다**(화소 주기: 맨 위 56 이 k 21 에서 2.4화소 · k 31 에서 3.5화소).
+       실물 금속은 반대다 — 다가갈수록 더 가는 줄이 드러난다.
+       그래서 옥타브를 **다섯**으로 늘리고, 몫을 **CPU 가 배율로 깎아** 보낸다(uGrain.y·uGrainA): 화소
+       주기가 2.1 아래로 내려가는 옥타브는 0 이 되고, 3.1 위면 제 몫을 다 받는다. 곧 **멀리서는 굵은 줄
+       몇, 가까이서는 가는 줄 여럿**이고, 화소보다 촘촘한 줄은 애초에 안 켜지므로 물결무늬도 안 진다
+       (WebGL1 은 dFdx 가 없어 셰이더가 스스로 못 줄인다).
+       ⚠ **몫의 합을 1 로 맞추지 않는다** — 맞추면 저배율에서 가는 옥타브가 다 꺼진 몫까지 굵은 옥타브가
+         떠안아, 나이퀴스트 아래에서 **혼자 커진다**. 안 맞추면 합이 곧 '지금 보이는 결의 총량'이라,
+         멀어질수록 저절로 여위고 가까울수록 도톰해진다(0.34 → 1.00). */
+    float a0 = uGrain.y;
+    float n = (sin(s9 * 30.0 + 2.7) * a0
+      + sin(s9 * 42.0) * uGrainA.x
+      + sin(s9 * 58.0 + 1.3) * uGrainA.y
+      + sin(s9 * 80.0 + 0.4) * uGrainA.z
+      + sin(s9 * 110.0 + 2.1) * uGrainA.w) * a;
     /* ★ **겹이 둘이다**(2026-09, 보기: 브러시드 알루미늄 판 사진) — 실물 결은 **빽빽한 잔 줄이 낯 전체에
        깔리고**(길이로 이어진다) 그 위에 **드문 기스 몇 가닥**이 얹힌 것이다. 한 겹만 두면 둘 다 틀린다:
        잔 줄만 두면 긁힌 자국이 없고, 기스만 두면 판이 맨질해서 금속으로 안 읽힌다.
@@ -291,7 +313,13 @@ void main() {
     float q2 = 0.5 + 0.5 * sin(vGr.y * 0.55 + s9 * 3.1 + 2.4);
     /* ⓐ **바탕 결** — 빽빽하고 길이로 이어진다. 길이 자로 세기만 느리게 흔들어(0.6~1.0) 줄이
        흐려졌다 진해졌다 한다(사진의 그 얼룩덜룩함). 가운데를 한 번만 눌러(n·|n|) 골판지를 막는다. */
-    float base9 = n * abs(n) * (0.60 + 0.40 * q);
+    /* ⚠ **얇게**도 여기서 낸다 — n·|n| 는 마루가 넓어 '이랑'에 가까웠다. 부호 있는 세제곱은 같은
+       간격에서 줄만 여위게 만든다(되세움 1.7). 옥타브가 늘어 합의 마루가 더 뾰족해진 몫도 함께 탄다. */
+    /* ⓐ **바탕 결** — 빽빽하고 길이로 이어진다. ★ 날을 세우지 **않는다**(옛 n·|n|·n³): 거듭제곱은
+       줄을 얇게 만드는 대신 **느린 봉투의 마루만 남겨** 굵은 띠로 뭉친다(실측: 넓은 쓸린 자국 몇 줄).
+       얇고 촘촘한 것은 **주파수**가 내고(옥타브 다섯), 눈에 안 거슬리는 것은 **낮은 대비**가 낸다 —
+       그래서 여기서는 그대로 두고 아래에서 광택에 ±13% 로만 얹는다(옛 ±45%). */
+    float base9 = n * (0.80 + 0.20 * q);
     /* ⓑ **기스** — 드물고 가늘고 **양끝이 여윈다**. 길이 봉투로 토막을 내되, 위상에 가로 자를 섞어(×5.3)
        이웃 줄이 같은 높이에서 시작하지 않게 한다 — 안 섞으면 토막 끝이 한 줄로 서서 **가로 띠**가 된다.
        n⁵ 는 셋의 합이 어쩌다 한 번만 닿는 마루만 남긴다(n·|n| 는 아직 굵었다). 2.0 은 그 되세움이다. */
@@ -299,13 +327,15 @@ void main() {
     float n2 = n * n;
     float scr = n * n2 * n2 * 2.0 * e;
     float g = base9 * 0.8 + scr;
-    float w = uGrain * vGr.z;
+    float w = uGrain.x * vGr.z;
     /* ★ **빛 받는 낯의 기스만 흰빛으로 튄다**(요청: "빛을 받는 면의 헤어라인은 유난히 밝게 — 거의 흰색") —
        '얼마나 빛을 받나'는 이미 광택(vSpec)이 들고 있다. 그 휘도를 곱하면 등진 낯에서는 그 항이 저절로
        0 이 되므로 문을 따로 둘 일이 없다. 도드라진 쪽(g>0)만 태운다 — 기스는 빛을 **튕기는** 자국이다. */
     float lit = dot(vSpec, vec3(0.299, 0.587, 0.114));
-    c = vCol.rgb * (1.0 + w * 0.018 * g) + vSpec * (1.0 + w * 0.45 * g)
-      + vec3(w * 2.4 * max(scr, 0.0) * lit);
+    /* 잔 줄과 기스는 **세기가 다르다** — 잔 줄은 낯 전체에 깔리므로 아주 옅게(±13%), 기스는 드무니
+       도톰하게(±55%). 한 값으로 묶으면 잔 줄을 보이게 올릴 때 기스가 골함석이 된다. */
+    c = vCol.rgb * (1.0 + w * 0.010 * g) + vSpec * (1.0 + w * (0.13 * base9 + 0.55 * scr))
+      + vec3(w * 2.2 * max(scr, 0.0) * lit);
   }
   gl_FragColor = vec4(c * vCol.a, vCol.a);   // 미리곱한 알파 — WebGL 캔버스(premultipliedAlpha)와 합성이 맞아야 반투명(빛무리)이 안 어두워진다
 }`;
@@ -544,7 +574,7 @@ export class GlUnits9 {
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error("링크: " + gl.getProgramInfoLog(p));
     this.prog = p;
     this.stat.depthBits = Number(gl.getParameter(gl.DEPTH_BITS)) || 0;
-    for (const u of ["uAnchor", "uScale", "uYaw", "uCanvas", "uCam", "uTeam", "uLight", "uAlpha", "uDepth0", "uDepthK", "uPersp", "uShade", "uDy", "uLean", "uGrad", "uDbg", "uFlat", "uShadow", "uShZ", "uEmit", "uGloss", "uSpecTint", "uGlint", "uGlintK", "uHalf", "uGrain"]) this.loc[u] = gl.getUniformLocation(p, u);
+    for (const u of ["uAnchor", "uScale", "uYaw", "uCanvas", "uCam", "uTeam", "uLight", "uAlpha", "uDepth0", "uDepthK", "uPersp", "uShade", "uDy", "uLean", "uGrad", "uDbg", "uFlat", "uShadow", "uShZ", "uEmit", "uGloss", "uSpecTint", "uGlint", "uGlintK", "uHalf", "uGrain", "uGrainA"]) this.loc[u] = gl.getUniformLocation(p, u);
     for (const a of ["aPos", "aNrm", "aRgb", "aTeam", "aAlpha", "aOv", "aOrd", "aBb"]) this.att[a] = gl.getAttribLocation(p, a);
     /* 번짐 프로그램·사각 — 한 번만 짓는다(실패하면 번짐만 끈다). */
     try {
@@ -886,6 +916,17 @@ export class GlUnits9 {
       gl.uniform3f(this.loc.uSpecTint, mesh.gloss[5][0], mesh.gloss[5][1], mesh.gloss[5][2]);
       gl.uniform1f(this.loc.uGlintK, mesh.gloss[6]);
     };
+    /** 결 옥타브의 몫 — 화소 주기(2π·k/f)가 2.1 아래면 0, 3.1 위면 제 몫. 합을 1 로 맞춰 낸다
+     *  ⚠ 합을 1 로 **안** 맞춘다(셰이더의 ⚠) — 합이 곧 지금 보이는 결의 총량이다. */
+    const grainOct9 = (k: number): number[] => {
+      const F = [30, 42, 58, 80, 110];
+      const W = [0.34, 0.27, 0.19, 0.13, 0.07];
+      return F.map((f, i) => {
+        const px = (k * Math.PI * 2) / f;            // 그 옥타브 한 줄의 화소 주기
+        const t = Math.max(0, Math.min(1, (px - 2.1) / 1.0));
+        return W[i] * t * t * (3 - 2 * t);
+      });
+    };
     let camNow: GlCam9 | null = null;
     const place = (it: GlInst9): void => {
       const th = (it.yawDeg * Math.PI) / 180;
@@ -893,8 +934,15 @@ export class GlUnits9 {
          화소 미분(dFdx)이 없어 셰이더가 스스로 못 줄인다). 개체의 화면 배율(it.k = 모형 한 칸의 화소)로
          6 아래는 끄고 14 위는 다 켠다 — 낮은 배율에서는 유니폼이 0 이라 그 식이 **돌지도 않는다**.
          (가장 가는 결이 63 주파수라 k 14 에서 1.4화소다 — 그 아래로 내리면 물결무늬가 진다.) */
-      const gk = Math.max(0, Math.min(1, (it.k - 11) / 10));
-      gl.uniform1f(this.loc.uGrain, gk > 0 && GL_SHADE9 >= 1 ? it.mesh.gloss[4] * gk * GL_GRAIN9 : 0);
+      /* 켜는 문은 이제 **값의 문지기**일 뿐이다(나이퀴스트는 옥타브마다 따로 본다 — 아래 uGrainA) —
+         멀리서 도는 값을 아끼려고 두는 자라 문턱을 한 뼘 내렸다(옛 11~21). */
+      /* 켜는 문은 이제 **값의 문지기**일 뿐이다 — 나이퀴스트는 옥타브마다 따로 보므로(uGrainA),
+         k 11 아래에서는 어느 옥타브도 몫이 0 이라 어차피 안 보인다(튐 없이 꺼진다 — 가장 굵은
+         옥타브 30 의 화소 주기가 k 10 에서 2.1 로 문턱이다). */
+      const on9 = it.k >= 11 && GL_SHADE9 >= 1 ? it.mesh.gloss[4] * GL_GRAIN9 : 0;
+      const oc9 = on9 > 0 ? grainOct9(it.k) : null;
+      gl.uniform2f(this.loc.uGrain, on9, oc9 ? oc9[0] : 0);
+      if (oc9) gl.uniform4f(this.loc.uGrainA, oc9[1], oc9[2], oc9[3], oc9[4]);
       gl.uniform2f(this.loc.uAnchor, it.ax, it.ay);
       gl.uniform3f(this.loc.uScale, it.k, it.k, it.yoff);
       gl.uniform2f(this.loc.uYaw, Math.cos(th), Math.sin(th));
