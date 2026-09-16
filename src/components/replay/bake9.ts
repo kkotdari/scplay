@@ -3849,7 +3849,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        그 틈이 곧 다리의 키가 된다. */
     out.push(...tagKey(paintBase(spirePillar({
       x: 0, y: 0, z0: HULL_Zz9, h: 0.64, w: 5.15, tipW: 5.4,
-      segs: 1, sides: 16, hold: 0, taper: 1, caps: "bottom", skipFace: holeSkip9(1e9),
+      /* ★★ **아래를 보는 뚜껑은 눈에 안 보이면서 깊이만 쓴다**(2026-09, 지적: "격납구 경사로가
+         테두리에 가려짐 — 테두리는 저 부분은 없어야 해") — 이 밑 뚜껑은 반지름 5.15 짜리 원반이라
+         선체 밑을 통째로 덮는데, 경사로는 그 밑을 지나 앞으로 나온다. 카메라는 늘 40도 위에서
+         내려다보므로 이 원반의 **그림은 한 번도 안 보이지만**, GL 은 깊이를 쓰므로 원반이 경사로를
+         가렸다(2D 는 화가 차례라 안 보이던 자리다 — 개구부와 같은 갈래의 병이다).
+         GL 에서는 안 깐다 — 셋째 단의 윗 뚜껑을 이미 그렇게 다루고 있었고(아래 caps), 밑에서 올려다
+         보는 시점이 없으니 속이 비칠 일도 없다. `skipFace` 는 **옆 낯에만** 걸리므로 뚜껑은 이렇게
+         따로 막아야 한다. */
+      segs: 1, sides: 16, hold: 0, taper: 1, caps: GLHOLE9 > 0 ? "none" : "bottom", skipFace: holeSkip9(1e9),
     }), SILVER), 0.4));
     out.push(...tagKey(paintBase(spirePillar({
       x: 0, y: 0, z0: HULL_Zz9 + 0.64, h: 0.112, w: 5.16, tipW: 5.16,
@@ -4083,8 +4091,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            깊이 편향(gl9 isDecal · 건물 0.25 모델칸)이 앞으로 당겨 준다. 2D 는 키가 몸 위다. */
       const paintArc9 = (aMid9: number, half9: number): string => {
         const NA9 = 5; const NZ9 = 5;
+        /* ★★ **내접 반지름에 놓으면 낯 모퉁이에서 살에 묻힌다**(2026-09, 지적: "1층 돔의 옆 데칼들이
+           깊이가 안 맞아서 안 보여") — 낯 한가운데는 내접이 맞지만, 데칼이 낯 한가운데에 있으란 법이 없다
+           (데칼 열둘 · 낯 열넷). 낯 모퉁이 쪽으로 밀린 데칼은 **0.21 모델칸까지** 벽 속에 잠기는데,
+           데칼 깊이 편향이 0.25 라 아슬아슬하게 살아남거나 그냥 사라졌다.
+           ★ 이 단면은 **정십사각형이고 꼭짓점 위상이 0** 이다(실측: atan2(x, y) = k·360/14). 그러면
+             어느 방향의 벽까지의 거리를 **정확히** 셀 수 있다 — 낯 한가운데에서 벗어난 각 d 에 대해
+             R·cos(π/n)/cos(d). 그 위에 0.02 만 띄우면 어느 자리에서도 벽에 딱 붙는다. */
+        const ST9 = (Math.PI * 2) / PILL_SIDES9;
         const at9 = (aa9: number, zz9: number): [number, number, number] => {
-          const r9 = t1Rw(zz9) * Math.cos(Math.PI / PILL_SIDES9) + 0.02;
+          const d9 = (((aa9 % ST9) + ST9) % ST9) - ST9 / 2;   // 가장 가까운 낯 한가운데에서 벗어난 각
+          const r9 = (t1Rw(zz9) * Math.cos(Math.PI / PILL_SIDES9)) / Math.cos(d9) + 0.02;
           return [Math.sin(aa9) * r9, Math.cos(aa9) * r9, zz9];
         };
         const arc9 = (zz9: number, rev9: boolean): [number, number, number][] =>
