@@ -2517,6 +2517,25 @@ export function creepBlobFaces(seed: number): ShapeFace[] {
   const m0x = (p0[0] + pts[1][0]) / 2;
   const m0y = (p0[1] + pts[1][1]) / 2;
   d += ` Q${p0[0]} ${p0[1]} ${m0x} ${m0y} Z`;
+  if (MESH9.on) {
+    /* 얼룩 테두리는 **제 모형 자리**로 적는다 — 그리는 곡선(꼭짓점 사이 중점을 잇고 꼭짓점을
+       조종점으로 삼는 이차 곡선)을 모형 좌표에서 그대로 한 번 더 풀어 스물 남짓 점을 낸다. */
+    const mp9 = (i: number): [number, number, number] => {
+      const a9 = (i / N) * Math.PI * 2;
+      const w9 = Math.sin(a9 * 3 + seed) * 0.1 + Math.sin(a9 * 5 + seed * 2.7) * 0.08;
+      const r9 = 7.6 * (0.86 + w9);
+      return [Math.sin(a9) * r9, Math.cos(a9) * r9, 0.032];
+    };
+    const blob9: number[] = [];
+    for (let i = 0; i < N; i += 1) {
+      const p9 = mp9(i); const q9 = mp9((i + 1) % N); const n9 = mp9((i + 2) % N);
+      const m0 = [(p9[0] + q9[0]) / 2, (p9[1] + q9[1]) / 2, 0.032] as const;
+      const m1 = [(q9[0] + n9[0]) / 2, (q9[1] + n9[1]) / 2, 0.032] as const;
+      blob9.push(...modelPoint9(m0[0], m0[1], 0.032));
+      blob9.push(...modelPoint9(0.25 * m0[0] + 0.5 * q9[0] + 0.25 * m1[0], 0.25 * m0[1] + 0.5 * q9[1] + 0.25 * m1[1], 0.032));
+    }
+    meshPut9(d, [blob9]);
+  }
   const faces: ShapeFace[] = [bodyFace(d)];
   for (let i = 0; i < 7; i += 1) {
     const a = seed * 3.1 + i * 2.4;
@@ -4123,6 +4142,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 먼 쪽(화면 위) 안벽의 빛 — 속 타원의 위 호와 그보다 납작한 호 사이.
       const lit9 = `M${bx9 - BI9} ${by9}A${BI9} ${ry9} 0 0 1 ${bx9 + BI9} ${by9}`
         + `A${BI9} ${ry9 * 0.42} 0 0 0 ${bx9 - BI9} ${by9}Z`;
+      if (MESH9.on) {
+        /* 화면 호 둘 사이의 초승달이지만 **3D 자리는 그 높이의 평평한 조각**이다 — 패임은
+           기하가 아니라 명암으로 낸 것이라 진짜 안벽이 없다. 먼 쪽(모형 −y) 반쪽이다. */
+        const cr9: number[] = []; const NC9 = 12;
+        for (let i9 = 0; i9 <= NC9; i9 += 1) { const t9 = (i9 / NC9) * Math.PI; cr9.push(...modelPoint9(-BI9 * Math.cos(t9), -BI9 * Math.sin(t9), bz9)); }
+        for (let i9 = NC9; i9 >= 0; i9 -= 1) { const t9 = (i9 / NC9) * Math.PI; cr9.push(...modelPoint9(-BI9 * Math.cos(t9), -BI9 * 0.42 * Math.sin(t9), bz9)); }
+        meshPut9(lit9, [cr9]);
+      }
       out.push(...tagKey([
         ...paintBase([bodyFace(discPath3(0, 0, bz9, BR9))], SILVER),
         capFace(discPath3(0, 0, bz9, BI9), 0.46),
@@ -7493,6 +7520,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const RING_R = 4.6;
     const ringBack = `M${cx - rxo} ${cy} A${rxo} ${ryo} 0 0 1 ${cx + rxo} ${cy} L${cx + rxi} ${cy} A${rxi} ${ryi} 0 0 0 ${cx - rxi} ${cy} Z`;
     const ringFront = `M${cx - rxo} ${cy} A${rxo} ${ryo} 0 0 0 ${cx + rxo} ${cy} L${cx + rxi} ${cy} A${rxi} ${ryi} 0 0 1 ${cx - rxi} ${cy} Z`;
+    if (MESH9.on) {
+      /* 화면에는 0.45로 더 납작하게 그리지만 **모형 자리는 PY_M 높이의 둥근 반고리**다 —
+         갈고리(claw)와 청록 띠가 이미 반지름 RING_R 짜리 원 위에 선다. 뒤쪽은 모형 −y 반쪽. */
+      const halfRing9 = (far: boolean): number[] => {
+        const q9: number[] = []; const NH9 = 16; const sg9 = far ? -1 : 1;
+        for (let i9 = 0; i9 <= NH9; i9 += 1) { const t9 = (i9 / NH9) * Math.PI; q9.push(...modelPoint9(-rxo * Math.cos(t9), sg9 * rxo * Math.sin(t9), PY_M)); }
+        for (let i9 = NH9; i9 >= 0; i9 -= 1) { const t9 = (i9 / NH9) * Math.PI; q9.push(...modelPoint9(-rxi * Math.cos(t9), sg9 * rxi * Math.sin(t9), PY_M)); }
+        return q9;
+      };
+      meshPut9(ringBack, [halfRing9(true)]);
+      meshPut9(ringFront, [halfRing9(false)]);
+    }
     /* 세로 갈고리 — 링 자리에서 위·아래로 뻗는 한 쌍의 뿔. 끝이 안쪽으로 모여
        수정을 감싼다. */
     /* 갈고리는 링에 안 가린다(지적) — 링은 무깊이 손 면이라 직전 깊이를 물려받아
@@ -8683,9 +8722,25 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         `M${(cx9 - rx9).toFixed(2)} ${cy9.toFixed(2)}`
         + `a${rx9.toFixed(2)} ${ry9.toFixed(2)} 0 1 0 ${(rx9 * 2).toFixed(2)} 0`
         + `a${rx9.toFixed(2)} ${ry9.toFixed(2)} 0 1 0-${(rx9 * 2).toFixed(2)} 0Z`;
+      const rim9 = ell9(mx9, my9, 0.92, 0.92 * Math.cos(TILT9) + 0.24);
+      const hole9 = ell9(mx9, my9, 0.58, 0.58 * Math.cos(TILT9) + 0.16);
+      if (MESH9.on) {
+        /* 화면 타원으로 그렸어도 **3D 자리는 기둥 축에 수직인 원**이다 — 축(gd…)에 직교하는
+           두 벡터를 뽑아 그 평면에 고리를 놓는다. 화면 자로만 두면 되찾기가 이 타원을 땅에
+           누운 원반으로 읽어 아가리가 하늘을 본다. */
+        const ax9 = [gdx9, gdy9, gdz9] as const;
+        const t9v = Math.abs(ax9[2]) < 0.9 ? [0, 0, 1] as const : [1, 0, 0] as const;
+        const e1 = [ax9[1] * t9v[2] - ax9[2] * t9v[1], ax9[2] * t9v[0] - ax9[0] * t9v[2], ax9[0] * t9v[1] - ax9[1] * t9v[0]];
+        const l1 = Math.hypot(e1[0], e1[1], e1[2]) || 1;
+        const u9 = [e1[0] / l1, e1[1] / l1, e1[2] / l1];
+        const v9 = [ax9[1] * u9[2] - ax9[2] * u9[1], ax9[2] * u9[0] - ax9[0] * u9[2], ax9[0] * u9[1] - ax9[1] * u9[0]];
+        for (const [dd9, rr9] of [[rim9, 0.92], [hole9, 0.58]] as [string, number][]) {
+          meshPut9(dd9, [meshRing9(tipX9, tipY9, tipZ9, u9[0], u9[1], u9[2], v9[0], v9[1], v9[2], rr9, 12).flat()]);
+        }
+      }
       out.push(...tagKey([
-        [ell9(mx9, my9, 0.92, 0.92 * Math.cos(TILT9) + 0.24), 1, IVORY] as ShapeFace,
-        [ell9(mx9, my9, 0.58, 0.58 * Math.cos(TILT9) + 0.16), 1, "#2a1410"] as ShapeFace,
+        [rim9, 1, IVORY] as ShapeFace,
+        [hole9, 1, "#2a1410"] as ShapeFace,
       ], gk9 + 0.2));
     }
     /* 알 위를 넘어가는 큰 뿔 — 뒤에서 솟아 앞으로 감긴다(사진의 굽은 뿔).
@@ -10173,6 +10228,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 앞 반호는 sweep 0(왼→아래→오른), 되돌아오는 아래 반호는 sweep 1이다.
       const strip = `M${btx - BR} ${bty} A${BR} ${bry} 0 0 0 ${btx + BR} ${bty}`
         + ` L${bbx + BR} ${bby} A${BR} ${bry} 0 0 1 ${bbx - BR} ${bby} Z`;
+      if (MESH9.on) {
+        // 돔 **앞 반쪽**(모형 +y)의 두 높이(1.84·1.52) 사이를 잇는 띠다.
+        const q9: number[] = []; const NS9 = 16;
+        for (let i9 = 0; i9 <= NS9; i9 += 1) { const t9 = (i9 / NS9) * Math.PI; q9.push(...modelPoint9(2.2 - BR * Math.cos(t9), -0.6 + BR * Math.sin(t9), 1.84)); }
+        for (let i9 = NS9; i9 >= 0; i9 -= 1) { const t9 = (i9 / NS9) * Math.PI; q9.push(...modelPoint9(2.2 - BR * Math.cos(t9), -0.6 + BR * Math.sin(t9), 1.52)); }
+        meshPut9(strip, [q9]);
+      }
       return [[strip, 1] as ShapeFace, sideFace(strip, 0.16)];
     })(), depthNow(2.2, -0.6) + 3.05));
     // 큰 돔 꼭대기 청록 눈 — 테 두른 발광 원반.
@@ -16531,8 +16593,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const [y9, z9, r9] = at9(i);
         if (dx === 0 && dy === 0) {
           // 마디 몸 — 불투명 화면 원이라 되찾기가 **제 사영점에서 정확히** 구로 살린다(우회로 아님).
-          const [sx, sy] = project(0, y9, z9);
-          ps.push(screenCircle(sx, sy, r9 * k));
+          ps.push(orbPath3(0, y9, z9, r9 * k));
         } else {
           // 민 원(광택)은 **마디 표면의 갓**으로 적는다 — 화면 자로만 찍으면 이웃에서 높이를 빌린다.
           ps.push(shinePath3(0, y9, z9, r9, dx * r9, dy * r9, r9 * k));

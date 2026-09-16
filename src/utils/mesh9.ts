@@ -2,9 +2,9 @@
    빌더를 요잉 0·평면 시점으로 한 번 돌리고, 면마다 곁표(MESH9.byD)에 적힌 3D 폴리곤을 모아 **판 모형 공간 메시**를
    낸다. GPU 붓(WebGL)·자료 도구의 재료다. 음영 덧칠 면(#fff/#000 얕은 알파, 화면 곡선 그림자)은 GPU 조명이 대신하므로
    버린다. 임자색 면(fill 없음)은 fill "" 로 두어 붓이 임자색으로 바꿔 칠한다. */
-import { MESH9, PROJ9, EMIT_FILL9, unproject9, withTopView, withYaw, bake, zsorted, meshSphere9, meshLoft9, BILLBOARD9, RSEG9, type ShapeFace, type Poly3 } from "./shapeOblique";
-/* 빌보드 표식·원 조각 수는 **shapeOblique 가 든다** — 빌더가 제 손으로 빌보드를 놓을 수 있어야 하고
-   (billPath3), 그 표식을 여기서만 쥐면 되찾기만 빌보드를 만들 수 있게 된다. 쓰던 이름은 그대로 낸다. */
+import { MESH9, EMIT_FILL9, withTopView, withYaw, bake, zsorted, BILLBOARD9, type ShapeFace, type Poly3 } from "./shapeOblique";
+/* 빌보드 표식은 **shapeOblique 가 든다** — 빌더가 제 손으로 빌보드를 놓을 수 있어야 하고
+   (billPath3), 그 표식을 여기서만 쥐면 빌더가 빌보드를 못 놓는다. 쓰던 이름은 그대로 낸다. */
 export { BILLBOARD9 };
 
 /** 2D 굽기가 반투명 **색 있는** 면에 얹던 알파 보정 — bake9.shadeBoost 와 **같은 식이어야 한다**(여기서 베낀 까닭은
@@ -32,124 +32,22 @@ function areaK9(dOv: string, dBody?: string): number {
   return Math.min(1, box9(dOv) / b9);
 }
 
-/* ── 경로 문자열 → 3D 메시 되돌리기 ───────────────────────────────────────────────────────
-   헬퍼를 안 거치고 빌더가 project() 결과로 손수 짠 경로(번개·크립 얼룩·구 껍질 screenCircle·땅 원 groundEllipse·고리 annulus)는
-   곁표에 메시가 없다. 기록 중 project() 가 적어 둔 화면점→3D 표(PROJ9)로 꼭짓점을 되찾는다:
-   · M/L 다각형: 꼭짓점마다 표를 찾는다(하나라도 없으면 포기).
-   · Q/C 곡선: 끝점(과 제어점이 표에 있으면 그것도)으로 3D 이차곡선을 셋으로 편다.
-   · 원·타원 한 쌍의 호(a … a … Z): 중심을 찾아 반지름이 같으면 **구**(screenCircle), 다르면 땅 **원반**(groundEllipse); 원반 둘이
-     같은 중심이면 **고리**(annulusPath). 화면 반지름은 모형 자와 같다(사영에 배율이 없다 — 원근 f 만 무시). */
-const NUM = /[MLQCAZmlqcaz]|-?\d*\.?\d+(?:e-?\d+)?/g;
-const key2 = (x: number, y: number): string => `${Math.round(x * 100) / 100} ${Math.round(y * 100) / 100}`;
-const look = (x: number, y: number): number[] | undefined => {
-  const hit = PROJ9.get(key2(x, y)); if (hit) return hit;
-  // 중심·중점처럼 셈으로 지은 좌표는 반올림이 한 칸 어긋날 수 있다 — 이웃 여덟 칸도 본다
-  for (const dx of [-0.01, 0, 0.01]) for (const dy of [-0.01, 0, 0.01]) { if (!dx && !dy) continue; const h = PROJ9.get(key2(x + dx, y + dy)); if (h) return h; }
-  return undefined;
-};
-/* ★★ **높이를 빌리는 길은 걷었다**(2026-09, 요청: "우회로 없애고 … 승격하는 과정 없앨 수 있어?") ──────
-   여기 있던 `lookNear` 는 PROJ9 에 없는 화면점을 만나면 **가장 가까운 기록점의 z 를 빌려** 사영을
-   되짚었다. 빌더가 사영된 점에서 화면 자로 더해 만든 자리(파일런 보석·돔의 광·구의 광점)를 살리려던
-   손인데, 빌린 이웃이 딴 부품이면 그 위로 떠올랐다 — 오늘까지 그 병이 네 번 났다(파일런 청록 띠 ·
-   트리뷰널 돔의 광 · 탱크 옆 흰 구슬 · 셔틀 돔의 흰 무늬).
-   고칠 자리는 되찾기가 아니라 **그 헬퍼·빌더가 3D 를 적는 것**이었다. 그 자리를 다 닫고 나니
-   (`shinePath3` · `discPath3` · `domeFaces3` 의 광) 빌리는 낯이 **0** 이 되어, 길 자체를 걷는다.
-   이제 되찾기는 **기록된 점만** 쓴다 — 못 찾으면 그 면은 빠지고, 덮임 표(model-mesh)가 곧 잡는다.
-   ⚠ 새 장식을 화면 자로 짓지 마라. `model-mesh --check` 가 우회로 0 을 지킨다. */
-const lookNear = (x: number, y: number): number[] | undefined => look(x, y);
-interface Sub { pts: number[][]; miss: number; ell?: { cx: number; cy: number; rx: number; ry: number }; sweep?: number; arcs?: number; lineAfter?: boolean; ri?: number }
-/** 카메라를 보는 원반의 세로 축 — 평면 카메라(고각 40°)의 화면 위쪽을 모형 공간으로(−y·sinE, +z·cosE). */
-const BILL: [number, number] = [Math.sin((40 * Math.PI) / 180), Math.cos((40 * Math.PI) / 180)];
-/** 카메라를 보는 원반(빌보드)으로 되찾은 폴리곤 — GL 은 요잉을 안 돌리고 가운데만 돌린다(gl9 aBb). */
-/** glow: 발광 효과 종류 — 화면 원은 불투명해도 구가 아니라 원반이다(2D 가 겹쳐 칠한 동심원 그대로). */
-export function meshFromPath9(d: string, opaque = true, glow = false): Poly3[] | null {
-  const tk = d.match(NUM); if (!tk) return null;
-  /** (남겨 둔 자리) 되찾기는 이제 기록된 점만 쓰므로 어림 표식이 없다 — 그대로 낸다. */
-  const mark9 = (ps: Poly3[] | null): Poly3[] | null => ps;
-  const subs: Sub[] = [];
-  let cur: Sub | null = null; let cx = 0, cy = 0; let i = 0; let cmd = "";
-  const num = (): number => Number(tk[i++]);
-  // 되찾은 점은 넣고, 못 찾은 점은 센다(빌더가 중점·보간으로 지은 점) — 다각형은 되찾은 점이 셋 이상이고 절반 넘게 되찾혔을 때만 쓴다
-  /* ⚠ 꼭짓점은 **기록된 점만** 쓴다 — 가까운 점의 높이를 빌려(반지름 0.5 화면칸) 귀를 채워 보았더니
-     띠(bandPath)의 네 귀뿐 아니라 온갖 손 면이 엉뚱한 높이로 되살아나 52 종이 나빠졌다(gl-check 평균
-     0.179 → 0.193 · 실드 배터리 0.174 → 0.353 · 캐리어 0.138 → 0.275). 빌리는 길은 **중심 하나**(원·타원)
-     에만 둔다 — 그때는 이웃 부품이 아니라 제 부품의 높이를 물어 오기 때문이다. */
-  const put = (x: number, y: number): void => { if (!cur) return; const p = look(x, y); if (p) cur.pts.push(p); else cur.miss += 1; };
-  while (i < tk.length) {
-    const t = tk[i];
-    if (/^[MLQCAZmlqcaz]$/.test(t)) { cmd = t; i += 1; if (cmd === "Z" || cmd === "z") { cmd = ""; continue; } }
-    if (!cmd) { i += 1; continue; }
-    switch (cmd) {
-      case "M": { cx = num(); cy = num(); cur = { pts: [], miss: 0 }; subs.push(cur); put(cx, cy); cmd = "L"; break; }
-      case "L": { cx = num(); cy = num(); if (cur && cur.ell) cur.lineAfter = true; else put(cx, cy); break; }
-      case "Q": {
-        const qx = num(), qy = num(), x = num(), y = num();
-        const p0 = cur?.pts[cur.pts.length - 1]; const pc = look(qx, qy); const pe = look(x, y);
-        if (p0 && pc && pe && cur) { for (const u of [0.33, 0.66]) { const v = 1 - u; cur.pts.push([v * v * p0[0] + 2 * v * u * pc[0] + u * u * pe[0], v * v * p0[1] + 2 * v * u * pc[1] + u * u * pe[1], v * v * p0[2] + 2 * v * u * pc[2] + u * u * pe[2]]); } cur.pts.push(pe); }
-        else if (pe && cur) cur.pts.push(pe);
-        else if (pc && cur) cur.pts.push(pc);   // 끝점은 중점(안 되찾힘) · 제어점은 사영점 — 제어점으로 곡선을 어림한다
-        else if (cur) cur.miss += 1;
-        cx = x; cy = y; break;
-      }
-      case "C": { num(); num(); num(); num(); const x = num(), y = num(); put(x, y); cx = x; cy = y; break; }
-      case "A": case "a": {
-        const rx = num(), ry = num(); num(); num(); num(); let x = num(), y = num();
-        if (cmd === "a") { x += cx; y += cy; }
-        // 원·타원 껍질: 첫 호가 (중심−rx, y) → (중심+rx, y) 로 건너면 타원으로 기억한다(둘째 호는 닫힘)
-        if (cur && !cur.ell && cur.pts.length + cur.miss <= 1 && Math.abs(y - cy) < 0.011 && Math.abs(Math.abs(x - cx) - 2 * rx) < 0.02) { cur.ell = { cx: (cx + x) / 2, cy, rx, ry }; cur.sweep = Number(tk[i - 3]); cur.arcs = 1; }
-        else if (cur && cur.ell && cur.arcs === 1 && cur.lineAfter && Math.abs(y - cy) < 0.011 && Math.abs(Math.abs(x - cx) - 2 * rx) < 0.02) { cur.ri = rx; cur.arcs = 2; }   // 반고리(고리 앞·뒤 반쪽)
-        else if (cur && cur.ell) cur.arcs = (cur.arcs ?? 1) + 1;
-        else if (cur) cur.miss += 1;   // 낯선 호 — 이 조각은 못 되찾는다
-        cx = x; cy = y; break;
-      }
-      default: i += 1;
-    }
-  }
-  if (!subs.length) return null;
-  // 타원 갈래
-  if (subs.every((s9) => s9.ell)) {
-    const e0 = subs[0].ell!;
-    // 고리(annulusPath): 같은 중심의 타원 둘
-    if (subs.length === 2 && subs[1].ell && Math.abs(subs[1].ell.cx - e0.cx) < 0.02 && Math.abs(subs[1].ell.cy - e0.cy) < 0.02) {
-      const c3 = lookNear(e0.cx, e0.cy); if (!c3) return null;
-      const e1 = subs[1].ell; const ro = Math.max(e0.rx, e1.rx), ri = Math.min(e0.rx, e1.rx);
-      const ring = (r: number): number[][] => { const out: number[][] = []; for (let k = 0; k < RSEG9; k += 1) { const t = (k / RSEG9) * Math.PI * 2; out.push([c3[0] + Math.cos(t) * r, c3[1] + Math.sin(t) * r, c3[2]]); } return out; };
-      return meshLoft9([ring(ro), ring(ri)], false, false);
-    }
-    const out: Poly3[] = [];
-    for (const s9 of subs) {
-      const e = s9.ell!; const c3 = lookNear(e.cx, e.cy); if (!c3) continue;
-      if (s9.ri !== undefined) {
-        // 반고리 — 바깥 호와 안 호 사이. sweep 1 이면 화면 위쪽(먼 쪽 = 모형 −y) 반, 0 이면 앞쪽 반
-        const far = s9.sweep === 1; const ro = e.rx, ri = s9.ri;
-        const half = (r: number): number[][] => { const o: number[][] = []; for (let k9 = 0; k9 <= RSEG9 / 2; k9 += 1) { const t = (k9 / (RSEG9 / 2)) * Math.PI; o.push([c3[0] + Math.cos(t) * r, c3[1] + (far ? -1 : 1) * Math.sin(t) * r, c3[2]]); } return o; };
-        const A = half(ro), B = half(ri);
-        for (let k9 = 0; k9 < RSEG9 / 2; k9 += 1) out.push([...A[k9], ...A[k9 + 1], ...B[k9 + 1], ...B[k9]]);
-        continue;
-      }
-      if (s9.lineAfter || (s9.arcs ?? 0) > 2) continue;   // 타원 꼴이 아닌 것(호 + 직선 섞임)
-      const sph = Math.abs(e.rx - e.ry) < 0.02 * e.rx;
-      if (sph) {
-        if (opaque && !glow) out.push(...meshSphere9(c3[0], c3[1], c3[2], e.rx));
-        else {
-          // 반투명 화면 원(빛무리·구 껍질 광택)·발광 종류의 화면 원 — 구가 아니라 카메라를 보는 원반(빌보드)으로 둔다
-          const disc: number[] = []; for (let k = 0; k < RSEG9; k += 1) { const t = (k / RSEG9) * Math.PI * 2; disc.push(c3[0] + Math.cos(t) * e.rx, c3[1] - Math.sin(t) * e.rx * BILL[0], c3[2] + Math.sin(t) * e.rx * BILL[1]); }
-          BILLBOARD9.add(disc);
-          out.push(disc);
-        }
-      } else {
-        const disc: number[] = []; for (let k = 0; k < RSEG9; k += 1) { const t = (k / RSEG9) * Math.PI * 2; disc.push(c3[0] + Math.cos(t) * e.rx, c3[1] + Math.sin(t) * e.rx, c3[2]); }
-        out.push(disc);
-      }
-    }
-    return mark9(out.length ? out : null);
-  }
-  const out: Poly3[] = [];
-  for (const s9 of subs) { if (s9.ell || s9.pts.length < 3 || s9.pts.length * 2 < s9.pts.length + s9.miss) continue; out.push(s9.pts.flat()); }
-  return mark9(out.length ? out : null);
-}
-/** meshSphere9 는 mp3(모델 변환)를 거친 링을 낸다 — 여기 점은 이미 모형 공간이라 되돌린 것을 그대로 쓰려면 변환이 항등이어야 한다.
- *  기록은 빌더 밖(withYaw 0, 모델 변환 없음)에서 끝난 뒤 하므로(collectMesh9) 항등이다. */
+/* ── (걷어냄) 경로 문자열 → 3D 메시 되돌리기 ─────────────────────────────────────────
+   ★★ **승격하는 과정을 없앴다**(2026-09, 요청: "우회로 없애고 설계도도 짓는 것도 3D 로 통일해서
+   승격하는 과정 없앨 수 있어?" → "게이트로 검사하는 것과 … 2D 로 시작할 이유가 없어 보이는데").
+   여기 있던 `meshFromPath9` 는 빌더가 **화면 자로 손수 짠 경로**(구 껍질 screenCircle · 땅 원
+   groundEllipse · 고리 annulus · 얼룩 · 초승달)를 글자로 도로 읽어 3D 를 지어 내는 자였다. 곧
+   '2D 로 짓고 3D 로 승격한 뒤 다시 2D 로 사영하는' 세 걸음의 가운데였다.
+   그 길이 왜 위험했나: 되찾기는 **경로만** 본다. 반지름 둘이 2% 넘게 다르면 공을 땅에 누운
+   판때기로 읽었고(사이언스 베슬의 몸통이 그랬다), 관이 적어 둔 빈 표를 만나면 엉뚱한 낯을
+   구로 되살렸고, 한때는 이웃의 높이를 빌려 장식을 딴 부품 위에 띄웠다.
+   고칠 자리는 늘 **그 헬퍼·빌더가 3D 를 적는 것**이었다 — 786면에서 시작해 셋으로 나눠 옮겼다:
+   프리미티브(cylinderFaces3 의 뚜껑 한 줄이 195면) · 새 3D 헬퍼(discPath3·annulusPath3·orbPath3·
+   billPath3·shinePath3·shellMesh9) · 빌더의 손 면(파일런 링·포지 띠·크립 얼룩·스포어 아가리).
+   **0 이 된 날 이 함수와 PROJ9·unproject9 를 다 지웠다.**
+   이제 규약은 하나다: **면을 내는 자가 3D 를 함께 적는다**(`meshPut9`). 안 적으면 그 면은
+   되살아나지 못하고 **그냥 빠지고**, 덮임 표(`node scripts/model-mesh.mjs --check`)가 곧 잡는다.
+   어느 줄이 안 적었는지는 `node scripts/miss-sites.mjs` 가 짚어 준다. */
 
 /** 부품 — ow/ob 는 그 면 위에 얹혀 있던 음영 덧칠(흰·검 얕은 알파, 같은 경로의 topFace/sideFace/faceLight)을 접은 몫(0~1). */
 export interface MeshPart9 { polys: Poly3[]; fill: string; alpha: number; team: boolean; lod: number; ow: number; ob: number; /** 빌보드 원반 부품(카메라를 본다) */ bb?: boolean;
@@ -160,8 +58,7 @@ export interface MeshPart9 { polys: Poly3[]; fill: string; alpha: number; team: 
   /** **빛을 내는 부품**인가 — 붓의 번짐(블룸)이 이 부품만 한 번 더 그려 흐린다(켠 창·플라즈마·발광 효과). */
   emit?: boolean }
 export interface Mesh9 { parts: MeshPart9[]; faces: number; covered: number; skipped: number;
-  /** 손수 짠 경로를 되찾기로 살린 면 수 — 우회로의 크기다(0 이 목표). */ recovered?: number;
-  /** 그 낯들의 경로 — 어느 줄이 우회로인지 짚는 실마리(scripts/recov-sites.mjs 가 이것으로 빌더 줄을 찾는다). */ recovPaths?: string[];
+  /** 빠진 낯들의 경로 — 어느 줄이 3D 를 안 적었는지 짚는 실마리(scripts/miss-sites.mjs 가 이것으로 빌더 줄을 찾는다). */ missPaths: string[];
   /** 헬퍼가 **일부러 비워 둔** 면 수 — rodFaces 는 관 하나를 첫 낯에 몰아 적고 나머지 낯(둘째 끝·몸통)에는
    *  빈 표를 적는다. 그 낯은 빠진 것이 아니라 이미 딴 낯이 낸 것이라, 덮임 셈의 분모에서 뺀다. */
   blank: number;
@@ -270,7 +167,7 @@ export const isOverlay9 = (f: ShapeFace): boolean => {
 /** glow: 발광 효과(아콘·워프인·폭풍·핵) — 반투명 흰·검 면이 음영 덧칠이 아니라 **그 자체가 몸**(빛무리·구 껍질)이다.
  *  같은 경로에 몸이 있을 때만 접고, 나머지는 반투명 부품으로 남긴다(보통 종류에서는 비쳐 보이게 만드는 바로 그 규칙). */
 export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeFace[]) => ShapeFace[], glow = false): Mesh9 {
-  MESH9.on = true; MESH9.byD.clear(); PROJ9.clear();
+  MESH9.on = true; MESH9.byD.clear();
   let faces: ShapeFace[];
   try { faces = withTopView(() => bake(() => withYaw(0, builder))); }
   finally { MESH9.on = false; }
@@ -279,15 +176,7 @@ export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeF
   const parts: MeshPart9[] = [];
   const byD = new Map<string, number>();    // 경로 → 그 경로로 마지막에 난 부품(덧칠을 접을 첫째 자리)
   const byPid = new Map<number, number>();  // 부품 번호(ShapeFace[5]) → 그 부품의 마지막 몸 면(둘째 자리)
-  let covered = 0; let skipped = 0; let blank = 0; const missed: string[] = [];
-  /** **되찾기로 살린 면** — 곁표에 3D 가 없어 경로에서 꼭짓점을 되짚은 낯이다(meshFromPath9).
-   *  ⚠ 빌린 높이는 이제 없다(lookNear 의 ★ — 기록된 점만 쓴다). 곧 되찾기는 **정확**하지만,
-   *  그래도 **헬퍼를 안 거친 경로**라는 표식이다: 프리미티브가 벽을 이어 붙인 합친 몸 경로가 대부분이고
-   *  나머지는 빌더가 손으로 짠 자리다. model-mesh --check 가 기준선보다 늘면 실패시켜 **새 우회로**를 막고,
-   *  줄면 `--emit` 으로 기준선을 내린다(깊이 검사와 같은 규약). */
-  let recovered = 0;
-  /** 그 되찾은 낯들의 경로(앞 40개) — `model-mesh --dump` 가 찍어 어느 줄이 우회로인지 짚게 한다. */
-  const recovPaths: string[] = [];
+  let covered = 0; let skipped = 0; let blank = 0; const missed: string[] = []; const missPaths: string[] = [];
   /** 부품마다의 **뭉치 번호**(tagKey 의 pid) — 아래에서 같은 뭉치를 모아 닫힌 입체인가를 잰다. */
   const pidAt: (number | undefined)[] = [];
   /** 이 면의 3D 폴리 찾기 — 곁표(헬퍼가 적어 둔 것) → 손수 짠 경로 되찾기 → 여러 조각 이어 붙인 경로.
@@ -296,34 +185,18 @@ export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeF
     const had9 = MESH9.byD.get(f[0]);
     /* ★ **빈 표는 '못 적었다'가 아니라 '적을 것이 없다'는 말이다**(2026-09, 지적: "탱크 오른쪽 좀
        떨어진 곳에 구슬이 있어 뭐지") — 관·막대 헬퍼는 제 메시를 **첫 낯 하나에 몰아** 적고 나머지
-       낯에는 빈 표(`meshPut9(d, [])`)를 적어 '이건 딴 낯이 낸다'고 표시한다. 그런데 여기서 빈 표를
-       `없음`과 똑같이 봐서, 그 낯들이 **손수 짠 경로 되찾기**로 넘어갔다. 되찾기는 경로만 보므로
-       tubeFaces 의 **반대쪽 끝 원반**(원 경로)을 화면 원으로 읽어 **구**로 되살렸고, 그 구의 높이는
-       가장 가까운 기록점에서 **빌린 값**이라 엉뚱한 자리에 떴다 — 시즈 차체 기동륜의 뒤쪽 끝 원반이
-       모델 밖 y −7.4 에 지름 1 짜리 흰 구슬로 떠 있었다.
-       곧 갈라야 하는 것은 셋이다: **없음**(되찾기) · **빈 표**(딴 낯이 낸다 — 그냥 둔다) · **있음**. */
+       낯에는 빈 표(`meshPut9(d, [])`)를 적어 '이건 딴 낯이 낸다'고 표시한다. 그것을 `없음` 과
+       똑같이 보면 안 된다: 한때 그 낯들이 되찾기로 넘어가 엉뚱한 구슬로 되살아났다(시즈 차체
+       기동륜의 뒤쪽 끝 원반이 모델 밖 y −7.4 에 떠 있었다). 되찾기를 걷은 지금도 규약은 같다 —
+       **빈 표는 그냥 둔다**(딴 낯이 낸다), **없음**은 빠진 면이다.
+       ⚠ 이제 없음을 메워 주는 자가 없다 — 면을 내는 자가 `meshPut9` 를 안 적었다는 뜻이고,
+         덮임 표(`model-mesh --check`)가 잡는다. 어느 줄인지는 `scripts/miss-sites.mjs`. */
     let polys = had9;
-    if (glow && had9?.length !== 0) {
-      // 발광 종류: 헬퍼가 구로 적어 둔 화면 원(screenCircle)도 카메라를 보는 원반으로 — 2D 는 동심원을 겹쳐 칠했다
-      const disc = meshFromPath9(f[0], false, true);
-      if (disc && disc.length === 1 && BILLBOARD9.has(disc[0])) polys = disc;
-    }
-    /* ★ **이어 붙인 경로는 되찾기보다 먼저 푼다**(2026-09) — 조각마다 곁표에 제 3D 가 있으면
-       그것이 정확하고, 되찾기는 빌린 높이가 섞일 수 있는 마지막 수단이다. 차례가 뒤집혀 있어
-       조각이 다 기록돼 있는데도 통째로 되찾기로 넘어가던 자리다(라바의 눈 둘). */
-    if (had9 === undefined && (!polys || !polys.length) && f[0].indexOf("Z M") > 0) {
-      // 다각형 여럿을 이어 붙인 면(폴리 경로 둘 이상) — 조각마다 찾아 합친다.
+    /* 여러 조각을 이어 붙인 경로(라바의 마디 사슬 따위)는 조각마다 곁표에 제 3D 가 있다 — 나눠 찾아 합친다. */
+    if (had9 === undefined && f[0].indexOf("Z M") > 0) {
       const acc: Poly3[] = [];
       for (const piece of f[0].split(/(?<=Z) (?=M)/)) { const q = MESH9.byD.get(piece); if (q) acc.push(...q); }
       if (acc.length) polys = acc;
-    }
-    if (had9 === undefined && (!polys || !polys.length)) {
-      const back = meshFromPath9(f[0], f[1] >= 0.98, glow);
-      if (back && back.length) {
-        polys = back; MESH9.byD.set(f[0], back);
-        recovered += 1;
-        recovPaths.push(f[0]);
-      }
     }
     return polys && polys.length ? polys : undefined;
   };
@@ -427,7 +300,7 @@ export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeF
          (rodFaces: 첫 끝 낯에 관 하나). 그것을 '되찾기 실패'로 세면 덮임 표가 거짓으로 낮아지고 ⚠ 목록이
          쓸모를 잃는다(실측: 배럭 16 면 중 12 개가 이것이었다). */
       if (MESH9.byD.get(f[0])?.length === 0) blank += 1;
-      else if (missed.length < 12) missed.push(`${f[2] ?? "(임자)"} a=${f[1]} ${f[0].slice(0, 110)}`);
+      else { missPaths.push(f[0]); if (missed.length < 12) missed.push(`${f[2] ?? "(임자)"} a=${f[1]} ${f[0].slice(0, 110)}`); }
       continue;
     }
     covered += 1;
@@ -468,5 +341,5 @@ export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeF
     }
   }
   MESH9.byD.clear();
-  return { parts, faces: faces.length, covered, skipped, blank, recovered, recovPaths, missed };
+  return { parts, faces: faces.length, covered, skipped, blank, missed, missPaths };
 }

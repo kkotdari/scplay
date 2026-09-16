@@ -760,9 +760,7 @@ export function project(x0: number, y0: number, z0: number): [number, number] {
      소실 기울기(ry 항)는 지도와 맞물린 값이라 그대로 두고, 높이에 실리는 밀림만 반으로. */
   const rx2 = rx + ry * groundSquashNow() * viewShear
     + (pitchView ? z * VIEW_LEAN_K * viewShear : 0);
-  const X = r2(VIEW.originX + rx2 * f); const Y = r2(originYNow() + ry2 * groundSquashNow() - z * zScaleNow());
-  if (MESH9.on) PROJ9.set(`${X} ${Y}`, [mx, my, z]);
-  return [X, Y];
+  return [r2(VIEW.originX + rx2 * f), r2(originYNow() + ry2 * groundSquashNow() - z * zScaleNow())];
 }
 
 /* ── 메시 층(2026-09) ─────────────────────────────────────────────────────────────
@@ -779,18 +777,9 @@ export type Poly3 = number[];
  *  스스로 적는다: bake9 의 `winLit`·`glowLit` 이 불이 켜질 때 제 색을 여기 넣는다(늘 빛인 플라즈마는 미리 적어 둔다). */
 export const EMIT_FILL9 = new Set<string>(["#e4f6ff"]);
 export const MESH9 = { on: false, byD: new Map<string, Poly3[]>() };
-/** 메시 기록 중 project() 가 낸 화면점 → 판 모형 공간 점. 빌더가 project() 결과로 손수 짠 경로 문자열(번개·얼룩·구 껍질)을
- *  거꾸로 3D 로 되돌리는 열쇠다(mesh9.meshFromPath9). 열쇠는 경로에 찍히는 꼴 그대로 `${x} ${y}`(r2 반올림). */
-export const PROJ9 = new Map<string, number[]>();
-/** ★ **화면점 → 모형점 되짚기**(메시 기록 중에만 뜻이 있다) — project() 의 식을 z 를 알 때 그대로 되돌린다.
- *  손으로 셈한 화면 좌표(사영된 점에서 화면 자로 더한 자리 — 파일런 보석·아둔 링의 청록 띠 따위)에 얹은 원·타원은
- *  PROJ9 에 기록이 없어 메시가 빠졌다. 그런 자리는 **가까운 기록점의 높이(z)를 빌려** 이 함수로 x·y 를 되찾는다.
- *  기록은 요잉 0·평면·밀림 0 으로 돌므로(collectMesh9) 식이 짧다: Y → ry, 원근 배수 → rx. */
-export function unproject9(X: number, Y: number, z: number): [number, number, number] {
-  const ry = (Y - originYNow() + z * zScaleNow()) / groundSquashNow();
-  const f = MODEL_PERSP / (MODEL_PERSP - Math.max(-10, Math.min(10, ry)));
-  return [(X - VIEW.originX) / f, ry, z];
-}
+/* (걷어냄) 화면점 → 모형점 표(`PROJ9`)와 그 되짚기(`unproject9`) — '화면 자로 그린 경로를
+   3D 로 승격시키는' 길의 재료였다. 면을 내는 자가 제 3D 를 함께 적게 되어(mesh9 머리의 ★★)
+   쓸 자리가 없어졌다. project() 가 점마다 표에 적던 몫도 함께 사라진다. */
 export function meshOn9(on: boolean): void { MESH9.on = on; if (!on) MESH9.byD.clear(); }
 /** 면의 3D 폴리곤을 곁표에 적는다(열쇠 = 경로 문자열).
  *  ⚠ **빈 표는 이미 있는 기하를 못 지운다** — 빈 표는 '이 낯의 기하는 딴 낯이 낸다'는 표식이지 '없다'가 아니다.
@@ -1392,6 +1381,16 @@ export function domeFaces3(
       shp9.push(...mp3(x9, y9, z0 + hh * Math.sqrt(Math.max(0, 1 - t9 * t9))));
     }
     meshPut9(shine, [shp9]);
+    /* 아랫배 그늘도 **돔 겉면 위의 조각**으로 적는다(광과 같은 손) — 화면 자로만 두면
+       되찾기가 경로를 거꾸로 읽어야 한다. 빛 반대쪽인 오른·앞 사분면의 띠다. */
+    const shd9: number[] = []; const SN9 = 8;
+    const on9 = (a9: number, k9: number): void => {
+      const x9 = cx + Math.cos(a9) * r * k9; const y9 = cy + Math.sin(a9) * r * k9;
+      shd9.push(...mp3(x9, y9, z0 + hh * Math.sqrt(Math.max(0, 1 - k9 * k9))));
+    };
+    for (let i9 = 0; i9 <= SN9; i9 += 1) on9((i9 / SN9) * (Math.PI / 2), 0.98);
+    for (let i9 = SN9; i9 >= 0; i9 -= 1) on9((i9 / SN9) * (Math.PI / 2), 0.5);
+    meshPut9(shade, [shd9]);
   }
   return tagKey(
     [bodyFace(body), sideFace(shade, OP.sideSoft), topFace(shine)],
@@ -1463,6 +1462,39 @@ export const screenCircle = (cx: number, cy: number, r: number): string =>
 /** 화면 반구 — 구의 **위 절반**. 구(sphereFaces3)와 같은 자를 쓴다: 중심만 투영하고
  *  반지름은 화면 원이라 어느 요잉에서도 안 찌그러진다. 잘린 밑면은 카메라가 내려다보는
  *  만큼(납작비) 아래로 부푼 타원 호로 닫아, 판판한 뚜껑이 아니라 둥근 밑으로 읽힌다. */
+/** 구 껍질 위의 점 — **화면 자로 그린 무늬**(초승달 명암·눈·아가리)를 그 공 위에 얹는다.
+ *  (dx, dy) 는 구 중심의 사영점에서 잰 **화면 옮김**(dy 는 아래가 +)이고, 낸 점은
+ *  **카메라 쪽 껍질** 위다. 화면 축을 모형 축으로 되돌리는 자는 카메라 한 쌍뿐이다:
+ *  화면 위 = (0, −납작비, 높이배수) · 카메라 쪽 = (0, 높이배수, 납작비)(둘은 직교한다).
+ *  ⚠ 원근 배수(f)는 안 태운다 — 무늬는 중심 둘레 한 뼘이라 그 안에서 f 는 상수다. */
+export function sphereSurf9(
+  cx: number, cy: number, cz: number, r: number, dx: number, dy: number,
+): [number, number, number] {
+  const sq = groundSquashNow(); const zk = zScaleNow();
+  const n = Math.hypot(sq, zk) || 1;
+  const uy = -sq / n; const uz = zk / n;      // 화면 위
+  const ny = zk / n; const nz = sq / n;       // 카메라 쪽
+  const u = r > 0 ? dx / r : 0; const v = r > 0 ? -dy / r : 0;
+  const w = Math.sqrt(Math.max(0, 1 - Math.min(1, u * u + v * v)));
+  return [cx + u * r, cy + (v * uy + w * ny) * r, cz + (v * uz + w * nz) * r];
+}
+/** 그 점들로 만든 껍질 조각 — `meshPut9` 에 그대로 넣는다. */
+export function shellMesh9(
+  cx: number, cy: number, cz: number, r: number, off: readonly (readonly [number, number])[],
+): Poly3[] {
+  const poly: number[] = [];
+  for (const [dx, dy] of off) poly.push(...mp3(...sphereSurf9(cx, cy, cz, r, dx, dy)));
+  return [poly];
+}
+/** 두 호 사이의 초승달(화면 자) → 껍질 조각. ryA·ryB 는 화면 세로 부푼 몫(부호가 방향이다). */
+function crescentShell9(
+  cx: number, cy: number, cz: number, r: number, ryA: number, ryB: number, n = 12,
+): Poly3[] {
+  const off: [number, number][] = [];
+  for (let i = 0; i <= n; i += 1) { const t = (i / n) * Math.PI; off.push([-r * Math.cos(t), ryA * Math.sin(t)]); }
+  for (let i = n; i >= 0; i -= 1) { const t = (i / n) * Math.PI; off.push([-r * Math.cos(t), ryB * Math.sin(t)]); }
+  return shellMesh9(cx, cy, cz, r, off);
+}
 export function halfSphereFaces3(
   cx: number, cy: number, cz: number, r: number, fill?: string,
 ): ShapeFace[] {
@@ -1480,7 +1512,13 @@ export function halfSphereFaces3(
     + `A${r2(r)} ${r2(ry * 0.42)} 0 0 0 ${r2(sx + r)} ${r2(sy)}Z`;
   const gloss = `M${r2(sx - r)} ${r2(sy)}A${r2(r)} ${r2(r)} 0 0 1 ${r2(sx + r)} ${r2(sy)}`
     + `A${r2(r)} ${r2(r * 0.78)} 0 0 0 ${r2(sx - r)} ${r2(sy)}Z`;
-  if (MESH9.on) meshPut9(d, meshDome9(cx, cy, cz, r, r));
+  if (MESH9.on) {
+    meshPut9(d, meshDome9(cx, cy, cz, r, r));
+    /* 초승달 둘도 **껍질 위에** 적는다 — 화면 자로만 두면 되찾기가 경로를 거꾸로 읽어야 하고,
+       그러면 rx ≠ ry 인 이 꼴은 공이 아니라 땅에 누운 조각으로 읽힌다. */
+    meshPut9(shade, crescentShell9(cx, cy, cz, r, ry, ry * 0.42));
+    meshPut9(gloss, crescentShell9(cx, cy, cz, r, -r, -r * 0.78));
+  }
   return tagKey([body, sideFace(shade, OP.sideSoft), topFace(gloss, OP.topSoft)],
     depthNow(cx, cy) + r);
 }
@@ -1659,6 +1697,17 @@ export function hornFaces(
     if (ul < 1e-3) { ux9 = 1; uy9 = 0; uz9 = 0; } else { ux9 /= ul; uy9 /= ul; }
     const vx9 = ay9 * uz9 - az9 * uy9; const vy9 = az9 * ux9 - ax9 * uz9; const vz9 = ax9 * uy9 - ay9 * ux9;
     meshPut9(body, meshLoft9([meshRing9(bx, by, z0, ux9, uy9, uz9, vx9, vy9, vz9, w / 2, 6), meshRing9(tx, ty, zt, ux9, uy9, uz9, vx9, vy9, vz9, w * 0.02, 6)], true, false));
+    /* 옆 그늘도 **뿔 겉면 위의 가는 조각**으로 적는다 — 화면 자로만 두면 되찾기가 경로를
+       거꾸로 읽어야 하고, 꼭짓점이 셋뿐이라 엉뚱한 판으로 살아난다. 2D 가 화면 법선
+       (nx, ny)으로 잰 폭은 3D 에서 축에 직각인 u 축의 w/2 다. */
+    const hw9 = w / 2;
+    const sd9: number[] = [
+      ...mp3(tx, ty, zt),
+      ...mp3((bx + tx) / 2 - ux9 * hw9 * 0.5, (by + ty) / 2 - uy9 * hw9 * 0.5, (z0 + zt) / 2 - uz9 * hw9 * 0.5),
+      ...mp3(bx - ux9 * hw9, by - uy9 * hw9, z0 - uz9 * hw9),
+      ...mp3(bx - ux9 * hw9 * 0.2, by - uy9 * hw9 * 0.2, z0 - uz9 * hw9 * 0.2),
+    ];
+    meshPut9(shade, [sd9]);
   }
   return tagKey(
     [bodyFace(body), sideFace(shade, OP.sideSoft)],

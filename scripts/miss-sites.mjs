@@ -1,8 +1,9 @@
 #!/usr/bin/env node
-/* 우회로(되찾기로 살린 면)가 **어느 빌더 줄**에서 났는지 짚는다.
-   shapeOblique 의 화면 자 헬퍼(groundEllipse·screenCircle)가 SITE9 에 제 호출 줄을 적게 켠 뒤
-   collectMesh9 이 낸 recovPaths 를 그 표에 물어, 줄마다 몇 면인지 센다.
-   쓰기: node scripts/recov-sites.mjs [--kinds a,b] [--top 60] */
+/* **3D 를 안 적은 면**이 어느 빌더 줄에서 났는지 짚는다(model-mesh --check 가 덮임 < 100% 로 잡는 그것).
+   shapeOblique 의 화면 자 헬퍼(groundEllipse·screenCircle·annulusPath)가 SITE9 에 제 호출 줄을 적게 켠 뒤
+   collectMesh9 이 낸 missPaths 를 그 표에 물어, 줄마다 몇 면인지 센다.
+   ★ 화면 자 헬퍼를 안 쓴 손 경로는 `??` 로 나온다 — 그때는 경로 숫자로 bake9 를 뒤진다.
+   쓰기: node scripts/miss-sites.mjs [--kinds a,b] [--top 60] */
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -24,7 +25,7 @@ export function run(only) {
     const b = SHAPE_BUILDERS[kind]; if (!b) continue;
     poseSet9(0); headYawSet(0);
     let m; try { m = collectMesh9(b); } catch { continue; }
-    for (const d of m.recovPaths ?? []) out.push([kind, SITE9.byD.get(d) ?? "?? " + d.slice(0, 60)]);
+    for (const d of m.missPaths ?? []) out.push([kind, SITE9.byD.get(d) ?? "?? " + d.slice(0, 60)]);
   }
   poseSet9(0);
   return out;
@@ -47,4 +48,4 @@ const list = [...byLine.entries()].sort((a, b) => b[1].n - a[1].n);
 for (const [line, e] of list.slice(0, TOP)) {
   console.log(`${String(e.n).padStart(4)}면  ${line}   ${[...e.kinds].slice(0, 6).join(",")}${e.kinds.size > 6 ? ` +${e.kinds.size - 6}` : ""}`);
 }
-console.log(`— 우회로 ${rows.length}면 · 줄 ${byLine.size}곳${list.length > TOP ? ` (앞 ${TOP}줄만)` : ""}`);
+console.log(`— 빠진 면 ${rows.length} · 줄 ${byLine.size}곳${list.length > TOP ? ` (앞 ${TOP}줄만)` : ""}`);
