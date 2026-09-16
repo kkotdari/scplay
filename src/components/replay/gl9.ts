@@ -57,6 +57,8 @@ uniform vec3 uTeam; uniform vec3 uLight; uniform float uAlpha; uniform float uDe
 uniform vec4 uGloss;
 /** 빛과 시선의 **반각**(H) — 둘 다 유니폼이라 프레임에 한 번 내면 된다(정점마다 normalize 하던 것을 걷었다). */
 uniform vec3 uHalf;
+/** 결(긁힌 광택) 세기 — 종류(종족)·화면 배율·손잡이를 **CPU 에서 다 접어** 보낸다. 0 이면 화소가 그 식을 아예 안 돈다. */
+uniform float uGrain;
 uniform vec4 uShade; uniform float uDy; uniform vec2 uLean;
 /* 바닥 그림자 — (빛의 화면 기울기 x, y, 켬). 켜면 꼭짓점을 **빛 방향으로 밀어 z 를 0 으로** 눌러, 몸의 실루엣이
    바닥에 눕는다(2D 의 흐린 판 그림자가 하던 몫을 기하로 낸다 — 높은 부품일수록 멀리 눕는다). */
@@ -70,6 +72,10 @@ uniform float uFlat;  // 효과(발광): 1 이면 음영·실루엣 빛·방향�
 uniform float uDbg;   // 진단 #glshade=0..2(0 덧칠 없음 · 1 덧칠 · 2 +실루엣 빛)
 uniform vec4 uGrad;   // 실루엣 빛(silhouetteLight): 화면 빛 방향 (x,y) · 모델 상자 반지름 R · 상자 가운데의 앵커 기준 세로 몫
 varying vec4 vCol;
+/** 광택 몫(윤기 + 봉우리, 제 색 물듦까지 먹인 값)을 **따로** 넘긴다 — 결이 곱해질 자리가 여기다. */
+varying vec3 vSpec;
+/** 결의 **줄 눈금** — 낯의 수평 접선에 내린 모형 좌표. 자리의 **1차 함수**라 삼각형 안에서 보간이 정확하다. */
+varying float vGs;
 void main() {
   /* aBb 한 칸에 표식 셋이 비트로 들었다: **1 빛**(번짐이 문다) · **2 닫힌 입체**(등진 낯을 걷는다) · **4 빌보드 원반**(카메라를 본다). */
   float bits = floor(aBb * 255.0 + 0.5);
@@ -146,6 +152,17 @@ void main() {
      ⓑ 봉우리(spec): 블린-퐁. 프로토스 금에서 가장 날카롭고 세다. */
   /* 끌 때는 **정말로 안 돈다** — uGloss 는 유니폼이라 이 가지는 한 그리기 안에서 한쪽으로만 간다
      (셰이더가 갈라지지 않는다). 그래야 기기 표(DEV9.glSpec)·#glspec=0 이 삯을 진짜로 던다. */
+  vSpec = vec3(0.0);
+  /* ★ **결의 줄 눈금**(2026-09, 요청: 셰이더 절차적 결) ──────────────────────────────────────────
+     결은 **낯의 성질**이다: 빛이 바뀌어도 요잉이 돌아도 자국은 그 자리에 있어야 한다. 그래서 눈금은
+     요잉을 먹인 n·자리가 아니라 **모형 좌표**(aNrm·aPos)로 잰다.
+     줄이 서는 쪽은 **세계의 수직**이다(옛 규약 그대로 — 이 사영에서 세계의 z 는 화면 x 에 한 톨도 안
+     실리므로 화면 세로가 곧 세계 수직이다). 그러려면 줄을 **가로지르는** 자는 낯의 수평 접선
+     h = (−ny, nx, 0) 이고 눈금은 s = P·h 다. 지붕처럼 낯이 누우면 h 가 사라지므로 모형 x 로 물러난다.
+     s 는 자리의 1차 함수라 정점에 실어 보간해도 **정확하다**(화소마다 다시 잴 몫이 없다). */
+  float hl = length(aNrm.xy);
+  vec2 gh = hl > 0.08 ? vec2(-aNrm.y, aNrm.x) / hl : vec2(1.0, 0.0);
+  vGs = aPos.x * gh.x + aPos.y * gh.y;
   if (uGloss.y > 0.0 || uGloss.w > 0.0) {
   float ndl = max(dot(n, uLight), 0.0);
   /* ⚠ 넓은 윤기는 **어두운 바탕에서 가장 크게 튄다** — 더하는 값이라 검은 낯에서는 그 몫이 곧 배수다
@@ -160,13 +177,34 @@ void main() {
   float t2 = (1.0 - max(dot(n, uHalf), 0.0)) * uGloss.x;
   float sp = uGloss.y / (1.0 + t2 * t2);
   vec3 tintS = mix(vec3(1.0), base, uGloss.z);
-  col += mix((sp + sheen) * tintS, vec3(0.0), uFlat);
+  vSpec = mix((sp + sheen) * tintS, vec3(0.0), uFlat);
   }
-  vCol = uShade.a > 0.0 ? vec4(uShade.rgb, uShade.a * aAlpha) : vec4(col, aAlpha * uAlpha);
+  if (uShade.a > 0.0) { vSpec = vec3(0.0); vCol = vec4(uShade.rgb, uShade.a * aAlpha); }
+  else vCol = vec4(col, aAlpha * uAlpha);
 }`;
 const FS = `
-precision mediump float; varying vec4 vCol;
-void main() { gl_FragColor = vec4(vCol.rgb * vCol.a, vCol.a); }   // 미리곱한 알파 — WebGL 캔버스(premultipliedAlpha)와 합성이 맞아야 반투명(빛무리)이 안 어두워진다`;
+precision mediump float;
+varying vec4 vCol; varying vec3 vSpec; varying float vGs;
+uniform float uGrain;
+void main() {
+  vec3 c = vCol.rgb + vSpec;
+  /* ★ **결(긁힌 광택)** — 낯을 가로지르는 눈금(vGs)에 굵기가 다른 사인 셋을 겹쳐 '가늘게 많이, 몇 줄만
+     굵게'를 낸다(옛 BRUSH9 이 줄을 수십 개 긋던 그 결이다. 규칙 없는 해시는 낮은 배율에서 지글거린다).
+     주파수는 **모형 칸당**이다. 배율 z 8 언저리에서 모형 한 칸이 10~20화소이므로(k = 상자px/16 × 정규화)
+     27 ≒ 3화소 간격 · 63 ≒ 1.4화소다 — 처음에 9·21·47 로 뒀더니 8화소 띠가 되어 **골판지**로 읽혔다(실측).
+     거기에 아주 느린 사인(3.7)으로 **세기를 묶어** 굵은 무리와 가는 무리를 낸다 — 굵기가 고르면 줄무늬 천이다.
+     결은 **광택을 깎고 돋운다**(×1.2) — 긁힌 자국은 빛이 튀는 자리가 갈리는 것이지 물감이 바뀌는 게
+     아니다. 몸에는 아주 옅게만(×0.06) 얹어 빛을 등진 낯에도 자국이 남게 한다(옛 규약: 결은 낯 전체에
+     있고 광택 띠는 그중 어디가 환한가만 정한다).
+     ⚠ 값은 **화소마다**다 — 그래서 CPU 가 uGrain 에 화면 배율 페이드를 접어 보내고(작으면 0),
+       0 이면 이 가지를 통째로 건너뛴다. 유니폼 가지라 한 그리기 안에서 갈라지지 않는다. */
+  if (uGrain > 0.0) {
+    float a = 0.55 + 0.45 * sin(vGs * 3.7 + 0.6);
+    float g = (sin(vGs * 27.0) * 0.55 + sin(vGs * 63.0 + 1.9) * 0.45) * a;
+    c = vCol.rgb * (1.0 + uGrain * 0.035 * g) + vSpec * (1.0 + uGrain * g);
+  }
+  gl_FragColor = vec4(c * vCol.a, vCol.a);   // 미리곱한 알파 — WebGL 캔버스(premultipliedAlpha)와 합성이 맞아야 반투명(빛무리)이 안 어두워진다
+}`;
 
 const hexRgb = (s: string): [number, number, number] => {
   const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(s.trim());
@@ -190,14 +228,17 @@ export const GL_GLOW_KINDS9 = new Set(["warpin", "storm", "nukeblast", "nukeclou
      · 저그  — 젖은 살점·키틴. **넓고 무른 윤기**다(지수 7) — 날카롭게 주면 벌레가 금속이 된다.
      · 그 밖(자원·지형·중립) — 아주 옅게.
    값은 눈으로 고른다. 효과(uFlat)·번짐 판(uEmit 은 uFlat 을 함께 세운다)에는 안 탄다. */
-type Gloss9 = readonly [number, number, number, number];
-const GLOSS_TERRAN9: Gloss9 = [23, 0.32, 0.50, 0.04];
-const GLOSS_TOSS9: Gloss9 = [32, 0.40, 0.70, 0.05];
+/** [날카로움 · 봉우리 · 제 색에 물드는 몫 · 윤기 · **결(긁힌 광택)**] */
+type Gloss9 = readonly [number, number, number, number, number];
+/* 결은 **테란이 제일 세다**(옛 규약: 긁힌 강철은 테란의 결이다). 프로토스 금은 닦은 면이라 옅게,
+   저그 살점·그 밖은 안 긁는다. */
+const GLOSS_TERRAN9: Gloss9 = [23, 0.32, 0.50, 0.04, 0.85];
+const GLOSS_TOSS9: Gloss9 = [32, 0.40, 0.70, 0.05, 0.35];
 /* ⚠ 저그를 처음에 [7.2, 0.28] 로 뒀더니 **알·고치가 허옇게 떴다**(눈으로 확인 · 밝기비 lurkeregg 1.17 → 1.40).
    날카로움 7 은 봉우리가 아니라 **또 하나의 환경광**이다 — 젖은 살은 '넓게 밝은' 것이 아니라 '한 자리가 번들거리는' 것이다.
    그래서 봉우리를 좁히고(14) 세기를 내렸다. 그래도 테란·토스보다는 두 배 넓다. */
-const GLOSS_ZERG9: Gloss9 = [14, 0.18, 0.15, 0.05];
-const GLOSS_NONE9: Gloss9 = [17, 0.10, 0.30, 0.02];
+const GLOSS_ZERG9: Gloss9 = [14, 0.18, 0.15, 0.05, 0];
+const GLOSS_NONE9: Gloss9 = [17, 0.10, 0.30, 0.02, 0.15];
 const GLOSS_BY_KIND9 = new Map<string, Gloss9>();
 const glossOf9 = (kind: string): Gloss9 => {
   if (GLOSS_BY_KIND9.size === 0) {
@@ -347,7 +388,7 @@ export class GlUnits9 {
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error("링크: " + gl.getProgramInfoLog(p));
     this.prog = p;
     this.stat.depthBits = Number(gl.getParameter(gl.DEPTH_BITS)) || 0;
-    for (const u of ["uAnchor", "uScale", "uYaw", "uCanvas", "uCam", "uTeam", "uLight", "uAlpha", "uDepth0", "uDepthK", "uPersp", "uShade", "uDy", "uLean", "uGrad", "uDbg", "uFlat", "uShadow", "uShZ", "uEmit", "uGloss", "uHalf"]) this.loc[u] = gl.getUniformLocation(p, u);
+    for (const u of ["uAnchor", "uScale", "uYaw", "uCanvas", "uCam", "uTeam", "uLight", "uAlpha", "uDepth0", "uDepthK", "uPersp", "uShade", "uDy", "uLean", "uGrad", "uDbg", "uFlat", "uShadow", "uShZ", "uEmit", "uGloss", "uHalf", "uGrain"]) this.loc[u] = gl.getUniformLocation(p, u);
     for (const a of ["aPos", "aNrm", "aRgb", "aTeam", "aAlpha", "aOv", "aOrd", "aBb"]) this.att[a] = gl.getAttribLocation(p, a);
     /* 번짐 프로그램·사각 — 한 번만 짓는다(실패하면 번짐만 끈다). */
     try {
@@ -643,6 +684,12 @@ export class GlUnits9 {
     let camNow: GlCam9 | null = null;
     const place = (it: GlInst9): void => {
       const th = (it.yawDeg * Math.PI) / 180;
+      /* ★ 결은 **가까이서만** 켠다 — 줄 간격이 화소보다 촘촘해지면 결이 아니라 지글거림이다(WebGL1 은
+         화소 미분(dFdx)이 없어 셰이더가 스스로 못 줄인다). 개체의 화면 배율(it.k = 모형 한 칸의 화소)로
+         6 아래는 끄고 14 위는 다 켠다 — 낮은 배율에서는 유니폼이 0 이라 그 식이 **돌지도 않는다**.
+         (가장 가는 결이 63 주파수라 k 14 에서 1.4화소다 — 그 아래로 내리면 물결무늬가 진다.) */
+      const gk = Math.max(0, Math.min(1, (it.k - 6) / 8));
+      gl.uniform1f(this.loc.uGrain, gk > 0 && GL_SHADE9 >= 1 ? it.mesh.gloss[4] * gk * GL_GRAIN9 : 0);
       gl.uniform2f(this.loc.uAnchor, it.ax, it.ay);
       gl.uniform3f(this.loc.uScale, it.k, it.k, it.yoff);
       gl.uniform2f(this.loc.uYaw, Math.cos(th), Math.sin(th));
@@ -797,6 +844,12 @@ export const GL_WARM9 = !(typeof location !== "undefined" && /glwarm=0/.test(loc
 /** 광택 세기 손잡이 — `#glspec=0` 끔 · `#glspec=1` 기본 · 사이 값으로 눌러 본다(표 값에 곱한다). */
 export const GL_SPEC9 = ((): number => {
   const m = typeof location !== "undefined" ? /glspec=([\d.]+)/.exec(location.hash) : null;
+  const v = m ? Number(m[1]) : 1;
+  return Number.isFinite(v) ? Math.max(0, Math.min(4, v)) : 1;
+})();
+/** 결 세기 손잡이 — `#glgrain=0` 끔 · `#glgrain=1` 기본 · 사이/위 값으로 눌러 본다(표 값에 곱한다). */
+export const GL_GRAIN9 = ((): number => {
+  const m = typeof location !== "undefined" ? /glgrain=([\d.]+)/.exec(location.hash) : null;
   const v = m ? Number(m[1]) : 1;
   return Number.isFinite(v) ? Math.max(0, Math.min(4, v)) : 1;
 })();
