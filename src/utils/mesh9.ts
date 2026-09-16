@@ -45,29 +45,16 @@ const look = (x: number, y: number): number[] | undefined => {
   for (const dx of [-0.01, 0, 0.01]) for (const dy of [-0.01, 0, 0.01]) { if (!dx && !dy) continue; const h = PROJ9.get(key2(x + dx, y + dy)); if (h) return h; }
   return undefined;
 };
-/** ★ 기록에 없는 화면점 — **가까운 기록점의 높이를 빌려** 사영을 되짚는다(unproject9) ─────────────────
- *  빌더가 사영된 점에서 **화면 자로** 더해 만든 자리(아둔 링의 청록 띠 여섯·파일런 보석 따위)는 PROJ9 에 없어
- *  그 면이 통째로 빠졌다(실측: 아둔 51면 중 6면). 그런 장식은 어느 부품 옆에 붙은 것이므로, 화면에서 가장 가까운
- *  기록점과 **같은 높이**로 보는 것이 옳다 — 그 z 로 x·y 를 되짚으면 자리가 맞는다.
- *  너무 먼 기록점은 안 빌린다(모형 두 칸) — 엉뚱한 높이를 빌리면 장식이 공중에 뜬다. */
-const NEAR_Z9 = 2;
-/** ★ 되찾은 폴리곤 가운데 **높이를 빌려** 지은 것 — 자리가 어림이다(lookNear 의 두 번째 길).
- *  빌더가 화면 자로 더해 만든 중심(project 표에 없는 점)은 z 를 모르니 가장 가까운 기록점의 z 를 빌린다.
- *  그렇게 지은 데칼은 몸에 접거나 버린다(제 부품으로 남기면 엉뚱한 자리에 뜬다 — 셔틀 돔의 흰 무늬). */
-export const GUESSED9 = new WeakSet<Poly3>();
-let borrowed9 = false;
-const lookNear = (x: number, y: number, maxD = NEAR_Z9): number[] | undefined => {
-  const hit = look(x, y); if (hit) return hit;
-  borrowed9 = true;
-  let bd = Infinity; let bz: number | undefined;
-  for (const [k, v] of PROJ9) {
-    const sp = k.indexOf(" ");
-    const d = Math.hypot(+k.slice(0, sp) - x, +k.slice(sp + 1) - y);
-    if (d < bd) { bd = d; bz = v[2]; }
-  }
-  if (bz === undefined || bd > maxD) return undefined;
-  return unproject9(x, y, bz);
-};
+/* ★★ **높이를 빌리는 길은 걷었다**(2026-09, 요청: "우회로 없애고 … 승격하는 과정 없앨 수 있어?") ──────
+   여기 있던 `lookNear` 는 PROJ9 에 없는 화면점을 만나면 **가장 가까운 기록점의 z 를 빌려** 사영을
+   되짚었다. 빌더가 사영된 점에서 화면 자로 더해 만든 자리(파일런 보석·돔의 광·구의 광점)를 살리려던
+   손인데, 빌린 이웃이 딴 부품이면 그 위로 떠올랐다 — 오늘까지 그 병이 네 번 났다(파일런 청록 띠 ·
+   트리뷰널 돔의 광 · 탱크 옆 흰 구슬 · 셔틀 돔의 흰 무늬).
+   고칠 자리는 되찾기가 아니라 **그 헬퍼·빌더가 3D 를 적는 것**이었다. 그 자리를 다 닫고 나니
+   (`shinePath3` · `discPath3` · `domeFaces3` 의 광) 빌리는 낯이 **0** 이 되어, 길 자체를 걷는다.
+   이제 되찾기는 **기록된 점만** 쓴다 — 못 찾으면 그 면은 빠지고, 덮임 표(model-mesh)가 곧 잡는다.
+   ⚠ 새 장식을 화면 자로 짓지 마라. `model-mesh --check` 가 우회로 0 을 지킨다. */
+const lookNear = (x: number, y: number): number[] | undefined => look(x, y);
 interface Sub { pts: number[][]; miss: number; ell?: { cx: number; cy: number; rx: number; ry: number }; sweep?: number; arcs?: number; lineAfter?: boolean; ri?: number }
 /** 카메라를 보는 원반의 세로 축 — 평면 카메라(고각 40°)의 화면 위쪽을 모형 공간으로(−y·sinE, +z·cosE). */
 const BILL: [number, number] = [Math.sin((40 * Math.PI) / 180), Math.cos((40 * Math.PI) / 180)];
@@ -76,12 +63,8 @@ export const BILLBOARD9 = new WeakSet<Poly3>();
 /** glow: 발광 효과 종류 — 화면 원은 불투명해도 구가 아니라 원반이다(2D 가 겹쳐 칠한 동심원 그대로). */
 export function meshFromPath9(d: string, opaque = true, glow = false): Poly3[] | null {
   const tk = d.match(NUM); if (!tk) return null;
-  borrowed9 = false;
-  /** 낼 때 어림 표식을 붙인다 — 높이를 빌린 자리가 하나라도 있으면 그 폴리곤들은 어림이다. */
-  const mark9 = (ps: Poly3[] | null): Poly3[] | null => {
-    if (ps && borrowed9) for (const q9 of ps) GUESSED9.add(q9);
-    return ps;
-  };
+  /** (남겨 둔 자리) 되찾기는 이제 기록된 점만 쓰므로 어림 표식이 없다 — 그대로 낸다. */
+  const mark9 = (ps: Poly3[] | null): Poly3[] | null => ps;
   const subs: Sub[] = [];
   let cur: Sub | null = null; let cx = 0, cy = 0; let i = 0; let cmd = "";
   const num = (): number => Number(tk[i++]);
@@ -176,6 +159,8 @@ export interface MeshPart9 { polys: Poly3[]; fill: string; alpha: number; team: 
   /** **빛을 내는 부품**인가 — 붓의 번짐(블룸)이 이 부품만 한 번 더 그려 흐린다(켠 창·플라즈마·발광 효과). */
   emit?: boolean }
 export interface Mesh9 { parts: MeshPart9[]; faces: number; covered: number; skipped: number;
+  /** 손수 짠 경로를 되찾기로 살린 면 수 — 우회로의 크기다(0 이 목표). */ recovered?: number;
+  /** 그 낯들의 경로(앞 40개) — 어느 줄이 우회로인지 짚는 실마리. */ recovPaths?: string[];
   /** 헬퍼가 **일부러 비워 둔** 면 수 — rodFaces 는 관 하나를 첫 낯에 몰아 적고 나머지 낯(둘째 끝·몸통)에는
    *  빈 표를 적는다. 그 낯은 빠진 것이 아니라 이미 딴 낯이 낸 것이라, 덮임 셈의 분모에서 뺀다. */
   blank: number;
@@ -294,6 +279,14 @@ export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeF
   const byD = new Map<string, number>();    // 경로 → 그 경로로 마지막에 난 부품(덧칠을 접을 첫째 자리)
   const byPid = new Map<number, number>();  // 부품 번호(ShapeFace[5]) → 그 부품의 마지막 몸 면(둘째 자리)
   let covered = 0; let skipped = 0; let blank = 0; const missed: string[] = [];
+  /** **되찾기로 살린 면** — 곁표에 3D 가 없어 경로에서 꼭짓점을 되짚은 낯이다(meshFromPath9).
+   *  ⚠ 빌린 높이는 이제 없다(lookNear 의 ★ — 기록된 점만 쓴다). 곧 되찾기는 **정확**하지만,
+   *  그래도 **헬퍼를 안 거친 경로**라는 표식이다: 프리미티브가 벽을 이어 붙인 합친 몸 경로가 대부분이고
+   *  나머지는 빌더가 손으로 짠 자리다. model-mesh --check 가 기준선보다 늘면 실패시켜 **새 우회로**를 막고,
+   *  줄면 `--emit` 으로 기준선을 내린다(깊이 검사와 같은 규약). */
+  let recovered = 0;
+  /** 그 되찾은 낯들의 경로(앞 40개) — `model-mesh --dump` 가 찍어 어느 줄이 우회로인지 짚게 한다. */
+  const recovPaths: string[] = [];
   /** 부품마다의 **뭉치 번호**(tagKey 의 pid) — 아래에서 같은 뭉치를 모아 닫힌 입체인가를 잰다. */
   const pidAt: (number | undefined)[] = [];
   /** 이 면의 3D 폴리 찾기 — 곁표(헬퍼가 적어 둔 것) → 손수 짠 경로 되찾기 → 여러 조각 이어 붙인 경로.
@@ -314,12 +307,22 @@ export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeF
       const disc = meshFromPath9(f[0], false, true);
       if (disc && disc.length === 1 && BILLBOARD9.has(disc[0])) polys = disc;
     }
-    if (had9 === undefined && (!polys || !polys.length)) { const back = meshFromPath9(f[0], f[1] >= 0.98, glow); if (back && back.length) { polys = back; MESH9.byD.set(f[0], back); } }
+    /* ★ **이어 붙인 경로는 되찾기보다 먼저 푼다**(2026-09) — 조각마다 곁표에 제 3D 가 있으면
+       그것이 정확하고, 되찾기는 빌린 높이가 섞일 수 있는 마지막 수단이다. 차례가 뒤집혀 있어
+       조각이 다 기록돼 있는데도 통째로 되찾기로 넘어가던 자리다(라바의 눈 둘). */
     if (had9 === undefined && (!polys || !polys.length) && f[0].indexOf("Z M") > 0) {
       // 다각형 여럿을 이어 붙인 면(폴리 경로 둘 이상) — 조각마다 찾아 합친다.
       const acc: Poly3[] = [];
       for (const piece of f[0].split(/(?<=Z) (?=M)/)) { const q = MESH9.byD.get(piece); if (q) acc.push(...q); }
       if (acc.length) polys = acc;
+    }
+    if (had9 === undefined && (!polys || !polys.length)) {
+      const back = meshFromPath9(f[0], f[1] >= 0.98, glow);
+      if (back && back.length) {
+        polys = back; MESH9.byD.set(f[0], back);
+        recovered += 1;
+        if (recovPaths.length < 40) recovPaths.push(f[0]);
+      }
     }
     return polys && polys.length ? polys : undefined;
   };
@@ -396,7 +399,7 @@ export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeF
            것은 따로 할 일이고, 여기서는 **절대 크기**만 묻는다. */
       const small9 = !!polys && polys.length === 1 && diag9(polys) < 2.8;
       if (!(has9 && polys
-        && (at === undefined ? inBody9(polys) && !polys.some((q9) => GUESSED9.has(q9)) : same9 === undefined && small9))) {
+        && (at === undefined ? inBody9(polys) : same9 === undefined && small9))) {
         if (at !== undefined) {
           const pt = parts[at];
           const a = shadeBoost9(f[1], f[2]) * k9;
@@ -464,5 +467,5 @@ export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeF
     }
   }
   MESH9.byD.clear();
-  return { parts, faces: faces.length, covered, skipped, blank, missed };
+  return { parts, faces: faces.length, covered, skipped, blank, recovered, recovPaths, missed };
 }

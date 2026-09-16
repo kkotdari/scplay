@@ -4,13 +4,14 @@
    node scripts/model-mesh.mjs [--kinds a,b] [--pose 0] [--svg out.svg --rots 0,45,90,180 --cell 160]
    덮임이 낮은 종류는 곡선 도형이 아직 메시를 안 적는 자리다 — shapeOblique 의 헬퍼에 meshPut9 를 더한다. */
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, rmSync, existsSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const argv = process.argv.slice(2);
 const flag = (n, d = null) => { const i = argv.indexOf(n); return i < 0 ? d : (argv[i + 1] ?? true); };
+const has = (n) => argv.includes(n);
 const ONLY = flag("--kinds", null) ? String(flag("--kinds")).split(",") : null;
 const POSE = Number(flag("--pose", 0));
 const SVG = flag("--svg", null);
@@ -52,10 +53,48 @@ for (const [kind, m] of Object.entries(res)) {
 rows.sort((a, b) => a[0] - b[0]);
 console.log(rows.map((r) => r[1]).join("\n"));
 console.log(`— ${rows.length}종 · 덮임 ${totC}/${totF} (${Math.round(100 * totC / Math.max(1, totF))}%) · ${Date.now() - t0}ms`);
+
+/* ★ **우회로 관문**(2026-09, 요청: "우회로 없애고 … 승격하는 과정 없앨 수 있어?") ─────────
+   헬퍼를 안 거치고 **손으로 짠 경로**(화면 자 원·타원)는 3D 기록이 없어, 메시가 가장 가까운
+   기록점의 **높이를 빌려** 되짚는다. 빌린 높이는 틀릴 수 있다(파일런 청록 띠·돔의 광·탱크 옆
+   구슬이 다 그 자리였다). 곧 이 수는 **0 이 되어야 하는 값**이다.
+   한 번에 0 으로 못 만드니 `model-mesh-baseline.json` 에 종류별로 적어 두고 `--check` 가
+   **늘면 실패**시킨다 — 새 우회로가 못 들어오고, 고칠 때마다 기준선이 내려간다(--emit 으로 갱신).
+   깊이 검사(model-depth-check)가 쓰는 그 규약 그대로다. */
+const BASE_F = join(ROOT, "scripts/model-mesh-baseline.json");
+const recovOf = (m) => m.recovered ?? 0;
+if (has("--emit")) {
+  const tbl = {};
+  for (const [kind, m] of Object.entries(res)) if (recovOf(m) > 0) tbl[kind] = recovOf(m);
+  writeFileSync(BASE_F, JSON.stringify(tbl, null, 0).replace(/,"/g, ',\n "').replace(/^\{/, "{\n ").replace(/\}$/, "\n}") + "\n");
+  console.log(`기준선 ${Object.keys(tbl).length}종 · 되찾기 ${Object.values(tbl).reduce((a, v) => a + v, 0)}면 → ${BASE_F}`);
+}
+if (has("--check")) {
+  const base = existsSync(BASE_F) ? JSON.parse(readFileSync(BASE_F, "utf8")) : {};
+  const bad = [];
+  let tot = 0;
+  for (const [kind, m] of Object.entries(res)) {
+    const r = recovOf(m); tot += r;
+    const b = base[kind] ?? 0;
+    if (r > b) bad.push(`${kind} 되찾기 ${r} > 기준 ${b}`);
+  }
+  const gone = ONLY ? [] : Object.keys(base).filter((k) => !(k in res) ? false : (recovOf(res[k]) < base[k]));
+  /* ★ **덮임 100% 가 첫 관문**이다 — 높이를 빌리는 길을 걷은 뒤로(mesh9 lookNear) 기록 안 된 점을 쓰는
+     손 경로는 **되살아나지 못하고 그냥 빠진다**. 그러니 덮임이 100% 아래로 내려가면 곧 새 우회로다. */
+  if (totC < totF) {
+    console.error(`✗ 덮임 ${totC}/${totF} — 되살아나지 못한 낯이 있다(손으로 짠 경로일 것: --dump 의 ⚠ 빠진 면).`);
+    process.exit(1);
+  }
+  console.log(`— 우회로(손수 짠 경로 되찾기) ${tot}면 · 기준 ${Object.values(base).reduce((a, v) => a + v, 0)}면`);
+  if (gone.length) console.log(`  ↓ 줄어든 종류 ${gone.length} — \`--emit\` 으로 기준선을 내려라: ${gone.slice(0, 8).join(" ")}`);
+  if (bad.length) { console.error("✗ 새 우회로:\n  " + bad.join("\n  ")); process.exit(1); }
+  console.log("✔ 새 우회로 없음");
+}
 if (DUMP) {
   for (const [kind, m] of Object.entries(res)) {
     console.log(`\n== ${kind} 면 ${m.faces} · 몸 부품 ${m.parts.length} · 덧칠로 접힘 ${m.skipped} · 딴 낯이 냄 ${m.blank ?? 0} · 되찾기 실패 ${m.faces - m.skipped - (m.blank ?? 0) - m.covered}`);
     for (const d of m.missed ?? []) console.log(`  ⚠ 빠진 면 ${d}`);
+    for (const d of m.recovPaths ?? []) console.log(`  ↩ 우회로(되찾기) ${d.slice(0, 110)}`);
     m.parts.forEach((p, i) => {
       let z0 = Infinity, z1 = -Infinity, n = 0;
       for (const poly of p.polys) for (let k = 2; k < poly.length; k += 3) { z0 = Math.min(z0, poly[k]); z1 = Math.max(z1, poly[k]); n += 1; }

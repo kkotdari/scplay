@@ -1425,6 +1425,27 @@ export function quarterSphereFaces3(
 /** 공(구) 한 덩이 — 중심만 투영하고 반지름은 화면 원이다. 몸 + 좌상 광택 + 우하 그늘.
  *  광택·그늘은 몸 안쪽에 물려 두어(중심 오프셋 + 반지름 < 1) 어떤 크기에서도 실루엣
  *  밖으로 삐치지 않는다. 세계 광원과 같은 방향(좌상)이라 다른 부품과 결이 맞는다. */
+/** 구 표면에 얹힌 **작은 갓** — 화면 자로 그린 광점에 제 3D 를 적어 준다.
+ *  ★ 안 적으면 되찾기가 **가장 가까운 기록점에서 높이를 빌린다**(2026-09, 요청: "우회로 없애고
+ *  … 승격하는 과정 없앨 수 있어?") — 그 이웃이 딴 부품이면 광점이 엉뚱한 자리에 뜬다(돔의 광이
+ *  기둥 꼭대기에 붙었던 그 자리). 갓은 방향 u 쪽 표면에 앉고 고리는 그 자리의 접평면 위에 눕는다. */
+function shineRing9(
+  d: string, cx: number, cy: number, cz: number, r: number,
+  ux: number, uy: number, uz: number, rr: number,
+): void {
+  const l0 = Math.hypot(ux, uy, uz);
+  // 민 몫이 0 이면(가운데에 그대로 얹는 광점) 위쪽 표면에 앉힌다.
+  const l = l0 || 1;
+  const nx = l0 ? ux / l : 0; const ny = l0 ? uy / l : 0; const nz = l0 ? uz / l : 1;
+  // 접평면의 두 축 — n 과 안 나란한 아무 벡터에서 뽑는다.
+  const t0: [number, number, number] = Math.abs(nz) < 0.9 ? [0, 0, 1] : [1, 0, 0];
+  const e1x = ny * t0[2] - nz * t0[1]; const e1y = nz * t0[0] - nx * t0[2]; const e1z = nx * t0[1] - ny * t0[0];
+  const e1l = Math.hypot(e1x, e1y, e1z) || 1;
+  const ax = e1x / e1l; const ay = e1y / e1l; const az = e1z / e1l;
+  const bx = ny * az - nz * ay; const by = nz * ax - nx * az; const bz = nx * ay - ny * ax;
+  meshPut9(d, [meshRing9(cx + nx * r * 0.92, cy + ny * r * 0.92, cz + nz * r * 0.92,
+    ax, ay, az, bx, by, bz, rr, 12).flat()]);
+}
 export function sphereFaces3(
   cx: number, cy: number, cz: number, r: number, fill?: string,
 ): ShapeFace[] {
@@ -1433,11 +1454,33 @@ export function sphereFaces3(
     ? [screenCircle(sx, sy, r), 1, fill]
     : bodyFace(screenCircle(sx, sy, r));
   if (MESH9.on) meshPut9(body[0], meshSphere9(cx, cy, cz, r));
+  /* 광점 둘도 **제 3D 를 적는다** — 화면에서 오른아래(그늘)·왼위(빛)로 밀린 자리가 곧 표면의
+     그 방향이다(화면 위 = 모형에서 뒤·높은 쪽). 대개는 덧칠로 몸에 접히지만, 발광 종류에서는
+     접지 않고 제 부품으로 남으므로 그때 이 기하가 쓰인다. */
   return tagKey([
     body,
-    sideFace(screenCircle(sx + r * 0.28, sy + r * 0.24, r * 0.68), OP.sideSoft),
-    topFace(screenCircle(sx - r * 0.34, sy - r * 0.34, r * 0.3)),
+    sideFace(shinePath3(cx, cy, cz, r, r * 0.28, r * 0.24, r * 0.68), OP.sideSoft),
+    topFace(shinePath3(cx, cy, cz, r, -r * 0.34, -r * 0.34, r * 0.3)),
   ], depthNow(cx, cy) + r);
+}
+/** ★ **몸 위의 광점 한 장** — 투영된 가운데에서 화면으로 (ox, oy) 만큼 민 자리에 원(또는 눌린
+ *  타원)을 그리고, **3D 는 그 몸 표면의 갓으로 적는다**(2026-09, 요청: "우회로 없애고 … 승격하는
+ *  과정 없앨 수 있어?").
+ *  ⚠ 화면 자로만 찍으면 3D 기록이 없어 되찾기가 **이웃에서 높이를 빌린다** — 그 이웃이 딴 부품이면
+ *  광점이 허공에 뜬다(돔의 광이 기둥 꼭대기에 붙었던 그 자리). 빌더가 손으로 `screenCircle(sx + dx,
+ *  sy + dy, …)` 를 쓰던 자리를 이 헬퍼 하나로 닫는다.
+ *  방향 셈: 화면 오른쪽 = 모형 +x · 화면 아래 = 모형 앞(+y)이자 낮은 쪽(−z). 광점은 음영이라
+ *  방향이 조금 어긋나도 눈에 안 띈다 — 중요한 것은 **이웃에서 안 빌리는 것**이다. */
+export function shinePath3(
+  cx: number, cy: number, cz: number, r: number,
+  ox: number, oy: number, rr: number, ry?: number,
+): string {
+  const [sx, sy] = project(cx, cy, cz);
+  const d = ry === undefined
+    ? screenCircle(sx + ox, sy + oy, rr)
+    : groundEllipse(sx + ox, sy + oy, rr, ry);
+  if (MESH9.on) shineRing9(d, cx, cy, cz, r, ox, oy, -oy, rr);
+  return d;
 }
 
 /** 눕힌 원통(관) — 평면 두 점 사이를 반지름 r로 잇는다. 몸통 + (보이는 쪽) 끝 단면.

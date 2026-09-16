@@ -7,7 +7,7 @@ import { cx } from "./cx";
 import { TIER_GEN9 } from "./tierTable.gen";
 import { kT } from "../../utils/openbwTracks";
 import {
-  POLY2, MESH9, EMIT_FILL9, meshPut9, meshLoft9, meshRing9, loftZFaces, modelPoint9, annulusPath, bandPath, bodyFace, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, boxOctFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
+  POLY2, MESH9, EMIT_FILL9, meshPut9, shinePath3, meshLoft9, meshRing9, loftZFaces, modelPoint9, annulusPath, bandPath, bodyFace, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, boxOctFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
 import { BUILD_STAGES, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, SPIN_STEPS, bldNormOf, modelInkOf, modelNormOf } from "./engine9";
 import { type UnitDrawOp } from "./engine9";
 /** 주소 해시(`#pitch=`·`#nocreep` 같은 진단 스위치) — 굽기 일꾼 안에서는 location.hash가 빈 문자열(blob 주소)이라,
@@ -8642,9 +8642,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 앞면 아가리 — 알 앞위에 뚫린 어두운 구멍. 앞이 보일 때만 그린다. */
     if (facingRatio(0, 1) > 0.25) {
       const [ax9, ay9] = project(EGG_X, EGG_Y + eggR(0.42) * 0.94, 0.92 + 2.48 * 0.42);
+      /* 속살 원은 **몸 표면의 갓**으로 적는다(shinePath3) — 화면 자로만 찍으면 되찾기가
+         이웃에서 높이를 빌려 아가리가 알 밖에 뜬다. */
       out.push(...tagKey([
         [screenCircle(ax9, ay9, 0.78), 1, "#3a1d16"] as ShapeFace,
-        capFace(screenCircle(ax9, ay9 + 0.06, 0.52), 0.55),
+        capFace(shinePath3(EGG_X, EGG_Y + eggR(0.42) * 0.94, 0.92 + 2.48 * 0.42, 0.78, 0, 0.06, 0.52), 0.55),
       ], depthNow(EGG_X, EGG_Y + EGG_R) * 1.6 + 10));
     }
     /* ★ 가운데 **생체 포신**(요청: "스포어 가운데 생체 포신(대각선 위를 향한 구멍)체 하나 추가") ──────────────
@@ -9923,19 +9925,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      자체를 변경") — 그리는 쪽에서 돌리지 않고 **모델의 기본 자세**를 바꾼다(withModelSpin). 그래야 잉크 상자·
      정규화·부품 등급표·총구 앵커가 모두 그 자세로 다시 재어지고, 도록·미니맵·붓이 한 자세를 쓴다. */
   armory: () => withModelSpin(-45, () => {
+    /* ★ 화면 자 타원을 **모형 자 원반**으로(2026-09, 요청: "우회로 없애고 … 승격하는 과정 없앨 수
+       있어?") — `groundEllipse(...project(x, y, z), …)` 는 3D 기록이 없어 메시가 이웃에서 높이를
+       빌린다. `discPath3` 는 같은 그림을 그리면서 제 3D 를 적는다(눌림은 groundSquashNow 가 건다). */
     const rim = (ang: number): ShapeFace => {
       const a = (ang * Math.PI) / 180;
-      const [px2, py2] = project(Math.sin(a) * 2.1, Math.cos(a) * 2.1, 2.4);
-      return topFace(groundEllipse(px2, py2, 0.3, 0.2), 0.4);
+      return topFace(discPath3(Math.sin(a) * 2.1, Math.cos(a) * 2.1, 2.4, 0.3), 0.4);
     };
-    const post = (px2: number, py2: number, h: number): ShapeFace[] => {
-      const [gx2, gy2] = project(px2, py2, h + 0.48);
-      return [
-        ...cylinderFaces3(px2, py2, 0.75, h),
-        ...domeFaces3(px2, py2, 0.75, 0.4, h),
-        topFace(groundEllipse(gx2, gy2, 0.32, 0.22), 0.45),
-      ];
-    };
+    const post = (px2: number, py2: number, h: number): ShapeFace[] => [
+      ...cylinderFaces3(px2, py2, 0.75, h),
+      ...domeFaces3(px2, py2, 0.75, 0.4, h),
+      topFace(discPath3(px2, py2, h + 0.48, 0.32), 0.45),
+    ];
     return raceBase([
       // 기둥은 셋(지적) — 뒤 첨탑 둘 + 앞 첨탑 하나.
       ...boxFaces3(-3.2, -2.2, 1.4, 1.4, 4.32),
@@ -11983,7 +11984,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ...domeFaces3(-0.75, 1.15, 0.95, 0.64, GS_TOP - 0.16),
       ...domeFaces3(0.85, 1.15, 0.95, 0.64, GS_TOP - 0.16),
       ...domeFaces3(0, -0.65, 0.95, 0.64, GS_TOP - 0.16),
-      capFace(groundEllipse(cx2, cy2 - 0.1, 0.75, 0.45), 0.5),
+      capFace(shinePath3(0, 0.4, GS_TOP + 0.56, 0.75, 0, -0.1, 0.75, 0.45), 0.5),
     ];
     out.push(...tagKey(maw, 24));
     return out;
@@ -14190,7 +14191,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       [groundEllipse(bx, by, 1.73, 1.65), 1, TERRAN_STEEL_D] as ShapeFace,
       sideFace(`M${bx + 0.67} ${by - 1.47} A1.66 1.6 0 0 1 ${bx + 0.67} ${by + 1.47}`
         + ` A2.43 2.37 0 0 0 ${bx + 0.67} ${by - 1.47} Z`, 0.16),
-      topFace(groundEllipse(bx - 0.58, by - 0.64, 0.77, 0.64), 0.28),
+      topFace(shinePath3(0, 0, 5.12, 1.73, -0.58, -0.64, 0.77, 0.64), 0.28),
     ], 0));
     /* 껍질 방패 셋(90·210·330도) — 은색 잎꼴 판이 구를 옆에서 감싼다.
        **기둥 둘 맞붙이기**로 다시 짠다(요청: "사이언스 베슬의 구를 감싸는 방패도
@@ -16537,8 +16538,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       for (let i = 0; i < N; i += 1) {
         if (!pick(i)) continue;
         const [y9, z9, r9] = at9(i);
-        const [sx, sy] = project(0, y9, z9);
-        ps.push(screenCircle(sx + dx * r9, sy + dy * r9, r9 * k));
+        if (dx === 0 && dy === 0) {
+          // 마디 몸 — 불투명 화면 원이라 되찾기가 **제 사영점에서 정확히** 구로 살린다(우회로 아님).
+          const [sx, sy] = project(0, y9, z9);
+          ps.push(screenCircle(sx, sy, r9 * k));
+        } else {
+          // 민 원(광택)은 **마디 표면의 갓**으로 적는다 — 화면 자로만 찍으면 이웃에서 높이를 빌린다.
+          ps.push(shinePath3(0, y9, z9, r9, dx * r9, dy * r9, r9 * k));
+        }
       }
       return ps.join(" ");
     };
@@ -16552,8 +16559,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const [hy, hz] = at9(N - 1);
       const eyes: string[] = [];
       for (const ex of [-0.3, 0.3]) {
-        const [sx, sy] = project(ex, hy - 0.3, hz + 0.24);
-        eyes.push(screenCircle(sx, sy, 0.17));
+        // 눈도 **제 3D 를 적는다**(shinePath3) — 이어 붙인 경로는 조각마다 곁표에서 찾는다.
+        eyes.push(shinePath3(ex, hy - 0.3, hz + 0.24, 0.17, 0, 0, 0.17));
       }
       out.push(...tagKey([[eyes.join(" "), 1, "#241c14"] as ShapeFace],
         depthNow(0, 3.7) * 1.6 + 9));
@@ -16976,7 +16983,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          같은 원을 두 번 깔면 0.98까지 차 흰색이 흰색으로 남는다. */
       [screenCircle(ox, oy, 2.68), 1, "#f2fbff"] as ShapeFace,
       [screenCircle(ox, oy, 2.68), 1, "#f2fbff"] as ShapeFace,
-      topFace(screenCircle(ox - 0.7, oy - 0.7, 1.15), 0.4),
+      topFace(shinePath3(0, 0, 2.56, 2.68, -0.7, -0.7, 1.15), 0.4),
       /* 바깥 테 밖의 빛 번짐 — **글로우는 여기가 임자다**(지적: "소환구 글로우 효과 중심 위치가 안 맞음"). 여태
          DOM 글로우(.scr-bfx-toss)를 발자국 지면 가운데에 따로 붙였는데, 구는 WARP_LIFT만큼 떠 있고 입체에서는
          높이의 시각 밀림까지 타므로 지면 앵커와 구의 화면 중심이 늘 어긋났다. 구와 같은 판에 같은 중심으로
@@ -19436,8 +19443,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     out.push(...tagKey([
       [screenCircle(ex9, ey9, 0.46), 0.95, "#3a1a04"] as ShapeFace,
       [screenCircle(ex9, ey9, 0.34), 1, "#e8a01c"] as ShapeFace,
-      [screenCircle(ex9, ey9 - 0.06, 0.19), 1, "#ffe07a"] as ShapeFace,
-      [screenCircle(ex9 - 0.06, ey9 - 0.1, 0.08), 1, "#fffbe8"] as ShapeFace,
+      // 심·광점은 **눈알 표면의 갓**으로 적는다(shinePath3) — 화면 자로만 찍으면 높이를 빌린다.
+      [shinePath3(0, 0.2, ORB_Z + 0.6, 0.34, 0, -0.06, 0.19), 1, "#ffe07a"] as ShapeFace,
+      [shinePath3(0, 0.2, ORB_Z + 0.6, 0.34, -0.06, -0.1, 0.08), 1, "#fffbe8"] as ShapeFace,
     ], 1.5));
     return out;
   },
@@ -20466,7 +20474,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const face: ShapeFace[] = [
       ...tagKey([
         [screenCircle(fhx, fhy, 0.8 * BK), 1, "#6b4732"] as ShapeFace,
-        topFace(screenCircle(fhx - 0.26 * BK, fhy - 0.26 * BK, 0.3 * BK), 0.22),
+        topFace(shinePath3(0, 1.95 * BK, bz(3.95), 0.8 * BK, -0.26 * BK, -0.26 * BK, 0.3 * BK), 0.22),
       ], depthNow(0, 1.95 * BK) * 1.6 + 1.5),
       ...([-1, 1] as const).flatMap((m) => lensFaces({
         x: m * 0.42 * BK, y: 1.95 * BK, z: bz(4.35), nx: m * 0.5, ny: 1,
@@ -21037,7 +21045,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        없어 앞 부품 값을 물려받았고, 집게가 어느 각도에서도 몸통을 이겼다. */
     out.push(...tagKey(domeFaces3(0, -0.6, 2.8, 0.496, 3.04), partKey(0, -0.6, 3.28)));
     // (삭제·지적) 앞부분 검은 반투명 홈 — 정체불명 얼룩으로 보여 걷었다.
-    out.push(topFace(groundEllipse(cx - 0.9, cy - 1, 1.25, 0.8), 0.25));
+    out.push(topFace(shinePath3(0, -0.6, 3.04, 2.8, -0.9, -1, 1.25, 0.8), 0.25));
     // 옆구리 밝은 홈 한 쌍.
     out.push(topFace(groundEllipse(...project(-2.3, -0.3, 3.12), 0.4, 0.55), 0.4));
     out.push(topFace(groundEllipse(...project(2.3, -0.3, 3.12), 0.4, 0.55), 0.4));
