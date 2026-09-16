@@ -4046,8 +4046,30 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
             급히 좁아진다)를 못 따라가, 위쪽에서 살 밖으로 삐져나왔다.
          띠(ribFaces9)와 **같은 자**로 짓는다: 호를 마디로 나눠 굽이를 타고, 안쪽 면은
          벽 속으로 파고들고, 아주 얇은 두께(0.05)를 줘 어느 각에서도 살에 박힌 채 보인다. */
+      /* ★ 데칼은 **두께가 없다**(요청: "커맨드 임자색 데칼은 두께 없는 페인트칠") — 띠(구리)는
+         덩이지만 이것은 살에 칠한 물감이다. 두께를 주면 살에서 한 겹 떠 있는 판이 되어, 요청의
+         '페인트칠'이 아니라 또 하나의 부속이 된다.
+         ⚠ 두께가 없으면 **어디에 놓느냐가 전부**다: 외접 반지름(rOf)에 놓으면 낯 한가운데에서
+           0.089 뜨고, 그렇다고 딱 맞추면 낯을 건너는 자리에서 살에 묻혀 안 보인다. 그래서
+           **내접 반지름**(낯 한가운데)에 놓아 절대 밖으로 안 나가게 하고, 묻히는 몫은 데칼
+           깊이 편향(gl9 isDecal · 건물 0.25 모델칸)이 앞으로 당겨 준다. 2D 는 키가 몸 위다. */
+      const paintArc9 = (aMid9: number, half9: number): string => {
+        const NA9 = 5; const NZ9 = 5;
+        const at9 = (aa9: number, zz9: number): [number, number, number] => {
+          const r9 = t1R(zz9) * Math.cos(Math.PI / PILL_SIDES9) + 0.02;
+          return [Math.sin(aa9) * r9, Math.cos(aa9) * r9, zz9];
+        };
+        const arc9 = (zz9: number, rev9: boolean): [number, number, number][] =>
+          Array.from({ length: NA9 + 1 }, (_, i9) =>
+            at9(aMid9 - half9 + (half9 * 2 * (rev9 ? NA9 - i9 : i9)) / NA9, zz9));
+        const pts9: [number, number, number][] = [...arc9(zB, false)];
+        for (let j9 = 1; j9 < NZ9; j9 += 1) pts9.push(at9(aMid9 + half9, zB + ((zT - zB) * j9) / NZ9));
+        pts9.push(...arc9(zT, true));
+        for (let j9 = NZ9 - 1; j9 >= 1; j9 -= 1) pts9.push(at9(aMid9 - half9, zB + ((zT - zB) * j9) / NZ9));
+        return polyPath3(pts9);
+      };
       out.push(...tagKey([
-        ...ribFaces9(a9, 0.42 / t1R((zB + zT) / 2), zB, zT, t1R, 0.05, undefined),
+        bodyFace(paintArc9(a9, 0.42 / t1R((zB + zT) / 2))),
         /* (걷어냄) 판 윗머리의 흰 덧면 — 구리띠의 것과 같은 자였다(지적: "흰색 네모가
            겹쳐져 있는데 그거 제거"). 임자 색 위에 흰색을 얹으면 그 임자의 색이 아니라
            허연 네모가 겹친 것으로 보인다. */
@@ -11363,42 +11385,116 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   }),
   /* 실드 배터리(정정 둘) — 몸은 얇게, 다리는 빨대: 가늘게 수평으로 뻗다가 끝이
      구부러져 땅에 꽂힌다. */
+  /* 실드 배터리(전면 재작도 — 요청: "가운데 몸체(판과 임자색 드럼통 다) 제거하고 대신
+     금색 고리로 바꾸고, 고리에 세 개의 에너지 모으는 막대가 가운데를 향해 모이는 형태로
+     걸려 있게. 막대 끝엔 작은 보석이 달려 있고 세 막대가 가리키는 중심에 구슬이 떠 있음.
+     막대와 고리, 다리에 중간중간 임자색 띠가 둘러져야 함") ──────────────────────────
+     여태는 넓은 금 접시 위에 임자색 드럼과 돔이 얹힌 '버섯'이었다. 이제 **속이 빈 금 고리**
+     하나가 여덟 다리에 얹히고, 그 고리에 막대 셋이 걸려 가운데 위로 모인다 — 세 막대가
+     가리키는 허공에 플라스마 구슬이 떠 있어 '기운을 모으는 틀'로 읽힌다.
+     ★ 임자 색은 **띠**다 — 고리·막대·다리에 짧은 마디를 안 칠한 채 끼우면 그 자리에 팀색이
+       든다(몸판 하나를 통째로 칠하면 파란 판때기가 된다는, 이 판의 오랜 규약). */
   sbattery: () => {
-    const leg = (ang: number): ShapeFace[] => {
+    const RING_R = 2.55;     // 고리 한가운데의 반지름
+    const RING_W = 0.28;     // 고리 단면 반지름
+    const RING_Z = 1.2;      // 고리 높이 = 다리 무릎 높이
+    const ORB_Z9 = 3.76;     // 떠 있는 구슬의 중심
+    const ORB_R9 = 0.8;
+    const GEM9 = "#5aecd8";
+    /** 고리를 도는 한 토막 — a0~a1 을 쓸어 만든 관이다. 띠는 같은 자리에 조금 굵게 얹는다. */
+    const ringArc9 = (a0: number, a1: number, w9: number, fill?: string): ShapeFace[] =>
+      spirePillar({
+        x: 0, y: 0, h: 0.8, w: w9, tipW: w9, segs: Math.max(2, Math.round((a1 - a0) * 6)),
+        sides: 8, hold: 1, caps: "none",
+        path: (t9: number): [number, number, number] => {
+          const a9 = a0 + (a1 - a0) * t9;
+          return [Math.sin(a9) * RING_R, Math.cos(a9) * RING_R, RING_Z];
+        },
+        ...(fill ? { fill } : {}),
+      });
+    /* 다리 — 무릎을 직각으로 꺾는다(요청). 뿌리는 이제 **고리**다: 고리 밖으로 곧게 나가
+       무릎에서 수직으로 떨어진다. 중간에 임자색 마디를 하나 끼운다. */
+    const KNEE9 = 3.7;
+    const leg = (ang: number, own: boolean): ShapeFace[] => {
       const a = (ang * Math.PI) / 180;
       const sx = Math.sin(a);
       const sy = Math.cos(a);
-      /* ★ 무릎을 **직각으로** 꺾는다(요청: "배터리 다리 직각으로 구부리기") — 여태
-         첫 마디는 거의 수평(z 1.12 → 1.08)인데 둘째가 비스듬히(r 3.2 → 3.7, z 1.08 → 0)
-         내려와, 꺾인 것이 아니라 한 줄이 살짝 처진 꼴이었다. 이제 **밖으로 곧게 → 아래로
-         곧게** 두 마디다: 무릎에서 각이 정확히 90도로 서고, 발은 그 바로 밑 땅에 닿는다.
-         ⚠ 무릎 반지름은 발자국이 안 넓어지게 옛 발끝(3.7)보다 한 뼘 안(3.5)에 둔다 —
-           수직으로 내리면 발이 무릎 바로 밑이라, 같은 값을 쓰면 다리가 더 벌어진다. */
-      const KNEE9 = 3.5;
-      const KZ9 = 1.12;
+      const at9 = (r9: number, z9: number): [number, number, number] => [sx * r9, sy * r9, z9];
+      if (own) {
+        // 임자색 띠 — 수평 자락의 한가운데에 조금 굵게 끼운 마디.
+        const [p0x, p0y, p0z] = at9(2.98, RING_Z);
+        const [p1x, p1y, p1z] = at9(3.3, RING_Z);
+        return rodFaces(p0x, p0y, p0z, p1x, p1y, p1z, 0.44);
+      }
       return [
-        // 다리는 **빨대 같은 관**(재요청) — 뿔 대신 굵기 일정한 막대 둘을 꺾어 잇는다.
-        ...rodFaces(sx * 1.1, sy * 1.1, KZ9, sx * KNEE9, sy * KNEE9, KZ9, 0.36),
-        ...rodFaces(sx * KNEE9, sy * KNEE9, KZ9, sx * KNEE9, sy * KNEE9, 0, 0.36),
+        ...rodFaces(...at9(RING_R - 0.1, RING_Z), ...at9(KNEE9, RING_Z), 0.36),
+        ...rodFaces(...at9(KNEE9, RING_Z), ...at9(KNEE9, 0), 0.36),
       ];
     };
-    const [gx2, gy2] = project(0, 0, 1.76);
-    return raceBase([
-      /* 발치 금 테는 맨 앞에 그린다(지적: 코어 키 검토) — 납작한 원통이라 나중에
-         그리면 몸 아래를 판때기로 덮는다. 프리미티브는 제 몫으로 키(깊이+높이)를
-         달기 때문에 배열 맨 앞에 둬도 소용없어, 다른 부품보다 낮은 키를 못 박는다. */
-      ...tagKey(paintBase(cylinderFaces3(0, 0, 2.7, 0.24, 0.096), "#8a6f2a"), -9),
-      ...leg(157), ...leg(203), ...leg(112), ...leg(248),
-      ...cylinderFaces3(0, 0, 1.5, 0.8),
-      ...leg(67), ...leg(-67), ...leg(22), ...leg(-22),
-    ], "toss", [
-      /* 개인색은 머리 돔(요청: 덧붙인 원판 말고 실제 부품에) — 얇은 몸 위 유일하게
-         도톰한 부품이라 작은 건물에서도 임자 색이 바로 읽힌다. 허리 청록 띠(키 30)가
-         돔보다 넓어 위에서 덮으므로 돔을 그 위 키로 올린다. */
-      ...tagKey([
-        ...domeFaces3(0, 0, 1.5, 0.76, 0.8),
-        topFace(discPath3(0, 0, 1.76, 0.55, 0.4), 0.4),
-      ], 40),
+    const LEGS9 = [157, 203, 112, 248, 67, -67, 22, -22];
+    /* 막대 셋 — 고리 위에 걸려 가운데 위로 모인다. 끝에 작은 보석이 달리고, 세 자락이
+       가리키는 허공(ORB_Z9)에 구슬이 뜬다. 막대는 고리를 살짝 물고 시작한다. */
+    const ROD9 = [90, 210, 330];
+    /* ⚠ 막대 끝은 구슬 **밖**에서 멈춘다 — 처음엔 r 0.62·z 2.46 까지 뻗어 구슬(중심에서
+       0.86) 속에 통째로 묻혔다. 구슬은 '떠 있는' 것이라야 하므로 보석과 구슬 사이에 한 뼘을
+       남긴다(끝에서 구슬 중심까지 1.17 > 0.86). */
+    const ROD_T9: [number, number] = [1.0, 3.0];   // 끝의 반지름·높이
+    const rodAt9 = (deg9: number, t9: number): [number, number, number] => {
+      const a9 = (deg9 * Math.PI) / 180;
+      const r0 = RING_R + 0.05;
+      const r9 = r0 + (ROD_T9[0] - r0) * t9;
+      return [Math.sin(a9) * r9, Math.cos(a9) * r9, (RING_Z + 0.15) + (ROD_T9[1] - RING_Z - 0.15) * t9];
+    };
+    const out: ShapeFace[] = [];
+    // ① 고리 — 임자색 마디 셋을 빼고 금으로 두른다(막대 사이사이가 그 자리다).
+    const SEG9 = 6;                       // 고리를 여섯 토막으로 나눈다
+    const BAND9 = 0.16;                   // 임자색 마디의 반각
+    for (let k9 = 0; k9 < SEG9; k9 += 1) {
+      const c9 = (k9 / SEG9) * Math.PI * 2 + Math.PI / SEG9;
+      const half9 = Math.PI / SEG9;
+      out.push(...tagKey(ringArc9(c9 - half9 + BAND9, c9 + half9 - BAND9, RING_W, TOSS_GOLD),
+        partKey(Math.sin(c9) * RING_R, Math.cos(c9) * RING_R, RING_Z)));
+    }
+    // ② 다리 여덟.
+    for (const ang of LEGS9) {
+      const a9 = (ang * Math.PI) / 180;
+      out.push(...tagKey(paintBase(leg(ang, false), TOSS_GOLD),
+        partKey(Math.sin(a9) * 3.1, Math.cos(a9) * 3.1, RING_Z * 0.6)));
+    }
+    // ③ 막대 셋 + 끝 보석.
+    for (const deg9 of ROD9) {
+      const p0 = rodAt9(deg9, 0);
+      const p1 = rodAt9(deg9, 1);
+      const a9 = (deg9 * Math.PI) / 180;
+      const key9 = partKey(Math.sin(a9) * 1.7, Math.cos(a9) * 1.7, (RING_Z + ROD_T9[1]) / 2);
+      out.push(...tagKey(paintBase(rodFaces(p0[0], p0[1], p0[2], p1[0], p1[1], p1[2], 0.22), TOSS_GOLD), key9));
+      out.push(...tagKey(sphereFaces3(p1[0], p1[1], p1[2], 0.3, GEM9), key9 + 0.3));
+    }
+    /* ④ 가운데 구슬 — 세 막대가 가리키는 자리에 떠 있다. 어느 부품보다 앞이다
+       (막대 끝이 그 아래를 두르므로 키를 못 박지 않으면 요잉에 따라 구슬이 막대 뒤로 간다). */
+    /* 키는 **제 자리 깊이**다 — 40 으로 못 박아 두면 구슬이 늘 맨 앞이라, 앞으로 온 보석까지
+       덮는다(구슬 앞의 것은 구슬 위에 보여야 한다). 막대보다 한 단만 높인다. */
+    out.push(...tagKey(sphereFaces3(0, 0, ORB_Z9, ORB_R9, "#b6faf1"), partKey(0, 0, ORB_Z9)));
+    return raceBase(out, "toss", [
+      // 고리의 임자색 마디 여섯 — 막대와 막대 사이를 잇는 자리다.
+      ...Array.from({ length: SEG9 }, (_, k9) => {
+        const c9 = (k9 / SEG9) * Math.PI * 2;
+        return tagKey(ringArc9(c9 - BAND9, c9 + BAND9, RING_W + 0.05),
+          partKey(Math.sin(c9) * RING_R, Math.cos(c9) * RING_R, RING_Z) + 0.2);
+      }).flat(),
+      // 다리의 임자색 마디 여덟.
+      ...LEGS9.flatMap((ang) => {
+        const a9 = (ang * Math.PI) / 180;
+        return tagKey(leg(ang, true), partKey(Math.sin(a9) * 3.14, Math.cos(a9) * 3.14, RING_Z) + 0.2);
+      }),
+      // 막대의 임자색 마디 셋.
+      ...ROD9.flatMap((deg9) => {
+        const q0 = rodAt9(deg9, 0.42);
+        const q1 = rodAt9(deg9, 0.58);
+        const a9 = (deg9 * Math.PI) / 180;
+        return tagKey(rodFaces(q0[0], q0[1], q0[2], q1[0], q1[1], q1[2], 0.26),
+          partKey(Math.sin(a9) * 1.7, Math.cos(a9) * 1.7, (RING_Z + ROD_T9[1]) / 2) + 0.2);
+      }),
     ]);
   },
   /* 에볼루션 챔버(재모델링·사진) — 결절이 박힌 큰 살덩이 엽 둘(개인색)이 앞을
