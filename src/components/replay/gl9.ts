@@ -480,7 +480,7 @@ export class GlUnits9 {
     gl.disableVertexAttribArray(fx.aXY);
   }
   /** 열쇠별 메시 — 처음 볼 때 run()(빌더를 요잉 0 으로 한 번 돌리는 일, 1~7ms)으로 짓는다. 못 지으면 null 로 굳는다. */
-  private meshFor(key: string, run: () => { parts: { polys: number[][]; fill: string; alpha: number; team: boolean; ow: number; ob: number; bb?: boolean; solid?: boolean; flip?: boolean; flips?: boolean[]; emit?: boolean }[] }, bias0 = 0.8, glow = false): GlMesh9 | null {
+  private meshFor(key: string, run: () => { parts: { polys: number[][]; fill: string; alpha: number; team: boolean; ow: number; ob: number; bb?: boolean; solid?: boolean; flip?: boolean; flips?: boolean[]; emit?: boolean }[] }, bias0 = 0.18, glow = false): GlMesh9 | null {
     const got = this.meshes.get(key);
     /* ★ 찾았으면 **맨 뒤로 옮긴다**(2026-09, 지적: "모바일에서 화면 이동도 안 하고 유닛 변화도 거의 없는데
        모델 굽는 중이 계속 나오는 현상") ───────────────────────────────────────────────────────────
@@ -620,9 +620,16 @@ export class GlUnits9 {
     set();
     try {
       const key = `b:${op.kind}:${stg}:${headTag(op.kind)}:${litTag(op.kind)}:${spinTag(op.kind)}:${lod}`;
-      /* 건물 데칼 편향 1.3(유닛 0.8) — 빌더가 줄무늬·창을 벽 **안쪽 0.5칸쯤**에 그려 두고 화가 차례로 얹기 때문에 그만큼은 꺼내야
+      /* ★ **편향은 자리를 옮기는 자가 아니라 무승부를 가르는 자다**(2026-09, 지적: "배럭 건물 옆면의 띠가
+         가려져야 하는데 안 가려지네") — 1.3(유닛 0.8)은 벽 한 장 두께보다 크다. 배럭 옆면 띠(bandY9)는 벽
+         **표면에** 놓인 한 장인데 그만큼 앞으로 끌려 나와 **이웃 판을 넘어** 그려졌다.
+         큰 값이 필요했던 까닭은 옛 2D 가 데칼을 벽 안쪽에 그려 둔다는 것이었는데, 메시가 적는 3D 자리는
+         **진짜 자리**(벽 표면)라 그 보정이 필요 없다. 훑어 재 보면 값도 안 벌고 있었다:
+         gl-check 154종 평균이 편향 1.3 → 0.6 → 0.3 → 0.12 → 0 에서 0.190 → 0.189 → 0.188 → 0.188 → 0.189 다.
+         곧 0.12~0.3 이 바닥이고 1.3 은 그냥 과했다. 건물 0.25 · 유닛 0.18 로 내린다(0 은 같은 평면의
+         데칼이 z 싸움을 해 깜빡인다 — 그 몫만 남긴다). 건물 데칼 편향 옛 1.3(유닛 0.8) — 빌더가 줄무늬·창을 벽 **안쪽 0.5칸쯤**에 그려 두고 화가 차례로 얹기 때문에 그만큼은 꺼내야
          보이고, 더 밀면 벽 앞으로 튀어나온 부품(보급고 임자색 상자, 0.5칸)을 거꾸로 덮는다. 좁은 창의 가운데 값이다. */
-      return this.meshFor(key, () => { set(); return collectMesh9(b, (f: ShapeFace[]) => stageFaces(lod >= 3 ? f : lodFilter(autoTier(op.kind, `gl|${key}`, f), lod), stg), GL_GLOW_KINDS9.has(op.kind)); }, GL_GLOW_KINDS9.has(op.kind) ? 0 : 1.3, GL_GLOW_KINDS9.has(op.kind));
+      return this.meshFor(key, () => { set(); return collectMesh9(b, (f: ShapeFace[]) => stageFaces(lod >= 3 ? f : lodFilter(autoTier(op.kind, `gl|${key}`, f), lod), stg), GL_GLOW_KINDS9.has(op.kind)); }, GL_GLOW_KINDS9.has(op.kind) ? 0 : 0.25, GL_GLOW_KINDS9.has(op.kind));
     } finally { headYawSet(pH, pA); bldLitSet(pL); bldSpinRawSet9(pS); poseSet9(pP); }
   }
   /** 효과 메시 — 폭풍·핵 폭발·핵 구름(fxModelCv9 의 판 대신): 종류 · 회전 칸(spin = 무늬 씨앗). 발광 규약(glow)으로 모은다. */
