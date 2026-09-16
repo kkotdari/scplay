@@ -299,14 +299,23 @@ export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeF
   /** 이 면의 3D 폴리 찾기 — 곁표(헬퍼가 적어 둔 것) → 손수 짠 경로 되찾기 → 여러 조각 이어 붙인 경로.
    *  되찾기는 MESH9.byD 에 적어 두므로 두 번째 호출은 표 읽기뿐이다(아래 몸 상자 앞잡이가 그 값을 쓴다). */
   const geomOf9 = (f: ShapeFace): Poly3[] | undefined => {
-    let polys = MESH9.byD.get(f[0]);
-    if (glow) {
+    const had9 = MESH9.byD.get(f[0]);
+    /* ★ **빈 표는 '못 적었다'가 아니라 '적을 것이 없다'는 말이다**(2026-09, 지적: "탱크 오른쪽 좀
+       떨어진 곳에 구슬이 있어 뭐지") — 관·막대 헬퍼는 제 메시를 **첫 낯 하나에 몰아** 적고 나머지
+       낯에는 빈 표(`meshPut9(d, [])`)를 적어 '이건 딴 낯이 낸다'고 표시한다. 그런데 여기서 빈 표를
+       `없음`과 똑같이 봐서, 그 낯들이 **손수 짠 경로 되찾기**로 넘어갔다. 되찾기는 경로만 보므로
+       tubeFaces 의 **반대쪽 끝 원반**(원 경로)을 화면 원으로 읽어 **구**로 되살렸고, 그 구의 높이는
+       가장 가까운 기록점에서 **빌린 값**이라 엉뚱한 자리에 떴다 — 시즈 차체 기동륜의 뒤쪽 끝 원반이
+       모델 밖 y −7.4 에 지름 1 짜리 흰 구슬로 떠 있었다.
+       곧 갈라야 하는 것은 셋이다: **없음**(되찾기) · **빈 표**(딴 낯이 낸다 — 그냥 둔다) · **있음**. */
+    let polys = had9;
+    if (glow && had9?.length !== 0) {
       // 발광 종류: 헬퍼가 구로 적어 둔 화면 원(screenCircle)도 카메라를 보는 원반으로 — 2D 는 동심원을 겹쳐 칠했다
       const disc = meshFromPath9(f[0], false, true);
       if (disc && disc.length === 1 && BILLBOARD9.has(disc[0])) polys = disc;
     }
-    if (!polys || !polys.length) { const back = meshFromPath9(f[0], f[1] >= 0.98, glow); if (back && back.length) { polys = back; MESH9.byD.set(f[0], back); } }
-    if ((!polys || !polys.length) && f[0].indexOf("Z M") > 0) {
+    if (had9 === undefined && (!polys || !polys.length)) { const back = meshFromPath9(f[0], f[1] >= 0.98, glow); if (back && back.length) { polys = back; MESH9.byD.set(f[0], back); } }
+    if (had9 === undefined && (!polys || !polys.length) && f[0].indexOf("Z M") > 0) {
       // 다각형 여럿을 이어 붙인 면(폴리 경로 둘 이상) — 조각마다 찾아 합친다.
       const acc: Poly3[] = [];
       for (const piece of f[0].split(/(?<=Z) (?=M)/)) { const q = MESH9.byD.get(piece); if (q) acc.push(...q); }
