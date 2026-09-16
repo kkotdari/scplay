@@ -16659,7 +16659,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
              ψ 가 곧 '어느 쪽으로 휘나'라, **위 2 : 대각 2 : 옆 6** 의 몫도 여기서 나눈다(재요청). */
           /* 호 길이 — 곧던 관을 반원으로 말면 **밖으로 닿는 거리가 절반**이 된다(직선 L → 지름 2L/Φ ≒ 0.6L).
              앞서 맞춰 둔 눈에 보이는 크기를 지키려고 그만큼(1.4배) 길이를 늘려 준다. */
-          const len9 = (0.5 + u2 * 1.45) * 0.8 * 1.25 * 1.4 * 0.6;   // 호의 길이(요청: 크기 0.6배)
+          /* ★ 길이는 **더 흩는다**(재요청: "파이프 길이가 좀 랜덤해야해 지금 다 너무 비슷") — 앞 판은
+             0.42~1.64 였지만 호가 말려 드는 탓에 눈에 보이는 크기는 거기서 거기였다. 제 해시(u4)를
+             제곱꼴로 태워 **짧은 것은 더 짧고 긴 것은 훨씬 길게** 흩는다(0.38~2.3배). */
+          const g4 = Math.sin(j9 * 61.7 + 5.1); const u4 = g4 * 0.5 + 0.5;
+          const len9 = (0.38 + u4 ** 1.7 * 1.92) * 0.84;   // 호(+곧은 앞머리)의 전체 길이
           const bendK9 = j9 % 10;
           const sgn9 = g2 > 0 ? 1 : -1;
           /** 굽는 쪽(ψ) — π/2 면 위로, 0·π 면 옆으로, 그 사이가 대각이다. 열에 셋은 위·셋은 대각·넷은 옆. */
@@ -16669,15 +16673,23 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
               : sgn9 * ((u1 - 0.5) * 0.5);                        // 옆(열에 여섯 — 거의 눕는다)
           /** 도는 각 — 반원(π)에서 1.45π 까지. 클수록 끝이 제 뿌리 쪽으로 말려 든다. */
           const phi9 = Math.PI * (1.0 + u3 * 0.45);
-          const R9p = len9 / phi9;
+
           const w9 = (0.16 + u2 * 0.18) * 0.64 * 0.9 * 0.6;  // 관 굵기(요청: 20%×2 · 10% · 0.6배 축소)
+          /* ★ 셋에 하나는 **곧게 뻗다가 휜다**(재요청: "1/3 정도는 그냥 바깥으로 쭉 뻗다가 휘어야해
+             바로 휘지말고") — 뿌리에서 곧장 휘면 전부 같은 고리로 읽힌다. 앞머리(st9)만큼은 곧게 나가고
+             남은 길이에서만 호가 돈다(반지름 R = 남은 길이/Φ 라, 앞머리가 길수록 고리가 작고 야무지다). */
+          const st9 = i9 % 3 === 0 ? 0.3 + u4 * 0.32 : 0;
+          const lead9 = len9 * st9;          // 곧게 나가는 앞머리
+          const arc9 = len9 - lead9;         // 호가 도는 몫
+          const R9p2 = arc9 / phi9;
           const cp9 = Math.cos(psi9); const sp9 = Math.sin(psi9);
           const face9 = paintBase(spirePillar({
             x: 0, y: 0, h: 0.8, w: w9, tipW: w9 * 0.5, segs: 9, sides: 4, caps: "none", taper: 1,
             path: (t9: number): [number, number, number] => {
-              const th9 = phi9 * t9;
-              const fw9 = R9p * Math.sin(th9);           // 밖(er) 몫
-              const bn9 = R9p * (1 - Math.cos(th9));     // 굽는 쪽(n0) 몫
+              const d9 = len9 * t9;                      // 관을 따라 걸은 거리
+              const th9 = d9 <= lead9 ? 0 : (phi9 * (d9 - lead9)) / arc9;
+              const fw9 = Math.min(d9, lead9) + R9p2 * Math.sin(th9);   // 밖(er) 몫
+              const bn9 = R9p2 * (1 - Math.cos(th9));    // 굽는 쪽(n0) 몫
               const ca9 = Math.cos(a0); const sa9 = Math.sin(a0);
               const r9 = r0_9 + fw9;                     // er = (sin a0, cos a0, 0)
               const lt9 = bn9 * cp9;                     // et = (cos a0, −sin a0, 0)
