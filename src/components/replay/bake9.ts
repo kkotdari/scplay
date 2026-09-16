@@ -3926,11 +3926,22 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      *  호를 여러 마디로 나눠 뽑으므로 돔의 굽이를 그대로 탄다(네모 판은 못 탄다).
      *  shelfR을 주면 아랫 마구리를 그 반지름까지 넓혀 **아래 켜 겉면과 만나는 턱**을 덮는다
      *  — 1층·2층 기둥의 반지름 차(3.55 → 3.10)를 이 한 장이 이어 준다. */
+    /* ★★ **외접 반지름에 얹으면 뜬다**(2026-09, 지적: "커맨드 옆면의 데칼들과 황동띠가 본체에 딱
+       안 붙음 — 떠 있거나 위가 삐져나옴") — 몸통은 `spirePillar` 의 **14각 기둥**이다. rOf(z) 는 그
+       기둥의 **외접** 반지름(꼭짓점까지)이라, 낯 한가운데는 그보다 `r·(1 − cos(π/14)) ≈ 0.025·r`
+       만큼 안으로 들어가 있다(r 3.55 에서 **0.089 모델칸**). 띠·데칼의 안쪽 면을 rOf 에 맞춰
+       두었으니 낯 한가운데에서는 그만큼 공중에 뜬 채였고, 꼭짓점 자리에서만 닿았다.
+       규약은 '나란히 선 덩이 사이의 틈'과 같다 — **닿게 두지 말고 파고들게** 한다: 안쪽 면을
+       그 몫 + 한 뼘(0.03)만큼 벽 속으로 밀어 넣으면 어느 각에서도 살에 박힌다. */
+    const PILL_SIDES9 = 14;
+    const SAG9 = 1 - Math.cos(Math.PI / PILL_SIDES9);
     const ribFaces9 = (
       aMid: number, half: number, zB: number, zT: number,
       rOf: (z: number) => number, thk: number, fill: string | undefined,
       shelfR?: number,
     ): ShapeFace[] => {
+      /** 안쪽 면이 벽 속으로 파고드는 몫 — 낯 한가운데의 들어간 몫 + 한 뼘. */
+      const sink9 = (z9: number): number => -(rOf(z9) * SAG9 + 0.03);
       const NZ = 6; const NZz9 = 4.8; /* z용 쌍둥이(model-z-scale ×0.8) */
       const NA = 7;
       const zs = Array.from({ length: NZ + 1 }, (_, i9) => zB + ((zT - zB) * i9) / NZ);
@@ -3960,14 +3971,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         if (!lit.visible) continue;
         for (let i9 = 0; i9 + 1 < zs.length; i9 += 1) {
           const d9 = polyPath3([
-            at(a9, zs[i9], 0), at(a9, zs[i9], thk),
-            at(a9, zs[i9 + 1], thk), at(a9, zs[i9 + 1], 0),
+            at(a9, zs[i9], sink9(zs[i9])), at(a9, zs[i9], thk),
+            at(a9, zs[i9 + 1], thk), at(a9, zs[i9 + 1], sink9(zs[i9 + 1])),
           ]);
           put(d9, lit.face(d9));
         }
       }
       // 윗 마구리 — 하늘을 보므로 한 단 밝다.
-      const dT = polyPath3([...arcPts(zT, thk, false), ...arcPts(zT, 0, true)]);
+      const dT = polyPath3([...arcPts(zT, thk, false), ...arcPts(zT, sink9(zT), true)]);
       put(dT, [topFace(dT, 0.16)]);
       // 아랫 마구리 — 턱을 덮을 때만 위를 보고, 아니면 아래를 봐 어둡다.
       if (shelfR !== undefined) {
@@ -3975,7 +3986,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const dS = polyPath3([...arcPts(zB, thk, false), ...arcPts(zB, dr2, true)]);
         put(dS, [topFace(dS, 0.16)]);
       } else {
-        const dB = polyPath3([...arcPts(zB, 0, false), ...arcPts(zB, thk, true)]);
+        const dB = polyPath3([...arcPts(zB, sink9(zB), false), ...arcPts(zB, thk, true)]);
         put(dB, [sideFace(dB, 0.22)]);
       }
       return fs;
@@ -4023,23 +4034,20 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const sx9 = Math.sin(a9);
       const sy9 = Math.cos(a9);
       if (facingRatio(sx9, sy9) <= 0.08) continue;
-      const tx9 = Math.cos(a9);
-      const ty9 = -Math.sin(a9);
       /* 데칼을 위로 올린다(요청) — 맨 밑까지 이어지는 띠가 아니라 기둥 중턱에서
          끊기는 판이다. 아래를 1.05만큼 띄워 밑판·테두리에 안 닿게 한다. */
       /* 위아래로 더 길게(요청) — 1.05만큼 띄우고 위를 0.12 남기던 것을 0.55 / 0.04로
          줄여 판이 돔 살을 세로로 길게 가로지른다. */
       const zB = DOME_Zz9 + 0.44;
       const zT = T2_Z - 0.032;
-      const seal = (rB: number, rT: number, hw: number): string =>
-        polyPath3([
-          [sx9 * rB - tx9 * hw, sy9 * rB - ty9 * hw, zB],
-          [sx9 * rB + tx9 * hw, sy9 * rB + ty9 * hw, zB],
-          [sx9 * rT + tx9 * hw, sy9 * rT + ty9 * hw, zT],
-          [sx9 * rT - tx9 * hw, sy9 * rT - ty9 * hw, zT],
-        ]);
+      /* ★ 여태 **납작한 네모 한 장**이었다(지적: 위가 삐져나옴) — 두 가지가 겹쳤다:
+         ㉠ 외접 반지름에 얹어 낯 한가운데에서 떴고(위 ★★),
+         ㉡ 아래에서 위로 **곧은 현**이라 벽의 굽이(taper 0.42 — 아래는 완만하고 위에서
+            급히 좁아진다)를 못 따라가, 위쪽에서 살 밖으로 삐져나왔다.
+         띠(ribFaces9)와 **같은 자**로 짓는다: 호를 마디로 나눠 굽이를 타고, 안쪽 면은
+         벽 속으로 파고들고, 아주 얇은 두께(0.05)를 줘 어느 각에서도 살에 박힌 채 보인다. */
       out.push(...tagKey([
-        bodyFace(seal(t1R(zB) + 0.02, t1R(zT) + 0.02, 0.42)),
+        ...ribFaces9(a9, 0.42 / t1R((zB + zT) / 2), zB, zT, t1R, 0.05, undefined),
         /* (걷어냄) 판 윗머리의 흰 덧면 — 구리띠의 것과 같은 자였다(지적: "흰색 네모가
            겹쳐져 있는데 그거 제거"). 임자 색 위에 흰색을 얹으면 그 임자의 색이 아니라
            허연 네모가 겹친 것으로 보인다. */
@@ -10365,8 +10373,6 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          이 자름은 어느 각도에서나 땅에 붙는다. */
       const A0 = 0;
       const A1 = Math.PI;
-      /** 그 각이 땅 위인가 — 모델 z가 양수인 반쪽이다(sin > 0). */
-      const shown = (a9: number): boolean => Math.sin(a9) > 0;
       /** 드러난 반원 판 — 호를 잘게 나눈 다각형. 밑은 현(=지면선)으로 닫는다. */
       const fan9 = (x9: number, s9: number): [number, number, number][] => {
         const pts: [number, number, number][] = [];
@@ -10381,14 +10387,28 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const nearArc = fan9(nx9, 1);
       // ① 먼 판.
       g.push(bodyFace(polyPath3(farArc)));
+      /* ★★ **이빨도 지면에서 자른다**(2026-09, 지적: "포지 톱니바퀴 회전할 때 위로 들썩거림") ──────
+         판은 현(A0~A1)에서 깔끔히 잘리는데 이빨은 **중심각만** 땅 위인지 보고 있었다(`shown`).
+         이의 반각이 7.6도라, 중심이 2도쯤인 이는 **아래 절반이 현 밑으로 삐져나온다** — 그것이
+         칸마다 났다 사라지니 바퀴가 도는 것이 아니라 위아래로 들썩이는 것으로 읽힌다.
+         네 꼭짓점의 각을 [A0, A1]로 죄면 땅에 닿은 이는 현 위에 납작하게 눕고(넓이 0에서
+         시작해 돌면서 솟는다) 바퀴의 아랫변은 어느 칸에서나 정확히 지면선이다.
+         ⚠ 함께 고친 것: 보임 판정도 **중심이 아니라 이가 걸치는 구간**으로 본다 — 중심만 보면
+           현에 반쯤 걸친 이가 통째로 사라져 그 자체가 또 하나의 깜빡임이었다. */
+      /** 이가 현을 가로지를 때 각이 2π 쪽으로 넘어가지 않게 — [−TW, 2π−TW) 로 편다. */
+      const norm9 = (a: number): number => {
+        const v = ((a % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+        return v >= Math.PI * 2 - TW ? v - Math.PI * 2 : v;
+      };
+      const cl9 = (a: number): number => Math.max(A0, Math.min(A1, a));
       for (let k9 = 0; k9 < TN; k9 += 1) {
-        const a9 = roll + (k9 / TN) * Math.PI * 2;
-        if (!shown(a9)) continue;
-        /** 이빨 네 점(안쪽 둘 → 바깥쪽 둘) — 바깥이 좁아지는 사다리다. */
+        const a9 = norm9(roll + (k9 / TN) * Math.PI * 2);
+        if (a9 - TW >= A1 || a9 + TW <= A0) continue;
+        /** 이빨 네 점(안쪽 둘 → 바깥쪽 둘) — 바깥이 좁아지는 사다리다. 각은 땅 위로 죈다. */
         const st9 = 1 + TH / R9;   // 이빨 끝의 반지름 배수
         const tooth = (x9: number): [number, number, number][] => [
-          at9(x9, a9 - TW, 1), at9(x9, a9 + TW, 1),
-          at9(x9, a9 + TW * 0.66, st9), at9(x9, a9 - TW * 0.66, st9),
+          at9(x9, cl9(a9 - TW), 1), at9(x9, cl9(a9 + TW), 1),
+          at9(x9, cl9(a9 + TW * 0.66), st9), at9(x9, cl9(a9 - TW * 0.66), st9),
         ];
         const tf = tooth(fx9);
         const tn = tooth(nx9);
@@ -11348,10 +11368,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const a = (ang * Math.PI) / 180;
       const sx = Math.sin(a);
       const sy = Math.cos(a);
+      /* ★ 무릎을 **직각으로** 꺾는다(요청: "배터리 다리 직각으로 구부리기") — 여태
+         첫 마디는 거의 수평(z 1.12 → 1.08)인데 둘째가 비스듬히(r 3.2 → 3.7, z 1.08 → 0)
+         내려와, 꺾인 것이 아니라 한 줄이 살짝 처진 꼴이었다. 이제 **밖으로 곧게 → 아래로
+         곧게** 두 마디다: 무릎에서 각이 정확히 90도로 서고, 발은 그 바로 밑 땅에 닿는다.
+         ⚠ 무릎 반지름은 발자국이 안 넓어지게 옛 발끝(3.7)보다 한 뼘 안(3.5)에 둔다 —
+           수직으로 내리면 발이 무릎 바로 밑이라, 같은 값을 쓰면 다리가 더 벌어진다. */
+      const KNEE9 = 3.5;
+      const KZ9 = 1.12;
       return [
         // 다리는 **빨대 같은 관**(재요청) — 뿔 대신 굵기 일정한 막대 둘을 꺾어 잇는다.
-        ...rodFaces(sx * 1.1, sy * 1.1, 1.12, sx * 3.2, sy * 3.2, 1.08, 0.36),
-        ...rodFaces(sx * 3.2, sy * 3.2, 1.08, sx * 3.7, sy * 3.7, 0, 0.36),
+        ...rodFaces(sx * 1.1, sy * 1.1, KZ9, sx * KNEE9, sy * KNEE9, KZ9, 0.36),
+        ...rodFaces(sx * KNEE9, sy * KNEE9, KZ9, sx * KNEE9, sy * KNEE9, 0, 0.36),
       ];
     };
     const [gx2, gy2] = project(0, 0, 1.76);
@@ -17251,17 +17279,23 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        모두 유리라 어느 각도에서 봐도 조종석으로 읽힌다. 테만 은색이고, 안에 앉은
        사람은 어두운 실루엣 하나로 족하다(작게 그려도 '탈것'이라는 말이 남는다). */
     {
-      const key = depthNow(0, 1.3) * 1.6 + 3;
+      /* ★ 조종석을 **몸 속으로 반쯤 물린다**(요청: "조종석 좀 뒤로 이동 — 몸 앞뒤를 얇게
+         하거나 조종석이 반 정도 몸 속에 파묻히게 하기") — 몸통 절두체의 앞 끝은 y 0.35쯤인데
+         조종석은 y 0.18~2.13 으로 **통째로 그 앞**에 얹혀 있었다. 그래서 몸에 앉은 머리가
+         아니라 앞에 매달린 상자로 보였다. 뒤로 0.85 물리면 뒤 절반이 몸통 살 안에 든다
+         (조종석 밑(z 3.08)이 몸통 윗면(z 4.08)보다 낮으므로 실제로 파묻힌다). */
+      const CKY9 = -0.85;
+      const key = depthNow(0, 1.3 + CKY9) * 1.6 + 3;
       // 테 — 유리 상자 아래를 두르는 은색 턱. 유리보다 먼저 그려 밑동이 물린다.
-      out.push(...tagKey(paintBase(boxFaces3(0, 1.15, 2.2, 1.95, 0.24, 3.08), STEEL), key - 0.4));
+      out.push(...tagKey(paintBase(boxFaces3(0, 1.15 + CKY9, 2.2, 1.95, 0.24, 3.08), STEEL), key - 0.4));
       // 앉은 사람 — 유리 안이라 유리보다 먼저.
       out.push(...tagKey(paintBase([
-        ...frustumFaces3(0, 1, 0.72, 0.6, 0.6, 0.5, 0.496, 3.36),
-        ...halfSphereFaces3(0, 1.05, 3.888, 0.32),
+        ...frustumFaces3(0, 1 + CKY9, 0.72, 0.6, 0.6, 0.5, 0.496, 3.36),
+        ...halfSphereFaces3(0, 1.05 + CKY9, 3.888, 0.32),
       ], "#4a4034"), key - 0.2));
       // 유리 상자 — 앞으로 갈수록 낮아지는 절두체(캐노피의 기울기).
       out.push(...tagKey(
-        frustumFaces3(0, 1.15, 2, 1.75, 1.55, 1.45, 1, 3.28)
+        frustumFaces3(0, 1.15 + CKY9, 2, 1.75, 1.55, 1.45, 1, 3.28)
           .map(([d, o, f, k, l, n]) => [d, f === undefined ? 0.62 : o, f ?? "#8fc6dd", k, l, n] as ShapeFace),
         key,
       ));
@@ -17308,26 +17342,30 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 나르는 중(scvCarry)에는 팔꿈치(t 0.46)까지는 같은 사선, 그 앞은 **안으로
        굽는다** — 손끝이 화물 상자(중심 y 2.6, 반폭 ≈1.0) 옆구리에 닿는다. */
     const carry = scvCarry;
+    /* ★ 팔을 한 번 더 줄인다(요청: "팔 길이 줄이고") — 어깨 밖으로 뻗는 자락에 한 배수를 건다.
+       여태는 자락 길이 숫자를 직접 고치고 팔꿈치·연장 좌표를 손으로 맞춰 왔는데, 그러면
+       고칠 때마다 세 자리를 함께 옮겨야 한다. 배수 하나로 쥐면 팔꿈치는 같은 식에서 저절로
+       따라오고, 연장(드릴·집게)만 손끝이 당겨진 몫(TX9·TY9)을 더해 주면 된다. */
+    const AK9 = 0.82;
+    /** 어깨(±1.95, 0.3)에서 t 만큼 뻗은 자락. */
+    const armRay9 = (t9: number): [number, number] => [0.765 * AK9 * t9, 2.465 * AK9 * t9];
+    const ELB9 = 0.46;   // 팔꿈치
     const armAt = (m: 1 | -1, t9: number): [number, number] => {
-      if (carry && t9 > 0.46) {
+      const [ex9, ey9] = armRay9(ELB9);
+      if (carry && t9 > ELB9) {
         /* 손끝은 화물 옆구리다 — 상자가 2/3로 줄어(반폭 0.68) 팔도 그만큼 더 안으로
-           굽는다(요청: "팔 각도 조절"). */
-        const u9 = t9 - 0.46;
-        return [m * (2.302 - 2.55 * 1.2 * u9), 1.434 + 2.42 * 1.2 * u9];   // 하완 1.2배(요청)
+           굽는다(요청: "팔 각도 조절"). 꺾이는 자리는 위 팔꿈치와 같은 점이다. */
+        const u9 = t9 - ELB9;
+        return [m * (1.95 + ex9 - 2.55 * 1.2 * u9), 0.3 + ey9 + 2.42 * 1.2 * u9];
       }
-      /* 하완 1.2배(요청: "하완 길이 1.2배") — 팔꿈치(t 0.46) 너머의 자락만 1.2배로 늘린다. 손끝은
-         (±2.715, 2.765) → (±2.798, 3.031). 아래 드릴·집게도 같은 몫(±0.083, +0.266) 옮긴다. */
-      if (t9 > 0.46) {
-        const u9 = (t9 - 0.46) * 1.2;
-        return [m * (1.95 + 0.765 * (0.46 + u9)), 0.3 + 2.465 * (0.46 + u9)];
-      }
-      /* ★ 팔을 15% 줄인다(요청: "scv 상완·하완 길이 줄이기") — 어깨 아래(±1.95, 0.3)
-         에서 손끝까지의 자락을 0.9·2.9 → 0.765·2.465로 줄이면 손끝이 (±2.85, 3.2)에서
-         (±2.715, 2.765)로 당겨진다. 나르는 중의 꺾인 자락도 같은 몫으로 줄여 팔꿈치가
-         이어지게 맞췄다(위 분기의 시작점이 곧 t 0.46의 이 값이다).
-         아래 드릴·집게는 손끝에 물리므로 같은 만큼(∓0.135, −0.435) 함께 당긴다. */
-      return [m * (1.95 + 0.765 * t9), 0.3 + 2.465 * t9];
+      /* 하완 1.2배(요청: "하완 길이 1.2배") — 팔꿈치 너머의 자락만 1.2배로 늘린다. */
+      const tt9 = t9 > ELB9 ? ELB9 + (t9 - ELB9) * 1.2 : t9;
+      const [rx9, ry9] = armRay9(tt9);
+      return [m * (1.95 + rx9), 0.3 + ry9];
     };
+    /** 손끝이 당겨진 몫 — 연장은 손끝에 물려 있으므로 같은 만큼 옮긴다(x 는 절댓값). */
+    const TX9 = 0.765 * (1 - AK9) * 1.108;
+    const TY9 = 2.465 * (1 - AK9) * 1.108;
     for (const m of [-1, 1] as const) {
       /* ★ 키의 밑수를 몸통과 같은 자로 내린다(지적: "키수정") — 여태 +4로 못 박혀
          있어서, 뒤에서 보면 몸 뒤로 돌아간 팔이 몸통 위에 그려졌다. 밑수를 몸통(+1)
@@ -17394,7 +17432,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 하완이 중장비 팔의 규칙이다.
       out.push(...tagKey(prism(0, 1, 0.62, STEEL), depthNow(u1, v1) * 1.6 + key + 0.1));   // 어깨부터 손끝까지 한 각기둥
       // 개인색 낱장 데칼 두 자리(위 armDecal 주석).
-      out.push(...armDecal(0.67, 0.75));   // 띠 한 줄, 폭 축소(재요청: 0.14 → 0.08)
+      /* ★ 임자색 띠는 **손끝**이다(요청: "팔길이 줄이고 끝에 임자색 띠 두르기") —
+         팔 중턱(0.67~0.75)에 있던 것을 연장 바로 앞으로 옮긴다. 작게 그릴수록 '누구 것인가'가
+         급한데, 중턱 띠는 몸통·어깨에 가려 사라지기 쉬운 자리였다. */
+      out.push(...armDecal(0.86, 0.97));
     }
     /* 왼팔 드릴(사진) — 굵은 원뿔에 나선 마디 셋을 둘러 드릴로 읽히게 한다. */
     /* 드릴·집게는 **안 나르는 손**의 것이다 — 나르는 중에는 두 팔이 화물 옆구리를
@@ -17419,12 +17460,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          되돌리는 자가 이미 있다(tubeAxisLift) — 빼면 축이 하완과 한 줄에 선다.
          뿔로 지은 드릴 코·집게 갈래는 그 오프셋이 없으므로 4.62 그대로 둔다. */
       out.push(...tagKey(paintBase([
-        ...tubeFaces(-2.728, 2.881, -2.868, 3.331, 0.5, 3.696 - tubeAxisLift(0.5)),
-        ...hornFaces(-2.868, 3.231, 3.696, -3.328, 4.681, 3.696, 0.74),
-      ], GUNMETAL), depthNow(-2.848, 3.731) * 1.6 + 1.5));
+        ...tubeFaces(-2.728 + TX9, 2.881 - TY9, -2.868 + TX9, 3.331 - TY9, 0.5, 3.696 - tubeAxisLift(0.5)),
+        ...hornFaces(-2.868 + TX9, 3.231 - TY9, 3.696, -3.328 + TX9, 4.681 - TY9, 3.696, 0.74),
+      ], GUNMETAL), depthNow(-2.848 + TX9, 3.731 - TY9) * 1.6 + 1.5));
       for (let i = 0; i < 3; i += 1) {
-        const y0 = 3.381 + i * 0.4;
-        const x0 = -2.908 - i * 0.12;
+        const y0 = 3.381 - TY9 + i * 0.4;
+        const x0 = -2.908 + TX9 - i * 0.12;
         const r0 = 0.34 - i * 0.09;
         out.push(...tagKey(paintBase(tubeFaces(x0, y0, x0 - 0.04, y0 + 0.12, r0, 3.696), "#727272"),
           depthNow(x0, y0) * 1.6 + 1.6));
@@ -17434,11 +17475,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     if (!carry) {
       // 손목 원판은 같은 몫으로 내려 앉힌다(왼팔의 ★ 주석).
       out.push(...tagKey(paintBase([
-        ...tubeFaces(2.728, 2.881, 2.868, 3.331, 0.5, 3.696 - tubeAxisLift(0.5)),
-        ...hornFaces(2.588, 3.281, 3.696, 2.448, 4.431, 3.696, 0.3),
-        ...hornFaces(3.148, 3.281, 3.696, 3.408, 4.431, 3.696, 0.3),
-        ...hornFaces(2.868, 3.281, 4, 2.968, 4.331, 4.216, 0.28),
-      ], GUNMETAL), depthNow(2.848, 3.731) * 1.6 + 1.5));
+        ...tubeFaces(2.728 - TX9, 2.881 - TY9, 2.868 - TX9, 3.331 - TY9, 0.5, 3.696 - tubeAxisLift(0.5)),
+        ...hornFaces(2.588 - TX9, 3.281 - TY9, 3.696, 2.448 - TX9, 4.431 - TY9, 3.696, 0.3),
+        ...hornFaces(3.148 - TX9, 3.281 - TY9, 3.696, 3.408 - TX9, 4.431 - TY9, 3.696, 0.3),
+        ...hornFaces(2.868 - TX9, 3.281 - TY9, 4, 2.968 - TX9, 4.331 - TY9, 4.216, 0.28),
+      ], GUNMETAL), depthNow(2.848 - TX9, 3.731 - TY9) * 1.6 + 1.5));
     }
     /* 부양 부스터 한 쌍(정정: 다리가 아니다) — 몸 아래 매달린 짧은 포드 둘. 밑면에
        아래를 향한 노즐이 달려 그 힘으로 떠 있다는 것이 읽힌다. 땅에는 안 닿는다. */

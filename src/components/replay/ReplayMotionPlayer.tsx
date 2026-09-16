@@ -3744,7 +3744,13 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              가로는 footX 그대로다(앞선 지적: 그림자·링이 몸과 안 맞음). */
           ctx.ellipse(sx, groundY ?? groundOy9, shw * 1.1, shw * (op.air ? 0.5 : 0.42) * (op.pitch ? pitchFlatNow : 1), 0, 0, Math.PI * 2);
           ctx.fill();
-        } else if (showShadows !== false && CROWD9.lv === 0 && detail && !shFold9 && !op.air && !op.clipWalk && !op.noShadow) {
+        } else if (showShadows !== false && CROWD9.lv === 0 && detail && !shFold9 && !op.air && !op.clipWalk && !op.noShadow
+          && !glShadow9) {
+          /* ⚠⚠ **여기에도 같은 문이 있어야 한다**(2026-09, 지적: "프로브 같은 유닛 그림자가 사영 그림자와
+             타원 그림자 두 개가 나와") — 위 부양 갈래는 `!glShadow9` 로 막아 두었는데, 막힌 몸이 **떨어져
+             나가는 것이 아니라 이 `else if` 로 굴러든다**. 부양 지상 유닛(일꾼·벌처·아콘류)은 `op.air` 가
+             거짓이라 여기 문을 다 지나므로, GL 이 깐 사영 그림자 위에 접지 타원이 한 겹 더 깔렸다.
+             ★ 갈래를 `else if` 로 이을 때는 **앞 갈래를 막은 조건이 뒷 갈래의 입구가 되지 않는지** 보라. */
           /* ★ noShadow도 여기서 본다(지적: "버로우 럴커·마인은 그림자 안 그려야 자연스럽" · "다른 저그 버로우도")
              — 위 부양 갈래만 그 깃발을 보고, 땅에 선 몸의 작은 그림자는 안 봤다. 마인은 op에 noShadow가
              이미 실려 있었는데도 그림자가 났던 까닭이다. 버로우한 몸은 엔진이 같은 깃발을 싣는다. */
