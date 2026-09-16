@@ -368,8 +368,35 @@ export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeF
       const same9 = byD.get(f[0]);
       const at = same9 ?? (f[5] !== undefined ? byPid.get(f[5]) : undefined);
       const k9 = at === undefined ? 1 : (same9 !== undefined ? 1 : areaK9(f[0], parts[at].d));
+      /* ★★ **제 경로를 가진 그늘은 제 부품으로 남긴다**(2026-09, 지적: "배럭 벤트의 가로 줄이 없어짐") —
+         여태 문이 `k9 < 0.6`(상자 넓이 비)이었는데, `areaK9` 는 **그 pid 의 마지막 몸**과 견주는 자라
+         몸이 작으면 1 이 나온다. 그래서 벤트의 가로 살처럼 **제 경로로 또렷이 그린 줄**이 판에 통째로
+         접혔다(실측: 배럭에서 경로가 다른데 k9 ≥ 0.6 으로 접힌 그늘 37장 — 그 안에 벤트 살이 있다).
+         접으면 줄이 아니라 '조금 어두운 판'이 되므로 줄 자체가 사라진다.
+         ★ 가름의 자는 **둘**이다: ① 몸과 **같은 경로**로 얹힌 그늘(faceLight 의 낯 음영)은 그 낯 전체의
+           밝기이므로 접는 것이 옳다. ② 제 경로를 가진 그늘 중에서도 **작은 것만** 남긴다 — 제 크기가
+           데칼 자(모형 2.8칸) 안일 때다.
+         ⚠ 큰 것까지 남기면 **판이 허옇게 뜬다**(실측: 배럭 나쁨 0.21 → 0.26) — 벽 한 장을 통째로 덮는
+           그늘은 `isDecal` 의 크기 문에 안 걸려 깊이 편향을 못 받고, 몸과 **같은 평면**이라 깊이 싸움에서
+           져 아예 안 그려진다. 곧 접어야만 보이는 몫이다. 작은 줄은 데칼이라 편향을 받아 제대로 얹힌다. */
+      /** 폴리 뭉치의 3D 상자 지름(모형 칸). */
+      const diag9 = (qs: Poly3[]): number => {
+        let x0 = Infinity; let x1 = -Infinity; let y0 = Infinity; let y1 = -Infinity; let z0 = Infinity; let z1 = -Infinity;
+        for (const q of qs) for (let i = 0; i + 2 < q.length; i += 3) {
+          if (q[i] < x0) x0 = q[i]; if (q[i] > x1) x1 = q[i];
+          if (q[i + 1] < y0) y0 = q[i + 1]; if (q[i + 1] > y1) y1 = q[i + 1];
+          if (q[i + 2] < z0) z0 = q[i + 2]; if (q[i + 2] > z1) z1 = q[i + 2];
+        }
+        return x1 < x0 ? 0 : Math.hypot(x1 - x0, y1 - y0, z1 - z0);
+      };
+      /* 남길 자: **한 장짜리이고 데칼 자(2.8칸) 안**일 때다 — gl9 의 isDecal 과 같은 문이라, 남긴 것이
+         반드시 깊이 편향을 받아 몸 위에 얹힌다(문이 어긋나면 남겨 놓고 못 그린다).
+         ⚠ '얹힐 몸의 절반보다 작을 것'을 더해 봤지만 **줄이 도로 죽었다** — `byPid` 가 가리키는 것은
+           그 뭉치의 **마지막** 몸이라 판이 아닐 수 있어서, 크기 견줌의 기준이 엉뚱하다. 그 자를 고치는
+           것은 따로 할 일이고, 여기서는 **절대 크기**만 묻는다. */
+      const small9 = !!polys && polys.length === 1 && diag9(polys) < 2.8;
       if (!(has9 && polys
-        && (at === undefined ? inBody9(polys) && !polys.some((q9) => GUESSED9.has(q9)) : k9 < 0.6))) {
+        && (at === undefined ? inBody9(polys) && !polys.some((q9) => GUESSED9.has(q9)) : same9 === undefined && small9))) {
         if (at !== undefined) {
           const pt = parts[at];
           const a = shadeBoost9(f[1], f[2]) * k9;

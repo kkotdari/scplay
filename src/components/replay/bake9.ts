@@ -7399,18 +7399,28 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ...hornFaces(bx, by, PY_M + 0.32, bx * 0.72, by * 0.72, PY_M - 2.72, 1.05),
       ], CLAW9), depthNow(bx, by) + 1);
     };
-    // 링에 박힌 청록 띠 — 갈고리 사이사이.
+    /* 링에 박힌 청록 띠 — 갈고리 사이사이.
+       ★★ **화면 자로 놓던 것을 모형 자로 옮긴다**(2026-09, 지적: "파일런 고리 위 동그라미 위치
+       흐트러짐") — 여태 `groundEllipse(cx + cos·R, cy + sin·R·0.45, …)` 로 **화면 좌표에** 찍었다.
+       화면 자로 그린 원은 3D 기록이 없으므로 메시가 **가장 가까운 기록점의 높이를 빌려** 되짚는데,
+       그 이웃이 갈고리나 수정이면 띠가 엉뚱한 높이에 떠 흩어진다(규약의 '빌린 높이' 그 자리다).
+       −45도로 돌려 세운 뒤 더 크게 드러났다 — 화면 자 장식은 요잉을 안 타는데 메시는 돌기 때문이다.
+       이제 **링과 같은 모형 자리**(갈고리와 같은 (sinθ, cosθ) 규약 · 높이 PY_M)에 3D 원반으로 놓는다.
+       그러면 되찾을 일이 없고, 돌려도 띠가 링에 붙어 함께 돈다.
+       ⚠ 앞뒤도 **제 자리 깊이**로 준다 — 여태 앞 셋·뒤 셋을 링 두 쪽에 갈라 붙였는데, 모형 자에서는
+         한 각이 앞뒤 어디에 오는지가 요잉마다 달라 그 가름이 안 선다. */
     const gems: ShapeFace[] = [];
     for (const ang of [30, 90, 150, 210, 270, 330]) {
       const a = (ang * Math.PI) / 180;
-      gems.push([groundEllipse(cx + Math.cos(a) * RING_R, cy + Math.sin(a) * (RING_R * 0.45), 0.62, 0.3),
-        0.9, "#5aecd8"] as ShapeFace);
+      const gx9 = Math.sin(a) * RING_R; const gy9 = Math.cos(a) * RING_R;
+      gems.push(...tagKey([[discPath3(gx9, gy9, PY_M, 0.62), 0.9, "#5aecd8"] as ShapeFace],
+        depthNow(gx9, gy9) + 0.2));
     }
     // 뒤 갈고리 → 뒤 링 → 수정 → 앞 링 → 앞 갈고리 순으로 겹친다.
     for (const ang of [180, 120, 240]) out.push(...claw(ang));
     // 링은 색을 안 준다 = 임자 색(요청). 금색은 두르는 갈고리들이 맡는다.
     out.push(...tagKey([bodyFace(ringBack), sideFace(ringBack, 0.3),
-      ...gems.slice(3)], depthNow(0, -RING_R)));
+      ], depthNow(0, -RING_R)));
     /* 수정 — 네 모서리 양뿔(비피라미드)을 모델 좌표 삼각면으로 짠다: 요잉에 통째로
        돌고, 보이는 면만 그려 속면이 안 비친다. 위가 더 길고 뾰족하다(사진). */
     const zB = PY_B;
@@ -7438,7 +7448,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         out.push([d, 0.6, "#b6faf1"] as ShapeFace, ...dn.face(d));
       }
     }
-    out.push(...tagKey([bodyFace(ringFront), topFace(ringFront, 0.22), ...gems.slice(0, 3)],
+    out.push(...gems);
+    out.push(...tagKey([bodyFace(ringFront), topFace(ringFront, 0.22)],
       depthNow(0, RING_R)));
     for (const ang of [0, 60, 300]) out.push(...claw(ang));
     return out;
