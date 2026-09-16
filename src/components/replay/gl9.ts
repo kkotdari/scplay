@@ -84,8 +84,20 @@ uniform float uFlat;  // 효과(발광): 1 이면 음영·실루엣 빛·방향�
 uniform float uDbg;   // 진단 #glshade=0..2(0 덧칠 없음 · 1 덧칠 · 2 +실루엣 빛)
 uniform vec4 uGrad;   // 실루엣 빛(silhouetteLight): 화면 빛 방향 (x,y) · 모델 상자 반지름 R · 상자 가운데의 앵커 기준 세로 몫
 varying vec4 vCol;
-/** 광택 몫(윤기 + 봉우리, 제 색 물듦까지 먹인 값)을 **따로** 넘긴다 — 결이 곱해질 자리가 여기다. */
-varying vec3 vSpec;
+/** 광택 몫 — **rgb 는 약한 쪽의 색**(제 색 물듦까지 먹인 값) · **a 는 낯의 각만으로 나는 몫**(윤기 + 봉우리).
+ *  둘 다 법선의 함수라 한 낯 안에서 안 변한다. 결이 곱해질 자리가 여기다. */
+varying vec4 vSpec;
+/** ★★ **자리의 함수인 얼룩은 화소마다 재야 한다**(2026-09, 지적: "스타포트 선착장의 결은 왜 이렇게
+ *  구불거리는 거 같지" → "실제로 면이 굽은 거 아니야?") — 면은 안 굽었다(착륙판 윗면은 평평한 12각형
+ *  한 장이고, fract(vGr.x) 를 띠로 찍어 보면 줄이 **곧다**). 굽어 보인 것은 줄이 아니라 그 줄에 곱해지는
+ *  **광택의 세기**였다. 전구 얼룩(glint)만은 법선이 아니라 **자리**의 함수인데(1/(1+r²)), 그것을 정점에서
+ *  재어 보간하면 큰 낯에서 통째로 틀린다: 착륙판은 12각형 한 장이라 0번 꼭짓점 부채꼴로 삼각화되고,
+ *  둥근 얼룩이 그 **부채살 쐐기**로 꺾여 등고선이 호를 그린다(vSpec 휘도를 띠로 찍어 확인 — 왼쪽 한 점에서
+ *  퍼지는 부채꼴이다). 곧은 헤어라인에 그 세기가 곱해지니 줄이 굽어 보인 것이다.
+ *  그래서 얼룩의 자(중심에서의 거리 dg9)와 세기 몫(gk = 빛 받는 몫까지 먹인 계수)만 넘기고 **나눗셈은
+ *  화소에서** 한다 — 낯이 아무리 커도 얼룩이 제 동그란 꼴을 지킨다.
+ *  ⚠ 물듦 가름(hot)도 화소에서 해야 한다 — 그 문턱이 얼룩 세기를 보므로, 정점에서 가르면 같은 쐐기가 색으로 남는다. */
+varying vec4 vGl;
 /** 결의 자 셋 — **x 줄을 가로지르는 눈금**(낯의 수평 접선) · **y 줄을 따라가는 눈금**(세운 낯은 높이 z,
  *  누운 낯은 모형 y) · **z 이 낯이 결을 받는 재질인가**(0~1). 앞 둘은 자리의 **1차 함수**라 삼각형 안에서
  *  보간이 정확하고, 셋을 한 벡터에 담아 varying 자리를 하나만 쓴다. */
@@ -188,7 +200,8 @@ void main() {
      ⓑ 봉우리(spec): 블린-퐁. 프로토스 금에서 가장 날카롭고 세다. */
   /* 끌 때는 **정말로 안 돈다** — uGloss 는 유니폼이라 이 가지는 한 그리기 안에서 한쪽으로만 간다
      (셰이더가 갈라지지 않는다). 그래야 기기 표(DEV9.glSpec)·#glspec=0 이 삯을 진짜로 던다. */
-  vSpec = vec3(0.0);
+  vSpec = vec4(1.0, 1.0, 1.0, 0.0);
+  vGl = vec4(0.0);
   /* ★ **결의 줄 눈금**(2026-09, 요청: 셰이더 절차적 결) ──────────────────────────────────────────
      결은 **낯의 성질**이다: 빛이 바뀌어도 요잉이 돌아도 자국은 그 자리에 있어야 한다. 그래서 눈금은
      요잉을 먹인 n·자리가 아니라 **모형 좌표**(aNrm·aPos)로 잰다.
@@ -250,29 +263,30 @@ void main() {
      ⚠ 자리는 **요잉을 먹인** 모형 좌표(rx, ry, z)라야 한다 — aPos 를 그대로 쓰면 개체가 돌 때 얼룩이
        몸에 붙어 같이 돌아, 빛이 아니라 무늬가 된다. 얼룩의 중심(uGlint.xyz)은 세계 자라 안 돈다.
      ⚠ 등진 낯에는 안 얹는다(×ndl) — 빛을 등진 판에 반사가 맺히면 그건 빛이 아니라 발광이다. */
-  vec3 dg9 = vec3(rx, ry, aPos.z) - uGlint.xyz;
-  float glint = uGlint.w * uGlintK * uGloss.y * ndl / (1.0 + dot(dg9, dg9) * 0.11);
+  vGl = vec4(vec3(rx, ry, aPos.z) - uGlint.xyz, uGlint.w * uGlintK * uGloss.y * ndl * (1.0 - uFlat));
   /* ★ **푸른빛은 센 자리에만**(2026-09, 요청: "강하게 빛나는 곳은 푸른색을 입히고 아닌 곳은 원래색이
      나오게") — 여태 광택 전체에 한 색을 먹여 판이 통째로 차가웠다. 세기로 갈라, 약한 자리는 **제
      바탕색**(물듦)으로 두고 센 자리만 찬 강철빛으로 넘어가게 한다. 곧 **물듦은 약한 쪽의 색**이고
      uSpecTint 는 **센 쪽의 색**이다 — 그래서 테란 물듦을 0.18 → 0.55 로 도로 올렸다. */
-  float amt = sp + sheen + glint;
-  float hot = smoothstep(0.08, 0.30, amt);
-  vec3 tintS = mix(mix(vec3(1.0), base, uGloss.z), uSpecTint, hot);
-  vSpec = mix(amt * tintS, vec3(0.0), uFlat);
+  vSpec = vec4(mix(vec3(1.0), base, uGloss.z), (sp + sheen) * (1.0 - uFlat));
   }
-  if (uShade.a > 0.0) { vSpec = vec3(0.0); vCol = vec4(uShade.rgb, uShade.a * aAlpha); }
+  if (uShade.a > 0.0) { vSpec = vec4(1.0, 1.0, 1.0, 0.0); vGl = vec4(0.0); vCol = vec4(uShade.rgb, uShade.a * aAlpha); }
   else vCol = vec4(col, aAlpha * uAlpha);
 }`;
 const FS = `
 precision mediump float;
-varying vec4 vCol; varying vec3 vSpec; varying vec3 vGr;
+varying vec4 vCol; varying vec4 vSpec; varying vec4 vGl; varying vec3 vGr;
 /** x = 결 세기 · y = **가장 굵은 옥타브의 몫**(나머지 넷은 uGrainA). */
 uniform vec2 uGrain;
 /** 결 옥타브 **둘째~다섯째의 몫**(첫째는 1 − 합) — CPU 가 배율(k)을 보고 나이퀴스트로 깎아 보낸다. */
 uniform vec4 uGrainA;
+uniform vec3 uSpecTint;   // 센 자리의 색(찬 강철빛) — 약한 자리는 vSpec.rgb(제 색 물듦)다
 void main() {
-  vec3 c = vCol.rgb + vSpec;
+  /* 전구 얼룩만 화소에서 잰다(위 vGl 의 ★★) — 나눗셈 하나와 곱셈 몇이다. 낯의 각으로 나는 몫(vSpec.a)은
+     한 낯 안에서 안 변하므로 정점이 그대로 든다. 물듦 가름도 여기서 해야 색이 쐐기로 안 갈린다. */
+  float amt9 = vSpec.a + vGl.w / (1.0 + dot(vGl.xyz, vGl.xyz) * 0.11);
+  vec3 spec9 = amt9 * mix(vSpec.rgb, uSpecTint, smoothstep(0.08, 0.30, amt9));
+  vec3 c = vCol.rgb + spec9;
   /* ★★ **긁힘은 되풀이가 아니라 드문 사건이다**(2026-09, 지적: "테란 스크래치 … 메탈 헤어라인 느낌이
      아니고 요철 느낌이야") — 처음 짜임은 **진폭이 꽉 찬 사인**(27·63)이었다. 사인은 밝음↔어둠이 부드럽게
      오가므로 그것은 긁힘이 아니라 **둥근 이랑의 음영**이다. 게다가 광택에 ×(1 ± 1) 로 걸어 밝은 벽에서
@@ -353,10 +367,10 @@ void main() {
     /* ★ **빛 받는 낯의 기스만 흰빛으로 튄다**(요청: "빛을 받는 면의 헤어라인은 유난히 밝게 — 거의 흰색") —
        '얼마나 빛을 받나'는 이미 광택(vSpec)이 들고 있다. 그 휘도를 곱하면 등진 낯에서는 그 항이 저절로
        0 이 되므로 문을 따로 둘 일이 없다. 도드라진 쪽(g>0)만 태운다 — 기스는 빛을 **튕기는** 자국이다. */
-    float lit = dot(vSpec, vec3(0.299, 0.587, 0.114));
+    float lit = dot(spec9, vec3(0.299, 0.587, 0.114));
     /* 잔 줄과 기스는 **세기가 다르다** — 잔 줄은 낯 전체에 깔리므로 아주 옅게(±13%), 기스는 드무니
        도톰하게(±55%). 한 값으로 묶으면 잔 줄을 보이게 올릴 때 기스가 골함석이 된다. */
-    c = vCol.rgb * (1.0 + w * 0.010 * g) + vSpec * (1.0 + w * (0.13 * base9 + 0.55 * scr))
+    c = vCol.rgb * (1.0 + w * 0.010 * g) + spec9 * (1.0 + w * (0.13 * base9 + 0.55 * scr))
       + vec3(w * 2.2 * max(scr, 0.0) * lit);
   }
   gl_FragColor = vec4(c * vCol.a, vCol.a);   // 미리곱한 알파 — WebGL 캔버스(premultipliedAlpha)와 합성이 맞아야 반투명(빛무리)이 안 어두워진다
