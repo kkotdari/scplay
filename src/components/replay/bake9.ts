@@ -23877,6 +23877,9 @@ export function autoTier(kind: string, key: string, faces: ShapeFace[]): ShapeFa
   AUTO_TIER_CACHE.set(key, out);
   return out;
 }
+/** 공사 발판 경광등의 깜빡임 칸(0·1) — 붓이 시각으로 세운다(bldBlinkSet9). 메시 열쇠에 든다. */
+let bldBlinkNow9 = 0;
+export const bldBlinkSet9 = (v: number): void => { bldBlinkNow9 = v ? 1 : 0; };
 /** 공사 발판 탑 한 채 — 가는 기둥 넷이 서고 그 안을 계단이 돌며 오르며, 밑동에 해저드
  *  띠, 꼭대기에 붉은 경광등과 지브 크레인이 달린다(2026-09, 요청: "공사 중에 앞 오른쪽과
  *  뒤 왼쪽에 스캐폴드 탑 두 개").
@@ -23905,28 +23908,50 @@ export function scaffold9(cx: number, cy: number, h: number): ShapeFace[] {
       }
     }
   }
-  /* ③ 계단 — 네 칸에 한 바퀴 돌며 오른다(요청: "그 안에 계단이 반복되는 형태"). */
-  const RISE9 = 0.44;
-  const n9 = Math.max(3, Math.floor((hh9 - 0.6) / RISE9));
-  for (let i9 = 0; i9 < n9; i9 += 1) {
-    const z9 = 0.40 + i9 * RISE9;
-    const t9 = ((i9 % 4) / 4) * Math.PI * 2;
+  /* ③ **층 바닥 + 되돌이 계단**(재요청: "계단이 좀 어색해 · 층 바닥도") ─────────────────
+     옛 짜임은 판 하나가 네 칸에 한 바퀴 돌며 떠 있는 꼴이라, 계단이 아니라 **공중에 흩어진
+     널판**으로 읽혔다. 실제 비계는 층마다 **바닥판(발판)**이 깔리고, 그 사이를 **한 번
+     꺾이는 계단**(switchback)이 잇는다 — 그 둘을 그대로 짓는다.
+     층 바닥은 반쪽만 깐다(나머지 반이 계단 구멍이고, 그 구멍으로 아래 층이 보인다).
+     계단은 그 구멍 쪽에서 오르고 층마다 **방향이 뒤집힌다** — 그래서 되돌이다. */
+  const LV9 = 1.30;                                  // 층 사이 높이
+  const nLv9 = Math.max(1, Math.floor((hh9 - 0.25) / LV9));
+  for (let lv9 = 1; lv9 <= nLv9; lv9 += 1) {
+    const z9 = lv9 * LV9;
+    const sg9 = lv9 % 2 === 0 ? 1 : -1;              // 층마다 바닥이 놓이는 쪽이 바뀐다
+    // 층 바닥 — 사각형의 반쪽(폭은 꽉, 깊이는 절반)
     out.push(...tagKey(paintBase(boxFaces3(
-      cx + Math.sin(t9) * S9 * 0.46, cy + Math.cos(t9) * S9 * 0.46,
-      S9 * 1.15, S9 * 0.60, 0.06, z9,
-    ), DKS9), key9(z9)));
+      cx, cy + sg9 * S9 * 0.5, S9 * 2, S9, 0.07, z9,
+    ), "#767e87"), key9(z9)));
+    // 그 아래 층에서 올라오는 계단 — 구멍 쪽에서 네 단으로 오른다
+    for (let k9 = 0; k9 < 4; k9 += 1) {
+      const zz9 = z9 - LV9 + (k9 + 1) * (LV9 / 4.4);
+      out.push(...tagKey(paintBase(boxFaces3(
+        cx, cy - sg9 * S9 * (0.82 - k9 * 0.36), S9 * 1.7, S9 * 0.40, 0.055, zz9,
+      ), DKS9), key9(zz9)));
+    }
+    // 층 난간 — 바닥 쪽 두 기둥을 잇는 가는 띠(층이 있다고 말해 주는 자다)
+    out.push(...tagKey(paintBase(boxFaces3(
+      cx, cy + sg9 * (S9 + 0.02), S9 * 2 + PW9, PW9 * 0.6, 0.05, z9 + 0.34,
+    ), STEEL9), key9(z9 + 0.34)));
   }
-  /* ④ 가로대 — 기둥 넷을 묶는 층참. 없으면 기둥이 따로 선 막대 넷으로 읽힌다. */
-  for (let i9 = 1; i9 * 1.32 < hh9; i9 += 1) {
-    const z9 = i9 * 1.32;
-    out.push(...tagKey(paintBase(boxFaces3(cx, cy, S9 * 2 + PW9, PW9 * 0.7, 0.07, z9), STEEL9), key9(z9)));
-    out.push(...tagKey(paintBase(boxFaces3(cx, cy, PW9 * 0.7, S9 * 2 + PW9, 0.07, z9), STEEL9), key9(z9) + 0.01));
+  /* ④ 가로대 — 기둥 넷을 묶는다(층 사이 중간 높이에 둔다 — 층 바닥과 겹치지 않게). */
+  for (let i9 = 0; i9 <= nLv9; i9 += 1) {
+    const z9 = Math.min(hh9 - 0.1, i9 * LV9 + LV9 / 2);
+    if (z9 <= 0.6 || z9 >= hh9 - 0.1) continue;
+    out.push(...tagKey(paintBase(boxFaces3(cx, cy, S9 * 2 + PW9, PW9 * 0.6, 0.06, z9), STEEL9), key9(z9)));
+    out.push(...tagKey(paintBase(boxFaces3(cx, cy, PW9 * 0.6, S9 * 2 + PW9, 0.06, z9), STEEL9), key9(z9) + 0.01));
   }
   // ⑤ 꼭대기 판
   out.push(...tagKey(paintBase(boxFaces3(cx, cy, S9 * 2 + 0.24, S9 * 2 + 0.24, 0.1, hh9), STEEL9), key9(hh9)));
-  /* ⑥ 붉은 경광등 — 늘 켜진 빛이라 번짐 표(EMIT_FILL9)에 바로 적는다(불빛 열쇠를 안 탄다). */
-  const BEACON9 = "#ff4433";
-  EMIT_FILL9.add(BEACON9);
+  /* ⑥ 붉은 경광등 — **반짝인다**(요청: "스캐폴드 경광등 반짝이기(블루밍)") ────────────────
+     깜빡임은 두 칸(bldBlinkNow9 0·1)이고, 켠 칸의 색만 번짐 표(EMIT_FILL9)에 적는다 —
+     그래서 켠 칸에서만 블룸이 문다. 끈 칸은 **식은 색**으로 가라앉히고(검게 죽이면 등이
+     사라진 것으로 읽힌다) 발광 표에 안 넣는다.
+     ⚠ 이 칸은 **메시 열쇠에 든다**(gl9 bldMesh) — 그래서 짓는 중인 건물 한 채가 단계마다
+       벌 둘을 쥔다. 다 지으면 그 열쇠는 안 쓰이고 LRU 가 걷어 간다. */
+  const BEACON9 = bldBlinkNow9 ? "#ff4433" : "#8a2f26";
+  if (bldBlinkNow9) EMIT_FILL9.add(BEACON9);
   const bz9 = hh9 + 0.1;
   out.push(...tagKey(paintBase(boxFaces3(cx, cy, 0.17, 0.17, 0.13, bz9), DKS9), key9(bz9)));
   out.push(...tagKey([[orbPath3(cx, cy, bz9 + 0.22, 0.15), 1, BEACON9] as ShapeFace], key9(bz9 + 0.22)));

@@ -7,7 +7,7 @@
    · 조명은 면 법선(뉴얼) 한 방향광 양면 — 2D 의 흑백 덧칠 면은 메시에서 뺐다(mesh9.isOverlay9).
    · 임자색 면(fill 없음)은 정점의 team 깃발로 표시하고 uTeam 으로 칠한다.
    한계(시제): 유닛만(건물·데칼·그림자·체력바는 캔버스가 그대로), 평면 시점만(pitch 면 캔버스로), 머리 요잉·불빛·회전 깃발은 0. */
-import { SHAPE_BUILDERS, SHAPE_GALLERY, poseSet9, poseNow, headYawSet, headYawNow, headAimNow, bldLitSet, bldLitNow, bldSpinRawSet9, bldSpinNow, stageFaces, headTag, litTag, spinTag, tone9, autoTier } from "./bake9";
+import { SHAPE_BUILDERS, SHAPE_GALLERY, poseSet9, poseNow, headYawSet, headYawNow, headAimNow, bldLitSet, bldLitNow, bldSpinRawSet9, bldSpinNow, bldBlinkSet9, stageFaces, headTag, litTag, spinTag, tone9, autoTier } from "./bake9";
 import { lodFilter, PITCH_ZK9, type ShapeFace } from "../../utils/shapeOblique";
 import { collectMesh9 } from "../../utils/mesh9";
 import type { UnitDrawOp } from "./engine9";
@@ -859,11 +859,16 @@ export class GlUnits9 {
     const stg = op.buildStage ?? 0;
     const head = op.headDeg === undefined ? 0 : (((op.headDeg - (op.rotDeg ?? 0)) % 360) + 540) % 360 - 180;
     const aim = op.headDeg !== undefined;
-    const set = (): void => { headYawSet(head, aim); bldLitSet(!!op.lit); bldSpinRawSet9(op.spin ?? 0); poseSet9(0); };
+    /** 경광등 깜빡임 칸 — 짓는 중에만 뜻이 있다(완성 모델에는 발판이 없다). */
+    const blk9 = stg > 0 ? (op.blink ? 1 : 0) : 0;
+    const set = (): void => {
+      headYawSet(head, aim); bldLitSet(!!op.lit); bldSpinRawSet9(op.spin ?? 0); poseSet9(0);
+      bldBlinkSet9(blk9);
+    };
     const pH = headYawNow; const pA = headAimNow; const pL = bldLitNow; const pS = bldSpinNow; const pP = poseNow;
     set();
     try {
-      const key = `b:${op.kind}:${stg}:${headTag(op.kind)}:${litTag(op.kind)}:${spinTag(op.kind)}:${lod}`;
+      const key = `b:${op.kind}:${stg}:${headTag(op.kind)}:${litTag(op.kind)}:${spinTag(op.kind)}:${blk9}:${lod}`;
       /* ★ **편향은 자리를 옮기는 자가 아니라 무승부를 가르는 자다**(2026-09, 지적: "배럭 건물 옆면의 띠가
          가려져야 하는데 안 가려지네") — 1.3(유닛 0.8)은 벽 한 장 두께보다 크다. 배럭 옆면 띠(bandY9)는 벽
          **표면에** 놓인 한 장인데 그만큼 앞으로 끌려 나와 **이웃 판을 넘어** 그려졌다.

@@ -20,6 +20,7 @@
  *  ⚠ 이 파일은 ReplayMotionPlayer 모듈을 통째로 끌어온다(엔진이 그 안의 표·헬퍼를 쓴다). React도 함께
  *    묶이지만 DOM은 안 만진다 — 워커에서 `document`를 만지는 줄이 생기면 여기서 던지고 메인 진단에 적힌다. */
 import {
+  cineSet9,
   createEngine9, deriveWorld9, pickWorldUi9, type EngineView9, type EngineWorld9, type Frame9,
 } from "./engine9";
 import { pack9 } from "./framePack";
@@ -301,6 +302,9 @@ if (inWorker9) self.onmessage = (ev: MessageEvent<Msg>): void => {
          옛 차례 걷어내기는 새 장의 시각 이후만 걷으므로 그 사이를 못 메운다. 컬링만 바뀐 시야(팬)는 종전대로 이어 짓는다
          (옛 장은 제 시야 안에서 여전히 옳다). */
       const pv9 = view;
+      /* 시네마틱 크기 세기 — 워커에는 location.hash 가 없으므로 view 가 유일한 입구다
+         (engine9 cineSet9 의 ★★). 크기 셈이 이 값을 읽으므로 **op 를 짓기 전에** 세운다. */
+      cineSet9(m.view.cine ?? 0);
       const scaleChanged9 = !pv9 || pv9.tilePx !== m.view.tilePx || pv9.mapW !== m.view.mapW || pv9.mapH !== m.view.mapH
         || pv9.pitched !== m.view.pitched || pv9.pitchFlat !== m.view.pitchFlat;
       view = m.view;

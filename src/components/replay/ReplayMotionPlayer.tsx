@@ -87,7 +87,7 @@ import {
 } from "../../utils/shapeOblique";
 import { TEAM_COLOR, type MinimapMarker } from "./markers";
 import {
-  AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, NUKE_BOOM_SEC, NUKE_FALL_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SPIN_STEPS, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
+  AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, NUKE_BOOM_SEC, NUKE_FALL_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SPIN_STEPS, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
 } from "./engine9";
 import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, WorldUi9 } from "./engine9";
 import {
@@ -669,10 +669,18 @@ const GALLERY_SIZE_KIND: Record<string, string> = {
  *   ("말도 안 되게 작게 나옴"을 고치던 앞선 판이 여기서 반대쪽으로 넘어갔다 — 그때
  *    유닛이 3배 크게 매겨지던 것을 고치면서 잉크를 곱해 3배 작은 쪽으로 지나쳤다.)
  *   자원 둘도 상자 그대로다(간헐천 3.84·미네랄 2.4 — 지도의 wTiles). */
+/** 시네마틱 크기 세기 — `#cine=N`(0~1). 없으면 0(지금 그대로)이다.
+ *  ★ 붓 쪽 엔진(마커·미니맵이 부르는 unitTilesOf)도 같은 값을 써야 하므로 여기서 한 번 세운다.
+ *    워커 쪽은 view.cine 을 받아 제 모듈에 세운다(frameWorker). */
+export const CINE_HASH9 = ((): number => {
+  const m9 = typeof location !== "undefined" ? /cine=([0-9.]+)/.exec(location.hash) : null;
+  return m9 ? Math.max(0, Math.min(1, Number(m9[1]))) : 0;
+})();
+cineSet9(CINE_HASH9);
 export const shapeMapTiles = (kind: string): number => {
   const bld = BLD_NAME_OF_KIND[kind];
   if (bld) {
-    return buildingBox(bld)[0] * BLD_DRAW_K * (BLD_DRAW_TUNE[kind] ?? 1);
+    return buildingBox(bld)[0] * bldDrawK9() * (BLD_DRAW_TUNE[kind] ?? 1);
   }
   // 자원 둘은 건물표에 없다 — 지도가 그리는 상자 그대로다(위 자원 층의 wTiles).
   if (kind.startsWith("mineral")) return 2.4;   // 꼴·고갈 별본 모두 같은 상자다.
@@ -10598,6 +10606,9 @@ export default function ReplayMotionPlayer({
     crowd: CROWD9.lv,
     // `#noscan` 해시(도구용) — 두리번을 끈다.
     ...(typeof location !== "undefined" && /noscan/.test(location.hash) ? { noIdleScan: true } : {}),
+    /* 시네마틱 크기 세기 — 워커에는 location.hash 가 없으므로 **이 자리가 유일한 입구**다
+       (engine9 cineSet9 의 ★★). 값이 바뀌면 크기가 바뀌므로 아래 열쇠(v9)에도 든다. */
+    cine: CINE_HASH9,
   };
   /* 시점 입력이 바뀌면 워커에도 알린다 — 색표는 참조로, 나머지는 값으로 견준다.
      열쇠 만들기는 모듈 자리의 viewKeyOf9다 — 손짓 중에 손끝 기하로 다시 보내는 자리(postLiveView9)와

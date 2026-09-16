@@ -1387,8 +1387,80 @@ export const unitTilesOf = (drawKind: string, sizeKind: string, bulk: 0 | 1 | 2)
   const bw0 = UNIT_BW_TILES[sizeKind] ?? CLASS_TILES[bulk];
   const bw = SIZE_CONTRAST_C === 1 ? bw0 : SIZE_REF * (bw0 / SIZE_REF) ** SIZE_CONTRAST_C;
   return bw * SPRITE_OVERHANG * (16 / modelInkOf(drawKind))
-    * (UNIT_SIZE_TUNE[sizeKind as keyof typeof UNIT_BW_RAW] ?? 1) * UNIT_SIZE_GLOBAL;
+    * (UNIT_SIZE_TUNE[sizeKind as keyof typeof UNIT_BW_RAW] ?? 1) * UNIT_SIZE_GLOBAL
+    * cineUnitK9(sizeKind);
 };
+/* ────────────────────────────────────────────────────────────────────────────────────────
+   ★★ **시네마틱 크기**(요청: "인게임 크기 비율 말고 실제 설정상 크기와 가깝게 — 건물은
+   크고 유닛은 작게, 유닛 안에서도 보병/전차/비행선/함선 단위로 크기 차이를 크게, 종족간
+   크기 차이도. 일단은 파라미터로 켤 수 있게") ────────────────────────────────────────────
+   손잡이는 **하나**(`#cine=N`, 0~1)다. 0 이 지금 그대로이고 1 이 설정 비율에 가장 가깝다.
+   그 하나가 넷을 함께 움직인다:
+     ① 건물 ×(1 + 0.35N)          — 건물이 전장의 덩치가 된다(bldDrawK9)
+     ② 유닛 전체는 등급 표가 직접 든다(공통 몫을 따로 곱하지 않는다 — 곱이 겹치면 못 읽는다)
+     ③ 등급·종족 배수만으로 칸을 벌린다 — **원작 치수 지수(SIZE_CONTRAST)는 안 건드린다**
+        ⚠ 둘을 함께 올리면 **곱으로 겹쳐** 함선이 지도를 덮는다(실측: 지수 +0.7N 에
+          배틀크루저가 7.7 → 18.7타일 · 큰/작은 비 4.5 → 31.9배 · +0.25N 에도 13.4타일).
+          칸을 벌리는 자는 표 하나여야 값을 읽을 수 있다.
+
+   ★ **충돌·진형은 한 톨도 안 움직인다** — 겹침의 진실은 simCore 의 BODY_R 이고 화면 진형
+     간격은 UNIT_BODY_TILES(이 자를 안 타는 순수 충돌 상자)가 정한다. 이 손잡이는 **그리는
+     크기**에만 걸린다(기존 SIZE_CONTRAST 규약 그대로다).
+   ★ 워커가 크기를 셈하므로(op.sizePx 는 워커가 적는다) 값은 **화면 입력(EngineView9.cine)**
+     으로 흘려보내고 양쪽이 같은 세터를 쓴다 — 워커에는 location.hash 가 없다.
+   ⚠ 설정 치수를 **그대로** 쓸 수는 없다: 배틀크루저가 1km, 캐리어가 500m 다(마린의 500배).
+     그 비를 화면에 옮기면 함선 한 채가 지도를 덮는다. 그래서 '칸'의 순서와 간격만 지키고
+     비는 눅인다 — 아래 표가 그 눅임이다(한 칸에 1.2~1.5배). */
+let CINE9 = 0;
+/** 시네마틱 세기(0~1)를 세운다 — 붓은 `#cine=N`, 워커는 view.cine 으로 같은 값을 넣는다. */
+export const cineSet9 = (v: number): void => { CINE9 = Math.max(0, Math.min(1, v || 0)); };
+export const cineNow9 = (): number => CINE9;
+/** 등급 배수 — 보병 < 일꾼 < 소형 지상 < 전차 < 대형 지상 < 소형 비행 < 중형 비행 < 함선. */
+const CINE_CLASS_K9 = {
+  inf: 0.70,      // 보병(사람 크기)
+  work: 0.80,     // 일꾼
+  small: 0.74,    // 소형 지상 생체(저글링·스커지·인터셉터)
+  veh: 1.00,      // 전차·차량 — 이 칸이 기준(1)이다
+  big: 1.12,      // 대형 지상(울트라·리버·아콘)
+  air: 1.12,      // 소형 비행선
+  air2: 1.24,     // 중형 비행선(수송·과학선·아비터·오버로드)
+  cap: 1.28,      // 함선(배틀크루저·캐리어) — 더 키우면 한 채가 화면 폭의 3할을 넘는다
+} as const;
+/** 종족 배수 — 프로토스는 크고 저그는 작다(설정 기준). */
+const CINE_RACE_K9: Record<string, number> = { t: 1, p: 1.07, z: 0.95 };
+/** 종류 → [등급, 종족]. 없는 종류는 크기 등급(UNIT_BULK)으로 물러난다. */
+const CINE_KIND9: Record<string, [keyof typeof CINE_CLASS_K9, "t" | "p" | "z"]> = {
+  gunner: ["inf", "t"], fbat: ["inf", "t"], inf: ["inf", "t"], ghost: ["inf", "t"],
+  scv: ["work", "t"], scvMin: ["work", "t"], scvGas: ["work", "t"],
+  vulture: ["veh", "t"], mine: ["small", "t"], goliath: ["veh", "t"],
+  tank: ["veh", "t"], tanksiege: ["veh", "t"], tankbody: ["veh", "t"], tankgun: ["veh", "t"],
+  tanksiegebody: ["veh", "t"], tanksiegegun: ["veh", "t"],
+  wraith: ["air", "t"], valk: ["air", "t"], dship: ["air2", "t"], vessel: ["air2", "t"],
+  bc: ["cap", "t"],
+  zealot: ["inf", "p"], goon: ["veh", "p"], htemp: ["inf", "p"], dtemp: ["inf", "p"],
+  archon: ["big", "p"], darchon: ["big", "p"],
+  probe: ["work", "p"], probeMin: ["work", "p"], probeGas: ["work", "p"],
+  reaver: ["big", "p"], observer: ["air", "p"], shuttle: ["air2", "p"],
+  scout: ["air", "p"], corsair: ["air", "p"], arbiter: ["air2", "p"], carrier: ["cap", "p"],
+  interceptor: ["small", "p"],
+  larva: ["small", "z"], drone: ["work", "z"], droneMin: ["work", "z"], droneGas: ["work", "z"],
+  zling: ["small", "z"], hydra: ["inf", "z"], lurker: ["veh", "z"], defiler: ["veh", "z"],
+  ultra: ["big", "z"], queen: ["air", "z"], muta: ["air", "z"], scourge: ["small", "z"],
+  ovie: ["air2", "z"], guardian: ["air2", "z"], devourer: ["air2", "z"],
+  egg: ["small", "z"], lurkeregg: ["small", "z"], mutacocoon: ["small", "z"],
+  burrowhole: ["small", "z"],
+};
+/** 그 종류의 시네마틱 배수(세기 0 이면 1). */
+export const cineUnitK9 = (sizeKind: string): number => {
+  if (CINE9 <= 0) return 1;
+  const e9 = CINE_KIND9[sizeKind];
+  const cls9 = e9 ? CINE_CLASS_K9[e9[0]]
+    : CINE_CLASS_K9[(UNIT_BULK[sizeKind] ?? 1) === 0 ? "small" : (UNIT_BULK[sizeKind] ?? 1) === 2 ? "big" : "veh"];
+  const rk9 = e9 ? CINE_RACE_K9[e9[1]] : 1;
+  return 1 + (cls9 * rk9 - 1) * CINE9;
+};
+/** 건물의 그리기 배수 — 시네마틱에서 커진다(요청: "건물은 크고 유닛은 작게"). */
+export const bldDrawK9 = (): number => BLD_DRAW_K * (1 + 0.35 * CINE9);
 /** 일꾼 모델 — 겹침 이완에서 제 일꾼끼리는 서로 안 밀어낸다(지적: 자원 곁 포개짐 허용). */
 export const WORKER_KIND_SET = new Set([
   "scv", "probe", "drone",
@@ -1559,6 +1631,9 @@ export type UnitDrawOp = {
   lit?: boolean;
   /** 도는 부품의 칸(0~7) — 상시 회전이라 lit와 무관하다(위 bldSpinNow 주석). */
   spin?: number;
+  /** 공사 발판 경광등의 깜빡임 칸(0·1) — **짓는 중에만** 뜻이 있다(완성 모델에는 발판이 없다).
+   *  메시 열쇠에 드므로 칸은 둘뿐이다(그 이상 쪼개면 짓는 건물마다 벌이 그만큼 늘어난다). */
+  blink?: number;
   /** 지금 그릴 자세(요청: 애니메이션) — 0 기본 · 1 이동 컷 · 2 공격 컷.
    *  컷을 가진 종류(POSE_KINDS)에서만 판이 갈리고, 나머지는 값이 있어도 무시된다. */
   pose?: 0 | 1 | 2 | 3 | 4 | 5;
@@ -3524,6 +3599,9 @@ export type EngineView9 = {
   cull: { x0: number; x1: number; y0: number; y1: number } | null;
   /** 대기 중 두리번(IDLE_SCAN)을 끈다 — 도구용(scene-sheet 비교 장면: 저글링이 22.5도 돌아간 순간이 찍혀 방향이 어긋나 보였다). */
   noIdleScan?: boolean;
+  /** 시네마틱 크기 세기(0~1) — 붓이 `#cine=N` 에서 읽어 흘려보낸다(위 cineSet9 의 ★★).
+   *  워커에는 location.hash 가 없으므로 이 자리가 유일한 입구다. */
+  cine?: number;
 };
 export function createEngine9(world: EngineWorld9, view0: EngineView9) {
   let view = view0;
@@ -3691,7 +3769,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       const fp = FOOTPRINT[unit] ?? [3, 2];
       const sk = SHAPE_KIND[unit] ?? "";
       const tPx = mapW9 / grid.width;
-      const side = fp[0] * tPx * BLD_DRAW_K * (BLD_DRAW_TUNE[sk] ?? 1);
+      const side = fp[0] * tPx * bldDrawK9() * (BLD_DRAW_TUNE[sk] ?? 1);
       return side * bldMidK9(sk, pitched) - (fp[1] / 2) * tPx * (pitched ? pitchFlat : 1);
     };
     const viewTeam = view.viewTeam;
@@ -5165,7 +5243,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           /* 종류별 배수는 **제 모델을 그릴 때만**(테란 공사) 얹는다 — 저그 고치·
              프로토스 소환구·폴백 공사장은 종류를 안 가리는 공용 모델이라, 거기에
              스파이어의 몫을 얹으면 고치만 커진다. */
-          drawK: BLD_DRAW_K
+          drawK: bldDrawK9()
             * (race2 === "테란" ? (BLD_DRAW_TUNE[shapeKind] ?? 1) : 1),
           pickWip: true,
           /* 상태 줄 — 테란은 '건설 중단'을 따로 말한다(요청): 일꾼이 떠나거나
@@ -5187,8 +5265,13 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
              아래로 묶어 둔다. 단계가 굽기 캐시 열쇠에 들어가므로 판은 단계마다
              한 번만 구워진다(프레임 비용 없음). */
           ...(race2 === "테란" && shapeKind
-            ? { buildStage: Math.max(1, Math.min(BUILD_STAGES - 1,
-              Math.ceil(prog * BUILD_STAGES))) }
+            ? {
+              buildStage: Math.max(1, Math.min(BUILD_STAGES - 1,
+                Math.ceil(prog * BUILD_STAGES))),
+              /* 발판 경광등의 깜빡임 — 초당 한 번 반짝인다(칸 둘이라 메시도 둘뿐이다).
+                 자리마다 위상을 달리 줘(fx·fy) 여러 공사장이 한꺼번에 깜빡이지 않는다. */
+              blink: (Math.floor(t * 2 + (bx + by) * 0.7) % 2) === 0 ? 1 : 0,
+            }
             : {}),
           // 공사 모델도 45도 요잉(지적) + 종류별 보정(지적: 테란 공사장 반시계 90).
           rotDeg: buildingYawOf(),
@@ -5649,7 +5732,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           pickKey: `b${raw}|${unit}|${Math.round(x * 4)}|${Math.round(y * 4)}`,
           pickName: unit, pickRaw: raw, pickBld: true, pickX: x, pickY: y,
           pickRep: myOrd === repOrd, pickTag: myTag9,
-          drawK: BLD_DRAW_K * (BLD_DRAW_TUNE[shapeKind] ?? 1),
+          drawK: bldDrawK9() * (BLD_DRAW_TUNE[shapeKind] ?? 1),
           /* 땅에 앉은 건물은 그림자를 안 진다(요청: 건물 바닥 그림자는 제거) —
              건물은 발자국이 곧 제 자리라 바닥 타원이 정보를 더하지 않고, 모델
              발치에 검은 테를 둘러 도형을 흐리기만 했다. 떠 있는 건물만 제 것으로
