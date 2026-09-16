@@ -77,10 +77,10 @@ uniform vec4 uGrad;   // 실루엣 빛(silhouetteLight): 화면 빛 방향 (x,y)
 varying vec4 vCol;
 /** 광택 몫(윤기 + 봉우리, 제 색 물듦까지 먹인 값)을 **따로** 넘긴다 — 결이 곱해질 자리가 여기다. */
 varying vec3 vSpec;
-/** 결의 **줄 눈금** — 낯의 수평 접선에 내린 모형 좌표. 자리의 **1차 함수**라 삼각형 안에서 보간이 정확하다. */
-varying float vGs;
-/** 이 낯이 **결을 받는 재질인가**(0~1) — 아래 ★★ 참고. 낯마다 한 값이라 보간해도 안 흐른다. */
-varying float vRuf;
+/** 결의 자 셋 — **x 줄을 가로지르는 눈금**(낯의 수평 접선) · **y 줄을 따라가는 눈금**(세운 낯은 높이 z,
+ *  누운 낯은 모형 y) · **z 이 낯이 결을 받는 재질인가**(0~1). 앞 둘은 자리의 **1차 함수**라 삼각형 안에서
+ *  보간이 정확하고, 셋을 한 벡터에 담아 varying 자리를 하나만 쓴다. */
+varying vec3 vGr;
 void main() {
   /* aBb 한 칸에 표식 셋이 비트로 들었다: **1 빛**(번짐이 문다) · **2 닫힌 입체**(등진 낯을 걷는다) · **4 빌보드 원반**(카메라를 본다). */
   float bits = floor(aBb * 255.0 + 0.5);
@@ -173,7 +173,12 @@ void main() {
      s 는 자리의 1차 함수라 정점에 실어 보간해도 **정확하다**(화소마다 다시 잴 몫이 없다). */
   float hl = length(aNrm.xy);
   vec2 gh = hl > 0.08 ? vec2(-aNrm.y, aNrm.x) / hl : vec2(1.0, 0.0);
-  vGs = aPos.x * gh.x + aPos.y * gh.y;
+  /* ★ **줄에는 자가 둘 필요하다**(2026-09, 요청: "헤어라인은 얇고 양끝은 더욱 얇아야 해 — 기스 느낌") —
+     가로지르는 자 하나만으로는 줄이 **끝이 없다**(그 자의 함수라 길이 방향으로 값이 안 변한다). 기스는
+     시작과 끝이 있는 **토막**이므로, 낯 위의 둘째 축(줄을 따라가는 자)이 있어야 양끝을 여위게 할 수 있다.
+     줄이 서는 쪽은 세계 수직이므로 세운 낯에서는 **높이 z** 가, 누운 낯(지붕)에서는 모형 y 가 그 자다. */
+  vGr.x = aPos.x * gh.x + aPos.y * gh.y;
+  vGr.y = hl > 0.08 ? aPos.z : aPos.y;
   /* ★★ **결은 재질이지 낯이 아니다**(2026-09, 지적: "원작을 보면 건물 전체에 헤어라인이 있진 않고 보이는
      부분이 있는 거 같아") — 원작 판을 보면 긁힌 마감은 **큰 맨 강철 장갑판**에만 있고 관·어두운 속·붉은 띠·
      발판은 맨질하다. 여태는 종족 하나로 켜고 낯을 안 가려, 건물이 통째로 같은 천을 두른 꼴이었다.
@@ -185,7 +190,7 @@ void main() {
   float lum0 = dot(base, vec3(0.299, 0.587, 0.114));
   float mx0 = max(base.r, max(base.g, base.b));
   float sat0 = mx0 > 0.001 ? (mx0 - min(base.r, min(base.g, base.b))) / mx0 : 0.0;
-  vRuf = (1.0 - smoothstep(0.22, 0.45, sat0))
+  vGr.z = (1.0 - smoothstep(0.22, 0.45, sat0))
     * smoothstep(0.20, 0.36, lum0) * (1.0 - smoothstep(0.66, 0.88, lum0))
     * smoothstep(0.30, 0.55, fract(sin(aOrd * 127.1 + 7.3) * 43758.5453));
   if (uGloss.y > 0.0 || uGloss.w > 0.0) {
@@ -213,7 +218,7 @@ void main() {
 }`;
 const FS = `
 precision mediump float;
-varying vec4 vCol; varying vec3 vSpec; varying float vGs; varying float vRuf;
+varying vec4 vCol; varying vec3 vSpec; varying vec3 vGr;
 uniform float uGrain;
 void main() {
   vec3 c = vCol.rgb + vSpec;
@@ -235,11 +240,23 @@ void main() {
      ⚠ 값은 **화소마다**다 — 그래서 CPU 가 uGrain 에 그 페이드를 접어 보내고(작으면 0), 0 이면 이 가지를
        통째로 건너뛴다. 유니폼 가지라 한 그리기 안에서 갈라지지 않는다. */
   if (uGrain > 0.0) {
-    float a = 0.62 + 0.38 * sin(vGs * 3.1 + 0.6);
-    float n = (sin(vGs * 34.0) * 0.42 + sin(vGs * 43.1 + 1.3) * 0.33 + sin(vGs * 26.3 + 2.7) * 0.25) * a;
-    float g = n * abs(n);
-    float w = uGrain * vRuf;
-    c = vCol.rgb * (1.0 + w * 0.012 * g) + vSpec * (1.0 + w * 0.55 * g);
+    float s9 = vGr.x;
+    float a = 0.62 + 0.38 * sin(s9 * 3.1 + 0.6);
+    float n = (sin(s9 * 34.0) * 0.42 + sin(s9 * 43.1 + 1.3) * 0.33 + sin(s9 * 26.3 + 2.7) * 0.25) * a;
+    /* **길이 봉투** — 줄을 따라가는 자로 토막을 낸다. 위상에 가로 자를 섞어(×5.3) 이웃 줄이 같은 높이에서
+       시작하지 않게 한다 — 안 섞으면 토막의 끝이 한 줄로 서서 **가로 띠**가 된다. */
+    float e = smoothstep(0.30, 0.95, 0.5 + 0.5 * sin(vGr.y * 1.9 + s9 * 5.3 + 1.1));
+    /* **n⁵ 로 더 얇게** — 셋의 합은 어쩌다 한 번만 큰 값에 닿으므로, 제곱을 거듭할수록 그 드문 마루만
+       가는 줄로 남는다(n·|n| 는 아직 굵었다). 2.0 은 그만큼 여윈 마루를 도로 세우는 이득이다. */
+    float n2 = n * n;
+    float g = n * n2 * n2 * 2.0 * e;
+    float w = uGrain * vGr.z;
+    /* ★ **빛 받는 낯의 기스만 흰빛으로 튄다**(요청: "빛을 받는 면의 헤어라인은 유난히 밝게 — 거의 흰색") —
+       '얼마나 빛을 받나'는 이미 광택(vSpec)이 들고 있다. 그 휘도를 곱하면 등진 낯에서는 그 항이 저절로
+       0 이 되므로 문을 따로 둘 일이 없다. 도드라진 쪽(g>0)만 태운다 — 기스는 빛을 **튕기는** 자국이다. */
+    float lit = dot(vSpec, vec3(0.299, 0.587, 0.114));
+    c = vCol.rgb * (1.0 + w * 0.010 * g) + vSpec * (1.0 + w * 0.45 * g)
+      + vec3(w * 2.4 * max(g, 0.0) * lit);
   }
   gl_FragColor = vec4(c * vCol.a, vCol.a);   // 미리곱한 알파 — WebGL 캔버스(premultipliedAlpha)와 합성이 맞아야 반투명(빛무리)이 안 어두워진다
 }`;
