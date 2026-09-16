@@ -827,10 +827,10 @@ const PC_TIERS9: readonly BenchTier9[] = [
 const PHONE_TIERS9: readonly BenchTier9[] = [
   { name: "낮음", upMs: Infinity, aheadSec: 1.5, aheadMB: 6 },
   { name: "보통", upMs: 30, aheadSec: 2.5, aheadMB: 10,
-    glMeshMax: 300, glow: true, glSpec: true, decalBakeMax: 256, hitShardK: 0.8, dieShards: 16 },
+    glMeshMax: 300, glow: true, glSpec: true, shadowGroundMinZoom: 2, decalBakeMax: 256, hitShardK: 0.8, dieShards: 16 },
   { name: "높음", upMs: 13, up3Ms: 28, aheadSec: 4, aheadMB: 16,
     glMeshMax: 360, glow: true, glBloom: true, yaw8Always: false,
-    shadowGroundMinZoom: 2, decalBakeMax: 384, hitShardK: 1, dieShards: 24 },
+    shadowGroundMinZoom: 1, decalBakeMax: 384, hitShardK: 1, dieShards: 24 },
 ];
 const DEV9 = smallDevice9 ? {
   name: "phone",
@@ -1372,7 +1372,12 @@ const crowdShardK9 = (): number => (CROWD9.lv >= 2 ? 0.34 : CROWD9.lv === 1 ? 0.
    상한을 낮춰 굽고 늘려 찍는다 — 가장자리가 조금 부드러워질 뿐이고, 크립 경계는 원래
    물결져 있어 오히려 결에 맞는다. 폰이 더 낮은 것은 화면이 작아 그 부드러움이 안
    보이기 때문이다. */
-const DECAL_BAKE_MAX = DEV9.decalBakeMax;
+/* ⚠ **얼려 쓰면 단이 안 먹는다**(2026-09) — 이 셋은 `DEV9.x` 를 모듈 적재 때 한 번 베껴 두고 있었다.
+   벤치 단이 `DEV9.decalBakeMax`·`DEV9.shadowGroundMinZoom` 를 갈아 끼워도 이 사본은 옛값 그대로라,
+   폰 1·2단이 적어 둔 값이 **한 번도 먹은 적이 없다**(지적: "모델 모양대로 그림자 사영되는 거 좋았는데
+   왜 지금 보니 타원형으로 바뀌었지?" — 2단의 접지 그림자 2배율이 그래서 안 걸렸다).
+   규약대로 **자리에서 DEV9 를 읽는다**(CLAUDE.md: "자리에서는 다들 DEV9.x 를 프레임마다 읽는다"). */
+const decalBakeMax9 = (): number => DEV9.decalBakeMax;
 /** ★ **크립 얼룩 판** — 지도에서 판(캔버스 그림)으로 남은 **유일한** 것이다(2026-09, 판 굽기 길을 걷으며) ────────────
  *  크립은 모델이 아니라 **땅**이다: 지형 마스크로 파내고(붓의 destination-out) 이웃 얼룩과 이음매 없이 이어져야 하는데,
  *  그 두 가지가 2D 캔버스의 일이라 GL 로 옮기지 않았다. 대신 옛 판 기계(예산·LRU·대타·굽기 일꾼·색별 물들이기)는
@@ -1383,7 +1388,7 @@ const CREEP_PLATES9 = new Map<string, CreepPlate9 | null>();
 function creepPlate9(op: UnitDrawOp, B: number): CreepPlate9 | null {
   /* 굽는 크기는 못 박는다(DEV9.decalBakeMax) — 얼룩은 단색 한 겹이라 늘려 찍어도 결이 안 보이고, 배율을 따라가면
      줌 칸마다 새 판이 된다. 캔버스 한 변 상한(spriteSideMax9)만 지킨다(판 한 변 l ≤ 2.56·side + 6). */
-  const side9 = Math.max(4, Math.min(DECAL_BAKE_MAX, Math.floor((((spriteSideMax9() - 1) / B - 6) / 2.56) / 2) * 2));
+  const side9 = Math.max(4, Math.min(decalBakeMax9(), Math.floor((((spriteSideMax9() - 1) / B - 6) / 2.56) / 2) * 2));
   const key9 = `${op.kind}|${op.flat ? 1 : 0}|${op.pitch ? 1 : 0}|${side9}|${B}|${op.color}`;
   const got9 = CREEP_PLATES9.get(key9);
   if (got9 !== undefined) return got9;
@@ -2259,7 +2264,7 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
          **더하기(lighter)로** 얹는다(요청: "더 글로우한 느낌") — 옛 DOM 층은 그냥 덮어
          그렸다. 어두운 땅 위에서 후광 겹이 서로 더해져 진짜 빛으로 읽힌다. */
       const spin9 = Math.floor(u0 * 14) % (STORM_SEEDS * STORM_STAGES);
-      const bud9 = FX_RASTER_MAX / (STORM_SEEDS * STORM_STAGES * 1.5);
+      const bud9 = fxRasterMax9() / (STORM_SEEDS * STORM_STAGES * 1.5);
       const want9 = Math.min(W9 * Bd9, Math.sqrt(bud9 / 4), FX_RASTER_CAP);
       const q9 = Math.max(64, Math.ceil(want9 / 64) * 64);   // 64 칸으로 갈무리 — 배율이 조금 달라져도 다시 안 굽는다
       const cv9 = glFx9 ? null : fxModelCv9({
@@ -3866,7 +3871,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
                · 꼭짓점 z 에 **나는 높이**(h, 모형 칸)를 더해 눕힌다 — 그만큼 빛 방향으로 멀리 눕는다.
                · 앵커는 몸과 같으니(몸은 lift 만큼 들려 있다) 화면에서 그 몫을 도로 내린다(dy = lift).
              캔버스 타원은 공중 유닛에서 걷었다(아래 hover 갈래) — 바닥에 누운 실루엣이 그 몫을 대신한다. */
-          const gsh9 = bodyShadow && (op.air || zoom >= SHADOW_GROUND_MIN_ZOOM)
+          const gsh9 = bodyShadow && (op.air || zoom >= shadowGroundMinZoom9())
             ? (op.air
               ? { ground: true, dy: lift, h: lift / Math.max(1e-3, gk9), alpha: op.alpha * SHADOW_ALPHA9 }
               : { ground: true, alpha: op.alpha * SHADOW_ALPHA9 }) : undefined;
@@ -5014,7 +5019,7 @@ const FX_RASTER_CAP = 1400;
  *  뒤로는 blit 한 번이고, 같은 크기의 스톰 여럿이 같은 열두 칸을 나눠 쓴다. LRU·바이트 상한. */
 const FX_RASTER_CACHE = new Map<string, HTMLCanvasElement>();
 const FX_RASTER_BYTES = { n: 0 };
-const FX_RASTER_MAX = DEV9.fxRasterMB * 1024 * 1024;
+const fxRasterMax9 = (): number => DEV9.fxRasterMB * 1024 * 1024;   // 위 ⚠ — 자리에서 읽는다
 /** 효과 모델 한 칸을 **판으로 굽는다** — 캔버스 fx(스톰·핵)가 쓰는 문 ───────────────────────
  *  (export는 눈으로 보는 도구 몫이다 — scratchpad의 스톰·핵 대조표가 이 둘을 직접 부른다.
  *   이 파일의 SHAPE_BUILDERS·bldSpinSet을 도구가 부르는 것과 같은 규약이다.)
@@ -5084,7 +5089,7 @@ export function fxModelCv9(o9: {
   /* 장수 상한 48 → **72**(스톰·핵이 함께 캔버스로 온 값) — 스톰이 서른두 칸, 떨어지는 탄두가
      서른두 칸(22.5도)이라 둘이 겹치면 48로는 서로를 밀어내 매 칸 새로 굽는다. 바이트 상한은
      그대로라 큰 판이 많아지지는 않는다. */
-  while ((FX_RASTER_BYTES.n > FX_RASTER_MAX || FX_RASTER_CACHE.size > 72) && FX_RASTER_CACHE.size > 1) {
+  while ((FX_RASTER_BYTES.n > fxRasterMax9() || FX_RASTER_CACHE.size > 72) && FX_RASTER_CACHE.size > 1) {
     const [k0, v0] = FX_RASTER_CACHE.entries().next().value as [string, HTMLCanvasElement];
     if (v0 === cvv9) break;
     FX_RASTER_CACHE.delete(k0);
@@ -5485,7 +5490,7 @@ const SHADOW_MIN_ZOOM = 1;
    ★ **작은 기기에서만**이다(지시: "모바일만이야") — PC는 이 자리가 안 아프고, 큰 화면
      에서는 1·2배에서도 유닛이 폰보다 크게 그려져 그림자가 제 몫을 한다. 그래서 데스크톱
      에서는 지금 그대로 지상도 그림자를 진다. */
-const SHADOW_GROUND_MIN_ZOOM = DEV9.shadowGroundMinZoom;
+const shadowGroundMinZoom9 = (): number => DEV9.shadowGroundMinZoom;   // 위 ⚠ — 자리에서 읽는다
 /** ★ 전투 효과가 **갈래마다** 서는 칸 — 요청: "2배에서 전투효과: 가시 분출 우리 /
  *  4배에서 전투효과: 피격 / 나머지는 다 8배부터 노출".
  *  여기 적힌 것은 **사다리(가장 이른 칸)** 이고, 실제 칸은 배치의 바닥과 함께 잰다

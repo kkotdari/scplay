@@ -587,38 +587,41 @@ export class GlUnits9 {
     /* ★ 깊이 칸은 개체 수가 아니라 **겹침**으로 나눈다 — 개체마다 칸을 주면 400기 화면에서 칸이 0.005 라 16비트 깊이 버퍼에서는
        한 개체 안의 부품 앞뒤(지붕 위 원통·벽의 환풍구)가 양자화에 묻혔다(실측: 판에는 있는 부품이 GL 에서 사라짐).
        화면에서 겹치는(원 반지름 = 실루엣 상자) 앞선 개체보다 한 칸 앞에만 서면 되므로 칸 수는 겹침 깊이(보통 10 안팎)다. */
+    /* ★ **칸은 화가 차례로 한 번에 정한다**(2026-09, 지적: "모델끼리 겹쳐질 때 각 부품이 별개로 앞뒤가
+       판단되어서 정신없이 바뀐다. 모델 안에서는 각 부품의 값을 비교하지만 모델 간에는 하나로 정해서 비교해야") —
+       그 지적이 곧 이 자의 규약이다. 개체 **사이**를 가르는 것은 오직 칸(uDepth0)이고, 개체 **안**의 부품
+       앞뒤는 그 칸 안에서만(near + aOrd, 폭은 칸의 1/4) 겨룬다. 그러니 **화면에서 겹치는 두 개체가 같은 칸에
+       들면** 두 모델의 부품이 서로 끼어들어 흔들린다 — near 는 모델 제 좌표라 어느 개체가 앞인지를 모른다.
+       예전 셈은 x 로 정렬해 한 번 훑고 **두 번 더 완화**하는 꼴이었다. 이것은 겹침 그래프의 가장 긴 사슬을
+       푸는 일인데, 완화 두 번으로는 사슬이 길면(난전의 유닛 무리) 수렴하지 않는다 — 그래서 겹친 채 같은 칸에
+       남는 짝이 생기고, 그 짝이 프레임마다 바뀌니 '정신없이' 보였다.
+       이제 **화가 차례(i 오름차순)** 로 돌면서 나보다 **먼저 칠하는**(j < i) 겹친 개체의 칸 + 1 을 고른다.
+       j < i 는 이미 확정이므로 한 번에 정확하다(DAG 의 가장 긴 경로). 훑기도 셋에서 하나로 준다.
+       ⚠ 칸이 늘면 칸 폭(2/(M+1))이 좁아진다 — 16비트 깊이 기기를 지키려 상한을 둔다(SLOT_MAX9).
+          상한에 걸린 자리는 예전처럼 겹칠 뿐, 상한이 없을 때처럼 온 화면이 흔들리지는 않는다. */
     const order = q.map((_, i) => i).sort((a, b) => q[a].ax - q[b].ax);
+    const posOf = new Int32Array(q.length);
+    for (let k = 0; k < order.length; k += 1) posOf[order[k]] = k;
     const slotOf = new Int32Array(q.length);
     let rmax = 0; for (const it of q) if (it.gradR > rmax) rmax = it.gradR;
+    const SLOT_MAX9 = this.stat.depthBits >= 24 ? 4096 : 512;
     let M = 1;
-    for (let oi = 0; oi < order.length; oi += 1) {
-      const i = order[oi]; const a = q[i]; const acy = a.ay + a.gradCy;
+    for (let i = 0; i < q.length; i += 1) {
+      const a = q[i]; const acy = a.ay + a.gradCy; const p = posOf[i];
       let s9 = 0;
-      for (let oj = oi - 1; oj >= 0; oj -= 1) {
-        const j = order[oj]; const b = q[j];
-        if (a.ax - b.ax > a.gradR + rmax) break;
-        const rr = a.gradR + b.gradR; const dy = acy - (b.ay + b.gradCy); const dx = a.ax - b.ax;
-        if (dx * dx + dy * dy > rr * rr) continue;
-        // 화가 차례가 늦은 쪽이 앞 칸
-        const lateI = i > j; const other = slotOf[j];
-        if (lateI) { if (other + 1 > s9) s9 = other + 1; }
-      }
-      // 앞선 개체(차례가 빠른) 중 나보다 늦게 정렬된 것도 있다 — 두 번째 훑기에서 맞춘다
-      slotOf[i] = s9; if (s9 + 1 > M) M = s9 + 1;
-    }
-    // 둘째 훑기: x 정렬 때문에 화가 차례가 빠른 개체가 뒤에 올 수 있다 — 겹치면 그 개체 칸 + 1 을 보장한다(한 번 더면 충분히 수렴한다).
-    for (let pass = 0; pass < 2; pass += 1) {
-      for (let oi = 0; oi < order.length; oi += 1) {
-        const i = order[oi]; const a = q[i]; const acy = a.ay + a.gradCy;
-        for (let oj = oi + 1; oj < order.length; oj += 1) {
-          const j = order[oj]; const b = q[j];
-          if (b.ax - a.ax > a.gradR + rmax) break;
-          const rr = a.gradR + b.gradR; const dy = acy - (b.ay + b.gradCy); const dx = a.ax - b.ax;
+      for (let dir = -1; dir <= 1; dir += 2) {
+        for (let k = p + dir; k >= 0 && k < order.length; k += dir) {
+          const j = order[k]; const b = q[j];
+          const dx = a.ax - b.ax;
+          if (Math.abs(dx) > a.gradR + rmax) break;
+          if (j >= i) continue;   // 나보다 늦게 칠하는 것은 내 앞이지 뒤가 아니다
+          const rr = a.gradR + b.gradR; const dy = acy - (b.ay + b.gradCy);
           if (dx * dx + dy * dy > rr * rr) continue;
-          if (i > j && slotOf[i] <= slotOf[j]) { slotOf[i] = slotOf[j] + 1; if (slotOf[i] + 1 > M) M = slotOf[i] + 1; }
-          else if (j > i && slotOf[j] <= slotOf[i]) { slotOf[j] = slotOf[i] + 1; if (slotOf[j] + 1 > M) M = slotOf[j] + 1; }
+          if (slotOf[j] + 1 > s9) s9 = slotOf[j] + 1;
         }
       }
+      if (s9 > SLOT_MAX9) s9 = SLOT_MAX9;
+      slotOf[i] = s9; if (s9 + 1 > M) M = s9 + 1;
     }
     const slot = 2 / (M + 1);
     this.stat.slots = M;
