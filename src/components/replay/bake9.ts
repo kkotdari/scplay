@@ -23862,106 +23862,94 @@ export function autoTier(kind: string, key: string, faces: ShapeFace[]): ShapeFa
   AUTO_TIER_CACHE.set(key, out);
   return out;
 }
-/** 건설 단계별 부품 몫(요청: "처음엔 10프로정도로 시작해서 10-20-40-60-100") — 1~4단이고
- *  5단(= BUILD_STAGES)은 완성이라 표에 없다(그 자리는 faces 를 통째로 낸다).
- *  10·20·40·60 → **5·20·35·50**(재요청: "처음에 5 — 거의 밑판이나 발판 정도만 보여야함").
- *  ⚠ 곡선(지수)으로 내지 않는다 — 요청이 숫자로 온 값이고, 식으로 맞추면 다음에 한 칸만
- *    바꾸고 싶을 때 네 값이 함께 움직인다. */
-const BUILD_FRAC9 = [0.05, 0.20, 0.35, 0.50];
+/** 건설 단계별 **높이** 몫 — 1~9단이고 10단(= BUILD_STAGES)은 완성이라 표에 없다
+ *  (그 자리는 faces 를 통째로 낸다).
+ *  ★★ **자를 '낯 수'에서 '높이'로 바꿨다**(2026-09) — 낯 수로 자르면 **낯이 몰린 자리에서
+ *  멈춘다**: 배럭은 발판 여섯이 잘게 쪼갠 돔이라 **낯의 절반이 z 1.36 아래**에 있고(실측
+ *  708낯 중 50% 가 다리·발판), 그래서 '50%'가 몸통 하나 없이 발판만 서 있는 그림이었다.
+ *  공사가 자라는 자는 부품의 **개수**가 아니라 **높이**다 — 그 몫만큼의 z 아래에 밑변이
+ *  드는 낯을 세운다. 낯은 통째로 드므로(밑변 기준) 잘린 단면이 안 생긴다.
+ *  ⚠ 마지막 단계가 0.72 인 것은 값이다 — 꼭대기의 살창·뚜껑·안테나가 남아야 '짓는 중'과
+ *    '완성'이 갈린다(단계끼리의 구분은 열 칸이라 저절로 선다). */
+const BUILD_FRAC9 = [0.10, 0.18, 0.26, 0.34, 0.42, 0.50, 0.58, 0.65, 0.72];
+/** 건설 중 보여 줄 낯을 고른다 — **낮은 것부터**.
+ *  ★★ **자는 화면이 아니라 모델의 높이(z)다**(2026-09, 지적: "지금 보면 앞 발판은 먼저
+ *  나오는데 뒷발판들이 제일 나중에 생겨 — 실제 공사라면 말이 안 돼") ───────────────────
+ *  여태 차례를 **사영된 화면 상자**로 쟀다. 부감 사영에서 화면 y = a + 0.643·ry − 0.766·z
+ *  이므로 **같은 높이라도 깊이가 다르면 화면 자리가 다르다** — 그래서 같은 발판인데 앞의
+ *  것은 맨 먼저, 뒤의 것은 맨 나중에 섰다. 공사에서 먼저인 것은 '화면에서 아래'가 아니라
+ *  **'실제로 낮은 것'**이다.
+ *  메시 층이 이미 낯마다 판 모형 공간 3D 를 적어 두므로(MESH9.byD) 그 z 를 쓴다.
+ *  ★ **자리는 낯 하나다 — 부품이 아니다**(요청: "같은 부품이라도 아래면이 먼저 나오고
+ *    벽은 나중에 생기고 그다음 천장이 얹히고") — 열쇠를 (z 아래끝, z 위끝) 로 두면 상자
+ *    하나가 저절로 바닥(z0,z0) → 벽(z0,z1) → 천장(z1,z1) 차례로 선다. 벽에 붙은 창·데칼은
+ *    제 host 의 z 구간 **안**에 들어 그 벽보다 늦고, 지붕에 앉는 뚜껑은 z0 가 지붕의 z1
+ *    이라 저절로 그 뒤다 — 겹침을 따로 셀 일이 없어졌다(옛 상자 겹침 규칙을 걷었다).
+ *  ⚠ 3D 가 없는 낯(관·막대가 일부러 적어 둔 빈 표, `#gl=0` 폴백의 2D 굽기)은 **제 부품의
+ *    z 구간**을 물려받고, 그마저 없으면 옛 자(화면 상자의 밑변)로 물러난다. */
 export function stageFaces(faces: ShapeFace[], stg: number): ShapeFace[] {
   if (stg <= 0 || stg >= BUILD_STAGES) return faces;
+  const n = faces.length;
+  if (n <= 1) return faces;
+  /* 부품 묶음(tagKey 가 바뀌는 자리) — 3D 를 안 적은 낯이 제 몫을 물려받을 단위다. */
   const gid: number[] = [];
-  const tops: number[] = [];
-  /** 부품마다의 상자 [x0, y0, x1, y1] — 아래 '안쪽 → 바깥쪽' 규칙이 겹침을 이걸로 잰다. */
-  const boxes: [number, number, number, number][] = [];
   let g = -1;
   let lastKey: number | undefined;
   for (const f of faces) {
     const k = f[3];
-    if (g < 0 || (k !== undefined && k !== lastKey)) {
-      g += 1;
-      tops.push(Infinity);
-      boxes.push([Infinity, Infinity, -Infinity, -Infinity]);
-    }
+    if (g < 0 || (k !== undefined && k !== lastKey)) g += 1;
     if (k !== undefined) lastKey = k;
     gid.push(g);
-    const b = pathBox(f[0]);
-    if (b[1] < tops[g]) tops[g] = b[1];
-    const bb = boxes[g];
-    if (b[0] < bb[0]) bb[0] = b[0];
-    if (b[1] < bb[1]) bb[1] = b[1];
-    if (b[2] > bb[2]) bb[2] = b[2];
-    if (b[3] > bb[3]) bb[3] = b[3];
   }
-  const n = tops.length;
-  if (n <= 1) return faces;
-  /** 부품의 화면 상자 넓이 — '큰 것부터'의 자다. */
-  const area9: number[] = boxes.map((b) => Math.max(0, b[2] - b[0]) * Math.max(0, b[3] - b[1]));
-  /* ① 아래에서 위로 ─────────────────────────────────────────────────────────────
-     ★ 자는 **밑변**이다(2026-09, 재요청: "발판이 맨 아래라 제일 먼저 나와야 해") — 여태
-       꼭대기(tops)로 줄을 세웠다. 그러면 '가장 낮은 부품'이 아니라 '가장 납작한 부품'이
-       앞에 서므로, 땅에 닿는 발판보다 선체 밑에 납작하게 깔린 판(커맨드 경사로·스타포트
-       애드온 받침)이 먼저 나왔다. 짓는 차례에서 먼저인 것은 **땅에 먼저 닿는 것**이다.
-       밑변(이 좌표계는 y가 아래로 커지므로 y가 큰 쪽)이 낮은 부품부터 세우고, 같으면
-       꼭대기가 낮은 쪽을 앞에 둔다(같은 바닥이면 납작한 것이 받침이다). */
-  const rank: number[] = new Array<number>(n).fill(0);
-  const bots9: number[] = boxes.map((b) => b[3]);
-  bots9.map((_, i) => i).sort((a, b) => bots9[b] - bots9[a] || tops[b] - tops[a])
-    .forEach((gi, r) => { rank[gi] = r; });
-  /* ② 안쪽에서 바깥쪽으로(요청: "아래에서 위 순서 뿐 아니라 안쪽-바깥쪽 순서 법칙도
-     지켜져야해 — 겉의 창문이나 데칼이 그게 붙을 파트보다 먼저 등장하지 않게") ────────
-     ①만으로는 벽에 붙는 창문·데칼이 벽보다 먼저 뜬다: 창문은 벽 **위쪽**에 붙는 작은
-     판이라 제 꼭대기가 벽의 꼭대기보다 낮게(=아래로) 잡히는 일이 흔하고, 그러면 아직
-     없는 벽 자리에 창문만 공중에 떠 있는 그림이 된다.
-     '무엇이 무엇에 붙었나'는 이미 자료에 있다 — 면을 칠하는 차례가 곧 앞뒤다(zsorted).
-     먼저 칠하는 것이 안쪽이고 나중에 칠하는 것이 그 위에 얹힌 겉이다. 그러니 **겹치는
-     두 부품 사이에서는 나중에 칠하는 쪽이 먼저 나올 수 없다**로 못 박으면 된다.
-     앞에서부터 훑으며 제 앞 부품의 차례를 물려받으면(이미 확정된 값이라) 한 번에
-     전이까지 닫힌다. 부품 수는 수십이라 이 겹셈은 굽는 순간 한 번이고 캐시된다. */
-  /* ★★ **자를 '칠하는 차례'에서 '크기'로 바꾼다**(2026-09, 요청: "면도 없는데 그 위의 데칼이나
-     작은 부품이 먼저 나타나지 않게 주의 — 큰 부품이 나오고 작은 부품이 나와야함" · "데칼종류는
-     제일 마지막에 완공시 나와도될듯") ────────────────────────────────────────────────────
-     옛 규칙은 '겹치면 **나중에 칠하는** 쪽이 먼저 나올 수 없다'였다. 화가 차례가 앞뒤를 말해 주니
-     그럴듯했지만, 얹힌 것이 늘 나중에 칠해지는 것은 아니다 — 지붕 위 뚜껑처럼 **제 몸보다 먼저**
-     칠하는 부품이 있어 그 자리에서 문이 통째로 열렸다(실측: 배럭 1단에 몸 없는 파란 뚜껑이 떴다).
-     자를 크기로 바꾸면 그 예외가 사라진다: **겹치는 두 부품 사이에서는 큰 쪽이 먼저다.**
-     데칼·창·뚜껑은 제가 붙을 판보다 작으므로 저절로 그 뒤로 밀리고, 가장 작은 것들(곧 데칼)은
-     마지막 단계의 몫(60%) 밖에 남아 **완공에서야 나온다** — 문턱을 따로 둘 일이 없다.
-     넓이 내림차순으로 훑으면 제 앞의 큰 것들은 이미 확정이라 한 번에 닫힌다(가장 긴 사슬). */
-  const bySize9 = area9.map((_, i) => i).sort((a, b) => area9[b] - area9[a] || a - b);
-  for (const a of bySize9) {
-    const q = boxes[a];
-    for (const b of bySize9) {
-      if (b === a) break;   // 넓이 내림차순이라 여기까지가 '나보다 큰 것'이다
-      const p = boxes[b];
-      if (q[0] > p[2] || p[0] > q[2] || q[1] > p[3] || p[1] > q[3]) continue;
-      /* ★ **'얹힌 것'과 '받치는 것'을 밑변으로 가른다**(2026-09, 재요청: "처음에 5 — 거의 밑판이나
-         발판 정도만 보여야함") — 큰 것이 먼저라는 자만 두면 **다리도 몸 뒤로 밀린다**(다리는 몸과
-         겹치고 몸보다 작다). 그러면 1단이 '허공에 뜬 몸통'이라 짓는 중으로 안 읽힌다.
-         가름은 밑변 하나다: 얹힌 것(창·데칼·지붕 뚜껑)은 제 밑변이 받침의 밑변 **위**에 있고,
-         받치는 것(다리·발판)은 그 **아래**로 뻗는다. 아래로 뻗는 것은 이 문을 안 지나 ①의
-         아래에서 위로 차례를 그대로 지킨다 — 곧 발판이 먼저 서고 몸이 그 위에 앉는다. */
-      if (q[3] > p[3] + 0.01) continue;
-      if (rank[b] > rank[a]) rank[a] = rank[b];
-    }
+  const ng = g + 1;
+  const z0 = new Array<number>(n).fill(NaN);
+  const z1 = new Array<number>(n).fill(NaN);
+  const gz0 = new Array<number>(ng).fill(Infinity);
+  const gz1 = new Array<number>(ng).fill(-Infinity);
+  let has3d9 = false;
+  for (let i = 0; i < n; i += 1) {
+    const ps = MESH9.byD.get(faces[i][0]);
+    if (!ps || ps.length === 0) continue;
+    let a9 = Infinity; let b9 = -Infinity;
+    for (const q of ps) for (let j = 2; j < q.length; j += 3) { const z = q[j]; if (z < a9) a9 = z; if (z > b9) b9 = z; }
+    if (!(a9 <= b9)) continue;
+    z0[i] = a9; z1[i] = b9; has3d9 = true;
+    const gg = gid[i];
+    if (a9 < gz0[gg]) gz0[gg] = a9;
+    if (b9 > gz1[gg]) gz1[gg] = b9;
   }
-  // 같은 차례면 큰 것부터 — 같은 넓이면 칠하는 순서대로(안쪽이 먼저다).
-  const order = rank.map((_, i) => i).sort((a, b) => rank[a] - rank[b] || area9[b] - area9[a] || a - b);
-  /* 단계별 몫은 표가 든다(위 BUILD_FRAC9) — 10 · 20 · 40 · 60, 그리고 완성이 100 이다.
-     ★ 내력을 남긴다: 한때 이 값을 지수 곡선으로 냈고(앞을 부풀려 1단에 40%), 끝 단계에 상한
-       0.65 를 두어 완성과 구분을 지었다. 그 시절 1단이 49% 라 '거의 다 지은 것'으로 보였고,
-       차례의 자가 화가 순서라 몸 없는 뚜껑이 떠 있었다. 지금은 차례가 크기라 1단의 10% 가
-       **가장 큰 덩이 몇**이고, 그것이 곧 '터를 닦고 뼈대를 세운' 그림이다.
-     ⚠ 마지막 단계(4단)와 완성의 차는 40점이다 — 구분이 서야 하는 것은 단계끼리가 아니라
-       **짓는 중과 완성**이다. */
+  /** 낯의 화면 상자 — 크기(같은 높이면 큰 것부터)와 3D 없는 자리의 대타로 쓴다. */
+  const box = faces.map((f) => pathBox(f[0]));
+  const area9 = box.map((b) => Math.max(0, b[2] - b[0]) * Math.max(0, b[3] - b[1]));
+  const key0: number[] = new Array<number>(n);
+  const key1: number[] = new Array<number>(n);
+  for (let i = 0; i < n; i += 1) {
+    const gg = gid[i];
+    const a9 = Number.isNaN(z0[i]) ? (gz0[gg] < Infinity ? gz0[gg] : NaN) : z0[i];
+    const b9 = Number.isNaN(z1[i]) ? (gz1[gg] > -Infinity ? gz1[gg] : NaN) : z1[i];
+    /* 3D 가 아예 없는 굽기(2D 폴백)에서는 옛 자로 — 밑변이 낮은(화면 y 가 큰) 것부터. */
+    key0[i] = Number.isNaN(a9) ? -box[i][3] : a9;
+    key1[i] = Number.isNaN(b9) ? -box[i][1] : b9;
+  }
+  const order = key0.map((_, i) => i)
+    .sort((a, b) => key0[a] - key0[b] || key1[a] - key1[b] || area9[b] - area9[a] || a - b);
   const frac9 = BUILD_FRAC9[Math.min(BUILD_FRAC9.length - 1, stg - 1)];
-  /* ⚠ (안 넣었다) '땅에 닿는 부품은 1단에서 다 세운다'는 바닥 — **화면 자로는 못 잰다**.
-     여기 상자는 사영된 화면 상자라, 같은 높이의 발판이라도 **깊이가 다르면 화면 밑변이 다르다**
-     (부감 사영에서 화면 y = a + 0.643·ry − 0.766·z 이므로 z=0 인 땅도 한 줄이 아니다).
-     '가장 낮은 자리에서 한 뼘' 같은 띠는 그래서 가까운 발만 골라내 뜻이 없다. 밑변 차례가
-     이미 발판을 맨 앞에 세우므로 그것으로 족하다. */
-  const keep = new Set(order.slice(0, Math.max(1, Math.round(n * frac9))));
-  return faces.filter((_, i) => keep.has(gid[i]));
+  /* 높이로 자른다 — 그 몫만큼의 z 아래에 **밑변**이 드는 낯까지. 3D 가 아예 없는 굽기
+     (2D 폴백)에서는 자가 화면 상자라 높이로 못 재므로 옛 자(낯 수)로 물러난다. */
+  const zLo9 = key0[order[0]]; const zHi9 = key0[order[n - 1]];
+  let keepN9 = Math.max(1, Math.round(n * frac9));
+  if (has3d9 && zHi9 > zLo9) {
+    const cut9 = zLo9 + (zHi9 - zLo9) * frac9;
+    let m9 = 0;
+    while (m9 < n && key0[order[m9]] <= cut9) m9 += 1;
+    keepN9 = Math.max(1, m9);
+  }
+  /* ⚠ **같은 경로의 덧칠은 제 몸과 떨어지면 안 된다** — 음영 덧칠(topFace·sideFace)은 몸과
+     경로가 글자까지 같아 열쇠도 같으므로 늘 붙어 서는데, 자르는 자리가 그 사이에 떨어지면
+     몸 없는 반투명 유령 한 장이 남는다. 같은 경로가 이어지는 동안 한 칸씩 더 든다. */
+  while (keepN9 < n && faces[order[keepN9]][0] === faces[order[keepN9 - 1]][0]) keepN9 += 1;
+  const keep = new Set(order.slice(0, keepN9));
+  return faces.filter((_, i) => keep.has(i));
 }
 /** 굽는 동안만 포탑 각을 세워 둔다(위 headYawNow 주석) — 열쇠를 짓기 **전**에 서야
  *  하므로 감싸는 자리가 여기다. 각은 −180~180으로 접어 표식이 흔들리지 않게 한다. */
