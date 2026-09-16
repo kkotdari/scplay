@@ -2,7 +2,10 @@
    빌더를 요잉 0·평면 시점으로 한 번 돌리고, 면마다 곁표(MESH9.byD)에 적힌 3D 폴리곤을 모아 **판 모형 공간 메시**를
    낸다. GPU 붓(WebGL)·자료 도구의 재료다. 음영 덧칠 면(#fff/#000 얕은 알파, 화면 곡선 그림자)은 GPU 조명이 대신하므로
    버린다. 임자색 면(fill 없음)은 fill "" 로 두어 붓이 임자색으로 바꿔 칠한다. */
-import { MESH9, PROJ9, EMIT_FILL9, unproject9, withTopView, withYaw, bake, zsorted, meshSphere9, meshLoft9, type ShapeFace, type Poly3 } from "./shapeOblique";
+import { MESH9, PROJ9, EMIT_FILL9, unproject9, withTopView, withYaw, bake, zsorted, meshSphere9, meshLoft9, BILLBOARD9, RSEG9, type ShapeFace, type Poly3 } from "./shapeOblique";
+/* 빌보드 표식·원 조각 수는 **shapeOblique 가 든다** — 빌더가 제 손으로 빌보드를 놓을 수 있어야 하고
+   (billPath3), 그 표식을 여기서만 쥐면 되찾기만 빌보드를 만들 수 있게 된다. 쓰던 이름은 그대로 낸다. */
+export { BILLBOARD9 };
 
 /** 2D 굽기가 반투명 **색 있는** 면에 얹던 알파 보정 — bake9.shadeBoost 와 **같은 식이어야 한다**(여기서 베낀 까닭은
  *  mesh9 ← bake9 로 되짚는 import 를 안 만들려고다). 이것을 안 태우면 GL 의 음영 덧칠이 2D 보다 1.25배 옅어
@@ -11,7 +14,6 @@ const shadeBoost9 = (o: number, fill?: string): number => (fill && o < 1 ? Math.
 /** 되찾은 **원**의 조각 수(고리·빌보드 원반·땅 원반) — 2D 는 진짜 호를 칠하므로 둘레가 매끈한데, 메시는 조각이 적으면
  *  각이 보인다(실측: 16 조각이면 핵 충격파·워프인 둘레가 다각형으로 읽혔다). 32 면 둘레가 눈에 둥글고, 이 면들은
  *  효과·장식 몇 장뿐이라 삯이 없다. */
-const RSEG9 = 32;
 /** 두 경로의 **상자 넓이 비**(덧칠/몸, 상한 1) — 경로의 숫자만 훑어 상자를 낸다(요잉 0 의 화면 좌표라 비만 쓴다). */
 function areaK9(dOv: string, dBody?: string): number {
   if (!dBody) return 1;
@@ -59,7 +61,6 @@ interface Sub { pts: number[][]; miss: number; ell?: { cx: number; cy: number; r
 /** 카메라를 보는 원반의 세로 축 — 평면 카메라(고각 40°)의 화면 위쪽을 모형 공간으로(−y·sinE, +z·cosE). */
 const BILL: [number, number] = [Math.sin((40 * Math.PI) / 180), Math.cos((40 * Math.PI) / 180)];
 /** 카메라를 보는 원반(빌보드)으로 되찾은 폴리곤 — GL 은 요잉을 안 돌리고 가운데만 돌린다(gl9 aBb). */
-export const BILLBOARD9 = new WeakSet<Poly3>();
 /** glow: 발광 효과 종류 — 화면 원은 불투명해도 구가 아니라 원반이다(2D 가 겹쳐 칠한 동심원 그대로). */
 export function meshFromPath9(d: string, opaque = true, glow = false): Poly3[] | null {
   const tk = d.match(NUM); if (!tk) return null;

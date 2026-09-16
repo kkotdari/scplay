@@ -7,7 +7,7 @@ import { cx } from "./cx";
 import { TIER_GEN9 } from "./tierTable.gen";
 import { kT } from "../../utils/openbwTracks";
 import {
-  POLY2, MESH9, EMIT_FILL9, meshPut9, shinePath3, meshLoft9, meshRing9, loftZFaces, modelPoint9, annulusPath, bandPath, bodyFace, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, boxOctFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
+  POLY2, MESH9, EMIT_FILL9, meshPut9, shinePath3, annulusPath3, orbPath3, billPath3, meshLoft9, meshRing9, loftZFaces, modelPoint9, annulusPath, bandPath, bodyFace, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, boxOctFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
 import { BUILD_STAGES, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, SPIN_STEPS, bldNormOf, modelInkOf, modelNormOf } from "./engine9";
 import { type UnitDrawOp } from "./engine9";
 /** 주소 해시(`#pitch=`·`#nocreep` 같은 진단 스위치) — 굽기 일꾼 안에서는 location.hash가 빈 문자열(blob 주소)이라,
@@ -2521,8 +2521,8 @@ export function creepBlobFaces(seed: number): ShapeFace[] {
   for (let i = 0; i < 7; i += 1) {
     const a = seed * 3.1 + i * 2.4;
     const rr = 2 + ((Math.sin(a * 17.7) * 0.5 + 0.5) * 4);
-    const [sx, sy] = project(Math.sin(a) * rr, Math.cos(a) * rr, 0.04);
-    faces.push([groundEllipse(sx, sy, 0.55 + (i % 3) * 0.2), i % 2 ? 0.22 : 0.14, "#3d3244"] as ShapeFace);
+    faces.push([discPath3(Math.sin(a) * rr, Math.cos(a) * rr, 0.04, 0.55 + (i % 3) * 0.2),
+      i % 2 ? 0.22 : 0.14, "#3d3244"] as ShapeFace);
   }
   return faces;
 }
@@ -3401,7 +3401,7 @@ export function hatcheryMoundFaces(seamColor: string, spikeColor = "#1b1e23"): S
     }), RACE_BASE_TONE.zerg), 0));
     const [mx, my] = project(0, 0, 5.08);
     out.push(sideFace(`M${mx - 1.5} ${my} L${mx + 1.5} ${my} Q${mx + 1.4} ${my + 1} ${mx} ${my + 1.15} Q${mx - 1.4} ${my + 1} ${mx - 1.5} ${my} Z`, 0.35));
-    out.push(topFace(groundEllipse(mx, my, 1.4, 0.4)));
+    out.push(topFace(discPath3(0, 0, 5.08, 1.4, 0.4)));
     /* 정수리 아가리 — **불빛은 걷었다**(지시: "저그 건물 액티브 불빛 효과 모두 제거,
        익스트랙터 가스 채취 시 빼고"). 여기 있던 glowLit(달아오른 주홍 ↔ 식은 살빛)이
        그 불빛인데, 해처리 가족은 LIT_KINDS에도 없어 열쇠가 lit를 안 물었다 — 곧 첫
@@ -7183,7 +7183,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const a9 = (i9 / 6) * Math.PI * 2 + Math.PI / 6;
         return [Math.cos(a9) * GR9, GY9 + Math.sin(a9) * GR9, GZ9];
       });
-      const gem9: ShapeFace[] = [[screenCircle(wx, wy, 1.05), 0.22, "#8fe8ff"] as ShapeFace];
+      const gem9: ShapeFace[] = [[billPath3(0, 0.1, 2.64, 1.05), 0.22, "#8fe8ff"] as ShapeFace];
       const facets9: { d: string; f: number; nx: number; ny: number; up: boolean }[] = [];
       for (let i9 = 0; i9 < 6; i9 += 1) {
         const a9 = ring9[i9]; const b9 = ring9[(i9 + 1) % 6];
@@ -7283,9 +7283,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 소환 빛도 상태를 말한다(요청: 프로토스 플라즈마) — 유닛을 뽑는 동안만 문틈이
        환하게 타고, 놀고 있을 때는 식은 청록으로 가라앉는다. 테란 창과 같은 규약이다. */
     gated.push(...tagKey([
-      [screenCircle(wx, wy, 0.3), bldLitNow ? 0.62 : 0.34,   // 보석 속 심(작게)
+      [billPath3(0, 0.1, 2.64, 0.3), bldLitNow ? 0.62 : 0.34,   // 보석 속 심(작게)
         glowLit("#a2fff3", "#228679")] as ShapeFace,
-      [screenCircle(wx, wy, 0.16), bldLitNow ? 0.5 : 0.28,
+      [billPath3(0, 0.1, 2.64, 0.16), bldLitNow ? 0.5 : 0.28,
         glowLit("#e8fbff", "#30a495")] as ShapeFace,
     ], 30.1));
     // 탑 어깨의 개인색 띠도 같은 이유로 걷었다 — 개인색은 문틈 빛과 발판 원판이 맡는다.
@@ -8641,11 +8641,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     }
     /* 앞면 아가리 — 알 앞위에 뚫린 어두운 구멍. 앞이 보일 때만 그린다. */
     if (facingRatio(0, 1) > 0.25) {
-      const [ax9, ay9] = project(EGG_X, EGG_Y + eggR(0.42) * 0.94, 0.92 + 2.48 * 0.42);
+
       /* 속살 원은 **몸 표면의 갓**으로 적는다(shinePath3) — 화면 자로만 찍으면 되찾기가
          이웃에서 높이를 빌려 아가리가 알 밖에 뜬다. */
       out.push(...tagKey([
-        [screenCircle(ax9, ay9, 0.78), 1, "#3a1d16"] as ShapeFace,
+        [orbPath3(EGG_X, EGG_Y + eggR(0.42) * 0.94, 0.92 + 2.48 * 0.42, 0.78), 1, "#3a1d16"] as ShapeFace,
         capFace(shinePath3(EGG_X, EGG_Y + eggR(0.42) * 0.94, 0.92 + 2.48 * 0.42, 0.78, 0, 0.06, 0.52), 0.55),
       ], depthNow(EGG_X, EGG_Y + EGG_R) * 1.6 + 10));
     }
@@ -12988,7 +12988,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     ] as const) {
       const rr9 = r9 * (0.94 + rnd() * 0.12);
       out.push(...tagKey([
-        [groundEllipse(sx9, sy9, rr9, rr9 * sq9), op9, col9] as ShapeFace,
+        [discPath3(0, 0, 0.016, rr9, rr9 * sq9, 32), op9, col9] as ShapeFace,
       ], depthNow(0, 0) * 1.6 + 0.2 + (8 - r9) * 0.05));
     }
     /* **충격파 고리 둘**(요청: "바닥의 폭발 꽃 + 충격파 고리도 추가") — 원반이 터진
@@ -12998,7 +12998,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       [7.9, 7.3, 0.7, "#fff0cf"], [6.5, 5.8, 0.34, "#ffb066"],
     ] as const) {
       out.push(...tagKey([
-        [annulusPath(sx9, sy9, ro9, ri9, sq9), op9, col9] as ShapeFace,
+        [annulusPath3(0, 0, 0.016, ro9, ri9, sq9), op9, col9] as ShapeFace,
       ], depthNow(0, 0) * 1.6 + 0.8 + ro9 * 0.01));
     }
     return out;
@@ -13060,17 +13060,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        구멍이 넓어 기둥 둘레가 검게 뚫려 보였다(실측). */
     {
       const sqr9 = groundSquashNow();
-      const [hx9, hy9] = project(0, 0, 3.04);
       out.push(...tagKey([
-        [annulusPath(hx9, hy9, 7.9, 5.4, sqr9), 0.24, "#ff6a22"] as ShapeFace,
+        [annulusPath3(0, 0, 3.04, 7.9, 5.4, sqr9), 0.24, "#ff6a22"] as ShapeFace,
       ], depthNow(0, 0) * 1.6 + 4.5));
       out.push(...tagKey([
-        [groundEllipse(hx9, hy9, 5.6, 5.6 * sqr9), 0.42, "#ff9a3c"] as ShapeFace,
+        [discPath3(0, 0, 3.04, 5.6, 5.6 * sqr9, 32), 0.42, "#ff9a3c"] as ShapeFace,
       ], depthNow(0, 0) * 1.6 + 4.6));
       // 갓 밑 옅은 테 — 갓이 퍼지며 밀어낸 몫. 구멍은 갓이 가려 안 보인다.
-      const [ux9, uy9] = project(0, 0, 5.76);
       out.push(...tagKey([
-        [annulusPath(ux9, uy9, 5.6, 3.8, sqr9), 0.28, "#ff5a18"] as ShapeFace,
+        [annulusPath3(0, 0, 5.76, 5.6, 3.8, sqr9), 0.28, "#ff5a18"] as ShapeFace,
       ], depthNow(0, 0) * 1.6 + 4.7));
     }
     /* ★ 발치는 **크게 퍼지는 고리 하나**다(지적: "중간에 세 개의 버섯 대가리 제거해주고
@@ -13086,16 +13084,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        두꺼워야 밀려 나가는 덩이로 보인다. 지름은 칸마다 조금씩 흔들린다. */
     {
       const sqr9 = groundSquashNow();
-      const [gx9, gy9] = project(0, 0, 0.28);
       const ro9 = 7.9 * (0.95 + rnd() * 0.1);
       out.push(...tagKey([
-        [annulusPath(gx9, gy9, ro9, ro9 - 2.4, sqr9), 0.5, EMBER9] as ShapeFace,
+        [annulusPath3(0, 0, 0.28, ro9, ro9 - 2.4, sqr9), 0.5, EMBER9] as ShapeFace,
       ], depthNow(0, 0) * 1.6 + 1));
       /* 안은 **구멍 없이** 옅게 채운다 — 고리만 두면 가운데가 검게 뚫려 폭심이 구덩이로
          보인다(실측 렌더). 지도 위에서는 screen 블렌드라 어차피 안 보일 어둠이지만,
          도록에서 이 모델은 구멍 뚫린 도넛으로 남는다. 옅은 원반 한 장이면 둘 다 산다. */
       out.push(...tagKey([
-        [groundEllipse(gx9, gy9, ro9 - 2.2, (ro9 - 2.2) * sqr9), 0.24, "#ff7a2a"] as ShapeFace,
+        [discPath3(0, 0, 0.28, ro9 - 2.2, (ro9 - 2.2) * sqr9, 32), 0.24, "#ff7a2a"] as ShapeFace,
       ], depthNow(0, 0) * 1.6 + 0.9));
     }
     return out;
@@ -16959,7 +16956,6 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        투영하고 반지름은 가로세로 같은 원이라 어느 시점에서도 안 눌린다. 반투명 파란
        구 + 밝은 심 + 바닥 빛무리. */
     const [bx0, by0] = project(0, 0, 0.12);
-    const [ox, oy] = project(0, 0, 2.56);
     /* 껍질 셋은 화면 원으로 그린다(지적: "구 형태가 찌그러져 보이잖아") — 여태
        바닥 원을 썼는데, 가로세로 반지름을 같게 줘도 그 함수가 시각 밀림을 먹여
        비스듬한 타원이 됐다. 위 주석의 "어느 시점에서도 안 눌린다"는 밀림이 들어오기
@@ -16975,20 +16971,20 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        하나였다. 이제 반대다. 흰 원반이 반지름의 88%를 채우고, 그 바깥 12%만 선명한
        청색 고리로 두른다 — 소환되는 빛덩이가 아니라 **테 두른 문**으로 읽힌다. */
     return [
-      [screenCircle(ox, oy, 3.05), 1, "#1e7fff"] as ShapeFace,
+      [billPath3(0, 0, 2.56, 3.05), 1, "#1e7fff"] as ShapeFace,
       /* 흰 속은 **두 겹**이다 — 그리는 쪽이 색 있는 면의 농도를 0.85로 자르므로
          (shadeBoost), 한 겹만 깔면 밑의 청색이 15% 비쳐 흰 속이 하늘색이 된다.
          같은 원을 두 번 깔면 0.98까지 차 흰색이 흰색으로 남는다. */
-      [screenCircle(ox, oy, 2.68), 1, "#f2fbff"] as ShapeFace,
-      [screenCircle(ox, oy, 2.68), 1, "#f2fbff"] as ShapeFace,
+      [billPath3(0, 0, 2.56, 2.68), 1, "#f2fbff"] as ShapeFace,
+      [billPath3(0, 0, 2.56, 2.68), 1, "#f2fbff"] as ShapeFace,
       topFace(shinePath3(0, 0, 2.56, 2.68, -0.7, -0.7, 1.15), 0.4),
       /* 바깥 테 밖의 빛 번짐 — **글로우는 여기가 임자다**(지적: "소환구 글로우 효과 중심 위치가 안 맞음"). 여태
          DOM 글로우(.scr-bfx-toss)를 발자국 지면 가운데에 따로 붙였는데, 구는 WARP_LIFT만큼 떠 있고 입체에서는
          높이의 시각 밀림까지 타므로 지면 앵커와 구의 화면 중심이 늘 어긋났다. 구와 같은 판에 같은 중심으로
          구우면 어느 시점에서도 정확히 구 둘레다. 세 겹으로 넓힌다(옛 한 겹 0.18). */
-      [screenCircle(ox, oy, 3.45), 0.2, "#5aa8ff"] as ShapeFace,
-      [screenCircle(ox, oy, 3.95), 0.12, "#5aa8ff"] as ShapeFace,
-      [screenCircle(ox, oy, 4.5), 0.06, "#5aa8ff"] as ShapeFace,
+      [billPath3(0, 0, 2.56, 3.45), 0.2, "#5aa8ff"] as ShapeFace,
+      [billPath3(0, 0, 2.56, 3.95), 0.12, "#5aa8ff"] as ShapeFace,
+      [billPath3(0, 0, 2.56, 4.5), 0.06, "#5aa8ff"] as ShapeFace,
     ];
   },
   /* 테란 공사장 — 기초 슬래브 + 뼈대 기둥 넷 + 가로 보 + 크레인.
@@ -17142,11 +17138,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 둔덕 제거(재지적) — 구멍 둘레의 납작한 흙 띠(도넛)만 두른다: 바깥 정방향 +
        안 역방향 감김이 구멍을 낸다. */
     ...paintBase(((): ShapeFace[] => {
-      const [ex, ey] = project(0, 0, 0.2);
-      const sq = groundSquashNow();
-      const ro = 4.2;
-      const ri = 2.9;
-      return [bodyFace(annulusPath(ex, ey, ro, ri, sq))];
+      return [bodyFace(annulusPath3(0, 0, 0.2, 4.2, 2.9))];
     })(), "#7a6a52"),
     // 어두운 구멍.
     capFace(discPath3(0, 0, 0.08, 3), 0.6),
@@ -17171,8 +17163,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const DEEP = TERRAN_STEEL;       // 그늘진 속 마디
     const out: ShapeFace[] = [];
     // 떠 있는 몸(정정: 부양) — 발밑에 그림자 타원만 진다.
-    const [gx, gy] = project(0, -0.1, 2.4);
-    out.push(topFace(groundEllipse(gx, gy, 1.9, 0.85), 0.2));
+    out.push(topFace(discPath3(0, -0.1, 2.4, 1.9, 0.85), 0.2));
     /* 등 기통 한 쌍(사진의 첫 표식) — 어깨 뒤에서 위로 솟은 큰 원통. 뚜껑에 빗금 띠를
        둘러 테란 장비로 읽히게 한다. 몸보다 뒤라 제 자리 깊이를 그대로 쓴다. */
     for (const m of [-1, 1] as const) {
@@ -17555,10 +17546,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     }
     /* 옆면 둥근 포트(실물 참고) — 몸이 줄면서 가장자리 밖으로 삐져나와 떠 보였다(확인)
        — 몸 안쪽으로 당기고 더 작게. */
-    const [p1x, p1y] = project(-0.98 * BD, 0.5 * BD, 5.04);
-    const [p2x, p2y] = project(0.98 * BD, 0.5 * BD, 5.04);
-    out.push(topFace(groundEllipse(p1x, p1y, 0.28, 0.22), 0.3));
-    out.push(topFace(groundEllipse(p2x, p2y, 0.28, 0.22), 0.3));
+    out.push(topFace(discPath3(-0.98 * BD, 0.5 * BD, 5.04, 0.28, 0.22), 0.3));
+    out.push(topFace(discPath3(0.98 * BD, 0.5 * BD, 5.04, 0.28, 0.22), 0.3));
     /* 앞다리 한 쌍(재지적: 길이 축소 + 두 다리 사이 벌리기 + 몸에 더 딱) — 뿌리를
        몸 바로 밑(0.65)까지 당기고, 각도를 ±14→±30으로 벌리고, 길이는 반 남짓으로. */
     for (const ang of [30, -30]) out.push(...paintBase(wing(ang, 0.85 * BD, 0.8 + 0.85 * (1 - BD), 0.17, 0.08, 4.92, 4.4), TOSS_GOLD));
@@ -19236,24 +19225,23 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        워시로 다시 덮는다(1.0). 앞 워시가 반투명이라 형체가 그 너머로 비치면서도
        '구 속에 있다'가 된다. 밝은 심은 **형체 뒤**다 — 앞에 두면 반투명 흰 원이
        실루엣을 통째로 지운다(다크 아콘에서 겪은 그 자리다). */
-    const [ox9, oy9] = project(0, 0, ORB_Z);
     out.push(...tagKey([
       /* 흰 연기 테두리 — 구보다 한 뼘 크게, 아주 옅게. **세 겹으로 나눠** 깐다:
          한 겹이면 밝은 색이라 배경 위에서 회색 도넛으로 딱 끊겨 보인다(실측 렌더).
          바깥일수록 옅은 세 겹이면 가장자리가 스러지는 결이 난다. */
-      [screenCircle(ox9, oy9, R * 1.2), 0.06, "#bcd3ff"] as ShapeFace,
-      [screenCircle(ox9, oy9, R * 1.12), 0.07, "#bcd3ff"] as ShapeFace,
-      [screenCircle(ox9, oy9, R * 1.05), 0.09, "#8ab8ff"] as ShapeFace,
+      [billPath3(0, 0, ORB_Z, R * 1.2), 0.06, "#bcd3ff"] as ShapeFace,
+      [billPath3(0, 0, ORB_Z, R * 1.12), 0.07, "#bcd3ff"] as ShapeFace,
+      [billPath3(0, 0, ORB_Z, R * 1.05), 0.09, "#8ab8ff"] as ShapeFace,
       /* ★ **두 번째 구부터 거의 흰색**이다(지적: "아콘 두번째 구까지 거의 흰색임
          원작에서") — 원작의 아콘은 바깥 한 겹만 푸르고 그 안쪽은 눈이 부신 흰빛이다.
          여태 둘째 겹이 하늘빛(#7fd0ff·50%)이라 세 겹이 모두 '파란 구'로 읽혔고, 안에
          잠긴 형체도 파랑 위의 청록이라 대비를 못 얻었다(지적: "아콘 안의 인간형
          어디감"). 둘째를 거의 흰색으로, 심을 순백으로 올리면 형체가 흰 바탕 위의
          짙은 실루엣이 되어 저절로 살아난다. */
-      [screenCircle(ox9, oy9, R), 0.62, "#2f6ff0"] as ShapeFace,
+      [billPath3(0, 0, ORB_Z, R), 0.62, "#2f6ff0"] as ShapeFace,
       // 안쪽 두 구를 키운다(요청: 가장 바깥 구의 색은 얇은 테로만) — 0.78 → 0.9, 0.46 → 0.66.
-      [screenCircle(ox9, oy9, R * 0.9), 0.9, "#f7faff"] as ShapeFace,
-      [screenCircle(ox9, oy9, R * 0.66), 1, "#ffffff"] as ShapeFace,
+      [billPath3(0, 0, ORB_Z, R * 0.9), 0.9, "#f7faff"] as ShapeFace,
+      [billPath3(0, 0, ORB_Z, R * 0.66), 1, "#ffffff"] as ShapeFace,
     ], 0));
 
     /* ② 속 형체 ─────────────────────────────────────────────────────────────── */
@@ -19319,7 +19307,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     }
     // 앞 워시 — 형체 위를 덮어 '구 속에 잠긴' 것으로 만든다. 아주 옅게.
     out.push(...tagKey([
-      [screenCircle(ox9, oy9, R), 0.14, "#5a92ff"] as ShapeFace,
+      [billPath3(0, 0, ORB_Z, R), 0.14, "#5a92ff"] as ShapeFace,
     ], 1));
     return out;
   },
@@ -19383,17 +19371,16 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* ① 구 — 뒤쪽 짙은 핏빛 판을 먼저 깔고(키 0), 갑주를 그 위에 올린 뒤(0.5),
        앞쪽 옅은 붉은 워시와 밝은 코어를 다시 덮는다(1.0). 앞 워시가 반투명이라
        갑주가 그 너머로 비치면서도 '구 속에 있다'가 된다. */
-    const [ox9, oy9] = project(0, 0, ORB_Z);
     out.push(...tagKey([
       // 그을음 테두리 — 구보다 한 뼘 크게, 아주 옅게.
-      [screenCircle(ox9, oy9, R * 1.16), 0.2, "#3a0d10"] as ShapeFace,
+      [billPath3(0, 0, ORB_Z, R * 1.16), 0.2, "#3a0d10"] as ShapeFace,
       // 붉은 색을 살짝 밝게(요청) — 검붉으면 다크아콘이 아니라 그을린 덩이로 읽힌다.
-      [screenCircle(ox9, oy9, R), 0.62, "#b32a30"] as ShapeFace,
-      [screenCircle(ox9, oy9, R * 0.9), 0.5, "#e2512c"] as ShapeFace,   // 0.7 → 0.9(요청: 바깥 구는 얇은 테로만)
+      [billPath3(0, 0, ORB_Z, R), 0.62, "#b32a30"] as ShapeFace,
+      [billPath3(0, 0, ORB_Z, R * 0.9), 0.5, "#e2512c"] as ShapeFace,   // 0.7 → 0.9(요청: 바깥 구는 얇은 테로만)
       /* 밝은 심 — **갑주보다 먼저** 깐다(수리: 뒤에 두었더니 반투명 주황 원이 검은
          칼날 위를 덮어, 사진의 검은 칼이 구릿빛 물방울로 보였다). 심은 갑주 뒤에서
          타오르는 불이지 갑주 앞의 유리가 아니다. */
-      [screenCircle(ox9, oy9, R * 0.6), 0.5, "#ff8a46"] as ShapeFace,   // 0.36 → 0.6
+      [billPath3(0, 0, ORB_Z, R * 0.6), 0.5, "#ff8a46"] as ShapeFace,   // 0.36 → 0.6
     ], 0));
 
     /* ② 칼날 몸통 — 위가 넓고 아래로 길게 뾰족하다. 앞뒤로 살짝 눌린 단면(oval)이라
@@ -19432,7 +19419,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     }
     // 앞 워시 + 밝은 코어 — 갑주 위를 덮어 '구 속에 잠긴' 것으로 만든다.
     out.push(...tagKey([
-      [screenCircle(ox9, oy9, R), 0.13, "#c0242c"] as ShapeFace,
+      [billPath3(0, 0, ORB_Z, R), 0.13, "#c0242c"] as ShapeFace,
     ], 1));
     /* 노란 눈 — 사진2에서 갑주 한가운데 유일하게 빛나는 점이다. **늘 시청자를 본다**:
        떠 있는 구에는 앞뒤가 없고, 원작 스프라이트도 어느 방향에서나 눈이 이쪽을
@@ -20468,10 +20455,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 얼굴 — 배 앞아래에 박힌 작은 구 + 사진의 붉게 빛나는 눈 한 쌍. */
     /* 얼굴은 배에 박혀 있으므로 자리가 배를 따라간다 — 제 크기는 가로 몫(BK)만 받는다:
        작은 구를 세로로 1.21배 늘이면 얼굴만 달걀이 된다. */
-    const [fhx, fhy] = project(0, 1.95 * BK, bz(3.95));
     const face: ShapeFace[] = [
       ...tagKey([
-        [screenCircle(fhx, fhy, 0.8 * BK), 1, "#6b4732"] as ShapeFace,
+        [orbPath3(0, 1.95 * BK, bz(3.95), 0.8 * BK), 1, "#6b4732"] as ShapeFace,
         topFace(shinePath3(0, 1.95 * BK, bz(3.95), 0.8 * BK, -0.26 * BK, -0.26 * BK, 0.3 * BK), 0.22),
       ], depthNow(0, 1.95 * BK) * 1.6 + 1.5),
       ...([-1, 1] as const).flatMap((m) => lensFaces({
@@ -21660,8 +21646,7 @@ export function lurkerBurrowFaces(fire: boolean): ShapeFace[] {
   const out: ShapeFace[] = [];
   // 흙 띠와 어두운 구멍 — burrowhole과 같은 값이라 버로우 자리가 종류마다 안 흔들린다.
   out.push(...paintBase(((): ShapeFace[] => {
-    const [ex, ey] = project(0, 0, 0.2);
-    return [bodyFace(annulusPath(ex, ey, 4.2, 2.9, groundSquashNow()))];
+    return [bodyFace(annulusPath3(0, 0, 0.2, 4.2, 2.9))];
   })(), "#7a6a52"));
   out.push(capFace(discPath3(0, 0, 0.08, 3), 0.6));
   /* 땅 위로 내민 등딱지 — 럴커 본판의 등딱지(domeFaces3(0, −0.2, 2.5, 2, 3.4))를

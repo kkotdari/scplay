@@ -273,7 +273,22 @@ export const groundEllipse = (
 export function annulusPath(
   cx: number, cy: number, ro: number, ri: number, squash: number = groundSquashNow(),
 ): string {
-  return `${groundEllipse(cx, cy, ro, ro * squash)}${ringHole(cx, cy, ri, ri * squash)}`;
+  return siteMark9(`${groundEllipse(cx, cy, ro, ro * squash)}${ringHole(cx, cy, ri, ri * squash)}`);
+}
+/** 3D 자리에 놓는 고리 — `annulusPath(...project(x, y, z), …)` 를 대신한다.
+ *  경로는 글자까지 같고(같은 자·같은 납작비) 3D 로는 **땅에 누운 띠**(바깥 고리 ↔ 안 고리)를 적는다.
+ *  ⚠ `ringFaces3` 와 다르다 — 그쪽은 몸 + 윗면 두 낯짜리 '테두리'이고, 이것은 경로 하나다. */
+export function annulusPath3(
+  cx: number, cy: number, z: number, ro: number, ri: number, squash: number = groundSquashNow(),
+): string {
+  const [sx, sy] = project(cx, cy, z);
+  const d = annulusPath(sx, sy, ro, ri, squash);
+  const ky = squash / (groundSquashNow() || 1);
+  if (MESH9.on) {
+    meshPut9(d, meshLoft9([meshRing9(cx, cy, z, 1, 0, 0, 0, ky, 0, ro, RSEG9),
+      meshRing9(cx, cy, z, 1, 0, 0, 0, ky, 0, ri, RSEG9)], false, false));
+  }
+  return d;
 }
 /** 고리의 구멍 — groundEllipse와 반대로 감은 타원. */
 function ringHole(cx: number, cy: number, rx: number, ry: number): string {
@@ -830,7 +845,7 @@ export function polyPath3(pts: [number, number, number][]): string {
 }
 
 /** 지면과 평행한 원(높이 z) — 화면에선 납작 타원. */
-export function discPath3(cx: number, cy: number, z: number, r: number, ryS?: number): string {
+export function discPath3(cx: number, cy: number, z: number, r: number, ryS?: number, seg = 12): string {
   const sq = groundSquashNow();
   const ry = ryS ?? r * sq;
   const [sx, sy] = project(cx, cy, z);
@@ -838,7 +853,10 @@ export function discPath3(cx: number, cy: number, z: number, r: number, ryS?: nu
   /* ★ `ryS` 는 **화면 자** 세로 반지름이다(빌더가 눈으로 고른 납작한 타원 — 그림자·얼룩).
      경로는 종전 groundEllipse 그대로 내고, 3D 로는 그 타원을 **땅에 누운 고리**로 적는다:
      화면 세로가 ryS 가 되려면 모형 y 반지름이 ryS/납작비 라야 한다. */
-  if (MESH9.on) meshPut9(d, [meshRing9(cx, cy, z, 1, 0, 0, 0, r > 0 ? ry / (sq * r) : 1, 0, r, 12).flat()]);
+  /* ⚠ 조각 수 기본값 **12 는 원통 몸통과 맞춘 값**이다(cylinderFaces3 의 링도 12) — 뚜껑만 잘게 쪼개면
+     모서리를 두 낯이 나눠 쓰지 못해 '닫힌 입체' 판정(mesh9 solidSigns9)이 깨진다. 큰 땅 원반처럼
+     짝이 없는 자리에서만 `seg` 를 올린다(핵 충격파·구름은 32 — 16 이면 둘레가 다각형으로 읽혔다). */
+  if (MESH9.on) meshPut9(d, [meshRing9(cx, cy, z, 1, 0, 0, 0, r > 0 ? ry / (sq * r) : 1, 0, r, seg).flat()]);
   return d;
 }
 
@@ -1405,6 +1423,36 @@ export function meshSphere9(cx: number, cy: number, cz: number, r: number, zk = 
  *  바닥 원(groundEllipse)과 다른 점이 요점이다: 땅에 누운 원반은 시점을 따라 눌리고
  *  기울어야 맞지만, **떠 있는 공은 그러면 안 된다**(지적: "구 형태가 찌그러져 보인다").
  *  구는 회전 대칭이라 어느 방향에서 봐도 투영이 원이다. */
+/** 되찾은 원의 조각 수 — 16 이면 핵 충격파·워프인의 둘레가 다각형으로 읽혔다. */
+export const RSEG9 = 32;
+/** 카메라를 보는 원반의 기울기(부감 40도) — 화면에서 원으로 보이려면 y·z 를 이 비로 나눠 선다. */
+const BILL9: [number, number] = [Math.sin((40 * Math.PI) / 180), Math.cos((40 * Math.PI) / 180)];
+/** **빌보드 원반**으로 표시된 폴리 — 붓이 이것만 요잉을 안 돌리고 가운데만 돌린다(gl9 aBb 4비트). */
+export const BILLBOARD9 = new WeakSet<Poly3>();
+/** 3D 자리에 뜬 **공** — `screenCircle(project(…), r)` 과 **글자까지 같은 경로**를 내면서
+ *  3D 로는 구 껍질을 적는다. 화면 자로만 찍으면 되찾기가 경로를 거꾸로 읽어야 한다. */
+export function orbPath3(cx: number, cy: number, cz: number, r: number): string {
+  const [sx, sy] = project(cx, cy, cz);
+  const d = screenCircle(sx, sy, r);
+  if (MESH9.on) meshPut9(d, meshSphere9(cx, cy, cz, r));
+  return d;
+}
+/** 3D 자리에 선 **빌보드 원반**(늘 카메라를 본다) — 꼴이 없는 빛에 쓴다(빛무리·소환문·연기 테).
+ *  공과 다르다: 공은 돌려 보면 둥근 덩이고, 이것은 어느 각에서도 **같은 원**이다. */
+export function billPath3(cx: number, cy: number, cz: number, r: number): string {
+  const [sx, sy] = project(cx, cy, cz);
+  const d = screenCircle(sx, sy, r);
+  if (MESH9.on) {
+    const disc: number[] = [];
+    for (let k = 0; k < RSEG9; k += 1) {
+      const t = (k / RSEG9) * Math.PI * 2;
+      disc.push(...mp3(cx + Math.cos(t) * r, cy - Math.sin(t) * r * BILL9[0], cz + Math.sin(t) * r * BILL9[1]));
+    }
+    BILLBOARD9.add(disc);
+    meshPut9(d, [disc]);
+  }
+  return d;
+}
 export const screenCircle = (cx: number, cy: number, r: number): string =>
   siteMark9(`M${r2(cx - r)} ${r2(cy)}a${r2(r)} ${r2(r)} 0 1 0 ${r2(r * 2)} 0`
     + `a${r2(r)} ${r2(r)} 0 1 0-${r2(r * 2)} 0Z`);
