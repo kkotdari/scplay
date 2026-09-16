@@ -1287,7 +1287,15 @@ if (TRACE) {
 // 드래그 부하(--drag) — 표본을 모으는 동안 마우스로 지도를 계속 왕복 드래그한다.
 const DRAG = has("--drag");
 const dragDrive = async () => {
-  const cx = 195; const cy = 560;
+  /* 끄는 자리는 **지도 위**여야 한다 — 못 박은 (195,560)은 폰 배치의 자리라 `--wide`(PC 폭)에서는
+     로스터 판을 집어 손짓이 아예 안 났다(진단 "손짓[대기]"). 지도 요소를 찾아 그 가운데를 쓴다. */
+  const pt9 = await page.evaluate(() => {
+    const m = document.querySelector(".scr-motion-map");
+    if (!m) return null;
+    const r = m.getBoundingClientRect();
+    return [Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2)];
+  });
+  const cx = pt9 ? pt9[0] : 195; const cy = pt9 ? pt9[1] : 560;
   await page.mouse.move(cx, cy);
   await page.mouse.down();
   // 손짓 한가운데의 화면 — 캔버스·렌즈 정렬 검증용. 입력 루프와 무관한 타이머로 찍는다.
@@ -1309,6 +1317,25 @@ const dragDrive = async () => {
     await page.screenshot({ path: flag("--shotend", null) });
   }
 };
+/* --3d — 입체 보기로 바꾼 뒤 잰다(조종부의 2D/3D 단추를 누른다). 폰 폭에서는 재생기가 3D 를 막으므로
+   `--wide` 와 함께 쓴다. 손짓 중 실시간 원근(live3d)을 보려면 `--3d --drag --diag` 로 돌리고 아래 [손짓] 줄을 본다. */
+if (has("--3d")) {
+  const ok3d = await page.evaluate(() => {
+    const b = [...document.querySelectorAll("button")]
+      .find((e) => /입체|평면/.test(e.getAttribute("aria-label") || ""));
+    if (!b) return "단추 없음";
+    if (b.getAttribute("aria-pressed") === "true") return "이미 3D";
+    b.click();
+    return "눌렀다";
+  });
+  await page.waitForTimeout(1200);
+  const now3d = await page.evaluate(() => {
+    const b = [...document.querySelectorAll("button")]
+      .find((e) => /입체|평면/.test(e.getAttribute("aria-label") || ""));
+    return b?.getAttribute("aria-pressed") === "true" ? "3D" : "2D";
+  });
+  console.log(`입체 보기: ${ok3d} → ${now3d}`);
+}
 // 프레임 시간 표본 — rAF 간격을 SECS초 모은다.
 await page.evaluate((secs) => {
   window.__frames = [];
@@ -1340,6 +1367,8 @@ try { console.log(`[리액트] ${await page.evaluate(() => (window.__scrDiag && 
 try { console.log(`[안개] ${await page.evaluate(() => (window.__scrDiag && window.__scrDiag.fog) || "(진단 없음)")}`); } catch { console.log("[안개] (못 읽음)"); }
 // 프레임 워커 상태(SCR_DIAG.worker) — on/off · 받은 수 · 쓴 수 · 놓친 수.
 try { console.log(`[워커] ${await page.evaluate(() => (window.__scrDiag && window.__scrDiag.worker) || "(진단 없음)")}`); console.log(`[덜어내기] ${await page.evaluate(() => (window.__scrDiag && window.__scrDiag.crowd) || "(폰 아님·진단 없음)")}`); console.log(`[굽기일꾼] ${await page.evaluate(() => (window.__scrDiag && window.__scrDiag.bakew) || "(진단 없음)")}`); } catch (e) { console.log("[워커] (못 읽음)", String(e).slice(0, 80)); }
+/* 손짓(SCR_DIAG.gest) — 한 장 ms·배킹 몫·실시간 원근 판정(live/접힘/off)·밀림 기준. --3d --drag --diag 로 재는 자다. */
+try { const g9 = await page.evaluate(() => (window.__scrDiag && window.__scrDiag.gest) || ""); if (g9) console.log(`[손짓] ${g9}`); } catch { /* 진단 없음 */ }
 if (has("--msgsize")) {
   const r = await page.evaluate(() => {
     const st = window.__msgStat; if (!st) return "없음";

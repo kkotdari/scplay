@@ -786,7 +786,7 @@ const deviceMem9 = ((): number => {
 type BenchTier9 = {
   name: string; upMs: number; up3Ms?: number; minMem?: number;
   aheadSec: number; aheadMB: number;
-  glMeshMax?: number; glBloom?: boolean; glow?: boolean; yaw8Always?: boolean;
+  glMeshMax?: number; glBloom?: boolean; glow?: boolean; yaw8Always?: boolean; live3d?: boolean;
   shadowGroundMinZoom?: number; decalBakeMax?: number; hitShardK?: number; dieShards?: number;
 };
 /* ⚠ 문턱은 **숫자로 적는다** — CROWD_BENCH_MS9(24)는 이 표보다 아래에 선언되므로 여기서 부르면 TDZ 다.
@@ -796,8 +796,9 @@ const PC_TIERS9: readonly BenchTier9[] = [
   { name: "보통", upMs: 16.8, aheadSec: 5, aheadMB: 48 },
   { name: "높음", upMs: 8.4, aheadSec: 8, aheadMB: 80 },
   /* 3단 **매우 높음** — 메모리 8GB(deviceMemory, 크로뮴만 낸다)가 확인되는 기기에서만 오른다. 앞 한도는 2단과 같고,
-     이 단이 따로 뜻을 갖는 자리는 결(긁힌 광택)과 품질 알림이다. */
-  { name: "매우 높음", upMs: 8.4, minMem: 8, aheadSec: 8, aheadMB: 80 },
+     이 단이 따로 뜻을 갖는 자리는 결(긁힌 광택)·품질 알림, 그리고 **손짓 중 실시간 원근**(live3d)이다
+     (2026-09, 요청: "PC 매우높음에서 3D 제스쳐중 모델도 시점 변화 가능하려나 지금은 지도만 실시간인데"). */
+  { name: "매우 높음", upMs: 8.4, minMem: 8, aheadSec: 8, aheadMB: 80, live3d: true },
 ];
 /* ★ **폰도 세 단이다**(2026-09, 요청: "요즘 폰도 성능차이가 심해서 모바일용 벤치를 별도로 분리하되 3단계로 나누고
    적절히 기능을 넣고 빼야할거 같아. 최고단계에선 광택 글로우도 넣고") ─────────────────────────────────────
@@ -834,6 +835,8 @@ const DEV9 = smallDevice9 ? {
   glBloom: false,
   /** 빛무리(글로우) — 0단(벤치 미달)은 끈 채 시작하고 1단부터 표가 켠다. */
   glow: false,
+  /** 손짓 중 실시간 원근을 **재지 않고 켤까**(live3dOn9의 ★) — 폰은 어느 단에서도 안 켠다(제 벤치·실측 자를 탄다). */
+  live3d: false,
 } : {
   name: "pc",
   decalBakeMax: 768,   // 크립 굽기 상한 384 → 768(지적: PC에서 화질 낮은 게 보임)
@@ -845,6 +848,7 @@ const DEV9 = smallDevice9 ? {
   glMeshMax: 600,
   glBloom: true,
   glow: true,
+  live3d: false,   // 3단(매우 높음)에서 표가 켠다
 };
 /* ★ **PC는 벤치 단으로 예산을 올린다**(요청: "윈도우 크롬에서 CPU·GPU를 최대한 쓸 수 없을까" → 계획 1번) ────
    위 PC 표는 한 값이라 벤치 7ms짜리 기기도 19ms짜리와 같은 예산(프레임당 굽기 3장·12ms, 앞 3초·24MB)으로
@@ -887,6 +891,16 @@ function qualityNote9(): void {
   QUALITY9.level = lv9;
   QUALITY9.fn?.(lv9);
 }
+/** ★ 좌우 시각 밀림(vq)을 **얼마나 잘게 쪼개나** ─────────────────────────────────────────────
+ *  이 각은 **판 굽기 시절 판 열쇠**였다(유닛 6도 · 건물 12도 칸). 잘게 쪼개면 같은 개체가 칸마다 판을
+ *  새로 불렀기 때문이다. 판 길을 걷은 뒤(2026-09) 이 각은 **카메라 유니폼 하나**이고 메시 열쇠에 안 든다 —
+ *  쪼개는 삯이 없다. 그래서 실시간 원근을 켠 단(DEV9.live3d)에서는 2도로 쪼갠다: 끄는 동안 모델의 기울기가
+ *  6도씩 계단으로 튀지 않고 손끝을 따라 돈다. 그 밖의 단은 종전 값 그대로 둔다. */
+const vqOf9 = (viewYaw: number | undefined, bld: boolean): number => {
+  if (!viewYaw) return 0;
+  const st9 = DEV9.live3d ? 2 : bld ? 12 : 6;
+  return Math.max(-36, Math.min(36, Math.round(viewYaw / st9) * st9));
+};
 /** 워커에 앞 한도를 다시 일러야 한다는 표 — 단이 바뀌면 다음 cmd에 새 aheadSec/MB를 싣는다. */
 const DEV9_DIRTY9 = { v: false };
 const touchPc9 = typeof navigator !== "undefined" && (navigator.maxTouchPoints ?? 0) > 1;
@@ -924,6 +938,7 @@ function applyBenchTier9(bench: number): void {
   if (t9.hitShardK !== undefined) DEV9.hitShardK = t9.hitShardK;
   if (t9.dieShards !== undefined) DEV9.dieShards = t9.dieShards;
   if (t9.glow !== undefined) { DEV9.glow = t9.glow; glowSet9(t9.glow); }
+  if (t9.live3d !== undefined) DEV9.live3d = t9.live3d;
   /* 결(긁힌 광택)은 **맨 위 단에서만** 켠다(요청: "결은 PC에서도 최고 높음에서만 켜기") —
      계측으로 굽기 값이 +25~30%이고 꼬리가 길다(낯마다 수십 줄을 긋는다). 여력이 확인된
      기기에서만 얹는 것이 옳다. 단은 오르기만 하므로 이 한 줄이면 켜는 시점도 맞는다.
@@ -3455,7 +3470,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              y 는 잉크 바닥을 바닥선(groundY − 띄움)에 앉힌다(footOf 의 bot). */
           const lodB9 = lodOf(sideWant);
           const glB9 = gl9 ? gl9.bldMesh(op, lodB9) : null;
-          const glBcam9 = glB9 ? camOf9(!!op.pitch, pitchFlatNow * 0.7, op.viewYaw ? Math.max(-36, Math.min(36, Math.round(op.viewYaw / 12) * 12)) : 0) : CAM_TOP9;
+          const glBcam9 = glB9 ? camOf9(!!op.pitch, pitchFlatNow * 0.7, vqOf9(op.viewYaw, true)) : CAM_TOP9;
           const glBf9 = glB9 && gl9 ? gl9.footOf(glB9, -(op.rotDeg ?? 0), glBcam9) : null;
           if (glBf9 && !BLD_INK_BOX.has(bldAnchorKey(op.kind, op.pitch))) {
             // 판이 채우던 잉크 상자(총구 앵커 등이 읽는다)도 메시 자로 — 판 자와 같은 좌표(상자 (8,16) 기준, 원점 줄 12/12.6)다.
@@ -3588,7 +3603,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
            (그림자·링·체력바의 자: 폭 w·가운데 cx·바닥 bot)는 메시의 요잉 칸별 화면 상자(footOf)가 같은 자로 준다.
            GL 이 못 서거나(WebGL 없음·`#gl=0`) 메시를 못 지은 종류만 아래 폴백(면 직접 그리기)으로 떨어진다. */
         const glM9 = glPre9 && !rot ? glPre9 : null;
-        const glCam9 = glM9 ? camOf9(!!op.pitch, pitchFlatNow * 0.7, op.viewYaw ? Math.max(-36, Math.min(36, Math.round(op.viewYaw / 6) * 6)) : 0) : CAM_TOP9;
+        const glCam9 = glM9 ? camOf9(!!op.pitch, pitchFlatNow * 0.7, vqOf9(op.viewYaw, false)) : CAM_TOP9;
         const glFt9 = glM9 && gl9 ? gl9.footOf(glM9, -(op.rotDeg ?? 0), glCam9) : null;
         /* 몸의 실제 폭(화면 px) — contentBox가 이미 재 둔 값이라 공짜다(지적: 체력바가
            몸을 덮는다 / 그림자가 몸만큼 크다 / 링이 몸보다 크다). 정규화가 맞추는 것은
@@ -5714,6 +5729,12 @@ function xfMsMid9(): number {
 }
 const live3dOn9 = (): boolean => {
   if (LIVE3D_FORCE9 !== null) return LIVE3D_FORCE9;
+  /* ★ **표가 켜 주는 단에서는 재지 않고 켠다**(2026-09, 요청: "PC 매우높음에서 3D 제스쳐중 모델도 시점 변화
+     가능하려나 지금은 지도만 실시간인데") ──────────────────────────────────────────────────────────
+     아래 두 자(입체 벤치 26ms · 손짓 한 장 중앙값 24ms)는 **판 굽기 시절** 값이다. 그때 손짓 한 장은
+     '판을 다시 굽고 찍기'였고 지금은 '카메라 유니폼을 바꿔 GPU 에 다시 그리기'다 — 같은 문턱으로 재면
+     GL 이 번 몫만큼 실시간 원근이 저절로 꺼진다. 여력이 확인된 단(PC 매우 높음)은 문턱을 안 묻는다. */
+  if (DEV9.live3d) return true;
   const mid9 = xfMsMid9();
   if (mid9 >= 0) return mid9 <= LIVE3D_DRAW_MS9;          // ② 실측이 있으면 그것이 자다
   return CROWD9.bench3 >= 0 && CROWD9.bench3 <= LIVE3D_BENCH_MS9;   // ① 없으면 제 문턱의 벤치
@@ -6156,6 +6177,8 @@ export default function ReplayMotionPlayer({
   const liveViewOkRef9 = useRef(false);
   /** 손짓 중 못 박아 둔 **밀림 기준 원점** — 손짓 밖에서는 null(제 원점을 따른다). PitchGeom9.sox의 ★. */
   const shearOxRef9 = useRef<number | null>(null);
+  /** 이 손짓에서 **연달아** 무거웠던 장 수(>33ms) — 실시간 원근을 접는 자(applyGestureXf의 ★). */
+  const xfHeavyRef9 = useRef(0);
   const postLiveView9 = useCallback((): void => {
     const w9 = frameWorkerRef.current;
     const base9 = engViewRef9.current;
@@ -9468,9 +9491,21 @@ export default function ReplayMotionPlayer({
          곧 그 조치의 결과라 진동한다(배킹 몫에서 이미 겪었다). 접으면 워커에 새 원점을 안 보내므로 원근이
          그 자리에서 멎고, 남은 손짓은 종전대로 CSS가 매끄럽게 민다 — 왕복 대신 '원근은 그대로, 자리는 따라옴'
          이 된다. 손을 떼면 그 프레임에 제자리로 맞춰진다. */
-      if (liveViewOkRef9.current && xfPaintMsRef.current > 33) liveViewOkRef9.current = false;
+      /* ★ 표가 켜 준 단(DEV9.live3d)은 **연달아 세 장**이 무거울 때만 접는다 — 한 장이 넘겼다고 곧 접으면
+         첫 프레임(메시를 처음 짓는 장)에 걸려 손짓마다 접힌 채로 돈다. 그 밖은 종전대로 한 장이면 접는다. */
+      if (xfPaintMsRef.current > 33) {
+        xfHeavyRef9.current += 1;
+        if (liveViewOkRef9.current && xfHeavyRef9.current >= (DEV9.live3d ? 3 : 1)) liveViewOkRef9.current = false;
+      } else xfHeavyRef9.current = 0;
       // 손짓 한 장이 든 시간 — 계측 도구가 읽는다(#diag=draw의 자와 같은 자).
       SCR_DIAG.xfms = Math.round(xfPaintMsRef.current);
+      /* 계측 도구가 읽는 한 줄(perf-check `[손짓]`) — 실시간 원근이 켜졌나·접혔나, 밀림 기준이 따라오나. */
+      if (scrDiagOn()) {
+        SCR_DIAG.gest = `${Math.round(xfPaintMsRef.current)}ms 배킹×${xfBackK9.k}`
+          + ` 원근 ${live3dOn9() ? (liveViewOkRef9.current ? "live" : "접힘") : "off"}`
+          + ` 밀림 ${shearOxRef9.current === null ? "따라옴" : "얼림"}`
+          + ` 무거운장 ${xfHeavyRef9.current} · ${DEV9.name} ${TIER9.v}단`;
+      }
       return;
     }
     /* 유닛을 안 그리는 프레임(박자·안 움직임)에도 **안개는 프레임마다** 칠한다(위 붓의 ★). */
@@ -9500,10 +9535,16 @@ export default function ReplayMotionPlayer({
          장을 풀고 칠하는 몫뿐이라 난전에서도 견딜 만하다. 다만 아주 무거운 자리(최악 프레임 120ms
          이상 — 굽기가 아직 밀려 있거나 기기가 버거운 때)는 그대로 막는다: 거기서는 원근보다 손끝을
          따라가는 것이 먼저다. 한 손짓 안에서는 안 바꾼다(도중에 뒤집으면 진동한다). */
-    /* 밀림 기준을 지금 원점에 못 박는다 — 끄는 동안 판 열쇠가 안 흔들리게(PitchGeom9.sox의 ★).
-       끝나면 endGestureXf가 풀어, 손을 뗀 그 프레임에 제 기울기로 한 번 맞춰진다. */
-    shearOxRef9.current = pitchGeomLiveRef9.current?.().ox ?? null;
+    /* ★ **밀림 기준(sox)을 얼리는 까닭이 사라진 단이 있다**(2026-09, 요청: 손짓 중 모델도 시점이 바뀌게) ──────
+       이 얼리기는 밀림 각이 **굽는 판의 열쇠**(6도 칸)였기 때문이다 — 끌 때 원점이 밀리면 개체들이 칸을
+       넘나들며 판을 새로 불러, 손짓 한 장이 23 → 240ms 가 됐다(PitchGeom9.sox의 ★). 그런데 판 굽기 길은
+       걷었다: 밀림 각은 이제 **카메라 유니폼**이고 메시 열쇠에 안 든다(유닛 `u:종류:자세:lod`). 그래서
+       실시간 원근을 켠 손짓에서는 **안 얼린다** — 자리만 따라오고 기울기는 얼어 있던 것이(지적: "지도만
+       실시간") 그 얼리기였다. 접히면(위 세 장 규칙) 워커에 새 원점을 안 보내므로 그 자리에서 저절로 멎는다.
+       실시간 원근이 꺼진 손짓은 종전 그대로 얼린다(그쪽은 다시 그리는 박자가 고르지 않아 튄다). */
     liveViewOkRef9.current = live3dOn9() && pitchDegRef9.current < 90;
+    xfHeavyRef9.current = 0;
+    shearOxRef9.current = liveViewOkRef9.current ? null : (pitchGeomLiveRef9.current?.().ox ?? null);
     xfPaintAtRef.current = performance.now();
     zoomRawRef.current = zoomRef.current;
     xfBaseRef.current = { z: zoomRef.current, x: panRef.current.x, y: panRef.current.y };

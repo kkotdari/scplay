@@ -2228,6 +2228,9 @@ export const SCR_DIAG: {
   areaCap: number; allocOk: boolean; zoom: number;
   /** 손짓 중 한 장이 든 시간(ms) — 끄는 동안의 반응은 이 값이 정한다(계측 도구가 읽는다). */
   xfms: number;
+  /** 손짓 한 줄 요약 — 한 장 ms · 배킹 몫 · 실시간 원근(live/접힘/off) · 밀림 기준(따라옴/얼림).
+   *  화면 진단(#diag=gest)은 제 값으로 그리고, 이 문자열은 **계측 도구**가 읽는다(perf-check `[손짓]`). */
+  gest: string;
   /** 생산 색인 요약(#diag) — "(임자|건물종류)=건수". 비어 있으면 호스트 찾기 실패다. */
   prod: string;
   /** 지금 이 프레임에 **불이 켜진 건물이 몇인가**(진단: "이 건물 활성시 불이 안 들어와").
@@ -2277,7 +2280,7 @@ export const SCR_DIAG: {
 } = {
   dpr: 0, unitCss: "", unitBack: "", unitB: 0,
   mapCss: "", mapBack: "", ppt: 0, needed: 0, scale: 0, unitScale: 0,
-  areaCap: 0, allocOk: true, zoom: 0, xfms: 0, fx: {}, prod: "", litN: 0, worker: "", gl: "", bakew: "", crowd: "", brush: "", fps: 0, fog: "", react: "", nukem: "",
+  areaCap: 0, allocOk: true, zoom: 0, xfms: 0, gest: "", fx: {}, prod: "", litN: 0, worker: "", gl: "", bakew: "", crowd: "", brush: "", fps: 0, fog: "", react: "", nukem: "",
   truthVer: 0, truthTrust: -1, truthWhy: "",
 };
 /** #diag가 켜져 있나 — 주소가 바뀌지 않는 한 한 번만 읽는다. */
