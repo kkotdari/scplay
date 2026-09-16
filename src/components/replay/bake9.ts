@@ -5807,7 +5807,6 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        앞면 바닥에 경사진 발 셋, 옆면(오른쪽)에 푹 패인 경사로. 몸은 칠하지 않아
        전장의 쇠(stainOf9)가 입혀지고, 임자색은 포탑·발끝·베이 속 가로 등이다. */
     const NEAR_BLACK = "#22262c";
-    const ROOF = "#2f2f2f";
     const pc: ShapeFace[] = [];
     const out: ShapeFace[] = [];
 
@@ -5843,7 +5842,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     out.push(...tagKey(boxFaces3(0, 0, WW, DW, ZW1z9 - ZW0z9, ZW0z9, OMIT_LO9, !!omitR9), 2.1));
     // 위 절두체는 오른쪽에도 패임을 준다(격납구 위의 남는 낯 — 요청) → 네 벽 다 손수 짠다.
     out.push(...tagKey(frustumFaces3(0, 0, WW, DW, WT, DT, ZTz9 - ZW1z9, ZW1z9,
-      [[0, 1], [0, -1], [-1, 0], [1, 0]]), 2.2));
+      [[0, 1], [0, -1], [-1, 0], [1, 0]], true), 2.2));
 
     /** 그 높이에서의 앞면 y(3단 프로필) — 홈·베이가 이 자를 쓴다. */
     const fyAt = (z9: number): number => {
@@ -5858,14 +5857,54 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       return WW / 2 - (WW / 2 - WT / 2) * ((z9 - ZW1z9) / (ZTz9 - ZW1z9));
     };
 
-    // ── 윗면 — **가로(x) 골**: 지붕 판 두 장 사이가 낮은 골 바닥이다.
-    out.push(...tagKey(paintBase(boxFaces3(0, 0, WT - 0.3, 1.35, 0.08, ZTz9 - 0.272), ROOF), 3));
-    /* 옥상 판 둘의 앞뒤 길이를 줄인다(요청: "네모난 윗판(옥상) 앞뒤길이 살짝 줄이기") — 깊이 1.78 → 1.5, 바깥
-       가장자리 2.81 → 2.53(꼭대기 앞면 2.5 안쪽). 안쪽 가장자리(1.03)는 그대로라 골은 안 변한다. */
-    out.push(...tagKey([
-      ...boxFaces3(0, 1.03 + 0.75, WT - 0.2, 1.5, 0.112, ZTz9 - 0.048),
-      ...boxFaces3(0, -(1.03 + 0.75), WT - 0.2, 1.5, 0.112, ZTz9 - 0.048),
-    ], 3.05));
+    /* ── 옥상 — **진짜로 파낸 가로(x) 골**(2026-09, 지적: "저건 패임이 아니라 양옆 벽이지" ·
+       "위쪽도 덧댄판 처리 없애고 직접 패는 걸로 수정") ─────────────────────────────────────
+       옛 짜임은 위 절두체의 **통짜 윗면** 위에 판 두 장을 얹어 그 사이를 골처럼 보이게 한
+       것이었다. 골 바닥이라고 둔 어두운 판은 그 윗면보다 **아래**라 한 번도 안 보였고, 보이는
+       것은 '솟은 판 둘'뿐이었다 — 곧 패임이 아니라 덧댄 벽이다. 벽에 쓴 그 손을 그대로 쓴다:
+       윗면을 아예 안 내고(frustumFaces3 noTop) 갑판 둘 · 골 속벽 둘 · 골 바닥을 손수 짠다.
+       골은 좌우로 뚫려 있어 옆 실루엣에도 자국이 남고, 옆벽의 세로 홈과 꼭대기에서 만난다.
+       ⚠ 갑판·바닥의 **감기는 프리미티브의 윗면과 같은 차례**로 둔다(frustumFaces3 의 corners) —
+         뉴얼로 뽑는 그 법선이 지붕의 방향광을 정하는 자라, 물리적으로 옳게 뒤집으면 이 건물
+         지붕만 다른 건물보다 밝아진다. 밝기의 임자는 예나 지금이나 topFace 덮개다. */
+    const CH_HW9 = 1.03;   // 골의 반폭(y) — 옛 판 둘 사이와 같다
+    const CH_D9 = 0.50;    // 골 깊이 — 안에 세울 톱니(0.42)보다 깊다
+    {
+      const hw9 = WT / 2; const hd9 = DT / 2; const cz9 = ZTz9 - CH_D9;
+      /** 하늘을 보는 낯 — 프리미티브 윗면과 같은 감기(앞왼 → 앞오른 → 뒤오른 → 뒤왼). */
+      const up9 = (y0: number, y1: number, z9: number): string => polyPath3([
+        [-hw9, y1, z9], [hw9, y1, z9], [hw9, y0, z9], [-hw9, y0, z9],
+      ]);
+      const deckF9 = up9(CH_HW9, hd9, ZTz9);
+      const deckB9 = up9(-hd9, -CH_HW9, ZTz9);
+      const floor9 = up9(-CH_HW9, CH_HW9, cz9);
+      /* 골의 속벽 둘 — 바깥(= 골 안쪽)을 보는 감기는 프리미티브 옆벽과 같은 차례다
+         (위 모서리를 법선 × ẑ 쪽으로 돈다). */
+      const wallF9 = polyPath3([[hw9, CH_HW9, ZTz9], [-hw9, CH_HW9, ZTz9],
+        [-hw9, CH_HW9, cz9], [hw9, CH_HW9, cz9]]);        // 법선 −y(앞 속벽)
+      const wallB9 = polyPath3([[-hw9, -CH_HW9, ZTz9], [hw9, -CH_HW9, ZTz9],
+        [hw9, -CH_HW9, cz9], [-hw9, -CH_HW9, cz9]]);      // 법선 +y(뒤 속벽)
+      const lF9 = faceLight(0, -1, 0); const lB9 = faceLight(0, 1, 0);
+      /* ★★ **파낸 속은 갑판과 다른 몸으로 내야 그늘이 산다**(2026-09) — 다섯 낯을 한 몸
+         경로로 합쳤더니 골이 깊이 0.5 인데도 '납작한 한 판'으로 읽혔다. 까닭은 mesh9 의
+         접기 규약이다: 제 꼴을 가진 그늘은 **그 부품의 마지막 몸과의 상자 넓이 비만큼만**
+         먹는데(areaK9), 골 바닥의 상자는 지붕 전체 상자의 0.4 밖에 안 되어 그늘 0.32 가
+         실제로는 0.13 으로 눅었다. 갑판(밝음)과 속(어두움)을 **두 몸으로** 가르면 속의
+         상자가 곧 제 몸의 상자라 비가 1 이 된다.
+         ⚠ 갑판 쪽은 종전대로 합친다 — 프리미티브의 윗면도 벽과 합쳐 내므로, 가르면 이
+           건물 지붕만 다른 건물보다 밝아진다. */
+      out.push(...tagKey([
+        bodyFace([deckF9, deckB9].join(" ")), topFace(deckF9), topFace(deckB9),
+      ], 3.05));
+      out.push(...tagKey([
+        bodyFace([floor9, wallF9, wallB9].join(" ")),
+        /* 골 바닥에는 **하늘 덮개(topFace)를 안 얹는다** — 얹으면 갑판과 같은 밝기가 된다.
+           파인 자리는 하늘이 덜 보이니 그늘만 준다. */
+        sideFace(floor9, 0.30),
+        ...(lF9.visible ? lF9.face(wallF9) : [sideFace(wallF9, 0.42)]),
+        ...(lB9.visible ? lB9.face(wallB9) : [sideFace(wallB9, 0.42)]),
+      ], 3.04));
+    }
 
     /* ── 가운데 패임 — 벽을 두 조각으로 짜고 그 사이를 파낸다(위 ★★). ────────────────────
        한 벽에 드는 낯: 바깥 벽 두 조각(프로필 꺾임마다 나눔) · 홈 밖의 가운데 띠(아래·위) ·
@@ -5901,10 +5940,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const zs = [a9, ...[ZW0z9, ZW1z9].filter((z9) => z9 > a9 + 1e-6 && z9 < b9 - 1e-6), b9];
         return zs.slice(0, -1).map((z9, k9) => [z9, zs[k9 + 1]] as [number, number]);
       };
-    const g9: ShapeFace[] = [];
       /** 몸 낯(색 없는 벽)의 경로들 — **하나로 합쳐** 낸다(아래 ⚠). */
       const bodyP9: string[] = [];
       const ov9: ShapeFace[] = [];
+      /* ★★ **홈 속은 바깥 벽과 다른 몸으로 낸다**(2026-09) — 한 몸에 합치면 속의 그늘이
+         **상자 넓이 비만큼만** 먹어(mesh9 areaK9) 파인 자리가 벽과 같은 밝기로 읽힌다
+         (옥상 골에서 같은 일을 겪었다: 그늘 0.3 이 0.13 으로 눅었다). 가르면 속의 상자가
+         곧 제 몸의 상자라 비가 1 에 가깝다. 2D 차례는 **속을 먼저** — 벽이 그 앞이다. */
+      const inP9: string[] = [];
+      const inOv9: ShapeFace[] = [];
       /** 벽 낯 하나 — 프리미티브와 같은 음영을 얹는다(기운 몫은 프로필 기울기에서 뽑는다).
        *  ⚠⚠ **몸 낯은 합쳐야 한다**(2026-09) — 낱낱으로 내면 **같은 기하인데 더 어둡다**:
        *    mesh9 는 같은 경로의 낯 음영을 몸에 접을 때 **상자 넓이 비만큼만** 먹이는데
@@ -5913,13 +5957,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        *    1 이 되어 음영이 통째로 먹었다 — 실측: 같은 위 절두체 벽이 #6a6f75 → #43484e.
        *    그래서 프리미티브와 같은 손을 쓴다: 몸 경로를 이어 붙여 한 낯으로 내고 음영은
        *    벽마다 따로 얹는다(mesh9 가 이어 붙인 경로의 3D 를 조각마다 되찾는다). */
-      const wall9 = (d9: string, a9: number, b9: number): void => {
+      const wall9 = (d9: string, a9: number, b9: number, deep9 = false): boolean => {
         const dz9 = b9 - a9; const dn9 = nrm9(a9) - nrm9(b9);
         const nz9 = dn9 / (Math.hypot(dz9, dn9) || 1);
         const l9 = faceLight(ax === "y" ? 0 : s, ax === "y" ? s : 0, nz9);
-        if (!l9.visible) return;
-        bodyP9.push(d9);
-        ov9.push(...l9.face(d9));
+        if (!l9.visible) return false;
+        (deep9 ? inP9 : bodyP9).push(d9);
+        (deep9 ? inOv9 : ov9).push(...l9.face(d9));
+        return true;
       };
       // ① 바깥 벽 — 가운데 띠를 뺀 두 조각
       for (const m9 of [-1, 1] as const) {
@@ -5936,28 +5981,52 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
             P9(GRV_HW9, 0, d0), P9(-GRV_HW9, 0, d0)], OX9, OY9, 0)), c9, d0);
         }
       }
-      // ③ 홈 바닥 — 색을 안 줘 벽과 같은 전장의 쇠가 입혀진다(몸에 함께 합친다)
+      /* ③ 홈 바닥 — 색을 안 줘 벽과 같은 전장의 쇠가 입혀진다(몸에 함께 합친다).
+         벽과 **같은 낯 음영**에 그늘을 한 겹 더 얹는다 — 파인 자리는 하늘이 덜 보인다.
+         음영을 아예 안 얹으면 바닥이 벽보다 밝아 패임이 도리어 도드라진 판으로 읽혔다. */
       for (const [a9, b9] of segs9(gz0, gz1)) {
-        bodyP9.push(polyPath3(q9([P9(-GRV_HW9, -GRV_D9, a9), P9(GRV_HW9, -GRV_D9, a9),
-          P9(GRV_HW9, -GRV_D9, b9), P9(-GRV_HW9, -GRV_D9, b9)], OX9, OY9, 0)));
+        const d9 = polyPath3(q9([P9(-GRV_HW9, -GRV_D9, a9), P9(GRV_HW9, -GRV_D9, a9),
+          P9(GRV_HW9, -GRV_D9, b9), P9(-GRV_HW9, -GRV_D9, b9)], OX9, OY9, 0));
+        if (wall9(d9, a9, b9, true)) inOv9.push(sideFace(d9, 0.26));
+        else inP9.push(d9);
       }
+      /* ★★ **홈의 속낯은 몸에 합쳐 낸다 — 따로 내면 데칼 편향이 벽 앞으로 끌어낸다**
+         (2026-09, 지적: "패인 부분 벽에 덧댄 건 뭐야? 살짝 두께가 있고 튀어나와 보여서 어색해")
+         ─────────────────────────────────────────────────────────────────────────────
+         문설주·문턱을 제 색을 가진 **한 장짜리 작은 낯**으로 내고 있었다. 그것은 gl9 의
+         `isDecal` 자(대각선 < 2.8 · 닫힌 입체 아님)에 그대로 걸려 **0.25 모델칸 앞으로**
+         당겨진다 — 홈 깊이가 0.52 이니 속낯이 벽 쪽으로 절반이나 나와, 파인 자리가 아니라
+         **테두리를 덧댄 판**으로 읽혔다. 몸 경로에 합치면 그 문에 안 걸린다(합친 몸은 크다).
+         ⚠ **인방(위 천장)은 아예 안 낸다** — 40도로 내려다보는 이 카메라에 아래를 보는 낯은
+           한 번도 안 보이는데 깊이·편향만 써서 홈 위에 '차양'처럼 떴다(커맨드 받침의 밑 뚜껑에서
+           한 번 겪은 그 자리). 그래서 홈은 **벽 꼭대기까지** 낸다 — 천장이 있을 자리가 없다.
+           꼭대기의 옥상 갑판이 제 몫만큼 홈을 가려 주므로 그림도 자연스럽다. */
       // ④ 문설주 둘 — 비스듬히 보면 가까운 쪽만 보이고 먼 쪽은 벽에 가려진다(요청의 그 몫)
       for (const m9 of [-1, 1] as const) {
+        const jx9 = ax === "y" ? -m9 : 0; const jy9 = ax === "y" ? 0 : -m9;
+        const lj9 = faceLight(jx9, jy9, 0);
         for (const [a9, b9] of segs9(gz0, gz1)) {
-          g9.push([polyPath3(q9([P9(m9 * GRV_HW9, 0, a9), P9(m9 * GRV_HW9, -GRV_D9, a9),
-            P9(m9 * GRV_HW9, -GRV_D9, b9), P9(m9 * GRV_HW9, 0, b9)],
-          ax === "y" ? -m9 : 0, ax === "y" ? 0 : -m9, 0)), 1, TERRAN_STEEL_D] as ShapeFace);
+          const d9 = polyPath3(q9([P9(m9 * GRV_HW9, 0, a9), P9(m9 * GRV_HW9, -GRV_D9, a9),
+            P9(m9 * GRV_HW9, -GRV_D9, b9), P9(m9 * GRV_HW9, 0, b9)], jx9, jy9, 0));
+          inP9.push(d9);
+          inOv9.push(...(lj9.visible ? lj9.face(d9) : []), sideFace(d9, 0.26));
         }
       }
-      // ⑤ 문턱(위를 봄 · 밝음) · 인방(아래를 봄 · 어둡다)
-      g9.push([polyPath3(q9([P9(-GRV_HW9, 0, gz0), P9(GRV_HW9, 0, gz0),
-        P9(GRV_HW9, -GRV_D9, gz0), P9(-GRV_HW9, -GRV_D9, gz0)], 0, 0, 1)), 1, TERRAN_STEEL] as ShapeFace);
-      g9.push([polyPath3(q9([P9(-GRV_HW9, 0, gz1), P9(GRV_HW9, 0, gz1),
-        P9(GRV_HW9, -GRV_D9, gz1), P9(-GRV_HW9, -GRV_D9, gz1)], 0, 0, -1)), 1, "#4a4a4a"] as ShapeFace);
-      return [...(bodyP9.length ? [bodyFace(bodyP9.join(" "))] : []), ...ov9, ...g9];
+      // ⑤ 문턱(위를 봄) — 홈 바닥이 딛는 낯. 이것도 몸에 합친다.
+      {
+        const d9 = polyPath3(q9([P9(-GRV_HW9, 0, gz0), P9(GRV_HW9, 0, gz0),
+          P9(GRV_HW9, -GRV_D9, gz0), P9(-GRV_HW9, -GRV_D9, gz0)], 0, 0, 1));
+        inP9.push(d9);
+        inOv9.push(topFace(d9), sideFace(d9, 0.16));
+      }
+      return [
+        ...(inP9.length ? [bodyFace(inP9.join(" "))] : []), ...inOv9,
+        ...(bodyP9.length ? [bodyFace(bodyP9.join(" "))] : []), ...ov9,
+      ];
     };
     {
-      const GZ0 = 0.72; const GZ1 = ZTz9 - 0.16;
+      /* 홈의 위 끝은 **벽 꼭대기**다(위 ★★ — 천장을 안 내려고). 옥상 갑판이 그 위를 덮는다. */
+      const GZ0 = 0.72; const GZ1 = ZTz9;
       for (const sgn9 of [1, -1] as const) {
         if (facingRatio(0, sgn9) <= 0.08) continue;
         out.push(...tagKey(grvWall9("y", sgn9, ZB0z9, ZTz9, GZ0, GZ1), 2.5));
@@ -6173,30 +6242,37 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
 
     // ── 지붕 — 검은 굴뚝 넷(뒤 판) · 흰 성곽 이빨 · 임자색 포탑(뒤 오른쪽).
     // 굴뚝 넷은 **세로(y) 한 줄**(재지적: "가로로 나란히가 아니라 세로로 나란히") — 왼쪽 뒤에서 앞으로.
+    /* ⚠ 굴뚝 줄은 **골 밖(뒤 갑판)에** 세운다 — 옛 자리(cy −2.2…−0.4)는 두 개가 골 위였고,
+       옥상을 진짜로 파낸 뒤로는 그 둘이 골 위에 떠 밑이 비친다. 뒤 갑판(y −2.5…−1.03)에 네 개를
+       담으려면 그만큼 가늘어야 한다(반지름 0.34 → 0.24 · 간격 0.6 → 0.32). */
     for (let c9 = 0; c9 < 4; c9 += 1) {
-      const cx9 = -2.7; const cy9 = -2.2 + c9 * 0.6;
+      const cx9 = -2.7; const cy9 = -2.24 + c9 * 0.32;
       out.push(...tagKey([
-        ...paintBase(cylinderFaces3(cx9, cy9, 0.34, 0.4, ZTz9 + 0.048), NEAR_BLACK),
-        capFace(discPath3(cx9, cy9, ZTz9 + 0.496, 0.24), 0.5),
+        ...paintBase(cylinderFaces3(cx9, cy9, 0.24, 0.4, ZTz9 + 0.048), NEAR_BLACK),
+        capFace(discPath3(cx9, cy9, ZTz9 + 0.496, 0.17), 0.5),
       ], 3.3 + depthNow(cx9, cy9) * 0.05));
     }
-    for (const [tx9, ty9] of [
-      [-2.5, 1.85], [-1.3, 1.85], [0.1, 1.85], [1.3, 1.85], [2.5, 1.85],
-      [-2.8, 0.2], [2.8, 0.2], [-2.8, -1.4],
-    ] as [number, number][]) {
-      /* 성곽 이빨은 **테란 기본색**이다(요청: "팩토리 위의 블럭들 테란 기본색으로") —
-         칠을 안 하면 아래 raceBase가 기본색을 입힌다. 흰 돌(#c9c9c9)로 두었더니 지붕 위
-         여덟 덩이만 따로 노는 밝은 블록이 됐다. */
+    /* 성곽 이빨 — **앞줄 다섯은 골 안 앞쪽에 붙인다**(요청: "앞쪽 톱니 같은 박스들을 홈 안에
+       앞쪽에 붙이기"): 골 바닥에 앉아 앞 속벽에 등을 댄다(키 0.42 < 골 깊이 0.50 이라 갑판 위로
+       안 솟는다). 갑판 위에 남는 것은 셋뿐이고, 골 띠(|y| ≤ 1.03) 안에 있던 둘은 갑판으로 옮겼다.
+       ⚠ 이빨은 **테란 기본색**이다(요청: "팩토리 위의 블럭들 테란 기본색으로") — 칠을 안 하면
+         아래 raceBase 가 기본색을 입힌다. 흰 돌(#c9c9c9)로 두었더니 지붕 위 여덟 덩이만 따로
+         노는 밝은 블록이 됐다. */
+    for (const tx9 of [-2.5, -1.3, 0.1, 1.3, 2.5]) {
+      out.push(...tagKey(boxFaces3(tx9, CH_HW9 - 0.19, 0.68, 0.38, 0.42, ZTz9 - CH_D9), 3.5));
+    }
+    for (const [tx9, ty9] of [[-2.9, 1.75], [2.9, 1.75], [-1.5, -1.75]] as [number, number][]) {
       out.push(...tagKey(boxFaces3(tx9, ty9, 0.68, 0.38, 0.32, ZTz9), 3.5));
     }
     {
-      pc.push(...tagKey(boxFaces3(2.1, -1.2, 1.3, 1.05, 0.64, ZTz9 + 0.016), 3.7));
-      out.push(...tagKey(paintBase(boxFaces3(2.75, -1.7, 0.9, 0.6, 0.496, ZTz9 + 0.016), NEAR_BLACK), 3.72));
+      /* 포탑 무리도 골 띠(|y| ≤ 1.03) 밖으로 0.45 물린다 — 안 물리면 앞 끝이 골 위에 떠 밑이 비친다. */
+      pc.push(...tagKey(boxFaces3(2.1, -1.65, 1.3, 1.05, 0.64, ZTz9 + 0.016), 3.7));
+      out.push(...tagKey(paintBase(boxFaces3(2.75, -2.15, 0.9, 0.6, 0.496, ZTz9 + 0.016), NEAR_BLACK), 3.72));
       for (const m9 of [-1, 0, 1] as const) {
         out.push(...tagKey(paintBase(spirePillar({
           x: 0, y: 0, h: 0.8, w: 0.16, tipW: 0.16, segs: 1, sides: 6, hold: 1,
           path: (t9: number): [number, number, number] => [
-            1.95 + m9 * 0.27 + t9 * 0.62, -1.0 + t9 * 0.66, ZTz9 + 0.4 + t9 * 0.528,
+            1.95 + m9 * 0.27 + t9 * 0.62, -1.45 + t9 * 0.66, ZTz9 + 0.4 + t9 * 0.528,
           ],
         }), NEAR_BLACK), 3.75));
       }
