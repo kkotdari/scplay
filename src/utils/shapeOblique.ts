@@ -1033,6 +1033,58 @@ export function boxFaces3(
   return frustumFaces3(cx, cy, w, d, w, d, h, z0, omit, noTop);
 }
 
+/** ★ **모서리를 깎은 네모 기둥**(위에서 보면 팔각) — boxFaces3 와 같은 자리·같은 규약이고, 세로 모서리
+ *  넷만 `cut` 만큼 사선으로 잘라 벽이 여덟이 된다(2026-09, 요청: "배럭 … 세로 모서리 네 개를 사선으로
+ *  깎아서 위에서 보면 8각형이 되게 · 사선 길이는 길지 않게 살짝만").
+ *  ⚠ `cut` 은 **모서리에서 각 변을 따라 물러나는 길이**다 — 사선 자체의 길이는 그 √2 배다.
+ *  ⚠ w/2·d/2 의 절반을 넘기지 마라(넘으면 변이 뒤집힌다) — 여기서 잘라 둔다. */
+export function boxOctFaces3(
+  cx: number, cy: number, w: number, d: number, h: number, z0 = 0, cut = 0.6,
+  omit?: readonly [number, number], noTop?: boolean,
+): ShapeFace[] {
+  const a = w / 2; const b = d / 2;
+  const c = Math.max(0, Math.min(cut, a * 0.5, b * 0.5));
+  if (c <= 0) return boxFaces3(cx, cy, w, d, h, z0, omit, noTop);
+  const zt = z0 + h;
+  /** 평면 팔각의 꼭짓점 여덟 — 앞(+y) 왼쪽에서 시작해 boxFaces3 와 같은 방향으로 돈다. */
+  const plan: [number, number][] = [
+    [-a + c, b], [a - c, b], [a, b - c], [a, -b + c],
+    [a - c, -b], [-a + c, -b], [-a, -b + c], [-a, b - c],
+  ];
+  const at = (z: number): [number, number, number][] =>
+    plan.map(([px, py]) => [cx + px, cy + py, z] as [number, number, number]);
+  const t = at(zt); const bo = at(z0);
+  const top = polyPath3(t);
+  const r2n = Math.SQRT1_2;
+  /** 벽마다의 평면 법선 — 사선 넷은 대각이다. */
+  const nrm: [number, number][] = [
+    [0, 1], [r2n, r2n], [1, 0], [r2n, -r2n],
+    [0, -1], [-r2n, -r2n], [-1, 0], [-r2n, r2n],
+  ];
+  const sides = plan.map((_, i) => ({
+    d: polyPath3([t[i], t[(i + 1) % 8], bo[(i + 1) % 8], bo[i]]), n: nrm[i],
+  }));
+  const out: ShapeFace[] = [];
+  const bodyParts: string[] = noTop ? [] : [top];
+  // 등진 벽부터 앞으로 — frustumFaces3 의 그 차례다(가까운 벽의 덮개가 마지막에 와야 한다).
+  const ordered = sides
+    .map((f) => ({ f, k: facingRatio(f.n[0], f.n[1]) }))
+    .sort((p, q) => p.k - q.k)
+    .map(({ f }) => f);
+  for (const f of ordered) {
+    if (omit && Math.abs(omit[0] - f.n[0]) < 0.01 && Math.abs(omit[1] - f.n[1]) < 0.01) continue;
+    const { visible, face } = faceLight(f.n[0], f.n[1], 0);
+    if (!visible) continue;
+    bodyParts.push(f.d);
+    out.push(...face(f.d));
+  }
+  return tagKey(
+    [...(bodyParts.length ? [bodyFace(bodyParts.join(" "))] : []), ...out,
+      ...(noTop ? [] : [topFace(top)])],
+    depthNow(cx, cy) + Math.min(h, a * Math.abs(depthNow(1, 0)) + b * Math.abs(depthNow(0, 1))),
+  );
+}
+
 /** 세운 원통 — 바닥 중심 (cx,cy), 반지름 r, 높이 h. 몸통 + 밝은 윗면 + 오른쪽 세로 음영. */
 export function cylinderFaces3(
   cx: number, cy: number, r: number, h: number, z0 = 0,

@@ -7,7 +7,7 @@ import { cx } from "./cx";
 import { TIER_GEN9 } from "./tierTable.gen";
 import { kT } from "../../utils/openbwTracks";
 import {
-  POLY2, MESH9, EMIT_FILL9, meshPut9, meshLoft9, meshRing9, loftZFaces, modelPoint9, annulusPath, bandPath, bodyFace, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
+  POLY2, MESH9, EMIT_FILL9, meshPut9, meshLoft9, meshRing9, loftZFaces, modelPoint9, annulusPath, bandPath, bodyFace, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, boxOctFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
 import { BUILD_STAGES, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, SPIN_STEPS, bldNormOf, modelInkOf, modelNormOf } from "./engine9";
 import { type UnitDrawOp } from "./engine9";
 /** 주소 해시(`#pitch=`·`#nocreep` 같은 진단 스위치) — 굽기 일꾼 안에서는 location.hash가 빈 문자열(blob 주소)이라,
@@ -4572,6 +4572,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        풀어 두어 함께 올라간다. */
     const LIFT = 1.16; const LIFTz9 = 0.928; /* z용 쌍둥이(model-z-scale ×0.8) */
     /** 판 셋 — 바깥 둘은 크고 두껍게, 가운데는 한 뼘 작게. */
+    /** 세로 모서리를 깎는 길이(각 변을 따라 물러나는 몫 — 사선 자체는 그 √2 배다).
+     *  요청의 "살짝만"이다 — 0.5 는 앞면을 2.7 → 1.7 로 깎아 너무 컸다(눈으로 확인). 0.35 면
+     *  바깥 판 앞면이 2.7 → 2.0(74%) 로 남아 모서리만 접힌 꼴이 된다. */
+    const CUT9 = 0.35;
     const PX = 3.95;        // 바깥 판의 x 중심
     const PW = 2.7;         // 바깥 판 두께(x)
     const PD = 7.6;         // 판 깊이(y)
@@ -4587,6 +4591,22 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        한 덩이로 안 읽힌다. 작게 두는 몫은 두께와 높이가 이미 지고 있다. */
     const MD = PD;
     const MH = 5.76;
+    /* ★ **좌우 판은 벤트 앞까지만 온다**(2026-09, 요청: "좌우 건물의 뒷부분을 벤트 시작부까지로 줄이고
+       그 줄인 자리에는 벤트에 딱 맞는 사각기둥을 세울 거야. 건물 뒷부분에 딱 붙여서 높이는 건물과 같게!")
+       — 그래서 벤트의 자를 **판보다 먼저** 세운다(원래는 지붕을 얹는 자리에서 잡았다).
+       기둥의 앞 낯 = 판의 뒤 낯 = **벤트 밑판의 앞 끝**이라, 셋이 한 자리에서 만난다. */
+    const VL9 = ((1.5 - -2.9) / 3) * 1.1;  // 벤트 앞뒤 길이
+    const VB9 = -PD / 2 + 0.34;            // 뒤 — 지붕 맨 뒤에 붙인다
+    const VF9 = VB9 + VL9;                 // 앞
+    const VC9 = (VB9 + VF9) / 2;
+    const VPAD9 = 0.42;                    // 밑판이 벤트보다 넓은 몫
+    const VPW9 = (0.95 + VPAD9) * 2 * 1.2;
+    const VPD9 = VL9 + VPAD9 * 2;
+    /** 벤트 밑판의 앞 끝 — 좌우 판의 새 뒤 낯이다. */
+    const PBK9 = VC9 + VPD9 / 2;
+    /** 줄인 좌우 판의 깊이·y 중심. */
+    const PDN9 = PD / 2 - PBK9;
+    const PCY9 = (PD / 2 + PBK9) / 2;
     const PZ = 0.84 + LIFTz9; // 판 밑면
     /** 사이 상자 — 판보다 얇고·낮고·얕다. 판에 물려 이음매 노릇만 한다. */
     const GX = 1.95;
@@ -4747,9 +4767,20 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     out.push(...tagKey(boxFaces3(-GX, 0, GW, GD, GH, GZ), depthNow(-GX, 0) * 1.6));
     out.push(...tagKey(boxFaces3(GX, 0, GW, GD, GH, GZ), depthNow(GX, 0) * 1.6));
     // 판 셋.
-    out.push(...tagKey(boxFaces3(-PX, 0, PW, PD, PH, PZ), depthNow(-PX, 0) * 1.6));
-    out.push(...tagKey(boxFaces3(PX, 0, PW, PD, PH, PZ), depthNow(PX, 0) * 1.6));
-    out.push(...tagKey(boxFaces3(0, 0, MW, MD, MH, PZ), depthNow(0, 0) * 1.6));
+    /* ★ 큰 판 셋은 **세로 모서리를 살짝 깎아 팔각**이다(2026-09, 요청: "배럭 세 개의 큰 건물 …
+       세로 모서리 네 개를 사선으로 깎아서 위에서 보면 8각형이 되게 · 사선 길이는 길지 않게 살짝만").
+       사이 상자 둘은 얇은 이음이라 네모 그대로 둔다. 띠·창도 깎인 만큼 물러나고, 사선 낯에도
+       제 토막을 둘러 띠가 모서리에서 끊기지 않는다(아래 BLK9·bandSeg9). */
+    for (const sx9 of [-1, 1] as const) {
+      // 줄인 판 — 뒤 낯이 벤트 밑판의 앞 끝(PBK9)이다.
+      out.push(...tagKey(boxOctFaces3(sx9 * PX, PCY9, PW, PDN9, PH, PZ, CUT9),
+        depthNow(sx9 * PX, PCY9) * 1.6));
+      /* 그 뒤의 **사각기둥** — 벤트 밑판과 같은 발자국(VPW9 × VPD9)이고 높이는 판과 같다.
+         네모 그대로다(요청: "사각기둥") — 판만 팔각이라 기둥이 뒤에서 각을 세워 실루엣이 갈린다. */
+      out.push(...tagKey(boxFaces3(sx9 * PX, VC9, VPW9, VPD9, PH, PZ),
+        depthNow(sx9 * PX, VC9) * 1.6));
+    }
+    out.push(...tagKey(boxOctFaces3(0, 0, MW, MD, MH, PZ, CUT9), depthNow(0, 0) * 1.6));
     /** 지붕 경사 벤트(요청: "경사로 모양으로 앞으로 기울이기 옆에서 보면 삼각형") —
      *  뒤(−y)가 높고 앞(+y)으로 미끄러져 내려오는 쐐기다. 옆 삼각 둘 · 뒷벽 · 경사면으로
      *  이루어지고, 경사면 위에는 밝은 살을 몇 줄 긋는다(환풍구의 격자). */
@@ -4833,11 +4864,6 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         /* 길이는 한 번 더 10% 늘리고 높이는 20% 낮추며, 자리는 **옥상 맨 뒤**다(요청) —
        지붕 한가운데 있던 것을 뒤로 붙이면 앞쪽 지붕이 비어 앞면 띠·데칼이 살고, 옆에서
        보면 뒤가 높고 앞이 트인 실루엣이 된다. */
-    const VL9 = ((1.5 - -2.9) / 3) * 1.1;  // 앞뒤 길이
-    const VB9 = -PD / 2 + 0.34;            // 뒤 — 지붕 맨 뒤에 붙인다
-    const VF9 = VB9 + VL9;                 // 앞
-    const VC9 = (VB9 + VF9) / 2;
-    const VPAD9 = 0.42;                    // 밑판이 벤트보다 넓은 몫
     /* 벤트는 **어두운 회색**이다(요청) — 몸과 같은 은색이면 지붕에 얹힌 부품이 아니라
        지붕이 솟은 것으로 읽힌다. 명암 덮개(흰 윗면·검은 옆면)는 제 색을 이미 들고 있어
        paintBase가 안 건드린다 — 바탕이 깔린 몸판만 어두워진다. */
@@ -4850,8 +4876,6 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        *  색을 안 칠하면 raceBase가 테란 기본색을 입힌다(out에 넣는 까닭). 지붕과 임자색
        *  판 사이에 은색 켜가 한 단 들어가, 벤트가 지붕에 바로 붙지 않고 대 위에 올라선다. */
       const VSH9 = VPH9 * 1.2;
-      const VPW9 = (0.95 + VPAD9) * 2 * 1.2;
-      const VPD9 = VL9 + VPAD9 * 2;
       out.push(...tagKey(boxFaces3(sx9 * PX, VC9, VPW9, VPD9, VSH9, PTOP), k9));
       pc.push(...tagKey(boxFaces3(sx9 * PX, VC9, VPW9, VPD9, VPH9z9, PTOP + VSH9), k9 + 0.005));
       /* ★ 경사로 **몸체는 테란 기본 은색**이고, 어두운 벤트는 그 **윗 경사면에 한 치 작게
@@ -4952,6 +4976,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       : [bodyFace(polyPath3([
         [x0, py, z0], [x1, py, z0], [x1, py, z0 + th9], [x0, py, z0 + th9],
       ]))], key);
+    /** ★ 평면 위 **아무 선분**에 세우는 가로 띠 — 사선 낯(팔각의 깎인 모서리)에도 두른다.
+     *  band9(앞뒤 낯)·bandY9(옆 낯)는 이 자의 특별한 두 경우다. */
+    const bandSeg9 = (
+      x0: number, y0: number, x1: number, y1: number, z0: number, key: number, fill?: string,
+      th9 = BTH9,
+    ): ShapeFace[] => {
+      const d9 = polyPath3([
+        [x0, y0, z0], [x1, y1, z0], [x1, y1, z0 + th9], [x0, y0, z0 + th9],
+      ]);
+      return tagKey(fill ? paintBase([bodyFace(d9)], fill) : [bodyFace(d9)], key);
+    };
     /** 옆면(±x)의 가로 띠 — 앞뒤(y)로 길다. */
     const bandY9 = (
       xw: number, y0: number, y1: number, z0: number, key: number, fill?: string,
@@ -4989,24 +5024,26 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        끊겨, 두른 것이 아니라 모서리에 찍은 점으로 보였다. 깊이의 0.62를 두르되 한 자를
        넘지 않게 잡아, 얕은 사이 상자에서도 뒷면까지 새지 않는다. */
     const wrap9 = (hd9: number): number => Math.min(2.45, hd9 * 0.62);
-    const BLK9: readonly (readonly [number, number, number])[] = [
-      [-PX, PW / 2, PD / 2], [-GX, GW / 2, GD / 2], [0, MW / 2, MD / 2],
-      [GX, GW / 2, GD / 2], [PX, PW / 2, PD / 2],
+    /* 덩이마다 [x 중심, 반폭, 반깊이, **깎인 몫**, **y 중심**] — 큰 판 셋만 팔각이라 깎임이 있고
+       사이 상자는 0 이다. 좌우 판은 뒤를 줄여 **y 0 이 아니므로**(PCY9) 중심을 함께 든다. */
+    const BLK9: readonly (readonly [number, number, number, number, number])[] = [
+      [-PX, PW / 2, PDN9 / 2, CUT9, PCY9], [-GX, GW / 2, GD / 2, 0, 0], [0, MW / 2, MD / 2, CUT9, 0],
+      [GX, GW / 2, GD / 2, 0, 0], [PX, PW / 2, PDN9 / 2, CUT9, PCY9],
     ];
-    for (const [bx9, bhw9, bhd9] of BLK9) {
-      // 앞면(±y) — 그 면의 좌우폭을 꽉 채운 두 줄.
+    for (const [bx9, bhw9, bhd9, bc9, bcy9] of BLK9) {
+      // 앞면(±y) — 그 면의 좌우폭을 꽉 채운 두 줄. **깎인 만큼 좌우로 물러난다**.
       for (const sy9 of [1, -1] as const) {
         if (facingRatio(0, sy9) <= 0.12) continue;
-        const py9 = sy9 * (bhd9 + 0.03);
+        const py9 = bcy9 + sy9 * (bhd9 + 0.03);
         /* ★ 키의 기준점은 **제 몸통과 같은 자리**(bx9, 0)다(지적: "사이 건물 데칼이 안 가려지는
            키 문제") — 앞면의 실제 y로 재면 앞으로 튀어나온 값이 되어, 뒤에 물러선 사이 상자의
            띠가 제 앞의 판보다 큰 키를 얻어 판 위로 그려졌다. 몸통 상자가 (cx, 0)으로 정렬되므로
            그 위에 얹는 띠도 같은 자리에 +0.3만 얹으면 제 덩이를 따라 앞뒤가 옳다. */
         const key9 = depthNow(bx9, 0) * 1.6 + 0.3;
-        pc.push(...band9(bx9 - bhw9, bx9 + bhw9, py9, ZB9, key9));
-        out.push(...winB9(bx9 - bhw9, bx9 + bhw9, py9, key9));
+        pc.push(...band9(bx9 - bhw9 + bc9, bx9 + bhw9 - bc9, py9, ZB9, key9));
+        out.push(...winB9(bx9 - bhw9 + bc9, bx9 + bhw9 - bc9, py9, key9));
       }
-      // 옆면(±x) — 앞 끝에서 한 뼘만.
+      // 옆면(±x) — 앞 끝에서 한 뼘만. **깎인 만큼 앞에서 물러난다**.
       for (const sx9 of [1, -1] as const) {
         if (facingRatio(sx9, 0) <= 0.12) continue;
         const xw9 = bx9 + sx9 * (bhw9 + 0.03);
@@ -5014,8 +5051,27 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           if (facingRatio(0, sy9) <= 0.12) continue;
           const key9 = depthNow(bx9, 0) * 1.6 + 0.3;
           const wl9 = wrap9(bhd9);
-          pc.push(...bandY9(xw9, sy9 * (bhd9 - wl9), sy9 * bhd9, ZB9, key9));
-          out.push(...winBY9(xw9, sy9 * (bhd9 - wl9), sy9 * bhd9, key9));
+          const ye9 = bcy9 + sy9 * (bhd9 - bc9);
+          const ys9 = bcy9 + sy9 * (bhd9 - wl9);
+          pc.push(...bandY9(xw9, ys9, ye9, ZB9, key9));
+          out.push(...winBY9(xw9, ys9, ye9, key9));
+        }
+      }
+      /* **깎인 모서리의 사선 낯**에도 제 토막을 두른다 — 안 두르면 띠가 모서리마다 끊겨,
+         두른 것이 아니라 낯마다 그은 줄로 읽힌다(그 판을 팔각으로 깎은 뜻이 없어진다). */
+      if (bc9 > 0) {
+        for (const sx9 of [1, -1] as const) {
+          for (const sy9 of [1, -1] as const) {
+            // 사선 낯의 법선은 대각이다 — 그쪽을 등지면 건너뛴다.
+            if (facingRatio(sx9 * Math.SQRT1_2, sy9 * Math.SQRT1_2) <= 0.12) continue;
+            const key9 = depthNow(bx9, 0) * 1.6 + 0.3;
+            const ox9 = sx9 * 0.021; const oy9 = sy9 * 0.021;   // 낯 밖으로 살짝(0.03/√2)
+            const ax9 = bx9 + sx9 * (bhw9 - bc9) + ox9; const ay9 = bcy9 + sy9 * bhd9 + oy9;
+            const bx2 = bx9 + sx9 * bhw9 + ox9; const by2 = bcy9 + sy9 * (bhd9 - bc9) + oy9;
+            pc.push(...bandSeg9(ax9, ay9, bx2, by2, ZB9, key9));
+            out.push(...bandSeg9(ax9, ay9, bx2, by2, ZW9, key9, WINB9));
+            out.push(...bandSeg9(ax9, ay9, bx2, by2, ZW9 + BTH9 * (1 - WCK9) / 2, key9, WINC9, BTH9 * WCK9));
+          }
         }
       }
     }
