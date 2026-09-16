@@ -7,7 +7,7 @@ import { cx } from "./cx";
 import { TIER_GEN9 } from "./tierTable.gen";
 import { kT } from "../../utils/openbwTracks";
 import {
-  POLY2, MESH9, meshPut9, meshLoft9, meshRing9, FACE_GRAIN9, loftZFaces, modelPoint9, annulusPath, bandPath, bodyFace, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
+  POLY2, MESH9, EMIT_FILL9, meshPut9, meshLoft9, meshRing9, FACE_GRAIN9, loftZFaces, modelPoint9, annulusPath, bandPath, bodyFace, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
 import { BUILD_STAGES, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, SPIN_STEPS, bldNormOf, modelInkOf, modelNormOf } from "./engine9";
 import { type UnitDrawOp } from "./engine9";
 /** 주소 해시(`#pitch=`·`#nocreep` 같은 진단 스위치) — 굽기 일꾼 안에서는 location.hash가 빈 문자열(blob 주소)이라,
@@ -468,10 +468,18 @@ export function bldSpinSet(n: number): void {
 export const WIN_DARK = "#1d2228";
 /** 활성일 때만 드는 창 색 — 건물마다 제 색으로 못 박아 두던 유리를 이 한 문으로 모은다.
  *  꺼져 있을 때는 어느 건물이든 같은 식은 유리(WIN_DARK)다. */
-export const winLit = (on: string): string => (bldLitNow ? on : WIN_DARK);
+export const winLit = (on: string): string => {
+  if (!bldLitNow) return WIN_DARK;
+  EMIT_FILL9.add(on);   // 켜진 창은 **빛**이다 — GL 의 번짐이 이 표를 본다(shapeOblique.EMIT_FILL9)
+  return on;
+};
 /** 활성일 때만 살아나는 발광 — 꺼져도 아주 안 보이면 안 되는 자리(프로토스 관문 속
  *  플라즈마, 저그 고치 아가리)는 검게 죽이는 대신 **식은 색**으로 가라앉힌다. */
-export const glowLit = (on: string, off: string): string => (bldLitNow ? on : off);
+export const glowLit = (on: string, off: string): string => {
+  if (!bldLitNow) return off;
+  EMIT_FILL9.add(on);
+  return on;
+};
 /** 벽에 난 창 한 줄(요청: "창문 표시 및 평소 어둡다가 가스캘때는 네온색 불빛") ───────
  *  벽면은 법선 (nx, ny)로 준다 — (0,1)이면 앞벽, (1,0)이면 오른벽이다. 창은 그 벽을
  *  따라 span 폭에 n개가 고르게 난다.

@@ -2,7 +2,7 @@
    빌더를 요잉 0·평면 시점으로 한 번 돌리고, 면마다 곁표(MESH9.byD)에 적힌 3D 폴리곤을 모아 **판 모형 공간 메시**를
    낸다. GPU 붓(WebGL)·자료 도구의 재료다. 음영 덧칠 면(#fff/#000 얕은 알파, 화면 곡선 그림자)은 GPU 조명이 대신하므로
    버린다. 임자색 면(fill 없음)은 fill "" 로 두어 붓이 임자색으로 바꿔 칠한다. */
-import { MESH9, PROJ9, unproject9, withTopView, withYaw, bake, zsorted, meshSphere9, meshLoft9, type ShapeFace, type Poly3 } from "./shapeOblique";
+import { MESH9, PROJ9, EMIT_FILL9, unproject9, withTopView, withYaw, bake, zsorted, meshSphere9, meshLoft9, type ShapeFace, type Poly3 } from "./shapeOblique";
 
 /** 2D 굽기가 반투명 **색 있는** 면에 얹던 알파 보정 — bake9.shadeBoost 와 **같은 식이어야 한다**(여기서 베낀 까닭은
  *  mesh9 ← bake9 로 되짚는 import 를 안 만들려고다). 이것을 안 태우면 GL 의 음영 덧칠이 2D 보다 1.25배 옅어
@@ -172,7 +172,9 @@ export interface MeshPart9 { polys: Poly3[]; fill: string; alpha: number; team: 
   /** 그 부품을 낸 면의 경로 — 덧칠을 접을 때 **넓이 몫**을 재는 자다(아래 areaK9). */ d?: string;
   /** **닫힌 입체**의 낯인가 — 붓이 그 낯만 뒷면을 걸러낸다(아래 solidSigns9). */ solid?: boolean;
   /** 그 낯의 감기가 **안쪽**을 보나 — 참이면 붓이 법선을 뒤집는다(부품의 과반). */ flip?: boolean;
-  /** 폴리마다의 그 값 — 한 부품 안에서도 감기가 섞인다(헬퍼가 면을 되쓴 자리). 붓은 이것을 먼저 본다. */ flips?: boolean[] }
+  /** 폴리마다의 그 값 — 한 부품 안에서도 감기가 섞인다(헬퍼가 면을 되쓴 자리). 붓은 이것을 먼저 본다. */ flips?: boolean[];
+  /** **빛을 내는 부품**인가 — 붓의 번짐(블룸)이 이 부품만 한 번 더 그려 흐린다(켠 창·플라즈마·발광 효과). */
+  emit?: boolean }
 export interface Mesh9 { parts: MeshPart9[]; faces: number; covered: number; skipped: number;
   /** 헬퍼가 **일부러 비워 둔** 면 수 — rodFaces 는 관 하나를 첫 낯에 몰아 적고 나머지 낯(둘째 끝·몸통)에는
    *  빈 표를 적는다. 그 낯은 빠진 것이 아니라 이미 딴 낯이 낸 것이라, 덮임 셈의 분모에서 뺀다. */
@@ -379,7 +381,10 @@ export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeF
     covered += 1;
     byD.set(f[0], parts.length);
     if (f[5] !== undefined) byPid.set(f[5], parts.length);
-    parts.push({ polys, fill: f[2] ?? "", alpha: shadeBoost9(f[1], f[2]), team: f[2] === undefined, lod: f[4] ?? 0, ow: 0, ob: 0, bb: polys.length === 1 && BILLBOARD9.has(polys[0]), d: f[0] });
+    parts.push({ polys, fill: f[2] ?? "", alpha: shadeBoost9(f[1], f[2]), team: f[2] === undefined, lod: f[4] ?? 0, ow: 0, ob: 0, bb: polys.length === 1 && BILLBOARD9.has(polys[0]), d: f[0],
+      /* 빛나는 면 — 발광 종류(폭풍·핵·아콘·워프인)는 **밝은 색 면만**(어두운 속 몸은 빛이 아니다 ·
+         임자색 면도 몸이다), 그 밖의 종류는 '켜진 색' 표(EMIT_FILL9)에 든 색만. */
+      emit: f[2] !== undefined && (glow ? lum9(f[2]) > 0.55 : EMIT_FILL9.has(f[2])) });
     pidAt.push(f[5]);
   }
   /* ★ 닫힌 입체 표시 — 빌더는 한 덩이를 낯 여러 장으로 내므로(부품 하나 = 낯 하나), 닫힘은 부품이 아니라

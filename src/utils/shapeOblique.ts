@@ -788,6 +788,10 @@ export function project(x0: number, y0: number, z0: number): [number, number] {
    톨도 안 바뀐다(스냅샷 대조로 지킨다). 화면 전용 도형(groundEllipse·screenCircle·bandPath)은 메시가 없다. */
 /** 3D 폴리곤 — x,y,z 삼중 나열(판 모형 공간). */
 export type Poly3 = number[];
+/** ★ **빛을 내는 색**(2026-09) — GL 의 번짐(블룸)이 이 색으로 칠한 면만 문다. 색만 보고는 '빛'과 '진한 물감'을
+ *  못 가른다(프로토스 금 #e6d063 은 휘도 0.85·채도 0.51 로 켠 창 #ffe790 과 거의 같다). 그래서 **켜지는 자리**가
+ *  스스로 적는다: bake9 의 `winLit`·`glowLit` 이 불이 켜질 때 제 색을 여기 넣는다(늘 빛인 플라즈마는 미리 적어 둔다). */
+export const EMIT_FILL9 = new Set<string>(["#e4f6ff"]);
 export const MESH9 = { on: false, byD: new Map<string, Poly3[]>() };
 /** 메시 기록 중 project() 가 낸 화면점 → 판 모형 공간 점. 빌더가 project() 결과로 손수 짠 경로 문자열(번개·얼룩·구 껍질)을
  *  거꾸로 3D 로 되돌리는 열쇠다(mesh9.meshFromPath9). 열쇠는 경로에 찍히는 꼴 그대로 `${x} ${y}`(r2 반올림). */

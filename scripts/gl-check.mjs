@@ -17,6 +17,10 @@ const CELL = Number(flag("--cell", 160));
 const WORST = Number(flag("--worst", 40));
 const OUT = String(flag("--out", join(tmpdir(), "glcheck.png")));
 const JSON_OUT = flag("--json", null);
+/* 진단 스위치를 GL 붓에 넘긴다(모듈이 import 때 location.hash 를 읽으므로 goto 에 실어야 한다).
+   기본은 `glbloom=0` — 이 자는 "빠진 부품이 없나"를 보는 자라 **번짐은 끄고** 잰다(번짐은 2D 에 없는
+   몫이라 켜면 발광 종류의 색차·밝기비가 통째로 뛴다). 번짐까지 보려면 `--hash ""` 나 `--hash 다른것`. */
+const HASH = flag("--hash", "glbloom=0");
 const BG = "#20242b";
 const COLOR = "#4aa3ff";
 
@@ -134,7 +138,7 @@ const browser = await chromium.launch(launchOpt).catch(async (e) => {
 const page = await browser.newPage();
 page.on("pageerror", (e) => console.error("페이지 오류:", String(e).slice(0, 300)));
 await page.route("http://gl-check.local/*", (r) => r.fulfill({ contentType: "text/html", body: "<!doctype html><meta charset=utf-8><body>" }));
-await page.goto("http://gl-check.local/");
+await page.goto("http://gl-check.local/" + (HASH ? "#" + HASH : ""));
 await page.addScriptTag({ content: js, type: "module" });
 await page.waitForFunction("!!window.__run");
 const kinds = KINDS ?? await page.evaluate(() => window.__kinds());

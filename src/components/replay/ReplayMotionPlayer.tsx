@@ -807,6 +807,8 @@ const DEV9 = smallDevice9 ? {
   tiers: PHONE_TIERS9,
   /** GL 붓 메시 상한(벌) — 한 벌은 VBO + 꼭짓점 사본(footOf)이라 메모리다. */
   glMeshMax: 240,
+  /** 번짐(블룸) — 화면 한 겹을 더 칠하는 일이라 **폰은 끈다**(실기에서 값을 재기 전까지. `#glbloom=1` 로 켜 본다). */
+  glBloom: false,
 } : {
   name: "pc",
   decalBakeMax: 768,   // 크립 굽기 상한 384 → 768(지적: PC에서 화질 낮은 게 보임)
@@ -816,6 +818,7 @@ const DEV9 = smallDevice9 ? {
   cullMargin: 1, aheadSec: 3, aheadMB: 24, yaw8Always: false,
   tiers: PC_TIERS9,
   glMeshMax: 600,
+  glBloom: true,
 };
 /* ★ **PC는 벤치 단으로 예산을 올린다**(요청: "윈도우 크롬에서 CPU·GPU를 최대한 쓸 수 없을까" → 계획 1번) ────
    위 PC 표는 한 값이라 벤치 7ms짜리 기기도 19ms짜리와 같은 예산(프레임당 굽기 3장·12ms, 앞 3초·24MB)으로
@@ -2983,7 +2986,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       lodSetZoom(bakeZoom);
       ctx.setTransform(Bd, 0, 0, Bd, 0, 0);
       ctx.clearRect(0, 0, cw, ch);
-      const gl9 = glUnits9(glRef.current, DEV9.glMeshMax);
+      const gl9 = glUnits9(glRef.current, DEV9.glMeshMax, DEV9.glBloom);
       glFx9 = !!gl9;   // 효과 모델(폭풍·핵)도 GL 이 맡는다 — drawDomFx9 가 판을 안 굽게   // #gl=1 이면 유닛 몸통을 GPU 큐에 넣고, 프레임 끝에서 한 번 그린다(아래)
       /* (제거·요청) 도형 드롭섀도 — 건물·유닛 그림자를 다 걷었다(떠다니는 것 제외).
          떠 있음은 아래 hover 분기의 발밑 타원만 말한다. */
@@ -3948,7 +3951,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         if (GL_BLIT9) ctx.drawImage(gl9.canvas, 0, 0, cw, ch);   // `#glblit=0`(계측): 헤드리스 SwiftShader 는 이 한 줄이 ReadPixels 로 1~2초다
         if (scrDiagOn()) {
           const miss9 = [...GL_MISS9].sort((a9, b9) => b9[1] - a9[1]).slice(0, 4).map(([k9, n9]) => `${k9}×${n9}`).join(" ");
-          SCR_DIAG.gl = `on 개체 ${gl9.stat.inst} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}/${gl9.meshMax}(${gl9.stat.bakeMs.toFixed(0)}ms·${(gl9.stat.bytes / 1048576).toFixed(1)}MB) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit${miss9 ? " 판으로 " + miss9 : ""}`;
+          SCR_DIAG.gl = `on 개체 ${gl9.stat.inst} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}/${gl9.meshMax}(${gl9.stat.bakeMs.toFixed(0)}ms·${(gl9.stat.bytes / 1048576).toFixed(1)}MB) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit 번짐 ${gl9.stat.bloom}${miss9 ? " 판으로 " + miss9 : ""}`;
         }
       }
       if (fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM)) {

@@ -40,7 +40,9 @@ export interface GlFoot9 { w: number; cx: number; bot: number; top: number }
 /** nSolid: 앞쪽 정점 수(불투명 부품) · 그 뒤는 반투명(깊이를 안 쓰고 겹쳐 섞는다).
  *  데칼(한 장짜리 작은 부품 — 2D 가 벽 안쪽에 그려 두고 화가 차례로 위에 얹던 줄무늬·창·환풍구)의 깊이 편향은 정점(aOrd)에 든다. */
 /** pts: footOf 용 **겹치지 않는 꼭짓점 xyz** 만의 사본(정점 사본을 통째로 들면 메시당 270KB — 폰 메모리) · bytes: VBO 크기 · cols: 색 가짓수(진단). */
-export interface GlMesh9 { vbo: WebGLBuffer; n: number; nSolid: number; bias: number; pts: Float32Array; bytes: number; cols: number; foot: Map<string, GlFoot9> }
+export interface GlMesh9 { vbo: WebGLBuffer; n: number; nSolid: number; bias: number; pts: Float32Array; bytes: number; cols: number; foot: Map<string, GlFoot9>;
+  /** **빛나는 낯이 있나** — 있으면 붓이 번짐 켜에서 이 메시를 한 번 더 그린다(없으면 건너뛴다 — 대부분의 유닛이 그렇다). */
+  emit: boolean }
 
 /* 정점 36바이트(예전 float 15개 60바이트): pos3·nrm3(빌보드면 원반 가운데) float · rgb3+team1 바이트(정규화) · alpha·덧칠 흰·검·빌보드 바이트(정규화) ·
    부품 차례 float. 0~1 값은 바이트 정규화로 충분하다(색 자체가 8비트, 알파·덧칠 1/255). 폰에서 메시 표(상한 240벌)가 메모리의 큰 몫이라 줄였다. */
@@ -57,14 +59,20 @@ uniform vec4 uShadow;   // (빛 기울기 x, y, 켬, 나는 높이)
 /* 그림자 켜의 **못 박은 깊이** — 0 이면 안 쓴다. 한 켜의 모든 삼각형이 같은 깊이를 쓰면, 깊이 쓰기를 켠 채
    LESS 로 그릴 때 **한 화소에 한 번만** 칠해진다(겹친 부품·겹친 개체가 두 번 어두워지지 않는다). */
 uniform float uShZ;
+/** 번짐(블룸) 켜 — 1 이면 빛나는 낯만 그린다(그 그림을 흐려 더한다). */
+uniform float uEmit;
 uniform float uFlat;  // 효과(발광): 1 이면 음영·실루엣 빛·방향광 없이 제 색
 uniform float uDbg;   // 진단 #glshade=0..2(0 덧칠 없음 · 1 덧칠 · 2 +실루엣 빛)
 uniform vec4 uGrad;   // 실루엣 빛(silhouetteLight): 화면 빛 방향 (x,y) · 모델 상자 반지름 R · 상자 가운데의 앵커 기준 세로 몫
 varying vec4 vCol;
 void main() {
-  /* aBb 한 칸에 표식 둘이 들었다: **128 닫힌 입체**(등진 낯을 걷는다) · **255 빌보드 원반**(카메라를 본다). */
-  float bill = aBb > 0.9 ? 1.0 : 0.0;
-  float solid = (aBb > 0.4 && aBb < 0.9) ? 1.0 : 0.0;
+  /* aBb 한 칸에 표식 셋이 비트로 들었다: **1 빛**(번짐이 문다) · **2 닫힌 입체**(등진 낯을 걷는다) · **4 빌보드 원반**(카메라를 본다). */
+  float bits = floor(aBb * 255.0 + 0.5);
+  float emit = mod(bits, 2.0);
+  float solid = mod(floor(bits / 2.0), 2.0);
+  float bill = mod(floor(bits / 4.0), 2.0);
+  // 번짐 켜(uEmit)는 **빛나는 낯만** 그린다 — 나머지는 클립 밖으로.
+  if (uEmit > 0.5 && emit < 0.5) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); vCol = vec4(0.0); return; }
   /* 빌보드 원반: 카메라를 보게 기록한 판이라 요잉을 안 돌린다 — 원반 가운데(aNrm 에 실림)만 돌리고 둘레는 그 자리에서 편다. */
   vec3 pc = bill > 0.5 ? aNrm : aPos;
   vec3 pd = bill > 0.5 ? aPos - aNrm : vec3(0.0);
@@ -156,6 +164,29 @@ const SHADOW_K9: [number, number] = [0.5, -0.25];   // 빛을 더 높이(0.9/−
  *  [배수, 알파 몫] — 큰 것을 먼저, 그다음 제 크기를 얹는다. 삯은 그리기 한 번이다. */
 const SHADOW_BLUR9: [number, number] = [1.1, 0.55];
 
+/* ★ **번짐(블룸)** — 빛나는 낯만 1/4 크기 판에 한 번 더 그리고, 가로·세로로 흐린 뒤 화면에 **더한다**.
+   2D 판에는 없던 몫이다(판은 색을 굽는 자라 빛이 새어 나올 수가 없었다). 밝기 문턱으로 고르지 않는 까닭:
+   색만 보고는 '빛'과 '진한 물감'을 못 가른다(프로토스 금 #e6d063 과 켠 창 #ffe790 은 휘도·채도가 거의 같다).
+   그래서 빛나는 자리를 **표식으로** 고른다(정점 aBb 비트 1 · shapeOblique.EMIT_FILL9). */
+const FX_VS = `
+attribute vec2 aXY; varying vec2 vUv;
+void main() { vUv = aXY * 0.5 + 0.5; gl_Position = vec4(aXY, 0.0, 1.0); }`;
+const FX_FS = `
+precision mediump float;
+uniform sampler2D uTex; uniform vec2 uStep; uniform float uStr;
+varying vec2 vUv;
+void main() {
+  // 걸음이 0 이면 **한 번만** 읽는다(화면에 더하는 마지막 켜) — 전체 화면 켜에서 다섯 번 읽을 까닭이 없다.
+  if (uStep.x == 0.0 && uStep.y == 0.0) { gl_FragColor = texture2D(uTex, vUv) * uStr; return; }
+  /* 다섯 번 읽어 아홉 칸 가우시안을 흉내 낸다(선형 보간이 두 칸을 한 번에 읽는다 — 흔한 수법). */
+  vec4 c = texture2D(uTex, vUv) * 0.2270270;
+  c += (texture2D(uTex, vUv + uStep * 1.3846154) + texture2D(uTex, vUv - uStep * 1.3846154)) * 0.3162162;
+  c += (texture2D(uTex, vUv + uStep * 3.2307692) + texture2D(uTex, vUv - uStep * 3.2307692)) * 0.0702703;
+  gl_FragColor = c * uStr;
+}`;
+/** 번짐 세기·크기 — [더할 세기, 흐리기 걸음(1/4 판의 텍셀 배수)]. 눈으로 고른 값이다. */
+const BLOOM9: [number, number] = [0.75, 1.6];
+
 export class GlUnits9 {
   readonly gl: WebGLRenderingContext;
   private prog: WebGLProgram;
@@ -163,12 +194,16 @@ export class GlUnits9 {
   private att: Record<string, number> = {};
   readonly meshes = new Map<string, GlMesh9 | null>();
   private queue: GlInst9[] = [];
+  /** 번짐 — 전체 화면 사각 프로그램·사각 VBO·1/4 크기 판 둘(핑퐁). 처음 쓸 때 짓고, 크기가 바뀌면 다시 짓는다. */
+  private fx: { prog: WebGLProgram; loc: Record<string, WebGLUniformLocation | null>; aXY: number; vbo: WebGLBuffer } | null = null;
+  private bl: { fb: WebGLFramebuffer; tex: WebGLTexture }[] = [];
+  private blW = 0; private blH = 0; private blFail = false;
   /** 진단: 마지막 프레임의 개체 수·삼각형 수·메시 수·메시 굽기 ms. */
   /** 진단: 마지막 프레임의 개체·삼각형 수 · 메시 벌 수 · 메시 굽기 ms(누적)와 **이번 프레임 몫**(frameBakeMs — 시계가
    *  '굽는 프레임'을 아는 자) · 깊이 칸/비트 · 살아 있는 메시 VBO 합(바이트). */
-  stat = { inst: 0, tris: 0, bakeMs: 0, frameBakeMs: 0, meshes: 0, slots: 0, depthBits: 0, bytes: 0 };
+  stat = { inst: 0, tris: 0, bakeMs: 0, frameBakeMs: 0, meshes: 0, slots: 0, depthBits: 0, bytes: 0, bloom: 0 };
   /** meshMax: 메시 상한(기기 표 DEV9.glMeshMax — PC 600 · 폰 240; 메시 한 벌은 VBO + footOf 용 정점 사본이라 폰 메모리에 든다). */
-  constructor(readonly canvas: HTMLCanvasElement, readonly meshMax = MESH_MAX9) {
+  constructor(readonly canvas: HTMLCanvasElement, readonly meshMax = MESH_MAX9, readonly bloomOn = true) {
     const gl = canvas.getContext("webgl", { alpha: true, premultipliedAlpha: true, antialias: true, depth: true });   // 미리곱한 알파 — 셰이더 출력·합성 함수(ONE, 1−a)와 한 벌
     if (!gl) throw new Error("webgl 없음");
     this.gl = gl;
@@ -182,11 +217,69 @@ export class GlUnits9 {
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error("링크: " + gl.getProgramInfoLog(p));
     this.prog = p;
     this.stat.depthBits = Number(gl.getParameter(gl.DEPTH_BITS)) || 0;
-    for (const u of ["uAnchor", "uScale", "uYaw", "uCanvas", "uCam", "uTeam", "uLight", "uAlpha", "uDepth0", "uDepthK", "uPersp", "uShade", "uDy", "uLean", "uGrad", "uDbg", "uFlat", "uShadow", "uShZ"]) this.loc[u] = gl.getUniformLocation(p, u);
+    for (const u of ["uAnchor", "uScale", "uYaw", "uCanvas", "uCam", "uTeam", "uLight", "uAlpha", "uDepth0", "uDepthK", "uPersp", "uShade", "uDy", "uLean", "uGrad", "uDbg", "uFlat", "uShadow", "uShZ", "uEmit"]) this.loc[u] = gl.getUniformLocation(p, u);
     for (const a of ["aPos", "aNrm", "aRgb", "aTeam", "aAlpha", "aOv", "aOrd", "aBb"]) this.att[a] = gl.getAttribLocation(p, a);
+    /* 번짐 프로그램·사각 — 한 번만 짓는다(실패하면 번짐만 끈다). */
+    try {
+      const q = gl.createProgram()!;
+      gl.attachShader(q, sh(gl.VERTEX_SHADER, FX_VS)); gl.attachShader(q, sh(gl.FRAGMENT_SHADER, FX_FS)); gl.linkProgram(q);
+      if (!gl.getProgramParameter(q, gl.LINK_STATUS)) throw new Error("링크: " + gl.getProgramInfoLog(q));
+      const vbo = gl.createBuffer()!;
+      gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+      this.fx = {
+        prog: q, aXY: gl.getAttribLocation(q, "aXY"), vbo,
+        loc: { uTex: gl.getUniformLocation(q, "uTex"), uStep: gl.getUniformLocation(q, "uStep"), uStr: gl.getUniformLocation(q, "uStr") },
+      };
+    } catch { this.fx = null; this.blFail = true; }
+  }
+  /** 1/4 크기 판 둘을 갖춘다(크기가 바뀌면 다시 짓는다) — 못 갖추면 번짐을 끈다. */
+  private blooms(w: number, h: number): boolean {
+    if (this.blFail || !this.fx) return false;
+    if (w === this.blW && h === this.blH && this.bl.length === 2) return true;
+    const gl = this.gl;
+    for (const b of this.bl) { gl.deleteFramebuffer(b.fb); gl.deleteTexture(b.tex); }
+    this.bl = [];
+    for (let i = 0; i < 2; i += 1) {
+      const tex = gl.createTexture()!;
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      const fb = gl.createFramebuffer()!;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+      if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.deleteFramebuffer(fb); gl.deleteTexture(tex);
+        for (const b of this.bl) { gl.deleteFramebuffer(b.fb); gl.deleteTexture(b.tex); }
+        this.bl = []; this.blFail = true; return false;
+      }
+      this.bl.push({ fb, tex });
+    }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    this.blW = w; this.blH = h;
+    return true;
+  }
+  /** 전체 화면 사각 한 장 — 판(tex)을 읽어 지금 걸린 곳에 그린다(uStep 0 이면 그냥 베끼기). */
+  private fxQuad(tex: WebGLTexture, sx: number, sy: number, str: number): void {
+    const gl = this.gl; const fx = this.fx!;
+    gl.useProgram(fx.prog);
+    gl.bindBuffer(gl.ARRAY_BUFFER, fx.vbo);
+    gl.enableVertexAttribArray(fx.aXY);
+    gl.vertexAttribPointer(fx.aXY, 2, gl.FLOAT, false, 0, 0);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.uniform1i(fx.loc.uTex, 0);
+    gl.uniform2f(fx.loc.uStep, sx, sy);
+    gl.uniform1f(fx.loc.uStr, str);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    gl.disableVertexAttribArray(fx.aXY);
   }
   /** 열쇠별 메시 — 처음 볼 때 run()(빌더를 요잉 0 으로 한 번 돌리는 일, 1~7ms)으로 짓는다. 못 지으면 null 로 굳는다. */
-  private meshFor(key: string, run: () => { parts: { polys: number[][]; fill: string; alpha: number; team: boolean; ow: number; ob: number; bb?: boolean; solid?: boolean; flip?: boolean; flips?: boolean[] }[] }, bias0 = 0.8, glow = false): GlMesh9 | null {
+  private meshFor(key: string, run: () => { parts: { polys: number[][]; fill: string; alpha: number; team: boolean; ow: number; ob: number; bb?: boolean; solid?: boolean; flip?: boolean; flips?: boolean[]; emit?: boolean }[] }, bias0 = 0.8, glow = false): GlMesh9 | null {
     const got = this.meshes.get(key);
     if (got !== undefined) return got;
     const t0 = performance.now();
@@ -245,7 +338,7 @@ export class GlUnits9 {
           // 닫힌 입체는 법선이 **바깥**을 봐야 한다 — mesh9 가 감기를 맞춰 준 부호(flip)를 여기서 먹인다.
           if (part.flips ? part.flips[qi] : part.flip) { nx = -nx; ny = -ny; nz = -nz; }
           if (bb) { nx = 0; ny = 0; nz = 0; for (let i = 0; i < n; i += 1) { nx += poly[i * 3]; ny += poly[i * 3 + 1]; nz += poly[i * 3 + 2]; } nx /= n; ny /= n; nz /= n; }   // 빌보드: 법선 자리에 원반 가운데
-          const cbb = bb ? 255 : (part.solid ? 128 : 0);
+          const cbb = (part.emit ? 1 : 0) + (part.solid ? 2 : 0) + (bb ? 4 : 0);
           for (let i = 0; i < n; i += 1) {
             const x = poly[i * 3], y = poly[i * 3 + 1], z = poly[i * 3 + 2];
             const k = `${x},${y},${z}`; if (!ptKeys.has(k)) { ptKeys.add(k); pts.push(x, y, z); }
@@ -268,7 +361,7 @@ export class GlUnits9 {
         gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
         gl.bufferData(gl.ARRAY_BUFFER, buf, gl.STATIC_DRAW);
         const n = vi;
-        mesh = { vbo, n, nSolid: clear.length ? nSolid : n, bias, pts: new Float32Array(pts), bytes: buf.byteLength, cols: cols.size, foot: new Map() };
+        mesh = { vbo, n, nSolid: clear.length ? nSolid : n, bias, pts: new Float32Array(pts), bytes: buf.byteLength, cols: cols.size, foot: new Map(), emit: m.parts.some((p2) => p2.emit) };
         this.stat.bytes += buf.byteLength;
       }
     } catch (e) { console.warn("[gl9] 메시", key, e); }
@@ -479,6 +572,85 @@ export class GlUnits9 {
       this.stat.tris += mesh.n / 3;
     }
     if (addNow) gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    /* 3) **번짐(블룸)** — 빛나는 낯만 1/4 판에 한 번 더 그리고, 가로·세로로 흐린 뒤 화면에 더한다.
+       빛나는 메시가 없는 프레임은 건너뛴다(대부분의 유닛은 빛이 없다). 흐리기 판에는 깊이가 없으니
+       깊이 없이 화가 차례로 겹친다 — 번짐은 어차피 뭉개지는 그림이라 앞뒤가 안 중요하다. */
+    this.stat.bloom = 0;
+    if ((GL_BLOOM9 === 1 || (GL_BLOOM9 < 0 && this.bloomOn)) && !this.blFail) {
+      /* 번짐을 받을 개체 — 빛나는 메시이고 **화면에서 너무 작지 않은** 것만(작은 창 하나가 번져도 안 보인다).
+         낮은 배율에서는 이 자로 거의 다 걸러져 번짐이 저절로 꺼진다. */
+      let nEm = 0;
+      for (const it of q) {
+        if (!it.mesh.emit) continue;
+        if (it.k * this.footOf(it.mesh, it.yawDeg, it.cam).w < 14) continue;
+        nEm += 1;
+      }
+      const w4 = Math.max(4, bw >> 2); const h4 = Math.max(4, bh >> 2);
+      if (nEm > 0 && this.blooms(w4, h4)) {
+        this.stat.bloom = nEm;
+        /* ★ **빛이 있는 자리만** 판을 비우고·흐리고·더한다(가위) — 번짐의 값은 거의 다 '전체 화면 한 겹 더하기'다.
+           빛나는 개체가 셋뿐인 화면에서 지도 전체를 훑을 까닭이 없다(실측: 헤드리스 소프트웨어 GL 에서 전체
+           화면으로 하면 프레임이 8배 늘었다). 개체마다 화면 상자(footOf — 이미 캐시된 값)를 모아 합치고
+           번짐이 번지는 몫(1/4 판 여섯 텍셀 ≈ 화면 24px)만 넉넉히 넓힌다. */
+        let sx0 = Infinity; let sy0 = Infinity; let sx1 = -Infinity; let sy1 = -Infinity;
+        for (const it of q) {
+          if (!it.mesh.emit) continue;
+          const ft = this.footOf(it.mesh, it.yawDeg, it.cam);
+          if (it.k * ft.w < 14) continue;
+          const cx0 = it.ax + it.k * (ft.cx - ft.w / 2); const cx1 = it.ax + it.k * (ft.cx + ft.w / 2);
+          const cy0 = it.ay + it.yoff + it.k * ft.top; const cy1 = it.ay + it.yoff + it.k * ft.bot;
+          if (cx0 < sx0) sx0 = cx0; if (cx1 > sx1) sx1 = cx1;
+          if (cy0 < sy0) sy0 = cy0; if (cy1 > sy1) sy1 = cy1;
+        }
+        const PAD9 = 28;
+        const rx0 = Math.max(0, Math.floor((sx0 - PAD9) / 4)); const ry1 = Math.min(h4, Math.ceil((bh - (sy0 - PAD9)) / 4));
+        const rx1 = Math.min(w4, Math.ceil((sx1 + PAD9) / 4)); const ry0 = Math.max(0, Math.floor((bh - (sy1 + PAD9)) / 4));
+        const rw = Math.max(0, rx1 - rx0); const rh = Math.max(0, ry1 - ry0);
+        if (rw < 1 || rh < 1) { this.stat.bloom = 0; return; }
+        gl.enable(gl.SCISSOR_TEST);
+        gl.scissor(rx0, ry0, rw, rh);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.bl[0].fb);
+        gl.viewport(0, 0, w4, h4);
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.useProgram(this.prog);
+        gl.disable(gl.DEPTH_TEST); gl.depthMask(false);
+        gl.uniform1f(this.loc.uEmit, 1);
+        gl.uniform1f(this.loc.uFlat, 1);
+        gl.uniform4f(this.loc.uShade, 0, 0, 0, 0);
+        for (let i = 0; i < q.length; i += 1) {
+          const it = q[i];
+          if (!it.mesh.emit) continue;
+          if (it.k * this.footOf(it.mesh, it.yawDeg, it.cam).w < 14) continue;
+          const [tr, tg, tb] = hexRgb(tone9(it.color));
+          bind(it.mesh); place(it);
+          gl.uniform3f(this.loc.uTeam, tr, tg, tb);
+          gl.uniform1f(this.loc.uAlpha, it.alpha);
+          gl.uniform1f(this.loc.uDepth0, 0.5);
+          gl.drawArrays(gl.TRIANGLES, 0, it.mesh.n);
+        }
+        gl.uniform1f(this.loc.uEmit, 0);
+        gl.uniform1f(this.loc.uFlat, 0);
+        // 가로 → 세로로 흐린다(핑퐁). 걸음은 1/4 판의 텍셀 배수다.
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.bl[1].fb);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.blendFunc(gl.ONE, gl.ZERO);
+        this.fxQuad(this.bl[0].tex, BLOOM9[1] / w4, 0, 1);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.bl[0].fb);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        this.fxQuad(this.bl[1].tex, 0, BLOOM9[1] / h4, 1);
+        // 화면에 더한다 — 빛은 쌓이는 것이라 더하기가 맞다(2D 의 lighter 와 같은 자).
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, bw, bh);
+        gl.scissor(rx0 * 4, ry0 * 4, rw * 4, rh * 4);
+        gl.blendFunc(gl.ONE, gl.ONE);
+        this.fxQuad(this.bl[0].tex, 0, 0, BLOOM9[0]);
+        gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+        gl.disable(gl.SCISSOR_TEST);
+        gl.useProgram(this.prog);
+        gl.depthMask(true); if (GL_DEPTH9) gl.enable(gl.DEPTH_TEST);
+      }
+    }
   }
 }
 /** 진단 `#glshade=N` — 음영 겹을 단계별로 끈다(0 덧칠 없음 · 1 면 덧칠 · 2 +실루엣 빛, 기본 2). */
@@ -486,6 +658,12 @@ export const GL_SHADE9 = ((): number => { const m = typeof location !== "undefin
 /** 진단 `#gllod=N` — GL 메시 등급을 못 박는다(-1 = 화면 크기가 정하는 자동). `#glwarm=0` — 로딩 데우기에서 GL 메시를 안 짓는다. */
 export const GL_LOD9 = ((): number => { const m = typeof location !== "undefined" ? /gllod=(\d)/.exec(location.hash) : null; return m ? Number(m[1]) : -1; })();
 export const GL_WARM9 = !(typeof location !== "undefined" && /glwarm=0/.test(location.hash));
+/** 진단 `#glbloom=0|1` — 번짐(블룸)을 끄거나(0) 못 박아 켠다(1). 안 주면 **기기 표**가 정한다(DEV9.glBloom: PC 켬 · 폰 끔 —
+ *  번짐은 화면 한 겹을 더 칠하는 일이라 폰 GPU 에서 값을 실기로 재기 전까지는 안 켠다). */
+export const GL_BLOOM9 = ((): number => {
+  const m = typeof location !== "undefined" ? /glbloom=(\d)/.exec(location.hash) : null;
+  return m ? Number(m[1]) : -1;
+})();
 /** 진단 `#gldepth=0` — 깊이 검사를 끄고 화가 차례로만 그린다. */
 export const GL_DEPTH9 = !(typeof location !== "undefined" && /gldepth=0/.test(location.hash));
 /** 데칼 깊이 편향(모델 칸, 유닛 0.8 · 건물 1.3) — 진단 `#glbias=N` 으로 못 박아 본다(-1 = 메시별 기본). */
@@ -507,10 +685,10 @@ export const glBakeMsTake9 = (): number => {
   const v = g.stat.frameBakeMs; g.stat.frameBakeMs = 0; return v;
 };
 /** 유닛 층의 GL 붓 — 캔버스가 있을 때 한 번 만든다. 못 만들면(WebGL 없음) null 로 굳어 캔버스 길로 돈다. */
-export function glUnits9(cv: HTMLCanvasElement | null, meshMax = MESH_MAX9): GlUnits9 | null {
+export function glUnits9(cv: HTMLCanvasElement | null, meshMax = MESH_MAX9, bloom = true): GlUnits9 | null {
   if (!GL_ON9 || !cv) return null;
   if (glInst9 !== undefined && (glInst9 === null || glInst9.canvas === cv)) return glInst9;
-  try { glInst9 = new GlUnits9(cv, meshMax); } catch (e) { console.warn("[gl9]", e); glInst9 = null; }
+  try { glInst9 = new GlUnits9(cv, meshMax, bloom); } catch (e) { console.warn("[gl9]", e); glInst9 = null; }
   (globalThis as unknown as { __gl9?: GlUnits9 | null }).__gl9 = glInst9;   // 진단(perf-check --probe-gl)
   return glInst9;
 }
