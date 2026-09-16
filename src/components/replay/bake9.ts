@@ -15030,8 +15030,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          축은 **살짝 대각선 앞·바깥**을 본다(뒤 x 1.42 → 앞 1.72 · y −1.75 → 1.35). 앞 테두리 한 자락은
          칠하지 않아 임자 색이 들고(사진의 청록 링), 통보다 5% 굵어 테로 도드라진다. */
       {
-        const ea9: [number, number, number] = [m9 * 1.42, -1.75, 4.42];
-        const eb9: [number, number, number] = [m9 * 1.72, 1.35, 4.52];
+        /* 길이를 3.1 → 2.0 으로 줄이고(재요청: "엔진 길이 축소" · "엔진 뒤쪽 더 짧게" — 앞 끝은 두고
+           **뒤만** 당겼다) 축을 **대각선 바깥으로** 조금 더 튼다(벌어진 각 5.5° → 11.8°). */
+        const ea9: [number, number, number] = [m9 * 1.46, -0.95, 4.42];
+        const eb9: [number, number, number] = [m9 * 1.88, 1.05, 4.52];
         const ep9 = (t9: number): [number, number, number] => [
           ea9[0] + (eb9[0] - ea9[0]) * t9, ea9[1] + (eb9[1] - ea9[1]) * t9, ea9[2] + (eb9[2] - ea9[2]) * t9,
         ];
@@ -15039,29 +15041,50 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         out.push(...tagKey(paintBase(spirePillar({
           x: 0, y: 0, h: 0.8, w: 1, segs: 8, sides: 10, ref: [0, 0, 1], caps: "both",
           path: ep9, widthOf: ew9,
-        }), GOLD9), partKey(m9 * 1.57, -0.2, 4.47)));
+        }), GOLD9), partKey(m9 * 1.67, 0.05, 4.47)));
         out.push(...tagKey(spirePillar({
           x: 0, y: 0, h: 0.8, w: 1, segs: 2, sides: 10, ref: [0, 0, 1], caps: "none",
           path: (t9: number): [number, number, number] => ep9(0.82 + 0.16 * t9),
           widthOf: (t9: number): number => ew9(0.82 + 0.16 * t9) * 1.05,
-        }), partKey(m9 * 1.7, 1.2, 4.52) + 0.4));
+        }), partKey(m9 * 1.84, 0.85, 4.52) + 0.4));
       }
       /* ⑤ 엔진 나셀 — 등 뒤에 얹힌 짧은 관(재요청: 아래로 0.3). 뒤를 볼 때만 플라즈마가 든다. */
       const ex9 = m9 * 0.55;   // 더 안쪽으로(재요청: 0.85 → 0.55), 높이도 아래로(6.25 → 5.85)
       const EZ9 = 4.68;
-      out.push(...tagKey(paintBase(
-        tubeFaces(ex9, -1.3, ex9, -3.3, 0.42, EZ9, true), GOLD9,
-      ), partKey(ex9, -2.3, EZ9)));
+      /* ★ 추진체는 **앞이 좁고 뒤가 굵다**(재요청: "추진체 앞이 좁고 뒤는 현재 넓이인 형태로 바꾸고
+         추진체 더 뒤로 보내기") — 같은 굵기의 관(tubeFaces)이라 앞뒤가 없었다. 앞(−1.9) 0.2 에서
+         뒤(−3.9) 0.42(지금 굵기)로 벌어지는 원뿔대로 바꾸고, 통째로 0.6 만큼 뒤로 물린다. */
+      const EY0_9 = -1.9; const EY1_9 = -3.9;
+      out.push(...tagKey(paintBase(spirePillar({
+        x: 0, y: 0, h: 0.8, w: 1, segs: 4, sides: 8, ref: [0, 0, 1], caps: "both",
+        path: (t9: number): [number, number, number] => [ex9, EY0_9 + (EY1_9 - EY0_9) * t9, EZ9],
+        widthOf: (t9: number): number => 0.2 + 0.22 * t9,
+      }), GOLD9), partKey(ex9, (EY0_9 + EY1_9) / 2, EZ9)));
       if (poseNow === 1 && facingRatio(0, -1) > 0.05) {   // 이동할 때만(요청)
         out.push(...tagKey([
-          [wallDiscPath(ex9, -3.35, EZ9, 0.36, 0.24), 0.85, P_PLASMA] as ShapeFace,
-        ], partKey(ex9, -3.35, EZ9) + 0.5));
+          [wallDiscPath(ex9, EY1_9 - 0.05, EZ9, 0.4, 0.27), 0.85, P_PLASMA] as ShapeFace,
+        ], partKey(ex9, EY1_9 - 0.05, EZ9) + 0.5));
       }
-      if (poseNow === 1) out.push(...thrustFlame(ex9, -3.35, EZ9, 0.38, "toss", partKey(ex9, -4.0, EZ9) + 0.4));
+      if (poseNow === 1) out.push(...thrustFlame(ex9, EY1_9 - 0.05, EZ9, 0.4, "toss", partKey(ex9, EY1_9 - 0.7, EZ9) + 0.4));
       /* ⑥ 앞뿔 — 코 위로 뻗는 한 쌍(사진1의 더듬이). 이 둘이 있어야 앞이 '머리'로 읽힌다. */
       out.push(...tagKey(paintBase(
         spikeHorn(m9 * 0.5, 2.6, 4.96, m9 * 0.85, 4.8, 5.08, 0.18, undefined, 5), GOLD9,   // 코가 길어진 만큼 앞으로(+0.7/+0.9)
       ), partKey(m9 * 0.7, 3.6, 5.04)));
+    }
+    /* ★ 꼬리 지느러미(요청: "꼬리 추진체 위에 부채모양(역사다리꼴) … 임자색 판 얹기" · 재요청:
+       "두 추진체 가운데에 하나만") — 짝지어 하나씩이 아니라 **가운데 한 장**이라 거울 고리 밖에 둔다.
+       앞이 좁고 뒤로 벌어지는 사다리꼴을 두 관(x ±0.55 · 반지름 앞 0.2 뒤 0.42) 사이 등 위에 얹는다.
+       안 칠하면 임자(팀) 색이 실린다. */
+    {
+      const FZ0_9 = 4.68 + 0.21; const FZ1_9 = 4.68 + 0.44;
+      const fw0_9 = 0.13; const fw1_9 = 0.64;   // 더 펼친다(재요청) — 뒤 반폭 0.40 → 0.64
+      const fy0_9 = -2.0; const fy1_9 = -3.88;
+      const fin9 = polyPath3([
+        [-fw0_9, fy0_9, FZ0_9], [fw0_9, fy0_9, FZ0_9],
+        [fw1_9, fy1_9, FZ1_9], [-fw1_9, fy1_9, FZ1_9],
+      ]);
+      out.push(...tagKey([bodyFace(fin9), topFace(fin9, 0.14)],
+        partKey(0, (fy0_9 + fy1_9) / 2, FZ1_9) + 0.6));
     }
     return zsorted(out);
   },
@@ -16654,8 +16677,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
              GL 붓은 요잉마다 메시 상자를 다시 재므로(footOf) 비대칭이어도 제자리에 앉는다.
              그래서 이 관들은 짝을 짓지 않고 **관마다 제 해시**(i9)로 자리·굽이·길이·굵기를 고른다. */
           const j9 = i9;
-          // 자리 흔들림 — 눈금대로 놓으면 관이 고르게 벌어져 톱니바퀴로 읽힌다(실측).
-          const a0 = ((i9 + 0.5) / NP9) * Math.PI * 2 + Math.sin(i9 * 8.3 + 0.9) * (Math.PI * 2 / NP9) * 0.6;
+          /* ★ 관은 **앞과 앞옆에 몰린다**(재요청: "뒤쪽은 거의 없고 앞쪽과 옆앞쪽에 몰리게 … 뒤로갈수록
+             길이가 줄어드는 경향") — 고르게 돌려 놓으면 사방이 똑같은 화환이 된다. 눈금(0~1)을 좌우로 갈라
+             **거듭제곱으로 휘어**(|m|^2.4 · 1보다 큰 지수라 눈금이 0 쪽에 쏠린다) 앞(a0 ≒ 0 · 화면에서
+             카메라 쪽)에 촘촘하고 뒤(±π)로 갈수록 성기게 놓는다 — 뒤 4분면에는 한 줌만 남는다(약 1할).
+             ⚠ 앞뒤를 코드로 짐작하지 말 것: 관 자리의 앞은 **a0 = 0**(+y)이고 그것이 화면 아래(카메라 쪽)다.
+             지수를 1보다 작게 주면 정확히 뒤통수에 화환을 두른다(실측 — 한 번 뒤집어 봤다).
+             자리 흔들림은 그 위에 얹는다 — 눈금대로면 톱니바퀴로 읽힌다(실측). */
+          const v9 = (i9 + 0.5) / NP9;
+          const m9p = 2 * v9 - 1;
+          const a0 = Math.sign(m9p) * Math.PI * Math.abs(m9p) ** 2.4
+            + Math.sin(i9 * 8.3 + 0.9) * (Math.PI * 2 / NP9) * 0.6;
+          /** 앞이 길고 뒤가 짧다 — 앞(1)에서 뒤(0.25)로 부드럽게 준다. */
+          const lenK9 = 0.25 + 0.75 * (((1 + Math.cos(a0)) / 2) ** 0.8);
           /* ★ 뒤쪽 관은 **걷지 않고 껍질 뒤로 보낸다**(핏줄과 다른 자리다) — 핏줄은 껍질 **위**를 타므로 등진 것이
              실제로 안 보이지만, 이 관들은 껍질 **밖 밑동**을 감아 등진 것도 옆구리로 삐져나온다. 2D 에서 걷으면
              그만큼이 통째로 사라져 GL 과 어긋났다(실측: gl-check 0.315 → 0.393 · GL 화소가 28% 많았다).
@@ -16694,7 +16728,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
              0.42~1.64 였지만 호가 말려 드는 탓에 눈에 보이는 크기는 거기서 거기였다. 제 해시(u4)를
              제곱꼴로 태워 **짧은 것은 더 짧고 긴 것은 훨씬 길게** 흩는다(0.38~2.3배). */
           const g4 = Math.sin(j9 * 61.7 + 5.1); const u4 = g4 * 0.5 + 0.5;
-          const len9 = (0.38 + u4 ** 1.7 * 1.92) * 0.84 * 1.25;   // 호(+곧은 앞머리)의 전체 길이(반지름 키우기)
+          const len9 = (0.38 + u4 ** 1.7 * 1.92) * 0.84 * 1.25 * lenK9;   // 호(+곧은 앞머리)의 전체 길이
           const bendK9 = j9 % 10;
           const sgn9 = g2 > 0 ? 1 : -1;
           /** 굽는 쪽(ψ) — π/2 면 위로, 0·π 면 옆으로, 그 사이가 대각이다. 열에 셋은 위·셋은 대각·넷은 옆. */
