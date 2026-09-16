@@ -6233,14 +6233,20 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        안 세운다** — 그 자리는 본체(단·피라미드)의 낯 그 자체라, 금빛 모서리가 받침의 홈에 끼워진 채로 보인다. 등진
        낯은 건너뛴다(faceLight). 색은 안 준다(임자색). */
     const cornerPad9 = (px: number, py: number): ShapeFace[] => {
-      const R9 = 1.45; const H9 = PLINTH_Z9 + 0.45; const K9 = 0.65; const LV9 = 6; const NA9 = 18;   // 윗면 반지름 0.76R(1.1) — 기둥 밑동(1.2×0.9) 둘레로 평평한 단이 남는다
+      /* ⚠ 이 받침의 **z 는 모형 자**여야 한다(2026-09 수리, 지적: "넥서스 발판 이상해짐 뒤쪽만 정상임") ──────────
+         z 코드모드(모델 z ×0.8)가 이 셋을 못 접었다: 높이 H9(화면 자 PLINTH_Z9 + 0.45)·바닥 기준 zl·그리고 sAt9 가
+         본체 반폭을 잴 때 쓰는 **피라미드 높이 6.4**(제 절두체는 5.12로 선다 — 아래 half()와 같아야 한다).
+         그래서 받침이 땅 밑 −0.11에서 0.89까지 서고(1.25배), 무엇보다 모퉁이 K 를 **엉뚱한 높이의 반폭**으로 잡아
+         본체 낯과 안 맞물렸다 — GL 은 깊이가 진짜라 그 어긋남이 '받침이 밖으로 흘러나오고 속이 보이는' 꼴로 드러났고
+         (2D 는 화가 차례가 덮어 안 보였다), 뒤 모퉁이만 본체 뒤에 들어가 멀쩡했다. 셋을 z 쌍둥이로 고친다. */
+      const R9 = 1.45; const H9 = PLINTH_Z9z9 + 0.36; const K9 = 0.65; const LV9 = 6; const NA9 = 18;   // 윗면 반지름 0.76R(1.1) — 기둥 밑동(1.2×0.9) 둘레로 평평한 단이 남는다
       const sx9 = Math.sign(px); const sy9 = Math.sign(py);
-      const sAt9 = (za: number): number => (za < PLINTH_Z9
-        ? (BASE_W9 + 0.8) / 2 - 0.3 * (za / PLINTH_Z9)
-        : BASE_W9 / 2 - (BASE_W9 / 2 - TOP_W9 / 2) * ((za - PLINTH_Z9) / 6.4));
+      const sAt9 = (za: number): number => (za < PLINTH_Z9z9
+        ? (BASE_W9 + 0.8) / 2 - 0.3 * (za / PLINTH_Z9z9)
+        : BASE_W9 / 2 - (BASE_W9 / 2 - TOP_W9 / 2) * ((za - PLINTH_Z9z9) / 5.12));
       const rings9: [number, number, number][][] = [];
       for (let l9 = 0; l9 <= LV9; l9 += 1) {
-        const t9 = l9 / LV9; const za = t9 * H9; const zl = za - PLINTH_Z9;
+        const t9 = l9 / LV9; const za = t9 * H9; const zl = za - PLINTH_Z9z9;
         const r9 = R9 * Math.sqrt(Math.max(0.05, 1 - (K9 * t9) * (K9 * t9)));
         const s9 = sAt9(za); const kx9 = sx9 * s9; const ky9 = sy9 * s9;
         const ex9 = kx9 - px; const ey9 = ky9 - py;
@@ -6490,6 +6496,53 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 프로브를 뽑는 동안 밝아진다(요청) — 꺼지면 식은 아쿠아, 켜지면 형광에 가깝다.
       out.push(...tagKey([[line9, 1, glowLit("#cafff8", "#83f7e8")] as ShapeFace],
         8.3 + depthNow(0, 3.4) * 0.6));
+      /* ★ 현판(갈색 판) **좌우 변의 낮은 금 벽**(요청: "넥서스 앞면의 갈색 부분의 좌우 변을 따라 낮은 금색 벽을
+         붙일건데 … 벽은 피라미드 면에 수직으로 붙이고 높이는 위쪽이 낮고 아래쪽으로 가면 살짝 높아진다 …
+         갈색부분은 바닥보다 위에서 끝나는데 벽은 바닥까지 이어지게 연장") ─────────────────────────────
+         벽은 경사면 위에 **면의 법선 방향으로 세운 얇은 판**이다. 경사면의 기울기는 half(z) 의 미분
+         (dy/dz = −S, S = (BASE_W9 − TOP_W9)/2 ÷ 5.12)이라, 그것을 90도 돌린 (0, 1, S)/|·| 가 면의 법선이다 —
+         그 방향으로 벽을 뽑으면 어느 높이에서도 면에 수직이고, 기울기를 손으로 안 적으므로 피라미드 비율을
+         고쳐도 저절로 따라온다.
+         · **자리** — 슬랩의 좌우 변은 (hw0, za)–(hw1, zb) 를 잇는 직선이다. 그 직선을 **바닥(z 0)까지 늘려**
+           벽만 아래로 더 내려간다(판은 0.72 에서 끝난다). 벽면은 판의 변보다 T9/2 만큼 바깥이라 판 위에 안 걸친다.
+         · **높이**(면에서 뽑아 올린 몫) — 위 HT9, 아래 HB9 로 아래가 조금 더 높다.
+         · 면마다 제 법선으로 명암을 받는다(측면 ±x · 마루는 면 법선) — 판에 얹은 데칼이 아니라 **선 벽**으로 읽힌다. */
+      {
+        const S9 = (BASE_W9 / 2 - TOP_W9 / 2) / 5.12;          // 경사면 기울기(dy/dz = −S9)
+        const nl9 = Math.hypot(1, S9);
+        const NY9 = 1 / nl9; const NZ9 = S9 / nl9;             // 면의 바깥 법선(0, NY9, NZ9)
+        const ZT9 = 3.6;                                        // 벽 위끝 = 슬랩 위끝
+        const HT9 = 0.16; const HB9 = 0.34;                     // 위는 낮고 아래는 살짝 높게
+        const T9 = 0.14;                                        // 벽 두께
+        const NW9 = 6;
+        /** 슬랩 좌우 변의 반폭 — (2.1, 0.72)–(1.15, 3.6) 직선을 바닥까지 늘린 값. */
+        const hwAt9 = (z9: number): number => 2.1 + (1.15 - 2.1) * ((z9 - 0.72) / (3.6 - 0.72));
+        const hAt9 = (z9: number): number => HB9 + (HT9 - HB9) * (z9 / ZT9);
+        for (const sd9 of [-1, 1]) {
+          const base9 = (z9: number, off9: number): [number, number, number] =>
+            [sd9 * (hwAt9(z9) + T9 / 2) + off9, half(z9) + 0.25, z9];
+          const out9 = (z9: number, off9: number): [number, number, number] => {
+            const b9 = base9(z9, off9); const h9 = hAt9(z9);
+            return [b9[0], b9[1] + NY9 * h9, b9[2] + NZ9 * h9];
+          };
+          const wall9: ShapeFace[] = [];
+          const put9 = (d9: string, nx9: number, ny9: number, nz9: number): void => {
+            const fl9 = faceLight(nx9, ny9, nz9);
+            if (!fl9.visible) return;
+            wall9.push([d9, 1, GOLD9] as ShapeFace, ...fl9.face(d9));
+          };
+          for (let i9 = 0; i9 < NW9; i9 += 1) {
+            const za9 = (i9 / NW9) * ZT9; const zb9 = ((i9 + 1) / NW9) * ZT9;
+            for (const off9 of [-T9 / 2, T9 / 2]) {
+              put9(polyPath3([base9(za9, off9), base9(zb9, off9), out9(zb9, off9), out9(za9, off9)]),
+                off9 < 0 ? -1 : 1, 0, 0);
+            }
+            put9(polyPath3([out9(za9, -T9 / 2), out9(za9, T9 / 2), out9(zb9, T9 / 2), out9(zb9, -T9 / 2)]),
+              0, NY9, NZ9);
+          }
+          out.push(...tagKey(wall9, 8.2 + depthNow(0, 3.4) * 0.6));
+        }
+      }
     }
     // 꼭대기 받침 + 수정 — 지붕 키로 가림 해결(지적) + 옥색~시안 고정색(지적).
     // 받침 띠는 개인색(칠하지 않는다) — 가장 높고 사방에서 보이는 첫째 포인트.
@@ -16351,20 +16404,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          고치는 **살아 있는 막**이다. 색상을 22도(살빛)로 내리고 채도도 한 단 낮춘다 —
          한때 이 자리에 있던 살구빛(#d9b8a2)보다 붉은 기를 덜 주어, 저그 알과도 안 겹친다. */
     ], "#dbb9a0"),
-    /* 이음 틈도 그 타원 옆선에 맞춘다 — 폭을 손으로 적어 두면 굽은 옆선 밖으로 삐친다.
-       높이 z에서의 반폭은 r·√(1 − (z/h)²)다(바깥 돔 r=2.6·h=3.2, 안쪽 r=1.9·h=1.5). */
-    ...((): ShapeFace[] => {
-      const wAt = (r9: number, h9: number, z9: number): number =>
-        r9 * Math.sqrt(Math.max(0, 1 - (z9 / h9) ** 2));
-      const seam = (r9: number, h9: number, zLo: number, zHi: number): ShapeFace => {
-        const wLo = wAt(r9, h9, zLo) * 0.97;
-        const wHi = wAt(r9, h9, zHi) * 0.97;
-        return capFace(polyPath3([
-          [-wLo, 0.2, zLo], [wLo, 0.2, zLo], [wHi, 0, zHi], [-wHi, 0, zHi],
-        ]), 0.18);
-      };
-      return [seam(2.6, 2.24, 1.472, 1.752), seam(1.9, 1.056, 0.776, 0.928)];
-    })(),
+    /* ★ **이음 틈(직사각형 띠)은 걷었다**(2026-09, 요청: "공사고치 위쪽 직사각형 띠 제거") ─────────────
+       껍질의 두 쪽이 맞물린 자리를 나타내려고 그 높이의 **현(弦)에 평평한 네모**를 깔고 옅은 덮개(capFace)만
+       얹은 자였다. 몸 면이 없는 덧칠이라 붓이 제 부품으로 남기고(몸 상자 안이라 되살린다), 진짜 깊이에서는
+       그 네모가 돔의 굽은 낯을 **뚫고 지나가** 고치 위에 반투명한 직사각형으로 떴다 — 2D 는 화가 차례가
+       돔 위에 살짝 얹어 그늘로 읽혔지만, 같은 꼴이 GL 에서는 판때기다. 결(이음매)이 다시 필요하면 화면 자의
+       네모가 아니라 **껍질 회전 단면을 타는 관**(아래 핏줄처럼)으로 지어야 한다. */
     /* 힘줄 — **진짜 관**으로 다시 짠다(요청: "저그 공사 고치 디테일 살리기 스파이어
        필라 사용하고 핏줄 수 늘리고 자연스럽고 다양화") ─────────────────────────────
        여태는 화면 좌표에 친 띠(bandPath)였다: 두께가 없어 요잉하면 종이처럼 눕고, 제

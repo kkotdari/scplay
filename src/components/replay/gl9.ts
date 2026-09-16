@@ -146,6 +146,61 @@ export const GL_GLOW_KINDS9 = new Set(["warpin", "storm", "nukeblast", "nukeclou
 const CAMS9 = new Map<string, GlCam9>();
 /** 카메라 — 평면(vq 0 이면 CAM_TOP9 그대로) 또는 입체(pitchSquash = pitchFlatNow·0.7 · 높이 0.9 · 앞숙임 0.34) + 시각 밀림 tan(vq).
  *  같은 열쇠면 같은 객체라 그리기에서 유니폼을 한 번만 건다. */
+/** ★ **오목 다각형도 제대로 삼각화한다**(2026-09, 지적: "넥서스 … 피라미드에서 나오는 삼각발판") ─────────────
+ *  여태 폴리곤은 **0번 꼭짓점 부채꼴**로 갈랐다(put(0)·put(i)·put(i+1)). 그것은 **볼록**하거나 0번에서 별꼴인
+ *  다각형에서만 옳다. 넥서스의 표창 발판 윗면은 **네 날 별**(날 끝 ↔ 오목점이 번갈아 여덟 꼭짓점)이고 0번이
+ *  날 끝이라, 부채질이 **날 사이 오목한 자리까지 메워** 날이 넓은 판때기로 퍼졌다(2D 는 Path2D 가 제 꼴로
+ *  채우므로 안 났다 — 붓이 다르면 드러나는 자리다).
+ *  그래서 귀 잘라내기(ear clipping)로 가른다: 낯의 법선에서 **지배 축을 빼** 2D 로 눕히고, 볼록하면 종전
+ *  부채꼴(빠른 길), 오목하면 귀를 하나씩 자른다. 꼭짓점이 서른 남짓이라 O(n²)도 값이 없다(메시는 한 번 짓는다).
+ *  낸 삼각형 수는 늘 n−2 라 미리 잡아 둔 버퍼 크기가 그대로 맞는다. */
+function triIdx9(poly: number[], n: number, nx: number, ny: number, nz: number): number[] {
+  const out: number[] = [];
+  if (n === 3) return [0, 1, 2];
+  // 지배 축을 빼고 2D 로 — |nz| 가 가장 크면 xy, |ny| 면 xz, 아니면 yz.
+  const ax = Math.abs(nx), ay = Math.abs(ny), az = Math.abs(nz);
+  const iu = az >= ax && az >= ay ? 0 : ay >= ax ? 0 : 1;
+  const iv = az >= ax && az >= ay ? 1 : ay >= ax ? 2 : 2;
+  const U = (i: number): number => poly[i * 3 + iu];
+  const V = (i: number): number => poly[i * 3 + iv];
+  const cross9 = (a: number, b: number, c: number): number =>
+    (U(b) - U(a)) * (V(c) - V(a)) - (V(b) - V(a)) * (U(c) - U(a));
+  let area2 = 0;
+  for (let i = 0; i < n; i += 1) { const j = (i + 1) % n; area2 += U(i) * V(j) - U(j) * V(i); }
+  const sgn = area2 >= 0 ? 1 : -1;
+  let convex = true;
+  for (let i = 0; i < n && convex; i += 1) {
+    if (sgn * cross9(i, (i + 1) % n, (i + 2) % n) < -1e-9) convex = false;
+  }
+  if (convex) { for (let i = 1; i + 1 < n; i += 1) out.push(0, i, i + 1); return out; }
+  const idx: number[] = []; for (let i = 0; i < n; i += 1) idx.push(i);
+  const inTri9 = (a: number, b: number, c: number, p: number): boolean => {
+    const d1 = sgn * cross9(a, b, p); const d2 = sgn * cross9(b, c, p); const d3 = sgn * cross9(c, a, p);
+    return d1 >= 0 && d2 >= 0 && d3 >= 0;
+  };
+  let guard = n * n + 8;
+  while (idx.length > 3 && guard > 0) {
+    guard -= 1;
+    let cut = -1;
+    for (let k = 0; k < idx.length; k += 1) {
+      const a = idx[(k + idx.length - 1) % idx.length]; const b = idx[k]; const c = idx[(k + 1) % idx.length];
+      if (sgn * cross9(a, b, c) <= 1e-12) continue;            // 오목한 귀(또는 일직선)는 못 자른다
+      let ok = true;
+      for (let m = 0; m < idx.length && ok; m += 1) {
+        const p = idx[m];
+        if (p === a || p === b || p === c) continue;
+        if (inTri9(a, b, c, p)) ok = false;                     // 다른 꼭짓점을 품은 귀도 못 자른다
+      }
+      if (ok) { cut = k; break; }
+    }
+    if (cut < 0) break;                                         // 자를 귀가 없다(자기교차 등) — 남은 것은 부채꼴로
+    const a = idx[(cut + idx.length - 1) % idx.length]; const b = idx[cut]; const c = idx[(cut + 1) % idx.length];
+    out.push(a, b, c);
+    idx.splice(cut, 1);
+  }
+  for (let i = 1; i + 1 < idx.length; i += 1) out.push(idx[0], idx[i], idx[i + 1]);
+  return out;
+}
 export function camOf9(pitch: boolean, pitchSquash: number, vq: number): GlCam9 {
   if (!pitch && !vq) return CAM_TOP9;
   const key = pitch ? `p${pitchSquash.toFixed(3)}:${vq}` : `t:${vq}`;
@@ -359,7 +414,8 @@ export class GlUnits9 {
             f32[o + 8] = ord;
             vi += 1;
           };
-          for (let i = 1; i + 1 < n; i += 1) { put(0); put(i); put(i + 1); }
+          const tri9 = triIdx9(poly, n, nx, ny, nz);
+          for (let i = 0; i + 2 < tri9.length; i += 3) { put(tri9[i]); put(tri9[i + 1]); put(tri9[i + 2]); }
         }
       }
       if (vi) {

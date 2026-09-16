@@ -1827,7 +1827,7 @@ export const BUILD_STAGES = 5;
  *  좌표 규약은 CSS 시절 그대로다: fx/fy는 렌즈 분수 앵커, 길이·오프셋은 **렌즈 px**
  *  (그릴 때 zoom을 곱한다), deg는 CSS rotate와 같은 시계방향(0 = 화면 아래)이다. */
 export type FxOp = {
-  kind: "beam" | "shot" | "spike" | "erupt" | "hit" | "shield" | "cage" | "tether" | "burst" | "warp" | "wound" | "dom";
+  kind: "beam" | "shot" | "spike" | "erupt" | "hit" | "shield" | "cage" | "tether" | "burst" | "wound" | "dom";
   /** warp(프로토스 소환 완료의 섬광): 자리·크기(size)·진행(ph)만 쓴다. 원작은 워프가 끝나는 순간 한 번 친다. */
   /** burst(죽음·파괴 폭발): 낱개 흩뿌림의 씨앗(개체마다 다르게) · 건물이면 bld. */
   seed?: number; bld?: boolean;
@@ -5279,23 +5279,9 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       // 소환 마무리 — 건물이 0에서 1로 배어 나온다(위 warpIn9).
       const alphaPre9 = alpha;   // 페이드를 곱하기 전 값 — 아래 고리의 '보이는 자리인가' 문은 이것을 본다
       if (warpIn9) alpha *= warpU9;
-      /* ★ 소환 완료의 **섬광**(요청) — 원작은 워프가 끝나는 순간 한 번 친다. 폭발이 아니라 '문이 닫히는 빛'이라
-         짧다: 흰 심이 확 텄다가 꺼지고 청백 고리가 한 번 퍼진다(그리는 쪽 kind "warp").
-         안 보이는 자리(안개·잔상)에서는 안 친다 — 기억으로 남은 건물이 지금 소환되는 것처럼 보이면 안 된다.
-         ★ 고리는 **페이드인과 함께** 간다(요청: "프로토스 건물 완공시 페이드인과 동심원 같이 나오게 타이밍
-           조절") — 여태 고리는 완공 **뒤** 0.22초, 페이드인은 완공 **앞** 0.8초라 둘이 한 번도 안 겹쳤다:
-           건물이 다 배어 나온 다음에야 고리가 퍼졌다. 이제 고리의 시계를 페이드 창(doneAt − 0.8 ~ doneAt)에
-           맞춘다 — 건물이 배어 나오는 동안 고리가 퍼지고, 둘이 같은 순간에 끝난다. '보이는가' 문은 페이드를
-           곱하기 전 알파(alphaPre9)로 본다 — 곱한 뒤 값은 창의 시작에서 0이라 고리가 늘 첫 틱을 놓친다. */
-      if (race2 === "프로토스" && qBuildFx && !razed && !flownFrom && sec > 0 && alphaPre9 > 0.2
-        && t >= doneAt - WARP_FADE_SEC9 && t <= doneAt) {
-        const [wfx9, wfy9] = posFrac(x + footDx(unit), y + footDy(unit));
-        fxOps.push({
-          kind: "warp", fx: wfx9, fy: wfy9, lift: bldMidLift9(unit),
-          size: (FOOTPRINT[unit] ?? [3, 2])[0] * (mapW9 / grid.width) * 0.6,
-          ph: Math.min(1, Math.max(0, 1 - (doneAt - t) / WARP_FADE_SEC9)),
-        });
-      }
+      /* ★ **소환 완료의 섬광·동심원은 걷었다**(2026-09, 요청: "프로토스 건물 완성시 동심원파동 제거") —
+         완공 순간에 흰 심 + 청백 고리를 한 번 쳤다(kind "warp"). 완공을 알리는 몫은 **페이드인**(위 warpU9)이
+         이미 진다 — 건물이 배어 나오는 것 자체가 그 신호다. 고리까지 얹으면 확장 타이밍마다 지도가 번쩍였다. */
       /* 건물 체력과 '맞은 순간'(요청: 피격 표현 재검토) — 자취가 내려간 마지막
          변곡점이 곧 이 건물이 맞은 때다. 체력바와 피격 불티가 같은 자를 쓴다. */
       /* ★ 이 건물의 **생애 줄**을 한 번만 고른다 — 체력(아래)과 표적(방어 사격)이
