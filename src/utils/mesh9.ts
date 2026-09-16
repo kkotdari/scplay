@@ -169,9 +169,16 @@ export const isOverlay9 = (f: ShapeFace): boolean => {
 export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeFace[]) => ShapeFace[], glow = false): Mesh9 {
   MESH9.on = true; MESH9.byD.clear();
   let faces: ShapeFace[];
-  try { faces = withTopView(() => bake(() => withYaw(0, builder))); }
-  finally { MESH9.on = false; }
-  if (filter) faces = filter(faces);   // 건설 단계(stageFaces) 같은 면 고르기 — 곁표는 그대로라 남은 면만 메시가 된다
+  /* ★ 고르개(filter)는 **굽는 안에서** 돈다 — 건설 단계(stageFaces)가 고르기만 하던 때는 밖에서
+     돌아도 됐지만, 이제 그 자리에서 **면을 더 짓기도 한다**(공사 발판 탑). 밖에서 지으면
+     ① MESH9 가 꺼져 있어 3D 를 못 적고(그 면이 GL 에서 통째로 빠진다) ② 카메라·요잉 감싸개가
+     이미 풀려 2D 경로가 딴 자로 난다. 안에서 돌면 빌더와 똑같은 자를 쓴다. */
+  try {
+    faces = withTopView(() => bake(() => withYaw(0, () => {
+      const f9 = builder();
+      return filter ? filter(f9) : f9;
+    })));
+  } finally { MESH9.on = false; }
   faces = zsorted(faces);   // 2D 와 같은 화가 차례(깊이 키) — 부품 차례 편향(aOrd)의 자다
   const parts: MeshPart9[] = [];
   const byD = new Map<string, number>();    // 경로 → 그 경로로 마지막에 난 부품(덧칠을 접을 첫째 자리)

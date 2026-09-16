@@ -3973,17 +3973,32 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     if (GLHOLE9 > 0) {
       const led9: ShapeFace[] = [];
       /** 그 높이의 바닥/천장을 부채꼴 열여섯으로 깐다 — 벽이 빠진 두 낯(격납구)만 비운다. */
+      /* ★ **판 것은 격납구 모양이어야 한다 — 부채꼴을 통째로 빼면 한가운데까지 삼각으로 파인다**
+         (2026-09, 지적: "커맨드 바닥판 삼각형으로 파지 말고 격납구 모양에 맞춰서 파기") —
+         여태 이 판은 **가운데를 꼭짓점으로 하는 부채꼴 열여섯**이라, 문간의 둘을 빼면 원반이
+         파이 한 조각을 잃었다(공사 중처럼 판이 덜 선 자리에서 그 구멍이 통째로 드러난다).
+         격납구는 **테두리에 난 문**이지 원반의 한가운데까지 이어진 홈이 아니다.
+         그래서 판을 둘로 나눈다: 안쪽 원반(반지름 r − DOOR_D9)은 **통째로**, 바깥 띠만 낯마다
+         내고 문간의 두 낯을 비운다. 그러면 파인 자리가 딱 문간의 폭·깊이다. */
+      const DOOR_D9 = 0.95;
       const slab9 = (z9: number, r9: number, nz9: 1 | -1): void => {
+        const l9 = faceLight(0, 0, nz9);
+        const put9 = (d9: string): void => {
+          led9.push([d9, 1, SILVER] as ShapeFace, ...(l9.visible ? l9.face(d9) : []));
+        };
+        const ri9 = Math.max(0.5, r9 - DOOR_D9);
+        put9(polyPath3(Array.from({ length: 16 }, (_, i9) => {
+          const t9 = (i9 * Math.PI * 2) / 16;
+          return [Math.sin(t9) * ri9, Math.cos(t9) * ri9, z9] as [number, number, number];
+        })));
         for (let i9 = 0; i9 < 16; i9 += 1) {
           const t0 = (i9 * Math.PI * 2) / 16; const t1 = ((i9 + 1) * Math.PI * 2) / 16;
           const tm = (t0 + t1) / 2;
           if (Math.abs(((tm + Math.PI) % (Math.PI * 2)) - Math.PI) <= GLHOLE9) continue;
-          const d9 = polyPath3([
-            [0, 0, z9],
-            [Math.sin(t0) * r9, Math.cos(t0) * r9, z9], [Math.sin(t1) * r9, Math.cos(t1) * r9, z9],
-          ]);
-          const l9 = faceLight(0, 0, nz9);
-          led9.push([d9, 1, SILVER] as ShapeFace, ...(l9.visible ? l9.face(d9) : []));
+          put9(polyPath3([
+            [Math.sin(t0) * ri9, Math.cos(t0) * ri9, z9], [Math.sin(t0) * r9, Math.cos(t0) * r9, z9],
+            [Math.sin(t1) * r9, Math.cos(t1) * r9, z9], [Math.sin(t1) * ri9, Math.cos(t1) * ri9, z9],
+          ]));
         }
       };
       slab9(HULL_Zz9 + 0.64, 5.4, 1);      // 홈의 바닥(첫 고리 윗면)
@@ -23862,6 +23877,82 @@ export function autoTier(kind: string, key: string, faces: ShapeFace[]): ShapeFa
   AUTO_TIER_CACHE.set(key, out);
   return out;
 }
+/** 공사 발판 탑 한 채 — 가는 기둥 넷이 서고 그 안을 계단이 돌며 오르며, 밑동에 해저드
+ *  띠, 꼭대기에 붉은 경광등과 지브 크레인이 달린다(2026-09, 요청: "공사 중에 앞 오른쪽과
+ *  뒤 왼쪽에 스캐폴드 탑 두 개").
+ *  ★ 자리는 **완성 모델의 평면 상자 안쪽 모퉁이**다 — 밖에 세우면 짓는 칸마다 잉크 상자가
+ *    커졌다 작아졌다 해 체력바·링이 흔들린다. 안에 세우면 상자는 완성 때와 같다.
+ *  ★ 키는 **완성 높이**다 — 칸마다 탑이 자라면 공사가 아니라 탑이 주인공이 된다. */
+export function scaffold9(cx: number, cy: number, h: number): ShapeFace[] {
+  const out: ShapeFace[] = [];
+  const S9 = 0.46;      // 기둥 넷이 앉는 사각형의 반폭
+  const PW9 = 0.13;     // 기둥 굵기
+  const STEEL9 = "#8d94a0";
+  const DKS9 = "#4a5058";
+  const key9 = (z9: number): number => partKey(cx, cy, z9) * 1.6 + 2.4;
+  const hh9 = Math.max(1.6, h);
+  for (const sx9 of [-1, 1] as const) {
+    for (const sy9 of [-1, 1] as const) {
+      const px9 = cx + sx9 * S9; const py9 = cy + sy9 * S9;
+      // ① 가는 기둥
+      out.push(...tagKey(paintBase(boxFaces3(px9, py9, PW9, PW9, hh9, 0), STEEL9), key9(hh9 / 2)));
+      // ② 밑동 해저드 — 노란 소매에 검정 띠 셋(요청: "기둥 아래쪽엔 해저드 데칼들")
+      out.push(...tagKey(paintBase(boxFaces3(px9, py9, PW9 + 0.05, PW9 + 0.05, 0.62, 0.02), "#e8c33a"), key9(0.31)));
+      for (let b9 = 0; b9 < 3; b9 += 1) {
+        out.push(...tagKey(paintBase(
+          boxFaces3(px9, py9, PW9 + 0.08, PW9 + 0.08, 0.09, 0.09 + b9 * 0.18), "#1c1f24",
+        ), key9(0.31) + 0.03));
+      }
+    }
+  }
+  /* ③ 계단 — 네 칸에 한 바퀴 돌며 오른다(요청: "그 안에 계단이 반복되는 형태"). */
+  const RISE9 = 0.44;
+  const n9 = Math.max(3, Math.floor((hh9 - 0.6) / RISE9));
+  for (let i9 = 0; i9 < n9; i9 += 1) {
+    const z9 = 0.40 + i9 * RISE9;
+    const t9 = ((i9 % 4) / 4) * Math.PI * 2;
+    out.push(...tagKey(paintBase(boxFaces3(
+      cx + Math.sin(t9) * S9 * 0.46, cy + Math.cos(t9) * S9 * 0.46,
+      S9 * 1.15, S9 * 0.60, 0.06, z9,
+    ), DKS9), key9(z9)));
+  }
+  /* ④ 가로대 — 기둥 넷을 묶는 층참. 없으면 기둥이 따로 선 막대 넷으로 읽힌다. */
+  for (let i9 = 1; i9 * 1.32 < hh9; i9 += 1) {
+    const z9 = i9 * 1.32;
+    out.push(...tagKey(paintBase(boxFaces3(cx, cy, S9 * 2 + PW9, PW9 * 0.7, 0.07, z9), STEEL9), key9(z9)));
+    out.push(...tagKey(paintBase(boxFaces3(cx, cy, PW9 * 0.7, S9 * 2 + PW9, 0.07, z9), STEEL9), key9(z9) + 0.01));
+  }
+  // ⑤ 꼭대기 판
+  out.push(...tagKey(paintBase(boxFaces3(cx, cy, S9 * 2 + 0.24, S9 * 2 + 0.24, 0.1, hh9), STEEL9), key9(hh9)));
+  /* ⑥ 붉은 경광등 — 늘 켜진 빛이라 번짐 표(EMIT_FILL9)에 바로 적는다(불빛 열쇠를 안 탄다). */
+  const BEACON9 = "#ff4433";
+  EMIT_FILL9.add(BEACON9);
+  const bz9 = hh9 + 0.1;
+  out.push(...tagKey(paintBase(boxFaces3(cx, cy, 0.17, 0.17, 0.13, bz9), DKS9), key9(bz9)));
+  out.push(...tagKey([[orbPath3(cx, cy, bz9 + 0.22, 0.15), 1, BEACON9] as ShapeFace], key9(bz9 + 0.22)));
+  /* ⑦ 지브 크레인 — 건물 한가운데 쪽으로 뻗은 팔에 도르래와 갈고리가 달린다. */
+  const L9 = Math.hypot(cx, cy) || 1;
+  const ex9 = cx - (cx / L9) * 1.95; const ey9 = cy - (cy / L9) * 1.95;
+  const az9 = hh9 + 0.36;
+  out.push(...tagKey(paintBase(rodFaces(cx, cy, az9, ex9, ey9, az9 - 0.16, 0.17), STEEL9), key9(az9)));
+  // 지브를 받치는 버팀줄 — 꼭대기 기둥에서 팔 끝으로 비스듬히 내려온다(크레인으로 읽히는 자다).
+  out.push(...tagKey(paintBase(rodFaces(cx, cy, az9 + 0.62, ex9, ey9, az9 - 0.16, 0.05), DKS9), key9(az9 + 0.2)));
+  out.push(...tagKey(paintBase(boxFaces3(cx, cy, 0.12, 0.12, 0.68, az9), STEEL9), key9(az9 + 0.34)));
+  // 도르래 뭉치와 줄, 그 끝의 짐 — 줄은 바닥까지 안 내린다(짓는 자리 위에 매달린 꼴).
+  out.push(...tagKey(paintBase(boxFaces3(ex9, ey9, 0.24, 0.24, 0.2, az9 - 0.38), DKS9), key9(az9 - 0.28)));
+  const hk9 = Math.max(0.5, az9 - 1.7);
+  out.push(...tagKey(paintBase(rodFaces(ex9, ey9, az9 - 0.38, ex9, ey9, hk9 + 0.22, 0.05), DKS9), key9((az9 + hk9) / 2)));
+  out.push(...tagKey(paintBase(boxFaces3(ex9, ey9, 0.3, 0.3, 0.24, hk9), "#e8c33a"), key9(hk9 + 0.12)));
+  return out;
+}
+/** 공사 발판을 세우는 종류인가 — **테란 건물**만이다(저그는 굼틀거리며 돋고 토스는 워프한다).
+ *  도록 표(SHAPE_GALLERY)는 이 파일 뒤에 서므로 **처음 물을 때** 한 번 짓는다. */
+let SCAFFOLD_KINDS9: Set<string> | null = null;
+const isScaffoldKind9 = (kind: string): boolean => {
+  SCAFFOLD_KINDS9 ??= new Set(
+    SHAPE_GALLERY.filter((g) => g.group === "건물" && g.race === "테란").map((g) => g.kind));
+  return SCAFFOLD_KINDS9.has(kind);
+};
 /** 건설 단계별 **보이는 넓이** 몫 — 1~9단이고 10단(= BUILD_STAGES)은 완성이라 표에 없다
  *  (그 자리는 faces 를 통째로 낸다).
  *  ★★ **자를 '낯 수'에서 '높이'로 바꿨다**(2026-09) — 낯 수로 자르면 **낯이 몰린 자리에서
@@ -23887,7 +23978,7 @@ const BUILD_FRAC9 = [0.03, 0.07, 0.13, 0.22, 0.33, 0.45, 0.57, 0.69, 0.82];
  *    이라 저절로 그 뒤다 — 겹침을 따로 셀 일이 없어졌다(옛 상자 겹침 규칙을 걷었다).
  *  ⚠ 3D 가 없는 낯(관·막대가 일부러 적어 둔 빈 표, `#gl=0` 폴백의 2D 굽기)은 **제 부품의
  *    z 구간**을 물려받고, 그마저 없으면 옛 자(화면 상자의 밑변)로 물러난다. */
-export function stageFaces(faces: ShapeFace[], stg: number): ShapeFace[] {
+export function stageFaces(faces: ShapeFace[], stg: number, kind?: string): ShapeFace[] {
   if (stg <= 0 || stg >= BUILD_STAGES) return faces;
   const n = faces.length;
   if (n <= 1) return faces;
@@ -24077,7 +24168,43 @@ export function stageFaces(faces: ShapeFace[], stg: number): ShapeFace[] {
      몸 없는 반투명 유령 한 장이 남는다. 같은 경로가 이어지는 동안 한 칸씩 더 든다. */
   while (keepN9 < n && faces[order[keepN9]][0] === faces[order[keepN9 - 1]][0]) keepN9 += 1;
   const keep = new Set(order.slice(0, keepN9));
-  return faces.filter((_, i) => keep.has(i));
+  const out9 = faces.filter((_, i) => keep.has(i));
+  /* ★ **공사 발판 탑 둘**(요청: "앞 오른쪽과 뒤 왼쪽에 두 개 스캐폴드 탑 · 1단계부터 보이고
+     완공 시 사라짐") — 1~9단에만 서고 10단(완성)은 이 함수를 안 지나므로 저절로 사라진다.
+     자리는 **완성 모델의 평면 상자** 안쪽 모퉁이다: +x·+y 가 앞 오른쪽, −x·−y 가 뒤 왼쪽이다.
+     키도 완성 높이라, 짓는 칸마다 잉크 상자가 흔들리지 않는다(체력바·링이 그 상자를 쓴다). */
+  if (kind && has3d9 && isScaffoldKind9(kind)) {
+    let bx0 = Infinity; let by0 = Infinity; let bx1 = -Infinity; let by1 = -Infinity;
+    for (let gg = 0; gg < ng; gg += 1) {
+      const b9 = gbx[gg];
+      if (!(b9[0] > -Infinity)) continue;
+      if (b9[0] < bx0) bx0 = b9[0];
+      if (b9[1] < by0) by0 = b9[1];
+      if (b9[2] > bx1) bx1 = b9[2];
+      if (b9[3] > by1) by1 = b9[3];
+    }
+    /* 탑의 키는 **몸의 키**다 — 가장 높은 낯(안테나·굴뚝 한 가닥)으로 재면 탑이 건물의 두 배가
+       되어 주인공이 바뀐다. 넓이로 92% 가 차는 자리의 높이를 쓴다(가는 꼭대기 장식은 그 밖이다). */
+    let hTop9 = 2;
+    {
+      let t9 = 0;
+      for (const i9 of order) t9 += area9[i9];
+      let c9 = 0;
+      for (const i9 of order) {
+        c9 += area9[i9];
+        if (c9 >= t9 * 0.92) { hTop9 = Math.max(2, key1[i9]); break; }
+      }
+    }
+    if (bx1 > bx0 && by1 > by0) {
+      const IN9 = 0.72;   // 기둥 사각형의 반폭(0.46) + 한 뼘 — 상자 밖으로 안 나간다
+      const px9 = Math.min(bx1 - IN9, Math.max(bx0 + IN9, bx1 - IN9));
+      const py9 = Math.min(by1 - IN9, Math.max(by0 + IN9, by1 - IN9));
+      const qx9 = Math.max(bx0 + IN9, Math.min(bx1 - IN9, bx0 + IN9));
+      const qy9 = Math.max(by0 + IN9, Math.min(by1 - IN9, by0 + IN9));
+      out9.push(...scaffold9(px9, py9, hTop9 + 0.5), ...scaffold9(qx9, qy9, hTop9 + 0.5));
+    }
+  }
+  return out9;
 }
 /** 굽는 동안만 포탑 각을 세워 둔다(위 headYawNow 주석) — 열쇠를 짓기 **전**에 서야
  *  하므로 감싸는 자리가 여기다. 각은 −180~180으로 접어 표식이 흔들리지 않게 한다. */
@@ -24097,7 +24224,7 @@ export function rasterBld9(op: UnitDrawOp, sideQ: number, B: number, lod: number
     if (!all) { BAKE_NIL9.why = "면없음"; return null; }
     const faces = stageFaces(
       // 유닛의 poseTag와 같은 함정 — 불빛(litTag)·회전(spinTag) 변종도 열쇠에 싣는다.
-      lodFilter(autoTier(op.kind, `b|${op.kind}|${op.rotDeg ?? 0}|${op.flat ? 1 : 0}|${vq}|${pitchTag(op.pitch)}|${headTag(op.kind)}|${litTag(op.kind)}|${spinTag(op.kind)}`, all), lod), stg);
+      lodFilter(autoTier(op.kind, `b|${op.kind}|${op.rotDeg ?? 0}|${op.flat ? 1 : 0}|${vq}|${pitchTag(op.pitch)}|${headTag(op.kind)}|${litTag(op.kind)}|${spinTag(op.kind)}`, all), lod), stg, op.kind);
     /* 여백을 15% → 35%로 넓혔다(과제 #67) — 이 여백이 곧 모델이 쓸 수 있는 자리다.
        15%면 모델 단위로 양옆 2.4뿐이라, 정규화 배수를 재 보니 55종 중 30종이 목표에
        못 가고 여기서 잘렸다(그리고 지금도 7종은 이미 넘쳐 잘리고 있다: 하이브·레어·
