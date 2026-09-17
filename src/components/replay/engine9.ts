@@ -5710,7 +5710,15 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           kind: shapeKind === "turret" ? "turretbase" : sunkenOut ? "sunkenrear" : shapeKind,
           ...(shapeKind === "turret"
             ? { attach: "turrethead", attachRot: headDeg9 ?? buildingYawOf() }
-            : sunkenOut ? { attach: "sunkentongue" } : {}),
+            /* ★ 혓바닥도 **제 절대 요잉**을 받아야 표적을 본다(2026-09, 지적: "성큰 …
+               혓바닥 나오는 컷들") — 터렛을 딸림 부품으로 가르며 붓이 딸림 부품을
+               그릴 때 `headDeg: undefined` 로 굽게 되었는데(각은 attachRot 이 준다),
+               성큰은 attachRot 을 안 주고 있었다. 그래서 혀를 감싼 withModelSpin 이
+               늘 0 을 받아 **어느 쪽에서 오든 같은 방향으로** 뻗었다(요청 "성큰 공격
+               방향으로 혓바닥 내밀어야지"가 그 갈림에서 조용히 죽어 있었다).
+               터렛과 같은 자를 준다 — 굽는 열쇠는 그대로다(혀는 각을 안 물고, 각은
+               그리는 자리에서 돈다). */
+            : sunkenOut ? { attach: "sunkentongue", attachRot: headDeg9 ?? buildingYawOf() } : {}),
           /* 창에 불이 드는 조건(요청: "평소 어둡고 활성 시 노란불") — 이 건물이
              지금 유닛을 뽑거나 연구를 돌리고 있나. 가스 건물(정제소)만은 이 뒤에
              따로 gasBusy가 켠다(일꾼이 안에 들어가 있는 동안). */

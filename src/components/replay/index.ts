@@ -58,8 +58,12 @@ export {
  *     BUILD_STAGES 는 그 단계 수다(1~N−1이 짓는 중, 0이 완성). */
 export {
   SHAPE_GALLERY, ShapeIcon, DocIcon9, poseTempoOf, poseCutsOf, atkCutOf, flapCutOf, shapeMapTiles, shapeFitBox,
-  galleryYawOf, docAnimOf9, DocTracer9, docWeaponOf9,
+  galleryYawOf, docAnimOf9, docCellsOf9, DocTracer9, docWeaponOf9,
 } from "./ReplayMotionPlayer";
+/*   · docCellsOf9  — **도록 한 항목의 칸들**(2026-09, 요청: "셀은 대기 - 이동/활성 - 공격 -
+ *     액션/추가액션 이렇게 네 개로 하고 하고 있는 셀만 보여주기"). 유닛이냐 건물이냐를 묻지
+ *     않고 같은 네 자리를 쓰고, 놓을 것이 없는 자리는 칸이 안 선다. 돌려주는 값은 그대로
+ *     DocIcon9 의 프롭이다(그 함수의 ★★). 도록은 배치만 한다. */
 /*   · DocTracer9 · docWeaponOf9 — **트레이서 한 발**(요청: "그리고 트레이서는 못그려주나? 도록에").
  *     지도가 트레이서를 그리는 붓은 재생기 안에 900줄로 박혀 있었다 — 그것을 순수 함수
  *     (paintFxList9)로 떼어 내고, 이 컴포넌트가 칸 왼아래(총구) → 오른위(표적)로 **같은 붓**에
@@ -67,4 +71,4 @@ export {
  *     도록이 칸을 안 세운다. 시각 t 를 주면 그 나이의 한 컷이다. */
 export { BUILD_STAGES } from "./engine9";
 export type { ShapeGalleryItem } from "./ReplayMotionPlayer";
-export type { DocAnim9 } from "./ReplayMotionPlayer";
+export type { DocAnim9, DocCell9 } from "./ReplayMotionPlayer";

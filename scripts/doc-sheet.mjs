@@ -65,7 +65,7 @@ const BG = argv.includes("--bg")
 const ENTRY = `
 import { createElement as h } from "react";
 import { createRoot } from "react-dom/client";
-import { SHAPE_GALLERY, DocIcon9, galleryYawOf, docAnimOf9, DocTracer9, docWeaponOf9 } from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
+import { SHAPE_GALLERY, DocIcon9, galleryYawOf, docAnimOf9, docCellsOf9, DocTracer9, docWeaponOf9 } from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
 /* 트레이서 판(--tracer) — 한 발의 나이를 여섯 칸으로. */
 window.__docTracer = (kinds) => {
   const host = document.getElementById("host");
@@ -87,24 +87,36 @@ window.__docTracer = (kinds) => {
   createRoot(host).render(h("div", { className: "scr-doc" }, list));
   return rows.length;
 };
-/* 건물의 움직임 판(--anim) — 한 종류의 상태들을 한 줄로. 값은 도록 팝업이 시각으로 오가는
-   그 값들이고, 여기서는 눈으로 견주기 쉽게 **못 박아** 놓는다. */
+/* 도록 팝업 판(--anim) — **팝업이 세우는 그 칸들**(docCellsOf9)을 시각 몇 자리에서 뜬다.
+   여기서 값을 손으로 못 박지 않는다: 못 박으면 팝업이 실제로 무엇을 보여 주는지가 아니라
+   '이 파일이 무엇을 적어 두었나'를 보게 된다(그래서 코어 디스크가 쉬는 중에 도는 것도,
+   성큰의 혓바닥이 안 나오는 것도 이 판으로는 안 보였다). */
 window.__docAnim = (kinds) => {
   const host = document.getElementById("host");
   const rows = kinds.map((k) => SHAPE_GALLERY.find((g) => g.kind === k) || { kind: k, label: k, group: "건물", race: "" });
+  const TS = [0.0, 0.35, 0.7, 1.15, 1.6, 2.3, 3.1, 4.4];
   const cellsOf = (kind, group) => {
-    const a = docAnimOf9(kind);
     const yaw = galleryYawOf(45, group);
-    const out = [["기본", {}]];
-    if (a.spin) { out.push(["회전 2", { spin: 2 }], ["회전 5", { spin: 5 }]); }
-    if (a.lit) out.push(["불빛", { lit: true }]);
-    if (a.head) out.push(["겨눔 +40", { headDeg: yaw + 40 }], ["겨눔 −70", { headDeg: yaw - 70 }]);
-    if (a.stage) out.push(["공사 3", { stage: 3, blink: true }], ["공사 6", { stage: 6 }], ["공사 9", { stage: 9, blink: true }]);
-    if (!a.stage) out.push(["깜빡", { blink: true }]);
-    return out.map(([label, props]) => h("div", { key: label, className: "scr-doc-angle" }, [
-      h(DocIcon9, { key: "m", kind, rotDeg: props.rotDeg ?? yaw, flat: true, fit: true, className: "scr-doc-svg", gl: !window.__doc2d, ...props }),
-      h("span", { key: "d" }, label),
-    ]));
+    const out = [];
+    for (const t of TS) {
+      for (const c of docCellsOf9(kind, t, yaw)) {
+        out.push(h("div", { key: c.label + t, className: "scr-doc-angle" }, [
+          h("div", { key: "a", style: { position: "relative" } }, [
+            h(DocIcon9, {
+              key: "m", kind: c.kind || kind, rotDeg: c.rotDeg ?? yaw, pose: c.pose, spin: c.spin,
+              headDeg: c.headDeg, lit: c.lit, blink: c.blink, attach: c.attach, attachRot: c.attachRot,
+              flat: true, fit: true, className: "scr-doc-svg", gl: !window.__doc2d,
+            }),
+            c.tracer ? h(DocTracer9, {
+              key: "s", kind, t, overlay: true, className: "scr-doc-svg",
+              style: { position: "absolute", inset: 0 },
+            }) : null,
+          ]),
+          h("span", { key: "d" }, c.label + (c.note ? " · " + c.note : "") + " · t" + t.toFixed(2)),
+        ]));
+      }
+    }
+    return out;
   };
   const list = h("div", { className: "scr-doc-list" }, rows.map((it) => h("section", { key: it.kind, className: "scr-doc-item" }, [
     h("header", { key: "h", className: "scr-doc-itemhead" }, [

@@ -87,6 +87,7 @@ import {
 } from "../../utils/shapeOblique";
 import { TEAM_COLOR, type MinimapMarker } from "./markers";
 import {
+  atkCutOf as atkCutOf9, flapCutOf as flapCutOf9,
   AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, ATTACK_FX, NO_BEAM_FX, TARGET_FX, PROJECTILE_FX, NUKE_BOOM_SEC, NUKE_FALL_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SPIN_STEPS, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
 } from "./engine9";
 import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, WorldUi9 } from "./engine9";
@@ -5323,9 +5324,23 @@ function cssHex9(c: string): string {
 }
 /** 방어 건물의 무기 갈래 — 엔진이 `pushDefFx` 로 쏘는 그 이름들이다(터렛 미사일 ·
  *  스포어 독구슬 · 포토 광자포 · 성큰 가시 · 벙커 총구). 유닛은 ATTACK_FX 가 든다. */
+/* ★ 성큰만 **선이 아니다**(2026-09, 지적: "성큰은 트레이서가 왜케 작은 삼각형이지?") ──────
+   여기 적혀 있던 "spike" 는 **럴커 가시**의 갈래 이름이다(FX_BEAM 의 그 줄). 성큰은 그
+   갈래로 쏘지 않는다 — 지도를 보면 성큰의 사격은 `kind: "erupt"` 한 장, 곧 **표적 발밑에서
+   솟았다 지는 주황 가시**다(engine9 의 그 자리: "촉수는 땅속에 힘을 넣는 지렛대이고, 실제로
+   때리는 것은 표적 발밑에서 솟구치는 가시다"). 그래서 도록이 럴커의 가시 갈래를 빌려
+   그리고 있었고, 그 갈래의 잔상 길이가 짧아 **작은 삼각형** 하나로 보였다.
+   "erupt" 는 FX_BEAM 의 갈래가 아니라 **op 의 kind** 다 — DocTracer9 가 그 이름을 보고
+   지도와 같은 op 를 낸다. */
 const DOC_BLD_FX9: Record<string, string> = {
-  turret: "missile", spore: "venom", coil: "photon", sunken: "spike", sunkenfire: "spike", tombFlat: "gun",
+  turret: "missile", spore: "venom", coil: "photon", tombFlat: "gun",
+  sunken: "erupt", sunkenrear: "erupt", sunkenfire: "erupt",
 };
+/** 성큰의 사격 쿨다운(초) — 지도와 **같은 시계**여야 혓바닥 컷과 가시가 안 갈린다
+ *  (engine9 의 sunkenPh: 무기 쿨다운 1.34초 · 앞 절반이 혓바닥 · 0.12~0.45 가 가시). */
+export const SUNKEN_CD9 = 1.34;
+/** 그 시각의 성큰 사격 박자(0~1). */
+export const sunkenPhase9 = (t: number): number => (((t % SUNKEN_CD9) + SUNKEN_CD9) % SUNKEN_CD9) / SUNKEN_CD9;
 let docFxMap9: Map<string, string> | null = null;
 /** 그 모델이 쏘는 트레이서 갈래(FX_BEAM 의 이름) — 없으면 null(근접·일꾼·건물 대부분). */
 export function docWeaponOf9(kind: string): string | null {
@@ -5349,7 +5364,13 @@ export function docWeaponOf9(kind: string): string | null {
  *  ⚠ 날아가는 무기(PROJECTILE_FX)는 `shot`(진행률 u), 즉발은 `beam`(제자리 번쩍임)이다 —
  *    지도가 가르는 그 자리와 같은 명단을 쓴다. 쏘는 쪽에 아무것도 안 그리는 무기
  *    (커세어 플레어 · NO_BEAM_FX)는 **표적 그림이 전부**이므로 hit 만 낸다. */
-export function DocTracer9({ kind, t, className }: { kind: string; t: number; className?: string }) {
+export function DocTracer9({ kind, t, className, overlay }: {
+  kind: string; t: number; className?: string;
+  /** ★ **공격 칸 위에 겹쳐 그리나**(2026-09, 요청: "트레이서는 공격 셀에 같이 넣어야함") —
+   *  제 칸으로 서던 때는 칸 왼아래가 총구였다. 겹쳐 그릴 때 총구는 **모델이 선 자리**여야
+   *  하므로 칸 한가운데 조금 아래에서 오른위로 나간다. */
+  overlay?: boolean;
+}) {
   const ref = useRef<HTMLCanvasElement>(null);
   const style = docWeaponOf9(kind);
   useLayoutEffect(() => {
@@ -5366,21 +5387,33 @@ export function DocTracer9({ kind, t, className }: { kind: string; t: number; cl
     g9.setTransform(dpr, 0, 0, dpr, 0, 0);
     g9.clearRect(0, 0, w9, h9);
     const ZOOM9 = 8;
-    const x09 = w9 * 0.14; const y09 = h9 * 0.82;
-    const dx9 = w9 * 0.72; const dy9 = -h9 * 0.6;
+    const x09 = overlay ? w9 * 0.46 : w9 * 0.14; const y09 = overlay ? h9 * 0.60 : h9 * 0.82;
+    const dx9 = overlay ? w9 * 0.36 : w9 * 0.72; const dy9 = overlay ? -h9 * 0.32 : -h9 * 0.6;
     const dist9 = Math.hypot(dx9, dy9) || 1;
     // deg 규약 — 붓이 (−sin, cos)로 방향을 푼다(그 자리의 dxx·dyy).
     const deg9 = (Math.atan2(-dx9 / dist9, dy9 / dist9) * 180) / Math.PI;
     const age9 = (t % 1.1) / 1.1;            // 한 발의 나이 0~1
     const shot9 = PROJECTILE_FX.has(style);
     const ops9: FxOp[] = [];
-    if (!NO_BEAM_FX.has(style)) {
+    /* ★ 성큰 — 갈래가 아니라 **op 한 장**이다(위 DOC_BLD_FX9 의 ★). 지도와 같은 시계를
+       보고, 표적 자리(분수 1, 1)에서 땅 위로 솟았다 진다. 키·굵기만은 칸에 맞춘다 —
+       지도의 값은 타일 자라 도록 칸에서는 화면을 넘는다. */
+    if (style === "erupt") {
+      const ph9 = sunkenPhase9(t);
+      const up9 = ph9 > 0.12 && ph9 < 0.45 ? Math.sin(((ph9 - 0.12) / 0.33) * Math.PI) : 0;
+      if (up9 > 0.02) {
+        ops9.push({
+          kind: "erupt", fx: 1, fy: 1, lift: 0, mx: 0, my: 0,
+          len: (h9 * 0.42) / ZOOM9, u: up9, size: (h9 * 0.13) / ZOOM9,
+        } as FxOp);
+      }
+    } else if (!NO_BEAM_FX.has(style)) {
       ops9.push({
         kind: shot9 ? "shot" : "beam", style, fx: 0, fy: 0, lift: 0,
         deg: deg9, ph: age9, len: dist9 / ZOOM9, ...(shot9 ? { u: age9 } : {}),
       } as FxOp);
     }
-    if (NO_BEAM_FX.has(style) || TARGET_FX.has(style)) {
+    if (style !== "erupt" && (NO_BEAM_FX.has(style) || TARGET_FX.has(style))) {
       ops9.push({ kind: "hit", style, fx: 1, fy: 1, lift: 0, ph: age9, size: 2.6 } as FxOp);
     }
     paintFxList9(g9, ops9, {
@@ -5388,14 +5421,20 @@ export function DocTracer9({ kind, t, className }: { kind: string; t: number; cl
       zx: (v9) => x09 + v9 * dx9, zy: (v9) => y09 + v9 * dy9,
     });
     el.dataset.gl9 = "1";
-  }, [kind, style, t]);
+  }, [kind, style, t, overlay]);
   if (!style) return null;
   return <canvas ref={ref} width={1} height={1} className={cx("scr-motion-shape-svg", className)} aria-hidden data-gl9="0" />;
 }
 let docBldSet9: Set<string> | null = null;
 /** 그 종류를 **건물 길로** 굽나(도록 표의 건물 + 얼룩 + 공사 발판). */
 function docBldKind9(kind: string): boolean {
-  if (!docBldSet9) docBldSet9 = new Set([...SHAPE_GALLERY.filter((g9) => g9.group === "건물").map((g9) => g9.kind), ...DECAL_KINDS, "scaffold"]);
+  /* ★ **갈라 놓은 별본도 건물 길이다**(2026-09, 지적: "성큰 … 혓바닥 나오는 컷들") — 도록 표에는
+     합본(sunken·turret)만 있고, 붓이 실제로 그리는 몸·딸림 부품(sunkenrear·sunkentongue·
+     turretbase·turrethead)은 표 밖이다. 그래서 그것을 그려 달라고 하면 이 문이 거짓을 내고,
+     아이콘이 **유닛 길**로 굽는다 — 유닛 길에는 딸림 부품이라는 것이 아예 없어 혓바닥이
+     통째로 빠졌다(몸만 나와 '공격 애니메이션이 안 나온다'로 보였다). */
+  if (!docBldSet9) docBldSet9 = new Set([...SHAPE_GALLERY.filter((g9) => g9.group === "건물").map((g9) => g9.kind), ...DECAL_KINDS,
+    "scaffold", "sunkenrear", "sunkentongue", "turretbase", "turrethead"]);
   return docBldSet9.has(kind);
 }
 /** ★ **변신 차례표**(2026-09, 물음: "공사고치, 알 변태완료나 럴커 버로우, 시즈모드 애니메이션도
@@ -5434,6 +5473,11 @@ for (const k9 of ["zling", "hydra", "muta", "drone", "ovie", "defiler", "ultra",
 export type DocAnim9 = {
   /** 회전 칸(spin)이 그림을 바꾸나 — 서플라이 팬·코어 원반·포지 톱니·머신샵 톱니·성큰 혀의 뻗는 컷. */
   spin: boolean;
+  /** ★ **일할 때만 도나**(2026-09, 지적: "코어 대기중엔 디스크 돌면 안 되고") — 지도는 도는
+   *  부품을 둘로 가른다: 서플라이 환풍팬은 건물이 서 있는 한 늘 돌고(설비), 포지 톱니·코어
+   *  플라즈마 디스크·머신샵 톱니는 **연구 중에만** 돈다(일). 도록이 이 칸을 안 보면 쉬는
+   *  코어의 디스크까지 돌아, 그 회전이 '지금 업그레이드 중'이라는 신호가 못 된다. */
+  spinWork: boolean;
   /** 포탑 각(headDeg)이 그림을 바꾸나 — 터렛·포토·성큰(쏘는 몸). 주면 '겨누는 중'이 함께 선다. */
   head: boolean;
   /** 불빛 컷(lit)이 있나 — 생산·연구·가스 채취·벙커 사격. */
@@ -5457,9 +5501,12 @@ export type DocAnim9 = {
  *  제 표를 따로 들면 모델을 고칠 때 두 곳을 맞춰야 하므로, 묻는 자리를 하나로 둔다.
  *  ※ 공사 고치(cocoon)·럴커 알·변태 고치·시즈 모드처럼 **딴 종류로 갈리는** 변신은 이 자의
  *    일이 아니다 — 그것들은 이미 제 칸으로 도록에 서 있다(도록이 짝을 이어 보여 준다). */
+/** 일할 때만 도는 종류 — 지도의 그 갈래와 같은 명단이다(engine9 의 spin 셈: forge·cyber·mshop). */
+const SPIN_WORK9 = new Set(["forge", "cyber", "mshop"]);
 export function docAnimOf9(kind: string): DocAnim9 {
   return {
     spin: SPIN_KINDS.has(kind),
+    spinWork: SPIN_WORK9.has(kind),
     head: HEAD_KINDS.has(kind),
     lit: LIT_KINDS.has(kind),
     stage: docBldKind9(kind) && !DECAL_KINDS.has(kind) && kind !== "scaffold",
@@ -5467,6 +5514,118 @@ export function docAnimOf9(kind: string): DocAnim9 {
     pose: !!poseCutsOf(kind),
     ...(DOC_MORPH9[kind] ? { morph: DOC_MORPH9[kind] } : {}),
   };
+}
+/** 쏘는 몸이 **딴 벌**인 종류 — 성큰은 몸(sunkenrear)과 혓바닥(sunkentongue)이 갈려 있고,
+ *  혓바닥의 회전 칸이 곧 공격 컷 넷이다(지도의 그 자리: engine9 의 sunkenOut). */
+const DOC_ATK_BODY9: Record<string, { kind: string; attach: string }> = {
+  sunken: { kind: "sunkenrear", attach: "sunkentongue" },
+};
+/** 도록 한 칸 — 그릴 종류와 그 칸이 내려 줄 값들(DocIcon9 의 프롭 그대로다). */
+export type DocCell9 = {
+  /** 칸 이름 — 대기 · 이동 · 활성 · 공격 · 액션. */
+  label: string;
+  /** 덧말(변신 컷 이름 · 낙하 회전) — 칸 이름 뒤에 붙는다. */
+  note?: string;
+  /** 그 칸이 그릴 종류 — 없으면 항목 제 종류(성큰의 사격 몸 · 변신 차례의 지금 컷). */
+  kind?: string;
+  /** 딸림 부품(성큰 혓바닥). */ attach?: string;
+  /** 그 부품만의 절대 요잉(도). */ attachRot?: number;
+  pose?: 0 | 1 | 2 | 3 | 4 | 5;
+  spin?: number;
+  headDeg?: number;
+  lit?: boolean;
+  blink?: boolean;
+  /** 그 칸만 요잉을 달리 쓸 때(핵탄두의 낙하 회전). */ rotDeg?: number;
+  /** 트레이서 한 발을 **그 칸 위에 겹쳐** 그리나(요청: "트레이서는 공격 셀에 같이 넣어야함"). */
+  tracer?: boolean;
+};
+/** ★★ **도록의 칸은 넷이다**(2026-09, 요청: "셀은 대기 - 이동/활성 - 공격 - 액션/추가액션
+ *  (럴커 땅파기 등) 이렇게 네 개로 하고 **하고 있는 셀만** 보여주기") ────────────────────
+ *  여태 유닛은 셋(대기·이동·액션), 건물은 셋(대기·액션·공사)으로 **따로** 섰고, 트레이서와
+ *  변신이 칸을 더 달고 나와 한 항목이 여섯 칸이 되기도 했다. 게다가 없는 컷도 '대기와 같음'
+ *  이라 적은 채 자리를 차지했다 — 칸이 많을수록 하나가 작아지므로 그것은 손해만이다.
+ *  이제 한 자로 센다. 유닛과 건물이 **같은 네 자리**를 쓰고, 그 자리에 놓을 것이 없으면
+ *  칸 자체가 안 선다:
+ *    ① **대기** — 늘 있다. 나는 몸은 날갯짓, 늘 도는 설비(서플라이 팬)는 돈다.
+ *    ② **이동**(유닛) / **활성**(건물) — 걸음 컷, 또는 불빛이 **깜빡이고** 일할 때만 도는
+ *       부품(포지 톱니·코어 디스크·머신샵 톱니)이 도는 그림.
+ *    ③ **공격** — 공격 컷(유닛) · 겨누는 포탑(터렛·포토) · 성큰의 사격 몸, 그리고 그 위에
+ *       **트레이서 한 발**을 겹쳐 그린다.
+ *    ④ **액션** — 그 밖의 동작: 변신 차례(공사 고치·알·럴커 버로우·**시즈 모드**)와 핵탄두의
+ *       낙하 회전. 요청대로 시즈 모드는 탱크의 이 칸이 맡는다(별도 항목을 걷었다).
+ *  값은 **지도가 쓰는 그 값**이다 — 도는 걸음(늘 2.2바퀴/초 · 일할 때 1.6바퀴/초)도, 불빛
+ *  깜빡임(0.9초의 3분의 2)도, 성큰의 사격 박자(1.34초)도 engine9 에서 베껴 오지 않고 같은
+ *  숫자를 여기 한 번 적는다. */
+export function docCellsOf9(kind: string, t: number, yaw: number): DocCell9[] {
+  const a9 = docAnimOf9(kind);
+  const gun9 = !!docWeaponOf9(kind);
+  const out9: DocCell9[] = [];
+  /** 회전 칸 — 초당 `rate` 바퀴(여덟 칸). 지도와 같은 걸음이라야 '뚝뚝 끊긴다'가 안 난다. */
+  const cell9 = (rate: number): number => Math.floor(t * rate * SPIN_STEPS) % SPIN_STEPS;
+  /** 불빛·경광등의 깜빡임 — 지도와 같은 박자(0.9초 주기의 3분의 2 동안 켜진다). */
+  const blink9 = (((t % 0.9) + 0.9) % 0.9) < 0.6;
+  /** 겨누는 중 — 표적을 좌우로 느리게 따라간다. */
+  const aim9 = yaw + 40 * Math.sin(t * 0.9);
+  if (a9.pose) {
+    /* 유닛 — 컷의 임자는 poseCutsOf·poseTempoOf·atkCutOf 다(지도와 같은 문). */
+    const pk9 = poseCutsOf(kind);
+    const tp9 = poseTempoOf(kind);
+    const idle9: 0 | 1 | 2 | 3 | 4 | 5 = pk9?.flap ? flapCutOf9(pk9.flap, t) : 0;
+    out9.push({ label: "대기", pose: idle9 });
+    if (pk9?.move && tp9) out9.push({ label: "이동", pose: Math.floor(t * tp9.walkHz) % 2 === 1 ? 3 : 1 });
+    if (pk9?.atk && tp9) {
+      const ph9 = (((t % tp9.atkCd) + tp9.atkCd) % tp9.atkCd) / tp9.atkCd;
+      out9.push({ label: "공격", pose: atkCutOf9(kind, ph9, pk9.flap, t), tracer: gun9 });
+    } else if (gun9) out9.push({ label: "공격", pose: idle9, tracer: true });
+  } else {
+    /* 건물·부가 — 움직이는 것은 자세가 아니라 회전 칸·포탑 각·불빛이다. */
+    const idle9: DocCell9 = { label: "대기" };
+    if (a9.spin && !a9.spinWork) idle9.spin = cell9(2.2);
+    /* 터렛만 **쉴 때도 돈다**(탐지 회전 96°/s) — 포토·성큰의 포탑은 겨눌 때만 돈다. */
+    if (kind === "turret" || kind === "turretbase") idle9.headDeg = yaw + ((t * 96) % 360);
+    /* 공사 발판의 경광등은 그 자체가 '대기'다(요청: "스캐폴드도 idle 상태에서 경광등 깜빡"). */
+    if (kind === "scaffold") idle9.blink = blink9;
+    out9.push(idle9);
+    if (a9.lit || a9.spinWork) {
+      /* ★ 활성은 **깜빡임**이다(요청: "활성상태 건물 깜빡임으로 보여줘야 함, 정지로 불 켜진
+         거 말고") — 지도에서 '일하는 중'을 말하는 것은 켜진 창이 아니라 **명멸**이다. 켜 둔
+         한 컷은 그냥 다른 그림일 뿐이라 대기 칸과 견줘서는 무슨 상태인지 못 읽는다. */
+      const act9: DocCell9 = { label: "활성" };
+      if (a9.lit) act9.lit = blink9;
+      if (a9.spin) act9.spin = cell9(a9.spinWork ? 1.6 : 2.2);
+      out9.push(act9);
+    }
+    if (a9.head || gun9) {
+      const atk9: DocCell9 = { label: "공격", tracer: gun9 };
+      if (a9.spin && !a9.spinWork) atk9.spin = cell9(2.2);
+      if (a9.head) atk9.headDeg = aim9;
+      /* ★ 성큰은 **몸이 갈린다**(지적: "성큰 … 공격 애니메이션도 안 나오고 혓바닥 나오는
+         컷들") — 쏘는 성큰은 `sunken` 한 벌이 아니라 몸(sunkenrear) + 혓바닥(sunkentongue)
+         두 벌이고, 혓바닥의 회전 칸 0~3 이 곧 **뻗는 몫 1/4~4/4** 다. 도록이 그것을 몰라
+         늘 쉬는 몸만 그렸다. 지도와 같은 시계를 보고 앞 절반만 혀를 내민다. */
+      const sk9 = DOC_ATK_BODY9[kind];
+      if (sk9) {
+        const ph9 = sunkenPhase9(t);
+        if (ph9 < 0.5) {
+          atk9.kind = sk9.kind;
+          atk9.attach = sk9.attach;
+          atk9.attachRot = aim9;
+          atk9.spin = Math.min(3, Math.floor((ph9 / 0.5) * 4));
+        }
+        atk9.headDeg = aim9;
+      }
+      out9.push(atk9);
+    }
+  }
+  /* ④ 액션 — 변신 차례와 핵탄두의 낙하 회전. 변신은 한 컷 1.1초로 돈다. */
+  if (a9.morph && a9.morph.length > 1) {
+    const mk9 = a9.morph[Math.floor(t / 1.1) % a9.morph.length];
+    out9.push({ label: "액션", note: SHAPE_GALLERY.find((g9) => g9.kind === mk9)?.label ?? mk9, kind: mk9 });
+  } else if (a9.yawSpin) {
+    /* 낙하 회전 — 지도와 같은 22.5도 칸(굽기 열쇠가 그 칸이다)으로 반시계로 돈다. */
+    out9.push({ label: "액션", note: "낙하 회전", rotDeg: yaw - Math.round(((t * 180) % 360) / 22.5) * 22.5 });
+  }
+  return out9;
 }
 /** 도록 아이콘 — GL 붓이 켜져 있으면(GL_ON9 · `gl` 로 못 박음) **화면과 같은 메시 그림**(<canvas>, gl9.glIconRequest9 가 한 프레임의 청을 모아
  *  한 번에 그려 제 칸을 곧장 찍어 준다)이고, 아니면(폰·`#gl=0`·입체 보기·GL 못 섬·메시 못 지음) ShapeIcon(SVG, 2D 면) 그대로다. 프롭·창 규약(fit·fitPad·fitBox·
@@ -10028,11 +10187,21 @@ export default function ReplayMotionPlayer({
        기어갔다. 원작의 화면 밀기는 띠에 닿는 순간부터 제 속도가 붙는다.
        그래서 밑값을 준다: 닿으면 곧바로 520px/s, 끝까지 밀면 1900px/s. 띠도 52 → 68px
        으로 넓혀 화면 끝에서 손이 조금 흔들려도 안 끊긴다. */
-    const EDGE = 68;          // 미는 띠 폭(px)
-    const EDGE_MIN = 520;     // 띠에 닿는 순간의 초당 픽셀
-    const EDGE_MAX = 1900;    // 띠 안쪽 끝에서의 초당 픽셀
+    /* ★★ **띠가 아니라 진짜 끝이다**(2026-09, 요청: "피시 전체화면 엣지 투 스크롤은 진짜
+       끝에 갔을 때만") — 68px 띠는 화면 넓이의 한 뼘이라, 조종부를 겨누거나 미니맵 쪽으로
+       손을 옮기는 길이 다 그 안이었다. 밀 뜻이 없을 때도 지도가 흘렀다.
+       마우스는 화면 밖으로 못 나가므로 **맨 끝 두 화소**면 언제든 닿을 수 있다 — 그래서
+       띠를 그 두 화소로 좁힌다. 대신 '깊이'라는 것이 사라지므로(끝에 닿으면 늘 같은 자리다)
+       빠르기의 자를 **머문 시간**으로 바꾼다: 닿는 순간 520px/s 로 시작해 0.8초 머물면
+       1900px/s 에 닿는다. 깊이로 재던 때와 같은 두 끝을 시간 축에 옮긴 것이라, 살짝 밀고
+       떼는 손짓은 여전히 느리고 눌러 두면 빨라진다. */
+    const EDGE = 2;           // 미는 띠 폭(px) — 화면의 맨 끝
+    const EDGE_MIN = 520;     // 끝에 닿는 순간의 초당 픽셀
+    const EDGE_MAX = 1900;    // 계속 붙어 있을 때의 초당 픽셀
+    const EDGE_RAMP = 0.8;    // 밑값에서 최대까지 오르는 데 걸리는 초
     let mx9 = -1;
     let my9 = -1;
+    let hold9 = 0;               // 끝에 붙어 있은 시간(초)
     let edgeOn = false;
     let vx9 = 0;                 // 지금 실제로 미는 속도(px/s) — 겨눈 속도로 완화해 붙는다
     let vy9 = 0;
@@ -10073,15 +10242,15 @@ export default function ReplayMotionPlayer({
       const uiOn9 = fsUiRef.current;
       const vw9 = window.innerWidth;
       const vh9 = window.innerHeight;
-      /* 띠 안에서의 깊이(0~1) — 오른쪽 끝이면 화면을 오른쪽으로 보내야 하므로 팬은
+      /* 끝에 닿았나(−1·0·+1) — 오른쪽 끝이면 화면을 오른쪽으로 보내야 하므로 팬은
          음수다(렌즈를 왼쪽으로 민다). */
-      const ux9 = uiOn9 ? 0 : mx9 < EDGE ? (EDGE - mx9) / EDGE
-        : mx9 > vw9 - EDGE ? -(EDGE - (vw9 - mx9)) / EDGE : 0;
-      const uy9 = uiOn9 ? 0 : my9 < EDGE ? (EDGE - my9) / EDGE
-        : my9 > vh9 - EDGE ? -(EDGE - (vh9 - my9)) / EDGE : 0;
-      /** 깊이 u(부호 포함)를 겨눈 속도로 — 밑값에서 시작해 안쪽 끝에서 최대다. */
+      const ux9 = uiOn9 ? 0 : mx9 < EDGE ? 1 : mx9 > vw9 - 1 - EDGE ? -1 : 0;
+      const uy9 = uiOn9 ? 0 : my9 < EDGE ? 1 : my9 > vh9 - 1 - EDGE ? -1 : 0;
+      // 머문 시간이 곧 빠르기의 자다(위 ★★) — 끝에서 떨어지면 처음으로 돌아간다.
+      hold9 = ux9 !== 0 || uy9 !== 0 ? hold9 + dt9 : 0;
+      /** 방향 u(−1·0·+1)를 겨눈 속도로 — 밑값에서 시작해 머물수록 빨라진다. */
       const vel9 = (u8: number): number => (u8 === 0 ? 0
-        : Math.sign(u8) * (EDGE_MIN + (EDGE_MAX - EDGE_MIN) * Math.abs(u8)));
+        : u8 * (EDGE_MIN + (EDGE_MAX - EDGE_MIN) * Math.min(1, hold9 / EDGE_RAMP)));
       /* 겨눈 속도로 **미끄러지듯** 붙는다(요청: "드래그 수준으로 부드럽게") — 여태
          띠에 닿는 순간 520px/s가 그대로 꽂히고 나오는 순간 0으로 뚝 떨어져, 시작과
          끝이 계단이었다. 지수 완화(시정수 0.11초)로 따라가면 붙고 떨어지는 자리가

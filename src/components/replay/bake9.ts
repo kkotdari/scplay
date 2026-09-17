@@ -23426,6 +23426,14 @@ export type ShapeGalleryItem = {
   group: "유닛" | "건물" | "부가";
   /** 종족 — 중립(자원)은 빈 글자다. 도록의 종족 고르기가 이 칸을 본다. */
   race: "테란" | "프로토스" | "저그" | "";
+  /** ★ **표에는 있되 목록에는 안 서는 종류**(2026-09, 요청: "성큰 발사·시즈모드 별도 목록
+   *  없어도 되고 시즈모드는 탱크 기타 동작셀에 넣고 성큰발사는 성큰 공격셀에 넣으면 됨") ──
+   *  그 둘은 제 항목으로 설 까닭이 없다 — 탱크의 액션 칸과 성큰의 공격 칸이 이미 그것을
+   *  보여 주기 때문이다. 그렇다고 **표에서 지우면 안 된다**: 광택 표(glossOf9)가 이 표로
+   *  종족을 찾으므로, 빠지는 순간 그 모델이 제 종족 광택을 잃고 '그 밖' 값으로 그려진다
+   *  (터렛을 가를 때 적어 둔 그 함정이다). 그래서 **숨기기**만 한다 — 도록의 목록·도록
+   *  뽑기가 이 칸을 보고 건너뛴다. */
+  hidden?: true;
 };
 
 export const SHAPE_GALLERY: ShapeGalleryItem[] = [
@@ -23446,7 +23454,7 @@ export const SHAPE_GALLERY: ShapeGalleryItem[] = [
   // ── 유닛 · 프로토스 ──
   { kind: "scvMin", label: "SCV(미네랄)", group: "유닛", race: "테란" },
   { kind: "scvGas", label: "SCV(가스)", group: "유닛", race: "테란" },
-  { kind: "tanksiege", label: "시즈 탱크(시즈)", group: "유닛", race: "테란" },
+  { kind: "tanksiege", label: "시즈 탱크(시즈)", group: "유닛", race: "테란", hidden: true },   // 탱크의 액션 칸이 보여 준다(위 hidden)
   { kind: "mine", label: "스파이더 마인", group: "유닛", race: "테란" },
   { kind: "probe", label: "프로브", group: "유닛", race: "프로토스" },
   { kind: "zealot", label: "질럿", group: "유닛", race: "프로토스" },
@@ -23549,7 +23557,7 @@ export const SHAPE_GALLERY: ShapeGalleryItem[] = [
   { kind: "cavern", label: "울트라 동굴", group: "건물", race: "저그" },
   { kind: "dmound", label: "디파일러 마운드", group: "건물", race: "저그" },
   { kind: "cocoon", label: "공사 고치(저그)", group: "건물", race: "저그" },
-  { kind: "sunkenfire", label: "성큰(발사)", group: "건물", race: "저그" },
+  { kind: "sunkenfire", label: "성큰(발사)", group: "건물", race: "저그", hidden: true },   // 성큰의 공격 칸이 보여 준다(위 hidden)
   { kind: "lurkeregg", label: "럴커 알", group: "유닛", race: "저그" },
   { kind: "mutacocoon", label: "변태 고치", group: "유닛", race: "저그" },
   { kind: "droneMin", label: "드론(미네랄)", group: "유닛", race: "저그" },
