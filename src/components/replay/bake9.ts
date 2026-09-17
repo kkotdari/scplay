@@ -23774,6 +23774,181 @@ SHAPE_BUILDERS.interceptor = () => {
    원작의 스캐럽은 손바닥만 한 기계 벌레다: 둥근 금빛 등딱지, 그 밑에 파란 에너지 심,
    앞으로 난 짧은 다리 한 쌍. 아주 작게 그려지는 몸(상자 5px)이라 부품을 늘리면 한
    덩어리로 뭉갠다 — 등·심·다리 셋이면 '벌레'로 읽히는 최소한이다. */
+/* ★★ **도록의 공격 칸에 세우는 가상 표적 둘**(2026-09, 요청: "도록 공격신에 가상의 타겟을
+   세워줘(지상타겟은 곰돌이인형 공중타겟은 참새인형) 그래서 실제 타깃을 공격하는 모션을
+   보여주는거야 타겟의 피격효과는 평소 웃던 얼굴이 슬픈눈이 되고 눈에서 만화같이 눈물줄기가
+   흐르는것") ───────────────────────────────────────────────────────────────────────────
+   왜 인형인가: 도록의 공격 칸은 여태 **쏘는 몸 하나**뿐이라 줄기가 칸 가장자리까지 뻗고
+   끝났다. 곧 '무엇을 때리는지'와 '얼마나 멀리 때리는지'가 그림에 없었다. 표적을 세우면
+   사거리·총구 자리·피격 효과가 한 칸에서 다 읽히고, 그 값들이 **지도의 값 그대로**인지도
+   눈으로 검산된다.
+   · 표적은 **종족이 없다** — 진짜 유닛을 세우면 '이 유닛이 저 유닛의 천적'이라는 딴 말이
+     되므로, 아무 편도 아닌 인형으로 둔다.
+   · **얼굴이 상태를 말한다**: 자세 0 은 웃는 눈·웃는 입, 자세 1 은 **슬픈 눈 + 눈물줄기**다
+     (요청). 도록이 피격 박자에 맞춰 컷을 갈아 끼운다(docCellsOf9).
+   · ⚠ 얼굴은 **+y(앞)** 에 붙는다 — 그래서 표적을 세우는 쪽이 요잉을 '쏘는 쪽을 보게'
+     주면(aim + 180) 인형이 늘 총구를 마주 본다.
+   · ⚠ 도록 표(SHAPE_GALLERY)에 `hidden` 으로 적는다 — 목록에 서지는 않지만 광택 표
+     (glossOf9)가 그 표로 재질을 찾으므로, 빠지면 '그 밖' 값으로 떨어진다(인형은 천이라
+     '그 밖'이 맞는 값이지만, 적어 두는 것이 이 표의 규약이다). */
+/** 인형의 **웃음/울음** — 자세 1 이 피격 컷이다(요청: 슬픈 눈 + 눈물줄기). */
+const dollCry9 = (): boolean => poseNow === 1;
+/** 눈 한 짝 — 흰자 위에 검은 눈동자. 우는 컷에서는 눈동자가 아래로 처지고 눈꺼풀이 덮인다. */
+function dollEye9(ex: number, ey: number, ez: number, r: number, dir: 1 | -1): ShapeFace[] {
+  const cry9 = dollCry9();
+  const out: ShapeFace[] = [];
+  // 흰자 — 앞(+y)으로 볼록한 반구.
+  out.push(...paintBase(quarterDome(ex, ey, ez, r, 0, dir, undefined, 0.1, 1), "#f6f2ea"));
+  /* 눈동자 — 우는 컷은 **아래로 처진다**(슬픈 눈의 그 꼴이고, 흰자 위쪽이 그만큼 드러난다).
+     ⚠ **흰자보다 앞으로 나와야 보인다** — 처음에 중심을 0.34r 앞에 두고 반지름 0.52r 로
+       두었더니 앞면이 0.86r 로 흰자(r)보다 **뒤**라, 2D 는 화가 차례로 보였지만 GL 에서는
+       흰자가 눈동자를 통째로 덮었다(실측: 눈이 흰 알 둘). 앞면이 r 을 넘게 민다. */
+  out.push(...paintBase(quarterDome(ex, ey + dir * r * 0.62, ez - (cry9 ? r * 0.34 : 0), r * 0.45,
+    0, dir, undefined, 0.06, 1), "#23252c"));
+  /* 우는 컷의 **눈꺼풀** — 눈 위쪽을 덮는 납작한 반구 한 겹. 눈이 반쯤 감겨 슬퍼 보인다. */
+  if (cry9) {
+    out.push(...paintBase(quarterDome(ex, ey + dir * r * 0.2, ez + r * 0.42, r * 0.92,
+      0, dir, undefined, 0.06, 0.34), "#c99a72"));
+  }
+  return out;
+}
+/** 눈물줄기 한 가닥 — 눈 아래에서 흘러내리는 물줄기 + 끝의 물방울(요청: 만화같이). */
+function dollTear9(ex: number, ey: number, ez: number, r: number, dir: 1 | -1): ShapeFace[] {
+  const TEAR9 = "#7fd4ff";
+  // 줄기도 얼굴 살 **밖**이어야 한다(위 눈동자의 ⚠와 같은 자리다).
+  const y0 = ey + dir * r * 0.85;
+  return [
+    ...paintBase(rodFaces(ex, y0, ez - r * 0.5, ex, y0, ez - r * 2.3, r * 0.26), TEAR9),
+    // 물방울 — 줄기 끝에 매달린 작은 공(구슬이라 어느 각에서도 물방울로 읽힌다).
+    ...paintBase(spirePillar({
+      x: ex, y: y0, z0: ez - r * 2.9, h: r * 1.1, w: r * 0.44, tipW: 0.02, segs: 6, sides: 8,
+      widthOf: (t9: number): number => r * 0.44 * Math.sin(Math.PI * Math.min(0.999, Math.max(0.001, t9))),
+    }), TEAR9),
+  ];
+}
+/** 입 — 웃는 컷은 위로 휜 호, 우는 컷은 아래로 휜 호(같은 마디 수·같은 굵기).
+ *  ⚠⚠ **곧은 y 에 두면 얼굴 앞 허공에 뜬다**(2026-09, 지적: "곰 입도") — 주둥이는 구면이라
+ *  그 겉면 y 가 x·z 마다 다르다(실측: 곰 주둥이가 가운데 1.03 · x 0.34 에서 0.81 — 곧은
+ *  1.12 에 두면 호의 양끝이 0.3 앞에 떠 있었다). 그래서 **마디마다 그 자리의 구면 y** 를
+ *  풀어 앉힌다: 주둥이 중심(sy·sz) · 반지름 sr · 위로 눌린 몫 sup 을 받아
+ *  `y = sy + √(sr² − x² − ((z−sz)/sup)²) + 한 뼘`.
+ *  '다각 기둥에 무엇을 붙일 때'·'눌린 단면 위에 판을 얹을 때'와 **같은 자리**다 — 굽은 살에
+ *  얹는 것은 늘 그 살의 자로 재야 한다. */
+function dollMouth9(
+  cx: number, w: number, cz: number, dir: 1 | -1,
+  sy: number, sz: number, sr: number, sup: number,
+): ShapeFace[] {
+  const cry9 = dollCry9();
+  const out: ShapeFace[] = [];
+  const N9 = 5;
+  const z9 = (u9: number): number => cz + (cry9 ? -1 : 1) * (1 - u9 * u9) * w * 0.34;
+  /** 그 (x, z) 에서 주둥이 겉면의 y — 살 밖으로 한 뼘(0.03) 띄운다. */
+  const y9 = (x9: number, zz9: number): number => sy + 0.03
+    + Math.sqrt(Math.max(0.02, sr * sr - x9 * x9 - ((zz9 - sz) / sup) ** 2));
+  for (let i9 = 0; i9 < N9; i9 += 1) {
+    const u0 = -1 + (2 * i9) / N9;
+    const u1 = -1 + (2 * (i9 + 1)) / N9;
+    const x0 = cx + u0 * w; const x1 = cx + u1 * w;
+    out.push(...paintBase(rodFaces(x0, y9(x0, z9(u0)), z9(u0), x1, y9(x1, z9(u1)), z9(u1), w * 0.16), "#3a2a22"));
+  }
+  // 입 안쪽 한 점 — 호만 그으면 선으로 읽히므로 가운데에 작은 덩이를 둔다.
+  const zc9 = cz + (cry9 ? -w * 0.2 : w * 0.16);
+  out.push(...paintBase(quarterDome(cx, y9(cx, zc9) - 0.03, zc9, w * 0.3, 0, dir, undefined, 0.04, 0.5), "#5d3a30"));
+  return out;
+}
+/** ★ 곰돌이 인형 — 도록 공격 칸의 **지상 표적**(요청). */
+SHAPE_BUILDERS.dollbear = () => {
+  const FUR9 = "#c08a5e";        // 곰 인형의 천 색(갈색)
+  const FUR_D9 = "#a06f49";      // 그늘진 천(팔·다리)
+  const SNOUT9 = "#e6c69c";      // 주둥이·배·발바닥의 밝은 천
+  const BODY_Z9 = 1.5;           // 몸통 가운데 높이
+  const HEAD_Z9 = 3.5;           // 머리 가운데 높이
+  const spindle9 = (x: number, y: number, z: number, r: number, h: number, fill: string): ShapeFace[] =>
+    paintBase(spirePillar({
+      x, y, z0: z - h / 2, h, w: r, tipW: 0.02, segs: 8, sides: 10,
+      widthOf: (t9: number): number => r * Math.sin(Math.PI * Math.min(0.999, Math.max(0.001, t9))),
+    }), fill);
+  return [
+    // 몸통 — 둥근 방추(어느 요잉에서도 둥글다).
+    ...spindle9(0, 0, BODY_Z9, 1.15, 2.5, FUR9),
+    // 배의 밝은 천 — 앞으로 볼록한 납작 반구.
+    ...paintBase(quarterDome(0, 0.62, BODY_Z9 - 0.1, 0.72, 0, 1, undefined, 0.06, 0.8), SNOUT9),
+    // 다리 둘 — 몸 아래로 짧게(발바닥은 밝은 천).
+    ...([-1, 1] as const).flatMap((m9) => [
+      ...spindle9(m9 * 0.58, 0.1, 0.62, 0.46, 1.3, FUR_D9),
+      ...paintBase(quarterDome(m9 * 0.58, 0.48, 0.5, 0.26, 0, 1, undefined, 0.04, 0.7), SNOUT9),
+    ]),
+    // 팔 둘 — 옆·아래로 뻗은 짧은 방추.
+    ...([-1, 1] as const).flatMap((m9) => spindle9(m9 * 1.18, 0.05, BODY_Z9 + 0.35, 0.38, 1.5, FUR_D9)),
+    // 머리 — 몸보다 큰 공.
+    ...spindle9(0, 0, HEAD_Z9, 1.05, 2.15, FUR9),
+    // 귀 둘 — 머리 위 좌우의 작은 공.
+    ...([-1, 1] as const).flatMap((m9) => spindle9(m9 * 0.78, 0, HEAD_Z9 + 0.82, 0.36, 0.72, FUR_D9)),
+    // 주둥이 — 앞으로 볼록한 밝은 반구 + 검은 코.
+    ...paintBase(quarterDome(0, 0.66, HEAD_Z9 - 0.28, 0.5, 0, 1, undefined, 0.06, 0.9), SNOUT9),
+    ...paintBase(quarterDome(0, 1.05, HEAD_Z9 - 0.16, 0.2, 0, 1, undefined, 0.04, 0.9), "#2b2420"),
+    // 눈 둘 · 입 — 얼굴은 +y 를 본다(위 ⚠). 입은 주둥이 **겉면 밖**이다.
+    ...([-1, 1] as const).flatMap((m9) => dollEye9(m9 * 0.42, 0.78, HEAD_Z9 + 0.3, 0.26, 1)),
+    ...dollMouth9(0, 0.3, HEAD_Z9 - 0.55, 1, 0.66, HEAD_Z9 - 0.28, 0.5, 0.9),
+    // 우는 컷의 눈물 둘.
+    ...(dollCry9() ? ([-1, 1] as const).flatMap((m9) => dollTear9(m9 * 0.42, 0.78, HEAD_Z9 + 0.3, 0.26, 1)) : []),
+  ];
+};
+/** ★ 참새 인형 — 도록 공격 칸의 **공중 표적**(요청). 나는 표적이라 몸이 떠 있다. */
+SHAPE_BUILDERS.dollbird = () => {
+  const BODY9 = "#8d7356";       // 참새의 갈색 천
+  const WING9 = "#6f5940";       // 날개·꼬리의 짙은 천
+  const BELLY9 = "#efe3cf";      // 배의 밝은 천
+  const BEAK9 = "#e2a63c";       // 부리
+  const BODY_Z9 = 2.7;
+  const HEAD_Z9 = 4.15;
+  const spindle9 = (x: number, y: number, z: number, r: number, h: number, fill: string): ShapeFace[] =>
+    paintBase(spirePillar({
+      x, y, z0: z - h / 2, h, w: r, tipW: 0.02, segs: 8, sides: 10,
+      widthOf: (t9: number): number => r * Math.sin(Math.PI * Math.min(0.999, Math.max(0.001, t9))),
+    }), fill);
+  return [
+    // 몸통 — 달걀꼴(참새는 가슴이 통통하고 꼬리로 여윈다).
+    ...paintBase(spirePillar({
+      x: 0, y: -0.15, z0: BODY_Z9 - 1.1, h: 2.2, w: 0.92, tipW: 0.02, segs: 9, sides: 10,
+      widthOf: (t9: number): number => 0.92 * Math.sin(Math.PI * Math.min(0.999, Math.max(0.001, t9)) ** 0.82),
+    }), BODY9),
+    // 배 — 앞아래로 볼록한 밝은 천.
+    ...paintBase(quarterDome(0, 0.42, BODY_Z9 - 0.45, 0.6, 0, 1, undefined, 0.06, 0.8), BELLY9),
+    // 꼬리 — 뒤로 뻗은 납작한 쐐기 셋.
+    ...([-1, 0, 1] as const).flatMap((m9) => paintBase(
+      rodFaces(m9 * 0.12, -0.85, BODY_Z9 - 0.5, m9 * 0.42, -2.05, BODY_Z9 - 0.72, 0.12), WING9,
+    )),
+    // 날개 둘 — 몸 옆에 접힌 납작 반구.
+    ...([-1, 1] as const).flatMap((m9) => paintBase(
+      quarterDome(m9 * 0.82, -0.1, BODY_Z9, 0.68, m9, 0, undefined, 0, 0.42), WING9,
+    )),
+    // 다리 둘 — 짧은 주황 막대(인형이라 발은 점 하나).
+    ...([-1, 1] as const).flatMap((m9) => paintBase(
+      rodFaces(m9 * 0.28, 0.1, BODY_Z9 - 1.0, m9 * 0.34, 0.24, BODY_Z9 - 1.7, 0.09), BEAK9,
+    )),
+    // 머리 — 작은 공.
+    ...spindle9(0, 0.12, HEAD_Z9, 0.66, 1.34, BODY9),
+    // 부리 — 앞으로 뾰족한 원뿔.
+    ...paintBase(spirePillar({
+      x: 0, y: 0.6, z0: HEAD_Z9 - 0.18, h: 0.36, w: 0.2,
+      /* ⚠ **여기서 `Z8` 을 곱하지 않는다**(2026-09, 지적: "새 부리가 이상한 데 있어") — 이
+         빌더의 z 상수(HEAD_Z9 …)는 이미 **눌린 모델 자**다(코드모드가 지난 뒤의 좌표계).
+         경로 람다의 return z 에 Z8 을 곱하라는 규약은 **설계 자로 셈하는** 람다의 것이라,
+         눌린 상수를 그대로 쓰는 자리에 곱하면 **두 번 눌려** 부리가 머리에서 가슴으로
+         내려앉는다(실측: z 4.13 → 3.30). */
+      path: (t9: number): [number, number, number] => [0, 0.6 + t9 * 0.62, HEAD_Z9 - 0.02 - t9 * 0.1],
+      widthOf: (t9: number): number => 0.22 * (1 - t9) + 0.02,
+      segs: 5, sides: 8, caps: "bottom", ref: [0, 1, 0],
+    }), BEAK9),
+    /* 눈 둘 — 얼굴은 +y 다. ⚠ **새는 입을 따로 안 그린다**(지적: "새 부리가 이상한 데 있어")
+       — 부리가 곧 입이라, 그 아래 호를 하나 더 그으면 부리 앞 허공에 떠서 무엇인지 안 읽힌다.
+       우는 것은 눈과 눈물이 말한다. */
+    ...([-1, 1] as const).flatMap((m9) => dollEye9(m9 * 0.3, 0.46, HEAD_Z9 + 0.2, 0.2, 1)),
+    ...(dollCry9() ? ([-1, 1] as const).flatMap((m9) => dollTear9(m9 * 0.3, 0.46, HEAD_Z9 + 0.2, 0.2, 1)) : []),
+  ];
+};
+
 SHAPE_BUILDERS.scarab = () => {
   /* 스캐럽(재작도 요청): **구형 몸**에 앞을 보는 **반구 눈 둘**과 **철사 더듬이 둘**. 땅에 붙어
      구르는 작은 공이라 z 1.5 언저리에 앉는다. 이 빌더는 zsorted를 안 타므로 배열 차례가 곧
@@ -24370,6 +24545,10 @@ export const AUX_GALLERY: ShapeGalleryItem[] = [
   { kind: "tankturretxf", label: "시즈 전환 포탑", group: "부가", race: "테란", hidden: true },
   { kind: "addonlink", label: "부속 연결관", group: "부가", race: "테란" },
   { kind: "burrowhole", label: "버로우 구멍", group: "부가", race: "저그" },
+  /* ★ 도록 공격 칸의 가상 표적 둘(요청) — 목록에는 안 세우지만(`hidden`) 광택 표가 이 표로
+     재질을 찾으므로 적어 둔다. 종족은 빈 글자다 — 광택 표에서 '그 밖' 값(천·무광)으로 떨어지는 것이 맞다. */
+  { kind: "dollbear", label: "곰돌이 인형(표적)", group: "부가", race: "", hidden: true },
+  { kind: "dollbird", label: "참새 인형(표적)", group: "부가", race: "", hidden: true },
   /* 공사 발판(요청) — 짓는 동안 건물 상자 안쪽 모퉁이에 두 채 서는 그 탑이다.
      도록은 한 채를 본다(경광등은 도록의 대기 애니메이션에서 깜빡인다). */
   { kind: "scaffold", label: "공사 발판", group: "부가", race: "테란" },

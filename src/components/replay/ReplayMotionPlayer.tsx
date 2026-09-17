@@ -89,7 +89,7 @@ import { TEAM_COLOR, type MinimapMarker } from "./markers";
 import {
   atkCutOf as atkCutOf9, flapCutOf as flapCutOf9,
   muzzlePoint as muzzlePoint9, anchorPoint as anchorPoint9, spinMuzzle9, BLD_MUZZLE, HEAD_MUZZLE_KINDS9, MUZZLE_BURST_FX9, SHELL_ONLY_FX9,
-  AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, ATTACK_FX, NO_BEAM_FX, TARGET_FX, PROJECTILE_FX, NUKE_BOOM_SEC, NUKE_FALL_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, attackFxOf9, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SIEGE_TURN_U9, SIEGE_XF_SEC, SPIN_ANIM9, SPIN_STEPS, SUNK_OUT9, sunkenCut9, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
+  AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, ATTACK_FX, NO_BEAM_FX, TARGET_FX, PROJECTILE_FX, NUKE_BOOM_SEC, NUKE_FALL_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, attackFxOf9, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SIEGE_TURN_U9, SIEGE_XF_SEC, BURROW_DIG_SEC, SPIN_ANIM9, SPIN_STEPS, SUNK_OUT9, sunkenCut9, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
 } from "./engine9";
 import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, WorldUi9 } from "./engine9";
 import {
@@ -5743,11 +5743,11 @@ const DOC_MORPH9: Record<string, string[]> = {
   /* ⚠ **시즈 모드는 여기 없다**(2026-09, 요청: "도록 팝업에서 탱크 변신 장면을 재생기와 똑같이
      애니메이션으로 보여 줘") — 두 몸을 1.1초마다 갈아 끼우는 것은 변신이 아니라 **깜빡임**이다.
      탱크는 아래 `docSiegeCell9` 가 지도와 같은 자로 마디마다 그린다. */
-  /* 럴커 — 땅에 묻히고, 가시를 세운다. **알은 안 든다**(아래 ⚠) — 버로우는 변태가 아니라
-     제 몸이 하는 동작이라 남는다. */
-  lurker: ["lurker", "lurkerburrow", "lurkerfire"],
-  lurkerburrow: ["lurker", "lurkerburrow", "lurkerfire"],
-  lurkerfire: ["lurkerburrow", "lurkerfire"],
+  /* ⚠ **럴커도 여기 없다**(2026-09, 지적: "럴커 버로우도 저번에 탱크 말한 거처럼 애니여야
+     하는데 아니네") — 시즈와 똑같은 까닭이다: `lurker`·`lurkerburrow`·`lurkerfire` 셋을
+     1.1초마다 갈아 끼우는 것은 버로우가 아니라 **깜빡임**이고, 지도가 보여 주는 파는 몸짓
+     (컷 4↔5 · 18Hz · 창 0.9초)이 통째로 빠진다. 아래 `docBurrowCell9` 가 지도와 같은 자로
+     마디마다 그린다. */
 };
 /* ⚠⚠ **저그의 '변태'는 도록 팝업에서 뺐다**(2026-09, 요청: "저그 변태모션은 팝업에서 빼기") —
    알에서 깨고(egg → 유닛) · 공사 고치에서 서고(cocoon → 건물) · 고치를 거쳐 갈리고
@@ -5932,6 +5932,31 @@ function docSiegeCell9(t: number, yaw: number): DocCell9 {
     parts: [{ kind: "tanksiegelegs", pose: cut9(mech9) }, { kind: "tanksiegelegsF", pose: cut9(mech9) },
       { kind: "tankturretxf", pose: cut9(gun9), rotDeg: rot9 }] };
 }
+/** ★★ **럴커 버로우도 한 동작이다 — 두 몸의 깜빡임이 아니다**(2026-09, 지적: "럴커 버로우도
+ *  저번에 탱크 말한 거처럼 애니여야 하는데 아니네") ───────────────────────────────────────
+ *  탱크에서 고친 그 자리와 **같은 병**이었다: 액션 칸이 `DOC_MORPH9` 로 `lurker` ·
+ *  `lurkerburrow` · `lurkerfire` 셋을 1.1초마다 갈아 끼우고 있었다. 지도가 보여 주는 것은
+ *  그 사이가 아니라 **파는 동작**이다(engine9 의 그 자리):
+ *    · 창은 `BURROW_DIG_SEC`(0.9초) — 상태가 ST_BURROW 로 바뀌기 **전** 그만큼이 파는 몫이다.
+ *    · 그동안 **선 몸이 컷 4↔5 를 18Hz 로** 오간다(engine9 의 `Math.floor(t * 18) % 2`).
+ *    · 럴커만 **안 가라앉는다**(다른 버로우 유닛은 제 키만큼 잠긴다) — 파는 자세와 흙덩이가
+ *      그 몫이라고 그 자리에 적혀 있다.
+ *    · 창이 끝나면 몸이 `lurkerburrow` 로 갈린다.
+ *  ⚠ **나오는 창은 지도에 없다** — 참값은 ST_BURROW 로 들어가는 시각만 앞서 보므로(burrowNext9)
+ *    '나오기'의 시계가 없다. 도록은 **같은 컷을 거꾸로 쓴다**: 흙을 파는 몸짓은 들어갈 때나
+ *    나올 때나 같은 동작이고, 갈리는 것은 상태가 가는 쪽뿐이다. 새 숫자를 지어내지 않았다.
+ *  ★ 한 바퀴는 탱크와 같은 짜임이다: 파기 → 묻힌 채 → 나오기 → 선 채(머무는 몫 0.8초). */
+const DOC_BURROW_HOLD9 = 0.8;
+const DOC_BURROW_CYCLE9 = BURROW_DIG_SEC * 2 + DOC_BURROW_HOLD9 * 2;
+function docBurrowCell9(t: number): DocCell9 {
+  const p9 = (((t % DOC_BURROW_CYCLE9) + DOC_BURROW_CYCLE9) % DOC_BURROW_CYCLE9);
+  /* 파는 컷 — 지도와 **같은 박자**다(18Hz 로 4↔5). 도록이 제 숫자를 들면 파는 속도가 갈린다. */
+  const dig9: 0 | 1 | 2 | 3 | 4 | 5 = Math.floor(t * 18) % 2 === 1 ? 5 : 4;
+  if (p9 < BURROW_DIG_SEC) return { label: "액션", note: "버로우", kind: "lurker", pose: dig9 };
+  if (p9 < BURROW_DIG_SEC + DOC_BURROW_HOLD9) return { label: "액션", note: "묻힌 채", kind: "lurkerburrow" };
+  if (p9 < BURROW_DIG_SEC * 2 + DOC_BURROW_HOLD9) return { label: "액션", note: "언버로우", kind: "lurker", pose: dig9 };
+  return { label: "액션", note: "선 채", kind: "lurker", pose: 0 };
+}
 export function docCellsOf9(kind: string, t: number, yaw: number): DocCell9[] {
   const a9 = docAnimOf9(kind);
   const gun9 = !!docWeaponOf9(kind);
@@ -6027,6 +6052,7 @@ export function docCellsOf9(kind: string, t: number, yaw: number): DocCell9[] {
   }
   /* ④ 액션 — 변신 차례와 핵탄두의 낙하 회전. 변신은 한 컷 1.1초로 돈다. */
   if (kind === "tank" || kind === "tanksiege") out9.push(docSiegeCell9(t, yaw));
+  else if (kind === "lurker" || kind === "lurkerburrow" || kind === "lurkerfire") out9.push(docBurrowCell9(t));
   else if (a9.morph && a9.morph.length > 1) {
     const mk9 = a9.morph[Math.floor(t / 1.1) % a9.morph.length];
     out9.push({ label: "액션", note: SHAPE_GALLERY.find((g9) => g9.kind === mk9)?.label ?? mk9, kind: mk9 });
