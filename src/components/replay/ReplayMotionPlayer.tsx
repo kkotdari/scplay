@@ -439,6 +439,9 @@ const xfMsRef9 = { v: 8 };
 /** 손짓 한 번 동안의 **배킹 몫**(1 · 0.7 · 0.5 · 0.4) — 한 손짓 안에서는 **내려가기만 한다**(아래 ★).
  *  손짓이 시작될 때 1로 되돌린다(beginGestureXf). */
 const xfBackK9 = { k: 1 };
+/** 이 손짓에서 **실시간 원근이 살아 있나**(liveViewOkRef9 의 거울) — 붓이 배킹을 내릴지 가리는 데 쓴다.
+ *  모듈 전역인 까닭은 xfMsRef9 와 같다(붓은 React 밖에서 불려 부모의 ref 를 못 본다). */
+const xfLive9 = { on: false };
 let brushAT9 = -1;
 /** 재생기 인스턴스 번호(마운트 순) — 한 페이지에 재생기가 둘이면 진단 고리에 섞이므로 가른다. 렌더가 세운다. */
 let INST_SEQ9 = 0;
@@ -4130,9 +4133,28 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          올라가고, 그러면 다시 무거워진다 — 재는 값 자체가 그 조치의 결과라 그렇다. 한 손짓 동안은
          가장 낮았던 몫을 지키고, 손을 뗄 때 1로 되돌린다(제 배킹으로 마지막 한 장을 칠한다).
          셋째 칸(0.4)을 더한다 — 이제 남은 벽이 칠하는 픽셀이라(찍기 602장/프레임), 그 칸이 실제로 쓰인다. */
-      const kWant9 = xfMsRef9.v >= 70 ? 0.4
-        : xfMsRef9.v >= XF_HEAVY_MS9 ? 0.5
-          : xfMsRef9.v >= 25 ? 0.7 : 1;
+      /* ★★ **실시간 원근이 살아 있는 손짓에서는 배킹을 안 내린다**(2026-09, 지적: "품질 매우높음에서만
+         드래그 시 모델들이 흐려지는데 왜 그럴까" · "티어 3에서 켜져 있는 실시간 원근 변화가 관련있을 수도"
+         — 그 짐작이 맞다) ─────────────────────────────────────────────────────────────────────────
+         두 손질이 서로 싸우고 있었다:
+           ㉠ 실시간 원근(PC 3단 `DEV9.live3d`)은 손짓 중 **던지기 문턱을 건너뛰고**(`live3d9 || gap9 >= need9`)
+              손끝이 움직일 때마다 한 장을 다 칠한다 — 그래야 기울기가 계단으로 안 튄다.
+           ㉡ 배킹 몫은 **직전 한 장이 25ms 를 넘으면** 0.7(또는 0.5·0.4)로 내리고, 그 값을 **한 손짓 동안
+              붙들어 둔다**(오르내림 진동을 막으려고).
+         곧 3단은 ㉠ 때문에 손짓 한 번에 훨씬 많은 장을 칠하는데, 그중 **한 장만** 25ms 를 넘기면 ㉡ 이
+         걸려 남은 손짓이 통째로 0.7배로 흐려진다. 3단이 아닌 단은 던지기 문턱에 걸려 장 수가 적으니
+         그 한 장을 안 만나고 또렷하다 — '매우 높음에서만 흐리다'가 그것이다. 가장 빠른 기기에만 흐림을
+         주는 꼴이라 단의 뜻이 거꾸로 섰다.
+         고침은 **접힐 때까지 기다리는 것**이다: 실시간 원근이 살아 있는 동안은 배킹을 1 로 둔다. 진짜로
+         무거우면 연달아 세 장이 33ms 를 넘어 원근이 **접히고**(아래 xfHeavyRef9 의 ★), 그때부터는 종전
+         규칙대로 배킹이 내려간다. 곧 '한 장이 튀었다'가 아니라 '이 기기가 실제로 못 버틴다'가 문턱이 된다.
+         · ⚠ 이것은 접기 규칙에서 이미 한 번 고친 함정과 **같은 자리**다("한 장 규칙은 메시를 처음 짓는
+           첫 프레임에 걸려 손짓마다 접힌 채 돌았다") — 그때 접기만 고치고 **배킹은 안 고쳤다**.
+           손짓 중 한 장으로 판정하는 자가 또 있으면 다 이 손이다. */
+      const kWant9 = (gest9 && xfLive9.on) ? 1
+        : xfMsRef9.v >= 70 ? 0.4
+          : xfMsRef9.v >= XF_HEAVY_MS9 ? 0.5
+            : xfMsRef9.v >= 25 ? 0.7 : 1;
       if (gest9) { if (kWant9 < xfBackK9.k) xfBackK9.k = kWant9; } else xfBackK9.k = 1;
       const Bd = gest9 ? B * xfBackK9.k : B;
       /* ★ 그림자도 **배킹과 같은 자로** 접는다(지적: "드래그 중에 그림자 없어지는 거 봤어") — 위 깃발은 손짓이면
@@ -10467,13 +10489,16 @@ export default function ReplayMotionPlayer({
          첫 프레임(메시를 처음 짓는 장)에 걸려 손짓마다 접힌 채로 돈다. 그 밖은 종전대로 한 장이면 접는다. */
       if (xfPaintMsRef.current > 33) {
         xfHeavyRef9.current += 1;
-        if (liveViewOkRef9.current && xfHeavyRef9.current >= (DEV9.live3d ? 3 : 1)) liveViewOkRef9.current = false;
+        if (liveViewOkRef9.current && xfHeavyRef9.current >= (DEV9.live3d ? 3 : 1)) {
+          liveViewOkRef9.current = false;
+          xfLive9.on = false;   // 접혔으니 이제 배킹을 내려도 된다(위 xfLive9 의 ★★)
+        }
       } else xfHeavyRef9.current = 0;
       // 손짓 한 장이 든 시간 — 계측 도구가 읽는다(#diag=draw의 자와 같은 자).
       SCR_DIAG.xfms = Math.round(xfPaintMsRef.current);
       /* 계측 도구가 읽는 한 줄(perf-check `[손짓]`) — 실시간 원근이 켜졌나·접혔나, 밀림 기준이 따라오나. */
       if (scrDiagOn()) {
-        SCR_DIAG.gest = `${Math.round(xfPaintMsRef.current)}ms 배킹×${xfBackK9.k}`
+        SCR_DIAG.gest = `${Math.round(xfPaintMsRef.current)}ms 배킹×${xfBackK9.k}${xfLive9.on ? "(live 붙듦)" : ""}`
           + ` 원근 ${live3dOn9() ? (liveViewOkRef9.current ? "live" : "접힘") : "off"}`
           + ` 밀림 ${shearOxRef9.current === null ? "따라옴" : "얼림"}`
           + ` 무거운장 ${xfHeavyRef9.current} · ${DEV9.name} ${TIER9.v}단`;
@@ -10515,6 +10540,7 @@ export default function ReplayMotionPlayer({
        실시간") 그 얼리기였다. 접히면(위 세 장 규칙) 워커에 새 원점을 안 보내므로 그 자리에서 저절로 멎는다.
        실시간 원근이 꺼진 손짓은 종전 그대로 얼린다(그쪽은 다시 그리는 박자가 고르지 않아 튄다). */
     liveViewOkRef9.current = live3dOn9() && pitchDegRef9.current < 90;
+    xfLive9.on = liveViewOkRef9.current;   // 붓이 읽는 거울(위 xfLive9) — 배킹을 내릴지 가린다
     xfHeavyRef9.current = 0;
     shearOxRef9.current = liveViewOkRef9.current ? null : (pitchGeomLiveRef9.current?.().ox ?? null);
     xfPaintAtRef.current = performance.now();
