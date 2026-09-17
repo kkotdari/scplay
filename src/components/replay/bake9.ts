@@ -3028,11 +3028,19 @@ export function dishFaces9(o: {
   /** 아가리가 보는 방향(기본 하늘) — z 는 접힌 모델 z 자다. */ n?: [number, number, number];
   /** 둘레 조각 수(기본 16) · 반지름 켜의 비(기본 여섯 켜) */ seg?: number; rings?: number[];
   /** 옆선의 거듭제곱(기본 2 = 포물면 · 1.4 쯤이 위성 접시 · 1 은 원뿔) */ pow?: number;
+  /** ★ **역돔**(2026-09, 요청: "커맨드랑 베이 접시 바닥 평평하면 안 된다니깐 역돔이여야지") —
+   *  옆선을 거듭제곱이 아니라 **타원(구) 단면**으로 판다: 물러나는 몫이 `깊이 × √(1 − (ρ/r)²)` 라
+   *  테에서는 벽이 거의 수직이고 바닥은 둥글게 여민다. 곧 반구를 엎어 놓은 속이다.
+   *  ⚠ 켜는 **각을 고르게** 나눠야 한다(반지름을 고르게 나누면 테 쪽 한 켜가 깊이의 절반을
+   *    먹어 계단이 진다) — 안 주면 sin(90·i/n) 으로 잡는다. */
+  dome?: boolean;
   /** 몸 색(안 주면 임자 색) · 속 바닥 색(안 주면 몸 색) */ fill?: string; capFill?: string;
   /** 첫 켜의 그늘 · 켜마다 더하는 몫(0 둘이면 그늘 없음) */ shade0?: number; shade?: number;
 }): ShapeFace[] {
   const seg9 = Math.max(6, o.seg ?? 16);
-  const rings9 = o.rings ?? [1, 0.82, 0.64, 0.46, 0.28, 0.12];
+  const rings9 = o.rings ?? (o.dome
+    ? [1, 0.951, 0.809, 0.588, 0.309, 0]          // sin(90·i/5) — 각을 고르게 나눈 켜
+    : [1, 0.82, 0.64, 0.46, 0.28, 0.12]);
   const pw9 = o.pow ?? 2;
   const n09 = o.n ?? [0, 0, 1];
   const nl9 = Math.hypot(n09[0], n09[1], n09[2]) || 1;
@@ -3050,7 +3058,8 @@ export function dishFaces9(o: {
   const vz9 = nx9 * uy9 - ny9 * ux9;
   const pt9 = (rho9: number, a9: number): [number, number, number] => {
     const c9 = Math.cos(a9) * rho9; const s9 = Math.sin(a9) * rho9;
-    const d9 = o.depth * (1 - (rho9 / (o.r || 1)) ** pw9);
+    const u9 = rho9 / (o.r || 1);
+    const d9 = o.depth * (o.dome ? Math.sqrt(Math.max(0, 1 - u9 * u9)) : 1 - u9 ** pw9);
     return [
       o.x + ux9 * c9 + vx9 * s9 - nx9 * d9,
       o.y + uy9 * c9 + vy9 * s9 - ny9 * d9,
@@ -4463,8 +4472,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     out.push(...tagKey(paintBase(
       cylinderFaces3(0, 0, DRM_R, DRM_H, DRM_Z), COPPER,
     ), 30.8));
+    /* ⚠⚠ **윗면을 안 낸다 — 그 낯이 그릇을 덮고 있었다**(2026-09, 지적: "커맨드랑 베이 접시
+       바닥 평평하면 안 된다니깐 역돔이여야지") — 꼭대기 그릇은 이 절두체의 **윗면 아래로** 판
+       것이라, 그 윗면(구리 판 한 장)이 그대로 뚜껑이 되어 속을 통째로 가렸다. 2D 는 화가 차례로
+       그릇을 나중에 얹어 보였지만 GL 은 진짜 깊이라 위에 있는 판이 이긴다 — 그릇을 빨갛게
+       칠해 보니 테두리 한 줄만 붉고 속은 구리색 그대로였다(그 실험으로 잡았다).
+       윗면은 아래 그릇 블록이 **고리로 손수 깐다**(네모 테 ↔ 둥근 아가리). */
     out.push(...tagKey(paintBase(
-      frustumFaces3(0, 0, FR_W0, FR_D0, FR_W1, FR_D1, FR_Hz9, FR_ZB), COPPER,
+      frustumFaces3(0, 0, FR_W0, FR_D0, FR_W1, FR_D1, FR_Hz9, FR_ZB, undefined, true), COPPER,
     ), 31));
     /* 앞면 장식(창)은 앞이 보일 때만 — 뒤로 돌린 각도에서도 그리면 몸 위로 떠올라
        팔처럼 삐져나와 보였다. */
@@ -4497,7 +4512,31 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const bz9 = TOP_Z;
       const NB9 = 14;                              // 기둥과 같은 낯 수
       const key9 = 33;
-      // ① 테 — 입구 둘레의 은빛 고리(가운데를 뚫어 두어야 속이 보인다).
+      /* ① 옥상 — 절두체의 네모 테에서 그릇 바깥 테까지의 **구리 고리**(위 ⚠⚠). 마디마다 네모
+         한 장이라 어느 붓에서도 같은 고리다(이어 붙인 다각형은 GL 에서 꽉 찬 판이 된다 —
+         로보틱스 테두리 링에서 겪은 그 자리). 감기는 프리미티브의 윗면과 같게 맞춘다
+         (시계 방향 = 법선이 아래 · frustumFaces3 의 corners 규약). */
+      {
+        const deck9: ShapeFace[] = [];
+        const edge9 = (a9: number): [number, number, number] => {
+          const sx9 = Math.sin(a9); const cy9 = Math.cos(a9);
+          const t9 = Math.min(
+            Math.abs(sx9) < 1e-6 ? 1e9 : (FR_W1 / 2) / Math.abs(sx9),
+            Math.abs(cy9) < 1e-6 ? 1e9 : (FR_D1 / 2) / Math.abs(cy9),
+          );
+          return [sx9 * t9, cy9 * t9, bz9];
+        };
+        const cir9 = (a9: number): [number, number, number] =>
+          [Math.sin(a9) * BR9, Math.cos(a9) * BR9, bz9];
+        const NE9 = NB9 * 2;   // 네모 모퉁이를 매끄럽게 담으려면 마디를 배로
+        for (let i9 = 0; i9 < NE9; i9 += 1) {
+          const a0 = (i9 / NE9) * Math.PI * 2;
+          const a1 = ((i9 + 1) / NE9) * Math.PI * 2;
+          deck9.push(...paintBase([bodyFace(polyPath3([edge9(a0), edge9(a1), cir9(a1), cir9(a0)]))], COPPER));
+        }
+        out.push(...tagKey(deck9, key9 - 0.1));
+      }
+      // ② 테 — 입구 둘레의 은빛 고리(가운데를 뚫어 두어야 속이 보인다).
       out.push(...tagKey(paintBase([bodyFace(annulusPath3(0, 0, bz9, BR9, BI9))], SILVER), key9));
       /* ② 속 — **패인 그릇**(공용 헬퍼 dishFaces9 · 요청: "커맨드 꼭대기 절두체 윗면의
          패임 … 다 dish를 이용하면 될거 같은데") ─────────────────────────────────────────
@@ -4506,8 +4545,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          대접이 아니었다. 회전 포물면으로 바꾸면 옆선이 굽어 그릇이 된다.
          깊이는 옛 값 그대로(BD9)이고, 바닥 색도 그대로 가장 어둡게 준다. */
       out.push(...tagKey(dishFaces9({
-        x: 0, y: 0, z: bz9, r: BI9, depth: BD9, seg: NB9, pow: 1.5,
-        rings: [1, 0.82, 0.62, 0.42, 0.22, 0],
+        x: 0, y: 0, z: bz9, r: BI9, depth: BI9 * 0.85, seg: NB9, dome: true,
         fill: STEEL, shade0: 0.08, shade: 0.06,
       }), key9 + 0.2));
     }
@@ -8301,8 +8339,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         // ② 패임 — 공용 패인 그릇(축은 기운 지붕의 법선).
         dish9.push(...dishFaces9({
           x: 0, y: 0, z: dishZ9(0, 0), r: MR9, depth: 1.36, n: [0, 1.04 / 8.2, 1],
-          seg: N9, pow: 1.5, rings: [1, 0.82, 0.62, 0.42, 0.22, 0],
-          shade0: 0.1, shade: 0.09,
+          seg: N9, dome: true, shade0: 0.1, shade: 0.09,
         }));
       }
       out.push(...tagKey(dish9, depthNow(0, 0) + 2.74));
@@ -11741,12 +11778,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        생겨야 해 — 바닥이 납작한 접시가 아니라") — 옛 계단(0.608·HB9)은 아가리(2.6·DK9)의 0.29 라
        눌린 자국에 가까웠다. 컴샛 접시와 같은 0.39 로 깊인다(대접 밑(z 0.346)을 안 뚫는 한도 안이다). */
     const BOWL_R9 = 2.6 * DK9;
-    const BOWL_D9 = BOWL_R9 * 0.39;
+    const BOWL_D9 = Math.min(0.85, BOWL_R9 * 0.55);   // 대접 밑(z 0.346)을 안 뚫는 한도
     const BOWL_Z9 = 1.288 * HB9;
     out.push(...tagKey([
       ...dishFaces9({
-        x: 0, y: 0, z: BOWL_Z9, r: BOWL_R9, depth: BOWL_D9, seg: 16, pow: 1.5,
-        rings: [1, 0.82, 0.62, 0.42, 0.22, 0],
+        x: 0, y: 0, z: BOWL_Z9, r: BOWL_R9, depth: BOWL_D9, seg: 16, dome: true,
         fill: GOLD, shade0: 0.3, shade: 0.09,
       }),
       /* ★ 가운데 보석은 **아주 작은 반구**다(요청) — 여태 이 자리는 높이 2.2짜리 뾰족한
