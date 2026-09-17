@@ -18824,6 +18824,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ...wristDisc9(-2.728 + TX9, 2.881 - TY9, -2.868 + TX9, 3.331 - TY9),
         ...hornFaces(-2.868 + TX9, 3.231 - TY9, 3.696, -3.328 + TX9, 4.681 - TY9, 3.696, 0.74),
       ], GUNMETAL), depthNow(-2.848 + TX9, 3.731 - TY9) * 1.6 + 1.5));
+      /* 총구 = **왼팔 연장(퓨전 커터)의 끝**(2026-09, 요청: "scv 트레이서 손끝으로 이동") —
+         SCV 는 총이 없으므로 앵커를 안 적어 두면 붓이 몸 한가운데에서 불꽃을 낸다. 손끝이
+         당겨지는 몫(TX9·TY9)을 그대로 타므로 짐을 들어 팔을 모아도 따라온다. */
+      markMuzzle9(-3.328 + TX9, 4.681 - TY9, 3.696);
       for (let i = 0; i < 3; i += 1) {
         const y0 = 3.381 - TY9 + i * 0.4;
         const x0 = -2.908 + TX9 - i * 0.12;
@@ -19092,6 +19096,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        — 몸 안쪽으로 당기고 더 작게. */
     out.push(topFace(discPath3(-0.98 * BD, 0.5 * BD, 5.04, 0.28, 0.22), 0.3));
     out.push(topFace(discPath3(0.98 * BD, 0.5 * BD, 5.04, 0.28, 0.22), 0.3));
+    /* 총구 = **눈 아래 앞면 한가운데(입)**(2026-09, 요청: "프로브는 입으로 이동") — 프로브의
+       지지는 몸에서 나가는 빛이라, 안 적어 두면 붓이 상자 가운데에서 낸다. 눈 둘(±0.52·BD,
+       1.45·BD, 5.04)의 사이 한 뼘 아래다. */
+    markMuzzle9(0, 1.5 * BD, 4.86);
     /* 앞다리 한 쌍(재지적: 길이 축소 + 두 다리 사이 벌리기 + 몸에 더 딱) — 뿌리를
        몸 바로 밑(0.65)까지 당기고, 각도를 ±14→±30으로 벌리고, 길이는 반 남짓으로. */
     for (const ang of [30, -30]) out.push(...paintBase(wing(ang, 0.85 * BD, 0.8 + 0.85 * (1 - BD), 0.17, 0.08, 4.92, 4.4), TOSS_GOLD));
@@ -25115,22 +25123,29 @@ export function stageFaces(faces: ShapeFace[], stg: number, kind?: string): Shap
     /* ★ 칸마다 **반드시 무엇이 늘어난다** — 넓이 몫으로 자리를 고르되, 앞 칸보다 적어도 한
        자리는 뒤여야 한다. 덩이가 몇 개뿐인 모델에서는 넓이만 보면 두세 칸이 같은 그림이 된다
        (실측: 배럭 1·2단, 4·5단이 똑같았다). 표는 아홉 칸이라 여기서 한 번에 다 푼다. */
+    /* ★★ **단조는 칸을 다 세어 본 뒤에 못 박는다**(2026-09, 지적: "벙커만 그런 건진 몰라도
+       공사중 단계가 처음에 더 많이 지어졌다가 오히려 거꾸로 줄어드는 현상 있음") — 여태
+       단조를 `si9`(넓이로 고른 **stop 번호**)에만 걸고, 1단의 바닥 특례(`lo9` — 맨 아래 층을
+       통째로)는 그 뒤에 **따로** 얹었다. 벙커(tombFlat)는 바닥 평면 부품이 여럿이라 그 층이
+       두꺼운데 2단의 넓이 몫은 0.07 뿐이라, **1단이 2단보다 더 지어진 그림**이 나왔다
+       (단계 시트로 확인: 1단에 경사로·바닥 테가 다 섰다가 2단에서 판 하나만 남는다).
+       고침은 '칸마다 반드시 무엇이 늘어난다'를 **최종 낯 수에** 거는 것이다 — 특례든 무엇이든
+       앞 칸보다 적어질 수 없다. 아홉 칸을 한 번에 풀고 그 자리에서 앞 칸 값으로 죈다. */
+    const keeps9: number[] = [];
     let si9 = -1;
     for (let t9 = 0; t9 < BUILD_FRAC9.length; t9 += 1) {
       let k9 = 0;
       while (k9 < stops9.length - 1 && cum9[stops9[k9] - 1] < tot9 * BUILD_FRAC9[t9]) k9 += 1;
       if (k9 <= si9) k9 = Math.min(stops9.length - 1, si9 + 1);
       si9 = k9;
-      if (t9 === stg - 1) {
-        let m9 = stops9[k9];
-        if (stg === 1) {
-          while (m9 > 1 && kz9[order[m9 - 1]] > cap9) m9 -= 1;
-          if (lo9 > m9) m9 = lo9;
-        }
-        keepN9 = Math.max(1, m9);
-        break;
+      let m9 = stops9[k9];
+      if (t9 === 0) {
+        while (m9 > 1 && kz9[order[m9 - 1]] > cap9) m9 -= 1;
+        if (lo9 > m9) m9 = lo9;
       }
+      keeps9.push(Math.max(1, m9, keeps9[t9 - 1] ?? 1));
     }
+    keepN9 = keeps9[Math.min(keeps9.length - 1, stg - 1)];
   }
   /* ⚠ **같은 경로의 덧칠은 제 몸과 떨어지면 안 된다** — 음영 덧칠(topFace·sideFace)은 몸과
      경로가 글자까지 같아 열쇠도 같으므로 늘 붙어 서는데, 자르는 자리가 그 사이에 떨어지면

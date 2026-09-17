@@ -5619,10 +5619,9 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, 
           put9(0, 0, hs9 * 0.38, style, 0.12 + u9 * 0.88, deg9);
           // 빠르게 나가 가운데에서 살짝 느려졌다 다시 가속(engine9 의 그 식과 같다).
           const e9 = u9 + (0.55 * Math.sin(2 * Math.PI * u9)) / (2 * Math.PI);
-          const gx9 = tvx9;
-          const gy9 = tvy9 - arc9 * 4 * (1 - 2 * e9);
+          // 각은 지도와 같은 자 — **곧은 선**이다(engine9 의 ★★: 접선을 주면 발사 순간이 거의 수직이다).
           put9(tvx9 * e9, tvy9 * e9 - arc9 * 4 * e9 * (1 - e9), hs9 * 0.34, "tankshell", 0.3,
-            (Math.atan2(-gx9, gy9) * 180) / Math.PI);
+            (Math.atan2(-tvx9, tvy9) * 180) / Math.PI);
         } else {
           /* 착탄은 **둥글다**(지적: "포구가 투하되어 폭발하는 거는 타원이 아니라 원형으로
              변경 — 대신 그림자처럼 눌려 보여야 함") — 제 별본(tankboom)이 그 값을 든다.
@@ -5667,27 +5666,19 @@ function docBldKind9(kind: string): boolean {
 const DOC_MORPH9: Record<string, string[]> = {
   // 시즈 모드 — 두 몸이 서로의 변신이다.
   tank: ["tank", "tanksiege"], tanksiege: ["tanksiege", "tank"],
-  // 럴커 — 알에서 깨고, 땅에 묻히고, 가시를 세운다.
-  lurker: ["lurkeregg", "lurker", "lurkerburrow", "lurkerfire"],
-  lurkeregg: ["lurkeregg", "lurker"],
+  /* 럴커 — 땅에 묻히고, 가시를 세운다. **알은 안 든다**(아래 ⚠) — 버로우는 변태가 아니라
+     제 몸이 하는 동작이라 남는다. */
+  lurker: ["lurker", "lurkerburrow", "lurkerfire"],
   lurkerburrow: ["lurker", "lurkerburrow", "lurkerfire"],
   lurkerfire: ["lurkerburrow", "lurkerfire"],
-  // 변태 고치 — 뮤탈이 고치를 거쳐 가디언·디바우러가 된다.
-  guardian: ["muta", "mutacocoon", "guardian"],
-  devourer: ["muta", "mutacocoon", "devourer"],
-  mutacocoon: ["muta", "mutacocoon", "guardian"],
-  // 저그 본진 세 단계 · 콜로니 둘 · 스파이어.
-  lair: ["hatchery", "lair"], hive: ["lair", "hive"],
-  sunken: ["creep", "sunken"], spore: ["creep", "spore"], gspire: ["spire", "gspire"],
 };
-/* 나머지 저그 건물은 **공사 고치**에서, 저그 유닛은 **알**에서 나온다 — 한 줄씩 적을 까닭이
-   없어 여기서 채운다(위 표에 제 줄이 있으면 그것이 이긴다). */
-for (const k9 of ["hatchery", "pool", "evo", "hydraden", "spire", "queensnest", "nydus", "cavern", "dmound", "creep", "extract"]) {
-  if (!DOC_MORPH9[k9]) DOC_MORPH9[k9] = ["cocoon", k9];
-}
-for (const k9 of ["zling", "hydra", "muta", "drone", "ovie", "defiler", "ultra", "queen", "scourge"]) {
-  if (!DOC_MORPH9[k9]) DOC_MORPH9[k9] = ["egg", k9];
-}
+/* ⚠⚠ **저그의 '변태'는 도록 팝업에서 뺐다**(2026-09, 요청: "저그 변태모션은 팝업에서 빼기") —
+   알에서 깨고(egg → 유닛) · 공사 고치에서 서고(cocoon → 건물) · 고치를 거쳐 갈리고
+   (muta → mutacocoon → 가디언·디바우러) · 본진이 단을 오르고(해처리 → 레어 → 하이브) ·
+   콜로니가 서는(creep → 성큰·스포어) 그 차례들이다. 남긴 둘은 변태가 아니다:
+   **시즈 모드**(탱크가 제 몸으로 접는다)와 **럴커 버로우**(제 자리에서 묻힌다).
+   ⚠ 표에서 지우는 것이지 모델을 지우는 것이 아니다 — egg·cocoon·mutacocoon·lurkeregg 는
+     여전히 제 항목으로 도록에 선다(대기 칸 하나로). */
 /** 그 종류가 **무엇으로 움직이나** — 도록이 칸을 세울지 말지 이것으로 가른다. */
 export type DocAnim9 = {
   /** 회전 칸(spin)이 그림을 바꾸나 — 서플라이 팬·코어 원반·포지 톱니·머신샵 톱니·성큰 혀의 뻗는 컷. */
