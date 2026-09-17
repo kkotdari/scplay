@@ -3543,8 +3543,14 @@ export function tankTurretV2(siege: boolean, parts?: { body?: boolean; barrel?: 
   /** 시즈 포신 한 벌(몸 + 포구의 해저드 띠) — 나온 몫 e, 반동 rc. */
   const siegeGun9 = (e9: number, rc9: number): ShapeFace[] => {
     const pOf9 = gunAt9(e9, rc9);
+    /* ★★ **눌린 단면은 `trueNormal` 이 있어야 한다**(2026-09, 지적: "이제 다 동일한데 포탑만 좀 달라
+       키값이나 색이나 그런 거") — `oval: 2` 는 단면을 2:1 로 눌러 놓는데, 법선은 그 **누르기 전
+       원의 반지름 방향**으로 나간다. 곧 낯의 실제 기울기와 어긋난 법선으로 음영을 매겨, 한쪽은
+       지나치게 어둡고 반대쪽은 거의 안 밝아진다 — 실측(model-mesh --dump): 시즈 포신이 **검0.47**
+       한쪽으로 몰려 바탕 #6a7286 이 숯빛이 됐다(탱크 포신은 tubeFaces 라 검0.33 · 흰0.30 짝이다).
+       `trueNormal` 은 꼭짓점에서 법선을 뽑으므로 눌린 살의 기울기를 그대로 탄다. */
     const o9 = paintBase(spirePillar({
-      x: 0, y: 0, h: 0.8, w: 1, segs: 6, sides: 8, oval: 2, caps: "both",
+      x: 0, y: 0, h: 0.8, w: 1, segs: 6, sides: 8, oval: 2, caps: "both", trueNormal: true,
       path: pOf9,
       widthOf: (t9: number): number => (0.6 - 0.07 * e9 * t9) * BX9,
     }), TANK_STEEL);

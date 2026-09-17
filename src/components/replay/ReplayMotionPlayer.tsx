@@ -5655,9 +5655,9 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, 
           if (burst9) put9(0, 0, hs9 * 0.38, style, 0.12 + u9 * 0.88, deg9);
           // 빠르게 나가 가운데에서 살짝 느려졌다 다시 가속(engine9 의 그 식과 같다).
           const e9 = u9 + (0.55 * Math.sin(2 * Math.PI * u9)) / (2 * Math.PI);
-          // 각은 지도와 같은 자 — **곧은 선**이다(engine9 의 ★★: 접선을 주면 발사 순간이 거의 수직이다).
-          put9(tvx9 * e9, tvy9 * e9 - arc9 * 4 * e9 * (1 - e9), hs9 * 0.34, "tankshell", 0.3,
-            (Math.atan2(-tvx9, tvy9) * 180) / Math.PI);
+          // 자·각 다 지도의 것 — 곧은 선 · 두 배 · 90도 굴림(engine9 의 그 자리).
+          put9(tvx9 * e9, tvy9 * e9 - arc9 * 4 * e9 * (1 - e9), hs9 * 0.68, "tankshell", 0.3,
+            (Math.atan2(-tvx9, tvy9) * 180) / Math.PI + 90);
         } else {
           /* 착탄은 **둥글다**(지적: "포구가 투하되어 폭발하는 거는 타원이 아니라 원형으로
              변경 — 대신 그림자처럼 눌려 보여야 함") — 제 별본(tankboom)이 그 값을 든다.
