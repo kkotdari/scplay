@@ -16523,8 +16523,16 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        반지름은 윗잎 1.62 · 아랫잎 1.70인데 관의 안쪽 면은 축에서 1.48(위) · 0.91(아래)이라
        **안쪽은 잎 속에 묻히고 바깥쪽은 밖으로 나온다** — 뿌리는 잡히고 몸은 드러나는 그
        결이다. 뒤끝에서는 잎이 1.11 · 1.32로 꺼져 관이 통째로 드러난다. */
-    const THRUST_Y0 = -2.55;                 // 관의 앞끝 — 잎이 아직 두껍게 덮는 자리(뿌리)
-    const THRUST_Y1 = -4.25;                 // 관의 뒷끝 — 아랫잎 뒤끝(−6.07) 한참 앞쪽
+    /* ★ **꽁무니 쪽으로 물린다**(2026-09, 지적: "잎 뒤쪽이 덮개들과 추진체로 가려져서 가운데
+       볼록함이 안 살던 것" → "캐리어는 반대로 해야 해 — 각 덮개나 쓰러스터·날개 등을 더 뒤로
+       보내서 몸통이 쭉 보이게") — 잎에 등마루를 세운 뒤로 **잎의 등이 실루엣의 주인공**인데,
+       관 넷이 그 한가운데를 가로질러 앉아 있었다. 앞으로 당겨 보니 뒤가 비는 대신 배가 잘려
+       더 나빴다 — 옳은 쪽은 뒤다: −3.40~−5.10 으로 물리면 등이 앞끝에서 −3.4 까지 **한 번도
+       안 끊기고** 흐르고, 관은 잎이 오므라든 목(반지름 0.9)에 얹혀 꽁무니의 기관으로 읽힌다.
+       뿌리(−3.40)에서 잎의 반지름은 아직 1.35 라 관의 안쪽 면(0.90)을 덮으므로 '봉오리
+       속에서 나온다'는 그 결은 지켜진다. */
+    const THRUST_Y0 = -3.40;                 // 관의 앞끝 — 잎이 아직 덮는 자리(뿌리)
+    const THRUST_Y1 = -5.10;                 // 관의 뒷끝 — 아랫잎 뒤끝(−5.6) 바로 앞
     /* ★ 관의 키를 **잎과 같은 자로** 잰다(지적: "쓰러스터 키값조정해야해 안보여") ───────
        tubeFaces는 제 키를 축 양끝의 depthNow 평균으로만 매긴다 — **높이를 안 본다.**
        잎은 leafKey에서 `z × heightDepthK()`를 얹으므로(윗잎은 그 몫만 4.61이다), 두
@@ -16538,7 +16546,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const thrustKey = (tx: number, tz: number): number =>
       depthNow(tx, (THRUST_Y0 + THRUST_Y1) / 2) + tz * heightDepthK() + 1.2;
     const thruster = (tx: number, tz: number): ShapeFace[] => [
-      ...tagKey(paintBase(tubeFaces(tx, THRUST_Y0, tx, THRUST_Y1, 0.4, tz), THRUST_GOLD),
+      ...tagKey(paintBase(tubeFaces(tx, THRUST_Y0, tx, THRUST_Y1, 0.35, tz), THRUST_GOLD),
         thrustKey(tx, tz)),
       ...(poseNow === 1 && facingRatio(0, -1) > 0.05   // 이동할 때만(요청)
         ? tagKey([
@@ -16596,7 +16604,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 윗잎 뒤쪽 위의 덮개 판(요청) — 앞 테두리가 둥글게 앞으로 튀어나오고(round),
          뒤 테두리는 잎 뒤끝을 반쯤만 따라가는 완만한 곡선이다(backK, 지적). */
       ...coverPlate({
-        theta: 90, len: 4.7, arcDeg: 54, arc: 0.62, lenK: 0.25,
+        /* ★ 덮개는 **짧게 · 맨 뒤에**(같은 지적) — 덮개는 잎의 **등마루 바로 위**에 눕는 판이라
+           길면 그 볼록함을 통째로 먹는다. 뒤 1/4(0.25)에서 1/6(0.17)로 줄이되 자리는 물리지
+           않는다(shift 0) — 꽁무니 끝에 붙어야 등이 앞에서 거기까지 쭉 이어진다. */
+        theta: 90, len: 4.7, arcDeg: 54, arc: 0.62, lenK: 0.17,
         lift: 0.2, round: 0.45, backK: 0.42, curlK: 0.35, decal: true, win: 5,
       }),
       /* (옮김) 윗잎 덮개의 창 — 여태 여기서 winRow 셋을 손으로 적은 세계 좌표에
@@ -16623,10 +16634,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          벌어지고 앞은 본체에 딱 붙게 오므려진 형태로 요잉 조정") — 잎이 아니라 그 위에
          얹힌 덮개의 이야기다(재확인 지적).
          정면에서 왼쪽(축 둘레 210도)이 −15도, 오른쪽(330도)이 +15도다(요청의 그 값). */
-      ...coverPlate({ theta: 210, len: 5.6, arcDeg: 48, arc: 0.62, lenK: 0.22, lift: 0.16, round: 0.5, backK: 0.55, curlK: 0.3, yawDeg: -15 }),
-      ...coverPlate({ theta: 210, len: 5.6, arcDeg: 48, arc: 0.5, lenK: 0.2, shift: 0.13, lift: 0.36, round: 0.5, backK: 0.35, curlK: 0.3, yawDeg: -15 }),
-      ...coverPlate({ theta: 330, len: 5.6, arcDeg: 48, arc: 0.62, lenK: 0.22, lift: 0.16, round: 0.5, backK: 0.55, curlK: 0.3, yawDeg: 15 }),
-      ...coverPlate({ theta: 330, len: 5.6, arcDeg: 48, arc: 0.5, lenK: 0.2, shift: 0.13, lift: 0.36, round: 0.5, backK: 0.35, curlK: 0.3, yawDeg: 15 }),
+      ...coverPlate({ theta: 210, len: 5.6, arcDeg: 48, arc: 0.62, lenK: 0.15, lift: 0.16, round: 0.5, backK: 0.55, curlK: 0.3, yawDeg: -15 }),
+      ...coverPlate({ theta: 210, len: 5.6, arcDeg: 48, arc: 0.5, lenK: 0.14, shift: 0.09, lift: 0.36, round: 0.5, backK: 0.35, curlK: 0.3, yawDeg: -15 }),
+      ...coverPlate({ theta: 330, len: 5.6, arcDeg: 48, arc: 0.62, lenK: 0.15, lift: 0.16, round: 0.5, backK: 0.55, curlK: 0.3, yawDeg: 15 }),
+      ...coverPlate({ theta: 330, len: 5.6, arcDeg: 48, arc: 0.5, lenK: 0.14, shift: 0.09, lift: 0.36, round: 0.5, backK: 0.35, curlK: 0.3, yawDeg: 15 }),
       /* (걷어냄·지적: "캐리어 윗잎 개인색 데칼은 제거하고 윗잎 덮개의 데칼 크기 확대")
          — 윗잎 등에 눕힌 작은 타원이다. 임자 색을 말하는 자리가 잎과 덮개 둘이었는데,
          두 곳에 나뉘어 있으면 어느 쪽도 제 몫을 못 한다: 잎의 것은 잎맥 곡면 위라 요잉이
@@ -19961,9 +19972,16 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ...([-1, 1] as const).flatMap((m9): ShapeFace[] => {
         const WRAP9 = 0.82;    // 바깥 끝이 앞으로 감기는 깊이
         const LIFT9 = 0.34;    // 안쪽(등 가운데)이 들리는 몫
-        /** 안쪽 레일(s 0) — 깃(v 0)에서 밑단(v 1)까지. */
+        /** 안쪽 레일(s 0) — 깃(v 0)에서 밑단(v 1)까지.
+         *  ★ **밑으로 갈수록 빨리 뒤로 젖힌다**(2026-09, 지적: "하템 상체 아랫부분이 아직
+         *    망토 뒤로 튀어나옴 · 망토 각도 조정 필요") — 옛 자는 깃에서 밑단까지 **곧은
+         *    비례**(−0.35 → −1.28)였다. 그런데 몸통은 앞으로 숙은 기둥이라 **골반이 가장
+         *    뒤**다(축 y −0.75 · 뒷면 −1.0 언저리) — 곧 천이 가장 얕은 자리에서 몸이 가장
+         *    깊다. 실측: z 3.2 에서 천 −0.78 대 몸통 뒷면 −1.01 로 몸이 0.23 밖으로 나온다.
+         *    √v 로 젖히면 천이 어깨 바로 밑에서 이미 −0.75 까지 물러나(몸통 뒷면 −0.04)
+         *    허리·골반 어디에서도 몸이 천을 못 넘는다. 밑단은 −1.60 으로 더 흘러내린다. */
         const in9 = (v9: number): [number, number, number] =>
-          [0.05 + 0.03 * v9, -0.35 - 0.93 * v9, 5 - 3.92 * v9];
+          [0.05 + 0.03 * v9, -0.35 - 1.25 * Math.sqrt(v9), 5 - 3.92 * v9];
         /** 바깥 레일(s 1) — 조종점 셋(깃 · 허리 · 밑단)을 v 로 잇는다. */
         const out19 = (v9: number): [number, number, number] => {
           const P9: [number, number, number][] = [[0.95, -0.45, 4.84], [1.24, -1.16, 2.64], [1.02, -1.46, 1.2]];
@@ -20024,9 +20042,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           ...pLimb(e9, w9, 0.38),
           ...paintBase([
             ...domeFaces3(w9[0] * 0.99, w9[1] + 0.05, 0.26, 0.176, w9[2] + 0.04),
+            /* ★ 손가락은 **밖으로** 벌어진다(지적: "하템 손가락도 뒤집혀 있네" — 아콘과 같은
+               자리) — 옛 자는 벌어지는 축이 x 라, 둘 중 하나가 `−m9` 쪽 곧 **제 몸 안쪽**으로
+               말려 손바닥을 가로질렀다. 벌어지는 축을 앞뒤(y)로 옮기고 둘 다 바깥(+m9)으로
+               뻗게 한다 — 그러면 어느 각에서도 손등이 바깥, 손끝이 바깥·아래다. */
             ...([-1, 1] as const).flatMap((s9) => spikeHorn(
-              w9[0] + m9 * s9 * 0.08, w9[1] + 0.1, w9[2] + 0.08,
-              w9[0] + m9 * s9 * 0.18, w9[1] + 0.55, w9[2] + 0.08 + fz9,
+              w9[0] + m9 * 0.05, w9[1] + 0.10 + s9 * 0.09, w9[2] + 0.08,
+              w9[0] + m9 * 0.26, w9[1] + 0.42 + s9 * 0.20, w9[2] + 0.08 + fz9,
               0.13, undefined, 6, 0.12,
             )),
           ], "#e9edf0"),
