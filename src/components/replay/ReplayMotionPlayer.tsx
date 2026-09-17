@@ -88,7 +88,7 @@ import {
 import { TEAM_COLOR, type MinimapMarker } from "./markers";
 import {
   atkCutOf as atkCutOf9, flapCutOf as flapCutOf9,
-  muzzlePoint as muzzlePoint9, anchorPoint as anchorPoint9, spinMuzzle9, BLD_MUZZLE, HEAD_MUZZLE_KINDS9, MUZZLE_BURST_FX9,
+  muzzlePoint as muzzlePoint9, anchorPoint as anchorPoint9, spinMuzzle9, BLD_MUZZLE, HEAD_MUZZLE_KINDS9, MUZZLE_BURST_FX9, SHELL_ONLY_FX9,
   AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, ATTACK_FX, NO_BEAM_FX, TARGET_FX, PROJECTILE_FX, NUKE_BOOM_SEC, NUKE_FALL_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, attackFxOf9, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SPIN_STEPS, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
 } from "./engine9";
 import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, WorldUi9 } from "./engine9";
@@ -5574,7 +5574,7 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, 
     /* 끝이 칸 밖으로 잘리면 무기의 꼴이 안 읽힌다 — 조금 물린다.
        ★ **불꽃 둘로 그리는 갈래**(탱크·시즈)는 더 물린다 — 그 갈래는 표적 쪽에도 제 몸만 한
          폭발이 서므로, 줄기 갈래와 같은 자리에 두면 그 절반이 칸 밖으로 잘린다. */
-    const dist9 = edge9 * (MUZZLE_BURST_FX9.has(style) ? 0.58 : 0.88);
+    const dist9 = edge9 * (MUZZLE_BURST_FX9.has(style) || SHELL_ONLY_FX9.has(style) ? 0.58 : 0.88);
     const age9 = (t % 1.1) / 1.1;            // 한 발의 나이 0~1
     const shot9 = PROJECTILE_FX.has(style);
     const ops9: FxOp[] = [];
@@ -5633,7 +5633,9 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, 
           ...(dg9 === undefined ? {} : { deg: dg9 }),
         } as FxOp);
       };
-      if (MUZZLE_BURST_FX9.has(style)) {
+      if (MUZZLE_BURST_FX9.has(style) || SHELL_ONLY_FX9.has(style)) {
+        // 탄만 나는 갈래(일반 탱크)는 포구 불꽃·착탄 폭발을 안 낸다(engine9 의 ★★).
+        const burst9 = MUZZLE_BURST_FX9.has(style);
         /* 전차포 — 지도와 같은 셋이다(engine9 의 ★★): 포구 불꽃 · 포물선을 나는 에너지포 ·
            착탄 스플래시. 한 바퀴 1.1초 중 **앞 0.16초**가 나는 몫이다(거의 동시에 맞는다). */
         const cyc9 = 1.1;
@@ -5645,7 +5647,7 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, 
         const arc9 = dist9 * 0.12;
         if (u9 < 1) {
           // 포구 불꽃은 **작다** — 크면 중심이 총구여도 몸을 덮어 '몸 한가운데'로 읽힌다(지적).
-          put9(0, 0, hs9 * 0.38, style, 0.12 + u9 * 0.88, deg9);
+          if (burst9) put9(0, 0, hs9 * 0.38, style, 0.12 + u9 * 0.88, deg9);
           // 빠르게 나가 가운데에서 살짝 느려졌다 다시 가속(engine9 의 그 식과 같다).
           const e9 = u9 + (0.55 * Math.sin(2 * Math.PI * u9)) / (2 * Math.PI);
           // 각은 지도와 같은 자 — **곧은 선**이다(engine9 의 ★★: 접선을 주면 발사 순간이 거의 수직이다).
@@ -5656,7 +5658,10 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, 
              변경 — 대신 그림자처럼 눌려 보여야 함") — 제 별본(tankboom)이 그 값을 든다.
              방향은 안 준다: 땅에 퍼지는 폭발은 어느 쪽도 안 가리킨다. */
           const sp9 = (el9 - fly9) / 0.5;
-          if (sp9 <= 1) put9(tvx9, tvy9, hs9 * (style === "siege" ? 1.5 : 1.1), "tankboom", sp9);
+          /* 자는 지도의 것(engine9 의 ⚠: 1.5 → 1.0)에 **도록 몫 0.6**을 더 건다 — 시즈는 몸이
+             4타일이라 그 1.55배 폭발이 칸을 통째로 주황 안개로 덮는다(실측 트레이서 판). 무기의
+             자는 안 건드리고 보여 주는 자리에서만 줄이는 그 규약이다. */
+          if (burst9 && sp9 <= 1) put9(tvx9, tvy9, hs9 * (style === "siege" ? 1.0 : 0.8) * 0.6, "tankboom", sp9);
         }
       } else {
         put9(ux9 * dist9, uy9 * dist9, hs9, style, age9);
