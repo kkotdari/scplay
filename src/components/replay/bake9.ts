@@ -890,6 +890,13 @@ export function spirePillar(o: {
    *  v축(세운 기둥에서는 앞뒤)만 눌린 타원 단면이다. 사람 가슴은 가로로 넓고 앞뒤로
    *  얇아서, 정단면 기둥으로는 아무리 굵기를 주물러도 드럼통을 못 벗어난다. */
   oval?: number;
+  /** ★★ **단면 앞뒤 비를 마디마다**(2026-09, 요청: "평평 더 길게 테두리 더 얇게") — `oval` 은
+   *  한 값이라 두께가 늘 굵기에 비례한다. 곧 **끝에 굵기를 남기면 끝 두께도 같이 커져**
+   *  ('호를 앞뒤 두 점에 모으기' 규약) 평평한 토막을 늘릴수록 테두리면이 두꺼워지는
+   *  짝이 된다. 이 손잡이는 그 둘을 가른다: 두께 = `widthAt(t) × ovalOf(t)` 이므로
+   *  끝에서만 비를 죄면 **굵기는 남고 두께만 칼날로** 얇아진다.
+   *  주면 `oval` 은 무시된다. 안 주면 종전(상수) 그대로다. */
+  ovalOf?: (t: number) => number;
   /** 단면을 u에 따라 v로 미는 양(요청: 캐리어 잎의 뒷부분만 안쪽으로 말기) — 단면의
    *  정규 u좌표(−1~1, oval이 안 걸리는 긴 쪽)와 마디 t를 받아 **모델 단위**의 v 방향
    *  치우침을 낸다.
@@ -1022,7 +1029,8 @@ export function spirePillar(o: {
         const a = (i / sides) * Math.PI * 2 + (o.phase ?? Math.PI / sides);
         const cu = Math.cos(a);
         const cs = cu * r;
-        let sn = Math.sin(a) * r * ovalK + (o.skewV ? o.skewV(cu, t) : 0);
+        let sn = Math.sin(a) * r * (o.ovalOf ? o.ovalOf(t) : ovalK)
+          + (o.skewV ? o.skewV(cu, t) : 0);
         if (o.flatV) sn = o.flatV > 0 ? Math.min(0, sn) : Math.max(0, sn);
         return [ax + ux * cs + vx * sn, ay + uy * cs + vy * sn, az + uz * cs + vz * sn] as [number, number, number];
       }));
@@ -16738,7 +16746,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          등은 그대로 높고(잎맥 반지름 2.679 → 2.599) 옆선은 매끈한 렌즈로 돌아온다.
        · ⚠ 마디를 늘려도(segs 20 → 40) 그 꺾임은 안 없어진다(실측) — 조각 수가 아니라 **반지름
          함수의 꼴**이 만든 자리다. */
-    const LEAF_HALF_T = 0.40;                // 잎맥 한가운데의 반두께 = 등 높이(0.62 → 0.52 → 0.40 · 요청: "등 낮춰" · "테두리 얇게")
+    const LEAF_HALF_T = 0.38;                // 잎맥 한가운데의 반두께 = 등 높이(0.62 → 0.52 → 0.40 → 0.38)
     /* 1.05 → 0.86(요청: "세 잎 휘어짐 좀더 부드럽게") — 말림의 꼴(u²)은 그대로 두고 깊이만 낮춘다.
        꼴을 바꾸면(더 높은 거듭제곱) 허리가 평평해지고 끝이 급히 꺾여 오히려 덜 부드럽다. */
     const LEAF_CURL = 0.86;                  // 잎 뒤끝이 축 쪽으로 말려 드는 깊이
@@ -16837,10 +16845,30 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        · ⚠ 말림(`skewV`)의 가로 몫이 `wOf/len` 이라 이제 호 끝에서도 0 이 아니다 — 그 쪽
          주석이 경계한 '점이어야 할 곳이 가시가 된다'는 **점이 아니게 된 지금은 해당이 없다**
          (뒤 테두리 벽이 통째로 축 쪽으로 말리는 것이 맞다). */
-    const LEAF_EDGE9 = 0.28;
+    const LEAF_EDGE9 = 0.38;
+    /* ★★ **평평한 토막을 늘리는 것과 테두리를 얇게 하는 것은 한 값으로 못 한다**(2026-09,
+       요청: "평평 더 길게 테두리 더 얇게") — 테두리면의 두께는 `끝 폭 × LEAF_HALF_T/len`
+       이라, `LEAF_EDGE9` 를 키워 평평한 토막을 늘리면 **두께가 같이 커진다**(실측: 0.28 →
+       0.38 에서 두께비를 그대로 두면 0.232 → 0.315). 두께비 하나로 되물리려면
+       `LEAF_HALF_T` 를 0.235 까지 내려야 하는데 그러면 **잎맥 두께가 0.83 → 0.49** 로
+       몸이 통째로 반이 된다 — 등 높이를 '조금' 낮추라던 앞 요청과 어긋난다.
+       · 그래서 `spirePillar` 에 **`ovalOf`**(마디마다의 단면 비)를 열고, 잎은 끝에서만
+         비를 죈다: 두께 몫 `LEAF_EDGE_T9`(끝에서 남기는 비) + 나머지가 `√(1−u²)`.
+         곧 **굵기는 남고 두께만 칼날로** 얇아진다.
+       · 값: 평평한 토막 2.74 → **3.72**(잎 길이 9.75 의 38%) · 테두리면 0.232 → **0.105**
+         (−55%) · 잎맥 두께 0.828 → 0.787(거의 그대로).
+       · ⚠ **덮개도 같은 자를 써야 한다** — `coverPlate` 의 `rOf`·`rSkin9` 가 잎 겉면을
+         `wOf·LEAF_HALF_T/len` 으로 재므로, 비를 죈 몫을 안 태우면 덮개가 제 옆 테두리에서
+         **0.08 모형칸 뜬다**(바로 앞 커밋에서 고친 그 병이다). 한 함수(`leafOvalK9`)로 모아
+         셋이 나눠 쓴다. */
+    const LEAF_EDGE_T9 = 0.35;
     /** 잎의 앞뒤 반길이 — 호 위 자리 u(−1 옆끝 … 0 잎맥 … 1 옆끝)에서. */
     const leafW9 = (len9: number, u9: number): number => (len9 * (LEAF_EDGE9
       + (1 - LEAF_EDGE9) * Math.pow(Math.max(0, 1 - u9 * u9), LEAF_BELLY9))) / OCT_U + 0.01;
+    /** 그 호 자리의 **단면 앞뒤 비** — 잎맥에서 `LEAF_HALF_T/len`, 끝으로 갈수록 죈다(위 ★★).
+     *  잎 기둥(ovalOf)·덮개의 겉면(rOf)·덮개의 밑변(rSkin9)이 이 한 함수를 나눠 쓴다. */
+    const leafOvalK9 = (len9: number, u9: number): number => (LEAF_HALF_T / len9)
+      * (LEAF_EDGE_T9 + (1 - LEAF_EDGE_T9) * Math.sqrt(Math.max(0, 1 - u9 * u9)));
     /** 잎 한 장 — thetaDeg는 축 둘레에서 이 잎이 앉은 각(90=위), len은 잎맥의 앞뒤 반길이,
      *  arcDeg는 잎맥에서 가장자리까지 말린 반각. */
     /** 잎의 깊이 키 — 잎맥 중심의 깊이에 높이 몫을 더한다(데칼도 이 키 위에 얹는다). */
@@ -16895,7 +16923,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const wOf = (t9: number): number => leafW9(o9.len, uOf(t9));
       /** 잎맥 등마루의 반지름(= 그 t 에서 잎이 가장 두꺼운 자리) — 덮개 **겉면의 기준**이다. */
       const rOf = (t9: number): number =>
-        LEAF_R + ridge9(uOf(t9)) + (wOf(t9) * LEAF_HALF_T) / o9.len + 0.015;
+        LEAF_R + ridge9(uOf(t9)) + wOf(t9) * leafOvalK9(o9.len, uOf(t9)) + 0.015;
       /* ★★ **살 두께를 가장 두꺼운 자로 재면 덮개가 앞뒤 테두리에서 뜬다**(2026-09, 요청:
          "덮개들 … 위치 수정 잘해서 잎에서 뜨지 않게") ─────────────────────────────────
          잎은 단면이 **타원**인 기둥이다(spirePillar `oval: LEAF_HALF_T/len`) — 곧 그 t
@@ -16915,7 +16943,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            타원 판이다. 반지름 함수 하나로는 겉면을 못 낸다. */
       const rSkin9 = (t9: number, k9: number): number =>
         LEAF_R + ridge9(uOf(t9))
-        + ((wOf(t9) * LEAF_HALF_T) / o9.len) * Math.sqrt(Math.max(0, 1 - k9 * k9));
+        + wOf(t9) * leafOvalK9(o9.len, uOf(t9)) * Math.sqrt(Math.max(0, 1 - k9 * k9));
       // 잎과 한 글자도 다르지 않은 말림(그쪽 주석) — 덮개도 같은 호 위에 눕는다.
       const curl9 = (k9: number, t9: number): number =>
         LEAF_CURL * (k9 >= 0 ? LEAF_CURL_FRONT_K : 1) * k9 * k9 * (wOf(t9) / o9.len);
@@ -17196,7 +17224,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         x: 0, y: 0, h: 0.8, w: 1, segs: LEAF_SEGS9, sides: LEAF_SIDES9, fill: GOLD9,
         /* 호 끝이 점이 아니라 곧은 벽이므로 두 끝 단면을 막는다(위 ★★ 의 두 ⚠). */
         caps: "both", tipW: 0.02,
-        ref: [0, 1, 0], oval: LEAF_HALF_T / len, trueNormal: true,
+        ref: [0, 1, 0], trueNormal: true,
+        ovalOf: (t9: number): number => leafOvalK9(len, uOf(t9)),
         path: (t9: number): [number, number, number] => {
           const u9 = uOf(t9);
           const p9 = th9 + u9 * LEAF_ARC;
