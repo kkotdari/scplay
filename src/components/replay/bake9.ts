@@ -3194,7 +3194,11 @@ export function tankTrack(cx: number, yA = -3.6, yB = 3.6, h = 2.08): ShapeFace[
       const P9 = (sx9: number, st9: number, sn9: number): [number, number, number] => [
         cx + sx9 * PW9 / 2, py9 + ty9 * st9 * PL9 / 2 + ny9 * sn9 * PT9, pz9 + tz9 * st9 * PL9z9 / 2 + nz9 * sn9 * PT9z9,
       ];
-      const col9 = i9 % 2 === 0 ? "#767e87" : "#666e77";
+      /* 레일판은 **검회색**이다(2026-09, 요청: "탱크 캐터필러 레일판 검회색으로") — 차체와 같은 강철
+         회색이라 궤도가 차체의 연장으로 읽혔다. 두 칸을 번갈아 두는 것은 그대로다(도는 것이 보이게).
+         ⚠ 이 어둡기(휘도 0.30·0.26)는 결(헤어라인) 재질 문의 가운데 밝기에서 벗어나 **결이 안 켜진다** —
+           궤도는 맨 장갑판이 아니라 기름칠한 쇳조각이므로 그게 맞다. */
+      const col9 = i9 % 2 === 0 ? "#4b5158" : "#3f444a";
       const fs9: ShapeFace[] = [];
       /* 겉면은 등져도 그린다(재지적: "시점 반대라도 튀어나온 부분은 보여야") — 먼 반원의 판은 몸체 벽이 나중에 덮지만
          양옆으로 튀어나온 몫은 벽 실루엣 밖이라 그대로 남는다. 얇은 테·모서리만 제 법선으로 거른다. */
@@ -3392,7 +3396,9 @@ export const TURRET_BASE = 20;
  *  탱크 포탑 높이(TURRET_SINK)에 앉힌다(전환 중 탱크 포탑 몸에 시즈 포신이 뒤로 나오는 판). */
 export function tankTurretV2(siege: boolean, parts?: { body?: boolean; barrel?: boolean; sinkAsTank?: boolean;
   /** 포신이 나온 몫(0~1) — 전환 홑판만 쓴다. 탱크 포신은 (1−ext)만큼 포탑 속으로 들어가고, 시즈 포신은 ext만큼 뒤로 나온다. */
-  ext?: number }): ShapeFace[] {
+  ext?: number;
+  /** 뒤를 쳐올린 몫(0~1) — 전환 홑판(ext 지정)만 쓴다. 1 이면 시즈 판과 같은 −16도. */
+  tiltK?: number }): ShapeFace[] {
   const out: ShapeFace[] = [];
   const wantBody9 = parts?.body ?? true;
   const wantBarrel9 = parts?.barrel ?? true;
@@ -3425,9 +3431,10 @@ export function tankTurretV2(siege: boolean, parts?: { body?: boolean; barrel?: 
      포탑과 함께 기울어지는 거라 탱크 모드에서는 지면에 수평으로 들어가 있는 상태야, 포탑도
      그러니까"). 그래서 포신 제 길에는 오르내림이 없고(RISE9 0), 드는 일은 이 한 각이 다 한다.
      ⚠ 부호가 **음수**다 — 포신이 뒤(−y)로 나가므로, 그쪽이 오르려면 앞이 내려가야 한다.
-     ⚠ 전환 중(ext 지정)엔 0 이다 — 포신은 **수평으로 먼저 나오고**, 기울기는 변신이 끝나
-       시즈 판과 한 몸이 될 때 함께 든다(그래야 나오는 동안 몸이 안 들썩인다). */
-  const TILT9 = siege && parts?.ext === undefined ? -(16 * Math.PI) / 180 : 0;
+     ★ **쳐올리는 것은 전환의 셋째 마디다**(2026-09, 요청: "포탑의 뒤쪽으로 포신이 나오고
+       → 포탑 + 포신의 각도가 뒤를 쳐올리는 거야") — 전환 홑판은 `tiltK` 로 그 몫을 받는다.
+       여태는 전환 중 0 으로 못 박아 두어, 창이 끝나 시즈 판이 되는 순간 −16도가 **툭 튀었다**. */
+  const TILT9 = siege ? -(16 * Math.PI) / 180 * (parts?.ext === undefined ? 1 : (parts.tiltK ?? 0)) : 0;
   const ZB9 = Z0 + 0.25;
   const T9 = (x9: number, y9: number, z9: number): [number, number, number] => [
     x9, y9 * Math.cos(TILT9) - (z9 - ZB9) * Math.sin(TILT9), ZB9 + y9 * Math.sin(TILT9) + (z9 - ZB9) * Math.cos(TILT9),
@@ -3669,6 +3676,10 @@ export function siegeTurret(): ShapeFace[] { return tankTurretV2(true); }
 export const TURRET_K9 = 0.8;
 /** 포탑을 차체 뒤쪽으로 치우치게 옮기는 몫(모델 단위, 요청) — 엔진(engine9 TURRET_BACK_TILES9)과 같은 값을 타일로 환산해 쓴다. */
 export const TURRET_BACK9 = 0.6;
+/** 전환 홑판이 읽는 두 마디 — 자세 0~5 를 '나온 몫'(0~3.5 칸)과 '쳐올린 몫'(3~5 칸)으로 나눈다.
+ *  한 자리에 모아 두어야 앞 포신·뒤 포신·포탑 몸 셋이 같은 시계를 본다. */
+export const xfOut9 = (): number => Math.min(1, poseNow / 3.5);
+export const xfTilt9 = (): number => Math.max(0, Math.min(1, (poseNow - 3) / 2));
 export function turretScaled9(build: () => ShapeFace[]): ShapeFace[] {
   return withModelZOff(2.28 * (1 - TURRET_K9), () => withModelScale(TURRET_K9, TURRET_K9, TURRET_K9, build));
 }
@@ -14128,10 +14139,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   /* 도록 합성 포탑: 바깥 spin 270이 포탑에도 걸리므로 안쪽 180을 더해 총 90 = 엔진 대기 +90(차체 뒤)과 같은 배치.
      (지적: "도록엔 반대로 된 듯" — 안쪽 0이면 총 270이라 포신이 차체 앞을 봤다.) */
   // 시즈 합성: 안쪽 spin 180 안에서 +y가 차체 뒤(−y)다(총 회전 450 = 90도로 옮겨진다).
-  tanksiege: () => withModelSpin(270, () => [...withModelScale(0.8, 1, 1, () => [...tankTracks(), ...tankHull()]), ...siegeLegs(), ...withModelSpin(180, () => withModelShift(0, TURRET_BACK9, () => turretScaled9(siegeTurret)))]),
+  /* ⚠⚠ **여기 있던 안쪽 `withModelSpin(180)` 은 걷었다**(2026-09, 지적: "시즈모드 후 갑자기 포탑과 포신이
+     180도 돌아가 있네 — 뒤쪽이 앞을 향한 것") — 그 180 은 **시즈 포신이 +y 로 나가던 시절**의 보정이다.
+     포신을 뒤(−y)로 돌린 뒤(c8e100e)로는 겹셈이 되어 포신이 도로 앞을 봤다. 곧 축을 옮겼으면 그 축을
+     되돌리려고 감아 둔 보정을 **전부 훑어야** 한다(여기 · tanksiegegun · siegebarrel 셋이었다).
+     ★ 감싸개를 걷으면 그 안의 평행이동도 제 부호로 돌아온다 — TURRET_BACK9 도 함께 뒤집는다. */
+  tanksiege: () => withModelSpin(270, () => [...withModelScale(0.8, 1, 1, () => [...tankTracks(), ...tankHull()]), ...siegeLegs(), ...withModelShift(0, -TURRET_BACK9, () => turretScaled9(siegeTurret))]),
   /* 발포 반동용 분해(요청) — 시즈 차체/포탑·포신 분리판. */
   tanksiegebody: () => withModelSpin(270, () => [...withModelScale(0.8, 1, 1, () => [...tankTracks(), ...tankHull()]), ...siegeLegs()]),
-  tanksiegegun: () => turretScaled9(siegeTurret),
+  /* ⚠ 포탑 판의 **+y 는 겨누는 쪽**이다(탱크 포탑과 같은 규약 — 엔진이 rotDeg 로 표적을 준다). 시즈 포신은
+     모형에서 −y 로 나가므로 여기서 180 을 걸어 그 규약에 맞춘다. 안 걸면 시즈 탱크가 **표적의 반대쪽**을
+     겨눈다(지적: 뒤쪽이 앞을 향한 것). 쉬는 각(engine9 gunRest9 = +90)은 그 위에서 차체 뒤를 가리킨다. */
+  tanksiegegun: () => withModelSpin(180, () => turretScaled9(siegeTurret)),
   /* 시즈 버팀다리 홑판 — 시즈 전환 동작(요청)에서 탱크 차체 위에 attach로 겹쳐 배율(attachK)로 뻗고 접는다. */
   /* 다리 홑판의 spin은 **0**이다 — 시즈 판은 rotDeg = 앞 − 270에 spin 270이라 그 둘이 상쇄되고, 전환 중 탱크 차체는
      rotDeg = 앞에 spin 0이므로 겹치는 다리도 0이라야 같은 자리에 선다. (한때 270으로 뒀던 것은 포탑 op이 다리를 한 벌
@@ -14145,9 +14164,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      시즈 포신은 spin 180으로 탱크 포탑 뒤(−y)를 보고, 높이는 탱크 포탑(sinkAsTank)에 맞춘다. */
   /* 배율 대신 **자세 컷**으로 움직인다(실측: 배율 축이 땅 원점이라 줄인 포신이 포탑에서 떨어져 떠 보였다) — 자세 0~5가
      곧 '나온 몫' 여섯 칸이고(POSE_KINDS에 등록, 판 열쇠에 실린다), 탱크 포신은 1 − p/5, 시즈 포신은 p/5만큼 나온다. */
-  tankturret0: () => turretScaled9(() => tankTurretV2(false, { barrel: false })),
-  tankbarrel: () => turretScaled9(() => tankTurretV2(false, { body: false, ext: 1 - poseNow / 5 })),
-  siegebarrel: () => withModelSpin(180, () => turretScaled9(() => tankTurretV2(true, { body: false, sinkAsTank: true, ext: poseNow / 5 }))),
+  /* ★ **전환 창의 마디는 둘이다**(2026-09, 요청: "① 시즈 정위치로 회전 → ② 포탑 뒤쪽으로 포신이 나오고
+     (앞 탱크 포신은 들어가고) → ③ 포탑 + 포신의 각도가 뒤를 쳐올리는 거야") — 자세 여섯 칸을 그 둘로 나눠
+     쓴다: **나오고 들어가는 것은 0~3.5 칸** · **쳐올리는 것은 3 칸부터 5 칸까지**. ①의 회전은 엔진이
+     몸 각으로 낸다(engine9 bodyHdg 의 ★).
+     ⚠ 포탑 **몸도 함께 기운다** — 몸만 안 기울면 창이 끝나 시즈 판이 되는 순간 포탑이 툭 튄다. 그래서
+       tankturret0 을 `siege: true` 로 짓고 tiltK 로 같은 몫을 먹인다(포신은 뺀 몸뿐이라 그림은 탱크 포탑과 같다). */
+  tankturret0: () => turretScaled9(() => tankTurretV2(true, { barrel: false, sinkAsTank: true, ext: 0, tiltK: xfTilt9() })),
+  tankbarrel: () => turretScaled9(() => tankTurretV2(false, { body: false, ext: 1 - xfOut9() })),
+  siegebarrel: () => turretScaled9(() => tankTurretV2(true, { body: false, sinkAsTank: true, ext: xfOut9(), tiltK: xfTilt9() })),
   /* 벌처(사진 기준 재작도 — 지적: "기존 너무 단순") ────────────────────────────
      사진이 말하는 것:
        · **길다**. 옆에서 본 실루엣이 3:1쯤으로 납작하고, 그 절반이 앞으로 뻗은

@@ -422,6 +422,9 @@ export const POSE_KINDS: Record<string, { move?: boolean; atk?: boolean; flap?: 
   /* 시즈 전환의 포신 홑판 — 자세 0~5가 '나온 몫' 여섯 칸이다(ReplayMotionPlayer tankbarrel·siegebarrel). 걸음·공격 컷의
      뜻이 아니라, 모든 자세가 판 열쇠에 실리도록 둘 다 켠다. */
   tankbarrel: { move: true, atk: true }, siegebarrel: { move: true, atk: true },
+  /* 전환 창의 포탑 몸 — 자세가 '쳐올린 몫'이다(bake9 xfTilt9). 몸도 같이 기울어야 창이 끝나는
+     순간 포탑이 안 튄다(요청의 셋째 마디). */
+  tankturret0: { move: true, atk: true },
   tanksiegelegs: { move: true, atk: true }, tanksiegelegsF: { move: true, atk: true },
   gunner: { move: true, atk: true },
   fbat: { move: true, atk: true },
@@ -1098,13 +1101,13 @@ export const MODEL_NORM: Record<string, number> = {
      앞 궤도 지름 −10%(요청) 뒤 tankbody 재측정: 0.723 → 0.746. 궤도가 작아진 만큼 잉크 상자가
      줄었으니 배수를 그만큼 올려야 **화면의 탱크 크기는 그대로**이고 앞 궤도만 작아 보인다 —
      안 올리면 앞 궤도를 줄인 몫만큼 탱크 전체가 작아진다. 넷은 여전히 한 값이다(위 ★). */
-  tank: 0.696,   // 접힌 시즈 포신의 끝이 뒤로 나오며 재측정
+  tank: 0.701,   // 접힌 시즈 포신의 끝이 뒤로 나오며 재측정
   tankbody: 0.687,   // 모델 z 손질 재측정 되돌림(2D 기하 복원)
   /* ★ 시즈 둘은 **포신을 뒤로 돌린 뒤 다시 쟀다**(2026-09, 지적: "뒤에서 시즈 포신이 나오는
      거야, 포탑은 그대로 있고") — 포탑의 180도 뒤집기와 12도 기울기를 걷고 포신이 뒤·위로
      나가게 되면서 잉크 상자가 그만큼 커졌다(model-norm: 0.695 → 0.602 · 0.687 → 0.628).
      여기 적혀 있던 '모델 z 손질 재측정 되돌림'은 그 손질 이전 기하의 값이라 이제 안 맞는다. */
-  tanksiege: 0.605,
+  tanksiege: 0.608,
   tanksiegebody: 0.628,
   ultra: 0.369,   // 모델 z 손질 재측정 되돌림(2D 기하 복원)
   valk: 0.624,   // 모델 z 손질 재측정 되돌림(2D 기하 복원)
@@ -2546,6 +2549,11 @@ export const BURROW_DIG_SEC = 0.9;
 export const SIEGE_XF_SEC = 1.5;
 /** 시즈 탱크가 보는 앞(화면각, 정남 0·반시계) — 원작 시즈 그림이 늘 보는 그 쪽(지적: −45). */
 export const SIEGE_FACE_DEG9 = -45;
+/** ★ 전환 창에서 **몸이 도는 데 쓰는 앞 몫**(2026-09, 요청: "변신하기 전에 시즈 정위치로 자연스럽게
+ *  회전 이동 … 근데 지금 보니 1단계에서 갑자기 방향이 바뀌어 있어(회전이 아님)") — 원작
+ *  (order_Sieging)도 몸을 고정 방향으로 **돌린 뒤에야** 변태한다. 창의 앞 35% 는 돌기만 하고,
+ *  포신·다리는 그 뒤 65% 에 움직인다. 언시즈는 거꾸로(먼저 접고 나중에 돌기). */
+export const SIEGE_TURN_U9 = 0.35;
 /** 원작이 시즈 전에 몸을 돌려 놓는 고정 방향(units.dat unit_direction)의 **화면각** — 실측 −135(참값 북동 언저리 + 180). */
 export const SIEGE_TRUTH_DEG9 = -135;
 /** 정제소 불빛의 유예(초) — 일꾼이 나간 뒤로도 이만큼은 켜 둔다. 가스 왕복 한 바퀴가
@@ -7138,13 +7146,21 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
     /** 그려지는 모드 — 전환 창 동안은 **탱크 차체 + 따로 겹치는 버팀다리 판**(아래 legK9)이고, 구운 시즈 판은 창이
      *  끝나야(시즈) 또는 창이 시작하며(언시즈) 바뀐다. 다리 셋이 몸에서 뻗어 나와 땅을 짚고, 언시즈는 거꾸로 접힌다(요청). */
     const siegeShow9 = siegeXf9 ? 0 : siegeOn;
-    const legK9 = siegeXf9
-      ? 0.3 + 0.7 * Math.min(1, Math.max(0, siegeXf9.to === 1 ? siegeXf9.u : 1 - siegeXf9.u))
-      : null;
+    /** ★ **기계 마디의 진행**(다리·포신) — 창의 앞 35% 는 몸이 도는 몫이라 여기서 뺀다(SIEGE_TURN_U9).
+     *  시즈로 갈 때는 '돌고 나서 편다', 언시즈는 '접고 나서 돈다' — 곧 구간이 앞뒤로 갈린다. */
+    const xfMech9 = ((): number => {
+      if (!siegeXf9) return 0;
+      const u9 = Math.min(1, Math.max(0, siegeXf9.u));
+      const T9 = SIEGE_TURN_U9;
+      return siegeXf9.to === 1
+        ? Math.min(1, Math.max(0, (u9 - T9) / (1 - T9)))
+        : 1 - Math.min(1, Math.max(0, u9 / (1 - T9)));
+    })();
+    const legK9 = siegeXf9 ? 0.3 + 0.7 * xfMech9 : null;
     /** 다리가 뻗은 몫을 자세 여섯 칸(0~5)으로 — 겹판(tanksiegelegs·F)이 몸 op의 pose를 물려받아 제 길이로 구워진다.
      *  배율(legK9)로 판을 키우던 방식은 축이 상자 중심이라 다리가 몸통 위쪽에서 시작해 보였다(지적). */
     const legPose9: 0 | 1 | 2 | 3 | 4 | 5 = siegeXf9
-      ? Math.max(0, Math.min(5, Math.round(Math.min(1, Math.max(0, siegeXf9.to === 1 ? siegeXf9.u : 1 - siegeXf9.u)) * 5))) as 0 | 1 | 2 | 3 | 4 | 5
+      ? Math.max(0, Math.min(5, Math.round(xfMech9 * 5))) as 0 | 1 | 2 | 3 | 4 | 5
       : 0;
     /* 교전 당김·홀드·잽은 코어가 켜지면 안 돈다(과제 #61) — 코어는 표적까지
        걸어가 사거리에서 멈추는 일을 제 이동 모형으로 이미 했다. 여기서 한 번 더
@@ -7561,7 +7577,24 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
            돌린 뒤에야 변태하므로 모든 시즈 탱크가 같은 쪽을 본다. 참값 방향을 대각으로 붙이던 옛 셈은 그 고정
            방향(화면 −135)에 앉았고, 원작 그림이 보이는 앞(−45)과 90도 어긋났다. 시즈 판은 spin 270으로 구워져
            같은 rotDeg에서 탱크 판보다 270도 돌아 보이므로 그 몫을 뺀다 — 둘 다 화면에서 −45를 본다. */
-        return siegeShow9 === 1 ? SIEGE_FACE_DEG9 - 270 : SIEGE_FACE_DEG9;
+        if (siegeShow9 === 1) return SIEGE_FACE_DEG9 - 270;
+        /* ★ **창 앞 몫에서 실제로 돈다**(요청: "변신하기 전에 시즈 정위치로 자연스럽게 회전 이동") —
+           여태 창이 열리는 순간 고정 방향으로 **툭 앉혔다**. 참값 각에서 가장 짧은 호로 SIEGE_FACE_DEG9
+           까지 돌고(시즈), 언시즈는 창 뒤 몫에서 참값으로 돌아온다. 도는 동안 포신·다리는 안 움직인다
+           (위 xfMech9 가 그 구간을 비워 둔다). */
+        if (siegeXf9) {
+          const T9 = SIEGE_TURN_U9;
+          const u9 = Math.min(1, Math.max(0, siegeXf9.u));
+          const k9 = siegeXf9.to === 1
+            ? Math.min(1, u9 / T9)                                  // 시즈: 먼저 돈다
+            : Math.min(1, Math.max(0, (u9 - (1 - T9)) / T9));       // 언시즈: 나중에 돌아온다
+          const e9 = k9 * k9 * (3 - 2 * k9);                        // 부드럽게(smoothstep)
+          const from9 = siegeXf9.to === 1 ? bodyHdg0 : SIEGE_FACE_DEG9;
+          const to9 = siegeXf9.to === 1 ? SIEGE_FACE_DEG9 : bodyHdg0;
+          const d9 = ((to9 - from9 + 540) % 360) - 180;             // 가장 짧은 호
+          return from9 + d9 * e9;
+        }
+        return SIEGE_FACE_DEG9;
       }
       /* 언시즈 직후 — 참값 방향은 아직 시즈의 고정 방향(화면 −135)이고 몸은 안 움직였다. 그대로 그리면 창이 끝나는
          순간 90도 튄다. 제자리에 선 채 그 방향이면 시즈가 보이던 앞(−45)을 유지하고, 걷기 시작하면 참값을 따른다. */
