@@ -10864,13 +10864,16 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 가운데 우물 드럼 — 기본 테란색(요청: 황동 → 스테인 쇠), 둘레엔 초록 발광 칸.
       ...cylinderFaces3(0, 0, 2.6, 2.4),
       capFace(discPath3(0, 0, 2.44, 1.85), 0.45),
-      ...Array.from({ length: 14 }, (_, k9) => {
-        const a9 = (k9 / 14) * Math.PI * 2;
-        return facingRatio(Math.sin(a9), Math.cos(a9)) > 0.05
-          ? paintBase(boxFaces3(Math.sin(a9) * 2.65, Math.cos(a9) * 2.65, 0.5, 0.5, 0.72, 1.52),
-            winLit("#4cd86a"))
-          : [];
-      }).flat(),
+      /* ★ 톱니도 **저마다 가운데를 본다**(2026-09, 요청: "아모리 본체 주변 톱니들도") — 트리뷰널
+         기둥과 똑같은 자리다. `boxFaces3` 는 축 정렬이라 자리만 원둘레에 흩으면 열넷이 다 같은
+         쪽을 보고, 그러면 드럼을 **두른 이빨**이 아니라 원 위에 늘어놓은 네모가 된다.
+         제자리(0, R)에 세워 `withModelSpin(−각)` 으로 프레임째 돌린다 — 자리·방향이 한 번에 맞고,
+         보임 판정(facingRatio)도 그 안에서 (0, 1) 한 값이면 된다(회전을 같은 문이 지난다). */
+      ...Array.from({ length: 14 }, (_, k9) => withModelSpin(-(k9 / 14) * 360, () => (
+        facingRatio(0, 1) > 0.05
+          ? paintBase(boxFaces3(0, 2.65, 0.5, 0.5, 0.72, 1.52), winLit("#4cd86a"))
+          : []
+      ))).flat(),
       rim(50), rim(90), rim(130),
       // 앞 첨탑 하나 + 빛 포스트 — 뚜껑 판(개인색)보다 뒤에 그리던 순서를 키로 못 박는다.
       ...tagKey([
@@ -12192,26 +12195,31 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          개인색 규약). 데칼을 **안쪽(가운데를 보는 면)**에 두면 다섯이 원 안쪽을 향해
          서로 마주 보게 되어, 어느 요잉에서도 두어 장은 반드시 보인다. */
     const GOLD9 = "#d4af37";
-    const postAt = (ang: number): [number, number] => {
-      const a = (ang * Math.PI) / 180;
-      return [Math.sin(a) * 1.8, Math.cos(a) * 1.8];
-    };
-    const post = (ang: number): ShapeFace[] => {
-      const [px, py] = postAt(ang);
+    /* ★★ **기둥은 저마다 가운데를 본다**(2026-09, 요청: "트리뷰널 기둥들이 모두 중심을 바라보게
+       수정(지금은 같은 방향을 봄)") ────────────────────────────────────────────────────────
+       `boxFaces3` 는 **축 정렬** 상자다 — 자리만 원둘레에 흩어 놓으면 다섯이 다 같은 쪽을 보고,
+       그래서 둥글게 둘러선 기둥이 아니라 '네모 다섯 개를 원에 늘어놓은 것'으로 읽힌다.
+       고침은 상자를 새로 짜는 것이 아니라 **모형 공간을 돌리는 것**이다: 기둥을 제자리
+       (0, R)에 세워 놓고 `withModelSpin(−ang)` 으로 그 프레임째 돌리면, 자리와 방향이 **한
+       번에** 맞는다(spun 은 반시계라 −ang 이 (0,R) 을 (sin a·R, cos a·R) 로 보낸다).
+       · ★ `withModelSpin` 은 **더한다** — 바깥 −45 안에 겹쳐도 그대로 합쳐진다.
+       · ★ `depthNow` 도 그 회전을 지나므로 키는 안에서 (0, R) 로 재면 된다(밖에서 px·py 로
+         재던 값과 같은 수다) — 자리를 두 번 셈할 일이 없다.
+       · ⚠ 낯의 보임 판정(faceLight·facingRatio)도 같은 문을 지나므로, 돌린 상자의 어느 낯이
+         보이는지가 저절로 맞는다. */
+    const POST_R9 = 1.8;
+    const post = (ang: number): ShapeFace[] => withModelSpin(-ang, () =>
       // 돔 위 얹힘이라 돔 키(반지름 몫)를 이기게 보정(지적: 기둥 가려짐 오류).
-      return tagKey(paintBase(boxFaces3(px, py, 0.7, 0.7, 1.68, 2), GOLD9),
-        depthNow(px, py) + 2.6);
-    };
+      tagKey(paintBase(boxFaces3(0, POST_R9, 0.7, 0.7, 1.68, 2), GOLD9),
+        depthNow(0, POST_R9) + 2.6));
     /** 기둥 안쪽 면의 개인색 데칼 — 가운데 쪽으로 민 얇은 판. 칠하지 않는다. */
-    const postDecal = (ang: number): ShapeFace[] => {
-      const [px, py] = postAt(ang);
-      const dx = px * (1 - 0.21 / 1.8);
-      const dy = py * (1 - 0.21 / 1.8);
+    const postDecal = (ang: number): ShapeFace[] => withModelSpin(-ang, () => {
+      const dr9 = POST_R9 - 0.21;
       /* 기둥(0.7각·높이 2.1)에 **박힌 판**으로 읽히게 — 밖으로 나오는 몫이 0.06뿐이라
          제2의 기둥이 아니라 안쪽 면에 낸 무늬가 된다. 판이 너무 얇으면 사선에서 사라져
          개인색이 통째로 안 보이므로, 얇게가 아니라 **작게** 만든다. */
-      return tagKey(boxFaces3(dx, dy, 0.4, 0.4, 0.92, 2.4), depthNow(dx, dy) + 3.3);
-    };
+      return tagKey(boxFaces3(0, dr9, 0.4, 0.4, 0.92, 2.4), depthNow(0, dr9) + 3.3);
+    });
     return raceBase([
       /* 발치 금 테는 맨 앞에 그린다(지적: 코어 키 검토) — 납작한 원통이라 나중에
          그리면 몸 아래를 판때기로 덮는다. 프리미티브는 제 몫으로 키(깊이+높이)를
