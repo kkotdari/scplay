@@ -5636,6 +5636,14 @@ export function docAnimOf9(kind: string): DocAnim9 {
     ...(DOC_MORPH9[kind] ? { morph: DOC_MORPH9[kind] } : {}),
   };
 }
+/** ★ **자세 컷으로 서는 액션**(2026-09, 지적: "고스트 … 총을 꺼내는 건 기타 액션으로
+ *  가야 해") — 변신(딴 종류로 갈림)도 회전도 아닌, **제 자세 컷 몇 장을 차례로 도는**
+ *  동작이다. 공격 칸에서 빼낸 준비 동작이 여기 선다.
+ *  고스트는 등에 멤(0) → 반쯤(4) → 겨눔(2) → 반쯤(4) 넷을 돌아 '꺼냈다 넣었다'가 둘 다
+ *  읽힌다 — 공격 칸은 겨눈 채 반동만 치므로(atkCutOf), 꺼내는 길은 여기에만 있다. */
+const DOC_ACT_POSE9: Record<string, { note: string; poses: readonly (0 | 1 | 2 | 3 | 4 | 5)[]; sec: number }> = {
+  ghost: { note: "총 꺼내기", poses: [0, POSE_ATK_L, 2, POSE_ATK_L], sec: 0.45 },
+};
 /** 쏘는 몸이 **딴 벌**인 종류 — 성큰은 몸(sunkenrear)과 혓바닥(sunkentongue)이 갈려 있고,
  *  혓바닥의 회전 칸이 곧 공격 컷 넷이다(지도의 그 자리: engine9 의 sunkenOut). */
 const DOC_ATK_BODY9: Record<string, { kind: string; attach: string }> = {
@@ -5752,6 +5760,10 @@ export function docCellsOf9(kind: string, t: number, yaw: number): DocCell9[] {
   if (a9.morph && a9.morph.length > 1) {
     const mk9 = a9.morph[Math.floor(t / 1.1) % a9.morph.length];
     out9.push({ label: "액션", note: SHAPE_GALLERY.find((g9) => g9.kind === mk9)?.label ?? mk9, kind: mk9 });
+  } else if (DOC_ACT_POSE9[kind]) {
+    /* 자세 컷 액션(고스트의 총 꺼내기) — 한 컷 sec 초로 돈다. */
+    const ap9 = DOC_ACT_POSE9[kind];
+    out9.push({ label: "액션", note: ap9.note, pose: ap9.poses[Math.floor(t / ap9.sec) % ap9.poses.length] });
   } else if (a9.yawSpin) {
     /* 낙하 회전 — 지도와 같은 22.5도 칸(굽기 열쇠가 그 칸이다)으로 반시계로 돈다. */
     out9.push({ label: "액션", note: "낙하 회전", rotDeg: yaw - Math.round(((t * 180) % 360) / 22.5) * 22.5 });
