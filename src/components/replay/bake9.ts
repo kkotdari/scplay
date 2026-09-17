@@ -15389,7 +15389,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ...paintBase(rodFaces(Math.sin(a2) * 2.05, Math.cos(a2) * 2.05, 5.04,
           Math.sin(a2) * 2.9, Math.cos(a2) * 2.9, 4.6, 0.13), TERRAN_STEEL_D),
         ...domeFaces3(px5, py5, 0.83, 0.48, 4.32),
-        topFace(discPath3(px5, py5, 4.784, 0.45), 0.18),
+        /* (걷어냄) 반구 꼭대기의 흰 뚜껑 덧칠 — 위 구의 흰 반사와 같은 자리다(요청). */
       ], depthNow(px5, py5) >= -0.01 ? depthNow(px5, py5) + 0.7 : -0.9));   // 시점 깊이로(위 고리와 같은 까닭)
     }
     // 구 몸통 — 한 단 더 축소(3.3 → 2.7, 재지적) + 그늘 초승달 + 하이라이트.
@@ -15400,7 +15400,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       [orbPath3(0, 0, 5.12, 1.73, 1.65), 1, TERRAN_STEEL_D] as ShapeFace,
       sideFace(`M${bx + 0.67} ${by - 1.47} A1.66 1.6 0 0 1 ${bx + 0.67} ${by + 1.47}`
         + ` A2.43 2.37 0 0 0 ${bx + 0.67} ${by - 1.47} Z`, 0.16),
-      topFace(shinePath3(0, 0, 5.12, 1.73, -0.58, -0.64, 0.77, 0.64), 0.28),
+      /* ⚠ **손으로 얹던 흰 반사 덧칠은 걷었다**(2026-09, 요청: "사베 하얗게 덧댄 반사 느낌 제거") —
+         구 위에 `shinePath3` 한 장을 흰색 0.28 로 깔아 두었다. 캔버스가 유일한 붓이던 때는 그것이
+         '둥글다'는 유일한 신호였지만, 지금은 셰이더가 광택(윤기·봉우리·얼룩)을 제 각으로 낸다 —
+         곧 **요잉을 돌려도 안 따라 도는 흰 자국**이 그 위에 한 장 더 얹히는 꼴이라 스티커로 읽혔다.
+         어두운 초승달 그늘은 남긴다(그 쪽은 반사가 아니라 몸의 그늘이다). */
     ], 0));
     /* 껍질 방패 셋(90·210·330도) — 은색 잎꼴 판이 구를 옆에서 감싼다.
        **기둥 둘 맞붙이기**로 다시 짠다(요청: "사이언스 베슬의 구를 감싸는 방패도
@@ -22647,7 +22651,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        (spirePillar · 0.62 → 0.50) 노즐의 방향이 실루엣에 남는다. 같은 비(0.81)로 짠다.
        테(nozzleRim9)·불꽃(thrustFlame)은 종전 그대로이고, **뒤를 볼 때 드는 청록 분사구**도
        배틀과 같은 자로 더한다(평소엔 어두운 노즐 · 움직일 때만 빛난다). */
-    for (const [tx, tz, tr, ty] of [[-1.0, 4.16, 0.46, -1.8], [1.0, 4.16, 0.46, -1.8], [-2.7, POD_Z, 0.66, POD_Y0 + 0.05], [2.7, POD_Z, 0.66, POD_Y0 + 0.05]] as [number, number, number, number][]) {
+    /* ★ 넷을 **한 몫으로 올린다**(2026-09, 요청: "드랍십 스러스터 위치 위로 살짝 올리기(불꽃도
+       위치 맞추고)") — 꽁무니에 매달린 꼴이라 몸보다 아래로 처져 보였다. 노즐 원뿔·테·불꽃이
+       **같은 `tz` 에서 갈라져 나오므로** 여기 한 값만 더하면 셋이 함께 움직인다(불꽃만 따로 두면
+       그 자리에서 어긋난다 — 그것이 요청의 괄호다). */
+    const TH_UP9 = 0.34;
+    for (const [tx, tz0, tr, ty] of [[-1.0, 4.16, 0.46, -1.8], [1.0, 4.16, 0.46, -1.8], [-2.7, POD_Z, 0.66, POD_Y0 + 0.05], [2.7, POD_Z, 0.66, POD_Y0 + 0.05]] as [number, number, number, number][]) {
+      const tz = tz0 + TH_UP9;
       out.push(...paintBase(spirePillar({
         x: tx, y: ty, h: 0.8, w: 1, segs: 2, sides: 8, caps: "none",
         path: (t9: number): [number, number, number] => [tx, ty - 1.0 * t9, tz],
