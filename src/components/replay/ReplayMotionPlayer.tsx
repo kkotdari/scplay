@@ -5771,6 +5771,11 @@ export function docAnimOf9(kind: string): DocAnim9 {
  *  읽힌다 — 공격 칸은 겨눈 채 반동만 치므로(atkCutOf), 꺼내는 길은 여기에만 있다. */
 const DOC_ACT_POSE9: Record<string, { note: string; poses: readonly (0 | 1 | 2 | 3 | 4 | 5)[]; sec: number }> = {
   ghost: { note: "총 꺼내기", poses: [0, POSE_ATK_L, 2, POSE_ATK_L], sec: 0.45 },
+  /* ★ 버팀다리 홑판은 **뻗는 몫이 자세**다(2026-09, 지적: 도록의 "시즈 버팀다리" 칸에 발판 둘만
+     덩그러니 있다) — 자세 0 은 **다 접힌 상태**라 땅에 닿는 발만 남는다. 그것이 틀린 그림은
+     아니지만 그 칸만 보면 무엇인지 알 수가 없으므로, 여섯 칸을 차례로 돌려 뻗는 동작을 보인다. */
+  tanksiegelegs: { note: "뻗기", poses: [0, 1, 2, 3, 4, 5], sec: 0.22 },
+  tanksiegelegsF: { note: "뻗기", poses: [0, 1, 2, 3, 4, 5], sec: 0.22 },
 };
 /** ★ **혼자 안 서는 몸은 제 주인의 칸이 그린다**(2026-09, 요청: "인터셉터는 캐리어 공격에
  *  포함시키고 목록에선 제거 · 스캐럽 마인도 목록에선 제거 · 벌처는 마인 심기를 기타 액션으로") —

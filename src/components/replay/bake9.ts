@@ -23909,7 +23909,11 @@ export const AUX_GALLERY: ShapeGalleryItem[] = [
      빠지면 터렛이 테란 광택을 잃고 "그 밖" 값으로 그려진다. */
   { kind: "turretbase", label: "터렛 밑동", group: "부가", race: "테란" },
   { kind: "turrethead", label: "터렛 포탑부", group: "부가", race: "테란" },
-  { kind: "tanksiegebody", label: "시즈 차체", group: "부가", race: "테란" },
+  /* ⚠ **숨긴다 — 지도가 더는 안 쓰는 판이다**(2026-09, 지적: 도록의 "시즈 차체"가 "탱크 차체"와
+     같은 것이 270도 돌아간 그림이다) — 정착 시즈의 차체도 `tankbody` 를 쓰게 바꾸면서(engine9 의
+     kindMain ★★) 이 판은 표의 **배수·잉크 열쇠**로만 남았다(NORM_PAIR 가 포탑·다리를 여기로 접는다).
+     지우지 않고 숨기는 까닭은 늘 같다 — 광택 표가 이 표로 종족을 찾는다. */
+  { kind: "tanksiegebody", label: "시즈 차체", group: "부가", race: "테란", hidden: true },
   { kind: "tanksiegegun", label: "시즈 포탑", group: "부가", race: "테란" },
   { kind: "tanksiegelegs", label: "시즈 버팀다리", group: "부가", race: "테란" },
   { kind: "addonlink", label: "부속 연결관", group: "부가", race: "테란" },
