@@ -1316,6 +1316,12 @@ export interface GlIconReq9 {
   attach?: string;
   /** 그 딸림 부품만의 절대 요잉(도) — 안 주면 몸의 요잉을 탄다. */
   attachRot?: number;
+  /** ★★ **한 칸에 여러 판을 겹친다**(2026-09, 요청: "도록 팝업에서 탱크 변신 장면을 재생기와
+   *  똑같이 애니메이션으로 보여 줘 — 앞으로 다른 액션도 모두 애니메이션으로 올려야 돼") —
+   *  지도가 한 개체를 여러 판으로 그리는 동작(시즈 전환의 차체 + 버팀다리 둘 + 전환 포탑)은
+   *  `attach` 한 자리로는 못 담는다. 여기 적은 판들을 **몸과 같은 자리·같은 창**에 차례로
+   *  그린다(각자 제 자세·제 요잉). 창도 이 판들을 아울러 잰다. */
+  parts?: { kind: string; pose?: number; rotDeg?: number }[];
   /** 칸(기기 px) */ w: number; h: number;
   /** 임자색(#hex) */ color: string;
   /** 창 [x, y, w, h](16-상자 자) — 없으면 잉크 맞춤(pad). */ box?: [number, number, number, number]; pad: number;
@@ -1402,6 +1408,11 @@ function glIconFlush9(): void {
         } else {
           const m = g.unitMesh(r.kind, r.pose, 3);
           if (m) { it.draws.push({ mesh: m, yawDeg: -r.rotDeg }); it.boxes.push(m); }
+          /* 겹치는 판들 — 지도가 한 개체를 여러 판으로 그리는 그대로다(위 parts 의 ★★). */
+          for (const pt of r.parts ?? []) {
+            const pm = g.unitMesh(pt.kind, pt.pose ?? 0, 3);
+            if (pm) { it.draws.push({ mesh: pm, yawDeg: -(pt.rotDeg ?? r.rotDeg) }); it.boxes.push(pm); }
+          }
         }
       } catch (e) { console.warn("[gl9] 아이콘 메시", r.kind, e); it.draws = []; }
       if (!it.draws.length) continue;

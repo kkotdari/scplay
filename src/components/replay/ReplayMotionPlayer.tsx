@@ -89,7 +89,7 @@ import { TEAM_COLOR, type MinimapMarker } from "./markers";
 import {
   atkCutOf as atkCutOf9, flapCutOf as flapCutOf9,
   muzzlePoint as muzzlePoint9, anchorPoint as anchorPoint9, spinMuzzle9, BLD_MUZZLE, HEAD_MUZZLE_KINDS9, MUZZLE_BURST_FX9, SHELL_ONLY_FX9,
-  AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, ATTACK_FX, NO_BEAM_FX, TARGET_FX, PROJECTILE_FX, NUKE_BOOM_SEC, NUKE_FALL_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, attackFxOf9, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SPIN_STEPS, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
+  AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, ATTACK_FX, NO_BEAM_FX, TARGET_FX, PROJECTILE_FX, NUKE_BOOM_SEC, NUKE_FALL_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, attackFxOf9, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SIEGE_TURN_U9, SIEGE_XF_SEC, SPIN_STEPS, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
 } from "./engine9";
 import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, WorldUi9 } from "./engine9";
 import {
@@ -5704,8 +5704,9 @@ function docBldKind9(kind: string): boolean {
  *  ⚠ 여기 적는 것은 종류 이름뿐이다 — 크기·자리·배수는 각 모델이 제 것을 쓴다(도록이 창을
  *    그 차례 전체의 합집합으로 못 박는다). */
 const DOC_MORPH9: Record<string, string[]> = {
-  // 시즈 모드 — 두 몸이 서로의 변신이다.
-  tank: ["tank", "tanksiege"], tanksiege: ["tanksiege", "tank"],
+  /* ⚠ **시즈 모드는 여기 없다**(2026-09, 요청: "도록 팝업에서 탱크 변신 장면을 재생기와 똑같이
+     애니메이션으로 보여 줘") — 두 몸을 1.1초마다 갈아 끼우는 것은 변신이 아니라 **깜빡임**이다.
+     탱크는 아래 `docSiegeCell9` 가 지도와 같은 자로 마디마다 그린다. */
   /* 럴커 — 땅에 묻히고, 가시를 세운다. **알은 안 든다**(아래 ⚠) — 버로우는 변태가 아니라
      제 몸이 하는 동작이라 남는다. */
   lurker: ["lurker", "lurkerburrow", "lurkerfire"],
@@ -5801,6 +5802,8 @@ const DOC_ACT_FX9: Record<string, { note: string; fx: string }> = {
 const DOC_ATK_BODY9: Record<string, { kind: string; attach: string }> = {
   sunken: { kind: "sunkenrear", attach: "sunkentongue" },
 };
+/** 한 칸에 겹쳐 그리는 판 하나 — 지도가 한 개체를 여러 판으로 그리는 그 자다(차체·버팀다리·포탑). */
+export type DocPart9 = { kind: string; pose?: 0 | 1 | 2 | 3 | 4 | 5; rotDeg?: number };
 /** 도록 한 칸 — 그릴 종류와 그 칸이 내려 줄 값들(DocIcon9 의 프롭 그대로다). */
 export type DocCell9 = {
   /** 칸 이름 — 대기 · 이동 · 활성 · 공격 · 액션. */
@@ -5811,6 +5814,12 @@ export type DocCell9 = {
   kind?: string;
   /** 딸림 부품(성큰 혓바닥). */ attach?: string;
   /** 그 부품만의 절대 요잉(도). */ attachRot?: number;
+  /** ★★ **겹쳐 그리는 판들**(2026-09, 요청: "탱크 변신 장면을 재생기와 똑같이 애니메이션으로") —
+   *  지도가 한 개체를 여러 판으로 그리는 동작(시즈 전환의 차체 + 버팀다리 둘 + 전환 포탑)은
+   *  `attach` 한 자리로 못 담는다. 몸과 **같은 자리·같은 창**에 차례로 얹고, 각자 제 자세·요잉을 쥔다.
+   *  ⚠ 도록(앱)은 칸의 창을 '그 칸이 그릴 수 있는 종류'의 합집합으로 재므로 **이 목록도 그 셈에 넣어야**
+   *    한다 — 안 넣으면 겹판이 창 밖으로 잘린다(GalleryScreen boxOf). */
+  parts?: DocPart9[];
   pose?: 0 | 1 | 2 | 3 | 4 | 5;
   spin?: number;
   headDeg?: number;
@@ -5840,6 +5849,53 @@ export type DocCell9 = {
  *  값은 **지도가 쓰는 그 값**이다 — 도는 걸음(늘 2.2바퀴/초 · 일할 때 1.6바퀴/초)도, 불빛
  *  깜빡임(0.9초의 3분의 2)도, 성큰의 사격 박자(1.34초)도 engine9 에서 베껴 오지 않고 같은
  *  숫자를 여기 한 번 적는다. */
+/* ★★ **시즈 전환은 두 그림의 깜빡임이 아니라 한 동작이다**(2026-09, 요청: "도록 팝업에서 탱크
+ *  변신 장면을 재생기와 똑같이 애니메이션으로 보여 줘 — 앞으로 다른 액션도 모두 애니메이션으로
+ *  올려야 돼") ─────────────────────────────────────────────────────────────────────────
+ *  여태 액션 칸은 `tank` 와 `tanksiege` 두 **합본**을 1.1초마다 갈아 끼웠다. 그것은 변신이
+ *  아니라 깜빡임이고, 지도가 보여 주는 세 마디(돌기 → 포신 갈아 끼우기 → 쳐올리기)가 통째로
+ *  빠진다. 이제 **지도와 같은 자**로 마디마다 그린다:
+ *    · 판도 같다 — 차체 `tankbody` + 버팀다리 홑판 둘 + 전환 포탑 `tankturretxf`(engine9 의 그 자리).
+ *    · 시계도 같다 — 창 1.5초(`SIEGE_XF_SEC`) · 앞 35%(`SIEGE_TURN_U9`)는 도는 몫 ·
+ *      나머지가 기계 마디(`xfMech9`) · 포탑 자세는 창 전체의 smoothstep(engine9 `gunU9`).
+ *  ⚠ **도는 각만 도록의 것이다** — 지도는 참값 각에서 −45(SIEGE_FACE_DEG9)로 돌지만 도록엔
+ *    참값이 없고 요잉은 손가락이 쥐고 있다. 그래서 '제자리에서 90도 돌기'로 보인다(그 마디가
+ *    있다는 것이 뜻이고, 어느 절대각이냐는 도록에서 뜻이 없다).
+ *  ★ 한 바퀴는 접기(1.5) → 접힌 채(0.8) → 펴기(1.5) → 편 채(0.8)다 — 머무는 몫이 있어야
+ *    두 끝 모습이 눈에 남는다. */
+const DOC_SIEGE_HOLD9 = 0.8;
+const DOC_SIEGE_CYCLE9 = SIEGE_XF_SEC * 2 + DOC_SIEGE_HOLD9 * 2;
+/** 정위치로 도는 몫(도) — 위 ⚠ 의 도록 전용 값. */
+const DOC_SIEGE_TURN9 = 90;
+function docSiegeCell9(t: number, yaw: number): DocCell9 {
+  const p9 = (((t % DOC_SIEGE_CYCLE9) + DOC_SIEGE_CYCLE9) % DOC_SIEGE_CYCLE9);
+  const sieged9 = p9 >= SIEGE_XF_SEC && p9 < SIEGE_XF_SEC + DOC_SIEGE_HOLD9;
+  const tanked9 = p9 >= SIEGE_XF_SEC * 2 + DOC_SIEGE_HOLD9;
+  /** 창의 몫(0~1)과 가는 쪽(1 접기 · 0 펴기) — 머무는 몫은 u 를 끝에 못 박는다. */
+  const to9 = p9 < SIEGE_XF_SEC + DOC_SIEGE_HOLD9 ? 1 : 0;
+  const u9 = sieged9 || tanked9 ? 1
+    : to9 === 1 ? p9 / SIEGE_XF_SEC : (p9 - SIEGE_XF_SEC - DOC_SIEGE_HOLD9) / SIEGE_XF_SEC;
+  const cl9 = (v9: number): number => Math.min(1, Math.max(0, v9));
+  const sm9 = (v9: number): number => v9 * v9 * (3 - 2 * v9);
+  const T9 = SIEGE_TURN_U9;
+  // 몸이 도는 몫 — 시즈는 먼저 돌고(앞 T9), 해제는 나중에 돌아온다(뒤 T9). engine9 bodyHdg 의 그 자.
+  const k9 = to9 === 1 ? cl9(u9 / T9) : cl9((u9 - (1 - T9)) / T9);
+  const rot9 = yaw + DOC_SIEGE_TURN9 * (to9 === 1 ? sm9(k9) : 1 - sm9(k9));
+  // 기계 마디(다리) · 포탑 자세 — engine9 의 xfMech9 · gunU9 와 같은 식이다.
+  const mech9 = to9 === 1 ? cl9((u9 - T9) / (1 - T9)) : 1 - cl9(u9 / (1 - T9));
+  const cut9 = (v9: number): 0 | 1 | 2 | 3 | 4 | 5 => Math.max(0, Math.min(5, Math.round(v9 * 5))) as 0 | 1 | 2 | 3 | 4 | 5;
+  const gun9 = to9 === 1 ? sm9(u9) : 1 - sm9(u9);
+  if (tanked9) return { label: "액션", note: "탱크 모드", kind: "tankbody", rotDeg: rot9, parts: [{ kind: "tankgun", rotDeg: rot9 }] };
+  /* 정착 시즈는 지도와 같은 판이다 — 차체 + 다 뻗은 다리 둘 + 시즈 포탑(그 판의 +y 가 겨누는
+     쪽이라 180 을 얹어야 차체 뒤를 본다 — engine9 gunRest9 의 그 값). */
+  if (sieged9) {
+    return { label: "액션", note: "시즈 모드", kind: "tankbody", rotDeg: rot9,
+      parts: [{ kind: "tanksiegelegs", pose: 5 }, { kind: "tanksiegelegsF", pose: 5 }, { kind: "tanksiegegun", rotDeg: rot9 + 180 }] };
+  }
+  return { label: "액션", note: to9 === 1 ? "시즈 모드로" : "해제", kind: "tankbody", rotDeg: rot9,
+    parts: [{ kind: "tanksiegelegs", pose: cut9(mech9) }, { kind: "tanksiegelegsF", pose: cut9(mech9) },
+      { kind: "tankturretxf", pose: cut9(gun9), rotDeg: rot9 }] };
+}
 export function docCellsOf9(kind: string, t: number, yaw: number): DocCell9[] {
   const a9 = docAnimOf9(kind);
   const gun9 = !!docWeaponOf9(kind);
@@ -5931,7 +5987,8 @@ export function docCellsOf9(kind: string, t: number, yaw: number): DocCell9[] {
     }
   }
   /* ④ 액션 — 변신 차례와 핵탄두의 낙하 회전. 변신은 한 컷 1.1초로 돈다. */
-  if (a9.morph && a9.morph.length > 1) {
+  if (kind === "tank" || kind === "tanksiege") out9.push(docSiegeCell9(t, yaw));
+  else if (a9.morph && a9.morph.length > 1) {
     const mk9 = a9.morph[Math.floor(t / 1.1) % a9.morph.length];
     out9.push({ label: "액션", note: SHAPE_GALLERY.find((g9) => g9.kind === mk9)?.label ?? mk9, kind: mk9 });
   } else if (DOC_ACT_FX9[kind]) {
@@ -5955,7 +6012,7 @@ export function docCellsOf9(kind: string, t: number, yaw: number): DocCell9[] {
  *  wide·pose·spin)은 ShapeIcon 과 같다 — 도록(GalleryScreen·doc-sheet)이 이것을 쓰면 키값·마주 봄 판정 같은 2D 전용 어긋남 없이
  *  지도가 그리는 그 그림을 본다. 색은 요소의 currentColor(도록의 --scr-doc-own)다. */
 export function DocIcon9({
-  kind, rotDeg, pose, spin, headDeg, lit, stage, blink, attach, attachRot,
+  kind, rotDeg, pose, spin, headDeg, lit, stage, blink, attach, attachRot, parts,
   flat, fit, fitPad, fitBox, wide, className, gl,
 }: {
   kind: string; rotDeg?: number; pose?: 0 | 1 | 2 | 3 | 4 | 5; spin?: number; flat?: boolean; fit?: boolean; fitPad?: number; fitBox?: string;
@@ -5976,9 +6033,12 @@ export function DocIcon9({
   attach?: string;
   /** 그 부품만의 절대 요잉(도) — 안 주면 몸의 요잉을 탄다. */
   attachRot?: number;
+  /** 한 칸에 겹쳐 그리는 판들(DocCell9.parts) — 지도가 한 개체를 여러 판으로 그리는 동작이 이 자다. */
+  parts?: DocPart9[];
   /** GL 로 그릴지 못 박기(안 주면 GL_ON9). */ gl?: boolean;
 }) {
   const wantGl = (gl ?? GL_ON9) && !!flat && !!SHAPE_BUILDERS[kind];
+  const partsKey9 = (parts ?? []).map((p9) => `${p9.kind}:${p9.pose ?? 0}:${Math.round(p9.rotDeg ?? 1e4)}`).join("|");
   const ref = useRef<HTMLCanvasElement>(null);
   const [fail, setFail] = useState(false);
   const useGl = wantGl && !fail && glIconOk9();
@@ -5994,7 +6054,7 @@ export function DocIcon9({
     let live = true;
     glIconRequest9({
       kind, bld: docBldKind9(kind), rotDeg: rotDeg ?? BUILDING_BASE_YAW, pose: pose ?? 0, spin: spin ?? 0,
-      headDeg, lit, stage, blink, attach, attachRot,
+      headDeg, lit, stage, blink, attach, attachRot, parts,
       w, h, color, box, pad: fitPad ?? 0.12,
       /* ★★ 판을 **곧장 찍는다**(2026-09, 지적: "도록 팝업 회전이 뚝뚝 끊긴다") — 옛 길은 칸마다
          PNG(dataURL)를 만들어 <img> 에 물렸다. 한 장을 낼 때마다 PNG 인코딩과 브라우저의 **비동기
@@ -6015,12 +6075,13 @@ export function DocIcon9({
       done: (u9) => { if (live && u9 === null) setFail(true); },
     });
     return () => { live = false; };
-  }, [useGl, kind, rotDeg, pose, spin, headDeg, lit, stage, blink, attach, attachRot, fit, fitPad, fitBox, wide]);
+    /* ⚠ parts 는 프레임마다 새 배열이라 그대로 의존성에 두면 안 된다 — 글자로 접어 견준다. */
+  }, [useGl, kind, rotDeg, pose, spin, headDeg, lit, stage, blink, attach, attachRot, partsKey9, fit, fitPad, fitBox, wide]);
   if (!useGl) {
     return (
       <ShapeIcon
         kind={kind} rotDeg={rotDeg} pose={pose} spin={spin}
-        headDeg={headDeg} lit={lit} stage={stage} attach={attach} attachRot={attachRot}
+        headDeg={headDeg} lit={lit} stage={stage} attach={attach} attachRot={attachRot} parts={parts}
         flat={flat} fit={fit} fitPad={fitPad} fitBox={fitBox} wide={wide} className={className}
       />
     );
@@ -6029,7 +6090,7 @@ export function DocIcon9({
 }
 export function ShapeIcon({
   kind, className, faces: facesOverride, rotDeg, flat, keepRatio, viewYaw, pitchView, wide, fit, fitPad, fitBox: fitBoxProp,
-  spin, pose, headDeg, lit, stage, attach, attachRot,
+  spin, pose, headDeg, lit, stage, attach, attachRot, parts,
 }: {
   kind: string; className?: string;
   /** ★ 자세 컷(요청: 도록에서 idle·이동·액션을 보여 준다) — 0 기본 · 1·3 걸음 ·
@@ -6046,6 +6107,8 @@ export function ShapeIcon({
   /** 건설 단계(0이면 완성). */ stage?: number;
   /** 딸림 부품(터렛 포탑부·성큰 혓바닥). */ attach?: string;
   /** 그 부품만의 절대 요잉(도). */ attachRot?: number;
+  /** 한 칸에 겹쳐 그리는 판들(시즈 전환의 차체 + 버팀다리 + 포탑) — DocCell9.parts 와 같은 자. */
+  parts?: DocPart9[];
   /** 회전 칸(요청: 스톰을 모델로) — 도는 부품을 가진 종류(SPIN_KINDS)의 변종 번호다.
    *  스톰은 이 값이 **번개 무늬의 씨앗**이라, 칸이 바뀌면 무늬가 통째로 갈린다.
    *  굽기 열쇠(spinTag)가 이 값을 물므로 같은 칸은 늘 같은 그림이다. */
@@ -6098,7 +6161,7 @@ export function ShapeIcon({
     : ((): ReturnType<typeof resolveShapeFaces> => {
       /* 칸은 **굽기 전에** 세우고 끝나면 되돌린다 — poseSet과 같은 규약(모듈 전역
          깃발이라, 안 되돌리면 다음에 굽는 남의 모델까지 그 칸으로 굽힌다). */
-      if (spin === undefined && !pose && headDeg === undefined && !lit && !stage && !attach) {
+      if (spin === undefined && !pose && headDeg === undefined && !lit && !stage && !attach && !parts?.length) {
         return resolveShapeFaces(kind, rotDeg ?? BUILDING_BASE_YAW, flat, viewYaw, pitchView);
       }
       const rot9 = rotDeg ?? BUILDING_BASE_YAW;
@@ -6118,6 +6181,14 @@ export function ShapeIcon({
         const a9 = resolveShapeFaces(attach, attachRot ?? rot9, flat, viewYaw, pitchView);
         if (a9.faces) f9 = [...(f9 ?? []), ...a9.faces];
       }
+      /* 겹치는 판들 — 각자 **제 자세·제 요잉**으로 굽는다(GL 쪽 GlIconReq9.parts 와 같은 자).
+         자세는 모듈 전역 깃발이라 판마다 세우고, 끝나면 몸의 값으로 되돌린다. */
+      for (const pt9 of parts ?? []) {
+        poseSet9(pt9.pose ?? 0);
+        const p9 = resolveShapeFaces(pt9.kind, pt9.rotDeg ?? rot9, flat, viewYaw, pitchView);
+        if (p9.faces) f9 = [...(f9 ?? []), ...p9.faces];
+      }
+      if (parts?.length) poseSet9(pose ?? 0);
       if (headDeg !== undefined) headYawSet(pH9, pA9);
       if (lit) bldLitSet(pL9);
       if (pose) poseSet9(0);

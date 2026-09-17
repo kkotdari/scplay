@@ -98,16 +98,29 @@ window.__docAnim = (kinds) => {
   const cellsOf = (kind, group) => {
     const yaw = galleryYawOf(45, group);
     const out = [];
-    /* 창은 팝업과 같은 뜻으로 — 칸이 그릴 종류의 잉크 상자다(트레이서가 그 창을 타고 앉는다). */
-    const boxOf = (k) => shapeFitBox(k, { rotDeg: yaw, flat: true });
+    /* 창은 팝업과 같은 뜻으로 — 칸이 그릴 **종류들**의 잉크 상자 합집합이다(겹판까지 아울러야
+       뻗은 버팀다리·뒤로 나온 시즈 포신이 안 잘린다 — 앱 GalleryScreen boxOf 와 같은 자). */
+    const boxOf = (ks) => {
+      let b = null;
+      for (const k of ks) {
+        const v = shapeFitBox(k, { rotDeg: yaw, flat: true });
+        if (!v) continue;
+        const n = v.split(/\s+/).map(Number);
+        if (n.length !== 4 || n.some((x) => !Number.isFinite(x))) continue;
+        const q = [n[0], n[1], n[0] + n[2], n[1] + n[3]];
+        b = b ? [Math.min(b[0], q[0]), Math.min(b[1], q[1]), Math.max(b[2], q[2]), Math.max(b[3], q[3])] : q;
+      }
+      /* ⚠ 여기는 **템플릿 문자열 안**이다(ENTRY) — 역따옴표를 쓰면 그 자리에서 끊긴다. */
+      return b ? [b[0], b[1], b[2] - b[0], b[3] - b[1]].join(" ") : undefined;
+    };
     for (const t of TS) {
       for (const c of docCellsOf9(kind, t, yaw)) {
-        const bx = boxOf(c.kind || kind);
+        const bx = boxOf([c.kind || kind, ...(c.attach ? [c.attach] : []), ...(c.parts ?? []).map((q) => q.kind)]);
         out.push(h("div", { key: c.label + t, className: "scr-doc-angle" }, [
           h("div", { key: "a", style: { position: "relative" } }, [
             h(DocIcon9, {
               key: "m", kind: c.kind || kind, rotDeg: c.rotDeg ?? yaw, pose: c.pose, spin: c.spin,
-              headDeg: c.headDeg, lit: c.lit, blink: c.blink, attach: c.attach, attachRot: c.attachRot,
+              headDeg: c.headDeg, lit: c.lit, blink: c.blink, attach: c.attach, attachRot: c.attachRot, parts: c.parts,
               flat: true, fit: true, fitBox: bx, className: "scr-doc-svg", gl: !window.__doc2d,
             }),
             c.tracer ? h("div", { key: "s", style: { position: "absolute", inset: 0 } },
