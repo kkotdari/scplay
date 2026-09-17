@@ -13,7 +13,7 @@ const OUT = join(ROOT, "src/components/replay/muzzleTable.gen.ts");
 const CHECK = process.argv.includes("--check");
 /** 빌더 → 앵커 열쇠. 탱크는 포탑 판(tankgun)이 총구를 들고, 앵커 열쇠는 마커 이름(tank)이다. 합본 판은 건너뛴다. */
 const KEY_OF = { tankgun: "tank", tanksiegegun: "tanksiege" };
-const SKIP = new Set(["tank", "tanksiege", "tankbarrel", "siegebarrel", "tankturret0", "tankbody", "tanksiegebody", "tanksiegelegs", "tanksiegelegsF"]);
+const SKIP = new Set(["tank", "tanksiege", "tankturretxf", "tankbody", "tanksiegebody", "tanksiegelegs", "tanksiegelegsF"]);
 const ENTRY = `
 import { SHAPE_BUILDERS, poseSet } from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
 import { MUZZLE_PROBE9 } from ${JSON.stringify(join(ROOT, "src/components/replay/bake9"))};

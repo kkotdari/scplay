@@ -419,12 +419,9 @@ export const POSE_KINDS: Record<string, { move?: boolean; atk?: boolean; flap?: 
   scv: { thrust: true }, scvMin: { thrust: true }, scvGas: { thrust: true },
   vulture: { thrust: true },
   probe: { thrust: true }, probeMin: { thrust: true }, probeGas: { thrust: true },
-  /* 시즈 전환의 포신 홑판 — 자세 0~5가 '나온 몫' 여섯 칸이다(ReplayMotionPlayer tankbarrel·siegebarrel). 걸음·공격 컷의
-     뜻이 아니라, 모든 자세가 판 열쇠에 실리도록 둘 다 켠다. */
-  tankbarrel: { move: true, atk: true }, siegebarrel: { move: true, atk: true },
-  /* 전환 창의 포탑 몸 — 자세가 '쳐올린 몫'이다(bake9 xfTilt9). 몸도 같이 기울어야 창이 끝나는
-     순간 포탑이 안 튄다(요청의 셋째 마디). */
-  tankturret0: { move: true, atk: true },
+  /* 시즈 전환의 포탑 한 판(bake9 tankturretxf) — 자세 0~5가 '나온 몫' 여섯 칸이자 '쳐올린 몫'이다
+     (xfOut9·xfTilt9). 걸음·공격 컷의 뜻이 아니라, 모든 자세가 메시 열쇠에 실리도록 둘 다 켠다. */
+  tankturretxf: { move: true, atk: true },
   tanksiegelegs: { move: true, atk: true }, tanksiegelegsF: { move: true, atk: true },
   gunner: { move: true, atk: true },
   fbat: { move: true, atk: true },
@@ -1163,8 +1160,8 @@ export const NORM_PAIR: Record<string, string> = {
   tanksiegelegs: "tanksiegebody",
   /* 앞쪽 다리 홑판(attach2)도 같은 자 — 짝이 없으면 배수 1로 구워져 앞 다리만 딴 크기로 보였다(지적: "왼쪽 옆 다리만 크게"). */
   tanksiegelegsF: "tanksiegebody",
-  /* 전환 창의 포탑 몸·앞 포신·뒤 포신 홑판 — 탱크 포탑(tankgun)과 같은 자(차체 배수). */
-  tankturret0: "tankbody", tankbarrel: "tankbody", siegebarrel: "tankbody",
+  /* 전환 창의 포탑 한 판 — 탱크 포탑(tankgun)과 같은 자(차체 배수). */
+  tankturretxf: "tankbody",
   /* 버로우한 럴커 두 별본 — 흙 구멍이 같은 크기라야 버로우 자리가 종류마다 안 흔들린다. */
   lurkerburrow: "burrowhole", lurkerfire: "burrowhole",
   /* 짐을 든 일꾼도 **맨몸 배수 그대로**다(요청: 일꾼별 자원 들기 모델) — 짐이 늘어난
@@ -8200,21 +8197,19 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       turretAt9 = { hdg: foeDeg !== null ? foeDeg : idleAim9, fx: gfx, fy: gfy };
       unitOps.push({
         // 포신 가려짐 해결(지적) — 곁 유닛의 z가 포탑을 얇게 자르지 않게 여유 있게.
-        ...last, kind: gunXf9 ? "tankturret0" : gunKind, fx: gfx, fy: gfy, z: last.z + 30,
+        ...last, kind: gunXf9 ? "tankturretxf" : gunKind, fx: gfx, fy: gfy, z: last.z + 30,
         noShadow: true,   // 그림자는 차체 판이 진다(지적: "탱크 본체와 포탑의 그림자가 따로 두 개")
         /* ★ 겹판(시즈 버팀다리)은 차체 op만의 것이다(지적: "시즈 바디를 그려놓고 또 다리 애니를 넣으니 문제") — `...last`로
            차체 op을 통째로 물려받으며 attach·attachK까지 딸려 와, 포탑 op이 다리 한 벌을 **포탑 각으로** 한 번 더 그렸다.
            그것이 '엉뚱한 방향의 다리 한 벌 더'였다.
-           ★ 전환 창에서는 포탑 op이 **제 겹판**을 든다(요청: "탱크 포신은 포탑으로 들어가고 반대쪽에서 시즈 포신이 나오게 —
-             둘이 동시에"): 포신 없는 포탑 몸에 앞 포신(attach2, 1 → 0)과 뒤 포신(attach, 0 → 1)을 같은 창에서 반대로 움직인다.
-             언시즈는 거꾸로다. */
-        ...(gunXf9
-          ? { attach: "siegebarrel", attachK: 1, attach2: "tankbarrel", attach2K: 1 }
-          : { attach: undefined, attach2: undefined, attachK: undefined, attach2K: undefined }),
+           ★★ 전환 창도 **겹판을 안 쓴다**(2026-09, 지적: "시즈 포신이 포탑에 안 가려지고 색도 훨씬 밝게") —
+             딸림 부품은 GL 큐에 **제 개체**로 들어가 깊이 칸이 갈리므로 포신이 늘 포탑 앞에 섰다. 두 포신을
+             포탑 몸과 **한 판**(bake9 tankturretxf)에 담아 자세 컷으로 넣고 뺀다. */
+        attach: undefined, attach2: undefined, attachK: undefined, attach2K: undefined,
         /* 포신 반동 컷(요청) — 차체 판은 컷이 없으므로 몸 op의 pose를 물려받아
            봐야 늘 0이다. 발포 박자(fireK)가 곧 이 판의 자세다.
-           ★ 전환 창엔 자세가 '나온 몫' 여섯 칸이다(0~5) — 겹판(tankbarrel·siegebarrel)이 op의 pose를 물려받아 제 길이로
-             구워진다(배율 아님). 여기 한 줄이 위 spread를 덮으므로 여기서 정한다. */
+           ★ 전환 창엔 자세가 '나온 몫' 여섯 칸이다(0~5) — 한 판(tankturretxf)이 그 자세로 두 포신의 길이를
+             함께 낸다(배율 아님). 여기 한 줄이 위 spread를 덮으므로 여기서 정한다. */
         pose: gunXf9 ? Math.max(0, Math.min(5, Math.round(gunU9 * 5))) as 0 | 1 | 2 | 3 | 4 | 5 : fireK ? 2 : 0,
         /* 포탑은 **표적을 본다**(요청: "포톤, 터렛, 시즈탱크는 공격방향에 맞게
            포탑부를 돌려줘야함") — 여태 포탑 판이 차체 방향(rotDeg)을 그대로

@@ -3408,7 +3408,11 @@ export function tankTurretV2(siege: boolean, parts?: { body?: boolean; barrel?: 
   /** 포신이 나온 몫(0~1) — 전환 홑판만 쓴다. 탱크 포신은 (1−ext)만큼 포탑 속으로 들어가고, 시즈 포신은 ext만큼 뒤로 나온다. */
   ext?: number;
   /** 뒤를 쳐올린 몫(0~1) — 전환 홑판(ext 지정)만 쓴다. 1 이면 시즈 판과 같은 −16도. */
-  tiltK?: number }): ShapeFace[] {
+  tiltK?: number;
+  /** ★ 전환 한 판(2026-09) — 나온 몫 하나로 **두 포신을 함께** 그린다: 탱크 쌍포신이 `1 − xf`,
+   *  시즈 포신이 `xf`. 홑판 셋(tankturret0 + tankbarrel + siegebarrel)으로 가르면 GL 에서 서로
+   *  **딴 개체**라 깊이 칸이 갈려 포신이 포탑에 안 가려지고, 부품 뭉치가 달라 음영도 밝게 접힌다. */
+  xf?: number }): ShapeFace[] {
   const out: ShapeFace[] = [];
   const wantBody9 = parts?.body ?? true;
   const wantBarrel9 = parts?.barrel ?? true;
@@ -3571,11 +3575,11 @@ export function tankTurretV2(siege: boolean, parts?: { body?: boolean; barrel?: 
     return o9;
   };
   // 포신 길이 0.8배(요청): 일반 0.6~3.5 → 0.6~3.0(끝마디 2.45~3.0) · 시즈 3.8 → 3.04. 키의 y도 짧아진 만큼(2.4 → 2.0).
-  if (!siege) {
-    // ③ 일반 모드 — 짧은 쌍포신(앞 폭이 짧은 앞면에서 나온다). 반동은 뒤로 0.6.
+  /** ③ 일반 모드 — 짧은 쌍포신(앞 폭이 짧은 앞면에서 나온다). 반동은 뒤로 0.6. `ex9` 는 나온 몫(온몸 판은 undefined). */
+  const tankGuns9 = (ex9: number | undefined): void => {
     /* 들어간 몫(전환 홑판, parts.ext) — 반동(rc9)과 같은 축으로 포신을 포탑 속으로 밀되, 포탑 앞면(뿌리 0.6) 안쪽은
        안 그린다(앞 겹판은 포탑 몸 위에 찍히므로 속에 든 토막이 비쳐서는 안 된다). 다 들어가면(ext 0) 한 토막도 없다. */
-    const ext9 = parts?.ext;
+    const ext9 = ex9;
     const rc9 = (poseNow === 2 && ext9 === undefined ? 0.6 : 0) + (ext9 !== undefined ? (1 - ext9) * 2.4 * BX9 : 0);
     /* 자름선은 **포탑 앞면**(hex9 앞변 y = 1.2·HX9; 포신 x ±0.42·BX9는 그 변 안이다)이다 — 온몸 판에서는 깊이 정렬이
        포탑 속 토막을 가리지만, 앞 겹판은 포탑 몸 **위에** 찍히므로 앞면 안쪽 토막이 얼굴 위에 비친다. 온몸 판은 안 자른다. */
@@ -3598,15 +3602,22 @@ export function tankTurretV2(siege: boolean, parts?: { body?: boolean; barrel?: 
        +0.15 는 포탑 몸보다 **앞**이라 뒤로 빠끔 나온 끝이 몸 위에 겹쳐 떠 보였다. 차체 뒤로
        나온 토막이므로 몸보다 낮은 키라야 포탑이 그 뿌리를 덮는다. */
     if (ext9 === undefined) out.push(...tagKey(siegeGun9(0.26, 0), kT(0, -2.0 * BX9) - 0.25));
-  } else {
-    // ④ 시즈 모드 — 돌아앉은 본체의 긴 앞면에서 굵고 긴 포신 하나(기울여 살짝 하늘을 본다). 반동 1.1.
-    const extS9 = parts?.ext ?? 1;
-    if (extS9 < 0.04) return out;   // 아직 안 나왔다(전환 홑판)
-    const rcS9 = poseNow === 2 && parts?.ext === undefined ? 1.1 : 0;
+  };
+  /** ④ 시즈 모드 — 돌아앉은 본체의 긴 앞면에서 굵고 긴 포신 하나(기울여 살짝 하늘을 본다). 반동 1.1. */
+  const siegeGunOut9 = (ex9: number | undefined): void => {
+    const extS9 = ex9 ?? 1;
+    if (extS9 < 0.04) return;   // 아직 안 나왔다(전환 판)
+    const rcS9 = poseNow === 2 && ex9 === undefined ? 1.1 : 0;
     // 뒤(−y)로 나가므로 반동은 **앞으로**(+y) 민다 — 부호가 위 탱크 포신과 반대다.
     out.push(...tagKey(siegeGun9(extS9, rcS9), kT(0, -2.0 * BX9) + 0.2));
     markMuzzle9(...gunAt9(extS9, rcS9)(1));   // 소염기 끝 — 뒤 위로 들린 그 자리다
-  }
+  };
+  /* ★ 전환 판은 **둘 다** 그린다 — 시즈 포신을 먼저(뒤), 탱크 쌍포신을 나중에(총구 표식이 탱크 것으로
+     남는다 — 전환 중 쓰는 무기가 탱크포다). 한 판이므로 깊이·음영이 정착 판과 같은 자다. */
+  const xf9 = parts?.xf;
+  if (xf9 !== undefined) { siegeGunOut9(xf9); tankGuns9(1 - xf9); }
+  else if (!siege) tankGuns9(parts?.ext);
+  else siegeGunOut9(parts?.ext);
   return out;
 }
 export function tankTurret(): ShapeFace[] { return tankTurretV2(false); }
@@ -14246,21 +14257,23 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   // 전환 다리 홑판 — 자세 0~5가 뻗은 몫 여섯 칸(POSE_KINDS에 등록). 온몸 시즈 판(siegeLegs())은 늘 다 뻗음.
   tanksiegelegs: () => siegeLegs([[1, 0], [0, -1]], poseNow / 5),
   tanksiegelegsF: () => siegeLegs([[-1, 0]], poseNow / 5),
-  /* ★ 시즈 전환의 포신 동작(요청: "탱크 포신은 포탑으로 들어가고 반대쪽에서 시즈 포신이 나오게 — 둘이 동시에") — 전환 창의
-     포탑 op은 포신 없는 포탑 몸(tankturret0)에, 앞 포신(tankbarrel)은 attach2(몸 앞)로 배율 1 → 0, 뒤 포신(siegebarrel)은
-     attach(몸 뒤)로 0 → 1. 배율 축이 모델 원점(포탑 링 가운데)이라 포신이 포탑 속으로 들어가고 반대쪽에서 나온다.
-     시즈 포신은 spin 180으로 탱크 포탑 뒤(−y)를 보고, 높이는 탱크 포탑(sinkAsTank)에 맞춘다. */
-  /* 배율 대신 **자세 컷**으로 움직인다(실측: 배율 축이 땅 원점이라 줄인 포신이 포탑에서 떨어져 떠 보였다) — 자세 0~5가
-     곧 '나온 몫' 여섯 칸이고(POSE_KINDS에 등록, 판 열쇠에 실린다), 탱크 포신은 1 − p/5, 시즈 포신은 p/5만큼 나온다. */
+  /* ★ 시즈 전환의 포신 동작(요청: "탱크 포신은 포탑으로 들어가고 반대쪽에서 시즈 포신이 나오게 — 둘이 동시에") —
+     배율이 아니라 **자세 컷**으로 움직인다(실측: 배율 축이 땅 원점이라 줄인 포신이 포탑에서 떨어져 떠 보였다):
+     자세 0~5 가 곧 '나온 몫' 여섯 칸이고(POSE_KINDS에 등록, 메시 열쇠에 실린다). */
   /* ★ **전환 창의 마디는 둘이다**(2026-09, 요청: "① 시즈 정위치로 회전 → ② 포탑 뒤쪽으로 포신이 나오고
      (앞 탱크 포신은 들어가고) → ③ 포탑 + 포신의 각도가 뒤를 쳐올리는 거야") — 자세 여섯 칸을 그 둘로 나눠
      쓴다: **나오고 들어가는 것은 0~3.5 칸** · **쳐올리는 것은 3 칸부터 5 칸까지**. ①의 회전은 엔진이
      몸 각으로 낸다(engine9 bodyHdg 의 ★).
      ⚠ 포탑 **몸도 함께 기운다** — 몸만 안 기울면 창이 끝나 시즈 판이 되는 순간 포탑이 툭 튄다. 그래서
-       tankturret0 을 `siege: true` 로 짓고 tiltK 로 같은 몫을 먹인다(포신은 뺀 몸뿐이라 그림은 탱크 포탑과 같다). */
-  tankturret0: () => turretScaled9(() => tankTurretV2(true, { barrel: false, sinkAsTank: true, ext: 0, tiltK: xfTilt9() })),
-  tankbarrel: () => turretScaled9(() => tankTurretV2(false, { body: false, ext: 1 - xfOut9() })),
-  siegebarrel: () => turretScaled9(() => tankTurretV2(true, { body: false, sinkAsTank: true, ext: xfOut9(), tiltK: xfTilt9() })),
+       전환 판을 `siege: true` 로 짓고 tiltK 로 같은 몫을 먹인다. */
+  /* ★★ **전환도 한 판이다**(2026-09, 지적: "아직도 탱크 → 시즈 변경 애니 중에 시즈 포신이 포탑에 안
+     가려지고 색도 훨씬 밝게 나와") — 여태 홑판 셋(포탑 몸 tankturret0 + 앞 포신 tankbarrel + 뒤 포신
+     siegebarrel)을 겹쳐 그렸다. GL 에서 딸림 부품은 **제 개체**로 큐에 들어가 깊이 칸을 따로 받으므로,
+     나중에 밀어 넣은 포신이 늘 포탑 **앞**에 선다(빌더 안의 tagKey 가 개체 사이를 못 가른다). 색도 같은
+     까닭이다: mesh9 의 덧칠 접기는 '그 pid 의 마지막 몸'과 견주는데(areaK9) 포신만 든 판은 견줄 몸이
+     달라 그늘이 옅게 접힌다. 한 판으로 모으면 둘 다 저절로 맞는다 — '같은 몸을 두 이름으로 굽지 마라'와
+     같은 자리다. 자세 0~5 가 '나온 몫' 여섯 칸이고 탱크 포신은 1 − p/3.5, 시즈 포신은 p/3.5 다. */
+  tankturretxf: () => turretScaled9(() => tankTurretV2(true, { sinkAsTank: true, xf: xfOut9(), tiltK: xfTilt9() })),
   /* 벌처(사진 기준 재작도 — 지적: "기존 너무 단순") ────────────────────────────
      사진이 말하는 것:
        · **길다**. 옆에서 본 실루엣이 3:1쯤으로 납작하고, 그 절반이 앞으로 뻗은
@@ -23691,8 +23704,8 @@ export const TERRAN_LT_KINDS9: ReadonlySet<string> = new Set<string>([
   "scv", "scvMin", "scvGas", "scvHold", "loadScvMin", "loadScvGas",
   "gunner", "ghost", "fbat", "inf",
   "vulture", "mine",
-  "tank", "tankbody", "tankgun", "tankturret0", "tankbarrel",
-  "tanksiege", "tanksiegebody", "tanksiegegun", "tanksiegelegs", "tanksiegelegsF", "siegebarrel",
+  "tank", "tankbody", "tankgun", "tankturretxf",
+  "tanksiege", "tanksiegebody", "tanksiegegun", "tanksiegelegs", "tanksiegelegsF",
   "goliath", "wraith", "dship", "vessel", "valk", "bc",
 ]);
 for (const k of TERRAN_LT_KINDS9) {
@@ -23937,6 +23950,11 @@ export const AUX_GALLERY: ShapeGalleryItem[] = [
   { kind: "tanksiegebody", label: "시즈 차체", group: "부가", race: "테란", hidden: true },
   { kind: "tanksiegegun", label: "시즈 포탑", group: "부가", race: "테란" },
   { kind: "tanksiegelegs", label: "시즈 버팀다리", group: "부가", race: "테란" },
+  /* ⚠ 갈라 둔 별본도 **이 표에 적는다** — 광택 표(gl9 glossOf9)가 이 표로 종족을 찾으므로, 빠지면 그 판만
+     테란 광택을 잃고 '그 밖' 값으로 그려진다(전환 판이 정착 판과 색이 달라 보인 까닭 하나가 이것이었다).
+     목록에는 안 세우므로 `hidden`. */
+  { kind: "tanksiegelegsF", label: "시즈 버팀다리(앞)", group: "부가", race: "테란", hidden: true },
+  { kind: "tankturretxf", label: "시즈 전환 포탑", group: "부가", race: "테란", hidden: true },
   { kind: "addonlink", label: "부속 연결관", group: "부가", race: "테란" },
   { kind: "burrowhole", label: "버로우 구멍", group: "부가", race: "저그" },
   /* 공사 발판(요청) — 짓는 동안 건물 상자 안쪽 모퉁이에 두 채 서는 그 탑이다.

@@ -27,6 +27,8 @@ const KINDS = flag("--kinds", null) ? String(flag("--kinds")).split(",") : null;
 const ROTS = String(flag("--rots", "45,225")).split(",").map(Number);
 /** 건설 단계를 칸으로 늘어놓는다(`--stages 1,2,3,4,0` · 0 = 완성) — 요잉은 `--rots` 의 첫 값 하나로 못 박는다.
  *  stageFaces 의 몫을 눈으로 고를 때 쓴다(단계끼리, 그리고 완성과 얼마나 다른가). */
+/** 자세 칸 — 자세로 움직이는 판(시즈 전환 포탑 tankturretxf · 전환 다리)을 한가운데 컷으로 보려면 준다. */
+const POSE = Number(flag("--pose", 0));
 const STAGES = flag("--stages", null) ? String(flag("--stages")).split(",").map(Number) : null;
 /* ★ `--lit` — 건물의 **활성 불빛**을 켠 채 굽는다(2026-09, 요청: 격납구 속 노란 불빛 확인).
    여태 이 자는 늘 꺼진 판만 냈다 — 켜진 자리는 도록 판(doc-sheet --anim)으로만 볼 수 있었고
@@ -45,9 +47,9 @@ const JSON_OUT = flag("--json", null);
    기본은 `glbloom=0` — 이 자는 "빠진 부품이 없나"를 보는 자라 **번짐은 끄고** 잰다(번짐은 2D 에 없는
    몫이라 켜면 발광 종류의 색차·밝기비가 통째로 뛴다). 번짐까지 보려면 `--hash ""` 나 `--hash 다른것`. */
 const HASH = flag("--hash", "glbloom=0");
-/** **자세 0 에서는 비는 것이 맞는** 종류 — 이 자는 유닛을 자세 0 으로 굽는데, 시즈 전환의 뒤 포신은
- *  나온 몫이 `poseNow / 5` 라 자세 0 에서 길이가 0 이다(bake9 siegebarrel). 빈 그림이 곧 제 모습이다. */
-const EMPTY_OK9 = new Set(["siegebarrel"]);
+/** **자세 0 에서는 비는 것이 맞는** 종류 — 이 자는 유닛을 자세 0 으로 굽는다. 지금은 없다(시즈 전환의
+ *  뒤 포신 홑판 siegebarrel 이 여기 있었는데, 포탑 한 판 tankturretxf 로 합치며 사라졌다). */
+const EMPTY_OK9 = new Set([]);
 const BG = "#20242b";
 const COLOR = "#4aa3ff";
 
@@ -73,7 +75,7 @@ window.__run = (kinds, rots, cell, bg, color, vs2d, stages, lit) => {
     rots.forEach((rot, i) => {
       let m = null;
       try {
-        m = isB ? g.bldMesh({ kind, fx: 0, fy: 0, z: 0, sizePx: 16, color, alpha: 1, rotDeg: rot, lit, buildStage: stages ? stages[i] : 0 }, 3) : g.unitMesh(kind, 0, 3);
+        m = isB ? g.bldMesh({ kind, fx: 0, fy: 0, z: 0, sizePx: 16, color, alpha: 1, rotDeg: rot, lit, buildStage: stages ? stages[i] : 0 }, 3) : g.unitMesh(kind, ${POSE}, 3);
       } catch (e) { errs[kind] = String(e).slice(0, 80); }
       if (!m) return;
       g.push({ mesh: m, ax: i * cell + cell / 2, ay: cell / 2, k, yoff: k * 4, yawDeg: -rot, color, alpha: 1, cam: CAM_TOP9, gradR: cell * 0.707, gradCy: 0, flat: GL_GLOW_KINDS9.has(kind) });   // 발광 종류는 붓과 같이 음영·깊이 없이
@@ -104,7 +106,7 @@ window.__run = (kinds, rots, cell, bg, color, vs2d, stages, lit) => {
   kinds.forEach((kind, r) => {
     const b = SHAPE_BUILDERS[kind]; if (!b) return;
     rots.forEach((rot, i) => {
-      poseSet9(0); bldLitSet(false); headYawSet(0); bldSpinRawSet9(0);
+      poseSet9(${POSE}); bldLitSet(false); headYawSet(0); bldSpinRawSet9(0);
       let faces = null;
       try { faces = zsorted(withTopView(() => bake(() => withViewShear(0, () => withYaw(-rot, b))))); } catch (e) { errs[kind] = String(e).slice(0, 80); }
       if (!faces) return;
