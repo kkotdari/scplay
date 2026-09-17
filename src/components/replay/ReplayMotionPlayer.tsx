@@ -4617,12 +4617,26 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              상자는 **칸 0 의 모델**로 잰다: 도는 부품이 아무리 움직여도 건물의 자리는 안 흔들린다.
              ⚠ 값은 안 든다 — 안 도는 종류는 메시 열쇠가 같아(spinTag "0") 같은 벌이 그대로 오고,
                도는 종류만 칸 0 한 벌을 더 쥔다(그 벌은 안 도는 프레임에서 어차피 쓰인다). */
-          const glBbox9 = (glB9 && gl9 && (op.spin ?? 0) !== 0 ? gl9.bldMesh({ ...op, spin: 0 }, lodB9) : glB9) ?? glB9;
+          /* ★★ **공사 발판도 잉크 상자를 흔든다**(2026-09, 지적: "테란 건설 완료 시 스캐폴드 없어지면서
+             건물이 살짝 내려오거든? 건설 중 조금 위로 올라가는 원인 수정") — 바로 위 회전 칸과 **같은
+             자리**인데 건설 단계(buildStage)만 안 막혀 있었다. 공사 중 메시에는 발판 두 채가 함께 드는데,
+             그것들은 건물 **앞 모퉁이 땅에** 서므로 화면 아래쪽으로 더 내려온다. 붓은 상자 바닥을 바닥선에
+             앉히므로 그 몫만큼 **건물이 통째로 떠오르고**, 완성되어 발판이 사라지는 순간 도로 내려앉는다.
+             실측(지도의 건물 각 · 단계 1~9 가 모두 같은 값 — 곧 범인은 발판이다):
+             스타포트 2.55 · 커맨드 1.06 · 아카데미 1.00 · 배럭 0.81 · 리파이너리 0.79 · 팩토리 0.22 모델칸.
+             상자는 **다 지은 모델**로 잰다 — 몸이 자라도 앉는 자리가 안 움직인다.
+             ⚠ 값은 거의 안 든다 — 그 한 벌은 완성되는 순간 어차피 쓰는 벌이라 미리 데워 두는 셈이다. */
+          const glBbox9 = (glB9 && gl9 && ((op.spin ?? 0) !== 0 || (op.buildStage ?? 0) !== 0)
+            ? gl9.bldMesh({ ...op, spin: 0, buildStage: 0 }, lodB9) : glB9) ?? glB9;
+          /* 딸림 부품도 **같은 자로** 잰다 — 몸 쪽과 한 벌이라야 상자가 공사 중에 안 흔들린다
+             (그리는 것은 종전대로 그 단계의 메시다). */
+          const glBabox9 = (glBa9 && gl9 && op.attach && ((op.spin ?? 0) !== 0 || (op.buildStage ?? 0) !== 0)
+            ? gl9.bldMesh({ ...op, kind: op.attach, headDeg: undefined, spin: 0, buildStage: 0 }, lodB9) : glBa9) ?? glBa9;
           const glBf9 = glBbox9 && gl9
             ? ((): GlFoot9 | null => {
               const a = gl9.footOf(glBbox9, -(op.rotDeg ?? 0), glBcam9);
-              if (!glBa9) return a;
-              const b = gl9.footOf(glBa9, -(op.rotDeg ?? 0), glBcam9);
+              if (!glBabox9) return a;
+              const b = gl9.footOf(glBabox9, -(op.rotDeg ?? 0), glBcam9);
               const x0 = Math.min(a.cx - a.w / 2, b.cx - b.w / 2); const x1 = Math.max(a.cx + a.w / 2, b.cx + b.w / 2);
               return { w: x1 - x0, cx: (x0 + x1) / 2, bot: Math.max(a.bot, b.bot), top: Math.min(a.top, b.top) };
             })()
