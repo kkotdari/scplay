@@ -89,7 +89,7 @@ import { TEAM_COLOR, type MinimapMarker } from "./markers";
 import {
   atkCutOf as atkCutOf9, flapCutOf as flapCutOf9,
   muzzlePoint as muzzlePoint9, anchorPoint as anchorPoint9, spinMuzzle9, BLD_MUZZLE, HEAD_MUZZLE_KINDS9, MUZZLE_BURST_FX9, SHELL_ONLY_FX9,
-  AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, ATTACK_FX, NO_BEAM_FX, TARGET_FX, PROJECTILE_FX, NUKE_BOOM_SEC, NUKE_FALL_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, attackFxOf9, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SIEGE_TURN_U9, SIEGE_XF_SEC, SPIN_STEPS, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
+  AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, ATTACK_FX, NO_BEAM_FX, TARGET_FX, PROJECTILE_FX, NUKE_BOOM_SEC, NUKE_FALL_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, attackFxOf9, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SIEGE_TURN_U9, SIEGE_XF_SEC, SPIN_ANIM9, SPIN_STEPS, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
 } from "./engine9";
 import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, WorldUi9 } from "./engine9";
 import {
@@ -5914,8 +5914,9 @@ export function docCellsOf9(kind: string, t: number, yaw: number): DocCell9[] {
   const a9 = docAnimOf9(kind);
   const gun9 = !!docWeaponOf9(kind);
   const out9: DocCell9[] = [];
-  /** 회전 칸 — 초당 `rate` 바퀴(여덟 칸). 지도와 같은 걸음이라야 '뚝뚝 끊긴다'가 안 난다. */
-  const cell9 = (rate: number): number => Math.floor(t * rate * SPIN_STEPS) % SPIN_STEPS;
+  /** 회전 칸 — 초당 `rate` 바퀴. 지도와 **같은 칸 수**(SPIN_ANIM9)라야 '뚝뚝 끊긴다'가 안 난다
+   *  (지도를 16 칸으로 올릴 때 여기를 안 올리면 도록만 절반 박자로 끊긴다). */
+  const cell9 = (rate: number): number => Math.floor(t * rate * SPIN_ANIM9) % SPIN_ANIM9;
   /** 불빛·경광등의 깜빡임 — 지도와 같은 박자(0.9초 주기의 3분의 2 동안 켜진다). */
   const blink9 = (((t % 0.9) + 0.9) % 0.9) < 0.6;
   /** 겨누는 중 — 표적을 좌우로 느리게 따라간다. */

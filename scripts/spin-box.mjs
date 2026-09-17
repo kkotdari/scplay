@@ -1,4 +1,4 @@
-/* 칸(spin)마다 메시의 **화면 상자**를 요잉 여덟 각으로 잰다.
+/* 칸(spin)마다 메시의 **화면 상자**를 요잉 여덟 각으로 잰다(칸 수는 engine9 의 SPIN_ANIM9).
    붓은 상자의 바닥을 바닥선에 맞춰 건물을 앉히므로, 그 바닥이 칸마다 움직이는 종류는
    **칸 0 으로 고정해 재야** 한다(ReplayMotionPlayer 의 glBbox9 · CLAUDE.md '도는 부품이
    건물의 자리를 흔들면 안 된다'). 여기 '바닥 흔들림'이 0 이 아닌 종류가 곧 그 종류다.
@@ -10,10 +10,12 @@ import { dirname } from "node:path"; import { fileURLToPath } from "node:url";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const ENTRY = `
 import { SHAPE_BUILDERS, bldSpinRawSet9 } from ${JSON.stringify(join(ROOT, "src/components/replay/bake9"))};
+import { SPIN_ANIM9 } from ${JSON.stringify(join(ROOT, "src/components/replay/engine9"))};
 import { collectMesh9 } from ${JSON.stringify(join(ROOT, "src/utils/mesh9"))};
 export function run(kind, yaws) {
   const out = [];
-  for (let s = 0; s < 8; s += 1) {
+  /* 칸 수는 표에서 읽는다 — 8 로 못 박아 두면 칸을 늘린 뒤 **절반만** 재고도 통과한다. */
+  for (let s = 0; s < SPIN_ANIM9; s += 1) {
     bldSpinRawSet9(s);
     const m = collectMesh9(SHAPE_BUILDERS[kind]);
     const row = [];

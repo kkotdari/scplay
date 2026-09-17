@@ -30,13 +30,22 @@ const ROTS = String(flag("--rots", "45,225")).split(",").map(Number);
 /** 자세 칸 — 자세로 움직이는 판(시즈 전환 포탑 tankturretxf · 전환 다리)을 한가운데 컷으로 보려면 준다. */
 const POSE = Number(flag("--pose", 0));
 const STAGES = flag("--stages", null) ? String(flag("--stages")).split(",").map(Number) : null;
+/* ★ `--spins 0,1,2,…` — **회전 칸**을 칸으로 늘어놓는다(2026-09 에 더했다. 요잉은 `--rots` 의 첫 값
+   하나로 못 박는다). 도는 부품(코어 디스크·서플라이 팬·포지 톱니·머신샵)은 칸마다 따로 굽는 자라
+   한 칸만 봐서는 매끄러운지 알 수 없다 — 한 줄에 늘어놓아야 걸음이 곧은지 눈에 걸린다.
+   `--spins all` 이면 engine9 의 SPIN_ANIM9 만큼 다 뜬다. */
+const SPINS = (() => {
+  const v = flag("--spins", null);
+  if (!v) return null;
+  return String(v) === "all" ? "all" : String(v).split(",").map(Number);
+})();
 /* ★ `--lit` — 건물의 **활성 불빛**을 켠 채 굽는다(2026-09, 요청: 격납구 속 노란 불빛 확인).
    여태 이 자는 늘 꺼진 판만 냈다 — 켜진 자리는 도록 판(doc-sheet --anim)으로만 볼 수 있었고
    그것은 브라우저 한 판에 수십 초가 든다. 불빛도 메시 열쇠(litTag)라 GL 이 그대로 굽는다. */
 const LIT = argv.includes("--lit");
 /** 칸의 머리글 — 단계 보기에서는 "N단", 아니면 "N°". */
-const COLS = STAGES ? STAGES.map((v) => (v ? v + "단" : "완성")) : ROTS.map((v) => v + "°");
-const RS = STAGES ? STAGES.map(() => ROTS[0]) : ROTS;
+const COLS0 = STAGES ? STAGES.map((v) => (v ? v + "단" : "완성")) : ROTS.map((v) => v + "°");
+const RS0 = STAGES ? STAGES.map(() => ROTS[0]) : ROTS;
 const CELL = Number(flag("--cell", 160));
 const ROWS = Number(flag("--rows", flag("--worst", 40)));
 /** 옛 2D 견줌을 켠다 — 2D 폴백(#gl=0·도록 SVG)을 감사할 때만. */
@@ -50,6 +59,7 @@ const HASH = flag("--hash", "glbloom=0");
 /** **자세 0 에서는 비는 것이 맞는** 종류 — 이 자는 유닛을 자세 0 으로 굽는다. 지금은 없다(시즈 전환의
  *  뒤 포신 홑판 siegebarrel 이 여기 있었는데, 포탑 한 판 tankturretxf 로 합치며 사라졌다). */
 const EMPTY_OK9 = new Set([]);
+let SPN = null; let COLS = COLS0; let RS = RS0;
 const BG = "#20242b";
 const COLOR = "#4aa3ff";
 
@@ -57,9 +67,11 @@ const ENTRY = `
 import { SHAPE_BUILDERS, SHAPE_GALLERY, poseSet9, bldLitSet, headYawSet, bldSpinRawSet9, tone9, silhouetteLight, DECAL_KINDS } from ${JSON.stringify(join(ROOT, "src/components/replay/bake9"))};
 import { withTopView, withViewShear, withYaw, bake, zsorted } from ${JSON.stringify(join(ROOT, "src/utils/shapeOblique"))};
 import { GlUnits9, CAM_TOP9, GL_CANVAS_KINDS9, GL_GLOW_KINDS9 } from ${JSON.stringify(join(ROOT, "src/components/replay/gl9"))};
+import { SPIN_ANIM9 } from ${JSON.stringify(join(ROOT, "src/components/replay/engine9"))};
 const BLD = new Set(SHAPE_GALLERY.filter((g) => g.group === "건물").map((g) => g.kind));
 window.__kinds = () => Object.keys(SHAPE_BUILDERS);
-window.__run = (kinds, rots, cell, bg, color, vs2d, stages, lit) => {
+window.__spinSteps = () => SPIN_ANIM9;
+window.__run = (kinds, rots, cell, bg, color, vs2d, stages, lit, spins) => {
   const shadeBoost = (o, fill) => (fill && o < 1 ? Math.min(0.85, o * 1.45) : o);
   const cols = rots.length; const rows = kinds.length;
   // GL: 한 캔버스에 칸마다 개체 하나
@@ -75,7 +87,8 @@ window.__run = (kinds, rots, cell, bg, color, vs2d, stages, lit) => {
     rots.forEach((rot, i) => {
       let m = null;
       try {
-        m = isB ? g.bldMesh({ kind, fx: 0, fy: 0, z: 0, sizePx: 16, color, alpha: 1, rotDeg: rot, lit, buildStage: stages ? stages[i] : 0 }, 3) : g.unitMesh(kind, ${POSE}, 3);
+        if (spins) bldSpinRawSet9(spins[i]);
+        m = isB ? g.bldMesh({ kind, fx: 0, fy: 0, z: 0, sizePx: 16, color, alpha: 1, rotDeg: rot, lit, spin: spins ? spins[i] : 0, buildStage: stages ? stages[i] : 0 }, 3) : g.unitMesh(kind, ${POSE}, 3);
       } catch (e) { errs[kind] = String(e).slice(0, 80); }
       if (!m) return;
       g.push({ mesh: m, ax: i * cell + cell / 2, ay: cell / 2, k, yoff: k * 4, yawDeg: -rot, color, alpha: 1, cam: CAM_TOP9, gradR: cell * 0.707, gradCy: 0, flat: GL_GLOW_KINDS9.has(kind) });   // 발광 종류는 붓과 같이 음영·깊이 없이
@@ -191,11 +204,20 @@ await page.goto("http://model-gl.local/" + (HASH ? "#" + HASH : ""));
 await page.addScriptTag({ content: js, type: "module" });
 await page.waitForFunction("!!window.__run");
 const kinds = KINDS ?? await page.evaluate(() => window.__kinds());
+/* `--spins` 를 칸 목록으로 풀고 머리글·요잉을 그에 맞춘다 — "all" 은 표의 칸 수(SPIN_ANIM9)를
+   페이지에서 물어 온다(여기는 노드라 .ts 를 직접 못 읽는다). */
+if (SPINS) {
+  SPN = SPINS === "all"
+    ? Array.from({ length: await page.evaluate(() => window.__spinSteps()) }, (_, i) => i)
+    : SPINS;
+  COLS = SPN.map((v) => v + "칸");
+  RS = SPN.map(() => ROTS[0]);
+}
 const CHUNK = 20;
 const rows = []; const sheets = [];
 for (let i = 0; i < kinds.length; i += CHUNK) {
   const part = kinds.slice(i, i + CHUNK);
-  const r = await page.evaluate(([ks, rots, cell, bg, color, v, st, li]) => window.__run(ks, rots, cell, bg, color, v, st, li), [part, RS, CELL, BG, COLOR, VS2D, STAGES, LIT]);
+  const r = await page.evaluate(([ks, rots, cell, bg, color, v, st, li, sp]) => window.__run(ks, rots, cell, bg, color, v, st, li, sp), [part, RS, CELL, BG, COLOR, VS2D, STAGES, LIT, SPN]);
   r.rows.forEach((row, j) => { rows.push({ ...row, chunk: sheets.length, row: j }); });
   sheets.push({ a: r.a, b: r.b });
 }

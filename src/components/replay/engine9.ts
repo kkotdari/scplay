@@ -375,6 +375,22 @@ export const SHAPE_KIND: Record<string, string> = {
   "Nydus Canal": "nydus",
 };
 export const SPIN_STEPS = 8;
+/* ★★ **도는 부품의 칸은 무늬 칸과 따로다**(2026-09, 요청: "코어 디스크, 서플라이 팬, 터렛 포드
+   도는 애니메이션 프레임수를 늘려줘 부드럽게") ─────────────────────────────────────────────
+   `SPIN_STEPS`(8)는 두 가지를 겸하고 있었다: ① 도는 부품의 **각을 나누는 칸** ② 핵 폭발·구름이
+   씨앗을 접는 **무늬 번호의 칸**. ①만 늘리고 싶으므로 가른다(`SPIN_SLOTS`·`STORM_STAGES` 를
+   이미 그렇게 가른 그 자리다).
+   · **속도는 저절로 안 바뀐다** — 엔진이 `floor(t·rate·N) % N` 로 칸을 세고 빌더가
+     `칸·2π/N`(또는 대칭 몫 `2π/(n·N)`)으로 각을 내므로, 각 ≈ `t·rate·2π` 다. 곧 N 은
+     **시간 해상도만** 정하고 회전 속도에는 안 든다. 8 → 16 이면 판 갈아 끼움이 두 배다
+     (서플라이 팬 초당 17.6 → 35.2번 · 코어·포지·머신샵 12.8 → 25.6번).
+   · ⚠ **더 올려도 값이 없다** — 설계도가 초당 30장이라 그 위는 그려지지 않는다(N 16 에서
+     서플라이는 이미 35.2 로 포화다). 대신 **메시 벌 수는 그대로 는다**(서플라이는 칸 × 불빛
+     둘이라 16 → 32벌) — 폰 상한이 240벌이므로 24·32 로 올리는 것은 값이 안 맞는다.
+   · ⚠ 이 칸이 **열쇠에 든다**(`spinTag`) — 터렛 포드처럼 각을 유니폼으로 돌리는 자리는
+     애초에 칸이 필요 없다(아래 `HEAD_STEP9` 의 ★). 새 애니메이션을 넣을 때는 **먼저
+     유니폼으로 돌릴 수 있나**를 묻고, 못 돌릴 때만 이 칸을 쓴다. */
+export const SPIN_ANIM9 = 16;
 /* 공격 컷 둘(요청: "질럿 공격 모션 변경 … 왼칼 수평으로 잽-오른칼 수평으로 잽-잠깐 쉼
    … 프레임이 좀더 필요할듯") ────────────────────────────────────────────────────
    컷 2(공격)만으로는 한 동작밖에 못 그린다 — 요청은 **좌우가 번갈아 나가는** 두
@@ -5804,9 +5820,19 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
          (sunkenfire)으로 **갈아입기만** 하고 각은 늘 기본 요잉이었다. 그래서
          어느 쪽에서 오든 혓바닥이 늘 같은 방향으로 뻗었다. 성큰은 대지 전용이라
          지상만 본다. */
+      /* ★★ **공사 중에도 같은 회전을 이어 붙인다**(2026-09, 지적: "터렛 처음 지어지면
+         공사중일 때랑 포드 방향이 다른데 왜 그래?") ─────────────────────────────────────
+         까닭은 이 `!raising` 한 문이었다. 공사 중(`raising` = `t < doneAt`)에는 이 자리가
+         `undefined` 를 내고, 붓은 `attachRot: headDeg9 ?? buildingYawOf()` 로 **건물 기본
+         요잉**에 포드를 세운다. 그런데 완성되는 순간 탐지 회전(`sweep9`)이 켜지는데 그 각은
+         `t·96 + 자리` 라 건물 요잉과 아무 상관이 없다 — 곧 **그 한 프레임에 포드가 툭 돈다**.
+         고침은 겨눔과 탐지 회전을 **가르는 것**이다: 겨누기(표적 각)는 여태처럼 공사 중에
+         안 하고, 탐지 회전은 공사 중에도 돈다. 그러면 완성 전후로 각이 같은 함수라 이어진다.
+         · ⚠ 탐지 회전을 가진 것은 터렛뿐이다(`sweep9`) — 포톤·성큰은 공사 중 `undefined`
+           그대로라 종전과 한 톨도 안 다르다. */
       const headDeg9 = (unit === "Missile Turret" || unit === "Photon Cannon"
         || unit === "Sunken Colony")
-        && !raising && !bldFrozen9 && (goneEff === 0 || t < goneEff)
+        && !bldFrozen9 && (goneEff === 0 || t < goneEff)
         ? ((): number | undefined => {
           /* ★ 터렛은 **쉴 때도 돈다**(요청: idle 상태에서 포탑부가 돌며 탐지) — 표적이
              없으면 시간에 따라 천천히 한 바퀴(24°/s, 15초에 한 바퀴) 도는 각을 준다.
@@ -5815,10 +5841,28 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           /* 터렛은 **연속으로** 돈다(지적: "저렇게 도는 게 아니라 빙빙 연속적으로") — 22.5도 칸(16장)은
              24°/s에서 1초에 한 번 툭툭 넘어가는 그림이었다. 터렛만 7.5도 칸(48장)으로 촘촘히 굽는다: 터렛 판은
              2×2 발자국의 작은 판이라 48장이라도 몇 MB이고, 도는 동안 같은 48장을 되쓴다. 겨눌 때도 같은 칸. */
-          const HEAD_STEP9 = unit === "Missile Turret" ? 7.5 : 22.5;
+          /* ★★ **각을 칸으로 접는 것은 '각이 열쇠에 들 때'만 값이 있다**(2026-09, 요청:
+             "터렛 포드 도는 애니메이션 프레임수를 늘려 부드럽게") ────────────────────────
+             터렛 포드는 7.5도(48칸)로 접고 있었다. 그 근거는 **판 굽기 시절의 바이트**였고,
+             포드를 딸림 부품으로 가르며(그 자리의 ★★) 각이 `attachRot` 곧 **카메라와 같은
+             유니폼**이 되어 메시 열쇠에서 빠졌다 — 곧 접을 까닭이 사라졌는데 값만 남아,
+             96°/s 에서 초당 12.8번만 갈리는 계단으로 돌고 있었다. 0 으로 두어 **이어서** 돈다.
+             · ⚠ 포톤 캐논은 그대로 22.5도다 — 그쪽은 몸(`coil`)이 HEAD_KINDS 에 들어
+               **각이 아직 열쇠**이므로, 접는 것을 걷으면 프레임마다 새 메시를 굽는다.
+               성큰은 몸이 `sunkenrear`(명단 밖)이고 혀도 `attachRot` 이라 접을 값이 없지만,
+               표적 각은 원래 천천히 바뀌므로 종전 값을 그대로 둔다. */
+          const HEAD_STEP9 = unit === "Missile Turret" ? 0 : 22.5;
+          /** 각을 칸으로 접는다 — 칸이 0 이면 접지 않고 그대로(이어서 돈다). */
+          const snap9 = (d9: number): number => (
+            HEAD_STEP9 > 0
+              ? ((Math.round(d9 / HEAD_STEP9) * HEAD_STEP9) % 360 + 360) % 360
+              : ((d9 % 360) + 360) % 360
+          );
           const sweep9 = unit === "Missile Turret"
-            ? ((Math.round(((t * 96 + centerX * 37 + centerY * 53) % 360) / HEAD_STEP9) * HEAD_STEP9) % 360 + 360)   // 24 → 48 → 96°/s(요청: 두 번에 걸쳐 2배씩 — 3.75초에 한 바퀴) % 360
+            ? snap9((t * 96 + centerX * 37 + centerY * 53) % 360)   // 24 → 48 → 96°/s(요청: 두 번에 걸쳐 2배씩 — 3.75초에 한 바퀴)
             : undefined;
+          /* 공사 중에는 겨누지 않는다 — 탐지 회전만 이어 돈다(위 ★★). */
+          if (raising) return sweep9;
           const f9 = foeOfTgt9(rec9?.tgt);
           if (!f9) return sweep9;
           /* 못 치는 갈래는 겨누지도 않는다 — 터렛은 하늘만, 성큰은 땅만이다.
@@ -5830,7 +5874,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           if (dd9 > reachTo(unit, { air: f9.air, k: f9.k, uk: f9.uk },
             fireRangeTilesOf(unit, f9.air))) return sweep9;
           const d9 = (Math.atan2(-(f9.x - centerX), f9.y - centerY) * 180) / Math.PI;
-          return ((Math.round(d9 / HEAD_STEP9) * HEAD_STEP9) % 360 + 360) % 360;
+          return snap9(d9);
         })()
         : undefined;
       /* 이 건물 판의 자리 — 아래 사격 판정이 벙커의 불빛을 나중에 켠다(요청:
@@ -5893,7 +5937,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
             : shapeKind === "sunken"
               ? (sunkenOut ? Math.min(3, Math.floor((sunkenPh / 0.5) * 4)) : 0)
             : shapeKind === "forge" || shapeKind === "cyber" || shapeKind === "mshop"
-              ? (researching ? Math.floor(t * 1.6 * SPIN_STEPS) % SPIN_STEPS : 0)
+              ? (researching ? Math.floor(t * 1.6 * SPIN_ANIM9) % SPIN_ANIM9 : 0)
               /* ★ 0.6 → **2.2바퀴/초**(지적: "너무 뚝뚝 끊김") — 칸이 여덟뿐이라 판을
                  늘리지 않고 매끄럽게 하는 길은 **더 자주 바꾸는 것**이다. 초당 4.8번이던
                  판 갈아 끼움이 17.6번(57ms마다)이 되어 눈에는 이어져 돈다. 판 수는
@@ -5901,7 +5945,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
                  서플라이 팬은 세 갈래 대칭이라 한 칸이 15도이므로(빌더의 spinRadSym),
                  이 걸음은 날개 기준 초당 2.2바퀴가 아니라 **0.73바퀴**다 — 환풍팬으로
                  알맞은 속도다. */
-              : Math.floor(t * 2.2 * SPIN_STEPS) % SPIN_STEPS,
+              : Math.floor(t * 2.2 * SPIN_ANIM9) % SPIN_ANIM9,
           /* 원작처럼 45도 요잉(지적) — 2D에도 적용(재지적: 2D도 45도 요잉해야지).
              쐐기의 진범은 요잉이 아니라 hover 그림자의 beginPath 누락이었다. */
           rotDeg: buildingYawOf(),

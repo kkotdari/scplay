@@ -8,7 +8,7 @@ import { TIER_GEN9 } from "./tierTable.gen";
 import { kT } from "../../utils/openbwTracks";
 import {
   POLY2, MESH9, EMIT_FILL9, meshPut9, shinePath3, annulusPath3, orbPath3, billPath3, meshLoft9, meshRing9, loftZFaces, modelPoint9, annulusPath, bandPath, bodyFace, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, boxOctFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
-import { BUILD_STAGES, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, SPIN_STEPS, bldNormOf, modelInkOf, modelNormOf } from "./engine9";
+import { BUILD_STAGES, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, SPIN_ANIM9, SPIN_STEPS, bldNormOf, modelInkOf, modelNormOf } from "./engine9";
 import { type UnitDrawOp } from "./engine9";
 /** 주소 해시(`#pitch=`·`#nocreep` 같은 진단 스위치) — 굽기 일꾼 안에서는 location.hash가 빈 문자열(blob 주소)이라,
  *  메인이 일꾼을 만들 때 `name`에 해시를 실어 보내면(self.name) 그것을 먼저 본다. 메인·도구에서는 location.hash 그대로. */
@@ -440,22 +440,22 @@ export function lodNoteFrame(ms: number): void {
    도는 부품은 여덟 칸이면 족하다(45도씩). 그러나 스톰은 칸을 각으로 쓰지 않고 **무늬의
    번호**로 쓴다 — 게다가 이제 한 벼락을 여러 단계로 나눠 자라게 하므로(씨앗×단계) 여덟
    으로는 씨앗이 두셋밖에 안 남아 같은 벼락이 되풀이된다. 상한만 넉넉히 열어 두고, 도는
-   종류는 부르는 쪽이 여태처럼 % SPIN_STEPS로 여덟 칸만 쓴다 — 그쪽 열쇠와 판 수는
-   그대로다. */
+   종류는 부르는 쪽이 % SPIN_ANIM9 로 그쪽 칸만 쓴다(2026-09 에 8 → 16 으로 올렸다 —
+   engine9 의 SPIN_ANIM9 ★). 무늬 번호로 쓰는 쪽(핵)은 종전 SPIN_STEPS 그대로다. */
 export const SPIN_SLOTS = 32;
 /** 벼락 하나가 자라는 단계 수 — 스톰 빌더의 STAGES9와 짝이다(칸 = 씨앗 × 이것 + 단계). */
 export const STORM_STAGES = 16;
 /** 굽기 열쇠에 박는 회전 칸 — 안 도는 종류는 "0"이라 옛 열쇠와 같다. */
 export const spinTag = (kind: string): string => (SPIN_KINDS.has(kind) ? String(bldSpinNow) : "0");
 /** 지금 칸의 각(라디안) — 빌더가 제 부품을 이만큼 돌린다. */
-export const spinRad = (): number => ((bldSpinNow % SPIN_STEPS) * Math.PI * 2) / SPIN_STEPS;
+export const spinRad = (): number => ((bldSpinNow % SPIN_ANIM9) * Math.PI * 2) / SPIN_ANIM9;
 /** ★ **n갈래 대칭인 부품**의 각(지적: "도는 거 그림 더 자주 그리기 너무 뚝뚝 끊김") ────────
- *  날개 셋짜리 팬은 120도만 돌면 처음 그림으로 되돌아온다. 그런데 여태 여덟 칸에 **360도**를
+ *  날개 셋짜리 팬은 120도만 돌면 처음 그림으로 되돌아온다. 그런데 여태 칸에 **360도**를
  *  나눠 담아, 칸이 0·45·90·135…로 갈 때 눈에 보이는 각은 0·45·90·**15**·60·105·30·75가 됐다 —
- *  여덟 그림이 다 다르기는 한데 **차례가 뒤죽박죽**이라 도는 것이 아니라 떠는 것으로 보였다.
- *  대칭 몫(2π/n)을 여덟 칸에 나눠 담으면 15도씩 곧게 나아가고, 마지막 칸 다음이 첫 칸과
- *  정확히 이어진다(대칭이니까). 판 수는 그대로 여덟이다. */
-export const spinRadSym = (n: number): number => ((bldSpinNow % SPIN_STEPS) * Math.PI * 2) / (n * SPIN_STEPS);
+ *  그림이 다 다르기는 한데 **차례가 뒤죽박죽**이라 도는 것이 아니라 떠는 것으로 보였다.
+ *  대칭 몫(2π/n)을 칸에 나눠 담으면 곧게 나아가고, 마지막 칸 다음이 첫 칸과 정확히
+ *  이어진다(대칭이니까). 벌 수는 칸 수 그대로다(SPIN_ANIM9 — 지금 16). */
+export const spinRadSym = (n: number): number => ((bldSpinNow % SPIN_ANIM9) * Math.PI * 2) / (n * SPIN_ANIM9);
 
 /** 굽는 도구(model-shot --spin)가 칸을 세우는 문 — 앱에서는 op.spin이 세운다. */
 /** 앱이 op.spin을 그대로 세우는 문(buildingSpriteBake) — 칸 접기 없이 그대로. */
@@ -11422,12 +11422,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ...tagKey([topFace(discPath3(0, -0.2, 3.192, 1.05), 0.28)], 13.4),
       /* 도는 살 셋(요청: "코어 디스크 회전") — 매끈한 원판은 아무리 돌려도 그림이
          같으니, 돌고 있음을 말할 살이 있어야 한다. 판 윗면에 밝은 살 셋을 얹고 그
-         각에 회전 위상(spinRad)을 태운다 — 판이 칸마다 따로 구워지므로 실제로 돈다.
-         옛 주석의 "쌩쌩 돌아가는은 줄 수 없다"가 여기서 풀린다. */
+         각에 회전 위상을 태운다 — 판이 칸마다 따로 구워지므로 실제로 돈다.
+         옛 주석의 "쌩쌩 돌아가는은 줄 수 없다"가 여기서 풀린다.
+         ★★ **살 셋은 120도마다 같은 그림이니 대칭 몫으로 돈다**(2026-09, 요청: "코어 디스크 …
+           프레임수를 늘려줘 부드럽게") — 여태 `spinRad()`(360도를 칸 수로 나눈 것)라, 눈에 보이는
+           각(120도의 나머지)이 0·45·90·15·60·105·30·75… 로 **차례가 뒤죽박죽**이었다. 그림이 다
+           달라 '돌기는 하는데 떠는' 꼴이다 — 서플라이 팬에서 한 번 고쳐 적어 둔(spinRadSym) 그
+           함정에 코어만 남아 있었다. `spinRadSym(3)` 은 120도를 칸 수로 곧게 나눠 밟고, 마지막 칸
+           다음이 첫 칸과 정확히 이어진다. 보이는 주기(초당 1.6바퀴)는 그대로다. */
       ...tagKey(((): ShapeFace[] => {
         const spokes: ShapeFace[] = [];
         for (let k9 = 0; k9 < 3; k9 += 1) {
-          const a9 = spinRad() + (k9 * Math.PI * 2) / 3;
+          const a9 = spinRadSym(3) + (k9 * Math.PI * 2) / 3;
           const pts: [number, number, number][] = [];
           const P9 = (rr9: number, th9: number): [number, number, number] =>
             [Math.cos(th9) * rr9, -0.2 + Math.sin(th9) * rr9, 3.192];
@@ -17596,12 +17602,22 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       return [Math.cos(a9) * 3.3, 0.1 + Math.sin(a9) * 3.0];
     });
     out.push(...tagKey(paintBase(prismZFaces(oct9, 0, 0.44, true), DARK), 20 + depthNow(0, 0.1)));
-    /* 톱니 둘이 **연구 중에 돈다**(요청: "머신샵 연구중 톱니 두개가 돌게") — 바닥 톱니판의 이 16개는 spinRad만큼
-       돌고(SPIN_KINDS·엔진의 spin 판정은 포지·코어와 같다), 옆의 세로 바퀴에는 이 열 개를 달아 반대로 두 배 빠르게
-       돌린다. 여덟 칸이 이 하나(22.5°)와 맞아 바닥판은 '굴러가는' 그림이 된다. */
-    const SP9 = spinRad();
+    /* 톱니 둘이 **연구 중에 돈다**(요청: "머신샵 연구중 톱니 두개가 돌게") — 바닥 톱니판(이 16개)과
+       옆의 세로 바퀴(이 10개)가 반대로 돌고, 바퀴가 두 배 빠르다.
+       ★★ **한 칸이 이 하나를 꼬박 돌면 그림이 안 바뀐다**(2026-09, 요청: "도는 애니메이션 프레임수를
+         늘려줘 부드럽게" — 눈으로 보다가 잡았다) ─────────────────────────────────────────────────
+         여태 각이 `spinRad()/2` 였다. 옛 여덟 칸에서 그것은 칸마다 **22.5도**고 이 16개의 이 간격이
+         정확히 22.5도다 — 곧 한 칸 넘어가면 **이가 이웃 이의 자리에 정확히 겹쳐** 그림이 한 톨도 안
+         바뀐다. 주석은 "이 하나와 맞아 굴러가는 그림이 된다"고 적혀 있었지만, 이가 다 같은 꼴인
+         16갈래 대칭에서 한 칸 = 한 이는 **회전이 아니라 항등**이다(바닥 톱니는 한 번도 안 돌았다.
+         옆 바퀴는 `×2` 라 −90도, 이 간격 36도의 나머지가 −18도씩이어서 **두 그림만** 오갔다).
+         고침은 대칭 몫을 쓰는 것이다(`spinRadSym`) — 이 **하나**를 칸 수로 나눠 밟으므로 칸마다
+         그림이 갈리고, 마지막 칸 다음이 첫 칸과 정확히 이어진다.
+       · 이 톱니율은 포지 톱니(`spinRad()/TN` = 같은 식)와 같은 자다 — 초당 이 1.6개.
+       · ⚠ 이 함정을 찾는 자: **칸 수 × 칸당 각이 대칭 주기의 정수배면 그 부품은 안 돈다.**
+         `--spins` 로 늘어놓고 칸 0 과 칸 1·2 를 화소로 견주면 바로 걸린다. */
     for (let k9 = 0; k9 < 16; k9 += 1) {
-      const a9 = (k9 / 16) * Math.PI * 2 + SP9 / 2;
+      const a9 = (k9 / 16) * Math.PI * 2 + spinRadSym(16);
       const cx9 = Math.cos(a9) * 3.25; const cy9 = 0.1 + Math.sin(a9) * 2.95;
       out.push(...tagKey(paintBase(spirePillar({
         x: cx9, y: cy9, z0: 0.04, h: 0.36, w: 0.28, tipW: 0.28, segs: 1, sides: 4, hold: 1,
@@ -17657,7 +17673,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const teeth9: ShapeFace[] = [];
       const R0 = 0.93; const R1 = 1.22; const WY0 = -0.8; const WY1 = 0.6;
       for (let k9 = 0; k9 < 10; k9 += 1) {
-        const a0 = (k9 / 10) * Math.PI * 2 - SP9 * 2;
+        const a0 = (k9 / 10) * Math.PI * 2 - spinRadSym(10) * 2;   // 반대로 · 두 배 빠르게(위 ★★)
         const a1 = a0 + (Math.PI * 2 / 10) * 0.45;
         const am = (a0 + a1) / 2;
         if (Math.sin(am) < -0.25) continue;   // 아래로 도는 이는 몸·바닥판에 가린다
