@@ -896,6 +896,13 @@ export function spirePillar(o: {
    *  면 명암·깊이·등진 면 걷기는 전부 실제 꼭짓점에서 다시 재므로(trueNormal의 외적,
    *  depthNow(fx, fy)) 미는 쪽이 따로 손댈 것은 없다. */
   skewV?: (u: number, t: number) => number;
+  /** ★★ **음영 세기 배수**(2026-09, 지적: "시즈모드는 포탑 옆면과 포신이 너무 어둡고 …
+   *  통일할 수 없나 부품을") — 기둥은 낯마다 `faceLight` 로 음영을 매기는데 그 어두운 쪽
+   *  상한이 **0.38**(메시에서 ×1.25 = 0.47)이다. 같은 자리를 관(`tubeFaces`)으로 지으면
+   *  배에 부드러운 그늘 한 겹(0.26 → 0.33)뿐이라, **같은 굵기의 같은 포신인데 헬퍼가 다르면
+   *  한쪽만 숯빛**이 된다(실측: 시즈 포신 검0.47 vs 탱크 포신 검0.33).
+   *  낯을 많이 가진 기둥으로 관을 흉내 낼 때는 이 배수로 관의 자에 맞춘다. 1 이 종전. */
+  litK?: number;
   /** 단면의 **한쪽을 평평하게** — +1이면 v ≥ 0 쪽 점을 v 0 평면으로 눌러 D자 단면(한쪽은 둥글고 한쪽은 평면),
    *  −1이면 반대쪽. 눌린 점들은 u축 선 위에 퍼져 그 사이 낯이 평면의 띠가 된다(아비터 윗날개의 안쪽 평면). */
   flatV?: 1 | -1;
@@ -1125,18 +1132,21 @@ export function spirePillar(o: {
   for (const wl of walls) {
     if (wl.cap) { out.push(...(wl.faces ?? [])); continue; }
     const fl = faceLight(wl.nx, wl.ny, wl.nz ?? 0.3);
+    /** 음영 한 겹의 짙기를 배수만큼 죈다(위 litK) — 면은 그대로 두고 알파만 곱한다. */
+    const dim9 = (fs9: ShapeFace[]): ShapeFace[] => (o.litK === undefined || o.litK === 1
+      ? fs9 : fs9.map((f9) => [f9[0], f9[1] * (o.litK as number), f9[2], f9[3], f9[4], f9[5]] as ShapeFace));
     // 앞·뒤 색을 따로 받으면 면 법선의 y 부호로 갈라 칠한다(요청).
     /* ⚠ fillTop 이 빈 문자열(= 임자 색)이면 **표식을 달아 둔다** — 그냥 비워 두면 맨 아래
        `paintBase(out, o.fill)` 가 몸 색으로 칠해 버린다(실측: 저글링 등이 살색으로 남았다).
        표식은 돌려주기 직전에 벗긴다 — 그래야 그리는 차례(깊이 정렬)를 안 흩뜨린다. */
     const side = wl.top ? (o.fillTop === "" ? ACC_MARK9 : o.fillTop) : wl.ny >= 0 ? o.fillFront : o.fillBack;
     out.push(side ? [wl.d, 1, side] as ShapeFace : bodyFace(wl.d),
-      ...(fl.visible ? fl.face(wl.d) : [sideFace(wl.d, 0.42)]));
+      ...dim9(fl.visible ? fl.face(wl.d) : [sideFace(wl.d, 0.42)]));
     /* 진짜 법선이 있는 면은 **아래를 볼수록 어둡게** 한 겹 더(수리: 등진 면을 걷고 나니
        60도쯤에서 잎 셋이 한 장 평면으로 뭉개졌다) — 세계 광원은 수평 성분만 보므로,
        거의 위를 보는 판들은 서로 구분이 없다. 위에서 내리는 빛 몫을 z로 준다: 옆잎의
        바깥 밑면은 그늘지고 윗잎·안쪽 오목면은 밝은 채라 겹친 자리가 읽힌다. */
-    if (wl.nz !== undefined && wl.nz < -0.05) out.push(sideFace(wl.d, Math.min(0.3, -wl.nz * 0.32)));
+    if (wl.nz !== undefined && wl.nz < -0.05) out.push(...dim9([sideFace(wl.d, Math.min(0.3, -wl.nz * 0.32))]));
   }
   const res9 = o.fill ? paintBase(out, o.fill) : out;
   return tagKey(o.fillTop === "" ? res9.map((f9) => (f9[2] === ACC_MARK9
@@ -3550,7 +3560,9 @@ export function tankTurretV2(siege: boolean, parts?: { body?: boolean; barrel?: 
        한쪽으로 몰려 바탕 #6a7286 이 숯빛이 됐다(탱크 포신은 tubeFaces 라 검0.33 · 흰0.30 짝이다).
        `trueNormal` 은 꼭짓점에서 법선을 뽑으므로 눌린 살의 기울기를 그대로 탄다. */
     const o9 = paintBase(spirePillar({
-      x: 0, y: 0, h: 0.8, w: 1, segs: 6, sides: 8, oval: 2, caps: "both", trueNormal: true,
+      /* 음영은 **관의 자**로 맞춘다(litK) — 탱크 포신(tubeFaces)이 배에 0.26 한 겹인데
+         기둥은 낯마다 0.38 이라, 같은 포신인데 시즈 쪽만 숯빛이었다(0.26/0.38 ≒ 0.68). */
+      x: 0, y: 0, h: 0.8, w: 1, segs: 6, sides: 8, oval: 2, caps: "both", trueNormal: true, litK: 0.68,
       path: pOf9,
       widthOf: (t9: number): number => (0.6 - 0.07 * e9 * t9) * BX9,
     }), TANK_STEEL);
@@ -3582,7 +3594,10 @@ export function tankTurretV2(siege: boolean, parts?: { body?: boolean; barrel?: 
        튀어나와서 보이는 거였어") — 0.26 만 뻗으면 포구가 포탑 뒤 낯(−1.3·HX9)에서 0.4쯤
        나온다. 그 끝의 해저드 띠가 탱크 모드에서 보이는 그 노랑이다.
        ⚠ 전환 홑판(ext 지정)에서는 안 그린다 — 그 판은 나오는 몫을 제가 그린다. */
-    if (ext9 === undefined) out.push(...tagKey(siegeGun9(0.26, 0), kT(0, -2.0 * BX9) + 0.15));
+    /* ★ 접힌 시즈 포신 끝은 포탑 **뒤**다(2026-09, 지적: "탱크모드의 시즈포신은 키가 안 맞고") —
+       +0.15 는 포탑 몸보다 **앞**이라 뒤로 빠끔 나온 끝이 몸 위에 겹쳐 떠 보였다. 차체 뒤로
+       나온 토막이므로 몸보다 낮은 키라야 포탑이 그 뿌리를 덮는다. */
+    if (ext9 === undefined) out.push(...tagKey(siegeGun9(0.26, 0), kT(0, -2.0 * BX9) - 0.25));
   } else {
     // ④ 시즈 모드 — 돌아앉은 본체의 긴 앞면에서 굵고 긴 포신 하나(기울여 살짝 하늘을 본다). 반동 1.1.
     const extS9 = parts?.ext ?? 1;
