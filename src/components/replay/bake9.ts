@@ -3439,6 +3439,50 @@ export function tankTurretV2(siege: boolean, parts?: { body?: boolean; barrel?: 
     const tp9 = polyPath3(top9);
     hexF.push([tp9, 1, TANK_STEEL] as ShapeFace, topFace(tp9, 0.2));
     if (wantBody9) out.push(...tagKey(hexF, kT(0, 0) + 0.3));   // 윗면 덮는다(지적: 윗면이 안 보임)
+    /* ★ **포탑 윗면의 표식 둘**(2026-09, 요청 + 원작 사진: "탱크 포탑 윗면 뒤쪽에 해저드 데칼
+       추가하고 중심부엔 삼각형(앞이 뾰족) 임자색 데칼 추가") ─────────────────────────────────
+       위에서 내려다보는 화면에서 포탑 윗면은 이 유닛의 가장 넓은 낯인데 맨 강철 한 장이었다.
+       원작 판을 보면 그 낯에 표식이 둘 있다: 뒤쪽 가장자리의 노란 해저드 빗금과, 가운데의
+       **앞을 가리키는 삼각형**(임자색이라 누구 것인지 한눈에 든다).
+       · 자리는 **기운 포탑을 함께 탄다**(T9) — 시즈는 포탑이 12도 들리므로, 화면 자로 얹으면
+         데칼만 제자리에 남아 윗면에서 떠오른다('화면 자로 놓은 장식은 요잉을 안 탄다'의 형제).
+       · ⚠ 앞뒤에 `f9` 를 곱하면 **안 된다** — `f9` 는 **육각 상자**가 뒤집힌 몫이고(시즈는 넓은
+         낯이 뒤로 간다), 포신은 탱크든 시즈든 늘 **+y** 로 나간다. 곱하면 시즈에서 해저드가
+         포신 쪽에 가고 삼각형이 뒤를 가리킨다(첫 판이 그랬다). 데칼이 가리켜야 하는 것은
+         상자의 앞이 아니라 **이 몸이 쏘는 쪽**이다.
+       · 임자색은 **칠하지 않는 것**이다(위 회전판과 같은 규약) — fill 을 비우면 그 자리를 편 색이 채운다. */
+    if (wantBody9) {
+      const ZT9 = ZB9 + HT9;
+      /** 윗면 바로 위의 한 점 — 기울기까지 태운다. */
+      const PT9 = (x9: number, y9: number): [number, number, number] => T9(x9, y9, ZT9 + 0.02);
+      const haz9: ShapeFace[] = [];
+      {
+        // 반폭 0.72 — 시즈는 −y 쪽이 넓은 낯(반폭 0.85)이라 그 안에 들어야 한다.
+        const HW9 = 0.72 * HX9;
+        const HD9 = 0.24 * HX9;
+        const CY9 = -0.92 * HX9;
+        const bp9 = polyPath3([
+          PT9(-HW9, CY9 + HD9), PT9(HW9, CY9 + HD9), PT9(HW9, CY9 - HD9), PT9(-HW9, CY9 - HD9),
+        ]);
+        haz9.push([bp9, 1, "#d8b52a"] as ShapeFace, topFace(bp9, 0.16));
+        const BN9 = 4;
+        const bw9 = (HW9 * 2) / (BN9 * 2 + 1);
+        const cl9 = (v9: number): number => Math.max(-HW9, Math.min(HW9, v9));
+        for (let i9 = 0; i9 < BN9; i9 += 1) {
+          const x09 = -HW9 + bw9 * (i9 * 2 + 0.5);
+          haz9.push([polyPath3([
+            PT9(cl9(x09 + HD9 * 0.9), CY9 + HD9), PT9(cl9(x09 + bw9 + HD9 * 0.9), CY9 + HD9),
+            PT9(cl9(x09 + bw9), CY9 - HD9), PT9(cl9(x09), CY9 - HD9),
+          ]), 1, "#22262b"] as ShapeFace);
+        }
+      }
+      // 앞이 뾰족한 삼각형 — 꼭짓점 차례는 육각 윗면과 같은 감기(앞 → 오른쪽 → 왼쪽)다.
+      const tri9 = polyPath3([
+        PT9(0, 0.78 * HX9), PT9(0.52 * HX9, -0.30 * HX9), PT9(-0.52 * HX9, -0.30 * HX9),
+      ]);
+      haz9.push([tri9, 1] as ShapeFace, topFace(tri9, 0.14));
+      out.push(...tagKey(haz9, kT(0, 0) + 0.34));
+    }
   }
   // (걷어냄·요청) 포탑 위 작은 회색 돔(지휘관 해치).
   const fwd9 = facingRatio(0, 1) > 0.08;
