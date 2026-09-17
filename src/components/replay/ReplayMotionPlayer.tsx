@@ -91,7 +91,7 @@ import {
 } from "./engine9";
 import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, WorldUi9 } from "./engine9";
 import {
-  pitchFlatSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, spriteSideMax9, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, tone9, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
+  pitchFlatSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, stageFaces, SPIN_KINDS, HEAD_KINDS, LIT_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, spriteSideMax9, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, tone9, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
 } from "./bake9";
 import { glUnits9, glNow9, glBakeMsTake9, GL_ON9, GL_WARM9, GL_BLIT9, GL_GLOW_KINDS9, SHADOW_ALPHA9, camOf9, CAM_TOP9, glIconOk9, glIconRequest9, type GlUnits9, type GlFoot9 } from "./gl9";
 export { LIMB_LOG, TURRET_BACK9, SHAPE_BUILDERS, ctx2d9, BAKE_ENV9, cropToInk, pathBox, tierTableOf, autoTier, stageFaces, rasterBld9, SHAPE_GALLERY, poseSet, poseSet9, bldLitSet, headYawSet, bldSpinSet, bldSpinRawSet9, lodSetCap, lodSetZoom, lodNoteFrame, tone9, TONE_DARK, TONE_SAT, silhouetteLight } from "./bake9";
@@ -5289,13 +5289,72 @@ function cssHex9(c: string): string {
   return /^#/.test(c.trim()) ? c.trim() : "#64ff64";
 }
 let docBldSet9: Set<string> | null = null;
+/** 그 종류를 **건물 길로** 굽나(도록 표의 건물 + 얼룩 + 공사 발판). */
+function docBldKind9(kind: string): boolean {
+  if (!docBldSet9) docBldSet9 = new Set([...SHAPE_GALLERY.filter((g9) => g9.group === "건물").map((g9) => g9.kind), ...DECAL_KINDS, "scaffold"]);
+  return docBldSet9.has(kind);
+}
+/** 그 종류가 **무엇으로 움직이나** — 도록이 칸을 세울지 말지 이것으로 가른다. */
+export type DocAnim9 = {
+  /** 회전 칸(spin)이 그림을 바꾸나 — 서플라이 팬·코어 원반·포지 톱니·머신샵 톱니·성큰 혀의 뻗는 컷. */
+  spin: boolean;
+  /** 포탑 각(headDeg)이 그림을 바꾸나 — 터렛·포토·성큰(쏘는 몸). 주면 '겨누는 중'이 함께 선다. */
+  head: boolean;
+  /** 불빛 컷(lit)이 있나 — 생산·연구·가스 채취·벙커 사격. */
+  lit: boolean;
+  /** 건설 단계(stage)를 깎을 수 있나 — 건물이면 참(발판 두 채가 함께 선다). */
+  stage: boolean;
+  /** 요잉 자체가 그 모델의 움직임인가 — 핵탄두는 떨어지며 두 바퀴 돈다. */
+  yawSpin: boolean;
+  /** 자세 컷(pose)을 가진 종류인가 — 유닛의 걸음·공격이 그것이다(poseCutsOf 가 자세히 안다). */
+  pose: boolean;
+};
+/** ★ 도록에 **건물의 움직임**을 흘리는 문(2026-09, 요청: "도록에서 건물도 유닛처럼 idle 상태
+ *  애니메이션 재생(서플라이 팬, 터렛 포탑 돌기 등) · 액션칸에는 생산중/업그레이드중/공격중 등
+ *  가지고 있는 애니메이션 재생 · 공사·알 변태·럴커 버로우·시즈모드도 도록에 나오면") ──────
+ *  도록은 여태 유닛의 자세 컷(poseCutsOf)만 알았다. 그런데 건물을 움직이는 것은 자세가 아니라
+ *  **회전 칸·포탑 각·불빛·건설 단계** 넷이다(지도가 그것으로 움직인다) — 그래서 도록의 건물
+ *  칸은 늘 '다 지어 놓고 불 꺼진 한 컷'이었다.
+ *  이 함수는 **명단 넷을 그대로 되비친다**(SPIN_KINDS·HEAD_KINDS·LIT_KINDS·건물 여부) — 도록이
+ *  제 표를 따로 들면 모델을 고칠 때 두 곳을 맞춰야 하므로, 묻는 자리를 하나로 둔다.
+ *  ※ 공사 고치(cocoon)·럴커 알·변태 고치·시즈 모드처럼 **딴 종류로 갈리는** 변신은 이 자의
+ *    일이 아니다 — 그것들은 이미 제 칸으로 도록에 서 있다(도록이 짝을 이어 보여 준다). */
+export function docAnimOf9(kind: string): DocAnim9 {
+  return {
+    spin: SPIN_KINDS.has(kind),
+    head: HEAD_KINDS.has(kind),
+    lit: LIT_KINDS.has(kind),
+    stage: docBldKind9(kind) && !DECAL_KINDS.has(kind) && kind !== "scaffold",
+    yawSpin: kind === "nuke",
+    pose: !!poseCutsOf(kind),
+  };
+}
 /** 도록 아이콘 — GL 붓이 켜져 있으면(GL_ON9 · `gl` 로 못 박음) **화면과 같은 메시 그림**(<canvas>, gl9.glIconRequest9 가 한 프레임의 청을 모아
  *  한 번에 그려 제 칸을 곧장 찍어 준다)이고, 아니면(폰·`#gl=0`·입체 보기·GL 못 섬·메시 못 지음) ShapeIcon(SVG, 2D 면) 그대로다. 프롭·창 규약(fit·fitPad·fitBox·
  *  wide·pose·spin)은 ShapeIcon 과 같다 — 도록(GalleryScreen·doc-sheet)이 이것을 쓰면 키값·마주 봄 판정 같은 2D 전용 어긋남 없이
  *  지도가 그리는 그 그림을 본다. 색은 요소의 currentColor(도록의 --scr-doc-own)다. */
-export function DocIcon9({ kind, rotDeg, pose, spin, flat, fit, fitPad, fitBox, wide, className, gl }: {
+export function DocIcon9({
+  kind, rotDeg, pose, spin, headDeg, lit, stage, blink, attach, attachRot,
+  flat, fit, fitPad, fitBox, wide, className, gl,
+}: {
   kind: string; rotDeg?: number; pose?: 0 | 1 | 2 | 3 | 4 | 5; spin?: number; flat?: boolean; fit?: boolean; fitPad?: number; fitBox?: string;
   wide?: boolean; className?: string;
+  /* ★ **건물의 움직임 다섯**(2026-09, 요청: "도록에서 건물도 유닛처럼 idle 상태 애니메이션
+     재생(서플라이 팬, 터렛 포탑 돌기 등) · 액션칸에는 생산중/업그레이드중/공격중 등 가지고
+     있는 애니메이션 재생") — 건물을 움직이는 것은 자세 컷(pose)이 아니다. 무엇이 있는지는
+     `docAnimOf9(kind)` 가 알려 준다(그 함수의 주석). */
+  /** 포탑 각(절대 도) — 터렛·포토·성큰만 그림이 바뀌고, 주면 '겨누는 중'이 함께 선다. */
+  headDeg?: number;
+  /** 창·속심의 불빛 — 생산·연구·가스 채취·벙커 사격의 그 컷. */
+  lit?: boolean;
+  /** 건설 단계 1~BUILD_STAGES−1(0·없음이면 완성) — 발판 두 채가 서고 몸이 그만큼만 자란다. */
+  stage?: number;
+  /** 발판 경광등의 깜빡임. */
+  blink?: boolean;
+  /** 딸림 부품(터렛 포탑부·성큰 혓바닥) — 한 벌 더 그린다. */
+  attach?: string;
+  /** 그 부품만의 절대 요잉(도) — 안 주면 몸의 요잉을 탄다. */
+  attachRot?: number;
   /** GL 로 그릴지 못 박기(안 주면 GL_ON9). */ gl?: boolean;
 }) {
   const wantGl = (gl ?? GL_ON9) && !!flat && !!SHAPE_BUILDERS[kind];
@@ -5311,10 +5370,11 @@ export function DocIcon9({ kind, rotDeg, pose, spin, flat, fit, fitPad, fitBox, 
     let box: [number, number, number, number] | undefined;
     if (fitBox) { const n9 = fitBox.split(/[\s,]+/).map(Number); box = [n9[0] ?? 0, n9[1] ?? 0, n9[2] ?? 16, n9[3] ?? 16]; }
     else if (!fit) box = wide ? [-8, -12, 32, 32] : [0, 0, 16, 16];
-    if (!docBldSet9) docBldSet9 = new Set([...SHAPE_GALLERY.filter((g9) => g9.group === "건물").map((g9) => g9.kind), ...DECAL_KINDS]);
     let live = true;
     glIconRequest9({
-      kind, bld: docBldSet9.has(kind), rotDeg: rotDeg ?? BUILDING_BASE_YAW, pose: pose ?? 0, spin: spin ?? 0, w, h, color, box, pad: fitPad ?? 0.12,
+      kind, bld: docBldKind9(kind), rotDeg: rotDeg ?? BUILDING_BASE_YAW, pose: pose ?? 0, spin: spin ?? 0,
+      headDeg, lit, stage, blink, attach, attachRot,
+      w, h, color, box, pad: fitPad ?? 0.12,
       /* ★★ 판을 **곧장 찍는다**(2026-09, 지적: "도록 팝업 회전이 뚝뚝 끊긴다") — 옛 길은 칸마다
          PNG(dataURL)를 만들어 <img> 에 물렸다. 한 장을 낼 때마다 PNG 인코딩과 브라우저의 **비동기
          디코딩**을 치르므로, 팝업처럼 프레임마다 각을 바꿔 다시 청하는 자리에서는 그 왕복이 곧
@@ -5334,13 +5394,21 @@ export function DocIcon9({ kind, rotDeg, pose, spin, flat, fit, fitPad, fitBox, 
       done: (u9) => { if (live && u9 === null) setFail(true); },
     });
     return () => { live = false; };
-  }, [useGl, kind, rotDeg, pose, spin, fit, fitPad, fitBox, wide]);
-  if (!useGl) return <ShapeIcon kind={kind} rotDeg={rotDeg} pose={pose} spin={spin} flat={flat} fit={fit} fitPad={fitPad} fitBox={fitBox} wide={wide} className={className} />;
+  }, [useGl, kind, rotDeg, pose, spin, headDeg, lit, stage, blink, attach, attachRot, fit, fitPad, fitBox, wide]);
+  if (!useGl) {
+    return (
+      <ShapeIcon
+        kind={kind} rotDeg={rotDeg} pose={pose} spin={spin}
+        headDeg={headDeg} lit={lit} stage={stage} attach={attach} attachRot={attachRot}
+        flat={flat} fit={fit} fitPad={fitPad} fitBox={fitBox} wide={wide} className={className}
+      />
+    );
+  }
   return <canvas ref={ref} width={1} height={1} className={cx("scr-motion-shape-svg", className)} aria-hidden data-gl9="0" />;
 }
 export function ShapeIcon({
   kind, className, faces: facesOverride, rotDeg, flat, keepRatio, viewYaw, pitchView, wide, fit, fitPad, fitBox: fitBoxProp,
-  spin, pose,
+  spin, pose, headDeg, lit, stage, attach, attachRot,
 }: {
   kind: string; className?: string;
   /** ★ 자세 컷(요청: 도록에서 idle·이동·액션을 보여 준다) — 0 기본 · 1·3 걸음 ·
@@ -5350,6 +5418,13 @@ export function ShapeIcon({
    *    밖에서 poseSet을 부르면 리액트의 그리는 차례와 그 창을 맞출 길이 없다 — 여기
    *    안에서 spin과 **같은 규약**으로 감싼다. */
   pose?: 0 | 1 | 2 | 3 | 4 | 5;
+  /* 건물의 움직임 넷 — DocIcon9 의 같은 이름 프롭이 GL 이 안 설 때 여기로 내려 준다.
+     세우는 자리는 rasterBld9 와 **같은 규약**이다(굽기 직전에 세우고 끝나면 되돌린다). */
+  /** 포탑 각(절대 도). */ headDeg?: number;
+  /** 창·속심 불빛. */ lit?: boolean;
+  /** 건설 단계(0이면 완성). */ stage?: number;
+  /** 딸림 부품(터렛 포탑부·성큰 혓바닥). */ attach?: string;
+  /** 그 부품만의 절대 요잉(도). */ attachRot?: number;
   /** 회전 칸(요청: 스톰을 모델로) — 도는 부품을 가진 종류(SPIN_KINDS)의 변종 번호다.
    *  스톰은 이 값이 **번개 무늬의 씨앗**이라, 칸이 바뀌면 무늬가 통째로 갈린다.
    *  굽기 열쇠(spinTag)가 이 값을 물므로 같은 칸은 늘 같은 그림이다. */
@@ -5402,15 +5477,31 @@ export function ShapeIcon({
     : ((): ReturnType<typeof resolveShapeFaces> => {
       /* 칸은 **굽기 전에** 세우고 끝나면 되돌린다 — poseSet과 같은 규약(모듈 전역
          깃발이라, 안 되돌리면 다음에 굽는 남의 모델까지 그 칸으로 굽힌다). */
-      if (spin === undefined && !pose) {
+      if (spin === undefined && !pose && headDeg === undefined && !lit && !stage && !attach) {
         return resolveShapeFaces(kind, rotDeg ?? BUILDING_BASE_YAW, flat, viewYaw, pitchView);
       }
+      const rot9 = rotDeg ?? BUILDING_BASE_YAW;
       if (spin !== undefined) bldSpinSet(spin);
       if (pose) poseSet9(pose);
-      const r9 = resolveShapeFaces(kind, rotDeg ?? BUILDING_BASE_YAW, flat, viewYaw, pitchView);
+      /* 포탑 각은 **몸의 요잉에 견준 상대각**이다(rasterBld9·bldMesh 와 같은 자) — 절대각을
+         그대로 세우면 몸이 돌 때 머리가 두 번 돈다. −180~180 으로 접는다. */
+      const pH9 = headYawNow; const pA9 = headAimNow; const pL9 = bldLitNow;
+      if (headDeg !== undefined) headYawSet((((headDeg - rot9) % 360) + 540) % 360 - 180, true);
+      if (lit) bldLitSet(true);
+      const r9 = resolveShapeFaces(kind, rot9, flat, viewYaw, pitchView);
+      let f9 = r9.faces;
+      // 건설 단계 — rasterBld9 와 같은 자리에서 같은 자로 깎는다(발판 두 채도 그 안에서 선다).
+      if (f9 && stage) f9 = stageFaces(f9, stage, kind);
+      /* 딸림 부품 — 붓의 폴백 고리와 같은 자다(그 자리의 ★): 제 각으로 따로 굽고 몸 뒤에 잇는다. */
+      if (attach) {
+        const a9 = resolveShapeFaces(attach, attachRot ?? rot9, flat, viewYaw, pitchView);
+        if (a9.faces) f9 = [...(f9 ?? []), ...a9.faces];
+      }
+      if (headDeg !== undefined) headYawSet(pH9, pA9);
+      if (lit) bldLitSet(pL9);
       if (pose) poseSet9(0);
       if (spin !== undefined) bldSpinSet(0);
-      return r9;
+      return { faces: f9, rot: r9.rot };
     })();
   const faces = resolved.faces;
   const rot = resolved.rot;

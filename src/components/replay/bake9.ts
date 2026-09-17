@@ -23115,6 +23115,17 @@ for (const k of TERRAN_LT_KINDS9) {
 }
 
 
+/* ★ 공사 발판 한 채를 **제 종류로** 등록한다(요청: "스캐폴드도 도록에 추가") —
+   이 탑은 여태 `stageFaces` 가 짓는 중인 건물 상자 안에 두 채 세워 주는 것뿐이라,
+   도록에는 볼 자리가 없었다. 빌더 하나를 얹으면 도록 표(AUX_GALLERY)가 그것을
+   그대로 싣는다(다른 모델과 같은 길로 굽고·재고·광택을 받는다).
+   ⚠ **등록은 SHAPE_FACES 표보다 앞이라야 한다**(bake9 문 차례 규약) — 그 표가 모듈을
+     들일 때 SHAPE_BUILDERS 를 통째로 한 번 굽기 때문이다. scaffold9 는 함수 선언이라
+     아래에 있어도 여기서 부를 수 있다(호이스팅).
+   키(5.0)는 배럭·팩토리 만한 건물의 발판 키다 — 도록은 견줄 짝이 없으니 흔한 자리의
+   한 채를 보인다. */
+SHAPE_BUILDERS.scaffold = (): ShapeFace[] => scaffold9(0, 0, 5);
+
 export const SHAPE_FACES: Record<string, ShapeFace[]> = {
   // 3D 빌더 전부를 표준 시점으로 한 번 굽고, 2D 기호(전투 갈래)는 그대로 얹는다.
   ...Object.fromEntries(Object.entries(SHAPE_BUILDERS).map(([k, b]) => [k, bake(b)])),
@@ -23333,6 +23344,9 @@ export const AUX_GALLERY: ShapeGalleryItem[] = [
   { kind: "tanksiegelegs", label: "시즈 버팀다리", group: "부가", race: "테란" },
   { kind: "addonlink", label: "부속 연결관", group: "부가", race: "테란" },
   { kind: "burrowhole", label: "버로우 구멍", group: "부가", race: "저그" },
+  /* 공사 발판(요청) — 짓는 동안 건물 상자 안쪽 모퉁이에 두 채 서는 그 탑이다.
+     도록은 한 채를 본다(경광등은 도록의 대기 애니메이션에서 깜빡인다). */
+  { kind: "scaffold", label: "공사 발판", group: "부가", race: "테란" },
   /* 도록에 칸이 없던 다섯을 더한다(요청: "유닛/건물 이외의 모델들은 따로 한 페이지에") —
      빌더는 있는데 볼 자리가 없었다. 럴커 둘은 버로우한 몸의 두 자세이고(구멍이 아니라
      제 몸이다), 크립 셋은 씨앗만 다른 같은 카펫이라 나란히 놓아야 갈렸는지 보인다. */

@@ -51,8 +51,15 @@ export {
        달라짐"). ShapeIcon의 fit은 그 컷의 잉크에 창을 맞추므로 자세가 갈리면 배율이
        흔들린다. 모션 창처럼 같은 모델의 컷을 나란히 놓는 자리는 이걸로 상자를 하나
        얻어 세 칸에 fitBox로 내린다 — 창이 못 박히고 움직임만 남는다. */
+/*   · docAnimOf9   — **건물의 움직임**을 묻는 자(2026-09, 요청: "도록에서 건물도 유닛처럼 idle
+ *     상태 애니메이션 재생 · 액션칸에는 생산중/업그레이드중/공격중"). 건물은 자세 컷이 아니라
+ *     회전 칸·포탑 각·불빛·건설 단계로 움직인다 — 그 넷을 가진 종류인지 알려 주고, 값은
+ *     DocIcon9 의 spin·headDeg·lit·stage 프롭으로 내려 준다(지도와 **같은 bldMesh** 가 그린다).
+ *     BUILD_STAGES 는 그 단계 수다(1~N−1이 짓는 중, 0이 완성). */
 export {
   SHAPE_GALLERY, ShapeIcon, DocIcon9, poseTempoOf, poseCutsOf, atkCutOf, flapCutOf, shapeMapTiles, shapeFitBox,
-  galleryYawOf,
+  galleryYawOf, docAnimOf9,
 } from "./ReplayMotionPlayer";
+export { BUILD_STAGES } from "./engine9";
 export type { ShapeGalleryItem } from "./ReplayMotionPlayer";
+export type { DocAnim9 } from "./ReplayMotionPlayer";

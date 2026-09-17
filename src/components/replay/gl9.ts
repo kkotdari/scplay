@@ -859,8 +859,10 @@ export class GlUnits9 {
     const stg = op.buildStage ?? 0;
     const head = op.headDeg === undefined ? 0 : (((op.headDeg - (op.rotDeg ?? 0)) % 360) + 540) % 360 - 180;
     const aim = op.headDeg !== undefined;
-    /** 경광등 깜빡임 칸 — 짓는 중에만 뜻이 있다(완성 모델에는 발판이 없다). */
-    const blk9 = stg > 0 ? (op.blink ? 1 : 0) : 0;
+    /** 경광등 깜빡임 칸 — 짓는 중에만 뜻이 있다(완성 모델에는 발판이 없다).
+     *  ⚠ 발판을 **제 종류로** 보는 자리(도록의 "공사 발판")는 단계가 0 이므로 그 문을 함께 연다 —
+     *    안 열면 도록의 발판만 경광등이 영영 꺼진 채다. */
+    const blk9 = (stg > 0 || op.kind === "scaffold") ? (op.blink ? 1 : 0) : 0;
     const set = (): void => {
       headYawSet(head, aim); bldLitSet(!!op.lit); bldSpinRawSet9(op.spin ?? 0); poseSet9(0);
       bldBlinkSet9(blk9);
@@ -1282,6 +1284,26 @@ export function glUnits9(cv: HTMLCanvasElement | null, meshMax = MESH_MAX9, bloo
    16-상자 자 — 없으면 footOf(메시 상자)에 맞춘다(fit, pad 는 짧은 변 비율). */
 export interface GlIconReq9 {
   kind: string; bld: boolean; rotDeg: number; pose: number; spin: number;
+  /* ★ 건물의 **애니메이션 값 넷**(2026-09, 요청: "도록에서 건물도 유닛처럼 idle 상태
+     애니메이션 재생(서플라이 팬, 터렛 포탑 돌기 등) · 액션칸에는 생산중/업그레이드중/
+     공격중 등 가지고 있는 애니메이션 재생 · 공사도 도록에 나오면") ──────────────────
+     지도에서 건물을 움직이는 것은 자세 컷(pose)이 아니다 — 회전 칸(spin) · 포탑 각
+     (headDeg) · 불빛(lit) · 건설 단계(buildStage)와 그 발판의 경광등(blink)이다.
+     여태 도록으로 가는 문(DocIcon9)은 spin 만 열려 있어서, 건물 칸은 늘 '다 지은
+     채 꺼져 있고 포탑이 정면을 본' 한 컷이었다. 다섯을 그대로 op 에 실어 준다 —
+     그리는 자는 지도와 **같은 bldMesh** 다. */
+  /** 포탑 각(절대 도) — HEAD_KINDS(터렛·포토·성큰)만 그림이 바뀐다. 주면 '겨누는 중'이 함께 선다. */
+  headDeg?: number;
+  /** 불빛 — LIT_KINDS 의 창·속심이 켜진다(생산·연구·가스 채취·벙커 사격). */
+  lit?: boolean;
+  /** 건설 단계 1~BUILD_STAGES−1(0이면 완성) — 발판 두 채가 서고 몸이 그 몫까지만 자란다. */
+  stage?: number;
+  /** 발판 경광등의 깜빡임 칸. */
+  blink?: boolean;
+  /** 딸림 부품(터렛 포탑부·성큰 혓바닥) — 같은 칸에 한 벌 더 그린다. */
+  attach?: string;
+  /** 그 딸림 부품만의 절대 요잉(도) — 안 주면 몸의 요잉을 탄다. */
+  attachRot?: number;
   /** 칸(기기 px) */ w: number; h: number;
   /** 임자색(#hex) */ color: string;
   /** 창 [x, y, w, h](16-상자 자) — 없으면 잉크 맞춤(pad). */ box?: [number, number, number, number]; pad: number;
@@ -1311,7 +1333,13 @@ export function glIconRequest9(req: GlIconReq9): void {
   ICON_Q9.push(req);
   if (!iconRaf9) iconRaf9 = requestAnimationFrame(() => { iconRaf9 = 0; glIconFlush9(); });
 }
-type IconCell9 = { req: GlIconReq9; x: number; y: number; w: number; h: number; mesh: GlMesh9 | null };
+type IconCell9 = {
+  req: GlIconReq9; x: number; y: number; w: number; h: number;
+  /** 이 칸에 그릴 벌들(몸 + 딸림 부품) — 각자 제 요잉을 가진다. */
+  draws: { mesh: GlMesh9; yawDeg: number }[];
+  /** 창을 잴 벌들 — **도는 값을 0 으로 못 박은** 메시다(아래 ★). */
+  boxes: GlMesh9[];
+};
 function glIconFlush9(): void {
   const g = iconGl9; if (!g) return;
   const q = ICON_Q9.splice(0);
@@ -1323,7 +1351,7 @@ function glIconFlush9(): void {
     const w = Math.min(ICON_SIDE9, Math.max(1, Math.round(r.w))); const h = Math.min(ICON_SIDE9, Math.max(1, Math.round(r.h)));
     if (px + w > ICON_SIDE9) { px = 0; py += rowH; rowH = 0; }
     if (py + h > ICON_SIDE9) close();
-    items.push({ req: r, x: px, y: py, w, h, mesh: null }); px += w; rowH = Math.max(rowH, h); W = Math.max(W, px);
+    items.push({ req: r, x: px, y: py, w, h, draws: [], boxes: [] }); px += w; rowH = Math.max(rowH, h); W = Math.max(W, px);
   }
   close();
   const cell = document.createElement("canvas"); const cc = cell.getContext("2d");
@@ -1333,27 +1361,61 @@ function glIconFlush9(): void {
     for (const it of p.items) {
       const r = it.req;
       try {
-        it.mesh = r.bld
-          ? g.bldMesh({ kind: r.kind, fx: 0, fy: 0, z: 0, sizePx: 16, color: r.color, alpha: 1, rotDeg: r.rotDeg, spin: r.spin } as UnitDrawOp, 3)
-          : g.unitMesh(r.kind, r.pose, 3);
-      } catch (e) { console.warn("[gl9] 아이콘 메시", r.kind, e); it.mesh = null; }
-      const mesh = it.mesh; if (!mesh) continue;
+        if (r.bld) {
+          const op = {
+            kind: r.kind, fx: 0, fy: 0, z: 0, sizePx: 16, color: r.color, alpha: 1,
+            rotDeg: r.rotDeg, spin: r.spin,
+            ...(r.headDeg === undefined ? {} : { headDeg: r.headDeg }),
+            ...(r.lit ? { lit: true } : {}),
+            ...(r.stage ? { buildStage: r.stage } : {}),
+            ...(r.blink ? { blink: 1 } : {}),
+          } as UnitDrawOp;
+          const body = g.bldMesh(op, 3);
+          if (body) it.draws.push({ mesh: body, yawDeg: -r.rotDeg });
+          /* 딸림 부품 — 붓이 지도에서 하는 그대로다(그 자리의 ★): 제 절대 요잉(attachRot)이
+             있으면 그 각으로, 없으면 몸의 요잉으로 한 벌 더 그린다. */
+          if (r.attach) {
+            const head = g.bldMesh({ ...op, kind: r.attach, headDeg: undefined }, 3);
+            if (head) it.draws.push({ mesh: head, yawDeg: -(r.attachRot ?? r.rotDeg) });
+          }
+          /* ★ 창은 **도는 값을 0 으로 못 박은 메시**로 잰다(붓의 그 규약 — 회전 칸·포탑 각으로
+             재면 칸마다 상자가 움직여 건물이 통째로 들썩인다). 딸림 부품까지 아울러 잰다. */
+          const bBody = (r.spin || r.headDeg !== undefined)
+            ? g.bldMesh({ ...op, spin: 0, headDeg: undefined }, 3) : body;
+          if (bBody) it.boxes.push(bBody);
+          if (r.attach) {
+            const bHead = g.bldMesh({ ...op, kind: r.attach, spin: 0, headDeg: undefined }, 3);
+            if (bHead) it.boxes.push(bHead);
+          }
+        } else {
+          const m = g.unitMesh(r.kind, r.pose, 3);
+          if (m) { it.draws.push({ mesh: m, yawDeg: -r.rotDeg }); it.boxes.push(m); }
+        }
+      } catch (e) { console.warn("[gl9] 아이콘 메시", r.kind, e); it.draws = []; }
+      if (!it.draws.length) continue;
       let box = r.box;
       if (!box) {
-        const f = g.footOf(mesh, -r.rotDeg, CAM_TOP9);
-        const pd = Math.min(f.w, f.bot - f.top) * r.pad;
-        box = [8 + f.cx - f.w / 2 - pd, 12 + f.top - pd, f.w + 2 * pd, f.bot - f.top + 2 * pd];
+        let x0 = Infinity; let x1 = -Infinity; let top = Infinity; let bot = -Infinity;
+        for (const m of (it.boxes.length ? it.boxes : it.draws.map((d) => d.mesh))) {
+          const f = g.footOf(m, -r.rotDeg, CAM_TOP9);
+          x0 = Math.min(x0, f.cx - f.w / 2); x1 = Math.max(x1, f.cx + f.w / 2);
+          top = Math.min(top, f.top); bot = Math.max(bot, f.bot);
+        }
+        const pd = Math.min(x1 - x0, bot - top) * r.pad;
+        box = [8 + x0 - pd, 12 + top - pd, x1 - x0 + 2 * pd, bot - top + 2 * pd];
       }
       const k = Math.min(it.w / Math.max(1e-6, box[2]), it.h / Math.max(1e-6, box[3]));
       const ax = it.x + it.w / 2 - k * (box[0] + box[2] / 2 - 8);
       const ay = it.y + it.h / 2 - k * (box[1] + box[3] / 2 - 12);
-      g.push({ mesh, ax, ay, k, yoff: 0, yawDeg: -r.rotDeg, color: r.color, alpha: 1, cam: CAM_TOP9, gradR: k * 11.31, gradCy: 0, flat: GL_GLOW_KINDS9.has(r.kind) });
+      for (const d of it.draws) {
+        g.push({ mesh: d.mesh, ax, ay, k, yoff: 0, yawDeg: d.yawDeg, color: r.color, alpha: 1, cam: CAM_TOP9, gradR: k * 11.31, gradCy: 0, flat: GL_GLOW_KINDS9.has(r.kind) });
+      }
     }
     g.flush(p.w, p.h, p.w, p.h);
     sheet.width = p.w; sheet.height = p.h;
     sc.drawImage(g.canvas, 0, 0);   // 판마다 읽기 한 번
     for (const it of p.items) {
-      if (!it.mesh) { it.req.done(null); continue; }
+      if (!it.draws.length) { it.req.done(null); continue; }
       if (it.req.blit) { it.req.blit(sheet, it.x, it.y, it.w, it.h); it.req.done(""); continue; }
       cell.width = it.w; cell.height = it.h;
       cc.drawImage(sheet, it.x, it.y, it.w, it.h, 0, 0, it.w, it.h);
