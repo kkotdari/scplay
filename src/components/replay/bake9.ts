@@ -22524,12 +22524,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        어긋남) — 화면 좌표 캡슐은 깊이 키가 없어 등판에 가려졌고, 화면에서 위로 민
        만큼 모델 높이도 알 수 없었다. tubeFaces는 제 깊이를 달고 추진체와 같은
        좌표계를 쓴다. 위 회색 광택 원은 제거(요청). */
-    const POD_Z = 3.36;
+    /* ★ 실린더·노즐·불꽃은 **한 축**이다(2026-09, 요청: "드랍십 실린더 조금 올리고 실린더-스러스터-
+       화염 전부 중심이 맞게 해 줘 안쪽 스러스터-화염도") — 이 한 값이 그 축의 높이이고, 노즐 원뿔·
+       테(nozzleRim9)·불꽃(thrustFlame)이 다 이것을 본다. 위아래로 옮길 일이 있으면 여기만 고친다. */
+    const TH_UP9 = 0.34;   // 스러스터·실린더를 함께 올린 몫(요청: "위로 살짝")
+    const POD_Z = 3.36 + TH_UP9;
     /* ★ 실린더를 **뒤로 물리고 짧게**(2026-09, 요청: "드랍십 실린더 두 개 뒤로 보내고 길이
        줄이고, 추진체 붙이기") — 앞 끝이 y 0.4 라 조종석 옆까지 길게 뻗어 동체보다 실린더가
        주인공이었다. 앞을 −0.9 로 물리면 길이가 3.3 → 2.1 이고, 뒤 끝(−3.0)은 그 자리라
        뒤에 붙은 추진체가 따라 움직일 일이 없다(꼬리 길이도 그대로다). */
-    const POD_Y0 = -3.0; const POD_Y1 = -0.9;
+    /* ★ 앞을 다시 늘린다(요청: "실린더 앞쪽 길이 늘리고") — 한때 0.4 까지 뻗어 '조종석 옆까지 길어
+       실린더가 주인공'이라 −0.9 로 물렸는데, 그 뒤 몸을 손질하고 보니 이번엔 너무 짧았다. 가운데인
+       −0.1 로 둔다(길이 2.1 → 2.9 · 옛 3.3 보다는 짧다). 앞 흡기구는 POD_Y1 을 보므로 따라온다. */
+    const POD_Y0 = -3.0; const POD_Y1 = -0.1;
     const pod = (tx: number): void => {
       /* 깊이 보정을 걷는다(재지적: 사선에서 가려져야 할 실린더가 앞으로 튄다) —
          관이 스스로 다는 깊이면 판·꼬리와 자연스럽게 앞뒤가 갈린다. */
@@ -22655,9 +22662,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        위치 맞추고)") — 꽁무니에 매달린 꼴이라 몸보다 아래로 처져 보였다. 노즐 원뿔·테·불꽃이
        **같은 `tz` 에서 갈라져 나오므로** 여기 한 값만 더하면 셋이 함께 움직인다(불꽃만 따로 두면
        그 자리에서 어긋난다 — 그것이 요청의 괄호다). */
-    const TH_UP9 = 0.34;
-    for (const [tx, tz0, tr, ty] of [[-1.0, 4.16, 0.46, -1.8], [1.0, 4.16, 0.46, -1.8], [-2.7, POD_Z, 0.66, POD_Y0 + 0.05], [2.7, POD_Z, 0.66, POD_Y0 + 0.05]] as [number, number, number, number][]) {
-      const tz = tz0 + TH_UP9;
+    for (const [tx, tz, tr, ty] of [[-1.0, 4.16 + TH_UP9, 0.46, -1.8], [1.0, 4.16 + TH_UP9, 0.46, -1.8],
+      [-2.7, POD_Z, 0.66, POD_Y0 + 0.05], [2.7, POD_Z, 0.66, POD_Y0 + 0.05]] as [number, number, number, number][]) {
       out.push(...paintBase(spirePillar({
         x: tx, y: ty, h: 0.8, w: 1, segs: 2, sides: 8, caps: "none",
         path: (t9: number): [number, number, number] => [tx, ty - 1.0 * t9, tz],
@@ -22671,8 +22677,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           [wallDiscPath(tx, ty - 1.02, tz, tr * 0.62, tr * 0.42), 0.8, "#7fd0ff"] as ShapeFace,
         ], depthNow(tx, ty - 2) * 1.6 + 0.85));
       }
-      out.push(...nozzleRim9(tx, ty - 0.95, tz + tr * 0.36, tr * 0.86, depthNow(tx, ty - 2) * 1.6 + 0.9, { th: tr * 0.26, dep: 0.9 }));
-      if (poseNow === 1) out.push(...thrustFlame(tx, ty - 1.0, tz + tr * 0.36, tr * 0.8, "terran", depthNow(tx, ty - 2) * 1.6 + 1));
+      /* ⚠ 테·불꽃의 `+ tr·0.36` 치우침은 걷었다(요청: "전부 중심이 맞게") — 노즐 원뿔은 `tz` 축에
+         있는데 테와 불꽃만 그 위로 0.24(포드)·0.17(안쪽) 떠 있어, 아가리에서 나오는 것이 아니라
+         **아가리 윗입술에 얹힌** 꼴이었다. 셋 다 `tz` 로 두면 포드 실린더까지 한 축이다. */
+      out.push(...nozzleRim9(tx, ty - 0.95, tz, tr * 0.86, depthNow(tx, ty - 2) * 1.6 + 0.9, { th: tr * 0.26, dep: 0.9 }));
+      if (poseNow === 1) out.push(...thrustFlame(tx, ty - 1.0, tz, tr * 0.8, "terran", depthNow(tx, ty - 2) * 1.6 + 1));
     }
     /* 꼬리(재지적: 축을 몸통에 붙이고 비행기 꼬리 스타일로) — 등판 뒤끝에서 곧장
        솟는 수직 안정판과, 그 위에서 좌우로 뻗는 수평 안정판 한 쌍. */
