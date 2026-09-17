@@ -4041,9 +4041,12 @@ export const sunkenTongueFaces = (): ShapeFace[] => {
   /* 혀만 돈다(요청: "성큰 혀는 공격대상을 향해야 해") — withModelSpin(headYawNow)으로
      감싸면 이 판만 표적 쪽으로 돌아간다. 22.5도 열여섯 칸이다. */
   /** 등뼈 — 역 U. t 0 뿌리, 1 끝. */
-  /** 뻗은 몫(요청: 공격 컷 넷) — spin 칸 0~3이 1/4~4/4. 칸이 없으면(합본 sunkenfire·도록) 다 뻗는다. */
+  /** 뻗은 몫 — spin 칸이 `1/N ~ N/N` 이다(engine9 `sunkenCut9` 와 짝: 나옴 → 머묾 → 들어감).
+   *  칸이 없으면(합본 sunkenfire·도록) 다 뻗는다. */
   // 합본(sunkenfire — 도록·저사양 폴백)은 spin 칸을 안 받으므로(SPIN_KINDS 밖) 늘 다 뻗는다 — sunkenFire 깃발이 그 자리다.
-  const EXT9 = sunkenFire ? 1 : Math.min(1, (Math.min(3, Math.max(0, bldSpinNow)) + 1) / 4);
+  const EXT9 = sunkenFire
+    ? 1
+    : (Math.min(SPIN_ANIM9 - 1, Math.max(0, bldSpinNow)) + 1) / SPIN_ANIM9;
   const spineAll9 = (t9: number): [number, number, number] => {
     const d9 = t9 * LSUM;
     if (d9 <= L1) return [0.25, -0.15, Z0 + d9];                               // 오르는 다리
@@ -16578,6 +16581,21 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     };
     /** 단면 다각형의 긴 축 끝 꼭짓점은 반지름의 cos(π/n) 자리 — 반길이를 그만큼 키워 준다. */
     const OCT_U = Math.cos(Math.PI / LEAF_SIDES9);
+    /* ★★ **옆선의 배흘림을 정하는 것은 두께가 아니라 폭 곡선의 지수다**(2026-09, 요청: "캐리어
+       잎들 옆선의 배흘림이 좀 심해진 듯 가운데 볼록이 덜하게") ────────────────────────────────
+       잎의 앞뒤 반길이는 호 위 자리 u 의 함수 `len·(1−u²)^p` 다. 여태 p = 0.5(제곱근, 곧 타원)
+       였는데 그 곡선은 **가운데에서 기울기가 0** 이라 u 가 0.7 까지 가도 길이가 71% 나 남는다 —
+       곧 몸통이 끝까지 통통하다가 끝에서만 급히 여위는 **배흘림**이 된다.
+       옆에서 본 렌즈의 세로 두께는 그 역함수다: '이 y 에 닿는 호 구간'이 `|u| ≤ (1−(y/len)^(1/p))^…`
+       라, p 를 올리면 그 구간이 **일찍** 좁아져 몸통이 고르게 가늘어진다.
+       · ⚠ 두께(`LEAF_HALF_T`)는 이 자리가 아니다 — 0.25 → 0.14 로 내려 굽어 보니 옆선이 거의
+         안 바뀌었다(실측). 두께는 잉크의 4% 남짓이고, 옆선을 만드는 것은 **호의 세로 폭**이다.
+       · 폭 곡선은 잎과 **덮개가 나눠 쓴다**(덮개가 잎 등에 앉는 자리·길이를 이 함수로 잰다) —
+         한 자리에 두어야 둘이 안 어긋난다. */
+    const LEAF_BELLY9 = 0.85;
+    /** 잎의 앞뒤 반길이 — 호 위 자리 u(−1 옆끝 … 0 잎맥 … 1 옆끝)에서. */
+    const leafW9 = (len9: number, u9: number): number =>
+      (len9 * Math.pow(Math.max(0, 1 - u9 * u9), LEAF_BELLY9)) / OCT_U + 0.01;
     /** 잎 한 장 — thetaDeg는 축 둘레에서 이 잎이 앉은 각(90=위), len은 잎맥의 앞뒤 반길이,
      *  arcDeg는 잎맥에서 가장자리까지 말린 반각. */
     /** 잎의 깊이 키 — 잎맥 중심의 깊이에 높이 몫을 더한다(데칼도 이 키 위에 얹는다). */
@@ -16629,10 +16647,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const th9 = (o9.theta * Math.PI) / 180;
       const ARC9 = (o9.arcDeg * Math.PI) / 180;
       const uOf = (t9: number): number => -Math.cos(Math.PI * t9);
-      const wOf = (t9: number): number => {
-        const u9 = uOf(t9);
-        return (o9.len * Math.sqrt(Math.max(0, 1 - u9 * u9))) / OCT_U + 0.01;
-      };
+      const wOf = (t9: number): number => leafW9(o9.len, uOf(t9));
       /** 덮개가 앉는 잎 겉면의 반지름 — **등마루를 같이 탄다**(안 타면 덮개가 등에 파묻힌다). */
       const rOf = (t9: number): number =>
         LEAF_R + ridge9(uOf(t9)) + (wOf(t9) * LEAF_HALF_T) / o9.len + 0.015;
@@ -16908,11 +16923,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const LEAF_ARC = (arcDeg * Math.PI) / 180;
       const inL9 = leafInX9(thetaDeg);            // 아랫잎 둘만 안쪽으로(위 ★)
       const uOf = (t9: number): number => -Math.cos(Math.PI * t9);
-      // 타원 잎 윤곽 — 잎맥(u 0)에서 len, 옆 끝(u ±1)에서 한 점.
-      const wOf = (t9: number): number => {
-        const u9 = uOf(t9);
-        return (len * Math.sqrt(Math.max(0, 1 - u9 * u9))) / OCT_U + 0.01;
-      };
+      // 잎 윤곽 — 잎맥(u 0)에서 len, 옆 끝(u ±1)에서 한 점(배흘림은 LEAF_BELLY9 · 위 ★★).
+      const wOf = (t9: number): number => leafW9(len, uOf(t9));
       return tagKey(spirePillar({
         x: 0, y: 0, h: 0.8, w: 1, segs: LEAF_SEGS9, sides: LEAF_SIDES9, caps: "none", fill: GOLD9,
         ref: [0, 1, 0], oval: LEAF_HALF_T / len, trueNormal: true,

@@ -391,6 +391,30 @@ export const SPIN_STEPS = 8;
      애초에 칸이 필요 없다(아래 `HEAD_STEP9` 의 ★). 새 애니메이션을 넣을 때는 **먼저
      유니폼으로 돌릴 수 있나**를 묻고, 못 돌릴 때만 이 칸을 쓴다. */
 export const SPIN_ANIM9 = 16;
+
+/** 성큰 혓바닥이 나와 있는 창 — 한 박자(쿨다운)의 앞 절반이다. */
+export const SUNK_OUT9 = 0.5;
+/* ★★ **들어가는 것도 나오는 것과 같은 몫으로 그린다**(2026-09, 요청: "성큰 혓바닥 들어갈 때도
+   단계적으로") — 여태 뻗은 몫은 창을 넷으로 접어 `0 → 3`(25 → 100%)으로 **커지기만** 하고,
+   창이 끝나면 100% 에서 **통째로 사라졌다**. 곧 혀가 스르르 나왔다가 툭 없어지는 꼴이다.
+   한 창 안에서 **나옴 → 머묾 → 들어감**의 세모꼴로 그린다 — 나가는 결과 들어오는 결이
+   같으므로 '지렛대를 당겼다 놓는' 동작으로 읽힌다.
+   · 칸은 `SPIN_ANIM9`(16)를 다 쓴다 — 넷으로는 들어가는 몫이 두세 칸밖에 안 남아 계단이 진다.
+     혀는 기둥 하나짜리 작은 판이라 벌이 늘어도 값이 싸다(몸 `sunkenrear` 는 칸을 안 물어 한 벌).
+   · 머무는 몫을 둔다(창의 34~56%) — 두 끝만 있으면 '다 뻗은 모습'이 눈에 안 남는다(시즈 전환의
+     머무는 몫과 같은 자리다).
+   · ⚠ **도록도 이 문을 쓴다** — 지도와 딴 식을 들면 조용히 어긋난다(도록 규약의 그 ⚠). */
+/** 혓바닥이 뻗은 몫(0~1) — 창 안의 자리 ph(0~SUNK_OUT9)에서. */
+export const sunkenExt9 = (ph: number): number => {
+  const u9 = ph / SUNK_OUT9;
+  if (u9 < 0 || u9 >= 1) return 0;
+  if (u9 < 0.34) return u9 / 0.34;
+  if (u9 < 0.56) return 1;
+  return (1 - u9) / 0.44;
+};
+/** 그 몫을 혓바닥의 회전 칸으로 — 마지막 칸이 다 뻗은 것이다(빌더의 EXT9 와 짝). */
+export const sunkenCut9 = (ph: number): number =>
+  Math.max(0, Math.min(SPIN_ANIM9 - 1, Math.round(sunkenExt9(ph) * (SPIN_ANIM9 - 1))));
 /* 공격 컷 둘(요청: "질럿 공격 모션 변경 … 왼칼 수평으로 잽-오른칼 수평으로 잽-잠깐 쉼
    … 프레임이 좀더 필요할듯") ────────────────────────────────────────────────────
    컷 2(공격)만으로는 한 동작밖에 못 그린다 — 요청은 **좌우가 번갈아 나가는** 두
@@ -5799,7 +5823,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
            내내 뻗은 채였다. 그건 지렛대를 한 번 당긴 뒤 놓지 않는 그림이라,
            성큰이 쏘고 있는 것인지 굳어 있는 것인지 알 수 없었다. 한 박자의
            앞 절반만 나와 있는다. */
-        && sunkenPh < 0.5
+        && sunkenPh < SUNK_OUT9
         && (() => {
           /* 표적은 참값이다(지시) — 이 건물의 order_target을 자리 색인에서 찾는다.
              못 찾으면(옛 판·안 겨눔) 혓바닥은 안 나온다. */
@@ -5932,10 +5956,11 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
              돈다(요청: "코어 디스크는 업그레이드 중에만 돌아야함"). 서플라이
              환풍팬은 건물이 서 있는 한 늘 돈다 — 그건 일이 아니라 설비다. */
           spin: !qAnim || bldFrozen9 ? 0
-            /* 성큰은 spin 칸이 **혓바닥의 공격 컷**이다(요청: 컷 넷) — 나와 있는 창(sunkenPh < 0.5)을 넷으로 접어
-               뻗은 몫 1/4~4/4를 준다. 겹판(sunkentongue)이 이 op의 spin을 물려받아 제 몫으로 구워진다. */
+            /* 성큰은 spin 칸이 **혓바닥의 뻗은 몫**이다 — 창 안에서 나옴 → 머묾 → 들어감을
+               한 함수가 낸다(위 `sunkenCut9` 의 ★★). 겹판(sunkentongue)이 이 op 의 spin 을
+               물려받아 제 몫으로 구워진다. */
             : shapeKind === "sunken"
-              ? (sunkenOut ? Math.min(3, Math.floor((sunkenPh / 0.5) * 4)) : 0)
+              ? (sunkenOut ? sunkenCut9(sunkenPh) : 0)
             : shapeKind === "forge" || shapeKind === "cyber" || shapeKind === "mshop"
               ? (researching ? Math.floor(t * 1.6 * SPIN_ANIM9) % SPIN_ANIM9 : 0)
               /* ★ 0.6 → **2.2바퀴/초**(지적: "너무 뚝뚝 끊김") — 칸이 여덟뿐이라 판을
