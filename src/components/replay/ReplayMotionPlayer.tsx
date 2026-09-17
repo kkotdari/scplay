@@ -3007,14 +3007,26 @@ export function paintFxList9(
         const ir9 = r9 * im9.r * (0.7 + p9 * 0.5);
         const fl9 = im9.flat ?? 1;
         ctx.globalAlpha = a9;
-        if (fl9 !== 1) { ctx.translate(hx9, hy9); ctx.scale(1, fl9); ctx.translate(-hx9, -hy9); }
-        const gi9 = ctx.createRadialGradient(hx9, hy9, 0, hx9, hy9, ir9);
+        /* ★ **눌린 타원은 방향을 가질 수 있다**(2026-09, 지적: "시즈 트레이서 방향이 없어?
+           포구와 수직으로 놓여야 하는 거 아닌가 — 날아갈 때 모양도" · "트레이서 중 불꽃
+           폭발도 방향 맞춰야 하고") — `flat` 은 세로를 누를 뿐이라 타원이 늘 화면 가로로만
+           누웠다. 땅에 퍼지는 폭발은 그게 맞지만, **포구 불꽃과 날아가는 빛**은 총열의 자를
+           따라야 한다. op 에 `deg` 가 실려 오면 그만큼 돌려 놓는다 — 누르는 축(가로)이 곧
+           그 방향의 **수직**이 되므로, 포신에 직각으로 선 원반이 된다.
+           ⚠ 돌릴 때는 **원점으로 옮겨 그린다** — 옛 자리 되돌리기(translate → scale →
+             translate 되돌림)는 회전이 끼면 안 맞는다. */
+        const rt9 = f.deg !== undefined ? (f.deg * Math.PI) / 180 : 0;
+        const gi9 = ctx.createRadialGradient(0, 0, 0, 0, 0, ir9);
         for (const [o9, c9] of im9.g) gi9.addColorStop(o9, c9);
+        ctx.save();
+        ctx.translate(hx9, hy9);
+        if (rt9) ctx.rotate(rt9);
+        if (fl9 !== 1) ctx.scale(1, fl9);
         ctx.fillStyle = gi9;
         ctx.beginPath();
-        ctx.arc(hx9, hy9, ir9, 0, Math.PI * 2);
+        ctx.arc(0, 0, ir9, 0, Math.PI * 2);
         ctx.fill();
-        if (fl9 !== 1) { ctx.translate(hx9, hy9); ctx.scale(1, 1 / fl9); ctx.translate(-hx9, -hy9); }
+        ctx.restore();
         continue;
       }
       /* ★ 파편 **스물넷**, **궤적 스트릭**(재요청: 양 4배, 이동 방향으로 길게) — 후보판 B2의
@@ -5481,12 +5493,13 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg }
            무기의 자(지도)는 안 건드리고 **보여 주는 자리에서만** 줄인다. */
       const hs9 = Math.max(1, shapeMapTiles(kind)) * 8 * 0.78;
       /** 총구에서 (px, py) 만큼 떨어진 자리에 한 장 — hit 은 dx·dy 방향으로 dist × 배율만큼 민다. */
-      const put9 = (px9: number, py9: number, sz9: number, st9: string, ph9: number): void => {
+      const put9 = (px9: number, py9: number, sz9: number, st9: string, ph9: number, dg9?: number): void => {
         const m9 = Math.hypot(px9, py9);
         ops9.push({
           kind: "hit", style: st9, fx: 0, fy: 0, lift: 0, splash: true,
           size: sz9, ph: ph9, dist: m9 / ZOOM9,
           dx: m9 > 0.01 ? px9 / m9 : 0, dy: m9 > 0.01 ? py9 / m9 : 0,
+          ...(dg9 === undefined ? {} : { deg: dg9 }),
         } as FxOp);
       };
       if (MUZZLE_BURST_FX9.has(style)) {
@@ -5500,9 +5513,13 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg }
         const tvy9 = uy9 * dist9;
         const arc9 = dist9 * 0.12;
         if (u9 < 1) {
-          put9(0, 0, hs9 * 0.6, style, 0.12 + u9 * 0.88);
-          const e9 = u9 ** 1.45;
-          put9(tvx9 * e9, tvy9 * e9 - arc9 * 4 * e9 * (1 - e9), hs9 * 0.34, "tankshell", 0.3);
+          put9(0, 0, hs9 * 0.6, style, 0.12 + u9 * 0.88, deg9);
+          // 빠르게 나가 가운데에서 살짝 느려졌다 다시 가속(engine9 의 그 식과 같다).
+          const e9 = u9 + (0.55 * Math.sin(2 * Math.PI * u9)) / (2 * Math.PI);
+          const gx9 = tvx9;
+          const gy9 = tvy9 - arc9 * 4 * (1 - 2 * e9);
+          put9(tvx9 * e9, tvy9 * e9 - arc9 * 4 * e9 * (1 - e9), hs9 * 0.34, "tankshell", 0.3,
+            (Math.atan2(-gx9, gy9) * 180) / Math.PI);
         } else {
           const sp9 = (el9 - fly9) / 0.5;
           if (sp9 <= 1) put9(tvx9, tvy9, hs9 * 1.35, style, sp9);

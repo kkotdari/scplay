@@ -8567,22 +8567,31 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         const uS9 = Math.min(1, elS9 / shSec9);
         /** 포물선 — 가운데를 이만큼 들어 올린다(가는 거리의 12%). */
         const arcS9 = Math.hypot(tvx9 - mzx9, tvy9 - mzy9) * 0.12;
-        const put9 = (px9: number, py9: number, size9: number, st9: string, ph9: number): void => {
+        const put9 = (px9: number, py9: number, size9: number, st9: string, ph9: number, deg9?: number): void => {
           const d9 = Math.hypot(px9, py9);
           fxOps.push({
             kind: "hit", style: st9, fx: mzfx9, fy: mzfy9, lift: mzLift9,
             size: size9, dist: d9, dx: d9 > 0.01 ? px9 / d9 : 0, dy: d9 > 0.01 ? py9 / d9 : 0,
-            ph: ph9, splash: true,
+            ph: ph9, splash: true, ...(deg9 === undefined ? {} : { deg: deg9 }),
           });
         };
         if (uS9 < 1) {
-          // ① 포구 불꽃 — 나는 동안 사그라든다(envHit: 0.12에서 최대, 1에서 0).
-          put9(mzx9, mzy9, fxPx * 0.6, fxName9, 0.12 + uS9 * 0.88);
-          // ② 에너지포 — 가속한 몫만큼 나아가고, 가운데에서 가장 높이 뜬다.
-          const e9 = uS9 ** 1.45;
+          /* ① 포구 불꽃 — 나는 동안 사그라든다(envHit: 0.12에서 최대, 1에서 0).
+             각은 **겨눈 방향**이다 — 붓이 누르는 축(가로)을 그 수직으로 돌려 놓으므로
+             포신에 직각으로 선 원반이 된다(지적: "불꽃 폭발도 방향 맞춰야 하고"). */
+          put9(mzx9, mzy9, fxPx * 0.6, fxName9, 0.12 + uS9 * 0.88, beamDeg);
+          /* ② 에너지포 — **쏘는 순간 빠르고, 올라가며 살짝 느려지다, 다시 가속**한다
+             (지적: 그 말 그대로다). `e = u + a·sin(2πu)/2π` 면 속도가 `1 + a·cos(2πu)` 라
+             양 끝에서 1+a, 가운데에서 1−a 다 — 한 식으로 그 셋이 다 나온다(a 0.55).
+             ⚠ 여기 있던 `u^1.45` 는 **반대**였다: 나가는 쪽이 느리고 끝에서만 빨랐다. */
+          const e9 = uS9 + (0.55 * Math.sin(2 * Math.PI * uS9)) / (2 * Math.PI);
           const bx9 = mzx9 + (tvx9 - mzx9) * e9;
           const by9 = mzy9 + (tvy9 - mzy9) * e9 - arcS9 * 4 * e9 * (1 - e9);
-          put9(bx9, by9, fxPx * 0.34, "tankshell", 0.3);
+          /* 날아가는 모양도 **가는 쪽에 직각**이다 — 포물선의 접선을 각으로 준다(오르는
+             동안과 떨어지는 동안이 다르므로 기울기가 눈에 보인다). */
+          const gx9 = tvx9 - mzx9;
+          const gy9 = (tvy9 - mzy9) - arcS9 * 4 * (1 - 2 * e9);
+          put9(bx9, by9, fxPx * 0.34, "tankshell", 0.3, (Math.atan2(-gx9, gy9) * 180) / Math.PI);
         } else {
           /* ③ 착탄 스플래시 — 닿은 뒤 0.5초 동안 피었다 진다. 자는 쏘는 쪽 불꽃의 두 배가 넘는다
              (요청: "맞는 쪽도 똑같은 모양인데 더 크게(넓게) 나옴, 스플래시 데미지니까"). */
