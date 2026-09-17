@@ -4874,6 +4874,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         // 뒷벽 위 푸른 빛띠
         [polyPath3([[-BAY_HW + 0.1, BAY_YI + 0.01, BAY_Z1 - 0.272], [BAY_HW - 0.1, BAY_YI + 0.01, BAY_Z1 - 0.272],
           [BAY_HW - 0.1, BAY_YI + 0.01, BAY_Z1 - 0.144], [-BAY_HW + 0.1, BAY_YI + 0.01, BAY_Z1 - 0.144]]), 0.55, "#7fc9ff"] as ShapeFace,
+        /* ★ 활성이면 **속에서 노란 불이 샌다**(요청) — 팩토리 격납구와 같은 손이다(그 자리의 ★ 주석).
+           뒷벽에 박힌 판 하나를 `glowLit` 로 켜고, 벽에서 0.03 앞으로 띄워 z 싸움을 피한다. */
+        [polyPath3([
+          [-BAY_HW + 0.14, BAY_YI - 0.03, Z0 + (BAY_Z1 - Z0) * 0.12],
+          [BAY_HW - 0.14, BAY_YI - 0.03, Z0 + (BAY_Z1 - Z0) * 0.12],
+          [BAY_HW - 0.14, BAY_YI - 0.03, Z0 + (BAY_Z1 - Z0) * 0.72],
+          [-BAY_HW + 0.14, BAY_YI - 0.03, Z0 + (BAY_Z1 - Z0) * 0.72],
+        ]), 1, glowLit("#ffce4a", "#22262c")] as ShapeFace,
       ];
       // 양옆 벽 — 안쪽(−sx)을 보는 면이니 시점을 향한 쪽만
       /* 옆벽은 **확실히 그쪽을 볼 때만** 그린다 — 0.04는 거의 정면에서도 그리라는 말이라,
@@ -4906,6 +4914,16 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const tW = (RY_W - RY0) / (RY1 - RY0);      // 벽 선의 t
       const rampIn = polyPath3([rAt(0, -1), rAt(0, 1), rAt(tW, 1), rAt(tW, -1)]);
       bay.push([rampIn, 1, SILVER] as ShapeFace, topFace(rampIn, 0.16));
+      /* ★★ **커맨드의 격납구는 돔이 처마처럼 덮어 위에서는 속이 안 보인다**(2026-09, 요청: "커맨드
+         팩토리 활성 시 격납구 안쪽에서 노란 불빛(블루밍) 보이게") — 실측(model-gl --lit, 여덟 각)에서
+         뒷벽이 **한 각에서도 안 보였다**. 곧 뒷벽에 단 판만으로는 이 건물의 '활성'이 위에서 안 읽힌다
+         (그 판은 3D 보기처럼 카메라가 낮아질 때의 몫이다).
+         위에서 보이는 것은 문간 **앞 경사로**다 — 거기 깔리는 **빛의 자국**을 얹는다. 속에 불이 들면
+         빛이 바닥으로 새어 나오는 것이 실제로도 먼저 보이는 몫이다.
+         · 몸 면이 아니라 **덧칠**(알파 0.42)이다 — 은색 경사로 위에 얹어야 홈·띠가 안 지워진다.
+         · 켜졌을 때만 **면 자체를 안 낸다** — 꺼진 판에 투명 면을 두면 그만큼 삼각형만 는다.
+         · 채도가 높아(0.71) mesh9 의 덧칠 접기(무채색만)에 안 걸린다 — 제 부품으로 남아 번짐을 탄다. */
+      if (bldLitNow) bay.push([rampIn, 0.42, winLit("#ffce4a")] as ShapeFace);
       /* 가로 홈 여섯 줄(요청: "커맨드센터 경사로 연한 가로 줄 여러개 넣기(홈 패인 느낌)") — 줄마다 위는 어두운
          가는 띠, 바로 아래는 흰 가는 띠라 패인 자리에 빛이 걸린 것으로 읽힌다. 벽 선 안팎으로 나눠 담는다. */
       const grooveAt = (t9: number): ShapeFace[] => {
@@ -4914,6 +4932,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         return [[dk9, 0.28, "#000", 0, 2] as ShapeFace, [lt9, 0.22, "#fff", 0, 2] as ShapeFace];
       };
       const outer: ShapeFace[] = [];
+      /* 문턱 밖으로 한 뼘 더 새는 몫 — 안쪽만 칠하면 빛이 문선에서 칼로 자른 듯 끊긴다. */
+      if (bldLitNow) {
+        const tS9 = Math.min(1, tW + 0.22);
+        outer.push([polyPath3([rAt(tW, -1), rAt(tW, 1), rAt(tS9, 1), rAt(tS9, -1)]), 0.3, winLit("#ffce4a")] as ShapeFace);
+      }
       for (let k9 = 1; k9 <= 6; k9 += 1) {
         const t9 = k9 / 7.2;
         (t9 + 0.034 <= tW ? bay : outer).push(...grooveAt(t9));
@@ -6363,6 +6386,23 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         // 천장(인방)
         [polyPath3([[ix9(BZ1z9), BY0, BZ1z9], [ix9(BZ1z9), BY1, BZ1z9], [sxAt(BZ1z9), BY1, BZ1z9], [sxAt(BZ1z9), BY0, BZ1z9]]), 1, "#4a4a4a"] as ShapeFace,
       ];
+      /* ★ **활성이면 속에서 노란 불이 샌다**(2026-09, 요청: "커맨드 팩토리 활성 시 격납구 안쪽에서
+         노란 불빛(블루밍) 보이게 — 다른 불빛처럼 깜빡임") — 격납구는 늘 검은 구멍이라, 일하는 중인지
+         아닌지가 이 건물의 가장 큰 구멍에서 하나도 안 읽혔다. 안쪽 벽에 **박힌 판** 하나를 두고
+         `glowLit` 로 켠다: 꺼지면 벽과 같은 색이라 아예 안 보이고, 켜지면 노란 빛이다.
+         · 깜빡임은 엔진이 `op.lit` 를 토글해 낸다(팩토리·커맨드는 LIT_KINDS 에 있다) — 여기서 따로
+           박자를 지어내지 않는다(도록도 같은 문을 쓴다).
+         · 번짐(블룸)은 `glowLit` 가 그 색을 EMIT_FILL9 에 적어 저절로 먹는다.
+         · 벽에서 **한 뼘 띄운다**(0.03) — 같은 평면에 두면 z 싸움으로 깜빡인다. */
+      {
+        const zA9 = BZ0z9 + (BZ1z9 - BZ0z9) * 0.16; const zB9 = BZ0z9 + (BZ1z9 - BZ0z9) * 0.8;
+        const sg9 = Math.sign(sxAt(BZ1z9) - ix9(BZ1z9)) || 1;
+        const px9 = (z9: number): number => ix9(z9) + sg9 * 0.03;
+        bay.push([polyPath3([
+          [px9(zA9), BY0 + 0.3, zA9], [px9(zA9), BY1 - 0.3, zA9],
+          [px9(zB9), BY1 - 0.3, zB9], [px9(zB9), BY0 + 0.3, zB9],
+        ]), 1, glowLit("#ffce4a", NEAR_BLACK)] as ShapeFace);
+      }
       // 양옆 벽 — 시점을 향한 쪽만
       for (const [yy9, ny9] of [[BY0, 1], [BY1, -1]] as [number, 1 | -1][]) {
         if (facingRatio(0, ny9) <= 0.04) continue;
