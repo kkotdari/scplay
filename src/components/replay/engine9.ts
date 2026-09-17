@@ -8341,6 +8341,92 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       return u9 < 1.2 ? Math.min(1, u9) : null;
     })();
     if (beamDeg === null || !fxName9) return null;
+    /* ★★ **글레이브 웜은 두 번 더 튄다**(2026-09, 요청: "뮤탈 글레이브 연타 붙여줘 — 원작 충실") ──
+       원작 규칙은 짐작할 것이 없다 — OpenBW(`bwgame.h` · `bullet_state_bounce`)가 그대로 적어 두었다:
+         · 탄이 표적에 닿으면 `remaining_bounces` 를 하나 줄이고, 남아 있으면 **다음 표적을 찾는다**.
+         · 찾는 자리는 **방금 맞은 몸을 중심으로 ±96px**(= ±3타일)의 네모다 — 쏜 쪽이 중심이 아니다.
+         · 거르는 조건 셋: 쏜 쪽이 칠 수 있는 **적**일 것 · 직전 표적이 아닐 것 · **그 전 표적도 아닐 것**
+           (`prev_bounce_unit`).
+         · ⚠⚠ **가장 가까운 놈이 아니다** — `find_unit_noexpand` 는 유닛 색인(`unit_finder_x`, **상자 왼쪽
+           모서리**로 정렬)을 왼쪽부터 훑어 **처음 걸리는 것**을 낸다. 곧 그 네모 안에서 **가장 왼쪽**이다.
+           짐작으로 '가까운 적'을 고르면 원작과 **다른 몸**으로 튄다 — 이 무기에서 가장 뜻밖인 대목이다.
+         · 피해는 `div = 3^(2 − remaining)` 이라 **9 / 3 / 1**, 곧 본 표적 + 튐 둘 = **모두 세 번**이다.
+           (탄 그림은 셋이 같다 — 원작도 같은 스프라이트가 이어 난다. 그래서 여기서도 안 줄인다.)
+       우리 참값이면 이 규칙이 그대로 돈다: 그 시각 모든 몸의 자리·임자·종류를 알고, 표적도 참값이다.
+       ⚠ 프레임 단위로 똑같지는 않다 — 자리는 띄엄띄엄 적힌 것을 보간한 값이라 네모 경계(±3타일)에
+         걸친 몸에서 갈릴 수 있고, '칠 수 있나'의 잔가지(은신·무적·환영)도 우리 쪽 근사다.
+       ⚠ 값: 사슬은 **첫 토막이 끝난 뒤에야** 푼다(아래 el9 문) — 안 그러면 뮤탈마다 프레임마다
+         격자를 두 번 훑는다. 나는 몫은 한 주기의 몇 분의 일이라, 그 문 하나로 거의 다 걸린다. */
+    /** 그 몸의 **상자 왼쪽 모서리**(타일) — 원작의 정렬 열쇠다(위 ★★). */
+    const glaveLeft9 = (f9: FoeRow): number => {
+      if (f9.bld) return f9.x - ((f9.k ? FOOTPRINT[f9.k]?.[0] : undefined) ?? 3) / 2;
+      const mk9 = f9.uk ? UNIT_3D[f9.uk] : undefined;
+      const r9 = mk9 ? (UNIT_BW_RAW as Record<string, readonly number[] | undefined>)[mk9] : undefined;
+      return f9.x - (r9 ? r9[0] / 64 : 0.5);   // 게임 px 폭의 반을 타일로
+    };
+    type GlavePt9 = { x: number; y: number; air: boolean; uk?: string; k?: string; bld?: boolean; eid?: number };
+    /** 그 자리에서 **다음으로 튀는 몸** — 위 ★★의 네모·거름·왼쪽 규칙 그대로. */
+    const glaveNext9 = (cx9: number, cy9: number, skipA9: number, skipB9: number): FoeRow | null => {
+      const R9 = 3;   // 원작 96px
+      let best9: FoeRow | null = null;
+      let bestL9 = Infinity;
+      const bx09 = Math.max(0, Math.floor((cx9 - R9) / FOE_BIN));
+      const bx19 = Math.min(foeCols - 1, Math.floor((cx9 + R9) / FOE_BIN));
+      const by09 = Math.max(0, Math.floor((cy9 - R9) / FOE_BIN));
+      const by19 = Math.min(foeRowsN - 1, Math.floor((cy9 + R9) / FOE_BIN));
+      for (let yb9 = by09; yb9 <= by19; yb9 += 1) {
+        for (let xb9 = bx09; xb9 <= bx19; xb9 += 1) {
+          const i9 = yb9 * foeCols + xb9;
+          for (const arr9 of [foeBins[i9], bldBins[i9]]) {
+            for (const f9 of arr9) {
+              if ((f9.team ?? 0) === (team ?? 0)) continue;
+              // 은신(미탐지)·스태시스는 원작에서도 못 친다(unit_can_attack_target).
+              if (f9.hidden || f9.frozen) continue;
+              if (f9.eid !== undefined && (f9.eid === skipA9 || f9.eid === skipB9)) continue;
+              // eid 가 없는 행을 위한 안전망 — 방금 맞은 그 자리는 건너뛴다.
+              if (Math.abs(f9.x - cx9) < 0.02 && Math.abs(f9.y - cy9) < 0.02) continue;
+              if (Math.abs(f9.x - cx9) > R9 || Math.abs(f9.y - cy9) > R9) continue;
+              const l9 = glaveLeft9(f9);
+              if (l9 < bestL9) { bestL9 = l9; best9 = f9; }
+            }
+          }
+        }
+      }
+      return best9;
+    };
+    /** 지금 날고 있는 **튐 토막**(둘째·셋째) — 없으면 null. 첫 토막은 위 shotU 가 든다. */
+    const glaveHop9 = ((): { from: GlavePt9; to: GlavePt9; u: number } | null => {
+      if (fxName9 !== "glave" || !Number.isFinite(foeDist) || foeDist <= 0.05 || !(flySec9 > 0)) return null;
+      const el9 = firePhase(`u${holdKey}`, fxCdRaw) * fxCdRaw;
+      if (el9 < flySec9) return null;                 // 아직 첫 토막 — 사슬을 풀 까닭이 없다
+      const spd9 = foeDist / flySec9;                 // 타일/초 — 첫 토막의 속도 그대로 잇는다
+      if (!(spd9 > 0)) return null;
+      let a9: GlavePt9 = { x: foe.bx, y: foe.by, air: foe.air, uk: foe.uk, k: foe.k, bld: foe.bld, eid: tgtTag9 ?? 0 };
+      let prev9 = 0;
+      let acc9 = flySec9;
+      for (let n9 = 0; n9 < 2; n9 += 1) {
+        const f9 = glaveNext9(a9.x, a9.y, a9.eid ?? 0, prev9);
+        if (!f9) return null;
+        const b9: GlavePt9 = {
+          x: f9.x, y: f9.y, air: f9.air || f9.lifted === true,
+          uk: f9.uk ?? f9.k, k: f9.k, bld: f9.bld, eid: f9.eid,
+        };
+        const s9 = Math.max(0.02, Math.hypot(b9.x - a9.x, b9.y - a9.y) / spd9);
+        if (el9 < acc9 + s9) return { from: a9, to: b9, u: Math.min(1, Math.max(0, (el9 - acc9) / s9)) };
+        acc9 += s9;
+        prev9 = a9.eid ?? 0;
+        a9 = b9;
+      }
+      return null;
+    })();
+    /** 그 몸의 **가슴 높이**(px) — 위 foeBody9·foeLift9 와 같은 자다(토막의 두 끝에 쓴다). */
+    const glaveLift9 = (p9: GlavePt9): number => {
+      const px9 = p9.uk && isKnownKind(p9.uk) ? unitPxOf(p9.uk, p9.y) : fxPx;
+      const mid9 = p9.bld && p9.k && FOOTPRINT[p9.k]
+        ? bldMidLift9(p9.k)
+        : px9 * unitMidK9(p9.uk && isKnownKind(p9.uk) ? (UNIT_3D[p9.uk] ?? kindMain) : kindMain, pitched);
+      return (p9.air ? airLiftPxOf(p9.y) : 0) + mid9;
+    };
     /* ★ 산성 포자 — 디바우러의 산은 **표적에 남는다**(지적: "디바우러 트레이서는
        나가는데 타겟에 산성 효과가 안 남는 거였어") ────────────────────────────
        원작의 부식성 산(Corrosive Acid)은 맞히고 끝나는 무기가 아니다. 맞은 몸에
@@ -8489,6 +8575,26 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
            나가는 것**이고, 가까운 적은 그중 가까운 가시에 맞을 뿐이다. */
         len: (LURKER_SPINE_TRAVEL_PX / 32) * tPx9,
         ph: spikePh9,
+      });
+    } else if (glaveHop9) {
+      /* ★ **튐 토막** — 앞 표적에서 다음 표적으로 나는 한 발(위 ★★). 자리·높이는 두 끝의
+         가슴 높이로 잡으므로 첫 토막과 한 줄로 이어지고, 굵기·꼴은 같은 갈래표(glave)라
+         '같은 탄이 계속 난다'로 읽힌다 — 원작도 같은 스프라이트가 이어 난다. */
+      const ga9 = glaveHop9.from;
+      const gb9 = glaveHop9.to;
+      const gt9 = mapW9 / grid.width;
+      const gaL9 = glaveLift9(ga9);
+      const gbL9 = glaveLift9(gb9);
+      const gdx9 = (gb9.x - ga9.x) * gt9;
+      const gdy9 = (gb9.y - ga9.y) * gt9 * (pitched ? pitchFlat : 1) - gbL9 + gaL9;
+      const [gfx9, gfy9] = posFrac(ga9.x, ga9.y);
+      const [gtx9, gty9] = posFrac(gb9.x, gb9.y);
+      fxOps.push({
+        kind: "shot", style: "glave", fx: gfx9, fy: gfy9, lift: gaL9,
+        tx: gtx9, ty: gty9, tlift: gbL9, tgap: 0,
+        mx: 0, my: 0,
+        deg: (Math.atan2(-gdx9, gdy9) * 180) / Math.PI,
+        len: Math.hypot(gdx9, gdy9), u: glaveHop9.u,
       });
     } else if (shotU !== null) {
       /* ★ 미사일은 **두 발이 나란히** 나간다(지적: "미사일 2발씩 수평으로 나가고")
