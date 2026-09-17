@@ -3014,8 +3014,12 @@ export function paintFxList9(
            따라야 한다. op 에 `deg` 가 실려 오면 그만큼 돌려 놓는다 — 누르는 축(가로)이 곧
            그 방향의 **수직**이 되므로, 포신에 직각으로 선 원반이 된다.
            ⚠ 돌릴 때는 **원점으로 옮겨 그린다** — 옛 자리 되돌리기(translate → scale →
-             translate 되돌림)는 회전이 끼면 안 맞는다. */
-        const rt9 = f.deg !== undefined ? (f.deg * Math.PI) / 180 : 0;
+             translate 되돌림)는 회전이 끼면 안 맞는다.
+           ⚠⚠ 긴 축은 **가는 쪽과 나란하다**(재지적: "수직이 아니라 수평으로 나와야 할 듯,
+             옆으로 넓잖아") — 처음엔 직각으로 세웠는데 그건 원반을 옆에서 본 꼴이고, 이
+             빛은 **나아가는 쪽으로 길쭉한** 덩이다. 누르는 축이 가로이므로 +90도 돌려야
+             그 가로가 진행 방향에 놓인다(deg 규약은 (−sin, cos)이다). */
+        const rt9 = f.deg !== undefined ? (f.deg * Math.PI) / 180 + Math.PI / 2 : 0;
         const gi9 = ctx.createRadialGradient(0, 0, 0, 0, 0, ir9);
         for (const [o9, c9] of im9.g) gi9.addColorStop(o9, c9);
         ctx.save();
@@ -5513,7 +5517,8 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg }
         const tvy9 = uy9 * dist9;
         const arc9 = dist9 * 0.12;
         if (u9 < 1) {
-          put9(0, 0, hs9 * 0.6, style, 0.12 + u9 * 0.88, deg9);
+          // 포구 불꽃은 **작다** — 크면 중심이 총구여도 몸을 덮어 '몸 한가운데'로 읽힌다(지적).
+          put9(0, 0, hs9 * 0.38, style, 0.12 + u9 * 0.88, deg9);
           // 빠르게 나가 가운데에서 살짝 느려졌다 다시 가속(engine9 의 그 식과 같다).
           const e9 = u9 + (0.55 * Math.sin(2 * Math.PI * u9)) / (2 * Math.PI);
           const gx9 = tvx9;
@@ -5521,8 +5526,11 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg }
           put9(tvx9 * e9, tvy9 * e9 - arc9 * 4 * e9 * (1 - e9), hs9 * 0.34, "tankshell", 0.3,
             (Math.atan2(-gx9, gy9) * 180) / Math.PI);
         } else {
+          /* 착탄은 **둥글다**(지적: "포구가 투하되어 폭발하는 거는 타원이 아니라 원형으로
+             변경 — 대신 그림자처럼 눌려 보여야 함") — 제 별본(tankboom)이 그 값을 든다.
+             방향은 안 준다: 땅에 퍼지는 폭발은 어느 쪽도 안 가리킨다. */
           const sp9 = (el9 - fly9) / 0.5;
-          if (sp9 <= 1) put9(tvx9, tvy9, hs9 * 1.35, style, sp9);
+          if (sp9 <= 1) put9(tvx9, tvy9, hs9 * (style === "siege" ? 1.5 : 1.1), "tankboom", sp9);
         }
       } else {
         put9(ux9 * dist9, uy9 * dist9, hs9, style, age9);
