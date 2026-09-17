@@ -5564,10 +5564,22 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, 
          지도와 같은 자로 총구 축에 직각으로 ± 만큼 벌린다(engine9 의 그 자리). */
       // 벌리는 폭은 지도와 같은 값이다(engine9 flH9 — 요청으로 0.26 → 0.16 으로 좁혔다).
       const fl9 = style === "flame" && k9 ? (k9 * modelInkOf(kind) * 0.16) / ZOOM9 : 0;
-      for (const fs9 of (fl9 > 0 ? [-1, 1] : [0])) {
+      /* ★ **미사일도 두 발이 나란히 나간다**(2026-09, 지적: "줄기가 두 개인 거 말한 건 아니고 —
+         그건 또 그거대로 표현되어야 하지만") — 지상·대공 갈래를 가르는 것과 **딴 이야기**다:
+         골리앗·레이스·발키리의 대공 발사관은 좌우 한 쌍이라 한 박자에 두 줄기가 함께 뻗는다.
+         지도는 이미 그렇게 그리는데(engine9 의 twin9) 도록만 한 줄이라 무기의 꼴이 달랐다.
+         자도 지도의 것을 그대로 쓴다: **두 발 전체의 폭이 몸 폭 하나**(바깥 가장자리끼리 = 잉크
+         폭)이고, 잔상이 몸보다 굵으면 0 으로 죄어 한 줄로 겹친다.
+         ⚠ 빼는 값은 **실제로 그려지는 굵기**(w × 배율 × 3.4)여야 한다 — 갈래표의 w 는 상대 값이라
+           그대로 빼면 단위가 섞인다(지도에서 한 번 물렸던 자리다). */
+      const tw9 = (style === "missile" || style === "missileG") && k9
+        ? Math.max(0, (k9 * modelInkOf(kind) - Math.max(1.4, (FX_BEAM[style]?.w ?? 0.5) * ZOOM9 * 3.4)) / 2) / ZOOM9
+        : 0;
+      const ln9 = fl9 || tw9;
+      for (const fs9 of (ln9 > 0 ? [-1, 1] : [0])) {
         ops9.push({
           kind: shot9 ? "shot" : "beam", style, fx: 0, fy: 0, lift: 0,
-          mx: Math.cos(rad0) * fl9 * fs9, my: Math.sin(rad0) * fl9 * fs9,
+          mx: Math.cos(rad0) * ln9 * fs9, my: Math.sin(rad0) * ln9 * fs9,
           deg: deg9, ph: age9, len: dist9 / ZOOM9, ...(shot9 ? { u: age9 } : {}),
         } as FxOp);
       }
