@@ -5398,6 +5398,38 @@ function docBldKind9(kind: string): boolean {
   if (!docBldSet9) docBldSet9 = new Set([...SHAPE_GALLERY.filter((g9) => g9.group === "건물").map((g9) => g9.kind), ...DECAL_KINDS, "scaffold"]);
   return docBldSet9.has(kind);
 }
+/** ★ **변신 차례표**(2026-09, 물음: "공사고치, 알 변태완료나 럴커 버로우, 시즈모드 애니메이션도
+ *  도록에 나오면 좋겠는데 넣을 데가 있나?") ─────────────────────────────────────────────
+ *  넣을 데가 있다 — 그 모델들은 **이미 제 칸으로 도록에 서 있다**(cocoon·egg·lurkeregg·
+ *  mutacocoon·lurkerburrow·tanksiege). 없던 것은 '무엇이 무엇으로 바뀌나'라는 **이음**뿐이라,
+ *  표 하나로 그 차례를 적어 두면 도록이 한 칸에서 돌려 보여 준다.
+ *  값은 **그리는 차례**다(앞이 먼저) — 도록은 시각으로 그 차례를 돈다.
+ *  ⚠ 여기 적는 것은 종류 이름뿐이다 — 크기·자리·배수는 각 모델이 제 것을 쓴다(도록이 창을
+ *    그 차례 전체의 합집합으로 못 박는다). */
+const DOC_MORPH9: Record<string, string[]> = {
+  // 시즈 모드 — 두 몸이 서로의 변신이다.
+  tank: ["tank", "tanksiege"], tanksiege: ["tanksiege", "tank"],
+  // 럴커 — 알에서 깨고, 땅에 묻히고, 가시를 세운다.
+  lurker: ["lurkeregg", "lurker", "lurkerburrow", "lurkerfire"],
+  lurkeregg: ["lurkeregg", "lurker"],
+  lurkerburrow: ["lurker", "lurkerburrow", "lurkerfire"],
+  lurkerfire: ["lurkerburrow", "lurkerfire"],
+  // 변태 고치 — 뮤탈이 고치를 거쳐 가디언·디바우러가 된다.
+  guardian: ["muta", "mutacocoon", "guardian"],
+  devourer: ["muta", "mutacocoon", "devourer"],
+  mutacocoon: ["muta", "mutacocoon", "guardian"],
+  // 저그 본진 세 단계 · 콜로니 둘 · 스파이어.
+  lair: ["hatchery", "lair"], hive: ["lair", "hive"],
+  sunken: ["creep", "sunken"], spore: ["creep", "spore"], gspire: ["spire", "gspire"],
+};
+/* 나머지 저그 건물은 **공사 고치**에서, 저그 유닛은 **알**에서 나온다 — 한 줄씩 적을 까닭이
+   없어 여기서 채운다(위 표에 제 줄이 있으면 그것이 이긴다). */
+for (const k9 of ["hatchery", "pool", "evo", "hydraden", "spire", "queensnest", "nydus", "cavern", "dmound", "creep", "extract"]) {
+  if (!DOC_MORPH9[k9]) DOC_MORPH9[k9] = ["cocoon", k9];
+}
+for (const k9 of ["zling", "hydra", "muta", "drone", "ovie", "defiler", "ultra", "queen", "scourge"]) {
+  if (!DOC_MORPH9[k9]) DOC_MORPH9[k9] = ["egg", k9];
+}
 /** 그 종류가 **무엇으로 움직이나** — 도록이 칸을 세울지 말지 이것으로 가른다. */
 export type DocAnim9 = {
   /** 회전 칸(spin)이 그림을 바꾸나 — 서플라이 팬·코어 원반·포지 톱니·머신샵 톱니·성큰 혀의 뻗는 컷. */
@@ -5412,6 +5444,8 @@ export type DocAnim9 = {
   yawSpin: boolean;
   /** 자세 컷(pose)을 가진 종류인가 — 유닛의 걸음·공격이 그것이다(poseCutsOf 가 자세히 안다). */
   pose: boolean;
+  /** **변신 차례** — 이 종류가 무엇을 거쳐 무엇이 되나(DOC_MORPH9 의 ★). 없으면 안 바뀐다. */
+  morph?: string[];
 };
 /** ★ 도록에 **건물의 움직임**을 흘리는 문(2026-09, 요청: "도록에서 건물도 유닛처럼 idle 상태
  *  애니메이션 재생(서플라이 팬, 터렛 포탑 돌기 등) · 액션칸에는 생산중/업그레이드중/공격중 등
@@ -5431,6 +5465,7 @@ export function docAnimOf9(kind: string): DocAnim9 {
     stage: docBldKind9(kind) && !DECAL_KINDS.has(kind) && kind !== "scaffold",
     yawSpin: kind === "nuke",
     pose: !!poseCutsOf(kind),
+    ...(DOC_MORPH9[kind] ? { morph: DOC_MORPH9[kind] } : {}),
   };
 }
 /** 도록 아이콘 — GL 붓이 켜져 있으면(GL_ON9 · `gl` 로 못 박음) **화면과 같은 메시 그림**(<canvas>, gl9.glIconRequest9 가 한 프레임의 청을 모아
