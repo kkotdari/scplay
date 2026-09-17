@@ -22226,6 +22226,21 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      *  가린다. */
     const hangFace9 = (dx9: number, dy9: number): number =>
       0.5 + 0.5 * Math.max(-1, Math.min(1, facingRatio(dx9, dy9)));
+    /* ★★ **이 보정은 2D(화가 차례)만의 것이다 — 메시에는 얹지 마라**(2026-09, 지적: "오버로드
+       주황색면이 계속 비치는데 고정도 아니고 계속 움직이면서 비쳐 오버로드는 가만히 정지상태") ──
+       위 두 자(hangK · hangFace9)는 '배가 매달린 부속을 언제 가리나'를 **키로** 흉내 내는 손인데,
+       그 방향 자가 `facingRatio` 다. 그런데 메시를 굽는 동안 `facingRatio` 는 **늘 1** 을 낸다
+       (마주 볼 때만 그리는 장식을 3D 에 다 싣기 위한 규약) — 곧 GL 에서는 방향 문이 통째로 열려
+       **몸 뒤로 돌아간 다리·집게까지** 배 위로 올라온다. 그것이 배(임자색) 위에 떠 보이는 저그
+       갈색 조각이고, 요잉이 조금만 돌아도 어느 다리가 뚫고 나오는지가 바뀌니 '가만히 있는데
+       계속 움직이며 비친다'가 된다.
+       GL 은 **진짜 깊이**가 있어 이 흉내가 애초에 필요 없다 — 메시에서는 0 으로 둔다(2D 폴백
+       `#gl=0`·도록 SVG 는 종전 그대로).
+       ★ 이 꼴을 찾는 자는 **'굽는 시각에 세계를 묻는 것'** 이다(faceLight 를 셰이더로 옮긴 그 자리와
+         같다) — 요잉·카메라·빛은 그릴 때 정해지는데, 빌더가 물으면 메시가 그 답 하나를 굳혀 버린다.
+         특히 `facingRatio` 를 **깊이 키의 크기**에 쓰면 메시에서는 늘 '마주 봄'이 된다. */
+    const hangUp9 = (z9: number, dx9: number, dy9: number): number =>
+      (MESH9.on ? 0 : hangK(z9) * 2.6 * hangFace9(dx9, dy9));
     const rootZ = (rx9: number, ry9: number): number => {
       const d9 = Math.min(R9 - 0.1, Math.hypot(rx9, ry9));
       return CZ - Math.sqrt(Math.max(0.01, 1 - (d9 / R9) ** 2)) * BELLY_RZ + 0.35;
@@ -22343,7 +22358,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
             : rodFaces(PX[j], PY[j], KZ[j] * Z8, PX[j + 1], PY[j + 1], KZ[j + 1] * Z8, KW[j] * 2);
           // 배 밑으로 내려간 마디일수록 몸보다 앞이다(위 hangK 주석).
           limbs.push(...tagKey(seg9,
-            key + j * 0.1 + hangK((KZ[j] + KZ[j + 1]) / 2) * 2.6 * hangFace9(m * LEG_X9, ly)));
+            key + j * 0.1 + hangUp9((KZ[j] + KZ[j + 1]) / 2, m * LEG_X9, ly)));
         }
       }
     }
@@ -22415,7 +22430,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            집게로 넘어가는 자리에 턱이 안 생긴다. */
         widthOf: (t9: number): number => 0.18 + 0.16 * t9,
         // 위 절반의 가운데 높이로 잰다 — 아래 갈래는 더 내려가므로 따로 얹는다.
-      }), key + hangK(armRZ9 - ARM_LEN9 / 2) * 2.6 * hangFace9(m * ARM_X9, ARM_Y9)));
+      }), key + hangUp9(armRZ9 - ARM_LEN9 / 2, m * ARM_X9, ARM_Y9)));
       /* 아래 절반 = 집게 두 갈래 — **관절에서 안쪽으로 구부린다**(요청). 여태는 갈림
          점에서부터 끝까지 서로 **벌어진 채** 내려갔다(0.34t + 0.22t²가 둘을 계속 밀어
          냈다): 벌린 집게가 아니라 갈라진 막대 둘로 읽혔다.
@@ -22445,7 +22460,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            키에 실린다(지금 값으로 +1.4쯤) — 아래로 늘어진 몫은 여전히 몸에 안 먹히고,
            뒤로 돈 집게는 몸에 가려진다. */
         }), key + 0.1 + (s > 0 ? 0.05 : 0)
-          + hangK(forkZ9 - 0.65 * CLAW_K9) * 2.6 * hangFace9(m * ARM_X9, ARM_Y9)));
+          + hangUp9(forkZ9 - 0.65 * CLAW_K9, m * ARM_X9, ARM_Y9)));
       }
       /* ★ 집게 바깥 위의 **상아 가시**(요청: "집게발 바깥 위쪽에 위로 솟은 상아색 가시
          하나씩") — 집게 한 짝에 하나, 갈림점 언저리에서 바깥·위로 솟는다. ─────────────
@@ -22467,7 +22482,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           cbx9, cby9, cbz9 * Z8,
           cbx9 + m * 0.62 * CLAW_K9, cby9 - 0.12, Z8 * (cbz9 + 1.5 * CLAW_K9),
           0.34 * CLAW_K9, IVORY_DEEP, 6, 0.4, m * 0.7, -0.2,
-        ), key + 0.2 + hangK(cbz9 + 0.5) * 2.6 * hangFace9(m * ARM_X9, ARM_Y9)));
+        ), key + 0.2 + hangUp9(cbz9 + 0.5, m * ARM_X9, ARM_Y9)));
       }
     }
     /* 등 주머니(사진의 흰 부분) — **여기가 개인색이다**(요청). 갑각 위에 몰려 붙은
