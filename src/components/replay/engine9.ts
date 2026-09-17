@@ -397,6 +397,15 @@ export const POSE_ATK_R = 5;
 export const POSE_KINDS: Record<string, { move?: boolean; atk?: boolean; flap?: number;
   /** 추진체 불꽃(요청: 비행체는 이동할 때만 불꽃) — 걸음 컷이 없는 비행체는 이동 중이면 자세 1을 고정으로 받는다. */
   thrust?: boolean;
+  /** ★ **궤도 굴림**(2026-09, 요청: "이동 시 탱크 캐터필러 실제로 돌아가게 가능?") — 다리도
+   *  추진체도 아닌 셋째 이동 그림이다. 걸음처럼 두 컷을 오가는 것으로는 **떨림**으로 읽히고
+   *  방향이 안 읽히므로(두 컷은 서로의 거울이라 앞뒤가 없다) **세 컷**을 쓴다: 레일판을
+   *  판 간격의 0·1/3·2/3 만큼 앞으로 민 그림이라, 차례로 갈아 끼우면 한 쪽으로 도는 것이
+   *  된다(0 → 1 → 3 → 0). 컷 값은 걸음과 같은 자리(0·1·3)를 빌려 쓴다 — 자세 2·4·5 는
+   *  공격 컷이라 `atk` 없는 종류에서 통째로 걸러진다(poseTag).
+   *  ⚠ **실제 굴림 속도는 못 낸다** — 탱크는 초당 40토막쯤 지나가는데 그리는 박자가 30Hz 다.
+   *    곧 어느 값을 줘도 앨리어싱이고, 눈에 '도는 것으로 읽히는' 박자를 고른 것이다. */
+  roll?: boolean;
 }> = {
   // ── 비행체: 이동 중이면 자세 1(추진체 불꽃), 아니면 0 ──
   wraith: { thrust: true }, dship: { thrust: true }, valk: { thrust: true }, bc: { thrust: true },
@@ -442,6 +451,9 @@ export const POSE_KINDS: Record<string, { move?: boolean; atk?: boolean; flap?: 
      아래 그리는 쪽이 발포 박자(fireK)로 따로 세운다. */
   tankgun: { atk: true },
   tanksiegegun: { atk: true },
+  /* 궤도 굴림(위 roll) — 차체 판이 임자다. 저배율 합본(tank)도 적어 두지만 그쪽은
+     아래 고르는 자가 liteView 에서 0 으로 잘라 굽는 벌을 안 늘린다. */
+  tank: { move: true, roll: true }, tankbody: { move: true, roll: true },
   /* atk 컷(4·5)은 **버로우 파기**다(요청: 럴커는 가라앉는 게 아니라 제자리에서 앞다리 넷이 빠르게 땅을 판다) — 선 럴커는
      공격이 없으니 그 두 컷이 비어 있다. 공격 자세 고르기(fighting)에서는 lurker를 뺀다. */
   lurker: { move: true, atk: true },
@@ -7882,6 +7894,15 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         /* ★ 이동 컷(걸음·비행 추진)만은 **셋째 칸(3배)부터** 친다(요청) — 판은 컷 수만큼
            늘지만 3배의 판은 작아 삯이 작고, 움직임이 읽히는 것이 먼저다. 공격 컷은 그대로. */
         if (liteView && !pk9.flap && !((pk9.move || pk9.thrust))) return 0;
+        /* 궤도 굴림(roll) — 레일판을 판 간격의 1/3 씩 앞으로 민 세 컷을 돌린다(POSE_KINDS 의 ★).
+           ⚠ **저배율에서는 안 돈다** — 몸이 대여섯 화소라 판 사이가 안 읽히는데, 컷마다 메시
+             한 벌이 더 사니 삯만 든다(그 자리의 kindMain 은 합본 tank 다). */
+        if (pk9.roll) {
+          if (liteView || !movingNow) return 0;
+          const sp9 = speedOf(drawUnit || "Siege Tank", t, e.ups);
+          const ph9 = Math.floor(t * Math.min(12, Math.max(4, sp9 * 2.6))) % 3;
+          return ph9 === 0 ? 0 : ph9 === 1 ? 1 : 3;
+        }
         // 비행체(thrust): 걸음 컷이 없으니 이동 중이면 자세 1 고정 — 빌더가 그 자세에서만 불꽃을 낸다.
         if (pk9.thrust) return movingNow ? 1 : 0;
         /* ★ **걸음이 공격보다 먼저다**(지적: "질럿 걷기가 적용 안된듯?") —

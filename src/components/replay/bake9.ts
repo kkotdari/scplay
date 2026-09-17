@@ -3169,8 +3169,14 @@ export function tankTrack(cx: number, yA = -3.6, yB = 3.6, h = 2.08): ShapeFace[
     const flat9 = yBc9 - yAc9;
     const total9 = capLen9 * 2 + flat9 * 2;
     const n9 = Math.max(8, Math.round(total9 / GAP9));
+    /* ★ **굴림 컷**(2026-09, 요청: "이동 시 탱크 캐터필러 실제로 돌아가게 가능?") — 레일판을
+       한 칸 간격의 0 · 1/3 · 2/3 만큼 **겉면을 따라** 앞으로 민다(자세 0 · 1 · 3, POSE_KINDS.roll).
+       판이 고리를 도는 자리 s9 하나만 밀면 윗면·반원·바닥이 저절로 이어져 돈다 — 부품을 따로
+       돌릴 일이 없다. 앞(+y)으로 갈 때 윗면 판은 앞으로 흐르므로 **더하는** 쪽이 맞다.
+       ⚠ 기동륜(축)은 안 돌린다 — 매끈한 원판이라 어느 각에서도 같은 그림이다(돌리면 열쇠만 는다). */
+    const roll9 = poseNow === 1 ? 1 / 3 : poseNow === POSE_WALK_B ? 2 / 3 : 0;
     for (let i9 = 0; i9 < n9; i9 += 1) {
-      const s9 = (i9 + 0.5) * (total9 / n9);
+      const s9 = ((i9 + 0.5 + roll9) % n9) * (total9 / n9);
       // 겉면 위 자리 p·바깥 법선 n·진행 방향 t(모두 y-z 평면). 차례: 윗면(뒤→앞) → 앞 반원(위→아래) → 바닥(앞→뒤) → 뒤 반원(아래→위).
       let py9: number; let pz9: number; let ny9: number; let nz9: number;
       if (s9 < flat9) {                                      // 윗면
@@ -3504,10 +3510,15 @@ export function tankTurretV2(siege: boolean, parts?: { body?: boolean; barrel?: 
     /* ⚠ 포신 단면은 **타원**이다(spirePillar 의 `oval: 2` — v 축을 두 배로 늘인다). 띠를
        동그랗게 두르면 넓은 쪽에서 살에 파묻혀 **각도에 따라 사라진다**(지적: "해저드 데칼이
        각도에 따라 잘 안 보이는 부분이 있는 듯"). 같은 비로 눌러 두른다. */
+    /* ⚠⚠ 늘이는 축은 **x(가로)** 다(2026-09, 지적: "해저드 띠가 왜 90도 롤링돼 있지") — 처음엔
+       외적으로 얻은 축(e2)에 걸었는데 그것은 포신이 눌린 쪽과 **직각**이라, 띠만 세로로 선
+       타원이 되어 통째로 90도 굴러 보였다. spirePillar 의 u 축(oval 이 안 걸리는 긴 쪽)이
+       여기서는 화면 가로이므로, 띠도 그쪽을 늘여야 살을 따라 두른다.
+       ★ 축이 헷갈릴 때는 **그림으로 판정하라** — 띠가 굴러 보이면 늘인 축이 반대다. */
     const OV9 = 2;
     const C9 = (th9: number, s9: number): [number, number, number] => {
       const q9 = pOf9(s9);
-      const c9 = Math.cos(th9); const sn9 = Math.sin(th9) * OV9;
+      const c9 = Math.cos(th9) * OV9; const sn9 = Math.sin(th9);
       return [q9[0] + r9 * c9, q9[1] + r9 * sn9 * e29[1], q9[2] + r9 * sn9 * e29[2]];
     };
     const qs9: { d: number; f: ShapeFace }[] = [];

@@ -491,7 +491,7 @@ export function poseKindsOf(kind: string): { move?: boolean; atk?: boolean; flap
  *  날갯짓까지다. 없는 컷을 달라고 하면 굽기 열쇠(poseTag)가 "0"으로 접어 idle을
  *  돌려주는데 — 그림은 옳지만 **빌더는 그 컷으로 한 번 불린다**. 열쇠와 그림이
  *  어긋날 자리를 만드느니, 부르는 쪽이 있는 컷만 묻는 편이 낫다. */
-export function poseCutsOf(kind: string): { move?: boolean; atk?: boolean; flap?: number; thrust?: boolean } | null {
+export function poseCutsOf(kind: string): { move?: boolean; atk?: boolean; flap?: number; thrust?: boolean; roll?: boolean } | null {
   return POSE_KINDS[kind] ?? null;
 }
 export function poseTempoOf(kind: string): { walkHz: number; atkCd: number } | null {
@@ -5693,7 +5693,12 @@ export function docCellsOf9(kind: string, t: number, yaw: number): DocCell9[] {
     const tp9 = poseTempoOf(kind);
     const idle9: 0 | 1 | 2 | 3 | 4 | 5 = pk9?.flap ? flapCutOf9(pk9.flap, t) : 0;
     out9.push({ label: "대기", pose: idle9 });
-    if (pk9?.move && tp9) out9.push({ label: "이동", pose: Math.floor(t * tp9.walkHz) % 2 === 1 ? 3 : 1 });
+    /* 걸음은 두 컷을 오가고(1 ↔ 3), **궤도 굴림은 세 컷을 돈다**(0 → 1 → 3) — 두 컷은 서로의
+       거울이라 앞뒤가 없지만, 궤도는 어느 쪽으로 도는지가 보여야 한다(POSE_KINDS 의 roll). */
+    if (pk9?.move && tp9) {
+      const wp9: readonly (0 | 1 | 3)[] = pk9.roll ? [0, 1, 3] : [1, 3];
+      out9.push({ label: "이동", pose: wp9[Math.floor(t * tp9.walkHz) % wp9.length] });
+    }
     /* ★ **추진체는 걸음이 없어도 이동 칸을 세운다**(2026-09, 요청: "스러스터에 불 켜지는
        애들은 이동 모션에 그게 들어가면 됨") — 나는 몸·호버는 다리로 걷지 않아 걸음 컷이
        없다. 그래서 여태 이동 칸이 아예 안 섰는데, 그 종류들이야말로 '이동 중'이 그림으로
