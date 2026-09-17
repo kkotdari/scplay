@@ -3797,7 +3797,56 @@ export function paintFxList9(
       ctx.lineTo(N20[0], N20[1]);
       ctx.closePath();
       ctx.fill();
-    } else if (st.cone) {
+    }
+    /* ★ **뭉게뭉게 연기 덩이**(2026-09, 요청: "파뱃 화염방사 연기 자연스럽게(반투명 회색 연기
+       뭉게뭉게로) … 앞쪽 자연스럽게 호 형태로 처리" · "디바우러 트레이서도 연기 느낌 나게") ────
+       줄기 위에 반투명 원을 여럿 흩어 얹는다. 앞으로 갈수록 **크게·옆으로 더 흩어**지므로 끝이
+       저절로 호로 퍼진다 — 호를 따로 그리지 않아도 된다.
+       · 씨앗은 번쩍임 위상(p9)에서 뽑는다 — 한 발 동안 무늬가 몇 번 갈려 연기가 살아 움직인다.
+       · 알파는 앞으로 갈수록 옅다(사그라드는 연기) · 크기·짙기는 덩이마다 난수로 흔든다.
+       ⚠ 그린 뒤 `globalAlpha` 를 되돌려 놓는다 — 아래 갈래들이 그 값을 그대로 쓴다. */
+    const puffs9 = (): void => {
+      const n9 = st.billow ?? 0;
+      if (n9 < 1) return;
+      const vx7 = dx9 - lx9; const vy7 = dy9 - ly9;
+      const vl7 = Math.hypot(vx7, vy7) || 1;
+      const nx7 = -vy7 / vl7; const ny7 = vx7 / vl7;
+      const from7 = st.billowFrom ?? 0;
+      const base7 = Math.max(1.2, st.w * zoom * (st.billowK ?? 1));
+      const seed7 = Math.floor(p9 * 6);
+      ctx.fillStyle = st.billowCol ?? "rgba(158,154,150,1)";
+      for (let i7 = 0; i7 < n9; i7 += 1) {
+        const q7 = from7 + (1 - from7) * ((i7 + 0.5) / n9);
+        const ra7 = Math.sin((i7 * 21.31 + seed7 * 47.13) * 1367.7);
+        const j7 = ra7 - Math.floor(ra7);
+        const rb7 = Math.sin((i7 * 9.71 + seed7 * 13.37 + 4.2) * 811.3);
+        const k7 = rb7 - Math.floor(rb7);
+        const rr7 = base7 * (0.55 + 0.75 * k7) * (0.55 + 0.9 * q7);
+        const of7 = (j7 - 0.5) * rr7 * 1.5;
+        ctx.globalAlpha = a9 * (st.billowA ?? 0.3) * (1 - q7 * 0.5) * (0.6 + 0.4 * k7);
+        ctx.beginPath();
+        ctx.arc(lx9 + vx7 * q7 + nx7 * of7, ly9 + vy7 * q7 + ny7 * of7, rr7, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = a9;
+    };
+    /** 열기 번짐 — 줄기 앞쪽에 깔리는 둥근 그러데이션(요청: "열기 느껴지는 글로우 추가"). 몸 **아래**다. */
+    const heat9 = (): void => {
+      if (!st.heat) return;
+      const hq7 = 0.62;
+      const hx7 = lx9 + (dx9 - lx9) * hq7; const hy7 = ly9 + (dy9 - ly9) * hq7;
+      /* ⚠ 번짐이 **줄기를 삼키면** 안 된다 — 반지름 2.4배·짙기 0.7 로 뒀더니 도록 칸에서 불줄기가
+         안 보이고 주황 얼룩만 남았다(실측). 열기는 불 **둘레**에 도는 것이지 불 자체가 아니다. */
+      const hr7 = Math.max(4, st.w * zoom * ((st.cone ? st.cone[1] : 1)) * 1.9);
+      const rg7 = ctx.createRadialGradient(hx7, hy7, 0, hx7, hy7, hr7);
+      rg7.addColorStop(0, st.heat); rg7.addColorStop(0.55, "rgba(255,150,60,0.16)"); rg7.addColorStop(1, "rgba(255,140,50,0)");
+      ctx.globalAlpha = a9 * 0.45;
+      ctx.fillStyle = rg7;
+      ctx.beginPath(); ctx.arc(hx7, hy7, hr7, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = a9;
+    };
+    if (st.cone) {
+      heat9();
       /* ★ **원뿔 줄기**(화염방사) — 뿌리에서 좁고 앞으로 갈수록 넓어진다(요청: "파뱃
          트레이서 시작점은 좀 좁고 앞으로 가면서 넓어지는 형태여야 함 · 야구 방망이
          느낌"). 굵기 하나로 긋는 획은 어디서나 폭이 같아 '뿜는 불'이 아니라 **막대**로
@@ -3829,6 +3878,7 @@ export function paintFxList9(
       }
       ctx.fillStyle = g9;
       cone7(0);
+      puffs9();
     } else {
       /* 길 하나를 두 번 긋는다(번짐 + 몸) — 꺾인 갈래는 두 획이 **같은 마디**를
          지나야 하므로 길을 여기서 한 번만 짓는다. */
@@ -3893,6 +3943,7 @@ export function paintFxList9(
       ctx.miterLimit = 12;
       path9();
       ctx.stroke();
+      puffs9();
     }
   }
   ctx.restore();
