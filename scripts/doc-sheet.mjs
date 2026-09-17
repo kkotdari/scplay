@@ -132,7 +132,7 @@ window.__docAnim = (kinds) => {
   return rows.length;
 };
 window.__docSheet = (group, race, rots, narrow) => {
-  const rows = SHAPE_GALLERY.filter((g) => g.group === group && (race === "전체" || g.race === race));
+  const rows = SHAPE_GALLERY.filter((g) => !g.hidden && g.group === group && (race === "전체" || g.race === race));
   const host = document.getElementById("host");
   /* 도록 화면(GalleryScreen)의 마크업 그대로다 — 고르기 줄과 돌아가기 버튼만 뺀다
      (그림에는 담을 것이 아니고, 담으면 종이의 절반을 먹는다). 괄호를 깊게 겹치지 않고

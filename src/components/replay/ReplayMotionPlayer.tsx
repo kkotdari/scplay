@@ -3892,7 +3892,15 @@ export function paintFxList9(
           const len9 = Math.hypot(vx9, vy9) || 1;
           /* 튀는 폭 — 길이의 몫과 굵기의 몫 중 작은 쪽이다. 짧은 번개가 제
              길이만큼 튀면 갈지자가 아니라 뭉치가 된다. */
-          const amp9 = Math.min(len9 * (st.zigAmp ?? 0.16), st.w * zoom * (st.zigW ?? 2.4));
+          /* ★★ **꺾임각은 둔각이라야 한다**(2026-09, 지적: "아콘 트레이서 줄기 너무 심하게 꺾임 ·
+             꺾임각이 90도보다 크게 둔각으로") — 안쪽 각을 정하는 것은 튀는 폭 하나가 아니라
+             **마디 길이에 견준 폭**이다: 이웃 두 마디가 서로 어긋난 몫이 마디 길이의 tan(θ/2) 를
+             넘으면 그만큼 날카로워진다. 좌우로 번갈아 튀므로 어긋남은 최대 2·amp 이고, 안쪽 각
+             100도를 지키려면 2·amp ≤ 마디 × tan40°(0.839) → **amp ≤ 마디 × 0.42** 다.
+             ⚠ 갈래표의 값(zigAmp·zigW)은 이제 **상한**일 뿐이다 — 기하가 정하는 이 죔이 늘 이긴다.
+               표 값만 손보면 짧은 사거리에서 도로 날카로워진다(len 이 작아지면 마디도 작아진다). */
+          const seg9 = len9 / n9;
+          const amp9 = Math.min(len9 * (st.zigAmp ?? 0.16), st.w * zoom * (st.zigW ?? 2.4), seg9 * 0.42);
           // 위상을 씨앗으로 — 번쩍이는 동안 무늬가 몇 번 갈린다(위 zig 주석).
           const seed9 = Math.floor(p9 * 5);
           for (let i9 = 1; i9 < n9; i9 += 1) {
@@ -5722,6 +5730,24 @@ export function docAnimOf9(kind: string): DocAnim9 {
 const DOC_ACT_POSE9: Record<string, { note: string; poses: readonly (0 | 1 | 2 | 3 | 4 | 5)[]; sec: number }> = {
   ghost: { note: "총 꺼내기", poses: [0, POSE_ATK_L, 2, POSE_ATK_L], sec: 0.45 },
 };
+/** ★ **혼자 안 서는 몸은 제 주인의 칸이 그린다**(2026-09, 요청: "인터셉터는 캐리어 공격에
+ *  포함시키고 목록에선 제거 · 스캐럽 마인도 목록에선 제거 · 벌처는 마인 심기를 기타 액션으로") —
+ *  캐리어·리버는 **제 몸으로 안 쏜다**(내보낸 것이 쏜다), 벌처의 마인은 무기가 아니라 심는 것이다.
+ *  그래서 공격 칸(캐리어·리버)·액션 칸(벌처)이 그 몸을 대신 그린다 — 목록에서는 숨긴다.
+ *  ⚠ 그 칸의 트레이서도 **그 몸의 것**이라야 한다(캐리어의 burst 가 아니라 인터셉터의 gun). */
+const DOC_ATK_KIND9: Record<string, { kind: string; note: string }> = {
+  carrier: { kind: "interceptor", note: "인터셉터" },
+  reaver: { kind: "scarab", note: "스캐럽" },
+};
+const DOC_ACT_KIND9: Record<string, { kind: string; note: string }> = {
+  vulture: { kind: "mine", note: "마인 심기" },
+};
+/** ★ **액션 칸이 트레이서 하나인 것**(2026-09, 요청: "배틀은 야마토를 말한 거였는데 그건 기타
+ *  액션에 넣어 줘") — 야마토포는 평상시 무기가 아니라 쓰는 기술이라 공격 칸의 것이 아니다.
+ *  몸은 그대로 두고 그 위에 제 한 발만 겹친다. */
+const DOC_ACT_FX9: Record<string, { note: string; fx: string }> = {
+  bc: { note: "야마토포", fx: "yamato" },
+};
 /** 쏘는 몸이 **딴 벌**인 종류 — 성큰은 몸(sunkenrear)과 혓바닥(sunkentongue)이 갈려 있고,
  *  혓바닥의 회전 칸이 곧 공격 컷 넷이다(지도의 그 자리: engine9 의 sunkenOut). */
 const DOC_ATK_BODY9: Record<string, { kind: string; attach: string }> = {
@@ -5800,6 +5826,11 @@ export function docCellsOf9(kind: string, t: number, yaw: number): DocCell9[] {
        ⚠ **다를 때만 가른다** — 배틀크루저처럼 두 무기가 같은 그림이면 두 칸이 똑같아 값이 없다.
        ⚠ 못 때리는 표적은 칸이 안 선다(`weaponVs` 가 없으면 그 쪽 무기가 없는 것이다) — 발키리·
          커세어는 대공 한 칸, 파이어뱃·질럿은 지상 한 칸이다. */
+    /* 대리 몸이 있으면 공격 칸은 **그 몸 한 칸**이다(위 DOC_ATK_KIND9) — 지상·대공 가르기보다 앞이다. */
+    const sub9 = DOC_ATK_KIND9[kind];
+    if (sub9) {
+      out9.push({ label: "공격", note: sub9.note, kind: sub9.kind, tracer: true, fx: docWeaponOf9(sub9.kind) ?? undefined });
+    } else {
     const atk9 = docAtkFx9(kind);
     if (pk9?.atk && tp9) {
       const ph9 = (((t % tp9.atkCd) + tp9.atkCd) % tp9.atkCd) / tp9.atkCd;
@@ -5809,6 +5840,7 @@ export function docCellsOf9(kind: string, t: number, yaw: number): DocCell9[] {
     } else if (gun9) {
       if (atk9.length > 1) for (const a9 of atk9) out9.push({ label: a9.label, pose: idle9, tracer: true, fx: a9.fx });
       else out9.push({ label: "공격", pose: idle9, tracer: true });
+    }
     }
   } else {
     /* 건물·부가 — 움직이는 것은 자세가 아니라 회전 칸·포탑 각·불빛이다. */
@@ -5854,6 +5886,12 @@ export function docCellsOf9(kind: string, t: number, yaw: number): DocCell9[] {
   if (a9.morph && a9.morph.length > 1) {
     const mk9 = a9.morph[Math.floor(t / 1.1) % a9.morph.length];
     out9.push({ label: "액션", note: SHAPE_GALLERY.find((g9) => g9.kind === mk9)?.label ?? mk9, kind: mk9 });
+  } else if (DOC_ACT_FX9[kind]) {
+    const af9 = DOC_ACT_FX9[kind];
+    out9.push({ label: "액션", note: af9.note, tracer: true, fx: af9.fx });
+  } else if (DOC_ACT_KIND9[kind]) {
+    const ak9 = DOC_ACT_KIND9[kind];
+    out9.push({ label: "액션", note: ak9.note, kind: ak9.kind });
   } else if (DOC_ACT_POSE9[kind]) {
     /* 자세 컷 액션(고스트의 총 꺼내기) — 한 컷 sec 초로 돈다. */
     const ap9 = DOC_ACT_POSE9[kind];

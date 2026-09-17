@@ -23738,7 +23738,12 @@ export const SHAPE_GALLERY: ShapeGalleryItem[] = [
   { kind: "fbat", label: "파이어뱃", group: "유닛", race: "테란" },
   { kind: "inf", label: "메딕", group: "유닛", race: "테란" },
   { kind: "vulture", label: "벌처", group: "유닛", race: "테란" },
-  { kind: "mine", label: "스파이더 마인", group: "유닛", race: "테란" },
+  /* ★ 혼자 안 서는 몸 셋은 **목록에서 숨기고 제 주인의 칸에 든다**(2026-09, 요청: "인터셉터는
+     캐리어 공격에 포함시키고 목록에선 제거 · 스캐럽 마인도 목록에선 제거 · 벌처는 마인 심기를
+     기타 액션으로") — 마인은 벌처가 심는 것이고, 스캐럽은 리버가 쓰는 것이고, 인터셉터는
+     캐리어가 내보내는 것이다. 목록에 따로 서면 '이게 뭐지'가 되고, 주인의 칸에 들면 곧 그 뜻이다.
+     ⚠ **지우지 말고 숨긴다** — 광택 표(glossOf9)가 이 표로 종족을 찾는다(맨 위 규약). */
+  { kind: "mine", label: "스파이더 마인", group: "유닛", race: "테란", hidden: true },
   { kind: "tank", label: "시즈 탱크", group: "유닛", race: "테란" },
   /* ★ **별본은 제 본체 바로 뒤에 선다**(2026-09, 요청: "도록 순서에서 애드온과 시즈모드를 각
      원래 건물/유닛 바로 다음으로 이동 · 일꾼 자원 운송 모드도 마찬가지") — 짐 든 일꾼·시즈
@@ -23771,8 +23776,8 @@ export const SHAPE_GALLERY: ShapeGalleryItem[] = [
      이었다. 인터셉터가 제 모델을 갖게 되어(요청) 합본은 쓸 데가 없다: 지도에서는 한
      번도 안 그려지는 도록 전용 판이었고, 인터셉터는 실제로 캐리어에서 **떨어져 나와**
      날아간다. */
-  { kind: "interceptor", label: "인터셉터", group: "유닛", race: "프로토스" },
-  { kind: "scarab", label: "스캐럽", group: "유닛", race: "프로토스" },
+  { kind: "interceptor", label: "인터셉터", group: "유닛", race: "프로토스", hidden: true },
+  { kind: "scarab", label: "스캐럽", group: "유닛", race: "프로토스", hidden: true },
   { kind: "arbiter", label: "아비터", group: "유닛", race: "프로토스" },
   // ── 유닛 · 저그 ──
   /* 라바·변태알은 **참값 자취에 제 유닛으로 실린다**(옛 주석은 "리플레이에 라바는 안
