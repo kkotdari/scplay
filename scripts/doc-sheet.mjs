@@ -44,6 +44,10 @@ const NARROW = argv.includes("--narrow");
    여덟(기본·회전 둘·불빛·겨눔·공사 셋)을 한 줄로 늘어놓는다 — 도록 팝업이 시각으로 오가는
    그 값들이 진짜 그림을 바꾸는지 눈으로 보는 자다. `--kinds trapezoid,turret,coil,cube` */
 const ANIM = argv.includes("--anim");
+/* --tracer — **트레이서 한 발**을 나이별로 뽑는다(요청: "그리고 트레이서는 못그려주나? 도록에").
+   칸 왼아래가 총구·오른위가 표적이고, 나이(0~1)를 여섯 칸으로 나눠 한 발의 일생을 본다.
+   `--kinds gunner,goliath,coil,turret,corsair,archon` */
+const TRACER = argv.includes("--tracer");
 const KINDS = String(flag("--kinds", "")).split(",").map((v) => v.trim()).filter(Boolean);
 /* --own — 임자색(칠 안 한 면이 먹는 currentColor). 도록 화면은 `--scr-doc-own`으로
    고정 연두를 주는데, 종이로 뽑을 때는 다른 색이 필요할 때가 있다(요청: 빨강).
@@ -61,7 +65,28 @@ const BG = argv.includes("--bg")
 const ENTRY = `
 import { createElement as h } from "react";
 import { createRoot } from "react-dom/client";
-import { SHAPE_GALLERY, DocIcon9, galleryYawOf, docAnimOf9 } from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
+import { SHAPE_GALLERY, DocIcon9, galleryYawOf, docAnimOf9, DocTracer9, docWeaponOf9 } from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
+/* 트레이서 판(--tracer) — 한 발의 나이를 여섯 칸으로. */
+window.__docTracer = (kinds) => {
+  const host = document.getElementById("host");
+  const rows = kinds.map((k) => SHAPE_GALLERY.find((g) => g.kind === k) || { kind: k, label: k, group: "유닛", race: "" });
+  const list = h("div", { className: "scr-doc-list" }, rows.map((it) => {
+    const st = docWeaponOf9(it.kind);
+    return h("section", { key: it.kind, className: "scr-doc-item" }, [
+      h("header", { key: "h", className: "scr-doc-itemhead" }, [
+        h("h3", { key: "t" }, it.label),
+        h("span", { key: "k", className: "scr-doc-kind" }, it.kind + " · " + (st || "무기 없음")),
+      ]),
+      h("div", { key: "a", className: "scr-doc-angles" }, [0.08, 0.24, 0.4, 0.56, 0.72, 0.88].map((u) =>
+        h("div", { key: u, className: "scr-doc-angle" }, [
+          st ? h(DocTracer9, { key: "m", kind: it.kind, t: u * 1.1, className: "scr-doc-svg" }) : null,
+          h("span", { key: "d" }, "나이 " + u.toFixed(2)),
+        ]))),
+    ]);
+  }));
+  createRoot(host).render(h("div", { className: "scr-doc" }, list));
+  return rows.length;
+};
 /* 건물의 움직임 판(--anim) — 한 종류의 상태들을 한 줄로. 값은 도록 팝업이 시각으로 오가는
    그 값들이고, 여기서는 눈으로 견주기 쉽게 **못 박아** 놓는다. */
 window.__docAnim = (kinds) => {
@@ -202,7 +227,9 @@ await page.evaluate((code) => {
 }, js);
 await page.waitForFunction(() => typeof window.__docSheet === "function", null, { timeout: 60000 });
 await page.waitForFunction(() => typeof window.__docAnim === "function", null, { timeout: 60000 });
-const n = ANIM
+const n = TRACER
+  ? await page.evaluate((ks) => window.__docTracer(ks), KINDS.length ? KINDS : ["gunner", "goliath", "coil", "turret", "corsair", "archon"])
+  : ANIM
   ? await page.evaluate((ks) => window.__docAnim(ks), KINDS.length ? KINDS : ["trapezoid", "turret", "coil", "cube"])
   : await page.evaluate(([g, r, rots, nw]) => window.__docSheet(g, r, rots, nw),
     [GROUP, RACE, ROTS, NARROW]);
@@ -218,6 +245,8 @@ await page.waitForFunction(() => {
 await page.waitForTimeout(400);
 await page.locator("#host").screenshot({ path: OUT });
 await browser.close();
-console.log(ANIM
+console.log(TRACER
+  ? `${OUT}  (트레이서 판 · ${n}종)`
+  : ANIM
   ? `${OUT}  (움직임 판 · ${n}종 · ${TWO_D ? "2D" : "GL"})`
   : `${OUT}  (${GROUP}/${RACE} · ${n}종 · ${ROTS.length}방위 · ${TWO_D ? "2D" : "GL"})`);

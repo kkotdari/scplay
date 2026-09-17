@@ -87,7 +87,7 @@ import {
 } from "../../utils/shapeOblique";
 import { TEAM_COLOR, type MinimapMarker } from "./markers";
 import {
-  AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, NUKE_BOOM_SEC, NUKE_FALL_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SPIN_STEPS, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
+  AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, ATTACK_FX, NO_BEAM_FX, TARGET_FX, PROJECTILE_FX, NUKE_BOOM_SEC, NUKE_FALL_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SPIN_STEPS, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
 } from "./engine9";
 import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, WorldUi9 } from "./engine9";
 import {
@@ -2884,6 +2884,990 @@ export const scrDiagModes = (): Set<string> => {
   return new Set(m9 ? m9[1].split(",") : []);
 };
 
+/** ★ **전투 효과(트레이서·피격·가시·우리…)를 그리는 붓 — 순수 함수로 떼어 냈다**
+ *  (2026-09, 요청: "그리고 트레이서는 못그려주나? 도록에") ────────────────────────────────
+ *  이 900줄은 UnitLayer 의 칠하기 안에 박혀 있었다. 그러면 지도 밖에서는 **한 발도 못 그린다** —
+ *  도록이 트레이서를 보여 주려면 제 붓을 새로 짜야 하고, 그러면 같은 무기를 두 붓이 그리게 되어
+ *  하나는 반드시 거짓말이 된다(판 굽기 때 이미 겪은 그 갈림이다).
+ *  옮긴 것은 자리뿐이다 — 글자 한 톨 안 고쳤고, 지도가 쥐고 있던 값(배율·타일 px·덜어내기 단·
+ *  화면 자 셈 zx·zy·캔버스 크기·dpr)만 `FxPaintEnv9` 한 꾸러미로 받는다. 도록은 그 꾸러미를
+ *  제 칸 크기로 지어 한 발을 그린다(`docFxEnv9`). */
+export type FxPaintEnv9 = {
+  /** 배율(렌즈 px/타일) · 타일 px — 갈래표의 렌즈 px 상수가 이 둘로 타일 자에 탄다. */
+  zoom: number; tilePx?: number;
+  /** 지도 자리 → 화면 px. 도록은 제 칸 가운데를 내는 함수를 준다. */
+  zx: (v: number) => number; zy: (v: number) => number;
+  /** 화면(내용) 크기 — 화면 밖 개체를 버리는 자. */
+  cw: number; ch: number;
+  /** dpr(캔버스 배수) — 판(래스터)을 굽는 자리가 쓴다. */
+  Bd: number;
+  /** 낮은 배율 죄기 단(0·1·2)과 배치 바닥 — 안 주면 죄지 않는다. */
+  trim9?: number; detailAt?: number;
+  /** 다크 스웜을 이미 마스크와 함께 얹었나(지도만 참). */
+  swarmDone9?: boolean;
+};
+export function paintFxList9(
+  ctx: CanvasRenderingContext2D, fx: readonly FxOp[], env: FxPaintEnv9,
+): void {
+  const { zoom, tilePx, zx, zy, cw, ch, Bd } = env;
+  const trim9 = env.trim9 ?? 0;
+  const detailAt = env.detailAt;
+  const swarmDone9 = env.swarmDone9 ?? false;
+  // scr-tracer: 0%→0 · 10~45%→1 · 70%~→0.
+  const envBeam = (p9: number): number =>
+    (p9 < 0.1 ? p9 / 0.1 : p9 < 0.45 ? 1 : p9 < 0.7 ? (0.7 - p9) / 0.25 : 0);
+  // scr-hitflash: 0→0 · 12~55%→1 · 100%→0.
+  const envHit = (p9: number): number =>
+    (p9 < 0.12 ? p9 / 0.12 : p9 < 0.55 ? 1 : (1 - p9) / 0.45);
+  // scr-shieldfx: 0→0 · 16%→1 · 42%→0.4 · 64%→0.95 · 100%→0 (두 번 깜빡).
+  const envShield = (p9: number): number => (p9 < 0.16 ? p9 / 0.16
+    : p9 < 0.42 ? 1 - ((p9 - 0.16) / 0.26) * 0.6
+      : p9 < 0.64 ? 0.4 + ((p9 - 0.42) / 0.22) * 0.55 : (1 - p9) / 0.36 * 0.95);
+  ctx.save();
+  ctx.shadowColor = "transparent";
+  /* 렌즈px 상수의 자(지적: "PC보다 모바일에서 트레이서 크기가 훨씬 큼") — 갈래표의 l·w, 가시 높이
+     4.05, 광구 0.7 같은 값은 '1배 CSS px'라 배율만 곱했다. 그런데 타일 하나가 PC에서는 8px 남짓,
+     폰에서는 3px라(지도가 화면 폭에 맞춰 선다) 같은 배율의 같은 px가 폰에서는 유닛 대비 2.6배로
+     컸다. 유닛·피격(f.size)은 엔진이 타일 자로 내므로 이미 맞다. 이 상수들만 타일 8px를 기준으로
+     타일 자에 태운다 — PC(≈8px)는 그대로, 폰은 그만큼 준다. */
+  const tz9 = zoom * ((tilePx ?? 8) / 8);
+  for (const f of fx) {
+    /* ★ 갈래마다 제 칸이 있다(요청: "2배에서 전투효과: 가시 분출 우리 / 4배에서
+       전투효과: 피격 / 나머지는 다 8배부터") — 사다리는 FX_MIN_ZOOM이고, 배치의
+       바닥(detailAt: PC 2배·폰 8배)과 **둘 중 늦은 쪽**이 실제 칸이다. 트레이서만
+       그 바닥 위에 있다(요청: "모든 트레이서류 2배 줌부터") — beam(제자리 번쩍)과
+       shot(날아가는 탄)이 곧 무기별 트레이서 전부라, 무기가 무엇이든 유닛이 쏘든
+       방어 건물이 쏘든 이 한 줄을 지난다. */
+    if (zoom < (FX_NO_FLOOR.has(f.kind)
+      ? FX_MIN_ZOOM[f.kind] : Math.max(FX_MIN_ZOOM[f.kind], detailAt ?? 0))) continue;
+    /* 낮은 배율 죄기(위 lowZoomTrim9) — 꾸밈부터 덜고, 심하면 트레이서까지 던다.
+       무슨 일이 있었나를 말하는 것(죽음 폭발·소환 섬광·우리·스톰·핵·붕괴)은 남는다. */
+    if (trim9 >= 1) {
+      if (f.kind === "wound") continue;
+      if (f.kind === "dom" && TRIM1_SKIP9.has(f.style ?? "")) continue;
+      if (trim9 >= 2) {
+        if (f.kind === "dom" && TRIM2_SKIP9.has(f.style ?? "")) continue;
+        if (f.kind === "beam" || f.kind === "shot" || f.kind === "spike" || f.kind === "erupt") continue;
+      }
+    }
+    const ax = zx(f.fx);
+    const ay = zy(f.fy) - f.lift * zoom;
+    if (ax < -60 || ax > cw + 60 || ay < -60 || ay > ch + 60) continue;
+    const p9 = Math.max(0, Math.min(1, f.ph ?? 0));
+    if (f.kind === "burst") {
+      drawBurst9(ctx, f, ax, ay, zoom, p9, tz9);
+      continue;
+    }
+    if (f.kind === "wound") {
+      drawWound9(ctx, f, ax, ay, zoom, Bd);
+      continue;
+    }
+    if (f.kind === "dom") {
+      /* 죽음 여운은 캔버스 파편(burst)이 서는 2배 아래에서만 나온다 — 스팬 시절과 같은 칸이다. */
+      if (f.style === "die" && zoom >= FX_MIN_ZOOM.burst) continue;
+      if (f.style === "swarm" && swarmDone9) continue;   // 위에서 마스크와 함께 얹었다
+      drawDomFx9(ctx, f, ax, ay, zoom, Bd, tz9);
+      continue;
+    }
+    if (f.kind === "hit") {
+      /* 피격은 **두 겹**이다(요청: "피격시 무조건 주황색 폭발로 처리되는데") ──
+           ① 때린 무기의 제 그림(FX_IMPACT) — 시즈는 크게 터지고 히드라 가시는
+              초록으로 튄다. 무기를 모르거나 근접이면 이 겹은 없다.
+           ② 맞은 몸의 제 결(FX_MAT) — 살은 피, 프로토스는 에너지, 기계는 불꽃.
+              죽음 효과와 같은 넷이라 "누가 맞았나"가 죽을 때와 같은 색으로 읽힌다.
+         여태 이 자리는 무기·몸을 안 가리는 주황 복사 그러데이션 하나였다. */
+      const a9 = envHit(p9);
+      if (a9 <= 0.02) continue;
+      /* ★ 피격은 **섬광 하나 + 파편 셋**이다(후보판에서 고름: "A의 방향에 B의 효과, 충격링은
+         없어도 될듯") ──────────────────────────────────────────────────────────────
+         옛 판(무기 색 방사 그러데이션 + 결 얼룩 + 낱알 다섯)은 번짐이 커서 색 덩이로 읽혔다.
+         이제 ① 맞은 자리에 몸 결의 흰 섬광이 한 점 터져 줄어들고, ② 파편 셋이 **맞은 반대쪽**
+         (때린 쪽에서 밀려나는 방향)으로 부채꼴로 날아간다. 피(생체·저그)는 중력을 타고 조금
+         떨어진다. 무기의 세기는 섬광·파편의 자에만 실린다(시즈는 크게, 총알은 작게) — 무기의
+         제 그림(FX_IMPACT의 그러데이션)은 더 안 그린다. */
+      const base9 = f.size ?? 4;
+      const r9 = (base9 / 2) * zoom * HIT_FX_K;
+      const off9 = (f.dist ?? base9 * 0.71) * zoom;
+      const hx9 = ax + (f.dx ?? 0) * off9;
+      const hy9 = ay + (f.dy ?? 0) * off9 - r9 * 0.2;
+      const im9 = f.style ? FX_IMPACT[f.style] : undefined;
+      /** 무기 세기 — 표의 반지름비(총 0.5 · 시즈 1.75)를 1 언저리로 옮긴 배수. */
+      const wk9 = im9 ? Math.min(2, Math.max(0.7, im9.r / 0.6)) : 1;
+      const mt9 = FX_MAT[f.mat ?? "mech"];
+      /* ★ 표적 자리 **스플래시**(커세어 플레어·아콘 잽)는 제 그림 그대로다(지적: "인터셉터 피격효과
+         파편이 아직도 너무 큰데") — 이 둘은 맞는 쪽 체력이 아니라 **쏘는 쪽 박자**로 표적에 얹는
+         op이고, 자(size)가 쏘는 몸의 **상자 통째**다(옛 그러데이션 타원의 자). 파편 그리기로 넘어가니
+         커세어가 쏘는 인터셉터마다 상자만 한 파편 부채가 텄다. 옛 납작 타원(FX_IMPACT flat)을 되살려
+         이 갈래만 그것으로 그리고 파편은 안 낸다. */
+      // 깃발로 가른다(재지적: "스플래시는 트레이서에 가깝고 피격효과는 나야지") — 같은 무기에
+      // **맞아서 체력이 깎인** 피격(splash 없음)은 아래 파편으로 간다.
+      if (im9 && f.splash) {
+        const ir9 = r9 * im9.r * (0.7 + p9 * 0.5);
+        const fl9 = im9.flat ?? 1;
+        ctx.globalAlpha = a9;
+        if (fl9 !== 1) { ctx.translate(hx9, hy9); ctx.scale(1, fl9); ctx.translate(-hx9, -hy9); }
+        const gi9 = ctx.createRadialGradient(hx9, hy9, 0, hx9, hy9, ir9);
+        for (const [o9, c9] of im9.g) gi9.addColorStop(o9, c9);
+        ctx.fillStyle = gi9;
+        ctx.beginPath();
+        ctx.arc(hx9, hy9, ir9, 0, Math.PI * 2);
+        ctx.fill();
+        if (fl9 !== 1) { ctx.translate(hx9, hy9); ctx.scale(1, 1 / fl9); ctx.translate(-hx9, -hy9); }
+        continue;
+      }
+      /* ★ 파편 **스물넷**, **궤적 스트릭**(재요청: 양 4배, 이동 방향으로 길게) — 후보판 B2의
+         움직임(짧게 튀어 멈춤, 중력 없음, 섬광·링 없음)은 그대로 두고, 낱개를 점 대신 조금 전
+         자리에서 지금 자리까지 잇는 짧은 선으로 그려 꼬리가 생긴다. 각은 부채꼴 ±0.65rad를
+         고르게 나누되 낱개마다 고정 흔들림(각·거리·굵기)을 줘 줄 서지 않는다. */
+      const hasDir9 = Number.isFinite(f.dx) && Number.isFinite(f.dy) && ((f.dx ?? 0) !== 0 || (f.dy ?? 0) !== 0);
+      const away9 = hasDir9 ? Math.atan2(-(f.dy ?? 0), -(f.dx ?? 0)) : 0;
+      /* ★ 삯(지적: 모바일이 버거워짐) — 낱개마다 stroke를 부르면 맞는 몸마다 스물네 번이다. 색이 둘뿐이니
+         **색별로 한 경로에 몰아** 두 번만 긋는다(굵기는 색별 한 값). 폰은 낱개도 열둘로 줄인다. */
+      /* 피격 파편은 **죽음 파편 수가 아니다**(지적: "스커지 자폭에서 왜 프로토스 사별 효과가
+         나지") — 여기가 DEV9.dieShards(PC 24·폰 12)를 읽고 있었다. 위 주석의 뜻은 '파편 셋'인데
+         스커지(무기 세기 wk9 = 2)가 프로토스를 치면 연푸른 줄 스물넷이 몸 두 배 부채로 터져,
+         프로토스 사별의 푸른 구와 같은 색·같은 자로 읽혔다. 스커지 자체는 저그 재질(engine9의
+         dk)로 터지므로 이 부채가 곧 '프로토스가 죽었다'로 보인 것이다. 결 표(FX_MAT)의 n
+         (5·6)이 피격 낱개 수다 — 죽음(burst)은 따로 dieShards를 쓴다. */
+      if (CROWD9.lv >= 2) continue;   // 덜어내기 2단: 피격 불티는 통째로 생략(죽음 burst만 남는다)
+      const N9 = Math.max(2, Math.ceil(mt9.n * crowdShardK9()));
+      ctx.lineCap = "round";
+      for (let ci = 0; ci < 2; ci += 1) {
+        ctx.beginPath();
+        for (let di = ci; di < N9; di += 2) {
+          const j1 = (di * 7) % 5; const j2 = (di * 11) % 4;
+          const an9 = hasDir9
+            ? away9 + (di / (N9 - 1) - 0.5) * 1.3 + (j1 - 2) * 0.03
+            : (di / N9) * Math.PI * 2 + 0.3 + (j1 - 2) * 0.05;
+          const sp9 = r9 * wk9 * (0.8 + j2 * 0.22);
+          const d1 = sp9 * (0.3 + p9 * 1.2);
+          const d0 = sp9 * (0.3 + Math.max(0, p9 - 0.28) * 1.2);
+          const c9 = Math.cos(an9); const s9 = Math.sin(an9);
+          ctx.moveTo(hx9 + c9 * d0, hy9 + s9 * d0 * 0.6 - d0 * 0.15);
+          ctx.lineTo(hx9 + c9 * d1, hy9 + s9 * d1 * 0.6 - d1 * 0.15);
+        }
+        ctx.globalAlpha = a9 * (1 - p9) * 0.95;
+        ctx.strokeStyle = ci ? mt9.drop : mt9.core;
+        ctx.lineWidth = Math.max(0.6, r9 * wk9 * (ci ? 0.075 : 0.06) * 1.6);
+        ctx.stroke();
+      }
+      ctx.lineCap = "butt";
+      continue;
+    }
+    /* ★ (꺼 둠) 프로토스 실드 방어 효과 — 요청: "제거, 완성도있게 다시 추가할
+       예정". 값을 짓는 쪽(걷기·건물 루프)은 그대로 두고 **그리는 이 한 자리**만
+       막는다: 다시 켤 때 이 조건의 `false &&`만 지우면 되고, 그동안 값 짓는 코드가
+       썩지 않는다(자리·크기·위상을 계속 같은 식으로 셈해 둔다). */
+    /* ★ 빙결 우리(요청: "스테이시스는 동그라미 판 하나로 할 건 아니고 각 유닛별로
+       하이브 모양으로 가둬야 해. 락다운도 각 유닛별로 원형에 가두고. 색깔은
+       스테이시스는 얼음 푸른색, 락다운은 노란기 있는 흰색. 둘 다 반투명") ──────────
+       여태 이 둘은 시전 자리에 **판 하나**였다(AREA_FX의 stasis·lock). 그건 '어디에
+       걸었나'는 말해도 '누가 걸렸나'는 못 말한다 — 걸린 몸이 판 밖에 서 있기도 하고,
+       안 걸린 몸이 판 안에 서 있기도 한다. 원작도 갇힌 몸마다 제 우리가 씌워진다.
+       이제 **걸린 몸마다 하나씩** 씌운다(그 판정은 이미 있다 — e.statuses의 빙결).
+       생김새로 둘을 가른다:
+         스테이시스 — 육각 결정(하이브 꼴). 얼음 푸른빛. 벌집처럼 각진 우리다.
+         락다운     — 둥근 구. 노란기 도는 흰빛. 기계를 멎게 하는 전자 우리다.
+       둘 다 반투명이고, 아주 느리게 밝아졌다 어두워진다(멎어 있어도 살아 있는 표시).
+       ★ 몸 위에 그린다 — 우리는 몸을 **가두는** 것이지 몸 뒤에 깔리는 판이 아니다. */
+    if (f.kind === "cage") {
+      const ice9 = f.style === "stasis";
+      const r9 = ((f.size ?? 8) / 2) * zoom;
+      /* ★ 가운데는 **실려 온 자리 그대로**다(요청: "모델에 입힐 수는 있잖아") —
+         여기서 반지름의 절반쯤을 더 올리고 있었는데, 그러면 우리의 높이가 제 크기에
+         매여 몸과 따로 논다(큰 몸일수록 더 뜬다). 몸에 얹는 일은 값을 싣는 쪽이
+         한다 — 거기서 그리는 쪽과 **같은 세 몫**으로 높이를 낸다(cage의 lift 주석).
+         그러니 여기서는 한 톨도 더 안 옮긴다. */
+      const cy9 = ay;
+      /** 숨 — 0.85~1 사이를 아주 느리게 오간다. */
+      const br9 = 0.85 + 0.15 * Math.sin((f.ph ?? 0) * Math.PI * 2);
+      ctx.globalAlpha = br9;
+      /* ★ 속은 **납작하고 아주 옅게** 채운다(지적: "스테이시스 원반 효과 제거가
+         안 됐고") — 원반은 딴 데서 오는 것이 아니라 **여기서 났다.** 가장자리로
+         갈수록 짙어지는 방사 그러데이션을 깔아 두었는데, 그런 우리 여럿이 겹치면
+         테두리끼리 더해져 한 장의 둥근 판으로 읽힌다. 걷어낸 줄 알았던 그 원반이
+         모양만 바꿔 되살아나 있었던 셈이다.
+         얼음은 속이 비치는 것이라 채움은 '있는 듯 없는 듯'이면 되고, 형태는
+         **테두리와 결**이 말한다(아래 stroke). */
+      ctx.fillStyle = ice9
+        ? "rgba(150,214,255,0.10)" : "rgba(255,248,206,0.09)";
+      /** 육각(하이브) 또는 원 — 한 자리에서 길을 만든다. */
+      const cagePath = (rx9: number, ry9: number): void => {
+        ctx.beginPath();
+        if (!ice9) { ctx.ellipse(ax, cy9, rx9, ry9, 0, 0, Math.PI * 2); return; }
+        for (let i9 = 0; i9 < 6; i9 += 1) {
+          const a9 = ((-90 + i9 * 60) * Math.PI) / 180;
+          const px9 = ax + Math.cos(a9) * rx9;
+          const py9 = cy9 + Math.sin(a9) * ry9;
+          if (i9 === 0) ctx.moveTo(px9, py9); else ctx.lineTo(px9, py9);
+        }
+        ctx.closePath();
+      };
+      /* ★ **정육각**이다(지적: "빙결 도형은 정육각형으로. 지금 유닛에 맞춰서
+         길쭉") — 세로를 늘려 벌집 한 칸을 세운 꼴로 뒀는데, 그러면 유닛 몸에 맞춘
+         자루처럼 보이지 얼음 덩이로 안 읽힌다. 얼음은 제 결대로 깎이지 담긴 것의
+         모양을 따르지 않는다. 가로·세로를 같게 두면 어느 유닛에 씌워도 같은
+         결정이다. */
+      const ry9 = ice9 ? r9 : r9 * 1.02;
+      /* ★ 모서리는 **예리하게**(지적: "모서리 선도 너무 둔해 더 예리하고 얇아야 해")
+         — 굵기를 절반 아래로 내리고(0.34 → 0.15배율), 이음매를 미터로 못 박아
+         꼭짓점이 뭉툭하게 깎이지 않게 한다. 이 고리 안의 다른 갈래가 둥근 끝
+         (lineCap "round")을 켜 두고 지나갈 수 있어, 여기서 제 값을 다시 세운다 —
+         캔버스 상태는 op 사이에 그대로 흘러간다. */
+      ctx.lineJoin = "miter";
+      ctx.miterLimit = 10;
+      ctx.lineCap = "butt";
+      cagePath(r9, ry9);
+      ctx.fill();
+      ctx.strokeStyle = ice9
+        ? "rgba(224,246,255,0.85)" : "rgba(255,252,226,0.8)";
+      ctx.lineWidth = Math.max(0.35, 0.15 * zoom);
+      ctx.stroke();
+      /* (걷어냄) 안쪽 한 겹 — 우리에 '두께'를 주려던 겹인데, 작은 우리에서는 두
+         선이 붙어 한 줄이 굵어진 것처럼만 보였다(둔해 보이던 몫의 절반이 이것이다).
+         두께는 이제 아래 결이 말한다. */
+      /* 얼음의 결(스테이시스만) — 꼭짓점에서 가운데로 긋는 세 줄. 정육각 덩이가
+         **깎인 결정**으로 읽히게 하는 최소한의 선이다(요청: "정육각 얼음에 가둔").
+         테두리보다 한 단 가늘고 옅게 — 결은 형태를 거들 뿐 형태가 아니다. */
+      if (ice9) {
+        ctx.globalAlpha = br9 * 0.42;
+        ctx.lineWidth = Math.max(0.25, 0.1 * zoom);
+        ctx.beginPath();
+        for (const k9 of [0, 2, 4]) {
+          const a9 = ((-90 + k9 * 60) * Math.PI) / 180;
+          ctx.moveTo(ax + Math.cos(a9) * r9, cy9 + Math.sin(a9) * ry9);
+          ctx.lineTo(ax, cy9);
+        }
+        ctx.stroke();
+      }
+      continue;
+    }
+    if (f.kind === "shield" && !SHIELD_FX_ON) continue;   // 꺼 두어도 총구 번쩍임 갈래로 흘러가면 안 된다.
+    if (f.kind === "shield") {
+      /* 막은 **죽음과 갈려야 한다**(지적: "스커지 자폭에서 왜 프로토스 사별 효과가 나지") —
+         스커지 자체는 저그 재질로 터진다(engine9의 dk). 프로토스로 보인 것은 **맞은 쪽**의
+         실드 피격 막이었다: 여태 흰 심 + 푸른 방사 구 + 테로, 프로토스 사별의 플라즈마 구
+         (drawBurst9 toss: 푸른 구·연푸른 속·흰 심·밝은 테)와 같은 문법이었다. 몸의 1.35배로
+         0.55초라 스커지 한 방마다 '프로토스가 죽었다'로 읽혔다.
+         이제 막은 **가장자리에서만 밝은 껍질**이다 — 안쪽은 거의 비치고 테두리로 갈수록
+         연푸른빛이 오르며 얇은 테 하나가 몸을 감싼다. 흰 심이 없고 구가 안 차오르므로
+         죽음과 겹칠 일이 없다. 자·길이도 한 단 줄였다(engine9: 1.2배·0.4초). */
+      /* **플라즈마 빛**(요청) — 프로토스 결(FX_MAT.toss)과 같은 시안·흰빛이다: 속은 옅은 시안 안개, 테로 갈수록
+         밝아져 흰 심이 선 시안 테 하나가 몸을 감싼다. 금빛은 어디에도 없다. 선 굵기는 타일 자(tz9)로 폰을 맞춘다. */
+      const a9 = envShield(p9);
+      if (a9 <= 0.02) continue;
+      /* ★ **우산 같은 구 껍질**(요청: "구 형태로 — 윗부분은 채워지고 아래로 갈수록 투명해지는 보호막. 위에서
+         2/3쯤까지만 보이되 칼같지 않게 자리마다 다른 높이에서 스러지고, 위도 완전 불투명이 아니라 반투명. 색은
+         청색") ───────────────────────────────────────────────────────────────────────────────────
+         원 테두리 하나였던 것을 걷고, 공의 윗둥을 감싼 반투명 청색 껍질로 그린다:
+           · 모양은 원의 윗호 + 아랫변은 **자리마다 다른 높이**의 물결선(각도의 결정론 해시 — 프레임마다 같은
+             모양이라 떨리지 않는다). 평균은 위에서 2/3 지점(가운데 아래 r/3), ±0.15r로 흔든다.
+           · 채움은 위(반투명 청색 0.5)에서 물결선 언저리(0)로 스러지는 세로 그러데이션이라 가장자리가 부드럽다.
+           · 구 느낌은 왼위 하이라이트(옅은 흰빛) 한 겹과, 윗호를 따라 도는 밝은 테(양 끝으로 갈수록 옅어짐)로. */
+      const sc9 = 0.92 + p9 * 0.16;
+      const r9 = ((f.size ?? 6) / 2) * zoom * sc9;
+      const cy9 = ay - r9 * 0.1;
+      const N9 = 12;
+      const seed9 = Math.round(f.fx * 9973 + f.fy * 7919);
+      const kAt9 = (i9: number): number => {
+        const h9 = Math.sin(seed9 * 0.37 + i9 * 12.9898) * 43758.5453;
+        return 0.33 + ((h9 - Math.floor(h9)) - 0.5) * 0.3;   // 0.18 ~ 0.48 (아래로 +)
+      };
+      const dome9 = new Path2D();
+      const k0 = kAt9(0);
+      const kN = kAt9(N9);
+      const xl9 = ax - r9 * Math.sqrt(Math.max(0, 1 - k0 * k0));
+      const xr9 = ax + r9 * Math.sqrt(Math.max(0, 1 - kN * kN));
+      const aL9 = Math.atan2(k0 * r9, xl9 - ax);       // 왼 끝(π 언저리)
+      const aR9 = Math.atan2(kN * r9, xr9 - ax);       // 오른 끝(0 언저리)
+      dome9.moveTo(xl9, cy9 + k0 * r9);
+      dome9.arc(ax, cy9, r9, aL9, aR9 + Math.PI * 2, false);   // 윗호 — 각을 키우며(캔버스 시계) 180·270(꼭대기)·360을 지난다
+      for (let i9 = N9 - 1; i9 >= 1; i9 -= 1) {
+        const x9 = xl9 + (xr9 - xl9) * (i9 / N9);
+        dome9.lineTo(x9, cy9 + kAt9(i9) * r9);
+      }
+      dome9.closePath();
+      ctx.globalAlpha = a9;
+      // 스러짐은 물결선의 평균 높이(r/3)에서 거의 0이 되게 — 그래야 들쭉날쭉한 아랫변이 칼같이 안 읽힌다.
+      const lg9 = ctx.createLinearGradient(0, cy9 - r9, 0, cy9 + r9 * 0.34);
+      lg9.addColorStop(0, "rgba(70,140,255,0.5)");
+      lg9.addColorStop(0.4, "rgba(70,140,255,0.36)");
+      lg9.addColorStop(0.75, "rgba(80,150,255,0.12)");
+      lg9.addColorStop(1, "rgba(90,160,255,0)");
+      ctx.fillStyle = lg9;
+      ctx.fill(dome9);
+      // 왼위 하이라이트 — 구의 빛 받는 자리.
+      const hg9 = ctx.createRadialGradient(ax - r9 * 0.35, cy9 - r9 * 0.45, 0, ax - r9 * 0.35, cy9 - r9 * 0.45, r9 * 0.8);
+      hg9.addColorStop(0, "rgba(220,240,255,0.28)");
+      hg9.addColorStop(1, "rgba(220,240,255,0)");
+      ctx.fillStyle = hg9;
+      ctx.fill(dome9);
+      // 윗호 테 — 꼭대기가 밝고 양 끝으로 옅어진다.
+      const sg9 = ctx.createLinearGradient(0, cy9 - r9, 0, cy9 + r9 * 0.35);
+      sg9.addColorStop(0, "rgba(190,225,255,0.85)");
+      sg9.addColorStop(0.7, "rgba(150,200,255,0.35)");
+      sg9.addColorStop(1, "rgba(150,200,255,0)");
+      ctx.strokeStyle = sg9;
+      ctx.lineWidth = Math.max(0.6, 0.3 * tz9);
+      ctx.beginPath();
+      ctx.arc(ax, cy9, r9 * 0.97, aL9, aR9 + Math.PI * 2, false);
+      ctx.stroke();
+      continue;
+    }
+    /* ★ 승하차 줄(요청: "수송선 탑승이나 내릴 때 갑자기 띡 없어지고 생기니까
+       시각적으로 인식이 안 돼. 네온이나 아쿠아색 점선 같은 거라도 연결해 주면
+       좋을 듯") ─────────────────────────────────────────────────────────────────
+       몸이 선 자리와 배가 있는 자리를 **아쿠아 네온 점선**으로 잇는다. 눈이
+       '없어졌다'가 아니라 '저기로 빨려 갔다'로 읽게 하는 것이 전부라 오래 안 둔다 —
+       원작의 승하차 딜레이만큼만 살고 그동안 옅어진다(그 창은 몸이 작아지며 도는
+       연출과 같은 창이다).
+       점선은 **흐른다**: 눈금을 위상만큼 밀어 두면 한쪽으로 빨려 드는 결이 난다.
+       두 겹으로 긋는다 — 넓고 옅은 겹이 네온의 번짐이고, 가늘고 밝은 심이 점선이다. */
+    if (f.kind === "tether") {
+      const bx9 = zx(f.tx ?? f.fx);
+      const by9 = zy(f.ty ?? f.fy) - (f.tlift ?? f.lift) * zoom;
+      const len9 = Math.hypot(bx9 - ax, by9 - ay);
+      // 두 끝이 사실상 겹치면 선이 아니라 점이다 — 안 그린다.
+      if (len9 < 2) continue;
+      /* 진행 0→1. **끝의 3할에서만 옅어진다**(요청: "눈에 띄게 / 밝게") —
+         처음부터 선형으로 죽이면 평균 밝기가 절반이라, 짧은 창에서는 있는 둥 마는 둥
+         지나간다. 살아 있는 동안은 제 밝기로 있다가 마지막에 스러지는 편이 눈에 든다. */
+      const fade9 = p9 < 0.7 ? 1 : Math.max(0, (1 - p9) / 0.3);
+      /* ★ 굵기는 **집 안의 자를 따른다**(지적: "승하차 점선 너무너무 두꺼운 거
+         아니야??") — 맞다. 처음 값(심 0.6×배율, 번짐 1.5×배율)은 이 화면에서 가장
+         가는 선인 미사일 트레이서(0.5×배율)보다 심이 더 굵고 번짐은 그 세 배였다.
+         바닥값도 1.6px이나 되어 1배에서는 유닛 몸(3px 남짓)만큼 굵은 줄이 갔다.
+         가는 선의 집안 자는 우리·실드의 테두리(0.3×배율)다. 심은 그보다 가늘게
+         (0.2×배율) 두고, 번짐만 그 곱절 남짓하되 아주 옅게 깐다 — 네온은 굵기가
+         아니라 **번짐**으로 읽히는 것이라 심이 가늘수록 오히려 네온다워진다.
+         눈금도 함께 좁힌다: 굵기가 준 만큼 촘촘해야 실 같은 결이 산다. */
+      /* ★ **한 겹, 가늘게**(지적: "점선이 너무 굵고 밝아서 오히려 유닛이 안 보여.
+         글로우 없는 단색 얇은 네온색 선으로 변경") — 넓고 옅은 번짐 겹을 걷고 심
+         하나만 남긴다. 색도 흰빛을 뺀 **단색 사이언**이다: 흰빛이 섞이면 밝기가
+         올라가 곁의 몸을 눌렀다. */
+      const dash9 = Math.max(1.6, 1.8 * zoom);
+      ctx.setLineDash([dash9, dash9 * 0.85]);
+      ctx.lineDashOffset = -p9 * dash9 * 6;
+      ctx.lineCap = "butt";
+      ctx.beginPath();
+      ctx.moveTo(ax, ay);
+      ctx.lineTo(bx9, by9);
+      ctx.globalAlpha = fade9 * 0.8;
+      ctx.strokeStyle = "rgba(0,224,255,1)";
+      ctx.lineWidth = Math.max(0.28, 0.22 * zoom);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.lineDashOffset = 0;
+      ctx.lineCap = "butt";
+      ctx.globalAlpha = 1;
+      continue;
+    }
+    /* beam · shot · spike — 총구에서 deg 방향으로 뻗는 것들.
+       ── 좌표 규약(지적 둘을 함께 고친 자리) ────────────────────────────
+       x0·y0은 언제나 **총구**다. 여기서 앞(표적 쪽)으로 얼마나 나갔나가
+       headD9, 잔상이 뒤로 얼마나 남나가 tailL9다. 그림은 머리(xh)에서
+       꼬리(xt)로 그린다.
+       ① 방향 뒤집기 — 예전에는 x0을 탄의 자리로 옮긴 뒤 **거기서 앞으로**
+          st.l만큼 그렸다. 그래서 밝은 머리가 총구 쪽이고 꼬리가 표적 쪽이라
+          탄이 뒤로 나는 그림이었다("동그란 광전자가 드라군쪽에 있고 그 잔상이
+          앞쪽"). 이제 머리가 앞이고 꼬리가 뒤다.
+       ② 표적 넘어가기 — 예전 끝점 x1은 늘 x0+st.l이라, 탄이 닿은 뒤에도
+          제 길이만큼 표적을 지나쳐 뻗었다. 이제 머리를 reach9(총구→표적
+          거리)로 죈다. 꼬리도 총구 뒤로는 안 넘어간다.
+       muzzleLit 갈래(총구 화염·화염방사)만 예외로 총구가 밝다 — 표의 주석 참조. */
+    const st = FX_BEAM[f.style ?? "base"] ?? FX_BEAM.base;
+    let rad9 = ((f.deg ?? 0) * Math.PI) / 180;
+    let dxx = -Math.sin(rad9);
+    let dyy = Math.cos(rad9);
+    const x0 = ax + (f.mx ?? 0) * zoom;
+    const y0 = ay + (f.my ?? 0) * zoom;
+    let a9 = 1;
+    /* ★ 표적 자리가 실려 왔으면 **그 화면 점으로** 방향·거리를 다시 잰다(지적: "3D보기에서 트레이서의
+       공중유닛 위치가 잘못 타게팅되는 느낌") — 엔진의 deg·len은 지도를 평면으로 놓고(세로만 pitchFlat)
+       센 어림이라, 입체 사영의 시점 밀림(viewYaw의 skew)·깊이 축소(pitchK)가 안 실렸다. 사수와 표적의
+       깊이가 다를수록, 그리고 공중(들기가 더해질수록) 끝점이 몸에서 벗어났다. 표적의 분수 자리를 붓이 제
+       사영(zx·zy)으로 풀면 어떤 사영에서도 정확히 그 몸이다. */
+    let tgtReach9: number | null = null;
+    if ((f.kind === "beam" || f.kind === "shot") && f.tx !== undefined && f.ty !== undefined) {
+      const x1 = zx(f.tx);
+      const y1 = zy(f.ty) - (f.tlift ?? 0) * zoom;
+      const vx9 = x1 - x0;
+      const vy9 = y1 - y0;
+      const vd9 = Math.hypot(vx9, vy9);
+      if (vd9 > 0.01) {
+        dxx = vx9 / vd9;
+        dyy = vy9 / vd9;
+        rad9 = Math.atan2(-dxx, dyy);
+        tgtReach9 = Math.max(0, vd9 - (f.tgap ?? 0) * zoom);
+      }
+    }
+    /** 총구에서 표적까지(화면 px) — op에 len이 실려 있으면 그만큼이 한계다. */
+    /* ★ len은 **몸 가운데**에서 표적까지인데 선은 **총구**(mx·my)에서 시작한다 — 총구가
+       겨눈 쪽으로 나와 있는 만큼 빼야 머리가 표적에서 멈춘다(지적: 배틀 트레이서가
+       표적을 지나쳐 감 — 배틀은 총구가 앞으로 5타일 가까이 나와 있다). */
+    const mzFwd9 = (f.mx ?? 0) * dxx + (f.my ?? 0) * dyy;
+    const reach9 = tgtReach9 !== null ? tgtReach9
+      : f.len !== undefined && f.len > 0 ? Math.max(0, f.len - mzFwd9) * zoom : Infinity;
+    /** 잔상 길이 — 갈래표의 l이 곧 '뒤로 얼마나 남나'다. */
+    const tailL9 = st.l * tz9;
+    /** 총구에서 머리(표적 쪽 끝)까지. */
+    let headD9 = 0;
+    /** ★ **실제로 그어지는 길의 전체 길이** — 곡선·머리·꼬리가 다 이 자를 쓴다.
+     *
+     *  기본은 총구~표적의 화면 거리(reach9)지만, 그 거리가 무너지는 자리에서는
+     *  아래 shot 갈래가 갈래 제 길이로 물러난다(run9). 여태 그 물러남이 **머리에만**
+     *  실려 있었다 — 아래 연기 덩이는 여전히 reach9로 길을 매개했다. 그러면 머리는
+     *  run9까지 나가는데 길은 reach9에서 끝나므로, 덩이가 전부 `t9 = 1`로 죄어져
+     *  **표적 점 하나에 통째로 포개진다**: 화면에는 미사일이 아니라 그 자리의 흰 점
+     *  하나가 남는다(지적: "골리앗 미사일 트레이서 안나감").
+     *  그 자리가 왜 하필 골리앗인가 — 조준 높이는 **표적이 뜬 몫만큼 화면 세로를
+     *  깎는다**(위 beamLen). 쏘는 쪽도 날면 제 높이가 그 몫을 되돌려 놓지만(레이스·
+     *  발키리·스카우트 대공은 그래서 멀쩡했다), 골리앗은 **땅에 선 채 나는 것을
+     *  쏘는** 유일한 갈래라 되돌릴 몫이 없다. 표적이 화면에서 제 높이만큼 아래에
+     *  선 순간 세로가 0으로 상쇄되고, 거기서 이 길이 무너졌다. */
+    let runD9 = reach9;
+    if (f.kind === "beam") {
+      /* ★ 산성 포자(디바우러) — 표적 몸에 **들러붙어 남는** 자국이다(만드는 쪽의
+         acidAge9 주석에 그 사정이 있다). 위상은 '나이'다: 0이 갓 닿음, 1이 다음
+         발 직전.
+         그리는 결이 다른 갈래와 다르다 — 이것은 총구에서 뻗는 빛도 날아가는 탄도
+         아니라서 방향(deg)도 길이(l)도 뜻이 없다. 몸에 흩뿌려진 **방울 몇**이
+         전부고, 그 방울이 몸을 따라 눕는다(세로를 눌러 부감에 맞춘다).
+         · 자리 — 황금각으로 흩어 어느 개수에서도 뭉치지 않는다. 마디 번호를
+           씨앗으로 삼아 **프레임마다 안 흔들린다**(난수를 새로 뽑으면 자국이 몸
+           위에서 끓는다 — 연기 덩이가 데었던 그 자리와 같은 까닭이다).
+         · 삭음 — 다 삭아도 3할은 남긴다. 다음 발이 덧칠하므로 겨눠진 몸은 끊기지
+           않고 산에 덮인 채로 읽힌다.
+         · 색 — 탄과 **같은 결**이다(이 파일의 규약: 나간 빛과 닿은 빛이 같은 색).
+           속은 옅은 보랏빛 흰색, 테로 갈수록 짙은 보라다. */
+      if (f.style === "acidspore") {
+        const r0 = ((f.size ?? 8) / 2) * zoom;
+        if (r0 < 0.6) continue;
+        const pop9 = p9 < 0.12 ? p9 / 0.12 : 1;      // 닿는 순간 톡 붙는다
+        const fade9 = 1 - p9 * 0.45;                  // 반 넘게 남는다
+        for (let i9 = 0; i9 < 5; i9 += 1) {
+          const an9 = i9 * 2.399 + 0.7;               // 황금각
+          /* 몸 한가운데부터 테두리 밖 한 뼘까지 — 몇은 걸치고 몇은 흘러내린 꼴이
+             돼야 '묻었다'로 읽힌다(다 안에 들면 몸의 무늬가 된다). */
+          const rr9 = r0 * (0.35 + 0.5 * (((i9 * 7) % 5) / 5));
+          const bx9 = x0 + Math.cos(an9) * rr9;
+          const by9 = y0 + Math.sin(an9) * rr9 * 0.62;
+          const br9 = Math.max(0.7, r0 * 0.4 * pop9 * (0.72 + 0.28 * (((i9 * 3) % 4) / 4)));
+          const gg9 = ctx.createRadialGradient(bx9, by9, 0, bx9, by9, br9);
+          gg9.addColorStop(0, "rgba(238,210,255,0.95)");
+          gg9.addColorStop(0.45, "rgba(180,110,240,0.75)");
+          gg9.addColorStop(1, "rgba(110,50,170,0)");
+          ctx.globalAlpha = fade9;
+          ctx.fillStyle = gg9;
+          ctx.beginPath();
+          ctx.arc(bx9, by9, br9, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        continue;
+      }
+      if (f.style === "heal") {
+        // 메딕 — 길이 없는 노란 불빛(scr-tracer-heal + scr-heal-glow 박동).
+        const pulse9 = 0.15 + Math.sin(p9 * Math.PI) * 0.85;
+        const r9 = 0.7 * tz9 * (0.7 + Math.sin(p9 * Math.PI) * 0.4);
+        const g9 = ctx.createRadialGradient(x0, y0, 0, x0, y0, r9);
+        g9.addColorStop(0, "rgba(255,250,214,0.98)");
+        g9.addColorStop(0.72, "rgba(252,238,150,0.5)");
+        g9.addColorStop(0.8, "rgba(252,238,150,0)");
+        ctx.globalAlpha = pulse9;
+        ctx.fillStyle = g9;
+        ctx.beginPath();
+        ctx.arc(x0, y0, r9, 0, Math.PI * 2);
+        ctx.fill();
+        continue;
+      }
+      a9 = envBeam(p9);
+      if (a9 <= 0.02) continue;
+      /* 제자리 번쩍임 — 제 길이만큼 앞으로 뻗되 표적을 안 넘는다.
+         span 갈래(아콘 지지기)만 표적까지 늘린다 — 표적 거리가 안 실려 온
+         자리(reach가 무한)에서는 제 길이로 물러난다. */
+      /* ★ span은 **늘이는 쪽으로만** 쓴다(지적: "아콘 지지기 안 보이는데") —
+         앞판은 길이를 reach로 **갈아 끼웠는데**, 아콘은 사거리가 2타일이고 몸이
+         큰(32×32) 유닛이라 붙어 싸울 때 총구~표적의 화면 거리가 거의 0이다.
+         그러면 갈아 끼운 길이도 0이 되어 **전보다 더 안 보인다**. 늘이려던 것이
+         지우는 짓이 됐다. 제 길이를 바닥으로 깔고 표적이 멀면 거기까지 뻗는다. */
+      headD9 = st.span && Number.isFinite(reach9)
+        ? Math.max(reach9, tailL9) : Math.min(tailL9, reach9);
+      /* ★ 표적 그림은 **줄기 끝에**(요청: "아콘 공격 트레이서의 스플래시 효과는 공격줄기
+         끝으로 고정") — 엔진이 표적 자리에 따로 얹던 hit op를 걷고, 줄기가 실제로
+         끝나는 점(headD9)에 같은 그림(FX_IMPACT·같은 자·같은 박자)을 그린다. 붙어
+         싸워 줄기가 제 길이(tailL9)로 물러나도 둘이 안 갈린다. */
+      const im9 = f.splash && f.size !== undefined && f.style ? FX_IMPACT[f.style] : undefined;
+      if (im9) {
+        const tipX9 = x0 + dxx * headD9;
+        const tipY9 = y0 + dyy * headD9;
+        const ir9 = (f.size! / 2) * zoom * HIT_FX_K * im9.r * (0.7 + p9 * 0.5);
+        const fl9 = im9.flat ?? 1;
+        const keepA9 = ctx.globalAlpha;
+        ctx.globalAlpha = envHit(p9);
+        if (fl9 !== 1) { ctx.translate(tipX9, tipY9); ctx.scale(1, fl9); ctx.translate(-tipX9, -tipY9); }
+        const gi9 = ctx.createRadialGradient(tipX9, tipY9, 0, tipX9, tipY9, ir9);
+        for (const [o9, c9] of im9.g) gi9.addColorStop(o9, c9);
+        ctx.fillStyle = gi9;
+        ctx.beginPath();
+        ctx.arc(tipX9, tipY9, ir9, 0, Math.PI * 2);
+        ctx.fill();
+        if (fl9 !== 1) { ctx.translate(tipX9, tipY9); ctx.scale(1, 1 / fl9); ctx.translate(-tipX9, -tipY9); }
+        ctx.globalAlpha = keepA9;
+      }
+    } else if (f.kind === "shot") {
+      // 날아가는 탄 — 머리가 총구에서 진행률만큼 나가 있고, 표적에서 멈춘다.
+      /* ★ **화면 거리가 무너져도 탄은 난다**(지적: "골리앗이 대공공격에서 트레이서가
+         안 나감(미사일)" — 포탑은 표적을 향해 돌고 있으니 표적은 잡힌 것이다) ──────
+         여기 있던 셈은 화면 거리(reach9)에 진행률을 곱한 것뿐이라, 그 거리가 0에
+         가까우면 머리도 0이 되고 아래 `headD9 - tailD9 < 0.25`에서 통째로 버려진다.
+         공중 표적에서 그 거리가 실제로 무너진다 — beamLen이 조준 높이(foeLift9)를
+         빼서 내는 값이라, 사수가 나는 몸 **바로 밑**에 서면 세로가 상쇄된다.
+         ★ 이 함정은 **바로 위 span 갈래가 이미 겪고 적어 둔 것**이다("붙어 싸울 때
+           총구~표적의 화면 거리가 거의 0이다 … 늘이려던 것이 지우는 짓이 됐다.
+           제 길이를 바닥으로 깔고"). 그때 beam만 고치고 shot은 그대로 뒀다.
+           앞서 같은 지적으로 **날아가는 시각**(shotU)은 지도 위 거리로 옮겼는데,
+           **그려지는 길이**는 여전히 화면 거리에 매여 있었다 — 반만 고친 셈이다.
+         같은 약을 쓴다: 갈래 제 길이를 바닥으로 깔고, 표적이 멀면 거기까지 뻗는다.
+         붙어 있을 때 제 길이만큼 넘칠 수는 있지만, 안 보이는 것보다 낫다. */
+      /* ★ 물러난 길이는 **길에도 실린다**(위 runD9) — 머리만 물러나면 연기가
+         표적 점에 포개진다. 둘은 한 자를 써야 한다. */
+      /* ★ **표적을 지나치지 않는다**(지적: "미사일 트레이서 길이가 짧게 못 그리나
+         타겟을 지나쳐서 멀리까지 나감") ────────────────────────────────────────
+         여기 있던 바닥(`tailL9 × 0.6`)은 갈래표의 잔상 길이 l에 매여 있었다. 그
+         바닥은 '화면 거리가 무너지는 자리'(땅에 선 골리앗이 바로 머리 위의 것을 쏠
+         때)를 위한 것인데, 미사일의 l을 연기 자취 길이로 쓰면서 5.2 → 24로 키우자
+         바닥도 3.1 → 14.4로 함께 커졌다 — 곧 **모든** 사격이 표적을 그만큼 지나쳐
+         날았다.
+         바닥은 무너진 자리에만 쓴다: 표적이 제 거리를 갖고 있으면(2px 넘게) 길이를
+         그 거리로 못 박아 머리가 표적에 정확히 선다. 정말 겹쳐 선 자리에서만 옛
+         바닥으로 물러나 짧은 토막이라도 보이게 한다. */
+      runD9 = Number.isFinite(reach9)
+        ? (reach9 > 2 * zoom ? reach9 : Math.max(reach9, tailL9 * 0.6))
+        : tailL9;
+      headD9 = runD9 * Math.min(1, Math.max(0, f.u ?? 0));
+    } else if (f.kind === "erupt") {
+      /* 성큰 가시(scr-spike-erupt의 캔버스 판) — 표적 발밑에서 **화면 수직으로**
+         솟는다. u가 혓바닥 시계의 솟음 몫(sin 마루)이라 자람·꺼짐이 거기 실려 온다. */
+      const hgt = (f.len ?? 4) * (f.u ?? 1) * zoom;
+      if (hgt < 0.5) continue;
+      /* ★ 밑변도 함께 자란다(지적: "가시 모양이 땅에서 위로 나오는 거니까 처음엔 밑변이 짧다가 다 나왔을 때
+         가장 길어야") — 밑변이 고정된 채 높이만 늘면 납작한 삼각이 서서히 뾰족해지는 그림이다. 땅 위로 드러난
+         몫이 곧 가시의 끝부분이므로 밑변은 솟은 몫(u)에 비례한다. 밑변 자체는 0.8배(요청). */
+      const hw9 = ((f.size ?? 1) / 2) * zoom * 0.8 * Math.min(1, Math.max(0, f.u ?? 1));
+      const g9 = ctx.createLinearGradient(x0, y0, x0, y0 - hgt);
+      // 밝은 주황갈색(요청: "성큰 가시색이 너무 빨감") — 밑동 #8a3c0c → #b5642a, 끝 #e8732a → #f0a050.
+      g9.addColorStop(0, "#b5642a");
+      g9.addColorStop(1, "#f0a050");
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = g9;
+      /* 밑변은 **호**다(지적: "가시가 원래는 입체라 밑변의 모양도 호여야") — 원뿔을 위에서 비껴 보면 밑동
+         단면이 타원의 아래 반호로 보인다. 지면 눌림(2D 2:1 관례·3D 30도 눌림 0.5)으로 세로 반지름을 잡는다. */
+      ctx.beginPath();
+      ctx.moveTo(x0, y0 - hgt);
+      ctx.lineTo(x0 + hw9, y0);
+      ctx.ellipse(x0, y0, hw9, hw9 * 0.5, 0, 0, Math.PI);
+      ctx.closePath();
+      ctx.fill();
+      continue;
+    } else {
+      /* 럴커 가시(지적: "길게 나가는게 아니라 성큰같은게 다다다 간격두고
+         올라와야함") — 한 줄기가 표적 쪽으로 쭉 자라던 것을 걷는다. 이제
+         **가시 낱개가 간격을 두고 차례로 솟았다 지는** 연쇄다. 낱개는 땅에서
+         위로 솟으므로 화면 세로로 세운다(진행 방향으로 눕히면 다시 한 줄로
+         읽힌다). 앞뒤 간격과 솟는 창(W9)이 겹치지 않아 '다다다'가 된다. */
+      const L0 = f.len !== undefined ? f.len * zoom : st.l * tz9;
+      /* ★ 앞 가시가 **들어가기 시작한 뒤** 다음이 솟는다(지적: "나오는 타이밍은
+         이전 가시가 나오고 다시 들어가기 시작한 후 다음게 나옴") ──────────────
+         낱개는 sin(πq)로 솟았다 지므로 q 0.5가 꼭대기, 그 뒤가 들어가는 구간이다.
+         앞뒤 간격은 (1−W)/N이고 낱개의 창은 W이니, 둘의 비가 곧 '앞 것이 몇 %쯤
+         갔을 때 다음이 나오나'다. 여태 9개·0.26이라 그 비가 0.32 — 앞 가시가 아직
+         **오르는 중**에 다음이 튀어나와 여러 개가 동시에 서 있는 그림이었다.
+         7개·0.20이면 0.57이라 꼭대기를 지나 내려가기 시작한 뒤에 다음이 솟는다.
+         훑는 길이(len)는 안 건드린다 — 그건 늘 최대 사거리다. */
+      const N9 = 7;
+      const W9 = 0.28;   // 0.2 → 0.14 → 0.28(재지적: "너무 빨리 나오고 사라지는듯") — 낱개가 솟았다 지는 창
+      const hw9 = (st.w / 2) * tz9 * 0.85 * 1.2 * 1.2;   // ×1.2(요청: 럴커 가시 크기 1.2배) → 다시 ×1.2(재요청)
+      // 높이 2.6 → 3.6 → 5.4(요청: "길이 1.5배 증가") — 땅에서 솟는 뼈라
+      // 낮으면 얼룩으로 읽힌다.
+      const HH9 = 4.05 * tz9 * 1.2 * 1.2;   // 5.4 → 4.05(요청: 가시 길이 25% 축소) → ×1.2(재요청) → ×1.2(재재요청)
+      /* ★ 낱개의 곡선을 **빨리 솟아 오래 서 있다 빨리 지는** 꼴로(요청: "한 가시의 사이클 시간 줄이고
+         나오는 간격은 그대로, 최대 길이로 멈춰 있는 시간 늘리기") ─────────────────────────────
+         여태 sin(πq)라 창(W9) 내내 오르내리기만 하고 꼭대기에 서 있는 순간이 없었다 — 가시가 '박히는'
+         느낌이 없다. 창 길이(W9)와 앞뒤 간격((1−W9)/N9)은 그대로 두고 그 안의 배분만 바꾼다:
+         첫 22%에 솟고(smoothstep), 50%를 꼭대기에 서 있다가, 마지막 28%에 진다. 오르내림이 짧아지니
+         '사이클'은 빨라 보이고, 멈춤이 길어 가시가 땅에 박혀 있는 시간이 는다. */
+      const env9 = (q: number): number => {
+        if (q < 0.22) { const u = q / 0.22; return u * u * (3 - 2 * u); }
+        if (q > 0.72) { const u = (1 - q) / 0.28; return u * u * (3 - 2 * u); }
+        return 1;
+      };
+      for (let i9 = 0; i9 < N9; i9 += 1) {
+        const q9 = (p9 - (i9 / N9) * (1 - W9)) / W9;
+        if (q9 <= 0 || q9 >= 1) continue;
+        const gz9 = env9(q9);
+        const d9 = (L0 * (i9 + 0.5)) / N9;
+        const sx9 = x0 + dxx * d9;
+        const sy9 = y0 + dyy * d9;
+        const gg9 = ctx.createLinearGradient(sx9, sy9, sx9, sy9 - HH9 * gz9);
+        for (const [o9, c9] of st.g) gg9.addColorStop(o9, c9);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = gg9;
+        ctx.beginPath();
+        // 밑변도 솟은 몫(gz9)만큼 — 성큰 가시와 같은 까닭(땅에서 드러난 몫이 끝부분이라 밑변은 끝에 가서야 최대).
+        // 밑변은 호(입체 원뿔의 밑동 단면 — 성큰 가시와 같은 규약).
+        const bw9 = hw9 * gz9;
+        ctx.moveTo(sx9, sy9 - HH9 * gz9);
+        ctx.lineTo(sx9 + bw9, sy9);
+        ctx.ellipse(sx9, sy9, bw9, bw9 * 0.5, 0, 0, Math.PI);
+        ctx.closePath();
+        ctx.fill();
+      }
+      continue;
+    }
+    /* 꼬리는 총구 뒤로 못 간다 — 갓 쏜 탄은 잔상이 짧다가 나아가며 자란다.
+       총구가 밝은 갈래(화염)는 꼬리가 늘 총구에 붙어 있다. */
+    /* ★ **연기 자취는 총구에 붙는다**(지적: "포탄이 목표한테까지 가는 긴 형태가 아니고
+     자기 앞에만 나오네.. 광자포처럼 목표까지 이어져야해~") ────────────────────────────
+     날아가는 탄의 잔상은 갈래표의 l(미사일 5.2렌즈px)만큼만 뒤로 남는다. 총알·구슬은
+     그것이 맞다 — 잔상은 눈에 남는 몫이지 물체가 아니다. 그런데 **미사일은 연기를
+     뿜으며 난다**: 그 연기는 사라지지 않고 총구부터 지금 자리까지 통째로 남는다. 그것이
+     원작에서 발키리·터렛의 미사일이 화면에 그리는 선이고, 사용자가 "광자포처럼 목표까지
+     이어져야" 한다고 말한 그 선이다.
+     그래서 자취 갈래(trail)는 꼬리를 **총구에 못 박는다** — 머리가 나아가는 동안 선이
+     자라고, 표적에 닿는 순간 총구에서 표적까지 한 줄로 이어진다. */
+  /* ★ span 갈래는 **꼬리도 총구에 붙는다**(지적: 빨갛게 키워도 아무것도 없다 · 진단:
+     아콘선 ×4 — 밀고는 있었다) ────────────────────────────────────────────────────
+     여기 있던 셈은 '꼬리는 머리 뒤 l만큼'이다. 총알·구슬에는 맞다(잔상은 눈에 남는 몫이라
+     제 길이가 있다). 그런데 span은 **머리만** 표적까지 보내 놓았으므로, 꼬리가 그 뒤
+     l만큼을 따라가면 실제로 그어지는 것은 늘 l짜리 토막이고 그마저 아콘이 아니라
+     **표적 옆**에 뜬다 — 배율 3에서 7px짜리 점이라, 120px짜리 구 옆에서 안 보인다.
+     '두 몸 사이에 걸린 번개'는 꼬리가 총구에 못 박혀야 나온다 — 연기 자취(trail)가
+     같은 까닭으로 이미 그렇게 하고 있다. */
+  const tailD9 = st.muzzleLit || st.span || (st.trail && f.kind === "shot")
+    ? 0 : Math.max(0, headD9 - tailL9);
+    if (headD9 - tailD9 < 0.25) continue;
+    /** 그러데이션 0쪽 = 밝은 끝 — 날아가는 것은 머리, 뿜는 것은 총구. */
+    const [lx9, ly9, dx9, dy9] = st.muzzleLit
+      ? [x0 + dxx * tailD9, y0 + dyy * tailD9, x0 + dxx * headD9, y0 + dyy * headD9]
+      : [x0 + dxx * headD9, y0 + dyy * headD9, x0 + dxx * tailD9, y0 + dyy * tailD9];
+    const g9 = ctx.createLinearGradient(lx9, ly9, dx9, dy9);
+    for (const [o9, c9] of st.g) g9.addColorStop(o9, c9);
+    ctx.globalAlpha = a9;
+    /* ★ 미사일 연기는 **동그란 덩이가 늘어선 것**이다(지적: "연기가 그냥 긴 흰 띠가
+       아니라 진행 방향을 따라 동그라미 연기가 늘어서는 모양") ─────────────────────
+       한 줄 획으로 그으면 굵기가 어디서나 같고 가장자리가 매끈해, 연기가 아니라
+       **띠**로 읽힌다(원작 화면에서 이 자취는 덩이 여럿이 줄지어 선 꼴이다).
+       실제 로켓 자취는 뿜은 자리마다 덩이가 하나씩 남고, 그 덩이가 시간이 갈수록
+       **부풀며 옅어진다** — 그래서 총구 쪽(오래된 것)이 굵고 흐리며 머리 쪽(갓 뿜은
+       것)이 작고 짙다. 그 나이를 셈으로 낼 수 있다: 총구에서 d만큼 떨어진 자리의
+       연기는 **머리가 거기 있었을 때** 뿜은 것이므로 나이가 (머리 자리 − d)에 비례한다.
+       덩이 사이는 굵기에 매어 둔다 — px으로 못 박으면 배율이 바뀔 때 덩이가 떨어졌다
+       붙었다 한다. 옆으로 아주 조금 흔든다(반지름의 1/5): 자로 잰 듯 일직선이면
+       연기가 아니라 점선으로 읽힌다.
+       머리는 따로 그린다 — 연기와 달리 그쪽은 불꽃이라 갈래표의 그러데이션 그대로
+       짧은 획 한 번이다. */
+    if (st.puff) {
+      /* ★ **연기는 탄두 뒤에서 난다**(지적: "탄두에도 연기가 겹쳐지는데 연기는 탄두
+         뒤쪽에 따라 나오는 거야") — 여태 덩이를 tailD9~headD9로 깔았는데 머리(headD9)
+         가 곧 탄두의 코라, 마지막 덩이 몇이 탄두 위에 그대로 겹쳤다. 로켓의 연기는
+         노즐에서 나오므로 **탄두 길이만큼 뒤**에서 시작해야 한다.
+         탄두 길이(bodyL9)를 먼저 재고 덩이의 끝을 거기까지로 죈다. */
+      const bodyL9 = Math.min(Math.max(0, headD9 - tailD9), st.w * tz9 * 9);
+      const smokeEnd9 = st.warhead ? headD9 - bodyL9 : headD9;
+      const span9 = Math.max(0, smokeEnd9 - tailD9);
+      /* ★ 간격의 바닥을 2 → 0.9px로(재요청: "더 자주 나오게") — 덩이를 4분의 1로
+         줄이자 이 바닥이 실제 간격을 지배해, 지름 1.5px짜리 덩이가 2px씩 떨어져
+         점선으로 보였다. 바닥은 '한 프레임에 덩이가 수백 개 서지 않게' 막는 안전값
+         이므로(위 n9의 상한 30이 그 몫을 다시 받는다) 덩이 지름 아래로 내려도 된다. */
+      const step9 = Math.max(1.0, st.w * tz9 * st.puff);
+      const n9 = Math.min(30, Math.max(2, Math.round(span9 / step9)));
+      /* ★ 미사일은 **휘어 날아간다**(지적: "목표물을 따라 휘는 유도 성질 있음") ────
+         앞판은 총구에서 표적까지 곧은 선이었다. 유도탄의 자취가 곧을 리 없다 —
+         쏘고 나서 표적 쪽으로 틀기 때문에 연기가 활처럼 굽는다. 그 굽이가 이 무기를
+         총알과 가르는 결이라, 곧게 두면 '느린 총알'로 읽힌다.
+         길은 **총구 → 표적**의 2차 베지에다: 가운데 조종점을 옆으로 밀면 그 한 번의
+         굽이가 곧 '틀었다'가 된다. 굽이의 쪽은 **겨눈 각**에서 뽑는다 — 한 발 안에서는
+         각이 안 변하므로 날아가는 동안 굽이가 안 뒤집히고(프레임마다 난수를 뽑으면
+         자취가 통째로 펄럭인다), 발마다 각이 다르니 두 발이 같은 활을 안 그린다.
+         표적까지의 거리를 모르는 자리(len이 안 실려 온 옛 자료)에서는 곧은 선으로
+         물러난다 — 조종점을 놓을 자리가 없기 때문이다. */
+      /* 길이는 **그어지는 길의 것**(runD9)이다 — 화면 거리가 무너진 자리에서
+         reach9로 매개하면 덩이가 전부 표적 점에 포개진다(위 runD9의 ★). */
+      /* ★ 굽이는 **발사 각과 지금 각의 차이**다(요청: "미사일이 나가고 나서 움직이기
+         시작했어도 유도탄으로 따라가긴 해야 해 … 가만히 있는데도 처음부터 휘어서
+         간다는 게 문제") — 앞 판은 난수 쪽으로 늘 활을 그렸다. 이제 조종점을 **발사
+         때 겨눈 방향**(d0)으로 반쯤 나간 자리에 두면: 표적이 그대로면 d0 = deg라
+         조종점이 직선 위에 놓여 곧게 가고, 표적이 옮겨 갔으면 출발은 옛 방향, 끝은
+         새 자리라 그 사이가 저절로 굽는다 — 그것이 유도다. */
+      const rad0 = f.d0 !== undefined ? (f.d0 * Math.PI) / 180 : rad9;
+      const dx0 = -Math.sin(rad0);
+      const dy0 = Math.cos(rad0);
+      const guided9 = Number.isFinite(runD9) && runD9 > 0
+        && Math.abs(dx0 - dxx) + Math.abs(dy0 - dyy) > 1e-4;
+      const bow9 = guided9 ? 1 : 0;
+      const cx0 = x0 + dx0 * (runD9 / 2);
+      const cy0 = y0 + dy0 * (runD9 / 2);
+      const tx0 = x0 + dxx * runD9;
+      const ty0 = y0 + dyy * runD9;
+      /** 자취 위의 한 점 — d는 총구에서의 **직선 거리**(굽은 길의 매개변수로 쓴다). */
+      const at9 = (d9: number): [number, number] => {
+        if (bow9 === 0) return [x0 + dxx * d9, y0 + dyy * d9];
+        const t9 = Math.max(0, Math.min(1, d9 / runD9));
+        const u9 = 1 - t9;
+        return [
+          u9 * u9 * x0 + 2 * u9 * t9 * cx0 + t9 * t9 * tx0,
+          u9 * u9 * y0 + 2 * u9 * t9 * cy0 + t9 * t9 * ty0,
+        ];
+      };
+      const core9 = st.smoke ?? "#ffffff";
+      const edge9 = st.smokeEdge ?? core9;
+      for (let i9 = 0; i9 <= n9; i9 += 1) {
+        const d9 = tailD9 + (span9 * i9) / n9;   // 탄두 뒤(smokeEnd9)까지만 깔린다
+        // 0 머리(갓 뿜음) ~ 1 총구(가장 오래됨).
+        const age9 = span9 <= 0 ? 0 : 1 - (d9 - tailD9) / span9;
+        /* ★ 크기는 **앞뒤가 같다**(지적: "크기는 앞이나 뒤나 일정한데 살짝 변동은
+           있음(랜덤)") — 앞판은 나이에 따라 부풀렸는데, 그러면 자취가 총구 쪽으로
+           벌어지는 원뿔이 되어 '연기 기둥'으로 읽힌다. 원작의 자취는 같은 크기의
+           덩이가 줄지어 선 것이고, 흔들리는 것은 크기가 아니라 **낱개의 들쭉날쭉**이다.
+           그 흔들림은 **자리에 매인 난수**여야 한다 — 프레임마다 새로 뽑으면 같은
+           덩이가 매 프레임 커졌다 작아져 자취가 통째로 끓는다. 마디 번호를 씨앗으로
+           쓰면 그 덩이는 언제 봐도 같은 크기다. */
+        const rnd9 = Math.sin(i9 * 127.1 + 311.7) * 43758.5453;
+        const jit9 = (rnd9 - Math.floor(rnd9)) * 2 - 1;          // −1~1
+        /* 지름 네 배(지적: "미사일류 트레이서 원이 너무 작아") — 0.95 → 3.8.
+           ★ 간격도 **같이** 네 배여야 한다(갈래표의 puff 3 → 12). 반지름만 키우면
+             덩이가 서로 파묻혀 도로 한 줄기 띠가 된다 — 이 자취를 덩이로 바꾼 까닭
+             자체가 사라지는 셈이다. 간격과 지름은 늘 한 쌍으로 움직인다. */
+        const r9 = st.w * tz9 * (3.8 + 0.6 * jit9);   // 타일 자(폰 보정, 핵탄두와 같은 지적)
+        const off9 = Math.sin(i9 * 1.9) * r9 * 0.22;
+        const [bx9, by9] = at9(d9);
+        const cx9 = bx9 - dyy * off9;
+        const cy9 = by9 + dxx * off9;
+        /* ★ 속은 희고 테는 연한 하늘빛이다(지적) — 한 색으로 채우면 종잇조각 원이라
+           연기가 안 된다. 방사 그러데이션이면 낱개가 저마다 부피를 갖고, 겹칠 때
+           테끼리 섞여 뭉게뭉게한 결이 난다. */
+        const rg9 = ctx.createRadialGradient(cx9, cy9, 0, cx9, cy9, r9);
+        rg9.addColorStop(0, core9);
+        /* 흰 속을 절반까지 꽉 채우고 바깥 절반에서만 하늘빛으로 넘어간다 —
+           이 크기(반지름 몇 px)에서는 완만하게 섞으면 테가 안 남고 통째로
+           옅은 회색 원이 된다(첫 판이 그랬다). 테는 좁고 또렷해야 보인다. */
+        rg9.addColorStop(0.62, core9);
+        rg9.addColorStop(0.88, edge9);
+        rg9.addColorStop(1, edge9);
+        ctx.fillStyle = rg9;
+        /* 옅어지는 몫만 나이를 탄다 — 총구 쪽이 먼저 사그라들어야 자취가 끝난다.
+           ★ 짙기를 0.72 → 0.94로(지적: "더 하얀색이어야 할 듯") — 반투명한 흰색은
+             어두운 지도 위에서 곧 회색이다. 흰 연기로 읽히려면 바닥이 안 비쳐야 한다.
+             흰 속이 차지하는 몫도 반 → 0.62로 넓혀, 하늘빛은 가장자리 한 테로만 남긴다. */
+        ctx.globalAlpha = a9 * 0.94 * (1 - age9 * (st.smokeFade ?? 0.45));
+        ctx.beginPath();
+        ctx.arc(cx9, cy9, r9, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      /* ★ 앞에 **미사일 몸이 선다**(지적: "미사일 트레이서의 연기만 있고 앞에
+         미사일이 없어서 어색함") ────────────────────────────────────────────────
+         여태 머리는 갈래표의 그러데이션으로 그은 획 하나뿐이었다. 그 값으로 재 보면
+         길이 w×7 = 3.5·굵기 w×1 = 0.5(배율 1 기준)인데, 연기 덩이는 반지름이
+         w×3.8이라 **지름이 7.6**이다. 곧 머리는 덩이 하나보다도 짧고 그 7분의 1
+         굵기라, 흰 덩이 줄에 통째로 파묻혔다 — 남는 그림이 '연기뿐'인 까닭이다.
+         (앞서 덩이를 네 배로 키우면서 머리도 함께 키웠어야 했는데 획만 조금 늘렸다.)
+         세 겹으로 나눈다. 뒤에서부터:
+           ① 배기 불꽃 — 갈래표 그러데이션 그대로, 몸 뒤로 뻗는다(옛 획의 몫).
+           ② 몸통 — **불투명한** 흰 캡슐. 연기와 갈리는 것은 크기가 아니라 '속이
+             비치지 않는다'는 점이다: 반투명하면 아무리 키워도 연기의 일부로 읽힌다.
+           ③ 코 — 몸통 끝의 작은 밝은 점. 어느 쪽이 앞인지를 한 점이 말한다.
+         셋 다 굽은 길(at9) 위에 얹어 유도 곡선을 그대로 탄다. */
+      const flameL9 = Math.min(Math.max(0, headD9 - tailD9), st.w * zoom * 20);
+      if (flameL9 > 0.5) {
+        const [ex9, ey9] = at9(headD9);
+        const [fx9, fy9] = at9(headD9 - flameL9);
+        const hg9 = ctx.createLinearGradient(ex9, ey9, fx9, fy9);
+        for (const [o9, c9] of st.g) hg9.addColorStop(o9, c9);
+        ctx.globalAlpha = a9;
+        ctx.strokeStyle = hg9;
+        ctx.lineWidth = Math.max(0.6, st.w * tz9 * 1.6);
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(ex9, ey9);
+        ctx.lineTo(fx9, fy9);
+        ctx.stroke();
+      }
+      /* ★ **삼각 탄두**(요청) — 코가 진행 방향, 밑변이 뒤다. 여태 이 자리는 흰
+         캡슐 획 + 코 점이었는데, 둥근 캡슐은 연기 덩이와 같은 결이라 자취에 묻혔다.
+         삼각은 연기(원)와 **모양이 다르다** — 그 다름 하나가 '탄두가 앞에 있다'를
+         말한다. 굽은 길(at9) 위의 두 점으로 축을 뽑으므로 유도 곡선을 그대로 탄다.
+         ★ 방향(지적: "탄두 삼각형 방향 반대로됐음") — 코를 머리(headD9)에 둔다.
+           일반 tri 갈래는 밑변이 밝은 끝(머리)이고 꼭짓점이 꼬리라 정확히 반대다.
+           그 갈래는 혜성 잔상의 꼴이라 그대로 두고, 탄두는 여기서 따로 그린다. */
+      if (bodyL9 > 0.5 && st.warhead) {
+        const [ex9, ey9] = at9(headD9);
+        const [bx8, by8] = at9(headD9 - bodyL9);
+        const vx8 = ex9 - bx8;
+        const vy8 = ey9 - by8;
+        const vl8 = Math.hypot(vx8, vy8) || 1;
+        const hw8 = Math.max(1, st.w * zoom * 1.9);
+        ctx.globalAlpha = a9;
+        ctx.fillStyle = st.warhead;
+        ctx.beginPath();
+        ctx.moveTo(ex9, ey9);
+        ctx.lineTo(bx8 - (vy8 / vl8) * hw8, by8 + (vx8 / vl8) * hw8);
+        ctx.lineTo(bx8 + (vy8 / vl8) * hw8, by8 - (vx8 / vl8) * hw8);
+        ctx.closePath();
+        /* 테두리 획은 안 두른다(요청: "면 전체를 은/금색으로") — 짙은 테를 두르면
+           이 크기에서 탄두가 통째로 그 테 색이 되어 금속색이 안 남는다. */
+        ctx.fill();
+      } else if (bodyL9 > 0.5) {
+        const [ex9, ey9] = at9(headD9);
+        const [bx8, by8] = at9(headD9 - bodyL9);
+        /* 속이 안 비치게 — 흰 몸에 옅은 하늘빛 테(연기와 같은 색 결이라 따로 놀지
+           않으면서도, 불투명해서 덩이 위로 또렷이 뜬다). */
+        ctx.globalAlpha = a9;
+        ctx.strokeStyle = st.smokeEdge ?? "#a8d4ff";
+        ctx.lineWidth = Math.max(1.4, st.w * tz9 * 3.4);
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(ex9, ey9);
+        ctx.lineTo(bx8, by8);
+        ctx.stroke();
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = Math.max(0.9, st.w * tz9 * 2.2);
+        ctx.beginPath();
+        ctx.moveTo(ex9, ey9);
+        ctx.lineTo(bx8, by8);
+        ctx.stroke();
+        // 코 — 앞을 가리키는 한 점.
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        ctx.arc(ex9, ey9, Math.max(0.8, st.w * tz9 * 1.5), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      continue;
+    }
+    if (st.tri) {
+      /* 쐐기(글레이브·파편) — 밑변이 **밝은 끝**, 꼭짓점이 사그라드는 끝이다.
+         날아가는 것은 넓은 머리가 앞서고 꼬리로 갈수록 뾰족해진다(혜성 꼴). */
+      /* ★ 표창(요청: 뮤탈·벌처 쐐기를 정삼각형에서 각 변을 삼각형으로 판 표창으로 · 뾰족한 쪽이 적을 향하게) ────
+         세 꼭짓점의 별이다: 앞 꼭짓점이 머리(lx9·ly9, 나는 방향 dxx·dyy)이고 뒤 두 꼭짓점이 ±120도. 변마다
+         가운데를 중심 쪽으로 파(반지름 0.35R) 세 날이 선다. 반폭(st.w/2)이 뒤 날의 벌어짐(0.866R)이다. */
+      /* 별의 자는 **타일 자**(tz9)다(지적: "뮤탈 글레이브 크기도 배율 안 먹는듯?") — 여기만 zoom을
+         곧장 곱해 폰(타일 3px)에서 유닛 대비 두 배 반으로 크고, PC에서는 몸에 비해 작았다. 다른
+         줄기와 같은 자로 옮기고 갈래표의 굵기(glave.w)를 원작 비(타일의 4분의 1)에 맞춘다. */
+      const hw9 = (st.w / 2) * tz9;
+      const R9 = hw9 / 0.866;
+      const r9 = R9 * 0.35;
+      const cx9 = lx9 - dxx * R9;
+      const cy9 = ly9 - dyy * R9;
+      const px9 = -dyy;                      // 수직(왼쪽)
+      const py9 = dxx;
+      const pt9 = (a9: number, b9: number): [number, number] => [cx9 + dxx * a9 + px9 * b9, cy9 + dyy * a9 + py9 * b9];
+      const T0 = pt9(R9, 0);
+      const N01 = pt9(0.5 * r9, 0.866 * r9);
+      const T1 = pt9(-0.5 * R9, 0.866 * R9);
+      const N12 = pt9(-r9, 0);
+      const T2 = pt9(-0.5 * R9, -0.866 * R9);
+      const N20 = pt9(0.5 * r9, -0.866 * r9);
+      ctx.fillStyle = g9;
+      ctx.beginPath();
+      ctx.moveTo(T0[0], T0[1]);
+      ctx.lineTo(N01[0], N01[1]);
+      ctx.lineTo(T1[0], T1[1]);
+      ctx.lineTo(N12[0], N12[1]);
+      ctx.lineTo(T2[0], T2[1]);
+      ctx.lineTo(N20[0], N20[1]);
+      ctx.closePath();
+      ctx.fill();
+    } else if (st.cone) {
+      /* ★ **원뿔 줄기**(화염방사) — 뿌리에서 좁고 앞으로 갈수록 넓어진다(요청: "파뱃
+         트레이서 시작점은 좀 좁고 앞으로 가면서 넓어지는 형태여야 함 · 야구 방망이
+         느낌"). 굵기 하나로 긋는 획은 어디서나 폭이 같아 '뿜는 불'이 아니라 **막대**로
+         읽힌다. 같은 길 위에 사다리꼴을 채우고 **양 끝을 둥글게** 닫으면 방망이 꼴이 된다.
+         ⚠ 뿌리는 lx9(총구)다 — 이 갈래는 muzzleLit 이라 그러데이션 0쪽이 총구다. */
+      const vx7 = dx9 - lx9; const vy7 = dy9 - ly9;
+      const vl7 = Math.hypot(vx7, vy7) || 1;
+      const ux7 = vx7 / vl7; const uy7 = vy7 / vl7;
+      const nx7 = -uy7; const ny7 = ux7;
+      const au7 = Math.atan2(uy7, ux7);
+      /** 뿌리·앞 끝의 **반**폭(화면 px) — ex 는 번짐 켜가 밖으로 더 두르는 몫이다. */
+      const cone7 = (ex7: number): void => {
+        const h07 = Math.max(0.3, (st.w * zoom * (st.cone as readonly [number, number])[0]) / 2) + ex7;
+        const h17 = Math.max(0.5, (st.w * zoom * (st.cone as readonly [number, number])[1]) / 2) + ex7;
+        ctx.beginPath();
+        ctx.moveTo(lx9 + nx7 * h07, ly9 + ny7 * h07);
+        ctx.lineTo(dx9 + nx7 * h17, dy9 + ny7 * h17);
+        ctx.arc(dx9, dy9, h17, au7 + Math.PI / 2, au7 - Math.PI / 2, true);
+        ctx.lineTo(lx9 - nx7 * h07, ly9 - ny7 * h07);
+        ctx.arc(lx9, ly9, h07, au7 - Math.PI / 2, au7 + Math.PI / 2, true);
+        ctx.closePath();
+        ctx.fill();
+      };
+      if (st.glow) {
+        ctx.fillStyle = st.glow;
+        ctx.globalAlpha = a9 * (st.glowA ?? 0.3);
+        cone7(st.w * zoom * ((st.glowW ?? 2.6) - 1) / 2);
+        ctx.globalAlpha = a9;
+      }
+      ctx.fillStyle = g9;
+      cone7(0);
+    } else {
+      /* 길 하나를 두 번 긋는다(번짐 + 몸) — 꺾인 갈래는 두 획이 **같은 마디**를
+         지나야 하므로 길을 여기서 한 번만 짓는다. */
+      const path9 = (): void => {
+        ctx.beginPath();
+        ctx.moveTo(lx9, ly9);
+        const n9 = st.zig ?? 0;
+        if (n9 >= 2) {
+          const vx9 = dx9 - lx9;
+          const vy9 = dy9 - ly9;
+          const len9 = Math.hypot(vx9, vy9) || 1;
+          /* 튀는 폭 — 길이의 몫과 굵기의 몫 중 작은 쪽이다. 짧은 번개가 제
+             길이만큼 튀면 갈지자가 아니라 뭉치가 된다. */
+          const amp9 = Math.min(len9 * (st.zigAmp ?? 0.16), st.w * zoom * (st.zigW ?? 2.4));
+          // 위상을 씨앗으로 — 번쩍이는 동안 무늬가 몇 번 갈린다(위 zig 주석).
+          const seed9 = Math.floor(p9 * 5);
+          for (let i9 = 1; i9 < n9; i9 += 1) {
+            const q9 = i9 / n9;
+            const r9 = Math.sin((i9 * 12.9898 + seed9 * 78.233) * 43758.5453);
+            // 양 끝은 몸에 붙어야 하므로 가운데가 가장 크게 튄다(sin 봉우리).
+            const off9 = (r9 - Math.floor(r9) - 0.5) * 2 * amp9 * Math.sin(Math.PI * q9);
+            ctx.lineTo(
+              lx9 + vx9 * q9 - (vy9 / len9) * off9,
+              ly9 + vy9 * q9 + (vx9 / len9) * off9,
+            );
+          }
+        }
+        ctx.lineTo(dx9, dy9);
+      };
+      if (st.glow) {
+        /* 테두리도 뿌리에서 함께 사그라든다(위 fadeAt) — 몸만 흐리고 테가 남으면
+           뿌리에 푸른 고리만 동그마니 남는다. */
+        ctx.strokeStyle = st.glowEnd !== undefined
+          ? ((): CanvasGradient => {
+            const gw9 = ctx.createLinearGradient(lx9, ly9, dx9, dy9);
+            gw9.addColorStop(0, st.glow);
+            gw9.addColorStop(Math.max(0, Math.min(1, st.fadeAt ?? 0.72)), st.glow);
+            gw9.addColorStop(1, st.glowEnd);
+            return gw9;
+          })()
+          : st.glow;
+        ctx.lineWidth = st.w * zoom * (st.glowW ?? 2.6);
+        ctx.globalAlpha = a9 * (st.glowA ?? 0.3);
+        ctx.lineCap = st.cap ?? "round";
+        path9();
+        ctx.stroke();
+        ctx.globalAlpha = a9;
+      }
+      ctx.strokeStyle = g9;
+      ctx.lineWidth = Math.max(0.4, st.w * zoom);
+      ctx.lineCap = st.cap ?? "round";
+      ctx.lineJoin = "round";
+      path9();
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
 function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx, pickedKey, wallMask, maskRects, clipQuad, showShadows, showOverlap, showHp, showCreep, marker: markerProp, markerAt, detailAt, yawAt, moveAt, pitched: pitchedProp, painter, live, gesture, onPainted }: {
   ops: UnitDrawOp[]; zoom: number; pan: { x: number; y: number };
   /** ★ 붓의 보기 원천(실측: 감기 중 React 붓 팬 (−645.8,−821.7) vs 도착 붓 panRef (−646.2,−822.7)로 1px 어긋난 두 그림이
@@ -4140,959 +5124,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         }
       }
       if (fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM)) {
-        // scr-tracer: 0%→0 · 10~45%→1 · 70%~→0.
-        const envBeam = (p9: number): number =>
-          (p9 < 0.1 ? p9 / 0.1 : p9 < 0.45 ? 1 : p9 < 0.7 ? (0.7 - p9) / 0.25 : 0);
-        // scr-hitflash: 0→0 · 12~55%→1 · 100%→0.
-        const envHit = (p9: number): number =>
-          (p9 < 0.12 ? p9 / 0.12 : p9 < 0.55 ? 1 : (1 - p9) / 0.45);
-        // scr-shieldfx: 0→0 · 16%→1 · 42%→0.4 · 64%→0.95 · 100%→0 (두 번 깜빡).
-        const envShield = (p9: number): number => (p9 < 0.16 ? p9 / 0.16
-          : p9 < 0.42 ? 1 - ((p9 - 0.16) / 0.26) * 0.6
-            : p9 < 0.64 ? 0.4 + ((p9 - 0.42) / 0.22) * 0.55 : (1 - p9) / 0.36 * 0.95);
-        ctx.save();
-        ctx.shadowColor = "transparent";
-        /* 렌즈px 상수의 자(지적: "PC보다 모바일에서 트레이서 크기가 훨씬 큼") — 갈래표의 l·w, 가시 높이
-           4.05, 광구 0.7 같은 값은 '1배 CSS px'라 배율만 곱했다. 그런데 타일 하나가 PC에서는 8px 남짓,
-           폰에서는 3px라(지도가 화면 폭에 맞춰 선다) 같은 배율의 같은 px가 폰에서는 유닛 대비 2.6배로
-           컸다. 유닛·피격(f.size)은 엔진이 타일 자로 내므로 이미 맞다. 이 상수들만 타일 8px를 기준으로
-           타일 자에 태운다 — PC(≈8px)는 그대로, 폰은 그만큼 준다. */
-        const tz9 = zoom * ((tilePx ?? 8) / 8);
-        for (const f of fx) {
-          /* ★ 갈래마다 제 칸이 있다(요청: "2배에서 전투효과: 가시 분출 우리 / 4배에서
-             전투효과: 피격 / 나머지는 다 8배부터") — 사다리는 FX_MIN_ZOOM이고, 배치의
-             바닥(detailAt: PC 2배·폰 8배)과 **둘 중 늦은 쪽**이 실제 칸이다. 트레이서만
-             그 바닥 위에 있다(요청: "모든 트레이서류 2배 줌부터") — beam(제자리 번쩍)과
-             shot(날아가는 탄)이 곧 무기별 트레이서 전부라, 무기가 무엇이든 유닛이 쏘든
-             방어 건물이 쏘든 이 한 줄을 지난다. */
-          if (zoom < (FX_NO_FLOOR.has(f.kind)
-            ? FX_MIN_ZOOM[f.kind] : Math.max(FX_MIN_ZOOM[f.kind], detailAt ?? 0))) continue;
-          /* 낮은 배율 죄기(위 lowZoomTrim9) — 꾸밈부터 덜고, 심하면 트레이서까지 던다.
-             무슨 일이 있었나를 말하는 것(죽음 폭발·소환 섬광·우리·스톰·핵·붕괴)은 남는다. */
-          if (trim9 >= 1) {
-            if (f.kind === "wound") continue;
-            if (f.kind === "dom" && TRIM1_SKIP9.has(f.style ?? "")) continue;
-            if (trim9 >= 2) {
-              if (f.kind === "dom" && TRIM2_SKIP9.has(f.style ?? "")) continue;
-              if (f.kind === "beam" || f.kind === "shot" || f.kind === "spike" || f.kind === "erupt") continue;
-            }
-          }
-          const ax = zx(f.fx);
-          const ay = zy(f.fy) - f.lift * zoom;
-          if (ax < -60 || ax > cw + 60 || ay < -60 || ay > ch + 60) continue;
-          const p9 = Math.max(0, Math.min(1, f.ph ?? 0));
-          if (f.kind === "burst") {
-            drawBurst9(ctx, f, ax, ay, zoom, p9, tz9);
-            continue;
-          }
-          if (f.kind === "wound") {
-            drawWound9(ctx, f, ax, ay, zoom, Bd);
-            continue;
-          }
-          if (f.kind === "dom") {
-            /* 죽음 여운은 캔버스 파편(burst)이 서는 2배 아래에서만 나온다 — 스팬 시절과 같은 칸이다. */
-            if (f.style === "die" && zoom >= FX_MIN_ZOOM.burst) continue;
-            if (f.style === "swarm" && swarmDone9) continue;   // 위에서 마스크와 함께 얹었다
-            drawDomFx9(ctx, f, ax, ay, zoom, Bd, tz9);
-            continue;
-          }
-          if (f.kind === "hit") {
-            /* 피격은 **두 겹**이다(요청: "피격시 무조건 주황색 폭발로 처리되는데") ──
-                 ① 때린 무기의 제 그림(FX_IMPACT) — 시즈는 크게 터지고 히드라 가시는
-                    초록으로 튄다. 무기를 모르거나 근접이면 이 겹은 없다.
-                 ② 맞은 몸의 제 결(FX_MAT) — 살은 피, 프로토스는 에너지, 기계는 불꽃.
-                    죽음 효과와 같은 넷이라 "누가 맞았나"가 죽을 때와 같은 색으로 읽힌다.
-               여태 이 자리는 무기·몸을 안 가리는 주황 복사 그러데이션 하나였다. */
-            const a9 = envHit(p9);
-            if (a9 <= 0.02) continue;
-            /* ★ 피격은 **섬광 하나 + 파편 셋**이다(후보판에서 고름: "A의 방향에 B의 효과, 충격링은
-               없어도 될듯") ──────────────────────────────────────────────────────────────
-               옛 판(무기 색 방사 그러데이션 + 결 얼룩 + 낱알 다섯)은 번짐이 커서 색 덩이로 읽혔다.
-               이제 ① 맞은 자리에 몸 결의 흰 섬광이 한 점 터져 줄어들고, ② 파편 셋이 **맞은 반대쪽**
-               (때린 쪽에서 밀려나는 방향)으로 부채꼴로 날아간다. 피(생체·저그)는 중력을 타고 조금
-               떨어진다. 무기의 세기는 섬광·파편의 자에만 실린다(시즈는 크게, 총알은 작게) — 무기의
-               제 그림(FX_IMPACT의 그러데이션)은 더 안 그린다. */
-            const base9 = f.size ?? 4;
-            const r9 = (base9 / 2) * zoom * HIT_FX_K;
-            const off9 = (f.dist ?? base9 * 0.71) * zoom;
-            const hx9 = ax + (f.dx ?? 0) * off9;
-            const hy9 = ay + (f.dy ?? 0) * off9 - r9 * 0.2;
-            const im9 = f.style ? FX_IMPACT[f.style] : undefined;
-            /** 무기 세기 — 표의 반지름비(총 0.5 · 시즈 1.75)를 1 언저리로 옮긴 배수. */
-            const wk9 = im9 ? Math.min(2, Math.max(0.7, im9.r / 0.6)) : 1;
-            const mt9 = FX_MAT[f.mat ?? "mech"];
-            /* ★ 표적 자리 **스플래시**(커세어 플레어·아콘 잽)는 제 그림 그대로다(지적: "인터셉터 피격효과
-               파편이 아직도 너무 큰데") — 이 둘은 맞는 쪽 체력이 아니라 **쏘는 쪽 박자**로 표적에 얹는
-               op이고, 자(size)가 쏘는 몸의 **상자 통째**다(옛 그러데이션 타원의 자). 파편 그리기로 넘어가니
-               커세어가 쏘는 인터셉터마다 상자만 한 파편 부채가 텄다. 옛 납작 타원(FX_IMPACT flat)을 되살려
-               이 갈래만 그것으로 그리고 파편은 안 낸다. */
-            // 깃발로 가른다(재지적: "스플래시는 트레이서에 가깝고 피격효과는 나야지") — 같은 무기에
-            // **맞아서 체력이 깎인** 피격(splash 없음)은 아래 파편으로 간다.
-            if (im9 && f.splash) {
-              const ir9 = r9 * im9.r * (0.7 + p9 * 0.5);
-              const fl9 = im9.flat ?? 1;
-              ctx.globalAlpha = a9;
-              if (fl9 !== 1) { ctx.translate(hx9, hy9); ctx.scale(1, fl9); ctx.translate(-hx9, -hy9); }
-              const gi9 = ctx.createRadialGradient(hx9, hy9, 0, hx9, hy9, ir9);
-              for (const [o9, c9] of im9.g) gi9.addColorStop(o9, c9);
-              ctx.fillStyle = gi9;
-              ctx.beginPath();
-              ctx.arc(hx9, hy9, ir9, 0, Math.PI * 2);
-              ctx.fill();
-              if (fl9 !== 1) { ctx.translate(hx9, hy9); ctx.scale(1, 1 / fl9); ctx.translate(-hx9, -hy9); }
-              continue;
-            }
-            /* ★ 파편 **스물넷**, **궤적 스트릭**(재요청: 양 4배, 이동 방향으로 길게) — 후보판 B2의
-               움직임(짧게 튀어 멈춤, 중력 없음, 섬광·링 없음)은 그대로 두고, 낱개를 점 대신 조금 전
-               자리에서 지금 자리까지 잇는 짧은 선으로 그려 꼬리가 생긴다. 각은 부채꼴 ±0.65rad를
-               고르게 나누되 낱개마다 고정 흔들림(각·거리·굵기)을 줘 줄 서지 않는다. */
-            const hasDir9 = Number.isFinite(f.dx) && Number.isFinite(f.dy) && ((f.dx ?? 0) !== 0 || (f.dy ?? 0) !== 0);
-            const away9 = hasDir9 ? Math.atan2(-(f.dy ?? 0), -(f.dx ?? 0)) : 0;
-            /* ★ 삯(지적: 모바일이 버거워짐) — 낱개마다 stroke를 부르면 맞는 몸마다 스물네 번이다. 색이 둘뿐이니
-               **색별로 한 경로에 몰아** 두 번만 긋는다(굵기는 색별 한 값). 폰은 낱개도 열둘로 줄인다. */
-            /* 피격 파편은 **죽음 파편 수가 아니다**(지적: "스커지 자폭에서 왜 프로토스 사별 효과가
-               나지") — 여기가 DEV9.dieShards(PC 24·폰 12)를 읽고 있었다. 위 주석의 뜻은 '파편 셋'인데
-               스커지(무기 세기 wk9 = 2)가 프로토스를 치면 연푸른 줄 스물넷이 몸 두 배 부채로 터져,
-               프로토스 사별의 푸른 구와 같은 색·같은 자로 읽혔다. 스커지 자체는 저그 재질(engine9의
-               dk)로 터지므로 이 부채가 곧 '프로토스가 죽었다'로 보인 것이다. 결 표(FX_MAT)의 n
-               (5·6)이 피격 낱개 수다 — 죽음(burst)은 따로 dieShards를 쓴다. */
-            if (CROWD9.lv >= 2) continue;   // 덜어내기 2단: 피격 불티는 통째로 생략(죽음 burst만 남는다)
-            const N9 = Math.max(2, Math.ceil(mt9.n * crowdShardK9()));
-            ctx.lineCap = "round";
-            for (let ci = 0; ci < 2; ci += 1) {
-              ctx.beginPath();
-              for (let di = ci; di < N9; di += 2) {
-                const j1 = (di * 7) % 5; const j2 = (di * 11) % 4;
-                const an9 = hasDir9
-                  ? away9 + (di / (N9 - 1) - 0.5) * 1.3 + (j1 - 2) * 0.03
-                  : (di / N9) * Math.PI * 2 + 0.3 + (j1 - 2) * 0.05;
-                const sp9 = r9 * wk9 * (0.8 + j2 * 0.22);
-                const d1 = sp9 * (0.3 + p9 * 1.2);
-                const d0 = sp9 * (0.3 + Math.max(0, p9 - 0.28) * 1.2);
-                const c9 = Math.cos(an9); const s9 = Math.sin(an9);
-                ctx.moveTo(hx9 + c9 * d0, hy9 + s9 * d0 * 0.6 - d0 * 0.15);
-                ctx.lineTo(hx9 + c9 * d1, hy9 + s9 * d1 * 0.6 - d1 * 0.15);
-              }
-              ctx.globalAlpha = a9 * (1 - p9) * 0.95;
-              ctx.strokeStyle = ci ? mt9.drop : mt9.core;
-              ctx.lineWidth = Math.max(0.6, r9 * wk9 * (ci ? 0.075 : 0.06) * 1.6);
-              ctx.stroke();
-            }
-            ctx.lineCap = "butt";
-            continue;
-          }
-          /* ★ (꺼 둠) 프로토스 실드 방어 효과 — 요청: "제거, 완성도있게 다시 추가할
-             예정". 값을 짓는 쪽(걷기·건물 루프)은 그대로 두고 **그리는 이 한 자리**만
-             막는다: 다시 켤 때 이 조건의 `false &&`만 지우면 되고, 그동안 값 짓는 코드가
-             썩지 않는다(자리·크기·위상을 계속 같은 식으로 셈해 둔다). */
-          /* ★ 빙결 우리(요청: "스테이시스는 동그라미 판 하나로 할 건 아니고 각 유닛별로
-             하이브 모양으로 가둬야 해. 락다운도 각 유닛별로 원형에 가두고. 색깔은
-             스테이시스는 얼음 푸른색, 락다운은 노란기 있는 흰색. 둘 다 반투명") ──────────
-             여태 이 둘은 시전 자리에 **판 하나**였다(AREA_FX의 stasis·lock). 그건 '어디에
-             걸었나'는 말해도 '누가 걸렸나'는 못 말한다 — 걸린 몸이 판 밖에 서 있기도 하고,
-             안 걸린 몸이 판 안에 서 있기도 한다. 원작도 갇힌 몸마다 제 우리가 씌워진다.
-             이제 **걸린 몸마다 하나씩** 씌운다(그 판정은 이미 있다 — e.statuses의 빙결).
-             생김새로 둘을 가른다:
-               스테이시스 — 육각 결정(하이브 꼴). 얼음 푸른빛. 벌집처럼 각진 우리다.
-               락다운     — 둥근 구. 노란기 도는 흰빛. 기계를 멎게 하는 전자 우리다.
-             둘 다 반투명이고, 아주 느리게 밝아졌다 어두워진다(멎어 있어도 살아 있는 표시).
-             ★ 몸 위에 그린다 — 우리는 몸을 **가두는** 것이지 몸 뒤에 깔리는 판이 아니다. */
-          if (f.kind === "cage") {
-            const ice9 = f.style === "stasis";
-            const r9 = ((f.size ?? 8) / 2) * zoom;
-            /* ★ 가운데는 **실려 온 자리 그대로**다(요청: "모델에 입힐 수는 있잖아") —
-               여기서 반지름의 절반쯤을 더 올리고 있었는데, 그러면 우리의 높이가 제 크기에
-               매여 몸과 따로 논다(큰 몸일수록 더 뜬다). 몸에 얹는 일은 값을 싣는 쪽이
-               한다 — 거기서 그리는 쪽과 **같은 세 몫**으로 높이를 낸다(cage의 lift 주석).
-               그러니 여기서는 한 톨도 더 안 옮긴다. */
-            const cy9 = ay;
-            /** 숨 — 0.85~1 사이를 아주 느리게 오간다. */
-            const br9 = 0.85 + 0.15 * Math.sin((f.ph ?? 0) * Math.PI * 2);
-            ctx.globalAlpha = br9;
-            /* ★ 속은 **납작하고 아주 옅게** 채운다(지적: "스테이시스 원반 효과 제거가
-               안 됐고") — 원반은 딴 데서 오는 것이 아니라 **여기서 났다.** 가장자리로
-               갈수록 짙어지는 방사 그러데이션을 깔아 두었는데, 그런 우리 여럿이 겹치면
-               테두리끼리 더해져 한 장의 둥근 판으로 읽힌다. 걷어낸 줄 알았던 그 원반이
-               모양만 바꿔 되살아나 있었던 셈이다.
-               얼음은 속이 비치는 것이라 채움은 '있는 듯 없는 듯'이면 되고, 형태는
-               **테두리와 결**이 말한다(아래 stroke). */
-            ctx.fillStyle = ice9
-              ? "rgba(150,214,255,0.10)" : "rgba(255,248,206,0.09)";
-            /** 육각(하이브) 또는 원 — 한 자리에서 길을 만든다. */
-            const cagePath = (rx9: number, ry9: number): void => {
-              ctx.beginPath();
-              if (!ice9) { ctx.ellipse(ax, cy9, rx9, ry9, 0, 0, Math.PI * 2); return; }
-              for (let i9 = 0; i9 < 6; i9 += 1) {
-                const a9 = ((-90 + i9 * 60) * Math.PI) / 180;
-                const px9 = ax + Math.cos(a9) * rx9;
-                const py9 = cy9 + Math.sin(a9) * ry9;
-                if (i9 === 0) ctx.moveTo(px9, py9); else ctx.lineTo(px9, py9);
-              }
-              ctx.closePath();
-            };
-            /* ★ **정육각**이다(지적: "빙결 도형은 정육각형으로. 지금 유닛에 맞춰서
-               길쭉") — 세로를 늘려 벌집 한 칸을 세운 꼴로 뒀는데, 그러면 유닛 몸에 맞춘
-               자루처럼 보이지 얼음 덩이로 안 읽힌다. 얼음은 제 결대로 깎이지 담긴 것의
-               모양을 따르지 않는다. 가로·세로를 같게 두면 어느 유닛에 씌워도 같은
-               결정이다. */
-            const ry9 = ice9 ? r9 : r9 * 1.02;
-            /* ★ 모서리는 **예리하게**(지적: "모서리 선도 너무 둔해 더 예리하고 얇아야 해")
-               — 굵기를 절반 아래로 내리고(0.34 → 0.15배율), 이음매를 미터로 못 박아
-               꼭짓점이 뭉툭하게 깎이지 않게 한다. 이 고리 안의 다른 갈래가 둥근 끝
-               (lineCap "round")을 켜 두고 지나갈 수 있어, 여기서 제 값을 다시 세운다 —
-               캔버스 상태는 op 사이에 그대로 흘러간다. */
-            ctx.lineJoin = "miter";
-            ctx.miterLimit = 10;
-            ctx.lineCap = "butt";
-            cagePath(r9, ry9);
-            ctx.fill();
-            ctx.strokeStyle = ice9
-              ? "rgba(224,246,255,0.85)" : "rgba(255,252,226,0.8)";
-            ctx.lineWidth = Math.max(0.35, 0.15 * zoom);
-            ctx.stroke();
-            /* (걷어냄) 안쪽 한 겹 — 우리에 '두께'를 주려던 겹인데, 작은 우리에서는 두
-               선이 붙어 한 줄이 굵어진 것처럼만 보였다(둔해 보이던 몫의 절반이 이것이다).
-               두께는 이제 아래 결이 말한다. */
-            /* 얼음의 결(스테이시스만) — 꼭짓점에서 가운데로 긋는 세 줄. 정육각 덩이가
-               **깎인 결정**으로 읽히게 하는 최소한의 선이다(요청: "정육각 얼음에 가둔").
-               테두리보다 한 단 가늘고 옅게 — 결은 형태를 거들 뿐 형태가 아니다. */
-            if (ice9) {
-              ctx.globalAlpha = br9 * 0.42;
-              ctx.lineWidth = Math.max(0.25, 0.1 * zoom);
-              ctx.beginPath();
-              for (const k9 of [0, 2, 4]) {
-                const a9 = ((-90 + k9 * 60) * Math.PI) / 180;
-                ctx.moveTo(ax + Math.cos(a9) * r9, cy9 + Math.sin(a9) * ry9);
-                ctx.lineTo(ax, cy9);
-              }
-              ctx.stroke();
-            }
-            continue;
-          }
-          if (f.kind === "shield" && !SHIELD_FX_ON) continue;   // 꺼 두어도 총구 번쩍임 갈래로 흘러가면 안 된다.
-          if (f.kind === "shield") {
-            /* 막은 **죽음과 갈려야 한다**(지적: "스커지 자폭에서 왜 프로토스 사별 효과가 나지") —
-               스커지 자체는 저그 재질로 터진다(engine9의 dk). 프로토스로 보인 것은 **맞은 쪽**의
-               실드 피격 막이었다: 여태 흰 심 + 푸른 방사 구 + 테로, 프로토스 사별의 플라즈마 구
-               (drawBurst9 toss: 푸른 구·연푸른 속·흰 심·밝은 테)와 같은 문법이었다. 몸의 1.35배로
-               0.55초라 스커지 한 방마다 '프로토스가 죽었다'로 읽혔다.
-               이제 막은 **가장자리에서만 밝은 껍질**이다 — 안쪽은 거의 비치고 테두리로 갈수록
-               연푸른빛이 오르며 얇은 테 하나가 몸을 감싼다. 흰 심이 없고 구가 안 차오르므로
-               죽음과 겹칠 일이 없다. 자·길이도 한 단 줄였다(engine9: 1.2배·0.4초). */
-            /* **플라즈마 빛**(요청) — 프로토스 결(FX_MAT.toss)과 같은 시안·흰빛이다: 속은 옅은 시안 안개, 테로 갈수록
-               밝아져 흰 심이 선 시안 테 하나가 몸을 감싼다. 금빛은 어디에도 없다. 선 굵기는 타일 자(tz9)로 폰을 맞춘다. */
-            const a9 = envShield(p9);
-            if (a9 <= 0.02) continue;
-            /* ★ **우산 같은 구 껍질**(요청: "구 형태로 — 윗부분은 채워지고 아래로 갈수록 투명해지는 보호막. 위에서
-               2/3쯤까지만 보이되 칼같지 않게 자리마다 다른 높이에서 스러지고, 위도 완전 불투명이 아니라 반투명. 색은
-               청색") ───────────────────────────────────────────────────────────────────────────────────
-               원 테두리 하나였던 것을 걷고, 공의 윗둥을 감싼 반투명 청색 껍질로 그린다:
-                 · 모양은 원의 윗호 + 아랫변은 **자리마다 다른 높이**의 물결선(각도의 결정론 해시 — 프레임마다 같은
-                   모양이라 떨리지 않는다). 평균은 위에서 2/3 지점(가운데 아래 r/3), ±0.15r로 흔든다.
-                 · 채움은 위(반투명 청색 0.5)에서 물결선 언저리(0)로 스러지는 세로 그러데이션이라 가장자리가 부드럽다.
-                 · 구 느낌은 왼위 하이라이트(옅은 흰빛) 한 겹과, 윗호를 따라 도는 밝은 테(양 끝으로 갈수록 옅어짐)로. */
-            const sc9 = 0.92 + p9 * 0.16;
-            const r9 = ((f.size ?? 6) / 2) * zoom * sc9;
-            const cy9 = ay - r9 * 0.1;
-            const N9 = 12;
-            const seed9 = Math.round(f.fx * 9973 + f.fy * 7919);
-            const kAt9 = (i9: number): number => {
-              const h9 = Math.sin(seed9 * 0.37 + i9 * 12.9898) * 43758.5453;
-              return 0.33 + ((h9 - Math.floor(h9)) - 0.5) * 0.3;   // 0.18 ~ 0.48 (아래로 +)
-            };
-            const dome9 = new Path2D();
-            const k0 = kAt9(0);
-            const kN = kAt9(N9);
-            const xl9 = ax - r9 * Math.sqrt(Math.max(0, 1 - k0 * k0));
-            const xr9 = ax + r9 * Math.sqrt(Math.max(0, 1 - kN * kN));
-            const aL9 = Math.atan2(k0 * r9, xl9 - ax);       // 왼 끝(π 언저리)
-            const aR9 = Math.atan2(kN * r9, xr9 - ax);       // 오른 끝(0 언저리)
-            dome9.moveTo(xl9, cy9 + k0 * r9);
-            dome9.arc(ax, cy9, r9, aL9, aR9 + Math.PI * 2, false);   // 윗호 — 각을 키우며(캔버스 시계) 180·270(꼭대기)·360을 지난다
-            for (let i9 = N9 - 1; i9 >= 1; i9 -= 1) {
-              const x9 = xl9 + (xr9 - xl9) * (i9 / N9);
-              dome9.lineTo(x9, cy9 + kAt9(i9) * r9);
-            }
-            dome9.closePath();
-            ctx.globalAlpha = a9;
-            // 스러짐은 물결선의 평균 높이(r/3)에서 거의 0이 되게 — 그래야 들쭉날쭉한 아랫변이 칼같이 안 읽힌다.
-            const lg9 = ctx.createLinearGradient(0, cy9 - r9, 0, cy9 + r9 * 0.34);
-            lg9.addColorStop(0, "rgba(70,140,255,0.5)");
-            lg9.addColorStop(0.4, "rgba(70,140,255,0.36)");
-            lg9.addColorStop(0.75, "rgba(80,150,255,0.12)");
-            lg9.addColorStop(1, "rgba(90,160,255,0)");
-            ctx.fillStyle = lg9;
-            ctx.fill(dome9);
-            // 왼위 하이라이트 — 구의 빛 받는 자리.
-            const hg9 = ctx.createRadialGradient(ax - r9 * 0.35, cy9 - r9 * 0.45, 0, ax - r9 * 0.35, cy9 - r9 * 0.45, r9 * 0.8);
-            hg9.addColorStop(0, "rgba(220,240,255,0.28)");
-            hg9.addColorStop(1, "rgba(220,240,255,0)");
-            ctx.fillStyle = hg9;
-            ctx.fill(dome9);
-            // 윗호 테 — 꼭대기가 밝고 양 끝으로 옅어진다.
-            const sg9 = ctx.createLinearGradient(0, cy9 - r9, 0, cy9 + r9 * 0.35);
-            sg9.addColorStop(0, "rgba(190,225,255,0.85)");
-            sg9.addColorStop(0.7, "rgba(150,200,255,0.35)");
-            sg9.addColorStop(1, "rgba(150,200,255,0)");
-            ctx.strokeStyle = sg9;
-            ctx.lineWidth = Math.max(0.6, 0.3 * tz9);
-            ctx.beginPath();
-            ctx.arc(ax, cy9, r9 * 0.97, aL9, aR9 + Math.PI * 2, false);
-            ctx.stroke();
-            continue;
-          }
-          /* ★ 승하차 줄(요청: "수송선 탑승이나 내릴 때 갑자기 띡 없어지고 생기니까
-             시각적으로 인식이 안 돼. 네온이나 아쿠아색 점선 같은 거라도 연결해 주면
-             좋을 듯") ─────────────────────────────────────────────────────────────────
-             몸이 선 자리와 배가 있는 자리를 **아쿠아 네온 점선**으로 잇는다. 눈이
-             '없어졌다'가 아니라 '저기로 빨려 갔다'로 읽게 하는 것이 전부라 오래 안 둔다 —
-             원작의 승하차 딜레이만큼만 살고 그동안 옅어진다(그 창은 몸이 작아지며 도는
-             연출과 같은 창이다).
-             점선은 **흐른다**: 눈금을 위상만큼 밀어 두면 한쪽으로 빨려 드는 결이 난다.
-             두 겹으로 긋는다 — 넓고 옅은 겹이 네온의 번짐이고, 가늘고 밝은 심이 점선이다. */
-          if (f.kind === "tether") {
-            const bx9 = zx(f.tx ?? f.fx);
-            const by9 = zy(f.ty ?? f.fy) - (f.tlift ?? f.lift) * zoom;
-            const len9 = Math.hypot(bx9 - ax, by9 - ay);
-            // 두 끝이 사실상 겹치면 선이 아니라 점이다 — 안 그린다.
-            if (len9 < 2) continue;
-            /* 진행 0→1. **끝의 3할에서만 옅어진다**(요청: "눈에 띄게 / 밝게") —
-               처음부터 선형으로 죽이면 평균 밝기가 절반이라, 짧은 창에서는 있는 둥 마는 둥
-               지나간다. 살아 있는 동안은 제 밝기로 있다가 마지막에 스러지는 편이 눈에 든다. */
-            const fade9 = p9 < 0.7 ? 1 : Math.max(0, (1 - p9) / 0.3);
-            /* ★ 굵기는 **집 안의 자를 따른다**(지적: "승하차 점선 너무너무 두꺼운 거
-               아니야??") — 맞다. 처음 값(심 0.6×배율, 번짐 1.5×배율)은 이 화면에서 가장
-               가는 선인 미사일 트레이서(0.5×배율)보다 심이 더 굵고 번짐은 그 세 배였다.
-               바닥값도 1.6px이나 되어 1배에서는 유닛 몸(3px 남짓)만큼 굵은 줄이 갔다.
-               가는 선의 집안 자는 우리·실드의 테두리(0.3×배율)다. 심은 그보다 가늘게
-               (0.2×배율) 두고, 번짐만 그 곱절 남짓하되 아주 옅게 깐다 — 네온은 굵기가
-               아니라 **번짐**으로 읽히는 것이라 심이 가늘수록 오히려 네온다워진다.
-               눈금도 함께 좁힌다: 굵기가 준 만큼 촘촘해야 실 같은 결이 산다. */
-            /* ★ **한 겹, 가늘게**(지적: "점선이 너무 굵고 밝아서 오히려 유닛이 안 보여.
-               글로우 없는 단색 얇은 네온색 선으로 변경") — 넓고 옅은 번짐 겹을 걷고 심
-               하나만 남긴다. 색도 흰빛을 뺀 **단색 사이언**이다: 흰빛이 섞이면 밝기가
-               올라가 곁의 몸을 눌렀다. */
-            const dash9 = Math.max(1.6, 1.8 * zoom);
-            ctx.setLineDash([dash9, dash9 * 0.85]);
-            ctx.lineDashOffset = -p9 * dash9 * 6;
-            ctx.lineCap = "butt";
-            ctx.beginPath();
-            ctx.moveTo(ax, ay);
-            ctx.lineTo(bx9, by9);
-            ctx.globalAlpha = fade9 * 0.8;
-            ctx.strokeStyle = "rgba(0,224,255,1)";
-            ctx.lineWidth = Math.max(0.28, 0.22 * zoom);
-            ctx.stroke();
-            ctx.setLineDash([]);
-            ctx.lineDashOffset = 0;
-            ctx.lineCap = "butt";
-            ctx.globalAlpha = 1;
-            continue;
-          }
-          /* beam · shot · spike — 총구에서 deg 방향으로 뻗는 것들.
-             ── 좌표 규약(지적 둘을 함께 고친 자리) ────────────────────────────
-             x0·y0은 언제나 **총구**다. 여기서 앞(표적 쪽)으로 얼마나 나갔나가
-             headD9, 잔상이 뒤로 얼마나 남나가 tailL9다. 그림은 머리(xh)에서
-             꼬리(xt)로 그린다.
-             ① 방향 뒤집기 — 예전에는 x0을 탄의 자리로 옮긴 뒤 **거기서 앞으로**
-                st.l만큼 그렸다. 그래서 밝은 머리가 총구 쪽이고 꼬리가 표적 쪽이라
-                탄이 뒤로 나는 그림이었다("동그란 광전자가 드라군쪽에 있고 그 잔상이
-                앞쪽"). 이제 머리가 앞이고 꼬리가 뒤다.
-             ② 표적 넘어가기 — 예전 끝점 x1은 늘 x0+st.l이라, 탄이 닿은 뒤에도
-                제 길이만큼 표적을 지나쳐 뻗었다. 이제 머리를 reach9(총구→표적
-                거리)로 죈다. 꼬리도 총구 뒤로는 안 넘어간다.
-             muzzleLit 갈래(총구 화염·화염방사)만 예외로 총구가 밝다 — 표의 주석 참조. */
-          const st = FX_BEAM[f.style ?? "base"] ?? FX_BEAM.base;
-          let rad9 = ((f.deg ?? 0) * Math.PI) / 180;
-          let dxx = -Math.sin(rad9);
-          let dyy = Math.cos(rad9);
-          const x0 = ax + (f.mx ?? 0) * zoom;
-          const y0 = ay + (f.my ?? 0) * zoom;
-          let a9 = 1;
-          /* ★ 표적 자리가 실려 왔으면 **그 화면 점으로** 방향·거리를 다시 잰다(지적: "3D보기에서 트레이서의
-             공중유닛 위치가 잘못 타게팅되는 느낌") — 엔진의 deg·len은 지도를 평면으로 놓고(세로만 pitchFlat)
-             센 어림이라, 입체 사영의 시점 밀림(viewYaw의 skew)·깊이 축소(pitchK)가 안 실렸다. 사수와 표적의
-             깊이가 다를수록, 그리고 공중(들기가 더해질수록) 끝점이 몸에서 벗어났다. 표적의 분수 자리를 붓이 제
-             사영(zx·zy)으로 풀면 어떤 사영에서도 정확히 그 몸이다. */
-          let tgtReach9: number | null = null;
-          if ((f.kind === "beam" || f.kind === "shot") && f.tx !== undefined && f.ty !== undefined) {
-            const x1 = zx(f.tx);
-            const y1 = zy(f.ty) - (f.tlift ?? 0) * zoom;
-            const vx9 = x1 - x0;
-            const vy9 = y1 - y0;
-            const vd9 = Math.hypot(vx9, vy9);
-            if (vd9 > 0.01) {
-              dxx = vx9 / vd9;
-              dyy = vy9 / vd9;
-              rad9 = Math.atan2(-dxx, dyy);
-              tgtReach9 = Math.max(0, vd9 - (f.tgap ?? 0) * zoom);
-            }
-          }
-          /** 총구에서 표적까지(화면 px) — op에 len이 실려 있으면 그만큼이 한계다. */
-          /* ★ len은 **몸 가운데**에서 표적까지인데 선은 **총구**(mx·my)에서 시작한다 — 총구가
-             겨눈 쪽으로 나와 있는 만큼 빼야 머리가 표적에서 멈춘다(지적: 배틀 트레이서가
-             표적을 지나쳐 감 — 배틀은 총구가 앞으로 5타일 가까이 나와 있다). */
-          const mzFwd9 = (f.mx ?? 0) * dxx + (f.my ?? 0) * dyy;
-          const reach9 = tgtReach9 !== null ? tgtReach9
-            : f.len !== undefined && f.len > 0 ? Math.max(0, f.len - mzFwd9) * zoom : Infinity;
-          /** 잔상 길이 — 갈래표의 l이 곧 '뒤로 얼마나 남나'다. */
-          const tailL9 = st.l * tz9;
-          /** 총구에서 머리(표적 쪽 끝)까지. */
-          let headD9 = 0;
-          /** ★ **실제로 그어지는 길의 전체 길이** — 곡선·머리·꼬리가 다 이 자를 쓴다.
-           *
-           *  기본은 총구~표적의 화면 거리(reach9)지만, 그 거리가 무너지는 자리에서는
-           *  아래 shot 갈래가 갈래 제 길이로 물러난다(run9). 여태 그 물러남이 **머리에만**
-           *  실려 있었다 — 아래 연기 덩이는 여전히 reach9로 길을 매개했다. 그러면 머리는
-           *  run9까지 나가는데 길은 reach9에서 끝나므로, 덩이가 전부 `t9 = 1`로 죄어져
-           *  **표적 점 하나에 통째로 포개진다**: 화면에는 미사일이 아니라 그 자리의 흰 점
-           *  하나가 남는다(지적: "골리앗 미사일 트레이서 안나감").
-           *  그 자리가 왜 하필 골리앗인가 — 조준 높이는 **표적이 뜬 몫만큼 화면 세로를
-           *  깎는다**(위 beamLen). 쏘는 쪽도 날면 제 높이가 그 몫을 되돌려 놓지만(레이스·
-           *  발키리·스카우트 대공은 그래서 멀쩡했다), 골리앗은 **땅에 선 채 나는 것을
-           *  쏘는** 유일한 갈래라 되돌릴 몫이 없다. 표적이 화면에서 제 높이만큼 아래에
-           *  선 순간 세로가 0으로 상쇄되고, 거기서 이 길이 무너졌다. */
-          let runD9 = reach9;
-          if (f.kind === "beam") {
-            /* ★ 산성 포자(디바우러) — 표적 몸에 **들러붙어 남는** 자국이다(만드는 쪽의
-               acidAge9 주석에 그 사정이 있다). 위상은 '나이'다: 0이 갓 닿음, 1이 다음
-               발 직전.
-               그리는 결이 다른 갈래와 다르다 — 이것은 총구에서 뻗는 빛도 날아가는 탄도
-               아니라서 방향(deg)도 길이(l)도 뜻이 없다. 몸에 흩뿌려진 **방울 몇**이
-               전부고, 그 방울이 몸을 따라 눕는다(세로를 눌러 부감에 맞춘다).
-               · 자리 — 황금각으로 흩어 어느 개수에서도 뭉치지 않는다. 마디 번호를
-                 씨앗으로 삼아 **프레임마다 안 흔들린다**(난수를 새로 뽑으면 자국이 몸
-                 위에서 끓는다 — 연기 덩이가 데었던 그 자리와 같은 까닭이다).
-               · 삭음 — 다 삭아도 3할은 남긴다. 다음 발이 덧칠하므로 겨눠진 몸은 끊기지
-                 않고 산에 덮인 채로 읽힌다.
-               · 색 — 탄과 **같은 결**이다(이 파일의 규약: 나간 빛과 닿은 빛이 같은 색).
-                 속은 옅은 보랏빛 흰색, 테로 갈수록 짙은 보라다. */
-            if (f.style === "acidspore") {
-              const r0 = ((f.size ?? 8) / 2) * zoom;
-              if (r0 < 0.6) continue;
-              const pop9 = p9 < 0.12 ? p9 / 0.12 : 1;      // 닿는 순간 톡 붙는다
-              const fade9 = 1 - p9 * 0.45;                  // 반 넘게 남는다
-              for (let i9 = 0; i9 < 5; i9 += 1) {
-                const an9 = i9 * 2.399 + 0.7;               // 황금각
-                /* 몸 한가운데부터 테두리 밖 한 뼘까지 — 몇은 걸치고 몇은 흘러내린 꼴이
-                   돼야 '묻었다'로 읽힌다(다 안에 들면 몸의 무늬가 된다). */
-                const rr9 = r0 * (0.35 + 0.5 * (((i9 * 7) % 5) / 5));
-                const bx9 = x0 + Math.cos(an9) * rr9;
-                const by9 = y0 + Math.sin(an9) * rr9 * 0.62;
-                const br9 = Math.max(0.7, r0 * 0.4 * pop9 * (0.72 + 0.28 * (((i9 * 3) % 4) / 4)));
-                const gg9 = ctx.createRadialGradient(bx9, by9, 0, bx9, by9, br9);
-                gg9.addColorStop(0, "rgba(238,210,255,0.95)");
-                gg9.addColorStop(0.45, "rgba(180,110,240,0.75)");
-                gg9.addColorStop(1, "rgba(110,50,170,0)");
-                ctx.globalAlpha = fade9;
-                ctx.fillStyle = gg9;
-                ctx.beginPath();
-                ctx.arc(bx9, by9, br9, 0, Math.PI * 2);
-                ctx.fill();
-              }
-              ctx.globalAlpha = 1;
-              continue;
-            }
-            if (f.style === "heal") {
-              // 메딕 — 길이 없는 노란 불빛(scr-tracer-heal + scr-heal-glow 박동).
-              const pulse9 = 0.15 + Math.sin(p9 * Math.PI) * 0.85;
-              const r9 = 0.7 * tz9 * (0.7 + Math.sin(p9 * Math.PI) * 0.4);
-              const g9 = ctx.createRadialGradient(x0, y0, 0, x0, y0, r9);
-              g9.addColorStop(0, "rgba(255,250,214,0.98)");
-              g9.addColorStop(0.72, "rgba(252,238,150,0.5)");
-              g9.addColorStop(0.8, "rgba(252,238,150,0)");
-              ctx.globalAlpha = pulse9;
-              ctx.fillStyle = g9;
-              ctx.beginPath();
-              ctx.arc(x0, y0, r9, 0, Math.PI * 2);
-              ctx.fill();
-              continue;
-            }
-            a9 = envBeam(p9);
-            if (a9 <= 0.02) continue;
-            /* 제자리 번쩍임 — 제 길이만큼 앞으로 뻗되 표적을 안 넘는다.
-               span 갈래(아콘 지지기)만 표적까지 늘린다 — 표적 거리가 안 실려 온
-               자리(reach가 무한)에서는 제 길이로 물러난다. */
-            /* ★ span은 **늘이는 쪽으로만** 쓴다(지적: "아콘 지지기 안 보이는데") —
-               앞판은 길이를 reach로 **갈아 끼웠는데**, 아콘은 사거리가 2타일이고 몸이
-               큰(32×32) 유닛이라 붙어 싸울 때 총구~표적의 화면 거리가 거의 0이다.
-               그러면 갈아 끼운 길이도 0이 되어 **전보다 더 안 보인다**. 늘이려던 것이
-               지우는 짓이 됐다. 제 길이를 바닥으로 깔고 표적이 멀면 거기까지 뻗는다. */
-            headD9 = st.span && Number.isFinite(reach9)
-              ? Math.max(reach9, tailL9) : Math.min(tailL9, reach9);
-            /* ★ 표적 그림은 **줄기 끝에**(요청: "아콘 공격 트레이서의 스플래시 효과는 공격줄기
-               끝으로 고정") — 엔진이 표적 자리에 따로 얹던 hit op를 걷고, 줄기가 실제로
-               끝나는 점(headD9)에 같은 그림(FX_IMPACT·같은 자·같은 박자)을 그린다. 붙어
-               싸워 줄기가 제 길이(tailL9)로 물러나도 둘이 안 갈린다. */
-            const im9 = f.splash && f.size !== undefined && f.style ? FX_IMPACT[f.style] : undefined;
-            if (im9) {
-              const tipX9 = x0 + dxx * headD9;
-              const tipY9 = y0 + dyy * headD9;
-              const ir9 = (f.size! / 2) * zoom * HIT_FX_K * im9.r * (0.7 + p9 * 0.5);
-              const fl9 = im9.flat ?? 1;
-              const keepA9 = ctx.globalAlpha;
-              ctx.globalAlpha = envHit(p9);
-              if (fl9 !== 1) { ctx.translate(tipX9, tipY9); ctx.scale(1, fl9); ctx.translate(-tipX9, -tipY9); }
-              const gi9 = ctx.createRadialGradient(tipX9, tipY9, 0, tipX9, tipY9, ir9);
-              for (const [o9, c9] of im9.g) gi9.addColorStop(o9, c9);
-              ctx.fillStyle = gi9;
-              ctx.beginPath();
-              ctx.arc(tipX9, tipY9, ir9, 0, Math.PI * 2);
-              ctx.fill();
-              if (fl9 !== 1) { ctx.translate(tipX9, tipY9); ctx.scale(1, 1 / fl9); ctx.translate(-tipX9, -tipY9); }
-              ctx.globalAlpha = keepA9;
-            }
-          } else if (f.kind === "shot") {
-            // 날아가는 탄 — 머리가 총구에서 진행률만큼 나가 있고, 표적에서 멈춘다.
-            /* ★ **화면 거리가 무너져도 탄은 난다**(지적: "골리앗이 대공공격에서 트레이서가
-               안 나감(미사일)" — 포탑은 표적을 향해 돌고 있으니 표적은 잡힌 것이다) ──────
-               여기 있던 셈은 화면 거리(reach9)에 진행률을 곱한 것뿐이라, 그 거리가 0에
-               가까우면 머리도 0이 되고 아래 `headD9 - tailD9 < 0.25`에서 통째로 버려진다.
-               공중 표적에서 그 거리가 실제로 무너진다 — beamLen이 조준 높이(foeLift9)를
-               빼서 내는 값이라, 사수가 나는 몸 **바로 밑**에 서면 세로가 상쇄된다.
-               ★ 이 함정은 **바로 위 span 갈래가 이미 겪고 적어 둔 것**이다("붙어 싸울 때
-                 총구~표적의 화면 거리가 거의 0이다 … 늘이려던 것이 지우는 짓이 됐다.
-                 제 길이를 바닥으로 깔고"). 그때 beam만 고치고 shot은 그대로 뒀다.
-                 앞서 같은 지적으로 **날아가는 시각**(shotU)은 지도 위 거리로 옮겼는데,
-                 **그려지는 길이**는 여전히 화면 거리에 매여 있었다 — 반만 고친 셈이다.
-               같은 약을 쓴다: 갈래 제 길이를 바닥으로 깔고, 표적이 멀면 거기까지 뻗는다.
-               붙어 있을 때 제 길이만큼 넘칠 수는 있지만, 안 보이는 것보다 낫다. */
-            /* ★ 물러난 길이는 **길에도 실린다**(위 runD9) — 머리만 물러나면 연기가
-               표적 점에 포개진다. 둘은 한 자를 써야 한다. */
-            /* ★ **표적을 지나치지 않는다**(지적: "미사일 트레이서 길이가 짧게 못 그리나
-               타겟을 지나쳐서 멀리까지 나감") ────────────────────────────────────────
-               여기 있던 바닥(`tailL9 × 0.6`)은 갈래표의 잔상 길이 l에 매여 있었다. 그
-               바닥은 '화면 거리가 무너지는 자리'(땅에 선 골리앗이 바로 머리 위의 것을 쏠
-               때)를 위한 것인데, 미사일의 l을 연기 자취 길이로 쓰면서 5.2 → 24로 키우자
-               바닥도 3.1 → 14.4로 함께 커졌다 — 곧 **모든** 사격이 표적을 그만큼 지나쳐
-               날았다.
-               바닥은 무너진 자리에만 쓴다: 표적이 제 거리를 갖고 있으면(2px 넘게) 길이를
-               그 거리로 못 박아 머리가 표적에 정확히 선다. 정말 겹쳐 선 자리에서만 옛
-               바닥으로 물러나 짧은 토막이라도 보이게 한다. */
-            runD9 = Number.isFinite(reach9)
-              ? (reach9 > 2 * zoom ? reach9 : Math.max(reach9, tailL9 * 0.6))
-              : tailL9;
-            headD9 = runD9 * Math.min(1, Math.max(0, f.u ?? 0));
-          } else if (f.kind === "erupt") {
-            /* 성큰 가시(scr-spike-erupt의 캔버스 판) — 표적 발밑에서 **화면 수직으로**
-               솟는다. u가 혓바닥 시계의 솟음 몫(sin 마루)이라 자람·꺼짐이 거기 실려 온다. */
-            const hgt = (f.len ?? 4) * (f.u ?? 1) * zoom;
-            if (hgt < 0.5) continue;
-            /* ★ 밑변도 함께 자란다(지적: "가시 모양이 땅에서 위로 나오는 거니까 처음엔 밑변이 짧다가 다 나왔을 때
-               가장 길어야") — 밑변이 고정된 채 높이만 늘면 납작한 삼각이 서서히 뾰족해지는 그림이다. 땅 위로 드러난
-               몫이 곧 가시의 끝부분이므로 밑변은 솟은 몫(u)에 비례한다. 밑변 자체는 0.8배(요청). */
-            const hw9 = ((f.size ?? 1) / 2) * zoom * 0.8 * Math.min(1, Math.max(0, f.u ?? 1));
-            const g9 = ctx.createLinearGradient(x0, y0, x0, y0 - hgt);
-            // 밝은 주황갈색(요청: "성큰 가시색이 너무 빨감") — 밑동 #8a3c0c → #b5642a, 끝 #e8732a → #f0a050.
-            g9.addColorStop(0, "#b5642a");
-            g9.addColorStop(1, "#f0a050");
-            ctx.globalAlpha = 1;
-            ctx.fillStyle = g9;
-            /* 밑변은 **호**다(지적: "가시가 원래는 입체라 밑변의 모양도 호여야") — 원뿔을 위에서 비껴 보면 밑동
-               단면이 타원의 아래 반호로 보인다. 지면 눌림(2D 2:1 관례·3D 30도 눌림 0.5)으로 세로 반지름을 잡는다. */
-            ctx.beginPath();
-            ctx.moveTo(x0, y0 - hgt);
-            ctx.lineTo(x0 + hw9, y0);
-            ctx.ellipse(x0, y0, hw9, hw9 * 0.5, 0, 0, Math.PI);
-            ctx.closePath();
-            ctx.fill();
-            continue;
-          } else {
-            /* 럴커 가시(지적: "길게 나가는게 아니라 성큰같은게 다다다 간격두고
-               올라와야함") — 한 줄기가 표적 쪽으로 쭉 자라던 것을 걷는다. 이제
-               **가시 낱개가 간격을 두고 차례로 솟았다 지는** 연쇄다. 낱개는 땅에서
-               위로 솟으므로 화면 세로로 세운다(진행 방향으로 눕히면 다시 한 줄로
-               읽힌다). 앞뒤 간격과 솟는 창(W9)이 겹치지 않아 '다다다'가 된다. */
-            const L0 = f.len !== undefined ? f.len * zoom : st.l * tz9;
-            /* ★ 앞 가시가 **들어가기 시작한 뒤** 다음이 솟는다(지적: "나오는 타이밍은
-               이전 가시가 나오고 다시 들어가기 시작한 후 다음게 나옴") ──────────────
-               낱개는 sin(πq)로 솟았다 지므로 q 0.5가 꼭대기, 그 뒤가 들어가는 구간이다.
-               앞뒤 간격은 (1−W)/N이고 낱개의 창은 W이니, 둘의 비가 곧 '앞 것이 몇 %쯤
-               갔을 때 다음이 나오나'다. 여태 9개·0.26이라 그 비가 0.32 — 앞 가시가 아직
-               **오르는 중**에 다음이 튀어나와 여러 개가 동시에 서 있는 그림이었다.
-               7개·0.20이면 0.57이라 꼭대기를 지나 내려가기 시작한 뒤에 다음이 솟는다.
-               훑는 길이(len)는 안 건드린다 — 그건 늘 최대 사거리다. */
-            const N9 = 7;
-            const W9 = 0.28;   // 0.2 → 0.14 → 0.28(재지적: "너무 빨리 나오고 사라지는듯") — 낱개가 솟았다 지는 창
-            const hw9 = (st.w / 2) * tz9 * 0.85 * 1.2 * 1.2;   // ×1.2(요청: 럴커 가시 크기 1.2배) → 다시 ×1.2(재요청)
-            // 높이 2.6 → 3.6 → 5.4(요청: "길이 1.5배 증가") — 땅에서 솟는 뼈라
-            // 낮으면 얼룩으로 읽힌다.
-            const HH9 = 4.05 * tz9 * 1.2 * 1.2;   // 5.4 → 4.05(요청: 가시 길이 25% 축소) → ×1.2(재요청) → ×1.2(재재요청)
-            /* ★ 낱개의 곡선을 **빨리 솟아 오래 서 있다 빨리 지는** 꼴로(요청: "한 가시의 사이클 시간 줄이고
-               나오는 간격은 그대로, 최대 길이로 멈춰 있는 시간 늘리기") ─────────────────────────────
-               여태 sin(πq)라 창(W9) 내내 오르내리기만 하고 꼭대기에 서 있는 순간이 없었다 — 가시가 '박히는'
-               느낌이 없다. 창 길이(W9)와 앞뒤 간격((1−W9)/N9)은 그대로 두고 그 안의 배분만 바꾼다:
-               첫 22%에 솟고(smoothstep), 50%를 꼭대기에 서 있다가, 마지막 28%에 진다. 오르내림이 짧아지니
-               '사이클'은 빨라 보이고, 멈춤이 길어 가시가 땅에 박혀 있는 시간이 는다. */
-            const env9 = (q: number): number => {
-              if (q < 0.22) { const u = q / 0.22; return u * u * (3 - 2 * u); }
-              if (q > 0.72) { const u = (1 - q) / 0.28; return u * u * (3 - 2 * u); }
-              return 1;
-            };
-            for (let i9 = 0; i9 < N9; i9 += 1) {
-              const q9 = (p9 - (i9 / N9) * (1 - W9)) / W9;
-              if (q9 <= 0 || q9 >= 1) continue;
-              const gz9 = env9(q9);
-              const d9 = (L0 * (i9 + 0.5)) / N9;
-              const sx9 = x0 + dxx * d9;
-              const sy9 = y0 + dyy * d9;
-              const gg9 = ctx.createLinearGradient(sx9, sy9, sx9, sy9 - HH9 * gz9);
-              for (const [o9, c9] of st.g) gg9.addColorStop(o9, c9);
-              ctx.globalAlpha = 1;
-              ctx.fillStyle = gg9;
-              ctx.beginPath();
-              // 밑변도 솟은 몫(gz9)만큼 — 성큰 가시와 같은 까닭(땅에서 드러난 몫이 끝부분이라 밑변은 끝에 가서야 최대).
-              // 밑변은 호(입체 원뿔의 밑동 단면 — 성큰 가시와 같은 규약).
-              const bw9 = hw9 * gz9;
-              ctx.moveTo(sx9, sy9 - HH9 * gz9);
-              ctx.lineTo(sx9 + bw9, sy9);
-              ctx.ellipse(sx9, sy9, bw9, bw9 * 0.5, 0, 0, Math.PI);
-              ctx.closePath();
-              ctx.fill();
-            }
-            continue;
-          }
-          /* 꼬리는 총구 뒤로 못 간다 — 갓 쏜 탄은 잔상이 짧다가 나아가며 자란다.
-             총구가 밝은 갈래(화염)는 꼬리가 늘 총구에 붙어 있다. */
-          /* ★ **연기 자취는 총구에 붙는다**(지적: "포탄이 목표한테까지 가는 긴 형태가 아니고
-     자기 앞에만 나오네.. 광자포처럼 목표까지 이어져야해~") ────────────────────────────
-     날아가는 탄의 잔상은 갈래표의 l(미사일 5.2렌즈px)만큼만 뒤로 남는다. 총알·구슬은
-     그것이 맞다 — 잔상은 눈에 남는 몫이지 물체가 아니다. 그런데 **미사일은 연기를
-     뿜으며 난다**: 그 연기는 사라지지 않고 총구부터 지금 자리까지 통째로 남는다. 그것이
-     원작에서 발키리·터렛의 미사일이 화면에 그리는 선이고, 사용자가 "광자포처럼 목표까지
-     이어져야" 한다고 말한 그 선이다.
-     그래서 자취 갈래(trail)는 꼬리를 **총구에 못 박는다** — 머리가 나아가는 동안 선이
-     자라고, 표적에 닿는 순간 총구에서 표적까지 한 줄로 이어진다. */
-  /* ★ span 갈래는 **꼬리도 총구에 붙는다**(지적: 빨갛게 키워도 아무것도 없다 · 진단:
-     아콘선 ×4 — 밀고는 있었다) ────────────────────────────────────────────────────
-     여기 있던 셈은 '꼬리는 머리 뒤 l만큼'이다. 총알·구슬에는 맞다(잔상은 눈에 남는 몫이라
-     제 길이가 있다). 그런데 span은 **머리만** 표적까지 보내 놓았으므로, 꼬리가 그 뒤
-     l만큼을 따라가면 실제로 그어지는 것은 늘 l짜리 토막이고 그마저 아콘이 아니라
-     **표적 옆**에 뜬다 — 배율 3에서 7px짜리 점이라, 120px짜리 구 옆에서 안 보인다.
-     '두 몸 사이에 걸린 번개'는 꼬리가 총구에 못 박혀야 나온다 — 연기 자취(trail)가
-     같은 까닭으로 이미 그렇게 하고 있다. */
-  const tailD9 = st.muzzleLit || st.span || (st.trail && f.kind === "shot")
-    ? 0 : Math.max(0, headD9 - tailL9);
-          if (headD9 - tailD9 < 0.25) continue;
-          /** 그러데이션 0쪽 = 밝은 끝 — 날아가는 것은 머리, 뿜는 것은 총구. */
-          const [lx9, ly9, dx9, dy9] = st.muzzleLit
-            ? [x0 + dxx * tailD9, y0 + dyy * tailD9, x0 + dxx * headD9, y0 + dyy * headD9]
-            : [x0 + dxx * headD9, y0 + dyy * headD9, x0 + dxx * tailD9, y0 + dyy * tailD9];
-          const g9 = ctx.createLinearGradient(lx9, ly9, dx9, dy9);
-          for (const [o9, c9] of st.g) g9.addColorStop(o9, c9);
-          ctx.globalAlpha = a9;
-          /* ★ 미사일 연기는 **동그란 덩이가 늘어선 것**이다(지적: "연기가 그냥 긴 흰 띠가
-             아니라 진행 방향을 따라 동그라미 연기가 늘어서는 모양") ─────────────────────
-             한 줄 획으로 그으면 굵기가 어디서나 같고 가장자리가 매끈해, 연기가 아니라
-             **띠**로 읽힌다(원작 화면에서 이 자취는 덩이 여럿이 줄지어 선 꼴이다).
-             실제 로켓 자취는 뿜은 자리마다 덩이가 하나씩 남고, 그 덩이가 시간이 갈수록
-             **부풀며 옅어진다** — 그래서 총구 쪽(오래된 것)이 굵고 흐리며 머리 쪽(갓 뿜은
-             것)이 작고 짙다. 그 나이를 셈으로 낼 수 있다: 총구에서 d만큼 떨어진 자리의
-             연기는 **머리가 거기 있었을 때** 뿜은 것이므로 나이가 (머리 자리 − d)에 비례한다.
-             덩이 사이는 굵기에 매어 둔다 — px으로 못 박으면 배율이 바뀔 때 덩이가 떨어졌다
-             붙었다 한다. 옆으로 아주 조금 흔든다(반지름의 1/5): 자로 잰 듯 일직선이면
-             연기가 아니라 점선으로 읽힌다.
-             머리는 따로 그린다 — 연기와 달리 그쪽은 불꽃이라 갈래표의 그러데이션 그대로
-             짧은 획 한 번이다. */
-          if (st.puff) {
-            /* ★ **연기는 탄두 뒤에서 난다**(지적: "탄두에도 연기가 겹쳐지는데 연기는 탄두
-               뒤쪽에 따라 나오는 거야") — 여태 덩이를 tailD9~headD9로 깔았는데 머리(headD9)
-               가 곧 탄두의 코라, 마지막 덩이 몇이 탄두 위에 그대로 겹쳤다. 로켓의 연기는
-               노즐에서 나오므로 **탄두 길이만큼 뒤**에서 시작해야 한다.
-               탄두 길이(bodyL9)를 먼저 재고 덩이의 끝을 거기까지로 죈다. */
-            const bodyL9 = Math.min(Math.max(0, headD9 - tailD9), st.w * tz9 * 9);
-            const smokeEnd9 = st.warhead ? headD9 - bodyL9 : headD9;
-            const span9 = Math.max(0, smokeEnd9 - tailD9);
-            /* ★ 간격의 바닥을 2 → 0.9px로(재요청: "더 자주 나오게") — 덩이를 4분의 1로
-               줄이자 이 바닥이 실제 간격을 지배해, 지름 1.5px짜리 덩이가 2px씩 떨어져
-               점선으로 보였다. 바닥은 '한 프레임에 덩이가 수백 개 서지 않게' 막는 안전값
-               이므로(위 n9의 상한 30이 그 몫을 다시 받는다) 덩이 지름 아래로 내려도 된다. */
-            const step9 = Math.max(1.0, st.w * tz9 * st.puff);
-            const n9 = Math.min(30, Math.max(2, Math.round(span9 / step9)));
-            /* ★ 미사일은 **휘어 날아간다**(지적: "목표물을 따라 휘는 유도 성질 있음") ────
-               앞판은 총구에서 표적까지 곧은 선이었다. 유도탄의 자취가 곧을 리 없다 —
-               쏘고 나서 표적 쪽으로 틀기 때문에 연기가 활처럼 굽는다. 그 굽이가 이 무기를
-               총알과 가르는 결이라, 곧게 두면 '느린 총알'로 읽힌다.
-               길은 **총구 → 표적**의 2차 베지에다: 가운데 조종점을 옆으로 밀면 그 한 번의
-               굽이가 곧 '틀었다'가 된다. 굽이의 쪽은 **겨눈 각**에서 뽑는다 — 한 발 안에서는
-               각이 안 변하므로 날아가는 동안 굽이가 안 뒤집히고(프레임마다 난수를 뽑으면
-               자취가 통째로 펄럭인다), 발마다 각이 다르니 두 발이 같은 활을 안 그린다.
-               표적까지의 거리를 모르는 자리(len이 안 실려 온 옛 자료)에서는 곧은 선으로
-               물러난다 — 조종점을 놓을 자리가 없기 때문이다. */
-            /* 길이는 **그어지는 길의 것**(runD9)이다 — 화면 거리가 무너진 자리에서
-               reach9로 매개하면 덩이가 전부 표적 점에 포개진다(위 runD9의 ★). */
-            /* ★ 굽이는 **발사 각과 지금 각의 차이**다(요청: "미사일이 나가고 나서 움직이기
-               시작했어도 유도탄으로 따라가긴 해야 해 … 가만히 있는데도 처음부터 휘어서
-               간다는 게 문제") — 앞 판은 난수 쪽으로 늘 활을 그렸다. 이제 조종점을 **발사
-               때 겨눈 방향**(d0)으로 반쯤 나간 자리에 두면: 표적이 그대로면 d0 = deg라
-               조종점이 직선 위에 놓여 곧게 가고, 표적이 옮겨 갔으면 출발은 옛 방향, 끝은
-               새 자리라 그 사이가 저절로 굽는다 — 그것이 유도다. */
-            const rad0 = f.d0 !== undefined ? (f.d0 * Math.PI) / 180 : rad9;
-            const dx0 = -Math.sin(rad0);
-            const dy0 = Math.cos(rad0);
-            const guided9 = Number.isFinite(runD9) && runD9 > 0
-              && Math.abs(dx0 - dxx) + Math.abs(dy0 - dyy) > 1e-4;
-            const bow9 = guided9 ? 1 : 0;
-            const cx0 = x0 + dx0 * (runD9 / 2);
-            const cy0 = y0 + dy0 * (runD9 / 2);
-            const tx0 = x0 + dxx * runD9;
-            const ty0 = y0 + dyy * runD9;
-            /** 자취 위의 한 점 — d는 총구에서의 **직선 거리**(굽은 길의 매개변수로 쓴다). */
-            const at9 = (d9: number): [number, number] => {
-              if (bow9 === 0) return [x0 + dxx * d9, y0 + dyy * d9];
-              const t9 = Math.max(0, Math.min(1, d9 / runD9));
-              const u9 = 1 - t9;
-              return [
-                u9 * u9 * x0 + 2 * u9 * t9 * cx0 + t9 * t9 * tx0,
-                u9 * u9 * y0 + 2 * u9 * t9 * cy0 + t9 * t9 * ty0,
-              ];
-            };
-            const core9 = st.smoke ?? "#ffffff";
-            const edge9 = st.smokeEdge ?? core9;
-            for (let i9 = 0; i9 <= n9; i9 += 1) {
-              const d9 = tailD9 + (span9 * i9) / n9;   // 탄두 뒤(smokeEnd9)까지만 깔린다
-              // 0 머리(갓 뿜음) ~ 1 총구(가장 오래됨).
-              const age9 = span9 <= 0 ? 0 : 1 - (d9 - tailD9) / span9;
-              /* ★ 크기는 **앞뒤가 같다**(지적: "크기는 앞이나 뒤나 일정한데 살짝 변동은
-                 있음(랜덤)") — 앞판은 나이에 따라 부풀렸는데, 그러면 자취가 총구 쪽으로
-                 벌어지는 원뿔이 되어 '연기 기둥'으로 읽힌다. 원작의 자취는 같은 크기의
-                 덩이가 줄지어 선 것이고, 흔들리는 것은 크기가 아니라 **낱개의 들쭉날쭉**이다.
-                 그 흔들림은 **자리에 매인 난수**여야 한다 — 프레임마다 새로 뽑으면 같은
-                 덩이가 매 프레임 커졌다 작아져 자취가 통째로 끓는다. 마디 번호를 씨앗으로
-                 쓰면 그 덩이는 언제 봐도 같은 크기다. */
-              const rnd9 = Math.sin(i9 * 127.1 + 311.7) * 43758.5453;
-              const jit9 = (rnd9 - Math.floor(rnd9)) * 2 - 1;          // −1~1
-              /* 지름 네 배(지적: "미사일류 트레이서 원이 너무 작아") — 0.95 → 3.8.
-                 ★ 간격도 **같이** 네 배여야 한다(갈래표의 puff 3 → 12). 반지름만 키우면
-                   덩이가 서로 파묻혀 도로 한 줄기 띠가 된다 — 이 자취를 덩이로 바꾼 까닭
-                   자체가 사라지는 셈이다. 간격과 지름은 늘 한 쌍으로 움직인다. */
-              const r9 = st.w * tz9 * (3.8 + 0.6 * jit9);   // 타일 자(폰 보정, 핵탄두와 같은 지적)
-              const off9 = Math.sin(i9 * 1.9) * r9 * 0.22;
-              const [bx9, by9] = at9(d9);
-              const cx9 = bx9 - dyy * off9;
-              const cy9 = by9 + dxx * off9;
-              /* ★ 속은 희고 테는 연한 하늘빛이다(지적) — 한 색으로 채우면 종잇조각 원이라
-                 연기가 안 된다. 방사 그러데이션이면 낱개가 저마다 부피를 갖고, 겹칠 때
-                 테끼리 섞여 뭉게뭉게한 결이 난다. */
-              const rg9 = ctx.createRadialGradient(cx9, cy9, 0, cx9, cy9, r9);
-              rg9.addColorStop(0, core9);
-              /* 흰 속을 절반까지 꽉 채우고 바깥 절반에서만 하늘빛으로 넘어간다 —
-                 이 크기(반지름 몇 px)에서는 완만하게 섞으면 테가 안 남고 통째로
-                 옅은 회색 원이 된다(첫 판이 그랬다). 테는 좁고 또렷해야 보인다. */
-              rg9.addColorStop(0.62, core9);
-              rg9.addColorStop(0.88, edge9);
-              rg9.addColorStop(1, edge9);
-              ctx.fillStyle = rg9;
-              /* 옅어지는 몫만 나이를 탄다 — 총구 쪽이 먼저 사그라들어야 자취가 끝난다.
-                 ★ 짙기를 0.72 → 0.94로(지적: "더 하얀색이어야 할 듯") — 반투명한 흰색은
-                   어두운 지도 위에서 곧 회색이다. 흰 연기로 읽히려면 바닥이 안 비쳐야 한다.
-                   흰 속이 차지하는 몫도 반 → 0.62로 넓혀, 하늘빛은 가장자리 한 테로만 남긴다. */
-              ctx.globalAlpha = a9 * 0.94 * (1 - age9 * (st.smokeFade ?? 0.45));
-              ctx.beginPath();
-              ctx.arc(cx9, cy9, r9, 0, Math.PI * 2);
-              ctx.fill();
-            }
-            /* ★ 앞에 **미사일 몸이 선다**(지적: "미사일 트레이서의 연기만 있고 앞에
-               미사일이 없어서 어색함") ────────────────────────────────────────────────
-               여태 머리는 갈래표의 그러데이션으로 그은 획 하나뿐이었다. 그 값으로 재 보면
-               길이 w×7 = 3.5·굵기 w×1 = 0.5(배율 1 기준)인데, 연기 덩이는 반지름이
-               w×3.8이라 **지름이 7.6**이다. 곧 머리는 덩이 하나보다도 짧고 그 7분의 1
-               굵기라, 흰 덩이 줄에 통째로 파묻혔다 — 남는 그림이 '연기뿐'인 까닭이다.
-               (앞서 덩이를 네 배로 키우면서 머리도 함께 키웠어야 했는데 획만 조금 늘렸다.)
-               세 겹으로 나눈다. 뒤에서부터:
-                 ① 배기 불꽃 — 갈래표 그러데이션 그대로, 몸 뒤로 뻗는다(옛 획의 몫).
-                 ② 몸통 — **불투명한** 흰 캡슐. 연기와 갈리는 것은 크기가 아니라 '속이
-                   비치지 않는다'는 점이다: 반투명하면 아무리 키워도 연기의 일부로 읽힌다.
-                 ③ 코 — 몸통 끝의 작은 밝은 점. 어느 쪽이 앞인지를 한 점이 말한다.
-               셋 다 굽은 길(at9) 위에 얹어 유도 곡선을 그대로 탄다. */
-            const flameL9 = Math.min(Math.max(0, headD9 - tailD9), st.w * zoom * 20);
-            if (flameL9 > 0.5) {
-              const [ex9, ey9] = at9(headD9);
-              const [fx9, fy9] = at9(headD9 - flameL9);
-              const hg9 = ctx.createLinearGradient(ex9, ey9, fx9, fy9);
-              for (const [o9, c9] of st.g) hg9.addColorStop(o9, c9);
-              ctx.globalAlpha = a9;
-              ctx.strokeStyle = hg9;
-              ctx.lineWidth = Math.max(0.6, st.w * tz9 * 1.6);
-              ctx.lineCap = "round";
-              ctx.beginPath();
-              ctx.moveTo(ex9, ey9);
-              ctx.lineTo(fx9, fy9);
-              ctx.stroke();
-            }
-            /* ★ **삼각 탄두**(요청) — 코가 진행 방향, 밑변이 뒤다. 여태 이 자리는 흰
-               캡슐 획 + 코 점이었는데, 둥근 캡슐은 연기 덩이와 같은 결이라 자취에 묻혔다.
-               삼각은 연기(원)와 **모양이 다르다** — 그 다름 하나가 '탄두가 앞에 있다'를
-               말한다. 굽은 길(at9) 위의 두 점으로 축을 뽑으므로 유도 곡선을 그대로 탄다.
-               ★ 방향(지적: "탄두 삼각형 방향 반대로됐음") — 코를 머리(headD9)에 둔다.
-                 일반 tri 갈래는 밑변이 밝은 끝(머리)이고 꼭짓점이 꼬리라 정확히 반대다.
-                 그 갈래는 혜성 잔상의 꼴이라 그대로 두고, 탄두는 여기서 따로 그린다. */
-            if (bodyL9 > 0.5 && st.warhead) {
-              const [ex9, ey9] = at9(headD9);
-              const [bx8, by8] = at9(headD9 - bodyL9);
-              const vx8 = ex9 - bx8;
-              const vy8 = ey9 - by8;
-              const vl8 = Math.hypot(vx8, vy8) || 1;
-              const hw8 = Math.max(1, st.w * zoom * 1.9);
-              ctx.globalAlpha = a9;
-              ctx.fillStyle = st.warhead;
-              ctx.beginPath();
-              ctx.moveTo(ex9, ey9);
-              ctx.lineTo(bx8 - (vy8 / vl8) * hw8, by8 + (vx8 / vl8) * hw8);
-              ctx.lineTo(bx8 + (vy8 / vl8) * hw8, by8 - (vx8 / vl8) * hw8);
-              ctx.closePath();
-              /* 테두리 획은 안 두른다(요청: "면 전체를 은/금색으로") — 짙은 테를 두르면
-                 이 크기에서 탄두가 통째로 그 테 색이 되어 금속색이 안 남는다. */
-              ctx.fill();
-            } else if (bodyL9 > 0.5) {
-              const [ex9, ey9] = at9(headD9);
-              const [bx8, by8] = at9(headD9 - bodyL9);
-              /* 속이 안 비치게 — 흰 몸에 옅은 하늘빛 테(연기와 같은 색 결이라 따로 놀지
-                 않으면서도, 불투명해서 덩이 위로 또렷이 뜬다). */
-              ctx.globalAlpha = a9;
-              ctx.strokeStyle = st.smokeEdge ?? "#a8d4ff";
-              ctx.lineWidth = Math.max(1.4, st.w * tz9 * 3.4);
-              ctx.lineCap = "round";
-              ctx.beginPath();
-              ctx.moveTo(ex9, ey9);
-              ctx.lineTo(bx8, by8);
-              ctx.stroke();
-              ctx.strokeStyle = "#ffffff";
-              ctx.lineWidth = Math.max(0.9, st.w * tz9 * 2.2);
-              ctx.beginPath();
-              ctx.moveTo(ex9, ey9);
-              ctx.lineTo(bx8, by8);
-              ctx.stroke();
-              // 코 — 앞을 가리키는 한 점.
-              ctx.fillStyle = "#ffffff";
-              ctx.beginPath();
-              ctx.arc(ex9, ey9, Math.max(0.8, st.w * tz9 * 1.5), 0, Math.PI * 2);
-              ctx.fill();
-            }
-            continue;
-          }
-          if (st.tri) {
-            /* 쐐기(글레이브·파편) — 밑변이 **밝은 끝**, 꼭짓점이 사그라드는 끝이다.
-               날아가는 것은 넓은 머리가 앞서고 꼬리로 갈수록 뾰족해진다(혜성 꼴). */
-            /* ★ 표창(요청: 뮤탈·벌처 쐐기를 정삼각형에서 각 변을 삼각형으로 판 표창으로 · 뾰족한 쪽이 적을 향하게) ────
-               세 꼭짓점의 별이다: 앞 꼭짓점이 머리(lx9·ly9, 나는 방향 dxx·dyy)이고 뒤 두 꼭짓점이 ±120도. 변마다
-               가운데를 중심 쪽으로 파(반지름 0.35R) 세 날이 선다. 반폭(st.w/2)이 뒤 날의 벌어짐(0.866R)이다. */
-            /* 별의 자는 **타일 자**(tz9)다(지적: "뮤탈 글레이브 크기도 배율 안 먹는듯?") — 여기만 zoom을
-               곧장 곱해 폰(타일 3px)에서 유닛 대비 두 배 반으로 크고, PC에서는 몸에 비해 작았다. 다른
-               줄기와 같은 자로 옮기고 갈래표의 굵기(glave.w)를 원작 비(타일의 4분의 1)에 맞춘다. */
-            const hw9 = (st.w / 2) * tz9;
-            const R9 = hw9 / 0.866;
-            const r9 = R9 * 0.35;
-            const cx9 = lx9 - dxx * R9;
-            const cy9 = ly9 - dyy * R9;
-            const px9 = -dyy;                      // 수직(왼쪽)
-            const py9 = dxx;
-            const pt9 = (a9: number, b9: number): [number, number] => [cx9 + dxx * a9 + px9 * b9, cy9 + dyy * a9 + py9 * b9];
-            const T0 = pt9(R9, 0);
-            const N01 = pt9(0.5 * r9, 0.866 * r9);
-            const T1 = pt9(-0.5 * R9, 0.866 * R9);
-            const N12 = pt9(-r9, 0);
-            const T2 = pt9(-0.5 * R9, -0.866 * R9);
-            const N20 = pt9(0.5 * r9, -0.866 * r9);
-            ctx.fillStyle = g9;
-            ctx.beginPath();
-            ctx.moveTo(T0[0], T0[1]);
-            ctx.lineTo(N01[0], N01[1]);
-            ctx.lineTo(T1[0], T1[1]);
-            ctx.lineTo(N12[0], N12[1]);
-            ctx.lineTo(T2[0], T2[1]);
-            ctx.lineTo(N20[0], N20[1]);
-            ctx.closePath();
-            ctx.fill();
-          } else if (st.cone) {
-            /* ★ **원뿔 줄기**(화염방사) — 뿌리에서 좁고 앞으로 갈수록 넓어진다(요청: "파뱃
-               트레이서 시작점은 좀 좁고 앞으로 가면서 넓어지는 형태여야 함 · 야구 방망이
-               느낌"). 굵기 하나로 긋는 획은 어디서나 폭이 같아 '뿜는 불'이 아니라 **막대**로
-               읽힌다. 같은 길 위에 사다리꼴을 채우고 **양 끝을 둥글게** 닫으면 방망이 꼴이 된다.
-               ⚠ 뿌리는 lx9(총구)다 — 이 갈래는 muzzleLit 이라 그러데이션 0쪽이 총구다. */
-            const vx7 = dx9 - lx9; const vy7 = dy9 - ly9;
-            const vl7 = Math.hypot(vx7, vy7) || 1;
-            const ux7 = vx7 / vl7; const uy7 = vy7 / vl7;
-            const nx7 = -uy7; const ny7 = ux7;
-            const au7 = Math.atan2(uy7, ux7);
-            /** 뿌리·앞 끝의 **반**폭(화면 px) — ex 는 번짐 켜가 밖으로 더 두르는 몫이다. */
-            const cone7 = (ex7: number): void => {
-              const h07 = Math.max(0.3, (st.w * zoom * (st.cone as readonly [number, number])[0]) / 2) + ex7;
-              const h17 = Math.max(0.5, (st.w * zoom * (st.cone as readonly [number, number])[1]) / 2) + ex7;
-              ctx.beginPath();
-              ctx.moveTo(lx9 + nx7 * h07, ly9 + ny7 * h07);
-              ctx.lineTo(dx9 + nx7 * h17, dy9 + ny7 * h17);
-              ctx.arc(dx9, dy9, h17, au7 + Math.PI / 2, au7 - Math.PI / 2, true);
-              ctx.lineTo(lx9 - nx7 * h07, ly9 - ny7 * h07);
-              ctx.arc(lx9, ly9, h07, au7 - Math.PI / 2, au7 + Math.PI / 2, true);
-              ctx.closePath();
-              ctx.fill();
-            };
-            if (st.glow) {
-              ctx.fillStyle = st.glow;
-              ctx.globalAlpha = a9 * (st.glowA ?? 0.3);
-              cone7(st.w * zoom * ((st.glowW ?? 2.6) - 1) / 2);
-              ctx.globalAlpha = a9;
-            }
-            ctx.fillStyle = g9;
-            cone7(0);
-          } else {
-            /* 길 하나를 두 번 긋는다(번짐 + 몸) — 꺾인 갈래는 두 획이 **같은 마디**를
-               지나야 하므로 길을 여기서 한 번만 짓는다. */
-            const path9 = (): void => {
-              ctx.beginPath();
-              ctx.moveTo(lx9, ly9);
-              const n9 = st.zig ?? 0;
-              if (n9 >= 2) {
-                const vx9 = dx9 - lx9;
-                const vy9 = dy9 - ly9;
-                const len9 = Math.hypot(vx9, vy9) || 1;
-                /* 튀는 폭 — 길이의 몫과 굵기의 몫 중 작은 쪽이다. 짧은 번개가 제
-                   길이만큼 튀면 갈지자가 아니라 뭉치가 된다. */
-                const amp9 = Math.min(len9 * (st.zigAmp ?? 0.16), st.w * zoom * (st.zigW ?? 2.4));
-                // 위상을 씨앗으로 — 번쩍이는 동안 무늬가 몇 번 갈린다(위 zig 주석).
-                const seed9 = Math.floor(p9 * 5);
-                for (let i9 = 1; i9 < n9; i9 += 1) {
-                  const q9 = i9 / n9;
-                  const r9 = Math.sin((i9 * 12.9898 + seed9 * 78.233) * 43758.5453);
-                  // 양 끝은 몸에 붙어야 하므로 가운데가 가장 크게 튄다(sin 봉우리).
-                  const off9 = (r9 - Math.floor(r9) - 0.5) * 2 * amp9 * Math.sin(Math.PI * q9);
-                  ctx.lineTo(
-                    lx9 + vx9 * q9 - (vy9 / len9) * off9,
-                    ly9 + vy9 * q9 + (vx9 / len9) * off9,
-                  );
-                }
-              }
-              ctx.lineTo(dx9, dy9);
-            };
-            if (st.glow) {
-              /* 테두리도 뿌리에서 함께 사그라든다(위 fadeAt) — 몸만 흐리고 테가 남으면
-                 뿌리에 푸른 고리만 동그마니 남는다. */
-              ctx.strokeStyle = st.glowEnd !== undefined
-                ? ((): CanvasGradient => {
-                  const gw9 = ctx.createLinearGradient(lx9, ly9, dx9, dy9);
-                  gw9.addColorStop(0, st.glow);
-                  gw9.addColorStop(Math.max(0, Math.min(1, st.fadeAt ?? 0.72)), st.glow);
-                  gw9.addColorStop(1, st.glowEnd);
-                  return gw9;
-                })()
-                : st.glow;
-              ctx.lineWidth = st.w * zoom * (st.glowW ?? 2.6);
-              ctx.globalAlpha = a9 * (st.glowA ?? 0.3);
-              ctx.lineCap = st.cap ?? "round";
-              path9();
-              ctx.stroke();
-              ctx.globalAlpha = a9;
-            }
-            ctx.strokeStyle = g9;
-            ctx.lineWidth = Math.max(0.4, st.w * zoom);
-            ctx.lineCap = st.cap ?? "round";
-            ctx.lineJoin = "round";
-            path9();
-            ctx.stroke();
-          }
-        }
-        ctx.restore();
+        /* 효과 붓은 **모듈 함수**다(paintFxList9 의 ★) — 도록이 같은 붓으로 한 발을 그린다. */
+        paintFxList9(ctx, fx, { zoom, tilePx, zx, zy, cw, ch, Bd, trim9, detailAt, swarmDone9 });
       }
       /* 다 그렸다 — 캔버스에 걸려 있던 손짓 임시 변환은 **여기서** 걷는다(수리:
          "드래그나 확대 축소시 깜빡이고 배율도 튀고"). 두 일이 같은 자리에 있어야 하는
@@ -5287,6 +5320,77 @@ function cssHex9(c: string): string {
   const m = /rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/.exec(c);
   if (m) return "#" + [m[1], m[2], m[3]].map((v) => Math.max(0, Math.min(255, Number(v))).toString(16).padStart(2, "0")).join("");
   return /^#/.test(c.trim()) ? c.trim() : "#64ff64";
+}
+/** 방어 건물의 무기 갈래 — 엔진이 `pushDefFx` 로 쏘는 그 이름들이다(터렛 미사일 ·
+ *  스포어 독구슬 · 포토 광자포 · 성큰 가시 · 벙커 총구). 유닛은 ATTACK_FX 가 든다. */
+const DOC_BLD_FX9: Record<string, string> = {
+  turret: "missile", spore: "venom", coil: "photon", sunken: "spike", sunkenfire: "spike", tombFlat: "gun",
+};
+let docFxMap9: Map<string, string> | null = null;
+/** 그 모델이 쏘는 트레이서 갈래(FX_BEAM 의 이름) — 없으면 null(근접·일꾼·건물 대부분). */
+export function docWeaponOf9(kind: string): string | null {
+  const b9 = DOC_BLD_FX9[kind];
+  if (b9) return b9;
+  if (!docFxMap9) {
+    docFxMap9 = new Map();
+    for (const [nm9, k9] of Object.entries(UNIT_3D)) {
+      const st9 = ATTACK_FX[nm9];
+      if (st9 && !docFxMap9.has(k9)) docFxMap9.set(k9, st9);
+    }
+  }
+  return docFxMap9.get(kind) ?? null;
+}
+/** ★ **도록의 트레이서 칸**(2026-09, 요청: "그리고 트레이서는 못그려주나? 도록에") ──────
+ *  지도와 **같은 붓**으로 한 발을 그린다(paintFxList9 — 그 함수의 ★ 에 왜 떼어냈는지가 있다).
+ *  칸 왼아래가 총구, 오른위가 표적이고 그 사이를 한 발이 지난다: 화면 자 셈(zx·zy)을
+ *  '분수 0 이 총구 · 1 이 표적'으로 주면 트레이서도 피격도 제자리에 앉는다.
+ *  배율은 8(PC 지도의 흔한 자)로 못 박는다 — 갈래표의 값이 렌즈 px 상수라, 배율이 곧
+ *  그 굵기·길이의 자다.
+ *  ⚠ 날아가는 무기(PROJECTILE_FX)는 `shot`(진행률 u), 즉발은 `beam`(제자리 번쩍임)이다 —
+ *    지도가 가르는 그 자리와 같은 명단을 쓴다. 쏘는 쪽에 아무것도 안 그리는 무기
+ *    (커세어 플레어 · NO_BEAM_FX)는 **표적 그림이 전부**이므로 hit 만 낸다. */
+export function DocTracer9({ kind, t, className }: { kind: string; t: number; className?: string }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  const style = docWeaponOf9(kind);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || !style) return;
+    const r9 = el.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const w9 = Math.max(24, Math.round(r9.width || 160));
+    const h9 = Math.max(24, Math.round(r9.height || w9 * 0.62));
+    const pw9 = Math.round(w9 * dpr); const ph9 = Math.round(h9 * dpr);
+    if (el.width !== pw9 || el.height !== ph9) { el.width = pw9; el.height = ph9; }
+    const g9 = el.getContext("2d");
+    if (!g9) return;
+    g9.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g9.clearRect(0, 0, w9, h9);
+    const ZOOM9 = 8;
+    const x09 = w9 * 0.14; const y09 = h9 * 0.82;
+    const dx9 = w9 * 0.72; const dy9 = -h9 * 0.6;
+    const dist9 = Math.hypot(dx9, dy9) || 1;
+    // deg 규약 — 붓이 (−sin, cos)로 방향을 푼다(그 자리의 dxx·dyy).
+    const deg9 = (Math.atan2(-dx9 / dist9, dy9 / dist9) * 180) / Math.PI;
+    const age9 = (t % 1.1) / 1.1;            // 한 발의 나이 0~1
+    const shot9 = PROJECTILE_FX.has(style);
+    const ops9: FxOp[] = [];
+    if (!NO_BEAM_FX.has(style)) {
+      ops9.push({
+        kind: shot9 ? "shot" : "beam", style, fx: 0, fy: 0, lift: 0,
+        deg: deg9, ph: age9, len: dist9 / ZOOM9, ...(shot9 ? { u: age9 } : {}),
+      } as FxOp);
+    }
+    if (NO_BEAM_FX.has(style) || TARGET_FX.has(style)) {
+      ops9.push({ kind: "hit", style, fx: 1, fy: 1, lift: 0, ph: age9, size: 2.6 } as FxOp);
+    }
+    paintFxList9(g9, ops9, {
+      zoom: ZOOM9, tilePx: 8, cw: w9, ch: h9, Bd: dpr,
+      zx: (v9) => x09 + v9 * dx9, zy: (v9) => y09 + v9 * dy9,
+    });
+    el.dataset.gl9 = "1";
+  }, [kind, style, t]);
+  if (!style) return null;
+  return <canvas ref={ref} width={1} height={1} className={cx("scr-motion-shape-svg", className)} aria-hidden data-gl9="0" />;
 }
 let docBldSet9: Set<string> | null = null;
 /** 그 종류를 **건물 길로** 굽나(도록 표의 건물 + 얼룩 + 공사 발판). */

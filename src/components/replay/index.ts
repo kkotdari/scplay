@@ -58,8 +58,13 @@ export {
  *     BUILD_STAGES 는 그 단계 수다(1~N−1이 짓는 중, 0이 완성). */
 export {
   SHAPE_GALLERY, ShapeIcon, DocIcon9, poseTempoOf, poseCutsOf, atkCutOf, flapCutOf, shapeMapTiles, shapeFitBox,
-  galleryYawOf, docAnimOf9,
+  galleryYawOf, docAnimOf9, DocTracer9, docWeaponOf9,
 } from "./ReplayMotionPlayer";
+/*   · DocTracer9 · docWeaponOf9 — **트레이서 한 발**(요청: "그리고 트레이서는 못그려주나? 도록에").
+ *     지도가 트레이서를 그리는 붓은 재생기 안에 900줄로 박혀 있었다 — 그것을 순수 함수
+ *     (paintFxList9)로 떼어 내고, 이 컴포넌트가 칸 왼아래(총구) → 오른위(표적)로 **같은 붓**에
+ *     한 발을 그린다. `docWeaponOf9(kind)` 가 null 이면 그 종류는 무기가 없다(근접·일꾼) —
+ *     도록이 칸을 안 세운다. 시각 t 를 주면 그 나이의 한 컷이다. */
 export { BUILD_STAGES } from "./engine9";
 export type { ShapeGalleryItem } from "./ReplayMotionPlayer";
 export type { DocAnim9 } from "./ReplayMotionPlayer";

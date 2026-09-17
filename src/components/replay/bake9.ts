@@ -23153,17 +23153,6 @@ for (const k of TERRAN_LT_KINDS9) {
 }
 
 
-/* ★ 공사 발판 한 채를 **제 종류로** 등록한다(요청: "스캐폴드도 도록에 추가") —
-   이 탑은 여태 `stageFaces` 가 짓는 중인 건물 상자 안에 두 채 세워 주는 것뿐이라,
-   도록에는 볼 자리가 없었다. 빌더 하나를 얹으면 도록 표(AUX_GALLERY)가 그것을
-   그대로 싣는다(다른 모델과 같은 길로 굽고·재고·광택을 받는다).
-   ⚠ **등록은 SHAPE_FACES 표보다 앞이라야 한다**(bake9 문 차례 규약) — 그 표가 모듈을
-     들일 때 SHAPE_BUILDERS 를 통째로 한 번 굽기 때문이다. scaffold9 는 함수 선언이라
-     아래에 있어도 여기서 부를 수 있다(호이스팅).
-   키(5.0)는 배럭·팩토리 만한 건물의 발판 키다 — 도록은 견줄 짝이 없으니 흔한 자리의
-   한 채를 보인다. */
-SHAPE_BUILDERS.scaffold = (): ShapeFace[] => scaffold9(0, 0, 5);
-
 export const SHAPE_FACES: Record<string, ShapeFace[]> = {
   // 3D 빌더 전부를 표준 시점으로 한 번 굽고, 2D 기호(전투 갈래)는 그대로 얹는다.
   ...Object.fromEntries(Object.entries(SHAPE_BUILDERS).map(([k, b]) => [k, bake(b)])),
@@ -24273,6 +24262,26 @@ export function autoTier(kind: string, key: string, faces: ShapeFace[]): ShapeFa
 /** 공사 발판 경광등의 깜빡임 칸(0·1) — 붓이 시각으로 세운다(bldBlinkSet9). 메시 열쇠에 든다. */
 let bldBlinkNow9 = 0;
 export const bldBlinkSet9 = (v: number): void => { bldBlinkNow9 = v ? 1 : 0; };
+/* ★ 공사 발판 한 채를 **제 종류로** 등록한다(요청: "스캐폴드도 도록에 추가") —
+   이 탑은 여태 `stageFaces` 가 짓는 중인 건물 상자 안에 두 채 세워 주는 것뿐이라,
+   도록에는 볼 자리가 없었다. 빌더 하나를 얹으면 도록 표(AUX_GALLERY)가 그것을 그대로
+   싣는다(다른 모델과 같은 길로 굽고·재고·광택을 받는다).
+   키(5.0)는 배럭·팩토리 만한 건물의 발판 키다 — 도록은 견줄 짝이 없으니 흔한 자리의
+   한 채를 보인다.
+   ⚠⚠ **등록은 여기다 — SHAPE_FACES 표보다 앞에 두면 앱이 통째로 터진다**(2026-09, 실측:
+     `ReferenceError: Cannot access 'bldBlinkNow9' before initialization` · perf-check 가
+     잡았다). 그 표는 모듈을 들일 때 SHAPE_BUILDERS 를 **통째로 한 번 굽는데**, 발판
+     빌더는 바로 위의 `bldBlinkNow9`(let)을 읽는다 — 그 선언보다 먼저 구우면 TDZ 다.
+     bake9 의 '문 차례' 규약이 말하는 자리가 바로 이런 것이다: 파생 빌더 등록은 그 빌더가
+     **읽는 모든 모듈 값의 선언 뒤**여야 하고, 표보다 앞이어야 하는 것은 그 표가 굽는
+     빌더뿐이다. 발판은 표에 안 실려도 된다(도록·지도 모두 rotDeg 를 주므로
+     resolveShapeFaces 가 빌더에서 곧장 굽는다) — 그래도 다른 종류와 같은 자리를 갖도록
+     두 표에 손으로 한 칸씩 채운다.
+   ⚠ 도구(model-gl·model-mesh)는 빌더를 곧장 불러 이 흠이 안 잡혔다 — **앱을 한 번
+     띄우는 자**(perf-check)가 이 자리의 관문이다. */
+SHAPE_BUILDERS.scaffold = (): ShapeFace[] => scaffold9(0, 0, 5);
+SHAPE_FACES.scaffold = bake(SHAPE_BUILDERS.scaffold);
+SHAPE_FACES_TOP.scaffold = withTopView(() => bake(SHAPE_BUILDERS.scaffold));
 /** 공사 발판 탑 한 채 — 가는 기둥 넷이 서고 그 안을 계단이 돌며 오르며, 밑동에 해저드
  *  띠, 꼭대기에 붉은 경광등과 지브 크레인이 달린다(2026-09, 요청: "공사 중에 앞 오른쪽과
  *  뒤 왼쪽에 스캐폴드 탑 두 개").
