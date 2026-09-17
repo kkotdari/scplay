@@ -5028,10 +5028,15 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             ? (op.air
               ? { ground: true, dy: lift, h: lift / Math.max(1e-3, gk9), alpha: op.alpha * SHADOW_ALPHA9 }
               : { ground: true, alpha: op.alpha * SHADOW_ALPHA9 }) : undefined;
+          /* ★ 유닛의 딸림 부품도 **제 요잉**을 가질 수 있다(건물 쪽 attachRot 과 같은 자 — 2026-09,
+             지적: 시즈의 두 모드가 다르게 보인다) — 정착한 시즈의 버팀다리 홑판은 spin 0 으로 지어
+             두었는데 몸(tanksiegebody)은 spin 270 이라, 몸의 rotDeg 를 그대로 주면 270도 돌아간다.
+             짐 판(load…)처럼 attachRot 을 안 주는 딸림 부품은 종전대로 몸의 각을 따른다. */
           for (const gkind9 of [op.kind, op.attach, op.attach2]) {
             const gm9 = gkind9 ? (gkind9 === op.kind ? glM9 : gl9.unitMesh(gkind9, op.pose ?? 0)) : null;
             if (!gm9) continue;
-            gl9.push({ mesh: gm9, ax: gax9, ay: gay9, k: gk9, yoff: (px / 16) * ((op.flat ? 12 : 12.6) - 8), yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glCam9, gradR: px * 0.707, gradCy: 0, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind), over: !!op.air });
+            const grot9 = gkind9 === op.kind ? (op.rotDeg ?? 0) : (op.attachRot ?? op.rotDeg ?? 0);
+            gl9.push({ mesh: gm9, ax: gax9, ay: gay9, k: gk9, yoff: (px / 16) * ((op.flat ? 12 : 12.6) - 8), yawDeg: -grot9, color: op.color, alpha: op.alpha, cam: glCam9, gradR: px * 0.707, gradCy: 0, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind), over: !!op.air });
           }
           ctx.setTransform(Bd, 0, 0, Bd, 0, 0);
           continue;

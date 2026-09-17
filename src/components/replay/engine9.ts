@@ -7656,7 +7656,11 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
            돌린 뒤에야 변태하므로 모든 시즈 탱크가 같은 쪽을 본다. 참값 방향을 대각으로 붙이던 옛 셈은 그 고정
            방향(화면 −135)에 앉았고, 원작 그림이 보이는 앞(−45)과 90도 어긋났다. 시즈 판은 spin 270으로 구워져
            같은 rotDeg에서 탱크 판보다 270도 돌아 보이므로 그 몫을 뺀다 — 둘 다 화면에서 −45를 본다. */
-        if (siegeShow9 === 1) return SIEGE_FACE_DEG9 - 270;
+        /* ★★ **−270 을 걷었다**(2026-09, 지적: "탱크/시즈가 같은 각도에서 색이 다른 게 문제") —
+           정착 시즈의 차체 판을 `tanksiegebody`(spin 270)에서 **`tankbody`(spin 0)** 로 바꿨으므로
+           그 몫을 뺄 까닭이 없어졌다. spin 270 과 −270 은 서로 지우는 짝이었고, 곧 두 판은 **같은
+           세계 각의 같은 기하**였다 — 이름만 둘이라 부품 등급표가 갈렸다(아래 kindMain 의 ★★). */
+        if (siegeShow9 === 1) return SIEGE_FACE_DEG9;
         /* ★ **창 앞 몫에서 실제로 돈다**(요청: "변신하기 전에 시즈 정위치로 자연스럽게 회전 이동") —
            여태 창이 열리는 순간 고정 방향으로 **툭 앉혔다**. 참값 각에서 가장 짧은 호로 SIEGE_FACE_DEG9
            까지 돌고(시즈), 언시즈는 창 뒤 몫에서 참값으로 돌아온다. 도는 동안 포신·다리는 안 움직인다
@@ -7806,8 +7810,16 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
        **포탑 없는 탱크**가 서 있었다. 판 수를 늘리지 않고 고친다: 저배율에서는
        포탑까지 한 몸인 합본 모델(tank·tanksiege)을 굽는다 — 판은 그대로 하나고,
        포탑이 차체에 붙박이라 돌지 않을 뿐이다(몇 픽셀짜리 몸에서는 안 읽힌다). */
+    /* ★★ **정착 시즈의 차체도 `tankbody` 다**(2026-09, 지적: "탱크/시즈가 같은 각도에서 색이 다른 게
+       문제 … 디테일도 달라 보여") — `tanksiegebody`(spin 270)는 몸 각의 −270 과 서로 지워 **같은 세계
+       각의 같은 기하**였다. 그런데 부품 등급(autoTier)은 요잉 0 에서 **화면 넓이**로 매기므로, 270도
+       돌려 구운 쪽은 궤도가 끝으로 서서 훨씬 작게 잡히고 그만큼 세게 깎였다(실측 lod0: tankbody
+       597폴리 · tanksiegebody 328). 곧 같은 차체가 모드에 따라 디테일도 부품 묶음도(= 덧칠 접기·깊이
+       편향도) 달랐다. 두 모드가 **한 판**을 쓰면 그 갈림이 뿌리째 없어진다.
+       ⚠ 버팀다리는 홑판(attach)이 든다 — `tanksiegebody` 에서 뺐다(bake9 의 ★★).
+       ⚠ 합본(`tanksiege`)은 저배율·도록의 한 벌짜리라 그대로 둔다. */
     const kindMain = kind0 === "tank" ? (liteView ? "tank" : "tankbody")
-      : kind0 === "tanksiege" ? (liteView ? "tanksiege" : "tanksiegebody") : kind0;
+      : kind0 === "tanksiege" ? (liteView ? "tanksiege" : "tankbody") : kind0;
     /* 빙결 우리 — 걸린 몸마다 하나씩(위 cage 갈래 주석). 마엘스트롬은 안 씌운다:
        요청이 짚은 것은 스테이시스와 락다운 둘이고, 그쪽은 제 지역 효과가 있다. */
     if (frzSt && (frzSt[2] === "stasis" || frzSt[2] === "lock") && !markerView) {
@@ -7879,7 +7891,15 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       ...(load0 ? { attach: load0 } : {}),
       // 시즈 전환 중이면 버팀다리 판을 몸 뒤에 겹쳐, 배율로 뻗고 접는다(위 legK9).
       // (배율 1 — 뻗는 몫은 아래 pose가 든다. attachK를 두는 것은 붓이 그 겹판을 몸 **뒤**에 두는 표식이라서다.)
-      ...(legK9 !== null && !markerView ? { attach: "tanksiegelegs", attach2: "tanksiegelegsF", attachK: 1 } : {}),
+      /* ★★ 다리 홑판은 **정착한 시즈에서도** 붙인다(2026-09, 지적: 두 모드의 색·디테일이 다르다) —
+         여태 전환 창에서만 붙이고 정착 뒤에는 `tanksiegebody` 한 덩이가 다리를 품었다. 그 한 덩이가
+         등급 걸러내기에서 훨씬 세게 깎여(bake9 의 ★★) 두 모드가 다른 그림이 됐다. 다리를 몸에서 떼어
+         두 모드가 **같은 몸 메시**를 쓰게 한다.
+         ⚠ **각이 다르다** — 전환 중 차체는 `tankbody`(spin 0 · rotDeg = 앞)라 다리도 그 각이면 되지만,
+           정착 시즈 차체는 `tanksiegebody`(spin 270 · rotDeg = 앞 − 270)다. 다리 홑판은 spin 0 으로
+           지어 두었으므로(그 규약 그대로) 여기서 **+270** 을 도로 얹어야 제자리에 선다. */
+      ...((legK9 !== null || kind0 === "tanksiege") && !markerView
+        ? { attach: "tanksiegelegs", attach2: "tanksiegelegsF", attachK: 1 } : {}),
       selRing: selNow || undefined,
       // 보임 토글이면 만피여도 표시(요청: 모든 유닛·건물 다 표시).
       hpFrac: Math.max(0.04, Math.min(1, hpNow / Math.max(1, hpFull))),
@@ -7956,6 +7976,9 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       pose: ((): 0 | 1 | 2 | 3 | 4 | 5 => {
         // 시즈 전환 창 — 자세는 다리가 뻗은 몫이다(위 legPose9). 차체 판엔 컷이 없어 몸 그림은 안 바뀐다.
         if (legK9 !== null) return legPose9;
+        /* 정착한 시즈는 다리가 **다 뻗은 컷**(5)이다 — 다리를 홑판으로 뗀 뒤(위 ★★) 그 몫을 자세가 든다.
+           `tanksiegebody` 는 POSE_KINDS 에 없으므로 이 컷이 차체 그림·메시 열쇠를 안 건드린다. */
+        if (kind0 === "tanksiege") return 5;
         /* ★ 핵을 유도하는 고스트는 **총 겨눈 자세로 굳는다**(요청: "핵 조준중
            고스트 공격자세로 고정" · "고스트 자세 총 겨눈 상태로 고정") ─────────
            원작에서 핵 유도는 고스트가 표적을 조준한 채 꼼짝 않고 서 있는 일이다.
@@ -8126,9 +8149,9 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
          포탑은 제 자리를 축으로 돌므로 조준해도 뒤에 앉은 채 돈다. 도록 합성(TURRET_BACK9)과 같은 값. */
       const bhr9 = (bodyHdg * Math.PI) / 180;
       const backT9 = unitTilesOf(kind0, kind0, (UNIT_BULK[drawUnit2] ?? 1) as 0 | 1 | 2) * 0.6 / 16;
-      const [bkx9, bky9] = kind0 === "tanksiege"
-        ? [-Math.cos(bhr9) * backT9, -Math.sin(bhr9) * backT9]
-        : [Math.sin(bhr9) * backT9, -Math.cos(bhr9) * backT9];
+      /* 차체 뒤 = 방향각 + 180 → (sin, −cos). 시즈의 별도 갈래(spin 270 몫)는 걷었다 — 두 모드가
+         이제 같은 판(tankbody · spin 0)이라 같은 자다(위 kindMain 의 ★★). */
+      const [bkx9, bky9] = [Math.sin(bhr9) * backT9, -Math.cos(bhr9) * backT9];
       const [gfx, gfy] = posFrac(ax3 - gdx * 0.09 * fireK + bkx9, ay3 - gdy * 0.09 * fireK + bky9);
       /* ★ 표적이 없으면 **마지막으로 겨눈 각**을 지킨다(요청: "포탑은 마지막 공격한 방향 유지") — 여태는 차체 방향으로
          되돌아가 교전이 끝날 때마다 포탑이 휙 돌았다. 한 번도 안 겨눈 포탑만 차체를 따르되, 시즈 모드는 **뒤쪽**
@@ -8151,7 +8174,9 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
          는 +90이다. 전환 창(탱크 판)에서는 **앞 포탑이 그대로 정면**을 보고, 시즈 판으로 바뀌는 순간 뒤 포신이 선다
          (재지적: "변신 중엔 포탑도 원래 방향(정면) — 완료되어 시즈 포신으로 바뀐 순간 방향도 바뀌게"). 언시즈 창도 탱크
          판이라 앞이다. */
-      const gunRest9 = kind0 === "tanksiege" ? 90 : 0;
+      /* 시즈의 쉬는 포신은 **차체 뒤**다(+180) — 옛 값 90 은 차체 rotDeg 가 hdg − 270 이던 때의 것이라,
+         −270 을 걷은 지금(위 ★★) 그만큼 도로 돌려 줘야 같은 자리를 가리킨다. */
+      const gunRest9 = kind0 === "tanksiege" ? 180 : 0;
       /** 전환 창의 포신 동작 — 시즈로 가면 0 → 1, 언시즈면 1 → 0(뒤 포신이 나온 몫). 부드럽게(smoothstep). */
       const gunXf9 = !!siegeXf9 && !markerView && !liteView;
       const gunU9 = ((): number => {

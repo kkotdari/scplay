@@ -14203,7 +14203,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      ★ 감싸개를 걷으면 그 안의 평행이동도 제 부호로 돌아온다 — TURRET_BACK9 도 함께 뒤집는다. */
   tanksiege: () => withModelSpin(270, () => [...withModelScale(0.8, 1, 1, () => [...tankTracks(), ...tankHull()]), ...siegeLegs(), ...withModelShift(0, -TURRET_BACK9, () => turretScaled9(siegeTurret))]),
   /* 발포 반동용 분해(요청) — 시즈 차체/포탑·포신 분리판. */
-  tanksiegebody: () => withModelSpin(270, () => [...withModelScale(0.8, 1, 1, () => [...tankTracks(), ...tankHull()]), ...siegeLegs()]),
+  /* ★★ **버팀다리는 몸 메시에서 뺀다**(2026-09, 지적: "탱크/시즈가 같은 각도에서 색이 다른 게 문제 …
+     디테일도 달라 보여 애니메이션 시 다른 모델이나 2D 그림 쓰는 거 아닌지 확인") — 2D 는 아니고,
+     기하도 같다. 갈린 것은 **메시를 어떻게 쪼개느냐**였다(실측):
+       · 정착 시즈 = `tanksiegebody` 한 덩이 1004부품/1387폴리(몸 539/655 + 다리 465/732)
+       · 전환 중  = `tankbody` 539/655 + 다리 홑판 465/732(310/488 + 155/244) — **합이 정확히 같다**
+     그런데 등급 걸러내기(autoTier)는 **종류마다 제 예산**이라, 한 덩이로 묶인 쪽이 훨씬 세게 깎인다:
+     lod0 에서 tankbody 는 655 → 597폴리(91% 남음)인데 tanksiegebody 는 1387 → 730(53%)이다.
+     곧 낮은 배율에서 정착 시즈만 디테일이 절반 날아가고, 부품 묶음이 달라지니 덧칠 접기·깊이 편향도
+     함께 갈려 **색까지 달라 보인다**. 다리를 떼면 두 모드의 몸이 **같은 메시**(539/655)가 된다.
+     ⚠ 합본(`tanksiege` — 도록·저배율)은 다리를 그대로 든다(한 벌로 서야 하는 자리다). */
+  tanksiegebody: () => withModelSpin(270, () => withModelScale(0.8, 1, 1, () => [...tankTracks(), ...tankHull()])),
   /* ⚠ 포탑 판의 **+y 는 겨누는 쪽**이다(탱크 포탑과 같은 규약 — 엔진이 rotDeg 로 표적을 준다). 시즈 포신은
      모형에서 −y 로 나가므로 여기서 180 을 걸어 그 규약에 맞춘다. 안 걸면 시즈 탱크가 **표적의 반대쪽**을
      겨눈다(지적: 뒤쪽이 앞을 향한 것). 쉬는 각(engine9 gunRest9 = +90)은 그 위에서 차체 뒤를 가리킨다. */
