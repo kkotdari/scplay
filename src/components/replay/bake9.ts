@@ -16738,7 +16738,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          등은 그대로 높고(잎맥 반지름 2.679 → 2.599) 옆선은 매끈한 렌즈로 돌아온다.
        · ⚠ 마디를 늘려도(segs 20 → 40) 그 꺾임은 안 없어진다(실측) — 조각 수가 아니라 **반지름
          함수의 꼴**이 만든 자리다. */
-    const LEAF_HALF_T = 0.52;                // 잎맥 한가운데의 반두께 = 등 높이(0.62 → 0.52 · 요청: "등 조금 낮춰")
+    const LEAF_HALF_T = 0.40;                // 잎맥 한가운데의 반두께 = 등 높이(0.62 → 0.52 → 0.40 · 요청: "등 낮춰" · "테두리 얇게")
     /* 1.05 → 0.86(요청: "세 잎 휘어짐 좀더 부드럽게") — 말림의 꼴(u²)은 그대로 두고 깊이만 낮춘다.
        꼴을 바꾸면(더 높은 거듭제곱) 허리가 평평해지고 끝이 급히 꺾여 오히려 덜 부드럽다. */
     const LEAF_CURL = 0.86;                  // 잎 뒤끝이 축 쪽으로 말려 드는 깊이
@@ -16818,9 +16818,29 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        · 폭 곡선은 잎과 **덮개가 나눠 쓴다**(덮개가 잎 등에 앉는 자리·길이를 이 함수로 잰다) —
          한 자리에 두어야 둘이 안 어긋난다. */
     const LEAF_BELLY9 = 0.85;
+    /* ★★ **호를 옆선의 한 점에 모으지 말고 앞뒤 두 점에 모아라 — 그래야 가운데가 평평하다**
+       (2026-09, 요청: "잎의 호를 옆선의 한 점에서 모으지 말고 앞뒤 두 점에 모을 순 없어?
+       그럼 중간이 평평해질텐데") — 그 말이 이 자리의 답이다 ────────────────────────────
+       폭 곡선이 `(1−u²)^p` 라 호 끝(|u| = 1)에서 폭이 **0** 이었다. 곧 잎의 옆선 둘이 y = 0
+       한 점에 모이고, 그 점만 가장 바깥이라 정면에서 아몬드의 꼭짓점처럼 솟는다. 호 끝에
+       폭을 남기면 그 자리가 **앞뒤 두 점을 잇는 곧은 벽**이 되고, 옆선은 그 구간에서
+       x 가 안 변하므로 **평평해진다**.
+       · 자는 `LEAF_EDGE9`(호 끝에 남기는 폭, len 몫)다: 0.28 → 끝 반길이 1.37 이므로
+         평평한 토막이 **2.74**(잎 길이 9.75 의 28%)다.
+       · ⚠ **끝이 점이 아니게 되면 그 단면은 구멍이다** — `caps: "none"` 이면 속이 들여다보인다.
+         `caps: "both"` 로 막고, 위 뚜껑의 문이 `tipW > 0.01` 이므로(그 ⚠⚠) `tipW` 도 준다
+         (굵기는 `widthOf` 가 그리므로 그 값은 뚜껑 문에만 쓰인다).
+       · ⚠ **그 뚜껑이 곧 '테두리면'이다** — 두께 = 끝 폭 × `LEAF_HALF_T/len` 이라 폭을 남긴
+         만큼 두꺼워진다(요청: "잎 테두리면이 두꺼워졌어 두께감을 얇게 줄여줘"). 그래서
+         두께를 함께 내렸다(0.52 → 0.40): 테두리면 0.23 · 잎맥 두께 0.83(몸의 28%)이라
+         칼날처럼 남는다.
+       · ⚠ 말림(`skewV`)의 가로 몫이 `wOf/len` 이라 이제 호 끝에서도 0 이 아니다 — 그 쪽
+         주석이 경계한 '점이어야 할 곳이 가시가 된다'는 **점이 아니게 된 지금은 해당이 없다**
+         (뒤 테두리 벽이 통째로 축 쪽으로 말리는 것이 맞다). */
+    const LEAF_EDGE9 = 0.28;
     /** 잎의 앞뒤 반길이 — 호 위 자리 u(−1 옆끝 … 0 잎맥 … 1 옆끝)에서. */
-    const leafW9 = (len9: number, u9: number): number =>
-      (len9 * Math.pow(Math.max(0, 1 - u9 * u9), LEAF_BELLY9)) / OCT_U + 0.01;
+    const leafW9 = (len9: number, u9: number): number => (len9 * (LEAF_EDGE9
+      + (1 - LEAF_EDGE9) * Math.pow(Math.max(0, 1 - u9 * u9), LEAF_BELLY9))) / OCT_U + 0.01;
     /** 잎 한 장 — thetaDeg는 축 둘레에서 이 잎이 앉은 각(90=위), len은 잎맥의 앞뒤 반길이,
      *  arcDeg는 잎맥에서 가장자리까지 말린 반각. */
     /** 잎의 깊이 키 — 잎맥 중심의 깊이에 높이 몫을 더한다(데칼도 이 키 위에 얹는다). */
@@ -17173,7 +17193,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 잎 윤곽 — 잎맥(u 0)에서 len, 옆 끝(u ±1)에서 한 점(배흘림은 LEAF_BELLY9 · 위 ★★).
       const wOf = (t9: number): number => leafW9(len, uOf(t9));
       return tagKey(spirePillar({
-        x: 0, y: 0, h: 0.8, w: 1, segs: LEAF_SEGS9, sides: LEAF_SIDES9, caps: "none", fill: GOLD9,
+        x: 0, y: 0, h: 0.8, w: 1, segs: LEAF_SEGS9, sides: LEAF_SIDES9, fill: GOLD9,
+        /* 호 끝이 점이 아니라 곧은 벽이므로 두 끝 단면을 막는다(위 ★★ 의 두 ⚠). */
+        caps: "both", tipW: 0.02,
         ref: [0, 1, 0], oval: LEAF_HALF_T / len, trueNormal: true,
         path: (t9: number): [number, number, number] => {
           const u9 = uOf(t9);
