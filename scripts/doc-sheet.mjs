@@ -39,6 +39,12 @@ const OUT = String(flag("--out", join(tmpdir(), "doc-sheet.png")));
    모델 칸의 높이도 104 → 132px로 키운다. 폭만 좁히고 이 클래스를 안 붙이면 8열 격자가
    그대로 남아 방위 넷을 넣어도 절반이 빈 채 칸만 홀쭉해진다(첫 판이 그랬다). */
 const NARROW = argv.includes("--narrow");
+/* --anim — **건물의 움직임 칸**을 뽑는다(2026-09, 요청: "도록에서 건물도 유닛처럼 idle 상태
+   애니메이션 재생 · 액션칸에는 생산중/업그레이드중/공격중"). 방위 줄 대신 한 종류의 상태
+   여덟(기본·회전 둘·불빛·겨눔·공사 셋)을 한 줄로 늘어놓는다 — 도록 팝업이 시각으로 오가는
+   그 값들이 진짜 그림을 바꾸는지 눈으로 보는 자다. `--kinds trapezoid,turret,coil,cube` */
+const ANIM = argv.includes("--anim");
+const KINDS = String(flag("--kinds", "")).split(",").map((v) => v.trim()).filter(Boolean);
 /* --own — 임자색(칠 안 한 면이 먹는 currentColor). 도록 화면은 `--scr-doc-own`으로
    고정 연두를 주는데, 종이로 뽑을 때는 다른 색이 필요할 때가 있다(요청: 빨강).
    변수만 덮어쓰면 되는 자리라 앱 CSS를 안 건드린다. */
@@ -55,7 +61,35 @@ const BG = argv.includes("--bg")
 const ENTRY = `
 import { createElement as h } from "react";
 import { createRoot } from "react-dom/client";
-import { SHAPE_GALLERY, DocIcon9, galleryYawOf } from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
+import { SHAPE_GALLERY, DocIcon9, galleryYawOf, docAnimOf9 } from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
+/* 건물의 움직임 판(--anim) — 한 종류의 상태들을 한 줄로. 값은 도록 팝업이 시각으로 오가는
+   그 값들이고, 여기서는 눈으로 견주기 쉽게 **못 박아** 놓는다. */
+window.__docAnim = (kinds) => {
+  const host = document.getElementById("host");
+  const rows = kinds.map((k) => SHAPE_GALLERY.find((g) => g.kind === k) || { kind: k, label: k, group: "건물", race: "" });
+  const cellsOf = (kind, group) => {
+    const a = docAnimOf9(kind);
+    const yaw = galleryYawOf(45, group);
+    const out = [["기본", {}]];
+    if (a.spin) { out.push(["회전 2", { spin: 2 }], ["회전 5", { spin: 5 }]); }
+    if (a.lit) out.push(["불빛", { lit: true }]);
+    if (a.head) out.push(["겨눔 +40", { headDeg: yaw + 40 }], ["겨눔 −70", { headDeg: yaw - 70 }]);
+    if (a.stage) out.push(["공사 3", { stage: 3, blink: true }], ["공사 6", { stage: 6 }], ["공사 9", { stage: 9, blink: true }]);
+    if (!a.stage) out.push(["깜빡", { blink: true }]);
+    return out.map(([label, props]) => h("div", { key: label, className: "scr-doc-angle" }, [
+      h(DocIcon9, { key: "m", kind, rotDeg: props.rotDeg ?? yaw, flat: true, fit: true, className: "scr-doc-svg", gl: !window.__doc2d, ...props }),
+      h("span", { key: "d" }, label),
+    ]));
+  };
+  const list = h("div", { className: "scr-doc-list" }, rows.map((it) => h("section", { key: it.kind, className: "scr-doc-item" }, [
+    h("header", { key: "h", className: "scr-doc-itemhead" }, [
+      h("h3", { key: "t" }, it.label), h("span", { key: "k", className: "scr-doc-kind" }, it.kind),
+    ]),
+    h("div", { key: "a", className: "scr-doc-angles" }, cellsOf(it.kind, it.group)),
+  ])));
+  createRoot(host).render(h("div", { className: "scr-doc" }, list));
+  return rows.length;
+};
 window.__docSheet = (group, race, rots, narrow) => {
   const rows = SHAPE_GALLERY.filter((g) => g.group === group && (race === "전체" || g.race === race));
   const host = document.getElementById("host");
@@ -167,15 +201,23 @@ await page.evaluate((code) => {
   document.head.appendChild(sc);
 }, js);
 await page.waitForFunction(() => typeof window.__docSheet === "function", null, { timeout: 60000 });
-const n = await page.evaluate(([g, r, rots, nw]) => window.__docSheet(g, r, rots, nw),
-  [GROUP, RACE, ROTS, NARROW]);
-/* 칸이 다 그려질 때까지 — SVG 는 서는 즉시, GL 그림(<img>)은 data-gl9="1"(dataURL 이 실린 뒤). 헤드리스 GL 은 판마다 읽기가
-   느려(1~2초) 넉넉히 기다린다. */
+await page.waitForFunction(() => typeof window.__docAnim === "function", null, { timeout: 60000 });
+const n = ANIM
+  ? await page.evaluate((ks) => window.__docAnim(ks), KINDS.length ? KINDS : ["trapezoid", "turret", "coil", "cube"])
+  : await page.evaluate(([g, r, rots, nw]) => window.__docSheet(g, r, rots, nw),
+    [GROUP, RACE, ROTS, NARROW]);
+/* 칸이 다 그려질 때까지 — SVG 는 서는 즉시, GL 그림은 data-gl9="1"(판에서 제 칸을 찍은 뒤).
+   ⚠ **<canvas> 도 센다**(2026-09) — DocIcon9 가 PNG 왕복을 걷고 판을 곧장 찍게 되면서
+     그림이 <img> → <canvas> 로 바뀌었는데 이 자가 `svg, img` 만 보고 있었다. 그러면 GL 붓에서
+     els 가 **빈 배열**이라 `length > 0` 이 영영 거짓이고, 이 도구와 도록 뽑기(doc-catalog)가
+     10분 타임아웃까지 멎는다. 헤드리스 GL 은 판마다 읽기가 느려(1~2초) 넉넉히 기다린다. */
 await page.waitForFunction(() => {
-  const els = [...document.querySelectorAll(".scr-doc-angle svg, .scr-doc-angle img")];
+  const els = [...document.querySelectorAll(".scr-doc-angle svg, .scr-doc-angle img, .scr-doc-angle canvas")];
   return els.length > 0 && els.every((e) => e.tagName.toLowerCase() === "svg" || e.dataset.gl9 === "1");
 }, null, { timeout: 600000 });
 await page.waitForTimeout(400);
 await page.locator("#host").screenshot({ path: OUT });
 await browser.close();
-console.log(`${OUT}  (${GROUP}/${RACE} · ${n}종 · ${ROTS.length}방위 · ${TWO_D ? "2D" : "GL"})`);
+console.log(ANIM
+  ? `${OUT}  (움직임 판 · ${n}종 · ${TWO_D ? "2D" : "GL"})`
+  : `${OUT}  (${GROUP}/${RACE} · ${n}종 · ${ROTS.length}방위 · ${TWO_D ? "2D" : "GL"})`);
