@@ -16548,6 +16548,28 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const LEAF_RIDGE = 0.52;                 // 잎맥의 등이 호 밖으로 솟는 몫(요청: 더 볼록하게 0.34 → 0.52)
     /** 잎 등마루 — 호 위의 자리 u(−1 옆끝 … 0 잎맥 … 1 옆끝)에서 반지름에 더할 몫. */
     const ridge9 = (u9: number): number => LEAF_RIDGE * (1 - u9 * u9);
+    /* ★ **아랫잎 둘만 x 축으로 안쪽으로 민다**(2026-09, 요청: "캐리어 아래 두 잎 x축 살짝
+       안쪽으로 이동(딸린 부품들도 같이)") ────────────────────────────────────────────────
+       잎 셋은 반지름 LEAF_R 의 한 호 위에 120도씩 앉는다(위 90 · 아래 210·330). 그 호를
+       줄이면 셋이 **다 같이** 모이므로(그것이 LEAF_R 을 1.9 로 내린 앞선 요청이다) 아래
+       둘만 옮기려면 **제자리에 평행이동**을 얹어야 한다.
+       · 자리는 `x + inX` 한 항이다 — 등뼈에 더하는 상수라 접선이 안 바뀌고, 따라서
+         단면 축(u·v)·말림(skewV)·등마루가 한 톨도 안 흔들린다. 곧 **꼴은 그대로 두고
+         자리만** 옮긴다.
+       · ⚠ **딸린 것을 다 태워야 한다**(요청의 괄호가 이 자리다) — 덮개 판 넷(coverPlate)·
+         그 위의 임자색 타원 데칼·앞 테두리의 창이 다 이 호에서 자리를 낸다. 창은 판의
+         `at` 을 지나므로 저절로 따라오지만 **데칼은 제 손으로 점을 찍어** 안 따라온다.
+       · ⚠ **깊이 키도 같은 x 로 재라** — `leafKey`·덮개 키가 `depthNow(cos·R, y)` 로
+         잎맥 자리의 깊이를 재므로, 자리만 옮기고 키를 두면 앞뒤가 옮기기 전 자로 남는다.
+       · 윗잎(θ 90)은 cos 이 0 이라 호에서 x 를 안 쓰지만, 부동소수의 cos(π/2)=6.1e−17 은
+         부호가 +1 이다 — **`Math.sign` 만으로 가르면 윗잎이 −inX 만큼 밀린다**. 그래서
+         작은 문(|cos| < 0.05)으로 '가운데 잎은 0' 을 못 박는다. */
+    const LEAF_IN9 = 0.25;
+    /** 그 잎이 안쪽(축 쪽)으로 밀리는 x 몫 — 윗잎은 0, 왼아랫잎은 +, 오른아랫잎은 −. */
+    const leafInX9 = (thetaDeg: number): number => {
+      const c9 = Math.cos((thetaDeg * Math.PI) / 180);
+      return Math.abs(c9) < 0.05 ? 0 : (c9 > 0 ? -LEAF_IN9 : LEAF_IN9);
+    };
     /** 단면 다각형의 긴 축 끝 꼭짓점은 반지름의 cos(π/n) 자리 — 반길이를 그만큼 키워 준다. */
     const OCT_U = Math.cos(Math.PI / LEAF_SIDES9);
     /** 잎 한 장 — thetaDeg는 축 둘레에서 이 잎이 앉은 각(90=위), len은 잎맥의 앞뒤 반길이,
@@ -16555,7 +16577,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /** 잎의 깊이 키 — 잎맥 중심의 깊이에 높이 몫을 더한다(데칼도 이 키 위에 얹는다). */
     const leafKey = (thetaDeg: number): number => {
       const th9 = (thetaDeg * Math.PI) / 180;
-      return depthNow(Math.cos(th9) * LEAF_R, 0)
+      return depthNow(Math.cos(th9) * LEAF_R + leafInX9(thetaDeg), 0)
         + (LEAF_ZC + Math.sin(th9) * LEAF_R) * heightDepthK() + 1.2;
     };
     /* (걷어냄) 잎 셋의 앞 가장자리 손톱끝 데칼(요청: "손톱데칼 제거") — 앞 테두리를
@@ -16684,6 +16706,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          −x 쪽(바깥)으로, 앞끝이 +x 쪽(몸 안)으로 가고, 오른아랫잎(+15도)은 그 거울이다 —
          앞선 요청("뒤가 벌어지고 앞은 본체에 딱 붙게")이 말한 그 꼴이 그대로 나온다.
          한가운데가 축이므로 깊이 키·데칼이 재는 자리는 안 흔들린다. */
+      /** 제 잎이 안쪽으로 밀린 몫 — 판·데칼·창·깊이 키가 다 이 값을 나눠 쓴다. */
+      const inX9 = leafInX9(o9.theta);
       const yawR9 = ((o9.yawDeg ?? 0) * Math.PI) / 180;
       const yawC9 = Math.cos(yawR9);
       const yawS9 = Math.sin(yawR9);
@@ -16699,11 +16723,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const r9 = rOf(t9) - (glue ? c9 : cF9 + (c9 - cF9) * (o9.curlK ?? 1)) + lf;
         const px9 = Math.cos(p9) * r9;
         const pz9 = Z8 * (LEAF_ZC + Math.sin(p9) * r9);
-        if (!yawR9) return [px9, y9, pz9];
+        if (!yawR9) return [px9 + inX9, y9, pz9];
         const ax9 = px9 - pivX9;
         const ay9 = y9 - yMid9;
         return [
-          pivX9 + ax9 * yawC9 - ay9 * yawS9,
+          pivX9 + ax9 * yawC9 - ay9 * yawS9 + inX9,
           yMid9 + ax9 * yawS9 + ay9 * yawC9,
           pz9,
         ];
@@ -16806,7 +16830,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         for (let i9 = 0; i9 < 24; i9 += 1) {
           const a9 = (i9 / 24) * Math.PI * 2;
           const p9 = th9 + Math.cos(a9) * dP9;
-          pts9.push([Math.cos(p9) * rC9, yC9 + Math.sin(a9) * dY9,
+          pts9.push([Math.cos(p9) * rC9 + inX9, yC9 + Math.sin(a9) * dY9,
             Z8 * (LEAF_ZC + Math.sin(p9) * rC9)]);
         }
         out9.push([polyPath3(pts9), 0.92] as ShapeFace);
@@ -16871,11 +16895,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          앞에서 보면 yC9가 뒤라 잎 뒤로 물러나고, 위에서 내려다보면 반지름이 커 잎 위로
          올라온다 — 두 보기가 저절로 갈린다.
          눈금(0.02 + lift×0.05)은 그대로다: 겹끼리의 차례를 lift가 정하는 몫이다. */
-      return tagKey(out9, Math.max(depthNow(Math.cos(th9) * rC9, yC9) + (LEAF_ZC + Math.sin(th9) * rC9) * heightDepthK() + 0.96, leafKey(o9.theta)) + 0.016 + o9.lift * 0.05);
+      return tagKey(out9, Math.max(depthNow(Math.cos(th9) * rC9 + inX9, yC9) + (LEAF_ZC + Math.sin(th9) * rC9) * heightDepthK() + 0.96, leafKey(o9.theta)) + 0.016 + o9.lift * 0.05);
     };
     const leaf = (thetaDeg: number, len: number, arcDeg: number): ShapeFace[] => {
       const th9 = (thetaDeg * Math.PI) / 180;
       const LEAF_ARC = (arcDeg * Math.PI) / 180;
+      const inL9 = leafInX9(thetaDeg);            // 아랫잎 둘만 안쪽으로(위 ★)
       const uOf = (t9: number): number => -Math.cos(Math.PI * t9);
       // 타원 잎 윤곽 — 잎맥(u 0)에서 len, 옆 끝(u ±1)에서 한 점.
       const wOf = (t9: number): number => {
@@ -16889,7 +16914,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           const u9 = uOf(t9);
           const p9 = th9 + u9 * LEAF_ARC;
           const r9 = LEAF_R + ridge9(u9);          // 잎맥에서 솟는 등마루
-          return [Math.cos(p9) * r9, 0, Z8 * (LEAF_ZC + Math.sin(p9) * r9)];
+          return [Math.cos(p9) * r9 + inL9, 0, Z8 * (LEAF_ZC + Math.sin(p9) * r9)];
         },
         widthOf: wOf,
         /* 뒷부분만 안쪽으로 만다(요청: "세 잎의 뒷부분만 안쪽으로 말아서 모을 수
