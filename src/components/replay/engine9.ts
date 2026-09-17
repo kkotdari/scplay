@@ -401,6 +401,15 @@ export const POSE_KINDS: Record<string, { move?: boolean; atk?: boolean; flap?: 
   // ── 비행체: 이동 중이면 자세 1(추진체 불꽃), 아니면 0 ──
   wraith: { thrust: true }, dship: { thrust: true }, valk: { thrust: true }, bc: { thrust: true },
   scout: { thrust: true }, corsair: { thrust: true }, shuttle: { thrust: true }, carrier: { thrust: true },
+  /* ★ **땅 위의 추진체도 같은 규약**(2026-09, 요청: "스러스터에 불 켜지는 애들은 이동 모션에
+     그게 들어가면 됨 — SCV·벌처·프로브도 스러스터 불 들어와야 하는데 지금 없으면 추가해 줘") —
+     이 셋은 다리로 걷지 않는다(SCV 는 궤도, 벌처는 호버, 프로브는 뜬다). 걸음 컷을 지어내는
+     대신 비행체가 쓰던 자를 그대로 쓴다: 움직이는 동안 자세 1 을 받고 빌더가 그때만 불을 낸다.
+     ⚠ 짐 든 별본도 함께 적어야 한다 — 그리는 종류가 scvMin·probeGas 따위로 갈리므로, 본체만
+       적으면 자원을 나르는 동안 불이 꺼진다(짐을 나르는 때가 가장 많이 움직이는 때다). */
+  scv: { thrust: true }, scvMin: { thrust: true }, scvGas: { thrust: true },
+  vulture: { thrust: true },
+  probe: { thrust: true }, probeMin: { thrust: true }, probeGas: { thrust: true },
   /* 시즈 전환의 포신 홑판 — 자세 0~5가 '나온 몫' 여섯 칸이다(ReplayMotionPlayer tankbarrel·siegebarrel). 걸음·공격 컷의
      뜻이 아니라, 모든 자세가 판 열쇠에 실리도록 둘 다 켠다. */
   tankbarrel: { move: true, atk: true }, siegebarrel: { move: true, atk: true },
@@ -678,7 +687,18 @@ export const ATTACK_FX: Record<string, string> = {
  *  원작의 뉴트론 플레어는 총구에서 뻗는 선도, 날아가는 탄도 아니다 — 표적 둘레에서
  *  터지는 방전이다. 그래서 이 갈래는 총구 번쩍임(beam)도 날아가는 탄(shot)도 안 만들고,
  *  맞은 쪽의 피격 그림(FX_IMPACT)만 남긴다. 그 그림이 곧 그 무기의 전부다. */
-export const NO_BEAM_FX = new Set(["flare"]);
+/* ★★ **탱크는 선이 아니라 불꽃 둘이다**(2026-09, 요청: "시즈탱크 트레이서를 추가할 건데 맞는 쪽과
+   쏘는 쪽 모두 나와 — 쏘는 쪽은 포구에 타원형 불꽃 폭발이 나고, 맞는 쪽도 똑같은 모양인데 더
+   크게(넓게) 나옴, 스플래시 데미지니까") ────────────────────────────────────────────────
+   원작의 전차포는 눈에 보이는 탄이 없다 — 포구가 번쩍하고 표적 자리가 터진다. 여태 이 둘을
+   **가느다란 선**으로 그리고 있었으니 기관총과 같은 결이었다.
+   그래서 cannon(탱크)·siege(시즈)를 '선 안 그리는 갈래'에 넣는다. 그러면 아래 사격 자리가
+   표적에 제 그림을 얹고(splash), 거기에 **포구 불꽃**을 한 장 더 올린다(MUZZLE_BURST_FX9).
+   ⚠ 이 둘은 PROJECTILE_FX 에도 남아 있다 — 그 명단은 '탄이 나는가'를 묻는 자리가 여럿이라
+     (방어 건물의 탄 속도 따위) 건드리면 딴 자리가 흔들린다. 이 문이 먼저 서므로 뜻은 하나다. */
+export const NO_BEAM_FX = new Set(["flare", "cannon", "siege"]);
+/** 쏘는 쪽이 **포구 불꽃**을 내는 갈래 — 맞는 쪽과 같은 그림을 작게 한 장 더 얹는다(위 ★★). */
+export const MUZZLE_BURST_FX9 = new Set(["cannon", "siege"]);
 /** 쏘는 박자에 맞춰 **표적 자리에도** 제 그림을 내는 무기(지적: "아콘 스플래시 안 나와")
  *  ────────────────────────────────────────────────────────────────────────────────
  *  맞는 쪽 그림(FX_IMPACT)은 원래 **맞은 몸의 체력이 실제로 줄어든 순간**에만 뜬다. 그런데
@@ -2342,10 +2362,14 @@ export const FX_IMPACT: Record<string, {
   missile: { r: 1.1, g: [[0, "rgba(255,255,255,0.98)"], [0.3, "rgba(196,220,255,0.6)"], [0.62, "rgba(158,166,178,0.34)"], [1, "rgba(138,146,158,0)"]], ring: "rgba(220,232,245,0.45)" },
   // 스카우트의 금 탄두(missileG)가 맞는 그림 — 미사일과 같은 결이되 금빛이다.
   missileG: { r: 1.1, g: [[0, "rgba(255,250,232,0.98)"], [0.3, "rgba(255,228,160,0.6)"], [0.62, "rgba(198,172,110,0.34)"], [1, "rgba(170,150,100,0)"]], ring: "rgba(245,228,180,0.45)" },
-  cannon: { r: 1, g: [[0, "rgba(255,238,190,0.98)"], [0.32, "rgba(255,150,50,0.7)"], [1, "rgba(210,80,20,0)"]] },
+  /** ★ **전차포의 에너지포**(요청: "에너지포(가로 타원형)") — 날아가는 그 한 덩이다. 속은 흰불,
+   *  테는 주황. `flat` 0.38 이라 가로로 납작하다(날아가는 빛은 길쭉해야 총알과 안 헷갈린다). */
+  tankshell: { r: 0.5, flat: 0.38, g: [[0, "rgba(255,252,238,1)"], [0.3, "rgba(255,226,140,0.95)"], [0.62, "rgba(255,150,46,0.7)"], [1, "rgba(220,90,20,0)"]] },
+  // 탱크·시즈는 **납작한 타원**이다(요청: "타원형 불꽃 폭발") — 지면에 눕듯 퍼지는 폭풍이라 세로를 누른다.
+  cannon: { r: 1, flat: 0.5, g: [[0, "rgba(255,238,190,0.98)"], [0.32, "rgba(255,150,50,0.7)"], [1, "rgba(210,80,20,0)"]] },
   /* 시즈만 크다 — 원작에서도 이 한 발은 **주위까지 함께 터지는** 유일한 지상 포격이다
      (요청이 "시즈처럼 피격효과가 별도로 있는건"이라고 짚은 그것). 고리가 그 범위다. */
-  siege: { r: 1.75, g: [[0, "rgba(255,246,210,0.98)"], [0.22, "rgba(255,190,90,0.85)"], [0.55, "rgba(255,110,30,0.55)"], [1, "rgba(190,60,10,0)"]], ring: "rgba(255,190,110,0.5)" },
+  siege: { r: 1.75, flat: 0.5, g: [[0, "rgba(255,246,210,0.98)"], [0.22, "rgba(255,190,90,0.85)"], [0.55, "rgba(255,110,30,0.55)"], [1, "rgba(190,60,10,0)"]], ring: "rgba(255,190,110,0.5)" },
 };
 /* (걷어냄) lowZoomB — 저배율(detailAt 미만)에서 유닛 캔버스 배킹을 1배로 죄던 값이다.
  *
@@ -8520,7 +8544,52 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       /* 거리 문턱은 **선을 안 그리는 갈래에만** 건다 — 그쪽은 거리가 곧 '쏘고
          있나'의 대역이었다. 표적 그림만 더 얹는 갈래(TARGET_FX)는 붙어 싸울수록
          오히려 잘 보여야 하므로 문턱이 없다(아콘은 2타일에서 싸운다). */
-      if (beamLen > 1) {
+      /* ★★ **전차포는 셋이다**(2026-09, 요청: "포구에서 불꽃 터지면서 에너지포(가로 타원형)가
+         목표 지점으로 포물선으로 날아가게 — 가속도 곡선 적용, 원작에서 거의 쏘자마자 동시에
+         맞으니까 속도가 엄청 빨라야 해, 그리고 낙하한 지점에 큰 폭발 스플래시, 총 3개인 거지") ──
+         ① **포구 불꽃** — 쏘는 그 순간 총구에서 터지고 나는 동안 사그라든다.
+         ② **에너지포** — 가로로 납작한 빛 덩이가 포물선을 그으며 표적으로 간다. 나는 몫은
+            `u^1.45`(가속) 이라 나가는 쪽이 느리고 닿는 쪽이 빠르다.
+         ③ **착탄 스플래시** — 닿은 자리에서 몸만 한 폭발이 넓게 퍼진다(①과 같은 그림·더 넓게).
+         · 박자는 이 무기의 **진짜 쿨다운**(fxCdRaw)이다 — 여기 있던 fxCd 는 '번쩍임 주기'(≤0.32초)라
+           그것으로 재면 전차포가 기관총처럼 연사한다. 커세어(flare)는 종전대로 그 번쩍임이 맞다.
+         · 나는 시간은 **아주 짧다**(쿨다운의 12% · 상한 0.16초) — 원작에서 쏘는 것과 맞는 것이
+           거의 같은 순간이다. 그 짧음이 이 무기의 결이라, 길게 두면 미사일로 읽힌다. */
+      if (beamLen > 1 && MUZZLE_BURST_FX9.has(fxName9)) {
+        const tPxS9 = mapW9 / grid.width;
+        /** 총구 기준점에서 **표적 가슴**까지의 화면 벡터(배율 1 px) — hit op 의 dx·dy·dist 자다. */
+        const tvx9 = (foe.bx - pos.x) * tPxS9;
+        const tvy9 = (foe.by - pos.y) * tPxS9 * (pitched ? pitchFlat : 1)
+          - (foe.air ? foeLift9 : 0) - foeBody9 + mzLift9;
+        const shSec9 = Math.min(0.16, Math.max(0.05, fxCdRaw * 0.12));
+        const elS9 = firePhase(`u${holdKey}`, fxCdRaw) * fxCdRaw;
+        /** 나는 몫(0~1) — 가속 곡선. */
+        const uS9 = Math.min(1, elS9 / shSec9);
+        /** 포물선 — 가운데를 이만큼 들어 올린다(가는 거리의 12%). */
+        const arcS9 = Math.hypot(tvx9 - mzx9, tvy9 - mzy9) * 0.12;
+        const put9 = (px9: number, py9: number, size9: number, st9: string, ph9: number): void => {
+          const d9 = Math.hypot(px9, py9);
+          fxOps.push({
+            kind: "hit", style: st9, fx: mzfx9, fy: mzfy9, lift: mzLift9,
+            size: size9, dist: d9, dx: d9 > 0.01 ? px9 / d9 : 0, dy: d9 > 0.01 ? py9 / d9 : 0,
+            ph: ph9, splash: true,
+          });
+        };
+        if (uS9 < 1) {
+          // ① 포구 불꽃 — 나는 동안 사그라든다(envHit: 0.12에서 최대, 1에서 0).
+          put9(mzx9, mzy9, fxPx * 0.6, fxName9, 0.12 + uS9 * 0.88);
+          // ② 에너지포 — 가속한 몫만큼 나아가고, 가운데에서 가장 높이 뜬다.
+          const e9 = uS9 ** 1.45;
+          const bx9 = mzx9 + (tvx9 - mzx9) * e9;
+          const by9 = mzy9 + (tvy9 - mzy9) * e9 - arcS9 * 4 * e9 * (1 - e9);
+          put9(bx9, by9, fxPx * 0.34, "tankshell", 0.3);
+        } else {
+          /* ③ 착탄 스플래시 — 닿은 뒤 0.5초 동안 피었다 진다. 자는 쏘는 쪽 불꽃의 두 배가 넘는다
+             (요청: "맞는 쪽도 똑같은 모양인데 더 크게(넓게) 나옴, 스플래시 데미지니까"). */
+          const sp9 = (elS9 - shSec9) / 0.5;
+          if (sp9 <= 1) put9(tvx9, tvy9, fxPx * 1.35, fxName9, sp9);
+        }
+      } else if (beamLen > 1) {
         const [tfx9, tfy9] = posFrac(foe.bx, foe.by);
         const dly9 = ((ei * 7) % 5) / 10;
         const tph9 = (((t - dly9) % fxCd) + fxCd) % fxCd / fxCd;

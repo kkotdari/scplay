@@ -14139,6 +14139,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 꽁무니 추진체 한 쌍 — 배 아래, 뒤를 볼 때만 포구가 어두워진다. */
     for (const jx of [-0.66, 0.66]) {
       out.push(...paintBase(tubeFaces(jx, -2.6, jx, -3.5, 0.46, 3.4, true), TERRAN_STEEL_D));
+      // 달릴 때만 불이 든다(요청 — SCV 의 그 ★와 같은 규약).
+      if (poseNow === 1) out.push(...thrustFlame(jx, -3.5, 3.4, 0.34, "terran", depthNow(jx, -4.0) * 1.6 + 1.1));
     }
     return out;
   },
@@ -18693,6 +18695,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         paintBase(tubeFaces(jx, -1.30, jx, -2.30, 0.44, 3.12, true), TERRAN_STEEL_D),   // 몸통 뒤(−1.47)에 0.17 물림
         depthNow(jx, -2.35) * 1.6 + 1.1,
       ));
+      /* ★ **달릴 때 불이 든다**(2026-09, 요청: "스러스터에 불 켜지는 애들은 이동 모션에 그게
+         들어가면 됨 — SCV·벌처·프로브도 스러스터 불 들어와야 하는데 지금 없으면 추가해 줘") —
+         비행체가 쓰던 그 규약 그대로다(POSE_KINDS 의 thrust): 움직이는 동안만 자세 1 을 받고,
+         빌더는 **그 자세에서만** 불꽃을 낸다. 노즐은 이미 있었으니 불만 얹으면 된다. */
+      if (poseNow === 1) out.push(...thrustFlame(jx, -2.30, 3.12, 0.34, "terran", depthNow(jx, -2.9) * 1.6 + 1.1));
     }
     return out;
   },
@@ -18774,6 +18781,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        뿌리가 몸 밑면(6.2)보다 아래에서 시작해 몸과 다리 사이가 벌어졌다.
        굵기는 0.62배, 뿌리 높이는 몸통 원판(6.2)에 맞춰 올린다. */
     for (const ang of [168, 192]) out.push(...backWing(ang, 1.1 * BD, 0.8 + 1.1 * (1 - BD), 0.10, 0.04, 5.04, 4.8));
+    /* ★ **움직일 때 뒷날개 끝에서 푸른 분사**(요청: "프로브도 스러스터 불 들어와야 하는데
+       지금 없으면 추가해 줘") — 프로브는 노즐이랄 것이 없는 몸이라 불을 놓을 자리를 골라야
+       한다. 뒤 위 날개 한 쌍의 **끝**이 그 자리다: 그 둘이 뒤를 보고 나란히 서 있으므로
+       거기서 나가면 날개가 곧 분사구로 읽힌다(허공에 뜬 불꽃이 안 된다).
+       자리는 위 backWing 과 같은 식으로 잰다 — 각 ang, 반지름 r0 + len. */
+    for (const ang of [168, 192]) {
+      const ar9 = (ang * Math.PI) / 180;
+      const rr9 = 1.1 * BD + 0.8 + 1.1 * (1 - BD);
+      const px9 = Math.sin(ar9) * rr9;
+      const py9 = Math.cos(ar9) * rr9;
+      if (poseNow === 1) out.push(...thrustFlame(px9, py9, 4.86, 0.22, "toss", depthNow(px9, py9 - 0.6) * 1.6 + 1.1));
+    }
     // 긴 뒷다리 한 쌍은 길이·두께 2/3(지적).
     // 짧은 뒷다리 한 쌍은 더 짧게(지적) — 1.67 → 1.05.
     for (const ang of [138, 222]) out.push(...backWing(ang, 1.1 * BD, 1.05 + 1.1 * (1 - BD), 0.23, 0.09, 5, 4));
@@ -23439,12 +23458,20 @@ export type ShapeGalleryItem = {
 export const SHAPE_GALLERY: ShapeGalleryItem[] = [
   // ── 유닛 · 테란 ──
   { kind: "scv", label: "SCV", group: "유닛", race: "테란" },
+  { kind: "scvMin", label: "SCV(미네랄)", group: "유닛", race: "테란" },
+  { kind: "scvGas", label: "SCV(가스)", group: "유닛", race: "테란" },
   { kind: "gunner", label: "마린", group: "유닛", race: "테란" },
   { kind: "ghost", label: "고스트", group: "유닛", race: "테란" },
   { kind: "fbat", label: "파이어뱃", group: "유닛", race: "테란" },
   { kind: "inf", label: "메딕", group: "유닛", race: "테란" },
   { kind: "vulture", label: "벌처", group: "유닛", race: "테란" },
+  { kind: "mine", label: "스파이더 마인", group: "유닛", race: "테란" },
   { kind: "tank", label: "시즈 탱크", group: "유닛", race: "테란" },
+  /* ★ **별본은 제 본체 바로 뒤에 선다**(2026-09, 요청: "도록 순서에서 애드온과 시즈모드를 각
+     원래 건물/유닛 바로 다음으로 이동 · 일꾼 자원 운송 모드도 마찬가지") — 짐 든 일꾼·시즈
+     모드·마인이 목록 끝 딴 자리에 흩어져 있었다(제 종족 칸도 아니었다). 도록을 훑는 사람은
+     '이 유닛의 별본'을 그 유닛 옆에서 찾지, 목록 끝에서 찾지 않는다. */
+  { kind: "tanksiege", label: "시즈 탱크(시즈)", group: "유닛", race: "테란" },
   { kind: "goliath", label: "골리앗", group: "유닛", race: "테란" },
   { kind: "wraith", label: "레이스", group: "유닛", race: "테란" },
   { kind: "dship", label: "드랍십", group: "유닛", race: "테란" },
@@ -23452,11 +23479,9 @@ export const SHAPE_GALLERY: ShapeGalleryItem[] = [
   { kind: "valk", label: "발키리", group: "유닛", race: "테란" },
   { kind: "bc", label: "배틀크루저", group: "유닛", race: "테란" },
   // ── 유닛 · 프로토스 ──
-  { kind: "scvMin", label: "SCV(미네랄)", group: "유닛", race: "테란" },
-  { kind: "scvGas", label: "SCV(가스)", group: "유닛", race: "테란" },
-  { kind: "tanksiege", label: "시즈 탱크(시즈)", group: "유닛", race: "테란", hidden: true },   // 탱크의 액션 칸이 보여 준다(위 hidden)
-  { kind: "mine", label: "스파이더 마인", group: "유닛", race: "테란" },
   { kind: "probe", label: "프로브", group: "유닛", race: "프로토스" },
+  { kind: "probeMin", label: "프로브(미네랄)", group: "유닛", race: "프로토스" },
+  { kind: "probeGas", label: "프로브(가스)", group: "유닛", race: "프로토스" },
   { kind: "zealot", label: "질럿", group: "유닛", race: "프로토스" },
   { kind: "goon", label: "드라군", group: "유닛", race: "프로토스" },
   { kind: "htemp", label: "하이 템플러", group: "유닛", race: "프로토스" },
@@ -23482,14 +23507,16 @@ export const SHAPE_GALLERY: ShapeGalleryItem[] = [
      드론 41로 갈아입는다. 그래서 해처리 장식이 아니라 다른 유닛과 같은 길로 그려진다. */
   { kind: "larva", label: "라바", group: "유닛", race: "저그" },
   { kind: "egg", label: "변태알", group: "유닛", race: "저그" },
-  { kind: "probeMin", label: "프로브(미네랄)", group: "유닛", race: "프로토스" },
-  { kind: "probeGas", label: "프로브(가스)", group: "유닛", race: "프로토스" },
   { kind: "drone", label: "드론", group: "유닛", race: "저그" },
+  { kind: "droneMin", label: "드론(미네랄)", group: "유닛", race: "저그" },
+  { kind: "droneGas", label: "드론(가스)", group: "유닛", race: "저그" },
   { kind: "ovie", label: "오버로드", group: "유닛", race: "저그" },
   { kind: "zling", label: "저글링", group: "유닛", race: "저그" },
   { kind: "hydra", label: "히드라", group: "유닛", race: "저그" },
   { kind: "lurker", label: "러커", group: "유닛", race: "저그" },
+  { kind: "lurkeregg", label: "럴커 알", group: "유닛", race: "저그" },
   { kind: "muta", label: "뮤탈리스크", group: "유닛", race: "저그" },
+  { kind: "mutacocoon", label: "변태 고치", group: "유닛", race: "저그" },
   { kind: "scourge", label: "스커지", group: "유닛", race: "저그" },
   { kind: "queen", label: "퀸", group: "유닛", race: "저그" },
   { kind: "ultra", label: "울트라리스크", group: "유닛", race: "저그" },
@@ -23498,6 +23525,11 @@ export const SHAPE_GALLERY: ShapeGalleryItem[] = [
   { kind: "devourer", label: "디바우러", group: "유닛", race: "저그" },
   // ── 건물 · 테란 ──
   { kind: "tomb", label: "커맨드", group: "건물", race: "테란" },
+  /* ★ **애드온은 제 본체 바로 뒤에 선다**(2026-09, 요청) — 한때 "혼자 서지 못하는 여섯이 본
+     건물을 세 토막으로 가른다"며 끝으로 몰아 두었는데, 그 손질이 되물렸다. 붙는 자리가 곧
+     그 건물의 뜻이라(컴샛은 커맨드의 것이고 머신샵은 팩토리의 것이다) 옆에 있어야 읽힌다. */
+  { kind: "comsat", label: "컴샛", group: "건물", race: "테란" },
+  { kind: "nsilo", label: "핵 사일로", group: "건물", race: "테란" },
   { kind: "trapezoid", label: "서플라이", group: "건물", race: "테란" },
   { kind: "refinery", label: "리파이너리", group: "건물", race: "테란" },
   { kind: "cube", label: "배럭", group: "건물", race: "테란" },
@@ -23506,19 +23538,11 @@ export const SHAPE_GALLERY: ShapeGalleryItem[] = [
   { kind: "academy", label: "아카데미", group: "건물", race: "테란" },
   { kind: "turret", label: "터렛", group: "건물", race: "테란" },
   { kind: "factory", label: "팩토리", group: "건물", race: "테란" },
+  { kind: "mshop", label: "머신샵", group: "건물", race: "테란" },
   { kind: "plane", label: "스타포트", group: "건물", race: "테란" },
+  { kind: "ctower", label: "컨트롤 타워", group: "건물", race: "테란" },
   { kind: "armory", label: "아머리", group: "건물", race: "테란" },
   { kind: "scifac", label: "사이언스 퍼실리티", group: "건물", race: "테란" },
-  /* ★ 애드온은 **뒤로 미룬다**(지시) — 여태 컴샛·핵 사일로가 커맨드 바로 뒤에, 머신샵이
-     팩토리 뒤에, 컨트롤 타워가 스타포트 뒤에 끼어 본 건물 사이사이를 끊고 있었다.
-     붙는 자리로는 그 차례가 맞지만, 도록은 '무엇이 있나'를 훑는 자리다 — 혼자 서지
-     못하는 여섯이 본 건물 열 몇을 세 토막으로 가르면 목록이 안 읽힌다.
-     한 덩이로 묶어 끝에 둔다. 그러면 앞은 본 건물만 죽 이어지고, 애드온은 제 무리로
-     한눈에 든다. 차례만 바뀔 뿐 무엇 하나 빠지지 않는다. */
-  { kind: "comsat", label: "컴샛", group: "건물", race: "테란" },
-  { kind: "nsilo", label: "핵 사일로", group: "건물", race: "테란" },
-  { kind: "mshop", label: "머신샵", group: "건물", race: "테란" },
-  { kind: "ctower", label: "컨트롤 타워", group: "건물", race: "테란" },
   { kind: "covert", label: "코버트 옵스", group: "건물", race: "테란" },
   { kind: "physlab", label: "피직스 랩", group: "건물", race: "테란" },
   // ── 건물 · 프로토스 ──
@@ -23558,10 +23582,6 @@ export const SHAPE_GALLERY: ShapeGalleryItem[] = [
   { kind: "dmound", label: "디파일러 마운드", group: "건물", race: "저그" },
   { kind: "cocoon", label: "공사 고치(저그)", group: "건물", race: "저그" },
   { kind: "sunkenfire", label: "성큰(발사)", group: "건물", race: "저그", hidden: true },   // 성큰의 공격 칸이 보여 준다(위 hidden)
-  { kind: "lurkeregg", label: "럴커 알", group: "유닛", race: "저그" },
-  { kind: "mutacocoon", label: "변태 고치", group: "유닛", race: "저그" },
-  { kind: "droneMin", label: "드론(미네랄)", group: "유닛", race: "저그" },
-  { kind: "droneGas", label: "드론(가스)", group: "유닛", race: "저그" },
   // ── 자원 ──
   /* 미네랄 셋(요청: 3종) — 도록에서 나란히 견줘야 성격이 갈렸는지 보인다. */
   { kind: "mineral", label: "미네랄 ①기둥", group: "부가", race: "" },

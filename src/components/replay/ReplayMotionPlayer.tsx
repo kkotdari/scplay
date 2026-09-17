@@ -88,7 +88,7 @@ import {
 import { TEAM_COLOR, type MinimapMarker } from "./markers";
 import {
   atkCutOf as atkCutOf9, flapCutOf as flapCutOf9,
-  muzzlePoint as muzzlePoint9, anchorPoint as anchorPoint9, spinMuzzle9, BLD_MUZZLE, HEAD_MUZZLE_KINDS9,
+  muzzlePoint as muzzlePoint9, anchorPoint as anchorPoint9, spinMuzzle9, BLD_MUZZLE, HEAD_MUZZLE_KINDS9, MUZZLE_BURST_FX9,
   AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, ATTACK_FX, NO_BEAM_FX, TARGET_FX, PROJECTILE_FX, NUKE_BOOM_SEC, NUKE_FALL_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SPIN_STEPS, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
 } from "./engine9";
 import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, WorldUi9 } from "./engine9";
@@ -491,7 +491,7 @@ export function poseKindsOf(kind: string): { move?: boolean; atk?: boolean; flap
  *  날갯짓까지다. 없는 컷을 달라고 하면 굽기 열쇠(poseTag)가 "0"으로 접어 idle을
  *  돌려주는데 — 그림은 옳지만 **빌더는 그 컷으로 한 번 불린다**. 열쇠와 그림이
  *  어긋날 자리를 만드느니, 부르는 쪽이 있는 컷만 묻는 편이 낫다. */
-export function poseCutsOf(kind: string): { move?: boolean; atk?: boolean; flap?: number } | null {
+export function poseCutsOf(kind: string): { move?: boolean; atk?: boolean; flap?: number; thrust?: boolean } | null {
   return POSE_KINDS[kind] ?? null;
 }
 export function poseTempoOf(kind: string): { walkHz: number; atkCd: number } | null {
@@ -5441,8 +5441,10 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg }
     const tx9 = ux9 > 0.001 ? (w9 - m9 - x09) / ux9 : ux9 < -0.001 ? (m9 - x09) / ux9 : Infinity;
     const ty9 = uy9 > 0.001 ? (h9 - m9 - y09) / uy9 : uy9 < -0.001 ? (m9 - y09) / uy9 : Infinity;
     const edge9 = Math.max(14, Math.min(tx9, ty9));
-    // 끝이 칸 밖으로 잘리면 무기의 꼴이 안 읽힌다 — 조금 물린다(솟는 가시는 제 키만큼 더).
-    const dist9 = edge9 * 0.88;
+    /* 끝이 칸 밖으로 잘리면 무기의 꼴이 안 읽힌다 — 조금 물린다.
+       ★ **불꽃 둘로 그리는 갈래**(탱크·시즈)는 더 물린다 — 그 갈래는 표적 쪽에도 제 몸만 한
+         폭발이 서므로, 줄기 갈래와 같은 자리에 두면 그 절반이 칸 밖으로 잘린다. */
+    const dist9 = edge9 * (MUZZLE_BURST_FX9.has(style) ? 0.58 : 0.88);
     const age9 = (t % 1.1) / 1.1;            // 한 발의 나이 0~1
     const shot9 = PROJECTILE_FX.has(style);
     const ops9: FxOp[] = [];
@@ -5469,7 +5471,45 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg }
       }
     }
     if (style !== "erupt" && (NO_BEAM_FX.has(style) || TARGET_FX.has(style))) {
-      ops9.push({ kind: "hit", style, fx: 1, fy: 1, lift: 0, ph: age9, size: 2.6 } as FxOp);
+      /* ★ 자는 **지도의 그 자**다 — 지도는 `size: fxPx`(쏘는 몸의 상자, 배율 1 기준 px)를 준다.
+         도록의 같은 값은 `그 종류의 타일 수 × 8` 이다(ZOOM9 = 타일px/8 이므로). 못 박은 2.6 은
+         트레이서 배율을 8 로 두던 시절의 값이라, 모델이 칸을 채우는 지금은 점 하나였다.
+         ⚠ `splash: true` 와 `dist: 0` 을 꼭 준다 — splash 가 없으면 붓이 파편으로 그리고,
+           dist 를 비우면 기본값(상자의 0.71배)만큼 **옆으로 밀려** 그려진다.
+         ⚠ 도록 칸에서는 **0.78 배로 줄인다** — 지도에서는 이 폭발이 유닛을 덮어도 둘레가
+           지도라 읽히지만, 한 칸에 모델과 폭발이 함께 서는 도록에서는 칸이 주황 안개가 된다.
+           무기의 자(지도)는 안 건드리고 **보여 주는 자리에서만** 줄인다. */
+      const hs9 = Math.max(1, shapeMapTiles(kind)) * 8 * 0.78;
+      /** 총구에서 (px, py) 만큼 떨어진 자리에 한 장 — hit 은 dx·dy 방향으로 dist × 배율만큼 민다. */
+      const put9 = (px9: number, py9: number, sz9: number, st9: string, ph9: number): void => {
+        const m9 = Math.hypot(px9, py9);
+        ops9.push({
+          kind: "hit", style: st9, fx: 0, fy: 0, lift: 0, splash: true,
+          size: sz9, ph: ph9, dist: m9 / ZOOM9,
+          dx: m9 > 0.01 ? px9 / m9 : 0, dy: m9 > 0.01 ? py9 / m9 : 0,
+        } as FxOp);
+      };
+      if (MUZZLE_BURST_FX9.has(style)) {
+        /* 전차포 — 지도와 같은 셋이다(engine9 의 ★★): 포구 불꽃 · 포물선을 나는 에너지포 ·
+           착탄 스플래시. 한 바퀴 1.1초 중 **앞 0.16초**가 나는 몫이다(거의 동시에 맞는다). */
+        const cyc9 = 1.1;
+        const el9 = ((t % cyc9) + cyc9) % cyc9;
+        const fly9 = 0.16;
+        const u9 = Math.min(1, el9 / fly9);
+        const tvx9 = ux9 * dist9;
+        const tvy9 = uy9 * dist9;
+        const arc9 = dist9 * 0.12;
+        if (u9 < 1) {
+          put9(0, 0, hs9 * 0.6, style, 0.12 + u9 * 0.88);
+          const e9 = u9 ** 1.45;
+          put9(tvx9 * e9, tvy9 * e9 - arc9 * 4 * e9 * (1 - e9), hs9 * 0.34, "tankshell", 0.3);
+        } else {
+          const sp9 = (el9 - fly9) / 0.5;
+          if (sp9 <= 1) put9(tvx9, tvy9, hs9 * 1.35, style, sp9);
+        }
+      } else {
+        put9(ux9 * dist9, uy9 * dist9, hs9, style, age9);
+      }
     }
     paintFxList9(g9, ops9, {
       zoom: ZOOM9, tilePx: 8, cw: w9, ch: h9, Bd: dpr,
@@ -5629,6 +5669,11 @@ export function docCellsOf9(kind: string, t: number, yaw: number): DocCell9[] {
     const idle9: 0 | 1 | 2 | 3 | 4 | 5 = pk9?.flap ? flapCutOf9(pk9.flap, t) : 0;
     out9.push({ label: "대기", pose: idle9 });
     if (pk9?.move && tp9) out9.push({ label: "이동", pose: Math.floor(t * tp9.walkHz) % 2 === 1 ? 3 : 1 });
+    /* ★ **추진체는 걸음이 없어도 이동 칸을 세운다**(2026-09, 요청: "스러스터에 불 켜지는
+       애들은 이동 모션에 그게 들어가면 됨") — 나는 몸·호버는 다리로 걷지 않아 걸음 컷이
+       없다. 그래서 여태 이동 칸이 아예 안 섰는데, 그 종류들이야말로 '이동 중'이 그림으로
+       가장 또렷하다(불이 든다). 지도와 같은 자세다 — 움직이면 자세 1(engine9 의 thrust). */
+    else if (pk9?.thrust) out9.push({ label: "이동", pose: 1 });
     if (pk9?.atk && tp9) {
       const ph9 = (((t % tp9.atkCd) + tp9.atkCd) % tp9.atkCd) / tp9.atkCd;
       out9.push({ label: "공격", pose: atkCutOf9(kind, ph9, pk9.flap, t), tracer: gun9 });
