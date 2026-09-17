@@ -609,7 +609,17 @@ export function faceLight(
   const nx = mnx * c + mny * sn;
   const ny = -mnx * sn + mny * c;
   const dot = nx * LIGHT_PLAN[0] + ny * LIGHT_PLAN[1];
-  const face = (d: string): ShapeFace[] => {
+  /* ★★ **메시에는 이 명암을 굽지 않는다**(2026-09, 지적: "빛의 각도상 지금 포탑 옆면이 어두우면 안 되는
+     각도인데 어둡단 말이지") — 이 자는 **세계 광원**과 낯의 각을 재는 자이고, 그 각은 `currentYaw()` 를
+     지난 법선으로 잰다. 그런데 메시는 **요잉 0 에서 한 번만** 굽으므로(collectMesh9), 여기서 낸 몫이
+     `aOv` 로 접혀 **몸과 함께 도는 명암**이 된다 — 요잉 0 에서 그늘이던 낯은 어느 각으로 돌려도 그늘이다.
+     판을 요잉 칸마다 굽던 2D 시절에는 이 자가 칸마다 다시 돌아 옳았다(그래서 `#gl=0` 폴백·도록 SVG 는
+     종전 그대로 둔다 — 아래 문은 `MESH9.on` 일 때만 닫힌다).
+     GL 에서는 **같은 곡선을 셰이더가 돌아간 법선으로** 낸다(gl9 의 `면 빛`) — 빛이 세계에 못 박히고
+     도는 것은 몸이 된다.
+     ⚠ 실측(tanksiegegun 여덟 각 · 왼쪽−오른쪽 평균 휘도): +24.7 · +10.5 · −1.0 · −10.1 · +12.0 · +25.5 ·
+       +23.0 · +28.7 — 빛이 고정이라면 죽 양수로 고르게 남아야 하는데 **부호가 뒤집혔다**. */
+  const face = MESH9.on ? (): ShapeFace[] => [] : (d: string): ShapeFace[] => {
     if (dot > 0.3) return [topFace(d, Math.min(0.2, (dot - 0.3) * 0.3 + 0.08))];
     if (dot < -0.1) return [sideFace(d, Math.min(0.38, (-dot - 0.1) * 0.45 + 0.12))];
     return [];
