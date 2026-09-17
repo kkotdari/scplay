@@ -3396,8 +3396,12 @@ export function tankTurretV2(siege: boolean, parts?: { body?: boolean; barrel?: 
   const Z0 = oz(2.28);
   // ① 회전판 — 임자색(칠하지 않는다).
   if (wantBody9) out.push(...tagKey(cylinderFaces3(0, 0, 1.9, 0.2, Z0), kT(0, 0)));
-  // ② 육각 상자 — 시즈면 앞뒤를 뒤집는다(180° 회전).
-  const f9 = siege ? -1 : 1;
+  /* ② 육각 상자 — **시즈에서도 그대로다**(2026-09, 지적: "지금 보니까 포탑이 시즈모드에서
+     뒤로 돌아가는데 그게 아니야, 뒤에서 시즈 포신이 나오는 거야, 포탑은 그대로 있고").
+     여태 `siege ? -1 : 1` 로 앞뒤를 뒤집고(180° 회전) 포탑째 12도 기울였는데, 원작의 시즈
+     전환은 포탑이 도는 것이 아니라 **포탑 뒤에서 긴 포신이 솟아 나오는 것**이다. 뒤집으면
+     넓은 낯이 뒤로 가고 데칼·해치가 다 뒤를 보게 되어, 같은 몸이 두 모드에서 딴 몸으로 읽힌다. */
+  const f9 = 1;
   /* 원판을 뺀 포탑·돔·포신 1.4배(요청) — withModelScale는 겹치면 덮어쓰므로(turretScaled9의 0.8과 못 겹친다) 좌표에
      직접 곱한다. 축은 포탑 밑면 가운데(0, 0, ZB9). */
   const HX9 = 1.4;
@@ -3411,7 +3415,13 @@ export function tankTurretV2(siege: boolean, parts?: { body?: boolean; barrel?: 
      포탑 밑면 높이(Z0+0.25)의 x축을 축으로 +y(포신) 쪽이 12도 들린다. 육각은 prismZFaces가 축 정렬이라 기운 꼭짓점으로
      직접 짠다(윗면 + 옆면 여섯, 옆면은 제 법선으로 빛). 일반 모드는 기울기 0이라 옛 그림 그대로다. */
   // 전환 홑판(ext 지정)은 탱크 포탑(기울기 0)에 얹힌다 — 포신·포탑이 함께 드는 것은 변신이 끝난 시즈 판에서다.
-  const TILT9 = siege && parts?.ext === undefined ? (12 * Math.PI) / 180 : 0;
+  /* ★ 시즈는 **포탑째 든다 — 포신은 그 위에 얹혀 함께 기운다**(2026-09, 지적: "시즈 포신은
+     포탑과 함께 기울어지는 거라 탱크 모드에서는 지면에 수평으로 들어가 있는 상태야, 포탑도
+     그러니까"). 그래서 포신 제 길에는 오르내림이 없고(RISE9 0), 드는 일은 이 한 각이 다 한다.
+     ⚠ 부호가 **음수**다 — 포신이 뒤(−y)로 나가므로, 그쪽이 오르려면 앞이 내려가야 한다.
+     ⚠ 전환 중(ext 지정)엔 0 이다 — 포신은 **수평으로 먼저 나오고**, 기울기는 변신이 끝나
+       시즈 판과 한 몸이 될 때 함께 든다(그래야 나오는 동안 몸이 안 들썩인다). */
+  const TILT9 = siege && parts?.ext === undefined ? -(16 * Math.PI) / 180 : 0;
   const ZB9 = Z0 + 0.25;
   const T9 = (x9: number, y9: number, z9: number): [number, number, number] => [
     x9, y9 * Math.cos(TILT9) - (z9 - ZB9) * Math.sin(TILT9), ZB9 + y9 * Math.sin(TILT9) + (z9 - ZB9) * Math.cos(TILT9),
@@ -3456,26 +3466,9 @@ export function tankTurretV2(siege: boolean, parts?: { body?: boolean; barrel?: 
       /** 윗면 바로 위의 한 점 — 기울기까지 태운다. */
       const PT9 = (x9: number, y9: number): [number, number, number] => T9(x9, y9, ZT9 + 0.02);
       const haz9: ShapeFace[] = [];
-      {
-        // 반폭 0.72 — 시즈는 −y 쪽이 넓은 낯(반폭 0.85)이라 그 안에 들어야 한다.
-        const HW9 = 0.72 * HX9;
-        const HD9 = 0.24 * HX9;
-        const CY9 = -0.92 * HX9;
-        const bp9 = polyPath3([
-          PT9(-HW9, CY9 + HD9), PT9(HW9, CY9 + HD9), PT9(HW9, CY9 - HD9), PT9(-HW9, CY9 - HD9),
-        ]);
-        haz9.push([bp9, 1, "#d8b52a"] as ShapeFace, topFace(bp9, 0.16));
-        const BN9 = 4;
-        const bw9 = (HW9 * 2) / (BN9 * 2 + 1);
-        const cl9 = (v9: number): number => Math.max(-HW9, Math.min(HW9, v9));
-        for (let i9 = 0; i9 < BN9; i9 += 1) {
-          const x09 = -HW9 + bw9 * (i9 * 2 + 0.5);
-          haz9.push([polyPath3([
-            PT9(cl9(x09 + HD9 * 0.9), CY9 + HD9), PT9(cl9(x09 + bw9 + HD9 * 0.9), CY9 + HD9),
-            PT9(cl9(x09 + bw9), CY9 - HD9), PT9(cl9(x09), CY9 - HD9),
-          ]), 1, "#22262b"] as ShapeFace);
-        }
-      }
+      /* (걷어냄) 윗면 뒤쪽의 해저드 빗금 — 정정: "해저드 데칼은 시즈 모드 포신의 **끝**에
+         둘러지는 거였어. 그게 일반 탱크 모드에서도 끝이 살짝 튀어나와서 보이는 거였어."
+         곧 그 노랑은 포탑의 표식이 아니라 **포구 둘레의 띠**다(아래 hazSleeve9). */
       // 앞이 뾰족한 삼각형 — 꼭짓점 차례는 육각 윗면과 같은 감기(앞 → 오른쪽 → 왼쪽)다.
       const tri9 = polyPath3([
         PT9(0, 0.78 * HX9), PT9(0.52 * HX9, -0.30 * HX9), PT9(-0.52 * HX9, -0.30 * HX9),
@@ -3487,6 +3480,60 @@ export function tankTurretV2(siege: boolean, parts?: { body?: boolean; barrel?: 
   // (걷어냄·요청) 포탑 위 작은 회색 돔(지휘관 해치).
   const fwd9 = facingRatio(0, 1) > 0.08;
   if (!wantBarrel9) return out;
+  /* ★★ **시즈 포신은 뒤에서 나와 하늘을 본다**(2026-09, 지적: "뒤에서 시즈 포신이 나오는 거야,
+     포탑은 그대로 있고" · "뒤쪽 위쪽 사선으로 들린 포신의 끝이 포구야") — 그래서 y 는 **−**로
+     가고 z 는 오른다. 한 벌을 함수로 두는 까닭은 **탱크 모드도 같은 포신을 쓰기** 때문이다:
+     접힌 포신의 **끝만 뒤로 조금 나와** 있고, 그 끝에 두른 해저드 띠가 그 자리에서 보인다
+     (정정: "해저드 데칼은 시즈 모드 포신의 끝에 둘러지는 거였어"). */
+  const RISE9 = 0;   // 드는 일은 포탑의 기울기(TILT9)가 한다 — 포신은 포탑 위에 곧게 얹힌다
+  /** 나온 몫 e 의 포신 축 위 한 점(t 0 뿌리 ~ 1 포구). rc 는 반동(앞으로 밀림). */
+  const gunAt9 = (e9: number, rc9: number) => (t9: number): [number, number, number] =>
+    T9(0, -(1.0 + 3.04 * e9 * t9) * BX9 + rc9, ZB9 + (Z0 + 1.0 + RISE9 * e9 * t9 - ZB9) * BX9z9);
+  /** 포구 둘레의 **해저드 띠** — 축 s0~s1 구간을 반 칸 비틀어 두르면 그것이 곧 빗금이다.
+   *  ⚠ 축이 y·z 평면에 있으므로 x 축이 그대로 한 수직이다(그래서 외적 한 번이면 틀이 선다). */
+  const hazSleeve9 = (
+    pOf9: (t9: number) => [number, number, number], s09: number, s19: number, r9: number,
+  ): ShapeFace[] => {
+    const a9 = pOf9(s19); const b9 = pOf9(s09);
+    const al9 = Math.hypot(a9[0] - b9[0], a9[1] - b9[1], a9[2] - b9[2]) || 1;
+    const u9: [number, number, number] = [(a9[0] - b9[0]) / al9, (a9[1] - b9[1]) / al9, (a9[2] - b9[2]) / al9];
+    const e29: [number, number, number] = [
+      u9[1] * 0 - u9[2] * 0, u9[2] * 1 - u9[0] * 0, u9[0] * 0 - u9[1] * 1,
+    ];
+    const N9 = 8; const D9 = (Math.PI * 2) / N9;
+    /* ⚠ 포신 단면은 **타원**이다(spirePillar 의 `oval: 2` — v 축을 두 배로 늘인다). 띠를
+       동그랗게 두르면 넓은 쪽에서 살에 파묻혀 **각도에 따라 사라진다**(지적: "해저드 데칼이
+       각도에 따라 잘 안 보이는 부분이 있는 듯"). 같은 비로 눌러 두른다. */
+    const OV9 = 2;
+    const C9 = (th9: number, s9: number): [number, number, number] => {
+      const q9 = pOf9(s9);
+      const c9 = Math.cos(th9); const sn9 = Math.sin(th9) * OV9;
+      return [q9[0] + r9 * c9, q9[1] + r9 * sn9 * e29[1], q9[2] + r9 * sn9 * e29[2]];
+    };
+    const qs9: { d: number; f: ShapeFace }[] = [];
+    for (let i9 = 0; i9 < N9; i9 += 1) {
+      const t09 = i9 * D9;
+      const pth9 = polyPath3([
+        C9(t09, s09), C9(t09 + D9, s09), C9(t09 + D9 * 1.6, s19), C9(t09 + D9 * 0.6, s19),
+      ]);
+      const m9 = C9(t09 + D9 * 0.5, (s09 + s19) / 2);
+      qs9.push({ d: depthNow(m9[0], m9[1]), f: [pth9, 1, i9 % 2 === 0 ? "#d8b52a" : "#22262b"] as ShapeFace });
+    }
+    qs9.sort((p9, q9) => p9.d - q9.d);
+    return qs9.map((v9) => v9.f);
+  };
+  /** 시즈 포신 한 벌(몸 + 포구의 해저드 띠) — 나온 몫 e, 반동 rc. */
+  const siegeGun9 = (e9: number, rc9: number): ShapeFace[] => {
+    const pOf9 = gunAt9(e9, rc9);
+    const o9 = paintBase(spirePillar({
+      x: 0, y: 0, h: 0.8, w: 1, segs: 6, sides: 8, oval: 2, caps: "both",
+      path: pOf9,
+      widthOf: (t9: number): number => (0.6 - 0.07 * e9 * t9) * BX9,
+    }), TANK_STEEL);
+    // 띠는 포구 바로 뒤 — 살보다 조금 굵어 둘러진 것으로 읽힌다.
+    o9.push(...hazSleeve9(pOf9, 0.80, 0.995, 0.62 * BX9));
+    return o9;
+  };
   // 포신 길이 0.8배(요청): 일반 0.6~3.5 → 0.6~3.0(끝마디 2.45~3.0) · 시즈 3.8 → 3.04. 키의 y도 짧아진 만큼(2.4 → 2.0).
   if (!siege) {
     // ③ 일반 모드 — 짧은 쌍포신(앞 폭이 짧은 앞면에서 나온다). 반동은 뒤로 0.6.
@@ -3507,21 +3554,19 @@ export function tankTurretV2(siege: boolean, parts?: { body?: boolean; barrel?: 
       if (b1 - b0 > 0.05) out.push(...tagKey(paintBase(tubeFaces(bx, b0, bx, b1, 0.38 * BX9, bz9, fwd9), GUNMETAL), kB + 0.05));
       if (m > 0) markMuzzle9(bx, 3.0 * BX9 - rc9, bz9);   // 오른 포신 끝(전환 홑판에서는 뽑힌 몫과 무관하게 제 끝)
     }
+    /* ★ 접힌 시즈 포신의 **끝만 뒤로 나와 있다**(정정: "일반 탱크 모드에서도 끝이 살짝
+       튀어나와서 보이는 거였어") — 0.26 만 뻗으면 포구가 포탑 뒤 낯(−1.3·HX9)에서 0.4쯤
+       나온다. 그 끝의 해저드 띠가 탱크 모드에서 보이는 그 노랑이다.
+       ⚠ 전환 홑판(ext 지정)에서는 안 그린다 — 그 판은 나오는 몫을 제가 그린다. */
+    if (ext9 === undefined) out.push(...tagKey(siegeGun9(0.26, 0), kT(0, -2.0 * BX9) + 0.15));
   } else {
     // ④ 시즈 모드 — 돌아앉은 본체의 긴 앞면에서 굵고 긴 포신 하나(기울여 살짝 하늘을 본다). 반동 1.1.
     const extS9 = parts?.ext ?? 1;
     if (extS9 < 0.04) return out;   // 아직 안 나왔다(전환 홑판)
     const rcS9 = poseNow === 2 && parts?.ext === undefined ? 1.1 : 0;
-    // 나온 몫(extS9)만큼만 뿌리(1.0)에서 뻗는다 — 뒤 겹판은 포탑 몸 뒤에 찍히므로 뿌리 쪽은 몸이 가린다.
-    // 전환 중(ext 지정)엔 **수평**으로 나온다 — 기울기는 변신이 끝나 시즈 포탑과 한 몸이 될 때 함께 든다.
-    const rise9 = parts?.ext === undefined ? 0.352 : 0;
-    out.push(...tagKey(paintBase(spirePillar({
-      x: 0, y: 0, h: 0.8, w: 1, segs: 6, sides: 8, oval: 2, caps: "both",
-      path: (t9: number): [number, number, number] =>
-        T9(0, (1.0 + 3.04 * extS9 * t9) * BX9 - rcS9, ZB9 + (Z0 + 1.0 + rise9 * extS9 * t9 - ZB9) * BX9z9),
-      widthOf: (t9: number): number => (0.6 - 0.07 * extS9 * t9) * BX9,
-    }), TANK_STEEL), kT(0, 2.0 * BX9) + 0.2));
-    markMuzzle9(...T9(0, (1.0 + 3.04 * extS9) * BX9 - rcS9, ZB9 + (Z0 + 1.0 + rise9 * extS9 - ZB9) * BX9z9));   // 소염기 끝
+    // 뒤(−y)로 나가므로 반동은 **앞으로**(+y) 민다 — 부호가 위 탱크 포신과 반대다.
+    out.push(...tagKey(siegeGun9(extS9, rcS9), kT(0, -2.0 * BX9) + 0.2));
+    markMuzzle9(...gunAt9(extS9, rcS9)(1));   // 소염기 끝 — 뒤 위로 들린 그 자리다
   }
   return out;
 }
@@ -5337,19 +5382,25 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const zTop = zBase + hi;
       const at9 = (t9: number): [number, number] => [yB + (yF - yB) * t9, zTop - hi * t9];
       const w9 = hw * 0.74;
-      const quad9 = (ta: number, tb: number): string => {
+      /* ★ 살은 판에서 **살짝 띄운다**(2026-09, 지적: "배럭의 벤트 살도 각도에 따라 안 보이는
+         부분이 있어") — 같은 평면에 두면 GL 에서 깊이 싸움이 난다. 데칼 편향(0.25)은 **작은
+         한 장**에만 걸리는데(gl9 isDecal: 3D 상자 지름 < 2.8) 이 살은 벤트 폭을 가로질러 그
+         문을 못 지난다. 그러면 편향을 못 받고 **각도에 따라 판 뒤로 진다**.
+         띄움은 편향이 아니라 **진짜 자리**다 — 어느 붓에서나, 어느 각에서나 산다. */
+      const LIFT9 = 0.04;
+      const quad9 = (ta: number, tb: number, lf9 = 0): string => {
         const [ya, za] = at9(ta);
         const [yb, zb] = at9(tb);
         return polyPath3([
-          [cx - w9, ya, za], [cx + w9, ya, za], [cx + w9, yb, zb], [cx - w9, yb, zb],
+          [cx - w9, ya, za + lf9], [cx + w9, ya, za + lf9], [cx + w9, yb, zb + lf9], [cx - w9, yb, zb + lf9],
         ]);
       };
       const f9: ShapeFace[] = [[quad9(0.12, 0.88), 1, VENTC9]];
       // 살 — 밝은 줄과 그 아래 검은 골이 짝을 이룬다(다른 벤트와 같은 결).
       for (let i9 = 1; i9 <= 2; i9 += 1) {
         const t09 = 0.12 + (0.76 * i9) / 3;
-        f9.push(topFace(quad9(t09 - 0.09, t09 - 0.02), 0.3));
-        f9.push(sideFace(quad9(t09 - 0.02, t09 + 0.06), 0.5));
+        f9.push(topFace(quad9(t09 - 0.09, t09 - 0.02, LIFT9), 0.3));
+        f9.push(sideFace(quad9(t09 - 0.02, t09 + 0.06, LIFT9), 0.5));
       }
       return f9;
     };
@@ -5424,9 +5475,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const NRIB9 = 7;
       for (let i9 = 1; i9 <= NRIB9; i9 += 1) {
         const y09 = VYB + ((VYF - VYB) * i9) / (NRIB9 + 1);
+        // 뚜껑에서 0.04 띄운다 — 같은 평면이면 각도에 따라 뚜껑 뒤로 진다(위 slopePanel9 의 ★).
         const barV = (ya: number, yb: number): string => polyPath3([
-          [-VW9 * 0.7, ya, MTOP + VTH], [VW9 * 0.7, ya, MTOP + VTH],
-          [VW9 * 0.7, yb, MTOP + VTH], [-VW9 * 0.7, yb, MTOP + VTH],
+          [-VW9 * 0.7, ya, MTOP + VTH + 0.04], [VW9 * 0.7, ya, MTOP + VTH + 0.04],
+          [VW9 * 0.7, yb, MTOP + VTH + 0.04], [-VW9 * 0.7, yb, MTOP + VTH + 0.04],
         ]);
         /* 골은 **옆 벤트와 같은 자**다(요청: "구멍색 양옆 벤트처럼 검게") — 흰 덮개를 음수로
            준 −0.35 는 같은 검정이라도 반만 진해, 살 뒤가 '그늘'로만 보이고 뚫린 것으로 안 읽혔다.
