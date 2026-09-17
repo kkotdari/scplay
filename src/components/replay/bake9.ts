@@ -11766,7 +11766,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // 받침은 둥근 판만(재지적: 네모 판 제거) — 아래 넓은 원판 + 위로 벌어지는 원통 대접.
     /* 본판을 줄인다(재요청: 5.0/4.4 → 3.5/3.1) — 발판이 둘레를 맡으니 대접만 남긴다. */
     out.push(...tagKey(paintBase(cylinderFaces3(0, 0, 3.5 * DK9, 0.36 * HB9), GOLD_D), 1));
-    out.push(...tagKey(paintBase(cylinderFaces3(0, 0, 3.1 * DK9, 0.92 * HB9, 0.36 * HB9), GOLD), 2));
+    /* ⚠⚠ **대접의 윗면을 안 낸다 — 그 낯이 그릇을 덮고 있었다**(2026-09, 지적: "베이 역돔 위에
+       평평한 판 제거해야 할 듯? 가리고 있는 듯") — 커맨드 꼭대기와 **똑같은 자리**다.
+       `cylinderFaces3` 의 뚜껑은 `topFace(discPath3(...))` 라 2D 에서는 덧칠이지만, 접을 몸이
+       없는 덧칠은 메시에서 **제 부품으로 남는다**(그것이 규약이다 — 지붕 살창·둔덕 얼룩이
+       그렇게 산다). 그래서 GL 에서는 꽉 찬 금색 판이 되어 역돔을 통째로 가렸다
+       (그릇을 빨갛게 칠해 보니 테두리 한 줄만 붉었다 — 커맨드에서 쓴 그 실험이다).
+       뚜껑을 고를 수 있는 기둥(spirePillar · caps "bottom")으로 짠다 — 굵기가 안 변하는
+       열여섯 낯 기둥이라 그림은 종전과 같고, 윗면만 없다. */
+    out.push(...tagKey(paintBase(spirePillar({
+      x: 0, y: 0, z0: 0.36 * HB9, h: 0.92 * HB9, w: 3.1 * DK9, tipW: 3.1 * DK9,
+      hold: 1, segs: 2, sides: 16, caps: "bottom",
+    }), GOLD), 2));
     /* ★★ 움푹 팬 속 — **패인 그릇**으로 판다(2026-09, 요청: "서포트베이 건물 윗면의 패임 …
        다 dish를 이용하면 될거 같은데") ─────────────────────────────────────────────────
        여태는 **어두운 원반 셋을 계단으로 쌓은 그림**이었다(테 2.6 → 1.8 → 1.0, 높이
@@ -22166,10 +22177,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        만큼 모델 높이도 알 수 없었다. tubeFaces는 제 깊이를 달고 추진체와 같은
        좌표계를 쓴다. 위 회색 광택 원은 제거(요청). */
     const POD_Z = 3.36;
+    /* ★ 실린더를 **뒤로 물리고 짧게**(2026-09, 요청: "드랍십 실린더 두 개 뒤로 보내고 길이
+       줄이고, 추진체 붙이기") — 앞 끝이 y 0.4 라 조종석 옆까지 길게 뻗어 동체보다 실린더가
+       주인공이었다. 앞을 −0.9 로 물리면 길이가 3.3 → 2.1 이고, 뒤 끝(−3.0)은 그 자리라
+       뒤에 붙은 추진체가 따라 움직일 일이 없다(꼬리 길이도 그대로다). */
+    const POD_Y0 = -3.0; const POD_Y1 = -0.9;
     const pod = (tx: number): void => {
       /* 깊이 보정을 걷는다(재지적: 사선에서 가려져야 할 실린더가 앞으로 튄다) —
          관이 스스로 다는 깊이면 판·꼬리와 자연스럽게 앞뒤가 갈린다. */
-      out.push(...paintBase(tubeFaces(tx, -2.9, tx, 0.4, 0.66, POD_Z), TERRAN_STEEL));   // 지름 20% 축소(재요청)
+      out.push(...paintBase(tubeFaces(tx, POD_Y0, tx, POD_Y1, 0.66, POD_Z), TERRAN_STEEL));   // 지름 20% 축소(재요청)
     };
     // 폭 축소(지적: 몸체 폭 줄이기) — 포드 자리 ±3.1 → ±2.6.
     // 포드는 더 바깥으로(재요청) — x ±2.6 → ±3.0.
@@ -22180,10 +22196,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     if (facingRatio(0, 1) > 0.06) {
       for (const tx of [-2.7, 2.7]) {
         out.push(...tagKey([
-          [wallDiscPath(tx, 0.42, POD_Z, 0.5, 0.4), 1, TERRAN_STEEL_D] as ShapeFace,
-          [wallDiscPath(tx, 0.4, POD_Z, 0.32, 0.256), 1, "#303030"] as ShapeFace,
+          [wallDiscPath(tx, POD_Y1 + 0.02, POD_Z, 0.5, 0.4), 1, TERRAN_STEEL_D] as ShapeFace,
+          [wallDiscPath(tx, POD_Y1, POD_Z, 0.32, 0.256), 1, "#303030"] as ShapeFace,
         // 키는 등판(depthNow ×1 자)보다 살짝 아래 — 포드 앞판은 등판 밑이라 등판 모서리를 덮으면 안 된다(지적: 동체가 가려짐).
-        ], depthNow(tx, 0.42) - 0.3));
+        ], depthNow(tx, POD_Y1 + 0.02) - 0.3));
       }
     }
     /* 구부러진 판이 곧 윗 등(재지적: 판이 너무 아래) — 포드보다 한 단 높이 올리고
@@ -22281,8 +22297,26 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // 포드 추진체는 실린더 중심 높이에 맞춘다(재지적).
     // 안쪽 둘은 작고 낮게(재요청: 축소·아래로), 포드 것은 그대로.
     // 안쪽 작은 추진체 둘은 **동체 뒤면**(y −1.8)에 붙는다(재지적: 꼬리붐이 아니라). 포드 것은 포드 뒤.
-    for (const [tx, tz, tr, ty] of [[-1.0, 4.16, 0.46, -1.8], [1.0, 4.16, 0.46, -1.8], [-2.7, POD_Z, 0.66, -2.95], [2.7, POD_Z, 0.66, -2.95]] as [number, number, number, number][]) {
-      out.push(...paintBase(tubeFaces(tx, ty, tx, ty - 1.0, tr, tz), TERRAN_STEEL_D));
+    /* ★ 추진체 넷을 **배틀크루저 꼴로 통일한다**(2026-09, 요청: "기존 안쪽 추진체 두 개까지
+       총 추진체 4개인데 이 추진체 모양 통일(배틀크루저 추진체 모양으로)") — 여태 넷 다 굵기가
+       같은 **관**이라 앞뒤가 없었다. 배틀의 추진체는 뒤로 갈수록 가늘어지는 여덟 낯 원뿔대라
+       (spirePillar · 0.62 → 0.50) 노즐의 방향이 실루엣에 남는다. 같은 비(0.81)로 짠다.
+       테(nozzleRim9)·불꽃(thrustFlame)은 종전 그대로이고, **뒤를 볼 때 드는 청록 분사구**도
+       배틀과 같은 자로 더한다(평소엔 어두운 노즐 · 움직일 때만 빛난다). */
+    for (const [tx, tz, tr, ty] of [[-1.0, 4.16, 0.46, -1.8], [1.0, 4.16, 0.46, -1.8], [-2.7, POD_Z, 0.66, POD_Y0 + 0.05], [2.7, POD_Z, 0.66, POD_Y0 + 0.05]] as [number, number, number, number][]) {
+      out.push(...paintBase(spirePillar({
+        x: tx, y: ty, h: 0.8, w: 1, segs: 2, sides: 8, caps: "none",
+        path: (t9: number): [number, number, number] => [tx, ty - 1.0 * t9, tz],
+        /* ★ **앞이 좁고 뒤가 굵다**(2026-09, 요청: "드랍십 스러스터 앞뒤 뒤집기") — 배틀의
+           것을 그대로 옮기면 뒤로 갈수록 가늘어지는데, 드랍십은 꽁무니에 아가리가 벌어진
+           꼴이라야 노즐로 읽힌다(레이스에서 한 번 적어 둔 그 규약). 같은 비(0.81)를 뒤집는다. */
+        widthOf: (t9: number): number => tr * (0.81 + 0.19 * t9),
+      }), TERRAN_STEEL_D));
+      if (poseNow === 1 && facingRatio(0, -1) > 0.05) {
+        out.push(...tagKey([
+          [wallDiscPath(tx, ty - 1.02, tz, tr * 0.62, tr * 0.42), 0.8, "#7fd0ff"] as ShapeFace,
+        ], depthNow(tx, ty - 2) * 1.6 + 0.85));
+      }
       out.push(...nozzleRim9(tx, ty - 0.95, tz + tr * 0.36, tr * 0.86, depthNow(tx, ty - 2) * 1.6 + 0.9, { th: tr * 0.26, dep: 0.9 }));
       if (poseNow === 1) out.push(...thrustFlame(tx, ty - 1.0, tz + tr * 0.36, tr * 0.8, "terran", depthNow(tx, ty - 2) * 1.6 + 1));
     }

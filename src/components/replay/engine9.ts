@@ -1019,7 +1019,7 @@ export const MODEL_NORM: Record<string, number> = {
   drone: 0.963,  // 재측정(model-norm)
   droneGas: 0.933,
   droneMin: 0.958,
-  dship: 0.661,   // 모델 z 손질 재측정 되돌림(2D 기하 복원)
+  dship: 0.684,   // 실린더를 뒤로·짧게 한 뒤 재측정(0.661 → 0.684)
   dtemp: 0.847,   // 모델 z 손질 재측정 되돌림(2D 기하 복원)
   egg: 0.915,   // 받침 발톱 일곱·거품 테를 두른 뒤 재측정(옛 1.210 — 발톱이 밖으로 뻗어 잉크가 넓어졌다)
   fbat: 1.205,   // 모델 z 손질 재측정 되돌림(2D 기하 복원)
@@ -2261,7 +2261,7 @@ export const BODY_MID_K9 = 0.02;
    · 건물: 잉크 바닥을 발자국 아랫변(지면선)에 앉히므로 '잉크 바닥→중심'(BLD_INK_MID9)에 배수·그리는 변을 곱하고,
      효과 앵커(발자국 가운데)에서 아랫변까지를 뺀다.
    다시 재려면 scripts/model-shot.mjs 사본에 잉크 질량 중심 출력을 붙여 돌린다(이 표를 낸 방법). */
-export const UNIT_INK_CY9: Record<string, [number, number]> = { scv: [7.91, 8.69], gunner: [10.29, 10.99], ghost: [10.26, 10.95], fbat: [10.19, 10.90], inf: [10.26, 10.96], vulture: [9.30, 10.00], tank: [11.17, 11.78], goliath: [9.79, 10.49], wraith: [8.21, 9.02], dship: [8.43, 9.22], vessel: [9.59, 10.31], valk: [8.23, 9.03], bc: [9.16, 9.91], scvMin: [7.85, 8.70], scvGas: [7.79, 8.67], tanksiege: [11.01, 11.64], mine: [11.66, 12.28], probe: [10.10, 10.80], zealot: [9.69, 10.42], goon: [9.70, 10.42], htemp: [9.21, 9.95], dtemp: [10.20, 10.85], archon: [8.79, 9.57], darchon: [8.78, 9.56], shuttle: [8.37, 9.06], reaver: [10.65, 11.31], observer: [9.40, 10.13], scout: [8.01, 8.82], corsair: [8.68, 9.47], carrier: [9.37, 10.07], interceptor: [6.54, 7.45], scarab: [10.97, 11.63], arbiter: [10.39, 11.08], larva: [11.33, 11.96], egg: [11.28, 11.87], probeMin: [10.29, 10.97], probeGas: [10.31, 11.00], drone: [9.81, 10.53], ovie: [9.17, 9.94], zling: [10.24, 10.93], hydra: [8.86, 9.62], lurker: [9.74, 10.44], muta: [7.54, 8.44], scourge: [7.03, 7.91], queen: [7.85, 8.64], ultra: [9.41, 10.13], defiler: [11.19, 11.83], guardian: [7.64, 8.47], devourer: [8.90, 9.71], lurkeregg: [11.73, 12.26], mutacocoon: [9.51, 10.25], droneMin: [9.81, 10.53], droneGas: [9.78, 10.50], tankbody: [11.24, 11.87], tankgun: [9.82, 10.52], tanksiegebody: [11.18, 11.82], tanksiegegun: [9.59, 10.31], burrowhole: [11.83, 12.44] };
+export const UNIT_INK_CY9: Record<string, [number, number]> = { scv: [7.91, 8.69], gunner: [10.29, 10.99], ghost: [10.26, 10.95], fbat: [10.19, 10.90], inf: [10.26, 10.96], vulture: [9.30, 10.00], tank: [11.17, 11.78], goliath: [9.79, 10.49], wraith: [8.21, 9.02], dship: [8.42, 9.22], vessel: [9.59, 10.31], valk: [8.23, 9.03], bc: [9.16, 9.91], scvMin: [7.85, 8.70], scvGas: [7.79, 8.67], tanksiege: [11.01, 11.64], mine: [11.66, 12.28], probe: [10.10, 10.80], zealot: [9.69, 10.42], goon: [9.70, 10.42], htemp: [9.21, 9.95], dtemp: [10.20, 10.85], archon: [8.79, 9.57], darchon: [8.78, 9.56], shuttle: [8.37, 9.06], reaver: [10.65, 11.31], observer: [9.40, 10.13], scout: [8.01, 8.82], corsair: [8.68, 9.47], carrier: [9.37, 10.07], interceptor: [6.54, 7.45], scarab: [10.97, 11.63], arbiter: [10.39, 11.08], larva: [11.33, 11.96], egg: [11.28, 11.87], probeMin: [10.29, 10.97], probeGas: [10.31, 11.00], drone: [9.81, 10.53], ovie: [9.17, 9.94], zling: [10.24, 10.93], hydra: [8.86, 9.62], lurker: [9.74, 10.44], muta: [7.54, 8.44], scourge: [7.03, 7.91], queen: [7.85, 8.64], ultra: [9.41, 10.13], defiler: [11.19, 11.83], guardian: [7.64, 8.47], devourer: [8.90, 9.71], lurkeregg: [11.73, 12.26], mutacocoon: [9.51, 10.25], droneMin: [9.81, 10.53], droneGas: [9.78, 10.50], tankbody: [11.24, 11.87], tankgun: [9.82, 10.52], tanksiegebody: [11.18, 11.82], tanksiegegun: [9.59, 10.31], burrowhole: [11.83, 12.44] };
 export const BLD_INK_MID9: Record<string, [number, number]> = { tomb: [4.57, 3.94], trapezoid: [2.59, 2.21], refinery: [4.05, 3.57], cube: [7.13, 6.15], ebay: [5.42, 4.57], tombFlat: [3.37, 2.77], academy: [4.14, 3.61], turret: [5.52, 4.92], factory: [4.31, 3.77], plane: [5.70, 4.84], armory: [4.14, 3.56], scifac: [3.31, 2.83], comsat: [3.06, 2.79], nsilo: [3.23, 2.84], mshop: [2.85, 2.50], ctower: [2.98, 2.63], covert: [2.40, 2.03], physlab: [2.60, 2.25], pyramidWide: [6.02, 5.10], diamond: [4.78, 4.25], assim: [3.82, 3.40], gate: [3.07, 2.62], forge: [3.98, 3.40], coil: [4.88, 4.02], sbattery: [3.05, 2.56], cyber: [3.19, 2.78], citadel: [4.07, 3.46], archives: [3.40, 2.82], dome: [4.10, 3.52], robobay: [3.05, 2.64], observatory: [3.07, 2.66], arch: [3.11, 2.70], fleetbeacon: [3.43, 2.95], tribunal: [3.05, 2.58], warpin: [4.48, 4.48], hatchery: [4.70, 4.00], lair: [5.41, 4.63], hive: [5.95, 5.13], creep: [4.34, 3.61], sunken: [5.12, 4.26], spore: [4.31, 3.73], extract: [4.74, 4.07], pool: [4.46, 3.63], evo: [4.47, 3.75], hydraden: [5.46, 4.88], spire: [6.53, 5.87], gspire: [10.23, 9.26], queensnest: [4.52, 3.81], nydus: [4.32, 3.58], cavern: [4.98, 4.20], dmound: [4.58, 3.83], cocoon: [2.37, 1.94], sunkenfire: [6.03, 5.18], mineral: [3.26, 2.75], mineralb: [4.05, 3.43], mineralc: [3.50, 2.93], geyser: [3.88, 3.47], nuke: [4.19, 3.89], storm: [3.15, 2.92], nukeblast: [5.08, 4.08], nukecloud: [6.69, 5.89], tankbody: [3.07, 2.59], tankgun: [1.75, 1.48], tanksiegebody: [3.60, 3.01], tanksiegegun: [1.88, 1.59], tanksiegelegs: [0.93, 0.76], addonlink: [3.95, 3.41], burrowhole: [2.67, 2.16], lurkerburrow: [2.67, 2.17], lurkerfire: [2.70, 2.21], creeppatch: [4.11, 3.33], creeppatch2: [4.11, 3.33], creeppatch3: [4.12, 3.34] };
 /** 유닛 몸 가운데의 들기 — 발 원점에서 위로, **상자 px의 비**. 표에 없는 종류는 원점 2.2칸 위(보병 언저리). */
 export const unitMidK9 = (kind: string, pitchView: boolean): number => {
@@ -8540,6 +8540,17 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
          그려지는 시작만 반지름의 0.8 지점이다. 표적 쪽 끝(surf9)은 그대로. */
       const mzsx9 = mzx9 - Math.sin(rad9) * surf9 * 0.8;
       const mzsy9 = mzy9 + Math.cos(rad9) * surf9 * 0.8;
+      /* ★ **화염은 양손 두 줄기다**(2026-09, 요청: "파이어뱃 불기둥 양쪽 건에서 각각 나와서
+         총 두 개여야 함") — 파이어뱃은 팔 끝마다 화염방사기가 달렸는데 한 줄기로 그리면
+         총이 하나인 유닛이 된다. 미사일이 쓰는 그 자(lanes9)를 그대로 쓴다: 총구를 진행
+         방향의 **수직**으로 벌린다((cos, sin)이 (−sin, cos)의 수직이다 — 요잉을 따라 함께
+         돌므로 어느 각에서도 '나란히'가 유지된다).
+         벌리는 폭은 **보이는 몸**(잉크)의 0.26 씩이라 두 줄기가 몸 안에서 나온다 — 상자로
+         재면 몸 바깥에 떠 붙는다(미사일에서 한 번 겪은 자리). */
+      const flH9 = fxName9 === "flame" ? (fxPx * modelInkOf(fxKind)) / 16 * 0.26 : 0;
+      for (const fs9 of (flH9 > 0 ? [-1, 1] : [0])) {
+      const fdx9 = Math.cos(rad9) * flH9 * fs9;
+      const fdy9 = Math.sin(rad9) * flH9 * fs9;
       fxOps.push({
         kind: "beam", style: fxName9, fx: mzfx9, fy: mzfy9, lift: mzLift9,
         // 표적 그림을 줄기 끝에 얹는 갈래(TARGET_FX) — 자는 쏘는 몸의 상자(옛 hit op와 같다).
@@ -8547,8 +8558,8 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         ...tgtFields9(st9Span(fxName9) ? surf9 + (fxPx / 2) * HIT_FX_K * (FX_IMPACT[fxName9]?.r ?? 0.5) * 0.95 : 0),
         /* len은 '표적까지'다 — 그리는 쪽이 번쩍임 길이를 이 값으로 죈다
            (지적: "피격대상을 지나서까지 그려지는데"). 붙어 싸울수록 짧아진다. */
-        mx: st9Span(fxName9) ? mzsx9 : mzx9,
-        my: st9Span(fxName9) ? mzsy9 : mzy9,
+        mx: (st9Span(fxName9) ? mzsx9 : mzx9) + fdx9,
+        my: (st9Span(fxName9) ? mzsy9 : mzy9) + fdy9,
         deg: beamDeg,
         /* ★ 끝이 **스플래시 경계에 맞닿는다**(지시) — 두 몫을 뺀다:
              · 표면에서 나가므로 시작이 그만큼 앞이다(surf9).
@@ -8562,6 +8573,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
           : beamLen,
         ph: ph9,
       });
+      }
       /* ★ 치료는 **낫는 쪽에도** 보인다(지적: "메딕이 힐 동작을 해도 타겟 피가
          안 차고") ─────────────────────────────────────────────────────────
          여태 이 갈래는 메딕의 주사기 끝에만 불빛을 냈다. 그러면 화면에 남는 것은
