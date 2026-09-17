@@ -89,7 +89,7 @@ import { TEAM_COLOR, type MinimapMarker } from "./markers";
 import {
   atkCutOf as atkCutOf9, flapCutOf as flapCutOf9,
   muzzlePoint as muzzlePoint9, anchorPoint as anchorPoint9, spinMuzzle9, BLD_MUZZLE, HEAD_MUZZLE_KINDS9, MUZZLE_BURST_FX9,
-  AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, ATTACK_FX, NO_BEAM_FX, TARGET_FX, PROJECTILE_FX, NUKE_BOOM_SEC, NUKE_FALL_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SPIN_STEPS, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
+  AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, ATTACK_FX, NO_BEAM_FX, TARGET_FX, PROJECTILE_FX, NUKE_BOOM_SEC, NUKE_FALL_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, attackFxOf9, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SPIN_STEPS, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
 } from "./engine9";
 import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, WorldUi9 } from "./engine9";
 import {
@@ -5435,6 +5435,19 @@ export function docWeaponOf9(kind: string): string | null {
   }
   return docFxMap9.get(kind) ?? null;
 }
+/** ★ 그 종류의 **공격 칸 목록**(2026-09, 요청: "공격 트레이서가 두 종류 이상 … 두 셀로") —
+ *  지상·대공 무기가 **다른 그림**이면 둘, 아니면 하나다. 갈래는 지도와 같은 문(`attackFxOf9`)이
+ *  내고, '그 표적을 때릴 수 있나'는 원작 표(`weaponVs`)가 낸다 — 도록이 제 명단을 따로 들면
+ *  무기를 고칠 때 두 곳을 맞춰야 한다. */
+export function docAtkFx9(kind: string): { label: string; fx?: string }[] {
+  const nm9 = Object.keys(UNIT_3D).find((n9) => UNIT_3D[n9] === kind);
+  if (!nm9 || !isKnownKind(nm9)) return [{ label: "공격" }];
+  const pf9 = profileOf(nm9);
+  const g9 = weaponVs(pf9, false) ? attackFxOf9(nm9, false) : undefined;
+  const a9 = weaponVs(pf9, true) ? attackFxOf9(nm9, true) : undefined;
+  if (g9 && a9 && g9 !== a9) return [{ label: "공격(지상)", fx: g9 }, { label: "공격(공중)", fx: a9 }];
+  return [{ label: "공격", fx: g9 ?? a9 }];
+}
 /** ★ **도록의 트레이서 칸**(2026-09, 요청: "그리고 트레이서는 못그려주나? 도록에") ──────
  *  지도와 **같은 붓**으로 한 발을 그린다(paintFxList9 — 그 함수의 ★ 에 왜 떼어냈는지가 있다).
  *  칸 왼아래가 총구, 오른위가 표적이고 그 사이를 한 발이 지난다: 화면 자 셈(zx·zy)을
@@ -5444,8 +5457,11 @@ export function docWeaponOf9(kind: string): string | null {
  *  ⚠ 날아가는 무기(PROJECTILE_FX)는 `shot`(진행률 u), 즉발은 `beam`(제자리 번쩍임)이다 —
  *    지도가 가르는 그 자리와 같은 명단을 쓴다. 쏘는 쪽에 아무것도 안 그리는 무기
  *    (커세어 플레어 · NO_BEAM_FX)는 **표적 그림이 전부**이므로 hit 만 낸다. */
-export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg }: {
+export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, fx: fxProp }: {
   kind: string; t: number; className?: string;
+  /** ★ 그릴 갈래를 못 박을 때(요청: 지상·대공 두 칸) — 안 주면 그 종류의 기본이다.
+   *  ⚠ 이름을 `style` 로 두지 않는다 — 리액트에서 그 이름은 CSS 를 뜻해 읽는 사람이 헷갈린다. */
+  fx?: string;
   /** ★ **공격 칸 위에 겹쳐 그리나**(2026-09, 요청: "트레이서는 공격 셀에 같이 넣어야함"). */
   overlay?: boolean;
   /** ★★ **그 칸의 창**(fitBox "x y w h") — 주면 트레이서가 **모델에 붙는다**(아래 ★★).
@@ -5457,7 +5473,7 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg }
   headDeg?: number;
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
-  const style = docWeaponOf9(kind);
+  const style = fxProp ?? docWeaponOf9(kind);
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el || !style) return;
@@ -5729,6 +5745,9 @@ export type DocCell9 = {
   /** 그 칸만 요잉을 달리 쓸 때(핵탄두의 낙하 회전). */ rotDeg?: number;
   /** 트레이서 한 발을 **그 칸 위에 겹쳐** 그리나(요청: "트레이서는 공격 셀에 같이 넣어야함"). */
   tracer?: boolean;
+  /** ★ 그 칸이 그릴 **트레이서 갈래**(2026-09, 요청: 지상·대공이 다른 종류는 두 칸) —
+   *  안 주면 그 종류의 기본(docWeaponOf9)이다. */
+  fx?: string;
 };
 /** ★★ **도록의 칸은 넷이다**(2026-09, 요청: "셀은 대기 - 이동/활성 - 공격 - 액션/추가액션
  *  (럴커 땅파기 등) 이렇게 네 개로 하고 **하고 있는 셀만** 보여주기") ────────────────────
@@ -5774,10 +5793,23 @@ export function docCellsOf9(kind: string, t: number, yaw: number): DocCell9[] {
        없다. 그래서 여태 이동 칸이 아예 안 섰는데, 그 종류들이야말로 '이동 중'이 그림으로
        가장 또렷하다(불이 든다). 지도와 같은 자세다 — 움직이면 자세 1(engine9 의 thrust). */
     else if (pk9?.thrust) out9.push({ label: "이동", pose: 1 });
+    /* ★ **지상·대공이 다른 종류는 공격 칸이 둘이다**(2026-09, 요청: "공격 트레이서가 두 종류
+       이상(골리앗 스카우트 배틀 등)인 경우 나눠서 두 셀로 표시") — 골리앗·스카우트는 총구
+       스파크 ↔ 미사일, 레이스는 레이저 ↔ 미사일로 **아예 다른 무기**인데 도록은 표(ATTACK_FX)
+       한 줄만 보고 늘 지상 것만 그렸다. 지도와 같은 문(`attackFxOf9`)으로 둘을 묻는다.
+       ⚠ **다를 때만 가른다** — 배틀크루저처럼 두 무기가 같은 그림이면 두 칸이 똑같아 값이 없다.
+       ⚠ 못 때리는 표적은 칸이 안 선다(`weaponVs` 가 없으면 그 쪽 무기가 없는 것이다) — 발키리·
+         커세어는 대공 한 칸, 파이어뱃·질럿은 지상 한 칸이다. */
+    const atk9 = docAtkFx9(kind);
     if (pk9?.atk && tp9) {
       const ph9 = (((t % tp9.atkCd) + tp9.atkCd) % tp9.atkCd) / tp9.atkCd;
-      out9.push({ label: "공격", pose: atkCutOf9(kind, ph9, pk9.flap, t), tracer: gun9 });
-    } else if (gun9) out9.push({ label: "공격", pose: idle9, tracer: true });
+      const cut9 = atkCutOf9(kind, ph9, pk9.flap, t);
+      if (gun9 && atk9.length > 1) for (const a9 of atk9) out9.push({ label: a9.label, pose: cut9, tracer: true, fx: a9.fx });
+      else out9.push({ label: "공격", pose: cut9, tracer: gun9 });
+    } else if (gun9) {
+      if (atk9.length > 1) for (const a9 of atk9) out9.push({ label: a9.label, pose: idle9, tracer: true, fx: a9.fx });
+      else out9.push({ label: "공격", pose: idle9, tracer: true });
+    }
   } else {
     /* 건물·부가 — 움직이는 것은 자세가 아니라 회전 칸·포탑 각·불빛이다. */
     const idle9: DocCell9 = { label: "대기" };
