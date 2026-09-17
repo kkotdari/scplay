@@ -336,7 +336,12 @@ export const LIT_KINDS = new Set<string>([
      꺼진 판과 켜진 판이 따로 캐시된다. */
   "tombFlat",
   "tomb", "cube", "factory", "plane",            // 커맨드·배럭·팩토리·스타포트
-  /* 아카데미는 아직 유리가 없어 뺀다 — 표에 넣으면 그림이 같은 판만 두 벌 굽는다. */
+  /* ★ 아카데미가 들어왔다(2026-09, 요청: "아카데미 활성상태 lit 이 없음 추가 필요 큰 드럼통
+     기둥 두 개에 창문들 추가하면 될듯") — 여태 유리가 한 장도 없어 빼 두었던 자리다(그 주석이
+     여기 있었다). 큰 드럼 둘의 허리에 창을 한 줄 둘러(빌더의 `drumWin9`) 켜질 자리를 만들었다.
+     ⚠ 이 표에 올려야 굽는 열쇠가 lit 를 물어 꺼진 판과 켜진 판이 따로 캐시된다 — 창만 넣고
+       이 줄을 빼면 그 창이 **영영 안 켜진다**. */
+  "academy",
   "ebay", "armory", "scifac",                     // 엔베·아머리·사이언스퍼실리티
   /* 프로토스 — 관문 문틈의 소환 빛, 스타게이트 관 속 창(요청: 프로토스 플라즈마).
      넥서스가 들어왔다(요청: "넥서스 생산중에 수정체들 깜빡거림 추가") — 꼭대기 수정과
@@ -6690,9 +6695,32 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        착륙판이 5.05에서 4.15로 줄면서 몸통 top(5.15)과의 사이에 폭 1.0짜리 고리가
        열렸는데, 뚜껑이 없어 그 고리로 빈 속이 그대로 비쳤다. 다리를 2.3으로 올린 뒤
        카메라가 지붕을 더 내려다보게 되면서 그 구멍이 '벌어진 틈'으로 보인 것이다. */
+    /* ★★ **격납구는 45도 낯 한 장을 빼고 그 자리에 속을 짠다**(2026-09, 요청: "여기 면에
+       격납구가 있어야 하고 마찬가지로 활성화 시 노란 빛이 강하게 나야 함" → "격납구 실제로
+       푹 들어가게 파기" → "깊이 들어감") ─────────────────────────────────────────────────
+       ⓐ 위상을 **재서** 잡았다 — 이 팔각(`sides: 8`)의 **낯 한가운데가 0·45·90…** 이고 꼭짓점이
+         22.5·67.5… 다(메시를 구워 벽 네모의 각을 찍었다: 낯이 337.5~22.5 · 22.5~67.5 …).
+         곧 종전 아가리가 앉은 45도는 **낯 한가운데로 맞다** — CLAUDE.md 의 '기둥 위상은 주석만
+         봐서는 못 푼다'가 여기서도 맞았다(다른 기둥과 위상이 다르다).
+       ⓑ 그런데 GL 에서 **한 번도 안 보였다**. 까닭은 아가리의 자를 내던 `bodyR` 가
+         `t9 = (z9 − BODY_Z0z9) / BODY_H` 로 **눌린 z 를 설계 높이로** 나눈 것이다(BODY_H 2.7 ·
+         BODY_Hz9 2.16). t 가 0.8배로 작게 나와 반지름을 낮게 잡아, 아가리 판이 벽보다
+         0.1~0.13 **안쪽**에 서서 벽에 묻혔다 — 2D 는 화가 차례가 덮어 보였고 GL 이 그 감사자다
+         (CLAUDE.md '넥서스 받침' 과 같은 갈래: z 자리에 딴 자의 상수가 섞였다).
+       ⓒ 고침은 평면 판을 고치는 것이 아니라 **낯을 빼고 속을 짜는 것**이다(요청의 '푹 들어가게').
+         `skipFace` 로 그 낯의 **윗단 한 장**을 빼면 그 자리가 정확히 아가리 꼴(팔각 낯의 네모)이
+         되므로 둘레를 따로 메울 일이 없다. 2D 는 종전 평면 아가리 그대로다(스냅샷 불변). */
+    /** 격납구가 난 낯 — 모형 각 45도(낯 한가운데). */
+    const HG_A9 = Math.PI / 4;
+    const HG_SX9 = Math.sin(HG_A9); const HG_SY9 = Math.cos(HG_A9);
+    /** 그 낯 방향인가 — `segs: 2` 라 벽이 위·아래 두 단이고 **둘 다** 뺀다(아래 ⓓ). */
+    const hgFace9 = (mx9: number, my9: number): boolean =>
+      Math.abs(Math.atan2(mx9, my9) - HG_A9) < 0.2;
     out.push(...tagKey(spirePillar({
       x: 0, y: 0, z0: BODY_Z0z9, h: BODY_Hz9, w: 4.75, tipW: 5.15,
       segs: 2, sides: 8, hold: 0.4, caps: "both",
+      /* GL 에서만 뺀다 — 2D 는 속을 낼 수가 없어(화가 차례) 종전 평면 아가리를 그대로 쓴다. */
+      skipFace: !MESH9.on ? undefined : (mx9: number, my9: number): boolean => hgFace9(mx9, my9),
     }), 4));
 
     /* 앞(0도)에는 길다란 구조물이 앞으로 뻗고, 그 끝에 옆으로 긴 구조물이 가로로
@@ -6753,9 +6781,124 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       out.push(...tagKey(warn, 59));
     }
 
-    /* 비행기 출입구는 45도 자리다(지적) — 팔각 몸통의 그 면에 난 노란 아가리다.
-       반투명 세 겹이라 안이 이글거린다. */
-    {
+    /* 비행기 출입구는 45도 자리다(지적) — 팔각 몸통의 그 면에 난 노란 아가리다. */
+    if (MESH9.on) {
+      /* ★★ **깊이 파낸 격납고**(위 ⓒ) — 빠진 낯 자리에 프리즘 하나를 안으로 밀어 넣는다.
+         아가리 꼴은 **그 낯 그대로**다(위·아래 모서리의 낯 거리·반폭을 외접 반지름에서 낸다):
+         팔각의 낯은 중심에서 `R·cos(π/8)` 만큼 떨어져 있고 반폭이 `R·sin(π/8)` 이다.
+         깊이는 낯 평면에서 안으로 `HG_D9` — 뒤벽 모퉁이가 축에서 2.8 남짓이라 드럼 속
+         (반지름 4.45 이상)에 넉넉히 든다.
+         · **뒤벽이 빛이다** — `winLit` 이라 쉴 때는 식은 유리색이고 일할 때 노랑이 든다.
+           그 색이 `EMIT_FILL9` 에 적히므로 **번짐(블룸)까지 저절로 탄다**(요청의 '강하게').
+         · 속벽·천장은 어두운 강철이라 깊이가 읽히고, **바닥은 빛을 받는다**(`glowLit`) —
+           빛이 새어 나오는 몫이 처마에 덮인 속에서 먼저 보이는 것은 커맨드에서 적어 둔
+           그 규약이다. 바닥이 밝아야 '속에 불이 들었다'가 아가리 밖에서도 읽힌다.
+         · ⚠ 속은 닫힌 입체가 아니라 **뒷면 걷기에 안 걸린다**(열린 상자) — 어느 각에서도
+           안쪽 낯이 그대로 보이므로 감기를 따로 맞출 일이 없다. */
+      /* ★★ ⓓ **낯 전체가 아가리가 아니다 — 낯 안에 아가리를 두고 나머지는 틀로 메운다**
+         (2026-09, 지적: "면 전체를 격납구로 하면 안 되고… 그 안에 들어가는 격납구를 만들었어야
+         해. 세로는 면의 2/3 가로 3/4 정도 크기면 될 듯") ────────────────────────────────────
+         `skipFace` 는 낯을 **통째로만** 뺄 수 있다. 그래서 낯을 빼고 그 자리에 **인방·문턱·
+         좌우 문설주** 넷을 같은 벽 색으로 다시 깔아, 가운데에 세로 2/3 · 가로 3/4 의 아가리만
+         남긴다(CLAUDE.md '개구부 둘레만 벽으로 메우고' 의 그 손이다).
+         · ⚠ 틀 조각은 **벽의 꺾임(t 0.5)을 넘지 않게** 나눈다 — 벽은 고리 셋(t 0·0.5·1 →
+           외접 반지름 4.75·4.817·5.15)을 이은 두 단이라 곧게 이으면 그 자리가 0.13 밖으로
+           삐져나와 실루엣을 뚫는다. 문설주만 두 토막이고, 문턱(t 0~0.22)과 인방(t 0.89~1)은
+           한쪽 단 안에 들어 한 장이면 된다.
+         · **깊이는 부감이 정한다** — 카메라가 늘 40도 위에서 내려다보므로, 아가리 위 모서리에서
+           들어온 눈길이 바닥에 닿기까지 가는 거리는 `아가리 높이(화면 z) / tan40` 다. 아가리
+           높이가 낯의 2/3(설계 1.44 · z 배수 1.4 를 먹어 2.02)라 그 거리가 2.4 이므로, 깊이를
+           그보다 얕게(1.8) 두면 **뒤벽이 보인다** — 깊이를 그보다 깊게 두면 바닥만 보이고
+           속이 판때기로 읽힌다(그것이 처음 판의 실패였다. 커맨드의 '처마가 덮은 속' 규약).
+         · **뒤벽이 빛이다**(`winLit` → `EMIT_FILL9` → 번짐) · 바닥은 어두운 갑판이고 불이
+           들 때만 살짝 데운다 — 앞이 어둡고 뒤가 환해야 그 경계가 '깊다'는 신호가 된다
+           (둘 다 주황으로 칠했더니 한 장의 주황 판이 됐다. 실측 렌더로 고친 자리다).
+         · ⚠ 속은 닫힌 입체가 아니라 뒷면 걷기에 안 걸린다(열린 상자) — 감기를 맞출 일이 없다. */
+      const HG_IN9 = Math.cos(Math.PI / 8);     // 낯 한가운데까지의 거리 배수
+      const HG_HW9 = Math.sin(Math.PI / 8);     // 낯 반폭 배수
+      const HG_D9 = 1.8;                        // 파낸 깊이(뒤벽이 보이는 한계 2.4 안쪽)
+      const HG_T0 = 0.22; const HG_T1 = 0.89;   // 아가리 높이 — 낯의 3분의 2(요청)
+      const HG_S9 = 0.75;                       // 아가리 반폭 — 낯의 4분의 3(요청)
+      const hgTX9 = Math.cos(HG_A9); const hgTY9 = -Math.sin(HG_A9);   // 낯의 좌우 자
+      /** 그 t(0~1) 고리의 외접 반지름 — spirePillar 의 widthAt 과 같은 식(w 4.75 · tipW 5.15 · hold 0.4). */
+      const hgR9 = (t9: number): number => 4.75 + 0.4 * (t9 <= 0.4 ? 0 : (t9 - 0.4) / 0.6);
+      /** 낯 위(또는 그 안쪽)의 한 점 — t 높이(0 바닥 ~ 1 천장) · s 좌우(−1~1) · dep 안으로 들어간 몫. */
+      const hgAt9 = (t9: number, s9: number, dep9: number): [number, number, number] => {
+        const r9 = hgR9(t9);
+        const d9 = r9 * HG_IN9 - dep9;
+        const hw9 = r9 * HG_HW9;
+        return [HG_SX9 * d9 + hgTX9 * hw9 * s9, HG_SY9 * d9 + hgTY9 * hw9 * s9,
+          BODY_Z0z9 + BODY_Hz9 * t9];
+      };
+      /** 낯 평면의 네모 한 장(틀 조각). */
+      const hgWall9 = (t0: number, t1: number, s0: number, s1: number): ShapeFace =>
+        bodyFace(polyPath3([hgAt9(t0, s0, 0), hgAt9(t0, s1, 0), hgAt9(t1, s1, 0), hgAt9(t1, s0, 0)]));
+      /* 틀 — 인방·문턱·문설주 둘(문설주는 벽의 꺾임에서 나눈다). */
+      const frame9: ShapeFace[] = [
+        hgWall9(HG_T1, 1, -1, 1),      // 인방(위)
+        hgWall9(0, HG_T0, -1, 1),      // 문턱(아래)
+      ];
+      for (const sg9 of [-1, 1] as const) {
+        const s0 = sg9 < 0 ? -1 : HG_S9;
+        const s1 = sg9 < 0 ? -HG_S9 : 1;
+        frame9.push(hgWall9(HG_T0, 0.5, s0, s1), hgWall9(0.5, HG_T1, s0, s1));
+      }
+      out.push(...tagKey(paintBase(frame9, "#626875"), 4.05));
+      const hg9: ShapeFace[] = [];
+      const hgQ9 = (...pts: [number, number, number][]): string => polyPath3(pts);
+      /* 옆벽 둘 — 아가리 모서리가 벽의 꺾임(t 0.5)을 지나므로 두 토막이다. */
+      for (const sg9 of [-HG_S9, HG_S9]) {
+        for (const [t0, t1] of [[HG_T0, 0.5], [0.5, HG_T1]] as const) {
+          hg9.push(...paintBase([bodyFace(hgQ9(
+            hgAt9(t0, sg9, 0), hgAt9(t1, sg9, 0), hgAt9(t1, sg9, HG_D9), hgAt9(t0, sg9, HG_D9),
+          ))], "#2b3038"));
+        }
+      }
+      /* 천장 — 어두운 강철(깊이를 읽히는 몫). */
+      hg9.push(...paintBase([bodyFace(hgQ9(
+        hgAt9(HG_T1, -HG_S9, 0), hgAt9(HG_T1, HG_S9, 0),
+        hgAt9(HG_T1, HG_S9, HG_D9), hgAt9(HG_T1, -HG_S9, HG_D9),
+      ))], "#23272d"));
+      /* ★★ **부감에서 격납구의 몸통은 바닥이다 — 빛도 거기서 나야 한다**(2026-09, 요청:
+         "활성화시 노란 빛이 강하게 나야함") ───────────────────────────────────────────
+         카메라가 40도 위에서 내려다보므로 아가리로 보이는 몫의 대부분이 **갑판**이고
+         뒤벽은 위쪽 한 오라기만 남는다(실측 `model-gl --lit`: 뒤벽이 아가리 높이의 1/7).
+         그래서 뒤벽만 태우면 커맨드에서 적어 둔 그 규약("빛은 바닥으로 새어 나오는 몫이
+         먼저다")의 반대쪽으로 틀린다 — 갈색 갑판이 노란 빛을 통째로 가린다.
+         · 갑판을 **따뜻한 금속**으로 올리고(glowLit), 그 위에 **앞뒤로 흐르는 빛줄기 셋**을
+           얹는다(winLit → EMIT_FILL9 → 번짐). 줄기 사이에 갑판이 남아야 '빛나는 판때기'가
+           아니라 '불이 든 격납고 바닥'으로 읽힌다(뒤벽의 문틀 셋과 같은 손이다).
+         · ⚠ 꺼진 판에는 줄기를 안 얹는다 — 그만큼 삼각형만 는다. */
+      hg9.push(...paintBase([bodyFace(hgQ9(
+        hgAt9(HG_T0, -HG_S9, 0), hgAt9(HG_T0, HG_S9, 0),
+        hgAt9(HG_T0, HG_S9, HG_D9), hgAt9(HG_T0, -HG_S9, HG_D9),
+      ))], glowLit("#8a6a2c", "#33383e")));
+      if (bldLitNow) {
+        for (let k9 = 0; k9 < 3; k9 += 1) {
+          const s0 = -0.52 + k9 * 0.52;
+          hg9.push(...paintBase([bodyFace(hgQ9(
+            hgAt9(HG_T0 + 0.012, s0 - 0.16, 0.18), hgAt9(HG_T0 + 0.012, s0 + 0.16, 0.18),
+            hgAt9(HG_T0 + 0.012, s0 + 0.16, HG_D9 - 0.12),
+            hgAt9(HG_T0 + 0.012, s0 - 0.16, HG_D9 - 0.12),
+          ))], winLit("#ffd86a")));
+        }
+      }
+      /* 뒤벽 — 이것이 빛이다(winLit → EMIT_FILL9 → 번짐). */
+      hg9.push(...paintBase([bodyFace(hgQ9(
+        hgAt9(HG_T0, -HG_S9, HG_D9), hgAt9(HG_T0, HG_S9, HG_D9),
+        hgAt9(HG_T1, HG_S9, HG_D9), hgAt9(HG_T1, -HG_S9, HG_D9),
+      ))], winLit("#ffe790")));
+      /* 뒤벽을 가로지르는 **세로 문틀 셋** — 빛을 끊어 '판때기'가 아니라 '빛나는 속'으로 읽힌다.
+         뒤벽보다 한 뼘(0.05) 앞에 세운다(같은 평면이면 z 싸움으로 깜빡인다). */
+      for (let k9 = 0; k9 < 3; k9 += 1) {
+        const s0 = -0.44 + k9 * 0.44;
+        hg9.push(...paintBase([bodyFace(hgQ9(
+          hgAt9(HG_T0, s0, HG_D9 - 0.05), hgAt9(HG_T0, s0 + 0.08, HG_D9 - 0.05),
+          hgAt9(HG_T1 - 0.18, s0 + 0.08, HG_D9 - 0.05), hgAt9(HG_T1 - 0.18, s0, HG_D9 - 0.05),
+        ))], "#20242a"));
+      }
+      out.push(...tagKey(hg9, 4.2));
+    } else {
       const a9 = Math.PI / 4;
       const dsx = Math.sin(a9);
       const dsy = Math.cos(a9);
@@ -6776,7 +6919,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         /** 그 높이(z)에서의 몸통 반지름 — spirePillar의 widthAt과 같은 식이다
          *  (hold 0.4까지는 w 그대로, 그 뒤 tipW까지 선형). 0.03은 z-싸움 막이. */
         const bodyR = (z9: number): number => {
-          const t9 = Math.min(1, Math.max(0, (z9 - BODY_Z0z9) / BODY_H));
+          /* ⚠ 나누는 자는 **눌린 높이**(BODY_Hz9)다 — 설계 높이(BODY_H 2.7)로 나누면 t 가
+             0.8배로 작아져 반지름을 낮게 잡고, 판이 벽 안으로 0.1~0.13 들어가 묻힌다
+             (위 격납구 ⓑ 의 그 버그다. 2D 는 화가 차례가 덮어 안 보였다). */
+          const t9 = Math.min(1, Math.max(0, (z9 - BODY_Z0z9) / BODY_Hz9));
           const k8 = t9 <= 0.4 ? 0 : (t9 - 0.4) / 0.6;
           /* ★ 팔각의 **내접 반지름**으로 앉힌다(지적 사진: 아가리가 몸에서 떨어져 비스듬히
              떠 있다) — spirePillar의 w·tipW는 꼭짓점까지의 외접 반지름인데 아가리는 면
@@ -10470,6 +10616,49 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       }
     }
     out.push(...tagKey(skirtStripe, -7.7));
+    /* ★★ **활성 불빛의 자리 — 큰 드럼 둘의 허리에 창 한 줄**(2026-09, 요청: "아카데미 활성상태
+       lit 이 없음 추가 필요 큰 드럼통 기둥 두 개에 창문들 추가하면 될듯") ──────────────────────
+       아카데미는 유리가 한 장도 없어 `LIT_KINDS` 에서 빠져 있었다(그 표의 주석이 그것이었다).
+       큰 드럼 둘(왼쪽 리벳 드럼 · 오른쪽 고리 대야)이 이 건물에서 가장 넓은 벽이라 창이 앉을
+       자리다. 굴뚝 둘은 반지름 0.55·0.62 짜리 막대라 창이 점으로 죽는다.
+       · **마주 보는 쪽만** 그린다 — 뒤로 돈 창은 실루엣 밖으로 안 새어 나온다.
+       · 세 겹이다(스타포트 아가리와 같은 짜임): 어두운 속 → 주황 번짐 → 노란 심. `winLit` 이
+         그 색을 `EMIT_FILL9` 에 적으므로 **번짐(블룸)까지 저절로 탄다**.
+       · ⚠ **꺼진 판에는 빛 겹을 안 둔다** — 투명 면만 늘어 삼각형을 먹는다(커맨드에서 적어 둔 ⚠).
+         꺼졌을 때 남는 것은 어두운 속 한 장이고, 그것이 곧 '식은 유리'다. */
+    /** 원통 벽 허리에 창 한 줄 — 중심·반지름·창 줄의 높이 가운데·반높이·창 수. */
+    const drumWin9 = (
+      cx9: number, cy9: number, r9: number, zc9: number, hz9: number, n9: number,
+    ): ShapeFace[] => {
+      const w9: ShapeFace[] = [];
+      for (let k9 = 0; k9 < n9; k9 += 1) {
+        const a9 = ((k9 + 0.5) / n9) * Math.PI * 2;
+        const sx9 = Math.sin(a9); const sy9 = Math.cos(a9);
+        if (facingRatio(sx9, sy9) <= 0.15) continue;
+        const lx9 = Math.cos(a9); const ly9 = -Math.sin(a9);
+        /** 벽에서 `o9` 만큼 띄운 네모 — 반폭 hw9 · 높이 z0~z1. */
+        const q9 = (hw9: number, z0: number, z1: number, o9: number): string => {
+          const rr9 = r9 + o9;
+          return polyPath3([
+            [cx9 + sx9 * rr9 - lx9 * hw9, cy9 + sy9 * rr9 - ly9 * hw9, z0],
+            [cx9 + sx9 * rr9 + lx9 * hw9, cy9 + sy9 * rr9 + ly9 * hw9, z0],
+            [cx9 + sx9 * rr9 + lx9 * hw9, cy9 + sy9 * rr9 + ly9 * hw9, z1],
+            [cx9 + sx9 * rr9 - lx9 * hw9, cy9 + sy9 * rr9 - ly9 * hw9, z1],
+          ]);
+        };
+        /* 창 하나의 반폭 — 칸(2π/n)의 62% 만 채워 사이에 벽이 남는다('통풍구로 읽히게 하는
+           자'의 그 규약: 살과 골의 비가 격자를 만든다). */
+        const hw0 = r9 * Math.sin(Math.PI / n9) * 0.62;
+        w9.push([q9(hw0, zc9 - hz9, zc9 + hz9, 0.02), 1, "#22262c"] as ShapeFace);
+        if (bldLitNow) {
+          w9.push([q9(hw0 * 0.84, zc9 - hz9 * 0.8, zc9 + hz9 * 0.8, 0.05),
+            0.55, winLit("#ff9d3d")] as ShapeFace);      // 번짐 겹 — 주황
+          w9.push([q9(hw0 * 0.62, zc9 - hz9 * 0.52, zc9 + hz9 * 0.52, 0.08),
+            0.82, winLit("#ffe790")] as ShapeFace);      // 심 — 노랑
+        }
+      }
+      return w9;
+    };
     /* 왼쪽 리벳 드럼 돔(사진) — 통 몸에 붉은 띠를 두르고 위는 잿빛 돔 뚜껑. */
     out.push(...tagKey([
       /* 높이 10% 축소(요청: "아카데미 드럼, 굴뚝들 높이 10프로 줄이기") — 치마는
@@ -10486,6 +10675,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ...tagKey(skirtOwn, -7.6),
       ...tagKey(cylinderFaces3(-2.6, 0.6, 2.24, 0.48, 2.448), 1.1 + depthNow(-2.6, 0.6) * 1.6),
     ];
+    /* 왼쪽 드럼의 창 한 줄 — 몸 z 0.96~3.408 의 허리(위 ★★). */
+    out.push(...tagKey(drumWin9(-2.6, 0.6, 2.15, 2.30, 0.44, 8),
+      1.5 + depthNow(-2.6, 0.6) * 1.6));
     /* 뒤 굴뚝 탑 둘 — 붉은 갓을 쓴 가는 기둥. 하나는 더 높다. */
     for (const [cx9, cy9, ch9, cr9] of [
       [-1.2, -2.1, 5.184, 0.55], [1.5, -2.4, 4.176, 0.62],
@@ -10513,6 +10705,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       bodyFace(discPath3(3, -0.8, 2.976, 1.75)),
       capFace(discPath3(3, -0.8, 2.92, 1.35), 0.4),
     ], 1.3 + depthNow(3, -0.8) * 1.6));
+    /* 오른쪽 대야 드럼의 창 한 줄 — 몸 z 0.96~3.04 의 허리(위 ★★). */
+    out.push(...tagKey(drumWin9(3, -0.8, 2.5, 2.06, 0.40, 9),
+      1.5 + depthNow(3, -0.8) * 1.6));
     /* 앞 기운 작업 단(사진) — 다리 넷 위에 비스듬히 얹힌 판과 잔 부속들. */
     {
       const tab: ShapeFace[] = [];
@@ -16531,7 +16726,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        곡률이라 반지름을 줄이면(2.5 → 1.9) 셋이 좁게 모이며 그만큼 더 오므라든다. */
     const LEAF_R = 1.9;                      // 말린 잎의 반지름(= 곡률)
     const LEAF_ZC = 5.75;                    // 잎 셋이 감싸는 축의 높이
-    const LEAF_HALF_T = 0.25;                // 잎맥 한가운데의 반두께(요청: 더 볼록하게 0.2 → 0.25)
+    /* ★★ **옆선의 배흘림을 만드는 것은 반지름이고, 등마루를 만드는 것은 두께다**(2026-09,
+       지적: "잎의 옆쪽테두리 중간이 너무 툭 튀어나왔어" → "등마루? 옆선인데 등마루랑 상관있다고?"
+       — 그 되물음이 맞았고, 재 보니 상관이 있었다) ─────────────────────────────────────────
+       옆선(잎 호의 양 끝, 단면 두께가 0 인 자리)의 반지름은 `LEAF_R + ridge9(u)` 다. 곧
+       **등마루가 옆선을 그대로 부풀린다**: 실측 u 0 에서 2.420 · u 1 에서 1.900 — 가운데가
+       0.52 밖으로 튀어나온다. 그것이 "툭 튀어나옴"이었다.
+       반대로 `LEAF_HALF_T`(단면의 반두께)는 **옆선을 한 톨도 안 움직인다**(0.25 → 0.14 로
+       내려 굽어도 옆선이 그대로였다 — 옆선은 두께가 0 인 자리다).
+       · 그래서 등마루의 볼록함을 **두께로 옮긴다**: RIDGE 0.52 → **0.08** · HALF_T 0.25 → **0.62**.
+         등은 그대로 높고(잎맥 반지름 2.679 → 2.599) 옆선은 매끈한 렌즈로 돌아온다.
+       · ⚠ 마디를 늘려도(segs 20 → 40) 그 꺾임은 안 없어진다(실측) — 조각 수가 아니라 **반지름
+         함수의 꼴**이 만든 자리다. */
+    const LEAF_HALF_T = 0.62;                // 잎맥 한가운데의 반두께(등마루를 여기로 옮겼다 · 위 ★★)
     /* 1.05 → 0.86(요청: "세 잎 휘어짐 좀더 부드럽게") — 말림의 꼴(u²)은 그대로 두고 깊이만 낮춘다.
        꼴을 바꾸면(더 높은 거듭제곱) 허리가 평평해지고 끝이 급히 꺾여 오히려 덜 부드럽다. */
     const LEAF_CURL = 0.86;                  // 잎 뒤끝이 축 쪽으로 말려 드는 깊이
@@ -16554,7 +16761,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          u² 로 내리는 꼴이라 잎맥에서 기울기가 0 — 마루가 각지지 않고 부드럽게 솟는다. */
     const LEAF_SEGS9 = 20;
     const LEAF_SIDES9 = 12;
-    const LEAF_RIDGE = 0.52;                 // 잎맥의 등이 호 밖으로 솟는 몫(요청: 더 볼록하게 0.34 → 0.52)
+    const LEAF_RIDGE = 0.08;                 // 잎맥의 등이 호 밖으로 솟는 몫(0.52 → 0.08 · 아래 ★★ — 옆선을 부풀리던 자)
     /** 잎 등마루 — 호 위의 자리 u(−1 옆끝 … 0 잎맥 … 1 옆끝)에서 반지름에 더할 몫. */
     const ridge9 = (u9: number): number => LEAF_RIDGE * (1 - u9 * u9);
     /* ★ **아랫잎 둘만 x 축으로 안쪽으로 민다**(2026-09, 요청: "캐리어 아래 두 잎 x축 살짝
@@ -16648,9 +16855,29 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const ARC9 = (o9.arcDeg * Math.PI) / 180;
       const uOf = (t9: number): number => -Math.cos(Math.PI * t9);
       const wOf = (t9: number): number => leafW9(o9.len, uOf(t9));
-      /** 덮개가 앉는 잎 겉면의 반지름 — **등마루를 같이 탄다**(안 타면 덮개가 등에 파묻힌다). */
+      /** 잎맥 등마루의 반지름(= 그 t 에서 잎이 가장 두꺼운 자리) — 덮개 **겉면의 기준**이다. */
       const rOf = (t9: number): number =>
         LEAF_R + ridge9(uOf(t9)) + (wOf(t9) * LEAF_HALF_T) / o9.len + 0.015;
+      /* ★★ **살 두께를 가장 두꺼운 자로 재면 덮개가 앞뒤 테두리에서 뜬다**(2026-09, 요청:
+         "덮개들 … 위치 수정 잘해서 잎에서 뜨지 않게") ─────────────────────────────────
+         잎은 단면이 **타원**인 기둥이다(spirePillar `oval: LEAF_HALF_T/len`) — 곧 그 t
+         에서의 살 두께는 잎맥 위(단면 가운데)에서만 `wOf·LEAF_HALF_T/len` 이고, 앞뒤로
+         갈수록 `√(1−k²)` 으로 여윈다(k = y/wOf = 단면의 u 자리). 그런데 덮개는 테두리
+         띠의 밑변까지 **rOf 한 값**으로 앉혀, 판 앞뒤 테두리에서 그 차만큼 공중에 떴다.
+         실측(뜬 몫, 모형칸): 윗잎 옆앞 0.152 · 아랫잎 뒤겹 **옆앞 0.242**(제 두께 0.16
+         보다 크다) · 앞겹은 잎이 두꺼운 앞쪽에 앉아 0.03 뿐이었다 — 그래서 **뒤 덮개만**
+         떠 보였다. 두께를 0.25 → 0.62 로 올린 앞선 손질이 이 어긋남을 2.5배로 키웠다.
+         · 곧 **겉면과 밑변을 둘 다 이 타원 자로** 앉힌다 — 판이 잎의 둥근 살을 그대로
+           타므로 두께가 고르고, 테두리 띠의 키는 `(1−curlK)·말림차 + liftAt` 뿐이다.
+           ⚠ **겉면만 잎맥 자(rOf)로 두면 그 차가 통째로 테두리 띠가 된다** — 한 번 그렇게
+             지어 굽어 보니 뒤 테두리의 띠가 **0.6 모형칸**짜리 날개로 떴다(잎이 여위는
+             0.24 + 말림을 안 따르는 0.24 + liftAt 0.11). 판은 잎보다 두꺼울 수가 없다.
+         · ⚠ 이 꼴을 찾는 자는 **'단면이 눌린 기둥 위에 무엇을 얹는 자리'** 다 — 다각
+           기둥의 내접/외접에서 두 번 물렸던 그 자리(위 '다각 기둥에 무엇을 붙일 때')의
+           타원 판이다. 반지름 함수 하나로는 겉면을 못 낸다. */
+      const rSkin9 = (t9: number, k9: number): number =>
+        LEAF_R + ridge9(uOf(t9))
+        + ((wOf(t9) * LEAF_HALF_T) / o9.len) * Math.sqrt(Math.max(0, 1 - k9 * k9));
       // 잎과 한 글자도 다르지 않은 말림(그쪽 주석) — 덮개도 같은 호 위에 눕는다.
       const curl9 = (k9: number, t9: number): number =>
         LEAF_CURL * (k9 >= 0 ? LEAF_CURL_FRONT_K : 1) * k9 * k9 * (wOf(t9) / o9.len);
@@ -16739,9 +16966,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ): [number, number, number] => {
         const t9 = tAt(s9);
         const p9 = th9 + uOf(t9) * ARC9;
-        const c9 = curl9(kAt9(s9, y9), t9);
+        const k9 = kAt9(s9, y9);
+        const c9 = curl9(k9, t9);
         const cF9 = curl9(kAt9(s9, yFront(s9)), t9);          // 앞끝의 말림 = 바닥
-        const r9 = rOf(t9) - (glue ? c9 : cF9 + (c9 - cF9) * (o9.curlK ?? 1)) + lf;
+        const r9 = rSkin9(t9, k9)
+          - (glue ? c9 : cF9 + (c9 - cF9) * (o9.curlK ?? 1)) + lf;
         const px9 = Math.cos(p9) * r9;
         const pz9 = Z8 * (LEAF_ZC + Math.sin(p9) * r9);
         if (!yawR9) return [px9 + inX9, y9, pz9];
@@ -17019,7 +17248,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           topFace(wallDiscPath(tx, THRUST_Y1 - 0.05, tz, 0.2, 0.136), 0.5),
         ], thrustKey(tx, tz) + 0.3)
         : []),
-      ...nozzleRim9(tx, THRUST_Y1, tz, 0.36, thrustKey(tx, tz) + 0.25, { th: 0.1, dep: 1.5, fill: THRUST_GOLD }),
+      /* ★★ **어두운 아가리의 키를 관보다 올리면 그것이 관 위로 올라온다**(2026-09, 지적:
+         "스러스터가 각도에 따라 검정부품이 비쳐보임") — `nozzleRim9` 의 `dep` 은 아가리
+         **속**(어두운 목구멍)이라 늘 관 뒤라야 한다. 그런데 여기만 `+0.25` 로 관보다 앞에
+         두었다(드랍십·셔틀은 죄다 노즐 **뒤쪽** y 로 재 `key9(…, −4.2, …) + 0.3` 처럼 준다 —
+         곧 그 +0.3 은 '관보다 앞'이 아니라 '뒤 자리에서 조금 앞'이다. 캐리어만 관의
+         **가운데 y** 를 기준으로 재서 그 관행이 뒤집혔다).
+         · gl9 의 `aOrd` 는 tagKey 값이 아니라 **정렬된 부품 차례**라(그쪽 ★★), 키를 조금만
+           올려도 그 부품이 목록 맨 끝으로 가 최대 0.7 타일의 편향을 받는다 — 관의 지름
+           0.7 보다 크니 목구멍이 관을 통째로 이긴다. **−0.2** 로 관 뒤에 둔다.
+         · ★ 이 꼴을 찾는 자는 **'속을 그린 부품의 키가 껍데기보다 큰 자리'** 다. */
+      ...nozzleRim9(tx, THRUST_Y1, tz, 0.36, thrustKey(tx, tz) - 0.2, { th: 0.1, dep: 1.5, fill: THRUST_GOLD }),
       ...(poseNow === 1 ? thrustFlame(tx, THRUST_Y1 - 0.05, tz, 0.36, "toss", thrustKey(tx, tz) + 0.35) : []),
     ];
     /* (걷어냄) 아주 작은 옆날개 둘 — 아랫잎 뒤에 2중 덮개가 서면서 꽁무니가 이미
@@ -17071,9 +17310,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ...coverPlate({
         /* ★ 덮개는 **짧게 · 맨 뒤에**(같은 지적) — 덮개는 잎의 **등마루 바로 위**에 눕는 판이라
            길면 그 볼록함을 통째로 먹는다. 뒤 1/4(0.25)에서 1/6(0.17)로 줄이되 자리는 물리지
-           않는다(shift 0) — 꽁무니 끝에 붙어야 등이 앞에서 거기까지 쭉 이어진다. */
+           않는다(shift 0) — 꽁무니 끝에 붙어야 등이 앞에서 거기까지 쭉 이어진다.
+           ★★ **뒤로 옮기는 자는 shift 가 아니라 backK 다**(2026-09, 요청: "덮개들 더 뒤쪽으로
+             옮기고") — 아래 ★★ 의 셈 그대로다. 0.42 → **0.72**(판 −2.91 → −3.83 · 잎 뒤에
+             1.05 가 남아 뾰족한 뒤끝은 그대로 삐죽 나온다). */
         theta: 90, len: 4.7, arcDeg: 54, arc: 0.62, lenK: 0.17,
-        lift: 0.2, round: 0.45, backK: 0.42, curlK: 0.35, decal: true, win: 5,
+        lift: 0.2, round: 0.45, backK: 0.62, curlK: 0.6, decal: true, win: 5,
       }),
       /* (옮김) 윗잎 덮개의 창 — 여태 여기서 winRow 셋을 손으로 적은 세계 좌표에
          세웠다. 이제 coverPlate가 제 앞 테두리를 따라 낸다(그쪽 ★ 주석) — 판이
@@ -17099,10 +17341,22 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          벌어지고 앞은 본체에 딱 붙게 오므려진 형태로 요잉 조정") — 잎이 아니라 그 위에
          얹힌 덮개의 이야기다(재확인 지적).
          정면에서 왼쪽(축 둘레 210도)이 −15도, 오른쪽(330도)이 +15도다(요청의 그 값). */
-      ...coverPlate({ theta: 210, len: 5.6, arcDeg: 48, arc: 0.62, lenK: 0.15, lift: 0.16, round: 0.5, backK: 0.55, curlK: 0.3, yawDeg: -15 }),
-      ...coverPlate({ theta: 210, len: 5.6, arcDeg: 48, arc: 0.5, lenK: 0.14, shift: 0.09, lift: 0.36, round: 0.5, backK: 0.35, curlK: 0.3, yawDeg: -15 }),
-      ...coverPlate({ theta: 330, len: 5.6, arcDeg: 48, arc: 0.62, lenK: 0.15, lift: 0.16, round: 0.5, backK: 0.55, curlK: 0.3, yawDeg: 15 }),
-      ...coverPlate({ theta: 330, len: 5.6, arcDeg: 48, arc: 0.5, lenK: 0.14, shift: 0.09, lift: 0.36, round: 0.5, backK: 0.35, curlK: 0.3, yawDeg: 15 }),
+      /* ★★ **잎은 뒤로 여위므로 '뒤로'는 y 를 미는 것이 아니라 잎 뒤끝 곡선을 더 따라가는
+         것이다**(2026-09, 요청: "캐리어 세 잎의 덮개들 더 뒤쪽으로 옮기고") ────────────────
+         `shift` 는 판을 앞뒤로 **통째로** 미는 자라 뒤로 밀면 **옆 모퉁이가 먼저 잎을 벗어난다**:
+         판의 옆 테두리는 그 자리 잎 뒤끝(−Ws)에서 BACK_IN(0.2)밖에 안 남겨 두었으므로,
+         `shift` 로 뒤로 갈 수 있는 몫이 **0.2 뿐**이다(판 길이 1.7 의 12%). 더 밀면 모퉁이가
+         잎 밖 허공에 뜬다 — 요청의 뒷말("잎에서 뜨지 않게")이 바로 그 자리다.
+         · 그래서 뒤로 옮기는 자는 `backK` 다: 옆 모퉁이는 잎 뒤끝을 따라 제자리에 두고
+           **가운데만** 잎의 뒤 곡선을 더 따라가게 한다(길이 lenK 는 뒤 테두리에서 재므로
+           앞 테두리가 같은 몫만큼 함께 뒤로 온다). 실측(모형칸): 뒤겹 0.55 → **0.82**
+           (−3.98 → −4.96) · 윗잎 0.42 → 0.72(−2.91 → −3.83).
+         · 앞겹은 뒤겹을 **앞에서 덮는** 겹이라(그쪽 ★ — 기와의 방향) `shift` 를 0.09 → **0.02**
+           로 줄여 뒤겹과 같은 몫만큼 뒤로 온다. 겹치는 몫은 0.65 → 0.48 로 그대로 남는다. */
+      ...coverPlate({ theta: 210, len: 5.6, arcDeg: 48, arc: 0.62, lenK: 0.15, lift: 0.16, round: 0.5, backK: 0.72, curlK: 0.55, yawDeg: -15 }),
+      ...coverPlate({ theta: 210, len: 5.6, arcDeg: 48, arc: 0.5, lenK: 0.14, shift: 0.05, lift: 0.36, round: 0.5, backK: 0.35, curlK: 0.55, yawDeg: -15 }),
+      ...coverPlate({ theta: 330, len: 5.6, arcDeg: 48, arc: 0.62, lenK: 0.15, lift: 0.16, round: 0.5, backK: 0.72, curlK: 0.55, yawDeg: 15 }),
+      ...coverPlate({ theta: 330, len: 5.6, arcDeg: 48, arc: 0.5, lenK: 0.14, shift: 0.05, lift: 0.36, round: 0.5, backK: 0.35, curlK: 0.55, yawDeg: 15 }),
       /* (걷어냄·지적: "캐리어 윗잎 개인색 데칼은 제거하고 윗잎 덮개의 데칼 크기 확대")
          — 윗잎 등에 눕힌 작은 타원이다. 임자 색을 말하는 자리가 잎과 덮개 둘이었는데,
          두 곳에 나뉘어 있으면 어느 쪽도 제 몫을 못 한다: 잎의 것은 잎맥 곡면 위라 요잉이
