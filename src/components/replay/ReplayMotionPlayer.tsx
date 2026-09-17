@@ -88,6 +88,7 @@ import {
 import { TEAM_COLOR, type MinimapMarker } from "./markers";
 import {
   atkCutOf as atkCutOf9, flapCutOf as flapCutOf9,
+  muzzlePoint as muzzlePoint9, anchorPoint as anchorPoint9, spinMuzzle9, BLD_MUZZLE, HEAD_MUZZLE_KINDS9,
   AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, ATTACK_FX, NO_BEAM_FX, TARGET_FX, PROJECTILE_FX, NUKE_BOOM_SEC, NUKE_FALL_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SPIN_STEPS, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
 } from "./engine9";
 import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, WorldUi9 } from "./engine9";
@@ -5364,12 +5365,17 @@ export function docWeaponOf9(kind: string): string | null {
  *  ⚠ 날아가는 무기(PROJECTILE_FX)는 `shot`(진행률 u), 즉발은 `beam`(제자리 번쩍임)이다 —
  *    지도가 가르는 그 자리와 같은 명단을 쓴다. 쏘는 쪽에 아무것도 안 그리는 무기
  *    (커세어 플레어 · NO_BEAM_FX)는 **표적 그림이 전부**이므로 hit 만 낸다. */
-export function DocTracer9({ kind, t, className, overlay }: {
+export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg }: {
   kind: string; t: number; className?: string;
-  /** ★ **공격 칸 위에 겹쳐 그리나**(2026-09, 요청: "트레이서는 공격 셀에 같이 넣어야함") —
-   *  제 칸으로 서던 때는 칸 왼아래가 총구였다. 겹쳐 그릴 때 총구는 **모델이 선 자리**여야
-   *  하므로 칸 한가운데 조금 아래에서 오른위로 나간다. */
+  /** ★ **공격 칸 위에 겹쳐 그리나**(2026-09, 요청: "트레이서는 공격 셀에 같이 넣어야함"). */
   overlay?: boolean;
+  /** ★★ **그 칸의 창**(fitBox "x y w h") — 주면 트레이서가 **모델에 붙는다**(아래 ★★).
+   *  안 주면 옛 자리(칸 왼아래 → 오른위)로 물러난다. */
+  box?: string;
+  /** 모델의 요잉(도) — 총알이 **그 방향으로** 나간다(요청: "회전하면 트레이서도 회전"). */
+  rotDeg?: number;
+  /** 겨누는 포탑의 절대 각(터렛·포토·성큰) — 있으면 몸이 아니라 이 각이 쏘는 쪽이다. */
+  headDeg?: number;
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const style = docWeaponOf9(kind);
@@ -5386,12 +5392,55 @@ export function DocTracer9({ kind, t, className, overlay }: {
     if (!g9) return;
     g9.setTransform(dpr, 0, 0, dpr, 0, 0);
     g9.clearRect(0, 0, w9, h9);
-    const ZOOM9 = 8;
-    const x09 = overlay ? w9 * 0.46 : w9 * 0.14; const y09 = overlay ? h9 * 0.60 : h9 * 0.82;
-    const dx9 = overlay ? w9 * 0.36 : w9 * 0.72; const dy9 = overlay ? -h9 * 0.32 : -h9 * 0.6;
-    const dist9 = Math.hypot(dx9, dy9) || 1;
-    // deg 규약 — 붓이 (−sin, cos)로 방향을 푼다(그 자리의 dxx·dyy).
-    const deg9 = (Math.atan2(-dx9 / dist9, dy9 / dist9) * 180) / Math.PI;
+    /* ★★ **트레이서는 모델에 붙는다**(2026-09, 지적: "나오는 유닛들도 모델의 좌표랑 안 맞네 —
+       실제 재생기에서처럼 보이길 원했던 건데, 회전하면 트레이서도 그에 맞게 회전되고") ─────
+       옛 자리는 '칸 왼아래 → 오른위'라는 **칸의 자**였다. 그래서 총구가 어디든 줄기는 늘 같은
+       구석에서 났고, 모델을 돌려도 줄기는 안 돌았다. 지도가 쓰는 자 셋을 그대로 가져온다:
+         ① **자리** — 총구 앵커표(`muzzlePoint`·건물은 `BLD_MUZZLE`)가 16-상자 자로 낸 점.
+            칸에 모델을 앉히는 식(gl9 아이콘: 원점 8·12 · 창을 칸에 맞추는 배수 k)에 그대로
+            태우면 그 점이 곧 화면 총구다. ⚠ 여기서는 **MODEL_NORM 을 안 곱한다** — 아이콘은
+            창을 잉크 상자에 맞추므로 그리기 배수가 k 에 이미 들어 있다(지도는 판 배수를
+            따로 곱해야 해서 mzS 를 쓴다 — 자가 다르다).
+         ② **방향** — 몸의 요잉(겨누는 포탑이 있으면 그 각). 돌리면 줄기가 함께 돈다.
+         ③ **배율** — `k·16 / 그 종류의 지도 타일 수`. 곧 '이 모델이 이만큼 커 보이는 지도의
+            배율'이다. 갈래표의 굵기·길이는 **렌즈 px 상수**라, 못 박은 8 을 쓰면 모델이 칸을
+            꽉 채운 도록에서 줄기만 지도 크기로 남아 **안 보일 만큼 작다**(지적: "파뱃 …
+            안 나오는 게 아니라 작아서 안 보인 거였어"). */
+    let k9 = 0; let ax9 = w9 / 2; let ay9 = h9 / 2;
+    const bb9 = box ? box.split(/[\s,]+/).map(Number) : null;
+    if (bb9 && bb9.length === 4 && bb9.every((v9) => Number.isFinite(v9)) && bb9[2] > 0 && bb9[3] > 0) {
+      k9 = Math.min(w9 / bb9[2], h9 / bb9[3]);
+      ax9 = w9 / 2 - k9 * (bb9[0] + bb9[2] / 2 - 8);
+      ay9 = h9 / 2 - k9 * (bb9[1] + bb9[3] / 2 - 12);
+    }
+    const yaw9 = rotDeg ?? 0;
+    const mz9 = ((): [number, number] | null => {
+      if (!k9) return null;
+      const bm9 = BLD_MUZZLE[kind];
+      /* 머리가 도는 건물(터렛·포토)은 표의 값이 **머리 자**라, 머리에 준 각만큼 모형에서
+         돌려야 포드·관 위에 앉는다(지도의 muzzleAt9 과 같은 손). */
+      if (bm9) return anchorPoint9(HEAD_MUZZLE_KINDS9.has(kind) ? spinMuzzle9(bm9, (headDeg ?? yaw9) - yaw9) : bm9, yaw9, 0, false, true);
+      return muzzlePoint9(kind, yaw9, 0, false);
+    })();
+    /* 이 칸에서 **타일 하나가 몇 px 인가** — 모델의 16-상자가 k·16 px 로 서니, 그 종류가
+       지도에서 차지하는 타일 수로 나누면 곧 그 배율이다. 붓의 두 손잡이는 그 하나에서 나온다:
+       갈래표의 굵기·길이는 `tz9 = zoom·tilePx/8` 을 타므로 `zoom = 타일px/8 · tilePx = 8`.
+       ⚠ **tilePx 에 타일px 를 그대로 넣으면 제곱이 된다**(실측: 마린 줄기가 칸을 통째로
+         덮었다) — tilePx 는 '배율 1 일 때의 타일 px'라는 기준자이지 지금 크기가 아니다. */
+    const PX9 = k9 ? (k9 * 16) / Math.max(0.5, shapeMapTiles(kind)) : 64;
+    const ZOOM9 = PX9 / 8;
+    const deg9 = headDeg ?? (rotDeg !== undefined ? rotDeg : -50);
+    const rad0 = (deg9 * Math.PI) / 180;
+    const ux9 = -Math.sin(rad0); const uy9 = Math.cos(rad0);
+    const x09 = mz9 ? ax9 + k9 * (mz9[0] - 8) : (overlay ? w9 * 0.46 : w9 * 0.14);
+    const y09 = mz9 ? ay9 + k9 * (mz9[1] - 12) : (overlay ? h9 * 0.60 : h9 * 0.82);
+    /* 줄기는 **칸 가장자리까지** 뻗는다 — 표적이 따로 없으니 '보이는 데까지'가 사거리다. */
+    const m9 = 3;
+    const tx9 = ux9 > 0.001 ? (w9 - m9 - x09) / ux9 : ux9 < -0.001 ? (m9 - x09) / ux9 : Infinity;
+    const ty9 = uy9 > 0.001 ? (h9 - m9 - y09) / uy9 : uy9 < -0.001 ? (m9 - y09) / uy9 : Infinity;
+    const edge9 = Math.max(14, Math.min(tx9, ty9));
+    // 끝이 칸 밖으로 잘리면 무기의 꼴이 안 읽힌다 — 조금 물린다(솟는 가시는 제 키만큼 더).
+    const dist9 = edge9 * 0.88;
     const age9 = (t % 1.1) / 1.1;            // 한 발의 나이 0~1
     const shot9 = PROJECTILE_FX.has(style);
     const ops9: FxOp[] = [];
@@ -5402,26 +5451,31 @@ export function DocTracer9({ kind, t, className, overlay }: {
       const ph9 = sunkenPhase9(t);
       const up9 = ph9 > 0.12 && ph9 < 0.45 ? Math.sin(((ph9 - 0.12) / 0.33) * Math.PI) : 0;
       if (up9 > 0.02) {
-        ops9.push({
-          kind: "erupt", fx: 1, fy: 1, lift: 0, mx: 0, my: 0,
-          len: (h9 * 0.42) / ZOOM9, u: up9, size: (h9 * 0.13) / ZOOM9,
-        } as FxOp);
+        // 값은 지도의 그것이다(engine9: 높이 1.2타일 · 굵기 0.3타일 — 붓이 배율을 곱한다).
+        ops9.push({ kind: "erupt", fx: 0.62, fy: 0.62, lift: 0, mx: 0, my: 0, len: 1.2 * 8, u: up9, size: 0.3 * 8 } as FxOp);
       }
     } else if (!NO_BEAM_FX.has(style)) {
-      ops9.push({
-        kind: shot9 ? "shot" : "beam", style, fx: 0, fy: 0, lift: 0,
-        deg: deg9, ph: age9, len: dist9 / ZOOM9, ...(shot9 ? { u: age9 } : {}),
-      } as FxOp);
+      /* ★ 파이어뱃은 **두 줄기**다(요청: "파이어뱃 불기둥 양쪽 건에서 각각 나와서 총 두 개") —
+         지도와 같은 자로 총구 축에 직각으로 ± 만큼 벌린다(engine9 의 그 자리). */
+      const fl9 = style === "flame" && k9 ? (k9 * modelInkOf(kind) * 0.26) / ZOOM9 : 0;
+      for (const fs9 of (fl9 > 0 ? [-1, 1] : [0])) {
+        ops9.push({
+          kind: shot9 ? "shot" : "beam", style, fx: 0, fy: 0, lift: 0,
+          mx: Math.cos(rad0) * fl9 * fs9, my: Math.sin(rad0) * fl9 * fs9,
+          deg: deg9, ph: age9, len: dist9 / ZOOM9, ...(shot9 ? { u: age9 } : {}),
+        } as FxOp);
+      }
     }
     if (style !== "erupt" && (NO_BEAM_FX.has(style) || TARGET_FX.has(style))) {
       ops9.push({ kind: "hit", style, fx: 1, fy: 1, lift: 0, ph: age9, size: 2.6 } as FxOp);
     }
     paintFxList9(g9, ops9, {
       zoom: ZOOM9, tilePx: 8, cw: w9, ch: h9, Bd: dpr,
-      zx: (v9) => x09 + v9 * dx9, zy: (v9) => y09 + v9 * dy9,
+      // 분수 0 이 총구 · 1 이 표적이다(줄기가 지나는 그 선).
+      zx: (v9) => x09 + v9 * ux9 * dist9, zy: (v9) => y09 + v9 * uy9 * dist9,
     });
     el.dataset.gl9 = "1";
-  }, [kind, style, t, overlay]);
+  }, [kind, style, t, overlay, box, rotDeg, headDeg]);
   if (!style) return null;
   return <canvas ref={ref} width={1} height={1} className={cx("scr-motion-shape-svg", className)} aria-hidden data-gl9="0" />;
 }

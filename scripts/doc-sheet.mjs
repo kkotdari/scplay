@@ -65,7 +65,7 @@ const BG = argv.includes("--bg")
 const ENTRY = `
 import { createElement as h } from "react";
 import { createRoot } from "react-dom/client";
-import { SHAPE_GALLERY, DocIcon9, galleryYawOf, docAnimOf9, docCellsOf9, DocTracer9, docWeaponOf9 } from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
+import { SHAPE_GALLERY, DocIcon9, galleryYawOf, docAnimOf9, docCellsOf9, DocTracer9, docWeaponOf9, shapeFitBox } from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
 /* 트레이서 판(--tracer) — 한 발의 나이를 여섯 칸으로. */
 window.__docTracer = (kinds) => {
   const host = document.getElementById("host");
@@ -98,19 +98,23 @@ window.__docAnim = (kinds) => {
   const cellsOf = (kind, group) => {
     const yaw = galleryYawOf(45, group);
     const out = [];
+    /* 창은 팝업과 같은 뜻으로 — 칸이 그릴 종류의 잉크 상자다(트레이서가 그 창을 타고 앉는다). */
+    const boxOf = (k) => shapeFitBox(k, { rotDeg: yaw, flat: true });
     for (const t of TS) {
       for (const c of docCellsOf9(kind, t, yaw)) {
+        const bx = boxOf(c.kind || kind);
         out.push(h("div", { key: c.label + t, className: "scr-doc-angle" }, [
           h("div", { key: "a", style: { position: "relative" } }, [
             h(DocIcon9, {
               key: "m", kind: c.kind || kind, rotDeg: c.rotDeg ?? yaw, pose: c.pose, spin: c.spin,
               headDeg: c.headDeg, lit: c.lit, blink: c.blink, attach: c.attach, attachRot: c.attachRot,
-              flat: true, fit: true, className: "scr-doc-svg", gl: !window.__doc2d,
+              flat: true, fit: true, fitBox: bx, className: "scr-doc-svg", gl: !window.__doc2d,
             }),
-            c.tracer ? h(DocTracer9, {
-              key: "s", kind, t, overlay: true, className: "scr-doc-svg",
-              style: { position: "absolute", inset: 0 },
-            }) : null,
+            c.tracer ? h("div", { key: "s", style: { position: "absolute", inset: 0 } },
+              h(DocTracer9, {
+                kind, t, overlay: true, box: bx, rotDeg: c.rotDeg ?? yaw,
+                headDeg: c.headDeg ?? c.attachRot, className: "scr-doc-svg",
+              })) : null,
           ]),
           h("span", { key: "d" }, c.label + (c.note ? " · " + c.note : "") + " · t" + t.toFixed(2)),
         ]));
