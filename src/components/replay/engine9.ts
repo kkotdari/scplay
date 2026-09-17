@@ -7169,17 +7169,28 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
        지어내는 것이 아니다: 참값이 준 order_target이 있고 그것이 이 유닛의 제
        사거리 안일 때만이다 — 표적은 참값이고 사거리는 표가 말한다. 포탑이 도는
        둘(탱크·골리앗)에만 걸리므로 다른 유닛의 결은 한 톨도 안 바뀐다. */
+    /* ★★ **탱크는 모드에 따라 사거리가 7.8 ↔ 12.8 로 갈린다**(2026-09, 지적: "시즈 트레이서는
+       가까우면 나오고 타겟이 멀면 안 나옴") — 이 자리는 `siegeOn` 을 셈하기 **전**이라 모드를
+       모르는데, 참값 이름은 시즈를 걸어도 "Siege Tank (Tank Mode)" 그대로다. 그래서 정착 시즈가
+       8~12타일을 쏠 때 '싸우는 것으로 안 보고' 트레이서가 통째로 안 났다(참값 상태가 ST_FIGHT 가
+       아닐 때 이 어림이 유일한 문이다).
+       여기는 '싸우는가'의 **어림**이므로 두 모드 중 **큰 쪽**으로 연다 — 진짜 겨눔 문(aimTiles9)은
+       아래에서 `drawUnit2` 로 제 모드의 사거리를 따로 본다. */
+    const reachMax9 = (u: string): number => {
+      const r9 = reachTiles(u, foe.uk && isKnownKind(foe.uk) ? foe.uk : u, foe.air);
+      if (!u.startsWith("Siege Tank")) return r9;
+      const s9 = "Siege Tank (Siege Mode)";
+      return Math.max(r9, isKnownKind(s9)
+        ? reachTiles(s9, foe.uk && isKnownKind(foe.uk) ? foe.uk : s9, foe.air) : 0);
+    };
     const turretAim9 = turretUnit9 && Number.isFinite(foe.bd)
-      && isKnownKind(drawUnit)
-      && foe.bd <= reachTiles(drawUnit,
-        foe.uk && isKnownKind(foe.uk) ? foe.uk : drawUnit, foe.air);
+      && isKnownKind(drawUnit) && foe.bd <= reachMax9(drawUnit);
     /* ★ 쫓으며 쏜다(같은 지적) — 포탑 유닛의 자와 같다: 참값의 표적이 있고, 적이며, 제 사거리 안이면
        MOVE 상태여도 싸우는 것으로 본다. 원작에서 달아나는 표적을 뒤쫓는 유닛은 사거리에 들 때마다
        쏘는데, 그 짧은 사격 프레임은 덤퍼의 키 사이로 빠지기 일쑤였다. */
     const chaseAim9 = simState === ST_MOVE && tgtTag9 !== 0 && Number.isFinite(foe.bd)
       && (foe.team ?? 0) !== (team ?? 0) && isKnownKind(drawUnit)
-      && foe.bd <= reachTiles(drawUnit,
-        foe.uk && isKnownKind(foe.uk) ? foe.uk : drawUnit, foe.air);
+      && foe.bd <= reachMax9(drawUnit);
     let fighting = simState !== null
       ? ((simState === ST_FIGHT || turretAim9 || chaseAim9) && canFight && !frzSt && !burrowed)
       : (canFight && !frzSt && !burrowed && Number.isFinite(foe.bd)
@@ -8400,7 +8411,12 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
        ★ 이름을 여기서 갈면 갈래·쿨다운·사거리가 **한 벌로** 시즈의 것이 된다(시즈는 사거리 12·
          쿨다운도 다르다) — 그 셋이 다 이 이름에서 나온다. */
     const fxUnit0 = drawUnit === "" ? (race === "저그" ? "Zergling" : race === "테란" ? "Marine" : "Zealot") : drawUnit;
-    const fxUnit = siegeOn === 1 && fxUnit0.startsWith("Siege Tank") ? "Siege Tank (Siege Mode)" : fxUnit0;
+    /* ⚠ 자는 `siegeOn` 이 아니라 **`siegeShow9`**(그리는 판)다(2026-09, 지적: "탱크모드의 트레이서가
+       왜 자꾸 시즈모드의 트레이서를 쓰는 거야 … 탱크모드에서 시즈 포신이 나오는 애니메이션 동안이
+       문제라고") — 전환 창이 열리는 순간 `siegeOn` 은 이미 1 이지만 몸은 아직 **탱크 판**이다.
+       그 동안 시즈 무기를 쓰면 탱크가 시즈의 큰 포탄을 쏜다. `siegeShow9` 는 창 동안 0 이라
+       그리는 판과 무기가 한 벌로 움직인다. */
+    const fxUnit = siegeShow9 === 1 && fxUnit0.startsWith("Siege Tank") ? "Siege Tank (Siege Mode)" : fxUnit0;
     const atkDeg = foeDeg;
     /* 조준각은 화면 기준(지적 둘: 공중 표적 각도 + 지상 사격은 지면과 평행) —
        화면 픽셀 델타로 재고, 공중 표적·공중 사수는 비행 높이를 가감한다. */
@@ -8776,7 +8792,9 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
           /* 자는 **두 배**, 각은 **90도 굴린다**(2026-09, 요청: "시즈 트레이서 에너지포 크기 두 배로
              키우고 90도 롤링") — 붓이 누르는 축은 제 가로이고 여기 주는 각은 그 수직이므로, 90 을
              더하면 납작한 축이 날아가는 길과 나란해진다(곧 길을 **가로지르는** 원반이 된다). */
-          put9(bx9, by9, fxPx * 0.68, "tankshell", 0.3,
+          /* ⚠ 탱크 모드의 포탄은 **훨씬 작다**(지적: "탱크모드는 훨씬 작아야 대") — 90mm 포와
+             시즈의 자주포는 아예 다른 무기다. 시즈 0.68 · 탱크 0.26. */
+          put9(bx9, by9, fxPx * (burst9 ? 0.68 : 0.26), "tankshell", 0.3,
             (Math.atan2(-(tvx9 - mzx9), tvy9 - mzy9) * 180) / Math.PI + 90);
         } else {
           /* ③ 착탄 스플래시 — 닿은 뒤 0.5초 동안 피었다 진다. 자는 쏘는 쪽 불꽃의 두 배가 넘는다

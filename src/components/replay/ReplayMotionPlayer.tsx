@@ -5656,7 +5656,8 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, 
           // 빠르게 나가 가운데에서 살짝 느려졌다 다시 가속(engine9 의 그 식과 같다).
           const e9 = u9 + (0.55 * Math.sin(2 * Math.PI * u9)) / (2 * Math.PI);
           // 자·각 다 지도의 것 — 곧은 선 · 두 배 · 90도 굴림(engine9 의 그 자리).
-          put9(tvx9 * e9, tvy9 * e9 - arc9 * 4 * e9 * (1 - e9), hs9 * 0.68, "tankshell", 0.3,
+          // 탱크 모드의 포탄은 훨씬 작다(engine9 의 ⚠: 시즈 0.68 · 탱크 0.26).
+          put9(tvx9 * e9, tvy9 * e9 - arc9 * 4 * e9 * (1 - e9), hs9 * (burst9 ? 0.68 : 0.26), "tankshell", 0.3,
             (Math.atan2(-tvx9, tvy9) * 180) / Math.PI + 90);
         } else {
           /* 착탄은 **둥글다**(지적: "포구가 투하되어 폭발하는 거는 타원이 아니라 원형으로
