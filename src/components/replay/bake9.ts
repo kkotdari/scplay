@@ -18630,8 +18630,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const AK9 = 0.82 * 1.2 * 1.25;
     const SHX9 = 1.32;    // 뿌리 x — 몸통 옆구리(반폭 1.24) 속에 묻히는 자리
     const SHY9 = -0.5;    // 뿌리 y — 몸통 앞뒤의 한가운데
+    /** ★ **짐을 들면 팔을 모은다**(2026-09, 요청: "자원 들었을 때 팔은 좀 모으기") — 팔은 앞으로
+     *  가며 바깥으로 벌어지는데(0.765), 그 벌어진 자락 사이에 화물 상자가 끼면 두 팔이 짐을
+     *  '드는' 것이 아니라 그 **옆에 떠 있는** 꼴이 된다. 벌어지는 몫만 죄면 손끝이 짐 쪽으로
+     *  모이고, 연장은 TX9·TY9 가 손끝에서 재므로 저절로 따라온다.
+     *  ⚠ 뿌리(SHX9)는 안 건드린다 — 그것은 어깨가 몸통 살 속에 묻히는 자리다(당기면 틈이 난다). */
+    const CARRY_IN9 = scvCarry ? 0.55 : 1;
     /** 뿌리(±SHX9, SHY9)에서 t 만큼 뻗은 자락. */
-    const armRay9 = (t9: number): [number, number] => [0.765 * AK9 * t9, 2.465 * AK9 * t9];
+    const armRay9 = (t9: number): [number, number] => [0.765 * AK9 * t9 * CARRY_IN9, 2.465 * AK9 * t9];
     const armAt = (m: 1 | -1, t9: number): [number, number] => {
       const [rx9, ry9] = armRay9(t9);
       return [m * (SHX9 + rx9), SHY9 + ry9];
@@ -18745,12 +18751,22 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      *  팔뚝(prism)이 이미 그 길이고, z 는 하완과 같은 3.696 그대로다.
      *  ★ 교훈: **관(tubeFaces)을 상자·뿔과 한 축에 세우지 마라** — GL 이 주인인 지금
      *    tubeAxisLift 는 2D 만 고치고 GL 을 어긋내는 자다. */
-    const wristDisc9 = (x0: number, y0: number, x1: number, y1: number): ShapeFace[] =>
-      spirePillar({
+    /* ★ **아주 납작한 짙은 원판**(2026-09, 요청: "scv 팔끝의 원통 아~주 납작하게 수정하고
+       짙은 회색으로 수정") — 축 길이를 3분의 1로 죄어 '토막'이 아니라 손목에 끼운 **와셔**로
+       읽히게 하고, 색도 팔뚝(GUNMETAL)에서 한 단 더 내려 연장과 팔 사이의 마디로 갈라 보인다.
+       ⚠ 여기서 칠해 두면 바깥 `paintBase(…, GUNMETAL)` 이 못 덮는다(칠한 낯은 그대로 둔다) —
+         곧 이 한 자리만 고치면 좌우 두 팔이 함께 따라온다. */
+    const wristDisc9 = (x0: number, y0: number, x1: number, y1: number): ShapeFace[] => {
+      const FLAT9 = 0.34;                                   // 축 길이 몫 — 아주 납작하게
+      const mx9 = (x0 + x1) / 2; const my9 = (y0 + y1) / 2;
+      const ax9 = mx9 + (x0 - mx9) * FLAT9; const ay9 = my9 + (y0 - my9) * FLAT9;
+      const bx9 = mx9 + (x1 - mx9) * FLAT9; const by9 = my9 + (y1 - my9) * FLAT9;
+      return paintBase(spirePillar({
         x: 0, y: 0, h: 0.8, w: 0.5, tipW: 0.5, segs: 2, sides: 12, hold: 1,
         ref: [0, 0, 1], caps: "both",
-        path: (t: number): [number, number, number] => [x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, 3.696],
-      });
+        path: (t: number): [number, number, number] => [ax9 + (bx9 - ax9) * t, ay9 + (by9 - ay9) * t, 3.696],
+      }), "#3a3e45");
+    };
     {
       /* ★ 높이를 **하완에 맞춘다**(지적: "드릴 집게 높이 하완과 맞추기 — 지금 너무
          낮음") — 하완은 z 4.62에 서는데 연장만 4.3이라 손목에서 한 단 떨어져, 팔이
@@ -18943,9 +18959,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const a9 = (ang * Math.PI) / 180;
       const dx9 = Math.sin(a9); const dy9 = Math.cos(a9);
       const at9 = (rr9: number): [number, number, number] => [dx9 * rr9, dy9 * rr9, zC];
+      /* ⚠ **`tipW` 를 안 주면 끝 뚜껑이 안 난다** — spirePillar 의 위 뚜껑 문이 `tipW > 0.01`
+         이고 기본값이 0 이다(`widthOf` 를 줘도 이 문은 tipW 를 본다). 안 주면 드럼의 **뒤 낯이
+         통째로 없어** 아가리가 아니라 뚫린 관이 된다. */
       const drum9 = (s0: number, s1: number, rr9: number, fill9: string, caps9: "both" | "top"): ShapeFace[] =>
         paintBase(spirePillar({
-          x: 0, y: 0, h: 1, w: rr9, segs: 1, sides: 12, caps: caps9, trueNormal: true,
+          x: 0, y: 0, h: 1, w: rr9, tipW: rr9, segs: 1, sides: 12, caps: caps9, trueNormal: true,
           path: (t9: number): [number, number, number] => at9(s0 + (s1 - s0) * t9),
         }), fill9);
       const r19 = r0 + len;
@@ -18986,17 +19005,30 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        실루엣의 위는 한 톨도 안 바뀌고 배 쪽에 붙일 자리가 생긴다.
        ⚠ 위 낯은 절두체의 뚜껑(caps "both")이 맡는다 — 옛 금색 원반을 그 위에 또 얹으면 그것이
          곧 '덩이의 윗면을 덮는 판'이다(CLAUDE.md 의 그 규약). */
-    const RTOP9 = 1.55 * BD; const RBOT9 = 1.00 * BD;
-    const ZTOP9 = 4.96; const ZBOT9 = 4.34;
+    /* ⚠⚠ **쌓아 둔 원반은 옆벽이 없다 — 세우는 순간 그 사이가 틈이 된다**(2026-09, 지적:
+       "프로브 프러스텀과 위 뚜껑면 사이 틈이 크게 있는데?") — 옛 몸통은 z 4.96 · 5.2 · 5.44 에
+       놓인 납작한 원반 셋이었다. 화가 차례로만 서는 2D 에서는 계단 돔으로 읽혔지만, 아래를
+       절두체로 세우고 나니 그 위 원반(5.2)이 **0.24 만큼 허공에 떠** 있는 것이 드러났다.
+       곧 배만 세울 것이 아니라 **몸통 전체를 이어진 회전체**로 지어야 한다:
+         치마(4.34 r0.66 → 4.96 r1.03) + 어깨(4.96 r1.03 → 5.20 r0.70) + 뚜껑.
+       치마는 밑 뚜껑만·어깨는 윗 뚜껑만 두어 이음매가 열려 있지만 두 테가 같은 자리라
+       닫힌 입체다(뒷면 걷기도 그대로 먹는다).
+       ⚠ 꼭대기 광(topFace)도 함께 내려야 한다 — 5.44 에 두면 그것 역시 허공에 뜬 데칼이다. */
+    const RTOP9 = 1.55 * BD; const RBOT9 = 1.00 * BD; const RCAP9 = 1.05 * BD;
+    const ZTOP9 = 4.96; const ZBOT9 = 4.34; const ZCAP9 = 5.20;
     out.push(...tagKey([
-      // 몸통 금색(치마 + 위 뚜껑), 그 위 원판만 개인색(요청).
+      // 치마는 금색, 어깨·뚜껑은 안 칠한다 = 임자 색(요청: 몸통 위 원판만 개인색).
       ...paintBase(spirePillar({
-        x: 0, y: 0, h: 1, w: RBOT9, segs: 2, sides: 16, caps: "both", trueNormal: true,
+        x: 0, y: 0, h: 1, w: RBOT9, tipW: RTOP9, segs: 1, sides: 12, caps: "bottom", trueNormal: true,
         path: (t9: number): [number, number, number] => [0, 0, ZBOT9 + (ZTOP9 - ZBOT9) * t9],
         widthOf: (t9: number): number => RBOT9 + (RTOP9 - RBOT9) * t9,
       }), TOSS_GOLD),
-      [discPath3(0, 0, 5.2, 1.05 * BD), 1] as ShapeFace,
-      topFace(discPath3(0, 0, 5.44, 0.62 * BD), 0.3),
+      ...spirePillar({
+        x: 0, y: 0, h: 1, w: RTOP9, tipW: RCAP9, segs: 1, sides: 12, caps: "top", trueNormal: true,
+        path: (t9: number): [number, number, number] => [0, 0, ZTOP9 + (ZCAP9 - ZTOP9) * t9],
+        widthOf: (t9: number): number => RTOP9 + (RCAP9 - RTOP9) * t9,
+      }),
+      topFace(discPath3(0, 0, ZCAP9 + 0.02, 0.62 * BD), 0.3),
     ], depthNow(0, 0) + 2.5));
     /* 눈 두 개(재지적: 몸통에 수직으로 붙여 정면을 보게 + 더 작게) — 바닥에 눕던
        타원을 정면 벽 데칼(wallDiscPath)로 세운다. 벽과 함께 돌고 눌리며, 뒤로 돌면

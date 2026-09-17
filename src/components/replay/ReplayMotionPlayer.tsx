@@ -3848,8 +3848,13 @@ export function paintFxList9(
           for (let i9 = 1; i9 < n9; i9 += 1) {
             const q9 = i9 / n9;
             const r9 = Math.sin((i9 * 12.9898 + seed9 * 78.233) * 43758.5453);
+            /* ★ **좌우를 번갈아 튄다**(2026-09, 요청: "번개처럼 각으로 꺾여야 해 전기 느낌") —
+               여태는 마디마다 부호까지 난수라, 같은 쪽으로 두세 번 이어 튀면 그것은 꺾임이
+               아니라 **휘어진 끈**이다. 부호는 번갈아 못 박고 크기만 난수로 흔든다(0.45~1.0) —
+               그러면 어느 마디에서도 방향이 반드시 뒤집혀 각이 선다. */
+            const mag9 = 0.45 + 0.55 * (r9 - Math.floor(r9));
             // 양 끝은 몸에 붙어야 하므로 가운데가 가장 크게 튄다(sin 봉우리).
-            const off9 = (r9 - Math.floor(r9) - 0.5) * 2 * amp9 * Math.sin(Math.PI * q9);
+            const off9 = (i9 % 2 === 0 ? 1 : -1) * mag9 * amp9 * Math.sin(Math.PI * q9);
             ctx.lineTo(
               lx9 + vx9 * q9 - (vy9 / len9) * off9,
               ly9 + vy9 * q9 + (vx9 / len9) * off9,
@@ -3873,6 +3878,10 @@ export function paintFxList9(
         ctx.lineWidth = st.w * zoom * (st.glowW ?? 2.6);
         ctx.globalAlpha = a9 * (st.glowA ?? 0.3);
         ctx.lineCap = st.cap ?? "round";
+        /* ⚠ **꺾인 갈래의 마디는 각이라야 한다**(요청: 아콘) — `lineJoin: "round"` 는 마디를
+           둥글려 번개를 구불구불한 끈으로 만든다. 곧은 갈래는 마디가 없으니 어느 쪽이든 같다. */
+        ctx.lineJoin = (st.zig ?? 0) >= 2 ? "miter" : "round";
+        ctx.miterLimit = 12;
         path9();
         ctx.stroke();
         ctx.globalAlpha = a9;
@@ -3880,7 +3889,8 @@ export function paintFxList9(
       ctx.strokeStyle = g9;
       ctx.lineWidth = Math.max(0.4, st.w * zoom);
       ctx.lineCap = st.cap ?? "round";
-      ctx.lineJoin = "round";
+      ctx.lineJoin = (st.zig ?? 0) >= 2 ? "miter" : "round";
+      ctx.miterLimit = 12;
       path9();
       ctx.stroke();
     }
@@ -5477,7 +5487,8 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg }
     } else if (!NO_BEAM_FX.has(style)) {
       /* ★ 파이어뱃은 **두 줄기**다(요청: "파이어뱃 불기둥 양쪽 건에서 각각 나와서 총 두 개") —
          지도와 같은 자로 총구 축에 직각으로 ± 만큼 벌린다(engine9 의 그 자리). */
-      const fl9 = style === "flame" && k9 ? (k9 * modelInkOf(kind) * 0.26) / ZOOM9 : 0;
+      // 벌리는 폭은 지도와 같은 값이다(engine9 flH9 — 요청으로 0.26 → 0.16 으로 좁혔다).
+      const fl9 = style === "flame" && k9 ? (k9 * modelInkOf(kind) * 0.16) / ZOOM9 : 0;
       for (const fs9 of (fl9 > 0 ? [-1, 1] : [0])) {
         ops9.push({
           kind: shot9 ? "shot" : "beam", style, fx: 0, fy: 0, lift: 0,
