@@ -12207,11 +12207,21 @@ export default function ReplayMotionPlayer({
         e.preventDefault();
         wakeUi();
         setColorMode((v) => (v === "team" ? "personal" : "team"));
-      } else if (e.code === "Backquote") {
-        // ` = 로스터 여닫이(이름만 → 전체 → 숨김, 오른쪽 아래 단추와 같은 순서 / 요청).
+      } else if (e.code === "KeyB") {
+        /* b = 로스터 여닫이(이름만 → 전체 → 숨김, 오른쪽 아래 단추와 같은 순서).
+           ★ **` 에서 b 로 옮겼다**(2026-09, 요청: "지도 켜고 끄기 단축키 N 로스터 단축키 B로
+             수정") — 역따옴표는 자판마다 자리가 달라(한글 자판·노트북 축소 자판) 손이 안 간다.
+             글자 키는 e.code(자판 자리)로 읽으므로 한글 자판에서도 그대로 듣는다. */
         e.preventDefault();
         wakeUi();
         setRosterMode((v) => ((v + 1) % 3) as 0 | 1 | 2);
+      } else if (e.code === "KeyN") {
+        /* n = 미니맵(작은 지도) 여닫이 — 전체화면의 그 단추와 같은 손잡이다(요청).
+           일반 화면에서는 미니맵이 지도 밖 독에 제 자리를 가져 가릴 것이 없으므로,
+           그 단추도 이 키도 전체화면에서만 뜻이 있다(F 와 같은 결). */
+        e.preventDefault();
+        wakeUi();
+        if (fsOnRef.current) setFsMiniOn((v) => !v);
       } else if (e.code === "KeyV") {
         // v = 평면 ↔ 입체 토글(요청). 입체가 막힌 기기면 안내만 띄운다.
         e.preventDefault();

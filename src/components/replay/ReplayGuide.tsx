@@ -164,7 +164,8 @@ export default function ReplayGuide({ onClose }: {
           <K keys={["X"]} title="장면 공유" desc="지금 장면의 링크를 공유 시트로 보냅니다(안 되면 링크 복사)."/>
 
           <span className="scr-guide-group">보기</span>
-          <K keys={["`"]} title="로스터" desc="이름만 → 전체 → 숨김 순으로 돕니다."/>
+          <K keys={["B"]} title="로스터" desc="이름만 → 전체 → 숨김 순으로 돕니다."/>
+          <K keys={["N"]} title="작은 지도 켜기 / 끄기" desc="전체화면일 때만. 오른쪽 아래 지도 단추와 같습니다."/>
           <K keys={["C"]} title="팀색 ↔ 개인색"/>
           <K keys={["V"]} title="평면 ↔ 입체"/>
           <K keys={["M"]} title="음악 켜기 / 끄기"/>
