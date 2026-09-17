@@ -8360,7 +8360,16 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       return null;
     }
     if (hitFx9) fxOps.push(hitFx9);
-    const fxUnit = drawUnit === "" ? (race === "저그" ? "Zergling" : race === "테란" ? "Marine" : "Zealot") : drawUnit;
+    /* ★★ **시즈 중이면 무기가 다른 유닛이다**(2026-09, 지적: "시즈탱크 재생기에서 트레이서 안 나옴") —
+       참값의 이름은 시즈를 걸어도 "Siege Tank (Tank Mode)" 그대로라, 여기서 갈아 끼우지 않으면
+       `attackFxOf9` 가 **cannon**(탱크포)을 내고 시즈의 `siege` 갈래를 못 만난다. cannon 은
+       NO_BEAM_FX 라 선을 안 긋고 MUZZLE_BURST_FX9 에도 없으므로(요청: "일반 시즈모드에서는 총구와
+       탄착지 폭발 효과는 제거") **한 톨도 안 그려진다** — 그것이 시즈 탱크의 트레이서가 통째로
+       사라진 까닭이다. 아래 총구 앵커(fxKind)만 이 갈아 끼우기를 하고 있었다.
+       ★ 이름을 여기서 갈면 갈래·쿨다운·사거리가 **한 벌로** 시즈의 것이 된다(시즈는 사거리 12·
+         쿨다운도 다르다) — 그 셋이 다 이 이름에서 나온다. */
+    const fxUnit0 = drawUnit === "" ? (race === "저그" ? "Zergling" : race === "테란" ? "Marine" : "Zealot") : drawUnit;
+    const fxUnit = siegeOn === 1 && fxUnit0.startsWith("Siege Tank") ? "Siege Tank (Siege Mode)" : fxUnit0;
     const atkDeg = foeDeg;
     /* 조준각은 화면 기준(지적 둘: 공중 표적 각도 + 지상 사격은 지면과 평행) —
        화면 픽셀 델타로 재고, 공중 표적·공중 사수는 비행 높이를 가감한다. */
@@ -8410,10 +8419,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
     })();
     /* 총구 모델 앵커(승인) — 앵커는 몸 각(bodyHdg)으로 뽑고 — 그래서 늘 몸
        정면(포구)이다 — 빛의 기울기만 beamDeg가 정한다. */
-    const fxKind = unitMarkerKind(
-      siegeOn === 1 && fxUnit.startsWith("Siege Tank") ? "Siege Tank (Siege Mode)" : fxUnit,
-      race,
-    );
+    const fxKind = unitMarkerKind(fxUnit, race);   // 시즈 갈아 끼우기는 fxUnit 이 이미 했다(위 ★★)
     /* ★ 탱크는 **포탑의 각·자리**로 뽑는다(요청: "트레이서 시작점을 실제 총구·포구에") — 앵커 표의
        탱크 값은 포탑 판(tankgun)의 자인데, 여태 몸 각(bodyHdg)으로 투영하고 몸 자리에서 내보냈다.
        포탑은 표적을 향해 따로 돌고(rotDeg foeDeg) 차체 뒤로 물러 앉으므로(TURRET_BACK9), 몸 각으로

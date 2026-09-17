@@ -18,10 +18,15 @@ const CELL = Number(flag("--cell", 200));
 const OUT = String(flag("--out", join(tmpdir(), "muzzle-sheet.png")));
 const ENTRY = `
 import { SHAPE_BUILDERS, poseSet, tone9 } from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
-import { MUZZLE_ANCHOR, BLD_MUZZLE, anchorPoint } from ${JSON.stringify(join(ROOT, "src/components/replay/engine9"))};
+import { MUZZLE_ANCHOR, BLD_MUZZLE, MUZZLE_PLATE, anchorPoint } from ${JSON.stringify(join(ROOT, "src/components/replay/engine9"))};
 import { lodFilter, withPitchView, withTopView, withViewShear, withYaw, bake, zsorted } from ${JSON.stringify(join(ROOT, "src/utils/shapeOblique"))};
 window.__tone = tone9;
-window.__tables = { unit: MUZZLE_ANCHOR, bld: BLD_MUZZLE };
+/* ★ **앵커를 든 판 위에 찍는다**(2026-09, 지적: "시즈모드 트레이서가 포신 입에서 나오는지 다시 확인") —
+   탱크 둘은 앵커를 **포탑 판**(tankgun·tanksiegegun)에서 뽑아 합본 이름(tank·tanksiege)으로 싣는다
+   (muzzle-table 의 KEY_OF). 그래서 합본 모델 위에 찍으면 포탑이 **쉬는 각**으로 서 있는 만큼 어긋나
+   보인다 — 표가 틀린 것이 아니라 판정표가 딴 판에 찍고 있던 것이다. 판 이름으로도 찾게 뒤집어 둔다. */
+window.__tables = { unit: MUZZLE_ANCHOR, bld: BLD_MUZZLE,
+  ofPlate: Object.fromEntries(Object.entries(MUZZLE_PLATE).map(([k, v]) => [v, k])) };
 window.__bake = (kind, rot, mode) => {
   const builder = SHAPE_BUILDERS[kind];
   if (!builder) return null;
@@ -52,7 +57,7 @@ function pageMain({ KINDS, ROTS, MODE, CELL }) {
   c.font = "13px ui-monospace, monospace"; c.textBaseline = "top"; c.fillStyle = "#dfe3e6";
   ROTS.forEach((r, i) => c.fillText(`${r}°`, i * CELL + 8, 6));
   kinds.forEach((k, r) => {
-    const a = tb.unit[k] ?? tb.bld[k];
+    const a = tb.unit[k] ?? tb.bld[k] ?? tb.unit[tb.ofPlate[k]];
     ROTS.forEach((rot, i) => {
       const faces = window.__bake(k, rot, MODE);
       const ox = i * CELL; const oy = r * CELL + PAD;

@@ -2907,6 +2907,11 @@ export type FxPaintEnv9 = {
   trim9?: number; detailAt?: number;
   /** 다크 스웜을 이미 마스크와 함께 얹었나(지도만 참). */
   swarmDone9?: boolean;
+  /** ★ **도록 칸에서만 별(표창)을 키우는 배수**(2026-09, 지적: "도록에서 벌처랑 뮤탈 글레이브가
+   *  안 나오고 이상하게 나와") — 지도의 자로 그리면 글레이브가 몸의 15%(뮤탈 갈색 몸 위의 갈색
+   *  별)·파편이 6px 라 칸에서 안 읽힌다. 스플래시를 도록에서만 0.78 배로 줄이는 것과 **같은
+   *  자리**다: 무기의 자(FX_BEAM.w)는 안 건드리고 보여 주는 자리에서만 키운다. */
+  triK9?: number;
 };
 export function paintFxList9(
   ctx: CanvasRenderingContext2D, fx: readonly FxOp[], env: FxPaintEnv9,
@@ -2915,6 +2920,7 @@ export function paintFxList9(
   const trim9 = env.trim9 ?? 0;
   const detailAt = env.detailAt;
   const swarmDone9 = env.swarmDone9 ?? false;
+  const triK9 = env.triK9 ?? 1;
   // scr-tracer: 0%→0 · 10~45%→1 · 70%~→0.
   const envBeam = (p9: number): number =>
     (p9 < 0.1 ? p9 / 0.1 : p9 < 0.45 ? 1 : p9 < 0.7 ? (0.7 - p9) / 0.25 : 0);
@@ -3773,30 +3779,53 @@ export function paintFxList9(
       /* 별의 자는 **타일 자**(tz9)다(지적: "뮤탈 글레이브 크기도 배율 안 먹는듯?") — 여기만 zoom을
          곧장 곱해 폰(타일 3px)에서 유닛 대비 두 배 반으로 크고, PC에서는 몸에 비해 작았다. 다른
          줄기와 같은 자로 옮기고 갈래표의 굵기(glave.w)를 원작 비(타일의 4분의 1)에 맞춘다. */
-      const hw9 = (st.w / 2) * tz9;
+      const hw9 = (st.w / 2) * tz9 * triK9;
       const R9 = hw9 / 0.866;
-      const r9 = R9 * 0.35;
       const cx9 = lx9 - dxx * R9;
       const cy9 = ly9 - dyy * R9;
       const px9 = -dyy;                      // 수직(왼쪽)
       const py9 = dxx;
-      const pt9 = (a9: number, b9: number): [number, number] => [cx9 + dxx * a9 + px9 * b9, cy9 + dyy * a9 + py9 * b9];
-      const T0 = pt9(R9, 0);
-      const N01 = pt9(0.5 * r9, 0.866 * r9);
-      const T1 = pt9(-0.5 * R9, 0.866 * R9);
-      const N12 = pt9(-r9, 0);
-      const T2 = pt9(-0.5 * R9, -0.866 * R9);
-      const N20 = pt9(0.5 * r9, -0.866 * r9);
+      /** 반지름 R 의 세 날 별을 깐다 — 변마다 가운데를 0.35R 로 파 날을 세운다. */
+      const star9 = (rr9: number): void => {
+        const q9 = rr9 * 0.35;
+        const pt9 = (a9: number, b9: number): [number, number] => [cx9 + dxx * a9 + px9 * b9, cy9 + dyy * a9 + py9 * b9];
+        const T0 = pt9(rr9, 0);
+        const N01 = pt9(0.5 * q9, 0.866 * q9);
+        const T1 = pt9(-0.5 * rr9, 0.866 * rr9);
+        const N12 = pt9(-q9, 0);
+        const T2 = pt9(-0.5 * rr9, -0.866 * rr9);
+        const N20 = pt9(0.5 * q9, -0.866 * q9);
+        ctx.beginPath();
+        ctx.moveTo(T0[0], T0[1]);
+        ctx.lineTo(N01[0], N01[1]);
+        ctx.lineTo(T1[0], T1[1]);
+        ctx.lineTo(N12[0], N12[1]);
+        ctx.lineTo(T2[0], T2[1]);
+        ctx.lineTo(N20[0], N20[1]);
+        ctx.closePath();
+        ctx.fill();
+      };
+      /* ★ **제 몸과 같은 색 위에서도 읽히게 테를 깐다**(2026-09, 지적: "뮤탈 글레이브가 안 나오고") —
+         글레이브의 속색(#6b4732)은 **뮤탈의 몸과 같은 갈색**이라, 몸에서 막 떠난 별이 통째로 묻힌다.
+         갈래표가 이미 든 번짐색(st.glow)을 한 겹 크게 깔면 그 자리가 갈린다 — 줄기 갈래가 글로우
+         획을 먼저 긋는 것과 같은 짜임이다(새 표 값을 지어내지 않는다). */
+      if (st.glow) {
+        ctx.fillStyle = st.glow;
+        ctx.globalAlpha = a9 * (st.glowA ?? 0.5);
+        star9(R9 * 1.4);
+        ctx.globalAlpha = a9;
+      }
       ctx.fillStyle = g9;
-      ctx.beginPath();
-      ctx.moveTo(T0[0], T0[1]);
-      ctx.lineTo(N01[0], N01[1]);
-      ctx.lineTo(T1[0], T1[1]);
-      ctx.lineTo(N12[0], N12[1]);
-      ctx.lineTo(T2[0], T2[1]);
-      ctx.lineTo(N20[0], N20[1]);
-      ctx.closePath();
-      ctx.fill();
+      star9(R9);
+      /* ★★ **표창이 그 무기의 전부다 — 줄기를 덧그리지 마라**(2026-09, 지적: "도록에서 벌처랑
+         뮤탈 글레이브가 안 나오고 이상하게 나와") — 여기서 `continue` 를 안 해서 아래 일반
+         줄기(글로우 + 몸 획)가 **별 위에 덧그려지고** 있었다. 굵기가 `w × 배율 × 3.4` 라
+         glave(w 2.85)는 도록 배율에서 별을 통째로 덮는 **갈색 얼룩**이 되고 frag(0.95)는
+         은색 알약이 된다(실측 트레이서 판). 지도에서는 배율이 작아 획이 가늘어 '별에 붙은
+         잔상'으로 읽혔을 뿐, 같은 병이다.
+         원작의 글레이브 웜·파편 수류탄은 **날아가는 표창 하나**이지 선이 아니다 — 미사일
+         갈래가 제 몸을 그리고 `continue` 하는 것과 같은 자리다. */
+      continue;
     }
     /* ★ **뭉게뭉게 연기 덩이**(2026-09, 요청: "파뱃 화염방사 연기 자연스럽게(반투명 회색 연기
        뭉게뭉게로) … 앞쪽 자연스럽게 호 형태로 처리" · "디바우러 트레이서도 연기 느낌 나게") ────
@@ -5634,7 +5663,7 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, 
       }
     }
     paintFxList9(g9, ops9, {
-      zoom: ZOOM9, tilePx: 8, cw: w9, ch: h9, Bd: dpr,
+      zoom: ZOOM9, tilePx: 8, cw: w9, ch: h9, Bd: dpr, triK9: 2.2,
       // 분수 0 이 총구 · 1 이 표적이다(줄기가 지나는 그 선).
       zx: (v9) => x09 + v9 * ux9 * dist9, zy: (v9) => y09 + v9 * uy9 * dist9,
     });
