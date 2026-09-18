@@ -493,20 +493,23 @@ export function gasPuffs9(o: {
   x: number; y: number; z: number;
   /** 아가리에서의 반지름(끝에서 1.5배) · 오르는 높이 */ r: number; h: number;
   col: string;
-  /** 덩이 수(기본 3) · 위상(0~1) · 오르며 흘러가는 몫(x, y) · 가장 짙은 알파(기본 0.45) */
-  n?: number; phase?: number; drift?: [number, number]; a?: number;
+  /** 덩이 수(기본 3) · 위상(0~1) · 가장 짙은 알파(기본 0.62) — 흘러가는 몫(drift)은 걷었다(곧게 오른다). */
+  n?: number; phase?: number; a?: number;
 }): ShapeFace[] {
   const n = o.n ?? 3;
   const out: ShapeFace[] = [];
   const u0 = (bldSpinNow % SPIN_ANIM9) / SPIN_ANIM9;
+  /* ★ **곧게 오른다**(2026-09, 지적: "가스 연기 뭉게뭉게 수직으로 안 올라가고 휘어서 가는 거 같아 —
+     수직이 나을 거 같고 색과 크기 좀 키워야 할 듯") — 옆으로 흔드는 몫(wob)과 흘러가는 몫(drift)을
+     걷었다: 덩이 셋이 저마다 다른 위상의 사인을 타니 김이 한 줄기로 안 읽히고 **뱀처럼 휘어** 보였다.
+     덩이는 아가리 바로 위 한 축으로만 오르고, 크기(0.5~1.5 → 0.7~1.9배)와 짙기(0.45 → 0.62)를 올렸다. */
   for (let k = 0; k < n; k += 1) {
     const u = (((u0 + (o.phase ?? 0) + k / n) % 1) + 1) % 1;
-    const rr = o.r * (0.5 + 1.0 * u);
+    const rr = o.r * (0.7 + 1.2 * u);
     const z = o.z + o.h * (0.06 + 0.94 * Math.pow(u, 0.85));
-    const wob = Math.sin(u * 5.2 + k * 2.1) * o.r * 0.3;
-    const px = o.x + (o.drift?.[0] ?? 0) * u + wob;
-    const py = o.y + (o.drift?.[1] ?? 0) * u + wob * 0.5;
-    const a = (o.a ?? 0.45) * Math.min(1, 0.2 + u * 5) * Math.pow(1 - u, 1.4);
+    const px = o.x;
+    const py = o.y;
+    const a = (o.a ?? 0.62) * Math.min(1, 0.2 + u * 5) * Math.pow(1 - u, 1.4);
     if (a < 0.03) continue;
     const [sx, sy] = project(px, py, z);
     const d = screenCircle(sx, sy, rr);
@@ -10170,7 +10173,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         segs: 3, sides: 12, hold: 0.2,
       }), "#21252c"),
       capFace(discPath3(0, -0.3, 6.56, 1.38), 0.55),
-      ...fine(gasPuffs9({ x: 0, y: -0.3, z: 6.6, r: 0.8, h: 2.6, col: "#80ff96", n: 3, drift: [-0.5, 0.45] })),
+      ...fine(gasPuffs9({ x: 0, y: -0.3, z: 6.6, r: 0.8, h: 2.6, col: "#80ff96", n: 3 })),
     ], 10 + depthNow(0, -0.3) * 1.6 + 1.2));
     /* 관 셋 — 가운데는 입구 천장, **양옆은 앞 드럼통 옥상 가운데에 꽂힌다**(정정:
        "양옆 파이프는 드럼통 옥상 가운데 앵커링"). 드럼 돔 꼭대기(z≈3.5)에서 수직으로
@@ -10401,7 +10404,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          쉰다(gasPuffs9 의 ★). 색은 베스핀 초록 — 굴뚝은 금이지만 나오는 것은 가스다. 3티어. */
       out.push(...fine(tagKey(gasPuffs9({
         x: wx9, y: wy9, z: wz9 + 0.34, r: 0.42 * k9, h: 2.1, col: "#80ff96",
-        n: 2, phase: py < -2 ? 0 : 0.25, drift: [0, -0.35], a: 0.4,
+        n: 2, phase: py < -2 ? 0 : 0.25, a: 0.6,
       }), 10 + depthNow(px, py) * 1.6 + 0.9)));
     });
     /* 네 귀 기둥 — 뒤 둘은 높고 곧게, 앞 둘은 낮고 바깥으로 기운다. 청록 띠와 황금 갓. */
@@ -10625,7 +10628,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          애니메이션화") — 익스트랙터는 여태 김이 아예 없었다. 창(활성)은 통 옆구리가 말하고, 가스가 나오는
          자리는 이 아가리다 — 앞(+y)으로 흘러 오른다. 3티어. */
       out.push(...fine(tagKey(gasPuffs9({
-        x: mx9, y: my9 + 0.6, z: mz9 + 0.15, r: 0.55, h: 2.2, col: "#80ff96", n: 3, drift: [0, 1.1], a: 0.42,
+        x: mx9, y: my9 + 0.6, z: mz9 + 0.15, r: 0.55, h: 2.2, col: "#80ff96", n: 3, a: 0.6,
       }), depthNow(mx9, my9 + 0.6) * 1.6 + 0.55)));
     }
     for (const t9 of [0.28, 0.46, 0.64, 0.82]) {
@@ -23866,7 +23869,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          이것도 가스라 3티어(요청). 마른 간헐천은 김도 안 오른다(위 고갈 주석). */
       if (!geyserDry) out.push(...fine(tagKey(gasPuffs9({
         x: cx9 - 0.05, y: cy9 + 0.1, z: h9 - 0.1, r: rim * 0.5, h: 1.9 + rim * 0.35,
-        col: GAS, n: 2, phase: ph9, drift: [-0.45, 0.5], a: 0.4,
+        col: GAS, n: 2, phase: ph9, a: 0.6,
       }), key + 1)));
     };
     // 분화구는 반대로 키운다(정정: "분화구들은 크기 증가") — 2.6/1.35/1.0 → 3.2/1.85/1.35.

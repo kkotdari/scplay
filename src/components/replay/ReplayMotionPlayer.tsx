@@ -83,12 +83,12 @@ import {
   domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio,
   prismYFaces, prismZFaces, pyramidFaces3,
   screenCircle, setPitchSquash, sphereFaces3, tubeAxisLift, tubeFaces, VIEW_LEAN_K,
-  wallDiscPath, withModelSpin, withModelShift, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted,
+  TOP_ELEV9, wallDiscPath, withModelSpin, withModelShift, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted,
 } from "../../utils/shapeOblique";
 import { TEAM_COLOR, type MinimapMarker } from "./markers";
 import {
   atkCutOf as atkCutOf9, flapCutOf as flapCutOf9,
-  muzzlePoint as muzzlePoint9, muzzleLanes9, anchorPoint as anchorPoint9, spinMuzzle9, BLD_MUZZLE, HEAD_MUZZLE_KINDS9, COMSAT_SWEEP9, SPIN_WORK_KINDS9, spinRateOf9, MUZZLE_BURST_FX9, SHELL_ONLY_FX9,
+  muzzlePoint as muzzlePoint9, muzzleLanes9, anchorPoint as anchorPoint9, spinMuzzle9, BLD_MUZZLE, HEAD_MUZZLE_KINDS9, TWIN_POD_BLD9, COMSAT_SWEEP9, SPIN_WORK_KINDS9, spinRateOf9, MUZZLE_BURST_FX9, SHELL_ONLY_FX9,
   AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, ATTACK_FX, NO_BEAM_FX, TARGET_FX, PROJECTILE_FX, NUKE_BOOM_SEC, NUKE_FALL_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, attackFxOf9, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SIEGE_TURN_U9, SIEGE_XF_SEC, BURROW_DIG_SEC, SPIN_ANIM9, SPIN_STEPS, SUNK_OUT9, sunkenCut9, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
 } from "./engine9";
 import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, WorldUi9 } from "./engine9";
@@ -5553,7 +5553,7 @@ export function docAtkFx9(kind: string): { label: string; fx?: string; air: bool
  *  ⚠ 날아가는 무기(PROJECTILE_FX)는 `shot`(진행률 u), 즉발은 `beam`(제자리 번쩍임)이다 —
  *    지도가 가르는 그 자리와 같은 명단을 쓴다. 쏘는 쪽에 아무것도 안 그리는 무기
  *    (커세어 플레어 · NO_BEAM_FX)는 **표적 그림이 전부**이므로 hit 만 낸다. */
-export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, tgt, air, fx: fxProp }: {
+export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, tgt, tgtUp, air, fx: fxProp }: {
   kind: string; t: number; className?: string;
   /** ★ 그릴 갈래를 못 박을 때(요청: 지상·대공 두 칸) — 안 주면 그 종류의 기본이다.
    *  ⚠ 이름을 `style` 로 두지 않는다 — 리액트에서 그 이름은 CSS 를 뜻해 읽는 사람이 헷갈린다. */
@@ -5575,6 +5575,8 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, 
    *  주면 줄기가 **그 거리까지만** 간다(곧 지도의 사거리다). 안 주면 옛 자리(칸 가장자리까지)로
    *  물러난다 — 표적이 없는 칸(야마토 같은 액션 칸)이 그 길이다. */
   tgt?: number;
+  /** ★ 끝점을 표적 발밑에서 **몸 가운데**로 올리는 몫(16-상자 자 · `DocCell9.tgtUp`) — 지도의 foeBody9 + 뜬 높이. */
+  tgtUp?: number;
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const style = fxProp ?? docWeaponOf9(kind);
@@ -5635,7 +5637,13 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, 
       const bm9 = BLD_MUZZLE[kind];
       /* 머리가 도는 건물(터렛·포토)은 표의 값이 **머리 자**라, 머리에 준 각만큼 모형에서
          돌려야 포드·관 위에 앉는다(지도의 muzzleAt9 과 같은 손). */
-      if (bm9) return anchorPoint9(HEAD_MUZZLE_KINDS9.has(kind) ? spinMuzzle9(bm9, (headDeg ?? yaw9) - yaw9) : bm9, yaw9, 0, false, true);
+      if (bm9) {
+        /* ★ 포드가 둘인 터렛은 한 발씩 **번갈아** 쏜다(engine9 TWIN_POD_BLD9 — 홀수 발은 모형 x 를 뒤집어 왼쪽
+           포드). 도록의 발 번호는 한 발 주기(DOC_SHOT_CYC9)로 센다 — 지도의 fireIdx9 와 같은 뜻이다. */
+        const pod9: [number, number, number] = TWIN_POD_BLD9.has(kind) && Math.floor(t / DOC_SHOT_CYC9) % 2 === 1
+          ? [-bm9[0], bm9[1], bm9[2]] : bm9;
+        return anchorPoint9(HEAD_MUZZLE_KINDS9.has(kind) ? spinMuzzle9(pod9, (headDeg ?? yaw9) - yaw9) : pod9, yaw9, 0, false, true);
+      }
       if (ls9 && ls9.length > 1) return [(ls9[0][0] + ls9[1][0]) / 2, (ls9[0][1] + ls9[1][1]) / 2];
       if (ls9) return ls9[0];
       // 앵커가 없는 몸(인터셉터)은 제 원점이 곧 총구다.
@@ -5677,7 +5685,9 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, 
     let dist9: number;
     if (tgt && k9) {
       const tX9 = ax9 + k9 * (-Math.sin(rad0) * tgt);
-      const tY9 = ay9 + k9 * (Math.cos(rad0) * tgt);
+      // ★ 끝은 인형의 발밑이 아니라 몸 가운데(+ 뜬 높이)다 — 지도가 foeBody9·foeLift9 로 겨누는 그 점(docTgtUp9).
+      // ★ 앞뒤는 부감에 눌린 땅(DOC_GROUND_K9) — 인형(docTargetPart9)과 같은 타원 위의 점이다.
+      const tY9 = ay9 + k9 * (Math.cos(rad0) * tgt * DOC_GROUND_K9 - (tgtUp ?? 0));
       const vx9 = tX9 - x09; const vy9 = tY9 - y09;
       dist9 = Math.max(1, Math.hypot(vx9, vy9));
       ux9 = vx9 / dist9; uy9 = vy9 / dist9;
@@ -6099,6 +6109,38 @@ export function docTgtOff9(kind: string, air: boolean): number {
   const half9 = (DOC_TGT_HALF9 * r9 * 16) / Math.max(0.5, shapeMapTiles(kind));
   return Math.min(ink9 * DOC_TGT_MAX9, Math.max(ink9 * DOC_TGT_MIN9, half9));
 }
+/** ★ **공중 표적이 뜨는 높이**(16-상자 자) — 지도의 `airLiftPxOf`(= 레이스 상자 × AIR_LIFT_K · 몸 크기와
+ *  무관한 한 값)를 이 칸의 자(쏘는 종류의 16-상자 = 그 종류의 지도 타일 수)로 옮긴 것이다. 여태 참새 인형이
+ *  곰돌이와 같은 땅에 앉아 있었다(지적: "공격 타겟 인형 위치가 … 좀 낮게"). */
+export function docTgtLift9(kind: string, air: boolean): number {
+  if (!air) return 0;
+  const ref9 = UNIT_3D[AIR_LIFT_REF] ?? "wraith";
+  const lift9 = (AIR_LIFT_K * shapeMapTiles(ref9) * 16) / Math.max(0.5, shapeMapTiles(kind));
+  /* ⚠ 거리와 **같은 상한**으로 죈다(잉크 폭의 DOC_TGT_MAX9 배) — 지도의 뜬 높이는 레이스 2.3타일이라 터렛
+     (1.24타일)의 자로는 **30**(거리 10.4 의 세 배)이 되어 창이 통째로 커지고 둘 다 점이 된다. 거리를 죄는
+     그 규약 그대로, 보여 주는 자리에서만 죈다(골리앗 10.1 · 레이스 9.6 은 참값 그대로 선다). */
+  return Math.min(lift9, Math.max(2, modelInkOf(kind) || 6) * DOC_TGT_MAX9);
+}
+/** ★★ **줄기가 닿는 자리는 인형의 발밑이 아니라 몸 가운데다**(2026-09, 지적: "도록에서 공격 타겟 인형
+ *  위치가 잘 안 맞는 거 같지 — 좀 낮게 잡혀 있는 거 같아") — 지도는 사수 총구 → **표적 몸 가운데**
+ *  (`foeBody9` = 잉크 가운데 · 공중이면 + 뜬 높이)로 겨누는데, 도록의 줄기는 인형이 **선 땅의 점**(발밑)까지만
+ *  갔다. 그래서 총구에서 내리꽂히는 줄기의 끝이 인형 발치에 닿아 인형이 겨눔선 아래에 서 있는 것으로
+ *  읽혔다. 인형의 잉크 상자 가운데가 발 원점(12)에서 얼마나 위인가 + 뜬 높이(16-상자 자)를 낸다 —
+ *  `DocCell9.tgtUp` 으로 실어 `DocTracer9` 가 끝점을 그만큼 올린다. */
+export function docTgtUp9(kind: string, air: boolean, deg: number): number {
+  const dk9 = air ? DOC_TGT_KIND9.air : DOC_TGT_KIND9.ground;
+  const fb9 = shapeFitBox(dk9, { rotDeg: deg + 180, poses: [0, 1], flat: true });
+  const n9 = fb9 ? fb9.split(/\s+/).map(Number) : null;
+  const mid9 = n9 && n9.length === 4 && n9.every((v9) => Number.isFinite(v9)) ? 12 - (n9[1] + n9[3] / 2) : 2.2;
+  return docTgtLift9(kind, air) + Math.max(0, mid9);
+}
+/** ★★ **인형은 모델이 선 땅 위에 선다 — 그 땅은 부감에 눌려 있다**(2026-09, 지적: "지상 곰돌이 위치도
+ *  이상했어" · "파뱃 트레이서가 휘었어") — 모델은 40도 부감 카메라로 그려지므로 모형의 앞(y) 한 칸은 화면에서
+ *  sin40 = 0.643 칸이다. 그런데 인형은 화면의 **둥근 원**(−sin d, cos d)·거리 위에 앉혀, 요잉 45 에서 모델의
+ *  총구가 가리키는 선(화면 33도 아래)보다 **12도 더 아래**에 섰다. 곧 곰돌이가 겨눔선 아래에 있었고, 줄기는
+ *  총구에서 인형까지 잇느라 노즐 방향에서 꺾여 나갔다(파뱃 화염의 그 '휨'). 앞뒤 몫에 그 눌림을 곱하면 인형이
+ *  모델과 같은 땅(타원)에 서고 줄기가 노즐과 한 선이 된다. 창(docCellBox9)은 종전대로 원으로 재므로 안 잘린다. */
+export const DOC_GROUND_K9 = Math.sin((TOP_ELEV9 * Math.PI) / 180);
 /** ★ 그 칸의 표적 한 벌 — 없으면 null. `deg` 는 쏘는 방향(절대 도). */
 export function docTargetPart9(kind: string, air: boolean, deg: number, t: number, fx?: string): DocPart9 | null {
   const off9 = docTgtOff9(kind, air);
@@ -6113,7 +6155,10 @@ export function docTargetPart9(kind: string, air: boolean, deg: number, t: numbe
        몸만 트는 옛 자(DOC_TGT_FACE9)는 '피격 표정을 보이자'는 손이었는데, 쏘는 쪽을 등진 것으로 읽혔다. */
     rotDeg: deg + 180,
     dx: -Math.sin(rad9) * off9,
-    dy: Math.cos(rad9) * off9,
+    // 공중 표적은 지도의 뜬 높이만큼 위에 선다(docTgtLift9) — 땅의 점은 그대로고 몸만 떠 있다.
+    // ★ 땅의 앞뒤는 카메라(40도 부감)에 눌린다(DOC_GROUND_K9) — 아래 ★★.
+    dy: Math.cos(rad9) * off9 * DOC_GROUND_K9 - docTgtLift9(kind, air),
+    up: docTgtLift9(kind, air),
   };
 }
 /** ★ **맞은 순간인가** — 인형이 우는 컷을 드는 박자(요청: 피격 효과).
@@ -6133,6 +6178,8 @@ const DOC_ATK_BODY9: Record<string, { kind: string; attach: string }> = {
 /** 한 칸에 겹쳐 그리는 판 하나 — 지도가 한 개체를 여러 판으로 그리는 그 자다(차체·버팀다리·포탑). */
 export type DocPart9 = {
   kind: string; pose?: 0 | 1 | 2 | 3 | 4 | 5; rotDeg?: number;
+  /** ★ 뜬 높이(16-상자 자) — `dy` 에 이미 뺀 값이고, 창(docCellBox9)이 땅의 원을 이 몫만큼 올려 아우르는 데 쓴다. */
+  up?: number;
   /** ★★ **칸 안에서 옮겨 앉히는 몫**(16-상자 자 · 화면 방향 · y 는 아래가 +) — 2026-09 에
    *  열었다(요청: "도록 공격신에 가상의 타겟을 세워줘"). 여태 겹판은 몸과 **같은 자리**에만
    *  앉을 수 있었는데(시즈 전환의 다리·포탑), 표적은 **사거리만큼 떨어진 자리**에 서야 한다.
@@ -6178,6 +6225,8 @@ export type DocCell9 = {
    *  `parts` 의 마지막에 선 인형이 앉은 그 자리이고, `DocTracer9` 의 줄기가 닿는 그 거리다.
    *  **한 자리에서 셈해 둘이 나눠 쓴다** — 따로 재면 줄기 끝과 인형이 조용히 어긋난다. */
   tgt?: number;
+  /** ★ 줄기 끝을 발밑에서 **몸 가운데**(+ 공중이면 뜬 높이)로 올리는 몫(16-상자 자) — `docTgtUp9`. */
+  tgtUp?: number;
   /** ★ **대공 무기의 칸인가**(2026-09, 요청: "지대공 지대지 트레이서 시작점을 분리해서
    *  가지고 있어야 해") — 총구 앵커가 채널마다 갈리므로(engine9 `MUZZLE_AIR9`) 줄기를
    *  그리는 자도 이 칸이 어느 무기인지 알아야 한다. 표적 인형도 이 값으로 갈린다. */
@@ -6310,7 +6359,7 @@ export function docCellsOf9(kind: string, t: number, yaw: number): DocCell9[] {
        가지고 있어야 해") — 총구 앵커가 지상·대공으로 갈리므로(engine9 MUZZLE_AIR9) 줄기를
        그리는 자도 이 칸이 어느 무기인지 알아야 한다. */
     if (!pt9) return { ...c9, air: air9 };
-    return { ...c9, air: air9, tgt: docTgtOff9(sk9, air9), parts: [...(c9.parts ?? []), pt9] };
+    return { ...c9, air: air9, tgt: docTgtOff9(sk9, air9), tgtUp: docTgtUp9(sk9, air9, deg9), parts: [...(c9.parts ?? []), pt9] };
   };
   /* ⚠ **정착 시즈(tanksiege)는 자세 컷이 없다**(POSE_KINDS 밖) — 그래서 이 문이 닫혀 건물 길로
      흘러 공격 칸이 합본(포탑이 쉬는 각 = 차체 뒤)으로 섰다(지적: "시즈모드 탱크가 옆을 보고
@@ -6461,7 +6510,7 @@ export function docCellsOf9(kind: string, t: number, yaw: number): DocCell9[] {
 export function docCellBox9(kind: string, group?: string): Map<string, string | undefined> {
   const yaw0 = galleryYawOf(45, group);
   /** 그 칸이 그릴 수 있는 것 — 종류마다 **치우침의 상자**(min·max)를 함께 모은다. */
-  type Seen9 = Map<string, { x0: number; y0: number; x1: number; y1: number; r: number; k: number }>;
+  type Seen9 = Map<string, { x0: number; y0: number; x1: number; y1: number; r: number; k: number; up: number }>;
   const byLabel = new Map<string, Seen9>();
   const tracerOf = new Map<string, boolean>();
   const tgtOf = new Map<string, boolean>();
@@ -6470,13 +6519,16 @@ export function docCellBox9(kind: string, group?: string): Map<string, string | 
      뿐이다) 손가락이 요잉을 돌리면 셀만 다시 선다 — 곧 한 각의 자리로 창을 재면 **돌리는
      순간 표적이 창 밖으로 나간다**. 그 거리를 반지름으로 삼아 원을 아우르면 어느 각에서도
      안 잘리고, 배율도 안 흔들린다(칸 안에서는 배율을 못 박는다는 그 규약이다). */
-  const add9 = (seen: Seen9, k9: string, dx9: number, dy9: number, pk9 = 1): void => {
-    const r9 = Math.hypot(dx9, dy9);
+  /* ⚠ 뜬 몸(공중 인형)은 **땅의 원이 위로 올라간 것**이다 — 원의 반지름은 땅의 점(dy + up)으로 재고,
+     세로는 그 원을 up 만큼 올려 아우른다(hypot(dx, dy) 로 재면 위쪽이 up 만큼 모자라 참새가 창 밖으로 잘린다). */
+  const add9 = (seen: Seen9, k9: string, dx9: number, dy9: number, pk9 = 1, up9 = 0): void => {
+    // 땅의 앞뒤는 눌려 있으므로(DOC_GROUND_K9) 도로 펴서 재야 원의 반지름이 거리 그대로다(요잉 90 이면 x 가 그 거리다).
+    const r9 = Math.hypot(dx9, (dy9 + up9) / DOC_GROUND_K9);
     const b9 = seen.get(k9);
-    if (!b9) { seen.set(k9, { x0: dx9, y0: dy9, x1: dx9, y1: dy9, r: r9, k: pk9 }); return; }
+    if (!b9) { seen.set(k9, { x0: dx9, y0: dy9, x1: dx9, y1: dy9, r: r9, k: pk9, up: up9 }); return; }
     b9.x0 = Math.min(b9.x0, dx9); b9.y0 = Math.min(b9.y0, dy9);
     b9.x1 = Math.max(b9.x1, dx9); b9.y1 = Math.max(b9.y1, dy9);
-    b9.r = Math.max(b9.r, r9); b9.k = Math.max(b9.k, pk9);
+    b9.r = Math.max(b9.r, r9); b9.k = Math.max(b9.k, pk9); b9.up = Math.max(b9.up, up9);
   };
   for (let i9 = 0; i9 < 60; i9 += 1) {
     for (const c9 of docCellsOf9(kind, i9 * 0.2, yaw0)) {
@@ -6484,7 +6536,7 @@ export function docCellBox9(kind: string, group?: string): Map<string, string | 
       if (!seen) { seen = new Map(); byLabel.set(c9.label, seen); }
       add9(seen, c9.kind ?? kind, 0, 0);
       if (c9.attach) add9(seen, c9.attach, 0, 0);
-      for (const pt9 of c9.parts ?? []) add9(seen, pt9.kind, pt9.dx ?? 0, pt9.dy ?? 0, pt9.k ?? 1);
+      for (const pt9 of c9.parts ?? []) add9(seen, pt9.kind, pt9.dx ?? 0, pt9.dy ?? 0, pt9.k ?? 1, pt9.up ?? 0);
       if (c9.tracer) tracerOf.set(c9.label, true);
       if (c9.tgt) tgtOf.set(c9.label, true);
     }
@@ -6501,8 +6553,8 @@ export function docCellBox9(kind: string, group?: string): Map<string, string | 
         // 제 배율(k)로 그려지는 판은 그 창도 원점(8, 12)을 축으로 같은 배수만큼 줄인다(DocPart9.k).
         const kk9 = off9.k;
         const q9: [number, number, number, number] = [
-          8 + (n9[0] - 8) * kk9 + Math.min(off9.x0, -off9.r), 12 + (n9[1] - 12) * kk9 + Math.min(off9.y0, -off9.r),
-          8 + (n9[0] + n9[2] - 8) * kk9 + Math.max(off9.x1, off9.r), 12 + (n9[1] + n9[3] - 12) * kk9 + Math.max(off9.y1, off9.r)];
+          8 + (n9[0] - 8) * kk9 + Math.min(off9.x0, -off9.r), 12 + (n9[1] - 12) * kk9 + Math.min(off9.y0, -off9.r - off9.up),
+          8 + (n9[0] + n9[2] - 8) * kk9 + Math.max(off9.x1, off9.r), 12 + (n9[1] + n9[3] - 12) * kk9 + Math.max(off9.y1, off9.r - off9.up)];
         b9 = b9 ? [Math.min(b9[0], q9[0]), Math.min(b9[1], q9[1]), Math.max(b9[2], q9[2]), Math.max(b9[3], q9[3])] : q9;
       }
     }

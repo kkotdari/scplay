@@ -122,7 +122,7 @@ window.__docAnim = (kinds, yawFix) => {
             }),
             c.tracer ? h(DocTracer9, {
               key: "s", kind, t, overlay: true, box: bx, rotDeg: c.rotDeg ?? yaw,
-              headDeg: c.headDeg ?? c.attachRot, tgt: c.tgt, fx: c.fx, air: c.air, className: "scr-doc-shot",
+              headDeg: c.headDeg ?? c.attachRot, tgt: c.tgt, tgtUp: c.tgtUp, fx: c.fx, air: c.air, className: "scr-doc-shot",
             }) : null,
           ]),
           h("span", { key: "d" }, c.label + (c.note ? " · " + c.note : "") + " · t" + t.toFixed(2)),

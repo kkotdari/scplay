@@ -935,6 +935,11 @@ export const BLD_MUZZLE: Record<string, [number, number, number]> = {
 };
 /** 머리(포탑부)가 도는 방어 건물 — 총구가 머리 자에 있어 겨눈 각만큼 모형에서 돌려야 한다(아래 muzzleAt9). */
 export const HEAD_MUZZLE_KINDS9 = new Set(["turret", "coil"]);
+/** ★ **발사관이 좌우 한 쌍인 방어 건물** — 한 발씩 **번갈아** 쏜다(2026-09, 요청: "터렛 트레이서 위치는
+ *  포드 한쪽씩 번갈아서"). 표(BLD_MUZZLE)의 앵커는 오른쪽 포드이고 홀수 발은 모형 x 를 뒤집어 왼쪽에서
+ *  난다(유닛의 MUZZLE_PAIR9 와 같은 거울 — 이 건물은 withModelSpin 으로 통째로 돌아 있지 않다).
+ *  지도(engine9)와 도록(DocTracer9)이 같은 표를 본다. */
+export const TWIN_POD_BLD9 = new Set(["turret"]);
 /** 컴샛 접시의 탐지 회전(°/s) — 터렛(96)보다 느린 위성 추적이다(10초에 한 바퀴). 도록도 이 값을 쓴다. */
 export const COMSAT_SWEEP9 = 36;
 /* ── 회전 칸의 걸음(초당 바퀴) — 지도와 도록이 **한 문**으로 본다(2026-09) ──────────────────────────
@@ -4205,6 +4210,13 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       m9.set(key, { start, at: t });
       return ((t - start) % cd) / cd;
     };
+    /** 그 열쇠의 **몇 번째 발**인가(0부터) — 사거리에 든 뒤 쿨다운을 몇 번 돌았나. 같은 프레임에서
+     *  firePhase 를 다시 불러도 시작점은 그대로다(at = t 라 이어진다). 터렛의 포드 번갈아 쏘기가 쓴다. */
+    const fireIdx9 = (key: string, cd: number): number => {
+      firePhase(key, cd);
+      const p9 = fireStartRef.current.get(key);
+      return p9 ? Math.floor((t - p9.start) / cd) : 0;
+    };
     /* ★ **한 마디 동안 겨눔을 못 박는다**(지적: "럴커랑 성큰 가시는 처음 나오는 위치로
        계속 나오는거고 타겟따라 이동하면 안됨") ────────────────────────────────────────
        럴커의 가시도 성큰의 가시도 **땅에서 솟는 것**이라, 한 번 솟기 시작한 자리는 그
@@ -6455,8 +6467,24 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
              각은 판이 쓴 것과 같은 칸(HEAD_STEP: 터렛 7.5°·포톤 22.5°)으로 접은 조준각이다. */
           const headStep9 = unit === "Missile Turret" ? 7.5 : 22.5;
           const headDegB9 = ((Math.round(degB / headStep9) * headStep9) % 360 + 360) % 360;
-          const mzBase9 = unit === "Bunker" ? bunkerMuzzleOf(degB)
+          /** 이 건물의 날아가는 탄 갈래 — 없으면 즉발(번쩍임)이다. 발사 박자(쿨다운)·열쇠도 여기서 한 번 낸다. */
+          const defNm9 = unit === "Missile Turret" ? "missile"
+            : unit === "Spore Colony" ? "venom"
+              : unit === "Photon Cannon" ? "plasma" : null;
+          const defCd9 = ((): number => {
+            const pf9 = isKnownKind(unit) ? profileOf(unit) : null;
+            const w9 = pf9 ? weaponVs(pf9, foeB.air) : null;
+            return Math.max(0.15, w9 ? w9.cd : 0.6);
+          })();
+          const defKey9 = `b${raw}|${unit}|${Math.round(x * 4)}|${Math.round(y * 4)}`;
+          /* ★ **포드가 둘인 터렛은 한 발씩 번갈아 쏜다**(2026-09, 요청: "터렛 트레이서 위치는 포드 한쪽씩
+             번갈아서") — 표의 앵커는 오른쪽 포드라 여태 모든 미사일이 오른쪽에서만 났다. 홀수 발은
+             모형 x 를 뒤집어 왼쪽 포드에서 낸다(TWIN_POD_BLD9). 발 번호는 사격 박자의 것(fireIdx9)이라
+             탄이 나가는 그 순간에 포드가 바뀐다. */
+          const podL9 = shapeKind !== undefined && TWIN_POD_BLD9.has(shapeKind) && fireIdx9(defKey9, defCd9) % 2 === 1;
+          const mzBase0: [number, number, number] | undefined = unit === "Bunker" ? bunkerMuzzleOf(degB)
             : shapeKind ? BLD_MUZZLE[shapeKind] : undefined;
+          const mzBase9: [number, number, number] | undefined = podL9 && mzBase0 ? [-mzBase0[0], mzBase0[1], mzBase0[2]] : mzBase0;
           const mzModel9 = mzBase9 && shapeKind && HEAD_MUZZLE_KINDS9.has(shapeKind)
             ? spinMuzzle9(mzBase9, headDegB9 - buildingYawOf()) : mzBase9;
           const [mzBx, mzBy] = muzzleAt9(mzModel9);
@@ -6504,20 +6532,16 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
              촉수라, 길이가 곧 실거리인 지금 그림이 맞다. 벙커 사수의 총·화염도
              즉발이라 그대로다. */
           const shotB = ((): number | null => {
-            const nm9 = unit === "Missile Turret" ? "missile"
-              : unit === "Spore Colony" ? "venom"
-                : unit === "Photon Cannon" ? "plasma" : null;
+            const nm9 = defNm9;
             if (!nm9 || !PROJECTILE_FX.has(nm9) || lenB <= 1) return null;
-            const pf9 = isKnownKind(unit) ? profileOf(unit) : null;
-            const w9 = pf9 ? weaponVs(pf9, foeB.air) : null;
-            const cd9 = Math.max(0.15, w9 ? w9.cd : 0.6);
+            const cd9 = defCd9;
             /* 유닛 쪽과 같은 바닥(그 자리 ★) — 미사일 터렛도 붙어 쏠수록
                탄이 안 보이던 병을 함께 앓았다(1타일 14%). */
             const dist9 = lenB / Math.max(1, tPxB);
             const flySec9 = Math.min(cd9 * 0.9,
               Math.max(0.05, Math.min(cd9 * 0.4, 0.4),
                 dist9 / Math.max(1, shotSpeedOf9(nm9))));
-            const ph9 = firePhase(`b${raw}|${unit}|${Math.round(x * 4)}|${Math.round(y * 4)}`, cd9);
+            const ph9 = firePhase(defKey9, cd9);
             const u9 = (ph9 * cd9) / flySec9;
             // 닿는 순간을 반드시 그린다 — 유닛 쪽과 같은 까닭(위 주석).
             return u9 < 1.2 ? Math.min(1, u9) : null;
