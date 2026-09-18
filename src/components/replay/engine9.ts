@@ -950,7 +950,11 @@ export const COMSAT_SWEEP9 = 36;
      ⚠ 더 빠르게 하면 덩이가 튀고, 칸을 늘리면 메시 벌이 는다(폰 240벌) — 값을 고치려면 둘을 함께 보라. */
 export const SPIN_WORK_KINDS9 = new Set(["forge", "cyber", "mshop"]);
 export const GAS_SPIN_KINDS9 = new Set(["geyser", "refinery", "assim", "extract"]);
-export const GAS_SPIN_RATE9 = 0.45;
+/* ★ 0.45 → **0.3**(2026-09, 요청: "가스 나오는 텀 길게") — 한 바퀴 2.2 → 3.3초. 덩이는 바퀴의 앞 0.25 에서만 나고
+   0.65 에 다 스러지므로(bake9 gasPuffs9 의 duty·life) 굴뚝 하나는 **2.2초 내고 1.2초 쉰다**(번갈아 나오는 간헐천·
+   어시밀레이터는 한쪽이 1.3초 내고 0.4초 비운 뒤 다른 쪽이 낸다). 더 늦추면 칸(16)당 시간이 길어져 덩이가 튄다
+   (0.3 에서 칸당 0.21초 · 덩이 한살이 6.4칸). */
+export const GAS_SPIN_RATE9 = 0.3;
 export const spinRateOf9 = (kind: string, working: boolean): number =>
   GAS_SPIN_KINDS9.has(kind) ? GAS_SPIN_RATE9 : SPIN_WORK_KINDS9.has(kind) ? (working ? 1.6 : 0) : 2.2;
 /** 사일로가 핵을 **만드는** 시간(초) — 원작 1500프레임(가장 빠름 ≈ 63초). 자취에는 미사일이 다 만들어진

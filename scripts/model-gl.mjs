@@ -64,7 +64,7 @@ const BG = "#20242b";
 const COLOR = "#4aa3ff";
 
 const ENTRY = `
-import { SHAPE_BUILDERS, SHAPE_GALLERY, poseSet9, bldLitSet, headYawSet, bldSpinRawSet9, tone9, silhouetteLight, DECAL_KINDS } from ${JSON.stringify(join(ROOT, "src/components/replay/bake9"))};
+import { SHAPE_BUILDERS, SHAPE_GALLERY, poseSet9, bldLitSet, headYawSet, bldSpinRawSet9, tone9, silhouetteLight, DECAL_KINDS, SPIN_KINDS } from ${JSON.stringify(join(ROOT, "src/components/replay/bake9"))};
 import { withTopView, withViewShear, withYaw, bake, zsorted } from ${JSON.stringify(join(ROOT, "src/utils/shapeOblique"))};
 import { GlUnits9, CAM_TOP9, GL_CANVAS_KINDS9, GL_GLOW_KINDS9 } from ${JSON.stringify(join(ROOT, "src/components/replay/gl9"))};
 import { SPIN_ANIM9 } from ${JSON.stringify(join(ROOT, "src/components/replay/engine9"))};
@@ -83,7 +83,8 @@ window.__run = (kinds, rots, cell, bg, color, vs2d, stages, lit, spins) => {
   const gl2 = document.createElement("canvas"); gl2.width = cols * cell; gl2.height = rows * cell;
   const gx = gl2.getContext("2d"); gx.fillStyle = bg; gx.fillRect(0, 0, gl2.width, gl2.height);
   kinds.forEach((kind, r) => {
-    const isB = BLD.has(kind) || DECAL_KINDS.has(kind);
+    // ⚠ 간헐천은 '부가' 무리라 BLD 밖인데 회전 칸(가스 시계)을 가진다 — 유닛 길로 보내면 칸이 열쇠에 안 들어 늘 같은 그림이다.
+    const isB = BLD.has(kind) || DECAL_KINDS.has(kind) || SPIN_KINDS.has(kind);
     rots.forEach((rot, i) => {
       let m = null;
       try {
