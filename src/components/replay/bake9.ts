@@ -13624,12 +13624,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        속을 덮으므로(키 −5) 그림이 안 바뀌고, 옛 아치 판은 2D 에서만 남긴다. 낯 수를 늘려(sides 14 → 22) 구멍
        가장자리가 덜 각지게 한다. */
     const caveSkip9 = MESH9.on
-      /* 구멍은 **이빨 능선 안쪽의 타원**이다(지적: "검정이 입구 문틀에 안 가려진 곳이 있어") — 낯은 통째로만
-         빠지므로 구멍의 가장자리는 낯 한가운데 자에서 **반 낯**(폭 0.38·높이 0.19)만큼 더 나간다. 능선(호 2.62×2.44 ·
-         굵기 0.46)의 안쪽 가장자리(2.16×1.98)에서 그 반 낯을 뺀 타원(1.75×1.75)을 자로 두면 빠진 낯의 끝이 능선 띠
-         안에 든다. 낯을 잘게(sides 36 · segs 14) 쪼개야 그 반 낯이 작다. */
-      ? (mx9: number, my9: number, mz9: number): boolean => my9 > 0.4
-        && (mx9 / 1.75) ** 2 + ((mz9 - 0.16) / 1.75) ** 2 < 1
+      /* 구멍의 자는 **이빨 능선의 안쪽 가장자리**(호 2.62×2.44 · 관 굵기 0.46 → 2.16×1.98)다(지적 둘: "검정이 입구
+         문틀에 안 가려진 곳이 있어" → "이제 안쪽에 안 패인 부분이 나와 버렸어"). 낯은 통째로만 빠지므로 자를
+         낯 한가운데로 재면 어느 쪽으로든 반 낯이 틀린다: 안쪽으로 죄면 능선 안에 둔덕 띠가 남고, 그대로 두면
+         검정이 능선 밖으로 나간다. 그래서 **낯 상자의 가장 가까운 점**(한가운데에서 반 낯 0.39×0.19 를 뺀 자리)이
+         그 타원 안에 들면 뺀다 — 구멍은 안쪽 가장자리까지 **꼭** 가고, 넘치는 몫(한 낯까지)은 능선 띠(폭 0.92) 뒤에
+         숨는다. 낯을 잘게(sides 36 · segs 14) 쪼개야 그 넘치는 몫이 띠 안에 든다. */
+      ? (mx9: number, my9: number, mz9: number): boolean => {
+        if (my9 <= 0.4) return false;
+        const dx9 = Math.max(0, Math.abs(mx9) - 0.39); const dz9 = Math.max(0, Math.abs(mz9 - 0.16) - 0.19);
+        return (dx9 / 2.16) ** 2 + (dz9 / 1.98) ** 2 < 1;
+      }
       : undefined;
     out.push(...tagKey(paintBase(spirePillar({
       x: 0, y: 0, h: 0.8, w: 4.4, tipW: 1.4, segs: MESH9.on ? 14 : 8, sides: MESH9.on ? 36 : 14, hold: 0, taper: 0.5,
@@ -13724,9 +13729,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // 둔덕 — 볼록한 종 모양 살덩이. 입구를 낼 자리라 뒤로 조금 물려 앉힌다.
     /* ★★ GL 에서는 진짜 굴이다(캐번의 ★★와 같은 손 — 지적: "커널 앞 동굴 입구가 안 뚫려 있음"). */
     const nydSkip9 = MESH9.on
-      // 아치 관(호 2.55×2.2 · 굵기 0.85)의 안쪽 가장자리 안에 드는 타원(캐번과 같은 까닭 — 낯 반 폭을 뺀 자).
-      ? (mx9: number, my9: number, mz9: number): boolean => my9 > 0.3
-        && (mx9 / 1.45) ** 2 + ((mz9 - 0.16) / 1.5) ** 2 < 1
+      // 아치 관(호 2.55×2.2 · 굵기 0.85)의 안쪽 가장자리(1.7×1.35)에 낯 상자가 닿으면 뺀다(캐번과 같은 자).
+      ? (mx9: number, my9: number, mz9: number): boolean => {
+        if (my9 <= 0.3) return false;
+        const dx9 = Math.max(0, Math.abs(mx9) - 0.39); const dz9 = Math.max(0, Math.abs(mz9 - 0.16) - 0.14);
+        return (dx9 / 1.7) ** 2 + (dz9 / 1.35) ** 2 < 1;
+      }
       : undefined;
     out.push(...tagKey(paintBase(spirePillar({
       x: 0, y: -0.6, z0: 0, h: 3.36, w: 4.4, tipW: 1.5,
