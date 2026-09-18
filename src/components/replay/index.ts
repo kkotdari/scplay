@@ -58,7 +58,7 @@ export {
  *     BUILD_STAGES 는 그 단계 수다(1~N−1이 짓는 중, 0이 완성). */
 export {
   SHAPE_GALLERY, ShapeIcon, DocIcon9, poseTempoOf, poseCutsOf, atkCutOf, flapCutOf, shapeMapTiles, shapeFitBox,
-  galleryYawOf, docAnimOf9, docCellsOf9, DocTracer9, docWeaponOf9,
+  galleryYawOf, docAnimOf9, docCellsOf9, docCellBox9, DocTracer9, docWeaponOf9,
 } from "./ReplayMotionPlayer";
 /*   · docCellsOf9  — **도록 한 항목의 칸들**(2026-09, 요청: "셀은 대기 - 이동/활성 - 공격 -
  *     액션/추가액션 이렇게 네 개로 하고 하고 있는 셀만 보여주기"). 유닛이냐 건물이냐를 묻지

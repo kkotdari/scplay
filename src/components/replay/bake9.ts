@@ -23868,6 +23868,13 @@ SHAPE_BUILDERS.dollbear = () => {
       x, y, z0: z - h / 2, h, w: r, tipW: 0.02, segs: 8, sides: 10,
       widthOf: (t9: number): number => r * Math.sin(Math.PI * Math.min(0.999, Math.max(0.001, t9))),
     }), fill);
+  /** 인형의 팔·다리 — **고른 굵기의 관 + 끝의 둥근 공**(캡슐). 어느 각에서 봐도 원통이다. */
+  const limb9 = (
+    x0: number, y0: number, z0: number, x1: number, y1: number, z1: number, r: number, fill: string,
+  ): ShapeFace[] => [
+    ...paintBase(rodFaces(x0, y0, z0, x1, y1, z1, r), fill),
+    ...spindle9(x1, y1, z1, r, r * 2, fill),
+  ];
   return [
     // 몸통 — 둥근 방추(어느 요잉에서도 둥글다).
     ...spindle9(0, 0, BODY_Z9, 1.15, 2.5, FUR9),
@@ -23878,8 +23885,12 @@ SHAPE_BUILDERS.dollbear = () => {
       ...spindle9(m9 * 0.58, 0.1, 0.62, 0.46, 1.3, FUR_D9),
       ...paintBase(quarterDome(m9 * 0.58, 0.48, 0.5, 0.26, 0, 1, undefined, 0.04, 0.7), SNOUT9),
     ]),
-    // 팔 둘 — 옆·아래로 뻗은 짧은 방추.
-    ...([-1, 1] as const).flatMap((m9) => spindle9(m9 * 1.18, 0.05, BODY_Z9 + 0.35, 0.38, 1.5, FUR_D9)),
+    /* 팔 둘 — **굵기가 고른 원통 + 둥근 끝**이다(2026-09, 지적: "곰 팔 아몬드도 이상
+       인형 팔 형태여야 해 보통 원통형"). 방추(sin 굵기)는 양끝이 뾰족해 아몬드로 읽힌다 —
+       봉제 인형의 팔은 **통을 꿰매고 끝을 오므린** 꼴이라 굵기가 안 변하고 끝만 둥글다.
+       ⚠ 끝 공은 `caps` 로 안 난다(뚜껑은 평면이다) — 작은 공을 끝에 하나 얹어야 둥글다. */
+    ...([-1, 1] as const).flatMap((m9) => limb9(
+      m9 * 0.92, 0.05, BODY_Z9 + 0.72, m9 * 1.22, 0.22, BODY_Z9 - 0.42, 0.29, FUR_D9)),
     // 머리 — 몸보다 큰 공.
     ...spindle9(0, 0, HEAD_Z9, 1.05, 2.15, FUR9),
     // 귀 둘 — 머리 위 좌우의 작은 공.
@@ -23919,13 +23930,24 @@ SHAPE_BUILDERS.dollbird = () => {
     ...([-1, 0, 1] as const).flatMap((m9) => paintBase(
       rodFaces(m9 * 0.12, -0.85, BODY_Z9 - 0.5, m9 * 0.42, -2.05, BODY_Z9 - 0.72, 0.12), WING9,
     )),
-    // 날개 둘 — 몸 옆에 접힌 납작 반구.
+    /* 날개 둘 — **펼친 날개**다(2026-09, 지적: "그리고 새는 나는 중이야"). 접힌 반구는
+       땅에 앉은 새의 꼴이라, 공중 표적으로 세워 놓고 날개를 접으면 '떨어지는 새'가 된다.
+       자는 캐리어 잎과 **같은 처방**이다: 등뼈를 날개 폭(span)으로 두고 굵기(widthOf)가
+       앞뒤 길이(코드) · 단면 비(ovalOf)가 두께다 — 곧 가로로 넓고 위아래로 얇은 날이 된다
+       (`ref: [0, 1, 0]` · `trueNormal` 은 눌린 단면의 법선을 꼭짓점에서 뽑는 그 규약이다).
+       ⚠ 끝에 굵기를 남기므로 `caps: "both"` + `tipW` 가 함께 있어야 구멍이 안 난다. */
+    ...([-1, 1] as const).flatMap((m9) => paintBase(spirePillar({
+      x: 0, y: 0, z0: 0, h: 1, w: 1, segs: 10, sides: 8, caps: "both", tipW: 0.02,
+      path: (t9: number): [number, number, number] => [
+        m9 * (0.42 + t9 * 1.72), -0.16 - t9 * 0.42,
+        BODY_Z9 + 0.24 + Math.sin(Math.PI * t9) * 0.3 + t9 * 0.16],
+      widthOf: (t9: number): number => 0.6 * (1 - 0.62 * t9) + 0.05,
+      ovalOf: (): number => 0.2,
+      ref: [0, 1, 0], trueNormal: true,
+    }), WING9)),
+    /* 다리 둘 — 나는 새는 다리를 **뒤로 접어 꼬리 밑에 붙인다**(내려뜨리면 착지 자세다). */
     ...([-1, 1] as const).flatMap((m9) => paintBase(
-      quarterDome(m9 * 0.82, -0.1, BODY_Z9, 0.68, m9, 0, undefined, 0, 0.42), WING9,
-    )),
-    // 다리 둘 — 짧은 주황 막대(인형이라 발은 점 하나).
-    ...([-1, 1] as const).flatMap((m9) => paintBase(
-      rodFaces(m9 * 0.28, 0.1, BODY_Z9 - 1.0, m9 * 0.34, 0.24, BODY_Z9 - 1.7, 0.09), BEAK9,
+      rodFaces(m9 * 0.24, -0.18, BODY_Z9 - 0.82, m9 * 0.3, -1.0, BODY_Z9 - 0.92, 0.09), BEAK9,
     )),
     // 머리 — 작은 공.
     ...spindle9(0, 0.12, HEAD_Z9, 0.66, 1.34, BODY9),

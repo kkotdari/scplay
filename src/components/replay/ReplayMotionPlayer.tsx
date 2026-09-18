@@ -5517,14 +5517,23 @@ export function docWeaponOf9(kind: string): string | null {
  *  지상·대공 무기가 **다른 그림**이면 둘, 아니면 하나다. 갈래는 지도와 같은 문(`attackFxOf9`)이
  *  내고, '그 표적을 때릴 수 있나'는 원작 표(`weaponVs`)가 낸다 — 도록이 제 명단을 따로 들면
  *  무기를 고칠 때 두 곳을 맞춰야 한다. */
-export function docAtkFx9(kind: string): { label: string; fx?: string }[] {
+export function docAtkFx9(kind: string): { label: string; fx?: string; air: boolean }[] {
   const nm9 = Object.keys(UNIT_3D).find((n9) => UNIT_3D[n9] === kind);
-  if (!nm9 || !isKnownKind(nm9)) return [{ label: "공격" }];
+  if (!nm9 || !isKnownKind(nm9)) return [{ label: "공격", air: false }];
   const pf9 = profileOf(nm9);
-  const g9 = weaponVs(pf9, false) ? attackFxOf9(nm9, false) : undefined;
-  const a9 = weaponVs(pf9, true) ? attackFxOf9(nm9, true) : undefined;
-  if (g9 && a9 && g9 !== a9) return [{ label: "공격(지상)", fx: g9 }, { label: "공격(공중)", fx: a9 }];
-  return [{ label: "공격", fx: g9 ?? a9 }];
+  const hg9 = !!weaponVs(pf9, false);
+  const ha9 = !!weaponVs(pf9, true);
+  const g9 = hg9 ? attackFxOf9(nm9, false) : undefined;
+  const a9 = ha9 ? attackFxOf9(nm9, true) : undefined;
+  if (g9 && a9 && g9 !== a9) {
+    return [{ label: "공격(지상)", fx: g9, air: false }, { label: "공격(공중)", fx: a9, air: true }];
+  }
+  /* ★ 표적 갈래도 함께 낸다(2026-09, 표적 인형) — 칸마다 제 사거리·제 인형이라, 이 문이
+     '지상인가 공중인가'를 안 말하면 부르는 쪽이 제 짐작을 들어야 한다(두 곳이 갈리는 그 자리다).
+     ⚠⚠ **갈래(fx)가 있나로 가르지 마라** — 근접 무기는 줄기가 없어 `attackFxOf9` 가 빈 값을
+       내므로, `!g9` 로 재면 **질럿·저글링이 공중 표적**을 부르고(대공 무기가 없으니) 표적이
+       통째로 안 선다(실측). 가르는 자는 **무기가 있나**(`weaponVs`)다. */
+  return [{ label: "공격", fx: g9 ?? a9, air: !hg9 && ha9 }];
 }
 /** ★ **도록의 트레이서 칸**(2026-09, 요청: "그리고 트레이서는 못그려주나? 도록에") ──────
  *  지도와 **같은 붓**으로 한 발을 그린다(paintFxList9 — 그 함수의 ★ 에 왜 떼어냈는지가 있다).
@@ -5535,7 +5544,7 @@ export function docAtkFx9(kind: string): { label: string; fx?: string }[] {
  *  ⚠ 날아가는 무기(PROJECTILE_FX)는 `shot`(진행률 u), 즉발은 `beam`(제자리 번쩍임)이다 —
  *    지도가 가르는 그 자리와 같은 명단을 쓴다. 쏘는 쪽에 아무것도 안 그리는 무기
  *    (커세어 플레어 · NO_BEAM_FX)는 **표적 그림이 전부**이므로 hit 만 낸다. */
-export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, fx: fxProp }: {
+export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, tgt, fx: fxProp }: {
   kind: string; t: number; className?: string;
   /** ★ 그릴 갈래를 못 박을 때(요청: 지상·대공 두 칸) — 안 주면 그 종류의 기본이다.
    *  ⚠ 이름을 `style` 로 두지 않는다 — 리액트에서 그 이름은 CSS 를 뜻해 읽는 사람이 헷갈린다. */
@@ -5549,6 +5558,10 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, 
   rotDeg?: number;
   /** 겨누는 포탑의 절대 각(터렛·포토·성큰) — 있으면 몸이 아니라 이 각이 쏘는 쪽이다. */
   headDeg?: number;
+  /** ★★ **표적까지의 거리**(16-상자 자 · `DocCell9.tgt`) — 2026-09 에 열었다(표적 인형).
+   *  주면 줄기가 **그 거리까지만** 간다(곧 지도의 사거리다). 안 주면 옛 자리(칸 가장자리까지)로
+   *  물러난다 — 표적이 없는 칸(야마토 같은 액션 칸)이 그 길이다. */
+  tgt?: number;
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const style = fxProp ?? docWeaponOf9(kind);
@@ -5615,7 +5628,13 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, 
     /* 끝이 칸 밖으로 잘리면 무기의 꼴이 안 읽힌다 — 조금 물린다.
        ★ **불꽃 둘로 그리는 갈래**(탱크·시즈)는 더 물린다 — 그 갈래는 표적 쪽에도 제 몸만 한
          폭발이 서므로, 줄기 갈래와 같은 자리에 두면 그 절반이 칸 밖으로 잘린다. */
-    const dist9 = edge9 * (MUZZLE_BURST_FX9.has(style) || SHELL_ONLY_FX9.has(style) ? 0.58 : 0.88);
+    /* ★★ **표적이 있으면 사거리가 곧 줄기의 길이다**(2026-09, 요청: "재생기의 로직을 그대로
+       가져와서 보이게 해 줘 … 트레이서 위치나 크기 거리 등 모두") — 옛 길은 '칸 가장자리까지'
+       였고, 그 길이는 **칸 크기가 정하는 도록만의 숫자**였다(무기가 아니라 레이아웃이 사거리를
+       정했다). 칸이 표적을 세우면 그 거리(`DocCell9.tgt`, 16-상자 자)를 그대로 받아 px 로 바꾼다 —
+       인형이 앉은 그 점이 곧 줄기의 끝이다. */
+    const dist9 = tgt && k9 ? tgt * k9
+      : edge9 * (MUZZLE_BURST_FX9.has(style) || SHELL_ONLY_FX9.has(style) ? 0.58 : 0.88);
     const age9 = (t % 1.1) / 1.1;            // 한 발의 나이 0~1
     const shot9 = PROJECTILE_FX.has(style);
     const ops9: FxOp[] = [];
@@ -5715,7 +5734,7 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, 
       zx: (v9) => x09 + v9 * ux9 * dist9, zy: (v9) => y09 + v9 * uy9 * dist9,
     });
     el.dataset.gl9 = "1";
-  }, [kind, style, t, overlay, box, rotDeg, headDeg]);
+  }, [kind, style, t, overlay, box, rotDeg, headDeg, tgt]);
   if (!style) return null;
   return <canvas ref={ref} width={1} height={1} className={cx("scr-motion-shape-svg", className)} aria-hidden data-gl9="0" />;
 }
@@ -5833,13 +5852,109 @@ const DOC_ACT_KIND9: Record<string, { kind: string; note: string }> = {
 const DOC_ACT_FX9: Record<string, { note: string; fx: string }> = {
   bc: { note: "야마토포", fx: "yamato" },
 };
+/** ★★ **도록 공격 칸의 가상 표적**(2026-09, 요청: "도록 공격신에 가상의 타겟을 세워줘(지상타겟은
+ *  곰돌이인형 공중타겟은 참새인형) 그래서 실제 타깃을 공격하는 모션을 보여주는거야 … 그리고
+ *  재생기의 로직을 그대로 가져와서 보이게해줘 그래야 앞으로 두쪽 수정을 안할수 있어 트레이서
+ *  위치나 크기 거리 등 모두") ─────────────────────────────────────────────────────────────
+ *  여태 공격 칸은 **쏘는 몸 하나**였고 줄기는 '칸 가장자리까지'(edge9) 뻗고 끝났다. 곧
+ *  '무엇을 때리나'도 '얼마나 멀리 때리나'도 그림에 없었고, 그 거리는 칸 크기가 정하는
+ *  **도록만의 숫자**였다. 표적을 세우면 셋이 한꺼번에 지도의 값으로 돌아온다:
+ *    ① **거리** — `reachTiles(이름, 이름, 공중?)`(bwCombat). 지도의 겨눔 문(engine9 aimTiles9)이
+ *       쓰는 그 함수이고, 무기 사거리에 **두 몸의 반지름**을 더한 값이다. 표적이 인형이라
+ *       프로필이 없으므로 **쏘는 쪽 이름을 표적 이름으로도** 넘긴다 — 지도가 표적 정체를
+ *       모를 때 쓰는 바로 그 폴백이다(`foe.uk … ? foe.uk : drawUnit2`).
+ *    ② **자리** — 총구에서 그 거리만큼, 쏘는 방향으로. 자는 `DocTracer9` 와 같은 (ux, uy)다.
+ *    ③ **크기** — 칸의 창이 '쏘는 몸 ∪ 표적'을 아울러 재므로(docCellBox9) 셋이 다 칸에 든다.
+ *  ⚠ 표적이 **지상·공중으로 갈린다** — 같은 유닛도 대공 무기는 사거리가 다르므로(골리앗
+ *    6 vs 5) 칸마다 제 표적·제 거리를 쥔다(공격 칸이 둘인 종류가 그 자리다).
+ *  ⚠ 못 때리는 표적은 애초에 칸이 안 선다(`docAtkFx9` 의 `weaponVs`) — 그래서 여기서는
+ *    사거리가 −1 이면 표적을 안 세운다. */
+const DOC_TGT_KIND9 = { ground: "dollbear", air: "dollbird" } as const;
+/** ★★ **인형이 몸을 트는 각**(2026-09) — 표적을 '쏘는 쪽으로' 돌리면 얼굴이 **화면 뒤**를
+ *  본다: 카메라는 늘 위에서 내려다보고 표적은 총구 앞(화면 아래쪽)에 서므로, 쏘는 쪽을
+ *  마주 보는 각은 곧 **등을 보이는 각**이다(실측: 요잉 45 에서 표적 225 = 등). 그런데 이
+ *  칸의 뜻은 **피격 표정**(요청: "평소 웃던 얼굴이 슬픈 눈이 되고 … 눈물줄기")이라, 얼굴이
+ *  안 보이면 칸이 아무 말도 못 한다. 그래서 인형은 **카메라를 보고 서서 쏘는 쪽으로만 몸을
+ *  튼다** — 무대 소품의 자다(지도의 각을 그대로 쓰는 자리가 아니다). */
+const DOC_TGT_FACE9 = 32;
+/** 도록 한 발의 주기(초) — `DocTracer9` 가 쓰는 그 시계다(둘이 갈리면 인형이 딴 박자로 운다). */
+export const DOC_SHOT_CYC9 = 1.1;
+/** 그 종류의 **정체 이름**(프로필을 묻는 자) — 유닛은 UNIT_3D 의 역, 건물은 건물표. */
+function docUnitName9(kind: string): string | null {
+  const b9 = BLD_NAME_OF_KIND[kind];
+  if (b9 && isKnownKind(b9)) return b9;
+  const u9 = Object.keys(UNIT_3D).find((n9) => UNIT_3D[n9] === kind);
+  return u9 && isKnownKind(u9) ? u9 : null;
+}
+/** ★ 그 종류가 그 표적을 때리는 **사거리(타일)** — 지도의 그 문이다. 못 때리면 −1. */
+export function docReachTiles9(kind: string, air: boolean): number {
+  const nm9 = docUnitName9(kind);
+  if (!nm9) return -1;
+  try { return reachTiles(nm9, nm9, air); } catch { return -1; }
+}
+/** ★★ **칸에 담을 수 있는 거리의 상한** — **그 모델의 잉크 폭**의 몇 배인가(아래 ⚠⚠).
+ *  ⚠ 16-상자의 배수로 재면 안 된다 — 16 은 창의 자이지 몸의 자가 아니다(마린의 잉크는
+ *  그 16 중 **5** 뿐이라, 1.9×16 = 30.4 는 곧 **몸의 여섯 배**였다: 둘이 칸의 두 귀퉁이에
+ *  붙고 가운데가 통째로 비었다 · 실측 창 26.7 에 몸 5). */
+const DOC_TGT_MAX9 = 1.25;
+/** ★ 표적까지의 거리 — **16-상자 자**(모델 상자가 16 인 그 자). 못 때리면 0.
+ *  ⚠⚠ **참 사거리를 그대로 쓰면 쏘는 몸이 칸의 10% 가 된다**(2026-09, 실측) — 마린은 사거리
+ *  4.4타일에 몸이 0.8타일이라 그 거리가 **몸의 5.5배**이고, 창이 둘을 다 담으면 마린이 칸의
+ *  11%(140px 칸에서 15px)로 쪼그라들어 무엇이 쏘는지도 안 보인다. 시즈탱크는 더하다(12타일).
+ *  그래서 **보여 주는 자리에서만** 거리를 죈다 — 무기의 자(사거리표)는 한 톨도 안 건드린다.
+ *  도록이 이미 두 번 쓴 그 규약이다(스플래시를 0.78배로 · 표창을 2.2배로 — 둘 다 표는 그대로
+ *  두고 칸에서만 줄이거나 키웠다).
+ *  · 상한 아래(질럿·파뱃·저글링처럼 붙어서 때리는 것)는 **참값 그대로** 선다 — 곧 '가까이서
+ *    때리는 것'과 '멀리서 때리는 것'의 차이는 그대로 남고, 아주 먼 것들만 한 자리에 모인다.
+ *  · 그래도 이 값이 **그 종류의 진짜 사거리에서 나온 수**라는 것은 바뀌지 않는다(위 ①). */
+export function docTgtOff9(kind: string, air: boolean): number {
+  const r9 = docReachTiles9(kind, air);
+  if (!(r9 > 0)) return 0;
+  const ink9 = Math.max(2, modelInkOf(kind) || 6);
+  return Math.min(ink9 * DOC_TGT_MAX9, (r9 * 16) / Math.max(0.5, shapeMapTiles(kind)));
+}
+/** ★ 그 칸의 표적 한 벌 — 없으면 null. `deg` 는 쏘는 방향(절대 도). */
+export function docTargetPart9(kind: string, air: boolean, deg: number, t: number, fx?: string): DocPart9 | null {
+  const off9 = docTgtOff9(kind, air);
+  if (!off9) return null;
+  const rad9 = (deg * Math.PI) / 180;
+  /* ⚠ 각은 `deg + 180`(참으로 마주 봄)이 아니다 — 그러면 등만 보인다(위 ★★).
+     쏘는 쪽이 화면 오른쪽이면(sin deg > 0) 오른쪽으로, 왼쪽이면 왼쪽으로 몸만 튼다. */
+  return {
+    kind: air ? DOC_TGT_KIND9.air : DOC_TGT_KIND9.ground,
+    pose: docHitCry9(t, fx) ? 1 : 0,
+    rotDeg: Math.sin(rad9) >= 0 ? -DOC_TGT_FACE9 : DOC_TGT_FACE9,
+    dx: -Math.sin(rad9) * off9,
+    dy: Math.cos(rad9) * off9,
+  };
+}
+/** ★ **맞은 순간인가** — 인형이 우는 컷을 드는 박자(요청: 피격 효과).
+ *  날아가는 무기(PROJECTILE_FX)는 한 발이 주기 내내 날아가 끝에서 닿으므로 **뒤 20%** 가
+ *  맞은 몫이고, 즉발(beam)은 쏘는 순간 닿으므로 **앞 20% 를 뺀 나머지**가 맞은 몫이다.
+ *  ⚠ 주기는 `DOC_SHOT_CYC9` 로 트레이서와 나눠 쓴다 — 도록이 제 숫자를 들면 줄기가 닿기도
+ *    전에 인형이 울거나, 다 지난 뒤에 운다. */
+function docHitCry9(t: number, fx?: string): boolean {
+  const ph9 = (((t % DOC_SHOT_CYC9) + DOC_SHOT_CYC9) % DOC_SHOT_CYC9) / DOC_SHOT_CYC9;
+  return fx && PROJECTILE_FX.has(fx) ? ph9 >= 0.8 : ph9 >= 0.2;
+}
 /** 쏘는 몸이 **딴 벌**인 종류 — 성큰은 몸(sunkenrear)과 혓바닥(sunkentongue)이 갈려 있고,
  *  혓바닥의 회전 칸이 곧 공격 컷 넷이다(지도의 그 자리: engine9 의 sunkenOut). */
 const DOC_ATK_BODY9: Record<string, { kind: string; attach: string }> = {
   sunken: { kind: "sunkenrear", attach: "sunkentongue" },
 };
 /** 한 칸에 겹쳐 그리는 판 하나 — 지도가 한 개체를 여러 판으로 그리는 그 자다(차체·버팀다리·포탑). */
-export type DocPart9 = { kind: string; pose?: 0 | 1 | 2 | 3 | 4 | 5; rotDeg?: number };
+export type DocPart9 = {
+  kind: string; pose?: 0 | 1 | 2 | 3 | 4 | 5; rotDeg?: number;
+  /** ★★ **칸 안에서 옮겨 앉히는 몫**(16-상자 자 · 화면 방향 · y 는 아래가 +) — 2026-09 에
+   *  열었다(요청: "도록 공격신에 가상의 타겟을 세워줘"). 여태 겹판은 몸과 **같은 자리**에만
+   *  앉을 수 있었는데(시즈 전환의 다리·포탑), 표적은 **사거리만큼 떨어진 자리**에 서야 한다.
+   *  ⚠ 자는 트레이서와 **같다** — `DocTracer9` 가 총구에서 표적까지 재는 그 (ux, uy)·그 거리다.
+   *    그래서 줄기의 끝과 인형이 한 점에서 만난다(따로 셈하면 조용히 어긋난다).
+   *  ⚠ **2D 폴백(`#gl=0`·폰)에는 치우침이 없다** — 그 길은 구운 면의 경로를 이어 붙이는
+   *    자라 판을 옮길 자리가 없다. 거기서는 표적이 안 서고 쏘는 몸만 선다(줄기는 그대로
+   *    제 사거리까지 뻗는다). 마주 봄 판정·방향광과 같은 갈래의 폴백 차이다. */
+  dx?: number; dy?: number;
+};
 /** 도록 한 칸 — 그릴 종류와 그 칸이 내려 줄 값들(DocIcon9 의 프롭 그대로다). */
 export type DocCell9 = {
   /** 칸 이름 — 대기 · 이동 · 활성 · 공격 · 액션. */
@@ -5867,6 +5982,10 @@ export type DocCell9 = {
   /** ★ 그 칸이 그릴 **트레이서 갈래**(2026-09, 요청: 지상·대공이 다른 종류는 두 칸) —
    *  안 주면 그 종류의 기본(docWeaponOf9)이다. */
   fx?: string;
+  /** ★★ **총구에서 표적까지의 거리**(16-상자 자) — 2026-09 에 열었다(표적 인형).
+   *  `parts` 의 마지막에 선 인형이 앉은 그 자리이고, `DocTracer9` 의 줄기가 닿는 그 거리다.
+   *  **한 자리에서 셈해 둘이 나눠 쓴다** — 따로 재면 줄기 끝과 인형이 조용히 어긋난다. */
+  tgt?: number;
 };
 /** ★★ **도록의 칸은 넷이다**(2026-09, 요청: "셀은 대기 - 이동/활성 - 공격 - 액션/추가액션
  *  (럴커 땅파기 등) 이렇게 네 개로 하고 **하고 있는 셀만** 보여주기") ────────────────────
@@ -5968,6 +6087,21 @@ export function docCellsOf9(kind: string, t: number, yaw: number): DocCell9[] {
   const blink9 = (((t % 0.9) + 0.9) % 0.9) < 0.6;
   /** 겨누는 중 — 표적을 좌우로 느리게 따라간다. */
   const aim9 = yaw + 40 * Math.sin(t * 0.9);
+  /* ★★ **공격 칸에 표적을 세운다**(2026-09, 요청 · 위 `docTargetPart9` 의 ★★) — 거리·자리·요잉을
+     **한 자리에서** 셈해 칸(그림)과 트레이서(줄기)가 나눠 쓴다. 쏘는 방향은 앱이 `DocTracer9` 에
+     넘기는 그 값과 **같은 차례**로 고른다(`headDeg ?? attachRot ?? rotDeg ?? yaw`) — 여기서
+     갈리면 인형과 줄기가 딴 쪽을 본다. */
+  const withTgt9 = (c9: DocCell9, air9: boolean): DocCell9 => {
+    const deg9 = c9.headDeg ?? c9.attachRot ?? c9.rotDeg ?? yaw;
+    /* ★ 자는 **그 칸이 그리는 몸**의 것이다(2026-09, 요청: "캐리어, 리버도 인터셉터 스캐럽만
+       띄우는 게 아니라 실제 공격하는 장면을 띄워야 해") — 캐리어·리버의 공격 칸은 몸이
+       인터셉터·스캐럽이라, 거리를 주인(캐리어)의 자로 재면 작은 몸 옆에 엉뚱하게 먼 표적이
+       선다. 쏘는 몸의 사거리·크기로 재면 '인터셉터가 곰돌이를 쏘는 장면'이 그대로 선다. */
+    const sk9 = c9.kind ?? kind;
+    const pt9 = docTargetPart9(sk9, air9, deg9, t, c9.fx ?? docWeaponOf9(sk9) ?? undefined);
+    if (!pt9) return c9;
+    return { ...c9, tgt: docTgtOff9(sk9, air9), parts: [...(c9.parts ?? []), pt9] };
+  };
   if (a9.pose) {
     /* 유닛 — 컷의 임자는 poseCutsOf·poseTempoOf·atkCutOf 다(지도와 같은 문). */
     const pk9 = poseCutsOf(kind);
@@ -5995,17 +6129,20 @@ export function docCellsOf9(kind: string, t: number, yaw: number): DocCell9[] {
     /* 대리 몸이 있으면 공격 칸은 **그 몸 한 칸**이다(위 DOC_ATK_KIND9) — 지상·대공 가르기보다 앞이다. */
     const sub9 = DOC_ATK_KIND9[kind];
     if (sub9) {
-      out9.push({ label: "공격", note: sub9.note, kind: sub9.kind, tracer: true, fx: docWeaponOf9(sub9.kind) ?? undefined });
+      out9.push(withTgt9({ label: "공격", note: sub9.note, kind: sub9.kind, tracer: true, fx: docWeaponOf9(sub9.kind) ?? undefined }, false));
     } else {
     const atk9 = docAtkFx9(kind);
     if (pk9?.atk && tp9) {
       const ph9 = (((t % tp9.atkCd) + tp9.atkCd) % tp9.atkCd) / tp9.atkCd;
       const cut9 = atkCutOf9(kind, ph9, pk9.flap, t);
-      if (gun9 && atk9.length > 1) for (const a9 of atk9) out9.push({ label: a9.label, pose: cut9, tracer: true, fx: a9.fx });
-      else out9.push({ label: "공격", pose: cut9, tracer: gun9 });
+      if (gun9 && atk9.length > 1) for (const a9 of atk9) out9.push(withTgt9({ label: a9.label, pose: cut9, tracer: true, fx: a9.fx }, a9.air));
+      /* ★ **근접도 표적을 세운다**(요청: "실제 타깃을 공격하는 모션을 보여주는 거야") — 질럿·
+         저글링은 줄기가 없어 여태 표적도 없었는데, 때리는 몸짓이야말로 맞는 것이 있어야
+         읽힌다. 거리도 제 사거리다(질럿 1.13타일 — 곧 코앞에 선다). */
+      else out9.push(withTgt9({ label: "공격", pose: cut9, tracer: gun9, fx: atk9[0]?.fx }, atk9[0]?.air ?? false));
     } else if (gun9) {
-      if (atk9.length > 1) for (const a9 of atk9) out9.push({ label: a9.label, pose: idle9, tracer: true, fx: a9.fx });
-      else out9.push({ label: "공격", pose: idle9, tracer: true });
+      if (atk9.length > 1) for (const a9 of atk9) out9.push(withTgt9({ label: a9.label, pose: idle9, tracer: true, fx: a9.fx }, a9.air));
+      else out9.push(withTgt9({ label: "공격", pose: idle9, tracer: true, fx: atk9[0]?.fx }, atk9[0]?.air ?? false));
     }
     }
   } else {
@@ -6047,7 +6184,9 @@ export function docCellsOf9(kind: string, t: number, yaw: number): DocCell9[] {
         }
         atk9.headDeg = aim9;
       }
-      out9.push(atk9);
+      /* 건물의 표적 갈래 — **지상을 때릴 수 있으면 곰돌이**, 아니면 참새다(터렛·스포어는
+         대공 전용이라 참새가 선다). 짐작이 아니라 사거리표가 낸다. */
+      out9.push(gun9 ? withTgt9(atk9, !(docReachTiles9(kind, false) > 0)) : atk9);
     }
   }
   /* ④ 액션 — 변신 차례와 핵탄두의 낙하 회전. 변신은 한 컷 1.1초로 돈다. */
@@ -6069,6 +6208,75 @@ export function docCellsOf9(kind: string, t: number, yaw: number): DocCell9[] {
   } else if (a9.yawSpin) {
     /* 낙하 회전 — 지도와 같은 22.5도 칸(굽기 열쇠가 그 칸이다)으로 반시계로 돈다. */
     out9.push({ label: "액션", note: "낙하 회전", rotDeg: yaw - Math.round(((t * 180) % 360) / 22.5) * 22.5 });
+  }
+  return out9;
+}
+/** ★★ **칸의 창은 scplay 가 잰다**(2026-09, 요청: "재생기의 로직을 그대로 가져와서 보이게
+ *  해줘 그래야 앞으로 두쪽 수정을 안할수 있어 트레이서 위치나 크기 거리 등 모두 / 모든
+ *  요소들이 셀에 들어가게 스케일 조정해주고") ─────────────────────────────────────────────
+ *  여태 이 셈은 **앱(GalleryScreen boxOf)** 에 있었다. 칸이 무엇을 그리는지 알아야 창을 재는데
+ *  그것을 아는 것은 `docCellsOf9`(여기)이므로, 칸에 무엇이 하나 늘 때마다 **두 쪽을 맞춰야**
+ *  했다(겹판을 더할 때 한 번, 표적을 더하며 또 한 번 — 앱 쪽 ★ 주석이 그 자취다).
+ *  이제 여기서 낸다. 앱은 `docCellBox9(kind, group)` 를 부르고 받은 표를 내려 주기만 한다.
+ *  자는 종전과 같다:
+ *    · 칸(라벨)마다 따로 — 한 창으로 묶으면 가장 큰 몸에 맞춰져 작은 몸이 점이 된다.
+ *    · 그 칸이 **시각을 돌며 그릴 수 있는 것 전부**(몸 · 딸림 부품 · 겹판 · 표적)의 여덟 각 합집합.
+ *    · 트레이서를 겹치는 칸은 한 뼘 넓힌다 — 단, **표적이 선 칸은 안 넓힌다**(그 칸의 창은
+ *      이미 표적까지를 아우르므로, 더 넓히면 몸만 작아진다).
+ *  ⚠ **치우친 것(표적)은 그 몫만큼 밀어서 잰다** — gl9 아이콘의 그 ⚠와 같은 자리다. */
+export function docCellBox9(kind: string, group?: string): Map<string, string | undefined> {
+  const yaw0 = galleryYawOf(45, group);
+  /** 그 칸이 그릴 수 있는 것 — 종류마다 **치우침의 상자**(min·max)를 함께 모은다. */
+  type Seen9 = Map<string, { x0: number; y0: number; x1: number; y1: number; r: number }>;
+  const byLabel = new Map<string, Seen9>();
+  const tracerOf = new Map<string, boolean>();
+  const tgtOf = new Map<string, boolean>();
+  /* ⚠⚠ **치우침은 점이 아니라 원으로 잰다**(2026-09) — 표적의 자리는 `(−sin d, cos d)·거리`
+     라 **요잉과 함께 돈다**. 그런데 이 창은 종류·무리로만 기억되고(앱은 useMemo 가 kind·group
+     뿐이다) 손가락이 요잉을 돌리면 셀만 다시 선다 — 곧 한 각의 자리로 창을 재면 **돌리는
+     순간 표적이 창 밖으로 나간다**. 그 거리를 반지름으로 삼아 원을 아우르면 어느 각에서도
+     안 잘리고, 배율도 안 흔들린다(칸 안에서는 배율을 못 박는다는 그 규약이다). */
+  const add9 = (seen: Seen9, k9: string, dx9: number, dy9: number): void => {
+    const r9 = Math.hypot(dx9, dy9);
+    const b9 = seen.get(k9);
+    if (!b9) { seen.set(k9, { x0: dx9, y0: dy9, x1: dx9, y1: dy9, r: r9 }); return; }
+    b9.x0 = Math.min(b9.x0, dx9); b9.y0 = Math.min(b9.y0, dy9);
+    b9.x1 = Math.max(b9.x1, dx9); b9.y1 = Math.max(b9.y1, dy9);
+    b9.r = Math.max(b9.r, r9);
+  };
+  for (let i9 = 0; i9 < 60; i9 += 1) {
+    for (const c9 of docCellsOf9(kind, i9 * 0.2, yaw0)) {
+      let seen = byLabel.get(c9.label);
+      if (!seen) { seen = new Map(); byLabel.set(c9.label, seen); }
+      add9(seen, c9.kind ?? kind, 0, 0);
+      if (c9.attach) add9(seen, c9.attach, 0, 0);
+      for (const pt9 of c9.parts ?? []) add9(seen, pt9.kind, pt9.dx ?? 0, pt9.dy ?? 0);
+      if (c9.tracer) tracerOf.set(c9.label, true);
+      if (c9.tgt) tgtOf.set(c9.label, true);
+    }
+  }
+  const out9 = new Map<string, string | undefined>();
+  for (const [label, seen] of byLabel) {
+    let b9: [number, number, number, number] | null = null;
+    for (const [k9, off9] of seen) {
+      for (let j9 = 0; j9 < 8; j9 += 1) {
+        const v9 = shapeFitBox(k9, { rotDeg: yaw0 + j9 * 45, flat: true });
+        if (!v9) continue;
+        const n9 = v9.split(/\s+/).map(Number);
+        if (n9.length !== 4 || n9.some((x9) => !Number.isFinite(x9))) continue;
+        const q9: [number, number, number, number] = [
+          n9[0] + Math.min(off9.x0, -off9.r), n9[1] + Math.min(off9.y0, -off9.r),
+          n9[0] + n9[2] + Math.max(off9.x1, off9.r), n9[1] + n9[3] + Math.max(off9.y1, off9.r)];
+        b9 = b9 ? [Math.min(b9[0], q9[0]), Math.min(b9[1], q9[1]), Math.max(b9[2], q9[2]), Math.max(b9[3], q9[3])] : q9;
+      }
+    }
+    if (!b9) { out9.set(label, undefined); continue; }
+    /* 트레이서만 있고 표적이 없는 칸은 줄기가 지날 자리를 한 뼘 넓힌다(옛 자) — 표적이
+       선 칸은 창이 이미 그 끝까지라 안 넓힌다. */
+    const g9 = tracerOf.get(label) && !tgtOf.get(label) ? 1.3 : 1;
+    const w9 = (b9[2] - b9[0]) * g9; const h9 = (b9[3] - b9[1]) * g9;
+    const cx9 = (b9[0] + b9[2]) / 2; const cy9 = (b9[1] + b9[3]) / 2;
+    out9.set(label, `${cx9 - w9 / 2} ${cy9 - h9 / 2} ${w9} ${h9}`);
   }
   return out9;
 }
@@ -6103,7 +6311,8 @@ export function DocIcon9({
   /** GL 로 그릴지 못 박기(안 주면 GL_ON9). */ gl?: boolean;
 }) {
   const wantGl = (gl ?? GL_ON9) && !!flat && !!SHAPE_BUILDERS[kind];
-  const partsKey9 = (parts ?? []).map((p9) => `${p9.kind}:${p9.pose ?? 0}:${Math.round(p9.rotDeg ?? 1e4)}`).join("|");
+  const partsKey9 = (parts ?? []).map((p9) => `${p9.kind}:${p9.pose ?? 0}:${Math.round(p9.rotDeg ?? 1e4)}`
+    + `:${(p9.dx ?? 0).toFixed(2)}:${(p9.dy ?? 0).toFixed(2)}`).join("|");
   const ref = useRef<HTMLCanvasElement>(null);
   const [fail, setFail] = useState(false);
   const useGl = wantGl && !fail && glIconOk9();
