@@ -20117,7 +20117,26 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            어깨판(suitPauldron)에 상완 방향을 넘겨 팔이 든 만큼 함께 돈다(요청). */
         const shR: [number, number, number] = [-1.14, -0.02, suitShoulderZ()];
         const shL: [number, number, number] = [1.18, -0.02, suitShoulderZ()];
-        const hR = GP9(0.15); const hL = GP9(0.42);
+        /* ★ 총은 손목이 아니라 **손**이 쥔다(2026-09, 요청: "총을 팔목이 아닌 손으로 들게") — armChain 의
+           손등은 손목에서 하완 축을 따라 PALM(fore × 1.15)만큼 앞으로 뻗으므로, 총 위의 파지점을 **손목**에
+           두면 총이 팔목에 얹히고 손은 총 앞 허공을 쥔다. 파지점에서 하완 축을 따라 손등 길이만큼 **뒤로**
+           물러난 자리가 손목이다. 축은 팔꿈치가 정하고 팔꿈치는 손목이 정하므로 세 번 돌려 푼다
+           (jointBetween 은 마디 길이를 지키니 손만 옮기면 된다). */
+        const PALM9 = 0.33 * 1.15;
+        const wristOf9 = (
+          sh: [number, number, number], grip: [number, number, number], bend: [number, number, number],
+        ): [number, number, number] => {
+          let wr: [number, number, number] = grip;
+          for (let i9 = 0; i9 < 3; i9 += 1) {
+            const el = jointBetween(sh, wr, 1.0, 1.2, bend);
+            const dx = wr[0] - el[0]; const dy = wr[1] - el[1]; const dz = (wr[2] - el[2]) / Z8;
+            const L = Math.hypot(dx, dy, dz) || 1;
+            wr = [grip[0] - (dx / L) * PALM9, grip[1] - (dy / L) * PALM9, grip[2] - (dz / L) * PALM9 * Z8];
+          }
+          return wr;
+        };
+        const hR = wristOf9(shR, GP9(0.15), [-0.7, -0.35, -0.66]);
+        const hL = wristOf9(shL, GP9(0.42), [0.7, -0.35, -0.66]);
         const eR = jointBetween(shR, hR, 1.0, 1.2, [-0.7, -0.35, -0.66]);
         const eL = jointBetween(shL, hL, 1.0, 1.2, [0.7, -0.35, -0.66]);
         const dirOf = (sh: [number, number, number], el: [number, number, number]): [number, number, number] =>
@@ -20320,26 +20339,59 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const wd = walkDir();            // +1 · −1 · 0 — 걸음 두 컷이 서로 거울이다
     const mv = wd !== 0 ? 1 : 0;
     const at = poseNow === 2 ? 1 : 0;
-    const thr = 0.42 * at;           // 팔뚝을 앞으로 내지르는 몫
     const dz = -0.1 * mv; const dzz9 = -0.08 * mv; /* z용 쌍둥이(model-z-scale ×0.8) */            // 걸을 때 몸이 낮아지는 몫
     const sway = -0.1 * wd;          // 걸을 때 팔이 앞뒤로 까딱이는 몫
-    /** 든 정도(0 평상시 · 1 공격 컷) — 두 자세를 이 하나로 섞는다. */
-    const lp = (a9: number, b9: number): number => a9 + (b9 - a9) * at;
     const RED = "#b83a2c";           // 갑옷 붉은색
     const RED_D = "#8f2b20";         // 그늘진 팔 붉은색
     void dz;   // 걸음 낮춤은 z 쌍둥이(dzz9)가 쓴다 — 이 값 자체는 안 쓰인다.
     const TANK = TERRAN_STEEL;          // 등 연료통 회색
     /** 팔 길이 배수(요청: "파뱃 팔길이 0.9배") — 마디와 손목 자리에 함께 건다. */
     const AK9 = 0.9;
+    const UA9 = 0.9 * AK9; const FA9 = 1.2 * AK9;   // 상완·하완 길이(설계 자)
     /** 어깨 자리. */
     const SH9 = (m9: -1 | 1): [number, number, number] => [m9 * 1.26, -0.02, suitShoulderZ()];
-    /** 손목 자리 — 설계 자리를 어깨 기준으로 AK9 만큼 당긴 값이다. */
+    /* ★ **공격 컷은 팔꿈치를 직각으로 굽힌다**(2026-09, 요청: "파뱃 하완과 포신이 평행하게 배치(팔 위에
+       포신이 붙은 꼴)고 공격 시 직각으로 팔을 구부리기") — 옛 공격 컷은 손목을 앞·위로 내밀어 팔이 펴진 채
+       포신만 앞으로 나갔다. 이제 상완은 어깨에서 곧게 내려가고(살짝 밖·뒤) 하완은 팔꿈치에서 **앞(+y)으로
+       수평**이다. 마디 길이는 평상시와 같다(UA9·FA9) — 손만 옮기는 것이 아니라 팔꿈치를 못 박으므로
+       jointBetween 을 안 거친다(그 함수는 이 자세를 '가장 굽힌 쪽'으로 못 고른다). */
+    const ELB_ATK9 = (m9: -1 | 1): [number, number, number] => {
+      const s9 = SH9(m9);
+      const ox9 = m9 * 0.16; const oy9 = -0.12;
+      return [s9[0] + ox9, s9[1] + oy9, s9[2] - Math.sqrt(Math.max(0, UA9 * UA9 - ox9 * ox9 - oy9 * oy9)) * Z8];
+    };
+    const WR_ATK9 = (m9: -1 | 1): [number, number, number] => {
+      const e9 = ELB_ATK9(m9);
+      return [e9[0], e9[1] + FA9, e9[2]];
+    };
+    /** 손목 자리 — 평상시는 설계 자리를 어깨 기준으로 AK9 만큼 당긴 값, 공격은 직각 팔의 손목이다. */
     const WR9 = (m9: -1 | 1): [number, number, number] => {
+      if (at) return WR_ATK9(m9);
       const d9: [number, number, number] = m9 < 0
-        ? [-0.62, lp(0.92, 1.36) + sway, lp(2, 2.384) + dzz9]
-        : [0.6, lp(1.28, 1.95) + sway, lp(2.016, 2.4) + dzz9];
+        ? [-0.62, 0.92 + sway, 2 + dzz9]
+        : [0.6, 1.28 + sway, 2.016 + dzz9];
       const s9 = SH9(m9);
       return [s9[0] + (d9[0] - s9[0]) * AK9, s9[1] + (d9[1] - s9[1]) * AK9, s9[2] + (d9[2] - s9[2]) * AK9];
+    };
+    /** 팔꿈치 — 평상시는 두 마디 길이로 푼 자리, 공격은 직각으로 못 박은 자리. */
+    const EL9 = (m9: -1 | 1): [number, number, number] =>
+      (at ? ELB_ATK9(m9) : jointBetween(SH9(m9), WR9(m9), UA9, FA9, [m9 * 0.7, -0.35, -0.66]));
+    /** ★ 포신의 자 — **하완 축과 평행**하게 하완 **위에** 얹힌다(같은 요청). k 는 팔꿈치에서 축을 따라 나간
+     *  거리(설계 자), lat 는 옆으로 비킨 몫. 하완이 어디를 향하든 포신이 따라가므로 걸을 때·쏠 때 팔과 포신이
+     *  한 몸으로 움직인다(옛 포신은 손목에서 늘 +y 로만 나가 굽힌 팔에서 팔과 어긋났다). */
+    const GUN_UP9 = 0.36;   // 하완 위로 띄우는 몫(설계 자) — 하완 반지름 + 포신 반지름 남짓
+    const gunAxis9 = (m9: -1 | 1): { at: (k9: number, lat9?: number) => [number, number, number]; L: number } => {
+      const e9 = EL9(m9); const w9 = WR9(m9);
+      const dx9 = w9[0] - e9[0]; const dy9 = w9[1] - e9[1]; const dz9 = (w9[2] - e9[2]) / Z8;
+      const L9 = Math.hypot(dx9, dy9, dz9) || 1;
+      const ux9 = dx9 / L9; const uy9 = dy9 / L9; const uz9 = dz9 / L9;
+      const ll9 = Math.hypot(-uy9, ux9) || 1;
+      const lx9 = -uy9 / ll9; const ly9 = ux9 / ll9;
+      return {
+        L: L9,
+        at: (k9: number, lat9 = 0): [number, number, number] =>
+          [e9[0] + ux9 * k9 + lx9 * lat9, e9[1] + uy9 * k9 + ly9 * lat9, e9[2] + (uz9 * k9 + GUN_UP9) * Z8],
+      };
     };
     return [
       /* ① 등 연료통 둘 — 어깨 위로 솟는다. 먼저 그려 어깨판이 밑동을 덮는다.
@@ -20425,36 +20477,41 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* ★ 팔 −10%(2026-09, 요청: "파뱃 팔길이 0.9배") — **마디 길이와 손목 자리를 함께**
          어깨 기준으로 당긴다(AK9). 하나만 줄이면 jointBetween 이 못 닿아 팔꿈치가 펴진 채
          굳는다. 화염방사기는 손이 쥐는 것이라 같은 손목을 따라 같이 당긴다. */
-      ...([-1, 1] as const).flatMap((m9) => armChain(SH9(m9),
-        jointBetween(SH9(m9), WR9(m9), 0.9 * AK9, 1.2 * AK9, [m9 * 0.7, -0.35, -0.66]),
-        WR9(m9),
+      ...([-1, 1] as const).flatMap((m9) => armChain(SH9(m9), EL9(m9), WR9(m9),
         // 하완만 임자 색(요청) — 붉은 상완과 짙은 손 사이에 팀의 한 마디가 든다.
         { upper: 0.34, fore: 0.4, fill: RED_D, handFill: "#4d4d4d", foreTeam: true })),
-      /* 화염방사기 **두 자루**(정정: "아까처럼 2개로") — 팔마다 한 자루씩, 손 앞에서
-         곧게 나간다. 굵은 통 + 곁의 가는 통 하나, 끝에 점화 테. 손보다 위 키다. */
+      /* 화염방사기 **두 자루**(정정: "아까처럼 2개로") — 팔마다 한 자루씩, **하완 위에 평행하게** 얹혀
+         팔꿈치 앞에서 손 앞까지 나간다(gunAxis9). 굵은 통 + 곁의 가는 통 하나, 끝에 점화 테. 손보다 위 키다. */
       ...([-1, 1] as const).flatMap((m9) => {
-        const w9 = WR9(m9);
-        const gx9 = w9[0];
-        const y0 = w9[1] + thr;   // 손목에서 내지르는 몫만 더한다(sway 는 손목이 이미 든다)
-        const y1 = y0 + 1.5;
-        const gz9 = w9[2];
-        /* 노즐 끝 — 두 자루의 가운데. ★ z 를 한 뼘 내린다(2026-09, 지적: "파이어뱃은 살짝
-           높게 잡힌 거 같아(왜냐면 공격 모션에서 포신이 살짝 내려가거든)") — 표는 자세 0 에서
-           한 번 굽는데 불은 공격 컷에서만 나므로, 그 컷의 겨눔에 맞춘 몫이다. */
-        if (m9 > 0) markMuzzle9(0, y1 + 0.04, gz9 - 0.14);
+        const g9 = gunAxis9(m9);
+        const k0 = 0.15; const k1 = g9.L + 1.05;   // 팔꿈치 앞 한 뼘 → 손 앞 1.05
+        const p0 = g9.at(k0); const p1 = g9.at(k1);
+        const q0 = g9.at(k0 + 0.15, m9 * 0.24); const q1 = g9.at(k1 - 0.16, m9 * 0.24);
+        const t0 = g9.at(k1 - 0.16); const t1 = g9.at(k1 + 0.04);
+        const mid9 = g9.at((k0 + k1) / 2);
         return tagKey([
           ...paintBase([
-            ...tubeFaces(gx9, y0, gx9, y1, 0.26, gz9, true),
-            ...tubeFaces(gx9 + m9 * 0.24, y0 + 0.14, gx9 + m9 * 0.24, y1 - 0.16, 0.1, gz9 + 0.088, true),
+            ...rodFaces(p0[0], p0[1], p0[2], p1[0], p1[1], p1[2], 0.26),
+            ...rodFaces(q0[0], q0[1], q0[2] + 0.088, q1[0], q1[1], q1[2] + 0.088, 0.1),
           ], GUNMETAL),
-          ...paintBase(tubeFaces(gx9, y1 - 0.12, gx9, y1 + 0.04, 0.3, gz9), "#e07b2a"),
-        ], depthNow(gx9, (y0 + y1) / 2) * 1.6 + 1.62);
+          ...paintBase(rodFaces(t0[0], t0[1], t0[2], t1[0], t1[1], t1[2], 0.3), "#e07b2a"),
+        ], depthNow(mid9[0], mid9[1]) * 1.6 + 1.62);
       }),
-      /* 호스 — 등 연료통 밑동에서 옆구리를 돌아 총 뒤끝으로. 좌우 한 짝씩. */
-      ...([-1, 1] as const).flatMap((m9) => tagKey(paintBase([
-        ...rodFaces(m9 * 0.78, -1.05, 2.64, m9 * 1.5, -0.5, 2.288, 0.17),
-        ...rodFaces(m9 * 1.5, -0.5, 2.288, m9 * 0.4, lp(0.95, 1.4) + thr, lp(2.288, 2.7104), 0.17),
-      ], "#3d3d3d"), depthNow(m9 * 1.3, -0.4) * 1.6 + 1.0)),
+      /* 노즐 끝(총구 표식) — **공격 컷의 자리**다(총구 표식은 '쏘는 자세'의 자리 — CLAUDE.md): 표는 자세 0 에서
+         굽지만 불은 직각으로 굽힌 팔의 수평 포신 끝에서 난다. 두 자루의 가운데(x 0). */
+      ...((): ShapeFace[] => {
+        const e9 = ELB_ATK9(1); const w9 = WR_ATK9(1);
+        markMuzzle9(0, w9[1] + 1.09, e9[2] + GUN_UP9 * Z8);
+        return [];
+      })(),
+      /* 호스 — 등 연료통 밑동에서 옆구리를 돌아 총 뒤끝(팔꿈치 앞의 포신 뿌리)으로. 좌우 한 짝씩. */
+      ...([-1, 1] as const).flatMap((m9) => {
+        const r9 = gunAxis9(m9).at(0.05);
+        return tagKey(paintBase([
+          ...rodFaces(m9 * 0.78, -1.05, 2.64, m9 * 1.5, -0.5, 2.288, 0.17),
+          ...rodFaces(m9 * 1.5, -0.5, 2.288, r9[0], r9[1], r9[2], 0.17),
+        ], "#3d3d3d"), depthNow(m9 * 1.3, -0.4) * 1.6 + 1.0);
+      }),
     ];
   },
   /* 질럿(사진 samples/질럿1~7.jpg 기준 재작도 — 공용 프로토스 리그는 유지) ───────
@@ -21577,18 +21634,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 공격 컷(요청: "아콘도") — 아콘은 팔을 들어 손끝에서 번개를 놓는다. 평소엔
          밖·아래로 늘어진 팔이 끝점 하나로 들려 앞·위를 겨눈다. */
       const atA9 = poseNow === 2 ? 1 : 0;
-      /* ★ 공격에는 **두 팔을 머리 위로 든다**(요청: "아콘 공격 시 두 팔 들어야 됨") —
-         옛 값은 손끝이 겨우 어깨높이(ORB_Z + 0.08)에서 앞으로 뻗는 꼴이라 '드는' 것이
-         아니라 '내미는' 것이었다. 손끝을 ORB_Z + 1.62 까지 올리고 앞으로 나가는 몫은
-         절반으로 줄인다 — 번개는 치켜든 손끝 사이에서 인다. */
+      /* ★ 공격에는 **두 팔을 앞으로 내뻗는다 — 장풍 쏘듯이**(2026-09, 요청: "아콘 공격 시 팔을 앞쪽으로
+         내뻗기 장풍 쏘듯이") — 앞선 '머리 위로 든다'를 되물렸다. 평소엔 밖·아래로 늘어진 팔이 가슴 높이에서
+         앞으로 곧게 나가고 두 손이 몸 앞 한가운데로 모인다(x 2.15 → 0.7). 굽는 몫(제어점)도 앞으로 보내
+         팔꿈치가 옆으로 벌어지지 않는다. */
       const A9 = (t9: number): [number, number, number] => {
         const u9 = 1 - t9;
         const bz9 = (p0: number, c1: number, p2: number): number =>
           u9 * u9 * p0 + 2 * u9 * t9 * c1 + t9 * t9 * p2;
         return [
-          m9 * bz9(0.5, 2.6, 2.15 - atA9 * 0.2),
-          bz9(0.3, 0.2 + atA9 * 0.5, 0.45 + atA9 * 1.05),
-          bz9(ORB_Z + 0.64, ORB_Z - 0.4 + atA9 * 2.0, ORB_Z - 2.08 + atA9 * 3.7),
+          m9 * bz9(0.5, 2.6 - atA9 * 1.3, 2.15 - atA9 * 1.45),
+          bz9(0.3, 0.2 + atA9 * 1.3, 0.45 + atA9 * 2.75),
+          bz9(ORB_Z + 0.64, ORB_Z - 0.4 + atA9 * 1.0, ORB_Z - 2.08 + atA9 * 2.55),
         ];
       };
       const [ax9, ay9] = A9(0.5);
@@ -21605,9 +21662,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const [wx9, wy9, wz9] = A9(1);
       for (const k9 of [0, 1, 2] as const) {
         const sp9 = (k9 - 1) * 0.36;
+        /* 공격 컷에서는 갈퀴도 **앞으로** 편다(장풍) — 늘어진 팔의 갈퀴는 아래·밖으로 말리지만, 내뻗은 손의
+           갈퀴는 손목에서 앞으로 벌어져 나간다. 뿌리는 손목 옆으로 늘어선 그대로다. */
+        const tip9: [number, number, number] = atA9
+          ? [wx9 + m9 * 0.12 + sp9 * m9 * 0.25, wy9 + 1.05, wz9 - 0.16]
+          : [wx9 + m9 * 0.35, wy9 + sp9 * 1.7, wz9 - 1.2];
         out.push(...tagKey(inky(paintBase(spikeHorn(
-          wx9, wy9 + sp9, wz9, wx9 + m9 * 0.35, wy9 + sp9 * 1.7, wz9 - 1.2, 0.17,
-          FLESH9, 5, 0.42, m9 * 0.5, -0.4,
+          wx9, wy9 + sp9 * (atA9 ? 0.6 : 1), wz9, tip9[0], tip9[1], tip9[2], 0.17,
+          FLESH9, 5, 0.42, atA9 ? m9 * 0.15 : m9 * 0.5, atA9 ? 0.6 : -0.4,
         ), FLESH9)), ka9 + 0.1 + k9 * 0.01));
       }
     }
