@@ -35,6 +35,10 @@ export interface GlInst9 {
   /** **연기 위에 서는 몸** — 건물과 공중 유닛이다(2026-09, 요청: "다크 스웜 연기에 공중 유닛이나
    *  건물은 가려지면 안 돼"). 붓이 `maskOver` 로 이것들만 한 번 더 그려 연기에서 그 실루엣을 파낸다. */
   over?: boolean;
+  /** ★ **판을 통째로 한 색으로**(2026-09, 지적: "하템 잔영이 파란색이 아님") — 잔상 판(op.solid)은 몸이
+   *  아니라 자국이라 낯의 제 색을 버리고 이 색 하나로 민다(2D 판 굽기의 solid 와 같은 뜻). 명암·광택도
+   *  안 탄다(uSolid.a 가 1 이면 셰이더가 색을 통째로 갈아 끼우고 빛 몫을 끈다). */
+  solid?: string;
 }
 /** 카메라 — squash(앞뒤 납작비)·zk(높이 배율)·lean(z→앞뒤, 입체 0.34)·shear(시각 밀림 tan(vq), 입체만). project() 의 식 그대로. */
 export interface GlCam9 { squash: number; zk: number; lean: number; shear: number; key: string }
@@ -54,7 +58,7 @@ const MESH_MAX9 = 600;   // 메시 상한 기본(종류×자세×LOD + 건물 �
 const VS = `
 attribute vec3 aPos; attribute vec3 aNrm; attribute vec3 aRgb; attribute float aTeam; attribute float aAlpha; attribute vec2 aOv; attribute float aOrd; attribute float aBb;
 uniform vec2 uAnchor; uniform vec3 uScale; uniform vec2 uYaw; uniform vec2 uCanvas; uniform vec2 uCam;
-uniform vec3 uTeam; uniform vec3 uLight; uniform float uAlpha; uniform float uDepth0; uniform float uDepthK; uniform float uPersp;
+uniform vec3 uTeam; uniform vec4 uSolid; uniform vec3 uLight; uniform float uAlpha; uniform float uDepth0; uniform float uDepthK; uniform float uPersp;
 /** 광택 — x 날카로움 · y 봉우리 세기 · z 제 색에 물드는 몫(금속 1 · 살점 0) · w 넓은 윤기. 종류마다 다르다(glossOf9).
  *  세기 둘(y·w)에는 손잡이(#glspec)와 진단 문(#glshade)이 **CPU 에서 이미 접혀** 있다 — 정점마다 물을 일이 아니다. */
 uniform vec4 uGloss;
@@ -138,7 +142,7 @@ void main() {
   }
   // 법선의 앞뒤는 감기 차례에 달렸다 — 카메라(0, cosE, sinE) 쪽을 보게 뒤집는다(보이는 면은 늘 카메라를 본다).
   if (dot(n, vec3(0.0, uCam.y, uCam.x)) < 0.0) n = -n;
-  vec3 base = mix(aRgb, uTeam, aTeam);
+  vec3 base = mix(mix(aRgb, uTeam, aTeam), uSolid.rgb, uSolid.a);   // 단색 판(잔상)은 제 색을 버린다
   /* 2D 와 같은 두 겹: ① 면마다 얹혀 있던 흰·검 덧칠(aOv — 메시에 접어 둔 값, 요잉 0 에서 굽은 것이라 모델과 함께 돈다)
      ② 실루엣 빛(silhouetteLight) — 모델 상자 안에서 왼위(흰 0.18) → 오른아래(검 0.42) 기울기.
      여기에 법선 방향광을 아주 옅게(±6%) 얹어 요잉해도 입체가 읽히게 한다. */
@@ -199,6 +203,7 @@ void main() {
      덮으려던 미봉이었다(그 주석의 셋째 줄). 이제 그 명암을 셰이더가 제 각으로 내므로 이 자가 다시
      겹치면 빛 쪽이 두 번 밝아진다. */
   col *= mix(0.82 + 0.26 * nd, 1.0, uFlat);
+  col = mix(col, uSolid.rgb, uSolid.a);   // 단색 판 — 덧칠·실루엣 빛·방향광을 다 걷고 그 색 하나
   /* ★★ **더하는 빛은 바탕 밝기를 탄다**(2026-09, 지적: "같은 모델인데 저렇게 다를 이유가 없어 보이고
      특히 탱크 모드 캐터필러 색이 검지 않아서 수상해") — 테두리 빛은 **절대값**이라 어두운 바탕에서는
      그 몫이 곧 배수였다: 궤도 레일판(#4b5158 · 휘도 0.30)에 0.10 을 더하면 **+33%** 다. 게다가 rim 은
@@ -651,7 +656,9 @@ export class GlUnits9 {
   /** 진단: 마지막 프레임의 개체·삼각형 수 · 메시 벌 수 · 메시 굽기 ms(누적)와 **이번 프레임 몫**(frameBakeMs — 시계가
    *  '굽는 프레임'을 아는 자) · 깊이 칸/비트 · 살아 있는 메시 VBO 합(바이트). */
   /** evict: 상한에 걸려 버린 메시 수(누적) — **0 이 아니면 보관함이 좁다**. 늘 굽고 있다는 뜻이라 진단에 낸다. */
-  stat = { inst: 0, tris: 0, bakeMs: 0, frameBakeMs: 0, meshes: 0, slots: 0, depthBits: 0, bytes: 0, bloom: 0, evict: 0 };
+  stat = { inst: 0, tris: 0, bakeMs: 0, frameBakeMs: 0, meshes: 0, slots: 0, depthBits: 0, bytes: 0, bloom: 0, evict: 0, scrubSkip: 0 };
+  /** 이번 flush 안에서 지은 ms — 끌기 예산의 자(flush 마다 0). frameBakeMs 는 시계가 따로 읽어 비우므로 못 쓴다. */
+  private scrubMs = 0;
   /** meshMax: 메시 상한(기기 표 DEV9.glMeshMax — PC 600 · 폰 240; 메시 한 벌은 VBO + footOf 용 정점 사본이라 폰 메모리에 든다). */
   /* ⚠ meshMax·bloomOn 은 **읽기 전용이 아니다**(2026-09, 폰 세 단) — 벤치 단이 유휴 재기로 오르면 기기 표(DEV9)의
      값이 바뀌므로, glUnits9 가 다음 칠하기에서 그 벌에 새 값을 일러 준다. */
@@ -669,7 +676,7 @@ export class GlUnits9 {
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error("링크: " + gl.getProgramInfoLog(p));
     this.prog = p;
     this.stat.depthBits = Number(gl.getParameter(gl.DEPTH_BITS)) || 0;
-    for (const u of ["uAnchor", "uScale", "uYaw", "uCanvas", "uCam", "uTeam", "uLight", "uAlpha", "uDepth0", "uDepthK", "uPersp", "uShade", "uDy", "uLean", "uGrad", "uDbg", "uFlat", "uShadow", "uShZ", "uEmit", "uGloss", "uSpecTint", "uGlint", "uGlintK", "uHalf", "uGrain", "uGrainA"]) this.loc[u] = gl.getUniformLocation(p, u);
+    for (const u of ["uAnchor", "uScale", "uYaw", "uCanvas", "uCam", "uTeam", "uSolid", "uLight", "uAlpha", "uDepth0", "uDepthK", "uPersp", "uShade", "uDy", "uLean", "uGrad", "uDbg", "uFlat", "uShadow", "uShZ", "uEmit", "uGloss", "uSpecTint", "uGlint", "uGlintK", "uHalf", "uGrain", "uGrainA"]) this.loc[u] = gl.getUniformLocation(p, u);
     for (const a of ["aPos", "aNrm", "aRgb", "aTeam", "aAlpha", "aOv", "aOrd", "aBb"]) this.att[a] = gl.getAttribLocation(p, a);
     /* 번짐 프로그램·사각 — 한 번만 짓는다(실패하면 번짐만 끈다). */
     try {
@@ -756,6 +763,8 @@ export class GlUnits9 {
        이어진다(그래서 '굽는 중' 띠가 안 꺼지고, 시계가 굽는 프레임마다 시간을 안 보내 유닛도 거의 안 움직였다).
        삽입 차례는 '얼마나 오래되었나'이지 '얼마나 안 쓰나'가 아니다 — 지우고 다시 넣어 **쓴 차례**로 만든다. */
     if (got !== undefined) { this.meshes.delete(key); this.meshes.set(key, got); return got; }
+    // 끌기 중 예산 초과 — 굳히지 않고 이번 프레임만 건너뛴다(위 glScrubSet9 의 ★★).
+    if (GL_SCRUB9 && this.scrubMs >= SCRUB_BAKE_MS9) { this.stat.scrubSkip += 1; return null; }
     const t0 = performance.now();
     let mesh: GlMesh9 | null = null;
     try {
@@ -860,7 +869,7 @@ export class GlUnits9 {
       }
     } catch (e) { console.warn("[gl9] 메시", key, e); }
     const ms0 = performance.now() - t0;
-    this.stat.bakeMs += ms0; this.stat.frameBakeMs += ms0;
+    this.stat.bakeMs += ms0; this.stat.frameBakeMs += ms0; this.scrubMs += ms0;
     /* 가장 **안 쓴** 것부터 버린다(위 ★ 로 Map 차례가 곧 쓴 차례다) — 포탑 각·건설 단계처럼 열쇠가 잘게
        갈리는 건물이 쌓이지 않게. while 인 까닭은 단이 상한을 **내릴** 수도 있기 때문이다(그때 한 번에 줄인다). */
     while (this.meshes.size >= this.meshMax) {
@@ -966,6 +975,7 @@ export class GlUnits9 {
   /** 프레임 하나 — 캔버스 크기(기기 px)·CSS 크기를 맞추고 큐를 차례로 그린다. */
   flush(bw: number, bh: number, cw: number, ch: number): void {
     const gl = this.gl; const cv = this.canvas;
+    this.scrubMs = 0;
     if (cv.width !== bw) cv.width = bw;
     if (cv.height !== bh) cv.height = bh;
     gl.viewport(0, 0, bw, bh);
@@ -1112,13 +1122,16 @@ export class GlUnits9 {
     gl.uniform4f(this.loc.uShade, 0, 0, 0, 0);
     gl.uniform1f(this.loc.uDy, 0);
     gl.uniform1f(this.loc.uFlat, 0);
-    let flatNow = false; let addNow = false;
+    let flatNow = false; let addNow = false; let solidNow = false;
+    gl.uniform4f(this.loc.uSolid, 0, 0, 0, 0);
     for (let i = 0; i < q.length; i += 1) {
       const it = q[i];
       const mesh = it.mesh;
       const [tr, tg, tb] = hexRgb(tone9(it.color));
       bind(mesh); place(it);
       gl.uniform3f(this.loc.uTeam, tr, tg, tb);
+      if (it.solid) { const [sr, sg, sb] = hexRgb(it.solid); gl.uniform4f(this.loc.uSolid, sr, sg, sb, 1); solidNow = true; }
+      else if (solidNow) { gl.uniform4f(this.loc.uSolid, 0, 0, 0, 0); solidNow = false; }
       gl.uniform1f(this.loc.uAlpha, it.alpha);
       gl.uniform1f(this.loc.uDepth0, 1 - slot * (slotOf[i] + 1));
       const flat = !!it.flat; const add = !!it.add;
@@ -1147,6 +1160,7 @@ export class GlUnits9 {
         if (it.k * this.footOf(it.mesh, it.yawDeg, it.cam).w < 14) continue;
         nEm += 1;
       }
+      gl.uniform4f(this.loc.uSolid, 0, 0, 0, 0);   // 단색 판의 색이 번짐 켜로 새지 않게
       const w4 = Math.max(4, bw >> 2); const h4 = Math.max(4, bh >> 2);
       if (nEm > 0 && this.blooms(w4, h4)) {
         this.stat.bloom = nEm;
@@ -1169,13 +1183,21 @@ export class GlUnits9 {
         const rx1 = Math.min(w4, Math.ceil((sx1 + PAD9) / 4)); const ry0 = Math.max(0, Math.floor((bh - (sy1 + PAD9)) / 4));
         const rw = Math.max(0, rx1 - rx0); const rh = Math.max(0, ry1 - ry0);
         if (rw < 1 || rh < 1) { this.stat.bloom = 0; return; }
-        gl.enable(gl.SCISSOR_TEST);
-        gl.scissor(rx0, ry0, rw, rh);
+        /* ★★ **판은 가위 없이 통째로 지운다**(2026-09, 지적: "사각 얼룩? 잔영이 보임") — 가위 안만 지우면
+           가위 **밖**에는 지난 프레임의 빛이 그대로 남는다. 그런데 흐림은 가위 안 텍셀을 내면서 좌우·위아래
+           이웃(가위 밖)을 다섯 칸씩 읽으므로, 그 옛 빛이 이번 가위의 가장자리로 스며 **네모난 잔영**이 된다
+           (개체가 움직이거나 사라진 뒤 그 자리에 남는 얼룩). 1/4 판 한 장을 지우는 값은 GPU 에서 사실상 0 이다. */
+        gl.disable(gl.SCISSOR_TEST);
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.bl[0].fb);
         gl.viewport(0, 0, w4, h4);
         gl.clearColor(0, 0, 0, 0);
         gl.depthMask(true);   // 깊이 지우기는 쓰기 마스크가 열려 있어야 먹는다
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.bl[1].fb);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.bl[0].fb);
+        gl.enable(gl.SCISSOR_TEST);
+        gl.scissor(rx0, ry0, rw, rh);
         gl.useProgram(this.prog);
         gl.uniform4f(this.loc.uShade, 0, 0, 0, 0);
         /* ★ **가릴 수 있는 몸만 깊이를 깐다** — 번짐 상자(가위)에 화면 상자가 걸치는 개체만 고른다.
@@ -1227,8 +1249,13 @@ export class GlUnits9 {
         gl.uniform1f(this.loc.uEmit, 0);
         gl.uniform1f(this.loc.uFlat, 0);
         // 가로 → 세로로 흐린다(핑퐁). 걸음은 1/4 판의 텍셀 배수다.
+        /* 흐림은 가위를 **흐림 반지름만큼 넓혀** 돈다 — 가위 안만 흐리면 빛의 번짐이 가위 가장자리에서 **칼로 자른
+           듯** 끊긴다(그 네모가 곧 '사각 얼룩'이다). 두 판은 위에서 통째로 비웠으므로 넓혀도 옛 빛은 안 든다. */
+        const BR9 = Math.ceil(BLOOM9[1] * 5) + 1;
+        const bx09 = Math.max(0, rx0 - BR9); const by09 = Math.max(0, ry0 - BR9);
+        const bw9 = Math.min(w4, rx0 + rw + BR9) - bx09; const bh9 = Math.min(h4, ry0 + rh + BR9) - by09;
+        gl.scissor(bx09, by09, bw9, bh9);
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.bl[1].fb);
-        gl.clear(gl.COLOR_BUFFER_BIT);
         gl.blendFunc(gl.ONE, gl.ZERO);
         this.fxQuad(this.bl[0].tex, BLOOM9[1] / w4, 0, 1);
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.bl[0].fb);
@@ -1237,7 +1264,7 @@ export class GlUnits9 {
         // 화면에 더한다 — 빛은 쌓이는 것이라 더하기가 맞다(2D 의 lighter 와 같은 자).
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         gl.viewport(0, 0, bw, bh);
-        gl.scissor(rx0 * 4, ry0 * 4, rw * 4, rh * 4);
+        gl.scissor(bx09 * 4, by09 * 4, bw9 * 4, bh9 * 4);
         gl.blendFunc(gl.ONE, gl.ONE);
         this.fxQuad(this.bl[0].tex, 0, 0, BLOOM9[0]);
         gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
@@ -1292,6 +1319,18 @@ export const GL_ON9 = typeof location === "undefined" || !/(^|[#&,])gl=0/.test(l
 let glInst9: GlUnits9 | null | undefined;
 /** 지금 선 GL 붓(없으면 null) — 붓 밖(데우기 등)에서 메시를 미리 지을 때. */
 export const glNow9 = (): GlUnits9 | null => glInst9 ?? null;
+/** ★★ **끌기(재생바 스크럽) 중에는 메시를 예산 안에서만 짓는다**(2026-09, 지적: "재생바 이동시 로딩이
+ *  안 되면 슬라이드가 안 되는 문제 — 슬라이드가 우선이고 재생기가 따라가야") ─────────────────────
+ *  손잡이는 브라우저가 끄는 비제어 <input range> 라 메인 스레드가 비어 있기만 하면 늘 따라온다. 그런데
+ *  끌면서 시각이 크게 뛰면 처음 보는 종류가 한꺼번에 들어오고, 붓은 그 메시를 **그 프레임에 동기로**
+ *  다 지었다(종류당 1~7ms · 수십 종이면 수백 ms). 그 동안 포인터 이벤트가 못 돌아 손잡이가 멎는다.
+ *  끌기 동안은 `meshFor` 가 프레임당 `SCRUB_BAKE_MS9` 까지만 짓고 나머지는 **이번 프레임에는 그냥
+ *  건너뛴다**(null — 굳히지 않으므로 다음 프레임에 다시 시도한다). 몸 몇이 잠깐 빠져도 손이 우선이다.
+ *  손을 떼면 깃발이 내려가 종전대로(굽는 프레임의 시계 멈춤 · 로딩 띠) 한 번에 다 짓는다. */
+let GL_SCRUB9 = false;
+const SCRUB_BAKE_MS9 = 6;
+export const glScrubSet9 = (on: boolean): void => { GL_SCRUB9 = on; };
+export const glScrubbing9 = (): boolean => GL_SCRUB9;
 /** 이번 프레임에 메시를 짓는 데 쓴 ms — 읽고 0으로 돌린다(시계의 '굽는 프레임' 문지기). */
 export const glBakeMsTake9 = (): number => {
   const g = glInst9; if (!g) return 0;

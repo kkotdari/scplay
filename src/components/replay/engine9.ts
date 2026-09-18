@@ -1323,7 +1323,9 @@ export const NORM_TARGET_INK = 5.2;
  *   · tankgun·tanksiegegun — **일부러** 목표를 안 맞춘 것. 짝이라 차체 배수를 쓰므로
  *     제 잉크 상자는 5.2가 아니다(포신은 완결 유닛이 아니라 부품이다).
  *  이 표도 --emit이 낸 값이다. */
-export const MODEL_INK: Record<string, number> = { arbiter: 4.213, ghost: 4.685, inf: 4.874, larva: 4.787, mine: 4.381, mutacocoon: 5.020, scarab: 4.950, scourge: 5.070, tankgun: 3.772, tanksiegegun: 2.528 };
+/* ⚠ arbiter 를 뺐다(2026-09, 지적: "인게임에선 너무 큼") — 정규화를 2.307 로 올려 잉크가 목표(5.2)에 닿은 뒤에도
+   옛 잉크 4.213 이 남아 크기표가 16/4.213 으로 **23% 더** 키우고 있었다(model-norm --emit 이 이제 이 종류를 안 낸다). */
+export const MODEL_INK: Record<string, number> = { ghost: 4.685, inf: 4.874, larva: 4.787, mine: 4.381, mutacocoon: 5.020, scarab: 4.950, scourge: 5.070, tankgun: 3.772, tanksiegegun: 2.528 };
 /** 그리는 kind가 정규화 뒤 실제로 차지하는 잉크 상자(모델 단위). */
 /* 짝은 본체의 잉크 몫을 물려받는다 — 등급(lod)과 장식 자가 이 값을 보므로, 짐 판만
    따로 재면 짐이 몸과 다른 등급으로 구워져 부품이 빠진다. */

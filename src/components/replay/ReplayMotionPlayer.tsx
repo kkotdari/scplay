@@ -95,7 +95,7 @@ import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, W
 import {
   pitchFlatSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, stageFaces, TURRET_BACK9, SPIN_KINDS, HEAD_KINDS, LIT_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, spriteSideMax9, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, tone9, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
 } from "./bake9";
-import { glUnits9, glNow9, glBakeMsTake9, GL_ON9, GL_WARM9, GL_BLIT9, GL_GLOW_KINDS9, SHADOW_ALPHA9, camOf9, CAM_TOP9, glIconOk9, glIconRequest9, type GlUnits9, type GlFoot9 } from "./gl9";
+import { glUnits9, glNow9, glBakeMsTake9, glScrubSet9, glScrubbing9, GL_CANVAS_KINDS9, GL_ON9, GL_WARM9, GL_BLIT9, GL_GLOW_KINDS9, SHADOW_ALPHA9, camOf9, CAM_TOP9, glIconOk9, glIconRequest9, type GlUnits9, type GlFoot9 } from "./gl9";
 export { LIMB_LOG, TURRET_BACK9, SHAPE_BUILDERS, ctx2d9, BAKE_ENV9, cropToInk, pathBox, tierTableOf, autoTier, stageFaces, rasterBld9, SHAPE_GALLERY, poseSet, poseSet9, bldLitSet, headYawSet, bldSpinSet, bldSpinRawSet9, lodSetCap, lodSetZoom, lodNoteFrame, tone9, TONE_DARK, TONE_SAT, silhouetteLight } from "./bake9";
 export type { BakeCv9, BakeCtx9, RasterOut9, ShapeGalleryItem } from "./bake9";
 export { isAirUnit, flapCutOf, atkCutOf, unitTilesOf, buildingYawOf, galleryYawOf, BLD_NORM, BUILD_STAGES, SCR_DIAG, scrDiagOn, deriveWorld9, createEngine9, pickWorldUi9, emptyWorldUi9 } from "./engine9";
@@ -835,6 +835,9 @@ const PC_TIERS9: readonly BenchTier9[] = [
      메모리를 문턱으로 삼으면 정작 가장 빠른 폰이 0단에 남는다. 메모리에 닿는 값(메시 상한)은 그래서 조심히 올린다
      (240 → 300 → 360벌 · 실측 240벌 37MB). */
 /* ★ 폰 문턱도 같은 까닭으로 늦춘다(2026-09, 같은 지적): 24 → 30 · 9 → 13.
+   ⚠ 그 뒤 **한 칸 도로 죈다**(2026-09, 지적: "벤치 티어 기준 조금 높여야 할 거 같아 내 폰으로 체감상 여유가 없는
+     느낌 — 폰도 엄청 뜨거워져"): 30 → 26 · 13 → 11 · 입체 28 → 24. 늦춘 1.45배가 헤드리스 실측이었지 실기 발열까지
+     잰 값은 아니었다 — 단이 오르면 앞 한도·메시 상한·번짐·파편이 함께 오르므로 열은 그 합이다.
    그리고 **입체 문턱(up3Ms)이 한 번 더 어긋나 있었다** — benchDevice9(true) 는 2D 판보다 화소를
    **2.87배**(61²/36² · 타원 24×10/14×6) 칠하는데 문턱은 16 으로 2D(9)보다 오히려 **낮게** 잡혀,
    화소당으로 재면 2D 자보다 1.6배가 아니라 **4.3배** 엄격했다(2단에 오르려면 2D 기준 5.6ms 여야 했다).
@@ -842,9 +845,9 @@ const PC_TIERS9: readonly BenchTier9[] = [
    13 × 2.87 ≒ 37 이 화소당 나란한 값이지만 번짐은 기울인 화면에서 가장 무거우니 **28** 로 둔다. */
 const PHONE_TIERS9: readonly BenchTier9[] = [
   { name: "낮음", upMs: Infinity, aheadSec: 1.5, aheadMB: 6 },
-  { name: "보통", upMs: 30, aheadSec: 2.5, aheadMB: 10,
+  { name: "보통", upMs: 26, aheadSec: 2.5, aheadMB: 10,
     glMeshMax: 300, glSpec: true, glBloom: true, shadowGroundMinZoom: 2, decalBakeMax: 256, hitShardK: 0.8, dieShards: 16 },
-  { name: "높음", upMs: 13, up3Ms: 28, aheadSec: 4, aheadMB: 16,
+  { name: "높음", upMs: 11, up3Ms: 24, aheadSec: 4, aheadMB: 16,
     glMeshMax: 360, glBloom: true, yaw8Always: false,
     shadowGroundMinZoom: 1, decalBakeMax: 384, hitShardK: 1, dieShards: 24 },
 ];
@@ -4631,6 +4634,9 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              y 는 잉크 바닥을 바닥선(groundY − 띄움)에 앉힌다(footOf 의 bot). */
           const lodB9 = lodOf(sideWant);
           const glB9 = gl9 ? gl9.bldMesh(op, lodB9) : null;
+          /* ★ 끌기(재생바) 중 예산 밖의 메시는 이 프레임에 안 짓는다(gl9 glScrubSet9 의 ★★) — 그 몸은 이번 장에서
+             그냥 빠진다. 폴백(면 곧장 그리기)으로 떨어뜨리면 굽기보다 더 느려 손이 도로 멎는다. */
+          if (gl9 && !glB9 && glScrubbing9() && SHAPE_BUILDERS[op.kind]) continue;
           const glBcam9 = glB9 ? camOf9(!!op.pitch, pitchFlatNow * 0.7, vqOf9(op.viewYaw, true)) : CAM_TOP9;
           /* ★ 잉크 상자는 **딸림 부품까지 아울러** 잰다(2026-09) — 터렛은 몸의 절반 넘는 몫이 딸림
              부품(포탑부)이라, 밑동만 재면 상자가 통째로 낮고 좁아져 체력바·링·총구 앵커가 따라 내려온다.
@@ -4786,6 +4792,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         }
         /* GL 붓이 맡을 몸은 2D 면(요잉 칸별 빌더 굽기, resolveShapeFaces)을 아예 안 짓는다 — 메시는 종류·자세당 한 벌이다. */
         const glPre9 = gl9 && SHAPE_BUILDERS[op.kind] ? gl9.unitMesh(op.kind, op.pose ?? 0, lodOf((Math.max(4, op.sizePx * bakeZoom) * modelInkOf(op.kind)) / 16, LOD_INK_POINT, LOD_INK_DECO)) : null;
+        if (gl9 && !glPre9 && glScrubbing9() && SHAPE_BUILDERS[op.kind] && !GL_CANVAS_KINDS9.has(op.kind)) continue;   // 끌기 중 예산 밖(위 건물 쪽 ★)
         if (gl9 && !glPre9) GL_MISS9.set(op.kind, (GL_MISS9.get(op.kind) ?? 0) + 1);   // 진단: GL 이 못 맡아 판으로 떨어진 종류
         const { faces, rot } = glPre9 ? { faces: null, rot: 0 } : resolveShapeFaces(op.kind, op.rotDeg, op.flat, op.viewYaw, op.pitch);
         if (!faces && !glPre9) continue;
@@ -5081,7 +5088,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             const gm9 = gkind9 ? (gkind9 === op.kind ? glM9 : gl9.unitMesh(gkind9, op.pose ?? 0)) : null;
             if (!gm9) continue;
             const grot9 = gkind9 === op.kind ? (op.rotDeg ?? 0) : (op.attachRot ?? op.rotDeg ?? 0);
-            gl9.push({ mesh: gm9, ax: gax9, ay: gay9, k: gk9, yoff: (px / 16) * ((op.flat ? 12 : 12.6) - 8), yawDeg: -grot9, color: op.color, alpha: op.alpha, cam: glCam9, gradR: px * 0.707, gradCy: 0, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind), over: !!op.air });
+            gl9.push({ mesh: gm9, ax: gax9, ay: gay9, k: gk9, yoff: (px / 16) * ((op.flat ? 12 : 12.6) - 8), yawDeg: -grot9, color: op.color, alpha: op.alpha, cam: glCam9, gradR: px * 0.707, gradCy: 0, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind), over: !!op.air, ...(op.solid ? { solid: op.solid } : {}) });
           }
           ctx.setTransform(Bd, 0, 0, Bd, 0, 0);
           continue;
@@ -6107,8 +6114,22 @@ export function docTgtOff9(kind: string, air: boolean): number {
   if (!(r9 > 0)) return 0;
   const ink9 = Math.max(2, modelInkOf(kind) || 6);
   const half9 = (DOC_TGT_HALF9 * r9 * 16) / Math.max(0.5, shapeMapTiles(kind));
-  return Math.min(ink9 * DOC_TGT_MAX9, Math.max(ink9 * DOC_TGT_MIN9, half9));
+  return Math.min(ink9 * DOC_TGT_MAX9, Math.max(ink9 * DOC_TGT_MIN9, half9)) / docNormK9(kind);
 }
+/** ★★ **도록은 모델을 제 좌표 그대로 그린다 — 정규화(MODEL_NORM)를 안 거친다**(2026-09, 지적: "도록에서
+ *  아비터 작게 나옴 계속 말하는데 안 고쳐짐") — 지도는 종류마다 `MODEL_NORM` 을 곱해 잉크 폭을 한 자(5.2)로
+ *  맞추지만, 도록 칸은 빌더의 원 좌표를 창에 맞춰 띄운다. 아비터는 원 좌표의 잉크가 2.25 라 지도에서 2.307 배로
+ *  키워지는데, 도록의 인형(k 1)·사거리(정규화 자의 16-상자)는 그 배수를 몰라 **아비터만 인형의 절반**이 됐다
+ *  (캐리어·배틀은 반대로 원 좌표가 커서 인형이 작다). 인형의 배율과 표적 거리·뜬 높이를 다 이 배수로 나눠
+ *  **지도에서의 크기 비** 그대로 세운다(docPartK9 가 인터셉터에 하는 그 셈이다). */
+const docNormK9 = (kind: string): number => modelNormOf(docBaseKind9(kind)) || 1;
+/** 인형의 배율 — 마린을 자로 삼는다(마린 곁의 곰돌이가 종전 크기 그대로라야 다른 칸의 자가 안 흔들린다). */
+const docDollK9 = (kind: string): number => {
+  const ref9 = "gunner";
+  const a9 = shapeMapTiles(ref9) * docNormK9(ref9);
+  const b9 = shapeMapTiles(kind) * docNormK9(kind);
+  return b9 > 0 ? a9 / b9 : 1;
+};
 /** ★ **공중 표적이 뜨는 높이**(16-상자 자) — 지도의 `airLiftPxOf`(= 레이스 상자 × AIR_LIFT_K · 몸 크기와
  *  무관한 한 값)를 이 칸의 자(쏘는 종류의 16-상자 = 그 종류의 지도 타일 수)로 옮긴 것이다. 여태 참새 인형이
  *  곰돌이와 같은 땅에 앉아 있었다(지적: "공격 타겟 인형 위치가 … 좀 낮게"). */
@@ -6119,7 +6140,7 @@ export function docTgtLift9(kind: string, air: boolean): number {
   /* ⚠ 거리와 **같은 상한**으로 죈다(잉크 폭의 DOC_TGT_MAX9 배) — 지도의 뜬 높이는 레이스 2.3타일이라 터렛
      (1.24타일)의 자로는 **30**(거리 10.4 의 세 배)이 되어 창이 통째로 커지고 둘 다 점이 된다. 거리를 죄는
      그 규약 그대로, 보여 주는 자리에서만 죈다(골리앗 10.1 · 레이스 9.6 은 참값 그대로 선다). */
-  return Math.min(lift9, Math.max(2, modelInkOf(kind) || 6) * DOC_TGT_MAX9);
+  return Math.min(lift9, Math.max(2, modelInkOf(kind) || 6) * DOC_TGT_MAX9) / docNormK9(kind);
 }
 /** ★★ **줄기가 닿는 자리는 인형의 발밑이 아니라 몸 가운데다**(2026-09, 지적: "도록에서 공격 타겟 인형
  *  위치가 잘 안 맞는 거 같지 — 좀 낮게 잡혀 있는 거 같아") — 지도는 사수 총구 → **표적 몸 가운데**
@@ -6132,7 +6153,7 @@ export function docTgtUp9(kind: string, air: boolean, deg: number): number {
   const fb9 = shapeFitBox(dk9, { rotDeg: deg + 180, poses: [0, 1], flat: true });
   const n9 = fb9 ? fb9.split(/\s+/).map(Number) : null;
   const mid9 = n9 && n9.length === 4 && n9.every((v9) => Number.isFinite(v9)) ? 12 - (n9[1] + n9[3] / 2) : 2.2;
-  return docTgtLift9(kind, air) + Math.max(0, mid9);
+  return docTgtLift9(kind, air) + Math.max(0, mid9) * docDollK9(kind);   // 인형의 자도 제 배율을 탄다
 }
 /** ★★ **인형은 모델이 선 땅 위에 선다 — 그 땅은 부감에 눌려 있다**(2026-09, 지적: "지상 곰돌이 위치도
  *  이상했어" · "파뱃 트레이서가 휘었어") — 모델은 40도 부감 카메라로 그려지므로 모형의 앞(y) 한 칸은 화면에서
@@ -6159,6 +6180,7 @@ export function docTargetPart9(kind: string, air: boolean, deg: number, t: numbe
     // ★ 땅의 앞뒤는 카메라(40도 부감)에 눌린다(DOC_GROUND_K9) — 아래 ★★.
     dy: Math.cos(rad9) * off9 * DOC_GROUND_K9 - docTgtLift9(kind, air),
     up: docTgtLift9(kind, air),
+    k: docDollK9(kind),   // 지도에서의 크기 비(위 docNormK9 의 ★★)
   };
 }
 /** ★ **맞은 순간인가** — 인형이 우는 컷을 드는 박자(요청: 피격 효과).
@@ -8851,7 +8873,24 @@ export default function ReplayMotionPlayer({
      쓰며, 끌기의 지도 이동(setT)은 rAF로 프레임당 한 번으로 묶는다. */
   const rangeRef = useRef<HTMLInputElement>(null);
   const scrubbing = useRef(false);
+  /** 끌기 중 React 거울(setT)의 박자 — 붓의 박자(REACT_STEP_MS9)와 같다. */
+  const SCRUB_MIRROR_MS9 = REACT_STEP_MS9;
+  const seekTimer9 = useRef(0);
+  const seekMirrorAt9 = useRef(0);
+  /** 시계 글자 — 끌기 중에는 리렌더 없이 여기에 직접 쓴다(위 onInput 의 ★★). */
+  const clockElRef9 = useRef<HTMLSpanElement | null>(null);
   const seekPending = useRef<number | null>(null);
+  /** 손을 뗀 자리 — 남은 거울을 곧장 놓고 굽기 예산을 푼다(그 다음 장에서 재생기가 따라잡는다). */
+  const scrubEnd9 = (): void => {
+    if (!scrubbing.current) return;
+    scrubbing.current = false;
+    glScrubSet9(false);
+    if (seekTimer9.current) { window.clearTimeout(seekTimer9.current); seekTimer9.current = 0; }
+    const sv = seekPending.current;
+    seekPending.current = null;
+    if (sv !== null) { seekMirrorAt9.current = performance.now(); setT(sv); setDone(sv >= total); }
+    requestPaint9();
+  };
 
   /* (삭제·요청: 모바일 확대 기능 제거) — 더블탭·핀치 렌즈를 통째로 걷었다. PC 확대는
      이미 걷었으니(마우스 더블클릭 무시) 렌즈는 더 이상 쓸 곳이 없다. 확대는 큰 화면
@@ -11480,6 +11519,11 @@ export default function ReplayMotionPlayer({
        터치 사건의 target은 **손가락이 처음 닿은** 요소라 touchmove에서도 그대로 쓸 수 있다. */
     const onCtl9 = (t?: Touch): boolean => {
       const el9 = t?.target;
+      /* ★ **지도 요소 밖에서 난 손짓은 지도의 것이 아니다**(2026-09, 지적: "사용법 화면 아래로 드래그가 잘 안 됨") —
+         사용법 덮개는 body 에 포털로 서서 화면을 다 덮는데, 좌표(inMap)로는 그 위의 손가락도 '지도 안'이라
+         확대 중(zoom > 1)이면 아래 onTM 이 그 스크롤의 기본 동작을 끊었다. target 이 지도 요소 밖이면 뺀다. */
+      const map9 = mapRef.current;
+      if (map9 && el9 instanceof Node && !map9.contains(el9)) return true;
       return el9 instanceof Element
         && !!el9.closest(".scr-fs-ui, .scr-motion-bar, input, select, textarea");
     };
@@ -12032,7 +12076,8 @@ export default function ReplayMotionPlayer({
   }
   cmdNowRef9.current = { playing: playing9, t, speed };
   // 밖에서 t가 바뀌었으면(탐색) 틱의 살아 있는 시계도 거기로.
-  if (t !== tFromTickRef9.current) tLiveRef9.current = t;
+  // ⚠ 끌기 중에는 안 맞춘다 — 거울(t)이 손보다 한 박자 늦어, 맞추면 지도가 손잡이 뒤로 되돌아간다.
+  if (t !== tFromTickRef9.current && !scrubbing.current) tLiveRef9.current = t;
   {
     // #diag=view — 렌더마다 보기 상태를 견줘 바뀐 것만 적는다(위 viewDiag9).
     const d9 = viewDiag9.current;
@@ -14165,24 +14210,40 @@ export default function ReplayMotionPlayer({
           ref={rangeRef}
           className="scr-motion-range" type="range"
           min={0} max={total} step="any" defaultValue={t}
-          onPointerDown={() => { scrubbing.current = true; }}
-          onPointerUp={() => { scrubbing.current = false; }}
-          onPointerCancel={() => { scrubbing.current = false; }}
+          onPointerDown={() => { scrubbing.current = true; glScrubSet9(true); }}
+          onPointerUp={() => { scrubEnd9(); }}
+          onPointerCancel={() => { scrubEnd9(); }}
           onInput={(e) => {
             const el = e.target as HTMLInputElement;
             const v = Number(el.value);
             el.style.setProperty("--p", `${total > 0 ? (v / total) * 100 : 0}%`);
-            // 지도는 프레임당 한 번만 따라온다 — 끌기 이벤트마다 그리면 손이 밀린다.
-            if (seekPending.current === null) {
-              requestAnimationFrame(() => {
+            /* ★★ **슬라이드가 우선이고 재생기가 따라간다**(2026-09, 지적: "재생바 이동시 로딩이 안 되면
+               슬라이드가 안 되는 문제") ─────────────────────────────────────────────────────
+               여태 끌기 이벤트마다(rAF 하나로 모아도 프레임마다) `setT` 를 놓아 **이 컴포넌트 전체가 리렌더**
+               되고, 그 렌더가 붓을 불러 지도를 통째로 칠했다. 그 한 장에 처음 보는 종류의 메시 굽기가 몰리면
+               (탐색은 늘 새 장면이다) 수백 ms 가 메인 스레드를 막아 손잡이가 멎었다 — 손이 아니라 그림이
+               임자였다. 이제 셋을 가른다:
+                 ① **손잡이·시계**는 즉시 — 손잡이는 비제어 input 이 제 손으로 끌고, 시계 글자는 DOM 에 직접 쓴다.
+                 ② **지도**는 살아 있는 시각(tLiveRef9)만 옮기고 붓에 한 장 청한다(rAF 로 모인다). 끌기 동안
+                    붓은 메시를 프레임당 예산(gl9 SCRUB_BAKE_MS9)만큼만 짓고 나머지 몸은 그 장에서 뺀다.
+                 ③ **React 거울**(setT — 워커 cmd·미니맵·DOM 효과의 임자)은 `SCRUB_MIRROR_MS9` 마다만 놓는다.
+               손을 떼면(scrubEnd9) 마지막 값을 곧장 놓고 예산도 푼다 — 그때 재생기가 따라잡는다. */
+            tLiveRef9.current = v;
+            if (clockElRef9.current) clockElRef9.current.textContent = `${fmtClock(v).padStart(fmtClock(total).length, "\u2007")} / ${fmtClock(total)}`;
+            requestPaint9();
+            seekPending.current = v;
+            if (!seekTimer9.current) {
+              const wait9 = Math.max(0, SCRUB_MIRROR_MS9 - (performance.now() - seekMirrorAt9.current));
+              seekTimer9.current = window.setTimeout(() => {
+                seekTimer9.current = 0;
                 const sv = seekPending.current;
                 seekPending.current = null;
                 if (sv === null) return;
+                seekMirrorAt9.current = performance.now();
                 setT(sv);
                 setDone(sv >= total);
-              });
+              }, wait9);
             }
-            seekPending.current = v;
           }}
           aria-label="재생 위치"
         />
@@ -14194,7 +14255,7 @@ export default function ReplayMotionPlayer({
             숫자폭 빈칸(U+2007)으로 앞을 채워 글자 수를 늘 같게 만든다. tabular-nums와
             짝이라 빈칸 하나가 숫자 하나와 정확히 같은 폭이다. */}
         <span className="scr-motion-clockwrap" style={{ fontVariantNumeric: "tabular-nums" }}>
-          <span className="scr-motion-clock">
+          <span className="scr-motion-clock" ref={clockElRef9}>
             {fmtClock(t).padStart(fmtClock(total).length, "\u2007")} / {fmtClock(total)}
           </span>
         </span>

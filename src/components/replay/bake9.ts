@@ -938,6 +938,36 @@ export function partKey(x: number, y: number, z: number): number {
 }
 /** '이 낯은 임자 색이다'를 paintBase 앞까지 들고 가는 표식 — spirePillar 안에서만 산다. */
 const ACC_MARK9 = "\u0000acc";
+/** ★ **굴 속**(2026-09) — 살 속에 파 둔 어두운 방: 뒷벽(y = y0) · 바닥 · 옆벽 둘. 캐번·나이더스가 GL 에서
+ *  진짜 구멍 뒤에 깐다. 위(천장)는 안 깐다 — 카메라가 늘 위에서 내려다보므로 시선은 바닥·뒷벽에 닿는다.
+ *  ⚠ **앞끝은 둔덕의 옆선에 맞춰 자른다**(`front(x, z)` = 그 높이·그 x 에서 둔덕 겉이 서는 y) — 네모 상자로
+ *    깔았더니 위로 갈수록 좁아지는 둔덕 밖으로 옆벽·바닥 모서리가 **검은 쐐기**로 삐져나왔다(실측).
+ *  @param hw 반폭 · @param y0 뒷벽 y · @param zt 높이 · @param front 둔덕 앞선 · @param fill 색 */
+export function caveInside9(
+  hw: number, y0: number, zt: number, front: (x: number, z: number) => number, fill: string,
+): ShapeFace[] {
+  const z0 = 0.06;
+  const N9 = 5;
+  const back9 = polyPath3([[-hw, y0, z0], [hw, y0, z0], [hw, y0, zt], [-hw, y0, zt]]);
+  // 바닥 — 앞 가장자리는 둔덕 밑동의 호를 따른다.
+  const fl9: [number, number, number][] = [[-hw, y0, z0]];
+  for (let i9 = 0; i9 <= 6; i9 += 1) { const x9 = -hw + (2 * hw * i9) / 6; fl9.push([x9, Math.max(y0 + 0.2, front(x9, z0)), z0]); }
+  fl9.push([hw, y0, z0]);
+  const floor9 = polyPath3(fl9);
+  // 옆벽 — 앞 가장자리가 둔덕 옆선(높이마다의 앞 y)을 따른다.
+  const side9 = (x9: number): string => {
+    const pts9: [number, number, number][] = [[x9, y0, z0]];
+    for (let i9 = 0; i9 <= N9; i9 += 1) { const z9 = z0 + ((zt - z0) * i9) / N9; pts9.push([x9, Math.max(y0 + 0.2, front(x9, z9)), z9]); }
+    pts9.push([x9, y0, zt]);
+    return polyPath3(x9 < 0 ? pts9 : pts9.slice().reverse());
+  };
+  return [
+    [back9, 1, fill] as ShapeFace,
+    [floor9, 1, fill] as ShapeFace,
+    [side9(-hw), 1, fill] as ShapeFace,
+    [side9(hw), 1, fill] as ShapeFace,
+  ];
+}
 export function spirePillar(o: {
   x: number; y: number; z0?: number; h: number; w: number; tipW?: number;
   segs?: number; sides?: number;
@@ -8104,7 +8134,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         : W1_9 + (W0_9 - W1_9) * (1 - (t9 - HOLD9) / (1 - HOLD9)) ** 1.5);
       out.push(...tagKey(spirePillar({
         // 끝은 뾰족이 아니라 뭉뚝하게 잘린 면(지적) — tipW 0.12 → 0.55.
-        x: 0, y: 0, h: 0.8, w: 1, segs: 20, sides: 4, ref: [0, 1, 0],
+        /* ⚠ `tipW` 를 줘야 **위 뚜껑이 난다**(2026-09, 지적: "게이트 기둥 윗면이 뚫려 보임") — 굵기는 widthOf 가
+           그리지만 뚜껑의 문은 여전히 `tipW > 0.01` 을 본다(프로브에서 적어 둔 그 함정). 안 주면 끝이 열린 관이라
+           GL 에서 속(어두운 안쪽 낯)이 내려다보인다. */
+        x: 0, y: 0, h: 0.8, w: 1, tipW: W1_9, segs: 20, sides: 4, ref: [0, 1, 0],
         /* 끝끼리 모으되 붙지는 않게(재지적: 너무 붙었다) — 안쪽으로 눕는 몫 2.25 →
            1.85. 두 끝 사이에 문틈이 남는다. */
         path: (t9: number): [number, number, number] => [
@@ -13584,10 +13617,36 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // 크립 갈퀴는 맨 아래 붙박이 키(면에 깊이가 없어 앞 부품 값을 물려받으면 안 된다).
     const out: ShapeFace[] = [...tagKey(paintBase(creepSplat(7), "#3a3f46"), -20)];
     // 덩치 — 뒤가 높고 앞으로 숙은 볼록한 살덩이.
+    /* ★★ **굴은 GL 에서 진짜 구멍이다**(2026-09, 지적: "울트라덴, 커널 앞 동굴 입구가 안 뚫려 있음") — 2D 는
+       검은 아치 한 장을 몸 앞에 화가 차례로 얹어 굴로 읽혔지만, 그 아치(y 2.35)는 덩치의 살(밑동 반지름 4.4 →
+       앞 y 3.2) **속**이라 GL 은 깊이로 통째로 가렸다. 팩토리·커맨드 격납구와 같은 손: 덩치의 앞 낯을 아가리
+       자리만큼 빼고(`skipFace`), 그 안에 어두운 속(뒷벽·바닥·옆벽)을 **살 속에** 깐다 — 2D 에서는 덩치가 그
+       속을 덮으므로(키 −5) 그림이 안 바뀌고, 옛 아치 판은 2D 에서만 남긴다. 낯 수를 늘려(sides 14 → 22) 구멍
+       가장자리가 덜 각지게 한다. */
+    const caveSkip9 = MESH9.on
+      /* 구멍은 **아치꼴**이다 — 네모로 빼면 이빨 능선(호) 위 양 귀에 검은 홈이 남는다(실측). 낯 한가운데가 아치
+         (반폭 2.6 · 높이 0.3 + 2.5) 안이면 뺀다. */
+      ? (mx9: number, my9: number, mz9: number): boolean => my9 > 0.4 && Math.abs(mx9) < 2.6
+        && mz9 < 0.3 + 2.5 * Math.sqrt(Math.max(0, 1 - (mx9 / 2.6) ** 2))
+      : undefined;
     out.push(...tagKey(paintBase(spirePillar({
-      x: 0, y: 0, h: 0.8, w: 4.4, tipW: 1.4, segs: 8, sides: 14, hold: 0, taper: 0.5,
+      x: 0, y: 0, h: 0.8, w: 4.4, tipW: 1.4, segs: 8, sides: 22, hold: 0, taper: 0.5,
       path: (t9: number): [number, number, number] => [0, -1.2 - t9 * 1.1, t9 * 5.12],
+      /* ⚠ 밑 뚜껑은 GL 에서 안 깐다 — 커맨드 받침의 그 규약("아래를 보는 뚜껑은 눈에 안 보이면서 깊이만 쓴다"):
+         굴 바닥(z 0.06)과 0.06 차인데 부품 차례 편향(aOrd ≤ 0.7)이 그보다 커서 뚜껑이 바닥을 이겨 굴이 도로
+         메워졌다(실측: 속을 붉게 칠했더니 옆벽 귀퉁이만 보였다). */
+      skipFace: caveSkip9, caps: MESH9.on ? "top" : "both",
     }), HIDE), 0));
+    if (MESH9.on) {
+      // 둔덕 옆선: 반지름 r(t) = 1.4 + 3·(1−t)^0.5 (w 4.4 · tipW 1.4 · taper 0.5) · 축 y = −1.2 − 1.1t · z = 5.12t
+      const caveFront9 = (x9: number, z9: number): number => {
+        const t9 = Math.max(0, Math.min(1, z9 / 5.12));
+        const r9 = 1.4 + 3 * Math.sqrt(1 - t9);
+        return -1.2 - 1.1 * t9 + Math.sqrt(Math.max(0, r9 * r9 - x9 * x9)) - 0.15;
+      };
+      // 키 1 — 둔덕(0) **다음 차례**라야 부품 차례 편향에서 둔덕의 안쪽 낯에 안 진다(GL 에만 있는 판이라 2D 차례는 무관).
+      out.push(...tagKey(caveInside9(2.6, 0.2, 2.7, caveFront9, "#0d1013"), 1));
+    }
     /* 굵은 핏줄 — 덩치 옆선을 타고 오르는 가는 기둥 여섯. */
     for (const ang of [-150, -95, -40, 30, 95, 150]) {
       const a9 = (ang * Math.PI) / 180;
@@ -13611,7 +13670,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const th = (i9 / 12) * Math.PI;
         return [Math.cos(th) * rx, yy, z0 + (up ? 1 : -1) * Math.sin(th) * rz] as [number, number, number];
       }));
-    out.push(...tagKey([
+    if (!MESH9.on) out.push(...tagKey([
       [arc9(2.35, 2.5, 2.32, 0.16, true), 0.97, "#0d1013"] as ShapeFace,
     ], mouthKey));
     // 위턱 이빨 능선 — 아가리 위를 덮는 누런 테.
@@ -13661,10 +13720,24 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // 크립 갈퀴는 맨 아래 붙박이 키(면에 깊이가 없어 앞 부품 값을 물려받으면 안 된다).
     const out: ShapeFace[] = [...tagKey(creepSplat(6.4), -20)];
     // 둔덕 — 볼록한 종 모양 살덩이. 입구를 낼 자리라 뒤로 조금 물려 앉힌다.
+    /* ★★ GL 에서는 진짜 굴이다(캐번의 ★★와 같은 손 — 지적: "커널 앞 동굴 입구가 안 뚫려 있음"). */
+    const nydSkip9 = MESH9.on
+      ? (mx9: number, my9: number, mz9: number): boolean => my9 > 0.3 && Math.abs(mx9) < 2.3
+        && mz9 < 0.3 + 2.2 * Math.sqrt(Math.max(0, 1 - (mx9 / 2.3) ** 2))   // 아치꼴(캐번과 같은 까닭)
+      : undefined;
     out.push(...tagKey(paintBase(spirePillar({
       x: 0, y: -0.6, z0: 0, h: 3.36, w: 4.4, tipW: 1.5,
-      segs: 7, sides: 14, hold: 0, taper: 0.6,
+      segs: 7, sides: 22, hold: 0, taper: 0.6, skipFace: nydSkip9, caps: MESH9.on ? "top" : "both",
     }), "#6b4732"), 0));
+    if (MESH9.on) {
+      // 둔덕 옆선: 반지름 r(t) = 1.5 + 2.9·(1−t)^0.6 (w 4.4 · tipW 1.5 · taper 0.6) · 축 y = −0.6 · z = 3.36t
+      const nydFront9 = (x9: number, z9: number): number => {
+        const t9 = Math.max(0, Math.min(1, z9 / 3.36));
+        const r9 = 1.5 + 2.9 * (1 - t9) ** 0.6;
+        return -0.6 + Math.sqrt(Math.max(0, r9 * r9 - x9 * x9)) - 0.15;
+      };
+      out.push(...tagKey(caveInside9(2.3, 0.0, 2.4, nydFront9, "#06070a"), 1));
+    }
     /* 굴 속 — 아치 안의 검은 구멍. 제 자리 깊이를 그대로 쓰므로 앞을 보면 둔덕 위로
        올라오고 뒤로 돌면 둔덕에 묻힌다(따로 문턱을 두지 않는다). */
     const mouthKey = depthNow(0, 1.9) * 1.6;
@@ -13674,7 +13747,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         return [Math.cos(th) * rx, yy, z0 + Math.sin(th) * rz] as [number, number, number];
       }),
     );
-    out.push(...tagKey([
+    if (!MESH9.on) out.push(...tagKey([
       [arch9(1.95, 2.15, 2.04, 0.16), 0.96, "#14171c"] as ShapeFace,
       [arch9(1.7, 1.5, 1.52, 0.36), 0.98, "#06070a"] as ShapeFace,
     ], mouthKey + 0.2));
@@ -22853,11 +22926,20 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         [orbPath3(0, 1.95 * BK, bz(3.95), 0.8 * BK), 1, "#6b4732"] as ShapeFace,
         topFace(shinePath3(0, 1.95 * BK, bz(3.95), 0.8 * BK, -0.26 * BK, -0.26 * BK, 0.3 * BK), 0.22),
       ], depthNow(0, 1.95 * BK) * 1.6 + 1.5),
-      ...([-1, 1] as const).flatMap((m) => lensFaces({
-        x: m * 0.42 * BK, y: 1.95 * BK, z: bz(4.35), nx: m * 0.5, ny: 1,
-        r: 0.22 * BK, bulge: 0.15 * BK, lift: 3,
-        rim: "#5c1610", fill: "#d8412a", core: "#ff8a5c", glint: "#ffe0cf",
-      })),
+      /* ★ **눈은 얼굴 구의 껍질 위에 앉는다**(2026-09, 지적: "오버로드 얼굴에 눈 추가 필요") — 눈은 있었다. 그런데
+         자리가 구의 **중심 깊이**(y = 구 중심 · x ±0.42 · r 0.8 인 구 속)라 2D 는 화가 차례로 위에 얹혀 보였고, GL 은
+         진짜 깊이라 구 살에 통째로 묻혔다. 구 중심에서 눈이 향하는 방향(앞·바깥·조금 위)으로 반지름만큼 나간
+         점에 앉히고 법선도 그 방향으로 준다 — 어느 붓에서도 껍질 위다. 조금 키운다(0.22 → 0.27). */
+      ...([-1, 1] as const).flatMap((m) => {
+        const dl9 = Math.hypot(0.5, 1, 0.42);
+        const dx9 = (m * 0.5) / dl9; const dy9 = 1 / dl9; const dz9 = 0.42 / dl9;
+        const rr9 = 0.8 * BK * 0.98;
+        return lensFaces({
+          x: dx9 * rr9, y: 1.95 * BK + dy9 * rr9, z: bz(3.95) + dz9 * rr9, nx: dx9, ny: dy9,
+          r: 0.27 * BK, bulge: 0.15 * BK, lift: 3,
+          rim: "#5c1610", fill: "#d8412a", core: "#ff8a5c", glint: "#ffe0cf",
+        });
+      }),
     ];
     /* 가는 다리 — 배 밑에 매달린 세 쌍. 마디 셋으로 수직에 가깝게 떨어지며 발끝으로
        갈수록 가늘고, 끝마디만 상아 발톱이다. 화면 띠가 아니라 투영 막대라 어느
