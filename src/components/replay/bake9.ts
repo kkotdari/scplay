@@ -13624,13 +13624,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        속을 덮으므로(키 −5) 그림이 안 바뀌고, 옛 아치 판은 2D 에서만 남긴다. 낯 수를 늘려(sides 14 → 22) 구멍
        가장자리가 덜 각지게 한다. */
     const caveSkip9 = MESH9.on
-      /* 구멍은 **아치꼴**이다 — 네모로 빼면 이빨 능선(호) 위 양 귀에 검은 홈이 남는다(실측). 낯 한가운데가 아치
-         (반폭 2.6 · 높이 0.3 + 2.5) 안이면 뺀다. */
-      ? (mx9: number, my9: number, mz9: number): boolean => my9 > 0.4 && Math.abs(mx9) < 2.6
-        && mz9 < 0.3 + 2.5 * Math.sqrt(Math.max(0, 1 - (mx9 / 2.6) ** 2))
+      /* 구멍은 **이빨 능선 안쪽의 타원**이다(지적: "검정이 입구 문틀에 안 가려진 곳이 있어") — 낯은 통째로만
+         빠지므로 구멍의 가장자리는 낯 한가운데 자에서 **반 낯**(폭 0.38·높이 0.19)만큼 더 나간다. 능선(호 2.62×2.44 ·
+         굵기 0.46)의 안쪽 가장자리(2.16×1.98)에서 그 반 낯을 뺀 타원(1.75×1.75)을 자로 두면 빠진 낯의 끝이 능선 띠
+         안에 든다. 낯을 잘게(sides 36 · segs 14) 쪼개야 그 반 낯이 작다. */
+      ? (mx9: number, my9: number, mz9: number): boolean => my9 > 0.4
+        && (mx9 / 1.75) ** 2 + ((mz9 - 0.16) / 1.75) ** 2 < 1
       : undefined;
     out.push(...tagKey(paintBase(spirePillar({
-      x: 0, y: 0, h: 0.8, w: 4.4, tipW: 1.4, segs: 8, sides: 22, hold: 0, taper: 0.5,
+      x: 0, y: 0, h: 0.8, w: 4.4, tipW: 1.4, segs: MESH9.on ? 14 : 8, sides: MESH9.on ? 36 : 14, hold: 0, taper: 0.5,
       path: (t9: number): [number, number, number] => [0, -1.2 - t9 * 1.1, t9 * 5.12],
       /* ⚠ 밑 뚜껑은 GL 에서 안 깐다 — 커맨드 받침의 그 규약("아래를 보는 뚜껑은 눈에 안 보이면서 깊이만 쓴다"):
          굴 바닥(z 0.06)과 0.06 차인데 부품 차례 편향(aOrd ≤ 0.7)이 그보다 커서 뚜껑이 바닥을 이겨 굴이 도로
@@ -13722,12 +13724,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // 둔덕 — 볼록한 종 모양 살덩이. 입구를 낼 자리라 뒤로 조금 물려 앉힌다.
     /* ★★ GL 에서는 진짜 굴이다(캐번의 ★★와 같은 손 — 지적: "커널 앞 동굴 입구가 안 뚫려 있음"). */
     const nydSkip9 = MESH9.on
-      ? (mx9: number, my9: number, mz9: number): boolean => my9 > 0.3 && Math.abs(mx9) < 2.3
-        && mz9 < 0.3 + 2.2 * Math.sqrt(Math.max(0, 1 - (mx9 / 2.3) ** 2))   // 아치꼴(캐번과 같은 까닭)
+      // 아치 관(호 2.55×2.2 · 굵기 0.85)의 안쪽 가장자리 안에 드는 타원(캐번과 같은 까닭 — 낯 반 폭을 뺀 자).
+      ? (mx9: number, my9: number, mz9: number): boolean => my9 > 0.3
+        && (mx9 / 1.45) ** 2 + ((mz9 - 0.16) / 1.5) ** 2 < 1
       : undefined;
     out.push(...tagKey(paintBase(spirePillar({
       x: 0, y: -0.6, z0: 0, h: 3.36, w: 4.4, tipW: 1.5,
-      segs: 7, sides: 22, hold: 0, taper: 0.6, skipFace: nydSkip9, caps: MESH9.on ? "top" : "both",
+      segs: MESH9.on ? 12 : 7, sides: MESH9.on ? 36 : 14, hold: 0, taper: 0.6, skipFace: nydSkip9, caps: MESH9.on ? "top" : "both",
     }), "#6b4732"), 0));
     if (MESH9.on) {
       // 둔덕 옆선: 반지름 r(t) = 1.5 + 2.9·(1−t)^0.6 (w 4.4 · tipW 1.5 · taper 0.6) · 축 y = −0.6 · z = 3.36t
