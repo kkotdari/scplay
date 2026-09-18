@@ -6137,12 +6137,13 @@ export function docTgtLift9(kind: string, air: boolean): number {
   /* ★★ **뜬 높이는 사수에 견준 값이다**(2026-09, 지적: "도록에서 공중타겟과 공중유닛이 왜 높이가 달라") —
      지도는 **모든 공중 몸을 같은 높이**(airLiftPxOf · 기준 몸 하나의 값)로 띄우므로 레이스가 참새를 쏠 때
      둘은 같은 하늘에 있다. 그런데 도록은 쏘는 몸을 늘 땅 원점(12)에 그리면서 참새만 그 높이로 올려,
-     공중 사수 곁에서 참새가 사수보다 한 층 위에 떴다. 사수가 나는 몸이면 참새는 **사수와 같은 높이**(0)에
-     선다 — 도록의 원점은 '그 사수가 있는 층'이지 땅이 아니다.
-     ⚠ 곰돌이는 그 층에 그대로 둔다 — 지도처럼 사수의 뜬 몫(9.6)만큼 내리면 창이 그만큼 커져 레이스·곰돌이가
-       다 점이 된다(구워 보고 되물렸다). 지상 사수는 종전 그대로다. */
-  if (!air) return 0;
-  return docShooterAir9(kind) ? 0 : docLiftRaw9(kind);
+     공중 사수 곁에서 참새가 사수보다 한 층 위에 떴다. 사수가 나는 몸이면 제 뜬 몫을 빼서 **상대 높이**로
+     세운다: 공중 ↔ 공중은 0(같은 하늘) · 공중 사수 ↔ 곰돌이는 **음수**(곰돌이가 사수 아래의 땅에 선다 —
+     지적: "지상 타겟과 공중 유닛은 높이가 왜 같구"). 도록의 원점은 '그 사수가 있는 층'이지 땅이 아니다.
+     지상 사수는 종전 그대로다. 창(docCellBox9)은 내린 몫(dn)도 아울러 잰다. */
+  const tl9 = air ? docLiftRaw9(kind) : 0;
+  const sl9 = docShooterAir9(kind) ? docLiftRaw9(kind) : 0;
+  return tl9 - sl9;
 }
 /** 지도의 뜬 높이(`airLiftPxOf`)를 이 칸의 16-상자 자로 옮긴 값 — 사수·표적이 같은 값을 쓴다(지도가 그렇다). */
 function docLiftRaw9(kind: string): number {
@@ -6549,7 +6550,7 @@ export function docCellsOf9(kind: string, t: number, yaw: number): DocCell9[] {
 export function docCellBox9(kind: string, group?: string): Map<string, string | undefined> {
   const yaw0 = galleryYawOf(45, group);
   /** 그 칸이 그릴 수 있는 것 — 종류마다 **치우침의 상자**(min·max)를 함께 모은다. */
-  type Seen9 = Map<string, { x0: number; y0: number; x1: number; y1: number; r: number; k: number; up: number }>;
+  type Seen9 = Map<string, { x0: number; y0: number; x1: number; y1: number; r: number; k: number; up: number; dn: number }>;
   const byLabel = new Map<string, Seen9>();
   const tracerOf = new Map<string, boolean>();
   const tgtOf = new Map<string, boolean>();
@@ -6564,10 +6565,11 @@ export function docCellBox9(kind: string, group?: string): Map<string, string | 
     // 땅의 앞뒤는 눌려 있으므로(DOC_GROUND_K9) 도로 펴서 재야 원의 반지름이 거리 그대로다(요잉 90 이면 x 가 그 거리다).
     const r9 = Math.hypot(dx9, (dy9 + up9) / DOC_GROUND_K9);
     const b9 = seen.get(k9);
-    if (!b9) { seen.set(k9, { x0: dx9, y0: dy9, x1: dx9, y1: dy9, r: r9, k: pk9, up: up9 }); return; }
+    // ⚠ up 은 음수일 수 있다(공중 사수 곁의 곰돌이 — 사수 아래의 땅) — 위로 든 몫(up)과 아래로 내린 몫(dn)을 따로 든다.
+    if (!b9) { seen.set(k9, { x0: dx9, y0: dy9, x1: dx9, y1: dy9, r: r9, k: pk9, up: Math.max(0, up9), dn: Math.max(0, -up9) }); return; }
     b9.x0 = Math.min(b9.x0, dx9); b9.y0 = Math.min(b9.y0, dy9);
     b9.x1 = Math.max(b9.x1, dx9); b9.y1 = Math.max(b9.y1, dy9);
-    b9.r = Math.max(b9.r, r9); b9.k = Math.max(b9.k, pk9); b9.up = Math.max(b9.up, up9);
+    b9.r = Math.max(b9.r, r9); b9.k = Math.max(b9.k, pk9); b9.up = Math.max(b9.up, up9); b9.dn = Math.max(b9.dn, -up9);
   };
   for (let i9 = 0; i9 < 60; i9 += 1) {
     for (const c9 of docCellsOf9(kind, i9 * 0.2, yaw0)) {
@@ -6593,7 +6595,7 @@ export function docCellBox9(kind: string, group?: string): Map<string, string | 
         const kk9 = off9.k;
         const q9: [number, number, number, number] = [
           8 + (n9[0] - 8) * kk9 + Math.min(off9.x0, -off9.r), 12 + (n9[1] - 12) * kk9 + Math.min(off9.y0, -off9.r - off9.up),
-          8 + (n9[0] + n9[2] - 8) * kk9 + Math.max(off9.x1, off9.r), 12 + (n9[1] + n9[3] - 12) * kk9 + Math.max(off9.y1, off9.r - off9.up)];
+          8 + (n9[0] + n9[2] - 8) * kk9 + Math.max(off9.x1, off9.r), 12 + (n9[1] + n9[3] - 12) * kk9 + Math.max(off9.y1, off9.r + off9.dn)];
         b9 = b9 ? [Math.min(b9[0], q9[0]), Math.min(b9[1], q9[1]), Math.max(b9[2], q9[2]), Math.max(b9[3], q9[3])] : q9;
       }
     }
