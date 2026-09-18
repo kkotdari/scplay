@@ -6134,13 +6134,30 @@ const docDollK9 = (kind: string): number => {
  *  무관한 한 값)를 이 칸의 자(쏘는 종류의 16-상자 = 그 종류의 지도 타일 수)로 옮긴 것이다. 여태 참새 인형이
  *  곰돌이와 같은 땅에 앉아 있었다(지적: "공격 타겟 인형 위치가 … 좀 낮게"). */
 export function docTgtLift9(kind: string, air: boolean): number {
+  /* ★★ **뜬 높이는 사수에 견준 값이다**(2026-09, 지적: "도록에서 공중타겟과 공중유닛이 왜 높이가 달라") —
+     지도는 **모든 공중 몸을 같은 높이**(airLiftPxOf · 기준 몸 하나의 값)로 띄우므로 레이스가 참새를 쏠 때
+     둘은 같은 하늘에 있다. 그런데 도록은 쏘는 몸을 늘 땅 원점(12)에 그리면서 참새만 그 높이로 올려,
+     공중 사수 곁에서 참새가 사수보다 한 층 위에 떴다. 사수가 나는 몸이면 참새는 **사수와 같은 높이**(0)에
+     선다 — 도록의 원점은 '그 사수가 있는 층'이지 땅이 아니다.
+     ⚠ 곰돌이는 그 층에 그대로 둔다 — 지도처럼 사수의 뜬 몫(9.6)만큼 내리면 창이 그만큼 커져 레이스·곰돌이가
+       다 점이 된다(구워 보고 되물렸다). 지상 사수는 종전 그대로다. */
   if (!air) return 0;
+  return docShooterAir9(kind) ? 0 : docLiftRaw9(kind);
+}
+/** 지도의 뜬 높이(`airLiftPxOf`)를 이 칸의 16-상자 자로 옮긴 값 — 사수·표적이 같은 값을 쓴다(지도가 그렇다). */
+function docLiftRaw9(kind: string): number {
   const ref9 = UNIT_3D[AIR_LIFT_REF] ?? "wraith";
   const lift9 = (AIR_LIFT_K * shapeMapTiles(ref9) * 16) / Math.max(0.5, shapeMapTiles(kind));
   /* ⚠ 거리와 **같은 상한**으로 죈다(잉크 폭의 DOC_TGT_MAX9 배) — 지도의 뜬 높이는 레이스 2.3타일이라 터렛
      (1.24타일)의 자로는 **30**(거리 10.4 의 세 배)이 되어 창이 통째로 커지고 둘 다 점이 된다. 거리를 죄는
      그 규약 그대로, 보여 주는 자리에서만 죈다(골리앗 10.1 · 레이스 9.6 은 참값 그대로 선다). */
   return Math.min(lift9, Math.max(2, modelInkOf(kind) || 6) * DOC_TGT_MAX9) / docNormK9(kind);
+}
+/** 그 칸이 그리는 사수가 **나는 몸**인가 — 지도의 그 문(`isAirUnit`)을 종류 이름으로 되짚는다
+ *  (인터셉터도 그 문이 참이다 — 캐리어 칸의 사수가 인터셉터라 참새와 같은 하늘에 선다). */
+function docShooterAir9(kind: string): boolean {
+  const nm9 = docUnitName9(kind);
+  return !!nm9 && isAirUnit(nm9);
 }
 /** ★★ **줄기가 닿는 자리는 인형의 발밑이 아니라 몸 가운데다**(2026-09, 지적: "도록에서 공격 타겟 인형
  *  위치가 잘 안 맞는 거 같지 — 좀 낮게 잡혀 있는 거 같아") — 지도는 사수 총구 → **표적 몸 가운데**
