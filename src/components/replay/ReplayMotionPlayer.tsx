@@ -5302,7 +5302,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         }
         if (scrDiagOn()) {
           const miss9 = [...GL_MISS9].sort((a9, b9) => b9[1] - a9[1]).slice(0, 4).map(([k9, n9]) => `${k9}×${n9}`).join(" ");
-          SCR_DIAG.gl = `on 개체 ${gl9.stat.inst} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}/${gl9.meshMax}(${gl9.stat.bakeMs.toFixed(0)}ms·${(gl9.stat.bytes / 1048576).toFixed(1)}MB${gl9.stat.evict ? "·버림 " + gl9.stat.evict : ""}) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit 번짐 ${gl9.stat.bloom}${miss9 ? " 판으로 " + miss9 : ""}`;
+          SCR_DIAG.gl = `on${gl9.gl2 ? "2" : "1"}${gl9.instOn ? "" : "·인스턴싱 없음"} 개체 ${gl9.stat.inst} 드로 ${gl9.stat.draws} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}/${gl9.meshMax}(${gl9.stat.bakeMs.toFixed(0)}ms·${(gl9.stat.bytes / 1048576).toFixed(1)}MB${gl9.stat.evict ? "·버림 " + gl9.stat.evict : ""}) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit 번짐 ${gl9.stat.bloom}${miss9 ? " 판으로 " + miss9 : ""}`;
         }
       }
       if (fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM)) {

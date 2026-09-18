@@ -54,11 +54,21 @@ export interface GlMesh9 { vbo: WebGLBuffer; n: number; nSolid: number; bias: nu
 /* 정점 36바이트(예전 float 15개 60바이트): pos3·nrm3(빌보드면 원반 가운데) float · rgb3+team1 바이트(정규화) · alpha·덧칠 흰·검·빌보드 바이트(정규화) ·
    부품 차례 float. 0~1 값은 바이트 정규화로 충분하다(색 자체가 8비트, 알파·덧칠 1/255). 폰에서 메시 표(상한 240벌)가 메모리의 큰 몫이라 줄였다. */
 const STRIDE_B = 36;
+/** 인스턴스 기록 — 22 float(88바이트): aInA·aInB·aInC(vec4 셋) · aTeamC·aSolidC(vec3 둘) · aShad(vec4). */
+const INST_F9 = 22; const INST_B9 = INST_F9 * 4;
 const MESH_MAX9 = 600;   // 메시 상한 기본(종류×자세×LOD + 건물 변종) — 넘으면 오래된 것부터. 기기 표(DEV9.glMeshMax)가 덮는다(폰 240).
 const VS = `
 attribute vec3 aPos; attribute vec3 aNrm; attribute vec3 aRgb; attribute float aTeam; attribute float aAlpha; attribute vec2 aOv; attribute float aOrd; attribute float aBb;
-uniform vec2 uAnchor; uniform vec3 uScale; uniform vec2 uYaw; uniform vec2 uCanvas; uniform vec2 uCam;
-uniform vec3 uTeam; uniform vec4 uSolid; uniform vec3 uLight; uniform float uAlpha; uniform float uDepth0; uniform float uDepthK; uniform float uPersp;
+/* ★★ **개체별 값은 유니폼이 아니라 인스턴스 속성이다**(2026-09, 요청: "gl2로") — 같은 메시의 개체 N 기를 **한 드로 콜**
+   (drawArraysInstanced)로 그린다. 개체마다 유니폼 여남은 개를 놓고 drawArrays 하던 것이 드로 콜 2천 번(난전)의 뿌리였다.
+   여섯 속성(divisor 1)에 개체의 자리·배수·요잉·색·깊이 칸·그림자를 다 싣는다(88바이트/개체):
+   aInA (앵커 x·y · 요잉 cos·sin) · aInB (배수 k · 세로 원점 몫 · 알파 · 깊이 칸) · aInC (실루엣 빛 반지름 · 세로 몫 · 결 켬 ·
+   단색 켬) · aTeamC 임자색 · aSolidC 단색 · aShad (그림자 켬 · 나는 높이 · dy · 그림자 알파).
+   인스턴싱이 없는 문맥(WebGL1 + 확장 없음)에서는 같은 속성을 **상수 속성**(vertexAttrib4f)으로 개체마다 놓고 하나씩 그린다 —
+   셰이더는 한 벌이다. */
+attribute vec4 aInA; attribute vec4 aInB; attribute vec4 aInC; attribute vec3 aTeamC; attribute vec3 aSolidC; attribute vec4 aShad;
+uniform vec2 uCanvas; uniform vec2 uCam;
+uniform vec3 uLight; uniform float uDepthK; uniform float uPersp;
 /** 광택 — x 날카로움 · y 봉우리 세기 · z 제 색에 물드는 몫(금속 1 · 살점 0) · w 넓은 윤기. 종류마다 다르다(glossOf9).
  *  세기 둘(y·w)에는 손잡이(#glspec)와 진단 문(#glshade)이 **CPU 에서 이미 접혀** 있다 — 정점마다 물을 일이 아니다. */
 uniform vec4 uGloss;
@@ -75,10 +85,10 @@ uniform vec3 uHalf;
 /* (걷어냄) 꼭짓점 셰이더의 uGrain — 여기서는 한 번도 안 읽었고, 화소 쪽이 vec2 가 되면서
    **같은 이름·다른 형**이 되어 링크가 터진다. 결은 화소마다의 일이라 화소 셰이더만 든다.
    ⚠⚠ 이 주석에 역따옴표를 쓰면 TS1005 로 터진다(셰이더가 JS 템플릿 문자열 안이다) — 세 번째다. */
-uniform vec4 uShade; uniform float uDy; uniform vec2 uLean;
+uniform vec2 uLean;
 /* 바닥 그림자 — (빛의 화면 기울기 x, y, 켬). 켜면 꼭짓점을 **빛 방향으로 밀어 z 를 0 으로** 눌러, 몸의 실루엣이
    바닥에 눕는다(2D 의 흐린 판 그림자가 하던 몫을 기하로 낸다 — 높은 부품일수록 멀리 눕는다). */
-uniform vec4 uShadow;   // (빛 기울기 x, y, 켬, 나는 높이)
+uniform vec2 uShadowK;   // 빛 기울기 x, y (켬·나는 높이는 개체의 aShad 다)
 /* 그림자 켜의 **못 박은 깊이** — 0 이면 안 쓴다. 한 켜의 모든 삼각형이 같은 깊이를 쓰면, 깊이 쓰기를 켠 채
    LESS 로 그릴 때 **한 화소에 한 번만** 칠해진다(겹친 부품·겹친 개체가 두 번 어두워지지 않는다). */
 uniform float uShZ;
@@ -86,8 +96,10 @@ uniform float uShZ;
 uniform float uEmit;
 uniform float uFlat;  // 효과(발광): 1 이면 음영·실루엣 빛·방향광 없이 제 색
 uniform float uDbg;   // 진단 #glshade=0..2(0 덧칠 없음 · 1 덧칠 · 2 +실루엣 빛)
-uniform vec4 uGrad;   // 실루엣 빛(silhouetteLight): 화면 빛 방향 (x,y) · 모델 상자 반지름 R · 상자 가운데의 앵커 기준 세로 몫
+/* 실루엣 빛(silhouetteLight)의 화면 빛 방향은 카메라만의 함수라 여기서 낸다 · 모델 상자 반지름 R · 상자 가운데의 앵커 기준 세로 몫은 aInC.xy 다 */
 varying vec4 vCol;
+/** 결의 옥타브 몫 — 개체의 배율(k)만의 함수라 정점에서 내고 화소로 넘긴다(옛 uGrain·uGrainA 유니폼). 화소 주기가 2.1 아래면 0, 3.1 위면 제 몫. */
+varying vec4 vGa; varying float vG0;
 /** 광택 몫 — **rgb 는 약한 쪽의 색**(제 색 물듦까지 먹인 값) · **a 는 낯의 각만으로 나는 몫**(윤기 + 봉우리).
  *  둘 다 법선의 함수라 한 낯 안에서 안 변한다. 결이 곱해질 자리가 여기다. */
 varying vec4 vSpec;
@@ -105,7 +117,7 @@ varying vec4 vGl;
 /** 결의 자 셋 — **x 줄을 가로지르는 눈금**(낯의 수평 접선) · **y 줄을 따라가는 눈금**(세운 낯은 높이 z,
  *  누운 낯은 모형 y) · **z 이 낯이 결을 받는 재질인가**(0~1). 앞 둘은 자리의 **1차 함수**라 삼각형 안에서
  *  보간이 정확하고, 셋을 한 벡터에 담아 varying 자리를 하나만 쓴다. */
-varying vec3 vGr;
+varying vec4 vGr;
 void main() {
   /* aBb 한 칸에 표식 셋이 비트로 들었다: **1 빛**(번짐이 문다) · **2 닫힌 입체**(등진 낯을 걷는다) · **4 빌보드 원반**(카메라를 본다). */
   float bits = floor(aBb * 255.0 + 0.5);
@@ -115,6 +127,12 @@ void main() {
   // 번짐 켜(uEmit)는 **빛나는 낯만** 그린다 — 나머지는 클립 밖으로.
   if (uEmit > 0.5 && emit < 0.5) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); vCol = vec4(0.0); return; }
   /* 빌보드 원반: 카메라를 보게 기록한 판이라 요잉을 안 돌린다 — 원반 가운데(aNrm 에 실림)만 돌리고 둘레는 그 자리에서 편다. */
+  vec2 uAnchor = aInA.xy; vec2 uYaw = aInA.zw;
+  vec3 uScale = vec3(aInB.x, aInB.x, aInB.y); float uAlpha = aInB.z; float uDepth0 = aInB.w;
+  vec4 uGrad = vec4(normalize(vec2(-0.9, 0.45 * uCam.x - uCam.y)), aInC.x, aInC.y);
+  vec3 uTeam = aTeamC; vec4 uSolid = vec4(aSolidC, aInC.w);
+  vec4 uShade = vec4(0.0, 0.0, 0.0, aShad.w); float uDy = aShad.z;
+  vec4 uShadow = vec4(uShadowK.x, uShadowK.y, aShad.x, aShad.y);
   vec3 pc = bill > 0.5 ? aNrm : aPos;
   vec3 pd = bill > 0.5 ? aPos - aNrm : vec3(0.0);
   float rx = pc.x * uYaw.x + pc.y * uYaw.y + pd.x;
@@ -276,6 +294,7 @@ void main() {
   float lum0 = dot(base, vec3(0.299, 0.587, 0.114));
   float mx0 = max(base.r, max(base.g, base.b));
   float sat0 = mx0 > 0.001 ? (mx0 - min(base.r, min(base.g, base.b))) / mx0 : 0.0;
+  vGr.w = aInC.z;
   vGr.z = (1.0 - smoothstep(0.22, 0.45, sat0))
     * smoothstep(0.20, 0.36, lum0) * (1.0 - smoothstep(0.66, 0.88, lum0));
   if (uGloss.y > 0.0 || uGloss.w > 0.0) {
@@ -323,14 +342,23 @@ void main() {
   }
   if (uShade.a > 0.0) { vSpec = vec4(1.0, 1.0, 1.0, 0.0); vGl = vec4(0.0); vCol = vec4(uShade.rgb, uShade.a * aAlpha); }
   else vCol = vec4(col, aAlpha * uAlpha);
+  /* 결 옥타브의 몫(옛 CPU grainOct9) — 배율 k 에서 옥타브(30·42·58·80·110 rad/모형칸) 한 줄의 화소 주기 2π·k/f 가
+     2.1 아래면 0, 3.1 위면 제 몫(0.34·0.27·0.19·0.13·0.07). 합을 1 로 안 맞춘다(화소 셰이더의 ⚠). */
+  vGa = vec4(0.0); vG0 = 0.0;
+  if (aInC.z > 0.0) {
+    float kk = aInB.x * 6.2831853;
+    float t0 = clamp(kk / 30.0 - 2.1, 0.0, 1.0); vG0 = 0.34 * t0 * t0 * (3.0 - 2.0 * t0);
+    float t1 = clamp(kk / 42.0 - 2.1, 0.0, 1.0); vGa.x = 0.27 * t1 * t1 * (3.0 - 2.0 * t1);
+    float t2 = clamp(kk / 58.0 - 2.1, 0.0, 1.0); vGa.y = 0.19 * t2 * t2 * (3.0 - 2.0 * t2);
+    float t3 = clamp(kk / 80.0 - 2.1, 0.0, 1.0); vGa.z = 0.13 * t3 * t3 * (3.0 - 2.0 * t3);
+    float t4 = clamp(kk / 110.0 - 2.1, 0.0, 1.0); vGa.w = 0.07 * t4 * t4 * (3.0 - 2.0 * t4);
+  }
 }`;
 const FS = `
 precision mediump float;
-varying vec4 vCol; varying vec4 vSpec; varying vec4 vGl; varying vec3 vGr;
-/** x = 결 세기 · y = **가장 굵은 옥타브의 몫**(나머지 넷은 uGrainA). */
-uniform vec2 uGrain;
-/** 결 옥타브 **둘째~다섯째의 몫**(첫째는 1 − 합) — CPU 가 배율(k)을 보고 나이퀴스트로 깎아 보낸다. */
-uniform vec4 uGrainA;
+varying vec4 vCol; varying vec4 vSpec; varying vec4 vGl; varying vec4 vGr; varying vec4 vGa; varying float vG0;
+/* (걷어냄) uGrain·uGrainA — 개체마다 유니폼을 놓던 자다. 이제 인스턴스 속성에서 정점이 내어 varying 으로 온다
+   (vGr.w 켬 · vG0·vGa 옥타브 몫 — 개체 안에서는 상수라 보간해도 그대로다). */
 uniform vec3 uSpecTint;   // 센 자리의 색(찬 강철빛) — 약한 자리는 vSpec.rgb(제 색 물듦)다
 void main() {
   /* 전구 얼룩만 화소에서 잰다(위 vGl 의 ★★) — 나눗셈 하나와 곱셈 몇이다. 낯의 각으로 나는 몫(vSpec.a)은
@@ -355,7 +383,7 @@ void main() {
        사실도 아니고, 화소보다 촘촘한 줄은 결이 아니라 물결무늬다(WebGL1 은 dFdx 가 없어 스스로 못 줄인다).
      ⚠ 값은 **화소마다**다 — 그래서 CPU 가 uGrain 에 그 페이드를 접어 보내고(작으면 0), 0 이면 이 가지를
        통째로 건너뛴다. 유니폼 가지라 한 그리기 안에서 갈라지지 않는다. */
-  if (uGrain.x > 0.0) {
+  if (vGr.w > 0.0) {
     float s9 = vGr.x;
     /* ⚠ 세기 봉투도 **잘게** — 3.1 은 파장이 모형 두 칸이라, 가까이서 보면 그 마루가 폭 100화소짜리
        **넓은 띠**로 읽혔다(줄이 아니라 얼룩이다). 9.0 으로 올리고 흔들 폭도 좁힌다. */
@@ -371,12 +399,12 @@ void main() {
        ⚠ **몫의 합을 1 로 맞추지 않는다** — 맞추면 저배율에서 가는 옥타브가 다 꺼진 몫까지 굵은 옥타브가
          떠안아, 나이퀴스트 아래에서 **혼자 커진다**. 안 맞추면 합이 곧 '지금 보이는 결의 총량'이라,
          멀어질수록 저절로 여위고 가까울수록 도톰해진다(0.34 → 1.00). */
-    float a0 = uGrain.y;
+    float a0 = vG0;
     float n = (sin(s9 * 30.0 + 2.7) * a0
-      + sin(s9 * 42.0) * uGrainA.x
-      + sin(s9 * 58.0 + 1.3) * uGrainA.y
-      + sin(s9 * 80.0 + 0.4) * uGrainA.z
-      + sin(s9 * 110.0 + 2.1) * uGrainA.w) * a;
+      + sin(s9 * 42.0) * vGa.x
+      + sin(s9 * 58.0 + 1.3) * vGa.y
+      + sin(s9 * 80.0 + 0.4) * vGa.z
+      + sin(s9 * 110.0 + 2.1) * vGa.w) * a;
     /* ★ **겹이 둘이다**(2026-09, 보기: 브러시드 알루미늄 판 사진) — 실물 결은 **빽빽한 잔 줄이 낯 전체에
        깔리고**(길이로 이어진다) 그 위에 **드문 기스 몇 가닥**이 얹힌 것이다. 한 겹만 두면 둘 다 틀린다:
        잔 줄만 두면 긁힌 자국이 없고, 기스만 두면 판이 맨질해서 금속으로 안 읽힌다.
@@ -414,7 +442,7 @@ void main() {
     float n2 = n * n;
     float scr = n * n2 * n2 * 2.0 * e;
     float g = base9 * 0.8 + scr;
-    float w = uGrain.x * vGr.z;
+    float w = vGr.w * vGr.z;
     /* ★ **빛 받는 낯의 기스만 흰빛으로 튄다**(요청: "빛을 받는 면의 헤어라인은 유난히 밝게 — 거의 흰색") —
        '얼마나 빛을 받나'는 이미 광택(vSpec)이 들고 있다. 그 휘도를 곱하면 등진 낯에서는 그 항이 저절로
        0 이 되므로 문을 따로 둘 일이 없다. 도드라진 쪽(g>0)만 태운다 — 기스는 빛을 **튕기는** 자국이다. */
@@ -642,7 +670,17 @@ void main() {
 const BLOOM9: [number, number] = [0.62, 1.8];
 
 export class GlUnits9 {
-  readonly gl: WebGLRenderingContext;
+  readonly gl: WebGLRenderingContext | WebGL2RenderingContext;
+  /** WebGL 2 문맥인가(`#gl2=0` 이면 1 로 연다 — 견줌용). */
+  readonly gl2: boolean;
+  /** 인스턴싱이 서는가 — WebGL 2 는 핵심 기능, WebGL 1 은 ANGLE_instanced_arrays 확장. 둘 다 없으면(`#glinst=0` 도) 상수 속성으로 하나씩 그린다. */
+  readonly instOn: boolean;
+  private divisor: (loc: number, d: number) => void = () => {};
+  private drawInst: (first: number, n: number, count: number) => void = () => {};
+  /** 인스턴스 버퍼 — 프레임의 개체 기록(22 float · 88바이트)을 한 번에 올린다. */
+  private instVbo: WebGLBuffer;
+  private instArr = new Float32Array(22 * 256);
+  private colCache = new Map<string, [number, number, number]>();
   private prog: WebGLProgram;
   private loc: Record<string, WebGLUniformLocation | null> = {};
   private att: Record<string, number> = {};
@@ -656,16 +694,41 @@ export class GlUnits9 {
   /** 진단: 마지막 프레임의 개체·삼각형 수 · 메시 벌 수 · 메시 굽기 ms(누적)와 **이번 프레임 몫**(frameBakeMs — 시계가
    *  '굽는 프레임'을 아는 자) · 깊이 칸/비트 · 살아 있는 메시 VBO 합(바이트). */
   /** evict: 상한에 걸려 버린 메시 수(누적) — **0 이 아니면 보관함이 좁다**. 늘 굽고 있다는 뜻이라 진단에 낸다. */
-  stat = { inst: 0, tris: 0, bakeMs: 0, frameBakeMs: 0, meshes: 0, slots: 0, depthBits: 0, bytes: 0, bloom: 0, evict: 0, scrubSkip: 0 };
+  stat = { inst: 0, tris: 0, bakeMs: 0, frameBakeMs: 0, meshes: 0, slots: 0, depthBits: 0, bytes: 0, bloom: 0, evict: 0, scrubSkip: 0, draws: 0 };
   /** 이번 flush 안에서 지은 ms — 끌기 예산의 자(flush 마다 0). frameBakeMs 는 시계가 따로 읽어 비우므로 못 쓴다. */
   private scrubMs = 0;
   /** meshMax: 메시 상한(기기 표 DEV9.glMeshMax — PC 600 · 폰 240; 메시 한 벌은 VBO + footOf 용 정점 사본이라 폰 메모리에 든다). */
   /* ⚠ meshMax·bloomOn 은 **읽기 전용이 아니다**(2026-09, 폰 세 단) — 벤치 단이 유휴 재기로 오르면 기기 표(DEV9)의
      값이 바뀌므로, glUnits9 가 다음 칠하기에서 그 벌에 새 값을 일러 준다. */
   constructor(readonly canvas: HTMLCanvasElement, public meshMax = MESH_MAX9, public bloomOn = true, public specOn = true) {
-    const gl = canvas.getContext("webgl", { alpha: true, premultipliedAlpha: true, antialias: true, depth: true });   // 미리곱한 알파 — 셰이더 출력·합성 함수(ONE, 1−a)와 한 벌
-    if (!gl) throw new Error("webgl 없음");
-    this.gl = gl;
+    const opts9 = { alpha: true, premultipliedAlpha: true, antialias: true, depth: true };   // 미리곱한 알파 — 셰이더 출력·합성 함수(ONE, 1−a)와 한 벌
+    /* ★ **WebGL 2 를 먼저 연다**(2026-09, 요청: "gl2로") — 셰이더는 GLSL ES 1.00 그대로라 두 문맥이 한 벌을 쓴다. 2 에서 버는
+       것은 인스턴싱(핵심 기능)이고, 1 로 떨어지면 ANGLE 확장으로 같은 길을 간다. `#gl2=0` 은 견줌용이다. */
+    let gl0: WebGLRenderingContext | WebGL2RenderingContext | null = GL_GL2_9 ? (canvas.getContext("webgl2", opts9) as WebGL2RenderingContext | null) : null;
+    const gl2 = !!gl0;
+    if (!gl0) gl0 = canvas.getContext("webgl", opts9) as WebGLRenderingContext | null;
+    if (!gl0) throw new Error("webgl 없음");
+    const gl = gl0;
+    this.gl = gl; this.gl2 = gl2;
+    let instOn = false;
+    if (GL_INST9) {
+      if (gl2) {
+        const g2 = gl as WebGL2RenderingContext;
+        this.divisor = (l, d) => g2.vertexAttribDivisor(l, d);
+        this.drawInst = (f, n, c) => g2.drawArraysInstanced(g2.TRIANGLES, f, n, c);
+        instOn = true;
+      } else {
+        const ext = gl.getExtension("ANGLE_instanced_arrays");
+        if (ext) {
+          this.divisor = (l, d) => ext.vertexAttribDivisorANGLE(l, d);
+          this.drawInst = (f, n, c) => ext.drawArraysInstancedANGLE(gl.TRIANGLES, f, n, c);
+          instOn = true;
+        }
+      }
+    }
+    this.instOn = instOn;
+    if ((Number(gl.getParameter(gl.MAX_VERTEX_ATTRIBS)) || 0) < 14) throw new Error("정점 속성 14 미만");
+    this.instVbo = gl.createBuffer()!;
     const sh = (type: number, src: string): WebGLShader => {
       const s = gl.createShader(type)!; gl.shaderSource(s, src); gl.compileShader(s);
       if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error("셰이더: " + gl.getShaderInfoLog(s));
@@ -676,8 +739,8 @@ export class GlUnits9 {
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error("링크: " + gl.getProgramInfoLog(p));
     this.prog = p;
     this.stat.depthBits = Number(gl.getParameter(gl.DEPTH_BITS)) || 0;
-    for (const u of ["uAnchor", "uScale", "uYaw", "uCanvas", "uCam", "uTeam", "uSolid", "uLight", "uAlpha", "uDepth0", "uDepthK", "uPersp", "uShade", "uDy", "uLean", "uGrad", "uDbg", "uFlat", "uShadow", "uShZ", "uEmit", "uGloss", "uSpecTint", "uGlint", "uGlintK", "uHalf", "uGrain", "uGrainA"]) this.loc[u] = gl.getUniformLocation(p, u);
-    for (const a of ["aPos", "aNrm", "aRgb", "aTeam", "aAlpha", "aOv", "aOrd", "aBb"]) this.att[a] = gl.getAttribLocation(p, a);
+    for (const u of ["uCanvas", "uCam", "uLight", "uDepthK", "uPersp", "uLean", "uDbg", "uFlat", "uShadowK", "uShZ", "uEmit", "uGloss", "uSpecTint", "uGlint", "uGlintK", "uHalf"]) this.loc[u] = gl.getUniformLocation(p, u);
+    for (const a of ["aPos", "aNrm", "aRgb", "aTeam", "aAlpha", "aOv", "aOrd", "aBb", "aInA", "aInB", "aInC", "aTeamC", "aSolidC", "aShad"]) this.att[a] = gl.getAttribLocation(p, a);
     /* 번짐 프로그램·사각 — 한 번만 짓는다(실패하면 번짐만 끈다). */
     try {
       const q = gl.createProgram()!;
@@ -744,6 +807,7 @@ export class GlUnits9 {
     gl.bindBuffer(gl.ARRAY_BUFFER, fx.vbo);
     gl.enableVertexAttribArray(fx.aXY);
     gl.vertexAttribPointer(fx.aXY, 2, gl.FLOAT, false, 0, 0);
+    this.divisor(fx.aXY, 0);   // 이 속성 번호가 인스턴스 속성(divisor 1)과 겹칠 수 있다 — 사각은 개체마다가 아니라 정점마다다
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.uniform1i(fx.loc.uTex, 0);
@@ -973,6 +1037,43 @@ export class GlUnits9 {
     return true;
   }
   /** 프레임 하나 — 캔버스 크기(기기 px)·CSS 크기를 맞추고 큐를 차례로 그린다. */
+  /** 색 → rgb(0~1) — 개체마다 hexRgb(tone9) 를 다시 셈하지 않는다. */
+  private colOf(c: string): [number, number, number] {
+    let v = this.colCache.get(c);
+    if (!v) { v = hexRgb(tone9(c)); this.colCache.set(c, v); }
+    return v;
+  }
+  /** 인스턴스 버퍼의 속성 여섯을 `byteOff` 부터 건다(divisor 1). */
+  private bindInst(byteOff: number): void {
+    const gl = this.gl; const A = this.att;
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.instVbo);
+    const set = (loc: number, size: number, off: number): void => {
+      gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, size, gl.FLOAT, false, INST_B9, byteOff + off); this.divisor(loc, 1);
+    };
+    set(A.aInA, 4, 0); set(A.aInB, 4, 16); set(A.aInC, 4, 32); set(A.aTeamC, 3, 48); set(A.aSolidC, 3, 60); set(A.aShad, 4, 72);
+  }
+  /** 인스턴싱이 없는 문맥 — 기록 r 의 값을 **상수 속성**으로 놓는다(배열은 안 켠다). 셰이더는 같다. */
+  private constInst(r: number): void {
+    const gl = this.gl; const A = this.att; const a = this.instArr; const o = r * INST_F9;
+    gl.vertexAttrib4f(A.aInA, a[o], a[o + 1], a[o + 2], a[o + 3]);
+    gl.vertexAttrib4f(A.aInB, a[o + 4], a[o + 5], a[o + 6], a[o + 7]);
+    gl.vertexAttrib4f(A.aInC, a[o + 8], a[o + 9], a[o + 10], a[o + 11]);
+    gl.vertexAttrib3f(A.aTeamC, a[o + 12], a[o + 13], a[o + 14]);
+    gl.vertexAttrib3f(A.aSolidC, a[o + 15], a[o + 16], a[o + 17]);
+    gl.vertexAttrib4f(A.aShad, a[o + 18], a[o + 19], a[o + 20], a[o + 21]);
+  }
+  /** 기록 r0 부터 count 개체를 메시의 [first, first+n) 정점으로 그린다 — 인스턴싱이면 한 드로 콜, 아니면 개체마다 하나. */
+  private drawRec(first: number, n: number, r0: number, count: number): void {
+    if (n <= 0 || count <= 0) return;
+    const gl = this.gl;
+    if (this.instOn) { this.bindInst(r0 * INST_B9); this.drawInst(first, n, count); }
+    else for (let j = 0; j < count; j += 1) { this.constInst(r0 + j); gl.drawArrays(gl.TRIANGLES, first, n); }
+  }
+  /** 프레임 하나 — 캔버스 크기(기기 px)·CSS 크기를 맞추고 큐를 차례로 그린다.
+   *  ★★ **드로 콜은 개체가 아니라 메시 무리마다**(2026-09, 요청: "gl2로") — 개체마다 유니폼을 놓고 그리던 것을 인스턴스 기록
+   *  (aInA…aShad · 88바이트)으로 바꿔 같은 메시의 개체를 한 번에 그린다. 패스 넷:
+   *  ① 그림자(메시 무리) ② 불투명 몸(메시 무리 — 깊이가 있어 차례가 무관하다) ③ 차례 몫(큐 차례 그대로 — 반투명 꼬리·
+   *  반투명 개체·발광·더하기; 같은 메시·같은 상태가 잇달으면 한 묶음) ④ 번짐(깊이 → 빛나는 낯 · 메시 무리). */
   flush(bw: number, bh: number, cw: number, ch: number): void {
     const gl = this.gl; const cv = this.canvas;
     this.scrubMs = 0;
@@ -982,7 +1083,7 @@ export class GlUnits9 {
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     const q = this.queue; this.queue = []; this.lastQ = q;
-    this.stat.inst = q.length; this.stat.tris = 0; this.stat.meshes = this.meshes.size;
+    this.stat.inst = q.length; this.stat.tris = 0; this.stat.meshes = this.meshes.size; this.stat.draws = 0;
     (globalThis as unknown as { __glInst9?: number }).__glInst9 = q.length;   // 계측(perf-check)이 '그려졌다'를 아는 창
     if (!q.length) return;
     gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LESS);
@@ -996,21 +1097,18 @@ export class GlUnits9 {
     gl.uniform4f(this.loc.uGlint, LIGHT[0] * 7, LIGHT[1] * 7, LIGHT[2] * 7, GL_SHADE9 >= 1 ? 0.8 * GL_SPEC9 : 0);
     gl.uniform1f(this.loc.uPersp, 48);
     gl.uniform1f(this.loc.uDbg, GL_SHADE9);
+    gl.uniform2f(this.loc.uShadowK, SHADOW_K9[0], SHADOW_K9[1]);
     /* ★ 깊이 칸은 개체 수가 아니라 **겹침**으로 나눈다 — 개체마다 칸을 주면 400기 화면에서 칸이 0.005 라 16비트 깊이 버퍼에서는
        한 개체 안의 부품 앞뒤(지붕 위 원통·벽의 환풍구)가 양자화에 묻혔다(실측: 판에는 있는 부품이 GL 에서 사라짐).
        화면에서 겹치는(원 반지름 = 실루엣 상자) 앞선 개체보다 한 칸 앞에만 서면 되므로 칸 수는 겹침 깊이(보통 10 안팎)다. */
     /* ★ **칸은 화가 차례로 한 번에 정한다**(2026-09, 지적: "모델끼리 겹쳐질 때 각 부품이 별개로 앞뒤가
        판단되어서 정신없이 바뀐다. 모델 안에서는 각 부품의 값을 비교하지만 모델 간에는 하나로 정해서 비교해야") —
-       그 지적이 곧 이 자의 규약이다. 개체 **사이**를 가르는 것은 오직 칸(uDepth0)이고, 개체 **안**의 부품
+       그 지적이 곧 이 자의 규약이다. 개체 **사이**를 가르는 것은 오직 칸(aInB.w)이고, 개체 **안**의 부품
        앞뒤는 그 칸 안에서만(near + aOrd, 폭은 칸의 1/4) 겨룬다. 그러니 **화면에서 겹치는 두 개체가 같은 칸에
        들면** 두 모델의 부품이 서로 끼어들어 흔들린다 — near 는 모델 제 좌표라 어느 개체가 앞인지를 모른다.
-       예전 셈은 x 로 정렬해 한 번 훑고 **두 번 더 완화**하는 꼴이었다. 이것은 겹침 그래프의 가장 긴 사슬을
-       푸는 일인데, 완화 두 번으로는 사슬이 길면(난전의 유닛 무리) 수렴하지 않는다 — 그래서 겹친 채 같은 칸에
-       남는 짝이 생기고, 그 짝이 프레임마다 바뀌니 '정신없이' 보였다.
-       이제 **화가 차례(i 오름차순)** 로 돌면서 나보다 **먼저 칠하는**(j < i) 겹친 개체의 칸 + 1 을 고른다.
-       j < i 는 이미 확정이므로 한 번에 정확하다(DAG 의 가장 긴 경로). 훑기도 셋에서 하나로 준다.
-       ⚠ 칸이 늘면 칸 폭(2/(M+1))이 좁아진다 — 16비트 깊이 기기를 지키려 상한을 둔다(SLOT_MAX9).
-          상한에 걸린 자리는 예전처럼 겹칠 뿐, 상한이 없을 때처럼 온 화면이 흔들리지는 않는다. */
+       **화가 차례(i 오름차순)** 로 돌면서 나보다 **먼저 칠하는**(j < i) 겹친 개체의 칸 + 1 을 고른다.
+       j < i 는 이미 확정이므로 한 번에 정확하다(DAG 의 가장 긴 경로).
+       ⚠ 칸이 늘면 칸 폭(2/(M+1))이 좁아진다 — 16비트 깊이 기기를 지키려 상한을 둔다(SLOT_MAX9). */
     const order = q.map((_, i) => i).sort((a, b) => q[a].ax - q[b].ax);
     const posOf = new Int32Array(q.length);
     for (let k = 0; k < order.length; k += 1) posOf[order[k]] = k;
@@ -1038,6 +1136,7 @@ export class GlUnits9 {
     const slot = 2 / (M + 1);
     this.stat.slots = M;
     gl.uniform1f(this.loc.uDepthK, slot / 80);
+    /* 메시의 정점 속성 여덟 + 메시마다의 광택 유니폼. 인스턴스 속성은 drawRec 이 건다. */
     const bind = (mesh: GlMesh9): void => {
       gl.bindBuffer(gl.ARRAY_BUFFER, mesh.vbo);
       const U = gl.UNSIGNED_BYTE;
@@ -1054,139 +1153,156 @@ export class GlUnits9 {
       gl.uniform3f(this.loc.uSpecTint, mesh.gloss[5][0], mesh.gloss[5][1], mesh.gloss[5][2]);
       gl.uniform1f(this.loc.uGlintK, mesh.gloss[6]);
     };
-    /** 결 옥타브의 몫 — 화소 주기(2π·k/f)가 2.1 아래면 0, 3.1 위면 제 몫. 합을 1 로 맞춰 낸다
-     *  ⚠ 합을 1 로 **안** 맞춘다(셰이더의 ⚠) — 합이 곧 지금 보이는 결의 총량이다. */
-    const grainOct9 = (k: number): number[] => {
-      const F = [30, 42, 58, 80, 110];
-      const W = [0.34, 0.27, 0.19, 0.13, 0.07];
-      return F.map((f, i) => {
-        const px = (k * Math.PI * 2) / f;            // 그 옥타브 한 줄의 화소 주기
-        const t = Math.max(0, Math.min(1, (px - 2.1) / 1.0));
-        return W[i] * t * t * (3 - 2 * t);
-      });
-    };
     let camNow: GlCam9 | null = null;
-    const place = (it: GlInst9): void => {
-      const th = (it.yawDeg * Math.PI) / 180;
-      /* ★ 결은 **가까이서만** 켠다 — 줄 간격이 화소보다 촘촘해지면 결이 아니라 지글거림이다(WebGL1 은
-         화소 미분(dFdx)이 없어 셰이더가 스스로 못 줄인다). 개체의 화면 배율(it.k = 모형 한 칸의 화소)로
-         6 아래는 끄고 14 위는 다 켠다 — 낮은 배율에서는 유니폼이 0 이라 그 식이 **돌지도 않는다**.
-         (가장 가는 결이 63 주파수라 k 14 에서 1.4화소다 — 그 아래로 내리면 물결무늬가 진다.) */
-      /* 켜는 문은 이제 **값의 문지기**일 뿐이다(나이퀴스트는 옥타브마다 따로 본다 — 아래 uGrainA) —
-         멀리서 도는 값을 아끼려고 두는 자라 문턱을 한 뼘 내렸다(옛 11~21). */
-      /* 켜는 문은 이제 **값의 문지기**일 뿐이다 — 나이퀴스트는 옥타브마다 따로 보므로(uGrainA),
-         k 11 아래에서는 어느 옥타브도 몫이 0 이라 어차피 안 보인다(튐 없이 꺼진다 — 가장 굵은
-         옥타브 30 의 화소 주기가 k 10 에서 2.1 로 문턱이다). */
-      const on9 = it.k >= 11 && GL_SHADE9 >= 1 ? it.mesh.gloss[4] * GL_GRAIN9 : 0;
-      const oc9 = on9 > 0 ? grainOct9(it.k) : null;
-      gl.uniform2f(this.loc.uGrain, on9, oc9 ? oc9[0] : 0);
-      if (oc9) gl.uniform4f(this.loc.uGrainA, oc9[1], oc9[2], oc9[3], oc9[4]);
-      gl.uniform2f(this.loc.uAnchor, it.ax, it.ay);
-      gl.uniform3f(this.loc.uScale, it.k, it.k, it.yoff);
-      gl.uniform2f(this.loc.uYaw, Math.cos(th), Math.sin(th));
-      if (it.cam !== camNow) {
-        camNow = it.cam; gl.uniform2f(this.loc.uCam, it.cam.squash, it.cam.zk); gl.uniform2f(this.loc.uLean, it.cam.lean, it.cam.shear);
-        /* 반각 H = 정규화(빛 + 시선) — 시선은 카메라가 정하므로 카메라가 바뀔 때만 다시 낸다. */
-        const hx = LIGHT[0]; const hy = LIGHT[1] + it.cam.zk; const hz = LIGHT[2] + it.cam.squash;
-        const hl = Math.hypot(hx, hy, hz) || 1;
-        gl.uniform3f(this.loc.uHalf, hx / hl, hy / hl, hz / hl);
-      }
-      // 실루엣 빛의 화면 방향(lightScreenDir 과 같은 식: 평면 빛에 높이 몫을 얹어 화면 벡터로)
-      const lx = -0.9; const ly = 0.45 * it.cam.squash - 1 * it.cam.zk; const ll = Math.hypot(lx, ly) || 1;
-      gl.uniform4f(this.loc.uGrad, lx / ll, ly / ll, it.gradR, it.gradCy);
+    const setCam = (cam: GlCam9): void => {
+      if (cam === camNow) return;
+      camNow = cam; gl.uniform2f(this.loc.uCam, cam.squash, cam.zk); gl.uniform2f(this.loc.uLean, cam.lean, cam.shear);
+      /* 반각 H = 정규화(빛 + 시선) — 시선은 카메라가 정하므로 카메라가 바뀔 때만 다시 낸다. */
+      const hx = LIGHT[0]; const hy = LIGHT[1] + cam.zk; const hz = LIGHT[2] + cam.squash;
+      const hl = Math.hypot(hx, hy, hz) || 1;
+      gl.uniform3f(this.loc.uHalf, hx / hl, hy / hl, hz / hl);
     };
-    /* 1) 몸 그림자 — 깊이 없이 몸보다 먼저(뒤 몸 위에는 안 얹힌다). 바닥에 붙은 몸은 **빛 방향으로 눌러 눕히고**(uShadow),
+    /* ── 인스턴스 기록 ── 22 float: A(앵커 x·y·cos·sin) B(k·yoff·알파·깊이 칸) C(gradR·gradCy·결 켬·단색 켬) 임자색 단색 그림자(켬·h·dy·알파). */
+    let nRec = 0;
+    const rec = (it: GlInst9, i: number, shadow: boolean): number => {
+      if ((nRec + 1) * INST_F9 > this.instArr.length) {
+        const nx = new Float32Array(Math.max(this.instArr.length * 2, (nRec + 1) * INST_F9)); nx.set(this.instArr); this.instArr = nx;
+      }
+      const a = this.instArr; const o = nRec * INST_F9;
+      const th = (it.yawDeg * Math.PI) / 180;
+      a[o] = it.ax; a[o + 1] = it.ay; a[o + 2] = Math.cos(th); a[o + 3] = Math.sin(th);
+      a[o + 4] = it.k; a[o + 5] = it.yoff; a[o + 6] = it.alpha; a[o + 7] = 1 - slot * (slotOf[i] + 1);
+      /* ★ 결은 **가까이서만** 켠다 — 개체의 화면 배율(it.k = 모형 한 칸의 화소)이 11 아래면 어느 옥타브도 몫이 0 이라
+         (가장 굵은 30 의 화소 주기가 k 10 에서 문턱 2.1) 튐 없이 꺼진다. 옥타브 몫은 정점 셰이더가 k 에서 낸다. */
+      a[o + 8] = it.gradR; a[o + 9] = it.gradCy;
+      a[o + 10] = it.k >= 11 && GL_SHADE9 >= 1 ? it.mesh.gloss[4] * GL_GRAIN9 : 0;
+      a[o + 11] = it.solid ? 1 : 0;
+      const tc = this.colOf(it.color); a[o + 12] = tc[0]; a[o + 13] = tc[1]; a[o + 14] = tc[2];
+      if (it.solid) { const sc = hexRgb(it.solid); a[o + 15] = sc[0]; a[o + 16] = sc[1]; a[o + 17] = sc[2]; } else { a[o + 15] = 0; a[o + 16] = 0; a[o + 17] = 0; }
+      if (shadow && it.shadow) { a[o + 18] = it.shadow.ground ? 1 : 0; a[o + 19] = it.shadow.h ?? 0; a[o + 20] = it.shadow.dy ?? 0; a[o + 21] = it.shadow.alpha; }
+      else { a[o + 18] = 0; a[o + 19] = 0; a[o + 20] = 0; a[o + 21] = 0; }
+      nRec += 1; return nRec - 1;
+    };
+    /* ── 무리 짓기 ── 메시(+카메라)가 같은 개체를 모은다. 기록은 무리마다 잇달아 쓰므로 한 드로 콜의 범위가 된다. */
+    interface Grp9 { mesh: GlMesh9; cam: GlCam9; idx: number[]; r0: number }
+    const groupsOf = (pick: (it: GlInst9, i: number) => boolean): Grp9[] => {
+      const m = new Map<GlMesh9, Grp9[]>(); const out: Grp9[] = [];
+      for (let i = 0; i < q.length; i += 1) {
+        const it = q[i]; if (!pick(it, i)) continue;
+        let lst = m.get(it.mesh); if (!lst) { lst = []; m.set(it.mesh, lst); }
+        let g = lst.find((x) => x.cam === it.cam);
+        if (!g) { g = { mesh: it.mesh, cam: it.cam, idx: [], r0: 0 }; lst.push(g); out.push(g); }
+        g.idx.push(i);
+      }
+      return out;
+    };
+    const fillGroups = (gs: Grp9[], shadow: boolean): void => { for (const g of gs) { g.r0 = nRec; for (const i of g.idx) rec(q[i], i, shadow); } };
+    /* ① 그림자 무리 · ② 불투명 몸 무리(알파 1 · 발광·더하기·단색이 아닌 것) · ③ 차례 몫(큐 차례) · ④ 번짐. */
+    const isOpq = (it: GlInst9): boolean => !it.flat && !it.add && !it.solid && it.alpha >= 0.995;
+    const shG = groupsOf((it) => !!it.shadow);
+    const opG = groupsOf((it) => isOpq(it));
+    /* ★ 불투명 개체의 **반투명 꼬리**(nSolid 뒤의 부품 — 유리·빛무리·옅은 그늘)도 메시 무리로 그린다. 큐 차례를 지키면 개체마다
+       메시가 갈려 무리가 안 서고(실측: 890기에 드로 콜 760), 꼬리는 깊이 검사를 그대로 받으므로(쓰기만 끈다) 몸에 가려지는 것은
+       그대로 가려진다 — 갈리는 것은 딴 개체의 꼬리끼리 겹치는 자리의 섞는 차례뿐이라 받아들였다. 무리는 ② 와 같은 기록을 쓴다. */
+    interface Run9 { mesh: GlMesh9; cam: GlCam9; r0: number; count: number; tail: boolean; noZ: boolean; add: boolean; flat: boolean }
+    const runs: Run9[] = [];
+    fillGroups(shG, true); fillGroups(opG, false);
+    for (let i = 0; i < q.length; i += 1) {
+      const it = q[i];
+      if (isOpq(it)) continue;   // 불투명 개체는 ②(몸)와 꼬리 무리로 끝
+      const noZ = !!it.flat || !!it.add; const add = !!it.add; const flat = !!it.flat;
+      const last = runs.length ? runs[runs.length - 1] : null;
+      const r = rec(it, i, false);
+      if (last && last.mesh === it.mesh && last.cam === it.cam && last.noZ === noZ && last.add === add && last.flat === flat && last.r0 + last.count === r) last.count += 1;
+      else runs.push({ mesh: it.mesh, cam: it.cam, r0: r, count: 1, tail: false, noZ, add, flat });
+    }
+    for (const it of q) this.stat.tris += it.mesh.n / 3;
+    /* 번짐 몫도 같은 버퍼에 미리 적는다(한 번만 올리려고). */
+    let nEm = 0; let sx0 = Infinity; let sy0 = Infinity; let sx1 = -Infinity; let sy1 = -Infinity;
+    const bloomOn9 = (GL_BLOOM9 === 1 || (GL_BLOOM9 < 0 && this.bloomOn)) && !this.blFail;
+    const big9 = (it: GlInst9): boolean => it.mesh.emit && it.k * this.footOf(it.mesh, it.yawDeg, it.cam).w >= 14;
+    let emG: Grp9[] = []; let dpG: Grp9[] = [];
+    const PAD9 = 28;
+    if (bloomOn9) {
+      for (const it of q) {
+        if (!big9(it)) continue;
+        nEm += 1;
+        const ft = this.footOf(it.mesh, it.yawDeg, it.cam);
+        const cx0 = it.ax + it.k * (ft.cx - ft.w / 2); const cx1 = it.ax + it.k * (ft.cx + ft.w / 2);
+        const cy0 = it.ay + it.yoff + it.k * ft.top; const cy1 = it.ay + it.yoff + it.k * ft.bot;
+        if (cx0 < sx0) sx0 = cx0; if (cx1 > sx1) sx1 = cx1;
+        if (cy0 < sy0) sy0 = cy0; if (cy1 > sy1) sy1 = cy1;
+      }
+      if (nEm > 0) {
+        const bx0 = sx0 - PAD9; const bx1 = sx1 + PAD9; const by0 = sy0 - PAD9; const by1 = sy1 + PAD9;
+        /* ★ **가릴 수 있는 몸만 깊이를 깐다** — 번짐 상자(가위)에 화면 상자가 걸치는 개체만 고른다. */
+        const hits9 = (it: GlInst9): boolean => {
+          const ft = this.footOf(it.mesh, it.yawDeg, it.cam);
+          const cx0 = it.ax + it.k * (ft.cx - ft.w / 2); const cx1 = it.ax + it.k * (ft.cx + ft.w / 2);
+          const cy0 = it.ay + it.yoff + it.k * ft.top; const cy1 = it.ay + it.yoff + it.k * ft.bot;
+          return cx1 >= bx0 && cx0 <= bx1 && cy1 >= by0 && cy0 <= by1;
+        };
+        dpG = groupsOf((it) => !it.flat && !it.add && hits9(it));
+        emG = groupsOf((it) => big9(it) && !it.flat && !it.add);
+        const emZ = groupsOf((it) => big9(it) && (!!it.flat || !!it.add));   // 발광·더하기 개체는 깊이 없이
+        fillGroups(dpG, false); fillGroups(emG, false); fillGroups(emZ, false);
+        emG = emG.concat(emZ.map((g) => ({ ...g, cam: g.cam })));
+        for (const g of emZ) (g as Grp9 & { noZ?: boolean }).noZ = true;
+      }
+    }
+    /* 기록을 한 번에 올린다. */
+    if (this.instOn) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.instVbo);
+      gl.bufferData(gl.ARRAY_BUFFER, this.instArr.subarray(0, nRec * INST_F9), gl.DYNAMIC_DRAW);
+    }
+    const drawG = (g: Grp9, first: number, n: number): void => { setCam(g.cam); bind(g.mesh); this.drawRec(first, n, g.r0, g.idx.length); this.stat.draws += 1; };
+    /* 1) 몸 그림자 — 깊이 없이 몸보다 먼저(뒤 몸 위에는 안 얹힌다). 바닥에 붙은 몸은 **빛 방향으로 눌러 눕히고**(aShad),
        떠 있는 몸은 검게 아래로 밀어 그린다(그 벌어짐이 높이다). */
     /* ★ **한 화소에 한 겹만**(2026-09) — 그림자는 몸의 삼각형을 그대로 검게 깔므로, 겹친 부품(날개 위 포탑·
        겹친 개체)마다 알파가 쌓여 실루엣 안에 얼룩이 났다. 켜마다 깊이를 못 박고(uShZ) 깊이 쓰기를 켠 채
-       LESS 로 그리면 같은 깊이의 두 번째 화소가 걸러져 실루엣이 **고르게** 깔린다. 무른 고리(1.1배)는 한 칸
-       더 뒤에 두어 그 위에 본 실루엣이 얹힌다. 몸(≤0.99)보다 뒤라 몸을 안 가린다. */
+       LESS 로 그리면 같은 깊이의 두 번째 화소가 걸러져 실루엣이 **고르게** 깔린다. 몸(≤0.99)보다 뒤라 몸을 안 가린다. */
     gl.depthMask(true); gl.enable(gl.DEPTH_TEST);
-    let shOn9 = false;
-    for (const it of q) {
-      if (!it.shadow) continue;
-      const mesh = it.mesh;
-      bind(mesh); place(it);
-      const gr9 = !!it.shadow.ground;
-      gl.uniform4f(this.loc.uShadow, SHADOW_K9[0], SHADOW_K9[1], gr9 ? 1 : 0, it.shadow.h ?? 0);
-      shOn9 = shOn9 || gr9;
-      gl.uniform1f(this.loc.uDy, it.shadow.dy ?? 0);
-      gl.uniform1f(this.loc.uShZ, 0.996);
-      gl.uniform4f(this.loc.uShade, 0, 0, 0, it.shadow.alpha);
-      gl.drawArrays(gl.TRIANGLES, 0, mesh.n);
-    }
+    gl.uniform1f(this.loc.uFlat, 0); gl.uniform1f(this.loc.uEmit, 0);
+    gl.uniform1f(this.loc.uShZ, 0.996);
+    for (const g of shG) drawG(g, 0, g.mesh.n);
     gl.uniform1f(this.loc.uShZ, 0);
-    if (shOn9) gl.uniform4f(this.loc.uShadow, SHADOW_K9[0], SHADOW_K9[1], 0, 0);
-    /* 2) 몸 — 개체 차례로 깊이 칸을 나눠 그린다. */
+    /* 2) 불투명 몸 — 깊이가 가르므로 메시 무리로 한 번에. */
     gl.depthMask(true); if (GL_DEPTH9) gl.enable(gl.DEPTH_TEST); else gl.disable(gl.DEPTH_TEST);
-    gl.uniform4f(this.loc.uShade, 0, 0, 0, 0);
-    gl.uniform1f(this.loc.uDy, 0);
-    gl.uniform1f(this.loc.uFlat, 0);
-    let flatNow = false; let addNow = false; let solidNow = false;
-    gl.uniform4f(this.loc.uSolid, 0, 0, 0, 0);
-    for (let i = 0; i < q.length; i += 1) {
-      const it = q[i];
-      const mesh = it.mesh;
-      const [tr, tg, tb] = hexRgb(tone9(it.color));
-      bind(mesh); place(it);
-      gl.uniform3f(this.loc.uTeam, tr, tg, tb);
-      if (it.solid) { const [sr, sg, sb] = hexRgb(it.solid); gl.uniform4f(this.loc.uSolid, sr, sg, sb, 1); solidNow = true; }
-      else if (solidNow) { gl.uniform4f(this.loc.uSolid, 0, 0, 0, 0); solidNow = false; }
-      gl.uniform1f(this.loc.uAlpha, it.alpha);
-      gl.uniform1f(this.loc.uDepth0, 1 - slot * (slotOf[i] + 1));
-      const flat = !!it.flat; const add = !!it.add;
-      if (flat !== flatNow) { flatNow = flat; gl.uniform1f(this.loc.uFlat, flat ? 1 : 0); }
-      /* 더하기 효과(폭풍·핵)는 2D 의 lighter 처럼 깊이 없이 겹쳐 더한다 — 큐의 맨 뒤(몸 다음)에 서므로 몸 위에 얹힌다. */
-      if (add !== addNow) { addNow = add; gl.blendFunc(gl.ONE, add ? gl.ONE : gl.ONE_MINUS_SRC_ALPHA); }
-      /* 발광(flat)·더하기(add) 개체는 깊이 없이 **화가 차례**(메시의 부품 차례 = zsorted)로 겹친다 — 2D 의 동심원·빛무리 그대로. */
-      if (flat || add) { gl.disable(gl.DEPTH_TEST); gl.depthMask(false); gl.drawArrays(gl.TRIANGLES, 0, mesh.n); gl.depthMask(true); if (GL_DEPTH9) gl.enable(gl.DEPTH_TEST); }
+    for (const g of opG) drawG(g, 0, g.mesh.nSolid);
+    gl.depthMask(false);
+    for (const g of opG) if (g.mesh.nSolid < g.mesh.n) drawG(g, g.mesh.nSolid, g.mesh.n - g.mesh.nSolid);
+    gl.depthMask(true);
+    /* 3) 차례 몫 — 반투명 꼬리·반투명 개체·발광·더하기는 큐 차례(화가 차례)를 지킨다.
+       발광(flat)·더하기(add) 개체는 깊이 없이 **화가 차례**(메시의 부품 차례 = zsorted)로 겹친다 — 2D 의 동심원·빛무리 그대로.
+       더하기 효과(폭풍·핵)는 2D 의 lighter 처럼 깊이 없이 겹쳐 더한다 — 큐의 맨 뒤(몸 다음)에 서므로 몸 위에 얹힌다. */
+    let flatNow = false; let addNow = false;
+    for (const r of runs) {
+      if (r.flat !== flatNow) { flatNow = r.flat; gl.uniform1f(this.loc.uFlat, flatNow ? 1 : 0); }
+      if (r.add !== addNow) { addNow = r.add; gl.blendFunc(gl.ONE, addNow ? gl.ONE : gl.ONE_MINUS_SRC_ALPHA); }
+      setCam(r.cam); bind(r.mesh); this.stat.draws += 1;
+      if (r.noZ) { gl.disable(gl.DEPTH_TEST); gl.depthMask(false); this.drawRec(0, r.mesh.n, r.r0, r.count); gl.depthMask(true); if (GL_DEPTH9) gl.enable(gl.DEPTH_TEST); }
+      else if (r.tail) { gl.depthMask(false); this.drawRec(r.mesh.nSolid, r.mesh.n - r.mesh.nSolid, r.r0, r.count); gl.depthMask(true); }
       else {
-        gl.drawArrays(gl.TRIANGLES, 0, mesh.nSolid);
-        if (mesh.nSolid < mesh.n) { gl.depthMask(false); gl.drawArrays(gl.TRIANGLES, mesh.nSolid, mesh.n - mesh.nSolid); gl.depthMask(true); }
+        this.drawRec(0, r.mesh.nSolid, r.r0, r.count);
+        if (r.mesh.nSolid < r.mesh.n) { gl.depthMask(false); this.drawRec(r.mesh.nSolid, r.mesh.n - r.mesh.nSolid, r.r0, r.count); gl.depthMask(true); }
       }
-      this.stat.tris += mesh.n / 3;
     }
     if (addNow) gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-    /* 3) **번짐(블룸)** — 빛나는 낯만 1/4 판에 한 번 더 그리고, 가로·세로로 흐린 뒤 화면에 더한다.
-       빛나는 메시가 없는 프레임은 건너뛴다(대부분의 유닛은 빛이 없다). 흐리기 판에는 깊이가 없으니
-       깊이 없이 화가 차례로 겹친다 — 번짐은 어차피 뭉개지는 그림이라 앞뒤가 안 중요하다. */
+    if (flatNow) gl.uniform1f(this.loc.uFlat, 0);
+    /* 4) **번짐(블룸)** — 빛나는 낯만 1/4 판에 한 번 더 그리고, 가로·세로로 흐린 뒤 화면에 더한다.
+       빛나는 메시가 없는 프레임은 건너뛴다(대부분의 유닛은 빛이 없다). */
     this.stat.bloom = 0;
-    if ((GL_BLOOM9 === 1 || (GL_BLOOM9 < 0 && this.bloomOn)) && !this.blFail) {
-      /* 번짐을 받을 개체 — 빛나는 메시이고 **화면에서 너무 작지 않은** 것만(작은 창 하나가 번져도 안 보인다).
-         낮은 배율에서는 이 자로 거의 다 걸러져 번짐이 저절로 꺼진다. */
-      let nEm = 0;
-      for (const it of q) {
-        if (!it.mesh.emit) continue;
-        if (it.k * this.footOf(it.mesh, it.yawDeg, it.cam).w < 14) continue;
-        nEm += 1;
-      }
-      gl.uniform4f(this.loc.uSolid, 0, 0, 0, 0);   // 단색 판의 색이 번짐 켜로 새지 않게
+    if (bloomOn9 && nEm > 0) {
       const w4 = Math.max(4, bw >> 2); const h4 = Math.max(4, bh >> 2);
-      if (nEm > 0 && this.blooms(w4, h4)) {
+      if (this.blooms(w4, h4)) {
         this.stat.bloom = nEm;
-        /* ★ **빛이 있는 자리만** 판을 비우고·흐리고·더한다(가위) — 번짐의 값은 거의 다 '전체 화면 한 겹 더하기'다.
-           빛나는 개체가 셋뿐인 화면에서 지도 전체를 훑을 까닭이 없다(실측: 헤드리스 소프트웨어 GL 에서 전체
-           화면으로 하면 프레임이 8배 늘었다). 개체마다 화면 상자(footOf — 이미 캐시된 값)를 모아 합치고
-           번짐이 번지는 몫(1/4 판 여섯 텍셀 ≈ 화면 24px)만 넉넉히 넓힌다. */
-        let sx0 = Infinity; let sy0 = Infinity; let sx1 = -Infinity; let sy1 = -Infinity;
-        for (const it of q) {
-          if (!it.mesh.emit) continue;
-          const ft = this.footOf(it.mesh, it.yawDeg, it.cam);
-          if (it.k * ft.w < 14) continue;
-          const cx0 = it.ax + it.k * (ft.cx - ft.w / 2); const cx1 = it.ax + it.k * (ft.cx + ft.w / 2);
-          const cy0 = it.ay + it.yoff + it.k * ft.top; const cy1 = it.ay + it.yoff + it.k * ft.bot;
-          if (cx0 < sx0) sx0 = cx0; if (cx1 > sx1) sx1 = cx1;
-          if (cy0 < sy0) sy0 = cy0; if (cy1 > sy1) sy1 = cy1;
-        }
-        const PAD9 = 28;
+        /* ★ **빛이 있는 자리만** 판을 비우고·흐리고·더한다(가위) — 번짐의 값은 거의 다 '전체 화면 한 겹 더하기'다. */
         const rx0 = Math.max(0, Math.floor((sx0 - PAD9) / 4)); const ry1 = Math.min(h4, Math.ceil((bh - (sy0 - PAD9)) / 4));
         const rx1 = Math.min(w4, Math.ceil((sx1 + PAD9) / 4)); const ry0 = Math.max(0, Math.floor((bh - (sy1 + PAD9)) / 4));
         const rw = Math.max(0, rx1 - rx0); const rh = Math.max(0, ry1 - ry0);
         if (rw < 1 || rh < 1) { this.stat.bloom = 0; return; }
         /* ★★ **판은 가위 없이 통째로 지운다**(2026-09, 지적: "사각 얼룩? 잔영이 보임") — 가위 안만 지우면
-           가위 **밖**에는 지난 프레임의 빛이 그대로 남는다. 그런데 흐림은 가위 안 텍셀을 내면서 좌우·위아래
-           이웃(가위 밖)을 다섯 칸씩 읽으므로, 그 옛 빛이 이번 가위의 가장자리로 스며 **네모난 잔영**이 된다
-           (개체가 움직이거나 사라진 뒤 그 자리에 남는 얼룩). 1/4 판 한 장을 지우는 값은 GPU 에서 사실상 0 이다. */
+           가위 **밖**에는 지난 프레임의 빛이 그대로 남아 흐림이 그 옛 빛을 가장자리로 끌어와 **네모난 잔영**이 된다. */
         gl.disable(gl.SCISSOR_TEST);
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.bl[0].fb);
         gl.viewport(0, 0, w4, h4);
@@ -1199,49 +1315,22 @@ export class GlUnits9 {
         gl.enable(gl.SCISSOR_TEST);
         gl.scissor(rx0, ry0, rw, rh);
         gl.useProgram(this.prog);
-        gl.uniform4f(this.loc.uShade, 0, 0, 0, 0);
-        /* ★ **가릴 수 있는 몸만 깊이를 깐다** — 번짐 상자(가위)에 화면 상자가 걸치는 개체만 고른다.
-           화소는 가위가 이미 버리지만 정점 몫은 안 버리므로, 빛나는 개체 둘뿐인 화면에서 지도의
-           모든 몸을 한 번 더 돌 까닭이 없다. footOf 는 이미 캐시된 값이다. */
-        const bx0 = sx0 - PAD9; const bx1 = sx1 + PAD9; const by0 = sy0 - PAD9; const by1 = sy1 + PAD9;
-        const hits9 = (it: typeof q[number]): boolean => {
-          const ft = this.footOf(it.mesh, it.yawDeg, it.cam);
-          const cx0 = it.ax + it.k * (ft.cx - ft.w / 2); const cx1 = it.ax + it.k * (ft.cx + ft.w / 2);
-          const cy0 = it.ay + it.yoff + it.k * ft.top; const cy1 = it.ay + it.yoff + it.k * ft.bot;
-          return cx1 >= bx0 && cx0 <= bx1 && cy1 >= by0 && cy0 <= by1;
-        };
         // ① 깊이만 — 색은 안 쓰고(colorMask) 불투명 몸의 깊이만 깐다(본 그림이 깊이를 쓰는 그 몫).
         gl.colorMask(false, false, false, false);
         gl.depthMask(true); gl.enable(gl.DEPTH_TEST);
         gl.uniform1f(this.loc.uEmit, 0);
         gl.uniform1f(this.loc.uFlat, 0);
-        for (let i = 0; i < q.length; i += 1) {
-          const it = q[i];
-          if (it.flat || it.add) continue;   // 발광·더하기 개체는 본 그림에서도 깊이를 안 쓴다
-          if (!hits9(it)) continue;
-          bind(it.mesh); place(it);
-          gl.uniform1f(this.loc.uAlpha, it.alpha);
-          gl.uniform1f(this.loc.uDepth0, 1 - slot * (slotOf[i] + 1));
-          gl.drawArrays(gl.TRIANGLES, 0, it.mesh.nSolid);
-        }
+        for (const g of dpG) drawG(g, 0, g.mesh.nSolid);
         gl.colorMask(true, true, true, true);
         // ② 빛나는 낯 — 같은 깊이 자에서 재고(제 깊이는 그대로 통과해야 하므로 LEQUAL) 깊이는 안 쓴다.
         gl.depthMask(false); gl.depthFunc(gl.LEQUAL);
         gl.uniform1f(this.loc.uEmit, 1);
         gl.uniform1f(this.loc.uFlat, 1);
-        for (let i = 0; i < q.length; i += 1) {
-          const it = q[i];
-          if (!it.mesh.emit) continue;
-          if (it.k * this.footOf(it.mesh, it.yawDeg, it.cam).w < 14) continue;
-          const [tr, tg, tb] = hexRgb(tone9(it.color));
-          bind(it.mesh); place(it);
-          gl.uniform3f(this.loc.uTeam, tr, tg, tb);
-          gl.uniform1f(this.loc.uAlpha, it.alpha);
+        for (const g of emG) {
           /* 발광·더하기 개체(폭풍·아콘)는 본 그림에서도 깊이 없이 몸 위에 얹히는 빛이다 — 번짐도 그대로 둔다. */
-          const noZ9 = !!it.flat || !!it.add;
+          const noZ9 = !!(g as Grp9 & { noZ?: boolean }).noZ;
           if (noZ9) gl.disable(gl.DEPTH_TEST);
-          gl.uniform1f(this.loc.uDepth0, 1 - slot * (slotOf[i] + 1));
-          gl.drawArrays(gl.TRIANGLES, 0, it.mesh.n);
+          drawG(g, 0, g.mesh.n);
           if (noZ9) gl.enable(gl.DEPTH_TEST);
         }
         gl.depthFunc(gl.LESS);
@@ -1306,6 +1395,9 @@ export const GL_BLOOM9 = ((): number => {
 })();
 /** 진단 `#gldepth=0` — 깊이 검사를 끄고 화가 차례로만 그린다. */
 export const GL_DEPTH9 = !(typeof location !== "undefined" && /gldepth=0/.test(location.hash));
+/** `#gl2=0` — WebGL 1 문맥으로 연다(견줌용 · 기본은 2 를 먼저 열고 없으면 1). `#glinst=0` — 인스턴싱을 끄고 상수 속성으로 하나씩 그린다(견줌용). */
+export const GL_GL2_9 = !(typeof location !== "undefined" && /gl2=0/.test(location.hash));
+export const GL_INST9 = !(typeof location !== "undefined" && /glinst=0/.test(location.hash));
 /** 데칼 깊이 편향(모델 칸, 유닛 0.8 · 건물 1.3) — 진단 `#glbias=N` 으로 못 박아 본다(-1 = 메시별 기본). */
 export const GL_BIAS9 = ((): number => { const m = typeof location !== "undefined" ? /glbias=([\d.]+)/.exec(location.hash) : null; return m ? Number(m[1]) : -1; })();
 /** 진단 `#glblit=0` — GL 그림을 유닛 캔버스에 **합성하지 않는다**(GL 은 다 돌고 그림만 안 붙는다). 헤드리스 크로뮴(SwiftShader 소프트웨어 GL)은
