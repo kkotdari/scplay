@@ -88,7 +88,7 @@ import {
 import { TEAM_COLOR, type MinimapMarker } from "./markers";
 import {
   atkCutOf as atkCutOf9, flapCutOf as flapCutOf9,
-  muzzlePoint as muzzlePoint9, muzzleLanes9, anchorPoint as anchorPoint9, spinMuzzle9, BLD_MUZZLE, HEAD_MUZZLE_KINDS9, MUZZLE_BURST_FX9, SHELL_ONLY_FX9,
+  muzzlePoint as muzzlePoint9, muzzleLanes9, anchorPoint as anchorPoint9, spinMuzzle9, BLD_MUZZLE, HEAD_MUZZLE_KINDS9, COMSAT_SWEEP9, SPIN_WORK_KINDS9, spinRateOf9, MUZZLE_BURST_FX9, SHELL_ONLY_FX9,
   AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, ATTACK_FX, NO_BEAM_FX, TARGET_FX, PROJECTILE_FX, NUKE_BOOM_SEC, NUKE_FALL_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, attackFxOf9, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SIEGE_TURN_U9, SIEGE_XF_SEC, BURROW_DIG_SEC, SPIN_ANIM9, SPIN_STEPS, SUNK_OUT9, sunkenCut9, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
 } from "./engine9";
 import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, WorldUi9 } from "./engine9";
@@ -4723,16 +4723,19 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             ctx.fill();
           }
           if (glB9 && glBf9 && gl9) {
-            const gk9 = (sidePx * (op.pulseK ?? 1) / 16) * (bldNormOf(op.kind) ?? 1);
+            /* ★ 통로(addonlink)는 **원점 앉히기**다(2026-09, engine9 addonLinkGeom9) — 배수(mkFrac · 타일/모델칸 · 그리드
+               폭 몫)와 원점(fx·fy)을 엔진이 두 벽에서 풀어 주므로, 잉크 상자로 크기를 맞추거나 바닥을 지면선에 앉히지 않는다.
+               (통로 모델의 z 0 이 곧 땅이라 원점이 지면선이다.) */
+            const gk9 = op.mkFrac !== undefined ? op.mkFrac * cw * zoom : (sidePx * (op.pulseK ?? 1) / 16) * (bldNormOf(op.kind) ?? 1);
             const gLift9 = op.airPx !== undefined ? op.airPx * zoom : wPx * (op.liftK ?? 0);
-            const gay9 = Math.round(((groundY ?? sy + hPx / 2) - gLift9) * B) / B;
+            const gay9 = op.mkFrac !== undefined ? Math.round(sy * B) / B : Math.round(((groundY ?? sy + hPx / 2) - gLift9) * B) / B;
             const gax9 = Math.round(sx * B) / B;
             const gsh9 = bodyShadow
               ? (gLift9 > 0.5
                 ? { dy: Math.max(1, sidePx * 0.04 + gLift9), alpha: op.alpha * 0.4 }   // 뜬 건물(이사 중)은 아래로 — 벌어짐이 높이다
                 : { ground: true, alpha: op.alpha * SHADOW_ALPHA9 }) : undefined;
             const gR9 = sidePx * 0.707; const gCy9 = -8 * gk9;
-            gl9.push({ mesh: glB9, ax: gax9, ay: gay9, k: gk9, yoff: -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind), over: true });
+            gl9.push({ mesh: glB9, ax: gax9, ay: gay9, k: gk9, yoff: op.mkFrac !== undefined ? 0 : -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind), over: true });
             if (op.attach) {
               /* ★ 딸림 부품은 **제 요잉**을 가질 수 있다(attachRot · bake9 turret 의 ★★) — 도는 머리를
                  그것으로 돌리면 각이 셰이더 유니폼이라 **메시 열쇠에 안 든다**(터렛 48벌 → 1벌).
@@ -5766,7 +5769,7 @@ function docBldKind9(kind: string): boolean {
      아이콘이 **유닛 길**로 굽는다 — 유닛 길에는 딸림 부품이라는 것이 아예 없어 혓바닥이
      통째로 빠졌다(몸만 나와 '공격 애니메이션이 안 나온다'로 보였다). */
   if (!docBldSet9) docBldSet9 = new Set([...SHAPE_GALLERY.filter((g9) => g9.group === "건물").map((g9) => g9.kind), ...DECAL_KINDS,
-    "scaffold", "sunkenrear", "sunkentongue", "turretbase", "turrethead"]);
+    "scaffold", "sunkenrear", "sunkentongue", "turretbase", "turrethead", "comsatbase", "comsatdish"]);
   return docBldSet9.has(kind);
 }
 /** ★ **변신 차례표**(2026-09, 물음: "공사고치, 알 변태완료나 럴커 버로우, 시즈모드 애니메이션도
@@ -5826,11 +5829,11 @@ export type DocAnim9 = {
  *  제 표를 따로 들면 모델을 고칠 때 두 곳을 맞춰야 하므로, 묻는 자리를 하나로 둔다.
  *  ※ 공사 고치(cocoon)·럴커 알·변태 고치·시즈 모드처럼 **딴 종류로 갈리는** 변신은 이 자의
  *    일이 아니다 — 그것들은 이미 제 칸으로 도록에 서 있다(도록이 짝을 이어 보여 준다). */
-/** 일할 때만 도는 종류 — 지도의 그 갈래와 같은 명단이다(engine9 의 spin 셈: forge·cyber·mshop). */
-const SPIN_WORK9 = new Set(["forge", "cyber", "mshop"]);
+/** 일할 때만 도는 종류 — 지도의 그 명단 그대로다(engine9 SPIN_WORK_KINDS9 · 걸음도 spinRateOf9 한 문). */
+const SPIN_WORK9 = SPIN_WORK_KINDS9;
 export function docAnimOf9(kind: string): DocAnim9 {
   return {
-    spin: SPIN_KINDS.has(kind),
+    spin: SPIN_KINDS.has(kind) && kind !== "addonlink",   // 통로의 칸은 회전이 아니라 길이다(engine9 addonLinkGeom9)
     spinWork: SPIN_WORK9.has(kind),
     head: HEAD_KINDS.has(kind),
     lit: LIT_KINDS.has(kind),
@@ -6186,9 +6189,12 @@ export function docCellsOf9(kind: string, t: number, yaw: number): DocCell9[] {
   } else {
     /* 건물·부가 — 움직이는 것은 자세가 아니라 회전 칸·포탑 각·불빛이다. */
     const idle9: DocCell9 = { label: "대기" };
-    if (a9.spin && !a9.spinWork) idle9.spin = cell9(2.2);
+    /* 걸음은 지도와 **같은 문**(spinRateOf9)이다 — 늘 도는 것 2.2 · 가스 연기 0.45(2026-09, gasPuffs9). */
+    if (a9.spin && !a9.spinWork) idle9.spin = cell9(spinRateOf9(kind, false));
     /* 터렛만 **쉴 때도 돈다**(탐지 회전 96°/s) — 포토·성큰의 포탑은 겨눌 때만 돈다. */
     if (kind === "turret" || kind === "turretbase") idle9.headDeg = yaw + ((t * 96) % 360);
+    /* 컴샛 접시도 쉴 때 돈다(위성 추적 · engine9 COMSAT_SWEEP9) — 합본 comsat 이 headDeg 로 접시를 돌린다. */
+    if (kind === "comsat") idle9.headDeg = yaw + ((t * COMSAT_SWEEP9) % 360);
     /* 공사 발판의 경광등은 그 자체가 '대기'다(요청: "스캐폴드도 idle 상태에서 경광등 깜빡"). */
     if (kind === "scaffold") idle9.blink = blink9;
     out9.push(idle9);
@@ -6198,12 +6204,14 @@ export function docCellsOf9(kind: string, t: number, yaw: number): DocCell9[] {
          한 컷은 그냥 다른 그림일 뿐이라 대기 칸과 견줘서는 무슨 상태인지 못 읽는다. */
       const act9: DocCell9 = { label: "활성" };
       if (a9.lit) act9.lit = blink9;
-      if (a9.spin) act9.spin = cell9(a9.spinWork ? 1.6 : 2.2);
+      if (a9.spin) act9.spin = cell9(spinRateOf9(kind, true));
+      if (kind === "comsat") act9.headDeg = idle9.headDeg;   // 접시는 스캔 중에도 돈다(대기 칸과 같은 시계)
       out9.push(act9);
     }
-    if (a9.head || gun9) {
+    /* ⚠ 컴샛은 HEAD_KINDS 에 들지만(접시를 돌리려고) 무기가 없다 — 공격 칸이 서면 안 된다. */
+    if ((a9.head && kind !== "comsat") || gun9) {
       const atk9: DocCell9 = { label: "공격", tracer: gun9 };
-      if (a9.spin && !a9.spinWork) atk9.spin = cell9(2.2);
+      if (a9.spin && !a9.spinWork) atk9.spin = cell9(spinRateOf9(kind, false));
       if (a9.head) atk9.headDeg = aim9;
       /* ★ 성큰은 **몸이 갈린다**(지적: "성큰 … 공격 애니메이션도 안 나오고 혓바닥 나오는
          컷들") — 쏘는 성큰은 `sunken` 한 벌이 아니라 몸(sunkenrear) + 혓바닥(sunkentongue)
@@ -13350,6 +13358,7 @@ export default function ReplayMotionPlayer({
       probe: ["probeHold", "loadProbeMin", "loadProbeGas"],
       drone: ["droneHold", "loadDroneMin", "loadDroneGas"],
       sunken: ["sunkenrear", "sunkentongue"],
+      comsat: ["comsatbase", "comsatdish"],
       geyser: ["geyserdry"],
     };
     const jobs: { kind: string; rot?: number; table?: boolean; gl?: "u" | "b" }[] = [];

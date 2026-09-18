@@ -7,8 +7,8 @@ import { cx } from "./cx";
 import { TIER_GEN9 } from "./tierTable.gen";
 import { kT } from "../../utils/openbwTracks";
 import {
-  POLY2, MESH9, EMIT_FILL9, meshPut9, shinePath3, annulusPath3, orbPath3, billPath3, meshLoft9, meshRing9, loftZFaces, modelPoint9, annulusPath, bandPath, bodyFace, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, boxOctFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
-import { BUILD_STAGES, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, SPIN_ANIM9, SPIN_STEPS, bldNormOf, modelInkOf, modelNormOf } from "./engine9";
+  POLY2, MESH9, EMIT_FILL9, meshPut9, meshSphere9, shinePath3, annulusPath3, orbPath3, billPath3, meshLoft9, meshRing9, loftZFaces, modelPoint9, annulusPath, bandPath, bodyFace, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, boxOctFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
+import { BUILD_STAGES, LINK_CY_9, LINK_X0_9, linkLenOf9, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, SPIN_ANIM9, SPIN_STEPS, bldNormOf, modelInkOf, modelNormOf } from "./engine9";
 import { type UnitDrawOp } from "./engine9";
 /** 주소 해시(`#pitch=`·`#nocreep` 같은 진단 스위치) — 굽기 일꾼 안에서는 location.hash가 빈 문자열(blob 주소)이라,
  *  메인이 일꾼을 만들 때 `name`에 해시를 실어 보내면(self.name) 그것을 먼저 본다. 메인·도구에서는 location.hash 그대로. */
@@ -107,7 +107,12 @@ export let headAimNow = false;
 /** 모델 z 접기 배수(model-z-scale ×0.8)의 이름 — 리터럴로 못 접는 z(경로 매개변수·세로 배수·회전이 섞인 식)에
  *  **꼭짓점으로 나가는 자리에서** 곱한다. 설계 좌표는 원시값, 이 곱을 지난 값이 판의 z다. */
 export const Z8 = 0.8;
-export const HEAD_KINDS = new Set(["turret", "coil", "sunkenfire", "sunkentongue"]);
+/* 컴샛(합본 `comsat`)도 든다 — 도록·모델샷이 headDeg 로 접시를 돌려 본다(지도는 comsatbase +
+   comsatdish 딸림 부품이라 이 명단 밖이고, 각은 attachRot 유니폼이다). */
+export const HEAD_KINDS = new Set(["turret", "coil", "sunkenfire", "sunkentongue", "comsat"]);
+/** 컴샛 접시 기둥 — 밑동(comsatbase)이 세우고 접시(comsatdish)가 그 끝에 앉는다(두 빌더가 나눠 쓴다). */
+export const COMSAT_MAST_Z09 = 2.32;
+export const COMSAT_MAST_H9 = 1.4;
 export const headTag = (kind?: string): string =>
   ((headYawNow || headAimNow) && (kind === undefined || HEAD_KINDS.has(kind))
     ? `${headYawNow.toFixed(0)}${headAimNow ? "a" : ""}` : "0");
@@ -343,6 +348,11 @@ export const LIT_KINDS = new Set<string>([
        이 줄을 빼면 그 창이 **영영 안 켜진다**. */
   "academy",
   "ebay", "armory", "scifac",                     // 엔베·아머리·사이언스퍼실리티
+  /* ★ **부속 여섯**(2026-09, 요청: "모든 애드온 건물의 활성화 효과있어야 함 없는 건물들은 창문이나 램프
+     만들고 lit 주기") — 컴샛 LED(스캔 중) · 핵 사일로 주황 창(핵 만드는 중 깜빡 · 장전되면 켜 둠) · 머신샵
+     라디에이터·초록등 · 컨트롤타워 몸통 창 · 코버트옵스 초록 등줄 · 피직스랩 구체 허리 창(연구 중).
+     ⚠ 컴샛은 그리는 판이 밑동(comsatbase)이라 그 이름으로도 올린다(litTag 은 op.kind 를 본다). */
+  "comsat", "comsatbase", "nsilo", "mshop", "ctower", "covert", "physlab",
   /* 프로토스 — 관문 문틈의 소환 빛, 스타게이트 관 속 창(요청: 프로토스 플라즈마).
      넥서스가 들어왔다(요청: "넥서스 생산중에 수정체들 깜빡거림 추가") — 꼭대기 수정과
      정면 아쿠아 줄이 프로브를 뽑는 동안 밝아졌다 사그라든다. */
@@ -415,6 +425,12 @@ export const SPIN_KINDS = new Set<string>([
   /* 성큰 혓바닥의 **공격 컷 넷**(요청: "성큰 공격 애니메이션으로 컷 4개로") — 칸 0~3이 뻗은 몫 1/4~4/4다.
      엔진이 사격 박자(sunkenPh)를 넷으로 접어 spin에 싣고, 혀 빌더가 그 몫까지만 아치를 그린다. */
   "sunkentongue",
+  /* ★ 가스 연기(2026-09, 요청: "간헐천 및 각 종족 가스건물의 가스연기를 뭉게뭉게로 바꾸고 애니메이션화") —
+     회전 칸이 곧 연기의 시계다(gasPuffs9 · 걸음은 engine9 GAS_SPIN_RATE9). 간헐천은 자원 op 라 엔진의 자원
+     자리에서 spin 을 싣는다(고갈 별본 geyserdry 는 김이 없어 안 든다). */
+  "geyser", "refinery", "assim", "extract",
+  /* ★ 통로는 칸이 **길이**다(engine9 addonLinkGeom9 의 ★) — 도는 것이 아니다. 도록의 회전 칸 문(docAnimOf9)은 이것을 뺀다. */
+  "addonlink",
 ]);
 
 /* 재생 루프가 프레임마다 부른다 — 느린 프레임이 이어지면 등급을 한 단 내리고,
@@ -461,6 +477,44 @@ export const spinRad = (): number => ((bldSpinNow % SPIN_ANIM9) * Math.PI * 2) /
  *  대칭 몫(2π/n)을 칸에 나눠 담으면 곧게 나아가고, 마지막 칸 다음이 첫 칸과 정확히
  *  이어진다(대칭이니까). 벌 수는 칸 수 그대로다(SPIN_ANIM9 — 지금 16). */
 export const spinRadSym = (n: number): number => ((bldSpinNow % SPIN_ANIM9) * Math.PI * 2) / (n * SPIN_ANIM9);
+/* ── 가스 연기(뭉게뭉게) ─────────────────────────────────────────────────────────
+   ★ 2026-09, 요청: "간헐천 및 각 종족 가스건물의 가스연기를 뭉게뭉게로 바꾸고 애니메이션화(간헐천과
+   어시밀레이터는 가운데와 좌우 가스가 번갈아 나오게하기)" — 여태 김은 위로 갈수록 넓고 옅어지는 타원
+   세 켜(정지 그림)였다. 이제 **반투명 덩이 몇이 올라가며 커지고 옅어지는** 한 바퀴다:
+   · 시계는 **회전 칸**이다(bldSpinNow · SPIN_ANIM9 칸이 한 바퀴) — 걸음(초당 몇 바퀴)은 엔진(spinRateOf9)이
+     주고 도록도 같은 문을 본다. 덩이 하나의 삶이 한 바퀴다: 아가리에서 작고 옅게 나서(u 0) 커지며
+     오르고(u^0.85) 끝에서 스러진다((1−u)^1.4).
+   · 덩이는 **저해상도 구**(위도 4 · 경도 8 = 32 낯)다 — 빌보드 원반은 이 종류에서 셰이더가 법선을 못
+     받아 명암이 자리를 타고, 정밀 구(12×20)는 덩이 아홉에 4천 삼각이라 칸 열여섯이 폰 메모리를 먹는다.
+   · **번갈아 나오기**는 위상(phase)이다 — 가운데 굴뚝 0 · 양옆 1/(2n) 이면 한 쪽이 낼 때 다른 쪽은 쉰다.
+   · 색은 채도가 높아야(가스 초록) mesh9 의 덧칠 접기(무채색만)에 안 걸려 제 부품으로 남는다.
+   · ⚠ 칸 0 에도 덩이가 선다 — 잉크 상자(붓은 칸 0 으로 잰다)에 김이 든 것은 옛 세 켜 때와 같다. */
+export function gasPuffs9(o: {
+  x: number; y: number; z: number;
+  /** 아가리에서의 반지름(끝에서 1.5배) · 오르는 높이 */ r: number; h: number;
+  col: string;
+  /** 덩이 수(기본 3) · 위상(0~1) · 오르며 흘러가는 몫(x, y) · 가장 짙은 알파(기본 0.45) */
+  n?: number; phase?: number; drift?: [number, number]; a?: number;
+}): ShapeFace[] {
+  const n = o.n ?? 3;
+  const out: ShapeFace[] = [];
+  const u0 = (bldSpinNow % SPIN_ANIM9) / SPIN_ANIM9;
+  for (let k = 0; k < n; k += 1) {
+    const u = (((u0 + (o.phase ?? 0) + k / n) % 1) + 1) % 1;
+    const rr = o.r * (0.5 + 1.0 * u);
+    const z = o.z + o.h * (0.06 + 0.94 * Math.pow(u, 0.85));
+    const wob = Math.sin(u * 5.2 + k * 2.1) * o.r * 0.3;
+    const px = o.x + (o.drift?.[0] ?? 0) * u + wob;
+    const py = o.y + (o.drift?.[1] ?? 0) * u + wob * 0.5;
+    const a = (o.a ?? 0.45) * Math.min(1, 0.2 + u * 5) * Math.pow(1 - u, 1.4);
+    if (a < 0.03) continue;
+    const [sx, sy] = project(px, py, z);
+    const d = screenCircle(sx, sy, rr);
+    if (MESH9.on) meshPut9(d, meshSphere9(px, py, z, rr, 1, 4, 8));
+    out.push([d, a, o.col] as ShapeFace);
+  }
+  return out;
+}
 
 /** 굽는 도구(model-shot --spin)가 칸을 세우는 문 — 앱에서는 op.spin이 세운다. */
 /** 앱이 op.spin을 그대로 세우는 문(buildingSpriteBake) — 칸 접기 없이 그대로. */
@@ -491,7 +545,7 @@ export const glowLit = (on: string, off: string): string => {
  *  ★ 전부 **모형 좌표**다 — 화면 좌표로 그리면 요잉을 돌릴 때 창만 벽에서 미끄러진다.
  *  ★ 뒤통수의 창은 안 그린다(facingRatio) — 벽 하나에 판 하나뿐이라, 안 가리면 뒤쪽
  *    창이 앞벽 위에 겹쳐 뜬다.
- *  불이 켜지면 유리 자리에 네온을 깔고 그 언저리에 옅은 번짐을 한 겹 더 얹는다. */
+ *  불이 켜지면 유리 자리에 네온을 깔고 한가운데에 흰 심을 얹는다 — 번짐은 GL 블룸이 낸다. */
 export function winRow(
   cx: number, cy: number, cz: number, nx: number, ny: number,
   span: number, n: number, h9: number, neon: string,
@@ -522,7 +576,10 @@ export function winRow(
          1.8배·1.9배라, 이웃한 창의 번짐끼리 서로 맞닿아 벽 한 면이 통째로 네온 판이
          됐다(실측 렌더). 창이 벽에 난 구멍으로 안 읽히고 벽에 붙인 초록 스티커로 보인
          까닭이다. 유리보다 24%만 크게 잡으면 칸 사이에 벽이 남아 창이 낱낱이 선다. */
-      faces.push([rect(u9, w9 * 0.62, h9 * 0.496, 0.05), 0.34, neon] as ShapeFace);
+      /* (걷어냄) 유리보다 24% 큰 옅은 테두리 한 장 — 2026-09, 요청: "lit 들어간 요소에서 번짐효과를 직접
+         다른 색 면을 추가로 주변에 넣어주던거 다 제거하고 블루밍으로 대체". 손으로 그린 번짐은 GL 의
+         번짐(블룸)과 겹쳐 두 번 번지고, 요잉을 돌려도 같은 자리에 붙은 스티커였다. 유리(EMIT_FILL9)만
+         남기면 번짐은 붓이 낸다. */
       faces.push([rect(u9, w9 / 2, h9 / 2, 0.09), 1, neon] as ShapeFace);
       faces.push([rect(u9, w9 * 0.28, h9 * 0.24, 0.11), 1, "#f2fff0"] as ShapeFace);
     } else {
@@ -5628,14 +5685,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 창문띠는 **불이 들어온다**(요청: "배럭 창문 안 깜빡임") — 다른 건물의 창과 같은 규약으로
        winLit에 매단다: 그 건물이 도는 동안은 불빛, 멈추면 WIN_DARK로 식는다. 여태 이 띠만
        붙박이 검회색이라, 배럭만 혼자 밤새 불이 꺼진 채였다. */
-    /* 창문띠는 **두 겹**이다(요청: "메인은 더 순수 노란색이고 현재 색으로 번지는 느낌") —
-       띠 전체에 주황을 깔고 그 한가운데에 더 좁은 순노랑 심을 얹는다. 한 톤으로 칠하면 띠가
-       그냥 노란 판인데, 심과 번짐이 갈리면 유리 안에서 불이 새어 나오는 결이 난다. 꺼지면
-       둘 다 WIN_DARK라 그냥 검회색 한 줄로 가라앉는다(다른 건물 창과 같은 규약). */
-    const WINB9 = winLit("#f0b04a");   // 번짐 겹 — 주황
-    const WINC9 = winLit("#ffe790");   // 심 — 순노랑
+    /* 창문띠는 **한 겹**이다 — 옛 두 겹(주황 번짐 겹 위에 좁은 순노랑 심 · 요청: "메인은 더 순수
+       노란색이고 현재 색으로 번지는 느낌")은 손으로 그린 번짐이었다. 2026-09, 요청: "lit 들어간
+       요소에서 번짐효과를 직접 다른 색 면을 추가로 주변에 넣어주던거 다 제거하고 블루밍으로 대체" —
+       순노랑 유리 한 장만 남기고 번짐은 GL 블룸(EMIT_FILL9)이 낸다. 꺼지면 WIN_DARK 한 줄이다. */
+    const WINC9 = winLit("#ffe790");   // 유리 — 순노랑
     const BTH9 = 0.6;           // 띠 두께(옛 임자색 띠 1.5의 절반)
-    const WCK9 = 0.46; const WCK9z9 = 0.368; /* z용 쌍둥이(model-z-scale ×0.8) */           // 심이 띠에서 차지하는 높이 몫
     const BGAP9 = 0.32;           // 두 띠 사이
     /** 가로 띠 한 장 — 면의 좌우폭을 꽉 채운다(앞서 고친 자). */
     const band9 = (
@@ -5670,16 +5725,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       : [bodyFace(polyPath3([
         [xw, y0, z0], [xw, y1, z0], [xw, y1, z0 + th9], [xw, y0, z0 + th9],
       ]))], key);
-    /** 창문띠 한 장 — 번짐 겹 위에 심을 얹는다. */
-    const winB9 = (x0: number, x1: number, py: number, key: number): ShapeFace[] => [
-      ...band9(x0, x1, py, ZW9, key, WINB9),
-      ...band9(x0, x1, py, ZW9 + BTH9 * (1 - WCK9) / 2, key, WINC9, BTH9 * WCK9),
-    ];
-    /** 옆면(±x)의 창문띠 — 같은 두 겹. */
-    const winBY9 = (xw: number, y0: number, y1: number, key: number): ShapeFace[] => [
-      ...bandY9(xw, y0, y1, ZW9, key, WINB9),
-      ...bandY9(xw, y0, y1, ZW9 + BTH9 * (1 - WCK9) / 2, key, WINC9, BTH9 * WCK9),
-    ];
+    /** 창문띠 한 장 — 유리 한 겹(번짐은 블룸). */
+    const winB9 = (x0: number, x1: number, py: number, key: number): ShapeFace[] =>
+      band9(x0, x1, py, ZW9, key, WINC9);
+    /** 옆면(±x)의 창문띠 — 같은 한 겹. */
+    const winBY9 = (xw: number, y0: number, y1: number, key: number): ShapeFace[] =>
+      bandY9(xw, y0, y1, ZW9, key, WINC9);
     /* ★ 띠는 **다섯 덩이를 저마다 감아 돈다**(요청 두 가지를 한 자리에서):
         · "앞면(사이 건물에도 추가)부터 옆면 앞부분 조금까지만 두르기"
         · "건물 옆면의 튀어나온 부분을 감싸듯 둘러져야 함"
@@ -5750,8 +5801,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
             const ax9 = bx9 + sx9 * (bhw9 - bc9) + ox9; const ay9 = bcy9 + sy9 * bhd9 + oy9;
             const bx2 = bx9 + sx9 * bhw9 + ox9; const by2 = bcy9 + sy9 * (bhd9 - bc9) + oy9;
             pc.push(...bandSeg9(ax9, ay9, bx2, by2, ZB9, key9));
-            out.push(...bandSeg9(ax9, ay9, bx2, by2, ZW9, key9, WINB9));
-            out.push(...bandSeg9(ax9, ay9, bx2, by2, ZW9 + BTH9 * (1 - WCK9) / 2, key9, WINC9, BTH9 * WCK9));
+            out.push(...bandSeg9(ax9, ay9, bx2, by2, ZW9, key9, WINC9));
           }
         }
       }
@@ -6779,10 +6829,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const band = (a9: number, b9: number, zb: number, zt: number, dy9: number): string =>
           polyPath3([[a9, wy + dy9, zb], [b9, wy + dy9, zb], [b9, wy + dy9, zt], [a9, wy + dy9, zt]]);
         win.push([band(x0, x1, wz, wz + 0.688, 0), 1, "#22262c"] as ShapeFace);
+        // 유리 한 장(번짐 겹은 걷었다 — 블룸이 낸다. 2026-09 요청 · winRow 의 그 규약)
         win.push([band(x0 + 0.1, x1 - 0.1, wz + 0.064, wz + 0.624, 0.02),
-          0.55, winLit("#ff9d3d")] as ShapeFace);   // 번짐 겹 — 주황
-        win.push([band(x0 + 0.18, x1 - 0.18, wz + 0.16, wz + 0.496, 0.04),
-          0.82, winLit("#ffe790")] as ShapeFace);   // 심 — 노랑
+          1, winLit("#ffe790")] as ShapeFace);
       }
       out.push(...tagKey(win, 60));
       /* ★ 안전 빗금은 **앞면 가로폭을 꽉 채운다**(2026-09, 요청: "스타포트 앞면 해저드
@@ -6971,11 +7020,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const dh = dz1 - dz0;
         const door: ShapeFace[] = [
           [quad(1.7, dz0z9, dz1z9), 1, "#22262c"] as ShapeFace,
-          [quad(1.56, dz0z9 + dh * 0.056, dz1z9 - dh * 0.056), 0.55, winLit("#ff9d3d")] as ShapeFace,
+          // (걷어냄) 주황 번짐 겹 — 2026-09 요청, 번짐은 블룸이 낸다(winRow 의 그 규약).
         ];
         for (let k9 = 0; k9 < 3; k9 += 1) {
           const z9 = dz0z9 + dh * (0.128 + k9 * 0.216);
-          door.push([quad(1.4, z9, z9 + dh * 0.12), 0.82, winLit("#ffe790")] as ShapeFace);
+          door.push([quad(1.4, z9, z9 + dh * 0.12), 1, winLit("#ffe790")] as ShapeFace);
         }
         /* ★ 키를 **깊이로** 준다(지적 사진: 아가리가 안테나 팔과 옆 구조물 위에 떠서
            그려짐) — 붙박이 58은 이 모델의 어느 키보다도 높아, 아가리가 제 앞을 지나는
@@ -8119,7 +8168,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const a9 = (i9 / 6) * Math.PI * 2 + Math.PI / 6;
         return [Math.cos(a9) * GR9, GY9 + Math.sin(a9) * GR9, GZ9];
       });
-      const gem9: ShapeFace[] = [[billPath3(0, 0.1, 2.64, 1.05), 0.22, "#8fe8ff"] as ShapeFace];
+      /* 뒤의 옅은 후광 한 장(billPath3 · 0.22)은 걷었다 — 2026-09, 요청: 손 번짐 제거 → 블룸. 결정면 색 둘은
+         EMIT_FILL9 에 미리 적혀 있어 블룸이 문다. */
+      const gem9: ShapeFace[] = [];
       const facets9: { d: string; f: number; nx: number; ny: number; up: boolean }[] = [];
       for (let i9 = 0; i9 < 6; i9 += 1) {
         const a9 = ring9[i9]; const b9 = ring9[(i9 + 1) % 6];
@@ -8394,7 +8445,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      보석으로 다듬었다: 위 뾰족·어깨·허리·아래 뾰족이 좌우대칭. */
   /* ★ 파일런은 **−45도 돌려 세운다**(요청: "파일런 −45도 요잉") — 모델 자체를 돌리므로
      2D·GL·도록이 한 자를 쓴다(SHAPE_ROT 은 2D 길만 타서 GL 이 안 따라온다). */
-  diamond: () => withModelSpin(-45, (): ShapeFace[] => {
+  /* ★ **180도 더 돌린다**(2026-09, 요청: "파일런 모델 자체를 180도 요잉(더 예쁘게 보임)") — −45 → 135.
+     모델을 통째로 돌리는 자는 이 감싸개 하나다(SHAPE_ROT 은 2D 길만 타므로 쓰지 않는다 — CLAUDE.md
+     '모델을 통째로 돌릴 때'). 돌린 뒤 bld-norm·ink-center 를 다시 쟀다(아래 BLD_NORM 의 눌러 둔 값은 안 갈았다). */
+  diamond: () => withModelSpin(135, (): ShapeFace[] => {
     /* 파일런(사진 참고) — 위아래로 뾰족한 큰 파란 수정을 가운데 두고, 그 허리를
        수평 링이 감싼다. 링 둘레에는 세로 갈고리 여섯이 위아래로 뻗고, 링 자체엔
        청록 띠가 점점이 박힌다. 자체 그림자는 없다(공용 groundShadow가 맡는다). */
@@ -10074,8 +10128,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 굴뚝을 인 덩이(제일 높음)는 **정가운데**다(지시: "굴뚝 있는 건물과 굴뚝 통째로
          정가운데로 위치 이동"). (1.4, −2)에서 (0, −0.3)으로 — A·C 사이에 꼭 낀다. */
       // 맨 왼쪽(뒤) 드럼 A를 앞으로(재지적: "맨 왼쪽 건물이 너무 뒤로 가 있어서") — y −1.6 → −0.6.
-      [-2.4, -0.6, 2.6, 2.2, 3.4], [0, -0.3, 2.4, 2, 4.2],
-      [3.2, 0.6, 2.2, 2.6, 3], [-3, 1.8, 2.2, 2, 2.4],
+      /* ★ **뒤 세 채를 높인다**(2026-09, 요청: "리파이너리 세개의 파이프 세로 높이 줄이고 뒤쪽본건물 세채는
+         충분히 높여서 파이프가 연결될수있는 키로 수정하기") — 관의 보(ZT9)가 5.3(실제 4.24)으로 내려왔으니
+         지붕이 그 위에 있어야 관이 벽으로 **들어간다**: A 3.4 → 5.2 · 가운데 4.2 → 5.8(굴뚝이 따라 오른다) ·
+         오른쪽 3 → 5.2. 오른쪽 덩이는 x 2.9·폭 2.8 로 넓혀 오른 관(x 1.9)을 받고, y 를 0.6 → −0.2 로 물려
+         굽이(y 1.5)가 벽 속에 박히지 않게 한다(앞벽 1.1). */
+      [-2.4, -0.6, 2.6, 2.2, 5.2], [0, -0.3, 2.4, 2, 5.8],
+      [2.9, -0.2, 2.8, 2.6, 5.2], [-3, 1.8, 2.2, 2, 2.4],
     ] as [number, number, number, number, number][]) {
       out.push(...tagKey(paintBase(boxFaces3(bx, by, bw, bh, bz * Z8, 0.64), BODY),
         10 + depthNow(bx, by) * 1.6));
@@ -10091,31 +10150,34 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ...winRow(bx - bw / 2, by, wz, -1, 0, bh * 0.7, 2, bz * 0.24, NEON),
       ], 10 + depthNow(bx, by) * 1.6 + 0.4));
     }
-    /* 검은 나팔 굴뚝 — 제일 높은 덩이의 옥상 한가운데(지시로 덩이와 함께 정가운데로).
-       그 위로 **베스핀 가스 증기**가 오른다(지시) — 간헐천의 김과 같은 표현: 위로
-       갈수록 넓고 옅어지는 초록 타원 세 켜가 바람에 살짝 흘러 오른다. 가스라 3티어. */
+    /* 검은 나팔 굴뚝 — 제일 높은 덩이의 옥상 한가운데(지시로 덩이와 함께 정가운데로). 옥상이
+       5.28(덩이 5.8 × Z8 + 0.64)로 올랐으니 굴뚝도 그 위에 선다.
+       그 위로 **베스핀 가스 증기**가 오른다(지시) — 이제 **뭉게뭉게 덩이**다(2026-09 요청 · gasPuffs9):
+       옛 세 켜 타원은 정지 그림이었다. 회전 칸이 시계라 덩이가 나고 오르고 스러진다. 가스라 3티어. */
     out.push(...tagKey([
       ...paintBase(spirePillar({
-        x: 0, y: -0.3, z0: 4, h: 1.28, w: 0.95, tipW: 1.55,
+        x: 0, y: -0.3, z0: 5.28, h: 1.28, w: 0.95, tipW: 1.55,
         segs: 3, sides: 12, hold: 0.2,
       }), "#21252c"),
-      capFace(discPath3(0, -0.3, 5.28, 1.38), 0.55),
-      [discPath3(-0.1, -0.15, 5.84, 1.1, 0.66), 0.16, "#80ff96", 0, 3] as ShapeFace,
-      [discPath3(-0.25, 0.0, 6.48, 1.45, 0.86), 0.1, "#80ff96", 0, 3] as ShapeFace,
-      [discPath3(-0.42, 0.15, 7.08, 1.8, 1.02), 0.06, "#80ff96", 0, 3] as ShapeFace,
+      capFace(discPath3(0, -0.3, 6.56, 1.38), 0.55),
+      ...fine(gasPuffs9({ x: 0, y: -0.3, z: 6.6, r: 0.8, h: 2.6, col: "#80ff96", n: 3, drift: [-0.5, 0.45] })),
     ], 10 + depthNow(0, -0.3) * 1.6 + 1.2));
     /* 관 셋 — 가운데는 입구 천장, **양옆은 앞 드럼통 옥상 가운데에 꽂힌다**(정정:
        "양옆 파이프는 드럼통 옥상 가운데 앵커링"). 드럼 돔 꼭대기(z≈3.5)에서 수직으로
        오르고, 사분원으로 부드럽게 꺾여 뒤로 수평을 건넌다 — 같은 꼴·같은 각, 수직이
        수평보다 길다. 밑동 플랜지 테로 '꽂힌 관'으로 읽히게 한다. 토막마다 제 깊이 키. */
+    /* ★ **관은 제 덩이의 앞벽에서 끝난다**(2026-09, 같은 요청) — 여태 수평 몫이 1.2 한 값이라 관 셋이 허공
+       (덩이 앞 0.8~1.5)에서 그냥 끊겼다. 관마다 **받는 덩이의 앞벽 y**(wy9)를 적고, 수평 몫 = 굽이 끝에서
+       그 벽까지 + 0.25(벽 속으로 파고드는 몫 — '나란히 선 덩이 사이의 틈'의 그 규약). 보는 6.3 → 5.3
+       (실제 4.24)으로 내려 세로 몫이 1.9 → 0.9 로 준다(탱크 돔 3.5 위). */
     {
       const R9 = 0.26;
-      const ZT9 = 6.3;          // 보 높이 — 높인 천장(4.0) 위로(설계 자 — 꼭짓점에서 Z8을 곱한다)
+      const ZT9 = 5.3;          // 보 높이(설계 자 — 꼭짓점에서 Z8을 곱한다) — 덩이 지붕(4.8·5.28) 아래
       const RE9 = 0.9;          // 굽이 반지름
-      const LH9 = 1.2;          // 수평 몫 — 수직(1.4~1.9)보다 짧다
-      for (const [xi9, yi9, zi9] of [
-        [-1.6, 2.6, 3.5], [0, 3.6, 4.0], [1.9, 2.4, 3.5],
-      ] as [number, number, number][]) {
+      for (const [xi9, yi9, zi9, wy9] of [
+        [-1.6, 2.6, 3.5, 0.5], [0, 3.6, 4.0, 0.7], [1.9, 2.4, 3.5, 1.1],
+      ] as [number, number, number, number][]) {
+        const LH9 = (yi9 - RE9) - wy9 + 0.25;   // 수평 몫 — 굽이 끝에서 벽까지, 벽 속 0.25
         const LV9 = ZT9 - RE9 - zi9;
         const LC9 = (RE9 * Math.PI) / 2;
         const LT9 = LV9 + LC9 + LH9;
@@ -10324,6 +10386,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ]
         : paintBase(cylinderFaces3(wx9, wy9, 0.46 * k9, 0.24, wz9), GOLD_D),
       10 + depthNow(px, py) * 1.6 + 0.5));
+      /* ★ 굴뚝마다 **가스 연기가 오른다**(2026-09, 요청: "간헐천과 어시밀레이터는 가운데와 좌우 가스가
+         번갈아 나오게하기") — 뒤 가운데 큰 굴뚝은 위상 0, 앞 양옆 둘은 1/4 이라 가운데가 낼 때 양옆은
+         쉰다(gasPuffs9 의 ★). 색은 베스핀 초록 — 굴뚝은 금이지만 나오는 것은 가스다. 3티어. */
+      out.push(...fine(tagKey(gasPuffs9({
+        x: wx9, y: wy9, z: wz9 + 0.34, r: 0.42 * k9, h: 2.1, col: "#80ff96",
+        n: 2, phase: py < -2 ? 0 : 0.25, drift: [0, -0.35], a: 0.4,
+      }), 10 + depthNow(px, py) * 1.6 + 0.9)));
     });
     /* 네 귀 기둥 — 뒤 둘은 높고 곧게, 앞 둘은 낮고 바깥으로 기운다. 청록 띠와 황금 갓. */
     /* 굴뚝은 **셋**(재지적): 앞 양옆 둘(기운 채)과 **뒤 가운데 큰 것 하나**(k 1.45배).
@@ -10542,6 +10611,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           ]
           : []),
       ], depthNow(mx9, my9) * 1.6 + 0.5));
+      /* ★ 아가리에서 **가스 연기가 난다**(2026-09, 요청: "각 종족 가스건물의 가스연기를 뭉게뭉게로 바꾸고
+         애니메이션화") — 익스트랙터는 여태 김이 아예 없었다. 창(활성)은 통 옆구리가 말하고, 가스가 나오는
+         자리는 이 아가리다 — 앞(+y)으로 흘러 오른다. 3티어. */
+      out.push(...fine(tagKey(gasPuffs9({
+        x: mx9, y: my9 + 0.6, z: mz9 + 0.15, r: 0.55, h: 2.2, col: "#80ff96", n: 3, drift: [0, 1.1], a: 0.42,
+      }), depthNow(mx9, my9 + 0.6) * 1.6 + 0.55)));
     }
     for (const t9 of [0.28, 0.46, 0.64, 0.82]) {
       const [gx9, gy9, gz9] = GRB(t9);
@@ -10675,10 +10750,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const hw0 = r9 * Math.sin(Math.PI / n9) * 0.62;
         w9.push([q9(hw0, zc9 - hz9, zc9 + hz9, 0.02), 1, "#22262c"] as ShapeFace);
         if (bldLitNow) {
+          // 유리 한 장(주황 번짐 겹은 걷었다 — 2026-09 요청, 번짐은 블룸이 낸다)
           w9.push([q9(hw0 * 0.84, zc9 - hz9 * 0.8, zc9 + hz9 * 0.8, 0.05),
-            0.55, winLit("#ff9d3d")] as ShapeFace);      // 번짐 겹 — 주황
-          w9.push([q9(hw0 * 0.62, zc9 - hz9 * 0.52, zc9 + hz9 * 0.52, 0.08),
-            0.82, winLit("#ffe790")] as ShapeFace);      // 심 — 노랑
+            1, winLit("#ffe790")] as ShapeFace);
         }
       }
       return w9;
@@ -11176,19 +11250,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ...post(3.7, 2.7, 2.16),
       ], 20),
     ], "terran", [
-      /* 개인색은 우물 위 비스듬한 뚜껑 판(요청: 덧붙인 원판 말고 실제 부품에) —
+      /* 개인색은 우물 위 뚜껑 판(요청: 덧붙인 원판 말고 실제 부품에) —
          아머리에서 가장 넓게 눈에 드는 면이라 위에서 임자 색이 그대로 읽힌다.
          ★ 자리를 몸체 위판으로 내린다(지적: "아머리 — 몸체 위판 위치") — z 4.3에
            수평으로 떠 있어, 드럼(윗면 z 3) 위 1.3 되는 허공에 원판 하나가 뜬 꼴이었다.
-           이제 우물 뒤 테(z 3.02)에 물려 앞으로 갈수록 들리는 **경사 뚜껑**이다:
-           뒷변이 드럼 윗면에 닿아 있으니 떠 보이지 않고, 들린 앞쪽이 위에서 크게
-           보여 임자 색은 그대로 읽힌다. */
+         ★ **천장에 수평으로 붙인다**(2026-09, 지적: "아머리 몸체 위 임자색 원판이 기울어져
+           있음 몸체 천장에 수평으로 붙이기") — 그 다음 판은 뒤 테에 물려 앞으로 들리는 경사
+           뚜껑이었는데, GL 의 진짜 깊이에서는 드럼 지붕에서 **떠오른 판**으로 읽힌다. 드럼
+           윗면(z 2.4) 바로 위(2.46 — 우물 원반 2.44 와 z 싸움을 안 하게 한 뼘)에 수평으로 눕힌다. */
       ...tagKey(((): ShapeFace[] => {
         const N9 = 20;
         const d9 = polyPath3(Array.from({ length: N9 + 1 }, (_, q9) => {
           const a9 = (q9 / N9) * Math.PI * 2;
-          const y9 = Math.sin(a9) * 1.95;
-          return [Math.cos(a9) * 1.95, y9, 2.416 + (y9 + 1.95) * 0.184] as [number, number, number];
+          return [Math.cos(a9) * 1.95, Math.sin(a9) * 1.95, 2.46] as [number, number, number];
         }));
         return [bodyFace(d9), topFace(d9, 0.24)];
       })(), 10),
@@ -12341,8 +12415,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ]
         : domeFaces3(px, py, 0.72, 0.64, 0.64 + ph), CYAN),
       key + 1));
-      out.push(...tagKey([[discPath3(px, py, 1.344 + ph, 0.42, 0.42), 0.55,
-        "#e0fffb"] as ShapeFace], key + 2));
+      /* (걷어냄) 랜턴 위의 흰 광점 원반 — 2026-09, 요청: "옵저버토리, 플릿비컨 광택을 부품으로 붙인 거
+         제거". 캔버스만 붓이던 때 '둥글다'를 말하던 덧칠인데, GL 에서는 요잉을 돌려도 안 따라 도는 흰
+         스티커로 남는다(광택은 셰이더의 몫 — CLAUDE.md '손으로 얹은 흰 반사는 이제 셰이더와 싸운다'). */
     });
     /* ★ 기둥끼리 잇는 **다리**(요청·사진: "기둥간 연결하는 다리들이 있음 — 전부 바닥쪽에
        연결됨") ─────────────────────────────────────────────────────────────────────
@@ -12444,7 +12519,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       out.push(...tagKey(paintBase(spikeHorn(px9, py9, 1.76, px9 * 0.75, py9 * 0.75, 3.36, 0.34, undefined, 6, 0.3, -px9 * 0.3, -py9 * 0.3), GOLD9),
         20 + depthNow(px9, py9)));
     }
-    out.push(...tagKey(sphereFaces3(0, 0, 2.96, 1.35, glowLit("#c8fffa", "#8ee6dc")), 30));
+    /* 구슬은 **광점 없이**(2026-09, 요청: "옵저버토리, 플릿비컨 광택을 부품으로 붙인 거 제거") — sphereFaces3 가
+       기본으로 얹는 흰 광점·옆 그늘 두 장은 제 경로를 가진 작은 덧칠이라 GL 에서 제 부품으로 남아(mesh9 의
+       '제 경로를 가진 작은 그늘은 남긴다'), 발광 구 위에 안 따라 도는 스티커로 떴다. 빛은 셰이더가 낸다. */
+    out.push(...tagKey(sphereFaces3(0, 0, 2.96, 1.35, glowLit("#c8fffa", "#8ee6dc"), false), 30));
     /* ④ 포신 — 왼쪽 돔 옆구리(−1.6, 0.4, 2.3)에서 위·바깥·뒤로 비스듬히(−3.9, 1.5, 4.6) 뻗는 금빛 관, 끝은 검회색 아가리.
        위에 손잡이 혹. 키는 돔보다 앞(제 깊이 + 3). */
     const B0: [number, number, number] = [-1.6, 0.4, 1.84];
@@ -17224,7 +17302,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
              금색 판 위에서 점으로 죽는다. 네온의 결은 **번짐**이다: 창보다 두 배 넓은
              옅은 한 장을 밑에 깔고 그 위에 또렷한 작은 한 장을 얹으면, 작아도 빛나는
              점으로 읽힌다(건물 창 winRow가 쓰는 그 손이다). */
-          out9.push([win9(2.1), 0.3, "#3ad9ff"] as ShapeFace);
+          /* (걷어냄) 창보다 두 배 넓은 옅은 한 장 — 2026-09, 요청: "번짐효과를 직접 다른 색 면을 추가로
+             주변에 넣어주던거 다 제거하고 블루밍으로 대체". #5fe6ff 는 EMIT_FILL9 에 미리 적힌 빛이라 블룸이 문다. */
           out9.push([win9(1), 1, "#5fe6ff"] as ShapeFace);
         }
       }
@@ -17749,7 +17828,16 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     }
     return zsorted(out);
   },
-  comsat: () => {
+  /* ★★ **접시는 딸림 부품이다**(2026-09, 요청: "컴셋스테이션 위성 요잉 주기(터렛의 포드처럼)") —
+     터렛이 포탑부를 가른 그 길(turretbase·turrethead · op.attach + attachRot)을 그대로 쓴다:
+     접시(comsatdish)를 제 판으로 떼고 각을 **카메라와 같은 유니폼**으로 주면 메시는 밑동·접시
+     두 벌로 끝나고 각은 이어서 돈다(칸이 필요 없다).
+     ⚠ **기둥은 모델 원점(0, 0)에 선다** — 딸림 부품은 몸과 같은 자리(앵커)에 얹혀 **원점을 축으로**
+       돈다. 기둥이 옛 자리(0.2, −0.6)에 있으면 접시가 기둥이 아니라 원점 둘레를 공전한다.
+     ⚠ 도록·모델샷은 통째 컴샛을 봐야 하므로 `comsat` 은 둘을 제자리에서 합친 합본으로 남긴다
+       (`HEAD_KINDS` 에 들어 도록이 headDeg 로 돌린다 — 지도는 이 이름을 안 그린다). */
+  comsat: () => [...SHAPE_BUILDERS.comsatbase(), ...withModelSpin(headYawNow, (): ShapeFace[] => SHAPE_BUILDERS.comsatdish())],
+  comsatbase: () => {
     const out: ShapeFace[] = [
       // 받침 슬래브는 중심 깊이만(지적: 애드온 바닥이 위 부품을 덮음).
       ...tagKey(boxFaces3(0, 0.2, 5.6, 4.4, 0.72), depthNow(0, 0.2)),
@@ -17780,10 +17868,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const y09 = wallY9(1.52); const y19 = wallY9(2);
       const led: ShapeFace[] = [];
       for (const lx of [-1.2, -0.4, 0.4]) {
+        // 스캔 중에 켜진다(2026-09 · LIT_KINDS 의 ★) — 꺼진 LED 는 어두운 초록으로 남는다.
         led.push([polyPath3([
           [lx - 0.26, y09, 1.52], [lx + 0.26, y09, 1.52],
           [lx + 0.26, y19, 2], [lx - 0.26, y19, 2],
-        ]), 1, "#4cd86a"] as ShapeFace);
+        ]), 1, bldLitNow ? winLit("#4cd86a") : "#245c31"] as ShapeFace);
       }
       out.push(...tagKey(led, 25 + depthNow(-0.4, 0.9)));
     }
@@ -17800,10 +17889,24 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          hazardBox 는 노란 상자 + 윗면·앞면 빗금으로 **덩이 하나**를 짓는다 — 두께가 있어
          어느 각에서도 제 몸이 제 빗금을 가리고, 코버트옵스·피직스랩과 같은 꼴이 된다. */
     out.push(...tagKey(hazardBox(-1.9, -1.9, 1.9, 1.3, 1.2, 0.72, 4), 24 + depthNow(-1.9, -1.9)));
-    /* 접시 안테나 — 기둥 위에 기울어 앉은 큰 접시. 은색. 접시는 접평면 원판이라
-       요잉을 타고 실제로 납작해진다(공용 렌즈 도형과 같은 결). */
-    out.push(...tagKey(paintBase(cylinderFaces3(0.2, -0.6, 0.34, 1.92, 2.32), TERRAN_STEEL),
-      26 + depthNow(0.2, -0.6)));
+    /* 접시 기둥 — 모델 원점에 선다(위 ★★ · 접시가 이 축으로 돈다). 옛 자리(0.2, −0.6)·
+       높이 1.92 에서 옮기고 줄였다: 접시 꼭짓점이 이 기둥 끝(z 3.72)에 앉는다(아래 접시의 ★). */
+    out.push(...tagKey(paintBase(cylinderFaces3(0, 0, 0.34, COMSAT_MAST_H9, COMSAT_MAST_Z09), TERRAN_STEEL),
+      26 + depthNow(0, 0)));
+    /* 오른뒤 마디진 작은 탑(사진) — 테가 층층이 끼워진 가는 기둥. */
+    {
+      const tw: ShapeFace[] = [...paintBase(cylinderFaces3(2.3, -1.6, 0.3, 2.56, 0.72), TERRAN_STEEL)];
+      for (let k = 0; k < 3; k += 1) {
+        tw.push(...paintBase(cylinderFaces3(2.3, -1.6, 0.52, 0.208, 1.28 + k * 0.72), TERRAN_STEEL_M));
+      }
+      tw.push(capFace(discPath3(2.3, -1.6, 3.28, 0.26), 0.35));
+      out.push(...tagKey(tw, 24 + depthNow(2.3, -1.6)));
+    }
+    return raceBase(out, "terran");
+  },
+  /** 컴샛 접시(딸림 부품) — 위 comsat 의 ★★. 자는 밑동과 같고 원점의 기둥 위에 앉는다. */
+  comsatdish: () => {
+    const out: ShapeFace[] = [];
     /* 접시를 **진짜 접시로**(요청: "위성접시를 진짜 접시로") — 여태 원판 셋을 겹쳐
        놓은 **평면**이었다: 가장자리와 가운데가 같은 평면에 있으니 어느 각도에서도
        오목한 데가 없고, 접시가 아니라 기울인 동전이었다.
@@ -17814,12 +17917,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const dish: ShapeFace[] = [];
     {
       const DR = 2.05;
-      const CX = 0.2;
-      const CY = -0.6;
-      const CZ = 4.24;
       // 접시 축 — 앞(+y)위(+z)를 본다. 그 축에 수직인 두 축이 접시 평면이다.
       const NY = 0.5; const NYz9 = 0.4; /* z용 쌍둥이(model-z-scale ×0.8) */
       const NZ = 0.87; const NZz9 = 0.696; /* z용 쌍둥이(model-z-scale ×0.8) */
+      /* ★ **접시 꼭짓점이 기둥 끝에 앉는다**(2026-09, 지적: "컴셋스테이션 접시 바닥 꼭짓점과 기둥의
+         끝이 안 맞음 높이 맞추기") — dishFaces9 의 (x, y, z) 는 **아가리 테의 가운데**이고 꼭짓점은
+         거기서 축 반대로 `depth` 만큼 물러난 점이다. 여태 아가리를 기둥 끝(z 4.24)에 두어 꼭짓점이
+         기둥 **속** 0.66 아래·뒤 0.47 에 박혔다. 아가리 가운데 = 기둥 끝 + depth·n̂ 으로 두면 꼭짓점이
+         정확히 기둥 끝이다(n̂ 은 접힌 z 자의 단위 축). */
+      const DEPTH9 = (DR * DR) / (2 * 2.6);
+      const NL9 = Math.hypot(NY, NZz9);
+      const CX = 0;
+      const CY = (DEPTH9 * NY) / NL9;
+      const CZ = COMSAT_MAST_Z09 + COMSAT_MAST_H9 + (DEPTH9 * NZz9) / NL9;
       const pt = (rho: number, a: number): [number, number, number] => {
         const co = Math.cos(a) * rho;
         const si = Math.sin(a) * rho;
@@ -17842,7 +17952,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          물려야 한다(축이 카메라와 14도라 0.12 로는 등이 속을 덮었다 — 넣었다 걷었다).
          깊이 0.808 은 옛 초점거리 2.6 의 그 값이다(DR²/(2·2.6)). */
       dish.push(...dishFaces9({
-        x: CX, y: CY, z: CZ, r: DR, depth: (DR * DR) / (2 * 2.6),
+        x: CX, y: CY, z: CZ, r: DR, depth: DEPTH9,
         n: [0, NY, NZz9], fill: TERRAN_STEEL,
       }));
       // 급전기 — 접시 한가운데에서 축을 따라 앞으로 뻗는 가는 침 + 끝의 수신 덩이.
@@ -17854,21 +17964,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         f0[0], f0[1] + NY * 1.6, f0[2] + NZ * 1.28, 0.24,
       ), TERRAN_STEEL));
     }
-    out.push(...tagKey(dish, 28 + depthNow(0.2, -0.6)));
-    /* 오른뒤 마디진 작은 탑(사진) — 테가 층층이 끼워진 가는 기둥. */
-    {
-      const tw: ShapeFace[] = [...paintBase(cylinderFaces3(2.3, -1.6, 0.3, 2.56, 0.72), TERRAN_STEEL)];
-      for (let k = 0; k < 3; k += 1) {
-        tw.push(...paintBase(cylinderFaces3(2.3, -1.6, 0.52, 0.208, 1.28 + k * 0.72), TERRAN_STEEL_M));
-      }
-      tw.push(capFace(discPath3(2.3, -1.6, 3.28, 0.26), 0.35));
-      out.push(...tagKey(tw, 24 + depthNow(2.3, -1.6)));
-    }
-    /* 본체 색은 테란 기본색이다(요청: "서플라이 본체 색 테란 기본색", "리파이너리
-       아카데미도", "애드온들도") — 이 건물들만 제 회색을 손으로 박아 두고 있어서,
-       커맨드·배럭·팩토리 옆에 서면 혼자 어둡고 칙칙했다. 주 덩이를 raceBase가 칠하는
-       톤(#868d94)으로 맞추고, 어두운 받침·구멍·밝은 은빛 디테일은 그대로 둔다.
-       raceBase로 감싸는 것은 색뿐 아니라 종족별 광택(테란 1.7/1.25)까지 받기 위해서다. */
+    out.push(...tagKey(dish, 28 + depthNow(0, 0)));
     return raceBase(out, "terran");
   },
   /* 핵 사일로(재모델링·사진) — 리벳 박힌 강철 드럼 무리다: 오른뒤에 주황 창 띠를
@@ -17914,9 +18010,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const win: ShapeFace[] = [];
       for (const wa9 of [-0.28, 0, 0.28]) {
         const hw9 = 0.09;   // 창 반각(rad) — 호 폭 0.35 로 옛 네모(0.36)와 같다
+        // 핵을 만드는 동안 깜빡이고 장전되면 켜 둔다(2026-09 · LIT_KINDS 의 ★) — 꺼지면 식은 주황.
         win.push([polyPath3([
           wp9(wa9 - hw9, 1.52), wp9(wa9 + hw9, 1.52), wp9(wa9 + hw9, 2.4), wp9(wa9 - hw9, 2.4),
-        ]), 1, "#e0812b"] as ShapeFace);
+        ]), 1, bldLitNow ? winLit("#ffa040") : "#6b3d1a"] as ShapeFace);
       }
       out.push(...tagKey(win, 25 + depthNow(1.5, 1)));
     }
@@ -18010,9 +18107,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          해저드 빗금이 x −2.85~−1.45 · z −0.10~0.90 이라 **왼쪽으로 0.65 · 아래로 0.54 삐져나와**
          바닥 톱니판 위 허공에 걸려 있었다. 빗금을 모서리 안쪽(−2.18~−1.62 · z 0.68~1.92)으로
          들이고, 라디에이터 틀의 왼 끝을 −2.0 → −1.5 로 물려 둘이 겹치지 않게 한다. */
+      // 연구 중에는 라디에이터가 달아오른다(2026-09 · LIT_KINDS 의 ★) — 틀의 주황이 빛이 된다.
       const g: ShapeFace[] = [[polyPath3([
         [-1.5, 1.92, 0.72], [0.4, 1.92, 0.72], [0.4, 1.92, 2.08], [-1.5, 1.92, 2.08],
-      ]), 1, "#d2762a"] as ShapeFace];
+      ]), 1, bldLitNow ? winLit("#ff9a3c") : "#d2762a"] as ShapeFace];
       for (let k9 = 0; k9 < 8; k9 += 1) {
         const gx = -1.32 + k9 * 0.22;
         g.push([polyPath3([
@@ -18028,7 +18126,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ...paintBase(boxFaces3(-2.45, 0.3, 0.5, 1.4, 0.72, 0.96), "#505050"),
       ...(facingRatio(-1, 0) > 0.1 ? [[polyPath3([
         [-2.71, -0.2, 1.2], [-2.71, 0.8, 1.2], [-2.71, 0.8, 1.4], [-2.71, -0.2, 1.4],
-      ]), 1, bldLitNow ? "#4cd86a" : "#245c31"] as ShapeFace] : []),
+      ]), 1, bldLitNow ? winLit("#4cd86a") : "#245c31"] as ShapeFace] : []),
     ], K(-2.45, 0.3, 0.4)));
     // ⑤ 굴뚝 둘(왼뒤) — 높이 다름, 꼭대기 어두운 갓.
     for (const [ex, ey, eh] of [[-1.4, -0.9, 2.08], [-0.5, -1.3, 1.6]] as [number, number, number][]) {
@@ -18084,9 +18182,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     if (facingRatio(0, 1) > 0.12) {
       const win: ShapeFace[] = [];
       for (const wx of [-1.4, -0.8, -0.2, 0.4]) {
+        // 연구 중에 켜진다(2026-09 · LIT_KINDS 의 ★).
         win.push([polyPath3([
           [wx, 1.55, 2.08], [wx + 0.3, 1.55, 2.08], [wx + 0.3, 1.55, 2.8], [wx, 1.55, 2.8],
-        ]), 1, "#20242a"] as ShapeFace);
+        ]), 1, bldLitNow ? winLit("#ffe790") : "#20242a"] as ShapeFace);
       }
       out.push(...tagKey(win, 25 + depthNow(-0.6, 1.6)));
     }
@@ -18095,25 +18194,26 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ...paintBase(cylinderFaces3(-0.6, 0.2, 1.15, 0.72, 3.28), TERRAN_STEEL),
       ...paintBase(cylinderFaces3(-0.6, 0.2, 1.2, 0.288, 3.64), "#e8c33a"),
     ], 26 + depthNow(-0.6, 0.2)));
-    /* 접시 안테나 — 기둥 위에 기울어 앉은 접시. 접평면 원판이라 요잉을 탄다. */
+    /* 접시 안테나 — 기둥 위에 기울어 앉은 접시.
+       ★ **접시 위성으로**(2026-09, 요청: "컨트롤타워 위의 원판도 접시위성으로 변경(돌진 않음)") — 여태
+         기울인 타원 원판 셋을 겹친 **평면**이라 접시가 아니라 기울인 동전이었다. 컴샛과 같은 자
+         (`dishFaces9` · 초점거리 2.6)로 진짜 오목한 접시를 짜고, 꼭짓점이 기둥 끝(z 4.72)에 앉게
+         아가리 가운데를 기둥 끝 + depth·n̂ 에 둔다(컴샛 접시의 그 ★). 급전기 침·수신 덩이는 컴샛의
+         0.66 배다. 컴샛과 달리 **안 돈다** — 요잉을 열쇠에 안 실으니 딸림 부품으로 가를 까닭이 없다. */
     out.push(...tagKey(paintBase(cylinderFaces3(-0.6, 0.2, 0.22, 0.72, 4), TERRAN_STEEL_M),
       27 + depthNow(-0.6, 0.2)));
     {
       const DR = 1.35;
-      const disc = (k: number, dy: number, dz: number): string => polyPath3(
-        Array.from({ length: 17 }, (_, q) => {
-          const a = (q / 16) * Math.PI * 2;
-          return [
-            -0.6 + Math.cos(a) * DR * k,
-            0.2 + dy + Math.sin(a) * DR * k * 0.4,
-            4.72 + dz + Math.sin(a) * DR * k * 0.56,
-          ] as [number, number, number];
-        }),
-      );
+      const NY = 0.5; const NZ = 0.87; const NZz9 = 0.696; /* z용 쌍둥이(model-z-scale ×0.8) */
+      const DEPTH9 = (DR * DR) / (2 * 2.6);
+      const NL9 = Math.hypot(NY, NZz9);
+      const CX = -0.6;
+      const CY = 0.2 + (DEPTH9 * NY) / NL9;
+      const CZ = 4.72 + (DEPTH9 * NZz9) / NL9;
       out.push(...tagKey([
-        [disc(1, 0, 0), 1, TERRAN_STEEL] as ShapeFace,
-        topFace(disc(0.76, 0.06, 0.064), 0.22),
-        capFace(disc(0.28, 0.12, 0.128), 0.3),
+        ...dishFaces9({ x: CX, y: CY, z: CZ, r: DR, depth: DEPTH9, n: [0, NY, NZz9], fill: TERRAN_STEEL }),
+        ...paintBase(rodFaces(CX, CY, CZ, CX, CY + NY * 1.0, CZ + NZ * 0.8, 0.11), TERRAN_STEEL),
+        ...paintBase(sphereFaces3(CX, CY + NY * 1.06, CZ + NZ * 0.85, 0.16), TERRAN_STEEL),
       ], 28 + depthNow(-0.6, 0.2)));
     }
     /* 오른쪽 격자 철탑(사진) — 네 기둥과 가로 띠, 꼭대기에 초록 등. */
@@ -18164,7 +18264,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       out.push(...tagKey([[skirt, 1, "#505050"] as ShapeFace, [slope, 1, TERRAN_STEEL] as ShapeFace,
         // 초록 등줄 — 경사 치마 위 모서리.
         [polyPath3([[-2.2, 1.72, 1.4], [2.2, 1.72, 1.4], [2.2, 1.72, 1.48], [-2.2, 1.72, 1.48]]), 1,
-          bldLitNow ? "#4cd86a" : "#245c31"] as ShapeFace,
+          bldLitNow ? winLit("#4cd86a") : "#245c31"] as ShapeFace,   // 연구 중에 켜진다(LIT_KINDS 의 ★)
       ], K(0, 1.9, 0.5)));
     }
     // ② 안쪽으로 기운 검은 유리판 두 장 — 옆 모서리에서 솟아 가운데로 기운다.
@@ -18205,6 +18305,22 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ...paintBase(cylinderFaces3(CX, CY, 1.85, 0.56, 1.28), TERRAN_STEEL),
       ...paintBase(domeFaces3(CX, CY, 1.85, 1.28, 1.84), TERRAN_STEEL),
     ], K(CX, CY, 0.5)));
+    /* ★ 구체 허리의 **창 여덟**(2026-09, 요청: "없는 건물들은 창문이나 램프 만들고 lit 주기") — 피직스랩은
+       여태 유리가 한 장도 없었다. 통(z 1.28~1.84)의 둘레를 따라 여덟을 두르고 연구 중에 찬 파랑으로 켠다.
+       창은 12각 통의 **낯까지**(내접 r·cos(π/12) + 한 뼘) 앉혀 벽 밖으로 안 나간다('다각 기둥에 무엇을 붙일 때'). */
+    {
+      const WR9 = 1.85 * Math.cos(Math.PI / 12) + 0.02;
+      const win9: ShapeFace[] = [];
+      for (let k9 = 0; k9 < 8; k9 += 1) {
+        const a9 = (k9 / 8) * Math.PI * 2 + Math.PI / 8;
+        if (facingRatio(Math.sin(a9), Math.cos(a9)) <= 0.12) continue;
+        const wp9 = (da: number, z9: number): [number, number, number] =>
+          [CX + Math.sin(a9 + da) * WR9, CY + Math.cos(a9 + da) * WR9, z9];
+        win9.push([polyPath3([wp9(-0.13, 1.4), wp9(0.13, 1.4), wp9(0.13, 1.72), wp9(-0.13, 1.72)]),
+          1, bldLitNow ? winLit("#7fd0ff") : "#22262c"] as ShapeFace);
+      }
+      if (win9.length) out.push(...tagKey(win9, K(CX, CY, 0.7)));
+    }
     // ③ 해저드 덩이 — 구 왼뒤에 박힌 상자.
     out.push(...tagKey(hazardBox(-2.05, -1.25, 1.3, 1.4, 1.2, 1.12, 3), K(-2.05, -1.25, 0.9)));
     // ④ 가속관 — 구 오른쪽에서 앞으로 길게. 끝은 굵은 테, 아래 납작한 해치 판.
@@ -18678,7 +18794,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const limb = (
           aS: number, zS: number, dA: number, dZ: number, w9: number, depth: number,
         ): void => {
-          out.push(...paintBase(spirePillar({
+          /* ★ **잔핏줄은 등급을 단다**(2026-09, 지적: "공사고치 저배율에서 자글자글해보여서 잔핏줄에 lod
+             주기") — 핏줄 열둘이 갈래 둘씩 두 번 갈라져 관 84 개인데, 몸이 몇십 화소일 때는 그 가는
+             관들이 껍질 위에서 화소 단위로 지글거린다. 줄기(깊이 0)는 2티어(trim — 중간 배율부터),
+             갈래(깊이 1·2)는 3티어(fine — 가까이서만)다. 등급표(tier-table)도 그만큼 다시 뽑는다. */
+          const vein9 = paintBase(spirePillar({
             x: 0, y: 0, h: 0.8, w: w9, tipW: Math.max(0.014, w9 * 0.3),
             segs: depth === 0 ? 9 : 6, sides: depth === 0 ? 5 : 4,
             caps: "none", taper: 1.25,
@@ -18686,7 +18806,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
               const wb9 = Math.sin(t9 * 3.6 + aS * 7.7) * wob * t9 * 0.6;
               return on(aS + dA * t9 + wb9, zS + dZ * t9);
             },
-          }), col));
+          }), col);
+          out.push(...(depth === 0 ? trim(vein9) : fine(vein9)));
           if (depth >= 2) return;
           /* 갈래 — 줄기의 절반 자리에서 좌우로 벌어진다. 각을 넓게(24~41도) 주고 두
              자식의 길이를 다르게 줘야 가위가 아니라 나뭇가지로 읽힌다. */
@@ -18938,8 +19059,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        발자국 밖으로 삐져나온 조각이 남아 통로가 건물을 뚫고 들어간 것처럼 보인다.
        가운데를 옮기지 않고 **끝만 당긴다** — 오른쪽 끝(애드온에 닿는 자리)이 안 움직인다. */
     const CUT_L = 1.5;  // 왼쪽 끝을 당기는 몫
-    const X1 = L;              // 오른쪽 끝(애드온 쪽)
-    const X0 = -L + CUT_L;     // 왼쪽 끝(본체 쪽)
+    /* ★ 축의 두 끝·y 는 **엔진과 나눠 쓰는 상수**다(2026-09 · engine9 addonLinkGeom9) — 엔진이 이 두 끝이 본체·부속의
+       벽에 오도록 통로의 자리·배수를 푼다. 여기 숫자를 바꾸면 그 셈도 함께 바뀌어야 하므로 한 자리(engine9)에 둔다. */
+    const X0 = LINK_X0_9;      // 왼쪽 끝(본체 쪽) = −L + CUT_L
+    /* 오른쪽 끝(애드온 쪽)은 **회전 칸이 길이**다(engine9 linkLenOf9 · 칸 0 = 옛 L 그대로 11.5) — 지도에서는 엔진이
+       두 벽 사이에 맞는 칸을 op.spin 에 싣고, 도록·폴백은 칸 0 이다. */
+    const X1 = X0 + linkLenOf9(bldSpinNow);
+    void L; void CUT_L;
     const CX = (X0 + X1) / 2;  // 줄인 뒤의 가운데
     const LEN = X1 - X0;       // 줄인 뒤의 길이
     const Z0 = 0.32;     // 통로 바닥
@@ -18948,7 +19074,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        면)인 각기둥을 X0~X1로 뻗는다. 해저드 띠는 옆의 평평한 면 한가운데 띠로 남긴다(면 높이 2·R8·sin22.5). */
     const R8 = Math.min(W, ZH / 2);
     const CZ8 = Z0 + ZHz9 / 2;
-    const CY8 = 0.8;   // 앞으로(요청: "애드온 연결부를 좀더 앞쪽으로 이동 — 부속건물보다 앞으로 나오진 않게") — 앞 가장자리 2.2 → 3.0
+    const CY8 = LINK_CY_9;   // 앞으로(요청: "애드온 연결부를 좀더 앞쪽으로 이동 — 부속건물보다 앞으로 나오진 않게") — 앞 가장자리 2.2 → 3.0 · 엔진과 나눠 쓴다
     const FLAT8 = R8 * Math.cos(Math.PI / 8);       // 평평한 옆면까지의 거리
     const HALF8 = R8 * Math.sin(Math.PI / 8) * 0.72; // 옆면 안에 드는 띠 반높이
     const zB = CZ8 - HALF8;           // 띠 아래
@@ -23672,7 +23798,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     }
     /* 가운데 분화구 — 위로 좁아지는 바위 그릇. 테 안쪽은 어둡고 바닥에 초록 가스가
        고여 빛난다. */
-    const crater = (cx9: number, cy9: number, r9: number, h9: number, key: number): void => {
+    const crater = (cx9: number, cy9: number, r9: number, h9: number, key: number, ph9 = 0): void => {
       out.push(...tagKey(paintBase(spirePillar({
         x: cx9, y: cy9, z0: 0, h: h9, w: r9, tipW: r9 * 0.72,
         segs: 4, sides: 12, hold: 0.1, taper: 1.4,
@@ -23697,23 +23823,24 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           [discPath3(cx9, cy9, h9 - 0.144, rim * 0.42), 0.26, GAS] as ShapeFace,
         ], key + 0.6)));
       }
-      // 초록 김 — 위로 갈수록 넓고 옅어지는 세 켜. 이것도 가스라 3티어(요청).
-      // 마른 간헐천은 김도 안 오른다(위 고갈 주석).
-      if (!geyserDry) out.push(...fine(tagKey([
-        [discPath3(cx9 - 0.1, cy9 + 0.15, h9 + 0.72, rim * 0.8, rim * 0.5), 0.15, GAS] as ShapeFace,
-        [discPath3(cx9 - 0.25, cy9 + 0.3, h9 + 1.44, rim * 1.05, rim * 0.62), 0.09, GAS] as ShapeFace,
-        [discPath3(cx9 - 0.4, cy9 + 0.45, h9 + 2.16, rim * 1.3, rim * 0.72), 0.05, GAS] as ShapeFace,
-      ], key + 1)));
+      /* 초록 김 — **뭉게뭉게 덩이**(2026-09, 요청: "간헐천 … 가스연기를 뭉게뭉게로 바꾸고 애니메이션화
+         (간헐천과 어시밀레이터는 가운데와 좌우 가스가 번갈아 나오게하기)") — 옛 세 켜 타원은 정지 그림이었다.
+         큰 분화구(가운데)는 위상 0, 작은 둘은 1/4 이라 큰 것이 낼 때 작은 것들은 쉰다(gasPuffs9 의 ★).
+         이것도 가스라 3티어(요청). 마른 간헐천은 김도 안 오른다(위 고갈 주석). */
+      if (!geyserDry) out.push(...fine(tagKey(gasPuffs9({
+        x: cx9 - 0.05, y: cy9 + 0.1, z: h9 - 0.1, r: rim * 0.5, h: 1.9 + rim * 0.35,
+        col: GAS, n: 2, phase: ph9, drift: [-0.45, 0.5], a: 0.4,
+      }), key + 1)));
     };
     // 분화구는 반대로 키운다(정정: "분화구들은 크기 증가") — 2.6/1.35/1.0 → 3.2/1.85/1.35.
     crater(-0.7, 0.4, 3.2, 2.08, depthNow(-0.7, 0.4) * 1.6 + 0.2);
-    crater(2.6, -1.5, 1.85, 1.4, depthNow(2.6, -1.5) * 1.6 + 0.2);
+    crater(2.6, -1.5, 1.85, 1.4, depthNow(2.6, -1.5) * 1.6 + 0.2, 0.25);
     /* 지적: "작은 분화구 앞바깥쪽에 더 낮은 분화구 하나 추가" — 작은 분화구는
        (2.3, -1.4), 화면으로는 오른쪽 뒤에 있다. 그 앞(+y가 시청자 쪽)이자 바깥
        (+x가 화면 오른쪽)인 (3.4, 0.9)에 셋째를 판다. 높이는 1.5 → 0.9로 더 낮춰
        큰 것·작은 것·이것이 계단처럼 층지게 했고, 지름 1.0은 흙바닥 타원(4.7) 안에
        들어와 발자국을 넘지 않는다. */
-    crater(3.5, 1, 1.35, 0.88, depthNow(3.5, 1) * 1.6 + 0.2);
+    crater(3.5, 1, 1.35, 0.88, depthNow(3.5, 1) * 1.6 + 0.2, 0.25);
     return out;
   },
 
@@ -24611,6 +24738,10 @@ export const AUX_GALLERY: ShapeGalleryItem[] = [
      빠지면 터렛이 테란 광택을 잃고 "그 밖" 값으로 그려진다. */
   { kind: "turretbase", label: "터렛 밑동", group: "부가", race: "테란" },
   { kind: "turrethead", label: "터렛 포탑부", group: "부가", race: "테란" },
+  /* 컴샛 밑동·접시 — 도는 접시를 딸림 부품으로 가른 짝(comsat 의 ★★). 광택 표가 종족을 찾도록
+     적되 목록에는 안 세운다(도록은 합본 comsat 을 headDeg 로 돌려 본다). */
+  { kind: "comsatbase", label: "컴샛 밑동", group: "부가", race: "테란", hidden: true },
+  { kind: "comsatdish", label: "컴샛 접시", group: "부가", race: "테란", hidden: true },
   /* ⚠ **숨긴다 — 지도가 더는 안 쓰는 판이다**(2026-09, 지적: 도록의 "시즈 차체"가 "탱크 차체"와
      같은 것이 270도 돌아간 그림이다) — 정착 시즈의 차체도 `tankbody` 를 쓰게 바꾸면서(engine9 의
      kindMain ★★) 이 판은 표의 **배수·잉크 열쇠**로만 남았다(NORM_PAIR 가 포탑·다리를 여기로 접는다).

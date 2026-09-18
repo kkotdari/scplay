@@ -96,8 +96,12 @@ function makeWorld(race) {
   }[race] ?? [];
   const ordIdx = (n) => { const i = ORDER.indexOf(n); return i < 0 ? 999 : i; };
   const byOrder = (a, b) => ordIdx(a) - ordIdx(b);
-  const blds = Object.keys(TABLES.SHAPE_KIND).filter((n) => TABLES.RACE[n] === race && nameToId[n] !== undefined).sort(byOrder);
-  const units = Object.keys(TABLES.UNIT_3D).filter((n) => TABLES.RACE[n] === race && nameToId[n] !== undefined).sort(byOrder);
+  /* --addons — 본체·부속 **짝**만 세운다(2026-09, 통로 자동 길이 검사): 부속을 원작 자리(본체 발자국 오른쪽 · 한 줄 아래)에
+     붙여 통로가 두 벽을 잇는지 본다. `--hash cine=1` 과 함께 찍으면 시네마틱에서 벌어진 사이를 통로가 따라가는지 보인다. */
+  const ADDON_PAIRS = flag("--addons", false) && race === "테란" ? [["Command Center", "Comsat Station"], ["Command Center", "Nuclear Silo"],
+    ["Factory", "Machine Shop"], ["Starport", "Control Tower"], ["Science Facility", "Covert Ops"], ["Science Facility", "Physics Lab"]] : null;
+  const blds = ADDON_PAIRS ? [] : Object.keys(TABLES.SHAPE_KIND).filter((n) => TABLES.RACE[n] === race && nameToId[n] !== undefined).sort(byOrder);
+  const units = ADDON_PAIRS ? [] : Object.keys(TABLES.UNIT_3D).filter((n) => TABLES.RACE[n] === race && nameToId[n] !== undefined).sort(byOrder);
   const skipped = Object.keys(TABLES.UNIT_3D).filter((n) => TABLES.RACE[n] === race && nameToId[n] === undefined);
   if (skipped.length) console.log(`  (번호 없어 뺀 유닛: ${skipped.join(", ")})`);
   console.log(`  건물: ${blds.join(", ")}`);
@@ -136,6 +140,15 @@ function makeWorld(race) {
     const fp = TABLES.FOOTPRINT[n] ?? [3, 2];
     bldTrack(nameToId[n], x, y); labels.push([short(n), normOf(n, true), x, y + fp[1] / 2 + 0.6]);
   });
+  (ADDON_PAIRS ?? []).forEach(([pn, an], i) => {
+    const x = X0 + (i % 3) * 13 + 3; const y = yb + Math.floor(i / 3) * 8 + 2;
+    const fpP = TABLES.FOOTPRINT[pn] ?? [4, 3]; const fpA = TABLES.FOOTPRINT[an] ?? [2, 2];
+    // 원작 자리: 부속의 왼위 타일 = 본체 왼위 + (본체 폭, 1). 트랙 자리는 가운데라 반 발자국씩 옮긴다.
+    const ax = x + fpP[0] / 2 + fpA[0] / 2; const ay = y + 1 + fpA[1] / 2 - fpP[1] / 2;
+    bldTrack(nameToId[pn], x, y); bldTrack(nameToId[an], ax, ay);
+    labels.push([short(pn), normOf(pn, true), x, y + fpP[1] / 2 + 0.6]);
+    labels.push([short(an), normOf(an, true), ax, ay + fpA[1] / 2 + 0.6]);
+  });
   /* 공사 중 모델도 한 칸씩(요청: "토스 소환구 저그 공사고치도 추가") — 판 8의 상태 바이트 0x80(아직 안 지어짐)을
      20초부터 끝까지 실어 born > 1인 공사 생애를 만든다(truthLives.raising). 완성 비트가 안 오니 46초엔 공사 중이다. */
   const wip = race === "프로토스" ? [["Gateway", "Warp-in", "warpin"]] : race === "저그" ? [["Hydralisk Den", "Cocoon", "cocoon"]] : [];
@@ -147,7 +160,7 @@ function makeWorld(race) {
       [F(20), x * 32, y * 32, 0, 0x80, nameToId[n]], [F(GAME_SEC), x * 32, y * 32, 0, 0x80, nameToId[n]]], hp: null });
     labels.push([lab, SHOW_SCALE ? `×${Number(TABLES.BLD_DRAW_TUNE[kind] ?? 1).toFixed(2)}` : `${fp[0]}×${fp[1]}`, x, y + fp[1] / 2 + 0.6]);
   });
-  const yu = yb + Math.ceil((blds.length + wip.length) / 7) * 6.5 + 2.5;
+  const yu = yb + Math.ceil((blds.length + wip.length) / 7) * 6.5 + 2.5 + (ADDON_PAIRS ? 16 : 0);
   // 지상 줄(들) 먼저, 비행 줄(들)은 그 아래 — 비행 유닛은 위로 떠서 그려지니 윗줄과 겹치지 않게 사이를 더 띄운다.
   const ground = units.filter((n) => !TABLES.AIR[n]); const air = units.filter((n) => TABLES.AIR[n]);
   const COLS = 10;
@@ -252,7 +265,9 @@ for (const race of RACES) {
     body: `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>${css}
     html,body{margin:0;background:#1b1e24;} #root{width:${VIEW}px;}
     .scr-motion-fog{display:none!important}</style></head><body><div id="root"></div></body></html>` }));
-  await page.goto(flag("--creep", false) ? "http://scene-sheet.local/#noscan" : "http://scene-sheet.local/#nocreep,noscan");   // 크립 끔(격자가 보여야 한다; --creep이면 켠다) · 두리번 끔
+  // --hash "cine=1" 처럼 해시를 더 얹는다(시네마틱 세기 · 붓 손잡이).
+  const hashX = flag("--hash", "") ? "," + String(flag("--hash")) : "";
+  await page.goto((flag("--creep", false) ? "http://scene-sheet.local/#noscan" : "http://scene-sheet.local/#nocreep,noscan") + hashX);   // 크립 끔(격자가 보여야 한다; --creep이면 켠다) · 두리번 끔
   await page.addScriptTag({ content: js, type: "module" });
   await page.waitForFunction("!!window.__mount");
   await page.evaluate(([m, pl, wj, tb, v]) => window.__mount(m, pl, wj, tb, v),

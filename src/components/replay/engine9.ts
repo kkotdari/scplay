@@ -15,6 +15,7 @@ import { posAtTruth as posAtSim, kN, kS, type TruthTrack, type TruthTracks, TRUT
 import { posAtW, wT, wX, wY, EMPTY_WALK, type WalkView, type TrackPos } from "../../utils/replayTrack";
 import { project, withPitchView, withTopView, withViewShear, withYaw, yawBucket9, BLD_YAW9 } from "../../utils/shapeOblique";
 import { MUZZLE_AIR_GEN9, MUZZLE_GEN9 } from "./muzzleTable.gen";
+import { ADDON_WALL_GEN9 } from "./addonWall.gen";
 import { TEAM_COLOR } from "./markers";
 
 
@@ -934,6 +935,22 @@ export const BLD_MUZZLE: Record<string, [number, number, number]> = {
 };
 /** 머리(포탑부)가 도는 방어 건물 — 총구가 머리 자에 있어 겨눈 각만큼 모형에서 돌려야 한다(아래 muzzleAt9). */
 export const HEAD_MUZZLE_KINDS9 = new Set(["turret", "coil"]);
+/** 컴샛 접시의 탐지 회전(°/s) — 터렛(96)보다 느린 위성 추적이다(10초에 한 바퀴). 도록도 이 값을 쓴다. */
+export const COMSAT_SWEEP9 = 36;
+/* ── 회전 칸의 걸음(초당 바퀴) — 지도와 도록이 **한 문**으로 본다(2026-09) ──────────────────────────
+   · 일할 때만 도는 것(포지 톱니·코어 디스크·머신샵 톱니)은 연구 중 1.6 · 놀면 0.
+   · 늘 도는 것(서플라이 팬 …)은 2.2.
+   · **가스 연기**(간헐천·정제소·어시밀레이터·익스트랙터 — bake9 gasPuffs9)는 0.45: 칸 열여섯이 한 바퀴라
+     덩이 하나가 2.2초에 나서 오르고 스러진다(초당 7.2번 갈림 · 덩이 걸음 1.6px 남짓이라 이어져 보인다).
+     ⚠ 더 빠르게 하면 덩이가 튀고, 칸을 늘리면 메시 벌이 는다(폰 240벌) — 값을 고치려면 둘을 함께 보라. */
+export const SPIN_WORK_KINDS9 = new Set(["forge", "cyber", "mshop"]);
+export const GAS_SPIN_KINDS9 = new Set(["geyser", "refinery", "assim", "extract"]);
+export const GAS_SPIN_RATE9 = 0.45;
+export const spinRateOf9 = (kind: string, working: boolean): number =>
+  GAS_SPIN_KINDS9.has(kind) ? GAS_SPIN_RATE9 : SPIN_WORK_KINDS9.has(kind) ? (working ? 1.6 : 0) : 2.2;
+/** 사일로가 핵을 **만드는** 시간(초) — 원작 1500프레임(가장 빠름 ≈ 63초). 자취에는 미사일이 다 만들어진
+ *  뒤(장전)부터 실리므로 그 앞 이만큼을 '만드는 중'으로 본다. */
+export const NUKE_BUILD_SEC9 = 63;
 /** 모형 평면 점을 머리 각(도)만큼 돌린다 — 빌더의 withModelSpin(spun)과 같은 식·같은 부호. */
 export const spinMuzzle9 = (mz: [number, number, number], deg: number): [number, number, number] => {
   const r = (deg * Math.PI) / 180;
@@ -1020,6 +1037,13 @@ export const HATCH_SLIDE_SEC = 0.6;   // 0.35는 "순식간"이었다(지적)
 export const HATCH_SCAN_SEC9 = 4;
 /** 공사 고치 두근거림의 크기 폭(배율) — 꼭대기에서 이만큼 커진다. */
 export const COCOON_PULSE_K9 = 0.07;
+/** ★ 저그 **활성 건물의 숨**(2026-09, 요청: "저그 활성건물은 아주 살짝 커졌다 작아졌다 바운스 주기(근데 라바변태중은
+ *  제외해줘 그건 라바알로 이미 표현됨)") — 연구 중(모든 저그 건물)·생산 중(해처리·레어·하이브는 뺀다: 그 생산은
+ *  라바가 알이 되는 것이라 화면에 이미 알이 서 있다)에 바닥 가운데를 축으로 ±2.2% 부풀었다 준다(주기 1.3초 ·
+ *  건물마다 위상을 흩는다). 찍을 때의 배율(pulseK)이라 메시는 한 벌 그대로다(공사 고치의 그 손). 저그는 LIT_KINDS 에
+ *  없으니(창이 없다) 이 숨이 곧 '일하는 중'이다. */
+export const ZERG_PULSE_K9 = 0.022;
+export const ZERG_PULSE_SEC9 = 1.3;
 /** 알·러커알·뮤탈 고치의 종류 번호(bwUnitNames) — 부화 미끄럼은 이 셋에서 나온 몸만. */
 const EGG_ID9 = 36;
 const LURKER_EGG_ID9 = 97;
@@ -1260,6 +1284,8 @@ export const BLD_NORM_PAIR: Record<string, string> = {
   /* 터렛 밑동·포탑부도 같은 자리에 서는 별본이다 — 배수와 앵커가 한 벌이라야 머리가 밑동 위에 앉는다.
      (머리를 딸림 부품으로 가른 까닭은 bake9 의 turret ★★ — 도는 각을 메시 열쇠에서 뺀다.) */
   turretbase: "turret", turrethead: "turret",
+  // 컴샛 밑동·접시도 같은 자리에 서는 별본이다(bake9 comsat 의 ★★) — 접시가 기둥 위에 앉으려면 한 벌이라야 한다.
+  comsatbase: "comsat", comsatdish: "comsat",
   /* 고갈 별본은 본판 배수를 그대로 쓴다 — 안 접으면 정규화가 '줄어든 잉크'를 도로 키워
      덩어리가 줄수록 밭이 커지고, 마른 간헐천이 성한 것보다 커진다. */
   mineral0: "mineral", mineral1: "mineral", mineral2: "mineral", mineral3: "mineral",
@@ -1781,6 +1807,9 @@ export type UnitDrawOp = {
   /** 상자 폭·높이 — 캔버스 '폭'에 대한 분수(스팬의 % 폭 + aspectRatio와 같은 자).
    *  있으면 sizePx 대신 이 상자를 쓴다. */
   wFrac?: number; hFrac?: number;
+  /** ★ 통로(addonlink)의 **모델 한 칸 = 타일 몇**(그리드 폭 몫) — 있으면 붓이 잉크 상자로 크기를 맞추지 않고 이 배수로
+   *  그리고, 모델 원점을 (fx, fy) 에 그대로 앉힌다(engine9 addonLinkGeom9 — 두 벽에서 푼 자리·길이). */
+  mkFrac?: number;
   /** 상자 채우기 방식 — "meet"는 비율 유지·바닥 정렬(keepRatio), "fill"은 맨 네모 채움. */
   boxFit?: "meet" | "fill";
   /** 공사 단계 1~3 — 모델의 아래쪽 stg/3만 그린다(요청: 아래 부품부터 점점 위로).
@@ -2019,7 +2048,7 @@ export const BLD_NORM: Record<string, number> = {
   arch: 2.078,  // 판 0.9배 뒤 재측정 2.599 × 0.8(요청: 전체 그려지는 크기 0.8배)
   archives: 1.991,  // ×0.8(요청: 그려지는 크기 0.8배) · 옛 2.489
   armory: 1.330,  // −45도로 돌려 세운 뒤 재측정(bld-norm)
-  assim: 1.627,  // 재작 뒤 재측정(bld-norm)
+  assim: 1.664,  // 굴뚝 위 가스 덩이(gasPuffs9)를 얹은 뒤 재측정(bld-norm · 1.627 →)
   cavern: 1.082,
   citadel: 1.716,  // 돛 두께 0.26·띠를 드럼/반구 따로 뒤 재측정(bld-norm 2.145) × 0.8(요청: 0.8배)
   cocoon: 1.951,  // 밑동의 장기 파이프(173개·앞쪽에 몰림·뒤로 갈수록 짧음)·정수리 핏줄 뒤 재측정(bld-norm)
@@ -2027,7 +2056,7 @@ export const BLD_NORM: Record<string, number> = {
   comsat: 1.398,   // 데칼·접시 손질 뒤 재측정(bld-norm)
   covert: 1.467,  // 사진 재작도 뒤 재측정(bld-norm)
   creep: 1.152,  // ×0.8(요청: 그리기 0.8배) · 발 셋 이식·요잉·촛대·촛대 가시 뒤 재측정 1.438 · 옛 1.232
-  ctower: 1.555,
+  ctower: 1.641,   // 위 원판을 접시(dishFaces9)로 다시 짠 뒤 재측정(bld-norm · 1.555 →)
   /* 배럭만 **재본 값의 1.2배**다(요청: "배럭 크기 1.2배") — bld-norm이 내는 0.879는 잉크
      상자를 발자국에 꽉 맞추는 자인데, 이 모델은 발판을 사방으로 넓게 벌려 놔서 그 자에
      맞추면 몸통이 이웃 건물보다 작아 보인다. 다시 재도 이 몫은 지킨다(재측정값 × 1.2). */
@@ -2043,7 +2072,7 @@ export const BLD_NORM: Record<string, number> = {
   fleetbeacon: 1.503,  // ×0.8(요청) · 재작도 1.551(2.125 → 1.939) · 팔 끝 뭉툭 1.542(→ 1.928) · 앞 두 팔 뒤를 호로 이은 뒤 ×0.9746(1.928 → 1.879)
   forge: 1.710,   // 돔 둘을 회전체로 · 톱니를 뒤로 옮긴 뒤 bld-norm 재측정 · 옛 1.605
   gate: 2.050,  // 앞뒤 뿔탑 0.8배·발판에 붙인 뒤 재측정(bld-norm)
-  geyser: 1.587,
+  geyser: 1.706,   // 김을 뭉게 덩이(gasPuffs9)로 바꾼 뒤 재측정(bld-norm · 1.587 →) — 옛 세 켜 타원이 잉크를 넓혀 분화구가 작게 그려졌다
   gspire: 0.917,  // ×0.8(요청: 그려지는 크기 0.8배) · 옛 1.146
   hatchery: 1.188,
   hive: 1.320,
@@ -2061,7 +2090,7 @@ export const BLD_NORM: Record<string, number> = {
   pool: 1.159,  // ×0.8(요청: 그려지는 크기 0.8배) · 옛 1.449
   pyramidWide: 1.089,  // 재측정(bld-norm) — 방패 기둥 1.155 · 피라미드 밑변 10.5 뒤 1.123(1.175 → 1.142) · 맞물린 둥근 받침(R 1.45)·휨 0.4 뒤 ×0.9694(1.142 → 1.107)
   queensnest: 1.145,   // 재측정(bld-norm) — 돔 5.6으로 키운 뒤(옛 1.148)
-  refinery: 1.456,  // 아래판 뒤를 줄이고 뒤 드럼을 앞으로 당긴 뒤 bld-norm 재측정(1.394 →)
+  refinery: 1.492,  // 뒤 세 채를 높이고 오른 덩이를 넓혀 물린 뒤 재측정(bld-norm · 1.456 →) · 그전 아래판 뒤를 줄이고 뒤 드럼을 앞으로 당긴 뒤 1.394 →
   robobay: 1.538,  // 패인 그릇으로 바꾼 뒤 재측정 1.922 × 0.8(요청: 그려지는 크기 0.8배)
   sbattery: 1.947,  // 금 고리 + 막대 셋 + 뜬 구슬로 재작도한 뒤 재측정(bld-norm) · 옛 2.050
   scifac: 1.534,   // 본체 좌우 −10%(잉크폭이 준 만큼 배수가 올라 발자국은 그대로다)  // 재작도 + 삼중탑 제거·왼판 축소 · 다리 기둥 20% 축소 · 받침 들고 다리 들인 뒤 재측정(1.426 → 1.449)
@@ -2458,7 +2487,7 @@ export const BODY_MID_K9 = 0.02;
      효과 앵커(발자국 가운데)에서 아랫변까지를 뺀다.
    다시 재려면 scripts/model-shot.mjs 사본에 잉크 질량 중심 출력을 붙여 돌린다(이 표를 낸 방법). */
 export const UNIT_INK_CY9: Record<string, [number, number]> = { scv: [7.91, 8.70], gunner: [10.29, 10.99], ghost: [10.26, 10.95], fbat: [10.19, 10.90], inf: [10.26, 10.96], vulture: [9.30, 10.00], tank: [11.15, 11.63], goliath: [9.79, 10.49], wraith: [8.21, 9.02], dship: [8.42, 9.22], vessel: [9.59, 10.31], valk: [8.23, 9.03], bc: [9.16, 9.91], scvMin: [7.88, 8.72], scvGas: [7.82, 8.69], tanksiege: [11.02, 11.48], mine: [11.66, 12.28], probe: [10.14, 10.84], zealot: [9.69, 10.42], goon: [9.70, 10.42], htemp: [9.21, 9.95], dtemp: [10.20, 10.85], archon: [8.79, 9.57], darchon: [8.78, 9.56], shuttle: [8.37, 9.06], reaver: [10.65, 11.31], observer: [9.40, 10.13], scout: [8.01, 8.82], corsair: [8.68, 9.47], carrier: [9.37, 10.07], interceptor: [6.54, 7.45], scarab: [10.97, 11.63], arbiter: [10.39, 11.08], larva: [11.33, 11.96], egg: [11.28, 11.87], probeMin: [10.33, 11.00], probeGas: [10.34, 11.03], drone: [9.81, 10.53], ovie: [9.17, 9.94], zling: [10.24, 10.93], hydra: [8.86, 9.62], lurker: [9.74, 10.44], muta: [7.54, 8.44], scourge: [7.03, 7.91], queen: [7.85, 8.64], ultra: [9.41, 10.13], defiler: [11.19, 11.83], guardian: [7.64, 8.47], devourer: [8.90, 9.71], lurkeregg: [11.73, 12.26], mutacocoon: [9.51, 10.25], droneMin: [9.81, 10.53], droneGas: [9.78, 10.50], tankbody: [11.24, 11.77], tankgun: [9.79, 10.21], tanksiegebody: [11.18, 11.71], tanksiegegun: [9.59, 9.99], burrowhole: [11.83, 12.44] };
-export const BLD_INK_MID9: Record<string, [number, number]> = { tomb: [4.57, 3.94], trapezoid: [2.59, 2.21], refinery: [4.05, 3.57], cube: [7.13, 6.53], ebay: [5.42, 4.57], tombFlat: [3.37, 2.77], academy: [4.14, 3.61], turret: [5.53, 4.93], factory: [4.31, 3.77], plane: [5.70, 4.84], armory: [4.14, 3.56], scifac: [3.31, 2.83], comsat: [3.06, 2.79], nsilo: [3.23, 2.84], mshop: [2.85, 2.50], ctower: [2.98, 2.63], covert: [2.40, 2.03], physlab: [2.60, 2.25], pyramidWide: [6.02, 5.10], diamond: [4.78, 4.25], assim: [3.82, 3.40], gate: [3.07, 2.62], forge: [3.98, 3.40], coil: [4.88, 4.02], sbattery: [3.05, 2.56], cyber: [3.19, 2.78], citadel: [4.07, 3.46], archives: [3.40, 2.82], dome: [4.10, 3.52], robobay: [3.05, 2.64], observatory: [3.07, 2.66], arch: [3.11, 2.70], fleetbeacon: [3.43, 2.95], tribunal: [3.05, 2.59], warpin: [4.48, 4.48], hatchery: [4.70, 4.00], lair: [5.41, 4.63], hive: [5.95, 5.13], creep: [4.34, 3.61], sunken: [5.12, 4.26], spore: [4.31, 3.73], extract: [4.74, 4.07], pool: [4.46, 3.63], evo: [4.47, 3.75], hydraden: [5.46, 4.88], spire: [6.53, 5.87], gspire: [10.23, 9.26], queensnest: [4.52, 3.81], nydus: [4.32, 3.58], cavern: [4.98, 4.20], dmound: [4.58, 3.83], cocoon: [2.37, 1.94], sunkenfire: [6.03, 5.18], mineral: [3.26, 2.75], mineralb: [4.05, 3.43], mineralc: [3.50, 2.93], geyser: [3.88, 3.47], nuke: [4.19, 3.89], storm: [3.15, 2.92], nukeblast: [5.08, 4.08], nukecloud: [6.69, 5.89], tankbody: [3.07, 2.69], tankgun: [1.81, 1.60], tanksiegebody: [3.60, 3.13], tanksiegegun: [1.99, 1.77], tanksiegelegs: [0.93, 0.78], addonlink: [3.95, 3.41], burrowhole: [2.67, 2.16], lurkerburrow: [2.67, 2.17], lurkerfire: [2.70, 2.21], creeppatch: [4.11, 3.33], creeppatch2: [4.11, 3.33], creeppatch3: [4.12, 3.34] };
+export const BLD_INK_MID9: Record<string, [number, number]> = { tomb: [4.57, 3.94], trapezoid: [2.59, 2.21], refinery: [4.21, 3.57], cube: [7.13, 6.53], ebay: [5.42, 4.57], tombFlat: [3.37, 2.77], academy: [4.14, 3.61], turret: [5.53, 4.93], factory: [4.31, 3.77], plane: [5.70, 4.84], armory: [4.14, 3.56], scifac: [3.31, 2.83], comsat: [3.06, 2.79], nsilo: [3.23, 2.84], mshop: [2.85, 2.50], ctower: [3.09, 2.63], covert: [2.40, 2.03], physlab: [2.60, 2.25], pyramidWide: [6.02, 5.10], diamond: [4.83, 4.25], assim: [3.82, 3.40], gate: [3.07, 2.62], forge: [3.98, 3.40], coil: [4.88, 4.02], sbattery: [3.05, 2.56], cyber: [3.19, 2.78], citadel: [4.07, 3.46], archives: [3.40, 2.82], dome: [4.10, 3.52], robobay: [3.05, 2.64], observatory: [3.07, 2.66], arch: [3.11, 2.70], fleetbeacon: [3.43, 2.95], tribunal: [3.05, 2.59], warpin: [4.48, 4.48], hatchery: [4.70, 4.00], lair: [5.41, 4.63], hive: [5.95, 5.13], creep: [4.34, 3.61], sunken: [5.12, 4.26], spore: [4.31, 3.73], extract: [4.77, 4.07], pool: [4.46, 3.63], evo: [4.47, 3.75], hydraden: [5.46, 4.88], spire: [6.53, 5.87], gspire: [10.23, 9.26], queensnest: [4.52, 3.81], nydus: [4.32, 3.58], cavern: [4.98, 4.20], dmound: [4.58, 3.83], cocoon: [2.37, 1.94], sunkenfire: [6.03, 5.18], mineral: [3.26, 2.75], mineralb: [4.05, 3.43], mineralc: [3.50, 2.93], geyser: [3.14, 3.47], nuke: [4.19, 3.89], storm: [3.15, 2.92], nukeblast: [5.08, 4.08], nukecloud: [6.69, 5.89], tankbody: [3.07, 2.69], tankgun: [1.81, 1.60], tanksiegebody: [3.60, 3.13], tanksiegegun: [1.99, 1.77], tanksiegelegs: [0.93, 0.78], addonlink: [3.95, 3.41], burrowhole: [2.67, 2.16], lurkerburrow: [2.67, 2.17], lurkerfire: [2.70, 2.21], creeppatch: [4.11, 3.33], creeppatch2: [4.11, 3.33], creeppatch3: [4.12, 3.34] };
 /** 유닛 몸 가운데의 들기 — 발 원점에서 위로, **상자 px의 비**. 표에 없는 종류는 원점 2.2칸 위(보병 언저리). */
 export const unitMidK9 = (kind: string, pitchView: boolean): number => {
   const cy = UNIT_INK_CY9[kind] ?? UNIT_INK_CY9[NORM_PAIR[kind] ?? ""] ?? UNIT_INK_CY9[kind.replace(/body$/, "")];
@@ -2741,6 +2770,73 @@ export const DETECT_TILES = 9;
 export const SCAN_DETECT_SEC = 9;
 /* (걷어냄) ZERG_HALLS — 라바·변태알을 발치에 그릴 저그 본진 명단이다. 그 장식을
    걷었으므로(위 '라바·변태알 장식' 주석) 명단도 함께. */
+/* ── 애드온 통로의 자리·길이 — 두 벽이 정한다(2026-09) ──────────────────────────────────────────
+   요청: "애드온연결부의 길이를 본건물과 애드온 양옆벽을 잇는 좌표로 설정해주는 로직 개발(수동으로 길이조절
+   안하게)". 여태는 몸 상자 변에서 손 값(LINK_IN 1.3 · 본체 0.55 · 스타포트만 1.55)만큼 물려 잡았고, 그 값은
+   건물마다 눈으로 맞춘 것이라 벽을 옮길 때마다 다시 맞춰야 했다(스타포트가 그 함정이었다 — 착륙판이 뒤로
+   물러나 있어 같은 값으로는 통로가 허공에서 시작했다).
+   이제 **모델의 벽 옆선**(addonWall.gen — 빌드 시각에 메시에서 잰 표: 본체는 +x 벽, 부속은 −x 벽의 x 를 모델 y
+   칸마다 · scripts/addon-wall.mjs)을 읽어 통로 축이 두 벽을 잇는 자리·길이를 푼다. 셈은 셋이 나눠 쓰는
+   **돌린 자**에서 한다 — 본체·부속·통로가 같은 각(BUILDING_BASE_YAW)으로 서므로, 요잉을 먹인 모델 축(rx·ry)이
+   곧 타일 축이다(gl9 footOf 의 그 회전).
+     ① 모델 원점의 타일 자리: 붓은 메시의 화면 바닥을 지면선에 앉히므로 원점 y = 지면선 − u·ry0
+        (ry0 = 바닥 앞끝의 돌린 y · u = 모델 한 칸의 타일 수 = 발자국 폭 × 그리기 배수 × 정규화 ÷ 16 — 붓의 k 와 같은 식).
+     ② lane: 두 벽의 y 범위(yv)를 돌린 자의 e 축(모델 +y)에 얹어 **마주 보는 구간의 한가운데**를 잡는다.
+        그 lane 에서 본체 벽 x(max)·부속 벽 x(min)를 표에서 읽으면 두 벽점이 나오고, 둘은 같은 축(d = 모델 +x) 위다.
+     ③ 통로 모델은 축이 X0(−5)~X1(6.5)·y CY(0.8)이다. 두 끝이 두 벽점(벽 속으로 SINK 만큼 더)에 오도록
+        배수(uL — 타일/모델칸)와 원점(O)을 푼다. 붓은 mkFrac 이 있으면 원점을 fx·fy 에 그대로 앉힌다(잉크 바닥
+        맞춤을 안 한다 — 통로 모델의 z 0 이 곧 땅이다).
+   ⚠ 길이는 [0.5, 4.5]타일로 죈다 — 발자국 표가 틀린 옛 기록에서 터무니없는 값이 나올 수 있다(옛 규약 그대로).
+   ⚠ 본체·부속의 벽을 옮겼으면 `node scripts/addon-wall.mjs` 로 표를 다시 뽑는다(--check 가 잡는다). */
+export const LINK_X0_9 = -5;      // 통로 축의 본체 쪽 끝(모델 x) — bake9 addonlink 가 같은 값을 쓴다
+export const LINK_CY_9 = 0.8;     // 축의 모델 y(앞으로 치우친 몫)
+const LINK_SINK_T9 = 0.12;        // 벽 속으로 파고드는 몫(타일) — 딱 맞추면 벽과 z 싸움('나란히 선 덩이 사이의 틈')
+/* ★ **길이는 칸이, 단면은 부속의 자가 정한다** — 통로 모델을 통째로 늘리면 시네마틱에서 사이가 벌어질수록 관이
+   **굵어진다**(길이·굵기가 한 배수). 그래서 길이는 회전 칸(op.spin · SPIN_KINDS 의 addonlink)에 싣는다: 칸 0 은
+   도록·폴백의 기본 길이(옛 11.5) · 1~15 는 4 → 40 모델칸의 기하 사다리(×1.179). 엔진이 두 벽 사이에 맞는 칸을 고르고
+   남는 몫은 배수로 되맞춘다 — 두 끝은 정확히 벽이고, 단면은 부속의 자(uA × LINK_K_9 — 옛 정상 모드 통로 폭의 비)에서
+   ±8% 안에서만 흔들린다. 칸이 곧 메시 열쇠라 벌은 최대 열여섯이다(작은 메시). */
+export const LINK_LEN0_9 = 4;
+export const LINK_LEN_R9 = 1.179;
+export const linkLenOf9 = (slot: number): number => (slot <= 0 ? 11.5 : LINK_LEN0_9 * Math.pow(LINK_LEN_R9, slot - 1));
+const LINK_K_9 = 0.36;
+/** 모델 한 칸이 타일 몇인가 — 붓의 k(= wPx·drawK·정규화/16)를 타일로 옮긴 것(원근 배수 mkK 는 뺀다 — 셋이 같이 탄다). */
+const bldTilesPerUnit9 = (unit: string): number => {
+  const sk = SHAPE_KIND[unit] ?? "";
+  const wTiles = buildingBox(unit)[0] * (sk ? 1 : 0.8);
+  const drawK = bldDrawK9(sk, FOOTPRINT[unit]?.[0] ?? 3, BLD_DRAW_TUNE[sk] ?? 1) * (BLD_DRAW_TUNE[sk] ?? 1);
+  return (wTiles * drawK * (bldNormOf(sk) ?? 1)) / 16;
+};
+const wallX9 = (p: { y0: number; dy: number; xs: number[] }, y: number): number =>
+  p.xs[Math.max(0, Math.min(p.xs.length - 1, Math.round((y - p.y0) / p.dy)))];
+/** 통로의 원점(타일)·배수(타일/모델칸)·축 길이(타일). 본체·부속의 몸 상자 가운데 x 와 지면선(몸 상자 아랫변) y 를 받는다. */
+export function addonLinkGeom9(
+  parUnit: string, parCx: number, parGroundY: number, addUnit: string, addCx: number, addGroundY: number,
+): { ox: number; oy: number; uL: number; len: number; slot: number; ell: number } | null {
+  const wp = ADDON_WALL_GEN9[SHAPE_KIND[parUnit] ?? ""]; const wa = ADDON_WALL_GEN9[SHAPE_KIND[addUnit] ?? ""];
+  if (!wp || !wa) return null;
+  const th = (-BUILDING_BASE_YAW * Math.PI) / 180; const c = Math.cos(th); const sn = Math.sin(th);
+  const R = (x: number, y: number): [number, number] => [x * c + y * sn, -x * sn + y * c];
+  const d = R(1, 0); const e = R(0, 1);
+  const uP = bldTilesPerUnit9(parUnit); const uA = bldTilesPerUnit9(addUnit);
+  const P: [number, number] = [parCx, parGroundY - uP * wp.ry0];
+  const A: [number, number] = [addCx, addGroundY - uA * wa.ry0];
+  const pe = P[0] * e[0] + P[1] * e[1]; const ae = A[0] * e[0] + A[1] * e[1];
+  const lo = Math.max(pe + uP * wp.yv[0], ae + uA * wa.yv[0]);
+  const hi = Math.min(pe + uP * wp.yv[1], ae + uA * wa.yv[1]);
+  const L = (lo + hi) / 2;
+  const yP = (L - pe) / uP; const yA = (L - ae) / uA;
+  const [wpx, wpy] = R(wallX9(wp, yP), yP); const [wax, way] = R(wallX9(wa, yA), yA);
+  const WP: [number, number] = [P[0] + wpx * uP, P[1] + wpy * uP];
+  const WA: [number, number] = [A[0] + wax * uA, A[1] + way * uA];
+  const len = Math.max(0.3, Math.min(4.5, (WA[0] - WP[0]) * d[0] + (WA[1] - WP[1]) * d[1]));
+  const need = (len + 2 * LINK_SINK_T9) / (uA * LINK_K_9);
+  const slot = Math.max(1, Math.min(15, Math.round(1 + Math.log(need / LINK_LEN0_9) / Math.log(LINK_LEN_R9))));
+  const ell = linkLenOf9(slot);
+  const uL = (len + 2 * LINK_SINK_T9) / ell;
+  const [x0r, y0r] = R(LINK_X0_9, LINK_CY_9);
+  return { ox: WP[0] - d[0] * LINK_SINK_T9 - x0r * uL, oy: WP[1] - d[1] * LINK_SINK_T9 - y0r * uL, uL, len, slot, ell };
+}
 export const ADDONS = new Set([
   "Comsat Station", "Nuclear Silo", "Machine Shop", "Control Tower", "Covert Ops", "Physics Lab",
   // v2 트랙의 변형 이름(지적: 커맨드 애드온에 통로가 안 붙음) — screp는 ComSat으로 준다.
@@ -3487,6 +3583,11 @@ export function deriveWorld9(inp: {
       return { t0: q.born, t1: q.died ?? 0, x: at.x, y: at.y };
     })
     .filter((c): c is { t0: number; t1: number; x: number; y: number } => c !== null))();
+  /** ★ 사일로의 핵(2026-09, 요청: "모든 애드온 건물의 활성화 효과") — 임자·존재 구간 [장전, 발사). 핵 사일로의
+   *  불빛이 본다: 장전 전 NUKE_BUILD_SEC9 동안은 '만드는 중'(깜빡), 장전된 뒤 쏠 때까지는 '장전됨'(켜 둠). */
+  const nukeArm9 = (() => entWalks
+    .filter((q) => q.unit === "Nuclear Missile")
+    .map((q) => ({ raw: q.raw, t0: q.born, t1: q.died ?? Number.POSITIVE_INFINITY })))();
   const castsSrc = (() => {
     if (nukeCasts.length === 0) return castsV2;
     const out = [...castsV2];
@@ -3839,7 +3940,7 @@ export function deriveWorld9(inp: {
   })();
   return {
     entData, simTracks, buildsSrc, castsV2, entBldHp, bldTagSpots, droneMorph, buildsDrawOrder, bldNudge,
-    entCombatStart, upsByRaw, prodDoneAt, prodDoneByRaw, marineBornOf, entWalks, nukeCasts, nukeLase, castsSrc,
+    entCombatStart, upsByRaw, prodDoneAt, prodDoneByRaw, marineBornOf, entWalks, nukeCasts, nukeLase, nukeArm9, castsSrc,
     nukeImpacts, bldGoneEff, goneEffOf, prodByRawType, bldTagAt, leftAt9, tagOrdinals, buildsByType, halls, gasBuildings,
     resStageSeries, gridHasGasFlags, gasHideOf, mines, bldPre9, bldRecMemo, teamOfRaw, bases, grid, total,
   };
@@ -3870,7 +3971,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
   let stillNow9 = false;
   const {
     entData, simTracks, buildsSrc, entBldHp, bldTagSpots, droneMorph, buildsDrawOrder, bldNudge,
-    entCombatStart, upsByRaw, marineBornOf, entWalks, nukeLase, castsSrc, nukeImpacts,
+    entCombatStart, upsByRaw, marineBornOf, entWalks, nukeLase, nukeArm9, castsSrc, nukeImpacts,
     goneEffOf, prodByRawType, bldTagAt, leftAt9, tagOrdinals, buildsByType, halls, gasBuildings,
     resStageSeries, gridHasGasFlags, gasHideOf, mines, bldPre9, bldRecMemo, teamOfRaw, bases, grid, total,
   } = world;
@@ -5263,6 +5364,14 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         && (upsByRaw.get(raw) ?? []).some(([us, name, utag]) =>
           RESEARCH_BUILDING[name] === hallLike && t < us && us - t <= RESEARCH_SEC
           && (utag > 0 && myTag9 !== undefined ? utag === myTag9 : myOrd === repOrd));
+      /* ★ 부속 둘의 제 활성 신호(2026-09 · 아래 op 의 lit) — 컴샛: 이 임자의 스캔이 살아 있는 동안 ·
+         핵 사일로: 핵을 만드는 동안(장전 시각 앞 NUKE_BUILD_SEC9)은 깜빡이고, 장전된 뒤 쏠 때까지는 켜 둔다. */
+      const scanLit9 = !razed && unit === "Comsat Station"
+        && castsSrc.some((c) => c[3] === "Scanner Sweep" && c[4] === raw && c[0] <= t && t - c[0] <= SCAN_DETECT_SEC);
+      const nukeNow9 = !razed && unit === "Nuclear Silo"
+        ? nukeArm9.find((n) => n.raw === raw && t >= n.t0 - NUKE_BUILD_SEC9 && t < n.t1) : undefined;
+      const nukeArmed9 = !!nukeNow9 && t >= nukeNow9.t0;
+      const nukeBuild9 = !!nukeNow9 && !nukeArmed9;
       // 이름 창 = 착공 직후 잠깐뿐(요청) — 그 뒤 공사 중에는 도형+망치이고, 생산·
       // 연구 중에도 이름 대신 라임 글로우가 말한다(요청: "생산중인 건물은 이름을
       // 띄우지 말고 액티브").
@@ -5949,9 +6058,15 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
              메시가 **2벌**로 끝난다(여태 7.5도 칸 48벌). headDeg 는 op 에 그대로 남는다 —
              열쇠는 HEAD_KINDS 가 가르므로(turretbase·turrethead 는 그 명단 밖) 안 갈린다. */
           fx: fxF, fy: fyF, z,
-          kind: shapeKind === "turret" ? "turretbase" : sunkenOut ? "sunkenrear" : shapeKind,
+          kind: shapeKind === "turret" ? "turretbase" : shapeKind === "comsat" ? "comsatbase" : sunkenOut ? "sunkenrear" : shapeKind,
           ...(shapeKind === "turret"
             ? { attach: "turrethead", attachRot: headDeg9 ?? buildingYawOf() }
+            /* ★ 컴샛 접시도 같은 손이다(2026-09, 요청: "컴셋스테이션 위성 요잉 주기(터렛의 포드처럼)") —
+               접시(comsatdish)를 딸림 부품으로 떼고 **탐지 회전**(COMSAT_SWEEP9 °/s · 자리로 위상을 흩는다)을
+               attachRot 로 준다. 각이 유니폼이라 메시는 두 벌이고 칸 없이 이어서 돈다. 공사 중에도 돌고
+               잔상(bldFrozen9)은 멎는다 — 터렛 탐지 회전과 같은 규약이다. */
+            : shapeKind === "comsat"
+              ? { attach: "comsatdish", attachRot: bldFrozen9 ? buildingYawOf() : (((t * COMSAT_SWEEP9 + centerX * 37 + centerY * 53) % 360) + 360) % 360 }
             /* ★ 혓바닥도 **제 절대 요잉**을 받아야 표적을 본다(2026-09, 지적: "성큰 …
                혓바닥 나오는 컷들") — 터렛을 딸림 부품으로 가르며 붓이 딸림 부품을
                그릴 때 `headDeg: undefined` 로 굽게 되었는데(각은 attachRot 이 준다),
@@ -5972,8 +6087,19 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
              라 남기되(판 두 벌은 이미 캐시된다), 깜빡임은 그 두 벌을 초당 두 번
              오가게 만들어 굽기 캐시를 흔든다. */
           // 잔상은 불이 안 든다(위 bldFrozen9) — 안 보이는 건물이 뭘 뽑는지 모른다.
-          lit: !bldFrozen9 && (producing || researching)
-            && (!qAnim || ((((t + i * 0.17) % 0.9) + 0.9) % 0.9) < 0.6),
+          /* ★ 부속의 활성(2026-09, 요청: "모든 애드온 건물의 활성화 효과있어야 함") — 머신샵·컨트롤타워·코버트·
+             피직스랩은 연구(researching)가 켜고, **컴샛은 스캔**(그 임자의 Scanner Sweep 이 SCAN_DETECT_SEC 안)이,
+             **핵 사일로는 핵**(만드는 동안 깜빡 · 장전되면 쏠 때까지 켜 둠 — nukeArm9)이 켠다. */
+          lit: !bldFrozen9 && ((producing || researching || scanLit9 || nukeBuild9)
+            && (!qAnim || ((((t + i * 0.17) % 0.9) + 0.9) % 0.9) < 0.6) || nukeArmed9),
+          ...((): { pulseK?: number } => {
+            /* ★ 저그 활성 건물의 숨(ZERG_PULSE_K9 의 ★) — 해처리류의 생산(라바 → 알)은 뺀다. */
+            if (race2 !== "저그" || bldFrozen9 || raising) return {};
+            const hall9 = unit === "Hatchery" || unit === "Lair" || unit === "Hive";
+            if (!(researching || (producing && !hall9))) return {};
+            const ph9 = ((((t + i * 0.23) % ZERG_PULSE_SEC9) + ZERG_PULSE_SEC9) % ZERG_PULSE_SEC9) / ZERG_PULSE_SEC9;
+            return { pulseK: 1 + ZERG_PULSE_K9 * (0.5 - 0.5 * Math.cos(ph9 * Math.PI * 2)) };
+          })(),
           /* 도는 부품의 칸(요청: 상시 회전) — 초당 0.6바퀴. 여덟 칸이라
              초당 네 번 판이 바뀐다.
              ★ 포지만은 **연구 중에만** 돈다(요청: "포지 업그레이드중에는 톱니가
@@ -5992,16 +6118,16 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
                물려받아 제 몫으로 구워진다. */
             : shapeKind === "sunken"
               ? (sunkenOut ? sunkenCut9(sunkenPh) : 0)
-            : shapeKind === "forge" || shapeKind === "cyber" || shapeKind === "mshop"
-              ? (researching ? Math.floor(t * 1.6 * SPIN_ANIM9) % SPIN_ANIM9 : 0)
               /* ★ 0.6 → **2.2바퀴/초**(지적: "너무 뚝뚝 끊김") — 칸이 여덟뿐이라 판을
                  늘리지 않고 매끄럽게 하는 길은 **더 자주 바꾸는 것**이다. 초당 4.8번이던
                  판 갈아 끼움이 17.6번(57ms마다)이 되어 눈에는 이어져 돈다. 판 수는
                  그대로 여덟이라 굽기 값은 한 톨도 안 는다(전부 캐시 적중).
                  서플라이 팬은 세 갈래 대칭이라 한 칸이 15도이므로(빌더의 spinRadSym),
                  이 걸음은 날개 기준 초당 2.2바퀴가 아니라 **0.73바퀴**다 — 환풍팬으로
-                 알맞은 속도다. */
-              : Math.floor(t * 2.2 * SPIN_ANIM9) % SPIN_ANIM9,
+                 알맞은 속도다.
+                 ★ 걸음은 **한 문**(spinRateOf9)이 준다(2026-09) — 일할 때만 도는 것 1.6/0 · 늘 도는 것 2.2 ·
+                   가스 연기 0.45. 도록(docCellsOf9)도 같은 문을 보므로 여기 숫자를 따로 고치면 안 된다. */
+              : Math.floor(t * spinRateOf9(shapeKind, researching) * SPIN_ANIM9) % SPIN_ANIM9,
           /* 원작처럼 45도 요잉(지적) — 2D에도 적용(재지적: 2D도 45도 요잉해야지).
              쐐기의 진범은 요잉이 아니라 hover 그림자의 beginPath 누락이었다. */
           rotDeg: buildingYawOf(),
@@ -6125,44 +6251,18 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
             && Math.abs((pxT + (FOOTPRINT[pu3] ?? [4, 3])[0]) - x) <= 0.6
             && Math.abs(pyT - y) <= 2);
           if (!par) return null;
-          /* 두 끝은 **몸 상자** 변이다(요청: 건물 틈) — 발자국 변으로 재면 이제
-             본체·애드온이 발자국보다 작게 서므로 통로가 허공에서 시작한다. */
-          const parBox = par ? buildingBox(par[3]) : null;
-          /* 짧게, 그리고 뒤로(요청: "애드온 연결부 길이줄이고 뒤로 옮겨야대") —
-             두 끝을 각각 상자 안으로 0.5 → 1.3타일씩 물린다(길이 1.6타일 축소).
-             통로는 두 건물을 잇는 짧은 목이지 다리가 아니라, 벽 앞으로 길게
-             뻗으면 둘 사이가 비어 보인다. 세로도 몸 상자 앞(+0.1)에서 뒤
-             (−0.18)로 옮긴다 — 사람이 지나는 통로는 건물의 앞면이 아니라
-             뒤쪽에 붙는 것이 원작의 그림이고, 앞에 두면 두 건물의 얼굴을 가린다. */
-          const LINK_IN = 1.3;
-          /* 본건물 쪽은 덜 물린다(요청: "테란 애드온 연결부 본건물 쪽 길이 줄이기") — 1.3 → 0.55. 통로가 본체
-             안으로 깊이 파고들던 몫이 줄어 본체 쪽 길이가 짧아지고 가운데도 부속 쪽으로 옮겨 간다. */
-          /* ★ **스타포트만 본체 쪽으로 더 깊이 뻗는다**(2026-09, 요청: "스타포트의 경우 애드온
-             연결부를 좀 더 길게 늘리기 — 스타포트 쪽으로") — 스타포트는 뒤쪽이 착륙판이라 벽이
-             다른 건물보다 안으로 들어가 있어, 같은 0.55 로는 통로가 벽에 못 닿고 허공에서 시작한다.
-             1.55 면 그만큼 본체 속으로 파고들어 두 건물이 이어진 것으로 읽힌다(가운데도 함께 옮겨
-             가므로 부속 쪽 끝은 그대로다). */
-          const LINK_IN_MAIN = par[3] === "Starport" ? 1.55 : 0.55;
-          const leftEdge = par && parBox
-            ? par[1] + footDx(par[3]) + parBox[2] + parBox[0] / 2 - LINK_IN_MAIN
-            : bodyX - boxW / 2 - 1.2;
-          const rightEdge = bodyX - boxW / 2 + LINK_IN;
-          /* 가로 2/3(요청: "애드온 연결부 가로 길이 2/3로 줄이고") — 두 끝을
-             안으로 물리는 것(LINK_IN)과 별개로, 남은 길이 자체를 줄인다.
-             가운데는 그대로라 양쪽이 똑같이 짧아진다. */
-          /* 길이는 위아래로 죈다 — 부모를 죄어도 발자국 표가 틀린 옛 기록에서
-             터무니없이 긴 값이 나올 수 있고, 길이가 곧 모형 배수라 그때 통로가
-             건물보다 커진다. 통로는 두 건물 사이를 잇는 짧은 목이다. */
-          const linkW = Math.max(1.2, Math.min(par[3] === "Starport" ? 4.2 : 3.2,
-            (rightEdge - leftEdge) * (2 / 3)));
-          /* 자리(요청 셋을 거친 자리) — −0.18 → −0.38 → −0.62 → **−0.12**.
-             ★ 마지막 요청이 "애드온 연결부 바닥으로 내리기"다. 이 한 수는
-               통로가 앉는 **지면선**이라, 뒤로 밀수록(음수가 클수록) 화면에서는
-               위로 올라간다 — 곧 −0.62는 통로를 두 건물 사이 허공에 띄우고
-               있었다. 통로는 사람이 걸어 다니는 바닥 구조물이므로 두 건물과
-               **같은 땅**에 앉는 것이 맞다: 몸 상자 아랫변 언저리(−0.12)로
-               내린다. 모델 자체는 이미 바닥(z 0.4)에서 시작한다. */
-          const [lfx, lfy] = posFrac((leftEdge + rightEdge) / 2, bodyY - boxH * 0.12);
+          /* ★★ **두 끝은 두 벽이다**(2026-09, 요청: "애드온연결부의 길이를 본건물과 애드온 양옆벽을 잇는 좌표로
+             설정해주는 로직 개발(수동으로 길이조절 안하게)") — 옛 손 값 셋(LINK_IN 1.3 · 본체 0.55 · 스타포트
+             1.55 · 길이 2/3 · 상한 3.2/4.2 · 세로 −0.12)은 다 걷었다. addonLinkGeom9(위 ★★)가 벽 옆선 표에서
+             통로 축의 두 끝을 풀고, 붓은 그 원점·배수(mkFrac)로 그린다. */
+          const pb9 = buildingBox(par[3]);
+          const geo9 = addonLinkGeom9(par[3], par[1] + footDx(par[3]) + pb9[2],
+            par[2] + footDy(par[3]) + pb9[3] + pb9[1] / 2, unit, bodyX, groundYT);
+          if (!geo9) return null;
+          const [lfx, lfy] = posFrac(geo9.ox, geo9.oy);
+          // 컬링·크기용 상자 폭 — 돌려 선 막대의 화면 가로폭(축 11.5·굵기 4.4 를 요잉으로 사영).
+          const lk9 = (BUILDING_BASE_YAW * Math.PI) / 180;
+          const linkW = geo9.uL * (geo9.ell * Math.abs(Math.cos(lk9)) + 4.4 * Math.abs(Math.sin(lk9)));
           unitOps.push({
             /* 통로도 건물과 같은 45도로 굽는다(지적: "각 옆면에는 수직임") —
                본체·애드온이 다 요잉해 서 있어 서로 마주 보는 옆면도 비스듬한데,
@@ -6174,6 +6274,8 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
             viewYaw: viewYawOf(centerX, centerY), flat: !pitched, pitch: pitched,
             sizePx: 0, wFrac: (linkW / grid.width) * mkA, hFrac: ((linkW * 0.36) / grid.width) * mkA,
             boxFit: "meet", fitWidth: true, color, alpha, noShadow: true,
+            mkFrac: (geo9.uL / grid.width) * mkA,
+            spin: geo9.slot,   // 길이 칸(위 ★ — 저사양 qAnim 과 무관하게 늘 싣는다: 애니메이션이 아니라 길이다)
           });
         }
         /* 방어 사격(재지적: 터렛은 골리앗 대공과 동일, 벙커는 안에 든 것 따라) —
@@ -6586,6 +6688,10 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         + (underGas ? -2 * Z_TILE : Z_RES_AHEAD),
       /* 남은 단에 따라 별본을 고른다(요청: 고갈 표현) — 미네랄은 덩어리 수가
          줄고, 간헐천은 바닥나면 네온이 꺼진다. 가득(4)이면 본판 그대로다. */
+      /* ★ 간헐천 김의 시계(2026-09 · bake9 gasPuffs9) — 건물의 회전 칸과 같은 자: SPIN_ANIM9 칸이 한 바퀴,
+         걸음은 GAS_SPIN_RATE9. 고갈 별본(geyserdry)은 김이 없어 칸을 안 싣고, 저사양(qAnim 꺼짐)도 안 싣는다. */
+      ...(gasSpot && qAnim && resStageAt(res[0], res[1]) !== 0
+        ? { spin: Math.floor(t * GAS_SPIN_RATE9 * SPIN_ANIM9) % SPIN_ANIM9 } : {}),
       kind: gasSpot
         ? (resStageAt(res[0], res[1]) === 0 ? "geyserdry" : "geyser")
         : (() => {

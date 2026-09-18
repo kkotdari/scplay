@@ -791,7 +791,9 @@ export type Poly3 = number[];
 /** ★ **빛을 내는 색**(2026-09) — GL 의 번짐(블룸)이 이 색으로 칠한 면만 문다. 색만 보고는 '빛'과 '진한 물감'을
  *  못 가른다(프로토스 금 #e6d063 은 휘도 0.85·채도 0.51 로 켠 창 #ffe790 과 거의 같다). 그래서 **켜지는 자리**가
  *  스스로 적는다: bake9 의 `winLit`·`glowLit` 이 불이 켜질 때 제 색을 여기 넣는다(늘 빛인 플라즈마는 미리 적어 둔다). */
-export const EMIT_FILL9 = new Set<string>(["#e4f6ff"]);
+/* 미리 적힌 빛: 플라즈마 #e4f6ff · 캐리어 창 #5fe6ff · 관문 보석 결정면 #c4f4ff·#7fd6ff(2026-09 — 손으로 그린
+   번짐 겹을 걷으며 그 빛들을 블룸이 물게 했다. 늘 켜진 빛은 winLit 을 안 지나므로 여기 적는다). */
+export const EMIT_FILL9 = new Set<string>(["#e4f6ff", "#5fe6ff", "#c4f4ff", "#7fd6ff"]);
 export const MESH9 = { on: false, byD: new Map<string, Poly3[]>() };
 /* (걷어냄) 화면점 → 모형점 표(`PROJ9`)와 그 되짚기(`unproject9`) — '화면 자로 그린 경로를
    3D 로 승격시키는' 길의 재료였다. 면을 내는 자가 제 3D 를 함께 적게 되어(mesh9 머리의 ★★)
@@ -1604,12 +1606,15 @@ function shineRing9(
 }
 export function sphereFaces3(
   cx: number, cy: number, cz: number, r: number, fill?: string,
+  /** 광점·옆 그늘 두 장을 얹을지 — 발광 구(플릿비컨)는 끈다(2026-09 · 광택은 셰이더의 몫). */
+  shine = true,
 ): ShapeFace[] {
   const [sx, sy] = project(cx, cy, cz);
   const body: ShapeFace = fill
     ? [screenCircle(sx, sy, r), 1, fill]
     : bodyFace(screenCircle(sx, sy, r));
   if (MESH9.on) meshPut9(body[0], meshSphere9(cx, cy, cz, r));
+  if (!shine) return tagKey([body], depthNow(cx, cy) + r);
   /* 광점 둘도 **제 3D 를 적는다** — 화면에서 오른아래(그늘)·왼위(빛)로 밀린 자리가 곧 표면의
      그 방향이다(화면 위 = 모형에서 뒤·높은 쪽). 대개는 덧칠로 몸에 접히지만, 발광 종류에서는
      접지 않고 제 부품으로 남으므로 그때 이 기하가 쓰인다. */
