@@ -968,6 +968,38 @@ export function caveInside9(
     [side9(hw), 1, fill] as ShapeFace,
   ];
 }
+/** 다각형을 부호 있는 거리 함수의 0 선에서 자른다 — 음수 쪽을 베어 내고 **양수(남는) 쪽 조각**을 낸다(spirePillar 의
+ *  `cutFace`). 변마다 부호가 갈리면 이분법으로 0 점을 찾아 끼운다. 전부 음수면 null(낯을 뺀다) · 전부 양수면 그대로 ·
+ *  경계가 셋 넘게 지나면(조각이 둘로 갈릴 자리) 그대로 둔다. */
+export function cutPoly9(
+  pts: [number, number, number][], f: (x: number, y: number, z: number) => number,
+): [number, number, number][] | null {
+  const v9 = pts.map((p9) => f(p9[0], p9[1], p9[2]));
+  if (v9.every((a9) => a9 >= 0)) return pts;
+  if (v9.every((a9) => a9 < 0)) return null;
+  let cross9 = 0;
+  for (let k9 = 0; k9 < pts.length; k9 += 1) if ((v9[k9] < 0) !== (v9[(k9 + 1) % pts.length] < 0)) cross9 += 1;
+  if (cross9 > 2) return pts;
+  const out9: [number, number, number][] = [];
+  const zero9 = (a9: [number, number, number], b9: [number, number, number]): [number, number, number] => {
+    let lo9 = 0; let hi9 = 1;
+    const fa9 = f(a9[0], a9[1], a9[2]);
+    for (let it9 = 0; it9 < 10; it9 += 1) {
+      const m9 = (lo9 + hi9) / 2;
+      const px9 = a9[0] + (b9[0] - a9[0]) * m9; const py9 = a9[1] + (b9[1] - a9[1]) * m9; const pz9 = a9[2] + (b9[2] - a9[2]) * m9;
+      if ((f(px9, py9, pz9) < 0) === (fa9 < 0)) lo9 = m9; else hi9 = m9;
+    }
+    const m9 = (lo9 + hi9) / 2;
+    return [a9[0] + (b9[0] - a9[0]) * m9, a9[1] + (b9[1] - a9[1]) * m9, a9[2] + (b9[2] - a9[2]) * m9];
+  };
+  for (let k9 = 0; k9 < pts.length; k9 += 1) {
+    const a9 = pts[k9]; const b9 = pts[(k9 + 1) % pts.length];
+    const ina9 = v9[k9] >= 0; const inb9 = v9[(k9 + 1) % pts.length] >= 0;
+    if (ina9) out9.push(a9);
+    if (ina9 !== inb9) out9.push(zero9(a9, b9));
+  }
+  return out9.length >= 3 ? out9 : null;
+}
 export function spirePillar(o: {
   x: number; y: number; z0?: number; h: number; w: number; tipW?: number;
   segs?: number; sides?: number;
@@ -1054,6 +1086,12 @@ export function spirePillar(o: {
    *  뚫을 때 쓴다: 2D 는 개구부를 벽 위에 얹고 둘레를 덧댐판으로 가렸지만, GL 은 진짜 깊이라 그 덧댐판이
    *  속보다 앞에 서서 속을 통째로 먹는다. 부르는 쪽이 빠진 자리를 제 손으로 메운다(커맨드 격납구). */
   skipFace?: (mx: number, my: number, mz: number) => boolean;
+  /** ★ **낯을 경계에서 자른다**(2026-09, 지적: "직각으로 말고 사선으로 입구를 자르진 못하나") — `skipFace` 는 낯을
+   *  통째로만 빼므로 구멍 가장자리가 낯 크기의 **계단**이 된다. 이 함수는 꼭짓점 하나의 **부호 있는 거리**(음수 = 파낼
+   *  쪽)를 내고, 네 꼭짓점의 부호가 갈리는 낯은 그 0 선(변 위에서 이분법으로 찾는다)을 따라 **베어 내고 남는 조각**을
+   *  다각형으로 남긴다. 다 파낼 쪽이면 낯을 빼고, 다 남는 쪽이면 그대로다. 경계는 변마다 한 점씩 곧게 잇는 현이라
+   *  낯이 작을수록 곡선에 가깝다. ⚠ 한 낯을 경계가 두 번 넘게 지나면(낯이 경계의 굽이보다 클 때) 그 낯은 그대로 둔다. */
+  cutFace?: (x: number, y: number, z: number) => number;
 }): ShapeFace[] {
   const z0 = o.z0 ?? 0;
   const segs = Math.max(1, o.segs ?? 3);
@@ -1212,12 +1250,18 @@ export function spirePillar(o: {
       if (nz !== undefined && !faceLight(nx, ny, nz).visible) continue;
       if (o.skipFace
         && o.skipFace(fx, fy, (lo[i][2] + lo[j][2] + hi[i][2] + hi[j][2]) / 4)) continue;
+      let quad9: [number, number, number][] = [lo[i], lo[j], hi[j], hi[i]];
+      if (o.cutFace) {
+        const cut9 = cutPoly9(quad9, o.cutFace);
+        if (!cut9) continue;
+        quad9 = cut9;
+      }
       const fz9 = nz !== undefined
         ? ((lo[i][2] + lo[j][2] + hi[i][2] + hi[j][2]) / 4) * heightDepthK()
         : (c1[2] - c0[2]) * 0.02;
       const fzc9 = (lo[i][2] + lo[j][2] + hi[i][2] + hi[j][2]) / 4;
       walls.push({
-        d: polyPath3([lo[i], lo[j], hi[j], hi[i]]),
+        d: polyPath3(quad9),
         nx, ny, nz, dep: depthNow(fx, fy) + fz9,
         top: o.fillTop !== undefined && t0 >= (o.topFrom ?? 0)
           && fzc9 > (c0[2] + c1[2]) / 2 + 1e-6,
@@ -13630,11 +13674,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          검정이 능선 밖으로 나간다. 그래서 **낯 상자의 가장 가까운 점**(한가운데에서 반 낯 0.39×0.19 를 뺀 자리)이
          그 타원 안에 들면 뺀다 — 구멍은 안쪽 가장자리까지 **꼭** 가고, 넘치는 몫(한 낯까지)은 능선 띠(폭 0.92) 뒤에
          숨는다. 낯을 잘게(sides 36 · segs 14) 쪼개야 그 넘치는 몫이 띠 안에 든다. */
-      ? (mx9: number, my9: number, mz9: number): boolean => {
-        if (my9 <= 0.4) return false;
-        const dx9 = Math.max(0, Math.abs(mx9) - 0.39); const dz9 = Math.max(0, Math.abs(mz9 - 0.16) - 0.19);
-        return (dx9 / 2.16) ** 2 + (dz9 / 1.98) ** 2 < 1;
-      }
+      /* ★ 계단이 아니라 **사선·곡선**으로 자른다(지적: "직각으로 말고 사선으로 입구를 자르진 못하나") — `cutFace` 가
+         꼭짓점마다 타원 밖 거리를 내고 spirePillar 가 낯을 그 0 선에서 베어 낸다. 앞(y > 0.4)에서만. */
+      ? (x9: number, y9: number, z9: number): number => (y9 <= 0.4 ? 1
+        : (x9 / 2.16) ** 2 + ((z9 - 0.16) / 1.98) ** 2 - 1)
       : undefined;
     out.push(...tagKey(paintBase(spirePillar({
       x: 0, y: 0, h: 0.8, w: 4.4, tipW: 1.4, segs: MESH9.on ? 14 : 8, sides: MESH9.on ? 36 : 14, hold: 0, taper: 0.5,
@@ -13642,7 +13685,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* ⚠ 밑 뚜껑은 GL 에서 안 깐다 — 커맨드 받침의 그 규약("아래를 보는 뚜껑은 눈에 안 보이면서 깊이만 쓴다"):
          굴 바닥(z 0.06)과 0.06 차인데 부품 차례 편향(aOrd ≤ 0.7)이 그보다 커서 뚜껑이 바닥을 이겨 굴이 도로
          메워졌다(실측: 속을 붉게 칠했더니 옆벽 귀퉁이만 보였다). */
-      skipFace: caveSkip9, caps: MESH9.on ? "top" : "both",
+      cutFace: caveSkip9, caps: MESH9.on ? "top" : "both",
     }), HIDE), 0));
     if (MESH9.on) {
       // 둔덕 옆선: 반지름 r(t) = 1.4 + 3·(1−t)^0.5 (w 4.4 · tipW 1.4 · taper 0.5) · 축 y = −1.2 − 1.1t · z = 5.12t
@@ -13730,15 +13773,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* ★★ GL 에서는 진짜 굴이다(캐번의 ★★와 같은 손 — 지적: "커널 앞 동굴 입구가 안 뚫려 있음"). */
     const nydSkip9 = MESH9.on
       // 아치 관(호 2.55×2.2 · 굵기 0.85)의 안쪽 가장자리(1.7×1.35)에 낯 상자가 닿으면 뺀다(캐번과 같은 자).
-      ? (mx9: number, my9: number, mz9: number): boolean => {
-        if (my9 <= 0.3) return false;
-        const dx9 = Math.max(0, Math.abs(mx9) - 0.39); const dz9 = Math.max(0, Math.abs(mz9 - 0.16) - 0.14);
-        return (dx9 / 1.7) ** 2 + (dz9 / 1.35) ** 2 < 1;
-      }
+      ? (x9: number, y9: number, z9: number): number => (y9 <= 0.3 ? 1
+        : (x9 / 1.7) ** 2 + ((z9 - 0.16) / 1.35) ** 2 - 1)
       : undefined;
     out.push(...tagKey(paintBase(spirePillar({
       x: 0, y: -0.6, z0: 0, h: 3.36, w: 4.4, tipW: 1.5,
-      segs: MESH9.on ? 12 : 7, sides: MESH9.on ? 36 : 14, hold: 0, taper: 0.6, skipFace: nydSkip9, caps: MESH9.on ? "top" : "both",
+      segs: MESH9.on ? 12 : 7, sides: MESH9.on ? 36 : 14, hold: 0, taper: 0.6, cutFace: nydSkip9, caps: MESH9.on ? "top" : "both",
     }), "#6b4732"), 0));
     if (MESH9.on) {
       // 둔덕 옆선: 반지름 r(t) = 1.5 + 2.9·(1−t)^0.6 (w 4.4 · tipW 1.5 · taper 0.6) · 축 y = −0.6 · z = 3.36t
