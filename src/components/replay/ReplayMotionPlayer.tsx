@@ -3327,14 +3327,16 @@ export function paintFxList9(
     if ((f.kind === "beam" || f.kind === "shot") && f.tx !== undefined && f.ty !== undefined) {
       const x1 = zx(f.tx);
       const y1 = zy(f.ty) - (f.tlift ?? 0) * zoom;
-      const vx9 = x1 - x0;
-      const vy9 = y1 - y0;
+      /* ★ 길이가 고정인 갈래(화염방사)는 **몸의 자리**에서 표적을 겨눈다 — 두 줄기가 제 총구에서 표적
+         한 점으로 모이지 않고 **나란히** 나간다(요청: "단 파뱃은 제외"). 길이도 표적에 안 매인다. */
+      const vx9 = x1 - (st.fixed ? ax : x0);
+      const vy9 = y1 - (st.fixed ? ay : y0);
       const vd9 = Math.hypot(vx9, vy9);
       if (vd9 > 0.01) {
         dxx = vx9 / vd9;
         dyy = vy9 / vd9;
         rad9 = Math.atan2(-dxx, dyy);
-        tgtReach9 = Math.max(0, vd9 - (f.tgap ?? 0) * zoom);
+        if (!st.fixed) tgtReach9 = Math.max(0, vd9 - (f.tgap ?? 0) * zoom);
       }
     }
     /** 총구에서 표적까지(화면 px) — op에 len이 실려 있으면 그만큼이 한계다. */
@@ -3427,8 +3429,10 @@ export function paintFxList9(
          큰(32×32) 유닛이라 붙어 싸울 때 총구~표적의 화면 거리가 거의 0이다.
          그러면 갈아 끼운 길이도 0이 되어 **전보다 더 안 보인다**. 늘이려던 것이
          지우는 짓이 됐다. 제 길이를 바닥으로 깔고 표적이 멀면 거기까지 뻗는다. */
-      headD9 = st.span && Number.isFinite(reach9)
-        ? Math.max(reach9, tailL9) : Math.min(tailL9, reach9);
+      /* ★ 길이가 고정인 갈래(화염)는 표적 거리와 무관하게 **늘 제 길이**다(FX_BEAM.fixed 의 ★). */
+      headD9 = st.fixed ? tailL9
+        : st.span && Number.isFinite(reach9)
+          ? Math.max(reach9, tailL9) : Math.min(tailL9, reach9);
       /* ★ 표적 그림은 **줄기 끝에**(요청: "아콘 공격 트레이서의 스플래시 효과는 공격줄기
          끝으로 고정") — 엔진이 표적 자리에 따로 얹던 hit op를 걷고, 줄기가 실제로
          끝나는 점(headD9)에 같은 그림(FX_IMPACT·같은 자·같은 박자)을 그린다. 붙어
@@ -3642,8 +3646,11 @@ export function paintFxList9(
       const guided9 = Number.isFinite(runD9) && runD9 > 0
         && Math.abs(dx0 - dxx) + Math.abs(dy0 - dyy) > 1e-4;
       const bow9 = guided9 ? 1 : 0;
-      const cx0 = x0 + dx0 * (runD9 / 2);
-      const cy0 = y0 + dy0 * (runD9 / 2);
+      /* ★ 쌍의 한 발은 조종점을 **더 앞**(0.72)에 둔다(FxOp.twin 의 ★) — 발사 방향(d0 = 몸의 겨눔)으로
+         오래 나란히 가다가 표적 가까이에서 한 점으로 튼다. 홑발은 종전대로 가운데(0.5)다. */
+      const ck9 = f.twin ? 0.72 : 0.5;
+      const cx0 = x0 + dx0 * (runD9 * ck9);
+      const cy0 = y0 + dy0 * (runD9 * ck9);
       const tx0 = x0 + dxx * runD9;
       const ty0 = y0 + dyy * runD9;
       /** 자취 위의 한 점 — d는 총구에서의 **직선 거리**(굽은 길의 매개변수로 쓴다). */
@@ -5782,11 +5789,17 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, 
           [(-mzPair9[0] * k9 * mzK9) / ZOOM9, (-mzPair9[1] * k9 * mzK9) / ZOOM9]]
         : (ln9 > 0 ? [-1, 1] : [0]).map((fs9): [number, number] =>
           [Math.cos(rad0) * ln9 * fs9, Math.sin(rad0) * ln9 * fs9]);
+      /* ★ **표적 점을 싣는다**(2026-09, 요청: "한 쌍 트레이서의 경우 타겟 쪽은 타겟 중심 한 점을 향해 가야 함") —
+         여태 두 발이 제 총구에서 같은 각으로 나란히 뻗어 끝이 둘이었다. 지도처럼 `tx·ty`(분수 1 = 표적)를 주면
+         붓이 발마다 제 총구에서 표적 한 점으로 다시 겨눈다. 미사일은 `d0`(몸의 겨눔)로 나가 가까이에서 튼다
+         (FxOp.twin). 화염은 붓이 몸의 자리에서 겨눠 나란히 뻗고 길이는 고정이다(FX_BEAM.fixed). */
+      const tgtOp9 = tgt && k9 ? { tx: 1, ty: 1, tlift: 0 } : {};
       for (const [mx9, my9] of at9) {
         ops9.push({
           kind: shot9 ? "shot" : "beam", style, fx: 0, fy: 0, lift: 0,
-          mx: mx9, my: my9,
-          deg: deg9, ph: age9, len: dist9 / ZOOM9, ...(shot9 ? { u: age9 } : {}),
+          mx: mx9, my: my9, ...tgtOp9,
+          deg: deg9, ph: age9, len: dist9 / ZOOM9, ...(shot9 ? { u: age9, d0: deg9 } : {}),
+          ...(at9.length > 1 ? { twin: true } : {}),
         } as FxOp);
       }
     }
