@@ -88,7 +88,7 @@ import {
 import { TEAM_COLOR, type MinimapMarker } from "./markers";
 import {
   atkCutOf as atkCutOf9, flapCutOf as flapCutOf9,
-  muzzlePoint as muzzlePoint9, anchorPoint as anchorPoint9, spinMuzzle9, BLD_MUZZLE, HEAD_MUZZLE_KINDS9, MUZZLE_BURST_FX9, SHELL_ONLY_FX9,
+  muzzlePoint as muzzlePoint9, muzzleLanes9, anchorPoint as anchorPoint9, spinMuzzle9, BLD_MUZZLE, HEAD_MUZZLE_KINDS9, MUZZLE_BURST_FX9, SHELL_ONLY_FX9,
   AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, ATTACK_FX, NO_BEAM_FX, TARGET_FX, PROJECTILE_FX, NUKE_BOOM_SEC, NUKE_FALL_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, attackFxOf9, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SIEGE_TURN_U9, SIEGE_XF_SEC, BURROW_DIG_SEC, SPIN_ANIM9, SPIN_STEPS, SUNK_OUT9, sunkenCut9, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
 } from "./engine9";
 import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, WorldUi9 } from "./engine9";
@@ -5544,7 +5544,7 @@ export function docAtkFx9(kind: string): { label: string; fx?: string; air: bool
  *  ⚠ 날아가는 무기(PROJECTILE_FX)는 `shot`(진행률 u), 즉발은 `beam`(제자리 번쩍임)이다 —
  *    지도가 가르는 그 자리와 같은 명단을 쓴다. 쏘는 쪽에 아무것도 안 그리는 무기
  *    (커세어 플레어 · NO_BEAM_FX)는 **표적 그림이 전부**이므로 hit 만 낸다. */
-export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, tgt, fx: fxProp }: {
+export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, tgt, air, fx: fxProp }: {
   kind: string; t: number; className?: string;
   /** ★ 그릴 갈래를 못 박을 때(요청: 지상·대공 두 칸) — 안 주면 그 종류의 기본이다.
    *  ⚠ 이름을 `style` 로 두지 않는다 — 리액트에서 그 이름은 CSS 를 뜻해 읽는 사람이 헷갈린다. */
@@ -5558,6 +5558,10 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, 
   rotDeg?: number;
   /** 겨누는 포탑의 절대 각(터렛·포토·성큰) — 있으면 몸이 아니라 이 각이 쏘는 쪽이다. */
   headDeg?: number;
+  /** ★ **대공 무기의 칸인가** — 총구 앵커·갈래가 그 채널의 것이다(engine9 MUZZLE_AIR9). */
+  /** ★ **대공 채널인가** — 총구 앵커가 갈리는 종류(레이스·골리앗·스카우트)는 이 값으로
+   *  제 발사관을 고른다(engine9 `MUZZLE_AIR9`). 칸이 `DocCell9.air` 로 준다. */
+  air?: boolean;
   /** ★★ **표적까지의 거리**(16-상자 자 · `DocCell9.tgt`) — 2026-09 에 열었다(표적 인형).
    *  주면 줄기가 **그 거리까지만** 간다(곧 지도의 사거리다). 안 주면 옛 자리(칸 가장자리까지)로
    *  물러난다 — 표적이 없는 칸(야마토 같은 액션 칸)이 그 길이다. */
@@ -5606,7 +5610,16 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, 
       /* 머리가 도는 건물(터렛·포토)은 표의 값이 **머리 자**라, 머리에 준 각만큼 모형에서
          돌려야 포드·관 위에 앉는다(지도의 muzzleAt9 과 같은 손). */
       if (bm9) return anchorPoint9(HEAD_MUZZLE_KINDS9.has(kind) ? spinMuzzle9(bm9, (headDeg ?? yaw9) - yaw9) : bm9, yaw9, 0, false, true);
-      return muzzlePoint9(kind, yaw9, 0, false);
+      return muzzlePoint9(kind, yaw9, 0, false, air);
+    })();
+    /* ★ **좌우 한 쌍인 발사관은 그 두 자리에서 난다**(2026-09, 요청: "레이스 대공 공격은
+       양쪽 포드 끝에서 … 골리앗은 대지는 양쪽 포신 끝 … 스카우트는 대공은 양쪽 엔진") —
+       지도와 같은 문(muzzleLanes9)이 점 둘을 내고, 그 가운데에서 잰 치우침이 아래 줄기의
+       ±다. 곧 벌리는 폭이 **모델의 실제 간격**이라 잉크 폭으로 어림하던 옛 자를 안 쓴다. */
+    const mzPair9 = ((): [number, number] | null => {
+      if (!k9 || BLD_MUZZLE[kind]) return null;
+      const ls9 = muzzleLanes9(kind, yaw9, 0, false, air);
+      return ls9 && ls9.length > 1 ? [(ls9[0][0] - ls9[1][0]) / 2, (ls9[0][1] - ls9[1][1]) / 2] : null;
     })();
     /* 이 칸에서 **타일 하나가 몇 px 인가** — 모델의 16-상자가 k·16 px 로 서니, 그 종류가
        지도에서 차지하는 타일 수로 나누면 곧 그 배율이다. 붓의 두 손잡이는 그 하나에서 나온다:
@@ -5665,10 +5678,16 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, 
         ? Math.max(0, (k9 * modelInkOf(kind) - Math.max(1.4, (FX_BEAM[style]?.w ?? 0.5) * ZOOM9 * 3.4)) / 2) / ZOOM9
         : 0;
       const ln9 = fl9 || tw9;
-      for (const fs9 of (ln9 > 0 ? [-1, 1] : [0])) {
+      /* 쌍 앵커가 있으면 그 자리가 이긴다(위 mzPair9의 ★) — 없으면 옛 자(잉크 폭 어림). */
+      const at9: [number, number][] = mzPair9
+        ? [[(mzPair9[0] * k9) / ZOOM9, (mzPair9[1] * k9) / ZOOM9],
+          [(-mzPair9[0] * k9) / ZOOM9, (-mzPair9[1] * k9) / ZOOM9]]
+        : (ln9 > 0 ? [-1, 1] : [0]).map((fs9): [number, number] =>
+          [Math.cos(rad0) * ln9 * fs9, Math.sin(rad0) * ln9 * fs9]);
+      for (const [mx9, my9] of at9) {
         ops9.push({
           kind: shot9 ? "shot" : "beam", style, fx: 0, fy: 0, lift: 0,
-          mx: Math.cos(rad0) * ln9 * fs9, my: Math.sin(rad0) * ln9 * fs9,
+          mx: mx9, my: my9,
           deg: deg9, ph: age9, len: dist9 / ZOOM9, ...(shot9 ? { u: age9 } : {}),
         } as FxOp);
       }
@@ -5734,7 +5753,7 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, 
       zx: (v9) => x09 + v9 * ux9 * dist9, zy: (v9) => y09 + v9 * uy9 * dist9,
     });
     el.dataset.gl9 = "1";
-  }, [kind, style, t, overlay, box, rotDeg, headDeg, tgt]);
+  }, [kind, style, t, overlay, box, rotDeg, headDeg, tgt, air]);
   if (!style) return null;
   return <canvas ref={ref} width={1} height={1} className={cx("scr-motion-shape-svg", className)} aria-hidden data-gl9="0" />;
 }
@@ -5998,6 +6017,10 @@ export type DocCell9 = {
    *  `parts` 의 마지막에 선 인형이 앉은 그 자리이고, `DocTracer9` 의 줄기가 닿는 그 거리다.
    *  **한 자리에서 셈해 둘이 나눠 쓴다** — 따로 재면 줄기 끝과 인형이 조용히 어긋난다. */
   tgt?: number;
+  /** ★ **대공 무기의 칸인가**(2026-09, 요청: "지대공 지대지 트레이서 시작점을 분리해서
+   *  가지고 있어야 해") — 총구 앵커가 채널마다 갈리므로(engine9 `MUZZLE_AIR9`) 줄기를
+   *  그리는 자도 이 칸이 어느 무기인지 알아야 한다. 표적 인형도 이 값으로 갈린다. */
+  air?: boolean;
 };
 /** ★★ **도록의 칸은 넷이다**(2026-09, 요청: "셀은 대기 - 이동/활성 - 공격 - 액션/추가액션
  *  (럴커 땅파기 등) 이렇게 네 개로 하고 **하고 있는 셀만** 보여주기") ────────────────────
@@ -6111,8 +6134,11 @@ export function docCellsOf9(kind: string, t: number, yaw: number): DocCell9[] {
        선다. 쏘는 몸의 사거리·크기로 재면 '인터셉터가 곰돌이를 쏘는 장면'이 그대로 선다. */
     const sk9 = c9.kind ?? kind;
     const pt9 = docTargetPart9(sk9, air9, deg9, t, c9.fx ?? docWeaponOf9(sk9) ?? undefined);
-    if (!pt9) return c9;
-    return { ...c9, tgt: docTgtOff9(sk9, air9), parts: [...(c9.parts ?? []), pt9] };
+    /* ★ **채널을 칸에 싣는다**(2026-09, 요청: "지대공 지대지 트레이서 시작점을 분리해서
+       가지고 있어야 해") — 총구 앵커가 지상·대공으로 갈리므로(engine9 MUZZLE_AIR9) 줄기를
+       그리는 자도 이 칸이 어느 무기인지 알아야 한다. */
+    if (!pt9) return { ...c9, air: air9 };
+    return { ...c9, air: air9, tgt: docTgtOff9(sk9, air9), parts: [...(c9.parts ?? []), pt9] };
   };
   if (a9.pose) {
     /* 유닛 — 컷의 임자는 poseCutsOf·poseTempoOf·atkCutOf 다(지도와 같은 문). */

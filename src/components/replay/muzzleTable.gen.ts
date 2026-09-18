@@ -14,14 +14,14 @@ export const MUZZLE_GEN9: Record<string, [number, number, number]> = {
   droneGas: [0, 1.22, 3.34],
   droneHold: [0, 1.22, 3.34],
   droneMin: [0, 1.22, 3.34],
-  fbat: [0, 2.69, 2.14],
+  fbat: [0, 2.69, 2],
   ghost: [0.4, 3.6, 3.01],
-  goliath: [0, 3.52, 4.12],
+  goliath: [2.75, 3.52, 4.12],
   goon: [0, 1.6, 4.08],
   guardian: [0, 1.93, 6.2],
-  gunner: [-0.47, 2.4, 2.68],
+  gunner: [-0.47, 2.4, 2.82],
   hydra: [0, 3.1, 4.73],
-  inf: [-0.97, 1.37, 1.15],
+  inf: [-0.98, 2.67, 3.53],
   lurker: [0, 2.37, 2.44],
   muta: [0, 2.6, 2.73],
   probe: [0, 1, 2.69],
@@ -44,9 +44,16 @@ export const MUZZLE_GEN9: Record<string, [number, number, number]> = {
   turret: [2.2, 0.6, 8.64],
   turrethead: [2.2, 0.6, 8.64],
   ultra: [0, 4.13, 3.24],
-  valk: [0, 3.5, 4.32],
+  valk: [2.1, -0.66, 4.99],
   vulture: [0, 6.6, 2.94],
   wraith: [0, 3.1, 3.1],
   zealot: [2.51, 2.71, 1.74],
   zling: [0, 2.17, 1.39],
+};
+/** **대공 채널**(markMuzzleAir9 를 적은 종류만) — 지대공 무기가 아예 딴 자리에서 나가는 셋이다
+ *  (레이스 날개 끝 포드 · 골리앗 어깨 갑옷 · 스카우트 양쪽 엔진). 없는 종류는 위 표를 쓴다. */
+export const MUZZLE_AIR_GEN9: Record<string, [number, number, number]> = {
+  goliath: [2.75, 1.17, 4.5],
+  scout: [1.88, 1.05, 5.18],
+  wraith: [3.57, 1.6, 5.29],
 };

@@ -16,17 +16,20 @@ const KEY_OF = { tankgun: "tank", tanksiegegun: "tanksiege" };
 const SKIP = new Set(["tank", "tanksiege", "tankturretxf", "tankbody", "tanksiegebody", "tanksiegelegs", "tanksiegelegsF"]);
 const ENTRY = `
 import { SHAPE_BUILDERS, poseSet } from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
-import { MUZZLE_PROBE9 } from ${JSON.stringify(join(ROOT, "src/components/replay/bake9"))};
+import { MUZZLE_PROBE9, MUZZLE_PROBE_AIR9 } from ${JSON.stringify(join(ROOT, "src/components/replay/bake9"))};
 import { bake, withYaw } from ${JSON.stringify(join(ROOT, "src/utils/shapeOblique"))};
 window.__probeAll = () => {
-  const out = {};
+  const out = {}; const air = {};
   for (const kind of Object.keys(SHAPE_BUILDERS)) {
-    MUZZLE_PROBE9.p = null; MUZZLE_PROBE9.hard = false;
+    MUZZLE_PROBE9.p = null; MUZZLE_PROBE9.hard = false; MUZZLE_PROBE_AIR9.p = null;
     poseSet(0);
     try { bake(() => withYaw(0, SHAPE_BUILDERS[kind])); } catch (e) { continue; }
-    if (MUZZLE_PROBE9.p) out[kind] = MUZZLE_PROBE9.p.map((v) => Math.round(v * 100) / 100);
+    const r2 = (p) => p.map((v) => Math.round(v * 100) / 100);
+    if (MUZZLE_PROBE9.p) out[kind] = r2(MUZZLE_PROBE9.p);
+    /* 대공 채널(markMuzzleAir9) — 적은 종류만 표에 든다(지대공·지대지가 아예 다른 셋). */
+    if (MUZZLE_PROBE_AIR9.p) air[kind] = r2(MUZZLE_PROBE_AIR9.p);
   }
-  return out;
+  return { out, air };
 };
 `;
 function bundle() {
@@ -52,13 +55,20 @@ await page.addScriptTag({ content: js, type: "module" });
 await page.waitForFunction(() => !!window.__probeAll);
 const raw = await page.evaluate(() => window.__probeAll());
 await browser.close();
-const table = {};
-for (const [b, p] of Object.entries(raw)) {
+const table = {}; const airTable = {};
+for (const [b, p] of Object.entries(raw.out)) {
   if (SKIP.has(b)) continue;
   table[KEY_OF[b] ?? b] = p;
 }
+for (const [b, p] of Object.entries(raw.air || {})) {
+  if (SKIP.has(b)) continue;
+  airTable[KEY_OF[b] ?? b] = p;
+}
 const keys = Object.keys(table).sort();
-const body = keys.map((k) => `  ${/^[a-z0-9_]+$/i.test(k) ? k : JSON.stringify(k)}: [${table[k].join(", ")}],`).join("\n");
+const rowOf = (t) => (k) => `  ${/^[a-z0-9_]+$/i.test(k) ? k : JSON.stringify(k)}: [${t[k].join(", ")}],`;
+const body = keys.map(rowOf(table)).join("\n");
+const airKeys = Object.keys(airTable).sort();
+const airBody = airKeys.map(rowOf(airTable)).join("\n");
 const text = `/* 총구 앵커표 — **미리 구운 것**(자동 생성) ──────────────────────────────────────────
  *  만드는 법: \`node scripts/muzzle-table.mjs\` · 검사: \`node scripts/muzzle-table.mjs --check\`
  *  손으로 고치지 않는다 — 값은 빌더의 markMuzzle9(bake9)가 적은 점이다(모형 좌표 [x(우), y(앞), z(위)],
@@ -66,6 +76,11 @@ const text = `/* 총구 앵커표 — **미리 구운 것**(자동 생성) ─�
  *  ★ 모델을 고치면 이 표도 다시 뽑는다. 검사 모드가 어긋남을 잡는다. */
 export const MUZZLE_GEN9: Record<string, [number, number, number]> = {
 ${body}
+};
+/** **대공 채널**(markMuzzleAir9 를 적은 종류만) — 지대공 무기가 아예 딴 자리에서 나가는 셋이다
+ *  (레이스 날개 끝 포드 · 골리앗 어깨 갑옷 · 스카우트 양쪽 엔진). 없는 종류는 위 표를 쓴다. */
+export const MUZZLE_AIR_GEN9: Record<string, [number, number, number]> = {
+${airBody}
 };
 `;
 if (CHECK) {

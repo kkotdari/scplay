@@ -14,7 +14,7 @@ import { type TruthWorld } from "../../utils/truthLives";
 import { posAtTruth as posAtSim, kN, kS, type TruthTrack, type TruthTracks, TRUTH_ST_CARRY_GAS as ST_CARRY_GAS, TRUTH_ST_CARRY_MIN as ST_CARRY_MIN, TRUTH_ST_BURROW as ST_BURROW, TRUTH_ST_FIGHT as ST_FIGHT, TRUTH_ST_GATHER as ST_GATHER, TRUTH_ST_INSIDE as ST_INSIDE, TRUTH_ST_MOVE as ST_MOVE, kT, tkN, tkT, tkV, tkAt, tkLast, EMPTY_TICKS, type Ticks } from "../../utils/openbwTracks";
 import { posAtW, wT, wX, wY, EMPTY_WALK, type WalkView, type TrackPos } from "../../utils/replayTrack";
 import { project, withPitchView, withTopView, withViewShear, withYaw, yawBucket9, BLD_YAW9 } from "../../utils/shapeOblique";
-import { MUZZLE_GEN9 } from "./muzzleTable.gen";
+import { MUZZLE_AIR_GEN9, MUZZLE_GEN9 } from "./muzzleTable.gen";
 import { TEAM_COLOR } from "./markers";
 
 
@@ -898,6 +898,22 @@ const MUZZLE_HAND9: Record<string, [number, number, number]> = {
   scout: [0, 3.4, 2.4], corsair: [0, 3.2, 2.4], carrier: [0, 4.4, 2.88], arbiter: [0, 3.4, 2.72],
 };
 export const MUZZLE_ANCHOR: Record<string, [number, number, number]> = { ...MUZZLE_HAND9, ...MUZZLE_GEN9 };
+/* ★★ **지대공은 시작점이 따로다**(2026-09, 요청: "지대공 지대지 트레이서 시작점을 분리해서
+   가지고 있어야 해") — 이 셋은 원작에서 포탑이 둘이라 갈래도 이미 갈려 있었는데(지상 버스트 ↔
+   대공 미사일) 총구는 한 점이었다. 표에 든 종류만 대공에서 이 자리를 쓰고, 나머지는 종전대로
+   위 표 하나를 쓴다(빌더의 `markMuzzleAir9` 이 임자다 — bake9 의 그 ★★). */
+export const MUZZLE_AIR9: Record<string, [number, number, number]> = { ...MUZZLE_AIR_GEN9 };
+/** ★ **좌우 한 쌍인 발사관** — 그 채널의 앵커는 **오른쪽 하나**이고 왼쪽은 모형 x 를 뒤집어 낸다.
+ *  곧 두 줄기의 간격이 **모델의 실제 간격**이다(옛 자 twin9 는 잉크 폭으로 어림했다).
+ *  ⚠ 빌더가 `withModelSpin` 으로 통째로 돌아가 있으면 x 뒤집기가 거울이 아니다 — 이 셋은 안 돈다. */
+export const MUZZLE_PAIR9: Record<string, { g?: true; a?: true }> = {
+  goliath: { g: true, a: true },   // 지상 쌍열 기관포 · 대공 어깨 미사일
+  wraith: { a: true },             // 대공은 날개 끝 포드 둘(지상은 배 아래 포신 하나)
+  scout: { a: true },              // 대공은 양쪽 엔진(지상은 코끝 하나)
+  /* 발키리는 무기가 **대공 하나**라 채널이 안 갈린다 — 둘 다 켜 두면 어느 쪽으로 물어도
+     동체 양옆 포드에서 두 발이 뜬다(요청: "동체 양옆에 포드 있지 거기 앞끝으로"). */
+  valk: { g: true, a: true },
+};
 /* 방어 건물의 총구 앵커 — 모델 이름(SHAPE_KIND) → 모델 공간 [x(우), y(앞), z(위)].
    좌표는 저마다 제 빌더에서 따 왔다: 포톤은 가운데 포탑 꼭대기의 주사바늘(hornFaces
    끝 z 7.6), 성큰은 가운데 촉수의 아가리(capFace discPath3(0.35, 0.15, 3.7)), 스포어는
@@ -939,11 +955,26 @@ export function anchorPoint(
   // 평면 보기는 굽기가 부감(withTopView)으로 들어간다 — 앵커도 같은 판을 타야 한다.
   return flat ? withTopView(run) : run();
 }
+/** 그 채널의 총구 앵커(모형 좌표) — 대공 표식이 있는 종류만 갈린다. */
+export const muzzleAnchor9 = (kind: string, air?: boolean): [number, number, number] | undefined =>
+  (air && MUZZLE_AIR9[kind]) || MUZZLE_ANCHOR[kind];
+/** ★ 그 채널의 총구 **점 목록**(16-상자 투영) — 좌우 한 쌍이면 둘, 아니면 하나다.
+ *  쌍은 모형 x 를 뒤집어 내므로 두 점의 가운데가 곧 한 점짜리 앵커의 자리다(사영이 선형이다). */
+export function muzzleLanes9(
+  kind: string, rotDeg: number | undefined, viewYaw: number | undefined, pitch: boolean, air?: boolean,
+): [number, number][] | null {
+  const a = muzzleAnchor9(kind, air);
+  if (!a) return null;
+  const pr9 = (q: [number, number, number]): [number, number] => anchorPoint(q, rotDeg, viewYaw, pitch, !pitch);
+  const pair9 = air ? MUZZLE_PAIR9[kind]?.a : MUZZLE_PAIR9[kind]?.g;
+  return pair9 && Math.abs(a[0]) > 0.01
+    ? [pr9(a), pr9([-a[0], a[1], a[2]])] : [pr9(a)];
+}
 /** 총구 앵커의 16-상자 투영 좌표(유닛) — 표에 없는 종류는 픽셀 오프셋 폴백. */
 export function muzzlePoint(
-  kind: string, rotDeg: number | undefined, viewYaw: number | undefined, pitch: boolean,
+  kind: string, rotDeg: number | undefined, viewYaw: number | undefined, pitch: boolean, air?: boolean,
 ): [number, number] | null {
-  const a = MUZZLE_ANCHOR[kind];
+  const a = muzzleAnchor9(kind, air);
   /* ★ 평면(2D) 보기는 **부감 판**을 탄다(요청: "트레이서 시작점을 실제 총구·포구에 맞추는
      작업") — 유닛 판은 flat이면 withTopView로 굽는데(unitSprite의 op.flat), 여기서는 그
      몫을 안 태우고 있었다. 부감은 눌림(TOP_SIN9)과 높이 배수(TOP_COS9·누름)가 기본
@@ -8536,8 +8567,16 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
        포탑은 표적을 향해 따로 돌고(rotDeg foeDeg) 차체 뒤로 물러 앉으므로(TURRET_BACK9), 몸 각으로
        재면 포신이 겨눈 쪽이 아니라 차체 앞에서 줄기가 났다. 포탑 op이 실제로 쓴 각과 자리를 그대로 든다. */
     const mzHdg9 = turretAt9 ? turretAt9.hdg : bodyHdg;
-    const mzP = atkDeg !== null
-      ? muzzlePoint(fxKind, mzHdg9, viewYawOf(ax3, ay3), pitched) : null;
+    /* ★★ **채널은 표적이 고른다**(2026-09, 요청: "지대공 지대지 트레이서 시작점을 분리해서
+       가지고 있어야 해") — 대공 표식이 있는 종류(레이스·골리앗·스카우트)는 지금 쏘는 것이
+       공중인지에 따라 아예 딴 자리에서 난다. 좌우 한 쌍인 발사관이면 점이 **둘**이다. */
+    const mzL9 = atkDeg !== null
+      ? muzzleLanes9(fxKind, mzHdg9, viewYawOf(ax3, ay3), pitched, foe.air) : null;
+    /* 한 점짜리 셈(오프셋·번쩍임·폭발)은 **두 점의 가운데**를 쓴다 — 사영이 선형이라 그 점이
+       곧 모형의 가운데(x 0)다. 줄기만 아래에서 lane 마다 갈린다. */
+    const mzP: [number, number] | null = mzL9
+      ? (mzL9.length > 1 ? [(mzL9[0][0] + mzL9[1][0]) / 2, (mzL9[0][1] + mzL9[1][1]) / 2] : mzL9[0])
+      : null;
     /** 그 무기의 **원** 쿨다운(초) — 발사 박자다. 날아가는 탄과 번쩍 주기가 쓴다. */
     const fxCdRaw = (() => {
       const pf9 = isKnownKind(fxUnit) ? profileOf(fxUnit) : null;
@@ -8771,6 +8810,15 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       ? [((mzP[0] - 8) * mzS * fxPx) / 16, (((mzOy9 - 8) + (mzP[1] - mzOy9) * mzS) * fxPx) / 16]
       : [-Math.sin(rad9) * (MUZZLE_PX[fxUnit] ?? 4), Math.cos(rad9) * (MUZZLE_PX[fxUnit] ?? 4)];
     const mzLift9 = mzP ? airLift9 + fxPx * 0.24 : liftPx9;
+    /* ★ 좌우 한 쌍의 **실제 간격**(px) — 앵커 둘을 저마다 같은 식으로 옮겨 가운데에서 잰
+       치우침이다. 이것이 있으면 아래 줄기는 잉크 폭으로 어림하던 옛 자(perp9·flH9) 대신
+       이 값을 쓴다 — 곧 두 줄기가 **모델의 두 발사관** 위에 앉는다. */
+    const mzDelta9: [number, number][] = mzP && mzL9 && mzL9.length > 1
+      ? mzL9.map((q9): [number, number] => [
+        ((q9[0] - 8) * mzS * fxPx) / 16 - mzx9,
+        (((mzOy9 - 8) + (q9[1] - mzOy9) * mzS) * fxPx) / 16 - mzy9,
+      ])
+      : [];
     /* ★ 쏘는 쪽에 선을 안 긋고 **표적 위에 직접 그린다**(요청: "커세어는 트레이서가
        자기 자신 쪽엔 없고 대상한테 넙적한 타원 형태로 플라즈마" · 재지적: "커세어
        플라즈마 공격 안 보임") ────────────────────────────────────────────────
@@ -8980,11 +9028,15 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
          정한다. 둘이 같으면 직선, 다르면 그 차이만큼 굽는다. */
       const launchDeg9 = lockAim(`m${holdKey}`, firePhase(`u${holdKey}`, fxCdRaw), beamDeg, beamLen).deg;
       const lanes9: number[] = twin9 ? [-1, 1] : [0];
-      for (const s9 of lanes9) {
+      /* 쌍 앵커가 있으면 그 자리가 이긴다(위 mzDelta9의 ★) — 없으면 옛 자(잉크 폭 어림). */
+      const laneAt9: [number, number][] = mzDelta9.length
+        ? mzDelta9.map((d9): [number, number] => [mzx9 + d9[0], mzy9 + d9[1]])
+        : lanes9.map((s9): [number, number] => [mzx9 + perp9[0] * s9, mzy9 + perp9[1] * s9]);
+      for (const [lx9, ly9] of laneAt9) {
         fxOps.push({
           kind: "shot", style: fxName9, fx: mzfx9, fy: mzfy9, lift: mzLift9,
           ...tgtFields9(0),
-          mx: mzx9 + perp9[0] * s9, my: mzy9 + perp9[1] * s9,
+          mx: lx9, my: ly9,
           deg: beamDeg, len: beamLen, u: shotU, d0: launchDeg9,
         });
       }
@@ -9029,9 +9081,12 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
            팔 끝의 두 총구는 몸 폭의 절반쯤 안에 있는데 잉크의 0.26 씩이면 어깨 바깥이었다.
            ⚠ 도록의 겹쳐 그리는 자(DocTracer9)도 같은 값을 든다 — 한쪽만 고치면 갈린다. */
       const flH9 = fxName9 === "flame" ? (fxPx * modelInkOf(fxKind)) / 16 * 0.16 : 0;
-      for (const fs9 of (flH9 > 0 ? [-1, 1] : [0])) {
-      const fdx9 = Math.cos(rad9) * flH9 * fs9;
-      const fdy9 = Math.sin(rad9) * flH9 * fs9;
+      /* ★ 쌍 앵커(골리앗 지상 쌍열 기관포)는 **그 두 자리**에서 난다 — 화염의 ± 와 같은
+         짜임이고, 벌리는 폭만 어림이 아니라 모델의 값이다(위 mzDelta9). */
+      const beamAt9: [number, number][] = mzDelta9.length ? mzDelta9
+        : (flH9 > 0 ? [-1, 1] : [0]).map((fs9): [number, number] =>
+          [Math.cos(rad9) * flH9 * fs9, Math.sin(rad9) * flH9 * fs9]);
+      for (const [fdx9, fdy9] of beamAt9) {
       fxOps.push({
         kind: "beam", style: fxName9, fx: mzfx9, fy: mzfy9, lift: mzLift9,
         // 표적 그림을 줄기 끝에 얹는 갈래(TARGET_FX) — 자는 쏘는 몸의 상자(옛 hit op와 같다).

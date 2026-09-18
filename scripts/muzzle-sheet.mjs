@@ -16,16 +16,19 @@ const ROTS = String(flag("--rots", "0,45,90,135,180,225,270,315")).split(",").ma
 const MODE = String(flag("--mode", "top"));
 const CELL = Number(flag("--cell", 200));
 const OUT = String(flag("--out", join(tmpdir(), "muzzle-sheet.png")));
+/* --air — **대공 채널**의 총구를 찍는다(2026-09, 요청: 지대공·지대지 시작점 분리).
+   좌우 한 쌍인 발사관(MUZZLE_PAIR9)은 십자가 **둘** 선다 — 지도·도록이 그 두 자리에서 쏜다. */
+const AIR = process.argv.includes("--air");
 const ENTRY = `
 import { SHAPE_BUILDERS, poseSet, tone9 } from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
-import { MUZZLE_ANCHOR, BLD_MUZZLE, MUZZLE_PLATE, anchorPoint } from ${JSON.stringify(join(ROOT, "src/components/replay/engine9"))};
+import { MUZZLE_ANCHOR, MUZZLE_AIR9, MUZZLE_PAIR9, BLD_MUZZLE, MUZZLE_PLATE, anchorPoint } from ${JSON.stringify(join(ROOT, "src/components/replay/engine9"))};
 import { lodFilter, withPitchView, withTopView, withViewShear, withYaw, bake, zsorted } from ${JSON.stringify(join(ROOT, "src/utils/shapeOblique"))};
 window.__tone = tone9;
 /* ★ **앵커를 든 판 위에 찍는다**(2026-09, 지적: "시즈모드 트레이서가 포신 입에서 나오는지 다시 확인") —
    탱크 둘은 앵커를 **포탑 판**(tankgun·tanksiegegun)에서 뽑아 합본 이름(tank·tanksiege)으로 싣는다
    (muzzle-table 의 KEY_OF). 그래서 합본 모델 위에 찍으면 포탑이 **쉬는 각**으로 서 있는 만큼 어긋나
    보인다 — 표가 틀린 것이 아니라 판정표가 딴 판에 찍고 있던 것이다. 판 이름으로도 찾게 뒤집어 둔다. */
-window.__tables = { unit: MUZZLE_ANCHOR, bld: BLD_MUZZLE,
+window.__tables = { unit: MUZZLE_ANCHOR, air: MUZZLE_AIR9, pair: MUZZLE_PAIR9, bld: BLD_MUZZLE,
   ofPlate: Object.fromEntries(Object.entries(MUZZLE_PLATE).map(([k, v]) => [v, k])) };
 window.__bake = (kind, rot, mode) => {
   const builder = SHAPE_BUILDERS[kind];
@@ -46,7 +49,7 @@ function bundle() {
     "--log-level=error", "--define:process.env.NODE_ENV=\"production\"", "--define:import.meta.env={}", `--outfile=${out}`]);
   return readFileSync(out, "utf8");
 }
-function pageMain({ KINDS, ROTS, MODE, CELL }) {
+function pageMain({ KINDS, ROTS, MODE, CELL, AIR }) {
   const tb = window.__tables;
   const kinds = KINDS ?? [...Object.keys(tb.unit), ...Object.keys(tb.bld)];
   const PAD = 24; const cols = ROTS.length; const rows = kinds.length;
@@ -57,7 +60,11 @@ function pageMain({ KINDS, ROTS, MODE, CELL }) {
   c.font = "13px ui-monospace, monospace"; c.textBaseline = "top"; c.fillStyle = "#dfe3e6";
   ROTS.forEach((r, i) => c.fillText(`${r}°`, i * CELL + 8, 6));
   kinds.forEach((k, r) => {
-    const a = tb.unit[k] ?? tb.bld[k] ?? tb.unit[tb.ofPlate[k]];
+    const kk = tb.ofPlate[k] ?? k;
+    const a = (AIR && tb.air[kk]) || tb.unit[k] || tb.bld[k] || tb.unit[kk];
+    /* 쌍이면 모형 x 를 뒤집은 점도 함께 찍는다(engine9 muzzleLanes9 과 같은 손). */
+    const pr = tb.pair[kk]; const twin = a && (AIR ? pr && pr.a : pr && pr.g) && Math.abs(a[0]) > 0.01;
+    const as = twin ? [a, [-a[0], a[1], a[2]]] : (a ? [a] : []);
     ROTS.forEach((rot, i) => {
       const faces = window.__bake(k, rot, MODE);
       const ox = i * CELL; const oy = r * CELL + PAD;
@@ -68,15 +75,15 @@ function pageMain({ KINDS, ROTS, MODE, CELL }) {
         try { c.fill(new Path2D(f[0])); } catch (e) { /* */ }
       }
       c.globalAlpha = 1;
-      if (a) {
-        const [px, py] = window.__anchor(a, rot, MODE);
-        c.lineWidth = 0.12; c.strokeStyle = "#ff3355";
+      for (const aa of as) {
+        const [px, py] = window.__anchor(aa, rot, MODE);
+        c.lineWidth = 0.12; c.strokeStyle = AIR ? "#33ddff" : "#ff3355";
         c.beginPath(); c.moveTo(px - 0.7, py); c.lineTo(px + 0.7, py); c.moveTo(px, py - 0.7); c.lineTo(px, py + 0.7); c.stroke();
         c.beginPath(); c.arc(px, py, 0.28, 0, Math.PI * 2); c.stroke();
       }
       c.restore();
       c.fillStyle = "#9aa4b0";
-      if (i === 0) c.fillText(k + (a ? "" : " (앵커 없음)"), ox + 8, oy + 6);
+      if (i === 0) c.fillText(k + (a ? (AIR && tb.air[kk] ? " 대공" : "") : " (앵커 없음)"), ox + 8, oy + 6);
     });
   });
   return cv.toDataURL("image/png");
@@ -94,7 +101,7 @@ page.on("pageerror", (e) => console.error("페이지 오류:", String(e).slice(0
 await page.setContent("<body></body>");
 await page.addScriptTag({ content: js, type: "module" });
 await page.waitForFunction(() => !!window.__bake);
-const url = await page.evaluate(pageMain, { KINDS, ROTS, MODE, CELL });
+const url = await page.evaluate(pageMain, { KINDS, ROTS, MODE, CELL, AIR });
 writeFileSync(OUT, Buffer.from(url.split(",")[1], "base64"));
 console.log(OUT);
 await browser.close();
