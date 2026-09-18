@@ -45,6 +45,9 @@ const NARROW = argv.includes("--narrow");
    그 값들이 진짜 그림을 바꾸는지 눈으로 보는 자다. `--kinds trapezoid,turret,coil,cube` */
 const ANIM = argv.includes("--anim");
 const YAW = flag("--yaw", null) === null ? null : Number(flag("--yaw", null));
+/* --times a,b,c : 움직임 판의 시각을 못 박는다(안 주면 여덟 자리) — 피격 순간(한 발 주기의 0.2·0.8 언저리)처럼
+   좁은 창을 보려면 기본 시각으로는 못 잡는다. */
+const TIMES = flag("--times", null) === null ? null : String(flag("--times", null)).split(",").map(Number);
 /* --tracer — **트레이서 한 발**을 나이별로 뽑는다(요청: "그리고 트레이서는 못그려주나? 도록에").
    칸 왼아래가 총구·오른위가 표적이고, 나이(0~1)를 여섯 칸으로 나눠 한 발의 일생을 본다.
    `--kinds gunner,goliath,coil,turret,corsair,archon` */
@@ -93,10 +96,10 @@ window.__docTracer = (kinds) => {
    '이 파일이 무엇을 적어 두었나'를 보게 된다(그래서 코어 디스크가 쉬는 중에 도는 것도,
    성큰의 혓바닥이 안 나오는 것도 이 판으로는 안 보였다). */
 /* --yaw N : 움직임 판의 요잉을 못 박는다(안 주면 갈래의 기준각) — 총구·표적의 방향 규약을 각마다 견줄 때 쓴다. */
-window.__docAnim = (kinds, yawFix) => {
+window.__docAnim = (kinds, yawFix, tsFix) => {
   const host = document.getElementById("host");
   const rows = kinds.map((k) => SHAPE_GALLERY.find((g) => g.kind === k) || { kind: k, label: k, group: "건물", race: "" });
-  const TS = [0.0, 0.35, 0.7, 1.15, 1.6, 2.3, 3.1, 4.4];
+  const TS = tsFix && tsFix.length ? tsFix : [0.0, 0.35, 0.7, 1.15, 1.6, 2.3, 3.1, 4.4];
   const cellsOf = (kind, group) => {
     const yaw = yawFix === null || yawFix === undefined ? galleryYawOf(45, group) : yawFix;
     const out = [];
@@ -255,7 +258,7 @@ await page.waitForFunction(() => typeof window.__docAnim === "function", null, {
 const n = TRACER
   ? await page.evaluate((ks) => window.__docTracer(ks), KINDS.length ? KINDS : ["gunner", "goliath", "coil", "turret", "corsair", "archon"])
   : ANIM
-  ? await page.evaluate(([ks, yw]) => window.__docAnim(ks, yw), [KINDS.length ? KINDS : ["trapezoid", "turret", "coil", "cube"], YAW])
+  ? await page.evaluate(([ks, yw, ts]) => window.__docAnim(ks, yw, ts), [KINDS.length ? KINDS : ["trapezoid", "turret", "coil", "cube"], YAW, TIMES])
   : await page.evaluate(([g, r, rots, nw]) => window.__docSheet(g, r, rots, nw),
     [GROUP, RACE, ROTS, NARROW]);
 /* 칸이 다 그려질 때까지 — SVG 는 서는 즉시, GL 그림은 data-gl9="1"(판에서 제 칸을 찍은 뒤).

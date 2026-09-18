@@ -5845,6 +5845,22 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, 
         put9(ux9 * dist9, uy9 * dist9, hs9, style, age9);
       }
     }
+    /* ★ **인형의 피격**(2026-09, 요청: "곰돌이랑 새에 테란 생체유닛 피격효과 넣기") — 지도가 맞아서 체력이 깎인 몸에
+       얹는 그 op(kind hit · splash 없음 → 붓의 결 파편 · mat bio = 붉은 살점 + 피떡)을 인형의 몸 가운데(분수 1 — 줄기가
+       닿는 그 점)에 **같은 박자**(docHitPh9 = 우는 컷의 그 시계 · 지도의 0.14초 창)로 얹는다. 자는 지도의 그 식(보이는
+       몸 폭 × 0.69 · 튀는 자리 0.1)이고 몸 폭은 인형의 것(k9 × 인형 배율 × 잉크)이다. 파편은 쏘는 쪽에서 밀려나는 쪽으로
+       난다(dx·dy 는 맞은 쪽 = 사수 쪽). 무기 갈래(style)는 파편의 세기만 정한다(FX_IMPACT.r). */
+    if (tgt && k9) {
+      const hp9 = docHitPh9(t, style);
+      if (hp9 !== null) {
+        const dk9 = air ? DOC_TGT_KIND9.air : DOC_TGT_KIND9.ground;
+        const dw9 = (k9 * docDollK9(tileKind9) * (modelInkOf(dk9) || 6)) / ZOOM9;
+        ops9.push({
+          kind: "hit", fx: 1, fy: 1, lift: 0, size: dw9 * 0.69, dist: dw9 * 0.1, ph: hp9, mat: "bio",
+          dx: -ux9, dy: -uy9, ...(FX_IMPACT[style] ? { style } : {}),
+        } as FxOp);
+      }
+    }
     paintFxList9(g9, ops9, {
       zoom: ZOOM9, tilePx: 8, cw: w9, ch: h9, Bd: dpr, triK9: DOC_TRI_K9, docView9: true,
       // 분수 0 이 총구 · 1 이 표적이다(줄기가 지나는 그 선).
@@ -6222,6 +6238,14 @@ export function docTargetPart9(kind: string, air: boolean, deg: number, t: numbe
 function docHitCry9(t: number, fx?: string): boolean {
   const ph9 = (((t % DOC_SHOT_CYC9) + DOC_SHOT_CYC9) % DOC_SHOT_CYC9) / DOC_SHOT_CYC9;
   return fx && PROJECTILE_FX.has(fx) ? ph9 >= 0.8 : ph9 >= 0.2;
+}
+/** ★ **맞는 순간의 피격 위상**(0~1 · 지도의 `(t − hurtAt) / 0.14`) — 맞은 몫(위 docHitCry9)이 시작되는 그 순간부터
+ *  0.14초 동안만 값이 있고 그 밖은 null. 인형의 결 파편(DocTracer9)이 이 박자로 튄다. */
+function docHitPh9(t: number, fx?: string): number | null {
+  const ph9 = (((t % DOC_SHOT_CYC9) + DOC_SHOT_CYC9) % DOC_SHOT_CYC9) / DOC_SHOT_CYC9;
+  const at9 = fx && PROJECTILE_FX.has(fx) ? 0.8 : 0.2;
+  const dt9 = (ph9 - at9) * DOC_SHOT_CYC9;
+  return dt9 >= 0 && dt9 < 0.14 ? dt9 / 0.14 : null;
 }
 /** 쏘는 몸이 **딴 벌**인 종류 — 성큰은 몸(sunkenrear)과 혓바닥(sunkentongue)이 갈려 있고,
  *  혓바닥의 회전 칸이 곧 공격 컷 넷이다(지도의 그 자리: engine9 의 sunkenOut). */
