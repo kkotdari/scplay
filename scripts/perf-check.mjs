@@ -426,6 +426,10 @@ const page = await browser.newPage({
   ...(has("--ios") ? { userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1", hasTouch: true, isMobile: true } : {}),
 });
 page.on("pageerror", (e) => console.error("페이지 오류:", String(e).slice(0, 400)));
+/* WebGL 경고(INVALID_OPERATION 따위)는 호출마다 콘솔로 흘러 GL 호출 자체를 느리게 만든다 — 몇 줄인지 센다. */
+let glWarn9 = 0; let glWarnFirst9 = "";
+page.on("console", (m) => { const t = m.text(); if (/WebGL|GL_|INVALID/.test(t)) { glWarn9 += 1; if (!glWarnFirst9) glWarnFirst9 = t.slice(0, 300); } });
+process.on("exit", () => { if (glWarn9) console.log(`[GL 경고] ${glWarn9}줄 · 첫 줄: ${glWarnFirst9}`); });
 /* --noro — ResizeObserver를 없앤 채로 띄운다. '재서 맞추는' 배치가 측정이 안 왔을 때
    어떻게 무너지는지 보려던 손잡이다.
    ⚠ **이 앱은 RO 없이는 아예 안 뜬다**(지도 벡터층·무대 재기가 그것으로 산다) — 그래서
@@ -512,7 +516,13 @@ await page.route("http://perf-check.local/*", (r) => r.fulfill({
 /* --hash <x> — 그 밖의 해시 깃발을 그대로 붙인다(예: --hash gl=1 → WebGL 유닛 붓 시제). */
 /* GL 합성은 기본으로 뺀다(`glblit=0`) — 헤드리스 크로뮴은 소프트웨어 GL(SwiftShader)이라 WebGL 캔버스 → 2D drawImage 가 ReadPixels 로 서서
    한 장에 1~2초(실측: 1454² · 옵션 무관)다. 실기 GPU 엔 없는 값이라 붙이면 GL 프레임이 통째로 그 값이 된다. `--glblit` 로 도로 붙인다. */
-const hash9 = [has("--diag") ? "diag" : "", has("--crowd") ? `crowd=${flag("--crowd", 2)}` : "", String(flag("--hash", "") || ""), has("--glblit") ? "" : "glblit=0"].filter(Boolean).join(",");
+/* ★ 번짐(블룸)도 기본으로 뺀다(`glbloom=0` · `--bloom` 으로 도로 켠다)(2026-09) — SwiftShader 는 **렌더 타깃을 바꾸는 것**
+   (번짐 판 FBO 바인드 + 지우기)만으로 한 장에 3초를 쓴다. 실측: 번짐 판을 짓고 곧장 돌아오면 283ms · 바인드·지우기까지만
+   하고 돌아와도 3133ms — 그 뒤의 깊이·발광·흐림 어느 단을 빼도 안 줄었다. 곧 GPU 일이 아니라 소프트웨어 GL 의 자리다.
+   옛 측정(번짐 켜도 p50 같음)은 화면에 빛나는 개체가 **없어**(stat.bloom 0) 그 길을 안 지난 것이었고, 늘 켜진 빛
+   (파일런 보석·캐리어 창·부속 활성)이 EMIT_FILL9 에 든 뒤로는 매 장 지난다(stat.bloom 12). 실기 GPU 에서 FBO 바인드는
+   공짜라 이 3초는 헤드리스만의 값이다 — 재면 늘 헤드리스의 그 값이 되므로 뺀다. */
+const hash9 = [has("--diag") ? "diag" : "", has("--crowd") ? `crowd=${flag("--crowd", 2)}` : "", String(flag("--hash", "") || ""), has("--glblit") ? "" : "glblit=0", has("--bloom") || /glbloom=/.test(String(flag("--hash", "") || "")) ? "" : "glbloom=0"].filter(Boolean).join(",");
 await page.goto(`http://perf-check.local/${hash9 ? `#${hash9}` : ""}`);
 /* 앱 CSS — 레이어 크기·자리·이펙트가 전부 클래스에 실려 있어 없으면 화면이 안 선다.
    빌드 산출물(dist)의 CSS를 그대로 얹는다(npm run build가 먼저 돌아 있어야 한다). */
