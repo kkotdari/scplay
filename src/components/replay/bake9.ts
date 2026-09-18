@@ -10497,7 +10497,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          번갈아 나오게하기") — 뒤 가운데 큰 굴뚝은 위상 0, 앞 양옆 둘은 1/4 이라 가운데가 낼 때 양옆은
          쉰다(gasPuffs9 의 ★). 색은 베스핀 초록 — 굴뚝은 금이지만 나오는 것은 가스다. 3티어. */
       out.push(...fine(tagKey(gasPuffs9({
-        x: wx9, y: wy9, z: wz9 + 0.34, r: 0.42 * k9, h: 2.1, col: "#80ff96",
+        x: wx9, y: wy9, z: wz9 + 0.34, r: 0.5 * k9, h: 2.1, col: "#80ff96",
         n: 2, phase: py < -2 ? 0 : 0.5, a: 0.6, duty: 0.1, life: 0.28,   // 양옆은 반 바퀴 뒤 — 가운데가 다 스러진 뒤에 낸다(gasPuffs9 의 duty·life)
       }), 10 + depthNow(px, py) * 1.6 + 0.9)));
     });
@@ -10521,16 +10521,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         segs: 1, sides: 8, hold: 1, caps: "none", trueNormal: true,
       }), 10 + depthNow(px, py) * 1.6 + 0.2));
     });
-    /* 오른뒤 기둥에서 오르는 초록 가스(사진) — 위로 갈수록 넓고 옅어지는 세 켜. */
-    // 증기 — 세 굴뚝 위에 층층이, 크기는 굴뚝 배수(k9)를 따라 가운데가 가장 크다.
-    for (const [px, py, ph, lean, k9] of CHIM9) {
-      const wx9 = px + lean * 0.72; const wy9 = py + (lean === 0 ? 0 : 0.32);
-      const top9 = 0.24 + ph + 0.32;
-      for (const [dz, gr, ga] of [[0, 0.55, 0.3], [1.0, 0.85, 0.18], [2.0, 1.15, 0.1]] as
-        [number, number, number][]) {
-        out.push(...tagKey([[discPath3(wx9 + dz * 0.1, wy9 + dz * 0.15, top9 + dz, gr * k9, gr * k9 * 0.6, ), ga, "#80ff96"] as ShapeFace], 20 + depthNow(px, py)));
-      }
-    }
+    /* ⚠ 옛 정지 김(굴뚝마다 위로 갈수록 넓고 옅어지는 타원 세 켜)은 걷었다(2026-09, 지적: "어시밀레이터 양옆
+       두 개와 가운데 굴뚝이 번갈아야 하는데 잘 티가 안 남") — 뭉게 덩이(gasPuffs9)로 바꾼 뒤에도 이 세 켜가 굴뚝 셋
+       위에 늘 서 있어, 쉬는 굴뚝에도 김이 있는 것으로 읽혔다. 이제 오르는 것은 덩이뿐이다. */
     // 개인색은 몸을 타넘는 가운데 활 띠 둘(위 own9) — 덧붙였던 원판은 걷어냈다(요청).
     return raceBase(out, "toss", pc);
   },
