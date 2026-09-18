@@ -4166,8 +4166,15 @@ export const sunkenTongueFaces = (): ShapeFace[] => {
      자라므로, 각을 안 받으면 화면에서 아래를 찔렀다. 도록·저사양 합본(sunkenfire)이 그 자리다.
      ⚠ 겨누는 중에는 **한 톨도 안 건드린다** — 그 각은 표적이 정한 절대 각이다. 두 자리를
        가르는 문은 `headAimNow`(headYawSet 의 둘째 인자)이고, 굽는 열쇠도 그 둘을
-       이미 가른다(headTag 의 "a" 꼬리) — 같은 열쇠에 두 그림이 실리지 않는다. */
-  const baseDeg9 = headAimNow ? 0 : -90;
+       이미 가른다(headTag 의 "a" 꼬리) — 같은 열쇠에 두 그림이 실리지 않는다.
+     ★★ **이 기본각은 합본(sunkenfire)의 것이다 — 딸림 판(sunkentongue)에는 안 건다**(2026-09,
+       지적: "성큰 공격시 처음 공격방향으로 고정이고 가시는 혓바닥 뻗어간 방향에서 나와야 함") —
+       혀를 딸림 부품으로 가른 뒤 붓은 이 판을 **headDeg 없이**(headAimNow 거짓) 한 벌 굽고
+       `attachRot`(표적의 절대 각)으로 돌린다. 그런데 이 −90 이 그 한 벌에 **함께 구워져**,
+       지도·도록 둘 다 혀가 표적에서 **90도 비껴** 뻗었다(실측 도록: 인형이 아래(0도)면 혀는
+       오른쪽, 인형이 왼쪽(90도)이면 혀는 아래). 합본은 각을 받을 길이 없어 이 기본각이 뜻이
+       있지만, 딸림 판의 각은 attachRot 이 다 준다 — 거기에 더하면 겹셈이다. */
+  const baseDeg9 = sunkenFire && !headAimNow ? -90 : 0;
   return tagKey(withModelSpin(headYawNow + baseDeg9, (): ShapeFace[] => paintBase([
 
     /* 두께 변화는 **완만하게**(재요청) — 0.5→1.45는 구두주걱이었다. 1.24→1.56이면 통통한 관이다. 마디 30·변 10. */
@@ -20868,10 +20875,22 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   const cut9 = poseNow === POSE_ATK_L ? 1
     : poseNow === 2 ? 3
       : poseNow === POSE_ATK_R ? 2 : 0;
-  /** 칼끝이 앞으로 나가는 몫 — 들기는 크게 앞, 후려침은 쉼보다 더 뒤, 가운데는 그 사이. */
-  const tipY9 = cut9 === 1 ? 4.4 : cut9 === 2 ? -1.5 : cut9 === 3 ? 1.45 : 0;
-  /** 칼끝이 올라가는 몫 — 들기는 가슴 높이까지, 후려침은 낮게 훑는다. */
-  const tipZ9 = cut9 === 1 ? 3.55 : cut9 === 2 ? -0.75 : cut9 === 3 ? 1.4 : 0;
+  /* ★★ **일본도처럼 대각선으로 크게 벤다**(2026-09, 지적: "다템 공격모션 수정 필요. 칼을(일본도처럼) 대각선으로
+     크게 휘두르는 모양이어야 해 찌르는 게 아니라") — 옛 컷은 칼끝을 앞뒤(y)·위아래(z)로만 움직여 앞으로 찌르는
+     팔이었다. 베기는 **손의 자리**가 호를 그린다: 머리 위 오른쪽 뒤(치켜듦) → 얼굴 앞(지나감) → 왼쪽 아래 앞(쏵).
+     검은 하완과 평행이므로 손을 그 호에 두면 칼끝이 어깨 위에서 반대편 무릎으로 대각선을 긋는다.
+     ⚠ 손은 어깨에서 두 마디 합(2.65) 안에 있어야 관절이 풀린다(jointBetween) — 셋 다 2.45 안쪽이다. */
+  const DT_HAND9: Record<number, [number, number, number]> = {
+    0: [1.45, -0.55, 3.4],     // 쉼 — 뒤로 늘어뜨림
+    1: [1.55, -1.15, 6.35],    // 치켜듦 — 머리 위·뒤(칼끝이 뒤로 넘어간다)
+    3: [0.35, 1.3, 5.2],       // 지나감 — 얼굴 앞, 칼이 앞으로 넘어오는 중
+    2: [-0.4, 1.3, 2.7],       // 쏵 — 몸 앞을 가로질러 왼쪽 아래
+  };
+  /** 팔꿈치가 빠지는 쪽 — 치켜들 때는 뒤·위, 벨 때는 바깥·앞이라야 하완이 칼과 함께 돈다. */
+  const DT_BEND9: Record<number, [number, number, number]> = {
+    0: [0.6, -0.9, 1.1], 1: [0.9, -0.7, 0.5], 3: [1.1, -0.2, 0.7], 2: [1.0, 0.2, 0.5],
+  };
+  const hp9 = DT_HAND9[cut9] ?? DT_HAND9[0];
   /* ★ 다크는 **금이 아니다**(요청: 샘플 대조 재작도) — 샘플(다크템플러2·3)에서 이 몸은
      그늘에 잠긴 짙은 청동이고, 빛나는 것은 워프 블레이드와 눈 한 쌍뿐이다. 여태는
      질럿과 같은 금(P_GOLD)이라, 작게 그려지면 '망토 두른 질럿'으로 읽혔다 — 두 유닛이
@@ -20888,9 +20907,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        · 팔꿈치 힌트를 **뒤·위**로 준다([0.6, −0.9, 1.1]) — 팔꿈치가 뒤쪽 위 대각선으로 빠지고,
          그러면 상완은 어깨에서 바깥·뒤로 들리고 하완은 거기서 **앞·아래**로 꺾인다.
      검은 하완과 평행이므로(아래) 칼끝도 함께 앞으로 돈다. */
-  const EL_SW9: [number, number, number] = [0.6, -0.9, 1.1];
+  const EL_SW9: [number, number, number] = DT_BEND9[cut9] ?? DT_BEND9[0];
   const shR9: [number, number, number] = [0.82, 0.25 + armY(1) * 0.5, 4.48];
-  const hdR9: [number, number, number] = [1.45, -0.55 + armY(1) + tipY9 * 0.55, 3.4 + tipZ9 * 0.336];
+  const hdR9: [number, number, number] = [hp9[0], hp9[1] + armY(1), hp9[2]];
   const elR9 = jointBetween(shR9, hdR9, 1.45, 1.2, EL_SW9);
   /** 팔 하나 — 어깨 관절 공 + 상완 + 하완. 팔꿈치는 두 마디 길이(1.45·1.2) 고정으로 푼다. */
   const dtArm = (
@@ -20958,6 +20977,22 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           p9[1] + (e9[1] - l9[1]) * f9 + WRAP9 * f9 * (1 - 0.62 * v9),
           p9[2] + (e9[2] - l9[2]) * f9 - 0.38 * c9];
       };
+      /* ★ 띠는 자락 겉면에서 **한 뼘 띄운다**(2026-09, 지적: "다템 망토 뒤에서 봤을 때 왼쪽 임자색 띠가 안 보임") —
+         띠와 자락이 같은 곡면(at9)이라 GL 의 깊이 싸움을 삼각화의 우연이 갈랐다(한쪽 띠만 자락 뒤로 졌다).
+         곡면의 법선을 유한차로 뽑아 몸 바깥쪽으로 밀면 어느 쪽에서 봐도 띠가 자락 위에 선다.
+         ⚠ 0.035 로는 **모자랐다**(재지적: 뒤에서 왼쪽 띠가 여전히 안 보임 — 실측 135·225 에서 왼 띠 없음) —
+           개체 안의 깊이는 칸 폭이 좁아 그 차가 눈금 아래로 떨어진다. 0.08 이면 넷 다에서 두 띠가 서고
+           (0.16 은 띠가 자락에서 떠 보인다). 띠 폭(0.105×2)의 절반 아래라 그림은 안 두꺼워진다. */
+      const bandAt9 = (t9: number, v9: number): [number, number, number] => {
+        const p9 = at9(t9, v9); const e9 = 0.01;
+        const pt9 = at9(t9 + e9, v9); const pv9 = at9(t9, v9 + e9);
+        const a9 = [pt9[0] - p9[0], pt9[1] - p9[1], pt9[2] - p9[2]];
+        const b9 = [pv9[0] - p9[0], pv9[1] - p9[1], pv9[2] - p9[2]];
+        const n9 = [a9[1] * b9[2] - a9[2] * b9[1], a9[2] * b9[0] - a9[0] * b9[2], a9[0] * b9[1] - a9[1] * b9[0]];
+        const l9 = Math.hypot(n9[0], n9[1], n9[2]) || 1;
+        const s9 = (n9[0] * p9[0] + n9[1] * p9[1] + n9[2] * (p9[2] - 3.5)) >= 0 ? 0.08 / l9 : -0.08 / l9;
+        return [p9[0] + n9[0] * s9, p9[1] + n9[1] * s9, p9[2] + n9[2] * s9];
+      };
       const CLOAK9 = "#3a3f46";
       const out9: ShapeFace[] = [];
       const NT9 = 12; const NV9 = 7;
@@ -20977,8 +21012,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       for (const m9 of [-1, 1] as const) {
         const ring9: [number, number, number][] = [];
         const N9 = 7;
-        for (let i9 = 0; i9 <= N9; i9 += 1) ring9.push(at9(m9 * (TC9 - TW9), V0_9 + ((1 - V0_9) * i9) / N9));
-        for (let i9 = N9; i9 >= 0; i9 -= 1) ring9.push(at9(m9 * (TC9 + TW9), V0_9 + ((1 - V0_9) * i9) / N9));
+        for (let i9 = 0; i9 <= N9; i9 += 1) ring9.push(bandAt9(m9 * (TC9 - TW9), V0_9 + ((1 - V0_9) * i9) / N9));
+        for (let i9 = N9; i9 >= 0; i9 -= 1) ring9.push(bandAt9(m9 * (TC9 + TW9), V0_9 + ((1 - V0_9) * i9) / N9));
         const p9 = polyPath3(ring9);
         // 색을 안 준 면이라 임자 색이 든다. 음영은 자락과 같은 몫으로 얹어 한 겹처럼 보이게.
         out9.push([p9, 1] as ShapeFace, sideFace(p9, 0.18));
@@ -21021,8 +21056,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        갈리는 다크의 표식. 심은 밝은 백록. */
     ...((): ShapeFace[] => {
       /** 검의 밑동(손) — 하완 끝을 그대로 잇는다. */
-      const h9: [number, number, number] =
-        [1.43, -0.62 + armY(1) + tipY9 * 0.55, 3.28 + tipZ9 * 0.336];
+      const h9: [number, number, number] = [hdR9[0] - 0.02, hdR9[1] - 0.07, hdR9[2] - 0.12];
       /** 칼끝 — 쉼에서는 뒤·아래, 컷에 따라 그 몫이 통째로 실린다. */
       /* 검은 **흰 플라즈마**이고 더 크다(요청) — 길이 1.25배, 굵기 0.75 → 0.95. 심은
          푸른빛 도는 흰색. */

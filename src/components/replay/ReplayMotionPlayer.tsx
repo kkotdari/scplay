@@ -93,7 +93,7 @@ import {
 } from "./engine9";
 import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, WorldUi9 } from "./engine9";
 import {
-  pitchFlatSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, stageFaces, SPIN_KINDS, HEAD_KINDS, LIT_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, spriteSideMax9, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, tone9, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
+  pitchFlatSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, stageFaces, TURRET_BACK9, SPIN_KINDS, HEAD_KINDS, LIT_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, spriteSideMax9, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, tone9, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
 } from "./bake9";
 import { glUnits9, glNow9, glBakeMsTake9, GL_ON9, GL_WARM9, GL_BLIT9, GL_GLOW_KINDS9, SHADOW_ALPHA9, camOf9, CAM_TOP9, glIconOk9, glIconRequest9, type GlUnits9, type GlFoot9 } from "./gl9";
 export { LIMB_LOG, TURRET_BACK9, SHAPE_BUILDERS, ctx2d9, BAKE_ENV9, cropToInk, pathBox, tierTableOf, autoTier, stageFaces, rasterBld9, SHAPE_GALLERY, poseSet, poseSet9, bldLitSet, headYawSet, bldSpinSet, bldSpinRawSet9, lodSetCap, lodSetZoom, lodNoteFrame, tone9, TONE_DARK, TONE_SAT, silhouetteLight } from "./bake9";
@@ -682,7 +682,8 @@ export const CINE_HASH9 = ((): number => {
   return m9 ? Math.max(0, Math.min(1, Number(m9[1]))) : 0;
 })();
 cineSet9(CINE_HASH9);
-export const shapeMapTiles = (kind: string): number => {
+export const shapeMapTiles = (kind0: string): number => {
+  const kind = docBaseKind9(kind0);
   const bld = BLD_NAME_OF_KIND[kind];
   if (bld) {
     return buildingBox(bld)[0]
@@ -1969,7 +1970,8 @@ const DOM_RAD9: Record<string, [number, string][]> = {
   "clp-toss-core": [[0, "rgba(255,255,255,0.98)"], [0.35, "rgba(170,215,255,0.9)"], [0.55, "rgba(110,170,255,0.6)"], [0.74, "rgba(110,170,255,0)"]],
   irrad: [[0, "rgba(190,255,90,0.55)"], [0.45, "rgba(140,220,60,0.3)"], [0.7, "rgba(140,220,60,0)"]],
   mael: [[0, "rgba(190,120,255,0.45)"], [0.45, "rgba(190,120,255,0.45)"], [0.65, "rgba(140,80,220,0.25)"], [0.75, "rgba(140,80,220,0)"]],
-  yamato: [[0, "rgba(255,255,255,0.95)"], [0.16, "rgba(255,255,255,0.95)"], [0.38, "rgba(160,205,255,0.85)"], [0.62, "rgba(95,145,255,0.4)"], [0.72, "rgba(95,145,255,0)"]],
+  // 야마토 — **주황 불덩이**다(2026-09, 지적: "야마토 트레이서의 전체적으로 주황톤 불꽃이어야 함"). 줄기·착탄과 같은 결.
+  yamato: [[0, "rgba(255,255,255,0.95)"], [0.14, "rgba(255,236,170,0.95)"], [0.36, "rgba(255,168,60,0.85)"], [0.6, "rgba(255,110,30,0.4)"], [0.72, "rgba(230,70,20,0)"]],
 };
 /** 한 겹짜리 화구 판을 든다(위 표) — 없는 이름이면 흰 점. */
 const radOf9 = (n9: string): HTMLCanvasElement => domSpr9(`r:${n9}`, (c9, S9) => {
@@ -2910,6 +2912,10 @@ export type FxPaintEnv9 = {
   trim9?: number; detailAt?: number;
   /** 다크 스웜을 이미 마스크와 함께 얹었나(지도만 참). */
   swarmDone9?: boolean;
+  /** ★ **도록 칸인가** — 도록의 배율(ZOOM9 ≈ 1.6)은 지도의 트레이서 문턱(FX_MIN_ZOOM: 가시·분출 2 ·
+   *  피격 4 · 먼지 더 위) 아래라 그 문을 그대로 두면 **럴커 가시·성큰 분출·버로우 먼지가 통째로
+   *  안 그려진다**(2026-09, 실측: 도록 럴커 칸에 가시가 없었다). 도록은 늘 '자세히'라 그 문을 건너뛴다. */
+  docView9?: boolean;
   /** ★ **도록 칸에서만 별(표창)을 키우는 배수**(2026-09, 지적: "도록에서 벌처랑 뮤탈 글레이브가
    *  안 나오고 이상하게 나와") — 지도의 자로 그리면 글레이브가 몸의 15%(뮤탈 갈색 몸 위의 갈색
    *  별)·파편이 6px 라 칸에서 안 읽힌다. 스플래시를 도록에서만 0.78 배로 줄이는 것과 **같은
@@ -2949,7 +2955,7 @@ export function paintFxList9(
        그 바닥 위에 있다(요청: "모든 트레이서류 2배 줌부터") — beam(제자리 번쩍)과
        shot(날아가는 탄)이 곧 무기별 트레이서 전부라, 무기가 무엇이든 유닛이 쏘든
        방어 건물이 쏘든 이 한 줄을 지난다. */
-    if (zoom < (FX_NO_FLOOR.has(f.kind)
+    if (!env.docView9 && zoom < (FX_NO_FLOOR.has(f.kind)
       ? FX_MIN_ZOOM[f.kind] : Math.max(FX_MIN_ZOOM[f.kind], detailAt ?? 0))) continue;
     /* 낮은 배율 죄기(위 lowZoomTrim9) — 꾸밈부터 덜고, 심하면 트레이서까지 던다.
        무슨 일이 있었나를 말하는 것(죽음 폭발·소환 섬광·우리·스톰·핵·붕괴)은 남는다. */
@@ -5607,63 +5613,133 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, 
       ay9 = h9 / 2 - k9 * (bb9[1] + bb9[3] / 2 - 12);
     }
     const yaw9 = rotDeg ?? 0;
+    /* ★★ **쏘는 몸이 딴 판일 때는 그 판의 자로 원점을 잡는다**(2026-09, 지적: "시즈모드 탱크가 옆을 보고
+       공격" · "캐리어·리버 공격장면에 본체는 없고 인터셉터랑 스캐럽만") — 탱크의 총구는 포탑 판(차체 뒤
+       TURRET_BACK9 에 앉아 표적을 겨눈다)에 있고, 캐리어의 총구는 제 몸이 아니라 **날아다니는 인터셉터**에
+       있다. 칸이 그 판을 어디에 앉히는지(`docShooter9`)는 칸을 세우는 쪽과 **같은 문**이라 인형·판·줄기가
+       한 자리에서 만난다. */
+    const sh9 = k9 ? docShooter9(kind, t, yaw9, tgt ?? 0) : null;
+    const mzKind9 = sh9?.mzKind ?? kind;
+    const mzRot9 = sh9?.rotDeg ?? yaw9;
+    const mzK9 = sh9?.k ?? 1;
+    /* ★ 성큰 가시·럴커 가시·파는 흙은 총구가 아니라 **몸 한가운데**에서 난다(engine9 의 그 자리: mx 0 · my 0). */
+    const centred9 = style === "spike" || style === "dig" || style === "erupt";
+    /* ★★ **좌우 한 쌍인 발사관은 두 점의 가운데가 원점이다**(2026-09, 지적: "발키리/레이스/스카우트/골리앗
+       쌍 트레이서 시작점 전혀 안 맞음 너무 오른쪽이고 아래야") — 여태 원점을 `muzzlePoint`(= 오른쪽 발사관
+       한 점)에 두고 거기서 ±반간격을 벌려, 한 줄기는 오른 발사관 **바깥**에, 한 줄기는 몸 한가운데에 났다.
+       지도(engine9 mzP)와 같이 **두 점의 가운데**를 원점으로 두고 ±로 벌린다. */
+    const ls9 = k9 && !centred9 && !BLD_MUZZLE[kind] ? muzzleLanes9(mzKind9, mzRot9, 0, false, air) : null;
     const mz9 = ((): [number, number] | null => {
       if (!k9) return null;
+      if (centred9) return [8, 12];
       const bm9 = BLD_MUZZLE[kind];
       /* 머리가 도는 건물(터렛·포토)은 표의 값이 **머리 자**라, 머리에 준 각만큼 모형에서
          돌려야 포드·관 위에 앉는다(지도의 muzzleAt9 과 같은 손). */
       if (bm9) return anchorPoint9(HEAD_MUZZLE_KINDS9.has(kind) ? spinMuzzle9(bm9, (headDeg ?? yaw9) - yaw9) : bm9, yaw9, 0, false, true);
-      return muzzlePoint9(kind, yaw9, 0, false, air);
+      if (ls9 && ls9.length > 1) return [(ls9[0][0] + ls9[1][0]) / 2, (ls9[0][1] + ls9[1][1]) / 2];
+      if (ls9) return ls9[0];
+      // 앵커가 없는 몸(인터셉터)은 제 원점이 곧 총구다.
+      return sh9 ? [8, 12] : muzzlePoint9(kind, yaw9, 0, false, air);
     })();
-    /* ★ **좌우 한 쌍인 발사관은 그 두 자리에서 난다**(2026-09, 요청: "레이스 대공 공격은
-       양쪽 포드 끝에서 … 골리앗은 대지는 양쪽 포신 끝 … 스카우트는 대공은 양쪽 엔진") —
-       지도와 같은 문(muzzleLanes9)이 점 둘을 내고, 그 가운데에서 잰 치우침이 아래 줄기의
-       ±다. 곧 벌리는 폭이 **모델의 실제 간격**이라 잉크 폭으로 어림하던 옛 자를 안 쓴다. */
-    const mzPair9 = ((): [number, number] | null => {
-      if (!k9 || BLD_MUZZLE[kind]) return null;
-      const ls9 = muzzleLanes9(kind, yaw9, 0, false, air);
-      return ls9 && ls9.length > 1 ? [(ls9[0][0] - ls9[1][0]) / 2, (ls9[0][1] - ls9[1][1]) / 2] : null;
-    })();
+    const mzPair9: [number, number] | null = ls9 && ls9.length > 1
+      ? [(ls9[0][0] - ls9[1][0]) / 2, (ls9[0][1] - ls9[1][1]) / 2] : null;
     /* 이 칸에서 **타일 하나가 몇 px 인가** — 모델의 16-상자가 k·16 px 로 서니, 그 종류가
        지도에서 차지하는 타일 수로 나누면 곧 그 배율이다. 붓의 두 손잡이는 그 하나에서 나온다:
        갈래표의 굵기·길이는 `tz9 = zoom·tilePx/8` 을 타므로 `zoom = 타일px/8 · tilePx = 8`.
        ⚠ **tilePx 에 타일px 를 그대로 넣으면 제곱이 된다**(실측: 마린 줄기가 칸을 통째로
-         덮었다) — tilePx 는 '배율 1 일 때의 타일 px'라는 기준자이지 지금 크기가 아니다. */
-    const PX9 = k9 ? (k9 * 16) / Math.max(0.5, shapeMapTiles(kind)) : 64;
+         덮었다) — tilePx 는 '배율 1 일 때의 타일 px'라는 기준자이지 지금 크기가 아니다.
+       ⚠ 쏘는 몸이 딴 판이면(인터셉터) **그 몸의 타일 수**다 — 캐리어의 자로 재면 인터셉터의 총알이 몸만 해진다. */
+    const tileKind9 = sh9?.tileKind ?? kind;
+    const PX9 = k9 ? (k9 * mzK9 * 16) / Math.max(0.5, shapeMapTiles(tileKind9)) : 64;
     const ZOOM9 = PX9 / 8;
-    const deg9 = headDeg ?? (rotDeg !== undefined ? rotDeg : -50);
-    const rad0 = (deg9 * Math.PI) / 180;
-    const ux9 = -Math.sin(rad0); const uy9 = Math.cos(rad0);
-    const x09 = mz9 ? ax9 + k9 * (mz9[0] - 8) : (overlay ? w9 * 0.46 : w9 * 0.14);
-    const y09 = mz9 ? ay9 + k9 * (mz9[1] - 12) : (overlay ? h9 * 0.60 : h9 * 0.82);
+    let deg9 = headDeg ?? (rotDeg !== undefined ? rotDeg : -50);
+    let rad0 = (deg9 * Math.PI) / 180;
+    let ux9 = -Math.sin(rad0); let uy9 = Math.cos(rad0);
+    /* 원점 — 총구 앵커(16-상자)를 칸의 자로 옮긴 점. 쏘는 판이 몸에서 떨어져 앉으면(포탑 dx·dy · 인터셉터 자리)
+       그만큼 더 옮기고, 그 판이 제 배율(k)로 그려지면 앵커의 치우침도 그 배율을 탄다. */
+    const x09 = mz9 ? ax9 + k9 * ((mz9[0] - 8) * mzK9 + (sh9?.dx ?? 0)) : (overlay ? w9 * 0.46 : w9 * 0.14);
+    const y09 = mz9 ? ay9 + k9 * ((mz9[1] - 12) * mzK9 + (sh9?.dy ?? 0)) : (overlay ? h9 * 0.60 : h9 * 0.82);
     /* 줄기는 **칸 가장자리까지** 뻗는다 — 표적이 따로 없으니 '보이는 데까지'가 사거리다. */
     const m9 = 3;
     const tx9 = ux9 > 0.001 ? (w9 - m9 - x09) / ux9 : ux9 < -0.001 ? (m9 - x09) / ux9 : Infinity;
     const ty9 = uy9 > 0.001 ? (h9 - m9 - y09) / uy9 : uy9 < -0.001 ? (m9 - y09) / uy9 : Infinity;
     const edge9 = Math.max(14, Math.min(tx9, ty9));
-    /* 끝이 칸 밖으로 잘리면 무기의 꼴이 안 읽힌다 — 조금 물린다.
-       ★ **불꽃 둘로 그리는 갈래**(탱크·시즈)는 더 물린다 — 그 갈래는 표적 쪽에도 제 몸만 한
-         폭발이 서므로, 줄기 갈래와 같은 자리에 두면 그 절반이 칸 밖으로 잘린다. */
     /* ★★ **표적이 있으면 사거리가 곧 줄기의 길이다**(2026-09, 요청: "재생기의 로직을 그대로
        가져와서 보이게 해 줘 … 트레이서 위치나 크기 거리 등 모두") — 옛 길은 '칸 가장자리까지'
        였고, 그 길이는 **칸 크기가 정하는 도록만의 숫자**였다(무기가 아니라 레이아웃이 사거리를
        정했다). 칸이 표적을 세우면 그 거리(`DocCell9.tgt`, 16-상자 자)를 그대로 받아 px 로 바꾼다 —
-       인형이 앉은 그 점이 곧 줄기의 끝이다. */
-    const dist9 = tgt && k9 ? tgt * k9
-      : edge9 * (MUZZLE_BURST_FX9.has(style) || SHELL_ONLY_FX9.has(style) ? 0.58 : 0.88);
+       인형이 앉은 그 점이 곧 줄기의 끝이다.
+       ★★ **거리는 원점(몸)이 아니라 총구에서 잰다**(2026-09, 지적: "파뱃 트레이서 길이 더 길어 사정거리
+         생각해서 길이 조정") — 인형은 몸 원점에서 사거리만큼 떨어져 서는데 줄기는 총구에서 나므로, 원점 자로
+         길이를 주면 **총구가 앞으로 나온 몫만큼 인형을 지나쳐** 뻗었다(파이어뱃은 노즐이 2.7 앞이라 절반
+         가까이 넘쳤다). 총구에서 인형까지의 벡터로 방향·길이를 다시 잰다 — 포탑·인터셉터처럼 원점이 옮겨
+         앉은 판도 같은 식으로 맞는다. */
+    let dist9: number;
+    if (tgt && k9) {
+      const tX9 = ax9 + k9 * (-Math.sin(rad0) * tgt);
+      const tY9 = ay9 + k9 * (Math.cos(rad0) * tgt);
+      const vx9 = tX9 - x09; const vy9 = tY9 - y09;
+      dist9 = Math.max(1, Math.hypot(vx9, vy9));
+      ux9 = vx9 / dist9; uy9 = vy9 / dist9;
+      deg9 = (Math.atan2(-ux9, uy9) * 180) / Math.PI;
+      rad0 = (deg9 * Math.PI) / 180;
+    } else {
+      dist9 = edge9 * (MUZZLE_BURST_FX9.has(style) || SHELL_ONLY_FX9.has(style) ? 0.58 : 0.88);
+    }
     const age9 = (t % 1.1) / 1.1;            // 한 발의 나이 0~1
     const shot9 = PROJECTILE_FX.has(style);
     const ops9: FxOp[] = [];
-    /* ★ 성큰 — 갈래가 아니라 **op 한 장**이다(위 DOC_BLD_FX9 의 ★). 지도와 같은 시계를
-       보고, 표적 자리(분수 1, 1)에서 땅 위로 솟았다 진다. 키·굵기만은 칸에 맞춘다 —
-       지도의 값은 타일 자라 도록 칸에서는 화면을 넘는다. */
+    /* ★ 자는 **지도의 그 자**다 — 지도는 `size: fxPx`(쏘는 몸의 상자, 배율 1 기준 px)를 준다.
+       도록의 같은 값은 `그 종류의 타일 수 × 8` 이다(ZOOM9 = 타일px/8 이므로). 못 박은 2.6 은
+       트레이서 배율을 8 로 두던 시절의 값이라, 모델이 칸을 채우는 지금은 점 하나였다.
+       ⚠ `splash: true` 와 `dist: 0` 을 꼭 준다 — splash 가 없으면 붓이 파편으로 그리고,
+         dist 를 비우면 기본값(상자의 0.71배)만큼 **옆으로 밀려** 그려진다.
+       ⚠ 도록 칸에서는 **0.78 배로 줄인다** — 지도에서는 이 폭발이 유닛을 덮어도 둘레가
+         지도라 읽히지만, 한 칸에 모델과 폭발이 함께 서는 도록에서는 칸이 주황 안개가 된다.
+         무기의 자(지도)는 안 건드리고 **보여 주는 자리에서만** 줄인다. */
+    const hs9 = Math.max(1, shapeMapTiles(tileKind9)) * 8 * 0.78;
+    /** 총구에서 (px, py) 만큼 떨어진 자리에 한 장 — hit 은 dx·dy 방향으로 dist × 배율만큼 민다. */
+    const put9 = (px9: number, py9: number, sz9: number, st9: string, ph9: number, dg9?: number): void => {
+      const m9 = Math.hypot(px9, py9);
+      ops9.push({
+        kind: "hit", style: st9, fx: 0, fy: 0, lift: 0, splash: true,
+        size: sz9, ph: ph9, dist: m9 / ZOOM9,
+        dx: m9 > 0.01 ? px9 / m9 : 0, dy: m9 > 0.01 ? py9 / m9 : 0,
+        ...(dg9 === undefined ? {} : { deg: dg9 }),
+      } as FxOp);
+    };
     if (style === "erupt") {
+      /* ★ 성큰 — 갈래가 아니라 **op 한 장**이다(위 DOC_BLD_FX9 의 ★). 지도와 같은 시계를
+         보고, 표적 자리(분수 1, 1)에서 땅 위로 솟았다 진다. 키·굵기만은 칸에 맞춘다 —
+         지도의 값은 타일 자라 도록 칸에서는 화면을 넘는다. */
       const ph9 = sunkenPhase9(t);
       const up9 = ph9 > 0.12 && ph9 < 0.45 ? Math.sin(((ph9 - 0.12) / 0.33) * Math.PI) : 0;
       if (up9 > 0.02) {
         // 값은 지도의 그것이다(engine9: 높이 1.2타일 · 굵기 0.3타일 — 붓이 배율을 곱한다).
-        ops9.push({ kind: "erupt", fx: 0.62, fy: 0.62, lift: 0, mx: 0, my: 0, len: 1.2 * 8, u: up9, size: 0.3 * 8 } as FxOp);
+        // ★ 자리는 **표적 발밑**(분수 1)이다 — 혓바닥이 뻗어 간 그 방향의 끝(지적: "가시는 혓바닥 뻗어 간 방향에서").
+        ops9.push({ kind: "erupt", fx: 1, fy: 1, lift: 0, mx: 0, my: 0, len: 1.2 * 8, u: up9, size: 0.3 * 8 } as FxOp);
       }
+    } else if (style === "spike") {
+      /* ★ 럴커 — 지도와 같은 **spike op** 이다(engine9: 몸 한가운데에서 표적 쪽으로 가시 일곱이 줄지어
+         솟는다). 여태 beam 으로 밀어 붓이 별 하나(tri)로 그렸다(지적: "가시가 엄청 작게 · 개수도 한 개").
+         길이는 표적까지 — 지도는 늘 최대 사거리를 훑지만 칸에는 인형이 그 반에 서 있다. */
+      ops9.push({ kind: "spike", style: "spike", fx: 0, fy: 0, lift: 0, mx: 0, my: 0, deg: deg9, ph: age9, len: dist9 / ZOOM9 } as FxOp);
+    } else if (style === "dig") {
+      /* ★ 버로우의 흙먼지(지적: "기타 액션에서 버로우 시 흙먼지가 안 보임") — 지도의 DOM 효과(dig)를
+         그대로 부른다: 0.15초마다 흙덩이 다섯이 옆·뒤로 튀어 올랐다 떨어진다(붓의 CLODS9). 파는 창
+         (BURROW_DIG_SEC)과 도로 나오는 창에서만 난다. 크기는 몸 폭(잉크)이다. */
+      const dp9 = docDigAge9(t);
+      if (dp9 !== null) {
+        const nD9 = Math.floor(dp9 / 0.15);
+        const wD9 = (modelInkOf(kind) || 6) * 1.5 * k9;
+        for (let j9 = Math.max(0, nD9 - 2); j9 <= nD9; j9 += 1) {
+          ops9.push({ kind: "dom", style: "dig", fx: 0, fy: 0, lift: 0, size: wD9 / ZOOM9, seed: j9, age: dp9 - j9 * 0.15 } as FxOp);
+        }
+      }
+    } else if (style === "scarab") {
+      /* ★ 리버 — 스캐럽은 칸의 겹판이 굴러가고(docShooter9), 여기서는 **닿는 순간의 폭발**만 낸다. */
+      const u9 = age9;
+      if (u9 >= DOC_SCARAB_HIT9 && u9 <= 1) put9(ux9 * dist9, uy9 * dist9, hs9 * 0.9, "cannon", (u9 - DOC_SCARAB_HIT9) / (1 - DOC_SCARAB_HIT9));
     } else if (!NO_BEAM_FX.has(style)) {
       /* ★ 파이어뱃은 **두 줄기**다(요청: "파이어뱃 불기둥 양쪽 건에서 각각 나와서 총 두 개") —
          지도와 같은 자로 총구 축에 직각으로 ± 만큼 벌린다(engine9 의 그 자리). */
@@ -5676,15 +5752,17 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, 
          자도 지도의 것을 그대로 쓴다: **두 발 전체의 폭이 몸 폭 하나**(바깥 가장자리끼리 = 잉크
          폭)이고, 잔상이 몸보다 굵으면 0 으로 죄어 한 줄로 겹친다.
          ⚠ 빼는 값은 **실제로 그려지는 굵기**(w × 배율 × 3.4)여야 한다 — 갈래표의 w 는 상대 값이라
-           그대로 빼면 단위가 섞인다(지도에서 한 번 물렸던 자리다). */
-      const tw9 = (style === "missile" || style === "missileG") && k9
+           그대로 빼면 단위가 섞인다(지도에서 한 번 물렸던 자리다).
+         ⚠ **방어 건물은 안 벌린다**(지적: "터렛 … 쌍 트레이서 시작점 전혀 안 맞음") — 지도의 터렛은
+           오른 포드 한 줄기다(engine9 mzPair9 한 점). 잉크 폭으로 벌리면 그 포드 바깥에 줄기가 선다. */
+      const tw9 = (style === "missile" || style === "missileG") && k9 && !BLD_MUZZLE[kind]
         ? Math.max(0, (k9 * modelInkOf(kind) - Math.max(1.4, (FX_BEAM[style]?.w ?? 0.5) * ZOOM9 * 3.4)) / 2) / ZOOM9
         : 0;
       const ln9 = fl9 || tw9;
       /* 쌍 앵커가 있으면 그 자리가 이긴다(위 mzPair9의 ★) — 없으면 옛 자(잉크 폭 어림). */
       const at9: [number, number][] = mzPair9
-        ? [[(mzPair9[0] * k9) / ZOOM9, (mzPair9[1] * k9) / ZOOM9],
-          [(-mzPair9[0] * k9) / ZOOM9, (-mzPair9[1] * k9) / ZOOM9]]
+        ? [[(mzPair9[0] * k9 * mzK9) / ZOOM9, (mzPair9[1] * k9 * mzK9) / ZOOM9],
+          [(-mzPair9[0] * k9 * mzK9) / ZOOM9, (-mzPair9[1] * k9 * mzK9) / ZOOM9]]
         : (ln9 > 0 ? [-1, 1] : [0]).map((fs9): [number, number] =>
           [Math.cos(rad0) * ln9 * fs9, Math.sin(rad0) * ln9 * fs9]);
       for (const [mx9, my9] of at9) {
@@ -5695,34 +5773,19 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, 
         } as FxOp);
       }
     }
-    if (style !== "erupt" && (NO_BEAM_FX.has(style) || TARGET_FX.has(style))) {
-      /* ★ 자는 **지도의 그 자**다 — 지도는 `size: fxPx`(쏘는 몸의 상자, 배율 1 기준 px)를 준다.
-         도록의 같은 값은 `그 종류의 타일 수 × 8` 이다(ZOOM9 = 타일px/8 이므로). 못 박은 2.6 은
-         트레이서 배율을 8 로 두던 시절의 값이라, 모델이 칸을 채우는 지금은 점 하나였다.
-         ⚠ `splash: true` 와 `dist: 0` 을 꼭 준다 — splash 가 없으면 붓이 파편으로 그리고,
-           dist 를 비우면 기본값(상자의 0.71배)만큼 **옆으로 밀려** 그려진다.
-         ⚠ 도록 칸에서는 **0.78 배로 줄인다** — 지도에서는 이 폭발이 유닛을 덮어도 둘레가
-           지도라 읽히지만, 한 칸에 모델과 폭발이 함께 서는 도록에서는 칸이 주황 안개가 된다.
-           무기의 자(지도)는 안 건드리고 **보여 주는 자리에서만** 줄인다. */
-      const hs9 = Math.max(1, shapeMapTiles(kind)) * 8 * 0.78;
-      /** 총구에서 (px, py) 만큼 떨어진 자리에 한 장 — hit 은 dx·dy 방향으로 dist × 배율만큼 민다. */
-      const put9 = (px9: number, py9: number, sz9: number, st9: string, ph9: number, dg9?: number): void => {
-        const m9 = Math.hypot(px9, py9);
-        ops9.push({
-          kind: "hit", style: st9, fx: 0, fy: 0, lift: 0, splash: true,
-          size: sz9, ph: ph9, dist: m9 / ZOOM9,
-          dx: m9 > 0.01 ? px9 / m9 : 0, dy: m9 > 0.01 ? py9 / m9 : 0,
-          ...(dg9 === undefined ? {} : { deg: dg9 }),
-        } as FxOp);
-      };
+    if (style !== "erupt" && style !== "spike" && style !== "dig" && style !== "scarab"
+      && (NO_BEAM_FX.has(style) || TARGET_FX.has(style))) {
       if (MUZZLE_BURST_FX9.has(style) || SHELL_ONLY_FX9.has(style)) {
         // 탄만 나는 갈래(일반 탱크)는 포구 불꽃·착탄 폭발을 안 낸다(engine9 의 ★★).
         const burst9 = MUZZLE_BURST_FX9.has(style);
         /* 전차포 — 지도와 같은 셋이다(engine9 의 ★★): 포구 불꽃 · 포물선을 나는 에너지포 ·
-           착탄 스플래시. 한 바퀴 1.1초 중 **앞 0.16초**가 나는 몫이다(거의 동시에 맞는다). */
+           착탄 스플래시. 한 바퀴 1.1초 중 **앞 0.16초**가 나는 몫이다(거의 동시에 맞는다).
+           ★ 탄만 나는 일반 탱크는 **도록에서 0.6초를 난다**(지적: "탱크모드 탱크의 트레이서가 아예
+             사라짐") — 지도의 0.16초를 그대로 두면 한 바퀴의 15%만 보여 빈 칸으로 읽힌다. 불꽃·폭발이
+             나머지를 채우는 시즈와 달리 이 갈래는 탄 하나가 전부라, 보여 주는 자리에서만 늘린다. */
         const cyc9 = 1.1;
         const el9 = ((t % cyc9) + cyc9) % cyc9;
-        const fly9 = 0.16;
+        const fly9 = burst9 ? 0.16 : 0.6;
         const u9 = Math.min(1, el9 / fly9);
         const tvx9 = ux9 * dist9;
         const tvy9 = uy9 * dist9;
@@ -5732,10 +5795,12 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, 
           if (burst9) put9(0, 0, hs9 * 0.38, style, 0.12 + u9 * 0.88, deg9);
           // 빠르게 나가 가운데에서 살짝 느려졌다 다시 가속(engine9 의 그 식과 같다).
           const e9 = u9 + (0.55 * Math.sin(2 * Math.PI * u9)) / (2 * Math.PI);
-          // 자·각 다 지도의 것 — 곧은 선 · 두 배 · 90도 굴림(engine9 의 그 자리).
-          // 탱크 모드의 포탄은 훨씬 작다(engine9 의 ⚠: 시즈 0.68 · 탱크 0.26).
-          put9(tvx9 * e9, tvy9 * e9 - arc9 * 4 * e9 * (1 - e9), hs9 * (burst9 ? 0.68 : 0.26), "tankshell", 0.3,
-            (Math.atan2(-tvx9, tvy9) * 180) / Math.PI + 90);
+          /* 자·각 다 지도의 것 — 곧은 선 · 두 배(engine9 의 그 자리).
+             ★ 시즈의 에너지포는 길을 **가로지르는 원반**(+90)이고, 탱크의 광전포는 **길 따라 길쭉**(요청:
+               "타원형 광전포 나가게 수정 근데 얘는 이동방향으로 길쭉")이라 각을 안 돌린다.
+             탱크 모드의 포탄은 훨씬 작다(engine9 의 ⚠: 시즈 0.68 · 탱크 0.26 → 도록은 0.34). */
+          put9(tvx9 * e9, tvy9 * e9 - arc9 * 4 * e9 * (1 - e9), hs9 * (burst9 ? 0.68 : 0.34), "tankshell", 0.3,
+            (Math.atan2(-tvx9, tvy9) * 180) / Math.PI + (burst9 ? 90 : 0));
         } else {
           /* 착탄은 **둥글다**(지적: "포구가 투하되어 폭발하는 거는 타원이 아니라 원형으로
              변경 — 대신 그림자처럼 눌려 보여야 함") — 제 별본(tankboom)이 그 값을 든다.
@@ -5751,7 +5816,7 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, 
       }
     }
     paintFxList9(g9, ops9, {
-      zoom: ZOOM9, tilePx: 8, cw: w9, ch: h9, Bd: dpr, triK9: 2.2,
+      zoom: ZOOM9, tilePx: 8, cw: w9, ch: h9, Bd: dpr, triK9: DOC_TRI_K9, docView9: true,
       // 분수 0 이 총구 · 1 이 표적이다(줄기가 지나는 그 선).
       zx: (v9) => x09 + v9 * ux9 * dist9, zy: (v9) => y09 + v9 * uy9 * dist9,
     });
@@ -5770,6 +5835,8 @@ function docBldKind9(kind: string): boolean {
      통째로 빠졌다(몸만 나와 '공격 애니메이션이 안 나온다'로 보였다). */
   if (!docBldSet9) docBldSet9 = new Set([...SHAPE_GALLERY.filter((g9) => g9.group === "건물").map((g9) => g9.kind), ...DECAL_KINDS,
     "scaffold", "sunkenrear", "sunkentongue", "turretbase", "turrethead", "comsatbase", "comsatdish"]);
+  /* ⚠ 묻힌 럴커 두 판은 **유닛 길**이다(지도가 유닛 op 로 그린다 · NORM_PAIR) — 건물 길에는 겹판(인형)이 없다. */
+  if (kind === "lurkerburrow" || kind === "lurkerfire") return false;
   return docBldSet9.has(kind);
 }
 /** ★ **변신 차례표**(2026-09, 물음: "공사고치, 알 변태완료나 럴커 버로우, 시즈모드 애니메이션도
@@ -5891,6 +5958,67 @@ const DOC_ACT_FX9: Record<string, { note: string; fx: string }> = {
  *    6 vs 5) 칸마다 제 표적·제 거리를 쥔다(공격 칸이 둘인 종류가 그 자리다).
  *  ⚠ 못 때리는 표적은 애초에 칸이 안 선다(`docAtkFx9` 의 `weaponVs`) — 그래서 여기서는
  *    사거리가 −1 이면 표적을 안 세운다. */
+/** 몸이 아니라 **딴 판이 쏘는** 종류의 그 판 — 칸(겹판 자리)과 트레이서(원점)가 이 한 문을 본다. */
+type DocShooter9 = {
+  /** 그리는 판. */ kind: string;
+  /** 총구 앵커표를 찾을 이름(탱크 포탑 판의 앵커는 합본 이름 tank·tanksiege 로 실려 있다). */ mzKind: string;
+  /** 배율(타일 수)을 읽을 이름 — 인터셉터의 총알은 인터셉터의 자다. */ tileKind: string;
+  dx: number; dy: number; rotDeg: number; k: number;
+};
+/** 겹판의 배율 — 지도에서의 크기 비(타일 수 × MODEL_NORM)를 그 칸의 몸에 견준 값. */
+export function docPartK9(part: string, host: string): number {
+  const a9 = shapeMapTiles(part) * modelNormOf(part);
+  const b9 = shapeMapTiles(host) * modelNormOf(host);
+  return b9 > 0 && a9 > 0 ? a9 / b9 : 1;
+}
+const DOC_ESCORT_N9 = 3;
+const DOC_ESCORT_SEC9 = 2.6;
+/** 캐리어 공격 장면 — 인터셉터 셋이 캐리어와 인형 사이를 납작한 고리로 돌고, 인형에 가장 가까운 놈이 쏜다. */
+function docCarrierScene9(t: number, yaw: number, tgt: number): { parts: DocPart9[]; shooter: DocShooter9 | null } {
+  const rad9 = (yaw * Math.PI) / 180;
+  const ux9 = -Math.sin(rad9); const uy9 = Math.cos(rad9);
+  const px9 = -uy9; const py9 = ux9;
+  const kI9 = docPartK9("interceptor", "carrier");
+  /* 고리는 **인형 쪽에 치우친다** — 캐리어의 몸이 크므로(잉크 폭이 표적 거리의 절반 남짓) 고리를
+     둘 사이 한가운데에 두면 세 마리 중 둘이 늘 캐리어 몸 뒤에 묻혀 안 보였다(실측). 원작도
+     인터셉터는 표적 둘레를 맴돈다. */
+  const cx9 = ux9 * tgt * 0.72; const cy9 = uy9 * tgt * 0.72;
+  const a9 = Math.max(2, tgt * 0.36); const b9 = Math.max(1, tgt * 0.2);
+  const parts9: DocPart9[] = [];
+  let best9: DocShooter9 | null = null; let bestC9 = -Infinity;
+  for (let i9 = 0; i9 < DOC_ESCORT_N9; i9 += 1) {
+    const th9 = 2 * Math.PI * ((((t / DOC_ESCORT_SEC9 + i9 / DOC_ESCORT_N9) % 1) + 1) % 1);
+    const c9 = Math.cos(th9); const s9 = Math.sin(th9);
+    const x9 = cx9 + c9 * a9 * ux9 + s9 * b9 * px9;
+    const y9 = cy9 + c9 * a9 * uy9 + s9 * b9 * py9;
+    const tx9 = -s9 * a9 * ux9 + c9 * b9 * px9;
+    const ty9 = -s9 * a9 * uy9 + c9 * b9 * py9;
+    const hd9 = (Math.atan2(-tx9, ty9) * 180) / Math.PI;
+    parts9.push({ kind: "interceptor", dx: x9, dy: y9, rotDeg: hd9, k: kI9 });
+    if (c9 > bestC9) { bestC9 = c9; best9 = { kind: "interceptor", mzKind: "interceptor", tileKind: "interceptor", dx: x9, dy: y9, rotDeg: hd9, k: kI9 }; }
+  }
+  return { parts: parts9, shooter: best9 };
+}
+/** 리버 공격 장면 — 스캐럽 하나가 리버 앞에서 인형까지 굴러가고(한 발의 앞 82%), 닿으면 터진다(DocTracer9 scarab). */
+function docReaverScene9(t: number, yaw: number, tgt: number): DocPart9[] {
+  const u9 = (((t % DOC_SHOT_CYC9) + DOC_SHOT_CYC9) % DOC_SHOT_CYC9) / DOC_SHOT_CYC9;
+  if (u9 >= DOC_SCARAB_HIT9) return [];
+  const rad9 = (yaw * Math.PI) / 180;
+  const ux9 = -Math.sin(rad9); const uy9 = Math.cos(rad9);
+  const d9 = 2.5 + (tgt - 2.5) * (u9 / DOC_SCARAB_HIT9);
+  // 배율은 지도의 비에 **도록 몫 1.5** — 그 비 그대로면 스캐럽이 리버의 1/10 이라 칸에서 점이다(표창을 키우는 그 규약).
+  return [{ kind: "scarab", dx: ux9 * d9, dy: uy9 * d9, rotDeg: yaw, k: docPartK9("scarab", "reaver") * 1.5 }];
+}
+function docShooter9(kind: string, t: number, yaw: number, tgt: number): DocShooter9 | null {
+  if (kind === "tank" || kind === "tanksiege") {
+    /* 포탑 판은 차체 뒤 TURRET_BACK9 에 앉는다(engine9 backT9 — 16-상자 자로 같은 값) — 뒤 = 겨눈 쪽의 반대. */
+    const rad9 = (yaw * Math.PI) / 180;
+    return { kind: kind === "tank" ? "tankgun" : "tanksiegegun", mzKind: kind, tileKind: kind,
+      dx: Math.sin(rad9) * TURRET_BACK9, dy: -Math.cos(rad9) * TURRET_BACK9, rotDeg: yaw, k: 1 };
+  }
+  if (kind === "carrier") return docCarrierScene9(t, yaw, tgt).shooter;
+  return null;
+}
 const DOC_TGT_KIND9 = { ground: "dollbear", air: "dollbird" } as const;
 /** ★★ **인형이 몸을 트는 각**(2026-09) — 표적을 '쏘는 쪽으로' 돌리면 얼굴이 **화면 뒤**를
  *  본다: 카메라는 늘 위에서 내려다보고 표적은 총구 앞(화면 아래쪽)에 서므로, 쏘는 쪽을
@@ -5901,18 +6029,42 @@ const DOC_TGT_KIND9 = { ground: "dollbear", air: "dollbird" } as const;
 const DOC_TGT_FACE9 = 32;
 /** 도록 한 발의 주기(초) — `DocTracer9` 가 쓰는 그 시계다(둘이 갈리면 인형이 딴 박자로 운다). */
 export const DOC_SHOT_CYC9 = 1.1;
+/** 도록에서 표창(글레이브·파편)을 키우는 배수 — 2.2 는 별의 반지름이 뮤탈 몸의 60% 라 별 한가운데가 몸 속에
+ *  앉았다(지적: "글레이브 너무 크고 꽁무니가 아니라 가운데서 나옴"). 1.3 이면 꼬리 끝에서 떠나는 것이 읽힌다. */
+const DOC_TRI_K9 = 1.3;
+/** 리버 스캐럽이 인형에 닿는 몫(한 발 1.1초 중) — 그 뒤는 폭발이다. */
+const DOC_SCARAB_HIT9 = 0.82;
 /** 그 종류의 **정체 이름**(프로필을 묻는 자) — 유닛은 UNIT_3D 의 역, 건물은 건물표. */
-function docUnitName9(kind: string): string | null {
+/** ★ 도록 kind → 사거리·타일·잉크를 읽을 **본 종류** — 갈라 둔 별본(성큰 몸·터렛 밑동·포탑 판)과 묻힌 판은
+ *  제 이름이 표(SHAPE_KIND·UNIT_3D)에 없어 표적이 안 서고 배율이 어긋났다(지적: 성큰 공격 칸에 인형이 없었다). */
+const DOC_KIND_ALIAS9: Record<string, string> = {
+  sunkenrear: "sunken", sunkenfire: "sunken", sunkentongue: "sunken",
+  turretbase: "turret", turrethead: "turret", comsatbase: "comsat",
+  tankbody: "tank", tankgun: "tank", tanksiegebody: "tanksiege", tanksiegegun: "tanksiege",
+  lurkerburrow: "lurker", lurkerfire: "lurker",
+};
+export const docBaseKind9 = (kind: string): string => DOC_KIND_ALIAS9[kind] ?? kind;
+function docUnitName9(kind0: string): string | null {
+  const kind = docBaseKind9(kind0);
   const b9 = BLD_NAME_OF_KIND[kind];
   if (b9 && isKnownKind(b9)) return b9;
   const u9 = Object.keys(UNIT_3D).find((n9) => UNIT_3D[n9] === kind);
   return u9 && isKnownKind(u9) ? u9 : null;
 }
 /** ★ 그 종류가 그 표적을 때리는 **사거리(타일)** — 지도의 그 문이다. 못 때리면 −1. */
+/** ★ **제 몸으로 안 쏘는 것의 사거리** — 캐리어·리버는 무기표에 사거리가 없다(내보낸 것이 쏜다).
+ *  칸은 그 몸이 서고 인터셉터·스캐럽이 인형까지 가는 장면이라, 인형이 설 자리는 원작의
+ *  발사 사거리(캐리어 8 · 리버 8)로 둔다. */
+const DOC_REACH_TILES9: Record<string, number> = { carrier: 8, reaver: 8 };
 export function docReachTiles9(kind: string, air: boolean): number {
+  if (DOC_REACH_TILES9[kind] !== undefined) return DOC_REACH_TILES9[kind];
   const nm9 = docUnitName9(kind);
   if (!nm9) return -1;
-  try { return reachTiles(nm9, nm9, air); } catch { return -1; }
+  try {
+    const r9 = reachTiles(nm9, nm9, air);
+    /* 제 이름을 표적으로 못 쓰는 종류(터렛은 건물이라 '공중 터렛'이 없다)는 흔한 표적으로 물러난다. */
+    return r9 > 0 ? r9 : reachTiles(nm9, air ? "Wraith" : "Marine", air);
+  } catch { return -1; }
 }
 /** ★ **표적은 최대 사거리의 반에 세운다**(2026-09, 요청: "타겟 인형과 거리는 최대 사거리의
  *  반이면 되지 않을까") — 참값 그대로는 쏘는 몸이 칸의 10% 가 되고(아래 ⚠⚠) 그 반이면
@@ -5957,7 +6109,9 @@ export function docTargetPart9(kind: string, air: boolean, deg: number, t: numbe
   return {
     kind: air ? DOC_TGT_KIND9.air : DOC_TGT_KIND9.ground,
     pose: docHitCry9(t, fx) ? 1 : 0,
-    rotDeg: Math.sin(rad9) >= 0 ? -DOC_TGT_FACE9 : DOC_TGT_FACE9,
+    /* ★ 인형은 **쏘는 몸을 본다**(2026-09, 지적: "타겟 인형이 방향이 이상해 유닛을 봐야 해") — 카메라를 보고 서서
+       몸만 트는 옛 자(DOC_TGT_FACE9)는 '피격 표정을 보이자'는 손이었는데, 쏘는 쪽을 등진 것으로 읽혔다. */
+    rotDeg: deg + 180,
     dx: -Math.sin(rad9) * off9,
     dy: Math.cos(rad9) * off9,
   };
@@ -5988,6 +6142,10 @@ export type DocPart9 = {
    *    자라 판을 옮길 자리가 없다. 거기서는 표적이 안 서고 쏘는 몸만 선다(줄기는 그대로
    *    제 사거리까지 뻗는다). 마주 봄 판정·방향광과 같은 갈래의 폴백 차이다. */
   dx?: number; dy?: number;
+  /** ★ **그 판만의 배율**(2026-09, 요청: "캐리어·리버 … 게임 중의 한 장면처럼") — 아이콘은 판을 다 같은 k 로
+   *  그리는데, 인터셉터·스캐럽의 16-상자는 캐리어·리버의 것과 자가 다르다(지도는 종류마다 타일 수 × MODEL_NORM 을
+   *  곱한다). 그 비(`docPartK9`)를 여기 실으면 겹판이 **지도에서의 크기 비** 그대로 선다. 안 주면 1. */
+  k?: number;
 };
 /** 도록 한 칸 — 그릴 종류와 그 칸이 내려 줄 값들(DocIcon9 의 프롭 그대로다). */
 export type DocCell9 = {
@@ -6105,13 +6263,21 @@ function docSiegeCell9(t: number, yaw: number): DocCell9 {
  *  ★ 한 바퀴는 탱크와 같은 짜임이다: 파기 → 묻힌 채 → 나오기 → 선 채(머무는 몫 0.8초). */
 const DOC_BURROW_HOLD9 = 0.8;
 const DOC_BURROW_CYCLE9 = BURROW_DIG_SEC * 2 + DOC_BURROW_HOLD9 * 2;
+/** 파는 창 안의 나이(초) — 버로우·언버로우 창에서만 값이 있다(그 밖은 null). DocTracer9 의 dig 갈래가 본다. */
+function docDigAge9(t: number): number | null {
+  const p9 = (((t % DOC_BURROW_CYCLE9) + DOC_BURROW_CYCLE9) % DOC_BURROW_CYCLE9);
+  if (p9 < BURROW_DIG_SEC) return p9;
+  const u9 = p9 - (BURROW_DIG_SEC + DOC_BURROW_HOLD9);
+  return u9 >= 0 && u9 < BURROW_DIG_SEC ? u9 : null;
+}
 function docBurrowCell9(t: number): DocCell9 {
   const p9 = (((t % DOC_BURROW_CYCLE9) + DOC_BURROW_CYCLE9) % DOC_BURROW_CYCLE9);
   /* 파는 컷 — 지도와 **같은 박자**다(18Hz 로 4↔5). 도록이 제 숫자를 들면 파는 속도가 갈린다. */
   const dig9: 0 | 1 | 2 | 3 | 4 | 5 = Math.floor(t * 18) % 2 === 1 ? 5 : 4;
-  if (p9 < BURROW_DIG_SEC) return { label: "액션", note: "버로우", kind: "lurker", pose: dig9 };
+  // 파는 창에는 **흙먼지**가 난다(지적: "버로우 시 흙먼지가 안 보임") — 지도의 dig 효과를 DocTracer9 가 그대로 부른다.
+  if (p9 < BURROW_DIG_SEC) return { label: "액션", note: "버로우", kind: "lurker", pose: dig9, tracer: true, fx: "dig" };
   if (p9 < BURROW_DIG_SEC + DOC_BURROW_HOLD9) return { label: "액션", note: "묻힌 채", kind: "lurkerburrow" };
-  if (p9 < BURROW_DIG_SEC * 2 + DOC_BURROW_HOLD9) return { label: "액션", note: "언버로우", kind: "lurker", pose: dig9 };
+  if (p9 < BURROW_DIG_SEC * 2 + DOC_BURROW_HOLD9) return { label: "액션", note: "언버로우", kind: "lurker", pose: dig9, tracer: true, fx: "dig" };
   return { label: "액션", note: "선 채", kind: "lurker", pose: 0 };
 }
 export function docCellsOf9(kind: string, t: number, yaw: number): DocCell9[] {
@@ -6123,8 +6289,11 @@ export function docCellsOf9(kind: string, t: number, yaw: number): DocCell9[] {
   const cell9 = (rate: number): number => Math.floor(t * rate * SPIN_ANIM9) % SPIN_ANIM9;
   /** 불빛·경광등의 깜빡임 — 지도와 같은 박자(0.9초 주기의 3분의 2 동안 켜진다). */
   const blink9 = (((t % 0.9) + 0.9) % 0.9) < 0.6;
-  /** 겨누는 중 — 표적을 좌우로 느리게 따라간다. */
-  const aim9 = yaw + 40 * Math.sin(t * 0.9);
+  /** 겨누는 각 — **인형이 선 쪽으로 못 박는다**(2026-09, 지적: "성큰 공격시 처음 공격방향으로
+   *  고정이고 가시는 혓바닥 뻗어간 방향에서 나와야 함") — 여태 ±40도로 흔들며 '겨누는 중'을
+   *  보였는데, 이제 공격 칸에는 표적 인형이 서므로 흔들면 인형이 칸 안을 떠돌고 혀·가시가 딴
+   *  곳을 본다. 지도의 성큰도 한 발을 물기 시작하면 그 각을 잠근다(engine9 lockAim). */
+  const aim9 = yaw;
   /* ★★ **공격 칸에 표적을 세운다**(2026-09, 요청 · 위 `docTargetPart9` 의 ★★) — 거리·자리·요잉을
      **한 자리에서** 셈해 칸(그림)과 트레이서(줄기)가 나눠 쓴다. 쏘는 방향은 앱이 `DocTracer9` 에
      넘기는 그 값과 **같은 차례**로 고른다(`headDeg ?? attachRot ?? rotDeg ?? yaw`) — 여기서
@@ -6143,7 +6312,10 @@ export function docCellsOf9(kind: string, t: number, yaw: number): DocCell9[] {
     if (!pt9) return { ...c9, air: air9 };
     return { ...c9, air: air9, tgt: docTgtOff9(sk9, air9), parts: [...(c9.parts ?? []), pt9] };
   };
-  if (a9.pose) {
+  /* ⚠ **정착 시즈(tanksiege)는 자세 컷이 없다**(POSE_KINDS 밖) — 그래서 이 문이 닫혀 건물 길로
+     흘러 공격 칸이 합본(포탑이 쉬는 각 = 차체 뒤)으로 섰다(지적: "시즈모드 탱크가 옆을 보고
+     공격하고 있어"). 유닛 길로 든다 — 걸음 칸은 pk9 가 없어 저절로 안 선다(시즈는 못 움직인다). */
+  if (a9.pose || kind === "tanksiege") {
     /* 유닛 — 컷의 임자는 poseCutsOf·poseTempoOf·atkCutOf 다(지도와 같은 문). */
     const pk9 = poseCutsOf(kind);
     const tp9 = poseTempoOf(kind);
@@ -6170,7 +6342,23 @@ export function docCellsOf9(kind: string, t: number, yaw: number): DocCell9[] {
     /* 대리 몸이 있으면 공격 칸은 **그 몸 한 칸**이다(위 DOC_ATK_KIND9) — 지상·대공 가르기보다 앞이다. */
     const sub9 = DOC_ATK_KIND9[kind];
     if (sub9) {
-      out9.push(withTgt9({ label: "공격", note: sub9.note, kind: sub9.kind, tracer: true, fx: docWeaponOf9(sub9.kind) ?? undefined }, false));
+      /* ★★ **본체가 서고 내보낸 것이 쏜다**(2026-09, 지적: "캐리어, 리버 공격장면에 본체는 없고 인터셉터랑 스캐럽만 크게
+         가만히 있는데 그게 아니라 게임 중의 한 장면처럼") — 캐리어는 제자리에 서고 인터셉터 셋이 인형 사이를 고리로
+         돌며 인형에 가까운 놈이 쏜다(docCarrierScene9). 리버는 스캐럽 하나가 굴러가 인형에서 터진다(docReaverScene9).
+         겹판의 자리·배율과 트레이서의 원점은 같은 문(docShooter9)이 낸다. */
+      const off9 = docTgtOff9(kind, false);
+      const parts9 = kind === "carrier" ? docCarrierScene9(t, yaw, off9).parts : docReaverScene9(t, yaw, off9);
+      out9.push(withTgt9({ label: "공격", note: sub9.note, tracer: true, fx: kind === "carrier" ? "gun" : "scarab", parts: parts9 }, false));
+    } else if (kind === "tank" || kind === "tanksiege") {
+      /* ★★ **포탑은 표적을 겨눈다**(2026-09, 지적: "시즈모드 탱크가 옆을 보고 공격하고 있어") — 합본 모델은 포탑이
+         쉬는 각(시즈는 뒤)으로 굳어 있다. 지도와 같은 판(차체 + 버팀다리 + 포탑 판)을 겹쳐 포탑만 인형 쪽으로 돌린다. */
+      const gp9 = docShooter9(kind, t, yaw, 0);
+      const legs9: DocPart9[] = kind === "tanksiege" ? [{ kind: "tanksiegelegs", pose: 5 }, { kind: "tanksiegelegsF", pose: 5 }] : [];
+      out9.push(withTgt9({ label: "공격", kind: "tankbody", tracer: true, fx: docAtkFx9(kind)[0]?.fx,
+        parts: [...legs9, ...(gp9 ? [{ kind: gp9.kind, dx: gp9.dx, dy: gp9.dy, rotDeg: gp9.rotDeg }] : [])] }, false));
+    } else if (kind === "lurker") {
+      /* ★ 럴커는 **묻힌 채** 쏜다(지적: "럴커 공격장면에서 버로우한 상태여야 하고") — 지도의 lurkerfire 판이다. */
+      out9.push(withTgt9({ label: "공격", kind: "lurkerfire", tracer: true, fx: "spike" }, false));
     } else {
     const atk9 = docAtkFx9(kind);
     if (pk9?.atk && tp9) {
@@ -6273,7 +6461,7 @@ export function docCellsOf9(kind: string, t: number, yaw: number): DocCell9[] {
 export function docCellBox9(kind: string, group?: string): Map<string, string | undefined> {
   const yaw0 = galleryYawOf(45, group);
   /** 그 칸이 그릴 수 있는 것 — 종류마다 **치우침의 상자**(min·max)를 함께 모은다. */
-  type Seen9 = Map<string, { x0: number; y0: number; x1: number; y1: number; r: number }>;
+  type Seen9 = Map<string, { x0: number; y0: number; x1: number; y1: number; r: number; k: number }>;
   const byLabel = new Map<string, Seen9>();
   const tracerOf = new Map<string, boolean>();
   const tgtOf = new Map<string, boolean>();
@@ -6282,13 +6470,13 @@ export function docCellBox9(kind: string, group?: string): Map<string, string | 
      뿐이다) 손가락이 요잉을 돌리면 셀만 다시 선다 — 곧 한 각의 자리로 창을 재면 **돌리는
      순간 표적이 창 밖으로 나간다**. 그 거리를 반지름으로 삼아 원을 아우르면 어느 각에서도
      안 잘리고, 배율도 안 흔들린다(칸 안에서는 배율을 못 박는다는 그 규약이다). */
-  const add9 = (seen: Seen9, k9: string, dx9: number, dy9: number): void => {
+  const add9 = (seen: Seen9, k9: string, dx9: number, dy9: number, pk9 = 1): void => {
     const r9 = Math.hypot(dx9, dy9);
     const b9 = seen.get(k9);
-    if (!b9) { seen.set(k9, { x0: dx9, y0: dy9, x1: dx9, y1: dy9, r: r9 }); return; }
+    if (!b9) { seen.set(k9, { x0: dx9, y0: dy9, x1: dx9, y1: dy9, r: r9, k: pk9 }); return; }
     b9.x0 = Math.min(b9.x0, dx9); b9.y0 = Math.min(b9.y0, dy9);
     b9.x1 = Math.max(b9.x1, dx9); b9.y1 = Math.max(b9.y1, dy9);
-    b9.r = Math.max(b9.r, r9);
+    b9.r = Math.max(b9.r, r9); b9.k = Math.max(b9.k, pk9);
   };
   for (let i9 = 0; i9 < 60; i9 += 1) {
     for (const c9 of docCellsOf9(kind, i9 * 0.2, yaw0)) {
@@ -6296,7 +6484,7 @@ export function docCellBox9(kind: string, group?: string): Map<string, string | 
       if (!seen) { seen = new Map(); byLabel.set(c9.label, seen); }
       add9(seen, c9.kind ?? kind, 0, 0);
       if (c9.attach) add9(seen, c9.attach, 0, 0);
-      for (const pt9 of c9.parts ?? []) add9(seen, pt9.kind, pt9.dx ?? 0, pt9.dy ?? 0);
+      for (const pt9 of c9.parts ?? []) add9(seen, pt9.kind, pt9.dx ?? 0, pt9.dy ?? 0, pt9.k ?? 1);
       if (c9.tracer) tracerOf.set(c9.label, true);
       if (c9.tgt) tgtOf.set(c9.label, true);
     }
@@ -6310,9 +6498,11 @@ export function docCellBox9(kind: string, group?: string): Map<string, string | 
         if (!v9) continue;
         const n9 = v9.split(/\s+/).map(Number);
         if (n9.length !== 4 || n9.some((x9) => !Number.isFinite(x9))) continue;
+        // 제 배율(k)로 그려지는 판은 그 창도 원점(8, 12)을 축으로 같은 배수만큼 줄인다(DocPart9.k).
+        const kk9 = off9.k;
         const q9: [number, number, number, number] = [
-          n9[0] + Math.min(off9.x0, -off9.r), n9[1] + Math.min(off9.y0, -off9.r),
-          n9[0] + n9[2] + Math.max(off9.x1, off9.r), n9[1] + n9[3] + Math.max(off9.y1, off9.r)];
+          8 + (n9[0] - 8) * kk9 + Math.min(off9.x0, -off9.r), 12 + (n9[1] - 12) * kk9 + Math.min(off9.y0, -off9.r),
+          8 + (n9[0] + n9[2] - 8) * kk9 + Math.max(off9.x1, off9.r), 12 + (n9[1] + n9[3] - 12) * kk9 + Math.max(off9.y1, off9.r)];
         b9 = b9 ? [Math.min(b9[0], q9[0]), Math.min(b9[1], q9[1]), Math.max(b9[2], q9[2]), Math.max(b9[3], q9[3])] : q9;
       }
     }
@@ -6357,7 +6547,7 @@ export function DocIcon9({
   /** GL 로 그릴지 못 박기(안 주면 GL_ON9). */ gl?: boolean;
 }) {
   const wantGl = (gl ?? GL_ON9) && !!flat && !!SHAPE_BUILDERS[kind];
-  const partsKey9 = (parts ?? []).map((p9) => `${p9.kind}:${p9.pose ?? 0}:${Math.round(p9.rotDeg ?? 1e4)}`
+  const partsKey9 = (parts ?? []).map((p9) => `${p9.kind}:${p9.pose ?? 0}:${Math.round(p9.rotDeg ?? 1e4)}:${(p9.k ?? 1).toFixed(3)}`
     + `:${(p9.dx ?? 0).toFixed(2)}:${(p9.dy ?? 0).toFixed(2)}`).join("|");
   const ref = useRef<HTMLCanvasElement>(null);
   const [fail, setFail] = useState(false);

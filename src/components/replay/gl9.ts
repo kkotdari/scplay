@@ -1344,7 +1344,7 @@ export interface GlIconReq9 {
    *  그린다(각자 제 자세·제 요잉). 창도 이 판들을 아울러 잰다. */
   /** ⚠ `dx`·`dy` 는 **칸 안에서 옮겨 앉히는 몫**(16-상자 자 · 화면 방향 · y 는 아래가 +)이다 —
    *  도록 공격 칸의 가상 표적이 사거리만큼 떨어져 서는 그 자리다(ReplayMotionPlayer DocPart9). */
-  parts?: { kind: string; pose?: number; rotDeg?: number; dx?: number; dy?: number }[];
+  parts?: { kind: string; pose?: number; rotDeg?: number; dx?: number; dy?: number; k?: number }[];
   /** 칸(기기 px) */ w: number; h: number;
   /** 임자색(#hex) */ color: string;
   /** 창 [x, y, w, h](16-상자 자) — 없으면 잉크 맞춤(pad). */ box?: [number, number, number, number]; pad: number;
@@ -1377,11 +1377,12 @@ export function glIconRequest9(req: GlIconReq9): void {
 type IconCell9 = {
   req: GlIconReq9; x: number; y: number; w: number; h: number;
   /** 이 칸에 그릴 벌들(몸 + 딸림 부품) — 각자 제 요잉과 **제 치우침**을 가진다. */
-  draws: { mesh: GlMesh9; yawDeg: number; dx?: number; dy?: number }[];
+  draws: { mesh: GlMesh9; yawDeg: number; dx?: number; dy?: number; k?: number }[];
   /** 창을 잴 벌들 — **도는 값을 0 으로 못 박은** 메시다(아래 ★). */
   boxes: GlMesh9[];
   /** 그 벌의 치우침(16-상자 자) — 창을 잴 때 함께 민다(안 밀면 표적이 창 밖으로 잘린다). */
   boxOff: [number, number][];
+  /** 그 벌만의 배율(DocPart9.k) — 창도 그만큼 줄여 잰다. */ boxK: number[];
 };
 function glIconFlush9(): void {
   const g = iconGl9; if (!g) return;
@@ -1394,7 +1395,7 @@ function glIconFlush9(): void {
     const w = Math.min(ICON_SIDE9, Math.max(1, Math.round(r.w))); const h = Math.min(ICON_SIDE9, Math.max(1, Math.round(r.h)));
     if (px + w > ICON_SIDE9) { px = 0; py += rowH; rowH = 0; }
     if (py + h > ICON_SIDE9) close();
-    items.push({ req: r, x: px, y: py, w, h, draws: [], boxes: [], boxOff: [] }); px += w; rowH = Math.max(rowH, h); W = Math.max(W, px);
+    items.push({ req: r, x: px, y: py, w, h, draws: [], boxes: [], boxOff: [], boxK: [] }); px += w; rowH = Math.max(rowH, h); W = Math.max(W, px);
   }
   close();
   const cell = document.createElement("canvas"); const cc = cell.getContext("2d");
@@ -1430,6 +1431,14 @@ function glIconFlush9(): void {
             const bHead = g.bldMesh({ ...op, kind: r.attach, spin: 0, headDeg: undefined }, 3);
             if (bHead) { it.boxes.push(bHead); it.boxOff.push([0, 0]); }
           }
+          /* ★ 건물 칸에도 겹판이 선다(2026-09 — 성큰·터렛 공격 칸의 표적 인형). 유닛 메시로 제 자리·제 배율에 얹는다. */
+          for (const pt of r.parts ?? []) {
+            const pm = g.unitMesh(pt.kind, pt.pose ?? 0, 3);
+            if (pm) {
+              it.draws.push({ mesh: pm, yawDeg: -(pt.rotDeg ?? r.rotDeg), dx: pt.dx ?? 0, dy: pt.dy ?? 0, k: pt.k ?? 1 });
+              it.boxes.push(pm); it.boxOff.push([pt.dx ?? 0, pt.dy ?? 0]); it.boxK.push(pt.k ?? 1);
+            }
+          }
         } else {
           const m = g.unitMesh(r.kind, r.pose, 3);
           if (m) { it.draws.push({ mesh: m, yawDeg: -r.rotDeg }); it.boxes.push(m); it.boxOff.push([0, 0]); }
@@ -1437,8 +1446,8 @@ function glIconFlush9(): void {
           for (const pt of r.parts ?? []) {
             const pm = g.unitMesh(pt.kind, pt.pose ?? 0, 3);
             if (pm) {
-              it.draws.push({ mesh: pm, yawDeg: -(pt.rotDeg ?? r.rotDeg), dx: pt.dx ?? 0, dy: pt.dy ?? 0 });
-              it.boxes.push(pm); it.boxOff.push([pt.dx ?? 0, pt.dy ?? 0]);
+              it.draws.push({ mesh: pm, yawDeg: -(pt.rotDeg ?? r.rotDeg), dx: pt.dx ?? 0, dy: pt.dy ?? 0, k: pt.k ?? 1 });
+              it.boxes.push(pm); it.boxOff.push([pt.dx ?? 0, pt.dy ?? 0]); it.boxK.push(pt.k ?? 1);
             }
           }
         }
@@ -1454,8 +1463,9 @@ function glIconFlush9(): void {
              안 밀면 창이 쏘는 몸에만 맞춰져 인형과 줄기가 통째로 칸 밖으로 나간다
              (요청: "모든 요소들이 셀에 들어가게 스케일 조정"). */
           const [ox, oy] = it.boxOff[bi] ?? [0, 0];
-          x0 = Math.min(x0, f.cx - f.w / 2 + ox); x1 = Math.max(x1, f.cx + f.w / 2 + ox);
-          top = Math.min(top, f.top + oy); bot = Math.max(bot, f.bot + oy);
+          const bk = it.boxK[bi] ?? 1;   // 제 배율로 그려지는 겹판은 상자도 그 배수다(원점을 축으로)
+          x0 = Math.min(x0, (f.cx - f.w / 2) * bk + ox); x1 = Math.max(x1, (f.cx + f.w / 2) * bk + ox);
+          top = Math.min(top, f.top * bk + oy); bot = Math.max(bot, f.bot * bk + oy);
         }
         const pd = Math.min(x1 - x0, bot - top) * r.pad;
         box = [8 + x0 - pd, 12 + top - pd, x1 - x0 + 2 * pd, bot - top + 2 * pd];
@@ -1464,7 +1474,7 @@ function glIconFlush9(): void {
       const ax = it.x + it.w / 2 - k * (box[0] + box[2] / 2 - 8);
       const ay = it.y + it.h / 2 - k * (box[1] + box[3] / 2 - 12);
       for (const d of it.draws) {
-        g.push({ mesh: d.mesh, ax: ax + k * (d.dx ?? 0), ay: ay + k * (d.dy ?? 0), k, yoff: 0, yawDeg: d.yawDeg, color: r.color, alpha: 1, cam: CAM_TOP9, gradR: k * 11.31, gradCy: 0, flat: GL_GLOW_KINDS9.has(r.kind) });
+        g.push({ mesh: d.mesh, ax: ax + k * (d.dx ?? 0), ay: ay + k * (d.dy ?? 0), k: k * (d.k ?? 1), yoff: 0, yawDeg: d.yawDeg, color: r.color, alpha: 1, cam: CAM_TOP9, gradR: k * 11.31, gradCy: 0, flat: GL_GLOW_KINDS9.has(r.kind) });
       }
     }
     g.flush(p.w, p.h, p.w, p.h);
