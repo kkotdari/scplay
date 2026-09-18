@@ -5892,11 +5892,22 @@ export function docReachTiles9(kind: string, air: boolean): number {
   if (!nm9) return -1;
   try { return reachTiles(nm9, nm9, air); } catch { return -1; }
 }
-/** ★★ **칸에 담을 수 있는 거리의 상한** — **그 모델의 잉크 폭**의 몇 배인가(아래 ⚠⚠).
+/** ★ **표적은 최대 사거리의 반에 세운다**(2026-09, 요청: "타겟 인형과 거리는 최대 사거리의
+ *  반이면 되지 않을까") — 참값 그대로는 쏘는 몸이 칸의 10% 가 되고(아래 ⚠⚠) 그 반이면
+ *  '멀리서 쏘는 것'이라는 뜻은 남으면서 둘이 한 칸에 든다. */
+const DOC_TGT_HALF9 = 0.5;
+/** ★★ **그래도 두 끝은 죄어야 한다** — **그 모델의 잉크 폭**의 몇 배인가(아래 ⚠⚠).
+ *  실측(16-상자 자 · 반으로 줄인 값): 울트라 2.65 · 다크템플러 3.45 · 저글링 4.20 ·
+ *  파뱃 6.55 · 드라군 10.9 · 마린 17.2 · 인터셉터 24.4 · 시즈 22.6 · **스캐럽 54.8**.
+ *  몸의 잉크 폭이 5.2 이므로 **아래쪽 셋은 인형이 쏘는 몸 속에 들어가** 앉고(거리가 두 몸의
+ *  반지름 합보다 작다) 스캐럽은 칸에서 쏘는 몸이 **4.5%** 가 된다. 곧 '반'은 가운데 대에서만
+ *  성립하는 값이라, 바닥(안 겹치는 자리)과 상한(읽히는 자리)으로 죈다.
  *  ⚠ 16-상자의 배수로 재면 안 된다 — 16 은 창의 자이지 몸의 자가 아니다(마린의 잉크는
  *  그 16 중 **5** 뿐이라, 1.9×16 = 30.4 는 곧 **몸의 여섯 배**였다: 둘이 칸의 두 귀퉁이에
  *  붙고 가운데가 통째로 비었다 · 실측 창 26.7 에 몸 5). */
-const DOC_TGT_MAX9 = 1.25;
+const DOC_TGT_MAX9 = 2.0;
+/** 바닥 — 두 몸이 안 겹치는 자리(잉크 폭의 1.05배 ≒ 반지름 둘의 합에 한 뼘). */
+const DOC_TGT_MIN9 = 1.05;
 /** ★ 표적까지의 거리 — **16-상자 자**(모델 상자가 16 인 그 자). 못 때리면 0.
  *  ⚠⚠ **참 사거리를 그대로 쓰면 쏘는 몸이 칸의 10% 가 된다**(2026-09, 실측) — 마린은 사거리
  *  4.4타일에 몸이 0.8타일이라 그 거리가 **몸의 5.5배**이고, 창이 둘을 다 담으면 마린이 칸의
@@ -5911,7 +5922,8 @@ export function docTgtOff9(kind: string, air: boolean): number {
   const r9 = docReachTiles9(kind, air);
   if (!(r9 > 0)) return 0;
   const ink9 = Math.max(2, modelInkOf(kind) || 6);
-  return Math.min(ink9 * DOC_TGT_MAX9, (r9 * 16) / Math.max(0.5, shapeMapTiles(kind)));
+  const half9 = (DOC_TGT_HALF9 * r9 * 16) / Math.max(0.5, shapeMapTiles(kind));
+  return Math.min(ink9 * DOC_TGT_MAX9, Math.max(ink9 * DOC_TGT_MIN9, half9));
 }
 /** ★ 그 칸의 표적 한 벌 — 없으면 null. `deg` 는 쏘는 방향(절대 도). */
 export function docTargetPart9(kind: string, air: boolean, deg: number, t: number, fx?: string): DocPart9 | null {
