@@ -22638,15 +22638,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ] as [number, number, number][]) {
         const idx9 = ry9 === 2 ? 0 : ry9 === 1.65 ? 1 : 2;
         const lk9 = LEGK9 * LEGK3[idx9];
-        // 앞다리 굽힘 — 둘째 관절부터 x를 안으로 당긴다(끝으로 갈수록 제곱으로).
-        const bend9 = idx9 === 0 ? 0.12 : 0;
+        /* ★ **앞다리·뒷다리는 가운데 관절에서 안쪽으로 꺾인다**(2026-09, 요청: "디파일러 앞다리와 뒷다리
+           중간에 안쪽을 향해 꺾기") — 여태 여섯 다리가 다 뿌리에서 발끝까지 밖으로만 뻗는 곧은 막대였다
+           (앞다리만 끝 두 마디를 제곱으로 살짝 당겼다). 곤충 다리처럼 넓적다리는 밖·위로 올라 무릎(둘째
+           관절)에서 솟고, 정강이는 거기서 **안쪽·아래로** 내려와 땅을 짚는다: 무릎 뒤 마디의 x 를 마디마다
+           fold9 만큼 도로 당기고 무릎 z 를 올린다. 가운데 다리는 종전대로(곧게 밖으로). */
+        const fold9 = idx9 === 1 ? 0 : 0.42;
         const stD9 = wdD9 * m2 * (idx9 === 1 ? -1 : 1) * 0.55;
         const key9 = depthNow(m2 * 2, ry9) * 1.6;
-        /* 관절 넷 + 발끝 — x는 꾸준히 밖으로, y는 spread만큼 앞으로, z는 거의 그대로.
-           가운데 두 마디에서 z가 1.45 → 1.3 → 1.4로 오르내리기만 하는 것이 '수평'이다. */
-        const px = (k: number): number => m2 * (0.7 + k * 1.02 * reach * lk9 - bend9 * Math.max(0, k - 2) ** 2);
+        /* 관절 넷 + 발끝 — x는 무릎까지 밖으로, 그 뒤는 fold9 만큼 안으로. y는 spread만큼 앞으로.
+           z 는 꺾이는 다리에서 무릎(k 2)이 솟고, 가운데 다리는 거의 수평이다. */
+        const px = (k: number): number => m2 * (0.7 + k * 1.02 * reach * lk9 - fold9 * Math.max(0, k - 2));
         const py = (k: number): number => ry9 + k * 0.42 * spread * lk9 + stD9 * (k / 4);
-        const PZ = [1.2, 1.16, 1.04, 1.12, 0.096];
+        const PZ = fold9 ? [1.2, 1.36, 1.56, 1.14, 0.096] : [1.2, 1.16, 1.04, 1.12, 0.096];
         const PW = [0.62, 0.5, 0.42, 0.36];
         for (let j = 0; j < 3; j += 1) {
           out.push(...tagKey(spikeHorn(
