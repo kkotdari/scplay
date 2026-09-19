@@ -14,23 +14,35 @@ const shadeBoost9 = (o: number, fill?: string): number => (fill && o < 1 ? Math.
 /** 되찾은 **원**의 조각 수(고리·빌보드 원반·땅 원반) — 2D 는 진짜 호를 칠하므로 둘레가 매끈한데, 메시는 조각이 적으면
  *  각이 보인다(실측: 16 조각이면 핵 충격파·워프인 둘레가 다각형으로 읽혔다). 32 면 둘레가 눈에 둥글고, 이 면들은
  *  효과·장식 몇 장뿐이라 삯이 없다. */
+/** 경로 숫자만 훑어 낸 **화면 상자**(요잉 0 의 2D 좌표 · [x0, y0, x1, y1]) — 없으면 undefined. */
+function pathBox9(d: string): [number, number, number, number] | undefined {
+  const n = d.match(/-?\d+(?:\.\d+)?/g);
+  if (!n || n.length < 4) return undefined;
+  let x0 = Infinity; let x1 = -Infinity; let y0 = Infinity; let y1 = -Infinity;
+  for (let i = 0; i + 1 < n.length; i += 2) {
+    const x = +n[i]; const y = +n[i + 1];
+    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+  }
+  return [x0, y0, x1, y1];
+}
+const boxArea9 = (b?: [number, number, number, number]): number => b ? Math.max(0, b[2] - b[0]) * Math.max(0, b[3] - b[1]) : 0;
 /** 두 경로의 **상자 넓이 비**(덧칠/몸, 상한 1) — 경로의 숫자만 훑어 상자를 낸다(요잉 0 의 화면 좌표라 비만 쓴다). */
 function areaK9(dOv: string, dBody?: string): number {
   if (!dBody) return 1;
-  const box9 = (d: string): number => {
-    const n = d.match(/-?\d+(?:\.\d+)?/g);
-    if (!n || n.length < 4) return 0;
-    let x0 = Infinity; let x1 = -Infinity; let y0 = Infinity; let y1 = -Infinity;
-    for (let i = 0; i + 1 < n.length; i += 2) {
-      const x = +n[i]; const y = +n[i + 1];
-      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
-    }
-    return Math.max(0, x1 - x0) * Math.max(0, y1 - y0);
-  };
-  const b9 = box9(dBody);
+  const b9 = boxArea9(pathBox9(dBody));
   if (!(b9 > 0)) return 1;
-  return Math.min(1, box9(dOv) / b9);
+  return Math.min(1, boxArea9(pathBox9(dOv)) / b9);
 }
+/** 덧칠 상자가 몸 상자와 **겹치는 몫**(덧칠 넓이에 대한 교집합 비 · 0~1) — 그늘이 어느 몸 위에 얹혔나를 가르는 자다. */
+function overlapK9(ov: string, body: string): number {
+  const a = pathBox9(ov); const b = pathBox9(body);
+  if (!a || !b) return 0;
+  const aa = boxArea9(a); if (!(aa > 0)) return 0;
+  const w = Math.min(a[2], b[2]) - Math.max(a[0], b[0]); const h = Math.min(a[3], b[3]) - Math.max(a[1], b[1]);
+  return w > 0 && h > 0 ? Math.min(1, (w * h) / aa) : 0;
+}
+/** 진단 — 얹힐 몸을 '마지막 몸'이 아니라 '겹치는 몸'으로 고른 덧칠의 수(scripts/model-mesh.mjs --dump 가 찍는다). */
+export const MESH_DBG9 = { rehost: 0, total: 0, /** 도구만 켠다 — 앱에서는 목록을 안 모은다. */ keep: false, moved: [] as string[] };
 
 /* ── (걷어냄) 경로 문자열 → 3D 메시 되돌리기 ─────────────────────────────────────────
    ★★ **승격하는 과정을 없앴다**(2026-09, 요청: "우회로 없애고 설계도도 짓는 것도 3D 로 통일해서
@@ -183,6 +195,7 @@ export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeF
   const parts: MeshPart9[] = [];
   const byD = new Map<string, number>();    // 경로 → 그 경로로 마지막에 난 부품(덧칠을 접을 첫째 자리)
   const byPid = new Map<number, number>();  // 부품 번호(ShapeFace[5]) → 그 부품의 마지막 몸 면(둘째 자리)
+  const bodies9 = new Map<number, number[]>();  // 부품 번호 → 그 뭉치의 몸 부품 전부(얹힐 몸을 겹침으로 고르는 자)
   let covered = 0; let skipped = 0; let blank = 0; const missed: string[] = []; const missPaths: string[] = [];
   /** 부품마다의 **뭉치 번호**(tagKey 의 pid) — 아래에서 같은 뭉치를 모아 닫힌 입체인가를 잰다. */
   const pidAt: (number | undefined)[] = [];
@@ -250,7 +263,23 @@ export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeF
            되찾을 기하가 **없으면**(종족 광택의 초승달 같은 손 경로) 종전처럼 넓이 몫만큼 접는다 — 안 접으면 통째로 사라진다.
          몸도 없고 기하도 없으면 버린다(땅에 깔리는 그림자 고리). */
       const same9 = byD.get(f[0]);
-      const at = same9 ?? (f[5] !== undefined ? byPid.get(f[5]) : undefined);
+      /* ★ **얹힐 몸은 '마지막 몸'이 아니라 '그 그늘이 덮고 있는 몸'이다**(2026-09) — 한 뭉치(pid)에 몸이 여럿이면
+         (기둥 + 뚜껑 · 벽 여러 장 · 관 토막들) 2D 가 그늘을 얹은 자리는 화면에서 **그 그늘과 겹치는 몸**이지 목록의
+         맨 끝이 아니다. 마지막 몸으로 못 박으면 넓이 몫(areaK9)이 엉뚱한 몸으로 재어져, 작은 뚜껑 위의 그늘이
+         큰 벽에 접히거나(옅어짐) 큰 벽의 그늘이 작은 뚜껑에 통째로 먹힌다(검게). 뭉치의 몸들 중 그늘 상자와
+         **가장 많이 겹치는 것**을 고르고, 겹침이 같으면 나중 것(옛 규약)이다. 겹치는 몸이 없으면 옛 자 그대로. */
+      let at = same9;
+      if (at === undefined && f[5] !== undefined) {
+        const last9 = byPid.get(f[5]);
+        at = last9;
+        const cand9 = bodies9.get(f[5]);
+        if (cand9 && cand9.length > 1) {
+          let best9 = 0;
+          for (const i9 of cand9) { const o9 = overlapK9(f[0], parts[i9].d ?? ""); if (o9 >= best9 && o9 > 0) { best9 = o9; at = i9; } }
+          MESH_DBG9.total += 1;
+          if (at !== last9) { MESH_DBG9.rehost += 1; if (MESH_DBG9.keep && MESH_DBG9.moved.length < 400) MESH_DBG9.moved.push(`${f[2] ?? "(임자)"} a=${f[1]} ${last9}→${at} ${f[0].slice(0, 60)}`); }
+        }
+      }
       const k9 = at === undefined ? 1 : (same9 !== undefined ? 1 : areaK9(f[0], parts[at].d));
       /* ★★ **제 경로를 가진 그늘은 제 부품으로 남긴다**(2026-09, 지적: "배럭 벤트의 가로 줄이 없어짐") —
          여태 문이 `k9 < 0.6`(상자 넓이 비)이었는데, `areaK9` 는 **그 pid 의 마지막 몸**과 견주는 자라
@@ -312,7 +341,7 @@ export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeF
     }
     covered += 1;
     byD.set(f[0], parts.length);
-    if (f[5] !== undefined) byPid.set(f[5], parts.length);
+    if (f[5] !== undefined) { byPid.set(f[5], parts.length); (bodies9.get(f[5]) ?? bodies9.set(f[5], []).get(f[5]))!.push(parts.length); }
     parts.push({ polys, fill: f[2] ?? "", alpha: shadeBoost9(f[1], f[2]), team: f[2] === undefined, lod: f[4] ?? 0, ow: 0, ob: 0, bb: polys.length === 1 && BILLBOARD9.has(polys[0]), d: f[0],
       /* 빛나는 면 — 발광 종류(폭풍·핵·아콘·워프인)는 **밝은 색 면만**(어두운 속 몸은 빛이 아니다 ·
          임자색 면도 몸이다), 그 밖의 종류는 '켜진 색' 표(EMIT_FILL9)에 든 색만. */

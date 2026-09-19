@@ -22,13 +22,15 @@ const CELL = Number(flag("--cell", 160));
 const DUMP = argv.includes("--dump");
 const ENTRY = `
 import { SHAPE_BUILDERS, poseSet9, headYawSet } from ${JSON.stringify(join(ROOT, "src/components/replay/bake9"))};
-import { collectMesh9 } from ${JSON.stringify(join(ROOT, "src/utils/mesh9"))};
+import { collectMesh9, MESH_DBG9 } from ${JSON.stringify(join(ROOT, "src/utils/mesh9"))};
+export { MESH_DBG9 };
 export function run(only, pose) {
-  const out = {};
+  const out = {}; MESH_DBG9.keep = true;
   for (const kind of only ?? Object.keys(SHAPE_BUILDERS)) {
     const b = SHAPE_BUILDERS[kind]; if (!b) continue;
     poseSet9(pose); headYawSet(0);
-    try { out[kind] = collectMesh9(b); } catch (e) { out[kind] = { err: String(e).slice(0, 80), parts: [], faces: 0, covered: 0, skipped: 0, blank: 0 }; }
+    const r0 = MESH_DBG9.rehost; const m0 = MESH_DBG9.moved.length;
+    try { out[kind] = collectMesh9(b); out[kind].rehost = MESH_DBG9.rehost - r0; out[kind].moved = MESH_DBG9.moved.slice(m0); } catch (e) { out[kind] = { err: String(e).slice(0, 80), parts: [], faces: 0, covered: 0, skipped: 0, blank: 0 }; }
   }
   poseSet9(0);
   return out;
@@ -52,6 +54,8 @@ for (const [kind, m] of Object.entries(res)) {
 }
 rows.sort((a, b) => a[0] - b[0]);
 console.log(rows.map((r) => r[1]).join("\n"));
+const reh = Object.entries(res).filter(([, m]) => m.rehost > 0).map(([k, m]) => `${k} ${m.rehost}`);
+if (reh.length) console.log(`덧칠 얹힐 몸 바뀜: ${reh.join(" · ")}`);
 console.log(`— ${rows.length}종 · 덮임 ${totC}/${totF} (${Math.round(100 * totC / Math.max(1, totF))}%) · ${Date.now() - t0}ms`);
 
 /* ★ **덮임 100% 가 관문이다**(2026-09, 요청: "우회로 없애고 … 승격하는 과정 없앨 수 있어?") ──
@@ -72,6 +76,7 @@ if (DUMP) {
   for (const [kind, m] of Object.entries(res)) {
     console.log(`\n== ${kind} 면 ${m.faces} · 몸 부품 ${m.parts.length} · 덧칠로 접힘 ${m.skipped} · 딴 낯이 냄 ${m.blank ?? 0} · 빠짐 ${m.faces - m.skipped - (m.blank ?? 0) - m.covered}`);
     for (const d of m.missed ?? []) console.log(`  ⚠ 빠진 면 ${d}`);
+    for (const d of m.moved ?? []) console.log(`  ↪ 얹힐 몸 바뀜 ${d}`);
     m.parts.forEach((p, i) => {
       let z0 = Infinity, z1 = -Infinity, n = 0;
       for (const poly of p.polys) for (let k = 2; k < poly.length; k += 3) { z0 = Math.min(z0, poly[k]); z1 = Math.max(z1, poly[k]); n += 1; }
