@@ -13,6 +13,16 @@
 그림은 **GL 붓**(`DocIcon9` → gl9 메시, 지도가 그리는 그 그림)이 기본이다(2026-09) — 키값·마주 봄 판정 같은 2D 전용 어긋남이 도록에
 안 실린다. 옛 2D 면 그림(ShapeIcon SVG)은 `--2d`(폰·`#gl=0` 이 아직 그 길이라 검토용). 앱 도록(scplayer GalleryScreen)도 DocIcon9 다.
 
+## 모델 변천사(시점 비교) 뽑기
+"변천사 도록"(2026-09, 요청: "7·8·9월 비교 — 한 줄에 3모델")은 **모델 한 종을 한 줄에, 시점 셋을 열로** 놓은 것이다. 저장소는 8월 28일에
+시작해 7월 기록이 없다 — 가장 이른 도구 시점(8/29 `1e20b08`) · 가운데(9/10 `35150e4`) · 지금(HEAD) 셋을 견준다.
+· 옛 시점은 그 커밋의 붓으로 굽는다: `git worktree add $S/wtX <해시>` 뒤 `node_modules` 를 심볼릭 링크로 걸고 그 트리의
+  `model-shot.mjs --kinds <전부> --rots 45 --mode top --cell 200`(2D — 9/15 전 앱은 판 굽기라 그것이 그때의 그림이다). 지금은
+  `model-gl --kinds <전부> --rots 45 --cell 200 --rows 300 --json`(GL · 시트 행 차례는 화소 적은 순이라 json 이 곧 행 지도다).
+  ⚠ 8/29 도구는 새 헤드리스 되물림이 없어 작업 트리 사본의 launch 에 `headless: false` + `--headless=new` 를 손으로 넣는다.
+· 붙이는 자: `$S/hist-compose.mjs <S>` — 칸 자리는 model-shot `y = r·CELL + 26` · model-gl `y = r·(CELL + 22) + 22`. 도록 일곱 묶음
+  (dorok/list.txt)대로 일곱 장 + zip(`변천사.zip`). 배경·임자색은 두 도구의 기본값이 같아(#20242b · #4aa3ff) 그대로 둔다.
+
 ## 도록의 칸(2026-09)
 ★ **칸을 세우는 일은 scplay 가 한다**(`docCellsOf9(kind, t, yaw)`) — 앱(GalleryScreen)은 배치만 한다.
 칸은 넷이고 **있는 것만** 선다: 대기 · **이동**(유닛)/**활성**(건물) · 공격 · 액션.
