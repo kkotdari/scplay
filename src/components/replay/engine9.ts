@@ -1322,6 +1322,8 @@ export const BLD_NORM_PAIR: Record<string, string> = {
   /* 터렛 밑동·포탑부도 같은 자리에 서는 별본이다 — 배수와 앵커가 한 벌이라야 머리가 밑동 위에 앉는다.
      (머리를 딸림 부품으로 가른 까닭은 bake9 의 turret ★★ — 도는 각을 메시 열쇠에서 뺀다.) */
   turretbase: "turret", turrethead: "turret",
+  /* 공사 고치 1·2단(bake9 cocoonBuild9 의 ★★) — 납작한 잉크를 제 배수로 도로 키우면 단의 뜻(작고 납작함)이 사라진다. */
+  cocoon1: "cocoon", cocoon2: "cocoon",
   // 컴샛 밑동·접시도 같은 자리에 서는 별본이다(bake9 comsat 의 ★★) — 접시가 기둥 위에 앉으려면 한 벌이라야 한다.
   comsatbase: "comsat", comsatdish: "comsat",
   /* 고갈 별본은 본판 배수를 그대로 쓴다 — 안 접으면 정규화가 '줄어든 잉크'를 도로 키워
@@ -5711,7 +5713,9 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
              점점 위로"). 뼈대·크레인 한 벌(scaffold)을 모든 건물에 똑같이 쓰던
              것을 걷는다 — 무엇을 짓는지 완성될 때까지 알 수 없었다.
              모델이 없는 건물(부속 등 폴백)만 예전 공사장으로 떨어진다. */
-          kind: race2 === "저그" ? "cocoon"
+          /* ★ 저그 고치는 **단계마다 딴 모델**(bake9 cocoonBuild9 의 ★★) — 진행률 셋째 칸마다 납작 → 반구. 선 건물이
+             변태하는 자리(BLD_FROM_BLD)는 다 자란 몸이라 3단(본판) 그대로다. */
+          kind: race2 === "저그" ? (BLD_FROM_BLD.has(unit) || prog >= 2 / 3 ? "cocoon" : prog >= 1 / 3 ? "cocoon2" : "cocoon1")
             : race2 === "프로토스" ? "warpin"
               : (shapeKind || "warpin"),   // 모델 없는 테란 건물(부속 폴백)은 공사장 대신 프로토스식 워프인 판을 빌린다 — 공사장 모델은 걷었다(요청)
           /* 아래 부품부터 다섯 칸에 나눠 솟는다(요청: 3단계 부족 시 5단계) —

@@ -704,7 +704,7 @@ export const shapeMapTiles = (kind0: string): number => {
   if (kind.startsWith("mineral")) return cineResTiles9(false, 2.4);   // 꼴·고갈 별본 모두 같은 상자다.
   if (kind === "geyser") return cineResTiles9(true, 3.84 * 0.8);
   // 공사장·고치는 무엇이 될지에 따라 달라진다 — 흔한 3×2의 폭 3으로 둔다(건물 폴백).
-  if (kind === "cocoon") return 3 * BLD_DRAW_K;
+  if (kind === "cocoon" || kind === "cocoon1" || kind === "cocoon2") return 3 * BLD_DRAW_K;
   const sk = GALLERY_SIZE_KIND[kind] ?? kind;
   return unitTilesOf(sk, sk, 1);
 };
