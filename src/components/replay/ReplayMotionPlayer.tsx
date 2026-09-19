@@ -1,3 +1,4 @@
+import { PathRec9, fillPath9 } from "./glctx9";
 import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   PERF9, NOSHADOW9, DPRCAP9, NODOM9, HIDECLS9, GAP9, perfHit, pNow, pAdd, pWrap,
@@ -583,6 +584,11 @@ const MEMTR9 = { first: 0, now: 0, max: 0, n: 0, cv: 0, cvMB: 0, plMB: 0, exMB: 
  *  되풀이하면 그 자원이 빠르게 돌고 — 그 회전이 곧 압박이고, 압박의 끝이 '배킹을 거두고 그리기를 멈춤'이다.
  *  판 굽기·물들이기·효과 래스터가 저마다 캔버스를 새로 만든다. 몇 개를 만들고 있는지부터 수로 본다. */
 const CVN9 = { n: 0, win: 0, at: 0, rate: 0, peak: 0, peakTop: "", by: new Map<string, number>(), top: "" };
+/** 효과 캔버스가 비어 있음을 아는 표 — GL 심이 효과를 맡는 동안은 한 번만 지운다(크기가 바뀌면 캔버스가 스스로 비므로 그대로 둔다). */
+const FX_CLEAN9 = new WeakSet<HTMLCanvasElement>();
+/** 한 번 그리고 안 바꾸는 판(스프라이트)에 찍는 표식 — GL 효과 심(gl9.texOf)이 이 값으로 '올렸던 그 판'인지 안다.
+   표식이 없는 판은 프레임마다 다시 올라간다(바뀌는 판이라고 본다). 다시 그리는 판이면 값을 올려라. */
+export function sprVer9(cv9: HTMLCanvasElement, v9 = 1): HTMLCanvasElement { (cv9 as unknown as { __ver9?: number }).__ver9 = v9; return cv9; }
 function newCanvas9(tag9 = "?"): HTMLCanvasElement {
   CVN9.n += 1;
   CVN9.win += 1;
@@ -1817,7 +1823,7 @@ function woundSpr9(name: string): HTMLCanvasElement {
       c2.fillRect(0, 0, cw9, ch9);
     }
   }
-  WOUND_SPR9.set(name, cv9);
+  sprVer9(cv9); WOUND_SPR9.set(name, cv9);
   return cv9;
 }
 /** 되풀이 삼각파(0→1→0) — CSS의 `alternate`가 하는 일이다. */
@@ -1936,6 +1942,7 @@ function domSpr9(key9: string, draw9: (c9: CanvasRenderingContext2D, S9: number)
   cv9.width = S9; cv9.height = S9;
   const c29 = cv9.getContext("2d");
   if (c29) draw9(c29, S9);
+  sprVer9(cv9);
   DOM_SPR9.set(key9, cv9);
   return cv9;
 }
@@ -3215,7 +3222,7 @@ export function paintFxList9(
         const h9 = Math.sin(seed9 * 0.37 + i9 * 12.9898) * 43758.5453;
         return 0.33 + ((h9 - Math.floor(h9)) - 0.5) * 0.3;   // 0.18 ~ 0.48 (아래로 +)
       };
-      const dome9 = new Path2D();
+      const dome9 = new PathRec9();   // Path2D 는 GL 심이 속을 못 읽는다 — 적어 두고 되풀이한다(fillPath9)
       const k0 = kAt9(0);
       const kN = kAt9(N9);
       const xl9 = ax - r9 * Math.sqrt(Math.max(0, 1 - k0 * k0));
@@ -3237,13 +3244,13 @@ export function paintFxList9(
       lg9.addColorStop(0.75, "rgba(80,150,255,0.12)");
       lg9.addColorStop(1, "rgba(90,160,255,0)");
       ctx.fillStyle = lg9;
-      ctx.fill(dome9);
+      fillPath9(ctx, dome9);
       // 왼위 하이라이트 — 구의 빛 받는 자리.
       const hg9 = ctx.createRadialGradient(ax - r9 * 0.35, cy9 - r9 * 0.45, 0, ax - r9 * 0.35, cy9 - r9 * 0.45, r9 * 0.8);
       hg9.addColorStop(0, "rgba(220,240,255,0.28)");
       hg9.addColorStop(1, "rgba(220,240,255,0)");
       ctx.fillStyle = hg9;
-      ctx.fill(dome9);
+      fillPath9(ctx, dome9);
       // 윗호 테 — 꼭대기가 밝고 양 끝으로 옅어진다.
       const sg9 = ctx.createLinearGradient(0, cy9 - r9, 0, cy9 + r9 * 0.35);
       sg9.addColorStop(0, "rgba(190,225,255,0.85)");
@@ -4219,9 +4226,19 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       const ctx = cv.getContext("2d");
       if (!ctx) return;
       /* 효과는 **위 캔버스**에 그린다(GL 층 위 — UnitLayer 의 ★★). GL 이 없으면(#gl=0) 종전대로 유닛 캔버스다. */
+      const gl9 = glUnits9(glRef.current, DEV9.glMeshMax, DEV9.glBloom, DEV9.glSpec);
       const fctx9 = fcv9 ? fcv9.getContext("2d") : null;
-      const fxCtx9 = fctx9 ?? ctx;
-      if (fctx9) { fctx9.setTransform(Bd, 0, 0, Bd, 0, 0); fctx9.clearRect(0, 0, cw, ch); }
+      /* ★ **효과도 GL 이 그린다**(2026-09, 다음 손 2 "링·체력바·효과 GL로") — 붓(paintFxList9)은 캔버스 2D 를 말하지만 그 말을
+         받는 것은 `glctx9`(캔버스 2D 의 부분집합을 삼각형으로 옮기는 심)다. GL 층 안에서 몸·연기 다음에 같은 판(MRT)에 그려지므로
+         효과 캔버스는 비워 둔다(GL 이 없거나 심을 못 열면 종전대로 그 캔버스다). */
+      const vec9 = gl9 && gl9.vecOk ? gl9.vecCtx() : null;
+      const fxCtx9 = vec9 ? (vec9 as unknown as CanvasRenderingContext2D) : (fctx9 ?? ctx);
+      if (fctx9 && fcv9) {
+        // 심이 그리는 동안 효과 캔버스는 빈 채로 둔다 — 비우기는 한 번이면 된다(프레임마다 온 화면을 지우는 값을 안 치른다).
+        if (!vec9 || !FX_CLEAN9.has(fcv9)) { fctx9.setTransform(Bd, 0, 0, Bd, 0, 0); fctx9.clearRect(0, 0, cw, ch); }
+        if (vec9) FX_CLEAN9.add(fcv9); else FX_CLEAN9.delete(fcv9);
+      }
+      if (vec9) { vec9.reset(); vec9.setTransform(Bd, 0, 0, Bd, 0, 0); }
       /* 등급은 배율도 본다(요청: 2.5배부터 전부) — 굽기가 이 값을 읽으므로 그리기 전에
          세워 둔다(lodSetCap·lodPenalty와 같은 결의 모듈 전역이다). */
       /* 마커·자세함은 **지금 그리는 배율**로 판정한다(위 markerAt 주석) — 손짓 중에도
@@ -4236,7 +4253,6 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       lodSetZoom(bakeZoom);
       ctx.setTransform(Bd, 0, 0, Bd, 0, 0);
       ctx.clearRect(0, 0, cw, ch);
-      const gl9 = glUnits9(glRef.current, DEV9.glMeshMax, DEV9.glBloom, DEV9.glSpec);
       glFx9 = !!gl9;   // 효과 모델(폭풍·핵)도 GL 이 맡는다 — drawDomFx9 가 판을 안 굽게   // #gl=1 이면 유닛 몸통을 GPU 큐에 넣고, 프레임 끝에서 한 번 그린다(아래)
       /* (제거·요청) 도형 드롭섀도 — 건물·유닛 그림자를 다 걷었다(떠다니는 것 제외).
          떠 있음은 아래 hover 분기의 발밑 타원만 말한다. */
@@ -5337,13 +5353,17 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             }
           }
         }
+        /* 효과 삼각형은 flush 안에서 그려지므로 **그 전에** 붓이 다 말해야 한다(심이 모아 둔 꼭짓점을 flush 가 민다). */
+        if (vec9 && fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM)) {
+          paintFxList9(fxCtx9, fx, { zoom, tilePx, zx, zy, cw, ch, Bd, trim9, detailAt, swarmDone9 });
+        }
         gl9.flush(cv.width, cv.height, cw, ch);   // GL 캔버스가 곧 화면 층이다 — 베끼지 않는다(UnitLayer 의 ★★)
         if (scrDiagOn()) {
           const miss9 = [...GL_MISS9].sort((a9, b9) => b9[1] - a9[1]).slice(0, 4).map(([k9, n9]) => `${k9}×${n9}`).join(" ");
-          SCR_DIAG.gl = `on${gl9.gl2 ? "2" : "1"}${gl9.instOn ? "" : "·인스턴싱 없음"} 개체 ${gl9.stat.inst} 드로 ${gl9.stat.draws} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}/${gl9.meshMax}(${gl9.stat.bakeMs.toFixed(0)}ms·${(gl9.stat.bytes / 1048576).toFixed(1)}MB${gl9.stat.evict ? "·버림 " + gl9.stat.evict : ""}) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit 번짐 ${gl9.stat.bloom} 바닥 ${gl9.stat.prims}${miss9 ? " 판으로 " + miss9 : ""}`;
+          SCR_DIAG.gl = `on${gl9.gl2 ? "2" : "1"}${gl9.instOn ? "" : "·인스턴싱 없음"} 개체 ${gl9.stat.inst} 드로 ${gl9.stat.draws} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}/${gl9.meshMax}(${gl9.stat.bakeMs.toFixed(0)}ms·${(gl9.stat.bytes / 1048576).toFixed(1)}MB${gl9.stat.evict ? "·버림 " + gl9.stat.evict : ""}) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit 번짐 ${gl9.stat.bloom} 바닥 ${gl9.stat.prims} 효과△ ${gl9.stat.fxTris}${miss9 ? " 판으로 " + miss9 : ""}`;
         }
       }
-      if (fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM)) {
+      if (!vec9 && fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM)) {
         /* 효과 붓은 **모듈 함수**다(paintFxList9 의 ★) — 도록이 같은 붓으로 한 발을 그린다. */
         paintFxList9(fxCtx9, fx, { zoom, tilePx, zx, zy, cw, ch, Bd, trim9, detailAt, swarmDone9 });
       }
@@ -5470,6 +5490,7 @@ export function fxModelCv9(o9: {
     c29.fillStyle = fill9 ?? cur9;
     c29.fill(pathOf(d9));
   }
+  sprVer9(cvv9);
   FX_RASTER_CACHE.set(key9, cvv9);
   FX_RASTER_BYTES.n += cw9 * ch9 * 4;
   /* ★ **장수도** 죈다 — 웹킷에서 캔버스는 바이트만이 아니라 개수도 값이다(저마다 배킹과 합성

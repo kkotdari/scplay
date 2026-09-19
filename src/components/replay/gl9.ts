@@ -10,6 +10,7 @@
 import { SHAPE_BUILDERS, SHAPE_GALLERY, poseSet9, poseNow, headYawSet, headYawNow, headAimNow, bldLitSet, bldLitNow, bldSpinRawSet9, bldSpinNow, bldBlinkSet9, stageFaces, headTag, litTag, spinTag, glSpinTag9, gasEmitTake9, gasPuffFrames9, type GasEmit9, tone9, autoTier } from "./bake9";
 import { lodFilter, PITCH_ZK9, type ShapeFace } from "../../utils/shapeOblique";
 import { collectMesh9 } from "../../utils/mesh9";
+import { GlCtx9, type VecSink9 } from "./glctx9";
 import { SPIN_ANIM9, type UnitDrawOp } from "./engine9";
 
 export interface GlInst9 {
@@ -712,6 +713,22 @@ void main() {
   gl_FragColor = vC * a;
   //__EMIT0__
 }`;
+/* ★★ **효과(트레이서·피격·캐스트)는 캔버스 심(glctx9)이 낸 삼각형이다** — 장치 px 자리 · 텍스처 자리 · 미리곱한 색. 합성(보통·
+   더하기)과 텍스처가 갈릴 때만 드로 콜을 나눈다. 몸과 같은 판(MRT)에 연기 다음으로 그려지므로 AA 는 MSAA 가 낸다. */
+const VEC_F9 = 8; const VEC_B9 = VEC_F9 * 4;
+const VEC_VS = `
+attribute vec2 aXY; attribute vec2 aUV; attribute vec4 aC;
+uniform vec2 uCanvas;
+varying vec2 vUv; varying vec4 vC;
+void main() { vUv = aUV; vC = aC; gl_Position = vec4(aXY.x / uCanvas.x * 2.0 - 1.0, 1.0 - aXY.y / uCanvas.y * 2.0, 0.0, 1.0); }`;
+const VEC_FS = `
+precision mediump float;
+uniform sampler2D uTex; uniform float uHasTex;
+varying vec2 vUv; varying vec4 vC;
+void main() {
+  gl_FragColor = uHasTex > 0.5 ? texture2D(uTex, vUv) * vC : vC;
+  //__EMIT0__
+}`;
 /** 번짐 세기·크기 — [더할 세기, 흐리기 걸음(1/4 판의 텍셀 배수)]. 눈으로 고른 값이다. */
 /* ★ **번짐을 내린다**(2026-09, 지적: "아콘·소환구 등 글로우가 너무 강해 눈부셔") — 0.75 는
    흰 심을 가진 발광 종류에서 심 둘레를 한 번 더 희게 채워, 아콘은 속 형체가 통째로 지워지고
@@ -721,7 +738,7 @@ void main() {
    만큼 번짐이 그 몫을 진다. */
 const BLOOM9: [number, number] = [0.62, 1.8];
 
-export class GlUnits9 {
+export class GlUnits9 implements VecSink9 {
   readonly gl: WebGLRenderingContext | WebGL2RenderingContext;
   /** WebGL 2 문맥인가(`#gl2=0` 이면 1 로 연다 — 견줌용). */
   readonly gl2: boolean;
@@ -747,7 +764,8 @@ export class GlUnits9 {
    *  '굽는 프레임'을 아는 자) · 깊이 칸/비트 · 살아 있는 메시 VBO 합(바이트). */
   /** evict: 상한에 걸려 버린 메시 수(누적) — **0 이 아니면 보관함이 좁다**. 늘 굽고 있다는 뜻이라 진단에 낸다. */
   stat = {
-    /** 바닥 도형(링·타원·체력바 네모) 수 — 한 드로 콜. */ prims: 0, inst: 0, tris: 0, bakeMs: 0, frameBakeMs: 0, meshes: 0, slots: 0, depthBits: 0, bytes: 0, bloom: 0, evict: 0, scrubSkip: 0, draws: 0, swarm: 0 };
+    /** 바닥 도형(링·타원·체력바 네모) 수 — 한 드로 콜. */ prims: 0,
+    /** 효과 삼각형 수(glctx9 심). */ fxTris: 0, inst: 0, tris: 0, bakeMs: 0, frameBakeMs: 0, meshes: 0, slots: 0, depthBits: 0, bytes: 0, bloom: 0, evict: 0, scrubSkip: 0, draws: 0, swarm: 0 };
   /** 이번 flush 안에서 지은 ms — 끌기 예산의 자(flush 마다 0). frameBakeMs 는 시계가 따로 읽어 비우므로 못 쓴다. */
   private scrubMs = 0;
   /** meshMax: 메시 상한(기기 표 DEV9.glMeshMax — PC 600 · 폰 240; 메시 한 벌은 VBO + footOf 용 정점 사본이라 폰 메모리에 든다). */
@@ -844,6 +862,95 @@ export class GlUnits9 {
       };
       this.primOk = true;
     } catch (e) { console.warn("[gl9] 바닥 도형", e); this.pr = null; this.primOk = false; }
+    /* 효과 삼각형 프로그램(glctx9 의 출력) — 텍스처 하나·색 하나. */
+    try {
+      const q = gl.createProgram()!;
+      gl.attachShader(q, sh(gl.VERTEX_SHADER, VEC_VS)); gl.attachShader(q, sh(gl.FRAGMENT_SHADER, VEC_FS)); gl.linkProgram(q);
+      if (!gl.getProgramParameter(q, gl.LINK_STATUS)) throw new Error("링크: " + gl.getProgramInfoLog(q));
+      this.vec = { prog: q, vbo: gl.createBuffer()!, aXY: gl.getAttribLocation(q, "aXY"), aUV: gl.getAttribLocation(q, "aUV"), aC: gl.getAttribLocation(q, "aC"),
+        uCanvas: gl.getUniformLocation(q, "uCanvas"), uTex: gl.getUniformLocation(q, "uTex"), uHasTex: gl.getUniformLocation(q, "uHasTex") };
+      this.vecOk = GL_VEC9 !== 0;
+    } catch (e) { console.warn("[gl9] 효과 삼각형", e); this.vec = null; this.vecOk = false; }
+    // 더하기 대신 **최댓값** 합성(번짐 후광끼리 안 쌓이게) — WebGL2 는 기본, 1 은 확장이 있을 때만.
+    if (this.gl2) this.maxEq = (gl as WebGL2RenderingContext).MAX;
+    else { const ext = gl.getExtension("EXT_blend_minmax"); this.maxEq = ext ? ext.MAX_EXT : null; }
+  }
+  /** 효과 삼각형(glctx9)을 이 문맥이 맡나 — 아니면 붓이 종전대로 효과 캔버스에 그린다. */
+  vecOk = false;
+  private maxEq: number | null = null;
+  private vec: { prog: WebGLProgram; vbo: WebGLBuffer; aXY: number; aUV: number; aC: number; uCanvas: WebGLUniformLocation | null; uTex: WebGLUniformLocation | null; uHasTex: WebGLUniformLocation | null } | null = null;
+  private vecArr = new Float32Array(VEC_F9 * 4096);
+  private nVec = 0;
+  private vecRuns: { mode: number; tex: TexImageSource | null; start: number; count: number }[] = [];
+  private vecCtx9: GlCtx9 | null = null;
+  private texCache = new Map<TexImageSource, { tex: WebGLTexture; ver: number; w: number; h: number; frame: number }>();
+  private frameNo = 0;
+  /** 효과 붓에 건넬 캔버스 심 — 붓은 이것을 CanvasRenderingContext2D 로 안다. */
+  vecCtx(): GlCtx9 { if (!this.vecCtx9) this.vecCtx9 = new GlCtx9(this); return this.vecCtx9; }
+  /** VecSink9 — 심이 미는 꼭짓점 하나. 합성·텍스처가 앞 묶음과 같으면 잇는다. */
+  vert(mode: number, tex: TexImageSource | null, x: number, y: number, u: number, v: number, r: number, g: number, b: number, a: number): void {
+    if ((this.nVec + 1) * VEC_F9 > this.vecArr.length) { const n = new Float32Array(this.vecArr.length * 2); n.set(this.vecArr); this.vecArr = n; }
+    const o = this.nVec * VEC_F9; const p = this.vecArr;
+    p[o] = x; p[o + 1] = y; p[o + 2] = u; p[o + 3] = v; p[o + 4] = r; p[o + 5] = g; p[o + 6] = b; p[o + 7] = a;
+    const last = this.vecRuns.length ? this.vecRuns[this.vecRuns.length - 1] : null;
+    if (last && last.mode === mode && last.tex === tex) last.count += 1;
+    else this.vecRuns.push({ mode, tex, start: this.nVec, count: 1 });
+    this.nVec += 1;
+  }
+  /** 캔버스(스프라이트) → 텍스처. `__ver9` 표식이 있으면 그 판이 바뀔 때만, 없으면 프레임마다 한 번 올린다. */
+  private texOf(src: TexImageSource): WebGLTexture {
+    const gl = this.gl;
+    const w = (src as HTMLCanvasElement).width || 1; const h = (src as HTMLCanvasElement).height || 1;
+    const ver = (src as unknown as { __ver9?: number }).__ver9;
+    let e = this.texCache.get(src);
+    if (!e) {
+      const tex = gl.createTexture()!;
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      e = { tex, ver: -1, w: 0, h: 0, frame: -1 }; this.texCache.set(src, e);
+      if (this.texCache.size > 256) { const k = this.texCache.keys().next().value; if (k !== undefined) { const d = this.texCache.get(k); if (d) gl.deleteTexture(d.tex); this.texCache.delete(k); } }
+    }
+    const stale = ver === undefined ? e.frame !== this.frameNo : (e.ver !== ver || e.w !== w || e.h !== h);
+    if (stale) {
+      gl.bindTexture(gl.TEXTURE_2D, e.tex);
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, 1);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, 0);
+      e.ver = ver ?? -1; e.w = w; e.h = h; e.frame = this.frameNo;
+    }
+    return e.tex;
+  }
+  /** 효과 삼각형 패스 — 지금 걸린 판에, 깊이 없이, 묶음마다 한 드로 콜(합성·텍스처가 갈릴 때만 나뉜다). */
+  private vecPass(bw: number, bh: number): void {
+    const v = this.vec; const n = this.nVec;
+    const runs = this.vecRuns; this.nVec = 0; this.vecRuns = [];
+    this.stat.fxTris = n / 3;
+    if (!v || n <= 0) return;
+    const gl = this.gl;
+    gl.useProgram(v.prog);
+    gl.uniform2f(v.uCanvas, bw, bh);
+    gl.uniform1i(v.uTex, 0);
+    gl.disable(gl.DEPTH_TEST); gl.depthMask(false);
+    gl.bindBuffer(gl.ARRAY_BUFFER, v.vbo);
+    gl.bufferData(gl.ARRAY_BUFFER, this.vecArr.subarray(0, n * VEC_F9), gl.DYNAMIC_DRAW);
+    gl.enableVertexAttribArray(v.aXY); gl.vertexAttribPointer(v.aXY, 2, gl.FLOAT, false, VEC_B9, 0); this.divisor(v.aXY, 0);
+    gl.enableVertexAttribArray(v.aUV); gl.vertexAttribPointer(v.aUV, 2, gl.FLOAT, false, VEC_B9, 8); this.divisor(v.aUV, 0);
+    gl.enableVertexAttribArray(v.aC); gl.vertexAttribPointer(v.aC, 4, gl.FLOAT, false, VEC_B9, 16); this.divisor(v.aC, 0);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.enable(gl.BLEND); gl.blendEquation(gl.FUNC_ADD);
+    let modeNow = -1;   // 앞 패스가 남긴 합성 상태를 믿지 않는다 — 첫 묶음에서 반드시 세운다
+    for (const r of runs) {
+      if (r.mode !== modeNow) { modeNow = r.mode; gl.blendFunc(gl.ONE, modeNow === 1 ? gl.ONE : gl.ONE_MINUS_SRC_ALPHA); }
+      if (r.tex) { gl.bindTexture(gl.TEXTURE_2D, this.texOf(r.tex)); gl.uniform1f(v.uHasTex, 1); }
+      else gl.uniform1f(v.uHasTex, 0);
+      gl.drawArrays(gl.TRIANGLES, r.start, r.count);
+      this.stat.draws += 1;
+    }
+    if (modeNow !== 0) gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    for (const l of [v.aXY, v.aUV, v.aC]) gl.disableVertexAttribArray(l);
+    gl.useProgram(this.prog);
+    gl.depthMask(true); if (GL_DEPTH9) gl.enable(gl.DEPTH_TEST);
   }
   /** 바닥 도형(prim)을 이 문맥이 맡나 — 아니면 붓이 종전대로 유닛 캔버스에 그린다. */
   primOk = false;
@@ -922,7 +1029,7 @@ export class GlUnits9 {
       const fb = gl.createFramebuffer()!;
       gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
       const cb0 = rb(gl.RGBA8); gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, cb0);
-      const db = rb(gl.DEPTH_COMPONENT24); gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, db);
+      const db = rb(gl.DEPTH24_STENCIL8); gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_STENCIL_ATTACHMENT, gl.RENDERBUFFER, db);   // 스텐실은 다크 스웜(swarmPass)이 이 판 안에서 쓴다
       let cb1: WebGLRenderbuffer | null = null; let emTex: WebGLTexture | null = null; let emFb: WebGLFramebuffer | null = null;
       if (em) {
         cb1 = rb(gl.RGBA8); gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.RENDERBUFFER, cb1);
@@ -1256,12 +1363,12 @@ export class GlUnits9 {
   private swarmTex: WebGLTexture | null = null;
   private stencilBits = 0;
   /** 연기 판을 스텐실로 파서 얹는다 — `mark` 가 건물·공중 유닛을 스텐실에 1 로 찍는다(없으면 안 판다). */
-  private swarmPass(pl: HTMLCanvasElement, bw: number, bh: number, mark: (() => void) | null): void {
+  private swarmPass(pl: HTMLCanvasElement, bw: number, bh: number, mark: (() => void) | null, fb: WebGLFramebuffer | null = null, stencil = this.stencilBits > 0): void {
     const gl = this.gl;
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
     gl.viewport(0, 0, bw, bh);
     gl.disable(gl.SCISSOR_TEST);
-    const st9 = this.stencilBits > 0 && !!mark;
+    const st9 = stencil && !!mark;
     if (st9) {
       gl.enable(gl.STENCIL_TEST); gl.clearStencil(0); gl.stencilMask(0xff); gl.clear(gl.STENCIL_BUFFER_BIT);
       gl.stencilFunc(gl.ALWAYS, 1, 0xff); gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE);
@@ -1342,7 +1449,7 @@ export class GlUnits9 {
     this.stat.inst = q.length; this.stat.tris = 0; this.stat.meshes = this.meshes.size; this.stat.draws = 0; this.stat.swarm = 0;
     (globalThis as unknown as { __glInst9?: number }).__glInst9 = q.length;   // 계측(perf-check)이 '그려졌다'를 아는 창
     const pl9 = this.swarmPlate; this.swarmPlate = null;
-    if (!q.length) { this.primPass(cw, ch); if (pl9) this.swarmPass(pl9, bw, bh, null); return; }
+    if (!q.length) { this.frameNo += 1; this.primPass(cw, ch); if (pl9) this.swarmPass(pl9, bw, bh, null); this.vecPass(bw, bh); return; }
     /* ★ WebGL2: 몸은 MRT 판에 그린다(mrtEnsure 의 ★★) — 색과 빛 판을 함께. 번짐이 꺼진 단에서는 색 하나(AA 는 이 판이 낸다). */
     const bloomWant9 = (GL_BLOOM9 === 1 || (GL_BLOOM9 < 0 && this.bloomOn)) && !this.blFail && !!this.fx;
     const mrtOn = this.mrtEnsure(bw, bh, bloomWant9);
@@ -1352,8 +1459,9 @@ export class GlUnits9 {
       g2.drawBuffers(m.em ? [g2.COLOR_ATTACHMENT0, g2.COLOR_ATTACHMENT1] : [g2.COLOR_ATTACHMENT0]);
       g2.viewport(0, 0, bw, bh);
       g2.clearColor(0, 0, 0, 0);
-      g2.clear(g2.COLOR_BUFFER_BIT | g2.DEPTH_BUFFER_BIT);
+      g2.clear(g2.COLOR_BUFFER_BIT | g2.DEPTH_BUFFER_BIT | g2.STENCIL_BUFFER_BIT);
     }
+    this.frameNo += 1;
     this.primPass(cw, ch);   // 바닥 도형(접지 타원·링·체력바)은 몸 아래 — 유닛 캔버스가 그리던 차례 그대로
     gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LESS);
     gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);   // 미리곱한 알파
@@ -1564,10 +1672,20 @@ export class GlUnits9 {
     /* 4) **번짐(블룸)** — 빛나는 낯만 1/4 판에 한 번 더 그리고, 가로·세로로 흐린 뒤 화면에 더한다.
        빛나는 메시가 없는 프레임은 건너뛴다(대부분의 유닛은 빛이 없다). */
     this.stat.bloom = 0;
+    /** 다크 스웜의 스텐실 표식 — 연기 위에 서는 몸(over) 무리만. */
+    const mark9 = (): void => {
+      for (const g of opG) if (g.over) drawG(g, 0, g.mesh.n);
+      for (const r of runs) if (r.over) { setCam(r.cam); bind(r.mesh); this.drawRec(0, r.mesh.n, r.r0, r.count); }
+    };
     if (mrtOn) {
       /* ★★ MRT: 색을 캔버스로 옮기고(MSAA 풀기), 빛 판은 홑 표본 텍스처로 옮겨 1/4 로 내려 흐린 뒤 화면에 더한다.
          빛 판은 본 패스의 깊이를 그대로 지났으므로(가린 몸이 그 자리를 알파만큼 덮는다) 뒤쪽 불빛이 몸을 뚫지 않는다. */
       const g2 = gl as WebGL2RenderingContext; const m = this.mrt!;
+      /* ⑤ 다크 스웜 · ⑥ 효과 삼각형(glctx9)은 **이 판 안에서** 몸 다음에 — 그래야 MSAA 를 받고(트레이서는 가는 선이다) 옮기기가
+         한 번이다. 둘 다 색 하나만 내므로 그동안 빛 판은 뺀다(안 빼면 출력 1 에 쓰레기가 남는다). */
+      if (m.em) g2.drawBuffers([g2.COLOR_ATTACHMENT0]);
+      if (pl9) this.swarmPass(pl9, bw, bh, mark9, m.fb, true);
+      this.vecPass(bw, bh);
       gl.disable(gl.SCISSOR_TEST);   // 가위는 blit 에도 걸린다
       g2.bindFramebuffer(g2.READ_FRAMEBUFFER, m.fb); g2.readBuffer(g2.COLOR_ATTACHMENT0);
       g2.bindFramebuffer(g2.DRAW_FRAMEBUFFER, null);
@@ -1605,8 +1723,11 @@ export class GlUnits9 {
           gl.bindFramebuffer(gl.FRAMEBUFFER, null);
           gl.viewport(0, 0, bw, bh);
           gl.scissor(bx09 * 4, by09 * 4, bw9 * 4, bh9 * 4);
-          gl.blendFunc(gl.ONE, gl.ONE);
+          /* ★ **더하기가 아니라 최댓값**(2026-09, 지적: "블룸 효과끼리 서로 영향을 주는 거 같아") — 더하면 두 빛의 후광이 겹치는
+             자리가 두 배로 밝고(소환구 둘 사이의 밝은 다리) 이미 켠 창 위에 이웃 빛이 또 얹힌다. MAX 는 겹쳐도 더 밝아지지 않는다. */
+          if (this.maxEq !== null) gl.blendEquation(this.maxEq); else gl.blendFunc(gl.ONE, gl.ONE);
           this.fxQuad(this.bl[0].tex, 0, 0, BLOOM9[0], -1);
+          if (this.maxEq !== null) gl.blendEquation(gl.FUNC_ADD);
           gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
           gl.disable(gl.SCISSOR_TEST);
         }
@@ -1678,8 +1799,9 @@ export class GlUnits9 {
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         gl.viewport(0, 0, bw, bh);
         gl.scissor(bx09 * 4, by09 * 4, bw9 * 4, bh9 * 4);
-        gl.blendFunc(gl.ONE, gl.ONE);
+        if (this.maxEq !== null) gl.blendEquation(this.maxEq); else gl.blendFunc(gl.ONE, gl.ONE);
         this.fxQuad(this.bl[0].tex, 0, 0, BLOOM9[0]);
+        if (this.maxEq !== null) gl.blendEquation(gl.FUNC_ADD);
         gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
         gl.disable(gl.SCISSOR_TEST);
         gl.useProgram(this.prog);
@@ -1688,11 +1810,10 @@ export class GlUnits9 {
       }
     }
     /* 5) 다크 스웜 — 몸 위, 건물·공중 유닛(over) 실루엣만 빼고(스텐실). 그림자는 안 찍는다(땅에 눕는 그림자는 연기 아래다). */
-    if (pl9) {
-      this.swarmPass(pl9, bw, bh, () => {
-        for (const g of opG) if (g.over) drawG(g, 0, g.mesh.n);
-        for (const r of runs) if (r.over) { setCam(r.cam); bind(r.mesh); this.drawRec(0, r.mesh.n, r.r0, r.count); }
-      });
+    if (!mrtOn) {
+      if (pl9) this.swarmPass(pl9, bw, bh, mark9);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, bw, bh);
+      this.vecPass(bw, bh);
     }
   }
 }
@@ -1721,6 +1842,8 @@ export const GL_GRAIN9 = ((): number => {
   const v = m ? Number(m[1]) : 1;
   return Number.isFinite(v) ? Math.max(0, Math.min(4, v)) : 1;
 })();
+/** 진단 `#glvec=0` — 효과(트레이서·피격·캐스트)를 GL 심(glctx9)이 아니라 옛 효과 캔버스에 그린다(견줌용). */
+export const GL_VEC9 = ((): number => { const m = typeof location !== "undefined" ? /glvec=(\d)/.exec(location.hash) : null; return m ? Number(m[1]) : -1; })();
 /** 진단 `#glmrt=0` — WebGL2 에서도 MRT 판을 안 쓰고 옛 길(캔버스에 곧장 · 번짐은 둘째 기하 패스)로 간다(견줌용). */
 export const GL_MRT9 = ((): number => { const m = typeof location !== "undefined" ? /glmrt=(\d)/.exec(location.hash) : null; return m ? Number(m[1]) : -1; })();
 export const GL_BLOOM9 = ((): number => {

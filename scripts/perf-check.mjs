@@ -1276,6 +1276,7 @@ if (SHOT) {
   console.log(leak ? `⚠ 주석 누출:\n${leak}` : "주석 누출 없음");
   await page.screenshot({ path: SHOT });
   console.log(`스크린샷: ${SHOT}`);
+  try { console.log(`[GL] ${await page.evaluate(() => (window.__scrDiag && window.__scrDiag.gl) || "(진단 없음 — --diag)")}`); } catch { /* 없음 */ }
   await browser.close();
   process.exit(0);
 }
@@ -1374,6 +1375,8 @@ const topLines = has("--top")
   : null;
 /* 리액트 한 장(SCR_DIAG.react) — 렌더+커밋의 최근 1초. 핵·스톰이 뜨면 박자가 25~60Hz로
    오르므로(nukeStep9), 한 장이 그 박자보다 길면 그때부터 주 실마리가 막힌다. */
+// GL 붓 상태(SCR_DIAG.gl — #diag 로 켠다) — 개체·드로·메시·번짐·바닥 도형·효과 삼각형.
+try { console.log(`[GL] ${await page.evaluate(() => (window.__scrDiag && window.__scrDiag.gl) || "(진단 없음)")}`); } catch { console.log("[GL] (못 읽음)"); }
 try { console.log(`[리액트] ${await page.evaluate(() => (window.__scrDiag && window.__scrDiag.react) || "(진단 없음)")}`); } catch { console.log("[리액트] (못 읽음)"); }
 // 안개 붓(SCR_DIAG.fog) — 최근 1초의 붓/칠/장당 ms. '한 장이 얼마인가'가 손짓 중 되칠기의 자다.
 try { console.log(`[안개] ${await page.evaluate(() => (window.__scrDiag && window.__scrDiag.fog) || "(진단 없음)")}`); } catch { console.log("[안개] (못 읽음)"); }
