@@ -601,6 +601,8 @@ export function atkCutOf(
  *  자리라 더 길고, 지도는 첫 발 앞의 한 마디라 짧다.
  *  ⚠ 자세는 메시 열쇠(u:종류:자세)라 컷을 더 잘게 못 나눈다 — 고스트는 자세 여섯 칸을 다 쓴다. */
 export const GHOST_DRAW_SEC9 = 0.24;
+/** 탱크·시즈 포신이 쏜 직후 밀려 있는 시간(초) — 포탄이 나는 0.16초(전차포의 shSec9 상한)를 덮는다. */
+export const GUN_KICK_SEC9 = 0.18;
 export interface DrawMem9 { t0: number; tLast: number }
 /** 이 프레임의 간격 상한 — 워커는 무거우면 초당 8장까지 벌리므로(0.125초) 그보다 넉넉히 둔다. */
 const DRAW_GAP_SEC9 = 0.2;
@@ -1216,7 +1218,7 @@ export const MODEL_NORM: Record<string, number> = {
   droneMin: 0.958,
   dship: 0.684,   // 실린더를 뒤로·짧게 한 뒤 재측정(0.661 → 0.684)
   dtemp: 0.847,   // 모델 z 손질 재측정 되돌림(2D 기하 복원)
-  egg: 0.915 * 1.2,   // ×1.2(2026-09, 요청: "저그 변태알 크기도 작아졌어 1.2배" — 재측정이 아니라 곱한 값) · 받침 발톱 일곱·거품 테를 두른 뒤 재측정(옛 1.210 — 발톱이 밖으로 뻗어 잉크가 넓어졌다)
+  egg: 0.915 * 1.4,   // ×1.4(2026-09, 요청: "저그 변태알 1.4배로 그리기" · 앞서 ×1.2 — 재측정이 아니라 곱한 값) · 받침 발톱 일곱·거품 테를 두른 뒤 재측정(옛 1.210 — 발톱이 밖으로 뻗어 잉크가 넓어졌다)
   fbat: 1.205,   // 모델 z 손질 재측정 되돌림(2D 기하 복원)
   ghost: 1.601,   // 모델 z 손질 재측정 되돌림(2D 기하 복원)
   goliath: 0.678,   // 재측정(model-norm) — 미사일 포드 걷고 포신 하나로(옛 0.671)
@@ -8494,7 +8496,18 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
     /** 포탑 판이 실제로 앉은 자리와 각 — 탱크의 트레이서는 몸이 아니라 **포탑**에서 난다(아래 총구 앵커의 ★). */
     let turretAt9: { hdg: number; fx: number; fy: number } | null = null;
     if (gunKind && !markerView && !liteView) {
-      const fireK = fighting && foeDeg !== null && ((t + ei * 0.7) % 1.5) < 0.18 ? 1 : 0;
+      /* ★★ **반동은 포탄과 같은 시계를 탄다**(2026-09, 지적: "시즈탱크 공격하는 순간 포신이 움직여야 트레이서랑
+         맞는데 지금 서로 타이밍이 안맞음") — 여태 `(t + ei·0.7) % 1.5 < 0.18` 이라는 **제 시계**(1.5초 · 개체마다
+         위상 흩음)로 반동을 쳤다. 포탄(아래 전차포 셋)은 `firePhase('u'+holdKey, 그 무기의 쿨다운)` 로 나므로
+         둘이 아무 상관없이 돌았다 — 탱크(1.5초)는 어쩌다 맞고 시즈(3.1초)는 반동이 한 바퀴에 두 번 치며
+         포탄과 늘 어긋났다. 같은 열쇠·같은 쿨다운으로 위상을 읽어 **쏜 직후 0.18초**만 밀린다(포탄이 나는
+         0.16초를 덮는다). 쿨다운은 그리는 판(drawUnit2 — 시즈면 시즈 무기)의 것이라 아래 fxCdRaw 와 같은 수다. */
+      const gunCd9 = ((): number => {
+        const pf9 = isKnownKind(drawUnit2) ? profileOf(drawUnit2) : null;
+        const w9 = pf9 ? weaponVs(pf9, foe.air) : null;
+        return Math.max(0.15, w9 ? w9.cd : 0.6);
+      })();
+      const fireK = fighting && foeDeg !== null && firePhase(`u${holdKey}`, gunCd9) * gunCd9 < GUN_KICK_SEC9 ? 1 : 0;
       const gdx = foeDeg !== null ? -Math.sin((foeDeg * Math.PI) / 180) : 0;
       const gdy = foeDeg !== null ? Math.cos((foeDeg * Math.PI) / 180) : 0;
       const last = unitOps[unitOps.length - 1];
