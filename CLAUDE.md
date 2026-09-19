@@ -20,8 +20,13 @@
   `model-shot.mjs --kinds <전부> --rots 45 --mode top --cell 200`(2D — 9/15 전 앱은 판 굽기라 그것이 그때의 그림이다). 지금은
   `model-gl --kinds <전부> --rots 45 --cell 200 --rows 300 --json`(GL · 시트 행 차례는 화소 적은 순이라 json 이 곧 행 지도다).
   ⚠ 8/29 도구는 새 헤드리스 되물림이 없어 작업 트리 사본의 launch 에 `headless: false` + `--headless=new` 를 손으로 넣는다.
-· 붙이는 자: `$S/hist-compose.mjs <S>` — 칸 자리는 model-shot `y = r·CELL + 26` · model-gl `y = r·(CELL + 22) + 22`. 도록 일곱 묶음
-  (dorok/list.txt)대로 일곱 장 + zip(`변천사.zip`). 배경·임자색은 두 도구의 기본값이 같아(#20242b · #4aa3ff) 그대로 둔다.
+· 붙이는 자: `scripts/history/hist-compose.mjs <S>`(스크래치 사본으로 돌린다) — 칸 자리는 model-shot `y = r·CELL + 26` · model-gl
+  `y = r·(CELL + 22) + 22`. 도록 일곱 묶음(dorok/list.txt)대로 일곱 장 + zip(`변천사.zip`). 배경·임자색은 두 도구의 기본값이 같아
+  (#20242b · #4aa3ff) 그대로 둔다.
+· **7월 열은 사용자가 준 옛 도록 그림 셋**(테란·프로토스·저그 · 초록 단색 · 1400px 폭)이다 — git 에 없는 시점이라 그림에서 칸을 잘라 쓴다:
+  45° 칸이 x 264 · 폭 200 · 높이 197, 행 y 는 `scripts/history/july-rows.mjs`(칸 판 왼 가장자리 x 265~271 의 어두운 띠로 잰다 — 모델이
+  안 닿는 자리라 안정적이다. 넥서스 행만 모델이 가장자리에 닿아 띠가 123 으로 짧게 잡히지만 시작 y 는 맞다). 행 → 종류는
+  hist-compose 의 `JULY_KINDS`(테란 33 · 프로토스 32 · 저그 31 — 그림 차례 그대로 · 마인·인터셉터·미네랄·간헐천은 지금 목록에 없어 안 쓴다).
 
 ## 도록의 칸(2026-09)
 ★ **칸을 세우는 일은 scplay 가 한다**(`docCellsOf9(kind, t, yaw)`) — 앱(GalleryScreen)은 배치만 한다.
