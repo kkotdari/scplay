@@ -2915,46 +2915,85 @@ export function zergFace(y: number, z: number, s = 1, fill = ZERG_FLESH): ShapeF
      이고 **아래턱은 입선 아래로 뒤집힌 반구**(돔 밑면 반절 · 살짝 작고 살짝 앞)다. 둘 사이 벌어진 몫(GAP9)이 아가리(어두운 기둥)다.
      아가리 자리·송곳니·눈은 옛 자(입선 z+0.3s 언저리 · 눈 이마 앞 위)를 그대로 잇는다 — 이 얼굴을 쓰는 열 유닛의 자리표가 안 흔들린다.
      ⚠ 그리는 차례는 여전히 **턱 → 아가리 → 머리뼈**다(호출자가 한 키로 감싸므로 배열 차례가 곧 앞뒤 · 아래 옛 ★). */
-  /* ★ **반구가 아니라 반의 반구다 — 이마 아래는 수직 낯이다**(재요청: "정확히 반구는 아니고 반의 반구라고 해야 할 거 같아 ·
-     위쪽 파트는 이마부터가 반구 시작이고 그 아래 수직으로 내려가는 부분이 좀 있어야 해 거기에 눈이 위치하고 코도 들어가(코는
-     그리진 않음)") — 머리뼈는 입선에서 이마(FH9 0.34s)까지 **곧게 선 기둥**(눈이 그 앞 낯에 앉는다 · 코 자리)이고, 이마 위가
-     **얕은 돔**(반지름의 반 높이 = 반구의 절반 · domeMesh9 hh = 0.5R)이다. 아래턱도 같은 얕음(0.5R)의 뒤집힌 돔이다. */
-  const R9 = 0.72 * s;        // 머리뼈 반지름(낯 기둥 · 돔의 밑면)
-  const ZM9 = z + 0.30 * s;   // 입선(낯 기둥의 밑면)
+  /* ★★ **세로로 자른 돔 — 둥근 쪽이 앞, 평평한 단면이 뒤**(2026-09, 요청 넷: "정확히 반구는 아니고 반의 반구 · 위쪽 파트는 이마부터가
+     반구 시작이고 그 아래 수직으로 내려가는 부분이 좀 있어야 해 거기에 눈이 위치하고 코도 들어가(코는 그리진 않음)" → "얼굴은 반의
+     반구지만 어느 정도 뒤로 길이가 있어야 해(옆면이 평행한 부분이 반반구 뒤로 좀 연장)" → "반의 반구 = 돔 가운데를 수직으로 칼로
+     잘라 버린 것 같은 느낌 · 저그 머리는 그 반의 반구의 뒤가 평행으로 좀 연장된 느낌" → 후보 그림 뒤 "2번의 윗부분을 180도 요잉 —
+     굽은 부분이 얼굴 앞쪽, 평평이 뒤쪽 · 턱 부품도 위쪽처럼 뒤는 평평하게 · 위아래 둘 다 길이 20% 길게 — 뒷부분(평평 부분)만") ─────
+     머리뼈 = **앞**: 입선(ZM) 위의 수직 반원통 벽(키 FH — 눈·코가 앉는 낯) + 그 위 반구의 앞 반쪽(4분의 1 구 · 반지름 R) ·
+              **뒤**: 옆면이 평행한 몫(L — 같은 키의 상자 + 반원통 지붕의 위 반쪽) · **뒤끝**: 평평한 단면(수직 벽 + 반원 아치 폴리곤).
+     아래턱 = **앞**: 뒤집힌 얕은 돔(깊이 0.5RJ)의 앞 반쪽 · **뒤**: 평행 몫(반타원 단면 홈통의 아래 반쪽) · **뒤끝**: 평평(반타원 폴리곤) ·
+              위(입선 아래 GAP 자리)는 반원 + 네모 뚜껑 한 장. 뒤끝은 머리뼈와 같은 y 다.
+     길이: 앞 둥근 몫(R)은 그대로, 뒤 평행 몫만 20% 몫만큼 늘렸다(0.45s → 0.68s). */
+  const R9 = 0.72 * s;        // 머리뼈 반지름(앞 반원통 · 4분의 1 구)
+  const ZM9 = z + 0.30 * s;   // 입선(머리뼈 밑면 · 아가리 위)
   const FH9 = 0.34 * s;       // 입선 → 이마(수직 낯의 키)
-  const DH9 = R9 * 0.5;       // 이마 위 돔의 높이(반의 반구)
+  const L9 = 0.68 * s;        // 뒤로 평행하게 뻗는 몫(= 0.45s × 1.5 — 전체 길이 R+L 의 20%)
   const RJ9 = 0.60 * s;       // 아래턱 반지름
   const JH9 = RJ9 * 0.5;      // 턱 돔의 깊이(반의 반구)
   const GAP9 = 0.20 * s;      // 벌어진 입(요청: "입 벌린 형태로")
-  const YJ9 = y + 0.04 * s;   // 턱은 살짝 앞(주걱턱)
-  /* ★ **뒤로 길이가 있다**(재재요청: "얼굴은 반의 반구지만 어느 정도 뒤로 길이가 있어야 해 — 옆면이 평행한 부분이 반반구 뒤로
-     좀 연장된다고 보면 됨") — 앞은 돔(반의 반구)이고 그 뒤로 **옆면이 평행한 몫**(BK9)이 이어진다: 수직 낯 기둥 뒤에 같은
-     높이의 상자, 돔 뒤에 같은 단면(반타원 · 폭 R · 높이 0.5R)의 둥근 지붕(y 축 기둥 · oval 0.5)을 잇고 뒤끝은 평평한 뚜껑이다. */
-  const BK9 = 0.5 * s;        // 돔 뒤로 뻗는 평행 몫
+  const YC9 = y;              // 머리뼈 앞 반원의 중심(앞면은 y + R)
+  const YB9 = YC9 - L9;       // 평평한 뒤끝
+  const YJ9 = y + 0.12 * s;   // 턱 앞 반원의 중심(살짝 앞 — 주걱턱)
+  const ZJ9 = ZM9 - GAP9;     // 턱의 윗면(아가리 밑)
   // 아가리 — 이 얼굴을 쓰는 저그의 '총구'다(가시·산·촉수가 여기서 난다). 빌더가 따로 적으면 그쪽이 이긴다.
   markMuzzleSoft9(0, y + 0.55 * s, ZM9 - GAP9 * 0.5);
-  /* ② 아래턱 — 돔 밑면 반절(뒤집힌 반구). t 0 = 입선 쪽(뚜껑) → 1 = 턱 밑 끝. 뚜껑(caps bottom = t 0 끝)이 있어야 위에서
-     내려다볼 때 속이 안 보인다. */
+  const halfElliDn = (t9: number): number => Math.max(RJ9 * 0.04, RJ9 * Math.sqrt(Math.max(0, 1 - t9 * t9)));
+  /* ② 아래턱 — 앞: 뒤집힌 얕은 돔의 앞 반쪽 · 뒤: 홈통(반타원 단면)의 아래 반쪽 · 뒤끝 평평 · 위 뚜껑. */
   out.push(...shape(paintBase(spirePillar({
-    x: 0, y: 0, h: 0.8, w: 1, segs: 6, sides: 16, caps: "bottom", trueNormal: true,
-    path: (t9: number): [number, number, number] => [0, YJ9, ZM9 - GAP9 - JH9 * t9],
-    widthOf: (t9: number): number => Math.max(RJ9 * 0.04, RJ9 * Math.sqrt(Math.max(0, 1 - t9 * t9))),
+    x: 0, y: 0, h: 0.8, w: 1, segs: 6, sides: 16, caps: "none", trueNormal: true,
+    path: (t9: number): [number, number, number] => [0, YJ9, ZJ9 - JH9 * t9],
+    widthOf: halfElliDn,
+    skipFace: (_mx, my) => my < YJ9 - 0.01 * s,   // ⚠ 여유 0.01s — 경계 위 낯이 부동소수 오차로 빠지면 세로 틈이 난다
   }), fill)));
-  /* ③ 아가리 — 두 반구 사이의 벌어진 어둠(짧은 기둥 · 양 뚜껑). 반지름은 턱보다 한 뼘 작아 안쪽이 그늘로 쑥 들어간다. */
+  out.push(...shape(paintBase(spirePillar({
+    x: 0, y: 0, h: 0.8, w: RJ9, tipW: RJ9, segs: 1, sides: 16, oval: JH9 / RJ9, caps: "none", trueNormal: true,
+    path: (t9: number): [number, number, number] => [0, YJ9 - (YJ9 - YB9) * t9, ZJ9],
+    skipFace: (_mx, _my, mz) => mz > ZJ9 + 0.01 * s,
+  }), fill)));
+  {
+    // 턱 뒤끝(아래로 처진 반타원 · 법선 −y) 과 윗면 뚜껑(반원 + 네모 · 법선 +z).
+    const back9: [number, number, number][] = [];
+    for (let i = 0; i <= 12; i += 1) { const th = (Math.PI * i) / 12; back9.push([-RJ9 * Math.cos(th), YB9, ZJ9 - JH9 * Math.sin(th)]); }
+    out.push(...shape(paintBase([[polyPath3(back9), 1] as ShapeFace], fill)));
+    const top9: [number, number, number][] = [[-RJ9, YB9, ZJ9], [-RJ9, YJ9, ZJ9]];
+    for (let i = 1; i < 12; i += 1) { const th = (Math.PI * i) / 12; top9.push([-RJ9 * Math.cos(th), YJ9 + RJ9 * Math.sin(th), ZJ9]); }
+    top9.push([RJ9, YJ9, ZJ9], [RJ9, YB9, ZJ9]);
+    out.push(...shape(paintBase([[polyPath3(top9), 1] as ShapeFace], fill)));
+  }
+  /* ③ 아가리 — 턱 윗면과 머리뼈 밑면 사이의 벌어진 어둠(짧은 기둥 · 양 뚜껑). 반지름은 턱보다 한 뼘 작아 안쪽이 그늘로 쑥 들어간다. */
   out.push(...trim(paintBase(spirePillar({
-    x: 0, y: YJ9, z0: ZM9 - GAP9, h: GAP9, w: RJ9 * 0.88, tipW: RJ9 * 0.88, segs: 1, sides: 16, caps: "both",
+    x: 0, y: YJ9 - 0.1 * s, z0: ZJ9, h: GAP9, w: RJ9 * 0.88, tipW: RJ9 * 0.88, segs: 1, sides: 16, caps: "both",
   }), "#2a1a16")));
-  /* ① 머리뼈 — 입선 → 이마의 수직 낯 기둥 + 이마 위 얕은 돔(위 ★). 맨 나중에 그려 턱·아가리 위를 덮는다. */
-  out.push(...shape(paintBase(spirePillar({
-    x: 0, y, z0: ZM9, h: FH9, w: R9, tipW: R9, segs: 1, sides: 16, caps: "none",
-  }), fill)));
-  out.push(...shape(paintBase(domeMesh9(0, y, R9, DH9, ZM9 + FH9, 2), fill)));
-  // 뒤로 뻗는 몫(위 ★) — 낯 기둥 뒤의 상자(뒷벽까지) + 돔 뒤의 둥근 지붕(단면이 돔의 앞뒤 단면과 같아 이음매 없이 잇는다).
-  out.push(...shape(paintBase(boxFaces3(0, y - BK9 / 2, R9 * 2, BK9, FH9, ZM9), fill)));
-  out.push(...shape(paintBase(spirePillar({
-    x: 0, y: 0, h: 0.8, w: R9, tipW: R9, segs: 1, sides: 16, oval: DH9 / R9, caps: "top", trueNormal: true,
-    path: (t9: number): [number, number, number] => [0, y - BK9 * t9, ZM9 + FH9],
-  }), fill)));
+  /* ① 머리뼈 — 앞 반원통 벽 + 4분의 1 구 · 뒤 상자 + 지붕 위 반쪽 · 평평한 뒤끝. 맨 나중에 그려 턱·아가리 위를 덮는다. */
+  {
+    const zT9 = ZM9 + FH9;
+    // 앞 벽(반원통의 앞 반쪽)
+    out.push(...shape(paintBase(spirePillar({
+      x: 0, y: 0, h: 0.8, w: R9, tipW: R9, segs: 1, sides: 16, caps: "none", trueNormal: true,
+      path: (t9: number): [number, number, number] => [0, YC9, ZM9 + FH9 * t9],
+      skipFace: (_mx, my) => my < YC9 - 0.01 * s,
+    }), fill)));
+    // 앞 4분의 1 구(반구의 앞 반쪽)
+    out.push(...shape(paintBase(spirePillar({
+      x: 0, y: 0, h: 0.8, w: R9, tipW: 0, segs: 6, sides: 16, caps: "none", trueNormal: true,
+      path: (t9: number): [number, number, number] => [0, YC9, zT9 + R9 * t9],
+      widthOf: (t9: number): number => Math.max(R9 * 0.04, R9 * Math.sqrt(Math.max(0, 1 - t9 * t9))),
+      skipFace: (_mx, my) => my < YC9 - 0.01 * s,
+    }), fill)));
+    // 뒤 상자(옆면만 · 앞·뒤 벽과 윗면은 뺀다) + 지붕(반원통의 위 반쪽)
+    out.push(...shape(paintBase(boxFaces3(0, (YC9 + YB9) / 2, R9 * 2, L9, FH9, ZM9, [[0, 1], [0, -1]], true), fill)));
+    out.push(...shape(paintBase(spirePillar({
+      x: 0, y: 0, h: 0.8, w: R9, tipW: R9, segs: 1, sides: 16, caps: "none", trueNormal: true,
+      path: (t9: number): [number, number, number] => [0, YC9 - L9 * t9, zT9],
+      skipFace: (_mx, _my, mz) => mz < zT9 - 0.01 * s,
+    }), fill)));
+    // 평평한 뒤끝 — 수직 벽 네모 + 반원 아치 한 폴리곤(법선 −y).
+    const cut9: [number, number, number][] = [[R9, YB9, ZM9], [-R9, YB9, ZM9], [-R9, YB9, zT9]];
+    for (let i = 1; i < 12; i += 1) { const th = (Math.PI * i) / 12; cut9.push([-R9 * Math.cos(th), YB9, zT9 + R9 * Math.sin(th)]); }
+    cut9.push([R9, YB9, zT9]);
+    out.push(...shape(paintBase([[polyPath3(cut9), 1] as ShapeFace], fill)));
+  }
   /* ⑤ 송곳니 넷 — 벌어진 아가리의 **바깥쪽 끝**에서 위 둘은 아래로, 아래 둘은 위로 뻗어 서로 어긋나게 물린다. */
   for (const m of [1, -1] as const) {
     out.push(...fine(ivory(spikeHorn(
@@ -2966,8 +3005,8 @@ export function zergFace(y: number, z: number, s = 1, fill = ZERG_FLESH): ShapeF
       m * 0.48 * s, y + 0.52 * s, ZM9 - 0.03 * s, 0.20 * s, IVORY, 5, 0.03, m * 0.3, 0.3,
     ))));
   }
-  // ⑥ 눈 — 동그란 렌즈 한 쌍. 수직 낯의 앞면(y + R·cos30 — 눈 사이 0.36s 만큼 옆이라 그 자리의 낯) · 낯 높이의 0.6.
-  out.push(...zergEyes(y + R9 * 0.87, ZM9 + FH9 * 0.6, 0.36 * s, 0.19 * s, 3.2));
+  // ⑥ 눈 — 동그란 렌즈 한 쌍. 앞 반원통 벽 위(눈 사이 0.36s 만큼 옆이라 그 자리의 낯 y + R·cos30) · 벽 높이의 0.6.
+  out.push(...zergEyes(YC9 + R9 * 0.87, ZM9 + FH9 * 0.6, 0.36 * s, 0.19 * s, 3.2));
   return out;
 }
 /** 크립 갈퀴 바닥(지적: 콜로니 바닥은 동그라미가 아니라 갈퀴) — 사방으로 뻗는 납작한
@@ -22804,8 +22843,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        흐름으로 이어진다(옛 +0.5·+0.8 은 상자 정수리 위 허공이었다). 얼굴 자(headAt[1]+0.25 · headAt[2]−0.36 · s 0.84)를 그대로 셈한다. */
     const FR9 = 0.72 * 0.84;
     // 정수리 마루(돔 꼭대기 = 입선 z + 0.3s + 수직 낯 0.34s + 돔 높이 0.5R) 위 · 돔 중심 살짝 앞(0.1) · 0.06 묻힘(zergFace 의 ★).
+    // 정수리 = 입선(z + 0.3s) + 수직 벽(0.34s) + 앞 4분의 1 구 반지름 R · 앞 반원 중심 살짝 앞(0.1) · 0.06 묻힘.
     const CRX9 = headAt[1] + 0.25 + 0.1;
-    const CRZ9 = headAt[2] - 0.36 + (0.30 + 0.34) * 0.84 + FR9 * 0.5 - 0.06;
+    const CRZ9 = headAt[2] - 0.36 + (0.30 + 0.34) * 0.84 + FR9 - 0.06;
     /** 폭 배수(요청: "크레스트 전체 폭은 20% 축소") — 길이(CL9)는 그대로 두고 좌우로만 줄인다. */
     const CW9 = 0.8;
     const crestHalf = (t9: number): number => (0.62 + 1.25 * t9) * CK9 * CW9;
@@ -23074,7 +23114,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        지름(2.4)에 맞춰 1.5배로 키운다. 눈은 공용 얼굴이 제 자리에 달고 나온다. */
     // 머리 키는 **제 자리 깊이**(지적: 머리가 몸에 안 가려짐) — 붙박이 12면 뒤를 봐도 몸 위에 떴다.
     upper9(() => {
-    out.push(...tagKey(zergFace(3.3, 3.12, 1.5, PLATE), depthNow(0, 3.9) * 1.6 + 2));
+    /* 머리·볏은 살짝 앞·위로(2026-09, 요청: "울트라 머리와 머리장식 살짝 앞위로") — UH_FWD9·UH_UP9 를 볏 뿌리와 얼굴이 함께 받는다. */
+    const UH_FWD9 = 0.25; const UH_UP9 = 0.25;
+    out.push(...tagKey(zergFace(3.3 + UH_FWD9, 3.12 + UH_UP9, 1.5, PLATE), depthNow(0, 3.9) * 1.6 + 2));
     /* ★ 머리 뒤의 **큰 머리장식 갑판 한 장**(요청: "히드라처럼 큰 머리장식 갑판, 1장으로, 너비가 넓은 형태") — 이마 뒤
        (y 2.9, z 5.3)에서 45도로 뒤·위로 뻗는 얇은 판(oval 0.1, ref x라 u가 너비·v가 두께). 너비는 뿌리 반폭 1.3에서
        0.55 지점 2.7까지 벌어졌다가 끝에서 0.5로 모여 방패꼴이고, 가장자리는 skewV로 앞·아래로 처져(cu²) 목을 감싼다.
@@ -23086,11 +23128,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        바깥으로 나갔다가 앞·아래로 굽어 얼굴 옆을 감싼다. 옛 판은 히드라처럼 36도로 뒤로 누워 앞에서는 납작한
        띠였다. 이제 63도(뒤 1.8 · 위 3.6)로 세우고 너비도 키운다(반폭 최대 3.4). 층은 같은 판을 앞 법선 쪽으로
        0.15 띄워 0.72 배로 한 장 더 얹고(테가 계단으로 읽힌다), 가운데는 등마루 뿔이 지난다. */
-    const CR0 = (t9: number): [number, number, number] => [0, 3.35 - 1.8 * t9, 4.6 + 3.6 * t9];
+    const CR0 = (t9: number): [number, number, number] => [0, 3.35 + UH_FWD9 - 1.8 * t9, 4.6 + UH_UP9 + 3.6 * t9];
     // 폭은 한 단 좁게(재요청: "볏 폭 줄이고") — 반폭 최대 2.85 → 1.9 · 밑동 1.5 → 1.15
     const crW9 = (t9: number): number => UCK9 * (t9 < 0.5 ? 1.15 + (1.9 - 1.15) * (t9 / 0.5) : 1.9 - (1.9 - 0.4) * ((t9 - 0.5) / 0.5) ** 1.25);
     const crSk9 = (cu9: number, t9: number): number => -0.5 * UCK9 * cu9 * cu9 * (0.4 + 0.6 * t9);
     const CRN9: [number, number, number] = [0, 0.894, 0.447];   // 판의 앞·위 법선(63도)
+    const HSK9 = 1;   // 실측: +1 이 뿌리를 판 옆 테두리에 앉힌다(−1 은 뿌리가 판 뒤로 떠 90도에서 틈이 보인다)
     for (const [lay9, sc9] of [[0, 1], [1, 0.72]] as [number, number][]) {
       const off9 = lay9 * 0.15;
       out.push(...tagKey(paintBase(spirePillar({
@@ -23115,10 +23158,20 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     for (const m of [-1, 1] as const) {
       for (const [ht9, hs9] of [[0.2, 0.55], [0.5, 0.8], [0.8, 1.1]] as [number, number][]) {
         const r9 = CR0(ht9);
-        const hw0 = crW9(ht9) * 0.92;
-        const H0: [number, number, number] = [m * hw0, r9[1] + 0.05, r9[2]];
-        const HC: [number, number, number] = [m * (hw0 + 1.7 * hs9), r9[1] + 0.25, r9[2] + 0.55 * hs9];
-        const H1: [number, number, number] = [m * (hw0 + 1.15 * hs9), r9[1] + 0.15, r9[2] + 2.5 * hs9];
+        /* 뿌리는 볏 **가장자리 위**(2026-09, 요청: "뿔 뿌리가 머리장식에 딱 붙게") — 반폭 그대로(0.92 배 안쪽이 아니라)에
+           가장자리의 말림(crSk9(±1, t) — 판 법선 쪽 치우침)까지 태워 판의 옆 테두리에 앉힌다. HSK9 는 말림 축의 부호. */
+        const hw0 = crW9(ht9) * 0.98;
+        const sk0 = crSk9(1, ht9) * HSK9;
+        /* ★ 뿔의 '위'는 세계의 z 가 아니라 **볏의 판을 따라 오르는 쪽**이다(2026-09, 요청: "울트라 머리장식의 옆쪽 뿔들
+           머리장식에 맞게 위치와 각도(뒤로 눕히는) 맞추기") — 여태 z 로 곧게 섰다(볏은 63도로 뒤로 누웠는데 뿔만 수직이라
+           판에서 앞으로 튀어나온 꼴). 판의 축 A(CR0 의 방향 (0, −0.447, 0.894))와 판의 법선 N(CRN9)으로 자리를 낸다:
+           옆으로 x · 판을 따라 위로 A · 판 앞으로 N. */
+        const A9: [number, number, number] = [0, -0.447, 0.894];
+        const H0: [number, number, number] = [m * hw0, r9[1] + CRN9[1] * sk0, r9[2] + CRN9[2] * sk0];
+        const HP9 = (sx: number, a: number, n: number): [number, number, number] =>
+          [H0[0] + m * sx, H0[1] + A9[1] * a + CRN9[1] * n, H0[2] + A9[2] * a + CRN9[2] * n];
+        const HC: [number, number, number] = HP9(1.7 * hs9, 0.55 * hs9, 0.2);
+        const H1: [number, number, number] = HP9(1.15 * hs9, 2.5 * hs9, 0.1);
         const bzh9 = (a: number, b: number, c: number, t: number): number =>
           (1 - t) * (1 - t) * a + 2 * (1 - t) * t * b + t * t * c;
         const hpath9 = (t: number): [number, number, number] => [
