@@ -1514,7 +1514,7 @@ export function protossCrown(fill: string, lift = 0, s = 1, gem?: string): Shape
  *  ★ 재요청(2026-09, 사진): 크기 20% 축소 · 폭 줄어드는 토막 짧게(1.45 → 0.76) · 앞은 부드러운 구(이마) 꼴로 머리 앞을 덮게.
  *  격자(길이 10 × 폭 6)로 쪼개 GL 이 굽은 살을 제 현으로 따라가게 한다(망토 자락·커맨드 데칼의 그 규약). 색은 종족 금(P_GOLD). */
 export function pHelmet9(lift = 0, s = 1): ShapeFace[] {
-  const YF9 = 0.74; const YR9 = 0.30; const Y1_9 = 0.06; const YB9 = -0.70;   // 이마 앞 끝 · 돔이 시작하는 자리 · 평행 구간 끝 · 꼬리 끝(y)
+  const YF9 = 0.74; const YR9 = 0.30; const Y1_9 = -0.32; const YB9 = -0.85;  // 이마 앞 끝 · 돔이 시작하는 자리 · 평행 구간 끝 · 꼬리 끝(y) — 평행 토막을 뒤로 늘림(요청: "옆변의 평행 부분을 더 길게")
   const HW9 = 0.34; const DR9 = 0.24; const TH9 = 0.06; const DOME9 = 0.20;    // 반폭 · 처짐 · 두께 · 이마가 앞으로 내려가는 몫
   const NU9 = 10; const NV9 = 6;
   /** 앞 돔의 몫(0 = 돔 시작 · 1 = 이마 끝) — 그 밖은 0. */
