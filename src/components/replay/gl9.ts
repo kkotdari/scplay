@@ -33,7 +33,7 @@ export interface GlInst9 {
   /** 효과 — add: 더하기 합성(2D 의 lighter) · flat: 음영·실루엣 빛 없이 제 색 그대로(2D 효과판과 같다). 깊이도 안 쓴다. */
   add?: boolean; flat?: boolean;
   /** **연기 위에 서는 몸** — 건물과 공중 유닛이다(2026-09, 요청: "다크 스웜 연기에 공중 유닛이나
-   *  건물은 가려지면 안 돼"). 붓이 `maskOver` 로 이것들만 한 번 더 그려 연기에서 그 실루엣을 파낸다. */
+   *  건물은 가려지면 안 돼"). flush 끝의 `swarmPass` 가 이것들만 스텐실에 찍어 연기에서 그 실루엣을 뺀다. */
   over?: boolean;
   /** ★ **판을 통째로 한 색으로**(2026-09, 지적: "하템 잔영이 파란색이 아님") — 잔상 판(op.solid)은 몸이
    *  아니라 자국이라 낯의 제 색을 버리고 이 색 하나로 민다(2D 판 굽기의 solid 와 같은 뜻). 명암·광택도
@@ -694,14 +694,14 @@ export class GlUnits9 {
   /** 진단: 마지막 프레임의 개체·삼각형 수 · 메시 벌 수 · 메시 굽기 ms(누적)와 **이번 프레임 몫**(frameBakeMs — 시계가
    *  '굽는 프레임'을 아는 자) · 깊이 칸/비트 · 살아 있는 메시 VBO 합(바이트). */
   /** evict: 상한에 걸려 버린 메시 수(누적) — **0 이 아니면 보관함이 좁다**. 늘 굽고 있다는 뜻이라 진단에 낸다. */
-  stat = { inst: 0, tris: 0, bakeMs: 0, frameBakeMs: 0, meshes: 0, slots: 0, depthBits: 0, bytes: 0, bloom: 0, evict: 0, scrubSkip: 0, draws: 0 };
+  stat = { inst: 0, tris: 0, bakeMs: 0, frameBakeMs: 0, meshes: 0, slots: 0, depthBits: 0, bytes: 0, bloom: 0, evict: 0, scrubSkip: 0, draws: 0, swarm: 0 };
   /** 이번 flush 안에서 지은 ms — 끌기 예산의 자(flush 마다 0). frameBakeMs 는 시계가 따로 읽어 비우므로 못 쓴다. */
   private scrubMs = 0;
   /** meshMax: 메시 상한(기기 표 DEV9.glMeshMax — PC 600 · 폰 240; 메시 한 벌은 VBO + footOf 용 정점 사본이라 폰 메모리에 든다). */
   /* ⚠ meshMax·bloomOn 은 **읽기 전용이 아니다**(2026-09, 폰 세 단) — 벤치 단이 유휴 재기로 오르면 기기 표(DEV9)의
      값이 바뀌므로, glUnits9 가 다음 칠하기에서 그 벌에 새 값을 일러 준다. */
   constructor(readonly canvas: HTMLCanvasElement, public meshMax = MESH_MAX9, public bloomOn = true, public specOn = true) {
-    const opts9 = { alpha: true, premultipliedAlpha: true, antialias: true, depth: true };   // 미리곱한 알파 — 셰이더 출력·합성 함수(ONE, 1−a)와 한 벌
+    const opts9 = { alpha: true, premultipliedAlpha: true, antialias: true, depth: true, stencil: true };   // 스텐실은 다크 스웜 마스크(swarmPlate)의 자다   // 미리곱한 알파 — 셰이더 출력·합성 함수(ONE, 1−a)와 한 벌
     /* ★ **WebGL 2 를 먼저 연다**(2026-09, 요청: "gl2로") — 셰이더는 GLSL ES 1.00 그대로라 두 문맥이 한 벌을 쓴다. 2 에서 버는
        것은 인스턴싱(핵심 기능)이고, 1 로 떨어지면 ANGLE 확장으로 같은 길을 간다. `#gl2=0` 은 견줌용이다. */
     let gl0: WebGLRenderingContext | WebGL2RenderingContext | null = GL_GL2_9 ? (canvas.getContext("webgl2", opts9) as WebGL2RenderingContext | null) : null;
@@ -739,6 +739,7 @@ export class GlUnits9 {
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error("링크: " + gl.getProgramInfoLog(p));
     this.prog = p;
     this.stat.depthBits = Number(gl.getParameter(gl.DEPTH_BITS)) || 0;
+    this.stencilBits = Number(gl.getParameter(gl.STENCIL_BITS)) || 0;
     for (const u of ["uCanvas", "uCam", "uLight", "uDepthK", "uPersp", "uLean", "uDbg", "uFlat", "uShadowK", "uShZ", "uEmit", "uGloss", "uSpecTint", "uGlint", "uGlintK", "uHalf"]) this.loc[u] = gl.getUniformLocation(p, u);
     for (const a of ["aPos", "aNrm", "aRgb", "aTeam", "aAlpha", "aOv", "aOrd", "aBb", "aInA", "aInB", "aInC", "aTeamC", "aSolidC", "aShad"]) this.att[a] = gl.getAttribLocation(p, a);
     /* 번짐 프로그램·사각 — 한 번만 짓는다(실패하면 번짐만 끈다). */
@@ -1019,22 +1020,49 @@ export class GlUnits9 {
     return ft;
   }
   push(inst: GlInst9): void { this.queue.push(inst); }
-  /** 지난 flush 가 그린 큐 — 연기 마스크가 그중 `over` 만 다시 그린다. */
-  private lastQ: GlInst9[] = [];
-  /** **연기 마스크** — 지난 flush 의 큐에서 `over`(건물·공중 유닛)만 캔버스에 다시 그린다.
-   *  그림자는 뺀다(땅에 눕는 그림자는 연기 **아래**다). 그린 것이 있으면 참을 내고, 그때
-   *  `canvas` 의 알파가 곧 '연기가 덮으면 안 되는 자리'다. 프레임 통계는 되돌린다. */
-  maskOver(bw: number, bh: number, cw: number, ch: number): boolean {
-    const keep = this.lastQ;
-    const sel = keep.filter((it) => it.over);
-    if (!sel.length) return false;
-    const st = { ...this.stat };
-    const bl = this.bloomOn; this.bloomOn = false;
-    this.queue = sel.map((it) => (it.shadow ? { ...it, shadow: undefined } : it));
-    this.flush(bw, bh, cw, ch);
-    this.bloomOn = bl; this.lastQ = keep;
-    Object.assign(this.stat, st);
-    return true;
+  /** ★ **다크 스웜 판**(2026-09, GL 캔버스가 화면 층이 된 뒤) — 붓이 연기를 2D 판에 그려 여기 걸어 두면 flush 끝에서
+   *  그 판을 텍스처로 올려 몸 **위**에 전체 화면 사각으로 얹는다. 건물·공중 유닛(`over`)의 실루엣은 **스텐실**로 판다
+   *  (옛 길은 숨은 GL 캔버스를 마스크로 읽어 2D 에서 파냈는데, 화면 층을 다시 그리면 화면이 지워진다). 스텐실이 없는
+   *  문맥이면 못 파고 통째로 덮는다(`#gl=0` 과 같다). flush 가 쓰고 비운다. */
+  swarmPlate: HTMLCanvasElement | null = null;
+  private swarmTex: WebGLTexture | null = null;
+  private stencilBits = 0;
+  /** 연기 판을 스텐실로 파서 얹는다 — `mark` 가 건물·공중 유닛을 스텐실에 1 로 찍는다(없으면 안 판다). */
+  private swarmPass(pl: HTMLCanvasElement, bw: number, bh: number, mark: (() => void) | null): void {
+    const gl = this.gl;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, bw, bh);
+    gl.disable(gl.SCISSOR_TEST);
+    const st9 = this.stencilBits > 0 && !!mark;
+    if (st9) {
+      gl.enable(gl.STENCIL_TEST); gl.clearStencil(0); gl.stencilMask(0xff); gl.clear(gl.STENCIL_BUFFER_BIT);
+      gl.stencilFunc(gl.ALWAYS, 1, 0xff); gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE);
+      gl.colorMask(false, false, false, false); gl.disable(gl.DEPTH_TEST); gl.depthMask(false);
+      gl.useProgram(this.prog);
+      gl.uniform1f(this.loc.uEmit, 0); gl.uniform1f(this.loc.uFlat, 0);
+      mark!();
+      gl.colorMask(true, true, true, true);
+      gl.stencilFunc(gl.EQUAL, 0, 0xff); gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
+    }
+    if (!this.swarmTex) {
+      this.swarmTex = gl.createTexture()!;
+      gl.bindTexture(gl.TEXTURE_2D, this.swarmTex);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    }
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.swarmTex);
+    // 2D 판은 위가 0 이고 미리곱한 알파가 아니다 — 올리며 뒤집고 곱한다(붓의 합성 (ONE, 1−a) 에 맞춘다).
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, 1);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, pl);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, 0);
+    gl.disable(gl.DEPTH_TEST); gl.depthMask(false);
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    if (this.fx) this.fxQuad(this.swarmTex, 0, 0, 1);
+    if (st9) gl.disable(gl.STENCIL_TEST);
+    gl.useProgram(this.prog);
+    gl.depthMask(true); if (GL_DEPTH9) gl.enable(gl.DEPTH_TEST);
+    this.stat.swarm = 1;
   }
   /** 프레임 하나 — 캔버스 크기(기기 px)·CSS 크기를 맞추고 큐를 차례로 그린다. */
   /** 색 → rgb(0~1) — 개체마다 hexRgb(tone9) 를 다시 셈하지 않는다. */
@@ -1082,10 +1110,11 @@ export class GlUnits9 {
     gl.viewport(0, 0, bw, bh);
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    const q = this.queue; this.queue = []; this.lastQ = q;
-    this.stat.inst = q.length; this.stat.tris = 0; this.stat.meshes = this.meshes.size; this.stat.draws = 0;
+    const q = this.queue; this.queue = [];
+    this.stat.inst = q.length; this.stat.tris = 0; this.stat.meshes = this.meshes.size; this.stat.draws = 0; this.stat.swarm = 0;
     (globalThis as unknown as { __glInst9?: number }).__glInst9 = q.length;   // 계측(perf-check)이 '그려졌다'를 아는 창
-    if (!q.length) return;
+    const pl9 = this.swarmPlate; this.swarmPlate = null;
+    if (!q.length) { if (pl9) this.swarmPass(pl9, bw, bh, null); return; }
     gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LESS);
     gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);   // 미리곱한 알파
     gl.disable(gl.CULL_FACE);
@@ -1184,14 +1213,17 @@ export class GlUnits9 {
       nRec += 1; return nRec - 1;
     };
     /* ── 무리 짓기 ── 메시(+카메라)가 같은 개체를 모은다. 기록은 무리마다 잇달아 쓰므로 한 드로 콜의 범위가 된다. */
-    interface Grp9 { mesh: GlMesh9; cam: GlCam9; idx: number[]; r0: number }
+    /** 무리 — 같은 메시·같은 카메라·**같은 `over`**(연기 위에 서는가). ⚠ over 를 열쇠에 안 넣으면 같은 메시의
+     *  지상·공중 몸이 한 무리에 들어 스텐실 표식이 무리째 찍힌다(같은 종류는 늘 한쪽이지만, 값이 공짜라 못 박는다). */
+    interface Grp9 { mesh: GlMesh9; cam: GlCam9; over: boolean; idx: number[]; r0: number }
     const groupsOf = (pick: (it: GlInst9, i: number) => boolean): Grp9[] => {
       const m = new Map<GlMesh9, Grp9[]>(); const out: Grp9[] = [];
       for (let i = 0; i < q.length; i += 1) {
         const it = q[i]; if (!pick(it, i)) continue;
         let lst = m.get(it.mesh); if (!lst) { lst = []; m.set(it.mesh, lst); }
-        let g = lst.find((x) => x.cam === it.cam);
-        if (!g) { g = { mesh: it.mesh, cam: it.cam, idx: [], r0: 0 }; lst.push(g); out.push(g); }
+        const ov9 = !!it.over;
+        let g = lst.find((x) => x.cam === it.cam && x.over === ov9);
+        if (!g) { g = { mesh: it.mesh, cam: it.cam, over: ov9, idx: [], r0: 0 }; lst.push(g); out.push(g); }
         g.idx.push(i);
       }
       return out;
@@ -1204,17 +1236,17 @@ export class GlUnits9 {
     /* ★ 불투명 개체의 **반투명 꼬리**(nSolid 뒤의 부품 — 유리·빛무리·옅은 그늘)도 메시 무리로 그린다. 큐 차례를 지키면 개체마다
        메시가 갈려 무리가 안 서고(실측: 890기에 드로 콜 760), 꼬리는 깊이 검사를 그대로 받으므로(쓰기만 끈다) 몸에 가려지는 것은
        그대로 가려진다 — 갈리는 것은 딴 개체의 꼬리끼리 겹치는 자리의 섞는 차례뿐이라 받아들였다. 무리는 ② 와 같은 기록을 쓴다. */
-    interface Run9 { mesh: GlMesh9; cam: GlCam9; r0: number; count: number; tail: boolean; noZ: boolean; add: boolean; flat: boolean }
+    interface Run9 { mesh: GlMesh9; cam: GlCam9; r0: number; count: number; tail: boolean; noZ: boolean; add: boolean; flat: boolean; over: boolean }
     const runs: Run9[] = [];
     fillGroups(shG, true); fillGroups(opG, false);
     for (let i = 0; i < q.length; i += 1) {
       const it = q[i];
       if (isOpq(it)) continue;   // 불투명 개체는 ②(몸)와 꼬리 무리로 끝
-      const noZ = !!it.flat || !!it.add; const add = !!it.add; const flat = !!it.flat;
+      const noZ = !!it.flat || !!it.add; const add = !!it.add; const flat = !!it.flat; const over = !!it.over;
       const last = runs.length ? runs[runs.length - 1] : null;
       const r = rec(it, i, false);
-      if (last && last.mesh === it.mesh && last.cam === it.cam && last.noZ === noZ && last.add === add && last.flat === flat && last.r0 + last.count === r) last.count += 1;
-      else runs.push({ mesh: it.mesh, cam: it.cam, r0: r, count: 1, tail: false, noZ, add, flat });
+      if (last && last.mesh === it.mesh && last.cam === it.cam && last.noZ === noZ && last.add === add && last.flat === flat && last.over === over && last.r0 + last.count === r) last.count += 1;
+      else runs.push({ mesh: it.mesh, cam: it.cam, r0: r, count: 1, tail: false, noZ, add, flat, over });
     }
     for (const it of q) this.stat.tris += it.mesh.n / 3;
     /* 번짐 몫도 같은 버퍼에 미리 적는다(한 번만 올리려고). */
@@ -1300,7 +1332,8 @@ export class GlUnits9 {
         const rx0 = Math.max(0, Math.floor((sx0 - PAD9) / 4)); const ry1 = Math.min(h4, Math.ceil((bh - (sy0 - PAD9)) / 4));
         const rx1 = Math.min(w4, Math.ceil((sx1 + PAD9) / 4)); const ry0 = Math.max(0, Math.floor((bh - (sy1 + PAD9)) / 4));
         const rw = Math.max(0, rx1 - rx0); const rh = Math.max(0, ry1 - ry0);
-        if (rw < 1 || rh < 1) { this.stat.bloom = 0; return; }
+        if (rw < 1 || rh < 1) this.stat.bloom = 0;
+        else {
         /* ★★ **판은 가위 없이 통째로 지운다**(2026-09, 지적: "사각 얼룩? 잔영이 보임") — 가위 안만 지우면
            가위 **밖**에는 지난 프레임의 빛이 그대로 남아 흐림이 그 옛 빛을 가장자리로 끌어와 **네모난 잔영**이 된다. */
         gl.disable(gl.SCISSOR_TEST);
@@ -1360,7 +1393,15 @@ export class GlUnits9 {
         gl.disable(gl.SCISSOR_TEST);
         gl.useProgram(this.prog);
         gl.depthMask(true); if (GL_DEPTH9) gl.enable(gl.DEPTH_TEST);
+        }
       }
+    }
+    /* 5) 다크 스웜 — 몸 위, 건물·공중 유닛(over) 실루엣만 빼고(스텐실). 그림자는 안 찍는다(땅에 눕는 그림자는 연기 아래다). */
+    if (pl9) {
+      this.swarmPass(pl9, bw, bh, () => {
+        for (const g of opG) if (g.over) drawG(g, 0, g.mesh.n);
+        for (const r of runs) if (r.over) { setCam(r.cam); bind(r.mesh); this.drawRec(0, r.mesh.n, r.r0, r.count); }
+      });
     }
   }
 }
@@ -1400,9 +1441,9 @@ export const GL_GL2_9 = !(typeof location !== "undefined" && /gl2=0/.test(locati
 export const GL_INST9 = !(typeof location !== "undefined" && /glinst=0/.test(location.hash));
 /** 데칼 깊이 편향(모델 칸, 유닛 0.8 · 건물 1.3) — 진단 `#glbias=N` 으로 못 박아 본다(-1 = 메시별 기본). */
 export const GL_BIAS9 = ((): number => { const m = typeof location !== "undefined" ? /glbias=([\d.]+)/.exec(location.hash) : null; return m ? Number(m[1]) : -1; })();
-/** 진단 `#glblit=0` — GL 그림을 유닛 캔버스에 **합성하지 않는다**(GL 은 다 돌고 그림만 안 붙는다). 헤드리스 크로뮴(SwiftShader 소프트웨어 GL)은
- *  WebGL 캔버스 → 2D drawImage 가 ReadPixels 로 서서 1454² 한 장에 1~2초가 든다(실측, 옵션과 무관) — 실기 GPU 에는 없는 값이라
- *  perf-check 가 기본으로 붙여 GL 의 CPU 몫(메시 굽기·큐·유니폼)만 잰다. */
+/** 진단 `#glblit=0` — GL 층을 **숨긴다**(display:none — 문맥·그리기는 그대로 돈다). 헤드리스 크로뮴(SwiftShader 소프트웨어 GL)은
+ *  보이는 WebGL 캔버스를 합성할 때 ReadPixels 로 서서 한 장이 3초가 된다(실측 p50 3117ms · 옛 drawImage 합성도 같은 값이었다) —
+ *  실기 GPU 에는 없는 값이라 perf-check 가 기본으로 붙여 GL 의 CPU 몫(메시 굽기·큐·유니폼)만 잰다. */
 export const GL_BLIT9 = !(typeof location !== "undefined" && /glblit=0/.test(location.hash));
 /** GL 붓 켬 — **어느 기기에서나 기본 켬**이다(2026-09: 유닛·건물의 판 굽기 길을 걷으며 폰도 함께 열었다).
  *  `#gl=0` 이면 붓이 면을 곧장 그린다(판이 없는 느린 폴백 — 비교·수리용). WebGL 이 안 서면(문맥 실패) glUnits9 가

@@ -929,8 +929,9 @@
   width: 100%; height: calc(100% + var(--scr-mapband, 0px));
   pointer-events: none; z-index: 6000;
 }
-/* WebGL 붓(#gl=1, gl9.ts)의 뒷캔버스 — 화면에는 안 보인다. 붓이 프레임마다 유닛 캔버스에 합성한다(효과가 그 위에 얹히게). */
-.scr-motion-unitlayer.scr-motion-gl9 { display: none; }
+/* WebGL 붓(gl9.ts)의 캔버스 — **화면의 한 층**이다(2026-09, 합성 걷기): 유닛 캔버스(아래) 위, 효과 캔버스(.scr-motion-fx9, 위)
+   아래에 DOM 차례로 선다. 셋이 같은 클래스라 크기·감춤·변환 규칙을 함께 받는다. 옛 display:none(숨은 캔버스를 매 장 베끼던 길)은 걷었다. */
+.scr-motion-unitlayer.scr-motion-gl9, .scr-motion-unitlayer.scr-motion-fx9 { background: transparent; }
 /* (삭제) PC 확대 조절바(.scr-motion-zoom) — PC의 확대 기능을 통째로 걷었다(요청). */
 /* 래디우스 없음(요청: 제거) — 화면 폭 확대에서 모서리가 둥글면 가장자리가 뜬다. */
 .scr-motion-canvas {

@@ -95,7 +95,7 @@ import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, W
 import {
   pitchFlatSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, stageFaces, TURRET_BACK9, SPIN_KINDS, HEAD_KINDS, LIT_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, spriteSideMax9, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, tone9, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
 } from "./bake9";
-import { glUnits9, glNow9, glBakeMsTake9, glScrubSet9, glScrubbing9, GL_CANVAS_KINDS9, GL_ON9, GL_WARM9, GL_BLIT9, GL_GLOW_KINDS9, SHADOW_ALPHA9, camOf9, CAM_TOP9, glIconOk9, glIconRequest9, type GlUnits9, type GlFoot9 } from "./gl9";
+import { glUnits9, glNow9, glBakeMsTake9, glScrubSet9, glScrubbing9, GL_CANVAS_KINDS9, GL_ON9, GL_BLIT9, GL_WARM9, GL_GLOW_KINDS9, SHADOW_ALPHA9, camOf9, CAM_TOP9, glIconOk9, glIconRequest9, type GlUnits9, type GlFoot9 } from "./gl9";
 export { LIMB_LOG, TURRET_BACK9, SHAPE_BUILDERS, ctx2d9, BAKE_ENV9, cropToInk, pathBox, tierTableOf, autoTier, stageFaces, rasterBld9, SHAPE_GALLERY, poseSet, poseSet9, bldLitSet, headYawSet, bldSpinSet, bldSpinRawSet9, lodSetCap, lodSetZoom, lodNoteFrame, tone9, TONE_DARK, TONE_SAT, silhouetteLight } from "./bake9";
 export type { BakeCv9, BakeCtx9, RasterOut9, ShapeGalleryItem } from "./bake9";
 export { isAirUnit, flapCutOf, atkCutOf, unitTilesOf, buildingYawOf, galleryYawOf, BLD_NORM, BUILD_STAGES, SCR_DIAG, scrDiagOn, deriveWorld9, createEngine9, pickWorldUi9, emptyWorldUi9 } from "./engine9";
@@ -227,6 +227,9 @@ const STORM_SEEDS = 2;
  *  더 보여 준다 — 그것이 '다 그리고 나서 한 번 툭'이다(사파리에서 열에 두 번). 항등 변환을 두면 층이 유지돼
  *  내용 갱신과 변환 변경이 늘 같은 프레임에 실린다. 그림은 "없음"과 똑같다. */
 const XF_ID9 = "translate(0px, 0px) scale(1)";
+/** 유닛 층 캔버스 셋(유닛·GL·효과 — 같은 클래스) — 손짓 변환은 셋에 다 건다. */
+const GL_HIDE9: React.CSSProperties = { display: "none" };
+const unitCanvases9 = (root: HTMLElement | null): HTMLCanvasElement[] => root ? Array.from(root.querySelectorAll<HTMLCanvasElement>(".scr-motion-unitlayer")) : [];
 /** GL 붓이 못 맡아 판으로 떨어진 종류별 횟수(진단 'GL' 줄의 '판으로'). */
 const GL_MISS9 = new Map<string, number>();
 /** 공유 링크의 자리 앉히기 발자취(`#diag=view`의 '링크' 줄) — 실기기에서만 나는 어긋남을 눈으로 보려는 자다.
@@ -4062,6 +4065,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const glRef = useRef<HTMLCanvasElement>(null);
+  const fxRef = useRef<HTMLCanvasElement>(null);
   /** z 정렬 캐시 — 같은 ops로 두 번 이상 그릴 때(손짓 중 다시 그리기) 정렬을 아낀다. */
   const sortCacheRef = useRef<{ src: UnitDrawOp[] | null; out: UnitDrawOp[] }>({ src: null, out: [] });
   /** 그린 장 수 — 저배율의 격프레임 건너뛰기가 세는 자다(아래 effect 끝). */
@@ -4186,6 +4190,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       const bh = Math.round(ch * Bd);
       if (cv.width !== bw) cv.width = bw;
       if (cv.height !== bh) cv.height = bh;
+      const fcv9 = fxRef.current;
+      if (fcv9) { if (fcv9.width !== bw) fcv9.width = bw; if (fcv9.height !== bh) fcv9.height = bh; }
       /* 진단 수치는 **켜져 있을 때만** 적는다 — 여기는 프레임마다 도는 자리라,
          꺼져 있는 사람에게 글자 만들기를 시킬 까닭이 없다. */
       if (scrDiagOn()) {
@@ -4209,6 +4215,10 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       }
       const ctx = cv.getContext("2d");
       if (!ctx) return;
+      /* 효과는 **위 캔버스**에 그린다(GL 층 위 — UnitLayer 의 ★★). GL 이 없으면(#gl=0) 종전대로 유닛 캔버스다. */
+      const fctx9 = fcv9 ? fcv9.getContext("2d") : null;
+      const fxCtx9 = fctx9 ?? ctx;
+      if (fctx9) { fctx9.setTransform(Bd, 0, 0, Bd, 0, 0); fctx9.clearRect(0, 0, cw, ch); }
       /* 등급은 배율도 본다(요청: 2.5배부터 전부) — 굽기가 이 값을 읽으므로 그리기 전에
          세워 둔다(lodSetCap·lodPenalty와 같은 결의 모듈 전역이다). */
       /* 마커·자세함은 **지금 그리는 배율**로 판정한다(위 markerAt 주석) — 손짓 중에도
@@ -5254,23 +5264,18 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       /** 연기를 마스크와 함께 이미 얹었나 — 그러면 아래 효과 고리에서 다시 안 그린다. */
       let swarmDone9 = false;
       if (gl9) {
-        gl9.flush(cv.width, cv.height, cw, ch);
-        ctx.setTransform(Bd, 0, 0, Bd, 0, 0);
-        ctx.globalAlpha = 1;
-        if (GL_BLIT9) ctx.drawImage(gl9.canvas, 0, 0, cw, ch);   // `#glblit=0`(계측): 헤드리스 SwiftShader 는 이 한 줄이 ReadPixels 로 1~2초다
-        /* ★ **다크 스웜은 연기라 공중 유닛·건물을 안 가린다**(2026-09, 요청) — 몸을 다 그린
-           **바로 뒤**에 연기를 얹되, 그 둘의 실루엣은 파낸다. 셋을 순서대로 한다:
-             ① `gl9.maskOver` — 방금 그린 큐에서 건물·공중 유닛만 캔버스에 다시 그린다(그림자는 뺀다).
-             ② 연기를 **딴 판**에 그린다 — 화면 캔버스에서는 파낼 수가 없다(파낼 자리에 이미 몸이 있다).
-             ③ `destination-out` 으로 ①을 파내고 한 번에 얹는다.
-           지상 유닛은 ①에 없으므로 종전대로 연기 밑에 남는다(연기의 뜻이 거기 있다).
-           연기가 화면에 없는 프레임은 이 가지에 아예 안 든다 — GL 한 판이 공짜가 아니다. */
+        /* ★ **다크 스웜은 연기라 공중 유닛·건물을 안 가린다**(2026-09, 요청) — 연기는 GL 층 안에서 몸 **바로 위**에
+           얹되 건물·공중 유닛의 실루엣은 파낸다. 옛 길(숨은 GL 캔버스를 마스크로 읽어 2D 에서 파내기)은 GL 캔버스가
+           화면 층이 된 뒤로는 못 쓴다(다시 그리면 화면이 지워진다). 이제 **스텐실**이다(gl9 의 swarmPlate): 연기를
+           2D 판(swarmPlate9)에 그려 두면 flush 끝에서 그 판을 텍스처로 올려, 건물·공중 유닛이 스텐실에 남긴 자리만
+           빼고 전체 화면 사각으로 얹는다. 지상 유닛은 스텐실에 없으므로 종전대로 연기 밑이다.
+           연기가 화면에 없는 프레임은 이 가지에 아예 안 든다 — 판 한 장 올리기가 공짜가 아니다. */
         if (fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM) && trim9 < 1
           && zoom >= FX_MIN_ZOOM.dom) {
           const sw9 = fx.filter((f9) => f9.kind === "dom" && f9.style === "swarm"
             && zx(f9.fx) > -60 && zx(f9.fx) < cw + 60
             && zy(f9.fy) - f9.lift * zoom > -60 && zy(f9.fy) - f9.lift * zoom < ch + 60);
-          if (sw9.length && gl9.maskOver(cv.width, cv.height, cw, ch)) {
+          if (sw9.length) {
             const pl9 = swarmPlate9(cv.width, cv.height);
             const s9 = pl9.getContext("2d");
             if (s9) {
@@ -5287,19 +5292,12 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
                 }
                 drawSwarm9(s9, f9, sax9, say9, zoom);
               }
-              s9.setTransform(1, 0, 0, 1, 0, 0);
-              s9.globalCompositeOperation = "destination-out";
-              s9.drawImage(gl9.canvas, 0, 0);
-              s9.globalCompositeOperation = "source-over";
-              ctx.save();
-              ctx.setTransform(1, 0, 0, 1, 0, 0);
-              ctx.globalAlpha = 1;
-              ctx.drawImage(pl9, 0, 0);
-              ctx.restore();
+              gl9.swarmPlate = pl9;
               swarmDone9 = true;
             }
           }
         }
+        gl9.flush(cv.width, cv.height, cw, ch);   // GL 캔버스가 곧 화면 층이다 — 베끼지 않는다(UnitLayer 의 ★★)
         if (scrDiagOn()) {
           const miss9 = [...GL_MISS9].sort((a9, b9) => b9[1] - a9[1]).slice(0, 4).map(([k9, n9]) => `${k9}×${n9}`).join(" ");
           SCR_DIAG.gl = `on${gl9.gl2 ? "2" : "1"}${gl9.instOn ? "" : "·인스턴싱 없음"} 개체 ${gl9.stat.inst} 드로 ${gl9.stat.draws} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}/${gl9.meshMax}(${gl9.stat.bakeMs.toFixed(0)}ms·${(gl9.stat.bytes / 1048576).toFixed(1)}MB${gl9.stat.evict ? "·버림 " + gl9.stat.evict : ""}) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit 번짐 ${gl9.stat.bloom}${miss9 ? " 판으로 " + miss9 : ""}`;
@@ -5307,7 +5305,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       }
       if (fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM)) {
         /* 효과 붓은 **모듈 함수**다(paintFxList9 의 ★) — 도록이 같은 붓으로 한 발을 그린다. */
-        paintFxList9(ctx, fx, { zoom, tilePx, zx, zy, cw, ch, Bd, trim9, detailAt, swarmDone9 });
+        paintFxList9(fxCtx9, fx, { zoom, tilePx, zx, zy, cw, ch, Bd, trim9, detailAt, swarmDone9 });
       }
       /* 다 그렸다 — 캔버스에 걸려 있던 손짓 임시 변환은 **여기서** 걷는다(수리:
          "드래그나 확대 축소시 깜빡이고 배율도 튀고"). 두 일이 같은 자리에 있어야 하는
@@ -5315,7 +5313,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          몫이 **두 번** 먹혀 한 프레임 튄다. 여태 그 걷어내기를 부모의 렌즈 effect가
          했는데, 그 effect는 zoom·pan **상태**가 바뀔 때만 돈다 — 손짓 중에는 상태가
          안 바뀌므로 한 번도 안 돌았고, 그 사이 재생 틱이 낸 리렌더마다 그림이 튀었다. */
-      if (cv.style.transform !== XF_ID9) { cv.style.transformOrigin = "center"; cv.style.transform = XF_ID9; }
+      for (const cv9 of [cv, glRef.current, fxRef.current]) if (cv9 && cv9.style.transform !== XF_ID9) { cv9.style.transformOrigin = "center"; cv9.style.transform = XF_ID9; }
       onPainted?.(zoom, pan);
     };
     /* 부모가 손짓 중에 쥘 붓을 넘긴다 — 렌더마다 새 ops를 문 채로 갈아 끼운다. */
@@ -5323,10 +5321,17 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
     /* ★ 여기서는 안 칠한다(재설계: 그리는 붓 하나) — 유닛 캔버스를 칠하는 것은 부모의 paintFnRef9뿐이다. 이 층은 붓 클로저를
        내주기만 하고, 렌더로 바뀐 것(배율·팬 거울, 사양 토글, 크기)은 부모가 렌더마다 requestPaint9로 한 장에 모은다. */
   });
-  /* WebGL 붓(#gl=1, gl9.ts) — 몸을 GPU 가 그리는 뒷캔버스. 화면에는 안 보이고(display:none) 붓이 프레임마다 유닛 캔버스에 합성한다. */
+  /* ★★ **GL 캔버스는 화면의 한 층이다**(2026-09, 요청: 다음 손 1 — "합성 걷기") — 여태 GL 은 숨은 캔버스에 그리고 붓이
+     매 장 drawImage 로 유닛 캔버스에 **전체 화면을 한 번 베꼈다**(폰 DPR 3 이면 한 장에 천만 화소). 이제 층 셋이 DOM 차례로
+     쌓인다: ① 유닛 캔버스(아래 — 크립·접지 타원·링·체력바 = 2D 가 몸 **앞에** 그리던 것) ② GL 캔버스(몸·번짐·연기) ③ 효과
+     캔버스(위 — 트레이서·피격·캐스트). 세 장이 같은 클래스라 크기·손짓 변환·감춤 규칙을 함께 받는다. `#gl=0` 이면 ①만 있다. */
+  /* ⚠ `#glblit=0`(perf-check 기본)은 이제 **GL 층을 숨긴다**(display:none — 문맥·그리기는 그대로 돈다). 헤드리스 크로뮴은 보이는 WebGL
+     캔버스를 합성할 때 SwiftShader 가 ReadPixels 로 서서 한 장이 3초가 된다(실측 p50 3117ms) — 옛 drawImage 가 치르던 그 값이
+     브라우저 합성기로 옮겨 갔을 뿐이다. 실기 GPU 에는 없는 값이라 계측에서만 뺀다. */
   return <>
     <canvas ref={ref} className="scr-motion-unitlayer" aria-hidden />
-    {GL_ON9 ? <canvas ref={glRef} className="scr-motion-unitlayer scr-motion-gl9" aria-hidden /> : null}
+    {GL_ON9 ? <canvas ref={glRef} className="scr-motion-unitlayer scr-motion-gl9" style={GL_BLIT9 ? undefined : GL_HIDE9} aria-hidden /> : null}
+    {GL_ON9 ? <canvas ref={fxRef} className="scr-motion-unitlayer scr-motion-fx9" aria-hidden /> : null}
   </>;
 }
 
@@ -10928,12 +10933,12 @@ export default function ReplayMotionPlayer({
     {
       const b9 = xfBaseRef.current;
       const s9 = z1 / b9.z;
-      const cv9 = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-unitlayer");
       const fg9 = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-fog");
       const xf9 = s9 === 1 && px === b9.x && py === b9.y ? XF_ID9
         : `translate(${(px - s9 * b9.x).toFixed(2)}px, ${(py - s9 * b9.y).toFixed(2)}px) scale(${s9.toFixed(4)})`;
       xfCvXfRef.current = xf9;
-      if (cv9) { cv9.style.transformOrigin = "center"; cv9.style.transform = xf9; }
+      // 유닛·GL·효과 캔버스 셋이 같은 변환을 탄다(같은 클래스 — UnitLayer 의 ★★).
+      for (const cv9 of unitCanvases9(mapRef.current)) { cv9.style.transformOrigin = "center"; cv9.style.transform = xf9; }
       /* 안개는 **제 기준**으로 민다(위 fogXfRef9) — 유닛과 다른 박자로 칠해지므로 같은
          델타를 걸면 그만큼 어긋난 자리에 선다. */
       if (fg9) {
@@ -11389,7 +11394,7 @@ export default function ReplayMotionPlayer({
         paintFnRef9.current?.(tLiveRef9.current, true);
       }
     }
-    if (cv && cv.style.transform !== XF_ID9) { cv.style.transformOrigin = "center"; cv.style.transform = XF_ID9; }
+    for (const cv9 of unitCanvases9(mapRef.current)) if (cv9.style.transform !== XF_ID9) { cv9.style.transformOrigin = "center"; cv9.style.transform = XF_ID9; }
     {
       // 안개 캔버스도 — 이 렌더의 ReplayFogLayer effect(자식이 먼저 돈다)가 상태 자리로 칠했으니 변환만 걷는다.
       const fcv9 = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-fog");
