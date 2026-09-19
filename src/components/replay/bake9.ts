@@ -1059,6 +1059,12 @@ export function spirePillar(o: {
    *  (관의 윗 반쪽이 곧 등이다). 빈 문자열("")을 주면 **안 칠한다** = 임자 색(accent 규약).
    *  `topFrom` 은 그 색이 드는 구간의 t 아래끝이다(꼬리처럼 뺄 자리가 있을 때). */
   fillTop?: string; topFrom?: number;
+  /** ★ **낯마다 색을 정하는 훅**(2026-09, 요청: "간헐천 각 분화구 윗쪽을 밝은 회색으로 자연스럽게 그라데이션 —
+   *  너무 직선으로 층을 만들게 아니라 자연스러운 회색얼룩처럼 · 경계선을 좀 랜덤한 곡선으로") — fillTop·topFrom 은
+   *  t 하나로 자르는 곧은 층이라 얼룩을 못 낸다. 옆 낯마다 그 마디의 t(0~1 · 가운데)와 둘레 자리 u(0~1 · 낯 가운데)를
+   *  주고 색을 받는다. undefined 면 종전 규칙(fillTop → fillFront/Back → 몸 색). 마디·낯을 잘게(segs·sides) 나눌수록
+   *  경계가 곡선에 가깝다. */
+  fillAt?: (t: number, u: number) => string | undefined;
   /** 축을 직접 그리는 경로(요청: 관절 없이 L자로 구부리기) — t 0~1로 [x,y,z]를 낸다.
    *  주면 x·y·z0·h·lean·curve는 무시되고 이 곡선이 기둥의 등뼈가 된다. */
   path?: (t: number) => [number, number, number];
@@ -1239,6 +1245,8 @@ export function spirePillar(o: {
     nz?: number;
     /** 낯 한가운데가 축보다 위인가(fillTop 의 자) — 그 마디의 t 가 topFrom 이상일 때만 참이다. */
     top?: boolean;
+    /** fillAt 이 낸 색(있으면 top·front/back 보다 먼저다). */
+    at?: string;
     /** 끝 단면 표시 — 참이면 아래 faces를 그대로 쓴다(옆면 명암 규칙을 안 탄다). */
     cap?: boolean; faces?: ShapeFace[];
   }[] = [];
@@ -1311,6 +1319,7 @@ export function spirePillar(o: {
         nx, ny, nz, dep: depthNow(fx, fy) + fz9,
         top: o.fillTop !== undefined && t0 >= (o.topFrom ?? 0)
           && fzc9 > (c0[2] + c1[2]) / 2 + 1e-6,
+        at: o.fillAt ? o.fillAt((t0 + t1) / 2, (i + 0.5) / sides) : undefined,
       });
     }
   }
@@ -1348,7 +1357,7 @@ export function spirePillar(o: {
     /* ⚠ fillTop 이 빈 문자열(= 임자 색)이면 **표식을 달아 둔다** — 그냥 비워 두면 맨 아래
        `paintBase(out, o.fill)` 가 몸 색으로 칠해 버린다(실측: 저글링 등이 살색으로 남았다).
        표식은 돌려주기 직전에 벗긴다 — 그래야 그리는 차례(깊이 정렬)를 안 흩뜨린다. */
-    const side = wl.top ? (o.fillTop === "" ? ACC_MARK9 : o.fillTop) : wl.ny >= 0 ? o.fillFront : o.fillBack;
+    const side = wl.at ?? (wl.top ? (o.fillTop === "" ? ACC_MARK9 : o.fillTop) : wl.ny >= 0 ? o.fillFront : o.fillBack);
     out.push(side ? [wl.d, 1, side] as ShapeFace : bodyFace(wl.d),
       ...dim9(fl.visible ? fl.face(wl.d) : [sideFace(wl.d, 0.42)]));
     /* 진짜 법선이 있는 면은 **아래를 볼수록 어둡게** 한 겹 더(수리: 등진 면을 걷고 나니
@@ -24676,10 +24685,31 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     }
     /* 가운데 분화구 — 위로 좁아지는 바위 그릇. 테 안쪽은 어둡고 바닥에 초록 가스가
        고여 빛난다. */
+    /* ★ **분화구 윗쪽은 밝은 회색 얼룩이다**(2026-09, 요청: "간헐천 각 분화구 윗쪽을 밝은 회색으로 자연스럽게
+       그라데이션 처리(너무 직선으로 층을 만들게 아니라 자연스러운 회색얼룩처럼) · 경계선을 좀 랜덤한 곡선으로") —
+       spirePillar 의 `fillAt` 훅으로 낯마다 색을 정한다: 경계 높이 tb(u) 는 둘레 자리 u 를 따라 사인 셋(2·3·5 바퀴 ·
+       분화구마다 딴 위상)이 겹친 **닫힌 랜덤 곡선**이고(±0.2), 그 위로 0.3 폭의 smoothstep 으로 바위색 → 밝은 회색이
+       번진다. 매끈한 2차원 잡음(blot9 · ±0.07)을 경계와 밝기에 더해 곧은 층이 아니라 얼룩으로 읽힌다. 마디 16 · 낯 24 로
+       잘게 나눠 경계가 곡선을 탄다(옛 4 × 12). 테 밑 살 bandit 는 ROCK 그대로. */
+    const LROCK9 = "#d0d1cd";   // 밝은 회색 — 바위(#948870)의 노란 기를 뺀 차가운 톤이라 얼룩이 갈린다
     const crater = (cx9: number, cy9: number, r9: number, h9: number, key: number, ph9 = 0): void => {
+      const sd9 = cx9 * 3.1 + cy9 * 1.7;   // 분화구마다 딴 위상
+      const tb9 = (u9: number): number => 0.5
+        + 0.2 * (Math.sin(u9 * Math.PI * 4 + sd9) * 0.5 + Math.sin(u9 * Math.PI * 6 + sd9 * 2.3) * 0.35
+          + Math.sin(u9 * Math.PI * 10 + sd9 * 4.1) * 0.15);
+      /* 얼룩은 낯마다 튀는 해시가 아니라 **매끈한 2차원 잡음**이다 — 낯 잡음(±0.14)은 마디 크기의 계단으로 읽혔다(실측).
+         둘레·높이 둘을 함께 타는 사인 곱 둘이 경계를 굽이치게 하고 밝기도 얼룩덜룩하게 한다. */
+      const blot9 = (t9: number, u9: number): number => Math.sin(u9 * Math.PI * 6.6 + t9 * 7 + sd9)
+        * Math.cos(t9 * 11 + u9 * Math.PI * 3.4 + sd9 * 1.7);
+      const fillAt9 = (t9: number, u9: number): string | undefined => {
+        const e9 = (t9 - tb9(u9) + blot9(t9, u9) * 0.07) / 0.3;
+        if (e9 <= 0) return undefined;
+        const k9 = e9 >= 1 ? 1 : e9 * e9 * (3 - 2 * e9);
+        return mixHex(ROCK, LROCK9, k9 * (0.86 + 0.14 * blot9(t9 * 1.7 + 2, u9 + 0.31)));
+      };
       out.push(...tagKey(paintBase(spirePillar({
         x: cx9, y: cy9, z0: 0, h: h9, w: r9, tipW: r9 * 0.72,
-        segs: 4, sides: 12, hold: 0.1, taper: 1.4,
+        segs: 16, sides: 24, hold: 0.1, taper: 1.4, fillAt: fillAt9,
       }), ROCK), key));
       const rim = r9 * 0.72;
       // 테 안쪽 그늘 — 구멍으로 읽히는 어두운 원. 음영이라 2티어(요청).
