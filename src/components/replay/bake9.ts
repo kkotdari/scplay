@@ -336,6 +336,7 @@ export const LIT_KINDS = new Set<string>([
   /* 가스 셋 — 캐는 동안 켜진다(정제소는 창, 어시밀레이터는 속심, 익스트랙터는 아가리).
      ★ 저그의 kind는 "extract"다(SHAPE_KIND.Extractor) — "extractor"가 아니다. */
   "refinery", "assim", "extract",
+  "nydus",   // 굴 속 라임 불빛 — 늘 깜빡인다(엔진이 활성과 무관하게 싣는다)
   /* 벙커 — 다른 건물의 '일하는 중'과 달리 **쏘는 중**에 켜진다(요청: "벙커는 발사 시
      창문이 번쩍거림"). 켜는 자는 아래 사격 판정이고, 여기 들어야 열쇠가 lit를 물어
      꺼진 판과 켜진 판이 따로 캐시된다. */
@@ -1524,7 +1525,7 @@ export function protossFace(fill?: string, lift = 0, s = 1): ShapeFace[] {
        꼬리는 얼굴 뒤에 적혀 있으니 어느 각도에서도 얼굴 위에 그려졌다. 꼬리의 한가운데는 y −0.5로
        얼굴(0.5)보다 한참 뒤이므로, 같은 자로 재기만 하면 앞에서는 얼굴이 이기고 뒤로 돌면 꼬리가 이긴다. */
   const skull9 = spikeHorn(
-    0, 0.28, 5.56 + L9z9, 0, -1.35 * s, 5.24 + L9z9, 0.3 * s,
+    0, 0.28, 5.56 + L9z9, 0, -1.35 * s, 5.24 + L9z9, 0.35 * s,   // 0.3 → 0.35(요청: 뒤통수 면을 살짝 넓게)
     undefined, 7, 0.16, 0, -0.15,
   );
   out.push(...tagKey(fill ? paintBase(skull9, fill) : skull9, depthNow(0, -0.5 * s) * 1.6 + 0.7));
@@ -2663,6 +2664,46 @@ export function membraneFaces(
  *  u, 수직 z)으로 3D 점을 찍어 투영한다: 정면에선 동그랗고 옆으로 돌수록 실제로
  *  납작해지며, 등을 돌리면 아예 안 그린다. 겹쳐 얹는 네 켜(테 → 몸 → 속살 → 반짝임)가
  *  법선 쪽으로 조금씩 배를 내밀어 볼록한 콘택트 렌즈가 된다. */
+/** 콘택트렌즈 — 타원 돔(가로 r · 높이 hh · 바닥 z0) 껍질 위에 붙는 얇은 사발(2026-09, 어시밀레이터 워프문).
+ *  가운데 방향은 +y 에서 elev 만큼 올려다보는 쪽, 반각 ang(단위 구 자)까지 덮는다. 겉면 = 껍질 점 + 법선·두께(가운데 thick ·
+ *  가장자리 0.02). 안면은 안 그린다(돔이 곧 안면이다). 바깥 켜 하나는 테(rim) 색, 안 절반은 core, 나머지는 fill. */
+export function contactLens9(o: {
+  cx: number; cy: number; r: number; hh: number; z0: number; ang: number; elev: number; thick: number;
+  rim: string; fill: string; core: string;
+}): ShapeFace[] {
+  const { cx, cy, r, hh, z0 } = o;
+  const c9 = [0, Math.cos(o.elev), Math.sin(o.elev)];
+  const t1 = [1, 0, 0];
+  const t2 = [0, -Math.sin(o.elev), Math.cos(o.elev)];
+  const NA = 6; const NB = 20;
+  const at9 = (a: number, b: number, off: number): [number, number, number] => {
+    const ca = Math.cos(a); const sa = Math.sin(a); const cb = Math.cos(b); const sb = Math.sin(b);
+    const p = [ca * c9[0] + sa * (cb * t1[0] + sb * t2[0]), ca * c9[1] + sa * (cb * t1[1] + sb * t2[1]), ca * c9[2] + sa * (cb * t1[2] + sb * t2[2])];
+    const sx = cx + r * p[0]; const sy = cy + r * p[1]; const sz = z0 + hh * p[2];
+    const nx = p[0] / r; const ny = p[1] / r; const nz = p[2] / hh;
+    const nl = Math.hypot(nx, ny, nz) || 1;
+    return [sx + (nx / nl) * off, sy + (ny / nl) * off, sz + (nz / nl) * off];
+  };
+  const thickAt = (k: number): number => 0.02 + (o.thick - 0.02) * (1 - k * k);
+  const out: ShapeFace[] = [];
+  const ring9 = (i: number): [number, number, number][] => {
+    const k = i / NA; const a = o.ang * k; const off = thickAt(k);
+    return Array.from({ length: NB }, (_, j) => at9(a, (j / NB) * Math.PI * 2, off));
+  };
+  const rings = Array.from({ length: NA + 1 }, (_, i) => ring9(i));
+  // 가운데 뚜껑 — 첫 고리 안을 한 다각형으로.
+  out.push([polyPath3(rings[1]), 1, o.core] as ShapeFace);   // 가운데 심(불투명)
+  for (let i = 1; i < NA; i += 1) {
+    const k = (i + 0.5) / NA;
+    const col = i === NA - 1 ? o.rim : k < 0.3 ? o.core : o.fill;   // 심은 안 30% 만 — 나머지는 반투명 유리라 돔이 비친다
+    for (let j = 0; j < NB; j += 1) {
+      const j2 = (j + 1) % NB;
+      const d = polyPath3([rings[i][j], rings[i][j2], rings[i + 1][j2], rings[i + 1][j]]);
+      out.push([d, 1, col] as ShapeFace);
+    }
+  }
+  return out;
+}
 export function lensFaces(o: {
   /** 렌즈 한가운데(모델 좌표). */
   x: number; y: number; z: number;
@@ -2971,7 +3012,7 @@ export function paintBase(faces: ShapeFace[], base: string): ShapeFace[] {
    저그는 휘도를 조금 내리고 채도를 올린다(#b9724a → #c0632f: 색 치우침 111 → 145 ·
    휘도 131 → 122) — 생기는 밝기가 아니라 **채도**에서 오고, '진하게'는 그 반대편이다.
    테란·프로토스는 색상각을 그대로 두고 휘도만 올린다(테란 90 → 104 · 토스 183 → 202). */
-export const RACE_BASE_TONE = { terran: "#626875", toss: "#e6d063", zerg: "#c0632f" } as const;   // 테란: 푸른 은색(#6b778d) → 따뜻한 건메탈 → 살짝 차갑고 한 단 진하게(요청: #616161 → #565961 → 한 번 더 차갑게 #555a64 · 휘도는 그대로)
+export const RACE_BASE_TONE = { terran: "#626875", toss: "#e8cb5e", zerg: "#c0632f" } as const;   // 토스 #e6d063 → #e8cb5e(요청: 기본 골드를 살짝 붉은 톤으로)   // 테란: 푸른 은색(#6b778d) → 따뜻한 건메탈 → 살짝 차갑고 한 단 진하게(요청: #616161 → #565961 → 한 번 더 차갑게 #555a64 · 휘도는 그대로)
 /* ★ **때 얼룩** — 칠 안 한 테란 면마다 쇠색 네 벌 중 하나를 **결정적으로** 고른다.
    무작위면 굽을 때마다 판이 달라져 캐시가 거짓말이 된다 — 면의 경로 문자열을 해시해
    같은 면은 언제나 같은 얼룩을 받는다. 네 벌은 기준(#575c63)의 위아래 5%와, 갈빛이
@@ -8248,7 +8289,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* ★ 불가사리 다리(날 + 뿔)를 **1.25배**(2026-09, 요청: "넥서스 발판 튀어나온 불가사리 다리 크기 25프로 확대") —
          날 끝·오목점·뿔의 자리와 키를 다 같은 배수로 키운다(중심에 대해 닮은꼴). 몸 밑동(반폭 4.5)은 그대로라
          삐져나온 몫만 큰다. */
-      const SK9 = 1.25;
+      const SK9 = 1.125;   // 1.25 → 1.125(재요청: "불가사리 10프로 축소")
       const TH9 = 0.4 * SK9;
       // 표창 0.8배(요청) 뒤 길이는 원복(재요청: "길이는 원복하고 폭만 줄인 걸로 유지") — 끝 8.9, 오목점 3.2.
       const STAR_R = 8.9 * SK9;
@@ -9046,7 +9087,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const rxi = 4.1;
     const ryi = rxi * 0.45;
     /** 갈고리·보석이 걸리는 링 허리 반지름. */
-    const RING_R = 4.6;
+    const RING_R = 4.14;   // 4.6 → 4.14(요청: 고리 지름 10% 축소 — 갈고리·보석도 이 자를 따른다)
     /* ★★ **고리의 낯은 지면과 수직이다**(2026-09, 지적: "파일런 고리를 바꿔야지 — 보석 말고,
        고리의 면이 지면과 수직인 고리 말이야") — 여태 이것은 PY_M 높이에 **납작하게 누운 워셔**였다
        (안 4.1 ~ 바깥 5.1 의 고리 판). 화면에서는 0.45로 눌린 타원이라 그럴듯했지만, 진짜 깊이에서는
@@ -9202,7 +9243,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const zB = PY_B;
     const zM = PY_M - 0.48;
     const zT = PY_T;
-    const w = 2.6;
+    const w = 2.34;   // 2.6 → 2.34(요청: 수정 기둥 지름 10% 축소)
     /* ★ **낯을 늘린다**(2026-09, 요청: "파일런 중심 수정의 면 더 늘리기") — 넷이면 어느 각에서나
        큰 삼각형 두 장뿐이라 '수정'이 아니라 종이 접기로 읽힌다. 여덟이면 위아래 합쳐 열여섯 낯이라
        모서리마다 밝기가 갈려 깎은 돌이 된다(면 수는 곧 광택이 설 자리다).
@@ -10912,23 +10953,16 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        알파를 실어 반투명 사이언으로 바꾼다. */
     /* 앞 렌즈도 불을 탄다(요청: 평소 어둡다가 가스 캘 때 네온) — 안 캘 때는 식은 유리
        처럼 짙게 가라앉고, 캐는 동안 사이언이 살아난다. */
-    out.push(...lensFaces({
-      x: 0, y: 2.15, z: 1.08, nx: 0, ny: 1, r: 1.75, bulge: 0.42, lift: 9.6,
-      rim: GOLD_D,
-      /* ★ 렌즈는 **늘 밝은 아쿠아**다(재재지적: "어시밀레이터 정면 렌즈 부분이 아직도
-         짙은 녹색이야 밝은 아쿠아색으로 보여야해(사선에서도)") ─────────────────────
-         짙은 녹색으로 보이던 자리는 **꺼진 쪽 색표**였다. 가스를 캐는 동안만 사이언이
-         들어오게 해 두었는데(bldLitNow), 어시밀레이터는 화면에 서 있는 시간의 대부분이
-         '지금 캐는 중이 아님'이라 사실상 늘 #227369(어두운 청록 = 짙은 녹색)이었다.
-         이제 꺼진 쪽도 아쿠아로 올린다 — 꺼짐·켜짐은 색상이 아니라 **밝기와 발광**으로
-         가른다(꺼짐은 차분한 아쿠아, 켜짐은 형광에 가깝게).
-         "사선에서도"에 답하는 대목: 이 렌즈의 안쪽 채움(fill)에는 알파가 실려 있어
-         (…cc) 뒤판(back)이 비쳐 나온다. 비스듬히 볼수록 유리를 지나는 길이가 길게
-         읽히므로 뒤판이 어두우면 사선에서 먼저 검어진다 — 그래서 back도 함께 올렸다. */
-      ...(bldLitNow
-        ? { back: "#4bcbba", fill: "#a3fff3cc", core: "#e0fffb", glint: "#ffffff" }
-        : { back: "#2db6a4", fill: "#88f9eacc", core: "#b7fff5", glint: "#e0fffb" }),
-    }));
+    /* ★ 콘택트렌즈(2026-09, 요청: "어시밀레이터 앞쪽 워프문 재작도 — 지금 부품들 제거하고 진짜 콘택트렌즈 모양으로 붙이기") —
+       옛 lensFaces(테 원판 + 볼록 켜 + 심 + 광)는 껍데기 앞에 세운 원반이었다. 콘택트렌즈는 **돔 껍질을 그대로 따르는 얇은
+       사발**이다(contactLens9): 돔 타원면(반지름 DR9 · 높이 DH9z9) 위의 점을 법선 쪽으로 두께(가운데 0.14 · 가장자리 0.02)만큼
+       띄운 겉면을 격자로 짓고 가장자리 한 켜를 금 테로 두른다. 안면은 돔이 곧 그것이라 안 그린다. 색은 옛 렌즈의 그 둘(쉼·캘 때)이다. */
+    out.push(...tagKey(contactLens9({
+      cx: 0, cy: -0.2, r: DR9, hh: DH9z9, z0: 0, ang: 0.6, elev: 0.3, thick: 0.14, rim: GOLD_D,
+      /* ⚠ 유리에 알파를 주지 마라 — 옛 렌즈는 뒤에 불투명 청록 판(back)이 있어 비쳐도 청록이었지만, 껍질에 붙는 이 렌즈의
+         뒤는 **금 돔**이라 반투명 아쿠아가 금과 섞여 허연 회색이 된다(실측). 불투명 아쿠아 두 단이다. */
+      ...(bldLitNow ? { fill: "#a3fff3", core: "#e0fffb" } : { fill: "#5fe6d4", core: "#b7fff5" }),
+    }), depthNow(0, 2.15) * 1.6 + 9.6));
     /* 창(요청: "창문 표시 및 평소 어둡다가 가스캘때는 네온색 불빛") — 프로토스 몸은
        둥근 껍데기라 테란처럼 벽에 유리를 낼 자리가 없다. 대신 네 귀 기둥 허리에 창
        띠를 두른다: 평소엔 식은 짙은 유리이고, 가스를 뽑는 동안 플라즈마 사이언이
@@ -13009,8 +13043,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         x: 0, y: 0, h: 0.8, w: 1, segs: 4, sides: 6, caps: "none",
         path: (t9: number): [number, number, number] =>
           [a9[0] + (b9[0] - a9[0]) * t9, a9[1] + (b9[1] - a9[1]) * t9, BZ9],
-        widthOf: (): number => 0.26,
-      }), GOLD_D), 12 + depthNow(mx9, my9) * 1.6));
+        widthOf: (): number => 0.30,   // 0.26 → 0.30(요청: 굵기 살짝 증가)
+      }), IVORY), 12 + depthNow(mx9, my9) * 1.6));   // 색은 상아(요청: "프로토스 시본색")
     });
     return raceBase(out, "toss", pc);
   }),
@@ -14263,6 +14297,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         return -0.6 + Math.sqrt(Math.max(0, r9 * r9 - x9 * x9)) - 0.15;
       };
       out.push(...tagKey(caveInside9(2.3, 0.0, 2.4, nydFront9, "#06070a"), 1));
+      /* ★ 굴 속 라임 불빛(2026-09, 요청: "동굴 안 라임색 리트 평소에도 깜빡거리기") — **바닥에 깔린 웅덩이** 한 장(z 0.09).
+         ⚠ 뒷벽에 세우면 안 보인다 — 굴이 3.6 깊은데 카메라가 40도 위라 아가리 위턱(z 1.5)을 지나는 시선은 바닥 1.8 에서
+           부딪히고 뒷벽에는 닿지도 않는다(실측: 뒷벽 판은 어느 각에서도 검은 굴만 보였다). 바닥은 아가리로 곧장 보인다.
+         엔진이 nydus 를 늘 깜빡이게 싣는다(LIT_KINDS · 활성과 무관). 꺼진 컷은 어두운 올리브라 굴 속이 비어 보이지 않는다. */
+      out.push(...tagKey([[polyPath3([[-1.1, 0.5, 0.09], [1.1, 0.5, 0.09], [0.8, 2.9, 0.09], [-0.8, 2.9, 0.09]]), 1,
+        glowLit("#b6ff3a", "#3d5a14")] as ShapeFace], 1.2));
     }
     /* 굴 속 — 아치 안의 검은 구멍. 제 자리 깊이를 그대로 쓰므로 앞을 보면 둔덕 위로
        올라오고 뒤로 돌면 둔덕에 묻힌다(따로 문턱을 두지 않는다). */
@@ -14276,6 +14316,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     if (!MESH9.on) out.push(...tagKey([
       [arch9(1.95, 2.15, 2.04, 0.16), 0.96, "#14171c"] as ShapeFace,
       [arch9(1.7, 1.5, 1.52, 0.36), 0.98, "#06070a"] as ShapeFace,
+      [arch9(1.72, 0.7, 0.7, 0.5), 1, glowLit("#b6ff3a", "#3d5a14")] as ShapeFace,   // 굴 속 라임 불빛(2D 폴백)
     ], mouthKey + 0.2));
     /* 입구 아치 — 굴을 두르는 두툼한 살 테. 반원 길을 그리는 기둥 하나로 낸다
        (굵기가 일정하도록 hold를 끝까지 준다). */
@@ -14319,6 +14360,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     ] as [number, number, number, number][]) {
       out.push(...tagKey(spikeHorn(fx9, fy9, 0.24, tx9, ty9, 0.92, 0.42, IVORY_DEEP, 6, 0.2,
         tx9 - fx9, ty9 - fy9), depthNow(tx9, ty9) * 1.6 + 0.6));
+    }
+    /* ★ 바닥 앞쪽의 작은 수평 가시 넷(2026-09, 요청: "커널 바닥 앞쪽에 작은 뾰족 수평 가시 4개") — 둔덕 밑동 앞 가장자리
+       (y 3.2~3.45 · z 0.3)에서 앞으로 1.0 곧게 뻗는다. 위 엄니(위로 서는 것)와 달리 땅에 붙어 앞을 찌른다. */
+    for (const [sx9, sy9] of [[-1.7, 3.15], [-0.6, 3.45], [0.6, 3.45], [1.7, 3.15]] as [number, number][]) {
+      out.push(...tagKey(spikeHorn(sx9, sy9, 0.3, sx9 * 1.12, sy9 + 1.0, 0.34, 0.22, IVORY_DEEP, 6, 0.1,
+        sx9 * 0.12, 1.0), depthNow(sx9 * 1.12, sy9 + 1.0) * 1.6 + 0.6));
     }
     return out;
   },
@@ -21193,15 +21240,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      팔이었다. 베기는 **손의 자리**가 호를 그린다: 머리 위 오른쪽 뒤(치켜듦) → 얼굴 앞(지나감) → 왼쪽 아래 앞(쏵).
      검은 하완과 평행이므로 손을 그 호에 두면 칼끝이 어깨 위에서 반대편 무릎으로 대각선을 긋는다.
      ⚠ 손은 어깨에서 두 마디 합(2.65) 안에 있어야 관절이 풀린다(jointBetween) — 셋 다 2.45 안쪽이다. */
+  /** 검 든 팔의 쪽 — −1 이면 왼팔(요청: "다크 칼 팔 있는 쪽 반대로"). 손·팔꿈치·어깨의 x 가 다 이 부호를 탄다. */
+  const SW9: 1 | -1 = -1;
   const DT_HAND9: Record<number, [number, number, number]> = {
-    0: [1.45, -0.55, 3.4],     // 쉼 — 뒤로 늘어뜨림
-    1: [1.55, -1.15, 6.35],    // 치켜듦 — 머리 위·뒤(칼끝이 뒤로 넘어간다)
-    3: [0.35, 1.3, 5.2],       // 지나감 — 얼굴 앞, 칼이 앞으로 넘어오는 중
-    2: [-0.4, 1.3, 2.7],       // 쏵 — 몸 앞을 가로질러 왼쪽 아래
+    0: [SW9 * 1.45, -0.55, 3.4],     // 쉼 — 뒤로 늘어뜨림
+    1: [SW9 * 1.55, -1.15, 6.35],    // 치켜듦 — 머리 위·뒤(칼끝이 뒤로 넘어간다)
+    3: [SW9 * 0.35, 1.3, 5.2],       // 지나감 — 얼굴 앞, 칼이 앞으로 넘어오는 중
+    2: [SW9 * -0.4, 1.3, 2.7],       // 쏵 — 몸 앞을 가로질러 왼쪽 아래
   };
   /** 팔꿈치가 빠지는 쪽 — 치켜들 때는 뒤·위, 벨 때는 바깥·앞이라야 하완이 칼과 함께 돈다. */
   const DT_BEND9: Record<number, [number, number, number]> = {
-    0: [0.6, -0.9, 1.1], 1: [0.9, -0.7, 0.5], 3: [1.1, -0.2, 0.7], 2: [1.0, 0.2, 0.5],
+    0: [SW9 * 0.6, -0.9, 1.1], 1: [SW9 * 0.9, -0.7, 0.5], 3: [SW9 * 1.1, -0.2, 0.7], 2: [SW9 * 1.0, 0.2, 0.5],
   };
   const hp9 = DT_HAND9[cut9] ?? DT_HAND9[0];
   /* ★ 다크는 **금이 아니다**(요청: 샘플 대조 재작도) — 샘플(다크템플러2·3)에서 이 몸은
@@ -21221,7 +21270,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          그러면 상완은 어깨에서 바깥·뒤로 들리고 하완은 거기서 **앞·아래**로 꺾인다.
      검은 하완과 평행이므로(아래) 칼끝도 함께 앞으로 돈다. */
   const EL_SW9: [number, number, number] = DT_BEND9[cut9] ?? DT_BEND9[0];
-  const shR9: [number, number, number] = [0.82, 0.25 + armY(1) * 0.5, 4.48];
+  const shR9: [number, number, number] = [SW9 * 0.82, 0.25 + armY(1) * 0.5, 4.48];
   const hdR9: [number, number, number] = [hp9[0], hp9[1] + armY(1), hp9[2]];
   const elR9 = jointBetween(shR9, hdR9, 1.45, 1.2, EL_SW9);
   /** 팔 하나 — 어깨 관절 공 + 상완 + 하완. 팔꿈치는 두 마디 길이(1.45·1.2) 고정으로 푼다. */
@@ -21356,18 +21405,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          depthNow×1.6+1.0을 명시해, 몸통 축(y −0.1)보다 앞이면 이기고 뒤면 진다. */
     // 팔·손·검은 어깨 자리의 강체 이동이다(pRigid9) — 전단이면 팔이 늘어난다.
     ...pRigid9(DT_LEAN9, 0, shR9[2], (): ShapeFace[] => [
-    ...dtArm(-1, [-0.82, 0.25 + armY(-1) * 0.5, 4.48], [-1.1, 1.2 + armY(-1), 2.96]),
+    ...dtArm(-SW9 as 1 | -1, [-SW9 * 0.82, 0.25 + armY(-1) * 0.5, 4.48], [-SW9 * 1.1, 1.2 + armY(-1), 2.96]),
     /* 왼손 — 하이템플러식 큰 손: 흰 손바닥 + 긴 손가락 셋. */
     ...paintBase([
-      ...domeFaces3(-1.1, 1.25, 0.34, 0.224, 2.8),
-      ...spikeHorn(-1.28, 1.3, 2.88, -1.42, 1.75, 2.48, 0.15, undefined, 6, 0.12),
-      ...spikeHorn(-1.08, 1.35, 2.88, -1.06, 1.85, 2.44, 0.15, undefined, 6, 0.12),
-      ...spikeHorn(-0.9, 1.28, 2.88, -0.75, 1.7, 2.48, 0.15, undefined, 6, 0.12),
+      ...domeFaces3(-SW9 * 1.1, 1.25, 0.34, 0.224, 2.8),
+      ...spikeHorn(-SW9 * 1.28, 1.3, 2.88, -SW9 * 1.42, 1.75, 2.48, 0.15, undefined, 6, 0.12),
+      ...spikeHorn(-SW9 * 1.08, 1.35, 2.88, -SW9 * 1.06, 1.85, 2.44, 0.15, undefined, 6, 0.12),
+      ...spikeHorn(-SW9 * 0.9, 1.28, 2.88, -SW9 * 0.75, 1.7, 2.48, 0.15, undefined, 6, 0.12),
     ], "#e9edf0"),
     /* 오른팔은 뒤로(요청) — 검을 뒤로 늘어뜨린 자세. 하완과 검이 1자다. */
     /* 검 든 팔 — 평소엔 뒤(−y)로 늘어뜨리고, 공격에서는 그 팔이 통째로 앞으로 돌아
        검이 몸 앞을 가른다. sw9가 그 휘두른 몫이다(뒤 −1.55 → 앞 +1.15). */
-    ...dtArm(1, shR9, hdR9, EL_SW9),
+    ...dtArm(SW9, shR9, hdR9, EL_SW9),
     /* 검은 **초록**이다(사진 다크템플러2·3 — 워프 블레이드) — 질럿의 플라즈마와
        갈리는 다크의 표식. 심은 밝은 백록. */
     ...((): ShapeFace[] => {

@@ -6183,7 +6183,8 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           /* ★ 부속의 활성(2026-09, 요청: "모든 애드온 건물의 활성화 효과있어야 함") — 머신샵·컨트롤타워·코버트·
              피직스랩은 연구(researching)가 켜고, **컴샛은 스캔**(그 임자의 Scanner Sweep 이 SCAN_DETECT_SEC 안)이,
              **핵 사일로는 핵**(만드는 동안 깜빡 · 장전되면 쏠 때까지 켜 둠 — nukeArm9)이 켠다. */
-          lit: !bldFrozen9 && ((producing || researching || scanLit9 || nukeBuild9)
+          /* ★ 나이더스 굴 속 라임 불빛은 **늘** 깜빡인다(2026-09, 요청: "평소에도 깜빡거리기") — 활성과 무관한 신호등이다. */
+          lit: !bldFrozen9 && ((producing || researching || scanLit9 || nukeBuild9 || shapeKind === "nydus")
             && (!qAnim || ((((t + i * 0.17) % 0.9) + 0.9) % 0.9) < 0.6) || nukeArmed9),
           ...((): { pulseK?: number } => {
             /* ★ 저그 활성 건물의 숨(ZERG_PULSE_K9 의 ★) — 해처리류의 생산(라바 → 알)은 뺀다. */
