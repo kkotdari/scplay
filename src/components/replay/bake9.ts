@@ -1507,6 +1507,45 @@ export function protossCrown(fill: string, lift = 0, s = 1, gem?: string): Shape
   }
   return out;
 }
+/** 프로토스 보병 공통 **투구**(2026-09) — 앞뒤로 길고 납작한 판이 정수리 위에 얹힌다. 앞 토막(y 0.68 → 0)은 양변이 평행
+ *  (반폭 0.42)하고 그 뒤로 꼬리(y −1.45)까지 곧게 좁아져 끝이 뾰족하다. 좌우는 가운데에서 가장자리로 갈수록 **아래로 호**(0.3·u²)
+ *  로 처지고, 두께 0.07 의 아래 켜와 옆·앞 테두리 띠로 닫는다. 판 자체는 뒤로 갈수록 조금 내려간다(0.06/칸).
+ *  격자(길이 9 × 폭 6)로 쪼개 GL 이 굽은 살을 제 현으로 따라가게 한다(망토 자락·커맨드 데칼의 그 규약). 색은 종족 금(P_GOLD). */
+export function pHelmet9(lift = 0, s = 1): ShapeFace[] {
+  const YF9 = 0.68; const Y1_9 = 0.0; const YB9 = -1.45;    // 앞 끝 · 평행 구간 끝 · 꼬리 끝(y)
+  const HW9 = 0.42; const DR9 = 0.3; const TH9 = 0.07;       // 반폭 · 처짐 · 두께
+  const NU9 = 9; const NV9 = 6;
+  const hwAt9 = (y9: number): number => (y9 >= Y1_9 ? HW9 : Math.max(0.03, HW9 * ((y9 - YB9) / (Y1_9 - YB9))));
+  const zc9 = (y9: number): number => 5.60 + 0.06 * (y9 - 0.28);   // 꼬리로 갈수록 살짝 내려간다(올리면 부감에서 뒤가 솟은 뿔로 읽힌다)
+  const yAt9 = (i9: number): number => YF9 + ((YB9 - YF9) * i9) / NU9;
+  /** 판 위의 점 — u 는 폭 몫(−1~1) · top 이면 윗면, 아니면 두께만큼 아래. */
+  const P9 = (y9: number, u9: number, top: boolean): [number, number, number] =>
+    [u9 * hwAt9(y9) * s, y9 * s, (zc9(y9) - DR9 * u9 * u9 - (top ? 0 : TH9)) * s + lift];
+  const out: ShapeFace[] = [];
+  const key9 = depthNow(0, 0.1 * s) * 1.6 + 0.72;
+  for (let i9 = 0; i9 < NU9; i9 += 1) {
+    const y0 = yAt9(i9); const y1 = yAt9(i9 + 1);
+    for (let j9 = 0; j9 < NV9; j9 += 1) {
+      const u0 = -1 + (2 * j9) / NV9; const u1 = -1 + (2 * (j9 + 1)) / NV9;
+      const dt9 = polyPath3([P9(y0, u0, true), P9(y0, u1, true), P9(y1, u1, true), P9(y1, u0, true)]);
+      out.push([dt9, 1, P_GOLD] as ShapeFace, ...faceLight(0, 0, 1).face(dt9));
+      const db9 = polyPath3([P9(y0, u1, false), P9(y0, u0, false), P9(y1, u0, false), P9(y1, u1, false)]);
+      out.push([db9, 1, "#8a7a3a"] as ShapeFace);
+    }
+    // 옆 테두리 둘 — 처진 가장자리의 두께 띠.
+    for (const m9 of [-1, 1] as const) {
+      const de9 = polyPath3([P9(y0, m9, true), P9(y1, m9, true), P9(y1, m9, false), P9(y0, m9, false)]);
+      out.push([de9, 1, P_GOLD] as ShapeFace, ...faceLight(m9, 0, -0.4).face(de9));
+    }
+  }
+  // 앞 테두리 — 평행한 앞 끝의 두께 띠(호를 따라 여섯 토막).
+  for (let j9 = 0; j9 < NV9; j9 += 1) {
+    const u0 = -1 + (2 * j9) / NV9; const u1 = -1 + (2 * (j9 + 1)) / NV9;
+    const df9 = polyPath3([P9(YF9, u0, true), P9(YF9, u0, false), P9(YF9, u1, false), P9(YF9, u1, true)]);
+    out.push([df9, 1, P_GOLD] as ShapeFace, ...faceLight(0, 1, 0).face(df9));
+  }
+  return tagKey(out, key9);
+}
 export function protossFace(fill?: string, lift = 0, s = 1): ShapeFace[] {
   const L9 = lift; const L9z9 = lift; /* z용 쌍둥이(model-z-scale ×0.8) */
   const out: ShapeFace[] = [];
@@ -1525,11 +1564,11 @@ export function protossFace(fill?: string, lift = 0, s = 1): ShapeFace[] {
        바깥에서 감긴 tagKey 하나로 **같은 키**를 나눠 가져, 그리는 차례(배열 순서)가 곧 앞뒤였다.
        꼬리는 얼굴 뒤에 적혀 있으니 어느 각도에서도 얼굴 위에 그려졌다. 꼬리의 한가운데는 y −0.5로
        얼굴(0.5)보다 한참 뒤이므로, 같은 자로 재기만 하면 앞에서는 얼굴이 이기고 뒤로 돌면 꼬리가 이긴다. */
-  const skull9 = spikeHorn(
-    0, 0.28, 5.56 + L9z9, 0, -1.35 * s, 5.24 + L9z9, 0.35 * s,   // 0.3 → 0.35(요청: 뒤통수 면을 살짝 넓게)
-    undefined, 7, 0.16, 0, -0.15,
-  );
-  out.push(...tagKey(fill ? paintBase(skull9, fill) : skull9, depthNow(0, -0.5 * s) * 1.6 + 0.7));
+  /* ★ **꽁지는 걷고 투구를 얹는다**(2026-09, 요청: "프로토스 보병 머리 뒤의 뾰족 꽁지 제거 — 원작에 자세히 보니 그런 부분은
+     없더라구. 대신 질럿·하템·다템 머리에 앞뒤로 길고 납작하며 좌우가 아래로 호로 살짝 휜 투구를 얹어 줄 거야. 앞은 양변이
+     평행하다가 뒤로 갈수록 좁아져 뾰족한 느낌") — 옛 두개골 꼬리(spikeHorn · 정수리에서 뒤로 −1.35)를 걷고 `pHelmet9` 를 얹는다.
+     뒤통수는 얼굴 달걀의 정수리 켜가 그대로 닫는다(달걀은 t 1 에서 반지름 0.15 로 여민 닫힌 회전체다). */
+  out.push(...pHelmet9(L9z9, s));
   /* ★ 눈 — **얼굴 껍질 위에 앉힌 아몬드**다(지적: "눈이 좀 이상 … 사선 각도에서 부자연스러워") ────
      여태 눈은 y를 0.66에 못 박은 팔각 원반이었다. 그런데 그 높이에서 껍질의 앞면은 y 0.9 언저리다 —
      눈이 머리 **속에 0.24쯤 박혀** 있었고, 얼굴과 같은 키로 나중에 그려져 껍질을 뚫고 비쳤다. 정면에서는
@@ -21500,14 +21539,22 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const TC9 = 0.86;    // 띠의 가운데(좌우) — 옆 끝에 거의 닿게
       const TW9 = 0.105;   // 띠의 반폭(좌우)
       const V0_9 = 0.02;   // 띠가 시작하는 자리(깃 0 ~ 밑단 1)
+      /* ★★ **띠는 한 다각형이 아니라 마디마다 네모다**(2026-09, 재재지적: "다템 망토 왼쪽 임자색 띠 아직도 잘 안 보임" —
+         실측 180 에서 왼 띠가 밑단 한 칸만 남고 자락 뒤로 잠겼다) — 여태 띠는 16 꼭짓점짜리 **한 폴리곤**이었다. 자락은 격자
+         (12×7)로 쪼개 굽은 살을 따라가는데, 띠는 GL 이 귀 자르기로 **제 현**을 긋는다: 어깨에서 앞으로 감기고 밑단에서 말리는
+         띠를 한 평면(지배 축)에 눕히면 자기교차라 귀를 못 찾고 부채꼴로 물러나, 자락을 가로지르는 긴 현이 살 밑으로 파고든다.
+         왼쪽만 잠긴 것은 감기는 방향이 거울이라 지배 축 사영이 갈렸을 뿐 — 띄움(0.08)을 아무리 키워도 현은 못 살린다.
+         자락과 **같은 v 칸**(NV9)으로 네모를 나누면 띠의 현이 자락의 현과 같은 자리라 어느 각에서도 위에 선다. */
       for (const m9 of [-1, 1] as const) {
-        const ring9: [number, number, number][] = [];
-        const N9 = 7;
-        for (let i9 = 0; i9 <= N9; i9 += 1) ring9.push(bandAt9(m9 * (TC9 - TW9), V0_9 + ((1 - V0_9) * i9) / N9));
-        for (let i9 = N9; i9 >= 0; i9 -= 1) ring9.push(bandAt9(m9 * (TC9 + TW9), V0_9 + ((1 - V0_9) * i9) / N9));
-        const p9 = polyPath3(ring9);
-        // 색을 안 준 면이라 임자 색이 든다. 음영은 자락과 같은 몫으로 얹어 한 겹처럼 보이게.
-        out9.push([p9, 1] as ShapeFace, sideFace(p9, 0.18));
+        for (let i9 = 0; i9 < NV9; i9 += 1) {
+          const v0 = V0_9 + ((1 - V0_9) * i9) / NV9; const v1 = V0_9 + ((1 - V0_9) * (i9 + 1)) / NV9;
+          const p9 = polyPath3([
+            bandAt9(m9 * (TC9 - TW9), v0), bandAt9(m9 * (TC9 + TW9), v0),
+            bandAt9(m9 * (TC9 + TW9), v1), bandAt9(m9 * (TC9 - TW9), v1),
+          ]);
+          // 색을 안 준 면이라 임자 색이 든다. 음영은 자락과 같은 몫으로 얹어 한 겹처럼 보이게.
+          out9.push([p9, 1] as ShapeFace, sideFace(p9, 0.18));
+        }
       }
       return tagKey(out9, depthNow(0, -1.5) + 0.6);
     })(),
