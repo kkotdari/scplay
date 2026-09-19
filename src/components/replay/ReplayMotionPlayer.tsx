@@ -814,6 +814,8 @@ type BenchTier9 = {
   aheadSec: number; aheadMB: number;
   glMeshMax?: number; glBloom?: boolean; glSpec?: boolean; yaw8Always?: boolean; live3d?: boolean;
   shadowGroundMinZoom?: number; decalBakeMax?: number; hitShardK?: number; dieShards?: number;
+  /** MRT 판의 MSAA 표본 수 · 효과 심의 곡선 마디 몫(gl9.msaa · glctx9.qual) — 아래 '사양이 올라간 듯'의 ★. */
+  glMsaa?: number; fxQual?: number;
 };
 /* ⚠ 문턱은 **숫자로 적는다** — CROWD_BENCH_MS9(24)는 이 표보다 아래에 선언되므로 여기서 부르면 TDZ 다.
    ★ **판 굽기 시절 자를 GL 몫만큼 늦춘다**(2026-09, 지적: "폰이나 PC 매우낮음인데 여유가 있어보여서 혹시
@@ -853,13 +855,17 @@ const PC_TIERS9: readonly BenchTier9[] = [
    화소당으로 재면 2D 자보다 1.6배가 아니라 **4.3배** 엄격했다(2단에 오르려면 2D 기준 5.6ms 여야 했다).
    이 어긋남은 live3d 문턱에서 한 번 고쳤던 그 어긋남과 같은 것이다(아래 LIVE3D_BENCH_MS9 의 ★).
    13 × 2.87 ≒ 37 이 화소당 나란한 값이지만 번짐은 기울인 화면에서 가장 무거우니 **28** 로 둔다. */
+/* ★ **효과가 늘어난 만큼 한 칸 더 죈다**(2026-09, 지적: "여러 효과가 들어가면서 사양이 올라간 듯 — 최적화할 거 있나 살펴보고 안 되면
+   벤치 기준 높이자") — 효과 GL 심·번짐 MRT·광택·파편이 든 뒤의 값이다. 헤드리스는 GPU 몫을 못 재므로(여섯 변형이 다 p50 417~450ms ·
+   소프트웨어 GL 이 78%) 실기에서 값이 드는 자리에 손잡이를 달고(MSAA 표본 수 `glMsaa` · 심 마디 몫 `fxQual` · 빛 없는 장의 빛 판
+   생략) 문턱도 함께 죈다: 26 → 23 · 11 → 10 · 입체 24 → 22. 폰 0·1단은 MSAA 2 표본·심 마디 0.6/0.8 이고 2단부터 제값이다. */
 const PHONE_TIERS9: readonly BenchTier9[] = [
   { name: "낮음", upMs: Infinity, aheadSec: 1.5, aheadMB: 6 },
-  { name: "보통", upMs: 26, aheadSec: 2.5, aheadMB: 10,
-    glMeshMax: 300, glSpec: true, glBloom: true, shadowGroundMinZoom: 2, decalBakeMax: 256, hitShardK: 0.8, dieShards: 16 },
-  { name: "높음", upMs: 11, up3Ms: 24, aheadSec: 4, aheadMB: 16,
+  { name: "보통", upMs: 23, aheadSec: 2.5, aheadMB: 10,
+    glMeshMax: 300, glSpec: true, glBloom: true, shadowGroundMinZoom: 2, decalBakeMax: 256, hitShardK: 0.8, dieShards: 16, fxQual: 0.8 },
+  { name: "높음", upMs: 10, up3Ms: 22, aheadSec: 4, aheadMB: 16,
     glMeshMax: 360, glBloom: true, yaw8Always: false,
-    shadowGroundMinZoom: 1, decalBakeMax: 384, hitShardK: 1, dieShards: 24 },
+    shadowGroundMinZoom: 1, decalBakeMax: 384, hitShardK: 1, dieShards: 24, glMsaa: 4, fxQual: 1 },
 ];
 const DEV9 = smallDevice9 ? {
   name: "phone",
@@ -880,6 +886,8 @@ const DEV9 = smallDevice9 ? {
   glSpec: false,
   /** 손짓 중 실시간 원근을 **재지 않고 켤까**(live3dOn9의 ★) — 폰은 어느 단에서도 안 켠다(제 벤치·실측 자를 탄다). */
   live3d: false,
+  /** MRT 판 MSAA 표본 수(폰 0·1단 2 · 2단 4) · 효과 심의 곡선 마디 몫(0단 0.6 · 1단 0.8 · 2단 1) — 위 PHONE_TIERS9 의 ★. */
+  glMsaa: 2, fxQual: 0.6,
 } : {
   name: "pc",
   decalBakeMax: 768,   // 크립 굽기 상한 384 → 768(지적: PC에서 화질 낮은 게 보임)
@@ -892,6 +900,7 @@ const DEV9 = smallDevice9 ? {
   glBloom: true,
   glSpec: true,
   live3d: false,   // 3단(매우 높음)에서 표가 켠다
+  glMsaa: 4, fxQual: 1,
 };
 /* ★ **PC는 벤치 단으로 예산을 올린다**(요청: "윈도우 크롬에서 CPU·GPU를 최대한 쓸 수 없을까" → 계획 1번) ────
    위 PC 표는 한 값이라 벤치 7ms짜리 기기도 19ms짜리와 같은 예산(프레임당 굽기 3장·12ms, 앞 3초·24MB)으로
@@ -982,6 +991,8 @@ function applyBenchTier9(bench: number): void {
   if (t9.hitShardK !== undefined) DEV9.hitShardK = t9.hitShardK;
   if (t9.dieShards !== undefined) DEV9.dieShards = t9.dieShards;
   if (t9.live3d !== undefined) DEV9.live3d = t9.live3d;
+  if (t9.glMsaa !== undefined) DEV9.glMsaa = t9.glMsaa;
+  if (t9.fxQual !== undefined) DEV9.fxQual = t9.fxQual;
   DEV9_DIRTY9.v = true;
   qualityNote9();   // 단이 올랐다 — 재생 품질 알림(위 QUALITY9)
 }
@@ -4302,7 +4313,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       const ctx = cv.getContext("2d");
       if (!ctx) return;
       /* 효과는 **위 캔버스**에 그린다(GL 층 위 — UnitLayer 의 ★★). GL 이 없으면(#gl=0) 종전대로 유닛 캔버스다. */
-      const gl9 = glUnits9(glRef.current, DEV9.glMeshMax, DEV9.glBloom, DEV9.glSpec);
+      const gl9 = glUnits9(glRef.current, DEV9.glMeshMax, DEV9.glBloom, DEV9.glSpec, DEV9.glMsaa);
       const fctx9 = fcv9 ? fcv9.getContext("2d") : null;
       /* ★ **효과도 GL 이 그린다**(2026-09, 다음 손 2 "링·체력바·효과 GL로") — 붓(paintFxList9)은 캔버스 2D 를 말하지만 그 말을
          받는 것은 `glctx9`(캔버스 2D 의 부분집합을 삼각형으로 옮기는 심)다. GL 층 안에서 몸·연기 다음에 같은 판(MRT)에 그려지므로
@@ -4315,7 +4326,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         if (!vec9 || !FX_CLEAN9.has(fcv9)) { fctx9.setTransform(Bd, 0, 0, Bd, 0, 0); fctx9.clearRect(0, 0, cw, ch); }
         if (vec9) FX_CLEAN9.add(fcv9); else FX_CLEAN9.delete(fcv9);
       }
-      if (vec9) { vec9.reset(); vec9.setTransform(Bd, 0, 0, Bd, 0, 0); }
+      if (vec9) { vec9.qual = DEV9.fxQual; vec9.reset(); vec9.setTransform(Bd, 0, 0, Bd, 0, 0); }
       /* 등급은 배율도 본다(요청: 2.5배부터 전부) — 굽기가 이 값을 읽으므로 그리기 전에
          세워 둔다(lodSetCap·lodPenalty와 같은 결의 모듈 전역이다). */
       /* 마커·자세함은 **지금 그리는 배율**로 판정한다(위 markerAt 주석) — 손짓 중에도

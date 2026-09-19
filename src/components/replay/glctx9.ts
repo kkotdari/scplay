@@ -173,6 +173,9 @@ export class GlCtx9 {
   private tmp = [0, 0, 0, 0];
   readonly canvas = null as unknown as HTMLCanvasElement;
   constructor(private sink: VecSink9) {}
+  /** ★ **곡선을 잘게 쪼개는 몫**(2026-09, 사양 손질) — 호·베지에의 마디 수에 곱한다. 폰 낮은 단은 0.6(테셀레이션이 JS 몫이라
+   *  프레임마다 붓이 내는 삼각 수가 그만큼 준다). 단 표 `DEV9.fxQual` 이 주고, 붓이 장마다 옮겨 적는다. */
+  qual = 1;
   /** 프레임 머리에서 상태를 캔버스 기본값으로(붓이 save/restore 를 어긋나게 남겼어도 다음 장이 깨끗하다). */
   reset(): void {
     this.st = { m: [1, 0, 0, 1, 0, 0], alpha: 1, fill: "#000", stroke: "#000", lw: 1, cap: "butt", join: "miter", miter: 10, gco: "source-over", dash: [], dashOff: 0 };
@@ -221,14 +224,14 @@ export class GlCtx9 {
   quadraticCurveTo(cpx: number, cpy: number, x: number, y: number): void {
     const s = this.ensure();
     const x0 = this.cx; const y0 = this.cy; const X1 = this.tx(cpx, cpy); const Y1 = this.ty(cpx, cpy); const X2 = this.tx(x, y); const Y2 = this.ty(x, y);
-    const n = Math.max(4, Math.min(24, Math.ceil(Math.hypot(X2 - x0, Y2 - y0) / 6)));
+    const n = Math.max(4, Math.min(24, Math.ceil((Math.hypot(X2 - x0, Y2 - y0) / 6) * this.qual)));
     for (let i = 1; i <= n; i += 1) { const t = i / n; const u = 1 - t; s.pts.push(u * u * x0 + 2 * u * t * X1 + t * t * X2, u * u * y0 + 2 * u * t * Y1 + t * t * Y2); }
     this.cx = X2; this.cy = Y2;
   }
   bezierCurveTo(c1x: number, c1y: number, c2x: number, c2y: number, x: number, y: number): void {
     const s = this.ensure();
     const x0 = this.cx; const y0 = this.cy; const X1 = this.tx(c1x, c1y); const Y1 = this.ty(c1x, c1y); const X2 = this.tx(c2x, c2y); const Y2 = this.ty(c2x, c2y); const X3 = this.tx(x, y); const Y3 = this.ty(x, y);
-    const n = Math.max(4, Math.min(32, Math.ceil(Math.hypot(X3 - x0, Y3 - y0) / 6)));
+    const n = Math.max(4, Math.min(32, Math.ceil((Math.hypot(X3 - x0, Y3 - y0) / 6) * this.qual)));
     for (let i = 1; i <= n; i += 1) { const t = i / n; const u = 1 - t; s.pts.push(u * u * u * x0 + 3 * u * u * t * X1 + 3 * u * t * t * X2 + t * t * t * X3, u * u * u * y0 + 3 * u * u * t * Y1 + 3 * u * t * t * Y2 + t * t * t * Y3); }
     this.cx = X3; this.cy = Y3;
   }
@@ -240,7 +243,7 @@ export class GlCtx9 {
     else { if (d < 0) d += Math.PI * 2 * Math.ceil(-d / (Math.PI * 2)); if (d >= Math.PI * 2) d = Math.PI * 2; }
     const rp = Math.max(rx, ry) * this.mk();
     const full = Math.max(8, Math.min(64, Math.ceil(rp * 1.1)));
-    const n = Math.max(1, Math.ceil((full * Math.abs(d)) / (Math.PI * 2)));
+    const n = Math.max(1, Math.ceil((full * this.qual * Math.abs(d)) / (Math.PI * 2)));
     const cr = Math.cos(rot); const sr = Math.sin(rot);
     // 캔버스 규약: 경로가 열려 있으면 현재 점에서 호의 시작으로 선을 잇는다.
     const first = !this.cur;

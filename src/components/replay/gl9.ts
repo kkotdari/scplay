@@ -773,6 +773,10 @@ export class GlUnits9 implements VecSink9 {
      값이 바뀌므로, glUnits9 가 다음 칠하기에서 그 벌에 새 값을 일러 준다. */
   /** MRT 판(mrtEnsure)을 쓸 수 있는 문맥인가 — 도록 아이콘 문맥(4096² 판)은 MSAA 판이 수백 MB 라 끈다(캔버스 AA 로). */
   private readonly mrtOk: boolean;
+  /** ★ **MRT 판의 MSAA 표본 수**(2026-09, 지적: "여러 효과가 들어가면서 사양이 올라간듯") — 폰은 DPR 3 이라 화면 한 장이 수백만 화소고,
+   *  MSAA 는 색·깊이·빛 판 셋이 다 표본 수만큼 커진다(4 표본이면 한 장에 100MB 남짓의 판을 매 장 지우고 채우고 푼다). 단 표
+   *  (`DEV9.glMsaa`)가 폰 0·1단은 2, 2단·PC 는 4 를 준다. `#glmsaa=N` 으로 못 박는다. 바뀌면 판을 다시 짓는다(mrtEnsure). */
+  public msaa = 4;
   constructor(readonly canvas: HTMLCanvasElement, public meshMax = MESH_MAX9, public bloomOn = true, public specOn = true, mrtOk = true) {
     this.mrtOk = mrtOk;
     const opts9 = { alpha: true, premultipliedAlpha: true, antialias: true, depth: true, stencil: true };   // 스텐실은 다크 스웜 마스크(swarmPlate)의 자다   // 미리곱한 알파 — 셰이더 출력·합성 함수(ONE, 1−a)와 한 벌
@@ -1004,12 +1008,13 @@ export class GlUnits9 implements VecSink9 {
    *  옛 번짐은 '빛 상자 합집합 안의 몸을 1/4 깊이 판에 한 번 더 그리고 빛 낯을 또 그리는' **둘째 기하 패스**였다(늘 켜진 보석·창이
    *  흩어져 있으면 매 장 화면 전체를 두 번). 이제 빛 판은 본 패스가 **공짜로** 남기고(가린 몸이 그 자리를 0 으로 덮으므로 앞뒤가
    *  본 깊이 그대로다), 번짐은 그 판을 1/4 로 내려 흐려 더할 뿐이다. 색은 blitFramebuffer 로 캔버스에 옮긴다(캔버스는 AA 없음). */
-  private mrt: { fb: WebGLFramebuffer; cb0: WebGLRenderbuffer; cb1: WebGLRenderbuffer | null; db: WebGLRenderbuffer; emTex: WebGLTexture | null; emFb: WebGLFramebuffer | null; w: number; h: number; em: boolean } | null = null;
+  private mrt: { fb: WebGLFramebuffer; cb0: WebGLRenderbuffer; cb1: WebGLRenderbuffer | null; db: WebGLRenderbuffer; emTex: WebGLTexture | null; emFb: WebGLFramebuffer | null; w: number; h: number; em: boolean; samples: number } | null = null;
   private mrtFail = false;
   private mrtEnsure(w: number, h: number, em: boolean): boolean {
     if (!this.gl2 || !this.mrtOk || this.mrtFail || GL_MRT9 === 0) return false;
     const m = this.mrt;
-    if (m && m.w === w && m.h === h && m.em === em) return true;
+    const want9 = GL_MSAA9 >= 0 ? GL_MSAA9 : this.msaa;
+    if (m && m.w === w && m.h === h && m.em === em && m.samples === want9) return true;
     const gl = this.gl as WebGL2RenderingContext;
     const drop = (): void => {
       if (!this.mrt) return;
@@ -1020,7 +1025,7 @@ export class GlUnits9 implements VecSink9 {
     };
     drop();
     try {
-      const samples = Math.min(4, Number(gl.getParameter(gl.MAX_SAMPLES)) || 0);
+      const samples = Math.min(want9, Number(gl.getParameter(gl.MAX_SAMPLES)) || 0);
       const rb = (fmt: number): WebGLRenderbuffer => {
         const r = gl.createRenderbuffer()!; gl.bindRenderbuffer(gl.RENDERBUFFER, r);
         if (samples > 0) gl.renderbufferStorageMultisample(gl.RENDERBUFFER, samples, fmt, w, h); else gl.renderbufferStorage(gl.RENDERBUFFER, fmt, w, h);
@@ -1049,7 +1054,7 @@ export class GlUnits9 implements VecSink9 {
         if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) throw new Error("빛 판 FBO");
       }
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      this.mrt = { fb, cb0, cb1, db, emTex, emFb, w, h, em };
+      this.mrt = { fb, cb0, cb1, db, emTex, emFb, w, h, em, samples: want9 };
       this.stat.depthBits = 24;
       return true;
     } catch (e) {
@@ -1613,6 +1618,9 @@ export class GlUnits9 implements VecSink9 {
         if (cx0 < sx0) sx0 = cx0; if (cx1 > sx1) sx1 = cx1;
         if (cy0 < sy0) sy0 = cy0; if (cy1 > sy1) sy1 = cy1;
       }
+      /* ★ 빛나는 개체가 없는 장은 **빛 판을 아예 안 쓴다**(2026-09, 사양 손질) — MRT 판의 둘째 출력은 낯마다 한 번 더 쓰는 몫이라
+         (폰 DPR 3 이면 수백만 화소), 이 장에 번질 것이 없으면 출력 하나로 그린다. 판은 그대로 두므로 갈아 끼우는 값이 없다. */
+      if (nEm === 0 && mrtOn && this.mrt!.em) (gl as WebGL2RenderingContext).drawBuffers([(gl as WebGL2RenderingContext).COLOR_ATTACHMENT0]);
       if (nEm > 0 && !mrtOn) {   // 옛 길(WebGL1)만 — MRT 는 본 패스가 빛 판을 남기므로 깊이·빛 무리를 따로 안 짓는다
         const bx0 = sx0 - PAD9; const bx1 = sx1 + PAD9; const by0 = sy0 - PAD9; const by1 = sy1 + PAD9;
         /* ★ **가릴 수 있는 몸만 깊이를 깐다** — 번짐 상자(가위)에 화면 상자가 걸치는 개체만 고른다. */
@@ -1846,6 +1854,8 @@ export const GL_GRAIN9 = ((): number => {
 export const GL_VEC9 = ((): number => { const m = typeof location !== "undefined" ? /glvec=(\d)/.exec(location.hash) : null; return m ? Number(m[1]) : -1; })();
 /** 진단 `#glmrt=0` — WebGL2 에서도 MRT 판을 안 쓰고 옛 길(캔버스에 곧장 · 번짐은 둘째 기하 패스)로 간다(견줌용). */
 export const GL_MRT9 = ((): number => { const m = typeof location !== "undefined" ? /glmrt=(\d)/.exec(location.hash) : null; return m ? Number(m[1]) : -1; })();
+/** 진단 `#glmsaa=N` — MRT 판의 MSAA 표본 수를 못 박는다(0 = 없음 · 기본은 단 표 DEV9.glMsaa). */
+export const GL_MSAA9 = ((): number => { const m = typeof location !== "undefined" ? /glmsaa=(\d)/.exec(location.hash) : null; return m ? Number(m[1]) : -1; })();
 export const GL_BLOOM9 = ((): number => {
   const m = typeof location !== "undefined" ? /glbloom=(\d)/.exec(location.hash) : null;
   return m ? Number(m[1]) : -1;
@@ -1890,14 +1900,14 @@ export const glBakeMsTake9 = (): number => {
   const v = g.stat.frameBakeMs; g.stat.frameBakeMs = 0; return v;
 };
 /** 유닛 층의 GL 붓 — 캔버스가 있을 때 한 번 만든다. 못 만들면(WebGL 없음) null 로 굳어 캔버스 길로 돈다. */
-export function glUnits9(cv: HTMLCanvasElement | null, meshMax = MESH_MAX9, bloom = true, spec = true): GlUnits9 | null {
+export function glUnits9(cv: HTMLCanvasElement | null, meshMax = MESH_MAX9, bloom = true, spec = true, msaa = 4): GlUnits9 | null {
   if (!GL_ON9 || !cv) return null;
   if (glInst9 !== undefined && (glInst9 === null || glInst9.canvas === cv)) {
-    // 단이 올랐으면 새 상한·번짐을 그 벌에 옮긴다(벌은 한 번만 짓는다).
-    if (glInst9) { glInst9.meshMax = GL_MESH_MAX9 > 0 ? GL_MESH_MAX9 : meshMax; glInst9.bloomOn = bloom; glInst9.specOn = spec; }
+    // 단이 올랐으면 새 상한·번짐·표본 수를 그 벌에 옮긴다(벌은 한 번만 짓는다).
+    if (glInst9) { glInst9.meshMax = GL_MESH_MAX9 > 0 ? GL_MESH_MAX9 : meshMax; glInst9.bloomOn = bloom; glInst9.specOn = spec; glInst9.msaa = msaa; }
     return glInst9;
   }
-  try { glInst9 = new GlUnits9(cv, GL_MESH_MAX9 > 0 ? GL_MESH_MAX9 : meshMax, bloom, spec); } catch (e) { console.warn("[gl9]", e); glInst9 = null; }
+  try { glInst9 = new GlUnits9(cv, GL_MESH_MAX9 > 0 ? GL_MESH_MAX9 : meshMax, bloom, spec); if (glInst9) glInst9.msaa = msaa; } catch (e) { console.warn("[gl9]", e); glInst9 = null; }
   (globalThis as unknown as { __gl9?: GlUnits9 | null }).__gl9 = glInst9;   // 진단(perf-check --probe-gl)
   return glInst9;
 }
