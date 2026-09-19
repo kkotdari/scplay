@@ -62,7 +62,7 @@ const HASH = flag("--hash", "glbloom=0");
  *  뒤 포신 홑판 siegebarrel 이 여기 있었는데, 포탑 한 판 tankturretxf 로 합치며 사라졌다). */
 const EMPTY_OK9 = new Set([]);
 let SPN = null; let COLS = COLS0; let RS = RS0;
-const BG = "#20242b";
+const BG = String(flag("--bg", "#20242b"));   // 변천사 시트는 7월 그림과 같은 검정(#0a0a0a)으로 굽는다
 const COLOR = "#4aa3ff";
 
 const ENTRY = `
