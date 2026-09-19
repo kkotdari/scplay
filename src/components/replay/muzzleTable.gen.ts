@@ -4,7 +4,7 @@
  *  빌더를 감싼 배율·옮김·회전을 거친 판의 자). 엔진(engine9 MUZZLE_ANCHOR)이 손 표 위에 덮어쓴다.
  *  ★ 모델을 고치면 이 표도 다시 뽑는다. 검사 모드가 어긋남을 잡는다. */
 export const MUZZLE_GEN9: Record<string, [number, number, number]> = {
-  arbiter: [0, 1.3, 2.05],
+  arbiter: [0, 3, 4.72],
   bc: [0, 4.95, 3.67],
   coil: [0, 0.3, 5.52],
   corsair: [0, 2.28, 5.19],

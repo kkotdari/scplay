@@ -406,6 +406,10 @@ export let bldSpinNow = 0;
  *  gap = (12.6 − y1)·nrm, Δz = (y1 − (12.6 − 2/nrm)) / 0.9(입체 z 배율).
  *  재기 전: scv 13.0/0.767 → 3.34 · probe 10.25/1.738 → −1.33 · drone 12.13/1.078 → 1.54 · htemp 11.25/1.249 → 0.28
  *  · vulture 11.5/0.833 → 1.45. SHAPE_BUILDERS 표 바로 뒤에서 빌더 자체를 감싼다 — 굽기·도록·측정 도구가 다 같은 모델을 본다. */
+/** ★ 아비터의 원 좌표 배수(2026-09, 요청: "아비터 원 좌표를 키우고 배율을 낮춰") — 잉크 2.25 짜리 원 좌표를 지도의 정규화(2.307)로
+ *  키워 그리던 것을, 원 좌표 자체를 그만큼 키우고 MODEL_NORM 을 1 로 내린다. 도록 시트·변천사(정규화를 안 곱하는 자)에서도 남들과
+ *  같은 크기로 선다. ⚠ 부양 높이표(MODEL_Z_OFF9)는 이 감싸개 **밖**에서 걸리므로(modelZK 1) 그 값도 같은 배수를 곱해 둔다. */
+export const ARB_K9 = 2.307;
 export const MODEL_Z_OFF9: Record<string, number> = {   // 값은 z 접기(×0.8) 뒤의 모델 단위 — 아래 주석의 셈값에 0.8을 곱한 것
   /* 키에 비례(재요청: "떠있는 유닛 5종이 키에 따라 높이가 달라져야 하네 — 키에 비례해서") — 잉크 높이(model-norm h,
      입체: scv 5.94 · probe 2.55 · drone 3.57 · htemp 5.21 · vulture 4.99, 평균 4.45)에 2칸을 비례시킨다:
@@ -418,7 +422,7 @@ export const MODEL_Z_OFF9: Record<string, number> = {   // 값은 z 접기(×0.8
      달라, 큰 구(사베)·아비터·옵저버는 높고 셔틀·퀸·인터셉터는 낮았다. 셈: model-norm top의 (y0+y1)/2 → 원점(12)
      기준 × 배수 × 그리는 타일(unitTilesOf)/16 = 화면 타일 몫, 레이스(−0.83타일)와의 차를 z(0.78 = top 0.66·pitch
      0.9의 중간)로 되돌린다. 재면 scratchpad/air.json → 이 표. */
-  wraith: 0.00, bc: -0.968, valk: 0.048, vessel: -1.864, dship: 0.36, corsair: 0.008, scout: 0.664, carrier: -1.064, arbiter: -2.672, observer: -1.416, interceptor: 2.44, shuttle: 2.016, muta: -0.232, guardian: 1.384, devourer: 0.088, scourge: 2.056, queen: 1.96, ovie: 0.392, mutacocoon: -0.52,
+  wraith: 0.00, bc: -0.968, valk: 0.048, vessel: -1.864, dship: 0.36, corsair: 0.008, scout: 0.664, carrier: -1.064, arbiter: -2.672 * ARB_K9, observer: -1.416, interceptor: 2.44, shuttle: 2.016, muta: -0.232, guardian: 1.384, devourer: 0.088, scourge: 2.056, queen: 1.96, ovie: 0.392, mutacocoon: -0.52,
 };
 /** ★ **가스 연기를 내는 종류**(2026-09, 지적: "가스 연기가 너무 뚝뚝 끊겨 프레임 훨씬 늘려서 부드럽게") — 이 넷의 연기는
  *  이제 메시에 안 굽고 붓이 **연속 시간**으로 그린다(gasPuffs9 의 ★★). 회전 칸(spin)은 엔진이 **소수로** 싣고(t·rate·N,
@@ -18350,7 +18354,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   /* 아비터(재정정: 날개는 지면과 수직으로 몸에 붙고, 특히 앞쪽에 두께감) — 수평으로
      떠 있던 타원 두 장을 세로 판으로 세웠다: 안판·바깥판 사이를 앞·윗변 두께 띠가
      잇는 얇은 방패 날개가 몸통 옆구리에 선다. */
-  arbiter: () => {
+  arbiter: () => withModelScale(ARB_K9, ARB_K9, ARB_K9, () => {
     /* 날개도 **기둥 둘 맞붙이기**로(요청) — 여태 안판·바깥판 두 장을 등마루·배·앞변
        띠로 꿰맨 것이라, 요잉이 돌면 꿰맨 자리가 벌어지고 판 사이가 떠 보였다.
        leafFaces는 그 방추(코에서 좁고 가운데 불룩하다 꼬리 한 점으로 모임)를 한 몸으로
@@ -18480,7 +18484,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         rim: "#1e9d8c", fill: "#72ffec", core: "#cafff8", glint: "#ffffff",
       })),
     ];
-  },
+  }),
   /* 옵저버(실물 참고) — 작은 금빛 공 몸통 좌우에 둥근 귀 덩이, 위엔 부챗살 볏 돛,
      앞엔 렌즈 고리. */
   observer: () => {
