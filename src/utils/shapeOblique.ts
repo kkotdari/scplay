@@ -738,16 +738,33 @@ export function withModelShift<T>(dx: number, dy: number, fn: () => T): T {
     modelXOff = px; modelYOff = py;
   }
 }
+/** 모형 좌표를 **빌더 자에서** 비트는 손(높이에 따라 앞뒤로 물리는 전단 따위) — 배율·평행이동·회전보다
+ *  앞이다. project·modelPoint9 가 태우므로 2D 경로·3D 메시·총구 표식이 한 자로 비틀린다.
+ *  ⚠ depthNow 는 z 를 모르므로 **안 태운다** — 키는 비틀기 전 자리로 매긴다(부품끼리의 앞뒤 차례는 그대로다). */
+let modelWarp: ((x: number, y: number, z: number) => [number, number, number]) | null = null;
+export function withModelWarp<T>(
+  warp: (x: number, y: number, z: number) => [number, number, number], fn: () => T,
+): T {
+  const p = modelWarp;
+  modelWarp = warp;
+  try {
+    return fn();
+  } finally {
+    modelWarp = p;
+  }
+}
 /** 모형 좌표 하나를 **모델 변환만** 태운다(배율·평행이동·회전) — 요잉·시점·사영은 안 탄다.
  *  빌더가 제 부품 좌표로 적은 점(총구 등)을 그 빌더를 감싼 withModelScale·Shift·Spin을
  *  거친 '판의 모형 좌표'로 옮기는 데 쓴다. project의 앞 두 줄과 같은 셈이다. */
 export function modelPoint9(x0: number, y0: number, z0: number): [number, number, number] {
+  if (modelWarp) [x0, y0, z0] = modelWarp(x0, y0, z0);
   const z = z0 * modelZK + modelZOff;
   const [mx, my] = spun(x0 * modelXK + modelXOff, y0 * modelYK + modelYOff);
   return [mx, my, z];
 }
 /** 모형 좌표 (x,y,z) → 화면 [sx, sy]. y(앞)는 아래로, z(위)는 위로 간다. */
 export function project(x0: number, y0: number, z0: number): [number, number] {
+  if (modelWarp) [x0, y0, z0] = modelWarp(x0, y0, z0);
   const z = z0 * modelZK + modelZOff;
   // 모델 회전이 먼저다 — 돌아간 좌표를 카메라가 본다(카메라는 안 움직인다).
   const [mx, my] = spun(x0 * modelXK + modelXOff, y0 * modelYK + modelYOff);

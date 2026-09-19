@@ -7,7 +7,7 @@ import { cx } from "./cx";
 import { TIER_GEN9 } from "./tierTable.gen";
 import { kT } from "../../utils/openbwTracks";
 import {
-  POLY2, MESH9, EMIT_FILL9, meshPut9, meshSphere9, shinePath3, annulusPath3, orbPath3, billPath3, meshLoft9, meshRing9, loftZFaces, modelPoint9, annulusPath, bandPath, bodyFace, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, boxOctFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
+  POLY2, MESH9, EMIT_FILL9, meshPut9, meshSphere9, shinePath3, annulusPath3, orbPath3, billPath3, meshLoft9, meshRing9, loftZFaces, modelPoint9, annulusPath, bandPath, bodyFace, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, boxOctFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelWarp, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
 import { BUILD_STAGES, LINK_CY_9, LINK_X0_9, linkLenOf9, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, SPIN_ANIM9, SPIN_STEPS, bldNormOf, modelInkOf, modelNormOf } from "./engine9";
 import { type UnitDrawOp } from "./engine9";
 /** 주소 해시(`#pitch=`·`#nocreep` 같은 진단 스위치) — 굽기 일꾼 안에서는 location.hash가 빈 문자열(blob 주소)이라,
@@ -1594,7 +1594,51 @@ export const P_NECK_BASE: [number, number, number] = [0, 0.52, 4.84];
 export const P_NECK_TOP: [number, number, number] = [0, 0.5, 5.024];
 /* ★ fill이 없으면 **임자색**이다(요청: "질럿 몸통 토르소 임자색으로 변경") — 안 칠한 면이 곧 개인색이라는
    accent 규약을 여기서도 그대로 쓴다. 색을 넘기는 쪽(다크템플러·아콘 등)은 종전 그대로다. */
-export function protossTorso(fill?: string, lift = 0): ShapeFace[] {
+/* ★ **허리를 세운다**(2026-09, 요청: "질럿 보병들 허리를 좀 세우자 — 질럿·하템은 수직으로, 다크는 살짝만 숙이게") ──
+   몸통 축은 골반(y −0.75)에서 어깨로 가며 앞으로 P_LEAN_Y9(1.27)·위로 P_TORSO_H9(1.76) 나가는 36도 숙임이었다. `lean`
+   (0 수직 · 1 옛 숙임)이 그 앞 몫을 줄이고, **축 길이는 지킨다**(kz — 수직이면 1.76 → 2.17 로 그만큼 키가 는다. 숙인
+   몸을 세우면 키가 커지는 것이 맞다). 몸통 위의 부품(목·머리·팔·어깨판·가슴 보석·망토·땋은 머리)은 좌표가 옛 숙임
+   자로 박혀 있으므로 `pUpright9` 가 **같은 셈을 모형 변환(withModelWarp)으로** 태운다: 골반 아래는 그대로, 몸통
+   구간은 높이 몫만큼 뒤로 물리며 위로 늘리고, 어깨 위는 통째로 옮긴다. 다리·허리 보호구는 그 밖에 둔다. */
+/** 종류별 숙임 몫 — 질럿·하템 수직(0) · 다크 살짝(0.25 ≒ 10도). */
+export const ZEALOT_LEAN9 = 0;
+export const HT_LEAN9 = 0;
+export const DT_LEAN9 = 0.25;
+export const P_LEAN_Y9 = 1.27;
+export const P_TORSO_H9 = 1.76;
+export const P_TORSO_Z0 = 3.08;
+/** 세운 몸통의 높이 배수 — 축 길이(√(1.27²+1.76²))를 지킨다. */
+export function pTorsoKz9(lean: number): number {
+  return Math.sqrt(P_LEAN_Y9 * P_LEAN_Y9 + P_TORSO_H9 * P_TORSO_H9 - (P_LEAN_Y9 * lean) ** 2) / P_TORSO_H9;
+}
+/** 세운 몸통의 전단 — 골반 아래 그대로 · 몸통 구간은 높이 몫만큼 뒤로·위로 · 어깨 위는 통째로. */
+function pWarpOf9(lean: number, lift: number): (x: number, y: number, z: number) => [number, number, number] {
+  const zb = P_TORSO_Z0 + lift;
+  const kz = pTorsoKz9(lean);
+  const dy = -P_LEAN_Y9 * (1 - lean);
+  return (x, y, z) => {
+    const u = (z - zb) / P_TORSO_H9;
+    if (u <= 0) return [x, y, z];
+    const c = Math.min(1, u);
+    return [x, y + dy * c, zb + (c * kz + (u - c)) * P_TORSO_H9];
+  };
+}
+/** 몸통 위의 부품을 세운 몸통에 맞춰 옮기는 감싸개 — 옛 숙임 자로 적은 좌표를 그대로 둔다. */
+export function pUpright9<T>(lean: number, lift: number, fn: () => T): T {
+  if (lean >= 1) return fn();
+  return withModelWarp(pWarpOf9(lean, lift), fn);
+}
+/** ⚠ **팔은 전단이 아니라 강체다** — 어깨(z 4.5)는 몸통 구간이라 뒤로 물러나는데 손(z 3)은 골반께라 안 물러나므로,
+ *  전단을 그대로 태우면 어깨만 옮겨 가 팔이 늘어난다(잽 컷에서 1.8 → 2.5). 팔 무리는 **어깨 자리의 변위 하나**로
+ *  통째로 옮긴다(pUpright9 안에서 그 몫만 갈아 끼운다 — withModelWarp 는 겹치지 않고 바꿔 낀다). */
+export function pRigid9<T>(lean: number, lift: number, za: number, fn: () => T): T {
+  if (lean >= 1) return fn();
+  const p = pWarpOf9(lean, lift)(0, 0, za);
+  const dy = p[1]; const dz = p[2] - za;
+  return withModelWarp((x, y, z) => [x, y + dy, z + dz], fn);
+}
+export function protossTorso(fill?: string, lift = 0, lean = 1): ShapeFace[] {
+  const kz = pTorsoKz9(lean);
   return tagKey(spirePillar({
     x: 0, y: -0.75, h: 0.8, w: 1, tipW: 1, segs: 8, sides: 8,
     oval: 0.78, caps: "both", fill,
@@ -1605,7 +1649,7 @@ export function protossTorso(fill?: string, lift = 0): ShapeFace[] {
          (다리를 늘려 달라는 요청과 어긋난다) 대신 밑면을 고관절 바로 밑까지 끌어올린다.
          꼭대기(6.05)는 그대로라 어깨·목 자리는 안 움직인다. */
     path: (t: number): [number, number, number] =>
-      [0, -0.75 + 1.27 * t, 3.08 + lift + 1.76 * t],
+      [0, -0.75 + P_LEAN_Y9 * lean * t, P_TORSO_Z0 + lift + P_TORSO_H9 * kz * t],
     widthOf: (t: number): number => P_TORSO_W(t),
   }), depthNow(0, -0.1) + 0.8);
 }
@@ -20751,9 +20795,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     ...protossLegs(P_GOLD, P_GOLD, 0, 1, 0.85 * wd9, 1, 1.4),
     /* 몸통은 **임자색**이다(요청) — 질럿은 화면에 가장 많이 서는 프로토스 유닛인데 개인색이
        어깨판·치마 조각뿐이라 멀리서는 다 같은 금빛으로 보였다. 가슴이 곧 임자다. */
-    ...protossTorso(),
-    // ② 목은 남색 속몸이다 — 갑주 사이로 비치는 그 색.
-    ...protossNeck("#3a4258"),
+    ...protossTorso(undefined, 0, ZEALOT_LEAN9),
     // 치마 — 개인색(칠하지 않는다). 회전 대칭이라 제 자리 깊이로 앞뒤가 갈린다.
     /* 허리 보호구(요청: "치마 제거하고 앞과 양옆을 가리는 허리 보호구로") — 한 벌
        종을 걷고, 앞·좌·우 세 장의 판으로 나눈다. 뒤가 트여 있어 걸음이 가려지지
@@ -20835,6 +20877,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         }
         return tagKey(out9, key9);
       }),
+    // 몸통 위는 세운 몸통에 맞춰 옮긴다(pUpright9) — 허리 보호구는 골반의 것이라 그 밖이다.
+    ...pUpright9(ZEALOT_LEAN9, 0, (): ShapeFace[] => [
+    // ② 목은 남색 속몸이다 — 갑주 사이로 비치는 그 색.
+    ...protossNeck("#3a4258"),
     ...protossFace(P_SKIN),   // 키는 protossFace가 부품마다 매긴다(얼굴·꼬리·눈이 서로 가린다)
     // 투구 — 이마에서 정수리 너머로 얹은 마름모 금판(요청).
     ...protossCrown(P_GOLD),
@@ -21082,7 +21128,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 칼 — 손에서 이어 나간다. 겨눔에서는 앞·위로 서 있고(칼끝을 든 자세),
          잽에서는 **수평으로** 앞으로 내지른다(칼끝 높이가 손과 거의 같다). */
       const el = jointBetween(sh, hd, 1.2, 1.3, [m9 * 0.8, -0.5, -0.3]);
-      return [
+      return pRigid9(ZEALOT_LEAN9, 0, sh[2], (): ShapeFace[] => [
         ...paintBase(pLimb(sh, el, 0.44), "#3a4258"),
         ...paintBase(pLimb(el, hd, 0.6), P_GOLD),
         // 주먹(요청) — 칼은 손등에서 나온다.
@@ -21099,8 +21145,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           return tagKey(plasmaBlade(b0, b1, 0.95, P_PLASMA, 0.8),
             depthNow((b0[0] + b1[0]) / 2, (b0[1] + b1[1]) / 2) * 1.6 + 1.2);
         })(),
-      ];
+      ]);
     }),
+    ]),
   ];
   })(),
   /* 다크 템플러 — 검 한 자루(요청).
@@ -21180,6 +21227,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     ];
   };
   return [
+    // 다리·몸통은 프로토스 인간형 공통(요청). 살짝만 숙인다(DT_LEAN9) — 망토·머리·팔은 pUpright9 안이다.
+    ...protossLegs(DK9, DK9, 0, 1, 0.55 * wd9, 1, 1.4),   // 무릎 굽힘 1.4(재요청: 질럿과 같은 손)
+    ...protossTorso(DK9, 0, DT_LEAN9),
+    ...pUpright9(DT_LEAN9, 0, (): ShapeFace[] => [
     /* 망토 — 어깨에서 시작해 뒤로 들린 자락, 밑단은 사인 물결이다. 제 깊이를 달아 뒤에서 보면 몸 위로 온다.
        ★★ **자락은 평평한 한 장이 아니라 몸을 감는 굽은 면이다**(2026-09, 지적: "다템 몸통이 망토 위로
           삐져나옴 망토를 좀 둥글게 말아서 몸을 감싸야할듯?") ─────────────────────────────────────
@@ -21273,9 +21324,6 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       }
       return tagKey(out9, depthNow(0, -1.5) + 0.6);
     })(),
-    // 다리·몸통은 프로토스 인간형 공통(요청).
-    ...protossLegs(DK9, DK9, 0, 1, 0.55 * wd9, 1, 1.4),   // 무릎 굽힘 1.4(재요청: 질럿과 같은 손)
-    ...protossTorso(DK9),
     ...protossNeck(DK9),
     // 얼굴 — 공통 턱주가리(요청). 뒤로 솟던 머리 뿔은 제거.
     /* 머리 깊이는 제 자리로(지적: 몸통에 안 가려짐) — 붙박이 키 20은 뒤에서 볼 때도
@@ -21293,6 +21341,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        ★ 키도 몸통 자에 맞춘다 — 몸통은 depthNow+0.8(×1 자), 팔은 pLimb 기본이
          depthNow×1.6−0.4라 팔이 앞에 있어도 깊이가 얕으면 몸통에 졌다. 팔에는
          depthNow×1.6+1.0을 명시해, 몸통 축(y −0.1)보다 앞이면 이기고 뒤면 진다. */
+    // 팔·손·검은 어깨 자리의 강체 이동이다(pRigid9) — 전단이면 팔이 늘어난다.
+    ...pRigid9(DT_LEAN9, 0, shR9[2], (): ShapeFace[] => [
     ...dtArm(-1, [-0.82, 0.25 + armY(-1) * 0.5, 4.48], [-1.1, 1.2 + armY(-1), 2.96]),
     /* 왼손 — 하이템플러식 큰 손: 흰 손바닥 + 긴 손가락 셋. */
     ...paintBase([
@@ -21328,6 +21378,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         // 칼날의 밝은 심 — 같은 두 점을 살짝 안쪽으로 물려 긋는다.
       ];
     })(),
+    ]),
     /* ★ (걷어냄) 후드 — 머리 정수리·뒤통수를 통째로 덮던 짙은 돔이다(지적: "다크템플러
        뚜껑 쓴 게 이상, 원작에선 그냥 프로토스 헤드형임"). 사진 한 장을 보고 씌운 것인데,
        원작 스프라이트의 다크템플러 머리는 다른 프로토스와 같은 **긴 두상**이고 그 위에
@@ -21337,6 +21388,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* (걷어냄) 다크만의 초록 눈 한 쌍 — 얼굴(protossFace)이 이미 눈을 그리는데 이것이 그 아래
        (z 6.0)에 한 쌍 더 있어 눈이 두 줄로 보였다. 공통 얼굴의 눈이 아몬드로 바뀌며 얼굴 껍질에
        앉았으므로 이 덧눈은 자리가 없다. 색도 사실상 같았다(#4fe07a 대 #4fe36b). */
+    ]),
   ];
   })(),
   /* 하이 템플러(요청) — 떠 있는 로브: 바닥에서 띄운 짧은 로브 통 + 머리, 발밑 부양 빛. */
@@ -21358,7 +21410,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 다리 굵기 0.72배(지적: 너무 두꺼움) · 굽힘 0.7(질럿 1.4의 반) · 길이 0.816 → 0.95 → 1.14(재요청: 1.2배)
       // 정강이만 무릎에서 0.6rad(34도) 위로 접는다(요청: 떠다니는 자세) — 허벅지는 그대로.
       ...protossLegs(P_GOLD, P_GOLD, L, 1.14, 0, 0.72, 0.7, 0.6, 0.5),   // 정강이 아래 절반은 임자 색(요청)
-      ...protossTorso(P_GOLD, L),
+      ...protossTorso(P_GOLD, L, HT_LEAN9),
+      // 몸통 위(목·머리·앞가리개·보석·어깨판·망토·팔)는 세운 몸통에 맞춰 옮긴다.
+      ...pUpright9(HT_LEAN9, L, (): ShapeFace[] => [
       ...protossNeck(P_GOLD, L),
       /* 앞가리개(요청) — 허리부터 발목까지. 몸에 딱 붙인다(재지적: 떠 보였다).
          ★ 윗변을 **허리 면에 앉힌다**(재지적: "하템 앞 천 끝을 허리면에 딱 붙이기") ─────────────
@@ -21495,7 +21549,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const e9 = jointBetween(s9, w9, 1.3, 1.4, [m9 * 0.9, -0.4, -0.2]);
         // 손가락은 팔이 내려가면 아래를, 올라가면 위를 향한다.
         const fz9 = -0.56 + 1.12 * at9;
-        return [
+        return pRigid9(HT_LEAN9, L, s9[2], (): ShapeFace[] => [
           ...paintBase(pLimb(s9, e9, 0.45), P_GOLD),
           ...pLimb(e9, w9, 0.38),
           ...paintBase([
@@ -21510,8 +21564,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
               0.13, undefined, 6, 0.12,
             )),
           ], "#e9edf0"),
-        ];
+        ]);
       }),
+      ]),
     ];
   },
   /* 드라군(실물 참고) — 크고 둥근 금빛 껍데기 몸(앞 해치 슬릿), 굵게 꺾인 네 다리. */
