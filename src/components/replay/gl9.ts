@@ -676,6 +676,42 @@ void main() {
   c += (texture2D(uTex, vUv + uStep * 3.2307692) + texture2D(uTex, vUv - uStep * 3.2307692)) * 0.0702703;
   gl_FragColor = c * uStr;
 }`;
+/* ★★ **바닥 도형(접지 타원·선택 링·체력바·저배율 네모)은 GL 인스턴스 사각이다**(2026-09, 다음 손 2 — "링·체력바·효과 GL로") —
+   유닛 캔버스에 2D 로 그리던 것을 한 드로 콜의 인스턴스 사각(6 정점 × N)으로 옮긴다. 꼴은 조각 셰이더가 거리로 낸다(SDF):
+   0 네모 · 1 타원 채움 · 2 타원 테(선 굵기 px). 입체의 시점 밀림(ctx.transform 의 전단)은 shear 로 같은 식이다.
+   기록 12 float(48바이트): 가운데 x·y · 반지름 rx·ry · 미리곱한 색 rgba · 꼴 · 선 굵기 · 전단 · (빈 칸). */
+const PR_F9 = 12; const PR_B9 = PR_F9 * 4;
+const PR_VS = `
+attribute vec2 aQ; attribute vec4 aPA; attribute vec4 aPB; attribute vec4 aPC;
+uniform vec2 uCanvas;
+varying vec2 vP; varying vec4 vC; varying vec4 vK; varying vec2 vR;
+void main() {
+  float m = aPC.y * 0.5 + 1.5;   // 선 굵기의 반 + AA 여유
+  vec2 e = vec2(aPA.z + m + abs(aPC.z) * (aPA.w + m), aPA.w + m);
+  vP = aQ * e;
+  vC = aPB; vK = aPC; vR = aPA.zw;
+  vec2 X = aPA.xy + vP;
+  gl_Position = vec4(X.x / uCanvas.x * 2.0 - 1.0, 1.0 - X.y / uCanvas.y * 2.0, 0.0, 1.0);
+}`;
+const PR_FS = `
+precision mediump float;
+varying vec2 vP; varying vec4 vC; varying vec4 vK; varying vec2 vR;
+void main() {
+  vec2 p = vec2(vP.x - vK.z * vP.y, vP.y);   // 전단을 되돌린 자리(입체의 시점 밀림)
+  float a;
+  if (vK.x < 0.5) {
+    a = clamp(vR.x - abs(p.x) + 0.5, 0.0, 1.0) * clamp(vR.y - abs(p.y) + 0.5, 0.0, 1.0);
+  } else {
+    vec2 R = max(vR, vec2(0.001));
+    vec2 q = p / R;
+    float d = length(q);
+    float g = length(q / R);
+    float dist = g > 1e-6 ? (d - 1.0) * d / g : -1000.0;   // 가장자리까지의 화면 px(기울기로 잰다 — 납작한 타원에서도 1px 테)
+    a = vK.x < 1.5 ? clamp(0.5 - dist, 0.0, 1.0) : clamp(vK.y * 0.5 - abs(dist) + 0.5, 0.0, 1.0);
+  }
+  gl_FragColor = vC * a;
+  //__EMIT0__
+}`;
 /** 번짐 세기·크기 — [더할 세기, 흐리기 걸음(1/4 판의 텍셀 배수)]. 눈으로 고른 값이다. */
 /* ★ **번짐을 내린다**(2026-09, 지적: "아콘·소환구 등 글로우가 너무 강해 눈부셔") — 0.75 는
    흰 심을 가진 발광 종류에서 심 둘레를 한 번 더 희게 채워, 아콘은 속 형체가 통째로 지워지고
@@ -710,7 +746,8 @@ export class GlUnits9 {
   /** 진단: 마지막 프레임의 개체·삼각형 수 · 메시 벌 수 · 메시 굽기 ms(누적)와 **이번 프레임 몫**(frameBakeMs — 시계가
    *  '굽는 프레임'을 아는 자) · 깊이 칸/비트 · 살아 있는 메시 VBO 합(바이트). */
   /** evict: 상한에 걸려 버린 메시 수(누적) — **0 이 아니면 보관함이 좁다**. 늘 굽고 있다는 뜻이라 진단에 낸다. */
-  stat = { inst: 0, tris: 0, bakeMs: 0, frameBakeMs: 0, meshes: 0, slots: 0, depthBits: 0, bytes: 0, bloom: 0, evict: 0, scrubSkip: 0, draws: 0, swarm: 0 };
+  stat = {
+    /** 바닥 도형(링·타원·체력바 네모) 수 — 한 드로 콜. */ prims: 0, inst: 0, tris: 0, bakeMs: 0, frameBakeMs: 0, meshes: 0, slots: 0, depthBits: 0, bytes: 0, bloom: 0, evict: 0, scrubSkip: 0, draws: 0, swarm: 0 };
   /** 이번 flush 안에서 지은 ms — 끌기 예산의 자(flush 마다 0). frameBakeMs 는 시계가 따로 읽어 비우므로 못 쓴다. */
   private scrubMs = 0;
   /** meshMax: 메시 상한(기기 표 DEV9.glMeshMax — PC 600 · 폰 240; 메시 한 벌은 VBO + footOf 용 정점 사본이라 폰 메모리에 든다). */
@@ -761,6 +798,7 @@ export class GlUnits9 {
         t = t.replace(/\bvarying\b/g, "in").replace(/\btexture2D\s*\(/g, "texture(").replace(/\bgl_FragColor\b/g, "fragColor");
         t = t.replace("precision mediump float;", "precision mediump float;\nlayout(location = 0) out vec4 fragColor; layout(location = 1) out vec4 emitColor;");
         t = t.replace("//__EMIT__", "emitColor = vec4(vEm.rgb * vCol.a * vEm.a, vCol.a);");
+        t = t.replace("//__EMIT0__", "emitColor = vec4(0.0);");   // 빛이 아닌 판(바닥 도형)은 빛 판에 0 을 쓴다(안 쓰면 쓰레기가 남는다)
       } else t = t.replace(/\battribute\b/g, "in").replace(/\bvarying\b/g, "out");
       return "#version 300 es\n" + t;
     };
@@ -790,6 +828,70 @@ export class GlUnits9 {
         loc: { uTex: gl.getUniformLocation(q, "uTex"), uStep: gl.getUniformLocation(q, "uStep"), uStr: gl.getUniformLocation(q, "uStr"), uDown: gl.getUniformLocation(q, "uDown") },
       };
     } catch { this.fx = null; this.blFail = true; }
+    /* 바닥 도형 프로그램·사각 — 인스턴싱이 있어야 값이 난다(없으면 붓이 캔버스로 그린다). */
+    try {
+      if (!this.instOn) throw new Error("인스턴싱 없음");
+      const q = gl.createProgram()!;
+      gl.attachShader(q, sh(gl.VERTEX_SHADER, PR_VS)); gl.attachShader(q, sh(gl.FRAGMENT_SHADER, PR_FS)); gl.linkProgram(q);
+      if (!gl.getProgramParameter(q, gl.LINK_STATUS)) throw new Error("링크: " + gl.getProgramInfoLog(q));
+      const vbo = gl.createBuffer()!;
+      gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
+      this.pr = {
+        prog: q, vbo, ivbo: gl.createBuffer()!,
+        aQ: gl.getAttribLocation(q, "aQ"), aPA: gl.getAttribLocation(q, "aPA"), aPB: gl.getAttribLocation(q, "aPB"), aPC: gl.getAttribLocation(q, "aPC"),
+        uCanvas: gl.getUniformLocation(q, "uCanvas"),
+      };
+      this.primOk = true;
+    } catch (e) { console.warn("[gl9] 바닥 도형", e); this.pr = null; this.primOk = false; }
+  }
+  /** 바닥 도형(prim)을 이 문맥이 맡나 — 아니면 붓이 종전대로 유닛 캔버스에 그린다. */
+  primOk = false;
+  private pr: { prog: WebGLProgram; vbo: WebGLBuffer; ivbo: WebGLBuffer; aQ: number; aPA: number; aPB: number; aPC: number; uCanvas: WebGLUniformLocation | null } | null = null;
+  private prArr = new Float32Array(PR_F9 * 256);
+  private nPr = 0;
+  private prCol = new Map<string, [number, number, number, number]>();
+  /** 색 문자열 → rgba(0~1) — #rgb/#rrggbb/rgba(r,g,b,a). 기억한다(프레임마다 같은 색 몇 가지다). */
+  private prColOf(c: string): [number, number, number, number] {
+    let v = this.prCol.get(c);
+    if (!v) {
+      const m = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+))?\s*\)$/i.exec(c.trim());
+      if (m) v = [Number(m[1]) / 255, Number(m[2]) / 255, Number(m[3]) / 255, m[4] === undefined ? 1 : Number(m[4])];
+      else { const h = hexRgb(c); v = [h[0], h[1], h[2], 1]; }
+      this.prCol.set(c, v);
+    }
+    return v;
+  }
+  /** 바닥 도형 하나 — kind 0 네모 · 1 타원 채움 · 2 타원 테. (x, y) 가운데 · rx·ry 반지름(CSS px) · 색·알파 · lineW(테) · shear(전단 = 입체 시점 밀림). */
+  prim(kind: 0 | 1 | 2, x: number, y: number, rx: number, ry: number, color: string, alpha: number, lineW = 0, shear = 0): void {
+    if (!this.primOk || alpha <= 0) return;
+    if ((this.nPr + 1) * PR_F9 > this.prArr.length) { const n = new Float32Array(this.prArr.length * 2); n.set(this.prArr); this.prArr = n; }
+    const c = this.prColOf(color); const a = Math.min(1, alpha * c[3]);
+    const o = this.nPr * PR_F9; const p = this.prArr;
+    p[o] = x; p[o + 1] = y; p[o + 2] = rx; p[o + 3] = ry;
+    p[o + 4] = c[0] * a; p[o + 5] = c[1] * a; p[o + 6] = c[2] * a; p[o + 7] = a;
+    p[o + 8] = kind; p[o + 9] = lineW; p[o + 10] = shear; p[o + 11] = 0;
+    this.nPr += 1;
+  }
+  /** 바닥 도형 패스 — 몸보다 먼저, 깊이 없이 한 드로 콜. 속성 번호가 본 프로그램의 것과 겹칠 수 있으니 divisor 를 되돌린다. */
+  private primPass(cw: number, ch: number): void {
+    const pr = this.pr; const n = this.nPr; this.nPr = 0;
+    if (!pr || n <= 0) return;
+    const gl = this.gl;
+    gl.useProgram(pr.prog);
+    gl.uniform2f(pr.uCanvas, cw, ch);
+    gl.disable(gl.DEPTH_TEST); gl.depthMask(false);
+    gl.bindBuffer(gl.ARRAY_BUFFER, pr.vbo);
+    gl.enableVertexAttribArray(pr.aQ); gl.vertexAttribPointer(pr.aQ, 2, gl.FLOAT, false, 0, 0); this.divisor(pr.aQ, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, pr.ivbo);
+    gl.bufferData(gl.ARRAY_BUFFER, this.prArr.subarray(0, n * PR_F9), gl.DYNAMIC_DRAW);
+    const set = (loc: number, off: number): void => { gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 4, gl.FLOAT, false, PR_B9, off); this.divisor(loc, 1); };
+    set(pr.aPA, 0); set(pr.aPB, 16); set(pr.aPC, 32);
+    this.drawInst(0, 6, n);
+    this.stat.draws += 1; this.stat.prims = n;
+    for (const l of [pr.aQ, pr.aPA, pr.aPB, pr.aPC]) { this.divisor(l, 0); gl.disableVertexAttribArray(l); }
+    gl.useProgram(this.prog);
+    gl.depthMask(true); if (GL_DEPTH9) gl.enable(gl.DEPTH_TEST);
   }
   /** ★★ **본 패스의 판(MRT)** — WebGL2 에서 몸을 그리는 곳은 캔버스가 아니라 이 MSAA FBO 다: 색(0)과 **빛 판**(1)을 한 번에 낸다.
    *  옛 번짐은 '빛 상자 합집합 안의 몸을 1/4 깊이 판에 한 번 더 그리고 빛 낯을 또 그리는' **둘째 기하 패스**였다(늘 켜진 보석·창이
@@ -1240,7 +1342,7 @@ export class GlUnits9 {
     this.stat.inst = q.length; this.stat.tris = 0; this.stat.meshes = this.meshes.size; this.stat.draws = 0; this.stat.swarm = 0;
     (globalThis as unknown as { __glInst9?: number }).__glInst9 = q.length;   // 계측(perf-check)이 '그려졌다'를 아는 창
     const pl9 = this.swarmPlate; this.swarmPlate = null;
-    if (!q.length) { if (pl9) this.swarmPass(pl9, bw, bh, null); return; }
+    if (!q.length) { this.primPass(cw, ch); if (pl9) this.swarmPass(pl9, bw, bh, null); return; }
     /* ★ WebGL2: 몸은 MRT 판에 그린다(mrtEnsure 의 ★★) — 색과 빛 판을 함께. 번짐이 꺼진 단에서는 색 하나(AA 는 이 판이 낸다). */
     const bloomWant9 = (GL_BLOOM9 === 1 || (GL_BLOOM9 < 0 && this.bloomOn)) && !this.blFail && !!this.fx;
     const mrtOn = this.mrtEnsure(bw, bh, bloomWant9);
@@ -1252,6 +1354,7 @@ export class GlUnits9 {
       g2.clearColor(0, 0, 0, 0);
       g2.clear(g2.COLOR_BUFFER_BIT | g2.DEPTH_BUFFER_BIT);
     }
+    this.primPass(cw, ch);   // 바닥 도형(접지 타원·링·체력바)은 몸 아래 — 유닛 캔버스가 그리던 차례 그대로
     gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LESS);
     gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);   // 미리곱한 알파
     gl.disable(gl.CULL_FACE);

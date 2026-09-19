@@ -2786,9 +2786,18 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
  *      실드만 깎인 프로토스가 성한데도 노랑·빨강으로 보인다).
  *    · 실드 칸 — (1−sh) ~ f. 흰색. 바의 오른쪽 끝이 곧 실드다.
  *  실드가 없는 종족은 sh가 0이라 흰 칸이 아예 안 생기고, 셈도 옛것과 같아진다. */
+/** 체력바를 캔버스에 그린다 — 네모 하나하나를 `hpBarRects9` 가 내고 여기서 fillRect 로 찍는다(GL 이 있으면 붓이 같은 네모를 gl9.prim 으로 민다). */
 function drawHpBar(
   ctx: CanvasRenderingContext2D, op: UnitDrawOp,
   bx: number, by: number, bw: number, bh: number,
+): void {
+  hpBarRects9(op, bx, by, bw, bh, (x, y, w, h, col, a) => { ctx.fillStyle = col; ctx.globalAlpha = a; ctx.fillRect(x, y, w, h); });
+  ctx.globalAlpha = 1;
+}
+/** 체력바의 네모들 — 원작 양식(아래) 그대로, 붓과 무관한 순수 함수. put(x, y, w, h, 색, 알파). */
+function hpBarRects9(
+  op: UnitDrawOp, bx: number, by: number, bw: number, bh: number,
+  put: (x: number, y: number, w: number, h: number, col: string, a: number) => void,
 ): void {
   /* 원작 양식(요청) — OpenBW draw_health_bars 그대로:
        · 폭은 게임 px(hpBarW). 채움 폭은 3의 배수에 맞춘다(filled_width: 최소 3, 나머지 2면 올림·1이면 내림). 3px마다
@@ -2822,16 +2831,9 @@ function drawHpBar(
     : hpNow > 0.33 ? ["#f0cc55", "#d9b13b", "#b8922c"] : ["#ee6a5e", "#d5473d", "#b0362e"];
   /** 줄 하나 — 채움(fillPx까지)은 shade, 나머지는 bg. 테 줄은 통째로 테 색. */
   const row = (top: number, shade: string | null, bg: string | null, fillPx: number): void => {
-    if (shade === null || bg === null) {
-      ctx.fillStyle = BORDER; ctx.globalAlpha = 0.8;
-      ctx.fillRect(bx, top, bw, rowPx);
-      ctx.globalAlpha = 1;
-      return;
-    }
-    ctx.fillStyle = bg; ctx.globalAlpha = 0.85;
-    ctx.fillRect(bx, top, bw, rowPx);
-    ctx.globalAlpha = 1;
-    if (fillPx > 0) { ctx.fillStyle = shade; ctx.fillRect(bx, top, fillPx, rowPx); }
+    if (shade === null || bg === null) { put(bx, top, bw, rowPx, BORDER, 0.8); return; }
+    put(bx, top, bw, rowPx, bg, 0.85);
+    if (fillPx > 0) put(bx, top, fillPx, rowPx, shade, 1);
   };
   const hpFill = (hpNow > 0 ? fillW(hpNow) : 0) * uPx;
   const shFill = (shNow > 0 ? fillW(shNow) : 0) * uPx;
@@ -2849,9 +2851,7 @@ function drawHpBar(
   // 금 — 막대 전체(실드 포함)를 한 번에.
   if (uPx * 3 >= 1.6) {
     const hTot = by + rows.length * rowPx - top0;
-    ctx.fillStyle = BORDER; ctx.globalAlpha = 0.75;
-    for (let x = 3; x < W; x += 3) ctx.fillRect(bx + (x - 1) * uPx, top0, Math.max(0.6, uPx), hTot);
-    ctx.globalAlpha = 1;
+    for (let x = 3; x < W; x += 3) put(bx + (x - 1) * uPx, top0, Math.max(0.6, uPx), hTot, BORDER, 0.75);
   }
 }
 /** 판(스프라이트)을 굽는 크기 — 배율을 칸으로 **올림**한다.
@@ -4525,7 +4525,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             const mwPx = Math.max(2, op.wFrac * cw * zoom);
             const mhPx = Math.max(2, op.hFrac * cw * zoom * 0.72);
             const gy9 = groundY ?? sy + (op.hFrac * cw * zoom) / 2;
-            ctx.fillRect(sx - mwPx / 2, gy9 - mhPx, mwPx, mhPx);
+            if (gl9 && gl9.primOk) gl9.prim(0, sx, gy9 - mhPx / 2, mwPx / 2, mhPx / 2, res9 ?? op.color, res9 ? 1 : op.alpha);
+            else ctx.fillRect(sx - mwPx / 2, gy9 - mhPx, mwPx, mhPx);
           } else {
             /* 유닛 — 종별 상자에 비례하는 **동그라미**(요청: "마커 중 유닛은 원으로").
                크기 비례는 네모 시절 그대로다(상자의 0.42) — 그 값이 곧 지름이고,
@@ -4533,15 +4534,20 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             const px9 = op.sizePx * zoom;
             const mw9 = Math.max(2, px9 * 0.42);
             const my9 = sy - (op.air ? px9 * 0.45 : 0);
-            ctx.beginPath();
-            ctx.arc(sx, my9, mw9 / 2, 0, Math.PI * 2);
-            ctx.fill();
-            if (op.selRing) {
-              ctx.strokeStyle = op.color;
-              ctx.lineWidth = 1;
+            if (gl9 && gl9.primOk) {
+              gl9.prim(1, sx, my9, mw9 / 2, mw9 / 2, op.color, op.alpha);
+              if (op.selRing) gl9.prim(2, sx, my9, mw9 / 2 + 1.5, mw9 / 2 + 1.5, op.color, op.alpha, 1);
+            } else {
               ctx.beginPath();
-              ctx.arc(sx, my9, mw9 / 2 + 1.5, 0, Math.PI * 2);
-              ctx.stroke();
+              ctx.arc(sx, my9, mw9 / 2, 0, Math.PI * 2);
+              ctx.fill();
+              if (op.selRing) {
+                ctx.strokeStyle = op.color;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(sx, my9, mw9 / 2 + 1.5, 0, Math.PI * 2);
+                ctx.stroke();
+              }
             }
           }
           continue;
@@ -4579,9 +4585,12 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           const hPx = op.hFrac * cw * zoom;
           if (op.boxFit === "fill") {
             // 맨 네모(전용 도형 없는 건물) — 상자를 그대로 채운다(.scr-motion-sq).
-            ctx.globalAlpha = op.alpha;
-            ctx.fillStyle = op.color;
-            ctx.fillRect(sx - wPx / 2, sy - hPx / 2, wPx, hPx);
+            if (gl9 && gl9.primOk) gl9.prim(0, sx, sy, wPx / 2, hPx / 2, op.color, op.alpha);
+            else {
+              ctx.globalAlpha = op.alpha;
+              ctx.fillStyle = op.color;
+              ctx.fillRect(sx - wPx / 2, sy - hPx / 2, wPx, hPx);
+            }
             continue;
           }
           // keepRatio(xMidYMax meet) — 비율 유지로 상자에 맞추고 바닥 가운데 정렬.
@@ -4750,13 +4759,15 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
               ctx.moveTo(zx(sp[0]), zy(sp[1]));
               for (let q = 2; q + 1 < sp.length; q += 2) ctx.lineTo(zx(sp[q]), zy(sp[q + 1]));
               ctx.closePath();
+            } else if (gl9 && gl9.primOk) {
+              gl9.prim(1, sx, (groundY ?? sy + hPx / 2) - fdPx / 2, footW * 0.5, Math.max(2, fdPx * 0.5), "#000", op.alpha * 0.36);
             } else {
               ctx.ellipse(
                 sx, (groundY ?? sy + hPx / 2) - fdPx / 2, footW * 0.5,
                 Math.max(2, fdPx * 0.5), 0, 0, Math.PI * 2,
               );
             }
-            ctx.fill();
+            if (!(gl9 && gl9.primOk) || (op.shadowPts && op.shadowPts.length >= 6)) ctx.fill();
           }
           if (glB9 && glBf9 && gl9) {
             /* ★ 통로(addonlink)는 **원점 앉히기**다(2026-09, engine9 addonLinkGeom9) — 배수(mkFrac · 타일/모델칸 · 그리드
@@ -4943,8 +4954,11 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
                 −0.24 × px 옮겨 그려지고(아래 by9), 발끝은 판 안의 잉크가 정한다. 그러니
                 땅 줄은 footY가 맞다. 지면선(groundY)이 실려 온 것(건물·자원)만 그 값을 쓴다.
              가로는 footX 그대로다(앞선 지적: 그림자·링이 몸과 안 맞음). */
-          ctx.ellipse(sx, groundY ?? groundOy9, shw * 1.1, shw * (op.air ? 0.5 : 0.42) * (op.pitch ? pitchFlatNow : 1), 0, 0, Math.PI * 2);
-          ctx.fill();
+          if (gl9 && gl9.primOk) gl9.prim(1, sx, groundY ?? groundOy9, shw * 1.1, shw * (op.air ? 0.5 : 0.42) * (op.pitch ? pitchFlatNow : 1), "#000", op.alpha * (op.air ? 0.36 : 0.25));
+          else {
+            ctx.ellipse(sx, groundY ?? groundOy9, shw * 1.1, shw * (op.air ? 0.5 : 0.42) * (op.pitch ? pitchFlatNow : 1), 0, 0, Math.PI * 2);
+            ctx.fill();
+          }
         } else if (showShadows !== false && CROWD9.lv === 0 && detail && !shFold9 && !op.air && !op.clipWalk && !op.noShadow
           && !glShadow9) {
           /* ⚠⚠ **여기에도 같은 문이 있어야 한다**(2026-09, 지적: "프로브 같은 유닛 그림자가 사영 그림자와
@@ -4981,8 +4995,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              절반이 몸 아래로 빠져나와 떠 있는 것처럼 읽혔다(12배에서 뚜렷). 세로 반지름의 몫만큼 올려 몸 밑에 깔리게 한다. */
           const ry9 = shR * 0.58 * (op.pitch ? pitchFlatNow : 1);
           // (걷어냄) SHADOW_UP_K9 — 탱크 손값. 땅 원점(groundOy9)에 두면 손값이 필요 없다(위 주석).
-          ctx.ellipse(sx, groundY ?? groundOy9, shR, ry9, 0, 0, Math.PI * 2);
-          ctx.fill();
+          if (gl9 && gl9.primOk) gl9.prim(1, sx, groundY ?? groundOy9, shR, ry9, "#000", op.alpha * 0.23);
+          else { ctx.ellipse(sx, groundY ?? groundOy9, shR, ry9, 0, 0, Math.PI * 2); ctx.fill(); }
         }
         /* 선택 링(지적: 드래그 선택 구분) — 잡힌 유닛 발밑의 가는 타원 테.
            색은 임자 색이다(요청: 흰색 말고 개인색) — 누가 잡은 유닛인지 링만 보고 안다.
@@ -5015,11 +5029,16 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           };
           /* 검은 테는 걷었다(지적: 깔려면 마우스 마커에도 깔아야 한다) — 링만 두 겹이라
              둘이 따로 놀았다. 임자 색 실선 한 겹으로 통일한다. */
-          ctx.globalAlpha = op.alpha * 0.95;
-          ctx.strokeStyle = op.color;
-          ctx.lineWidth = ringW;
-          ringPath();
-          ctx.stroke();
+          if (gl9 && gl9.primOk) {
+            gl9.prim(2, footX, ringY, inkW * 0.55 * ringK9, inkW * 0.31 * ringK9 * (op.pitch ? pitchFlatNow : 1), op.color, op.alpha * 0.95, ringW,
+              op.pitch && op.viewYaw ? Math.tan((op.viewYaw * Math.PI) / 180) : 0);
+          } else {
+            ctx.globalAlpha = op.alpha * 0.95;
+            ctx.strokeStyle = op.color;
+            ctx.lineWidth = ringW;
+            ringPath();
+            ctx.stroke();
+          }
         }
         /* 상태 오라(전수조사) — 걸린 유닛 밑에 그 기술의 색빛.
            ★ 자를 **보이는 몸**으로 바로잡았다(요청) — 여기 있던 것은 모델 상자(px)의
@@ -5031,15 +5050,18 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              실제 몸 폭(inkW)이고, 눕는 몫도 그쪽과 한 값이라 둘이 따로 놀지 않는다.
              링(0.55)보다 조금만 크게(0.62) — 링을 삼키지 않으면서 발밑에 깔린다. */
         if (op.tint) {
-          ctx.globalAlpha = op.alpha * 0.32;
-          ctx.fillStyle = op.tint;
-          ctx.beginPath();
           const auraR9 = inkW * 0.62 * (RING_K9[op.kind] ?? 1);
-          ctx.ellipse(
-            footX, op.air ? footY - lift : footY - px * 0.03,
-            auraR9, auraR9 * 0.564 * (op.pitch ? pitchFlatNow : 1), 0, 0, Math.PI * 2,
-          );
-          ctx.fill();
+          if (gl9 && gl9.primOk) gl9.prim(1, footX, op.air ? footY - lift : footY - px * 0.03, auraR9, auraR9 * 0.564 * (op.pitch ? pitchFlatNow : 1), op.tint, op.alpha * 0.32);
+          else {
+            ctx.globalAlpha = op.alpha * 0.32;
+            ctx.fillStyle = op.tint;
+            ctx.beginPath();
+            ctx.ellipse(
+              footX, op.air ? footY - lift : footY - px * 0.03,
+              auraR9, auraR9 * 0.564 * (op.pitch ? pitchFlatNow : 1), 0, 0, Math.PI * 2,
+            );
+            ctx.fill();
+          }
         }
         /* 체력바(요청: 체력을 지니고 다니는 생애주기) — 다친 유닛 머리 위에 원작풍
            바: 초록(>66%)·노랑(>33%)·빨강. 성한 유닛에는 안 띄워 화면을 아낀다. */
@@ -5057,10 +5079,16 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              아래로") — 몸은 lift만큼 떠 있으므로 그만큼 함께 올려야 발치에 붙는다.
              지상 유닛은 lift가 0이라 예전과 같은 자리다. */
           const by2 = footY - lift + Math.max(2, px * 0.11);   // 살짝 아래로(지적)
-          ctx.globalAlpha = op.alpha * 0.9;
-          ctx.fillStyle = "rgba(10, 14, 10, 0.75)";
-          ctx.fillRect(bx2 - 0.5, by2 - 0.5, bw2 + 1, bh2 + 1);
-          drawHpBar(ctx, op, bx2, by2, bw2, bh2);
+          if (gl9 && gl9.primOk) {
+            const g9 = gl9;
+            g9.prim(0, bx2 + bw2 / 2, by2 + bh2 / 2, bw2 / 2 + 0.5, bh2 / 2 + 0.5, "rgba(10, 14, 10, 0.75)", op.alpha * 0.9);
+            hpBarRects9(op, bx2, by2, bw2, bh2, (x, y, w, h, col, a) => g9.prim(0, x + w / 2, y + h / 2, w / 2, h / 2, col, a));
+          } else {
+            ctx.globalAlpha = op.alpha * 0.9;
+            ctx.fillStyle = "rgba(10, 14, 10, 0.75)";
+            ctx.fillRect(bx2 - 0.5, by2 - 0.5, bw2 + 1, bh2 + 1);
+            drawHpBar(ctx, op, bx2, by2, bw2, bh2);
+          }
         }
         /* 스프라이트로 찍는다(수리: 프레임 뚝뚝) — 면 낱장 fill 대신 구운 판 한 장.
            크기는 2px 칸으로 양자화해 캐시를 맞추고, 블릿에서 잔차 배율을 입힌다. */
@@ -5312,7 +5340,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         gl9.flush(cv.width, cv.height, cw, ch);   // GL 캔버스가 곧 화면 층이다 — 베끼지 않는다(UnitLayer 의 ★★)
         if (scrDiagOn()) {
           const miss9 = [...GL_MISS9].sort((a9, b9) => b9[1] - a9[1]).slice(0, 4).map(([k9, n9]) => `${k9}×${n9}`).join(" ");
-          SCR_DIAG.gl = `on${gl9.gl2 ? "2" : "1"}${gl9.instOn ? "" : "·인스턴싱 없음"} 개체 ${gl9.stat.inst} 드로 ${gl9.stat.draws} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}/${gl9.meshMax}(${gl9.stat.bakeMs.toFixed(0)}ms·${(gl9.stat.bytes / 1048576).toFixed(1)}MB${gl9.stat.evict ? "·버림 " + gl9.stat.evict : ""}) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit 번짐 ${gl9.stat.bloom}${miss9 ? " 판으로 " + miss9 : ""}`;
+          SCR_DIAG.gl = `on${gl9.gl2 ? "2" : "1"}${gl9.instOn ? "" : "·인스턴싱 없음"} 개체 ${gl9.stat.inst} 드로 ${gl9.stat.draws} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}/${gl9.meshMax}(${gl9.stat.bakeMs.toFixed(0)}ms·${(gl9.stat.bytes / 1048576).toFixed(1)}MB${gl9.stat.evict ? "·버림 " + gl9.stat.evict : ""}) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit 번짐 ${gl9.stat.bloom} 바닥 ${gl9.stat.prims}${miss9 ? " 판으로 " + miss9 : ""}`;
         }
       }
       if (fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM)) {
