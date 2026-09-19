@@ -25,9 +25,11 @@
 · ⚠ **7월 그림의 각은 유닛/건물로 안 갈린다** — 눈금 글자를 읽어 보면(`scripts/history/july-angles.mjs` — 글자가 둘뿐이라 기준 조각과
   화소로 견줘 july_rows.json 둘째 칸에 적는다) **SCV 만 45° 이고 나머지 96 종은 죄다 23°** 다. 그래서 옛·지금 시점을 **두 각으로 다 굽고**
   (유닛 45·23 · 건물 23·45) 종류마다 7월 각으로 고른다. 7월에 없는 종류는 23°.
+· ⚠ **7월 그림은 −요잉이다**(지적: "7월 그림은 −요잉인데 나머지는 +요잉") — 옛·지금 여덟 판은 `--rots 315`(−45)·`337`(−23)로 굽는다.
+  거울로 뒤집어 맞추면 안 된다(빛이 왼쪽에서 오므로 뒤집으면 명암이 반대로 선다).
 · 옛 시점(8/29 `1e20b08` · 2D 붓)은 그 커밋의 붓으로 굽는다: `git worktree add $S/wtA <해시>` 뒤 `node_modules` 를 심볼릭 링크로 걸고 그 트리의
-  `model-shot.mjs --kinds <전부> --rots 45|23 --mode top --cell 200 --bg "#0a0a0a"`. ⚠ 8/29 도구는 새 헤드리스 되물림이 없어 작업 트리 사본의
-  launch 에 `headless: false` + `--headless=new` 를 손으로 넣는다. 지금 시점은 `model-gl --kinds <전부> --rots 45|23 --cell 200 --rows 300
+  `model-shot.mjs --kinds <전부> --rots 315|337 --mode top --cell 200 --bg "#0a0a0a"`. ⚠ 8/29 도구는 새 헤드리스 되물림이 없어 작업 트리 사본의
+  launch 에 `headless: false` + `--headless=new` 를 손으로 넣는다. 지금 시점은 `model-gl --kinds <전부> --rots 315|337 --cell 200 --rows 300
   --bg "#0a0a0a" --json`(2026-09 에 `--bg` 를 두었다 · 시트 행 차례는 화소 적은 순이라 json 의 배열 차례가 곧 행이다 — json 의 `row` 는
   묶음(chunk) 안의 행이라 다른 값이다).
 · 붙이는 자: `scripts/history/hist-compose.mjs <S>`(스크래치 사본으로 돌린다 — kinds_u.txt·kinds_b.txt·histA_*·histC_*·july_*.png·july_rows.json 을

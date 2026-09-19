@@ -10,7 +10,8 @@ const kindsU = readFileSync(`${S}/kinds_u.txt`, "utf8").trim().split(",");
 const kindsB = readFileSync(`${S}/kinds_b.txt`, "utf8").trim().split(",");
 /* ★ 각은 7월 그림의 눈금을 종류마다 따른다(2026-09, 요청: "각도도 7월에 맞춰") — 7월 도록은 첫 칸이 SCV 만 45° 이고 나머지는
    유닛·건물 가리지 않고 23° 다(july-rows 가 칸의 눈금 글자를 읽어 적는다). 그래서 8/29·9/19 도 두 각(45·23)으로 다 구워 두고
-   (유닛 histA_u 45 · histA_u23 · 건물 histA_b 23 · histA_b45 — C 도 같은 이름) 종류의 7월 각으로 고른다. 7월에 없는 종류는 23°. */
+   (유닛 histA_u 45 · histA_u23 · 건물 histA_b 23 · histA_b45 — C 도 같은 이름) 종류의 7월 각으로 고른다. 7월에 없는 종류는 23°.
+   ⚠ 7월 그림은 **−요잉**이다(지적: "7월 그림은 −요잉인데 나머지는 +요잉") — 그래서 여덟 판은 --rots 315(=−45)·337(=−23) 으로 굽는다. 꼬리표는 7월 눈금 글자 그대로 45°·23° 다. */
 const idxA = { 45: new Map(), 23: new Map() }; const idxC = { 45: new Map(), 23: new Map() };
 kindsU.forEach((k, i) => { idxA[45].set(k, { img: "AU", i }); idxA[23].set(k, { img: "AU23", i }); });
 kindsB.forEach((k, i) => { idxA[23].set(k, { img: "AB", i }); idxA[45].set(k, { img: "AB45", i }); });
