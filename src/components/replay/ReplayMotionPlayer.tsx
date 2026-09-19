@@ -2698,9 +2698,15 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
     ctx.fillStyle = pal[i % pal.length];
     // 막대는 **짧게 여럿**(재지적: 길어서 어색) — 기계 낱개의 절반, 길이는 조각의 1.0배.
     if (!wet && i % 2 === 1) {
-      ctx.strokeStyle = pal[i % pal.length]; ctx.lineWidth = Math.max(0.6, sz * 0.3); ctx.lineCap = "round";
-      const L = sz * 1.0;
-      ctx.beginPath(); ctx.moveTo(x - cx * L, y - sx * L); ctx.lineTo(x + cx * L, y + sx * L); ctx.stroke();
+      /* 막대는 **끝이 각진 쇳조각**이다(2026-09, 지적: "알약 형태라 부자연스럽지") — 둥근 끝 획은 캡슐로 읽힌다.
+         한쪽이 조금 가는 사다리꼴 네모(뜯긴 관·꺾인 부품)로, 끝은 그냥 자른다. */
+      const L = sz * 1.0; const w0 = Math.max(0.35, sz * 0.17); const w1 = Math.max(0.25, sz * 0.10);
+      ctx.beginPath();
+      ctx.moveTo(x - cx * L - sx * w0, y - sx * L + cx * w0);
+      ctx.lineTo(x + cx * L - sx * w1, y + sx * L + cx * w1);
+      ctx.lineTo(x + cx * L + sx * w1, y + sx * L - cx * w1);
+      ctx.lineTo(x - cx * L + sx * w0, y - sx * L - cx * w0);
+      ctx.closePath(); ctx.fill();
     } else if (wet) {
       ctx.beginPath(); ctx.ellipse(x, y, sz * (0.7 + (i % 4) * 0.15), sz * (0.5 + (i % 3) * 0.2), rot, 0, Math.PI * 2); ctx.fill();
     } else if (pal[i % pal.length] === "#ff8a3d") {
@@ -4143,6 +4149,9 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
   const ref = useRef<HTMLCanvasElement>(null);
   const glRef = useRef<HTMLCanvasElement>(null);
   const fxRef = useRef<HTMLCanvasElement>(null);
+  /** 효과 캔버스를 세울지 — GL 심(glctx9)이 효과를 맡으면 이 층은 늘 비어 있어 **안 세운다**(폰 DPR 3 이면 캔버스 한 장이 수 MB 다).
+   *  붓이 첫 장에서 `gl9.vecOk` 가 거짓인 것을 보면 켠다(그 한 장은 유닛 캔버스에 그린다). */
+  const [fxCvOn9, setFxCvOn9] = useState(false);
   /** z 정렬 캐시 — 같은 ops로 두 번 이상 그릴 때(손짓 중 다시 그리기) 정렬을 아낀다. */
   const sortCacheRef = useRef<{ src: UnitDrawOp[] | null; out: UnitDrawOp[] }>({ src: null, out: [] });
   /** 그린 장 수 — 저배율의 격프레임 건너뛰기가 세는 자다(아래 effect 끝). */
@@ -4299,6 +4308,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          받는 것은 `glctx9`(캔버스 2D 의 부분집합을 삼각형으로 옮기는 심)다. GL 층 안에서 몸·연기 다음에 같은 판(MRT)에 그려지므로
          효과 캔버스는 비워 둔다(GL 이 없거나 심을 못 열면 종전대로 그 캔버스다). */
       const vec9 = gl9 && gl9.vecOk ? gl9.vecCtx() : null;
+      if (gl9 && !vec9 && !fxCvOn9) setFxCvOn9(true);   // 심이 없는 문맥 — 효과 캔버스를 세운다(다음 렌더부터)
       const fxCtx9 = vec9 ? (vec9 as unknown as CanvasRenderingContext2D) : (fctx9 ?? ctx);
       if (fctx9 && fcv9) {
         // 심이 그리는 동안 효과 캔버스는 빈 채로 둔다 — 비우기는 한 번이면 된다(프레임마다 온 화면을 지우는 값을 안 치른다).
@@ -5458,7 +5468,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
   return <>
     <canvas ref={ref} className="scr-motion-unitlayer" aria-hidden />
     {GL_ON9 ? <canvas ref={glRef} className="scr-motion-unitlayer scr-motion-gl9" style={GL_BLIT9 ? undefined : GL_HIDE9} aria-hidden /> : null}
-    {GL_ON9 ? <canvas ref={fxRef} className="scr-motion-unitlayer scr-motion-fx9" aria-hidden /> : null}
+    {GL_ON9 && fxCvOn9 ? <canvas ref={fxRef} className="scr-motion-unitlayer scr-motion-fx9" aria-hidden /> : null}
   </>;
 }
 
