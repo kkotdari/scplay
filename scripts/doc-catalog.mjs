@@ -9,8 +9,8 @@
  *   2. protoss_units_blue.png  5. protoss_bldgs_blue.png   list.txt
  *   3. zerg_units_blue.png     6. zerg_bldgs_blue.png
  * 유닛·건물 시트 모두 임자색 이름(blue)이 붙는다(재요청).
- * 찍는 조건은 doc-sheet.mjs에 넘긴다: 4방위(45·135·225·315) · --narrow · 흰 배경(--bg) ·
- * 폭 660 · dpr 3. 목록(list.txt)은 ReplayMotionPlayer.tsx의 도록 표에서 그대로 읽는다.
+ * 찍는 조건은 doc-sheet.mjs에 넘긴다: 4방위(45·135·225·315) · --narrow · **한 줄에 3종**(--per-row 3 · 카드 안 2×2) ·
+ * 흰 배경(--bg) · 폭 660 · dpr 3. 목록(list.txt)은 ReplayMotionPlayer.tsx의 도록 표에서 그대로 읽는다.
  * 그림은 GL 붓(지도와 같은 메시 그림)이 기본이고 `--2d` 면 옛 2D 면 그림이다(doc-sheet.mjs 머리 ★). */
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -29,6 +29,9 @@ const WIDTH = String(flag("--width", "660"));
 const DPR = String(flag("--dpr", "3"));
 const ZIP = !argv.includes("--no-zip");
 const TWO_D = argv.includes("--2d");
+/* 한 줄에 몇 종 — **3**(2026-09, 요청: "모델 변천사 도록 — 한 줄에 3모델로 변경"). 카드 안에서 4방위가 2×2 로 접힌다.
+   0 을 주면 옛 판형(한 종 한 줄)이다. */
+const PER_ROW = String(flag("--per-row", "3"));
 
 const RACE_EN = { 테란: "terran", 프로토스: "protoss", 저그: "zerg" };
 /** 시트 일곱 장 — 차례가 곧 번호다. */
@@ -51,7 +54,7 @@ for (const [i, s] of SHEETS.entries()) {
   const file = join(OUT, nameOf(i, s));
   execFileSync(process.execPath, [
     join(ROOT, "scripts", "doc-sheet.mjs"), "--group", s.group, "--race", s.race,
-    "--rots", ROTS, "--narrow", "--own", OWN, "--bg", "--width", WIDTH, "--dpr", DPR, "--out", file, ...(TWO_D ? ["--2d"] : []),
+    "--rots", ROTS, "--narrow", "--per-row", PER_ROW, "--own", OWN, "--bg", "--width", WIDTH, "--dpr", DPR, "--out", file, ...(TWO_D ? ["--2d"] : []),
   ], { stdio: "inherit" });
 }
 

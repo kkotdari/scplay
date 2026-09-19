@@ -8,7 +8,8 @@
 결과: `1. terran_units_blue.png` `2. protoss_units_blue.png` `3. zerg_units_blue.png`
 `4. terran_bldgs_blue.png` `5. protoss_bldgs_blue.png` `6. zerg_bldgs_blue.png`
 `7. extra.png` `list.txt`, 그리고 상위 디렉터리의 `도록.zip`. zip을 사용자에게 보낸다.
-조건(4방위 45·135·225·315 · narrow · 흰 배경 · 임자색 #2b62e8 · 폭 660 · dpr 3)도 스크립트 안에 있다.
+조건(4방위 45·135·225·315 · narrow · **한 줄에 3모델**(카드 안 4방위 2×2 — 2026-09, 요청: "모델 변천사 도록 — 한 줄에 3모델로 변경") ·
+흰 배경 · 임자색 #2b62e8 · 폭 660 · dpr 3)도 스크립트 안에 있다. 카드 판형은 doc-sheet 의 `--per-row N`(0 = 옛 한 종 한 줄)이다.
 그림은 **GL 붓**(`DocIcon9` → gl9 메시, 지도가 그리는 그 그림)이 기본이다(2026-09) — 키값·마주 봄 판정 같은 2D 전용 어긋남이 도록에
 안 실린다. 옛 2D 면 그림(ShapeIcon SVG)은 `--2d`(폰·`#gl=0` 이 아직 그 길이라 검토용). 앱 도록(scplayer GalleryScreen)도 DocIcon9 다.
 

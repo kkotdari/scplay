@@ -39,6 +39,10 @@ const OUT = String(flag("--out", join(tmpdir(), "doc-sheet.png")));
    모델 칸의 높이도 104 → 132px로 키운다. 폭만 좁히고 이 클래스를 안 붙이면 8열 격자가
    그대로 남아 방위 넷을 넣어도 절반이 빈 채 칸만 홀쭉해진다(첫 판이 그랬다). */
 const NARROW = argv.includes("--narrow");
+/* --per-row N — **카드 판형**(2026-09, 요청: "모델 변천사 도록 — 한 줄에 3모델로") — 모델 한 종이 한 줄(4방위 가로)을 먹던
+   판형 대신, 한 줄에 N 종을 카드로 세우고 카드 안에서 방위를 2열로 접는다(4방위면 2×2). 변천사처럼 한 장에 여러 종을
+   훑어 견주는 자리의 판형이다. 0 이면 종전(한 종 한 줄). */
+const PER_ROW = Number(flag("--per-row", 0)) || 0;
 /* --anim — **건물의 움직임 칸**을 뽑는다(2026-09, 요청: "도록에서 건물도 유닛처럼 idle 상태
    애니메이션 재생 · 액션칸에는 생산중/업그레이드중/공격중"). 방위 줄 대신 한 종류의 상태
    여덟(기본·회전 둘·불빛·겨눔·공사 셋)을 한 줄로 늘어놓는다 — 도록 팝업이 시각으로 오가는
@@ -143,7 +147,7 @@ window.__docAnim = (kinds, yawFix, tsFix) => {
   createRoot(host).render(h("div", { className: "scr-doc" }, list));
   return rows.length;
 };
-window.__docSheet = (group, race, rots, narrow) => {
+window.__docSheet = (group, race, rots, narrow, perRow) => {
   const rows = SHAPE_GALLERY.filter((g) => !g.hidden && g.group === group && (race === "전체" || g.race === race));
   const host = document.getElementById("host");
   /* 도록 화면(GalleryScreen)의 마크업 그대로다 — 고르기 줄과 돌아가기 버튼만 뺀다
@@ -170,10 +174,11 @@ window.__docSheet = (group, race, rots, narrow) => {
     ]),
     h("div", {
       key: "a",
-      className: "scr-doc-angles" + (narrow ? " is-narrow" : ""),
+      className: "scr-doc-angles" + (narrow ? " is-narrow" : "") + (perRow ? " is-2col" : ""),
     }, rots.map((d) => angleCell(it.kind, d, it.group))),
   ]);
-  const list = h("div", { className: "scr-doc-list" }, rows.map(itemRow));
+  // 카드 판형(perRow) — 목록을 N 열 격자로 눕힌다(칸의 CSS 는 sheetCss 의 .is-cards 가 맡는다).
+  const list = h("div", { className: "scr-doc-list" + (perRow ? " is-cards" : ""), style: perRow ? { "--cards": String(perRow) } : undefined }, rows.map(itemRow));
   createRoot(host).render(h("div", { className: "scr-doc" }, list));
   return rows.length;
 };
@@ -228,6 +233,13 @@ const sheetCss = `
   html, body { background: var(--void, #0d1014); }
   #host { padding: 20px 22px 26px; }
   .scr-doc-kind { margin-left: 8px; font-size: 11px; color: var(--text-dim); font-family: ui-monospace, monospace; }
+  /* 카드 판형(--per-row) — 한 줄에 N 종 · 카드 안 방위는 2열(4방위 = 2×2). 머리글은 한 줄로 죈다. */
+  .scr-doc-list.is-cards { display: grid; grid-template-columns: repeat(var(--cards, 3), minmax(0, 1fr)); gap: 14px 12px; }
+  .scr-doc-list.is-cards .scr-doc-item { min-width: 0; padding-top: 10px; }
+  .scr-doc-list.is-cards .scr-doc-itemhead { flex-wrap: wrap; gap: 4px 6px; margin-bottom: 6px; }
+  .scr-doc-list.is-cards .scr-doc-itemhead h3 { font-size: 13px; }
+  .scr-doc-list.is-cards .scr-doc-kind { margin-left: 0; font-size: 10px; }
+  .scr-doc .scr-doc-angles.is-2col { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
   ${OWN ? `.scr-doc { --scr-doc-own: ${OWN}; }` : ""}
   ${BG ? `
   html, body { background: ${BG}; }
@@ -259,8 +271,8 @@ const n = TRACER
   ? await page.evaluate((ks) => window.__docTracer(ks), KINDS.length ? KINDS : ["gunner", "goliath", "coil", "turret", "corsair", "archon"])
   : ANIM
   ? await page.evaluate(([ks, yw, ts]) => window.__docAnim(ks, yw, ts), [KINDS.length ? KINDS : ["trapezoid", "turret", "coil", "cube"], YAW, TIMES])
-  : await page.evaluate(([g, r, rots, nw]) => window.__docSheet(g, r, rots, nw),
-    [GROUP, RACE, ROTS, NARROW]);
+  : await page.evaluate(([g, r, rots, nw, pr]) => window.__docSheet(g, r, rots, nw, pr),
+    [GROUP, RACE, ROTS, NARROW, PER_ROW]);
 /* 칸이 다 그려질 때까지 — SVG 는 서는 즉시, GL 그림은 data-gl9="1"(판에서 제 칸을 찍은 뒤).
    ⚠ **<canvas> 도 센다**(2026-09) — DocIcon9 가 PNG 왕복을 걷고 판을 곧장 찍게 되면서
      그림이 <img> → <canvas> 로 바뀌었는데 이 자가 `svg, img` 만 보고 있었다. 그러면 GL 붓에서
