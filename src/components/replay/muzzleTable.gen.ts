@@ -20,7 +20,7 @@ export const MUZZLE_GEN9: Record<string, [number, number, number]> = {
   goon: [0, 1.6, 4.08],
   guardian: [0, 1.93, 6.33],
   gunner: [-0.47, 2.4, 2.82],
-  hydra: [0, 0.92, 5.71],
+  hydra: [0, 1.9, 4.11],
   inf: [-0.98, 2.67, 3.53],
   lurker: [0, 2.37, 2.55],
   muta: [0, 2.6, 2.73],
