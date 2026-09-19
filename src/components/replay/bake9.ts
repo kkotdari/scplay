@@ -7,7 +7,7 @@ import { cx } from "./cx";
 import { TIER_GEN9 } from "./tierTable.gen";
 import { kT } from "../../utils/openbwTracks";
 import {
-  POLY2, MESH9, EMIT_FILL9, meshPut9, meshSphere9, shinePath3, annulusPath3, orbPath3, billPath3, meshLoft9, meshRing9, loftZFaces, modelPoint9, annulusPath, bandPath, bodyFace, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, boxOctFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelWarp, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
+  POLY2, MESH9, EMIT_FILL9, meshPut9, meshSphere9, shinePath3, annulusPath3, orbPath3, billPath3, billPoly3, meshLoft9, meshRing9, loftZFaces, modelPoint9, annulusPath, bandPath, bodyFace, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, boxOctFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelWarp, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
 import { BUILD_STAGES, LINK_CY_9, LINK_X0_9, linkLenOf9, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, SPIN_ANIM9, SPIN_STEPS, bldNormOf, modelInkOf, modelNormOf } from "./engine9";
 import { type UnitDrawOp } from "./engine9";
 /** 주소 해시(`#pitch=`·`#nocreep` 같은 진단 스위치) — 굽기 일꾼 안에서는 location.hash가 빈 문자열(blob 주소)이라,
@@ -427,6 +427,7 @@ export const MODEL_Z_OFF9: Record<string, number> = {   // 값은 z 접기(×0.8
 export const GAS_KINDS9 = new Set<string>(["geyser", "refinery", "assim", "extract"]);
 export const SPIN_KINDS = new Set<string>([
   "trapezoid", "cyber", "forge", "storm", "nukecloud", "nukeblast",
+  "warpin",   // 소환구 에너지 그물 — 칸마다 씨앗이 갈리고(지직) 그물이 한 칸씩 돈다(에너지가 움직인다)
   "mshop",   // 머신샵 톱니 둘(바닥 톱니판·옆 바퀴 이) — 연구 중에만(요청)
   /* 성큰 혓바닥의 **공격 컷 넷**(요청: "성큰 공격 애니메이션으로 컷 4개로") — 칸 0~3이 뻗은 몫 1/4~4/4다.
      엔진이 사격 박자(sunkenPh)를 넷으로 접어 spin에 싣고, 혀 빌더가 그 몫까지만 아치를 그린다. */
@@ -12987,7 +12988,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /** 기둥 셋의 자리·높이 — 아래 들보(다리)도 같은 표에서 끝점을 읽는다. */
     // 낮은 기둥 둘을 더 벌린다(요청): ±2.5 → ±3.4.
     const PILLARS9: [number, number, number, number][] = [
-      [-3.4, 0.4, 2.56, 0], [0, -1.6, 3.52, 1], [3.4, 0.4, 2.56, 0],
+      [-3.4, 0.4, 3.2, 0], [0, -1.6, 4.4, 1], [3.4, 0.4, 3.2, 0],   // 2.56 · 3.52 → ×1.25(요청: 가운데와 앞쪽 둘의 높이 25% 늘리기)
     ];
     PILLARS9.forEach(([px, py, ph, own9]) => {
       const key = 12 + depthNow(px, py) * 1.6;
@@ -14879,8 +14880,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         : Math.min(STAGES9 - 4, 1 + Math.floor((i9 - 1 + r09 * 0.9) * ((STAGES9 - 4) / 4)));
       // 줄기 길이도 살짝씩 다르게(지적) — 시작 높이를 85~115%로.
       const top9 = TOP9 * (0.85 + rnd() * 0.3);
-      const tx9 = gx9 + (rnd() - 0.5) * R9 * 0.5; // 꼭대기 자리(살짝 비껴간다)
-      const ty9 = gy9 + (rnd() - 0.5) * R9 * 0.5;
+      /* ★ 꼭대기는 닿는 자리에서 **크게** 비껴간다(2026-09, 요청: "메인 줄기 무조건 수직 아니고 다양한 각도로 내려오게") —
+         옛 0.5R(±1.7 · 높이 15.5 라 6도 안쪽)는 사실상 수직이었다. ±1.2R(±8.2)이면 수직에서 0~28도 사이로 흩어진다. */
+      const tx9 = gx9 + (rnd() - 0.5) * R9 * 2.4; // 꼭대기 자리(크게 비껴간다)
+      const ty9 = gy9 + (rnd() - 0.5) * R9 * 2.4;
       const pts: [number, number, number][] = [];
       const seg9 = 7;
       for (let k9 = 0; k9 <= seg9; k9 += 1) {
@@ -19272,22 +19275,83 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        밝아지는 그러데이션이었다: 파랑이 넓이의 대부분을 쥐고 흰 심은 가운데 작은 점
        하나였다. 이제 반대다. 흰 원반이 반지름의 88%를 채우고, 그 바깥 12%만 선명한
        청색 고리로 두른다 — 소환되는 빛덩이가 아니라 **테 두른 문**으로 읽힌다. */
+    /* ★★ **에너지 그물**(2026-09, 요청: "소환구 애니로 변경 — 웹 같은 모양 차용하되 더 에너지로 꽉 차게 하고 에너지가 움직이는
+       형태") — 다크 웹의 전기 줄기 그물(ReplayMotionPlayer dwebSpr9)을 빌린다. 다만 그쪽은 붓이 프레임마다 판을 갈아 끼우는 캔버스
+       스프라이트고, 소환구는 GL 발광 모델이라 **회전 칸**(SPIN_KINDS · bldSpinNow)에 굽는다: 칸마다 씨앗이 갈려 지직거리고(다크 웹의
+       초당 10번과 같은 박자 — spinRateOf9 0.6바퀴/초 × 16칸), 그물 전체가 한 칸에 22.5도씩 돌아 한 바퀴/1.7초로 에너지가 흐른다.
+       줄기는 **빌보드 평면**(billPoly3 — 늘 카메라를 보는 판) 위의 띠라 어느 요잉·시점에서도 원반과 한 장이다.
+       속 원반은 옛 '거의 흰 판'(#dfeeff)에서 한 단 파랗게 눌러(#6fb0ff · 0.75) 줄기가 그 위에 서게 한다 — 흰 판 위 흰 줄기는 안 읽힌다. */
+    const CZ9 = 2.56; const RN9 = 2.68;
+    const slot9 = ((Math.floor(bldSpinNow) % SPIN_ANIM9) + SPIN_ANIM9) % SPIN_ANIM9;
+    let sd9 = 977 + slot9 * 7919;
+    const rnd = (): number => { sd9 = (sd9 * 1103515245 + 12345) & 0x7fffffff; return sd9 / 0x7fffffff; };
+    const rot9 = (slot9 / SPIN_ANIM9) * Math.PI * 2;
+    const cr9 = Math.cos(rot9); const sr9 = Math.sin(rot9);
+    const P9 = (u: number, v: number): [number, number] => [u * cr9 - v * sr9, u * sr9 + v * cr9];
+    const net9: ShapeFace[] = [];
+    const ribbon9 = (pts: [number, number][], w: number, col: string, a: number): void => {
+      for (let k = 0; k + 1 < pts.length; k += 1) {
+        const [x0, y0] = pts[k]; const [x1, y1] = pts[k + 1];
+        const dx = x1 - x0; const dy = y1 - y0; const l = Math.hypot(dx, dy) || 1;
+        const nx = (-dy / l) * w; const ny = (dx / l) * w;
+        // 양 끝 마디는 여윈다 — 줄기 끝이 뭉툭하면 막대로 읽힌다.
+        const k0 = k === 0 ? 0.35 : 1; const k1 = k + 2 === pts.length ? 0.35 : 1;
+        net9.push([billPoly3(0, 0, CZ9, [
+          [x0 + nx * k0, y0 + ny * k0], [x1 + nx * k1, y1 + ny * k1], [x1 - nx * k1, y1 - ny * k1], [x0 - nx * k0, y0 - ny * k0],
+        ]), a, col] as ShapeFace);
+      }
+    };
+    /* 줄기는 **원반을 가로지른다** — 가장자리에서 나서 반대편으로(다크 웹의 그 결). 짧은 토막 여럿(0.6~1.6R · 처음 판)은
+       그물이 아니라 흠집으로 읽혔다(실측). 길이 1.6~2.4R · 마디 9~12 · 굵기 0.05R. */
+    /* ⚠ 처음엔 가장자리에서 나서 안쪽으로 **걸어가게** 했더니(마디마다 각을 흔들며 원 밖이면 끊기) 대부분이 두세 마디에서
+       원 밖으로 나가 짧은 토막 여럿(흠집)이 됐다(실측 두 번). 다크 웹(bolt9)처럼 **시작점과 반대편 끝점을 먼저 정하고**
+       그 사이를 옆으로 흔든다 — 줄기마다 원반을 가로지른다. */
+    for (let b = 0; b < 36; b += 1) {
+      const a0 = rnd() * Math.PI * 2;
+      const a1 = a0 + Math.PI + (rnd() - 0.5) * 1.6;
+      const r0 = RN9 * (0.8 + rnd() * 0.17); const r1 = RN9 * (0.8 + rnd() * 0.17);
+      const sx = Math.cos(a0) * r0; const sy = Math.sin(a0) * r0;
+      const ex = Math.cos(a1) * r1; const ey = Math.sin(a1) * r1;
+      const dx = ex - sx; const dy = ey - sy; const l = Math.hypot(dx, dy) || 1;
+      const px = -dy / l; const py = dx / l;   // 옆 방향
+      const n = 9 + Math.floor(rnd() * 4);
+      const pts: [number, number][] = [];
+      let off = 0;
+      for (let k = 0; k <= n; k += 1) {
+        const u = k / n;
+        off += (rnd() - 0.5) * RN9 * 0.22;   // 옆 흔들림 — 걸음마다 쌓여 굽이가 된다
+        const o = off * Math.sin(Math.PI * u);   // 양 끝은 제자리
+        let x = sx + dx * u + px * o; let y = sy + dy * u + py * o;
+        const rr = Math.hypot(x, y);
+        if (rr > RN9 * 0.98) { x *= (RN9 * 0.98) / rr; y *= (RN9 * 0.98) / rr; }   // 원반 안에 가둔다
+        pts.push(P9(x, y));
+      }
+      const w = RN9 * 0.05 * (0.75 + rnd() * 0.6);
+      ribbon9(pts, w * 3.0, "#5aa8ff", 0.28);   // 번짐 한 겹
+      ribbon9(pts, w, "#eaf6ff", 0.95);         // 흰 심
+      /* 가지 하나 — 줄기 가운데께에서 갈라져 짧게 나간다(다크 웹의 '가지 하나씩'). */
+      const bi = 3 + Math.floor(rnd() * (n - 5));
+      const [bx0, by0] = pts[bi];
+      const bang = Math.atan2(dy, dx) + (rnd() < 0.5 ? 1 : -1) * (0.7 + rnd() * 0.8);
+      const bl = RN9 * (0.25 + rnd() * 0.3);
+      const bp: [number, number][] = [];
+      for (let k = 0; k <= 4; k += 1) {
+        const u = k / 4;
+        let x = bx0 + Math.cos(bang) * bl * u + (rnd() - 0.5) * RN9 * 0.06;
+        let y = by0 + Math.sin(bang) * bl * u + (rnd() - 0.5) * RN9 * 0.06;
+        const rr = Math.hypot(x, y);
+        if (rr > RN9 * 0.98) { x *= (RN9 * 0.98) / rr; y *= (RN9 * 0.98) / rr; }
+        bp.push([x, y]);
+      }
+      ribbon9(bp, w * 2.0, "#5aa8ff", 0.22); ribbon9(bp, w * 0.6, "#eaf6ff", 0.9);
+    }
     return [
-      [billPath3(0, 0, 2.56, 3.05), 1, "#1e7fff"] as ShapeFace,
-      /* 흰 속은 **두 겹**이었다 — 그리는 쪽이 색 있는 면의 농도를 0.85로 자르므로(shadeBoost)
-         한 겹만 깔면 밑의 청색이 15% 비쳐 흰 속이 하늘색이 되고, 두 겹이면 0.98까지 차 흰색이
-         흰색으로 남는다. ★ 그 '완전한 흰색'이 **눈부심의 임자**였다(2026-09, 지적: "아콘·소환구 등
-         글로우가 너무 강해 눈부셔") — 번짐까지 얹히면 테도 무늬도 안 남는 흰 원이 된다.
-         한 겹으로 줄이고 색도 한 단 눌러, 속이 **아주 옅은 하늘빛**으로 남게 한다. */
-      [billPath3(0, 0, 2.56, 2.68), 1, "#dfeeff"] as ShapeFace,
-      topFace(shinePath3(0, 0, 2.56, 2.68, -0.7, -0.7, 1.15), 0.4),
-      /* 바깥 테 밖의 빛 번짐 — **글로우는 여기가 임자다**(지적: "소환구 글로우 효과 중심 위치가 안 맞음"). 여태
-         DOM 글로우(.scr-bfx-toss)를 발자국 지면 가운데에 따로 붙였는데, 구는 WARP_LIFT만큼 떠 있고 입체에서는
-         높이의 시각 밀림까지 타므로 지면 앵커와 구의 화면 중심이 늘 어긋났다. 구와 같은 판에 같은 중심으로
-         구우면 어느 시점에서도 정확히 구 둘레다. 세 겹으로 넓힌다(옛 한 겹 0.18). */
-      [billPath3(0, 0, 2.56, 3.45), 0.2, "#5aa8ff"] as ShapeFace,
-      [billPath3(0, 0, 2.56, 3.95), 0.12, "#5aa8ff"] as ShapeFace,
-      [billPath3(0, 0, 2.56, 4.5), 0.06, "#5aa8ff"] as ShapeFace,
+      [billPath3(0, 0, CZ9, 3.05), 1, "#1e7fff"] as ShapeFace,
+      [billPath3(0, 0, CZ9, RN9), 0.75, "#6fb0ff"] as ShapeFace,
+      ...net9,
+      [billPath3(0, 0, CZ9, 3.45), 0.2, "#5aa8ff"] as ShapeFace,
+      [billPath3(0, 0, CZ9, 3.95), 0.12, "#5aa8ff"] as ShapeFace,
+      [billPath3(0, 0, CZ9, 4.5), 0.06, "#5aa8ff"] as ShapeFace,
     ];
   },
   /* 테란 공사장 — 기초 슬래브 + 뼈대 기둥 넷 + 가로 보 + 크레인.

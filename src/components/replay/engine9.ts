@@ -982,7 +982,9 @@ export const GAS_SPIN_KINDS9 = new Set(["geyser", "refinery", "assim", "extract"
    (0.3 에서 칸당 0.21초 · 덩이 한살이 6.4칸). */
 export const GAS_SPIN_RATE9 = 0.3;
 export const spinRateOf9 = (kind: string, working: boolean): number =>
-  GAS_SPIN_KINDS9.has(kind) ? GAS_SPIN_RATE9 : SPIN_WORK_KINDS9.has(kind) ? (working ? 1.6 : 0) : 2.2;
+  GAS_SPIN_KINDS9.has(kind) ? GAS_SPIN_RATE9
+    : kind === "warpin" ? 0.6   // 소환구 에너지 그물 — 열여섯 칸이 초당 9.6번 갈린다(다크 웹의 지직거림과 같은 박자)
+      : SPIN_WORK_KINDS9.has(kind) ? (working ? 1.6 : 0) : 2.2;
 /** 사일로가 핵을 **만드는** 시간(초) — 원작 1500프레임(가장 빠름 ≈ 63초). 자취에는 미사일이 다 만들어진
  *  뒤(장전)부터 실리므로 그 앞 이만큼을 '만드는 중'으로 본다. */
 export const NUKE_BUILD_SEC9 = 63;
@@ -5754,7 +5756,11 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
              절반짜리 작은 타원만 바닥에 깔린다. 몸은 WARP_LIFT만큼 떠 있으니
              그 틈이 곧 높이로 읽힌다. 저그 고치·테란 공사장은 땅에 앉는다. */
           ...(race2 === "프로토스"
-            ? { groundShadow: true, footRatio: 0.5 }
+            ? {
+              groundShadow: true, footRatio: 0.5,
+              // 소환구 에너지 그물의 칸(bake9 warpin 의 ★★) — 저사양·잔상은 안 돈다. 자리마다 위상을 흩는다.
+              spin: !qAnim || bldFrozen9 ? 0 : Math.floor(t * spinRateOf9("warpin", true) * SPIN_ANIM9 + i * 5) % SPIN_ANIM9,
+            }
             : {}),
           ...(pulse9 !== 1 ? { pulseK: pulse9 } : {}),
           // 마무리 구간에서는 소환구가 옅어지며 물러난다(위 warpIn9) — 건물이 그만큼 배어 나온다.

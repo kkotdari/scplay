@@ -8,7 +8,7 @@
    · 임자색 면(fill 없음)은 정점의 team 깃발로 표시하고 uTeam 으로 칠한다.
    한계(시제): 유닛만(건물·데칼·그림자·체력바는 캔버스가 그대로), 평면 시점만(pitch 면 캔버스로), 머리 요잉·불빛·회전 깃발은 0. */
 import { SHAPE_BUILDERS, SHAPE_GALLERY, poseSet9, poseNow, headYawSet, headYawNow, headAimNow, bldLitSet, bldLitNow, bldSpinRawSet9, bldSpinNow, bldBlinkSet9, stageFaces, headTag, litTag, spinTag, glSpinTag9, gasEmitTake9, gasPuffFrames9, type GasEmit9, tone9, autoTier } from "./bake9";
-import { lodFilter, PITCH_ZK9, type ShapeFace } from "../../utils/shapeOblique";
+import { lodFilter, PITCH_ZK9, BILL_CENTER9, type ShapeFace } from "../../utils/shapeOblique";
 import { collectMesh9 } from "../../utils/mesh9";
 import { GlCtx9, type VecSink9 } from "./glctx9";
 import { SPIN_ANIM9, type UnitDrawOp } from "./engine9";
@@ -1213,7 +1213,10 @@ export class GlUnits9 implements VecSink9 {
           const bb = part.bb ? 1 : 0;
           // 닫힌 입체는 법선이 **바깥**을 봐야 한다 — mesh9 가 감기를 맞춰 준 부호(flip)를 여기서 먹인다.
           if (part.flips ? part.flips[qi] : part.flip) { nx = -nx; ny = -ny; nz = -nz; }
-          if (bb) { nx = 0; ny = 0; nz = 0; for (let i = 0; i < n; i += 1) { nx += poly[i * 3]; ny += poly[i * 3 + 1]; nz += poly[i * 3 + 2]; } nx /= n; ny /= n; nz /= n; }   // 빌보드: 법선 자리에 원반 가운데
+          if (bb) {
+            const bc9 = BILL_CENTER9.get(poly);   // 공통 중심이 적혀 있으면 그것(한 판의 띠들이 한 중심을 나눠 쓴다) — 없으면 제 무게중심
+            if (bc9) { nx = bc9[0]; ny = bc9[1]; nz = bc9[2]; }
+            else { nx = 0; ny = 0; nz = 0; for (let i = 0; i < n; i += 1) { nx += poly[i * 3]; ny += poly[i * 3 + 1]; nz += poly[i * 3 + 2]; } nx /= n; ny /= n; nz /= n; } }   // 빌보드: 법선 자리에 원반 가운데
           const cbb = (part.emit ? 1 : 0) + (part.solid ? 2 : 0) + (bb ? 4 : 0);
           for (let i = 0; i < n; i += 1) {
             const x = poly[i * 3], y = poly[i * 3 + 1], z = poly[i * 3 + 2];

@@ -1487,6 +1487,10 @@ export const RSEG9 = 32;
 const BILL9: [number, number] = [Math.sin((40 * Math.PI) / 180), Math.cos((40 * Math.PI) / 180)];
 /** **빌보드 원반**으로 표시된 폴리 — 붓이 이것만 요잉을 안 돌리고 가운데만 돌린다(gl9 aBb 4비트). */
 export const BILLBOARD9 = new WeakSet<Poly3>();
+/** 빌보드 다각형의 **공통 중심**(2026-09, 소환구 에너지 그물) — 붓은 빌보드를 '중심은 요잉을 돌리고 중심에서의 치우침은 안 돌리는'
+ *  식으로 그리는데, 그 중심을 다각형 제 무게중심으로 잡으면 한 판을 이루는 띠 여럿이 저마다 제자리에서 돌아 흩어진다(실측: 그물이
+ *  토막으로 갈렸다). 여기 적힌 다각형은 이 점을 중심으로 삼는다(같은 판의 띠들이 한 중심을 나눠 쓴다). */
+export const BILL_CENTER9 = new WeakMap<Poly3, [number, number, number]>();
 /** 3D 자리에 뜬 **공** — `screenCircle(project(…), r)` 과 **글자까지 같은 경로**를 내면서
  *  3D 로는 구 껍질을 적는다. 화면 자로만 찍으면 되찾기가 경로를 거꾸로 읽어야 한다. */
 export function orbPath3(cx: number, cy: number, cz: number, r: number, ryS?: number): string {
@@ -1513,6 +1517,30 @@ export function billPath3(cx: number, cy: number, cz: number, r: number): string
     meshPut9(d, [disc]);
   }
   return d;
+}
+/** 빌보드 평면(늘 카메라를 보는 판) 위의 다각형(2026-09, 소환구 에너지 그물) — (u, v) 는 그 판의 가로·세로(위가 +) 모형 칸.
+ *  2D 는 사영한 중심에서 그대로 옮기고, 3D 는 billPath3 의 원반과 같은 자(BILL9)로 눕혀 BILLBOARD9 에 적는다. */
+export function billPoly3(cx: number, cy: number, cz: number, pts: [number, number][]): string {
+  const [sx, sy] = project(cx, cy, cz);
+  const n = pts.length;
+  const xy = new Float64Array(n * 2);
+  let s = "";
+  for (let i = 0; i < n; i += 1) {
+    const px = sx + pts[i][0]; const py = sy - pts[i][1];
+    xy[i * 2] = px; xy[i * 2 + 1] = py;
+    s += `${i === 0 ? "M" : " L"}${px} ${py}`;
+  }
+  s += " Z";
+  if (POLY2.size >= POLY2_MAX) POLY2.clear();
+  POLY2.set(s, xy);
+  if (MESH9.on) {
+    const poly: number[] = [];
+    for (const [u, v] of pts) poly.push(...mp3(cx + u, cy - v * BILL9[0], cz + v * BILL9[1]));
+    BILLBOARD9.add(poly);
+    BILL_CENTER9.set(poly, modelPoint9(cx, cy, cz));
+    meshPut9(s, [poly]);
+  }
+  return s;
 }
 export const screenCircle = (cx: number, cy: number, r: number): string =>
   siteMark9(`M${r2(cx - r)} ${r2(cy)}a${r2(r)} ${r2(r)} 0 1 0 ${r2(r * 2)} 0`
