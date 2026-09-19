@@ -23014,13 +23014,57 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        색은 겉 갑옷 판(PLATE). 키는 얼굴(y 3.9 기준 +2)보다 뒤, 몸통·등가시보다는 앞(+2.5). */
     // 1.2배·살짝 앞으로(재요청): 시작 y 2.9 → 3.15, 길이·너비 ×1.2(UCK9)
     const UCK9 = 1.2;
-    out.push(...tagKey(paintBase(spirePillar({
-      x: 0, y: 0, h: 0.8, w: 1, segs: 7, sides: 8, oval: 0.1, caps: "none", ref: [1, 0, 0], trueNormal: true,
-      // 뿌리를 **정수리 위**로(재요청): 머리뼈 꼭대기(y 3.2, z 5.5) 바로 위 (3.2, 5.7)에서 난다
-      path: (t9: number): [number, number, number] => [0, 3.2 - 2.7 * UCK9 * t9, 4.56 + 2 * UCK9 * t9],
-      widthOf: (t9: number): number => UCK9 * (t9 < 0.55 ? 1.3 + (2.7 - 1.3) * (t9 / 0.55) : 2.7 - (2.7 - 0.5) * ((t9 - 0.55) / 0.45) ** 1.3),
-      skewV: (cu9: number, t9: number): number => -0.55 * UCK9 * cu9 * cu9 * (0.4 + 0.6 * t9),
-    }), PLATE), depthNow(0, 3.9) * 1.6 + 2.6));   // 얼굴(+2)보다 앞(지적: "머리장식에 머리가 가려져야") — 정수리 위에서 나는 판이라 위에서 보면 머리 위를 덮는다
+    /* ★ 볏은 **세운 방패**다(2026-09, 사진 요청: "울트라 머리를 저렇게") — 원작 시네마틱의 머리는 정수리 위로
+       **넓고 층진 갑판**이 거의 곧게 서고(앞에서 보면 얼굴 위의 방패), 그 위 양 모서리에서 **큰 뿔 한 쌍**이
+       바깥으로 나갔다가 앞·아래로 굽어 얼굴 옆을 감싼다. 옛 판은 히드라처럼 36도로 뒤로 누워 앞에서는 납작한
+       띠였다. 이제 63도(뒤 1.8 · 위 3.6)로 세우고 너비도 키운다(반폭 최대 3.4). 층은 같은 판을 앞 법선 쪽으로
+       0.15 띄워 0.72 배로 한 장 더 얹고(테가 계단으로 읽힌다), 가운데는 등마루 뿔이 지난다. */
+    const CR0 = (t9: number): [number, number, number] => [0, 3.35 - 1.8 * t9, 4.6 + 3.6 * t9];
+    const crW9 = (t9: number): number => UCK9 * (t9 < 0.5 ? 1.5 + (2.85 - 1.5) * (t9 / 0.5) : 2.85 - (2.85 - 0.45) * ((t9 - 0.5) / 0.5) ** 1.25);
+    const crSk9 = (cu9: number, t9: number): number => -0.5 * UCK9 * cu9 * cu9 * (0.4 + 0.6 * t9);
+    const CRN9: [number, number, number] = [0, 0.894, 0.447];   // 판의 앞·위 법선(63도)
+    for (const [lay9, sc9] of [[0, 1], [1, 0.72]] as [number, number][]) {
+      const off9 = lay9 * 0.15;
+      out.push(...tagKey(paintBase(spirePillar({
+        x: 0, y: 0, h: 0.8, w: 1, segs: 7, sides: 8, oval: 0.1, caps: "none", ref: [1, 0, 0], trueNormal: true,
+        path: (t9: number): [number, number, number] => {
+          const q9 = CR0(lay9 ? 0.08 + t9 * 0.8 : t9);
+          return [q9[0] + CRN9[0] * off9, q9[1] + CRN9[1] * off9, q9[2] + CRN9[2] * off9];
+        },
+        widthOf: (t9: number): number => crW9(lay9 ? 0.08 + t9 * 0.8 : t9) * sc9,
+        skewV: (cu9: number, t9: number): number => crSk9(cu9, t9) * sc9,
+      }), lay9 ? HIDE : PLATE), depthNow(0, 3.9) * 1.6 + 2.6 + lay9 * 0.1));   // 얼굴(+2)보다 앞(지적: "머리장식에 머리가 가려져야")
+    }
+    // 등마루 — 볏 한가운데를 밑동에서 끝까지 지나는 짙은 뿔(사진의 가운데 능선).
+    {
+      const a9 = CR0(0.05); const b9 = CR0(1);
+      out.push(...tagKey(paintBase(spikeHorn(a9[0], a9[1] + 0.3, a9[2] + 0.15, b9[0], b9[1] + 0.12, b9[2] + 0.06, 0.62,
+        undefined, 6, 0.2, 0, 0.3), DARK), depthNow(0, 3.9) * 1.6 + 2.9));
+    }
+    /* ★ 뿔 한 쌍 — 볏의 가장 넓은 자리(t 0.5 · 반폭 3.4)에서 나서 바깥·위로 벌어졌다가 **앞·아래로 굽어**
+       얼굴 옆(y 6.2 · z 3.3)까지 내려온다(사진: 소뿔처럼 앞으로 감기는 뿔). 낫(상아)과 갈리게 갑각색(HIDE)이고
+       끝만 짙다. 낫과 같은 2차 베지에 기둥이다. */
+    for (const m of [-1, 1] as const) {
+      const r9 = CR0(0.5);
+      const H0: [number, number, number] = [m * 3.0, r9[1] + 0.1, r9[2] + 0.1];
+      const HC: [number, number, number] = [m * 5.4, r9[1] + 1.8, r9[2] + 0.9];
+      const H1: [number, number, number] = [m * 3.7, 6.3, 3.3];
+      const bzh9 = (a: number, b: number, c: number, t: number): number =>
+        (1 - t) * (1 - t) * a + 2 * (1 - t) * t * b + t * t * c;
+      const hpath9 = (t: number): [number, number, number] => [
+        bzh9(H0[0], HC[0], H1[0], t), bzh9(H0[1], HC[1], H1[1], t), bzh9(H0[2], HC[2], H1[2], t),
+      ];
+      const hw9 = (t: number): number => 0.62 * (1 - t) ** 1.1 + 0.06;
+      const hk9 = depthNow(m * 3.6, 4.5) * 1.6 + 2.8;
+      out.push(...tagKey(paintBase(spirePillar({
+        x: 0, y: 0, h: 0.8, w: 1, segs: 5, sides: 6, oval: 1.3, caps: "bottom", trueNormal: true,
+        path: (t: number): [number, number, number] => hpath9(t * 0.62), widthOf: (t: number): number => hw9(t * 0.62),
+      }), HIDE), hk9));
+      out.push(...tagKey(paintBase(spirePillar({
+        x: 0, y: 0, h: 0.8, w: 1, segs: 4, sides: 6, oval: 1.3, caps: "none", trueNormal: true,
+        path: (t: number): [number, number, number] => hpath9(0.62 + t * 0.38), widthOf: (t: number): number => hw9(0.62 + t * 0.38),
+      }), DARK), hk9 + 0.1));
+    }
     /* ── 낫 한 쌍 ── **고유색(상아빛)이다**(요청) — 임자 색이 아니다. 밖·앞으로 크게
        감긴다. 넷이 아니라 둘이다(지적: "갈고리는 한 쌍인데 지금 두 쌍") — 낮게
        앞으로 뻗던 작은 한 쌍을 걷었다. 넷은 앞이 갈퀴로 뒤덮여 몸이 안 보였다. */
@@ -23042,8 +23086,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     for (const m of [-1, 1] as const) {
       const s9 = 2.05;
       const P0: [number, number, number] = [m * 2.45, 2.7, 3.6 + BODY_UPz9];
-      const CP: [number, number, number] = [P0[0] + m * 2.3 * s9, P0[1] + 1.85 * s9, P0[2] + 0.32];
-      const P1: [number, number, number] = [P0[0] + m * 0.2 * s9, P0[1] + 4.05 * s9, P0[2] - 0.44];
+      // 끝이 살짝 아래를 본다(요청: "팔도 아래를 살짝 향하게") — 조종점·끝의 z 를 내렸다(+0.32 → −0.1 · −0.44 → −1.5)
+      const CP: [number, number, number] = [P0[0] + m * 2.3 * s9, P0[1] + 1.85 * s9, P0[2] - 0.1];
+      const P1: [number, number, number] = [P0[0] + m * 0.2 * s9, P0[1] + 4.05 * s9, P0[2] - 1.5];
       const bz9 = (a: number, b: number, c: number, t: number): number =>
         (1 - t) * (1 - t) * a + 2 * (1 - t) * t * b + t * t * c;
       const cpath9 = (t: number): [number, number, number] => [
