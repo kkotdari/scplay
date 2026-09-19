@@ -20191,9 +20191,37 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       for (const sd of [1, -1] as const) {
         if (faceLight(sd * nx, sd * ny, 0).visible) edges9.push(edgeOf(sd));
       }
+      /* ★★ **날개는 닫힌 상자여야 한다**(2026-09, 지적: "프로브 다리들 면이 안보여 다 뚫려있어") — 여태 윗판 +
+         옆 두께면 둘뿐이라 **밑판·뿌리·끝 뚜껑이 없는 홈통**이었다. 2D 는 화가 차례로 윗판이 덮어 안 보였지만, GL 은
+         진짜 깊이라 가파르게 내려간 다리(뒤 아래 날개 5 → 4)를 비스듬히 볼 때 열린 밑으로 **반대쪽 옆면의 뒷면**이
+         드러나 속이 빈 판때기로 읽혔다(실측: 135·180 에서 다리마다 흰 안쪽 띠). 밑판 + 뿌리·끝 뚜껑을 더해 여섯 낯의
+         닫힌 육면체로 — 2D 는 그 낯이 보이는 각(faceLight)에서만 싣는다(메시 기록 중엔 늘 참이라 여섯이 다 든다). */
+      const zb0 = z0 - 0.272; const zb1 = z1 - 0.224;
+      const dBot = polyPath3([
+        [rx - nx * wRoot, ryy - ny * wRoot, zb0],
+        [tx - nx * wTip, ty - ny * wTip, zb1],
+        [tx + nx * wTip, ty + ny * wTip, zb1],
+        [rx + nx * wRoot, ryy + ny * wRoot, zb0],
+      ]);
+      const dTip = polyPath3([
+        [tx - nx * wTip, ty - ny * wTip, z1],
+        [tx + nx * wTip, ty + ny * wTip, z1],
+        [tx + nx * wTip, ty + ny * wTip, zb1],
+        [tx - nx * wTip, ty - ny * wTip, zb1],
+      ]);
+      const dRoot = polyPath3([
+        [rx - nx * wRoot, ryy - ny * wRoot, z0],
+        [rx - nx * wRoot, ryy - ny * wRoot, zb0],
+        [rx + nx * wRoot, ryy + ny * wRoot, zb0],
+        [rx + nx * wRoot, ryy + ny * wRoot, z0],
+      ]);
+      const caps9: string[] = [];
+      if (faceLight(0, 0, -1).visible) caps9.push(dBot);
+      if (faceLight(dx, dy, 0).visible) caps9.push(dTip);
+      if (faceLight(-dx, -dy, 0).visible) caps9.push(dRoot);
       // 제 깊이(지적: 앞다리 안 가려짐) — 날개판마다 제 중심 깊이를 단다.
       return tagKey(
-        [bodyFace([dTop, ...edges9].join(" ")), topFace(dTop, 0.18),
+        [bodyFace([dTop, ...edges9, ...caps9].join(" ")), topFace(dTop, 0.18),
           ...edges9.map((d9) => sideFace(d9, 0.3))],
         depthNow(dx * (r0 + len * 0.7), dy * (r0 + len * 0.7)),
       );
@@ -20225,7 +20253,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        몸통에 붙게 위로 올림") — 몸이 2/3로 줄면서 상대적으로 다리가 굵어 보였고,
        뿌리가 몸 밑면(6.2)보다 아래에서 시작해 몸과 다리 사이가 벌어졌다.
        굵기는 0.62배, 뿌리 높이는 몸통 원판(6.2)에 맞춰 올린다. */
-    for (const ang of [168, 192]) out.push(...backWing(ang, 1.1 * BD, 0.8 + 1.1 * (1 - BD), 0.10, 0.04, 5.04, 4.8));
+    /* ★ 뒤 위 날개는 **더 길고 위를 향한다**(2026-09, 요청: "뒷윗날개 좀더 길게 하고 각도를 더 위를 향하게") — 옛 길이
+       1.17 이 아래로 0.24 처졌다(5.04 → 4.8). 길이 ×1.4 · 끝 z 5.6(뿌리에서 0.56 오름 · 약 19도). */
+    for (const ang of [168, 192]) out.push(...backWing(ang, 1.1 * BD, (0.8 + 1.1 * (1 - BD)) * 1.4, 0.10, 0.04, 5.04, 5.6));
     /* ★★ **분사구를 지어 주고 거기서 불을 낸다**(2026-09, 요청: "프로브 몸 뒤쪽 뒷날개 아래에
        납작한 스러스터 두 개 추가하고 추진 에너지 효과 거기에 맞춰 줘") ────────────────────
        처음에는 뒷날개 **끝**에서 불을 냈다(노즐이랄 것이 없는 몸이라 자리를 골라야 했다).
@@ -20266,7 +20296,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const ar9 = (ang * Math.PI) / 180;
       /* 치마(절두체) 벽에 물려 붙인다 — 그 높이의 벽 반지름이 0.82쯤이라 r0 0.68 이면 살 속으로
          한 뼘 파고든다(닿게만 두면 부감에서 그 틈으로 배경이 샌다). */
-      const R09 = 0.68; const LN9 = 0.52; const ZC9 = 4.60;
+      // 스러스터 한 단 아래로(2026-09, 요청: "스러스터 좀더 아래로") — 4.60 → 4.42(치마 밑동 4.34 · 그 높이 벽 반지름 0.71 이라 r0 0.68 이 아직 파고든다).
+      const R09 = 0.68; const LN9 = 0.52; const ZC9 = 4.42;
       out.push(...thrPod9(ang, R09, LN9, 0.30, ZC9));
       const rr9 = R09 + LN9;
       const px9 = Math.sin(ar9) * rr9;
@@ -20325,8 +20356,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     if (fEye > -0.05) {
       const k = Math.min(1, (fEye + 0.05) / 0.4);
       // 눈은 형광 연두(지적).
-      out.push([wallDiscPath(-0.52 * BD, 1.45 * BD, 5.04, 0.28, 0.144), 0.92 * k, "#a6ff3e"] as ShapeFace);
-      out.push([wallDiscPath(0.52 * BD, 1.45 * BD, 5.04, 0.28, 0.144), 0.92 * k, "#a6ff3e"] as ShapeFace);
+      /* ★ 눈은 **치마 벽**에(2026-09, 지적: "눈 위치가 너무 높음") — z 5.04 는 어깨(위 테)라 눈이 정수리 언저리에 붙어
+         있었다. 치마 한가운데 z 4.70(그 높이 벽 반지름 0.875 · x ±0.35 자리의 벽 y 0.80)에 내리고, 벽 앞 한 뼘(0.11 —
+         옛 값과 같은 띄움)에 세운다. 총구(입)도 그 아래로 따라 내린다. */
+      out.push([wallDiscPath(-0.52 * BD, 1.37 * BD, 4.70, 0.28, 0.144), 0.92 * k, "#a6ff3e"] as ShapeFace);
+      out.push([wallDiscPath(0.52 * BD, 1.37 * BD, 4.70, 0.28, 0.144), 0.92 * k, "#a6ff3e"] as ShapeFace);
     }
     /* 옆면 둥근 포트(실물 참고) — 몸이 줄면서 가장자리 밖으로 삐져나와 떠 보였다(확인)
        — 몸 안쪽으로 당기고 더 작게. */
@@ -20335,7 +20369,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 총구 = **눈 아래 앞면 한가운데(입)**(2026-09, 요청: "프로브는 입으로 이동") — 프로브의
        지지는 몸에서 나가는 빛이라, 안 적어 두면 붓이 상자 가운데에서 낸다. 눈 둘(±0.52·BD,
        1.45·BD, 5.04)의 사이 한 뼘 아래다. */
-    markMuzzle9(0, 1.5 * BD, 4.86);
+    markMuzzle9(0, 1.2 * BD, 4.52);   // 눈(4.70)을 내린 만큼 입도 — 그 높이 벽 반지름 0.77 의 앞.
     /* 앞다리 한 쌍(재지적: 길이 축소 + 두 다리 사이 벌리기 + 몸에 더 딱) — 뿌리를
        몸 바로 밑(0.65)까지 당기고, 각도를 ±14→±30으로 벌리고, 길이는 반 남짓으로. */
     for (const ang of [30, -30]) out.push(...paintBase(wing(ang, 0.85 * BD, 0.8 + 0.85 * (1 - BD), 0.17, 0.08, 4.92, 4.4), TOSS_GOLD));
