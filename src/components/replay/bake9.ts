@@ -1507,20 +1507,30 @@ export function protossCrown(fill: string, lift = 0, s = 1, gem?: string): Shape
   }
   return out;
 }
-/** 프로토스 보병 공통 **투구**(2026-09) — 앞뒤로 길고 납작한 판이 정수리 위에 얹힌다. 앞 토막(y 0.68 → 0)은 양변이 평행
- *  (반폭 0.42)하고 그 뒤로 꼬리(y −1.45)까지 곧게 좁아져 끝이 뾰족하다. 좌우는 가운데에서 가장자리로 갈수록 **아래로 호**(0.3·u²)
- *  로 처지고, 두께 0.07 의 아래 켜와 옆·앞 테두리 띠로 닫는다. 판 자체는 뒤로 갈수록 조금 내려간다(0.06/칸).
- *  격자(길이 9 × 폭 6)로 쪼개 GL 이 굽은 살을 제 현으로 따라가게 한다(망토 자락·커맨드 데칼의 그 규약). 색은 종족 금(P_GOLD). */
+/** 프로토스 보병 공통 **투구**(2026-09) — 앞뒤로 길고 납작한 판이 정수리 위에 얹힌다. 이마 쪽은 **둥근 돔**(사진의 그 두개골 —
+ *  위에서 본 윤곽이 반원이고 앞으로 갈수록 아래로 내려가 머리 앞을 덮는다) · 가운데 토막은 양변 평행(반폭 0.34) · 뒤 토막은
+ *  꼬리(y −0.70)까지 곧게 좁아져 뾰족하다. 좌우는 가운데에서 가장자리로 갈수록 **아래로 호**(절대 폭 기준 0.24)로 처지고, 두께
+ *  0.06 의 아래 켜와 옆·앞뒤 테두리 띠로 닫는다. 판은 뒤로 갈수록 조금 내려간다(0.05/칸).
+ *  ★ 재요청(2026-09, 사진): 크기 20% 축소 · 폭 줄어드는 토막 짧게(1.45 → 0.76) · 앞은 부드러운 구(이마) 꼴로 머리 앞을 덮게.
+ *  격자(길이 10 × 폭 6)로 쪼개 GL 이 굽은 살을 제 현으로 따라가게 한다(망토 자락·커맨드 데칼의 그 규약). 색은 종족 금(P_GOLD). */
 export function pHelmet9(lift = 0, s = 1): ShapeFace[] {
-  const YF9 = 0.68; const Y1_9 = 0.0; const YB9 = -1.45;    // 앞 끝 · 평행 구간 끝 · 꼬리 끝(y)
-  const HW9 = 0.42; const DR9 = 0.3; const TH9 = 0.07;       // 반폭 · 처짐 · 두께
-  const NU9 = 9; const NV9 = 6;
-  const hwAt9 = (y9: number): number => (y9 >= Y1_9 ? HW9 : Math.max(0.03, HW9 * ((y9 - YB9) / (Y1_9 - YB9))));
-  const zc9 = (y9: number): number => 5.60 + 0.06 * (y9 - 0.28);   // 꼬리로 갈수록 살짝 내려간다(올리면 부감에서 뒤가 솟은 뿔로 읽힌다)
+  const YF9 = 0.74; const YR9 = 0.30; const Y1_9 = 0.06; const YB9 = -0.70;   // 이마 앞 끝 · 돔이 시작하는 자리 · 평행 구간 끝 · 꼬리 끝(y)
+  const HW9 = 0.34; const DR9 = 0.24; const TH9 = 0.06; const DOME9 = 0.20;    // 반폭 · 처짐 · 두께 · 이마가 앞으로 내려가는 몫
+  const NU9 = 10; const NV9 = 6;
+  /** 앞 돔의 몫(0 = 돔 시작 · 1 = 이마 끝) — 그 밖은 0. */
+  const q9 = (y9: number): number => (y9 <= YR9 ? 0 : Math.min(1, (y9 - YR9) / (YF9 - YR9)));
+  const hwAt9 = (y9: number): number => {
+    if (y9 >= YR9) return HW9 * Math.sqrt(Math.max(0, 1 - 0.55 * q9(y9) ** 2));   // 위에서 본 둥근 이마 — 앞 끝은 반폭의 2/3 을 남긴다(점으로 모으면 부리가 된다)
+    if (y9 >= Y1_9) return HW9;
+    return Math.max(0.03, HW9 * ((y9 - YB9) / (Y1_9 - YB9)));
+  };
+  const zc9 = (y9: number): number => 5.60 + 0.05 * Math.min(0, y9 - 0.28) - DOME9 * q9(y9) ** 2;
   const yAt9 = (i9: number): number => YF9 + ((YB9 - YF9) * i9) / NU9;
-  /** 판 위의 점 — u 는 폭 몫(−1~1) · top 이면 윗면, 아니면 두께만큼 아래. */
-  const P9 = (y9: number, u9: number, top: boolean): [number, number, number] =>
-    [u9 * hwAt9(y9) * s, y9 * s, (zc9(y9) - DR9 * u9 * u9 - (top ? 0 : TH9)) * s + lift];
+  /** 판 위의 점 — u 는 폭 몫(−1~1) · top 이면 윗면, 아니면 두께만큼 아래. 처짐은 절대 폭으로 잰다(좁은 꼬리·이마는 덜 처진다). */
+  const P9 = (y9: number, u9: number, top: boolean): [number, number, number] => {
+    const v9 = u9 * hwAt9(y9);
+    return [v9 * s, y9 * s, (zc9(y9) - DR9 * (v9 / HW9) ** 2 - (top ? 0 : TH9)) * s + lift];
+  };
   const out: ShapeFace[] = [];
   const key9 = depthNow(0, 0.1 * s) * 1.6 + 0.72;
   for (let i9 = 0; i9 < NU9; i9 += 1) {
@@ -1538,11 +1548,10 @@ export function pHelmet9(lift = 0, s = 1): ShapeFace[] {
       out.push([de9, 1, P_GOLD] as ShapeFace, ...faceLight(m9, 0, -0.4).face(de9));
     }
   }
-  // 앞 테두리 — 평행한 앞 끝의 두께 띠(호를 따라 여섯 토막).
-  for (let j9 = 0; j9 < NV9; j9 += 1) {
-    const u0 = -1 + (2 * j9) / NV9; const u1 = -1 + (2 * (j9 + 1)) / NV9;
-    const df9 = polyPath3([P9(YF9, u0, true), P9(YF9, u0, false), P9(YF9, u1, false), P9(YF9, u1, true)]);
-    out.push([df9, 1, P_GOLD] as ShapeFace, ...faceLight(0, 1, 0).face(df9));
+  // 앞뒤 끝의 두께 띠(둘 다 좁게 여문 끝이라 작다).
+  for (const [ye9, ny9] of [[YF9, 1], [YB9, -1]] as [number, number][]) {
+    const df9 = polyPath3([P9(ye9, -ny9, true), P9(ye9, -ny9, false), P9(ye9, ny9, false), P9(ye9, ny9, true)]);
+    out.push([df9, 1, P_GOLD] as ShapeFace, ...faceLight(0, ny9, 0).face(df9));
   }
   return tagKey(out, key9);
 }
