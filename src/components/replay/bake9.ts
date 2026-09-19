@@ -19303,55 +19303,53 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     };
     /* 줄기는 **원반을 가로지른다** — 가장자리에서 나서 반대편으로(다크 웹의 그 결). 짧은 토막 여럿(0.6~1.6R · 처음 판)은
        그물이 아니라 흠집으로 읽혔다(실측). 길이 1.6~2.4R · 마디 9~12 · 굵기 0.05R. */
-    /* ⚠ 처음엔 가장자리에서 나서 안쪽으로 **걸어가게** 했더니(마디마다 각을 흔들며 원 밖이면 끊기) 대부분이 두세 마디에서
-       원 밖으로 나가 짧은 토막 여럿(흠집)이 됐다(실측 두 번). 다크 웹(bolt9)처럼 **시작점과 반대편 끝점을 먼저 정하고**
-       그 사이를 옆으로 흔든다 — 줄기마다 원반을 가로지른다. */
-    for (let b = 0; b < 36; b += 1) {
-      const a0 = rnd() * Math.PI * 2;
-      const a1 = a0 + Math.PI + (rnd() - 0.5) * 1.6;
-      const r0 = RN9 * (0.8 + rnd() * 0.17); const r1 = RN9 * (0.8 + rnd() * 0.17);
-      const sx = Math.cos(a0) * r0; const sy = Math.sin(a0) * r0;
-      const ex = Math.cos(a1) * r1; const ey = Math.sin(a1) * r1;
-      const dx = ex - sx; const dy = ey - sy; const l = Math.hypot(dx, dy) || 1;
-      const px = -dy / l; const py = dx / l;   // 옆 방향
-      const n = 9 + Math.floor(rnd() * 4);
+    /* ★ **속은 거의 흰색, 줄기는 가장자리에만**(2026-09, 지적: "소환구 너무 푸르게 보여 — 실제로는 에너지 부분 거의 흰색이고
+       구체에서 가장자리만 가지들로 보이는 형태") — 원반을 가로지르던 그물(앞 판)을 걷고, 줄기를 둘로 나눠 테에만 둔다:
+       ① 테를 따라 도는 호(반지름 0.88~1.0R · 0.5~1.1rad) ② 테에서 밖으로 뻗는 촉수(0.75~0.95R 에서 1.1~1.35R 로 — 후광 속까지).
+       속 원반은 거의 흰색(#eef6ff)이고 파란 테는 얇게(2.85 · #7fb8ff) 남긴다.
+       ⚠ 처음엔 가장자리에서 나서 안쪽으로 **걸어가게** 했더니(마디마다 각을 흔들며 원 밖이면 끊기) 대부분이 두세 마디에서
+         원 밖으로 나가 짧은 토막 여럿(흠집)이 됐다 — 시작점·끝점을 먼저 정하고 그 사이를 흔드는 것이 줄기의 자다(bolt9). */
+    const wob9 = (n: number, amp: number): number[] => {
+      const o: number[] = []; let acc = 0;
+      for (let k = 0; k <= n; k += 1) { acc += (rnd() - 0.5) * amp; o.push(acc * Math.sin(Math.PI * (k / n))); }
+      return o;
+    };
+    for (let b = 0; b < 30; b += 1) {
       const pts: [number, number][] = [];
-      let off = 0;
-      for (let k = 0; k <= n; k += 1) {
-        const u = k / n;
-        off += (rnd() - 0.5) * RN9 * 0.22;   // 옆 흔들림 — 걸음마다 쌓여 굽이가 된다
-        const o = off * Math.sin(Math.PI * u);   // 양 끝은 제자리
-        let x = sx + dx * u + px * o; let y = sy + dy * u + py * o;
-        const rr = Math.hypot(x, y);
-        if (rr > RN9 * 0.98) { x *= (RN9 * 0.98) / rr; y *= (RN9 * 0.98) / rr; }   // 원반 안에 가둔다
-        pts.push(P9(x, y));
+      if (b % 2 === 0) {
+        // ① 테를 따라 도는 호
+        const a0 = rnd() * Math.PI * 2; const da = (0.5 + rnd() * 0.6) * (rnd() < 0.5 ? 1 : -1);
+        const r0 = RN9 * (0.88 + rnd() * 0.12); const n = 8; const o = wob9(n, RN9 * 0.08);
+        for (let k = 0; k <= n; k += 1) {
+          const u = k / n; const a = a0 + da * u; const r = r0 + o[k];
+          pts.push(P9(Math.cos(a) * r, Math.sin(a) * r));
+        }
+      } else {
+        // ② 테에서 밖으로 뻗는 촉수 — 후광 속까지 나간다
+        const a0 = rnd() * Math.PI * 2; const a1 = a0 + (rnd() - 0.5) * 0.8;
+        const r0 = RN9 * (0.75 + rnd() * 0.2); const r1 = RN9 * (1.1 + rnd() * 0.25);
+        const n = 6; const o = wob9(n, RN9 * 0.1);
+        const sx = Math.cos(a0) * r0; const sy = Math.sin(a0) * r0;
+        const ex = Math.cos(a1) * r1; const ey = Math.sin(a1) * r1;
+        const dx = ex - sx; const dy = ey - sy; const l = Math.hypot(dx, dy) || 1;
+        for (let k = 0; k <= n; k += 1) {
+          const u = k / n;
+          pts.push(P9(sx + dx * u + (-dy / l) * o[k], sy + dy * u + (dx / l) * o[k]));
+        }
       }
-      const w = RN9 * 0.05 * (0.75 + rnd() * 0.6);
-      ribbon9(pts, w * 3.0, "#5aa8ff", 0.28);   // 번짐 한 겹
-      ribbon9(pts, w, "#eaf6ff", 0.95);         // 흰 심
-      /* 가지 하나 — 줄기 가운데께에서 갈라져 짧게 나간다(다크 웹의 '가지 하나씩'). */
-      const bi = 3 + Math.floor(rnd() * (n - 5));
-      const [bx0, by0] = pts[bi];
-      const bang = Math.atan2(dy, dx) + (rnd() < 0.5 ? 1 : -1) * (0.7 + rnd() * 0.8);
-      const bl = RN9 * (0.25 + rnd() * 0.3);
-      const bp: [number, number][] = [];
-      for (let k = 0; k <= 4; k += 1) {
-        const u = k / 4;
-        let x = bx0 + Math.cos(bang) * bl * u + (rnd() - 0.5) * RN9 * 0.06;
-        let y = by0 + Math.sin(bang) * bl * u + (rnd() - 0.5) * RN9 * 0.06;
-        const rr = Math.hypot(x, y);
-        if (rr > RN9 * 0.98) { x *= (RN9 * 0.98) / rr; y *= (RN9 * 0.98) / rr; }
-        bp.push([x, y]);
-      }
-      ribbon9(bp, w * 2.0, "#5aa8ff", 0.22); ribbon9(bp, w * 0.6, "#eaf6ff", 0.9);
+      const w = RN9 * 0.04 * (0.75 + rnd() * 0.6);
+      ribbon9(pts, w * 3.0, "#7fb8ff", 0.3);   // 번짐 한 겹(하늘빛)
+      ribbon9(pts, w, "#f4faff", 0.95);        // 흰 심
     }
+    /* ⚠ 후광 셋은 **속보다 먼저** 그린다 — 발광 종류는 깊이 없이 화가 차례라, 뒤에 두면 반지름이 속(RN9)보다 큰
+       반투명 파랑 셋(0.2+0.12+0.06)이 흰 속 위에 통째로 얹혀 속이 도로 하늘색이 된다(실측: #eef6ff 로 적었는데 연파랑). */
     return [
-      [billPath3(0, 0, CZ9, 3.05), 1, "#1e7fff"] as ShapeFace,
-      [billPath3(0, 0, CZ9, RN9), 0.75, "#6fb0ff"] as ShapeFace,
-      ...net9,
-      [billPath3(0, 0, CZ9, 3.45), 0.2, "#5aa8ff"] as ShapeFace,
-      [billPath3(0, 0, CZ9, 3.95), 0.12, "#5aa8ff"] as ShapeFace,
       [billPath3(0, 0, CZ9, 4.5), 0.06, "#5aa8ff"] as ShapeFace,
+      [billPath3(0, 0, CZ9, 3.95), 0.12, "#5aa8ff"] as ShapeFace,
+      [billPath3(0, 0, CZ9, 3.45), 0.2, "#5aa8ff"] as ShapeFace,
+      [billPath3(0, 0, CZ9, 2.85), 1, "#7fb8ff"] as ShapeFace,   // 얇은 파란 테(옛 3.05 #1e7fff — 너무 푸르렀다)
+      [billPath3(0, 0, CZ9, RN9), 1, "#eef6ff"] as ShapeFace,     // 속은 거의 흰색(에너지)
+      ...net9,
     ];
   },
   /* 테란 공사장 — 기초 슬래브 + 뼈대 기둥 넷 + 가로 보 + 크레인.
