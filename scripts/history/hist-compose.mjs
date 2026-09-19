@@ -3,7 +3,7 @@ import { chromium } from "playwright-core";
 import { readFileSync, mkdirSync, writeFileSync, rmSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 const S = process.argv[2]; const OUT = `${S}/변천사`;
-/* ★ 칸은 400px(2026-09, 지적: "변천사 화질이 너무 안좋아") — 옛·지금 판은 400 으로 굽고(model-shot·model-gl `--cell 400 --fit`),
+/* ★ 칸은 400px(2026-09, 지적: "변천사 화질이 너무 안좋아") — 옛·지금 판은 400 으로 굽고(model-shot·model-gl `--cell 400 --fit 0.7`),
    7월 그림만 소스가 200px 칸이라 두 배로 늘린다(JC = 7월 칸 크기). `--fit` 은 칸마다 잉크 상자를 칸의 84% 에 맞추므로 아비터처럼
    원 좌표가 작은 종류(MODEL_NORM 이 키우는 종류)도 7월 도록처럼 칸을 채운다(지적: "아비터 아직도 작게 나와"). */
 const CELL = 400; const JC = 200; const LAB = 170; const HEAD = 56; const GAP = 6;
@@ -67,7 +67,8 @@ for (const [file, race, nos] of RACES) {
        8/29 의 종류 이름)는 검정으로 덮고 그 위에 꼬리표를 얹는다. */
     /* ★ 시점 셋은 **가로**로 선다(재요청: "변천사 모델별로 세로 말고 가로로 배치") — 모델 하나 = 이름 한 줄 + [7월 | 8/29 | 9/19]
        한 줄. 한 줄에 모델 하나(COLS 1 — 한때 둘). 기둥 안 세로선 없음은 그대로다(칸 사이 3px 는 바탕색 그대로). */
-    const GAPX = 14; const LABH = 20; const GAPC = 3; const BLKW = 3 * CELL + 2 * GAPC; const BLKH = LABH + CELL + 18;
+    // 칸 사이 틈 GAPC(요청: "각 셀의 패딩 좀 늘리기" — 칸 안의 여백은 --fit 0.7 이 낸다)
+    const GAPX = 14; const LABH = 20; const GAPC = 12; const BLKW = 3 * CELL + 2 * GAPC; const BLKH = LABH + CELL + 18;
     const W = COLS * (BLKW + GAPX) + GAPX;
     let H = TITLE;
     for (const sc of secs) H += SEC + Math.ceil(sc.cards.length / COLS) * BLKH;
