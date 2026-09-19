@@ -3080,27 +3080,94 @@ export function paintFxList9(
          (5·6)이 피격 낱개 수다 — 죽음(burst)은 따로 dieShards를 쓴다. */
       if (CROWD9.lv >= 2) continue;   // 덜어내기 2단: 피격 불티는 통째로 생략(죽음 burst만 남는다)
       const N9 = Math.max(2, Math.ceil(mt9.n * crowdShardK9()));
-      ctx.lineCap = "round";
-      for (let ci = 0; ci < 2; ci += 1) {
+      /* ★ **파편은 알약이 아니다**(2026-09, 지적: "이 효과들 형태가 알약 형태라 부자연스럽지? 실제 효과는 안 그럴 거 아니야
+         자연에서") — 둥근 끝 획(lineCap round) 넷은 폭이 고르고 양 끝이 반원이라 캡슐로 읽혔다. 자연의 파편은 **머리와 꼬리가
+         다르다**: 튀는 피는 앞이 둥글고 뒤로 가늘어지는 물방울, 불티는 밝은 점에서 뒤로 여위는 바늘, 플라즈마 조각은 양 끝이
+         뾰족한 얇은 조각이다. 낱개마다 크기·길이도 흔든다(같은 꼴이 넷 나란히 서면 그것도 알약이다). 색별 한 경로에 몰아 두 번
+         채우는 짜임(삯)은 그대로다. */
+      const drop9 = f.mat === "bio" || f.mat === "zerg";
+      const needle9 = f.mat === "mech";
+      const wb9 = r9 * wk9;
+      /* ★ **기계는 파편이 아니라 불티다**(지적: "얘는 파편이 아니라 불티일걸") — 불티는 물감이 아니라 **빛**이다: 더하기 합성으로
+         얹고, 머리는 흰빛에 가까운 점, 꼬리는 주황으로 여위며, 둘레에 옅은 번짐 한 겹. 그래서 셋을 지난다(번짐 · 꼬리 · 머리 —
+         낱개마다 같은 자리에 겹쳐 색이 갈리는 것이지 낱개를 색으로 가르는 것이 아니다). */
+      const passes9 = needle9 ? 3 : 2;
+      if (needle9) ctx.globalCompositeOperation = "lighter";
+      for (let ci = 0; ci < passes9; ci += 1) {
         ctx.beginPath();
-        for (let di = ci; di < N9; di += 2) {
-          const j1 = (di * 7) % 5; const j2 = (di * 11) % 4;
+        for (let di = needle9 ? 0 : ci; di < N9; di += needle9 ? 1 : 2) {
+          const j1 = (di * 7) % 5; const j2 = (di * 11) % 4; const j3 = (di * 13 + 2) % 3;
           const an9 = hasDir9
             ? away9 + (di / (N9 - 1) - 0.5) * 1.3 + (j1 - 2) * 0.03
             : (di / N9) * Math.PI * 2 + 0.3 + (j1 - 2) * 0.05;
-          const sp9 = r9 * wk9 * (0.8 + j2 * 0.22);
+          const sp9 = wb9 * (0.8 + j2 * 0.22);
           const d1 = sp9 * (0.3 + p9 * 1.2);
-          const d0 = sp9 * (0.3 + Math.max(0, p9 - 0.28) * 1.2);
+          const d0 = sp9 * (0.3 + Math.max(0, p9 - 0.28) * 1.2) * (needle9 ? 0.55 : 1);   // 불티는 꼬리가 길다
           const c9 = Math.cos(an9); const s9 = Math.sin(an9);
-          ctx.moveTo(hx9 + c9 * d0, hy9 + s9 * d0 * 0.6 - d0 * 0.15);
-          ctx.lineTo(hx9 + c9 * d1, hy9 + s9 * d1 * 0.6 - d1 * 0.15);
+          // 머리(지금 자리) · 꼬리(조금 전 자리) — 화면 자(세로 0.6 눌림 · 위로 0.15 들림)
+          const hx = hx9 + c9 * d1; const hy = hy9 + s9 * d1 * 0.6 - d1 * 0.15;
+          const tx = hx9 + c9 * d0; const ty = hy9 + s9 * d0 * 0.6 - d0 * 0.15;
+          let ux = hx - tx; let uy = hy - ty; const ul = Math.hypot(ux, uy) || 1; ux /= ul; uy /= ul;
+          const nx = -uy; const ny = ux;
+          const kz = 0.75 + j3 * 0.25;   // 낱개 크기 흔들림
+          if (drop9) {
+            // 물방울 — 둥근 머리(반지름 rh) + 뒤로 가늘어지는 꼬리(점)
+            const rh = Math.max(0.7, wb9 * (0.034 + 0.016 * j2) * kz);
+            ctx.moveTo(tx, ty);
+            for (let k = -3; k <= 3; k += 1) {
+              const a = (k / 3) * 1.9;   // ±109도 — 머리 뒤쪽은 꼬리에 잇는다
+              const px = hx + (ux * Math.cos(a) + nx * Math.sin(a)) * rh;
+              const py = hy + (uy * Math.cos(a) + ny * Math.sin(a)) * rh;
+              ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+          } else if (needle9) {
+            // 불티 — 번짐(0) · 꼬리 바늘(1) · 머리 점(2). 바늘은 머리 쪽이 조금 두껍고 꼬리로 여윈다.
+            const w0 = Math.max(0.4, wb9 * (0.012 + 0.006 * j2) * kz);
+            if (ci === 2) {
+              const rh = Math.max(0.5, w0 * 1.0);
+              ctx.moveTo(hx + rh, hy);
+              for (let k = 1; k < 6; k += 1) ctx.lineTo(hx + Math.cos((k / 6) * Math.PI * 2) * rh, hy + Math.sin((k / 6) * Math.PI * 2) * rh);
+              ctx.closePath();
+            } else {
+              const w = ci === 0 ? w0 * 2.2 : w0;
+              const mx = tx + (hx - tx) * 0.72; const my = ty + (hy - ty) * 0.72;
+              ctx.moveTo(tx, ty);
+              ctx.lineTo(mx + nx * w, my + ny * w);
+              ctx.lineTo(hx + ux * w * 0.8, hy + uy * w * 0.8);
+              ctx.lineTo(mx - nx * w, my - ny * w);
+              ctx.closePath();
+            }
+          } else {
+            // 플라즈마 조각 — 양 끝이 뾰족한 얇은 조각(가운데가 가장 넓다), 낱개마다 조금 비스듬히
+            const w = Math.max(0.6, wb9 * (0.04 + 0.018 * j2) * kz);
+            const sk = (j1 - 2) * 0.12;
+            const mx = tx + (hx - tx) * (0.5 + sk); const my = ty + (hy - ty) * (0.5 + sk);
+            ctx.moveTo(tx, ty);
+            ctx.lineTo(mx + nx * w, my + ny * w);
+            ctx.lineTo(hx, hy);
+            ctx.lineTo(mx - nx * w * 0.6, my - ny * w * 0.6);
+            ctx.closePath();
+          }
+          // 피는 머리 곁에 잔 튐(작은 점) 하나 — 튀는 것은 큰 방울만이 아니다
+          if (drop9 && j2 !== 1) {
+            const rs = Math.max(0.5, wb9 * 0.018 * kz);
+            const sx = hx + nx * wb9 * 0.09 * (j1 - 2) + ux * wb9 * 0.05; const sy = hy + ny * wb9 * 0.09 * (j1 - 2) + uy * wb9 * 0.05;
+            ctx.moveTo(sx + rs, sy);
+            for (let k = 1; k < 6; k += 1) ctx.lineTo(sx + Math.cos((k / 6) * Math.PI * 2) * rs, sy + Math.sin((k / 6) * Math.PI * 2) * rs);
+            ctx.closePath();
+          }
         }
-        ctx.globalAlpha = a9 * (1 - p9) * 0.95;
-        ctx.strokeStyle = ci ? mt9.drop : mt9.core;
-        ctx.lineWidth = Math.max(0.6, r9 * wk9 * (ci ? 0.075 : 0.06) * 1.6);
-        ctx.stroke();
+        if (needle9) {
+          ctx.globalAlpha = a9 * (1 - p9) * (ci === 0 ? 0.3 : ci === 1 ? 0.9 : 1);
+          ctx.fillStyle = ci === 0 ? mt9.deep : ci === 1 ? mt9.core : mt9.flash;
+        } else {
+          ctx.globalAlpha = a9 * (1 - p9) * 0.95;
+          ctx.fillStyle = ci ? mt9.drop : mt9.core;
+        }
+        ctx.fill();
       }
-      ctx.lineCap = "butt";
+      if (needle9) ctx.globalCompositeOperation = "source-over";
       continue;
     }
     /* ★ (꺼 둠) 프로토스 실드 방어 효과 — 요청: "제거, 완성도있게 다시 추가할
