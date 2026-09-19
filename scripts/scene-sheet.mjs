@@ -108,8 +108,11 @@ function makeWorld(race) {
   console.log(`  유닛: ${units.join(", ")}`);
   const tracks = [];
   let tag = 100;
+  /* --hurt: 건물마다 체력 줄을 싣는다(2026-09, 지적: "건물 체력바가 안 나옴" — 성한 건물은 바를 안 띄우므로 검증에 이 손이
+     필요하다). 0.5초에 300 으로 깎이고 그 뒤 2.5초마다 1 씩 더 깎여 '맞은 지 3초 안'(HP_BAR_SEC)이 늘 참이다. 값은 절대 체력. */
+  const hurtTicks = () => { if (!flag("--hurt", false)) return null; const t9 = [[F(0), 5000], [F(0.5), 300]]; for (let s = 3; s <= GAME_SEC; s += 2.5) t9.push([F(s), 300 - Math.round(s / 2.5)]); return t9; };
   const bldTrack = (type, x, y) => tracks.push({ tag: tag++, owner: 0, type, keys: [
-    [F(0), x * 32, y * 32, 0, 0, type], [F(GAME_SEC), x * 32, y * 32, 0, 0, type]], hp: null });
+    [F(0), x * 32, y * 32, 0, 0, type], [F(GAME_SEC), x * 32, y * 32, 0, 0, type]], hp: hurtTicks() });
   const unitTrack = (type, x, y) => {
     const keys = [];
     // 방향은 정면(남쪽, 화면 아래 = 방향 바이트 128)(요청: "유닛들도 방향은 정면을 향하게").
@@ -182,11 +185,13 @@ function makeWorld(race) {
   for (const pl of PLAYERS) { w.u8(pl.owner); w.u8(pl.owner); w.u8(pl.race); w.u8(pl.force); w.u8(0); w.u32(pl.color); w.str(pl.name); }
   w.u32(tracks.length);
   // 판 8 트랙표 줄: tag·owner·type·키수·hp수·ic수·표적수 + 임자바뀜 목록(u8 개수, 여기서는 0).
-  for (const tr of tracks) { w.u32(tr.tag); w.u8(tr.owner); w.u16(tr.type); w.u32(tr.keys.length); w.u32(0); w.u32(0); w.u32(0); w.u8(0); }
+  for (const tr of tracks) { w.u32(tr.tag); w.u8(tr.owner); w.u16(tr.type); w.u32(tr.keys.length); w.u32(tr.hp ? tr.hp.length : 0); w.u32(0); w.u32(0); w.u8(0); }
   for (const tr of tracks) {
     let pf = 0; let px = 0; let py = 0; let pt = 0;
     for (const [f, x, y, hb, st, ty] of tr.keys) { w.vz(f - pf); pf = f; w.vz(x - px); px = x; w.vz(y - py); py = y; w.u8(hb); w.u8(st & 0xff); /* 상태 바이트 통째(0x80 = 아직 안 지어짐) */ w.vz(ty - pt); pt = ty; }
   }
+  // 체력 줄(키와 따로 · 트랙 차례 그대로): varint(zigzag 프레임차) · varint(zigzag 값차).
+  for (const tr of tracks) { if (!tr.hp) continue; let pf = 0; let pv = 0; for (const [f, v] of tr.hp) { w.vz(f - pf); pf = f; w.vz(v - pv); pv = v; } }
   w.u32(0); w.u32(0); w.u32(0); w.u32(0); w.u32(0); w.u32(0); w.u16(119); w.u32(0);
   const motion = deflateSync(w.out()).toString("base64");
   const cy = ((yb + yEnd) / 2) / 128;

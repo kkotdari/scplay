@@ -1692,6 +1692,12 @@ export const DT_LEAN9 = 0.64;
 export const P_LEAN_Y9 = 1.27;
 export const P_TORSO_H9 = 1.76;
 export const P_TORSO_Z0 = 3.08;
+/** ★ 다리 뭉치를 뒤로 물리는 몫(2026-09, 지적: "프로토스 보병들 상하체 허리 만나는 선이 안 맞아 — 하체가 더 앞으로 가 있어")
+ *  — 고관절(y −0.3)·발목·발끝·허리 보호구는 다 **36도 숙인 옛 몸통**의 자였다: 그때는 몸통 밑동(y −0.75)에서 앞으로 기울어
+ *  고관절 높이에서 축이 −0.1 언저리라 다리가 그 밑에 앉았다. 허리를 15도로 세우자 밑동이 −0.75 에 그대로 남아 고관절이
+ *  몸통보다 0.45 앞에 돋았다(옆에서 보면 배가 다리 뒤로 들어간 꼴). 다리 뭉치(고관절·무릎·발목·발가락)를 **통째로** 이만큼
+ *  뒤로 물려 고관절이 몸통 밑동 한가운데(−0.75)에 앉게 한다 — 마디 사이 각(> 꼴)은 그대로다. 질럿 허리 보호구도 같이 간다. */
+export const P_LEG_BACK9 = 0.45;
 /** 세운 몸통의 높이 배수 — 축 길이(√(1.27²+1.76²))를 지킨다. */
 export function pTorsoKz9(lean: number): number {
   return Math.sqrt(P_LEAN_Y9 * P_LEAN_Y9 + P_TORSO_H9 * P_TORSO_H9 - (P_LEAN_Y9 * lean) ** 2) / P_TORSO_H9;
@@ -1809,11 +1815,11 @@ export function protossLegs(
        몸통 반폭에 가깝게 좁아져 두 다리가 몸 아래에서 시작한다. 무릎·발목·발끝도 한 단씩만 안으로 당겨
        (0.82→0.72 · 0.95→0.86 · 1.04→0.96) 팔자 벌림은 남기되 전체가 몸 밑으로 모인다 — 고관절만 당기면
        허벅지가 바깥으로 뻗쳐 가랑이가 벌어진 꼴이 된다. */
-    const hip: [number, number, number] = [m * 0.26, -0.3, Z(3.95)];
+    const hip: [number, number, number] = [m * 0.26, -0.3 - P_LEG_BACK9, Z(3.95)];
     /* ★ 걸음에도 **허벅지·정강이 길이는 그대로**(요청: 질럿·템플러류도 같은 함수로) —
        suitLegs와 같은 결이다. 발목·발끝만 보폭대로 옮기고 무릎은 서 있을 때의 두 마디
        길이로 푼다(jointBetween, 앞으로 굽힘). */
-    const ankle0: [number, number, number] = [m * 0.86, -0.75, Z(1)];
+    const ankle0: [number, number, number] = [m * 0.86, -0.75 - P_LEG_BACK9, Z(1)];
     // 무릎 높이에서 엉덩이~발목 직선의 y — 굽힘(bend)이 0이면 여기, 1이면 본디 자리(0.3).
     const kneeLineY9 = hip[1] + (ankle0[1] - hip[1]) * ((hip[2] - Z(2.2)) / Math.max(1e-6, hip[2] - ankle0[2]));
     /* ★ **대퇴는 거의 수직, 정강이·발이 뒤에서 > 꼴**(2026-09, 요청: "허리를 폈으니 대퇴도 거의 수직으로 세우고 하지와 발뼈만
@@ -1863,7 +1869,7 @@ export function protossLegs(
         ankle[2] + rz9 + ((sdz9 / sl9) * rl9 - rz9) * ANKLE_FLAT9,
       ];
     };
-    const toe: [number, number, number] = footAt9(tuckAt9([m * 0.96, 0.5 + st * 1.2, Z(0.15) + Math.max(0, st) * 0.12]));
+    const toe: [number, number, number] = footAt9(tuckAt9([m * 0.96, 0.5 - P_LEG_BACK9 + st * 1.2, Z(0.15) + Math.max(0, st) * 0.12]));
     /* 하지가 허벅지보다 굵다(요청) — 허벅지 0.6, 정강이 0.72, 발목 0.58. 마디마다
        배가 부풀게 mid를 따로 줘, 곧은 막대가 아니라 근육 붙은 마디로 읽힌다. */
     // 굵기 ×1.25(사진 대조 — 질럿1·4의 다리 갑판은 지금보다 한 뼘 굵다).
@@ -1919,7 +1925,7 @@ export function protossLegs(
     /* 발가락도 **걸음 몫을 탄다**(지적: "질럿 다크 다리가 부품이 몇개는 따로노는데")
        — 무릎·발목·발끝만 stride를 받고 이 두 갈래는 상수 자리에 남아 있어서, 다리가
        앞으로 나가면 발가락만 제자리에 서 있었다. 발목·발끝과 **같은 식**을 쓴다. */
-    const [fx, fy, fz] = footAt9(tuckAt9([m * 1.06, 0.28 + st * 1.2, Z(0.02) + Math.max(0, st) * 0.12]));
+    const [fx, fy, fz] = footAt9(tuckAt9([m * 1.06, 0.28 - P_LEG_BACK9 + st * 1.2, Z(0.02) + Math.max(0, st) * 0.12]));
     for (const s9 of [-1, 1] as const) {
       out.push(...paint(tagKey(spirePillar({
         x: 0, y: 0, h: 0.8, w: 1, segs: 2, sides: 6, oval: 1.8, caps: "none",
@@ -21076,7 +21082,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            위 한 단으로만 얹어 다리·몸통과 다투지 않는다. */
         const R9 = 0.46;
         const P9 = (u9: number, z9: number, out9: number): [number, number, number] =>
-          [ex9 * (R9 + out9) + ux9 * u9, -0.1 + ey9 * (R9 + out9) + uy9 * u9, z9];
+          [ex9 * (R9 + out9) + ux9 * u9, -0.1 - P_LEG_BACK9 + ey9 * (R9 + out9) + uy9 * u9, z9];   // 골반과 함께 뒤로(P_LEG_BACK9)
         /* ★ 판을 **감아서** 짠다(지시: "허리 갑옷들도 좀 입체감 부여") ────────────────
            여태 이 갑주는 폴리곤 하나에 어두운 겹(sideFace)을 덧댄 **카드**였다. sideFace는
            두께가 아니라 같은 길을 어둡게 한 번 더 칠하는 명암 수법이라, 어느 각에서 봐도
@@ -22598,12 +22604,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         return [0, -0.15 - 0.5 * v9 * v9, 2.68 + 2.2 * v9];
       }
       /* 목 — 앞으로 넘어갔다가 **아래로 휜다**(지팡이 손잡이). 사인 곡선 하나로 오르내려
-         꼭대기(z 7.05)를 지나 머리 자리(z 6.35)로 내려온다. */
+         꼭대기(z 7.05)를 지나 머리 자리(z 6.35)로 내려온다.
+         ★ **반쯤 세웠다**(2026-09, 요청: "히드라 목 앞으로 휜 거 반 정도 곧게 세우고 얼굴이 그에 맞게 이동(위쪽 뒤로)") —
+           앞으로 나가는 몫 2.9 → 1.45 로 절반, 그만큼의 길이를 위로 돌려(2.2) 목 길이(≈3.0)는 지킨다. 손잡이 굽이는 얕게 남긴다
+           (사인 0.35 · 끝에서 0.1 처짐). 머리 뿌리(headAt = body(1))가 곧 얼굴·머리장식·아가리의 자라 그 셋은 저절로 따라온다. */
       const w9 = (t9 - 0.74) / 0.26;
       return [
         0,
-        -0.65 + 2.9 * w9,
-        4.88 + Math.sin(w9 * Math.PI * 0.86) * 0.84 - w9 * 0.28,
+        -0.65 + 1.45 * w9,
+        4.88 + 2.2 * w9 + Math.sin(w9 * Math.PI) * 0.35 - w9 * 0.1,
       ];
     };
     /* 공격 컷 — **상체 앞뒤 반동**(지시) — 히드라는 팔다리로 때리지 않고 몸을 젖혔다

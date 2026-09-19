@@ -4973,6 +4973,27 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             }
             if (!(gl9 && gl9.primOk) || (op.shadowPts && op.shadowPts.length >= 6)) ctx.fill();
           }
+          /* ★ 건물 체력바(2026-09, 지적: "건물 체력바가 안 나옴") — 판(스프라이트) 길에만 있던 이 그림이 그 길을 걷을 때
+             (3bd2930) 함께 지워졌고, GL 건물 블록은 처음부터 바를 안 그렸다. 유닛 바와 같은 자(원작 폭 hpBarFrac · 3색 ·
+             몸 아래)이고, 자리는 **메시 잉크 상자의 바닥**(= 지면선 − 뜬 높이, 붓이 바닥을 거기 앉힌다) 바로 밑이다.
+             GL 이면 prim(유닛 쪽과 같은 네모), 폴백이면 캔버스다. */
+          const bldHpBar9 = (byTop: number): void => {
+            if (!(showHp !== false && deepOk9 && op.hpFrac !== undefined && op.hpFrac > 0
+              && (op.hpShow || (pickedKey != null && op.pickKey === pickedKey)))) return;   // 맞은 지 잠깐·선택된 개체만(요청)
+            const bw3 = Math.max(3, (op.hpBarFrac ?? 0) * cw * zoom);
+            const bh3 = Math.max(hpBarH9(zoom), 5 * (bw3 / (op.hpBarW ?? 19)));
+            const bx3 = sx - bw3 / 2;
+            if (gl9 && gl9.primOk) {
+              const g9 = gl9;
+              g9.prim(0, bx3 + bw3 / 2, byTop + bh3 / 2, bw3 / 2 + 0.5, bh3 / 2 + 0.5, "rgba(10, 14, 10, 0.75)", op.alpha * 0.9);
+              hpBarRects9(op, bx3, byTop, bw3, bh3, (x, y, w, h, col, a) => g9.prim(0, x + w / 2, y + h / 2, w / 2, h / 2, col, a));
+            } else {
+              ctx.globalAlpha = op.alpha * 0.9;
+              ctx.fillStyle = "rgba(10, 14, 10, 0.75)";
+              ctx.fillRect(bx3 - 0.5, byTop - 0.5, bw3 + 1, bh3 + 1);
+              drawHpBar(ctx, op, bx3, byTop, bw3, bh3);
+            }
+          };
           if (glB9 && glBf9 && gl9) {
             /* ★ 통로(addonlink)는 **원점 앉히기**다(2026-09, engine9 addonLinkGeom9) — 배수(mkFrac · 타일/모델칸 · 그리드
                폭 몫)와 원점(fx·fy)을 엔진이 두 벽에서 풀어 주므로, 잉크 상자로 크기를 맞추거나 바닥을 지면선에 앉히지 않는다.
@@ -5001,6 +5022,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
               const gm9 = glBa9;
               if (gm9) gl9.push({ mesh: gm9, ax: gax9, ay: gay9, k: gk9, yoff: -gk9 * glBf9.bot, yawDeg: -arot9, color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, flat: GL_GLOW_KINDS9.has(op.kind), over: true });
             }
+            // 바닥선(gay9 = 잉크 바닥이 앉는 줄) 바로 밑 — 옛 판 길의 `bspr.bot + 2 + wPx·0.03` 과 같은 자리다.
+            bldHpBar9(gay9 + 2 + wPx * 0.03);
             continue;
           }
           /* ★ 폴백도 **딸림 부품을 그린다**(2026-09) — 여태 op.kind 하나만 그려, `#gl=0`·WebGL 이 안 서는
@@ -5031,6 +5054,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             ctx.setTransform(Bd, 0, 0, Bd, 0, 0);
           }
           }
+          bldHpBar9((groundY ?? sy + hPx / 2) - (op.airPx !== undefined ? op.airPx * zoom : wPx * (op.liftK ?? 0)) + 2 + wPx * 0.03);
           continue;
         }
         /* GL 붓이 맡을 몸은 2D 면(요잉 칸별 빌더 굽기, resolveShapeFaces)을 아예 안 짓는다 — 메시는 종류·자세당 한 벌이다. */
