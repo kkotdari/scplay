@@ -3009,6 +3009,60 @@ export function zergFace(y: number, z: number, s = 1, fill = ZERG_FLESH): ShapeF
   out.push(...zergEyes(YC9 + R9 * 0.87, ZM9 + FH9 * 0.6, 0.36 * s, 0.19 * s, 3.2));
   return out;
 }
+
+/** 저그 볏(머리장식) 갑판 — **울트라의 층진 판 하나를 공용으로**(2026-09, 요청: "히드라 머리장식을 울트라 머리장식의 판만
+ *  가져와서 크기와 가로세로 비율만 수정해서 쓰자 데칼도 넣고"). `root` 에서 `axis`(단위) 방향으로 `len` 만큼 뻗는 얇은 판
+ *  (반폭 옆선 = 울트라의 그 곡선 × wk · 가장자리는 판 법선 `nrm` 쪽으로 cu² 말림) + 그 앞에 0.72 배로 한 켜 더(테가 계단으로
+ *  읽힌다). 두께는 `oval`(반폭 × oval = 반두께) — 뿔 뿌리를 박아야 하는 울트라는 두껍고 히드라는 얇다.
+ *  · `decals` 를 주면 앞 낯 위에 **임자색 띠**(칠하지 않은 면)를 얹는다 — 띠는 판의 말림(skew)·두께를 그대로 타 낯에 붙는다.
+ *  · 돌려주는 자(at·halfW·skew·halfT)로 호출자가 뿔·등마루를 같은 판 위에 앉힌다. */
+export function crestPlate9(o: {
+  root: [number, number, number]; axis: [number, number, number]; nrm: [number, number, number];
+  len: number; wk: number; oval: number; base: string; layer: string; key: number;
+  /** 임자색 띠의 가로 자리(cu −1~1)와 폭 몫(반폭 대비) — 없으면 띠 없음. */
+  decals?: [number, number][];
+  /** 뿌리 반폭 배수(기본 1 — 울트라 옆선 그대로). 히드라는 뿌리를 좁힌다. */
+  rootK?: number;
+}): { faces: ShapeFace[]; at: (t: number) => [number, number, number]; halfW: (t: number) => number;
+      skew: (cu: number, t: number) => number; halfT: (t: number) => number } {
+  const { axis: A9, nrm: N9 } = o;
+  const at = (t9: number): [number, number, number] =>
+    [o.root[0] + A9[0] * o.len * t9, o.root[1] + A9[1] * o.len * t9, o.root[2] + A9[2] * o.len * t9];
+  const r0 = 1.15 * (o.rootK ?? 1);
+  const halfW = (t9: number): number => o.wk * (t9 < 0.5 ? r0 + (1.9 - r0) * (t9 / 0.5) : 1.9 - (1.9 - 0.4) * ((t9 - 0.5) / 0.5) ** 1.25);
+  const skew = (cu9: number, t9: number): number => -0.5 * o.wk * cu9 * cu9 * (0.4 + 0.6 * t9);
+  const halfT = (t9: number): number => halfW(t9) * o.oval;
+  const off = (p: [number, number, number], n: number): [number, number, number] => [p[0] + N9[0] * n, p[1] + N9[1] * n, p[2] + N9[2] * n];
+  const faces: ShapeFace[] = [];
+  for (const [lay9, sc9] of [[0, 1], [1, 0.72]] as [number, number][]) {
+    const tm = (t9: number): number => (lay9 ? 0.08 + t9 * 0.8 : t9);
+    faces.push(...tagKey(paintBase(spirePillar({
+      x: 0, y: 0, h: 0.8, w: 1, segs: 7, sides: 8, oval: o.oval, caps: "none", ref: [1, 0, 0], trueNormal: true,
+      // 켜는 **본판의 앞 낯보다 0.15 앞**에 선다 — 판이 두꺼우면 고정 0.15 는 본판 속에 잠긴다(두께 차를 더한다).
+      path: (t9: number): [number, number, number] => off(at(tm(t9)), lay9 ? (halfW(tm(t9)) - halfW(tm(t9)) * sc9) * o.oval + 0.15 : 0),
+      widthOf: (t9: number): number => halfW(tm(t9)) * sc9,
+      skewV: (cu9: number, t9: number): number => skew(cu9, tm(t9)) * sc9,
+    }), lay9 ? o.layer : o.base), o.key + lay9 * 0.1));
+  }
+  if (o.decals) {
+    for (const [cu0, wf] of o.decals) {
+      // 띠는 켜(0.72 배 · 0.08~0.88 구간) 위에 앉는다 — 켜의 앞 낯 + 띠 반두께 + 한 뼘(0.03).
+      const tm = (t9: number): number => 0.12 + t9 * 0.7;
+      const dw = (t9: number): number => halfW(tm(t9)) * 0.72 * wf;
+      faces.push(...tagKey(spirePillar({
+        x: 0, y: 0, h: 0.8, w: 1, segs: 6, sides: 6, oval: 0.12, caps: "none", ref: [1, 0, 0], trueNormal: true,
+        path: (t9: number): [number, number, number] => {
+          const t = tm(t9); const hw = halfW(t) * 0.72;
+          const p = off(at(t), (halfW(t) - hw) * o.oval + 0.15 + hw * o.oval + skew(cu0, t) * 0.72 + dw(t9) * 0.12 + 0.03);
+          return [p[0] + cu0 * hw, p[1], p[2]];
+        },
+        widthOf: dw,
+        skewV: (cu9: number, t9: number): number => (skew(cu0 + cu9 * wf, tm(t9)) - skew(cu0, tm(t9))) * 0.72,
+      }), o.key + 0.2));
+    }
+  }
+  return { faces, at, halfW, skew, halfT };
+}
 /** 크립 갈퀴 바닥(지적: 콜로니 바닥은 동그라미가 아니라 갈퀴) — 사방으로 뻗는 납작한
  *  덩굴 조각들. */
 /** `#nocreep` 해시(도구용: scene-sheet 격자 비교) — 모델에 구운 크립 갈퀴도 함께 뺀다. */
@@ -22829,80 +22883,23 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            · **색을 뒤집는다**(앞선 요청: "가운데 머리장식 색 전체가 임자색 · 아래 두 개는 저그 고유색") —
              바깥 두 줄만 임자색 테이던 것을 걷고, **가운데 갈비 하나가 통째로 임자색**이다. 나머지 넷은
              저그 기본색. 가장자리의 실오라기보다 가운데 한 줄이 멀리서 훨씬 잘 읽힌다. */
-    const CN = 5;
-    /** 머리장식 크기 배수(요청: "히드라 머리장식 크기 25% 확대") — 반폭·뻗는 길이·드롭이 한 값으로 함께 큰다.
-     *  갈비 폭은 반폭에서 나므로(widthOf) 저절로 따라온다. */
-    const CK9 = 1.25;
-    /** 길이 배수(요청: "전체 길이 20% 증가") — 뻗는 몫에만 걸린다(폭은 위 CK9가 쥔다). */
-    const CL9 = 1.2;
-    /* ★ 뿌리를 **머리 위**로 올린다(요청: "머리 뒤가 아니라 머리 위부터 시작되게") — 여태 뿌리가 목 끝
-       (headAt)이라 얼굴 뒤·아래에서 났다. 얼굴은 headAt에서 앞·아래(+0.25, −0.45)에 앉으므로, 그보다
-       앞(+0.5)·위(+1.0)로 옮기면 이마 위에서 시작한다. 시작 폭도 한 뼘 넓힌다(0.35 → 0.62, 같은 요청). */
-    /* ★ 뿌리는 **머리뼈 반구의 60도 자리**(2026-09, 요청: "이마 정수리 머리장식이 부드럽게 이어지기") — 공용 얼굴이 반구가
-       되며(zergFace ★★) 정수리가 둥글어졌으니, 뿌리를 그 껍질 위(앞 60도 · 0.08 묻힘)에 두면 이마 → 정수리 → 머리장식이 한
-       흐름으로 이어진다(옛 +0.5·+0.8 은 상자 정수리 위 허공이었다). 얼굴 자(headAt[1]+0.25 · headAt[2]−0.36 · s 0.84)를 그대로 셈한다. */
+    /* ★★ 머리장식은 **울트라의 판**이다(2026-09, 요청: "히드라 머리장식을 울트라 머리장식의 판만 가져와서 크기와 가로세로
+       비율만 수정해서 쓰자 데칼도 넣고") — 갈비 다섯의 부채(마름모 판 다섯이 겹친 껍질)를 걷고 공용 `crestPlate9`(층진 판 두 켜 ·
+       가장자리 말림)를 쓴다. 울트라와 다른 것은 셋뿐이다: 길이 5.0(울트라 4.83) · 폭 배수 1.0(울트라 1.2 — 곧 더 길고 좁은
+       비 0.38 vs 0.47) · 두께 oval 0.1(뿔을 박을 일이 없어 얇게). 자세(축 63도 · 법선)는 그대로다.
+       · 데칼: 옛 '가운데 갈비 하나가 통째로 임자색'을 **임자색 띠 셋**(가운데 넓게 0.18 · 양옆 0.62 자리에 0.09)으로 잇는다 —
+         띠는 켜의 앞 낯 위에 말림·두께를 타고 앉는다. */
     const FR9 = 0.72 * 0.84;
-    // 정수리 마루(돔 꼭대기 = 입선 z + 0.3s + 수직 낯 0.34s + 돔 높이 0.5R) 위 · 돔 중심 살짝 앞(0.1) · 0.06 묻힘(zergFace 의 ★).
     // 정수리 = 입선(z + 0.3s) + 수직 벽(0.34s) + 앞 4분의 1 구 반지름 R · 앞 반원 중심 살짝 앞(0.1) · 0.06 묻힘.
     const CRX9 = headAt[1] + 0.25 + 0.1;
     const CRZ9 = headAt[2] - 0.36 + (0.30 + 0.34) * 0.84 + FR9 - 0.06;
-    /** 폭 배수(요청: "크레스트 전체 폭은 20% 축소") — 길이(CL9)는 그대로 두고 좌우로만 줄인다. */
-    const CW9 = 0.8;
-    const crestHalf = (t9: number): number => (0.62 + 1.25 * t9) * CK9 * CW9;
-    for (let i9 = 0; i9 < CN; i9 += 1) {
-      const u9 = (i9 - (CN - 1) / 2) / ((CN - 1) / 2);   // -1 ~ 1
-      /** 이 갈비의 길이 몫 — 가운데(u 0)가 1, 바깥(|u| 1)이 0.52.
-       *  ★ **절댓값**이다(제곱이 아니라) — 제곱이면 끝선이 매끈한 포물선이라 '각'이 없다. 절댓값이면 양쪽이
-       *    곧은 빗변이고 **가운데 딱 한 곳에서만 꺾인다**: 역삼각형의 위쪽 모서리에 각이 하나 생기는 그것이다
-       *    (요청). 면은 한 장도 안 는다 — 갈비의 길이만 갈릴 뿐이다.
-       *  ★ 기울기를 0.48 → **0.68**로 세운다(요청: "위쪽에 삼각형 판을 더 이어 붙인다고 생각해봐, 전체적으로
-       *    아래가 좀 비중이 긴 마름모가 되는 거야") — 바깥 갈비가 가운데의 3분의 1까지 짧아지면, 실루엣이
-       *    아래(이마에서 가장 넓은 데까지)는 길고 위(거기서 꼭짓점까지)는 짧은 **마름모**가 된다. 위쪽 삼각을
-       *    따로 덧대지 않고 끝선의 기울기만으로 같은 꼴을 얻는다 — 면을 안 늘리는 것이 앞선 지적이었다. */
-      const len9 = 1 - 0.5 * Math.abs(u9);
-      const mid9 = i9 === (CN - 1) / 2;
-      /* ★ 갈비는 **납작한 판**이다(요청: "크레스트를 납작하게 두께를 줄여봐 판 형태의 역삼각형들이 되겠지") —
-         단면을 눕히고(oval 1.35 → 3.2) 그만큼 폭 값을 줄여(×0.42) **넓이는 그대로 두께만** 셋으로 나눈다. 그러면 갈비 하나가 통짜 막대가 아니라 뿌리에서
-         끝으로 넓어지는 **판**으로 읽힌다(옆에서 보면 뿌리가 좁고 끝이 넓은 역삼각형이다). */
-      const rib = spirePillar({
-        x: 0, y: 0, h: 0.8, w: 1, segs: 8, sides: 6, oval: 3.2, caps: "none",
-        path: (t9: number): [number, number, number] => {
-          const hw9 = crestHalf(t9);
-          // 45도로 뒤·위(같은 몫씩) + 가장자리는 아래로 휜다(u²에 비례). 길이는 갈비마다 다르다(len9).
-          /* ★ 길은 **곧다**(45도 그대로) — 앞판은 여기서 z를 꺾었는데, 그러면 부채가 통째로 접혀 **면이 하나
-             더 생긴다**(지적: "면을 추가한 거잖아, 면은 추가 안 되고 위쪽 모서리만 각이 하나 생긴다고").
-             뾰족함은 면이 아니라 **윤곽**의 일이다 — 위 len9가 갈비 길이를 갈라 끝선에 각 하나를 낸다. */
-          return [
-            u9 * hw9,
-            CRX9 - 2.8 * CK9 * CL9 * t9 * len9,
-            CRZ9 + 2.24 * CK9 * CL9 * t9 * len9 - u9 * u9 * (0.28 + 0.92 * t9) * CK9,
-          ];
-        },
-        /* 갈비끼리 **겹치게** 넓힌다(요청: "이마부터 머리장식 끝까지 한 면으로 이어져야")
-           — 폭이 간격과 같으면 사이가 벌어져 날 다섯 장으로 읽힌다. 간격(2·반폭/CN)의
-           1.45배면 이웃과 물려 한 껍질이 된다. 바깥 두 줄만 조금 좁혀(0.8) 테로 남긴다. */
-        /* ★ oval을 키운 만큼 여기서 나눈다(×1.35/3.2) — oval은 **폭 쪽**을 늘리는 자라, 그냥 키우면 갈비가
-           서로 먹혀 한 덩이 지붕이 된다(실측: 첫 판이 그랬다). 폭은 그대로 두고 두께만 줄이는 것이 요청이다. */
-        /* ★ 갈비 하나가 **마름모**다(지적: "크레스트가 머리장식 아니야? 난 머리장식을 마름모로 해달란
-           거였는데" — 빨간 동그라미가 가리킨 것은 가운데 판 하나였다) ────────────────────────────────
-           여태 폭이 t에 따라 자라기만 해(crestHalf) 끝이 가장 넓은 **사다리꼴**이었다 — 위가 뭉툭하게
-           잘린 그 꼴이 지적의 자리다. 이제 0.6에서 가장 넓고 끝(1)에서 한 점으로 모인다: 뿌리에서
-           가장 넓은 데까지가 길고(0.6) 거기서 꼭짓점까지가 짧아(0.4) **아래가 비중이 긴 마름모**다. */
-        widthOf: (t9: number): number => ((crestHalf(t9) * 2 * 1.45) / CN)
-          * (i9 === 0 || i9 === CN - 1 ? 0.8 : 1) * (1.35 / 3.2)
-          /* 가장 넓은 자리를 0.6 → **0.75**로 올린다(요청: "마름모의 아래쪽 길이 비중을 더 늘리고 위쪽을
-             줄이기") — 뿌리에서 거기까지가 4분의 3, 거기서 꼭짓점까지가 4분의 1이다. */
-          * (t9 < 0.75 ? 0.42 + 0.58 * (t9 / 0.75) : 1 - 0.94 * ((t9 - 0.75) / 0.25)),
-      });
-      // 가운데 한 줄만 안 칠한다 = 통째로 임자색. 나머지 넷은 저그 기본색.
-      /* ★ 키는 **얼굴과 같은 자에서 한 단 위**다(요청: "머리 윗면에서 시작해서 머리 윗면은 안 보여야지,
-         키값 수정") — 여태 크레스트는 제 자리(뒤쪽 −1.4)의 깊이로, 얼굴은 제 자리(앞쪽)의 깊이로 키를
-         냈다. 자가 다르니 각도에 따라 얼굴·머리가 크레스트 위로 올라와 이마가 드러났다.
-         얼굴이 쓰는 자(headAt[1])를 그대로 쓰고 0.4만 얹으면 **어느 각도에서든** 크레스트가 머리 위다 —
-         뿌리가 머리 윗면에 얹혔으니 그 면은 크레스트에 덮여 안 보인다. 얼굴은 앞·아래라 안 가린다. */
-      out.push(...tagKey(mid9 ? rib : paintBase(rib, ZERG_FLESH),
-        12.6 + depthNow(0, headAt[1]) * 1.6 + (mid9 ? 0.05 : 0)));
-    }
+    out.push(...crestPlate9({
+      /* 재요청(2026-09): "뿌리폭을 특히 줄이고 전체 폭도 살짝 줄이고 각도를 살짝 더 눕혀야" — 뿌리 반폭 ×0.55 · 폭 배수
+         1.0 → 0.9 · 축 63도 → 50도(뒤 0.643 · 위 0.766). */
+      root: [0, CRX9, CRZ9], axis: [0, -0.643, 0.766], nrm: [0, 0.766, 0.643], len: 5.0, wk: 0.9, oval: 0.1, rootK: 0.55,
+      base: ZERG_FLESH, layer: DARK, key: 12.6 + depthNow(0, headAt[1]) * 1.6,
+      decals: [[0, 0.18], [-0.62, 0.09], [0.62, 0.09]],
+    }).faces);
     /* ③ 팔 + 낫 — 어깨에서 앞아래로 굽은 두 마디, 손목에서 큰 낫.
        ★ **어깨 높이로**(2026-09, 요청: "히드라 팔 위치 높이기(어깨에 맞춰서)" → "상체 갑옷도 높이고 팔도 그만큼 더 높이기") —
          팔 뿌리(z 4.24)가 어깨(body(0.74) z 4.88)보다 0.64 아래·0.9 앞에 있어 가슴에서 돋은 팔이었다. 뿌리를 어깨 높이로(+0.64)
@@ -23001,7 +22998,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 발판 — 넓은 판이 아니라 발이다(지적: "발판이 너무 크다"). 폭을 2 → 1.1로
          줄여 정강이 굵기(1.12)에 맞춘다. 이 자보다 넓으면 받침대로 읽힌다. */
       out.push(...tagKey(paintBase(spirePillar({
-        x: ax9, y: ay9 + 0.22, z0: 0.016 + lf9z9, h: 0.352, w: 1.1, tipW: 0.72,
+        // 발은 발목 **바로 밑**(2026-09, 요청: "울트라 하지와 발 수직 위치 맞추기") — 옛 +0.22 는 발이 정강이 앞으로 나가 있었다.
+        x: ax9, y: ay9, z0: 0.016 + lf9z9, h: 0.352, w: 1.1, tipW: 0.72,
         segs: 2, sides: 8, hold: 0.2, taper: 1.4,
       }), DARK), key9 - 0.3));
     }
@@ -23023,7 +23021,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          표를 읽으니 쉴 때는 이음매가 안 보이고(겹침 0.06), 돌면 잘록한 허리가 경첩이 된다. */
     const TORSO9: [number, number, number, number][] = [
       // [t, 반폭, 등뼈 z, 높이/폭]
-      [0, 0.32, 4.1, 0.95], [0.3, 2.5, 4.5, 0.74], [0.52, 2.0, 4.32, 0.8], [0.78, 2.95, 4.82, 0.64], [1, 2.15, 4.62, 0.76],
+      /* ★ 꼬리끝은 0.9 짧게(2026-09, 요청: "울트라 엉덩이 파트 크기 줄이기" → 되물음: "엉덩이쪽 뒤로 뾰족히 튀어나온 걸 줄여
+         주면 되는데 왜 허리를 통짜로 만들었어") — 한 번 골반 반폭을 2.5 → 2.15 로 줄였는데, 그 손질이 ⚠ 같은 줄의 주석 뒤에
+         허리·가슴 마디를 밀어 넣어 **표가 두 마디로 잘렸고**(tsc 는 못 잡는다) 그래서 허리가 통짜가 됐다. 되돌리고 **뒤로 뾰족이
+         나온 몫**(TY0 −6.3 → −5.4)만 줄인다. 마디 t 는 골반·허리·가슴의 **y 가 그대로**이게 다시 매겼다(골반 y −3.42 · 허리 −1.31 ·
+         가슴 1.19). */
+      [0, 0.32, 4.1, 0.95], [0.228, 2.5, 4.5, 0.74], [0.470, 2.0, 4.32, 0.8], [0.757, 2.95, 4.82, 0.64], [1, 2.15, 4.62, 0.76],
     ];
     const catRom9 = (col: 1 | 2 | 3, t: number): number => {
       const n9 = TORSO9.length;
@@ -23037,7 +23040,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const u2 = u * u; const u3 = u2 * u;
       return (2 * u3 - 3 * u2 + 1) * p1[col] + (u3 - 2 * u2 + u) * m1 + (-2 * u3 + 3 * u2) * p2[col] + (u3 - u2) * m2;
     };
-    const TY0 = -6.3; const TY1 = 3.3;
+    const TY0 = -5.4; const TY1 = 3.3;
     const tW9 = (t: number): number => catRom9(1, t);
     const tZ9 = (t: number): number => catRom9(2, t) + BODY_UPz9 - 1.04;   // 표는 이미 올린 자(BODY_UP 포함)로 적었다
     const tOv9 = (t: number): number => catRom9(3, t);
@@ -23063,9 +23066,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       }), PLATE), key9 + 1));
     };
     // 뒷몸(꼬리끝 → 허리) — 안 돈다.
-    torso9(0, 0.56, true, false, depthNow(0, -3.5) * 1.6);
+    torso9(0, 0.50, true, false, depthNow(0, -3.5) * 1.6);
     // 앞몸(허리 → 얼굴) — 상체와 함께 돈다.
-    upper9(() => { torso9(0.5, 1, false, true, depthNow(0, 1.1) * 1.6); });
+    upper9(() => { torso9(0.44, 1, false, true, depthNow(0, 1.1) * 1.6); });
     /* 어깨 갑옷 판 둘 = **임자 색**(요청: 나머지 흰 부분) — 앞몸 양옆에 비스듬히 붙는
        각진 판. 사진에서 가장 크게 드러나는 창백한 자리라 임자를 여기서 읽는다. */
     /* ★ **둥근 판이 살에 얹힌다**(2026-09, 재요청: "어깨 판도 둥글게 살에 얹어줘") — 각진 절두체 둘은 둥근 몸 옆에서 상자로
@@ -23128,24 +23131,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        바깥으로 나갔다가 앞·아래로 굽어 얼굴 옆을 감싼다. 옛 판은 히드라처럼 36도로 뒤로 누워 앞에서는 납작한
        띠였다. 이제 63도(뒤 1.8 · 위 3.6)로 세우고 너비도 키운다(반폭 최대 3.4). 층은 같은 판을 앞 법선 쪽으로
        0.15 띄워 0.72 배로 한 장 더 얹고(테가 계단으로 읽힌다), 가운데는 등마루 뿔이 지난다. */
-    const CR0 = (t9: number): [number, number, number] => [0, 3.35 + UH_FWD9 - 1.8 * t9, 4.6 + UH_UP9 + 3.6 * t9];
-    // 폭은 한 단 좁게(재요청: "볏 폭 줄이고") — 반폭 최대 2.85 → 1.9 · 밑동 1.5 → 1.15
-    const crW9 = (t9: number): number => UCK9 * (t9 < 0.5 ? 1.15 + (1.9 - 1.15) * (t9 / 0.5) : 1.9 - (1.9 - 0.4) * ((t9 - 0.5) / 0.5) ** 1.25);
-    const crSk9 = (cu9: number, t9: number): number => -0.5 * UCK9 * cu9 * cu9 * (0.4 + 0.6 * t9);
-    const CRN9: [number, number, number] = [0, 0.894, 0.447];   // 판의 앞·위 법선(63도)
+    /* ★ 판은 공용 `crestPlate9`(히드라와 나눠 쓴다). 위아래 길이 ×1.2(2026-09, 요청: "울트라 머리장식 위아래 길이 1.2배") —
+       축 (0, −1.8, 3.6) 의 길이 4.02 → 4.83. **두께는 oval 0.1 → 0.22**(요청: "두께를 늘려서 옆면에 뿔뿌리가 잘 들어가게") —
+       뿔 뿌리 반지름이 0.48~0.64 인데 판 반두께가 0.14~0.23 이라 뿌리가 판 앞뒤로 다 삐져나왔다. 이제 반두께 0.3~0.5. */
+    const CRA9: [number, number, number] = [0, -0.447, 0.894];   // 판의 축(63도)
+    const CRN9: [number, number, number] = [0, 0.894, 0.447];    // 판의 앞·위 법선(63도)
+    const CRL9 = 4.025 * 1.2;
+    const crest9 = crestPlate9({
+      root: [0, 3.35 + UH_FWD9, 4.6 + UH_UP9], axis: CRA9, nrm: CRN9, len: CRL9, wk: UCK9, oval: 0.22,
+      base: PLATE, layer: HIDE, key: depthNow(0, 3.9) * 1.6 + 2.6,   // 얼굴(+2)보다 앞(지적: "머리장식에 머리가 가려져야")
+    });
+    out.push(...crest9.faces);
+    const CR0 = crest9.at; const crW9 = crest9.halfW; const crSk9 = crest9.skew;
     const HSK9 = 1;   // 실측: +1 이 뿌리를 판 옆 테두리에 앉힌다(−1 은 뿌리가 판 뒤로 떠 90도에서 틈이 보인다)
-    for (const [lay9, sc9] of [[0, 1], [1, 0.72]] as [number, number][]) {
-      const off9 = lay9 * 0.15;
-      out.push(...tagKey(paintBase(spirePillar({
-        x: 0, y: 0, h: 0.8, w: 1, segs: 7, sides: 8, oval: 0.1, caps: "none", ref: [1, 0, 0], trueNormal: true,
-        path: (t9: number): [number, number, number] => {
-          const q9 = CR0(lay9 ? 0.08 + t9 * 0.8 : t9);
-          return [q9[0] + CRN9[0] * off9, q9[1] + CRN9[1] * off9, q9[2] + CRN9[2] * off9];
-        },
-        widthOf: (t9: number): number => crW9(lay9 ? 0.08 + t9 * 0.8 : t9) * sc9,
-        skewV: (cu9: number, t9: number): number => crSk9(cu9, t9) * sc9,
-      }), lay9 ? HIDE : PLATE), depthNow(0, 3.9) * 1.6 + 2.6 + lay9 * 0.1));   // 얼굴(+2)보다 앞(지적: "머리장식에 머리가 가려져야")
-    }
     // 등마루 — 볏 한가운데를 밑동에서 끝까지 지나는 짙은 뿔(사진의 가운데 능선).
     {
       const a9 = CR0(0.05); const b9 = CR0(1);
@@ -23158,10 +23156,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     for (const m of [-1, 1] as const) {
       for (const [ht9, hs9] of [[0.2, 0.55], [0.5, 0.8], [0.8, 1.1]] as [number, number][]) {
         const r9 = CR0(ht9);
+        const hw9 = (t: number): number => (0.26 + 0.3 * hs9) * (1 - t) ** 1.1 + 0.05;
         /* 뿌리는 볏 **가장자리 위**(2026-09, 요청: "뿔 뿌리가 머리장식에 딱 붙게") — 반폭 그대로(0.92 배 안쪽이 아니라)에
            가장자리의 말림(crSk9(±1, t) — 판 법선 쪽 치우침)까지 태워 판의 옆 테두리에 앉힌다. HSK9 는 말림 축의 부호. */
-        const hw0 = crW9(ht9) * 0.98;
-        const sk0 = crSk9(1, ht9) * HSK9;
+        /* ★ 뿌리를 판 옆면 **속에 박는다**(2026-09, 요청: "옆면에 뿔뿌리가 잘 들어가게 … 특히 2번째 뿔이 잘 안 맞아서 팍 꽂아봐")
+           — 테두리 위(0.98)에 얹으면 뿌리 반지름만큼 판 밖에 떠 어느 각에서는 틈이 보인다. 반지름의 0.8 만큼 안쪽으로 물려
+           뿌리 단면이 판 두께 안에 잠기게 한다(판 두께는 그만큼 키웠다 — oval 0.22). */
+        const hw0 = crW9(ht9) - hw9(0) * 0.8;
+        const sk0 = crSk9(1 - hw9(0) * 0.8 / crW9(ht9), ht9) * HSK9;
         /* ★ 뿔의 '위'는 세계의 z 가 아니라 **볏의 판을 따라 오르는 쪽**이다(2026-09, 요청: "울트라 머리장식의 옆쪽 뿔들
            머리장식에 맞게 위치와 각도(뒤로 눕히는) 맞추기") — 여태 z 로 곧게 섰다(볏은 63도로 뒤로 누웠는데 뿔만 수직이라
            판에서 앞으로 튀어나온 꼴). 판의 축 A(CR0 의 방향 (0, −0.447, 0.894))와 판의 법선 N(CRN9)으로 자리를 낸다:
@@ -23177,7 +23179,6 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const hpath9 = (t: number): [number, number, number] => [
           bzh9(H0[0], HC[0], H1[0], t), bzh9(H0[1], HC[1], H1[1], t), bzh9(H0[2], HC[2], H1[2], t),
         ];
-        const hw9 = (t: number): number => (0.26 + 0.3 * hs9) * (1 - t) ** 1.1 + 0.05;
         const hk9 = depthNow(m * 3.2, 3.5 - ht9) * 1.6 + 2.8;
         out.push(...tagKey(paintBase(spirePillar({
           x: 0, y: 0, h: 0.8, w: 1, segs: 4, sides: 6, oval: 1.25, caps: "bottom", trueNormal: true,
