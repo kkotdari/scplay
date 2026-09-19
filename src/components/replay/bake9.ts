@@ -419,6 +419,11 @@ export const MODEL_Z_OFF9: Record<string, number> = {   // 값은 z 접기(×0.8
      0.9의 중간)로 되돌린다. 재면 scratchpad/air.json → 이 표. */
   wraith: 0.00, bc: -0.968, valk: 0.048, vessel: -1.864, dship: 0.36, corsair: 0.008, scout: 0.664, carrier: -1.064, arbiter: -2.672, observer: -1.416, interceptor: 2.44, shuttle: 2.016, muta: -0.232, guardian: 1.384, devourer: 0.088, scourge: 2.056, queen: 1.96, ovie: 0.392, mutacocoon: -0.52,
 };
+/** ★ **가스 연기를 내는 종류**(2026-09, 지적: "가스 연기가 너무 뚝뚝 끊겨 프레임 훨씬 늘려서 부드럽게") — 이 넷의 연기는
+ *  이제 메시에 안 굽고 붓이 **연속 시간**으로 그린다(gasPuffs9 의 ★★). 회전 칸(spin)은 엔진이 **소수로** 싣고(t·rate·N,
+ *  안 접음), GL 메시 열쇠에서는 0 으로 못 박는다(메시가 칸과 무관하다). 2D 폴백·도록 SVG 는 종전대로 칸에 굽는다(spinTag 가
+ *  칸을 내림해 캐시 열쇠가 소수로 새지 않게 한다). */
+export const GAS_KINDS9 = new Set<string>(["geyser", "refinery", "assim", "extract"]);
 export const SPIN_KINDS = new Set<string>([
   "trapezoid", "cyber", "forge", "storm", "nukecloud", "nukeblast",
   "mshop",   // 머신샵 톱니 둘(바닥 톱니판·옆 바퀴 이) — 연구 중에만(요청)
@@ -467,7 +472,9 @@ export const SPIN_SLOTS = 32;
 /** 벼락 하나가 자라는 단계 수 — 스톰 빌더의 STAGES9와 짝이다(칸 = 씨앗 × 이것 + 단계). */
 export const STORM_STAGES = 16;
 /** 굽기 열쇠에 박는 회전 칸 — 안 도는 종류는 "0"이라 옛 열쇠와 같다. */
-export const spinTag = (kind: string): string => (SPIN_KINDS.has(kind) ? String(bldSpinNow) : "0");
+export const spinTag = (kind: string): string => (SPIN_KINDS.has(kind) ? String(GAS_KINDS9.has(kind) ? Math.floor(bldSpinNow) : bldSpinNow) : "0");
+/** GL 메시 열쇠의 회전 칸 — 가스 종류는 연기를 메시에 안 굽으므로 **늘 0**(칸이 소수라 열쇠에 실으면 프레임마다 새 벌을 굽는다). */
+export const glSpinTag9 = (kind: string): string => (GAS_KINDS9.has(kind) ? "0" : spinTag(kind));
 /** 지금 칸의 각(라디안) — 빌더가 제 부품을 이만큼 돌린다. */
 export const spinRad = (): number => ((bldSpinNow % SPIN_ANIM9) * Math.PI * 2) / SPIN_ANIM9;
 /** ★ **n갈래 대칭인 부품**의 각(지적: "도는 거 그림 더 자주 그리기 너무 뚝뚝 끊김") ────────
@@ -489,6 +496,28 @@ export const spinRadSym = (n: number): number => ((bldSpinNow % SPIN_ANIM9) * Ma
    · **번갈아 나오기**는 위상(phase)이다 — 가운데 굴뚝 0 · 양옆 1/(2n) 이면 한 쪽이 낼 때 다른 쪽은 쉰다.
    · 색은 채도가 높아야(가스 초록) mesh9 의 덧칠 접기(무채색만)에 안 걸려 제 부품으로 남는다.
    · ⚠ 칸 0 에도 덩이가 선다 — 잉크 상자(붓은 칸 0 으로 잰다)에 김이 든 것은 옛 세 켜 때와 같다. */
+/** 가스 굴뚝 하나(모형 자 · 모든 감싸개를 먹인 뒤) — 붓이 프레임마다 이 표로 덩이를 놓는다(gasPuffFrames9). */
+export interface GasEmit9 { x: number; y: number; z: number; r: number; h: number; n: number; phase: number; a: number; duty: number; life: number }
+/** 지금 굽는 빌더가 적은 굴뚝들 — collectMesh9 한 벌마다 gl9 가 `gasEmitTake9` 로 걷어 메시에 붙인다. */
+let GAS_EMIT9: GasEmit9[] = [];
+export function gasEmitTake9(): GasEmit9[] { const g = GAS_EMIT9; GAS_EMIT9 = []; return g; }
+/** 시각 u0(바퀴의 몫 0~1)에 살아 있는 덩이들 — 자리·반지름·짙기. 2D 굽기(gasPuffs9)와 붓(gl9 gasPush9)이 **같은 식**을 본다. */
+export function gasPuffFrames9(o: GasEmit9, u0: number): { x: number; y: number; z: number; rr: number; a: number }[] {
+  const out: { x: number; y: number; z: number; rr: number; a: number }[] = [];
+  for (let k = 0; k < o.n; k += 1) {
+    // 덩이 k 는 바퀴의 (위상 + k·duty/(n−1)) 에 나서 life 만큼 산다 — 그 밖의 시각에는 없다(쉼).
+    const born9 = o.phase + (o.n > 1 ? (k * o.duty) / (o.n - 1) : 0);
+    const p9 = (((u0 - born9) % 1) + 1) % 1;
+    if (p9 >= o.life) continue;
+    const u = p9 / o.life;
+    const rr = o.r * (0.7 + 1.2 * u);
+    const z = o.z + o.h * (0.06 + 0.94 * Math.pow(u, 0.85));
+    const a = o.a * Math.min(1, 0.2 + u * 5) * Math.pow(1 - u, 1.4);
+    if (a < 0.03) continue;
+    out.push({ x: o.x, y: o.y, z, rr, a });
+  }
+  return out;
+}
 export function gasPuffs9(o: {
   x: number; y: number; z: number;
   /** 아가리에서의 반지름(끝에서 1.5배) · 오르는 높이 */ r: number; h: number;
@@ -504,31 +533,28 @@ export function gasPuffs9(o: {
    *  꽉 차면 둘이 이어져 쉬는 때가 없다. */
   duty?: number; life?: number;
 }): ShapeFace[] {
-  const n = o.n ?? 3;
+  const e9: GasEmit9 = { x: o.x, y: o.y, z: o.z, r: o.r, h: o.h, n: o.n ?? 3, phase: o.phase ?? 0, a: o.a ?? 0.62, duty: o.duty ?? 0.25, life: o.life ?? 0.4 };
+  /* ★★ **GL 에서는 메시에 안 굽는다 — 굴뚝만 적는다**(2026-09, 지적: "가스 연기가 너무 뚝뚝 끊겨 프레임 훨씬 늘려서
+     부드럽게") — 회전 칸(16)에 구우면 한 바퀴 3.3초에 칸당 0.21초, 곧 초당 4.8장이라 뚝뚝 끊긴다. 칸을 늘리면 그만큼 메시
+     벌이 는다(가스 넷 × 칸 — 폰 상한 240벌). 그래서 굴뚝의 자리·크기·박자(GasEmit9)만 **모형 자**로 적어 두고(감싸개의 배수·
+     이동·회전을 modelPoint9 로 다 먹인 값), 붓이 프레임마다 소수 시각으로 덩이(구 한 벌 `gaspuff`)를 인스턴스로 놓는다 —
+     칸이 없으니 프레임 수에 상한이 없다. 2D 폴백·도록 SVG 는 종전대로 칸에 굽는다(아래). */
+  if (MESH9.on) {
+    const [bx, by, bz] = modelPoint9(o.x, o.y, o.z);
+    const [tx, ty, tz] = modelPoint9(o.x, o.y, o.z + o.h);
+    const [rx, ry] = modelPoint9(o.x + o.r, o.y, o.z);
+    GAS_EMIT9.push({ ...e9, x: bx, y: by, z: bz, h: Math.hypot(tx - bx, ty - by, tz - bz), r: Math.hypot(rx - bx, ry - by) });
+    return [];
+  }
   const out: ShapeFace[] = [];
   const u0 = (bldSpinNow % SPIN_ANIM9) / SPIN_ANIM9;
-  const duty9 = o.duty ?? 0.25;
-  const life9 = o.life ?? 0.4;
   /* ★ **곧게 오른다**(2026-09, 지적: "가스 연기 뭉게뭉게 수직으로 안 올라가고 휘어서 가는 거 같아 —
      수직이 나을 거 같고 색과 크기 좀 키워야 할 듯") — 옆으로 흔드는 몫(wob)과 흘러가는 몫(drift)을
      걷었다: 덩이 셋이 저마다 다른 위상의 사인을 타니 김이 한 줄기로 안 읽히고 **뱀처럼 휘어** 보였다.
      덩이는 아가리 바로 위 한 축으로만 오르고, 크기(0.5~1.5 → 0.7~1.9배)와 짙기(0.45 → 0.62)를 올렸다. */
-  for (let k = 0; k < n; k += 1) {
-    // 덩이 k 는 바퀴의 (위상 + k·duty/(n−1)) 에 나서 life 만큼 산다 — 그 밖의 시각에는 없다(쉼).
-    const born9 = (o.phase ?? 0) + (n > 1 ? (k * duty9) / (n - 1) : 0);
-    const p9 = (((u0 - born9) % 1) + 1) % 1;
-    if (p9 >= life9) continue;
-    const u = p9 / life9;
-    const rr = o.r * (0.7 + 1.2 * u);
-    const z = o.z + o.h * (0.06 + 0.94 * Math.pow(u, 0.85));
-    const px = o.x;
-    const py = o.y;
-    const a = (o.a ?? 0.62) * Math.min(1, 0.2 + u * 5) * Math.pow(1 - u, 1.4);
-    if (a < 0.03) continue;
-    const [sx, sy] = project(px, py, z);
-    const d = screenCircle(sx, sy, rr);
-    if (MESH9.on) meshPut9(d, meshSphere9(px, py, z, rr, 1, 4, 8));
-    out.push([d, a, o.col] as ShapeFace);
+  for (const f9 of gasPuffFrames9(e9, u0)) {
+    const [sx, sy] = project(f9.x, f9.y, f9.z);
+    out.push([screenCircle(sx, sy, f9.rr), f9.a, o.col] as ShapeFace);
   }
   return out;
 }
@@ -24435,6 +24461,15 @@ SHAPE_BUILDERS.scarab = () => {
   ];
 };
 
+
+/* ★ 가스 덩이 한 벌(2026-09, gasPuffs9 의 ★★) — 반지름 1 의 저해상도 구(위도 4·경도 8). 붓이 굴뚝표(GasEmit9)로
+   프레임마다 자리·배율·알파를 인스턴스에 실어 놓는다(gl9 gasPush9 · 도록은 glIconFlush9). 색은 베스핀 초록 하나다. */
+SHAPE_BUILDERS.gaspuff = () => {
+  const [sx, sy] = project(0, 0, 0);
+  const d = screenCircle(sx, sy, 1);
+  if (MESH9.on) meshPut9(d, meshSphere9(0, 0, 0, 1, 1, 4, 8));
+  return tagKey([[d, 1, "#80ff96"] as ShapeFace], partKey(0, 0, 0));
+};
 
 /* 크립 블롭 세 변형(요청: 저그 건물 아래 크립) — 씨앗만 다른 같은 생물 카펫. */
 SHAPE_BUILDERS.creeppatch = () => creepBlobFaces(0.7);

@@ -6164,7 +6164,11 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
                  알맞은 속도다.
                  ★ 걸음은 **한 문**(spinRateOf9)이 준다(2026-09) — 일할 때만 도는 것 1.6/0 · 늘 도는 것 2.2 ·
                    가스 연기 0.45. 도록(docCellsOf9)도 같은 문을 보므로 여기 숫자를 따로 고치면 안 된다. */
-              : Math.floor(t * spinRateOf9(shapeKind, researching) * SPIN_ANIM9) % SPIN_ANIM9,
+              /* ★ 가스 종류는 **소수 칸**이다(2026-09, 지적: "가스 연기가 너무 뚝뚝 끊겨") — 연기는 메시에 안 굽고 붓이
+                 프레임마다 놓으므로(bake9 gasPuffs9 의 ★★) 칸을 접을 까닭이 없다. 접으면 초당 4.8장으로 도로 끊긴다. */
+              : GAS_SPIN_KINDS9.has(shapeKind)
+                ? (t * spinRateOf9(shapeKind, researching) * SPIN_ANIM9) % SPIN_ANIM9
+                : Math.floor(t * spinRateOf9(shapeKind, researching) * SPIN_ANIM9) % SPIN_ANIM9,
           /* 원작처럼 45도 요잉(지적) — 2D에도 적용(재지적: 2D도 45도 요잉해야지).
              쐐기의 진범은 요잉이 아니라 hover 그림자의 beginPath 누락이었다. */
           rotDeg: buildingYawOf(),
@@ -6740,7 +6744,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       /* ★ 간헐천 김의 시계(2026-09 · bake9 gasPuffs9) — 건물의 회전 칸과 같은 자: SPIN_ANIM9 칸이 한 바퀴,
          걸음은 GAS_SPIN_RATE9. 고갈 별본(geyserdry)은 김이 없어 칸을 안 싣고, 저사양(qAnim 꺼짐)도 안 싣는다. */
       ...(gasSpot && qAnim && resStageAt(res[0], res[1]) !== 0
-        ? { spin: Math.floor(t * GAS_SPIN_RATE9 * SPIN_ANIM9) % SPIN_ANIM9 } : {}),
+        ? { spin: (t * GAS_SPIN_RATE9 * SPIN_ANIM9) % SPIN_ANIM9 } : {}),   // 소수 칸 — 연기는 붓이 프레임마다 놓는다(위 건물의 ★)
       kind: gasSpot
         ? (resStageAt(res[0], res[1]) === 0 ? "geyserdry" : "geyser")
         : (() => {

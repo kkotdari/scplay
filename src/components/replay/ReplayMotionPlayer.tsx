@@ -94,8 +94,9 @@ import {
 import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, WorldUi9 } from "./engine9";
 import {
   pitchFlatSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, stageFaces, TURRET_BACK9, SPIN_KINDS, HEAD_KINDS, LIT_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, spriteSideMax9, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, tone9, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
+  GAS_KINDS9,
 } from "./bake9";
-import { glUnits9, glNow9, glBakeMsTake9, glScrubSet9, glScrubbing9, GL_CANVAS_KINDS9, GL_ON9, GL_BLIT9, GL_WARM9, GL_GLOW_KINDS9, SHADOW_ALPHA9, camOf9, CAM_TOP9, glIconOk9, glIconRequest9, type GlUnits9, type GlFoot9 } from "./gl9";
+import { glUnits9, glNow9, glBakeMsTake9, glScrubSet9, glScrubbing9, gasTops9, GL_CANVAS_KINDS9, GL_ON9, GL_BLIT9, GL_WARM9, GL_GLOW_KINDS9, SHADOW_ALPHA9, camOf9, CAM_TOP9, glIconOk9, glIconRequest9, type GlUnits9, type GlFoot9 } from "./gl9";
 export { LIMB_LOG, TURRET_BACK9, SHAPE_BUILDERS, ctx2d9, BAKE_ENV9, cropToInk, pathBox, tierTableOf, autoTier, stageFaces, rasterBld9, SHAPE_GALLERY, poseSet, poseSet9, bldLitSet, headYawSet, bldSpinSet, bldSpinRawSet9, lodSetCap, lodSetZoom, lodNoteFrame, tone9, TONE_DARK, TONE_SAT, silhouetteLight } from "./bake9";
 export type { BakeCv9, BakeCtx9, RasterOut9, ShapeGalleryItem } from "./bake9";
 export { isAirUnit, flapCutOf, atkCutOf, unitTilesOf, buildingYawOf, galleryYawOf, BLD_NORM, BUILD_STAGES, SCR_DIAG, scrDiagOn, deriveWorld9, createEngine9, pickWorldUi9, emptyWorldUi9 } from "./engine9";
@@ -4765,6 +4766,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
                 : { ground: true, alpha: op.alpha * SHADOW_ALPHA9 }) : undefined;
             const gR9 = sidePx * 0.707; const gCy9 = -8 * gk9;
             gl9.push({ mesh: glB9, ax: gax9, ay: gay9, k: gk9, yoff: op.mkFrac !== undefined ? 0 : -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind), over: true });
+            /* ★ 가스 연기는 메시가 아니라 **프레임마다 놓는 덩이**다(2026-09, gl9 gasPush9) — 회전 칸이 소수(엔진)라 시계가 이어진다. */
+            if (glB9.gas) gl9.gasPush9(glB9, gax9, gay9, gk9, -gk9 * glBf9.bot, -(op.rotDeg ?? 0), glBcam9, (op.spin ?? 0) / SPIN_ANIM9, op.color, op.alpha);
             if (op.attach) {
               /* ★ 딸림 부품은 **제 요잉**을 가질 수 있다(attachRot · bake9 turret 의 ★★) — 도는 머리를
                  그것으로 돌리면 각이 셰이더 유니폼이라 **메시 열쇠에 안 든다**(터렛 48벌 → 1벌).
@@ -6417,7 +6420,8 @@ export function docCellsOf9(kind: string, t: number, yaw: number): DocCell9[] {
   const out9: DocCell9[] = [];
   /** 회전 칸 — 초당 `rate` 바퀴. 지도와 **같은 칸 수**(SPIN_ANIM9)라야 '뚝뚝 끊긴다'가 안 난다
    *  (지도를 16 칸으로 올릴 때 여기를 안 올리면 도록만 절반 박자로 끊긴다). */
-  const cell9 = (rate: number): number => Math.floor(t * rate * SPIN_ANIM9) % SPIN_ANIM9;
+  /* 가스 종류는 칸을 안 접는다(소수) — 연기는 붓이 프레임마다 놓는다(bake9 gasPuffs9 의 ★★ · 엔진과 같은 문). */
+  const cell9 = (rate: number): number => GAS_KINDS9.has(kind) ? (t * rate * SPIN_ANIM9) % SPIN_ANIM9 : Math.floor(t * rate * SPIN_ANIM9) % SPIN_ANIM9;
   /** 불빛·경광등의 깜빡임 — 지도와 같은 박자(0.9초 주기의 3분의 2 동안 켜진다). */
   const blink9 = (((t % 0.9) + 0.9) % 0.9) < 0.6;
   /** 겨누는 각 — **인형이 선 쪽으로 못 박는다**(2026-09, 지적: "성큰 공격시 처음 공격방향으로
@@ -6638,6 +6642,12 @@ export function docCellBox9(kind: string, group?: string): Map<string, string | 
         const q9: [number, number, number, number] = [
           8 + (n9[0] - 8) * kk9 + Math.min(off9.x0, -off9.r), 12 + (n9[1] - 12) * kk9 + Math.min(off9.y0, -off9.r - off9.up),
           8 + (n9[0] + n9[2] - 8) * kk9 + Math.max(off9.x1, off9.r), 12 + (n9[1] + n9[3] - 12) * kk9 + Math.max(off9.y1, off9.r + off9.dn)];
+        /* ★ 가스 종류는 덩이가 오를 자리까지 아우른다(2026-09, gl9 gasPush9 의 ★★) — 연기가 메시 밖(2D 창 밖)으로 오르므로
+           안 넓히면 덩이가 칸 위로 잘리고, 한 판에 모아 굽는 도록 시트에서는 옆 칸으로 새어 든다. */
+        if (GAS_KINDS9.has(k9)) for (const [gx9, gy9, gr9] of gasTops9(k9, yaw0 + j9 * 45)) {
+          q9[0] = Math.min(q9[0], 8 + (gx9 - gr9) * kk9); q9[2] = Math.max(q9[2], 8 + (gx9 + gr9) * kk9);
+          q9[1] = Math.min(q9[1], 12 + (gy9 - gr9) * kk9);
+        }
         b9 = b9 ? [Math.min(b9[0], q9[0]), Math.min(b9[1], q9[1]), Math.max(b9[2], q9[2]), Math.max(b9[3], q9[3])] : q9;
       }
     }
@@ -15507,7 +15517,10 @@ export default function ReplayMotionPlayer({
                못 되는데, 4배 기준으로 잡으면 18px 남짓으로 눈에 든다. 4배부터는 줌이 그대로
                들어가므로 자국이 타일과 함께 커진다 — 확대할수록 원작 비율에 수렴한다. */
             // 핑과 같은 자(재요청: 복잡하지 않게) — 4배부터 배율 그대로, 타일의 0.7배(12배에서 작다는 지적으로 0.55 → 0.7).
-            const ckw = Math.max(10, ((mapRef.current?.clientWidth ?? 320) / grid.width) * Math.max(4, zoom) * 0.7);
+            /* ★ 원작 크기는 **한 타일**이다(2026-09, 지적: "마우스 마커가 너무 작거든? 인게임 크기로 해줘 반타일은 넘는 거 같은데
+               폭이") — 0.7타일에 애니메이션의 축소(1.15 → 0.75 → 0.6)가 곱해져 보이는 폭이 대개 반 타일 남짓이었다. 1타일로 두면
+               첫 컷 1.15타일에서 0.6타일로 줄어드는 동안 대부분 반 타일을 넘는다. */
+            const ckw = Math.max(10, ((mapRef.current?.clientWidth ?? 320) / grid.width) * Math.max(4, zoom) * 1.0);
             // 공격 클릭은 붉은 고리로 갈라 보인다(지적: 클릭 종류 구분).
             return (
               <span

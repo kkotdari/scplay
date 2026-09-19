@@ -7,10 +7,10 @@
    · 조명은 면 법선(뉴얼) 한 방향광 양면 — 2D 의 흑백 덧칠 면은 메시에서 뺐다(mesh9.isOverlay9).
    · 임자색 면(fill 없음)은 정점의 team 깃발로 표시하고 uTeam 으로 칠한다.
    한계(시제): 유닛만(건물·데칼·그림자·체력바는 캔버스가 그대로), 평면 시점만(pitch 면 캔버스로), 머리 요잉·불빛·회전 깃발은 0. */
-import { SHAPE_BUILDERS, SHAPE_GALLERY, poseSet9, poseNow, headYawSet, headYawNow, headAimNow, bldLitSet, bldLitNow, bldSpinRawSet9, bldSpinNow, bldBlinkSet9, stageFaces, headTag, litTag, spinTag, tone9, autoTier } from "./bake9";
+import { SHAPE_BUILDERS, SHAPE_GALLERY, poseSet9, poseNow, headYawSet, headYawNow, headAimNow, bldLitSet, bldLitNow, bldSpinRawSet9, bldSpinNow, bldBlinkSet9, stageFaces, headTag, litTag, spinTag, glSpinTag9, gasEmitTake9, gasPuffFrames9, type GasEmit9, tone9, autoTier } from "./bake9";
 import { lodFilter, PITCH_ZK9, type ShapeFace } from "../../utils/shapeOblique";
 import { collectMesh9 } from "../../utils/mesh9";
-import type { UnitDrawOp } from "./engine9";
+import { SPIN_ANIM9, type UnitDrawOp } from "./engine9";
 
 export interface GlInst9 {
   mesh: GlMesh9;
@@ -49,7 +49,9 @@ export interface GlFoot9 { w: number; cx: number; bot: number; top: number }
 /** pts: footOf 용 **겹치지 않는 꼭짓점 xyz** 만의 사본(정점 사본을 통째로 들면 메시당 270KB — 폰 메모리) · bytes: VBO 크기 · cols: 색 가짓수(진단). */
 export interface GlMesh9 { vbo: WebGLBuffer; n: number; nSolid: number; bias: number; pts: Float32Array; bytes: number; cols: number; foot: Map<string, GlFoot9>; gloss: Gloss9;
   /** **빛나는 낯이 있나** — 있으면 붓이 번짐 켜에서 이 메시를 한 번 더 그린다(없으면 건너뛴다 — 대부분의 유닛이 그렇다). */
-  emit: boolean }
+  emit: boolean;
+  /** 가스 굴뚝(bake9 GasEmit9 · 모형 자) — 있으면 붓이 프레임마다 `gasPush9` 로 덩이를 인스턴스로 놓는다(메시에는 안 굽는다). */
+  gas?: GasEmit9[] }
 
 /* 정점 36바이트(예전 float 15개 60바이트): pos3·nrm3(빌보드면 원반 가운데) float · rgb3+team1 바이트(정규화) · alpha·덧칠 흰·검·빌보드 바이트(정규화) ·
    부품 차례 float. 0~1 값은 바이트 정규화로 충분하다(색 자체가 8비트, 알파·덧칠 1/255). 폰에서 메시 표(상한 240벌)가 메모리의 큰 몫이라 줄였다. */
@@ -952,12 +954,15 @@ export class GlUnits9 {
   unitMesh(kind: string, pose: number, lod = 3): GlMesh9 | null {
     const b = SHAPE_BUILDERS[kind]; if (!b || GL_CANVAS_KINDS9.has(kind)) return null;
     if (GL_LOD9 >= 0) lod = GL_LOD9;
-    return this.meshFor(`u:${kind}:${pose}:${lod}`, () => {
+    let gas9: GasEmit9[] | null = null;   // 간헐천은 '부가' 무리라 도록이 유닛 길로 굽는다 — 굴뚝표는 여기서도 걷는다
+    const m = this.meshFor(`u:${kind}:${pose}:${lod}`, () => {
       const prevPose = poseNow;
-      poseSet9(pose); headYawSet(0);
+      poseSet9(pose); headYawSet(0); gasEmitTake9();
       // 판(rasterUnit9)과 같은 등급 걸러내기: 자동 등급표(autoTier — 부품 크기로 등급을 다시 매긴다) 뒤에 lodFilter.
-      try { return collectMesh9(b, lod >= 3 ? undefined : (f: ShapeFace[]) => lodFilter(autoTier(kind, `gl|u|${kind}|${pose}`, f), lod), GL_GLOW_KINDS9.has(kind)); } finally { poseSet9(prevPose); }
+      try { const r = collectMesh9(b, lod >= 3 ? undefined : (f: ShapeFace[]) => lodFilter(autoTier(kind, `gl|u|${kind}|${pose}`, f), lod), GL_GLOW_KINDS9.has(kind)); gas9 = gasEmitTake9(); return r; } finally { poseSet9(prevPose); }
     }, GL_GLOW_KINDS9.has(kind) ? 0 : undefined, GL_GLOW_KINDS9.has(kind));
+    if (m && gas9 && (gas9 as GasEmit9[]).length) m.gas = gas9;
+    return m;
   }
   /** 건물 메시 — 종류 · 건설 단계 · 불빛 · 회전 칸 · 포탑 각(rasterBld9 와 같은 깃발·같은 열쇠 조각). */
   bldMesh(op: UnitDrawOp, lod = 3): GlMesh9 | null {
@@ -977,7 +982,7 @@ export class GlUnits9 {
     const pH = headYawNow; const pA = headAimNow; const pL = bldLitNow; const pS = bldSpinNow; const pP = poseNow;
     set();
     try {
-      const key = `b:${op.kind}:${stg}:${headTag(op.kind)}:${litTag(op.kind)}:${spinTag(op.kind)}:${blk9}:${lod}`;
+      const key = `b:${op.kind}:${stg}:${headTag(op.kind)}:${litTag(op.kind)}:${glSpinTag9(op.kind)}:${blk9}:${lod}`;
       /* ★ **편향은 자리를 옮기는 자가 아니라 무승부를 가르는 자다**(2026-09, 지적: "배럭 건물 옆면의 띠가
          가려져야 하는데 안 가려지네") — 1.3(유닛 0.8)은 벽 한 장 두께보다 크다. 배럭 옆면 띠(bandY9)는 벽
          **표면에** 놓인 한 장인데 그만큼 앞으로 끌려 나와 **이웃 판을 넘어** 그려졌다.
@@ -987,8 +992,36 @@ export class GlUnits9 {
          곧 0.12~0.3 이 바닥이고 1.3 은 그냥 과했다. 건물 0.25 · 유닛 0.18 로 내린다(0 은 같은 평면의
          데칼이 z 싸움을 해 깜빡인다 — 그 몫만 남긴다). 건물 데칼 편향 옛 1.3(유닛 0.8) — 빌더가 줄무늬·창을 벽 **안쪽 0.5칸쯤**에 그려 두고 화가 차례로 얹기 때문에 그만큼은 꺼내야
          보이고, 더 밀면 벽 앞으로 튀어나온 부품(보급고 임자색 상자, 0.5칸)을 거꾸로 덮는다. 좁은 창의 가운데 값이다. */
-      return this.meshFor(key, () => { set(); return collectMesh9(b, (f: ShapeFace[]) => stageFaces(lod >= 3 ? f : lodFilter(autoTier(op.kind, `gl|${key}`, f), lod), stg, op.kind), GL_GLOW_KINDS9.has(op.kind)); }, GL_GLOW_KINDS9.has(op.kind) ? 0 : 0.25, GL_GLOW_KINDS9.has(op.kind));
+      /* ★ 굴뚝은 메시가 아니라 **표**로 나온다(bake9 gasPuffs9 의 ★★) — 빌더가 돌며 적은 것을 걷어 그 벌에 붙인다. */
+      let gas9: GasEmit9[] | null = null;
+      const m = this.meshFor(key, () => { set(); gasEmitTake9(); const r = collectMesh9(b, (f: ShapeFace[]) => stageFaces(lod >= 3 ? f : lodFilter(autoTier(op.kind, `gl|${key}`, f), lod), stg, op.kind), GL_GLOW_KINDS9.has(op.kind)); gas9 = gasEmitTake9(); return r; }, GL_GLOW_KINDS9.has(op.kind) ? 0 : 0.25, GL_GLOW_KINDS9.has(op.kind));
+      if (m && gas9 && (gas9 as GasEmit9[]).length) m.gas = gas9;
+      return m;
     } finally { headYawSet(pH, pA); bldLitSet(pL); bldSpinRawSet9(pS); poseSet9(pP); }
+  }
+  /** 모형 점 → 개체 원점 기준의 화면 몫(k 배 전) — footOf·정점 셰이더와 **같은 식**(요잉 → 원근 f → 카메라). */
+  static modelXY9(x: number, y: number, z: number, yawDeg: number, cam: GlCam9): [number, number] {
+    const th = (yawDeg * Math.PI) / 180; const c = Math.cos(th); const sn = Math.sin(th);
+    const rx = x * c + y * sn; const ry = -x * sn + y * c;
+    const f = 48 / (48 - Math.max(-10, Math.min(10, ry)));
+    return [(rx + ry * cam.squash * cam.shear) * f, (ry + z * cam.lean) * cam.squash - z * cam.zk];
+  }
+  /** ★★ **가스 연기는 프레임마다 인스턴스로 놓는다**(2026-09, 지적: "가스 연기가 너무 뚝뚝 끊겨 프레임 훨씬 늘려서 부드럽게") —
+   *  건물 메시에 붙은 굴뚝표(mesh.gas)를 소수 시각 u0(바퀴의 몫)으로 풀어(bake9 gasPuffFrames9 — 2D 굽기와 같은 식) 덩이마다
+   *  구 한 벌(`gaspuff`)을 제 자리·제 반지름·제 알파로 민다. 자리는 몸과 같은 원점·배수·요잉·카메라를 지나므로(modelXY9)
+   *  굴뚝 위에 앉고, 알파가 1 아래라 차례 몫(③)에서 몸 뒤에 그려지며 제 깊이 칸을 받는다(몸 바로 뒤에 밀어 몸 앞 · 뒤에 선
+   *  개체는 그 위). 칸이 없으니 프레임 수에 상한이 없다. */
+  gasPush9(mesh: GlMesh9, ax: number, ay: number, k: number, yoff: number, yawDeg: number, cam: GlCam9, u0: number, color: string, alpha: number, over = true): void {
+    const gas = mesh.gas; if (!gas || k < 1.2) return;
+    const pm = this.unitMesh("gaspuff", 0, 3); if (!pm) return;
+    const u = ((u0 % 1) + 1) % 1;
+    for (const e of gas) {
+      for (const f of gasPuffFrames9(e, u)) {
+        const [X, Y] = GlUnits9.modelXY9(f.x, f.y, f.z, yawDeg, cam);
+        const kk = k * f.rr;
+        this.push({ mesh: pm, ax: ax + k * X, ay: ay + yoff + k * Y, k: kk, yoff: 0, yawDeg: 0, color, alpha: alpha * f.a, cam, gradR: kk * 1.2, gradCy: 0, over });
+      }
+    }
   }
   /** 효과 메시 — 폭풍·핵 폭발·핵 구름(fxModelCv9 의 판 대신): 종류 · 회전 칸(spin = 무늬 씨앗). 발광 규약(glow)으로 모은다. */
   fxMesh(kind: string, spin: number): GlMesh9 | null {
@@ -1549,13 +1582,46 @@ export function glIconRequest9(req: GlIconReq9): void {
 type IconCell9 = {
   req: GlIconReq9; x: number; y: number; w: number; h: number;
   /** 이 칸에 그릴 벌들(몸 + 딸림 부품) — 각자 제 요잉과 **제 치우침**을 가진다. */
-  draws: { mesh: GlMesh9; yawDeg: number; dx?: number; dy?: number; k?: number }[];
+  draws: { mesh: GlMesh9; yawDeg: number; dx?: number; dy?: number; k?: number; alpha?: number }[];
   /** 창을 잴 벌들 — **도는 값을 0 으로 못 박은** 메시다(아래 ★). */
   boxes: GlMesh9[];
   /** 그 벌의 치우침(16-상자 자) — 창을 잴 때 함께 민다(안 밀면 표적이 창 밖으로 잘린다). */
   boxOff: [number, number][];
   /** 그 벌만의 배율(DocPart9.k) — 창도 그만큼 줄여 잰다. */ boxK: number[];
 };
+/** 도록 칸의 가스 덩이 — 지도와 같은 손(gasPush9)이다: 굴뚝표를 소수 시각(r.spin 은 가스 종류에서 소수다)으로 풀어 덩이를
+ *  제 자리·제 배율·제 알파의 겹판으로 얹고, 창은 굴뚝 꼭대기까지 아우른다(덩이가 창 위로 잘리지 않게). */
+function gasDraws9(it: IconCell9, body: GlMesh9): void {
+  const g = iconGl9; const r = it.req;
+  if (!g || !body.gas) return;
+  const pm = g.unitMesh("gaspuff", 0, 3); if (!pm) return;
+  const u = (((r.spin % SPIN_ANIM9) + SPIN_ANIM9) % SPIN_ANIM9) / SPIN_ANIM9;
+  for (const e of body.gas) {
+    for (const f of gasPuffFrames9(e, u)) {
+      const [X, Y] = GlUnits9.modelXY9(f.x, f.y, f.z, -r.rotDeg, CAM_TOP9);
+      it.draws.push({ mesh: pm, yawDeg: 0, dx: X, dy: Y, k: f.rr, alpha: f.a });
+    }
+    const [tX, tY] = GlUnits9.modelXY9(e.x, e.y, e.z + e.h, -r.rotDeg, CAM_TOP9);
+    it.boxes.push(pm); it.boxOff.push([tX, tY]); it.boxK.push(e.r * 1.9);
+  }
+}
+/** 종류의 굴뚝표(GL 없이) — 도록의 창(docCellBox9)이 덩이가 오를 자리까지 아우르는 데 쓴다. 한 번 굽고 기억한다. */
+const GAS_OF9 = new Map<string, GasEmit9[]>();
+export function gasEmitsOf9(kind: string): GasEmit9[] {
+  const got = GAS_OF9.get(kind); if (got) return got;
+  const b = SHAPE_BUILDERS[kind];
+  let out: GasEmit9[] = [];
+  if (b) {
+    const pS = bldSpinNow; const pP = poseNow;
+    try { bldSpinRawSet9(0); poseSet9(0); gasEmitTake9(); collectMesh9(b); out = gasEmitTake9(); } catch { out = []; } finally { bldSpinRawSet9(pS); poseSet9(pP); }
+  }
+  GAS_OF9.set(kind, out);
+  return out;
+}
+/** 굴뚝 꼭대기(덩이가 가장 높이 닿는 자리)의 16-상자 치우침 — 요잉 rotDeg 에서 [X, Y] 와 덩이 반지름(끝 크기). */
+export function gasTops9(kind: string, rotDeg: number): [number, number, number][] {
+  return gasEmitsOf9(kind).map((e) => { const [X, Y] = GlUnits9.modelXY9(e.x, e.y, e.z + e.h, -rotDeg, CAM_TOP9); return [X, Y, e.r * 1.9]; });
+}
 function glIconFlush9(): void {
   const g = iconGl9; if (!g) return;
   const q = ICON_Q9.splice(0);
@@ -1563,11 +1629,16 @@ function glIconFlush9(): void {
   const passes: { items: IconCell9[]; w: number; h: number }[] = [];
   let items: IconCell9[] = []; let px = 0; let py = 0; let rowH = 0; let W = 0;
   const close = (): void => { if (items.length) passes.push({ items, w: W, h: py + rowH }); items = []; px = 0; py = 0; rowH = 0; W = 0; };
+  /* ★★ **칸 사이에 틈을 둔다**(2026-09, 지적: "주변의 라이트(넥서스 보석) 효과가 다른 곳에 영향을 주고 있는 거 같아") —
+     한 판에 칸을 붙여 놓으면 이웃 칸의 **번짐**(켠 창·보석의 블룸 — 1/4 판에서 반지름 BR9 텍셀 = 화면 40px 남짓)과 칸 밖으로
+     삐져나온 겹판(굴뚝 위로 오른 가스 덩이)이 옆·위 칸의 자리로 새어 들어, 그 칸을 찍을 때 **남의 빛이 얼룩**으로 실린다
+     (도록 시트의 리파이너리 칸 아래에 선 초록 반원이 그것이다). 번짐 반지름보다 넓게 띄운다. */
+  const GAP9 = 64;
   for (const r of q) {
     const w = Math.min(ICON_SIDE9, Math.max(1, Math.round(r.w))); const h = Math.min(ICON_SIDE9, Math.max(1, Math.round(r.h)));
     if (px + w > ICON_SIDE9) { px = 0; py += rowH; rowH = 0; }
     if (py + h > ICON_SIDE9) close();
-    items.push({ req: r, x: px, y: py, w, h, draws: [], boxes: [], boxOff: [], boxK: [] }); px += w; rowH = Math.max(rowH, h); W = Math.max(W, px);
+    items.push({ req: r, x: px, y: py, w, h, draws: [], boxes: [], boxOff: [], boxK: [] }); px += w + GAP9; rowH = Math.max(rowH, h + GAP9); W = Math.max(W, px);
   }
   close();
   const cell = document.createElement("canvas"); const cc = cell.getContext("2d");
@@ -1598,11 +1669,15 @@ function glIconFlush9(): void {
              재면 칸마다 상자가 움직여 건물이 통째로 들썩인다). 딸림 부품까지 아울러 잰다. */
           const bBody = (r.spin || r.headDeg !== undefined)
             ? g.bldMesh({ ...op, spin: 0, headDeg: undefined }, 3) : body;
-          if (bBody) { it.boxes.push(bBody); it.boxOff.push([0, 0]); }
+          // ⚠ boxK 도 함께 민다 — 셋(boxes·boxOff·boxK)은 같은 번호로 읽히므로 하나만 빠지면 뒤 겹판의 배율이 몸에 걸린다.
+          if (bBody) { it.boxes.push(bBody); it.boxOff.push([0, 0]); it.boxK.push(1); }
           if (r.attach) {
             const bHead = g.bldMesh({ ...op, kind: r.attach, spin: 0, headDeg: undefined }, 3);
-            if (bHead) { it.boxes.push(bHead); it.boxOff.push([0, 0]); }
+            if (bHead) { it.boxes.push(bHead); it.boxOff.push([0, 0]); it.boxK.push(1); }
           }
+          /* ★ 가스 연기 — 지도와 같은 손(gasPush9)이다: 굴뚝표를 소수 시각(r.spin 은 가스 종류에서 소수다)으로 풀어 덩이를
+             제 자리·제 배율·제 알파의 겹판으로 얹는다. 창은 굴뚝 꼭대기까지 아우른다(덩이가 창 위로 잘리지 않게). */
+          if (body) gasDraws9(it, body);
           /* ★ 건물 칸에도 겹판이 선다(2026-09 — 성큰·터렛 공격 칸의 표적 인형). 유닛 메시로 제 자리·제 배율에 얹는다. */
           for (const pt of r.parts ?? []) {
             const pm = g.unitMesh(pt.kind, pt.pose ?? 0, 3);
@@ -1613,7 +1688,7 @@ function glIconFlush9(): void {
           }
         } else {
           const m = g.unitMesh(r.kind, r.pose, 3);
-          if (m) { it.draws.push({ mesh: m, yawDeg: -r.rotDeg }); it.boxes.push(m); it.boxOff.push([0, 0]); }
+          if (m) { it.draws.push({ mesh: m, yawDeg: -r.rotDeg }); it.boxes.push(m); it.boxOff.push([0, 0]); it.boxK.push(1); gasDraws9(it, m); }
           /* 겹치는 판들 — 지도가 한 개체를 여러 판으로 그리는 그대로다(위 parts 의 ★★). */
           for (const pt of r.parts ?? []) {
             const pm = g.unitMesh(pt.kind, pt.pose ?? 0, 3);
@@ -1646,7 +1721,7 @@ function glIconFlush9(): void {
       const ax = it.x + it.w / 2 - k * (box[0] + box[2] / 2 - 8);
       const ay = it.y + it.h / 2 - k * (box[1] + box[3] / 2 - 12);
       for (const d of it.draws) {
-        g.push({ mesh: d.mesh, ax: ax + k * (d.dx ?? 0), ay: ay + k * (d.dy ?? 0), k: k * (d.k ?? 1), yoff: 0, yawDeg: d.yawDeg, color: r.color, alpha: 1, cam: CAM_TOP9, gradR: k * 11.31, gradCy: 0, flat: GL_GLOW_KINDS9.has(r.kind) });
+        g.push({ mesh: d.mesh, ax: ax + k * (d.dx ?? 0), ay: ay + k * (d.dy ?? 0), k: k * (d.k ?? 1), yoff: 0, yawDeg: d.yawDeg, color: r.color, alpha: d.alpha ?? 1, cam: CAM_TOP9, gradR: k * 11.31, gradCy: 0, flat: GL_GLOW_KINDS9.has(r.kind) });
       }
     }
     g.flush(p.w, p.h, p.w, p.h);
