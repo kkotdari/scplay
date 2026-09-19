@@ -576,9 +576,9 @@ export function atkCutOf(
      원작도 그렇지 않고, 무엇보다 그것은 사격이 아니라 준비 동작이다. 쿨다운 앞 18%만
      뒤로 밀린 컷(POSE_ATK_R)이고 나머지는 겨눈 자세(2)다 — 총은 내내 앞을 본다.
      ★ 꺼내는 컷(POSE_ATK_L 반쯤 든 자세)은 이제 **도록의 액션 칸**이 맡는다(DOC_ACT_POSE9).
-     ⚠ 그래서 지도에서 등에 멘 자세 → 겨눔은 교전에 들어설 때 **한 번** 튄다. 쏠 때마다
-       튀던 것을 교전마다 한 번으로 줄인 것이고, 그 한 번을 매끄럽게 하려면 '방금 교전에
-       들어섰나'를 엔진이 알아야 하는데 지금 그 상태가 없다. */
+     ★ 지도에서는 교전에 **들어서는 순간**에만 그 컷이 한 마디 선다(2026-09, 요청: "고스트 총
+       꺼내기 부드럽게") — 이 함수는 위상만 알므로 그 마디는 부르는 쪽이 `drawAge9`(교전에 든 지
+       얼마나 됐나)로 앞에 세우고, 떠날 때는 `holsterAge9` 로 같은 컷을 한 마디 더 둔다. */
   if (kindMain === "ghost") return ph < 0.18 ? POSE_ATK_R : 2;
   /* 메딕(kind "inf") — 치료는 한 발씩 쏘는 것이 아니라 **붙어 있는 동안 죽 흐른다**.
      아래 기본 갈래(쿨다운의 35%만 컷 2)를 그대로 태우면 팔이 펌프질하듯 떨렸다 —
@@ -593,6 +593,32 @@ export function atkCutOf(
   }
   if (ph < 0.35) return 2;
   return flapHz ? flapCutOf(flapHz, t) : 0;
+}
+/** ★ **고스트가 총을 꺼내고 넣는 한 마디**(2026-09, 요청: "고스트 총 꺼내기 부드럽게") — 교전에
+ *  들어서는 순간 등에 멘 총(0)이 겨눔(2)으로 **한 프레임에** 튀었다(공격 컷이 '겨눈 채 반동'뿐이라).
+ *  반쯤 든 컷(POSE_ATK_L)을 앞뒤로 한 마디씩 세운다: 든 지 `GHOST_DRAW_SEC9` 안이면 꺼내는 중,
+ *  교전을 떠난 지 그 안이면 넣는 중이다. 도록의 액션 칸(DOC_ACT_POSE9 · 컷당 0.45초)은 보여 주는
+ *  자리라 더 길고, 지도는 첫 발 앞의 한 마디라 짧다.
+ *  ⚠ 자세는 메시 열쇠(u:종류:자세)라 컷을 더 잘게 못 나눈다 — 고스트는 자세 여섯 칸을 다 쓴다. */
+export const GHOST_DRAW_SEC9 = 0.24;
+export interface DrawMem9 { t0: number; tLast: number }
+/** 이 프레임의 간격 상한 — 워커는 무거우면 초당 8장까지 벌리므로(0.125초) 그보다 넉넉히 둔다. */
+const DRAW_GAP_SEC9 = 0.2;
+/** 교전(공격 컷 갈래)에 든 지 얼마나 됐나 — 갈래를 지난 프레임을 기억해 **이어진 구간**의 시작을 낸다.
+ *  한 프레임 넘게 안 지났거나(걸었거나 표적을 잃었다) 시각이 뒤로 갔으면(탐색) 새 교전이다. */
+export function drawAge9(mem: Map<string, DrawMem9>, key: string, t: number): number {
+  let m = mem.get(key);
+  if (!m || t < m.tLast || t - m.tLast > DRAW_GAP_SEC9) { m = { t0: t, tLast: t }; mem.set(key, m); }
+  else m.tLast = t;
+  return t - m.t0;
+}
+/** 교전을 떠난 지 얼마나 됐나(총을 넣는 창) — 기억이 없거나 시각이 뒤로 갔으면 −1. 창을 지나면 기억을 지운다. */
+export function holsterAge9(mem: Map<string, DrawMem9>, key: string, t: number): number {
+  const m = mem.get(key);
+  if (!m || t < m.tLast) return -1;
+  const a = t - m.tLast;
+  if (a >= GHOST_DRAW_SEC9) { mem.delete(key); return -1; }
+  return a;
 }
 /** 꼴 번호 → 도형 이름 꼬리(①은 이름이 그냥 mineral이라 빈 글자다). */
 export const MIN_VARIANT_TAG = ["", "b", "c"] as const;
@@ -4036,6 +4062,8 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
   const dispHdgRef = { current: new Map<string, { x: number; y: number; h: number; t: number }>() };
   /** 포탑이 **마지막으로 겨눈 각**(요청: "포탑은 마지막 공격한 방향 유지") — 표적이 사라져도 그 각을 지킨다. */
   const aimMemRef = { current: new Map<string, number>() };
+  /** 고스트가 총을 꺼내고 넣는 마디의 기억(drawAge9·holsterAge9) — 열쇠는 holdKey. */
+  const drawMemRef = { current: new Map<string, DrawMem9>() };
   const fogStampRef = { current: { key: "", at: -1e9, ms: -1e9, cost: 0, filled: false } };
   /** 안개를 다시 쌓은 횟수(진단) */
   let fogStampN9 = 0;
@@ -4161,7 +4189,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
   };
   const reset = (): void => {
     fireStartRef.current.clear(); aimLockRef.current.clear(); burrowAtRef.current.clear(); gasLitRef.current.clear();
-    engageHoldRef.current.clear(); hdgMemRef.current.clear(); dispHdgRef.current.clear(); aimMemRef.current.clear();
+    engageHoldRef.current.clear(); hdgMemRef.current.clear(); dispHdgRef.current.clear(); aimMemRef.current.clear(); drawMemRef.current.clear();
     fogStampRef.current = { key: "", at: -1e9, ms: -1e9, cost: 0, filled: false }; lastTRef.current = -1;
   };
   const setView = (v: EngineView9): void => { view = v; };
@@ -8351,6 +8379,8 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
              적이 있으면(fighting) 쿨다운의 65% 동안 기본 자세를 돌려줘 날개가
              통째로 멈췄다. 나는 몸에게 기본 자세는 쉬는 것이 아니라 떨어지는
              것이다. 그 처방이 공용 문 안에 들어가 있다(flapHz 인자). */
+          /* 고스트는 교전에 든 첫 마디에 **반쯤 든 컷**으로 총을 꺼낸다(GHOST_DRAW_SEC9 의 ★). */
+          if (kindMain === "ghost" && drawAge9(drawMemRef.current, holdKey, t) < GHOST_DRAW_SEC9) return POSE_ATK_L;
           return atkCutOf(kindMain, ph0, pk9.flap, t);
         }
         /* 날갯짓은 **자취가 멈춰 있어도** 돈다(요청) — 공중에 뜬 몸은 늘
@@ -8365,6 +8395,8 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
              나가는 발이 늘 한쪽이 된다(위 POSE_WALK_B 주석). */
           return Math.floor(t * cad9) % 2 === 1 ? 3 : 1;
         }
+        /* 고스트는 교전을 떠난 첫 마디에 같은 컷으로 총을 **넣는다** — 겨눔에서 등으로 한 프레임에 안 튄다. */
+        if (kindMain === "ghost" && holsterAge9(drawMemRef.current, holdKey, t) >= 0) return POSE_ATK_L;
         return 0;
       })(),
       /* 태울 땐 떠오르며 사라지고, 내릴 땐 그 반대로 내려오며 드러난다(요청)
