@@ -2976,7 +2976,9 @@ export function paintFxList9(
     }
     const ax = zx(f.fx);
     const ay = zy(f.fy) - f.lift * zoom;
-    if (ax < -60 || ax > cw + 60 || ay < -60 || ay > ch + 60) continue;
+    // 여유는 효과의 크기까지 — 폭풍·핵처럼 큰 것은 가운데가 밖이어도 절반이 화면에 든다(위 몸의 ★와 같은 자리).
+    const fxm9 = 60 + ((f.size ?? 0) + (f.len ?? 0)) * zoom;
+    if (ax < -fxm9 || ax > cw + fxm9 || ay < -fxm9 || ay > ch + fxm9) continue;
     const p9 = Math.max(0, Math.min(1, f.ph ?? 0));
     if (f.kind === "burst") {
       drawBurst9(ctx, f, ax, ay, zoom, p9, tz9);
@@ -4498,8 +4500,12 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         /* 발이 닿는 세로 자리 — 지면선이 있으면 그것을 쓴다(그림자와 같은 지면 사상). */
         const groundY = op.baseFy !== undefined ? zy(op.baseFy) : undefined;
         // 화면 밖은 걸러낸다 — 깊은 줌에서 그리기가 오히려 줄어드는 이유.
+        /* ★ **조금이라도 든 몸은 그린다**(2026-09, 지적: "화면에 조금이라도 들어온 모델은 그려야 하는데 안 그리는 거 같아") —
+           여태 자는 발자국(또는 sizePx) 한 벌 + 24px 였는데, 몸은 발자국 위로 그 폭만큼 더 솟고(넥서스·스타포트) 나는 몸은
+           뜬 높이만큼 위에 있어, 앵커가 가장자리 밖으로 그만큼 나가면 보이는 윗몸까지 통째로 빠졌다. 두 배 + 뜬 몫 + 64px.
+           워커가 이미 시야 밖을 걸러 주므로 여기서 더 넉넉해도 값이 거의 없다. */
         const ext = (op.wFrac !== undefined
-          ? Math.max(op.wFrac, op.hFrac ?? 0) * cw : op.sizePx) * zoom + 24;
+          ? Math.max(op.wFrac, op.hFrac ?? 0) * cw : op.sizePx) * zoom * 2 + (op.airPx !== undefined ? op.airPx * zoom : 0) + 64;
         if (sx < -ext || sx > cw + ext || sy < -ext || sy > ch + ext) continue;
         /* ── 저배율 마커(요청) — save() 앞에서 갈라져 op마다의 save/restore·그림자·판
            조회를 통째로 건너뛴다. 상태는 alpha·fillStyle만 만지므로 저장이 필요 없다. */
@@ -5262,7 +5268,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           if (trim9 >= 2 && TRIM2_SKIP9.has(f.style ?? "")) continue;
           const ax = zx(f.fx);
           const ay = zy(f.fy) - f.lift * zoom;
-          if (ax < -60 || ax > cw + 60 || ay < -60 || ay > ch + 60) continue;
+          const fxm9 = 60 + (f.size ?? 0) * zoom * 2;   // 폭풍·핵 구름은 크다 — 가운데가 밖이어도 몸이 든다
+          if (ax < -fxm9 || ax > cw + fxm9 || ay < -fxm9 || ay > ch + fxm9) continue;
           glFxPush9(gl9, f, ax, ay, zoom);
         }
       }
@@ -12079,8 +12086,11 @@ export default function ReplayMotionPlayer({
     }
     // 여유 — PC는 앞뒤 한 화면씩(3×3), 폰은 반 화면씩(2×2): 설계도 한 장의 op 수·메모리가 그만큼 준다.
     const mk9 = DEV9.cullMargin;
-    const mx9 = (visRect9.x1 - visRect9.x0) * mk9;
-    const my9 = (visRect9.y1 - visRect9.y0) * mk9;
+    /* ★ 여유는 화면의 몫이되 **여덟 타일 아래로는 안 내려간다**(2026-09, 지적: "화면에 조금이라도 들어온 모델은 그려야") —
+       폰은 반 화면(0.5)이라 고배율(16배)에서 넉 타일 건물 한 채보다 좁아, 앵커가 그 밖에 선 건물은 몸 절반이 화면에 들어도
+       워커가 통째로 걸렀다. 큰 건물(4×3)·뜬 공중 유닛(2.3타일)을 다 덮는 값이다. */
+    const mx9 = Math.max((visRect9.x1 - visRect9.x0) * mk9, 8 / Math.max(1, grid.width));
+    const my9 = Math.max((visRect9.y1 - visRect9.y0) * mk9, 8 / Math.max(1, grid.height));
     const r9 = {
       x0: Math.max(-0.05, visRect9.x0 - mx9), x1: Math.min(1.05, visRect9.x1 + mx9),
       y0: Math.max(-0.05, visRect9.y0 - my9), y1: Math.min(1.05, visRect9.y1 + my9),

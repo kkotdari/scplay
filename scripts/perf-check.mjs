@@ -522,7 +522,9 @@ await page.route("http://perf-check.local/*", (r) => r.fulfill({
    옛 측정(번짐 켜도 p50 같음)은 화면에 빛나는 개체가 **없어**(stat.bloom 0) 그 길을 안 지난 것이었고, 늘 켜진 빛
    (파일런 보석·캐리어 창·부속 활성)이 EMIT_FILL9 에 든 뒤로는 매 장 지난다(stat.bloom 12). 실기 GPU 에서 FBO 바인드는
    공짜라 이 3초는 헤드리스만의 값이다 — 재면 늘 헤드리스의 그 값이 되므로 뺀다. */
-const hash9 = [has("--diag") ? "diag" : "", has("--crowd") ? `crowd=${flag("--crowd", 2)}` : "", String(flag("--hash", "") || ""), has("--glblit") ? "" : "glblit=0", has("--bloom") || /glbloom=/.test(String(flag("--hash", "") || "")) ? "" : "glbloom=0"].filter(Boolean).join(",");
+/* ★ MRT 판(gl9 mrtEnsure)도 기본으로 뺀다(`glmrt=0` · `--mrt` 로 도로 켬)(2026-09) — SwiftShader 는 FBO 에 그리고 캔버스로 옮기는
+   값이 커서(실측 p50 50 → 67ms · p95 1.5초 튐) 실기에 없는 몫이 계측을 덮는다. 번짐을 뺀 것과 같은 까닭이다. */
+const hash9 = [has("--diag") ? "diag" : "", has("--crowd") ? `crowd=${flag("--crowd", 2)}` : "", String(flag("--hash", "") || ""), has("--glblit") ? "" : "glblit=0", has("--bloom") || /glbloom=/.test(String(flag("--hash", "") || "")) ? "" : "glbloom=0", has("--mrt") || /glmrt=/.test(String(flag("--hash", "") || "")) ? "" : "glmrt=0"].filter(Boolean).join(",");
 await page.goto(`http://perf-check.local/${hash9 ? `#${hash9}` : ""}`);
 /* 앱 CSS — 레이어 크기·자리·이펙트가 전부 클래스에 실려 있어 없으면 화면이 안 선다.
    빌드 산출물(dist)의 CSS를 그대로 얹는다(npm run build가 먼저 돌아 있어야 한다). */

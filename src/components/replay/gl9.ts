@@ -120,6 +120,8 @@ varying vec4 vGl;
  *  누운 낯은 모형 y) · **z 이 낯이 결을 받는 재질인가**(0~1). 앞 둘은 자리의 **1차 함수**라 삼각형 안에서
  *  보간이 정확하고, 셋을 한 벡터에 담아 varying 자리를 하나만 쓴다. */
 varying vec4 vGr;
+/** ★ 빛 판(MRT)용 — **빛 전의 제 색**(rgb)과 빛 표식(a). WebGL2 는 본 패스가 색과 함께 이 판을 낸다(아래 FS 의 __EMIT__). */
+varying vec4 vEm;
 void main() {
   /* aBb 한 칸에 표식 셋이 비트로 들었다: **1 빛**(번짐이 문다) · **2 닫힌 입체**(등진 낯을 걷는다) · **4 빌보드 원반**(카메라를 본다). */
   float bits = floor(aBb * 255.0 + 0.5);
@@ -224,6 +226,8 @@ void main() {
      겹치면 빛 쪽이 두 번 밝아진다. */
   col *= mix(0.82 + 0.26 * nd, 1.0, uFlat);
   col = mix(col, uSolid.rgb, uSolid.a);   // 단색 판 — 덧칠·실루엣 빛·방향광을 다 걷고 그 색 하나
+  /* 빛 판의 색은 옛 번짐 패스가 uFlat=1 로 그리던 그 색(음영 없는 제 색)이다 — 그림자·단색 판은 빛이 아니다. */
+  vEm = vec4(mix(base, uSolid.rgb, uSolid.a), emit * (1.0 - uShadow.z) * (1.0 - step(0.001, uShade.a)));
   /* ★★ **더하는 빛은 바탕 밝기를 탄다**(2026-09, 지적: "같은 모델인데 저렇게 다를 이유가 없어 보이고
      특히 탱크 모드 캐터필러 색이 검지 않아서 수상해") — 테두리 빛은 **절대값**이라 어두운 바탕에서는
      그 몫이 곧 배수였다: 궤도 레일판(#4b5158 · 휘도 0.30)에 0.10 을 더하면 **+33%** 다. 게다가 rim 은
@@ -358,7 +362,7 @@ void main() {
 }`;
 const FS = `
 precision mediump float;
-varying vec4 vCol; varying vec4 vSpec; varying vec4 vGl; varying vec4 vGr; varying vec4 vGa; varying float vG0;
+varying vec4 vCol; varying vec4 vSpec; varying vec4 vGl; varying vec4 vGr; varying vec4 vGa; varying float vG0; varying vec4 vEm;
 /* (걷어냄) uGrain·uGrainA — 개체마다 유니폼을 놓던 자다. 이제 인스턴스 속성에서 정점이 내어 varying 으로 온다
    (vGr.w 켬 · vG0·vGa 옥타브 몫 — 개체 안에서는 상수라 보간해도 그대로다). */
 uniform vec3 uSpecTint;   // 센 자리의 색(찬 강철빛) — 약한 자리는 vSpec.rgb(제 색 물듦)다
@@ -455,6 +459,7 @@ void main() {
       + vec3(w * 2.2 * max(scr, 0.0) * lit);
   }
   gl_FragColor = vec4(c * vCol.a, vCol.a);   // 미리곱한 알파 — WebGL 캔버스(premultipliedAlpha)와 합성이 맞아야 반투명(빛무리)이 안 어두워진다
+  //__EMIT__
 }`;
 
 const hexRgb = (s: string): [number, number, number] => {
@@ -652,8 +657,17 @@ void main() { vUv = aXY * 0.5 + 0.5; gl_Position = vec4(aXY, 0.0, 1.0); }`;
 const FX_FS = `
 precision mediump float;
 uniform sampler2D uTex; uniform vec2 uStep; uniform float uStr;
+/** 모드 — 0 흐리기/베끼기 · 1 **네 배 내려 찍기**(온 크기 빛 판 → 1/4 판: 2×2 선형 넷 = 4×4 상자) ·
+ *  −1 **화면에 더하기(MRT)**: 빛 판의 알파는 가린 몸의 알파가 쌓인 값이라 못 쓴다 — 알파를 밝기(max rgb)로 낸다. */
+uniform float uDown;
 varying vec2 vUv;
 void main() {
+  if (uDown > 0.5) {
+    vec4 d = texture2D(uTex, vUv + vec2(-1.0, -1.0) * uStep) + texture2D(uTex, vUv + vec2(1.0, -1.0) * uStep)
+      + texture2D(uTex, vUv + vec2(-1.0, 1.0) * uStep) + texture2D(uTex, vUv + vec2(1.0, 1.0) * uStep);
+    gl_FragColor = d * 0.25; return;
+  }
+  if (uDown < -0.5) { vec4 t = texture2D(uTex, vUv); gl_FragColor = vec4(t.rgb, max(max(t.r, t.g), t.b)) * uStr; return; }
   // 걸음이 0 이면 **한 번만** 읽는다(화면에 더하는 마지막 켜) — 전체 화면 켜에서 다섯 번 읽을 까닭이 없다.
   if (uStep.x == 0.0 && uStep.y == 0.0) { gl_FragColor = texture2D(uTex, vUv) * uStr; return; }
   /* 다섯 번 읽어 아홉 칸 가우시안을 흉내 낸다(선형 보간이 두 칸을 한 번에 읽는다 — 흔한 수법). */
@@ -702,11 +716,17 @@ export class GlUnits9 {
   /** meshMax: 메시 상한(기기 표 DEV9.glMeshMax — PC 600 · 폰 240; 메시 한 벌은 VBO + footOf 용 정점 사본이라 폰 메모리에 든다). */
   /* ⚠ meshMax·bloomOn 은 **읽기 전용이 아니다**(2026-09, 폰 세 단) — 벤치 단이 유휴 재기로 오르면 기기 표(DEV9)의
      값이 바뀌므로, glUnits9 가 다음 칠하기에서 그 벌에 새 값을 일러 준다. */
-  constructor(readonly canvas: HTMLCanvasElement, public meshMax = MESH_MAX9, public bloomOn = true, public specOn = true) {
+  /** MRT 판(mrtEnsure)을 쓸 수 있는 문맥인가 — 도록 아이콘 문맥(4096² 판)은 MSAA 판이 수백 MB 라 끈다(캔버스 AA 로). */
+  private readonly mrtOk: boolean;
+  constructor(readonly canvas: HTMLCanvasElement, public meshMax = MESH_MAX9, public bloomOn = true, public specOn = true, mrtOk = true) {
+    this.mrtOk = mrtOk;
     const opts9 = { alpha: true, premultipliedAlpha: true, antialias: true, depth: true, stencil: true };   // 스텐실은 다크 스웜 마스크(swarmPlate)의 자다   // 미리곱한 알파 — 셰이더 출력·합성 함수(ONE, 1−a)와 한 벌
+    /* ★ WebGL2 는 캔버스의 AA 를 **끈다** — 본 패스를 우리 MSAA FBO(색 + 빛 판, 아래 mrtEnsure)에 그리고 화면으로 옮기므로(blit)
+       AA 는 그 FBO 가 낸다. 캔버스까지 MSAA 면 MSAA → MSAA 옮기기가 막힌다(같은 표본 수·크기라야 한다). */
+    const opts2 = { ...opts9, antialias: !(mrtOk && GL_MRT9 !== 0) };
     /* ★ **WebGL 2 를 먼저 연다**(2026-09, 요청: "gl2로") — 셰이더는 GLSL ES 1.00 그대로라 두 문맥이 한 벌을 쓴다. 2 에서 버는
        것은 인스턴싱(핵심 기능)이고, 1 로 떨어지면 ANGLE 확장으로 같은 길을 간다. `#gl2=0` 은 견줌용이다. */
-    let gl0: WebGLRenderingContext | WebGL2RenderingContext | null = GL_GL2_9 ? (canvas.getContext("webgl2", opts9) as WebGL2RenderingContext | null) : null;
+    let gl0: WebGLRenderingContext | WebGL2RenderingContext | null = GL_GL2_9 ? (canvas.getContext("webgl2", opts2) as WebGL2RenderingContext | null) : null;
     const gl2 = !!gl0;
     if (!gl0) gl0 = canvas.getContext("webgl", opts9) as WebGLRenderingContext | null;
     if (!gl0) throw new Error("webgl 없음");
@@ -731,8 +751,21 @@ export class GlUnits9 {
     this.instOn = instOn;
     if ((Number(gl.getParameter(gl.MAX_VERTEX_ATTRIBS)) || 0) < 14) throw new Error("정점 속성 14 미만");
     this.instVbo = gl.createBuffer()!;
+    /* ★★ **WebGL2 에서는 GLSL ES 3.00 으로 올린다**(2026-09, 다음 손 3 — MRT 번짐) — 두 출력(색 · 빛 판)은 ES 1.00 의
+       gl_FragColor 로는 못 낸다. 한 벌의 원본(ES 1.00)을 글자로 바꿔 올린다: attribute/varying → in/out · texture2D → texture ·
+       gl_FragColor → fragColor(위치 0) + emitColor(위치 1). `//__EMIT__` 자리가 빛 판 한 줄이다(ES 1.00 에는 그 줄이 없다). */
+    const es3 = (src: string, frag: boolean): string => {
+      if (!this.gl2) return src;
+      let t = src.replace(/^\s*\n/, "");
+      if (frag) {
+        t = t.replace(/\bvarying\b/g, "in").replace(/\btexture2D\s*\(/g, "texture(").replace(/\bgl_FragColor\b/g, "fragColor");
+        t = t.replace("precision mediump float;", "precision mediump float;\nlayout(location = 0) out vec4 fragColor; layout(location = 1) out vec4 emitColor;");
+        t = t.replace("//__EMIT__", "emitColor = vec4(vEm.rgb * vCol.a * vEm.a, vCol.a);");
+      } else t = t.replace(/\battribute\b/g, "in").replace(/\bvarying\b/g, "out");
+      return "#version 300 es\n" + t;
+    };
     const sh = (type: number, src: string): WebGLShader => {
-      const s = gl.createShader(type)!; gl.shaderSource(s, src); gl.compileShader(s);
+      const s = gl.createShader(type)!; gl.shaderSource(s, es3(src, type === gl.FRAGMENT_SHADER)); gl.compileShader(s);
       if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error("셰이더: " + gl.getShaderInfoLog(s));
       return s;
     };
@@ -754,9 +787,68 @@ export class GlUnits9 {
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
       this.fx = {
         prog: q, aXY: gl.getAttribLocation(q, "aXY"), vbo,
-        loc: { uTex: gl.getUniformLocation(q, "uTex"), uStep: gl.getUniformLocation(q, "uStep"), uStr: gl.getUniformLocation(q, "uStr") },
+        loc: { uTex: gl.getUniformLocation(q, "uTex"), uStep: gl.getUniformLocation(q, "uStep"), uStr: gl.getUniformLocation(q, "uStr"), uDown: gl.getUniformLocation(q, "uDown") },
       };
     } catch { this.fx = null; this.blFail = true; }
+  }
+  /** ★★ **본 패스의 판(MRT)** — WebGL2 에서 몸을 그리는 곳은 캔버스가 아니라 이 MSAA FBO 다: 색(0)과 **빛 판**(1)을 한 번에 낸다.
+   *  옛 번짐은 '빛 상자 합집합 안의 몸을 1/4 깊이 판에 한 번 더 그리고 빛 낯을 또 그리는' **둘째 기하 패스**였다(늘 켜진 보석·창이
+   *  흩어져 있으면 매 장 화면 전체를 두 번). 이제 빛 판은 본 패스가 **공짜로** 남기고(가린 몸이 그 자리를 0 으로 덮으므로 앞뒤가
+   *  본 깊이 그대로다), 번짐은 그 판을 1/4 로 내려 흐려 더할 뿐이다. 색은 blitFramebuffer 로 캔버스에 옮긴다(캔버스는 AA 없음). */
+  private mrt: { fb: WebGLFramebuffer; cb0: WebGLRenderbuffer; cb1: WebGLRenderbuffer | null; db: WebGLRenderbuffer; emTex: WebGLTexture | null; emFb: WebGLFramebuffer | null; w: number; h: number; em: boolean } | null = null;
+  private mrtFail = false;
+  private mrtEnsure(w: number, h: number, em: boolean): boolean {
+    if (!this.gl2 || !this.mrtOk || this.mrtFail || GL_MRT9 === 0) return false;
+    const m = this.mrt;
+    if (m && m.w === w && m.h === h && m.em === em) return true;
+    const gl = this.gl as WebGL2RenderingContext;
+    const drop = (): void => {
+      if (!this.mrt) return;
+      const o = this.mrt;
+      gl.deleteFramebuffer(o.fb); gl.deleteRenderbuffer(o.cb0); gl.deleteRenderbuffer(o.db);
+      if (o.cb1) gl.deleteRenderbuffer(o.cb1); if (o.emTex) gl.deleteTexture(o.emTex); if (o.emFb) gl.deleteFramebuffer(o.emFb);
+      this.mrt = null;
+    };
+    drop();
+    try {
+      const samples = Math.min(4, Number(gl.getParameter(gl.MAX_SAMPLES)) || 0);
+      const rb = (fmt: number): WebGLRenderbuffer => {
+        const r = gl.createRenderbuffer()!; gl.bindRenderbuffer(gl.RENDERBUFFER, r);
+        if (samples > 0) gl.renderbufferStorageMultisample(gl.RENDERBUFFER, samples, fmt, w, h); else gl.renderbufferStorage(gl.RENDERBUFFER, fmt, w, h);
+        return r;
+      };
+      const fb = gl.createFramebuffer()!;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+      const cb0 = rb(gl.RGBA8); gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, cb0);
+      const db = rb(gl.DEPTH_COMPONENT24); gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, db);
+      let cb1: WebGLRenderbuffer | null = null; let emTex: WebGLTexture | null = null; let emFb: WebGLFramebuffer | null = null;
+      if (em) {
+        cb1 = rb(gl.RGBA8); gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.RENDERBUFFER, cb1);
+      }
+      gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+      if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) throw new Error("MRT FBO");
+      if (em) {
+        // 빛 판을 옮겨 받을 홑 표본 텍스처(온 크기) — 흐리기가 여기서 읽는다.
+        emTex = gl.createTexture()!;
+        gl.bindTexture(gl.TEXTURE_2D, emTex);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        emFb = gl.createFramebuffer()!;
+        gl.bindFramebuffer(gl.FRAMEBUFFER, emFb);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, emTex, 0);
+        if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) throw new Error("빛 판 FBO");
+      }
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      this.mrt = { fb, cb0, cb1, db, emTex, emFb, w, h, em };
+      this.stat.depthBits = 24;
+      return true;
+    } catch (e) {
+      console.warn("[gl9] MRT", e);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      drop(); this.mrtFail = true;
+      return false;
+    }
   }
   /** 1/4 크기 판 둘을 갖춘다(크기가 바뀌면 다시 짓는다) — 못 갖추면 번짐을 끈다. */
   private blooms(w: number, h: number): boolean {
@@ -804,7 +896,7 @@ export class GlUnits9 {
     return true;
   }
   /** 전체 화면 사각 한 장 — 판(tex)을 읽어 지금 걸린 곳에 그린다(uStep 0 이면 그냥 베끼기). */
-  private fxQuad(tex: WebGLTexture, sx: number, sy: number, str: number): void {
+  private fxQuad(tex: WebGLTexture, sx: number, sy: number, str: number, mode = 0): void {
     const gl = this.gl; const fx = this.fx!;
     gl.useProgram(fx.prog);
     gl.bindBuffer(gl.ARRAY_BUFFER, fx.vbo);
@@ -816,6 +908,7 @@ export class GlUnits9 {
     gl.uniform1i(fx.loc.uTex, 0);
     gl.uniform2f(fx.loc.uStep, sx, sy);
     gl.uniform1f(fx.loc.uStr, str);
+    gl.uniform1f(fx.loc.uDown, mode);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     gl.disableVertexAttribArray(fx.aXY);
   }
@@ -1148,6 +1241,17 @@ export class GlUnits9 {
     (globalThis as unknown as { __glInst9?: number }).__glInst9 = q.length;   // 계측(perf-check)이 '그려졌다'를 아는 창
     const pl9 = this.swarmPlate; this.swarmPlate = null;
     if (!q.length) { if (pl9) this.swarmPass(pl9, bw, bh, null); return; }
+    /* ★ WebGL2: 몸은 MRT 판에 그린다(mrtEnsure 의 ★★) — 색과 빛 판을 함께. 번짐이 꺼진 단에서는 색 하나(AA 는 이 판이 낸다). */
+    const bloomWant9 = (GL_BLOOM9 === 1 || (GL_BLOOM9 < 0 && this.bloomOn)) && !this.blFail && !!this.fx;
+    const mrtOn = this.mrtEnsure(bw, bh, bloomWant9);
+    if (mrtOn) {
+      const g2 = gl as WebGL2RenderingContext; const m = this.mrt!;
+      g2.bindFramebuffer(g2.FRAMEBUFFER, m.fb);
+      g2.drawBuffers(m.em ? [g2.COLOR_ATTACHMENT0, g2.COLOR_ATTACHMENT1] : [g2.COLOR_ATTACHMENT0]);
+      g2.viewport(0, 0, bw, bh);
+      g2.clearColor(0, 0, 0, 0);
+      g2.clear(g2.COLOR_BUFFER_BIT | g2.DEPTH_BUFFER_BIT);
+    }
     gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LESS);
     gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);   // 미리곱한 알파
     gl.disable(gl.CULL_FACE);
@@ -1298,7 +1402,7 @@ export class GlUnits9 {
         if (cx0 < sx0) sx0 = cx0; if (cx1 > sx1) sx1 = cx1;
         if (cy0 < sy0) sy0 = cy0; if (cy1 > sy1) sy1 = cy1;
       }
-      if (nEm > 0) {
+      if (nEm > 0 && !mrtOn) {   // 옛 길(WebGL1)만 — MRT 는 본 패스가 빛 판을 남기므로 깊이·빛 무리를 따로 안 짓는다
         const bx0 = sx0 - PAD9; const bx1 = sx1 + PAD9; const by0 = sy0 - PAD9; const by1 = sy1 + PAD9;
         /* ★ **가릴 수 있는 몸만 깊이를 깐다** — 번짐 상자(가위)에 화면 상자가 걸치는 개체만 고른다. */
         const hits9 = (it: GlInst9): boolean => {
@@ -1357,7 +1461,58 @@ export class GlUnits9 {
     /* 4) **번짐(블룸)** — 빛나는 낯만 1/4 판에 한 번 더 그리고, 가로·세로로 흐린 뒤 화면에 더한다.
        빛나는 메시가 없는 프레임은 건너뛴다(대부분의 유닛은 빛이 없다). */
     this.stat.bloom = 0;
-    if (bloomOn9 && nEm > 0) {
+    if (mrtOn) {
+      /* ★★ MRT: 색을 캔버스로 옮기고(MSAA 풀기), 빛 판은 홑 표본 텍스처로 옮겨 1/4 로 내려 흐린 뒤 화면에 더한다.
+         빛 판은 본 패스의 깊이를 그대로 지났으므로(가린 몸이 그 자리를 알파만큼 덮는다) 뒤쪽 불빛이 몸을 뚫지 않는다. */
+      const g2 = gl as WebGL2RenderingContext; const m = this.mrt!;
+      gl.disable(gl.SCISSOR_TEST);   // 가위는 blit 에도 걸린다
+      g2.bindFramebuffer(g2.READ_FRAMEBUFFER, m.fb); g2.readBuffer(g2.COLOR_ATTACHMENT0);
+      g2.bindFramebuffer(g2.DRAW_FRAMEBUFFER, null);
+      g2.blitFramebuffer(0, 0, bw, bh, 0, 0, bw, bh, g2.COLOR_BUFFER_BIT, g2.NEAREST);
+      const w4 = Math.max(4, bw >> 2); const h4 = Math.max(4, bh >> 2);
+      if (m.em && m.emTex && m.emFb && bloomOn9 && nEm > 0 && this.blooms(w4, h4)) {
+        g2.readBuffer(g2.COLOR_ATTACHMENT1);
+        g2.bindFramebuffer(g2.DRAW_FRAMEBUFFER, m.emFb);
+        g2.blitFramebuffer(0, 0, bw, bh, 0, 0, bw, bh, g2.COLOR_BUFFER_BIT, g2.NEAREST);
+        this.stat.bloom = nEm;
+        const rx0 = Math.max(0, Math.floor((sx0 - PAD9) / 4)); const ry1 = Math.min(h4, Math.ceil((bh - (sy0 - PAD9)) / 4));
+        const rx1 = Math.min(w4, Math.ceil((sx1 + PAD9) / 4)); const ry0 = Math.max(0, Math.floor((bh - (sy1 + PAD9)) / 4));
+        const rw = Math.max(0, rx1 - rx0); const rh = Math.max(0, ry1 - ry0);
+        if (rw >= 1 && rh >= 1) {
+          gl.disable(gl.DEPTH_TEST); gl.depthMask(false);
+          // 두 판은 통째로 지운다(가위 밖의 옛 빛이 흐림에 스며 잔영이 되던 자리).
+          gl.bindFramebuffer(gl.FRAMEBUFFER, this.bl[1].fb); gl.viewport(0, 0, w4, h4); gl.clear(gl.COLOR_BUFFER_BIT);
+          gl.bindFramebuffer(gl.FRAMEBUFFER, this.bl[0].fb); gl.clear(gl.COLOR_BUFFER_BIT);
+          gl.enable(gl.SCISSOR_TEST);
+          gl.scissor(rx0, ry0, rw, rh);
+          gl.blendFunc(gl.ONE, gl.ZERO);
+          // ① 온 크기 빛 판 → 1/4 판(네 배 내려 찍기 — 2×2 선형 넷 = 4×4 상자라 가는 빛줄이 안 빠진다)
+          this.fxQuad(m.emTex, 1 / bw, 1 / bh, 1, 1);
+          const BR9 = Math.ceil(BLOOM9[1] * 5) + 1;
+          const bx09 = Math.max(0, rx0 - BR9); const by09 = Math.max(0, ry0 - BR9);
+          const bw9 = Math.min(w4, rx0 + rw + BR9) - bx09; const bh9 = Math.min(h4, ry0 + rh + BR9) - by09;
+          gl.scissor(bx09, by09, bw9, bh9);
+          // ② 가로 → ③ 세로로 흐린다(핑퐁)
+          gl.bindFramebuffer(gl.FRAMEBUFFER, this.bl[1].fb);
+          this.fxQuad(this.bl[0].tex, BLOOM9[1] / w4, 0, 1);
+          gl.bindFramebuffer(gl.FRAMEBUFFER, this.bl[0].fb);
+          gl.clear(gl.COLOR_BUFFER_BIT);
+          this.fxQuad(this.bl[1].tex, 0, BLOOM9[1] / h4, 1);
+          // ④ 화면에 더한다 — 알파는 밝기(max rgb)로(빛 판의 알파는 가린 몸의 것이 쌓여 못 쓴다)
+          gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+          gl.viewport(0, 0, bw, bh);
+          gl.scissor(bx09 * 4, by09 * 4, bw9 * 4, bh9 * 4);
+          gl.blendFunc(gl.ONE, gl.ONE);
+          this.fxQuad(this.bl[0].tex, 0, 0, BLOOM9[0], -1);
+          gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+          gl.disable(gl.SCISSOR_TEST);
+        }
+      }
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.viewport(0, 0, bw, bh);
+      gl.useProgram(this.prog);
+      gl.depthMask(true); if (GL_DEPTH9) gl.enable(gl.DEPTH_TEST);
+    } else if (bloomOn9 && nEm > 0) {
       const w4 = Math.max(4, bw >> 2); const h4 = Math.max(4, bh >> 2);
       if (this.blooms(w4, h4)) {
         this.stat.bloom = nEm;
@@ -1463,6 +1618,8 @@ export const GL_GRAIN9 = ((): number => {
   const v = m ? Number(m[1]) : 1;
   return Number.isFinite(v) ? Math.max(0, Math.min(4, v)) : 1;
 })();
+/** 진단 `#glmrt=0` — WebGL2 에서도 MRT 판을 안 쓰고 옛 길(캔버스에 곧장 · 번짐은 둘째 기하 패스)로 간다(견줌용). */
+export const GL_MRT9 = ((): number => { const m = typeof location !== "undefined" ? /glmrt=(\d)/.exec(location.hash) : null; return m ? Number(m[1]) : -1; })();
 export const GL_BLOOM9 = ((): number => {
   const m = typeof location !== "undefined" ? /glbloom=(\d)/.exec(location.hash) : null;
   return m ? Number(m[1]) : -1;
@@ -1574,7 +1731,7 @@ const ICON_SIDE9 = 4096;
 export function glIconOk9(): boolean {
   if (iconGl9 === undefined) {
     if (typeof document === "undefined") { iconGl9 = null; return false; }
-    try { iconGl9 = new GlUnits9(document.createElement("canvas"), 400); } catch (e) { console.warn("[gl9] 아이콘", e); iconGl9 = null; }
+    try { iconGl9 = new GlUnits9(document.createElement("canvas"), 400, true, true, false); } catch (e) { console.warn("[gl9] 아이콘", e); iconGl9 = null; }
   }
   return !!iconGl9;
 }
