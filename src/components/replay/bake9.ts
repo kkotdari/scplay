@@ -3023,14 +3023,19 @@ export function crestPlate9(o: {
   decals?: [number, number][];
   /** 뿌리 반폭 배수(기본 1 — 울트라 옆선 그대로). 히드라는 뿌리를 좁힌다. */
   rootK?: number;
+  /** 끝 반폭 배수(기본 1 = 0.4·wk 로 뭉툭). 0 에 가까우면 꼭대기가 뾰족하다(히드라 덮개). */
+  tipK?: number;
+  /** 가장자리 말림 배수(기본 1 — 울트라의 cu² 말림). 크면 판이 호처럼 좌우를 아래로 만다(히드라 덮개). */
+  curlK?: number;
 }): { faces: ShapeFace[]; at: (t: number) => [number, number, number]; halfW: (t: number) => number;
       skew: (cu: number, t: number) => number; halfT: (t: number) => number } {
   const { axis: A9, nrm: N9 } = o;
   const at = (t9: number): [number, number, number] =>
     [o.root[0] + A9[0] * o.len * t9, o.root[1] + A9[1] * o.len * t9, o.root[2] + A9[2] * o.len * t9];
   const r0 = 1.15 * (o.rootK ?? 1);
-  const halfW = (t9: number): number => o.wk * (t9 < 0.5 ? r0 + (1.9 - r0) * (t9 / 0.5) : 1.9 - (1.9 - 0.4) * ((t9 - 0.5) / 0.5) ** 1.25);
-  const skew = (cu9: number, t9: number): number => -0.5 * o.wk * cu9 * cu9 * (0.4 + 0.6 * t9);
+  const r1 = 0.4 * (o.tipK ?? 1);
+  const halfW = (t9: number): number => o.wk * (t9 < 0.5 ? r0 + (1.9 - r0) * (t9 / 0.5) : 1.9 - (1.9 - r1) * ((t9 - 0.5) / 0.5) ** 1.25);
+  const skew = (cu9: number, t9: number): number => -0.5 * (o.curlK ?? 1) * o.wk * cu9 * cu9 * (0.4 + 0.6 * t9);
   const halfT = (t9: number): number => halfW(t9) * o.oval;
   const off = (p: [number, number, number], n: number): [number, number, number] => [p[0] + N9[0] * n, p[1] + N9[1] * n, p[2] + N9[2] * n];
   const faces: ShapeFace[] = [];
@@ -22569,19 +22574,21 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       }), DARK), key9));
       // 낫 — 팔끝에서 앞아래로 말리는 상아 날.
       const [ex9, ey9, ez9] = armAt(1);
+      /* ★ **히드라 낫과 같은 꼴**(2026-09, 요청: "저글링 낫도 히드라처럼 변경") — 날 단면(oval 0.45 · ref z · trueNormal)에 뿌리
+         반지름 0.28 → 끝 점, 앞으로 크게 나갔다가 **끝이 뒤로 살짝 휜다**(조종점 y +1.9 · 끝 y +1.3 · z −1.9). */
       out.push(...tagKey(ivory(spirePillar({
-        x: 0, y: 0, h: 0.8, w: 0.24, tipW: 0.02, segs: 7, sides: 6, oval: 1.7,
-        taper: 1.25, caps: "bottom",
+        x: 0, y: 0, h: 0.8, w: 0.28, tipW: 0.02, segs: 8, sides: 6, oval: 0.45, ref: [0, 0, 1], trueNormal: true, caps: "none",
         path: (t9: number): [number, number, number] => {
           const u9 = 1 - t9;
           const bz = (p0: number, c1: number, p2: number): number =>
             u9 * u9 * p0 + 2 * u9 * t9 * c1 + t9 * t9 * p2;
           return [
             bz(ex9, ex9 + m * 0.25, ex9 + m * 0.1),
-            bz(ey9, ey9 + 1.7, ey9 + 2.4),
-            bz(ez9, ez9 + 0.4, ez9 - 1.5),
+            bz(ey9, ey9 + 1.9, ey9 + 1.3),
+            bz(ez9, ez9 - 0.2, ez9 - 1.9),
           ];
         },
+        widthOf: (t9: number): number => 0.28 * (1 - t9 * 0.97),
       })), key9 + 0.3));
     }
     /* ⑤ 뒷다리 — 메뚜기: 골반에서 무릎이 몸 옆 위로 솟고, 정강이가 뒤아래로 꺾여
@@ -22591,6 +22598,24 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        짠다. 관절도 사진대로: 뒷다리는 무릎이 몸 옆 **위·뒤**로 솟았다가 정강이가
        **아래·앞**으로 내려와 발이 몸 밑을 딛고(메뚜기), 앞다리는 팔꿈치가 앞으로
        굽고 발이 그 아래를 딛는다. */
+    /** ★ 발은 **발가락 셋 + 물갈퀴**(2026-09, 요청: "저글링 발가락 3개고 발가락 사이에 물갈퀴") — 발목에서 앞으로 부채꼴(±24도)로
+     *  상아 발톱 셋이 나고, 이웃 발톱 사이를 살색 삼각 막(뿌리 → 두 발톱의 55% 자리)이 잇는다. 옛 발은 발톱 하나였다. */
+    const toes9 = (at: [number, number, number], len: number, w: number, key: number): ShapeFace[] => {
+      const angs = [-0.42, 0, 0.42];
+      const tip = (a: number, k: number): [number, number, number] =>
+        [at[0] + Math.sin(a) * len * k, at[1] + Math.cos(a) * len * k, at[2] + (0.016 - at[2]) * k];
+      const f: ShapeFace[] = [];
+      for (const a of angs) {
+        const t1 = tip(a, 1);
+        f.push(...paintBase(spikeHorn(at[0], at[1], at[2], t1[0], t1[1], t1[2], w * (a === 0 ? 1 : 0.85), IVORY, 5, 0.1, 0, 0), IVORY));
+      }
+      for (let i = 0; i < 2; i += 1) {
+        const r0: [number, number, number] = [at[0], at[1] + 0.06, at[2] - 0.04];
+        f.push(bodyFace(polyPath3([r0, tip(angs[i], 0.55), tip(angs[i + 1], 0.55)])));
+        f.push(bodyFace(polyPath3([r0, tip(angs[i + 1], 0.55), tip(angs[i], 0.55)])));   // 뒷면도 — 부감·요잉에 따라 어느 쪽이든 보인다
+      }
+      return tagKey([...f.slice(0, f.length - 4), ...paintBase(f.slice(f.length - 4), DARK)], key);
+    };
     for (const m of [-1, 1] as const) {
       /* 뒷다리 — **질럿과 같은 관절꺾임**(정정: "뒷다리는 오히려 질럿다리랑 비슷한
          관절꺾임이어야해"): 허벅지가 앞아래로(무릎이 앞), 정강이가 뒤아래로(발목이
@@ -22627,10 +22652,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ...domeFaces3(kneeB[0], kneeB[1], 0.36, 0.24, kneeB[2] - 0.08),
         ...suitLimb(kneeB, ankleB, 0.36, 0.2, 0.44, { sides: 7 }),
       ], DARK), kb9));
-      out.push(...tagKey(paintBase(spikeHorn(
-        ankleB[0], ankleB[1], ankleB[2], ankleB[0] + m * 0.1, ankleB[1] + 1.15, 0.016,
-        0.22, IVORY, 5, 0.12, 0, 0,
-      ), IVORY), kb9 + 0.2));
+      out.push(...toes9(ankleB, 1.15, 0.22, kb9 + 0.2));
       /* 앞다리(정정: "앞다리도 관절이 반대야") — 개·고양이의 앞다리처럼 **팔꿈치가
          뒤로** 꺾인다: 어깨에서 뒤아래로 내려갔다가 발이 앞을 딛는다. */
       // 앞다리도 뒤로 민다(재지적: "머리랑 앞다리 뒤로 밀고 앞몸길이 축소").
@@ -22647,10 +22669,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ...suitLimb(hipF, kneeF, 0.4, 0.3, 0.5, { sides: 7 }),
         ...suitLimb(kneeF, footF, 0.28, 0.18, 0.33, { sides: 7 }),
       ], DARK), kf9));
-      out.push(...tagKey(paintBase(spikeHorn(
-        footF[0], footF[1], footF[2], footF[0] + m * 0.12, footF[1] + 0.8, 0.016,
-        0.18, IVORY, 5, 0.09, 0, 0,
-      ), IVORY), kf9 + 0.2));
+      out.push(...toes9(footF, 0.8, 0.18, kf9 + 0.2));
     }
     /* ④ 머리 — 공용 저그 얼굴을 코끝(스파인 끝) 자리에. 아래턱의 상아 어금니 한 쌍이
        위로 솟는다(사진1·4). */
@@ -22903,7 +22922,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* ★ 길이 5.0 → 3.6(사진 재요청: "크레스트 길이를 줄이고 대신 목 뿌리 부분을 덮는 덮개") — 덮개는 아래 HOOD. */
       /* 축은 75도(뒤 0.26 · 위 0.966)로 세웠다 — 덮개가 목 위로 앞기울어 서므로 50도로 누이면 둘이 가운데서 교차한다. 임자색 띠는
          **가운데 한 줄**(재요청: "한 줄만 깔끔하게 끝에서 끝까지"). */
-      root: [0, CRX9, CRZ9], axis: [0, -0.259, 0.966], nrm: [0, 0.966, 0.259], len: 3.6, wk: 0.9, oval: 0.1, rootK: 0.55,
+      // 재재요청: "머리 크레스트도 그 정도 각도(45도)로" — 축 (0, −0.707, 0.707).
+      root: [0, CRX9, CRZ9], axis: [0, -0.707, 0.707], nrm: [0, 0.707, 0.707], len: 3.6, wk: 0.9, oval: 0.1, rootK: 0.55,
       base: ZERG_FLESH, layer: DARK, key: 12.6 + depthNow(0, headAt[1]) * 1.6,
       decals: [[0, 0.16]],
     }).faces);
@@ -22913,9 +22933,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        가 목 굵기(0.85)를 덮는다. 키는 크레스트보다 한 단 뒤. */
     /* ★ 덮개는 **목 위에** 선다(재지적: "목 덮개가 등 뒤에 붙는데 그게 아니라 목을 덮어야지") — 뿌리를 목 밑동(y −0.45 · z 4.6)으로
        당기고 15도 **앞으로** 기울여(축 (0, 0.259, 0.966)) 판이 목 위를 지나 앞으로 솟는다(꼭대기 y 0.66 · z 8.85). */
+    /* ★ 되물림(재재요청: "목 덮개는 뒤로 많이 눕혀야지 45도 정도로 · 목덮개 위쪽 뾰족하게") — 앞기울임 15도를 걷고 뿌리(목 밑동
+       y −0.3 · z 4.7)에서 **45도 뒤로** 눕힌다(꼭대기 y −3.1 · z 7.5). 꼭대기는 tipK 0.06 으로 뾰족. 크레스트도 같은 45도라 둘이
+       나란히 서고 교차하지 않는다(크레스트는 머리에서 나므로 2.4 앞). */
+    /* ★★ 뿌리는 **목 위**다(재재재지적: "목 덮개 위치만 다시 잡자 목을 덮어야 해 목보다 아래에 있잖아 지금은?") — 목 밑동(y −0.3 ·
+       z 4.7)에서 내면 판이 목 **뒤·아래**에서 솟는다. 목 한가운데 위(y 0.7 · z 5.35 — 목 축 ≈5.3 + 살 속 0.1)에서 45도 뒤로 눕히면 판이
+       목을 위에서 덮고 어깨 위로 넘어간다(꼭대기 y −2.4 · z 8.5). 크레스트(머리에서 45도)와는 z 7.45 에서 0.95 뒤로 나란하다. */
     out.push(...crestPlate9({
-      root: [0, -0.45, 4.6], axis: [0, 0.259, 0.966], nrm: [0, 0.966, -0.259], len: 4.4, wk: 1.15, oval: 0.12, rootK: 1.3,
-      base: ZERG_FLESH, layer: DARK, key: 12.4 + depthNow(0, -0.45) * 1.6,
+      /* 재요청: "덮개 뿌리쪽 폭 줄이고 전체적으로 좌우를 아래로 향하게 좀더 호 모양으로 말기" — rootK 1.3 → 0.8 · curlK 2.4(가장자리가
+         판 뒤·아래(−N)로 cu² 의 2.4배 말린다 → 목을 감싸는 홈통 꼴). */
+      root: [0, 0.7, 5.35], axis: [0, -0.707, 0.707], nrm: [0, 0.707, 0.707], len: 4.4, wk: 1.15, oval: 0.12, rootK: 0.8, tipK: 0.06, curlK: 2.4,
+      base: ZERG_FLESH, layer: DARK, key: 12.4 + depthNow(0, 0.7) * 1.6,
     }).faces);
     /* ③ 팔 + 낫 — 어깨에서 앞아래로 굽은 두 마디, 손목에서 큰 낫.
        ★ **어깨 높이로**(2026-09, 요청: "히드라 팔 위치 높이기(어깨에 맞춰서)" → "상체 갑옷도 높이고 팔도 그만큼 더 높이기") —
@@ -22937,7 +22965,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ], DARK),
         // 셋째 마디도 저그색(2026-09, 사진 재요청: "팔 두 마디는 저그색이고 마지막 마디만 상아색 낫") — 상아는 낫뿐이다.
         ...paintBase(rodFaces(m * 2.54, Y(1.15), Zu(3.82), m * 3.35, Y(1.6), Zu(5.0), 0.6), DARK),
-        ...ivory(hornFaces(m * 3.35, Y(1.6), Zu(5.0), m * 3.55, Y(3.1), Zu(1.7), 0.62)),
+        /* 낫은 **끝이 살짝 뒤로 휜다**(재요청: "낫 살짝 끝이 뒤로 휘게") — 곧은 뿔(hornFaces) 대신 2차 베지에 날: 앞으로 크게 나갔다가
+           끝에서 y 가 되돌아온다(조종점 y 3.5 · 끝 y 2.5). 단면은 hornFaces 와 같은 날(oval 0.3 · ref z · 반지름 0.62×0.3 → 0). */
+        ...ivory(spirePillar({
+          x: 0, y: 0, h: 0.8, w: 0.36, tipW: 0.02, segs: 8, sides: 6, caps: "none", trueNormal: true, oval: 0.45, ref: [0, 0, 1],
+          path: (t9: number): [number, number, number] => {
+            const a = m * 3.35, b = m * 3.6, c = m * 3.55;
+            const ya = Y(1.6), yb = Y(3.5), yc = Y(2.5);
+            const za = Zu(5.0), zb = Zu(3.2), zc = Zu(1.5);
+            const u = 1 - t9;
+            return [u * u * a + 2 * u * t9 * b + t9 * t9 * c, u * u * ya + 2 * u * t9 * yb + t9 * t9 * yc, u * u * za + 2 * u * t9 * zb + t9 * t9 * zc];
+          },
+          widthOf: (t9: number): number => 0.36 * (1 - t9 * 0.97),   // 뿌리 반지름 0.36(옛 곧은 낫과 같은 굵기로 읽히게)
+        })),
       /* ★ 앞뒤는 **카메라가 어느 옆구리를 보는가**로 가른다(지적: "히드라 팔 몸통에 안
          가려짐") — 여태 11이라, 몸(6)·갈비 테(6.2)·가슴 갑옷(6.5) 어느 것보다도 위라
          저쪽 팔까지 늘 몸 앞으로 올라왔다. 몸이 한 획(키 6 하나)이므로 꼬리 가시가 쓰는
