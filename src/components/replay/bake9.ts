@@ -22882,22 +22882,27 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const sp9 = wdU9 * 0.09 * sx9;
       const lf9 = Math.max(0, st9 * Math.sign(ly9)) * 0.4; const lf9z9 = Math.max(0, st9 * Math.sign(ly9)) * 0.32; /* z용 쌍둥이(model-z-scale ×0.8) */
       const key9 = depthNow(lx9, ly9) * 1.6 - 2;
-      const hx9 = lx9 * 0.68;
+      /* ★ 다리통은 몸에서 **굵게 난다**(2026-09, 지적: "다리통 바디에서 너무 얇아지지 않게") — 엉덩이를 몸 옆구리
+         밖(lx9·1.12)으로 내고 거기에 **살 덩이 구**(반지름 1.08)를 박아 다리가 몸에서 근육으로 이어져 나오게 한다.
+         허벅지는 밑동 굵기 1.55 → 2.05 · taper 1.9(밑동이 통통하고 무릎으로 가며 준다) · 무릎 관절도 그만큼 키운다. */
+      const hx9 = lx9 * 1.12;
       const hy9 = ly9 * 0.92;
-      const hz9 = 3.44;
+      const hz9 = 3.3;
       const kx9 = lx9 * 1.32 + sp9;
       const ky9 = ly9 * 1.02 + st9 * 0.5;
       const kz9 = 1.6 + lf9 * 0.4;
       const ax9 = lx9 + sp9 * 1.5;
       const ay9 = ly9 * 1.08 + st9;
       const az9 = 0.576 + lf9z9;
-      // 허벅지 — 굵은 뿔이 밖·아래로.
-      out.push(...tagKey(paintBase(spikeHorn(hx9, hy9, hz9, kx9, ky9, kz9, 1.55,
-        undefined, 8, 0.4, sx9 * 0.7, 0), HIDE), key9));
+      // 엉덩이 살 덩이 — 몸 옆구리에서 다리로 이어지는 근육 구.
+      out.push(...tagKey(paintBase(sphereFaces3(hx9, hy9, hz9, 1.08, HIDE, false), HIDE), key9 - 0.05));
+      // 허벅지 — 굵은 뿔이 밖·아래로(밑동 통통).
+      out.push(...tagKey(paintBase(spikeHorn(hx9, hy9, hz9, kx9, ky9, kz9, 2.05,
+        undefined, 8, 0.4, sx9 * 0.7, 0, 1.9), HIDE), key9));
       // 무릎 관절.
-      out.push(...tagKey(paintBase(domeFaces3(kx9, ky9, 0.82, 0.592, kz9 - 0.304), HIDE), key9 + 0.05));
+      out.push(...tagKey(paintBase(domeFaces3(kx9, ky9, 0.95, 0.66, kz9 - 0.34), HIDE), key9 + 0.05));
       // 정강이 — 한 단 가는 뿔이 안·아래로.
-      out.push(...tagKey(paintBase(spikeHorn(kx9, ky9, kz9, ax9, ay9, az9, 1.12,
+      out.push(...tagKey(paintBase(spikeHorn(kx9, ky9, kz9, ax9, ay9, az9, 1.3,
         undefined, 8, 0.35, -sx9 * 0.5, 0), HIDE), key9 + 0.1));
       // 정강이받이 — 창백한 판. 칠하지 않는다 = 임자 색.
       // (걷어냄·요청) 정강이 위의 임자색 반구 — 발 위의 임자색 혹으로 읽혔다.
@@ -22918,63 +22923,59 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        atkCutOf의 울트라 갈래(POSE_ATK_L → POSE_ATK_R)가 낸다. 골반·쐐기·뒤 등가시·다리는 안 돈다. */
     const swU9 = poseNow === POSE_ATK_L ? 1 : poseNow === POSE_ATK_R ? -1 : 0;
     const upper9 = (fn: () => void): void => withModelZOff(swU9 ? 0.28 : 0, () => withModelSpin(swU9 * 22, fn));
-    /* ── 몸 ── 앞뒤로 길고 **앞몸(가슴)과 뒷몸(골반)이 나뉜다**(지적) — 한 덩이 절두체는
-       통짜 상자로 보였다. 실제 울트라는 어깨가 크게 부푼 앞몸, 잘록한 허리, 그보다 조금
-       작은 골반 덩이가 이어진 꼴이다. 셋을 따로 세우고 허리를 낮고 좁게 눌러 그 이음이
-       눈에 보이게 한다. 각 덩이는 아래 판 + 위 판 두 층이라 각진 결이 살아 있다. */
-    // 앞몸(가슴·어깨) — 가장 넓고 높다.
-    upper9(() => {
-      out.push(...tagKey(paintBase(
-        frustumFaces3(0, 1.1, 6.2, 4.4, 5.2, 3.7, 1.6, 1.92 + BODY_UPz9), HIDE),
-      depthNow(0, 1.1) * 1.6));
-      out.push(...tagKey(paintBase(
-        frustumFaces3(0, 0.85, 5.4, 3.6, 3.9, 2.7, 1.36, 3.44 + BODY_UPz9), PLATE),
-      depthNow(0, 0.85) * 1.6 + 1));
-      out.push(...tagKey(paintBase(
-        pyramidFaces3(0, 0.6, 3.6, 2.6, 1.2, 4.72 + BODY_UPz9), PLATE),
-      depthNow(0, 0.6) * 1.6 + 2));
-    });
-    // 허리 — 좁고 낮은 이음. 여기가 꺼져야 앞뒤 두 덩이가 갈려 보인다.
-    out.push(...tagKey(paintBase(
-      frustumFaces3(0, -1.5, 4, 2.4, 3.6, 2.2, 1.2, 2 + BODY_UPz9), HIDE),
-    depthNow(0, -1.5) * 1.6 - 0.5));
-    /* 뒷몸(골반)은 **뒤가 뾰족한 역삼각형**이다(지적) — 네모 절두체로는 꽁무니가 뭉툭한
-       상자였다. 위에서 본 바닥이 삼각형인 쐐기를 세운다: 앞이 넓고(허리에 물린다) 뒤로
-       갈수록 좁아져 한 점으로 모인다. 위판은 같은 삼각형을 조금 줄여 얹어 옆면에 기울기를
-       준다 — 절두체와 같은 결이라 다른 부품과 명암이 어긋나지 않는다. */
-    {
-      const tri9 = (w9: number, yF9: number, yB9: number, z9: number):
-      [number, number, number][] => [
-        [-w9 / 2, yF9, z9], [w9 / 2, yF9, z9], [0, yB9, z9],
-      ];
-      const wedge9 = (
-        wB9: number, wT9: number, yF9: number, yB9: number, z09: number, h9: number,
-        fill9: string, key9: number,
-      ): void => {
-        const lo9 = tri9(wB9, yF9, yB9, z09);
-        const hi9 = tri9(wT9, yF9 - 0.25, yB9 + 0.4, z09 + h9);
-        const f9: ShapeFace[] = [bodyFace(polyPath3(hi9))];
-        for (let q9 = 0; q9 < 3; q9 += 1) {
-          const r9 = (q9 + 1) % 3;
-          const ex9 = lo9[r9][0] - lo9[q9][0];
-          const ey9 = lo9[r9][1] - lo9[q9][1];
-          const el9 = Math.hypot(ex9, ey9) || 1;
-          // 바깥 법선 — 삼각형을 시계로 돌 때 오른쪽이 바깥이다.
-          const nx9 = ey9 / el9;
-          const ny9 = -ex9 / el9;
-          const d9 = polyPath3([lo9[q9], lo9[r9], hi9[r9], hi9[q9]]);
-          const fl9 = faceLight(nx9, ny9, 0.25);
-          f9.push(bodyFace(d9), ...(fl9.visible ? fl9.face(d9) : [sideFace(d9, 0.4)]));
-        }
-        out.push(...tagKey(paintBase([...f9, topFace(polyPath3(hi9), 0.12)], fill9), key9));
-      };
-      // 아래 덩이(허리에 물리는 넓은 쪽) → 위 덩이(등판) 순으로 두 층.
-      wedge9(5.4, 4.4, -1.9, -6.2, 1.84 + BODY_UPz9, 1.44, HIDE, depthNow(0, -3.5) * 1.6);
-      wedge9(4.4, 3, -2.2, -5.8, 3.2 + BODY_UPz9, 1.2, PLATE, depthNow(0, -3.7) * 1.6 + 1);
-    }
-    out.push(...tagKey(paintBase(
-      pyramidFaces3(0, -3.9, 2.9, 2.3, 0.96, 4.32 + BODY_UPz9), PLATE),
-    depthNow(0, -3.9) * 1.6 + 2));
+    /* ── 몸 ── **살덩이 한 마리**(2026-09, 지적: "몸통이 절두체들로 돼있어서 너무 어색 생물답게 바꿔주고") — 절두체
+       셋 + 허리 절두체 + 골반 쐐기 둘 + 피라미드로 층층이 쌓던 판을 걷고, 꼬리끝(y −6.3)에서 얼굴(y 3.3)까지 **한 회전체**
+       (spirePillar · 등뼈는 y 축)로 짓는다. 옆선(반폭)·등뼈 높이·단면 납작함(높이/폭)을 마디 표(`TORSO9`)에서 캣멀-롬으로
+       읽으므로 골반 불룩(t 0.3) · 잘록한 허리(t 0.52) · 가슴·어깨 불룩(t 0.78)이 **한 껍질 위의 굴곡**이다. 등에는 같은
+       등뼈 위에 납작한 갑판(PLATE · 폭 0.78 · 납작함 0.3)을 한 켜 얹어 층진 등딱지를 낸다 — 사진의 '판을 겹친 덩치'는
+       판이 따로 서는 것이 아니라 살 위에 얹힌 판이다.
+       ⚠ 공격 휘두르기(upper9)는 앞몸만 돌므로 회전체를 허리(t 0.5~0.56)에서 둘로 끊어 앞 토막만 upper9 에 넣는다 — 같은
+         표를 읽으니 쉴 때는 이음매가 안 보이고(겹침 0.06), 돌면 잘록한 허리가 경첩이 된다. */
+    const TORSO9: [number, number, number, number][] = [
+      // [t, 반폭, 등뼈 z, 높이/폭]
+      [0, 0.32, 4.1, 0.95], [0.3, 2.5, 4.5, 0.74], [0.52, 2.0, 4.32, 0.8], [0.78, 2.95, 4.82, 0.64], [1, 2.15, 4.62, 0.76],
+    ];
+    const catRom9 = (col: 1 | 2 | 3, t: number): number => {
+      const n9 = TORSO9.length;
+      let i9 = 0;
+      while (i9 < n9 - 2 && t > TORSO9[i9 + 1][0]) i9 += 1;
+      const p0 = TORSO9[Math.max(0, i9 - 1)]; const p1 = TORSO9[i9]; const p2 = TORSO9[i9 + 1]; const p3 = TORSO9[Math.min(n9 - 1, i9 + 2)];
+      const u = Math.min(1, Math.max(0, (t - p1[0]) / (p2[0] - p1[0])));
+      // 마디 간격이 고르지 않아 접선을 이웃 간격으로 나눈 캣멀-롬(centripetal 대신 chordal 근사).
+      const m1 = (p2[col] - p0[col]) / (p2[0] - p0[0]) * (p2[0] - p1[0]);
+      const m2 = (p3[col] - p1[col]) / (p3[0] - p1[0]) * (p2[0] - p1[0]);
+      const u2 = u * u; const u3 = u2 * u;
+      return (2 * u3 - 3 * u2 + 1) * p1[col] + (u3 - 2 * u2 + u) * m1 + (-2 * u3 + 3 * u2) * p2[col] + (u3 - u2) * m2;
+    };
+    const TY0 = -6.3; const TY1 = 3.3;
+    const tW9 = (t: number): number => catRom9(1, t);
+    const tZ9 = (t: number): number => catRom9(2, t) + BODY_UPz9 - 1.04;   // 표는 이미 올린 자(BODY_UP 포함)로 적었다
+    const tOv9 = (t: number): number => catRom9(3, t);
+    /** 회전체 토막 [ta, tb] — 살(HIDE) + 등판(PLATE). */
+    const torso9 = (ta: number, tb: number, capA: boolean, capB: boolean, key9: number): void => {
+      const tt = (t: number): number => ta + (tb - ta) * t;
+      out.push(...tagKey(paintBase(spirePillar({
+        x: 0, y: 0, h: 0.8, w: 1, tipW: capB ? 1 : 0, segs: Math.max(4, Math.round((tb - ta) * 16)), sides: 14, caps: capA && capB ? "both" : capA ? "bottom" : capB ? "top" : "none",
+        ref: [1, 0, 0], trueNormal: true,
+        path: (t: number): [number, number, number] => [0, TY0 + (TY1 - TY0) * tt(t), tZ9(tt(t))],
+        widthOf: (t: number): number => tW9(tt(t)),
+        ovalOf: (t: number): number => tOv9(tt(t)),
+      }), HIDE), key9));
+      // 등딱지 — 살 등마루 위에 앉는 납작한 판(위로 0.42·높이 띄워 살 위로 솟는다).
+      out.push(...tagKey(paintBase(spirePillar({
+        x: 0, y: 0, h: 0.8, w: 1, tipW: 0, segs: Math.max(4, Math.round((tb - ta) * 16)), sides: 12, caps: "none",
+        ref: [1, 0, 0], trueNormal: true,
+        path: (t: number): [number, number, number] => {
+          const q = tt(t); return [0, TY0 + (TY1 - TY0) * q, tZ9(q) + tW9(q) * tOv9(q) * 0.62];
+        },
+        widthOf: (t: number): number => tW9(tt(t)) * 0.8,
+        ovalOf: (): number => 0.34,
+      }), PLATE), key9 + 1));
+    };
+    // 뒷몸(꼬리끝 → 허리) — 안 돈다.
+    torso9(0, 0.56, true, false, depthNow(0, -3.5) * 1.6);
+    // 앞몸(허리 → 얼굴) — 상체와 함께 돈다.
+    upper9(() => { torso9(0.5, 1, false, true, depthNow(0, 1.1) * 1.6); });
     /* 어깨 갑옷 판 둘 = **임자 색**(요청: 나머지 흰 부분) — 앞몸 양옆에 비스듬히 붙는
        각진 판. 사진에서 가장 크게 드러나는 창백한 자리라 임자를 여기서 읽는다. */
     upper9(() => {
@@ -23020,7 +23021,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        띠였다. 이제 63도(뒤 1.8 · 위 3.6)로 세우고 너비도 키운다(반폭 최대 3.4). 층은 같은 판을 앞 법선 쪽으로
        0.15 띄워 0.72 배로 한 장 더 얹고(테가 계단으로 읽힌다), 가운데는 등마루 뿔이 지난다. */
     const CR0 = (t9: number): [number, number, number] => [0, 3.35 - 1.8 * t9, 4.6 + 3.6 * t9];
-    const crW9 = (t9: number): number => UCK9 * (t9 < 0.5 ? 1.5 + (2.85 - 1.5) * (t9 / 0.5) : 2.85 - (2.85 - 0.45) * ((t9 - 0.5) / 0.5) ** 1.25);
+    // 폭은 한 단 좁게(재요청: "볏 폭 줄이고") — 반폭 최대 2.85 → 1.9 · 밑동 1.5 → 1.15
+    const crW9 = (t9: number): number => UCK9 * (t9 < 0.5 ? 1.15 + (1.9 - 1.15) * (t9 / 0.5) : 1.9 - (1.9 - 0.4) * ((t9 - 0.5) / 0.5) ** 1.25);
     const crSk9 = (cu9: number, t9: number): number => -0.5 * UCK9 * cu9 * cu9 * (0.4 + 0.6 * t9);
     const CRN9: [number, number, number] = [0, 0.894, 0.447];   // 판의 앞·위 법선(63도)
     for (const [lay9, sc9] of [[0, 1], [1, 0.72]] as [number, number][]) {
@@ -23041,29 +23043,32 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       out.push(...tagKey(paintBase(spikeHorn(a9[0], a9[1] + 0.3, a9[2] + 0.15, b9[0], b9[1] + 0.12, b9[2] + 0.06, 0.62,
         undefined, 6, 0.2, 0, 0.3), DARK), depthNow(0, 3.9) * 1.6 + 2.9));
     }
-    /* ★ 뿔 한 쌍 — 볏의 가장 넓은 자리(t 0.5 · 반폭 3.4)에서 나서 바깥·위로 벌어졌다가 **앞·아래로 굽어**
-       얼굴 옆(y 6.2 · z 3.3)까지 내려온다(사진: 소뿔처럼 앞으로 감기는 뿔). 낫(상아)과 갈리게 갑각색(HIDE)이고
-       끝만 짙다. 낫과 같은 2차 베지에 기둥이다. */
+    /* ★ 뿔은 양옆에 **셋씩, 위로 휜다**(재요청: "양옆에 위로 휜 뿔을 3개씩 · 위쪽으로 갈수록 뿔이 커짐") — 볏 옆 테두리의
+       세 자리(t 0.2 · 0.5 · 0.8)에서 나서 바깥으로 벌어졌다가 위로 감긴다. 크기는 위로 갈수록 큰다(길이·굵기 배수
+       0.55 · 0.8 · 1.1). 낫(상아)과 갈리게 갑각색(HIDE)이고 끝 38% 만 짙다. 낫과 같은 2차 베지에 기둥이다. */
     for (const m of [-1, 1] as const) {
-      const r9 = CR0(0.5);
-      const H0: [number, number, number] = [m * 3.0, r9[1] + 0.1, r9[2] + 0.1];
-      const HC: [number, number, number] = [m * 5.4, r9[1] + 1.8, r9[2] + 0.9];
-      const H1: [number, number, number] = [m * 3.7, 6.3, 3.3];
-      const bzh9 = (a: number, b: number, c: number, t: number): number =>
-        (1 - t) * (1 - t) * a + 2 * (1 - t) * t * b + t * t * c;
-      const hpath9 = (t: number): [number, number, number] => [
-        bzh9(H0[0], HC[0], H1[0], t), bzh9(H0[1], HC[1], H1[1], t), bzh9(H0[2], HC[2], H1[2], t),
-      ];
-      const hw9 = (t: number): number => 0.62 * (1 - t) ** 1.1 + 0.06;
-      const hk9 = depthNow(m * 3.6, 4.5) * 1.6 + 2.8;
-      out.push(...tagKey(paintBase(spirePillar({
-        x: 0, y: 0, h: 0.8, w: 1, segs: 5, sides: 6, oval: 1.3, caps: "bottom", trueNormal: true,
-        path: (t: number): [number, number, number] => hpath9(t * 0.62), widthOf: (t: number): number => hw9(t * 0.62),
-      }), HIDE), hk9));
-      out.push(...tagKey(paintBase(spirePillar({
-        x: 0, y: 0, h: 0.8, w: 1, segs: 4, sides: 6, oval: 1.3, caps: "none", trueNormal: true,
-        path: (t: number): [number, number, number] => hpath9(0.62 + t * 0.38), widthOf: (t: number): number => hw9(0.62 + t * 0.38),
-      }), DARK), hk9 + 0.1));
+      for (const [ht9, hs9] of [[0.2, 0.55], [0.5, 0.8], [0.8, 1.1]] as [number, number][]) {
+        const r9 = CR0(ht9);
+        const hw0 = crW9(ht9) * 0.92;
+        const H0: [number, number, number] = [m * hw0, r9[1] + 0.05, r9[2]];
+        const HC: [number, number, number] = [m * (hw0 + 1.7 * hs9), r9[1] + 0.25, r9[2] + 0.55 * hs9];
+        const H1: [number, number, number] = [m * (hw0 + 1.15 * hs9), r9[1] + 0.15, r9[2] + 2.5 * hs9];
+        const bzh9 = (a: number, b: number, c: number, t: number): number =>
+          (1 - t) * (1 - t) * a + 2 * (1 - t) * t * b + t * t * c;
+        const hpath9 = (t: number): [number, number, number] => [
+          bzh9(H0[0], HC[0], H1[0], t), bzh9(H0[1], HC[1], H1[1], t), bzh9(H0[2], HC[2], H1[2], t),
+        ];
+        const hw9 = (t: number): number => (0.26 + 0.3 * hs9) * (1 - t) ** 1.1 + 0.05;
+        const hk9 = depthNow(m * 3.2, 3.5 - ht9) * 1.6 + 2.8;
+        out.push(...tagKey(paintBase(spirePillar({
+          x: 0, y: 0, h: 0.8, w: 1, segs: 4, sides: 6, oval: 1.25, caps: "bottom", trueNormal: true,
+          path: (t: number): [number, number, number] => hpath9(t * 0.62), widthOf: (t: number): number => hw9(t * 0.62),
+        }), HIDE), hk9));
+        out.push(...tagKey(paintBase(spirePillar({
+          x: 0, y: 0, h: 0.8, w: 1, segs: 3, sides: 6, oval: 1.25, caps: "none", trueNormal: true,
+          path: (t: number): [number, number, number] => hpath9(0.62 + t * 0.38), widthOf: (t: number): number => hw9(0.62 + t * 0.38),
+        }), DARK), hk9 + 0.1));
+      }
     }
     /* ── 낫 한 쌍 ── **고유색(상아빛)이다**(요청) — 임자 색이 아니다. 밖·앞으로 크게
        감긴다. 넷이 아니라 둘이다(지적: "갈고리는 한 쌍인데 지금 두 쌍") — 낮게

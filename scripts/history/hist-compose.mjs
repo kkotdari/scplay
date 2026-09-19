@@ -50,7 +50,7 @@ console.log("loaded", loaded);
 /* ★ 판형(요청: "한 줄에 3모델" · 보기 그림) — 종족마다 한 장: '유닛'·'건물' 절 아래 모델 카드가 한 줄에 셋. 카드 안은 시점이
    위에서 아래로(7월 그림 · 8/29 2D · 9/19 GL — 각은 종류의 7월 눈금) 쌓인다. 칸마다 왼 위에 작은 꼬리표. */
 const RACES = [["1. terran", "테란", ["1", "4"]], ["2. protoss", "프로토스", ["2", "5"]], ["3. zerg", "저그", ["3", "6"]]];
-const COLS = 3; const TITLE = 44; const SEC = 30;
+const COLS = 2; const TITLE = 44; const SEC = 30;
 for (const [file, race, nos] of RACES) {
   const secs = nos.map((no) => sheets.find((x) => x.no === no)).map((sh) => ({
     title: `${race} ${sh.title.split(" / ")[0]}`,
@@ -62,23 +62,25 @@ for (const [file, race, nos] of RACES) {
        ① 붓의 strokeRect ② 7월 그림의 칸 판 왼 가장자리(x 264~271 의 띠 — 그래서 272 부터 자른다) ③ 옛 model-shot 칸의 왼 가장자리
        (x 0~1 의 격자선 — 2 부터 자른다) · 9/19 는 model-gl 의 0.5px 테두리(1 안쪽부터). 소스 칸에 박힌 글자(7월의 돋보기·눈금 ·
        8/29 의 종류 이름)는 검정으로 덮고 그 위에 꼬리표를 얹는다. */
-    const GAPX = 14; const LABH = 20; const GAPY = 3; const BLKH = LABH + 3 * CELL + 2 * GAPY + 18;
-    const W = COLS * (CELL + GAPX) + GAPX;
+    /* ★ 시점 셋은 **가로**로 선다(재요청: "변천사 모델별로 세로 말고 가로로 배치") — 모델 하나 = 이름 한 줄 + [7월 | 8/29 | 9/19]
+       한 줄. 한 줄에 모델 둘(COLS 2 · 폭 1250 남짓). 기둥 안 세로선 없음은 그대로다(칸 사이 3px 는 바탕색 그대로). */
+    const GAPX = 14; const LABH = 20; const GAPC = 3; const BLKW = 3 * CELL + 2 * GAPC; const BLKH = LABH + CELL + 18;
+    const W = COLS * (BLKW + GAPX) + GAPX;
     let H = TITLE;
     for (const sc of secs) H += SEC + Math.ceil(sc.cards.length / COLS) * BLKH;
     const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
     const c = cv.getContext("2d"); c.fillStyle = "#0a0a0a"; c.fillRect(0, 0, W, H); c.textBaseline = "top";
     c.fillStyle = "#ffd070"; c.font = "bold 16px sans-serif"; c.fillText(`모델 변천 비교 — ${race}`, 10, 8);
-    c.fillStyle = "#9aa4b0"; c.font = "11px sans-serif"; c.fillText("모델마다 위에서 아래로: 7월 그림 · 8월 29일(2D 붓) · 9월 19일(GL 붓, 지금) — 각은 7월 그림의 눈금 그대로(SCV 만 45° · 나머지 23°)", 10, 28);
+    c.fillStyle = "#9aa4b0"; c.font = "11px sans-serif"; c.fillText("모델마다 왼쪽에서 오른쪽으로: 7월 그림 · 8월 29일(2D 붓) · 9월 19일(GL 붓, 지금) — 각은 7월 그림의 눈금 그대로(SCV 만 45° · 나머지 23°)", 10, 28);
     let y = TITLE;
     for (const sc of secs) {
       c.fillStyle = "#ffd070"; c.font = "bold 13px sans-serif"; c.fillText(sc.title, 10, y + 8); y += SEC;
       sc.cards.forEach((r, i) => {
-        const x = GAPX + (i % COLS) * (CELL + GAPX); const y0 = y + Math.floor(i / COLS) * BLKH;
-        c.fillStyle = "#e8ecf0"; c.font = "bold 13px sans-serif"; c.fillText(r.label, x, y0 + 2);
+        const x0 = GAPX + (i % COLS) * (BLKW + GAPX); const y0 = y + Math.floor(i / COLS) * BLKH;
+        c.fillStyle = "#e8ecf0"; c.font = "bold 13px sans-serif"; c.fillText(r.label, x0, y0 + 2);
         const cells = [[`7월 ${r.ang}°`, "J", r.j], [`8/29 · 2D ${r.ang}°`, "A", r.a], [`9/19 · GL ${r.ang}°`, "C", r.c]];
         cells.forEach(([tag, k, idx], n) => {
-          const yy = y0 + LABH + n * (CELL + GAPY);
+          const x = x0 + n * (CELL + GAPC); const yy = y0 + LABH;
           c.fillStyle = "#0a0a0a"; c.fillRect(x, yy, CELL, CELL);
           if (idx != null) {
             if (k === "J") {
