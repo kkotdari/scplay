@@ -2104,23 +2104,75 @@ const recallSpr9 = (): HTMLCanvasElement => domSpr9("recall", (c9, S9) => {
   }
 });
 /** 디스럽션 웹 — 바큇살 열둘 + 그 살을 잇는 고리, 그 아래 보랏빛 그늘. */
-const dwebSpr9 = (): HTMLCanvasElement => domSpr9("dweb", (c9, S9) => {
+/** ★ 디스럽션 웹은 **전기 줄기가 겹친 난수 그물**이다(2026-09, 지적: "웹은 동그라미 모임이라기보다 전기줄기가 겹쳐져 난수 그물처럼
+ *  보여야 하는데") — 앞서 구름 덩이 열여덟으로 그렸더니 '동그라미 모임'으로 읽혔다. 원작의 웹은 땅 위에 깔린 반투명 하늘빛 판 위에
+ *  **가는 번개 줄기 수십 가닥이 제멋대로 가로질러 겹친** 그물이다. 판 셋(씨앗만 다르다)을 그리는 쪽이 초당 10번 갈아 끼워 줄기가
+ *  지직거린다. 줄기는 타원 안에서 나 타원 가장자리에서 스러진다(둘레가 울퉁불퉁한 영역). */
+const dwebSpr9 = (v9: number): HTMLCanvasElement => domSpr9("dweb" + v9, (c9, S9) => {
   const R9 = S9 / 2;
-  const RR9 = Math.hypot(0.5, 0.5) * S9;          // CSS 백분율의 자(farthest-corner)
-  c9.beginPath(); c9.arc(R9, R9, R9, 0, Math.PI * 2); c9.clip();   // border-radius: 50%
-  radLay9(c9, S9, [[0, "rgba(46,32,70,0.6)"], [0.52, "rgba(46,32,70,0.6)"], [0.74, "rgba(38,26,58,0.38)"], [0.88, "rgba(38,26,58,0)"]]);
-  c9.strokeStyle = "rgba(186,170,235,0.42)";
-  c9.lineWidth = Math.max(0.6, S9 / 110);
-  for (let r9 = 0.09; r9 < 1; r9 += 0.09) {      // 고리 — CSS의 repeating-radial 간격(9%)
-    c9.beginPath(); c9.arc(R9, R9, r9 * RR9, 0, Math.PI * 2); c9.stroke();
+  const h9 = (n9: number): number => { const x9 = Math.sin(n9 * 12.9898 + v9 * 311.7 + 78.233) * 43758.5453; return x9 - Math.floor(x9); };
+  // 바탕 — 옅은 하늘빛 타원(영역의 몸). 줄기가 그 위에 얹힌다.
+  const g9 = c9.createRadialGradient(R9, R9, 0, R9, R9, R9 * 0.97);
+  g9.addColorStop(0, "rgba(170,210,255,0.30)"); g9.addColorStop(0.7, "rgba(150,200,255,0.22)"); g9.addColorStop(1, "rgba(140,190,255,0)");
+  c9.fillStyle = g9; c9.beginPath(); c9.ellipse(R9, R9, R9 * 0.97, R9 * 0.66, 0, 0, Math.PI * 2); c9.fill();
+  // 줄기 — 타원 안의 한 점에서 아무 방향으로 뻗는 꺾은선(마디 7~10 · 좌우로 튄다) + 가지 하나. 번짐 한 겹 뒤에 흰 심.
+  c9.lineCap = "round"; c9.lineJoin = "round"; c9.globalCompositeOperation = "lighter";
+  const inEll9 = (x9: number, y9: number): number => { const dx9 = (x9 - R9) / (R9 * 0.97); const dy9 = (y9 - R9) / (R9 * 0.66); return 1 - Math.min(1, Math.hypot(dx9, dy9)); };
+  const bolt9 = (x09: number, y09: number, an9: number, len9: number, seed9: number, w9: number): void => {
+    const n9 = 7 + Math.floor(h9(seed9) * 4);
+    const pts9: [number, number][] = [[x09, y09]];
+    let x9 = x09; let y9 = y09;
+    for (let i9 = 1; i9 <= n9; i9 += 1) {
+      const sw9 = (h9(seed9 + i9 * 1.7) - 0.5) * 0.9;
+      const st9 = len9 / n9;
+      x9 += Math.cos(an9 + sw9) * st9; y9 += Math.sin(an9 + sw9) * st9;
+      pts9.push([x9, y9]);
+    }
+    for (let pass9 = 0; pass9 < 2; pass9 += 1) {
+      for (let i9 = 1; i9 < pts9.length; i9 += 1) {
+        const k9 = Math.min(inEll9(...pts9[i9 - 1]), inEll9(...pts9[i9])) * 2.2;   // 가장자리에서 스러진다
+        if (k9 <= 0) continue;
+        const fade9 = Math.min(1, k9) * (1 - (i9 / pts9.length) * 0.4);
+        c9.strokeStyle = pass9 === 0 ? `rgba(120,190,255,${0.32 * fade9})` : `rgba(236,248,255,${0.95 * fade9})`;
+        c9.lineWidth = pass9 === 0 ? w9 * 3.2 : w9;
+        c9.beginPath(); c9.moveTo(pts9[i9 - 1][0], pts9[i9 - 1][1]); c9.lineTo(pts9[i9][0], pts9[i9][1]); c9.stroke();
+      }
+    }
+    // 가지 — 줄기 가운데쯤에서 한 갈래 짧게.
+    if (len9 > R9 * 0.5 && h9(seed9 + 99) > 0.35) {
+      const [bx9, by9] = pts9[Math.floor(pts9.length / 2)];
+      bolt9(bx9, by9, an9 + (h9(seed9 + 7) - 0.5) * 2.4, len9 * 0.45, seed9 + 1000, w9 * 0.75);
+    }
+  };
+  /* 좌우로 긴 타원(0.97 × 0.66) 안에 줄기 34 가닥 — 굵기 1.6배 · 틈이 적게(지적: "좌우가 긴 타원형 · 줄기 더 굵어서 틈이 적게"). */
+  for (let i9 = 0; i9 < 34; i9 += 1) {
+    const an9 = h9(i9 * 3 + 1) * Math.PI * 2; const rd9 = Math.sqrt(h9(i9 * 3 + 2)) * R9 * 0.85;
+    const x09 = R9 + Math.cos(an9) * rd9; const y09 = R9 + Math.sin(an9) * rd9 * 0.66;
+    bolt9(x09, y09, h9(i9 * 3 + 3) * Math.PI * 2, (0.5 + h9(i9 * 5 + 4) * 0.7) * R9, i9 * 31 + 5, S9 * 0.0145 * (0.8 + h9(i9 * 7) * 0.6));
   }
-  c9.strokeStyle = "rgba(186,170,235,0.5)";
-  c9.lineWidth = Math.max(0.7, S9 / 120);
-  for (let k9 = 0; k9 < 12; k9 += 1) {            // 바큇살 열둘
-    const a9 = (k9 / 12) * Math.PI * 2;
-    c9.beginPath(); c9.moveTo(R9, R9); c9.lineTo(R9 + Math.cos(a9) * R9, R9 + Math.sin(a9) * R9); c9.stroke();
+  c9.globalCompositeOperation = "source-over";
+}, 192);
+/** 이레디에이트 구름 — 노란 기가 도는 연두 덩이 여덟(원작의 방사능 연기). 그리는 쪽이 돌리고 숨 쉰다. */
+const irradSpr9 = (): HTMLCanvasElement => domSpr9("irrcloud", (c9, S9) => {
+  const R9 = S9 / 2;
+  const puff9 = (x9: number, y9: number, r9: number, a9: number): void => {
+    const g9 = c9.createRadialGradient(x9, y9, 0, x9, y9, r9);
+    g9.addColorStop(0, `rgba(228,255,120,${a9})`); g9.addColorStop(0.45, `rgba(160,230,60,${a9 * 0.75})`); g9.addColorStop(1, "rgba(120,200,40,0)");
+    c9.fillStyle = g9; c9.beginPath(); c9.arc(x9, y9, r9, 0, Math.PI * 2); c9.fill();
+  };
+  /* ★ 둥글되 한 덩이가 아니라 **작은 가스 구름 여러 개가 합쳐진** 꼴(2026-09, 지적: "좀더 둥글게" → "한 덩이가 아니라 아까처럼 작은
+     가스 구름이 여러 개 합쳐져서 둥근 모양") — 바탕 구 하나로 메우면 공 하나가 된다. 안 고리 여섯(0.24R) + 바깥 고리 열둘(0.5R)의
+     작은 덩이를 같은 간격으로 두어 둘레는 원이고 결은 뭉게뭉게다(바깥은 반지름을 살짝 흔들어 톱니가 아니라 구름으로 읽힌다). */
+  puff9(R9, R9, R9 * 0.34, 0.5);
+  for (let i9 = 0; i9 < 6; i9 += 1) {
+    const an9 = (i9 / 6) * Math.PI * 2 + 0.3; const rd9 = 0.24 * R9;
+    puff9(R9 + Math.cos(an9) * rd9, R9 + Math.sin(an9) * rd9, 0.24 * R9, 0.55);
   }
-}, 128);
+  for (let i9 = 0; i9 < 12; i9 += 1) {
+    const an9 = (i9 / 12) * Math.PI * 2; const rd9 = (0.5 + (i9 % 2) * 0.04) * R9;
+    puff9(R9 + Math.cos(an9) * rd9, R9 + Math.sin(an9) * rd9, (0.2 + (i9 % 3) * 0.025) * R9, 0.6);
+  }
+}, 96);
 /** 용접 실 한 올 — 밑동(앵커 쪽)이 희고 끝으로 갈수록 스러진다. 둘레의 옅은 빛무리는 box-shadow 자리. */
 const weldSpr9 = (): HTMLCanvasElement => domSpr9("weld", (c9, S9) => {
   const g9 = c9.createLinearGradient(0, 0, 0, S9);
@@ -2500,14 +2552,12 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
         blit9(radOf9("yamato"), 1, u9 < 0.14 ? 0.25 + 0.75 * (u9 / 0.14) : u9 < 0.55 ? 1 : 1 - (u9 - 0.55) / 0.45);
         break;
       }
-      if (cls9 === "irrad" || cls9 === "mael") {
-        /* 맥동 — 이레디에이트는 끝없이(0.8초), 마엘스톰은 네 번(0.5초) 뛰고 멎는다. */
-        const per9 = cls9 === "irrad" ? 0.8 : 0.5;
-        const n9 = cls9 === "irrad" ? Infinity : 4;
-        const done9 = Math.min(u0 / per9, n9);
-        const ph9 = done9 >= n9 ? 0 : ((done9 % 2 < 1 ? done9 % 1 : 1 - (done9 % 1)));
+      if (cls9 === "mael") {
+        /* 시전 자리는 **섬광 하나**(0.5초)뿐이다 — 걸린 몸마다의 소용돌이(maelU)가 마엘스톰이다(위 ★). */
+        const u9 = u0 / 0.5;
+        if (u9 > 1) break;
         ctx.globalCompositeOperation = "lighter";
-        lay9(() => { blit9(radOf9(cls9), 0.9 + 0.15 * ph9, 0.5 + 0.5 * ph9); });
+        lay9(() => { blit9(radOf9("mael"), 0.5 + 0.7 * u9, 0.8 * (1 - u9)); });
         break;
       }
       if (cls9 === "recall") {
@@ -2523,8 +2573,62 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
         break;
       }
       if (cls9 === "dweb") {
-        const tri9 = (x9: number): number => { const v9 = x9 - Math.floor(x9); return v9 < 0.5 ? v9 * 2 : 2 - v9 * 2; };
-        lay9(() => { blit9(dwebSpr9(), 1, 0.72 + 0.23 * tri9(u0 / 2.4 / 2)); });
+        /* 그물은 지직거린다 — 씨앗이 다른 판 셋을 초당 10번 갈아 끼운다(줄기가 자리를 옮긴다). 첫 0.3초에 피어난다. */
+        const in9 = Math.min(1, u0 / 0.3);
+        const v9 = Math.floor(u0 * 10) % 3;
+        lay9(() => { blit9(dwebSpr9(v9), 0.6 + 0.4 * in9, 0.9 * in9); });
+        break;
+      }
+      /* ★ **마엘스톰은 걸린 몸을 감는 주황 소용돌이**(2026-09, 요청: "원작과 비슷하게 … 마엘스톰은 광역") — 시전 자리의 자줏빛
+         판은 걷고, 엔진이 걸린 유닛마다 싣는 maelU 가 몸 한가운데(cage 와 같은 자)에 선다. 불꽃 혀 셋이 몸 둘레의 눌린 원을
+         돌며(초당 1.3바퀴) 머리는 굵고 밝고 꼬리로 갈수록 가늘고 붉다. 지속(7.4초)의 끝 0.6초에 스러진다. */
+      if (cls9 === "maelU") {
+        const dur9 = 7.4;
+        if (u0 > dur9) break;
+        const fd9 = u0 > dur9 - 0.6 ? (dur9 - u0) / 0.6 : Math.min(1, u0 / 0.2);
+        /* ★ 혀 셋이 **각자의 입체 축**을 돈다(2026-09, 지적: "세 개가 각각의 입체축으로 도는 모양") — 한 타원 위를 셋이 나란히
+           돌면 접시 하나다. 궤도 셋을 기울기(0·60·120도)·납작함·도는 방향을 달리해 자이로처럼 얽히고, 혀는 제 궤도를 따라 머리가
+           굵고 밝게·꼬리로 갈수록 가늘고 붉게 스러진다. 몸 폭의 1.9배 안에서 돈다. */
+        const Rr9 = W9 * 0.95;
+        ctx.globalCompositeOperation = "lighter";
+        ctx.lineCap = "round"; ctx.lineJoin = "round";
+        const SEG9 = 10; const ARC9 = 1.5;
+        const orb9: [number, number, number, number][] = [[0.0, 0.42, 1.15, 0], [1.05, 0.55, -0.95, 2.1], [2.1, 0.36, 1.3, 4.2]];   // [기울기, 납작함, 속도(방향), 위상]
+        for (let pass9 = 0; pass9 < 2; pass9 += 1) {
+          for (let k9 = 0; k9 < 3; k9 += 1) {
+            const [tilt9, fl9, sp9, ph9] = orb9[k9];
+            const a09 = u0 * Math.PI * 2 * sp9 + ph9 + (f.seed ?? 0) * 0.7;
+            const ct9 = Math.cos(tilt9); const st9 = Math.sin(tilt9);
+            const pt9 = (a9: number): [number, number] => {
+              const ex9 = Math.cos(a9) * Rr9; const ey9 = Math.sin(a9) * Rr9 * fl9;
+              return [ax + ex9 * ct9 - ey9 * st9, ay + (ex9 * st9 + ey9 * ct9) * 0.72];
+            };
+            for (let m9 = 0; m9 < SEG9; m9 += 1) {
+              const t09 = m9 / SEG9; const t19 = (m9 + 1) / SEG9;
+              const [x09, y09] = pt9(a09 - t09 * ARC9 * Math.sign(sp9)); const [x19, y19] = pt9(a09 - t19 * ARC9 * Math.sign(sp9));
+              const w9 = Math.max(0.8, W9 * 0.2 * (1 - t09 * 0.85));
+              if (pass9 === 0) { ctx.globalAlpha = fd9 * 0.35 * (1 - t09 * 0.6); ctx.strokeStyle = "#ff6a1a"; ctx.lineWidth = w9 * 2.2; }
+              else { ctx.globalAlpha = fd9 * (0.95 - t09 * 0.55); ctx.strokeStyle = t09 < 0.3 ? "#fff0a0" : t09 < 0.6 ? "#ffb04a" : "#ff5a1a"; ctx.lineWidth = w9; }
+              ctx.beginPath(); ctx.moveTo(x09, y09); ctx.lineTo(x19, y19); ctx.stroke();
+            }
+          }
+        }
+        break;
+      }
+      if (cls9 === "irrU") {
+        const dur9 = 25.2;
+        if (u0 > dur9) break;
+        const fd9 = u0 > dur9 - 1 ? dur9 - u0 : Math.min(1, u0 / 0.3);
+        const br9 = 1.01 + 0.09 * Math.sin((u0 / 0.8) * Math.PI * 2);
+        // 구름은 몸보다 넓다(몸 폭의 2.4배) — 원작의 방사능 연기는 몸을 통째로 삼킨다. 두 겹을 서로 반대로 돌려 살아 움직인다.
+        const k9 = 2.4 * br9;
+        ctx.globalCompositeOperation = "lighter";
+        for (const [dir9, kk9, al9] of [[1, 1, 0.9], [-1, 0.72, 0.7]] as [number, number, number][]) {
+          ctx.save();
+          ctx.translate(ax, ay); ctx.rotate(dir9 * u0 * Math.PI * 2 * 0.3 + (f.seed ?? 0)); ctx.translate(-ax, -ay);
+          blit9(irradSpr9(), k9 * kk9, fd9 * al9);
+          ctx.restore();
+        }
         break;
       }
       /* 플레이그·인스네어 — 얼룩 여러 겹이 6초에 걸쳐 스러진다. */
