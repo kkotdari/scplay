@@ -1524,15 +1524,16 @@ export function pHelmet9(lift = 0, s = 1): ShapeFace[] {
     if (y9 >= Y1_9) return HW9;
     return Math.max(0.03, HW9 * ((y9 - YB9) / (Y1_9 - YB9)));
   };
-  /* 뒤로는 **뒤통수를 따라 가파르게**(0.45/칸) 내려간다 — 0.05 로 두니 판이 뒤통수 위 0.4 에 떠서 머리 뒤가 투구 밑으로 삐져나왔다
-     (지적). 머리 위에서는 아래 headTop9 죔이 껍질을 따라가고, 머리를 벗어난 꼬리만 이 기울기로 흐른다. */
-  const zc9 = (y9: number): number => 5.60 + 0.45 * Math.min(0, y9 - 0.28) - DOME9 * q9(y9) ** 2;
+  /* 등마루는 앞 돔에서 꼬리까지 **곧은 선**이다(재지적: "투구의 등이 구불구불하면 안 돼 — 처음처럼 앞의 돔에서 직선으로") —
+     한 번 판 밑면을 자리마다 껍질에 붙였더니(headTop9 죔) 등이 두개골을 따라 울퉁불퉁해졌다. 판의 꼴은 손 값 그대로 두고,
+     머리를 안 뚫을 만큼만 **통째로**(상수 lift9) 올린다 — 아래에서 껍질 꼭대기와 판 밑면의 가장 큰 어긋남을 한 번 재어 더한다. */
+  const zc9 = (y9: number): number => 5.60 + 0.10 * Math.min(0, y9 - 0.28) - DOME9 * q9(y9) ** 2;
   const yAt9 = (i9: number): number => YF9 + ((YB9 - YF9) * i9) / NU9;
   /* ★ **투구는 머리 위에 앉아야 한다**(2026-09, 지적: "머리통이 삐져나오는데 — 투구 위치가 안 맞나 봐") — 얼굴 달걀은 축이 45도로
      누운 회전체(pFaceAx9·pFaceR9 · 접선 (0, −0.5, 0.84))라 정수리 부근의 껍질 높이가 자리마다 다른데, 판을 손 값(5.60)에 두니 정수리
      켜(z 5.6 · 반지름 0.15)가 처진 판을 뚫었다. 판 밑면이 **그 자리 껍질의 꼭대기 + 0.03** 아래로는 못 내려가게 죈다 —
      `headTop9(x, y)` 가 마디 t 를 훑어 껍질의 그 (x, y) 기둥에서 가장 높은 z 를 푼다(단면 원: 축점 + r(cosθ·x̂ + sinθ·ê₂),
-     ê₂ = 접선 × x̂ = (0, 0.859, 0.511)). 머리 밖(꼬리)에서는 손 값 그대로다. */
+     ê₂ = 접선 × x̂ = (0, 0.859, 0.511)). 그 값으로 판을 **통째로** 올리는 몫(lift9) 하나만 잰다(위 ★ — 자리마다 붙이면 등이 울퉁불퉁하다). */
   const E2Y9 = 0.859; const E2Z9 = 0.511;
   const headTop9 = (x9: number, y9: number): number => {
     let best9 = -1e9;
@@ -1546,11 +1547,19 @@ export function pHelmet9(lift = 0, s = 1): ShapeFace[] {
     }
     return best9;
   };
+  const zb0 = (y9: number, v9: number): number => zc9(y9) - DR9 * (v9 / HW9) ** 2 - TH9;   // 손 값 그대로의 판 밑면
+  let lift9 = 0;
+  for (let i9 = 0; i9 <= NU9; i9 += 1) {
+    const y9 = yAt9(i9);
+    for (let j9 = 0; j9 <= NV9; j9 += 1) {
+      const v9 = (-1 + (2 * j9) / NV9) * hwAt9(y9);
+      lift9 = Math.max(lift9, headTop9(v9, y9) + 0.03 - zb0(y9, v9));
+    }
+  }
   /** 판 위의 점 — u 는 폭 몫(−1~1) · top 이면 윗면, 아니면 두께만큼 아래. 처짐은 절대 폭으로 잰다(좁은 꼬리·이마는 덜 처진다). */
   const P9 = (y9: number, u9: number, top: boolean): [number, number, number] => {
     const v9 = u9 * hwAt9(y9);
-    const zb9 = Math.max(zc9(y9) - DR9 * (v9 / HW9) ** 2 - TH9, headTop9(v9, y9) + 0.03);
-    return [v9 * s, y9 * s, (zb9 + (top ? TH9 : 0)) * s + lift];
+    return [v9 * s, y9 * s, (zb0(y9, v9) + lift9 + (top ? TH9 : 0)) * s + lift];
   };
   const out: ShapeFace[] = [];
   const key9 = depthNow(0, 0.1 * s) * 1.6 + 0.72;
