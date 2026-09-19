@@ -2915,26 +2915,46 @@ export function zergFace(y: number, z: number, s = 1, fill = ZERG_FLESH): ShapeF
      이고 **아래턱은 입선 아래로 뒤집힌 반구**(돔 밑면 반절 · 살짝 작고 살짝 앞)다. 둘 사이 벌어진 몫(GAP9)이 아가리(어두운 기둥)다.
      아가리 자리·송곳니·눈은 옛 자(입선 z+0.3s 언저리 · 눈 이마 앞 위)를 그대로 잇는다 — 이 얼굴을 쓰는 열 유닛의 자리표가 안 흔들린다.
      ⚠ 그리는 차례는 여전히 **턱 → 아가리 → 머리뼈**다(호출자가 한 키로 감싸므로 배열 차례가 곧 앞뒤 · 아래 옛 ★). */
-  const R9 = 0.72 * s;        // 머리뼈 반구 반지름
-  const ZM9 = z + 0.30 * s;   // 입선(머리뼈 반구의 밑면)
-  const RJ9 = 0.60 * s;       // 아래턱 반구 반지름
+  /* ★ **반구가 아니라 반의 반구다 — 이마 아래는 수직 낯이다**(재요청: "정확히 반구는 아니고 반의 반구라고 해야 할 거 같아 ·
+     위쪽 파트는 이마부터가 반구 시작이고 그 아래 수직으로 내려가는 부분이 좀 있어야 해 거기에 눈이 위치하고 코도 들어가(코는
+     그리진 않음)") — 머리뼈는 입선에서 이마(FH9 0.34s)까지 **곧게 선 기둥**(눈이 그 앞 낯에 앉는다 · 코 자리)이고, 이마 위가
+     **얕은 돔**(반지름의 반 높이 = 반구의 절반 · domeMesh9 hh = 0.5R)이다. 아래턱도 같은 얕음(0.5R)의 뒤집힌 돔이다. */
+  const R9 = 0.72 * s;        // 머리뼈 반지름(낯 기둥 · 돔의 밑면)
+  const ZM9 = z + 0.30 * s;   // 입선(낯 기둥의 밑면)
+  const FH9 = 0.34 * s;       // 입선 → 이마(수직 낯의 키)
+  const DH9 = R9 * 0.5;       // 이마 위 돔의 높이(반의 반구)
+  const RJ9 = 0.60 * s;       // 아래턱 반지름
+  const JH9 = RJ9 * 0.5;      // 턱 돔의 깊이(반의 반구)
   const GAP9 = 0.20 * s;      // 벌어진 입(요청: "입 벌린 형태로")
   const YJ9 = y + 0.04 * s;   // 턱은 살짝 앞(주걱턱)
+  /* ★ **뒤로 길이가 있다**(재재요청: "얼굴은 반의 반구지만 어느 정도 뒤로 길이가 있어야 해 — 옆면이 평행한 부분이 반반구 뒤로
+     좀 연장된다고 보면 됨") — 앞은 돔(반의 반구)이고 그 뒤로 **옆면이 평행한 몫**(BK9)이 이어진다: 수직 낯 기둥 뒤에 같은
+     높이의 상자, 돔 뒤에 같은 단면(반타원 · 폭 R · 높이 0.5R)의 둥근 지붕(y 축 기둥 · oval 0.5)을 잇고 뒤끝은 평평한 뚜껑이다. */
+  const BK9 = 0.5 * s;        // 돔 뒤로 뻗는 평행 몫
   // 아가리 — 이 얼굴을 쓰는 저그의 '총구'다(가시·산·촉수가 여기서 난다). 빌더가 따로 적으면 그쪽이 이긴다.
   markMuzzleSoft9(0, y + 0.55 * s, ZM9 - GAP9 * 0.5);
   /* ② 아래턱 — 돔 밑면 반절(뒤집힌 반구). t 0 = 입선 쪽(뚜껑) → 1 = 턱 밑 끝. 뚜껑(caps bottom = t 0 끝)이 있어야 위에서
      내려다볼 때 속이 안 보인다. */
   out.push(...shape(paintBase(spirePillar({
     x: 0, y: 0, h: 0.8, w: 1, segs: 6, sides: 16, caps: "bottom", trueNormal: true,
-    path: (t9: number): [number, number, number] => [0, YJ9, ZM9 - GAP9 - RJ9 * t9],
+    path: (t9: number): [number, number, number] => [0, YJ9, ZM9 - GAP9 - JH9 * t9],
     widthOf: (t9: number): number => Math.max(RJ9 * 0.04, RJ9 * Math.sqrt(Math.max(0, 1 - t9 * t9))),
   }), fill)));
   /* ③ 아가리 — 두 반구 사이의 벌어진 어둠(짧은 기둥 · 양 뚜껑). 반지름은 턱보다 한 뼘 작아 안쪽이 그늘로 쑥 들어간다. */
   out.push(...trim(paintBase(spirePillar({
     x: 0, y: YJ9, z0: ZM9 - GAP9, h: GAP9, w: RJ9 * 0.88, tipW: RJ9 * 0.88, segs: 1, sides: 16, caps: "both",
   }), "#2a1a16")));
-  /* ① 머리뼈 — 입선 위의 반구(이마 → 정수리 한 껍질). 맨 나중에 그려 턱·아가리 위를 덮는다. */
-  out.push(...shape(paintBase(domeMesh9(0, y, R9, R9, ZM9, 2), fill)));
+  /* ① 머리뼈 — 입선 → 이마의 수직 낯 기둥 + 이마 위 얕은 돔(위 ★). 맨 나중에 그려 턱·아가리 위를 덮는다. */
+  out.push(...shape(paintBase(spirePillar({
+    x: 0, y, z0: ZM9, h: FH9, w: R9, tipW: R9, segs: 1, sides: 16, caps: "none",
+  }), fill)));
+  out.push(...shape(paintBase(domeMesh9(0, y, R9, DH9, ZM9 + FH9, 2), fill)));
+  // 뒤로 뻗는 몫(위 ★) — 낯 기둥 뒤의 상자(뒷벽까지) + 돔 뒤의 둥근 지붕(단면이 돔의 앞뒤 단면과 같아 이음매 없이 잇는다).
+  out.push(...shape(paintBase(boxFaces3(0, y - BK9 / 2, R9 * 2, BK9, FH9, ZM9), fill)));
+  out.push(...shape(paintBase(spirePillar({
+    x: 0, y: 0, h: 0.8, w: R9, tipW: R9, segs: 1, sides: 16, oval: DH9 / R9, caps: "top", trueNormal: true,
+    path: (t9: number): [number, number, number] => [0, y - BK9 * t9, ZM9 + FH9],
+  }), fill)));
   /* ⑤ 송곳니 넷 — 벌어진 아가리의 **바깥쪽 끝**에서 위 둘은 아래로, 아래 둘은 위로 뻗어 서로 어긋나게 물린다. */
   for (const m of [1, -1] as const) {
     out.push(...fine(ivory(spikeHorn(
@@ -2946,8 +2966,8 @@ export function zergFace(y: number, z: number, s = 1, fill = ZERG_FLESH): ShapeF
       m * 0.48 * s, y + 0.52 * s, ZM9 - 0.03 * s, 0.20 * s, IVORY, 5, 0.03, m * 0.3, 0.3,
     ))));
   }
-  // ⑥ 눈 — 동그란 렌즈 한 쌍. 반구 앞면(높이 34도)의 껍질 위에 앉는다: y + R·cos34 · z 입선 + R·sin34.
-  out.push(...zergEyes(y + 0.58 * s, ZM9 + 0.40 * s, 0.36 * s, 0.19 * s, 3.2));
+  // ⑥ 눈 — 동그란 렌즈 한 쌍. 수직 낯의 앞면(y + R·cos30 — 눈 사이 0.36s 만큼 옆이라 그 자리의 낯) · 낯 높이의 0.6.
+  out.push(...zergEyes(y + R9 * 0.87, ZM9 + FH9 * 0.6, 0.36 * s, 0.19 * s, 3.2));
   return out;
 }
 /** 크립 갈퀴 바닥(지적: 콜로니 바닥은 동그라미가 아니라 갈퀴) — 사방으로 뻗는 납작한
@@ -22599,10 +22619,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            앞으로 나가는 몫 2.9 → 1.45 로 절반, 그만큼의 길이를 위로 돌려(2.2) 목 길이(≈3.0)는 지킨다. 손잡이 굽이는 얕게 남긴다
            (사인 0.35 · 끝에서 0.1 처짐). 머리 뿌리(headAt = body(1))가 곧 얼굴·머리장식·아가리의 자라 그 셋은 저절로 따라온다. */
       const w9 = (t9 - 0.74) / 0.26;
+      /* ★ **목 길이 절반**(재요청: "히드라 목 길이 반으로 줄여줘") — 앞 1.45 → 0.72 · 위 2.2 → 1.1 · 굽이도 반(0.18 · 0.05). */
       return [
         0,
-        -0.65 + 1.45 * w9,
-        4.88 + 2.2 * w9 + Math.sin(w9 * Math.PI) * 0.35 - w9 * 0.1,
+        -0.65 + 0.72 * w9,
+        4.88 + 1.1 * w9 + Math.sin(w9 * Math.PI) * 0.18 - w9 * 0.05,
       ];
     };
     /* 공격 컷 — **상체 앞뒤 반동**(지시) — 히드라는 팔다리로 때리지 않고 몸을 젖혔다
@@ -22782,8 +22803,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        되며(zergFace ★★) 정수리가 둥글어졌으니, 뿌리를 그 껍질 위(앞 60도 · 0.08 묻힘)에 두면 이마 → 정수리 → 머리장식이 한
        흐름으로 이어진다(옛 +0.5·+0.8 은 상자 정수리 위 허공이었다). 얼굴 자(headAt[1]+0.25 · headAt[2]−0.36 · s 0.84)를 그대로 셈한다. */
     const FR9 = 0.72 * 0.84;
-    const CRX9 = headAt[1] + 0.25 + FR9 * 0.5 - 0.08;
-    const CRZ9 = headAt[2] - 0.36 + 0.30 * 0.84 + FR9 * 0.866 - 0.08;
+    // 정수리 마루(돔 꼭대기 = 입선 z + 0.3s + 수직 낯 0.34s + 돔 높이 0.5R) 위 · 돔 중심 살짝 앞(0.1) · 0.06 묻힘(zergFace 의 ★).
+    const CRX9 = headAt[1] + 0.25 + 0.1;
+    const CRZ9 = headAt[2] - 0.36 + (0.30 + 0.34) * 0.84 + FR9 * 0.5 - 0.06;
     /** 폭 배수(요청: "크레스트 전체 폭은 20% 축소") — 길이(CL9)는 그대로 두고 좌우로만 줄인다. */
     const CW9 = 0.8;
     const crestHalf = (t9: number): number => (0.62 + 1.25 * t9) * CK9 * CW9;
