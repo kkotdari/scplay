@@ -96,7 +96,7 @@ import {
   pitchFlatSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, stageFaces, TURRET_BACK9, SPIN_KINDS, HEAD_KINDS, LIT_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, spriteSideMax9, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, tone9, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
   GAS_KINDS9,
 } from "./bake9";
-import { glUnits9, glNow9, glBakeMsTake9, glScrubSet9, glScrubbing9, gasTops9, GL_CANVAS_KINDS9, GL_ON9, GL_BLIT9, GL_WARM9, GL_GLOW_KINDS9, SHADOW_ALPHA9, camOf9, CAM_TOP9, glIconOk9, glIconRequest9, type GlUnits9, type GlFoot9 } from "./gl9";
+import { glUnits9, glNow9, glBakeMsTake9, glScrubSet9, glScrubbing9, gasTops9, MESH_SHADOW9, GL_CANVAS_KINDS9, GL_ON9, GL_BLIT9, GL_WARM9, GL_GLOW_KINDS9, SHADOW_ALPHA9, camOf9, CAM_TOP9, glIconOk9, glIconRequest9, type GlUnits9, type GlFoot9 } from "./gl9";
 export { LIMB_LOG, TURRET_BACK9, SHAPE_BUILDERS, ctx2d9, BAKE_ENV9, cropToInk, pathBox, tierTableOf, autoTier, stageFaces, rasterBld9, SHAPE_GALLERY, poseSet, poseSet9, bldLitSet, headYawSet, bldSpinSet, bldSpinRawSet9, lodSetCap, lodSetZoom, lodNoteFrame, tone9, TONE_DARK, TONE_SAT, silhouetteLight } from "./bake9";
 export type { BakeCv9, BakeCtx9, RasterOut9, ShapeGalleryItem } from "./bake9";
 export { isAirUnit, flapCutOf, atkCutOf, unitTilesOf, buildingYawOf, galleryYawOf, BLD_NORM, BUILD_STAGES, SCR_DIAG, scrDiagOn, deriveWorld9, createEngine9, pickWorldUi9, emptyWorldUi9 } from "./engine9";
@@ -4760,7 +4760,9 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             const gLift9 = op.airPx !== undefined ? op.airPx * zoom : wPx * (op.liftK ?? 0);
             const gay9 = op.mkFrac !== undefined ? Math.round(sy * B) / B : Math.round(((groundY ?? sy + hPx / 2) - gLift9) * B) / B;
             const gax9 = Math.round(sx * B) / B;
-            const gsh9 = bodyShadow
+            /* ★ 발광 종류(소환구·아콘 …)는 제 몸 그림자를 안 진다(2026-09, 요청: "소환구 자체 그림자는 제거(공통 그림자만
+               사용)") — 빛 공이 빛 방향으로 눕힌 검은 원을 옆에 드리우면 빛이 그림자를 지는 꼴이다. 접지 타원(공통)만 남긴다. */
+            const gsh9 = MESH_SHADOW9 && bodyShadow && !GL_GLOW_KINDS9.has(op.kind)
               ? (gLift9 > 0.5
                 ? { dy: Math.max(1, sidePx * 0.04 + gLift9), alpha: op.alpha * 0.4 }   // 뜬 건물(이사 중)은 아래로 — 벌어짐이 높이다
                 : { ground: true, alpha: op.alpha * SHADOW_ALPHA9 }) : undefined;
@@ -4881,7 +4883,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          *  ⚠ 여기 문이 `op.air && …` 였다 — 공중만 걸러서, **부양 지상 유닛**(일꾼·벌처·아콘류)은 배율이
          *    문턱을 넘으면 메시 그림자와 타원을 **둘 다** 받았다(공중에서 한 번 고쳤던 '그림자가 둘'과 같은 자리다).
          *    이제 타원은 GL 바닥 그림자가 **안 깔리는 프레임의 대타**로만 남는다(덜어내기 · 손짓 중 접힘 · 낮은 배율). */
-        const glShadow9 = !!(glM9 && gl9 && bodyShadow && (op.air || zoom >= shadowGroundMinZoom9()));
+        const glShadow9 = MESH_SHADOW9 && !!(glM9 && gl9 && bodyShadow && (op.air || zoom >= shadowGroundMinZoom9()));   // 몸 그림자는 끈다(gl9 MESH_SHADOW9) — 타원이 늘 선다
         if (hover && !op.noShadow && showShadows !== false && (CROWD9.lv === 0 || op.air) && detail && !shFold9
           && !glShadow9) {
           /* 떠다니는 지상 유닛(일꾼·벌처·아콘류)은 겨우 발밑만 떠 있다(지적: 그림자가
@@ -5096,7 +5098,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
                · 꼭짓점 z 에 **나는 높이**(h, 모형 칸)를 더해 눕힌다 — 그만큼 빛 방향으로 멀리 눕는다.
                · 앵커는 몸과 같으니(몸은 lift 만큼 들려 있다) 화면에서 그 몫을 도로 내린다(dy = lift).
              캔버스 타원은 공중 유닛에서 걷었다(아래 hover 갈래) — 바닥에 누운 실루엣이 그 몫을 대신한다. */
-          const gsh9 = bodyShadow && (op.air || zoom >= shadowGroundMinZoom9())
+          const gsh9 = MESH_SHADOW9 && bodyShadow && (op.air || zoom >= shadowGroundMinZoom9())
             ? (op.air
               ? { ground: true, dy: lift, h: lift / Math.max(1e-3, gk9), alpha: op.alpha * SHADOW_ALPHA9 }
               : { ground: true, alpha: op.alpha * SHADOW_ALPHA9 }) : undefined;

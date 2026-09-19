@@ -3996,6 +3996,24 @@ export type EngineView9 = {
    *  워커에는 location.hash 가 없으므로 이 자리가 유일한 입구다. */
   cine?: number;
 };
+/** ★★ **같은 자리에 겹쳐 쌓인 미네랄 밭은 하나만 그린다**(2026-09, 지적: "성능 하락과 얼룩의 정체 … 주변의 라이트가 다른 곳에
+ *  영향을 주는 것 같아" → 스샷의 넥서스 앞 푸른 덩어리) — 빠른무한 맵은 한 자리(반 타일 안)에 밭을 수십 장 포갠다. 밭마다 op
+ *  하나가 서면 반투명 파란 수정 수십 장이 한 자리에 겹쳐 **빛 얼룩처럼 뭉친 덩어리**가 되고, 프레임마다 그 수만큼 메시를 민다.
+ *  남은 단(resStageAt)은 어차피 반 타일 격자의 자리로 읽으므로 한 장이 곧 그 자리의 밭이다. 간헐천은 안 겹치니 그대로 둔다.
+ *  ⚠ 배열이 같은 동안은 한 번만 거른다(WeakMap) — 프레임마다 도는 자리다. */
+const RES_UNIQ9 = new WeakMap<object, [number, number, 0 | 1][]>();
+function resUniq9(res: [number, number, 0 | 1][]): [number, number, 0 | 1][] {
+  const got = RES_UNIQ9.get(res); if (got) return got;
+  const seen = new Set<string>(); const out: [number, number, 0 | 1][] = [];
+  for (const r of res) {
+    if (r[2] === 1) { out.push(r); continue; }
+    const k = `${Math.round(r[0] * 2)}|${Math.round(r[1] * 2)}`;
+    if (seen.has(k)) continue;
+    seen.add(k); out.push(r);
+  }
+  RES_UNIQ9.set(res, out);
+  return out;
+}
 export function createEngine9(world: EngineWorld9, view0: EngineView9) {
   let view = view0;
   let stillNow9 = false;
@@ -6646,7 +6664,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       void rBD9;
     }
     {
-    const rW9 = (grid.resources ?? []).map((res) => {
+    const rW9 = resUniq9(grid.resources ?? []).map((res) => {
     /* 시점 보기 — 아직 못 가 본 곳의 자원은 모른다(요청: 3단 안개). 한 번
        밝힌 뒤로는 늘 보인다(원작도 자원 지물은 기억에 남는다). */
     const rSeen9: 0 | 1 | 2 = fogOn ? seenAt(res[0], res[1]) : 2;
