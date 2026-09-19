@@ -20040,11 +20040,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        읽히게 하고, 색도 팔뚝(GUNMETAL)에서 한 단 더 내려 연장과 팔 사이의 마디로 갈라 보인다.
        ⚠ 여기서 칠해 두면 바깥 `paintBase(…, GUNMETAL)` 이 못 덮는다(칠한 낯은 그대로 둔다) —
          곧 이 한 자리만 고치면 좌우 두 팔이 함께 따라온다. */
-    const wristDisc9 = (x0: number, y0: number, x1: number, y1: number): ShapeFace[] => {
-      const FLAT9 = 0.34;                                   // 축 길이 몫 — 아주 납작하게
-      const mx9 = (x0 + x1) / 2; const my9 = (y0 + y1) / 2;
-      const ax9 = mx9 + (x0 - mx9) * FLAT9; const ay9 = my9 + (y0 - my9) * FLAT9;
-      const bx9 = mx9 + (x1 - mx9) * FLAT9; const by9 = my9 + (y1 - my9) * FLAT9;
+    /* ★★ **와셔는 팔 끝에서 시작해 연장 뿌리까지 잇는다**(2026-09, 지적: "scv 손부품들이 팔에서 떨어져있어서 붙여야해") —
+       옛 와셔는 원판 구간(x0·y0 → x1·y1)을 **한가운데 기준으로 0.34 배** 죄어 놓아, 팔 끝(자락 t 1)과 와셔 사이에 축으로 0.27 ·
+       와셔와 집게 첫 고리 사이에 0.2 가 비었다(실측: 45도에서 집게가 팔 앞에 떠 있었다). 시작점을 **팔 자락 안쪽(t 0.94)**으로,
+       끝점을 부르는 쪽이 주는 연장 뿌리(드릴 뿌리 + 0.07 · 집게 첫 고리 + 0.02)로 두면 어느 쪽에도 틈이 없다. 반지름 0.5 는 그대로. */
+    const wristDisc9 = (m9: 1 | -1, bx9: number, by9: number): ShapeFace[] => {
+      const [ax9, ay9] = armAt(m9, 0.94);
       return paintBase(spirePillar({
         x: 0, y: 0, h: 0.8, w: 0.5, tipW: 0.5, segs: 2, sides: 12, hold: 1,
         ref: [0, 0, 1], caps: "both",
@@ -20057,7 +20058,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          연장을 든 것이 아니라 그 위에 얹혀 있는 것으로 보였다. 4.3 → 4.62.
          자리도 짧아진 팔의 손끝에 맞춰 (∓0.135, −0.435) 당겼다. */
       out.push(...tagKey(paintBase([
-        ...wristDisc9(-2.728 + TX9, 2.881 - TY9, -2.868 + TX9, 3.331 - TY9),
+        ...wristDisc9(-1, -2.868 + TX9, 3.301 - TY9),
         ...hornFaces(-2.868 + TX9, 3.231 - TY9, 3.696, -3.328 + TX9, 4.681 - TY9, 3.696, 0.74),
       ], GUNMETAL), depthNow(-2.848 + TX9, 3.731 - TY9) * 1.6 + 1.5));
       /* 총구 = **왼팔 연장(퓨전 커터)의 끝**(2026-09, 요청: "scv 트레이서 손끝으로 이동") —
@@ -20076,7 +20077,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     {
       // 손목 원판은 왼팔과 같은 기둥이다(위 ★ 주석).
       out.push(...tagKey(paintBase([
-        ...wristDisc9(2.728 - TX9, 2.881 - TY9, 2.868 - TX9, 3.331 - TY9),
+        ...wristDisc9(1, 2.888 - TX9, 3.40 - TY9),
         ...hornFaces(2.588 - TX9, 3.281 - TY9, 3.696, 2.448 - TX9, 4.431 - TY9, 3.696, 0.3),
         ...hornFaces(3.148 - TX9, 3.281 - TY9, 3.696, 3.408 - TX9, 4.431 - TY9, 3.696, 0.3),
         ...hornFaces(2.868 - TX9, 3.281 - TY9, 4, 2.968 - TX9, 4.331 - TY9, 4.216, 0.28),
@@ -20359,8 +20360,20 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* ★ 눈은 **치마 벽**에(2026-09, 지적: "눈 위치가 너무 높음") — z 5.04 는 어깨(위 테)라 눈이 정수리 언저리에 붙어
          있었다. 치마 한가운데 z 4.70(그 높이 벽 반지름 0.875 · x ±0.35 자리의 벽 y 0.80)에 내리고, 벽 앞 한 뼘(0.11 —
          옛 값과 같은 띄움)에 세운다. 총구(입)도 그 아래로 따라 내린다. */
-      out.push([wallDiscPath(-0.52 * BD, 1.37 * BD, 4.70, 0.28, 0.144), 0.92 * k, "#a6ff3e"] as ShapeFace);
-      out.push([wallDiscPath(0.52 * BD, 1.37 * BD, 4.70, 0.28, 0.144), 0.92 * k, "#a6ff3e"] as ShapeFace);
+      /* ★★ **눈은 치마 벽에 붙은 작은 콘택트렌즈다**(2026-09, 요청: "눈을 크기를 줄이고 콘택트렌즈 부품으로 바꾸고 몸에
+         딱붙이기") — 벽 원반(wallDiscPath)은 벽 앞 한 뼘에 세운 납작한 데칼이라 각에 따라 떠 보였다. `contactLens9` 는
+         타원면 위의 점을 법선 쪽으로 두께만큼 띄운 얇은 사발이라 껍질에 붙는데, 치마는 구가 아니라 **원뿔**이다 — 그래서
+         눈 자리(y 0.875 · z 4.70)에서 원뿔 벽에 **접하는 가상의 구**(반지름 1.2 · 중심을 벽 법선 반대쪽으로 1.2 물린 자리)를
+         자로 준다: 벽은 위로 갈수록 넓어지므로(dr/dz 0.6) 법선이 앞·아래(−31도)를 보고, 렌즈 반지름 0.15 안에서 구와 원뿔의
+         차는 0.01 이라 어느 각에서도 벽에 딱 붙는다. 좌우 자리는 몸 축 둘레의 **방위각**(±23.6도 = atan(0.35/0.80))이라
+         `withModelSpin` 으로 돌린다(렌즈의 방향은 y-z 평면뿐이다). 크기 0.28 → 0.15(요청). 2D 는 종전처럼 마주 볼 때만. */
+      const EYE_R9 = 1.2; const EYE_EL9 = -Math.atan(0.6);
+      for (const m of [-1, 1] as const) {
+        out.push(...withModelSpin(m * 23.6, () => tagKey(contactLens9({
+          cx: 0, cy: 0.875 - EYE_R9 * Math.cos(EYE_EL9), r: EYE_R9, hh: EYE_R9, z0: 4.70 - EYE_R9 * Math.sin(EYE_EL9),
+          ang: 0.15 / EYE_R9, elev: EYE_EL9, thick: 0.05, rim: "#4e7f18", fill: "#8fe63a", core: "#d9ff8c",
+        }).map(([d, o, f, kk, l, n]) => [d, o * k, f, kk, l, n] as ShapeFace), depthNow(0, 0.875) * 1.6 + 3)));
+      }
     }
     /* 옆면 둥근 포트(실물 참고) — 몸이 줄면서 가장자리 밖으로 삐져나와 떠 보였다(확인)
        — 몸 안쪽으로 당기고 더 작게. */
@@ -23118,6 +23131,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         x: ax9, y: ay9, z0: 0.016 + lf9z9, h: 0.352, w: 1.1, tipW: 0.72,
         segs: 2, sides: 8, hold: 0.2, taper: 1.4,
       }), DARK), key9 - 0.3));
+      /* ★ **발 앞의 뭉툭한 발톱 셋**(2026-09, 요청: "울트라 발 앞쪽 뭉툭한 발톱(코끼리같은) 세개씩 추가") — 발(반지름 1.1
+         절두체)의 앞(+y) 테두리에서 ±28도로 부채꼴, 뿌리는 발 속(0.8)에 묻고 앞으로 0.6 나가며 살짝 내려온다. 끝은 점이
+         아니라 **뭉툭한 뚜껑**(tipW 0.65 배 · caps both) — 코끼리 발톱은 낫이 아니다. 색은 상아(IVORY_DEEP). */
+      for (const ta9 of [-28, 0, 28]) {
+        const tr9 = (ta9 * Math.PI) / 180;
+        const tdx9 = Math.sin(tr9); const tdy9 = Math.cos(tr9);
+        out.push(...tagKey(paintBase(spirePillar({
+          x: 0, y: 0, h: 1, w: 0.22, tipW: 0.14, segs: 2, sides: 8, caps: "both", trueNormal: true,
+          path: (t9: number): [number, number, number] => [
+            ax9 + tdx9 * (0.8 + 0.6 * t9), ay9 + tdy9 * (0.8 + 0.6 * t9), 0.016 + lf9z9 + 0.19 - 0.08 * t9,
+          ],
+        }), IVORY_DEEP), key9 - 0.25 + depthNow(tdx9, tdy9) * 0.1));
+      }
     }
     /** 다리가 길어진 만큼 몸을 통째로 올린다 — 엉덩이 자리(z 4.3)에 몸 밑이 맞물린다. */
     const BODY_UP = 1.3; const BODY_UPz9 = 1.04; /* z용 쌍둥이(model-z-scale ×0.8) */
@@ -23236,7 +23262,40 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 머리·볏은 살짝 앞·위로(2026-09, 요청: "울트라 머리와 머리장식 살짝 앞위로") — UH_FWD9·UH_UP9 를 볏 뿌리와 얼굴이 함께 받는다. */
     // ★ 머리는 몸의 **위쪽**에 달린다(2026-09, 요청: "머리를 몸의 좀 위쪽에 달리게 목+머리+머리장식 모두 위치 올리기") — UH_UP9 0.25 → 1.15.
     const UH_FWD9 = 0.25; const UH_UP9 = 1.15;
-    out.push(...tagKey(zergFace(3.3 + UH_FWD9, 3.12 + UH_UP9, 1.5, PLATE), depthNow(0, 3.9) * 1.6 + 2));
+    /* ★★ **켄타우로스 상체**(2026-09, 요청: "상체에서 이어지는 상체가 하나 더 있음 — 켄타우로스 같은 형태 · 거기에 현재의 머리와
+       팔 두 개가 붙은 형태 · 머리 이마에 코뿔소 같은 뿔 하나 추가") — 여태 머리·팔이 네발 몸통의 앞끝에 바로 붙어 있었다. 앞몸
+       가슴(y 1.9 · 등뼈 z 4.8)에서 **곧추선 둘째 몸통**(spirePillar · 축 z · 뿌리는 가슴 살 속 z 5.4 · 어깨 z 8.4 · 반폭 1.9 →
+       가운데 2.3 불룩 → 1.9 · 앞뒤 0.65 로 납작)이 솟고, 그 꼭대기에 얼굴·볏·옆뿔·팔·낫이 통째로 옮겨 앉는다(UT_DY9·UT_DZ9 —
+       옛 자리에서 옮긴 몫 · 볏·뿔은 CR0 를 읽어 저절로 따라온다). 낫은 어깨가 높아진 만큼 더 깊이 내려와(끝 −1.5 → −4.0)
+       앞·아래를 벤다. 상체는 휘두르기 묶음(upper9) 안이라 공격 컷에 함께 돈다. */
+    const UT_TOP9: [number, number, number] = [0, 2.6, 8.4];
+    const UT_ROOT9: [number, number, number] = [0, 1.9, 5.4];
+    out.push(...tagKey(paintBase(spirePillar({
+      x: 0, y: 0, h: 0.8, w: 1, tipW: 1, segs: 6, sides: 14, caps: "top", ref: [1, 0, 0], trueNormal: true,
+      path: (t: number): [number, number, number] => [
+        0, UT_ROOT9[1] + (UT_TOP9[1] - UT_ROOT9[1]) * t, UT_ROOT9[2] + (UT_TOP9[2] - UT_ROOT9[2]) * t,
+      ],
+      widthOf: (t: number): number => 1.9 + 0.4 * Math.sin(Math.PI * t),
+      ovalOf: (): number => 0.65,
+    }), HIDE), depthNow(0, 2.2) * 1.6 + 1.5));
+    /** 옛 머리 자리(3.3 + UH_FWD9 · 3.12 + UH_UP9)에서 상체 꼭대기로 옮긴 몫 — 볏 뿌리도 같은 몫을 탄다. */
+    const UT_DY9 = (UT_TOP9[1] + 0.55) - (3.3 + UH_FWD9);
+    const UT_DZ9 = (UT_TOP9[2] - 0.25) - (3.12 + UH_UP9);
+    const HY9 = 3.3 + UH_FWD9 + UT_DY9; const HZ9 = 3.12 + UH_UP9 + UT_DZ9;
+    out.push(...tagKey(zergFace(HY9, HZ9, 1.5, PLATE), depthNow(0, 3.9) * 1.6 + 2));
+    /* ★ **코뿔소 뿔** — 이마(입선 + 수직 낯 위 4분의 1 구의 앞 30도 언저리 · y + 0.8 · z + 1.3)에서 앞·위로 나가며 끝이 살짝 뒤로
+       휘는 2차 베지에 뿔(뿌리 반지름 0.42 → 점 · 상아). 낫·발톱과 같은 상아라 한 벌로 읽힌다. */
+    {
+      const RH0: [number, number, number] = [0, HY9 + 0.8, HZ9 + 1.3];
+      const RHC: [number, number, number] = [0, HY9 + 1.9, HZ9 + 2.1];
+      const RH1: [number, number, number] = [0, HY9 + 2.3, HZ9 + 3.4];
+      const bzr9 = (a: number, b: number, c: number, t: number): number => (1 - t) * (1 - t) * a + 2 * (1 - t) * t * b + t * t * c;
+      out.push(...tagKey(ivory(spirePillar({
+        x: 0, y: 0, h: 0.8, w: 1, segs: 5, sides: 8, caps: "bottom", trueNormal: true,
+        path: (t: number): [number, number, number] => [0, bzr9(RH0[1], RHC[1], RH1[1], t), bzr9(RH0[2], RHC[2], RH1[2], t)],
+        widthOf: (t: number): number => 0.42 * (1 - t) ** 1.1 + 0.03,
+      })), depthNow(0, 4.6) * 1.6 + 2.4));
+    }
     /* ★ 머리 뒤의 **큰 머리장식 갑판 한 장**(요청: "히드라처럼 큰 머리장식 갑판, 1장으로, 너비가 넓은 형태") — 이마 뒤
        (y 2.9, z 5.3)에서 45도로 뒤·위로 뻗는 얇은 판(oval 0.1, ref x라 u가 너비·v가 두께). 너비는 뿌리 반폭 1.3에서
        0.55 지점 2.7까지 벌어졌다가 끝에서 0.5로 모여 방패꼴이고, 가장자리는 skewV로 앞·아래로 처져(cu²) 목을 감싼다.
@@ -23255,7 +23314,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const CRN9: [number, number, number] = [0, 0.894, 0.447];    // 판의 앞·위 법선(63도)
     const CRL9 = 4.025 * 1.2;
     const crest9 = crestPlate9({
-      root: [0, 3.35 + UH_FWD9, 4.6 + UH_UP9], axis: CRA9, nrm: CRN9, len: CRL9, wk: UCK9, oval: 0.22,
+      root: [0, 3.35 + UH_FWD9 + UT_DY9, 4.6 + UH_UP9 + UT_DZ9], axis: CRA9, nrm: CRN9, len: CRL9, wk: UCK9, oval: 0.22,
       base: PLATE, layer: HIDE, key: depthNow(0, 3.9) * 1.6 + 2.6,   // 얼굴(+2)보다 앞(지적: "머리장식에 머리가 가려져야")
     });
     out.push(...crest9.faces);
@@ -23327,10 +23386,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        상아. 키는 옛 팔의 자(옆구리 깊이 ×1.6 + 12). */
     for (const m of [-1, 1] as const) {
       const s9 = 2.05;
-      const P0: [number, number, number] = [m * 2.45, 2.7, 3.6 + BODY_UPz9];
+      // 팔 뿌리는 켄타우로스 상체의 어깨(위 UT_TOP9 · 반폭 1.9 안쪽 0.25) — 낫은 어깨가 높아진 만큼 더 깊이 내려온다.
+      const P0: [number, number, number] = [m * 1.65, UT_TOP9[1] - 0.1, UT_TOP9[2] - 0.6];
       // 끝이 살짝 아래를 본다(요청: "팔도 아래를 살짝 향하게") — 조종점·끝의 z 를 내렸다(+0.32 → −0.1 · −0.44 → −1.5)
-      const CP: [number, number, number] = [P0[0] + m * 2.3 * s9, P0[1] + 1.85 * s9, P0[2] - 0.1];
-      const P1: [number, number, number] = [P0[0] + m * 0.2 * s9, P0[1] + 4.05 * s9, P0[2] - 1.5];
+      const CP: [number, number, number] = [P0[0] + m * 2.3 * s9, P0[1] + 1.85 * s9, P0[2] - 1.0];
+      const P1: [number, number, number] = [P0[0] + m * 0.2 * s9, P0[1] + 4.05 * s9, P0[2] - 4.0];
       const bz9 = (a: number, b: number, c: number, t: number): number =>
         (1 - t) * (1 - t) * a + 2 * (1 - t) * t * b + t * t * c;
       const cpath9 = (t: number): [number, number, number] => [
