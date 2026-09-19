@@ -22978,10 +22978,26 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     upper9(() => { torso9(0.5, 1, false, true, depthNow(0, 1.1) * 1.6); });
     /* 어깨 갑옷 판 둘 = **임자 색**(요청: 나머지 흰 부분) — 앞몸 양옆에 비스듬히 붙는
        각진 판. 사진에서 가장 크게 드러나는 창백한 자리라 임자를 여기서 읽는다. */
+    /* ★ **둥근 판이 살에 얹힌다**(2026-09, 재요청: "어깨 판도 둥글게 살에 얹어줘") — 각진 절두체 둘은 둥근 몸 옆에서 상자로
+       남았다. 이제 어깨 자리(y 1.3 · 옆에서 30도 위)의 몸 껍질 점을 회전체 표(TORSO9)에서 풀고, 그 자리의 **법선을 축**으로 한
+       반타원체 패드(spirePillar · 길이 방향 y · 반길이 1.7 · 반폭 1.05 · 두께 0.6 · 밑동은 살 속 0.2)를 얹는다 — 어느 각에서도
+       살을 따라 붙은 볼록한 갑판으로 읽힌다. 칠하지 않는다 = 임자 색. */
     upper9(() => {
+      const tS9 = (1.3 - TY0) / (TY1 - TY0);
+      const wS9 = tW9(tS9); const hS9 = wS9 * tOv9(tS9); const zS9 = tZ9(tS9);
+      const ph9 = Math.PI / 6;
       for (const m9 of [-1, 1] as const) {
-        out.push(...tagKey(frustumFaces3(m9 * 2.85, 1.3, 1.5, 4.2, 1.05, 3.1, 1.2, 3.12 + BODY_UPz9),
-          depthNow(m9 * 2.85, 1.3) * 1.6 + 3));
+        const px9 = m9 * wS9 * Math.cos(ph9); const pz9 = zS9 + hS9 * Math.sin(ph9);
+        // 타원 법선 ∝ (x/w², z/h²)
+        let nx9 = m9 * Math.cos(ph9) / wS9; let nz9 = Math.sin(ph9) / hS9;
+        const nl9 = Math.hypot(nx9, nz9); nx9 /= nl9; nz9 /= nl9;
+        const bx9 = px9 - nx9 * 0.2; const bz9 = pz9 - nz9 * 0.2; const len9 = 0.8;
+        out.push(...tagKey(spirePillar({
+          x: 0, y: 0, h: 0.8, w: 1, segs: 5, sides: 12, caps: "bottom", ref: [0, 1, 0], trueNormal: true,
+          path: (t: number): [number, number, number] => [bx9 + nx9 * len9 * t, 1.3, bz9 + nz9 * len9 * t],
+          widthOf: (t: number): number => 1.7 * Math.sqrt(Math.max(0, 1 - t * t)) + 0.02,
+          ovalOf: (): number => 0.62,
+        }), depthNow(m9 * 2.85, 1.3) * 1.6 + 3));
       }
     });
     /* 등가시 — 앞몸 등마루에서 골반까지 줄지어 뒤로 눕는다. 짙은 색이라 창백한
