@@ -29,6 +29,8 @@ const ROTS = String(flag("--rots", "45,225")).split(",").map(Number);
  *  stageFaces 의 몫을 눈으로 고를 때 쓴다(단계끼리, 그리고 완성과 얼마나 다른가). */
 /** 자세 칸 — 자세로 움직이는 판(시즈 전환 포탑 tankturretxf · 전환 다리)을 한가운데 컷으로 보려면 준다. */
 const POSE = Number(flag("--pose", 0));
+/** 머리 겨눔 — `--aim N` 이면 머리(포탑·혓바닥·포토 관)를 N도로 겨눈 채 굽는다(포토는 겨눌 때만 관 셋이 다 솟는다). */
+const AIM = flag("--aim", null);
 const STAGES = flag("--stages", null) ? String(flag("--stages")).split(",").map(Number) : null;
 /* ★ `--spins 0,1,2,…` — **회전 칸**을 칸으로 늘어놓는다(2026-09 에 더했다. 요잉은 `--rots` 의 첫 값
    하나로 못 박는다). 도는 부품(코어 디스크·서플라이 팬·포지 톱니·머신샵)은 칸마다 따로 굽는 자라
@@ -89,7 +91,7 @@ window.__run = (kinds, rots, cell, bg, color, vs2d, stages, lit, spins) => {
       let m = null;
       try {
         if (spins) bldSpinRawSet9(spins[i]);
-        m = isB ? g.bldMesh({ kind, fx: 0, fy: 0, z: 0, sizePx: 16, color, alpha: 1, rotDeg: rot, lit, spin: spins ? spins[i] : 0, buildStage: stages ? stages[i] : 0 }, 3) : g.unitMesh(kind, ${POSE}, 3);
+        m = isB ? g.bldMesh({ kind, fx: 0, fy: 0, z: 0, sizePx: 16, color, alpha: 1, rotDeg: rot, lit, spin: spins ? spins[i] : 0, buildStage: stages ? stages[i] : 0, ...(${AIM === null} ? {} : { headDeg: ${AIM === null ? 0 : Number(AIM)} }) }, 3) : g.unitMesh(kind, ${POSE}, 3);
       } catch (e) { errs[kind] = String(e).slice(0, 80); }
       if (!m) return;
       g.push({ mesh: m, ax: i * cell + cell / 2, ay: cell / 2, k, yoff: k * 4, yawDeg: -rot, color, alpha: 1, cam: CAM_TOP9, gradR: cell * 0.707, gradCy: 0, flat: GL_GLOW_KINDS9.has(kind) });   // 발광 종류는 붓과 같이 음영·깊이 없이
@@ -120,7 +122,7 @@ window.__run = (kinds, rots, cell, bg, color, vs2d, stages, lit, spins) => {
   kinds.forEach((kind, r) => {
     const b = SHAPE_BUILDERS[kind]; if (!b) return;
     rots.forEach((rot, i) => {
-      poseSet9(${POSE}); bldLitSet(false); headYawSet(0); bldSpinRawSet9(0);
+      poseSet9(${POSE}); bldLitSet(false); headYawSet(${AIM === null ? 0 : Number(AIM)}, ${AIM !== null}); bldSpinRawSet9(0);
       let faces = null;
       try { faces = zsorted(withTopView(() => bake(() => withViewShear(0, () => withYaw(-rot, b))))); } catch (e) { errs[kind] = String(e).slice(0, 80); }
       if (!faces) return;

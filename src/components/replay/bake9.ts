@@ -1600,10 +1600,11 @@ export const P_NECK_TOP: [number, number, number] = [0, 0.5, 5.024];
    몸을 세우면 키가 커지는 것이 맞다). 몸통 위의 부품(목·머리·팔·어깨판·가슴 보석·망토·땋은 머리)은 좌표가 옛 숙임
    자로 박혀 있으므로 `pUpright9` 가 **같은 셈을 모형 변환(withModelWarp)으로** 태운다: 골반 아래는 그대로, 몸통
    구간은 높이 몫만큼 뒤로 물리며 위로 늘리고, 어깨 위는 통째로 옮긴다. 다리·허리 보호구는 그 밖에 둔다. */
-/** 종류별 숙임 몫 — 질럿·하템 수직(0) · 다크 살짝(0.25 ≒ 10도). */
-export const ZEALOT_LEAN9 = 0;
-export const HT_LEAN9 = 0;
-export const DT_LEAN9 = 0.25;
+/** 종류별 숙임 몫 — 축 길이 2.17 을 지키므로 lean = 2.17·sin(각)/1.27: 질럿·하템 **15도**(0.44 · 재요청: "허리는 15도 정도는
+ *  구부려야 자연스러울 것" — 수직(0)에서 되돌림) · 다크는 그보다 살짝 더 22도(0.64). */
+export const ZEALOT_LEAN9 = 0.44;
+export const HT_LEAN9 = 0.44;
+export const DT_LEAN9 = 0.64;
 export const P_LEAN_Y9 = 1.27;
 export const P_TORSO_H9 = 1.76;
 export const P_TORSO_Z0 = 3.08;
@@ -1731,7 +1732,13 @@ export function protossLegs(
     const ankle0: [number, number, number] = [m * 0.86, -0.75, Z(1)];
     // 무릎 높이에서 엉덩이~발목 직선의 y — 굽힘(bend)이 0이면 여기, 1이면 본디 자리(0.3).
     const kneeLineY9 = hip[1] + (ankle0[1] - hip[1]) * ((hip[2] - Z(2.2)) / Math.max(1e-6, hip[2] - ankle0[2]));
-    const knee0: [number, number, number] = [m * 0.72, kneeLineY9 + (0.3 - kneeLineY9) * bend, Z(2.2)];
+    /* ★ **대퇴는 거의 수직, 정강이·발이 뒤에서 > 꼴**(2026-09, 요청: "허리를 폈으니 대퇴도 거의 수직으로 세우고 하지와 발뼈만
+       뒤에서 >모양이 되어야") — 옛 무릎은 골반~발목 선에서 앞으로 0.3 까지 bend 배로 나가(1.4 이면 y 0.65) 허벅지가 34도
+       앞으로 누웠다. 이제 무릎은 고관절 바로 아래에서 앞으로 KNEE_FWD9·bend 만(질럿 0.17 · 하템 0.08) 나간다. 발목(−0.75)은
+       그대로라 정강이가 뒤로 눕고 발이 앞으로 나가 옆에서 > 로 읽힌다. kneeLineY9 는 걸음 풀이의 자라 남긴다. */
+    const KNEE_FWD9 = 0.12;
+    void kneeLineY9;
+    const knee0: [number, number, number] = [m * 0.72, hip[1] + KNEE_FWD9 * bend, Z(2.2)];
     const Lt9 = Math.hypot(knee0[0] - hip[0], knee0[1] - hip[1], knee0[2] - hip[2]);
     const Ls9 = Math.hypot(ankle0[0] - knee0[0], ankle0[1] - knee0[1], ankle0[2] - knee0[2]);
     const ankleR9: [number, number, number] = [ankle0[0], ankle0[1] + st * 1.2, ankle0[2] + Math.max(0, st) * 0.16];
@@ -8238,10 +8245,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        밑동(반폭 4.5·모서리 6.36) 안쪽이라 판 가운데는 몸이 가리고 날만 삐져나온다. 그리는 차례는 몸·받침보다
        **앞**(키 −1)이라 판 가운데를 받침이 덮는다. 날 끝의 뿔은 마디 없는 4면 뿔(segs 1). */
     withModelZOff(0, () => {   // 표창 발판은 땅에
-      const TH9 = 0.4;
+      /* ★ 불가사리 다리(날 + 뿔)를 **1.25배**(2026-09, 요청: "넥서스 발판 튀어나온 불가사리 다리 크기 25프로 확대") —
+         날 끝·오목점·뿔의 자리와 키를 다 같은 배수로 키운다(중심에 대해 닮은꼴). 몸 밑동(반폭 4.5)은 그대로라
+         삐져나온 몫만 큰다. */
+      const SK9 = 1.25;
+      const TH9 = 0.4 * SK9;
       // 표창 0.8배(요청) 뒤 길이는 원복(재요청: "길이는 원복하고 폭만 줄인 걸로 유지") — 끝 8.9, 오목점 3.2.
-      const STAR_R = 8.9;
-      const STAR_IN = 3.2;   // 5.0 → 4.0(요청: 날 폭 줄이기) — 오목점이 안으로 들수록 날이 가늘다.
+      const STAR_R = 8.9 * SK9;
+      const STAR_IN = 3.2 * SK9;   // 5.0 → 4.0(요청: 날 폭 줄이기) — 오목점이 안으로 들수록 날이 가늘다.
       const star9 = (z9: number): [number, number, number][] => {
         const pts: [number, number, number][] = [];
         for (let k9 = 0; k9 < 4; k9 += 1) {
@@ -8287,9 +8298,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const P3 = (r9: number, u9: number, z9: number): [number, number, number] =>
           [sx * r9 + cxa * u9, sy * r9 + sya * u9, z9];
         const tip9 = P3(STAR_R, 0, TH9);
-        const bl9 = P3(7.2, -0.5, TH9);
-        const br9 = P3(7.2, 0.5, TH9);
-        const apex9 = P3(7.7, 0, TH9 + 1.48);
+        const bl9 = P3(7.2 * SK9, -0.5 * SK9, TH9);
+        const br9 = P3(7.2 * SK9, 0.5 * SK9, TH9);
+        const apex9 = P3(7.7 * SK9, 0, TH9 + 1.48 * SK9);
         const tri9 = (p0: [number, number, number], p1: [number, number, number], p2: [number, number, number]): ShapeFace[] => {
           // 법선 = (p1−p0)×(p2−p0) — 꼭짓점을 바깥에서 봐 반시계로 준다.
           const ax9 = p1[0] - p0[0]; const ay9 = p1[1] - p0[1]; const az9 = p1[2] - p0[2];
@@ -8305,7 +8316,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           ...tri9(tip9, apex9, br9),   // 오른 옆면(바깥에서 보면 반시계)
           ...tri9(bl9, apex9, tip9),   // 왼 옆면
           ...tri9(br9, apex9, bl9),    // 뒷면(몸 쪽)
-        ], depthNow(sx * 7.8, sy * 7.8)));
+        ], depthNow(sx * 7.8 * SK9, sy * 7.8 * SK9)));
       }
     });
     out.push(...pillar(-PX9, PX9), ...pillar(PX9, PX9));
@@ -10071,9 +10082,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 대기/공격을 가른다(지적: "대기 상태에는 포탑이 높이 나오지 않고 가장 안쪽 포탑만 높이 반쯤 올라와
          있음 — 지금은 공격 모드 모델링") — 겨눌 때(headAimNow)만 세 관이 다 솟고, 대기에는 안쪽 관이 반
          높이, 바깥 두 관은 밑동만 살짝 보인다. 열쇠(headTag)에 'a'가 실려 판이 따로 굽힌다. */
+      /* 바깥 관일수록 반지름을 더 키웠다(2026-09, 요청: "포토 포탑 3중이잖아 바깥 껍질일수록 반지름을 좀더 키워서 지금보다
+         넓어지게") — 1.06 → 1.28 · 1.5 → 1.88(고리 구멍 반지름 2 안쪽). 안쪽 기둥 0.66 은 그대로다. */
       const TUBES: [number, number][] = headAimNow
-        ? [[7.4, 0.66], [5.0, 1.06], [3.4, 1.5]]
-        : [[Z0z9 + (5.92 - Z0z9) * 0.5, 0.66], [Z0z9 + 0.256, 1.06], [Z0z9 + 0.256, 1.5]];
+        ? [[7.4, 0.66], [5.0, 1.28], [3.4, 1.88]]
+        : [[Z0z9 + (5.92 - Z0z9) * 0.5, 0.66], [Z0z9 + 0.256, 1.28], [Z0z9 + 0.256, 1.88]];
       const N9 = 14;
       /** 그 높이의 잘린 테 — s9가 자름의 방향이다(+1이면 앞이 낮다). */
       const ringAt = (r9: number, zT: number, s9 = 0.8): [number, number, number][] =>
