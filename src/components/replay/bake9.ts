@@ -13035,19 +13035,22 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const NODES9 = [...PILLARS9, FRONT9];
     // 마름모 대각선 하나 더(요청): 뒷기둥(1) ↔ 앞 교점(3).
     /* ★ 들보('가지')는 **프로토스 기본 금**(요청: "가지 플토 기본 금색으로") — 색을 안 칠하면 raceBase 가 RACE_BASE_TONE.toss 로
-       칠한다(한때 IVORY 로 칠했던 '시본색' 읽기는 되물렸다). 앞 두 변(2-3 · 3-0)과 가운데 대각선(1-3)은 **1.25배 높이**에 건다
-       (요청: "앞쪽과 가운데만 높이만 1.25배") — 뒤 두 변은 종전 1.24 그대로. 끝은 기둥 속에 묻히므로 높이가 달라도 안 벌어진다. */
+       칠한다(한때 IVORY 로 칠했던 '시본색' 읽기는 되물렸다). 앞 두 변(2-3 · 3-0)과 가운데 대각선(1-3)은 **단면의 세로 두께만
+       1.25배**(재요청: "높이만 1.25배" → "세로 두께 키우라는 거야") — 자리(z 1.24)는 그대로. 단면 u축을 위(ref z)로 못 박고
+       u 반폭을 키운 뒤 v(가로)를 oval 로 도로 죄면 가로 0.30 은 그대로고 세로만 0.375 다. 눌린 단면이라 trueNormal 을 준다. */
     ([[0, 1, 1], [1, 2, 1], [2, 3, 1.25], [3, 0, 1.25], [1, 3, 1.25]] as [number, number, number][]).forEach(([i9, j9, hk9]) => {
       const a9 = NODES9[i9];
       const b9 = NODES9[j9];
       const mx9 = (a9[0] + b9[0]) / 2;
       const my9 = (a9[1] + b9[1]) / 2;
-      const BZ9 = 1.24 * hk9;   // 들보 높이 — 기둥 밑동(z 0.8) 바로 위다 · 앞·가운데는 ×1.25
+      const BZ9 = 1.24;   // 들보 높이 — 기둥 밑동(z 0.8) 바로 위다
+      const BW9 = 0.30;   // 가로 반폭(0.26 → 0.30 · 요청: 굵기 살짝 증가)
       out.push(...tagKey(spirePillar({
         x: 0, y: 0, h: 0.8, w: 1, segs: 4, sides: 6, caps: "none",
         path: (t9: number): [number, number, number] =>
           [a9[0] + (b9[0] - a9[0]) * t9, a9[1] + (b9[1] - a9[1]) * t9, BZ9],
-        widthOf: (): number => 0.30,   // 0.26 → 0.30(요청: 굵기 살짝 증가)
+        widthOf: (): number => BW9 * hk9,   // u(세로) 반폭 — 앞·가운데는 ×1.25
+        ref: [0, 0, 1], oval: 1 / hk9, trueNormal: true,   // v(가로)는 도로 BW9
       }), 12 + depthNow(mx9, my9) * 1.6));
     });
     return raceBase(out, "toss", pc);
