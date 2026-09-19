@@ -3,7 +3,10 @@ import { chromium } from "playwright-core";
 import { readFileSync, mkdirSync, writeFileSync, rmSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 const S = process.argv[2]; const OUT = `${S}/변천사`;
-const CELL = 200; const LAB = 170; const HEAD = 56; const GAP = 6;
+/* ★ 칸은 400px(2026-09, 지적: "변천사 화질이 너무 안좋아") — 옛·지금 판은 400 으로 굽고(model-shot·model-gl `--cell 400 --fit`),
+   7월 그림만 소스가 200px 칸이라 두 배로 늘린다(JC = 7월 칸 크기). `--fit` 은 칸마다 잉크 상자를 칸의 84% 에 맞추므로 아비터처럼
+   원 좌표가 작은 종류(MODEL_NORM 이 키우는 종류)도 7월 도록처럼 칸을 채운다(지적: "아비터 아직도 작게 나와"). */
+const CELL = 400; const JC = 200; const LAB = 170; const HEAD = 56; const GAP = 6;
 /* 유닛(45°)·건물(23° — 7월 건물 그림의 눈금)을 따로 구운 판 넷: histA_u/histA_b(8/29 · model-shot) · histC_u/histC_b(9/19 · model-gl).
    배경은 7월 그림과 같은 검정(#0a0a0a)이다(요청: "배경도 7월과 같은 색으로 검게 · 각도도 7월에 맞춰"). */
 const kindsU = readFileSync(`${S}/kinds_u.txt`, "utf8").trim().split(",");
@@ -56,7 +59,7 @@ for (const [file, race, nos] of RACES) {
     title: `${race} ${sh.title.split(" / ")[0]}`,
     cards: sh.items.map((it) => { const ang = julyAt.get(it.kind)?.ang ?? 23; return { ...it, ang, j: julyAt.get(it.kind) ?? null, a: idxA[ang].get(it.kind), c: idxC[ang].get(it.kind) }; }),
   }));
-  const data = await pg.evaluate(async ({ secs, CELL, COLS, TITLE, SEC, race }) => {
+  const data = await pg.evaluate(async ({ secs, CELL, JC, COLS, TITLE, SEC, race }) => {
     /* ★ 카드 상자·칸 테두리는 걷었다(2026-09, 요청: "한 모델 안에서 세로 구분선 제거 · 제목은 각 모델 위에 줄 위에") —
        모델 하나는 '이름 한 줄 + 시점 셋이 아래로 쌓인 한 기둥'이고, 기둥 안에는 세로 줄이 하나도 없다. 세로 줄을 내던 자리 셋:
        ① 붓의 strokeRect ② 7월 그림의 칸 판 왼 가장자리(x 264~271 의 띠 — 그래서 272 부터 자른다) ③ 옛 model-shot 칸의 왼 가장자리
@@ -84,11 +87,13 @@ for (const [file, race, nos] of RACES) {
           c.fillStyle = "#0a0a0a"; c.fillRect(x, yy, CELL, CELL);
           if (idx != null) {
             if (k === "J") {
-              c.drawImage(window.__im[idx.img], 272, idx.y, 192, 197, x + 4, yy, 192, CELL);
-              c.fillStyle = "#0a0a0a"; c.fillRect(x, yy, 44, 36); c.fillRect(x + 150, yy, 50, 30);       // 돋보기 · 눈금 글자
+              const R = CELL / JC;   // 7월 칸(200) → 시트 칸 배수
+              c.imageSmoothingEnabled = true; c.imageSmoothingQuality = "high";
+              c.drawImage(window.__im[idx.img], 272, idx.y, 192, 197, x + 4 * R, yy, 192 * R, CELL);
+              c.fillStyle = "#0a0a0a"; c.fillRect(x, yy, 44 * R, 36 * R); c.fillRect(x + 150 * R, yy, 50 * R, 30 * R);   // 돋보기 · 눈금 글자
             } else if (k === "A") {
               c.drawImage(window.__im[idx.img], 2, idx.i * CELL + 26 + 2, CELL - 4, CELL - 4, x + 2, yy + 2, CELL - 4, CELL - 4);   // 격자선이 위·아래 두 줄(0 · 199~200)
-              c.fillStyle = "#0a0a0a"; c.fillRect(x, yy, 96, 22);                                        // 옛 도구의 종류 이름
+              c.fillStyle = "#0a0a0a"; c.fillRect(x, yy, 96, 22);                                        // 옛 도구의 종류 이름(칸 크기와 무관한 글자 크기)
             } else {
               c.drawImage(window.__im[idx.img], 2, idx.i * (CELL + 22) + 22 + 2, CELL - 4, CELL - 4, x + 2, yy + 2, CELL - 4, CELL - 4);
             }
@@ -104,7 +109,7 @@ for (const [file, race, nos] of RACES) {
       y += Math.ceil(sc.cards.length / COLS) * BLKH;
     }
     return cv.toDataURL("image/png");
-  }, { secs, CELL, COLS, TITLE, SEC, race });
+  }, { secs, CELL, JC, COLS, TITLE, SEC, race });
   const f = `${OUT}/${file}_history.png`;
   writeFileSync(f, Buffer.from(data.split(",")[1], "base64")); console.log("→", f, secs.map((x) => x.cards.length).join("+"));
 }

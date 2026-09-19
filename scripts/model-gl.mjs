@@ -62,18 +62,27 @@ const HASH = flag("--hash", "glbloom=0");
  *  뒤 포신 홑판 siegebarrel 이 여기 있었는데, 포탑 한 판 tankturretxf 로 합치며 사라졌다). */
 const EMPTY_OK9 = new Set([]);
 let SPN = null; let COLS = COLS0; let RS = RS0;
-const BG = String(flag("--bg", "#20242b"));   // 변천사 시트는 7월 그림과 같은 검정(#0a0a0a)으로 굽는다
+const BG = String(flag("--bg", "#20242b"));
+/** ★ `--norm [Z]` — 지도의 정규화 배수(MODEL_NORM·BLD_NORM)를 곱해 굽는다(2026-09, 지적: "아비터 아직도 작게 나와") — 이 자는
+ *  빌더의 원 좌표를 cell/16 으로 그대로 띄우므로 원 좌표가 작은 종류(아비터 2.25 · 정규화 2.307)는 칸의 14% 로 선다. 정규화를
+ *  곱하면 모든 유닛이 잉크 목표(16-상자 5.2)로 서고, 그 위에 Z(기본 1.6 · 유닛만 — 건물은 16-상자를 이미 채우므로 1)를 더 곱해
+ *  칸을 채운다. 변천사 시트가 쓴다. 기본은 안 곱한다(옛 시트·EMPTY_OK9 자와 같게). */
+const NORM_Z = process.argv.includes("--norm") ? Number(flag("--norm", "1.6")) || 1.6 : 0;
+/** ★ `--fit [몫]` — 칸마다 **잉크 상자를 칸에 맞춘다**(2026-09, 같은 지적) — 정규화를 곱해도 건물은 16-상자를 채우니 높은 것이
+ *  잘리고(그레이터 스파이어) 나는 몸은 원점 위로 솟아 잘린다. 원 배율로 한 번 굽어 실루엣 상자를 재고, 그 상자가 칸의 몫(기본 0.84)에
+ *  들게 배수·자리를 잡아 다시 굽는다(줄마다 두 번). 변천사 시트가 쓴다 — 7월 도록 그림도 칸마다 제 크기로 채워져 있다. */
+const FIT = process.argv.includes("--fit") ? Number(flag("--fit", "0.84")) || 0.84 : 0;   // 변천사 시트는 7월 그림과 같은 검정(#0a0a0a)으로 굽는다
 const COLOR = "#4aa3ff";
 
 const ENTRY = `
 import { SHAPE_BUILDERS, SHAPE_GALLERY, poseSet9, bldLitSet, headYawSet, bldSpinRawSet9, tone9, silhouetteLight, DECAL_KINDS, SPIN_KINDS } from ${JSON.stringify(join(ROOT, "src/components/replay/bake9"))};
 import { withTopView, withViewShear, withYaw, bake, zsorted } from ${JSON.stringify(join(ROOT, "src/utils/shapeOblique"))};
 import { GlUnits9, CAM_TOP9, GL_CANVAS_KINDS9, GL_GLOW_KINDS9 } from ${JSON.stringify(join(ROOT, "src/components/replay/gl9"))};
-import { SPIN_ANIM9 } from ${JSON.stringify(join(ROOT, "src/components/replay/engine9"))};
+import { SPIN_ANIM9, modelNormOf, bldNormOf } from ${JSON.stringify(join(ROOT, "src/components/replay/engine9"))};
 const BLD = new Set(SHAPE_GALLERY.filter((g) => g.group === "건물").map((g) => g.kind));
 window.__kinds = () => Object.keys(SHAPE_BUILDERS);
 window.__spinSteps = () => SPIN_ANIM9;
-window.__run = (kinds, rots, cell, bg, color, vs2d, stages, lit, spins) => {
+window.__run = (kinds, rots, cell, bg, color, vs2d, stages, lit, spins, normZ, fit) => {
   const shadeBoost = (o, fill) => (fill && o < 1 ? Math.min(0.85, o * 1.45) : o);
   const cols = rots.length; const rows = kinds.length;
   // GL: 한 캔버스에 칸마다 개체 하나
@@ -87,6 +96,7 @@ window.__run = (kinds, rots, cell, bg, color, vs2d, stages, lit, spins) => {
   kinds.forEach((kind, r) => {
     // ⚠ 간헐천은 '부가' 무리라 BLD 밖인데 회전 칸(가스 시계)을 가진다 — 유닛 길로 보내면 칸이 열쇠에 안 들어 늘 같은 그림이다.
     const isB = BLD.has(kind) || DECAL_KINDS.has(kind) || SPIN_KINDS.has(kind);
+    const meshes = [];
     rots.forEach((rot, i) => {
       let m = null;
       try {
@@ -94,9 +104,35 @@ window.__run = (kinds, rots, cell, bg, color, vs2d, stages, lit, spins) => {
         m = isB ? g.bldMesh({ kind, fx: 0, fy: 0, z: 0, sizePx: 16, color, alpha: 1, rotDeg: rot, lit, spin: spins ? spins[i] : 0, buildStage: stages ? stages[i] : 0, ...(${AIM === null} ? {} : { headDeg: ${AIM === null ? 0 : Number(AIM)} }) }, 3) : g.unitMesh(kind, ${POSE}, 3);
       } catch (e) { errs[kind] = String(e).slice(0, 80); }
       if (!m) return;
-      g.push({ mesh: m, ax: i * cell + cell / 2, ay: cell / 2, k, yoff: k * 4, yawDeg: -rot, color, alpha: 1, cam: CAM_TOP9, gradR: cell * 0.707, gradCy: 0, flat: GL_GLOW_KINDS9.has(kind) });   // 발광 종류는 붓과 같이 음영·깊이 없이
+      const kk = (normZ ? k * (isB ? bldNormOf(kind) : modelNormOf(kind) * normZ) : k) * (fit ? 0.5 : 1);   // --fit: 재는 굽기는 반으로(안 잘리게)
+      meshes[i] = { m, kk };
+      g.push({ mesh: m, ax: i * cell + cell / 2, ay: cell / 2, k: kk, yoff: k * 4, yawDeg: -rot, color, alpha: 1, cam: CAM_TOP9, gradR: cell * 0.707, gradCy: 0, flat: GL_GLOW_KINDS9.has(kind) });   // 발광 종류는 붓과 같이 음영·깊이 없이
     });
     g.flush(gcv.width, gcv.height, gcv.width, gcv.height);
+    if (fit) {
+      // 둘째 굽기 — 첫 굽기의 실루엣 상자를 재어 칸에 맞춘다(배수는 원점(ax, ay + yoff)을 축으로 먹으므로 상자 가운데가 칸 가운데로 오게 원점을 옮긴다).
+      const gcx = gcv.getContext("webgl2") || gcv.getContext("webgl");
+      const px = new Uint8Array(gcv.width * gcv.height * 4); gcx.readPixels(0, 0, gcv.width, gcv.height, gcx.RGBA, gcx.UNSIGNED_BYTE, px);
+      const bgc0 = [parseInt(bg.slice(1, 3), 16), parseInt(bg.slice(3, 5), 16), parseInt(bg.slice(5, 7), 16)];
+      const boxes = rots.map((_, i) => {
+        let x0 = 1e9, x1 = -1, y0 = 1e9, y1 = -1;
+        for (let y = 0; y < cell; y += 1) for (let x = i * cell; x < (i + 1) * cell; x += 1) {
+          const o = ((gcv.height - 1 - y) * gcv.width + x) * 4;   // readPixels 는 아래가 0
+          if (px[o + 3] < 40 || (Math.abs(px[o] - bgc0[0]) + Math.abs(px[o + 1] - bgc0[1]) + Math.abs(px[o + 2] - bgc0[2]) < 18)) continue;
+          if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+        }
+        if (window.__fitDbg) console.log("fitbox", kind, rots[i], x0, x1, y0, y1);
+        return x1 < 0 ? null : { cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+      });
+      rots.forEach((rot, i) => {
+        const mm = meshes[i]; const bx = boxes[i]; if (!mm || !bx) return;
+        const sc = Math.min(fit * cell / bx.w, fit * cell / bx.h);
+        const ax0 = i * cell + cell / 2; const ay0 = cell / 2 + k * 4;   // 첫 굽기의 원점(요잉 축)
+        const ax = i * cell + cell / 2 - (bx.cx - ax0) * sc; const ay = cell / 2 - (bx.cy - ay0) * sc - k * 4;
+        g.push({ mesh: mm.m, ax, ay, k: mm.kk * sc, yoff: k * 4, yawDeg: -rot, color, alpha: 1, cam: CAM_TOP9, gradR: cell * 0.707 * sc, gradCy: 0, flat: GL_GLOW_KINDS9.has(kind) });
+      });
+      g.flush(gcv.width, gcv.height, gcv.width, gcv.height);
+    }
     gx.drawImage(gcv, 0, r * cell);
   });
   const bgc = [parseInt(bg.slice(1, 3), 16), parseInt(bg.slice(3, 5), 16), parseInt(bg.slice(5, 7), 16)];
@@ -220,7 +256,7 @@ const CHUNK = 20;
 const rows = []; const sheets = [];
 for (let i = 0; i < kinds.length; i += CHUNK) {
   const part = kinds.slice(i, i + CHUNK);
-  const r = await page.evaluate(([ks, rots, cell, bg, color, v, st, li, sp]) => window.__run(ks, rots, cell, bg, color, v, st, li, sp), [part, RS, CELL, BG, COLOR, VS2D, STAGES, LIT, SPN]);
+  const r = await page.evaluate(([ks, rots, cell, bg, color, v, st, li, sp, nz, ft]) => window.__run(ks, rots, cell, bg, color, v, st, li, sp, nz, ft), [part, RS, CELL, BG, COLOR, VS2D, STAGES, LIT, SPN, NORM_Z, FIT]);
   r.rows.forEach((row, j) => { rows.push({ ...row, chunk: sheets.length, row: j }); });
   sheets.push({ a: r.a, b: r.b });
 }
