@@ -17419,8 +17419,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         },
       }), DARK), key9 - 0.1));
       // 판 — 팔 끝에서 앞으로 뻗어 몸 위 허공에 떠 있는 잎.
+      /* 얇고 좁게(재요청: "퀸 등 쉴드 두께를 좀더 얇게 하고 폭도 줄이기") — w 0.62 → 0.48 · oval 2.2 → 3.4(더 눌림). 눌린 단면이라 trueNormal. */
       out.push(...tagKey(spirePillar({
-        x: 0, y: 0, h: 0.8, w: 0.62, tipW: 0.16, segs: 4, sides: 6, oval: 2.2, taper: 1.2,
+        x: 0, y: 0, h: 0.8, w: 0.48, tipW: 0.13, segs: 4, sides: 6, oval: 3.4, taper: 1.2, trueNormal: true,
         path: (t9: number): [number, number, number] => {
           const y9 = -1.5 + 2.5 * t9; const y9z9 = -1.2 + 2 * t9; /* z용 쌍둥이(model-z-scale ×0.8) */
           /* 각도도 벌린다(같은 지적) — 앞으로 나갈수록 바깥으로 더 벌어지게 x의
@@ -20802,9 +20803,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        똑바로 들기") — 총의 방향은 **몸통 자**에서 늘 `GUN_YAW9` 만큼 왼쪽(+x)이다(팔·손·총이 한 벌이라 서로의 자리가
        안 바뀐다). 쏠 때는 어깨 위 몸통을 통째로 `withModelSpin(GUN_YAW9)` 로 돌려 그 좌향 총이 세계 +y 를 보게 한다
        (다리는 안 돈다 — 허리에서 비트는 것이다). 들림(z 0.38)은 쏠 때 0 — 수평이다. */
-    const GUN_YAW9 = 35;    // 몸통 자에서 총이 왼쪽으로 튼 각(도) — 18 → 35(재요청: "더 총구를 옆을 향해")
+    /* 대기의 좌향은 **55도**(재재요청: "대기중 총을 좀더 옆을 향해 홱 더 돌리기") · 쏠 때는 몸통 자에서 35도로 돌아오고
+       상체를 그만큼(35) 비튼다 — 비틀림을 55 까지 주면 허리가 과하다. */
+    const GUN_YAW9 = 35;    // 쏠 때 몸통 자에서 총이 왼쪽으로 튼 각(도) = 상체 비틀림
+    const GUN_YAW_REST9 = 55;   // 대기의 좌향(도)
     const tw9 = at ? GUN_YAW9 : 0;   // 상체 비틀림(도) — 쏠 때만
-    const gyS9 = Math.sin((GUN_YAW9 * Math.PI) / 180); const gyC9 = Math.cos((GUN_YAW9 * Math.PI) / 180);
+    const gy9 = ((at ? GUN_YAW9 : GUN_YAW_REST9) * Math.PI) / 180;
+    const gyS9 = Math.sin(gy9); const gyC9 = Math.cos(gy9);
     const gLen9 = 2.2 - carry9 * 0.35;
     const GD9: [number, number, number] = [gyS9 * gLen9 + carry9 * 0.3, gyC9 * gLen9, at ? 0 : 0.38 + carry9 * 0.624];   // 총 축 방향(걸을 땐 총구가 대각선 위로 · 쏠 땐 수평)
     const GB9: [number, number, number] = [
@@ -20823,7 +20828,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          반지름 0.14 쯤이라 그 몫이 그대로 어긋남으로 보인다). */
     /* 표식은 **쏘는 자세**(상체 비틀림 + 수평 총)의 자리다 — 표는 자세 0 에서 굽히므로 손으로 그 자세를 짓는다. */
     withModelSpin(GUN_YAW9, () => {
-      const d9 = [gyS9 * 2.2, gyC9 * 2.2, 0];
+      const ga9 = (GUN_YAW9 * Math.PI) / 180;
+      const d9 = [Math.sin(ga9) * 2.2, Math.cos(ga9) * 2.2, 0];
       const b9 = [gripR9[0] - d9[0] * GRIP_R9 * GL9, gripR9[1] - d9[1] * GRIP_R9 * GL9, gripR9[2]];
       markMuzzle9(b9[0] + d9[0] * 0.82 * GL9, b9[1] + d9[1] * 0.82 * GL9, b9[2] + 0.14);
     });
@@ -20850,12 +20856,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 바이저는 은색 반투명(정정: 금빛 → "은색반투명으로") — 유리 너머로 뒤 껍데기가
       // 옅게 비쳐 헬멧이 빈 유리구로 읽힌다.
       // 유리는 껍데기보다 짙은 은색이어야 바이저로 갈려 읽힌다(같은 톤이면 통짜 은구).
+      // 헬멧은 몸통을 비틀어도 **정면**을 본다(재요청: "공격시 몸 돌릴 때 얼굴·헬멧은 정면 향해야 함") — 비틀림을 되돌린다.
+      ...withModelSpin(-tw9, (): ShapeFace[] => [
       ...suitHelmet(-0.32, 3.8192, 0.62, TERRAN_STEEL, "#101318", 1, 0.72),   // 유리 앞은 짙은 검정(요청)
       /* 헬멧 귀 원판(사진 marine1 — 바이저 좌우의 둥근 볼트) — 껍데기 옆에 붙는 짧은
          원통. 머리와 같은 붙박이 키(+6)라 몸통에 안 먹힌다. */
       ...([-1, 1] as const).flatMap((m8) => tagKey(paintBase(
         quarterDome(m8 * 0.56, -0.28, 3.8368, 0.17, m8, 0, undefined, 0, 1), TERRAN_STEEL,
       ), depthNow(0, -0.28) * 1.6 + 6.2)),
+      ]),
       /* 가슴 통풍구 한 쌍(사진 marine1 — 흉갑 위쪽의 원형 그릴 둘) — 앞을 볼 때만
          그리는 어두운 원판 + 속의 밝은 심. 모델 좌표의 세로 판이라 몸과 함께 돈다. */
       ...(facingRatio(0, 1) > 0.1
