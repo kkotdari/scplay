@@ -4257,7 +4257,211 @@ export const xfTilt9 = (): number => Math.max(0, Math.min(1, (poseNow - 3) / 2))
 export function turretScaled9(build: () => ShapeFace[]): ShapeFace[] {
   return withModelZOff(2.28 * (1 - TURRET_K9), () => withModelScale(TURRET_K9, TURRET_K9, TURRET_K9, build));
 }
-export function hatcheryMoundFaces(seamColor: string, spikeColor = "#1b1e23"): ShapeFace[] {
+/** ★★ **옆기둥과 옆기둥 사이의 구멍에서 ㄴ자로 나와 위로 꺾여 오르는 뿔**(2026-09, 요청: "뿔은 옆기둥과 옆기둥 사이에서
+ *  나오는 거였어" · "뿌리 쪽이 진짜 ㄴ자로 구멍에서 나와서 위로 꺾여 올라가는 형태로") ───────────────────────────────
+ *  여태 뿔은 둔덕 옆구리에서 **비스듬히 곧게** 솟는 막대(spikeHorn = 곧은 축 + 사인 배부름)였다. 사진의 레어·하이브는
+ *  둔덕 살에 난 구멍에서 **수평으로 한 팔 나왔다가 팔꿈치에서 위로 꺾여** 오른다 — 곧은 축으로는 그 꺾임이 안 나온다.
+ *  축을 3차 베지에로 짓는다: 뿌리 접선이 **바깥 수평**(P0 → P1 이 반지름 방향)이고, 팔꿈치(P1·P2 가 같은 반지름)에서
+ *  위로 꺾여, 끝은 조금 안으로 감긴다(P3 의 반지름이 팔꿈치보다 작다).
+ *  · 자리는 **기둥 사이**다 — 기둥 각 −145·−85·−25·35·95·155 의 중점(−175·−115·−55·5·65·125) 중 하나 건너 하나.
+ *  · 뿌리는 둔덕 살(밑동 반지름 5.9) **속**(5.3)이라 구멍에서 밀고 나온 것으로 읽힌다.
+ *  @returns faces 뿔 · at(t) 축 위의 점(가시·머리를 얹을 자리) · tip 끝의 접선 */
+export function mouthHorn9(o: {
+  ang: number; tipZ: number; w: number; fill?: string; sides?: number; elbow?: number;
+  /** 끝 굵기·가늘어지는 급함 — 머리(물방울·집게발)가 앉는 뿔은 바늘로 끝내면 머리가 공중에 뜬 풍선으로 읽힌다. */
+  tipW?: number; taper?: number;
+}): { faces: ShapeFace[]; at: (t9: number) => [number, number, number]; tip: [number, number, number] } {
+  const R0 = 5.3; const Z0 = 0.5;
+  const a9 = (o.ang * Math.PI) / 180;
+  const dx = Math.sin(a9); const dy = Math.cos(a9);
+  const EL = o.elbow ?? 2.0;
+  const rE = R0 + EL;
+  /* ★ **끝은 안쪽으로 자연스럽게 굽는다**(2026-09, 요청: "뿔기둥 위쪽에서 좀 안쪽으로 살짝 자연스럽게 구부리고") —
+     끝 반지름이 팔꿈치의 0.72 배라 거의 곧게 섰다. **0.28** 로 내리고 조종점 P2 의 높이를 0.50 → 0.60 으로 올려
+     굽는 몫을 위쪽에 모은다 — 아래 3분의 2 는 수직으로 오르고 위에서 본진 쪽으로 기운다. */
+  const rT = R0 + EL * 0.28;
+  const P: [number, number, number][] = [
+    [dx * R0, dy * R0, Z0],
+    [dx * rE, dy * rE, Z0],
+    [dx * rE, dy * rE, Z0 + (o.tipZ - Z0) * 0.6],
+    [dx * rT, dy * rT, o.tipZ],
+  ];
+  const at = (t9: number): [number, number, number] => {
+    const u9 = 1 - t9;
+    const c0 = u9 * u9 * u9; const c1 = 3 * u9 * u9 * t9; const c2 = 3 * u9 * t9 * t9; const c3 = t9 * t9 * t9;
+    return [
+      P[0][0] * c0 + P[1][0] * c1 + P[2][0] * c2 + P[3][0] * c3,
+      P[0][1] * c0 + P[1][1] * c1 + P[2][1] * c2 + P[3][1] * c3,
+      P[0][2] * c0 + P[1][2] * c1 + P[2][2] * c2 + P[3][2] * c3,
+    ];
+  };
+  const e0 = at(0.94); const e1 = at(1);
+  const el = Math.hypot(e1[0] - e0[0], e1[1] - e0[1], e1[2] - e0[2]) || 1;
+  return {
+    faces: spirePillar({
+      x: 0, y: 0, h: 0.8, w: o.w * 0.62, tipW: o.tipW ?? 0.02,
+      segs: 14, sides: o.sides ?? 6, hold: 0, taper: o.taper ?? 1.5, caps: "none", fill: o.fill, path: at,
+    }),
+    at,
+    tip: [(e1[0] - e0[0]) / el, (e1[1] - e0[1]) / el, (e1[2] - e0[2]) / el],
+  };
+}
+/** ★★ **물방울은 매달린 것이다 — 가는 쪽이 뿔 끝에 물리고 뭉툭한 쪽이 아래·안으로 처진다**(2026-09, 지적:
+ *  "레어 물방울은 가는 쪽이 뿔가시끝에 매달리고 뭉뚝한 부분이 아래안쪽을 향해 사선으로 매달린 형태") ──────────────
+ *  앞 판은 뿔의 **접선 방향**으로 서서 가운데가 굵고 양끝이 여민 방추였다 — 곧 위로 솟은 열매였고, 매달린 물방울이
+ *  아니었다. 둘을 함께 뒤집는다:
+ *  · **방향**은 뿔 접선이 아니라 **아래·안쪽 사선**이다(겉면 법선 `out` 의 반대로 0.72 · 아래로 1 — 수직에서 36도).
+ *  · **굵기**는 뿌리에서 가늘고(목) 끝으로 갈수록 굵어져 **둥근 끝**으로 여민다: t 0.74 까지 sin 으로 부풀고 그 뒤는
+ *    원호로 닫는다(끝을 점으로 모으면 도로 방추가 된다).
+ *  뿌리는 뿔 속(−0.35)에서 시작해 이음매를 감춘다. 띠는 그 살의 겉면(축에 수직인 `out` 몫)에 얹는다. */
+export function hornDrop9(
+  base: [number, number, number], out9: [number, number, number], len: number, wMax: number, fill: string,
+  /** 참이면 살 한가운데에 **임자색 띠**를 세로로 얹는다(사진 요청) — 색을 안 주는 것이 곧 개인색이다. */
+  stripe = true,
+): ShapeFace[] {
+  const DN9 = 0.72;   // 아래로 1 에 견준 안쪽 몫 — 수직에서 36도 사선
+  const dl9 = Math.hypot(out9[0] * DN9, out9[1] * DN9, 1) || 1;
+  const dir: [number, number, number] = [-out9[0] * DN9 / dl9, -out9[1] * DN9 / dl9, -1 / dl9];
+  const ax = (t9: number): [number, number, number] => {
+    const d9 = -0.62 + (len + 0.62) * t9;
+    return [base[0] + dir[0] * d9, base[1] + dir[1] * d9, base[2] + dir[2] * d9];
+  };
+  const TB9 = 0.74;   // 여기까지 부풀고 그 뒤는 원호로 닫는다
+  const wf = (t9: number): number => (t9 <= TB9
+    ? Math.max(0.02, wMax * Math.sin((Math.PI / 2) * (0.24 + 0.76 * (t9 / TB9))))
+    : Math.max(0.02, wMax * Math.sqrt(Math.max(0, 1 - ((t9 - TB9) / (1 - TB9)) ** 2))));
+  /* 띠가 앉는 겉면은 `out` 에서 축 몫을 뺀 쪽이다 — 축이 기울었으므로 out 을 그대로 쓰면 띠가 살을 파고든다. */
+  const pr9 = out9[0] * dir[0] + out9[1] * dir[1];
+  let nx9 = out9[0] - dir[0] * pr9; let ny9 = out9[1] - dir[1] * pr9; let nz9 = -dir[2] * pr9;
+  const nl9 = Math.hypot(nx9, ny9, nz9) || 1;
+  nx9 /= nl9; ny9 /= nl9; nz9 /= nl9;
+  const o9 = spirePillar({
+    x: 0, y: 0, h: 0.8, w: 1, tipW: 0.02, segs: 14, sides: 8, hold: 0, caps: "none", fill, trueNormal: true,
+    path: ax, widthOf: wf,
+  });
+  if (stripe) o9.push(...hornStripe9(ax, wf, [nx9, ny9, nz9], wMax * 0.26));
+  return o9;
+}
+/** ★ 뿔 머리(물방울·집게발) 한가운데를 세로로 지나는 **임자색 띠**(2026-09, 사진 요청: "집게발과 물방울에 사진처럼
+ *  가운데 세로로 임자색 띠 넣기") — 살 겉면(`nOut` 쪽)에 얹히는 납작한 관이다. 칠하지 않는 것이 곧 개인색이다. */
+export function hornStripe9(
+  ax: (t9: number) => [number, number, number], wf: (t9: number) => number,
+  nOut: [number, number, number], half: number,
+): ShapeFace[] {
+  /* ★ 띠의 굵기는 **그 자리 살의 굵기**를 탄다(2026-09) — 제 사인으로 두면 물방울처럼 끝이 불룩한 살에서 띠만
+     가운데가 굵고 불룩한 자리에서 가늘어져, 띠가 살을 안 따라가는 것으로 보인다. 살의 최대 굵기로 나눠 맞춘다. */
+  let wm9 = 1e-6;
+  for (let i9 = 0; i9 <= 20; i9 += 1) wm9 = Math.max(wm9, wf(i9 / 20));
+  return spirePillar({
+    x: 0, y: 0, h: 0.8, w: 1, tipW: 0.02, segs: 12, sides: 5, hold: 0, caps: "none",
+    oval: 0.34, ref: nOut, trueNormal: true,
+    path: (t9: number): [number, number, number] => {
+      /* ⚠ 띠의 중심은 살 겉면 **바로 밑**이라야 한다 — 0.88 로 두면 반두께(0.08)를 더해도 겉면(1.0·wf)에 못 미쳐
+         굵은 자리에서 **살 속에 묻힌다**(실측: 물방울 배에서 띠가 통째로 사라지고 가는 목에만 비쳤다). */
+      const a9 = ax(t9); const k9 = wf(t9) * 0.96;
+      return [a9[0] + nOut[0] * k9, a9[1] + nOut[1] * k9, a9[2] + nOut[2] * k9];
+    },
+    widthOf: (t9: number): number => Math.max(0.02, half * (wf(t9) / wm9) ** 0.9),
+  });
+}
+/** ★★ **집게발은 갈래가 둘이다 — 한 장은 손톱이다**(2026-09, 지적: "하이브는 집게발이어야 함 저건 손톱이고") ────────
+ *  앞 판은 안쪽으로 거의 직각으로 꺾인 **날 한 장**이라, 사진의 집게가 아니라 굽은 손톱으로 읽혔다. 집게는 **마주 보는
+ *  턱 둘**이다: 뿔 끝의 한 뿌리에서 좌우로 갈라져 밖으로 배가 부풀고, 끝에서 서로를 향해 오므라들며 살짝 처진다.
+ *  · 자는 셋이다 — 나아가는 쪽 `f`(안쪽·아래 사선) · 벌어지는 쪽 `sv`(f 에 수직인 수평) · 처짐(끝 z −0.22·len).
+ *  · 벌어짐은 가운데에서 가장 크고(0.46·len) 끝에서 0.13·len 로 모인다 — 그 사이가 곧 집게의 아가리다.
+ *  · 갈래마다 제 임자색 띠를 겉면(벌어진 쪽)에 세운다. */
+export function hornClaw9(
+  base: [number, number, number], dir: [number, number, number], inX: number, inY: number,
+  len: number, wMax: number, fill: string, nOut?: [number, number, number],
+): ShapeFace[] {
+  const out: ShapeFace[] = [];
+  /* 나아가는 쪽 — 안쪽(inX·inY)으로 가면서 살짝 아래로. 뿔 접선(dir)은 뿌리 한 뼘만 잇는다. */
+  const fl9 = Math.hypot(inX, inY, 0.34) || 1;
+  const f: [number, number, number] = [inX / fl9, inY / fl9, -0.34 / fl9];
+  const sv: [number, number, number] = [-f[1], f[0], 0];
+  const svl = Math.hypot(sv[0], sv[1]) || 1;
+  sv[0] /= svl; sv[1] /= svl;
+  const root: [number, number, number] = [
+    base[0] + dir[0] * len * 0.16, base[1] + dir[1] * len * 0.16, base[2] + dir[2] * len * 0.16,
+  ];
+  for (const sg of [1, -1]) {
+    const P0: [number, number, number] = [
+      root[0] + sv[0] * sg * wMax * 0.42, root[1] + sv[1] * sg * wMax * 0.42, root[2],
+    ];
+    const C1: [number, number, number] = [
+      root[0] + f[0] * len * 0.52 + sv[0] * sg * len * 0.46,
+      root[1] + f[1] * len * 0.52 + sv[1] * sg * len * 0.46,
+      root[2] + f[2] * len * 0.52,
+    ];
+    const C2: [number, number, number] = [
+      root[0] + f[0] * len + sv[0] * sg * len * 0.13,
+      root[1] + f[1] * len + sv[1] * sg * len * 0.13,
+      root[2] + f[2] * len - len * 0.22,
+    ];
+    const ax = (t9: number): [number, number, number] => {
+      const u9 = 1 - t9;
+      return [
+        u9 * u9 * P0[0] + 2 * u9 * t9 * C1[0] + t9 * t9 * C2[0],
+        u9 * u9 * P0[1] + 2 * u9 * t9 * C1[1] + t9 * t9 * C2[1],
+        u9 * u9 * P0[2] + 2 * u9 * t9 * C1[2] + t9 * t9 * C2[2],
+      ];
+    };
+    const wf = (t9: number): number => Math.max(0.02, wMax * 0.62 * (1 - t9) ** 0.7);
+    out.push(...spirePillar({
+      x: 0, y: 0, h: 0.8, w: 1, tipW: 0.02, segs: 12, sides: 8, hold: 0, caps: "none",
+      fill, oval: 0.62, ref: [0, 0, 1], trueNormal: true, path: ax, widthOf: wf,
+    }));
+    if (nOut) {
+      out.push(...hornStripe9(ax, wf, [sv[0] * sg, sv[1] * sg, 0], wMax * 0.2));
+    }
+  }
+  return out;
+}
+/** 둔덕의 **육각 겉면까지의 거리** — 몸이 −35 로 돌아 꼭짓점이 35 + k·60 에, 낯 한가운데가 5 + k·60 에 앉는다.
+ *  원으로 재면 낯 한가운데에서 8% 밖(5.9 vs 5.11)이라 붙여 둔 것이 뜬다. */
+export function moundHexR9(ang: number, R: number): number {
+  const d9 = ((((ang - 5 + 30) % 60) + 60) % 60) - 30;
+  return (R * Math.cos(Math.PI / 6)) / Math.cos((d9 * Math.PI) / 180);
+}
+/** ★ **저그 바닥 연못**(스파이어의 그 판을 공용으로 뽑았다 · 2026-09) — 모형 좌표의 **동심 고리 여덟**(테두리 짙은 초록
+ *  → 한가운데 형광 연두)으로 계단 그라데이션을 놓고 거품 다섯(원판 + 흰 점)을 흩는다. 모형 좌표라 요잉·원근·바닥
+ *  눌림이 저절로 실리고, 키(−0.6)가 몸보다 낮아 늘 발밑에 깔린다. */
+export function zergPond9(cx: number, cy: number, R: number): ShapeFace[] {
+  const out: ShapeFace[] = [];
+  const ring9 = (k9: number): string => polyPath3(
+    Array.from({ length: 28 }, (_, i9): [number, number, number] => {
+      const a9 = (i9 / 28) * Math.PI * 2;
+      return [cx + Math.cos(a9) * R * k9, cy + Math.sin(a9) * R * k9, 0.064];
+    }),
+  );
+  out.push(...tagKey([
+    [ring9(1.12), 0.22, "#000"] as ShapeFace,
+    [ring9(1), 1, "#2f6a20"] as ShapeFace,
+    [ring9(0.86), 1, "#3f8f28"] as ShapeFace,
+    [ring9(0.72), 1, "#57b52e"] as ShapeFace,
+    [ring9(0.58), 1, "#74d634"] as ShapeFace,
+    [ring9(0.44), 1, "#8ff03a"] as ShapeFace,
+    [ring9(0.3), 1, "#a8ff3d"] as ShapeFace,
+    [ring9(0.16), 1, "#c6ff7a"] as ShapeFace,
+  ], -0.6));
+  const bk9 = R / 3.36;
+  for (const [bx9, by9, br9] of [[1.6, 1.4, 0.34], [-1.9, 0.2, 0.28], [0.7, -1.1, 0.22], [-0.6, 2.1, 0.26], [2.3, -0.5, 0.2]] as [number, number, number][]) {
+    const px9 = cx + bx9 * bk9; const py9 = cy + by9 * bk9; const pr9 = br9 * bk9;
+    out.push(...tagKey([
+      [discPath3(px9, py9, 0.096, pr9), 0.9, "#d9ffa6"] as ShapeFace,
+      [discPath3(px9 - pr9 * 0.3, py9 - pr9 * 0.3, 0.104, pr9 * 0.32), 0.9, "#ffffff"] as ShapeFace,
+    ], -0.5));
+  }
+  return out;
+}
+export function hatcheryMoundFaces(
+  seamColor: string, spikeColor = "#1b1e23",
+  /** 옥상 볏 — 개수·굵기·키. 해처리 셋 · 레어 넷 · 하이브 **크게 하나**(요청). */
+  crown: { n: number; w: number; h: number } = { n: 3, w: 0.54, h: 2.0 },
+  /** 바닥 오징어 다리의 크기 배수 — **해처리 < 레어 < 하이브**(요청) · 셋 다 절반으로(재요청: "오징어다리
+   *  크기 50프로 축소" — 비는 그대로 두고 기준만 0.5·0.59·0.7). */
+  legK = 0.5,
+): ShapeFace[] {
     const out: ShapeFace[] = [];
     // (이동) 여섯 다리 전부 아래 방향별 묶음에서 — 60도 균등 배치.
     /* 꼭대기 볏(실물) — 뒤로 벌어져 굽는 볏 뿔 한 쌍. 둔덕보다 먼저 그려 밑동이
@@ -4269,10 +4473,6 @@ export function hatcheryMoundFaces(seamColor: string, spikeColor = "#1b1e23"): S
        한다) — 둔덕이 0이고, 둔덕에 붙는 모든 부품은 제 뿌리의 깊이 × 1.6을 쓴다.
        그러면 앞으로 돈 것은 둔덕 위로, 뒤로 돈 것은 둔덕 뒤로 저절로 갈린다.
        볏 뿔만은 둔덕 꼭대기 위(z 5.7~)에 얹히므로 +9를 더해 늘 위로 올린다. */
-    out.push(...tagKey(spikeHorn(-1.244, -0.391, 4.56, -3.505, -0.717, 7.52, 1.3, spikeColor, 6, -0.5),
-      depthNow(-2.436, -0.59) * 1.6 + 9));
-    out.push(...tagKey(spikeHorn(0.907, -0.864, 4.56, 2.825, -2.206, 7.68, 1.4, spikeColor, 6, -0.5),
-      depthNow(1.866, -1.535) * 1.6 + 9));
     /* 본 기둥 — 뒤집힌 밥그릇(돔)이 아니라 후지산 둔덕(지적): 위는 좁게 잘리고 옆구리는
        가파르다가 바닥에서 완만하게 벌어진다. 회전 대칭이라 요잉 불변. */
     /* 둔덕을 스파이어 기둥으로(요청) — 후지산 꼴: 넓은 밑동에서 위로 갈수록 좁아지되
@@ -4285,7 +4485,11 @@ export function hatcheryMoundFaces(seamColor: string, spikeColor = "#1b1e23"): S
     const MND_RB = 5.9;
     const MND_RT = 1.4;
     // 경사 반전(재지적) — 위는 수직에 가깝고 아래로 갈수록 눕는다: taper > 1.
-    const MND_P = 2.2;
+    /* ★ **능선은 밑에서 거의 눕고 갑자기 가팔라진다**(2026-09, 요청: "베이스의 형태가 좀더 드라마틱하게 굽어져야 해 —
+       바닥에서 위로 올라가면서 처음엔 능선이 수평에 가깝다가 갑자기 기울기가 가팔라지면서 수직에 가까워지는 형태")
+       — 옆선은 `r(t) = 꼭대기 + (밑동 − 꼭대기)·(1 − t)^P` 라 **P 가 곧 무릎의 급함**이다. 2.2 → **3.2**:
+       밑동 접선이 수평에서 28° → **19°** 로 더 눕고, 중턱(t 0.5)에서 벌써 65° 로 서며 위는 거의 수직이다. */
+    const MND_P = 3.2;
     const moundR = (t9: number): number => MND_RT + (MND_RB - MND_RT) * (1 - t9) ** MND_P;
     /* 지적: "해처리 본체 색은 짙은 살색? 연한 주황색 -> 이건 저그테마색이고 히드라덴
        막과 같은색임. 통일하되" — 여태 둔덕을 칠하지 않아 임자 색이 통째로 칠해졌다.
@@ -4295,13 +4499,58 @@ export function hatcheryMoundFaces(seamColor: string, spikeColor = "#1b1e23"): S
        옆선 띠가 맡는다. 색은 RACE_BASE_TONE.zerg를 그대로 쓴다 — 사용자가 말한
        "짙은 살색? 연한 주황색"이 곧 이 상수이고, 색값을 여기 또 박으면 저그 테마색이
        두 곳이 되어 다음에 한쪽만 바뀐다. */
-    out.push(...tagKey(paintBase(spirePillar({
+    /* ★★ **밑면의 변은 호가 아니라 직선이다**(2026-09, 지적: "해처리류 밑면이 원이라 지금 밑면의 모서리들이 호 형태인데
+       실제로는 직선 또는 약한 역호여야 하거든") — 둔덕이 16각이라 사실상 원이었고, 옆기둥 여섯이 그 원 위에 얹혀 기둥
+       사이가 바깥으로 불룩한 호였다. 원작은 기둥이 **모서리**이고 그 사이는 평평한 판이다. 낯을 **여섯**으로 줄이고
+       기둥 각(35 + k·60)에 꼭짓점을 맞춘다 — 기둥 사이가 곧은 현이 되어 발자국이 육각으로 읽힌다.
+       ⚠ `spirePillar` 에는 위상 인자가 없다(꼭짓점은 늘 k·360/n · 위상 0) — `withModelSpin` 으로 몸을 돌려 맞춘다.
+       `spun` 이 반시계라 azimuth 0 의 꼭짓점을 35 로 보내는 각은 **−35** 다. */
+    out.push(...tagKey(paintBase(withModelSpin(-35, () => spirePillar({
       x: 0, y: 0, z0: 0, h: MND_H, w: MND_RB, tipW: MND_RT,
-      segs: 9, sides: 16, hold: 0, taper: MND_P,
-    }), RACE_BASE_TONE.zerg), 0));
+      segs: 9, sides: 6, hold: 0, taper: MND_P,
+    })), RACE_BASE_TONE.zerg), 0));
+    /* ★★ **옥상 볏은 퀸즈 네스트의 갈고리 열이다 — 빙 둘러서 서로를 마주 본다**(2026-09, 요청: "지붕 위쪽의 작은 뿔
+       모양 변경 · 퀸즈네스트처럼 서로 마주보는 모양으로 빙 두르기 · 해처리는 3개 레어는 4개 하이브는 크게 한 개임") —
+       앞 판은 뒤로 벌어져 눕는 **곧은 뿔 한 쌍**(spikeHorn)이라 옥상 장식이 아니라 뒤통수의 더듬이로 읽혔다. 퀸즈
+       네스트의 갈고리와 같은 자를 쓴다: 뿌리는 옥상 가장자리 **살 속**(반지름 0.86배 · 꼭대기 밑 0.3)에서 바깥·위
+       45도로 나가고, 배가 바깥으로 부풀었다가 끝이 **안쪽으로 감겨** 아가리 위에서 서로 마주 본다.
+       · 개수는 부르는 쪽이 정한다(해처리 3 · 레어 4 · 하이브 1). 하나뿐이면 뒤(180도)에 세워 통째로 큰 뿔이 된다.
+       · 키는 옛 볏과 같은 +9 다 — 옥상 위라 어느 요잉에서도 둔덕 위에 그려진다. */
+    for (let ci = 0; ci < crown.n; ci += 1) {
+      /* ★ **볏도 기둥 사이다**(2026-09, 요청: "옆기둥과 옆기둥 사이에") — 기둥 각(−145·−85·−25·35·95·155)의
+         중점 여섯(5·65·125·185·245·305)에서 고른다: 셋이면 하나 건너(5·125·245) · 넷이면 5·65·185·245 ·
+         하나뿐인 하이브는 뒤(185). 뿔·바닥 다리가 이미 그 중점에 서 있으므로 옥상까지 한 자로 선다. */
+      const MID9 = [5, 65, 125, 185, 245, 305];
+      const PICK9 = crown.n === 1 ? [3] : crown.n === 3 ? [0, 2, 4] : [0, 1, 3, 4];
+      const cang = MID9[PICK9[ci % PICK9.length]];
+      const ca9 = (cang * Math.PI) / 180;
+      const cdx = Math.sin(ca9); const cdy = Math.cos(ca9);
+      /* ★ **뿌리는 바깥·위 45도로 나가고 끝은 안으로 감긴다**(2026-09, 요청: "뚜껑의 뿔 좀더 눕히기 바깥쪽으로"
+         → "뿌리에서 나오는 각도는 지금이 맞는데 **안쪽을 향해 휘어야** 해") — 조종점(바깥 1.55배·0.5h)이 곧 뿌리
+         접선이라 그대로 두고, 끝만 **안쪽**(0.45배)으로 당긴다. 퀸즈 네스트 갈고리와 같은 꼴 — 밖으로 나갔다가
+         배가 부풀고 끝이 아가리 쪽으로 돌아온다. 높이는 0.66h 라 곧추선 뿔보다 눕는다. */
+      const CR9 = MND_RT * 0.86;
+      const CP: [number, number, number][] = [
+        [cdx * CR9, cdy * CR9, MND_H - 0.3],
+        [cdx * CR9 * 2.05, cdy * CR9 * 2.05, MND_H + crown.h * 0.50],
+        [cdx * CR9 * 0.45, cdy * CR9 * 0.45, MND_H + crown.h * 0.66],
+      ];
+      out.push(...tagKey(spirePillar({
+        x: 0, y: 0, h: 0.8, w: crown.w, tipW: 0.03, segs: 12, sides: 6, hold: 0, taper: 1.3,
+        caps: "none", fill: spikeColor,
+        path: (t9: number): [number, number, number] => {
+          const u9 = 1 - t9;
+          return [
+            u9 * u9 * CP[0][0] + 2 * u9 * t9 * CP[1][0] + t9 * t9 * CP[2][0],
+            u9 * u9 * CP[0][1] + 2 * u9 * t9 * CP[1][1] + t9 * t9 * CP[2][1],
+            u9 * u9 * CP[0][2] + 2 * u9 * t9 * CP[1][2] + t9 * t9 * CP[2][2],
+          ];
+        },
+      }), depthNow(cdx * CR9 * 1.3, cdy * CR9 * 1.3) * 1.6 + 9));
+    }
     const [mx, my] = project(0, 0, 5.08);
     out.push(sideFace(`M${mx - 1.5} ${my} L${mx + 1.5} ${my} Q${mx + 1.4} ${my + 1} ${mx} ${my + 1.15} Q${mx - 1.4} ${my + 1} ${mx - 1.5} ${my} Z`, 0.35));
-    out.push(topFace(discPath3(0, 0, 5.08, 1.4, 0.4)));
+    out.push(topFace(discPath3(0, 0, 5.08, 1.21, 0.4)));   // 육각 윗면(외접 1.4)의 내접 반지름 안으로
     /* 정수리 아가리 — **불빛은 걷었다**(지시: "저그 건물 액티브 불빛 효과 모두 제거,
        익스트랙터 가스 채취 시 빼고"). 여기 있던 glowLit(달아오른 주홍 ↔ 식은 살빛)이
        그 불빛인데, 해처리 가족은 LIT_KINDS에도 없어 열쇠가 lit를 안 물었다 — 곧 첫
@@ -4343,7 +4592,20 @@ export function hatcheryMoundFaces(seamColor: string, spikeColor = "#1b1e23"): S
         /* ★ 밑동을 한 단 굵게(2026-09, 요청: "해처리류 옆기둥 아래로 갈수록 지름 키워주고") — 0.92 → 1.5(x1.63) · 꼭대기(0.4)는
            그대로라 아래로 갈수록 벌어지는 몫이 그만큼 커진다. 여섯이 60도로 둘러서도 밑동 둘레(2·1.5·6 = 18)가 둔덕 밑동
            둘레(2π·5.9 = 37)의 절반이라 서로 안 닿는다. 레어·하이브 뿔이 이 입구에서 솟으므로 그 굵기와 한 벌이다(아래). */
-        const SEAM_W = 1.5;
+        /* ★ **폭은 줄이고 등 높이를 올린다**(2026-09, 재요청: "옆기둥은 지금 폭 늘어나는 정도 살짝 줄이고 대신 높이는 좀더
+           높아지게 — 등 높이!") — 0.92 → 1.5 로 키웠던 밑동을 **1.3** 으로 한 단 되물리고, 대신 축을 둔덕 겉으로 더 내민다
+           (`SEAM_OUT9` 1.02 → 1.12). 기둥은 둔덕에 반쯤 묻힌 갈비라 **드러나는 등 높이 = 내민 몫 + 반폭**이다:
+           0.12 + 1.5 = 1.62 → 0.71 + 1.3 = **2.01**. 폭은 3.0 → 2.6 으로 준다. 밑동 안쪽(1.12·5.9 − 1.3 = 5.3)은 여전히
+           둔덕 살(5.9) 속이라 반쯤 묻힌 꼴이 그대로다. */
+        /* ★★ **기둥은 겉면에 반쯤 묻힌다**(2026-09, 지적: "옆기둥의 밑 단면이 전체가 보이는데 그게 아니라 위쪽 반만
+           보여야 해") — 축을 겉으로 내밀면(1.02·1.12) 밑동 단면이 **온전한 육각**으로 드러나 기둥이 둔덕에 얹힌 막대로
+           읽힌다. 축을 겉면 **위**(1.0)에 두면 반지름 안쪽 반이 살 속이라 단면도 위쪽 반만 보인다 — 밑동 입구를 반원으로
+           그린 것과 한 벌이다. 둔덕이 육각이라 기둥 각이 곧 **모서리**이고, 모서리 위의 기둥은 1.0 에서도 실루엣을 끊는다
+           (옛 1.02 의 까닭이던 '능선에서 묻힘'은 원이던 시절의 이야기다). 등 높이는 반폭이 지므로 1.15 → **1.45**. */
+        /* ★ **폭만 30% 줄인다**(2026-09, 요청: "옆기둥 폭만 30프로 축소") — 1.45 → **1.015**. 축은 겉면 위(1.0) 그대로라
+           '반쯤 묻힘'도 그대로고, 등 높이만 반폭만큼 준다(밑동 입구 반원·개인색 마디는 `seamW` 를 읽어 저절로 따라온다). */
+        const SEAM_W = 1.015;
+        const SEAM_OUT9 = 1.0;
         const SEAM_TIP = 0.4;
         const SEAM_HOLD = 0.08;
         /* ★ 옆선을 둔덕 **겉으로 한 뼘 내민다**(지적: "해처리 45도 요잉해서 보여지잖아
@@ -4356,7 +4618,7 @@ export function hatcheryMoundFaces(seamColor: string, spikeColor = "#1b1e23"): S
            1.02면 어느 각도에서도 둔덕 겉보다 **바깥**이라 실루엣을 끊고 나온다. 3%라
            가운데로 돌아온 옆선이 떠 보이지도 않는다. */
         const seamAxis = (t9: number): [number, number, number] => {
-          const r9 = moundR(t9) * 1.02;
+          const r9 = moundR(t9) * SEAM_OUT9;
           return [dxr * r9, dyr * r9, MND_H * t9];
         };
         const seamW = (t9: number): number => (t9 <= SEAM_HOLD ? SEAM_W
@@ -4368,6 +4630,13 @@ export function hatcheryMoundFaces(seamColor: string, spikeColor = "#1b1e23"): S
           // 둔덕 옆선을 그대로 타는 축 — 표면에 반쯤 묻혀 한 몸으로 이어진다.
           path: seamAxis,
           fill: seamColor,
+          /* ★★ **살 속의 반쪽은 아예 베어 낸다**(2026-09, 요청: "옆 기둥의 아래 반 잘라서 아예 안 보이게 위 반만
+             남는 게 맞음") — 축을 겉면 위에 두어 '반쯤 묻힘'을 냈지만 **안쪽 반의 낯이 그대로 있어** 둔덕 살과
+             같은 자리에서 z 싸움을 하고 밑동 단면도 온전한 육각으로 드러났다. `cutFace`(음수 = 파낼 쪽)로
+             **둔덕 겉면**을 0 선 삼아 베면 남는 것이 정확히 바깥 반쪽이다 — 기둥이 곧 둔덕에 난 갈비가 된다.
+             ⚠ 기둥 각은 육각의 **꼭짓점**(35 + k·60)이라 그 방위의 겉면 거리가 곧 `moundR`(외접)이다. */
+          cutFace: (mx9, my9, mz9): number => (mx9 * dxr + my9 * dyr)
+            - moundR(Math.max(0, Math.min(1, mz9 / MND_H))),
         });
         /* 캐노피·동그라미 입구 표현 모두 제거(재지적) — 옆면 기둥의 굵게 열린 아래
            단면 자체가 들머리 노릇을 한다. */
@@ -4379,14 +4648,31 @@ export function hatcheryMoundFaces(seamColor: string, spikeColor = "#1b1e23"): S
           const a0 = seamAxis(0); const a1 = seamAxis(0.02);
           const dl = Math.hypot(a1[0] - a0[0], a1[1] - a0[1], a1[2] - a0[2]) || 1;
           const dv: [number, number, number] = [(a0[0] - a1[0]) / dl, (a0[1] - a1[1]) / dl, (a0[2] - a1[2]) / dl];   // 밑동 밖 방향
-          out.push(...tagKey(spirePillar({
-            x: 0, y: 0, h: 0.8, w: 1.0, tipW: 1.0, segs: 2, sides: 8, hold: 0, caps: "both",
-            path: (t9: number): [number, number, number] => {
-              const d9 = -0.35 + 0.4 * t9;
-              return [a0[0] + dv[0] * d9, a0[1] + dv[1] * d9, a0[2] + dv[2] * d9];
-            },
-            fill: "#15120f",
-          }), depKey9 + 0.02));
+          /* ★★ **입구는 온원이 아니라 반원이다**(2026-09, 지적: "옆기둥은 위쪽 반만 드러나기 때문에 마지막 입구가 보일
+             때도 반원으로 보여야 해") — 기둥은 둔덕에 반쯤 묻힌 갈비라 **등 쪽 반만** 드러난다. 그런데 밑동 구멍은 둥근
+             관이라 온원으로 떠, 기둥과 입구가 서로 다른 몸으로 읽혔다. 이제 단면 평면(가로 `w9` × 겉면 법선 `n9`)에서
+             **+n9 쪽 반만** 도는 반원 판이다 — 평평한 지름이 둔덕 겉면에 눕고 둥근 쪽이 등으로 솟는다.
+             ⚠ 축(dv)은 바깥·아래 28도라 단면 평면도 그만큼 기운다 — 수평면에서 반원을 그리면 입구가 기둥과 안 맞물린다. */
+          const w9: [number, number, number] = [-dyr, dxr, 0];
+          const cx9: [number, number, number] = [
+            dv[1] * w9[2] - dv[2] * w9[1], dv[2] * w9[0] - dv[0] * w9[2], dv[0] * w9[1] - dv[1] * w9[0],
+          ];
+          const cl9 = Math.hypot(cx9[0], cx9[1], cx9[2]) || 1;
+          const sg9 = cx9[2] < 0 ? -1 : 1;   // 겉면 법선은 늘 바깥·위
+          const n9: [number, number, number] = [sg9 * cx9[0] / cl9, sg9 * cx9[1] / cl9, sg9 * cx9[2] / cl9];
+          const NR9 = SEAM_W * 0.96;
+          const N9m = 10;
+          const pts9: [number, number, number][] = [];
+          for (let i9 = 0; i9 <= N9m; i9 += 1) {
+            const th9 = (i9 / N9m) * Math.PI;
+            const c9 = Math.cos(th9); const s9 = Math.sin(th9);
+            pts9.push([
+              a0[0] + dv[0] * 0.06 + (w9[0] * c9 + n9[0] * s9) * NR9,
+              a0[1] + dv[1] * 0.06 + (w9[1] * c9 + n9[1] * s9) * NR9,
+              a0[2] + dv[2] * 0.06 + (w9[2] * c9 + n9[2] * s9) * NR9,
+            ]);
+          }
+          out.push(...tagKey([[polyPath3(pts9), 1, "#15120f"] as ShapeFace], depKey9 + 0.02));
         }
         /* 지적: "통일하되 옆선기둥들 중간중간에 개인색 띠 넣기" — 몸통을 테마색
            하나로 굳히면 임자 색이 갈 데가 없어진다. 옆선 기둥의 같은 축 위에 짧은
@@ -4465,10 +4751,45 @@ export function hatcheryMoundFaces(seamColor: string, spikeColor = "#1b1e23"): S
     // 바닥 갈고리 덩굴(실물) — 다리 사이로 기다가 끝이 말려 올라간다.
     // 옆 갈고리 가시 — spikeColor(하이브는 진한 상아, 재지적).
     // 바닥 덩굴도 같은 자 — 둔덕 밖이라 앞뒤만 옳으면 된다.
-    out.push(...tagKey(spikeHorn(5.144, 2.97, 0.4, 7.928, 4.087, 0.72, 0.7, spikeColor), depthNow(6.536, 3.529) * 1.6));
-    out.push(...tagKey(spikeHorn(7.928, 4.087, 0.72, 8.856, 4.46, 1.92, 0.5, spikeColor), depthNow(8.392, 4.274) * 1.6));
-    out.push(...tagKey(spikeHorn(-4.892, 3.381, 0.4, -6.81, 4.723, 0.72, 0.7, spikeColor), depthNow(-5.851, 4.052) * 1.6));
-    out.push(...tagKey(spikeHorn(-6.81, 4.723, 0.72, -7.531, 5.124, 1.76, 0.5, spikeColor), depthNow(-7.17, 4.924) * 1.6));
+    /* ★★ **바닥의 것은 가시가 아니라 땅을 기는 오징어 다리다 — 그리고 몸에 붙어야 한다**(2026-09, 요청: "바닥쪽 작은
+       가시들 본체에서 떨어져나가있어서 본체에 붙게 안쪽으로 이동해야 하고 가시가 아니라 오징어다리로 변경") ──────
+       ⓐ **떨어져 있던 까닭**: 옛 덩굴 뿌리는 반지름 **5.94**(0.518, 5.917)의 손 좌표인데, 둔덕이 육각이 된 뒤 방위 5도
+          (낯 한가운데)의 겉면은 **5.11** 뿐이다 — 곧 살 밖 0.8 에 떠 있었다. 원으로 잡은 자리는 육각에서 낯마다 틀린다
+          (`moundHexR9` 가 그 거리를 낸다 · 여기서는 그 0.92 배 = 살 속).
+       ⓑ **꼴**: 디파일러 마운드의 다리와 같은 자다 — 3차 베지에로 뒤·바깥으로 나갔다가 앞·안으로 감기고, **z 는 그 자리
+          반지름**이라 관이 땅에 눕는다(끝만 살짝 들림). 굵기는 뿌리 → 끝 0.1 배로 줄며 사인 주름 열넷을 얹는다.
+       · 자리는 기둥 사이 중점 중 뿔이 안 쓰는 **5·−115** 그대로다(뿔은 −175·−55·65). */
+    for (const [tang, tlen0, tw0] of [[5, 4.6, 0.62], [-115, 4.2, 0.56]] as [number, number, number][]) {
+      const tlen = tlen0 * legK; const tw = tw0 * legK;
+      const ta9 = (tang * Math.PI) / 180;
+      const fx9 = Math.sin(ta9); const fy9 = Math.cos(ta9);
+      const sx9 = -fy9; const sy9 = fx9;
+      const r09 = moundHexR9(tang, MND_RB) * 0.92;
+      const TP: [number, number][] = [
+        [fx9 * r09, fy9 * r09],
+        [fx9 * (r09 + tlen * 0.5) + sx9 * tlen * 0.34, fy9 * (r09 + tlen * 0.5) + sy9 * tlen * 0.34],
+        [fx9 * (r09 + tlen * 0.9) - sx9 * tlen * 0.30, fy9 * (r09 + tlen * 0.9) - sy9 * tlen * 0.30],
+        [fx9 * (r09 + tlen) - sx9 * tlen * 0.62, fy9 * (r09 + tlen) - sy9 * tlen * 0.62],
+      ];
+      /* ★ **마디가 지면 안 된다 — 디파일러 마운드의 그 다리를 그대로 쓴다**(2026-09, 요청: "오징어다리 마디마디
+         지지 않은 형태(마운드에 쓴 거 재사용하면 됨)") — 앞 판은 주름 ±18%·낯 7 이라 마디 진 애벌레로 읽혔다.
+         마운드의 자는 **주름 ±10% · 낯 10 · 마디 32**(`wT9`)다 — 같은 값으로 맞추면 매끈한 촉수로 선다. */
+      const twf = (t9: number): number => Math.max(0.05,
+        tw * (1 - 0.83 * t9) * (1 + 0.1 * Math.sin(t9 * Math.PI * 18)));
+      out.push(...tagKey(spirePillar({
+        x: 0, y: 0, h: 0.8, w: 1, tipW: 0.05, segs: 32, sides: 10, hold: 0, caps: "none",
+        fill: spikeColor, trueNormal: true, widthOf: twf,
+        path: (t9: number): [number, number, number] => {
+          const u9 = 1 - t9;
+          const c0 = u9 * u9 * u9; const c1 = 3 * u9 * u9 * t9; const c2 = 3 * u9 * t9 * t9; const c3 = t9 * t9 * t9;
+          const px9 = TP[0][0] * c0 + TP[1][0] * c1 + TP[2][0] * c2 + TP[3][0] * c3;
+          const py9 = TP[0][1] * c0 + TP[1][1] * c1 + TP[2][1] * c2 + TP[3][1] * c3;
+          /* 뿌리는 둔덕 살 속이라 그 겉면 높이에서 내려온다(t 0.3 까지) · 끝은 t³ 로 살짝 들린다. */
+          const sink = Math.max(0, 1 - t9 / 0.3) * 0.62;
+          return [px9, py9, twf(t9) + sink + 0.8 * t9 * t9 * t9];
+        },
+      }), depthNow(TP[1][0], TP[1][1]) * 1.6));
+    }
     return out;
 }
 
@@ -14046,38 +14367,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        형광 연두색으로") — 판 자체는 원래 바닥에 누운 타원이라 평평한데, **밑동**이
        짙은 초록(#4f7a2e)이라 그 후지산 꼴 기둥이 연못의 일부로 읽혀 '볼록 솟은 연못'이
        됐다. 밑동을 저그 살색으로 돌리고(아래) 연못만 형광 연두로 밝힌다. */
-    const POND = "#a8ff3d";
+    const POND = "#a8ff3d";   // (연못 색은 zergPond9 안에 있다 — 이 이름은 밑동 색 주석의 짝이다)
     const [plx, ply] = project(0, 0.6, 0.016);
     /* 연못은 스포닝 풀과 같은 결로(요청: "스포닝 풀처럼 그라데이션 주고 거품 몇 개") — 화면 타원 한 장 대신
        **모형 좌표의 동심 고리 여섯**(테두리 짙은 초록 → 한가운데 형광 연두)으로 계단 그라데이션을 놓고, 그 위에
        거품 다섯(작은 원판 + 흰 점)을 흩는다. 모형 좌표라 요잉·원근·바닥 눌림이 저절로 실린다.
        크기는 0.8배(요청): 반지름 3.36(옛 4.2). */
     void plx; void ply;
-    {
-      const PR9 = 3.36;
-      const ring9 = (k9: number): string => polyPath3(
-        Array.from({ length: 28 }, (_, i9): [number, number, number] => {
-          const a9 = (i9 / 28) * Math.PI * 2;
-          return [Math.cos(a9) * PR9 * k9, 0.6 + Math.sin(a9) * PR9 * k9, 0.064];
-        }),
-      );
-      out.push(...tagKey([
-        [ring9(1.12), 0.22, "#000"] as ShapeFace,
-        [ring9(1), 1, "#2f6a20"] as ShapeFace,
-        [ring9(0.86), 1, "#3f8f28"] as ShapeFace,
-        [ring9(0.72), 1, "#57b52e"] as ShapeFace,
-        [ring9(0.58), 1, "#74d634"] as ShapeFace,
-        [ring9(0.44), 1, "#8ff03a"] as ShapeFace,
-        [ring9(0.3), 1, POND] as ShapeFace,
-        [ring9(0.16), 1, "#c6ff7a"] as ShapeFace,
-      ], -0.6));
-      for (const [bx9, by9, br9] of [[1.6, 1.4, 0.34], [-1.9, 0.2, 0.28], [0.7, -1.1, 0.22], [-0.6, 2.1, 0.26], [2.3, -0.5, 0.2]] as [number, number, number][]) {
-        out.push(...tagKey([
-          [discPath3(bx9, 0.6 + by9, 0.096, br9), 0.9, "#d9ffa6"] as ShapeFace,
-          [discPath3(bx9 - br9 * 0.3, 0.6 + by9 - br9 * 0.3, 0.104, br9 * 0.32), 0.9, "#ffffff"] as ShapeFace,
-        ], -0.5));
-      }
-    }
+    void POND;
+    out.push(...zergPond9(0, 0.6, 3.36));
     /* 밑동(후지산 꼴 기둥)은 걷었다(요청: "바닥의 화산 같은 부품 제거하고 연못이 바로 보이게") — 촉수 기둥의
        뿌리 자리를 정하던 반지름 식(mbR)만 남긴다. */
     const MB_RB = 4.5;
@@ -14959,9 +15257,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        그대로 서고, 돌리는 값이 어디에도 안 남는다: 빌더에 보이는 기하가 곧 화면의
        기하다. 다시 틀 일이 있으면 이 파일의 다른 건물처럼 제 빌더에 숫자를 직접
        적으면 된다(spore −45 · pool 270 …). */
-  hatchery: () => hatcheryMoundFaces("#3a3f46"),
+  /* ★ **해처리류는 −22.5도 돈다**(2026-09, 요청: "해처리류 원본을 −22.5도 요잉") — 셋 다 제 빌더를
+     `withModelSpin` 으로 감싼다(그 규약: SHAPE_ROT 은 2D 만 타므로 감싸개라야 2D·GL·도록이 한 자다). */
+  hatchery: () => withModelSpin(-22.5, () => hatcheryMoundFaces("#3a3f46")),
   /* 레어 — 해처리 + 다리 끝 굽은 뿔 셋. */
-  lair: () => [
+  lair: () => withModelSpin(-22.5, () => [
     /* ★ **뿔은 옆기둥 입구에서 솟는다**(2026-09, 요청: "레어랑 하이브 뿔 기둥쪽 굵기 20프로 줄이고 옆기둥 입구에서 나오는 거
        같은 형태로 변경") — 여태 뿌리가 반지름 5.4 · z 0.88 이라 여섯 기둥 중 둘만 우연히 각이 맞았고(−155 는 기둥 −145 에서
        10도 비껴 있었다) 높이도 입구(z 0)보다 한 뼘 위라 둔덕 옆구리에서 그냥 돋은 꼴이었다. 이제 기둥 하나 건너 하나
@@ -14979,61 +15279,81 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 뿌리에서 더 수직으로 오르고 휨은 약하게(요청: "레어랑 하이브 뿔 뿌리에서 올라오는 각도 더 수직에 가깝게 · 휘어짐은
        약간 약하게" → 재요청: "좀 더 수직으로 하고 굽어짐 약하게") — 끝의 바깥 치우침을 옛 값의 1/4 로 · 배부름 bow 1.5~1.6 →
        0.6~0.65. 뿌리 접선 39° → 27° → 17°. */
-    ...tagKey(spikeHorn(-3.452, -4.93, 0.25, -3.632, -5.187, 8.16, 1.92, "#1b1e23", 6, 0.6, -0.574, -0.819),
-      depthNow(-3.452, -4.93) * 1.6),
+    ...((): ShapeFace[] => {
+      const h9 = mouthHorn9({ ang: -175, tipZ: 8.16, w: 2.4, fill: "#1b1e23", tipW: 0.34, taper: 1.15 });
+      const k9 = depthNow(-0.567, -6.475) * 1.6;
+      return [...tagKey(h9.faces, k9), ...tagKey(hornDrop9(h9.at(1), [-0.087, -0.996, 0], 2.1, 0.46, IVORY_DEEP), k9 + 0.05)];
+    })(),
     /* 합본(SHAPE_BUILDERS.hatchery)이 아니라 **둔덕 함수를 직접** 부른다 — 둘은 지금
        같은 것이지만, 합본을 부르면 나중에 해처리에만 무엇이 붙을 때 레어가 조용히
        따라온다. 부품을 나눠 쓰는 자리는 부품 함수여야 한다. */
-    ...hatcheryMoundFaces("#3a3f46"),
-    ...tagKey(spikeHorn(-2.543, 5.454, 0.25, -2.659, 5.702, 9.28, 2.08, "#1b1e23", 6, 0.65, -0.423, 0.906),
-      depthNow(-2.543, 5.454) * 1.6),
-    ...tagKey(spikeHorn(5.995, -0.525, 0.25, 6.15, -0.538, 9.76, 2.24, "#1b1e23", 6, 0.65, 0.996, -0.087),
-      depthNow(5.995, -0.525) * 1.6),
-  ],
+    ...hatcheryMoundFaces("#3a3f46", "#1b1e23", { n: 4, w: 0.56, h: 2.3 }, 0.59),
+    ...((): ShapeFace[] => {
+      const h9 = mouthHorn9({ ang: -55, tipZ: 9.28, w: 2.6, fill: "#1b1e23", tipW: 0.34, taper: 1.15 });
+      const k9 = depthNow(-5.324, 3.728) * 1.6;
+      return [...tagKey(h9.faces, k9), ...tagKey(hornDrop9(h9.at(1), [-0.819, 0.574, 0], 2.1, 0.46, IVORY_DEEP), k9 + 0.05)];
+    })(),
+    ...((): ShapeFace[] => {
+      const h9 = mouthHorn9({ ang: 65, tipZ: 9.76, w: 2.8, fill: "#1b1e23", tipW: 0.34, taper: 1.15 });
+      const k9 = depthNow(5.891, 2.747) * 1.6;
+      return [...tagKey(h9.faces, k9), ...tagKey(hornDrop9(h9.at(1), [0.906, 0.423, 0], 2.1, 0.46, IVORY_DEEP), k9 + 0.05)];
+    })(),
+  ]),
   /* 하이브 — 더 길고 굵은 뿔 셋(뿔 등에 가시들, 요청) + 앞 컬. */
-  hive: () => {
+  hive: () => withModelSpin(-22.5, () => {
     const out: ShapeFace[] = [];
+    /* ★ **하이브만 발밑에 연못이 깔린다**(2026-09, 요청: "하이브만 바닥에 연못(스파이어 아래 연못) 깔기 ·
+       살짝 삐져나와 보일 것") — 스파이어의 그 판(`zergPond9`)을 그대로 쓴다. 반지름 **6.3** 은 둔덕 육각의
+       낯 한가운데(5.11)보다 1.2 · 꼭짓점(5.9)보다 0.4 밖이라, 기둥 사이로 초록 테가 살짝 비어져 나온다.
+       키는 −0.6 이라 늘 몸 밑이고 z 0.064 라 크립 판(0) 위다. */
+    out.push(...zergPond9(0, 0, 6.3));
     // 뿔은 옆기둥 입구 하나 건너 하나 — 레어와 같은 세 입구(−145·−25·95)의 밑동 자리에서, 더 길게(위 레어의 ★).
     // 첫째(뒤 입구) 뿔은 둔덕보다 먼저 그린다(지적: 비쳐 보였다).
     /* 뿔은 더 굵고 길게, 밑동은 둔덕 옆구리에 딱 붙이고, 휨은 본진 안쪽으로(요청).
        [밑x, 밑y, 밑z, 끝x, 끝y, 끝z, 굵기, 안쪽x, 안쪽y] */
     /** 하이브 전용 어두운 상아·황토(요청) — 옆선 기둥·가시와 뿔 셋에만 쓴다. */
-    const HIVE_IVORY = "#8f8467";
+    /** 옆기둥·바닥 가시는 **갈색**이다(2026-09, 요청: "하이브는 옆기둥색 검정이 아닌 갈색") — 사진의 하이브는 통째로 갈색 각질이다. */
+    const HIVE_IVORY = "#7a5733";
     const HIVE_HORN = "#7d5c31";
     const HIVE_SPIKE9 = "#e0c85a";   // 뿔 안쪽 가시 — 노란 상아(요청)
-    const horns: [number, number, number, number, number, number, number, number, number][] = [
-      // 휨 방향 반전(재지적) — 배가 바깥으로 부풀며 끝이 안으로 감긴다.
-      // 뿌리를 조금 더 바깥으로(요청).
-      // 더 수직으로 · 휨 약하게(요청 → 재요청) — 끝 치우침 옛 값의 1/4 · bow HIVE_BOW9(1.8 → 1.2 → 0.75). 레어와 같은 손.
-      [-3.452, -4.93, 0.25, -3.691, -5.271, 10.4, 2.32, -0.574, -0.819],
-      [-2.543, 5.454, 0.25, -2.693, 5.774, 11.52, 2.48, -0.423, 0.906],
-      [5.995, -0.525, 0.25, 6.251, -0.547, 12.32, 2.64, 0.996, -0.087],
+    /* ★ 뿔 셋은 레어와 같은 자다 — 기둥 **사이**(−175·−55·65)의 구멍에서 ㄴ자로 나와 오른다(`mouthHorn9`).
+       굵기는 옛 값으로 되물렸고(되지적: "뿔 굵기 되돌리고"), 높이는 **1.1배**(재요청: 1.25배 → 1.1배)다.
+       [각, 끝 높이, 밑동 굵기] */
+    const horns: [number, number, number][] = [
+      [-175, 11.44, 2.9],
+      [-55, 12.67, 3.1],
+      [65, 13.55, 3.3],
     ];
-    const HIVE_BOW9 = 0.75;
     let hi = 0;
-    for (const [bx, by, bz, tx, ty, tz, w, inX, inY] of horns) {
+    for (const [hang, htz, hw] of horns) {
+      const ha9 = (hang * Math.PI) / 180;
+      const dxh = Math.sin(ha9); const dyh = Math.cos(ha9);
+      const h9 = mouthHorn9({ ang: hang, tipZ: htz, w: hw, fill: HIVE_HORN, tipW: 0.4, taper: 1.15 });
+      const bx = dxh * 6.6; const by = dyh * 6.6;
       /* 하이브 옆선·가시는 진한 상아였는데 화면에서 밝게 떠 보였다(요청: "하이브
          옆선 기둥색과 뿔 세개 색 다 좀더 어둡게") — 이 건물에서만 한 단 낮춘 상아를
          쓴다. IVORY_DEEP 자체는 다른 열 곳이 함께 쓰므로 안 건드린다. */
-      if (hi === 1) out.push(...hatcheryMoundFaces(HIVE_IVORY, HIVE_IVORY));
+      if (hi === 1) out.push(...hatcheryMoundFaces(HIVE_IVORY, HIVE_IVORY, { n: 1, w: 1.15, h: 3.7 }, 0.7));
       hi += 1;
       // 뿔은 황토색, 가시는 상아색(요청).
       // 뿔에 제 자리 깊이(지적: 가려짐) — 첫 뿔(뒤)은 둔덕 뒤, 나머지는 둔덕 앞.
       /* 앞뒤는 요잉이 정한다(재지적: 뒤로 돈 뿔이 안 가려짐) — 고정 키를 쓰면 뒤로
          돌아도 늘 앞에 그려진다. 제 자리 깊이를 키워 쓰면 앞은 둔덕 위, 뒤는 아래다. */
-      out.push(...tagKey(spikeHorn(bx, by, bz, tx, ty, tz, w, HIVE_HORN, 6, HIVE_BOW9, inX, inY),
-        depthNow(bx, by) * 1.6));
+      out.push(...tagKey(h9.faces, depthNow(bx, by) * 1.6));
+      /* ★ 끝에는 **안쪽으로 꺾인 집게발**(사진) — 거의 직각으로 안을 보고 끝이 살짝 처진다. 가운데에 임자색 띠. */
+      out.push(...tagKey(hornClaw9(h9.at(1), h9.tip, -dxh, -dyh, 2.6, 0.95, IVORY_DEEP, [dxh, dyh, 0]),
+        depthNow(bx, by) * 1.6 + 0.05));
       /* 뿔 등의 가시(요청, 정정: 안쪽을 향한다) — 뿔 길이를 따라 서너 개가 본 건물
          쪽으로 돋는다. */
       /* 가시는 휜 뿔의 곡선 위에 앉는다(지적: 위치가 어긋남) — spikeHorn과 같은
          사인 휨을 그대로 더해 뿔 등에 붙인다. */
       /* 가시 셋 → 다섯 · 더 노랗게(2026-09, 요청: "하이브 뿔의 안쪽 가시 좀더 노란색으로 표현하고 수 늘리기") — IVORY_DEEP(#cdc0a0)
          대신 하이브만의 노란 상아 HIVE_SPIKE9. */
-      for (const t of [0.22, 0.36, 0.5, 0.64, 0.78]) {
-        const s9 = Math.sin(Math.PI * t) * HIVE_BOW9;   // 뿔과 같은 배부름(어긋나면 가시가 뿔에서 뜬다)
-        const px = bx + (tx - bx) * t + s9 * inX;
-        const py = by + (ty - by) * t + s9 * inY;
-        const pz = bz + (tz - bz) * t + s9 * 0.16;
+      for (const t of [0.4, 0.52, 0.64, 0.76, 0.88]) {
+        const q9 = h9.at(t);   // 가시는 뿔 축을 그대로 탄다(제 식으로 베끼면 꺾인 뿔에서 뜬다)
+        const px = q9[0];
+        const py = q9[1];
+        const pz = q9[2];
         const olen = Math.hypot(px, py) || 1;
         const ox = (px / olen) * 1.7;
         const oy = (py / olen) * 1.7;
@@ -15045,7 +15365,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     out.push(...tagKey(hornFaces(-1.321, 5.116, 0.48, -2.697, 6.934, 2.08, 1), depthNow(-2.009, 6.025) * 1.6));
     out.push(...tagKey(hornFaces(3.843, 3.525, 0.48, 5.893, 4.219, 1.92, 1), depthNow(4.868, 3.872) * 1.6));
     return out;
-  },
+  }),
   /* 스포닝 풀(입체감, 지적) — 살 테두리를 땅에서 도톰하게 올리고 앞으로 흘러내리는
      치마 벽을 달았다. 웅덩이 안쪽 뒤편엔 테두리 그늘, 위로는 마주 굽는 뼈 아치. */
   pool: () => withModelSpin(270, () => {
