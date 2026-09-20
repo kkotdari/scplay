@@ -14404,39 +14404,50 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         oval: 0.3, trueNormal: true, leanX: lx9, leanY: ly9,
       })), (sx9 + sy9) % 2 === 0 ? SLAB : SLAB_D), depthNow(sx9, sy9) * 1.6 + 2));
     }
-    /* 뒤쪽 양옆의 굵은 오징어다리 — 언덕 살 속에서 나서 바깥·위로 오르며 앞으로 감겼다가 끝이 뒤로 말리는 관.
-       마디마다 사인 굵기로 오징어 다리의 주름을 얹는다. */
-    /* 감기는 평면은 뒤·바깥으로 기운 세로면이다(h = (바깥 0.6, 앞 0.8)) — 앞으로만 감으면 앞 갈래 위까지 뻗어 덮는다. */
+    /* 뒤쪽 양옆의 굵은 오징어 다리 — 언덕 살 속에서 나서 **바닥을 기어** 바깥·뒤로 갔다가 앞으로 감겨 끝이 안으로 도는
+       3차 베지에 관(재지적: "뒤쪽 오징어다리는 바닥을 기어야 하고"). z 는 그 자리 반지름(관이 땅에 눕는다) · 뿌리 0.25 까지만
+       언덕 살 속 높이에서 내려온다. 마디마다 사인 주름. */
+    const bz3 = (a: number, b: number, c: number, d: number, t: number): number => {
+      const u = 1 - t;
+      return u * u * u * a + 3 * u * u * t * b + 3 * u * t * t * c + t * t * t * d;
+    };
     for (const sg of [1, -1]) {
-      const CX = sg * 2.9; const CY = -2.3; const CZ = 2.5; const R = 1.85;
-      const HX9 = sg * 0.6; const HY9 = 0.8;
-      const wT9 = (t9: number): number => (0.95 - 0.68 * t9) * (1 + 0.1 * Math.sin(t9 * Math.PI * 16));
+      const wT9 = (t9: number): number => (0.95 - 0.7 * t9) * (1 + 0.1 * Math.sin(t9 * Math.PI * 16));
       out.push(...tagKey(paintBase(spirePillar({
         x: 0, y: 0, h: 0.8, w: 0.95, tipW: 0.2, segs: 26, sides: 10, hold: 0, caps: "none", trueNormal: true,
         widthOf: wT9,
-        path: (t9: number): [number, number, number] => {
-          const a9 = Math.PI * (-0.6 + 1.35 * t9);
-          const c9 = Math.cos(a9) * R;
-          return [CX + HX9 * c9 + sg * 0.5 * t9, CY + HY9 * c9, CZ + Math.sin(a9) * R];
-        },
-      }), FLESH), 22 + depthNow(CX, CY)));
+        path: (t9: number): [number, number, number] => [
+          bz3(sg * 1.9, sg * 5.9, sg * 6.6, sg * 3.9, t9),
+          bz3(-2.3, -4.3, -0.6, -0.4, t9),
+          wT9(t9) + Math.max(0, 0.9 * (1 - t9 / 0.25)),
+        ],
+      }), FLESH), depthNow(sg * 4.6, -2.2) * 1.6 + 1));
     }
-    /* 앞의 두 갈래 — 판 앞 양옆에서 둥글게 부푼 살 덩이 둘(옆선 타원). */
-    const LOBES: [number, number, number, number][] = [[-2.4, 2.4, 1.75, 1.2], [2.4, 2.4, 1.75, 1.2]];
-    const lobeZ9 = (lx9: number, ly9: number, lr9: number, lh9: number, x9: number, y9: number): number => {
-      const d9 = Math.hypot(x9 - lx9, y9 - ly9) / lr9;
-      return SL_Z - 0.1 + lh9 * Math.sqrt(Math.max(0, 1 - d9 * d9));
-    };
-    for (const [lx9, ly9, lr9, lh9] of LOBES) {
-      out.push(...tagKey(paintBase(domeFaces3(lx9, ly9, lr9, lh9, SL_Z - 0.1, true), FLESH_L), depthNow(lx9, ly9) * 1.6 + 1));
-      /* 임자색 거품 — 덩이 겉면에 묻은 크고 작은 방울(fill 없음 = 임자색 · 반구를 겉면에 살짝 묻는다). */
-      for (const [bx9, by9, br9] of [
-        [0.0, 0.9, 0.42], [0.7, 0.45, 0.3], [-0.6, 0.55, 0.34], [1.1, 0.95, 0.24], [-1.15, 1.0, 0.26],
-        [0.35, 1.35, 0.2], [-0.25, 0.1, 0.22], [0.95, -0.2, 0.18],
+    /* 앞의 두 갈래 — 반구가 아니라 **호로 뻗는 관** 둘(재지적: "앞쪽 양쪽은 반구가 아니라 호 형태로 뻗는 관"): 판 앞 살 속에서
+       나서 바깥·앞으로 굽어 나가는 2차 베지에 관(뿌리 1.1 → 끝 0.55 · 끝은 뚜껑) · z 는 그 자리 반지름(땅에 눕는다). 그 등 위에
+       임자색 거품(fill 없는 domeFaces3)이 줄지어 묻는다. */
+    const bz2 = (a: number, b: number, c: number, t: number): number => (1 - t) * (1 - t) * a + 2 * (1 - t) * t * b + t * t * c;
+    for (const sg of [1, -1]) {
+      const lw9 = (t9: number): number => 1.1 - 0.55 * t9;
+      const lp9 = (t9: number): [number, number, number] => [
+        bz2(sg * 1.1, sg * 3.7, sg * 3.3, t9), bz2(1.3, 2.6, 5.3, t9), lw9(t9) + Math.max(0, 0.45 * (1 - t9 / 0.3)),
+      ];
+      out.push(...tagKey(paintBase(spirePillar({
+        x: 0, y: 0, h: 0.8, w: 1.1, tipW: 0.55, segs: 16, sides: 12, hold: 0, taper: 1, caps: "top", trueNormal: true,
+        widthOf: lw9, path: lp9,
+      }), FLESH_L), depthNow(sg * 3.0, 3.4) * 1.6 + 1));
+      for (const [t9, side9, br9] of [
+        [0.3, 0.2, 0.36], [0.42, -0.5, 0.26], [0.55, 0.45, 0.3], [0.66, -0.15, 0.4], [0.78, 0.6, 0.22],
+        [0.88, -0.4, 0.28], [0.96, 0.15, 0.3], [0.5, 0.95, 0.18], [0.72, -0.9, 0.2],
       ] as [number, number, number][]) {
-        const x9 = lx9 + bx9 * Math.sign(lx9); const y9 = ly9 + by9;
-        out.push(...tagKey(domeFaces3(x9, y9, br9, br9 * 0.95, lobeZ9(lx9, ly9, lr9, lh9, x9, y9) - br9 * 0.35, true),
-          depthNow(x9, y9) * 1.6 + 3));
+        const [px9, py9, pz9] = lp9(t9);
+        const [qx9, qy9] = lp9(Math.min(1, t9 + 0.02));
+        const tl9 = Math.hypot(qx9 - px9, qy9 - py9) || 1;
+        const nx9 = -(qy9 - py9) / tl9; const ny9 = (qx9 - px9) / tl9;   // 관의 옆 방향
+        const r9 = lw9(t9);
+        const x9 = px9 + nx9 * side9 * r9; const y9 = py9 + ny9 * side9 * r9;
+        const z9 = pz9 + Math.sqrt(Math.max(0, 1 - side9 * side9)) * r9 - br9 * 0.4;
+        out.push(...tagKey(domeFaces3(x9, y9, br9, br9 * 0.95, z9, true), depthNow(x9, y9) * 1.6 + 3));
       }
     }
     /* 두 갈래 사이의 바닥 절벽 구멍 — 판 앞 땅 위에 살 테를 두르고 속을 역돔으로 판다(바닥 z 0.15 라 크립 판이 안 덮는다). */
