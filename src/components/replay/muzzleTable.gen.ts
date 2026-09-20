@@ -39,7 +39,7 @@ export const MUZZLE_GEN9: Record<string, [number, number, number]> = {
   sunken: [0.35, 0.15, 2.96],
   sunkenfire: [0.35, 0.15, 2.96],
   sunkenrear: [0.35, 0.15, 2.96],
-  tank: [0.42, 3.02, 2.8],
+  tank: [0.42, 3.02, 2.92],
   tanksiege: [0, 3.79, 4.03],
   turret: [2.1, 3.16, 7.96],
   turrethead: [2.1, 3.16, 7.96],
