@@ -14451,23 +14451,24 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         widthOf: lw9, path: lp9,
       }), FLESH_L), depthNow(sg * 3.0, 3.4) * 1.6 + 1));
       /* 거품은 점점이가 아니라 **보글보글**(재지적) — 등뼈를 따라 촘촘한 자리마다 작은 구 두셋을 겹쳐 앉혀 서로 맞닿은
-         거품 무더기가 되게 한다(해시로 옆 치우침·반지름을 흩는다 · 저해상도 구 sides 7 · segs 3). */
+         거품 무더기가 되게 한다(해시로 옆 치우침·반지름을 흩는다 · 저해상도 구 sides 10 · segs 4). */
       const hs9 = (i9: number): number => { const v9 = Math.sin(i9 * 12.9898 + sg * 7.7) * 43758.5453; return v9 - Math.floor(v9); };
       let bi9 = 0;
-      for (let t9 = 0.24; t9 <= 1.0; t9 += 0.04) {
+      /* 재요청("거품 수 줄이고 몇 배 크게"): 걸음 0.04 → 0.09 · 자리마다 하나둘 · 반지름 0.13~0.33 → 0.34~0.72. */
+      for (let t9 = 0.24; t9 <= 1.0; t9 += 0.09) {
         const [px9, py9, pz9] = lp9(t9);
         const [qx9, qy9] = lp9(Math.min(1, t9 + 0.02));
         const tl9 = Math.hypot(qx9 - px9, qy9 - py9) || 1;
         const nx9 = -(qy9 - py9) / tl9; const ny9 = (qx9 - px9) / tl9;   // 관의 옆 방향
         const r9 = lw9(t9);
-        const n9 = 2 + (hs9(bi9 + 0.3) < 0.5 ? 1 : 0);
+        const n9 = 1 + (hs9(bi9 + 0.3) < 0.5 ? 1 : 0);
         for (let k9 = 0; k9 < n9; k9++) {
           const side9 = -0.85 + 1.7 * hs9(bi9 + 1.1 + k9 * 3.3);
-          const br9 = 0.13 + 0.2 * hs9(bi9 + 2.2 + k9 * 5.1);
+          const br9 = 0.34 + 0.38 * hs9(bi9 + 2.2 + k9 * 5.1);
           const x9 = px9 + nx9 * side9 * r9; const y9 = py9 + ny9 * side9 * r9;
           const z9 = pz9 + Math.sqrt(Math.max(0, 1 - side9 * side9)) * r9 - br9 * 0.3;
           out.push(...tagKey(spirePillar({
-            x: x9, y: y9, z0: z9 - br9, h: br9 * 2, w: br9, segs: 3, sides: 7, hold: 0, caps: "none", trueNormal: true,
+            x: x9, y: y9, z0: z9 - br9, h: br9 * 2, w: br9, segs: 4, sides: 10, hold: 0, caps: "none", trueNormal: true,
             widthOf: (u9: number): number => Math.max(0.02, br9 * Math.sqrt(Math.max(0, 1 - (2 * u9 - 1) ** 2))),
           }), depthNow(x9, y9) * 1.6 + 3));
           bi9++;
