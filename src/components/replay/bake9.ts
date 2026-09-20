@@ -3042,7 +3042,7 @@ export function crestPlate9(o: {
   root: [number, number, number]; axis: [number, number, number]; nrm: [number, number, number];
   len: number; wk: number; oval: number; base: string; layer: string; key: number;
   /** 임자색 띠의 가로 자리(cu −1~1)와 폭 몫(반폭 대비) — 없으면 띠 없음. */
-  decals?: [number, number][];
+  decals?: [number, number, number?][];   // [둘레 자리 cu0, 폭 몫 wf, 끝 자리 cu1?] — cu1 을 주면 뿌리 cu0 → 끝 cu1 로 기운 띠(V 자)
   /** 뿌리 반폭 배수(기본 1 — 울트라 옆선 그대로). 히드라는 뿌리를 좁힌다. */
   rootK?: number;
   /** 끝 반폭 배수(기본 1 = 0.4·wk 로 뭉툭). 0 에 가까우면 꼭대기가 뾰족하다(히드라 덮개). */
@@ -3072,7 +3072,11 @@ export function crestPlate9(o: {
     }), lay9 ? o.layer : o.base), o.key + lay9 * 0.1));
   }
   if (o.decals) {
-    for (const [cu0, wf] of o.decals) {
+    for (const [cu0, wf, cu1g] of o.decals) {
+      /* ★ 띠는 기울 수 있다(2026-09, 요청: "울트라 머리장식에 임자색 데칼 V자로 붙이기") — 셋째 값 cu1 을 주면 둘레 자리가 뿌리 cu0
+         에서 끝 cu1 로 곧게 옮겨 간다. 둘을 0 에서 ±로 벌리면 뿌리에서 만나는 V 다. 안 주면 종전대로 곧은 띠. */
+      const cu1 = cu1g ?? cu0;
+      const cuAt = (t: number): number => cu0 + (cu1 - cu0) * t;
       /* 띠는 **끝에서 끝까지**(2026-09, 요청: "크레스트 임자색은 한 줄만 깔끔하게 끝에서 끝까지") — 켜의 앞 낯은 본판 가운데 평면에서
          늘 `본판 반폭·oval + 0.15` 앞이므로(켜 띄움 + 켜 반두께) 그 높이에 띠를 놓으면 켜가 있는 구간(0.08~0.88)에서는 켜 위에,
          밖에서는 본판 위 허공 0.15 에 뜬 채 한 줄로 이어진다 — 옆에서 보면 켜와 같은 층이라 어긋남으로 안 읽힌다. */
@@ -3082,11 +3086,11 @@ export function crestPlate9(o: {
         x: 0, y: 0, h: 0.8, w: 1, segs: 8, sides: 6, oval: 0.12, caps: "none", ref: [1, 0, 0], trueNormal: true,
         path: (t9: number): [number, number, number] => {
           const t = tm(t9); const hw = halfW(t) * 0.72;
-          const p = off(at(t), halfW(t) * o.oval + 0.15 + skew(cu0, t) * 0.72 + dw(t9) * 0.12 + 0.03);
-          return [p[0] + cu0 * hw, p[1], p[2]];
+          const p = off(at(t), halfW(t) * o.oval + 0.15 + skew(cuAt(t), t) * 0.72 + dw(t9) * 0.12 + 0.03);
+          return [p[0] + cuAt(t) * hw, p[1], p[2]];
         },
         widthOf: dw,
-        skewV: (cu9: number, t9: number): number => (skew(cu0 + cu9 * wf, tm(t9)) - skew(cu0, tm(t9))) * 0.72,
+        skewV: (cu9: number, t9: number): number => (skew(cuAt(tm(t9)) + cu9 * wf, tm(t9)) - skew(cuAt(tm(t9)), tm(t9))) * 0.72,
       }), o.key + 0.2));
     }
   }
@@ -17129,10 +17133,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           const bz = (p0: number, c1: number, p2: number): number =>
             u9 * u9 * p0 + 2 * u9 * t9 * c1 + t9 * t9 * p2;
           // 뿌리 (0.75, 1.55, Z0+0.55) · 옛 벡터(끝 1.75·−2.65·1.12 · 가운데 0.9·−1.55·0.88)의 0.8배.
+          /* ★ 뿌리를 **얼굴 위 양옆**으로(2026-09, 요청: "디바우러 더듬이 더 앞아래로 이동(얼굴 위 양옆에 붙이기)") — 옛 뿌리
+             (±0.75, 1.55, Z0+0.55)는 투구 앞 위였다. 얼굴(HY 2.1 · HZ Z0−0.92 · s 0.864)의 머리뼈 위쪽 옆(z HZ+0.9 에서 반폭 0.47)
+             인 (±0.5, 2.2, Z0−0.02)에 박는다. 뻗는 벡터(뒤·바깥·위)는 그대로라 끝은 여전히 껍질 위로 솟는다(끝 Z0+1.33 · 돔 Z0+0.38). */
           return [
-            m9 * bz(0.75, 0.75 + 0.72, 0.75 + 1.4),
-            bz(1.55, 1.55 - 1.24, 1.55 - 2.12),
-            bz(Z0 + 0.55, Z0 + 0.55 + 0.95, Z0 + 0.55 + 1.35),   // 끝을 더 위로 — 껍질 위로 솟아야 장식으로 읽힌다
+            m9 * bz(0.5, 0.5 + 0.72, 0.5 + 1.4),
+            bz(2.2, 2.2 - 1.24, 2.2 - 2.12),
+            bz(Z0 - 0.02, Z0 - 0.02 + 0.95, Z0 - 0.02 + 1.35),
           ];
         },
         // 럭비공: 옛 폭(0.54~1.04)의 0.75배를 가장 넓은 자리(t 0.42)로 하고 양끝은 점으로.
@@ -23340,6 +23347,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const crest9 = crestPlate9({
       root: [0, 3.35 + UH_FWD9 + UT_DY9, 4.6 + UH_UP9 + UT_DZ9], axis: CRA9, nrm: CRN9, len: CRL9, wk: UCK9, oval: 0.22,
       base: PLATE, layer: HIDE, key: depthNow(0, 3.9) * 1.6 + 2.6,   // 얼굴(+2)보다 앞(지적: "머리장식에 머리가 가려져야")
+      // ★ 임자색 V(요청: "울트라 머리장식에 임자색 데칼 V자로 붙이기") — 뿌리 한가운데에서 만나 끝으로 갈수록 ±0.62 로 벌어지는 띠 둘.
+      decals: [[0, 0.16, -0.62], [0, 0.16, 0.62]],
     });
     out.push(...crest9.faces);
     const CR0 = crest9.at; const crW9 = crest9.halfW; const crSk9 = crest9.skew;
