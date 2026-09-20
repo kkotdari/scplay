@@ -4076,9 +4076,13 @@ export function tankTurretV2(siege: boolean, parts?: { body?: boolean; barrel?: 
      접힌 포신의 **끝만 뒤로 조금 나와** 있고, 그 끝에 두른 해저드 띠가 그 자리에서 보인다
      (정정: "해저드 데칼은 시즈 모드 포신의 끝에 둘러지는 거였어"). */
   const RISE9 = 0;   // 드는 일은 포탑의 기울기(TILT9)가 한다 — 포신은 포탑 위에 곧게 얹힌다
+  /** 포신 축을 내린 몫(2026-09, 요청: "시즈포신 아래로 좀 내리기") — 축이 포탑 높이(1.36)의 56% 에 있어
+   *  살(반높이 0.55)의 등이 포탑 윗면 위로 솟아 있었다. 내리면 등이 윗면 아래로 들어가 포탑에 얹힌 꼴이 된다.
+   *  ⚠ 총구 앵커도 이 축에서 나므로 **총구표를 다시 뽑아라**(muzzle-table). */
+  const GUN_DROP9 = 0.2;
   /** 나온 몫 e 의 포신 축 위 한 점(t 0 뿌리 ~ 1 포구). rc 는 반동(앞으로 밀림). */
   const gunAt9 = (e9: number, rc9: number) => (t9: number): [number, number, number] =>
-    T9(0, -(1.0 + 3.04 * e9 * t9) * BX9 + rc9, ZB9 + (Z0 + 1.0 + RISE9 * e9 * t9 - ZB9) * BX9z9);
+    T9(0, -(1.0 + 3.04 * e9 * t9) * BX9 + rc9, ZB9 + (Z0 + 1.0 - GUN_DROP9 + RISE9 * e9 * t9 - ZB9) * BX9z9);
   /** 포신을 **납작하게** 누른 몫(2026-09, 요청: "시즈포신을 살짝더 납작하게하기 타원형을") —
    *  높이(단면 u 축)를 이만큼 줄이고 `GUN_OV9` 로 가로를 그만큼 되돌려 **폭은 지킨다**. */
   const GUN_FLAT9 = 0.85;
@@ -4659,7 +4663,7 @@ export function hatcheryMoundFaces(
           path: cpath9,
           waist: 0.46,
           thick: crown.w * 0.30,
-          spread: 4.9,
+          spread: 2.45,
           rootPow: 0.62, tipPow: 0.95, rootW: 0.16, tipW: 0,
           segs: 8, sides: 10, fill: spikeColor,
           ref: [cdx, cdy, 0], trueNormal: true, key: ckey9,
