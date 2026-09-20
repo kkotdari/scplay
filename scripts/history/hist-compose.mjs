@@ -75,7 +75,10 @@ const COLS = 1; const TITLE = 44; const SEC = 30;   // 한 줄에 한 모델(재
 for (const [file, race, nos] of RACES) {
   const secs = nos.map((no) => sheets.find((x) => x.no === no)).map((sh) => ({
     title: `${race} ${sh.title.split(" / ")[0]}`,
-    cards: sh.items.map((it) => { const ang = julyAt.get(it.kind)?.ang ?? 23; return { ...it, ang, j: julyAt.get(it.kind) ?? null, a: idxA.get(it.kind), c: idxC.get(it.kind) }; }),
+    /* ★ **지금 판에 없는 종류는 카드를 안 만든다**(2026-09, 요청: "유닛 채집 일꾼 빼고 다시 뽑아 줘") — 카드 목록은 도록
+       `list.txt` 에서 오고 그림은 `kinds_u/b.txt` 로 구운 판에서 오므로, 목록에서만 종류를 빼면 **이름만 있고 그림이 빈 칸**이
+       남는다. 지금 판(idxC)에 없으면 거른다 — 굽는 목록에서 빼는 것만으로 카드까지 사라진다. */
+    cards: sh.items.filter((it) => idxC.has(it.kind)).map((it) => { const ang = julyAt.get(it.kind)?.ang ?? 23; return { ...it, ang, j: julyAt.get(it.kind) ?? null, a: idxA.get(it.kind), c: idxC.get(it.kind) }; }),
   }));
   const data = await pg.evaluate(async ({ secs, CELL, JC, COLS, TITLE, SEC, race, NOW, ERAS, BG9, OWN9, SPLIT }) => {
     /* ★ 카드 상자·칸 테두리는 걷었다(2026-09, 요청: "한 모델 안에서 세로 구분선 제거 · 제목은 각 모델 위에 줄 위에") —
