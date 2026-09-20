@@ -72,7 +72,11 @@ const NORM_Z = process.argv.includes("--norm") ? Number(flag("--norm", "1.6")) |
  *  잘리고(그레이터 스파이어) 나는 몸은 원점 위로 솟아 잘린다. 원 배율로 한 번 굽어 실루엣 상자를 재고, 그 상자가 칸의 몫(기본 0.84)에
  *  들게 배수·자리를 잡아 다시 굽는다(줄마다 두 번). 변천사 시트가 쓴다 — 7월 도록 그림도 칸마다 제 크기로 채워져 있다. */
 const FIT = process.argv.includes("--fit") ? Number(flag("--fit", "0.84")) || 0.84 : 0;   // 변천사 시트는 7월 그림과 같은 검정(#0a0a0a)으로 굽는다
-const COLOR = "#4aa3ff";
+const COLOR = String(flag("--color", "#4aa3ff"));   // 임자 색(변천사는 7월 도록의 연녹색 #7ed491 을 준다)
+/** `--shadow` — 몸을 빛 방향으로 바닥에 눕힌 그림자(gl9 push.shadow ground)를 함께 굽는다(2026-09, 변천사 요청: "그림자 표현
+ *  변천사도 보여주고 싶어서"). ⚠ 지도의 기본은 접지 타원이고 이 사영 그림자는 `#glshadow=1` 일 때의 그림이다. `--fit` 이면
+ *  상자를 재는 첫 굽기에는 안 얹는다(그림자가 상자를 넓혀 몸이 작아진다). */
+const SHADOW = process.argv.includes("--shadow");
 
 const ENTRY = `
 import { SHAPE_BUILDERS, SHAPE_GALLERY, poseSet9, bldLitSet, headYawSet, bldSpinRawSet9, tone9, silhouetteLight, DECAL_KINDS, SPIN_KINDS } from ${JSON.stringify(join(ROOT, "src/components/replay/bake9"))};
@@ -106,7 +110,8 @@ window.__run = (kinds, rots, cell, bg, color, vs2d, stages, lit, spins, normZ, f
       if (!m) return;
       const kk = (normZ ? k * (isB ? bldNormOf(kind) : modelNormOf(kind) * normZ) : k) * (fit ? 0.5 : 1);   // --fit: 재는 굽기는 반으로(안 잘리게)
       meshes[i] = { m, kk };
-      g.push({ mesh: m, ax: i * cell + cell / 2, ay: cell / 2, k: kk, yoff: k * 4, yawDeg: -rot, color, alpha: 1, cam: CAM_TOP9, gradR: cell * 0.707, gradCy: 0, flat: GL_GLOW_KINDS9.has(kind) });   // 발광 종류는 붓과 같이 음영·깊이 없이
+      const sh9 = ${SHADOW} && !fit && !GL_GLOW_KINDS9.has(kind) ? { ground: true, alpha: 0.26 } : undefined;
+      g.push({ mesh: m, ax: i * cell + cell / 2, ay: cell / 2, k: kk, yoff: k * 4, yawDeg: -rot, color, alpha: 1, cam: CAM_TOP9, gradR: cell * 0.707, gradCy: 0, flat: GL_GLOW_KINDS9.has(kind), shadow: sh9 });   // 발광 종류는 붓과 같이 음영·깊이 없이
     });
     g.flush(gcv.width, gcv.height, gcv.width, gcv.height);
     if (fit) {
@@ -129,7 +134,8 @@ window.__run = (kinds, rots, cell, bg, color, vs2d, stages, lit, spins, normZ, f
         const sc = Math.min(fit * cell / bx.w, fit * cell / bx.h);
         const ax0 = i * cell + cell / 2; const ay0 = cell / 2 + k * 4;   // 첫 굽기의 원점(요잉 축)
         const ax = i * cell + cell / 2 - (bx.cx - ax0) * sc; const ay = cell / 2 - (bx.cy - ay0) * sc - k * 4;
-        g.push({ mesh: mm.m, ax, ay, k: mm.kk * sc, yoff: k * 4, yawDeg: -rot, color, alpha: 1, cam: CAM_TOP9, gradR: cell * 0.707 * sc, gradCy: 0, flat: GL_GLOW_KINDS9.has(kind) });
+        const sh9 = ${SHADOW} && !GL_GLOW_KINDS9.has(kind) ? { ground: true, alpha: 0.26 } : undefined;
+        g.push({ mesh: mm.m, ax, ay, k: mm.kk * sc, yoff: k * 4, yawDeg: -rot, color, alpha: 1, cam: CAM_TOP9, gradR: cell * 0.707 * sc, gradCy: 0, flat: GL_GLOW_KINDS9.has(kind), shadow: sh9 });
       });
       g.flush(gcv.width, gcv.height, gcv.width, gcv.height);
     }

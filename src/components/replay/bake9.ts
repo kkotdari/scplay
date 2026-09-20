@@ -20764,13 +20764,27 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        아니라 '걷느냐'다: 걸으면 총구가 대각선 위로 서고(운반), 서 있거나 쏘면 앞으로
        내려온다(사격). */
     const carry9 = mv && !at ? 1 : 0;
-    const GB9: [number, number, number] = [-0.72, 0.16, 2.288];   // 개머리판(오른 옆구리)
-    const GM9: [number, number, number] = [
-      -0.48 + carry9 * 0.3, 2.35 - carry9 * 0.35, 2.672 + carry9 * 0.624,
-    ];
+    /* ★ 총의 자리는 **오른팔이 정한다**(2026-09, 요청: "총을 좀더 가운데 앞으로 옮기고 뒤 받치는 팔이 뒤로
+       구부러지지 않게 — 상완은 거의 수직이지만 앞을 향해 내려가고 하완은 지면과 수평") — 여태는 총 축을 먼저
+       두고 손을 jointBetween 으로 풀어, 굽힘 힌트(뒤·아래)가 팔꿈치를 어깨 뒤로 보냈다. 이제 오른팔 마디 둘을
+       설계 자로 못 박고(상완 (0.12, 0.30, −0.95) · 하완 수평·안쪽 35도 1.2 · 손등 0.38) 그 손이 쥐는 자리에
+       총의 방아쇠(t GRIP_R9)가 오도록 개머리판을 **거꾸로** 푼다. 왼손은 종전대로 앞손잡이를 잡고 풀린다
+       (왼팔 닿는 거리 2.58 이라 총이 몸 가운데(x −0.2~0.1)로 와야 앞손잡이에 닿는다 — 그것이 '가운데'다). */
+    const PALM9 = 0.33 * 1.15;
+    const shR9: [number, number, number] = [-1.14, -0.02, suitShoulderZ()];
+    const eR9: [number, number, number] = [shR9[0] + 0.12, shR9[1] + 0.30, shR9[2] - 0.95 * Z8];
+    const FDX9 = 0.5756; const FDY9 = 0.8177;   // 하완 방향(단위 · 지면과 수평 · 안쪽 35도)
+    const wrR9: [number, number, number] = [eR9[0] + FDX9 * 1.2, eR9[1] + FDY9 * 1.2, eR9[2]];
+    const gripR9: [number, number, number] = [wrR9[0] + FDX9 * PALM9, wrR9[1] + FDY9 * PALM9, wrR9[2]];
+    const GRIP_R9 = 0.22;   // 방아쇠 손이 쥐는 총 축 자리
+    const GRIP_L9 = 0.40;   // 앞손잡이(왼손)
+    const GL9 = 1.25;       // 총 확대(요청): 길이 1.25배
+    const GD9: [number, number, number] = [0.25 + carry9 * 0.3, 2.2 - carry9 * 0.35, 0.38 + carry9 * 0.624];   // 총 축 방향(걸을 땐 총구가 대각선 위로)
+    const GB9: [number, number, number] = [
+      gripR9[0] - GD9[0] * GRIP_R9 * GL9, gripR9[1] - GD9[1] * GRIP_R9 * GL9, gripR9[2] - GD9[2] * GRIP_R9 * GL9,
+    ];   // 개머리판
+    const GM9: [number, number, number] = [GB9[0] + GD9[0], GB9[1] + GD9[1], GB9[2] + GD9[2]];
     /** 총 축 위의 한 점 — 걸음 흔들림(sway)·반동(kick)·몸 낮춤(dz)을 함께 얹는다. */
-    // 총 확대(요청): 길이 1.25배 — 개머리판은 그대로 두고 총구 쪽으로 늘인다.
-    const GL9 = 1.25;
     const GP9 = (t9: number): [number, number, number] => [
       GB9[0] + (GM9[0] - GB9[0]) * t9 * GL9,
       GB9[1] + (GM9[1] - GB9[1]) * t9 * GL9 - kick + sway,
@@ -20840,14 +20854,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         /* 상완 1.0 · 하완 1.2로 **좌우 같다**(요청). 손은 총 위의 정한 자리(오른손 방아쇠
            t 0.15 · 왼손 앞손잡이 t 0.55), 팔꿈치는 jointBetween이 바깥·뒤로 굽혀 푼다.
            어깨판(suitPauldron)에 상완 방향을 넘겨 팔이 든 만큼 함께 돈다(요청). */
-        const shR: [number, number, number] = [-1.14, -0.02, suitShoulderZ()];
+        const shR = shR9;
         const shL: [number, number, number] = [1.18, -0.02, suitShoulderZ()];
         /* ★ 총은 손목이 아니라 **손**이 쥔다(2026-09, 요청: "총을 팔목이 아닌 손으로 들게") — armChain 의
            손등은 손목에서 하완 축을 따라 PALM(fore × 1.15)만큼 앞으로 뻗으므로, 총 위의 파지점을 **손목**에
            두면 총이 팔목에 얹히고 손은 총 앞 허공을 쥔다. 파지점에서 하완 축을 따라 손등 길이만큼 **뒤로**
            물러난 자리가 손목이다. 축은 팔꿈치가 정하고 팔꿈치는 손목이 정하므로 세 번 돌려 푼다
            (jointBetween 은 마디 길이를 지키니 손만 옮기면 된다). */
-        const PALM9 = 0.33 * 1.15;
         const wristOf9 = (
           sh: [number, number, number], grip: [number, number, number], bend: [number, number, number],
         ): [number, number, number] => {
@@ -20860,9 +20873,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           }
           return wr;
         };
-        const hR = wristOf9(shR, GP9(0.15), [-0.7, -0.35, -0.66]);
-        const hL = wristOf9(shL, GP9(0.42), [0.7, -0.35, -0.66]);
-        const eR = jointBetween(shR, hR, 1.0, 1.2, [-0.7, -0.35, -0.66]);
+        // 오른팔은 위에서 못 박은 마디 그대로 — 총의 흔들림·반동·낮춤(GP9 의 몫)만 함께 탄다.
+        const gp9 = GP9(GRIP_R9);
+        const sh9y = gp9[1] - gripR9[1]; const sh9z = gp9[2] - gripR9[2];
+        const hR: [number, number, number] = [wrR9[0], wrR9[1] + sh9y, wrR9[2] + sh9z];
+        const eR: [number, number, number] = [eR9[0], eR9[1] + sh9y, eR9[2] + sh9z];
+        const hL = wristOf9(shL, GP9(GRIP_L9), [0.7, -0.35, -0.66]);
         const eL = jointBetween(shL, hL, 1.0, 1.2, [0.7, -0.35, -0.66]);
         const dirOf = (sh: [number, number, number], el: [number, number, number]): [number, number, number] =>
           [el[0] - sh[0], el[1] - sh[1], el[2] - sh[2]];
