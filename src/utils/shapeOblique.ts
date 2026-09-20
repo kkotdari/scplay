@@ -560,10 +560,28 @@ export function tagKey(faces: ShapeFace[], key: number): ShapeFace[] {
  *  ⚠ 표식은 일곱째 칸이라 면을 고쳐 쓰는 헬퍼(paintBase·tagKey·trim…)가 떨어뜨린다 —
  *    **맨 마지막에** 씌워라. 그리는 쪽은 이 칸을 안 보므로 화면은 그대로다. */
 export function boxSkip(faces: ShapeFace[]): ShapeFace[] {
-  return faces.map((f) => [f[0], f[1], f[2], f[3], f[4], f[5], 1] as unknown as ShapeFace);
+  return faces.map((f) => [f[0], f[1], f[2], f[3], f[4], f[5], mark9(f) | 1] as unknown as ShapeFace);
 }
+/** 일곱째 칸의 표식 비트(1 자 재기 제외 · 2 감싸는 껍질) */
+const mark9 = (f: ShapeFace): number => ((f as unknown as number[])[6] ?? 0);
 /** 그 표식이 붙었나 — 자를 재는 도구(bld-norm·model-norm)만 본다. */
-export const isBoxSkip = (f: ShapeFace): boolean => (f as unknown as unknown[])[6] === 1;
+export const isBoxSkip = (f: ShapeFace): boolean => (mark9(f) & 1) !== 0;
+/** ★★ **몸을 감싸는 띠는 '위에 얹는 데칼'이 아니라 껍질이다**(2026-09, 지적: "포신 안쪽에는 왜
+ *  데칼이 보여") ───────────────────────────────────────────────────────────────────────
+ *  시즈 포신을 두른 해저드 띠의 **먼 쪽 반**이 살을 뚫고 보였다. 깊이가 틀린 것이 아니라
+ *  **부품 차례 편향**(gl9 aOrd — 화가 차례 0→0.3 + 번호마다 0.004, 상한 0.4 = 최대 0.7 모델칸)이
+ *  살의 반지름(0.67)보다 커서 진짜 깊이를 이긴 것이다(실측: ord 를 0 으로 두면 곧장 사라진다).
+ *  띠는 늘 몸 **뒤에** 얹히는 부품이라 차례가 맨 끝이고, 그래서 이 편향을 가장 세게 받는다.
+ *  편향과 겨루지 말고 **등진 낯을 아예 안 그리는 것**이 답이다: 양 끝이 열린 관이라
+ *  `solidSigns9`(닫힌 입체 판정)에는 안 걸리지만, 감싸인 몸이 속을 늘 채우므로 그 뒷면은
+ *  볼 일이 없다 — 빌더가 그 사실을 이 표식으로 일러 주면 mesh9 가 법선을 **축에서 바깥으로**
+ *  맞춰 solid 로 싣고, 셰이더가 등진 낯을 걷는다(닫힌 입체와 같은 길).
+ *  ⚠ tagKey·paintBase 가 일곱째 칸을 떨어뜨리므로 **맨 마지막에** 씌운다. */
+export function shellFaces9(faces: ShapeFace[]): ShapeFace[] {
+  return faces.map((f) => [f[0], f[1], f[2], f[3], f[4], f[5], mark9(f) | 2] as unknown as ShapeFace);
+}
+/** 그 표식이 붙었나 — mesh9 만 본다. */
+export const isShell9 = (f: ShapeFace): boolean => (mark9(f) & 2) !== 0;
 /** 부품 깊이 정렬(지적: 요잉으로 뒤로 간 부품이 앞 부품 위에 그려져 '비쳐 보임') —
  *  깊이 있는 면은 뒤→앞으로, 깊이 없는 면은 직전 깊이를 물려받아(장식은 제 부품에
  *  붙어 다닌다) 안정 정렬한다. 맨 앞의 무깊이 면(바닥 그림자·스플랫)은 맨 뒤 층이다. */

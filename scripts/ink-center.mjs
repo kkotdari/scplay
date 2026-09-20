@@ -59,7 +59,7 @@ const res = await page.evaluate(([MODES, ONLY]) => {
   const measure = (kind, rot, mode) => {
     const faces = window.__bake(kind, rot, mode); if (!faces || !faces.length) return null;
     c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, W, W); c.setTransform(k, 0, 0, k, off, off);
-    for (const f of faces) { if (f[6] === 1) continue; c.globalAlpha = shadeBoost(f[1], f[2]); c.fillStyle = f[2] ?? "#fff"; try { c.fill(new Path2D(f[0])); } catch (e) { /* skip */ } }
+    for (const f of faces) { if (f[6] & 1) continue; c.globalAlpha = shadeBoost(f[1], f[2]); c.fillStyle = f[2] ?? "#fff"; try { c.fill(new Path2D(f[0])); } catch (e) { /* skip */ } }
     const buf = new Uint32Array(c.getImageData(0, 0, W, W).data.buffer);
     let sy = 0, sx = 0, n = 0, y1 = -1;
     for (let y = 0; y < W; y += 1) for (let x = 0; x < W; x += 1) { if ((buf[y * W + x] >>> 24) > 8) { n += 1; sy += y; sx += x; if (y > y1) y1 = y; } }

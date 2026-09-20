@@ -2,7 +2,7 @@
    빌더를 요잉 0·평면 시점으로 한 번 돌리고, 면마다 곁표(MESH9.byD)에 적힌 3D 폴리곤을 모아 **판 모형 공간 메시**를
    낸다. GPU 붓(WebGL)·자료 도구의 재료다. 음영 덧칠 면(#fff/#000 얕은 알파, 화면 곡선 그림자)은 GPU 조명이 대신하므로
    버린다. 임자색 면(fill 없음)은 fill "" 로 두어 붓이 임자색으로 바꿔 칠한다. */
-import { MESH9, EMIT_FILL9, withTopView, withYaw, bake, zsorted, BILLBOARD9, type ShapeFace, type Poly3 } from "./shapeOblique";
+import { MESH9, EMIT_FILL9, withTopView, withYaw, bake, zsorted, BILLBOARD9, isShell9, type ShapeFace, type Poly3 } from "./shapeOblique";
 /* 빌보드 표식은 **shapeOblique 가 든다** — 빌더가 제 손으로 빌보드를 놓을 수 있어야 하고
    (billPath3), 그 표식을 여기서만 쥐면 빌더가 빌보드를 못 놓는다. 쓰던 이름은 그대로 낸다. */
 export { BILLBOARD9 };
@@ -199,6 +199,8 @@ export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeF
   let covered = 0; let skipped = 0; let blank = 0; const missed: string[] = []; const missPaths: string[] = [];
   /** 부품마다의 **뭉치 번호**(tagKey 의 pid) — 아래에서 같은 뭉치를 모아 닫힌 입체인가를 잰다. */
   const pidAt: (number | undefined)[] = [];
+  /** 부품마다 '감싸는 껍질' 표식(shellFaces9) — 닫힌 입체가 아니어도 뒷면을 걷는다(아래 ★★). */
+  const shellAt: boolean[] = [];
   /** 이 면의 3D 폴리 찾기 — 곁표(헬퍼가 적어 둔 것) → 손수 짠 경로 되찾기 → 여러 조각 이어 붙인 경로.
    *  되찾기는 MESH9.byD 에 적어 두므로 두 번째 호출은 표 읽기뿐이다(아래 몸 상자 앞잡이가 그 값을 쓴다). */
   const geomOf9 = (f: ShapeFace): Poly3[] | undefined => {
@@ -347,6 +349,7 @@ export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeF
          임자색 면도 몸이다), 그 밖의 종류는 '켜진 색' 표(EMIT_FILL9)에 든 색만. */
       emit: f[2] !== undefined && (glow ? lum9(f[2]) > 0.55 : EMIT_FILL9.has(f[2])) });
     pidAt.push(f[5]);
+    shellAt.push(isShell9(f));
   }
   /* ★ 닫힌 입체 표시 — 빌더는 한 덩이를 낯 여러 장으로 내므로(부품 하나 = 낯 하나), 닫힘은 부품이 아니라
      **뭉치(pid)** 단위로 잰다. 같은 pid 의 폴리를 모아 solidSigns9 에 넘기고, 나온 부호를 부품마다 나눠 준다. */
@@ -370,6 +373,36 @@ export function collectMesh9(builder: () => ShapeFace[], filter?: (faces: ShapeF
         const fl9: boolean[] = [];
         for (let k = 0; k < parts[i].polys.length; k += 1) fl9.push(sign[at + k] < 0);
         at += parts[i].polys.length;
+        parts[i].solid = true;
+        parts[i].flips = fl9;
+        parts[i].flip = fl9.filter((v9) => v9).length * 2 > fl9.length;
+      }
+    }
+  }
+  /* ★★ **감싸는 껍질은 축에서 바깥을 본다**(2026-09, 지적: "포신 안쪽에는 왜 데칼이 보여") — 몸을 두른
+     띠(시즈 포신의 해저드)는 양 끝이 열린 관이라 위의 닫힘 판정에 안 걸린다. 그런데 그 속은 감싸인
+     몸이 늘 채우므로 **뒷면은 볼 일이 없고**, 안 걷으면 부품 차례 편향(gl9 aOrd ≤ 0.7 모델칸)이 진짜
+     깊이를 이겨 먼 쪽 반이 살을 뚫고 보인다. 빌더가 `shellFaces9` 로 일러 준 뭉치는 그 뭉치의
+     한가운데(감싸인 몸의 축)에서 **바깥**을 보도록 낯마다 감기를 맞춰 solid 로 싣는다.
+     ⚠ 닫힘 판정이 이미 잡은 뭉치는 그대로 둔다(그쪽이 더 정확하다). */
+  {
+    const byShell9 = new Map<number, number[]>();
+    for (let i = 0; i < parts.length; i += 1) {
+      const pid = pidAt[i];
+      if (!shellAt[i] || parts[i].solid || pid === undefined || parts[i].alpha < 0.98) continue;
+      (byShell9.get(pid) ?? byShell9.set(pid, []).get(pid))!.push(i);
+    }
+    for (const idx of byShell9.values()) {
+      let cx = 0; let cy = 0; let cz = 0; let n9 = 0;
+      for (const i of idx) for (const p of parts[i].polys) { const fc = face9(p); cx += fc.c[0]; cy += fc.c[1]; cz += fc.c[2]; n9 += 1; }
+      if (!n9) continue;
+      cx /= n9; cy /= n9; cz /= n9;
+      for (const i of idx) {
+        const fl9: boolean[] = [];
+        for (const p of parts[i].polys) {
+          const fc = face9(p);
+          fl9.push((fc.c[0] - cx) * fc.n[0] + (fc.c[1] - cy) * fc.n[1] + (fc.c[2] - cz) * fc.n[2] < 0);
+        }
         parts[i].solid = true;
         parts[i].flips = fl9;
         parts[i].flip = fl9.filter((v9) => v9).length * 2 > fl9.length;

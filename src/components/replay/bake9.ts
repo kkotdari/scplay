@@ -7,7 +7,7 @@ import { cx } from "./cx";
 import { TIER_GEN9 } from "./tierTable.gen";
 import { kT } from "../../utils/openbwTracks";
 import {
-  POLY2, MESH9, EMIT_FILL9, meshPut9, meshSphere9, shinePath3, annulusPath3, orbPath3, billPath3, billPoly3, meshLoft9, meshRing9, loftZFaces, modelPoint9, annulusPath, bandPath, bodyFace, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, boxOctFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelWarp, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
+  POLY2, MESH9, EMIT_FILL9, meshPut9, meshSphere9, shinePath3, annulusPath3, orbPath3, billPath3, billPoly3, meshLoft9, meshRing9, loftZFaces, modelPoint9, annulusPath, bandPath, bodyFace, shellFaces9, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, boxOctFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelWarp, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
 import { BUILD_STAGES, LINK_CY_9, LINK_X0_9, linkLenOf9, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, SPIN_ANIM9, SPIN_STEPS, bldNormOf, modelInkOf, modelNormOf } from "./engine9";
 import { type UnitDrawOp } from "./engine9";
 /** 주소 해시(`#pitch=`·`#nocreep` 같은 진단 스위치) — 굽기 일꾼 안에서는 location.hash가 빈 문자열(blob 주소)이라,
@@ -4094,7 +4094,7 @@ export function tankTurretV2(siege: boolean, parts?: { body?: boolean; barrel?: 
    *  닮은꼴로 K 배 키운 팔각이 되어 어느 각에서도 같은 두께로 붙는다. */
   const hazSleeve9 = (
     pOf9: (t9: number) => [number, number, number], s09: number, s19: number,
-    rAt9: (s9: number) => number,
+    rAt9: (s9: number) => number, key9: number,
   ): ShapeFace[] => {
     const a9 = pOf9(s19); const b9 = pOf9(s09);
     const al9 = Math.hypot(a9[0] - b9[0], a9[1] - b9[1], a9[2] - b9[2]) || 1;
@@ -4172,10 +4172,17 @@ export function tankTurretV2(siege: boolean, parts?: { body?: boolean; barrel?: 
       }
     }
     qs9.sort((p9, q9) => p9.d - q9.d);
-    return qs9.map((v9) => v9.f);
+    /* ★★ **띠는 포신 위에 얹는 데칼이 아니라 포신을 감싸는 껍질이다**(2026-09, 지적: "포신 안쪽에는
+       왜 데칼이 보여") — 먼 쪽 반이 살을 뚫고 보이던 까닭은 깊이가 아니라 **부품 차례 편향**
+       (gl9 aOrd — 최대 0.7 모델칸)이다: 띠는 몸 뒤에 얹히는 부품이라 차례가 맨 끝이고, 그 편향이
+       포신의 반지름(0.67)보다 커서 진짜 깊이를 이겼다(실측: ord 를 0 으로 두면 곧장 사라진다).
+       ⓐ **제 뭉치**로 갈라(tagKey) 포신의 닫힘 판정을 안 깨고 ⓑ `shellFaces9` 로 '감싸는 껍질'임을
+       일러 주면 mesh9 가 법선을 축에서 바깥으로 맞춰 solid 로 싣고, 셰이더가 **등진 낯을 걷는다**.
+       ⚠ 표식은 일곱째 칸이라 tagKey 가 떨어뜨린다 — **tagKey 뒤에** 씌운다. */
+    return shellFaces9(tagKey(qs9.map((v9) => v9.f), key9));
   };
   /** 시즈 포신 한 벌(몸 + 포구의 해저드 띠) — 나온 몫 e, 반동 rc. */
-  const siegeGun9 = (e9: number, rc9: number): ShapeFace[] => {
+  const siegeGun9 = (e9: number, rc9: number, key9: number): ShapeFace[] => {
     const pOf9 = gunAt9(e9, rc9);
     /* ★★ **눌린 단면은 `trueNormal` 이 있어야 한다**(2026-09, 지적: "이제 다 동일한데 포탑만 좀 달라
        키값이나 색이나 그런 거") — `oval: 2` 는 단면을 2:1 로 눌러 놓는데, 법선은 그 **누르기 전
@@ -4183,17 +4190,17 @@ export function tankTurretV2(siege: boolean, parts?: { body?: boolean; barrel?: 
        지나치게 어둡고 반대쪽은 거의 안 밝아진다 — 실측(model-mesh --dump): 시즈 포신이 **검0.47**
        한쪽으로 몰려 바탕 #6a7286 이 숯빛이 됐다(탱크 포신은 tubeFaces 라 검0.33 · 흰0.30 짝이다).
        `trueNormal` 은 꼭짓점에서 법선을 뽑으므로 눌린 살의 기울기를 그대로 탄다. */
-    const o9 = paintBase(spirePillar({
+    const o9 = tagKey(paintBase(spirePillar({
       /* 음영은 **관의 자**로 맞춘다(litK) — 탱크 포신(tubeFaces)이 배에 0.26 한 겹인데
          기둥은 낯마다 0.38 이라, 같은 포신인데 시즈 쪽만 숯빛이었다(0.26/0.38 ≒ 0.68). */
       x: 0, y: 0, h: 0.8, w: 1, segs: 6, sides: 8, oval: 2, caps: "both", trueNormal: true, litK: 0.68,
       path: pOf9,
-      widthOf: (t9: number): number => (0.6 - 0.07 * e9 * t9) * BX9,
-    }), TANK_STEEL);
+      widthOf: (t9: number): number => gunW9(e9, t9),
+    }), TANK_STEEL), key9);
     /* 띠는 포구 바로 뒤 — 살 위 3%(HAZ_K9)에 바싹 붙은 **표면 데칼**이고 앞뒤 폭은
        포신 길이의 29%다(요청: "앞뒤 폭 두 배" → 재요청: "띠 앞뒤 폭 25프로 축소" —
        0.385 → 0.289. 비틀림·마디도 같은 비로 줄여 빗금 기울기 28도를 지킨다). */
-    o9.push(...hazSleeve9(pOf9, 0.706, 0.995, (s9: number) => gunW9(e9, s9) * HAZ_K9));
+    o9.push(...hazSleeve9(pOf9, 0.706, 0.995, (s9: number) => gunW9(e9, s9) * HAZ_K9, key9));
     return o9;
   };
   // 포신 길이 0.8배(요청): 일반 0.6~3.5 → 0.6~3.0(끝마디 2.45~3.0) · 시즈 3.8 → 3.04. 키의 y도 짧아진 만큼(2.4 → 2.0).
@@ -4223,7 +4230,7 @@ export function tankTurretV2(siege: boolean, parts?: { body?: boolean; barrel?: 
     /* ★ 접힌 시즈 포신 끝은 포탑 **뒤**다(2026-09, 지적: "탱크모드의 시즈포신은 키가 안 맞고") —
        +0.15 는 포탑 몸보다 **앞**이라 뒤로 빠끔 나온 끝이 몸 위에 겹쳐 떠 보였다. 차체 뒤로
        나온 토막이므로 몸보다 낮은 키라야 포탑이 그 뿌리를 덮는다. */
-    if (ext9 === undefined) out.push(...tagKey(siegeGun9(0.26, 0), kT(0, -2.0 * BX9) - 0.25));
+    if (ext9 === undefined) out.push(...siegeGun9(0.26, 0, kT(0, -2.0 * BX9) - 0.25));
   };
   /** ④ 시즈 모드 — 돌아앉은 본체의 긴 앞면에서 굵고 긴 포신 하나(기울여 살짝 하늘을 본다). 반동 1.1. */
   const siegeGunOut9 = (ex9: number | undefined): void => {
@@ -4231,7 +4238,7 @@ export function tankTurretV2(siege: boolean, parts?: { body?: boolean; barrel?: 
     if (extS9 < 0.04) return;   // 아직 안 나왔다(전환 판)
     const rcS9 = poseNow === 2 && ex9 === undefined ? 1.1 : 0;
     // 뒤(−y)로 나가므로 반동은 **앞으로**(+y) 민다 — 부호가 위 탱크 포신과 반대다.
-    out.push(...tagKey(siegeGun9(extS9, rcS9), kT(0, -2.0 * BX9) + 0.2));
+    out.push(...siegeGun9(extS9, rcS9, kT(0, -2.0 * BX9) + 0.2));
     markMuzzle9(...gunAt9(extS9, rcS9)(1));   // 소염기 끝 — 뒤 위로 들린 그 자리다
   };
   /* ★ 전환 판은 **둘 다** 그린다 — 시즈 포신을 먼저(뒤), 탱크 쌍포신을 나중에(총구 표식이 탱크 것으로
