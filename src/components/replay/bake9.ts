@@ -2736,8 +2736,12 @@ export function membraneFaces(
   }
   const outline = polyPath3([...roots, ...[...edge].reverse()]);
   const out: ShapeFace[] = [[outline, 1, fill] as ShapeFace, sideFace(outline, o?.shade ?? 0.16)];
-  // 힘줄 — 가장 가까운 뿌리에서 끝점까지 가는 띠.
+  /* 힘줄 — 가장 가까운 뿌리에서 끝점까지 가는 **관**(2026-09, 지적: "드론 날개의 줄기가
+     안보이네") — 여태는 화면 좌표로 그은 띠 한 장(α0.22 검은 덧칠)이라 3D 기록이 없고,
+     mesh9 가 덧칠로 보아 막 한 장에 통째로 접었다(막이 조금 어두워질 뿐 줄기는 사라졌다).
+     막 평면에 반쯤 묻힌 가는 관으로 짓는다 — 2D·GL 어느 붓에서나 제 기하로 선다. */
   const rw = o?.rib ?? 0.09;
+  const rib9 = shadeHex(fill, 0.58);
   for (const tp of tips) {
     let best = roots[0];
     let bd = Infinity;
@@ -2745,15 +2749,15 @@ export function membraneFaces(
       const d = Math.hypot(r[0] - tp[0], r[1] - tp[1], r[2] - tp[2]);
       if (d < bd) { bd = d; best = r; }
     }
-    const [rx, ry] = project(best[0], best[1], best[2]);
-    const [tx, ty] = project(tp[0], tp[1], tp[2]);
-    const dx = tx - rx;
-    const dy = ty - ry;
-    const dl = Math.hypot(dx, dy) || 1;
-    const nx = (-dy / dl) * rw;
-    const ny = (dx / dl) * rw;
-    out.push(sideFace(`M${rx + nx} ${ry + ny} L${tx + nx} ${ty + ny}`
-      + ` L${tx - nx} ${ty - ny} L${rx - nx} ${ry - ny} Z`, 0.22));
+    const b9 = best;
+    out.push(...paintBase(spirePillar({
+      x: 0, y: 0, h: 0.8, w: 1, segs: 2, sides: 5, caps: "none", trueNormal: true,
+      path: (t: number): [number, number, number] => [
+        b9[0] + (tp[0] - b9[0]) * t * 0.97, b9[1] + (tp[1] - b9[1]) * t * 0.97,
+        b9[2] + (tp[2] - b9[2]) * t * 0.97 + rw * 0.6,   // 막 위로 반쯤 띄운다 — 묻히면 줄이 안 읽힌다
+      ],
+      widthOf: (t: number): number => rw * (1.25 - 0.6 * t),
+    }), rib9));
   }
   return o?.key === undefined ? out : tagKey(out, o.key);
 }
