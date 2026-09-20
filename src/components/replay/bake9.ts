@@ -14443,6 +14443,29 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        자리만큼 빼고(`skipFace`), 그 안에 어두운 속(뒷벽·바닥·옆벽)을 **살 속에** 깐다 — 2D 에서는 덩치가 그
        속을 덮으므로(키 −5) 그림이 안 바뀌고, 옛 아치 판은 2D 에서만 남긴다. 낯 수를 늘려(sides 14 → 22) 구멍
        가장자리가 덜 각지게 한다. */
+    /* ★ **옆구리 구멍 둘 + 임자색 테**(2026-09, 요청: "옥상의 임자색 모자 제거하고 본체 양옆에 구멍을 내고 그 입구 테두리가
+       임자색" — 처음 '입구 양옆 띠'로 읽은 것을 되물음이 바로잡았다) — 둔덕의 ±x 옆구리, 축 높이 SH_ZC9 에 타원(옆 SH_RY9 ·
+       위아래 SH_RZ9)을 판다. 자는 둔덕 제 단면 틀이다: 축 높이 tz = 5.12t · 옆 치우침 q = y − 축y(t)(단면 법선의 y 몫) ·
+       세계 z = tz + 0.2147q(법선의 z 몫). 세계 점을 되짚는 것은 `sideLoc9`. 테는 그 타원 위의 점을 껍질로 되짚은 닫힌
+       관(spirePillar · fill 없음 = 임자색)이고 구멍은 테 안쪽 가장자리(반지름 − SH_RIM9)까지 판다. 속은 `sideCave9`. */
+    const SH_ZC9 = 1.9;
+    const SH_RY9 = 1.25;
+    const SH_RZ9 = 1.0;
+    const SH_RIM9 = 0.26;
+    const axY9 = (t9: number): number => -1.2 - 1.1 * t9;
+    const mR9 = (t9: number): number => 1.4 + 3 * Math.sqrt(Math.max(0, 1 - t9));
+    const sideLoc9 = (y9: number, z9: number): [number, number] => {
+      const t9 = (z9 - 0.2147 * (y9 + 1.2)) / 5.356;
+      return [y9 - axY9(t9), 5.12 * t9];
+    };
+    /** 옆구리 구멍 둘레의 껍질 점 — 축 높이 tz · 옆 치우침 q(단면 틀) · 껍질 위로 lift. */
+    const sideSkin9 = (sg: number, q9: number, tz9: number, lift: number): [number, number, number] => {
+      const t9 = tz9 / 5.12;
+      const r9 = mR9(t9) + lift;
+      const sa9 = Math.max(-0.95, Math.min(0.95, q9 / (r9 * 0.9777)));
+      const ca9 = Math.sqrt(1 - sa9 * sa9);
+      return [sg * r9 * ca9, axY9(t9) + r9 * sa9 * 0.9777, tz9 + r9 * sa9 * 0.2099];
+    };
     const caveSkip9 = MESH9.on
       /* 구멍의 자는 **이빨 능선의 안쪽 가장자리**(호 2.62×2.44 · 관 굵기 0.46 → 2.16×1.98)다(지적 둘: "검정이 입구
          문틀에 안 가려진 곳이 있어" → "이제 안쪽에 안 패인 부분이 나와 버렸어"). 낯은 통째로만 빠지므로 자를
@@ -14452,8 +14475,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          숨는다. 낯을 잘게(sides 36 · segs 14) 쪼개야 그 넘치는 몫이 띠 안에 든다. */
       /* ★ 계단이 아니라 **사선·곡선**으로 자른다(지적: "직각으로 말고 사선으로 입구를 자르진 못하나") — `cutFace` 가
          꼭짓점마다 타원 밖 거리를 내고 spirePillar 가 낯을 그 0 선에서 베어 낸다. 앞(y > 0.4)에서만. */
-      ? (x9: number, y9: number, z9: number): number => (y9 <= 0.4 ? 1
-        : (x9 / 2.16) ** 2 + ((z9 - 0.16) / 1.98) ** 2 - 1)
+      ? (x9: number, y9: number, z9: number): number => {
+        const f9 = y9 <= 0.4 ? 1 : (x9 / 2.16) ** 2 + ((z9 - 0.16) / 1.98) ** 2 - 1;
+        if (Math.abs(x9) < 1.5) return f9;
+        /* 옆구리 구멍 둘 — 둔덕 자(축 높이 tz · 옆 치우침 q)로 되짚어 타원 안이면 뺀다(테의 안쪽 가장자리까지). */
+        const [q9, tz9] = sideLoc9(y9, z9);
+        return Math.min(f9, (q9 / (SH_RY9 - SH_RIM9)) ** 2 + ((tz9 - SH_ZC9) / (SH_RZ9 - SH_RIM9)) ** 2 - 1);
+      }
       : undefined;
     out.push(...tagKey(paintBase(spirePillar({
       x: 0, y: 0, h: 0.8, w: 4.4, tipW: 1.4, segs: MESH9.on ? 14 : 8, sides: MESH9.on ? 36 : 14, hold: 0, taper: 0.5,
@@ -14472,6 +14500,44 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       };
       // 키 1 — 둔덕(0) **다음 차례**라야 부품 차례 편향에서 둔덕의 안쪽 낯에 안 진다(GL 에만 있는 판이라 2D 차례는 무관).
       out.push(...tagKey(caveInside9(2.6, 0.2, 2.7, caveFront9, "#0d1013"), 1));
+      /* 옆구리 굴 속 — 뒷벽(x = ±1.3) · 바닥 · 앞뒤 벽. 바깥 가장자리는 둔덕 옆선(그 높이·그 y 의 껍질 x)을 따른다. */
+      const sideCave9 = (sg: number): ShapeFace[] => {
+        const yc9 = axY9(SH_ZC9 / 5.12);
+        const Y0 = yc9 - 1.7; const Y1 = yc9 + 1.7; const XB = sg * 1.3; const ZT = 3.25; const z0 = 0.06;
+        const outerX9 = (y9: number, z9: number): number => {
+          const t9 = Math.max(0, Math.min(1, z9 / 5.12));
+          const r9 = mR9(t9);
+          const q9 = y9 - axY9(t9);
+          return sg * (Math.sqrt(Math.max(0.3, r9 * r9 - q9 * q9)) - 0.15);
+        };
+        const fl9: [number, number, number][] = [[XB, Y0, z0]];
+        for (let i9 = 0; i9 <= 6; i9 += 1) { const y9 = Y0 + ((Y1 - Y0) * i9) / 6; fl9.push([outerX9(y9, z0), y9, z0]); }
+        fl9.push([XB, Y1, z0]);
+        const wall9 = (y9: number): [number, number, number][] => {
+          const pts9: [number, number, number][] = [[XB, y9, z0]];
+          for (let i9 = 0; i9 <= 5; i9 += 1) { const z9 = z0 + ((ZT - z0) * i9) / 5; pts9.push([outerX9(y9, z9), y9, z9]); }
+          pts9.push([XB, y9, ZT]);
+          return pts9;
+        };
+        const cf9 = "#0d1013";
+        return [
+          [polyPath3([[XB, Y0, z0], [XB, Y1, z0], [XB, Y1, ZT], [XB, Y0, ZT]]), 1, cf9] as ShapeFace,
+          [polyPath3(fl9), 1, cf9] as ShapeFace,
+          [polyPath3(wall9(Y0)), 1, cf9] as ShapeFace,
+          [polyPath3(wall9(Y1)), 1, cf9] as ShapeFace,
+        ];
+      };
+      out.push(...tagKey(sideCave9(1), 1), ...tagKey(sideCave9(-1), 1));
+    }
+    /* 옆구리 구멍 테 — 타원 둘레를 껍질로 되짚은 닫힌 관(임자색). 살 속 0.1 에 묻혀 어느 각에서도 붙는다. */
+    for (const sg of [1, -1]) {
+      out.push(...tagKey(spirePillar({
+        x: 0, y: 0, h: 0.8, w: SH_RIM9 + 0.08, tipW: SH_RIM9 + 0.08, segs: 20, sides: 6, hold: 1, caps: "none",
+        path: (t9: number): [number, number, number] => {
+          const th = t9 * Math.PI * 2;
+          return sideSkin9(sg, Math.cos(th) * SH_RY9, SH_ZC9 + Math.sin(th) * SH_RZ9, 0.04);
+        },
+      }), depthNow(sg * 3.6, axY9(0.37)) * 1.6 + 1));
     }
     /* ★ **핏줄은 저그 기본색의 갈래 그물이다**(2026-09, 사진 요청: "울트라덴 몸체에 저그 기본색 핏줄들") — 옛 판은
        어두운 초록 기둥 여섯이 곧게 올라 몸과 색이 붙어 안 읽혔다. 공사 고치의 핏줄과 같은 수법: 껍질 위의 점을
@@ -14499,14 +14565,24 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         fill: VEIN9,
       });
     const VTHICK9 = [1.0, 0.62, 1.35, 0.8, 1.15, 0.55];
-    for (let v9 = 0; v9 < 11; v9 += 1) {
-      const ang = -165 + v9 * 33;
+    /* ★ **앞면은 따로 심는다**(재지적: "앞쪽 핏줄이 잘 안 보여") — 처음엔 33도 간격 열하나에 |각| < 50도를 '앞'으로
+       묶어 능선 위(t 0.58)에서만 냈는데, 그 셋의 흔들림이 다 같은 쪽(+0.5rad)으로 쏠려 앞 한가운데가 비었다. 이제 열다섯
+       가닥이고 아가리 위 셋(±22·0)은 능선 바로 위(0.54)에서 좌우로 갈라져 오르고, 아가리 옆 둘(±42)은 밑동(0.06)에서
+       바깥쪽으로 비껴 오른다(능선 바깥 x 2.5 > 3.08 안쪽 — 이빨과 안 겹친다). */
+    /* ±90 은 옆구리 구멍 자리라 비우고 이웃(±65·±115)은 구멍에서 멀어지는 쪽으로 비낀다. */
+    const VANG9 = [-165, -140, -115, -65, -42, -22, 0, 22, 42, 65, 115, 140, 165];
+    for (let v9 = 0; v9 < VANG9.length; v9 += 1) {
+      const ang = VANG9[v9];
       const a9 = (ang * Math.PI) / 180;
-      const front9 = Math.abs(ang) < 50;
-      const tS = front9 ? 0.58 : 0.04;
-      const dA = (Math.sin(v9 * 12.9) * 0.55);
-      const dT = (front9 ? 0.34 : 0.7) + (Math.cos(v9 * 7.3) * 0.5 + 0.5) * 0.16;
-      const w0 = 0.19 * VTHICK9[v9 % VTHICK9.length];
+      const front9 = Math.abs(ang) <= 22;
+      const side9 = Math.abs(ang) === 42;
+      const tS = front9 ? 0.54 : 0.06;
+      const dA = front9 ? (ang === 0 ? 0.1 : Math.sign(ang) * 0.24)
+        : side9 ? Math.sign(ang) * 0.2 + Math.sin(v9 * 12.9) * 0.12
+        : (Math.abs(ang) === 65 || Math.abs(ang) === 115) ? Math.sign(ang) * Math.sign(Math.abs(ang) - 90) * 0.3 + Math.sin(v9 * 12.9) * 0.1
+        : Math.sin(v9 * 12.9) * 0.55;
+      const dT = (front9 ? 0.4 : 0.7) + (Math.cos(v9 * 7.3) * 0.5 + 0.5) * 0.16;
+      const w0 = 0.22 * VTHICK9[v9 % VTHICK9.length];
       const key9 = depthNow(Math.sin(a9) * 3, Math.cos(a9) * 3) * 1.6 + 1;
       out.push(...tagKey(veinTube9(a9, tS, dA, dT, w0, v9, 9), key9));
       /* 갈래 둘 — 줄기 45% 자리에서 좌우로 벌어져 위로. 그 갈래도 60% 에서 잔가지 하나. */
@@ -14587,12 +14663,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         fill: TENT9,
       }), depthNow(ex9, ey9) * 1.6 + 1));
     }
-    /* 꼭대기 혹 — 개인색 포인트(요청). */
-    // 꼭대기 혹은 몸 위 얹힘이라 지붕 규칙 키(붙박이 + 제 자리 깊이).
-    out.push(...tagKey(spirePillar({
-      x: 0, y: -2.3, z0: 4.72, h: 1.52, w: 1.4, tipW: 0.5,
-      segs: 4, sides: 10, hold: 0.12, taper: 1.5,
-    }), 12 + depthNow(0, -2.3) * 1.6));
+    /* 꼭대기 임자색 혹은 걷었다(2026-09, 요청) — 임자색은 옆구리 구멍의 테가 든다. */
     return out;
   },
   /* 나이더스 커널(재모델링·사진) — 무엇보다 '동굴 입구'로 읽혀야 한다: 살덩이 둔덕
