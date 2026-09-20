@@ -15055,7 +15055,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const FLESH = "#8a4a2a";
     const FLESH_D = "#5f3320";
     const GOO = "#4cd63a";
-    const out: ShapeFace[] = [...tagKey(paintBase(creepSplat(6.8), "#3a3f46"), -20)];
+    /* ★ 크립 갈퀴(`creepSplat` 여덟 쐐기 · #3a3f46 · 반지름 6.8)는 걷었다(2026-09, 지적: "스포닝풀도 울트라 캐번처럼 삼각
+       검정 쐐기 남은 듯 제거") — 웅덩이·두렁(바깥 4.06)보다 긴 쐐기라 가시 사이로 삐져나와 검은 세모로 읽혔다. 캐번과 같은 손이다. */
+    const out: ShapeFace[] = [];
     /* 웅덩이 — 얕게 파인 초록 못. 테는 어둡고 속은 밝다. rx·ry는 모형 반지름이다. */
     /* ★ 웅덩이는 **바닥에 누운 타원**이다(지적: "스포닝풀 오른쪽 위 연못이 위치가
        이상함 바닥에 수평해야함") — 여태 화면 좌표의 타원(groundEllipse)을 중심만
