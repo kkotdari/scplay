@@ -14365,64 +14365,97 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   /* +90도 요잉(요청) — 285 → 375도(= 15도). 갈고리 촉수가 그 상태에서 정면으로 볼 때
      **왼쪽**에 오도록 자리도 함께 옮긴다(아래 촉수 주석). */
   // +90도 더(재요청: "디파일러마운드 값 자체 +90도 요잉") — 375 → 465(= 105도).
-  dmound: () => withModelSpin(465, () => {
-    /* 디파일러 마운드(전면 재작도·사진) — 구릿빛 살덩이 두덩이 낮게 엉키고, 그 위로
-       검은 수정 조각이 무리 지어 솟는다. 오른쪽에 말려 오른 굵은 촉수, 앞에는 상아빛
-       엄니 줄과 흰 애벌레 마디들, 가운데엔 개인색 아가리. */
+  dmound: () => withModelSpin(0, () => {
+    /* ★ 디파일러 마운드 재작도(2026-09, 사진 요청: "넓적한 판이 있고 뒤쪽 양옆에 굵은 오징어다리 구부러진 촉수 · 뒤쪽 언덕에는
+       검회색 석판들이 불규칙한 방향으로 박혀 있는 · 앞쪽은 양옆으로 둥글게 두 갈래로 갈라지고 임자색 거품들이 묻어 있고 그 사이엔
+       바닥 절벽 구멍이 있고 물이 거기로 흘러 들어감") — 옛 판(살덩이 둘 + 검은 수정 + 흰 애벌레 + 임자색 아가리)을 걷었다.
+       ⚠ 구멍은 판 **앞**(판 밖)에 판다 — 판 위에 파면 판의 윗뚜껑이 그릇 속을 깊이로 덮는다('덩이의 윗면을 파 놓았으면 그 낯을
+         남기지 마라'의 그 함정). 판 밖 땅 위에 테를 두르고 그릇 바닥을 땅(z 0) 위에 두면 크립 판도 못 덮는다. */
     const FLESH = "#a35a33";
-    const SHARD = "#22262b";
+    const FLESH_L = "#b8663a";
+    const FLESH_D = "#8a4a2a";
+    const SLAB = "#3b3f45";
+    const SLAB_D = "#2c3035";
+    const WATER = "#6fb6e0";
     const out: ShapeFace[] = [...paintBase(creepSplat(6.8), "#3a3f46")];
-    // 살덩이 두덩 — 앞뒤로 겹친 낮은 언덕 둘.
+    /* 넓적한 판 — 낮고 넓은 살 판(앞뒤로 0.75 눌린 타원 · 위 뚜껑). */
+    const SL_Y = -0.8; const SL_Z = 0.9;
     out.push(...tagKey(paintBase(spirePillar({
-      x: -1, y: -0.4, z0: 0, h: 2.08, w: 3.9, tipW: 1.5,
-      segs: 6, sides: 14, hold: 0, taper: 0.55,
+      x: 0, y: SL_Y, z0: 0, h: SL_Z, w: 4.6, tipW: 4.15, segs: 2, sides: 24, hold: 0.25, taper: 1, oval: 0.75, trueNormal: true,
     }), FLESH), 0));
-    out.push(...tagKey(paintBase(spirePillar({
-      x: 2.2, y: 0.4, z0: 0, h: 1.6, w: 3, tipW: 1.2,
-      segs: 5, sides: 12, hold: 0, taper: 0.55,
-    }), "#8a4a2a"), depthNow(2.2, 0.4) * 1.6));
-    /* 검은 수정 무리 — 뒤쪽에서 제각기 다른 각도로 솟는 각진 조각들. */
-    for (const [cx9, cy9, ch9, cw9, lx9, ly9] of [
-      [-2.6, -2, 2.72, 0.72, -0.5, -0.3], [-1, -2.6, 3.68, 0.85, -0.2, -0.5],
-      [0.6, -2.2, 3.04, 0.7, 0.2, -0.4], [2.2, -2.4, 3.36, 0.8, 0.4, -0.3],
-      [3.6, -1.2, 2.4, 0.62, 0.5, -0.1], [-3.6, -0.6, 2.08, 0.58, -0.6, 0],
-    ] as [number, number, number, number, number, number][]) {
+    /* 뒤쪽 언덕 — 판 위에 앉은 둥근 살 둔덕(타원 옆선). 석판·촉수 뿌리가 이 살 속에 든다. */
+    const HX = 0; const HY = -1.9; const HR = 3.1; const HH = 2.0;
+    const hillZ9 = (x9: number, y9: number): number => {
+      const d9 = Math.hypot(x9 - HX, y9 - HY) / HR;
+      return SL_Z - 0.05 + HH * Math.sqrt(Math.max(0, 1 - d9 * d9));
+    };
+    out.push(...tagKey(paintBase(domeFaces3(HX, HY, HR, HH, SL_Z - 0.05, true), FLESH_D), depthNow(HX, HY) * 1.6 + 0.5));
+    /* 검회색 석판 — 언덕에 제각기 다른 각도로 박힌 납작한 판 여덟(단면 0.3 로 눌린 육각 기둥 · 뿌리는 살 속). */
+    for (const [sx9, sy9, sh9, sw9, lx9, ly9, rot9] of [
+      [-2.3, -2.0, 2.6, 0.72, -0.45, -0.25, 20], [-1.1, -3.0, 3.3, 0.85, -0.15, -0.55, -30],
+      [0.4, -2.5, 2.9, 0.7, 0.2, -0.4, 55], [1.8, -2.9, 3.4, 0.8, 0.45, -0.3, -15],
+      [3.0, -1.6, 2.4, 0.62, 0.55, -0.1, 70], [-0.4, -1.4, 2.2, 0.6, -0.1, 0.15, -60],
+      [1.2, -1.2, 2.0, 0.55, 0.3, 0.2, 35], [-3.1, -1.0, 2.1, 0.58, -0.6, 0.05, -45],
+    ] as [number, number, number, number, number, number, number][]) {
+      out.push(...tagKey(paintBase(withModelSpin(rot9, () => spirePillar({
+        x: sx9 * Math.cos(-rot9 * Math.PI / 180) - sy9 * Math.sin(-rot9 * Math.PI / 180),
+        y: sx9 * Math.sin(-rot9 * Math.PI / 180) + sy9 * Math.cos(-rot9 * Math.PI / 180),
+        z0: hillZ9(sx9, sy9) - 0.6, h: sh9, w: sw9, tipW: sw9 * 0.55, segs: 2, sides: 6, hold: 0.4, taper: 1.3,
+        oval: 0.3, trueNormal: true, leanX: lx9, leanY: ly9,
+      })), (sx9 + sy9) % 2 === 0 ? SLAB : SLAB_D), depthNow(sx9, sy9) * 1.6 + 2));
+    }
+    /* 뒤쪽 양옆의 굵은 오징어다리 — 언덕 살 속에서 나서 바깥·위로 오르며 앞으로 감겼다가 끝이 뒤로 말리는 관.
+       마디마다 사인 굵기로 오징어 다리의 주름을 얹는다. */
+    /* 감기는 평면은 뒤·바깥으로 기운 세로면이다(h = (바깥 0.6, 앞 0.8)) — 앞으로만 감으면 앞 갈래 위까지 뻗어 덮는다. */
+    for (const sg of [1, -1]) {
+      const CX = sg * 2.9; const CY = -2.3; const CZ = 2.5; const R = 1.85;
+      const HX9 = sg * 0.6; const HY9 = 0.8;
+      const wT9 = (t9: number): number => (0.95 - 0.68 * t9) * (1 + 0.1 * Math.sin(t9 * Math.PI * 16));
       out.push(...tagKey(paintBase(spirePillar({
-        x: cx9, y: cy9, z0: 0.8, h: ch9, w: cw9, tipW: 0.12,
-        segs: 3, sides: 5, hold: 0.3, taper: 1.5,
-        leanX: lx9, leanY: ly9,
-      }), SHARD), depthNow(cx9, cy9) * 1.6 + 2));
+        x: 0, y: 0, h: 0.8, w: 0.95, tipW: 0.2, segs: 26, sides: 10, hold: 0, caps: "none", trueNormal: true,
+        widthOf: wT9,
+        path: (t9: number): [number, number, number] => {
+          const a9 = Math.PI * (-0.6 + 1.35 * t9);
+          const c9 = Math.cos(a9) * R;
+          return [CX + HX9 * c9 + sg * 0.5 * t9, CY + HY9 * c9, CZ + Math.sin(a9) * R];
+        },
+      }), FLESH), 22 + depthNow(CX, CY)));
     }
-    /* 오른뒤 말려 오른 굵은 촉수 — 뿌리에서 크게 감아 도는 구릿빛 관. */
+    /* 앞의 두 갈래 — 판 앞 양옆에서 둥글게 부푼 살 덩이 둘(옆선 타원). */
+    const LOBES: [number, number, number, number][] = [[-2.4, 2.4, 1.75, 1.2], [2.4, 2.4, 1.75, 1.2]];
+    const lobeZ9 = (lx9: number, ly9: number, lr9: number, lh9: number, x9: number, y9: number): number => {
+      const d9 = Math.hypot(x9 - lx9, y9 - ly9) / lr9;
+      return SL_Z - 0.1 + lh9 * Math.sqrt(Math.max(0, 1 - d9 * d9));
+    };
+    for (const [lx9, ly9, lr9, lh9] of LOBES) {
+      out.push(...tagKey(paintBase(domeFaces3(lx9, ly9, lr9, lh9, SL_Z - 0.1, true), FLESH_L), depthNow(lx9, ly9) * 1.6 + 1));
+      /* 임자색 거품 — 덩이 겉면에 묻은 크고 작은 방울(fill 없음 = 임자색 · 반구를 겉면에 살짝 묻는다). */
+      for (const [bx9, by9, br9] of [
+        [0.0, 0.9, 0.42], [0.7, 0.45, 0.3], [-0.6, 0.55, 0.34], [1.1, 0.95, 0.24], [-1.15, 1.0, 0.26],
+        [0.35, 1.35, 0.2], [-0.25, 0.1, 0.22], [0.95, -0.2, 0.18],
+      ] as [number, number, number][]) {
+        const x9 = lx9 + bx9 * Math.sign(lx9); const y9 = ly9 + by9;
+        out.push(...tagKey(domeFaces3(x9, y9, br9, br9 * 0.95, lobeZ9(lx9, ly9, lr9, lh9, x9, y9) - br9 * 0.35, true),
+          depthNow(x9, y9) * 1.6 + 3));
+      }
+    }
+    /* 두 갈래 사이의 바닥 절벽 구멍 — 판 앞 땅 위에 살 테를 두르고 속을 역돔으로 판다(바닥 z 0.15 라 크립 판이 안 덮는다). */
+    const PX = 0; const PY = 3.7; const PR = 0.95; const PZ = 1.0;
     out.push(...tagKey(paintBase(spirePillar({
-      x: 0, y: 0, h: 0.8, w: 0.85, tipW: 0.55, segs: 10, sides: 8, hold: 0.2,
+      x: 0, y: 0, h: 0.8, w: 0.36, tipW: 0.36, segs: 18, sides: 6, hold: 1, caps: "none",
       path: (t9: number): [number, number, number] => {
-        const a9 = Math.PI * (0.15 + t9 * 1.25);
-        return [-2.4 + Math.cos(a9) * 1.9, -1.6 - Math.sin(a9) * 0.5, 2.4 + Math.sin(a9) * 1.76];
+        const th = t9 * Math.PI * 2;
+        return [PX + Math.cos(th) * (PR + 0.2), PY + Math.sin(th) * (PR + 0.2), PZ - 0.2];
       },
-    }), FLESH), 22 + depthNow(-2.4, -1.6)));
-    /* 앞 상아빛 엄니 줄 — 아가리를 두르는 뾰족니 넷. */
-    for (const [tx9, ty9, tz9] of [
-      [-1.9, 1.9, 1.6], [-0.9, 2.4, 1.76], [0.2, 2.5, 1.76], [1.2, 2.2, 1.6],
-    ] as [number, number, number][]) {
-      out.push(...tagKey(ivory(hornFaces(tx9, ty9 - 0.7, 1.2, tx9, ty9, tz9, 0.42)),
-        depthNow(tx9, ty9) * 1.6 + 4));
-    }
-    // 흰 애벌레 마디 둘 — 앞오른쪽 바닥에 눕는다.
-    for (const [gx9, gy9] of [[2.6, 2], [3.6, 0.9]] as [number, number][]) {
-      out.push(...tagKey(paintBase([
-        ...domeFaces3(gx9, gy9, 0.75, 0.48, 0.16),
-        ...domeFaces3(gx9 + 0.5, gy9 - 0.5, 0.6, 0.4, 0.16),
-      ], "#d3d7db"), depthNow(gx9, gy9) * 1.6 + 3));
-    }
-    /* 가운데 아가리 — 개인색 포인트(요청). 어두운 속을 두른 살 테. */
-    out.push(...tagKey([
-      ...spirePillar({
-        x: -0.7, y: 1.2, z0: 1.28, h: 1.2, w: 1.5, tipW: 1.05,
-        segs: 3, sides: 12, hold: 0.2,
-      }),
-      capFace(discPath3(-0.7, 1.2, 2.52, 0.95), 0.55),
-    ], 14));
+    }), FLESH), depthNow(PX, PY) * 1.6 + 2));
+    out.push(...tagKey(dishFaces9({ x: PX, y: PY, z: PZ, r: PR, depth: 0.85, dome: true, fill: "#2a1a12", capFill: "#0b0807", shade0: 0.1, shade: 0.08 }),
+      depthNow(PX, PY) * 1.6 + 3));
+    /* 물 — 언덕 밑에서 판 위를 흘러 앞 절벽 끝에서 구멍으로 떨어지는 납작한 줄기(단면 0.14 · 끝은 구멍 속으로). */
+    const wz9 = (t9: number): number => (t9 < 0.62 ? SL_Z + 0.06 : SL_Z + 0.06 - ((t9 - 0.62) / 0.38) ** 1.6 * 1.55);
+    out.push(...tagKey(paintBase(spirePillar({
+      x: 0, y: 0, h: 0.8, w: 0.55, tipW: 0.34, segs: 16, sides: 6, hold: 0.5, taper: 1, oval: 0.14, trueNormal: true, caps: "none",
+      path: (t9: number): [number, number, number] => [PX + Math.sin(t9 * 7.1) * 0.14 * (1 - t9), -0.4 + (PY + 0.15 + 0.4) * t9, wz9(t9)],
+    }), WATER), depthNow(PX, 2.6) * 1.6 + 4));
     return out;
   }),
 
