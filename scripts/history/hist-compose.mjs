@@ -6,6 +6,7 @@ const S = process.argv[2]; const OUT = `${S}/변천사`;
 /* ★ 칸은 400px(2026-09, 지적: "변천사 화질이 너무 안좋아") — 옛·지금 판은 400 으로 굽고(model-shot·model-gl `--cell 400 --fit 0.7`),
    7월 그림만 소스가 200px 칸이라 두 배로 늘린다(JC = 7월 칸 크기). `--fit` 은 칸마다 잉크 상자를 칸의 84% 에 맞추므로 아비터처럼
    원 좌표가 작은 종류(MODEL_NORM 이 키우는 종류)도 7월 도록처럼 칸을 채운다(지적: "아비터 아직도 작게 나와"). */
+const NOW = "9/20";   // 지금 시점의 꼬리표(굽는 날)
 const CELL = 400; const JC = 200; const LAB = 170; const HEAD = 56; const GAP = 6;
 /* 유닛(45°)·건물(23° — 7월 건물 그림의 눈금)을 따로 구운 판 넷: histA_u/histA_b(8/29 · model-shot) · histC_u/histC_b(9/19 · model-gl).
    배경은 7월 그림과 같은 검정(#0a0a0a)이다(요청: "배경도 7월과 같은 색으로 검게 · 각도도 7월에 맞춰"). */
@@ -59,7 +60,7 @@ for (const [file, race, nos] of RACES) {
     title: `${race} ${sh.title.split(" / ")[0]}`,
     cards: sh.items.map((it) => { const ang = julyAt.get(it.kind)?.ang ?? 23; return { ...it, ang, j: julyAt.get(it.kind) ?? null, a: idxA[ang].get(it.kind), c: idxC[ang].get(it.kind) }; }),
   }));
-  const data = await pg.evaluate(async ({ secs, CELL, JC, COLS, TITLE, SEC, race }) => {
+  const data = await pg.evaluate(async ({ secs, CELL, JC, COLS, TITLE, SEC, race, NOW }) => {
     /* ★ 카드 상자·칸 테두리는 걷었다(2026-09, 요청: "한 모델 안에서 세로 구분선 제거 · 제목은 각 모델 위에 줄 위에") —
        모델 하나는 '이름 한 줄 + 시점 셋이 아래로 쌓인 한 기둥'이고, 기둥 안에는 세로 줄이 하나도 없다. 세로 줄을 내던 자리 셋:
        ① 붓의 strokeRect ② 7월 그림의 칸 판 왼 가장자리(x 264~271 의 띠 — 그래서 272 부터 자른다) ③ 옛 model-shot 칸의 왼 가장자리
@@ -75,14 +76,15 @@ for (const [file, race, nos] of RACES) {
     const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
     const c = cv.getContext("2d"); c.fillStyle = "#0a0a0a"; c.fillRect(0, 0, W, H); c.textBaseline = "top";
     c.fillStyle = "#ffd070"; c.font = "bold 16px sans-serif"; c.fillText(`모델 변천 비교 — ${race}`, 10, 8);
-    c.fillStyle = "#9aa4b0"; c.font = "11px sans-serif"; c.fillText("왼쪽부터 7월 그림 · 8/29(2D 붓) · 9/19(GL 붓, 지금) — 각은 7월 눈금 그대로(SCV 만 45° · 나머지 23°)", 10, 28);
-    let y = TITLE;
+    c.fillStyle = "#9aa4b0"; c.font = "11px sans-serif"; c.fillText(`왼쪽부터 7월 그림 · 8/29(2D 붓) · ${NOW}(GL 붓, 지금) — 각은 7월 눈금 그대로(SCV 만 45° · 나머지 23°)`, 10, 28);
+    let y = TITLE; const secY = [];   // 절마다 [시작, 끝) y — 절 조각 파일의 자
     for (const sc of secs) {
+      const ys = y;
       c.fillStyle = "#ffd070"; c.font = "bold 13px sans-serif"; c.fillText(sc.title, 10, y + 8); y += SEC;
       sc.cards.forEach((r, i) => {
         const x0 = GAPX + (i % COLS) * (BLKW + GAPX); const y0 = y + Math.floor(i / COLS) * BLKH;
         c.fillStyle = "#e8ecf0"; c.font = "bold 13px sans-serif"; c.fillText(r.label, x0, y0 + 2);
-        const cells = [[`7월 ${r.ang}°`, "J", r.j], [`8/29 · 2D ${r.ang}°`, "A", r.a], [`9/19 · GL ${r.ang}°`, "C", r.c]];
+        const cells = [[`7월 ${r.ang}°`, "J", r.j], [`8/29 · 2D ${r.ang}°`, "A", r.a], [`${NOW} · GL ${r.ang}°`, "C", r.c]];
         cells.forEach(([tag, k, idx], n) => {
           const x = x0 + n * (CELL + GAPC); const yy = y0 + LABH;
           c.fillStyle = "#0a0a0a"; c.fillRect(x, yy, CELL, CELL);
@@ -107,14 +109,19 @@ for (const [file, race, nos] of RACES) {
           c.fillStyle = "#9aa4b0"; c.font = "10px ui-monospace, monospace"; c.fillText(tag, x + 4, yy + 3);
         });
       });
-      y += Math.ceil(sc.cards.length / COLS) * BLKH;
+      y += Math.ceil(sc.cards.length / COLS) * BLKH; secY.push([ys, y]);
     }
-    return cv.toDataURL("image/png");
-  }, { secs, CELL, JC, COLS, TITLE, SEC, race });
+    /* ★ 절(유닛·건물)마다 한 조각을 더 낸다(2026-09, 요청: "파일로 압축하지 말고 줘") — 한 장 통째(1252×15000 · 3~4MB)는 파일 전송이
+       400 으로 막힌다(실측 · 8000px·2MB 조각은 간다). 조각은 머리띠(제목 줄)를 그대로 얹은 그 절이다. */
+    const parts = secY.map(([a, b]) => { const p = document.createElement("canvas"); p.width = cv.width; p.height = TITLE + (b - a); const q = p.getContext("2d");
+      q.fillStyle = "#0a0a0a"; q.fillRect(0, 0, p.width, p.height); q.drawImage(cv, 0, 0, cv.width, TITLE, 0, 0, cv.width, TITLE); q.drawImage(cv, 0, a, cv.width, b - a, 0, TITLE, cv.width, b - a); return p.toDataURL("image/png"); });
+    return { full: cv.toDataURL("image/png"), parts };
+  }, { secs, CELL, JC, COLS, TITLE, SEC, race, NOW });
   const f = `${OUT}/${file}_history.png`;
-  writeFileSync(f, Buffer.from(data.split(",")[1], "base64")); console.log("→", f, secs.map((x) => x.cards.length).join("+"));
+  writeFileSync(f, Buffer.from(data.full.split(",")[1], "base64")); console.log("→", f, secs.map((x) => x.cards.length).join("+"));
+  data.parts.forEach((d, i) => writeFileSync(`${OUT}/${file}_history_${i + 1}_${["units", "bldgs"][i]}.png`, Buffer.from(d.split(",")[1], "base64")));
 }
 await br.close();
-writeFileSync(`${OUT}/README.txt`, "모델 변천 비교 — 종족마다 한 장(유닛·건물). 카드마다 위에서 아래로 7월(사용자가 준 도록 그림) · 8/29(2D 붓 · 저장소 첫 도구 시점) · 9/19(GL 붓 · 지금).\n");
+writeFileSync(`${OUT}/README.txt`, `모델 변천 비교 — 종족마다 한 장(유닛·건물). 카드마다 위에서 아래로 7월(사용자가 준 도록 그림) · 8/29(2D 붓 · 저장소 첫 도구 시점) · ${NOW}(GL 붓 · 지금).\n`);
 execFileSync("zip", ["-qr", `${S}/변천사.zip`, "변천사"], { cwd: S });
 console.log("zip →", `${S}/변천사.zip`);
