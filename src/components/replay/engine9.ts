@@ -2548,8 +2548,8 @@ export const BODY_MID_K9 = 0.02;
    · 건물: 잉크 바닥을 발자국 아랫변(지면선)에 앉히므로 '잉크 바닥→중심'(BLD_INK_MID9)에 배수·그리는 변을 곱하고,
      효과 앵커(발자국 가운데)에서 아랫변까지를 뺀다.
    다시 재려면 scripts/model-shot.mjs 사본에 잉크 질량 중심 출력을 붙여 돌린다(이 표를 낸 방법). */
-export const UNIT_INK_CY9: Record<string, [number, number]> = { scv: [7.91, 8.69], gunner: [10.24, 10.94], ghost: [10.26, 10.95], fbat: [10.19, 10.90], inf: [10.26, 10.96], vulture: [9.30, 10.00], tank: [11.15, 11.63], goliath: [9.79, 10.49], wraith: [8.21, 9.02], dship: [8.42, 9.22], vessel: [9.59, 10.31], valk: [8.23, 9.03], bc: [9.16, 9.91], scvMin: [7.88, 8.72], scvGas: [7.82, 8.69], tanksiege: [11.02, 11.48], mine: [11.66, 12.28], probe: [10.08, 10.78], zealot: [9.50, 10.24], goon: [9.70, 10.42], htemp: [9.10, 9.83], dtemp: [10.10, 10.73], archon: [8.79, 9.57], darchon: [8.78, 9.56], shuttle: [8.39, 9.09], reaver: [10.65, 11.31], observer: [9.40, 10.13], scout: [8.01, 8.82], corsair: [8.67, 9.46], carrier: [9.37, 10.07], interceptor: [6.54, 7.45], scarab: [10.97, 11.63], arbiter: [8.32, 8.85], larva: [11.33, 11.96], egg: [11.28, 11.87], probeMin: [10.33, 11.00], probeGas: [10.34, 11.03], drone: [9.81, 10.53], ovie: [9.17, 9.94], zling: [10.38, 11.07], hydra: [8.93, 9.71], lurker: [9.74, 10.44], muta: [7.62, 8.53], scourge: [7.03, 7.91], queen: [7.84, 8.63], ultra: [7.95, 8.41], defiler: [11.19, 11.83], guardian: [7.64, 8.47], devourer: [9.00, 9.78], lurkeregg: [11.73, 12.26], mutacocoon: [9.51, 10.25], droneMin: [9.81, 10.53], droneGas: [9.78, 10.50], tankbody: [11.24, 11.77], tankgun: [9.79, 10.21], tanksiegebody: [11.18, 11.71], tanksiegegun: [9.59, 9.99], burrowhole: [11.83, 12.44] };
-export const BLD_INK_MID9: Record<string, [number, number]> = { tomb: [4.57, 3.94], trapezoid: [2.59, 2.21], refinery: [4.04, 3.43], cube: [7.13, 6.53], ebay: [5.42, 4.57], tombFlat: [3.37, 2.77], academy: [4.14, 3.61], turret: [5.53, 4.93], factory: [4.31, 3.77], plane: [5.70, 4.84], armory: [4.14, 3.56], scifac: [3.31, 2.83], comsat: [3.06, 2.79], nsilo: [3.23, 2.84], mshop: [2.85, 2.50], ctower: [3.09, 2.63], covert: [2.40, 2.03], physlab: [2.60, 2.25], pyramidWide: [6.02, 5.10], diamond: [4.83, 4.25], assim: [2.88, 2.56], gate: [3.07, 2.62], forge: [3.98, 3.40], coil: [4.88, 4.02], sbattery: [3.05, 2.56], cyber: [3.19, 2.78], citadel: [4.07, 3.46], archives: [3.40, 2.82], dome: [4.10, 3.52], robobay: [3.05, 2.64], observatory: [3.07, 2.66], arch: [3.11, 2.70], fleetbeacon: [3.53, 3.09], tribunal: [3.05, 2.59], warpin: [4.48, 4.48], hatchery: [4.46, 3.78], lair: [5.61, 4.95], hive: [6.58, 5.97], creep: [4.34, 3.61], sunken: [5.12, 4.26], spore: [4.31, 3.73], extract: [4.74, 4.04], pool: [4.05, 3.24], evo: [4.47, 3.75], hydraden: [5.46, 4.88], spire: [6.53, 5.87], gspire: [10.23, 9.26], queensnest: [4.68, 4.00], nydus: [4.45, 3.72], cavern: [4.36, 3.57], dmound: [4.76, 3.93], cocoon: [2.37, 1.94], sunkenfire: [6.03, 5.18], mineral: [3.26, 2.75], mineralb: [4.05, 3.43], mineralc: [3.50, 2.93], geyser: [2.88, 3.18], nuke: [4.19, 3.89], storm: [3.15, 2.92], nukeblast: [5.08, 4.08], nukecloud: [6.69, 5.89], tankbody: [3.07, 2.69], tankgun: [1.81, 1.60], tanksiegebody: [3.60, 3.13], tanksiegegun: [1.99, 1.77], tanksiegelegs: [0.93, 0.78], addonlink: [3.95, 3.41], burrowhole: [2.67, 2.16], lurkerburrow: [2.67, 2.17], lurkerfire: [2.70, 2.21], creeppatch: [4.11, 3.33], creeppatch2: [4.11, 3.33], creeppatch3: [4.12, 3.34] };
+export const UNIT_INK_CY9: Record<string, [number, number]> = { scv: [7.93, 8.72], gunner: [10.24, 10.94], ghost: [10.26, 10.95], fbat: [10.19, 10.90], inf: [10.26, 10.96], vulture: [9.30, 10.00], tank: [11.15, 11.63], goliath: [9.79, 10.49], wraith: [8.21, 9.02], dship: [8.42, 9.22], vessel: [9.59, 10.31], valk: [8.23, 9.03], bc: [9.16, 9.91], scvMin: [7.90, 8.74], scvGas: [7.83, 8.70], tanksiege: [11.02, 11.48], mine: [11.66, 12.28], probe: [10.08, 10.78], zealot: [9.50, 10.24], goon: [9.70, 10.42], htemp: [9.10, 9.83], dtemp: [10.10, 10.73], archon: [8.79, 9.57], darchon: [8.78, 9.56], shuttle: [8.39, 9.09], reaver: [10.65, 11.31], observer: [9.40, 10.13], scout: [8.01, 8.82], corsair: [8.67, 9.46], carrier: [9.37, 10.07], interceptor: [6.54, 7.45], scarab: [10.97, 11.63], arbiter: [8.32, 8.85], larva: [11.33, 11.96], egg: [11.28, 11.87], probeMin: [10.33, 11.00], probeGas: [10.34, 11.03], drone: [9.81, 10.53], ovie: [9.17, 9.94], zling: [10.38, 11.07], hydra: [8.93, 9.71], lurker: [9.74, 10.44], muta: [7.62, 8.53], scourge: [7.03, 7.91], queen: [7.84, 8.63], ultra: [7.95, 8.41], defiler: [11.19, 11.83], guardian: [7.64, 8.47], devourer: [9.00, 9.78], lurkeregg: [11.73, 12.26], mutacocoon: [9.51, 10.25], droneMin: [9.81, 10.53], droneGas: [9.78, 10.50], tankbody: [11.24, 11.77], tankgun: [9.79, 10.21], tanksiegebody: [11.18, 11.71], tanksiegegun: [9.59, 9.99], burrowhole: [11.83, 12.44] };
+export const BLD_INK_MID9: Record<string, [number, number]> = { tomb: [4.57, 3.94], trapezoid: [2.59, 2.21], refinery: [4.04, 3.43], cube: [7.13, 6.53], ebay: [5.42, 4.57], tombFlat: [3.37, 2.77], academy: [4.14, 3.61], turret: [5.53, 4.93], factory: [4.31, 3.77], plane: [5.70, 4.84], armory: [4.14, 3.56], scifac: [3.31, 2.83], comsat: [3.06, 2.79], nsilo: [3.23, 2.84], mshop: [2.85, 2.50], ctower: [3.09, 2.63], covert: [2.40, 2.03], physlab: [2.60, 2.25], pyramidWide: [6.02, 5.10], diamond: [4.83, 4.25], assim: [2.88, 2.56], gate: [3.07, 2.62], forge: [3.98, 3.40], coil: [4.88, 4.02], sbattery: [3.05, 2.56], cyber: [3.19, 2.78], citadel: [4.07, 3.46], archives: [3.40, 2.82], dome: [4.10, 3.52], robobay: [3.05, 2.64], observatory: [3.07, 2.66], arch: [3.11, 2.70], fleetbeacon: [3.53, 3.09], tribunal: [3.05, 2.59], warpin: [4.48, 4.48], hatchery: [4.46, 3.78], lair: [5.61, 4.95], hive: [6.58, 5.97], creep: [4.34, 3.61], sunken: [5.12, 4.26], spore: [4.31, 3.73], extract: [4.74, 4.04], pool: [4.05, 3.24], evo: [4.46, 3.75], hydraden: [5.46, 4.88], spire: [6.53, 5.87], gspire: [10.23, 9.26], queensnest: [4.68, 4.00], nydus: [4.45, 3.72], cavern: [4.36, 3.57], dmound: [4.76, 3.93], cocoon: [2.37, 1.94], sunkenfire: [6.03, 5.18], mineral: [3.26, 2.75], mineralb: [4.05, 3.43], mineralc: [3.50, 2.93], geyser: [2.88, 3.18], nuke: [4.19, 3.89], storm: [3.15, 2.92], nukeblast: [5.08, 4.08], nukecloud: [6.69, 5.89], tankbody: [3.07, 2.69], tankgun: [1.81, 1.60], tanksiegebody: [3.60, 3.13], tanksiegegun: [1.99, 1.77], tanksiegelegs: [0.93, 0.78], addonlink: [3.95, 3.41], burrowhole: [2.67, 2.16], lurkerburrow: [2.67, 2.17], lurkerfire: [2.70, 2.21], creeppatch: [4.11, 3.33], creeppatch2: [4.11, 3.33], creeppatch3: [4.12, 3.34] };
 /** 유닛 몸 가운데의 들기 — 발 원점에서 위로, **상자 px의 비**. 표에 없는 종류는 원점 2.2칸 위(보병 언저리). */
 export const unitMidK9 = (kind: string, pitchView: boolean): number => {
   const cy = UNIT_INK_CY9[kind] ?? UNIT_INK_CY9[NORM_PAIR[kind] ?? ""] ?? UNIT_INK_CY9[kind.replace(/body$/, "")];
@@ -7554,6 +7554,28 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       const spotS9 = (simTr ? posAtSim(simTr, siegeXf9.at) : null) ?? posAtW(rp, siegeXf9.at);
       if (spotS9) pos = { ...pos, x: spotS9.x, y: spotS9.y, moving: false, sinceLast: 0 };
     } else siegeXf9 = null;
+    /* ★★ **도는 두 끝은 창이 열릴 때 못 박는다**(2026-09, 지적: "시즈모드하려고 자리잡을 때 가장
+       가까운 방향으로 한 번에 요잉을 돌아야 하는데 왔다갔다 하는 거 같다") — 아래 몸 각 셈은
+       `from9 = bodyHdg0`(지금 프레임의 **참값** 각)에서 SIEGE_FACE_DEG9 까지 가장 짧은 호로 갔다.
+       그런데 참값도 그 창 동안 제 고정 방향(SIEGE_TRUTH_DEG9)으로 돌고 있고 화면 각과는 90도
+       어긋나 있으므로, 참값이 −45를 지나는 순간 **가장 짧은 호의 부호가 뒤집힌다** — 그때까지
+       시계로 돌던 그림이 갑자기 반시계로 되돌아 '왔다갔다'가 된다.
+       두 끝을 창의 시각으로 **얼리면** 호가 하나로 정해져 한 번에 돈다. */
+    const siegeHdg9 = ((): { a: number; b: number } | null => {
+      if (!siegeXf9 || !simTr) return null;
+      /** 그 시각의 참값 몸 각(화면 자) — 없으면 못 얼린다. */
+      const at9 = (tt9: number): number | null => {
+        const s9 = posAtSim(simTr, tt9);
+        return s9 ? (s9.hdg + 180) % 360 : null;
+      };
+      const a9 = at9(siegeXf9.at);
+      const b9 = at9(siegeXf9.at + SIEGE_XF_SEC);
+      if (a9 === null || b9 === null) return null;
+      /* 언시즈가 닿을 각은 **창이 끝난 뒤 이 함수가 그릴 값**과 같아야 한다 — 그 자리(아래)는
+         '안 움직이고 참값이 시즈의 고정 방향이면 −45' 라, 여기서도 같은 문을 지나야 창이
+         끝나는 프레임에 90도가 안 튄다. */
+      return { a: a9, b: Math.abs(((b9 - SIEGE_TRUTH_DEG9 + 540) % 360) - 180) < 12 ? SIEGE_FACE_DEG9 : b9 };
+    })();
     /** 그려지는 모드 — 전환 창 동안은 **탱크 차체 + 따로 겹치는 버팀다리 판**(아래 legK9)이고, 구운 시즈 판은 창이
      *  끝나야(시즈) 또는 창이 시작하며(언시즈) 바뀐다. 다리 셋이 몸에서 뻗어 나와 땅을 짚고, 언시즈는 거꾸로 접힌다(요청). */
     const siegeShow9 = siegeXf9 ? 0 : siegeOn;
@@ -8012,8 +8034,8 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
             ? Math.min(1, u9 / T9)                                  // 시즈: 먼저 돈다
             : Math.min(1, Math.max(0, (u9 - (1 - T9)) / T9));       // 언시즈: 나중에 돌아온다
           const e9 = k9 * k9 * (3 - 2 * k9);                        // 부드럽게(smoothstep)
-          const from9 = siegeXf9.to === 1 ? bodyHdg0 : SIEGE_FACE_DEG9;
-          const to9 = siegeXf9.to === 1 ? SIEGE_FACE_DEG9 : bodyHdg0;
+          const from9 = siegeXf9.to === 1 ? (siegeHdg9?.a ?? bodyHdg0) : SIEGE_FACE_DEG9;
+          const to9 = siegeXf9.to === 1 ? SIEGE_FACE_DEG9 : (siegeHdg9?.b ?? bodyHdg0);
           const d9 = ((to9 - from9 + 540) % 360) - 180;             // 가장 짧은 호
           return from9 + d9 * e9;
         }
@@ -8551,10 +8573,19 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       const gunRest9 = kind0 === "tanksiege" ? 180 : 0;
       /** 전환 창의 포신 동작 — 시즈로 가면 0 → 1, 언시즈면 1 → 0(뒤 포신이 나온 몫). 부드럽게(smoothstep). */
       const gunXf9 = !!siegeXf9 && !markerView && !liteView;
+      /* ★ **포신의 시계는 기계 마디의 창이다**(2026-09, 지적: "포신전환이 끝나고 기울여야
+         한다니까 탱크로 전환시는 반대") — 여태 창 **전체**(siegeXf9.u)를 그대로 탔다. 곧
+         몸이 도는 앞 35%(SIEGE_TURN_U9) 동안 포신이 이미 갈려 나와, 세 마디(돌기 → 포신 →
+         쳐올리기)가 둘씩 겹쳤다. 다리(xfMech9)와 **같은 창**을 쓰면 저절로 차례가 선다.
+         언시즈는 그 창이 앞 65% 라(먼저 접고 나중에 돈다) 거꾸로 밟힌다. */
       const gunU9 = ((): number => {
         if (!siegeXf9) return 0;
         const u9 = Math.min(1, Math.max(0, siegeXf9.u));
-        const e9 = u9 * u9 * (3 - 2 * u9);
+        const T9 = SIEGE_TURN_U9;
+        const m9 = siegeXf9.to === 1
+          ? Math.min(1, Math.max(0, (u9 - T9) / (1 - T9)))
+          : Math.min(1, Math.max(0, u9 / (1 - T9)));
+        const e9 = m9 * m9 * (3 - 2 * m9);
         return siegeXf9.to === 1 ? e9 : 1 - e9;
       })();
       const idleAim9 = lastAim9 ?? ((last.rotDeg ?? 0) + gunRest9);

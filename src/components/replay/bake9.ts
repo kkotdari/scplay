@@ -4005,7 +4005,13 @@ export function tankTurretV2(siege: boolean, parts?: { body?: boolean; barrel?: 
      ★ **쳐올리는 것은 전환의 셋째 마디다**(2026-09, 요청: "포탑의 뒤쪽으로 포신이 나오고
        → 포탑 + 포신의 각도가 뒤를 쳐올리는 거야") — 전환 홑판은 `tiltK` 로 그 몫을 받는다.
        여태는 전환 중 0 으로 못 박아 두어, 창이 끝나 시즈 판이 되는 순간 −16도가 **툭 튀었다**. */
-  const TILT9 = siege ? -(16 * Math.PI) / 180 * (parts?.ext === undefined ? 1 : (parts.tiltK ?? 0)) : 0;
+  /* ⚠⚠ **기울기의 문은 `tiltK` 가 있느냐로 연다**(2026-09, 지적: "시즈모드 애니에서 포신전환이
+     끝나고 기울여야 한다니까") — 옛 문은 `parts?.ext === undefined ? 1 : tiltK` 였는데, 전환 한 판
+     (`tankturretxf`)은 홑판 시절의 `ext` 가 아니라 **`xf`** 로 나온 몫을 준다. 곧 그 판에서도
+     `ext` 는 늘 undefined 라 **tiltK 를 한 번도 안 보고 −16도를 통째로** 걸었다 — 창이 열리는
+     첫 프레임부터 포탑이 이미 쳐올려져 있었다. 셈만 세 마디로 갈라 두고 그림은 안 갈린 자리다. */
+  const tiltU9 = parts?.tiltK ?? (parts?.ext === undefined && parts?.xf === undefined ? 1 : 0);
+  const TILT9 = siege ? -(16 * Math.PI) / 180 * tiltU9 : 0;
   const ZB9 = Z0 + 0.25;
   const T9 = (x9: number, y9: number, z9: number): [number, number, number] => [
     x9, y9 * Math.cos(TILT9) - (z9 - ZB9) * Math.sin(TILT9), ZB9 + y9 * Math.sin(TILT9) + (z9 - ZB9) * Math.cos(TILT9),
@@ -14226,14 +14232,59 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           sw.push([d9, 0.9, FILL9] as ShapeFace);
         }
       };
-      wall9([-SX, SY1], [SX, SY1], ZFz9, ZFz9, 0, 1);          // 앞
-      wall9([SX, SY0], [-SX, SY0], ZB, ZB, 0, -1);         // 뒤
-      wall9([SX, SY1], [SX, SY0], ZFz9, ZB, 1, 0);           // 오른 옆
-      wall9([-SX, SY0], [-SX, SY1], ZB, ZFz9, -1, 0);        // 왼 옆
+      /* ★ **경사면의 양옆 모서리를 한 번 더 깎는다**(2026-09, 요청: "챔버 가운데 장기의 경사면
+         양옆 모서리를 한번더 깎아서 부드럽게") — 윗면을 x 로 `CH9` 만큼 안으로 들이고, 그 사이를
+         옆벽 꼭대기까지 내려가는 빗면 한 장으로 잇는다(모따기). 곧 날카롭던 능선 하나가 둔각 둘이
+         되어 부드럽게 읽힌다.
+         ⚠ **내리는 몫은 그 자리 벽 높이를 넘으면 안 된다** — 이 덩이는 앞끝이 거의 땅(ZFz9 0.36)
+           이라, 일정한 0.30 을 빼면 앞 벽이 0.06 만 남아 옆이 통째로 빗면이 된다. 그 자리 높이의
+           절반을 상한으로 둔다(뒤 0.30 · 앞 0.18). */
+      const CH9 = 0.40;                       // 안으로 들이는 몫(x)
+      const SXi9 = SX - CH9;
+      const cvAt9 = (z9: number): number => Math.min(0.30, z9 * 0.5);
+      const cvB9 = cvAt9(ZB);
+      const cvF9 = cvAt9(ZFz9);
+      /** 앞·뒤 벽 — 꼭대기 양 귀가 모따기만큼 파인 육각이다. */
+      const capWall9 = (y9: number, zTop9: number, cv9: number, ny9: 1 | -1): void => {
+        const pts9: [number, number, number][] = ny9 > 0
+          ? [[-SX, y9, 0], [SX, y9, 0], [SX, y9, zTop9 - cv9], [SXi9, y9, zTop9], [-SXi9, y9, zTop9], [-SX, y9, zTop9 - cv9]]
+          : [[SX, y9, 0], [-SX, y9, 0], [-SX, y9, zTop9 - cv9], [-SXi9, y9, zTop9], [SXi9, y9, zTop9], [SX, y9, zTop9 - cv9]];
+        face9(pts9, 0, ny9, MEAT);
+        const fl9 = faceLight(0, ny9);
+        if (!fl9.visible) return;
+        for (const [f0, f1] of [[0.33, 0.42], [0.6, 0.68]] as [number, number][]) {
+          const d9 = polyPath3([[-SX, y9 + ny9 * 0.02, zTop9 * f0], [SX, y9 + ny9 * 0.02, zTop9 * f0],
+            [SX, y9 + ny9 * 0.02, zTop9 * f1], [-SX, y9 + ny9 * 0.02, zTop9 * f1]]);
+          sw.push([d9, 0.9, FILL9] as ShapeFace);
+        }
+      };
+      capWall9(SY1, ZFz9, cvF9, 1);                                  // 앞
+      capWall9(SY0, ZB, cvB9, -1);                                   // 뒤
+      wall9([SX, SY1], [SX, SY0], ZFz9 - cvF9, ZB - cvB9, 1, 0);     // 오른 옆
+      wall9([-SX, SY0], [-SX, SY1], ZB - cvB9, ZFz9 - cvF9, -1, 0);  // 왼 옆
+      // 모따기 빗면 둘 — 옆벽 꼭대기와 들인 윗면 가장자리를 잇는다(바깥·위를 본다).
+      for (const m9 of [-1, 1] as const) {
+        face9([[m9 * SXi9, SY0, ZB], [m9 * SX, SY0, ZB - cvB9], [m9 * SX, SY1, ZFz9 - cvF9], [m9 * SXi9, SY1, ZFz9]],
+          m9 * 0.75, 0, MEAT, 0.66);
+      }
       // 경사진 윗면 — 뒤(ZB)에서 앞(ZF)으로 내려온다. 위를 보는 면이라 늘 보이고 살짝 밝다.
       {
-        const d9 = polyPath3([[-SX, SY0, ZB], [SX, SY0, ZB], [SX, SY1, ZFz9], [-SX, SY1, ZFz9]]);
+        const d9 = polyPath3([[-SXi9, SY0, ZB], [SXi9, SY0, ZB], [SXi9, SY1, ZFz9], [-SXi9, SY1, ZFz9]]);
         sw.push([d9, 1, "#a8402f"] as ShapeFace, topFace(d9, 0.07));
+      }
+      /* ★ **경사면 한가운데의 세로로 긴 임자색 데칼**(같은 요청) — 칠하지 않으면 그 자리를 편
+         색(임자색)이 채운다(위 회전판·삼각형과 같은 규약). 경사면 법선 쪽으로 한 뼘 띄워야
+         같은 평면의 z 싸움을 피한다. */
+      {
+        const dy9 = SY1 - SY0; const dz9 = ZFz9 - ZB;
+        const nl9 = Math.hypot(dy9, dz9) || 1;
+        const ny9 = -dz9 / nl9; const nz9 = dy9 / nl9;   // 위·뒤를 보는 경사면 법선
+        const LW9 = 0.30;                                 // 데칼 반폭
+        const y0d = SY0 + 0.45; const y1d = SY1 - 0.5;
+        const zOf9 = (y9: number): number => ZB + (ZFz9 - ZB) * ((y9 - SY0) / dy9);
+        const P9 = (x9: number, y9: number): [number, number, number] => [x9, y9 + ny9 * 0.04, zOf9(y9) + nz9 * 0.04];
+        const d9 = polyPath3([P9(-LW9, y0d), P9(LW9, y0d), P9(LW9, y1d), P9(-LW9, y1d)]);
+        sw.push([d9, 1] as ShapeFace, topFace(d9, 0.1));
       }
       out.push(...tagKey(sw, kS9));
       /* 앞쪽 핏줄 다발 — 앞면 위 가장자리에서 늘어져 바닥 앞으로 흩어지는 가는 줄 여덟. 검정 다발에 붉은·보라
@@ -20866,8 +20917,21 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      *  자락 배수 1 · 뿌리 (±1.95, 0.3) 일 때의 손끝 (±2.715, 2.765) 을 기준으로 적혀 있으므로,
      *  지금 손끝과 그 기준의 차가 곧 연장이 옮겨갈 몫이다(x 는 절댓값). */
     const [hxA9, hyA9] = armAt(1, 1);
-    const TX9 = 2.715 - hxA9;
-    const TY9 = 2.765 - hyA9;
+    /* ★ **손목 드럼은 아주 짧다 — 연장을 그만큼 뒤로 당긴다**(2026-09, 요청: "scv 팔과 손 연결하는
+       드럼통 모양 부품 높이(앞뒤 길이) 확 줄여 줘 · 집게드릴을 그만큼 뒤로 이동해야 하겠지") —
+       드럼(`wristDisc9`)은 **팔 자락(t 0.94)에서 연장 뿌리까지**를 잇는 기둥이라 길이를 제가
+       안 쥔다. 곧 줄이는 손은 연장 뿌리를 팔 쪽으로 당기는 것 하나고, 그러면 드럼은 저절로
+       그만큼 짧아진다(0.85 → 0.35 모형칸 · 반지름 0.5 라 이제 통이 아니라 와셔로 읽힌다).
+       · 당기는 쪽은 **팔의 축**이다 — armRay9 의 방향 (0.765·CARRY_IN9, 2.465)을 단위로 재
+         x·y 로 나눠 준다(짐을 들어 팔이 모이면 CARRY_IN9 가 그 축을 함께 기울인다).
+       · 연장의 좌표는 죄다 `±… ∓ TX9` · `… − TY9` 꼴이라 **그 두 값에 얹으면** 드릴·집게·고리·
+         총구 표식이 한꺼번에 따라온다(자리를 열 곳 고칠 일이 없다). */
+    const WRIST_BACK9 = 0.5;
+    const arL9 = Math.hypot(0.765 * CARRY_IN9, 2.465) || 1;
+    const BX9 = (0.765 * CARRY_IN9 / arL9) * WRIST_BACK9;
+    const BY9 = (2.465 / arL9) * WRIST_BACK9;
+    const TX9 = 2.715 - hxA9 + BX9;
+    const TY9 = 2.765 - hyA9 + BY9;
     for (const m of [-1, 1] as const) {
       /* ★ 키의 밑수를 몸통과 같은 자로 내린다(지적: "키수정") — 여태 +4로 못 박혀
          있어서, 뒤에서 보면 몸 뒤로 돌아간 팔이 몸통 위에 그려졌다. 밑수를 몸통(+1)
