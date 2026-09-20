@@ -2960,14 +2960,20 @@ export function zergFace(y: number, z: number, s = 1, fill = ZERG_FLESH): ShapeF
     path: (t9: number): [number, number, number] => [0, YJ9 - (YJ9 - YB9) * t9, ZJ9],
     skipFace: (_mx, _my, mz) => mz > ZJ9 + 0.01 * s,
   }), fill)));
+  /* ★ **뒤도 반의 반구로 닫는다**(2026-09, 요청: "머리 뒤에도 반반구 붙여서 닫기") — 여태 뒤끝은 평평한 단면(반타원·반원 아치
+     폴리곤)이었다. 앞과 거울인 몫(턱: 뒤집힌 돔의 뒤 반쪽 · 머리뼈: 수직 반원통 벽 + 4분의 1 구의 뒤 반쪽)을 YB9 에 세우고 평평한
+     단면은 걷는다. 평행 몫(L9)은 그대로라 옆선은 안 바뀐다. 턱 윗면 뚜껑은 앞·뒤 반원을 다 덮는 한 폴리곤이다. */
+  out.push(...shape(paintBase(spirePillar({
+    x: 0, y: 0, h: 0.8, w: 1, segs: 6, sides: 16, caps: "none", trueNormal: true,
+    path: (t9: number): [number, number, number] => [0, YB9, ZJ9 - JH9 * t9],
+    widthOf: halfElliDn,
+    skipFace: (_mx, my) => my > YB9 + 0.01 * s,
+  }), fill)));
   {
-    // 턱 뒤끝(아래로 처진 반타원 · 법선 −y) 과 윗면 뚜껑(반원 + 네모 · 법선 +z).
-    const back9: [number, number, number][] = [];
-    for (let i = 0; i <= 12; i += 1) { const th = (Math.PI * i) / 12; back9.push([-RJ9 * Math.cos(th), YB9, ZJ9 - JH9 * Math.sin(th)]); }
-    out.push(...shape(paintBase([[polyPath3(back9), 1] as ShapeFace], fill)));
-    const top9: [number, number, number][] = [[-RJ9, YB9, ZJ9], [-RJ9, YJ9, ZJ9]];
-    for (let i = 1; i < 12; i += 1) { const th = (Math.PI * i) / 12; top9.push([-RJ9 * Math.cos(th), YJ9 + RJ9 * Math.sin(th), ZJ9]); }
-    top9.push([RJ9, YJ9, ZJ9], [RJ9, YB9, ZJ9]);
+    // 턱 윗면 뚜껑 — 앞 반원(YJ9) + 뒤 반원(YB9) 한 폴리곤(법선 +z).
+    const top9: [number, number, number][] = [];
+    for (let i = 0; i <= 12; i += 1) { const th = (Math.PI * i) / 12; top9.push([-RJ9 * Math.cos(th), YJ9 + RJ9 * Math.sin(th), ZJ9]); }
+    for (let i = 0; i <= 12; i += 1) { const th = (Math.PI * i) / 12; top9.push([RJ9 * Math.cos(th), YB9 - RJ9 * Math.sin(th), ZJ9]); }
     out.push(...shape(paintBase([[polyPath3(top9), 1] as ShapeFace], fill)));
   }
   /* ③ 아가리 — 턱 윗면과 머리뼈 밑면 사이의 벌어진 어둠(짧은 기둥 · 양 뚜껑). 반지름은 턱보다 한 뼘 작아 안쪽이 그늘로 쑥 들어간다. */
@@ -2997,11 +3003,18 @@ export function zergFace(y: number, z: number, s = 1, fill = ZERG_FLESH): ShapeF
       path: (t9: number): [number, number, number] => [0, YC9 - L9 * t9, zT9],
       skipFace: (_mx, _my, mz) => mz < zT9 - 0.01 * s,
     }), fill)));
-    // 평평한 뒤끝 — 수직 벽 네모 + 반원 아치 한 폴리곤(법선 −y).
-    const cut9: [number, number, number][] = [[R9, YB9, ZM9], [-R9, YB9, ZM9], [-R9, YB9, zT9]];
-    for (let i = 1; i < 12; i += 1) { const th = (Math.PI * i) / 12; cut9.push([-R9 * Math.cos(th), YB9, zT9 + R9 * Math.sin(th)]); }
-    cut9.push([R9, YB9, zT9]);
-    out.push(...shape(paintBase([[polyPath3(cut9), 1] as ShapeFace], fill)));
+    // 뒤끝 — 평평한 단면 대신 앞과 거울인 수직 반원통 벽 + 4분의 1 구(위 ★ '뒤도 반의 반구로 닫는다').
+    out.push(...shape(paintBase(spirePillar({
+      x: 0, y: 0, h: 0.8, w: R9, tipW: R9, segs: 1, sides: 16, caps: "none", trueNormal: true,
+      path: (t9: number): [number, number, number] => [0, YB9, ZM9 + FH9 * t9],
+      skipFace: (_mx, my) => my > YB9 + 0.01 * s,
+    }), fill)));
+    out.push(...shape(paintBase(spirePillar({
+      x: 0, y: 0, h: 0.8, w: R9, tipW: 0, segs: 6, sides: 16, caps: "none", trueNormal: true,
+      path: (t9: number): [number, number, number] => [0, YB9, zT9 + R9 * t9],
+      widthOf: (t9: number): number => Math.max(R9 * 0.04, R9 * Math.sqrt(Math.max(0, 1 - t9 * t9))),
+      skipFace: (_mx, my) => my > YB9 + 0.01 * s,
+    }), fill)));
   }
   /* ⑤ 송곳니 넷 — 벌어진 아가리의 **바깥쪽 끝**에서 위 둘은 아래로, 아래 둘은 위로 뻗어 서로 어긋나게 물린다. */
   for (const m of [1, -1] as const) {
