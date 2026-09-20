@@ -14340,14 +14340,21 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     }
     /* ④ 옥상 옆면의 검은 갈고리 열 — 위 단 지붕 가장자리(반지름 1.7) 옆면에 박혀 **위로 서며 끝이 살짝 안으로 굽는다**
        (요청). 열둘 · 뿌리는 옆면 속(반지름 1.6 · 지붕 밑 0.3) · 끝은 지붕 위 1.25 · 반지름 1.35(안쪽) · 배는 바깥으로 부푼다. */
+    /* ★ **45도로 나와서 굽는다**(재요청: "뿔 살짝 위 45도로 나와서 구부러지기") — spikeHorn 의 사인 배불림으로는 뿌리의
+       나가는 각을 못 정한다. 2차 베지에 뿔: 뿌리 (r 1.6 · 지붕 밑 0.3) → 조종점 (r 2.3 · 지붕 위 0.4 — 뿌리 접선이 바깥·위
+       45도) → 끝 (r 1.75 · 지붕 위 1.4 — 끝 접선은 위·안쪽). */
     const QN_HN = 12;
+    const qnBz9 = (a: number, b: number, c: number, t: number): number => (1 - t) * (1 - t) * a + 2 * (1 - t) * t * b + t * t * c;
     for (let i9 = 0; i9 < QN_HN; i9 += 1) {
       const a9 = (i9 / QN_HN) * Math.PI * 2 + 0.26;
       const sx9 = Math.sin(a9); const sy9 = Math.cos(a9);
-      out.push(...tagKey(paintBase(spikeHorn(
-        sx9 * 1.6, sy9 * 1.6, QN_TOP - 0.3, sx9 * 1.35, sy9 * 1.35, QN_TOP + 1.25,
-        0.42, DARK, 5, 0.3, sx9 * 0.45, sy9 * 0.45,
-      ), DARK), 8 + depthNow(sx9 * 1.6, sy9 * 1.6) * 0.4));
+      out.push(...tagKey(paintBase(spirePillar({
+        x: 0, y: 0, h: 0.8, w: 0.42 * 0.62, tipW: 0.02, segs: 10, sides: 5, hold: 0, taper: 1.5, caps: "none",
+        path: (t9: number): [number, number, number] => {
+          const r9 = qnBz9(1.6, 2.3, 1.75, t9);
+          return [sx9 * r9, sy9 * r9, qnBz9(QN_TOP - 0.3, QN_TOP + 0.4, QN_TOP + 1.4, t9)];
+        },
+      }), DARK), 8 + depthNow(sx9 * 1.6, sy9 * 1.6) * 0.4));
     }
     /* 꼭대기 덮개 — 개인색(칠하지 않는다). 갈고리 열 한가운데의 낮은 뚜껑(지붕 위). */
     out.push(...tagKey(domeFaces3(0, 0, 1.45, 0.5, QN_TOP - 0.02), 8.5));
