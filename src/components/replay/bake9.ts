@@ -17143,7 +17143,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           ];
         },
         // 럭비공: 옛 폭(0.54~1.04)의 0.75배를 가장 넓은 자리(t 0.42)로 하고 양끝은 점으로.
-        widthOf: (t9: number): number => 0.78 * Math.max(0.03, Math.sin(Math.PI * Math.min(1, t9 / 0.84)) ** 0.7),
+        /* ★ 끝의 곧은 토막을 걷고 배흘림을 줄인다(2026-09, 요청: "더듬이 위끝에 일자로 튀어나온거 제거하고 잎모양 배흘림줄이기") —
+           옛 폭 곡선은 t 0.84 에서 이미 0 이라 남은 16% 가 반폭 0.03 짜리 **곧은 바늘**로 삐져나왔다. 사인을 끝(t 1)까지 펴고
+           지수 0.7 → 1.15(가운데가 덜 부푼다) · 가장 넓은 반폭 0.78 → 0.62. */
+        widthOf: (t9: number): number => 0.62 * Math.max(0.02, Math.sin(Math.PI * t9) ** 1.15),
       }), 8 + depthNow(m9 * 1.6, 0) * 1.6 * 0.1));
     }
     {
@@ -17156,14 +17159,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          옆구리 · 0.12~1.25) × 방위각 φ(+x 에서 앞뒤 ±70도)** 격자로 찍어 네모 낯으로 잇는다 — 어디서나 겉면에 3% 띄운 채 붙는다.
          들기는 종전대로 등마루 경첩(y 축 · ZT9)을 축으로 x-z 를 돌린다. */
       const NTH9 = 8; const NPH9 = 8; const PHW9 = (70 * Math.PI) / 180;
+      /* ★ **앞이 붙고 뒤가 들린다**(2026-09, 지적: "껍질은 양옆이 들리는게 아니라 뒤가 들리는거야 앞이 붙어있고") — 경첩을 등마루
+         (y 축)에서 **앞쪽 x 축**(y CY9 + 0.8 · z ZT9 − 0.3)으로 옮겨, 조각을 그 축 둘레로 돌린다: 경첩 뒤(y 작은 쪽)는 위로, 앞은
+         살 속으로 살짝 든다(안 보인다). 쉼(LIFT 0)에서는 겉면 그대로다. */
+      const YH9 = CY9 + 0.8; const ZH9 = ZT9 - 0.3;
       for (const m9 of [-1, 1] as const) {
         const ca9 = Math.cos(LIFT9); const sa9 = Math.sin(LIFT9);
         const pt9 = (i: number, j: number): [number, number, number] => {
           const th9 = 0.12 + 1.13 * (i / NTH9);
           const ph9 = -PHW9 + 2 * PHW9 * (j / NPH9);
           const x9 = R9 * Math.sin(th9) * Math.cos(ph9); const y9 = CY9 + R9 * Math.sin(th9) * Math.sin(ph9);
-          const dz9 = ZB9 + H9 * Math.cos(th9) - ZT9;
-          return [m9 * (x9 * ca9 - dz9 * sa9), y9, ZT9 + dz9 * ca9 + x9 * sa9];
+          const z9 = ZB9 + H9 * Math.cos(th9);
+          const dy9 = y9 - YH9; const dz9 = z9 - ZH9;
+          return [m9 * x9, YH9 + dy9 * ca9 + dz9 * sa9, ZH9 - dy9 * sa9 + dz9 * ca9];
         };
         const shell9: ShapeFace[] = [];
         for (let i = 0; i < NTH9; i += 1) {
