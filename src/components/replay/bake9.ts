@@ -2750,11 +2750,18 @@ export function membraneFaces(
       if (d < bd) { bd = d; best = r; }
     }
     const b9 = best;
+    /* ★ 곧은 관은 가운데가 막에 묻힌다(재지적: "줄기가 보이긴 하는데 중간이 좀 잘려 보이네") — 골 점(edge 의 notch)이
+       끝점보다 **위**(z 합 /1.6)라 막 낯이 뿌리→끝 직선보다 가운데서 솟는다. 이웃 골 둘의 높이가 직선 가운데보다 높은 몫만큼
+       관을 활처럼 휘어 올린다(sin πt). */
+    const ti = tips.indexOf(tp);
+    const nzs = [edge[ti * 2 - 1], edge[ti * 2 + 1]].filter((e): e is [number, number, number] => !!e).map((e) => e[2]);
+    const nz = nzs.length ? nzs.reduce((a, v) => a + v, 0) / nzs.length : (b9[2] + tp[2]) / 2;
+    const bow9 = Math.max(0, nz - (b9[2] + tp[2]) / 2) + rw * 0.6;
     out.push(...paintBase(spirePillar({
-      x: 0, y: 0, h: 0.8, w: 1, segs: 2, sides: 5, caps: "none", trueNormal: true,
+      x: 0, y: 0, h: 0.8, w: 1, segs: 4, sides: 5, caps: "none", trueNormal: true,
       path: (t: number): [number, number, number] => [
         b9[0] + (tp[0] - b9[0]) * t * 0.97, b9[1] + (tp[1] - b9[1]) * t * 0.97,
-        b9[2] + (tp[2] - b9[2]) * t * 0.97 + rw * 0.6,   // 막 위로 반쯤 띄운다 — 묻히면 줄이 안 읽힌다
+        b9[2] + (tp[2] - b9[2]) * t * 0.97 + rw * 0.6 + bow9 * Math.sin(Math.PI * t),   // 막 위로 띄우고 가운데를 활로 올린다
       ],
       widthOf: (t: number): number => rw * (1.25 - 0.6 * t),
     }), rib9));
@@ -20781,7 +20788,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const PALM9 = 0.33 * 1.15;
     const shR9: [number, number, number] = [-1.14, -0.02, suitShoulderZ()];
     const eR9: [number, number, number] = [shR9[0] + 0.12, shR9[1] + 0.30, shR9[2] - 0.95 * Z8];
-    const FDX9 = 0.5756; const FDY9 = 0.8177;   // 하완 방향(단위 · 지면과 수평 · 안쪽 35도)
+    /* 대기에서는 하완을 더 안쪽으로 접어(55도) 총을 몸 가까이 든다(재요청: "대기 상태에서 더 총구를 옆을 향해 몸 가까이 들기") —
+       쏠 때는 35도로 앞에 낸다. 수평은 둘 다 그대로다. */
+    const fdA9 = ((at ? 35 : 55) * Math.PI) / 180;
+    const FDX9 = Math.sin(fdA9); const FDY9 = Math.cos(fdA9);   // 하완 방향(단위 · 지면과 수평 · 안쪽 35/55도)
     const wrR9: [number, number, number] = [eR9[0] + FDX9 * 1.2, eR9[1] + FDY9 * 1.2, eR9[2]];
     const gripR9: [number, number, number] = [wrR9[0] + FDX9 * PALM9, wrR9[1] + FDY9 * PALM9, wrR9[2]];
     const GRIP_R9 = 0.22;   // 방아쇠 손이 쥐는 총 축 자리
@@ -20792,7 +20802,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        똑바로 들기") — 총의 방향은 **몸통 자**에서 늘 `GUN_YAW9` 만큼 왼쪽(+x)이다(팔·손·총이 한 벌이라 서로의 자리가
        안 바뀐다). 쏠 때는 어깨 위 몸통을 통째로 `withModelSpin(GUN_YAW9)` 로 돌려 그 좌향 총이 세계 +y 를 보게 한다
        (다리는 안 돈다 — 허리에서 비트는 것이다). 들림(z 0.38)은 쏠 때 0 — 수평이다. */
-    const GUN_YAW9 = 18;    // 몸통 자에서 총이 왼쪽으로 튼 각(도)
+    const GUN_YAW9 = 35;    // 몸통 자에서 총이 왼쪽으로 튼 각(도) — 18 → 35(재요청: "더 총구를 옆을 향해")
     const tw9 = at ? GUN_YAW9 : 0;   // 상체 비틀림(도) — 쏠 때만
     const gyS9 = Math.sin((GUN_YAW9 * Math.PI) / 180); const gyC9 = Math.cos((GUN_YAW9 * Math.PI) / 180);
     const gLen9 = 2.2 - carry9 * 0.35;
