@@ -17419,9 +17419,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         },
       }), DARK), key9 - 0.1));
       // 판 — 팔 끝에서 앞으로 뻗어 몸 위 허공에 떠 있는 잎.
-      /* 얇고 좁게(재요청: "퀸 등 쉴드 두께를 좀더 얇게 하고 폭도 줄이기") — w 0.62 → 0.48 · oval 2.2 → 3.4(더 눌림). 눌린 단면이라 trueNormal. */
+      /* 얇고 좁게(재요청: "퀸 등 쉴드 두께를 좀더 얇게 하고 폭도 줄이기") — w 0.62 → 0.48 · oval 2.2 → 3.4(더 눌림). 눌린 단면이라 trueNormal.
+         좌우 폭 −25%(재재요청) — w 0.48 → 0.36 · 두께(w/oval 0.141)는 지키려 oval 3.4 → 2.55. */
       out.push(...tagKey(spirePillar({
-        x: 0, y: 0, h: 0.8, w: 0.48, tipW: 0.13, segs: 4, sides: 6, oval: 3.4, taper: 1.2, trueNormal: true,
+        x: 0, y: 0, h: 0.8, w: 0.36, tipW: 0.10, segs: 4, sides: 6, oval: 2.55, taper: 1.2, trueNormal: true,
         path: (t9: number): [number, number, number] => {
           const y9 = -1.5 + 2.5 * t9; const y9z9 = -1.2 + 2 * t9; /* z용 쌍둥이(model-z-scale ×0.8) */
           /* 각도도 벌린다(같은 지적) — 앞으로 나갈수록 바깥으로 더 벌어지게 x의
