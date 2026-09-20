@@ -5160,21 +5160,27 @@ export let mineralVar = 0;
  *    써야 둘이 한 계보로 읽힌다. 각도·길이·굵기만 받아 두 자리에서 같은 식을 돌린다. */
 export const sunkenFootFaces = (
   ang: number, len: number, w9: number,
-  o9: { z0?: number; kAdd?: number; color?: string; oval?: number; arc?: number; tipW?: number } = {},
+  o9: { z0?: number; kAdd?: number; color?: string; oval?: number; arc?: number; tipW?: number;
+    /** 발 **전체**의 배수 — 길이·굵기·아치를 한꺼번에 줄인다(요청: "임자색 발 크기 20프로 줄이고").
+     *  뿌리 반지름(1.6)은 몸에 붙는 자리라 안 줄인다 — 줄이면 발이 살 속으로 파고든다. */
+    k?: number;
+    /** 아치(솟는 높이)만의 배수 — 길이와 따로 논다(요청: 스포어는 "높이가 1.8배 길이는 0.8"). */
+    archK?: number } = {},
 ): ShapeFace[] => {
   const a9 = (ang * Math.PI) / 180;
   const dx = Math.sin(a9);
   const dy = Math.cos(a9);
+  const k9 = o9.k ?? 1;
   const zRoot9 = 1.2 + (o9.z0 ?? 0);
   const zTip9 = 0.28 + (o9.z0 ?? 0);
-  const arcK9 = (o9.arc ?? 1.05);
+  const arcK9 = (o9.arc ?? 1.05) * k9 * (o9.archK ?? 1);
   const f9 = spirePillar({
-    x: 0, y: 0, h: 0.8, w: w9 * 0.62, tipW: o9.tipW ?? 0.30, oval: o9.oval ?? 1.85, caps: "top",
+    x: 0, y: 0, h: 0.8, w: w9 * 0.62 * k9, tipW: (o9.tipW ?? 0.30) * k9, oval: o9.oval ?? 1.85, caps: "top",
     segs: 12, sides: 7, hold: 0.15, taper: 0.85,
     path: (t9: number): [number, number, number] => {
-      const r9 = 1.6 + len * t9;
+      const r9 = 1.6 + len * k9 * t9;
       const up9 = Math.sin(Math.PI * t9) * arcK9;
-      const side9 = Math.sin(Math.PI * t9) * 0.55;
+      const side9 = Math.sin(Math.PI * t9) * 0.55 * k9;
       return [
         dx * r9 - dy * side9,
         dy * r9 + dx * side9,
@@ -5185,6 +5191,9 @@ export const sunkenFootFaces = (
   return tagKey(o9.color ? paintBase(f9, o9.color) : f9,
     depthNow(dx * 3.4, dy * 3.4) * 1.6 + 1 + (o9.kAdd ?? 0));
 };
+/** 임자색 발의 크기 배수(2026-09, 요청: "크립콜로니 성큰콜로니 임자색 발 크기 20프로 줄이고") —
+ *  성큰 여섯·크립 셋·스포어 셋이 **한 값**을 나눠 쓴다. 왼쪽의 큰 검회색 발은 임자색이 아니라 그대로다. */
+export const SUNKEN_FOOT_K9 = 0.8;
 /** 성큰 발 여섯의 각·길이·굵기 — 뒤 셋과 **오른쪽 셋**으로 나눠 둔다(크립은 오른쪽 셋만 이식한다). */
 export const SUNKEN_FEET_L9: [number, number, number][] = [[-160, 5.4, 1.86], [-105, 6.2, 2.10], [-45, 5.8, 1.98]];
 export const SUNKEN_FEET_R9: [number, number, number][] = [[25, 6.4, 2.16], [85, 5.5, 1.92], [145, 5.2, 1.80]];
@@ -11137,7 +11146,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          구간이라, 밑동만 보고 배수를 매기면 ②처럼 두 배로 뛴다. 그래서 네 값(밑동·
          hold·taper·tipW)을 함께 중간으로 옮긴다. */
     for (const [ang, len, w9] of [...SUNKEN_FEET_L9, ...SUNKEN_FEET_R9]) {
-      out.push(...sunkenFootFaces(ang, len, w9));
+      out.push(...sunkenFootFaces(ang, len, w9, { k: SUNKEN_FOOT_K9 }));
     }
     /* ★ 왼쪽의 **큰 발** 하나(요청: "왼쪽에 다른 발의 2배 크기로 높고 두껍고 긴 검회색 발 추가 — 위쪽에 작은
        상아색 가시 여러 개가 박힘") ────────────────────────────────────────────────────────────────────────
@@ -11267,6 +11276,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       x: 0, y: 0, z0: 0, h: 0.8, w: 5.6, tipW: 4.4,
       segs: 3, sides: 14, hold: 0.15, taper: 1.8,
     }), COLONY_BASE), -1));
+    /* ★ 크립·성큰과 **같은 임자색 발 셋**(2026-09, 요청: "스포어에도 똑같이 추가하되 스포어거는
+       높이가 1.8배 길이는 0.8" → "스포어에는 크립콜로니처럼 3개만 추가") — 크립이 자라 스포어가
+       되므로 그 계보가 실루엣에도 있어야 한다. 크립과 같은 **오른쪽 셋**(SUNKEN_FEET_R9)이고,
+       스포어의 것만 **더 높이 솟았다 짧게 내려앉는다**(아치 1.8배 · 길이 0.8배) — 이 건물은 알을
+       떠받친 가는 덤불이라 낮게 뻗는 낫보다 높이 굽은 다리가 어울린다.
+       · 각은 그대로 쓴다 — 이 빌더는 통째로 `withModelSpin(-45)` 안이라 그 −45 가 저절로 든다
+         (크립은 감싸개가 없어 `ang − 45` 로 손수 돌린다 · 세계 각은 둘이 같다).
+       · **pc 에 넣는다** — 끝에서 `raceBase(out, "zerg", pc)` 가 도므로 out 에 넣으면 안 칠한 면이
+         저그 기본색으로 칠해진다(크립과 같은 자리다). */
+    for (const [ang, len, w9] of SUNKEN_FEET_R9) {
+      pc.push(...sunkenFootFaces(ang, len * 0.8, w9, { k: SUNKEN_FOOT_K9, archK: 1.8, z0: -0.1 }));
+    }
     /* 뒤엉킨 가지 덤불 — 받침에서 사방으로 솟아 서로 엇갈린다. 뒤쪽(−y)이 가장 높아
        알 뒤로 삐죽 올라가고, 앞쪽은 낮게 깔린다. 자리는 각도의 순수 함수라 결정적이다. */
     for (let k9 = 0; k9 < 11; k9 += 1) {
@@ -11578,7 +11599,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        ★ **발만 45도 돌린다**(요청: "본체는 두고 발 세 개만 45도 요잉") — 모델 스핀은 몸까지 통째로 돌리므로
        쓸 수 없다. 각도에서 45를 뺀다 — 처음엔 더했더니 반대로 돌았다(지적). */
     for (const [ang, len, w9] of SUNKEN_FEET_R9) {
-      pc.push(...sunkenFootFaces(ang - 45, len, w9, { z0: CR_Z0 - 0.4 }));
+      pc.push(...sunkenFootFaces(ang - 45, len, w9, { z0: CR_Z0 - 0.4, k: SUNKEN_FOOT_K9 }));
     }
     return raceBase(out, "zerg", pc);
   }),
