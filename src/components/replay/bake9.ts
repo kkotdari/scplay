@@ -5194,6 +5194,9 @@ export const sunkenFootFaces = (
 /** 임자색 발의 크기 배수(2026-09, 요청: "크립콜로니 성큰콜로니 임자색 발 크기 20프로 줄이고") —
  *  성큰 여섯·크립 셋·스포어 셋이 **한 값**을 나눠 쓴다. 왼쪽의 큰 검회색 발은 임자색이 아니라 그대로다. */
 export const SUNKEN_FOOT_K9 = 0.8;
+/** 스포어 발의 아치(솟는 높이)만의 배수 — 1.8 에서 **1.5배 더**(2026-09, 요청: "스포어 발 높이
+ *  1.5배 더 확대"). 길이(len × 0.8)·굵기는 그대로라 다리가 그만큼 가파르게 굽는다. */
+export const SPORE_ARCH9 = 1.8 * 1.5;
 /** 성큰 발 여섯의 각·길이·굵기 — 뒤 셋과 **오른쪽 셋**으로 나눠 둔다(크립은 오른쪽 셋만 이식한다). */
 export const SUNKEN_FEET_L9: [number, number, number][] = [[-160, 5.4, 1.86], [-105, 6.2, 2.10], [-45, 5.8, 1.98]];
 export const SUNKEN_FEET_R9: [number, number, number][] = [[25, 6.4, 2.16], [85, 5.5, 1.92], [145, 5.2, 1.80]];
@@ -11288,7 +11291,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        · **pc 에 넣는다** — 끝에서 `raceBase(out, "zerg", pc)` 가 도므로 out 에 넣으면 안 칠한 면이
          저그 기본색으로 칠해진다(크립과 같은 자리다). */
     for (const [ang, len, w9] of SUNKEN_FEET_R9) {
-      pc.push(...sunkenFootFaces(ang - 45, len * 0.8, w9, { k: SUNKEN_FOOT_K9, archK: 1.8, z0: -0.1 }));
+      pc.push(...sunkenFootFaces(ang - 45, len * 0.8, w9, { k: SUNKEN_FOOT_K9, archK: SPORE_ARCH9, z0: -0.1 }));
     }
     /* 뒤엉킨 가지 덤불 — 받침에서 사방으로 솟아 서로 엇갈린다. 뒤쪽(−y)이 가장 높아
        알 뒤로 삐죽 올라가고, 앞쪽은 낮게 깔린다. 자리는 각도의 순수 함수라 결정적이다. */
