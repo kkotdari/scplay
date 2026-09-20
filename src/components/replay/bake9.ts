@@ -20787,7 +20787,16 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const GRIP_R9 = 0.22;   // 방아쇠 손이 쥐는 총 축 자리
     const GRIP_L9 = 0.40;   // 앞손잡이(왼손)
     const GL9 = 1.25;       // 총 확대(요청): 길이 1.25배
-    const GD9: [number, number, number] = [0.25 + carry9 * 0.3, 2.2 - carry9 * 0.35, 0.38 + carry9 * 0.624];   // 총 축 방향(걸을 땐 총구가 대각선 위로)
+    /* ★ **총은 왼쪽으로 틀어 들고, 쏠 때는 상체를 오른쪽으로 틀어 총구를 앞으로 낸다**(2026-09, 요청: "마린 총을 약간
+       왼쪽으로 틀어서 들고 있을거야 · 공격시엔 상체를 오른쪽으로 틀어서 총구를 앞으로 향하게 하고 총은 지면에서 수평으로
+       똑바로 들기") — 총의 방향은 **몸통 자**에서 늘 `GUN_YAW9` 만큼 왼쪽(+x)이다(팔·손·총이 한 벌이라 서로의 자리가
+       안 바뀐다). 쏠 때는 어깨 위 몸통을 통째로 `withModelSpin(GUN_YAW9)` 로 돌려 그 좌향 총이 세계 +y 를 보게 한다
+       (다리는 안 돈다 — 허리에서 비트는 것이다). 들림(z 0.38)은 쏠 때 0 — 수평이다. */
+    const GUN_YAW9 = 18;    // 몸통 자에서 총이 왼쪽으로 튼 각(도)
+    const tw9 = at ? GUN_YAW9 : 0;   // 상체 비틀림(도) — 쏠 때만
+    const gyS9 = Math.sin((GUN_YAW9 * Math.PI) / 180); const gyC9 = Math.cos((GUN_YAW9 * Math.PI) / 180);
+    const gLen9 = 2.2 - carry9 * 0.35;
+    const GD9: [number, number, number] = [gyS9 * gLen9 + carry9 * 0.3, gyC9 * gLen9, at ? 0 : 0.38 + carry9 * 0.624];   // 총 축 방향(걸을 땐 총구가 대각선 위로 · 쏠 땐 수평)
     const GB9: [number, number, number] = [
       gripR9[0] - GD9[0] * GRIP_R9 * GL9, gripR9[1] - GD9[1] * GRIP_R9 * GL9, gripR9[2] - GD9[2] * GRIP_R9 * GL9,
     ];   // 개머리판
@@ -20802,12 +20811,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        ★ z 를 한 뼘 올린다(2026-09, 지적: "마린은 총구 끝인데 살짝 낮게 잡힌 거 같아") — 축 위의
          점은 총열의 **가운데**이고, 눈이 총구로 읽는 것은 그 관의 위쪽 자락이다(총이 가늘어
          반지름 0.14 쯤이라 그 몫이 그대로 어긋남으로 보인다). */
-    { const gp9 = GP9(0.82); markMuzzle9(gp9[0], gp9[1], gp9[2] + 0.14); }
+    /* 표식은 **쏘는 자세**(상체 비틀림 + 수평 총)의 자리다 — 표는 자세 0 에서 굽히므로 손으로 그 자세를 짓는다. */
+    withModelSpin(GUN_YAW9, () => {
+      const d9 = [gyS9 * 2.2, gyC9 * 2.2, 0];
+      const b9 = [gripR9[0] - d9[0] * GRIP_R9 * GL9, gripR9[1] - d9[1] * GRIP_R9 * GL9, gripR9[2]];
+      markMuzzle9(b9[0] + d9[0] * 0.82 * GL9, b9[1] + d9[1] * 0.82 * GL9, b9[2] + 0.14);
+    });
     return [
       /* 다리도 짙은 은색 — suitLegs의 셋째 자리(_kneeFill)는 지금 쓰이지 않는 값이라
          (그 함수의 이름 앞 밑줄) 여기 은색을 적어 두어도 아무 데도 안 든다. 고스트가
          하듯 바깥에서 칠한다 — 군화처럼 제 색을 가진 조각은 paintBase가 안 덮는다. */
       ...paintBase(suitLegs(1, 1, undefined, 0.3 * wd, 0.9), SUIT_SILVER),   // 다리통 지름 −10%(요청: "마린 파뱃 다리통 지름 10프로 줄이기")
+      // 어깨 위는 통째로 허리에서 비튼다(tw9 · 쏠 때만) — 다리만 위에 남는다.
+      ...withModelSpin(tw9, (): ShapeFace[] => [
       // 몸 너비 +10%(요청: "마린 파뱃 몸 너비 10프로 증가") — 공통 −20% 위에 얹는다.
       /* 가슴을 더 넓게(사진: 흉갑이 어깨만큼 벌어진다) — 1.1 → 1.28. 허리 잘록함은
          몸통 프로필(SUIT_TORSO_W)이 그대로 진다. */
@@ -20924,6 +20940,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         path: (t9: number): [number, number, number] => GP9(0.8 + 0.15 * t9),
         widthOf: (): number => 0.1,
       }), GUN_BLACK), depthNow(GM9[0], 1.8) * 1.6 + 1.62),
+      ]),
     ];
   },
   /* 고스트(전면 재작도 — 사진 samples/ghost1·2.jpg 기준) ───────────────────────
