@@ -14277,13 +14277,25 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const FLESH_L = "#b25a44";   // 밝은 혹
     const DARK = "#4a3328";      // 갑각 갈고리
     const out: ShapeFace[] = [...tagKey(paintBase(creepSplat(6.6), "#3a3f46"), -20)];
-    /* ① 봉분 — 큰 돔 하나가 바탕이고, 그 옆선을 도는 살 혹 두 단이 층을 낸다. */
-    // 돔 높이 4.4 → 5.6(요청: "돔 높이 높이기") — 혹 단·아가리의 z도 같은 비(HK9)로 올라간다.
-    const DH9 = 5.6; const DH9z9 = 4.48; /* z용 쌍둥이(model-z-scale ×0.8) */ const HK9 = DH9 / 4.4;
-    out.push(...tagKey(paintBase(domeFaces3(0, 0, 4.6, DH9z9, 0, true), FLESH_R), 0));
+    /* ★ **2층이다**(2026-09, 요청: "퀸네스트 2층으로 구성하고 위쪽 옥상 옆면을 검은 뿔을 둘러서 박기 — 약간 안쪽으로 휘면서 위로
+       향하는 형태") — 큰 돔 하나(반지름 4.6 · 높이 4.48)였던 봉분을 **살 단 둘**로 쌓는다: 아래 단(반지름 4.6 → 3.4 · 높이 QN_H1 ·
+       윗면 평평) 위에 위 단(3.1 → 1.7 · 높이 QN_H2). 둘 다 taper 0.7 로 배가 부른 살덩이다. 위 단의 옥상 옆면을 검은 갈고리
+       열이 두른다(아래 ④). 옆선 자 `tierR9(z)` 는 아가리가 살 속에 파이도록 그 높이의 반지름을 낸다. */
+    const QN_H1 = 2.3; const QN_H2 = 2.3; const QN_TOP = QN_H1 + QN_H2;
+    const T1: [number, number] = [4.6, 3.4]; const T2: [number, number] = [3.1, 1.7];
+    const tierR9 = (z9: number): number => (z9 < QN_H1
+      ? T1[1] + (T1[0] - T1[1]) * (1 - Math.min(1, Math.max(0, z9 / QN_H1))) ** 0.7
+      : T2[1] + (T2[0] - T2[1]) * (1 - Math.min(1, Math.max(0, (z9 - QN_H1) / QN_H2))) ** 0.7);
+    out.push(...tagKey(paintBase(spirePillar({
+      x: 0, y: 0, z0: 0, h: QN_H1, w: T1[0], tipW: T1[1], segs: 6, sides: 18, hold: 0, taper: 0.7, caps: "top",
+    }), FLESH_R), 0));
+    out.push(...tagKey(paintBase(spirePillar({
+      x: 0, y: 0, z0: QN_H1, h: QN_H2, w: T2[0], tipW: T2[1], segs: 6, sides: 16, hold: 0, taper: 0.7, caps: "top",
+    }), FLESH_R), 4));
+    /* ① 살 혹 — 아래 단 옆구리 한 줄 · 위 단 밑동 한 줄 · 위 단 옆구리 한 줄. */
     const RING: [number, number, number, number][] = [
       // [단 반지름, 혹 수, 혹 크기, 단 높이]
-      [3.9, 7, 1.15, 0.8 * HK9], [2.9, 6, 0.95, 2.16 * HK9], [1.85, 5, 0.75, 3.2 * HK9],
+      [4.0, 7, 1.15, 0.9], [3.05, 6, 0.9, QN_H1 + 0.3], [2.25, 5, 0.65, QN_H1 + 1.55],
     ];
     for (const [rr9, n9, br9, bz9] of RING) {
       for (let i9 = 0; i9 < n9; i9 += 1) {
@@ -14296,37 +14308,27 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ), 1 + depthNow(bx9, by9) * 0.4 + bz9 * 0.3));
       }
     }
-    /* ② 아가리 — 앞 한가운데 세로로 벌어진 입. 어두운 세로 홈 + 그 둘레의 살 주름
-       두 겹(입술). 주름은 세로로 선 납작 기둥이라 요잉을 탄다. */
-    /* 아가리는 **돔 표면을 탄다** — 손 좌표로 세우면 봉분이 위로 오므라드는 만큼
-       위쪽이 몸 밖에 떠, 옆에서 보면 판이 삐죽 나왔다(그림 대조). 그 높이의 돔
-       반지름을 그대로 좇으면 어느 각도에서도 살에 파인 홈이 된다. */
-    const domeY = (z9: number): number =>
-      4.6 * 0.92 * Math.sqrt(Math.max(0.03, 1 - (z9 / DH9z9) ** 2));
-    /* 홈이지 돌출물이 아니다(그림 대조) — 표면 밖 +0.1에 세우면 옆각에서 실루엣
-       밖으로 판이 삐죽 나온다. 반쯤 묻고(−0.12) 가늘게, 깊이 계수도 1.2로 올려
-       뒤로 돌면 살 혹들이 덮게 한다. */
-    /* 앞을 볼 때만 그린다 — 납작한 홈(oval 2.4)은 옆각에서 그 넓은 면이 정면으로
-       보여 몸 옆에 검은 판으로 떴다. 표면의 홈은 등지면 안 보이는 것이 맞다. */
+    /* ② 아가리 — 아래 단 앞 한가운데 세로로 벌어진 입. 어두운 세로 홈 + 그 둘레의 살 주름
+       두 겹(입술). 옆선 자(tierR9)를 좇아 살에 파인 홈으로 앉는다 — 앞을 볼 때만 그린다. */
     if (facingRatio(0, 1) > 0.15) {
       out.push(...tagKey(paintBase(spirePillar({
         x: 0, y: 0, h: 0.8, w: 0.55, tipW: 0.2, segs: 5, sides: 6, oval: 2.4, caps: "none",
         path: (t9: number): [number, number, number] => {
-          const z9 = (0.28 + 2.32 * t9) * HK9;
-          return [0, domeY(z9) - 0.12, z9];
+          const z9 = 0.3 + 1.75 * t9;
+          return [0, tierR9(z9) * 0.92 - 0.12, z9];
         },
       }), "#241812"), 3 + depthNow(0, 3.2) * 1.2));
       for (const m9 of [-1, 1] as const) {
         out.push(...tagKey(paintBase(spirePillar({
           x: 0, y: 0, h: 0.8, w: 0.26, tipW: 0.09, segs: 5, sides: 6, caps: "none",
           path: (t9: number): [number, number, number] => {
-            const z9 = (0.24 + 2.4 * t9) * HK9;
-            return [m9 * (0.5 + 0.1 * Math.sin(Math.PI * t9)), domeY(z9) - 0.08, z9];
+            const z9 = 0.26 + 1.85 * t9;
+            return [m9 * (0.5 + 0.1 * Math.sin(Math.PI * t9)), tierR9(z9) * 0.92 - 0.08, z9];
           },
         }), FLESH_L), 3.2 + depthNow(m9 * 0.55, 3.2) * 1.2));
       }
     }
-    /* ③ 옆구리 상아 엄니 — 어깨 단에서 바깥·아래로 굽는 골 진 뿔 넷. */
+    /* ③ 옆구리 상아 엄니 — 아래 단 어깨에서 바깥·아래로 굽는 골 진 뿔 넷. */
     for (const ang9 of [55, 125, 235, 305]) {
       const a9 = (ang9 * Math.PI) / 180;
       const sx9 = Math.sin(a9);
@@ -14336,19 +14338,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         0.55, IVORY, 6, 0.35, sx9 * 0.6, -0.3,
       )), 3 + depthNow(sx9 * 4, sy9 * 3.6) * 1.6 * 0.2));
     }
-    /* 꼭대기 갑각 갈고리 왕관 — 짙은 갈고리 다섯이 위로 돋아 안으로 살짝 굽는다. */
-    for (let i9 = 0; i9 < 5; i9 += 1) {
-      const a9 = (i9 / 5) * Math.PI * 2 + 0.3;
-      const sx9 = Math.sin(a9) * 1.35;
-      const sy9 = Math.cos(a9) * 1.2;
-      // 안테나가 아니라 갈고리다(그림 대조) — 굵게(0.34 → 0.52)·짧게(6.4 → 5.7).
+    /* ④ 옥상 옆면의 검은 갈고리 열 — 위 단 지붕 가장자리(반지름 1.7) 옆면에 박혀 **위로 서며 끝이 살짝 안으로 굽는다**
+       (요청). 열둘 · 뿌리는 옆면 속(반지름 1.6 · 지붕 밑 0.3) · 끝은 지붕 위 1.25 · 반지름 1.35(안쪽) · 배는 바깥으로 부푼다. */
+    const QN_HN = 12;
+    for (let i9 = 0; i9 < QN_HN; i9 += 1) {
+      const a9 = (i9 / QN_HN) * Math.PI * 2 + 0.26;
+      const sx9 = Math.sin(a9); const sy9 = Math.cos(a9);
       out.push(...tagKey(paintBase(spikeHorn(
-        sx9, sy9, 3.52, sx9 * 1.8, sy9 * 1.8, 4.56,
-        0.52, DARK, 5, 0.3, -sx9 * 0.5, 0.25,
-      ), DARK), 8 + depthNow(sx9, sy9) * 0.4));
+        sx9 * 1.6, sy9 * 1.6, QN_TOP - 0.3, sx9 * 1.35, sy9 * 1.35, QN_TOP + 1.25,
+        0.42, DARK, 5, 0.3, sx9 * 0.45, sy9 * 0.45,
+      ), DARK), 8 + depthNow(sx9 * 1.6, sy9 * 1.6) * 0.4));
     }
-    /* 꼭대기 덮개 — 개인색(칠하지 않는다). 왕관 갈고리들 한가운데 낮은 뚜껑. */
-    out.push(...tagKey(domeFaces3(0, 0, 1.3, 0.6, 3.64), 8.5));
+    /* 꼭대기 덮개 — 개인색(칠하지 않는다). 갈고리 열 한가운데의 낮은 뚜껑(지붕 위). */
+    out.push(...tagKey(domeFaces3(0, 0, 1.45, 0.5, QN_TOP - 0.02), 8.5));
     return out;
   },
   /* 디파일러 마운드(실물 참고) — 낮게 퍼진 살덩이 위에 검은 수정 조각 무더기가 솟고,
