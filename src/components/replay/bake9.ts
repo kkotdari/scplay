@@ -18427,30 +18427,45 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
                그래서 호를 하나로 합치고 배를 바깥으로 낸다 — 2차 베지에의 조종점을 `2C − (A+B)/2` 로
                두면 t 0.5 에서 정확히 C 를 지나므로(그 점이 곧 배의 꼭대기다) 꺾임 없이 C 를 품는다.
                `BOW9` 는 거기서 더 부풀리는 몫이다(1 이면 C 를 지나는 최소 활).
-               앞 변(A→B)은 팔이 받치는 자리라 곧게 둔다. */
+               ★ **안쪽 변도 곧지 않다 — 파 들어간 호다**(재요청: 그림 위에 안쪽으로 파인 곡선을 긋고
+                 "이런 모양으로 잘라야 해") — A→B 를 곧게 두면 막이 팔 아래를 꽉 채운 부채라 함선이
+                 두툼해 보인다. 그 변을 **C 쪽으로 당긴** 2차 베지에로 바꾸면 두 끝이 뾰족한 초승달이
+                 된다(`SCOOP9` — 가운데가 C 쪽으로 그 절반만큼 파인다). 오목 다각형이지만 GL 은 귀
+                 자르기로 삼각화하므로 그대로 선다(넥서스 표창의 그 규약). */
             ...tagKey(((): ShapeFace[] => {
               const A9 = up9(m8 * 1.15, -0.9, 4.68);
               const B9 = up9(m8 * 2.0, 2.9, 4.24);
               const C9 = up9(m8 * 2.55, -0.4, 3.92);
               const BOW9 = 1.22;
+              const SCOOP9 = 0.92;
               const mid9: [number, number, number] = [
                 (A9[0] + B9[0]) / 2, (A9[1] + B9[1]) / 2, (A9[2] + B9[2]) / 2,
               ];
-              const cp9: [number, number, number] = [
-                mid9[0] + (C9[0] - mid9[0]) * 2 * BOW9,
-                mid9[1] + (C9[1] - mid9[1]) * 2 * BOW9,
-                mid9[2] + (C9[2] - mid9[2]) * 2 * BOW9,
+              /** mid 에서 C 쪽으로 k 만큼 간 조종점 — k 2·BOW9 면 바깥 활, k SCOOP9 면 안쪽 홈이다. */
+              const cpAt9 = (k9: number): [number, number, number] => [
+                mid9[0] + (C9[0] - mid9[0]) * k9,
+                mid9[1] + (C9[1] - mid9[1]) * k9,
+                mid9[2] + (C9[2] - mid9[2]) * k9,
               ];
-              const ps: [number, number, number][] = [];
-              for (let i9 = 1; i9 < 12; i9 += 1) {
-                const t9 = i9 / 12; const u9 = 1 - t9;
-                ps.push([
-                  u9 * u9 * B9[0] + 2 * u9 * t9 * cp9[0] + t9 * t9 * A9[0],
-                  u9 * u9 * B9[1] + 2 * u9 * t9 * cp9[1] + t9 * t9 * A9[1],
-                  u9 * u9 * B9[2] + 2 * u9 * t9 * cp9[2] + t9 * t9 * A9[2],
-                ]);
-              }
-              const d9 = polyPath3([A9, B9, ...ps]);
+              /** P → Q 의 2차 베지에 속점들(끝점은 뺀다). */
+              const arc9 = (
+                p9: [number, number, number], q9: [number, number, number],
+                c9: [number, number, number],
+              ): [number, number, number][] => {
+                const ps: [number, number, number][] = [];
+                for (let i9 = 1; i9 < 12; i9 += 1) {
+                  const t9 = i9 / 12; const u9 = 1 - t9;
+                  ps.push([
+                    u9 * u9 * p9[0] + 2 * u9 * t9 * c9[0] + t9 * t9 * q9[0],
+                    u9 * u9 * p9[1] + 2 * u9 * t9 * c9[1] + t9 * t9 * q9[1],
+                    u9 * u9 * p9[2] + 2 * u9 * t9 * c9[2] + t9 * t9 * q9[2],
+                  ]);
+                }
+                return ps;
+              };
+              const d9 = polyPath3([
+                A9, ...arc9(A9, B9, cpAt9(SCOOP9)), B9, ...arc9(B9, A9, cpAt9(2 * BOW9)),
+              ]);
               return [[d9, 1, TOSS_GOLD] as ShapeFace, topFace(d9, 0.18)];
             })(), partKey(...up9(m8 * 1.9, 0.5, 4.32)) + 0.05),
             /* 위팔 끝의 **누운 계란** 플라즈마 덩이(요청) — 팔 끝 **안쪽**에 더 작게 붙고,
