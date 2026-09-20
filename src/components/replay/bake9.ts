@@ -764,16 +764,19 @@ export const thrustStyleNow = (): ThrustStyle =>
  *  ⚠ 마디 수(sides)는 **그 관과 같아야** 한다 — 다르면 마구리가 관 옆선과 어긋나 톱니로 보인다. */
 export function nozzleRim9(
   x: number, y: number, z: number, rOut: number, key: number,
-  o: { th?: number; dep?: number; sides?: number; fill?: string } = {},
+  /** `ex` 는 **가로(x) 늘림 배수**(2026-09, 요청: "셔틀 스러스터 … 옆으로 넙적한 타원") — 1 이면
+   *  종전 원이고, 크면 그 배수만큼 좌우로 늘어난 타원 아가리다. 세로(z)는 안 건드린다. */
+  o: { th?: number; dep?: number; sides?: number; fill?: string; ex?: number } = {},
 ): ShapeFace[] {
   const th = Math.min(rOut * 0.55, o.th ?? Math.max(0.07, rOut * 0.24));
   const rIn = rOut - th;
   const dep = o.dep ?? Math.max(0.2, rOut * 1.8);   // 기본도 '컵'이 아니라 '관'이 되게 깊게
   const n9 = o.sides ?? 10;
   const out: ShapeFace[] = [];
+  const ex9 = o.ex ?? 1;
   const P9 = (i9: number, rr9: number, yy9: number): [number, number, number] => {
     const a9 = (i9 / n9) * Math.PI * 2;
-    return [x + Math.cos(a9) * rr9, yy9, z + Math.sin(a9) * rr9];
+    return [x + Math.cos(a9) * rr9 * ex9, yy9, z + Math.sin(a9) * rr9];
   };
   const back9 = faceLight(0, -1, 0);
   const inD9: string[] = []; const inP9: number[][] = [];
@@ -817,14 +820,21 @@ export function nozzleRim9(
 }
 export function thrustFlame(
   x: number, y: number, z: number, r: number, race: "terran" | "toss", key: number,
+  /** 가로(x) 늘림 배수 — 노즐이 넙적한 타원이면 불꽃도 같은 비라야 한다(그 ⚠ 규약).
+   *  1 이면 종전 그대로(단면 축도 안 건드린다). */
+  ex = 1,
 ): ShapeFace[] {
   const outer = race === "terran" ? "#ff8a1e" : "#5fb8ff";
   const inner = race === "terran" ? "#ffe066" : "#eaf8ff";
   const mid = race === "terran" ? "#ffb347" : "#a8d8ff";
   const tint = (fs: ShapeFace[], fill: string, alpha: number, floor = 0.2): ShapeFace[] =>
     fs.map(([d, o, , k, l, n]) => [d, Math.max(floor, o * alpha), fill, k, l, n] as ShapeFace);
+  /* 축이 −y 이고 `ref` 가 위(z)면 u 가 높이·v 가 옆이다 — `oval` 이 곧 가로/세로 비가 된다.
+     ex 가 1 이면 옛 그림 그대로여야 하므로 그때는 축 기준을 아예 안 건드린다(위상이 달라진다). */
+  const wide9 = ex === 1 ? {} : { oval: ex, ref: [0, 0, 1] as [number, number, number] };
   const cone = (rr: number, len: number, fill: string, alpha: number): ShapeFace[] => tint(spirePillar({
     x: 0, y: 0, h: 0.8, w: rr, tipW: 0, segs: 4, sides: 8, caps: "none", trueNormal: true,
+    ...wide9,
     path: (t9: number): [number, number, number] => [x, y - len * t9, z],
     widthOf: (t9: number): number => rr * (1 - t9) ** 0.7,
   }), fill, alpha);
@@ -834,6 +844,7 @@ export function thrustFlame(
   const drum = (rr: number, y0: number, len: number, fill: string, alpha: number, caps: "none" | "both" | "top" | "bottom" = "both", shell = false): ShapeFace[] => {
     const fs = spirePillar({
       x: 0, y: 0, h: 0.8, w: rr, tipW: rr, segs: 1, sides: 12, caps, trueNormal: !shell,
+      ...wide9,
       path: (t9: number): [number, number, number] => [x, y0 - len * t9, z],
       widthOf: (): number => rr,
     });
@@ -1124,6 +1135,13 @@ export function spirePillar(o: {
   /** 단면 다각형의 시작 각(라디안) — 기본은 변 하나가 u축을 마주 보게 반 칸(π/sides)
    *  돌린 것. 0을 주면 꼭짓점이 u·v축 위에 놓여, 네 변이면 마름모(가운데 접힌 판)가 된다. */
   phase?: number;
+  /** ★★ **둘레 자리마다의 반지름 배수**(2026-09, 물음: "사실 등이 완전 삼각형은 아니고 둥글게 휘는
+   *  삼각호인데 그걸로 표현이 가능?") — `oval`·`ovalOf` 는 v 축 하나만 누르므로 단면이 늘 타원이다.
+   *  곧 '모서리가 둥근 삼각형'처럼 **둘레를 따라 반지름이 물결치는 단면**을 못 낸다. 이 훅은 단면 각
+   *  a(라디안 · `phase` 가 이미 든 값)를 받아 그 자리의 반지름에 곱할 값을 낸다 — 이를테면
+   *  `1 + 0.25·cos(3a)` 가 곧 둥근 삼각(세 모서리가 둥글게 부푼 호)이다. 낯을 넉넉히 주어야
+   *  (sides 12 안팎) 물결이 곡선으로 읽힌다. 안 주면 종전(정다각형·타원) 그대로다. */
+  radOf?: (a: number) => number;
   /** 옆면 명암을 **진짜 면 법선**으로(캐리어 잎: 호를 등뼈로 눕힌 얇은 판) — 기본은
    *  '축에서 면까지의 x·y 방향'을 법선으로 어림한다. 세운 기둥에선 그게 곧 법선이지만,
    *  눕힌 판의 윗면은 축에서 앞뒤(y)로 벌어진 자리라 "앞을 보는 면·뒤를 보는 면"으로
@@ -1223,9 +1241,10 @@ export function spirePillar(o: {
       const vz = T[0] * uy - T[1] * ux;
       frames.push(Array.from({ length: sides }, (_, i) => {
         const a = (i / sides) * Math.PI * 2 + (o.phase ?? Math.PI / sides);
+        const rk = o.radOf ? o.radOf(a) : 1;
         const cu = Math.cos(a);
-        const cs = cu * r;
-        let sn = Math.sin(a) * r * (o.ovalOf ? o.ovalOf(t) : ovalK)
+        const cs = cu * r * rk;
+        let sn = Math.sin(a) * r * rk * (o.ovalOf ? o.ovalOf(t) : ovalK)
           + (o.skewV ? o.skewV(cu, t) : 0);
         if (o.flatV) sn = o.flatV > 0 ? Math.min(0, sn) : Math.max(0, sn);
         return [ax + ux * cs + vx * sn, ay + uy * cs + vy * sn, az + uz * cs + vz * sn] as [number, number, number];
@@ -4457,7 +4476,7 @@ export function zergPond9(cx: number, cy: number, R: number): ShapeFace[] {
 export function hatcheryMoundFaces(
   seamColor: string, spikeColor = "#1b1e23",
   /** 옥상 볏 — 개수·굵기·키. 해처리 셋 · 레어 넷 · 하이브 **크게 하나**(요청). */
-  crown: { n: number; w: number; h: number } = { n: 3, w: 0.54, h: 2.0 },
+  crown: { n: number; w: number; h: number; claw?: string } = { n: 3, w: 0.54, h: 2.0 },
   /** 바닥 오징어 다리의 크기 배수 — **해처리 < 레어 < 하이브**(요청) · 셋 다 절반으로(재요청: "오징어다리
    *  크기 50프로 축소" — 비는 그대로 두고 기준만 0.5·0.59·0.7). */
   legK = 0.5,
@@ -4533,11 +4552,16 @@ export function hatcheryMoundFaces(
       const CP: [number, number, number][] = [
         [cdx * CR9, cdy * CR9, MND_H - 0.3],
         [cdx * CR9 * 2.05, cdy * CR9 * 2.05, MND_H + crown.h * 0.50],
-        [cdx * CR9 * 0.45, cdy * CR9 * 0.45, MND_H + crown.h * 0.66],
+        [cdx * CR9 * 1.72, cdy * CR9 * 1.72, MND_H + crown.h * 1.05],
       ];
       out.push(...tagKey(spirePillar({
         x: 0, y: 0, h: 0.8, w: crown.w, tipW: 0.03, segs: 12, sides: 6, hold: 0, taper: 1.3,
         caps: "none", fill: spikeColor,
+        /* ★ **위 반쪽은 흰 손톱이다**(2026-09, 요청: "레어는 지붕뿔 반은 흰 손톱으로") — 겹쳐 세운
+           둘째 기둥이 아니라 `fillAt` 한 줄이다(같은 기하를 두 번 세우면 z 싸움이 난다 — 오버로드
+           몸통의 그 규약). 안 주면 종전대로 통째로 spikeColor. */
+        fillAt: crown.claw === undefined
+          ? undefined : (t9: number): string | undefined => (t9 > 0.5 ? crown.claw : undefined),
         path: (t9: number): [number, number, number] => {
           const u9 = 1 - t9;
           return [
@@ -4604,9 +4628,18 @@ export function hatcheryMoundFaces(
            (옛 1.02 의 까닭이던 '능선에서 묻힘'은 원이던 시절의 이야기다). 등 높이는 반폭이 지므로 1.15 → **1.45**. */
         /* ★ **폭만 30% 줄인다**(2026-09, 요청: "옆기둥 폭만 30프로 축소") — 1.45 → **1.015**. 축은 겉면 위(1.0) 그대로라
            '반쯤 묻힘'도 그대로고, 등 높이만 반폭만큼 준다(밑동 입구 반원·개인색 마디는 `seamW` 를 읽어 저절로 따라온다). */
-        const SEAM_W = 1.015;
-        const SEAM_OUT9 = 1.0;
-        const SEAM_TIP = 0.4;
+        /* ★ **삼각 단면으로 바꾼 뒤 등마루를 도로 키운다**(2026-09, 요청: "해처리류 옆기둥이 너무 작고") —
+           옆을 `oval` 로 죄자 보이는 몫이 반으로 줄었다. 반지름(= 등마루가 솟는 몫)을 1.015 → **1.45** 로
+           올리고 옆 죔을 0.5 → 0.7 로 늦춰, **옆폭은 옛 30% 축소 값 언저리(0.88)** 그대로 두고 높이만 키운다. */
+        /* ★ **등 높이는 낮추고 옆폭은 지킨다**(2026-09, 지적: "등 높이 좀 낮춰야할듯") — 드러나는 등 높이는
+           `SEAM_LIFT9 + SEAM_W` 라 반지름을 줄이면 그만큼 내려온다(2.10 → 1.62 · −23%). 다만 반지름을 줄이면
+           밑변(= 옆폭)도 함께 줄므로 옆 죔 `oval` 을 그 역수만큼 늦춰 **옆폭은 한 톨도 안 바뀌게** 둔다
+           (0.7 × 1.45 = 0.91 × 1.12). 등 높이와 옆폭은 이 두 값이 한 벌로 쥔다. */
+        const SEAM_W = 1.12;
+        /* ★ 갈비는 살보다 **한 뼘 더 밖에** 선다(2026-09, 요청: "옆기둥이 본체보다 좀더 바깥으로
+           나와야 자연스러울 거 같아 조금만 더") — 축의 반지름을 그만큼 늘린다(밑동 5.9 → 6.17). */
+        const SEAM_OUT9 = 1.045;
+        const SEAM_TIP = 0.42;
         const SEAM_HOLD = 0.08;
         /* ★ 옆선을 둔덕 **겉으로 한 뼘 내민다**(지적: "해처리 45도 요잉해서 보여지잖아
            왼쪽 능선 경계에 있는 옆선 기둥이 잘 안 보이는 문제가 있네") ─────────────────
@@ -4617,62 +4650,162 @@ export function hatcheryMoundFaces(
            그 자리다(여섯 옆선이 60도 간격이라 어느 요잉에서도 하나는 경계에 온다).
            1.02면 어느 각도에서도 둔덕 겉보다 **바깥**이라 실루엣을 끊고 나온다. 3%라
            가운데로 돌아온 옆선이 떠 보이지도 않는다. */
-        const seamAxis = (t9: number): [number, number, number] => {
-          const r9 = moundR(t9) * SEAM_OUT9;
-          return [dxr * r9, dyr * r9, MND_H * t9];
-        };
+        /* ★ **두께감은 축을 들어 주는 것이다**(2026-09, 요청: "옆기둥 두께감도 주고") — 축을 겉면 위에
+           두면 단면의 안쪽 반이 살 속이라 갈비가 **납작한 띠**로 읽힌다. 밑변이 겉면에 닿도록 반폭의
+           0.45 만큼 들면 삼각 단면이 통째로 밖에 서서 두 낯 + 등마루가 다 보인다(살 속 0.05·r 만 남겨
+           `cutFace` 가 밑을 깔끔히 벤다). */
         const seamW = (t9: number): number => (t9 <= SEAM_HOLD ? SEAM_W
           : SEAM_TIP + (SEAM_W - SEAM_TIP) * (1 - (t9 - SEAM_HOLD) / (1 - SEAM_HOLD)) ** 1.6);
+        /* ★★ **등 높이는 위에서 거의 0 이고 아래로 갈수록 솟는다**(2026-09, 요청: "해처리 옆선 등의 높이도
+           위쪽은 거의 높이가 낮고 아래로 갈수록 높아지는 형태야") — 여태 축을 겉면에서 **한 값**(반폭의 0.45배)
+           만큼 들어 두어, 드러나는 등 높이가 `들린 몫 + 반폭` 이라 꼭대기에서도 0.9 가 남았다.
+           이제 **드러나는 높이 자체**를 자로 삼는다(`seamH9`): 밑동 1.62 → 꼭대기 0.22 로 (1−t)^1.4 를 탄다.
+           축은 거기서 거꾸로 푼다 — 바깥 꼭짓점(축 + 반폭·u)이 겉면 + H 에 오도록 `축 = 겉면 + H − 반폭`.
+           곧 위에서는 축이 살 속으로 잠겨 등마루만 한 오라기 남고, 아래로 내려갈수록 통째로 솟는다. */
+        /* ★★ **판에는 두께가 있어야 한다 — 삼각 쐐기는 가장 넓은 자리에서 살과 만나 칼날이 된다**
+           (2026-09, 지적: "옆선기둥의 판이 두께감이 좀 있어야 해 지금 색종이처럼 얇은 느낌이잖아") —
+           삼각 단면(낯 셋 · 위상 0)은 옆 꼭짓점이 곧 가장 넓은 자리이고 그 자리가 겉면 높이라, 갈비의
+           **실루엣 가장자리가 두께 0** 으로 여며졌다. 곧 위에서 보면 살에 붙인 색종이다.
+           단면을 **오각**(위상 36도)으로 바꾼다: 낯 한가운데 하나가 `+u` 를 보므로 **납작한 윗판**이
+           서고, 그 양옆의 두 낯이 거의 곧게 떨어지는 **옆벽**이 되며, 남은 둘은 살 속으로 여며진다.
+           곧 위에서 윗판이, 옆에서 벽 두께가 보인다(밑동에서 벽 높이 1.25 · 꼭대기에서는 벽이 통째로
+           살에 잠겨 옛 등마루 한 오라기만 남는다). */
+        /* ★★ **등은 각진 모서리가 아니라 둥글게 휘는 삼각호다**(2026-09, 물음: "사실 등이 완전
+           삼각형은 아니고 둥글게 휘는 삼각호인데 그걸로 표현이 가능?") — 오각 판(납작한 윗면 +
+           옆벽 둘)은 두께는 얻었지만 등이 각졌다. `spirePillar` 에 새로 둔 `radOf`(둘레 자리마다의
+           반지름 배수)로 단면을 **꼭지만 둥근 삼각**으로 짓는다 — 되물음: "삼각호가 저 뜻이 아니라
+           호 하나인데 거의 ^ 모양으로 급하게 굽은 호". 곧 `1 + K·cos 3a`(모서리 셋이 고루 부푼 둥근
+           삼각)가 아니라 **정삼각의 극형식에 둥글림을 조금 섞은 것**이다: 옆은 거의 곧게 가파르고
+           꼭지만 호로 여며진다. 낯 열둘로 잘게 주어 그 호가 곡선으로 읽힌다. 나머지 두 모서리는
+           살 속에 묻혀 옆벽이 된다(가장 넓은 자리가 겉면보다 아래라 두께가 선다). */
+        const SEAM_PH9 = 0;
+        /** 모서리를 둥글린 몫 — 0 이면 각진 삼각, 1 이면 원. 0.28 이 '거의 ^ 인데 꼭지가 둥근' 자리다. */
+        const SEAM_Q9 = 0.28;
+        const seamRad9 = (a9: number): number => {
+          /* 정삼각(꼭짓점 0·120·240)의 극형식 — 변 한가운데(60도)의 내접 0.5 를 cos 으로 편다. */
+          const d9 = (((a9 * 180) / Math.PI) % 120 + 120) % 120 - 60;
+          const tri9 = 0.5 / Math.cos((d9 * Math.PI) / 180);
+          return tri9 * (1 - SEAM_Q9) + SEAM_Q9;
+        };
+        /** 단면이 `+u` 로 가장 멀리 나간 몫(등마루 = 삼각 꼭짓점 자리 · 섞어도 1 그대로) — 등 높이를 그 자리에 맞춘다. */
+        const SEAM_UMAX9 = 1;
+        const SEAM_H_BOT9 = 1.62;
+        const SEAM_H_TOP9 = 0.22;
+        const seamH9 = (t9: number): number => SEAM_H_TOP9
+          + (SEAM_H_BOT9 - SEAM_H_TOP9) * (1 - t9) ** 1.4;
+        /* ⚠⚠ **등 높이는 반지름이 아니라 겉면 법선으로 잰다**(같은 지적의 뒷말: "옆선 바닥은 본체에 딱 붙게") —
+           둔덕 밑동은 수평에서 19도로 거의 눕는다. 거기서 축을 **반지름 방향**으로 들면 그 몫이 죄다 **바깥**으로
+           가므로 갈비가 발자국 밖으로 비어져 나와 허공에 떴다(실측: 밑동 축이 r 6.40 · 겉면 5.9). 옆선 (r, z)
+           곡선의 접선 `(dr, dz)` 을 돌린 **바깥 법선** `(dz, −dr)` 을 타야 밑동에서는 위로, 꼭대기에서는
+           바깥으로 솟는다 — 어느 높이에서나 '살 위로 H' 라는 뜻이 그대로 선다. */
+        const SEAM_T0_9 = 0;
+        /* ⚠⚠ **꼭짓점에 앉는 갈비는 '꼭짓점 평면'으로 베면 뜬다**(2026-09, 지적: "옆선이 붙는 위치가
+           본체에서 뾰족한 부분이라 그거도 고려해서 안 뜨게 잘 해야 해") — 여태 `축 방향 사영 − moundR`
+           로 베었는데 그것은 꼭짓점에서 육각에 **접하는 평면**이다. 육각의 두 낯은 그 평면 **안쪽**으로
+           꺾여 들어가므로(방위 8.5도만 비껴도 0.47 안쪽), 갈비의 밑동이 살에 닿는 것은 꼭짓점 한 줄뿐이고
+           양옆은 쐐기꼴로 떠 있었다. 이제 점의 **제 방위**에서 육각 겉면을 물어(`moundHexR9`) 그 자리로
+           벤다 — 밑동이 두 낯을 그대로 타고 앉는다. 0.05 만 더 파고들어 z 싸움도 피한다.
+           땅(z 0)도 한 자 더 물려 밑동 아가리가 땅에 잘린다(그 지적의 "이상한 부분들"). */
+        const seamCut9 = (mx9: number, my9: number, mz9: number): number => {
+          const tz9 = Math.max(0, Math.min(1, mz9 / MND_H));
+          const ang9 = (Math.atan2(mx9, my9) * 180) / Math.PI;
+          return Math.min(Math.hypot(mx9, my9) - (moundHexR9(ang9, moundR(tz9)) - 0.05), mz9);
+        };
+        const seamAxis = (t9: number): [number, number, number] => {
+          const dr9 = -(MND_RB - MND_RT) * MND_P * (1 - t9) ** (MND_P - 1);
+          const nl9 = Math.hypot(dr9, MND_H) || 1;
+          const off9 = seamH9(t9) - seamW(t9) * SEAM_UMAX9;
+          const r9 = moundR(t9) * SEAM_OUT9 + (MND_H / nl9) * off9;
+          return [dxr * r9, dyr * r9, MND_H * t9 + (-dr9 / nl9) * off9];
+        };
         const seamPillar = spirePillar({
           // 밑동은 굵게 열고 위로 갈수록 가늘게 — 아래 단면이 곧 입구다.
           x: 0, y: 0, h: 0.8, w: SEAM_W, tipW: SEAM_TIP,
-          segs: 8, sides: 6, hold: SEAM_HOLD, taper: 1.6,
+          /* ★ **t 0 단면이 곧 들머리다** — 뚜껑은 위에만 있으므로(`caps: "top"`) 아래는 열려 있고,
+             아래 `cutFace` 가 지면(z 0)을 물려 그 아가리를 땅에서 깔끔히 자른다. 그 자리에 굴 속과
+             테두리를 아래에서 따로 세운다(지적: "이상한 부분들" 의 매달린 아가리는 그 손으로 닫혔다). */
+          /* ★ **단면은 삼각이다**(2026-09, 요청: "해처리 옆기둥 … 지금 보이는 부분이 사다리꼴 튜브잖아 ·
+             이걸 삼각형 튜브로 바꿔 줘") — 육각을 겉면에서 베면 드러나는 옆선이 낯 셋(사다리꼴)이라
+             둔덕에 얹힌 관으로 읽혔다. 낯을 **셋**으로 줄이고 `ref` 를 바깥 반지름 방향으로 주면
+             u 축이 곧 바깥이라 `phase: 0` 에서 **꼭짓점 하나가 바깥**을 보고 마주 보는 변이 살에 눕는다
+             — 곧 등마루가 선 갈비다. ⚠ u/v 가 어느 세계 축인지는 ref 로 못 박아야 안 흔들린다. */
+          /* ⚠ 옆으로는 **죈다**(`oval` 0.5) — 안 죄면 밑변이 반지름의 1.73배라 둔덕의 완만한
+             밑동에 눕는 **넓적한 판때기**가 된다(실측). 등마루가 솟아야 삼각 튜브로 읽힌다. */
+          segs: 8, sides: 12, phase: SEAM_PH9, ref: [dxr, dyr, 0], oval: 0.91, trueNormal: true,
+          radOf: seamRad9,
+          hold: SEAM_HOLD, taper: 1.6,
+          /* ⚠⚠ **뚜껑은 `cutFace` 를 안 지난다**(2026-09, 지적: "옆기둥의 단면이 육각형인데 그럼 안 되고
+             길이의 위쪽 반만 보여야 해") — 옆 낯은 둔덕 겉면에서 베어 바깥 반쪽만 남는데, 밑동 뚜껑은
+             그 문을 안 거쳐 **온전한 육각**으로 남아 기둥이 둔덕에 얹힌 막대로 읽혔다('skipFace 는 옆
+             낯에만 걸린다'는 그 규약의 cutFace 판이다). 축을 들어 단면이 통째로 밖에 선 지금은 그 뚜껑이
+             곧 **삼각 들머리**다 — 위만 덮고 **아래는 뚫어 둔다**(요청: "아래 입구 마개는 없애도 돼" ·
+             "뚤려야해" — 덮던 검은 반원 판도 걷었다). */
+          caps: "top",
           // 둔덕 옆선을 그대로 타는 축 — 표면에 반쯤 묻혀 한 몸으로 이어진다.
-          path: seamAxis,
+          path: (t9: number): [number, number, number] => seamAxis(SEAM_T0_9 + (1 - SEAM_T0_9) * t9),
           fill: seamColor,
           /* ★★ **살 속의 반쪽은 아예 베어 낸다**(2026-09, 요청: "옆 기둥의 아래 반 잘라서 아예 안 보이게 위 반만
              남는 게 맞음") — 축을 겉면 위에 두어 '반쯤 묻힘'을 냈지만 **안쪽 반의 낯이 그대로 있어** 둔덕 살과
              같은 자리에서 z 싸움을 하고 밑동 단면도 온전한 육각으로 드러났다. `cutFace`(음수 = 파낼 쪽)로
              **둔덕 겉면**을 0 선 삼아 베면 남는 것이 정확히 바깥 반쪽이다 — 기둥이 곧 둔덕에 난 갈비가 된다.
              ⚠ 기둥 각은 육각의 **꼭짓점**(35 + k·60)이라 그 방위의 겉면 거리가 곧 `moundR`(외접)이다. */
-          cutFace: (mx9, my9, mz9): number => (mx9 * dxr + my9 * dyr)
-            - moundR(Math.max(0, Math.min(1, mz9 / MND_H))),
+          cutFace: seamCut9,
         });
         /* 캐노피·동그라미 입구 표현 모두 제거(재지적) — 옆면 기둥의 굵게 열린 아래
            단면 자체가 들머리 노릇을 한다. */
         out.push(...tagKey(seamPillar, depKey9));
-        /* ★ **밑동은 구멍이다**(2026-09, 요청: "해처리류 옆선 기둥끝 바닥쪽에 구멍 표현 추가") — 기둥의 아래 단면이 곧 입구라던
-           자리에 진짜 어두운 구멍을 판다: 밑동 축 방향(옆선 접선 = 바깥·아래 28도)으로 놓인 짧은 검은 관(반지름 1.0 · 밑동 1.5 의
-           2/3)이 뚜껑 위에 앉아 살색 테 안이 검게 패어 보인다. 끝을 0.05 밖으로 내어 뚜껑과 z 싸움을 피한다. */
+        /* ★ **밑동 아가리에는 테두리가 한 겹 있다**(2026-09, 요청: "옆기둥 아래쪽 입구에 테두리 처리를
+           줘서 입체감 좀 느껴지게") — 땅에 잘린 아가리가 맨 단면이라 갈비가 판때기로 끝났다. 같은 축·같은
+           단면을 `SEAM_RIM_K9` 만큼 굵게 한 토막 더 끼우면 아가리 둘레에 **턱**이 서서 '속이 있는 들머리'로
+           읽힌다. 자를 기둥과 나눠 쓰므로(seamAxis·seamW·seamRad9·seamCut9) 어느 각에서도 안 어긋난다. */
         {
-          const a0 = seamAxis(0); const a1 = seamAxis(0.02);
-          const dl = Math.hypot(a1[0] - a0[0], a1[1] - a0[1], a1[2] - a0[2]) || 1;
-          const dv: [number, number, number] = [(a0[0] - a1[0]) / dl, (a0[1] - a1[1]) / dl, (a0[2] - a1[2]) / dl];   // 밑동 밖 방향
-          /* ★★ **입구는 온원이 아니라 반원이다**(2026-09, 지적: "옆기둥은 위쪽 반만 드러나기 때문에 마지막 입구가 보일
-             때도 반원으로 보여야 해") — 기둥은 둔덕에 반쯤 묻힌 갈비라 **등 쪽 반만** 드러난다. 그런데 밑동 구멍은 둥근
-             관이라 온원으로 떠, 기둥과 입구가 서로 다른 몸으로 읽혔다. 이제 단면 평면(가로 `w9` × 겉면 법선 `n9`)에서
-             **+n9 쪽 반만** 도는 반원 판이다 — 평평한 지름이 둔덕 겉면에 눕고 둥근 쪽이 등으로 솟는다.
-             ⚠ 축(dv)은 바깥·아래 28도라 단면 평면도 그만큼 기운다 — 수평면에서 반원을 그리면 입구가 기둥과 안 맞물린다. */
-          const w9: [number, number, number] = [-dyr, dxr, 0];
-          const cx9: [number, number, number] = [
-            dv[1] * w9[2] - dv[2] * w9[1], dv[2] * w9[0] - dv[0] * w9[2], dv[0] * w9[1] - dv[1] * w9[0],
+          /* 아가리 단면의 틀 — 그 자리 접선에 수직인 u(바깥 반지름 쪽)·v 를 세운다. */
+          const MT9 = 0.02;
+          const eM9 = 0.012;
+          const M0 = seamAxis(MT9 - eM9);
+          const M1 = seamAxis(MT9 + eM9);
+          const ml9 = Math.hypot(M1[0] - M0[0], M1[1] - M0[1], M1[2] - M0[2]) || 1;
+          const mT: [number, number, number] = [
+            (M1[0] - M0[0]) / ml9, (M1[1] - M0[1]) / ml9, (M1[2] - M0[2]) / ml9,
           ];
-          const cl9 = Math.hypot(cx9[0], cx9[1], cx9[2]) || 1;
-          const sg9 = cx9[2] < 0 ? -1 : 1;   // 겉면 법선은 늘 바깥·위
-          const n9: [number, number, number] = [sg9 * cx9[0] / cl9, sg9 * cx9[1] / cl9, sg9 * cx9[2] / cl9];
-          const NR9 = SEAM_W * 0.96;
-          const N9m = 10;
-          const pts9: [number, number, number][] = [];
-          for (let i9 = 0; i9 <= N9m; i9 += 1) {
-            const th9 = (i9 / N9m) * Math.PI;
-            const c9 = Math.cos(th9); const s9 = Math.sin(th9);
-            pts9.push([
-              a0[0] + dv[0] * 0.06 + (w9[0] * c9 + n9[0] * s9) * NR9,
-              a0[1] + dv[1] * 0.06 + (w9[1] * c9 + n9[1] * s9) * NR9,
-              a0[2] + dv[2] * 0.06 + (w9[2] * c9 + n9[2] * s9) * NR9,
-            ]);
-          }
-          out.push(...tagKey([[polyPath3(pts9), 1, "#15120f"] as ShapeFace], depKey9 + 0.02));
+          const md9 = dxr * mT[0] + dyr * mT[1];
+          let mUx = dxr - mT[0] * md9; let mUy = dyr - mT[1] * md9; let mUz = -mT[2] * md9;
+          const mul9 = Math.hypot(mUx, mUy, mUz) || 1;
+          mUx /= mul9; mUy /= mul9; mUz /= mul9;
+          const mV: [number, number, number] = [
+            mT[1] * mUz - mT[2] * mUy, mT[2] * mUx - mT[0] * mUz, mT[0] * mUy - mT[1] * mUx,
+          ];
+          const MP = seamAxis(MT9);
+          const mouthAt9 = (a9: number, k9: number): [number, number, number] => {
+            const r9 = seamW(MT9) * seamRad9(a9) * k9;
+            const c9 = Math.cos(a9) * r9;
+            const s9 = Math.sin(a9) * r9 * 0.91;
+            return [
+              MP[0] + mUx * c9 + mV[0] * s9,
+              MP[1] + mUy * c9 + mV[1] * s9,
+              MP[2] + mUz * c9 + mV[2] * s9,
+            ];
+          };
+          /* ⓐ 굴 속 — 축을 따라 안으로 들어가는 어두운 관(끝은 뚜껑). `trueNormal` 을 안 주어
+             뒷벽까지 그려야 아가리로 들여다본 속이 검게 찬다. */
+          out.push(...tagKey(spirePillar({
+            x: 0, y: 0, h: 0.8, w: SEAM_W, tipW: SEAM_W,
+            segs: 3, sides: 12, phase: SEAM_PH9, ref: [dxr, dyr, 0], oval: 0.91,
+            radOf: seamRad9, caps: "top", fill: "#15120f",
+            path: (t9: number): [number, number, number] => seamAxis(MT9 + 0.16 * t9),
+            widthOf: (t9: number): number => seamW(MT9 + 0.16 * t9) * 0.86,
+            /* ⚠ 속은 **살로 베지 않는다** — 굴은 대개 살 속에 있으므로 겉면으로 베면 그 자리가
+               도로 뚫려 아가리로 둔덕 살이 비친다(실측: 테 안에 주황이 보였다). 땅만 문다. */
+            cutFace: (_mx9: number, _my9: number, mz9: number): number => mz9,
+          }), depKey9 - 0.02));
+          /* ⓑ 테두리 — 아가리 둘레를 한 바퀴 도는 닫힌 관(커널·캐번 입구의 그 문틀과 같은 자).
+             등뼈가 곧 단면 윤곽이라 t 0 과 1 이 같은 점이어서 저절로 닫힌다. */
+          out.push(...tagKey(spirePillar({
+            x: 0, y: 0, h: 0.8, w: 0.22, tipW: 0.22,
+            segs: 24, sides: 6, caps: "none", fill: seamColor,
+            path: (t9: number): [number, number, number] => mouthAt9(t9 * Math.PI * 2, 1),
+            cutFace: seamCut9,
+          }), depKey9 + 0.02));
         }
         /* 지적: "통일하되 옆선기둥들 중간중간에 개인색 띠 넣기" — 몸통을 테마색
            하나로 굳히면 임자 색이 갈 데가 없어진다. 옆선 기둥의 같은 축 위에 짧은
@@ -4693,57 +4826,80 @@ export function hatcheryMoundFaces(
            향한 조각만 그린다. 뒷면이 애초에 없으니 비칠 것도 없다. 가운데를 1.16배로
            부풀리고 두 끝은 기둥 굵기 그대로라 이음매도 안 보인다.
            색을 안 주는 것이 곧 개인색이다(fill을 주면 고정색이 되어 지적이 뒤집힌다). */
-        for (const [t0, t1] of [[0.2, 0.35], [0.45, 0.6], [0.7, 0.85]] as [number, number][]) {
-          const tm = (t0 + t1) / 2;
-          const A9 = seamAxis(t0);
-          const M9 = seamAxis(tm);
-          const B9 = seamAxis(t1);
-          const axv = B9[0] - A9[0];
-          const ayv = B9[1] - A9[1];
-          const azv = B9[2] - A9[2];
-          const L9 = Math.hypot(axv, ayv, azv) || 1;
-          const tX = axv / L9;
-          const tY = ayv / L9;
-          const tZ = azv / L9;
-          /* 단면을 세울 두 벡터 — 축이 거의 수직이라 수평면에서 잡으면 충분하다. */
-          let uX = -tY;
-          let uY = tX;
-          let uZ = 0;
+        /* ★ **틀은 '그 지점의 기울기'로 세운다**(2026-09, 지적: "임자색 데칼은 그지점의 기울기에 수직으로
+           주면 되고") — 여태는 t0 → t1 의 **현** 하나로 틀을 잡았는데, 둔덕 옆선은 지수 3.2 로 굽어 밑동과
+           중턱의 기울기가 크게 다르다. 그래서 띠의 두 끝이 그 자리 살을 비스듬히 잘라 기울어진 마름모로
+           읽혔다. 끝마다 **제 접선**(seamAxis 의 미분)으로 틀을 세우면 두 끝이 다 그 지점의 기울기에 수직이다.
+           u 는 축에 수직인 **바깥 반지름 방향**이라 각 0 이 곧 등마루다(기둥의 `ref` 와 같은 자). */
+        const seamFrame9 = (t9: number): {
+          P: [number, number, number];
+          u: [number, number, number];
+          v: [number, number, number];
+        } => {
+          const e9 = 0.012;
+          const A0 = seamAxis(Math.max(0, t9 - e9));
+          const A1 = seamAxis(Math.min(1, t9 + e9));
+          const L9 = Math.hypot(A1[0] - A0[0], A1[1] - A0[1], A1[2] - A0[2]) || 1;
+          const tX = (A1[0] - A0[0]) / L9;
+          const tY = (A1[1] - A0[1]) / L9;
+          const tZ = (A1[2] - A0[2]) / L9;
+          const rd9 = dxr * tX + dyr * tY;
+          let uX = dxr - tX * rd9;
+          let uY = dyr - tY * rd9;
+          let uZ = -tZ * rd9;
           const uL = Math.hypot(uX, uY, uZ);
           if (uL < 1e-3) { uX = 1; uY = 0; uZ = 0; } else { uX /= uL; uY /= uL; uZ /= uL; }
-          const vX = tY * uZ - tZ * uY;
-          const vY = tZ * uX - tX * uZ;
-          const vZ = tX * uY - tY * uX;
-          const N9 = 6;
-          const ring = (
-            P9: [number, number, number], r9: number, i9: number,
-          ): [number, number, number] => {
-            const a9 = (i9 / N9) * Math.PI * 2;
-            const c9 = Math.cos(a9);
-            const s9 = Math.sin(a9);
-            return [
-              P9[0] + (uX * c9 + vX * s9) * r9,
-              P9[1] + (uY * c9 + vY * s9) * r9,
-              P9[2] + (uZ * c9 + vZ * s9) * r9,
-            ];
+          return {
+            P: seamAxis(t9),
+            u: [uX, uY, uZ],
+            v: [tY * uZ - tZ * uY, tZ * uX - tX * uZ, tX * uY - tY * uX],
           };
-          const rA = seamW(t0);
-          const rM = seamW(tm) * 1.16;
-          const rB = seamW(t1);
-          for (let i9 = 0; i9 < N9; i9 += 1) {
-            const am = ((i9 + 0.5) / N9) * Math.PI * 2;
+        };
+        const N9 = 12;
+        const SQ9 = 0.91;                  // 기둥과 같은 옆 죔(oval)
+        const DK9 = 1.035;                 // 낯 위 띄움 — 살 두께의 3.5%(z 싸움만 피하면 된다)
+        const ringAt9 = (
+          fr: { P: [number, number, number]; u: [number, number, number]; v: [number, number, number] },
+          r9: number, i9: number,
+        ): [number, number, number] => {
+          const a9 = SEAM_PH9 + (i9 / N9) * Math.PI * 2;
+          const rk9 = seamRad9(a9);
+          const c9 = Math.cos(a9) * rk9;
+          const s9 = Math.sin(a9) * rk9 * SQ9;
+          return [
+            fr.P[0] + (fr.u[0] * c9 + fr.v[0] * s9) * r9,
+            fr.P[1] + (fr.u[1] * c9 + fr.v[1] * s9) * r9,
+            fr.P[2] + (fr.u[2] * c9 + fr.v[2] * s9) * r9,
+          ];
+        };
+        /* ★ **띠는 넷이고 양옆 밑동까지 닿는다**(2026-09, 지적: "임자띠만 아래쪽에 1개 더 추가하고
+           임자띠가 양옆 아래로 닿게 해야지 지금 좀 모자라게 덮고 있잖아") — 셋이라 밑동 한 뼘이
+           비었고, 낯 다섯(등마루 둘레 ±75도)만 덮어 옆벽 아래가 맨살로 남았다. 띠를 하나 더 내려
+           깔고, 덮는 낯을 **살에 묻히는 두 모서리 너머**(255도 ~ 105도)까지 넓힌다 — 살 속에 든
+           몫은 어차피 안 보이므로 '모자라게 덮는' 쪽보다 넘치게 두는 것이 옳다. */
+        for (const [t0, t1] of [
+          [0.05, 0.19], [0.3, 0.43], [0.52, 0.65], [0.74, 0.87],
+        ] as [number, number][]) {
+          const FA = seamFrame9(t0);
+          const FB = seamFrame9(t1);
+          /* ★ **마디가 아니라 낯 위의 평면 데칼이다**(2026-09, 요청: "옆기둥 데칼은 단순하게 그냥 면 위에
+             평면 데칼로 추가한다고 보면 돼") — 여태는 기둥보다 1.16배 굵은 토막이라 삼각 갈비 위에 상자가
+             얹힌 꼴이었다. 이제 **바깥 두 낯 위에 한 뼘 띄운 네모 한 장씩**만 얹는다: 꼴은 갈비 그대로고
+             색만 임자 색으로 갈린다(칠하지 않는 것이 곧 임자 색이다 — 그 규약).
+             ⚠ 안쪽 낯(i9 1 · 각 180도)은 살을 보는 쪽이라 애초에 안 얹는다. */
+          const rA = seamW(t0) * DK9;
+          const rB = seamW(t1) * DK9;
+          /* 등마루 둘레 여덟 낯 — 양옆 모서리(120·240도)를 지나 살 속까지 내려간다. */
+          for (const i9 of [8, 9, 10, 11, 0, 1, 2, 3]) {
+            const am = SEAM_PH9 + ((i9 + 0.5) / N9) * Math.PI * 2;
             const cm = Math.cos(am);
             const sm = Math.sin(am);
-            if (facingRatio(uX * cm + vX * sm, uY * cm + vY * sm) <= 0.06) continue;
-            const lo = polyPath3([
-              ring(A9, rA, i9), ring(A9, rA, i9 + 1), ring(M9, rM, i9 + 1), ring(M9, rM, i9),
+            if (facingRatio(FA.u[0] * cm + FA.v[0] * sm, FA.u[1] * cm + FA.v[1] * sm) <= 0.06) continue;
+            const d9 = polyPath3([
+              ringAt9(FA, rA, i9), ringAt9(FA, rA, i9 + 1),
+              ringAt9(FB, rB, i9 + 1), ringAt9(FB, rB, i9),
             ]);
-            const hi9 = polyPath3([
-              ring(M9, rM, i9), ring(M9, rM, i9 + 1), ring(B9, rB, i9 + 1), ring(B9, rB, i9),
-            ]);
-            out.push(...tagKey([
-              bodyFace(lo), bodyFace(hi9), topFace(hi9, 0.16),
-            ], depKey9 + 0.01));
+            out.push(...tagKey([bodyFace(d9), topFace(d9, 0.16)], depKey9 + 0.01));
           }
         }
       }
@@ -15287,7 +15443,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 합본(SHAPE_BUILDERS.hatchery)이 아니라 **둔덕 함수를 직접** 부른다 — 둘은 지금
        같은 것이지만, 합본을 부르면 나중에 해처리에만 무엇이 붙을 때 레어가 조용히
        따라온다. 부품을 나눠 쓰는 자리는 부품 함수여야 한다. */
-    ...hatcheryMoundFaces("#3a3f46", "#1b1e23", { n: 4, w: 0.56, h: 2.3 }, 0.59),
+    ...hatcheryMoundFaces("#3a3f46", "#1b1e23", { n: 4, w: 0.56, h: 2.3, claw: IVORY }, 0.59),
     ...((): ShapeFace[] => {
       const h9 = mouthHorn9({ ang: -55, tipZ: 9.28, w: 2.6, fill: "#1b1e23", tipW: 0.34, taper: 1.15 });
       const k9 = depthNow(-5.324, 3.728) * 1.6;
@@ -18264,8 +18420,37 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
                뿌리 쪽으로 0.8배 당긴다(up9). 날개막·플라즈마·미늘도 팔 끝에 매달린 것이라 같은 자로 당긴다. */
             ...armHorn([m8 * 1.0, -0.6, 4.72], up9(m8 * 1.65, 1.0, 4.44), up9(m8 * 2.05, 3.0, 4.24),
               0.5, 0.16),
+            /* ★ **막의 뒷자락은 한 번에 휘는 초승달이다**(2026-09, 사진 요청: 커세어 그림 위에 붉은
+               선으로 뒷자락 하나를 그어 보였다) — 앞 판은 세 점을 **무게중심 쪽으로 파인** 호 둘로
+               이어 박쥐 날개의 가리비를 냈는데, 사진의 선은 반대다: 팔 끝(B)에서 바깥으로 **불룩하게**
+               부풀었다가 뿌리(A)로 되돌아오는 **한 줄기 활**이고, 가운데 꼭짓점(C)에서 꺾이지 않는다.
+               그래서 호를 하나로 합치고 배를 바깥으로 낸다 — 2차 베지에의 조종점을 `2C − (A+B)/2` 로
+               두면 t 0.5 에서 정확히 C 를 지나므로(그 점이 곧 배의 꼭대기다) 꺾임 없이 C 를 품는다.
+               `BOW9` 는 거기서 더 부풀리는 몫이다(1 이면 C 를 지나는 최소 활).
+               앞 변(A→B)은 팔이 받치는 자리라 곧게 둔다. */
             ...tagKey(((): ShapeFace[] => {
-              const d9 = polyPath3([up9(m8 * 1.15, -0.9, 4.68), up9(m8 * 2.0, 2.9, 4.24), up9(m8 * 2.55, -0.4, 3.92)]);
+              const A9 = up9(m8 * 1.15, -0.9, 4.68);
+              const B9 = up9(m8 * 2.0, 2.9, 4.24);
+              const C9 = up9(m8 * 2.55, -0.4, 3.92);
+              const BOW9 = 1.22;
+              const mid9: [number, number, number] = [
+                (A9[0] + B9[0]) / 2, (A9[1] + B9[1]) / 2, (A9[2] + B9[2]) / 2,
+              ];
+              const cp9: [number, number, number] = [
+                mid9[0] + (C9[0] - mid9[0]) * 2 * BOW9,
+                mid9[1] + (C9[1] - mid9[1]) * 2 * BOW9,
+                mid9[2] + (C9[2] - mid9[2]) * 2 * BOW9,
+              ];
+              const ps: [number, number, number][] = [];
+              for (let i9 = 1; i9 < 12; i9 += 1) {
+                const t9 = i9 / 12; const u9 = 1 - t9;
+                ps.push([
+                  u9 * u9 * B9[0] + 2 * u9 * t9 * cp9[0] + t9 * t9 * A9[0],
+                  u9 * u9 * B9[1] + 2 * u9 * t9 * cp9[1] + t9 * t9 * A9[1],
+                  u9 * u9 * B9[2] + 2 * u9 * t9 * cp9[2] + t9 * t9 * A9[2],
+                ]);
+              }
+              const d9 = polyPath3([A9, B9, ...ps]);
               return [[d9, 1, TOSS_GOLD] as ShapeFace, topFace(d9, 0.18)];
             })(), partKey(...up9(m8 * 1.9, 0.5, 4.32)) + 0.05),
             /* 위팔 끝의 **누운 계란** 플라즈마 덩이(요청) — 팔 끝 **안쪽**에 더 작게 붙고,
@@ -25175,22 +25360,35 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     out.push(topFace(discPath3(-2.3, -0.3, 3.12, 0.4, 0.55), 0.4));
     out.push(topFace(discPath3(2.3, -0.3, 3.12, 0.4, 0.55), 0.4));
     // 등 뒤 엔진 짐 — 하나만 남기고 밝은 사이언색(요청).
-    out.push(...paintBase(domeFaces3(0, -2.3, 0.95, 0.64, 3.36), "#b6faf1"));
+    // ★ 금색이다(2026-09, 요청: "셔틀 동체 위의 수정색 반구를 금색으로") — 옛 밝은 사이언은 걷었다.
+    out.push(...paintBase(domeFaces3(0, -2.3, 0.95, 0.64, 3.36), TOSS_GOLD));
     /* 꼬리 금색 추진체 둘(요청: "셔틀 — 꼬리에 금색 추진체 둘") — 몸통 꽁무니에서
        뒤로 뻗는 짧은 관 한 쌍. 관 프리미티브라 제 각도의 끝 단면을 스스로 그리고,
        뒤를 볼 때만 포구가 어두워진다. 그 앞에 플라즈마 불꽃 원반을 한 장 세운다. */
-    for (const m8 of [-1, 1] as const) {
-      const tx = m8 * 1.15;
-      out.push(...tagKey(paintBase(
-        tubeFaces(tx, -2.15, tx, -3.5, 0.42, 3.08, true), TOSS_GOLD_D,
-      ), partKey(tx, -2.8, 3.08)));
+    /* ★ **꼬리 추진체는 하나이고 옆으로 넙적한 타원이다**(2026-09, 요청: "셔틀 스러스터 1개로 줄이되
+       옆으로 넙적한 타원으로 변경하고 추진효과도 그렇게 맞추기") — 나란히 선 둥근 관 한 쌍을 가운데
+       한 채로 모은다. 원 단면인 `tubeFaces` 로는 못 내므로 `spirePillar` 로 짓는다: 축이 −y 이고
+       `ref` 가 위(z)면 u 가 높이·v 가 옆이라, **반높이를 w 로 주고 `oval` 에 가로/세로 비**를 주면
+       그대로 넙적한 타원이다(눌린 단면이라 `trueNormal` — 그 ★★ 규약).
+       ⚠ 테(`nozzleRim9`)·불꽃(`thrustFlame`)도 **같은 비**(`ex`)로 늘린다 — 관만 넙적하면 둥근 불이
+       아가리 속에 박힌 꼴이 된다('한 줄로 꿴 부품은 한 값으로 옮겨라'의 그 자리다). */
+    {
+      const TZ9 = 0.42;                 // 반높이(옛 관의 반지름 그대로)
+      const TEX9 = 4.2;                 // 가로/세로 비 — 반폭 1.76(옛 두 관의 바깥 가장자리 1.57 언저리)
+      out.push(...tagKey(paintBase(spirePillar({
+        x: 0, y: 0, h: 0.8, w: TZ9, tipW: TZ9, segs: 1, sides: 16,
+        oval: TEX9, ref: [0, 0, 1], trueNormal: true, caps: "both",
+        path: (t9: number): [number, number, number] => [0, -2.15 - 1.35 * t9, 3.08],
+        widthOf: (): number => TZ9,
+      }), TOSS_GOLD_D), partKey(0, -2.8, 3.08)));
       if (poseNow === 1 && facingRatio(0, -1) > 0.05) {   // 이동할 때만(요청)
         out.push(...tagKey([
-          [wallDiscPath(tx, -3.55, 3.08, 0.36, 0.24), 0.85, P_PLASMA] as ShapeFace,
-        ], partKey(tx, -3.55, 3.08) + 0.5));
+          [wallDiscPath(0, -3.55, 3.08, 0.36 * TEX9, 0.24), 0.85, P_PLASMA] as ShapeFace,
+        ], partKey(0, -3.55, 3.08) + 0.5));
       }
-      out.push(...nozzleRim9(tx, -3.50, 3.08, 0.38, partKey(tx, -4.2, 3.08) + 0.3, { th: 0.1, dep: 0.85, fill: TOSS_GOLD_D }));
-      if (poseNow === 1) out.push(...thrustFlame(tx, -3.55, 3.08, 0.38, "toss", partKey(tx, -4.2, 3.08) + 0.4));
+      out.push(...nozzleRim9(0, -3.50, 3.08, 0.38, partKey(0, -4.2, 3.08) + 0.3,
+        { th: 0.1, dep: 0.85, fill: TOSS_GOLD_D, ex: TEX9, sides: 16 }));
+      if (poseNow === 1) out.push(...thrustFlame(0, -3.55, 3.08, 0.38, "toss", partKey(0, -4.2, 3.08) + 0.4, TEX9));
     }
     // 아가리 어두운 속은 제거(지적: 앞 검정 반투명 부품) — 빛 줄만 남긴다.
     out.push(topFace(curvePath3([-1.6, 1.1, 3.12], [

@@ -2888,8 +2888,10 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
       ctx.beginPath(); ctx.arc(ax + ox, ay - W * 0.15 - W * 0.9 * q, W * (0.22 + 0.58 * q), 0, Math.PI * 2); ctx.fill();
     }
   } else if (wet) {
+    /* ★ **핏방울은 열여섯이다**(2026-09, 요청: "생체유닛 사망시 피방울 양 2배로 늘리기") — 여덟의 두 배다.
+       낱개 자·튀는 거리는 그대로라 '더 많이 튄다'만 는다(덜어내기는 위 낱개 파편이 따로 진다). */
     ctx.fillStyle = DROP9[mat] ?? pal[0];
-    for (let i = 0; i < 8; i += 1) {
+    for (let i = 0; i < 16; i += 1) {
       const an = rnd() * Math.PI * 2; const v = W * (0.5 + rnd() * 0.7);
       const x = ax + Math.cos(an) * v * ease, y = ay + Math.sin(an) * v * ease * 0.6 - W * 0.2 * ease + W * 0.9 * p * p;
       ctx.globalAlpha = (1 - p) * 0.9;
