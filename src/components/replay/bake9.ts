@@ -17136,10 +17136,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           /* ★ 뿌리를 **얼굴 위 양옆**으로(2026-09, 요청: "디바우러 더듬이 더 앞아래로 이동(얼굴 위 양옆에 붙이기)") — 옛 뿌리
              (±0.75, 1.55, Z0+0.55)는 투구 앞 위였다. 얼굴(HY 2.1 · HZ Z0−0.92 · s 0.864)의 머리뼈 위쪽 옆(z HZ+0.9 에서 반폭 0.47)
              인 (±0.5, 2.2, Z0−0.02)에 박는다. 뻗는 벡터(뒤·바깥·위)는 그대로라 끝은 여전히 껍질 위로 솟는다(끝 Z0+1.33 · 돔 Z0+0.38). */
+          /* ★ 등에 안 묻히게(2026-09, 지적: "더듬이가 등에 파묻히지 않게") — 옛 조종점(Z0+0.93)·끝(Z0+1.33)은 그 자리 돔 겉면
+             (Z0+0.78 · Z0+0.38)에서 0.15~0.95 위였는데 잎은 45도로 선 반폭 0.62 라 아래 가장자리가 돔에 잠겼다. 조종점을 앞·위
+             (±1.0, 1.9, Z0+1.5)로 세워 뿌리에서 곧장 솟게 하고 끝을 Z0+2.1 로 — 잎 한가운데가 돔 위 0.6, 가장자리도 위다. */
           return [
-            m9 * bz(0.5, 0.5 + 0.72, 0.5 + 1.4),
-            bz(2.2, 2.2 - 1.24, 2.2 - 2.12),
-            bz(Z0 - 0.02, Z0 - 0.02 + 0.95, Z0 - 0.02 + 1.35),
+            m9 * bz(0.5, 1.0, 1.9),
+            bz(2.2, 1.9, 0.08),
+            bz(Z0 - 0.02, Z0 + 1.5, Z0 + 2.1),
           ];
         },
         // 럭비공: 옛 폭(0.54~1.04)의 0.75배를 가장 넓은 자리(t 0.42)로 하고 양끝은 점으로.
@@ -17165,8 +17168,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const YH9 = CY9 + 0.8; const ZH9 = ZT9 - 0.3;
       for (const m9 of [-1, 1] as const) {
         const ca9 = Math.cos(LIFT9); const sa9 = Math.sin(LIFT9);
+        /* ★ 극점까지 잇는다(2026-09, 지적: "날개 맨 위가 왜 둥글게 패여있어?") — 극각을 0.12 에서 시작하니 정수리 둘레에 반지름
+           0.29 짜리 둥근 구멍이 남아 그 밑의 돔(3% 낮다)이 패인 것으로 비쳤다. θ 0 부터 굽고 첫 고리는 극점 한 점으로 모은 삼각형이다. */
         const pt9 = (i: number, j: number): [number, number, number] => {
-          const th9 = 0.12 + 1.13 * (i / NTH9);
+          const th9 = 1.25 * (i / NTH9);
           const ph9 = -PHW9 + 2 * PHW9 * (j / NPH9);
           const x9 = R9 * Math.sin(th9) * Math.cos(ph9); const y9 = CY9 + R9 * Math.sin(th9) * Math.sin(ph9);
           const z9 = ZB9 + H9 * Math.cos(th9);
@@ -17176,7 +17181,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const shell9: ShapeFace[] = [];
         for (let i = 0; i < NTH9; i += 1) {
           for (let j = 0; j < NPH9; j += 1) {
-            const q9 = m9 > 0 ? [pt9(i, j), pt9(i, j + 1), pt9(i + 1, j + 1), pt9(i + 1, j)] : [pt9(i, j + 1), pt9(i, j), pt9(i + 1, j), pt9(i + 1, j + 1)];
+            const q9 = i === 0
+              ? (m9 > 0 ? [pt9(0, 0), pt9(1, j + 1), pt9(1, j)] : [pt9(0, 0), pt9(1, j), pt9(1, j + 1)])
+              : (m9 > 0 ? [pt9(i, j), pt9(i, j + 1), pt9(i + 1, j + 1), pt9(i + 1, j)] : [pt9(i, j + 1), pt9(i, j), pt9(i + 1, j), pt9(i + 1, j + 1)]);
             shell9.push([polyPath3(q9), 1] as ShapeFace);
           }
         }
