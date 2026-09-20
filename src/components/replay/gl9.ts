@@ -1870,10 +1870,12 @@ export const GL_GL2_9 = !(typeof location !== "undefined" && /gl2=0/.test(locati
 export const GL_INST9 = !(typeof location !== "undefined" && /glinst=0/.test(location.hash));
 /** 데칼 깊이 편향(모델 칸, 유닛 0.8 · 건물 1.3) — 진단 `#glbias=N` 으로 못 박아 본다(-1 = 메시별 기본). */
 export const GL_BIAS9 = ((): number => { const m = typeof location !== "undefined" ? /glbias=([\d.]+)/.exec(location.hash) : null; return m ? Number(m[1]) : -1; })();
-/** ★ **몸 그림자(빛 방향으로 눕힌 사영 실루엣)는 끈다**(2026-09, 요청: "소환구 자체 그림자는 제거(공통 그림자만 사용)" →
- *  "모든 모델의 자체 그림자 제거") — 몸마다 제 실루엣을 바닥에 한 번 더 그리던 패스 ① 이 통째로 빠지고, 유닛은 공통 접지
- *  타원(캔버스)만 진다. 견줘 보려면 `#glshadow=1`. */
-export const MESH_SHADOW9 = typeof location !== "undefined" && /glshadow=1/.test(location.hash);
+/** ★ **몸 그림자(빛 방향으로 눕힌 사영 실루엣)의 손 스위치** — `#glshadow=1` 강제 켬 · `#glshadow=0` 강제 끔 · 없으면
+ *  기기 단 표(DEV9.meshShadow — PC 높음부터 · 배율 DEV9.meshShadowMinZoom 부터)가 정한다. 옛날엔 기본 꺼짐이었다
+ *  (2026-09, 요청: "소환구 자체 그림자는 제거" → "모든 모델의 자체 그림자 제거" — 발광 종류는 지금도 뺀다). 2026-09 재요청:
+ *  "pc 3티어에서 그림자를 동그라미 말고 실제 사영 그림자로 · 4배부터" → "그렇게 무리 가는 기능 아니면 높음부터". */
+export const MESH_SHADOW9: boolean | null = typeof location === "undefined" ? null
+  : /glshadow=1/.test(location.hash) ? true : /glshadow=0/.test(location.hash) ? false : null;
 /** 진단 `#glblit=0` — GL 층을 **숨긴다**(display:none — 문맥·그리기는 그대로 돈다). 헤드리스 크로뮴(SwiftShader 소프트웨어 GL)은
  *  보이는 WebGL 캔버스를 합성할 때 ReadPixels 로 서서 한 장이 3초가 된다(실측 p50 3117ms · 옛 drawImage 합성도 같은 값이었다) —
  *  실기 GPU 에는 없는 값이라 perf-check 가 기본으로 붙여 GL 의 CPU 몫(메시 굽기·큐·유니폼)만 잰다. */

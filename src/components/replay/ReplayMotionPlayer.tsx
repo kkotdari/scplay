@@ -814,6 +814,8 @@ type BenchTier9 = {
   aheadSec: number; aheadMB: number;
   glMeshMax?: number; glBloom?: boolean; glSpec?: boolean; yaw8Always?: boolean; live3d?: boolean;
   shadowGroundMinZoom?: number; decalBakeMax?: number; hitShardK?: number; dieShards?: number;
+  /** 사영 그림자(gl9 패스 ①)를 켜는 단 · 그 단의 배율 문턱 — 아래 meshShadow9() 의 ★. */
+  meshShadow?: boolean; meshShadowMinZoom?: number;
   /** MRT 판의 MSAA 표본 수 · 효과 심의 곡선 마디 몫(gl9.msaa · glctx9.qual) — 아래 '사양이 올라간 듯'의 ★. */
   glMsaa?: number; fxQual?: number;
 };
@@ -828,12 +830,15 @@ type BenchTier9 = {
        소프트웨어라 진입에서 재면 값이 기기가 아니라 드라이버를 잰다. */
 const PC_TIERS9: readonly BenchTier9[] = [
   { name: "낮음", upMs: Infinity, aheadSec: 3, aheadMB: 24 },
-  { name: "보통", upMs: 24, aheadSec: 5, aheadMB: 48 },
-  { name: "높음", upMs: 12, aheadSec: 8, aheadMB: 80 },
+  /* ★ 1단(보통)부터 **사영 그림자**(2026-09, 요청: "pc 3티어에서 그림자를 동그라미 말고 실제 사영 그림자로 · 4배부터" →
+     "그렇게 무리 가는 기능 아니면 높음부터" → "pc 보통은? 모바일 높음은?") — 몸의 삼각형을 눕혀 한 번 더 그리는 패스 하나뿐이고,
+     4배(DEV9.meshShadowMinZoom)부터만 켜므로 그때 화면에 드는 몸이 몇십이라 PC GPU 에서는 값이 거의 없다. 벤치 미달(낮음)만 뺀다. */
+  { name: "보통", upMs: 24, aheadSec: 5, aheadMB: 48, meshShadow: true },
+  { name: "높음", upMs: 12, aheadSec: 8, aheadMB: 80, meshShadow: true },
   /* 3단 **매우 높음** — 메모리 8GB(deviceMemory, 크로뮴만 낸다)가 확인되는 기기에서만 오른다. 앞 한도는 2단과 같고,
      이 단이 따로 뜻을 갖는 자리는 결(긁힌 광택)·품질 알림, 그리고 **손짓 중 실시간 원근**(live3d)이다
      (2026-09, 요청: "PC 매우높음에서 3D 제스쳐중 모델도 시점 변화 가능하려나 지금은 지도만 실시간인데"). */
-  { name: "매우 높음", upMs: 12, minMem: 8, aheadSec: 8, aheadMB: 80, live3d: true },
+  { name: "매우 높음", upMs: 12, minMem: 8, aheadSec: 8, aheadMB: 80, live3d: true, meshShadow: true },
 ];
 /* ★ **폰도 세 단이다**(2026-09, 요청: "요즘 폰도 성능차이가 심해서 모바일용 벤치를 별도로 분리하되 3단계로 나누고
    적절히 기능을 넣고 빼야할거 같아. 최고단계에선 광택 글로우도 넣고") ─────────────────────────────────────
@@ -865,7 +870,10 @@ const PHONE_TIERS9: readonly BenchTier9[] = [
     glMeshMax: 300, glSpec: true, glBloom: true, shadowGroundMinZoom: 2, decalBakeMax: 256, hitShardK: 0.8, dieShards: 16, fxQual: 0.8 },
   { name: "높음", upMs: 10, up3Ms: 22, aheadSec: 4, aheadMB: 16,
     glMeshMax: 360, glBloom: true, yaw8Always: false,
-    shadowGroundMinZoom: 1, decalBakeMax: 384, hitShardK: 1, dieShards: 24, glMsaa: 4, fxQual: 1 },
+    shadowGroundMinZoom: 1, decalBakeMax: 384, hitShardK: 1, dieShards: 24, glMsaa: 4, fxQual: 1,
+    /* 사영 그림자는 **8배부터**(PC 는 4배) — 이 단은 번짐·MSAA 4·요잉 16칸이 다 켜진 단이라(지적: "폰도 엄청 뜨거워져") DPR 3 에서
+       실루엣 넓이만큼 더 채우는 몫을 몸이 열 남짓만 드는 배율로 죈다. 뜨거우면 `#glshadow=0`. */
+    meshShadow: true, meshShadowMinZoom: 8 },
 ];
 const DEV9 = smallDevice9 ? {
   name: "phone",
@@ -886,6 +894,8 @@ const DEV9 = smallDevice9 ? {
   glSpec: false,
   /** 손짓 중 실시간 원근을 **재지 않고 켤까**(live3dOn9의 ★) — 폰은 어느 단에서도 안 켠다(제 벤치·실측 자를 탄다). */
   live3d: false,
+  /** 사영 그림자(gl9 패스 ①) — 0·1단은 접지 타원 · 2단(높음)이 8배부터 켠다(위 PHONE_TIERS9). */
+  meshShadow: false, meshShadowMinZoom: 8,
   /** MRT 판 MSAA 표본 수(폰 0·1단 2 · 2단 4) · 효과 심의 곡선 마디 몫(0단 0.6 · 1단 0.8 · 2단 1) — 위 PHONE_TIERS9 의 ★. */
   glMsaa: 2, fxQual: 0.6,
 } : {
@@ -900,6 +910,8 @@ const DEV9 = smallDevice9 ? {
   glBloom: true,
   glSpec: true,
   live3d: false,   // 3단(매우 높음)에서 표가 켠다
+  /** 사영 그림자 — 1단(보통)부터 표가 켠다 · **4배부터**(그 아래는 접지 타원 — 위 PC_TIERS9 의 ★). */
+  meshShadow: false, meshShadowMinZoom: 4,
   glMsaa: 4, fxQual: 1,
 };
 /* ★ **PC는 벤치 단으로 예산을 올린다**(요청: "윈도우 크롬에서 CPU·GPU를 최대한 쓸 수 없을까" → 계획 1번) ────
@@ -991,6 +1003,8 @@ function applyBenchTier9(bench: number): void {
   if (t9.hitShardK !== undefined) DEV9.hitShardK = t9.hitShardK;
   if (t9.dieShards !== undefined) DEV9.dieShards = t9.dieShards;
   if (t9.live3d !== undefined) DEV9.live3d = t9.live3d;
+  if (t9.meshShadow !== undefined) DEV9.meshShadow = t9.meshShadow;
+  if (t9.meshShadowMinZoom !== undefined) DEV9.meshShadowMinZoom = t9.meshShadowMinZoom;
   if (t9.glMsaa !== undefined) DEV9.glMsaa = t9.glMsaa;
   if (t9.fxQual !== undefined) DEV9.fxQual = t9.fxQual;
   DEV9_DIRTY9.v = true;
@@ -5004,7 +5018,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             const gax9 = Math.round(sx * B) / B;
             /* ★ 발광 종류(소환구·아콘 …)는 제 몸 그림자를 안 진다(2026-09, 요청: "소환구 자체 그림자는 제거(공통 그림자만
                사용)") — 빛 공이 빛 방향으로 눕힌 검은 원을 옆에 드리우면 빛이 그림자를 지는 꼴이다. 접지 타원(공통)만 남긴다. */
-            const gsh9 = MESH_SHADOW9 && bodyShadow && !GL_GLOW_KINDS9.has(op.kind)
+            const gsh9 = meshShadow9(zoom) && bodyShadow && !GL_GLOW_KINDS9.has(op.kind)
               ? (gLift9 > 0.5
                 ? { dy: Math.max(1, sidePx * 0.04 + gLift9), alpha: op.alpha * 0.4 }   // 뜬 건물(이사 중)은 아래로 — 벌어짐이 높이다
                 : { ground: true, alpha: op.alpha * SHADOW_ALPHA9 }) : undefined;
@@ -5128,7 +5142,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          *  ⚠ 여기 문이 `op.air && …` 였다 — 공중만 걸러서, **부양 지상 유닛**(일꾼·벌처·아콘류)은 배율이
          *    문턱을 넘으면 메시 그림자와 타원을 **둘 다** 받았다(공중에서 한 번 고쳤던 '그림자가 둘'과 같은 자리다).
          *    이제 타원은 GL 바닥 그림자가 **안 깔리는 프레임의 대타**로만 남는다(덜어내기 · 손짓 중 접힘 · 낮은 배율). */
-        const glShadow9 = MESH_SHADOW9 && !!(glM9 && gl9 && bodyShadow && (op.air || zoom >= shadowGroundMinZoom9()));   // 몸 그림자는 끈다(gl9 MESH_SHADOW9) — 타원이 늘 선다
+        const glShadow9 = meshShadow9(zoom) && !!(glM9 && gl9 && bodyShadow && (op.air || zoom >= shadowGroundMinZoom9()));   // 사영 그림자(PC 높음 · 4배부터) — 그 밖은 타원
         if (hover && !op.noShadow && showShadows !== false && (CROWD9.lv === 0 || op.air) && detail && !shFold9
           && !glShadow9) {
           /* 떠다니는 지상 유닛(일꾼·벌처·아콘류)은 겨우 발밑만 떠 있다(지적: 그림자가
@@ -5360,7 +5374,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
                · 꼭짓점 z 에 **나는 높이**(h, 모형 칸)를 더해 눕힌다 — 그만큼 빛 방향으로 멀리 눕는다.
                · 앵커는 몸과 같으니(몸은 lift 만큼 들려 있다) 화면에서 그 몫을 도로 내린다(dy = lift).
              캔버스 타원은 공중 유닛에서 걷었다(아래 hover 갈래) — 바닥에 누운 실루엣이 그 몫을 대신한다. */
-          const gsh9 = MESH_SHADOW9 && bodyShadow && (op.air || zoom >= shadowGroundMinZoom9())
+          const gsh9 = meshShadow9(zoom) && bodyShadow && (op.air || zoom >= shadowGroundMinZoom9())
             ? (op.air
               ? { ground: true, dy: lift, h: lift / Math.max(1e-3, gk9), alpha: op.alpha * SHADOW_ALPHA9 }
               : { ground: true, alpha: op.alpha * SHADOW_ALPHA9 }) : undefined;
@@ -7342,6 +7356,14 @@ const SHADOW_MIN_ZOOM = 1;
      에서는 1·2배에서도 유닛이 폰보다 크게 그려져 그림자가 제 몫을 한다. 그래서 데스크톱
      에서는 지금 그대로 지상도 그림자를 진다. */
 const shadowGroundMinZoom9 = (): number => DEV9.shadowGroundMinZoom;   // 위 ⚠ — 자리에서 읽는다
+/** ★ **사영 그림자를 깔까**(gl9 패스 ① — 몸의 삼각형을 빛 방향으로 눕혀 바닥에 한 번 더 그린다) — 손 스위치(`#glshadow=1|0`)가
+ *  있으면 그것, 없으면 기기 단 표(`DEV9.meshShadow` · PC 보통부터 · 폰 높음)이고, 배율은 **`DEV9.meshShadowMinZoom`(PC 4 · 폰 8)
+ *  부터**다(2026-09, 요청: "pc 3티어에서 그림자를 동그라미 말고 실제 사영 그림자로 · 4배부터" → "무리 가는 기능 아니면 높음부터"
+ *  → "pc 보통은? 모바일 높음은?").
+ *  그 아래 배율·그 아래 단·폰은 종전대로 접지 타원(캔버스/prim)이다. 프레임마다 읽는다(단이 오르면 곧 먹는다).
+ *  ⚠ 공중 유닛도 같은 문이다 — 옛 `#glshadow=1` 은 공중을 배율과 무관하게 눕혔지만, 낮은 배율에서 나는 몸의 실루엣은 몇
+ *    화소라 타원이 더 읽힌다(뜬 높이의 자리 표시). */
+const meshShadow9 = (zoom: number): boolean => (MESH_SHADOW9 ?? DEV9.meshShadow) && zoom >= DEV9.meshShadowMinZoom;
 /** ★ 전투 효과가 **갈래마다** 서는 칸 — 요청: "2배에서 전투효과: 가시 분출 우리 /
  *  4배에서 전투효과: 피격 / 나머지는 다 8배부터 노출".
  *  여기 적힌 것은 **사다리(가장 이른 칸)** 이고, 실제 칸은 배치의 바닥과 함께 잰다
