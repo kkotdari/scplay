@@ -17398,6 +17398,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* ④ 방패판(재정정: "등에 붙는게 아니라 더듬이처럼 위에 뜬다") — queen1의 그
        등판이다: 꽁무니에서 **팔 한 쌍이 위로 솟고**, 그 끝에 방패판이 몸 위 허공에
        걸린다(지적: "방패와 꽁무니를 잇는 팔같은거도 있어야"). 판은 개인색. */
+    const QS_UP9 = 1.56;   // 방패판이 등 위로 뜨는 높이(팔 끝과 같은 값) — 1.16 → 1.56(재요청: "더 등에서 높이 띄우기")
     for (const m9 of [-1, 1] as const) {
       const key9 = 6.8 + depthNow(m9 * 0.3, -0.4) * 0.3 + (m9 > 0 ? 0.05 : 0);
       // 팔 — 꽁무니 등에서 위·앞으로 굽어 방패 뿌리를 문다.
@@ -17414,7 +17415,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
                뿌리부터 바깥에 두고 끝으로 갈수록 더 벌어지게 한다. */
             m9 * bz(0.72, 0.98, 1.12),
             bz(-2.1, -2.3, -1.5),
-            bz(zAt(-2.1) + 0.16, zAt(-2.3) + 1.04, zAt(-1.5) + 1.16),
+            bz(zAt(-2.1) + 0.16, zAt(-2.3) + 1.3, zAt(-1.5) + QS_UP9),
           ];
         },
       }), DARK), key9 - 0.1));
@@ -17424,10 +17425,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       out.push(...tagKey(spirePillar({
         x: 0, y: 0, h: 0.8, w: 0.36, tipW: 0.10, segs: 4, sides: 6, oval: 2.55, taper: 1.2, trueNormal: true,
         path: (t9: number): [number, number, number] => {
-          const y9 = -1.5 + 2.5 * t9; const y9z9 = -1.2 + 2 * t9; /* z용 쌍둥이(model-z-scale ×0.8) */
+          /* 앞뒤 길이 +20%(재요청: "앞뒤 길이는 20프로 늘리고 더 등에서 높이 띄우기") — 2.5 → 3.0(앞으로) · 띄움 QS_UP9. */
+          const y9 = -1.5 + 3.0 * t9;
           /* 각도도 벌린다(같은 지적) — 앞으로 나갈수록 바깥으로 더 벌어지게 x의
              기울기를 0.26 → 0.62로 키운다. 두 장이 V자로 열려 서로 안 겹친다. */
-          return [m9 * (1.12 + 0.62 * t9), y9, zAt(y9) + 1.16 + 0.12 * t9];
+          return [m9 * (1.12 + 0.62 * t9), y9, zAt(y9) + QS_UP9 + 0.12 * t9];
         },
       }), key9));
     }
