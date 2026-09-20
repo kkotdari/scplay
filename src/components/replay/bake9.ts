@@ -15066,10 +15066,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        원근·바닥 눌림이 전부 저절로 실려, 어느 각도에서도 지면 격자와 같은 평면에
        눕는다. */
     const pond = (px: number, py: number, rx: number, ry: number, key: number): void => {
-      const ring = (k9: number, ox = 0, oy = 0): string => polyPath3(
+      /* ★★ **켜마다 한 뼘씩 올린다**(2026-09, 되지적: "풀 연못에 갈색 조각들 아직도 있어") — 일곱 원반이 **z 0.096 한 평면에
+         겹쳐** 있었다. 2D 는 화가 차례로 안쪽이 위에 얹혀 고운 계단이었지만, GL 은 깊이가 **똑같아** 낯마다 승자가 갈리는
+         z 싸움이 나서, 맨 아래 원반(FLESH_D 갈색)이 밝은 켜를 뚫고 **갈색 얼룩**으로 튀어나왔다(바깥 원반은 못 전체를 덮는
+         꽉 찬 원이다 — 고리가 아니다). 무늬가 요잉마다 바뀌는 것이 곧 그 증거다.
+         `ZS9`(0.022)만큼 켜마다 올리면 안쪽이 늘 이긴다 — 가운데가 바깥보다 0.13 높아 아주 얕은 접시로 읽히고, 그 몫은
+         두렁(z 0.06~0.66) 안이라 실루엣이 안 바뀐다. 2D 는 배열 차례가 그대로라 그림이 같다. */
+      const ZS9 = 0.022;
+      const ring = (k9: number, lv9 = 0, ox = 0, oy = 0): string => polyPath3(
         Array.from({ length: 28 }, (_, i9): [number, number, number] => {
           const a9 = (i9 / 28) * Math.PI * 2;
-          return [px + ox + Math.cos(a9) * rx * k9, py + oy + Math.sin(a9) * ry * k9, 0.096];
+          return [px + ox + Math.cos(a9) * rx * k9, py + oy + Math.sin(a9) * ry * k9, 0.096 + lv9 * ZS9];
         }),
       );
       /* 연못 그라데이션(지시: "중앙에서 바로 시작해서 가장자리로 갈수록 진한 녹색") —
@@ -15077,13 +15084,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          0.7까지 꽉 차 있던 옛 판과 달리, 가장 밝은 것은 **한가운데 한 점**이고 바깥으로
          갈수록 한 단씩 어두워진다. 치우친 하이라이트는 걷는다 — 중심이 곧 밝은 자리다. */
       out.push(...tagKey([
-        [ring(1), 1, FLESH_D] as ShapeFace,
-        [ring(0.86), 1, "#2c6e1f"] as ShapeFace,
-        [ring(0.72), 1, "#3a8f28"] as ShapeFace,
-        [ring(0.58), 1, "#49b232"] as ShapeFace,
-        [ring(0.44), 1, "#57cf3a"] as ShapeFace,
-        [ring(0.3), 1, "#6fe84c"] as ShapeFace,
-        [ring(0.16), 1, "#8dff66"] as ShapeFace,
+        [ring(1, 0), 1, FLESH_D] as ShapeFace,
+        [ring(0.86, 1), 1, "#2c6e1f"] as ShapeFace,
+        [ring(0.72, 2), 1, "#3a8f28"] as ShapeFace,
+        [ring(0.58, 3), 1, "#49b232"] as ShapeFace,
+        [ring(0.44, 4), 1, "#57cf3a"] as ShapeFace,
+        [ring(0.3, 5), 1, "#6fe84c"] as ShapeFace,
+        [ring(0.16, 6), 1, "#8dff66"] as ShapeFace,
       ], key));
     };
     /* 화면 왼쪽이 -x다(project에서 +x가 오른쪽으로 간다) — 지적의 "왼쪽에 큰거"는
@@ -19105,37 +19112,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         }), partKey(0, sg9 * LH9, CZ9) + 0.1));
       }
     }
-    /* ② 구를 감싸는 **링**(요청) — 처음엔 z축을 축으로 적도를 돌게 했다가 **90도 피칭**(재요청): 이제 y축(앞뒤)을
-       축으로 x–z 평면(y 0)에 세로로 선 고리다. 단면은 y와 나란히 누운 얇은 판(앞뒤 폭 0.34·두께 0.07)이고, 구
-       표면(1.05)에서 0.17 떨어진 반지름 1.22다. 한 몸으로 지으면 키가 하나라 아래 호가 구 위에 얹히므로 열두 호로
-       나눠 저마다 제 높이의 키를 준다 — 위 호는 구 위로, 아래 호는 구 뒤로(카메라가 앞위에서 보므로 아래 호는 구의
-       앞면에 가린다). 날개(y 0.15~0.77)와 렌즈 통(y 0.84~)은 이 평면 앞이라 안 부딪친다. */
-    {
-      /* ★ 고리는 **정원**이다(2026-09, 지적: "옵저버 고리가 수직이 안 맞고 기울어져 있음") — z 누름(model-z-scale ×0.8)의
-         쌍둥이 0.976 이 남아 고리가 세로로 눌린 타원(1.22 × 0.976)이었다. 몸은 정구(1.05)로 되돌렸으므로 고리 꼭대기(0.976)가
-         몸 꼭대기(1.05)보다 **낮아** 위 호가 몸을 뚫고 지나, 어느 각에서나 고리가 앞으로 기운 것처럼 읽혔다. 세로 반지름도 1.22. */
-      const RING_R9 = 1.22; const RING_R9z9 = 1.22;
-      const RING_N9 = 12;
-      for (let i9 = 0; i9 < RING_N9; i9 += 1) {
-        const a0 = (i9 / RING_N9) * Math.PI * 2;
-        const a1 = ((i9 + 1) / RING_N9) * Math.PI * 2;
-        const am = (a0 + a1) / 2;
-        /* ★★ 단면은 **둥근 테(토러스)** 다(2026-09, 지적 둘: "고리가 사선에서 보면 기울어 보이네" → "옵저버 링이 왜 저래") —
-           두 판을 다 되물린 자리다. ㉠ 옛 판은 `widthOf` 0.34 가 **반지름 방향**(ref [0,1,0] 과 접선의 외적)에 걸리고 oval 0.2 가
-           y 를 0.07 로 눌러 **납작한 와셔**였다 — 사선에서 그 판의 낯이 비스듬히 보여 고리가 통째로 누운 것처럼 읽혔다.
-           ㉡ 그것을 뒤집어 반지름 0.07 · 앞뒤 0.26 의 띠로 두었더니 이번엔 부감에서 **띠의 안쪽 낯**이 드러나 몸을 두른 챙이 됐다.
-           **어느 쪽으로 눌러도 납작한 단면은 각을 탄다** — 원 단면(w 0.14 · oval 1 · sides 8)이면 어느 각에서도 굵기가 같은 고리다.
-           ★ 규약: **고리로 읽혀야 하는 것의 단면은 원이다** — 눌러서 재료를 아끼면 그 눌린 축이 곧 각을 타는 축이 된다. */
-        out.push(...tagKey(paintBase(spirePillar({
-          x: 0, y: 0, h: 0.8, w: 1, segs: 2, sides: 8, caps: "none", ref: [0, 1, 0],
-          path: (t9: number): [number, number, number] => {
-            const a9 = a0 + (a1 - a0) * t9;
-            return [RING_R9 * Math.cos(a9), 0, CZ9 + RING_R9z9 * Math.sin(a9)];
-          },
-          widthOf: (): number => 0.14,
-        }), GOLD9), partKey(RING_R9 * Math.cos(am), 0, CZ9 + RING_R9z9 * Math.sin(am))));
-      }
-    }
+    /* ★ **링은 걷었다**(2026-09, 요청: "옵저버 추가 링은 없어도 될 듯 제거") — 구를 감싸던 세로 고리다. 단면을 어떻게 잡아도
+       (반지름으로 넓은 와셔 · 앞뒤로 넓은 띠 · 둥근 테) 40도 부감에서 몸 위에 겹친 고리가 읽히는 방식이 각마다 달라
+       세 판을 거치는 동안 계속 걸렸다. 몸은 링 안의 원반(접시 두 장 맞붙임)이라 고리 없이도 정찰기로 선다.
+       MODEL_NORM 은 안 갈았다 — 요청으로 줄어든 잉크를 재측정으로 덮으면 몸이 도로 커진다(그 규약). */
     /* ③ 앞의 초록 눈 — 짧은 금색 통에 박힌 밝은 렌즈. 통은 제 각도의 끝 단면을 스스로
        그리고(tubeFaces), 렌즈는 앞을 볼 때만 드는 벽 데칼이라 뒤에서는 안 보인다. */
     // 통은 앞뒤로 **납작하게**(요청: "카메라 몸통 앞뒤 납작하게") — 길이 0.7 → 0.36(0.72~1.42 → 0.84~1.2).
