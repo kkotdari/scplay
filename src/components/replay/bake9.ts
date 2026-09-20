@@ -17150,19 +17150,29 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const R9 = 2.35 * 1.03; const H9 = 1.6 * 1.03; const CY9 = 0.3; const ZB9 = Z0 - 0.56;   // 투구 겉면을 3% 띄운 껍질
       const ZT9 = ZB9 + H9;                                       // 등마루(경첩) 높이
       const LIFT9 = ((fl9 + 1.45) / 2.45) * (28 * Math.PI / 180);   // 0(쉼) ~ 28도(위)
+      /* ★★ **껍질은 투구 겉면의 조각이다**(2026-09, 요청: "디바우러 등껍질날개 형태를 몸통표면과 동일하게") — 옛 판은 x-z 자오선
+         하나를 따라 굽고 **앞뒤(y)로는 곧은 띠**(반폭 R·cosθ·0.82 + 0.15)라, 정수리 곁에서 앞뒤 가장자리가 돔 위 0.7 까지 떠 있었다
+         (돔은 y 로도 굽는데 띠는 안 굽는다). 이제 회전타원면(반지름 R9 · 높이 H9 · 중심 (0, CY9, ZB9)) 위의 점을 **극각 θ(정수리에서
+         옆구리 · 0.12~1.25) × 방위각 φ(+x 에서 앞뒤 ±70도)** 격자로 찍어 네모 낯으로 잇는다 — 어디서나 겉면에 3% 띄운 채 붙는다.
+         들기는 종전대로 등마루 경첩(y 축 · ZT9)을 축으로 x-z 를 돌린다. */
+      const NTH9 = 8; const NPH9 = 8; const PHW9 = (70 * Math.PI) / 180;
       for (const m9 of [-1, 1] as const) {
         const ca9 = Math.cos(LIFT9); const sa9 = Math.sin(LIFT9);
-        out.push(...tagKey(paintBase(spirePillar({
-          x: 0, y: 0, h: 0.8, w: 1, tipW: 1, segs: 8, sides: 4, oval: 0.05, caps: "none", ref: [0, 1, 0], trueNormal: true,
-          path: (t9: number): [number, number, number] => {
-            const th9 = 0.12 + 1.13 * t9;                        // 능선 곁에서 옆구리까지
-            const x9 = R9 * Math.sin(th9); const z9 = ZB9 + H9 * Math.cos(th9);
-            // 경첩(등마루 · y 축)을 축으로 바깥·위로 든다.
-            const dz9 = z9 - ZT9;
-            return [m9 * (x9 * ca9 - dz9 * sa9), CY9 - 0.25, ZT9 + dz9 * ca9 + x9 * sa9];
-          },
-          widthOf: (t9: number): number => R9 * Math.cos(0.12 + 1.13 * t9) * 0.82 + 0.15,   // 그 자리 투구 현의 0.82배
-        }), "#6c5d3d"), 6.3 + depthNow(m9 * 1.6, 0) * 0.2));
+        const pt9 = (i: number, j: number): [number, number, number] => {
+          const th9 = 0.12 + 1.13 * (i / NTH9);
+          const ph9 = -PHW9 + 2 * PHW9 * (j / NPH9);
+          const x9 = R9 * Math.sin(th9) * Math.cos(ph9); const y9 = CY9 + R9 * Math.sin(th9) * Math.sin(ph9);
+          const dz9 = ZB9 + H9 * Math.cos(th9) - ZT9;
+          return [m9 * (x9 * ca9 - dz9 * sa9), y9, ZT9 + dz9 * ca9 + x9 * sa9];
+        };
+        const shell9: ShapeFace[] = [];
+        for (let i = 0; i < NTH9; i += 1) {
+          for (let j = 0; j < NPH9; j += 1) {
+            const q9 = m9 > 0 ? [pt9(i, j), pt9(i, j + 1), pt9(i + 1, j + 1), pt9(i + 1, j)] : [pt9(i, j + 1), pt9(i, j), pt9(i + 1, j), pt9(i + 1, j + 1)];
+            shell9.push([polyPath3(q9), 1] as ShapeFace);
+          }
+        }
+        out.push(...tagKey(paintBase(shell9, "#6c5d3d"), 6.3 + depthNow(m9 * 1.6, 0) * 0.2));
       }
     }
     /* ① 아래 배 — 투구 뒤 밑에서 나와 아래·앞으로 갈고리처럼 말리는 마디진 애벌레.
@@ -23188,8 +23198,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          허리·가슴 마디를 밀어 넣어 **표가 두 마디로 잘렸고**(tsc 는 못 잡는다) 그래서 허리가 통짜가 됐다. 되돌리고 **뒤로 뾰족이
          나온 몫**(TY0 −6.3 → −5.4)만 줄인다. 마디 t 는 골반·허리·가슴의 **y 가 그대로**이게 다시 매겼다(골반 y −3.42 · 허리 −1.31 ·
          가슴 1.19). 그 뒤 재요청("다시 엉덩이 전체적인 사이즈도 좀 줄여줘")로 골반 반폭 2.5 → 2.25(허리 2.0 의 잘록함은 남는다). */
-      [0, 0.32, 4.1, 0.95], [0.228, 2.25, 4.45, 0.74], [0.470, 2.0, 4.32, 0.8], [0.757, 2.95, 4.82, 0.64], [1, 2.15, 4.62, 0.76],
+      [0, 0.32, 4.1, 0.95], [0.228, 2.25, 4.45, 0.74], [0.470, 2.4, 4.32, 0.8], [0.757, 2.95, 4.82, 0.64], [1, 2.15, 4.62, 0.76],
     ];
+    /* ★ **말 몸통은 허리가 약하고 20% 작다**(2026-09, 요청: "말몸통부분엔 허리약하게하고 몸통 크기 20프로 더 줄이기") — 허리 마디
+       반폭 2.0 → 2.4(골반 2.25 · 가슴 2.95 사이의 잘록함을 죈다) · 반폭 전체에 `HB_K9` 0.8(높이는 납작함 × 반폭이라 함께 준다 ·
+       등뼈 높이는 그대로). 다리·엉덩이 구·등가시 자리는 안 옮겼다(엉덩이 구 반지름 1.08 이 줄어든 옆구리 살 속에 아직 든다). */
+    const HB_K9 = 0.8;
     const catRom9 = (col: 1 | 2 | 3, t: number): number => {
       const n9 = TORSO9.length;
       let i9 = 0;
@@ -23203,7 +23217,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       return (2 * u3 - 3 * u2 + 1) * p1[col] + (u3 - 2 * u2 + u) * m1 + (-2 * u3 + 3 * u2) * p2[col] + (u3 - u2) * m2;
     };
     const TY0 = -5.4; const TY1 = 3.3;
-    const tW9 = (t: number): number => catRom9(1, t);
+    const tW9 = (t: number): number => catRom9(1, t) * HB_K9;
     const tZ9 = (t: number): number => catRom9(2, t) + BODY_UPz9 - 1.04;   // 표는 이미 올린 자(BODY_UP 포함)로 적었다
     const tOv9 = (t: number): number => catRom9(3, t);
     /** 회전체 토막 [ta, tb] — 살(HIDE) + 등판(PLATE). */
@@ -23306,7 +23320,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       path: (t: number): [number, number, number] => [
         0, bzu9(UT_ROOT9[1], UT_C9[1], UT_TOP9[1], t), bzu9(UT_ROOT9[2], UT_C9[2], UT_TOP9[2], t),
       ],
-      widthOf: (t: number): number => utW09 + (1.95 - utW09) * t * t * (3 - 2 * t) + 0.25 * Math.sin(Math.PI * t),
+      /* ★ **역삼각형 상체**(2026-09, 요청: "울트라 허리 잘록하게하기 상체 토르소가 역삼각형 모양이 되게") — 몸통 단면(utW09)에서
+         t 0.45 의 허리 1.25 로 좁아졌다가 어깨 2.5 로 벌어진다(둘 다 smoothstep). 팔 뿌리 x 도 어깨 반폭에 맞춰 2.15 다. */
+      widthOf: (t: number): number => {
+        const sm = (u: number): number => u * u * (3 - 2 * u);
+        return t < 0.45 ? utW09 + (1.25 - utW09) * sm(t / 0.45) : 1.25 + (2.5 - 1.25) * sm((t - 0.45) / 0.55);
+      },
       ovalOf: (t: number): number => utOv09 + (0.65 - utOv09) * t,
     }), HIDE), depthNow(0, 2.2) * 1.6 + 1.5));
     /** 옛 머리 자리(3.3 + UH_FWD9 · 3.12 + UH_UP9)에서 상체 꼭대기로 옮긴 몫 — 볏 뿌리도 같은 몫을 탄다. */
@@ -23420,7 +23439,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     for (const m of [-1, 1] as const) {
       const s9 = 2.05;
       // 팔 뿌리는 켄타우로스 상체의 어깨(위 UT_TOP9 · 반폭 1.9 안쪽 0.25) — 낫은 어깨가 높아진 만큼 더 깊이 내려온다.
-      const P0: [number, number, number] = [m * 1.65, UT_TOP9[1] - 0.1, UT_TOP9[2] - 0.6];
+      const P0: [number, number, number] = [m * 2.15, UT_TOP9[1] - 0.1, UT_TOP9[2] - 0.6];
       // 끝이 살짝 아래를 본다(요청: "팔도 아래를 살짝 향하게") — 조종점·끝의 z 를 내렸다(+0.32 → −0.1 · −0.44 → −1.5)
       const CP: [number, number, number] = [P0[0] + m * 2.3 * s9, P0[1] + 1.85 * s9, P0[2] - 1.0];
       const P1: [number, number, number] = [P0[0] + m * 0.2 * s9, P0[1] + 4.05 * s9, P0[2] - 4.0];
