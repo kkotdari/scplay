@@ -14424,7 +14424,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       return [c9(p0[0], p1[0], p2[0], p3[0]), c9(p0[1], p1[1], p2[1], p3[1])];
     };
     for (const sg of [1, -1]) {
-      const AP9: [number, number][] = [[sg * 1.9, -2.3], [sg * 4.8, -4.4], [sg * 6.4, -2.0], [sg * 4.8, 0.0], [sg * 5.4, 1.6], [sg * 7.6, 2.2]];
+      /* 뿌리를 축으로 0.75 배(재요청: "뒷 오징어다리 크기 25프로 짧게") — 꼴은 그대로, 길이만 준다. */
+      const AK9 = 0.75; const AR9: [number, number] = [sg * 1.9, -2.3];
+      const AP9: [number, number][] = ([[sg * 1.9, -2.3], [sg * 4.8, -4.4], [sg * 6.4, -2.0], [sg * 4.8, 0.0], [sg * 5.4, 1.6], [sg * 7.6, 2.2]] as [number, number][])
+        .map(([px9, py9]) => [AR9[0] + (px9 - AR9[0]) * AK9, AR9[1] + (py9 - AR9[1]) * AK9]);
       const wT9 = (t9: number): number => (0.7 - 0.58 * t9) * (1 + 0.1 * Math.sin(t9 * Math.PI * 18));
       out.push(...tagKey(paintBase(spirePillar({
         x: 0, y: 0, h: 0.8, w: 0.7, tipW: 0.17, segs: 32, sides: 10, hold: 0, caps: "none", trueNormal: true,
@@ -14455,7 +14458,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const hs9 = (i9: number): number => { const v9 = Math.sin(i9 * 12.9898 + sg * 7.7) * 43758.5453; return v9 - Math.floor(v9); };
       let bi9 = 0;
       /* 재요청("거품 수 줄이고 몇 배 크게"): 걸음 0.04 → 0.09 · 자리마다 하나둘 · 반지름 0.13~0.33 → 0.34~0.72. */
-      for (let t9 = 0.24; t9 <= 1.0; t9 += 0.09) {
+      for (let t9 = 0.06; t9 <= 0.8; t9 += 0.09) {   // 뒤쪽으로(재요청: "거품을 좀 뒤쪽으로 이동") — 0.24~1.0 → 0.06~0.78
         const [px9, py9, pz9] = lp9(t9);
         const [qx9, qy9] = lp9(Math.min(1, t9 + 0.02));
         const tl9 = Math.hypot(qx9 - px9, qy9 - py9) || 1;
