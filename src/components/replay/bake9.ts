@@ -4140,8 +4140,8 @@ export function tankTurretV2(siege: boolean, parts?: { body?: boolean; barrel?: 
        같아야 그 낯이 살의 평면에 정확히 눕는다(비틀림을 낯 안에 넣으면 모서리를 비스듬히
        가로질러 도로 파인다). 마디를 잘게 나누면 그 계단은 눈에 안 띈다(마디마다 4.5도). */
     const STR9 = 8;    // 빗금 수
-    const NS9 = 12;    // 축을 나눈 마디
-    const TW9 = 1.2;   // s0 → s1 동안 빗금이 비틀리는 몫(빗금 한 칸의)
+    const NS9 = 9;     // 축을 나눈 마디
+    const TW9 = 0.9;   // s0 → s1 동안 빗금이 비틀리는 몫(빗금 한 칸의)
     const D9 = (Math.PI * 2) / STR9;
     const qs9: { d: number; f: ShapeFace }[] = [];
     for (let r09 = 0; r09 < NS9; r09 += 1) {
@@ -4190,9 +4190,10 @@ export function tankTurretV2(siege: boolean, parts?: { body?: boolean; barrel?: 
       path: pOf9,
       widthOf: (t9: number): number => (0.6 - 0.07 * e9 * t9) * BX9,
     }), TANK_STEEL);
-    /* 띠는 포구 바로 뒤 — 살 위 5%(HAZ_K9)에 바싹 붙은 **표면 데칼**이고 앞뒤 폭은
-       포신 길이의 39%다(요청: "딱 붙어서 표면 위 데칼로 · 앞뒤 폭 두 배"). */
-    o9.push(...hazSleeve9(pOf9, 0.61, 0.995, (s9: number) => gunW9(e9, s9) * HAZ_K9));
+    /* 띠는 포구 바로 뒤 — 살 위 3%(HAZ_K9)에 바싹 붙은 **표면 데칼**이고 앞뒤 폭은
+       포신 길이의 29%다(요청: "앞뒤 폭 두 배" → 재요청: "띠 앞뒤 폭 25프로 축소" —
+       0.385 → 0.289. 비틀림·마디도 같은 비로 줄여 빗금 기울기 28도를 지킨다). */
+    o9.push(...hazSleeve9(pOf9, 0.706, 0.995, (s9: number) => gunW9(e9, s9) * HAZ_K9));
     return o9;
   };
   // 포신 길이 0.8배(요청): 일반 0.6~3.5 → 0.6~3.0(끝마디 2.45~3.0) · 시즈 3.8 → 3.04. 키의 y도 짧아진 만큼(2.4 → 2.0).
