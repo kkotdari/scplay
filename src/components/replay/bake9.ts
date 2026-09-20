@@ -14271,12 +14271,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          (2.5 + 0.9)에 세운다. 키는 구름과 같은 자(18 + 깊이). */
       /* ⚠ 송이가 이웃과 겹쳐 반지름 3.4 는 구름 속이었다(실측: 안 보였다) — 바깥 송이(반지름 4.2 · r 1.3) 사이의 틈은 반지름
          4.6 밖에서만 열린다. 4.9 에 세우고 높이는 바깥 송이 어깨(len·0.55)에 맞춘다. */
+      /* ★ **두 배 크게 · 구름 사이 깊이**(재요청: "럭비공 크기 2배하고 연기 사이사이 연기보다 깊이 넣기") — 반폭 0.55 → 1.1 ·
+         높이 2.4 → 4.8 · 반지름 4.9 → 4.0(바깥 송이 4.2 의 이웃 사이 틈 속 — 커진 몸이 양옆 송이에 반쯤 묻혀 '사이에 박힌' 꼴이다).
+         가운데는 구름 기둥 한가운데(len·0.5). */
       const ab9 = ((ang + 22.5) * Math.PI) / 180;
-      const ex9 = Math.sin(ab9) * 4.9; const ey9 = 0.4 + Math.cos(ab9) * 4.9;
-      const ez9 = bz9 + len * 0.55 - 1.2;
+      const ex9 = Math.sin(ab9) * 4.0; const ey9 = 0.4 + Math.cos(ab9) * 4.0;
+      const ez9 = bz9 + len * 0.5 - 2.4;
       out.push(...tagKey(paintBase(spirePillar({
-        x: ex9, y: ey9, z0: ez9, h: 2.4, w: 0.55, tipW: 0.02, segs: 6, sides: 10, hold: 0, caps: "none", trueNormal: true,
-        widthOf: (u9: number): number => Math.max(0.02, 0.55 * Math.sin(Math.PI * u9)),
+        x: ex9, y: ey9, z0: ez9, h: 4.8, w: 1.1, tipW: 0.02, segs: 8, sides: 12, hold: 0, caps: "none", trueNormal: true,
+        widthOf: (u9: number): number => Math.max(0.02, 1.1 * Math.sin(Math.PI * u9)),
       }), "#6b4a2c"), 18 + depthNow(ex9, ey9)));
     }
     // 꼭대기 살덩이 엽 아가리.
@@ -14535,8 +14538,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const HIDE = "#5d7a4a";
     const HIDE_D = "#3f5733";
     const TOOTH = "#c9b46a";
-    // 크립 갈퀴는 맨 아래 붙박이 키(면에 깊이가 없어 앞 부품 값을 물려받으면 안 된다).
-    const out: ShapeFace[] = [...tagKey(paintBase(creepSplat(7), "#3a3f46"), -20)];
+    /* ★ 크립 갈퀴(`creepSplat` 여덟 쐐기 · #3a3f46)는 걷었다(2026-09, 지적: "울트라덴 검정 세모 바닥에 제거") — 둔덕(반지름 4.4)
+       보다 긴 쐐기(7)가 촉수 사이로 삐져나와 검은 세모로 읽혔다(굴 속을 붉게 칠해 굽어 굴이 아님을 확인했다). */
+    const out: ShapeFace[] = [];
     // 덩치 — 뒤가 높고 앞으로 숙은 볼록한 살덩이.
     /* ★★ **굴은 GL 에서 진짜 구멍이다**(2026-09, 지적: "울트라덴, 커널 앞 동굴 입구가 안 뚫려 있음") — 2D 는
        검은 아치 한 장을 몸 앞에 화가 차례로 얹어 굴로 읽혔지만, 그 아치(y 2.35)는 덩치의 살(밑동 반지름 4.4 →
@@ -14673,33 +14677,41 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        바깥쪽으로 비껴 오른다(능선 바깥 x 2.5 > 3.08 안쪽 — 이빨과 안 겹친다). */
     /* ±90 은 옆구리 구멍 자리라 비우고 이웃(±65·±115)은 구멍에서 멀어지는 쪽으로 비낀다. */
     const VANG9 = [-165, -140, -115, -65, -42, -22, 0, 22, 42, 65, 115, 140, 165];
+    /* ★ **핏줄은 온몸이 해시다**(2026-09, 지적: "본체의 핏줄무늬를 랜덤하게 수정해달라고" — 앞 셋만 흩고 나머지는 같은 자리
+       45% 에서 좌우 한 쌍으로 갈라져 'ㅗ' 빗살로 섰다). 줄기마다 시작 높이·기울기·길이·갈래 자리(0.3~0.65)·갈래 수(한둘)·
+       갈래의 벌어짐·잔가지 유무를 다 `hv9`(줄기 번호·칸 해시)로 뽑는다. 아가리 위 셋은 능선 위(0.54)에서, 옆구리 구멍
+       이웃(±65·±115)은 구멍에서 멀어지는 쪽으로만 비끼는 **자리 규약**은 남긴다. */
+    const hv9 = (v9: number, k9: number): number => { const x9 = Math.sin(v9 * 127.1 + k9 * 311.7 + 0.37) * 43758.5453; return x9 - Math.floor(x9); };
     for (let v9 = 0; v9 < VANG9.length; v9 += 1) {
       const ang = VANG9[v9];
       const a9 = (ang * Math.PI) / 180;
       const front9 = Math.abs(ang) <= 22;
-      const side9 = Math.abs(ang) === 42;
-      const tS = front9 ? 0.54 : 0.06;
-      /* 앞 셋의 방향은 해시로 흩는다(2026-09, 요청: "앞쪽 핏줄 방향 더 랜덤하게") — 옛 값(0 은 +0.1 · ±22 는 ±0.24)은 셋이
-         나란히 같은 기울기로 올라 빗살로 읽혔다. */
-      const fh9 = Math.abs(Math.sin(v9 * 9.17 + 1.3));
-      const dA = front9 ? (ang === 0 ? (fh9 - 0.5) * 0.6 : Math.sign(ang) * (0.08 + fh9 * 0.4))
-        : side9 ? Math.sign(ang) * 0.2 + Math.sin(v9 * 12.9) * 0.12
-        : (Math.abs(ang) === 65 || Math.abs(ang) === 115) ? Math.sign(ang) * Math.sign(Math.abs(ang) - 90) * 0.3 + Math.sin(v9 * 12.9) * 0.1
-        : Math.sin(v9 * 12.9) * 0.55;
-      const dT = (front9 ? 0.28 + fh9 * 0.3 : 0.7) + (Math.cos(v9 * 7.3) * 0.5 + 0.5) * 0.16;
+      const near9 = Math.abs(ang) === 65 || Math.abs(ang) === 115;
+      const tS = front9 ? 0.54 : 0.02 + hv9(v9, 0) * 0.16;
+      const away9 = near9 ? Math.sign(ang) * Math.sign(Math.abs(ang) - 90) : 0;
+      const dA = near9 ? away9 * (0.15 + hv9(v9, 1) * 0.35)
+        : (hv9(v9, 1) - 0.5) * (front9 ? 0.7 : 1.1);
+      const dT = (front9 ? 0.26 + hv9(v9, 2) * 0.34 : 0.5 + hv9(v9, 2) * 0.45);
       const w0 = 0.22 * VTHICK9[v9 % VTHICK9.length];
       const key9 = depthNow(Math.sin(a9) * 3, Math.cos(a9) * 3) * 1.6 + 1;
       out.push(...tagKey(veinTube9(a9, tS, dA, dT, w0, v9, 9), key9));
-      /* 갈래 둘 — 줄기 45% 자리에서 좌우로 벌어져 위로. 그 갈래도 60% 에서 잔가지 하나. */
-      const aB = a9 + dA * 0.45;
-      const tB = tS + dT * 0.45;
-      for (const sg of [-1, 1]) {
-        const spread9 = sg * (0.42 + (Math.sin(v9 * 5.1 + sg) * 0.5 + 0.5) * 0.3);
-        const dTb = dT * (0.36 + (Math.cos(v9 * 3.7 + sg) * 0.5 + 0.5) * 0.22);
+      /* 갈래 — 줄기의 해시 자리(0.3~0.65)에서 한둘이 벌어져 위로. 갈래마다 잔가지는 해시가 정한다. */
+      const nB9 = hv9(v9, 3) < 0.35 ? 1 : 2;
+      const sg0 = hv9(v9, 4) < 0.5 ? -1 : 1;
+      for (let b9 = 0; b9 < nB9; b9 += 1) {
+        const sg = b9 === 0 ? sg0 : -sg0;
+        const uB = 0.3 + hv9(v9, 5 + b9) * 0.35;
+        const aB = a9 + dA * uB;
+        const tB = tS + dT * uB;
+        const spread9 = sg * (0.3 + hv9(v9, 7 + b9) * 0.5);
+        const dTb = dT * (0.3 + hv9(v9, 9 + b9) * 0.35);
         out.push(...tagKey(veinTube9(aB, tB, spread9, dTb, w0 * 0.55, v9 * 3 + sg, 6), key9));
-        const aC = aB + spread9 * 0.6;
-        const tC = tB + dTb * 0.6;
-        out.push(...tagKey(veinTube9(aC, tC, sg * -0.28, dTb * 0.5, w0 * 0.32, v9 * 5 + sg, 4), key9));
+        if (hv9(v9, 11 + b9) < 0.65) {
+          const uC = 0.4 + hv9(v9, 13 + b9) * 0.4;
+          const aC = aB + spread9 * uC;
+          const tC = tB + dTb * uC;
+          out.push(...tagKey(veinTube9(aC, tC, sg * -(0.15 + hv9(v9, 15 + b9) * 0.3), dTb * (0.4 + hv9(v9, 17 + b9) * 0.3), w0 * 0.32, v9 * 5 + sg, 4), key9));
+        }
       }
     }
     /* 앞 굴 아가리 — 어두운 속을 누런 이빨 능선이 위아래로 두른다. */
@@ -17252,7 +17264,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         },
         /* ★ 꽁무니는 살짝 굵다(2026-09, 요청: "뮤탈 꽁무니쪽을 살짝 크게 · 글레이브 나오는 구멍 표현") — 끝 반지름 0.32 → 0.5
            (머리 1.05 는 그대로). 그 끝에 **검은 구멍**(아래)이 뚫린다. */
-        widthOf: (t9: number): number => 0.5 + 0.55 * t9,
+        /* ★ 꽁무니는 **끝에서 자연스럽게 불룩하다**(재지적: "뮤탈 꽁무니 자연스럽게 커져야 하고") — 끝 반지름을 통째로 0.5 로 두면
+           꼬리가 몽둥이였다. 몸은 0.34 → 1.05 로 가늘어지되, 끝 0.22 구간에 종 모양 부풀림(0.3·e^{−(t/0.11)²})을 얹어 발사구가
+           도톰하게 맺힌다(끝 0.64 · t 0.2 에서 0.5 · 그 뒤 몸 굵기). */
+        widthOf: (t9: number): number => 0.34 + 0.71 * t9 + 0.3 * Math.exp(-(t9 / 0.11) * (t9 / 0.11)),
         fill: "#6b4732",
       }), depthNow(0, 1) * 1.6 + 12),
       /* ★ **글레이브 구멍** — 꽁무니 끝 뚜껑 위에 앉는 어두운 짧은 관(반지름 0.3 · 끝 방향(0, 0.891, 0.454) = 꼬리 접선의
@@ -17263,6 +17278,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         path: (t9: number): [number, number, number] => [0, 2.6 + 0.891 * (0.03 - 0.3 * (1 - t9)), 2.96 + 0.454 * (0.03 - 0.3 * (1 - t9))],
         fill: "#1a110c",
       }), depthNow(0, 1) * 1.6 + 12.4),
+      /* ★ **구멍 테두리**(재지적: "구멍 테두리가 있어야지 두께감") — 뚜껑에 검은 원반만 앉히면 구멍이 그림이다. 구멍 둘레에
+         살색 **도넛**(고리 반지름 0.42 · 관 0.11 · 끝면에서 0.06 밖으로 솟음)을 두르면 검은 속이 그 테 뒤로 들어가 뚫린
+         관으로 읽힌다. 축 d = (0, 0.891, 0.454) · 고리 평면의 자는 x 와 d × x = (0, 0.454, −0.891). */
+      ...tagKey(spirePillar({
+        x: 0, y: 0, h: 0.8, w: 0.11, tipW: 0.11, segs: 16, sides: 6, hold: 1, caps: "none", trueNormal: true,
+        path: (t9: number): [number, number, number] => {
+          const th = t9 * Math.PI * 2;
+          const cx9 = Math.cos(th) * 0.42; const sy9 = Math.sin(th) * 0.42;
+          return [cx9, 2.6 + 0.891 * 0.06 + 0.454 * sy9, 2.96 + 0.454 * 0.06 - 0.891 * sy9];
+        },
+        fill: "#5a3b29",
+      }), depthNow(0, 1) * 1.6 + 12.5),
       // 글레이브 웜은 **몸통 끝**(앞아래로 휜 기둥의 가는 끝 = 위 path(0))에서 난다(지적: "뮤탈·디버러는 몸통 끝에서 나옴").
       ...((): ShapeFace[] => { markMuzzle9(0, 2.6, 2.96); return []; })(),
       /* 몸통 꼭대기의 동그란 머리와 작은 가시 둘(요청) — 기둥 끝(x 0 · y 0.1 · z 6.9)에
@@ -19100,13 +19127,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const a0 = (i9 / RING_N9) * Math.PI * 2;
         const a1 = ((i9 + 1) / RING_N9) * Math.PI * 2;
         const am = (a0 + a1) / 2;
+        /* ★ 단면은 **앞뒤로 넓고 반지름 방향으로 얇은 테**다(2026-09, 지적: "옵저버 고리가 사선에서 보면 기울어 보이네") — 여태
+           u 축(ref [0,1,0] 과 접선의 외적 = 반지름 방향)에 0.34 를 주고 oval 0.2 로 y 를 0.07 로 눌러, 주석과 반대로 **납작한
+           와셔**(반지름 방향으로 넓은 판)가 서 있었다. 와셔는 사선에서 그 판의 낯이 비스듬히 보여 고리가 통째로 누운 것처럼
+           읽힌다. 반지름 0.07 · 앞뒤 0.26(oval 3.8 — 0.34 는 챙처럼 넓었다)의 **테**로 바꾸면 사선에서 바깥 둘레면이 보여 몸을 두른 고리로 선다. */
         out.push(...tagKey(paintBase(spirePillar({
-          x: 0, y: 0, h: 0.8, w: 1, segs: 2, sides: 4, caps: "none", oval: 0.2, ref: [0, 1, 0],
+          x: 0, y: 0, h: 0.8, w: 1, segs: 2, sides: 4, caps: "none", oval: 3.8, ref: [0, 1, 0], trueNormal: true,
           path: (t9: number): [number, number, number] => {
             const a9 = a0 + (a1 - a0) * t9;
             return [RING_R9 * Math.cos(a9), 0, CZ9 + RING_R9z9 * Math.sin(a9)];
           },
-          widthOf: (): number => 0.34,
+          widthOf: (): number => 0.068,
         }), GOLD9), partKey(RING_R9 * Math.cos(am), 0, CZ9 + RING_R9z9 * Math.sin(am))));
       }
     }
