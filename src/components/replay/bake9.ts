@@ -14448,9 +14448,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        위아래 SH_RZ9)을 판다. 자는 둔덕 제 단면 틀이다: 축 높이 tz = 5.12t · 옆 치우침 q = y − 축y(t)(단면 법선의 y 몫) ·
        세계 z = tz + 0.2147q(법선의 z 몫). 세계 점을 되짚는 것은 `sideLoc9`. 테는 그 타원 위의 점을 껍질로 되짚은 닫힌
        관(spirePillar · fill 없음 = 임자색)이고 구멍은 테 안쪽 가장자리(반지름 − SH_RIM9)까지 판다. 속은 `sideCave9`. */
-    const SH_ZC9 = 1.9;
-    const SH_RY9 = 1.25;
-    const SH_RZ9 = 1.0;
+    /* 구멍은 한 단 크다(재요청: "옆 입구 크기 확대") — 옆 1.25 → 1.7 · 위아래 1.0 → 1.35 · 중심 1.9 → 2.1. */
+    const SH_ZC9 = 2.1;
+    const SH_RY9 = 1.7;
+    const SH_RZ9 = 1.35;
     const SH_RIM9 = 0.26;
     const axY9 = (t9: number): number => -1.2 - 1.1 * t9;
     const mR9 = (t9: number): number => 1.4 + 3 * Math.sqrt(Math.max(0, 1 - t9));
@@ -14503,7 +14504,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 옆구리 굴 속 — 뒷벽(x = ±1.3) · 바닥 · 앞뒤 벽. 바깥 가장자리는 둔덕 옆선(그 높이·그 y 의 껍질 x)을 따른다. */
       const sideCave9 = (sg: number): ShapeFace[] => {
         const yc9 = axY9(SH_ZC9 / 5.12);
-        const Y0 = yc9 - 1.7; const Y1 = yc9 + 1.7; const XB = sg * 1.3; const ZT = 3.25; const z0 = 0.06;
+        const Y0 = yc9 - 2.1; const Y1 = yc9 + 2.0; const XB = sg * 1.3; const ZT = 3.9; const z0 = 0.06;
         const outerX9 = (y9: number, z9: number): number => {
           const t9 = Math.max(0, Math.min(1, z9 / 5.12));
           const r9 = mR9(t9);
@@ -14629,15 +14630,40 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         },
       }),
     ], TOOTH), mouthKey + 0.5));
-    // 왼쪽 창백한 혹 — 덩치 옆에 붙은 매끈한 알.
-    out.push(...tagKey(paintBase(domeFaces3(-3.6, 1.2, 1.35, 0.92, 0.16), "#d3d7db"),
-      depthNow(-3.6, 1.2) * 1.6 + 2));
+    /* 왼쪽 창백한 혹(흰 알)은 걷었다(2026-09, 요청: "앞 입구 옆의 흰 바위 제거"). */
+    /* ★ **옆구리 구멍에서 촉수 뭉치가 나온다**(같은 요청: "촉수 뭉치 나오게") — 구멍마다 넷이 굴 속(x ±2.2)에서 나서 구멍
+       가운데를 지나 밖으로 뻗어 땅에 늘어진다(3차 베지에 · 조종점 둘이 구멍 밖 위·아래). 굵기 0.3 → 0.05 에 사인 마디. */
+    const TENT9 = "#6b4732";
+    const bz3 = (a: number, b: number, c: number, d: number, t: number): number => {
+      const u = 1 - t;
+      return u * u * u * a + 3 * u * u * t * b + 3 * u * t * t * c + t * t * t * d;
+    };
+    for (const sg of [1, -1]) {
+      const yc9 = axY9(SH_ZC9 / 5.12);
+      for (let k9 = 0; k9 < 4; k9 += 1) {
+        const dy0 = [-0.9, -0.3, 0.35, 0.85][k9];
+        const dyE = dy0 * 2.2 + Math.sin(k9 * 3.1 + sg) * 0.5;
+        const len9 = 6.0 + Math.cos(k9 * 2.3 + sg * 0.7) * 0.6;
+        const zh9 = SH_ZC9 + [0.2, -0.3, 0.35, -0.15][k9];
+        const wT9 = (t9: number): number => (0.3 - 0.25 * t9) * (1 + 0.16 * Math.sin(t9 * Math.PI * 12 + k9));
+        const ex9 = sg * len9; const ey9 = yc9 + dyE;
+        out.push(...tagKey(spirePillar({
+          x: 0, y: 0, h: 0.8, w: 0.3, tipW: 0.05, segs: 24, sides: 6, hold: 0, caps: "none", trueNormal: true,
+          widthOf: wT9,
+          path: (t9: number): [number, number, number] => [
+            bz3(sg * 2.2, sg * 4.3, sg * 5.6, ex9, t9),
+            bz3(yc9 + dy0, yc9 + dy0 * 1.1, yc9 + dyE * 0.8, ey9, t9),
+            bz3(zh9 - 0.4, zh9 + 0.1, zh9 - 0.9, wT9(1) + 0.15 + 0.6 * Math.max(0, t9 - 0.85) * 4, t9),
+          ],
+          fill: TENT9,
+        }), depthNow(ex9, ey9) * 1.6 + 1));
+      }
+    }
     /* ★ **바닥의 촉수는 마디 진 관이다**(같은 요청: "바닥에 촉수들") — 옛 판은 발치 좌우에 곧은 뿔 다섯이었다. 사진의
        촉수는 둔덕 밑동 둘레에서 **바닥을 기어 나와** 끝이 살짝 들리고, 굵기가 마디마다 불룩해 지렁이처럼 읽힌다.
        열 가닥이 2차 베지에(밑동 살 속 r 3.9 → 조종점 r 5.4 · 옆으로 비낌 → 끝 r 6.9)로 나가고, `widthOf` 가
        밑동 0.42 에서 끝 0.06 으로 줄며 사인 마디(일곱 마디)를 얹는다. z 는 그 자리 반지름(관이 땅에 눕는다) + 끝
        들림 1.0·t³. 아가리 정면(|각| < 30도)은 비운다. */
-    const TENT9 = "#6b4732";
     const bz9 = (a: number, b: number, c: number, t: number): number => (1 - t) * (1 - t) * a + 2 * (1 - t) * t * b + t * t * c;
     for (let k9 = 0; k9 < 10; k9 += 1) {
       const ang = [-165, -132, -100, -70, -42, 42, 70, 100, 132, 165][k9];
