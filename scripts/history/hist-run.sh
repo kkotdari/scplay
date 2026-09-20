@@ -20,12 +20,16 @@ if [ "$2" = "--old" ]; then
     node scripts/model-shot.mjs --kinds "$KB" --rots 45 --mode top --cell 400 --bg "$BG" --color "$OWN" --fit 0.7 --shadow --out "$S/histA_b.png" 2>&1 | tail -1 )
 fi
 # 첫 decode 가 가끔 EncodingError 로 튄다 — 세 번까지 되돌린다.
-for i in 1 2 3; do node scripts/history/hist-compose.mjs "$S" 2>&1 | grep -v "^  [A-Z]\|^    at" | tail -4 && break; echo retry; done
-mkdir -p "$S/hist_out"
-cp "$S/변천사/1. terran_history_1_units.png"  "$S/hist_out/1_terran_units.png"
-cp "$S/변천사/1. terran_history_2_bldgs.png"  "$S/hist_out/2_terran_bldgs.png"
-cp "$S/변천사/2. protoss_history_1_units.png" "$S/hist_out/3_protoss_units.png"
-cp "$S/변천사/2. protoss_history_2_bldgs.png" "$S/hist_out/4_protoss_bldgs.png"
-cp "$S/변천사/3. zerg_history_1_units.png"    "$S/hist_out/5_zerg_units.png"
-cp "$S/변천사/3. zerg_history_2_bldgs.png"    "$S/hist_out/6_zerg_bldgs.png"
-echo "HIST_DONE → $S/hist_out (여섯 조각 · 파일로 보낸다)"
+# 절마다 두 토막(2026-09, 요청: "각 목록을 둘로 나눠서 12장으로 줘") — 첫 decode 가 가끔 EncodingError 로 튄다: 세 번까지 되돌린다.
+for i in 1 2 3; do node scripts/history/hist-compose.mjs "$S" --split=2 2>&1 | grep -v "^  [A-Z]\|^    at" | tail -4 && break; echo retry; done
+rm -rf "$S/hist_out"; mkdir -p "$S/hist_out"
+n=0
+for r in "1. terran:terran" "2. protoss:protoss" "3. zerg:zerg"; do
+  src="${r%%:*}"; name="${r##*:}"
+  for sec in "1_units:units" "2_bldgs:bldgs"; do
+    for h in 1 2; do
+      n=$((n+1)); cp "$S/변천사/${src}_history_${sec%%:*}_${h}.png" "$S/hist_out/$(printf %02d $n)_${name}_${sec##*:}_${h}.png"
+    done
+  done
+done
+echo "HIST_DONE → $S/hist_out (열두 조각 · 파일로 보낸다)"

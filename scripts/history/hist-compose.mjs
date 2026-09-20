@@ -3,6 +3,9 @@ import { chromium } from "playwright-core";
 import { readFileSync, mkdirSync, writeFileSync, rmSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 const S = process.argv[2]; const OUT = `${S}/변천사`;
+/* ★ 절 조각을 다시 N 토막으로(2026-09, 요청: "각 목록을 둘로 나눠서 12장으로 줘") — `--split=N`(기본 1 = 절 하나가 한 조각).
+   토막은 행 경계에서 자르고 토막마다 머리띠 + 절 제목 띠를 다시 얹는다. */
+const SPLIT = Math.max(1, Number((process.argv.find((a) => a.startsWith("--split=")) ?? "--split=1").slice(8)) || 1);
 /* ★ 칸은 400px(2026-09, 지적: "변천사 화질이 너무 안좋아") — 옛·지금 판은 400 으로 굽고(model-shot·model-gl `--cell 400 --fit 0.7`),
    7월 그림만 소스가 200px 칸이라 두 배로 늘린다(JC = 7월 칸 크기). `--fit` 은 칸마다 잉크 상자를 칸의 84% 에 맞추므로 아비터처럼
    원 좌표가 작은 종류(MODEL_NORM 이 키우는 종류)도 7월 도록처럼 칸을 채운다(지적: "아비터 아직도 작게 나와"). */
@@ -74,7 +77,7 @@ for (const [file, race, nos] of RACES) {
     title: `${race} ${sh.title.split(" / ")[0]}`,
     cards: sh.items.map((it) => { const ang = julyAt.get(it.kind)?.ang ?? 23; return { ...it, ang, j: julyAt.get(it.kind) ?? null, a: idxA.get(it.kind), c: idxC.get(it.kind) }; }),
   }));
-  const data = await pg.evaluate(async ({ secs, CELL, JC, COLS, TITLE, SEC, race, NOW, ERAS, BG9, OWN9 }) => {
+  const data = await pg.evaluate(async ({ secs, CELL, JC, COLS, TITLE, SEC, race, NOW, ERAS, BG9, OWN9, SPLIT }) => {
     /* ★ 카드 상자·칸 테두리는 걷었다(2026-09, 요청: "한 모델 안에서 세로 구분선 제거 · 제목은 각 모델 위에 줄 위에") —
        모델 하나는 '이름 한 줄 + 시점 셋이 아래로 쌓인 한 기둥'이고, 기둥 안에는 세로 줄이 하나도 없다. 세로 줄을 내던 자리 셋:
        ① 붓의 strokeRect ② 7월 그림의 칸 판 왼 가장자리(x 264~271 의 띠 — 그래서 272 부터 자른다) ③ 옛 model-shot 칸의 왼 가장자리
@@ -136,17 +139,24 @@ for (const [file, race, nos] of RACES) {
           c.fillStyle = "#6b7480"; c.font = "10px ui-monospace, monospace"; c.fillText(tag, x + 4, yy + 3);
         });
       });
-      y += Math.ceil(sc.cards.length / COLS) * BLKH; secY.push([ys, y]);
+      const nRows = Math.ceil(sc.cards.length / COLS); y += nRows * BLKH; secY.push([ys, y, nRows]);
     }
     /* ★ 절(유닛·건물)마다 한 조각을 더 낸다(2026-09, 요청: "파일로 압축하지 말고 줘") — 한 장 통째(1252×15000 · 3~4MB)는 파일 전송이
        400 으로 막힌다(실측 · 8000px·2MB 조각은 간다). 조각은 머리띠(제목 줄)를 그대로 얹은 그 절이다. */
-    const parts = secY.map(([a, b]) => { const p = document.createElement("canvas"); p.width = cv.width; p.height = TITLE + (b - a); const q = p.getContext("2d");
-      q.fillStyle = BG9; q.fillRect(0, 0, p.width, p.height); q.drawImage(cv, 0, 0, cv.width, TITLE, 0, 0, cv.width, TITLE); q.drawImage(cv, 0, a, cv.width, b - a, 0, TITLE, cv.width, b - a); return p.toDataURL("image/png"); });
+    const parts = secY.map(([a, , nRows]) => Array.from({ length: SPLIT }, (_, h) => {
+      const r0 = Math.floor((nRows * h) / SPLIT); const r1 = Math.floor((nRows * (h + 1)) / SPLIT); const hh = (r1 - r0) * BLKH;
+      const p = document.createElement("canvas"); p.width = cv.width; p.height = TITLE + SEC + hh; const q = p.getContext("2d");
+      q.fillStyle = BG9; q.fillRect(0, 0, p.width, p.height);
+      q.drawImage(cv, 0, 0, cv.width, TITLE, 0, 0, cv.width, TITLE);                                   // 머리띠
+      q.drawImage(cv, 0, a, cv.width, SEC, 0, TITLE, cv.width, SEC);                                   // 절 제목 띠
+      q.drawImage(cv, 0, a + SEC + r0 * BLKH, cv.width, hh, 0, TITLE + SEC, cv.width, hh);            // 그 토막의 행들
+      return p.toDataURL("image/png"); }));
     return { full: cv.toDataURL("image/png"), parts };
-  }, { secs, CELL, JC, COLS, TITLE, SEC, race, NOW, ERAS, BG9, OWN9 });
+  }, { secs, CELL, JC, COLS, TITLE, SEC, race, NOW, ERAS, BG9, OWN9, SPLIT });
   const f = `${OUT}/${file}_history.png`;
   writeFileSync(f, Buffer.from(data.full.split(",")[1], "base64")); console.log("→", f, secs.map((x) => x.cards.length).join("+"));
-  data.parts.forEach((d, i) => writeFileSync(`${OUT}/${file}_history_${i + 1}_${["units", "bldgs"][i]}.png`, Buffer.from(d.split(",")[1], "base64")));
+  data.parts.forEach((ds, i) => ds.forEach((d, h) => writeFileSync(
+    `${OUT}/${file}_history_${i + 1}_${["units", "bldgs"][i]}${SPLIT > 1 ? `_${h + 1}` : ""}.png`, Buffer.from(d.split(",")[1], "base64"))));
 }
 await br.close();
 writeFileSync(`${OUT}/README.txt`, `모델 변천 비교 — 종족마다 한 장(유닛·건물). 카드마다 왼쪽부터 7월(사용자가 준 도록 그림 · 제 눈금) · 8/29(2D 붓 · +45°) · ${NOW}(GL 붓 · +40° · 지금). 임자색 ${OWN9} · 흰 바탕.\n`);
