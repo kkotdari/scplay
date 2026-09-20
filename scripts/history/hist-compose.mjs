@@ -96,7 +96,10 @@ for (const [file, race, nos] of RACES) {
     const julyWhite = (im) => { const d = im.data; const bj = [10, 10, 10];   // 칸 안 바탕은 (10,10,10) — 칸 사이 여백(20,27,43)과 다르다(실측)
       for (let q = 0; q < d.length; q += 4) {
         const dm = Math.max(Math.abs(d[q] - bj[0]), Math.abs(d[q + 1] - bj[1]), Math.abs(d[q + 2] - bj[2]));
-        const a = Math.max(0, Math.min(1, (dm - 8) / 36));
+        /* 알파는 '검정에서 얼마나 멀어졌나'를 **꽉 찬 초록의 거리(≈140~200)** 로 나눈 값이다 — 36 으로 나누면 반쯤 덮인 가장자리
+           화소(68,111,78 · dm 101)가 a 1 로 잡혀 그 어두운 색이 그대로 남아 **검은 테두리**가 됐다(지적: "누끼 거의 다 땄는데
+           아직 테두리가 남네"). 140 이면 그 화소가 a 0.69 → 제 색(94,156,108)으로 풀려 흰 바탕에 섞인다. */
+        const a = Math.max(0, Math.min(1, (dm - 4) / 140));
         for (let ch = 0; ch < 3; ch += 1) { const col = a > 0 ? Math.max(0, Math.min(255, bj[ch] + (d[q + ch] - bj[ch]) / a)) : 255; d[q + ch] = Math.round(255 * (1 - a) + col * a); }
         d[q + 3] = 255;
       } };

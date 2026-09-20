@@ -10,14 +10,14 @@ H=scripts/history
 [ -f "$S/kinds_u.txt" ] || cp $H/kinds_u.txt "$S/"
 [ -f "$S/kinds_b.txt" ] || cp $H/kinds_b.txt "$S/"
 KU=$(cat "$S/kinds_u.txt"); KB=$(cat "$S/kinds_b.txt")
-# 시대별 카메라(hist-compose ERAS 와 같은 수): 8/29 +45 · 지금 +40 · 임자색 7월 연녹색 · 흰 바탕 · 그림자는 유닛에만
+# 시대별 카메라(hist-compose ERAS 와 같은 수): 8/29 +45 · 지금 +40 · 임자색 7월 연녹색 · 흰 바탕 · 그림자는 유닛·건물 다(요청: "건물 그림자도 있어야지")
 OWN="#7ed491"; BG="#ffffff"
 node scripts/model-gl.mjs --kinds "$KU" --rots 40 --cell 400 --rows 300 --bg "$BG" --color "$OWN" --fit 0.7 --shadow --json "$S/histC_u.json" --out "$S/histC_u.png" 2>&1 | tail -1
-node scripts/model-gl.mjs --kinds "$KB" --rots 40 --cell 400 --rows 300 --bg "$BG" --color "$OWN" --fit 0.7          --json "$S/histC_b.json" --out "$S/histC_b.png" 2>&1 | tail -1
+node scripts/model-gl.mjs --kinds "$KB" --rots 40 --cell 400 --rows 300 --bg "$BG" --color "$OWN" --fit 0.7 --shadow --json "$S/histC_b.json" --out "$S/histC_b.png" 2>&1 | tail -1
 if [ "$2" = "--old" ]; then
   ( cd "$S/wtA"
     node scripts/model-shot.mjs --kinds "$KU" --rots 45 --mode top --cell 400 --bg "$BG" --color "$OWN" --fit 0.7 --shadow --out "$S/histA_u.png" 2>&1 | tail -1
-    node scripts/model-shot.mjs --kinds "$KB" --rots 45 --mode top --cell 400 --bg "$BG" --color "$OWN" --fit 0.7          --out "$S/histA_b.png" 2>&1 | tail -1 )
+    node scripts/model-shot.mjs --kinds "$KB" --rots 45 --mode top --cell 400 --bg "$BG" --color "$OWN" --fit 0.7 --shadow --out "$S/histA_b.png" 2>&1 | tail -1 )
 fi
 # 첫 decode 가 가끔 EncodingError 로 튄다 — 세 번까지 되돌린다.
 for i in 1 2 3; do node scripts/history/hist-compose.mjs "$S" 2>&1 | grep -v "^  [A-Z]\|^    at" | tail -4 && break; echo retry; done

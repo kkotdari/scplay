@@ -4237,7 +4237,11 @@ export const TURRET_K9 = 0.8;
 export const TURRET_BACK9 = 0.6;
 /** 전환 홑판이 읽는 두 마디 — 자세 0~5 를 '나온 몫'(0~3.5 칸)과 '쳐올린 몫'(3~5 칸)으로 나눈다.
  *  한 자리에 모아 두어야 앞 포신·뒤 포신·포탑 몸 셋이 같은 시계를 본다. */
-export const xfOut9 = (): number => Math.min(1, poseNow / 3.5);
+/* ★ 두 마디는 **겹치지 않는다**(2026-09, 요청: "일반 → 시즈: 우선 포신 전환이 다 이루어지고 나서 각도가 기우는 거야 · 반대는
+   각도가 수평으로 돌아가고 나서 포신 전환") — 옛 3.5 는 자세 3~4 에서 나오는 몫과 쳐올리는 몫이 겹쳐 포신이 다 나오기 전에
+   기울기 시작했다. 나오는 몫 0~3 · 쳐올리는 몫 3~5. 언시즈는 같은 사다리를 거꾸로 밟으므로(xfMech9 1 → 0) 저절로
+   '수평으로 돌아온 뒤 포신이 들어간다'. */
+export const xfOut9 = (): number => Math.min(1, poseNow / 3);
 export const xfTilt9 = (): number => Math.max(0, Math.min(1, (poseNow - 3) / 2));
 export function turretScaled9(build: () => ShapeFace[]): ShapeFace[] {
   return withModelZOff(2.28 * (1 - TURRET_K9), () => withModelScale(TURRET_K9, TURRET_K9, TURRET_K9, build));
@@ -20625,7 +20629,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         // 다리를 안으로(지적: "메딕 다리 더 안쪽으로 모으기") — 벌림 0.9 → 0.7.
         // 허벅지 두툼·곡선(지적) — 과해서 한 단 되돌림(재지적): 1.16 → 1.08(배 ×1.17).
         // 다리 길이 −10%(zk 1.04 → 0.94) · 대퇴 −5%(1.08 → 1.03) · 하지 +5%(shin).
-        ...suitLegs(G, 0.7, undefined, 0.3 * wd, 0.82, 0.94, 1.03, 1.05),
+        ...suitLegs(G, 0.7, undefined, 0.3 * wd, 0.82 * 0.9, 0.94, 1.03, 1.05),   // 다리통 지름 −10%(요청: "마린 파뱃 다리통 지름 10프로 줄이기")
         ...suitTorso(G, { wide: 1.1 }),
         ...suitNeck(G),
       ], WHITE),
@@ -20799,7 +20803,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 다리도 짙은 은색 — suitLegs의 셋째 자리(_kneeFill)는 지금 쓰이지 않는 값이라
          (그 함수의 이름 앞 밑줄) 여기 은색을 적어 두어도 아무 데도 안 든다. 고스트가
          하듯 바깥에서 칠한다 — 군화처럼 제 색을 가진 조각은 paintBase가 안 덮는다. */
-      ...paintBase(suitLegs(1, 1, undefined, 0.3 * wd), SUIT_SILVER),
+      ...paintBase(suitLegs(1, 1, undefined, 0.3 * wd, 0.9), SUIT_SILVER),   // 다리통 지름 −10%(요청: "마린 파뱃 다리통 지름 10프로 줄이기")
       // 몸 너비 +10%(요청: "마린 파뱃 몸 너비 10프로 증가") — 공통 −20% 위에 얹는다.
       /* 가슴을 더 넓게(사진: 흉갑이 어깨만큼 벌어진다) — 1.1 → 1.28. 허리 잘록함은
          몸통 프로필(SUIT_TORSO_W)이 그대로 진다. */
@@ -20878,7 +20882,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const sh9y = gp9[1] - gripR9[1]; const sh9z = gp9[2] - gripR9[2];
         const hR: [number, number, number] = [wrR9[0], wrR9[1] + sh9y, wrR9[2] + sh9z];
         const eR: [number, number, number] = [eR9[0], eR9[1] + sh9y, eR9[2] + sh9z];
-        const hL = wristOf9(shL, GP9(GRIP_L9), [0.7, -0.35, -0.66]);
+        /* ★ 왼손은 총 **밑바닥을 받친다**(2026-09, 요청: "앞쪽 팔 손이 정확히 총 밑바닥을 받치게") — 총 단면은 반폭 0.17 을
+           위아래로 2.7 배(0.46) 늘인 타원이라, 축 위의 점을 잡으면 손이 총몸 속에 든다. 손등 반두께(0.09)까지 내려 손등 윗면이
+           총 밑에 닿게 한다. */
+        const gl9 = GP9(GRIP_L9);
+        const hL = wristOf9(shL, [gl9[0], gl9[1], gl9[2] - (0.17 * 2.7 + 0.09) * Z8], [0.7, -0.35, -0.66]);
         const eL = jointBetween(shL, hL, 1.0, 1.2, [0.7, -0.35, -0.66]);
         const dirOf = (sh: [number, number, number], el: [number, number, number]): [number, number, number] =>
           [el[0] - sh[0], el[1] - sh[1], el[2] - sh[2]];
