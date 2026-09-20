@@ -4079,8 +4079,14 @@ export function tankTurretV2(siege: boolean, parts?: { body?: boolean; barrel?: 
   /** 나온 몫 e 의 포신 축 위 한 점(t 0 뿌리 ~ 1 포구). rc 는 반동(앞으로 밀림). */
   const gunAt9 = (e9: number, rc9: number) => (t9: number): [number, number, number] =>
     T9(0, -(1.0 + 3.04 * e9 * t9) * BX9 + rc9, ZB9 + (Z0 + 1.0 + RISE9 * e9 * t9 - ZB9) * BX9z9);
-  /** 포신의 반폭(단면 u 축 · v 축은 `oval: 2` 라 이 두 배) — **띠가 이 자를 그대로 읽는다**. */
-  const gunW9 = (e9: number, t9: number): number => (0.6 - 0.07 * e9 * t9) * BX9;
+  /** 포신을 **납작하게** 누른 몫(2026-09, 요청: "시즈포신을 살짝더 납작하게하기 타원형을") —
+   *  높이(단면 u 축)를 이만큼 줄이고 `GUN_OV9` 로 가로를 그만큼 되돌려 **폭은 지킨다**. */
+  const GUN_FLAT9 = 0.85;
+  /** 포신 단면의 눌림(v = 가로 쪽 배수) — 폭 = 반폭 × 이 값이라 `2 / GUN_FLAT9` 면 옛 폭 그대로다.
+   *  ⚠ **띠(`hazSleeve9`)가 이 값을 그대로 읽어야 한다** — 갈리면 띠가 살의 각을 못 탄다. */
+  const GUN_OV9 = 2 / GUN_FLAT9;
+  /** 포신의 반폭(단면 u 축 = 높이 · v 축은 `GUN_OV9` 배) — **띠가 이 자를 그대로 읽는다**. */
+  const gunW9 = (e9: number, t9: number): number => (0.6 - 0.07 * e9 * t9) * BX9 * GUN_FLAT9;
   /** 해저드 띠가 살 위로 뜨는 몫(요청: "딱 붙어서 표면 위 데칼로 읽혀야지") — 띠가 살의
    *  단면(팔각)을 그대로 타므로 어느 자리에서나 이 몫만큼만 떠 있다. */
   const HAZ_K9 = 1.03;
@@ -4110,7 +4116,7 @@ export function tankTurretV2(siege: boolean, parts?: { body?: boolean; barrel?: 
     const e39: [number, number, number] = [
       u9[1] * e29[2] - u9[2] * e29[1], u9[2] * e29[0] - u9[0] * e29[2], u9[0] * e29[1] - u9[1] * e29[0],
     ];
-    const OV9 = 2;            // 포신의 oval — v(가로) 쪽이 두 배다
+    const OV9 = GUN_OV9;      // 포신의 oval — v(가로) 쪽이 이만큼 넓다(살의 자를 그대로 읽는다)
     const SIDES9 = 8;         // 포신의 낯 수
     const PH9 = Math.PI / SIDES9;              // spirePillar 의 기본 위상
     const SD9 = (Math.PI * 2) / SIDES9;        // 낯 하나의 둘레 각
@@ -4193,7 +4199,7 @@ export function tankTurretV2(siege: boolean, parts?: { body?: boolean; barrel?: 
     const o9 = tagKey(paintBase(spirePillar({
       /* 음영은 **관의 자**로 맞춘다(litK) — 탱크 포신(tubeFaces)이 배에 0.26 한 겹인데
          기둥은 낯마다 0.38 이라, 같은 포신인데 시즈 쪽만 숯빛이었다(0.26/0.38 ≒ 0.68). */
-      x: 0, y: 0, h: 0.8, w: 1, segs: 6, sides: 8, oval: 2, caps: "both", trueNormal: true, litK: 0.68,
+      x: 0, y: 0, h: 0.8, w: 1, segs: 6, sides: 8, oval: GUN_OV9, caps: "both", trueNormal: true, litK: 0.68,
       path: pOf9,
       widthOf: (t9: number): number => gunW9(e9, t9),
     }), TANK_STEEL), key9);
