@@ -14355,7 +14355,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      왼쪽엔 말려 올라간 촉수, 가운데엔 흰 애벌레 마디, 앞엔 구덩이 입. */
   /* +90도 요잉(요청) — 285 → 375도(= 15도). 갈고리 촉수가 그 상태에서 정면으로 볼 때
      **왼쪽**에 오도록 자리도 함께 옮긴다(아래 촉수 주석). */
-  dmound: () => withModelSpin(375, () => {
+  // +90도 더(재요청: "디파일러마운드 값 자체 +90도 요잉") — 375 → 465(= 105도).
+  dmound: () => withModelSpin(465, () => {
     /* 디파일러 마운드(전면 재작도·사진) — 구릿빛 살덩이 두덩이 낮게 엉키고, 그 위로
        검은 수정 조각이 무리 지어 솟는다. 오른쪽에 말려 오른 굵은 촉수, 앞에는 상아빛
        엄니 줄과 흰 애벌레 마디들, 가운데엔 개인색 아가리. */
@@ -14537,10 +14538,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const out: ShapeFace[] = [...tagKey(creepSplat(6.4), -20)];
     // 둔덕 — 볼록한 종 모양 살덩이. 입구를 낼 자리라 뒤로 조금 물려 앉힌다.
     /* ★★ GL 에서는 진짜 굴이다(캐번의 ★★와 같은 손 — 지적: "커널 앞 동굴 입구가 안 뚫려 있음"). */
+    /* ★ 입구는 **사다리꼴**이고 더 높다(2026-09, 요청: "커널 입구 좀더 높히고 사다리꼴형으로 변경") — 아치(호 2.55×2.2)를
+       걷고 문틀을 세 토막(왼 다리 · 윗보 · 오른 다리)의 관으로 세운다: 바깥 밑 x ±2.8 · 꼭대기 x ±2.15 · z 2.8. 구멍은 그 관
+       (굵기 0.85)의 안쪽 가장자리 — 밑 반폭 1.96 · 위 반폭 1.45 · 높이 1.95(옛 타원 꼭대기 1.51). */
+    const NY_ZT9 = 1.95;
+    const nyHw9 = (z9: number): number => 1.96 - 0.51 * (z9 / NY_ZT9);
     const nydSkip9 = MESH9.on
-      // 아치 관(호 2.55×2.2 · 굵기 0.85)의 안쪽 가장자리(1.7×1.35)에 낯 상자가 닿으면 뺀다(캐번과 같은 자).
       ? (x9: number, y9: number, z9: number): number => (y9 <= 0.3 ? 1
-        : (x9 / 1.7) ** 2 + ((z9 - 0.16) / 1.35) ** 2 - 1)
+        : Math.max(Math.abs(x9) - nyHw9(z9), z9 - NY_ZT9))
       : undefined;
     out.push(...tagKey(paintBase(spirePillar({
       x: 0, y: -0.6, z0: 0, h: 3.36, w: 4.4, tipW: 1.5,
@@ -14553,7 +14558,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const r9 = 1.5 + 2.9 * (1 - t9) ** 0.6;
         return -0.6 + Math.sqrt(Math.max(0, r9 * r9 - x9 * x9)) - 0.15;
       };
-      out.push(...tagKey(caveInside9(2.3, 0.0, 2.4, nydFront9, "#06070a"), 1));
+      out.push(...tagKey(caveInside9(2.3, 0.0, 2.7, nydFront9, "#06070a"), 1));
       /* ★ 굴 속 라임 불빛(2026-09, 요청: "동굴 안 라임색 리트 평소에도 깜빡거리기") — **바닥에 깔린 웅덩이** 한 장(z 0.09).
          ⚠ 뒷벽에 세우면 안 보인다 — 굴이 3.6 깊은데 카메라가 40도 위라 아가리 위턱(z 1.5)을 지나는 시선은 바닥 1.8 에서
            부딪히고 뒷벽에는 닿지도 않는다(실측: 뒷벽 판은 어느 각에서도 검은 굴만 보였다). 바닥은 아가리로 곧장 보인다.
@@ -14579,25 +14584,26 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 굴 속 — 아치 안의 검은 구멍. 제 자리 깊이를 그대로 쓰므로 앞을 보면 둔덕 위로
        올라오고 뒤로 돌면 둔덕에 묻힌다(따로 문턱을 두지 않는다). */
     const mouthKey = depthNow(0, 1.9) * 1.6;
-    const arch9 = (yy: number, rx: number, rz: number, z0: number): string => polyPath3(
-      Array.from({ length: 13 }, (_, i9) => {
-        const th = (i9 / 12) * Math.PI;
-        return [Math.cos(th) * rx, yy, z0 + Math.sin(th) * rz] as [number, number, number];
-      }),
+    // 사다리꼴 한 장 — 밑 반폭 hb(z0) · 위 반폭 ht(zt).
+    const trap9 = (yy: number, hb: number, ht: number, z0: number, zt: number): string => polyPath3(
+      [[-hb, yy, z0], [hb, yy, z0], [ht, yy, zt], [-ht, yy, zt]],
     );
     if (!MESH9.on) out.push(...tagKey([
-      [arch9(1.95, 2.15, 2.04, 0.16), 0.96, "#14171c"] as ShapeFace,
-      [arch9(1.7, 1.5, 1.52, 0.36), 0.98, "#06070a"] as ShapeFace,
-      [arch9(1.71, 1.15, 1.15, 0.42), 0.3, glowLit("#b6ff3a", "#3d5a14")] as ShapeFace,   // 퍼진 겹(2D 폴백)
-      [arch9(1.72, 0.7, 0.7, 0.5), 0.8, glowLit("#b6ff3a", "#3d5a14")] as ShapeFace,   // 굴 속 라임 불빛(2D 폴백)
+      [trap9(1.95, 2.3, 1.7, 0.16, 2.3), 0.96, "#14171c"] as ShapeFace,
+      [trap9(1.7, 1.96, 1.45, 0.16, NY_ZT9), 0.98, "#06070a"] as ShapeFace,
+      [trap9(1.71, 1.3, 1.0, 0.3, 1.5), 0.3, glowLit("#b6ff3a", "#3d5a14")] as ShapeFace,   // 퍼진 겹(2D 폴백)
+      [trap9(1.72, 0.8, 0.6, 0.4, 1.1), 0.8, glowLit("#b6ff3a", "#3d5a14")] as ShapeFace,   // 굴 속 라임 불빛(2D 폴백)
     ], mouthKey + 0.2));
-    /* 입구 아치 — 굴을 두르는 두툼한 살 테. 반원 길을 그리는 기둥 하나로 낸다
-       (굵기가 일정하도록 hold를 끝까지 준다). */
+    /* 입구 문틀 — 굴을 두르는 두툼한 살 테. 사다리꼴 세 토막(왼 다리 → 윗보 → 오른 다리)을 한 기둥으로 낸다
+       (굵기가 일정하도록 hold를 끝까지 · segs 15 라 모퉁이가 마디에 앉는다). 위로 갈수록 앞으로 조금 기운다(y +0.45). */
+    const NY_FR9: [number, number][] = [[-2.8, 0.16], [-2.15, 2.8], [2.15, 2.8], [2.8, 0.16]];
     out.push(...tagKey(spirePillar({
-      x: 0, y: 0, h: 0.8, w: 0.85, tipW: 0.85, segs: 14, sides: 6, hold: 1,
+      x: 0, y: 0, h: 0.8, w: 0.85, tipW: 0.85, segs: 15, sides: 6, hold: 1,
       path: (t9: number): [number, number, number] => {
-        const a9 = Math.PI * (1 - t9);
-        return [Math.cos(a9) * 2.55, 2.05 + Math.sin(a9) * 0.45, 0.16 + Math.sin(a9) * 2.2];
+        const u9 = Math.min(2.999, t9 * 3); const i9 = Math.floor(u9); const f9 = u9 - i9;
+        const a9 = NY_FR9[i9]; const b9 = NY_FR9[i9 + 1];
+        const x9 = a9[0] + (b9[0] - a9[0]) * f9; const z9 = a9[1] + (b9[1] - a9[1]) * f9;
+        return [x9, 2.05 + 0.45 * ((z9 - 0.16) / 2.64), z9];
       },
       fill: "#c68a62",
     }), mouthKey + 0.4));
