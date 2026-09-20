@@ -4079,69 +4079,96 @@ export function tankTurretV2(siege: boolean, parts?: { body?: boolean; barrel?: 
   /** 나온 몫 e 의 포신 축 위 한 점(t 0 뿌리 ~ 1 포구). rc 는 반동(앞으로 밀림). */
   const gunAt9 = (e9: number, rc9: number) => (t9: number): [number, number, number] =>
     T9(0, -(1.0 + 3.04 * e9 * t9) * BX9 + rc9, ZB9 + (Z0 + 1.0 + RISE9 * e9 * t9 - ZB9) * BX9z9);
-  /** 포구 둘레의 **해저드 띠** — 축 s0~s1 구간을 반 칸 비틀어 두르면 그것이 곧 빗금이다.
-   *  ⚠ 축이 y·z 평면에 있으므로 x 축이 그대로 한 수직이다(그래서 외적 한 번이면 틀이 선다). */
+  /** 포신의 반폭(단면 u 축 · v 축은 `oval: 2` 라 이 두 배) — **띠가 이 자를 그대로 읽는다**. */
+  const gunW9 = (e9: number, t9: number): number => (0.6 - 0.07 * e9 * t9) * BX9;
+  /** 해저드 띠가 살 위로 뜨는 몫(요청: "딱 붙어서 표면 위 데칼로 읽혀야지") — 띠가 살의
+   *  단면(팔각)을 그대로 타므로 어느 자리에서나 이 몫만큼만 떠 있다. */
+  const HAZ_K9 = 1.03;
+  /** 포구 둘레의 **해저드 띠** — 축 s0~s1 구간을 비틀어 두르면 그것이 곧 빗금이다.
+   *  ★★ **띠는 둥글게 말지 않는다 — 살의 각을 그대로 탄다**(2026-09, 지적: "해저드띠만 둥글게
+   *  말면 안 되고 각을 맞춰야지") — 포신은 `sides: 8`(위상 π/8)·`oval: 2` 의 팔각 기둥인데 띠는
+   *  둘레를 고르게 나눈 **타원**이었다. 곧 각진 살 위에 둥근 고리가 얹혀 모서리마다 뜨고
+   *  낯 한가운데마다 파였다. 이제 ⓐ 단면 틀을 spirePillar 와 **같게** 잡고(u = 축에 수직화한 ẑ ·
+   *  v = 축 × u · sin 쪽에 oval 2) ⓑ 임의 각의 점을 **두 꼭짓점을 잇는 현 위**에서 낸다 ⓒ 칸의
+   *  경계에 **꼭짓점 각을 함께 넣어** 한 낯이 모서리를 가로지르지 않게 한다. 그러면 띠가 살을
+   *  닮은꼴로 K 배 키운 팔각이 되어 어느 각에서도 같은 두께로 붙는다. */
   const hazSleeve9 = (
-    pOf9: (t9: number) => [number, number, number], s09: number, s19: number, r9: number,
+    pOf9: (t9: number) => [number, number, number], s09: number, s19: number,
+    rAt9: (s9: number) => number,
   ): ShapeFace[] => {
     const a9 = pOf9(s19); const b9 = pOf9(s09);
     const al9 = Math.hypot(a9[0] - b9[0], a9[1] - b9[1], a9[2] - b9[2]) || 1;
+    /** 축(접선) — spirePillar 의 T 와 같다(t 가 느는 쪽). */
     const u9: [number, number, number] = [(a9[0] - b9[0]) / al9, (a9[1] - b9[1]) / al9, (a9[2] - b9[2]) / al9];
-    const e29: [number, number, number] = [
-      u9[1] * 0 - u9[2] * 0, u9[2] * 1 - u9[0] * 0, u9[0] * 0 - u9[1] * 1,
+    /* 단면 틀은 **포신이 쓰는 그 틀**이다: u = ẑ 를 축에 수직화(AUTO_REF) · v = 축 × u.
+       ⚠ 예전에는 외적 한 번으로 얻은 축에 oval 을 걸었는데, 그것은 포신의 틀과 90도
+       돌아간 자리라 각을 맞출 수가 없었다(띠가 둥글게 말린 까닭이 곧 이것이다). */
+    const dz9 = u9[2];
+    const ux9 = -u9[0] * dz9; const uy9 = -u9[1] * dz9; const uz9 = 1 - u9[2] * dz9;
+    const ul9 = Math.hypot(ux9, uy9, uz9) || 1;
+    const e29: [number, number, number] = [ux9 / ul9, uy9 / ul9, uz9 / ul9];
+    const e39: [number, number, number] = [
+      u9[1] * e29[2] - u9[2] * e29[1], u9[2] * e29[0] - u9[0] * e29[2], u9[0] * e29[1] - u9[1] * e29[0],
     ];
-    /* ⚠ 포신 단면은 **타원**이다(spirePillar 의 `oval: 2` — v 축을 두 배로 늘인다). 띠를
-       동그랗게 두르면 넓은 쪽에서 살에 파묻혀 **각도에 따라 사라진다**(지적: "해저드 데칼이
-       각도에 따라 잘 안 보이는 부분이 있는 듯"). 같은 비로 눌러 두른다. */
-    /* ⚠⚠ 늘이는 축은 **x(가로)** 다(2026-09, 지적: "해저드 띠가 왜 90도 롤링돼 있지") — 처음엔
-       외적으로 얻은 축(e2)에 걸었는데 그것은 포신이 눌린 쪽과 **직각**이라, 띠만 세로로 선
-       타원이 되어 통째로 90도 굴러 보였다. spirePillar 의 u 축(oval 이 안 걸리는 긴 쪽)이
-       여기서는 화면 가로이므로, 띠도 그쪽을 늘여야 살을 따라 두른다.
-       ★ 축이 헷갈릴 때는 **그림으로 판정하라** — 띠가 굴러 보이면 늘인 축이 반대다. */
-    const OV9 = 2;
-    const C9 = (th9: number, s9: number): [number, number, number] => {
-      const q9 = pOf9(s9);
-      const c9 = Math.cos(th9) * OV9; const sn9 = Math.sin(th9);
-      return [q9[0] + r9 * c9, q9[1] + r9 * sn9 * e29[1], q9[2] + r9 * sn9 * e29[2]];
+    const OV9 = 2;            // 포신의 oval — v(가로) 쪽이 두 배다
+    const SIDES9 = 8;         // 포신의 낯 수
+    const PH9 = Math.PI / SIDES9;              // spirePillar 의 기본 위상
+    const SD9 = (Math.PI * 2) / SIDES9;        // 낯 하나의 둘레 각
+    /** 꼭짓점 각 a 의 단면 점(살을 K 배 키운 자리). */
+    const V9 = (an9: number, s9: number): [number, number, number] => {
+      const q9 = pOf9(s9); const r9 = rAt9(s9);
+      const c9 = Math.cos(an9) * r9; const sn9 = Math.sin(an9) * r9 * OV9;
+      return [
+        q9[0] + e29[0] * c9 + e39[0] * sn9,
+        q9[1] + e29[1] * c9 + e39[1] * sn9,
+        q9[2] + e29[2] * c9 + e39[2] * sn9,
+      ];
     };
-    /* ★★ **비틀린 띠를 빗금 한 칸에 낯 한 장으로 두르면 그 낯이 포신을 뚫고 들어간다**(2026-09,
-       지적: "해저드띠 자체가 정상적으로 안 그려지고 조금씩 깨지고 안 보이는 게 문제야") —
-       옛 판은 빗금(45도) 하나가 **네모 한 장**이고 두 끝이 0.6칸 비틀려 있었다. 곧 그 네모의
-       대각선이 둘레 **72도**를 가로질러, GL 이 삼각화하면 그 삼각형이 반지름 0.62 → 0.62·cos36
-       = **0.50** 으로 꺼진다 — 포신 살(0.58)보다 안쪽이라 빗금의 절반이 살에 먹힌다(8각 포신의
-       꼭짓점 능선이 띠를 뚫고 나온 그림이 곧 '조금씩 깨짐'이다).
-       고침은 **띠를 잘게 쪼개는 것**이다: 빗금마다 둘레로 `KA9` 쪽 × 축으로 `NS9` 마디라
-       한 낯이 둘레 22.5도 + 비틀림 6.8도뿐이고, 그 대각선의 꺼짐이 cos14.6 = 0.968 이라
-       어느 자리에서도 살 밖에 선다. 빗금의 **비스듬한 경계는 그대로**다(칸마다 제 몫으로 비튼다).
-       ⚠ 반지름도 한 뼘 올린다(0.62 → 0.66·BX9) — 8각 포신의 꼭짓점이 0.58 이라 옛 값은
-         꺼진 몫(0.60)과의 차가 0.02 뿐이었다. 살보다 조금 굵은 고리로 읽히는 자리이기도 하다.
-       ★ 규약: **굽은 살에 두르는 띠는 그 살보다 잘게 쪼개라** — 한 장짜리 큰 낯은 제 현으로
-         살을 가로지르고, 그 현은 요잉마다 다른 자리에서 먹히므로 '깨져 보이는' 꼴이 된다. */
-    const STR9 = 8;   // 빗금 수(옛 낯 수)
-    const KA9 = 2;    // 빗금 하나를 둘레로 나눈 몫
-    const NS9 = 4;    // 축을 나눈 마디
-    const TW9 = 0.6;  // s0 → s1 동안 빗금이 비틀리는 몫(빗금 한 칸의)
+    /** 임의 각 th 의 점 — **꼭짓점 둘을 잇는 현 위**를 곧게 간다(둥근 고리가 아니다). */
+    const C9 = (th9: number, s9: number): [number, number, number] => {
+      const k9 = Math.floor((th9 - PH9) / SD9);
+      const a09 = PH9 + k9 * SD9;
+      const f9 = (th9 - a09) / SD9;
+      const p09 = V9(a09, s9); const p19 = V9(a09 + SD9, s9);
+      return [
+        p09[0] + (p19[0] - p09[0]) * f9,
+        p09[1] + (p19[1] - p09[1]) * f9,
+        p09[2] + (p19[2] - p09[2]) * f9,
+      ];
+    };
+    /* 빗금은 **마디마다 한 칸씩 어긋나는 계단**이다 — 한 낯 안에서 둘레 각이 위아래로
+       같아야 그 낯이 살의 평면에 정확히 눕는다(비틀림을 낯 안에 넣으면 모서리를 비스듬히
+       가로질러 도로 파인다). 마디를 잘게 나누면 그 계단은 눈에 안 띈다(마디마다 4.5도). */
+    const STR9 = 8;    // 빗금 수
+    const NS9 = 12;    // 축을 나눈 마디
+    const TW9 = 1.2;   // s0 → s1 동안 빗금이 비틀리는 몫(빗금 한 칸의)
     const D9 = (Math.PI * 2) / STR9;
     const qs9: { d: number; f: ShapeFace }[] = [];
-    for (let i9 = 0; i9 < STR9; i9 += 1) {
-      /* 해저드의 검정은 **물감이지 구멍이 아니다**(2026-09, 되지적: "탱크모드 포신 해저드
-         검정색을 없애라는 게 아니야 그것도 해저드의 일부야") — 한때 어두운 강철(#464c56)로
-         올렸다가 되물렸다. 안 보이던 까닭은 색이 아니라 위 ★★ 의 기하였다. */
-      const col9 = i9 % 2 === 0 ? "#d8b52a" : "#22262b";
-      for (let k9 = 0; k9 < KA9; k9 += 1) {
-        const t09 = i9 * D9 + (k9 / KA9) * D9;
-        const t19 = i9 * D9 + ((k9 + 1) / KA9) * D9;
-        for (let r09 = 0; r09 < NS9; r09 += 1) {
-          const sa9 = s09 + (s19 - s09) * (r09 / NS9);
-          const sb9 = s09 + (s19 - s09) * ((r09 + 1) / NS9);
-          const oa9 = TW9 * D9 * (r09 / NS9);
-          const ob9 = TW9 * D9 * ((r09 + 1) / NS9);
-          const pth9 = polyPath3([
-            C9(t09 + oa9, sa9), C9(t19 + oa9, sa9), C9(t19 + ob9, sb9), C9(t09 + ob9, sb9),
-          ]);
-          const m9 = C9((t09 + t19) / 2 + (oa9 + ob9) / 2, (sa9 + sb9) / 2);
-          qs9.push({ d: depthNow(m9[0], m9[1]), f: [pth9, 1, col9] as ShapeFace });
-        }
+    for (let r09 = 0; r09 < NS9; r09 += 1) {
+      const sa9 = s09 + (s19 - s09) * (r09 / NS9);
+      const sb9 = s09 + (s19 - s09) * ((r09 + 1) / NS9);
+      const of9 = TW9 * D9 * ((r09 + 0.5) / NS9);
+      /* 칸의 경계 = 빗금 경계 ∪ **살의 꼭짓점 각** — 그래야 한 낯이 모서리를 안 가로지른다. */
+      const cut9: number[] = [];
+      for (let i9 = 0; i9 < STR9; i9 += 1) cut9.push(of9 + i9 * D9);
+      for (let k9 = 0; k9 < SIDES9; k9 += 1) {
+        let v9 = PH9 + k9 * SD9;
+        while (v9 < of9) v9 += Math.PI * 2;
+        while (v9 >= of9 + Math.PI * 2) v9 -= Math.PI * 2;
+        cut9.push(v9);
+      }
+      cut9.sort((x9, y9) => x9 - y9);
+      cut9.push(of9 + Math.PI * 2);
+      for (let c09 = 0; c09 + 1 < cut9.length; c09 += 1) {
+        const t09 = cut9[c09]; const t19 = cut9[c09 + 1];
+        if (t19 - t09 < 1e-4) continue;
+        const md9 = (t09 + t19) / 2;
+        /* 해저드의 검정은 **물감이지 구멍이 아니다**(2026-09, 되지적: "탱크모드 포신 해저드
+           검정색을 없애라는 게 아니야 그것도 해저드의 일부야"). */
+        const col9 = Math.floor((md9 - of9) / D9) % 2 === 0 ? "#d8b52a" : "#22262b";
+        const pth9 = polyPath3([C9(t09, sa9), C9(t19, sa9), C9(t19, sb9), C9(t09, sb9)]);
+        const m9 = C9(md9, (sa9 + sb9) / 2);
+        qs9.push({ d: depthNow(m9[0], m9[1]), f: [pth9, 1, col9] as ShapeFace });
       }
     }
     qs9.sort((p9, q9) => p9.d - q9.d);
@@ -4163,8 +4190,9 @@ export function tankTurretV2(siege: boolean, parts?: { body?: boolean; barrel?: 
       path: pOf9,
       widthOf: (t9: number): number => (0.6 - 0.07 * e9 * t9) * BX9,
     }), TANK_STEEL);
-    // 띠는 포구 바로 뒤 — 살보다 조금 굵어 둘러진 것으로 읽힌다.
-    o9.push(...hazSleeve9(pOf9, 0.80, 0.995, 0.66 * BX9));
+    /* 띠는 포구 바로 뒤 — 살 위 5%(HAZ_K9)에 바싹 붙은 **표면 데칼**이고 앞뒤 폭은
+       포신 길이의 39%다(요청: "딱 붙어서 표면 위 데칼로 · 앞뒤 폭 두 배"). */
+    o9.push(...hazSleeve9(pOf9, 0.61, 0.995, (s9: number) => gunW9(e9, s9) * HAZ_K9));
     return o9;
   };
   // 포신 길이 0.8배(요청): 일반 0.6~3.5 → 0.6~3.0(끝마디 2.45~3.0) · 시즈 3.8 → 3.04. 키의 y도 짧아진 만큼(2.4 → 2.0).
