@@ -14473,19 +14473,53 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 키 1 — 둔덕(0) **다음 차례**라야 부품 차례 편향에서 둔덕의 안쪽 낯에 안 진다(GL 에만 있는 판이라 2D 차례는 무관).
       out.push(...tagKey(caveInside9(2.6, 0.2, 2.7, caveFront9, "#0d1013"), 1));
     }
-    /* 굵은 핏줄 — 덩치 옆선을 타고 오르는 가는 기둥 여섯. */
-    for (const ang of [-150, -95, -40, 30, 95, 150]) {
-      const a9 = (ang * Math.PI) / 180;
-      const dxr = Math.sin(a9);
-      const dyr = Math.cos(a9);
-      out.push(...tagKey(spirePillar({
-        x: 0, y: 0, h: 0.8, w: 0.42, tipW: 0.16, segs: 7, sides: 5, hold: 0.1, taper: 1.4,
+    /* ★ **핏줄은 저그 기본색의 갈래 그물이다**(2026-09, 사진 요청: "울트라덴 몸체에 저그 기본색 핏줄들") — 옛 판은
+       어두운 초록 기둥 여섯이 곧게 올라 몸과 색이 붙어 안 읽혔다. 공사 고치의 핏줄과 같은 수법: 껍질 위의 점을
+       (방위각, 높이) 자로 되짚고(`onSkin9`), 줄기 열하나가 흔들리며 오르다 45% 자리에서 둘로 갈라지고 갈래는 다시
+       잔가지를 낸다. 색은 `RACE_BASE_TONE.zerg`(주황) — 초록 살 위에 그물로 선다. 아가리(|각| < 50도 · 이빨 능선
+       아래)와 겹치는 줄기는 능선 위(t 0.58)에서 시작한다. 굵기는 등급을 돌려 가며(고치의 THICK9 규약) 굵은 줄기와
+       실 같은 줄기가 함께 있다. */
+    const VEIN9 = RACE_BASE_TONE.zerg;
+    /* ⚠ 둔덕의 단면은 **등뼈에 수직**이다(축이 (0, −1.1, 5.12) 로 뒤로 기운다) — 수평 원으로 되짚으면 앞쪽 살은
+       실제보다 0.21·r 낮게 잡혀 핏줄이 살 속에 묻히고 뒤쪽은 그만큼 떠서 허공에 걸린다(실측: 0° 에서 앞 핏줄이
+       토막만 비치고 뒤 줄기가 떴다). 단면의 법선 n = (0, 0.978, 0.210) 을 타고 되짚는다. */
+    const onSkin9 = (aa: number, t9: number, rw: number): [number, number, number] => {
+      const tt = Math.max(0.02, Math.min(0.97, t9));
+      const r9 = 1.4 + 3 * Math.sqrt(1 - tt) + rw * 0.55;
+      const c9 = Math.cos(aa) * r9;
+      return [Math.sin(aa) * r9, -1.2 - tt * 1.1 + c9 * 0.9777, tt * 5.12 + c9 * 0.2099];
+    };
+    const veinTube9 = (aS: number, tS: number, dA: number, dT: number, w9: number, seed: number, segs: number): ShapeFace[] =>
+      spirePillar({
+        x: 0, y: 0, h: 0.8, w: w9, tipW: Math.max(0.03, w9 * 0.32), segs, sides: 5, hold: 0, taper: 1.2, caps: "none",
         path: (t9: number): [number, number, number] => {
-          const r9 = (1.4 + 3 * (1 - t9) ** 0.5) * 0.99;
-          return [dxr * r9, -1.2 - t9 * 1.1 + dyr * r9, t9 * 5.12];
+          const wb9 = Math.sin(t9 * 4.1 + seed * 2.3) * 0.09 * t9;
+          return onSkin9(aS + dA * t9 + wb9, tS + dT * t9, w9 * (1 - 0.6 * t9));
         },
-        fill: HIDE_D,
-      }), depthNow(dxr * 3, dyr * 3) * 1.6 + 1));
+        fill: VEIN9,
+      });
+    const VTHICK9 = [1.0, 0.62, 1.35, 0.8, 1.15, 0.55];
+    for (let v9 = 0; v9 < 11; v9 += 1) {
+      const ang = -165 + v9 * 33;
+      const a9 = (ang * Math.PI) / 180;
+      const front9 = Math.abs(ang) < 50;
+      const tS = front9 ? 0.58 : 0.04;
+      const dA = (Math.sin(v9 * 12.9) * 0.55);
+      const dT = (front9 ? 0.34 : 0.7) + (Math.cos(v9 * 7.3) * 0.5 + 0.5) * 0.16;
+      const w0 = 0.19 * VTHICK9[v9 % VTHICK9.length];
+      const key9 = depthNow(Math.sin(a9) * 3, Math.cos(a9) * 3) * 1.6 + 1;
+      out.push(...tagKey(veinTube9(a9, tS, dA, dT, w0, v9, 9), key9));
+      /* 갈래 둘 — 줄기 45% 자리에서 좌우로 벌어져 위로. 그 갈래도 60% 에서 잔가지 하나. */
+      const aB = a9 + dA * 0.45;
+      const tB = tS + dT * 0.45;
+      for (const sg of [-1, 1]) {
+        const spread9 = sg * (0.42 + (Math.sin(v9 * 5.1 + sg) * 0.5 + 0.5) * 0.3);
+        const dTb = dT * (0.36 + (Math.cos(v9 * 3.7 + sg) * 0.5 + 0.5) * 0.22);
+        out.push(...tagKey(veinTube9(aB, tB, spread9, dTb, w0 * 0.55, v9 * 3 + sg, 6), key9));
+        const aC = aB + spread9 * 0.6;
+        const tC = tB + dTb * 0.6;
+        out.push(...tagKey(veinTube9(aC, tC, sg * -0.28, dTb * 0.5, w0 * 0.32, v9 * 5 + sg, 4), key9));
+      }
     }
     /* 앞 굴 아가리 — 어두운 속을 누런 이빨 능선이 위아래로 두른다. */
     /* 아가리는 몸 앞면이라 제 자리 깊이만 쓴다(지적: 키값 수정) — 붙박이 +4는
@@ -14522,13 +14556,36 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // 왼쪽 창백한 혹 — 덩치 옆에 붙은 매끈한 알.
     out.push(...tagKey(paintBase(domeFaces3(-3.6, 1.2, 1.35, 0.92, 0.16), "#d3d7db"),
       depthNow(-3.6, 1.2) * 1.6 + 2));
-    /* 양옆 발치 갈색 촉수 다발 — 바닥을 기다 끝이 말려 오른다. */
-    for (const [tx9, ty9, ex9, ey9] of [
-      [-3.4, -0.6, -5.2, -1.4], [-3, 2.2, -4.4, 3.2], [3.4, -0.4, 5.2, -1],
-      [3.1, 2, 4.5, 3.1], [3.8, 1, 5.6, 1.2],
-    ] as [number, number, number, number][]) {
-      out.push(...tagKey(spikeHorn(tx9, ty9, 0.48, ex9, ey9, 1.2, 0.5, "#6b4732", 6, 0.5,
-        ex9 - tx9, ey9 - ty9), depthNow(ex9, ey9) * 1.6 + 1));
+    /* ★ **바닥의 촉수는 마디 진 관이다**(같은 요청: "바닥에 촉수들") — 옛 판은 발치 좌우에 곧은 뿔 다섯이었다. 사진의
+       촉수는 둔덕 밑동 둘레에서 **바닥을 기어 나와** 끝이 살짝 들리고, 굵기가 마디마다 불룩해 지렁이처럼 읽힌다.
+       열 가닥이 2차 베지에(밑동 살 속 r 3.9 → 조종점 r 5.4 · 옆으로 비낌 → 끝 r 6.9)로 나가고, `widthOf` 가
+       밑동 0.42 에서 끝 0.06 으로 줄며 사인 마디(일곱 마디)를 얹는다. z 는 그 자리 반지름(관이 땅에 눕는다) + 끝
+       들림 1.0·t³. 아가리 정면(|각| < 30도)은 비운다. */
+    const TENT9 = "#6b4732";
+    const bz9 = (a: number, b: number, c: number, t: number): number => (1 - t) * (1 - t) * a + 2 * (1 - t) * t * b + t * t * c;
+    for (let k9 = 0; k9 < 10; k9 += 1) {
+      const ang = [-165, -132, -100, -70, -42, 42, 70, 100, 132, 165][k9];
+      const a9 = (ang * Math.PI) / 180;
+      const sx9 = Math.sin(a9);
+      const sy9 = Math.cos(a9);
+      const px9 = Math.cos(a9);
+      const py9 = -Math.sin(a9);
+      const sw9 = (k9 % 2 === 0 ? 1 : -1) * (0.6 + (Math.sin(k9 * 4.7) * 0.5 + 0.5) * 0.9);
+      const len9 = 6.9 + Math.cos(k9 * 2.9) * 0.6;
+      const wAt9 = (t9: number): number => (0.42 - 0.36 * t9) * (1 + 0.16 * Math.sin(t9 * Math.PI * 14 + k9));
+      const yc9 = -1.2 - 0.1;
+      const ex9 = sx9 * len9 + px9 * sw9;
+      const ey9 = yc9 + sy9 * len9 + py9 * sw9;
+      out.push(...tagKey(spirePillar({
+        x: 0, y: 0, h: 0.8, w: 0.42, tipW: 0.06, segs: 26, sides: 6, hold: 0, caps: "none", trueNormal: true,
+        widthOf: wAt9,
+        path: (t9: number): [number, number, number] => [
+          bz9(sx9 * 3.9, sx9 * 5.4 + px9 * sw9 * 0.4, ex9, t9),
+          bz9(yc9 + sy9 * 3.9, yc9 + sy9 * 5.4 + py9 * sw9 * 0.4, ey9, t9),
+          wAt9(t9) + 1.0 * t9 * t9 * t9,
+        ],
+        fill: TENT9,
+      }), depthNow(ex9, ey9) * 1.6 + 1));
     }
     /* 꼭대기 혹 — 개인색 포인트(요청). */
     // 꼭대기 혹은 몸 위 얹힘이라 지붕 규칙 키(붙박이 + 제 자리 깊이).
