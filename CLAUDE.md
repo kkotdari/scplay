@@ -49,7 +49,8 @@
   파일 전송이 400 으로 막힌다(실측 · 8000px·2MB 조각은 간다). hist-compose 가 절(유닛·건물)마다 머리띠를 얹은 조각
   `*_history_1_units.png`·`*_history_2_bldgs.png` 도 함께 낸다 — 그 여섯을 ASCII 이름으로 베껴(`$S/hist_out/`) 종족마다 둘씩 보낸다.
   지금 시점의 꼬리표는 `NOW`(굽는 날) 한 상수다 — 다시 뽑는 날 그 값만 고친다. 옛 재료(7월 그림·8/29 판 histA_*·kinds_*.txt·july_rows.json)는
-  스크래치에 그대로 있으니 **지금 판(histC_* 넷)만** 다시 굽는다(`$S/hist8.sh` 의 앞 네 줄).
+  스크래치에 그대로 있으니 **지금 판(histC_* 넷)만** 다시 굽는다 — 한 줄로는 `sh scripts/history/hist-run.sh $S`(굽기 → 합치기 →
+  `$S/hist_out/` 여섯 조각까지 · `--old` 를 주면 8/29 판도 wtA 에서 다시 굽는다 · 종류 목록 `kinds_u/b.txt` 도 그 폴더에 있다).
   ⚠ 판 여덟을 dataURL 로 넘기는 첫 decode 가 가끔 `EncodingError` 로 튄다 — 그냥 한 번 더 돌린다.
 
 ## 도록의 칸(2026-09)
