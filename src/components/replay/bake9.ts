@@ -4554,7 +4554,7 @@ export function zergPond9(cx: number, cy: number, R: number): ShapeFace[] {
 export function hatcheryMoundFaces(
   seamColor: string, spikeColor = "#1b1e23",
   /** 옥상 볏 — 개수·굵기·키. 해처리 셋 · 레어 넷 · 하이브 **크게 하나**(요청). */
-  crown: { n: number; w: number; h: number; claw?: string } = { n: 3, w: 0.54, h: 2.0 },
+  crown: { n: number; w: number; h: number; claw?: string; leaf?: boolean } = { n: 3, w: 0.54, h: 2.0 },
   /** 바닥 오징어 다리의 크기 배수 — **해처리 < 레어 < 하이브**(요청) · 셋 다 절반으로(재요청: "오징어다리
    *  크기 50프로 축소" — 비는 그대로 두고 기준만 0.5·0.59·0.7). */
   legK = 0.5,
@@ -4638,6 +4638,34 @@ export function hatcheryMoundFaces(
         [cdx * CR9 * 2.05, cdy * CR9 * 2.05, MND_H + crown.h * 0.50],
         [cdx * CR9 * 1.72, cdy * CR9 * 1.72, MND_H + crown.h * 1.05],
       ];
+      const cpath9 = (t9: number): [number, number, number] => {
+        const u9 = 1 - t9;
+        return [
+          u9 * u9 * CP[0][0] + 2 * u9 * t9 * CP[1][0] + t9 * t9 * CP[2][0],
+          u9 * u9 * CP[0][1] + 2 * u9 * t9 * CP[1][1] + t9 * t9 * CP[2][1],
+          u9 * u9 * CP[0][2] + 2 * u9 * t9 * CP[1][2] + t9 * t9 * CP[2][2],
+        ];
+      };
+      const ckey9 = depthNow(cdx * CR9 * 1.3, cdy * CR9 * 1.3) * 1.6 + 9;
+      /* ★ **하이브의 갈고리는 잎이다**(2026-09, 요청: "하이브 꼭대기 뿔 잎모양으로 변경") — 등뼈(같은 베지에)는
+         그대로 두고 몸만 공용 잎(`leafFaces`)으로 세운다: 허리가 가장 넓고 끝이 점으로 여며지는 얇은 판.
+         · **넓어지는 쪽은 둘레(접선) 방향**이다 — `ref` 를 그 자리의 **반지름 방향**으로 주면 u(두께)가
+           반지름-수직 평면에 서고 반폭(u × spread)이 둘레로 눕는다. 곧 바깥에서 보면 잎 낯이 통째로 보이고
+           옆에서는 얇은 날로 선다(등뼈가 굽는 평면이 곧 낯의 법선 쪽이라 잎이 안으로 오므라든다).
+         · 얇은 판이라 `trueNormal` 을 준다(그 ★★ 규약 — 안 주면 속면이 비친다). 뿌리는 옥상 살 속이라
+           점으로 모으지 않고 조금 남긴다(rootW). */
+      if (crown.leaf) {
+        out.push(...leafFaces({
+          path: cpath9,
+          waist: 0.46,
+          thick: crown.w * 0.30,
+          spread: 4.9,
+          rootPow: 0.62, tipPow: 0.95, rootW: 0.16, tipW: 0,
+          segs: 8, sides: 10, fill: spikeColor,
+          ref: [cdx, cdy, 0], trueNormal: true, key: ckey9,
+        }));
+        continue;
+      }
       out.push(...tagKey(spirePillar({
         x: 0, y: 0, h: 0.8, w: crown.w, tipW: 0.03, segs: 12, sides: 6, hold: 0, taper: 1.3,
         caps: "none", fill: spikeColor,
@@ -4646,15 +4674,8 @@ export function hatcheryMoundFaces(
            몸통의 그 규약). 안 주면 종전대로 통째로 spikeColor. */
         fillAt: crown.claw === undefined
           ? undefined : (t9: number): string | undefined => (t9 > 0.5 ? crown.claw : undefined),
-        path: (t9: number): [number, number, number] => {
-          const u9 = 1 - t9;
-          return [
-            u9 * u9 * CP[0][0] + 2 * u9 * t9 * CP[1][0] + t9 * t9 * CP[2][0],
-            u9 * u9 * CP[0][1] + 2 * u9 * t9 * CP[1][1] + t9 * t9 * CP[2][1],
-            u9 * u9 * CP[0][2] + 2 * u9 * t9 * CP[1][2] + t9 * t9 * CP[2][2],
-          ];
-        },
-      }), depthNow(cdx * CR9 * 1.3, cdy * CR9 * 1.3) * 1.6 + 9));
+        path: cpath9,
+      }), ckey9));
     }
     const [mx, my] = project(0, 0, 5.08);
     out.push(sideFace(`M${mx - 1.5} ${my} L${mx + 1.5} ${my} Q${mx + 1.4} ${my + 1} ${mx} ${my + 1.15} Q${mx - 1.4} ${my + 1} ${mx - 1.5} ${my} Z`, 0.35));
@@ -15639,7 +15660,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 하이브 옆선·가시는 진한 상아였는데 화면에서 밝게 떠 보였다(요청: "하이브
          옆선 기둥색과 뿔 세개 색 다 좀더 어둡게") — 이 건물에서만 한 단 낮춘 상아를
          쓴다. IVORY_DEEP 자체는 다른 열 곳이 함께 쓰므로 안 건드린다. */
-      if (hi === 1) out.push(...hatcheryMoundFaces(HIVE_IVORY, HIVE_IVORY, { n: 1, w: 1.15, h: 3.7 }, 0.7, "#6b4a2c"));
+      if (hi === 1) out.push(...hatcheryMoundFaces(HIVE_IVORY, HIVE_IVORY, { n: 1, w: 1.15, h: 3.7, leaf: true }, 0.7, "#6b4a2c"));
       hi += 1;
       // 뿔은 황토색, 가시는 상아색(요청).
       // 뿔에 제 자리 깊이(지적: 가려짐) — 첫 뿔(뒤)은 둔덕 뒤, 나머지는 둔덕 앞.
