@@ -14379,30 +14379,32 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const WATER = "#6fb6e0";
     const out: ShapeFace[] = [...paintBase(creepSplat(6.8), "#3a3f46")];
     /* 넓적한 판 — 낮고 넓은 살 판(앞뒤로 0.75 눌린 타원 · 위 뚜껑). */
-    const SL_Y = -0.8; const SL_Z = 0.9;
+    /* 좌우 폭만 줄였다(요청: "뒤쪽 판과 언덕 너비 줄이기") — 앞뒤 반길이 3.45 는 그대로(oval 이 그 비를 맞춘다). */
+    const SL_Y = -0.8; const SL_Z = 0.9; const SL_W = 3.7;
     out.push(...tagKey(paintBase(spirePillar({
-      x: 0, y: SL_Y, z0: 0, h: SL_Z, w: 4.6, tipW: 4.15, segs: 2, sides: 24, hold: 0.25, taper: 1, oval: 0.75, trueNormal: true,
+      x: 0, y: SL_Y, z0: 0, h: SL_Z, w: SL_W, tipW: SL_W * 0.9, segs: 2, sides: 24, hold: 0.25, taper: 1, oval: 3.45 / SL_W, trueNormal: true,
     }), FLESH), 0));
     /* 뒤쪽 언덕 — 판 위에 앉은 둥근 살 둔덕(타원 옆선). 석판·촉수 뿌리가 이 살 속에 든다. */
-    const HX = 0; const HY = -1.9; const HR = 3.1; const HH = 2.0;
+    const HX = 0; const HY = -1.9; const HR = 3.1; const HH = 2.0; const HXK9 = 0.78;   // 좌우만 0.78 배(같은 요청)
     const hillZ9 = (x9: number, y9: number): number => {
-      const d9 = Math.hypot(x9 - HX, y9 - HY) / HR;
+      const d9 = Math.hypot((x9 - HX) / HXK9, y9 - HY) / HR;
       return SL_Z - 0.05 + HH * Math.sqrt(Math.max(0, 1 - d9 * d9));
     };
-    out.push(...tagKey(paintBase(domeFaces3(HX, HY, HR, HH, SL_Z - 0.05, true), FLESH_D), depthNow(HX, HY) * 1.6 + 0.5));
+    out.push(...tagKey(paintBase(withModelScale(HXK9, 1, 1, () => domeFaces3(HX, HY, HR, HH, SL_Z - 0.05, true)), FLESH_D), depthNow(HX, HY) * 1.6 + 0.5));
     /* 검회색 석판 — 언덕에 제각기 다른 각도로 박힌 납작한 판 여덟(단면 0.3 로 눌린 육각 기둥 · 뿌리는 살 속). */
-    for (const [sx9, sy9, sh9, sw9, lx9, ly9, rot9] of [
+    for (const [sx0, sy9, sh9, sw9, lx9, ly9, rot9] of [
       [-2.3, -2.0, 2.6, 0.72, -0.45, -0.25, 20], [-1.1, -3.0, 3.3, 0.85, -0.15, -0.55, -30],
       [0.4, -2.5, 2.9, 0.7, 0.2, -0.4, 55], [1.8, -2.9, 3.4, 0.8, 0.45, -0.3, -15],
       [3.0, -1.6, 2.4, 0.62, 0.55, -0.1, 70], [-0.4, -1.4, 2.2, 0.6, -0.1, 0.15, -60],
       [1.2, -1.2, 2.0, 0.55, 0.3, 0.2, 35], [-3.1, -1.0, 2.1, 0.58, -0.6, 0.05, -45],
     ] as [number, number, number, number, number, number, number][]) {
+      const sx9 = sx0 * HXK9;   // 석판 자리도 언덕과 함께 안으로
       out.push(...tagKey(paintBase(withModelSpin(rot9, () => spirePillar({
         x: sx9 * Math.cos(-rot9 * Math.PI / 180) - sy9 * Math.sin(-rot9 * Math.PI / 180),
         y: sx9 * Math.sin(-rot9 * Math.PI / 180) + sy9 * Math.cos(-rot9 * Math.PI / 180),
         z0: hillZ9(sx9, sy9) - 0.6, h: sh9, w: sw9, tipW: sw9 * 0.55, segs: 2, sides: 6, hold: 0.4, taper: 1.3,
         oval: 0.3, trueNormal: true, leanX: lx9, leanY: ly9,
-      })), (sx9 + sy9) % 2 === 0 ? SLAB : SLAB_D), depthNow(sx9, sy9) * 1.6 + 2));
+      })), (sx0 + sy9) % 2 === 0 ? SLAB : SLAB_D), depthNow(sx9, sy9) * 1.6 + 2));
     }
     /* 뒤쪽 양옆의 굵은 오징어 다리 — 언덕 살 속에서 나서 **바닥을 기어** 바깥·뒤로 갔다가 앞으로 감겨 끝이 안으로 도는
        3차 베지에 관(재지적: "뒤쪽 오징어다리는 바닥을 기어야 하고"). z 는 그 자리 반지름(관이 땅에 눕는다) · 뿌리 0.25 까지만
