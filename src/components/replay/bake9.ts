@@ -23210,7 +23210,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // 뒷몸(꼬리끝 → 허리) — 안 돈다.
     torso9(0, 0.50, true, false, depthNow(0, -3.5) * 1.6);
     // 앞몸(허리 → 얼굴) — 상체와 함께 돈다.
-    upper9(() => { torso9(0.44, 1, false, true, depthNow(0, 1.1) * 1.6); });
+    /* ★ 앞 토막은 **t 0.79(y 1.5)에서 캡 없이 끝난다** — 거기서 켄타우로스 상체(아래 UT_*)가 같은 단면으로 이어받아 위로 굽는다
+       (2026-09, 요청: "앞부분이 상반신과 하반신이 곡선으로 자연스럽게 이어져서 구부러지게"). 옛 앞끝(y 3.3)의 캡은 걷었다. */
+    const UT_T09 = 0.79;
+    upper9(() => { torso9(0.44, UT_T09, false, false, depthNow(0, 1.1) * 1.6); });
     /* 어깨 갑옷 판 둘 = **임자 색**(요청: 나머지 흰 부분) — 앞몸 양옆에 비스듬히 붙는
        각진 판. 사진에서 가장 크게 드러나는 창백한 자리라 임자를 여기서 읽는다. */
     /* ★ **둥근 판이 살에 얹힌다**(2026-09, 재요청: "어깨 판도 둥글게 살에 얹어줘") — 각진 절두체 둘은 둥근 몸 옆에서 상자로
@@ -23268,15 +23271,23 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        가운데 2.3 불룩 → 1.9 · 앞뒤 0.65 로 납작)이 솟고, 그 꼭대기에 얼굴·볏·옆뿔·팔·낫이 통째로 옮겨 앉는다(UT_DY9·UT_DZ9 —
        옛 자리에서 옮긴 몫 · 볏·뿔은 CR0 를 읽어 저절로 따라온다). 낫은 어깨가 높아진 만큼 더 깊이 내려와(끝 −1.5 → −4.0)
        앞·아래를 벤다. 상체는 휘두르기 묶음(upper9) 안이라 공격 컷에 함께 돈다. */
-    const UT_TOP9: [number, number, number] = [0, 2.6, 8.4];
-    const UT_ROOT9: [number, number, number] = [0, 1.9, 5.4];
+    /* ★★ **상체는 네발 몸통에서 굽어 오른다**(2026-09, 요청: "앞부분이 상반신과 하반신(켄타우로스 부분)이 곡선으로 자연스럽게
+       이어져서 구부러지게") — 첫 판은 가슴 위에 곧은 기둥을 꽂은 꼴이었다. 이제 네발 몸통의 앞 토막이 끝나는 단면(t 0.79 ·
+       y 1.5 · 반폭 tW9 · 납작함 tOv9)을 **그대로 이어받아** 앞으로 나가다 위로 굽는 2차 베지에(뿌리 접선 +y · 조종점 (0, 3.7, 등뼈 z) ·
+       꼭대기 (0, 3.2, 8.4))로 짓는다. 단면 축 ref x 가 같고 낯 수(14)도 같아 이음매가 닫힌다. 반폭은 몸통 값에서 어깨 1.95 로
+       줄고(가운데 살짝 불룩), 납작함은 몸통 값(0.64)에서 0.65 로 — 곧 옆에서 보면 등이 말의 어깨처럼 둥글게 서는 곡선이다. */
+    const UT_TOP9: [number, number, number] = [0, 3.2, 8.4];
+    const UT_ROOT9: [number, number, number] = [0, TY0 + (TY1 - TY0) * UT_T09, tZ9(UT_T09)];
+    const UT_C9: [number, number, number] = [0, 3.7, UT_ROOT9[2]];
+    const utW09 = tW9(UT_T09); const utOv09 = tOv9(UT_T09);
+    const bzu9 = (a: number, b: number, c: number, t: number): number => (1 - t) * (1 - t) * a + 2 * (1 - t) * t * b + t * t * c;
     out.push(...tagKey(paintBase(spirePillar({
-      x: 0, y: 0, h: 0.8, w: 1, tipW: 1, segs: 6, sides: 14, caps: "top", ref: [1, 0, 0], trueNormal: true,
+      x: 0, y: 0, h: 0.8, w: 1, tipW: 1, segs: 10, sides: 14, caps: "top", ref: [1, 0, 0], trueNormal: true,
       path: (t: number): [number, number, number] => [
-        0, UT_ROOT9[1] + (UT_TOP9[1] - UT_ROOT9[1]) * t, UT_ROOT9[2] + (UT_TOP9[2] - UT_ROOT9[2]) * t,
+        0, bzu9(UT_ROOT9[1], UT_C9[1], UT_TOP9[1], t), bzu9(UT_ROOT9[2], UT_C9[2], UT_TOP9[2], t),
       ],
-      widthOf: (t: number): number => 1.9 + 0.4 * Math.sin(Math.PI * t),
-      ovalOf: (): number => 0.65,
+      widthOf: (t: number): number => utW09 + (1.95 - utW09) * t * t * (3 - 2 * t) + 0.25 * Math.sin(Math.PI * t),
+      ovalOf: (t: number): number => utOv09 + (0.65 - utOv09) * t,
     }), HIDE), depthNow(0, 2.2) * 1.6 + 1.5));
     /** 옛 머리 자리(3.3 + UH_FWD9 · 3.12 + UH_UP9)에서 상체 꼭대기로 옮긴 몫 — 볏 뿌리도 같은 몫을 탄다. */
     const UT_DY9 = (UT_TOP9[1] + 0.55) - (3.3 + UH_FWD9);
