@@ -14411,16 +14411,26 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const u = 1 - t;
       return u * u * u * a + 3 * u * u * t * b + 3 * u * t * t * c + t * t * t * d;
     };
+    /* 등뼈는 캣멀-롬(여섯 점): 뒤·바깥 → 앞·안으로 감겼다가 **한 번 더 굽어 끝이 바깥을 본다**(재요청: "뒤 오징어다리는
+       좀 가늘게 하고 한 번 더 휘어서 끝은 바깥을 향하게"). 굵기 0.7 → 0.12. */
+    const cr9 = (pts: [number, number][], t9: number): [number, number] => {
+      const n9 = pts.length - 1; const u9 = Math.min(n9 - 1e-6, Math.max(0, t9 * n9)); const i9 = Math.floor(u9); const f9 = u9 - i9;
+      const P = (k9: number): [number, number] => pts[Math.max(0, Math.min(n9, k9))];
+      const [p0, p1, p2, p3] = [P(i9 - 1), P(i9), P(i9 + 1), P(i9 + 2)];
+      const c9 = (a: number, b: number, c: number, d: number): number =>
+        0.5 * (2 * b + (-a + c) * f9 + (2 * a - 5 * b + 4 * c - d) * f9 * f9 + (-a + 3 * b - 3 * c + d) * f9 * f9 * f9);
+      return [c9(p0[0], p1[0], p2[0], p3[0]), c9(p0[1], p1[1], p2[1], p3[1])];
+    };
     for (const sg of [1, -1]) {
-      const wT9 = (t9: number): number => (0.95 - 0.7 * t9) * (1 + 0.1 * Math.sin(t9 * Math.PI * 16));
+      const AP9: [number, number][] = [[sg * 1.9, -2.3], [sg * 4.8, -4.4], [sg * 6.4, -2.0], [sg * 4.8, 0.0], [sg * 5.4, 1.6], [sg * 7.6, 2.2]];
+      const wT9 = (t9: number): number => (0.7 - 0.58 * t9) * (1 + 0.1 * Math.sin(t9 * Math.PI * 18));
       out.push(...tagKey(paintBase(spirePillar({
-        x: 0, y: 0, h: 0.8, w: 0.95, tipW: 0.2, segs: 26, sides: 10, hold: 0, caps: "none", trueNormal: true,
+        x: 0, y: 0, h: 0.8, w: 0.7, tipW: 0.17, segs: 32, sides: 10, hold: 0, caps: "none", trueNormal: true,
         widthOf: wT9,
-        path: (t9: number): [number, number, number] => [
-          bz3(sg * 1.9, sg * 5.9, sg * 6.6, sg * 3.9, t9),
-          bz3(-2.3, -4.3, -0.6, -0.4, t9),
-          wT9(t9) + Math.max(0, 0.9 * (1 - t9 / 0.25)),
-        ],
+        path: (t9: number): [number, number, number] => {
+          const [px9, py9] = cr9(AP9, t9);
+          return [px9, py9, wT9(t9) + Math.max(0, 0.9 * (1 - t9 / 0.22))];
+        },
       }), FLESH), depthNow(sg * 4.6, -2.2) * 1.6 + 1));
     }
     /* 앞의 두 갈래 — 반구가 아니라 **호로 뻗는 관** 둘(재지적: "앞쪽 양쪽은 반구가 아니라 호 형태로 뻗는 관"): 판 앞 살 속에서
@@ -14429,8 +14439,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const bz2 = (a: number, b: number, c: number, t: number): number => (1 - t) * (1 - t) * a + 2 * (1 - t) * t * b + t * t * c;
     for (const sg of [1, -1]) {
       const lw9 = (t9: number): number => 1.1 - 0.55 * t9;
+      /* 구멍(0, 3.7 · 테 r 1.15)을 감싸듯 바깥으로 나갔다가 앞에서 안으로 굽는 3차 베지에(재요청: "앞쪽 좀 더 구멍을
+         감싸듯 휘게"). */
       const lp9 = (t9: number): [number, number, number] => [
-        bz2(sg * 1.1, sg * 3.7, sg * 3.3, t9), bz2(1.3, 2.6, 5.3, t9), lw9(t9) + Math.max(0, 0.45 * (1 - t9 / 0.3)),
+        bz3(sg * 1.1, sg * 4.1, sg * 4.2, sg * 1.5, t9), bz3(1.3, 1.9, 5.9, 6.5, t9), lw9(t9) + Math.max(0, 0.45 * (1 - t9 / 0.3)),
       ];
       out.push(...tagKey(paintBase(spirePillar({
         x: 0, y: 0, h: 0.8, w: 1.1, tipW: 0.55, segs: 16, sides: 12, hold: 0, taper: 1, caps: "top", trueNormal: true,
