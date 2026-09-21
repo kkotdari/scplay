@@ -2867,7 +2867,7 @@ export const LINK_LEN_R9 = 1.179;
 export const linkLenOf9 = (slot: number): number => (slot <= 0 ? 11.5 : LINK_LEN0_9 * Math.pow(LINK_LEN_R9, slot - 1));
 const LINK_K_9 = 0.36;
 /** 모델 한 칸이 타일 몇인가 — 붓의 k(= wPx·drawK·정규화/16)를 타일로 옮긴 것(원근 배수 mkK 는 뺀다 — 셋이 같이 탄다). */
-const bldTilesPerUnit9 = (unit: string): number => {
+export const bldTilesPerUnit9 = (unit: string): number => {
   const sk = SHAPE_KIND[unit] ?? "";
   const wTiles = buildingBox(unit)[0] * (sk ? 1 : 0.8);
   const drawK = bldDrawK9(sk, FOOTPRINT[unit]?.[0] ?? 3, BLD_DRAW_TUNE[sk] ?? 1) * (BLD_DRAW_TUNE[sk] ?? 1);
@@ -2902,6 +2902,38 @@ export function addonLinkGeom9(
   const uL = (len + 2 * LINK_SINK_T9) / ell;
   const [x0r, y0r] = R(LINK_X0_9, LINK_CY_9);
   return { ox: WP[0] - d[0] * LINK_SINK_T9 - x0r * uL, oy: WP[1] - d[1] * LINK_SINK_T9 - y0r * uL, uL, len, slot, ell };
+}
+/** ★★ **애드온 한 짝의 타일 자리**(2026-09, 요청: "애드온은 그대로 목록에 두고 대신 확대시
+ *  부착된 샷을 본건물과 함께 보여주는 칸을 추가해줘") — 도록의 '부착' 칸이 본 건물·통로·부속을
+ *  한 칸에 세우려면 지도의 그 배치를 알아야 한다. 짐작으로 적지 않고 **지도가 쓰는 그 자**를 낸다:
+ *    · 배치 — 부속의 왼위 타일 = 본체 왼위 + (본체 폭, 1)(원작 · scene-sheet --addons 의 그 자리).
+ *    · 통로 — `addonLinkGeom9`(두 벽에서 푼 자리·길이·칸).
+ *  돌려주는 자리는 셋 다 **모델 원점**의 타일 좌표이고, 그 세로는 통로가 쓰는 자와 **같다**
+ *  (지면선 − u·ry0 — 벽 표의 ry0). 곧 셋이 한 평면 위라 통로의 두 끝이 두 벽에 정확히 닿는다.
+ *  ⚠ 붓은 건물을 **화면 잉크 바닥**(footOf.bot = ry0·sin40)으로 앉히므로 지도의 세로와는 그 몫만큼
+ *    다르다. 도록은 통로가 맞는 쪽을 골랐다 — 한 평면에서 재야 '부착'이 부착으로 보인다. */
+export function addonPairGeom9(parUnit: string, addUnit: string): {
+  par: { x: number; y: number; u: number };
+  add: { x: number; y: number; u: number };
+  link: { x: number; y: number; u: number; slot: number } | null;
+} | null {
+  const wp = ADDON_WALL_GEN9[SHAPE_KIND[parUnit] ?? ""]; const wa = ADDON_WALL_GEN9[SHAPE_KIND[addUnit] ?? ""];
+  if (!wp || !wa) return null;
+  const uP = bldTilesPerUnit9(parUnit); const uA = bldTilesPerUnit9(addUnit);
+  if (!(uP > 0) || !(uA > 0)) return null;
+  const fpP = FOOTPRINT[parUnit] ?? [4, 3];
+  const bbP = buildingBox(parUnit); const bbA = buildingBox(addUnit);
+  // 본체 왼위 타일을 (0, 0) 으로 둔다 — 몸 상자 가운데 x 와 지면선 y(엔진의 그 식).
+  const pcx = footDx(parUnit) + bbP[2];
+  const pgy = footDy(parUnit) + bbP[3] + bbP[1] / 2;
+  const acx = fpP[0] + footDx(addUnit) + bbA[2];
+  const agy = 1 + footDy(addUnit) + bbA[3] + bbA[1] / 2;
+  const g9 = addonLinkGeom9(parUnit, pcx, pgy, addUnit, acx, agy);
+  return {
+    par: { x: pcx, y: pgy - uP * wp.ry0, u: uP },
+    add: { x: acx, y: agy - uA * wa.ry0, u: uA },
+    link: g9 ? { x: g9.ox, y: g9.oy, u: g9.uL, slot: g9.slot } : null,
+  };
 }
 export const ADDONS = new Set([
   "Comsat Station", "Nuclear Silo", "Machine Shop", "Control Tower", "Covert Ops", "Physics Lab",

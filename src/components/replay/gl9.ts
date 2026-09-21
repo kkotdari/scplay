@@ -1950,8 +1950,12 @@ export interface GlIconReq9 {
    *  `attach` 한 자리로는 못 담는다. 여기 적은 판들을 **몸과 같은 자리·같은 창**에 차례로
    *  그린다(각자 제 자세·제 요잉). 창도 이 판들을 아울러 잰다. */
   /** ⚠ `dx`·`dy` 는 **칸 안에서 옮겨 앉히는 몫**(16-상자 자 · 화면 방향 · y 는 아래가 +)이다 —
-   *  도록 공격 칸의 가상 표적이 사거리만큼 떨어져 서는 그 자리다(ReplayMotionPlayer DocPart9). */
-  parts?: { kind: string; pose?: number; rotDeg?: number; dx?: number; dy?: number; k?: number }[];
+   *  도록 공격 칸의 가상 표적이 사거리만큼 떨어져 서는 그 자리다(ReplayMotionPlayer DocPart9).
+   *  ★ `bld` 를 주면 그 겹판은 **건물 길**(bldMesh)로 굽는다(2026-09, 애드온 부착 칸의 본 건물·통로) —
+   *    안 주면 종전대로 유닛 길(unitMesh)이라 건물 겹판이 통째로 안 그려진다. `spin`(통로 길이 칸·
+   *    회전 칸)·`lit`(켠 창)도 그 길에서만 뜻이 있다. */
+  parts?: { kind: string; pose?: number; rotDeg?: number; dx?: number; dy?: number; k?: number;
+    bld?: boolean; spin?: number; lit?: boolean; back?: boolean }[];
   /** 칸(기기 px) */ w: number; h: number;
   /** 임자색(#hex) */ color: string;
   /** 창 [x, y, w, h](16-상자 자) — 없으면 잉크 맞춤(pad). */ box?: [number, number, number, number]; pad: number;
@@ -2024,6 +2028,20 @@ export function gasEmitsOf9(kind: string): GasEmit9[] {
 export function gasTops9(kind: string, rotDeg: number): [number, number, number][] {
   return gasEmitsOf9(kind).map((e) => { const [X, Y] = GlUnits9.modelXY9(e.x, e.y, e.z + e.h, -rotDeg, CAM_TOP9); return [X, Y, e.r * 1.9]; });
 }
+/** 겹판 한 벌 — `bld` 면 건물 길(bldMesh · 회전 칸·불빛을 탄다), 아니면 유닛 길(unitMesh).
+ *  ★ 애드온 부착 칸의 본 건물·통로가 건물 길이다 — 유닛 길로 부르면 `SHAPE_BUILDERS` 는 있어도
+ *    건설 단계·회전 칸 깃발이 안 서서 통로가 늘 기본 길이(칸 0)로 굽힌다. */
+function partMesh9(
+  g: GlUnits9,
+  pt: { kind: string; pose?: number; rotDeg?: number; bld?: boolean; spin?: number; lit?: boolean },
+  r: GlIconReq9,
+): GlMesh9 | null {
+  if (!pt.bld) return g.unitMesh(pt.kind, pt.pose ?? 0, 3);
+  return g.bldMesh({
+    kind: pt.kind, fx: 0, fy: 0, z: 0, sizePx: 16, color: r.color, alpha: 1,
+    rotDeg: pt.rotDeg ?? r.rotDeg, spin: pt.spin ?? 0, ...(pt.lit ? { lit: true } : {}),
+  } as UnitDrawOp, 3);
+}
 function glIconFlush9(): void {
   const g = iconGl9; if (!g) return;
   const q = ICON_Q9.splice(0);
@@ -2060,6 +2078,13 @@ function glIconFlush9(): void {
             ...(r.blink ? { blink: 1 } : {}),
           } as UnitDrawOp;
           const body = g.bldMesh(op, 3);
+          /* ★ **몸보다 뒤에 서는 겹판**(2026-09, 애드온 부착 칸) — 칸의 앞뒤는 미는 차례가 가른다
+             (gl9 aOrd — 나중에 민 것이 앞이다). 그래서 '몸보다 먼 것'은 몸보다 **먼저** 밀어야 한다. */
+          for (const pt of r.parts ?? []) {
+            if (!pt.back) continue;
+            const pm = partMesh9(g, pt, r);
+            if (pm) it.draws.push({ mesh: pm, yawDeg: -(pt.rotDeg ?? r.rotDeg), dx: pt.dx ?? 0, dy: pt.dy ?? 0, k: pt.k ?? 1 });
+          }
           if (body) it.draws.push({ mesh: body, yawDeg: -r.rotDeg });
           /* 딸림 부품 — 붓이 지도에서 하는 그대로다(그 자리의 ★): 제 절대 요잉(attachRot)이
              있으면 그 각으로, 없으면 몸의 요잉으로 한 벌 더 그린다. */
@@ -2080,22 +2105,28 @@ function glIconFlush9(): void {
           /* ★ 가스 연기 — 지도와 같은 손(gasPush9)이다: 굴뚝표를 소수 시각(r.spin 은 가스 종류에서 소수다)으로 풀어 덩이를
              제 자리·제 배율·제 알파의 겹판으로 얹는다. 창은 굴뚝 꼭대기까지 아우른다(덩이가 창 위로 잘리지 않게). */
           if (body) gasDraws9(it, body);
-          /* ★ 건물 칸에도 겹판이 선다(2026-09 — 성큰·터렛 공격 칸의 표적 인형). 유닛 메시로 제 자리·제 배율에 얹는다. */
+          /* ★ 건물 칸에도 겹판이 선다(2026-09 — 성큰·터렛 공격 칸의 표적 인형 · 애드온 부착 칸의 본 건물·통로). */
           for (const pt of r.parts ?? []) {
-            const pm = g.unitMesh(pt.kind, pt.pose ?? 0, 3);
+            const pm = partMesh9(g, pt, r);
             if (pm) {
-              it.draws.push({ mesh: pm, yawDeg: -(pt.rotDeg ?? r.rotDeg), dx: pt.dx ?? 0, dy: pt.dy ?? 0, k: pt.k ?? 1 });
+              if (!pt.back) it.draws.push({ mesh: pm, yawDeg: -(pt.rotDeg ?? r.rotDeg), dx: pt.dx ?? 0, dy: pt.dy ?? 0, k: pt.k ?? 1 });
               it.boxes.push(pm); it.boxOff.push([pt.dx ?? 0, pt.dy ?? 0]); it.boxK.push(pt.k ?? 1);
             }
           }
         } else {
           const m = g.unitMesh(r.kind, r.pose, 3);
+          // 몸보다 뒤에 서는 겹판은 몸보다 먼저 민다(위 건물 가지의 ★와 같은 자).
+          for (const pt of r.parts ?? []) {
+            if (!pt.back) continue;
+            const pm = partMesh9(g, pt, r);
+            if (pm) it.draws.push({ mesh: pm, yawDeg: -(pt.rotDeg ?? r.rotDeg), dx: pt.dx ?? 0, dy: pt.dy ?? 0, k: pt.k ?? 1 });
+          }
           if (m) { it.draws.push({ mesh: m, yawDeg: -r.rotDeg }); it.boxes.push(m); it.boxOff.push([0, 0]); it.boxK.push(1); gasDraws9(it, m); }
           /* 겹치는 판들 — 지도가 한 개체를 여러 판으로 그리는 그대로다(위 parts 의 ★★). */
           for (const pt of r.parts ?? []) {
-            const pm = g.unitMesh(pt.kind, pt.pose ?? 0, 3);
+            const pm = partMesh9(g, pt, r);
             if (pm) {
-              it.draws.push({ mesh: pm, yawDeg: -(pt.rotDeg ?? r.rotDeg), dx: pt.dx ?? 0, dy: pt.dy ?? 0, k: pt.k ?? 1 });
+              if (!pt.back) it.draws.push({ mesh: pm, yawDeg: -(pt.rotDeg ?? r.rotDeg), dx: pt.dx ?? 0, dy: pt.dy ?? 0, k: pt.k ?? 1 });
               it.boxes.push(pm); it.boxOff.push([pt.dx ?? 0, pt.dy ?? 0]); it.boxK.push(pt.k ?? 1);
             }
           }

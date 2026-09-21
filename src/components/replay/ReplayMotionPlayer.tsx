@@ -90,7 +90,7 @@ import { TEAM_COLOR, type MinimapMarker } from "./markers";
 import {
   atkCutOf as atkCutOf9, flapCutOf as flapCutOf9,
   muzzlePoint as muzzlePoint9, muzzleLanes9, anchorPoint as anchorPoint9, spinMuzzle9, BLD_MUZZLE, HEAD_MUZZLE_KINDS9, TWIN_POD_BLD9, COMSAT_SWEEP9, SPIN_WORK_KINDS9, spinRateOf9, MUZZLE_BURST_FX9, SHELL_ONLY_FX9,
-  AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, ATTACK_FX, NO_BEAM_FX, TARGET_FX, PROJECTILE_FX, NUKE_BOOM_SEC, NUKE_FALL_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, attackFxOf9, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SIEGE_TURN_U9, SIEGE_XF_SEC, BURROW_DIG_SEC, SPIN_ANIM9, SPIN_STEPS, SUNK_OUT9, sunkenCut9, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
+  AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, ATTACK_FX, NO_BEAM_FX, TARGET_FX, PROJECTILE_FX, NUKE_BOOM_SEC, NUKE_FALL_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, attackFxOf9, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SIEGE_TURN_U9, SIEGE_XF_SEC, BURROW_DIG_SEC, SPIN_ANIM9, SPIN_STEPS, SUNK_OUT9, sunkenCut9, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, addonPairGeom9, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
 } from "./engine9";
 import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, WorldUi9 } from "./engine9";
 import {
@@ -6575,6 +6575,16 @@ export type DocPart9 = {
    *  그리는데, 인터셉터·스캐럽의 16-상자는 캐리어·리버의 것과 자가 다르다(지도는 종류마다 타일 수 × MODEL_NORM 을
    *  곱한다). 그 비(`docPartK9`)를 여기 실으면 겹판이 **지도에서의 크기 비** 그대로 선다. 안 주면 1. */
   k?: number;
+  /** ★ **건물 길로 굽는다**(2026-09, 애드온 부착 칸의 본 건물·통로) — 안 주면 유닛 길(unitMesh)이다.
+   *  건물은 회전 칸·불빛 깃발을 세워야 하므로 그리는 문이 통째로 다르다(gl9 partMesh9). */
+  bld?: boolean;
+  /** 그 겹판의 회전 칸 — 통로(addonlink)는 이 칸이 곧 **길이**다(engine9 linkLenOf9). */
+  spin?: number;
+  /** 그 겹판의 창·속심 불빛. */
+  lit?: boolean;
+  /** ★ **몸보다 뒤에 선다** — 칸의 앞뒤는 미는 차례가 가르므로(gl9 aOrd · 2D 는 화가 차례),
+   *  땅에서 몸보다 먼 겹판은 몸보다 **먼저** 그려야 한다(애드온 부착 칸의 뒤쪽 건물). */
+  back?: boolean;
 };
 /** 도록 한 칸 — 그릴 종류와 그 칸이 내려 줄 값들(DocIcon9 의 프롭 그대로다). */
 export type DocCell9 = {
@@ -6710,6 +6720,58 @@ function docBurrowCell9(t: number): DocCell9 {
   if (p9 < BURROW_DIG_SEC + DOC_BURROW_HOLD9) return { label: "액션", note: "묻힌 채", kind: "lurkerburrow" };
   if (p9 < BURROW_DIG_SEC * 2 + DOC_BURROW_HOLD9) return { label: "액션", note: "언버로우", kind: "lurker", pose: dig9, tracer: true, fx: "dig" };
   return { label: "액션", note: "선 채", kind: "lurker", pose: 0 };
+}
+/** ★★ **애드온은 제 팝업에 '부착' 칸을 갖는다**(2026-09, 요청: "애드온은 그대로 목록에 두고
+ *  대신 확대시 부착된 샷을 본건물과 함께 보여주는 칸을 추가해줘") ─────────────────────────────
+ *  컴샛·핵 사일로·머신샵·컨트롤 타워·코버트 옵스·피직스 랩은 혼자 서는 건물이 아니다 — 어느 건물의
+ *  어느 쪽에 붙는지가 곧 그 모델의 뜻인데, 도록은 그 몸 하나만 띄워 '이게 어디에 붙는 것인지'를
+ *  말하지 않았다. 목록은 그대로 두고(요청) **칸 하나**를 더해 지도의 그 한 장면을 세운다:
+ *  본 건물 + 통로 + 부속.
+ *  · 자는 **지도의 것**이다(engine9 `addonPairGeom9`) — 배치도 통로의 자리·길이도 지어내지 않는다.
+ *  · 칸의 몸은 **본 건물**이다(겹판이 몸 뒤에 그려지므로, 부속을 몸으로 두면 본체가 부속을 덮는다).
+ *    부속은 지도에서 본체보다 앞(화면 아래)이라 나중에 그려지는 것이 맞다.
+ *  ⚠⚠ **자리는 땅의 자리다 — 부감에 눌린다**(DOC_GROUND_K9) — `addonPairGeom9` 가 내는 타일 자리는
+ *    모델의 **땅 평면**이고(붓의 rx·ry 가 곧 그 자다), 화면에서 그 평면의 앞뒤는 sin40 으로 눌린다.
+ *    안 누르면 ㉠ 요잉을 돌릴 때 통로만 눌린 땅을 타서 두 벽에서 어긋나고(실측: 요잉 130 에서 통로가
+ *    통째로 사라졌다) ㉡ 창(docCellBox9)이 원을 `hypot(dx, dy/K)` 로 재므로 그만큼 헛넓어진다.
+ *    누르면 회전이 땅 위의 회전이 되어 **어느 각에서도** 통로가 두 벽을 잇는다.
+ *  ⚠ 그래서 세로 간격이 지도보다 조금 좁다 — 지도는 땅(타일)을 안 눌러 그리고 모델만 부감으로 그리는
+ *    어긋남을 안고 있다(그 자리의 통로도 그만큼 비껴 있다). 도록은 통로가 맞는 쪽을 골랐다. */
+const DOC_ADDON_PAR9: Record<string, string> = {
+  comsat: "Command Center", nsilo: "Command Center",
+  mshop: "Factory", ctower: "Starport",
+  covert: "Science Facility", physlab: "Science Facility",
+};
+/** 그 짝의 타일 자리 — 종류마다 한 번 셈하고 기억한다(요잉은 안 든다 · 아래에서 돌린다). */
+const DOC_ADDON_GEOM9 = new Map<string, ReturnType<typeof addonPairGeom9>>();
+function docAddonCell9(addKind: string, yaw: number): DocCell9 | null {
+  const parUnit = DOC_ADDON_PAR9[addKind]; if (!parUnit) return null;
+  const addUnit = BLD_NAME_OF_KIND[addKind]; const parKind = SHAPE_KIND[parUnit];
+  if (!addUnit || !parKind) return null;
+  let g9 = DOC_ADDON_GEOM9.get(addKind);
+  if (g9 === undefined) { g9 = addonPairGeom9(parUnit, addUnit); DOC_ADDON_GEOM9.set(addKind, g9); }
+  if (!g9) return null;
+  /* 자리는 본체의 모델 원점에서 잰 몫(16-상자 자 = 본체의 모형 칸)이고, 요잉이 바뀐 만큼 통째로 돈다. */
+  const rad9 = ((yaw - BUILDING_BASE_YAW) * Math.PI) / 180;
+  const c9 = Math.cos(rad9); const s9 = Math.sin(rad9);
+  const off9 = (x9: number, y9: number): [number, number] => {
+    const dx9 = x9 - g9!.par.x; const dy9 = y9 - g9!.par.y;
+    return [(dx9 * c9 - dy9 * s9) / g9!.par.u, ((dx9 * s9 + dy9 * c9) * DOC_GROUND_K9) / g9!.par.u];
+  };
+  /* ★ 앞뒤는 **땅에서 먼 쪽부터**다 — 칸은 미는 차례로 가리므로(DocPart9.back), 요잉이 돌아 부속이
+     본체보다 뒤로 가면 그 몫만큼 차례가 뒤집혀야 한다(안 뒤집으면 뒤에 선 부속이 본체 지붕을 덮는다). */
+  const parts9: DocPart9[] = [];
+  const put9 = (kind9: string, x9: number, y9: number, u9: number, spin9?: number): void => {
+    const [dx9, dy9] = off9(x9, y9);
+    parts9.push({ kind: kind9, bld: true, dx: dx9, dy: dy9, k: u9 / g9!.par.u, back: dy9 < 0,
+      ...(spin9 === undefined ? {} : { spin: spin9 }) });
+  };
+  // 통로를 부속보다 먼저 — 지도에서 통로는 몸 뒤(z−1)다.
+  if (g9.link) put9("addonlink", g9.link.x, g9.link.y, g9.link.u, g9.link.slot);
+  put9(addKind, g9.add.x, g9.add.y, g9.add.u);
+  parts9.sort((a9, b9) => (a9.dy ?? 0) - (b9.dy ?? 0));
+  return { label: "부착", note: SHAPE_GALLERY.find((it9) => it9.kind === parKind)?.label ?? parKind,
+    kind: parKind, parts: parts9 };
 }
 export function docCellsOf9(kind: string, t: number, yaw: number): DocCell9[] {
   const a9 = docAnimOf9(kind);
@@ -6885,6 +6947,9 @@ export function docCellsOf9(kind: string, t: number, yaw: number): DocCell9[] {
     /* 낙하 회전 — 지도와 같은 22.5도 칸(굽기 열쇠가 그 칸이다)으로 반시계로 돈다. */
     out9.push({ label: "액션", note: "낙하 회전", rotDeg: yaw - Math.round(((t * 180) % 360) / 22.5) * 22.5 });
   }
+  /* ⑤ 부착 — 애드온 여섯만(위 docAddonCell9). 본 건물·통로와 함께 선 지도의 그 한 장면이다. */
+  const ad9 = docAddonCell9(kind, yaw);
+  if (ad9) out9.push(ad9);
   return out9;
 }
 /** ★★ **칸의 창은 scplay 가 잰다**(2026-09, 요청: "재생기의 로직을 그대로 가져와서 보이게
@@ -7000,7 +7065,8 @@ export function DocIcon9({
 }) {
   const wantGl = (gl ?? GL_ON9) && !!flat && !!SHAPE_BUILDERS[kind];
   const partsKey9 = (parts ?? []).map((p9) => `${p9.kind}:${p9.pose ?? 0}:${Math.round(p9.rotDeg ?? 1e4)}:${(p9.k ?? 1).toFixed(3)}`
-    + `:${(p9.dx ?? 0).toFixed(2)}:${(p9.dy ?? 0).toFixed(2)}`).join("|");
+    + `:${(p9.dx ?? 0).toFixed(2)}:${(p9.dy ?? 0).toFixed(2)}`
+    + `:${p9.bld ? 1 : 0}${p9.spin ?? ""}${p9.lit ? "L" : ""}${p9.back ? "B" : ""}`).join("|");
   const ref = useRef<HTMLCanvasElement>(null);
   const [fail, setFail] = useState(false);
   const useGl = wantGl && !fail && glIconOk9();
@@ -7049,6 +7115,19 @@ export function DocIcon9({
     );
   }
   return <canvas ref={ref} width={1} height={1} className={cx("scr-motion-shape-svg", className)} aria-hidden data-gl9="0" />;
+}
+/** 겹판 한 무리의 2D 면과 그 자리·배율(16-상자 자) — ShapeIcon 이 `<g transform>` 으로 옮긴다. */
+type PartGrp9 = { faces: ShapeFace[]; dx: number; dy: number; k: number };
+/** 겹판 무리 하나 — 자리(dx·dy)와 배율(k)은 그 판의 **모델 원점**(16-상자의 8, 12)을 축으로 건다. */
+function PartGroup9({ grp }: { grp: PartGrp9 }) {
+  const t9 = `translate(${8 + grp.dx} ${12 + grp.dy}) scale(${grp.k}) translate(-8 -12)`;
+  return (
+    <g transform={t9}>
+      {grp.faces.map(([d, op, fill], i) => (
+        <path key={i} d={d} fill={fill ? tone9(fill) : "currentColor"} opacity={shadeBoost(op, fill)} />
+      ))}
+    </g>
+  );
 }
 export function ShapeIcon({
   kind, className, faces: facesOverride, rotDeg, flat, keepRatio, viewYaw, pitchView, wide, fit, fitPad, fitBox: fitBoxProp,
@@ -7120,7 +7199,7 @@ export function ShapeIcon({
        본 앞면이 지도에서는 어디로 가지"를 머리로 환산해야 했고, 그 환산이 이 세션의
        요잉 왕복을 낳았다. 이제 도록이 곧 지도의 자세다 — 방향을 명시한 자리(유닛
        마커의 진행 방향, 뷰어의 요잉 손잡이)는 준 값을 그대로 쓴다. */
-    : ((): ReturnType<typeof resolveShapeFaces> => {
+    : ((): ReturnType<typeof resolveShapeFaces> & { pre?: PartGrp9[]; post?: PartGrp9[] } => {
       /* 칸은 **굽기 전에** 세우고 끝나면 되돌린다 — poseSet과 같은 규약(모듈 전역
          깃발이라, 안 되돌리면 다음에 굽는 남의 모델까지 그 칸으로 굽힌다). */
       if (spin === undefined && !pose && headDeg === undefined && !lit && !stage && !attach && !parts?.length) {
@@ -7143,22 +7222,32 @@ export function ShapeIcon({
         const a9 = resolveShapeFaces(attach, attachRot ?? rot9, flat, viewYaw, pitchView);
         if (a9.faces) f9 = [...(f9 ?? []), ...a9.faces];
       }
-      /* 겹치는 판들 — 각자 **제 자세·제 요잉**으로 굽는다(GL 쪽 GlIconReq9.parts 와 같은 자).
-         자세는 모듈 전역 깃발이라 판마다 세우고, 끝나면 몸의 값으로 되돌린다. */
+      /* ★★ **겹판은 제 무리로 굽고 제 자리에 앉힌다**(2026-09, 애드온 부착 칸) — 여태 겹판의 면을
+         몸의 면 목록에 **이어 붙이기만** 해서, `dx`·`dy`·`k` 가 통째로 버려졌다(그 자리에 "2D 폴백에는
+         치우침이 없다"고 적어 두었던 그 자다 — 인형 하나가 몸에 겹치는 것은 견뎠지만, 건물 셋이 한
+         자리에 포개지면 무엇도 안 읽힌다). 이제 무리마다 따로 내어 SVG 의 `<g transform>` 으로 옮긴다.
+         자세·회전 칸은 모듈 전역 깃발이라 판마다 세우고 끝나면 몸의 값으로 되돌린다. */
+      const pre9: PartGrp9[] = []; const post9: PartGrp9[] = [];
       for (const pt9 of parts ?? []) {
         poseSet9(pt9.pose ?? 0);
+        if (pt9.spin !== undefined) bldSpinSet(pt9.spin);
+        if (pt9.lit) bldLitSet(true);
         const p9 = resolveShapeFaces(pt9.kind, pt9.rotDeg ?? rot9, flat, viewYaw, pitchView);
-        if (p9.faces) f9 = [...(f9 ?? []), ...p9.faces];
+        if (pt9.lit) bldLitSet(!!lit);
+        if (pt9.spin !== undefined) bldSpinSet(spin ?? 0);
+        if (p9.faces) (pt9.back ? pre9 : post9).push({ faces: p9.faces, dx: pt9.dx ?? 0, dy: pt9.dy ?? 0, k: pt9.k ?? 1 });
       }
       if (parts?.length) poseSet9(pose ?? 0);
       if (headDeg !== undefined) headYawSet(pH9, pA9);
       if (lit) bldLitSet(pL9);
       if (pose) poseSet9(0);
       if (spin !== undefined) bldSpinSet(0);
-      return { faces: f9, rot: r9.rot };
+      return { faces: f9, rot: r9.rot, pre: pre9, post: post9 };
     })();
   const faces = resolved.faces;
   const rot = resolved.rot;
+  const pre: PartGrp9[] = ("pre" in resolved ? resolved.pre : undefined) ?? [];
+  const post: PartGrp9[] = ("post" in resolved ? resolved.post : undefined) ?? [];
   /* 잉크 상자 — 칠해진 패스를 다 훑어 합집합을 낸다(inkBox9). 여백은 짧은 변의 12%다
      (요청: "최대화에서도 패딩좀 넉넉히 줘서 안 답답해 보이게" — 처음의 3%는 사실상
      잉크에 창을 딱 붙인 값이라 칸 테두리에 모델이 닿아 답답했다). 아무것도 안 칠해졌으면
@@ -7221,11 +7310,13 @@ export function ShapeIcon({
             유닛 층은 흰·검 덮개 면의 불투명도를 shadeBoost로 1.45배 올려 그리는데,
             SVG로 그리는 이 자리만 원본 값을 그대로 썼다. 같은 모델이 두 화면에서 다른
             대비로 보이던 이유다. 몸판(덮개색 없는 면)은 그대로라 색은 안 변한다. */}
+        {pre.map((g9, gi) => <PartGroup9 key={`pre${gi}`} grp={g9} />)}
         {faces
           ? faces.map(([d, op, fill], i) => (
             <path key={i} d={d} fill={fill ? tone9(fill) : "currentColor"} opacity={shadeBoost(op, fill)} />
           ))
           : <path d={SHAPE_PATHS[kind]} fill="currentColor" />}
+        {post.map((g9, gi) => <PartGroup9 key={`post${gi}`} grp={g9} />)}
       </g>
       {/* ★ 광택도 지도와 같이(지적: "메탈 느낌 주는 건 결국 광택이 답인 거 같은데 모델
           페이지에서 광택이 안 보여서 확인이 어려움") ────────────────────────────────────
