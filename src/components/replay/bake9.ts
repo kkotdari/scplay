@@ -7527,10 +7527,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const BAY_D9 = 1.15;                                            // 파인 깊이
     const bayOn9 = faceLight(-1, 0, 0.18).visible;
     const glBay9 = MESH9.on;
-    /** 그 높이의 앞벽 x(−x 쪽) · 반폭(y) — 사면이라 높이마다 다르다(몸통 7.2×5.6 → 6.4×4.8 · 높이 2.08). */
+    /** ★ **한 축만 좁아진다 — 옆은 사다리꼴, 정면은 직사각형**(2026-09, 요청: "서플라이 본체는 옆은
+     *  사다리꼴인데 정면에서 보면 직사각형이어야해") — 여태 7.2×5.6 → 6.4×4.8 로 **두 축이 다** 좁아져
+     *  앞면(−x · 격납구 쪽)도 사다리꼴이었다. 정면에서 보이는 것은 **y 폭**이므로 그 축의 기울기를 0 으로
+     *  둔다(`WSL9`) — 옆면이 보이는 x 폭은 3.6 → 3.2 그대로 사다리꼴이다.
+     *  ⚠ 이 기울기를 손 값으로 베껴 쓰던 자리가 넷이었다(앞벽 반폭 · 옆구리 골 · 옆벽 `wallY` · 앞면 팬의
+     *    기울기 벡터) — 한 상수로 모아 둔다. 그 값이 0 이면 옆벽이 수직이라 팬도 수직으로 선다. */
+    const WSL9 = 0;                                                 // 옆벽(y)의 높이당 좁아지는 몫 — 0 = 수직
+    /** 그 높이의 앞벽 x(−x 쪽) · 반폭(y) — x 만 사면이다(몸통 7.2×5.6 → 6.4×5.6 · 높이 2.08). */
     const bayX9 = (z9: number): number => -(3.6 - (0.4 / 2.08) * z9);
-    const bayW9 = (z9: number): number => 2.8 - (0.4 / 2.08) * z9;
-    out.push(...tagKey(paintBase(frustumFaces3(0, 0, 7.2, 5.6, 6.4, 4.8, 2.08, 0,
+    const bayW9 = (z9: number): number => 2.8 - WSL9 * z9;
+    out.push(...tagKey(paintBase(frustumFaces3(0, 0, 7.2, 5.6, 6.4, 5.6, 2.08, 0,
       glBay9 ? ([-1, 0] as const) : undefined), BODY), 0));
     if (glBay9) {
       /* 구멍 뚫린 앞벽 — 개구부 둘레 넉 조각(문턱 아래·인방 위·좌우 문설주). 감기는 바깥(−x)을 본다. */
@@ -7550,7 +7557,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     if (facingRatio(0, 1) > 0.12) {
       const rib: ShapeFace[] = [];
       // 골도 사면을 따라간다 — 못 박은 y 2.75 는 위에서 벽 밖으로 튀어나왔다(아래 wallY 와 같은 흠).
-      const ry0 = 2.8 - (0.4 / 2.08) * 0.24 + 0.03; const ry1 = 2.8 - (0.4 / 2.08) * 1.92 + 0.03;
+      const ry0 = bayW9(0.24) + 0.03; const ry1 = bayW9(1.92) + 0.03;
       for (let k = 0; k < 6; k += 1) {
         rib.push(sideFace(polyPath3([
           [-3 + k * 1.05, ry0, 0.24], [-2.5 + k * 1.05, ry0, 0.24],
@@ -7584,6 +7591,34 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         [polyPath3(ring(r * 1.03)), 1, "#4f4f4f"] as ShapeFace,
         [polyPath3(ring(r)), 1, HOLE] as ShapeFace,
       ];
+      /* ★ **틀은 두께를 가진 목테다**(2026-09, 요청: "팬의 틀에 높이(두께) 부여") — 여태 셋이 다
+         **한 평면의 원반**이라 벽에 그린 동그라미였다(GL 은 진짜 깊이라 더 납작하게 읽힌다).
+         바깥 테(r 1.03~1.18)를 낯 법선 쪽으로 `THK9` 만큼 들어 올려 **윗면 · 바깥벽 · 안벽** 셋으로
+         짜면 그 안이 그대로 패인 속이 되고 날개가 테 안에 앉는다.
+         · ⚠ **법선의 부호는 재서 고른다** — u×v 는 두 축의 차례가 정하므로 지붕 팬(+z)과 옆면 팬(−y)이
+           갈린다. 중심이 원점에서 나가는 쪽과 내적해 **바깥을 향하게** 뒤집는다.
+         · ⚠ 마디 수는 평면 테와 **같은 24** 여야 한다 — 다르면 테두리가 서로 어긋나 톱니로 읽힌다.
+         · 밑면 고리는 안 깐다 — 평면 테(r 1.18)가 이미 그 자리에 있어 벽과의 틈을 메운다. */
+      {
+        const cx9 = u[1] * v[2] - u[2] * v[1];
+        const cy9 = u[2] * v[0] - u[0] * v[2];
+        const cz9 = u[0] * v[1] - u[1] * v[0];
+        const cn9 = Math.hypot(cx9, cy9, cz9) || 1;
+        const sg9 = cx9 * c[0] + cy9 * c[1] + cz9 * c[2] < 0 ? -1 : 1;
+        const nx9 = (cx9 / cn9) * sg9; const ny9 = (cy9 / cn9) * sg9; const nz9 = (cz9 / cn9) * sg9;
+        const THK9 = r * 0.16;
+        const up9 = (q: [number, number, number]): [number, number, number] =>
+          [q[0] + nx9 * THK9, q[1] + ny9 * THK9, q[2] + nz9 * THK9];
+        const RO9 = r * 1.18; const RI9 = r * 1.03; const NS9 = 24;
+        for (let k = 0; k < NS9; k += 1) {
+          const a0 = (k / NS9) * Math.PI * 2; const a1 = ((k + 1) / NS9) * Math.PI * 2;
+          const o0 = P(RO9, a0); const o1 = P(RO9, a1);
+          const i0 = P(RI9, a0); const i1 = P(RI9, a1);
+          parts.push([polyPath3([up9(o0), up9(i0), up9(i1), up9(o1)]), 1, FRAME] as ShapeFace);
+          parts.push([polyPath3([o0, o1, up9(o1), up9(o0)]), 1, FRAME] as ShapeFace);
+          parts.push([polyPath3([i0, up9(i0), up9(i1), i1]), 1, "#4f4f4f"] as ShapeFace);
+        }
+      }
       // 날개 셋 — 허브에서 나와 살짝 휘며 넓어진다. 사이는 검은 구멍이 그대로 비친다.
       const SEG = 6;
       for (let k = 0; k < 3; k += 1) {
@@ -7625,13 +7660,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        벽을 따라 올라가는 방향(0, dy/dz, 1)을 단위로 만들어 v로 주면 원이 사면에 눕는다.
        벽에서 살짝(0.06) 앞으로 띄워 몸통 면과 겹쳐 깜빡이지 않게 했다. */
     /* ★ 앞벽의 y(2026-09 수리, 지적: "서플라이 앞면 데칼 및 초록 불빛 위치 조정 · 옆면 팬 두 개 위치 조정") ──
-       몸통은 5.6 → 4.8 로 좁아지는 사면이라 반깊이가 2.8 → 2.4 다(높이 2.08). 그런데 이 자는 `2.24 − 0.4/2.6·z`
+       (그때) 몸통은 5.6 → 4.8 로 좁아지는 사면이라 반깊이가 2.8 → 2.4 였다(지금은 `WSL9` 0 이라 2.8 로 곧다 —
+       위 ★). 그런데 이 자는 `2.24 − 0.4/2.6·z`
        였다 — **z 코드모드가 x·y 치수를 z 로 보고 0.8 을 곱한 흔적**이다(2.8×0.8 = 2.24 · 높이 2.6×0.8 = 2.08 인데
        나누는 쪽은 옛 2.6 이 남았다). 그래서 이 자로 앉힌 것들(앞면 팬 둘)이 벽보다 0.5 쯤 **안쪽**에 떠 있었다:
        2D 는 화가 차례로 벽 위에 얹혀 자리만 어긋나 보였고, GL 은 진짜 깊이라 몸통에 반쯤 파묻혔다. */
-    const wallY = (z9: number): number => 2.8 - (0.4 / 2.08) * z9;
+    const wallY = (z9: number): number => 2.8 - WSL9 * z9;
     if (facingRatio(0, 1) > 0.12) {
-      const sl = -0.4 / 2.2;
+      const sl = -WSL9;                    // 벽의 기울기 — 수직 벽이면 0 이라 팬도 곧게 선다
       const vn = Math.hypot(sl, 1);
       for (const fx of [-1.75, 1.75]) {
         fanVent([fx, wallY(0.96) + 0.06, 0.96], [1, 0, 0], [0, sl / vn, 0.8 / vn], 0.92,
