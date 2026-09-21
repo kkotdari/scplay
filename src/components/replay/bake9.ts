@@ -5169,6 +5169,11 @@ export type SunkenFootOpt9 = {
    *  배흘림으로 해줘 그래야 쏙 들어갈듯") — 뿌리 폭은 그대로 두고 `sin πt` 만큼 가운데를 부풀린다.
    *  0(기본)이면 종전대로 뿌리에서 끝으로 곧게 줄어드는 사다리다. */
   belly?: number;
+  /** 뿌리의 **높이 몫**(2026-09, 요청: "검정발뿌리부분은 높이도 낮춰야겠다 단면이 안드러나게") —
+   *  4분의 1 타원은 뿌리가 가장 높아 그 뚜껑(단면)이 통째로 드러난다. 뿌리에서 이 몫으로 시작해
+   *  `ROOT_IN9` 까지 1 로 오르므로 마루가 뿌리보다 **한 뼘 밖**에 서고 뿌리는 얇아져 살 속에 잠긴다.
+   *  1(기본)이면 종전대로 뿌리가 가장 높다 — 폭의 `belly` 와 **같은 손의 높이 판**이다. */
+  rootH?: number;
 };
 /** 발의 **자** — 등뼈(at)·두께(rV)·옆폭(wSide)을 한 자리에서 낸다.
  *  ★ 발 몸과 그 등에 박는 가시가 **같은 자**를 봐야 한다 — 가시 쪽이 제 사본을 들면, 몸을 고칠 때마다
@@ -5201,7 +5206,17 @@ export const sunkenFootGeom9 = (
   /* 뿌리의 윗선 높이 — 옛 판의 마루(축 + 반두께)와 같은 자리에 오게 맞춘 값이다. */
   const hMax9 = (1.5 * k9 + arcK9 * 1.25) * Z8;
   const hTip9 = 0.34 * k9 * Z8;
-  const HT9 = (t9: number): number => Math.max(hTip9, hMax9 * Math.sqrt(Math.max(0, 1 - t9 * t9)));
+  /* 뿌리를 낮추는 몫 — 뿌리에서 `rootH` 로 시작해 ROOT_IN9 까지 매끄럽게 1 로 오른다.
+     ★ 높이의 마루가 뿌리 밖으로 옮겨 가므로 뿌리 뚜껑이 작아진다(폭의 `belly` 와 한 벌이다). */
+  const rH9 = o9.rootH ?? 1;
+  const ROOT_IN9 = 0.34;
+  const hRoot9 = (t9: number): number => {
+    if (rH9 >= 1) return 1;
+    const u9 = Math.min(1, Math.max(0, t9 / ROOT_IN9));
+    return rH9 + (1 - rH9) * u9 * u9 * (3 - 2 * u9);
+  };
+  const HT9 = (t9: number): number =>
+    Math.max(hTip9, hMax9 * Math.sqrt(Math.max(0, 1 - t9 * t9)) * hRoot9(t9));
   const rV9 = (t9: number): number => HT9(t9) / (1 + BOT9);
   /* 옆 반폭 — 뿌리는 옛 값(반두께 × oval) 그대로, 끝으로 가며 28% 까지 준다.
      ★ `belly` 가 있으면 그 사다리 위에 `sin πt` 한 켜를 얹는다 — 뿌리·끝은 한 톨도 안 바뀌고
@@ -11221,7 +11236,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const BIG_OV9 = 0.84;
       const BIG_BELLY9 = 0.55;
       /* 몸과 가시가 **한 자**를 나눠 쓰도록 자리 옵션을 한 덩이로 든다(그 ★ 규약). */
-      const BIG_OPT9: SunkenFootOpt9 = { z0: BIG_Z09, oval: BIG_OV9, arc: BIG_ARC9, belly: BIG_BELLY9 };
+      const BIG_ROOTH9 = 0.4;     // 뿌리 반두께 1.77 → 0.71 · 마루는 t 0.34 에 선다
+      const BIG_OPT9: SunkenFootOpt9 = {
+        z0: BIG_Z09, oval: BIG_OV9, arc: BIG_ARC9, belly: BIG_BELLY9, rootH: BIG_ROOTH9,
+      };
       out.push(...sunkenFootFaces(BIG_ANG9, BIG_LEN9, BIG_W9,
         { ...BIG_OPT9, color: "#41474f", kAdd: 0.5, tipW: 0.62 }));
       const ab9 = (BIG_ANG9 * Math.PI) / 180;
