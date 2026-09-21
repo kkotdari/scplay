@@ -4,11 +4,21 @@
    node scripts/model-mesh.mjs [--kinds a,b] [--pose 0] [--svg out.svg --rots 0,45,90,180 --cell 160]
    덮임이 낮은 종류는 곡선 도형이 아직 메시를 안 적는 자리다 — shapeOblique 의 헬퍼에 meshPut9 를 더한다. */
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+/* ★ esbuild 는 기계마다 **JS 껍데기**이거나 **네이티브 바이너리**다(설치가 고른다) — 네이티브를
+   node 로 부르면 ELF 를 자바스크립트로 읽어 SyntaxError 로 죽는다. 앞 네 바이트로 가른다(tier-table 의 그 자). */
+const EBIN9 = join(ROOT, "node_modules", "esbuild", "bin", "esbuild");
+const EHEAD9 = readFileSync(EBIN9).subarray(0, 4);
+const EMAGIC9 = ((EHEAD9[0] << 24) | (EHEAD9[1] << 16) | (EHEAD9[2] << 8) | EHEAD9[3]) >>> 0;
+const ENATIVE9 = EMAGIC9 === 0x7f454c46 || (EHEAD9[0] === 0x4d && EHEAD9[1] === 0x5a)
+  || EMAGIC9 === 0xcffaedfe || EMAGIC9 === 0xcefaedfe || EMAGIC9 === 0xcafebabe;
+/** esbuild 를 어느 길로든 돌린다 — 인자는 껍데기·네이티브가 같다. */
+const esbuild9 = (args, opt = { cwd: ROOT, stdio: ["ignore", "ignore", "inherit"] }) =>
+  execFileSync(ENATIVE9 ? EBIN9 : process.execPath, ENATIVE9 ? args : [EBIN9, ...args], opt);
 const argv = process.argv.slice(2);
 const flag = (n, d = null) => { const i = argv.indexOf(n); return i < 0 ? d : (argv[i + 1] ?? true); };
 const has = (n) => argv.includes(n);
@@ -38,7 +48,7 @@ export function run(only, pose) {
 const dir = mkdtempSync(join(tmpdir(), "mesh9-"));
 const src = join(dir, "entry.ts"); const outJs = join(dir, "entry.mjs");
 writeFileSync(src, ENTRY);
-execFileSync(process.execPath, [join(ROOT, "node_modules/esbuild/bin/esbuild"), src, "--bundle", "--platform=node", "--format=esm", "--log-level=error",
+esbuild9([src, "--bundle", "--platform=node", "--format=esm", "--log-level=error",
   "--define:process.env.NODE_ENV=\"production\"", "--define:import.meta.env={}", `--outfile=${outJs}`], { cwd: ROOT, stdio: ["ignore", "ignore", "inherit"] });
 const mod = await import(pathToFileURL(outJs).href);
 const t0 = Date.now();
