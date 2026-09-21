@@ -8,7 +8,7 @@ import { TIER_GEN9 } from "./tierTable.gen";
 import { kT } from "../../utils/openbwTracks";
 import {
   POLY2, MESH9, EMIT_FILL9, meshPut9, meshSphere9, shinePath3, annulusPath3, orbPath3, billPath3, billPoly3, meshLoft9, meshRing9, loftZFaces, modelPoint9, annulusPath, bandPath, bodyFace, shellFaces9, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, boxOctFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelWarp, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
-import { BUILD_STAGES, LINK_CY_9, LINK_X0_9, linkLenOf9, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, SPIN_ANIM9, SPIN_STEPS, bldNormOf, modelInkOf, modelNormOf } from "./engine9";
+import { BUILD_STAGES, LINK_CY_9, LINK_CZ_9, LINK_X0_9, linkLenOf9, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, SPIN_ANIM9, SPIN_STEPS, bldNormOf, modelInkOf, modelNormOf } from "./engine9";
 import { type UnitDrawOp } from "./engine9";
 /** 주소 해시(`#pitch=`·`#nocreep` 같은 진단 스위치) — 굽기 일꾼 안에서는 location.hash가 빈 문자열(blob 주소)이라,
  *  메인이 일꾼을 만들 때 `name`에 해시를 실어 보내면(self.name) 그것을 먼저 본다. 메인·도구에서는 location.hash 그대로. */
@@ -20967,7 +20967,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* ★ 옆에서 보면 **팔각형**인 기둥(요청) — 상자 대신 y·z 단면이 정팔각(외접반지름 R8, 옆·위·아래가 평평한
        면)인 각기둥을 X0~X1로 뻗는다. 해저드 띠는 옆의 평평한 면 한가운데 띠로 남긴다(면 높이 2·R8·sin22.5). */
     const R8 = Math.min(W, ZH / 2);
-    const CZ8 = Z0 + ZHz9 / 2;
+    /* ★ 축의 높이는 **엔진과 나눠 쓴다**(engine9 LINK_CZ_9 = 옛 Z0 + ZHz9/2 = 2.08) — 엔진이 이 높이로
+       벽이 통로를 만나는 자리를 푼다(addonLinkGeom9 의 ★★). 여기 숫자를 바꾸면 그 셈이 함께 바뀌어야 한다. */
+    const CZ8 = LINK_CZ_9;
     const CY8 = LINK_CY_9;   // 앞으로(요청: "애드온 연결부를 좀더 앞쪽으로 이동 — 부속건물보다 앞으로 나오진 않게") — 앞 가장자리 2.2 → 3.0 · 엔진과 나눠 쓴다
     const FLAT8 = R8 * Math.cos(Math.PI / 8);       // 평평한 옆면까지의 거리
     const HALF8 = R8 * Math.sin(Math.PI / 8) * 0.72; // 옆면 안에 드는 띠 반높이

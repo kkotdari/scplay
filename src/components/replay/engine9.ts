@@ -2856,6 +2856,13 @@ export const SCAN_DETECT_SEC = 9;
    ⚠ 본체·부속의 벽을 옮겼으면 `node scripts/addon-wall.mjs` 로 표를 다시 뽑는다(--check 가 잡는다). */
 export const LINK_X0_9 = -5;      // 통로 축의 본체 쪽 끝(모델 x) — bake9 addonlink 가 같은 값을 쓴다
 export const LINK_CY_9 = 0.8;     // 축의 모델 y(앞으로 치우친 몫)
+/** ★ 축의 모델 z — 통로가 두 벽을 만나는 **높이**다(bake9 addonlink 의 CZ8 = 바닥 0.32 + 높이 3.52/2).
+ *  ⚠⚠ 이 값이 0 이 아니라는 것이 2026-09 까지 셈에서 통째로 빠져 있었다 — 아래 ★★. */
+export const LINK_CZ_9 = 2.08;
+/* 붓의 평면 카메라(gl9 CAM_TOP9 · shapeOblique TOP_ELEV9/TOP_Z_PRESS9 와 같은 값) — 엔진은 bake9·gl9 를
+   못 들므로 여기 한 번 적는다(gl9 의 `TOP_ELEV` 와 같은 규약). 땅의 앞뒤는 sin 만큼 눌리고 높이는 cos 만큼 오른다. */
+const TOP_K9 = Math.sin((40 * Math.PI) / 180);
+const TOP_ZK9 = Math.cos((40 * Math.PI) / 180);
 const LINK_SINK_T9 = 0.12;        // 벽 속으로 파고드는 몫(타일) — 딱 맞추면 벽과 z 싸움('나란히 선 덩이 사이의 틈')
 /* ★ **길이는 칸이, 단면은 부속의 자가 정한다** — 통로 모델을 통째로 늘리면 시네마틱에서 사이가 벌어질수록 관이
    **굵어진다**(길이·굵기가 한 배수). 그래서 길이는 회전 칸(op.spin · SPIN_KINDS 의 addonlink)에 싣는다: 칸 0 은
@@ -2876,32 +2883,72 @@ export const bldTilesPerUnit9 = (unit: string): number => {
 const wallX9 = (p: { y0: number; dy: number; xs: number[] }, y: number): number =>
   p.xs[Math.max(0, Math.min(p.xs.length - 1, Math.round((y - p.y0) / p.dy)))];
 /** 통로의 원점(타일)·배수(타일/모델칸)·축 길이(타일). 본체·부속의 몸 상자 가운데 x 와 지면선(몸 상자 아랫변) y 를 받는다. */
+/** ★★ **통로를 어느 자에서 푸나**(2026-09, 지적: "지도를 도록처럼 개선해야겠네") ───────────────
+ *  이 셈은 2026-09 까지 **안 눌린 땅에서, 높이를 통째로 빼고** 돌았다. 그런데 붓이 그리는 것은
+ *  그 자가 아니다: 모형의 앞뒤는 부감에 `sin40` 만큼 눌리고 높이는 `cos40` 만큼 화면 위로 오르며,
+ *  건물은 **화면 잉크 바닥**(footOf.bot)이 지면선에 앉는다. 통로 축은 땅이 아니라 **z 2.08**
+ *  (`LINK_CZ_9`)에 있으므로 그 몫이 통째로 빠져 있었다 — 실측: 통로 끝이 두 벽에서 0.28~0.59타일
+ *  위로 떠 있었다(엔진은 0.08 만 물린 것으로 알았다).
+ *  그래서 자를 **둘로 가른다**(`screen`):
+ *    · 지도(screen) — 그려지는 자. 원점은 `지면선 − u·bot`, 모형 점은 `(rx, ry·sin40 − z·cos40)`.
+ *    · 도록(기본) — 땅 자. 원점은 `지면선 − u·ry0`, 모형 점은 `(rx, ry − z·cos40/sin40)`.
+ *      도록은 타일 세로를 낼 때 `sin40` 을 곱하므로(ReplayMotionPlayer docAddonCell9) 그 곱이
+ *      붙고 나면 지도와 **같은 식**이 된다. 곧 두 자는 '땅을 누르나'에서만 갈린다.
+ *  ⚠ **두 끝을 다 맞출 수는 없다** — 지도는 건물을 잉크 바닥으로 앉히는데 그 바닥이 땅의 앞끝이
+ *    아닌 건물(커맨드·스타포트: 착륙 다리가 더 아래다)에서는 두 건물이 서로 어긋난 높이에 선다.
+ *    기울여 맞추려면 커맨드 짝이 34도(가로 span 이 0.18타일뿐이다) — 통로가 비탈이 된다. 그래서
+ *    **남는 몫을 두 끝에 반씩 나눈다**(아래 `oy`). 실측 잔차 0.15타일이고, 그 짝은 벽 사이가
+ *    좁아 통로가 거의 다 살 속이라 눈에 안 띈다. 도록 자에서는 두 끝이 같아 잔차가 0 이다. */
 export function addonLinkGeom9(
   parUnit: string, parCx: number, parGroundY: number, addUnit: string, addCx: number, addGroundY: number,
+  screen = false,
 ): { ox: number; oy: number; uL: number; len: number; slot: number; ell: number } | null {
   const wp = ADDON_WALL_GEN9[SHAPE_KIND[parUnit] ?? ""]; const wa = ADDON_WALL_GEN9[SHAPE_KIND[addUnit] ?? ""];
   if (!wp || !wa) return null;
   const th = (-BUILDING_BASE_YAW * Math.PI) / 180; const c = Math.cos(th); const sn = Math.sin(th);
   const R = (x: number, y: number): [number, number] => [x * c + y * sn, -x * sn + y * c];
   const d = R(1, 0); const e = R(0, 1);
+  /** 땅의 앞뒤가 눌리는 몫 · 높이가 화면 위로 오르는 몫 — 위 ★★의 두 자. */
+  const KA = screen ? TOP_K9 : 1; const KB = screen ? TOP_ZK9 : TOP_ZK9 / TOP_K9;
+  /** 그 자에서 모형 점 하나의 **원점 기준 몫**. */
+  const F = (x: number, y: number, z: number): [number, number] => {
+    const [rx, ry] = R(x, y); return [rx, KA * ry - KB * z];
+  };
   const uP = bldTilesPerUnit9(parUnit); const uA = bldTilesPerUnit9(addUnit);
-  const P: [number, number] = [parCx, parGroundY - uP * wp.ry0];
-  const A: [number, number] = [addCx, addGroundY - uA * wa.ry0];
-  const pe = P[0] * e[0] + P[1] * e[1]; const ae = A[0] * e[0] + A[1] * e[1];
+  // 원점 — 지도는 화면 잉크 바닥(붓이 앉히는 줄), 도록은 땅의 앞끝.
+  const aP = screen ? wp.bot : wp.ry0; const aA = screen ? wa.bot : wa.ry0;
+  const P: [number, number] = [parCx, parGroundY - uP * aP];
+  const A: [number, number] = [addCx, addGroundY - uA * aA];
+  /* ⚠⚠ **lane 은 땅의 물음이다** — '어느 벽 토막이 어느 벽 토막을 마주 보나'는 세계의 일이지 화면의
+     일이 아니다. 눌린 자로 재면 두 구간이 딴 자로 겹쳐 엉뚱한 토막이 잡히고, 그 자리의 벽 x 가
+     어긋나 길이가 바닥(0.3)으로 잘린다(실측: 여섯 짝 중 다섯이 그랬다). **늘 땅 자로 잰다.** */
+  const Pg: [number, number] = [parCx, parGroundY - uP * wp.ry0];
+  const Ag: [number, number] = [addCx, addGroundY - uA * wa.ry0];
+  const pe = Pg[0] * e[0] + Pg[1] * e[1]; const ae = Ag[0] * e[0] + Ag[1] * e[1];
   const lo = Math.max(pe + uP * wp.yv[0], ae + uA * wa.yv[0]);
   const hi = Math.min(pe + uP * wp.yv[1], ae + uA * wa.yv[1]);
   const L = (lo + hi) / 2;
   const yP = (L - pe) / uP; const yA = (L - ae) / uA;
-  const [wpx, wpy] = R(wallX9(wp, yP), yP); const [wax, way] = R(wallX9(wa, yA), yA);
-  const WP: [number, number] = [P[0] + wpx * uP, P[1] + wpy * uP];
-  const WA: [number, number] = [A[0] + wax * uA, A[1] + way * uA];
-  const len = Math.max(0.3, Math.min(4.5, (WA[0] - WP[0]) * d[0] + (WA[1] - WP[1]) * d[1]));
+  const xP = wallX9(wp, yP); const xA = wallX9(wa, yA);
+  /* ★ 길이는 **가로만**으로 난다 — 가로는 어느 자에서도 같고(눌림은 세로뿐) 높이에도 안 걸린다.
+     그래서 배수·칸이 먼저 서고, 그 다음에야 벽이 통로를 만나는 높이를 안다(되돌기가 없다). */
+  const gx = (P[0] + uP * R(xP, yP)[0]) - (A[0] + uA * R(xA, yA)[0]);
+  const len = Math.max(0.3, Math.min(4.5, -gx / d[0]));
   const need = (len + 2 * LINK_SINK_T9) / (uA * LINK_K_9);
   const slot = Math.max(1, Math.min(15, Math.round(1 + Math.log(need / LINK_LEN0_9) / Math.log(LINK_LEN_R9))));
   const ell = linkLenOf9(slot);
   const uL = (len + 2 * LINK_SINK_T9) / ell;
-  const [x0r, y0r] = R(LINK_X0_9, LINK_CY_9);
-  return { ox: WP[0] - d[0] * LINK_SINK_T9 - x0r * uL, oy: WP[1] - d[1] * LINK_SINK_T9 - y0r * uL, uL, len, slot, ell };
+  /* 벽이 통로를 만나는 **높이** — 통로 축의 세계 높이(uL·LINK_CZ_9)를 그 건물의 자로 되짚는다.
+     (여기가 옛 셈에서 통째로 빠져 있던 자리다 — 옛 값은 둘 다 0 이었다.) */
+  const zP = (uL * LINK_CZ_9) / uP; const zA = (uL * LINK_CZ_9) / uA;
+  const wpF = F(xP, yP, zP); const waF = F(xA, yA, zA);
+  const WP: [number, number] = [P[0] + wpF[0] * uP, P[1] + wpF[1] * uP];
+  const WA: [number, number] = [A[0] + waF[0] * uA, A[1] + waF[1] * uA];
+  const e0 = F(LINK_X0_9, LINK_CY_9, LINK_CZ_9); const e1 = F(LINK_X0_9 + ell, LINK_CY_9, LINK_CZ_9);
+  const sx = LINK_SINK_T9 * d[0]; const sy = LINK_SINK_T9 * KA * d[1];
+  // 남는 몫은 두 끝에 반씩(위 ⚠) — 도록 자에서는 둘이 같은 값이라 잔차가 0 이다.
+  const oy0 = WP[1] - sy - uL * e0[1]; const oy1 = WA[1] + sy - uL * e1[1];
+  return { ox: WP[0] - sx - uL * e0[0], oy: (oy0 + oy1) / 2, uL, len, slot, ell };
 }
 /** ★★ **애드온 한 짝의 타일 자리**(2026-09, 요청: "애드온은 그대로 목록에 두고 대신 확대시
  *  부착된 샷을 본건물과 함께 보여주는 칸을 추가해줘") — 도록의 '부착' 칸이 본 건물·통로·부속을
@@ -6394,8 +6441,10 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
              1.55 · 길이 2/3 · 상한 3.2/4.2 · 세로 −0.12)은 다 걷었다. addonLinkGeom9(위 ★★)가 벽 옆선 표에서
              통로 축의 두 끝을 풀고, 붓은 그 원점·배수(mkFrac)로 그린다. */
           const pb9 = buildingBox(par[3]);
+          /* ★ 마지막 인자가 **그려지는 자**다(위 addonLinkGeom9 의 ★★) — 지도는 건물을 화면 잉크 바닥에
+             앉히고 땅을 안 누른 채 모델만 부감으로 그리므로, 그 자로 풀어야 통로가 두 벽에 닿는다. */
           const geo9 = addonLinkGeom9(par[3], par[1] + footDx(par[3]) + pb9[2],
-            par[2] + footDy(par[3]) + pb9[3] + pb9[1] / 2, unit, bodyX, groundYT);
+            par[2] + footDy(par[3]) + pb9[3] + pb9[1] / 2, unit, bodyX, groundYT, true);
           if (!geo9) return null;
           const [lfx, lfy] = posFrac(geo9.ox, geo9.oy);
           // 컬링·크기용 상자 폭 — 돌려 선 막대의 화면 가로폭(축 11.5·굵기 4.4 를 요잉으로 사영).

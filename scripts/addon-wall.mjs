@@ -6,11 +6,12 @@
    못 들므로 값만 받는다(총구표·등급표와 같은 규약).
      node scripts/addon-wall.mjs           표를 다시 뽑는다
      node scripts/addon-wall.mjs --check   어긋남 검사
-   표 한 줄: { y0, dy, xs[], yv: [ya, yb], ry0 }
+   표 한 줄: { y0, dy, xs[], zs[], yv: [ya, yb], ry0, bot }
      · xs[i] = 모델 y ∈ [y0 + i·dy, +dy) 칸에서 벽 띠(z 구간) 안 꼭짓점의 x 최대(본체) / 최소(부속). 빈 칸은 이웃 값.
      · yv = 벽이 실제로 서 있는 y 범위(빈 칸 아닌 첫·끝 칸) — 두 벽이 마주 보는 구간을 잡는 자.
-     · ry0 = 바닥(z ≈ 0) 꼭짓점을 건물 요잉(−BUILDING_BASE_YAW)으로 돌린 ry 의 최대 — 붓이 메시 바닥을 지면선에
-       앉히므로 모델 원점의 타일 y 는 '지면선 − u·ry0' 다(엔진 주석).
+     · ry0 = 바닥(z ≈ 0) 꼭짓점을 건물 요잉(−BUILDING_BASE_YAW)으로 돌린 ry 의 최대 — **땅 자**의 원점 몫이다(도록).
+     · bot = **화면 잉크 바닥**(ry·sin40 − z·cos40 의 최대 = gl9 footOf.bot) — 붓이 이 줄을 지면선에 앉히므로
+       지도에서 모델 원점의 타일 y 는 '지면선 − u·bot' 다(엔진 주석).
    벽 띠(z): 본체 [0.15, 1.3] — 통로는 본체 자에서 낮다(높이 1 남짓) · 부속 [0.9, 2.4] — 받침 슬래브(0.44~0.8) 위의
    몸통 벽이라야 통로가 슬래브 가장자리가 아니라 벽에 닿는다.
    ★ 모델(본체·부속)의 벽을 옮겼으면 이 표도 다시 뽑는다(--check 가 잡는다). */
@@ -42,16 +43,16 @@ const DY = 0.5;
 const ENTRY = `
 import { SHAPE_BUILDERS, poseSet9, headYawSet, bldSpinRawSet9, bldLitSet } from ${JSON.stringify(join(ROOT, "src/components/replay/bake9"))};
 import { collectMesh9 } from ${JSON.stringify(join(ROOT, "src/utils/mesh9"))};
-import { BUILDING_BASE_YAW } from ${JSON.stringify(join(ROOT, "src/components/replay/engine9"))};
+import { BUILDING_BASE_YAW } from ${JSON.stringify(join(ROOT, "src/components/replay/engine9"))};\nimport { TOP_ELEV9, TOP_Z_PRESS9 } from ${JSON.stringify(join(ROOT, "src/utils/shapeOblique"))};
 export function run(kinds) {
   const out = {};
   for (const kind of kinds) {
     const b = SHAPE_BUILDERS[kind]; if (!b) continue;
     poseSet9(0); headYawSet(0); bldSpinRawSet9(0); bldLitSet(false);
     const m = collectMesh9(b);
-    out[kind] = m.parts.filter((p) => p.alpha >= 0.5 && !p.bb).map((p) => p.polys);
+    out[kind] = m.parts.map((p) => ({ polys: p.polys, solid: p.alpha >= 0.5 && !p.bb }));
   }
-  return { out, yaw: BUILDING_BASE_YAW };
+  return { out, yaw: BUILDING_BASE_YAW, elev: TOP_ELEV9, zpress: TOP_Z_PRESS9 };
 }`;
 const dir = mkdtempSync(join(tmpdir(), "addonwall-"));
 const src = join(dir, "entry.ts"); const outJs = join(dir, "entry.mjs");
@@ -59,16 +60,26 @@ writeFileSync(src, ENTRY);
 esbuild9([src, "--bundle", "--platform=node", "--format=esm", "--log-level=error",
   "--define:process.env.NODE_ENV=\"production\"", "--define:import.meta.env={}", `--outfile=${outJs}`], { cwd: ROOT, stdio: ["ignore", "ignore", "inherit"] });
 const mod = await import(pathToFileURL(outJs).href);
-const { out, yaw } = mod.run(Object.keys(ROLE));
+const { out, yaw, elev, zpress } = mod.run(Object.keys(ROLE));
 rmSync(dir, { recursive: true, force: true });
 const r2 = (v) => Math.round(v * 100) / 100;
 const th = (-yaw * Math.PI) / 180; const c = Math.cos(th); const sn = Math.sin(th);
+/* ★ 붓의 자(2026-09) — 붓은 메시의 **화면 잉크 바닥**을 지면선에 앉히고(gl9 footOf.bot) 모형의 땅을
+   sin(부감)만큼 누르며 높이를 cos(부감)만큼 끌어올린다. 엔진(addonLinkGeom9)이 통로를 **그려지는 자**로
+   풀려면 그 둘이 있어야 한다 — 엔진은 bake9 를 못 드므로 값으로 받는다(총구표와 같은 규약). */
+const KK = Math.sin((elev * Math.PI) / 180); const ZK = Math.cos((elev * Math.PI) / 180) * zpress;
 const table = {};
-for (const [kind, polys] of Object.entries(out)) {
+for (const [kind, parts] of Object.entries(out)) {
   const [mode, zlo, zhi] = ROLE[kind];
-  const pts = [];
-  for (const partPolys of polys) for (const p of partPolys) for (let i = 0; i + 2 < p.length; i += 3) pts.push([p[i], p[i + 1], p[i + 2]]);
+  const pts = []; const all = [];
+  for (const part of parts) for (const p of part.polys) for (let i = 0; i + 2 < p.length; i += 3) {
+    all.push([p[i], p[i + 1], p[i + 2]]);
+    if (part.solid) pts.push([p[i], p[i + 1], p[i + 2]]);
+  }
   if (!pts.length) throw new Error(`${kind}: 꼭짓점 없음`);
+  // 화면 잉크 바닥 — footOf.bot 과 **같은 식**이다(요잉을 먹인 ry·sin − z·cos 의 최대).
+  let bot = -Infinity;
+  for (const [x, y, z] of all) { const Y = (-x * sn + y * c) * KK - z * ZK; if (Y > bot) bot = Y; }
   const wall = pts.filter(([, , z]) => z >= zlo && z <= zhi);
   if (!wall.length) throw new Error(`${kind}: 벽 띠 안 꼭짓점 없음`);
   let ymin = Infinity, ymax = -Infinity;
@@ -93,11 +104,11 @@ for (const [kind, polys] of Object.entries(out)) {
   let zmin = Infinity; for (const [, , z] of pts) if (z < zmin) zmin = z;
   let ry0 = -Infinity;
   for (const [x, y, z] of pts) if (z <= zmin + 0.05) { const ry = -x * sn + y * c; if (ry > ry0) ry0 = ry; }
-  table[kind] = { y0: r2(y0), dy: DY, xs: xs.map(r2), yv: [r2(y0 + ia * DY), r2(y0 + (ib + 1) * DY)], ry0: r2(ry0) };
+  table[kind] = { y0: r2(y0), dy: DY, xs: xs.map(r2), yv: [r2(y0 + ia * DY), r2(y0 + (ib + 1) * DY)], ry0: r2(ry0), bot: r2(bot) };
 }
 const body = `/* 자동 생성 — 손대지 마라. \`node scripts/addon-wall.mjs\` 가 다시 뽑는다(모델의 벽을 옮겼으면 --check 가 잡는다).
    본체(+x 벽)·부속(−x 벽)의 옆선 x 를 모델 y 칸마다 적은 표 — 엔진(addonLinkGeom9)이 통로의 자리·길이를 셈한다. */
-export const ADDON_WALL_GEN9: Record<string, { y0: number; dy: number; xs: number[]; yv: [number, number]; ry0: number }> = ${JSON.stringify(table)};
+export const ADDON_WALL_GEN9: Record<string, { y0: number; dy: number; xs: number[]; yv: [number, number]; ry0: number; bot: number }> = ${JSON.stringify(table)};
 `;
 if (CHECK) {
   const old = existsSync(OUT) ? readFileSync(OUT, "utf8") : "";
