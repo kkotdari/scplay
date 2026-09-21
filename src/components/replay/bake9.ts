@@ -5158,15 +5158,21 @@ export let mineralVar = 0;
  *  칠을 안 하므로 그리는 쪽이 임자 색을 넣는다(accent 규약).
  *  ★ 함수로 뽑은 까닭(요청: "크립콜로니에 성큰 임자색 발 중 오른쪽 3개만 이식") — 크립 콜로니가 **같은 발**을
  *    써야 둘이 한 계보로 읽힌다. 각도·길이·굵기만 받아 두 자리에서 같은 식을 돌린다. */
-export const sunkenFootFaces = (
-  ang: number, len: number, w9: number,
-  o9: { z0?: number; kAdd?: number; color?: string; oval?: number; arc?: number; tipW?: number;
-    /** 발 **전체**의 배수 — 길이·굵기·아치를 한꺼번에 줄인다(요청: "임자색 발 크기 20프로 줄이고").
-     *  뿌리 반지름(1.6)은 몸에 붙는 자리라 안 줄인다 — 줄이면 발이 살 속으로 파고든다. */
-    k?: number;
-    /** 아치(솟는 높이)만의 배수 — 길이와 따로 논다(요청: 스포어는 "높이가 1.8배 길이는 0.8"). */
-    archK?: number } = {},
-): ShapeFace[] => {
+export type SunkenFootOpt9 = {
+  z0?: number; kAdd?: number; color?: string; oval?: number; arc?: number; tipW?: number;
+  /** 발 **전체**의 배수 — 길이·굵기·아치를 한꺼번에 줄인다(요청: "임자색 발 크기 20프로 줄이고").
+   *  뿌리 반지름(1.6)은 몸에 붙는 자리라 안 줄인다 — 줄이면 발이 살 속으로 파고든다. */
+  k?: number;
+  /** 아치(솟는 높이)만의 배수 — 길이와 따로 논다(요청: 스포어는 "높이가 1.8배 길이는 0.8"). */
+  archK?: number;
+};
+/** 발의 **자** — 등뼈(at)·두께(rV)·옆폭(wSide)을 한 자리에서 낸다.
+ *  ★ 발 몸과 그 등에 박는 가시가 **같은 자**를 봐야 한다 — 가시 쪽이 제 사본을 들면, 몸을 고칠 때마다
+ *    가시가 옛 등뼈에 남아 살 밖에 뜬다(검은 다리의 상아 가시에서 실제로 그렇게 어긋났다). */
+export const sunkenFootGeom9 = (
+  ang: number, len: number, w9: number, o9: SunkenFootOpt9 = {},
+): { dx: number; dy: number; at: (t9: number) => [number, number, number];
+  rV: (t9: number) => number; wSide: (t9: number) => number } => {
   /* ★★ **발은 활이 아니라 바닥에 누운 지느러미다**(2026-09, 지적: "콜로니류 발은 저렇게 호로 휜 게
      아니라 바닥은 평평해서 바닥에 붙고 위로만 호로 부푸는 모양이야" → "호도 딱 호가 아니라 안쪽이
      높고 밖이 낮은") ────────────────────────────────────────────────────────────────────────
@@ -5196,24 +5202,31 @@ export const sunkenFootFaces = (
   /* 옆 반폭 — 뿌리는 옛 값(반두께 × oval) 그대로, 끝으로 가며 28% 까지 준다. */
   const wS09 = w9 * 0.62 * k9 * (o9.oval ?? 1.85);
   const wSide9 = (t9: number): number => wS09 * (1 - 0.72 * t9);
-  const f9 = spirePillar({
-    x: 0, y: 0, h: 0.8, w: 1, tipW: 1, caps: "top",
-    segs: 12, sides: 8, hold: 0, taper: 1,
-    widthOf: rV9,
-    ovalOf: (t9: number): number => wSide9(t9) / Math.max(1e-3, rV9(t9)),
-    trueNormal: true,
-    path: (t9: number): [number, number, number] => {
+  /* ★ **곧게 뻗는다**(2026-09, 지적: "콜로니 발 바람개비처럼 옆으로 휘지 않게") — 옛 등뼈에는
+     옆으로 비끼는 몫(`sin πt × 0.55k`)이 있어 발 여섯이 다 같은 쪽으로 휘어 **바람개비**로 읽혔다.
+     지느러미가 된 지금은 그 휨이 꼴의 뜻이 아니라 회전 무늬라 걷는다 — 등뼈는 제 방위의 반직선이다. */
+  return {
+    dx, dy, rV: rV9, wSide: wSide9,
+    at: (t9: number): [number, number, number] => {
       const r9 = 1.6 + len * k9 * t9;
-      const side9 = Math.sin(Math.PI * t9) * 0.55 * k9;
-      return [
-        dx * r9 - dy * side9,
-        dy * r9 + dx * side9,
-        zBase9 + BOT9 * rV9(t9),
-      ];
+      return [dx * r9, dy * r9, zBase9 + BOT9 * rV9(t9)];
     },
+  };
+};
+export const sunkenFootFaces = (
+  ang: number, len: number, w9: number, o9: SunkenFootOpt9 = {},
+): ShapeFace[] => {
+  const g9 = sunkenFootGeom9(ang, len, w9, o9);
+  const f9 = spirePillar({
+    x: 0, y: 0, h: 0.8, w: 1, tipW: 1, caps: "both",
+    segs: 12, sides: 8, hold: 0, taper: 1,
+    widthOf: g9.rV,
+    ovalOf: (t9: number): number => g9.wSide(t9) / Math.max(1e-3, g9.rV(t9)),
+    trueNormal: true,
+    path: g9.at,
   });
   return tagKey(o9.color ? paintBase(f9, o9.color) : f9,
-    depthNow(dx * 3.4, dy * 3.4) * 1.6 + 1 + (o9.kAdd ?? 0));
+    depthNow(g9.dx * 3.4, g9.dy * 3.4) * 1.6 + 1 + (o9.kAdd ?? 0));
 };
 /** 임자색 발의 크기 배수(2026-09, 요청: "크립콜로니 성큰콜로니 임자색 발 크기 20프로 줄이고") —
  *  성큰 여섯·크립 셋·스포어 셋이 **한 값**을 나눠 쓴다. 왼쪽의 큰 검회색 발은 임자색이 아니라 그대로다. */
@@ -11185,8 +11198,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const BIG_ANG9 = -78;      // 화면 왼쪽(모델 좌표) — 기존 −105·−45 사이의 빈 자리다.
       const BIG_LEN9 = 7.36;     // 9.2 × 0.8(요청: "검회색 발 길이만 0.8배로") — 굵기·아치는 그대로다
       const BIG_W9 = 3.6;        // 굵기는 두 배(1.8~2.16 → 3.6)
-      const BIG_Z09 = 0.56;       // 뿌리를 높여 더 높이 솟는다
-      const BIG_ARC9 = 2.2; const BIG_ARC9z9 = 1.76; /* z용 쌍둥이(model-z-scale ×0.8) */      // 아치 — 낫(1.05)의 두 배로 솟아 '눕는 칼'이 아니라 '떠받치는 다리'로 읽힌다
+      /* ⚠ **밑면이 평평해진 뒤로 z0 은 '띄우는 자'다**(2026-09, 지적: "성큰 검정색 왼쪽 다리만 높고
+         단면이 뻥 뚫려보임") — 옛 아치에서는 뿌리를 높이면 다리가 더 크게 솟았지만, 지금 z0 은
+         **밑면의 높이**라 0.56 이 그대로 '공중에 뜬 다리'가 됐다. 높이는 `arc` 의 몫이다. */
+      const BIG_Z09 = 0;
+      const BIG_ARC9 = 2.2;      // 아치 — 낫(1.05)의 두 배로 솟아 '눕는 칼'이 아니라 '떠받치는 다리'로 읽힌다(z 접기는 hMax9 안에서 한 번만 든다)
       /* 단면을 **둥글게**(oval 1.85 → 1.15) — 낫의 납작한 단면을 그대로 키우면 벽처럼 보인다(첫 판이 그랬다).
          끝도 뭉툭하게(0.30 → 0.62) 잘라 발끝이 땅을 짚는 것으로 읽히게 한다. */
       out.push(...sunkenFootFaces(BIG_ANG9, BIG_LEN9, BIG_W9,
@@ -11205,12 +11221,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          ⚠ 뿌리를 반지름만큼 못 밀면 옆으로 돌린 가시가 살 속에서 시작해 토막으로 보인다 —
            반지름은 기둥의 자(w 2.23 → tipW 0.62)를 따라 t 와 함께 여윈다.
          크기는 1.4 배로 키우고(요청) 개수를 다섯 → **여덟**으로 늘려 한 바퀴가 성기지 않게 한다. */
-      const legAt9 = (t9: number): [number, number, number] => {
-        const r9 = 1.6 + BIG_LEN9 * t9;
-        const side9 = Math.sin(Math.PI * t9) * 0.55;
-        return [bdx9 * r9 - bdy9 * side9, bdy9 * r9 + bdx9 * side9,
-          1.2 + BIG_Z09 + (0.28 - 1.2) * t9 + Math.sin(Math.PI * t9) * BIG_ARC9z9];
-      };
+      /* 가시는 **발 몸과 같은 자**(sunkenFootGeom9)를 본다 — 제 사본을 들면 몸을 고칠 때마다 어긋난다. */
+      const lg9 = sunkenFootGeom9(BIG_ANG9, BIG_LEN9, BIG_W9,
+        { z0: BIG_Z09, oval: 1.15, arc: BIG_ARC9 });
+      const legAt9 = lg9.at;
       for (const [t9, sw9, sl9, roll9] of [
         [0.26, 0.74, 2.12, -62], [0.36, 0.82, 2.58, 34], [0.45, 0.70, 2.24, -18],
         [0.54, 0.76, 2.36, 78], [0.62, 0.64, 1.96, -96], [0.70, 0.70, 2.08, 12],
@@ -11231,7 +11245,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const dx9 = cs9 * (ux9 / ul9) + sn9 * ax9;
         const dy9 = cs9 * (uy9 / ul9) + sn9 * ay9;
         const dz9 = cs9 * (uz9 / ul9);
-        const rad9 = 0.98 - 0.52 * t9;   // 기둥의 자를 따라 여위는 다리 반지름
+        /* 다리 반지름은 **타원 단면의 그 방향 거리**다(위 반지름 rV · 옆 반지름 wSide) —
+           가시가 옆으로 돌수록(roll) 더 멀리서 시작해야 살 밖으로 나온다. */
+        const aU9 = Math.max(0.02, lg9.rV(t9)); const aV9 = Math.max(0.02, lg9.wSide(t9));
+        const rad9 = 1 / Math.hypot(cs9 / aU9, sn9 / aV9);
         const bx9 = p9[0] + dx9 * rad9;
         const by9 = p9[1] + dy9 * rad9;
         const bz9 = p9[2] + dz9 * rad9;
