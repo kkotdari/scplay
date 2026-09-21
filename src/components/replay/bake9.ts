@@ -7772,13 +7772,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         [quad([[xi9(BAY_Z0), -BAY_Y9, BAY_Z0], [xo9(BAY_Z0), -BAY_Y9, BAY_Z0],
           [xo9(BAY_Z1), -BAY_Y9, BAY_Z1], [xi9(BAY_Z1), -BAY_Y9, BAY_Z1]]), 1, BAY_IN] as ShapeFace,
       ], depthNow(-3.4, 0) * 1.6 + 3));
-      // 해저드 빗금 띠 — 위로 갈수록 앞(+y)으로 밀어 비스듬한 경고 무늬가 된다.
+      /* 해저드 빗금 띠 — 위로 갈수록 앞(+y)으로 밀어 비스듬한 경고 무늬가 된다.
+         ★ **높이는 반, 자리는 더 낮게**(2026-09, 요청: "해저드 데칼 높이 반으로 줄이고 좀더 낮게 붙이기") —
+           옛 띠는 z 0.272~0.768(높이 0.496)이라 격납구 문턱(BAY_Z0 0.5)을 물고 올라섰다. 이제
+           높이 `HZ_H9`(0.248 = 반)로 격납구 **아래**(z 0.16~0.408)에만 눕는다.
+         ⚠ **기울기는 높이와 한 벌이다** — 빗금이 앞으로 밀리는 몫(`HZ_SK9`)도 함께 반으로 줄여야
+           빗금의 각이 그대로다(높이만 반으로 줄이면 빗금이 그만큼 눕는다 — 시즈 포신 띠의 그 규약). */
+      const HZ_Z0 = 0.16; const HZ_H9 = 0.248; const HZ_Z1 = HZ_Z0 + HZ_H9; const HZ_SK9 = 0.225;
       const haz: ShapeFace[] = [];
       for (let k = 0; k < 7; k += 1) {
         const y0 = -2.35 + k * 0.62;
         haz.push([polyPath3([
-          [wallX(0.272), y0, 0.272], [wallX(0.272), y0 + 0.34, 0.272],
-          [wallX(0.768), y0 + 0.79, 0.768], [wallX(0.768), y0 + 0.45, 0.768],
+          [wallX(HZ_Z0), y0, HZ_Z0], [wallX(HZ_Z0), y0 + 0.34, HZ_Z0],
+          [wallX(HZ_Z1), y0 + 0.34 + HZ_SK9, HZ_Z1], [wallX(HZ_Z1), y0 + HZ_SK9, HZ_Z1],
         ]), 1, k % 2 === 0 ? "#e8c33a" : "#21252c"] as ShapeFace);
       }
       out.push(...tagKey(haz, depthNow(-3.4, 0) * 1.6 + 4));
