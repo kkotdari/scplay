@@ -9,7 +9,7 @@ const SPLIT = Math.max(1, Number((process.argv.find((a) => a.startsWith("--split
 /* ★ 칸은 400px(2026-09, 지적: "변천사 화질이 너무 안좋아") — 옛·지금 판은 400 으로 굽고(model-shot·model-gl `--cell 400 --fit 0.7`),
    7월 그림만 소스가 200px 칸이라 두 배로 늘린다(JC = 7월 칸 크기). `--fit` 은 칸마다 잉크 상자를 칸의 84% 에 맞추므로 아비터처럼
    원 좌표가 작은 종류(MODEL_NORM 이 키우는 종류)도 7월 도록처럼 칸을 채운다(지적: "아비터 아직도 작게 나와"). */
-const NOW = "9/20";   // 지금 시점의 꼬리표(굽는 날)
+const NOW = "9/21";   // 지금 시점의 꼬리표(굽는 날)
 const CELL = 400; const JC = 200; const LAB = 170; const HEAD = 56; const GAP = 6;
 /* 유닛(45°)·건물(23° — 7월 건물 그림의 눈금)을 따로 구운 판 넷: histA_u/histA_b(8/29 · model-shot) · histC_u/histC_b(9/19 · model-gl).
    배경은 7월 그림과 같은 검정(#0a0a0a)이다(요청: "배경도 7월과 같은 색으로 검게 · 각도도 7월에 맞춰"). */
