@@ -13084,10 +13084,6 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* ★ 화면 자 타원을 **모형 자 원반**으로(2026-09, 요청: "우회로 없애고 … 승격하는 과정 없앨 수
        있어?") — `discPath3(x, y, z, …)` 는 3D 기록이 없어 메시가 이웃에서 높이를
        빌린다. `discPath3` 는 같은 그림을 그리면서 제 3D 를 적는다(눌림은 groundSquashNow 가 건다). */
-    const rim = (ang: number): ShapeFace => {
-      const a = (ang * Math.PI) / 180;
-      return topFace(discPath3(Math.sin(a) * 2.1, Math.cos(a) * 2.1, 2.4, 0.3), 0.4);
-    };
     const post = (px2: number, py2: number, h: number): ShapeFace[] => [
       ...cylinderFaces3(px2, py2, 0.75, h),
       ...domeFaces3(px2, py2, 0.75, 0.4, h),
@@ -13126,7 +13122,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           ? paintBase(boxFaces3(0, 2.65, 0.5, 0.5, 0.72, 1.52), winLit("#4cd86a"))
           : []
       ))).flat(),
-      rim(50), rim(90), rim(130),
+      /* ★ **윗면의 반사광 동그라미 셋은 걷었다**(2026-09, 요청: "아머리 윗면의 반사광 동그라미
+         세개 제거") — 드럼 뚜껑 둘레(반지름 2.1)에 흰 0.4 로 얹어 둔 원반 셋(`rim(50·90·130)`)
+         이다. 캔버스가 유일한 붓이던 때는 그것이 '둥글다'는 신호였지만, 지금은 셰이더가 윤기·
+         봉우리·얼룩을 제 각으로 내므로 **요잉을 돌려도 안 따라 도는 흰 자국**이 한 겹 더 얹히는
+         꼴이라 스티커로 읽힌다(사이언스 베슬의 그 손과 같은 자리다). */
       // 앞 첨탑 하나 + 빛 포스트 — 뚜껑 판(개인색)보다 뒤에 그리던 순서를 키로 못 박는다.
       ...tagKey([
         ...boxFaces3(-3.4, 2.4, 1.4, 1.4, 3.68),
@@ -25848,7 +25848,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ...((): ShapeFace[] => {
         const Z09 = 4.56; const ZC9 = 6.152; const HW9 = 2.6;   // 등판 귀퉁이·조종점·반폭
         const zOn = (x9: number): number => Z09 + ((ZC9 - Z09) / 2) * (1 - (x9 / HW9) ** 2) + 0.04;
-        const Y09 = -0.3; const Y19 = 1.3;   // 띠의 앞뒤 — 등판 깊이(4.4)의 36%
+        /* ★ 앞뒤 폭은 **두 배**다(2026-09, 요청: "임자색 데칼은 앞뒤 폭 두배") — 1.6 → 3.2
+           (등판 깊이 4.4 의 36% → 73%). 가운데(y 0.5)는 그대로라 앞뒤로 고르게 넓어진다. */
+        const Y09 = -1.1; const Y19 = 2.1;
         const N9 = 10;
         /* ★ **띠는 한 폴리곤이 아니라 마디마다 네모다**(2026-09, 지적: "드랍십 동체 임자색 띠가 좀 이상해") — 아치를 따라 굽은
            22 꼭짓점 한 장은 GL 이 귀 자르기로 제 현을 그어, 양 귀퉁이를 잇는 긴 삼각형이 아치 **밑**으로 지나 등판에 잠기고
@@ -25901,6 +25903,61 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        위치 맞추고)") — 꽁무니에 매달린 꼴이라 몸보다 아래로 처져 보였다. 노즐 원뿔·테·불꽃이
        **같은 `tz` 에서 갈라져 나오므로** 여기 한 값만 더하면 셋이 함께 움직인다(불꽃만 따로 두면
        그 자리에서 어긋난다 — 그것이 요청의 괄호다). */
+    /* ★★ **안쪽 추진체 둘은 동체 뒷면의 사각 홈에 꽂힌다**(2026-09, 요청: "동체 뒷면에 사각 홈
+       두 개를 파고 거기에 안쪽 스러스터와 이어지는 짧은 실린더 두 개를 맞춰서 넣어야 해") —
+       여태 그 둘은 뒷면 **아래의 빈 속**에 떠 있었다: 동체는 두께 0.56 의 껍질이라 밑이 열려
+       있고(뒤에서 보면 검은 구멍), 추진체 축(z 4.5)이 뒷면 띠(x ±1 에서 4.68~5.24)보다 낮아
+       무엇에 붙었는지가 한 톨도 안 읽혔다.
+       ⚠ **홈을 그 띠에 팔 수는 없다** — 지름 0.92 짜리 추진체를 담으려면 홈이 띠(0.56)보다 커야
+         해서 파는 순간 등판까지 뚫린다. 그래서 그 자리에 **사각 받침**(깊이 0.4 의 상자)을 세워
+         위쪽을 띠에 물리고 **그 뒷낯에 홈을 판다** — 추진체를 한 톨도 안 옮기고도 '뒷면에 꽂힌'
+         꼴이 된다(받침이 몸 색이라 뒷면의 일부로 읽힌다).
+       · 홈 속은 어두운 네 벽 + 뒷벽이고 그 안에 **짧은 실린더**가 앉아 y −1.8 에서 추진체로
+         이어진다 — 굵기를 **추진체의 앞 반지름**(tr × 0.81)과 같은 값으로 잡아 이음매가 없다. */
+    {
+      const IN_X9 = 1.0; const IN_Z9 = 4.16 + TH_UP9; const IN_R9 = 0.46;
+      const SKT_Y9 = -1.8; const SKT_D9 = 0.4;     // 동체 뒷면 · 홈 깊이(앞으로)
+      const SKT_W9 = 0.62; const SKT_H9 = 0.44;    // 사각 받침 반폭 · 홈 반폭
+      const SKT_R9 = IN_R9 * 0.81;                 // 짧은 실린더 = 추진체 앞 반지름
+      const SKT_IN9 = "#23262b";                   // 홈 속
+      for (const m9 of [-1, 1] as const) {
+        const cx9 = m9 * IN_X9;
+        /** y 를 못 박은 네모(뒷낯·뒷벽). */
+        const yq9 = (x0: number, x1: number, z0: number, z1: number, y9: number): string =>
+          polyPath3([[x0, y9, z0], [x1, y9, z0], [x1, y9, z1], [x0, y9, z1]]);
+        const yb9 = SKT_Y9 + SKT_D9;
+        out.push(...paintBase(boxFaces3(cx9, SKT_Y9 + SKT_D9 / 2, SKT_W9 * 2, SKT_D9, SKT_W9 * 2,
+          IN_Z9 - SKT_W9, [0, -1]), TERRAN_STEEL));
+        out.push(...tagKey([
+          // 홈 속 — 네 벽 + 뒷벽(어둡다).
+          [yq9(cx9 - SKT_H9, cx9 + SKT_H9, IN_Z9 - SKT_H9, IN_Z9 + SKT_H9, yb9), 1, SKT_IN9] as ShapeFace,
+          ...([-1, 1] as const).flatMap((u9): ShapeFace[] => {
+            const ax9 = cx9 + u9 * SKT_H9; const az9 = IN_Z9 + u9 * SKT_H9;
+            return [
+              [polyPath3([[ax9, SKT_Y9, IN_Z9 - SKT_H9], [ax9, SKT_Y9, IN_Z9 + SKT_H9],
+                [ax9, yb9, IN_Z9 + SKT_H9], [ax9, yb9, IN_Z9 - SKT_H9]]), 1, SKT_IN9] as ShapeFace,
+              [polyPath3([[cx9 - SKT_H9, SKT_Y9, az9], [cx9 + SKT_H9, SKT_Y9, az9],
+                [cx9 + SKT_H9, yb9, az9], [cx9 - SKT_H9, yb9, az9]]), 1, SKT_IN9] as ShapeFace,
+            ];
+          }),
+          // 뒷낯의 테 넷 — 사각 홈의 테두리다.
+          ...([
+            [cx9 - SKT_W9, cx9 + SKT_W9, IN_Z9 + SKT_H9, IN_Z9 + SKT_W9],
+            [cx9 - SKT_W9, cx9 + SKT_W9, IN_Z9 - SKT_W9, IN_Z9 - SKT_H9],
+            [cx9 - SKT_W9, cx9 - SKT_H9, IN_Z9 - SKT_H9, IN_Z9 + SKT_H9],
+            [cx9 + SKT_H9, cx9 + SKT_W9, IN_Z9 - SKT_H9, IN_Z9 + SKT_H9],
+          ] as [number, number, number, number][]).flatMap(([x0, x1, z0, z1]): ShapeFace[] => {
+            const d9 = yq9(x0, x1, z0, z1, SKT_Y9);
+            return [[d9, 1, TERRAN_STEEL] as ShapeFace, sideFace(d9, 0.18)];
+          }),
+        ], depthNow(cx9, SKT_Y9)));
+        // 홈에 앉은 짧은 실린더 — 뒷벽에서 뒷낯까지, 거기서 추진체로 이어진다.
+        out.push(...paintBase(spirePillar({
+          x: cx9, y: SKT_Y9, h: 0.8, w: SKT_R9, tipW: SKT_R9, segs: 2, sides: 8, caps: "none",
+          path: (t9: number): [number, number, number] => [cx9, yb9 - 0.02 - (SKT_D9 - 0.02) * t9, IN_Z9],
+        }), TERRAN_STEEL_D));
+      }
+    }
     for (const [tx, tz, tr, ty] of [[-1.0, 4.16 + TH_UP9, 0.46, -1.8], [1.0, 4.16 + TH_UP9, 0.46, -1.8],
       [-2.7, POD_Z, 0.66, POD_Y0 + 0.05], [2.7, POD_Z, 0.66, POD_Y0 + 0.05]] as [number, number, number, number][]) {
       out.push(...paintBase(spirePillar({
@@ -25930,21 +25987,44 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 꼬리(재지적) — 앞뒤로 뻗는 팔(붐)은 **아주 낮은** 판이고, 그 끝의 좌우 팔(수평
          안정판) 양쪽 끝에 **수직 날개**가 서서 붙는다(H자 꼬리). 높은 수직 안정판은 걷었다. */
       // 붐은 더 길게(요청: −5.3 → −6.0), 수평·수직 날개도 그 끝으로 물러난다.
+      const BOOM_Z9 = 4.88;   // 붐 밑면 — 옛 뒤 끝(4.76 + 0.12)과 같은 높이다
       /* 붐은 세로 판이 아니라 **바닥과 평행한 널판**(재지적) — x로 넓고(±0.55) z로 얇은
          (0.18) 판이 등판 뒤에서 뒤로 뻗는다. slab은 아래 윤곽(lo)·위 윤곽(hi)을 받으므로
          평면 윤곽을 z 두 층으로 준다. */
+      /* ★ **붐은 수평이다**(2026-09, 지적: "꼬리붐 수평 안 맞아 보이고") — 뒤 끝만 `z9 + 0.12`
+         라 꽁무니로 갈수록 0.12 오르는 비탈이었다(옆에서 보면 꼬리가 들려 보이는 그 자리).
+         네 점을 같은 z 에 두고, 대신 **앞을 그만큼 올려**(BOOM_Z9) 뒤 끝 높이를 지킨다 —
+         그래야 그 위에 앉은 수평 안정판·수직 날개가 한 톨도 안 움직인다. */
       const boomAt = (z9: number): [number, number, number][] => [   // 너비 축소(재요청) ±0.55 → ±0.35
-        [-0.35, -1.9, z9], [0.35, -1.9, z9], [0.26, -6.0, z9 + 0.12], [-0.26, -6.0, z9 + 0.12],
+        [-0.35, -1.9, z9], [0.35, -1.9, z9], [0.26, -6.0, z9], [-0.26, -6.0, z9],
       ];
       const wingAt = (z9: number): [number, number, number][] => [
         [-1.6, -5.8, z9], [1.6, -5.8, z9], [1.2, -4.95, z9], [-1.2, -4.95, z9],
       ];
-      /** 수평 안정판 양끝의 수직 날개 — y·z 평면에 선 판(두께 0.16). */
-      // 수직 날개는 위쪽이 **안쪽으로 기운다**(요청): 밑 x 1.6 → 꼭대기 x 1.2.
-      const endAt = (m9: 1 | -1, dx9: number): [number, number, number][] => [
-        [m9 * (1.6 + dx9), -5.85, 5.08], [m9 * (1.6 + dx9), -4.9, 5.08],
-        [m9 * (1.2 + dx9), -5.15, 6.16], [m9 * (1.2 + dx9), -5.85, 6.16],
-      ];
+      /** 수평 안정판 양끝의 수직 날개 — 그 변의 틀(e·n)에 선 판(두께 0.16). */
+      /* ★★ **날개 둘은 저마다 요잉해 안정판의 비스듬한 옆 모서리에 딱 붙는다**(2026-09, 지적:
+         "꼬리 날개 두 개가 각각 요잉해서 축 비스듬한 모서리에 딱 붙게 맞춰야 해") — 안정판의 옆
+         변은 뒤 (±1.6, −5.8) 에서 앞 (±1.2, −4.95) 로 **25도 비스듬**한데, 날개는 x 를 못 박은
+         y-z 평면 판이라 그 변과 25도 어긋나 있었다: 밑변의 뒤 끝만 변에 닿고 앞 끝은 바깥으로
+         **0.41 모형칸** 떠 있었다(실측 — 안정판 옆에 날개가 얹힌 것이 아니라 스쳐 지난 꼴).
+         자를 **그 변의 틀**로 바꾸면 요잉이 저절로 따라온다: `e` 는 변 방향(뒤 → 앞) · `n` 은
+         안쪽 법선이고, 기울임(안쪽 0.4)·두께(0.16)를 그 틀에서 재므로 **꼴은 그대로**다.
+         ⚠ 좌우는 거울이라 `n` 의 부호가 갈린다 — `n = (−m·ey, ex)` 한 줄이 그 자다(m 이 이미
+           `ex` 에 들어 있어 두 번 곱해진다). 부호를 뒤집으면 날개가 바깥으로 기운다. */
+      const WE0: [number, number] = [1.6, -5.8];    // 안정판 옆 변의 뒤 끝(+x 쪽)
+      const WE1: [number, number] = [1.2, -4.95];   // 그 앞 끝
+      const WEL9 = Math.hypot(WE1[0] - WE0[0], WE1[1] - WE0[1]);
+      const FIN_LEAN9 = 0.4;    // 꼭대기가 안쪽으로 기우는 몫
+      const FIN_S09 = -0.05; const FIN_S19 = WEL9 + 0.05; const FIN_ST9 = 0.72;   // 밑변·윗변의 구간
+      const endAt = (m9: 1 | -1, dx9: number): [number, number, number][] => {
+        const ex9 = (m9 * (WE1[0] - WE0[0])) / WEL9; const ey9 = (WE1[1] - WE0[1]) / WEL9;
+        const nx9 = -m9 * ey9; const ny9 = ex9 * m9;
+        const at9 = (s9: number, d9: number, z9: number): [number, number, number] => [
+          m9 * WE0[0] + ex9 * s9 + nx9 * (d9 - dx9), WE0[1] + ey9 * s9 + ny9 * (d9 - dx9), z9,
+        ];
+        return [at9(FIN_S09, 0, 5.08), at9(FIN_S19, 0, 5.08),
+          at9(FIN_ST9, FIN_LEAN9, 6.16), at9(FIN_S09, FIN_LEAN9, 6.16)];
+      };
       /* 옆면은 뒤를 향한 것부터(재지적: 면들이 서로 가리고 비친다) — 무깊이 면이라
          배열 순서가 곧 그리는 순서다. 각 옆면의 바깥 법선을 재 뒤→앞으로 정렬하면
          앞면이 늘 위에 온다. */
@@ -25969,7 +26049,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       };
       // 붐만 쇠색, 수평·수직 꼬리 날개는 **임자색**(요청) — 칠하지 않아 임자 색이 든다.
       return [
-        ...paintBase(slab(boomAt(4.76), boomAt(4.904), 0.16), TERRAN_STEEL),
+        ...paintBase(slab(boomAt(BOOM_Z9), boomAt(BOOM_Z9 + 0.144), 0.16), TERRAN_STEEL),
         // 붐 끝의 가로 팔도 테란 기본색(재지적: 임자색 아님) — 임자색은 양끝 수직 날개만.
         ...paintBase(slab(wingAt(5), wingAt(5.2), 0.16), TERRAN_STEEL),
         ...slab(endAt(-1, 0.16), endAt(-1, 0), 0.12),
