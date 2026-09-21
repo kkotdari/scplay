@@ -5165,6 +5165,10 @@ export type SunkenFootOpt9 = {
   k?: number;
   /** 아치(솟는 높이)만의 배수 — 길이와 따로 논다(요청: 스포어는 "높이가 1.8배 길이는 0.8"). */
   archK?: number;
+  /** 옆폭의 **배흘림**(2026-09, 요청: "검은다리 뿌리쪽은 다른 다리들과 너비 같게해서 유선형으로
+   *  배흘림으로 해줘 그래야 쏙 들어갈듯") — 뿌리 폭은 그대로 두고 `sin πt` 만큼 가운데를 부풀린다.
+   *  0(기본)이면 종전대로 뿌리에서 끝으로 곧게 줄어드는 사다리다. */
+  belly?: number;
 };
 /** 발의 **자** — 등뼈(at)·두께(rV)·옆폭(wSide)을 한 자리에서 낸다.
  *  ★ 발 몸과 그 등에 박는 가시가 **같은 자**를 봐야 한다 — 가시 쪽이 제 사본을 들면, 몸을 고칠 때마다
@@ -5199,9 +5203,13 @@ export const sunkenFootGeom9 = (
   const hTip9 = 0.34 * k9 * Z8;
   const HT9 = (t9: number): number => Math.max(hTip9, hMax9 * Math.sqrt(Math.max(0, 1 - t9 * t9)));
   const rV9 = (t9: number): number => HT9(t9) / (1 + BOT9);
-  /* 옆 반폭 — 뿌리는 옛 값(반두께 × oval) 그대로, 끝으로 가며 28% 까지 준다. */
+  /* 옆 반폭 — 뿌리는 옛 값(반두께 × oval) 그대로, 끝으로 가며 28% 까지 준다.
+     ★ `belly` 가 있으면 그 사다리 위에 `sin πt` 한 켜를 얹는다 — 뿌리·끝은 한 톨도 안 바뀌고
+       가운데만 부푸는 **배흘림**이라, 뿌리가 몸에 쏙 들어가면서도 몸통은 굵게 남는다. */
   const wS09 = w9 * 0.62 * k9 * (o9.oval ?? 1.85);
-  const wSide9 = (t9: number): number => wS09 * (1 - 0.72 * t9);
+  const bK9 = o9.belly ?? 0;
+  const wSide9 = (t9: number): number =>
+    wS09 * ((1 - 0.72 * t9) + bK9 * Math.sin(Math.PI * t9));
   /* ★ **곧게 뻗는다**(2026-09, 지적: "콜로니 발 바람개비처럼 옆으로 휘지 않게") — 옛 등뼈에는
      옆으로 비끼는 몫(`sin πt × 0.55k`)이 있어 발 여섯이 다 같은 쪽으로 휘어 **바람개비**로 읽혔다.
      지느러미가 된 지금은 그 휨이 꼴의 뜻이 아니라 회전 무늬라 걷는다 — 등뼈는 제 방위의 반직선이다. */
@@ -11204,9 +11212,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const BIG_Z09 = 0;
       const BIG_ARC9 = 2.2;      // 아치 — 낫(1.05)의 두 배로 솟아 '눕는 칼'이 아니라 '떠받치는 다리'로 읽힌다(z 접기는 hMax9 안에서 한 번만 든다)
       /* 단면을 **둥글게**(oval 1.85 → 1.15) — 낫의 납작한 단면을 그대로 키우면 벽처럼 보인다(첫 판이 그랬다).
-         끝도 뭉툭하게(0.30 → 0.62) 잘라 발끝이 땅을 짚는 것으로 읽히게 한다. */
+         끝도 뭉툭하게(0.30 → 0.62) 잘라 발끝이 땅을 짚는 것으로 읽히게 한다.
+         ★ **뿌리 폭은 이웃 낫과 같고 배는 부푼다**(2026-09, 요청: "검은다리 뿌리쪽은 다른 다리들과
+           너비 같게해서 유선형으로 배흘림으로 해줘 그래야 쏙 들어갈듯") — oval 1.15 는 뿌리 반폭을
+           2.57 로 내어 이웃(−105 1.93 · −45 1.82)보다 40% 넓었고, 그 넓은 뿌리가 둔덕에 안 묻혀
+           턱으로 섰다. **0.84** 면 뿌리 1.87 로 이웃과 나란하고, 잃은 몸피는 `belly` 가 가운데에서
+           도로 낸다(t 0.36 에서 2.32 — 옛 뿌리 폭과 비슷한 자리다). */
+      const BIG_OV9 = 0.84;
+      const BIG_BELLY9 = 0.55;
+      /* 몸과 가시가 **한 자**를 나눠 쓰도록 자리 옵션을 한 덩이로 든다(그 ★ 규약). */
+      const BIG_OPT9: SunkenFootOpt9 = { z0: BIG_Z09, oval: BIG_OV9, arc: BIG_ARC9, belly: BIG_BELLY9 };
       out.push(...sunkenFootFaces(BIG_ANG9, BIG_LEN9, BIG_W9,
-        { z0: BIG_Z09, color: "#41474f", kAdd: 0.5, oval: 1.15, arc: BIG_ARC9, tipW: 0.62 }));
+        { ...BIG_OPT9, color: "#41474f", kAdd: 0.5, tipW: 0.62 }));
       const ab9 = (BIG_ANG9 * Math.PI) / 180;
       const bdx9 = Math.sin(ab9);
       const bdy9 = Math.cos(ab9);
@@ -11222,8 +11239,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            반지름은 기둥의 자(w 2.23 → tipW 0.62)를 따라 t 와 함께 여윈다.
          크기는 1.4 배로 키우고(요청) 개수를 다섯 → **여덟**으로 늘려 한 바퀴가 성기지 않게 한다. */
       /* 가시는 **발 몸과 같은 자**(sunkenFootGeom9)를 본다 — 제 사본을 들면 몸을 고칠 때마다 어긋난다. */
-      const lg9 = sunkenFootGeom9(BIG_ANG9, BIG_LEN9, BIG_W9,
-        { z0: BIG_Z09, oval: 1.15, arc: BIG_ARC9 });
+      const lg9 = sunkenFootGeom9(BIG_ANG9, BIG_LEN9, BIG_W9, BIG_OPT9);
       const legAt9 = lg9.at;
       for (const [t9, sw9, sl9, roll9] of [
         [0.26, 0.74, 2.12, -62], [0.36, 0.82, 2.58, 34], [0.45, 0.70, 2.24, -18],
