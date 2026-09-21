@@ -46,7 +46,7 @@ export const MUZZLE_GEN9: Record<string, [number, number, number]> = {
   ultra: [0, 4.58, 8.45],
   valk: [2.1, -0.66, 4.99],
   vulture: [0, 6.6, 2.94],
-  wraith: [0, 3.1, 3.1],
+  wraith: [0, 3.1, 2.42],
   zealot: [2.51, 2.15, 2],
   zling: [0, 2.17, 1.49],
 };
@@ -55,5 +55,5 @@ export const MUZZLE_GEN9: Record<string, [number, number, number]> = {
 export const MUZZLE_AIR_GEN9: Record<string, [number, number, number]> = {
   goliath: [2.75, 1.17, 4.5],
   scout: [1.88, 1.05, 5.18],
-  wraith: [3.57, 1.6, 5.29],
+  wraith: [3.57, 1.6, 5.08],
 };
