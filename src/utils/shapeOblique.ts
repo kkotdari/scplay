@@ -1143,10 +1143,18 @@ export function boxFaces3(
  *  넷만 `cut` 만큼 사선으로 잘라 벽이 여덟이 된다(2026-09, 요청: "배럭 … 세로 모서리 네 개를 사선으로
  *  깎아서 위에서 보면 8각형이 되게 · 사선 길이는 길지 않게 살짝만").
  *  ⚠ `cut` 은 **모서리에서 각 변을 따라 물러나는 길이**다 — 사선 자체의 길이는 그 √2 배다.
- *  ⚠ w/2·d/2 의 절반을 넘기지 마라(넘으면 변이 뒤집힌다) — 여기서 잘라 둔다. */
+ *  ⚠ w/2·d/2 의 절반을 넘기지 마라(넘으면 변이 뒤집힌다) — 여기서 잘라 둔다.
+ *  ★★ **깎임은 45도가 아니어도 된다**(2026-09, 요청: "스타포트 앞대가리 앞에 평평과 뒤로 깎인 부분
+ *    비가 1:1:1") — 한 수로 주면 두 변에서 같은 몫을 물러나 사선이 늘 45도이고, 그래서 **가로로 길게
+ *    쓸리는 깎임을 못 낸다**(깊이의 반이 곧 가로의 상한이다 — 앞대가리는 깊이 1.4 라 0.35 에서 잘렸고,
+ *    0.45 든 0.6 이든 같은 그림이었다). 모퉁이 값에 `[dx, dy]` 를 주면 **가로·세로를 따로** 물러난다:
+ *    dx 는 ±y 변에서(가로 몫) · dy 는 ±x 변에서(세로 몫). 한 수로 준 자리는 옛 자(반의 반 죔) 그대로라
+ *    다른 호출자는 한 톨도 안 바뀐다.
+ *  ⚠ 쌍으로 줄 때의 죔은 **제 반폭·반깊이**다 — 같은 변을 두 모퉁이가 나눠 쓰므로 둘의 합이 변보다
+ *    길면 변이 뒤집힌다(부르는 쪽이 그 합을 지켜야 한다). */
 export function boxOctFaces3(
   cx: number, cy: number, w: number, d: number, h: number, z0 = 0,
-  cut: number | readonly [number, number, number, number] = 0.6,
+  cut: number | readonly (number | readonly [number, number])[] = 0.6,
   /** ★ 여러 낯도 준다(2026-09) — 위 omit 과 같은 규약이다. */
   omit?: readonly [number, number] | readonly (readonly [number, number])[], noTop?: boolean,
 ): ShapeFace[] {
@@ -1154,20 +1162,23 @@ export function boxOctFaces3(
   /* 깎임은 **모퉁이마다** 줄 수 있다(2026-09, 요청: "앞쪽 건물 뒤쪽 두 모서리 사선 깎은 거
      없애고") — 네 값의 차례는 (+x,+y) · (+x,−y) · (−x,−y) · (−x,+y) 다. 0 이면 그 모퉁이는
      직각으로 남고 벽이 그만큼 준다(넷 다 0 이면 그냥 네모다). */
-  const cs = (typeof cut === "number" ? [cut, cut, cut, cut] : cut)
-    .map((v) => Math.max(0, Math.min(v, a * 0.5, b * 0.5)));
-  if (!cs.some((v) => v > 0)) return boxFaces3(cx, cy, w, d, h, z0, omit, noTop);
+  const cs: [number, number][] = (typeof cut === "number" ? [cut, cut, cut, cut] : cut)
+    .map((v) => (typeof v === "number"
+      ? [Math.max(0, Math.min(v, a * 0.5, b * 0.5)), Math.max(0, Math.min(v, a * 0.5, b * 0.5))]
+      : [Math.max(0, Math.min(v[0], a)), Math.max(0, Math.min(v[1], b))]) as [number, number]);
+  if (!cs.some((v) => v[0] > 0 || v[1] > 0)) return boxFaces3(cx, cy, w, d, h, z0, omit, noTop);
   const zt = z0 + h;
   /** 모퉁이마다 [들어오는 변에서 물러난 점, 나가는 변에서 물러난 점] — 도는 방향은 boxFaces3 와 같다. */
-  const nook = (i: number, c: number): [number, number][] => (
-    i === 0 ? [[a - c, b], [a, b - c]]
-      : i === 1 ? [[a, -b + c], [a - c, -b]]
-        : i === 2 ? [[-a + c, -b], [-a, -b + c]]
-          : [[-a, b - c], [-a + c, b]]);
+  const nook = (i: number, cx9: number, cy9: number): [number, number][] => (
+    i === 0 ? [[a - cx9, b], [a, b - cy9]]
+      : i === 1 ? [[a, -b + cy9], [a - cx9, -b]]
+        : i === 2 ? [[-a + cx9, -b], [-a, -b + cy9]]
+          : [[-a, b - cy9], [-a + cx9, b]]);
   const plan: [number, number][] = [];
   for (let i = 0; i < 4; i += 1) {
-    const [p0, p1] = nook(i, cs[i]);
-    if (cs[i] > 0) plan.push(p0, p1); else plan.push(p0);   // 안 깎으면 두 점이 한 점이다
+    const [p0, p1] = nook(i, cs[i][0], cs[i][1]);
+    // 안 깎으면 두 점이 한 점이다
+    if (cs[i][0] > 0 || cs[i][1] > 0) plan.push(p0, p1); else plan.push(p0);
   }
   plan.unshift(plan.pop() as [number, number]);   // 앞(+y) 왼쪽에서 시작하도록 한 칸 돌린다
   const n9 = plan.length;

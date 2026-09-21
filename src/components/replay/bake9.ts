@@ -8550,9 +8550,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 앞(0도)에는 길다란 구조물이 앞으로 뻗고, 그 끝에 옆으로 긴 구조물이 가로로
        붙는다(지적). 끝 구조물의 앞면에는 노란 창이 길게 난다. 격납고 아가리는 여기가
        아니라 45도 자리다(아래). */
+    /** ★ **앞대가리·목은 한 값으로 함께 오른다**(2026-09, 요청: "스타포트 앞대가리와 목 위치 높이
+     *  높이고") — 둘의 z0 와 그 위에 얹힌 임자색 띠·창 띠·안전 빗금이 다 이 값을 탄다. 착륙판 테
+     *  (PAD_Z 4.57)보다 아직 낮다(목 꼭대기 3.80 · 앞대가리 3.99). */
+    const FRONT_UP9 = 0.5;
     // ① 앞으로 뻗는 길다란 구조물 — 세로(앞뒤)로 길고 좁다.
-    out.push(...tagKey(paintBase(boxFaces3(0, 5.5, 2.0, 3.8, FRONT_H1, BODY_Z0z9 - 0.056), "#797979"),
-      46 + depthNow(0, 5.5) * 1.6));
+    out.push(...tagKey(paintBase(boxFaces3(0, 5.5, 2.0, 3.8, FRONT_H1,
+      BODY_Z0z9 - 0.056 + FRONT_UP9), "#797979"), 46 + depthNow(0, 5.5) * 1.6));
     /* ② 그 끝의 옆으로 긴 구조물 — 가로로 넓고 얕다.
        ★ **앞면은 평평하지 않다 — 좌우가 뒤로 사선으로 깎인다**(2026-09, 요청: "스타포트 앞대가리
          앞면은 평평하지 않고 좌우가 살짝 뒤로 사선으로 깎인 형태") — 네모 기둥을 `boxOctFaces3` 로
@@ -8562,13 +8566,58 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          깎인 뒤로는 |x| > NW9/2 − NC9 가 그 평면보다 **뒤**라 그만큼 허공에 뜬다. 그래서 둘의 가로
          폭을 깎인 앞면(`NFW9`)에서 낸다(붙박이 5.8·5.0 으로 두면 또 어긋난다 — 그 자리의 ★ 그대로). */
     const NW9 = 5.8; const ND9 = 1.4;   // ② 의 가로 · 앞뒤
-    /* ★ 깎는 몫을 늘렸다(2026-09, 요청: "앞대가리 뒤로 비스듬히 꺾는 부분을 더 길게 평평부분을 줄이고") —
-       0.45 → **0.6**(앞뒤 1.4 의 43% · 사선 길이 0.85) · 남는 평평한 앞면 4.9 → **4.6**.
-       ⚠ 상한은 앞뒤의 반(0.7)이다 — 거기서 옆 낯이 사라져 앞대가리가 마름모가 된다. */
-    const NC9 = 0.6;                    // 앞 두 모퉁이가 뒤로 물러나는 몫
-    const NFW9 = NW9 - NC9 * 2;         // 깎이고 남은 앞면 가로(4.9)
-    out.push(...tagKey(paintBase(boxOctFaces3(0, 7.65, NW9, ND9, FRONT_H2, BODY_Z0z9 - 0.1344,
-      [NC9, 0, 0, NC9]), GREY), 47 + depthNow(0, 7.65) * 1.6));
+    /* ★★ **앞면 셋은 1:1:1 이다**(2026-09, 요청: "앞에 평평과 뒤로 깎인 부분 비가 1:1:1") —
+       왼 사선 : 평평 : 오른 사선 이 가로에서 똑같이 `NW9/3`(1.933) 이다.
+       ⚠⚠ **한 수짜리 깎임(45도)으로는 못 낸다** — 그 자는 두 변에서 같은 몫을 물러나므로 가로 몫이
+         **깊이의 반**(0.35)에서 죄어진다. 0.45 든 0.6 이든 그림이 한 톨도 안 바뀌고 있었다(실측: 잉크
+         중심 0/0) — 달라진 것은 앞면 장식의 폭뿐이었다. 그래서 `boxOctFaces3` 에 **[dx, dy] 쌍**을
+         열었다(그쪽 ★★): 가로 `NCX9` 와 뒤로 물러나는 `NCY9` 를 따로 준다.
+       · 두 모퉁이가 앞 변(폭 NW9)을 나눠 쓰므로 `2·NCX9 ≤ NW9` 라야 한다 — 1:1:1 이 곧 그 경계의 2/3 다. */
+    const NCX9 = NW9 / 3;               // 사선의 가로 몫 — 평평한 앞면과 같다
+    const NCY9 = 0.7;                   // 사선이 뒤로 물러나는 몫(앞뒤의 반 · 옆 낯 0.7 이 남는다)
+    const NFW9 = NW9 - NCX9 * 2;        // 깎이고 남은 평평한 앞면(= NW9/3)
+    const NHW9 = NFW9 / 2;              // 그 반폭 — 사선이 시작되는 x
+    const NFY9 = 7.65 + ND9 / 2;        // 앞 낯의 y(8.35)
+    out.push(...tagKey(paintBase(boxOctFaces3(0, 7.65, NW9, ND9, FRONT_H2,
+      BODY_Z0z9 - 0.1344 + FRONT_UP9, [[NCX9, NCY9], 0, 0, [NCX9, NCY9]]), GREY),
+      47 + depthNow(0, 7.65) * 1.6));
+    /* ★★ **앞면 장식은 이제 앞대가리를 두른다**(같은 요청의 뒷말) — 평평한 앞면이 가로의 1/3 뿐이라
+       창 띠·안전 빗금을 거기에만 두면 코 한가운데의 작은 띠가 된다. 셋(사선·평평·사선)을 다 타도록
+       **모퉁이 x 에서 토막 내어 낯마다 제 평면에 눕힌다** — 그러면 띠가 조종석 유리처럼 감긴다.
+       · `NSY9(x)` 가 그 x 의 앞 낯 y 를 낸다(평평한 몫은 NFY9 · 사선은 기울기 NCY9/NCX9 로 물러난다).
+       · `noseQ9` 가 (x, z) 다각형을 x 로 잘라(서덜랜드-호지먼) 토막마다 y 를 먹여 3D 경로를 낸다 —
+         한 토막 안에서는 y 가 x 의 1차 함수라 그 폴리곤이 **평면**이다(안 자르면 휜 낯이 된다). */
+    const NSY9 = (x9: number): number => NFY9 - Math.max(0, Math.abs(x9) - NHW9) * (NCY9 / NCX9);
+    const clipX9 = (poly: [number, number][], lo: number, hi: number): [number, number][] => {
+      const at9 = (p: [number, number], q: [number, number], x9: number): [number, number] =>
+        [x9, p[1] + (q[1] - p[1]) * ((x9 - p[0]) / ((q[0] - p[0]) || 1))];
+      const half9 = (ps: [number, number][], keep: (p: [number, number]) => boolean,
+        ix: (p: [number, number], q: [number, number]) => [number, number]): [number, number][] => {
+        const r: [number, number][] = [];
+        for (let i = 0; i < ps.length; i += 1) {
+          const p = ps[i]; const q = ps[(i + 1) % ps.length];
+          const kp = keep(p); const kq = keep(q);
+          if (kp) r.push(p);
+          if (kp !== kq) r.push(ix(p, q));
+        }
+        return r;
+      };
+      const r0 = half9(poly, (p) => p[0] >= lo - 1e-6, (p, q) => at9(p, q, lo));
+      if (r0.length < 3) return [];
+      const r1 = half9(r0, (p) => p[0] <= hi + 1e-6, (p, q) => at9(p, q, hi));
+      return r1.length >= 3 ? r1 : [];
+    };
+    const NSEG9: [number, number][] = [[-NW9 / 2, -NHW9], [-NHW9, NHW9], [NHW9, NW9 / 2]];
+    const noseQ9 = (pts: [number, number][], dy9: number): string[] => {
+      const o9: string[] = [];
+      for (const [lo, hi] of NSEG9) {
+        const c9 = clipX9(pts, lo, hi);
+        if (c9.length >= 3) {
+          o9.push(polyPath3(c9.map(([x9, z9]) => [x9, NSY9(x9) + dy9, z9] as [number, number, number])));
+        }
+      }
+      return o9;
+    };
     if (facingRatio(0, 1) > 0.1) {
       /* ③ 끝 구조물 앞면의 창 — **가로로 긴 창 넷이 이어 난다**(요청: "빨간네모 부분은
          여러개의 가로로긴 창으로 이어서 표현") ────────────────────────────────────
@@ -8577,24 +8626,26 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          가는 기둥이 그 끊김을 만들고, 한 장 한 장은 여전히 세로보다 가로가 세 배 넘게
          길어 '가로로 긴 창'의 결을 지킨다.
          한 장의 짜임은 통창 때와 같다: 어두운 안쪽 → 노란 막 → 가운데 밝은 살. */
-      const wy = 8.36;
-      const wz = BODY_Z0z9 + 0.3136;
+      const wz = BODY_Z0z9 + 0.3136 + FRONT_UP9;
       /* (원복) 스타포트는 종전 그대로다 — 단순화 요청은 **스타게이트** 몫이었다
          (정정: "아까 스타게이트 면 단순화인데 스타포트로 잘못 말한듯 스타포트는 원복"). */
       const WN = 4;                    // 창 개수
       const WGAP = 0.16;               // 사이 기둥 폭
-      const WSPAN = NFW9 - 0.6;        // 창 띠 전체 폭 — 깎인 앞면에서 낸다(옛 붙박이 5.0)
+      const WSPAN = NW9 - 0.8;         // 창 띠 전체 폭 — 앞대가리를 두르므로 도로 온 가로에서 낸다
       const WW = (WSPAN - WGAP * (WN - 1)) / WN;   // 창 하나의 폭 ≈ 1.13
       const win: ShapeFace[] = [];
       for (let k9 = 0; k9 < WN; k9 += 1) {
         const x0 = -WSPAN / 2 + k9 * (WW + WGAP);
         const x1 = x0 + WW;
-        const band = (a9: number, b9: number, zb: number, zt: number, dy9: number): string =>
-          polyPath3([[a9, wy + dy9, zb], [b9, wy + dy9, zb], [b9, wy + dy9, zt], [a9, wy + dy9, zt]]);
-        win.push([band(x0, x1, wz, wz + 0.9632, 0), 1, "#22262c"] as ShapeFace);
+        const band = (a9: number, b9: number, zb: number, zt: number, dy9: number): string[] =>
+          noseQ9([[a9, zb], [b9, zb], [b9, zt], [a9, zt]], dy9);
+        for (const d9 of band(x0, x1, wz, wz + 0.9632, 0.01)) {
+          win.push([d9, 1, "#22262c"] as ShapeFace);
+        }
         // 유리 한 장(번짐 겹은 걷었다 — 블룸이 낸다. 2026-09 요청 · winRow 의 그 규약)
-        win.push([band(x0 + 0.1, x1 - 0.1, wz + 0.0896, wz + 0.8736, 0.02),
-          1, winLit("#ffe790")] as ShapeFace);
+        for (const d9 of band(x0 + 0.1, x1 - 0.1, wz + 0.0896, wz + 0.8736, 0.03)) {
+          win.push([d9, 1, winLit("#ffe790")] as ShapeFace);
+        }
       }
       out.push(...tagKey(win, 60));
       /* ★ 안전 빗금은 **앞면 가로폭을 꽉 채운다**(2026-09, 요청: "스타포트 앞면 해저드
@@ -8602,17 +8653,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          줄이라, 폭 5.8 짜리 앞면(② 끝 구조물)의 **왼쪽 절반에 치우쳐** 붙어 있었다.
          반폭에서 0.1 만 물러난 자리를 줄 수로 나눠 채운다 — 간격을 폭에서 셈하므로
          앞면을 다시 키워도 빗금이 따라온다(붙박이 0.55 로 두면 또 어긋난다). */
-      const HZ_HW9 = NFW9 / 2 - 0.1;                     // 깎인 앞면의 반폭에서 조금 물러난 자리
+      const HZ_HW9 = NW9 / 2 - 0.1;                      // 앞대가리를 두르므로 온 반폭에서 조금 물러난다
       const HZ_N9 = 11;                                  // 줄 수(간격 ≈ 0.51 — 옛 0.55와 같은 결)
       const HZ_P9 = (HZ_HW9 * 2 - 0.5) / (HZ_N9 - 1);    // 마지막 줄의 끝이 딱 반대쪽 끝에 선다
       const cl9 = (v9: number): number => Math.max(-HZ_HW9, Math.min(HZ_HW9, v9));
       const warn: ShapeFace[] = [];
+      const hz0 = BODY_Z0z9 - 0.0896 + FRONT_UP9; const hz1 = BODY_Z0z9 + 0.2688 + FRONT_UP9;
       for (let k9 = 0; k9 < HZ_N9; k9 += 1) {
         const u9 = -HZ_HW9 + k9 * HZ_P9;
-        warn.push([polyPath3([
-          [cl9(u9), 8.34, BODY_Z0z9 - 0.0896], [cl9(u9 + 0.26), 8.34, BODY_Z0z9 - 0.0896],
-          [cl9(u9 + 0.5), 8.34, BODY_Z0z9 + 0.2688], [cl9(u9 + 0.24), 8.34, BODY_Z0z9 + 0.2688],
-        ]), 1, k9 % 2 === 0 ? AMBER : "#21252c"] as ShapeFace);
+        for (const d9 of noseQ9([[cl9(u9), hz0], [cl9(u9 + 0.26), hz0],
+          [cl9(u9 + 0.5), hz1], [cl9(u9 + 0.24), hz1]], -0.01)) {
+          warn.push([d9, 1, k9 % 2 === 0 ? AMBER : "#21252c"] as ShapeFace);
+        }
       }
       out.push(...tagKey(warn, 59));
     }
@@ -8873,11 +8925,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        ⚠ 앞 끝은 앞 낯(y 8.35)에서 0.02 물린다 — 같은 평면이면 z 싸움이다(그 규약). */
     const DCW9 = 0.5;                                   // 데칼 가로(옛 0.75 의 2/3)
     pc.push(...tagKey(
-      boxFaces3(0, 5.575, DCW9, 2.75, 0.224, BODY_Z0z9 - 0.056 + FRONT_H1),
+      boxFaces3(0, 5.575, DCW9, 2.75, 0.224, BODY_Z0z9 - 0.056 + FRONT_H1 + FRONT_UP9),
       48 + depthNow(0, 5.5) * 1.6,
     ));
     pc.push(...tagKey(
-      boxFaces3(0, 7.64, DCW9, 1.38, 0.224, BODY_Z0z9 - 0.1344 + FRONT_H2),
+      boxFaces3(0, 7.64, DCW9, 1.38, 0.224, BODY_Z0z9 - 0.1344 + FRONT_H2 + FRONT_UP9),
       48 + depthNow(0, 7.65) * 1.6,
     ));
     /* 정면(0도) 슬래브는 왼쪽으로 옮겼다(지적: "원통 정면의 개인색 구조물은 오른쪽
