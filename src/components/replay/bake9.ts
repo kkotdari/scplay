@@ -25805,35 +25805,67 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        평면에서는 곧고, z만 올려 높이 아치(∩)를 낸다(2차 곡선 꼭대기 = 끝 + (제어−끝)/2). */
     /* 앞 모서리 둘은 **둥글게**(요청) — 반지름 0.6의 호로 깎는다. 아치 높이(x ±2.0에서 6.21)를
        그대로 잇도록 앞 변의 조종점을 7.69로 다시 잡는다(꼭대기 6.95 유지). */
-    const plate = curvePath3([-2.6, 2.0, 4.56], [
-      [[-2.6, 2.6, 4.56], [-2.0, 2.6, 4.968]], [[0, 2.6, 6.152], [2.0, 2.6, 4.968]], [[2.6, 2.6, 4.56], [2.6, 2.0, 4.56]],
-      [[2.6, -1.8, 4.56]], [[0, -1.8, 6.152], [-2.6, -1.8, 4.56]],
-    ]);
-    // 판 두께감(지적) — 앞 가장자리 아래로 내려앉는 옆면 띠.
-    const edge = curvePath3([-2.6, 2.0, 4.56], [
-      [[-2.6, 2.6, 4.56], [-2.0, 2.6, 4.968]], [[0, 2.6, 6.152], [2.0, 2.6, 4.968]], [[2.6, 2.6, 4.56], [2.6, 2.0, 4.56]],
-      [[2.6, 2.0, 4]],
-      [[2.6, 2.6, 4], [2.0, 2.6, 4.408]], [[0, 2.6, 5.592], [-2.0, 2.6, 4.408]], [[-2.6, 2.6, 4], [-2.6, 2.0, 4]],
-    ]);
-    /* 좌우 옆면(재지적: 등판 옆면이 안 보임) — 판 좌우 변에서 아래로 내려앉는 두께
-       띠. 보이는 쪽만 그린다. */
-    const flank = (m9: 1 | -1): string => curvePath3([m9 * 2.6, 2.0, 4.56], [
-      [[m9 * 2.6, -1.8, 4.56]], [[m9 * 2.6, -1.8, 4]], [[m9 * 2.6, 2.0, 4]],
-    ]);
-    /* 뒤 가장자리 두께(재지적: 등판 뒷면도 안 보임) — 앞 edge와 짝이 되는 뒤쪽 띠.
-       뒤가 보일 때만 그린다. */
-    const rearEdge = curvePath3([-2.6, -1.8, 4.56], [
-      [[0, -1.8, 6.152], [2.6, -1.8, 4.56]], [[2.6, -1.8, 4]], [[0, -1.8, 5.592], [-2.6, -1.8, 4]],
-    ]);
+    /* ★★ **동체 옆면은 한 줄기로 두른 띠다**(2026-09, 지적: "동체 옆면이 한 면으로 둘러지지
+       않고 두 면이 안으로 말려들어가서 만나게 돼 있어") — 여태 두께 띠가 **셋**이었다:
+       앞 `edge`(양 앞 모퉁이를 품은 **닫힌 리본 한 폴리곤** — 겉 윤곽과 속 윤곽을 한 고리에
+       이어 붙인 꼴) · 옆 `flank` 둘 · 뒤 `rearEdge`. 그 리본은 평면이 아니라 GL 귀 자르기가
+       제 현을 그어 **앞 왼 모퉁이에서 톱니로 패였고**, 그 두 끝이 옆 띠와 (±2.6, 2.0) 에서
+       맞물려 곧 '두 면이 안으로 말려 들어가 만나는' 자리가 됐다.
+       이제 등판 윤곽(`RIM9`) 한 바퀴를 **마디마다 네모 한 장**으로 두른다 — 이음매가 없고
+       낯마다 평면이라 어느 각에서도 안 깨진다('굽은 살 위에 얹는 띠·데칼은 그 살과 같은
+       칸으로 쪼개라'는 그 규약 · 임자색 띠·다크 망토 띠와 같은 손). */
+    const ED9 = 0.56;   // 껍질 두께 — 띠가 등판 윤곽에서 내려앉는 몫
+    /** 2차 베지에 한 도막을 점으로 나눈다(시작점은 빼고 끝점은 넣는다). */
+    const qs9 = (a9: readonly [number, number, number], c9: readonly [number, number, number],
+      b9: readonly [number, number, number], n9: number): [number, number, number][] =>
+      Array.from({ length: n9 }, (_, i9) => {
+        const t9 = (i9 + 1) / n9; const u9 = 1 - t9;
+        const at9 = (k9: 0 | 1 | 2): number =>
+          u9 * u9 * a9[k9] + 2 * u9 * t9 * c9[k9] + t9 * t9 * b9[k9];
+        return [at9(0), at9(1), at9(2)] as [number, number, number];
+      });
+    /* ★★ **뒤 양 모퉁이는 파낸다 — 실린더가 통째로 드러나게**(2026-09, 요청: "양쪽 뒤쪽도
+       저렇게 파서 실린더가 다 드러나게 수정" + 원작 그림: "동체를 파내라는 게 무슨 뜻인지와
+       실린더 추가가 뭔지") — 원작의 드랍십은 꽁무니로 갈수록 동체가 **좁아지고** 그 양옆에
+       띠 두른 엔진 실린더가 통째로 드러난다. 그런데 이 판은 뒤까지 반폭 2.6 으로 곧게 가서,
+       포드(x ±2.7 · 반지름 0.66 → 안쪽 가장자리 2.04)의 **안쪽 반이 판 밑으로 들어가** 길이의
+       절반 남짓만 보였다. 뒤 모퉁이에서 `NX9`~2.6 × `NY9`~−1.8 를 베어 낸다.
+       · **덧대는 것이 아니라 윤곽을 베는 것**이다 — 옆면 띠가 이 윤곽 한 바퀴를 두르므로
+         홈의 안쪽 벽·앞 벽도 저절로 두께를 갖는다(위 ★★ 의 그 한 줄기).
+       · 앞쪽 `NY9` 까지만 판다 — 포드 앞 끝(−0.1)이 아직 판 밑에 물려 있어야 '몸에 붙은
+         엔진'으로 읽힌다(다 파면 옆에 나란히 뜬 관 둘이다). */
+    const NX9 = 2.02; const NY9 = -0.55;
+    /** 뒤 아치의 높이(그 2차 곡선을 x 의 함수로 푼 것) — 홈 모퉁이도 이 자를 탄다. */
+    const zR9 = (x9: number): number => 4.56 + 0.796 * (1 - (x9 / 2.6) ** 2);
+    /* 등판 윤곽 — 왼 옆면 앞끝에서 시작해 앞 모퉁이 · 앞 아치 · 오른 모퉁이 · 오른 옆면 ·
+       오른 홈 · 뒤 아치 · 왼 홈을 지나 닫힌다(마지막 점 → 첫 점이 왼 옆면).
+       ⚠ 앞 아치(±2.0 사이)와 뒤 아치(±2.6 사이)는 **딴 곡선**이다 — 앞은 모퉁이를 둥글게
+       깎은 만큼 조금 더 높다(x 0 에서 5.56 vs 5.356). 그래서 점을 손 좌표 그대로 딴다. */
+    const RIM9: [number, number, number][] = [
+      [-2.6, 2.0, 4.56],
+      ...qs9([-2.6, 2.0, 4.56], [-2.6, 2.6, 4.56], [-2.0, 2.6, 4.968], 4),
+      ...qs9([-2.0, 2.6, 4.968], [0, 2.6, 6.152], [2.0, 2.6, 4.968], 8),
+      ...qs9([2.0, 2.6, 4.968], [2.6, 2.6, 4.56], [2.6, 2.0, 4.56], 4),
+      [2.6, NY9, 4.56], [NX9, NY9, zR9(NX9)], [NX9, -1.8, zR9(NX9)],
+      ...Array.from({ length: 8 }, (_, i9) => {
+        const x9 = NX9 - (2 * NX9 * (i9 + 1)) / 8;
+        return [x9, -1.8, zR9(x9)] as [number, number, number];
+      }),
+      [-NX9, NY9, zR9(NX9)], [-2.6, NY9, 4.56],
+    ];
+    const plate = polyPath3(RIM9);
     out.push(...tagKey([
-      [edge, 1, TERRAN_STEEL] as ShapeFace, sideFace(edge, 0.22),
-      ...(faceLight(0, -1).visible
-        ? [[rearEdge, 1, TERRAN_STEEL] as ShapeFace, ...faceLight(0, -1).face(rearEdge)]
-        : []),
-      ...([1, -1] as const).flatMap((m9): ShapeFace[] => {
-        const fl9 = faceLight(m9, 0);
+      /* 옆면 띠 — 윤곽의 마디마다 겉면(위) → 겉면 − ED9(아래) 네모 한 장. 보이는 쪽만
+         그린다(메시 기록 중엔 faceLight().visible 이 늘 참이라 한 바퀴가 다 실리고 깊이가 가른다). */
+      ...RIM9.flatMap((a9, i9): ShapeFace[] => {
+        const b9 = RIM9[(i9 + 1) % RIM9.length];
+        const dx9 = b9[0] - a9[0]; const dy9 = b9[1] - a9[1];
+        const dl9 = Math.hypot(dx9, dy9);
+        if (dl9 < 1e-6) return [];
+        const fl9 = faceLight(-dy9 / dl9, dx9 / dl9);   // 도는 방향의 바깥 법선
         if (!fl9.visible) return [];
-        return [[flank(m9), 1, TERRAN_STEEL] as ShapeFace, ...fl9.face(flank(m9))];
+        const d9 = polyPath3([a9, b9, [b9[0], b9[1], b9[2] - ED9], [a9[0], a9[1], a9[2] - ED9]]);
+        return [[d9, 1, TERRAN_STEEL] as ShapeFace, ...fl9.face(d9)];
       }),
       [plate, 1, TERRAN_STEEL] as ShapeFace, topFace(plate, 0.18),
       /* ★ 임자색은 **등판 위를 가로지르는 넓은 띠**다(2026-09, 요청: "드랍십 동체 데칼 제거
@@ -25858,7 +25890,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const out9: ShapeFace[] = [];
         for (let i9 = 0; i9 < N9; i9 += 1) {
           const x0 = -HW9 + (2 * HW9 * i9) / N9; const x1 = -HW9 + (2 * HW9 * (i9 + 1)) / N9;
-          out9.push(bodyFace(polyPath3([[x0, Y19, zOn(x0)], [x1, Y19, zOn(x1)], [x1, Y09, zOn(x1)], [x0, Y09, zOn(x0)]])));
+          /* ⚠ 뒤 모퉁이를 판 뒤로는 바깥 토막의 뒤 끝이 **허공 위**다 — 그 토막만 홈 앞(NY9)
+             에서 끊는다(판을 베면 판 위에 얹힌 것도 함께 끊어야 한다는 그 규약). */
+          const y09 = Math.max(Math.abs(x0), Math.abs(x1)) > NX9 ? Math.max(Y09, NY9) : Y09;
+          out9.push(bodyFace(polyPath3([[x0, Y19, zOn(x0)], [x1, Y19, zOn(x1)], [x1, y09, zOn(x1)], [x0, y09, zOn(x0)]])));
         }
         return out9;
       })(),
@@ -25878,9 +25913,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const a9 = Math.PI * (i9 / 8);
         return [Math.cos(a9) * 1.0, 2.6 + Math.sin(a9) * 1.0] as [number, number];
       }), 4.52, 0.44, true), TERRAN_STEEL),
+      /* ★ 유리는 **어두운 청검회색**이다(2026-09, 요청: "콕핏 유리 어두운 청검회색으로
+         변경") — 옛 하늘빛(#8fc6dd · 알파 0.68)은 밝아서 은색 테와 붙어 '유리'로 안 읽혔다.
+         어두운 색은 알파가 낮으면 뒤의 밝은 강철이 비쳐 도로 회색이 되므로 **짙기도 함께
+         올린다**(0.68 → 0.88) — 색과 알파는 한 벌이다. */
       ...quarterDome(0, 2.62, 4.96, 0.9, 0, 1, undefined, 0.096, 1)
         .map(([d9, o9, f9, k9, l9, n9]) =>
-          [d9, f9 === undefined ? 0.68 : o9, f9 ?? "#8fc6dd", k9, l9, n9] as ShapeFace),
+          [d9, f9 === undefined ? 0.88 : o9, f9 ?? "#26333d", k9, l9, n9] as ShapeFace),
     ], depthNow(0, 2.95) * 1.6 + 3));
     /* 뒤 추진체 셋 — 짙은 은색(재지적). 앞에서 볼 때도 몸을 뚫고 보이던 문제(지적:
        안 가려짐)는 꽁무니가 돌아앉으면 아예 그리지 않는 것으로 해결 — 몸판이 무깊이
@@ -25917,7 +25956,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     {
       const IN_X9 = 1.0; const IN_Z9 = 4.16 + TH_UP9; const IN_R9 = 0.46;
       const SKT_Y9 = -1.8; const SKT_D9 = 0.4;     // 동체 뒷면 · 홈 깊이(앞으로)
-      const SKT_W9 = 0.62; const SKT_H9 = 0.44;    // 사각 받침 반폭 · 홈 반폭
+      const SKT_W9 = 0.62; const SKT_H9 = 0.44;    // 뒷몸통 반폭 · 홈 반폭
+      /* ★ **꽁무니 살은 뒷면에 덧댄 슬래브가 아니라 앞으로 이어진 몸통이다**(2026-09, 원작
+         그림 지적: "내가 말한 동체를 파내라는 게 무슨 뜻인지") — 깊이 0.4 짜리 판때기를
+         뒷낯에 붙여 두니 '볼트로 댄 받침'으로 읽혔다. 앞으로 `SKT_LEN9` 이어 등판 밑까지
+         채우면 그것이 곧 동체의 꽁무니이고, 그 뒷낯에 판 것이 **홈**이 된다.
+         ⚠ 꼭대기는 등판 밑에 **물려야** 한다 — 판은 굽어 있어(zR9) 이 상자의 바깥 모서리
+         (x 1.62)에서 5.047 이므로 그보다 낮은 5.02 로 둔다(넘기면 지붕을 뚫는다). */
+      const SKT_LEN9 = 1.1;                        // 꽁무니 몸통이 앞으로 뻗는 몫
+      const SKT_Z0 = IN_Z9 - SKT_W9; const SKT_Z1 = 5.02;
       const SKT_R9 = IN_R9 * 0.81;                 // 짧은 실린더 = 추진체 앞 반지름
       const SKT_IN9 = "#23262b";                   // 홈 속
       for (const m9 of [-1, 1] as const) {
@@ -25926,8 +25973,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const yq9 = (x0: number, x1: number, z0: number, z1: number, y9: number): string =>
           polyPath3([[x0, y9, z0], [x1, y9, z0], [x1, y9, z1], [x0, y9, z1]]);
         const yb9 = SKT_Y9 + SKT_D9;
-        out.push(...paintBase(boxFaces3(cx9, SKT_Y9 + SKT_D9 / 2, SKT_W9 * 2, SKT_D9, SKT_W9 * 2,
-          IN_Z9 - SKT_W9, [0, -1]), TERRAN_STEEL));
+        out.push(...paintBase(boxFaces3(cx9, SKT_Y9 + SKT_LEN9 / 2, SKT_W9 * 2, SKT_LEN9,
+          SKT_Z1 - SKT_Z0, SKT_Z0, [0, -1]), TERRAN_STEEL));
         out.push(...tagKey([
           // 홈 속 — 네 벽 + 뒷벽(어둡다).
           [yq9(cx9 - SKT_H9, cx9 + SKT_H9, IN_Z9 - SKT_H9, IN_Z9 + SKT_H9, yb9), 1, SKT_IN9] as ShapeFace,
@@ -25942,8 +25989,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           }),
           // 뒷낯의 테 넷 — 사각 홈의 테두리다.
           ...([
-            [cx9 - SKT_W9, cx9 + SKT_W9, IN_Z9 + SKT_H9, IN_Z9 + SKT_W9],
-            [cx9 - SKT_W9, cx9 + SKT_W9, IN_Z9 - SKT_W9, IN_Z9 - SKT_H9],
+            [cx9 - SKT_W9, cx9 + SKT_W9, IN_Z9 + SKT_H9, SKT_Z1],
+            [cx9 - SKT_W9, cx9 + SKT_W9, SKT_Z0, IN_Z9 - SKT_H9],
             [cx9 - SKT_W9, cx9 - SKT_H9, IN_Z9 - SKT_H9, IN_Z9 + SKT_H9],
             [cx9 + SKT_H9, cx9 + SKT_W9, IN_Z9 - SKT_H9, IN_Z9 + SKT_H9],
           ] as [number, number, number, number][]).flatMap(([x0, x1, z0, z1]): ShapeFace[] => {
