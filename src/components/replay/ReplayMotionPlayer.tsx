@@ -6275,6 +6275,17 @@ const DOC_ATK_KIND9: Record<string, { kind: string; note: string }> = {
 const DOC_ACT_KIND9: Record<string, { kind: string; note: string }> = {
   vulture: { kind: "mine", note: "마인 심기" },
 };
+/** ★ **짐 든 일꾼은 제 일꾼의 칸이다**(2026-09, 요청: "도록에서 자원채집샷은 따로 목록으로 안
+ *  하고 일꾼들 팝업에 칸 두 개 추가해서 보여주기") — 미네랄·가스를 진 몸은 딴 유닛이 아니라
+ *  **같은 일꾼의 한 상태**다. 목록에 따로 서면 '이게 뭐지'가 되고, 일꾼의 칸에 들면 곧 그 뜻이다
+ *  (인터셉터·마인을 주인의 칸에 넣은 그 규약이다 — 목록 쪽은 `hidden: true`).
+ *  ⚠ 컷은 **자세 1**(추진체 불)이다 — 짐을 나르는 때가 곧 가장 많이 움직이는 때라 지도에서도
+ *    그 자세다(engine9 POSE_KINDS 의 thrust 가 짐 든 별본까지 적어 둔 까닭이 이것이다). */
+const DOC_CARRY_KIND9: Record<string, { min: string; gas: string }> = {
+  scv: { min: "scvMin", gas: "scvGas" },
+  probe: { min: "probeMin", gas: "probeGas" },
+  drone: { min: "droneMin", gas: "droneGas" },
+};
 /** ★ **액션 칸이 트레이서 하나인 것**(2026-09, 요청: "배틀은 야마토를 말한 거였는데 그건 기타
  *  액션에 넣어 줘") — 야마토포는 평상시 무기가 아니라 쓰는 기술이라 공격 칸의 것이 아니다.
  *  몸은 그대로 두고 그 위에 제 한 발만 겹친다. */
@@ -6843,6 +6854,16 @@ export function docCellsOf9(kind: string, t: number, yaw: number): DocCell9[] {
          대공 전용이라 참새가 선다). 짐작이 아니라 사거리표가 낸다. */
       out9.push(gun9 ? withTgt9(atk9, !(docReachTiles9(kind, false) > 0)) : atk9);
     }
+  }
+  /* ★ 일꾼은 **짐 든 두 칸**이 더 선다(위 DOC_CARRY_KIND9) — 이동 칸 바로 뒤다(짐을 지고
+     돌아오는 것도 이동이라, 셋이 나란히 서야 '맨몸 ↔ 미네랄 ↔ 가스'가 한 줄로 읽힌다).
+     ⚠ **갈래 밖에 둔다** — 드론은 자세 컷이 없어(POSE_KINDS 밖) 위 문이 닫혀 건물 길로 흐른다.
+       안에 두면 테란·프로토스에만 서고 저그만 조용히 빠진다(실측: 드론 칸이 대기·공격 둘뿐이었다). */
+  const cr9 = DOC_CARRY_KIND9[kind];
+  if (cr9) {
+    const cp9: 0 | 1 = poseCutsOf(kind)?.thrust ? 1 : 0;   // 추진체를 가진 일꾼만 '움직이는 컷'이다
+    out9.push({ label: "채집(미네랄)", kind: cr9.min, pose: cp9 });
+    out9.push({ label: "채집(가스)", kind: cr9.gas, pose: cp9 });
   }
   /* ④ 액션 — 변신 차례와 핵탄두의 낙하 회전. 변신은 한 컷 1.1초로 돈다. */
   if (kind === "tank" || kind === "tanksiege") out9.push(docSiegeCell9(t, yaw));

@@ -26948,8 +26948,13 @@ export type ShapeGalleryItem = {
 export const SHAPE_GALLERY: ShapeGalleryItem[] = [
   // ── 유닛 · 테란 ──
   { kind: "scv", label: "SCV", group: "유닛", race: "테란" },
-  { kind: "scvMin", label: "SCV(미네랄)", group: "유닛", race: "테란" },
-  { kind: "scvGas", label: "SCV(가스)", group: "유닛", race: "테란" },
+  /* ★ **짐 든 일꾼 여섯은 목록에서 숨기고 제 일꾼의 칸에 든다**(2026-09, 요청: "도록에서
+     자원채집샷은 따로 목록으로 안 하고 일꾼들 팝업에 칸 두 개 추가해서 보여주기") — 미네랄·
+     가스를 진 몸은 제 항목으로 설 까닭이 없다. SCV 를 열면 그 자리에 '채집(미네랄)·채집(가스)'
+     두 칸이 서므로 '이게 뭐지'가 아니라 '이 일꾼이 짐을 지면 이렇다'로 읽힌다(인터셉터·마인을
+     주인의 칸에 넣은 그 규약이다). ⚠ 지우면 안 된다 — 광택 표(glossOf9)가 이 표로 종족을 찾는다. */
+  { kind: "scvMin", label: "SCV(미네랄)", group: "유닛", race: "테란", hidden: true },
+  { kind: "scvGas", label: "SCV(가스)", group: "유닛", race: "테란", hidden: true },
   { kind: "gunner", label: "마린", group: "유닛", race: "테란" },
   { kind: "ghost", label: "고스트", group: "유닛", race: "테란" },
   { kind: "fbat", label: "파이어뱃", group: "유닛", race: "테란" },
@@ -26975,8 +26980,8 @@ export const SHAPE_GALLERY: ShapeGalleryItem[] = [
   { kind: "bc", label: "배틀크루저", group: "유닛", race: "테란" },
   // ── 유닛 · 프로토스 ──
   { kind: "probe", label: "프로브", group: "유닛", race: "프로토스" },
-  { kind: "probeMin", label: "프로브(미네랄)", group: "유닛", race: "프로토스" },
-  { kind: "probeGas", label: "프로브(가스)", group: "유닛", race: "프로토스" },
+  { kind: "probeMin", label: "프로브(미네랄)", group: "유닛", race: "프로토스", hidden: true },
+  { kind: "probeGas", label: "프로브(가스)", group: "유닛", race: "프로토스", hidden: true },
   { kind: "zealot", label: "질럿", group: "유닛", race: "프로토스" },
   { kind: "goon", label: "드라군", group: "유닛", race: "프로토스" },
   { kind: "htemp", label: "하이 템플러", group: "유닛", race: "프로토스" },
@@ -27003,8 +27008,8 @@ export const SHAPE_GALLERY: ShapeGalleryItem[] = [
   { kind: "larva", label: "라바", group: "유닛", race: "저그" },
   { kind: "egg", label: "변태알", group: "유닛", race: "저그" },
   { kind: "drone", label: "드론", group: "유닛", race: "저그" },
-  { kind: "droneMin", label: "드론(미네랄)", group: "유닛", race: "저그" },
-  { kind: "droneGas", label: "드론(가스)", group: "유닛", race: "저그" },
+  { kind: "droneMin", label: "드론(미네랄)", group: "유닛", race: "저그", hidden: true },
+  { kind: "droneGas", label: "드론(가스)", group: "유닛", race: "저그", hidden: true },
   { kind: "ovie", label: "오버로드", group: "유닛", race: "저그" },
   { kind: "zling", label: "저글링", group: "유닛", race: "저그" },
   { kind: "hydra", label: "히드라", group: "유닛", race: "저그" },
