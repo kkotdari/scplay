@@ -32,6 +32,8 @@ export const ERAS = {
   A: { tag: "8/29 · 2D", yaw: 45, u: "AU", b: "AB" },
   C: { tag: `${NOW} · GL`, yaw: 40, u: "CU", b: "CB" },
 };
+/** 7월 칸을 좌우로 뒤집어 얹을까(요청: "7월샷 좌우대칭이동") — 7월 그림만 −요잉이라 뒤집어야 셋이 같은 쪽을 본다. */
+export const JMIRROR9 = true;
 export const OWN9 = "#7ed491";   // 7월 도록의 임자색(연녹색)
 export const BG9 = "#ffffff";
 const idxA = new Map(); const idxC = new Map();
@@ -74,7 +76,7 @@ for (const [file, race, nos] of RACES) {
        남는다. 지금 판(idxC)에 없으면 거른다 — 굽는 목록에서 빼는 것만으로 카드까지 사라진다. */
     cards: sh.items.filter((it) => idxC.has(it.kind)).map((it) => { const ang = julyAt.get(it.kind)?.ang ?? 23; return { ...it, ang, j: julyAt.get(it.kind) ?? null, a: idxA.get(it.kind), c: idxC.get(it.kind) }; }),
   }));
-  const data = await pg.evaluate(async ({ secs, CELL, JC, JW, JH, COLS, TITLE, SEC, race, NOW, ERAS, BG9, OWN9, SPLIT }) => {
+  const data = await pg.evaluate(async ({ secs, CELL, JC, JW, JH, JMIRROR9, COLS, TITLE, SEC, race, NOW, ERAS, BG9, OWN9, SPLIT }) => {
     /* ★ 카드 상자·칸 테두리는 걷었다(2026-09, 요청: "한 모델 안에서 세로 구분선 제거 · 제목은 각 모델 위에 줄 위에") —
        모델 하나는 '이름 한 줄 + 시점 셋이 아래로 쌓인 한 기둥'이고, 기둥 안에는 세로 줄이 하나도 없다. 세로 줄을 내던 자리 셋:
        ① 붓의 strokeRect ② 7월 그림의 칸 판 왼 가장자리(x 264~271 의 띠 — 그래서 272 부터 자른다) ③ 옛 model-shot 칸의 왼 가장자리
@@ -98,7 +100,7 @@ for (const [file, race, nos] of RACES) {
       sc.cards.forEach((r, i) => {
         const x0 = GAPX + (i % COLS) * (BLKW + GAPX); const y0 = y + Math.floor(i / COLS) * BLKH;
         c.fillStyle = "#1f2733"; c.font = "bold 13px sans-serif"; c.fillText(r.label, x0, y0 + 2);
-        const cells = [[`7월 ${r.ang}°`, "J", r.j], [`${ERAS.A.tag} +${ERAS.A.yaw}°`, "A", r.a], [`${ERAS.C.tag} +${ERAS.C.yaw}°`, "C", r.c]];
+        const cells = [[`7월 ${r.ang}°${JMIRROR9 ? " 거울" : ""}`, "J", r.j], [`${ERAS.A.tag} +${ERAS.A.yaw}°`, "A", r.a], [`${ERAS.C.tag} +${ERAS.C.yaw}°`, "C", r.c]];
         cells.forEach(([tag, k, idx], n) => {
           const x = x0 + n * (CELL + GAPC); const yy = y0 + LABH;
           c.fillStyle = BG9; c.fillRect(x, yy, CELL, CELL);
@@ -106,7 +108,15 @@ for (const [file, race, nos] of RACES) {
             if (k === "J") {
               const R = CELL / JC;   // 7월 칸(200) → 시트 칸 배수
               c.imageSmoothingEnabled = true; c.imageSmoothingQuality = "high";
-              c.drawImage(window.__im[idx.img], 0, 0, JW, JH, x + 4 * R, yy + 3 * R, JW * R, JH * R);   // 누끼 그림 — 알파 그대로 흰 바탕에 얹힌다
+              /* ★ **7월 칸은 좌우로 뒤집어 얹는다**(2026-09, 요청: "7월샷 좌우대칭이동 가능하면 해줘") — 7월 그림만 −요잉이라
+                 옆 두 시대(+45·+40)와 몸이 **반대쪽**을 봐, 한 줄에 세워 놓으면 꼴을 견주기가 어려웠다. 거울로 뒤집으면 −23°가
+                 +23° 자리가 되어 셋이 같은 쪽을 본다.
+                 ⚠ 값은 **명암이 뒤집히는 것**이다(빛은 화면 왼쪽에서 온다 — "거울로 뒤집어 맞추면 안 된다"고 적어 둔 그 자리다).
+                 여기서는 꼴을 견주는 것이 뜻이라 받아들이고 꼬리표에 '거울'을 적는다. 되물리려면 JMIRROR9 만 끄면 된다. */
+              c.save();
+              if (JMIRROR9) { c.translate(x + 4 * R + JW * R, yy + 3 * R); c.scale(-1, 1); } else c.translate(x + 4 * R, yy + 3 * R);
+              c.drawImage(window.__im[idx.img], 0, 0, JW, JH, 0, 0, JW * R, JH * R);   // 누끼 그림 — 알파 그대로 흰 바탕에 얹힌다
+              c.restore();
             } else if (k === "A") {
               c.drawImage(window.__im[idx.img], 2, idx.i * CELL + 26 + 2, CELL - 4, CELL - 4, x + 2, yy + 2, CELL - 4, CELL - 4);   // 격자선이 위·아래 두 줄(0 · 199~200)
               c.fillStyle = BG9; c.fillRect(x, yy, 96, 22);                                        // 옛 도구의 종류 이름(칸 크기와 무관한 글자 크기)
@@ -135,7 +145,7 @@ for (const [file, race, nos] of RACES) {
       q.drawImage(cv, 0, a + SEC + r0 * BLKH, cv.width, hh, 0, TITLE + SEC, cv.width, hh);            // 그 토막의 행들
       return p.toDataURL("image/png"); }));
     return { full: cv.toDataURL("image/png"), parts };
-  }, { secs, CELL, JC, JW: JULY_CELL.w, JH: JULY_CELL.h, COLS, TITLE, SEC, race, NOW, ERAS, BG9, OWN9, SPLIT });
+  }, { secs, CELL, JC, JW: JULY_CELL.w, JH: JULY_CELL.h, JMIRROR9, COLS, TITLE, SEC, race, NOW, ERAS, BG9, OWN9, SPLIT });
   const f = `${OUT}/${file}_history.png`;
   writeFileSync(f, Buffer.from(data.full.split(",")[1], "base64")); console.log("→", f, secs.map((x) => x.cards.length).join("+"));
   data.parts.forEach((ds, i) => ds.forEach((d, h) => writeFileSync(
