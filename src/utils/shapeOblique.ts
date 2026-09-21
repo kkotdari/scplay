@@ -828,7 +828,7 @@ export type Poly3 = number[];
  *  스스로 적는다: bake9 의 `winLit`·`glowLit` 이 불이 켜질 때 제 색을 여기 넣는다(늘 빛인 플라즈마는 미리 적어 둔다). */
 /* 미리 적힌 빛: 플라즈마 #e4f6ff · 캐리어 창 #5fe6ff · 관문 보석 결정면 #c4f4ff·#7fd6ff(2026-09 — 손으로 그린
    번짐 겹을 걷으며 그 빛들을 블룸이 물게 했다. 늘 켜진 빛은 winLit 을 안 지나므로 여기 적는다). */
-export const EMIT_FILL9 = new Set<string>(["#e4f6ff", "#5fe6ff", "#c4f4ff", "#7fd6ff"]);
+export const EMIT_FILL9 = new Set<string>(["#e4f6ff", "#5fe6ff", "#c4f4ff", "#7fd6ff", "#5cf08a"]);   // 끝의 것은 서플라이 격납구 속의 초록 불(늘 켜 둔 빛이라 winLit 을 안 지난다)
 export const MESH9 = { on: false, byD: new Map<string, Poly3[]>() };
 /* (걷어냄) 화면점 → 모형점 표(`PROJ9`)와 그 되짚기(`unproject9`) — '화면 자로 그린 경로를
    3D 로 승격시키는' 길의 재료였다. 면을 내는 자가 제 3D 를 함께 적게 되어(mesh9 머리의 ★★)

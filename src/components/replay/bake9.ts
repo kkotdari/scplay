@@ -6232,7 +6232,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        이제 **은판 밑 = MOD_Z**로 두고 그 위로 받침 드럼·절두체를 차곡차곡 쌓는다. */
     const PLT_H = 0.8 * MK9;            // 은판 높이
     const DRM_H = 0.256;                 // 황동 받침 드럼 높이
-    const FR_H = 1.48 * MK9; const FR_Hz9 = 1.184 * MK9; /* z용 쌍둥이(model-z-scale ×0.8) */            // 절두체 높이
+    /* ★ **한 단 납작하다**(2026-09, 요청: "커맨드센터 꼭대기 절두체 높이 살짝 납작하게 낮추고") —
+       1.48 → 1.18(×0.8). 그릇·받침·창이 다 이 값에서 나므로 한 자리만 고친다. */
+    const FR_H = 1.18 * MK9; const FR_Hz9 = 0.944 * MK9; /* z용 쌍둥이(model-z-scale ×0.8) */            // 절두체 높이
     /* 가운데 꼭대기 상자는 가로세로 1.2배다(요청 — 드럼통 옆 상자가 아니라 그 위 한가운데
        것이다). 받침판·받침 드럼·꼭대기 그릇이 다 이 값에서 나오므로 한 자리만 고친다. */
     const FR_W0 = 2.6 * MK9 * 1.2;      // 절두체 밑 가로(전폭)
@@ -6262,21 +6264,49 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     out.push(...tagKey(paintBase(
       frustumFaces3(0, 0, FR_W0, FR_D0, FR_W1, FR_D1, FR_Hz9, FR_ZB, undefined, true), COPPER,
     ), 31));
-    /* 앞면 장식(창)은 앞이 보일 때만 — 뒤로 돌린 각도에서도 그리면 몸 위로 떠올라
-       팔처럼 삐져나와 보였다. */
+    /* ★★ **창은 네 옆면을 두르는 창살 띠다**(2026-09, 요청: "앞면의 창문을 사진처럼 창살이 있는
+       형태로 바꾸고 지금보다 더 좌우로 길게 변경하고 절두체 옆면 4면에 모두 추가") — 원작 커맨드의
+       관제실은 네 면을 두른 띠창이고 그 띠는 **세로 창살**로 잘게 나뉘어 있다. 여태는 앞면 한 장의
+       민무늬 유리라 돌리면 창이 통째로 사라졌다.
+       · 어두운 창틀을 벽에 얹고 그 위에 **세로 살 여럿**을 한 뼘 더 띄워 얹는다 — 살 사이의 어두운
+         골이 곧 창살이다(색만 바꾸고 안 나누면 그냥 띠다).
+       · 폭은 **그 낯 반폭의 몫**(WIN_K9)이라 앞뒤(넓은 낯)·좌우(좁은 낯)가 제 비로 길다.
+       · ⚠ 높이는 **FR_Hz9**(눌린 높이)로 잰다 — FR_H(설계 높이)로 재면 창이 절두체 밖으로 오른다
+         (옛 줄이 그 자였다 · 납작하게 낮추면서 드러난다).
+       · ⚠ 2D 는 보이는 낯만 그린다(faceLight) — 안 가리면 뒤통수 창이 몸 위로 떠오른다. 메시에선
+         그 문이 늘 참이라 넷이 다 실리고 깊이가 가른다. */
+    /** 앞이 보이나 — 아래 정면 격납구가 쓰는 문(2D 는 뒤로 돌린 각에서 속이 몸 위로 떠오른다). */
     const frontVisible = faceLight(0, 1).visible;
-    if (frontVisible) {
-      /* 창은 절두체 옆면에 붙는다 — 둥근 살이라 폭을 좁게 잡아야 네 귀가 밖으로 안 샌다. */
-      const wx9 = 0.62 * MK9;
-      const wz0 = FR_ZB + FR_H * 0.24;
-      const wz1 = FR_ZB + FR_H * 0.576;
-      const wy9 = (FR_D0 + FR_D1) / 4 + 0.02;   // 절두체 앞면의 한가운데 켜
-      out.push(...tagKey([
-        [polyPath3([[-wx9, wy9, wz0], [wx9, wy9, wz0],
-          [wx9, wy9, wz1], [-wx9, wy9, wz1]]), 1, GLASS] as ShapeFace,
-        topFace(polyPath3([[-wx9, wy9 + 0.01, wz1 - 0.128], [wx9, wy9 + 0.01, wz1 - 0.128],
-          [wx9, wy9 + 0.01, wz1], [-wx9, wy9 + 0.01, wz1]]), 0.4),
-      ], 32));
+    {
+      const WIN_K9 = 0.72;                        // 낯 반폭에 견준 창 반폭
+      const NBAR9 = 9;                            // 창살 수
+      const wz0 = FR_ZB + FR_Hz9 * 0.20;
+      const wz1 = FR_ZB + FR_Hz9 * 0.68;
+      const zm9 = (wz0 + wz1) / 2;
+      const tAt9 = (z: number): number => (z - FR_ZB) / FR_Hz9;
+      const hw9 = (z: number): number => (FR_W0 + (FR_W1 - FR_W0) * tAt9(z)) / 2;   // 그 높이의 반폭
+      const hd9 = (z: number): number => (FR_D0 + (FR_D1 - FR_D0) * tAt9(z)) / 2;   // 그 높이의 반깊이
+      for (const [nx9, ny9] of [[0, 1], [0, -1], [1, 0], [-1, 0]] as const) {
+        if (!faceLight(nx9, ny9).visible) continue;
+        const half9 = (nx9 ? hd9(zm9) : hw9(zm9)) * WIN_K9;    // 낯을 따라가는 창의 반길이
+        const off0 = (nx9 ? hw9(zm9) : hd9(zm9)) + 0.02;       // 벽 앞 한 뼘
+        /** 낯 위의 네모 — u 는 낯을 따라, lift 는 벽에서 더 띄우는 몫. 감기는 바깥을 본다. */
+        const quad9 = (u0: number, u1: number, z0: number, z1: number, lift: number): string => {
+          const o9 = off0 + lift;
+          const pt = (u: number, z: number): [number, number, number] =>
+            (nx9 ? [nx9 * o9, u, z] : [u, ny9 * o9, z]);
+          return polyPath3((nx9 || -ny9) > 0
+            ? [pt(u0, z0), pt(u1, z0), pt(u1, z1), pt(u0, z1)]
+            : [pt(u1, z0), pt(u0, z0), pt(u0, z1), pt(u1, z1)]);
+        };
+        const fx9: ShapeFace[] = [[quad9(-half9, half9, wz0, wz1, 0), 1, "#1b1f24"] as ShapeFace];
+        const pitch9 = (half9 * 2) / NBAR9;
+        for (let b9 = 0; b9 < NBAR9; b9 += 1) {
+          fx9.push([quad9(-half9 + pitch9 * (b9 + 0.2), -half9 + pitch9 * (b9 + 0.8),
+            wz0 + 0.032, wz1 - 0.032, 0.02), 1, GLASS] as ShapeFace);
+        }
+        out.push(...tagKey(fx9, 32));
+      }
     }
     /* 꼭대기 — 절두체 윗면에 **진짜로 파인 그릇**(요청: "옥상은 반대로 반구형으로 움푹 패인 거").
        ★★ **명암으로 흉내 낸 패임은 GL 에서 안 통한다**(2026-09, 지적: "꼭대기의 반구로 패인
@@ -7477,7 +7507,35 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // 몸통 — 위로 살짝 좁아지는 장갑 덩치.
     /* 높이를 살짝 올렸다(요청) — 2.2 → 2.6. 지붕 위에 앉는 것들(환풍구·드럼·상자
        줄)과 사면을 재는 wallX·wallY도 같은 값으로 함께 옮긴다. */
-    out.push(...tagKey(paintBase(frustumFaces3(0, 0, 7.2, 5.6, 6.4, 4.8, 2.08, 0), BODY), 0));
+    /* ★★ **앞면(−x)의 초록 불빛은 격납구다**(2026-09, 요청: "서플 앞면 녹색 불빛부분은 격납구로 변경하고
+       안에서 녹색불 들어와있는 형태로") — 여태는 벽에 붙은 반투명 초록 유리 한 장이라 '불이 든 안'이 없었다.
+       팩토리·커맨드와 같은 손이다: **GL 에서는 벽을 프리미티브에서 빼고** 개구부 둘레만 남긴 구멍 뚫린 벽을
+       손수 짠 뒤 그 안에 속(뒷벽·바닥·천장·옆벽)을 넣는다. 2D 는 화가 차례라 벽을 그대로 두고 속을 위에 얹는다.
+       ⚠ 부감 40도에서 아가리로 보이는 몫은 대개 **바닥**이다 — 빛은 바닥에서 먼저 나야 한다(그 규약). */
+    const BAY_Y9 = 1.75;                                            // 개구부 반폭(모델 y = 화면의 가로)
+    const BAY_Z0 = 0.5; const BAY_Z1 = 1.62;                        // 문턱 · 인방
+    const BAY_D9 = 1.15;                                            // 파인 깊이
+    const bayOn9 = faceLight(-1, 0, 0.18).visible;
+    const glBay9 = MESH9.on;
+    /** 그 높이의 앞벽 x(−x 쪽) · 반폭(y) — 사면이라 높이마다 다르다(몸통 7.2×5.6 → 6.4×4.8 · 높이 2.08). */
+    const bayX9 = (z9: number): number => -(3.6 - (0.4 / 2.08) * z9);
+    const bayW9 = (z9: number): number => 2.8 - (0.4 / 2.08) * z9;
+    out.push(...tagKey(paintBase(frustumFaces3(0, 0, 7.2, 5.6, 6.4, 4.8, 2.08, 0,
+      glBay9 ? ([-1, 0] as const) : undefined), BODY), 0));
+    if (glBay9) {
+      /* 구멍 뚫린 앞벽 — 개구부 둘레 넉 조각(문턱 아래·인방 위·좌우 문설주). 감기는 바깥(−x)을 본다. */
+      const wq9 = (y0: (z: number) => number, y1: (z: number) => number, z0: number, z1: number): string =>
+        polyPath3([[bayX9(z0), y1(z0), z0], [bayX9(z0), y0(z0), z0],
+          [bayX9(z1), y0(z1), z1], [bayX9(z1), y1(z1), z1]]);
+      const neg9 = (z: number): number => -bayW9(z); const pos9 = (z: number): number => bayW9(z);
+      const mB9 = (): number => -BAY_Y9; const pB9 = (): number => BAY_Y9;
+      out.push(...tagKey(paintBase([
+        [wq9(neg9, pos9, 0, BAY_Z0), 1] as ShapeFace,
+        [wq9(neg9, pos9, BAY_Z1, 2.08), 1] as ShapeFace,
+        [wq9(neg9, mB9, BAY_Z0, BAY_Z1), 1] as ShapeFace,
+        [wq9(pB9, pos9, BAY_Z0, BAY_Z1), 1] as ShapeFace,
+      ], BODY), 0.05));
+    }
     // 몸통 옆구리 골 — 앞이 보일 때만.
     if (facingRatio(0, 1) > 0.12) {
       const rib: ShapeFace[] = [];
@@ -7685,21 +7743,34 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         out.push(...tagKey(boxFaces3(XO9 + OUT9 / 2, by9, OUT9, BD9, 0.44, 1.64), bk9 + 0.05));
       }
     }
-    if (faceLight(-1, 0, 0.18).visible) {
-      /* 초록 창(재지적: "앞쪽 초록창은 반투명 처리하고 더 크게 확대") — 꽉 찬 초록
-         네모가 아니라 안쪽이 비쳐 보이는 유리다. 벽 자리에 어두운 창틀을 먼저 깔고
-         그 위에 반투명 초록을 덮어, 뒤가 비치면서도 벽 색에 묻히지 않게 했다.
-         크기는 세로 0.8 → 1.55, 가로 1.8 → 3.2로 키웠다. */
-      const gz0 = 0.576; const gz1 = 1.64; const gy = 1.6;
-      const pane = (inset: number, z0: number, z1: number): string => polyPath3([
-        [wallX(z0) - inset, -gy - inset * 0.4, z0], [wallX(z0) - inset, gy + inset * 0.4, z0],
-        [wallX(z1) - inset, gy + inset * 0.4, z1], [wallX(z1) - inset, -gy - inset * 0.4, z1],
-      ]);
+    if (bayOn9) {
+      /* 격납구의 속 — 뒷벽·바닥·천장·옆벽. **바닥과 뒷벽이 빛**이고(부감에서 먼저 보이는 몫) 옆벽·천장은
+         그 빛을 받는 어두운 초록이다. 이 건물은 LIT_KINDS 밖이라(활성 신호가 없다) 늘 켜 둔 불이고,
+         그래서 색을 `EMIT_FILL9`(shapeOblique)에 미리 적어 번짐(블룸)을 태운다. */
+      /* ⚠ **넷을 같은 초록으로 두면 격납구가 도로 납작한 판이다** — 깊이는 색의 층이 낸다:
+         바닥(빛이 고이는 자리 · 부감에서 가장 넓게 보인다) > 뒷벽 > 옆벽 > 천장(아래를 보는 낯). */
+      const BAY_LIT = "#5cf08a";      // 바닥 — 속에서 드는 초록 불(EMIT_FILL9 에 적혀 번짐을 탄다)
+      const BAY_BACK = "#39b863";     // 뒷벽 — 한 단 어둡다
+      const BAY_IN = "#24412c";       // 옆벽
+      const BAY_TOP = "#18271c";      // 천장 — 아래를 보는 낯이라 가장 어둡다
+      const xo9 = (z: number): number => bayX9(z);              // 아가리(벽 낯)
+      const xi9 = (z: number): number => bayX9(z) + BAY_D9;     // 뒷벽
+      const quad = (pts: [number, number, number][]): string => polyPath3(pts);
       out.push(...tagKey([
-        [pane(0, gz0 - 0.128, gz1 + 0.128), 1, "#21252c"] as ShapeFace,
-        [pane(0.04, gz0, gz1), 0.55, "#4cd86a"] as ShapeFace,
-        // 유리에 비친 하늘 — 위쪽 모서리를 따라 흐르는 옅은 띠.
-        [pane(0.06, gz1 - 0.272, gz1 - 0.048), 0.3, "#eafff0"] as ShapeFace,
+        // 뒷벽 — 법선이 아가리(−x)를 본다
+        [quad([[xi9(BAY_Z0), BAY_Y9, BAY_Z0], [xi9(BAY_Z0), -BAY_Y9, BAY_Z0],
+          [xi9(BAY_Z1), -BAY_Y9, BAY_Z1], [xi9(BAY_Z1), BAY_Y9, BAY_Z1]]), 1, BAY_BACK] as ShapeFace,
+        // 바닥 — 하늘을 본다(+z)
+        [quad([[xo9(BAY_Z0), -BAY_Y9, BAY_Z0], [xi9(BAY_Z0), -BAY_Y9, BAY_Z0],
+          [xi9(BAY_Z0), BAY_Y9, BAY_Z0], [xo9(BAY_Z0), BAY_Y9, BAY_Z0]]), 1, BAY_LIT] as ShapeFace,
+        // 천장 — 아래를 본다(−z)
+        [quad([[xo9(BAY_Z1), BAY_Y9, BAY_Z1], [xi9(BAY_Z1), BAY_Y9, BAY_Z1],
+          [xi9(BAY_Z1), -BAY_Y9, BAY_Z1], [xo9(BAY_Z1), -BAY_Y9, BAY_Z1]]), 1, BAY_TOP] as ShapeFace,
+        // 옆벽 둘 — 법선이 속을 본다
+        [quad([[xo9(BAY_Z0), BAY_Y9, BAY_Z0], [xi9(BAY_Z0), BAY_Y9, BAY_Z0],
+          [xi9(BAY_Z1), BAY_Y9, BAY_Z1], [xo9(BAY_Z1), BAY_Y9, BAY_Z1]]), 1, BAY_IN] as ShapeFace,
+        [quad([[xi9(BAY_Z0), -BAY_Y9, BAY_Z0], [xo9(BAY_Z0), -BAY_Y9, BAY_Z0],
+          [xo9(BAY_Z1), -BAY_Y9, BAY_Z1], [xi9(BAY_Z1), -BAY_Y9, BAY_Z1]]), 1, BAY_IN] as ShapeFace,
       ], depthNow(-3.4, 0) * 1.6 + 3));
       // 해저드 빗금 띠 — 위로 갈수록 앞(+y)으로 밀어 비스듬한 경고 무늬가 된다.
       const haz: ShapeFace[] = [];
