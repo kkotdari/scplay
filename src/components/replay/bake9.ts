@@ -5167,24 +5167,48 @@ export const sunkenFootFaces = (
     /** 아치(솟는 높이)만의 배수 — 길이와 따로 논다(요청: 스포어는 "높이가 1.8배 길이는 0.8"). */
     archK?: number } = {},
 ): ShapeFace[] => {
+  /* ★★ **발은 활이 아니라 바닥에 누운 지느러미다**(2026-09, 지적: "콜로니류 발은 저렇게 호로 휜 게
+     아니라 바닥은 평평해서 바닥에 붙고 위로만 호로 부푸는 모양이야" → "호도 딱 호가 아니라 안쪽이
+     높고 밖이 낮은") ────────────────────────────────────────────────────────────────────────
+     옛 판은 **등뼈 자체**를 `sin πt` 로 들어 올렸다(up9) — 곧 위·아래가 함께 솟아 다리 밑으로 땅이
+     비치는 **다리(橋)** 였다. 요청의 꼴은 그 반대다: 밑면은 땅에 붙어 평평하고, **두께가 부풀어**
+     윗선만 호를 그리며 **안(뿌리)이 높고 밖(끝)이 낮다**.
+     · 윗선 `HT9(t)` = 4분의 1 타원(`√(1 − t²)`) — 뿌리에서 가장 높고 밖으로 가며 볼록하게 내려앉아
+       끝에서 땅에 닿는다(끝 굵기 `hTip9` 만 남긴다). 높이 손잡이(`arc`·`archK`)는 그대로 이 자의 몫이다.
+     · **밑면을 땅에 붙이는 자는 낯 수다** — 단면의 밑을 **평평한 한 낯**으로 두려면 꼭짓점이 180도를
+       사이에 두고 갈라져야 한다: `sides 8` + 기본 위상(π/8)이면 157.5·202.5 도의 두 점이 밑 낯을 이루고
+       그 깊이가 `cos(π/8)`(= BOT9)이다. 축을 `zBase9 + BOT9·rV` 에 두면 그 낯이 정확히 땅에 앉는다
+       (7각은 180도에 꼭짓점이 하나라 밑이 **용골**로 서고, 그것이 '호로 휘었다'로 읽혔다).
+     · **옆폭은 두께와 따로 논다** — 두께(rV)가 끝에서 0 으로 가는데 `oval` 이 상수면 옆폭도 함께 칼날이
+       된다. `ovalOf` 로 옆폭을 제 사다리(wSide9)에 매어 둔다(그 ★ 규약 — 끝에 굵기를 남기는 꼴). */
   const a9 = (ang * Math.PI) / 180;
   const dx = Math.sin(a9);
   const dy = Math.cos(a9);
   const k9 = o9.k ?? 1;
-  const zRoot9 = 1.2 + (o9.z0 ?? 0);
-  const zTip9 = 0.28 + (o9.z0 ?? 0);
   const arcK9 = (o9.arc ?? 1.05) * k9 * (o9.archK ?? 1);
+  const zBase9 = 0.05 + (o9.z0 ?? 0);
+  const BOT9 = Math.cos(Math.PI / 8);
+  /* 뿌리의 윗선 높이 — 옛 판의 마루(축 + 반두께)와 같은 자리에 오게 맞춘 값이다. */
+  const hMax9 = (1.5 * k9 + arcK9 * 1.25) * Z8;
+  const hTip9 = 0.34 * k9 * Z8;
+  const HT9 = (t9: number): number => Math.max(hTip9, hMax9 * Math.sqrt(Math.max(0, 1 - t9 * t9)));
+  const rV9 = (t9: number): number => HT9(t9) / (1 + BOT9);
+  /* 옆 반폭 — 뿌리는 옛 값(반두께 × oval) 그대로, 끝으로 가며 28% 까지 준다. */
+  const wS09 = w9 * 0.62 * k9 * (o9.oval ?? 1.85);
+  const wSide9 = (t9: number): number => wS09 * (1 - 0.72 * t9);
   const f9 = spirePillar({
-    x: 0, y: 0, h: 0.8, w: w9 * 0.62 * k9, tipW: (o9.tipW ?? 0.30) * k9, oval: o9.oval ?? 1.85, caps: "top",
-    segs: 12, sides: 7, hold: 0.15, taper: 0.85,
+    x: 0, y: 0, h: 0.8, w: 1, tipW: 1, caps: "top",
+    segs: 12, sides: 8, hold: 0, taper: 1,
+    widthOf: rV9,
+    ovalOf: (t9: number): number => wSide9(t9) / Math.max(1e-3, rV9(t9)),
+    trueNormal: true,
     path: (t9: number): [number, number, number] => {
       const r9 = 1.6 + len * k9 * t9;
-      const up9 = Math.sin(Math.PI * t9) * arcK9;
       const side9 = Math.sin(Math.PI * t9) * 0.55 * k9;
       return [
         dx * r9 - dy * side9,
         dy * r9 + dx * side9,
-        zRoot9 + (zTip9 - zRoot9) * t9 + up9 * Z8,
+        zBase9 + BOT9 * rV9(t9),
       ];
     },
   });
