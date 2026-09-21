@@ -218,7 +218,11 @@ export function legAndFoot(
    *  나온 다리에 쓴다. 못박기는 '다리는 제 몸통을 가로지르면 안 된다'는 규칙인데,
    *  몸 밖에 선 다리는 가로지를 몸이 없다: 그 자리에서는 도리어 몸이 다리를 덮어
    *  버려 앞에 선 것이 뒤에 있는 것처럼 보인다. */
-  o: { bend?: number; legW?: number; key?: number } = {},
+  /** 다리 밑동 z(zBot)·발판 높이(footH) — 안 주면 **여태 값**(0.304·0.464 × sz)이다.
+   *  ★ 이 둘은 헬퍼 안에 박힌 **절대 z** 라, 부르는 쪽이 제 높이 배수를 좌표로 접어 두면
+   *    여기만 안 따라온다(스타포트의 1.4배가 그 자리였다). 배수를 감싸개로 걸지 말고
+   *    **그 자리의 수**를 이리로 넘겨라 — 다른 부르는 자리는 기본값 그대로다. */
+  o: { bend?: number; legW?: number; key?: number; zBot?: number; footH?: number } = {},
 ): ShapeFace[] {
   /* 테란 건물은 바닥이 떠 있다 — 몸통이 다리 위에 얹히고, 다리는 아래로 내려가
      그 밑에 발판이 달린다.
@@ -247,7 +251,7 @@ export function legAndFoot(
      한 자리에서 따로 걸린다. 기둥이 내려앉는 바닥도 발판이 두꺼워진 만큼 함께 올린다. */
   const k9 = o.key ?? (depthNow(px, py) > 0 ? -40 : -40.2);
   const fh9 = 0.4 * sz;
-  const z09 = 0.304 * sz;
+  const z09 = o.zBot ?? 0.304 * sz;
   const bend9 = o.bend ?? 0;
   const lw9 = (o.legW ?? 1) * sz;
   /** 기둥 반지름 — 요청("발판의 다리 지름 20% 축소")으로 두 번 내렸다:
@@ -282,7 +286,7 @@ export function legAndFoot(
        그대로 두고(발자국이 바뀌면 건물마다 정규화를 다시 재야 한다) 위만 둥글게 덮는다.
        높이는 지름의 반이 조금 넘는 정도라 공처럼 솟지 않고 눌린 채로 남는다. */
     ...tagKey(paintBase(spirePillar({
-      x: px, y: py, z0: 0, h: 0.464 * sz, w: 0.98 * sz, segs: 5, sides: 10, caps: "none",
+      x: px, y: py, z0: 0, h: o.footH ?? 0.464 * sz, w: 0.98 * sz, segs: 5, sides: 10, caps: "none",
       widthOf: (t9: number): number => 0.98 * sz * Math.sqrt(Math.max(0, 1 - t9 * t9)),
     }), "#646464"), k9 - 0.1),
   ];
@@ -8263,7 +8267,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
 
     return raceBase(out, "terran", pc);
   },
-  plane: () => withModelScale(1, 1, 1.4, () => {
+  plane: () => {
     /* 스타포트(재작도 — 게임 스프라이트 기준) ──────────────────────────────────────
        앞선 판은 몸통·칼라·패드를 층층이 쌓아 너무 높았다(지적: "너가 만든거랑 너무
        달라"). 실제 스프라이트는 **납작하다**: 낮은 팔각 몸통 위에 큼직한 원형 착륙판이
@@ -8288,13 +8292,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        2.3 → 1.38(0.6배). 몸통·착륙판·앞 구조물이 전부 이 값에서 파생되므로 건물 전체가
        그만큼 내려앉고, 그만큼 **잉크 상자의 세로가 줄어** 같은 채움 목표 안에서 몸이
        실해진다(스타게이트 잎을 모은 것과 같은 결이다). 굵기는 legAndFoot의 sz 1.2. */
-    const BODY_Z0 = 1.38; const BODY_Z0z9 = 1.104; /* z용 쌍둥이(model-z-scale ×0.8) */   // 몸통 밑 — 발 위로 떠 있다(다리 길이가 이 값이다).
+    const BODY_Z0 = 1.38; const BODY_Z0z9 = 1.5456; /* z용 쌍둥이(model-z-scale ×0.8) */   // 몸통 밑 — 발 위로 떠 있다(다리 길이가 이 값이다).
     const LEG_SZ = 1.2;     // 다리·발판 굵기 배수
     /* 몸통 높이 1.2배(요청) — 2.25 → 2.7. 착륙판(PAD_Z)과 그 위의 모든 것이 이 값을
        따라 함께 올라간다. 앞 구조물 둘도 같은 배수로 키운다(아래 FRONT_H1·FRONT_H2). */
-    const BODY_H = 2.25 * 1.2; const BODY_Hz9 = 1.8 * 1.2; /* z용 쌍둥이(model-z-scale ×0.8) */
-    const FRONT_H1 = 1.08 * 1.2;
-    const FRONT_H2 = 1.24 * 1.2;
+    const BODY_H = 2.25 * 1.2; const BODY_Hz9 = 2.52 * 1.2; /* z용 쌍둥이(model-z-scale ×0.8) */
+    const FRONT_H1 = 1.512 * 1.2;
+    const FRONT_H2 = 1.736 * 1.2;
     const PAD_Z = BODY_Z0z9 + BODY_Hz9;   // 2.35 — 착륙판 테
 
     // 짧고 어두운 발 여섯 — 둘레에 박힌다. 스프라이트의 발은 기둥이 아니라 굽이다.
@@ -8307,7 +8311,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            그 셋은 4.55 가 몸 밖이라 **기둥 꼭대기가 드러났다**. 가장 좁은 자(4.39)보다 안으로 넣는다. */
       const fx9 = Math.sin(a9) * 4.15;
       const fy9 = Math.cos(a9) * 4.15;
-      out.push(...legAndFoot(fx9, fy9, BODY_Z0z9 + 0.2, 0.04, LEG_SZ));
+      /* 밑동·발판 높이는 이 자리의 수다 — 헬퍼 기본값(0.304·0.464 × sz)에 스타포트의
+         높이 몫이 이미 접혀 있는 값이다(0.304·1.2·1.4 · 0.464·1.2·1.4). */
+      out.push(...legAndFoot(fx9, fy9, BODY_Z0z9 + 0.28, 0.04, LEG_SZ,
+        { zBot: 0.51072, footH: 0.77952 }));
     }
 
     /* 낮은 팔각 몸통 — **위도 막는다**(지적: "본건물과 옥상(선착장)의 틈이 벌어졌다").
@@ -8346,10 +8353,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        붙는다(지적). 끝 구조물의 앞면에는 노란 창이 길게 난다. 격납고 아가리는 여기가
        아니라 45도 자리다(아래). */
     // ① 앞으로 뻗는 길다란 구조물 — 세로(앞뒤)로 길고 좁다.
-    out.push(...tagKey(paintBase(boxFaces3(0, 5.5, 2.0, 3.8, FRONT_H1, BODY_Z0z9 - 0.04), "#797979"),
+    out.push(...tagKey(paintBase(boxFaces3(0, 5.5, 2.0, 3.8, FRONT_H1, BODY_Z0z9 - 0.056), "#797979"),
       46 + depthNow(0, 5.5) * 1.6));
     // ② 그 끝의 옆으로 긴 구조물 — 가로로 넓고 얕다.
-    out.push(...tagKey(paintBase(boxFaces3(0, 7.65, 5.8, 1.4, FRONT_H2, BODY_Z0z9 - 0.096), GREY),
+    out.push(...tagKey(paintBase(boxFaces3(0, 7.65, 5.8, 1.4, FRONT_H2, BODY_Z0z9 - 0.1344), GREY),
       47 + depthNow(0, 7.65) * 1.6));
     if (facingRatio(0, 1) > 0.1) {
       /* ③ 끝 구조물 앞면의 창 — **가로로 긴 창 넷이 이어 난다**(요청: "빨간네모 부분은
@@ -8360,7 +8367,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          길어 '가로로 긴 창'의 결을 지킨다.
          한 장의 짜임은 통창 때와 같다: 어두운 안쪽 → 노란 막 → 가운데 밝은 살. */
       const wy = 8.36;
-      const wz = BODY_Z0z9 + 0.224;
+      const wz = BODY_Z0z9 + 0.3136;
       /* (원복) 스타포트는 종전 그대로다 — 단순화 요청은 **스타게이트** 몫이었다
          (정정: "아까 스타게이트 면 단순화인데 스타포트로 잘못 말한듯 스타포트는 원복"). */
       const WN = 4;                    // 창 개수
@@ -8373,9 +8380,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const x1 = x0 + WW;
         const band = (a9: number, b9: number, zb: number, zt: number, dy9: number): string =>
           polyPath3([[a9, wy + dy9, zb], [b9, wy + dy9, zb], [b9, wy + dy9, zt], [a9, wy + dy9, zt]]);
-        win.push([band(x0, x1, wz, wz + 0.688, 0), 1, "#22262c"] as ShapeFace);
+        win.push([band(x0, x1, wz, wz + 0.9632, 0), 1, "#22262c"] as ShapeFace);
         // 유리 한 장(번짐 겹은 걷었다 — 블룸이 낸다. 2026-09 요청 · winRow 의 그 규약)
-        win.push([band(x0 + 0.1, x1 - 0.1, wz + 0.064, wz + 0.624, 0.02),
+        win.push([band(x0 + 0.1, x1 - 0.1, wz + 0.0896, wz + 0.8736, 0.02),
           1, winLit("#ffe790")] as ShapeFace);
       }
       out.push(...tagKey(win, 60));
@@ -8392,8 +8399,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       for (let k9 = 0; k9 < HZ_N9; k9 += 1) {
         const u9 = -HZ_HW9 + k9 * HZ_P9;
         warn.push([polyPath3([
-          [cl9(u9), 8.34, BODY_Z0z9 - 0.064], [cl9(u9 + 0.26), 8.34, BODY_Z0z9 - 0.064],
-          [cl9(u9 + 0.5), 8.34, BODY_Z0z9 + 0.192], [cl9(u9 + 0.24), 8.34, BODY_Z0z9 + 0.192],
+          [cl9(u9), 8.34, BODY_Z0z9 - 0.0896], [cl9(u9 + 0.26), 8.34, BODY_Z0z9 - 0.0896],
+          [cl9(u9 + 0.5), 8.34, BODY_Z0z9 + 0.2688], [cl9(u9 + 0.24), 8.34, BODY_Z0z9 + 0.2688],
         ]), 1, k9 % 2 === 0 ? AMBER : "#21252c"] as ShapeFace);
       }
       out.push(...tagKey(warn, 59));
@@ -8563,16 +8570,16 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           ]);
         };
         /** 아가리 밑변 — 몸통 높이의 절반 위. 윗변은 착륙판 테(BODY_Z0 + BODY_H) 바로 밑. */
-        const dz0 = BODY_Z0 + BODY_H * 0.46; const dz0z9 = BODY_Z0z9 + BODY_H * 0.368; /* z용 쌍둥이(model-z-scale ×0.8) */
-        const dz1 = BODY_Z0 + BODY_H - 0.16; const dz1z9 = BODY_Z0z9 + BODY_Hz9 - 0.128; /* z용 쌍둥이(model-z-scale ×0.8) */
+        const dz0 = BODY_Z0 + BODY_H * 0.46; const dz0z9 = BODY_Z0z9 + BODY_H * 0.5152; /* z용 쌍둥이(model-z-scale ×0.8) */
+        const dz1 = BODY_Z0 + BODY_H - 0.16; const dz1z9 = BODY_Z0z9 + BODY_Hz9 - 0.1792; /* z용 쌍둥이(model-z-scale ×0.8) */
         const dh = dz1 - dz0;
         const door: ShapeFace[] = [
           [quad(1.7, dz0z9, dz1z9), 1, "#22262c"] as ShapeFace,
           // (걷어냄) 주황 번짐 겹 — 2026-09 요청, 번짐은 블룸이 낸다(winRow 의 그 규약).
         ];
         for (let k9 = 0; k9 < 3; k9 += 1) {
-          const z9 = dz0z9 + dh * (0.128 + k9 * 0.216);
-          door.push([quad(1.4, z9, z9 + dh * 0.12), 1, winLit("#ffe790")] as ShapeFace);
+          const z9 = dz0z9 + dh * (0.1792 + k9 * 0.3024);
+          door.push([quad(1.4, z9, z9 + dh * 0.168), 1, winLit("#ffe790")] as ShapeFace);
         }
         /* ★ 키를 **깊이로** 준다(지적 사진: 아가리가 안테나 팔과 옆 구조물 위에 떠서
            그려짐) — 붙박이 58은 이 모델의 어느 키보다도 높아, 아가리가 제 앞을 지나는
@@ -8588,7 +8595,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 판을 몸통보다 작게(수리: 판이 몸통과 같은 크기라 앞 격납고와 개인색 슬래브를
        통째로 덮었다) — 스프라이트에서도 판은 지붕 한가운데에 얹힌 원이고 그 둘레로
        슬래브와 앞 구조물이 드러난다. 5.05 → 4.15. */
-    out.push(...tagKey(paintBase(cylinderFaces3(0, 0, 4.15, 0.256, PAD_Z), GREY), 40));
+    out.push(...tagKey(paintBase(cylinderFaces3(0, 0, 4.15, 0.3584, PAD_Z), GREY), 40));
     out.push(...tagKey([
       /* ★ **판 면은 테의 윗면보다 위여야 한다**(2026-09, 지적: "스타포트 착륙판 색도 고치고") —
          테(cylinderFaces3, 높이 0.256)의 **윗 뚜껑**이 PAD_Z + 0.256 인데 베이지 판이 +0.24 라
@@ -8596,9 +8603,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          진짜 깊이에서는 회색 뚜껑이 판을 **통째로 가린다**(GL 에서 착륙판이 회색이던 까닭).
          ★ 2D 에서 '나중에 칠한다'로 세운 층은 GL 에서 **높이로 갚아야** 한다 — 같은 종류의 어긋남이
            여럿 있었다(넥서스 받침·고치 이음매). 세 겹을 테 위로 0.04 올린다. */
-      [discPath3(0, 0, PAD_Z + 0.28, 3.75), 1, PADTOP] as ShapeFace,
-      capFace(discPath3(0, 0, PAD_Z + 0.288, 3.25), 0.26),
-      topFace(discPath3(0, 0, PAD_Z + 0.296, 2.25), 0.15),
+      [discPath3(0, 0, PAD_Z + 0.392, 3.75), 1, PADTOP] as ShapeFace,
+      capFace(discPath3(0, 0, PAD_Z + 0.4032, 3.25), 0.26),
+      topFace(discPath3(0, 0, PAD_Z + 0.4144, 2.25), 0.15),
     ], 42));
 
     /* 안테나는 셋이고 120도 간격이다(지적) — 넷을 90도로 두었더니 앞의 긴 구조물과
@@ -8622,9 +8629,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const ty9 = sy9 * 7.55;
       const dep9 = depthNow(tx9, ty9);
       out.push(...boxSkip(tagKey(paintBase(spirePillar({
-        x: 0, y: 0, h: 0.8, w: 0.34, tipW: 0.28, segs: 1, sides: 6, hold: 0.25, caps: "none",
+        /* ⚠ 단면은 **위로 늘인 타원**이다 — 이 관은 거의 눕는데(축이 가로), 옛
+           `withModelScale(1, 1, 1.4)` 는 축만이 아니라 **꼭짓점 z**를 다 늘였으므로 관의
+           굵기도 세로로 1.4배였다. 좌표로 접을 때는 `w`(u = 세로)를 그만큼 키우고
+           `oval`(v = 가로)로 되돌려야 같은 관이다 — 셋이 한 벌이다(옵저버토리 들보의 그 자). */
+        x: 0, y: 0, h: 1.12, w: 0.476, tipW: 0.392, oval: 0.34 / 0.476,
+        segs: 1, sides: 6, hold: 0.25, caps: "none",
         path: (t9: number): [number, number, number] => [
-          bx9 + (tx9 - bx9) * t9, by9 + (ty9 - by9) * t9, PAD_Z + 0.336 + 0.176 * t9,
+          bx9 + (tx9 - bx9) * t9, by9 + (ty9 - by9) * t9, PAD_Z + 0.4704 + 0.2464 * t9,
         ],
       }), TERRAN_STEEL_M), 44 + dep9)));
       /* 끝 부품은 수직으로 가늘고 길게(요청) — 여태 반지름 0.5의 납작한 원통 + 돔이라
@@ -8632,8 +8644,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          뒤 안테나는 끝이 상자 밖이라 마디를 안 단다(위 ★) — 달아 봐야 안 그려지고,
          혹 걸쳐 그려지면 그 몫이 도로 상자를 늘린다. */
       out.push(...boxSkip(tagKey(paintBase([
-        ...cylinderFaces3(tx9, ty9, 0.26, 0.128, PAD_Z + 0.448),
-        ...cylinderFaces3(tx9, ty9, 0.13, 1.48, PAD_Z + 0.56),
+        ...cylinderFaces3(tx9, ty9, 0.26, 0.1792, PAD_Z + 0.6272),
+        ...cylinderFaces3(tx9, ty9, 0.13, 2.072, PAD_Z + 0.784),
       ], "#4f4f4f"), 45 + dep9)));
     }
 
@@ -8642,7 +8654,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 앞 길다란 구조물 위에는 세로로 길게 개인색 데칼이 들어간다(지적) — 앞뒤로
        길쭉한 띠라, 정면에서 이 건물의 임자 색이 가장 먼저 읽힌다. */
     pc.push(...tagKey(
-      boxFaces3(0, 5.5, 0.75, 2.6, 0.16, BODY_Z0z9 - 0.04 + FRONT_H1),
+      boxFaces3(0, 5.5, 0.75, 2.6, 0.224, BODY_Z0z9 - 0.056 + FRONT_H1),
       48 + depthNow(0, 5.5) * 1.6,
     ));
     /* 정면(0도) 슬래브는 왼쪽으로 옮겼다(지적: "원통 정면의 개인색 구조물은 오른쪽
@@ -8671,12 +8683,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          세로로 길다. 상자는 못 돌리므로 두 폭을 바꿔 끼운다. */
       const along = Math.abs(sy9) > 0.5;
       pc.push(...tagKey(
-        boxFaces3(mx9, my9, along ? 2.6 : 1.05, along ? 1.05 : 2.6, 0.48, PAD_Z),
+        boxFaces3(mx9, my9, along ? 2.6 : 1.05, along ? 1.05 : 2.6, 0.672, PAD_Z),
         44 + depthNow(mx9, my9) * 1.6,
       ));
     }
     return raceBase(out, "terran", pc);
-  }),
+  },
   /* 벙커(실물 참고) — 사방으로 비탈진 날개 판(정사각 배치) + 날개마다 내려오는 계단 +
      가운데 강철 돔 + 윗면 원형 해치. 날개 밝기는 세계 광원(faceLight)이 정한다. */
   /* 벙커(전면 재작도 — 사진 기준) ────────────────────────────────────────────────
@@ -8694,15 +8706,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        ⑤ 사격 중에는 그 총안이 번쩍인다(요청) — bldLitNow 깃발 하나로 갈린다. */
   /* 전체 높이 10% 증가(요청) — 모형 z만 1.1배다. 받침·돔·계단·창·총구 자리가 전부
      이 한 겹 안에서 나므로 비율이 안 깨진다(짝이 되는 BUNKER_MUZZLE_Z도 같은 몫). */
-  tombFlat: () => withModelScale(1, 1, 1.1, () => {
+  tombFlat: () => {
     const SILVER9 = TERRAN_STEEL;
     const out: ShapeFace[] = [];
     /* 치수 — **받침은 계단 높이만큼만**이다(요청: "절두체 높이 계단과 맞추기"). 그러면
        몸의 덩치는 받침이 아니라 **돔**이 맡고(요청: "돔 지름이 더 크게"), 계단은 그
        받침 높이를 그대로 내려오므로 층계와 받침이 한 단으로 읽힌다. */
-    const FB9 = 3.9; const FB9z9 = 3.12; /* z용 쌍둥이(model-z-scale ×0.8) */          // 받침(사각 절두체) 밑 반폭
+    const FB9 = 3.9;          // 받침(사각 절두체) 밑 반폭
     const FT9 = 3.3;          // 받침 윗 반폭
-    const FH9 = 1.0; const FH9z9 = 0.8; /* z용 쌍둥이(model-z-scale ×0.8) */          // 받침 높이 = 계단 높이
+    const FH9 = 1.0; const FH9z9 = 0.88; /* z용 쌍둥이 — 설계 1.0 에 이 모델의 높이 몫(×1.1)까지 접힌 값 */   // 받침 높이 = 계단 높이
     /* 계단 폭은 **면의 반**(요청) — 면 길이 2·FB9의 절반이 곧 반폭 FB9/2다.
        ★ 계단 크기 2/3로(요청) — 폭과 **밖으로 뻗는 몫** 둘 다 같은 몫으로 줄인다. 하나만
          줄이면 계단이 길쭉하거나 뭉툭해져 '작아졌다'가 아니라 '모양이 바뀌었다'가 된다. */
@@ -8712,7 +8724,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const SR1 = FT9 + (5.7 - FT9) * STAIR_K9;
     const STEP9 = 3;
     const DR9 = 3.15;         // 돔 반지름 — 받침 윗면(3.3) 안에 꽉 차게
-    const DH9 = 1.95; const DH9z9 = 1.56; /* z용 쌍둥이(model-z-scale ×0.8) */         // 돔 높이
+    const DH9 = 1.95; const DH9z9 = 1.716; /* z용 쌍둥이 — 설계 1.95 에 높이 몫(×1.1)까지 접힌 값 */    // 돔 높이
     /** 받침 옆면의 반지름 — 높이 z에서 벽이 얼마나 나와 있나(세로띠가 이 면을 탄다). */
     const bodyR9 = (z9: number): number => FB9 - (FB9 - FT9) * (z9 / FH9z9);
     /** 돔 표면의 반지름·높이 — 창을 그 곡면 위에 앉힌다. */
@@ -8778,8 +8790,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            좌표로 놓으면 위쪽에서 면 밖으로 삐져나간다. 자리를 −1~1의 **정규 좌표**로
            잡고 그 높이의 반폭을 곱하면 띠가 면과 같은 기울기로 모여 어느 높이에서도
            안 넘는다. 계단이 덮는 안쪽 끝(정규 좌표 SW9/FB9 = 0.5)도 같은 자로 잰다. */
-        const BZ0 = 0.144;
-        const BZ1 = 0.672;
+        const BZ0 = 0.1584;
+        const BZ1 = 0.7392;
         const BHU = 0.055;                              // 반폭(정규 좌표)
         for (const sd9 of [-1, 1]) {
           for (const u9 of [0.70, 0.88]) {
@@ -8806,8 +8818,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        여덟 방위에 하나씩이라 어느 쪽을 쏘든 그 방향에 구멍이 있고, 카메라를 마주 보는
        것만 그린다. 사격 중에는 총구 불빛으로 번쩍인다(bldLitNow·요청). */
     {
-      const WZ0 = FH9z9 + 0.272;
-      const WZ1 = FH9z9 + 0.76;
+      const WZ0 = FH9z9 + 0.2992;
+      const WZ1 = FH9z9 + 0.836;
       const WHW = 0.46;
       const win9: ShapeFace[] = [];
       for (let k9 = 0; k9 < 8; k9 += 1) {
@@ -8840,15 +8852,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          꼭대기도 살 사이가 넓은 가는 슬롯이다. */
       const a0 = ((k9 * 45 + 14.5) * Math.PI) / 180;
       const a1 = ((k9 * 45 + 30.5) * Math.PI) / 180;
-      const ri = 1.0; const riz9 = 0.8; /* z용 쌍둥이(model-z-scale ×0.8) */
-      const ro = 1.95; const roz9 = 1.56; /* z용 쌍둥이(model-z-scale ×0.8) */
+      const ri = 1.0;
+      const ro = 1.95;
       /* ★ 고리를 **그린 돔 안으로** 앉힌다(지시: "돔 위의 임자색 돔 표면에 딱 붙이기")
          — 돔 몸통은 화면 좌표의 빌보드 곡선(domeFaces3의 body)이라, 비껴 보는 각에서
          제 실루엣이 진짜 3D 돔의 윤곽보다 **낮다**(뒤쪽 표면이 정수리 위로 나오는 몫을
          빌보드는 못 그린다). 그런데 이 슬롯들은 진짜 3D 좌표(domeZ9)로 앉혔으니 그
          차이만큼 몸통 밖으로 떠서, 개인색 고리가 돔 위에 뜬 작은 돔처럼 읽혔다.
          표면 높이의 22%를 눌러 그린 몸통 안에 넣는다 — 어느 요잉에서도 실루엣 안이다. */
-      const dz9 = (r9: number): number => FH9z9 + (domeZ9(r9) - FH9) * 0.624;
+      const dz9 = (r9: number): number => FH9z9 + (domeZ9(r9) - FH9) * 0.6864;
       top9.push([polyPath3([
         [Math.sin(a0) * ri, Math.cos(a0) * ri, dz9(ri)],
         [Math.sin(a1) * ri, Math.cos(a1) * ri, dz9(ri)],
@@ -8861,7 +8873,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        여덟이 그 구멍을 둘러싼 꼴이 됐다. 슬롯만 남기면 고리 무늬로 곱게 읽힌다. */
     out.push(...tagKey(top9, 12));
     return out;
-  }),
+  },
   /* 넥서스(실물 참고) — 절두 황금 피라미드(높이 한 단 낮춤) + 면의 능선 띠 + 꼭대기
      파란 수정 + 사방 삼각 진입받침 + 네 귀 오벨리스크. 뒤 기둥은 피라미드가 가리도록
      먼저 그린다(지적: 기둥이 비쳐 보였다). */
@@ -11688,7 +11700,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      팔꿈치 배관들 + 앞 은색 탱크 + 왼앞 줄무늬 경사로. */
   /* 높이 10% 축소(요청) — 부품이 저마다 다른 z에서 파생되므로 모델 좌표의 z만 한 자리
      에서 줄인다(가로·세로는 1이라 발자국은 그대로다). */
-  refinery: () => withModelScale(1, 1, 0.9, () => {
+  refinery: () => {
+    /** 설계 자 → 이 모델의 모형 z — 공용 `Z8`(0.8)에 리파이너리의 높이 몫(0.9)까지
+     *  접힌 값이다. ★ 감싸개(withModelScale)로 걸지 않는다 — 다른 빌더로 줄을 베껴 가면
+     *  이 이름이 없어 **컴파일이 먼저 막는다**(감싸개는 조용히 빠진다). */
+    const Z8R9 = 0.72;
     /* 리파이너리(전면 재작도·사진) — 검회색 각진 덩이 여럿이 붙어 서고, 그 사이를
        마디진 은빛 관이 굽어 넘는다. 뒤 가운데엔 검은 나팔 흡입구, 앞에는 은빛 갓을
        쓴 탱크 둘, 발치와 드럼에는 노랑·검정 빗금, 왼앞에는 층진 경사로. 탱크 갓
@@ -11706,7 +11722,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // 받침 — 낮고 넓은 검회색 단.
     /* 아래판을 앞으로 당기고 깊이를 줄인다(지적: "리파이너리 아래판 뒤로 너무 길게 나가있는듯") —
        6 → 5.2, 가운데 0 → 0.4: 뒤 가장자리 −3 → −2.2. 뒤쪽 드럼(A)도 함께 0.3 앞으로. */
-    out.push(...tagKey(paintBase(boxFaces3(0, 0.5, 8.6, 5.0, 0.64, 0), DARK), 0));   // 재지적: 뒤 −2.2 → −2.0
+    out.push(...tagKey(paintBase(boxFaces3(0, 0.5, 8.6, 5.0, 0.576, 0), DARK), 0));   // 재지적: 뒤 −2.2 → −2.0
     // 각진 덩이 넷 — 높이가 제각각인 상자 무리.
     /* 덩이마다 앞벽·옆벽에 창을 낸다(요청: "익스트랙터 양쪽 건물에 창문 표시 및 평소
        어둡다가 가스캘때는 네온색 불빛") — 평소엔 거의 검은 유리이고, 안에서 가스를
@@ -11725,18 +11741,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       [-2.4, -0.6, 2.6, 2.2, 5.2], [0, -0.3, 2.4, 2, 5.8],
       [2.9, -0.2, 2.8, 2.6, 5.2], [-3, 1.8, 2.2, 2, 2.4],
     ] as [number, number, number, number, number][]) {
-      out.push(...tagKey(paintBase(boxFaces3(bx, by, bw, bh, bz * Z8, 0.64), BODY),
+      out.push(...tagKey(paintBase(boxFaces3(bx, by, bw, bh, bz * Z8R9, 0.576), BODY),
         10 + depthNow(bx, by) * 1.6));
       /* 아래쪽 해저드 띠(정정·사진) — 덩이 앞면 밑동을 노랑·검정 빗금이 두른다. */
-      out.push(...tagKey(hazardPanel(bx, by + bh / 2 + 0.03, 0.944, bw * 0.42, 0.24, 4),
+      out.push(...tagKey(hazardPanel(bx, by + bh / 2 + 0.03, 0.8496, bw * 0.42, 0.216, 4),
         10 + depthNow(bx, by) * 1.6 + 0.45));
-      const wz = 0.64 + bz * 0.496;
+      const wz = 0.576 + bz * 0.4464;
       out.push(...tagKey([
         // 앞벽 — 가로로 늘어선 창 셋.
-        ...winRow(bx, by + bh / 2, wz, 0, 1, bw * 0.78, 3, bz * 0.24, NEON),
+        ...winRow(bx, by + bh / 2, wz, 0, 1, bw * 0.78, 3, bz * 0.216, NEON),
         // 옆벽 둘 — 보이는 쪽만 그려진다(winRow가 가린다).
-        ...winRow(bx + bw / 2, by, wz, 1, 0, bh * 0.7, 2, bz * 0.24, NEON),
-        ...winRow(bx - bw / 2, by, wz, -1, 0, bh * 0.7, 2, bz * 0.24, NEON),
+        ...winRow(bx + bw / 2, by, wz, 1, 0, bh * 0.7, 2, bz * 0.216, NEON),
+        ...winRow(bx - bw / 2, by, wz, -1, 0, bh * 0.7, 2, bz * 0.216, NEON),
       ], 10 + depthNow(bx, by) * 1.6 + 0.4));
     }
     /* 검은 나팔 굴뚝 — 제일 높은 덩이의 옥상 한가운데(지시로 덩이와 함께 정가운데로). 옥상이
@@ -11745,11 +11761,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        옛 세 켜 타원은 정지 그림이었다. 회전 칸이 시계라 덩이가 나고 오르고 스러진다. 가스라 3티어. */
     out.push(...tagKey([
       ...paintBase(spirePillar({
-        x: 0, y: -0.3, z0: 5.28, h: 1.28, w: 0.95, tipW: 1.55,
+        x: 0, y: -0.3, z0: 4.752, h: 1.152, w: 0.95, tipW: 1.55,
         segs: 3, sides: 12, hold: 0.2,
       }), "#21252c"),
-      capFace(discPath3(0, -0.3, 6.56, 1.38), 0.55),
-      ...fine(gasPuffs9({ x: 0, y: -0.3, z: 6.6, r: 0.8, h: 2.6, col: "#8cff86", n: 3 })),
+      capFace(discPath3(0, -0.3, 5.904, 1.38), 0.55),
+      ...fine(gasPuffs9({ x: 0, y: -0.3, z: 5.94, r: 0.8, h: 2.34, col: "#8cff86", n: 3 })),
     ], 10 + depthNow(0, -0.3) * 1.6 + 1.2));
     /* 관 셋 — 가운데는 입구 천장, **양옆은 앞 드럼통 옥상 가운데에 꽂힌다**(정정:
        "양옆 파이프는 드럼통 옥상 가운데 앵커링"). 드럼 돔 꼭대기(z≈3.5)에서 수직으로
@@ -11772,22 +11788,22 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const LT9 = LV9 + LC9 + LH9;
         const p9 = (t9: number): [number, number, number] => {
           const d9 = t9 * LT9;
-          if (d9 <= LV9) return [xi9, yi9, (zi9 + d9) * Z8];
+          if (d9 <= LV9) return [xi9, yi9, (zi9 + d9) * Z8R9];
           if (d9 <= LV9 + LC9) {
             const a9 = (d9 - LV9) / RE9;
-            return [xi9, yi9 - RE9 + RE9 * Math.cos(a9), (ZT9 - RE9 + RE9 * Math.sin(a9)) * Z8];
+            return [xi9, yi9 - RE9 + RE9 * Math.cos(a9), (ZT9 - RE9 + RE9 * Math.sin(a9)) * Z8R9];
           }
-          return [xi9, yi9 - RE9 - (d9 - LV9 - LC9), ZT9 * Z8];
+          return [xi9, yi9 - RE9 - (d9 - LV9 - LC9), ZT9 * Z8R9];
         };
         const SEG9 = 8;
         for (let s9 = 0; s9 < SEG9; s9 += 1) {
           const [mx9, my9, mz9] = p9((s9 + 0.5) / SEG9);
           out.push(...tagKey(paintBase(spirePillar({
-            x: 0, y: 0, h: 0.8, w: 0.42, tipW: 0.42, segs: 2, sides: 8, hold: 1,
+            x: 0, y: 0, h: 0.72, w: 0.42, tipW: 0.42, segs: 2, sides: 8, hold: 1,
             path: (t9: number): [number, number, number] => p9((s9 + t9) / SEG9),
           }), PIPE), 10 + depthNow(mx9, my9) * 1.6 + mz9 * 0.35));
         }
-        out.push(...tagKey(paintBase(cylinderFaces3(xi9, yi9, R9 * 1.5, 0.112, zi9 * Z8), SILVER),
+        out.push(...tagKey(paintBase(cylinderFaces3(xi9, yi9, R9 * 1.5, 0.1008, zi9 * Z8R9), SILVER),
           10 + depthNow(xi9, yi9) * 1.6 + zi9 * 0.35 + 0.05));
       }
     }
@@ -11799,14 +11815,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        하나 위로: 옆벽 3.4, 빗면 지붕 뒤 4.4 · 앞 3.3, 앞 립도 함께. */
     {
       const hoodT = polyPath3([
-        [-1.6, 3.02, 3.52], [1.6, 3.02, 3.52], [1.3, 4.75, 2.64], [-1.3, 4.75, 2.64],
+        [-1.6, 3.02, 3.168], [1.6, 3.02, 3.168], [1.3, 4.75, 2.376], [-1.3, 4.75, 2.376],
       ]);
       const lip = polyPath3([
-        [-1.3, 4.75, 2.64], [1.3, 4.75, 2.64], [1.3, 4.75, 1.92], [-1.3, 4.75, 1.92],
+        [-1.3, 4.75, 2.376], [1.3, 4.75, 2.376], [1.3, 4.75, 1.728], [-1.3, 4.75, 1.728],
       ]);
       out.push(...tagKey([
-        ...paintBase(boxFaces3(-1.45, 3.85, 0.3, 1.7, 2.72, 0), "#4a4a4a"),
-        ...paintBase(boxFaces3(1.45, 3.85, 0.3, 1.7, 2.72, 0), "#4a4a4a"),
+        ...paintBase(boxFaces3(-1.45, 3.85, 0.3, 1.7, 2.448, 0), "#4a4a4a"),
+        ...paintBase(boxFaces3(1.45, 3.85, 0.3, 1.7, 2.448, 0), "#4a4a4a"),
         [hoodT, 1, TERRAN_STEEL_D] as ShapeFace, topFace(hoodT, 0.16),
         [lip, 1, "#3f3f3f"] as ShapeFace,
       /* 키의 밑수를 덩이·드럼과 같은 10으로(재정정: "뒤의 드럼 기둥이 보여") — 밑수
@@ -11819,14 +11835,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        뒤에 선 탱크가 앞 덩이 위에 그려졌다. */
     ([[-1.6, 2.6, 1], [1.9, 2.4, 1]] as [number, number, number][]).forEach(([tx, ty, own]) => {
       out.push(...tagKey([
-        ...paintBase(cylinderFaces3(tx, ty, 1.15, 1.52, 0.64), STEEL),
+        ...paintBase(cylinderFaces3(tx, ty, 1.15, 1.368, 0.576), STEEL),
         ...(own
-          ? domeFaces3(tx, ty, 1.2, 0.68, 2.16)
-          : paintBase(domeFaces3(tx, ty, 1.2, 0.68, 2.16), SILVER)),
-        capFace(discPath3(tx, ty, 2.8, 0.5), 0.3),
+          ? domeFaces3(tx, ty, 1.2, 0.612, 1.944)
+          : paintBase(domeFaces3(tx, ty, 1.2, 0.612, 1.944), SILVER)),
+        capFace(discPath3(tx, ty, 2.52, 0.5), 0.3),
         /* 드럼 밑동 해저드 띠(정정·사진) — 원통 앞면에 붙는 납작 띠. 통을 다 두르지
            않고 앞판 한 장이다(발치 warn과 같은 데칼 규약 — 등을 돌리면 헬퍼가 걷는다). */
-        ...hazardPanel(tx, ty + 1.16, 0.896, 0.92, 0.208, 3),
+        ...hazardPanel(tx, ty + 1.16, 0.8064, 0.92, 0.1872, 3),
       ], 10 + depthNow(tx, ty) * 1.6 + 0.9));
     });
     /* 발치 노랑·검정 빗금 띠 — 앞면 아래를 두른다. */
@@ -11835,7 +11851,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       for (let k = 0; k < 9; k += 1) {
         const u0 = -4.2 + k * 0.52;
         warn.push([polyPath3([
-          [u0, 3.02, 0], [u0 + 0.26, 3.02, 0], [u0 + 0.54, 3.02, 0.64], [u0 + 0.28, 3.02, 0.64],
+          [u0, 3.02, 0], [u0 + 0.26, 3.02, 0], [u0 + 0.54, 3.02, 0.576], [u0 + 0.28, 3.02, 0.576],
         ]), 1, k % 2 === 0 ? "#e8c33a" : "#21252c"] as ShapeFace);
       }
       out.push(...tagKey(warn, 2 + depthNow(0, 3) * 1.6));
@@ -11844,11 +11860,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        있어야 해"). x를 −3.4로 두어 왼쪽 귀퉁이에 붙어 있었는데, 입구는 건물의 얼굴이라
        한쪽으로 몰리면 몸이 기울어 보인다. */
     out.push(...tagKey(paintBase([
-      ...boxFaces3(0, 3.2, 2.4, 1.4, 0.4, 0),
-      ...boxFaces3(0, 4.3, 2.1, 1.1, 0.2, 0),
+      ...boxFaces3(0, 3.2, 2.4, 1.4, 0.36, 0),
+      ...boxFaces3(0, 4.3, 2.1, 1.1, 0.18, 0),
     ], TERRAN_STEEL_M), depthNow(0, 3.8) * 1.6 + 3));
     return out;
-  }),
+  },
   assim: () => {
     const GOLD = "#d4bd3c";
     const GOLD_D = "#8a6f2a";
