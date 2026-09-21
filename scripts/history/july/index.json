@@ -1,0 +1,482 @@
+{
+ "scv": {
+  "ang": 45,
+  "sheet": "july_t",
+  "row": 0
+ },
+ "gunner": {
+  "ang": 23,
+  "sheet": "july_t",
+  "row": 1
+ },
+ "fbat": {
+  "ang": 23,
+  "sheet": "july_t",
+  "row": 2
+ },
+ "inf": {
+  "ang": 23,
+  "sheet": "july_t",
+  "row": 3
+ },
+ "vulture": {
+  "ang": 23,
+  "sheet": "july_t",
+  "row": 4
+ },
+ "mine": {
+  "ang": 23,
+  "sheet": "july_t",
+  "row": 5
+ },
+ "tank": {
+  "ang": 23,
+  "sheet": "july_t",
+  "row": 6
+ },
+ "tanksiege": {
+  "ang": 23,
+  "sheet": "july_t",
+  "row": 7
+ },
+ "goliath": {
+  "ang": 23,
+  "sheet": "july_t",
+  "row": 8
+ },
+ "wraith": {
+  "ang": 23,
+  "sheet": "july_t",
+  "row": 9
+ },
+ "dship": {
+  "ang": 23,
+  "sheet": "july_t",
+  "row": 10
+ },
+ "vessel": {
+  "ang": 23,
+  "sheet": "july_t",
+  "row": 11
+ },
+ "valk": {
+  "ang": 23,
+  "sheet": "july_t",
+  "row": 12
+ },
+ "bc": {
+  "ang": 23,
+  "sheet": "july_t",
+  "row": 13
+ },
+ "tomb": {
+  "ang": 23,
+  "sheet": "july_t",
+  "row": 14
+ },
+ "comsat": {
+  "ang": 23,
+  "sheet": "july_t",
+  "row": 15
+ },
+ "nsilo": {
+  "ang": 23,
+  "sheet": "july_t",
+  "row": 16
+ },
+ "trapezoid": {
+  "ang": 23,
+  "sheet": "july_t",
+  "row": 17
+ },
+ "refinery": {
+  "ang": 23,
+  "sheet": "july_t",
+  "row": 18
+ },
+ "cube": {
+  "ang": 23,
+  "sheet": "july_t",
+  "row": 19
+ },
+ "ebay": {
+  "ang": 23,
+  "sheet": "july_t",
+  "row": 20
+ },
+ "tombFlat": {
+  "ang": 23,
+  "sheet": "july_t",
+  "row": 21
+ },
+ "academy": {
+  "ang": 23,
+  "sheet": "july_t",
+  "row": 22
+ },
+ "turret": {
+  "ang": 23,
+  "sheet": "july_t",
+  "row": 23
+ },
+ "factory": {
+  "ang": 23,
+  "sheet": "july_t",
+  "row": 24
+ },
+ "mshop": {
+  "ang": 23,
+  "sheet": "july_t",
+  "row": 25
+ },
+ "plane": {
+  "ang": 23,
+  "sheet": "july_t",
+  "row": 26
+ },
+ "ctower": {
+  "ang": 23,
+  "sheet": "july_t",
+  "row": 27
+ },
+ "armory": {
+  "ang": 23,
+  "sheet": "july_t",
+  "row": 28
+ },
+ "scifac": {
+  "ang": 23,
+  "sheet": "july_t",
+  "row": 29
+ },
+ "covert": {
+  "ang": 23,
+  "sheet": "july_t",
+  "row": 30
+ },
+ "physlab": {
+  "ang": 23,
+  "sheet": "july_t",
+  "row": 31
+ },
+ "scaffold": {
+  "ang": 23,
+  "sheet": "july_t",
+  "row": 32
+ },
+ "probe": {
+  "ang": 23,
+  "sheet": "july_p",
+  "row": 0
+ },
+ "zealot": {
+  "ang": 23,
+  "sheet": "july_p",
+  "row": 1
+ },
+ "goon": {
+  "ang": 23,
+  "sheet": "july_p",
+  "row": 2
+ },
+ "htemp": {
+  "ang": 23,
+  "sheet": "july_p",
+  "row": 3
+ },
+ "dtemp": {
+  "ang": 23,
+  "sheet": "july_p",
+  "row": 4
+ },
+ "archon": {
+  "ang": 23,
+  "sheet": "july_p",
+  "row": 5
+ },
+ "darchon": {
+  "ang": 23,
+  "sheet": "july_p",
+  "row": 6
+ },
+ "shuttle": {
+  "ang": 23,
+  "sheet": "july_p",
+  "row": 7
+ },
+ "reaver": {
+  "ang": 23,
+  "sheet": "july_p",
+  "row": 8
+ },
+ "observer": {
+  "ang": 23,
+  "sheet": "july_p",
+  "row": 9
+ },
+ "scout": {
+  "ang": 23,
+  "sheet": "july_p",
+  "row": 10
+ },
+ "corsair": {
+  "ang": 23,
+  "sheet": "july_p",
+  "row": 11
+ },
+ "carrier": {
+  "ang": 23,
+  "sheet": "july_p",
+  "row": 12
+ },
+ "interceptor": {
+  "ang": 23,
+  "sheet": "july_p",
+  "row": 13
+ },
+ "arbiter": {
+  "ang": 23,
+  "sheet": "july_p",
+  "row": 14
+ },
+ "pyramidWide": {
+  "ang": 23,
+  "sheet": "july_p",
+  "row": 15
+ },
+ "diamond": {
+  "ang": 23,
+  "sheet": "july_p",
+  "row": 16
+ },
+ "assim": {
+  "ang": 23,
+  "sheet": "july_p",
+  "row": 17
+ },
+ "gate": {
+  "ang": 23,
+  "sheet": "july_p",
+  "row": 18
+ },
+ "forge": {
+  "ang": 23,
+  "sheet": "july_p",
+  "row": 19
+ },
+ "coil": {
+  "ang": 23,
+  "sheet": "july_p",
+  "row": 20
+ },
+ "sbattery": {
+  "ang": 23,
+  "sheet": "july_p",
+  "row": 21
+ },
+ "cyber": {
+  "ang": 23,
+  "sheet": "july_p",
+  "row": 22
+ },
+ "citadel": {
+  "ang": 23,
+  "sheet": "july_p",
+  "row": 23
+ },
+ "archives": {
+  "ang": 23,
+  "sheet": "july_p",
+  "row": 24
+ },
+ "dome": {
+  "ang": 23,
+  "sheet": "july_p",
+  "row": 25
+ },
+ "robobay": {
+  "ang": 23,
+  "sheet": "july_p",
+  "row": 26
+ },
+ "observatory": {
+  "ang": 23,
+  "sheet": "july_p",
+  "row": 27
+ },
+ "arch": {
+  "ang": 23,
+  "sheet": "july_p",
+  "row": 28
+ },
+ "fleetbeacon": {
+  "ang": 23,
+  "sheet": "july_p",
+  "row": 29
+ },
+ "tribunal": {
+  "ang": 23,
+  "sheet": "july_p",
+  "row": 30
+ },
+ "warpin": {
+  "ang": 23,
+  "sheet": "july_p",
+  "row": 31
+ },
+ "drone": {
+  "ang": 23,
+  "sheet": "july_z",
+  "row": 0
+ },
+ "ovie": {
+  "ang": 23,
+  "sheet": "july_z",
+  "row": 1
+ },
+ "zling": {
+  "ang": 23,
+  "sheet": "july_z",
+  "row": 2
+ },
+ "hydra": {
+  "ang": 23,
+  "sheet": "july_z",
+  "row": 3
+ },
+ "lurker": {
+  "ang": 23,
+  "sheet": "july_z",
+  "row": 4
+ },
+ "muta": {
+  "ang": 23,
+  "sheet": "july_z",
+  "row": 5
+ },
+ "scourge": {
+  "ang": 23,
+  "sheet": "july_z",
+  "row": 6
+ },
+ "queen": {
+  "ang": 23,
+  "sheet": "july_z",
+  "row": 7
+ },
+ "ultra": {
+  "ang": 23,
+  "sheet": "july_z",
+  "row": 8
+ },
+ "defiler": {
+  "ang": 23,
+  "sheet": "july_z",
+  "row": 9
+ },
+ "guardian": {
+  "ang": 23,
+  "sheet": "july_z",
+  "row": 10
+ },
+ "devourer": {
+  "ang": 23,
+  "sheet": "july_z",
+  "row": 11
+ },
+ "hatchery": {
+  "ang": 23,
+  "sheet": "july_z",
+  "row": 12
+ },
+ "lair": {
+  "ang": 23,
+  "sheet": "july_z",
+  "row": 13
+ },
+ "hive": {
+  "ang": 23,
+  "sheet": "july_z",
+  "row": 14
+ },
+ "creep": {
+  "ang": 23,
+  "sheet": "july_z",
+  "row": 15
+ },
+ "sunken": {
+  "ang": 23,
+  "sheet": "july_z",
+  "row": 16
+ },
+ "spore": {
+  "ang": 23,
+  "sheet": "july_z",
+  "row": 17
+ },
+ "extract": {
+  "ang": 23,
+  "sheet": "july_z",
+  "row": 18
+ },
+ "pool": {
+  "ang": 23,
+  "sheet": "july_z",
+  "row": 19
+ },
+ "evo": {
+  "ang": 23,
+  "sheet": "july_z",
+  "row": 20
+ },
+ "hydraden": {
+  "ang": 23,
+  "sheet": "july_z",
+  "row": 21
+ },
+ "spire": {
+  "ang": 23,
+  "sheet": "july_z",
+  "row": 22
+ },
+ "gspire": {
+  "ang": 23,
+  "sheet": "july_z",
+  "row": 23
+ },
+ "queensnest": {
+  "ang": 23,
+  "sheet": "july_z",
+  "row": 24
+ },
+ "nydus": {
+  "ang": 23,
+  "sheet": "july_z",
+  "row": 25
+ },
+ "cavern": {
+  "ang": 23,
+  "sheet": "july_z",
+  "row": 26
+ },
+ "dmound": {
+  "ang": 23,
+  "sheet": "july_z",
+  "row": 27
+ },
+ "cocoon": {
+  "ang": 23,
+  "sheet": "july_z",
+  "row": 28
+ },
+ "mineral": {
+  "ang": 23,
+  "sheet": "july_z",
+  "row": 29
+ },
+ "geyser": {
+  "ang": 23,
+  "sheet": "july_z",
+  "row": 30
+ }
+}

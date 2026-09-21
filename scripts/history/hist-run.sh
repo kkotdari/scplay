@@ -1,7 +1,7 @@
 #!/bin/sh
 # 변천사 도록 한 번에 뽑기 — 지금 판(histC_* 넷)을 굽고 절 조각까지 합친다.
 #   sh scripts/history/hist-run.sh <scratch> [--old]
-# <scratch> 에 7월 그림(july_t/p/z.png · july_rows.json)·도록 목록(dorok/list.txt)·8/29 판(histA_*)이 있어야 한다.
+# <scratch> 에 도록 목록(dorok/list.txt)·8/29 판(histA_*)이 있어야 한다(7월 열은 저장소의 scripts/history/july/ 누끼를 쓴다).
 # --old 는 8/29 판도 다시 굽는다(<scratch>/wtA 에 1e20b08 작업 트리 + node_modules 링크 + --fit·--color·--shadow 를 손으로 넣은 model-shot 사본이 있을 때).
 set -e
 S="$1"; [ -n "$S" ] || { echo "usage: hist-run.sh <scratch> [--old]"; exit 1; }
