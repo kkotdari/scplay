@@ -15162,14 +15162,25 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const SLAB_D = "#2c3035";
     const WATER = "#6fb6e0";
     const out: ShapeFace[] = [...paintBase(creepSplat(6.8), "#3a3f46")];
+    /* ★ **좌우만 10% 죈다 — 요소를 안으로 모아서**(2026-09, 요청: "디파일러 마운드 좌우폭 10프로
+       줄이기(요소들을 더 밀집시켜서)") — 통째로 줄이면(그리는 배수 tune) 앞뒤·높이까지 같이 준다.
+       이 한 값이 **모형 x 자리**에만 걸린다: 판의 반폭 · 언덕의 좌우 눌림(석판은 그 값을 탄다) ·
+       뒤 다리의 점 · 앞 갈래의 조종점. 각 요소의 **제 굵기는 그대로**라 살이 안 여윈다.
+       ⚠ 크립 얼룩(creepSplat 6.8)은 **땅의 것**이라 안 죈다 — 그것이 잉크 폭을 쥐고 있으므로
+         BLD_NORM 도 안 움직인다(곧 몸만 그만큼 좁아 보인다. 요청이 바란 그 그림이다). */
+    const MX9 = 0.9;
+    /* ★ 앞 갈래 둘은 **더 납작하게**(같은 요청) — 세로(u)만 누르고 가로(v)는 oval 로 되돌린다
+       (`ref [0,0,1]` 이라 u = 위 · v = 옆 · 셔틀 스러스터의 그 자). 땅에 눕는 관이라 등뼈의
+       z(= 그 자리 반지름)도 같은 몫으로 낮춰야 밑면이 땅에 붙는다. */
+    const FLAT9 = 0.7;
     /* 넓적한 판 — 낮고 넓은 살 판(앞뒤로 0.75 눌린 타원 · 위 뚜껑). */
     /* 좌우 폭만 줄였다(요청: "뒤쪽 판과 언덕 너비 줄이기") — 앞뒤 반길이 3.45 는 그대로(oval 이 그 비를 맞춘다). */
-    const SL_Y = -0.8; const SL_Z = 0.9; const SL_W = 3.7;
+    const SL_Y = -0.8; const SL_Z = 0.9; const SL_W = 3.7 * MX9;
     out.push(...tagKey(paintBase(spirePillar({
       x: 0, y: SL_Y, z0: 0, h: SL_Z, w: SL_W, tipW: SL_W * 0.9, segs: 2, sides: 24, hold: 0.25, taper: 1, oval: 3.45 / SL_W, trueNormal: true,
     }), FLESH), 0));
     /* 뒤쪽 언덕 — 판 위에 앉은 둥근 살 둔덕(타원 옆선). 석판·촉수 뿌리가 이 살 속에 든다. */
-    const HX = 0; const HY = -1.9; const HR = 3.1; const HH = 2.0; const HXK9 = 0.78;   // 좌우만 0.78 배(같은 요청)
+    const HX = 0; const HY = -1.9; const HR = 3.1; const HH = 2.0; const HXK9 = 0.78 * MX9;   // 좌우만 0.78 배(같은 요청) · ×MX9(밀집)
     const hillZ9 = (x9: number, y9: number): number => {
       const d9 = Math.hypot((x9 - HX) / HXK9, y9 - HY) / HR;
       return SL_Z - 0.05 + HH * Math.sqrt(Math.max(0, 1 - d9 * d9));
@@ -15209,9 +15220,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     };
     for (const sg of [1, -1]) {
       /* 뿌리를 축으로 0.75 배(재요청: "뒷 오징어다리 크기 25프로 짧게") — 꼴은 그대로, 길이만 준다. */
-      const AK9 = 0.75; const AR9: [number, number] = [sg * 1.9, -2.3];
+      const AK9 = 0.75; const AR9: [number, number] = [sg * 1.9 * MX9, -2.3];
       const AP9: [number, number][] = ([[sg * 1.9, -2.3], [sg * 4.8, -4.4], [sg * 6.4, -2.0], [sg * 4.8, 0.0], [sg * 5.4, 1.6], [sg * 7.6, 2.2]] as [number, number][])
-        .map(([px9, py9]) => [AR9[0] + (px9 - AR9[0]) * AK9, AR9[1] + (py9 - AR9[1]) * AK9]);
+        .map(([px9, py9]) => [AR9[0] + (px9 * MX9 - AR9[0]) * AK9, AR9[1] + (py9 - AR9[1]) * AK9]);
       const wT9 = (t9: number): number => (0.7 - 0.58 * t9) * (1 + 0.1 * Math.sin(t9 * Math.PI * 18));
       out.push(...tagKey(paintBase(spirePillar({
         x: 0, y: 0, h: 0.8, w: 0.7, tipW: 0.17, segs: 32, sides: 10, hold: 0, caps: "none", trueNormal: true,
@@ -15231,11 +15242,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 구멍(0, 3.7 · 테 r 1.15)을 감싸듯 바깥으로 나갔다가 앞에서 안으로 굽는 3차 베지에(재요청: "앞쪽 좀 더 구멍을
          감싸듯 휘게"). */
       const lp9 = (t9: number): [number, number, number] => [
-        bz3(sg * 1.1, sg * 4.1, sg * 4.2, sg * 1.5, t9), bz3(1.3, 1.9, 5.9, 6.5, t9), lw9(t9) + Math.max(0, 0.45 * (1 - t9 / 0.3)),
+        bz3(sg * 1.1 * MX9, sg * 4.1 * MX9, sg * 4.2 * MX9, sg * 1.5 * MX9, t9), bz3(1.3, 1.9, 5.9, 6.5, t9),
+        lw9(t9) * FLAT9 + Math.max(0, 0.45 * (1 - t9 / 0.3)),
       ];
       out.push(...tagKey(paintBase(spirePillar({
-        x: 0, y: 0, h: 0.8, w: 1.1, tipW: 0.55, segs: 16, sides: 12, hold: 0, taper: 1, caps: "top", trueNormal: true,
-        widthOf: lw9, path: lp9,
+        x: 0, y: 0, h: 0.8, w: 1.1 * FLAT9, tipW: 0.55 * FLAT9, segs: 16, sides: 12, hold: 0, taper: 1, caps: "top",
+        trueNormal: true, ref: [0, 0, 1], oval: 1 / FLAT9,
+        widthOf: (t9: number): number => lw9(t9) * FLAT9, path: lp9,
       }), FLESH_L), depthNow(sg * 3.0, 3.4) * 1.6 + 1));
       /* 거품은 점점이가 아니라 **보글보글**(재지적) — 등뼈를 따라 촘촘한 자리마다 작은 구 두셋을 겹쳐 앉혀 서로 맞닿은
          거품 무더기가 되게 한다(해시로 옆 치우침·반지름을 흩는다 · 저해상도 구 sides 10 · segs 4). */
@@ -15251,9 +15264,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const n9 = 1 + (hs9(bi9 + 0.3) < 0.5 ? 1 : 0);
         for (let k9 = 0; k9 < n9; k9++) {
           const side9 = -0.85 + 1.7 * hs9(bi9 + 1.1 + k9 * 3.3);
-          const br9 = 0.34 + 0.38 * hs9(bi9 + 2.2 + k9 * 5.1);
+          // 10% 줄임(같은 요청: "거품 크기 10프로 줄이기").
+          const br9 = (0.34 + 0.38 * hs9(bi9 + 2.2 + k9 * 5.1)) * 0.9;
+          // 옆은 관의 가로 반지름(oval 이 되돌린 r9) · 위는 **납작해진** 몫이다(FLAT9).
           const x9 = px9 + nx9 * side9 * r9; const y9 = py9 + ny9 * side9 * r9;
-          const z9 = pz9 + Math.sqrt(Math.max(0, 1 - side9 * side9)) * r9 - br9 * 0.3;
+          const z9 = pz9 + Math.sqrt(Math.max(0, 1 - side9 * side9)) * r9 * FLAT9 - br9 * 0.3;
           out.push(...tagKey(spirePillar({
             x: x9, y: y9, z0: z9 - br9, h: br9 * 2, w: br9, segs: 4, sides: 10, hold: 0, caps: "none", trueNormal: true,
             widthOf: (u9: number): number => Math.max(0.02, br9 * Math.sqrt(Math.max(0, 1 - (2 * u9 - 1) ** 2))),
