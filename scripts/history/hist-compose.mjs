@@ -34,6 +34,8 @@ export const ERAS = {
 };
 /** 7월 칸을 좌우로 뒤집어 얹을까(요청: "7월샷 좌우대칭이동") — 7월 그림만 −요잉이라 뒤집어야 셋이 같은 쪽을 본다. */
 export const JMIRROR9 = true;
+/** 7월 칸의 잉크 상자를 칸의 이 몫에 맞춘다 — hist-run.sh 가 옆 두 시대를 굽는 `--fit 0.7` 과 같은 수라야 패딩이 같다. */
+export const JFIT9 = 0.7;
 export const OWN9 = "#7ed491";   // 7월 도록의 임자색(연녹색)
 export const BG9 = "#ffffff";
 const idxA = new Map(); const idxC = new Map();
@@ -62,7 +64,26 @@ if (existsSync(OUT)) rmSync(OUT, { recursive: true, force: true }); mkdirSync(OU
 const br = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: false, args: ["--headless=new", "--no-sandbox"] });
 const pg = await br.newPage();
 await pg.setContent("<body style='margin:0'></body>");
-const loaded = await pg.evaluate(async (imgs) => { window.__im = {}; for (const k of Object.keys(imgs)) { const i = new Image(); i.src = imgs[k]; await i.decode(); window.__im[k] = i; } return Object.fromEntries(Object.entries(window.__im).map(([k, i]) => [k, [i.width, i.height]])); }, imgs);
+/* ★ 7월 누끼는 **칸마다 제 잉크 상자를 재어** 옆 두 시대와 같은 몫(--fit 0.7)으로 앉힌다(2026-09, 지적: "7월 모델샷이
+   패딩이 너무 큰듯 다른달과 같게") — 8/29·지금 판은 굽는 자리에서 `--fit 0.7` 로 칸을 채우는데 7월 칸만 그때 도록의
+   자 그대로라 몸이 칸의 40% 남짓이었다. 상자는 알파로 잰다(누끼라 배경이 0 이다). */
+const loaded = await pg.evaluate(async (imgs) => {
+  window.__im = {}; window.__jb = {};
+  for (const k of Object.keys(imgs)) {
+    const i = new Image(); i.src = imgs[k]; await i.decode(); window.__im[k] = i;
+    if (!k.startsWith("J:")) continue;
+    const t = document.createElement("canvas"); t.width = i.width; t.height = i.height;
+    const tc = t.getContext("2d"); tc.drawImage(i, 0, 0);
+    const d = tc.getImageData(0, 0, i.width, i.height).data;
+    let x0 = 1e9, x1 = -1, y0 = 1e9, y1 = -1;
+    for (let y = 0; y < i.height; y += 1) for (let x = 0; x < i.width; x += 1) {
+      if (d[(y * i.width + x) * 4 + 3] < 24) continue;
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+    }
+    if (x1 >= 0) window.__jb[k] = { cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+  }
+  return Object.fromEntries(Object.entries(window.__im).map(([k, i]) => [k, [i.width, i.height]]));
+}, imgs);
 console.log("loaded", loaded);
 /* ★ 판형(요청: "한 줄에 3모델" · 보기 그림) — 종족마다 한 장: '유닛'·'건물' 절 아래 모델 카드가 한 줄에 셋. 카드 안은 시점이
    위에서 아래로(7월 그림 · 8/29 2D · 9/19 GL — 각은 종류의 7월 눈금) 쌓인다. 칸마다 왼 위에 작은 꼬리표. */
@@ -76,7 +97,7 @@ for (const [file, race, nos] of RACES) {
        남는다. 지금 판(idxC)에 없으면 거른다 — 굽는 목록에서 빼는 것만으로 카드까지 사라진다. */
     cards: sh.items.filter((it) => idxC.has(it.kind)).map((it) => { const ang = julyAt.get(it.kind)?.ang ?? 23; return { ...it, ang, j: julyAt.get(it.kind) ?? null, a: idxA.get(it.kind), c: idxC.get(it.kind) }; }),
   }));
-  const data = await pg.evaluate(async ({ secs, CELL, JC, JW, JH, JMIRROR9, COLS, TITLE, SEC, race, NOW, ERAS, BG9, OWN9, SPLIT }) => {
+  const data = await pg.evaluate(async ({ secs, CELL, JC, JW, JH, JMIRROR9, JFIT9, COLS, TITLE, SEC, race, NOW, ERAS, BG9, OWN9, SPLIT }) => {
     /* ★ 카드 상자·칸 테두리는 걷었다(2026-09, 요청: "한 모델 안에서 세로 구분선 제거 · 제목은 각 모델 위에 줄 위에") —
        모델 하나는 '이름 한 줄 + 시점 셋이 아래로 쌓인 한 기둥'이고, 기둥 안에는 세로 줄이 하나도 없다. 세로 줄을 내던 자리 셋:
        ① 붓의 strokeRect ② 7월 그림의 칸 판 왼 가장자리(x 264~271 의 띠 — 그래서 272 부터 자른다) ③ 옛 model-shot 칸의 왼 가장자리
@@ -106,7 +127,8 @@ for (const [file, race, nos] of RACES) {
           c.fillStyle = BG9; c.fillRect(x, yy, CELL, CELL);
           if (idx != null) {
             if (k === "J") {
-              const R = CELL / JC;   // 7월 칸(200) → 시트 칸 배수
+              const R = CELL / JC;   // 7월 칸(200) → 시트 칸 배수(상자를 못 잰 칸의 되돌기 자)
+              const bx = window.__jb[idx.img];
               c.imageSmoothingEnabled = true; c.imageSmoothingQuality = "high";
               /* ★ **7월 칸은 좌우로 뒤집어 얹는다**(2026-09, 요청: "7월샷 좌우대칭이동 가능하면 해줘") — 7월 그림만 −요잉이라
                  옆 두 시대(+45·+40)와 몸이 **반대쪽**을 봐, 한 줄에 세워 놓으면 꼴을 견주기가 어려웠다. 거울로 뒤집으면 −23°가
@@ -114,8 +136,17 @@ for (const [file, race, nos] of RACES) {
                  ⚠ 값은 **명암이 뒤집히는 것**이다(빛은 화면 왼쪽에서 온다 — "거울로 뒤집어 맞추면 안 된다"고 적어 둔 그 자리다).
                  여기서는 꼴을 견주는 것이 뜻이라 받아들이고 꼬리표에 '거울'을 적는다. 되물리려면 JMIRROR9 만 끄면 된다. */
               c.save();
-              if (JMIRROR9) { c.translate(x + 4 * R + JW * R, yy + 3 * R); c.scale(-1, 1); } else c.translate(x + 4 * R, yy + 3 * R);
-              c.drawImage(window.__im[idx.img], 0, 0, JW, JH, 0, 0, JW * R, JH * R);   // 누끼 그림 — 알파 그대로 흰 바탕에 얹힌다
+              if (bx) {
+                /* 잉크 상자를 칸 가운데에 두고 칸의 JFIT9 몫으로 — 옆 두 시대의 `--fit` 과 같은 자다. */
+                const sc = Math.min(JFIT9 * CELL / bx.w, JFIT9 * CELL / bx.h);
+                c.translate(x + CELL / 2, yy + CELL / 2);
+                if (JMIRROR9) c.scale(-1, 1);
+                c.scale(sc, sc); c.translate(-bx.cx, -bx.cy);
+                c.drawImage(window.__im[idx.img], 0, 0);   // 누끼 그림 — 알파 그대로 흰 바탕에 얹힌다
+              } else {
+                if (JMIRROR9) { c.translate(x + 4 * R + JW * R, yy + 3 * R); c.scale(-1, 1); } else c.translate(x + 4 * R, yy + 3 * R);
+                c.drawImage(window.__im[idx.img], 0, 0, JW, JH, 0, 0, JW * R, JH * R);
+              }
               c.restore();
             } else if (k === "A") {
               c.drawImage(window.__im[idx.img], 2, idx.i * CELL + 26 + 2, CELL - 4, CELL - 4, x + 2, yy + 2, CELL - 4, CELL - 4);   // 격자선이 위·아래 두 줄(0 · 199~200)
@@ -145,7 +176,7 @@ for (const [file, race, nos] of RACES) {
       q.drawImage(cv, 0, a + SEC + r0 * BLKH, cv.width, hh, 0, TITLE + SEC, cv.width, hh);            // 그 토막의 행들
       return p.toDataURL("image/png"); }));
     return { full: cv.toDataURL("image/png"), parts };
-  }, { secs, CELL, JC, JW: JULY_CELL.w, JH: JULY_CELL.h, JMIRROR9, COLS, TITLE, SEC, race, NOW, ERAS, BG9, OWN9, SPLIT });
+  }, { secs, CELL, JC, JW: JULY_CELL.w, JH: JULY_CELL.h, JMIRROR9, JFIT9, COLS, TITLE, SEC, race, NOW, ERAS, BG9, OWN9, SPLIT });
   const f = `${OUT}/${file}_history.png`;
   writeFileSync(f, Buffer.from(data.full.split(",")[1], "base64")); console.log("→", f, secs.map((x) => x.cards.length).join("+"));
   data.parts.forEach((ds, i) => ds.forEach((d, h) => writeFileSync(
