@@ -25775,19 +25775,20 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        실린더가 주인공'이라 −0.9 로 물렸는데, 그 뒤 몸을 손질하고 보니 이번엔 너무 짧았다. 가운데인
        −0.1 로 둔다(길이 2.1 → 2.9 · 옛 3.3 보다는 짧다). 앞 흡기구는 POD_Y1 을 보므로 따라온다. */
     const POD_Y0 = -3.0; const POD_Y1 = -0.1;
+    const POD_X9 = 2.7; const POD_R9 = 0.66;   // 포드 축 x · 반지름 — 뒤 모퉁이 홈이 이 자를 읽는다
     const pod = (tx: number): void => {
       /* 깊이 보정을 걷는다(재지적: 사선에서 가려져야 할 실린더가 앞으로 튄다) —
          관이 스스로 다는 깊이면 판·꼬리와 자연스럽게 앞뒤가 갈린다. */
-      out.push(...paintBase(tubeFaces(tx, POD_Y0, tx, POD_Y1, 0.66, POD_Z), TERRAN_STEEL));   // 지름 20% 축소(재요청)
+      out.push(...paintBase(tubeFaces(tx, POD_Y0, tx, POD_Y1, POD_R9, POD_Z), TERRAN_STEEL));   // 지름 20% 축소(재요청)
     };
     // 폭 축소(지적: 몸체 폭 줄이기) — 포드 자리 ±3.1 → ±2.6.
     // 포드는 더 바깥으로(재요청) — x ±2.6 → ±3.0.
-    pod(-2.7);
-    pod(2.7);   // 안쪽으로(재요청) ±3.0 → ±2.7
+    pod(-POD_X9);
+    pod(POD_X9);   // 안쪽으로(재요청) ±3.0 → ±2.7
     /* 포드 앞 흡기구(자료 재작도) — 엔진 나셀의 앞이 뚫려 있다는 표시. 앞을 볼 때만
        그리고, 벽 원반이라 요잉을 따라 함께 눌린다. */
     if (facingRatio(0, 1) > 0.06) {
-      for (const tx of [-2.7, 2.7]) {
+      for (const tx of [-POD_X9, POD_X9]) {
         out.push(...tagKey([
           [wallDiscPath(tx, POD_Y1 + 0.02, POD_Z, 0.5, 0.4), 1, TERRAN_STEEL_D] as ShapeFace,
           [wallDiscPath(tx, POD_Y1, POD_Z, 0.32, 0.256), 1, "#303030"] as ShapeFace,
@@ -25834,7 +25835,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          홈의 안쪽 벽·앞 벽도 저절로 두께를 갖는다(위 ★★ 의 그 한 줄기).
        · 앞쪽 `NY9` 까지만 판다 — 포드 앞 끝(−0.1)이 아직 판 밑에 물려 있어야 '몸에 붙은
          엔진'으로 읽힌다(다 파면 옆에 나란히 뜬 관 둘이다). */
-    const NX9 = 2.02; const NY9 = -0.55;
+    /* ★ **홈은 드럼이 파고든 만큼만 판다**(2026-09, 요청: "양쪽 홈 잘 팠어 이제 딱 사이즈만
+       드럼통 파고들어온 만큼 파는 걸로 잘 맞춰 줘") — 손으로 고른 앞 끝(−0.55)은 포드 앞
+       (`POD_Y1` −0.1)보다 0.45 짧아 그만큼 실린더 앞이 판 밑에 남아 있었다. 두 값을 다
+       **포드의 자**에서 낸다: 가로는 안쪽 접선(POD_X9 − POD_R9) · 앞은 포드 앞 끝. 살에 딱
+       맞추면 접하는 자리가 z 싸움이라 한 뼘(`NGAP9`)만 더 판다. */
+    const NGAP9 = 0.02;
+    const NX9 = POD_X9 - POD_R9 - NGAP9; const NY9 = POD_Y1 - NGAP9;
     /** 뒤 아치의 높이(그 2차 곡선을 x 의 함수로 푼 것) — 홈 모퉁이도 이 자를 탄다. */
     const zR9 = (x9: number): number => 4.56 + 0.796 * (1 - (x9 / 2.6) ** 2);
     /* 등판 윤곽 — 왼 옆면 앞끝에서 시작해 앞 모퉁이 · 앞 아치 · 오른 모퉁이 · 오른 옆면 ·
@@ -25942,71 +25949,23 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        위치 맞추고)") — 꽁무니에 매달린 꼴이라 몸보다 아래로 처져 보였다. 노즐 원뿔·테·불꽃이
        **같은 `tz` 에서 갈라져 나오므로** 여기 한 값만 더하면 셋이 함께 움직인다(불꽃만 따로 두면
        그 자리에서 어긋난다 — 그것이 요청의 괄호다). */
-    /* ★★ **안쪽 추진체 둘은 동체 뒷면의 사각 홈에 꽂힌다**(2026-09, 요청: "동체 뒷면에 사각 홈
-       두 개를 파고 거기에 안쪽 스러스터와 이어지는 짧은 실린더 두 개를 맞춰서 넣어야 해") —
-       여태 그 둘은 뒷면 **아래의 빈 속**에 떠 있었다: 동체는 두께 0.56 의 껍질이라 밑이 열려
-       있고(뒤에서 보면 검은 구멍), 추진체 축(z 4.5)이 뒷면 띠(x ±1 에서 4.68~5.24)보다 낮아
-       무엇에 붙었는지가 한 톨도 안 읽혔다.
-       ⚠ **홈을 그 띠에 팔 수는 없다** — 지름 0.92 짜리 추진체를 담으려면 홈이 띠(0.56)보다 커야
-         해서 파는 순간 등판까지 뚫린다. 그래서 그 자리에 **사각 받침**(깊이 0.4 의 상자)을 세워
-         위쪽을 띠에 물리고 **그 뒷낯에 홈을 판다** — 추진체를 한 톨도 안 옮기고도 '뒷면에 꽂힌'
-         꼴이 된다(받침이 몸 색이라 뒷면의 일부로 읽힌다).
-       · 홈 속은 어두운 네 벽 + 뒷벽이고 그 안에 **짧은 실린더**가 앉아 y −1.8 에서 추진체로
-         이어진다 — 굵기를 **추진체의 앞 반지름**(tr × 0.81)과 같은 값으로 잡아 이음매가 없다. */
-    {
-      const IN_X9 = 1.0; const IN_Z9 = 4.16 + TH_UP9; const IN_R9 = 0.46;
-      const SKT_Y9 = -1.8; const SKT_D9 = 0.4;     // 동체 뒷면 · 홈 깊이(앞으로)
-      const SKT_W9 = 0.62; const SKT_H9 = 0.44;    // 뒷몸통 반폭 · 홈 반폭
-      /* ★ **꽁무니 살은 뒷면에 덧댄 슬래브가 아니라 앞으로 이어진 몸통이다**(2026-09, 원작
-         그림 지적: "내가 말한 동체를 파내라는 게 무슨 뜻인지") — 깊이 0.4 짜리 판때기를
-         뒷낯에 붙여 두니 '볼트로 댄 받침'으로 읽혔다. 앞으로 `SKT_LEN9` 이어 등판 밑까지
-         채우면 그것이 곧 동체의 꽁무니이고, 그 뒷낯에 판 것이 **홈**이 된다.
-         ⚠ 꼭대기는 등판 밑에 **물려야** 한다 — 판은 굽어 있어(zR9) 이 상자의 바깥 모서리
-         (x 1.62)에서 5.047 이므로 그보다 낮은 5.02 로 둔다(넘기면 지붕을 뚫는다). */
-      const SKT_LEN9 = 1.1;                        // 꽁무니 몸통이 앞으로 뻗는 몫
-      const SKT_Z0 = IN_Z9 - SKT_W9; const SKT_Z1 = 5.02;
-      const SKT_R9 = IN_R9 * 0.81;                 // 짧은 실린더 = 추진체 앞 반지름
-      const SKT_IN9 = "#23262b";                   // 홈 속
-      for (const m9 of [-1, 1] as const) {
-        const cx9 = m9 * IN_X9;
-        /** y 를 못 박은 네모(뒷낯·뒷벽). */
-        const yq9 = (x0: number, x1: number, z0: number, z1: number, y9: number): string =>
-          polyPath3([[x0, y9, z0], [x1, y9, z0], [x1, y9, z1], [x0, y9, z1]]);
-        const yb9 = SKT_Y9 + SKT_D9;
-        out.push(...paintBase(boxFaces3(cx9, SKT_Y9 + SKT_LEN9 / 2, SKT_W9 * 2, SKT_LEN9,
-          SKT_Z1 - SKT_Z0, SKT_Z0, [0, -1]), TERRAN_STEEL));
-        out.push(...tagKey([
-          // 홈 속 — 네 벽 + 뒷벽(어둡다).
-          [yq9(cx9 - SKT_H9, cx9 + SKT_H9, IN_Z9 - SKT_H9, IN_Z9 + SKT_H9, yb9), 1, SKT_IN9] as ShapeFace,
-          ...([-1, 1] as const).flatMap((u9): ShapeFace[] => {
-            const ax9 = cx9 + u9 * SKT_H9; const az9 = IN_Z9 + u9 * SKT_H9;
-            return [
-              [polyPath3([[ax9, SKT_Y9, IN_Z9 - SKT_H9], [ax9, SKT_Y9, IN_Z9 + SKT_H9],
-                [ax9, yb9, IN_Z9 + SKT_H9], [ax9, yb9, IN_Z9 - SKT_H9]]), 1, SKT_IN9] as ShapeFace,
-              [polyPath3([[cx9 - SKT_H9, SKT_Y9, az9], [cx9 + SKT_H9, SKT_Y9, az9],
-                [cx9 + SKT_H9, yb9, az9], [cx9 - SKT_H9, yb9, az9]]), 1, SKT_IN9] as ShapeFace,
-            ];
-          }),
-          // 뒷낯의 테 넷 — 사각 홈의 테두리다.
-          ...([
-            [cx9 - SKT_W9, cx9 + SKT_W9, IN_Z9 + SKT_H9, SKT_Z1],
-            [cx9 - SKT_W9, cx9 + SKT_W9, SKT_Z0, IN_Z9 - SKT_H9],
-            [cx9 - SKT_W9, cx9 - SKT_H9, IN_Z9 - SKT_H9, IN_Z9 + SKT_H9],
-            [cx9 + SKT_H9, cx9 + SKT_W9, IN_Z9 - SKT_H9, IN_Z9 + SKT_H9],
-          ] as [number, number, number, number][]).flatMap(([x0, x1, z0, z1]): ShapeFace[] => {
-            const d9 = yq9(x0, x1, z0, z1, SKT_Y9);
-            return [[d9, 1, TERRAN_STEEL] as ShapeFace, sideFace(d9, 0.18)];
-          }),
-        ], depthNow(cx9, SKT_Y9)));
-        // 홈에 앉은 짧은 실린더 — 뒷벽에서 뒷낯까지, 거기서 추진체로 이어진다.
-        out.push(...paintBase(spirePillar({
-          x: cx9, y: SKT_Y9, h: 0.8, w: SKT_R9, tipW: SKT_R9, segs: 2, sides: 8, caps: "none",
-          path: (t9: number): [number, number, number] => [cx9, yb9 - 0.02 - (SKT_D9 - 0.02) * t9, IN_Z9],
-        }), TERRAN_STEEL_D));
-      }
+    /* ★★ **뒤 안쪽 둘도 드럼통이다 — 뒷낯에 덧댄 상자가 아니다**(2026-09, 지적: "상자 추가한 건
+       뭐지 양쪽 드럼통 같은 드럼통을 추가해야 하는데") — 앞 판은 뒷낯에 사각 받침을 세우고 그
+       낯에 홈을 판 뒤 짧은 실린더를 꽂은 것이었다. 그 받침이 곧 지적의 '상자'다. 양옆 포드가
+       **관 한 줄기**(tubeFaces)인데 안쪽만 상자를 두르니 넷이 한 벌로 안 읽힌다 — 안쪽도 같은
+       헬퍼로 **드럼통**을 세운다(뒷낯에서 동체 속으로 곧게 들어간다).
+       ⚠ 드럼 **등이 등판 밑에 물려야** 몸에 붙은 엔진이다 — 축을 `IN_Z9` 로 올려 드럼 바깥
+         모서리(x IN_X9 + IN_R9 = 1.46)의 등(5.10)이 그 자리 등판(zR9 5.105) 바로 밑에 든다.
+         더 올리면 지붕을 뚫는다.
+       ⚠ 뒷낯(y −1.8)에 딱 맞추지 말고 한 뼘 **밖으로** 낸다 — 두께 띠와 같은 평면이면 z 싸움이다. */
+    const IN_X9 = 1.0; const IN_R9 = 0.46;
+    const IN_Z9 = 4.30 + TH_UP9;                 // 4.64 — 드럼 등이 등판 밑에 물리는 높이
+    const IN_Y0 = -1.95; const IN_Y1 = 0.35;     // 뒤 끝(뒷낯 밖 한 뼘) · 앞 끝(동체 속)
+    for (const m9 of [-1, 1] as const) {
+      out.push(...paintBase(tubeFaces(m9 * IN_X9, IN_Y0, m9 * IN_X9, IN_Y1, IN_R9, IN_Z9), TERRAN_STEEL));
     }
-    for (const [tx, tz, tr, ty] of [[-1.0, 4.16 + TH_UP9, 0.46, -1.8], [1.0, 4.16 + TH_UP9, 0.46, -1.8],
-      [-2.7, POD_Z, 0.66, POD_Y0 + 0.05], [2.7, POD_Z, 0.66, POD_Y0 + 0.05]] as [number, number, number, number][]) {
+    for (const [tx, tz, tr, ty] of [[-IN_X9, IN_Z9, IN_R9, IN_Y0 + 0.05], [IN_X9, IN_Z9, IN_R9, IN_Y0 + 0.05],
+      [-POD_X9, POD_Z, POD_R9, POD_Y0 + 0.05], [POD_X9, POD_Z, POD_R9, POD_Y0 + 0.05]] as [number, number, number, number][]) {
       out.push(...paintBase(spirePillar({
         x: tx, y: ty, h: 0.8, w: 1, segs: 2, sides: 8, caps: "none",
         path: (t9: number): [number, number, number] => [tx, ty - 1.0 * t9, tz],
