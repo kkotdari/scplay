@@ -7630,26 +7630,34 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           parts.push([polyPath3([i0, up9(i0), up9(i1), i1]), 1, "#4f4f4f"] as ShapeFace);
         }
       }
-      // 날개 셋 — 허브에서 나와 살짝 휘며 넓어진다. 사이는 검은 구멍이 그대로 비친다.
+      /* 날개 — 허브에서 나와 살짝 휘며 넓어진다. 사이는 검은 구멍이 그대로 비친다.
+         ★ **넷이다**(2026-09, 요청: "팬날개는 네개씩으로 변경") — 디포의 팬 셋(지붕·옆면 둘)이
+           한 함수라 함께 받는다.
+         ⚠⚠ **수만 늘리면 구멍이 메워진다** — 날개 반폭(`half`)은 각이라, 셋일 때 끝 폭 0.68rad
+           (39도)이 120도 틈의 65% 였다. 넷이면 틈이 90도로 좁아져 같은 폭이 78% 를 먹고 사이의
+           검은 구멍이 12도만 남는다 — 그러면 팬이 아니라 원반이다. 반폭·휨을 **3/N 로 죄어**
+           날개와 구멍의 비를 그대로 지킨다(그 비가 곧 '팬으로 읽히는' 자다). */
       const SEG = 6;
-      for (let k = 0; k < 3; k += 1) {
+      const FBN9 = 4;                    // 날개 수
+      const FBK9 = 3 / FBN9;             // 셋일 때의 반폭·휨을 그 비로 죈다
+      for (let k = 0; k < FBN9; k += 1) {
         /* 상시 회전(요청) — 날개는 제 평면의 각으로 그려지므로 위상 하나면 돈다.
            ★ 각은 **세 갈래 대칭 몫**으로 잰다(위 spinRadSym) — 여덟 칸이 120도를 15도씩
              나눠 밟아, 차례가 곧고 마지막 다음이 첫 칸과 이어진다.
            ★ flip이면 **휘는 쪽과 도는 쪽을 함께** 뒤집는다(옆면 팬) — 둘을 같이 뒤집어야
              '미는 날'의 관계가 그대로다. */
         const d9 = flip ? -1 : 1;
-        const a0 = (k / 3) * Math.PI * 2 + d9 * spinRadSym(3);
+        const a0 = (k / FBN9) * Math.PI * 2 + d9 * spinRadSym(FBN9);
         const pts: [number, number, number][] = [];
         const rAt = (t: number): number => r * (0.2 + 0.78 * t);
-        const half = (t: number): number => 0.16 + 0.52 * t;
+        const half = (t: number): number => (0.16 + 0.52 * t) * FBK9;
         for (let j = 0; j <= SEG; j += 1) {
           const t = j / SEG;
-          pts.push(P(rAt(t), a0 + d9 * t * 0.62 - half(t)));
+          pts.push(P(rAt(t), a0 + d9 * t * 0.62 * FBK9 - half(t)));
         }
         for (let j = SEG; j >= 0; j -= 1) {
           const t = j / SEG;
-          pts.push(P(rAt(t), a0 + d9 * t * 0.62 + half(t)));
+          pts.push(P(rAt(t), a0 + d9 * t * 0.62 * FBK9 + half(t)));
         }
         parts.push([polyPath3(pts), 1, BLADE] as ShapeFace);
       }
@@ -7677,10 +7685,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        나누는 쪽은 옛 2.6 이 남았다). 그래서 이 자로 앉힌 것들(앞면 팬 둘)이 벽보다 0.5 쯤 **안쪽**에 떠 있었다:
        2D 는 화가 차례로 벽 위에 얹혀 자리만 어긋나 보였고, GL 은 진짜 깊이라 몸통에 반쯤 파묻혔다. */
     const wallY = (z9: number): number => 2.8 - WSL9 * z9;
+    /** ★ **옆면 팬 둘은 뒤로 몰려 선다**(2026-09, 요청: "옆면 팬 뒤쪽으로 더 몰려서 배치") —
+     *  이 모델은 `withModelSpin(-90)` 이라 앞(격납구)이 −x 이므로 뒤는 **+x** 다. 둘의 사이는
+     *  그대로 두고 짝을 통째로 0.55 뒤로 민다.
+     *  ⚠ **파이프도 같은 몫을 탄다** — 그것은 '환풍팬 **둘 사이**의 배기 파이프'라(그 자리의 요청)
+     *    팬만 밀면 파이프가 왼 팬 살에 붙어 겹친다(실측: 팬 테 −0.11 vs 관 −0.36). 한 값으로
+     *    함께 밀면 관이 두 팬 사이 한가운데(양쪽 0.30)에 그대로 선다.
+     *  ⚠ 뒤로 갈 수 있는 끝은 **벽이 정한다** — z 0.96 의 옆선이 x 3.446 이고 팬 테가 1.09 라
+     *    중심은 2.356 까지다(지금 2.30). 더 밀려면 팬을 줄여야 한다. */
+    const FANB9 = 0.55;
     if (facingRatio(0, 1) > 0.12) {
       const sl = -WSL9;                    // 벽의 기울기 — 수직 벽이면 0 이라 팬도 곧게 선다
       const vn = Math.hypot(sl, 1);
-      for (const fx of [-1.75, 1.75]) {
+      for (const fx of [-1.75 + FANB9, 1.75 + FANB9]) {
         fanVent([fx, wallY(0.96) + 0.06, 0.96], [1, 0, 0], [0, sl / vn, 0.8 / vn], 0.92,
           22 + depthNow(fx, 2.7), true);   // 옆면 팬만 뒤집는다(요청·정정)
       }
@@ -7723,7 +7740,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          두면 키를 고칠 때마다 벽이 옮겨 가 그 토막이 조용히 늘었다 줄었다 한다(벽이 사면이라 그렇다).
        · 관은 벽에 그린 데칼이 아니라 제 부피를 가진 구조물이라 깊이 키로 정렬한다. */
     {
-      const PVZ9 = 0.6;                          // 곧게 오르는 몫(요청이 이름 붙인 값 — 옛 0.7832)
+      const PVZ9 = 0.72;                         // 곧게 오르는 몫 — 0.6 의 1.2배(요청: "위로 솟는 부분 높이 20프로")
       const PRY9 = 0.45; const PRZ9 = 0.36;      // 굽이 반지름(가로 · 세로는 그 ×0.8 접힌 자)
       const PW9 = 0.36;                          // 관 반지름(옛 세운 관과 같다)
       const PLEN9 = 0.7;                         // 벽으로 드는 몫(요청이 이름 붙인 값 — 옛 0.335)
@@ -7736,17 +7753,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const L2 = PLEN9;                                 // 벽으로 드는 몫
       const LT = L0 + L1 + L2;
       const t1 = L0 / LT; const t2 = (L0 + L1) / LT;
+      const PX9 = FANB9;                                // 팬 둘의 한가운데 — 팬이 뒤로 민 몫을 같이 탄다
       const at9 = (t9: number): [number, number, number] => {
-        if (t9 <= t1) return [0, PY9, cz9 * (t9 / t1)];
+        if (t9 <= t1) return [PX9, PY9, cz9 * (t9 / t1)];
         if (t9 <= t2) {
           const a9 = ((t9 - t1) / (t2 - t1)) * (Math.PI / 2);
-          return [0, cy9 + PRY9 * Math.cos(a9), cz9 + PRZ9 * Math.sin(a9)];
+          return [PX9, cy9 + PRY9 * Math.cos(a9), cz9 + PRZ9 * Math.sin(a9)];
         }
         const u9 = (t9 - t2) / (1 - t2);
-        return [0, cy9 + (yEnd9 - cy9) * u9, PH9];
+        return [PX9, cy9 + (yEnd9 - cy9) * u9, PH9];
       };
       const pipe: ShapeFace[] = spirePillar({
-        x: 0, y: PY9, h: PH9, w: PW9, tipW: PW9, path: at9,
+        x: PX9, y: PY9, h: PH9, w: PW9, tipW: PW9, path: at9,
         segs: 26, sides: 10, caps: "both", fill: STEEL, litK: 0.68,
       });
       /* ★ 키를 **팬과 같은 족**으로 올린다(지적: "팬이 파이프에 안 가려짐") ────────────────
@@ -7754,7 +7772,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          값이 아무리 커도 22를 못 넘어, 벽에서 0.7 앞으로 나와 선 관이 벽에 붙은 팬 뒤로
          갔다. 같은 자(22 + 제 자리 깊이)를 쓰고, 팬보다 앞이라는 몫을 0.6으로 못 박는다 —
          관은 팬과 같은 벽면 무리에 속하면서 늘 그 앞이다. */
-      out.push(...tagKey(pipe, 22 + depthNow(0, PY9) + 0.6));
+      out.push(...tagKey(pipe, 22 + depthNow(PX9, PY9) + 0.6));
     }
     /* ★ 옆면 앞끝의 작은 실린더(2026-09, 요청: "옆면의 앞쪽끝에 높이가 디포의 1/3 정도인 작은
        실린더 하나 붙여놓기(드럼통 기둥에 위 반구)") — 드럼통 기둥 위에 반구를 얹은 한 벌이다.
@@ -8544,7 +8562,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          깎인 뒤로는 |x| > NW9/2 − NC9 가 그 평면보다 **뒤**라 그만큼 허공에 뜬다. 그래서 둘의 가로
          폭을 깎인 앞면(`NFW9`)에서 낸다(붙박이 5.8·5.0 으로 두면 또 어긋난다 — 그 자리의 ★ 그대로). */
     const NW9 = 5.8; const ND9 = 1.4;   // ② 의 가로 · 앞뒤
-    const NC9 = 0.45;                   // 앞 두 모퉁이가 뒤로 물러나는 몫(앞뒤의 32% — '살짝')
+    /* ★ 깎는 몫을 늘렸다(2026-09, 요청: "앞대가리 뒤로 비스듬히 꺾는 부분을 더 길게 평평부분을 줄이고") —
+       0.45 → **0.6**(앞뒤 1.4 의 43% · 사선 길이 0.85) · 남는 평평한 앞면 4.9 → **4.6**.
+       ⚠ 상한은 앞뒤의 반(0.7)이다 — 거기서 옆 낯이 사라져 앞대가리가 마름모가 된다. */
+    const NC9 = 0.6;                    // 앞 두 모퉁이가 뒤로 물러나는 몫
     const NFW9 = NW9 - NC9 * 2;         // 깎이고 남은 앞면 가로(4.9)
     out.push(...tagKey(paintBase(boxOctFaces3(0, 7.65, NW9, ND9, FRONT_H2, BODY_Z0z9 - 0.1344,
       [NC9, 0, 0, NC9]), GREY), 47 + depthNow(0, 7.65) * 1.6));
