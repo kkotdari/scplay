@@ -13890,9 +13890,20 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const Lz9 = Math.hypot(ez9[0] - o9[0], ez9[1] - o9[1]) || 1;
       /** z 반지름의 모델 배수 — 화면에서 세로가 가로와 같아지는 값이다. */
       const kZ9 = 1 / Lz9;
+      /* ★ **좌우가 눌려 보인다 — 지도의 각(요잉 40)에서 정원으로 읽히게 넓힌다**(2026-09, 지적:
+         "포지 톱니바퀴가 좌우폭이 눌린느낌") ───────────────────────────────────────────────
+         바퀴 판은 모형 y-z 평면에 선다. 화면에서 가로는 **y 몫에 sin(요잉)** 만 실리고(x 는 이
+         판의 법선이라 폭에 안 든다) 세로는 `z·cos40 − y·sin40` 이라, 요잉이 돌수록 가로만 줄고
+         세로는 거의 그대로다. 위 ★ 가 세로를 1/cos40 로 늘려 **정면에서** 정원으로 맞춰 둔 탓에
+         그 어긋남이 더 크다 — 실측(요잉 −50 = 지도의 40): 가로 1.53R · 세로 2.16R 로 **0.71**.
+         그래서 y 반지름만 `GEAR_WK9` 배 넓힌다: 가로 2.16R · 세로 2.32R 로 0.93 — 지도에서 둥글다.
+         ⚠ 그만큼 **정면(판을 마주 보는 각)에서는 옆으로 넓다**(1.41:1). 둘 다 정원일 수는 없다
+           (판이 돌면 가로만 주는 것이 원근의 참이다) — 지도가 늘 쓰는 각을 고른 값이다.
+         ⚠ 이빨은 반지름 **배수**(st9)로 돋으므로 저절로 같은 비로 넓어진다(따로 손댈 자리 없다). */
+      const GEAR_WK9 = 1.41;
       /** 그 판(모델 x)의 각 a(모델 평면 각)·반지름 배수 s 자리. */
       const at9 = (x9: number, a9: number, s9: number): [number, number, number] =>
-        [x9, CY + Math.cos(a9) * RIM * s9, CZ + Math.sin(a9) * RIM * kZ9 * s9];
+        [x9, CY + Math.cos(a9) * RIM * GEAR_WK9 * s9, CZ + Math.sin(a9) * RIM * kZ9 * s9];
       /** 화면 자로 잰 바퀴 반지름 — 이빨 높이·둘레 마디 수를 정하는 데만 쓴다. */
       const R9 = RIM * Lz9 * kZ9;
       /** 가까운 판 — 화가 순서(먼 판 → 옆벽 → 가까운 판)의 기준이다. */
@@ -26974,6 +26985,62 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     out.push(...tagKey(paintBase(domeFaces3(0, 0, 2.3, 2.16, 0.96), "#d9b8a2"), 0));
     /* 개인색 데칼(요청) — 알 이마에 얹힌 낮은 딱지 하나(칠하지 않아 임자 색). */
     out.push(...tagKey(domeFaces3(0, 0.9, 0.62, 0.24, 2.4), 0.5));
+    /* ★ **껍질에 임자색 핏줄**(2026-09, 요청: "럴커알 임자색 핏줄") — 여태 임자 색은 이마의 딱지
+       하나뿐이라 이 알이 누구 것인지 거의 안 읽혔다. 공사 고치의 그 자(껍질 **회전 단면**을 타고
+       오르는 관 · `cocoonBuild9` 의 ★)를 그대로 쓰되 **색을 안 칠해** 임자 색으로 둔다.
+       ★ 알이 작으니 수는 여덟 · 갈래는 한 번뿐이고 굵기는 고치의 두 배다(0.09) — 고치의 실 같은
+         굵기를 그대로 쓰면 이 크기에서는 화소 밑으로 사라진다.
+       ⚠ z 는 **접힌 자 그대로**다(껍질 높이 2.16 · 밑 0.96 이 이미 접힌 값) — 고치처럼 `Z8` 을
+         곱하면 핏줄만 납작해져 껍질을 뚫는다. */
+    {
+      const ER9 = 2.3;                    // 껍질 반지름(도형과 같은 값)
+      const EH9 = 2.16;                   // 껍질 높이(접힌 z)
+      const EZ9 = 0.96;                   // 껍질 밑
+      /** 그 높이에서의 껍질 반지름 — 관이 이 위를 탄다. */
+      const eshR9 = (z9: number): number => ER9 * Math.sqrt(Math.max(0.04, 1 - (z9 / EH9) ** 2));
+      /** 껍질 위 한 점(각·높이 → 모형 자리) — 살 밖 1.5%. */
+      const eon9 = (a9: number, z9: number): [number, number, number] => {
+        const zz9 = Math.max(0.06, Math.min(EH9 * 0.99, z9));
+        const r9 = eshR9(zz9) * 1.015;
+        return [Math.sin(a9) * r9, Math.cos(a9) * r9, EZ9 + zz9];
+      };
+      const NV9 = 8;
+      for (let i9 = 0; i9 < NV9; i9 += 1) {
+        const a09 = ((i9 + 0.5) / NV9) * Math.PI * 2 + Math.sin(i9 * 5.7 + 2.2) * 0.22;
+        if (facingRatio(Math.sin(a09), Math.cos(a09)) < 0.04) continue;
+        const h19 = Math.sin(a09 * 12.9 + 1.7);
+        const h29 = Math.sin(a09 * 29.3 + 0.4);
+        const z09 = 0.12 + ((i9 * 5) % NV9) / NV9 * 1.25 + h19 * 0.08;   // 뿌리는 껍질 전 높이에 흩어진다
+        const lay9 = Math.min(1, z09 / (EH9 * 0.9));                     // 높은 뿌리일수록 옆으로 눕는다
+        const th09 = (0.28 + lay9 * 1.2) * (h29 > 0 ? 1 : -1);
+        const span9 = 1.5 + (h19 * 0.5 + 0.5) * 0.9;
+        const dZ09 = Math.min(span9 * Math.cos(th09), Math.max(0.2, EH9 * 0.98 - z09));
+        const dA09 = (span9 * Math.sin(th09)) / ER9;
+        /** 가지 하나 — 끝에서 한 번만 갈라진다(알은 작다). */
+        const eLimb9 = (aS9: number, zS9: number, dA9: number, dZ9: number, w9: number, d9: number): void => {
+          out.push(...trim(spirePillar({
+            x: 0, y: 0, h: 0.8, w: w9, tipW: Math.max(0.02, w9 * 0.3),
+            segs: 7, sides: 5, caps: "none", taper: 1.25,
+            path: (t9: number): [number, number, number] => {
+              const wb9 = Math.sin(t9 * 3.6 + aS9 * 7.7) * 0.07 * t9 * 0.6;
+              return eon9(aS9 + dA9 * t9 + wb9, zS9 + dZ9 * t9);
+            },
+          })));
+          if (d9 >= 1) return;
+          const bx9 = 0.5;
+          const aB9 = aS9 + dA9 * bx9; const zB9 = zS9 + dZ9 * bx9;
+          for (const [m9, len9] of [[1, 1.0], [-1, 0.7]] as [number, number][]) {
+            const ang9 = m9 * 0.55;
+            const ax9 = dA9 * (1 - bx9) * ER9;
+            const dz9 = dZ9 * (1 - bx9);
+            const cA9 = (ax9 * Math.cos(ang9) - dz9 * Math.sin(ang9)) / ER9;
+            const cZ9 = ax9 * Math.sin(ang9) + dz9 * Math.cos(ang9);
+            eLimb9(aB9, zB9, cA9 * len9, cZ9 * len9, w9 * 0.68, d9 + 1);
+          }
+        };
+        eLimb9(a09, z09, dA09, dZ09, 0.09, 0);
+      }
+    }
     return out;
   },
   /* 변태 고치(정정 요청: 공중 유닛용이라 땅에 붙은 밑동 제거 — 나비 번데기 꼴) —
@@ -27022,29 +27089,54 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        기둥은 밀착시켜도 두께만큼 떠 보였다. 껍질 겉면에 눕는 좁은 사각 판을 대각선
        (축을 따라가며 위로 오르는)으로 붙이고, 제 옆 법선으로 보임을 판정한다 —
        등지면 안 그리니 키 다툼도 없다. */
-    const BANDS: [number, number, string | undefined][] = [
-      // [축 t, 옆 부호, 색(없으면 개인색)]
-      // 살빛 띠는 껍질과 한 계열이라 안 읽혔다 — 밝은 결(#d8cdb8)로 대비를 준다.
-      [0.3, -1, "#d8cdb8"], [0.45, 1, undefined],
-      [0.6, -1, undefined], [0.72, 1, "#d8cdb8"],
-    ];
-    for (const [tt, sg9, c9] of BANDS) {
-      if (facingRatio(sg9, 0) < 0.08) continue;
-      const A = axis(tt - 0.07);
-      const B = axis(tt + 0.07);
-      const w9 = bodyW(tt);
-      /** 겉면 위의 한 점 — 축 위 점에서 옆(sg)·위로 민 자리. u는 축 진행, v는 대각 폭. */
-      const at9 = (u9: number, v9: number): [number, number, number] => [
-        (A[0] + (B[0] - A[0]) * u9) + sg9 * w9 * 0.72,
-        A[1] + (B[1] - A[1]) * u9,
-        (A[2] + (B[2] - A[2]) * u9) + w9 * (-0.24 + 0.64 * u9) + v9,
+    /* ★★ **띠는 몸을 한 바퀴 두르는 고리다**(2026-09, 요청: "뮤탈 변태고치 임자색 데칼이 더 필요") —
+       앞 판은 옆구리 한쪽에 붙인 **납작한 네모 넷**(임자 둘 · 살빛 둘)이라, 그 면을 등지는 각에서는
+       통째로 걷히고(facingRatio) 남는 각에서도 작은 점으로 읽혔다(실측 렌더: 임자 색이 손톱만 한
+       파란 조각 하나). 이제 `faceBand9` 로 **몸 낯을 그대로 타는 고리**를 다섯 두른다 — 임자 셋 ·
+       살빛 둘이 번갈아 감겨 애벌레의 마디가 되고, 어느 각에서도 앞쪽 반이 보인다.
+       ★ 고리의 점은 몸과 **같은 틀**로 낸다 — spirePillar 가 등뼈의 접선에 수직인 단면을 세우므로
+         (AUTO_REF ẑ · u = ẑ 를 접선에 수직화 · v = T×u · 위상 π/sides) 그 셈을 그대로 되풀어야
+         고리가 낯마다 나란히 눕는다. 살 밖은 3%.
+       ⚠ 고리의 **뒤쪽 반**은 몸이 가린다 — 데칼 편향(0.25)보다 몸 지름(1.7~2.1)이 훨씬 크므로
+         뚫고 나오지 않는다(띠 자리를 몸이 가는 두 끝으로 옮기면 그 여유가 사라진다). */
+    {
+      const NS9 = 10;                                // 몸과 같은 낯 수
+      const BOUT9 = 1.03;                            // 살 밖 몫
+      /** 그 t 의 단면 틀 — 접선 · u(ẑ 를 수직화) · v(T×u). */
+      const frame9 = (t9: number): [number, number, number][] => {
+        const e9 = 0.012;
+        const p19 = axis(Math.max(0, t9 - e9)); const p29 = axis(Math.min(1, t9 + e9));
+        const d9: [number, number, number] = [p29[0] - p19[0], p29[1] - p19[1], p29[2] - p19[2]];
+        const l9 = Math.hypot(d9[0], d9[1], d9[2]) || 1;
+        const T9: [number, number, number] = [d9[0] / l9, d9[1] / l9, d9[2] / l9];
+        const dot9 = T9[2];                          // REF = ẑ
+        let u9: [number, number, number] = [-T9[0] * dot9, -T9[1] * dot9, 1 - T9[2] * dot9];
+        const ul9 = Math.hypot(u9[0], u9[1], u9[2]) || 1;
+        u9 = [u9[0] / ul9, u9[1] / ul9, u9[2] / ul9];
+        const v9: [number, number, number] = [
+          T9[1] * u9[2] - T9[2] * u9[1], T9[2] * u9[0] - T9[0] * u9[2], T9[0] * u9[1] - T9[1] * u9[0],
+        ];
+        return [u9, v9];
+      };
+      /** 고리 위 한 점 — 몸 낯과 같은 위상(π/sides). */
+      const ringPt9 = (t9: number, i9: number): [number, number, number] => {
+        const [u9, v9] = frame9(t9);
+        const c9 = axis(t9); const r9 = bodyW(t9) * BOUT9;
+        const a9 = (i9 / NS9) * Math.PI * 2 + Math.PI / NS9;
+        const cu9 = Math.cos(a9) * r9; const sv9 = Math.sin(a9) * r9;
+        return [c9[0] + u9[0] * cu9 + v9[0] * sv9, c9[1] + u9[1] * cu9 + v9[1] * sv9,
+          c9[2] + u9[2] * cu9 + v9[2] * sv9];
+      };
+      const RINGS9: [number, number, string | undefined][] = [
+        // [축 t, 반 너비(t), 색(없으면 임자색)]
+        [0.26, 0.038, undefined], [0.38, 0.018, "#d8cdb8"], [0.50, 0.038, undefined],
+        [0.62, 0.018, "#d8cdb8"], [0.74, 0.038, undefined],
       ];
-      // 폭 0.11 → 0.26(그림 대조: 실처럼 가늘어 안 보였다).
-      const d9 = polyPath3([at9(0, -0.208), at9(0, 0.208), at9(1, 0.208), at9(1, -0.208)]);
-      out.push(...tagKey(
-        c9 ? [[d9, 1, c9] as ShapeFace] : [[d9, 1] as ShapeFace],
-        depthNow(A[0] + sg9 * w9 * 0.72, A[1]) * 1.6 + 0.5,
-      ));
+      for (const [tt9, hw9, c9] of RINGS9) {
+        const band9 = faceBand9(NS9, tt9 - hw9, tt9 + hw9, ringPt9);
+        out.push(...tagKey(c9 ? band9.map(([d9, o9]) => [d9, o9, c9] as ShapeFace) : band9,
+          depthNow(axis(tt9)[0], axis(tt9)[1]) * 1.6 + 0.5));
+      }
     }
     return out;
   }),
