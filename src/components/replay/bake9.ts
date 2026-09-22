@@ -10590,6 +10590,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   dome: () => {
     const out: ShapeFace[] = [];
     const pc: ShapeFace[] = [];
+    /* ★★ **몸통은 뒤가 솟은 덩이 + 앞에 붙은 격자 우물이다**(2026-09, 사용자의 읽기: "약간 본체가
+       뒤쪽은 앞뒤가 짧은 절두체? 느낌에 앞에 슬라이딩 지붕이 붙은거 같기도 하네" → 요청: "1,2,3 다
+       해줘") — 여태 둘레가 고른 타원 대야 하나였다. `RB_Y9` 뒤쪽을 **앞뒤로 짧은 절두체**로 솟구고
+       크레인 판을 그 데크 위에 세우면, 앞에 남은 몫이 곧 격자로 덮인 우물('슬라이딩 지붕')이다.
+       ★ 밑 다각형은 **지붕 곡면 위에** 둔다(테 호는 테 높이 · 자르는 현은 그 자리 살) — 덩이가
+         곡면에 물려 새는 틈이 없고, 뒤 격자·뒤 링이 그 속에 통째로 묻힌다(따로 자를 일이 없다).
+       ⚠ 크레인 기둥·앞면 슬릿의 밑동 z 는 손 값이 아니라 이 데크(`CR_Z09`)를 읽는다 — 데크를
+         올리고 내릴 때 함께 따라온다('한 줄로 꿴 부품은 한 값으로 옮겨라'의 그 자리). */
+    const RB_Y9 = -1.15;               // 솟은 덩이의 앞 낯(모형 y)
+    const RB_TOP9 = 2.16 + 1.15;       // 데크 높이 — 뒤 테(2.16) 위로 솟는 몫
+    const RB_TAP9 = 0.88;              // 절두체 — 데크가 밑면보다 그만큼 좁다
+    const CR_Z09 = RB_TOP9 - 0.12;     // 크레인 판 밑동(데크 살 속 한 뼘)
     /* 밑동은 높이감 있는 사다리꼴 대야(요청·사진) — 아래가 넓고 위가 좁은 원뿔대.
        옆면은 보이는 조각만 그리고, 위 테두리에 도톰한 링을 두른다. */
     {
@@ -10764,6 +10776,67 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ring9.push(bodyFace(d9), topFace(d9, 0.12));
       }
       out.push(...tagKey(ring9, depthNow(0, 0) + 2.76));
+      /* ★ **테 바깥 낯의 청록 인셋 패널 넷**(2026-09, 사진) — 여태 그 낯은 임자색 띠 하나와 발광 점
+         넷뿐이었다. 띠 낯(md9 → hi9) 넷을 골라 어두운 테를 깔고 그 위에 청록 판·밝은 심을 얹는다.
+         ⚠ 자리는 **낯 한가운데**로 고른다(i + 0.5) — 꼭짓점에 두면 한 판이 두 낯을 걸쳐 모서리에서
+           뜬다('굽은 살 위에 얹는 띠·데칼은 그 살과 같은 칸으로 쪼개라'의 그 규약).
+         ⚠ 띄움은 **낯의 수평 법선** 쪽이다 — 벽이 위로 갈수록 안으로 기우니 가로로만 밀어도 살 밖이다. */
+      for (const i9 of [0, 4, 8, 12]) {
+        const mid9 = ((i9 + 0.5) / N9) * Math.PI * 2;
+        const nx9 = Math.cos(mid9); const ny9 = Math.sin(mid9);
+        const at9 = (u9: number, v9: number, eps9: number): [number, number, number] => {
+          const a9 = md9[i9]; const b9 = md9[i9 + 1]; const c9 = hi9[i9 + 1]; const d9 = hi9[i9];
+          const lx9 = a9[0] + (b9[0] - a9[0]) * u9; const ux9 = d9[0] + (c9[0] - d9[0]) * u9;
+          const ly9 = a9[1] + (b9[1] - a9[1]) * u9; const uy9 = d9[1] + (c9[1] - d9[1]) * u9;
+          const lz9 = a9[2] + (b9[2] - a9[2]) * u9; const uz9 = d9[2] + (c9[2] - d9[2]) * u9;
+          return [lx9 + (ux9 - lx9) * v9 + nx9 * eps9, ly9 + (uy9 - ly9) * v9 + ny9 * eps9,
+            lz9 + (uz9 - lz9) * v9];
+        };
+        const rect9 = (u09: number, u19: number, v09: number, v19: number, eps9: number): string =>
+          polyPath3([at9(u09, v09, eps9), at9(u19, v09, eps9), at9(u19, v19, eps9), at9(u09, v19, eps9)]);
+        out.push(...tagKey([
+          [rect9(0.14, 0.86, 0.16, 0.9, 0.03), 1, "#2b3026"] as ShapeFace,
+          [rect9(0.24, 0.76, 0.28, 0.82, 0.06), 1, "#5aecd8"] as ShapeFace,
+          [rect9(0.36, 0.64, 0.34, 0.76, 0.09), 1, "#c9fff7"] as ShapeFace,
+        ], depthNow(0, 0) + 2.79));
+      }
+      /* 뒤가 솟은 덩이(머리의 ★★) — 테 다각형을 `RB_Y9` 에서 자른 뒤쪽 몫이 밑면이고, 그것을
+         제 한가운데로 `RB_TAP9` 만큼 조여 데크에 얹은 절두체다. 크레인 판이 그 데크에서 선다. */
+      {
+        const rimPt9 = (k9: number): [number, number] => {
+          const a9 = (k9 / N9) * Math.PI * 2;
+          return [Math.cos(a9) * 4.1, Math.sin(a9) * 4.1];
+        };
+        const base9: [number, number][] = [];
+        for (let i9 = 0; i9 < N9; i9 += 1) {
+          const p9 = rimPt9(i9); const q9 = rimPt9((i9 + 1) % N9);
+          const in09 = p9[1] <= RB_Y9; const in19 = q9[1] <= RB_Y9;
+          if (in09) base9.push(p9);
+          if (in09 !== in19) {
+            const t9 = (RB_Y9 - p9[1]) / (q9[1] - p9[1]);
+            base9.push([p9[0] + (q9[0] - p9[0]) * t9, RB_Y9]);
+          }
+        }
+        const cx9 = base9.reduce((a9, v9) => a9 + v9[0], 0) / base9.length;
+        const cy9 = base9.reduce((a9, v9) => a9 + v9[1], 0) / base9.length;
+        const bot9 = base9.map(([x9, y9]) => [x9, y9, dishZ9(x9, y9)] as [number, number, number]);
+        const top9 = base9.map(([x9, y9]) => [
+          cx9 + (x9 - cx9) * RB_TAP9, cy9 + (y9 - cy9) * RB_TAP9, RB_TOP9,
+        ] as [number, number, number]);
+        const blk9: ShapeFace[] = [];
+        for (let i9 = 0; i9 < base9.length; i9 += 1) {
+          const j9 = (i9 + 1) % base9.length;
+          const dx9 = base9[j9][0] - base9[i9][0]; const dy9 = base9[j9][1] - base9[i9][1];
+          const nl9 = Math.hypot(dx9, dy9) || 1;
+          const fl9 = faceLight(dy9 / nl9, -dx9 / nl9, 0.35);
+          if (!fl9.visible) continue;
+          const d9 = polyPath3([bot9[i9], bot9[j9], top9[j9], top9[i9]]);
+          blk9.push(bodyFace(d9), ...fl9.face(d9));
+        }
+        const cap9 = polyPath3(top9);
+        blk9.push(bodyFace(cap9), topFace(cap9, 0.14));
+        out.push(...tagKey(blk9, depthNow(0, 0) + 2.8));
+      }
       /* ★ **바닥 네 면에 씨앗 모양 임자색 부품이 붙는다**(2026-09, 사진 · 지적: "바닥 4면에 씨앗
          모양 임자색 부품도 붙어있고") — 원작 테 둘레에 박힌 그 뾰족한 껍질 넷이다. 한때
          "테두리 흰 가시 — 크레인만 남긴다"로 걷었던 자리인데, 사진에 또렷하므로 **꼴을 씨앗으로**
@@ -10842,10 +10915,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            ★ 꼭대기 둥글림은 폭 곡선의 **끝 14%**(= 팔이 갈라지는 t 0.862 위)에서 원호로 여민다 —
              갈라지는 자리 아래는 그대로 판이고 그 위의 꼭지만 둥근 머리가 된다. */
         ...spirePillar({
-          x: 0, y: -3.5, z0: 2.08, h: CR_TIPZ9 - 2.08, w: PIL_W9, tipW: 0, segs: 14, sides: 10,
+          x: 0, y: -3.5, z0: CR_Z09, h: CR_TIPZ9 - CR_Z09, w: PIL_W9, tipW: 0, segs: 14, sides: 10,
           caps: "bottom", oval: PIL_OV9, trueNormal: true, litK: 0.68,
           path: (t9: number): [number, number, number] => [
-            0, -3.5 + (CR_TIPY9 + 3.5) * t9, 2.08 + (CR_TIPZ9 - 2.08) * t9,
+            0, -3.5 + (CR_TIPY9 + 3.5) * t9, CR_Z09 + (CR_TIPZ9 - CR_Z09) * t9,
           ],
           widthOf: (t9: number): number => PIL_W9 * (1 - 0.18 * Math.min(t9, PIL_R9))
             * (t9 <= PIL_R9 ? 1 : Math.sqrt(Math.max(0, 1 - ((t9 - PIL_R9) / (1 - PIL_R9)) ** 2))),
@@ -10855,21 +10928,32 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ...rodFaces(0, -1.1, 7.6, 0, 1, 6.96, 0.9),
         ...rodFaces(0, 1, 6.96, 0, 2.3, 5.52, 0.8),
       ];
-      /* 끝 집게 — 크게, 손가락 셋으로(요청). 손목 덩이에서 세 갈래가 벌어져 아래를
-         문다: 바깥 둘과 안쪽 하나. */
+      /* ★★ **팔 끝은 집게 셋이 아니라 빛나는 눈알 머리다**(2026-09, 사진 · 요청: "1,2,3 다 해줘") —
+         옛 판은 손목 덩이에서 갈퀴 셋이 벌어져 아래를 무는 꼴이었다(그것은 그 앞 요청의 자다).
+         사진의 그것은 팔 끝에 매달린 **둥근 머리 + 큰 청록 렌즈** 하나다: 목(손목 덩이) 위에 구를
+         얹고 그 껍질에 `contactLens9` 를 붙인다 — 렌즈는 앞(+y)에서 `EYE_EL9` 만큼 내려다본다.
+         ★ 렌즈는 **껍질 위의 사발**이라 어느 요잉에서도 구에 붙어 돈다(화면 원반으로 두면 각을
+           안 탄다 — '화면 자로 놓은 장식은 요잉을 안 탄다'의 그 규약).
+         ⚠⚠ **눈은 앞·위를 봐야 보인다** — 처음 `elev` 를 −0.34(앞·아래)로 두었더니 카메라가 늘 40도
+           **위에서** 내려다보므로 렌즈가 통째로 머리 밑에 숨어 **맨 금빛 공**으로 보였다(실측 렌더).
+           +0.3 이면 앞을 보면서도 그 부감에 낯이 들어 청록 심이 선다.
+         ⚠ 심 색(`#c9fff7`)은 **EMIT_FILL9 에 미리 적었다** — 이 판은 `LIT_KINDS` 밖이라 winLit 을
+           안 지나므로, 안 적으면 번짐(블룸)을 못 탄다(서플라이 격납구 속 불의 그 자리). */
+      const EYE_Y9 = 2.62; const EYE_Z9 = 5.62; const EYE_R9 = 0.86; const EYE_EL9 = 0.3;
       arm.push(...domeFaces3(0, 2.35, 0.62, 0.4, CR_GRIP9 - 0.4));
-      arm.push(...hornFaces(0, 2.35, CR_GRIP9, 1.35, 3.2, 4.04, 0.72));
-      arm.push(...hornFaces(0, 2.35, CR_GRIP9, -1.35, 3.2, 4.04, 0.72));
-      arm.push(...hornFaces(0, 2.35, CR_GRIP9, 0, 1.45, 4.08, 0.66));
-      // 청록 발광 — 꼭대기 구슬과 집게 사이 심.
+      arm.push(...sphereFaces3(0, EYE_Y9, EYE_Z9, EYE_R9, undefined, false));
+      arm.push(...contactLens9({
+        cx: 0, cy: EYE_Y9, r: EYE_R9, hh: EYE_R9, z0: EYE_Z9, ang: 0.92, elev: EYE_EL9,
+        thick: 0.17, rim: "#2c6f66", fill: "#5aecd8", core: "#c9fff7",
+      }));
+      // 청록 발광 — 기둥 꼭대기 구슬.
       arm.push(...paintBase(domeFaces3(0, CR_TIPY9, 0.72, 0.496, CR_TIPZ9 + 0.08), "#5aecd8"));
-      arm.push([discPath3(0, 2.5, 5.24, 0.5, 0.5), 0.6, "#b6faf1"] as ShapeFace);
       /* 판 앞면(+y)의 청록 슬릿 — 사진의 그 세로 홈. 판 두께를 읽어 한 뼘 띄운다. */
       {
         const t09 = 0.2; const t19 = 0.74;
         const py9 = (t9: number): [number, number, number] => [
           0, -3.5 + (CR_TIPY9 + 3.5) * t9 + PIL_W9 * (1 - 0.18 * t9) * PIL_OV9 + 0.04,
-          2.08 + (CR_TIPZ9 - 2.08) * t9,
+          CR_Z09 + (CR_TIPZ9 - CR_Z09) * t9,
         ];
         const [, ya9, za9] = py9(t09); const [, yb9, zb9] = py9(t19);
         const d9 = polyPath3([[-0.34, ya9, za9], [0.34, ya9, za9], [0.34, yb9, zb9], [-0.34, yb9, zb9]]);
