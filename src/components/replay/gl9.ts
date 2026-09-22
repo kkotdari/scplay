@@ -8,7 +8,7 @@
    · 임자색 면(fill 없음)은 정점의 team 깃발로 표시하고 uTeam 으로 칠한다.
    한계(시제): 유닛만(건물·데칼·그림자·체력바는 캔버스가 그대로), 평면 시점만(pitch 면 캔버스로), 머리 요잉·불빛·회전 깃발은 0. */
 import { SHAPE_BUILDERS, SHAPE_GALLERY, poseSet9, poseNow, headYawSet, headYawNow, headAimNow, bldLitSet, bldLitNow, bldSpinRawSet9, bldSpinNow, bldBlinkSet9, stageFaces, headTag, litTag, spinTag, glSpinTag9, gasEmitTake9, gasPuffFrames9, type GasEmit9, tone9, autoTier } from "./bake9";
-import { lodFilter, PITCH_ZK9, BILL_CENTER9, type ShapeFace } from "../../utils/shapeOblique";
+import { lodFilter, PITCH_ZK9, BILL_CENTER9, MODEL_PERSP, type ShapeFace } from "../../utils/shapeOblique";
 import { collectMesh9 } from "../../utils/mesh9";
 import { GlCtx9, type VecSink9 } from "./glctx9";
 import { SPIN_ANIM9, type UnitDrawOp } from "./engine9";
@@ -147,7 +147,8 @@ void main() {
   rx += (aPos.z + uShadow.w) * uShadow.x * uShadow.z;
   ry += (aPos.z + uShadow.w) * uShadow.y * uShadow.z;
   float pz = aPos.z * (1.0 - uShadow.z);
-  float f = uPersp / (uPersp - clamp(ry, -10.0, 10.0));
+  /* 모형 안 원근 — uPersp 0 이면 끈다(shapeOblique MODEL_PERSP 가 그 값이다 · 지금은 꺼 둠). */
+  float f = uPersp <= 0.0 ? 1.0 : uPersp / (uPersp - clamp(ry, -10.0, 10.0));
   // project() 와 같은 식 — 평면: 납작비 sinE·높이 cosE · 입체: 납작비 pitchSquash·높이 PITCH_ZK9, 앞숙임 z·0.34, 시각 밀림 ry·납작비·tan(vq)
   float ry2 = ry + pz * uLean.x;
   float X = uAnchor.x + uScale.x * (rx + ry * uCam.x * uLean.y) * f;
@@ -1313,7 +1314,7 @@ export class GlUnits9 implements VecSink9 {
   static modelXY9(x: number, y: number, z: number, yawDeg: number, cam: GlCam9): [number, number] {
     const th = (yawDeg * Math.PI) / 180; const c = Math.cos(th); const sn = Math.sin(th);
     const rx = x * c + y * sn; const ry = -x * sn + y * c;
-    const f = 48 / (48 - Math.max(-10, Math.min(10, ry)));
+    const f = MODEL_PERSP <= 0 ? 1 : MODEL_PERSP / (MODEL_PERSP - Math.max(-10, Math.min(10, ry)));
     return [(rx + ry * cam.squash * cam.shear) * f, (ry + z * cam.lean) * cam.squash - z * cam.zk];
   }
   /** ★★ **가스 연기는 프레임마다 인스턴스로 놓는다**(2026-09, 지적: "가스 연기가 너무 뚝뚝 끊겨 프레임 훨씬 늘려서 부드럽게") —
@@ -1354,7 +1355,7 @@ export class GlUnits9 implements VecSink9 {
     for (let i = 0; i < v.length; i += 3) {
       const x = v[i]; const y = v[i + 1]; const z = v[i + 2];
       const rx = x * c + y * sn; const ry = -x * sn + y * c;
-      const f = 48 / (48 - Math.max(-10, Math.min(10, ry)));
+      const f = MODEL_PERSP <= 0 ? 1 : MODEL_PERSP / (MODEL_PERSP - Math.max(-10, Math.min(10, ry)));
       const X = (rx + ry * cam.squash * cam.shear) * f; const Y = (ry + z * cam.lean) * cam.squash - z * cam.zk;
       if (X < minX) minX = X; if (X > maxX) maxX = X; if (Y > bot) bot = Y; if (Y < top) top = Y;
     }
@@ -1480,7 +1481,7 @@ export class GlUnits9 implements VecSink9 {
     /* 전구 반사 얼룩의 중심 — 빛 쪽 7 모형칸에 잡는다(모델 상자가 16칸이라 그 언저리가 낯 위에 앉는다).
        세계 자라 개체마다 안 바뀌고, 셰이더는 요잉을 먹인 자리로 거리를 잰다. */
     gl.uniform4f(this.loc.uGlint, LIGHT[0] * 7, LIGHT[1] * 7, LIGHT[2] * 7, GL_SHADE9 >= 1 ? 0.8 * GL_SPEC9 : 0);
-    gl.uniform1f(this.loc.uPersp, 48);
+    gl.uniform1f(this.loc.uPersp, MODEL_PERSP);
     gl.uniform1f(this.loc.uDbg, GL_SHADE9);
     gl.uniform2f(this.loc.uShadowK, SHADOW_K9[0], SHADOW_K9[1]);
     /* ★ 깊이 칸은 개체 수가 아니라 **겹침**으로 나눈다 — 개체마다 칸을 주면 400기 화면에서 칸이 0.005 라 16비트 깊이 버퍼에서는
