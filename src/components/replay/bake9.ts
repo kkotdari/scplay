@@ -1061,6 +1061,30 @@ export function cutPoly9(
   }
   return out9.length >= 3 ? out9 : null;
 }
+/** ★★ **살에 붙는 띠는 그 살의 낯을 그대로 타는 네모들이다**(2026-09, 지적: "어시밀레이터 굴뚝들의
+ *  임자색띠 · 코어 몸체 임자색띠 · 옵저버토리 기둥들의 임자색띠 — 면과 딱 안맞고 떠있거나 파묻혀서 안보임")
+ *  ─────────────────────────────────────────────────────────────────────────────────────────
+ *  몸보다 굵은 **고리**(cylinderFaces3·prismZFaces·spirePillar)를 씌워 띠를 내면 두 꼴이 다 난다:
+ *    ⓐ 고리가 넉넉하면 **떠 있는 소매**가 된다(코어 2.62 vs 드럼 2.5 — 0.09~0.17 밖).
+ *    ⓑ 몸의 낯이 **한 장짜리 작은 부품**(spirePillar 는 낯마다 제 부품이다)이면 GL 의 **데칼 편향**
+ *      (건물 0.25 모형칸)이 그 낯을 앞으로 당겨 띠를 **덮는다** — 띠가 0.07~0.13 앞에 있어도 진다.
+ *      실측: 옵저버토리·어시밀레이터의 띠가 기둥 실루엣 가장자리에만 남았고, `#glbias=0` 으로 구우면
+ *      온전히 보인다(그것이 곧 진단이다).
+ *  띠도 **같은 칸으로 쪼갠 한 장짜리 낯**으로 두면 같은 편향을 받고 차례가 뒤라 늘 이긴다 — '굽은 살
+ *  위에 얹는 띠·데칼은 그 살과 같은 칸으로 쪼개라'(다크 망토 띠·드랍십 띠)의 그 규약이다.
+ *  ⚠ `pt9` 는 몸과 **같은 낯 수·같은 위상**이어야 한다 — 반 칸만 어긋나면 띠의 낯 한가운데가 몸의
+ *    꼭짓점 안쪽으로 들어가 도로 묻힌다(spirePillar 기본 위상은 π/sides · meshRing9 은 0). */
+export function faceBand9(
+  n9: number, z09: number, z19: number,
+  pt9: (z9: number, i9: number) => [number, number, number],
+): ShapeFace[] {
+  const out9: ShapeFace[] = [];
+  for (let i9 = 0; i9 < n9; i9 += 1) {
+    const j9 = (i9 + 1) % n9;
+    out9.push(bodyFace(polyPath3([pt9(z19, i9), pt9(z19, j9), pt9(z09, j9), pt9(z09, i9)])));
+  }
+  return out9;
+}
 export function spirePillar(o: {
   x: number; y: number; z0?: number; h: number; w: number; tipW?: number;
   segs?: number; sides?: number;
@@ -12678,11 +12702,21 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          임자 색이 들므로 pc에 담는다(out은 밑칠이 통째로 금빛을 덮어쓴다). */
       /* 띠는 굴뚝과 같은 둥근네모 단면의 **뚜껑 없는 고리**(지적: 임자색 부품의 단면이 비침) —
          원통(cylinderFaces3)은 윗면이 있어 그 원판이 굴뚝 위로 떠 보였다. */
-      pc.push(...tagKey(spirePillar({
-        x: px + lean * 0.45, y: py + (lean === 0 ? 0 : 0.2), z0: 0.24 + ph * 0.44, h: 0.36,
-        w: 0.58 * k9, tipW: 0.58 * k9, oval: 1.6, ref: py < -2 ? [0, 1, 0] : [1, 0, 0],
-        segs: 1, sides: 8, hold: 1, caps: "none", trueNormal: true,
-      }), 10 + depthNow(px, py) * 1.6 + 0.2));
+      /* ★★ 띠는 **굴뚝 낯을 그대로 타는 네모 여덟**이다(`faceBand9` 의 ★★ · 2026-09, 지적: "면과 딱
+         안맞고 떠있거나 파묻혀서 안보임") — 여태 굴뚝(0.5·k9)보다 16% 굵은 고리라 ⓐ 0.08~0.13 뜬
+         소매였고 ⓑ 굴뚝의 낯이 한 장짜리 부품이라 데칼 편향이 그 낯을 앞으로 당겨 띠를 덮었다.
+         같은 8각·같은 위상(π/8)·같은 앞뒤 비(1.6)에 5%(≈0.03)만 내어 두른다. */
+      {
+        const CB9 = 1.05;                                  // 굴뚝 살 밖 몫
+        const back9 = py < -2;                             // 뒤 굴뚝만 ref [0,1,0] — u = ŷ · v = −x̂
+        const bz09 = 0.24 + ph * 0.44;
+        pc.push(...tagKey(faceBand9(8, bz09, bz09 + 0.36, (z9, i9) => {
+          const a9 = (i9 / 8) * Math.PI * 2 + Math.PI / 8;
+          const cu9 = Math.cos(a9) * 0.5 * k9 * CB9;
+          const sv9 = Math.sin(a9) * 0.5 * k9 * CB9 * 1.6;
+          return back9 ? [px - sv9, py + cu9, z9] : [px + cu9, py + sv9, z9];
+        }), 10 + depthNow(px, py) * 1.6 + 0.2));
+      }
     });
     /* ⚠ 옛 정지 김(굴뚝마다 위로 갈수록 넓고 옅어지는 타원 세 켜)은 걷었다(2026-09, 지적: "어시밀레이터 양옆
        두 개와 가운데 굴뚝이 번갈아야 하는데 잘 티가 안 남") — 뭉게 덩이(gasPuffs9)로 바꾼 뒤에도 이 세 켜가 굴뚝 셋
@@ -14055,12 +14089,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            덩이로 닫으므로, 낮은 띠가 통째로 **원판**이 된다. 그 원판의 윗면이 곧
            드러난 속 단면이었다. 세운 다각기둥에서 뚜껑을 빼면 남는 것이 벽뿐이라
            띠가 띠로 남는다(파이어뱃 허리띠에서 이미 겪은 자리). */
-      ...tagKey(prismZFaces(
-        Array.from({ length: 20 }, (_, i9) => {
-          const a9 = (i9 / 20) * Math.PI * 2;
-          return [Math.cos(a9) * 2.62, -0.2 + Math.sin(a9) * 2.62] as [number, number];
-        }), 1, 0.496, false,
-      ), -5.4),
+      /* ★★ 띠는 **드럼 낯을 그대로 타는 네모 열둘**이다(`faceBand9` 의 ★★ · 2026-09, 지적: "면과 딱
+         안맞고 떠있거나 파묻혀서 안보임") — 여태 20각 반지름 2.62 짜리 기둥이라 드럼(12각 2.5)보다
+         0.09~0.17 밖에 뜬 **소매**였다(낯 수도 위상도 달라 어느 자리는 더 뜨고 어느 자리는 덜 떴다).
+         드럼의 메시 고리와 같은 12각·위상 0 에 `BAND_OUT9`(0.03)만 내어 두른다. */
+      ...tagKey(faceBand9(12, 1, 1.496, (z9, i9) => {
+        const a9 = (i9 / 12) * Math.PI * 2;                // cylinderFaces3 의 meshRing9 과 같은 위상
+        return [Math.cos(a9) * 2.53, -0.2 + Math.sin(a9) * 2.53, z9];
+      }), -5.4),
     ]);
   },
   /* 시타델 오브 아둔 — 물병 받침 + 앞으로 숙인 황금 두건 + 얇고 긴 날개 셋. */
@@ -14689,8 +14725,22 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         }), GOLD),
         ...paintBase(cylinderFaces3(px, py, 0.68, 0.272, 0.64 + ph * 0.72), GOLD_D),
       ], key));
-      // 임자색은 **기둥의 띠**(요청) — 아래 테를 칠하지 않고 accent로 넘긴다.
-      pc.push(...tagKey(cylinderFaces3(px, py, 0.68, 0.32, 0.64 + ph * 0.4), key + 0.05));
+      /* 임자색은 **기둥의 띠**(요청) — 아래 테를 칠하지 않고 accent로 넘긴다.
+         ★★ 띠는 **기둥 낯을 그대로 타는 네모 일곱**이다(`faceBand9` 의 ★★ · 2026-09, 지적: "면과 딱
+         안맞고 떠있거나 파묻혀서 안보임") — 여태 반지름 0.68 짜리 **원기둥 고리**라 ⓐ 기둥 살(0.61)보다
+         0.07 밖에 뜬 소매였고 ⓑ 기둥의 낯이 한 장짜리 부품이라 데칼 편향(0.25)이 그 낯을 앞으로 당겨
+         띠를 **덮었다**(실루엣 가장자리에만 남았다). 같은 낯 수(7)·같은 위상(π/7)·같은 굵기 자
+         (widthAt)에 `BAND_OUT9` 만 내어 두르면 어느 각에서도 기둥에 붙어 돈다. */
+      const BAND_OUT9 = 0.03;
+      const pr9 = (z9: number): number => {
+        const t9 = (z9 - 0.64) / ph;                       // spirePillar 의 widthAt(hold 0.35 · taper 1)
+        return (t9 <= 0.35 ? 0.62 : 0.48 + 0.14 * (1 - (t9 - 0.35) / 0.65)) + BAND_OUT9;
+      };
+      const bz09 = 0.64 + ph * 0.4;
+      pc.push(...tagKey(faceBand9(7, bz09, bz09 + 0.32, (z9, i9) => {
+        const a9 = (i9 / 7) * Math.PI * 2 + Math.PI / 7;   // 기둥과 같은 위상 · u = x̂ · v = ŷ
+        return [px + Math.cos(a9) * pr9(z9), py + Math.sin(a9) * pr9(z9), z9];
+      }), key + 0.05));
       void TEAL;
       /* 랜턴 머리 — 청록 발광 알. 불빛은 고유색이라 셋 다 청록으로 돌린다(재지적) —
          가운데 것만 크게 남겨 형태의 강약은 그대로 둔다. */
@@ -18130,7 +18180,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* ⑤ 목 — 앞뒤가 밑면인 눕힌 팔각기둥이라 띠가 관을 두르는 고리가 된다(세워 놓으면 띠가
        위아래로 쌓인 원판이 된다). **폭을 넓혔다**(지적: 0.7 → 1.05) — 좁으면 머리와 몸이
        따로 노는 두 덩이가 된다. 띠 둘은 임자 색이고, 목보다 조금만 굵어 살짝 도드라진다. */
-    out.push(...tagKey(raceBase(prismYFaces(OCT_XZ(0, 4.816, 1.05, 0.624), 0.9, 2.8), "terran"),
+    /* ★ 목은 **20% 가늘고 낮고, 함체에 더 파고든다**(2026-09, 요청: "배틀 목의 높이와 폭 20프로
+       줄이고 동체부분과 더 밀착하기") — 반폭 1.05·0.624 → `NK_W9`·`NK_H9`(0.84·0.499)이고, 뒤 끝을
+       0.9 → `NK_Y09`(0.45)로 물려 함체 앞벽(y 0.897) **속으로** 0.45 들어간다(앞 끝 3.7 은 머리 속
+       그대로라 길이만 2.8 → 3.25). 띠 셋도 같은 자를 읽으므로 저절로 따라 가늘어진다. */
+    const NK_W9 = 1.05 * 0.8;
+    const NK_H9 = 0.624 * 0.8;
+    const NK_Y09 = 0.45;
+    out.push(...tagKey(raceBase(prismYFaces(OCT_XZ(0, 4.816, NK_W9, NK_H9), NK_Y09, 3.7 - NK_Y09), "terran"),
       key9(0, 2.3, 6.02)));
     /* 목 임자색 띠 **셋**(요청) — 앞·가운데·뒤에 감고 폭 0.26 → 0.36 → **0.72**
        (2026-09, 요청: "배틀 목의 임자색 띠 두께 각각 2배로") — 목이 굵어진 뒤 0.36 은 실처럼
@@ -18139,7 +18196,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* ⚠ 띠는 목에 **바싹** 붙는다(2026-09, 지적: "지금 헐겁게 두르고 있음") — 목이 1.05·0.624 인데
          띠가 1.16·0.704 라 0.11·0.08 이나 떠 있었다. 굵기를 두 배로 키우자 그 틈이 그대로 두 배로
          보였다(넓은 띠일수록 뜬 몫이 더 눈에 띈다). 0.04·0.03 만 내어 **파고들 듯** 두른다. */
-      out.push(...tagKey(prismYFaces(OCT_XZ(0, 4.816, 1.09, 0.655), by9, 0.72, false, false),
+      out.push(...tagKey(prismYFaces(OCT_XZ(0, 4.816, NK_W9 + 0.04, NK_H9 + 0.03), by9, 0.72, false, false),
         key9(0, by9 + 0.36, 6.02) + 0.6));
     }
     /* ⑥ 머리 — 윗면이 사다리꼴인데 앞 두 모서리를 뭉뚝하게 깎아 결국 육각이고, 높이감이
@@ -21166,9 +21223,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const skirt = polyPath3([[-2.5, 1.7, 0.48], [2.5, 1.7, 0.48], [2.5, 2.3, 0.48], [-2.5, 2.3, 0.48]]);
       const slope = polyPath3([[-2.5, 2.3, 0.48], [2.5, 2.3, 0.48], [2.5, 1.7, 1.52], [-2.5, 1.7, 1.52]]);
       out.push(...tagKey([[skirt, 1, "#505050"] as ShapeFace, [slope, 1, TERRAN_STEEL] as ShapeFace,
-        // 초록 등줄 — 경사 치마 위 모서리.
-        [polyPath3([[-2.2, 1.72, 1.4], [2.2, 1.72, 1.4], [2.2, 1.72, 1.48], [-2.2, 1.72, 1.48]]), 1,
-          bldLitNow ? winLit("#4cd86a") : "#245c31"] as ShapeFace,   // 연구 중에 켜진다(LIT_KINDS 의 ★)
+        /* ★ 초록 등줄은 **경사 치마에 눕는 띠**다(2026-09, 지적: "코버트옵스 활성화 빛이 너무 얇음") —
+           여태 높이 0.08 짜리 **수직** 네모라 빛이 실낱이었고, 그나마 치마 살 속이라 데칼 편향으로만
+           떴다. 치마 면(z 0.48~1.52 · 앞으로 기운다) 위에 0.42 짜리 띠를 그 **법선**(0.866, 0.5) 쪽으로
+           0.03 띄워 눕힌다 — 다섯 배 두껍고 면과 같은 기울기라 어느 각에서도 치마에 붙어 있다. */
+        ...((): ShapeFace[] => {
+          const ly9 = (z9: number): number => 1.7 + (1.52 - z9) * (0.6 / 1.04) + 0.026;
+          const lz9 = (z9: number): number => z9 + 0.015;
+          const lp9 = (x9: number, z9: number): [number, number, number] => [x9, ly9(z9), lz9(z9)];
+          return [[polyPath3([lp9(-2.2, 1.02), lp9(2.2, 1.02), lp9(2.2, 1.44), lp9(-2.2, 1.44)]), 1,
+            bldLitNow ? winLit("#4cd86a") : "#245c31"] as ShapeFace];   // 연구 중에 켜진다(LIT_KINDS 의 ★)
+        })(),
       ], K(0, 1.9, 0.5)));
     }
     // ② 안쪽으로 기운 검은 유리판 두 장 — 옆 모서리에서 솟아 가운데로 기운다.
@@ -25125,9 +25190,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const lx9 = lx0 * LEG_XK9;
       const sx9 = Math.sign(lx9);
       /** 앞짝(+y)은 뻗을 때 앞으로, 뒷짝(−y)은 뒤로 — 좌우는 늘 같은 짝이다. */
-      const st9 = wdU9 * Math.sign(ly9) * 0.75;
+      /* ★ **걸음은 도약이다 — 앞뒤로 크게 벌린다**(2026-09, 요청: "울트라 이동모션에서 다리 더 앞뒤로
+         많이 벌어지게 뛰는 모습으로") — 폭 0.75 → `ST_U9` 1.5 이고, 무릎에 실리는 몫도 0.5 → 0.75 라
+         무릎이 0.375 → **1.125**(세 배) 나간다. 엉덩이는 몸에 붙어 있으니 허벅지가 그만큼 비스듬히
+         뻗어 네 다리가 앞뒤로 크게 갈라진다. 나가는 발의 들림은 0.30 → **0.375** 다 — 계수를 0.4 →
+         0.25 로 내려 폭이 두 배가 된 몫을 죈다(그대로 두면 0.6 이라 발이 몸 옆구리까지 솟는다). */
+      const ST_U9 = 1.5;
+      const st9 = wdU9 * Math.sign(ly9) * ST_U9;
       const sp9 = wdU9 * 0.09 * sx9;
-      const lf9 = Math.max(0, st9 * Math.sign(ly9)) * 0.4; const lf9z9 = Math.max(0, st9 * Math.sign(ly9)) * 0.32; /* z용 쌍둥이(model-z-scale ×0.8) */
+      const lf9 = Math.max(0, st9 * Math.sign(ly9)) * 0.25; const lf9z9 = Math.max(0, st9 * Math.sign(ly9)) * 0.2; /* z용 쌍둥이(model-z-scale ×0.8) */
       const key9 = depthNow(lx9, ly9) * 1.6 - 2;
       /* ★ 다리통은 몸에서 **굵게 난다**(2026-09, 지적: "다리통 바디에서 너무 얇아지지 않게") — 엉덩이를 몸 옆구리
          밖(lx9·1.12)으로 내고 거기에 **살 덩이 구**(반지름 1.08)를 박아 다리가 몸에서 근육으로 이어져 나오게 한다.
@@ -25136,7 +25207,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const hy9 = ly9 * 0.92;
       const hz9 = 3.3;
       const kx9 = lx9 * 1.32 + sp9;
-      const ky9 = ly9 * 1.02 + st9 * 0.5;
+      const ky9 = ly9 * 1.02 + st9 * 0.75;
       const kz9 = 1.6 + lf9 * 0.4;
       /* ★ 정강이는 무릎 **바로 밑으로 수직**(2026-09, 재요청: "하지와 발 수직으로 일치하는 것도 맞추고") — 옛 발목(lx9 · ly9·1.08)은
          무릎(lx9·1.32 · ly9·1.02)에서 안쪽 0.77·앞 0.15 로 비껴 정강이가 기울고 발이 무릎 밑에 안 섰다. 발목 = 무릎의 x·y. */
