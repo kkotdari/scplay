@@ -28,7 +28,9 @@ const ZOOM_PAD = Number(flag("--zoompad", 2.5));
 const WHITE = String(flag("--floor", "white")) !== "map";
 /** 사영 그림자(`#glshadow=1`) — 기본 켬(`--noshadow` 로 끈다). 배율 4배 위에서만 실제로 켜진다. */
 const SHADOW = !flag("--noshadow", false);
-const DPR = Number(flag("--dpr", 2));
+/** 화소 배수(요청: "화질도 2배 높여서 4배기준으로 뽑아야겠어") — 지도 상자가 1024 CSS px 라 4배면 4096px 판이다.
+ *  ⚠ 라벨·격자는 CSS px 자라 저절로 따라오고, 늘어나는 것은 **파일 무게**뿐이다(2048 → 4096 에 2~3배). */
+const DPR = Number(flag("--dpr", 4));
 const VIEW = Number(flag("--view", 1400));
 const FPS = 23.81;
 const F = (sec) => Math.round(sec * FPS);
@@ -168,9 +170,16 @@ function makeWorld(race) {
    1.3 으로 두었더니 다크아콘이 윗줄 '아비터 트리뷰널' 라벨을 덮었다). 절(건물 → 지상 → 비행) 사이에도 한 뼘. */
 const RISEU = Number(flag("--riseu", 2.0));
 const SECPAD = Number(flag("--secpad", 0.6));
-  /* ⚠ 나는 몸은 **뜬 높이만큼 더 벌린다**(AIRUP) — 지도는 공중 유닛을 한 높이로 띄우므로(airLiftPxOf) 몸이 제
-   발자리보다 훨씬 위에 그려진다. 1.4 로 두었더니 저그 비행 줄의 몸이 윗줄(지상) 라벨을 통째로 덮었다. */
-const AIRUP = Number(flag("--airup", 2.8));
+  /* ★★ **나는 줄의 솟음은 상자가 아니라 뜬 높이가 정한다**(2026-09, 요청: "지상유닛과 공중유닛 사이도 줄일수
+   있겠다") — 여기 `max(h/2, w·RISEU) + AIRUP` 으로 두었더니 배틀크루저(상자 2.34)에서 4.68 + 2.8 = **7.48타일**
+   이 섰는데, 세 종족의 실측 솟음(그림자 가운데 → 몸 꼭대기)은 **3.48~3.66타일**로 거의 같았다(테란 3.66 ·
+   프로토스 3.65 · 저그 3.48 — 상자가 가장 큰 배틀크루저와 가장 작은 저그 비행이 0.18 밖에 안 벌어진다).
+   까닭은 `airLiftPxOf` 가 **몸 크기와 무관한 한 값**이라 그 몫이 솟음을 지배하기 때문이다. 그래서 나는 줄은
+   상자 배수를 안 타고 **잰 값 + 여유**(4.0) 한 상수로 선다 — 지상 줄과의 빈 띠 3.7타일이 0.3 으로 준다.
+   · ⚠ 솟음을 **타일로** 재면 배율과 무관하다(뜬 높이도 배율을 타므로) — 한 번 재면 그 값이 어느 배율에서도 맞다.
+   · 🔎 재는 자: 시트를 떠서 행마다 잉크 화소를 세어(`$S/rows2.mjs` 꼴 — 몸은 채도 있거나 어두운 것 · 그림자는
+     회색) 나는 줄의 몸 띠 꼭대기와 그림자 띠 가운데의 차를 타일(= 8·배율·DPR px)로 나눈다. */
+const AIRUP = Number(flag("--airup", 4.0));
   const LAB = Number(flag("--lab", 1.0));
   /* ⚠ **라벨 글자 폭은 배율을 탄다** — 지도 상자는 1024 CSS px 라 한 타일이 `8 × 배율` px 이고, 9px 글꼴의 한
      글자는 5.4px 남짓이다. 곧 배율이 곧 칸의 자이고 칸이 곧 배율이라(짜임 → span → 배율) **되풀어 맞춘다**. */
@@ -215,7 +224,8 @@ const AIRUP = Number(flag("--airup", 2.8));
       for (const { row, rw: rowW } of rows) {
         const hMax = Math.max(...row.map((it) => it.c.h));
         const upMax = Math.max(...row.map((it) => it.up));
-        y += upMax + (sec.air ? AIRUP : 0);
+        /* 나는 줄은 상자 배수(upMax)를 버리고 잰 상수로 선다(위 ★★) — 상자 반높이가 그보다 크면 그것으로. */
+        y += sec.air ? Math.max(AIRUP, Math.max(...row.map((it) => it.c.h / 2))) : upMax;
         let x = 64 - rowW / 2;
         /* ⚠ **라벨은 줄마다 한 높이다** — 제 발치(`y + h/2`)에 두면 4×3 옆의 2×2 이름이 한 칸 위로 올라와 이웃과
            겹친다(실측: 저그 지상 줄의 라바·에그·드론이 서로 물렸다). 줄의 가장 큰 몸으로 한 줄에 세운다. */
@@ -397,7 +407,9 @@ for (const race of RACES) {
   await page.waitForTimeout(300);
   const el = await page.$(".scr-motion-map");
   const file = join(OUT, `scene_${RACE_EN[race]}.png`);
-  if (el) await el.screenshot({ path: file }); else await page.screenshot({ path: file });
+  /* ⚠ DPR 4 에서는 한 장이 4096² 라 요소 스크린샷의 기본 30초 문턱에 걸린다(실측: 저그만 TimeoutError —
+     '요소가 안정될 때까지 기다림'에서 끊겼다). 넉넉히 준다. */
+  if (el) await el.screenshot({ path: file, timeout: 180000 }); else await page.screenshot({ path: file, timeout: 180000 });
   console.log(`${race}: 건물 ${world.nB} · 유닛 ${world.nU} · span ${world.span.toFixed(1)}타일 · 배율 ${world.zoom.toFixed(2)}배 → ${file}`);
   await page.close();
 }
