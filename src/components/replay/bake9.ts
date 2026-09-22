@@ -27081,27 +27081,25 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       x: 0, y: 0, h: 0.8, w: 1, tipW: 1, segs: 9, sides: 10, hold: 0,
       path: axis, widthOf: bodyW,
     }), "#8a5f43"), 0));
-    /* ② 옆면 데칼(재재지적: "동그라미 말고 띠 대각선으로") — 껍질 옆구리를 비스듬히
-       가로지르는 납작한 띠들이다. 축을 따라가며 위로 오르는 대각선이라 마디 결로
-       읽힌다. 키는 제 자리 깊이×1.6(재지적: "키값 조정") — 뒤로 돌아간 띠는 몸이
-       가리고, trueNormal이라 등진 벽은 아예 안 그린다. 살빛 둘 + 개인색 둘. */
-    /* 띠는 **평면 데칼**이다(재재지적: "평면 데칼로 겉면에 맞춰서 붙이기") — 입체
-       기둥은 밀착시켜도 두께만큼 떠 보였다. 껍질 겉면에 눕는 좁은 사각 판을 대각선
-       (축을 따라가며 위로 오르는)으로 붙이고, 제 옆 법선으로 보임을 판정한다 —
-       등지면 안 그리니 키 다툼도 없다. */
-    /* ★★ **띠는 몸을 한 바퀴 두르는 고리다**(2026-09, 요청: "뮤탈 변태고치 임자색 데칼이 더 필요") —
-       앞 판은 옆구리 한쪽에 붙인 **납작한 네모 넷**(임자 둘 · 살빛 둘)이라, 그 면을 등지는 각에서는
-       통째로 걷히고(facingRatio) 남는 각에서도 작은 점으로 읽혔다(실측 렌더: 임자 색이 손톱만 한
-       파란 조각 하나). 이제 `faceBand9` 로 **몸 낯을 그대로 타는 고리**를 다섯 두른다 — 임자 셋 ·
-       살빛 둘이 번갈아 감겨 애벌레의 마디가 되고, 어느 각에서도 앞쪽 반이 보인다.
-       ★ 고리의 점은 몸과 **같은 틀**로 낸다 — spirePillar 가 등뼈의 접선에 수직인 단면을 세우므로
-         (AUTO_REF ẑ · u = ẑ 를 접선에 수직화 · v = T×u · 위상 π/sides) 그 셈을 그대로 되풀어야
-         고리가 낯마다 나란히 눕는다. 살 밖은 3%.
-       ⚠ 고리의 **뒤쪽 반**은 몸이 가린다 — 데칼 편향(0.25)보다 몸 지름(1.7~2.1)이 훨씬 크므로
-         뚫고 나오지 않는다(띠 자리를 몸이 가는 두 끝으로 옮기면 그 여유가 사라진다). */
+    /* ★★ **띠는 몸을 두르는 고리가 아니라 양옆 낯의 긴 타원이다**(2026-09, 요청: "뮤탈 변태 고치
+       몸을 두르는 띠가 아니라 양옆면에 길게 타원형 띠로 변경") — 앞 판은 `faceBand9` 로 몸을 한
+       바퀴 감는 고리 다섯(임자 셋 · 살빛 둘)이라 어느 각에서도 보이기는 했지만, 마디 진 애벌레라
+       고치의 매끈한 껍질과 결이 달랐다. 이제 **껍질 옆구리(둘레 ±90°)에 눕는 긴 타원 판** 둘이다 —
+       축을 따라 길고(몸 길이의 68%) 둘레로 좁아, 고치 양옆에 박힌 임자색 창으로 읽힌다.
+       · 꼴은 (축 t, 둘레 각)의 **타원**이다: 둘레 반 너비 `AMAX9·√(1 − ((t−TC9)/TH9)²)` — 두 끝이
+         점으로 여며진다. 살 밖 3%(BOUT9) · 껍질 곡면을 타게 t 16칸 × 둘레 5칸으로 쪼갠다
+         ('굽은 살 위에 얹는 띠·데칼은 그 살과 같은 칸으로 쪼개라'의 그 규약 — 한 장으로 두면
+         가운데가 살에 먹힌다).
+       · 점은 몸과 **같은 틀**로 낸다(spirePillar 의 AUTO_REF ẑ · u = ẑ 를 접선에 수직화 · v = T×u).
+         둘레 ±90°는 곧 ±v 라 옆 낯이다.
+       ⚠ 감기는 **둘레를 먼저 · 축을 나중에** 적는다 — 그 차례라야 낯 법선이 (−u)×T = v 로 바깥을
+         본다(반대로 적으면 두 판이 다 살 속을 봐 그만큼 어둡게 음영이 매겨진다). 양옆이 같은
+         차례로 맞아떨어지는 것은 a = −90° 에서 둘레 접선도 함께 뒤집히기 때문이다. */
     {
-      const NS9 = 10;                                // 몸과 같은 낯 수
       const BOUT9 = 1.03;                            // 살 밖 몫
+      const TC9 = 0.5; const TH9 = 0.34;             // 타원의 가운데 t · 반 길이
+      const AMAX9 = 0.40;                            // 둘레 반 너비(rad ≒ 23°)
+      const NT9 = 16; const NA9 = 5;                 // 축 칸 · 둘레 칸
       /** 그 t 의 단면 틀 — 접선 · u(ẑ 를 수직화) · v(T×u). */
       const frame9 = (t9: number): [number, number, number][] => {
         const e9 = 0.012;
@@ -27118,24 +27116,33 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ];
         return [u9, v9];
       };
-      /** 고리 위 한 점 — 몸 낯과 같은 위상(π/sides). */
-      const ringPt9 = (t9: number, i9: number): [number, number, number] => {
+      /** 껍질 위 한 점(축 t · 둘레 각 a). */
+      const skin9 = (t9: number, a9: number): [number, number, number] => {
         const [u9, v9] = frame9(t9);
         const c9 = axis(t9); const r9 = bodyW(t9) * BOUT9;
-        const a9 = (i9 / NS9) * Math.PI * 2 + Math.PI / NS9;
         const cu9 = Math.cos(a9) * r9; const sv9 = Math.sin(a9) * r9;
         return [c9[0] + u9[0] * cu9 + v9[0] * sv9, c9[1] + u9[1] * cu9 + v9[1] * sv9,
           c9[2] + u9[2] * cu9 + v9[2] * sv9];
       };
-      const RINGS9: [number, number, string | undefined][] = [
-        // [축 t, 반 너비(t), 색(없으면 임자색)]
-        [0.26, 0.038, undefined], [0.38, 0.018, "#d8cdb8"], [0.50, 0.038, undefined],
-        [0.62, 0.018, "#d8cdb8"], [0.74, 0.038, undefined],
-      ];
-      for (const [tt9, hw9, c9] of RINGS9) {
-        const band9 = faceBand9(NS9, tt9 - hw9, tt9 + hw9, ringPt9);
-        out.push(...tagKey(c9 ? band9.map(([d9, o9]) => [d9, o9, c9] as ShapeFace) : band9,
-          depthNow(axis(tt9)[0], axis(tt9)[1]) * 1.6 + 0.5));
+      /** 그 t 의 둘레 반 너비 — 타원이라 두 끝에서 0 이다. */
+      const hw9 = (t9: number): number =>
+        AMAX9 * Math.sqrt(Math.max(0, 1 - ((t9 - TC9) / TH9) ** 2));
+      for (const side9 of [1, -1]) {
+        const a09 = (side9 * Math.PI) / 2;           // ±90° = ±v = 옆 낯
+        for (let i9 = 0; i9 < NT9; i9 += 1) {
+          const tA9 = TC9 + TH9 * (-1 + (2 * i9) / NT9);
+          const tB9 = TC9 + TH9 * (-1 + (2 * (i9 + 1)) / NT9);
+          const hA9 = hw9(tA9); const hB9 = hw9(tB9);
+          for (let j9 = 0; j9 < NA9; j9 += 1) {
+            const f09 = -1 + (2 * j9) / NA9; const f19 = -1 + (2 * (j9 + 1)) / NA9;
+            const q9 = [
+              skin9(tA9, a09 + hA9 * f09), skin9(tA9, a09 + hA9 * f19),
+              skin9(tB9, a09 + hB9 * f19), skin9(tB9, a09 + hB9 * f09),
+            ] as [number, number, number][];
+            const cx9 = (q9[0][0] + q9[2][0]) / 2; const cy9 = (q9[0][1] + q9[2][1]) / 2;
+            out.push(...tagKey([bodyFace(polyPath3(q9))], depthNow(cx9, cy9) * 1.6 + 0.5));
+          }
+        }
       }
     }
     return out;
