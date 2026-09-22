@@ -15266,18 +15266,25 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         widthOf: armW9,
       }), GOLD9), -3 + depthNow(ux9 * 3.5, uy9 * 3.5) * 0.3));
     }
+    /* ★ **두 발을 잇는 호도 발과 같은 굵기다**(2026-09, 요청: "비컨 앞 두 발을 잇는 호모양 관도 두께두껍게") —
+       발 여섯을 도톰하게 만든 뒤 이 호만 옛 날(세로 0.42 · 옆 0.21)로 남아 **얇은 띠**로 읽혔다. 옆폭은
+       발과 **같은 값**(`ARM_OV9`)을 나눠 쓰고 세로도 0.50 으로 올린다 — 발 뿌리(0.62 · 0.589)와 한 대다.
+       ⚠ 굵어진 만큼 **축을 그 몫만큼 올린다**(`ARC_Z9` 0.8 → 0.88) — 밑이 접시 위 원반(z 0.488)에
+         잠기면 '고리로 보이게'라는 옛 뜻이 지워진다(아랫변은 0.38 로 종전 그대로). */
+    const ARC_W9 = 0.5;
+    const ARC_Z9 = 0.88;
     out.push(...tagKey(paintBase(spirePillar({
-      x: 0, y: 0, h: 0.8, w: 1, segs: 8, sides: 8, oval: 0.5, caps: "none", ref: [0, 0, 1], trueNormal: true,
+      x: 0, y: 0, h: 0.8, w: 1, segs: 8, sides: 8, oval: ARM_OV9, caps: "none", ref: [0, 0, 1], trueNormal: true,
       // 호는 **안쪽(몸 쪽)으로 굽는다**(재지적: 방향이 반대) — 두 뿌리(±1.375, 2.38)를 잇되 가운데가 뒤(0, 1.8)로 들어가고 살짝 오른다.
       path: (t9: number): [number, number, number] => {
         const u9 = 1 - t9;
         return [
           u9 * u9 * -1.375 + t9 * t9 * 1.375,
           u9 * u9 * 2.38 + 2 * u9 * t9 * 1.2 + t9 * t9 * 2.38,
-          0.8 + 0.28 * Math.sin(Math.PI * t9),   // 접시(0.47)·돔 밑동(0.5) 위로 띄워 고리로 보이게
+          ARC_Z9 + 0.28 * Math.sin(Math.PI * t9),   // 접시(0.47)·돔 밑동(0.5) 위로 띄워 고리로 보이게
         ];
       },
-      widthOf: (): number => 0.42,
+      widthOf: (): number => ARC_W9,
     }), GOLD9), depthNow(0, 2.1) * 1.6 + 0.6));   // 몸 돔(키 0)보다 앞 — 여태 −2.5라 돔 덩이 뒤에 묻혀 안 보였다(지적)
     /* ② 몸 돔 + 갈색 띠 넷 — 띠는 돔 표면(반지름 2.3·높이 2.0)을 0.05 띄워 타 넘는 가는 관, 앞뒤·좌우로 두 벌. */
     out.push(...tagKey(paintBase(domeFaces3(0, 0, 2.3, 1.6, 0.4, true), TEAL9), 0));
