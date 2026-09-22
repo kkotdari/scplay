@@ -25810,7 +25810,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          드럼 홈 위에 뜬다. 0.25 로 함께 좁혔다(그 절의 ⚠⚠ 와 같은 자리다).
        · 포드 밑이 3.82 로 **동체 껍질의 맨 아랫변**(옆 변 4.56 − ED9 = 3.72) 바로 위에 선다. */
     const POD_Y0 = -2.06; const POD_Y1 = 0.5;
-    const POD_X9 = 2.12; const POD_R9 = 0.528;   // 포드 축 x · 반지름 — 뒤 모퉁이 홈이 이 자를 읽는다
+    const POD_X9 = 2.332; const POD_R9 = 0.528;   // ×1.1(요청: 10% 바깥으로 · 홈은 이 자에서 나므로 저절로 따라온다)   // 포드 축 x · 반지름 — 뒤 모퉁이 홈이 이 자를 읽는다
     /* ★ **홈은 관이 파고든 만큼만 판다**(2026-09, 요청: "양쪽 홈 잘 팠어 이제 딱 사이즈만
        드럼통 파고들어온 만큼 파는 걸로 잘 맞춰 줘") — 네 값을 다 **그 관의 자**에서 낸다:
        가로는 안쪽·바깥 접선 · 앞은 관 앞 끝. 살에 딱 맞추면 접하는 자리가 z 싸움이라 한 뼘
@@ -25853,7 +25853,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        길이의 20%(0.32) 만큼 앞으로. */
     const IN_X9 = 0.8; const IN_R9 = 0.506;
     const IN_Z9 = midZ9(IN_X9);                  // 제 자리 동체의 한가운데
-    const IN_Y0 = -1.63; const IN_Y1 = -0.03;    // 뒤 끝 · 앞 끝(동체 속) — 앞으로 0.32 옮긴 자리
+    const IN_Y0 = -1.63; const IN_Y1 = IN_Y0 + 1.6 * 0.9;   // 뒤 끝 · 앞 끝 — 길이 1.6 → 1.44(요청: 10% 축소 · 노즐이 있는 뒤 끝을 못 박는다)
     const IX1R9 = IN_X9 + IN_R9 + NGAP9;
     /* ⚠⚠ **종잇장 리브는 안쪽 홈이 삼킨다** — 두 홈 사이에 남는 살(`NX9 − IX1R9`)이 얇으면
        그것이 뒤로 2.3 뻗은 **철사 한 오라기**가 된다(윤곽은 낯 한 장이라 두께가 없다).
@@ -25862,10 +25862,24 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const IX1 = NX9 - IX1R9 > 0 && NX9 - IX1R9 < RIB_MIN9 ? NX9 : IX1R9;
     const IX0 = IN_X9 - IN_R9 - NGAP9;
     const INY9 = IN_Y1 + NGAP9;
+    /* ★ **관 넷은 테란 기본색으로 읽혀야 한다**(2026-09, 요청: "실린더 색 테란 기본색 적용") —
+       색은 처음부터 `TERRAN_STEEL`(= `RACE_BASE_TONE.terran`)이라 등판·붐과 **같은 값**인데,
+       널판은 윗면에 **흰 덧칠**(topFace 0.16~0.18)을 받고 관은 배에 **검은 띠**(OP.sideSoft)를
+       받아 같은 색인데 관만 한 단 어둡게 읽혔다(실측 휘도: 붐·Y자 널판 177 vs 관 107~139).
+       관의 **첫 낯**(메시를 든 낯 = 몸 경로)에 흰 덧칠 한 겹을 얹어 그 단을 맞춘다 — 색을 새로
+       지어내지 않고 음영의 자만 널판과 나란히 두는 손이다('같은 부품을 딴 헬퍼로 지으면 음영의
+       자가 갈린다'의 그 규약 · spirePillar 의 `litK` 와 같은 자리).
+       ⚠ 덧칠은 **같은 key·pid** 로 얹어야 한다 — 새 배열을 그냥 이어 붙이면 그 낯이 제 부품을
+         잃어(ShapeFace 여섯째 칸) 등급표·접기에서 통째로 갈린다. */
+    const TUBE_LIT9 = 0.34;
+    const steelTube9 = (f9: ShapeFace[]): ShapeFace[] => {
+      const t9 = topFace(f9[0][0], TUBE_LIT9);
+      return paintBase([...f9, [t9[0], t9[1], t9[2], f9[0][3], t9[4], f9[0][5]] as ShapeFace], TERRAN_STEEL);
+    };
     const pod = (tx: number): void => {
       /* 깊이 보정을 걷는다(재지적: 사선에서 가려져야 할 실린더가 앞으로 튄다) —
          관이 스스로 다는 깊이면 판·꼬리와 자연스럽게 앞뒤가 갈린다. */
-      out.push(...paintBase(tubeFaces(tx, POD_Y0, tx, POD_Y1, POD_R9, POD_Z), TERRAN_STEEL));   // 지름 20% 축소(재요청)
+      out.push(...steelTube9(tubeFaces(tx, POD_Y0, tx, POD_Y1, POD_R9, POD_Z)));   // 지름 20% 축소(재요청)
     };
     // 폭 축소(지적: 몸체 폭 줄이기) — 포드 자리 ±3.1 → ±2.6.
     // 포드는 더 바깥으로(재요청) — x ±2.6 → ±3.0.
@@ -26105,18 +26119,24 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        남겨 두어(뒤 1.4 → 앞 1.05 폭) 캐노피의 결은 유지된다. */
     /* 콕핏은 **앞쪽**이다(요청): 등판 위 상자가 아니라, 동체 앞끝에 좌우로 누운 반원 드럼통
        (가로 관)이 있고 그 위에 **반의 반 구** 유리(앞을 보는 4분구)가 얹힌다. */
+    /* ★ **콕핏은 20% 작다**(2026-09, 요청: "콕핏 크기 20프로 축소") — `CKK9` 한 값이 반원 기둥의
+       반지름·높이와 그 위 4분구 유리의 반지름·테 두께에 다 걸린다. **뒷변(y 2.6)과 밑면(z 4.52)은
+       못 박는다** — 뒷변은 동체 앞 낯에 붙는 자리이고 밑면은 갑판이다(줄이는 자를 원점에 두면
+       콕핏이 갑판 속으로 가라앉는다). 유리 밑면은 `4.52 + CK_H9` 로 기둥 꼭대기를 따라 내려온다. */
+    const CKK9 = 0.8;
+    const CK_R9 = 1.0 * CKK9; const CK_H9 = 0.44 * CKK9;
     out.push(...tagKey([
       /* 몸체는 **밑면이 반원인 낮은 기둥**(재지적) — 뒷변은 동체 앞면(y 2.6)에 붙고 앞은
          둥근 D자 평면, 높이 0.55. 그 위에 앞을 보는 4분구 유리. */
       ...paintBase(prismZFaces(Array.from({ length: 9 }, (_, i9) => {
         const a9 = Math.PI * (i9 / 8);
-        return [Math.cos(a9) * 1.0, 2.6 + Math.sin(a9) * 1.0] as [number, number];
-      }), 4.52, 0.44, true), TERRAN_STEEL),
+        return [Math.cos(a9) * CK_R9, 2.6 + Math.sin(a9) * CK_R9] as [number, number];
+      }), 4.52, CK_H9, true), TERRAN_STEEL),
       /* ★ 유리는 **어두운 청검회색**이다(2026-09, 요청: "콕핏 유리 어두운 청검회색으로
          변경") — 옛 하늘빛(#8fc6dd · 알파 0.68)은 밝아서 은색 테와 붙어 '유리'로 안 읽혔다.
          어두운 색은 알파가 낮으면 뒤의 밝은 강철이 비쳐 도로 회색이 되므로 **짙기도 함께
          올린다**(0.68 → 0.88) — 색과 알파는 한 벌이다. */
-      ...quarterDome(0, 2.62, 4.96, 0.9, 0, 1, undefined, 0.096, 1)
+      ...quarterDome(0, 2.62, 4.52 + CK_H9, 0.9 * CKK9, 0, 1, undefined, 0.096 * CKK9, 1)
         .map(([d9, o9, f9, k9, l9, n9]) =>
           [d9, f9 === undefined ? 0.88 : o9, f9 ?? "#26333d", k9, l9, n9] as ShapeFace),
     ], depthNow(0, 2.95) * 1.6 + 3));
@@ -26142,7 +26162,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        **같은 `tz` 에서 갈라져 나오므로** 여기 한 값만 더하면 셋이 함께 움직인다(불꽃만 따로 두면
        그 자리에서 어긋난다 — 그것이 요청의 괄호다). */
     for (const m9 of [-1, 1] as const) {
-      out.push(...paintBase(tubeFaces(m9 * IN_X9, IN_Y0, m9 * IN_X9, IN_Y1, IN_R9, IN_Z9), TERRAN_STEEL));
+      out.push(...steelTube9(tubeFaces(m9 * IN_X9, IN_Y0, m9 * IN_X9, IN_Y1, IN_R9, IN_Z9)));
     }
     /* ★ **추진체 넷의 앞뒤 길이는 반이다**(2026-09, 요청: "추진체 4개 앞뒤길이 50% 축소") — 노즐
        원뿔·분사구 원반·테·불꽃이 다 이 한 값의 비로 앉으므로 넷이 함께 짧아진다. */
@@ -26184,11 +26204,20 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          라 꽁무니로 갈수록 0.12 오르는 비탈이었다(옆에서 보면 꼬리가 들려 보이는 그 자리).
          네 점을 같은 z 에 두고, 대신 **앞을 그만큼 올려**(BOOM_Z9) 뒤 끝 높이를 지킨다 —
          그래야 그 위에 앉은 수평 안정판·수직 날개가 한 톨도 안 움직인다. */
+      /* ★ **붐 길이 −20% · 가로 붐 폭 −20%**(2026-09, 요청: "꼬리붐 길이 20프로 축소 · 뒤쪽 가로
+         붐도 가로폭 20프로 축소") — 두 값을 상수로 뽑고 **수평 안정판을 붐 끝에 매단다**:
+         손 값(−5.8·−4.95)으로 두면 붐을 줄일 때마다 꼬리가 허공에 남는다('한 줄로 꿴 부품은
+         한 값으로 옮겨라'의 그 자리). `BOOM_L9` 4.1 → **3.28** · `WING_K9` 0.8. */
+      const BOOM_Y09 = -1.9; const BOOM_L9 = 4.1 * 0.8;
+      const BOOM_Y19 = BOOM_Y09 - BOOM_L9;          // 붐 뒤 끝 −5.18
+      const WING_K9 = 0.8;                          // 가로 붐의 좌우 폭 몫
+      const WY09 = BOOM_Y19 + 0.2; const WY19 = BOOM_Y19 + 1.05;   // 안정판 뒤·앞 변(붐 끝에 매달린다)
       const boomAt = (z9: number): [number, number, number][] => [   // 너비 축소(재요청) ±0.55 → ±0.35
-        [-0.35, -1.9, z9], [0.35, -1.9, z9], [0.26, -6.0, z9], [-0.26, -6.0, z9],
+        [-0.35, BOOM_Y09, z9], [0.35, BOOM_Y09, z9], [0.26, BOOM_Y19, z9], [-0.26, BOOM_Y19, z9],
       ];
       const wingAt = (z9: number): [number, number, number][] => [
-        [-1.6, -5.8, z9], [1.6, -5.8, z9], [1.2, -4.95, z9], [-1.2, -4.95, z9],
+        [-1.6 * WING_K9, WY09, z9], [1.6 * WING_K9, WY09, z9],
+        [1.2 * WING_K9, WY19, z9], [-1.2 * WING_K9, WY19, z9],
       ];
       /** 수평 안정판 양끝의 수직 날개 — 그 변의 틀(e·n)에 선 판(두께 0.16). */
       /* ★★ **날개 둘은 저마다 요잉해 안정판의 비스듬한 옆 모서리에 딱 붙는다**(2026-09, 지적:
@@ -26200,8 +26229,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          안쪽 법선이고, 기울임(안쪽 0.4)·두께(0.16)를 그 틀에서 재므로 **꼴은 그대로**다.
          ⚠ 좌우는 거울이라 `n` 의 부호가 갈린다 — `n = (−m·ey, ex)` 한 줄이 그 자다(m 이 이미
            `ex` 에 들어 있어 두 번 곱해진다). 부호를 뒤집으면 날개가 바깥으로 기운다. */
-      const WE0: [number, number] = [1.6, -5.8];    // 안정판 옆 변의 뒤 끝(+x 쪽)
-      const WE1: [number, number] = [1.2, -4.95];   // 그 앞 끝
+      const WE0: [number, number] = [1.6 * WING_K9, WY09];    // 안정판 옆 변의 뒤 끝(+x 쪽)
+      const WE1: [number, number] = [1.2 * WING_K9, WY19];    // 그 앞 끝
       const WEL9 = Math.hypot(WE1[0] - WE0[0], WE1[1] - WE0[1]);
       const FIN_LEAN9 = 0.4;    // 꼭대기가 안쪽으로 기우는 몫
       const FIN_S09 = -0.05; const FIN_S19 = WEL9 + 0.05; const FIN_ST9 = 0.72;   // 밑변·윗변의 구간
