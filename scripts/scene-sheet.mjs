@@ -19,7 +19,15 @@ const argv = process.argv.slice(2);
 const flag = (n, d = null) => { const i = argv.indexOf(n); return i < 0 ? d : (argv[i + 1] ?? true); };
 const OUT = String(flag("--out", join(tmpdir(), "scene-sheet")));
 const RACES = flag("--race", null) ? [String(flag("--race"))] : ["테란", "프로토스", "저그"];
-const ZOOM = Number(flag("--zoom", 2.6));
+/* 배율은 **짜임에서 난다**(2026-09) — `--zoom` 을 주면 그 값으로 못 박고, 안 주면 span 에서 낸다:
+   모아 놓은 만큼 크게 보이고, 사영 그림자가 켜지는 문턱(`DEV9.meshShadowMinZoom` PC 4배)을 저절로 넘는다. */
+const ZOOM = Number(flag("--zoom", 0));
+const ZOOM_MAX = Number(flag("--zoommax", 6));
+const ZOOM_PAD = Number(flag("--zoompad", 2.5));
+/** 바닥 — 흰색 + 격자줄이 기본이다(`--floor map` 이면 옛 잿빛 지형). */
+const WHITE = String(flag("--floor", "white")) !== "map";
+/** 사영 그림자(`#glshadow=1`) — 기본 켬(`--noshadow` 로 끈다). 배율 4배 위에서만 실제로 켜진다. */
+const SHADOW = !flag("--noshadow", false);
 const DPR = Number(flag("--dpr", 2));
 const VIEW = Number(flag("--view", 1400));
 const FPS = 23.81;
@@ -119,9 +127,6 @@ function makeWorld(race) {
     for (let s = 0; s <= GAME_SEC; s += 0.75) keys.push([F(s), Math.round(x * 32), Math.round(y * 32), HB, 0, type]);
     tracks.push({ tag: tag++, owner: 0, type, keys, hp: null });
   };
-  // 격자 — 건물은 8타일 간격 6열, 유닛은 4타일 간격 10열. 지도 가운데(64,64) 언저리.
-  // 간격을 줄인다(요청: 비교가 쉽게) — 건물 6타일(발자국 최대 4 + 2)·유닛 3.6타일. 라벨은 발치 아래.
-  const X0 = 64 - 22; const yb = 64 - 20;
   const labels = [];
   // 짧은 이름 — 괄호는 머리글자로(Siege Tank (Siege Mode) → Siege Tank(S)).
   const short = (n) => n.replace(/ \((\w)[^)]*\)/, "($1)");
@@ -138,47 +143,123 @@ function makeWorld(race) {
     const tl = (px) => (px / 32).toFixed(2).replace(/\.?0+$/, "");
     return b ? `${tl(b[0] + b[2] + 1)}×${tl(b[1] + b[3] + 1)}` : "?";
   };
-  blds.forEach((n, i) => {
-    const x = X0 + (i % 7) * 6 + 2; const y = yb + Math.floor(i / 7) * 6.5 + 2;
-    const fp = TABLES.FOOTPRINT[n] ?? [3, 2];
-    bldTrack(nameToId[n], x, y); labels.push([short(n), normOf(n, true), x, y + fp[1] / 2 + 0.6]);
-  });
+  /* ── 짜임은 **몸의 자**로 채운다 ─────────────────────────────────────────────────────
+     ★★ (2026-09, 요청: "크기 비교가 잘 안되는 이유가 너무 멀리 떨어져있어 불필요한 사이 갭 줄여서
+     최대한 모여서 나오게") — 옛 짜임은 **못 박은 격자**(건물 6타일 7열 · 유닛 4.6타일 10열)였다.
+     칸이 그 줄의 가장 큰 발자국에 맞춰져 있으니 터렛(2×2) 옆에 4타일짜리 빈자리가 남고, 그 빈자리가
+     곧 '멀리 떨어져 보이는' 그 몫이다. 이제 칸 폭은 **그 몸의 자**(건물 발자국 · 유닛 치수 상자)이고
+     사이에 틈(GB·GU)만 둔다.
+     · 줄은 폭 예산 B 로 채우고, **B 를 훑어 가로·세로 span 이 가장 고른 값**을 고른다 — 그 span 이 곧
+       배율이다(`--zoom` 을 안 주면 `128 / (span + 여유)`). 곧 '모아 놓기'와 '크게 보이기'가 한 일이다.
+     · ⚠ **줄 사이는 몸이 발자국 위로 솟는 몫을 재어 벌린다**(RISE ≈ 발자국 폭) — 붓은 건물을 잉크
+       바닥으로 앉히므로 몸이 제 발자국보다 위로 자란다. 그 몫을 안 주면 아랫줄 건물이 윗줄 라벨을
+       덮는다. 나는 몸은 뜬 높이(AIRUP)만큼 더 벌린다.
+     · ⚠ 칸 폭의 바닥은 **라벨 글자 폭**이다(LABCH — 9px 글꼴이라 한 글자 ≈ 0.1타일) — 작은 몸을
+       바싹 붙이면 이름이 겹친다. */
+  const GB = Number(flag("--gapb", 0.65));
+  const GU = Number(flag("--gapu", 0.5));
+  /* ⚠⚠ **칸 폭은 발자국이 아니라 그려지는 몸의 폭이다** — 붓은 건물을 발자국보다 크게 그린다(실측: 커맨드 4타일
+     발자국의 몸이 6타일 남짓). 발자국으로 재어 바싹 붙이면 팩토리와 머신샵처럼 **몸끼리 닿는다**. 그려지는
+     몫을 재는 배수(DWB·DWU)와 발치 위로 솟는 몫(RISEB·RISEU)은 눈으로 고른 값이다. */
+  const DWB = Number(flag("--dwb", 1.55));
+  const DWU = Number(flag("--dwu", 1.6));
+  const RISEB = Number(flag("--riseb", 1.05));
+  /* ⚠ 유닛은 **치수 상자보다 훨씬 크게 그려진다** — 아콘·다크아콘은 1×1 상자에 세 타일짜리 빛 공이다(실측:
+   1.3 으로 두었더니 다크아콘이 윗줄 '아비터 트리뷰널' 라벨을 덮었다). 절(건물 → 지상 → 비행) 사이에도 한 뼘. */
+const RISEU = Number(flag("--riseu", 2.0));
+const SECPAD = Number(flag("--secpad", 0.6));
+  /* ⚠ 나는 몸은 **뜬 높이만큼 더 벌린다**(AIRUP) — 지도는 공중 유닛을 한 높이로 띄우므로(airLiftPxOf) 몸이 제
+   발자리보다 훨씬 위에 그려진다. 1.4 로 두었더니 저그 비행 줄의 몸이 윗줄(지상) 라벨을 통째로 덮었다. */
+const AIRUP = Number(flag("--airup", 2.8));
+  const LAB = Number(flag("--lab", 1.0));
+  /* ⚠ **라벨 글자 폭은 배율을 탄다** — 지도 상자는 1024 CSS px 라 한 타일이 `8 × 배율` px 이고, 9px 글꼴의 한
+     글자는 5.4px 남짓이다. 곧 배율이 곧 칸의 자이고 칸이 곧 배율이라(짜임 → span → 배율) **되풀어 맞춘다**. */
+  const CHPX = Number(flag("--chpx", 5.6));
+  let zGuess = 4;
+  const cellOf = (n, isBld, lab, nv) => {
+    let w; let h;
+    if (isBld) { const fp = TABLES.FOOTPRINT[n] ?? [3, 2]; w = fp[0]; h = fp[1]; }
+    else { const b = TABLES.BOX[n]; w = b ? (b[0] + b[2] + 1) / 32 : 1; h = b ? (b[1] + b[3] + 1) / 32 : 1; }
+    return { n, isBld, lab, nv, w, h, chars: Math.max(lab.length, String(nv).length) };
+  };
+  /* 칸의 폭·솟음을 그때의 배율로 낸다(위 ⚠). */
+  const sizeAt = (c, z) => {
+    const labW = (c.chars * CHPX) / (8 * z) + 0.2;
+    const dw = c.w * (c.isBld ? DWB : DWU);
+    return { cw: Math.max(dw, labW), up: Math.max(c.h / 2, c.w * (c.isBld ? RISEB : RISEU)) };
+  };
+  /* 공사 중 모델도 한 칸씩(요청: "토스 소환구 저그 공사고치도 추가") — 판 8의 상태 바이트 0x80(아직 안 지어짐)을
+     20초부터 끝까지 실어 born > 1인 공사 생애를 만든다(truthLives.raising). 완성 비트가 안 오니 46초엔 공사 중이다. */
+  const wip = race === "프로토스" ? [["Gateway", "Warp-in", "warpin"]] : race === "저그" ? [["Hydralisk Den", "Cocoon", "cocoon"]] : [];
+  const secB = [
+    ...blds.map((n) => cellOf(n, true, short(n), normOf(n, true))),
+    ...wip.map(([n, lab, kind]) => ({ ...cellOf(n, true, lab, SHOW_SCALE ? `×${Number(TABLES.BLD_DRAW_TUNE[kind] ?? 1).toFixed(2)}` : `${(TABLES.FOOTPRINT[n] ?? [3, 2])[0]}×${(TABLES.FOOTPRINT[n] ?? [3, 2])[1]}`), wip: true })),
+  ];
+  const secG = units.filter((n) => !TABLES.AIR[n]).map((n) => cellOf(n, false, short(n), normOf(n, false)));
+  const secA = units.filter((n) => TABLES.AIR[n]).map((n) => cellOf(n, false, short(n), normOf(n, false)));
+  const layout = (B, z) => {
+    const cells = []; let y = 0; let spanX = 0;
+    let first = true;
+    for (const sec of [{ list: secB, gap: GB, air: false }, { list: secG, gap: GU, air: false }, { list: secA, gap: GU, air: true }]) {
+      if (!sec.list.length) continue;
+      if (!first) y += SECPAD;
+      first = false;
+      const sz = sec.list.map((c) => ({ c, ...sizeAt(c, z) }));
+      const rows = []; let row = []; let rw = 0;
+      for (const it of sz) {
+        const add = row.length ? sec.gap + it.cw : it.cw;
+        if (row.length && rw + add > B) { rows.push({ row, rw }); row = []; rw = 0; }
+        rw += row.length ? sec.gap + it.cw : it.cw; row.push(it);
+      }
+      if (row.length) rows.push({ row, rw });
+      for (const { row, rw: rowW } of rows) {
+        const hMax = Math.max(...row.map((it) => it.c.h));
+        const upMax = Math.max(...row.map((it) => it.up));
+        y += upMax + (sec.air ? AIRUP : 0);
+        let x = 64 - rowW / 2;
+        /* ⚠ **라벨은 줄마다 한 높이다** — 제 발치(`y + h/2`)에 두면 4×3 옆의 2×2 이름이 한 칸 위로 올라와 이웃과
+           겹친다(실측: 저그 지상 줄의 라바·에그·드론이 서로 물렸다). 줄의 가장 큰 몸으로 한 줄에 세운다. */
+        for (const it of row) { cells.push({ ...it.c, x: x + it.cw / 2, y, ly: y + hMax / 2 + 0.55 }); x += it.cw + sec.gap; }
+        y += hMax / 2 + LAB;
+        spanX = Math.max(spanX, rowW);
+      }
+    }
+    return { cells, spanX, spanY: y };
+  };
+  /* 배율 ↔ 짜임을 넷 번 되풀어 맞춘다(위 ⚠) — 모아 놓으면 배율이 오르고, 배율이 오르면 라벨이 좁아져 더 모인다. */
+  let best = null;
+  for (let it = 0; it < 4; it += 1) {
+    best = null;
+    for (let B = 10; B <= 64; B += 0.5) {
+      const L = layout(B, zGuess);
+      const s9 = Math.max(L.spanX, L.spanY);
+      if (!best || s9 < best.s - 1e-9) best = { s: s9, L };
+    }
+    zGuess = ZOOM > 0 ? ZOOM : Math.min(ZOOM_MAX, 128 / (best.s + ZOOM_PAD));
+  }
+  const dy = 64 - best.L.spanY / 2;
+  for (const c of best.L.cells) {
+    const y = c.y + dy;
+    if (c.wip) {
+      tracks.push({ tag: tag++, owner: 0, type: nameToId[c.n], keys: [
+        [F(20), c.x * 32, y * 32, 0, 0x80, nameToId[c.n]], [F(GAME_SEC), c.x * 32, y * 32, 0, 0x80, nameToId[c.n]]], hp: null });
+    } else if (c.isBld) bldTrack(nameToId[c.n], c.x, y);
+    else unitTrack(nameToId[c.n], c.x, y);
+    labels.push([c.lab, c.nv, c.x, c.ly + dy]);
+  }
+  /* --addons 는 원작 자리를 보는 자라 짜임을 안 탄다(본체·부속 짝만 세운다). */
+  let addonSpan = 0;
   (ADDON_PAIRS ?? []).forEach(([pn, an], i) => {
-    const x = X0 + (i % 3) * 13 + 3; const y = yb + Math.floor(i / 3) * 8 + 2;
+    const x = 64 - 19 + (i % 3) * 13 + 3; const y = 64 - 8 + Math.floor(i / 3) * 8;
     const fpP = TABLES.FOOTPRINT[pn] ?? [4, 3]; const fpA = TABLES.FOOTPRINT[an] ?? [2, 2];
     // 원작 자리: 부속의 왼위 타일 = 본체 왼위 + (본체 폭, 1). 트랙 자리는 가운데라 반 발자국씩 옮긴다.
     const ax = x + fpP[0] / 2 + fpA[0] / 2; const ay = y + 1 + fpA[1] / 2 - fpP[1] / 2;
     bldTrack(nameToId[pn], x, y); bldTrack(nameToId[an], ax, ay);
     labels.push([short(pn), normOf(pn, true), x, y + fpP[1] / 2 + 0.6]);
     labels.push([short(an), normOf(an, true), ax, ay + fpA[1] / 2 + 0.6]);
+    addonSpan = 44;
   });
-  /* 공사 중 모델도 한 칸씩(요청: "토스 소환구 저그 공사고치도 추가") — 판 8의 상태 바이트 0x80(아직 안 지어짐)을
-     20초부터 끝까지 실어 born > 1인 공사 생애를 만든다(truthLives.raising). 완성 비트가 안 오니 46초엔 공사 중이다. */
-  const wip = race === "프로토스" ? [["Gateway", "Warp-in", "warpin"]] : race === "저그" ? [["Hydralisk Den", "Cocoon", "cocoon"]] : [];
-  wip.forEach(([n, lab, kind], j) => {
-    const i = blds.length + j;
-    const x = X0 + (i % 7) * 6 + 2; const y = yb + Math.floor(i / 7) * 6.5 + 2;
-    const fp = TABLES.FOOTPRINT[n] ?? [3, 2];
-    tracks.push({ tag: tag++, owner: 0, type: nameToId[n], keys: [
-      [F(20), x * 32, y * 32, 0, 0x80, nameToId[n]], [F(GAME_SEC), x * 32, y * 32, 0, 0x80, nameToId[n]]], hp: null });
-    labels.push([lab, SHOW_SCALE ? `×${Number(TABLES.BLD_DRAW_TUNE[kind] ?? 1).toFixed(2)}` : `${fp[0]}×${fp[1]}`, x, y + fp[1] / 2 + 0.6]);
-  });
-  const yu = yb + Math.ceil((blds.length + wip.length) / 7) * 6.5 + 2.5 + (ADDON_PAIRS ? 16 : 0);
-  // 지상 줄(들) 먼저, 비행 줄(들)은 그 아래 — 비행 유닛은 위로 떠서 그려지니 윗줄과 겹치지 않게 사이를 더 띄운다.
-  const ground = units.filter((n) => !TABLES.AIR[n]); const air = units.filter((n) => TABLES.AIR[n]);
-  const COLS = 10;
-  let yRow = yu;
-  const layRow = (list, gap) => {
-    list.forEach((n, i) => {
-      const x = X0 + (i % COLS) * 4.6 + 1; const y = yRow + Math.floor(i / COLS) * gap;
-      unitTrack(nameToId[n], x, y); labels.push([short(n), normOf(n, false), x, y + 1.0]);
-    });
-    yRow += Math.ceil(list.length / COLS) * gap;
-  };
-  layRow(ground, 4.6);
-  yRow += 2.5;          // 비행 줄 앞 여유(떠 있는 몸이 윗줄 라벨을 덮지 않게)
-  layRow(air, 6.0);
-  const yEnd = yRow;
+  const span = addonSpan || best.s;
   const w = new W();
   w.u8(0x4f); w.u8(0x42); w.u8(0x57); w.u8(0x54); w.u8(8); w.f32(FPS); w.i32(-1);   // 판 8(해독기가 판 8만 읽는다)
   w.u8(PLAYERS.length);
@@ -194,8 +275,8 @@ function makeWorld(race) {
   for (const tr of tracks) { if (!tr.hp) continue; let pf = 0; let pv = 0; for (const [f, v] of tr.hp) { w.vz(f - pf); pf = f; w.vz(v - pv); pv = v; } }
   w.u32(0); w.u32(0); w.u32(0); w.u32(0); w.u32(0); w.u32(0); w.u16(119); w.u32(0);
   const motion = deflateSync(w.out()).toString("base64");
-  const cy = ((yb + yEnd) / 2) / 128;
-  return { motion, players: PLAYERS, nB: blds.length, nU: units.length, cy, labels };
+  const zoom = ZOOM > 0 ? ZOOM : Math.min(ZOOM_MAX, 128 / (span + ZOOM_PAD));
+  return { motion, players: PLAYERS, nB: blds.length, nU: units.length, cy: 0.5, zoom, span, labels };
 }
 
 /* ── 참값 지형(평지·잿빛) ── */
@@ -268,15 +349,23 @@ for (const race of RACES) {
      ("프레임 워커 오류(내용 없음)"). */
   await page.route("http://scene-sheet.local/*", (r) => r.fulfill({ contentType: "text/html",
     body: `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>${css}
-    html,body{margin:0;background:#1b1e24;} #root{width:${VIEW}px;}
+    html,body{margin:0;background:${WHITE ? "#fff" : "#1b1e24"};} #root{width:${VIEW}px;}
+    ${WHITE ? ".scr-motion-map{background:#fff!important}" : ""}
     .scr-motion-fog{display:none!important}</style></head><body><div id="root"></div></body></html>` }));
   // --hash "cine=1" 처럼 해시를 더 얹는다(시네마틱 세기 · 붓 손잡이).
-  const hashX = flag("--hash", "") ? "," + String(flag("--hash")) : "";
-  await page.goto((flag("--creep", false) ? "http://scene-sheet.local/#noscan" : "http://scene-sheet.local/#nocreep,noscan") + hashX);   // 크립 끔(격자가 보여야 한다; --creep이면 켠다) · 두리번 끔
+  const hashX = (SHADOW ? ",glshadow=1,glshadowz=0" : "") + (flag("--hash", "") ? "," + String(flag("--hash")) : "");
+  /* ★ **흰 바닥은 지형 캔버스를 빼는 것이다**(2026-09, 요청: "바닥을 흰색에 격자줄 들어간 형태로") — 잿빛 평지는
+     `.scr-motion-mapvec` 의 지형 캔버스가 칠하므로, 재생기가 이미 든 손(`?hide=mapvec`)으로 그 층만 빼고 상자
+     바탕을 흰색으로 둔다. 격자는 이 자가 덧대는 줄이고 흰 바닥에서는 색을 검게 뒤집는다(아래 GRIDC).
+     ★ **사영 그림자는 `#glshadow=1` + 배율 4배**다(요청: "그림자도 사영 그림자로") — 손 스위치만으로는 안 켜진다
+     (`meshShadow9` 가 `DEV9.meshShadowMinZoom`(PC 4)을 함께 본다). 짜임을 모아 배율이 그 위로 올라간 것이
+     이 손과 한 벌이다 — `--zoom` 을 4 아래로 못 박으면 접지 타원으로 돌아간다. */
+  const q = WHITE ? "?hide=mapvec" : "";
+  await page.goto("http://scene-sheet.local/" + q + (flag("--creep", false) ? "#noscan" : "#nocreep,noscan") + hashX);   // 크립 끔(격자가 보여야 한다; --creep이면 켠다) · 두리번 끔
   await page.addScriptTag({ content: js, type: "module" });
   await page.waitForFunction("!!window.__mount");
   await page.evaluate(([m, pl, wj, tb, v]) => window.__mount(m, pl, wj, tb, v),
-    [world.motion, world.players, walkFixture, makeTerrain(), { z: ZOOM, cx: 0.5, cy: world.cy, deg: 90 }]);
+    [world.motion, world.players, walkFixture, makeTerrain(), { z: world.zoom, cx: 0.5, cy: world.cy, deg: 90 }]);
   await page.waitForFunction("(window.__spritePerf && (window.__spritePerf.last.blit + window.__spritePerf.last.direct) > 0) || (window.__glInst9 > 0)", null, { timeout: 60000 })
     .catch(() => console.warn("⚠ 그리기 신호를 못 받았다 — 그래도 찍는다"));
   await page.waitForTimeout(4000);
@@ -284,31 +373,32 @@ for (const race of RACES) {
   console.log("진단:", why);
   /* 격자 타일(실제 게임 타일 크기)과 이름·배율 라벨을 지도 상자 위에 덧댄다 — 상자 좌표는 initialView와 같은 식
      (렌즈: ((x/128 − cx)·z + 0.5)·상자폭). 격자는 지도 위·유닛 아래(z 100), 라벨은 맨 위. */
-  await page.evaluate(([labels, z, cx, cy]) => {
+  await page.evaluate(([labels, z, cx, cy, gc, lc]) => {
     const map = document.querySelector(".scr-motion-map"); if (!map) return;
     const r = map.getBoundingClientRect();
     const tile = (r.width * z) / 128;
     const ox = ((0 - cx) * z + 0.5) * r.width; const oy = ((0 - cy) * z + 0.5) * r.height;
     const grid = document.createElement("div");
     grid.style.cssText = `position:absolute;inset:0;pointer-events:none;z-index:100;` +
-      `background-image:linear-gradient(rgba(255,255,255,0.16) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.16) 1px,transparent 1px);` +
+      `background-image:linear-gradient(${gc} 1px,transparent 1px),linear-gradient(90deg,${gc} 1px,transparent 1px);` +
       `background-size:${tile}px ${tile}px;background-position:${ox}px ${oy}px;`;
     map.appendChild(grid);
     const lab = document.createElement("div");
-    lab.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:9000;font:9px/1.15 ui-sans-serif,system-ui,sans-serif;color:#fff;text-shadow:0 0 3px #000,0 0 2px #000;text-align:center;";
+    lab.style.cssText = `position:absolute;inset:0;pointer-events:none;z-index:9000;font:9px/1.15 ui-sans-serif,system-ui,sans-serif;${lc};text-align:center;`;
     for (const [t, nv, x, y] of labels) {
       const d = document.createElement("div");
-      d.innerHTML = `${t}<br><b style="color:#ffd76a">${nv}</b>`;
+      d.innerHTML = `${t}<br><b style="color:${gc === "rgba(0,0,0,0.16)" ? "#a15c00" : "#ffd76a"}">${nv}</b>`;
       d.style.cssText = `position:absolute;left:${((x / 128 - cx) * z + 0.5) * 100}%;top:${((y / 128 - cy) * z + 0.5) * 100}%;transform:translate(-50%,0);white-space:nowrap;`;
       lab.appendChild(d);
     }
     map.appendChild(lab);
-  }, [world.labels, ZOOM, 0.5, world.cy]);
+  }, [world.labels, world.zoom, 0.5, world.cy, WHITE ? "rgba(0,0,0,0.16)" : "rgba(255,255,255,0.16)",
+    WHITE ? "color:#111;text-shadow:0 0 3px #fff,0 0 2px #fff" : "color:#fff;text-shadow:0 0 3px #000,0 0 2px #000"]);
   await page.waitForTimeout(300);
   const el = await page.$(".scr-motion-map");
   const file = join(OUT, `scene_${RACE_EN[race]}.png`);
   if (el) await el.screenshot({ path: file }); else await page.screenshot({ path: file });
-  console.log(`${race}: 건물 ${world.nB} · 유닛 ${world.nU} → ${file}`);
+  console.log(`${race}: 건물 ${world.nB} · 유닛 ${world.nU} · span ${world.span.toFixed(1)}타일 · 배율 ${world.zoom.toFixed(2)}배 → ${file}`);
   await page.close();
 }
 await browser.close();

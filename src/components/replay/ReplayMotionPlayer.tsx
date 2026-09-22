@@ -7489,7 +7489,15 @@ const shadowGroundMinZoom9 = (): number => DEV9.shadowGroundMinZoom;   // 위 �
  *  그 아래 배율·그 아래 단·폰은 종전대로 접지 타원(캔버스/prim)이다. 프레임마다 읽는다(단이 오르면 곧 먹는다).
  *  ⚠ 공중 유닛도 같은 문이다 — 옛 `#glshadow=1` 은 공중을 배율과 무관하게 눕혔지만, 낮은 배율에서 나는 몸의 실루엣은 몇
  *    화소라 타원이 더 읽힌다(뜬 높이의 자리 표시). */
-const meshShadow9 = (zoom: number): boolean => (MESH_SHADOW9 ?? DEV9.meshShadow) && zoom >= DEV9.meshShadowMinZoom;
+/** ★ **배율 문턱의 손잡이**(`#glshadowz=N`) — 그림을 보는 자(scene-sheet)는 짜임을 모아 놓은 만큼만 배율이 오르는데,
+ *  4배(PC 표)에 못 닿으면 사영 그림자가 안 켜져 **그 자리에서 자를 바꿀 길이 없었다**. 문턱을 그 자에 맞춰 깎는 것은
+ *  거꾸로이므로(모아 놓기와 그림자는 딴 요청이다) 다른 GL 손잡이들(`#glmesh=N`·`#glbias=N`)과 같은 자리에 둔다. */
+const MESH_SHADOW_Z9 = ((): number | null => {
+  if (typeof location === "undefined") return null;
+  const m9 = /glshadowz=([0-9.]+)/.exec(location.hash);
+  return m9 ? Number(m9[1]) : null;
+})();
+const meshShadow9 = (zoom: number): boolean => (MESH_SHADOW9 ?? DEV9.meshShadow) && zoom >= (MESH_SHADOW_Z9 ?? DEV9.meshShadowMinZoom);
 /** ★ 전투 효과가 **갈래마다** 서는 칸 — 요청: "2배에서 전투효과: 가시 분출 우리 /
  *  4배에서 전투효과: 피격 / 나머지는 다 8배부터 노출".
  *  여기 적힌 것은 **사다리(가장 이른 칸)** 이고, 실제 칸은 배치의 바닥과 함께 잰다
