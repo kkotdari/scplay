@@ -362,6 +362,17 @@ export const LIT_KINDS = new Set<string>([
      넥서스가 들어왔다(요청: "넥서스 생산중에 수정체들 깜빡거림 추가") — 꼭대기 수정과
      정면 아쿠아 줄이 프로브를 뽑는 동안 밝아졌다 사그라든다. */
   "gate", "arch", "pyramidWide",
+  /* ★ **생산·연구 건물 일곱이 더 들어왔다**(2026-09, 요청: "프로토스 생산/연구 건물 중 활성화 효과
+     없는거 효과 추가 — 보석부품 발광효과: 시타델, 아카이브, 로보틱스, 베이, 옵저버토리, 비컨 ·
+     트리뷰널") — 프로토스의 '켜짐'은 창이 아니라 **보석**이다: 시타델·아카이브의 알, 로보틱스의
+     청록 패널·크레인 눈·꼭대기 구슬, 서포트베이 대접 속 알, 옵저버토리 랜턴 셋, 플릿비컨 구슬·
+     빛띠, 트리뷰널 기둥 안쪽 보석. 몇몇은 이미 `glowLit` 을 지나고 있었지만 이 표에 없어
+     **열쇠가 lit 를 안 물어** 영영 안 켜졌다(그 ⚠ 의 자리다).
+     ⚠ 넣기만 하면 안 된다 — 그 종류의 보석이 `glowLit` 을 지나야 실제로 밝아진다. */
+  "citadel", "archives", "dome", "robobay", "observatory", "fleetbeacon", "tribunal",
+  /* ★ 코어도 들어왔다(2026-09, 요청: "코어 활성화시 디스크도 밝게 빛나야함") — 꼭대기 플라즈마
+     디스크가 연구 중에 밝아진다. */
+  "cyber",
   /* (걷어냄) 저그 본진 셋 — 요청: "저그 해처리 생산중에는 깜빡이지 않음(알표현으로 됨)".
      저그의 생산은 라바가 알이 되는 것이라 **화면에 이미 알이 서 있다**. 거기에 둔덕
      아가리까지 깜빡이면 같은 말을 두 번 하는 것이고, 알이 붙은 해처리는 그 자체로
@@ -10354,10 +10365,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           }
         }
       }
-      if (bellyOn) {
-        /* 안면 — 가로로 누운 수정 창 넷(아쿠아·활성 발광)과 사이 갈빗대.
-           팔 띠(v ±0.6) 안에서 접선을 따라 줄짓는다. */
-        out.push(...tagKey(stripe9(Ri - 0.02), key9 + 0.55));
+      {
+        /* ★★ **안쪽 발광 창은 네 판이 다 가진다**(2026-09, 요청: "스타게이트 안쪽의 발광 창문
+           있잖아 그거 위아래만 있는데 양옆 면에도 추가") — 여태 이 블록이 `if (bellyOn)` 안이라
+           **배가 보이는 판에만** 창이 실렸다. 그런데 `bellyOn` 의 옆 판 갈래는 `facingRatio` 인데
+           **메시를 굽는 동안 그 문은 늘 1** 이다(그 규약) — 곧 GL 에서는 옆 두 판이 한 번도 배를
+           안 보이는 것으로 잡혀 창이 영영 안 실렸다. 이제 늘 싣고, **어느 낯이 앞이냐는 키로만**
+           가른다(2D 는 화가 차례 · GL 은 진짜 깊이).
+           안면 — 가로로 누운 수정 창 넷(아쿠아·활성 발광)과 사이 갈빗대. 팔 띠(v ±0.6) 안에서
+           접선을 따라 줄짓는다. */
+        const ik9 = bellyOn ? 0.55 : -0.6;   // 배가 안 보이는 판에서는 판 낯 **뒤**로 보낸다
+        out.push(...tagKey(stripe9(Ri - 0.02), key9 + ik9));
         const win: ShapeFace[] = [];
         for (let k9 = 0; k9 < 4; k9 += 1) {
           const v9 = -1.14 + k9 * 0.76;
@@ -10372,7 +10390,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
             .map(([a9, b9]) => P9(a9, v9 + b9, Ri - 0.03)));
           win.push([d9, 1, "#7a5f15"] as ShapeFace);
         }
-        out.push(...tagKey(win, key9 + 0.6));
+        out.push(...tagKey(win, key9 + ik9 + 0.05));
       }
     }
     return out;
@@ -10853,8 +10871,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           polyPath3([at9(u09, v09, eps9), at9(u19, v09, eps9), at9(u19, v19, eps9), at9(u09, v19, eps9)]);
         out.push(...tagKey([
           [rect9(0.14, 0.86, 0.16, 0.9, 0.03), 1, "#2b3026"] as ShapeFace,
-          [rect9(0.24, 0.76, 0.28, 0.82, 0.06), 1, "#5aecd8"] as ShapeFace,
-          [rect9(0.36, 0.64, 0.34, 0.76, 0.09), 1, "#c9fff7"] as ShapeFace,
+          [rect9(0.24, 0.76, 0.28, 0.82, 0.06), 1, glowLit("#8ff7ea", "#5aecd8")] as ShapeFace,
+          [rect9(0.36, 0.64, 0.34, 0.76, 0.09), 1, glowLit("#ffffff", "#c9fff7")] as ShapeFace,
         ], depthNow(0, 0) + 2.79));
       }
       /* 뒤가 솟은 덩이(머리의 ★★) — 테 다각형을 `RB_Y9` 에서 자른 뒤쪽 몫이 밑면이고, 그것을
@@ -10921,7 +10939,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       for (const ang of [115, 80, 45, 245]) {
         const a2 = (ang * Math.PI) / 180;
         const gx9 = Math.cos(a2) * 3.9; const gx9z9 = Math.cos(a2) * 3.12; /* z용 쌍둥이(model-z-scale ×0.8) */ const gy9 = Math.sin(a2) * 3.9; const gy9z9 = Math.sin(a2) * 3.12; /* z용 쌍둥이(model-z-scale ×0.8) */
-        out.push(...tagKey([[discPath3(gx9, gy9, dishZ9(gx9, gy9) + 0.112, 0.42), 0.6, "#5aecd8"] as ShapeFace], depthNow(0, 0) + 2.78));
+        out.push(...tagKey([[discPath3(gx9, gy9, dishZ9(gx9, gy9) + 0.112, 0.42), 0.6, glowLit("#c9fff7", "#5aecd8")] as ShapeFace], depthNow(0, 0) + 2.78));
       }
     }
     // 구덩이 격자 — 대야 안쪽 우물을 가로지르는 밝은 줄.
@@ -11009,7 +11027,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       arm.push(...sphereFaces3(0, EYE_Y9, EYE_Z9, EYE_R9, undefined, false));
       arm.push(...contactLens9({
         cx: 0, cy: EYE_Y9, r: EYE_R9, hh: EYE_R9, z0: EYE_Z9, ang: 0.92, elev: EYE_EL9,
-        thick: 0.17, rim: "#2c6f66", fill: "#5aecd8", core: "#c9fff7",
+        thick: 0.17, rim: "#2c6f66", fill: glowLit("#8ff7ea", "#5aecd8"), core: glowLit("#ffffff", "#c9fff7"),
       }));
       /* ★ **집게 손가락 셋은 되살렸다**(2026-09, 요청: "크레인 집게발도 집게손가락 3개가 있어야해") —
          눈알 머리를 얹으며 갈퀴 셋을 통째로 걷었는데(위 ★★), 요청은 머리 **대신**이 아니라 **함께**다:
@@ -11042,8 +11060,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           }));
         }
       }
-      // 청록 발광 — 기둥 꼭대기 구슬.
-      arm.push(...paintBase(domeFaces3(0, CR_TIPY9, 0.72, 0.496, CR_TIPZ9 + 0.08), "#5aecd8"));
+      // 청록 발광 — 기둥 꼭대기 구슬(연구 중이면 밝아진다).
+      arm.push(...paintBase(domeFaces3(0, CR_TIPY9, 0.72, 0.496, CR_TIPZ9 + 0.08), glowLit("#c9fff7", "#5aecd8")));
       /* ★ **앞면(+y)의 사다리는 진짜 사다리가 아니라 테두리만 보이고 속이 빈 꼴이다**(2026-09,
          지적: "크레인 앞면은 진짜 사다리가 아니라 사다리처럼 테두리가 보이고 속이 빈형태 그리고
          사다리 간격 더 넓게") — 앞 판은 어두운 홈을 **한 장으로 통째로** 깔고 그 위에 금빛 레일
@@ -13870,9 +13888,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          자르는 자리는 아래에서 **지면선을 직접 투영해** 잡으므로, 이 값을 나중에
          바꾸더라도 현은 언제나 그 높이의 땅에 붙는다. */
       const CZ = 0;                        // 바퀴 중심(모델 z) — 지면
-      /* 반지름 3 → 2.25(요청: "포지 톱니바퀴 반지름 3/4으로 축소") — 이 한 값이
-         이빨 높이·둘레 마디 수까지 함께 정한다(아래 R9). */
-      const RIM = 2.25;
+      /* 반지름 3 → 2.25(요청: "포지 톱니바퀴 반지름 3/4으로 축소") → **1.8**(2026-09, 요청:
+         "포지 톱니바퀴 크기 20프로 축소") — 이 한 값이 이빨 높이·둘레 마디 수까지 함께
+         정한다(아래 R9). 이빨·둘레 눌림(GEAR_WK9)은 반지름 배수라 저절로 따라 준다. */
+      const RIM = 1.8;
       /* ★ 세로만 보정한다 — **요잉은 그대로 먹인다**(지적: "포지 톱니 각도 아직도
          안맞음... +45도에서 정면에서 본거랑 똑같이 보여").
          앞 판은 이 평면의 두 기저를 재서 **역행렬**로 좌표를 잡았다. 그러면 어느
@@ -14048,7 +14067,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          겹쳐 기울인 링 셋을 걷고 원판 한 장만 남긴 데 이어, 받치던 금 축도 걷었다.
          축이 있으면 원판이 본체에서 1.7만큼 떠서 따로 노는 부품으로 보인다. 반지름도
          2.55 → 1.75로 줄여 드럼(2.5)보다 좁게 두어, 몸 위에 얹힌 뚜껑으로 읽힌다. */
-      ...tagKey(paintBase(cylinderFaces3(0, -0.2, 1.75, 0.24, 2.928), PLASMA_RING), 13),
+      /* ★ 디스크는 **코어가 켜지면 함께 밝아진다**(2026-09, 요청: "코어 활성화시 디스크도 밝게
+         빛나야함") — 이 건물의 '연구 중'을 말할 자리가 여기다(`LIT_KINDS` 에 cyber 를 함께 올려야
+         열쇠가 lit 를 문다 — 그 ⚠). */
+      ...tagKey(paintBase(cylinderFaces3(0, -0.2, 1.75, 0.24, 2.928),
+        glowLit("#e8fffc", "#6fc7ba")), 13),
       ...tagKey([topFace(discPath3(0, -0.2, 3.192, 1.05), 0.28)], 13.4),
       /* 도는 살 셋(요청: "코어 디스크 회전") — 매끈한 원판은 아무리 돌려도 그림이
          같으니, 돌고 있음을 말할 살이 있어야 한다. 판 윗면에 밝은 살 셋을 얹고 그
@@ -14076,6 +14099,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         }
         return spokes;
       })(), 13.5),
+      /* ★ 디스크 한가운데의 **아주 낮은 금색 돔**(2026-09, 요청: "코어 디스크는 가운데 동그란 금색
+         높이가 아주 낮은 돔이 얹혀있음") — 살 셋이 모이는 자리를 덮는 허브다. 살의 안쪽 끝(0.28)을
+         넉넉히 물게 반지름 0.58 · 높이는 그 1/4(0.15)이라 판 위에 얹힌 단추로 읽힌다. */
+      ...tagKey(paintBase(domeFaces3(0, -0.2, 0.58, 0.15, 3.192), P_GOLD), 13.6),
       // 구슬 넷과 저마다의 금색 발판 — 드럼 둘레를 따라 앞쪽에 벌려 선다.
       ...ORB_ANG.flatMap((deg9) => {
         const o9 = orbAt(deg9);
@@ -14477,7 +14504,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     out.push(...tagKey([
       ...paintBase(domeFaces3(lx9, ly9, 1.15, 0.68, 0.24), GOLD9),
       [oval9(lx9, ly9, 0.72, 0.5, 0.936), 1, GOLD_D9] as ShapeFace,
-      [oval9(lx9, ly9, 0.55, 0.37, 0.96), 1, AQUA9] as ShapeFace,
+      [oval9(lx9, ly9, 0.55, 0.37, 0.96), 1, glowLit("#a4f6eb", AQUA9)] as ShapeFace,
       [oval9(lx9 - fx9 * 0.12, ly9 - fy9 * 0.12, 0.25, 0.17, 0.976), 0.55, "#f0fffd"] as ShapeFace,
     ], K(lx9, ly9, 2.5)));
     /* ③ 낮은 벽 — 앞 덩어리에서 시작해 반구를 감싸며 돈다(반지름 3.0·3.45, 높이 0.3~1.25). 앞각에서 양옆으로 ±150도.
@@ -14598,56 +14625,109 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   // −45도 요잉(요청) · 아래 원판 0.8배 · 날개(파이프+세모 판) 0.6배.
   robobay: () => withModelSpin(-45, () => {
     const out: ShapeFace[] = [];
+    const pads: ShapeFace[] = [];   // 발판 위 임자색 반쪽 알약 — accent 로 넘긴다
     const GOLD = "#d4af37"; const GOLD_D = "#a8862a"; const CYAN = "#5aecd8";
     const K = (x9: number, y9: number, add = 0): number => depthNow(x9, y9) * 1.6 + add;
     const DK9 = 0.8 * 0.8 * 1.2;   // 아래 원판 0.8배(요청) → 0.8배(재요청) → 1.2배(재재요청: "아래 몸체와 옆 발판 1.2배") — 받침·대접·발판이 함께 변한다.
     const HB9 = 0.8 * 1.2;         // 본체 높이도 같은 비 — 대접 통·우묵 계단.
     // ① 받침 팔각 판 + 대접(위로 벌어지는 절두 원통) + 안쪽 어두운 우묵 + 결정.
     // 받침은 둥근 판만(재지적: 네모 판 제거) — 아래 넓은 원판 + 위로 벌어지는 원통 대접.
-    /* 본판을 줄인다(재요청: 5.0/4.4 → 3.5/3.1) — 발판이 둘레를 맡으니 대접만 남긴다. */
-    out.push(...tagKey(paintBase(cylinderFaces3(0, 0, 3.5 * DK9, 0.36 * HB9), GOLD_D), 1));
-    /* ⚠⚠ **대접의 윗면을 안 낸다 — 그 낯이 그릇을 덮고 있었다**(2026-09, 지적: "베이 역돔 위에
-       평평한 판 제거해야 할 듯? 가리고 있는 듯") — 커맨드 꼭대기와 **똑같은 자리**다.
-       `cylinderFaces3` 의 뚜껑은 `topFace(discPath3(...))` 라 2D 에서는 덧칠이지만, 접을 몸이
-       없는 덧칠은 메시에서 **제 부품으로 남는다**(그것이 규약이다 — 지붕 살창·둔덕 얼룩이
-       그렇게 산다). 그래서 GL 에서는 꽉 찬 금색 판이 되어 역돔을 통째로 가렸다
-       (그릇을 빨갛게 칠해 보니 테두리 한 줄만 붉었다 — 커맨드에서 쓴 그 실험이다).
-       뚜껑을 고를 수 있는 기둥(spirePillar · caps "bottom")으로 짠다 — 굵기가 안 변하는
-       열여섯 낯 기둥이라 그림은 종전과 같고, 윗면만 없다. */
-    out.push(...tagKey(paintBase(spirePillar({
-      x: 0, y: 0, z0: 0.36 * HB9, h: 0.92 * HB9, w: 3.1 * DK9, tipW: 3.1 * DK9,
-      hold: 1, segs: 2, sides: 16, caps: "bottom",
-    }), GOLD), 2));
-    /* ★★ 움푹 팬 속 — **패인 그릇**으로 판다(2026-09, 요청: "서포트베이 건물 윗면의 패임 …
-       다 dish를 이용하면 될거 같은데") ─────────────────────────────────────────────────
-       여태는 **어두운 원반 셋을 계단으로 쌓은 그림**이었다(테 2.6 → 1.8 → 1.0, 높이
-       1.288 → 0.96 → 0.68). 화가 차례로만 서는 2D 에서는 그것이 대접 속으로 읽히지만,
-       진짜 깊이를 가진 GL 에서는 **높이가 조금씩 다른 판 세 장**이라 계단 얼룩이다.
-       회전 포물면으로 바꾼다: 아가리는 옛 첫 원반의 테(2.6·z 1.288)이고 깊이는 옛 마지막
-       켜까지(1.288 − 0.68 = 0.608·HB9). 안으로 갈수록 짙어지는 그늘이 오목의 눈을 낸다. */
-    /* ★ 깊이는 **아가리 반지름에 견주어** 고른다(지적: "베이·커맨드·로보틱스 접시는 위성 접시같이
-       생겨야 해 — 바닥이 납작한 접시가 아니라") — 옛 계단(0.608·HB9)은 아가리(2.6·DK9)의 0.29 라
-       눌린 자국에 가까웠다. 컴샛 접시와 같은 0.39 로 깊인다(대접 밑(z 0.346)을 안 뚫는 한도 안이다). */
-    const BOWL_R9 = 2.6 * DK9;
-    const BOWL_D9 = Math.min(0.85, BOWL_R9 * 0.55);   // 대접 밑(z 0.346)을 안 뚫는 한도
-    const BOWL_Z9 = 1.288 * HB9;
+    /* ★★ **대접은 땅속으로 파인다 — 테두리는 아주 얇은 입술뿐이다**(2026-09, 요청: "접시부분의
+       테두리를 아주 얇게 하고 접시 높이 자체를 낮추기(땅속으로 패인거임 지상이 아니라)") ──────
+       여태는 받침 판 위에 **높이 0.88 짜리 드럼**을 세우고 그 꼭대기를 팠다 — 곧 지상에 올려놓은
+       대야였다. 이제 아가리를 **받침 윗면(지면 높이)** 바로 위에 두고 거기서 아래로 판다.
+       · 받침은 윗뚜껑을 안 낸다(`caps: "bottom"`) — 뚜껑이 있으면 파인 속을 통째로 덮는다
+         (커맨드·베이에서 두 번 물린 그 자리).
+       · 덮을 자리는 **고리로 깐다**(아가리 밖 ~ 받침 테) · 그 안쪽이 얇은 입술(`RIM_W9`)이다.
+       · 파인 바닥은 지면 아래(음수 z)로 내려가지만 **잉크 상자는 안 바뀐다** — 받침 앞 테가
+         화면에서 훨씬 아래라 실루엣의 바닥을 그것이 쥔다(실측: 잉크 중심 그대로). */
+    const BASE_R9 = 3.5 * DK9; const BASE_H9 = 0.36 * HB9;
+    const BOWL_R9 = 3.05 * DK9;          // 아가리 지름 키움(2026-09, 요청: "접시 지름 키우고")
+    /* ★ **아가리 위로 솟은 벽은 걷었다**(2026-09, 요청: "접시 테두리 위로 올라온 벽 제거") — 얇은
+       입술이라도 세우면 접시가 '받침 위에 얹힌 그릇'으로 읽힌다. 아가리는 **받침 윗면 그 자리**이고
+       그 둘레는 판의 고리(아래 annulus)일 뿐이다 — 곧 판에 뚫린 구멍이다. */
+    const BOWL_Z9 = BASE_H9;             // 아가리 = 받침 윗면(솟은 벽 없음)
+    const BOWL_D9 = 0.62;                // 파인 깊이(땅속으로)
+    /* ⚠ 받침·고리·발판은 **안 칠한다**(2026-09, 요청: "베이스 판 색도 기본 금색") — 끝의 `raceBase`
+       가 프로토스 바탕색을 넣으므로 판 한 장이 통째로 한 색이다(손 금색 #d4af37 을 박으면 그 부품만
+       종족색과 갈려 '딴 판'으로 읽힌다). */
+    out.push(...tagKey(spirePillar({
+      x: 0, y: 0, z0: 0, h: BASE_H9, w: BASE_R9, tipW: BASE_R9,
+      hold: 1, segs: 1, sides: 16, caps: "bottom",
+    }), 1));
+    out.push(...tagKey([
+      [annulusPath3(0, 0, BASE_H9, BASE_R9, BOWL_R9), 1] as ShapeFace,
+    ], 2));
+    /* ★ 그릇은 **종족 기본 금색**이다(2026-09, 요청: "그릇 색 프로토스 기본 금색으로 해주고 위쪽에
+       불규칙한 청동색 얼룩이 좀 있게") — 칠하지 않으면 끝의 `raceBase` 가 프로토스 바탕색을 넣는다
+       (손으로 #d4af37 을 박아 두면 그 한 부품만 종족색과 갈린다). 얼룩은 그 위에 얹는 작은 다각형
+       몇 장 — 자리·크기·꼭짓점을 다 해시로 흩어 되풀이가 안 보이게 한다. */
+    /* ★ 얼룩은 **산화한 청동**(초록 계열)이다(2026-09, 되지적: "황동얼룩이 아니라 청동색산화한
+       (초록계열)얼룩이야 얼룩은 윗쪽 경계에서 시작") — 놋쇠빛(#a9743b)은 금 바탕 위에서 그냥
+       얼룩덜룩한 금이라 '삭았다'가 안 읽힌다. 녹청(verdigris)이라야 갈린다. */
+    const BRONZE9 = "#6ea88c";
+    /** 파인 겉면 위의 한 점(역돔 단면) — 얼룩을 그 살에 눕힌다. */
+    const dishPt9 = (rho9: number, a9: number, up9 = 0.012): [number, number, number] => {
+      const u9 = Math.min(1, rho9 / BOWL_R9);
+      return [Math.cos(a9) * rho9, Math.sin(a9) * rho9,
+        BOWL_Z9 - BOWL_D9 * Math.sqrt(Math.max(0, 1 - u9 * u9)) + up9];
+    };
+    const hs9 = (n9: number): number => {
+      const v9 = Math.sin(n9 * 12.9898 + 4.1414) * 43758.5453;
+      return v9 - Math.floor(v9);
+    };
+    const blots9: ShapeFace[] = [];
+    for (let k9 = 0; k9 < 7; k9 += 1) {
+      const a09 = hs9(k9 + 1) * Math.PI * 2;
+      /* 얼룩은 **위쪽**(테 가까운 쪽)에 — 파인 속 깊은 바닥이 아니라 아가리 언저리다. */
+      /* 얼룩은 **아가리 테에서 시작해 안으로 흘러내린다** — 가운데에 흩으면 바닥의 때가 된다. */
+      const r09 = BOWL_R9 * (0.86 + 0.14 * hs9(k9 + 21));
+      const sz9 = BOWL_R9 * (0.24 + 0.17 * hs9(k9 + 41));   // 더 넓게(재요청)
+      const NP9 = 7;
+      blots9.push([polyPath3(Array.from({ length: NP9 }, (_, j9) => {
+        const th9 = (j9 / NP9) * Math.PI * 2;
+        const rr9 = sz9 * (0.62 + 0.55 * hs9(k9 * 17 + j9 + 3));
+        return dishPt9(Math.max(0.05, Math.min(BOWL_R9, r09 + Math.cos(th9) * rr9)),
+          a09 + (Math.sin(th9) * rr9) / Math.max(0.2, r09));
+      })), 1, BRONZE9] as ShapeFace);
+    }
+    /* ★ **발판마다 한 줄씩, 테에서 가운데 점으로 내려가는 짙은 녹색 선**(2026-09, 요청: "접시
+       테두리의 각 발판 중심위치에서 시작해서 중앙 점으로 연결되는 선들을 추가 색은 짙은 녹색") —
+       파인 겉면을 타고 내려가는 여섯 줄기다(발판과 **같은 방위**: (k/6)·2π + π/6). 굵기는 각이
+       아니라 **길이**로 준다(`LW9`) — 각으로 주면 가운데로 갈수록 실낱이 된다. */
+    const LINE9 = "#2f6b4a"; const LW9 = 0.07; const LN9 = 10;
+    const lines9: ShapeFace[] = [];
+    for (let k9 = 0; k9 < 6; k9 += 1) {
+      const a9 = (k9 / 6) * Math.PI * 2 + Math.PI / 6;
+      const lo9: [number, number, number][] = []; const hi9: [number, number, number][] = [];
+      for (let j9 = 0; j9 <= LN9; j9 += 1) {
+        const rho9 = Math.max(0.03, BOWL_R9 * (1 - j9 / LN9));
+        const dth9 = LW9 / Math.max(0.12, rho9);
+        lo9.push(dishPt9(rho9, a9 - dth9, 0.016));
+        hi9.push(dishPt9(rho9, a9 + dth9, 0.016));
+      }
+      lines9.push([polyPath3([...hi9, ...lo9.slice().reverse()]), 1, LINE9] as ShapeFace);
+    }
     out.push(...tagKey([
       ...dishFaces9({
         x: 0, y: 0, z: BOWL_Z9, r: BOWL_R9, depth: BOWL_D9, seg: 16, dome: true,
-        fill: GOLD, shade0: 0.3, shade: 0.09,
+        shade0: 0.3, shade: 0.09,
       }),
-      /* ★ 가운데 보석은 **아주 작은 반구**다(요청) — 여태 이 자리는 높이 2.2짜리 뾰족한
-         결정 기둥이라, 우묵한 대접 속에서 솟아 나와 이 건물의 실루엣을 반이나 차지했다.
-         우묵한 속에 알 하나가 박힌 그림이 사진의 그것이다: 대접 맨 안쪽 계단(z 0.85·반지름 1.0)
-         위에 반지름 0.34짜리 돔 하나만 얹는다. 빛깔은 그대로 청록 발광이다. */
-      // 보석은 **새 바닥**에 앉는다 — 옛 계단의 z(0.68·HB9)에 두면 그릇 속 허공에 뜬다.
-      ...paintBase(domeFaces3(0, 0, 0.34 * DK9, 0.208 * HB9, BOWL_Z9 - BOWL_D9), glowLit("#c9fff6", CYAN)),
+      ...lines9,
+      ...blots9,
+      /* ★ 가운데 보석은 **아주 작은 반구**다(요청) → **2배**(2026-09, 요청: "베이(접시 가운데 보석
+         크기 2배로 늘리기)") — 파인 속 맨 아래에 앉는다. */
+      ...paintBase(domeFaces3(0, 0, 0.68 * DK9, 0.416 * HB9, BOWL_Z9 - BOWL_D9), glowLit("#c9fff6", CYAN)),
     ], 3));
     /* ② 발판 여섯 — 몸 둘레에 **땅에 붙은 넓은 판**(재요청: 꽃잎 말고 발판처럼).
        ★ 사다리꼴을 **뒤집는다**(재요청: "바깥쪽이 좁고 안쪽이 넓은 사다리꼴에 바깥쪽 모서리
          둥글게") — 여태는 바깥이 더 넓어(안 1.05 · 밖 1.45) 판이 꽃잎처럼 벌어졌다. 안을 넓히고
          (1.5) 밖을 좁히면(0.85) 몸에서 뻗어 나가는 받침다리로 읽힌다. 바깥 끝은 점 넷을 호에
          찍어 둥글린다 — 모서리를 각지게 두면 이 크기에서 못처럼 뾰족해 보인다. */
+    /** 팔이 서는 발판 셋 — 뒤쪽(방위 210·270·330도). 그 셋은 알약 대신 파이프 뿌리를 든다. */
+    const ARM_K9 = [3, 4, 5];
+    /** 팔의 뿌리 자리 — [cx, cy, 발판 알약 자리의 반지름(DK9 앞), 발판 윗면]. ③ 이 받아 쓴다. */
+    const armRoot9: [number, number, number, number][] = [];
     for (let k9 = 0; k9 < 6; k9 += 1) {
       const a9 = (k9 / 6) * Math.PI * 2 + Math.PI / 6;
       const cx9 = Math.cos(a9); const cy9 = Math.sin(a9);
@@ -14655,50 +14735,264 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const at9 = (r9: number, w9: number): [number, number] => [cx9 * r9 * DK9 + ux9 * w9 * DK9, cy9 * r9 * DK9 + uy9 * w9 * DK9];
       /* 둘레 판 0.8배(요청) — 제 가운데(반지름 4.15)를 축으로 줄인다: 반지름 방향·접선 반폭 모두 0.8. */
       const SK9 = 0.8;
+      /** ★ 좌우(접선)만 **1.25배**(2026-09, 요청: "패드 좌우를 25프로 늘리기") — 반지름 자(sr9)는 안 탄다. */
+      /* ★ 이웃끼리 **맞닿게** 한 단 더(2026-09, 요청: "발판들도 하나의 부품처럼 연결돼있고") —
+         뿌리 반지름 3.36 에서 이웃 사이 반각의 호가 1.76 이라 1.5×1.16 = 1.74 면 거의 맞물린다. */
+      const PW9 = SK9 * 1.25 * 1.16;
+      /** 받침과 **같은 두께** — 턱 없이 한 덩이로 이어진다(요청: "심리스하게"). */
+      const PAD_H9 = BASE_H9;
       // 앞뒤 길이(반지름 방향)만 0.8배 더(재요청) → 또 0.8배(재재요청) — 폭(w)은 SK9 그대로.
       const sr9 = (r9: number): number => 4.15 + (r9 - 4.15) * SK9 * 0.8 * 0.8;
-      out.push(...tagKey(paintBase(prismZFaces([
-        at9(sr9(2.6), -1.5 * SK9), at9(sr9(2.6), 1.5 * SK9),
-        at9(sr9(5.05), 0.85 * SK9),
-        at9(sr9(5.45), 0.62 * SK9), at9(sr9(5.68), 0.33 * SK9),
-        at9(sr9(5.75), 0), at9(sr9(5.68), -0.33 * SK9), at9(sr9(5.45), -0.62 * SK9),
-        at9(sr9(5.05), -0.85 * SK9),
-      ], 0, 0.256, true), GOLD), K(cx9 * 4.4, cy9 * 4.4, 0.4)));
+      /* ★★ **앞(바깥)을 자른다 — 통째로 줄이는 것이 아니다**(2026-09, 요청: "로보베이 패드 앞뒤길이
+         25프로 축소" → 되지적: "길이가 아니라 앞을 자르기" · "모서리 라운딩은 유지") ─────────────
+         반지름 자(sr9)에 0.75 를 곱하면 판이 **닮은꼴로 작아져** 뿌리까지 몸에서 떨어진다. 뿌리
+         (`PIN9`)는 못 박고 바깥 끝만 25% 당겨야 '앞을 자른' 것이다. 그리고 잘린 자리에는 **옛 끝의
+         라운딩을 그 꼴 그대로** 다시 얹는다(잘린 자리에서 straight 하게 끝내면 뭉툭한 삽이 된다).
+         · `RND_PTS9` = 옛 끝(5.05~5.75)의 [앞으로 나간 몫, 폭 비] — 그 자리의 곧은 테이퍼 폭
+           (`W09`)에 비를 곱하므로, 끝을 어디로 옮겨도 라운딩의 꼴이 안 변한다. */
+      const PIN9 = 2.6;                                     // 뿌리(안쪽) — 안 움직인다
+      const POUT9 = PIN9 + (5.75 - PIN9) * 0.9;             // 앞을 25% 자른 뒤 다시 1.2배(요청)
+      const RND9 = 0.7;                                     // 모서리 라운딩이 먹는 앞 몫
+      /** 곧은 테이퍼의 그 자리 폭 — 옛 (2.6, 1.5)~(5.05, 0.85) 선이다. */
+      const wAt9 = (r9: number): number => 1.5 + ((0.85 - 1.5) * (r9 - PIN9)) / (5.05 - PIN9);
+      const R09 = POUT9 - RND9; const W09 = wAt9(R09);
+      /* ★ **앞면은 직선이고 앞모서리만 둥글다**(2026-09, 되지적: "패드 앞면은 라운딩에서 제외돼서
+         직선 · 앞모서리") — 옛 끝은 한 점으로 여며진 **삽날**이었다. 앞 끝에 반폭 `PFW9` 의 곧은
+         변을 남기고, 거기까지 오는 두 모서리만 4분 타원(반지름 반경 RND9 · 폭 W09−Wf)으로 굴린다. */
+      const PFW9 = 0.42 * W09;                              // 앞 곧은 변의 반폭
+      /** 모서리 한 점 — a 0(테이퍼 끝) → π/2(앞 변). */
+      const corner9 = (a9: number): [number, number] =>
+        [POUT9 - RND9 * (1 - Math.sin(a9)), PFW9 + (W09 - PFW9) * Math.cos(a9)];
+      const CPTS9 = [0, 1, 2, 3].map((k9) => corner9((k9 / 3) * (Math.PI / 2)));
+      out.push(...tagKey(prismZFaces([
+        at9(sr9(PIN9), -1.5 * PW9), at9(sr9(PIN9), 1.5 * PW9),
+        ...CPTS9.map(([r9, w9]) => at9(sr9(r9), w9 * PW9)),
+        ...CPTS9.slice().reverse().map(([r9, w9]) => at9(sr9(r9), -w9 * PW9)),
+      ], 0, PAD_H9, true), K(cx9 * 4.4, cy9 * 4.4, 0.4)));
+      /* ★ **발판마다 가로로 누운 임자색 반쪽 알약**(2026-09, 요청: "서포트베이 둘레 발판들 위에
+         가로로 알약모양 임자색 부품 얹기(단 위쪽 반만 잘라진 형태로)") ─────────────────────
+         발판 윗면(z 0.256) 위에 **접선 방향**으로 눕힌 알약이다. 알약은 `widthOf` 가 두 끝
+         `PF9` 몫에서 원호로 여미는 관이고(가운데는 굵기가 안 변한다 = 캡슐), `cutFace` 로
+         **발판 윗면 아래를 통째로 벤다** — 그래서 '위쪽 반만' 남는다.
+         ⚠ 뚜껑(caps)은 `cutFace` 를 안 지난다(그 규약) — 두 끝이 점으로 여며지므로 `caps: "none"`
+           이면 뚜껑이 애초에 없다. 벤 밑은 발판에 닿아 있어 위에서는 안 보인다.
+         ⚠ 칠하지 않는다 — 아래 `raceBase` 의 accent 로 넘겨 임자색을 받는다. */
+      const PR9 = 0.34;                       // 알약 반지름(발판 자 · DK9 를 탄다)
+      const PHL9 = 0.92 * PW9;                // 반 길이 — 판이 넓어진 몫을 그대로 탄다
+      const PZ9 = PAD_H9;                     // 발판 윗면
+      const PF9 = Math.min(0.45, (PR9 / (2 * PHL9)));   // 끝을 여미는 몫
+      const [pax9, pay9] = at9(sr9(3.5), -PHL9);
+      const [pbx9, pby9] = at9(sr9(3.5), PHL9);
+      /** 알약의 한 토막 — 굵기 자(widthOf)는 **통짜 알약의 것**을 그대로 쓴다. */
+      const pill9 = (u09: number, u19: number, fill9?: string): ShapeFace[] => spirePillar({
+        x: 0, y: 0, h: 0.8, w: 1, segs: Math.max(3, Math.round((u19 - u09) * 16)),
+        sides: 10, caps: "none", trueNormal: true, ref: [0, 0, 1],
+        path: (t9: number): [number, number, number] => {
+          const u9 = u09 + (u19 - u09) * t9;
+          return [pax9 + (pbx9 - pax9) * u9, pay9 + (pby9 - pay9) * u9, PZ9];
+        },
+        widthOf: (t9: number): number => {
+          const u9 = u09 + (u19 - u09) * t9;
+          const e9 = u9 < PF9 ? (PF9 - u9) / PF9 : u9 > 1 - PF9 ? (u9 - (1 - PF9)) / PF9 : 0;
+          return PR9 * DK9 * Math.sqrt(Math.max(0.0004, 1 - e9 * e9));
+        },
+        cutFace: (_x9: number, _y9: number, z9: number): number => z9 - PZ9,
+        ...(fill9 ? { fill: fill9 } : {}),
+      });
+      /* ★ 가운데 **절반은 금색**이다(2026-09, 요청: "로보베이 알약추가한거의 가운데는 금색으로
+         칠해야해 전체 좌우 길이의 1/2") — 토막 셋(임자 0~0.25 · 금 0.25~0.75 · 임자 0.75~1)이
+         **같은 굵기 자**를 나눠 쓰므로 이음매에 턱이 없다. 금 토막만 칠하고 두 끝은 안 칠해
+         (accent) 임자색을 받는다. */
+      const pk9 = K(cx9 * 4.4, cy9 * 4.4, 0.6);
+      /* ★ **뒤쪽 셋에는 알약 대신 파이프 뿌리가 선다**(2026-09, 요청: "뒤쪽 발판 세개의 알약을
+         대신해서 파이프 뿌리가 붙는거네 그 위치에") — 그 셋은 아래 ③ 에서 제 뿌리(반 자른 드럼통)를
+         같은 자리에 세운다. 여기서 알약까지 얹으면 둘이 겹친다. */
+      if (ARM_K9.includes(k9)) { armRoot9.push([cx9, cy9, sr9(3.5), PZ9]); continue; }
+      pads.push(...tagKey(pill9(0, 0.25), pk9), ...tagKey(pill9(0.75, 1), pk9));
+      out.push(...tagKey(pill9(0.25, 0.75, GOLD), pk9));
     }
-    // ③ 뒤에서 솟는 파이프 셋 — **부채살**(재요청): 뒤 가운데 한 점에서 나와 오를수록 옆으로 벌어진다.
-    // 날개 셋 0.6배(요청) — 파이프 높이·판 길이·굵기가 sc9로 함께 준다. 뿌리 자리도 원판에 맞춰 안으로.
-    // 부채살을 더 벌린다(재요청) — 바깥 파이프의 끝 x를 본체 배수(DK9)와 떼어 FAN9로 잡는다(뿌리는 여전히 가운데 근처).
-    const FAN9 = 2.7 * 0.8 * 1.5;
-    for (const [px9, sc0] of [[-FAN9, 0.85], [0, 1], [FAN9, 0.85]] as [number, number][]) {
-      const sc9 = sc0 * 1.08;   // 0.6 → 0.9(요청: 파이프+방패판 1.5배) → 1.08(재요청: 1.2배 더)
-      const H9 = 4 * sc9;
-      const pipe = (t9: number): [number, number, number] => [
-        px9 * (0.06 + 0.94 * t9), -2.3 * DK9 + 1.3 * t9 * t9, 0.64 + H9 * Math.sin(t9 * Math.PI * 0.5),
-      ];
+    /* ③ **팔 셋 — 뒤쪽 발판에서 나와 살짝 바깥으로 기울어 오르다 구부러져 방패를 문다**
+       (2026-09, 보기 그림 + 요청 넷: "뒤쪽 발판 세개의 알약을 대신해서 파이프 뿌리가 붙는거네 그
+       위치에" · "파이프의 세 뿌리 반구있잖아 반구가 아니라 드럼통 반 자른형태야" · "파이프는 처음에
+       살짝 바깥으로 기울어져서 올라가고 구부러져서 방패가 붙는 형태" · "팔과 방패팁은 좌우로 꺾임없이
+       달린상태로 중앙보석을 향하게") ────────────────────────────────────────────────────────
+       · **자리**: 뒤쪽 발판 셋의 알약 자리(`armRoot9`). 그래서 팔이 제 발판을 딛고 선다.
+       · **평면**: 팔은 그 발판의 **반지름 평면** 안에서만 움직인다(접선 몫 0) — 좌우로 꺾이는 데가
+         한 군데도 없고, 셋이 저절로 가운데(보석)를 향한다.
+       · **파이프**: 반지름이 뿌리에서 `OUT9` 만큼 **바깥으로 부풀었다가** 안으로 들어오는 2차 베지에다
+         (곧 처음엔 바깥으로 기울어 오르고 마루에서 구부러져 안으로 온다).
+       · **뿌리**: 반구가 아니라 **반 자른 드럼통** — 접선 방향으로 누운 원기둥을 발판 윗면에서 벤다.
+         두 끝은 반원 뚜껑을 손수 덮는다(`cutFace` 는 뚜껑을 안 지나므로 caps 로는 못 막는다).
+       · **방패**: 파이프 끝에서 곧게 내려오며 안쪽으로 조금 더 모인다. */
+    const ARM_H9 = 2.95;       // 파이프가 오르는 높이(재지적: "파이프가 왜케 길어짐")
+    /* ★ 더 뒤로 젖히고 더 **U 자**로 굽는다(2026-09, 재요청: "좀더 뒤로 기울여서 시작하고 더
+       U자로 굽어지게 하기") — 조종점을 뿌리 밖으로 더 밀면 오르는 첫 자락이 뒤로 눕고, 호를
+       마루 너머로 더 돌리면(`ARM_ARC9`) 끝이 안쪽으로 되말려 U 가 된다. */
+    const ARM_OUT9 = 2.75;     // 처음에 뒤로 젖혀 오르는 몫 — 클수록 관 자체가 급히 휜다
+    const ARM_R19 = 2.35;      // 파이프 끝의 반지름 — 셋이 **덜 모이게**(재요청: "방패끼리 멀게")
+    /* ⚠ **'꺾임'은 관 자체가 휜 정도다**(2026-09, 되지적: "꺽인정도는 방패팁이 붙는 곳 말하는게
+       아니라 파이프 자체가 휜 정도를 말하는거") — 그래서 손잡이가 둘이다: `ARM_OUT9`(조종점을 밖으로
+       밀어 꼭대기를 급히 꺾는다)와 `ARM_ARC9`(마루를 넘어 되말리는 몫). 자락이 길어지는 것은 높이
+       `ARM_H9` 로 따로 줄인다 — 셋을 한 값으로 묶으면 '더 휘게'와 '더 짧게'가 서로를 지운다. */
+    const ARM_ARC9 = 1.44;     // 마루를 넘어 되말리는 몫 — 클수록 관이 더 휜다
+    /* 방패 길이 — 끝이 보석을 겨눈 채 **닿지는 않을 만큼**이다(끝의 반지름이 0.7 남는다).
+       파이프 높이를 줄이면 그만큼 더 깊이 내려가므로 이 값도 함께 본다. */
+    const POD_L9 = 2.0;
+    const RT_R9 = 0.46;        // 뿌리 드럼의 반지름
+    const RT_HL9 = 0.95;       // 뿌리 드럼의 반 길이
+    for (const [cx9, cy9, r09, pz9] of armRoot9) {
+      const ux9 = -cy9; const uy9 = cx9;
+      /** 그 팔의 반지름 평면 위 한 점 — 접선 몫 w9 는 뿌리 드럼에만 쓴다. */
+      const P9 = (r9: number, z9: number, w9 = 0): [number, number, number] =>
+        [cx9 * r9 * DK9 + ux9 * w9 * DK9, cy9 * r9 * DK9 + uy9 * w9 * DK9, z9];
+      const bz29 = (t9: number, v09: number, v19: number, v29: number): number => {
+        const m9 = 1 - t9; return m9 * m9 * v09 + 2 * t9 * m9 * v19 + t9 * t9 * v29;
+      };
+      const pipe9 = (t9: number): [number, number, number] => P9(
+        bz29(t9, r09, r09 + ARM_OUT9 * 1.7, ARM_R19),
+        pz9 + ARM_H9 * Math.sin(t9 * Math.PI * 0.5 * ARM_ARC9),
+      );
+      const ak9 = K(cx9 * 4.4, cy9 * 4.4, 3);
+      // ⓐ 파이프 — 가는 관.
       out.push(...tagKey(paintBase(spirePillar({
-        x: 0, y: 0, h: 0.8, w: 0.28 * 0.6, tipW: 0.28 * 0.6, segs: 8, sides: 6, hold: 1, caps: "none",
-        path: pipe,
-      }), GOLD_D), K(px9 * 0.5, -1.2, 3)));
-      // 판 — 파이프 끝에서 앞·아래로 매달린 긴 둥근 세모(위가 넓고 아래로 뾰족).
-      const [tx9, ty9, tz9] = pipe(1);
-      const L9 = 3.2 * sc9; const L9z9 = 2.56 * sc9; /* z용 쌍둥이(model-z-scale ×0.8) */
+        x: 0, y: 0, h: 0.8, w: 0.3, tipW: 0.3, segs: 12, sides: 8, hold: 1, caps: "none",
+        path: pipe9,
+      }), GOLD_D), ak9));
+      /* ⓑ 감싸개 — 파이프의 2/3 을 도는 금색 통(아래가 가늘고 위가 두껍다) + 위 끝의 임자색 띠. */
+      const SLV_T9 = 0.46; const SLV_B9 = SLV_T9 - 0.08;   // 감싸개 높이 축소(재요청)
+      const sleeve9 = (u09: number, u19: number, fill9?: string): ShapeFace[] => spirePillar({
+        x: 0, y: 0, h: 0.8, w: 1, segs: Math.max(3, Math.round((u19 - u09) * 24)),
+        sides: 10, caps: "none", trueNormal: true,
+        path: (t9: number): [number, number, number] => pipe9(u09 + (u19 - u09) * t9),
+        widthOf: (t9: number): number => {
+          const u9 = u09 + (u19 - u09) * t9;
+          return 0.30 + 0.24 * (u9 / SLV_T9);
+        },
+        ...(fill9 ? { fill: fill9 } : {}),
+      });
+      out.push(...tagKey(sleeve9(0.04, SLV_B9, GOLD), ak9 + 0.1));
+      /* ★ 감싸개의 **윗면을 막는다**(2026-09, 요청: "파이프 감싸개 윗면 임자색으로 막아주기") —
+         `caps: "none"` 이라 끝이 뚫려 관 속이 비쳤다. 그 자리의 단면(접선에 수직인 원반)을 손수
+         덮는다 — spirePillar 의 틀과 같은 자(u = ẑ 를 접선에 수직화 · v = T×u)로 낸다. */
+      /** 그 t 에서 파이프에 수직인 두 축 — spirePillar 의 틀과 같은 자(u = ẑ 수직화 · v = T×u). */
+      const frame9 = (t9: number): [number[], number[]] => {
+        const e9 = 0.004;
+        const p19 = pipe9(Math.max(0, t9 - e9)); const p29 = pipe9(Math.min(1, t9 + e9));
+        const d9 = [p29[0] - p19[0], p29[1] - p19[1], p29[2] - p19[2]];
+        const l9 = Math.hypot(d9[0], d9[1], d9[2]) || 1;
+        const T9 = [d9[0] / l9, d9[1] / l9, d9[2] / l9];
+        const dot9 = T9[2];
+        let u9 = [-T9[0] * dot9, -T9[1] * dot9, 1 - T9[2] * dot9];
+        const ul9 = Math.hypot(u9[0], u9[1], u9[2]) || 1;
+        u9 = [u9[0] / ul9, u9[1] / ul9, u9[2] / ul9];
+        return [u9, [T9[1] * u9[2] - T9[2] * u9[1], T9[2] * u9[0] - T9[0] * u9[2],
+          T9[0] * u9[1] - T9[1] * u9[0]]];
+      };
+      const slvCap9 = ((): ShapeFace[] => {
+        const [u9, v9] = frame9(SLV_T9);
+        const c9 = pipe9(SLV_T9); const r9 = 0.30 + 0.24;
+        return [bodyFace(polyPath3(Array.from({ length: 10 }, (_, j9) => {
+          const th9 = (j9 / 10) * Math.PI * 2 + Math.PI / 10;
+          const cu9 = Math.cos(th9) * r9; const sv9 = Math.sin(th9) * r9;
+          return [c9[0] + u9[0] * cu9 + v9[0] * sv9, c9[1] + u9[1] * cu9 + v9[1] * sv9,
+            c9[2] + u9[2] * cu9 + v9[2] * sv9] as [number, number, number];
+        })))];
+      })();
+      /* ★ **꺾인 뒤 자락의 한가운데를 보석 구슬 셋이 두른다**(2026-09, 요청: "각 파이프 꺾인 후
+         부분의 중앙쯤에 작은 보석구슬 세개씩 둘러 붙이기") — 자락(마루 넘어 t 0.75~1)의 가운데
+         t 0.88 에서 파이프에 **수직인 틀**(frame9)로 120도마다 하나씩 살에 반쯤 물려 앉힌다. */
+      {
+        const BT9 = 0.88; const BR9 = 0.085; const BOUT9 = 0.30 + BR9 * 0.55;   // 구슬 1/2 로(재요청)
+        const [u9, v9] = frame9(BT9); const c9 = pipe9(BT9);
+        for (let j9 = 0; j9 < 3; j9 += 1) {
+          const th9 = (j9 / 3) * Math.PI * 2 + Math.PI / 6;
+          const cu9 = Math.cos(th9) * BOUT9; const sv9 = Math.sin(th9) * BOUT9;
+          out.push(...tagKey(sphereFaces3(
+            c9[0] + u9[0] * cu9 + v9[0] * sv9, c9[1] + u9[1] * cu9 + v9[1] * sv9,
+            c9[2] + u9[2] * cu9 + v9[2] * sv9, BR9, glowLit("#c9fff6", CYAN), false,
+          ), ak9 + 0.3));
+        }
+      }
+      pads.push(...tagKey([...sleeve9(SLV_B9, SLV_T9), ...slvCap9], ak9 + 0.1));
+      /* ⓒ 뿌리 — 접선으로 누운 **반 자른 드럼통**(임자색). 두 끝은 반원 뚜껑을 손수 덮는다. */
+      {
+        const cA9 = P9(r09, pz9, -RT_HL9); const cB9 = P9(r09, pz9, RT_HL9);
+        const drum9 = spirePillar({
+          x: 0, y: 0, h: 0.8, w: 1, segs: 2, sides: 12, caps: "none", trueNormal: true,
+          ref: [0, 0, 1],
+          path: (t9: number): [number, number, number] =>
+            [cA9[0] + (cB9[0] - cA9[0]) * t9, cA9[1] + (cB9[1] - cA9[1]) * t9, pz9],
+          widthOf: (): number => RT_R9 * DK9,
+          cutFace: (_x9: number, _y9: number, z9: number): number => z9 - pz9,
+        });
+        /* ⚠ 뚜껑의 지름 축은 **반지름 방향**이다(재지적: "파이프 받침 드럼통 좌우 막기") — 드럼은
+           접선으로 눕고(`ref [0,0,1]`) 그 단면은 u = ẑ · v = T×u = **반지름**이라, 접선(ux9·uy9)으로
+           반원을 그리면 뚜껑이 드럼과 직각으로 서서 아무것도 안 막는다. */
+        const half9 = (c9: [number, number, number]): ShapeFace =>
+          bodyFace(polyPath3(Array.from({ length: 9 }, (_, j9) => {
+            const th9 = (j9 / 8) * Math.PI;
+            return [c9[0] + cx9 * Math.cos(th9) * RT_R9 * DK9,
+              c9[1] + cy9 * Math.cos(th9) * RT_R9 * DK9,
+              c9[2] + Math.sin(th9) * RT_R9 * DK9] as [number, number, number];
+          })));
+        pads.push(...tagKey([...drum9, half9(cA9), half9(cB9)], ak9 - 0.2));
+      }
+      /* ⓓ 방패 — 파이프 끝에서 곧게 내려오며 안으로 조금 더 모인다. 위 두 모서리는 둥글다. */
+      const [ptx9, pty9, ptz9] = pipe9(1);
+      /* ★ 방패의 축은 **접시 정중앙(보석)을 겨눈다**(2026-09, 요청: "방패팁의 끝은 접시 정중앙을
+         향하게") — 파이프 끝에서 보석 자리(반지름 0 · z = BOWL_Z9 − BOWL_D9)로 곧게 잇는 선이다.
+         손으로 고른 안쪽 몫(옛 POD_DR9)을 걷고 그 선의 비로 낸다 — 파이프 끝을 옮겨도 늘 겨눈다. */
+      /* ★ 방패의 축은 **늘 접시 정중앙의 보석을 겨눈다**(2026-09, 되지적: "방패팁 각도는 아까가
+         맞아 원복" · "방패팁 끝은 항상 접시 정중앙 보석을 향해야함") — 한때 끝끼리 틈을 내려고
+         겨누는 점을 작은 원 위로 옮겼는데(POD_AIM9), 그러면 **각이 틀어진다**. 각은 보석을 그대로
+         겨누고, **틈은 길이가 낸다**: 방패는 보석까지 다 내려가지 않고 `POD_L9` 만큼만 간다
+         (지금 자로 끝의 반지름이 0.7 남아 셋 사이가 벌어진다). */
+      const GZ9 = BOWL_Z9 - BOWL_D9;
+      const DZ9 = Math.max(0.3, ptz9 - GZ9);
+      const pod9 = (t9: number): [number, number, number] => {
+        const r9 = ARM_R19 * (1 - (POD_L9 * t9) / DZ9);
+        return [cx9 * r9 * DK9, cy9 * r9 * DK9, ptz9 - POD_L9 * t9];
+      };
+      void ptx9; void pty9;
       out.push(...tagKey([
         ...paintBase(spirePillar({
-          x: 0, y: 0, h: 0.8, w: 1, segs: 5, sides: 8, oval: 0.22, caps: "none", trueNormal: true,
-          ref: [1, 0, 0],
-          // 판은 아래로 갈수록 **안쪽으로 모인다**(재요청: 반 방사형) — x가 끝에서 45% 안으로.
-          path: (t9: number): [number, number, number] => [tx9 * (1 - 0.45 * t9), ty9 + 0.3 * t9, tz9 - L9z9 * t9],
-          widthOf: (t9: number): number => 0.9 * sc9 * Math.sqrt(Math.max(0.02, 1 - t9 * t9)),
+          x: 0, y: 0, h: 0.8, w: 1, segs: 9, sides: 8, oval: 0.42, caps: "none", trueNormal: true,
+          ref: [ux9, uy9, 0],
+          path: pod9,
+          widthOf: (t9: number): number => {
+            const TC9 = 0.17;
+            const c9 = t9 < TC9 ? Math.sqrt(Math.max(0, 1 - ((TC9 - t9) / TC9) ** 2)) : 1;
+            return 0.62 * Math.sqrt(Math.max(0.02, 1 - t9 * t9)) * Math.max(0.16, c9);
+          },
         }), GOLD),
-        // 청록 빛줄 — 판 앞면 가운데 세로 한 줄(앞을 볼 때만).
-        ...(facingRatio(0, 1) > 0.1 ? [[polyPath3([
-          // 판의 기울기를 따라간다(재지적: 데칼 각도) — x는 판 경로 tx9·(1−0.45t)와 같은 식.
-          [tx9 * (1 - 0.45 * 0.09) - 0.12, ty9 + 0.28, tz9 - 0.24], [tx9 * (1 - 0.45 * 0.09) + 0.12, ty9 + 0.28, tz9 - 0.24],
-          [tx9 * (1 - 0.45 * 0.8) + 0.08, ty9 + 0.55, tz9 - L9 * 0.64], [tx9 * (1 - 0.45 * 0.8) - 0.08, ty9 + 0.55, tz9 - L9 * 0.64],
-        ]), 1, glowLit("#c9fff6", CYAN)] as ShapeFace] : []),
-      ], K(tx9, ty9, 3.5)));
+        // 청록 빛줄 — 방패 바깥 낯 가운데의 세로 한 줄.
+        /* ⚠⚠ 띠의 띄움은 **그 자리 방패의 반두께**여야 한다(2026-09, 지적: "방패팁의 발광 세로 띠
+           어디갔지") — 방패는 `oval 0.42` 로 **반지름 쪽이 눌린 판**이라 그 두께가 `굵기 × 0.42` 다
+           (꼭대기 0.26). 손 값 0.30·DK9 = 0.23 은 그보다 얇아 띠가 통째로 **살 속에 묻혔다**.
+           자리마다 제 두께를 물어 그 밖 0.03 에 얹는다('눌린 살에 띠를 두를 때'의 그 규약). */
+        ...((): ShapeFace[] => {
+          const podW9 = (t9: number): number => {
+            const TC9 = 0.17;
+            const c9 = t9 < TC9 ? Math.sqrt(Math.max(0, 1 - ((TC9 - t9) / TC9) ** 2)) : 1;
+            return 0.62 * Math.sqrt(Math.max(0.02, 1 - t9 * t9)) * Math.max(0.16, c9);
+          };
+          /* ⚠⚠ 띠는 **양쪽 낯에 다** 얹는다 — 이 방패들은 **뒤쪽 발판** 위에 서므로 바깥 낯이
+             카메라를 등진다(실측: 한쪽만 얹었더니 어느 각에서도 안 보였다). 두 장이면 어느 각에서도
+             한 장은 앞이다(옛 `facingRatio` 문은 메시를 굽는 동안 늘 참이라 못 쓴다). */
+          const at29 = (t9: number, hw9: number, sg9: number, nz9: number): [number, number, number] => {
+            const [px9, py9, pz09] = pod9(t9);
+            const o9 = (podW9(t9) * 0.42 + 0.03) * nz9;
+            return [px9 + cx9 * o9 + sg9 * ux9 * hw9, py9 + cy9 * o9 + sg9 * uy9 * hw9, pz09];
+          };
+          const col9 = glowLit("#9cfff0", "#2fc7b2");
+          return ([1, -1] as const).map((nz9) => [polyPath3([
+            at29(0.14, 0.17, -nz9, nz9), at29(0.78, 0.11, -nz9, nz9),
+            at29(0.78, 0.11, nz9, nz9), at29(0.14, 0.17, nz9, nz9),
+          ]), 1, col9] as ShapeFace);
+        })(),
+      ], ak9 + 0.5));
     }
-    return raceBase(out, "toss");
+    return raceBase(out, "toss", pads);
   }),
   observatory: () => withModelSpin(270, () => {
     const GOLD = "#d4bd3c";
@@ -14763,7 +15057,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           }),
           ...domeFaces3(px, py, 1.05, 0.92, 0.64 + ph),
         ]
-        : domeFaces3(px, py, 0.72, 0.64, 0.64 + ph), CYAN),
+        : domeFaces3(px, py, 0.72, 0.64, 0.64 + ph), glowLit("#c9fffb", CYAN)),
       key + 1));
       /* (걷어냄) 랜턴 위의 흰 광점 원반 — 2026-09, 요청: "옵저버토리, 플릿비컨 광택을 부품으로 붙인 거
          제거". 캔버스만 붓이던 때 '둥글다'를 말하던 덧칠인데, GL 에서는 요잉을 돌려도 안 따라 도는 흰
@@ -14952,14 +15246,49 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 돔 위 얹힘이라 돔 키(반지름 몫)를 이기게 보정(지적: 기둥 가려짐 오류).
       tagKey(paintBase(boxFaces3(0, POST_R9, 0.7, 0.7, 1.68, 2), GOLD9),
         depthNow(0, POST_R9) + 2.6));
-    /** 기둥 안쪽 면의 개인색 데칼 — 가운데 쪽으로 민 얇은 판. 칠하지 않는다. */
+    /** 기둥 안쪽 면의 **보석** 데칼 — 가운데 쪽으로 민 얇은 판. 연구 중이면 밝아진다. */
+    /* ★ 임자색 → 보석색 + 발광(2026-09, 요청: "현재 임자색인 기둥 안쪽 데칼을 보석색으로 변경하고
+       발광효과 추가") — 이 건물의 '켜짐'을 말할 자리가 여기다. 임자색은 아래 두 자리로 옮겼다
+       (몸체 위쪽 고리 · 네 발 끝). */
     const postDecal = (ang: number): ShapeFace[] => withModelSpin(-ang, () => {
       const dr9 = POST_R9 - 0.21;
       /* 기둥(0.7각·높이 2.1)에 **박힌 판**으로 읽히게 — 밖으로 나오는 몫이 0.06뿐이라
          제2의 기둥이 아니라 안쪽 면에 낸 무늬가 된다. 판이 너무 얇으면 사선에서 사라져
-         개인색이 통째로 안 보이므로, 얇게가 아니라 **작게** 만든다. */
-      return tagKey(boxFaces3(0, dr9, 0.4, 0.4, 0.92, 2.4), depthNow(0, dr9) + 3.3);
+         보석이 통째로 안 보이므로, 얇게가 아니라 **작게** 만든다. */
+      return tagKey(paintBase(boxFaces3(0, dr9, 0.4, 0.4, 0.92, 2.4),
+        glowLit("#c9fff6", "#5aecd8")), depthNow(0, dr9) + 3.3);
     });
+    /* ★ **몸체 위쪽의 임자색 고리 데칼**(2026-09, 요청) — 돔(반지름 2.6 · 높이 1.76 · 밑 0.64)의
+       윗배를 두르는 띠다. `faceBand9` 로 **돔 살을 그대로 타는 네모 스무 장**이라(그 ★★ 규약)
+       어느 각에서도 살에 붙어 돌고 데칼 편향을 몸과 같이 받는다. 칠하지 않아 임자색이 든다. */
+    const DOM_R9 = 2.6; const DOM_H9 = 1.76; const DOM_Z9 = 0.64;
+    /** 그 높이의 돔 반지름 — 살 밖 3%. */
+    const domR9 = (z9: number): number =>
+      DOM_R9 * Math.sqrt(Math.max(0, 1 - ((z9 - DOM_Z9) / DOM_H9) ** 2)) * 1.03;
+    const domeRing9 = (): ShapeFace[] => tagKey(faceBand9(20, 1.75, 2.05, (z9, i9) => {
+      const a9 = (i9 / 20) * Math.PI * 2 + Math.PI / 20;
+      return [Math.cos(a9) * domR9(z9), Math.sin(a9) * domR9(z9), z9];
+    }), 0.4);
+    /* ★ **네 발 끝 1/4 도 임자색**(2026-09, 요청) — `hornFaces` 는 밑(반지름 w/2)에서 끝(점)으로
+       가늘어지는 뿔이라 토막을 못 가른다. 그래서 그 축 위 t 0.75~1 구간을 **조금 굵게**(1.06배)
+       덧씌운 고깔을 하나 더 세운다 — 칠하지 않아 임자색이 들고, 굵기가 뿔의 그 자리 굵기를
+       그대로 따라가므로 테가 안 드러난다. */
+    const armTip = (ang: number): ShapeFace[] => {
+      const a9 = (ang * Math.PI) / 180;
+      const bx9 = Math.sin(a9) * 1.1; const by9 = Math.cos(a9) * 1.1; const bz9 = 1.36;
+      const tx9 = Math.sin(a9) * 4.7; const ty9 = Math.cos(a9) * 4.7; const tz9 = 0.12;
+      const W9 = 2.3;
+      const rad9 = (u9: number): number => (W9 / 2) + u9 * (W9 * 0.02 - W9 / 2);   // 뿔의 그 자리 반지름
+      const T09 = 0.75;
+      return tagKey(spirePillar({
+        x: 0, y: 0, h: 0.8, w: 1, segs: 4, sides: 7, caps: "none", trueNormal: true,
+        path: (t9: number): [number, number, number] => {
+          const u9 = T09 + (1 - T09) * t9;
+          return [bx9 + (tx9 - bx9) * u9, by9 + (ty9 - by9) * u9, bz9 + (tz9 - bz9) * u9];
+        },
+        widthOf: (t9: number): number => rad9(T09 + (1 - T09) * t9) * 1.06,
+      }), depthNow(tx9, ty9) - 2.8);
+    };
     return raceBase([
       /* 발치 금 테는 맨 앞에 그린다(지적: 코어 키 검토) — 납작한 원통이라 나중에
          그리면 몸 아래를 판때기로 덮는다. 프리미티브는 제 몫으로 키(깊이+높이)를
@@ -14971,12 +15300,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ...tagKey(domeFaces3(0, 0, 2.6, 1.76, 0.64), 0),
       // 금색 기둥 다섯 — 몸 쪽이라 accent가 아니라 여기 든다.
       ...post(180), ...post(108), ...post(252), ...post(36), ...post(-36),
-    ], "toss", [
-      /* 개인색은 기둥 **안쪽 면의 데칼 다섯**뿐이다(요청) — 돔·불가사리 팔·청록 띠·
-         금 테는 제 색으로 둔다. 기둥은 꼭대기에 곧게 서서 어느 요잉에서도 두어 장은
-         보이므로, 작게 그려질 때도 임자 색이 안 사라진다. */
+      // 기둥 안쪽 보석 다섯 — 이제 제 색(청록 발광)이라 몸 쪽이다.
       ...postDecal(180), ...postDecal(108), ...postDecal(252),
       ...postDecal(36), ...postDecal(-36),
+    ], "toss", [
+      /* 개인색은 **몸체 위쪽 고리**와 **네 발 끝 1/4**이다(2026-09, 요청) — 기둥 안쪽 데칼이
+         보석으로 옮겨 가며 임자 색이 통째로 사라질 자리라, 어느 요잉에서도 보이는 두 곳에
+         새로 둔다: 돔을 한 바퀴 두르는 띠(늘 앞쪽 반이 보인다)와 바닥 불가사리의 네 끝. */
+      ...domeRing9(),
+      ...armTip(135), ...armTip(225), ...armTip(45), ...armTip(-45),
     ]);
   }),
   /* 실드 배터리(정정 둘) — 몸은 얇게, 다리는 빨대: 가늘게 수평으로 뻗다가 끝이
