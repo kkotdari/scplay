@@ -39,6 +39,17 @@ const GAME_SEC = 120;
 const HB = Number(flag("--hb", 160));   // 기본 160 = 요잉 45(건물의 45와 같은 칸)
 
 const RACE_EN = { 테란: "terran", 프로토스: "protoss", 저그: "zerg" };
+/* ★★ **세 종족을 한 장에 잇는 장면**(2026-09, 요청: "3종족이 같이 있는 장면도 추가로 만들어 줘 · 바로 옆에 붙여서
+   배치 · 순서는 프로토스-테란-저그 · 화질은 원래 화질 유지(대신 가로로 길어지겠지) · 종족 사이 갭은 일반 갭의 2배") —
+   한 판에 셋을 다 세우는 길은 **못 간다**: 이 기계의 GL 이 `MAX_TEXTURE_SIZE` **8192** 라(실측) 가로 1만 화소가 넘는
+   판을 못 짓는다. 그래서 종족마다 제 판을 찍고 **잉크 구간만 잘라 가로로 잇는다** — 화소 배수(DPR)도 타일 px 도
+   그대로이므로 '원래 화질'이고 가로만 길어진다.
+   · ⚠⚠ **셋을 같은 배율로 굽는다** — 배율이 갈리면 타일 px 가 갈려 ㉠ 종족끼리 크기 비교가 깨지고 ㉡ 격자 간격이
+     칸마다 달라진다. 자동 배율 셋 중 **가장 작은 것**으로 못 박는다(가장 넓은 종족이 안 잘린다).
+   · 자르는 자리는 잉크 구간 ± 종족 갭의 반이라, 이어 붙이면 종족 사이가 정확히 그 갭이다(`--racegap` 배수 × GB). */
+const COMBO = !flag("--nocombo", false);
+const RACE_GAP_K = Number(flag("--racegap", 2));
+const COMBO_ORDER = ["프로토스", "테란", "저그"];
 
 /* ── esbuild ── */
 const ebin = join(ROOT, "node_modules", "esbuild", "bin", "esbuild");
@@ -84,7 +95,9 @@ class W {
   vz(v) { let z = ((v << 1) ^ (v >> 31)) >>> 0; this.need(5); for (;;) { const c = z & 0x7f; z >>>= 7; if (z) this.b[this.p++] = c | 0x80; else { this.b[this.p++] = c; break; } } }
   out() { return this.b.subarray(0, this.p); }
 }
-function makeWorld(race) {
+function makeWorld(race, zFix = 0) {
+  /* zFix — 셋을 한 장에 잇는 장면(--combo)에서 **세 종족이 같은 배율**이라야 크기 비교와 격자가 맞는다. */
+  const ZM = zFix || ZOOM;
   const raceNum = race === "테란" ? 1 : race === "저그" ? 0 : 2;
   const PLAYERS = [{ owner: 0, race: raceNum, force: 1, name: "비교", color: 0x2b62e8, home: [64, 64] }];
   /* 차례는 **빌드 오더**(요청) — 건물은 테크 트리에서 이른 것부터, 유닛은 지상·공중 각각 이른 것부터. 표에 없는 이름은 뒤에. */
@@ -234,7 +247,7 @@ const AIRUP = Number(flag("--airup", 5.1));
         let x = 64 - rowW / 2;
         /* ⚠ **라벨은 줄마다 한 높이다** — 제 발치(`y + h/2`)에 두면 4×3 옆의 2×2 이름이 한 칸 위로 올라와 이웃과
            겹친다(실측: 저그 지상 줄의 라바·에그·드론이 서로 물렸다). 줄의 가장 큰 몸으로 한 줄에 세운다. */
-        for (const it of row) { cells.push({ ...it.c, x: x + it.cw / 2, y, ly: y + hMax / 2 + 0.55 }); x += it.cw + sec.gap; }
+        for (const it of row) { cells.push({ ...it.c, cw: it.cw, x: x + it.cw / 2, y, ly: y + hMax / 2 + 0.55 }); x += it.cw + sec.gap; }
         y += hMax / 2 + LAB;
         spanX = Math.max(spanX, rowW);
       }
@@ -250,7 +263,7 @@ const AIRUP = Number(flag("--airup", 5.1));
       const s9 = Math.max(L.spanX, L.spanY);
       if (!best || s9 < best.s - 1e-9) best = { s: s9, L };
     }
-    zGuess = ZOOM > 0 ? ZOOM : Math.min(ZOOM_MAX, 128 / (best.s + ZOOM_PAD));
+    zGuess = ZM > 0 ? ZM : Math.min(ZOOM_MAX, 128 / (best.s + ZOOM_PAD));
   }
   const dy = 64 - best.L.spanY / 2;
   for (const c of best.L.cells) {
@@ -290,8 +303,11 @@ const AIRUP = Number(flag("--airup", 5.1));
   for (const tr of tracks) { if (!tr.hp) continue; let pf = 0; let pv = 0; for (const [f, v] of tr.hp) { w.vz(f - pf); pf = f; w.vz(v - pv); pv = v; } }
   w.u32(0); w.u32(0); w.u32(0); w.u32(0); w.u32(0); w.u32(0); w.u16(119); w.u32(0);
   const motion = deflateSync(w.out()).toString("base64");
-  const zoom = ZOOM > 0 ? ZOOM : Math.min(ZOOM_MAX, 128 / (span + ZOOM_PAD));
-  return { motion, players: PLAYERS, nB: blds.length, nU: units.length, cy: 0.5, zoom, span, labels };
+  const zoom = ZM > 0 ? ZM : Math.min(ZOOM_MAX, 128 / (span + ZOOM_PAD));
+  /* 잉크가 실제로 차지하는 가로 구간(타일) — 셋을 잇는 장면이 여기서 자른다(칸 폭은 몸·라벨 중 넓은 쪽이다). */
+  const x0 = Math.min(...best.L.cells.map((c) => c.x - c.cw / 2));
+  const x1 = Math.max(...best.L.cells.map((c) => c.x + c.cw / 2));
+  return { motion, players: PLAYERS, nB: blds.length, nU: units.length, cy: 0.5, zoom, span, labels, x0, x1, gap: GB };
 }
 
 /* ── 참값 지형(평지·잿빛) ── */
@@ -355,8 +371,17 @@ const browser = await chromium.launch(launchOpt).catch((e) => {
   return chromium.launch({ ...launchOpt, headless: false, args: [...launchOpt.args, "--headless=new", "--no-sandbox"] });
 });
 mkdirSync(OUT, { recursive: true });
+/* 셋을 이으려면 배율이 하나여야 한다(위 ★★) — 미리 한 번 짜임을 풀어 가장 작은 배율을 고른다. */
+const COMBO_ON = COMBO && RACES.length === 3;
+let zFix = 0;
+if (COMBO_ON && ZOOM <= 0) {
+  const pre = RACES.map((r) => makeWorld(r).zoom);
+  zFix = Math.min(...pre);
+  console.log(`셋 공통 배율 ${zFix.toFixed(2)}배 (자동 ${pre.map((z) => z.toFixed(2)).join(" · ")})`);
+}
+const shots = [];
 for (const race of RACES) {
-  const world = makeWorld(race);
+  const world = makeWorld(race, zFix);
   const page = await browser.newPage({ viewport: { width: VIEW, height: VIEW }, deviceScaleFactor: DPR });
   page.on("pageerror", (e) => console.error("페이지 오류:", e.message));
   page.on("console", (m) => { if (m.type() === "error" || m.type() === "warning") console.log("콘솔:", m.text().slice(0, 300)); });
@@ -416,7 +441,54 @@ for (const race of RACES) {
      '요소가 안정될 때까지 기다림'에서 끊겼다). 넉넉히 준다. */
   if (el) await el.screenshot({ path: file, timeout: 180000 }); else await page.screenshot({ path: file, timeout: 180000 });
   console.log(`${race}: 건물 ${world.nB} · 유닛 ${world.nU} · span ${world.span.toFixed(1)}타일 · 배율 ${world.zoom.toFixed(2)}배 → ${file}`);
+  shots.push({ race, file, world });
   await page.close();
+}
+
+/* ── 셋을 가로로 잇는다(프로토스 · 테란 · 저그) ─────────────────────────────── */
+if (COMBO_ON && shots.length === 3) {
+  const order = COMBO_ORDER.map((r) => shots.find((s9) => s9.race === r)).filter(Boolean);
+  if (order.length === 3) {
+    const page = await browser.newPage({ viewport: { width: 400, height: 300 } });
+    await page.setContent('<body style="margin:0"><canvas id="c"></canvas></body>');
+    /* 상자 좌표 = ((t/128 − 0.5)·z + 0.5)·판폭 — 격자·라벨을 얹을 때 쓴 그 식이다. */
+    const cuts = order.map(({ file, world }) => {
+      const half = (RACE_GAP_K * world.gap) / 2;
+      return { b64: readFileSync(file).toString("base64"), t0: world.x0 - half, t1: world.x1 + half, z: world.zoom };
+    });
+    const buf = await page.evaluate(async (cuts9) => {
+      const imgs = [];
+      for (const c of cuts9) {
+        const im = new Image();
+        await new Promise((res, rej) => { im.onload = res; im.onerror = rej; im.src = "data:image/png;base64," + c.b64; });
+        imgs.push(im);
+      }
+      const at = (t, z, W) => ((t / 128 - 0.5) * z + 0.5) * W;
+      const boxes = cuts9.map((c, i) => {
+        const W = imgs[i].width;
+        const x0 = Math.round(at(c.t0, c.z, W)); const x1 = Math.round(at(c.t1, c.z, W));
+        return { x0, w: x1 - x0, h: imgs[i].height };
+      });
+      const cv = document.createElement("canvas");
+      cv.width = boxes.reduce((a, b) => a + b.w, 0);
+      cv.height = Math.max(...boxes.map((b) => b.h));
+      const g = cv.getContext("2d");
+      g.fillStyle = "#fff"; g.fillRect(0, 0, cv.width, cv.height);
+      let x = 0;
+      for (let i = 0; i < imgs.length; i += 1) {
+        g.drawImage(imgs[i], boxes[i].x0, 0, boxes[i].w, boxes[i].h, x, 0, boxes[i].w, boxes[i].h);
+        x += boxes[i].w;
+      }
+      /* ⚠ 화소 배열을 통째로 넘기면 CDP 가 4백만 칸짜리 JSON 을 싣는다 — base64 글자로 넘긴다. */
+      const blob = await new Promise((r) => cv.toBlob(r, "image/png"));
+      const b64 = await new Promise((r) => { const fr = new FileReader(); fr.onload = () => r(String(fr.result).split(",")[1]); fr.readAsDataURL(blob); });
+      return { b64, w: cv.width, h: cv.height };
+    }, cuts);
+    const file = join(OUT, "scene_all.png");
+    writeFileSync(file, Buffer.from(buf.b64, "base64"));
+    console.log(`셋: ${buf.w}x${buf.h} → ${file}`);
+    await page.close();
+  }
 }
 await browser.close();
 rmSync(tdir, { recursive: true, force: true });
