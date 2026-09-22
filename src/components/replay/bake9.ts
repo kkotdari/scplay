@@ -25786,8 +25786,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          포드 등(4.36)이 0.34 물렸는데, 안으로 파면 벽 밑이 그만큼 올라 **포드가 몸에 한 톨도 안
          닿는다**(옆에 나란히 뜬 관 둘이 된다). 그래서 관의 높이는 손 값이 아니라 **그 벽에서
          푼다**(`midZ9`). */
-    const POD_Y0 = -3.0; const POD_Y1 = 0.2;
-    const POD_X9 = 2.5; const POD_R9 = 0.528;   // 포드 축 x · 반지름(−20% · 요청) — 뒤 모퉁이 홈이 이 자를 읽는다
+    /* ★ **안쪽으로 더 · 뒤를 짧게**(2026-09, 요청: "바깥쪽 실린더+추진체 25프로 안쪽으로 이동,
+       뒷쪽 길이 20프로 축소") — `POD_X9` ×0.75(2.5 → **1.875**) · 뒤 끝을 길이의 20% 만큼 앞으로
+       (`POD_Y0` −3.0 → **−2.36** · 길이 3.2 → 2.56). 포드 바깥 테가 2.403 이라 이제 **동체 폭
+       안**에 든다(옛 3.03). */
+    const POD_Y0 = -2.36; const POD_Y1 = 0.2;
+    const POD_X9 = 1.875; const POD_R9 = 0.528;   // 포드 축 x · 반지름 — 뒤 모퉁이 홈이 이 자를 읽는다
     /* ★ **홈은 관이 파고든 만큼만 판다**(2026-09, 요청: "양쪽 홈 잘 팠어 이제 딱 사이즈만
        드럼통 파고들어온 만큼 파는 걸로 잘 맞춰 줘") — 네 값을 다 **그 관의 자**에서 낸다:
        가로는 안쪽·바깥 접선 · 앞은 관 앞 끝. 살에 딱 맞추면 접하는 자리가 z 싸움이라 한 뼘
@@ -25821,9 +25825,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        ⚠ 지름·길이는 바깥 포드보다 작아야 한다(요청) — 지름 0.92 vs 1.06(87%) · 길이는 포드가
          3.2 로 길어진 만큼 앞 끝을 당겨 1.6(50%)으로 둔다. **길이가 곧 홈의 깊이라**, 안 당기면
          슬롯이 지붕 한가운데까지 2.2 를 파고들어 등판이 뼈대만 남는다. */
-    const IN_X9 = 1.0; const IN_R9 = 0.46;
+    /* ★ **안쪽 드럼은 굵고 · 더 안쪽 · 더 앞이다**(2026-09, 요청: "안쪽 실린더+추진체 10프로 지름
+       확대, 10프로 안쪽으로 이동, 20프로 앞쪽으로 이동") — `IN_R9` ×1.1 · `IN_X9` ×0.9 · 앞뒤 끝을
+       길이의 20%(0.32) 만큼 앞으로. */
+    const IN_X9 = 0.9; const IN_R9 = 0.506;
     const IN_Z9 = midZ9(IN_X9);                  // 제 자리 동체의 한가운데
-    const IN_Y0 = -1.95; const IN_Y1 = -0.35;    // 뒤 끝(뒷낯 밖 한 뼘) · 앞 끝(동체 속)
+    const IN_Y0 = -1.63; const IN_Y1 = -0.03;    // 뒤 끝 · 앞 끝(동체 속) — 앞으로 0.32 옮긴 자리
     const IX1 = IN_X9 + IN_R9 + NGAP9; const IX0 = IN_X9 - IN_R9 - NGAP9;
     const INY9 = IN_Y1 + NGAP9;
     const pod = (tx: number): void => {
@@ -25902,12 +25909,38 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const t9 = Math.sqrt(Math.max(0, (2.6 - a9) / FR9));
       return 2.6 - FR9 + FR9 * t9 * (2 - t9);
     };
-    /** 뒤 변(y −1.8)을 x0 → x1 로 훑는다(시작점은 빼고 끝점은 넣는다 · 높이는 그 자리 아치). */
-    const rear9 = (xa9: number, xb9: number, n9: number): [number, number, number][] =>
-      Array.from({ length: n9 }, (_, i9) => {
-        const x9 = xa9 + ((xb9 - xa9) * (i9 + 1)) / n9;
-        return [x9, -1.8, zR9(x9)] as [number, number, number];
-      });
+    /** 그 x 에서 등판이 뒤로 어디까지 가나 — 윤곽의 뒤 변도, 그 위의 임자색 띠도 이 한 문을 본다. */
+    const rearY9 = (x9: number): number => {
+      const a9 = Math.abs(x9);
+      if (a9 > NX9) return NY9;
+      return a9 > IX0 && a9 < IX1 ? INY9 : -1.8;
+    };
+    /* ★★ **뒤 변은 `rearY9` 를 x 로 훑은 꺾은선이다**(2026-09, 요청: "노치도 그에 맞게 수정 당연히") —
+       홈 넷을 손으로 이어 적던 것(포드 홈 → 리브 → 드럼 홈 → 가운데 …)은 **관이 안쪽으로 오면 무너진다**:
+       포드를 25% 안으로 옮기니 `NX9`(1.33)가 `IX1`(1.43) 안으로 들어와 두 홈이 겹쳐, 손으로 적은 차례는
+       제 꼬리를 밟는 자기교차 다각형이 된다. 경계 여섯을 **정렬해 훑으면** 겹치는 순간 리브가 저절로
+       사라지고 한 홈이 된다 — 앞으로 관을 어디로 옮겨도 윤곽이 따라온다. */
+    const rearRim9 = ((): [number, number, number][] => {
+      const pt9 = (x9: number, y9: number): [number, number, number] => [x9, y9, zR9(x9)];
+      const bx9 = [2.6, NX9, IX1, IX0, -IX0, -IX1, -NX9, -2.6]
+        .sort((p9, q9) => q9 - p9).filter((v9, i9, a9) => i9 === 0 || a9[i9 - 1] - v9 > 1e-3);
+      const o9: [number, number, number][] = [];
+      const put9 = (x9: number, y9: number): void => {
+        const l9 = o9[o9.length - 1];
+        if (l9 !== undefined && Math.abs(l9[0] - x9) < 1e-6 && Math.abs(l9[1] - y9) < 1e-6) return;
+        o9.push(pt9(x9, y9));
+      };
+      for (let i9 = 0; i9 + 1 < bx9.length; i9 += 1) {
+        const xa9 = bx9[i9]; const xb9 = bx9[i9 + 1]; const y9 = rearY9((xa9 + xb9) / 2);
+        put9(xa9, y9);
+        if (y9 < -1.79) {   // 안 판 구간만 아치를 따라 굽는다
+          const n9 = Math.max(1, Math.round((xa9 - xb9) / 0.5));
+          for (let k9 = 1; k9 < n9; k9 += 1) put9(xa9 + ((xb9 - xa9) * k9) / n9, y9);
+        }
+        put9(xb9, y9);
+      }
+      return o9;
+    })();
     /* 등판 윤곽 — 왼 옆면 앞끝에서 시작해 앞 모퉁이 · 앞 아치 · 오른 모퉁이 · 오른 옆면 ·
        오른 홈 · 뒤 변(안쪽 드럼 홈 둘을 품는다) · 왼 홈을 지나 닫힌다(마지막 점 → 첫 점이 왼 옆면). */
     const RIM9: [number, number, number][] = [
@@ -25915,13 +25948,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ...qs9([-2.6, 2.6 - FR9, 4.56], [-2.6, 2.6, 4.56], [-FE9, 2.6, FZE9], 5),
       ...qs9([-FE9, 2.6, FZE9], [0, 2.6, FZC9], [FE9, 2.6, FZE9], 8),
       ...qs9([FE9, 2.6, FZE9], [2.6, 2.6, 4.56], [2.6, 2.6 - FR9, 4.56], 5),
-      [2.6, NY9, 4.56], [NX9, NY9, zR9(NX9)], [NX9, -1.8, zR9(NX9)],
-      ...rear9(NX9, IX1, 2),
-      [IX1, INY9, zR9(IX1)], [IX0, INY9, zR9(IX0)], [IX0, -1.8, zR9(IX0)],
-      ...rear9(IX0, -IX0, 4),
-      [-IX0, INY9, zR9(IX0)], [-IX1, INY9, zR9(IX1)], [-IX1, -1.8, zR9(IX1)],
-      ...rear9(-IX1, -NX9, 2),
-      [-NX9, NY9, zR9(NX9)], [-2.6, NY9, 4.56],
+      ...rearRim9,
     ];
     const plate = polyPath3(RIM9);
     out.push(...tagKey([
@@ -25964,12 +25991,6 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const cut9 = [...Array.from({ length: N9 + 1 }, (_, i9) => -HW9 + (2 * HW9 * i9) / N9),
           -NX9, -IX1, -IX0, IX0, IX1, NX9].sort((p9, q9) => p9 - q9)
           .filter((v9, i9, arr9) => i9 === 0 || v9 - arr9[i9 - 1] > 1e-3);
-        /** 그 x 에서 등판이 뒤로 어디까지 가나. */
-        const rearY9 = (x9: number): number => {
-          const a9 = Math.abs(x9);
-          if (a9 > NX9) return NY9;
-          return a9 > IX0 && a9 < IX1 ? INY9 : -1.8;
-        };
         const out9: ShapeFace[] = [];
         for (let i9 = 0; i9 + 1 < cut9.length; i9 += 1) {
           const x0 = cut9[i9]; const x1 = cut9[i9 + 1];
@@ -26032,11 +26053,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     for (const m9 of [-1, 1] as const) {
       out.push(...paintBase(tubeFaces(m9 * IN_X9, IN_Y0, m9 * IN_X9, IN_Y1, IN_R9, IN_Z9), TERRAN_STEEL));
     }
+    /* ★ **추진체 넷의 앞뒤 길이는 반이다**(2026-09, 요청: "추진체 4개 앞뒤길이 50% 축소") — 노즐
+       원뿔·분사구 원반·테·불꽃이 다 이 한 값의 비로 앉으므로 넷이 함께 짧아진다. */
+    const TL9 = 0.5;
     for (const [tx, tz, tr, ty] of [[-IN_X9, IN_Z9, IN_R9, IN_Y0 + 0.05], [IN_X9, IN_Z9, IN_R9, IN_Y0 + 0.05],
       [-POD_X9, POD_Z, POD_R9, POD_Y0 + 0.05], [POD_X9, POD_Z, POD_R9, POD_Y0 + 0.05]] as [number, number, number, number][]) {
       out.push(...paintBase(spirePillar({
         x: tx, y: ty, h: 0.8, w: 1, segs: 2, sides: 8, caps: "none",
-        path: (t9: number): [number, number, number] => [tx, ty - 1.0 * t9, tz],
+        path: (t9: number): [number, number, number] => [tx, ty - TL9 * t9, tz],
         /* ★ **앞이 좁고 뒤가 굵다**(2026-09, 요청: "드랍십 스러스터 앞뒤 뒤집기") — 배틀의
            것을 그대로 옮기면 뒤로 갈수록 가늘어지는데, 드랍십은 꽁무니에 아가리가 벌어진
            꼴이라야 노즐로 읽힌다(레이스에서 한 번 적어 둔 그 규약). 같은 비(0.81)를 뒤집는다. */
@@ -26044,14 +26068,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       }), TERRAN_STEEL_D));
       if (poseNow === 1 && facingRatio(0, -1) > 0.05) {
         out.push(...tagKey([
-          [wallDiscPath(tx, ty - 1.02, tz, tr * 0.62, tr * 0.42), 0.8, "#7fd0ff"] as ShapeFace,
+          [wallDiscPath(tx, ty - TL9 * 1.02, tz, tr * 0.62, tr * 0.42), 0.8, "#7fd0ff"] as ShapeFace,
         ], depthNow(tx, ty - 2) * 1.6 + 0.85));
       }
       /* ⚠ 테·불꽃의 `+ tr·0.36` 치우침은 걷었다(요청: "전부 중심이 맞게") — 노즐 원뿔은 `tz` 축에
          있는데 테와 불꽃만 그 위로 0.24(포드)·0.17(안쪽) 떠 있어, 아가리에서 나오는 것이 아니라
          **아가리 윗입술에 얹힌** 꼴이었다. 셋 다 `tz` 로 두면 포드 실린더까지 한 축이다. */
-      out.push(...nozzleRim9(tx, ty - 0.95, tz, tr * 0.86, depthNow(tx, ty - 2) * 1.6 + 0.9, { th: tr * 0.26, dep: 0.9 }));
-      if (poseNow === 1) out.push(...thrustFlame(tx, ty - 1.0, tz, tr * 0.8, "terran", depthNow(tx, ty - 2) * 1.6 + 1));
+      out.push(...nozzleRim9(tx, ty - TL9 * 0.95, tz, tr * 0.86, depthNow(tx, ty - 2) * 1.6 + 0.9, { th: tr * 0.26, dep: 0.9 }));
+      if (poseNow === 1) out.push(...thrustFlame(tx, ty - TL9, tz, tr * 0.8, "terran", depthNow(tx, ty - 2) * 1.6 + 1));
     }
     /* 꼬리(재지적: 축을 몸통에 붙이고 비행기 꼬리 스타일로) — 등판 뒤끝에서 곧장
        솟는 수직 안정판과, 그 위에서 좌우로 뻗는 수평 안정판 한 쌍. */
