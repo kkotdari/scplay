@@ -2636,10 +2636,6 @@ export const FX_IMPACT: Record<string, {
    *  테는 주황. `flat` 0.38 이라 가로로 납작하다(날아가는 빛은 길쭉해야 총알과 안 헷갈린다). */
   /** 착탄 폭발 — **둥글되 그림자처럼 눌린다**(지적: "타원이 아니라 원형으로 변경, 대신
    *  그림자처럼 눌려 보여야 함"). 방향은 안 준다(땅에 퍼지는 것은 어느 쪽도 안 가리킨다). */
-  /** ★ 스커지 자폭(2026-09, 요청: "스커지 자폭 효과(사망) 잘 나오는지 확인") — 스커지는 저그 결의 피떡·살점으로만 죽고 있었는데
-   *  원작은 표적에 부딪혀 **주황 불덩이**로 터진다(폭탄이지 시체가 아니다). 전차포 착탄과 같은 문법의 둥근 불(눌림 없음)이고 그 위에
-   *  저그 파편이 조금 튄다. 엔진이 죽음 자리에 이 스플래시를 한 장 더 싣는다(`scourgeBoom9`). */
-  scourgeboom: { r: 1.25, g: [[0, "rgba(255,250,220,0.98)"], [0.18, "rgba(255,214,110,0.92)"], [0.5, "rgba(255,126,36,0.62)"], [1, "rgba(200,70,14,0)"]], ring: "rgba(255,200,120,0.5)" },
   tankboom: { r: 1.55, flat: 0.58, g: [[0, "rgba(255,248,214,0.98)"], [0.2, "rgba(255,198,96,0.9)"], [0.52, "rgba(255,118,32,0.6)"], [1, "rgba(190,62,12,0)"]], ring: "rgba(255,190,110,0.45)" },
   /* 밝은 **에너지**로 한 단 올렸다(2026-09, 요청: "좀더 밝은 색(에너지)") — 속은 순백,
      둘레는 식지 않은 주황이다. 옛 값은 가운데부터 이미 누런빛이라 '쇳덩이'로 읽혔다. */
@@ -5126,7 +5122,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
          날아온 것은 몸의 어느 쪽에 맞았는지가 그림으로 안 읽히므로, 모를 때는 몸 가운데다. */
     const hitSrcOf = (
       tag9: number, x9: number, y9: number,
-    ): { dir: [number, number] | null; uk?: string; unit?: string } => {
+    ): { dir: [number, number] | null; uk?: string } => {
       const f9 = tag9 > 0 ? foeByTarget.get(tag9) : undefined;
       if (!f9) return { dir: null };
       const bd9 = Math.hypot(f9.x - x9, f9.y - y9);
@@ -5140,7 +5136,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       /* 무기 갈래는 이름을 아는 몸에서만 — 건물이면 k, 유닛이면 uk가 그 이름이다.
          (사거리 확인은 걷었다: 참값이 겨눈 것이면 제 사거리 안이다.) */
       const uk9 = f9.uk ?? f9.k;
-      return { dir, uk: uk9 && isKnownKind(uk9) ? uk9 : undefined, unit: uk9 };
+      return { dir, uk: uk9 && isKnownKind(uk9) ? uk9 : undefined };
     };
     const RIDE_TETHER_SEC = 1.1;
     /* ★ 배 쪽 끝은 **배에게 묻는다**(지적: "드랍십 내리기 점선이 전혀 엉뚱한 데랑 이어져.
@@ -7975,14 +7971,10 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
           kind: "dom", style: "die", fx: bfx9, fy: bfy9, lift: dieLift,
           size: diePx9 * 0.58, sub: dk, age: t - dieAt, seed: ei,
         });
-        /* ★ 스커지 자폭 — 저그 파편 위에 주황 불덩이 한 장(FX_IMPACT.scourgeboom · 0.5초). 부딪혀 죽는 폭탄이라
-           시체 효과만으로는 안 읽힌다(요청: "스커지 자폭 효과(사망) 잘 나오는지 확인"). */
-        if (e.unit === "Scourge" && !cocoon9) {
-          fxOps.push({
-            kind: "hit", style: "scourgeboom", fx: bfx9, fy: bfy9, lift: dieLift,
-            size: diePx9 * 1.1, dist: 0, dx: 0, dy: 0, ph: (t - dieAt) / DIE_FX_SEC, splash: true,
-          });
-        }
+        /* ★ **스커지도 그냥 죽는다**(2026-09, 지적: "스커지 자폭 못하고 공격받아 그냥 죽을 때도 불꽃폭발이
+           생기네" · 요청: "스커지 자체의 폭발효과는 제거 · 공격받아 죽든 자폭으로 죽든 피 터지는 효과만") —
+           여기 있던 주황 불덩이 한 장(FX_IMPACT.scourgeboom)은 **죽는 자리**에 얹혔으므로 자폭인지 요격인지를
+           가리지 못했다. 자폭의 불은 **맞은 쪽**이 낸다(아래 hitFx9) — 이 자리는 저그 파편뿐이다. */
       }
       return null;
     }
@@ -8840,11 +8832,12 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
            줄기가 닿지 않은 자리에서 튀는 그림이 된다. 0.1로 당겨 줄기 끝과 겹치게 한다. 파편이 날아가는
            방향(dx·dy)은 그대로라 '어느 쪽에서 맞았나'는 남는다. */
         size: fxPx * (modelInkOf(kindMain) / 16) * 0.69, dist: fxPx * (modelInkOf(kindMain) / 16) * 0.1,
-        /* 스커지 자폭(지적: "스커지 아직도 죽거나 폭발할 때 프로토스 효과") — 맞은 몸의 결이 아니라
-           **때린 쪽**의 결이다. 스커지는 무기 표(ATTACK_FX)에 없어(자폭) hitWpn9가 비고, 맞은
-           프로토스의 결(toss: 연푸른 줄)로 터져 스커지 자리에서 프로토스 효과가 났다. 자폭은 저그
-           살점이 터지는 것이라 저그 결로 낸다. */
-        ph: (t - hurtAt) / 0.14, mat: /scourge/i.test(hitSrc9?.unit ?? "") ? "zerg" : hitMat9,
+        /* ★ **자폭을 맞은 쪽은 제 결로 터진다**(2026-09, 요청: "자폭 공격 성공 시 맞은 상대방이 자기의
+           피격효과를 내") — 여기 있던 `/scourge/i` 갈래는 때린 쪽(스커지)의 저그 결로 덮어써서, 맞은
+           프로토스·테란이 남의 결로 터졌다. 그 갈래를 낸 옛 지적("스커지가 죽을 때 프로토스 효과")의
+           정체는 **자리**였다: 자폭은 두 몸이 겹치므로 맞은 쪽의 불티가 스커지 자리에서 난 것처럼 읽힌다.
+           스커지 제 몸은 이제 저그 파편으로만 죽으므로(위 죽음 갈래) 덮어쓸 까닭도 없다. */
+        ph: (t - hurtAt) / 0.14, mat: hitMat9,
         ...(hitWpn9 ? { style: hitWpn9 } : {}),
         ...(hitDir9 ? { dx: hitDir9[0], dy: hitDir9[1] } : {}) }) : null;
     if (hitFx9 && !fighting) {
