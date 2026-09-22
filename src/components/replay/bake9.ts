@@ -15037,7 +15037,6 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   }),
   observatory: () => withModelSpin(270, () => {
     const GOLD = "#d4bd3c";
-    const GOLD_D = "#8a6f2a";
     /* 청록을 걷는다(요청: "어시밀레이터, 옵저버토리 청록색 계열 제거 → 금색이나 연한
        사이언색으로 변경") — #31c0ad은 녹색기가 돌아 황금 껍데기 위에서 이끼로 보인다.
        어시밀레이터가 같은 까닭으로 먼저 걷어냈고(그쪽 주석) 옵저버토리만 남아 있었다. */
@@ -15064,13 +15063,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     PILLARS9.forEach(([px, py, ph, own9]) => {
       const key = 12 + depthNow(px, py) * 1.6;
       // 기둥 셋은 모두 황금(재지적) — 개인색은 아래 받침이 맡는다.
-      out.push(...tagKey([
-        ...paintBase(spirePillar({
-          x: px, y: py, z0: 0.64, h: ph, w: 0.62, tipW: 0.48,
-          segs: 3, sides: 7, hold: 0.35,
-        }), GOLD),
-        ...paintBase(cylinderFaces3(px, py, 0.68, 0.272, 0.64 + ph * 0.72), GOLD_D),
-      ], key));
+      /* ★ **72% 높이의 어두운 금 고리는 걷었다**(2026-09, 지적: "옵저버토리 기둥의 이상한 갈색 링은 뭐지") —
+         반지름 0.68 짜리 낮은 원통(GOLD_D #8a6f2a)이라 기둥(반폭 0.5)보다 굵어 **끼운 갈색 고리**로 읽혔고,
+         임자색 띠를 보석 밑까지 올린 뒤로는 그 띠를 한가운데서 끊는 혹이 됐다. */
+      out.push(...tagKey(paintBase(spirePillar({
+        x: px, y: py, z0: 0.64, h: ph, w: 0.62, tipW: 0.48,
+        segs: 3, sides: 7, hold: 0.35,
+      }), GOLD), key));
       /* 임자색은 **기둥의 띠**(요청) — 아래 테를 칠하지 않고 accent로 넘긴다.
          ★★ 띠는 **기둥 낯을 그대로 타는 네모 일곱**이다(`faceBand9` 의 ★★ · 2026-09, 지적: "면과 딱
          안맞고 떠있거나 파묻혀서 안보임") — 여태 반지름 0.68 짜리 **원기둥 고리**라 ⓐ 기둥 살(0.61)보다
@@ -15082,24 +15081,37 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const t9 = (z9 - 0.64) / ph;                       // spirePillar 의 widthAt(hold 0.35 · taper 1)
         return (t9 <= 0.35 ? 0.62 : 0.48 + 0.14 * (1 - (t9 - 0.35) / 0.65)) + BAND_OUT9;
       };
+      /* ★ **띠는 보석 바로 밑까지 오른다**(2026-09, 요청: "기둥세개의 임자색 띠를 보석 바로 위까지 확장") —
+         여태 높이 0.32 짜리 손목 띠였다. 이제 기둥 한가운데(ph·0.4)에서 **꼭대기**(= 보석이 앉는 자리)까지다.
+         ⚠ 가운데의 어두운 금 고리(반지름 0.68)를 지나가지만 띠는 그 안쪽(0.51~0.65)이라 그 구간만 고리 뒤로
+         숨는다 — 끊긴 것이 아니라 고리가 띠를 두른 꼴이다. */
       const bz09 = 0.64 + ph * 0.4;
-      pc.push(...tagKey(faceBand9(7, bz09, bz09 + 0.32, (z9, i9) => {
+      pc.push(...tagKey(faceBand9(7, bz09, 0.64 + ph, (z9, i9) => {
         const a9 = (i9 / 7) * Math.PI * 2 + Math.PI / 7;   // 기둥과 같은 위상 · u = x̂ · v = ŷ
         return [px + Math.cos(a9) * pr9(z9), py + Math.sin(a9) * pr9(z9), z9];
       }), key + 0.05));
       void TEAL;
       /* 랜턴 머리 — 청록 발광 알. 불빛은 고유색이라 셋 다 청록으로 돌린다(재지적) —
-         가운데 것만 크게 남겨 형태의 강약은 그대로 둔다. */
-      out.push(...tagKey(paintBase(own9
-        ? [
-          ...spirePillar({
-            x: px, y: py, z0: 0.64 + ph * 0.72, h: ph * 0.28, w: 0.7, tipW: 0.95,
-            segs: 2, sides: 10, hold: 0.2,
-          }),
-          ...domeFaces3(px, py, 1.05, 0.92, 0.64 + ph),
-        ]
-        : domeFaces3(px, py, 0.72, 0.64, 0.64 + ph), glowLit("#c9fffb", CYAN)),
-      key + 1));
+         가운데 것만 크게 남겨 형태의 강약은 그대로 둔다.
+         ★ **전구가 아니라 누운 달걀이다**(2026-09, 지적: "옵저버토리 기둥위 보석은 전구모양이 아니라
+         누운 달걀모양임") — 옛 판은 가운데 기둥에 **목**(좁아지는 절두체)을 세우고 그 위에 돔을 얹어
+         곧 전구였다. 목을 걷고, **축이 앞뒤(모형 y)로 누운 회전체**를 기둥 꼭대기에 앉힌다.
+         · 꼴은 달걀이다 — 반지름 `√(1−u²)·(1 − EGG_A9·u)`(u = 2t−1)라 한쪽이 통통하고 다른 쪽이 여민다.
+         · ⚠ 단면은 **정원**이어야 한다(`ref [0,0,1]` 이면 u = 위 · v = 옆이고 oval 기본 1 — z 가 ×0.8
+           접힌 파일이라 가로와 같은 수가 곧 정구다. 옵저버 동체의 그 규약).
+         · 밑동은 기둥 꼭대기 **살 속**(반지름의 0.2)에 물린다 — 딱 맞추면 그 자리가 z 싸움이다. */
+      const gR9 = own9 ? 0.95 : 0.66;                     // 알의 반지름(가로 = 세로)
+      const gL9 = own9 ? 2.5 : 1.7;                       // 앞뒤 길이(누운 축)
+      const gz9 = 0.64 + ph + gR9 * 0.8;                  // 축 높이 — 밑동이 기둥에 0.2r 물린다
+      const EGG_A9 = 0.28;                                // 한쪽으로 통통해지는 몫
+      out.push(...tagKey(paintBase(spirePillar({
+        x: 0, y: 0, h: 0.8, w: 1, segs: 16, sides: 12, caps: "none", ref: [0, 0, 1], trueNormal: true,
+        path: (t9: number): [number, number, number] => [px, py - gL9 / 2 + gL9 * t9, gz9],
+        widthOf: (t9: number): number => {
+          const u9 = 2 * t9 - 1;
+          return gR9 * Math.sqrt(Math.max(0, 1 - u9 * u9)) * (1 - EGG_A9 * u9);
+        },
+      }), glowLit("#c9fffb", CYAN)), key + 1));
       /* (걷어냄) 랜턴 위의 흰 광점 원반 — 2026-09, 요청: "옵저버토리, 플릿비컨 광택을 부품으로 붙인 거
          제거". 캔버스만 붓이던 때 '둥글다'를 말하던 덧칠인데, GL 에서는 요잉을 돌려도 안 따라 도는 흰
          스티커로 남는다(광택은 셰이더의 몫 — CLAUDE.md '손으로 얹은 흰 반사는 이제 셰이더와 싸운다'). */
@@ -15116,6 +15128,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        끝은 기둥 속(반지름 0.62)에 파묻히므로 뚜껑을 안 덮는다 — 단면이 안 비친다. */
     /* ★ 연결팔은 **마름모**다(요청: "기둥 사이 잇는 연결팔은 마름모 형태 — 기둥은 없지만 총 4개의 부위를 연결") — 세
        기둥(왼·뒤·오른)에 앞쪽 꼭짓점(기둥 없음) 하나를 더해 네 변으로 돈다. */
+    /** 쐐기 들보 셋의 세로 두께 배수(요청: 단면 세로 높이 25% 확대) — 가로는 ovalOf 가 도로 죈다. */
+    const BM_HK9 = 1.25;
     const FRONT9: [number, number, number, number] = [0, 2.4, 0, 0];
     const NODES9 = [...PILLARS9, FRONT9];
     // 마름모 대각선 하나 더(요청): 뒷기둥(1) ↔ 앞 교점(3).
@@ -15138,7 +15152,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const my9 = (a9[1] + b9[1]) / 2;
       const BZ9 = 1.24;   // 들보 높이 — 기둥 밑동(z 0.8) 바로 위다
       const BW9 = 0.30;   // 가로 반폭(0.26 → 0.30 · 요청: 굵기 살짝 증가)
-      const hAt9 = (t9: number): number => h09 + (h19 - h09) * t9;
+      /* ★ **쐐기 셋만 단면이 세로로 25% 크다**(2026-09, 요청: "옵저버토리 세 빔 단면 세로 높이 25프로
+         확대") — `BM_HK9` 는 **세로(u) 반폭에만** 곱하고 `ovalOf` 가 가로를 도로 BW9 로 죈다(위로만
+         두꺼운 관은 그 셋이 한 벌이다). 밑면은 여전히 `BZ9 − BW9` 한 z 에 못 박히므로(축 = 밑면 +
+         그 자리 반높이) **윗면만** 그만큼 오른다. 고른 두께 변 둘(hk 1)은 한 톨도 안 바뀐다. */
+      const hk9 = h09 === h19 ? 1 : BM_HK9;
+      const hAt9 = (t9: number): number => (h09 + (h19 - h09) * t9) * hk9;
       out.push(...tagKey(spirePillar({
         x: 0, y: 0, h: 0.8, w: 1, segs: 6, sides: 6, caps: "none",
         /* ★ **밑은 수평이고 윗면만 기운다**(2026-09, 재지적: "옵저버토리 가지 아래쪽은 다 수평하게 하고
@@ -15151,6 +15170,47 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         widthOf: (t9: number): number => BW9 * hAt9(t9),   // u(세로) 반폭 — 끝마다 제 배수
         ref: [0, 0, 1], ovalOf: (t9: number): number => 1 / hAt9(t9), trueNormal: true,   // v(가로)는 늘 BW9
       }), 12 + depthNow(mx9, my9) * 1.6));
+      if (h09 === h19) return;
+      /* ★ **세 빔이 모이는 끝마다 임자색 띠를 두른다**(2026-09, 같은 요청: "세 빔이 모이는 부분에
+         임자색 띠 둘러줘 각각") — 셋이 다 앞 교점(노드 3)에서 만나므로 그 끝에서 조금 물러난
+         토막에 띠가 선다(2-3·1-3 은 t 1 쪽 · 3-0 은 t 0 쪽).
+         ⚠ 띠는 **그 살의 낯을 그대로 타는 네모 여섯**이다 — 둥근 고리를 얹으면 육각 살 위에서
+         모서리마다 뜨고 낯 한가운데마다 파인다(해저드 띠의 그 규약). 그래서 단면 틀을 spirePillar
+         과 **같은 자**로 다시 푼다: u = ẑ 를 접선에 수직화 · v = T × u · 위상 π/6 · 감기도 옆면과
+         같은 차례(lo_i → lo_j → hi_j → hi_i). 살 밖 6%. */
+      const ex9 = b9[0] - a9[0]; const ey9 = b9[1] - a9[1];
+      const ez9 = BW9 * (h19 - h09) * hk9;
+      const el9 = Math.hypot(ex9, ey9, ez9) || 1;
+      const tx9 = ex9 / el9; const ty9 = ey9 / el9; const tz9 = ez9 / el9;
+      let ux9 = -tz9 * tx9; let uy9 = -tz9 * ty9; let uz9 = 1 - tz9 * tz9;
+      const ul9 = Math.hypot(ux9, uy9, uz9) || 1;
+      ux9 /= ul9; uy9 /= ul9; uz9 /= ul9;
+      const vx9 = ty9 * uz9 - tz9 * uy9;
+      const vy9 = tz9 * ux9 - tx9 * uz9;
+      const vz9 = tx9 * uy9 - ty9 * ux9;
+      const BK9 = 1.06;   // 살 밖으로 내는 몫
+      const bp9 = (t9: number, ang: number): [number, number, number] => {
+        const cz9 = BZ9 - BW9 + BW9 * hAt9(t9);
+        const ru9 = BW9 * hAt9(t9) * BK9; const rv9 = BW9 * BK9;
+        const cc9 = Math.cos(ang) * ru9; const ss9 = Math.sin(ang) * rv9;
+        return [
+          a9[0] + ex9 * t9 + ux9 * cc9 + vx9 * ss9,
+          a9[1] + ey9 * t9 + uy9 * cc9 + vy9 * ss9,
+          cz9 + uz9 * cc9 + vz9 * ss9,
+        ];
+      };
+      const near19 = j9 === 3;                       // 앞 교점이 t 1 쪽인가
+      const bt09 = near19 ? 0.76 : 0.10;
+      const bt19 = near19 ? 0.90 : 0.24;
+      const band9: ShapeFace[] = [];
+      for (let k9 = 0; k9 < 6; k9 += 1) {
+        const ang09 = (k9 / 6) * Math.PI * 2 + Math.PI / 6;
+        const ang19 = ((k9 + 1) / 6) * Math.PI * 2 + Math.PI / 6;
+        band9.push(bodyFace(polyPath3([
+          bp9(bt09, ang09), bp9(bt09, ang19), bp9(bt19, ang19), bp9(bt19, ang09),
+        ])));
+      }
+      pc.push(...tagKey(band9, 12 + depthNow(mx9, my9) * 1.6 + 0.05));
     });
     return raceBase(out, "toss", pc);
   }),
@@ -15181,21 +15241,25 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        칠을 안 하면 끝의 `raceBase` 가 `RACE_BASE_TONE.toss` 로 밑칠한다(손으로 #8a6f2a 를 박으면 그 판만
        종족색과 갈린다 — '그릇 색은 종족 기본 금색'의 그 규약). */
     out.push(...tagKey(cylinderFaces3(0, 0, 3.2, 0.28, 0.096), -9));
-    /* ★ **받침 윗면은 금색이고 임자색은 그 바깥 테다**(2026-09, 요청 둘: "비콘 바닥판위의 윗면옥색은 금색으로" ·
-       "임자색은 그바깥쪽 바닥판의 윗면만") — 여태 청록 발광 띠(glowLit)였다. 이제 그 원반이 금색이고, 받침
-       (반지름 3.2)의 **드러난 윗면 고리**(3.05~3.2)가 임자색이다. ⚠ 고리는 그 원반 윗면(z 0.488)보다 한 뼘
-       위(0.492)에 둔다 — 같은 평면이면 z 싸움이다(그 규약). */
-    out.push(...tagKey(paintBase(cylinderFaces3(0, 0, 3.05, 0.112, 0.376), GOLD9), -8.5));   // 접시 위 원반
-    pads9.push(...tagKey([[annulusPath3(0, 0, 0.492, 3.2, 3.05), 1] as ShapeFace], -8.4));
+    /* ★ **임자색은 받침 위에 한 장 더 얹은 원반이다**(2026-09, 되지적: "비콘 몸체 바닥판 임자색은 저기가
+       아니고 저기는 금색이고 그 위에 한장 더 얹어진 원판있지 거기") — 앞 판은 그 원반을 금색으로 칠하고
+       받침(3.2)의 **드러난 윗면 고리**(3.05~3.2)에 임자색 판을 한 장 얹었다. 둘이 뒤바뀐 자리다: 고리는
+       받침 제 윗낯(z 0.376 · 안 칠함 = 종족 금)이면 그만이라 덧댄 판을 걷고, **원반(3.05 · z 0.376~0.488)
+       을 안 칠한 채 accent 로** 넘긴다. */
+    pads9.push(...tagKey(cylinderFaces3(0, 0, 3.05, 0.112, 0.376), -8.5));   // 접시 위 원반 = 임자색
     /* 팔 끝은 **뭉툭하고 둥글게**(재요청: 반폭 0.62 → 0.3으로만 줄고 뚜껑을 덮는다). 여섯 팔은 모두 낱팔이고, 앞 두 팔
        (±30도)은 **뒤(뿌리 쪽)가 호로 이어진다**(재재요청: "호는 두 팔 뒤가 이어지게") — 두 뿌리를 접시 앞 가장자리
        (반지름 2.75, z 0.8) 위로 도는 호가 잇는다. 원화의 앞이 열린 말굽이다. */
     const armW9 = (t9: number): number => 0.3 + 0.32 * (1 - t9) ** 0.8;
+    /* ★ **발은 좌우로 2.5배 두껍다**(2026-09, 요청: "비콘 발들 좌우 두깨 2.5배") — `ref [0,0,1]` 이라
+       u = 위(세로 = `armW9`) · v = 옆이고 `oval` 이 **그 옆폭**을 정한다(0.38 → **0.95**). 세로 굵기·
+       길이·굽이는 한 톨도 안 건드린다 — 날 서던 판이 도톰한 게발이 된다. */
+    const ARM_OV9 = 0.95;
     for (let i9 = 0; i9 < 6; i9 += 1) {
       const a9 = ((i9 * 60 + 30) * Math.PI) / 180;
       const ux9 = Math.sin(a9); const uy9 = Math.cos(a9);
       out.push(...tagKey(paintBase(spirePillar({
-        x: 0, y: 0, h: 0.8, w: 1, segs: 6, sides: 8, oval: 0.38, caps: "top", ref: [0, 0, 1], trueNormal: true,
+        x: 0, y: 0, h: 0.8, w: 1, segs: 6, sides: 8, oval: ARM_OV9, caps: "top", ref: [0, 0, 1], trueNormal: true,
         path: (t9: number): [number, number, number] => [
           ux9 * (2.3 + 2.4 * t9), uy9 * (2.3 + 2.4 * t9), 0.44 + 0.4 * Math.sin(Math.PI * t9) - 0.36 * t9 * t9,
         ],
