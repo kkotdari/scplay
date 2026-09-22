@@ -10599,7 +10599,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        ⚠ 크레인 기둥·앞면 슬릿의 밑동 z 는 손 값이 아니라 이 데크(`CR_Z09`)를 읽는다 — 데크를
          올리고 내릴 때 함께 따라온다('한 줄로 꿴 부품은 한 값으로 옮겨라'의 그 자리). */
     const RB_Y9 = -1.15;               // 솟은 덩이의 앞 낯(모형 y)
-    const RB_TOP9 = 2.16 + 1.15;       // 데크 높이 — 뒤 테(2.16) 위로 솟는 몫
+    /* ★★ **데크는 지붕 곡면의 꼭대기와 딱 맞는다**(2026-09, 요청: "절두체 꼭대기랑 지붕 곡면
+       위쪽이 딱 맞아야해") — 여태 뒤 테(2.16) 위로 1.15 더 솟아, 테 링·띠가 그 밑을 도는
+       **위에 얹힌 탑**으로 읽혔다. 지붕 식(`dishZ9`)의 최댓값은 뒤 테의 **2.16** 이므로(뒤 테에서
+       기울기·호가 둘 다 0) 그 값이 곧 데크다 — 덩이가 우물의 뒤쪽을 메우고 그 윗면이 지붕의
+       가장 높은 선과 한 평면에 선다. 앞 낯(y −1.15)에서 살이 1.27 이라 그 차 0.89 가 단이다.
+       ⚠ 뒤 호에서는 밑면·윗면이 같은 z 라 옆벽이 **납작한 띠**로 여민다 — 그 자리는 테 링
+         (r 3.5~4.2 · 테 위 0.08)이 덮으므로 부감에서 안 보인다. */
+    const RB_TOP9 = 2.16;              // 데크 높이 = 지붕 꼭대기(뒤 테)
     const RB_TAP9 = 0.88;              // 절두체 — 데크가 밑면보다 그만큼 좁다
     const CR_Z09 = RB_TOP9 - 0.12;     // 크레인 판 밑동(데크 살 속 한 뼘)
     /* 밑동은 높이감 있는 사다리꼴 대야(요청·사진) — 아래가 넓고 위가 좁은 원뿔대.
@@ -10888,9 +10895,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const CR_GRIP9 = 5.9;
       /* ⚠ 판은 **옛 막대(지름 1.75)와 같은 대**여야 한다 — 처음 좌우 반폭 1.45(폭 2.9)로 두니
          격자를 덮는 큰 지느러미였다(실측 렌더). 1.0 × (앞뒤 0.5) 면 옛 막대보다 좌우로만 넓다. */
-      const PIL_W9 = 1.0;                // 기둥 좌우 반폭
+      /* ★ **밑면은 넓고 위로 좁아진다**(2026-09, 요청: "크레인 메인 기둥은 위로 좁아지는 지금
+         형태가 맞는데 밑면은 좀더 넓었으면 좋겠고") — 좁아지는 꼴은 그대로 두고 **밑면만**
+         넓힌다: 반폭 1.0 → `PIL_W9` 1.3 에 기울기 0.18 → `PIL_TAP9` 0.406 이라, 팔이 갈라지는
+         자리(t PIL_R9)의 반폭은 0.845 로 **한 톨도 안 바뀐다**(위는 그대로고 아래만 벌어진다).
+         ⚠ 폭 자는 한 함수(`pilW9`)로 모은다 — 앞면 사다리가 그 값을 읽으므로 손으로 베껴 두면
+           밑면을 넓힐 때 사다리만 옛 폭에 남는다('한 줄로 꿴 부품은 한 값으로'의 그 자리). */
+      const PIL_W9 = 1.3;                // 기둥 좌우 반폭(밑면)
+      const PIL_TAP9 = 0.406;            // 위로 좁아지는 몫
       const PIL_OV9 = 0.5;               // 앞뒤 눌림(판)
       const PIL_R9 = 0.862;              // 이 위가 둥근 머리(= 팔이 갈라지는 t)
+      const pilW9 = (t9: number): number => PIL_W9 * (1 - PIL_TAP9 * Math.min(t9, PIL_R9));
       const arm: ShapeFace[] = [
         // 뒤 기둥 — 대야 뒤 테두리에서 위로.
         /* 뿌리 마디만 굵게(지적: "로보틱스 집게의 첫번째 뿌리 마디 두껍게 수정.
@@ -10920,7 +10935,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           path: (t9: number): [number, number, number] => [
             0, -3.5 + (CR_TIPY9 + 3.5) * t9, CR_Z09 + (CR_TIPZ9 - CR_Z09) * t9,
           ],
-          widthOf: (t9: number): number => PIL_W9 * (1 - 0.18 * Math.min(t9, PIL_R9))
+          widthOf: (t9: number): number => pilW9(t9)
             * (t9 <= PIL_R9 ? 1 : Math.sqrt(Math.max(0, 1 - ((t9 - PIL_R9) / (1 - PIL_R9)) ** 2))),
         }),
         // 아치 — 꼭지 바로 아래에서 앞으로 굽어 내려온다.
@@ -10948,16 +10963,32 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       }));
       // 청록 발광 — 기둥 꼭대기 구슬.
       arm.push(...paintBase(domeFaces3(0, CR_TIPY9, 0.72, 0.496, CR_TIPZ9 + 0.08), "#5aecd8"));
-      /* 판 앞면(+y)의 청록 슬릿 — 사진의 그 세로 홈. 판 두께를 읽어 한 뼘 띄운다. */
+      /* ★ **앞면(+y)은 사다리다**(2026-09, 같은 요청: "앞면에 사다리 모양처럼 보여야해") —
+         옛 판은 세로 청록 슬릿 한 장이었다. 어두운 홈을 깔고 그 위에 **레일 둘 + 디딤대 일곱**을
+         한 뼘 더 띄워 얹으면 그 사이로 보이는 어두운 골이 곧 사다리로 읽힌다(색만 바꾸고 안
+         나누면 그냥 띠다 — '통풍구로 읽히게 하는 자'의 그 규약). 레일·디딤대는 안 칠해
+         `raceBase` 의 금을 받으므로 어두운 홈과 대비로 선다.
+         ★ 가로 자리는 **그 높이의 판 반폭**(`pilW9`)을 타므로 사다리도 위로 좁아진다 — 손 값으로
+           두면 좁아진 꼭지에서 레일이 판 밖으로 나간다.
+         ⚠ 감기는 **위 변을 먼저** 적는다 — 아래 변부터 적으면 낯 법선이 판 속(−y)을 봐 그만큼
+           어둡게 음영이 매겨진다(옛 슬릿이 그 자였다). */
       {
-        const t09 = 0.2; const t19 = 0.74;
-        const py9 = (t9: number): [number, number, number] => [
-          0, -3.5 + (CR_TIPY9 + 3.5) * t9 + PIL_W9 * (1 - 0.18 * t9) * PIL_OV9 + 0.04,
+        const LT09 = 0.1; const LT19 = 0.8; const LN9 = 7;
+        const lp9 = (t9: number, f9: number, e9: number): [number, number, number] => [
+          f9 * pilW9(t9),
+          -3.5 + (CR_TIPY9 + 3.5) * t9 + pilW9(t9) * PIL_OV9 + e9,
           CR_Z09 + (CR_TIPZ9 - CR_Z09) * t9,
         ];
-        const [, ya9, za9] = py9(t09); const [, yb9, zb9] = py9(t19);
-        const d9 = polyPath3([[-0.34, ya9, za9], [0.34, ya9, za9], [0.34, yb9, zb9], [-0.34, yb9, zb9]]);
-        arm.push(...paintBase([bodyFace(d9)], "#5aecd8"));
+        const lq9 = (ta9: number, tb9: number, f09: number, f19: number, e9: number): string =>
+          polyPath3([lp9(tb9, f09, e9), lp9(tb9, f19, e9), lp9(ta9, f19, e9), lp9(ta9, f09, e9)]);
+        arm.push(...paintBase([bodyFace(lq9(LT09, LT19, -0.66, 0.66, 0.03))], "#2b3026"));
+        for (const s9 of [-1, 1]) {
+          arm.push(bodyFace(lq9(LT09, LT19, s9 * 0.4, s9 * 0.62, 0.07)));
+        }
+        for (let k9 = 0; k9 < LN9; k9 += 1) {
+          const tc9 = LT09 + ((LT19 - LT09) * (k9 + 0.5)) / LN9;
+          arm.push(bodyFace(lq9(tc9 - 0.022, tc9 + 0.022, -0.41, 0.41, 0.07)));
+        }
       }
       out.push(...tagKey(arm, 30));
     }
