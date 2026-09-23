@@ -770,6 +770,17 @@ export const ATTACK_FX: Record<string, string> = {
      빠지는 잽으로 때리는 것을 보인다(MELEE_JAB_SEC). 그림 없는 동작이 호보다 읽기
      쉽고, 무엇보다 옆에 뜬 부메랑처럼 보이지 않는다. */
 };
+/** ★ **자폭으로 때리는 몸** — 무기표(ATTACK_FX)에는 없다(쏘는 것이 아니라 부딪힌다).
+ *  값은 **맞은 쪽 불티의 세기**를 정하는 FX_IMPACT 이름뿐이다 — 이 표를 ATTACK_FX 에
+ *  적으면 그 이름이 곧 트레이서 갈래라, 스커지가 날아오는 동안 줄기를 그린다.
+ *  ⚠ 자폭한 몸은 **맞은 쪽 체력이 깎이는 그 순간 이미 죽어 있다** — 그래서 '나를 겨눈
+ *    산 몸'을 뒤집는 자(foeByTarget)로는 영영 못 찾는다. 아래 suicideHit9 가 그 자리다. */
+export const SUICIDE_FX9: Record<string, string> = {
+  Scourge: "tankboom", "Infested Terran": "tankboom",
+};
+/** 자폭한 몸을 '이 피격의 임자'로 보는 창(초) — 맞은 몸의 불티 창(0.15초)보다 한 뼘 넉넉히.
+ *  참값에서 닿는 순간과 죽는 순간은 같은 프레임이지만, 체력 변곡점이 한 틱 뒤에 찍힐 수 있다. */
+export const SUICIDE_HIT_SEC9 = 0.25;
 /** ★ **그 유닛이 그 표적에 쓰는 트레이서 갈래**(2026-09, 요청: "공격 트레이서가 두 종류 이상
  *  (골리앗 스카우트 배틀 등)인 경우 나눠서 두 셀로 표시") ─────────────────────────────
  *  셋(골리앗·레이스·스카우트)은 **지상·대공 무기가 아예 다르다** — 원작에서 포탑이 둘이다
@@ -4147,6 +4158,50 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     goneEffOf, prodByRawType, bldTagAt, leftAt9, tagOrdinals, buildsByType, halls, gasBuildings,
     resStageSeries, gridHasGasFlags, gasHideOf, mines, bldPre9, bldRecMemo, teamOfRaw, bases, grid, total,
   } = world;
+  /* ★ **자폭으로 맞은 자리는 죽은 몸이 낸다**(2026-09, 지적: "스커지가 배틀에 박아서
+     폭발했는데 배틀에 피격 효과가 안나오는거 같은데") ─────────────────────────────
+     맞은 쪽 불티는 `hitSrcOf` 가 **나를 겨눈 산 몸**(foeByTarget)에서 무기 갈래와 방향을
+     얻는다. 그런데 자폭은 **닿는 순간이 곧 제 죽음**이라, 맞은 쪽 체력이 내려간 그 프레임엔
+     때린 몸이 이미 그 명단에서 빠져 있다(그 고리가 `t >= e.died` 를 건너뛴다). 곧 자폭에
+     맞은 몸은 늘 **방향도 세기도 모르는 기본 불티**를 냈고, 때린 쪽의 제 피떡(0.5초)이 같은
+     화소에 겹쳐 그 0.14초가 통째로 묻혔다 — '피격 효과가 안 난다'가 그것이다.
+     자폭 죽음은 참값에 다 적혀 있으므로 **한 번 훑어 표로 만든다**: [죽은 초, 그때 겨눈 태그,
+     그 자리, 갈래]. 프레임마다 훑지 않게 죽은 초로 정렬해 두고 이분법으로 창만 본다. */
+  const suicideHits9 = (() => {
+    const out9: { at: number; tgt: number; x: number; y: number; fx: string }[] = [];
+    for (const e9 of entWalks) {
+      const fx9 = SUICIDE_FX9[e9.unit];
+      if (!fx9 || e9.died === null || !e9.tgt) continue;
+      /* ⚠ **죽는 프레임의 표적은 0 일 수 있다** — 원작은 죽으면서 겨눔을 놓는다. 그래서
+         마지막 값 하나만 보면 자폭이 통째로 안 잡힌다. 죽기까지의 **마지막 0 아닌 표적**을
+         되짚는다 — 창을 두지 않는다(스커지는 겨눈 그 몸으로 날아가 거기서 죽는다. 표적을
+         잡고 날아가는 동안이 몇 초라, 좁은 창을 두면 그 자리가 통째로 빠진다). */
+      let tg9 = 0;
+      for (let k9 = tkN(e9.tgt) - 1; k9 >= 0; k9 -= 1) {
+        if (tkT(e9.tgt, k9) > e9.died) continue;
+        const tv9 = tkV(e9.tgt, k9);
+        if (tv9 > 0) { tg9 = tv9; break; }
+      }
+      if (!(tg9 > 0)) continue;
+      const q9 = posAtW(e9.walk, e9.died);
+      if (!q9) continue;
+      out9.push({ at: e9.died, tgt: tg9, x: q9.x, y: q9.y, fx: fx9 });
+    }
+    out9.sort((a9, b9) => a9.at - b9.at);
+    return out9;
+  })();
+  /** 지금 시각 언저리(HIT_FX_SEC 창)에 이 태그를 들이받고 죽은 몸 — 없으면 null. */
+  const suicideHitAt9 = (tag9: number, t9: number) => {
+    if (suicideHits9.length === 0) return null;
+    const from9 = t9 - SUICIDE_HIT_SEC9;
+    let lo9 = 0;
+    let hi9 = suicideHits9.length;
+    while (lo9 < hi9) { const m9 = (lo9 + hi9) >> 1; if (suicideHits9[m9].at < from9) lo9 = m9 + 1; else hi9 = m9; }
+    for (let i9 = lo9; i9 < suicideHits9.length && suicideHits9[i9].at <= t9; i9 += 1) {
+      if (suicideHits9[i9].tgt === tag9) return suicideHits9[i9];
+    }
+    return null;
+  };
   const gw9 = grid.width;
   const gh9 = grid.height;
   const FOG_NEVER = 65535;
@@ -5120,23 +5175,34 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
        나를 겨눈 그 몸이 곧 때린 쪽이다. 방어 건물도 유닛과 같은 색인에 들어 있어 함께 잡힌다.
        ★ 방향은 여전히 **붙어 있을 때만** 준다 — 그건 어림이 아니라 뜻의 문제다: 멀리서
          날아온 것은 몸의 어느 쪽에 맞았는지가 그림으로 안 읽히므로, 모를 때는 몸 가운데다. */
+    /** 때린 쪽 자리 → 화면 방향 단위 벡터(붙어 있을 때만 · 멀면 null). */
+    const hitDirOf9 = (sx9: number, sy9: number, x9: number, y9: number): [number, number] | null => {
+      const bd9 = Math.hypot(sx9 - x9, sy9 - y9);
+      if (!(bd9 <= HIT_DIR_TILES && bd9 >= 0.05)) return null;
+      const dx9 = sx9 - x9;
+      const dy9 = (sy9 - y9) * (pitched ? pitchFlat : 1);
+      const m9 = Math.hypot(dx9, dy9);
+      return m9 >= 0.001 ? [dx9 / m9, dy9 / m9] : null;
+    };
     const hitSrcOf = (
       tag9: number, x9: number, y9: number,
-    ): { dir: [number, number] | null; uk?: string } => {
+    ): { dir: [number, number] | null; uk?: string; sfx?: string } => {
       const f9 = tag9 > 0 ? foeByTarget.get(tag9) : undefined;
-      if (!f9) return { dir: null };
-      const bd9 = Math.hypot(f9.x - x9, f9.y - y9);
-      let dir: [number, number] | null = null;
-      if (bd9 <= HIT_DIR_TILES && bd9 >= 0.05) {
-        const dx9 = f9.x - x9;
-        const dy9 = (f9.y - y9) * (pitched ? pitchFlat : 1);
-        const m9 = Math.hypot(dx9, dy9);
-        if (m9 >= 0.001) dir = [dx9 / m9, dy9 / m9];
+      if (!f9) {
+        /* ★ 자폭은 **죽은 몸이 때린 것**이다(위 suicideHits9) — 산 몸 명단에는 없으므로
+           여기서 찾는다. 갈래는 무기표가 아니라 제 표(SUICIDE_FX9)에서 온다. */
+        const s9 = tag9 > 0 ? suicideHitAt9(tag9, t) : null;
+        if (!s9) return { dir: null };
+        return { dir: hitDirOf9(s9.x, s9.y, x9, y9), sfx: s9.fx };
       }
+      const dir = hitDirOf9(f9.x, f9.y, x9, y9);
       /* 무기 갈래는 이름을 아는 몸에서만 — 건물이면 k, 유닛이면 uk가 그 이름이다.
          (사거리 확인은 걷었다: 참값이 겨눈 것이면 제 사거리 안이다.) */
       const uk9 = f9.uk ?? f9.k;
-      return { dir, uk: uk9 && isKnownKind(uk9) ? uk9 : undefined };
+      /* ⚠ 자폭한 몸이 **아직 명단에 있는 첫 프레임**도 있다(체력 변곡점이 죽음보다 한 틱
+         이르면 그렇다) — 그때도 갈래는 무기표가 아니라 제 표에서 와야 한다. */
+      return { dir, uk: uk9 && isKnownKind(uk9) ? uk9 : undefined,
+        sfx: uk9 ? SUICIDE_FX9[uk9] : undefined };
     };
     const RIDE_TETHER_SEC = 1.1;
     /* ★ 배 쪽 끝은 **배에게 묻는다**(지적: "드랍십 내리기 점선이 전혀 엉뚱한 데랑 이어져.
@@ -6058,7 +6124,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           const bMat9: "bio" | "mech" | "toss" | "zerg" = race2 === "저그" ? "zerg"
             : race2 === "프로토스" || bShShare9 > 0 ? "toss"
               : race2 === "테란" ? "mech" : "mech";
-          const bWpn9 = bHitSrc9.uk ? ATTACK_FX[bHitSrc9.uk] : undefined;
+          const bWpn9 = (bHitSrc9.uk ? ATTACK_FX[bHitSrc9.uk] : undefined) ?? bHitSrc9.sfx;
           fxOps.push({
             kind: "hit", fx: bfx9, fy: bfy9, lift: bLift9,
             /* 건물도 같은 비(반지름 = 폭의 1/4 → size 0.69·K)로 — 옛 0.3은 거의 안 보였다.
@@ -8805,7 +8871,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
     const hitSrc9 = hitNow ? hitSrcOf(e.tag, rawPos.x, rawPos.y) : null;
     const hitDir9 = hitSrc9?.dir ?? null;
     /** 때린 무기의 갈래 — 트레이서와 같은 이름표(ATTACK_FX)를 쓴다. */
-    const hitWpn9 = hitSrc9?.uk ? ATTACK_FX[hitSrc9.uk] : undefined;
+    const hitWpn9 = (hitSrc9?.uk ? ATTACK_FX[hitSrc9.uk] : undefined) ?? hitSrc9?.sfx;
     /** 맞은 몸의 결 — 죽음 효과가 고르는 것과 **같은 식**이다(요청: 결을 같이). */
     const hitMat9: "bio" | "mech" | "toss" | "zerg" = race === "저그" ? "zerg"
       : race === "프로토스" ? "toss"
