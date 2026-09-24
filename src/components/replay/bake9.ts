@@ -12858,7 +12858,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          넘침 2% · 밑 테의 z −0.03). */
     const GT9 = 0.66;                                    // 축이 든 각(앞·위)
     const GR9 = 1.2;                                     // 반구 반지름(세로) — 옛 렌즈의 1.4배 대
-    const GOV9 = 0.62;                                   // 좌우 누름
+    /* ★ **좌우 폭은 1.5배다**(2026-09, 요청: "앞 보석은 좌우 폭 1.5배로 확대") — `oval` 이 곧
+       좌우 누름이라 그 한 값이다(0.62 → 0.93 · 좌우 반폭 0.744 → 1.116). ⚠ 그 값은 **몸의 좌우
+       반폭**(DR9·BX9 = 1.067)보다 커서 보석이 코 양옆으로 비어져 나온다 — 어느 깊이로 물려도
+       막을 수가 없다(밑 낯은 뒤·아래를 보므로 카메라에 안 걸리고, 비어져 나온 몫은 돔 낯이
+       칼날로 여며지는 자리다). 요청이 이름 붙인 값이라 그대로 둔다. */
+    const GOV9 = 0.62 * 1.5;                             // 좌우 누름 × 1.5
     /* ⚠ 물림은 **껍질을 고칠 때마다 다시 잰다** — 몸의 앞뒤가 1.6 으로 줄면 그 각이 껍질을 뚫는
        거리(gsh9)가 2.045 → 1.701 이라, 옛 0.55 로는 밑 테가 껍질 밖으로 3.6% 넘친다(실측). 0.58 이
        옛 자(2%)와 같은 자리다(솟은 몫 0.62). */
@@ -12930,29 +12935,40 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         oval: COV9, radOf: chimRad9, ref: py < -2 ? [0, 1, 0] : [1, 0, 0],
         segs: 2, sides: CN9, hold: 1, trueNormal: true, leanX: lean * 0, leanY: 0,
       }), GOLD), 10 + depthNow(px, py) * 1.6));
-      /* ★★ **양옆 굴뚝 바깥에는 돌고래 지느러미가 붙는다**(2026-09, 요청: "양쪽 굴뚝 바깥쪽으로
-         돌고래 지느러미 달기") — 공용 잎(`leafFaces`)을 **바깥·위로 굽어 뒤로 쓸리는 등뼈**에 세운
-         얇은 날이다(뿌리는 굴뚝 살 속 · 끝은 점). ⚠ 납작해지는 쪽은 `ref` 가 정한다 — ŷ 를 주면
-         두께가 앞뒤로 눕고 날이 x-z 평면에 서서 옆에서 지느러미 낯이 통째로 보인다(그 ⚠ 규약). */
+      /* ★★ **양옆 굴뚝 바깥의 돌고래 지느러미는 1/4 원 판이다**(2026-09, 요청: "양옆 돌고래
+         지느러미는 1/4 원이고 바닥에 평평한면이 닿게") — 앞 판은 굴뚝 중턱에서 뒤로 쓸리며 솟는
+         잎(`leafFaces`)이었다. 이제 **직각이 안·밑 모서리**에 있다: 밑 변은 땅에 눕고(그 평평한
+         낯이 곧 바닥에 닿는 면이다) 곧은 변은 굴뚝 벽에 서며 호가 그 둘을 잇는다.
+         · ⚠ **호는 z 를 접어 그린다** — 이 파일의 z 는 ×Z8 로 접혀 있으므로 설계 자의 정원은
+           `x = R·cos · z = R·Z8·sin` 이다(굽은 관을 새로 지을 때마다 물어야 하는 그 한 줄).
+         · ⚠ **1/4 원은 높이와 내민 몫이 같은 값(R)이다** — 옛 잎처럼 굴뚝 꼭대기까지 솟게 하려면
+           그만큼 옆으로도 나가므로, 그 둘의 타협이 곧 `FR9` 다(잉크 폭이 그 값을 탄다).
+         · ⚠ 판은 **닫힌 껍질**로 짠다(앞 낯 · 뒤 낯 · 테두리 띠) — 한 장짜리 판은 두께가 없어
+           옆에서 사라지고 데칼 편향을 타 이웃을 뚫는다.
+         · 곧은 변은 굴뚝 살 속으로 한 뼘 물린다(닿게 두면 z 싸움이다 — 그 규약). */
       if (py > -2) {
         const sx9 = px < 0 ? -1 : 1;
-        const fr9 = 0.5 * k9 * CFLAT9;                   // 굴뚝 좌우 반폭 — 뿌리는 그 살 속이다
-        const bz9 = (t9: number, a9: number, b9: number, c9: number): number => {
-          const u9 = 1 - t9;
-          return a9 * u9 * u9 + 2 * b9 * u9 * t9 + c9 * t9 * t9;
-        };
-        out.push(...tagKey(leafFaces({
-          /* ⚠ 등뼈를 뒤(−y)로 많이 쓸면 안 된다 — 날의 폭은 늘 x-z 평면(v = T×ŷ)이라
-             등뼈만 뒤로 누우면 날이 제 진행 방향에 모로 서서 초승달로 읽힌다. 뒤로는 살짝만. */
-          path: (t9: number): [number, number, number] => [
-            px + sx9 * bz9(t9, fr9 - 0.10, fr9 + 0.40, fr9 + 0.78),
-            py + bz9(t9, 0.06, -0.06, -0.30),
-            0.24 + ph * bz9(t9, 0.34, 0.62, 1.00),
-          ],
-          waist: 0.18, thick: 0.075, spread: 6.0, rootPow: 0.8, tipPow: 1.25,
-          rootW: 0.9, tipW: 0, segs: 6, sides: 8,
-          ref: [0, 1, 0], trueNormal: true, fill: GOLD,
-        }), 10 + depthNow(px + sx9 * 0.7, py) * 1.6 + 0.3));
+        const fr9 = 0.5 * k9 * CFLAT9;                   // 굴뚝 좌우 반폭 — 곧은 변은 그 살 속이다
+        const FR9 = 1.2;                                 // 1/4 원 반지름(화면 자) — 높이도 같은 값
+        const FT9 = 0.12;                                // 판 반두께 — 90도에서 날이 철사로 안 읽히는 자리
+        const FN9 = 10;                                  // 호 마디
+        const fcx9 = px + sx9 * (fr9 - 0.06);            // 직각 모서리 — 굴뚝 살 속 한 뼘
+        const rim9: [number, number][] = [[0, 0]];       // (바깥 몫, z) — 안·밑 모서리에서 시작
+        for (let i9 = 0; i9 <= FN9; i9 += 1) {
+          const a9 = (i9 / FN9) * Math.PI / 2;
+          rim9.push([Math.cos(a9) * FR9, Math.sin(a9) * FR9 * Z8]);
+        }
+        const fp9 = (i9: number, s9: number): [number, number, number] =>
+          [fcx9 + sx9 * rim9[i9][0], py + s9 * FT9, rim9[i9][1]];
+        const fin9: ShapeFace[] = [
+          bodyFace(polyPath3(rim9.map((_r9, i9) => fp9(i9, 1)))),
+          bodyFace(polyPath3(rim9.map((_r9, i9) => fp9(rim9.length - 1 - i9, -1)))),
+        ];
+        for (let i9 = 0; i9 < rim9.length; i9 += 1) {
+          const j9 = (i9 + 1) % rim9.length;
+          fin9.push(bodyFace(polyPath3([fp9(i9, 1), fp9(j9, 1), fp9(j9, -1), fp9(i9, -1)])));
+        }
+        out.push(...tagKey(paintBase(fin9, GOLD), 10 + depthNow(px + sx9 * 0.7, py) * 1.6 + 0.3));
       }
       /* 굴뚝 띠는 개인색이다(요청: "굴뚝들 녹색데칼 개인색으로 변경") — 색을 안 주면
          임자 색이 들므로 pc에 담는다(out은 밑칠이 통째로 금빛을 덮어쓴다). */
@@ -12986,10 +13002,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          벽으로 덮는다(그 규약). 곧 몸·싸개·굴뚝을 고치면 종이 따라온다(손으로 맞출 값이 없다).
        · ⚠⚠ **그 틈은 0.55 뿐이라 종은 날씬할 수밖에 없다** — 아가리 지름 0.85 에 키 2.6(굴뚝 갓
          2.4 보다 한 뼘 높다 · 요청의 "높이가 높은")이라 키가 지름의 3.1 배다.
-       · **종의 옆선은 한 식이다**(`bellR9`) — 아가리에서만 확 벌어지고 그 위는 거의 곧은 허리,
-         t 0.74 부터 호로 어깨를 돌아 작은 꼭지로 여민다. ⚠ **한 지수짜리 테이퍼는 종이 아니라
-         고깔이다**(처음 그 꼴로 두니 굴뚝 곁의 뿔로 읽혔다) — 종으로 읽히게 하는 자는 아가리의
-         **벌림**과 꼭대기의 **둥글림** 둘이다. ⚠ 꼭지가 점이 아니므로 `tipW` 를 꼭 준다(그 ⚠⚠ 규약).
+       · ★ **종의 옆선은 한 식이다**(`bellR9` = `BLW9·(1 − t^BLP9)`) — 2026-09 에 보기 그림으로
+         되물렸다("종모양 저런게 아니라 이거야" · 눈금 그림): 밑이 가장 넓고 옆선이 거의 곧게 서다
+         위로 갈수록 급히 안으로 굽어 **꼭대기가 점**인 탄두꼴이다. 지수 `BLP9` 2.2 가 그 그림의
+         눈금에 맞는 값이다(높이 33%에서 폭 92% · 65%에서 61% · 77%에서 44% — 실측 견줌).
+         ⚠⚠ **끝을 점으로 모으는 자는 지수가 1 이상인 것**이다 — `(1−t²)^p`(p<1) 꼴은 꼭대기에서
+           기울기가 수평이라 **둥근 뚜껑**이 되고, `1 − t^p`(p≥1)라야 두 옆선이 한 점에서 만난다.
+         ⚠ 점이므로 `tipW` 0 이고 뚜껑을 안 덮는다(`caps: "bottom"`) — 앞 판은 아가리만 벌어지고
+           꼭대기가 작은 꼭지라 `tipW` 를 꼭 줘야 했다(그 ⚠⚠ 규약). 그 꼴(벌림 + 둥근 꼭지)은
+           걷혔다 — 보기 그림의 종은 벌림도 꼭지도 없다.
        · **앞 40% 는 베어 낸다**(`cutFace` · 음수 = 파낼 쪽) — 깊이가 2r 이므로 자르는 면은
          `y = 축 + (1 − 2·BLF9)·r(z)` 다. **높이마다 제 r 로 재므로** 위아래 고르게 40% 가 베인다
          — 한 평면으로 베면 아가리만 열리고 어깨 위는 통째로 남아 꼭대기가 온전한 기둥이 된다.
@@ -13003,18 +13024,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const BLH9 = 2.6;                                  // 키 — 굴뚝 갓(2.4)보다 한 뼘 높다
       const BLF9 = 0.4;                                  // 앞에서 잘라 내는 몫
       const BLIK9 = 0.62;                                // 안쪽 네온 라이닝의 몫 — 금 테가 둘레에 남는다
-      const bellR9 = (t9: number): number => {
-        const flare9 = 0.40 * Math.max(0, 1 - t9 / 0.24) ** 1.8;   // 아가리만 확 벌어진다
-        const waist9 = 0.62 - 0.10 * t9;                 // 그 위는 거의 곧은 허리
-        const crown9 = t9 < 0.74 ? 1                     // 어깨에서 꼭대기로 호를 그려 작은 꼭지로 여민다
-          : Math.sqrt(Math.max(0, 1 - ((t9 - 0.74) / 0.30) ** 2));
-        return BLW9 * (waist9 + flare9) * crown9;
-      };
+      const BLP9 = 2.2;                                  // 옆선 지수 — 밑은 곧고 꼭대기는 점이다
+      const bellR9 = (t9: number): number => BLW9 * (1 - t9 ** BLP9);
       for (const sx9 of [-1, 1]) {
         const bx9 = sx9 * BLX9;
         out.push(...tagKey(paintBase(spirePillar({
-          x: bx9, y: BLY9, z0: 0, h: BLH9, w: BLW9, tipW: bellR9(1),
-          widthOf: bellR9, segs: 16, sides: 16, caps: "both", trueNormal: true,
+          x: bx9, y: BLY9, z0: 0, h: BLH9, w: BLW9, tipW: 0,
+          widthOf: bellR9, segs: 16, sides: 16, caps: "bottom", trueNormal: true,
           cutFace: (_cx9: number, cy9: number, cz9: number): number => {
             const t9 = Math.max(0, Math.min(1, cz9 / BLH9));
             return BLY9 + (1 - 2 * BLF9) * bellR9(t9) - cy9;
@@ -13028,9 +13044,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            '금 종 안에 켜진 등'으로 읽히는 자리다. 색은 몸의 보석·굴뚝 띠와 같은 두 단이라
            `EMIT_FILL9` 에 적혀 번짐을 탄다. */
         out.push(...tagKey(spirePillar({
-          x: bx9, y: BLY9, z0: 0.02, h: BLH9 - 0.04, w: BLW9 * BLIK9, tipW: bellR9(1) * BLIK9,
+          x: bx9, y: BLY9, z0: 0.02, h: BLH9 - 0.04, w: BLW9 * BLIK9, tipW: 0,
           widthOf: (t9: number): number => bellR9(0.02 / BLH9 + (1 - 0.04 / BLH9) * t9) * BLIK9,
-          segs: 16, sides: 16, caps: "both", trueNormal: true,
+          segs: 16, sides: 16, caps: "bottom", trueNormal: true,
           cutFace: (_cx9: number, cy9: number, cz9: number): number => {
             const t9 = Math.max(0, Math.min(1, cz9 / BLH9));
             return BLY9 + (1 - 2 * BLF9) * bellR9(t9) * BLIK9 - cy9;
