@@ -12669,11 +12669,24 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const WTOT9 = WLEG9 * 2 + Math.PI * WRX9;            // 한 바퀴 길이
     const WTH9 = 0.26;                                   // 담 반두께
     const WBOT9 = Math.cos(Math.PI / 8);                 // 8각 밑 낯의 자(축에서 밑면까지)
+    /* ★★ **담의 등은 수평이고 앞 끝만 호로 다듬는다**(2026-09, 요청: "1차 감싸개 색 더 연하게
+       변경하고 앞부분으로 기울이지 않고 수평하게 나오다가 옆날개들 모양처럼 앞위를 호로 다듬기") —
+       옛 자 `1.2 + (DH9z9 − 1.2)·(1 − sd²)` 는 뒤 꼭대기(본체 높이)에서 두 끝(1.2)까지 **죽 기운
+       비탈**이라 감싸는 벽이 아니라 미끄럼틀로 읽혔다. 이제 높이는 뒤에서 앞까지 **DH9z9 한 값**이고
+       앞 끝에서 `WARC9` 만큼만 4분 타원으로 내려앉는다 — 양옆 굴뚝의 1/4 원 지느러미와 같은 꼴이다.
+       · 자는 **앞 끝에서 잰 호 길이**다 — 매개 u 가 이미 길이로 나뉘어 있으므로(그 ★) `(1 − sd9)·WTOT9/2`
+         가 곧 그 거리이고, 다리를 늘리고 줄여도 호의 크기는 안 흔들린다.
+       · ⚠ **앞 끝 높이를 0 으로 두지 마라** — 두께는 `ovalOf` 가 높이로 **나눠** 내므로(WTH9 ÷ 반폭)
+         0 에 닿으면 발산한다. `WEND9` 가 그 바닥이고 그 몫이 곧 앞 끝의 날 두께다. */
+    const WARC9 = 1.2;                                   // 앞 끝을 다듬는 호(지느러미 FR9 와 같은 자)
+    const WEND9 = 0.18;                                  // 앞 끝에 남기는 높이 — 0 이면 두께가 발산한다
+    const WALL9 = "#b8a043";                             // 담의 색 — 짙은 금(GOLD_D)보다 연하다(요청)
     const wallH9 = (u9: number): number => {
       const sd9 = Math.abs(u9 - 0.5) * 2;                // 0 뒤 · 1 앞 끝
-      /* ★ 뒤 꼭대기는 **본체 높이**다(2026-09, 요청: "1차감싸개 뒷 높이 본체건물 높이로 맞추고") —
-         손 값 2.4 를 `DH9z9` 로 꿰어 두면 몸을 높이고 낮출 때 담이 함께 따라온다. 두 끝(1.2)은 그대로. */
-      return 1.2 + (DH9z9 - 1.2) * (1 - sd9 * sd9);      // 뒤가 높고 두 끝이 낮다
+      const de9 = (1 - sd9) * WTOT9 / 2;                 // 앞 끝에서 잰 호 길이
+      if (de9 >= WARC9) return DH9z9;                    // 수평하게 나온다(뒤 꼭대기 = 본체 높이)
+      const q9 = 1 - de9 / WARC9;                        // 0 호의 안쪽 끝 · 1 앞 끝
+      return WEND9 + (DH9z9 - WEND9) * Math.sqrt(Math.max(0, 1 - q9 * q9));
     };
     const wallAt9 = (u9: number): [number, number, number] => {
       const s9 = u9 * WTOT9;                             // 앞오른쪽 → 뒤 → 앞왼쪽(호 길이)
@@ -12691,7 +12704,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const uu9 = (t9: number): number => (s9 + t9) / SEGW9;
         const seg = spirePillar({
           x: 0, y: 0, h: 0.8, w: 1, segs: 3, sides: 8, caps: "both", trueNormal: true,
-          ref: [0, 0, 1], fill: GOLD_D,
+          ref: [0, 0, 1], fill: WALL9,
           path: (t9: number): [number, number, number] => wallAt9(uu9(t9)),
           widthOf: (t9: number): number => wallH9(uu9(t9)) / (2 * WBOT9),
           ovalOf: (t9: number): number => WTH9 / (wallH9(uu9(t9)) / (2 * WBOT9)),
@@ -12729,6 +12742,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const CFLAT9 = 0.7;                                  // 납작함 — 누르는 축(u)만 죈다
     const COV9 = 1.6 / CFLAT9;                           // 눌린 만큼 v 로 되돌린다(긴 쪽 0.5·k·1.6 불변)
     const CN9 = 16; const CPOW9 = 5;                     // 단면 낯 수 · 네모다움
+    const CBORE9 = 0.74;                                 // 굴뚝 속(보어)의 몫 — 남는 테가 곧 관의 두께다
+    const CBORE_D9 = "#2a2620";                          // 그 속의 어둠
     const chimRad9 = (a9: number): number => 1 / (
       Math.abs(Math.cos(a9)) ** CPOW9 + Math.abs(Math.sin(a9)) ** CPOW9) ** (1 / CPOW9);
     const OTH9 = 0.28;                                   // 담 반두께
@@ -12898,24 +12913,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     CHIM9.forEach(([px, py, ph, lean, k9]) => {
       const wx9 = px + lean * 0.72;
       const wy9 = py + (lean === 0 ? 0 : 0.32);
-      const wz9 = 0.24 + ph;   // 갓은 기둥 꼭대기에(재지적: 굴뚝 속 비침 — 기둥 안에 묻힌 갓이 키로 위에 그려졌다)
-      /* 굴뚝 갓은 **금색**이다(요청: "어시밀 굴뚝의 청록색 제거하고 금색으로 수정") —
-         프로토스 사이언을 아쿠아로 옮기면서 이 갓까지 아쿠아가 됐는데, 어시밀레이터의
-         굴뚝은 가스를 뽑는 **금속 관**이라 결정 발광이 아니다. 쉴 때는 짙은 금(GOLD_D),
-         캘 때만 밝은 금으로 달아오른다 — 사이언과 달리 금은 종족 껍데기와 한 결이라
-         '켜졌다'만 읽히고 색이 튀지 않는다. */
-      /* ★ **갓(굴뚝 구멍)도 기둥과 같은 단면이다**(2026-09, 요청: "굴뚝구멍도 기둥모양에 맞추기") —
-         `cylinderFaces3` 는 늘 정원이라, 기둥이 눌린 둥근네모가 된 뒤로는 갓만 홀로 원으로 섰다. */
-      const cap9 = (r9: number, h9: number, z9: number, fl9: string): ShapeFace[] =>
-        paintBase(spirePillar({
-          x: wx9, y: wy9, z0: z9, h: h9, w: r9 * CFLAT9, tipW: r9 * CFLAT9,
-          oval: COV9, radOf: chimRad9, ref: py < -2 ? [0, 1, 0] : [1, 0, 0],
-          segs: 1, sides: CN9, hold: 1, trueNormal: true,
-        }), fl9);
-      out.push(...tagKey(bldLitNow
-        ? [...cap9(0.46 * k9, 0.24, wz9, "#e8c33a"), ...cap9(0.49 * k9, 0.08, wz9 + 0.064, "#fff2b0")]
-        : cap9(0.46 * k9, 0.24, wz9, GOLD_D),
-      10 + depthNow(px, py) * 1.6 + 0.5));
+      const wz9 = 0.24 + ph;   // 굴뚝 꼭대기 — 가스는 그 바로 위에서 난다
+      /* ★★ **굴뚝 위의 갈색 갓은 걷었다 — 이제 아가리가 열린 관이다**(2026-09, 요청:
+         "굴뚝위 갈색 부품제거하고 굴뚝 안이 뚫린형태로 변경") — 옛 갓은 꼭대기에 얹은 짙은 금
+         (GOLD_D) 원반 기둥이라 **막은 마개**로 읽혔다(캘 때 밝은 금으로 달아오르던 그 몫도 함께
+         갔다 — 활성은 몸의 보석·종 속 네온이 이미 낸다). 뚫는 손은 아래 기둥 자리에 있다. */
       /* ★ 굴뚝마다 **가스 연기가 오른다**(2026-09, 요청: "간헐천과 어시밀레이터는 가운데와 좌우 가스가
          번갈아 나오게하기") — 뒤 가운데 큰 굴뚝은 위상 0, 앞 양옆 둘은 1/4 이라 가운데가 낼 때 양옆은
          쉰다(gasPuffs9 의 ★). 색은 베스핀 초록 — 굴뚝은 금이지만 나오는 것은 가스다. 3티어. */
@@ -12934,7 +12936,41 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         x: px, y: py, z0: 0.24, h: ph, w: 0.5 * k9 * CFLAT9, tipW: 0.5 * k9 * CFLAT9,
         oval: COV9, radOf: chimRad9, ref: py < -2 ? [0, 1, 0] : [1, 0, 0],
         segs: 2, sides: CN9, hold: 1, trueNormal: true, leanX: lean * 0, leanY: 0,
+        caps: "bottom",                                  // 윗뚜껑을 걷는다 — 아가리가 곧 구멍이다
       }), GOLD), 10 + depthNow(px, py) * 1.6));
+      /* ★★ **뚫린 관은 셋이 한 벌이다 — 겉벽(윗뚜껑 없음) · 어두운 속 · 꼭대기 고리**(같은 요청의
+         "굴뚝 안이 뚫린형태로") — 뚜껑만 걷으면 겉벽의 **먼 쪽 안낯**(금색)이 들여다보여 '속이 빈 금
+         깡통'이 된다. 속은 제 벽을 한 겹 더 세워 어둡게 채우고, 겉과 속 사이를 꼭대기에서 고리로
+         이으면 그 고리가 곧 **관의 두께**다.
+         · ⚠ 속은 `caps: "none"` · `trueNormal` 없이 둔다 — **뒷벽까지 그려야** 검게 찬다(해처리
+           밑동 들머리·나이더스 굴의 그 규약).
+         · ⚠ 속의 키는 겉벽보다 **낮다** — gl9 의 부품 차례 편향은 키가 클수록 앞으로 당기므로(최대
+           0.7 모형칸) 속이 뒤에 서면 그 편향이 관 벽을 뚫고 나온다.
+         · 단면은 띠와 같은 식(chimRad9 · 같은 낯 수·위상·눌림)이라 고리가 살에서 안 뜬다. */
+      {
+        const ztop9 = 0.24 + ph;
+        const cpt9 = (kk9: number, z9: number, i9: number): [number, number, number] => {
+          const a9 = (i9 / CN9) * Math.PI * 2 + Math.PI / CN9;
+          const rr9 = chimRad9(a9) * 0.5 * k9 * kk9;
+          const cu9 = Math.cos(a9) * rr9 * CFLAT9;
+          const sv9 = Math.sin(a9) * rr9 * 1.6;
+          return py < -2 ? [px - sv9, py + cu9, z9] : [px + cu9, py + sv9, z9];
+        };
+        out.push(...tagKey(paintBase(spirePillar({
+          x: px, y: py, z0: 0.24, h: ph,
+          w: 0.5 * k9 * CFLAT9 * CBORE9, tipW: 0.5 * k9 * CFLAT9 * CBORE9,
+          oval: COV9, radOf: chimRad9, ref: py < -2 ? [0, 1, 0] : [1, 0, 0],
+          segs: 2, sides: CN9, hold: 1, caps: "none",
+        }), CBORE_D9), 10 + depthNow(px, py) * 1.6 - 0.2));
+        const rim9: ShapeFace[] = [];
+        for (let i9 = 0; i9 < CN9; i9 += 1) {
+          const j9 = (i9 + 1) % CN9;
+          rim9.push(bodyFace(polyPath3([
+            cpt9(1, ztop9, i9), cpt9(1, ztop9, j9), cpt9(CBORE9, ztop9, j9), cpt9(CBORE9, ztop9, i9),
+          ])));
+        }
+        out.push(...tagKey(paintBase(rim9, GOLD), 10 + depthNow(px, py) * 1.6 + 0.05));
+      }
       /* ★★ **양옆 굴뚝 바깥의 돌고래 지느러미는 1/4 원 판이다**(2026-09, 요청: "양옆 돌고래
          지느러미는 1/4 원이고 바닥에 평평한면이 닿게") — 앞 판은 굴뚝 중턱에서 뒤로 쓸리며 솟는
          잎(`leafFaces`)이었다. 이제 **직각이 안·밑 모서리**에 있다: 밑 변은 땅에 눕고(그 평평한
@@ -13025,7 +13061,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const BLF9 = 0.4;                                  // 앞에서 잘라 내는 몫
       const BLIK9 = 0.62;                                // 안쪽 네온 라이닝의 몫 — 금 테가 둘레에 남는다
       const BLP9 = 2.2;                                  // 옆선 지수 — 밑은 곧고 꼭대기는 점이다
+      const BLIN_K9 = 0.9;                               // 속에 끼우는 종이 라이닝 안으로 들어가는 몫
       const bellR9 = (t9: number): number => BLW9 * (1 - t9 ** BLP9);
+      /* ★★ **윗부분 안쪽에 반 높이짜리 종이 하나 더 끼워져 있다**(2026-09, 요청: "종부품 윗부분
+         안쪽에 종모양(높이 1/2짜리를 딱 맞게 께워넣기)") — 같은 옆선 식의 **위 반쪽을 그대로 떠서**
+         `BLIN_K9` 만큼 안으로 들인 것이라, 밑동(z BLH9/2)에서 꼭대기까지 라이닝과 **고른 틈**을 두고
+         꽂힌다(꼭짓점은 바깥 종과 같은 자리다). 앞이 열려 있으므로 그 속이 아가리로 들여다보인다.
+         · ⚠⚠ **자기닮음 종은 여기 못 들어간다** — `1 − s^p` 를 반 높이로 줄이면 꼭짓점의 원뿔각이
+           두 배라, 밑동을 라이닝에 맞추면 가운데가 바깥 종을 **뚫고 나오고**(실측: 높이 3/4 에서
+           0.1·BLW9 밖) 끝에서 맞추려면 밑동이 절반으로 가늘어져 바늘이 된다. 곧 여기서 '반 높이'는
+           **위 반쪽을 뜨는 것**이고 그것이 곧 '딱 맞게'다.
+         · ⚠ 앞 40% 는 **제 반지름으로** 같이 벤다 — 안 베면 그 앞 반쪽이 아가리 밖으로 비어져 나온다. */
+      const insR9 = (s9: number): number => bellR9(0.5 + 0.5 * s9) * BLIK9 * BLIN_K9;
       for (const sx9 of [-1, 1]) {
         const bx9 = sx9 * BLX9;
         out.push(...tagKey(paintBase(spirePillar({
@@ -13053,6 +13100,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           },
           fill: glowLit("#a3fff3", "#5fe6d4"),
         }), 10 + depthNow(bx9, BLY9) * 1.6 - 0.1));
+        out.push(...tagKey(paintBase(spirePillar({
+          x: bx9, y: BLY9, z0: BLH9 / 2, h: BLH9 / 2, w: insR9(0), tipW: 0,
+          widthOf: insR9, segs: 10, sides: 16, caps: "bottom", trueNormal: true,
+          cutFace: (_cx9: number, cy9: number, cz9: number): number => {
+            const s9 = Math.max(0, Math.min(1, (cz9 - BLH9 / 2) / (BLH9 / 2)));
+            return BLY9 + (1 - 2 * BLF9) * insR9(s9) - cy9;
+          },
+        }), GOLD), 10 + depthNow(bx9, BLY9) * 1.6 - 0.05));
       }
     }
     /* ⚠ 옛 정지 김(굴뚝마다 위로 갈수록 넓고 옅어지는 타원 세 켜)은 걷었다(2026-09, 지적: "어시밀레이터 양옆
