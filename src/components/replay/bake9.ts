@@ -2843,9 +2843,12 @@ export function membraneFaces(
  *  가장자리 0.02). 안면은 안 그린다(돔이 곧 안면이다). 바깥 켜 하나는 테(rim) 색, 안 절반은 core, 나머지는 fill. */
 export function contactLens9(o: {
   cx: number; cy: number; r: number; hh: number; z0: number; ang: number; elev: number; thick: number;
+  /** 좌우 반지름 — 안 주면 `r`(앞뒤와 같은 정원 단면). 몸이 한 축으로 눌린 타원돔이면 그 축의 반지름을 준다. */
+  rx?: number;
   rim: string; fill: string; core: string;
 }): ShapeFace[] {
   const { cx, cy, r, hh, z0 } = o;
+  const rx9 = o.rx ?? r;
   const c9 = [0, Math.cos(o.elev), Math.sin(o.elev)];
   const t1 = [1, 0, 0];
   const t2 = [0, -Math.sin(o.elev), Math.cos(o.elev)];
@@ -2853,8 +2856,8 @@ export function contactLens9(o: {
   const at9 = (a: number, b: number, off: number): [number, number, number] => {
     const ca = Math.cos(a); const sa = Math.sin(a); const cb = Math.cos(b); const sb = Math.sin(b);
     const p = [ca * c9[0] + sa * (cb * t1[0] + sb * t2[0]), ca * c9[1] + sa * (cb * t1[1] + sb * t2[1]), ca * c9[2] + sa * (cb * t1[2] + sb * t2[2])];
-    const sx = cx + r * p[0]; const sy = cy + r * p[1]; const sz = z0 + hh * p[2];
-    const nx = p[0] / r; const ny = p[1] / r; const nz = p[2] / hh;
+    const sx = cx + rx9 * p[0]; const sy = cy + r * p[1]; const sz = z0 + hh * p[2];
+    const nx = p[0] / rx9; const ny = p[1] / r; const nz = p[2] / hh;
     const nl = Math.hypot(nx, ny, nz) || 1;
     return [sx + (nx / nl) * off, sy + (ny / nl) * off, sz + (nz / nl) * off];
   };
@@ -12608,20 +12611,57 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 개인색 자리(수리) — 바탕색 도우미가 out의 밑칠을 전부 칠하므로, 임자 색으로
        남길 활 띠는 out이 아니라 이 accent에 담는다. */
     const pc: ShapeFace[] = [];
-    // 옆 지느러미 둘 — 무늬 새긴 납작한 판이 바깥으로 처진다.
-    for (const m9 of [-1, 1] as const) {
-      const fin = polyPath3([
-        [m9 * 2.2, 1.4, 1.2], [m9 * 4.6, 0.9, 0.28], [m9 * 4.4, -1.6, 0.24], [m9 * 2.1, -1.4, 1.12],
-      ]);
-      out.push(...tagKey([
-        [fin, 1, "#b9a883"] as ShapeFace,
-        m9 > 0 ? sideFace(fin, 0.2) : topFace(fin, 0.14),
-      ], depthNow(m9 * 3.4, -0.2) * 1.6));
-    }
-    // 껍데기 — 앞뒤로 길쭉한 낮은 황금 덩치.
+    /* ★ 옆 지느러미 둘(연갈색 호형 판)은 걷었다(2026-09, 요청: "양옆 샐져나오는 연갈색 호형 판 제거") —
+       몸을 1/3 로 누른 뒤로는 그 판만 몸의 네 배 넓게 깔려 실루에을 통째로 잡았다. */
+    /* ★★ **몸은 좌우로 누른 반타원체다**(2026-09, 요청: "본체를 폭을 1/3 로 누르고") — 옆으로
+       누른 돔은 `domeFaces3` 로 못 짓는다(반지름이 하나라 발자국이 늘 원이다 · 그 ⚠⚠ 규약). 기둥으로
+       지으되 **넓은 쪽을 `oval` 로 되돌린다**: 세운 기둥은 u = x̂ · v = ŷ 이므로 `widthOf` 가 곳
+       좌우 반지름(DR9·BX9)이고 `oval` 1/BX9 가 앞뒤를 원래 값(DR9)으로 되돌린다. 누린 단면이라
+       `trueNormal` 을 함께 준다(그 ★★ 규약). 굴뚝 자리(CHIM9)는 한 톨도 안 건드린다(요청). */
+    // 껍데기 — 앞뒤로 길쯭하고 좌우로 날씨한 황금 덩치.
     const DR9 = 3.2;
+    const BX9 = 1 / 3;                                   // 좌우 누름 몲(요청)
     const DH9 = 2.4; const DH9z9 = 1.92; /* z용 쌍둥이(model-z-scale ×0.8) */
-    out.push(...tagKey(paintBase(domeFaces3(0, -0.2, DR9, DH9z9, 0), GOLD), 2));
+    out.push(...tagKey(paintBase(spirePillar({
+      x: 0, y: -0.2, z0: 0, h: DH9z9, w: DR9 * BX9,
+      widthOf: (t9: number): number => DR9 * BX9 * Math.sqrt(Math.max(0, 1 - t9 * t9)),
+      oval: 1 / BX9, segs: 8, sides: 16, caps: "bottom", trueNormal: true,
+    }), GOLD), 2));
+    /* ★★ **U자 싸개** — 몸의 **뒤와 양옆**을 감싸고 앞은 열린 채 서 있는 담이다
+       (2026-09, 요청: "본체를 감싸는 U자형 싸개가 뒤와 옆을 감싸게").
+       · 길은 몸과 같은 앞뒤로 누운 타원(WRX9 · WRY9)이고 앞쪽 방위 ±WA9 를 비워 그 틈이 곧 U 의 입이다.
+       · 단면은 **서 있는 판**이라 `ref [0,0,1]`(u = 위 · v = 바깥 법선)이고, 높이는 `widthOf` · 두께는 `ovalOf` 가 따로 든다.
+         밑면을 땅에 붙이는 자는 **낯 수**다(콜로니 발의 그 ⚠⚠) — sides 8 · 기본 위상이면 밑 낯이 축에서
+         `cos(π/8)` 깊이라, 반폭을 `h/(2·cos(π/8))` · 축을 `h/2` 에 두면 밑면이 정확히 z 0 이고 꼭대기가 h 다.
+       ⚠ **토막마다 제 깊이를 준다** — 한 번에 지으면 몸 뒤로 돌아간 격이 통째로 몸 위에(또는 밑에) 깔린다
+         (활 띠를 토막 낸 그 자리와 같다). */
+    const WRX9 = 2.4; const WRY9 = 3.9;                  // 싸개 겨다람의 좌우·앞뒤 반지름
+    const WA9 = (50 * Math.PI) / 180;                    // 앞을 비우는 반각 — 이만큼이 U 의 입이다
+    const WTH9 = 0.26;                                   // 담 반두께
+    const WBOT9 = Math.cos(Math.PI / 8);                 // 8각 밑 낯의 자(축에서 밑면까지)
+    const wallH9 = (u9: number): number => {
+      const sd9 = Math.abs(u9 - 0.5) * 2;                // 0 뒤 · 1 앞 끝
+      return 1.2 + 1.2 * (1 - sd9 * sd9);                // 뒤가 높고 두 끝이 낮다
+    };
+    const wallAt9 = (u9: number): [number, number, number] => {
+      const ph9 = WA9 + (Math.PI * 2 - WA9 * 2) * u9;    // 앞오른쪽 → 뒤 → 앞왼쪽
+      return [Math.sin(ph9) * WRX9, -0.2 + Math.cos(ph9) * WRY9, wallH9(u9) / 2];
+    };
+    {
+      const SEGW9 = 12;
+      for (let s9 = 0; s9 < SEGW9; s9 += 1) {
+        const uu9 = (t9: number): number => (s9 + t9) / SEGW9;
+        const seg = spirePillar({
+          x: 0, y: 0, h: 0.8, w: 1, segs: 3, sides: 8, caps: "both", trueNormal: true,
+          ref: [0, 0, 1], fill: GOLD_D,
+          path: (t9: number): [number, number, number] => wallAt9(uu9(t9)),
+          widthOf: (t9: number): number => wallH9(uu9(t9)) / (2 * WBOT9),
+          ovalOf: (t9: number): number => WTH9 / (wallH9(uu9(t9)) / (2 * WBOT9)),
+        });
+        const [wx9, wy9] = wallAt9((s9 + 0.5) / SEGW9);
+        out.push(...tagKey(seg, depthNow(wx9, wy9) * 1.6));
+      }
+    }
     /* 몸을 타넘는 활 띠 넷 — 앞에서 뒤로 나란히 걸린다. 하나(가운데 앞)는 개인색. */
     // 개인색 몫 확대(요청) — 가운데 두 줄을 개인색으로, 굵기도 키운다.
     /* 띠 순서(요청: "등의 개인색을 맨앞금색 그다음줄 개인색 그다음줄 금색 순서대로
@@ -12638,7 +12678,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const arcPt = (u9: number): [number, number, number] => {
           const th = Math.PI * u9;
           return [
-            Math.cos(th) * rho9 * 1.03, by9,
+            Math.cos(th) * rho9 * BX9 * 1.03, by9,                 // ← 몸과 같은 몲만큼 좌우로 누른다
             Math.sin(th) * DH9 * (rho9 / DR9) * 0.824,
           ];
         };
@@ -12653,12 +12693,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
             x: 0, y: 0, h: 0.8, w: own9 ? 0.46 : 0.3, tipW: own9 ? 0.46 : 0.3,
             segs: 2, sides: 5, hold: 1,
             path: (t9: number): [number, number, number] => arcPt((s9 + t9) / SEG9),
-            ...(own9 ? {} : { fill: GOLD_D }),
+            /* ★ 가운데 두 줄은 **보석색**이다(2026-09, 요청: "임자색 데칼부분을 보석색으로 변경") —
+               앞 렌즈와 **같은 두 단**(쉬는 아쿠아 · 캤 때 네온)이라 한 재질로 읽힌다. */
+            fill: own9 ? glowLit("#a3fff3", "#5fe6d4") : GOLD_D,
           });
           /* 키는 깊이와 높이를 함께 본다 — 껍데기(키 2) 위로 넘어간 마루는 높이가
              띄워 주고, 뒤로 돌아 내려간 다리는 깊이가 껍데기 밑으로 내린다. */
           const [mx9, my9, mz9] = arcPt((s9 + 0.5) / SEG9);
-          (own9 ? pc : out).push(...tagKey(band, depthNow(mx9, my9) * 1.6 + mz9 * 2.2));
+          out.push(...tagKey(band, depthNow(mx9, my9) * 1.6 + mz9 * 2.2));
         }
         // 띠 위 청록 눈금 — 마루에 박힌 짧은 조각 셋. 눈금도 저마다 제 깊이다.
         if (!own9) {
@@ -12684,7 +12726,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        사발**이다(contactLens9): 돔 타원면(반지름 DR9 · 높이 DH9z9) 위의 점을 법선 쪽으로 두께(가운데 0.14 · 가장자리 0.02)만큼
        띄운 겉면을 격자로 짓고 가장자리 한 켜를 금 테로 두른다. 안면은 돔이 곧 그것이라 안 그린다. 색은 옛 렌즈의 그 둘(쉼·캘 때)이다. */
     out.push(...tagKey(contactLens9({
-      cx: 0, cy: -0.2, r: DR9, hh: DH9z9, z0: 0, ang: 0.6, elev: 0.3, thick: 0.14, rim: GOLD_D,
+      cx: 0, cy: -0.2, r: DR9, rx: DR9 * BX9, hh: DH9z9, z0: 0, ang: 0.6, elev: 0.3, thick: 0.14, rim: GOLD_D,
       /* ⚠ 유리에 알파를 주지 마라 — 옛 렌즈는 뒤에 불투명 청록 판(back)이 있어 비쳐도 청록이었지만, 껍질에 붙는 이 렌즈의
          뒤는 **금 돔**이라 반투명 아쿠아가 금과 섞여 허연 회색이 된다(실측). 불투명 아쿠아 두 단이다. */
       ...(bldLitNow ? { fill: "#a3fff3", core: "#e0fffb" } : { fill: "#5fe6d4", core: "#b7fff5" }),
