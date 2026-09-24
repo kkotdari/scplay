@@ -12659,7 +12659,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          그대로 맞는다. 각으로 나누면 다리 몫이 한쪽으로 쏠려 마루가 뒤에서 벗어난다.
        · 뒤끝은 **옛 타원과 같은 자리**(−0.2 − WRY9)다 — 그 값에서 반원 중심 WYC9 를 거꾸로 푼다.
          곧 앞뒤를 줄이면 다리가 짧아지고 뒤 아가리의 둥글기(WRX9)는 안 변한다. */
-    const WRX9 = DR9 * BX9 + 0.62; const WRY9 = DY9 + 0.34;     // 곧은 다리의 좌우 자리(= 뒤 반원 반지름)·뒤에 남기는 몫
+    /* ★ **더 타이트하게 몸에 붙는다**(2026-09, 요청: "1차감싸개 … 더 타이트하게 본체에 딱붙어서
+       감싸게") — 좌우 틈 0.62 → **0.42**(담 안쪽 낯 1.21 · 몸 옆구리 1.07 에서 0.14). 앞뒤 몫(0.34)은
+       **못 내린다** — 담 반두께(0.26) + 0.08 이 곧 그 바닥이다(위 ⚠). */
+    const WRX9 = DR9 * BX9 + 0.42; const WRY9 = DY9 + 0.34;     // 곧은 다리의 좌우 자리(= 뒤 반원 반지름)·뒤에 남기는 몫
     const WYC9 = -0.2 - WRY9 + WRX9;                     // 뒤 반원의 중심
     const WYF9 = 1.05;                                   // 곧은 다리의 앞 끝 — 그 사이가 U 의 입이다
     const WLEG9 = WYF9 - WYC9;                           // 다리 한 짝의 길이
@@ -12668,7 +12671,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const WBOT9 = Math.cos(Math.PI / 8);                 // 8각 밑 낯의 자(축에서 밑면까지)
     const wallH9 = (u9: number): number => {
       const sd9 = Math.abs(u9 - 0.5) * 2;                // 0 뒤 · 1 앞 끝
-      return 1.2 + 1.2 * (1 - sd9 * sd9);                // 뒤가 높고 두 끝이 낮다
+      /* ★ 뒤 꼭대기는 **본체 높이**다(2026-09, 요청: "1차감싸개 뒷 높이 본체건물 높이로 맞추고") —
+         손 값 2.4 를 `DH9z9` 로 꿰어 두면 몸을 높이고 낮출 때 담이 함께 따라온다. 두 끝(1.2)은 그대로. */
+      return 1.2 + (DH9z9 - 1.2) * (1 - sd9 * sd9);      // 뒤가 높고 두 끝이 낮다
     };
     const wallAt9 = (u9: number): [number, number, number] => {
       const s9 = u9 * WTOT9;                             // 앞오른쪽 → 뒤 → 앞왼쪽(호 길이)
@@ -12705,9 +12710,33 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          R = (현²/4 + 새김²) / (2·새김) · 중심 y = OAP9 + R.
        · **앞뒤 자리는 두 이웃이 죈다** — 앞 낯은 안쪽 싸개의 바깥 낯(−2.93)보다 뒤 · 뒤 낯은 뒤 굴뚝의 앞
          낯(−3.78)보다 앞. 그 사이가 0.85 뿐이라 꼭대기를 −3.35 에 두면 양쪽에 0.14 씩 남는다. */
-    const OEX9 = 2.75; const OEY9 = 0.8;                 // 두 끝(양옆 굴뚝 살 속)
-    const OAP9 = -3.354;                                 // 뒤 꼭대기 — 안쪽 싸개 뒤 · 뒤 굴뚝 앞
+    /* ★★ **굴뚝 셋의 자는 여기서 난다** — 담의 두 끝이 굴뚝 살 속이고(OEY9) 뒤 굴뚝은 담 바로
+       뒤에 붙으므로(CYB9), 셋이 한 자리에 모여 있어야 서로를 읽는다.
+       · **셋이 같은 크기다**(2026-09, 요청: "뒷굴뚝 크기 양옆굴뚝크기와 같게 축소") — 뒤 굴뚝만
+         1.45배·높이 2.88 이던 것을 앞 둘과 같은 `CK9`·`CH9` 로.
+       · **더 납작하다**(같은 요청: "모든 굴뚝 더 납작하게 양옆굴뚝은 양옆 누르고 뒤굴뚝은 앞뒤
+         누르기") — 누르는 축은 `ref` 가 정한 **u**(양옆 굴뚝 x̂ · 뒤 굴뚝 ŷ)이고 그것이 곧 `w` 다.
+         `CFLAT9` 로 u 를 죄고 `COV9`(= 1.6/CFLAT9)로 v 를 도로 펴, **긴 쪽은 한 톨도 안 바뀐다**.
+       · **단면은 네 모서리만 살짝 깎인 네모다**(2026-09, 요청: "굴뚝기둥을 좀더 사각형느낌에 네
+         모서리만 살짝 깎인 느낌으로 변경 굴뚝구멍도 기둥모양에 맞추기") — 초타원 한 식이 그 자다:
+         `r(a) = 1/(|cos a|^n + |sin a|^n)^(1/n)`(n 2 면 원 · 클수록 네모). 낯을 **16** 으로 늘려야
+         모서리가 곡선으로 읽힌다(8 각은 위상이 반 칸이라 어떤 반지름을 줘도 정팔각을 못 벗어난다).
+         ⚠ 띠(faceBand9)·갓이 **같은 식·같은 낯 수·같은 위상**을 읽어야 한다 — 하나라도 어긋나면
+           띠가 살에서 뜨고 갓만 홀로 원으로 선다(그 ⚠⚠ 규약). */
+    const CK9 = 1.15;                                    // 굴뚝 크기(셋이 같다)
+    const CH9 = 1.92;                                    // 굴뚝 높이(셋이 같다)
+    const CYS9 = 1.0;                                    // 앞 두 굴뚝의 앞뒤 자리(요청: 조금 뒤로 · 1.5 → 1.0)
+    const CFLAT9 = 0.7;                                  // 납작함 — 누르는 축(u)만 죈다
+    const COV9 = 1.6 / CFLAT9;                           // 눌린 만큼 v 로 되돌린다(긴 쪽 0.5·k·1.6 불변)
+    const CN9 = 16; const CPOW9 = 5;                     // 단면 낯 수 · 네모다움
+    const chimRad9 = (a9: number): number => 1 / (
+      Math.abs(Math.cos(a9)) ** CPOW9 + Math.abs(Math.sin(a9)) ** CPOW9) ** (1 / CPOW9);
     const OTH9 = 0.28;                                   // 담 반두께
+    const OEX9 = 2.75; const OEY9 = CYS9 - 0.2;          // 두 끝(양옆 굴뚝 살 속 — 굴뚝을 옮기면 따라온다)
+    /* ★ **바깥 담은 1차 싸개 바로 뒤에 딱 붙는다**(2026-09, 요청) — 손 값 −3.354 를 걷고 안쪽 싸개의
+       뒤 바깥 낯(−0.2 − WRY9 − WTH9)에서 한 뼘(0.03)만 물러난 자리로 푼다. 곧 몸·싸개를 고치면
+       담이 저절로 따라온다(손으로 맞출 값이 없다). */
+    const OAP9 = -(0.2 + WRY9 + WTH9 + 0.03 + OTH9);     // 뒤 꼭대기 — 1차 싸개 바로 뒤
     const OSAG9 = OEY9 - OAP9;                           // 새김(현에서 꼭대기까지)
     const OR9 = (OEX9 * OEX9 + OSAG9 * OSAG9) / (2 * OSAG9);   // 세 점을 지나는 원의 반지름
     const OCY9 = OAP9 + OR9;                             // 그 중심
@@ -12744,8 +12773,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        통째로 임자 색으로 읽혔다. */
     /* ★ **아쿠아 갈비 둘은 걷었다**(2026-09, 요청: "본체 위 아쿠아색 갈비들 제거") — 앞 보석이
        반구로 커진 뒤로는 같은 보석색 띠가 등에 둘 더 있어 앞 낯의 그 덩이와 겨뤘다. 남는 것은
-       금색 띠 둘(그 위 청록 눈금 셋은 그대로)이다 — 요청이 이름 붙인 것은 아쿠아 갈비뿐이다. */
-    ([[1.1, 0], [-0.7, 0]] as [number, number][])
+       금색 띠 둘(그 위 청록 눈금 셋은 그대로)이다 — 요청이 이름 붙인 것은 아쿠아 갈비뿐이다.
+       · ★★ **그 빈자리는 보석색 '띠 데칼'로 메운다**(2026-09, 요청: "아쿠아갈비 제거 한 곳에
+         보석띠데칼 붙여서 채우기 두께감 거의 없게") — 걷은 그 자리(0.2 · −1.6)에 같은 활을 다시
+         긋되 **갈비가 아니라 살갗에 붙은 띠**다: 갈비는 단면이 정원(반지름 0.3)이라 등에서 솟지만,
+         이 띠는 몸 축(ŷ)으로 넓고(0.42) 살 밖으로는 거의 없다(0.06 · 두께비 0.14).
+         ⚠ 납작해지는 쪽은 `ref` 가 정한다 — ŷ 를 주면 u(= `w`)가 띠의 **폭**이고 v(= `oval` 이
+           걸리는 쪽)가 살 겉면의 **법선**이라 두께가 된다. 안 주면 AUTO_REF 가 축을 스스로 골라
+           폭과 두께가 뒤바뀔 수 있다(그 ★ 규약). 금색 갈비는 단면이 원이라 ref 를 줘도 한 톨도
+           안 바뀐다(정원은 틀을 안 탄다).
+         · 표의 둘째 칸: 0 금색 갈비 · **2 보석색 띠 데칼**(1 이던 옛 아쿠아 갈비 자리다). */
+    ([[1.1, 0], [0.2, 2], [-0.7, 0], [-1.6, 2]] as [number, number][])
       .forEach(([by09, own9]) => {
         /* 띠 자리도 몸과 같은 몫으로 좁힌다 — 몸 한가운데(y −0.2)를 축으로 BY9 배.
            그 자리의 단면은 **옛 자로 되돌린** 앞뒤(dy9)에서 나므로 활의 꼴(x·z)은 한 톨도 안 바뀐다. */
@@ -12769,14 +12807,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            매기면 뒤로 돌아간 쪽은 황금 껍데기가 가린다. 정면에서는 띠 안의 깊이가
            일정해(활은 y가 고정) 종전 그림 그대로다. */
         const SEG9 = 8;
+        const deco9 = own9 === 2;                    // 보석색 띠 데칼(두께감 거의 없다)
+        const DECW9 = 0.42; const DECT9 = 0.06;      // 띠 반폭(몸 축) · 살 밖 반두께
         for (let s9 = 0; s9 < SEG9; s9 += 1) {
           const band = spirePillar({
-            x: 0, y: 0, h: 0.8, w: own9 ? 0.46 : 0.3, tipW: own9 ? 0.46 : 0.3,
-            segs: 2, sides: 5, hold: 1,
+            x: 0, y: 0, h: 0.8, w: deco9 ? DECW9 : 0.3, tipW: deco9 ? DECW9 : 0.3,
+            oval: deco9 ? DECT9 / DECW9 : 1, ref: [0, 1, 0], trueNormal: deco9,
+            segs: 2, sides: deco9 ? 6 : 5, hold: 1,
             path: (t9: number): [number, number, number] => arcPt((s9 + t9) / SEG9),
             /* ★ 가운데 두 줄은 **보석색**이다(2026-09, 요청: "임자색 데칼부분을 보석색으로 변경") —
                앞 렌즈와 **같은 두 단**(쉬는 아쿠아 · 캤 때 네온)이라 한 재질로 읽힌다. */
-            fill: own9 ? glowLit("#a3fff3", "#5fe6d4") : GOLD_D,
+            fill: deco9 ? glowLit("#a3fff3", "#5fe6d4") : GOLD_D,
           });
           /* 키는 깊이와 높이를 함께 본다 — 껍데기(키 2) 위로 넘어간 마루는 높이가
              띄워 주고, 뒤로 돌아 내려간 다리는 깊이가 껍데기 밑으로 내린다. */
@@ -12842,10 +12883,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        가스는 세 곳에서 다 오르되 가운데가 가장 크다. */
     /* 굴뚝 셋은 **앞뒤로 긴 둥근네모 기둥**이고 기울지 않고 수직으로 선다(재지적).
        앞 둘은 1.15배, 뒤 가운데는 1.45배. */
+    /* ★ 뒤 굴뚝은 **바깥 담 바로 뒤**다(2026-09, 요청: "그 뒤에 굴뚝이 딱 붙게 이동") — 손 값
+       −4.5 를 걷고 담의 뒤 낯(OAP9 − OTH9)에서 한 뼘 물러난 뒤 **제 앞뒤 반폭**(= 눌린 w)만큼 더
+       물린다. 앞 둘은 `CYS9` 로 조금 뒤로 물렀다(요청: "양옆굴뚝 위치 조금 뒤로"). */
+    const CYB9 = OAP9 - OTH9 - 0.03 - 0.5 * CK9 * CFLAT9;
     const CHIM9: [number, number, number, number, number][] = [
-      /* ★ 뒤 굴뚝은 **바깥 담보다 뒤**다(2026-09, 요청: "뒷 굴뚝 더 뒤로 이동") — y −2.3 → −4.5.
-         앞 낯(−3.78)이 바깥 담의 뒤 낯(−3.63)보다 뒤라 담이 그 굴뚝을 품지 않는다. 앞 둘은 그대로. */
-      [-2.7, 1.5, 1.92, 0, 1.15], [2.7, 1.5, 1.92, 0, 1.15], [0, -4.5, 2.88, 0, 1.45],
+      [-2.7, CYS9, CH9, 0, CK9], [2.7, CYS9, CH9, 0, CK9], [0, CYB9, CH9, 0, CK9],
     ];
     CHIM9.forEach(([px, py, ph, lean, k9]) => {
       const wx9 = px + lean * 0.72;
@@ -12856,12 +12899,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          굴뚝은 가스를 뽑는 **금속 관**이라 결정 발광이 아니다. 쉴 때는 짙은 금(GOLD_D),
          캘 때만 밝은 금으로 달아오른다 — 사이언과 달리 금은 종족 껍데기와 한 결이라
          '켜졌다'만 읽히고 색이 튀지 않는다. */
+      /* ★ **갓(굴뚝 구멍)도 기둥과 같은 단면이다**(2026-09, 요청: "굴뚝구멍도 기둥모양에 맞추기") —
+         `cylinderFaces3` 는 늘 정원이라, 기둥이 눌린 둥근네모가 된 뒤로는 갓만 홀로 원으로 섰다. */
+      const cap9 = (r9: number, h9: number, z9: number, fl9: string): ShapeFace[] =>
+        paintBase(spirePillar({
+          x: wx9, y: wy9, z0: z9, h: h9, w: r9 * CFLAT9, tipW: r9 * CFLAT9,
+          oval: COV9, radOf: chimRad9, ref: py < -2 ? [0, 1, 0] : [1, 0, 0],
+          segs: 1, sides: CN9, hold: 1, trueNormal: true,
+        }), fl9);
       out.push(...tagKey(bldLitNow
-        ? [
-          ...paintBase(cylinderFaces3(wx9, wy9, 0.46 * k9, 0.24, wz9), "#e8c33a"),
-          ...paintBase(cylinderFaces3(wx9, wy9, 0.49 * k9, 0.08, wz9 + 0.064), "#fff2b0"),
-        ]
-        : paintBase(cylinderFaces3(wx9, wy9, 0.46 * k9, 0.24, wz9), GOLD_D),
+        ? [...cap9(0.46 * k9, 0.24, wz9, "#e8c33a"), ...cap9(0.49 * k9, 0.08, wz9 + 0.064, "#fff2b0")]
+        : cap9(0.46 * k9, 0.24, wz9, GOLD_D),
       10 + depthNow(px, py) * 1.6 + 0.5));
       /* ★ 굴뚝마다 **가스 연기가 오른다**(2026-09, 요청: "간헐천과 어시밀레이터는 가운데와 좌우 가스가
          번갈아 나오게하기") — 뒤 가운데 큰 굴뚝은 위상 0, 앞 양옆 둘은 1/4 이라 가운데가 낼 때 양옆은
@@ -12876,11 +12924,36 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        가스는 세 곳에서 다 오르되 가운데가 가장 크다. */
     CHIM9.forEach(([px, py, ph, lean, k9]) => {
       out.push(...tagKey(paintBase(spirePillar({
-        // 둥근네모 단면(팔각)을 앞뒤(y)로 1.6배 늘리고, 굵기 변화·기울기 없이 수직으로.
-        // 뒤 가운데 굴뚝만 90° 요잉(요청): 단면의 긴 축을 앞뒤(y) 대신 좌우(x)로.
-        x: px, y: py, z0: 0.24, h: ph, w: 0.5 * k9, tipW: 0.5 * k9, oval: 1.6, ref: py < -2 ? [0, 1, 0] : [1, 0, 0],
-        segs: 2, sides: 8, hold: 1, leanX: lean * 0, leanY: 0,
+        // 네 모서리만 살짝 깎인 네모 단면(chimRad9)을 긴 축으로 1.6배 늘리고, 눌러 납작하게.
+        // 누르는 축은 u(= ref) 다: 앞 둘은 좌우(x̂) · 뒤 가운데는 앞뒤(ŷ) — 요청 그대로.
+        x: px, y: py, z0: 0.24, h: ph, w: 0.5 * k9 * CFLAT9, tipW: 0.5 * k9 * CFLAT9,
+        oval: COV9, radOf: chimRad9, ref: py < -2 ? [0, 1, 0] : [1, 0, 0],
+        segs: 2, sides: CN9, hold: 1, trueNormal: true, leanX: lean * 0, leanY: 0,
       }), GOLD), 10 + depthNow(px, py) * 1.6));
+      /* ★★ **양옆 굴뚝 바깥에는 돌고래 지느러미가 붙는다**(2026-09, 요청: "양쪽 굴뚝 바깥쪽으로
+         돌고래 지느러미 달기") — 공용 잎(`leafFaces`)을 **바깥·위로 굽어 뒤로 쓸리는 등뼈**에 세운
+         얇은 날이다(뿌리는 굴뚝 살 속 · 끝은 점). ⚠ 납작해지는 쪽은 `ref` 가 정한다 — ŷ 를 주면
+         두께가 앞뒤로 눕고 날이 x-z 평면에 서서 옆에서 지느러미 낯이 통째로 보인다(그 ⚠ 규약). */
+      if (py > -2) {
+        const sx9 = px < 0 ? -1 : 1;
+        const fr9 = 0.5 * k9 * CFLAT9;                   // 굴뚝 좌우 반폭 — 뿌리는 그 살 속이다
+        const bz9 = (t9: number, a9: number, b9: number, c9: number): number => {
+          const u9 = 1 - t9;
+          return a9 * u9 * u9 + 2 * b9 * u9 * t9 + c9 * t9 * t9;
+        };
+        out.push(...tagKey(leafFaces({
+          /* ⚠ 등뼈를 뒤(−y)로 많이 쓸면 안 된다 — 날의 폭은 늘 x-z 평면(v = T×ŷ)이라
+             등뼈만 뒤로 누우면 날이 제 진행 방향에 모로 서서 초승달로 읽힌다. 뒤로는 살짝만. */
+          path: (t9: number): [number, number, number] => [
+            px + sx9 * bz9(t9, fr9 - 0.10, fr9 + 0.40, fr9 + 0.78),
+            py + bz9(t9, 0.06, -0.06, -0.30),
+            0.24 + ph * bz9(t9, 0.34, 0.62, 1.00),
+          ],
+          waist: 0.18, thick: 0.075, spread: 6.0, rootPow: 0.8, tipPow: 1.25,
+          rootW: 0.9, tipW: 0, segs: 6, sides: 8,
+          ref: [0, 1, 0], trueNormal: true, fill: GOLD,
+        }), 10 + depthNow(px + sx9 * 0.7, py) * 1.6 + 0.3));
+      }
       /* 굴뚝 띠는 개인색이다(요청: "굴뚝들 녹색데칼 개인색으로 변경") — 색을 안 주면
          임자 색이 들므로 pc에 담는다(out은 밑칠이 통째로 금빛을 덮어쓴다). */
       /* 띠는 굴뚝과 같은 둥근네모 단면의 **뚜껑 없는 고리**(지적: 임자색 부품의 단면이 비침) —
@@ -12892,11 +12965,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       {
         const CB9 = 1.05;                                  // 굴뚝 살 밖 몫
         const back9 = py < -2;                             // 뒤 굴뚝만 ref [0,1,0] — u = ŷ · v = −x̂
-        const bz09 = 0.24 + ph * 0.44;
-        pc.push(...tagKey(faceBand9(8, bz09, bz09 + 0.36, (z9, i9) => {
-          const a9 = (i9 / 8) * Math.PI * 2 + Math.PI / 8;
-          const cu9 = Math.cos(a9) * 0.5 * k9 * CB9;
-          const sv9 = Math.sin(a9) * 0.5 * k9 * CB9 * 1.6;
+        /* ★ 띠는 **더 위로 · 위아래로 반만**이다(2026-09, 요청: "굴뚝 임자색띠 더 위로 올리고
+           위아래폭도 두배로 눌리기") — 자리 0.44 → **0.62** · 높이 0.36 → **0.18**. */
+        const bz09 = 0.24 + ph * 0.62;
+        pc.push(...tagKey(faceBand9(CN9, bz09, bz09 + 0.18, (z9, i9) => {
+          const a9 = (i9 / CN9) * Math.PI * 2 + Math.PI / CN9;
+          const rr9 = chimRad9(a9) * 0.5 * k9 * CB9;       // 기둥과 같은 초타원 단면
+          const cu9 = Math.cos(a9) * rr9 * CFLAT9;
+          const sv9 = Math.sin(a9) * rr9 * 1.6;
           return back9 ? [px - sv9, py + cu9, z9] : [px + cu9, py + sv9, z9];
         }), 10 + depthNow(px, py) * 1.6 + 0.2));
       }
