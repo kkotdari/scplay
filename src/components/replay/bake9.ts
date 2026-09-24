@@ -12643,11 +12643,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        · ⚠ 앞 보석은 제 크기(GR9)를 그대로 든다(요청이 이름 붙여 뺐다) — 다만 앉는 자리는
          껍질을 읽으므로(gsh9 1.648 → **1.276**) 그만큼 뒤·아래로 따라 물러난다.
        · ⚠ 뒤 굴뚝은 −2.81 이라 `py < −2`(뒤 굴뚝 가름 문)에 아직 넉넉히 든다. */
-    const BY9 = 0.375;                                   // 앞뒤 줄임 몫(요청: 25% 축소 · 0.5 → 0.375)
+    /* ★★ **13단(2026-09, 요청: "몸통 앞뒤폭을 앞으로 25프로 늘려줘 앞보석이 앞으로 튀어나오게")** —
+       12단이 앞뒤를 25% 줄이며 **감싸개·굴뚝까지 통째로 앞으로 옮긴** 것과 달리, 이번은 **뒤끝을 못 박고
+       앞만 늘린다**: `DBK9`(−1.4)가 그 못이고 한가운데 `DCY9` 는 거기서 거꾸로 난다(옛 손 값 −0.2).
+       곧 이웃(싸개·담·뒤 굴뚝)은 한 톨도 안 움직이고(그 자리들이 다 `DCY9 − WRY9` 꼴이라 DY9 가
+       약분된다) 코와 그 위의 보석만 앞으로 나간다 — 그것이 "보석이 앞으로 튀어나오게"의 값이다. */
+    const BY9 = 0.46875;                                 // 앞뒤 몫(요청: 앞으로 25% 확대 · 0.375 → 0.46875)
     const DY9 = DR9 * BY9;                               // 앞뒤 반지름
+    const DBK9 = -1.4;                                   // 뒤끝 — 못 박는다(앞으로만 늘린다)
+    const DCY9 = DBK9 + DY9;                             // 앞뒤 한가운데(12단까지 −0.2)
     const DH9 = 2.4; const DH9z9 = 1.92; /* z용 쌍둥이(model-z-scale ×0.8) */
     out.push(...tagKey(paintBase(spirePillar({
-      x: 0, y: -0.2, z0: 0, h: DH9z9, w: DR9 * BX9,
+      x: 0, y: DCY9, z0: 0, h: DH9z9, w: DR9 * BX9,
       widthOf: (t9: number): number => DR9 * BX9 * Math.sqrt(Math.max(0, 1 - t9 * t9)),
       oval: DY9 / (DR9 * BX9), segs: 8, sides: 16, caps: "bottom", trueNormal: true,
     }), GOLD), 2));
@@ -12678,7 +12685,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        감싸게") — 좌우 틈 0.62 → **0.42**(담 안쪽 낯 1.21 · 몸 옆구리 1.07 에서 0.14). 앞뒤 몫(0.34)은
        **못 내린다** — 담 반두께(0.26) + 0.08 이 곧 그 바닥이다(위 ⚠). */
     const WRX9 = DR9 * BX9 + 0.42; const WRY9 = DY9 + 0.34;     // 곧은 다리의 좌우 자리(= 뒤 반원 반지름)·뒤에 남기는 몫
-    const WYC9 = -0.2 - WRY9 + WRX9;                     // 뒤 반원의 중심
+    const WYC9 = DCY9 - WRY9 + WRX9;                     // 뒤 반원의 중심(뒤끝 DCY9 − WRY9 에서 거꾸로)
     const WYF9 = 1.45;                                   // 곧은 다리의 앞 끝(+0.4 · 위 ★★) — 그 사이가 U 의 입이다
     const WLEG9 = WYF9 - WYC9;                           // 다리 한 짝의 길이
     const WTOT9 = WLEG9 * 2 + Math.PI * WRX9;            // 한 바퀴 길이
@@ -12790,7 +12797,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* ★ **바깥 담은 1차 싸개 바로 뒤에 딱 붙는다**(2026-09, 요청) — 손 값 −3.354 를 걷고 안쪽 싸개의
        뒤 바깥 낯(−0.2 − WRY9 − WTH9)에서 한 뼘(0.03)만 물러난 자리로 푼다. 곧 몸·싸개를 고치면
        담이 저절로 따라온다(손으로 맞출 값이 없다). */
-    const OAP9 = -(0.2 + WRY9 + WTH9 + 0.03 + OTH9);     // 뒤 꼭대기 — 1차 싸개 바로 뒤
+    const OAP9 = DCY9 - WRY9 - WTH9 - 0.03 - OTH9;       // 뒤 꼭대기 — 1차 싸개 바로 뒤
     const OSAG9 = OEY9 - OAP9;                           // 새김(현에서 꼭대기까지)
     const OR9 = (OEX9 * OEX9 + OSAG9 * OSAG9) / (2 * OSAG9);   // 세 점을 지나는 원의 반지름
     const OCY9 = OAP9 + OR9;                             // 그 중심
@@ -12849,12 +12856,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       .forEach(([by09, own9]) => {
         /* 띠 자리도 몸과 같은 몫으로 좁힌다 — 몸 한가운데(y −0.2)를 축으로 BY9 배.
            그 자리의 단면은 **옛 자로 되돌린** 앞뒤(dy9)에서 나므로 활의 꼴(x·z)은 한 톨도 안 바뀐다. */
-        const by9 = -0.2 + (by09 + 0.2) * BY9;
+        const by9 = DCY9 + (by09 + 0.2) * BY9;
         /* 활은 껍데기 겉면을 정확히 탄다(지적: 지도에서 정·후면이 같이 보인다) —
            예전엔 반지름을 손으로 줘 다리가 껍데기 밖으로 삐져나왔고, 뒤에서 보면 그
            삐죽한 다리 때문에 앞쪽 띠까지 실루엣 밖에 드러났다. 이제 그 y에서의 돔
            단면(반지름 rho, 높이 DH·rho/DR)을 그대로 따라 3%만 띄운다. */
-        const dy9 = (by9 + 0.2) / BY9;
+        const dy9 = (by9 - DCY9) / BY9;
         const rho9 = Math.sqrt(Math.max(0.04, DR9 * DR9 - dy9 * dy9));
         const arcPt = (u9: number): [number, number, number] => {
           const th = Math.PI * u9;
@@ -12945,7 +12952,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const GSINK9 = 0.58;                                 // 밑면을 껍질 속으로 물리는 몫
     const gdy9 = Math.cos(GT9); const gdz9 = Math.sin(GT9);
     const gsh9 = 1 / Math.hypot(gdy9 / DY9, gdz9 / DH9z9);   // 그 축이 껍질을 뚫는 거리
-    const gby9 = -0.2 + (gsh9 - GSINK9) * gdy9 + GFWD9;  // 밑면 한가운데(+ 곧은 앞 몫)
+    const gby9 = DCY9 + (gsh9 - GSINK9) * gdy9 + GFWD9;  // 밑면 한가운데(+ 곧은 앞 몫)
     const gbz9 = (gsh9 - GSINK9) * gdz9;
     out.push(...tagKey(spirePillar({
       x: 0, y: 0, h: 1, w: GR9, tipW: 0, segs: 8, sides: 20, caps: "bottom",
@@ -12953,7 +12960,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       path: (t9: number): [number, number, number] => [0, gby9 + GR9 * t9 * gdy9, gbz9 + GR9 * t9 * gdz9],
       widthOf: (t9: number): number => GR9 * Math.sqrt(Math.max(0, 1 - t9 * t9)),
       fill: glowLit("#a3fff3", "#5fe6d4"),
-    }), depthNow(0, DY9 - 0.2) * 1.6 + 9.6));
+    }), depthNow(0, DCY9 + DY9) * 1.6 + 9.6));
     /* ★★ **보석은 L 로 접힌 은회색 고리에 앉는다**(2026-09, 요청: "앞보석의 뒷면과 아래를 같이
        감싸는 L형 접힌 고리 은회색 추가") — 보석은 코에서 앞·위로 솟은 반구인데 그 **뒷면**(축에
        수직인 밑면)은 껍질 속으로 `GSINK9` 물려 있고 아래 테는 지면선 밑으로 내려가, 뿌리가 그냥
@@ -12996,7 +13003,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         oval: rh9 / ah9, sides: 4, segs: 28, caps: "none", trueNormal: true,
         ref: [0, gdy9, gdz9],
         path: (t9: number): [number, number, number] => clPt9(t9, ru9, ax9),
-      }), CLR9), depthNow(0, DY9 - 0.2) * 1.6 + 9.4));
+      }), CLR9), depthNow(0, DCY9 + DY9) * 1.6 + 9.4));
     });
     /* 창(요청: "창문 표시 및 평소 어둡다가 가스캘때는 네온색 불빛") — 프로토스 몸은
        둥근 껍데기라 테란처럼 벽에 유리를 낼 자리가 없다. 대신 네 귀 기둥 허리에 창
