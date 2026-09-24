@@ -12675,6 +12675,48 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         out.push(...tagKey(seg, depthNow(wx9, wy9) * 1.6));
       }
     }
+    /* ★★ **바깥 금색 담** — 안쪽 싸개 **뒤**에 한 겹 더 선다(2026-09, 요청: "현재 감싸개뒤로 금색 감싸개
+       벽 하나 더 추가하는데 호는 훨씬 완만하게 휘고 양끝이 양옆 굴뚝 뒤에서 끝나게 그리고 뒷굴뚝보다는
+       앞에 들어가게").
+       · **호는 원이다** — 안쪽 싸개는 몸에 바싹 붙은 좁은 타원이라 두 끝이 급히 말리는데, 이쪽은 **반지름
+         하나짜리 원호**(OR9)라 같은 깊이를 훨씬 넓은 폭으로 돈다 = 훨씬 완만하다.
+       · **세 점이 그 원을 못 박는다**(손으로 고른 값이 아니다): 뒤 꼭대기 `(0, OAP9)` 와 두 끝 `(±OEX9, OEY9)` —
+         끝은 양옆 굴뚝(±2.7 · y 0.58~2.42 · x 2.13~3.28)의 **살 속**이라 그 굴뚝 뒤에서 끝난 것으로 읽힌다.
+         R = (현²/4 + 새김²) / (2·새김) · 중심 y = OAP9 + R.
+       · **앞뒤 자리는 두 이웃이 죈다** — 앞 낯은 안쪽 싸개의 바깥 낯(−2.93)보다 뒤 · 뒤 낯은 뒤 굴뚝의 앞
+         낯(−3.78)보다 앞. 그 사이가 0.85 뿐이라 꼭대기를 −3.35 에 두면 양쪽에 0.14 씩 남는다. */
+    const OEX9 = 2.75; const OEY9 = 0.8;                 // 두 끝(양옆 굴뚝 살 속)
+    const OAP9 = -3.354;                                 // 뒤 꼭대기 — 안쪽 싸개 뒤 · 뒤 굴뚝 앞
+    const OTH9 = 0.28;                                   // 담 반두께
+    const OSAG9 = OEY9 - OAP9;                           // 새김(현에서 꼭대기까지)
+    const OR9 = (OEX9 * OEX9 + OSAG9 * OSAG9) / (2 * OSAG9);   // 세 점을 지나는 원의 반지름
+    const OCY9 = OAP9 + OR9;                             // 그 중심
+    const OPH9 = Math.acos(Math.max(-1, Math.min(1, (OCY9 - OEY9) / OR9)));   // 끝까지의 반각
+    const oWallH9 = (u9: number): number => {
+      const sd9 = Math.abs(u9 - 0.5) * 2;
+      /* ⚠ 뒤 꼭대기는 **안쪽 싸개보다 높아야** 보인다 — 더 뒤에 서므로 40도 부감에서 같은 높이면
+         안쪽 담(y −2.67 · 높이 2.4 → 화면 −3.56)에 가려진다. 2.1 이면 화면 −3.77 로 한 뼘 솟는다. */
+      return 0.9 + 1.2 * (1 - sd9 * sd9);                // 뒤가 높고 두 끝이 낮다(안쪽 싸개와 같은 자)
+    };
+    const oWallAt9 = (u9: number): [number, number, number] => {
+      const ph9 = -OPH9 + OPH9 * 2 * u9;                 // 왼 끝 → 뒤 → 오른 끝
+      return [Math.sin(ph9) * OR9, OCY9 - Math.cos(ph9) * OR9, oWallH9(u9) / 2];
+    };
+    {
+      const SEGO9 = 16;
+      for (let s9 = 0; s9 < SEGO9; s9 += 1) {
+        const uu9 = (t9: number): number => (s9 + t9) / SEGO9;
+        const seg = spirePillar({
+          x: 0, y: 0, h: 0.8, w: 1, segs: 3, sides: 8, caps: "both", trueNormal: true,
+          ref: [0, 0, 1], fill: GOLD,
+          path: (t9: number): [number, number, number] => oWallAt9(uu9(t9)),
+          widthOf: (t9: number): number => oWallH9(uu9(t9)) / (2 * WBOT9),
+          ovalOf: (t9: number): number => OTH9 / (oWallH9(uu9(t9)) / (2 * WBOT9)),
+        });
+        const [ox9, oy9] = oWallAt9((s9 + 0.5) / SEGO9);
+        out.push(...tagKey(seg, depthNow(ox9, oy9) * 1.6));
+      }
+    }
     /* 몸을 타넘는 활 띠 넷 — 앞에서 뒤로 나란히 걸린다. 하나(가운데 앞)는 개인색. */
     // 개인색 몫 확대(요청) — 가운데 두 줄을 개인색으로, 굵기도 키운다.
     /* 띠 순서(요청: "등의 개인색을 맨앞금색 그다음줄 개인색 그다음줄 금색 순서대로
@@ -12741,14 +12783,29 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        옛 lensFaces(테 원판 + 볼록 켜 + 심 + 광)는 껍데기 앞에 세운 원반이었다. 콘택트렌즈는 **돔 껍질을 그대로 따르는 얇은
        사발**이다(contactLens9): 돔 타원면(반지름 DR9 · 높이 DH9z9) 위의 점을 법선 쪽으로 두께(가운데 0.14 · 가장자리 0.02)만큼
        띄운 겉면을 격자로 짓고 가장자리 한 켜를 금 테로 두른다. 안면은 돔이 곧 그것이라 안 그린다. 색은 옛 렌즈의 그 둘(쉼·캘 때)이다. */
-    out.push(...tagKey(contactLens9({
-      /* ★ **앞 보석은 크다**(2026-09, 요청: "앞부분 아쿠아보석 크게") — 각반지름 0.6 → 0.88rad(34° → 50°)라
-         좌우로 몸 반폭의 56% → 77% 를 덮는다 · 두께 0.14 → 0.18. ⚠ `r` 은 **그 껍질의 앞뒤 반지름**이라
-         DY9 를 준다(DR9 를 그대로 두면 렌즈만 몸보다 1.5배 앞으로 나가 허공에 뜬다). */
-      cx: 0, cy: -0.2, r: DY9, rx: DR9 * BX9, hh: DH9z9, z0: 0, ang: 0.88, elev: 0.3, thick: 0.18, rim: GOLD_D,
-      /* ⚠ 유리에 알파를 주지 마라 — 옛 렌즈는 뒤에 불투명 청록 판(back)이 있어 비쳐도 청록이었지만, 껍질에 붙는 이 렌즈의
-         뒤는 **금 돔**이라 반투명 아쿠아가 금과 섞여 허연 회색이 된다(실측). 불투명 아쿠아 두 단이다. */
-      ...(bldLitNow ? { fill: "#a3fff3", core: "#e0fffb" } : { fill: "#5fe6d4", core: "#b7fff5" }),
+    /* ★★ **앞 보석은 좌우를 누른 반구다**(2026-09, 요청: "보석크기 1.4배로 확대하고 콘택트렌즈가 아니라
+       1/2 헤미스피어로 변경하되 좌우를 좀 누르기") — 옛 `contactLens9` 는 껍질을 그대로 따르는 **얇은 사발**
+       이라 아무리 키워도 몸에 바른 무늬로 읽혔다. 이제 몸 앞에서 솟는 **덩이**다.
+       · 축은 앞·위 `GT9`(0.66rad) — `spirePillar` 의 틀에서 u 는 그 축에 수직인 세로(y-z), v 는 **x̂** 이라
+         `oval` 이 곧 좌우 누름이다(눌린 단면이라 `trueNormal`).
+       · **밑면은 껍질 속으로 `GSINK9` 물린다** — 평평한 밑 낯을 껍질에 딱 대면 그 테두리가 몸 밖 허공에
+         뜬다(몸이 볼록해 테가 살보다 밖이다). 물리면 테가 살 속에 들어 솟은 몫(R − sink 0.65)만 보인다.
+         ⚠ 더 물리면 보석이 묻히고 덜 물리면 밑 낯의 테가 드러난다 — 실측으로 고른 값이다(테의 껍질 밖
+         넘침 2% · 밑 테의 z −0.03). */
+    const GT9 = 0.66;                                    // 축이 든 각(앞·위)
+    const GR9 = 1.2;                                     // 반구 반지름(세로) — 옛 렌즈의 1.4배 대
+    const GOV9 = 0.62;                                   // 좌우 누름
+    const GSINK9 = 0.55;                                 // 밑면을 껍질 속으로 물리는 몫
+    const gdy9 = Math.cos(GT9); const gdz9 = Math.sin(GT9);
+    const gsh9 = 1 / Math.hypot(gdy9 / DY9, gdz9 / DH9z9);   // 그 축이 껍질을 뚫는 거리
+    const gby9 = -0.2 + (gsh9 - GSINK9) * gdy9;          // 밑면 한가운데
+    const gbz9 = (gsh9 - GSINK9) * gdz9;
+    out.push(...tagKey(spirePillar({
+      x: 0, y: 0, h: 1, w: GR9, tipW: 0, segs: 8, sides: 20, caps: "bottom",
+      oval: GOV9, trueNormal: true,
+      path: (t9: number): [number, number, number] => [0, gby9 + GR9 * t9 * gdy9, gbz9 + GR9 * t9 * gdz9],
+      widthOf: (t9: number): number => GR9 * Math.sqrt(Math.max(0, 1 - t9 * t9)),
+      fill: glowLit("#a3fff3", "#5fe6d4"),
     }), depthNow(0, DY9 - 0.2) * 1.6 + 9.6));
     /* 창(요청: "창문 표시 및 평소 어둡다가 가스캘때는 네온색 불빛") — 프로토스 몸은
        둥근 껍데기라 테란처럼 벽에 유리를 낼 자리가 없다. 대신 네 귀 기둥 허리에 창
@@ -12760,7 +12817,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 굴뚝 셋은 **앞뒤로 긴 둥근네모 기둥**이고 기울지 않고 수직으로 선다(재지적).
        앞 둘은 1.15배, 뒤 가운데는 1.45배. */
     const CHIM9: [number, number, number, number, number][] = [
-      [-2.7, 1.5, 1.92, 0, 1.15], [2.7, 1.5, 1.92, 0, 1.15], [0, -2.3, 2.88, 0, 1.45],
+      /* ★ 뒤 굴뚝은 **바깥 담보다 뒤**다(2026-09, 요청: "뒷 굴뚝 더 뒤로 이동") — y −2.3 → −4.5.
+         앞 낯(−3.78)이 바깥 담의 뒤 낯(−3.63)보다 뒤라 담이 그 굴뚝을 품지 않는다. 앞 둘은 그대로. */
+      [-2.7, 1.5, 1.92, 0, 1.15], [2.7, 1.5, 1.92, 0, 1.15], [0, -4.5, 2.88, 0, 1.45],
     ];
     CHIM9.forEach(([px, py, ph, lean, k9]) => {
       const wx9 = px + lean * 0.72;
