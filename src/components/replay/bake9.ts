@@ -12625,7 +12625,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        줄이고") — 앞뒤 반지름을 `DY9` 한 값으로 뽑아 `oval` 을 거기서 거꾸로 푼다(좌우는 한 톨도 안
        바뀐다: `oval` = DY9 ÷ 좌우 반지름). 활 띠·앞 렌즈가 그 값을 읽으므로 함께 따라오고,
        굴뚝 셋(CHIM9)·그 띠는 제 자리에 남는다(요청이 이름 붙여 뺀 것만 뺀다 — 그 규약). */
-    const BY9 = 2 / 3;                                   // 앞뒤 줄임 몫(요청)
+    /* ★ **앞뒤는 거기서 다시 25% 준다**(2026-09, 요청: "본체 보석제외 앞뒤길이 25프로 감소") —
+       2/3 → **0.5**(DY9 2.133 → 1.6). 보석은 제 크기(GR9)를 그대로 들고(요청이 이름 붙여 뺐다)
+       껍질이 앞으로 나온 몫만큼만 따라 물러난다(gsh9 가 DY9 를 읽는다 — 아래 GSINK9 의 ⚠). */
+    const BY9 = 0.5;                                     // 앞뒤 줄임 몫(요청)
     const DY9 = DR9 * BY9;                               // 앞뒤 반지름
     const DH9 = 2.4; const DH9z9 = 1.92; /* z용 쌍둥이(model-z-scale ×0.8) */
     out.push(...tagKey(paintBase(spirePillar({
@@ -12648,8 +12651,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        난다'와 같은 손이다). */
     /* ⚠ 앞뒤 몫은 **담 반두께(WTH9)보다 한 뼘만** 크다 — 더 죄면 담 안쪽 낯이 몸 살을 파고들고,
        더 벌리면 뒤 굴뚝(y −2.3 · 뒤끝 −3.03)을 도로 품는다. 좌우는 U 의 입이 몸 옆을 지나야 하므로 넉넉히. */
-    const WRX9 = DR9 * BX9 + 0.62; const WRY9 = DY9 + 0.34;     // 싸개 겨다람의 좌우·앞뒤 반지름
-    const WA9 = (50 * Math.PI) / 180;                    // 앞을 비우는 반각 — 이만큼이 U 의 입이다
+    /* ★★ **양옆은 곧은 다리다**(2026-09, 요청: "1차 감싸개 양옆은 직선으로") — 옛 길은 몸과 같은
+       **타원 한 바퀴**라 두 끝이 앞에서 안으로 말려 U 의 입이 좁았다. 이제 **곧은 다리 둘 + 뒤 반원**
+       이다: `x = ±WRX9` 의 벽이 앞 끝(WYF9)에서 뒤(WYC9)까지 곧게 가고 거기서 반지름 WRX9 의 반원이
+       뒤를 돈다. 두 토막의 접선이 이어진다(다리는 −y · 반원도 a 0 에서 −y)라 이음매에 꺾임이 없다.
+       · **매개는 호 길이다** — u 를 길이로 나누면 u 0.5 가 정확히 뒤 꼭대기라 높이 곡선(wallH9)이
+         그대로 맞는다. 각으로 나누면 다리 몫이 한쪽으로 쏠려 마루가 뒤에서 벗어난다.
+       · 뒤끝은 **옛 타원과 같은 자리**(−0.2 − WRY9)다 — 그 값에서 반원 중심 WYC9 를 거꾸로 푼다.
+         곧 앞뒤를 줄이면 다리가 짧아지고 뒤 아가리의 둥글기(WRX9)는 안 변한다. */
+    const WRX9 = DR9 * BX9 + 0.62; const WRY9 = DY9 + 0.34;     // 곧은 다리의 좌우 자리(= 뒤 반원 반지름)·뒤에 남기는 몫
+    const WYC9 = -0.2 - WRY9 + WRX9;                     // 뒤 반원의 중심
+    const WYF9 = 1.05;                                   // 곧은 다리의 앞 끝 — 그 사이가 U 의 입이다
+    const WLEG9 = WYF9 - WYC9;                           // 다리 한 짝의 길이
+    const WTOT9 = WLEG9 * 2 + Math.PI * WRX9;            // 한 바퀴 길이
     const WTH9 = 0.26;                                   // 담 반두께
     const WBOT9 = Math.cos(Math.PI / 8);                 // 8각 밑 낯의 자(축에서 밑면까지)
     const wallH9 = (u9: number): number => {
@@ -12657,11 +12671,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       return 1.2 + 1.2 * (1 - sd9 * sd9);                // 뒤가 높고 두 끝이 낮다
     };
     const wallAt9 = (u9: number): [number, number, number] => {
-      const ph9 = WA9 + (Math.PI * 2 - WA9 * 2) * u9;    // 앞오른쪽 → 뒤 → 앞왼쪽
-      return [Math.sin(ph9) * WRX9, -0.2 + Math.cos(ph9) * WRY9, wallH9(u9) / 2];
+      const s9 = u9 * WTOT9;                             // 앞오른쪽 → 뒤 → 앞왼쪽(호 길이)
+      let x9 = 0; let y9 = 0;
+      if (s9 < WLEG9) { x9 = WRX9; y9 = WYF9 - s9; }                    // 오른 다리(앞 → 뒤)
+      else if (s9 < WLEG9 + Math.PI * WRX9) {
+        const a9 = (s9 - WLEG9) / WRX9;                                 // 뒤 반원(오른 → 왼)
+        x9 = Math.cos(a9) * WRX9; y9 = WYC9 - Math.sin(a9) * WRX9;
+      } else { x9 = -WRX9; y9 = WYC9 + (s9 - WLEG9 - Math.PI * WRX9); } // 왼 다리(뒤 → 앞)
+      return [x9, y9, wallH9(u9) / 2];
     };
     {
-      const SEGW9 = 12;
+      const SEGW9 = 16;
       for (let s9 = 0; s9 < SEGW9; s9 += 1) {
         const uu9 = (t9: number): number => (s9 + t9) / SEGW9;
         const seg = spirePillar({
@@ -12722,7 +12742,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 띠 순서(요청: "등의 개인색을 맨앞금색 그다음줄 개인색 그다음줄 금색 순서대로
        반복") — 앞에서부터 금·개인·금·개인이다. 여태는 앞 셋이 내리 개인색이라 등판이
        통째로 임자 색으로 읽혔다. */
-    ([[1.1, 0], [0.2, 1], [-0.7, 0], [-1.6, 1]] as [number, number][])
+    /* ★ **아쿠아 갈비 둘은 걷었다**(2026-09, 요청: "본체 위 아쿠아색 갈비들 제거") — 앞 보석이
+       반구로 커진 뒤로는 같은 보석색 띠가 등에 둘 더 있어 앞 낯의 그 덩이와 겨뤘다. 남는 것은
+       금색 띠 둘(그 위 청록 눈금 셋은 그대로)이다 — 요청이 이름 붙인 것은 아쿠아 갈비뿐이다. */
+    ([[1.1, 0], [-0.7, 0]] as [number, number][])
       .forEach(([by09, own9]) => {
         /* 띠 자리도 몸과 같은 몫으로 좁힌다 — 몸 한가운데(y −0.2)를 축으로 BY9 배.
            그 자리의 단면은 **옛 자로 되돌린** 앞뒤(dy9)에서 나므로 활의 꼴(x·z)은 한 톨도 안 바뀐다. */
@@ -12795,7 +12818,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const GT9 = 0.66;                                    // 축이 든 각(앞·위)
     const GR9 = 1.2;                                     // 반구 반지름(세로) — 옛 렌즈의 1.4배 대
     const GOV9 = 0.62;                                   // 좌우 누름
-    const GSINK9 = 0.55;                                 // 밑면을 껍질 속으로 물리는 몫
+    /* ⚠ 물림은 **껍질을 고칠 때마다 다시 잰다** — 몸의 앞뒤가 1.6 으로 줄면 그 각이 껍질을 뚫는
+       거리(gsh9)가 2.045 → 1.701 이라, 옛 0.55 로는 밑 테가 껍질 밖으로 3.6% 넘친다(실측). 0.58 이
+       옛 자(2%)와 같은 자리다(솟은 몫 0.62). */
+    const GSINK9 = 0.58;                                 // 밑면을 껍질 속으로 물리는 몫
     const gdy9 = Math.cos(GT9); const gdz9 = Math.sin(GT9);
     const gsh9 = 1 / Math.hypot(gdy9 / DY9, gdz9 / DH9z9);   // 그 축이 껍질을 뚫는 거리
     const gby9 = -0.2 + (gsh9 - GSINK9) * gdy9;          // 밑면 한가운데
