@@ -13023,7 +13023,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     }
     /* L 고리(은회색) — 윤곽을 법선 쪽으로 두께만큼 밀어 닫힌 판으로 짠다(앞 낯 · 뒤 낯 · 테두리 띠). */
     const CLR9 = "#a8afb8";                              // 은회색
-    const CLB9 = GR9 * 0.6;                              // 밑 판이 축을 따라 앞으로 뻗는 몫
+    const CLB9 = GR9;                                    // 밑 판이 축을 따라 앞으로 뻗는 몫 — 21단 지적 "아래링 앞부분이 없어": 용골 끝(부리 끝)까지(0.6·GR9 → GR9)
     const slab9 = (rim9: [number, number, number][], nx9: number, ny9: number, nz9: number, th9: number): ShapeFace[] => {
       const o9 = (p9: [number, number, number]): [number, number, number] => [p9[0] + nx9 * th9, p9[1] + ny9 * th9, p9[2] + nz9 * th9];
       const f9: ShapeFace[] = [bodyFace(polyPath3(rim9.map(o9))), bodyFace(polyPath3([...rim9].reverse()))];
