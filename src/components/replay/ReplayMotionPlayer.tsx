@@ -21,6 +21,7 @@ import ReplayFogLayer, { fogPad9, type FogOverride } from "./ReplayFogLayer";
 import { cx } from "./cx";
 /* 프사·종족 배지·알림은 **앱이 꽂는다**(chrome.ts 머리말) — 모듈은 그 구현을 안 갖는다. */
 import { replayAvatarOn, replayChrome, replayToast } from "./chrome";
+import { raceLetter9 } from "./RaceBadge";
 import { BUILDING_KO, TECH_KO, UNIT_KO } from "../../utils/replayNames";
 import { TIER_GEN9 } from "./tierTable.gen";
 import {
@@ -9755,6 +9756,8 @@ export default function ReplayMotionPlayer({
      16은 화면에 유닛 한둘만 남아 무슨 상황인지가 안 읽혔고, 12는 그 앞 칸(6)의 두 배라
      '더 크게 보는' 자리를 남기면서도 판이 남는다. */
   const ZOOM_MAX = PLAYBACK_ZOOM_MAX;
+  /** 휠 한 픽셀이 배율에 더하는 몫 — 100px(보통 휠 한 틱) = 한 칸(위 onWheel 의 ★ 자연수). */
+  const WHEEL_STEP_PER_PX9 = 0.01;
   /* 배율을 **다섯 칸**으로 끊는다(제안: "줌 단계를 5개로 줄이고 캐싱하면 좀 덜
      끊기려나") — 맞는 짐작이고, 까닭은 캐시다. 유닛 판은 그리는 크기(sizePx × zoom)를
      2px 칸으로 양자화해 굽는데, 배율이 연속이면 그 칸이 끊임없이 옮겨 간다: 확대하는
@@ -11185,15 +11188,17 @@ export default function ReplayMotionPlayer({
          벌어지면서 한 칸이 두 배가 됐는데, 옛 감도로는 보통 휠 한 틱(100px)이
          1.17배뿐이라 칸 하나 넘기는 데 서너 번을 굴려야 했다. 0.0034면 한 틱이
          약 1.40배 — 칸 문턱(√2)에 딱 맞아 **한 틱에 한 칸**이 된다. */
-      const step = Math.exp(-dy9 * 0.0034);
-      /* ★ 굴린 몫은 **연속으로 쌓고**(zoomRaw) 화면에 쓰는 값만 칸으로 끊는다 — 칸 값
-         자체에 곱하면 한 틱(약 1.01배)이 다음 칸의 문턱을 못 넘어 제자리로 되돌아온다:
-         아무리 굴려도 배율이 안 움직인다. 쌓아 두면 몇 틱 굴린 뒤 문턱을 넘어 다음
-         칸으로 딱 떨어진다. */
+      /* ★ 배율은 **자연수**다(2026-09, 요청: "마우스나 핀치로 줌할때 자연수 배수만 사용하기") —
+         굴린 몫은 여전히 연속으로 쌓되(zoomRaw · 트랙패드의 잔 델타가 모여 문턱을 넘는다)
+         화면에 쓰는 값은 그 반올림이다. 곱(1.40배/틱)이 아니라 **더하기**로 쌓는다 —
+         자연수 사다리는 칸 사이가 늘 1 이라 곱으로 쌓으면 1 에서는 두 틱이 걸리고 4 에서는
+         한 틱에 두 칸(5.6 → 6)을 넘는다. 보통 휠 한 틱(100px)이 정확히 **한 칸**이다. */
       const raw0 = zoomRawRef.current > 0 ? zoomRawRef.current : z0;
-      const raw1 = Math.min(ZOOM_MAX, Math.max(1, raw0 * step));
+      const raw1 = Math.min(ZOOM_MAX, Math.max(1, raw0 - dy9 * WHEEL_STEP_PER_PX9));
       zoomRawRef.current = raw1;
-      /* ★ 배율을 **칸으로 끊지 않는다**(지적: "휠도 프레임 단위로 줌되어야 하는데") ──
+      /* (옛 기록 — 아래 ★ 의 '칸으로 끊지 않는다'는 1·2·4·8·16 사다리의 스냅을 걷은 말이고, 지금은 그
+         자리에 **자연수 반올림**이 든다. 연속 렌더는 그대로다 — 굴리는 동안 정수 칸을 하나씩 지난다.)
+         ★ 배율을 **칸으로 끊지 않는다**(지적: "휠도 프레임 단위로 줌되어야 하는데") ──
          여태 여기서 snapZoom으로 1·2·4·8·16 중 하나로 떨궜다. 그러면 굴리는 내내 값이
          **안 바뀌다가** 문턱을 넘는 순간 두 배로 튄다 — 연속 렌더(요청)를 아무리 붙여도
          그릴 새 값이 없으니 화면은 그대로다. 그 스냅이 있던 까닭은 "손짓 중에도 이 값만
@@ -11201,7 +11206,7 @@ export default function ReplayMotionPlayer({
          (zoomCommitRef → paint의 bakeZoom). 곧 스냅이 지키던 몫을 다른 데서 이미 지킨다.
          칸은 여전히 있다 — 마커·자세함 문턱(markerAt·detailAt)과 값 버튼의 눈금이
          그것이고, 그쪽은 연속 배율을 받아도 그대로 판정한다(snapZoom은 그 자리에 남는다). */
-      const z1 = raw1;
+      const z1 = Math.round(raw1);
       const ox = rect.left + rect.width / 2;
       const oy = rect.top + rect.height / 2;
       // 커서 아래의 지도 지점이 그 자리에 남도록 팬을 함께 푼다(더블클릭과 같은 자).
@@ -12233,8 +12238,8 @@ export default function ReplayMotionPlayer({
       const ox = r.left + r.width / 2;
       const oy = r.top + r.height / 2;
       // 상한 12 → 20(재요청: 더 높게) — 그 위는 선명도가 배킹 한계(4096px)에 막혀 무의미하다.
-      // 핀치도 칸으로 안 끊는다(위 휠과 같은 까닭) — 손가락을 벌린 만큼 그대로 커진다.
-      const z = Math.min(ZOOM_MAX, Math.max(1, (pinch.z * dist(e.touches)) / pinch.d));
+      // 핀치도 자연수다(요청: "마우스나 핀치로 줌할때 자연수 배수만 사용하기") — 벌린 비를 반올림한다.
+      const z = Math.round(Math.min(ZOOM_MAX, Math.max(1, (pinch.z * dist(e.touches)) / pinch.d)));
       const mx2 = (e.touches[0].clientX + e.touches[1].clientX) / 2;
       const my2 = (e.touches[0].clientY + e.touches[1].clientY) / 2;
       // 핀치 시작점 아래의 지도 지점이 손가락을 따라오도록 pan을 푼다.
@@ -14888,20 +14893,15 @@ export default function ReplayMotionPlayer({
               {/* 줄인 이름 하나로(재요청: 한글 3·영문 5 제한) — 전체 이름은 카드·댓글에서. */}
               <span className="scr-motion-teamcol-name" style={chipStyle(m.key, m.team)}>
                 {rows ? m.name : shortName(m.name, mates.length)}
+                {/* ★ 종족 글자는 **이름과 같은 네모 안**이고 원은 없다(2026-09, 요청: "로스터 종족배지 원
+                    제거하고 T P Z 만 표시하는데 그마저도 플레이어명과 같이 네모 안으로 이동") — 옆에 따로
+                    서던 RaceBadge(원 테두리 · 종족색 글자)를 걷었다. 칩은 그 사람 색이 바탕이라 종족색
+                    글자는 어느 색에서든 묻힌다 — 글자는 칩의 글자색을 그대로 물려받는다(색이 아니라
+                    글자가 종족을 말한다). 종족을 못 읽은 경기는 안 그린다. */}
+                {m.race && raceLetter9(m.race) ? (
+                  <span className="scr-motion-teamcol-race">{raceLetter9(m.race)}</span>
+                ) : null}
               </span>
-              {/* 종족 한 글자(요청) — 이름 옆. 종족 고유색 글자만 두는 배지라 자리를
-                  거의 안 먹는다. 종족을 못 읽은 경기는 스스로 안 그린다. */}
-              {/* 반으로(요청: "종족배지 크기 반으로 줄이고") — 16 → 8. 배지는 읽는
-                  표시지 누르는 것이 아니라, 이름을 위해 줄에서 자리를 내주는 쪽이 맞다.
-                  ★ 8px에서는 RaceBadge의 **글자 하한**이 걸린다 — 그쪽은 글자를
-                    max(8, size × 0.62)로 잡아, 8px 원에 8px 글자가 들어가 테두리를
-                    비집고 나온다. 그 하한을 5로 내려 작은 배지가 제 원 안에 들게 했다
-                    (size 13 이상은 0.62 쪽이 늘 크므로 한 톨도 안 달라진다). */}
-              {(() => {
-                const Rb9 = replayChrome().RaceBadge;
-                // 8 → 14(요청: 1.8배) · 지도 위 판만 12(요청: 로스터가 먹는 자리 줄이기)
-                return m.race && Rb9 ? <Rb9 race={m.race} circleLetter size={small ? 12 : 14} /> : null;
-              })()}
             </span>
             </span>
             </span>

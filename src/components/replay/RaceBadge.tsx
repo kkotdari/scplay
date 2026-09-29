@@ -9,6 +9,11 @@ const TONE: Record<string, { fg: string; ch: string }> = {
   랜덤: { fg: "#9aa3ad", ch: "R" },
 };
 
+/** 종족 한 글자(T·P·Z·R) — 로스터 이름칩이 원 없이 글자만 쓴다(2026-09). 못 읽으면 빈 문자열. */
+export function raceLetter9(race: string): string {
+  return TONE[race]?.ch ?? "";
+}
+
 export default function ReplayRaceBadge({
   race, size = 14, circleLetter = false, className,
 }: {
