@@ -12881,13 +12881,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            매기면 뒤로 돌아간 쪽은 황금 껍데기가 가린다. 정면에서는 띠 안의 깊이가
            일정해(활은 y가 고정) 종전 그림 그대로다. */
         const SEG9 = 8;
+        /* ★★ **토막의 뚜껑은 끈다**(2026-09, 지적: "여기 갈비가 왜 끊어져있지") — `spirePillar` 의 기본이 `caps "both"` 라
+           토막마다 오각 뚜껑 둘이 이음매 **속**에 섰다. 2D 는 화가 차례로 살에 덮여 안 보였지만, GL 에서 그 뚜껑은 한 장짜리
+           작은 낯(데칼 판정)이라 깊이 편향 0.25 를 받아 **제 살을 뚫고** 어두운 틈으로 드러났다(실측: `#glbias=0` 이면 사라진다 ·
+           요잉 0·20·340 의 u 0.375 이음매). 두 끝은 껍질 속이라 뚜껑이 애초에 필요 없다. */
         const deco9 = own9 === 2;                    // 보석색 띠 데칼(두께감 거의 없다)
         const DECW9 = 0.42; const DECT9 = 0.06;      // 띠 반폭(몸 축) · 살 밖 반두께
         for (let s9 = 0; s9 < SEG9; s9 += 1) {
           const band = spirePillar({
             x: 0, y: 0, h: 0.8, w: deco9 ? DECW9 : 0.3, tipW: deco9 ? DECW9 : 0.3,
             oval: deco9 ? DECT9 / DECW9 : 1, ref: [0, 1, 0], trueNormal: deco9,
-            segs: 2, sides: deco9 ? 6 : 5, hold: 1,
+            segs: 2, sides: deco9 ? 6 : 5, hold: 1, caps: "none",
             path: (t9: number): [number, number, number] => arcPt((s9 + t9) / SEG9),
             /* ★ 가운데 두 줄은 **보석색**이다(2026-09, 요청: "임자색 데칼부분을 보석색으로 변경") —
                앞 렌즈와 **같은 두 단**(쉬는 아쿠아 · 캤 때 네온)이라 한 재질로 읽힌다. */
