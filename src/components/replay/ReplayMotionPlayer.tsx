@@ -834,15 +834,16 @@ type BenchTier9 = {
        소프트웨어라 진입에서 재면 값이 기기가 아니라 드라이버를 잰다. */
 const PC_TIERS9: readonly BenchTier9[] = [
   { name: "낮음", upMs: Infinity, aheadSec: 3, aheadMB: 24 },
-  /* ★ 1단(보통)부터 **사영 그림자**(2026-09, 요청: "pc 3티어에서 그림자를 동그라미 말고 실제 사영 그림자로 · 4배부터" →
-     "그렇게 무리 가는 기능 아니면 높음부터" → "pc 보통은? 모바일 높음은?") — 몸의 삼각형을 눕혀 한 번 더 그리는 패스 하나뿐이고,
-     4배(DEV9.meshShadowMinZoom)부터만 켜므로 그때 화면에 드는 몸이 몇십이라 PC GPU 에서는 값이 거의 없다. 벤치 미달(낮음)만 뺀다. */
-  { name: "보통", upMs: 24, aheadSec: 5, aheadMB: 48, meshShadow: true },
-  { name: "높음", upMs: 12, aheadSec: 8, aheadMB: 80, meshShadow: true },
+  /* (걷어냄) 단마다 켜던 `meshShadow: true` — 사영 그림자는 이제 PC **프로필 기본**이다(아래 DEV9 · 2026-09, 요청:
+     "PC에서 그림자는 보통이 아니라 전 티어에서 모두 표시해도 될듯하고 타원 대체하지 않기"). 그 앞 판(요청: "pc 3티어에서
+     그림자를 동그라미 말고 실제 사영 그림자로 · 4배부터" → "그렇게 무리 가는 기능 아니면 높음부터" → "pc 보통은?")은
+     1단(보통)부터 4배 위에서만 켰다 — 그 아래는 접지 타원이 대타였다. */
+  { name: "보통", upMs: 24, aheadSec: 5, aheadMB: 48 },
+  { name: "높음", upMs: 12, aheadSec: 8, aheadMB: 80 },
   /* 3단 **매우 높음** — 메모리 8GB(deviceMemory, 크로뮴만 낸다)가 확인되는 기기에서만 오른다. 앞 한도는 2단과 같고,
      이 단이 따로 뜻을 갖는 자리는 결(긁힌 광택)·품질 알림, 그리고 **손짓 중 실시간 원근**(live3d)이다
      (2026-09, 요청: "PC 매우높음에서 3D 제스쳐중 모델도 시점 변화 가능하려나 지금은 지도만 실시간인데"). */
-  { name: "매우 높음", upMs: 12, minMem: 8, aheadSec: 8, aheadMB: 80, live3d: true, meshShadow: true },
+  { name: "매우 높음", upMs: 12, minMem: 8, aheadSec: 8, aheadMB: 80, live3d: true },
 ];
 /* ★ **폰도 세 단이다**(2026-09, 요청: "요즘 폰도 성능차이가 심해서 모바일용 벤치를 별도로 분리하되 3단계로 나누고
    적절히 기능을 넣고 빼야할거 같아. 최고단계에선 광택 글로우도 넣고") ─────────────────────────────────────
@@ -900,6 +901,8 @@ const DEV9 = smallDevice9 ? {
   live3d: false,
   /** 사영 그림자(gl9 패스 ①) — 0·1단은 접지 타원 · 2단(높음)이 8배부터 켠다(위 PHONE_TIERS9). */
   meshShadow: false, meshShadowMinZoom: 8,
+  /** 사영이 안 깔리는 프레임(문턱 아래 배율·낮은 단·덜어내기·손짓 접힘)에 **접지 타원을 대타로** 깔까 — 폰은 종전대로 깐다. */
+  shadowEllipse: true,
   /** MRT 판 MSAA 표본 수(폰 0·1단 2 · 2단 4) · 효과 심의 곡선 마디 몫(0단 0.6 · 1단 0.8 · 2단 1) — 위 PHONE_TIERS9 의 ★. */
   glMsaa: 2, fxQual: 0.6,
 } : {
@@ -914,8 +917,14 @@ const DEV9 = smallDevice9 ? {
   glBloom: true,
   glSpec: true,
   live3d: false,   // 3단(매우 높음)에서 표가 켠다
-  /** 사영 그림자 — 1단(보통)부터 표가 켠다 · **4배부터**(그 아래는 접지 타원 — 위 PC_TIERS9 의 ★). */
-  meshShadow: false, meshShadowMinZoom: 4,
+  /** ★ 사영 그림자 — PC 는 **전 티어·전 배율**이다(2026-09, 요청: "PC에서 그림자는 보통이 아니라 전 티어에서 모두 표시해도
+   *  될듯하고 타원 대체하지 않기") — 벤치 미달(낮음)도, 1배도 사영이다. 값은 몸의 삼각형을 한 번 더 그리는 패스 하나라
+   *  PC GPU 에서는 배율과 무관하게 거의 공짜다(1배에서 몸이 수백이어도 정점 몫이 두 배일 뿐이다). `#glshadow=0` 으로 끈다. */
+  meshShadow: true, meshShadowMinZoom: 0,
+  /** ★ **접지 타원 대타를 안 깐다**(같은 요청의 "타원 대체하지 않기") — 사영이 안 깔리는 프레임(덜어내기·손짓 접힘)에도
+   *  타원으로 물러나지 않는다. 그래서 그 프레임들에서도 사영을 그대로 깐다(아래 bodyShadow 의 crowd 문이 이 값을 본다) —
+   *  '없거나 타원'이 아니라 '늘 사영'이다. */
+  shadowEllipse: false,
   glMsaa: 4, fxQual: 1,
 };
 /* ★ **PC는 벤치 단으로 예산을 올린다**(요청: "윈도우 크롬에서 CPU·GPU를 최대한 쓸 수 없을까" → 계획 1번) ────
@@ -4720,7 +4729,10 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          사양 게이트는 그대로다(showOverlap = 품질 '고') — 낮은 사양에서는 안 켠다. */
       /* `?noshadow=1`이 이것도 끈다 — 그 깃발의 이름이 약속하는 바이고, 무엇보다
          **한 주소로 A/B가 된다**(그림자 탓인지 판이 큰 탓인지를 가르는 유일한 길). */
-      const bodyShadow = showOverlap !== false && !NOSHADOW9 && CROWD9.lv === 0   // 덜어내기 1단부터 끔
+      /* ★ 덜어내기(CROWD 1단↑)에 그림자를 끄는 것은 **타원 대타가 있는 프로필**(폰)만이다(2026-09, 요청: "타원 대체하지
+         않기") — PC 는 대타를 안 깔므로 여기서 끄면 그림자가 통째로 사라진다. 사영은 몸의 삼각형을 한 번 더 그리는
+         패스 하나라 덜어낼 값도 작다. `?noshadow=1`·품질 게이트·1배 아래 배율은 종전 그대로다. */
+      const bodyShadow = showOverlap !== false && !NOSHADOW9 && (CROWD9.lv === 0 || !shadowEllipse9())
         && zoom >= SHADOW_MIN_ZOOM && !marker;
       /* ★ **그림자 끄기는 프레임에 한 번**(계측: 찍기 417장/프레임에 최악프레임 100ms — 그중 굽기는 37ms뿐) ──
          여기 있던 `ctx.shadowColor = "transparent"` 열넷은 개체 하나를 그리는 동안 아홉 번까지 다시 적혔다.
@@ -4952,7 +4964,12 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           /* 접지 그림자(재재지적: 해처리가 떠 있다) — 상자 바닥 어림이 아니라 구운
              판의 실제 바닥 픽셀(contentBottom)에 붙인다. 모델이 상자를 다 안 채워도
              발이 그림자에 닿는다. */
-          if (op.groundShadow && showShadows !== false && CROWD9.lv === 0 && detail && !shFold9) {
+          /* ★ 뜬(이사 중) 건물의 사영 그림자가 깔리나 — 아래 gsh9 와 **같은 문**이다(2026-09, 요청: "뜬 건물 그림자
+             정리") — 여태 이 타원은 그 문을 안 봐, 사영이 켜진 PC 에서 뜬 건물만 **타원 + 사영 둘**을 받았다(유닛에서
+             두 번 고친 '그림자가 둘'의 건물 판). 타원은 사영이 안 깔리는 프레임의 대타이고, 대타를 안 까는 프로필
+             (shadowEllipse9 거짓)에서는 아예 없다. */
+          const glShB9 = meshShadow9(zoom) && bodyShadow && !!(glB9 && gl9) && !GL_GLOW_KINDS9.has(op.kind);
+          if (op.groundShadow && showShadows !== false && CROWD9.lv === 0 && detail && !shFold9 && !glShB9 && shadowEllipse9()) {
             /* 바닥 '발자국'만 덮는다(정정: 칸(hPx)은 모델 높이까지 포함해, 칸 기준 타원은
                건물을 통째로 감싸는 큰 원이었다 — 내접으로 바꿔도 거의 그대로라 "적용 안
                됨"으로 보였다). 발자국 깊이 = 폭 × footRatio, 자리는 칸 바닥에 붙인다. */
@@ -5036,9 +5053,13 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             const gax9 = Math.round(sx * B) / B;
             /* ★ 발광 종류(소환구·아콘 …)는 제 몸 그림자를 안 진다(2026-09, 요청: "소환구 자체 그림자는 제거(공통 그림자만
                사용)") — 빛 공이 빛 방향으로 눕힌 검은 원을 옆에 드리우면 빛이 그림자를 지는 꼴이다. 접지 타원(공통)만 남긴다. */
-            const gsh9 = meshShadow9(zoom) && bodyShadow && !GL_GLOW_KINDS9.has(op.kind)
+            /* ★ 뜬 건물도 **바닥에 눕힌 사영**이다(2026-09, 요청: "뜬 건물 그림자 정리") — 옛 판은 몸을 검게 아래로 밀어 한 번
+               더 그리는 옛 식(dy · α0.4)이라 '검은 복사판'으로 읽혔고 위 타원과 겹쳤다. 공중 유닛과 같은 자다: 앵커가 뜬 몫
+               (gLift9)만큼 위라 화면에서 그만큼 도로 내리고(dy), 그 높이를 모형 칸으로(h = 픽셀 ÷ 모형칸 px) 꼭짓점 z 에
+               더해 빛 방향으로 멀리 눕힌다 — 벌어짐이 곧 높이로 읽히는 것은 옛 판과 같다. */
+            const gsh9 = glShB9
               ? (gLift9 > 0.5
-                ? { dy: Math.max(1, sidePx * 0.04 + gLift9), alpha: op.alpha * 0.4 }   // 뜬 건물(이사 중)은 아래로 — 벌어짐이 높이다
+                ? { ground: true, dy: gLift9, h: gLift9 / Math.max(1e-3, gk9), alpha: op.alpha * SHADOW_ALPHA9 }
                 : { ground: true, alpha: op.alpha * SHADOW_ALPHA9 }) : undefined;
             const gR9 = sidePx * 0.707; const gCy9 = -8 * gk9;
             gl9.push({ mesh: glB9, ax: gax9, ay: gay9, k: gk9, yoff: op.mkFrac !== undefined ? 0 : -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind), over: true });
@@ -5162,7 +5183,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          *    이제 타원은 GL 바닥 그림자가 **안 깔리는 프레임의 대타**로만 남는다(덜어내기 · 손짓 중 접힘 · 낮은 배율). */
         const glShadow9 = meshShadow9(zoom) && !!(glM9 && gl9 && bodyShadow && (op.air || zoom >= shadowGroundMinZoom9()));   // 사영 그림자(PC 높음 · 4배부터) — 그 밖은 타원
         if (hover && !op.noShadow && showShadows !== false && (CROWD9.lv === 0 || op.air) && detail && !shFold9
-          && !glShadow9) {
+          && !glShadow9 && shadowEllipse9()) {
           /* 떠다니는 지상 유닛(일꾼·벌처·아콘류)은 겨우 발밑만 떠 있다(지적: 그림자가
              너무 크고 진해) — 높이 나는 공중 유닛보다 작고 옅은 타원. */
           // 그림자 살짝 축소(지적) — 높이 나는 만큼 발밑 그림자는 작고 옅게.
@@ -5220,7 +5241,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             ctx.fill();
           }
         } else if (showShadows !== false && CROWD9.lv === 0 && detail && !shFold9 && !op.air && !op.clipWalk && !op.noShadow
-          && !glShadow9) {
+          && !glShadow9 && shadowEllipse9()) {
           /* ⚠⚠ **여기에도 같은 문이 있어야 한다**(2026-09, 지적: "프로브 같은 유닛 그림자가 사영 그림자와
              타원 그림자 두 개가 나와") — 위 부양 갈래는 `!glShadow9` 로 막아 두었는데, 막힌 몸이 **떨어져
              나가는 것이 아니라 이 `else if` 로 굴러든다**. 부양 지상 유닛(일꾼·벌처·아콘류)은 `op.air` 가
@@ -7486,6 +7507,9 @@ const SHADOW_MIN_ZOOM = 1;
      에서는 1·2배에서도 유닛이 폰보다 크게 그려져 그림자가 제 몫을 한다. 그래서 데스크톱
      에서는 지금 그대로 지상도 그림자를 진다. */
 const shadowGroundMinZoom9 = (): number => DEV9.shadowGroundMinZoom;   // 위 ⚠ — 자리에서 읽는다
+/** 접지 타원을 **대타로** 깔까(DEV9.shadowEllipse — 폰 참 · PC 거짓) — 거짓이면 사영이 안 깔리는 프레임에도 타원을 안 그리고,
+ *  대신 사영을 덜어내기·손짓 접힘에 안 접는다(bodyShadow). 2026-09, 요청: "타원 대체하지 않기". 자리에서 읽는다(그 ⚠). */
+const shadowEllipse9 = (): boolean => DEV9.shadowEllipse;
 /** ★ **사영 그림자를 깔까**(gl9 패스 ① — 몸의 삼각형을 빛 방향으로 눕혀 바닥에 한 번 더 그린다) — 손 스위치(`#glshadow=1|0`)가
  *  있으면 그것, 없으면 기기 단 표(`DEV9.meshShadow` · PC 보통부터 · 폰 높음)이고, 배율은 **`DEV9.meshShadowMinZoom`(PC 4 · 폰 8)
  *  부터**다(2026-09, 요청: "pc 3티어에서 그림자를 동그라미 말고 실제 사영 그림자로 · 4배부터" → "무리 가는 기능 아니면 높음부터"
@@ -10759,6 +10783,13 @@ export default function ReplayMotionPlayer({
      안 온다. 그건 정보 팝업의 몫이다(아래 onMapPointerUp).
      구석에 떠 있던 '⋯' 깨우기 버튼은 이걸로 갈음하고 걷어냈다(요청: "모바일 전체화면
      메뉴 버튼 제거") — 지도 아무 데나 누르면 되는데 버튼이 하나 더 떠 있을 까닭이 없다. */
+  /** 맥에서 뷰포트가 이미 화면 크기면(운영체제 전체화면 창) 전체화면 API 를 건너뛴다 — 아래 enterFs 의 ★. */
+  const fsApiSkip9 = (): boolean => {
+    if (typeof navigator === "undefined" || typeof screen === "undefined") return false;
+    const mac9 = /Mac/i.test(navigator.platform ?? "") || /Macintosh/i.test(navigator.userAgent ?? "");
+    if (!mac9) return false;
+    return window.innerWidth >= screen.width - 2 && window.innerHeight >= screen.height - 2;
+  };
   const fsToggleUi = useCallback((): void => {
     window.clearTimeout(fsHideRef.current);
     const next = !fsUiRef.current;
@@ -10812,7 +10843,14 @@ export default function ReplayMotionPlayer({
        주는 아이폰 사파리에서는 CSS 폴백(fixed·inset:0)이 화면이 아니라 **카드**를
        기준으로 깔렸다 — 그래서 화면 맨 위 헤더가 안 덮였다. 오버레이는 이제 body로
        포털하고(아래 fsInner), 전체화면도 문서 뿌리에 건다. */
-    if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+    /* ★ **창이 이미 화면을 다 덮고 있으면 API 를 안 부른다**(2026-09, 지적: "맥 크롬에서 전체화면on -> 전체화면off시 맥
+       바탕화면으로 가는 문제") — 맥에서 크롬을 초록 단추(운영체제 전체화면 Space)로 띄워 둔 채 이 단추를 누르면, HTML5
+       전체화면이 그 Space 위에 한 번 더 걸리고 `exitFullscreen()` 이 그 둘을 함께 풀며 창이 있던 Space 가 아니라
+       **바탕화면 Space 로 떨어진다**(크롬·macOS 의 알려진 꼴 — 이 기계에는 맥이 없어 실측은 못 했다). 그때는 API 로 얻는
+       것이 하나도 없다: 뷰포트가 이미 화면 크기라 덮는 판(CSS 폴백 — position:fixed · inset:0)이 곧 전체화면이다.
+       자는 **뷰포트 = 화면**이다(innerWidth/Height 가 screen 과 같다 — 탭·주소창이 숨은 상태라야 같다) · 맥만 본다
+       (윈도 자동 숨김 작업표시줄의 최대화 창도 이 조건에 걸릴 수 있어 그쪽은 종전대로 API 를 탄다). */
+    if (!document.fullscreenElement && document.documentElement.requestFullscreen && !fsApiSkip9()) {
       void document.documentElement.requestFullscreen().catch(() => {});
     }
   }, [fsWake]);
@@ -15155,6 +15193,27 @@ export default function ReplayMotionPlayer({
             로도 가능한가") — 이 판이 여닫는 것은 빈 표가 아니라 '그 사람들의 표'다.
             루시드에 그 뜻의 글리프가 없는 사정과, 12px에서 버티게 획을 짜는 방법은
             그 파일(RosterTableIcon) 머리에 적어 뒀다. */}
+      {/* ★ 중계 스위치는 **로스터 단추 왼쪽**이다(2026-09, 요청: "중계 버튼을 버튼행으로 이동(아이콘만 표시)
+          위치는 로스터 버튼 왼쪽(다른 버튼과 다르게 활성화시 지금처럼 녹색 + 깜빡임 효과)") — 한때 로스터 판
+          맨 아래의 글자 알약이었는데(그때의 셈: 중계는 '누구를 볼까'를 맡기는 일이라 그 표와 한 판) 로스터를
+          숨기면 함께 사라졌고 판 폭도 그것이 쥐었다. 이 줄에서는 형제와 같은 동그라미(.scr-motion-mapbtn)이고
+          얼굴은 TV 아이콘 하나다. 켜짐은 형제들의 is-on(흰 반투명)이 아니라 **초록 + 아이콘 깜빡임**
+          (.scr-motion-castbtn-on — 추적 단추와 같은 결 · 박자)이다: '지금 카메라를 기계가 쥐고 있다'는
+          신호라 다른 켜짐과 갈려야 한다. 자취가 없는 경기에는 안 그린다(고를 것이 없다). */}
+      {entData && (
+        <button
+          type="button"
+          className={cx("scr-motion-litbtn scr-motion-mapbtn scr-motion-castbtn", castOn && "scr-motion-castbtn-on")}
+          onClick={() => toggleCast9()}
+          aria-pressed={castOn}
+          aria-label={castOn ? "중계 끄기" : "중계 켜기"}
+          title={castOn
+            ? "중계 끄기 — 중요한 장면을 자동으로 따라가는 중"
+            : "중계 — 중요한 장면의 선수를 자동으로 따라간다"}
+        >
+          <Tv size={18} aria-hidden />
+        </button>
+      )}
       {(
         <button
           type="button"
@@ -16438,23 +16497,9 @@ export default function ReplayMotionPlayer({
             rosterMode === 0 && "scr-fs-panel-bare")}>
             {teamCol(1, true, rosterMode === 0, true)}
             {teamCol(2, true, rosterMode === 0, true)}
-            {/* ★ 중계 스위치는 **로스터 맨 아래**다(요청: "on/off 버튼은 로스터 가장 아래에
-                tv버튼으로") — 로스터가 곧 '누구를 볼까'의 표이고, 중계는 그 고르기를 맡기는
-                일이라 같은 판에 있어야 읽힌다. 자취가 없는 경기에는 안 그린다(고를 것이 없다). */}
-            {entData && (
-              <button
-                type="button"
-                className={cx("scr-motion-castbtn", castOn && "scr-motion-castbtn-on")}
-                aria-pressed={castOn}
-                title={castOn
-                  ? "중계 끄기 — 중요한 장면을 자동으로 따라가는 중"
-                  : "중계 — 중요한 장면의 선수를 자동으로 따라간다"}
-                onClick={() => toggleCast9()}
-              >
-                <Tv size={13} aria-hidden />
-                <span>중계</span>
-              </button>
-            )}
+            {/* (옮김) 중계 스위치 — 한때 여기 로스터 맨 아래의 글자 알약이었다(요청: "on/off 버튼은 로스터
+                가장 아래에 tv버튼으로"). 이제 지도 위 아이콘 줄의 로스터 단추 왼쪽에 선다(요청: "중계 버튼을
+                버튼행으로 이동(아이콘만 표시)" — 위 mapBtnRow). 로스터를 숨겨도 스위치는 남는다. */}
           </div>
         )}
         {/* (걷어냄·요청) 도구 판 — 품질·체력바·마우스 조작 줄(viewRowNode)이 들어 있던

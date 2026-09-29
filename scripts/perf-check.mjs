@@ -82,12 +82,13 @@ function makeWorld() {
   const DIE_AT = Number(flag("--die-at", 42));
   const DIE_GAP = Number(flag("--die-gap", 0.35));                 // 걷는 키 간격(초)
   /** 한 트랙 — path(t)->[x타일, y타일, 상태], hp 변곡점은 따로. */
-  const track = (owner, type, pathOf, { hp = null, bornSec = 0, buildingAt = null, dieSec = null } = {}) => {
+  const track = (owner, type, pathOf, { hp = null, bornSec = 0, buildingAt = null, dieSec = null, lifted = false } = {}) => {
     const keys = [];
     if (buildingAt) {
-      // 건물 — 자리 붙박이. 키 둘이면 생애가 선다(태어남 + 끝).
-      keys.push([F(bornSec), buildingAt[0] * 32, buildingAt[1] * 32, 0, 0, type]);
-      keys.push([F(GAME_SEC), buildingAt[0] * 32, buildingAt[1] * 32, 0, 0, type]);
+      // 건물 — 자리 붙박이. 키 둘이면 생애가 선다(태어남 + 끝). lifted 면 상태 바이트의 0x40(뜸)을 세워 처음부터 떠 있다.
+      const st9 = lifted ? 0x40 : 0;
+      keys.push([F(bornSec), buildingAt[0] * 32, buildingAt[1] * 32, 0, st9, type]);
+      keys.push([F(GAME_SEC), buildingAt[0] * 32, buildingAt[1] * 32, 0, st9, type]);
     } else {
       // dieSec — 생애가 거기서 끝난다: 마지막 키가 GONE(상태 3)이다(핵 착탄 재현용).
       const endS = dieSec ?? GAME_SEC;
@@ -119,7 +120,9 @@ function makeWorld() {
     const dirx = hx < 64 ? 1 : -1;
     const diry = hy < 64 ? 1 : -1;
     track(pl.owner, hall, null, { buildingAt: [hx, hy] });
-    track(pl.owner, hall, null, { buildingAt: [hx + dirx * 20, hy] });
+    /* 뜬 건물(--lifted) — 정구(테란)의 옆 멀티 홀 하나를 이륙한 채 세운다(2026-09, "뜬 건물 그림자 정리"의 검산:
+       사영이 켜진 PC 에서 타원 + 검은 복사판 둘이 아니라 바닥에 눕힌 사영 하나여야 한다). 자리 (38, 18). */
+    track(pl.owner, hall, null, { buildingAt: [hx + dirx * 20, hy], lifted: has("--lifted") && pl.owner === 0 });
     track(pl.owner, hall, null, { buildingAt: [hx, hy + diry * 20] });
     for (let i = 0; i < 12; i += 1) {
       track(pl.owner, small, null, { buildingAt: [hx + dirx * (4 + (i % 4) * 3), hy + diry * (6 + Math.floor(i / 4) * 3)] });
@@ -239,7 +242,7 @@ function makeWorld() {
       w.vz(f - pf); pf = f;
       w.vz(x - px); px = x;
       w.vz(y - py); py = y;
-      w.u8(hb); w.u8(st & 0x0f);       // done=1(0x80 없음) · 안 뜸(0x40 없음)
+      w.u8(hb); w.u8((st & 0x0f) | (st & 0x40));       // done=1(0x80 없음) · 0x40 = 뜸(--lifted 의 건물만)
       w.vz(ty - pt); pt = ty;
     }
   }
@@ -594,11 +597,12 @@ if (has("--castprobe")) {
       on: !!document.querySelector(".scr-motion-castbtn-on"),
       btn: !!document.querySelector(".scr-motion-castbtn"),
       toast: [...document.querySelectorAll(".scr-motion-castcap")].map((el) => el.textContent ?? ""),
-      /* 단추의 폭·왼쪽 자리 — 못 박은 폭이 켜짐·꺼짐에 안 흔들리나, 로스터 줄의 왼쪽과 맞나. */
-      bb: (() => { const b = document.querySelector(".scr-motion-castbtn");
-        const row = document.querySelector(".scr-fs-roster-fixed .scr-motion-teamrow") ?? document.querySelector(".scr-fs-roster-fixed .scr-motion-teamcol-pick");
-        if (!b) return null; const r = b.getBoundingClientRect();
-        return { w: +r.width.toFixed(1), dx: row ? +(r.left - row.getBoundingClientRect().left).toFixed(1) : null }; })(),
+      /* 단추의 자리 — 아이콘 줄(.scr-motion-mapbtns) 안에서 **로스터 단추 바로 왼쪽**인가(요청), 크기가 형제와 같은가. */
+      bb: (() => { const b = document.querySelector(".scr-motion-mapbtns .scr-motion-castbtn");
+        if (!b) return null; const kids = [...(b.parentElement?.children ?? [])]; const i = kids.indexOf(b); const nx = kids[i + 1];
+        const r = b.getBoundingClientRect(); const rn = nx?.getBoundingClientRect();
+        return { w: +r.width.toFixed(1), h: +r.height.toFixed(1), idx: i, next: nx?.getAttribute("aria-label") ?? null,
+          gap: rn ? +(rn.left - r.right).toFixed(1) : null, nextW: rn ? +rn.width.toFixed(1) : null }; })(),
       box: (() => { const b = document.querySelector(".scr-motion-castbar"); const st = document.querySelector(".scr-fs-stage");
         if (!b || !st) return null; const r = b.getBoundingClientRect(); const q = st.getBoundingClientRect();
         const lyr = document.querySelector(".scr-fs-layer");
@@ -619,7 +623,7 @@ if (has("--castprobe")) {
   }
   const capNow9 = await page.evaluate(() => document.querySelector(".scr-motion-castcap")?.textContent ?? null);
   console.log(`[중계] 단추 ${on9?.btn ? "있음" : "없음"} · 켜짐 ${on9?.on ? "예" : "아니오"} · 상시 자막 ${capNow9 === null ? "없음" : `"${capNow9}"`} · 갈아탐 ${Math.max(0, seen9.length - 1)}번`
-    + (on9?.bb ? ` · 단추 폭 ${on9.bb.w}px · 줄 왼쪽에서 ${on9.bb.dx}px` : ""));
+    + (on9?.bb ? ` · 단추 ${on9.bb.w}×${on9.bb.h}px(이웃 ${on9.bb.nextW}) · 오른쪽 이웃 "${on9.bb.next}" 틈 ${on9.bb.gap}px` : " · 단추 자리 못 잼"));
   /* 배타 검사 — 개인 추적을 켜면 중계가 꺼지고, 중계를 켜면 개인 추적이 풀려야 한다(요청). */
   const excl9 = await page.evaluate(async () => {
     const st = () => ({ cast: !!document.querySelector(".scr-motion-castbtn-on"), track: !!document.querySelector(".scr-motion-track-on") });

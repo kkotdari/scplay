@@ -46,8 +46,13 @@ const mk = (o, kind, born, died, end, tgt) => {
 const zl = [];
 for (let i = 0; i < 4; i += 1) zl.push(mk(1, "Zergling", 100, 200 + i * 0.4, "atk"));
 for (const z of zl) mk(0, "Marine", 100, null, "", [199.5, z.tag, 201, z.tag, 202, 0]);
-// 260초: B가 A의 드라군 둘·탱크를 잡는다(+ A의 스톰) → 무게가 큰 쪽이 잡혀야 한다
-const dg = [mk(0, "Dragoon", 200, 260, "atk"), mk(0, "Dragoon", 200, 261, "atk"), mk(0, "Siege Tank", 200, 262.5, "atk")];
+// 260초: B가 A의 드라군 셋·탱크를 잡는다(+ A의 스톰) → 무게가 큰 쪽이 잡혀야 한다
+/* ⚠ 드라군 **셋**이다(2026-09) — 둘이면 B 700 : A 385(잃은 몫) + 260(스톰) = 645 로 8.5% 차라 TIE9(1.12) 안의
+   **호각**이고, 그때는 규칙대로 순환 원칙(가장 오래 안 본 사람)이 가르므로 답이 순환 토막의 위상(CYCLE9)에 따라
+   A·B 를 오갔다(실측: 9초·14초는 B · 8초는 A). '죽인 쪽이 잡히나'를 보려면 장면이 호각이 아니어야 한다 —
+   셋이면 900 : 755(1.19)로 문 밖이다. */
+const dg = [mk(0, "Dragoon", 200, 260, "atk"), mk(0, "Dragoon", 200, 261, "atk"), mk(0, "Dragoon", 200, 261.5, "atk"),
+  mk(0, "Siege Tank", 200, 262.5, "atk")];
 for (const d of dg) mk(1, "Hydralisk", 200, null, "", [259.5, d.tag, 261.5, d.tag, 263, 0]);
 // 600초: B가 나간다 — 몸 열둘이 한꺼번에 사라지고 겨눈 자가 없다(가짜 장면이면 안 된다)
 for (let i = 0; i < 12; i += 1) mk(1, "Drone", 200, 600, "atk");

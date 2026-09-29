@@ -527,36 +527,20 @@
 @media (prefers-reduced-motion: reduce) {
   .scr-motion-track-on svg { animation: none; color: #2ee59d; }
 }
-/* ── 중계 스위치(요청: "on/off 버튼은 로스터 가장 아래에 tv버튼으로") ────────────────────
-   로스터 판의 **맨 아래 한 줄**이다. 판은 제 자식에게 손짓을 안 흘리지만(.scr-motion-teamcol만
-   투명하다) 이 단추는 그 바깥이라 그대로 눌린다 — 그래도 pointer-events를 적어 둔다:
-   나중에 판 전체를 투명하게 돌리는 손이 와도 스위치는 살아야 한다.
-   켜진 꼴은 추적 단추와 **같은 결**(액티브 그린)이다 — 둘은 '지금 카메라를 누가 쥐고 있나'를
-   말하는 한 짝이고, 배타이므로 한 화면에 하나만 초록이다. */
-.scr-motion-castbtn {
-  pointer-events: auto;
-  /* 판 폭을 다 먹지 않는다 — 로스터 판은 지도 **위에** 얹히므로 한 줄이 먹는 자리가 곧
-     가려지는 지형이다(그 판의 규약). 글자만 한 알약이다.
-     ★ 폭을 못 박고 **로스터 왼쪽에 맞춘다**(요청: "중계 버튼 폭은 고정해서 컴팩트하게
-       하고 로스터 왼쪽에 정렬로") — 글자 길이로 폭이 나면 켜짐·꺼짐이나 글꼴에 따라
-       알약이 들썩이고, 가운데 정렬은 표의 왼쪽 세로줄(이름 칸)과 어긋난다. 왼쪽 여백
-       4px은 줄의 padding(.scr-fs-roster-fixed .scr-motion-teamrow)과 같은 자다. */
-  align-self: flex-start; display: inline-flex; align-items: center; justify-content: center; gap: 5px;
-  width: 56px; box-sizing: border-box; flex: 0 0 auto;
-  margin: 2px 0 0 4px; padding: 4px 0; border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 999px; background: rgba(255, 255, 255, 0.10);
-  color: rgba(255, 255, 255, 0.74); cursor: pointer;
-  font-size: 10.5px; font-weight: 600; letter-spacing: 0.2px; line-height: 1;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+/* ── 중계 스위치(TV) — **지도 위 아이콘 줄**의 로스터 단추 왼쪽이다(2026-09, 요청: "중계 버튼을 버튼행으로 이동(아이콘만
+   표시) 위치는 로스터 버튼 왼쪽(다른 버튼과 다르게 활성화시 지금처럼 녹색 + 깜빡임 효과)") ────────────────────────────
+   꼴은 형제와 같은 44px 동그라미(.scr-motion-mapbtns button.scr-motion-mapbtn 이 다 준다)라 여기서는 **켜짐**만 적는다.
+   한때 로스터 판 맨 아래의 글자 알약(폭 56px · 왼쪽 맞춤)이었다 — 그 자리의 규칙들은 걷었다.
+   ★ 켜짐은 형제들의 is-on(흰 반투명)이 아니라 **초록 + 아이콘 깜빡임**이다 — 추적 단추(.scr-motion-track-on)와 같은
+     결·같은 박자(scr-track-blink). 둘은 '지금 카메라를 누가 쥐고 있나'를 말하는 한 짝이고 배타라 한 화면에 하나만 초록이다.
+   ⚠ 무게: 형제 규칙이 (0,2,1)이라 같은 꼴(.scr-motion-mapbtns button.…)로 **뒤에** 적어야 이긴다. 라이트 테마의 프레임
+     규칙은 (0,5,1)이라 그 짝을 따로 하나 더 적는다(안 적으면 라이트 프레임에서만 초록이 안 든다). */
+.scr-motion-mapbtns button.scr-motion-castbtn-on,
+.scr-light-theme .scr-fs-layer:not(.is-fs) .scr-motion-mapbtns button.scr-motion-castbtn-on {
+  background: rgba(46, 229, 157, 0.20); color: #2ee59d;
+  box-shadow: inset 0 0 0 1px rgba(46, 229, 157, 0.62), 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 .scr-motion-castbtn svg { display: block; }
-@media (hover: hover) {
-  .scr-motion-castbtn:hover { background: rgba(255, 255, 255, 0.2); color: #fff; }
-}
-.scr-motion-castbtn:focus-visible { outline: 1px solid rgba(255, 255, 255, 0.6); }
-.scr-motion-castbtn-on {
-  background: rgba(46, 229, 157, 0.18); border-color: rgba(46, 229, 157, 0.55); color: #2ee59d;
-}
 /* 켜진 동안 화면이 살아 있다는 신호 — 추적 단추의 깜빡임과 같은 박자다. */
 .scr-motion-castbtn-on svg { animation: scr-track-blink 1s steps(1, end) infinite; }
 @media (prefers-reduced-motion: reduce) {
