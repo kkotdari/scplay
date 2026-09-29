@@ -12979,6 +12979,20 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const CLWB9 = CLW9 * 1.5;                            // 밑 판 두께(û 로 아래)
     const CLFI9 = GR9;                                   // 뒷면 판 안쪽 테 — 돔 밑동
     const CLFO9 = GR9 + CLW9;                            // 뒷면 판 바깥 테 = L 의 모서리
+    /* 23단(2026-09, 요청: "아래링 폭을 더 두껍게해줘. 보석과 단차가 더 있게. 그리고 세로와 아래 링 수직으로 말고 부드럽게
+       래디우스로 이어지게 할수닜어?") — 셋이다.
+       ⓐ **밑 판의 옆 여유는 목테의 옆 폭이다**(`CLPM9` = CLW9·GOV9 = 0.182 · 옛 CLT9 0.07) — 용골 옆으로 그만큼 비어져 나와
+          보석과 판 사이에 단이 선다. 값을 목테의 **눌린** 폭으로 두면 밑 판의 뒤 모퉁이(kx9(0) + CLPM9)가 목테의 발
+          (CLFO9·GOV9)과 **정확히 같은 x** 라 L 의 두 다리가 모퉁이에서 턱 없이 만난다(CLW9 그대로 0.26 을 주면 판이 목테보다
+          0.078 더 나가 모퉁이에 작은 턱이 진다). 더 넓히려면 목테(CLW9)와 함께 넓혀야 모퉁이가 붙는다.
+       ⓑ **세로(목테)와 밑 판은 뒤·밑 모서리에서 4분원으로 이어진다**(`CLFR9` = CLWB9 0.39) — 여태 목테의 뒷낯(s −2·CLT9)이
+          u 0 에서 끝나고 밑 판의 뒷낯(s 0)이 u −CLWB9 까지 곧게 내려가 **직각 홈**이었다. 그 자리에 (s, u) 단면이 4분 원반인
+          각기둥(`fil9`)을 세운다: 중심 (s0, 0) · s0 = −2·CLT9 + CLFR9 = 0.25 · 호가 목테 뒷낯(s −0.14 · u 0)에서 밑 판 밑(s 0.25 ·
+          u −0.39)까지 접선을 이어 돈다. 밑 판은 그 s0 에서 시작한다(옛 0) — 곧 밑 판의 뒤 0.25 가 통째로 그 둥근 모서리다.
+          ⚠ 둥글린 모서리의 가장 낮은 점은 밑 판의 밑(u −CLWB9)에 접하므로 `gLow9` 는 한 톨도 안 바뀐다.
+          ⚠ 각기둥의 좌우는 뒤(목테 발 CLFO9·GOV9) → 앞(그 자리 판 반폭 kx9(t0) + CLPM9)으로 선형이라 옆 낯이 평면이다
+            (차 0.013 — 판이 앞으로 갈수록 좁아지는 몫). */
+    const CLPM9 = CLW9 * GOV9;                           // 밑 판이 용골 옆으로 비어져 나오는 몫
     const GCLR9 = 0.02;                                  // 고리 밑과 지면 사이 한 뼘
     const gbz09 = (gsh9 - GSINK9) * gdz9;                // 들기 전 밑면 한가운데 높이
     /* 고리의 가장 낮은 점 — 두 판 다 바깥 테가 CLFO9 이고 축 방향의 뒤 끝(ax 0)이 가장 낮다:
@@ -13043,14 +13057,30 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       for (let i9 = 0; i9 <= 16; i9 += 1) { const a9 = Math.PI * (i9 / 16); ring9.push(gP9(Math.cos(a9) * CLFO9 * GOV9, 0, Math.sin(a9) * CLFO9)); }
       for (let i9 = 16; i9 >= 0; i9 -= 1) { const a9 = Math.PI * (i9 / 16); ring9.push(gP9(Math.cos(a9) * CLFI9 * GOV9, 0, Math.sin(a9) * CLFI9)); }
       out.push(...tagKey(paintBase(slab9(ring9, 0, -gdy9, -gdz9, 2 * CLT9), CLR9), depthNow(0, DCY9 + DY9) * 1.6 + 9.4));
-      // ⓑ 밑 판 — 용골 밑(u 0 → −CLWB9) · 윤곽은 용골보다 CLT9 넓다 · 뒤 끝은 뒷면 판 바깥 테(CLFO9)까지
+      // ⓑ 둥근 모서리(23단) — (s, u) 단면이 4분 원반인 각기둥 · 목테 뒷낯(s −2·CLT9)에서 밑 판 밑(u −CLWB9)까지
+      const CLFR9 = CLWB9;                               // 모서리 반지름 = 밑 판 두께(밑에 접한다)
+      const sB9 = -2 * CLT9; const s09 = sB9 + CLFR9;    // 각기둥의 뒤 끝 · 앞 끝(= 밑 판이 시작하는 s)
+      const t09 = s09 / GR9;
+      const wB9 = CLFO9 * GOV9; const wF9 = kx9(t09) + CLPM9;   // 좌우 반폭 — 뒤(목테 발) → 앞(그 자리 판 반폭)
+      const NA9 = 6;
+      const prof9: [number, number][] = [[sB9, 0]];
+      for (let i9 = 1; i9 <= NA9; i9 += 1) { const a9 = Math.PI + (Math.PI / 2) * (i9 / NA9); prof9.push([s09 + CLFR9 * Math.cos(a9), CLFR9 * Math.sin(a9)]); }
+      prof9.push([s09, 0]);
+      const wAt9 = (s9: number): number => wB9 + (wF9 - wB9) * ((s9 - sB9) / (s09 - sB9));
+      const fL9 = prof9.map(([s9, u9]) => gP9(-wAt9(s9), s9, u9));
+      const fR9 = prof9.map(([s9, u9]) => gP9(wAt9(s9), s9, u9));
+      const fil9: ShapeFace[] = [bodyFace(polyPath3(fL9)), bodyFace(polyPath3([...fR9].reverse()))];
+      for (let i9 = 0; i9 < prof9.length; i9 += 1) {
+        const j9 = (i9 + 1) % prof9.length;
+        fil9.push(bodyFace(polyPath3([fL9[i9], fL9[j9], fR9[j9], fR9[i9]])));
+      }
+      out.push(...tagKey(paintBase(fil9, CLR9), depthNow(0, DCY9 + DY9) * 1.6 + 9.4));
+      // ⓒ 밑 판 — 용골 밑(u 0 → −CLWB9) · 윤곽은 용골보다 CLPM9 넓다 · 뒤는 둥근 모서리의 앞 끝(s09)에서 시작한다
       const KB9 = 10;
       const plate9: [number, number, number][] = [];
       const tB9 = CLB9 / GR9;
-      plate9.push(gP9(-CLFO9 * GOV9, 0, 0));
-      for (let i9 = 0; i9 <= KB9; i9 += 1) { const t9 = tB9 * (i9 / KB9); plate9.push(gP9(-(kx9(t9) + CLT9), GR9 * t9, 0)); }
-      for (let i9 = KB9; i9 >= 0; i9 -= 1) { const t9 = tB9 * (i9 / KB9); plate9.push(gP9(kx9(t9) + CLT9, GR9 * t9, 0)); }
-      plate9.push(gP9(CLFO9 * GOV9, 0, 0));
+      for (let i9 = 0; i9 <= KB9; i9 += 1) { const t9 = t09 + (tB9 - t09) * (i9 / KB9); plate9.push(gP9(-(kx9(t9) + CLPM9), GR9 * t9, 0)); }
+      for (let i9 = KB9; i9 >= 0; i9 -= 1) { const t9 = t09 + (tB9 - t09) * (i9 / KB9); plate9.push(gP9(kx9(t9) + CLPM9, GR9 * t9, 0)); }
       out.push(...tagKey(paintBase(slab9(plate9, 0, -gux9, -guz9, CLWB9), CLR9), depthNow(0, DCY9 + DY9) * 1.6 + 9.4));
     }
     /* 창(요청: "창문 표시 및 평소 어둡다가 가스캘때는 네온색 불빛") — 프로토스 몸은
