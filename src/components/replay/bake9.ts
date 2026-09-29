@@ -12972,14 +12972,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const CLT9 = 0.07;                                   // 뒷면 판의 축 방향 반두께 · 밑 판 윤곽의 여유
     /* 20단(2026-09, 지적: "링두께가 위와 아래 링이 안맞아") — 위 목테의 반지름 폭(옛 0.42·GR9 = 0.5)과 밑 판의 두께(옛 2·CLT9 = 0.14)가
        딴 값이라 앞에서 L 의 두 다리가 굵기가 달랐다. **한 값 `CLW9`** 다: 목테 폭 = 밑 판 두께. 목테 안쪽은 돔 밑동에 딱 붙인다. */
-    const CLW9 = 0.26;                                   // 고리 굵기(목테 폭 = 밑 판 두께)
+    const CLW9 = 0.26;                                   // 목테(뒷면 반고리)의 반지름 폭
+    /* 22단(2026-09, 요청: "아래링 두께 더 덜출" — '더 늘려줘'로 읽었다) — 20단에서 한 값으로 묶은 목테 폭·밑 판 두께를 다시
+       가른다: 밑 판만 **1.5배**(0.26 → 0.39). 목테 폭(CLW9)은 그대로라 뒷면 반고리는 한 톨도 안 바뀐다. 가장 낮은 점(gLow9)이
+       이 값을 읽지만 GT9 0 에서 0.39 < GLIFT9 0.45 라 들기(GUP9)는 안 움직인다(밑 판 밑이 땅 위 0.06). */
+    const CLWB9 = CLW9 * 1.5;                            // 밑 판 두께(û 로 아래)
     const CLFI9 = GR9;                                   // 뒷면 판 안쪽 테 — 돔 밑동
     const CLFO9 = GR9 + CLW9;                            // 뒷면 판 바깥 테 = L 의 모서리
     const GCLR9 = 0.02;                                  // 고리 밑과 지면 사이 한 뼘
     const gbz09 = (gsh9 - GSINK9) * gdz9;                // 들기 전 밑면 한가운데 높이
     /* 고리의 가장 낮은 점 — 두 판 다 바깥 테가 CLFO9 이고 축 방향의 뒤 끝(ax 0)이 가장 낮다:
        z = gbz09 − CLFO9·cos(GT9)(û 의 z 몫이 gdy9 다). 뒷면 판(축 0~2·CLT9)·아래 판(축 0~CLL9) 둘의 최솟값이 같다. */
-    const gLow9 = gbz09 - CLW9 * gdy9;                  // 가장 낮은 점 = 용골 밑 판의 밑(밑동 · û 로 −CLW9)
+    const gLow9 = gbz09 - CLWB9 * gdy9;                 // 가장 낮은 점 = 용골 밑 판의 밑(밑동 · û 로 −CLWB9)
     /* 19단: 부리는 껍질 코의 **중턱**에서 난다 — 밑동을 GLIFT9 만큼 든다(0 이면 용골이 껍질 밑동에 붙어 부리가 땅에 깔린 듯
        읽혔고, 목테(뒷면 반고리)도 통째로 껍질 속이었다). 땅 위 한 뼘(GCLR9)은 여전히 지킨다. */
     const GLIFT9 = 0.45;
@@ -13039,7 +13043,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       for (let i9 = 0; i9 <= 16; i9 += 1) { const a9 = Math.PI * (i9 / 16); ring9.push(gP9(Math.cos(a9) * CLFO9 * GOV9, 0, Math.sin(a9) * CLFO9)); }
       for (let i9 = 16; i9 >= 0; i9 -= 1) { const a9 = Math.PI * (i9 / 16); ring9.push(gP9(Math.cos(a9) * CLFI9 * GOV9, 0, Math.sin(a9) * CLFI9)); }
       out.push(...tagKey(paintBase(slab9(ring9, 0, -gdy9, -gdz9, 2 * CLT9), CLR9), depthNow(0, DCY9 + DY9) * 1.6 + 9.4));
-      // ⓑ 밑 판 — 용골 밑(u 0 → −2·CLT9) · 윤곽은 용골보다 CLT9 넓다 · 뒤 끝은 뒷면 판 바깥 테(CLFO9)까지
+      // ⓑ 밑 판 — 용골 밑(u 0 → −CLWB9) · 윤곽은 용골보다 CLT9 넓다 · 뒤 끝은 뒷면 판 바깥 테(CLFO9)까지
       const KB9 = 10;
       const plate9: [number, number, number][] = [];
       const tB9 = CLB9 / GR9;
@@ -13047,7 +13051,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       for (let i9 = 0; i9 <= KB9; i9 += 1) { const t9 = tB9 * (i9 / KB9); plate9.push(gP9(-(kx9(t9) + CLT9), GR9 * t9, 0)); }
       for (let i9 = KB9; i9 >= 0; i9 -= 1) { const t9 = tB9 * (i9 / KB9); plate9.push(gP9(kx9(t9) + CLT9, GR9 * t9, 0)); }
       plate9.push(gP9(CLFO9 * GOV9, 0, 0));
-      out.push(...tagKey(paintBase(slab9(plate9, 0, -gux9, -guz9, CLW9), CLR9), depthNow(0, DCY9 + DY9) * 1.6 + 9.4));
+      out.push(...tagKey(paintBase(slab9(plate9, 0, -gux9, -guz9, CLWB9), CLR9), depthNow(0, DCY9 + DY9) * 1.6 + 9.4));
     }
     /* 창(요청: "창문 표시 및 평소 어둡다가 가스캘때는 네온색 불빛") — 프로토스 몸은
        둥근 껍데기라 테란처럼 벽에 유리를 낼 자리가 없다. 대신 네 귀 기둥 허리에 창
