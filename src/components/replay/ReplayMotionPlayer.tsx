@@ -9447,15 +9447,14 @@ export default function ReplayMotionPlayer({
   /* ★ 중계가 카메라를 처음 잡을 때 **한 번** 당겨 준다 — 1배(지도 전체)에서는 팬의 여유가
      0이라 카메라가 아무 데도 못 가고, 그러면 중계가 자막만 뜨는 기능으로 보인다. 개인
      추적이 켜질 때와 같은 배율(trackZoom9)이고, 그 뒤 손으로 바꾼 배율은 안 되돌린다. */
-  /* ★ 폰은 **6배**다(2026-09, 요청: "모바일은 중계 기본줌을 6배로 올리기") — 폰 화면은 좁아 4배로는 교전 한 자리가
-     화면의 한 귀퉁이라 몸이 몇 화소다. 사다리(1·2·4·8)에 없는 값이지만 배율 자체는 어느 값이든 받는다(휠·핀치가 정수로
-     쌓는 그 자리). 개인 추적(`trackZoom9` 4배)은 안 건드린다 — 요청이 이름 붙인 것은 중계다. */
+  /* ★ 폰은 **6배**다 — 중계·개인 추적이 같은 `trackZoom9` 를 읽는다(2026-09, 요청: "모바일은 중계 기본줌을 6배로 올리기" →
+     "개인추적도 모바일는 6배"). 처음엔 중계에만 따로 상수를 두었는데(요청이 이름 붙인 것만) 이어진 요청이 둘을 한 값으로 묶었다. */
   const castZoomRef9 = useRef(false);
   useEffect(() => {
     if (!castOn || !castRaw) { castZoomRef9.current = false; return; }
     if (castZoomRef9.current) return;
     castZoomRef9.current = true;
-    setView9(smallDevice9 ? CAST_ZOOM_PHONE9 : trackZoom9(), panRef.current);
+    setView9(trackZoom9(), panRef.current);
     // setView9·trackZoom9는 안 바뀌는 클로저다 — 목록에 넣으면 선언 전(TDZ)에 읽힌다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [castOn, castRaw]);
@@ -10189,9 +10188,11 @@ export default function ReplayMotionPlayer({
      좋았지만, 그 값이 사다리에 없는 어중간한 배율(3.7배 같은)이라 굽는 판이 칸에서 풀리고 사람이 기대하는
      칸과도 어긋났다. 사다리를 1·2·4·8로 줄인 지금 4배가 곧 '전투 하나를 들여다보는 칸'이다.
      못 박는 것은 **켤 때의 한 번**뿐이다 — 그 뒤로 휠·핀치·버튼으로 바꾸는 길은 그대로 열려 있다. */
-  const trackZoom9 = (): number => ZOOM_STEPS[2];
-  /** 폰의 중계 배율(위 castZoomRef9 의 ★) — 사다리 밖 값이라 손으로 적는다. */
-  const CAST_ZOOM_PHONE9 = 6;
+  /* ★ **폰은 6배**(2026-09, 요청: "모바일은 중계 기본줌을 6배로 올리기" → "개인추적도 모바일는 6배") — 폰 화면은 좁아 4배로는
+     교전 한 자리가 화면의 한 귀퉁이라 몸이 몇 화소다. 사다리(1·2·4·8)에 없는 값이지만 배율 자체는 어느 값이든 받는다(휠·핀치가
+     정수로 쌓는 그 자리). 중계·개인 추적이 다 이 한 문을 읽는다. */
+  const TRACK_ZOOM_PHONE9 = 6;
+  const trackZoom9 = (): number => (smallDevice9 ? TRACK_ZOOM_PHONE9 : ZOOM_STEPS[2]);
   /** 지도가 무대를 채우는 폭 — 비율은 지킨다.
    *
    *  ★ **전체화면만 덮고(cover), 프레임에서는 높이에 맞춘다**(요청: "모바일 게임상세
