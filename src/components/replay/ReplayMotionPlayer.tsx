@@ -4993,7 +4993,13 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              두 번 고친 '그림자가 둘'의 건물 판). 타원은 사영이 안 깔리는 프레임의 대타이고, 대타를 안 까는 프로필
              (shadowEllipse9 거짓)에서는 아예 없다. */
           const glShB9 = meshShadow9(zoom) && bodyShadow && !!(glB9 && gl9) && !GL_GLOW_KINDS9.has(op.kind);
-          if (op.groundShadow && showShadows !== false && CROWD9.lv === 0 && detail && !shFold9 && !glShB9 && shadowEllipse9()) {
+          /* ★ 뜬 건물의 타원은 **덜어내기·저배율·손짓 접기를 안 탄다**(2026-09, 지적: "모바일 비행건물 그림자가 안보임
+             (타원대체중일때)") — 여태 유닛 타원과 같은 문(`CROWD9.lv === 0 && detail && !shFold9`)을 지났는데, 폰(벤치 미달 =
+             weak)은 화면에 유닛 op 이 60 만 넘어도 덜어내기 1단이라 그 문이 닫히고, 4배 아래 배율은 detail 이 거짓이다.
+             유닛 타원 수백은 그렇게 덜어낼 값이 있지만 뜬 건물은 한두 채이고 그 타원이 **높이를 말하는 유일한 그림**이다 —
+             없으면 건물이 뜬 것이 아니라 땅에 앉은 채 어긋나 보인다. 남는 문은 그림자 스위치 · 사영이 깔리나(glShB9) ·
+             대타를 까는 프로필인가(shadowEllipse9) 셋이다. */
+          if (op.groundShadow && showShadows !== false && !glShB9 && shadowEllipse9()) {
             /* 바닥 '발자국'만 덮는다(정정: 칸(hPx)은 모델 높이까지 포함해, 칸 기준 타원은
                건물을 통째로 감싸는 큰 원이었다 — 내접으로 바꿔도 거의 그대로라 "적용 안
                됨"으로 보였다). 발자국 깊이 = 폭 × footRatio, 자리는 칸 바닥에 붙인다. */
@@ -9441,12 +9447,15 @@ export default function ReplayMotionPlayer({
   /* ★ 중계가 카메라를 처음 잡을 때 **한 번** 당겨 준다 — 1배(지도 전체)에서는 팬의 여유가
      0이라 카메라가 아무 데도 못 가고, 그러면 중계가 자막만 뜨는 기능으로 보인다. 개인
      추적이 켜질 때와 같은 배율(trackZoom9)이고, 그 뒤 손으로 바꾼 배율은 안 되돌린다. */
+  /* ★ 폰은 **6배**다(2026-09, 요청: "모바일은 중계 기본줌을 6배로 올리기") — 폰 화면은 좁아 4배로는 교전 한 자리가
+     화면의 한 귀퉁이라 몸이 몇 화소다. 사다리(1·2·4·8)에 없는 값이지만 배율 자체는 어느 값이든 받는다(휠·핀치가 정수로
+     쌓는 그 자리). 개인 추적(`trackZoom9` 4배)은 안 건드린다 — 요청이 이름 붙인 것은 중계다. */
   const castZoomRef9 = useRef(false);
   useEffect(() => {
     if (!castOn || !castRaw) { castZoomRef9.current = false; return; }
     if (castZoomRef9.current) return;
     castZoomRef9.current = true;
-    setView9(trackZoom9(), panRef.current);
+    setView9(smallDevice9 ? CAST_ZOOM_PHONE9 : trackZoom9(), panRef.current);
     // setView9·trackZoom9는 안 바뀌는 클로저다 — 목록에 넣으면 선언 전(TDZ)에 읽힌다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [castOn, castRaw]);
@@ -10181,6 +10190,8 @@ export default function ReplayMotionPlayer({
      칸과도 어긋났다. 사다리를 1·2·4·8로 줄인 지금 4배가 곧 '전투 하나를 들여다보는 칸'이다.
      못 박는 것은 **켤 때의 한 번**뿐이다 — 그 뒤로 휠·핀치·버튼으로 바꾸는 길은 그대로 열려 있다. */
   const trackZoom9 = (): number => ZOOM_STEPS[2];
+  /** 폰의 중계 배율(위 castZoomRef9 의 ★) — 사다리 밖 값이라 손으로 적는다. */
+  const CAST_ZOOM_PHONE9 = 6;
   /** 지도가 무대를 채우는 폭 — 비율은 지킨다.
    *
    *  ★ **전체화면만 덮고(cover), 프레임에서는 높이에 맞춘다**(요청: "모바일 게임상세
@@ -15272,11 +15283,12 @@ export default function ReplayMotionPlayer({
   const zoomText = `${zoomLive >= 9.95 ? Math.round(zoomLive) : Math.round(zoomLive * 10) / 10}배`;
   /** 위로 펼치는 목록(위 pick9) — 고르면 닫힌다. list9는 곡 목록처럼 긴 것(왼맞춤·스크롤). */
   /** 항목의 `key` 는 글귀가 겹칠 수 있는 목록(사람 이름)에서 준다 · `dot` 은 글귀 앞의 색점(그 사람 색). */
+  /** left9 — 줄의 **왼쪽 끝** 단추(TV)의 목록 · 오른쪽 맞춤이면 화면 왼쪽 밖으로 넘친다(replay.css 의 is-left ★). */
   const pickMenu9 = (
     kind9: "speed" | "zoom" | "bgm" | "cast",
-    items9: { label: string; on: boolean; act: () => void; key?: string; dot?: string }[], list9 = false,
+    items9: { label: string; on: boolean; act: () => void; key?: string; dot?: string }[], list9 = false, left9 = false,
   ): React.ReactNode => (pick9 === kind9 ? (
-    <ul className={cx("scr-motion-pickmenu", list9 && "is-list")} role="menu">
+    <ul className={cx("scr-motion-pickmenu", list9 && "is-list", left9 && "is-left")} role="menu">
       {items9.map((it9) => (
         <li key={it9.key ?? it9.label}>
           <button
@@ -15361,7 +15373,7 @@ export default function ReplayMotionPlayer({
               key: "off", label: "끄기", on: !castOn && trackRaw === null,
               act: () => { if (castOn) stopCast9(); else if (trackRaw !== null) { stopTrack9(); setViewRaw(null); } },
             },
-          ], true)}
+          ], true, true)}
         </span>
       )}
       {(

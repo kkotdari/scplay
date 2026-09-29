@@ -89,8 +89,12 @@ function makeWorld() {
     if (buildingAt) {
       // 건물 — 자리 붙박이. 키 둘이면 생애가 선다(태어남 + 끝). lifted 면 상태 바이트의 0x40(뜸)을 세워 처음부터 떠 있다.
       // wip 면 첫 키에 0x80(아직 안 지어짐)을 세워 bornSec 이 **착공**으로 읽힌다(--ghost 의 검산 — 고스트가 그 순간 걷힌다).
+      /* ⚠ 뜸 깃발은 **첫 키에 두지 마라** — truthLives 는 둘째 키부터 훑어 '앉음 → 뜸' 이 갈리는 자리를 이륙으로 적으므로,
+         첫 키부터 켜 두면 이륙이 마지막 키(끝)에 찍혀 재생 내내 앉아 있다(실측: 그래서 --lifted 가 한때 아무것도 안 띄웠다).
+         앉은 채 나서 20초 뒤에 뜬다. */
       const st9 = lifted ? 0x40 : 0;
-      keys.push([F(bornSec), buildingAt[0] * 32, buildingAt[1] * 32, 0, st9 | (wip ? 0x80 : 0), type]);
+      keys.push([F(bornSec), buildingAt[0] * 32, buildingAt[1] * 32, 0, (wip ? 0x80 : 0), type]);
+      if (lifted) keys.push([F(bornSec + 20), buildingAt[0] * 32, buildingAt[1] * 32, 0, st9, type]);
       keys.push([F(GAME_SEC), buildingAt[0] * 32, buildingAt[1] * 32, 0, st9, type]);
     } else {
       // dieSec — 생애가 거기서 끝난다: 마지막 키가 GONE(상태 3)이다(핵 착탄 재현용).
@@ -619,9 +623,12 @@ if (has("--pickshot")) {
     let top = null;
     if (m && c) { const x0 = Math.max(m.x, c.x), x1 = Math.min(m.x + m.w, c.x + c.w), y0 = Math.max(m.y, c.y), y1 = Math.min(m.y + m.h, c.y + c.h);
       if (x1 > x0 && y1 > y0) { const el = document.elementFromPoint((x0 + x1) / 2, (y0 + y1) / 2); top = el?.closest(".scr-motion-pickmenu") ? "목록" : (el?.className ?? "?"); } else top = "안 겹침"; }
-    return { m, c, top };
+    /* 목록이 화면 안에 다 드나(2026-09, 지적: "중계 선택목록이 화면 밖으로 넘어감") · 확대 단추의 글자(폰 중계 6배 검산). */
+    const fit = m ? (m.x >= 0 && m.x + m.w <= window.innerWidth && m.y >= 0 && m.y + m.h <= window.innerHeight) : null;
+    const zoom = [...document.querySelectorAll(".scr-motion-mapval-num")].map((e) => e.textContent ?? "").find((s) => /배$/.test(s)) ?? null;
+    return { m, c, top, fit, zoom };
   });
-  console.log(`[목록] 단추 ${r9 ? "눌렀다" : "없음"} · 목록 ${JSON.stringify(bx9.m)} · 자막 ${JSON.stringify(bx9.c)} · 겹친 자리 맨 위: ${bx9.top}`);
+  console.log(`[목록] 단추 ${r9 ? "눌렀다" : "없음"} · 목록 ${JSON.stringify(bx9.m)} · 자막 ${JSON.stringify(bx9.c)} · 겹친 자리 맨 위: ${bx9.top} · 화면 안 ${bx9.fit} · 확대 ${bx9.zoom}`);
   await page.screenshot({ path: String(flag("--pickshot", "pick.png")) });
 }
 /* 중계 자(--castprobe [초]): 중계 스위치·자막·카메라 임자를 한동안 지켜본다 — 편성표가

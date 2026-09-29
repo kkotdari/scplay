@@ -310,6 +310,12 @@
   font-variant-numeric: tabular-nums; text-align: center; white-space: nowrap;
 }
 .scr-motion-pickmenu.is-list .scr-motion-pickitem { text-align: left; font-weight: 600; }
+/* ★ 줄의 **왼쪽 끝** 단추(TV)의 목록은 왼쪽 맞춤이다(2026-09, 지적: "중계 선택목록이 화면 밖으로 넘어감") — 목록은
+   `right: 0` 으로 제 단추의 오른쪽 변에 맞춰 왼쪽으로 자라는데, TV 단추는 줄의 첫 단추라 그 왼쪽이 곧 화면 가장자리다.
+   이름이 긴 사람 여덟(폰 실측: 목록 폭 360px · 단추 왼변 x 300)이면 목록의 왼쪽 60px 이 화면 밖이다. 배속·확대·음악은
+   오른쪽 끝 무리라 종전 그대로다. 높이도 곡 목록과 같은 자(is-list · min(60vh, 360px) · 제 안에서만 구른다)라 사람이
+   많은 팀전(8인 + 자동 + 끄기 = 열 줄)에서도 지도 위로 안 넘친다. */
+.scr-motion-pickmenu.is-left { left: 0; right: auto; }
 @media (hover: hover) { .scr-motion-pickitem:hover { background: rgba(255, 255, 255, 0.12); } }
 .scr-motion-pickitem.is-on { background: rgba(255, 255, 255, 0.92); color: #10151a; }
 /* 사람 목록(TV 단추의 중계·추적 목록) — 글귀 앞에 그 사람 색점(.scr-motion-castdot · 자막과 같은 점)을 둔다. */
