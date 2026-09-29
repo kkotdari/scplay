@@ -62,7 +62,7 @@ import { truthWorld, type TruthLife, type TruthWorld } from "../../utils/truthLi
 import { unpack9 } from "./framePack";
 import { estBytes9, mb9 } from "./memEst9";
 import {
-  decodeTruthTracks, peekTruthHead, posAtTruth as posAtSim, type TruthTrack, type TruthTracks,
+  decodeTruthTracks, peekTruthHead, TRUTH_VER_MIN9, TRUTH_VER_MAX9, posAtTruth as posAtSim, type TruthTrack, type TruthTracks,
   TRUTH_ST_CARRY_GAS as ST_CARRY_GAS, TRUTH_ST_CARRY_MIN as ST_CARRY_MIN,
   TRUTH_ST_BURROW as ST_BURROW,
   TRUTH_ST_FIGHT as ST_FIGHT,
@@ -8102,7 +8102,10 @@ export default function ReplayMotionPlayer({
         SCR_DIAG.truthWhy = !got.motion ? "자취를 아예 못 받았다"
           : !h9 ? "못 풀었다(zlib이 아니거나 깨졌다)"
             : !h9.ok ? "OBWT가 아니다"
-              : `판 ${h9.version}을 해독기가 물리쳤다 — 이 꾸러미는 2~7만 읽는다`;
+              : h9.version < TRUTH_VER_MIN9 || h9.version > TRUTH_VER_MAX9
+                ? `판 ${h9.version}을 해독기가 물리쳤다 — 이 꾸러미는 ${TRUTH_VER_MIN9}~${TRUTH_VER_MAX9}만 읽는다`
+                /* 판은 받는 판인데 끝까지 못 읽었다 — 절의 꼴이 규약과 다르거나 뭉치가 잘렸다(덤퍼·규약 쪽 일). */
+                : `판 ${h9.version}은 받는 판인데 해독 중 깨졌다 — 절의 꼴이 규약(openbw-tracks-check)과 다르거나 뭉치가 잘렸다`;
       } else if (!truth.tracks.length) {
         SCR_DIAG.truthVer = truth.version;
         SCR_DIAG.truthTrust = truth.trustUntil ?? -1;

@@ -371,6 +371,11 @@ class Cursor {
  *  판이 범위 밖이라 물리친 것인지, 애초에 OBWT가 아닌 것인지, 자취가 안 온 것인지가
  *  갈리지 않으면 서버를 고쳐야 할 일과 화면을 고쳐야 할 일을 구분할 수가 없다.
  *  전체를 푸는 값(1~2MB)을 치르지 않고 머리만 본다. */
+/** 해독기가 읽는 판의 범위 — 화면의 진단 문구는 이 두 값에서 만든다(2026-09, 덤퍼 쪽 답신: 게이트는 8 인데
+ *  문구가 "2~7만 읽는다"였다 — 문구와 게이트를 따로 적어 두면 다음 어긋남이 로그에서 안 읽힌다). */
+export const TRUTH_VER_MIN9 = 8;
+export const TRUTH_VER_MAX9 = 9;
+
 export async function peekTruthHead(
   b64: string,
 ): Promise<{ ok: boolean; version: number } | null> {
@@ -400,7 +405,7 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
        건설전까지 반투명 초록판+건물 모델(투명도 높게) 얹기") — 옛 판 8 도 **그대로 읽는다**: 덤퍼는 딴 저장소의
        일이라 여기서 8 을 막으면 그쪽이 갈아 끼우고 재분석이 다 돌기까지 모든 경기가 "재생할 수 없는 게임"이 된다.
        판 8 은 그 절이 없는 판 9 와 같다(builds 가 빈 배열이고 고스트가 안 선다). 7 아래는 종전대로 물리친다. */
-    if (version !== 8 && version !== 9) return null;
+    if (version < TRUTH_VER_MIN9 || version > TRUTH_VER_MAX9) return null;
     const hasAir = version >= 3;
     /** 건설 명령 절(판 9) — 맨 뒤라 옛 판은 그 앞에서 끝난다. */
     const hasBuilds = version >= 9;
