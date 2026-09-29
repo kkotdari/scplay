@@ -311,7 +311,9 @@
 }
 .scr-motion-pickmenu.is-list .scr-motion-pickitem { text-align: left; font-weight: 600; }
 @media (hover: hover) { .scr-motion-pickitem:hover { background: rgba(255, 255, 255, 0.12); } }
-.scr-motion-pickitem.is-on { background: rgba(255, 255, 255, 0.92); color: #10151a; }/* ★ 좁은 화면의 아이콘 줄 — 가장자리에 바짝 · 조종부 바로 위 · 크기 80%(요청 셋) ────
+.scr-motion-pickitem.is-on { background: rgba(255, 255, 255, 0.92); color: #10151a; }
+/* 사람 목록(TV 단추의 중계·추적 목록) — 글귀 앞에 그 사람 색점(.scr-motion-castdot · 자막과 같은 점)을 둔다. */
+.scr-motion-pickitem.scr-motion-pickitem-dot { display: flex; align-items: center; gap: 8px; }/* ★ 좁은 화면의 아이콘 줄 — 가장자리에 바짝 · 조종부 바로 위 · 크기 80%(요청 셋) ────
    · 오른쪽 8 → 5px(요청: "오버레이들이 너무 안쪽에 떠").
    · 밑값 60 → 52px(요청: "버튼줄도 그만큼 내려야지") — 아래 조종부 줄이 76에서 48px로
      돌아왔으므로(진행바 자리 되돌리기) 그만큼 따라 내린다. 48에 한 뼘(4)을 띄운 값이다.
@@ -475,57 +477,15 @@
    버튼이 서면서 머리가 [추적][아바타+이름] 두 칸이 됐다. 옛 배치(머리 자신이 손잡이)의
    가로 정렬을 이 조각이 물려받는다. */
 .scr-motion-teamcol-pick { display: flex; align-items: center; gap: 5px; min-width: 0; }
-/* 추적 버튼(요청: "로스터 각 멤버 왼쪽에 추적 버튼 추가") — 시점(이름 누르기)과 다른
-   손잡이다: 시점은 그 눈으로 밝혀만 보는 것이고, 추적은 카메라까지 그 사람에게 맡긴다.
-   ★ 손짓을 **되살려야** 한다 — 로스터는 판 전체가 pointer-events: none이고 아바타·이름
-     글자만 되살려 놓은 자리라(위 주석), 안 켜 주면 이 버튼은 눌리지 않는다.
-   ★ **동그란 바탕에 테두리 없음**(요청) — 로스터 한 줄에 사람 수만큼 서는 단추라,
-     네모 테두리를 두르면 이름 옆에 작은 상자들이 줄지어 표의 결을 깬다. 옅은 원이면
-     아바타(같은 동그라미)와 같은 결로 읽혀 한 덩어리가 된다. */
-.scr-motion-track-btn {
-  pointer-events: auto;
-  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
-  width: 16px; height: 16px; padding: 0; border: none; border-radius: 50%;
-  background: rgba(255, 255, 255, 0.14);
-  color: rgba(255, 255, 255, 0.72); cursor: pointer;
-  /* 글줄 높이를 0으로 — 인라인 svg가 글줄 기준선 위에 앉아 원 안에서 아래로 처졌다(지적: "버튼과
-     내용물 중심이 안 맞는다"). svg도 block으로 세워 기준선 여백을 없앤다. */
-  line-height: 0;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-.scr-motion-track-btn svg { display: block; }
-/* ★ 지도 위 판(항시표시 로스터)은 **한 단 더 죈다**(요청: "로스터쪽 요소들 좀 크기 줄이고
-   갭 줄여서 로스터가 차지하는 영역을 줄일수 있을까") ──────────────────────────────────
-   이 판은 지도 **위에** 얹히므로 줄 하나가 먹는 세로가 곧 가려지는 지형이다. 기둥
-   (사이드바)의 로스터는 제 칸에 서므로 그대로 두고, 얹힌 판만 줄인다.
-   함께 줄인 것: 아바타 22 → 18 · 종족 배지 14 → 12(그리는 쪽 teamCol의 small) ·
-   아바타 테 바깥 여백 4 → 2(위 .scr-motion-base-ring) · 손잡이 위아래 여백 1 → 0 ·
-   추적 단추 16 → 14 · 조각 사이 여백 한 뼘씩 · 줄 사이 4 → 2.
-   실측(1160px 이상, 아바타가 서는 구간): 줄 높이 34 → 22px · 줄 간격 38 → 24px.
-   누르는 자리는 단추 14px + 아바타 18px이라 손가락에도 잡힌다. */
-.scr-motion .scr-fs-roster-fixed .scr-motion-teamcol.scr-motion-teamcol-rows { gap: 2px; }
-.scr-fs-roster-fixed .scr-motion-teamcol-pick { padding: 0 3px; gap: 4px; }
-.scr-fs-roster-fixed .scr-motion-teamcol-head { gap: 3px; }
-.scr-fs-roster-fixed .scr-motion-track-btn { width: 14px; height: 14px; }
+/* (걷어냄 · 2026-09, 요청: "기존 로스터에 추적버튼은 제거하고 여기로 통합") — 로스터 이름 왼쪽의 조준선 단추
+   (.scr-motion-track-btn · .scr-motion-track-on)의 꼴이다. 개인 추적은 아이콘 줄 TV 단추의 목록(아래 .scr-motion-castbtn)
+   에서 고르므로 이 단추와 그 규칙들은 없다. 깜빡임 박자(scr-track-blink)만 남는다 — TV 단추의 켜짐이 그 박자를 쓴다. */
 .scr-fs-roster-fixed .scr-motion-teamrow { padding: 0 4px; }
 
-@media (hover: hover) {
-  .scr-motion-track-btn:hover { background: rgba(255, 255, 255, 0.28); color: #fff; }
-}
-
-.scr-motion-track-btn:focus-visible { outline: 1px solid rgba(255, 255, 255, 0.6); }
-/* 켜진 하나는 그 선수의 색으로 찬다 — 지도 위 유닛 색과 곧바로 이어져, 지금 누구를
-   따라가는 중인지가 표에서도 화면에서도 같은 색으로 읽힌다. */
-.scr-motion-track-on { background: var(--pcol, #fff); color: #0b0f14; }
-/* 켜진 표시는 색을 까는 것만이 아니라 **조준선 아이콘이 액티브 그린으로 깜빡인다**(요청) — 지금 따라가는
-   중이라는 살아 있는 신호다. 바탕은 그 사람 색 그대로 두고 글자색만 초록 ↔ 검정을 오간다. */
+/* 켜진 표시의 깜빡임 — 지금 따라가는 중이라는 살아 있는 신호다. 글자색이 초록 ↔ 검정을 오간다(TV 단추가 쓴다). */
 @keyframes scr-track-blink {
   0%, 45% { color: #2ee59d; filter: drop-shadow(0 0 3px rgba(46, 229, 157, 0.9)); }
   55%, 100% { color: #0b0f14; filter: none; }
-}
-.scr-motion-track-on svg { animation: scr-track-blink 1s steps(1, end) infinite; }
-@media (prefers-reduced-motion: reduce) {
-  .scr-motion-track-on svg { animation: none; color: #2ee59d; }
 }
 /* ── 중계 스위치(TV) — **지도 위 아이콘 줄**의 로스터 단추 왼쪽이다(2026-09, 요청: "중계 버튼을 버튼행으로 이동(아이콘만
    표시) 위치는 로스터 버튼 왼쪽(다른 버튼과 다르게 활성화시 지금처럼 녹색 + 깜빡임 효과)") ────────────────────────────

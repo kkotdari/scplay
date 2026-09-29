@@ -82,12 +82,15 @@ function makeWorld() {
   const DIE_AT = Number(flag("--die-at", 42));
   const DIE_GAP = Number(flag("--die-gap", 0.35));                 // 걷는 키 간격(초)
   /** 한 트랙 — path(t)->[x타일, y타일, 상태], hp 변곡점은 따로. */
-  const track = (owner, type, pathOf, { hp = null, bornSec = 0, buildingAt = null, dieSec = null, lifted = false } = {}) => {
+  /** 건설 명령(판 9 · --ghost) — [프레임, 임자, 일꾼 태그, 타일 x, 타일 y, 종류]. */
+  const builds = [];
+  const track = (owner, type, pathOf, { hp = null, bornSec = 0, buildingAt = null, dieSec = null, lifted = false, wip = false } = {}) => {
     const keys = [];
     if (buildingAt) {
       // 건물 — 자리 붙박이. 키 둘이면 생애가 선다(태어남 + 끝). lifted 면 상태 바이트의 0x40(뜸)을 세워 처음부터 떠 있다.
+      // wip 면 첫 키에 0x80(아직 안 지어짐)을 세워 bornSec 이 **착공**으로 읽힌다(--ghost 의 검산 — 고스트가 그 순간 걷힌다).
       const st9 = lifted ? 0x40 : 0;
-      keys.push([F(bornSec), buildingAt[0] * 32, buildingAt[1] * 32, 0, st9, type]);
+      keys.push([F(bornSec), buildingAt[0] * 32, buildingAt[1] * 32, 0, st9 | (wip ? 0x80 : 0), type]);
       keys.push([F(GAME_SEC), buildingAt[0] * 32, buildingAt[1] * 32, 0, st9, type]);
     } else {
       // dieSec — 생애가 거기서 끝난다: 마지막 키가 GONE(상태 3)이다(핵 착탄 재현용).
@@ -123,6 +126,16 @@ function makeWorld() {
     /* 뜬 건물(--lifted) — 정구(테란)의 옆 멀티 홀 하나를 이륙한 채 세운다(2026-09, "뜬 건물 그림자 정리"의 검산:
        사영이 켜진 PC 에서 타원 + 검은 복사판 둘이 아니라 바닥에 눕힌 사영 하나여야 한다). 자리 (38, 18). */
     track(pl.owner, hall, null, { buildingAt: [hx + dirx * 20, hy], lifted: has("--lifted") && pl.owner === 0 });
+    /* 건설 명령 고스트(--ghost · 2026-09) — 정구(테란)의 일꾼 100 이 40초에 배럭(4×3)을 타일 (40, 26)에 찍고 60초에 착공한다:
+       그 사이 20초가 고스트다(initialSec 46 에서 보인다). 일꾼 101 의 47초 서플라이 명령은 짝이 없어 4초 뒤 스러진다(취소).
+       ⚠ 두 명령의 **일꾼 태그가 달라야** 한다 — 같은 일꾼의 다음 건설 명령은 앞 명령의 상한이라(engine9 ghosts9) 같은 태그로
+         두면 배럭 고스트가 서플라이 명령 순간 끊긴다(실측: 첫 판이 그 꼴이라 스크린샷이 빈 땅이었다).
+       자취의 자리는 몸 한가운데(px)라 타일 + 발자국 반이다. */
+    if (has("--ghost") && pl.owner === 0) {
+      builds.push([F(40), 0, 100, hx + dirx * 22, hy + diry * 8, T.Rax]);
+      track(pl.owner, T.Rax, null, { buildingAt: [hx + dirx * 22 + 2, hy + diry * 8 + 1.5], bornSec: 60, wip: true });
+      builds.push([F(47), 0, 101, hx + dirx * 26, hy + diry * 0, T.Depot]);
+    }
     track(pl.owner, hall, null, { buildingAt: [hx, hy + diry * 20] });
     for (let i = 0; i < 12; i += 1) {
       track(pl.owner, small, null, { buildingAt: [hx + dirx * (4 + (i % 4) * 3), hy + diry * (6 + Math.floor(i / 4) * 3)] });
@@ -230,7 +243,7 @@ function makeWorld() {
   /* ── 바이트로 굽는다 ── */
   const w = new W();
   w.u8(0x4f); w.u8(0x42); w.u8(0x57); w.u8(0x54);   // "OBWT"
-  w.u8(8); w.f32(FPS); w.i32(-1);   // 판 8 — 해독기가 판 8만 읽는다(옛 4는 "재생할 수 없는 게임"으로 물러났다)
+  w.u8(9); w.f32(FPS); w.i32(-1);   // 판 9 = 판 8 + 맨 뒤 건설 명령 절(해독기는 8·9 를 읽는다 · 옛 4는 "재생할 수 없는 게임")
   w.u8(PLAYERS.length);
   for (const pl of PLAYERS) { w.u8(pl.owner); w.u8(pl.owner); w.u8(pl.race); w.u8(pl.force); w.u8(0); w.u32(pl.color); w.str(pl.name); }
   w.u32(tracks.length);
@@ -242,7 +255,7 @@ function makeWorld() {
       w.vz(f - pf); pf = f;
       w.vz(x - px); px = x;
       w.vz(y - py); py = y;
-      w.u8(hb); w.u8((st & 0x0f) | (st & 0x40));       // done=1(0x80 없음) · 0x40 = 뜸(--lifted 의 건물만)
+      w.u8(hb); w.u8((st & 0x0f) | (st & 0x40) | (st & 0x80));   // 0x80 = 아직 안 지어짐(--ghost 의 착공 키) · 0x40 = 뜸(--lifted 의 건물만)
       w.vz(ty - pt); pt = ty;
     }
   }
@@ -258,7 +271,11 @@ function makeWorld() {
   w.u32(0);                            // 명령
   w.u32(0); w.u16(119);                // APM(빈) — 통 크기만 적는다
   w.u32(0);                            // 자원밭단
+  w.u32(builds.length);                // 건설 명령(판 9 · 맨 뒤)
+  { let pf = 0; for (const [f, o, tg, tx, ty, ty9] of builds) { w.vz(f - pf); pf = f; w.u8(o); w.u32(tg); w.u16(tx); w.u16(ty); w.u16(ty9); } }
   const motion = deflateSync(w.out()).toString("base64");
+  /* 합성 뭉치를 파일로도 낸다(PERF_MOTION_OUT=경로) — 엔진을 노드에서 곧장 돌려 보는 하네스의 재료(브라우저 없이 ghosts9·op 를 찍는다). */
+  if (process.env.PERF_MOTION_OUT) writeFileSync(process.env.PERF_MOTION_OUT, JSON.stringify({ motion, players: PLAYERS }));
   return { motion, players: PLAYERS, nTracks: tracks.length };
 }
 
@@ -599,7 +616,9 @@ if (has("--castprobe")) {
       toast: [...document.querySelectorAll(".scr-motion-castcap")].map((el) => el.textContent ?? ""),
       /* 단추의 자리 — 아이콘 줄(.scr-motion-mapbtns) 안에서 **로스터 단추 바로 왼쪽**인가(요청), 크기가 형제와 같은가. */
       bb: (() => { const b = document.querySelector(".scr-motion-mapbtns .scr-motion-castbtn");
-        if (!b) return null; const kids = [...(b.parentElement?.children ?? [])]; const i = kids.indexOf(b); const nx = kids[i + 1];
+        /* 단추는 목록 감싸개(.scr-motion-pick) 안에 서므로 이웃은 그 감싸개의 형제다(2026-09 · 목록을 열게 되며). */
+        if (!b) return null; const el = b.closest(".scr-motion-pick") ?? b;
+        const kids = [...(el.parentElement?.children ?? [])]; const i = kids.indexOf(el); const nx = kids[i + 1]?.matches("button") ? kids[i + 1] : kids[i + 1]?.querySelector("button");
         const r = b.getBoundingClientRect(); const rn = nx?.getBoundingClientRect();
         return { w: +r.width.toFixed(1), h: +r.height.toFixed(1), idx: i, next: nx?.getAttribute("aria-label") ?? null,
           gap: rn ? +(rn.left - r.right).toFixed(1) : null, nextW: rn ? +rn.width.toFixed(1) : null }; })(),
@@ -624,18 +643,28 @@ if (has("--castprobe")) {
   const capNow9 = await page.evaluate(() => document.querySelector(".scr-motion-castcap")?.textContent ?? null);
   console.log(`[중계] 단추 ${on9?.btn ? "있음" : "없음"} · 켜짐 ${on9?.on ? "예" : "아니오"} · 상시 자막 ${capNow9 === null ? "없음" : `"${capNow9}"`} · 갈아탐 ${Math.max(0, seen9.length - 1)}번`
     + (on9?.bb ? ` · 단추 ${on9.bb.w}×${on9.bb.h}px(이웃 ${on9.bb.nextW}) · 오른쪽 이웃 "${on9.bb.next}" 틈 ${on9.bb.gap}px` : " · 단추 자리 못 잼"));
-  /* 배타 검사 — 개인 추적을 켜면 중계가 꺼지고, 중계를 켜면 개인 추적이 풀려야 한다(요청). */
+  /* 배타 검사 — TV 단추의 **목록**(2026-09, 요청: "중계버튼 누르면 위에 선택목록 … 맨 아래 자동 · 로스터 추적버튼 제거")에서
+     첫 사람을 고르면 중계(자막)가 꺼지고 그 줄만 켜져야 하고, 다시 열어 맨 아래 '자동'을 고르면 중계가 돌아와야 한다.
+     `on` 은 단추의 초록(자동·개인 어느 쪽이든 카메라를 쥐고 있다) · `cap` 은 상시 자막(중계일 때만) · `items` 는 목록 글귀. */
   const excl9 = await page.evaluate(async () => {
-    const st = () => ({ cast: !!document.querySelector(".scr-motion-castbtn-on"), track: !!document.querySelector(".scr-motion-track-on") });
+    const st = () => ({ on: !!document.querySelector(".scr-motion-castbtn-on"), cap: document.querySelector(".scr-motion-castcap")?.textContent ?? null,
+      items: [...document.querySelectorAll(".scr-motion-pickmenu .scr-motion-pickitem")].map((el) => `${el.textContent}${el.classList.contains("is-on") ? "*" : ""}`) });
     const wait = (ms) => new Promise((r) => { setTimeout(r, ms); });
     const a = st();
-    (document.querySelector(".scr-motion-track-btn"))?.click();
+    (document.querySelector(".scr-motion-castbtn"))?.click();
+    await wait(200);
+    const open1 = st();
+    const its = () => [...document.querySelectorAll(".scr-motion-pickmenu .scr-motion-pickitem")];
+    its()[0]?.click();
     await wait(300);
     const b = st();
     (document.querySelector(".scr-motion-castbtn"))?.click();
+    await wait(200);
+    const open2 = st();
+    const l = its(); l[l.length - 1]?.click();
     await wait(300);
     const c = st();
-    return { 처음: a, 추적켬: b, 중계켬: c };
+    return { 처음: a, 목록: open1.items, 첫사람고름: { on: b.on, cap: b.cap }, 다시연목록: open2.items, 자동고름: { on: c.on, cap: c.cap } };
   });
   console.log("[중계 배타]", JSON.stringify(excl9));
   for (const x9 of seen9) console.log(`  ${x9.at}s  "${x9.text}"  ${JSON.stringify(x9.box)}`);

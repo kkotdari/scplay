@@ -7,7 +7,9 @@ import {
 import { createPortal } from "react-dom";
 import { useBgm } from "./useBgm";
 import RosterTableIcon from "./RosterTableIcon";
-import { BookOpen, Bookmark, Crosshair, Eye, EyeOff, Map as MapIcon, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Share2, Tv, Users } from "lucide-react";
+import { BookOpen, Bookmark, Eye, EyeOff, Map as MapIcon, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Share2, Tv, Users } from "lucide-react";
+/** 건설 명령 고스트 판의 색(원작의 배치 미리보기 초록) — 짙기는 op.plateAlpha 가 든다. */
+const GHOST_PLATE_COL9 = "#3ee06a";
 import ReplayGuide from "./ReplayGuide";
 /* 중계(중요도 기반 추적) — 편성표를 굽는 순수 문. 경기 한 벌에 한 번 돌고, 재생은 짚기만 한다. */
 import { castAt9, castPlan9, type CastSeg9 } from "./cast9";
@@ -4831,6 +4833,27 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           // 건물 상자 — 스팬의 % 폭 + aspectRatio(폭 기준)를 그대로 픽셀로 푼 것.
           const wPx = op.wFrac * cw * zoom;
           const hPx = op.hFrac * cw * zoom;
+          /* ★ 건설 명령 고스트의 **초록 발자국 판**(2026-09, 요청: "공사명령후부터 건설전까지 반투명 초록판+건물 모델
+             (투명도 높게) 얹기") — 발자국 네 귀(engine9 platePts · posFrac 을 지난 분수 좌표)를 그대로 잇는다. 뜬 건물
+             그림자 shadowPts 와 같은 손이라 지면 격자와 한 평면에 눕고, 유닛 캔버스(GL 층 아래)에 그리므로 그 위의
+             반투명 모델보다 **먼저** 깔린다. 몸이 없는 종류(kind "")는 판만 깔고 끝난다. */
+          if (op.platePts && op.platePts.length >= 8) {
+            const pp9 = op.platePts;
+            const pa9 = op.plateAlpha ?? 0.26;
+            ctx.beginPath();
+            ctx.moveTo(zx(pp9[0]), zy(pp9[1]));
+            for (let q9 = 2; q9 + 1 < pp9.length; q9 += 2) ctx.lineTo(zx(pp9[q9]), zy(pp9[q9 + 1]));
+            ctx.closePath();
+            ctx.globalAlpha = pa9;
+            ctx.fillStyle = GHOST_PLATE_COL9;
+            ctx.fill();
+            ctx.globalAlpha = Math.min(1, pa9 * 2.2);
+            ctx.strokeStyle = GHOST_PLATE_COL9;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+            if (!op.kind) continue;
+          }
           if (op.boxFit === "fill") {
             // 맨 네모(전용 도형 없는 건물) — 상자를 그대로 채운다(.scr-motion-sq).
             if (gl9 && gl9.primOk) gl9.prim(0, sx, sy, wPx / 2, hPx / 2, op.color, op.alpha);
@@ -10752,7 +10775,7 @@ export default function ReplayMotionPlayer({
   /* ★ 배속·확대·음악 버튼은 누르면 **위로 목록이 펼쳐진다**(요청: "누르면 선택지가 위로 나오는 형태" · "노래도 목록으로") —
      누를 때마다 한 칸씩 돌던 것을 걷었다: 원하는 값으로 한 번에 간다. 바깥을 누르거나 Esc면 닫힌다(붙잡기 단계에서 듣는다 —
      지도의 손짓이 사건을 삼켜도 먼저 온다). 한 번에 하나만 열린다. */
-  const [pick9, setPick9] = useState<"speed" | "zoom" | "bgm" | null>(null);
+  const [pick9, setPick9] = useState<"speed" | "zoom" | "bgm" | "cast" | null>(null);
   useEffect(() => {
     if (!pick9) return;
     const off9 = (e9: Event): void => {
@@ -14722,19 +14745,9 @@ export default function ReplayMotionPlayer({
                 가운데 정렬로 새로배치") — 지표를 이름 칸 안에 두면 아바타 옆에 붙어
                 왼쪽으로 쏠린다. 항목 폭 전체를 쓰게 밖으로 뺀다. */}
             <span className="scr-motion-teamcol-head">
-            {/* 추적 버튼(요청: "각 멤버 왼쪽에 추적 버튼") — 이름 왼쪽에 선다.
-                시점(이름 누르기)과 **다른 손잡이**여야 한다: 시점은 "그 눈으로 밝혀만
-                본다"이고 추적은 거기에 카메라까지 맡기는 것이라, 하나에 묶으면 지도를
-                제 손으로 보고 싶은 사람이 시점을 못 켠다. */}
-            <button
-              type="button"
-              className={cx("scr-motion-track-btn", trackRaw === m.key && "scr-motion-track-on")}
-              aria-pressed={trackRaw === m.key}
-              title={trackRaw === m.key ? `${m.name} 추적 끄기` : `${m.name} 추적 — 시야와 화면을 따라간다`}
-              onClick={(ev) => { ev.stopPropagation(); toggleTrack(m.key); }}
-            >
-              <Crosshair size={11} aria-hidden />
-            </button>
+            {/* (걷어냄 · 2026-09, 요청: "기존 로스터에 추적버튼은 제거하고 여기로 통합") — 이름 왼쪽의 조준선(개인 추적)
+                단추다. 추적은 이제 아이콘 줄 TV 단추의 목록(사람들 + 자동)에서 고른다(아래 mapBtnRow). 시점(이름 누르기)은
+                그대로다: "그 눈으로 밝혀만 본다"와 "카메라까지 맡긴다"는 여전히 딴 손잡이다. */}
             <span
               className="scr-motion-teamcol-pick"
               role="button"
@@ -15150,24 +15163,27 @@ export default function ReplayMotionPlayer({
    *  딱 떨어지면 정수(4배), 손짓으로 온 어중간한 값이면 소수 한 자리(3.6배)다. */
   const zoomText = `${zoomLive >= 9.95 ? Math.round(zoomLive) : Math.round(zoomLive * 10) / 10}배`;
   /** 위로 펼치는 목록(위 pick9) — 고르면 닫힌다. list9는 곡 목록처럼 긴 것(왼맞춤·스크롤). */
+  /** 항목의 `key` 는 글귀가 겹칠 수 있는 목록(사람 이름)에서 준다 · `dot` 은 글귀 앞의 색점(그 사람 색). */
   const pickMenu9 = (
-    kind9: "speed" | "zoom" | "bgm", items9: { label: string; on: boolean; act: () => void }[], list9 = false,
+    kind9: "speed" | "zoom" | "bgm" | "cast",
+    items9: { label: string; on: boolean; act: () => void; key?: string; dot?: string }[], list9 = false,
   ): React.ReactNode => (pick9 === kind9 ? (
     <ul className={cx("scr-motion-pickmenu", list9 && "is-list")} role="menu">
       {items9.map((it9) => (
-        <li key={it9.label}>
+        <li key={it9.key ?? it9.label}>
           <button
             type="button" role="menuitemradio" aria-checked={it9.on}
-            className={cx("scr-motion-pickitem", it9.on && "is-on")}
+            className={cx("scr-motion-pickitem", it9.on && "is-on", it9.dot && "scr-motion-pickitem-dot")}
             onClick={() => { it9.act(); setPick9(null); }}
           >
+            {it9.dot && <i className="scr-motion-castdot" style={{ background: it9.dot }} aria-hidden />}
             {it9.label}
           </button>
         </li>
       ))}
     </ul>
   ) : null);
-  const pickToggle9 = (kind9: "speed" | "zoom" | "bgm"): void => setPick9((p9) => (p9 === kind9 ? null : kind9));
+  const pickToggle9 = (kind9: "speed" | "zoom" | "bgm" | "cast"): void => setPick9((p9) => (p9 === kind9 ? null : kind9));
   const mapBtnRow = (
     <div
       // (걷어냄) is-up — 도구 판이 없어져 밀어 줄 것이 없다(요청).
@@ -15200,19 +15216,38 @@ export default function ReplayMotionPlayer({
           얼굴은 TV 아이콘 하나다. 켜짐은 형제들의 is-on(흰 반투명)이 아니라 **초록 + 아이콘 깜빡임**
           (.scr-motion-castbtn-on — 추적 단추와 같은 결 · 박자)이다: '지금 카메라를 기계가 쥐고 있다'는
           신호라 다른 켜짐과 갈려야 한다. 자취가 없는 경기에는 안 그린다(고를 것이 없다). */}
+      {/* ★★ TV 단추는 **목록**을 연다(2026-09, 요청: "중계버튼 누르면 위에 선택목록 나오는데 플레이어네임 쭉 나오고 맨 아래
+          자동 추가 · 기존 로스터에 추적버튼은 제거하고 여기로 통합") — 배속·확대와 같은 위로 펼치는 목록(pickMenu9)이고,
+          사람을 고르면 **개인 추적**(toggleTrack — 시야도 그 사람으로), 맨 아래 '자동'은 **중계**(toggleCast9)다. 둘은 배타라
+          (위 toggleTrack·toggleCast9) 한 목록에서 고르는 것이 곧 그 뜻이다. 고른 것을 다시 고르면 끈다(종전 토글 그대로).
+          켜짐(초록 + 깜빡임)은 **둘 중 어느 것이든 카메라를 쥐고 있을 때**다 — '지금 카메라를 기계가 쥐고 있다'는 신호라
+          자동·개인을 안 가른다(누구인지는 목록의 켜진 줄과 자막이 말한다). */}
       {entData && (
-        <button
-          type="button"
-          className={cx("scr-motion-litbtn scr-motion-mapbtn scr-motion-castbtn", castOn && "scr-motion-castbtn-on")}
-          onClick={() => toggleCast9()}
-          aria-pressed={castOn}
-          aria-label={castOn ? "중계 끄기" : "중계 켜기"}
-          title={castOn
-            ? "중계 끄기 — 중요한 장면을 자동으로 따라가는 중"
-            : "중계 — 중요한 장면의 선수를 자동으로 따라간다"}
-        >
-          <Tv size={18} aria-hidden />
-        </button>
+        <span className="scr-motion-pick">
+          <button
+            type="button"
+            className={cx("scr-motion-litbtn scr-motion-mapbtn scr-motion-castbtn", (castOn || trackRaw !== null) && "scr-motion-castbtn-on")}
+            onClick={() => pickToggle9("cast")}
+            aria-haspopup="menu" aria-expanded={pick9 === "cast"}
+            aria-pressed={castOn || trackRaw !== null}
+            aria-label={castOn ? "중계 — 자동 · 누르면 목록"
+              : trackRaw !== null ? `추적 — ${bases.find((b9) => b9.key === trackRaw)?.name ?? trackRaw} · 누르면 목록`
+                : "중계·추적 — 누르면 목록"}
+            title={castOn
+              ? "중계(자동) — 중요한 장면의 선수를 자동으로 따라가는 중"
+              : trackRaw !== null ? "개인 추적 중 — 누르면 다른 사람이나 자동을 고른다"
+                : "중계·추적 — 따라갈 사람을 고르거나 자동(중계)을 켠다"}
+          >
+            <Tv size={18} aria-hidden />
+          </button>
+          {pickMenu9("cast", [
+            ...bases.map((b9) => ({
+              key: `p:${b9.key}`, label: b9.name, on: trackRaw === b9.key,
+              dot: modeColor(b9.key, teamOfRaw(b9.key)), act: () => toggleTrack(b9.key),
+            })),
+            { key: "auto", label: "자동", on: castOn, act: () => toggleCast9() },
+          ], true)}
+        </span>
       )}
       {(
         <button

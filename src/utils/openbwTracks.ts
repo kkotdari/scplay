@@ -205,6 +205,11 @@ export type TruthTracks = {
    *  단은 원작 경계 그대로다(set_unit_resources): 4=750↑ · 3=500~749 · 2=250~499 ·
    *  1=1~249 · 0=바닥남. 단이 바뀔 때만 적혀 있어 한 밭에 많아야 네댓 줄이다. */
   resFields: [number, number, number, number][];
+  /** 건설 명령 [초, 임자, 일꾼 태그, 타일 x, 타일 y, 건물 이름] — **판 9부터**. 옛 판은 빈 배열이다.
+   *  자리는 원작 action_build 의 tile_pos, 곧 **발자국 좌상단 타일**(정수)이다. 게임 상태에는 안 남는 것
+   *  (누른 순간의 일)이라 명령 스트림에서만 온다 — 명령 뒤 공사가 서기까지의 '예정 자리' 고스트가 이걸로 선다.
+   *  취소된 명령은 공사가 안 서므로 짝이 없는 줄로 남는다(화면이 몇 초 뒤 스러지게 둔다). */
+  builds: [number, number, number, number, number, string][];
 };
 
 /* 개인색은 덤퍼가 리마스터의 **CCLR 구획**에서 읽어 온다(bwdump.cpp) — 사람마다 고른
@@ -391,8 +396,14 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
        달라진 것은 상태 바이트의 깃발 한 칸뿐이라, 판 2는 그 칸이 늘 0인 판 3과 같다. */
     /* 판 8만 읽는다(요청: "판 7은 더 이상 사용 안 할 것 — 폴백 없이") — 트랙표 줄에 임자바뀜 목록이 붙어
        줄 길이가 가변이 됐다. 옛 판은 재분석으로 다시 굽는다. */
-    if (version !== 8) return null;
+    /* ★ 판 9 = 판 8 + 맨 뒤의 **건설 명령** 절(2026-09, 요청: "덤퍼 수정하고 그 정보 이용해서 공사명령후부터
+       건설전까지 반투명 초록판+건물 모델(투명도 높게) 얹기") — 옛 판 8 도 **그대로 읽는다**: 덤퍼는 딴 저장소의
+       일이라 여기서 8 을 막으면 그쪽이 갈아 끼우고 재분석이 다 돌기까지 모든 경기가 "재생할 수 없는 게임"이 된다.
+       판 8 은 그 절이 없는 판 9 와 같다(builds 가 빈 배열이고 고스트가 안 선다). 7 아래는 종전대로 물리친다. */
+    if (version !== 8 && version !== 9) return null;
     const hasAir = version >= 3;
+    /** 건설 명령 절(판 9) — 맨 뒤라 옛 판은 그 앞에서 끝난다. */
+    const hasBuilds = version >= 9;
     /* 은신은 판 5부터다(요청: "참값에 은신 칸 추가하는 쪽으로 가자") — 옛 덤프는 그 깃발이
        늘 0이라 '은신 아님'으로 읽히는데, 그건 **모르는 것**이지 아님이 아니다. 판으로 갈라
        옛 판에서는 칸 자체를 안 만든다(없으면 화면이 이름으로 아는 상시 은신만 쓴다). */
@@ -639,9 +650,26 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
       }
     }
 
+    /* 건설 명령(판 9) — [초, 임자, 일꾼 태그, 타일 x, 타일 y, 건물 이름]. 자리는 **발자국 좌상단 타일**이다
+       (원작 action_build 의 tile_pos 그대로 — 픽셀도 가운데도 아니다). 종류는 units.dat 번호를 이름으로 푼다. */
+    const builds: [number, number, number, number, number, string][] = [];
+    if (hasBuilds) {
+      let pf = 0;
+      const cnt = c.u32();
+      for (let i = 0; i < cnt; i += 1) {
+        pf += c.varint();
+        const who = c.u8();
+        const tag = c.u32();
+        const tx = c.u16();
+        const ty = c.u16();
+        const ty9 = c.u16();
+        builds.push([pf / fps, who, tag, tx, ty, BW_UNIT_NAME[ty9] ?? `?${ty9}`]);
+      }
+    }
+
     return { version, leftover: c.left,
       tracks, trustUntil: trustFrame < 0 ? null : trustFrame / fps,
-      players, ups, casts, pings, res, apm, apmBucketSec, orders, resFields };
+      players, ups, casts, pings, res, apm, apmBucketSec, orders, resFields, builds };
   } catch {
     return null;
   }

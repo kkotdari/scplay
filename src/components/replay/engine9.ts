@@ -329,6 +329,19 @@ export const FOOTPRINT: Record<string, [number, number]> = {
   // screp가 쓰는 변형 이름 — 원전 표의 같은 건물로 잇는다.
   ComSat: BUILDING_FOOT["Comsat Station"],
 };
+/* ── 건설 명령 고스트(2026-09, 요청: "덤퍼 수정하고 그 정보 이용해서 공사명령후부터 건설전까지 반투명 초록판+건물
+   모델(투명도 높게) 얹기") ──────────────────────────────────────────────────────────────────────
+   참값(판 9)의 builds 는 '누른 순간·누구·어느 일꾼·어느 타일·무슨 건물'이고, 그 건물이 실제로 서는 순간은
+   buildsSrc 의 착공 시각(sites[0])이다. 그 사이가 고스트다. 짝(같은 임자·같은 종류·같은 타일·명령 뒤 착공)이
+   없으면 취소된 명령이라 GHOST_CANCEL_SEC9 뒤 GHOST_FADE_SEC9 동안 스러진다. */
+/** 명령 뒤 이만큼 안에 선 공사만 그 명령의 짝이다 — 일꾼이 지도를 가로지르는 시간까지 넉넉히. */
+export const GHOST_WAIT_SEC9 = 180;
+/** 짝이 없는(취소된) 명령의 고스트가 서 있는 시간과 스러지는 시간. */
+export const GHOST_CANCEL_SEC9 = 4;
+export const GHOST_FADE_SEC9 = 1.2;
+/** 고스트 몸(건물 모델)의 짙기 — "투명도 높게". 판은 그보다 조금 옅다. */
+export const GHOST_ALPHA9 = 0.34;
+export const GHOST_PLATE_A9 = 0.26;
 export const footDx = (unit: string): number => (FOOTPRINT[unit] ?? [3, 2])[0] / 2;
 export const footDy = (unit: string): number => (FOOTPRINT[unit] ?? [3, 2])[1] / 2;
 
@@ -1879,6 +1892,13 @@ export type UnitDrawOp = {
   textGlyph?: string;
   /** 그림자 끄기 — 건물은 발이 땅에 붙어야 해서 그림자가 없다(유닛만 있다). */
   noShadow?: boolean;
+  /** ★ 건설 명령 **고스트**의 초록 발자국 판(2026-09, 요청: "공사명령후부터 건설전까지 반투명 초록판+건물 모델
+   *  (투명도 높게) 얹기") — 발자국 네 귀를 자리 사상(posFrac)으로 옮긴 평평한 [x0, y0, x1, y1, …] 분수 좌표다
+   *  (뜬 건물 그림자 shadowPts 와 같은 손 · 지면 격자와 한 평면). 붓은 이 판을 **몸 앞에 먼저** 깔고 몸은 alpha 로
+   *  옅게 그린다. 집히지 않는다(pickKey 없음). */
+  platePts?: number[];
+  /** 그 판의 짙기(0~1) — 몸의 alpha 와 따로 든다(스러질 때 둘이 같은 몫으로 준다). */
+  plateAlpha?: number;
   /** 공중 유닛(요청: 더 높이 + 바닥 그림자) — 몸을 위로 띄우고 발밑에 그림자 타원. */
   air?: boolean;
   /** 그때 이 몸이 뜨는 높이(px, 줌 전) — **몸 크기와 무관한 한 값**이다(위 AIR_LIFT_REF).
@@ -3365,6 +3385,40 @@ export function deriveWorld9(inp: {
   })();
   const bldRecMemo = new Map<string, { born: number; tag: number; hp: Ticks; tgt?: Ticks }>();
   const buildsSrc = buildsV2;
+  /** ★ 건설 명령 고스트(위 GHOST_* 주석) — [명령 초 t0 · 끝 초 t1 · 발자국 좌상단 타일 x·y · 건물 · 임자 · 짝이 섰나].
+   *  짝은 **같은 임자·같은 종류·같은 타일(±0.75 — 자취의 자리는 px 라 반 타일 안에서 흔들린다)·명령 뒤 GHOST_WAIT_SEC9 안**
+   *  의 가장 이른 착공이고 한 공사는 한 명령의 짝이다(claimed). 같은 일꾼에게 **다음 건설 명령**이 떨어지면 앞 명령은
+   *  그 순간 끝난다(다시 찍은 자리가 곧 취소다). */
+  const ghosts9 = ((): { t0: number; t1: number; x: number; y: number; unit: string; raw: string; done: boolean }[] => {
+    if (!entData || !entData.builds || entData.builds.length === 0) return [];
+    const nameOfId = new Map(entData.players.map((pl) => [pl.owner, pl.name]));
+    const claimed = new Set<number>();
+    const out: { t0: number; t1: number; x: number; y: number; unit: string; raw: string; done: boolean }[] = [];
+    const bl = entData.builds;
+    for (let k = 0; k < bl.length; k += 1) {
+      const [sec, who, wtag, tx, ty, unit] = bl[k];
+      const raw = nameOfId.get(who) ?? "";
+      if (!raw || !FOOTPRINT[unit]) continue;
+      let best = -1;
+      let bestBorn = Infinity;
+      for (let i = 0; i < buildsSrc.length; i += 1) {
+        if (claimed.has(i)) continue;
+        const [bs, bx, by, bu, braw] = buildsSrc[i];
+        if (braw !== raw || bu !== unit) continue;
+        if (bs < sec - 0.5 || bs - sec > GHOST_WAIT_SEC9) continue;
+        if (Math.abs(bx - tx) > 0.75 || Math.abs(by - ty) > 0.75) continue;
+        if (bs < bestBorn) { bestBorn = bs; best = i; }
+      }
+      /* 같은 일꾼의 다음 건설 명령 — 그 시각이 이 고스트의 상한이다(짝이 있어도 그보다 늦으면 잘린다). */
+      let next = Infinity;
+      for (let j = k + 1; j < bl.length; j += 1) {
+        if (bl[j][2] === wtag && bl[j][1] === who && bl[j][0] > sec) { next = bl[j][0]; break; }
+      }
+      if (best >= 0 && bestBorn <= next) { claimed.add(best); out.push({ t0: sec, t1: bestBorn, x: tx, y: ty, unit, raw, done: true }); }
+      else out.push({ t0: sec, t1: Math.min(next, sec + GHOST_CANCEL_SEC9), x: tx, y: ty, unit, raw, done: false });
+    }
+    return out;
+  })();
   const buildsDrawOrder = (() => buildsSrc.map((_, i) => i)
     .sort((a, b) => buildsSrc[a][2] - buildsSrc[b][2]))();
   const bldNudge = (() => {
@@ -4107,7 +4161,7 @@ export function deriveWorld9(inp: {
     entData, simTracks, buildsSrc, castsV2, entBldHp, bldTagSpots, droneMorph, buildsDrawOrder, bldNudge,
     entCombatStart, upsByRaw, prodDoneAt, prodDoneByRaw, marineBornOf, entWalks, nukeCasts, nukeLase, nukeArm9, castsSrc,
     nukeImpacts, bldGoneEff, goneEffOf, prodByRawType, bldTagAt, leftAt9, tagOrdinals, buildsByType, halls, gasBuildings,
-    resStageSeries, gridHasGasFlags, gasHideOf, mines, bldPre9, bldRecMemo, teamOfRaw, bases, grid, total,
+    resStageSeries, gridHasGasFlags, gasHideOf, mines, bldPre9, bldRecMemo, teamOfRaw, bases, grid, total, ghosts9,
   };
 }
 
@@ -4156,7 +4210,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     entData, simTracks, buildsSrc, entBldHp, bldTagSpots, droneMorph, buildsDrawOrder, bldNudge,
     entCombatStart, upsByRaw, marineBornOf, entWalks, nukeLase, nukeArm9, castsSrc, nukeImpacts,
     goneEffOf, prodByRawType, bldTagAt, leftAt9, tagOrdinals, buildsByType, halls, gasBuildings,
-    resStageSeries, gridHasGasFlags, gasHideOf, mines, bldPre9, bldRecMemo, teamOfRaw, bases, grid, total,
+    resStageSeries, gridHasGasFlags, gasHideOf, mines, bldPre9, bldRecMemo, teamOfRaw, bases, grid, total, ghosts9,
   } = world;
   /* ★ **자폭으로 맞은 자리는 죽은 몸이 낸다**(2026-09, 지적: "스커지가 배틀에 박아서
      폭발했는데 배틀에 피격 효과가 안나오는거 같은데") ─────────────────────────────
@@ -6865,6 +6919,54 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       return null;
     });
       void rBD9;
+    /* ★ 건설 명령 고스트(위 ghosts9) — 명령 뒤 착공 전까지 **예정 자리**에 초록 발자국 판 + 그 건물 모델을 옅게 얹는다.
+       자리 셈은 완성 건물의 그것과 **한 자**다(몸 상자 · 지면선에서 잰 가로 · 앵커 · 배수 · 요잉) — 다른 자로 두면 착공
+       순간 건물이 고스트 자리에서 튄다. 명령은 누른 사람만 아는 일이라 안개가 켜져 있으면 **시점 팀의 것만** 그린다. */
+    for (const g9 of ghosts9) {
+      if (t < g9.t0) continue;
+      const tEnd9 = g9.done ? g9.t1 : g9.t1 + GHOST_FADE_SEC9;
+      if (t >= tEnd9) continue;
+      const teamG9 = teamOfRaw(g9.raw);
+      // 관전자(visAll)는 모두의 명령을 본다 — 팀 시점일 때만 제 팀 것으로 죈다(이 문을 팀만 보고 걸면 관전자에게 하나도 안 선다 · 실측).
+      if (fogOn && !visAll && teamG9 !== viewTeam) continue;
+      if (cull9 && !onScreen9(g9.x, g9.y)[0]) continue;
+      const unit = g9.unit;
+      const fadeG9 = g9.done ? 1 : Math.max(0, Math.min(1, (tEnd9 - t) / GHOST_FADE_SEC9));
+      const shapeKind = SHAPE_KIND[unit];
+      const fpG9 = FOOTPRINT[unit] ?? [3, 2];
+      const centerX = g9.x + fpG9[0] / 2;
+      const centerY = g9.y + fpG9[1] / 2;
+      const [boxW, boxH, boxOx, boxOy] = buildingBox(unit);
+      const bodyX = centerX + boxOx;
+      const bodyY = centerY + boxOy;
+      const anchorY = bodyY + (shapeKind ? -riseOf(unit) / 2 : boxH * 0.1);
+      const gasG9 = unit === "Refinery" || unit === "Assimilator" || unit === "Extractor";
+      const groundYT = gasG9 ? centerY + fpG9[1] / 2 : bodyY + boxH / 2;
+      const [fxF] = posFrac(bodyX, groundYT);
+      const [, fyF] = posFrac(bodyX, anchorY);
+      const mkK = pitchK(centerY);
+      const wTiles = boxW * (shapeKind ? 1 : 0.8);
+      const hTiles = wTiles * ((boxH + (shapeKind ? riseOf(unit) : 0)) / boxW);
+      // 발자국 네 귀 — 지면 격자와 같은 평면에 눕는 판(뜬 건물 그림자 shadowPts 와 같은 손).
+      const pts9: number[] = [];
+      for (const [cx9, cy9] of [[g9.x, g9.y], [g9.x + fpG9[0], g9.y], [g9.x + fpG9[0], g9.y + fpG9[1]], [g9.x, g9.y + fpG9[1]]]) {
+        const [px9, py9] = posFrac(cx9, cy9);
+        pts9.push(px9, py9);
+      }
+      unitOps.push({
+        fx: fxF, fy: fyF,
+        // 같은 자리에 진짜 건물이 서는 순간 그것보다 한 단 뒤 — 두 몸이 겹치는 프레임이 있어도 고스트가 앞에 안 선다.
+        z: 1000 + Math.round((bodyY + boxH / 2) * Z_TILE) - 1,
+        kind: shapeKind ?? "",
+        sizePx: 0, wFrac: (wTiles / grid.width) * mkK, hFrac: (hTiles / grid.width) * mkK,
+        boxFit: "meet", fitWidth: true,
+        rotDeg: buildingYawOf(), viewYaw: viewYawOf(centerX, centerY), flat: !pitched, pitch: pitched,
+        baseFy: posFrac(bodyX, groundYT)[1],
+        ...(shapeKind ? { drawK: bldDrawK9(shapeKind, fpG9[0], BLD_DRAW_TUNE[shapeKind] ?? 1) * (BLD_DRAW_TUNE[shapeKind] ?? 1) } : {}),
+        color: modeColor(g9.raw, teamG9), alpha: GHOST_ALPHA9 * fadeG9, noShadow: true,
+        platePts: pts9, plateAlpha: GHOST_PLATE_A9 * fadeG9,
+      });
+    }
     }
     {
     const rW9 = resUniq9(grid.resources ?? []).map((res) => {

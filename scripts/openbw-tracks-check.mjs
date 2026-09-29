@@ -73,10 +73,12 @@ const SPEC = {
   APM: "u32 개수 · u16 통크기(프레임), 개마다 varint(통차) · u8 사람 · varint(명령수)",
   자원밭단: "[판4+] u32 개수, 개마다 varint(프레임차) · u16 x · u16 y · u8 단",
   임자바뀜: "[판8] 트랙표 줄 끝에 u8 수, 바뀜마다 u32 프레임(LE) · u8 새 임자 — 마인드 컨트롤·중립화(11). 글자 갈래는 #own\\t태그\\t프레임\\t새임자",
+  건설명령: "[판9+] **맨 뒤** u32 개수, 개마다 varint(프레임차) · u8 임자 · u32 일꾼태그 · u16 타일x · u16 타일y · u16 건물종류(units.dat)"
+    + " — action_build 의 tile_pos(발자국 좌상단 타일) 그대로. 글자 갈래는 #build\\t프레임\\t임자\\t태그\\t타일x\\t타일y\\t종류",
 };
 /** 해독기가 받아 주어야 할 판 — 이 범위 밖은 물리쳐야 한다. */
-const VER_MIN = 8;   // 판 8만(요청: 판 7은 더 이상 안 쓴다 — 폴백 없이)
-const VER_MAX = 8;
+const VER_MIN = 8;   // 판 8(요청: 판 7은 더 이상 안 쓴다 — 폴백 없이) — 판 9 는 판 8 + 맨 뒤 건설 명령 절이라 둘 다 읽는다
+const VER_MAX = 9;
 
 // ── 바이트 짓기 ────────────────────────────────────────────────────────────────
 const u8 = (v) => Buffer.from([v]);
@@ -152,6 +154,11 @@ function build(ver) {
     p.push(varint(0), u16(32), u16(32), u8(4));
     p.push(varint(24), u16(64), u16(64), u8(2));
   }
+  if (ver >= 9) {                                        // 건설 명령(맨 뒤) — 배럭(111) · 파일런(156)
+    p.push(u32(2));
+    p.push(varint(96), u8(3), u32(77), u16(40), u16(50), u16(111));
+    p.push(varint(24), u8(5), u32(78), u16(60), u16(70), u16(156));
+  }
   return zlib.deflateSync(Buffer.concat(p)).toString("base64");
 }
 
@@ -208,6 +215,8 @@ function expect(ver, r, fail) {
   eq("APM 통(초)", r.apmBucketSec, 5);
   eq("APM(사람 3)", r.apm.get(3), [[5, 40]]);
   eq("자원밭단", r.resFields, ver >= 4 ? [[0, 1, 1, 4], [1, 2, 2, 2]] : []);
+  // 건설 명령(판 9) — 자리는 타일 그대로(÷32 안 한다) · 종류는 이름으로.
+  eq("건설명령", r.builds, ver >= 9 ? [[4, 3, 77, 40, 50, "Barracks"], [5, 5, 78, 60, 70, "Pylon"]] : []);
 }
 
 // ── 해독기 불러오기 ────────────────────────────────────────────────────────────
@@ -225,9 +234,12 @@ async function loadDecoder() {
     + `export { bwUpgradeName } from ${JSON.stringify(join(ROOT, "src/utils/bwUpgradeNames"))};
 `);
   try {
-    execFileSync(process.execPath,
-      [join(ROOT, "node_modules", "esbuild", "bin", "esbuild"), src,
-        "--bundle", "--format=esm", "--platform=node", `--outfile=${out}`, "--log-level=warning"],
+    /* esbuild 의 bin 은 판에 따라 JS 셸이거나 **네이티브 ELF** 다(2026-09 실측: 이 기계는 ELF 라 node 로 부르면
+       `SyntaxError: Invalid or unexpected token` 으로 터진다). 첫 바이트가 ELF 머리(0x7f 'E')면 곧장 실행한다. */
+    const bin9 = join(ROOT, "node_modules", "esbuild", "bin", "esbuild");
+    const elf9 = readFileSync(bin9).subarray(0, 2).equals(Buffer.from([0x7f, 0x45]));
+    const argv9 = [src, "--bundle", "--format=esm", "--platform=node", `--outfile=${out}`, "--log-level=warning"];
+    execFileSync(elf9 ? bin9 : process.execPath, elf9 ? argv9 : [bin9, ...argv9],
       { stdio: ["ignore", "inherit", "inherit"] });
   } catch {
     console.error("✗ esbuild를 못 돌렸다 — 먼저 `npm i`로 의존물을 받아야 한다.");
@@ -281,6 +293,7 @@ const TSV = {
   "#ping": "프레임 · x · y · 사람",
   "#res": "(수만 견준다 — 칸 차례를 이 저장소가 모른다)",
   "#apm": "(수만 견준다)",
+  "#build": "[판9+] 프레임 · 임자 · 일꾼태그 · 타일x · 타일y · 종류",
 };
 /* 지도 자원(미네랄·가스)은 이진 쪽에 안 실린다 — 앱이 지도에서 직접 그린다.
    글자 쪽에서도 같은 종류를 빼야 트랙 수가 맞는다. */
@@ -289,7 +302,7 @@ const RES_TYPES = new Set([176, 177, 178, 188, 214]);
 function readText(text) {
   const byTag = new Map();
   const hp = new Map(), ic = new Map(), tgt = new Map(), own = new Map();
-  const up = [], cast = [], ping = [], player = [], res = [], apm = [];
+  const up = [], cast = [], ping = [], player = [], res = [], apm = [], build = [];
   let trust = -1;
   const typeOfTag = new Map();
   for (const line of text.split("\n")) {
@@ -312,6 +325,7 @@ function readText(text) {
       else if (p[0] === "#ping") ping.push(p.slice(1).map(Number));
       else if (p[0] === "#res") res.push(p.slice(1).map(Number));
       else if (p[0] === "#apm") apm.push(p.slice(1).map(Number));
+      else if (p[0] === "#build") build.push(p.slice(1).map(Number));
       continue;
     }
     if (line[0] === "f") continue;             // 머리글 줄
@@ -322,7 +336,7 @@ function readText(text) {
     a.push([frame, x, y, head, state, type]);
   }
   for (const [tag, ty] of typeOfTag) if (RES_TYPES.has(ty)) byTag.delete(tag);
-  return { byTag, hp, ic, tgt, own, up, cast, ping, player, res, apm, trust };
+  return { byTag, hp, ic, tgt, own, up, cast, ping, player, res, apm, build, trust };
 }
 
 /** 이진 머리에서 초당프레임을 곧장 읽는다 — 상수로 못 박으면 덤퍼가 바꿀 때 조용히 어긋난다. */
@@ -435,6 +449,13 @@ function compare(bin, txt, decoded, upName, fail) {
   const apmN = [...decoded.apm.values()].reduce((n, a) => n + a.length, 0);
   if (resN !== txt.res.length) fail(`자원 ${resN} vs ${txt.res.length}`);
   if (apmN !== txt.apm.length) fail(`APM통 ${apmN} vs ${txt.apm.length}`);
+  /* 건설 명령(판 9) — 글자 갈래 #build 와 줄마다 견준다(옛 덤퍼는 그 줄이 없으니 이진도 비어야 한다). */
+  if (decoded.builds.length !== txt.build.length) fail(`건설명령 ${decoded.builds.length} vs ${txt.build.length}`);
+  decoded.builds.forEach((b9, i) => {
+    const w = txt.build[i];
+    if (!w) return;
+    if (!near(b9[0], w[0] / fps, T) || b9[1] !== w[1] || b9[2] !== w[2] || b9[3] !== w[3] || b9[4] !== w[4]) fail(`건설명령 ${i}`);
+  });
   return { keys, fps };
 }
 
@@ -495,7 +516,7 @@ if (files.length === 0) {
     const cen = `판 ${r.version} · 트랙 ${r.tracks.length} · 사람 ${r.players.length}`
       + ` · 업글 ${r.ups.length} · 마법 ${r.casts.length} · 핑 ${r.pings.length}`
       + ` · 명령 ${[...r.orders.values()].reduce((s, v) => s + v.length, 0)}`
-      + ` · 자원밭 ${r.resFields.length}`
+      + ` · 자원밭 ${r.resFields.length} · 건설명령 ${r.builds.length}`
       + `
       체력키 ${hpN} (트랙 ${hpTr}/${r.tracks.length})`
       + ` · 표적키 ${tgN} (트랙 ${tgTr}/${r.tracks.length})`;
