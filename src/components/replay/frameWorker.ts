@@ -292,7 +292,9 @@ if (inWorker9) self.onmessage = (ev: MessageEvent<Msg>): void => {
     } else if (m.type === "want") {
       if (m.what === "walks") {
         const all = world?.entWalks ?? [];
-        post({ type: "walks", entWalks: m.raw ? all.filter((e) => e.raw === m.raw) : all });
+        /* 누구 것인지 **되돌려 실어 준다** — 중계는 사람을 갈아타며 여러 번 청하므로,
+           받는 쪽이 사람마다 따로 담으려면 이 표가 있어야 한다(없으면 마지막 것 하나만 남는다). */
+        post({ type: "walks", raw: m.raw ?? "", entWalks: m.raw ? all.filter((e) => e.raw === m.raw) : all });
       }
     } else if (m.type === "view") {
       /* ★ **자(크기)가 바뀐 시야는 지어 둔 장을 버리고 지금 시각부터 다시 짓는다**(지적: "4배 확대 주소로 들어와서 처음

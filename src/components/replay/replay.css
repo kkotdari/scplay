@@ -534,6 +534,36 @@
 @media (prefers-reduced-motion: reduce) {
   .scr-motion-track-on svg { animation: none; color: #2ee59d; }
 }
+/* ── 중계 스위치(요청: "on/off 버튼은 로스터 가장 아래에 tv버튼으로") ────────────────────
+   로스터 판의 **맨 아래 한 줄**이다. 판은 제 자식에게 손짓을 안 흘리지만(.scr-motion-teamcol만
+   투명하다) 이 단추는 그 바깥이라 그대로 눌린다 — 그래도 pointer-events를 적어 둔다:
+   나중에 판 전체를 투명하게 돌리는 손이 와도 스위치는 살아야 한다.
+   켜진 꼴은 추적 단추와 **같은 결**(액티브 그린)이다 — 둘은 '지금 카메라를 누가 쥐고 있나'를
+   말하는 한 짝이고, 배타이므로 한 화면에 하나만 초록이다. */
+.scr-motion-castbtn {
+  pointer-events: auto;
+  /* 판 폭을 다 먹지 않는다 — 로스터 판은 지도 **위에** 얹히므로 한 줄이 먹는 자리가 곧
+     가려지는 지형이다(그 판의 규약). 글자만 한 알약으로 가운데에 선다. */
+  align-self: center; display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  margin-top: 2px; padding: 4px 8px; border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px; background: rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.74); cursor: pointer;
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.2px; line-height: 1;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.scr-motion-castbtn svg { display: block; }
+@media (hover: hover) {
+  .scr-motion-castbtn:hover { background: rgba(255, 255, 255, 0.2); color: #fff; }
+}
+.scr-motion-castbtn:focus-visible { outline: 1px solid rgba(255, 255, 255, 0.6); }
+.scr-motion-castbtn-on {
+  background: rgba(46, 229, 157, 0.18); border-color: rgba(46, 229, 157, 0.55); color: #2ee59d;
+}
+/* 켜진 동안 화면이 살아 있다는 신호 — 추적 단추의 깜빡임과 같은 박자다. */
+.scr-motion-castbtn-on svg { animation: scr-track-blink 1s steps(1, end) infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .scr-motion-castbtn-on svg { animation: none; }
+}
 /* ★ 로스터의 나머지는 **지도로 흘린다**(요청: "로스터의 아바타랑 닉네임 글자(닉네임
    자리가 아닌 글자만) 딱 선택 가능하게 해 주고 나머지 부분은 그 아래 맵으로 흘려서
    더블클릭/탭 줌으로 작동하게 해 줘") ────────────────────────────────────────────────
@@ -2550,6 +2580,48 @@
   80% { opacity: 1; }
   100% { opacity: 0; }
 }
+/* ── 중계 자막(요청: "플레이창 아래가운데에 누구 화면 이라고 자막 띄워줌(토스트) 바로
+   다른 사람으로 전환시 새로운 토스트가 위에 우선으로 보이게") ─────────────────────────
+   무대(.scr-fs-stage)의 직계 자식이라 지도의 배율·팬·입체 변환을 안 받는다(품질 알림과
+   같은 자리 — 지도 상자 안에 두면 끌 때 따라 움직인다).
+   ★ 자리는 무대 아래 끝이다 — 프레임 배치에서는 조종부가 무대 **밖**으로 흐르므로 가릴
+     것이 없다. 전체화면만 그 줄이 무대를 덮으니, 거기서만 조종부 키(--scr-fsbot · 재생기가
+     재서 얹는다)만큼 비킨다.
+   ★ 쌓임: 새것이 **위**다(요청). 세로 정렬 하나로 낸다 — 그리는 쪽이 새것을 배열 앞에
+     담으므로 DOM 차례가 곧 위아래다. 겹치지 않으니 z를 다툴 일이 없다. */
+.scr-motion-castbar {
+  position: absolute; left: 50%; bottom: 12px;
+  transform: translateX(-50%);
+  z-index: 30000; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  pointer-events: none; max-width: calc(100% - 24px);
+}
+/* ⚠ 애니메이션 길이는 재생기의 CAST_TOAST_MS9(2600ms)와 **같은 값**이어야 한다 — 짧으면
+   스러진 자막이 자리를 차지한 채 남고, 길면 사라지는 도중에 DOM에서 뽑혀 툭 끊긴다. */
+.scr-motion-casttoast {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 6px 14px; border-radius: 999px;
+  background: rgba(8, 11, 17, 0.84); color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.20);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.45);
+  font-size: 13px; font-weight: 600; letter-spacing: 0.2px;
+  white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+  animation: scr-casttoast-in 0.2s ease-out, scr-casttoast-out 0.4s ease-in 2.2s forwards;
+}
+/* 그 선수의 색 — 지도 위 유닛 색과 곧바로 이어져, 누구 화면인지가 글자를 읽기 전에 보인다. */
+.scr-motion-castdot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+/* 전체화면만 조종부가 무대를 덮는다 — 그 키(실측 --scr-fsbot-m, 없으면 조립값)만큼 비킨다. */
+.scr-fs-layer.is-fs .scr-motion-castbar { bottom: calc(var(--scr-fsbot, 56px) + 10px); }
+@keyframes scr-casttoast-in {
+  0% { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes scr-casttoast-out {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scr-motion-casttoast { animation: scr-casttoast-out 0.3s ease-in 2.3s forwards; }
+}
 .scr-motion-simnote {
   /* 맵 정가운데(요청) — 자취가 오기 전에는 지도가 텅 비어 있어, 귀퉁이의 작은 알약은
      "비어 있다"와 "받는 중이다"를 구분해 주지 못했다. 한가운데면 눈이 먼저 간다. */
@@ -3042,6 +3114,7 @@
        테두리가 아니라 **줄 사이**이므로 같은 값일 까닭이 없다. */
     background: none; padding: 5px var(--scr-dock-pad) var(--scr-dock-pad);
   }
+
 .scr-fs-layer.is-fs .scr-fs-bottom {
   padding-bottom: calc(var(--scr-botpad) / 2 + env(safe-area-inset-bottom, 0px));
   /* ★ 조종부도 **미니맵 오른쪽**에서 시작한다(요청: "전체화면에서 프레임모드처럼 미니맵을

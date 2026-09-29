@@ -7,8 +7,10 @@ import {
 import { createPortal } from "react-dom";
 import { useBgm } from "./useBgm";
 import RosterTableIcon from "./RosterTableIcon";
-import { BookOpen, Bookmark, Crosshair, Eye, EyeOff, Map as MapIcon, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Share2, Users } from "lucide-react";
+import { BookOpen, Bookmark, Crosshair, Eye, EyeOff, Map as MapIcon, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Share2, Tv, Users } from "lucide-react";
 import ReplayGuide from "./ReplayGuide";
+/* 중계(중요도 기반 추적) — 편성표를 굽는 순수 문. 경기 한 벌에 한 번 돌고, 재생은 짚기만 한다. */
+import { castAt9, castPlan9, type CastSeg9 } from "./cast9";
 /* 미니맵 — 이제 **제 오버레이 판**이고 제 아이콘으로 여닫는다(요청: "미니맵 오버레이
    및 아이콘 추가"). 도구 판 안에 세들어 살던 시절과 달리, 켜고 끄는 것이 이것 하나다. */
 import ReplayFullscreenMinimap, { type MiniDot } from "./ReplayFullscreenMinimap";
@@ -117,6 +119,8 @@ export type MotionBase = Omit<MinimapMarker, "x" | "y"> & { x?: number; y?: numb
    원장으로만 남는다. 유닛 위치는 명령 기반 추정이다: 리플레이에는 위치·죽음이 안 남아서,
    이 자취는 "그 사람 부대가 어디서 무엇을 하고 있었나"의 어림이다. */
 
+/** 걷기가 아직 없을 때 돌려주는 빈 벌 — **같은 객체**여야 memo가 프레임마다 다시 안 돈다. */
+const EMPTY_WALKS9: EngineWorld9["entWalks"] = [];
 /** 배속 사다리 — 두 배씩 넷(요청: "배속 사다리 1 2 4 8"). 옛 1·2·5·10·20은 걷었다; 링크의 &s=가 옛 값이면 가장 가까운 칸으로 앉힌다. */
 const SPEEDS = [1, 2, 4, 8] as const;
 /** 탄두가 내려오는 창(초) — 착탄 시각은 위 값 그대로 두고 **시작만 당긴다**(요청: 2배
@@ -8137,10 +8141,16 @@ export default function ReplayMotionPlayer({
   const [worldEnts9, setWorldEnts9] = useState(false);
   const world: WorldUi9 = worldUi9 ?? emptyWorldUi9();
   const { buildsSrc, castsSrc, nukeLase, gasBuildings, prodDoneAt, prodDoneByRaw, upsByRaw, nukeImpacts } = world;
-  /** 걷기 — 추적을 켤 때 워커에 청해 받는다(아래 want walks). 세계가 바뀌면 비운다. */
-  const [entWalks9, setEntWalks9] = useState<EngineWorld9["entWalks"]>([]);
-  const entWalks = entWalks9;
-  const walksAskedRef9 = useRef<string | null>(null);
+  /** 걷기 — 추적·중계가 보는 **그 사람 것만** 워커에 청해 받는다(아래 want walks). 세계가 바뀌면 비운다.
+   *  ★ **사람마다 따로 담는다**(요청: 중계 모드) — 중계는 사람을 갈아타므로 한 벌만 들면 갈아탈 때마다
+   *    옛 사람의 걷기가 날아간다. 그러면 그 사람을 다시 잡을 때 카메라가 자리를 못 찾고(bodyAt9가 빈손)
+   *    팬이 옛 자리로 튄다. 1v1이면 두 벌로 끝나고, 편성표가 다음 사람을 미리 알려 주므로 **미리 청해**
+   *    갈아타는 순간에 구조화 복제가 안 걸린다. 보관함은 WALKS_KEEP9 벌에서 가장 오래된 것을 버린다. */
+  const [walksByRaw9, setWalksByRaw9] = useState<Map<string, EngineWorld9["entWalks"]>>(() => new Map());
+  /** 몇 사람 것까지 들고 있나 — 지금 보는 사람·다음 사람에 여유 둘. */
+  const WALKS_KEEP9 = 4;
+  /** 이미 청한 이름들 — 같은 사람을 두 번 청하지 않는다. 세계가 바뀌면 비운다. */
+  const walksAskedRef9 = useRef<Set<string>>(new Set());
   /** 세계 세대 — 워커가 새 worldui를 보낼 때마다 오른다(걷기를 다시 청하는 자). */
   const [worldGen9, setWorldGen9] = useState(0);
   /** 워커가 어림한 제 메모리(참값·파생) — ready에 실려 온다. */
@@ -8495,8 +8505,8 @@ export default function ReplayMotionPlayer({
       } else if (m9.type === "worldui" && m9.ui) {
         setWorldUi9(m9.ui);
         setWorldEnts9(!!(m9 as unknown as { hasEnts?: boolean }).hasEnts);
-        setEntWalks9([]);
-        walksAskedRef9.current = null;
+        setWalksByRaw9(new Map());
+        walksAskedRef9.current = new Set();
         setWorldGen9((g9) => g9 + 1);
         /* 새 세대의 세계다 — 옛 세대로 지은 장(안개가 다르다)은 버린다. 새 장은 이 메시지 바로 뒤에 온다.
            ★ 마지막 장은 **지킨다**(지적: "처음 로딩시 안개 한번 없어졌다 다시 보이는 현상 여전") — 여기서
@@ -8506,7 +8516,21 @@ export default function ReplayMotionPlayer({
         frames9.clear();
         fogSnapsRef9.current = []; eyeSnapsRef9.current = [];
       } else if (m9.type === "walks") {
-        setEntWalks9((m9 as unknown as { entWalks: EngineWorld9["entWalks"] }).entWalks ?? []);
+        const w9 = m9 as unknown as { raw?: string; entWalks: EngineWorld9["entWalks"] };
+        /* 청해 둔 표를 지운다 — 보관함이 그 사람을 버린 뒤 다시 필요해지면 또 청할 수 있어야 한다. */
+        walksAskedRef9.current.delete(w9.raw ?? "");
+        setWalksByRaw9((prev9) => {
+          const next9 = new Map(prev9);
+          next9.set(w9.raw ?? "", w9.entWalks ?? []);
+          /* Map은 넣은 차례를 지키므로 앞에서부터 버리면 곧 가장 오래 받은 것이다 —
+             지금 보는 사람은 방금 넣었으니 늘 뒤에 있다. */
+          while (next9.size > WALKS_KEEP9) {
+            const first9 = next9.keys().next().value;
+            if (first9 === undefined) break;
+            next9.delete(first9);
+          }
+          return next9;
+        });
       } else if (m9.type === "ready") {
         wStatRef.current.ready = true;
         const b9 = (m9 as unknown as { bytes?: { truth: number; world: number; typed?: number; top?: [string, number][] } }).bytes;
@@ -9173,6 +9197,67 @@ export default function ReplayMotionPlayer({
      한다. 시야(viewRaw)도 함께 간다: 추적을 켜면 시점도 그 사람으로 가는 규약 그대로다
      (아래 toggleTrack). */
   const [trackRaw, setTrackRaw] = useState<string | null>(initialTrack ?? null);
+  /* ══ 중계(중요도 기반 추적) — 요청: "현재 경기 장면 중 가장 중요하거나 가치있는 사람의
+     추적 화면을 보여줌 · 1-2초전에 미리 그 사람으로 전환 · 중요도 차이가 없는 경우
+     순환 중계(초반·소강) · 전환시 '누구 화면' 자막 · 개인 추적과는 배타" ══════════════
+     고르는 자는 cast9.ts 의 편성표다(왜 앞셈인지는 그 머리말에 있다). 여기는 그 표를
+     **시각으로 짚어** 카메라 임자를 정하고, 갈아탈 때 자막을 띄우는 일만 한다.
+     ★ 켜고 끄는 것이 **배타**다(요청) — 로스터의 조준선(개인 추적)을 켜면 중계가 꺼지고,
+       중계를 켜면 개인 추적이 풀린다. 둘이 같이 켜지면 카메라 임자가 둘이 된다.
+     ★ 시야(viewRaw)는 **안 건드린다** — 개인 추적은 그 사람 눈으로 밝히지만(toggleTrack),
+       중계는 사건보다 1.5초 먼저 가 있어야 한다. 그 순간 그 사람의 눈에는 다가오는 적이
+       아직 안 보이는 일이 흔해서, 시야를 그 사람 것으로 좁히면 **정작 보여 주려던 장면이
+       안개에 가린다**. 관전자(전체 시야)로 두고 카메라만 옮기는 것이 중계의 자다.
+       덤으로 안개 갈래가 안 바뀌므로 워커가 지어 둔 장을 갈아탈 때마다 버리지 않는다. */
+  const [castOn, setCastOn] = useState(!initialTrack);
+  /** 로스터에 있는 이름만 중계에 세운다 — 관전자는 obsNames로 따로 뺀다. */
+  const rosterKeys9 = useMemo(() => new Set(bases.map((b9) => b9.key)), [bases]);
+  /** 편성표 — 참값 한 벌에 한 번 굽는다(끄면 아예 안 굽는다). */
+  const castPlan = useMemo<CastSeg9[]>(
+    () => (castOn && entData ? castPlan9(entData, { total, skip: obsNames, only: rosterKeys9 }) : []),
+    [castOn, entData, total, obsNames, rosterKeys9]);
+  /** 지금 짚히는 토막 번호 — 렌더마다 이분으로 찾는다(상태로 두면 프레임마다 렌더가 한 번 더 돈다). */
+  const castIdx9 = castPlan.length > 0 ? castAt9(castPlan, t) : -1;
+  /** 중계가 고른 사람 — 끄거나 표가 없으면 null. */
+  const castRaw = castIdx9 >= 0 ? castPlan[castIdx9].raw : null;
+  /** ★ 지금 **카메라의 임자** — 손으로 켠 추적이 이기고, 없으면 중계가 고른 사람이다.
+   *  아래 추적 기계(집은 자국·걷기·카메라)는 전부 이 하나를 본다. 로스터의 조준선 표시만
+   *  trackRaw를 그대로 읽는다 — 개인 추적과 중계를 눈으로 갈라야 하기 때문이다. */
+  const camRaw9 = trackRaw ?? castRaw;
+  /** 그 사람의 걷기 — 보관함에서 꺼낸다(위 walksByRaw9). */
+  const entWalks = walksByRaw9.get(camRaw9 ?? "") ?? EMPTY_WALKS9;
+  /* ── 중계 자막(요청: "전환시 플레이창 아래가운데에 누구 화면 이라고 자막 띄워줌(토스트)
+     바로 다른 사람으로 전환시 새로운 토스트가 위에 우선으로 보이게") ─────────────────────
+     앱의 토스트(replayToast)를 안 쓴다: 그쪽은 body로 포털되는 **화면 위 가운데** 알림이고,
+     이것은 플레이창(무대) 안 아래 가운데에 사는 중계 자막이다. 쌓임 규칙도 다르다 —
+     새것이 위로 얹히고 옛것은 제 시계로 스러진다. */
+  const CAST_TOAST_MS9 = 2600;
+  const [castToasts9, setCastToasts9] = useState<{ id: number; text: string; col: string }[]>([]);
+  /** 자막을 이미 띄운 토막 번호와 다음 자막 번호 — 같은 토막에서 두 번 뜨지 않게. */
+  const castToastRef9 = useRef({ idx: -2, seq: 0 });
+  /** 걸어 둔 시계들 — 컴포넌트가 사라질 때만 걷는다(다음 자막 때 걷으면 옛 자막이 안 스러진다). */
+  const castTimersRef9 = useRef<number[]>([]);
+  useEffect(() => () => { for (const x9 of castTimersRef9.current) window.clearTimeout(x9); }, []);
+  /** 자막 글귀 — 팀전만 팀을 붙인다(요청: "일대일이나 프리포올은 팀 생략"). 밀리(1:1·프리포올)는
+   *  편이 없으므로 melee 한 문이 그 둘을 다 가른다. */
+  const castLabel9 = (raw9: string): string => {
+    const nm9 = bases.find((b9) => b9.key === raw9)?.name ?? raw9;
+    const tm9 = melee ? 0 : (teamOfRaw(raw9) ?? 0);
+    return tm9 ? `${tm9}팀 ${nm9} 화면` : `${nm9} 화면`;
+  };
+  useEffect(() => {
+    if (!castOn || castIdx9 < 0) { castToastRef9.current.idx = -2; return; }
+    if (castToastRef9.current.idx === castIdx9) return;
+    castToastRef9.current.idx = castIdx9;
+    const raw9 = castPlan[castIdx9].raw;
+    const id9 = (castToastRef9.current.seq += 1);
+    /* 새것이 **앞**에 선다 — 그리는 쪽이 세로로 쌓으므로 배열 앞이 곧 위다(요청). 셋까지만 든다. */
+    setCastToasts9((a9) => [{ id: id9, text: castLabel9(raw9), col: modeColor(raw9, teamOfRaw(raw9)) }, ...a9].slice(0, 3));
+    const tm9 = window.setTimeout(() => setCastToasts9((a9) => a9.filter((x9) => x9.id !== id9)), CAST_TOAST_MS9);
+    castTimersRef9.current = [...castTimersRef9.current.slice(-8), tm9];
+    // castLabel9·modeColor는 렌더마다 새로 나는 클로저다 — 목록에 넣으면 토막이 안 바뀌어도 자막이 뜬다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [castOn, castIdx9, castPlan]);
   /** 추적 켜기·끄기 — 시야(viewRaw)를 함께 끌고 다닌다. 끄면 시야도 전체로 돌아간다. */
   /** 추적을 끈다 — **보던 자리에 머문다**(요청: "추적 보다가 끄면 맵 위치가 기존에 보던 곳으로 돌아가는데
    *  그러지 않게 추적이 보고 있던 곳에서 유지"). 추적 중의 팬은 trackView가 렌더마다 내는 값이라 panBase는
@@ -9184,6 +9269,9 @@ export default function ReplayMotionPlayer({
   };
   const toggleTrack = (key: string): void => {
     const on9 = trackRaw !== key;
+    /* 개인 추적과 중계는 **배타**다(요청) — 손이 사람을 고르면 중계는 물러난다. 끌 때는
+       중계를 되살리지 않는다: 껐다 켠 사람이 바라는 것은 '지금 자리에 머무는 것'이다. */
+    if (on9 && castOn) stopCast9();
     if (on9) setTrackRaw(key); else stopTrack9();
     setViewRaw(on9 ? key : null);
     /* 켜는 순간 **한 번만** 당겨 준다(요청: 배율은 기본 줌인 값, 사다리에서) — 그 뒤로는
@@ -9191,38 +9279,67 @@ export default function ReplayMotionPlayer({
        배율이 갑자기 튀면 추적을 껐다 켜는 것만으로 화면이 요동친다. */
     if (on9) setView9(trackZoom9(), panRef.current);   // 켤 때 한 번 4배로(위 trackZoom9) — 그 뒤 수동 변경은 그대로 열려 있다
   };
+  /** 중계를 끈다 — 개인 추적을 끄는 것과 같은 자리에 머문다(위 stopTrack9의 ★). */
+  const stopCast9 = (): void => {
+    if (castRaw && trackCamRef.current.raw === castRaw) setView9(zoomRef.current, { ...trackCamRef.current.pan });
+    setCastOn(false);
+  };
+  /** 중계 켜기·끄기(로스터 맨 아래 TV 단추) — 켜면 개인 추적이 풀린다(배타). */
+  const toggleCast9 = (): void => {
+    if (castOn) { stopCast9(); return; }
+    stopTrack9();
+    setViewRaw(null);
+    setCastOn(true);
+  };
+  /* ★ 중계가 카메라를 처음 잡을 때 **한 번** 당겨 준다 — 1배(지도 전체)에서는 팬의 여유가
+     0이라 카메라가 아무 데도 못 가고, 그러면 중계가 자막만 뜨는 기능으로 보인다. 개인
+     추적이 켜질 때와 같은 배율(trackZoom9)이고, 그 뒤 손으로 바꾼 배율은 안 되돌린다. */
+  const castZoomRef9 = useRef(false);
+  useEffect(() => {
+    if (!castOn || !castRaw) { castZoomRef9.current = false; return; }
+    if (castZoomRef9.current) return;
+    castZoomRef9.current = true;
+    setView9(trackZoom9(), panRef.current);
+    // setView9·trackZoom9는 안 바뀌는 클로저다 — 목록에 넣으면 선언 전(TDZ)에 읽힌다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [castOn, castRaw]);
   /** 태그 → 그 태그의 유닛 생애들 — 변태로 갈린 생애가 같은 태그를 나눠 쓴다. */
   /* 걷기는 추적을 켤 때 워커에 청한다 — 세계가 바뀌었으면(worldGen9) 다시. */
   useEffect(() => {
-    if (!trackRaw || walksAskedRef9.current === trackRaw) return;
     const w9 = frameWorkerRef.current;
     if (!w9) return;
-    walksAskedRef9.current = trackRaw;
-    // 그 임자의 걷기만 — 걷기 창은 참값 키 배열을 가리키므로 복제하면 그 트랙의 키가 통째로 건너온다. 임자 하나면 견딜 만하다.
-    w9.postMessage({ type: "want", what: "walks", raw: trackRaw });
-  }, [trackRaw, worldGen9, workerTick9]);
+    /* **다음 사람 것도 미리** 청한다(중계) — 편성표가 누구로 갈아탈지 이미 알고 있으므로,
+       갈아타는 순간에 구조화 복제가 걸려 그 프레임이 멎는 일을 미리 치른다. */
+    const want9 = [camRaw9, castIdx9 >= 0 ? castPlan[castIdx9 + 1]?.raw ?? null : null];
+    for (const r9 of want9) {
+      if (!r9 || walksByRaw9.has(r9) || walksAskedRef9.current.has(r9)) continue;
+      walksAskedRef9.current.add(r9);
+      // 그 임자의 걷기만 — 걷기 창은 참값 키 배열을 가리키므로 복제하면 그 트랙의 키가 통째로 건너온다. 임자 하나면 견딜 만하다.
+      w9.postMessage({ type: "want", what: "walks", raw: r9 });
+    }
+  }, [camRaw9, castIdx9, castPlan, walksByRaw9, worldGen9, workerTick9]);
   const walksByTag = useMemo(() => {
     const m9 = new Map<number, typeof entWalks>();
-    /* 추적을 켜기 전에는 **한 톨도 안 만든다** — 이 표를 쌓는 데 드는 것은 생애 수만큼의
-       한 바퀴인데, 안 쓰는 화면에서까지 낼 값은 아니다(로스터를 안 누른 사람이 대부분이다). */
-    if (!trackRaw) return m9;
+    /* 추적·중계가 사람을 잡기 전에는 **한 톨도 안 만든다** — 이 표를 쌓는 데 드는 것은 생애
+       수만큼의 한 바퀴인데, 안 쓰는 화면에서까지 낼 값은 아니다. */
+    if (!camRaw9) return m9;
     for (const e9 of entWalks) {
       const a9 = m9.get(e9.tag);
       if (a9) a9.push(e9); else m9.set(e9.tag, [e9]);
     }
     return m9;
-  }, [entWalks, trackRaw]);
+  }, [entWalks, camRaw9]);
   /** 태그 → 건물 생애들 — 건물은 자취(entWalks)에 안 들어간다(v1 건물 층이 그린다). */
   const bldsByTag = useMemo(() => {
     const m9 = new Map<number, TruthLife[]>();
-    if (!entData || !trackRaw) return m9;
+    if (!entData || !camRaw9) return m9;
     for (const e9 of entData.lives) {
       if (!e9.bld) continue;
       const a9 = m9.get(e9.tag);
       if (a9) a9.push(e9); else m9.set(e9.tag, [e9]);
     }
     return m9;
-  }, [entData, trackRaw]);
+  }, [entData, camRaw9]);
   /** 이 태그의 몸이 그 순간 서 있던 타일 — 죽었거나 아직 안 났으면 null. */
   const bodyAt9 = useCallback((tag9: number, sec9: number): { x: number; y: number } | null => {
     for (const e9 of walksByTag.get(tag9) ?? []) {
@@ -9242,14 +9359,14 @@ export default function ReplayMotionPlayer({
     }
     return null;
   }, [walksByTag, bldsByTag]);
-  /** 추적하는 사람의 **집은 자국** — [초, 그때 명령을 받은 태그들], 오름차순.
+  /** 카메라 임자의 **집은 자국** — [초, 그때 명령을 받은 태그들], 오름차순.
    *
    *  같은 순간에 명령을 받은 몸들이 곧 그때 잡혀 있던 무리다. 0.25초 칸으로 모으는 것은
    *  참값이 같은 틱의 명령을 정확히 같은 초로 적지 않을 수 있어서다 — 무리가 둘로
    *  갈리면 카메라가 그 사이에서 흔들린다. */
   const trackPicks = useMemo(() => {
-    if (!trackRaw || !entData) return [] as { sec: number; tags: number[] }[];
-    const mine9 = new Set(entData.players.filter((pl) => pl.name === trackRaw).map((pl) => pl.owner));
+    if (!camRaw9 || !entData) return [] as { sec: number; tags: number[] }[];
+    const mine9 = new Set(entData.players.filter((pl) => pl.name === camRaw9).map((pl) => pl.owner));
     const by9 = new Map<number, Set<number>>();
     for (const e9 of entData.lives) {
       if (!mine9.has(e9.owner)) continue;
@@ -9262,14 +9379,14 @@ export default function ReplayMotionPlayer({
     return [...by9.entries()]
       .map(([sec, tags]) => ({ sec, tags: [...tags] }))
       .sort((a, b) => a.sec - b.sec);
-  }, [trackRaw, entData]);
+  }, [camRaw9, entData]);
   /** 지금 추적이 보고 있는 자리(타일) — 마지막 자국의 몸들을 평균한 점.
    *
    *  자국의 **클릭 좌표**가 아니라 집힌 몸의 **지금 자리**다(요청: "선택 위치") — 그래야
    *  카메라가 그 무리를 따라 흐른다. 다 죽었으면 그 앞 자국으로 몇 걸음 물러난다:
    *  방금 집은 것이 방금 죽는 일(교전)이 잦은데, 그때마다 화면이 멎으면 안 된다. */
   const trackAt = ((): { x: number; y: number } | null => {
-    if (!trackRaw || trackPicks.length === 0) return null;
+    if (!camRaw9 || trackPicks.length === 0) return null;
     let lo9 = 0;
     let hi9 = trackPicks.length - 1;
     let at9 = -1;
@@ -10240,9 +10357,18 @@ export default function ReplayMotionPlayer({
   const trackCamRef = useRef<{ raw: string | null; z: number; pan: { x: number; y: number } }>(
     { raw: null, z: 0, pan: { x: 0, y: 0 } });
   const trackView = ((): { pan: { x: number; y: number } } | null => {
-    if (!trackRaw || !trackAt) return null;
+    if (!camRaw9) return null;
     const cov9 = coverRef.current;
     if (cov9.w < 4 || cov9.h < 4) return null;
+    /* ★ 잡을 자리가 아직 없으면 **보던 자리에 머문다**(요청: 중계) — 갈아탄 사람의 걷기가
+       아직 안 왔거나(워커에 청하는 중) 그 사람이 여태 명령을 한 번도 안 내렸으면 trackAt이
+       빈손인데, 그때 null을 돌려주면 화면이 **추적 전 팬(panBase)으로 툭 튄다**. 중계는
+       사람을 자주 갈아타므로 그 튐이 곧 화면이 깜빡이는 것으로 읽힌다. 배율이 그대로일
+       때만 붙든다 — 잡아 둔 자리는 그 배율에서 잰 px이라 다른 배율에서는 뜻이 없다. */
+    if (!trackAt) {
+      const hold9 = trackCamRef.current;
+      return hold9.raw && hold9.z === zoom ? { pan: hold9.pan } : null;
+    }
     /* 배율은 **사람 몫**이다(요청: "줌은 변경 가능하게") — 추적은 켜는 순간 화면 폭에
        맞춘 배율로 한 번 밀어 주고(toggleTrack · trackZoom9), 그 뒤로는 지금 배율을 따른다. */
     const z9 = zoom;
@@ -10266,7 +10392,7 @@ export default function ReplayMotionPlayer({
     const cur9 = trackCamRef.current;
     /* 다시 잡아야 하나 — 사람이 바뀌었거나(처음 켬 포함), 배율이 바뀌었거나(잡아 둔
        자리는 그 배율에서 잰 px이라 다른 배율에서는 뜻이 없다), 안전 상자를 벗어났거나. */
-    let keep9 = cur9.raw === trackRaw && cur9.z === z9 && lim9.winW > 0 && lim9.winH > 0;
+    let keep9 = cur9.raw === camRaw9 && cur9.z === z9 && lim9.winW > 0 && lim9.winH > 0;
     if (keep9) {
       /** 지금 잡아 둔 자리에서 그 점이 화면 한가운데로부터 떨어진 px. */
       const dx9 = (cx9 - 0.5) * cov9.w * z9 + cur9.pan.x;
@@ -10275,7 +10401,7 @@ export default function ReplayMotionPlayer({
       const keepH9 = (lim9.winH / 2) * (1 - 2 * TRACK_EDGE);
       if (Math.abs(dx9) > keepW9 || Math.abs(dy9) > keepH9) keep9 = false;
     }
-    if (!keep9) trackCamRef.current = { raw: trackRaw, z: z9, pan: mid9 };
+    if (!keep9) trackCamRef.current = { raw: camRaw9, z: z9, pan: mid9 };
     return { pan: trackCamRef.current.pan };
   })();
   /** 화면에 실제로 먹는 자리 — 추적 중이면 추적이, 아니면 사람이 정한다.
@@ -11100,8 +11226,8 @@ export default function ReplayMotionPlayer({
   useLayoutEffect(() => {
     const hold9 = linkHoldRef9.current;
     if (!hold9) return;
-    // 추적이 몰고 있으면 놓는다 — 카메라와 서로 밀 까닭이 없다.
-    if (trackRaw) { linkHoldRef9.current = null; return; }
+    // 추적·중계가 몰고 있으면 놓는다 — 카메라와 서로 밀 까닭이 없다.
+    if (camRaw9) { linkHoldRef9.current = null; return; }
     const el9 = mapRef.current;
     const bw9 = el9?.offsetWidth ?? 0;
     const bh9 = el9?.offsetHeight ?? 0;
@@ -11121,7 +11247,7 @@ export default function ReplayMotionPlayer({
     setView9(z9, { x: nx9, y: ny9 }, true);
     // panLimit·setView9는 안 바뀌는 클로저다 — 목록에 넣으면 선언 전(TDZ)에 읽힌다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stage.w, stage.h, fsOn, pitched, wide, zoom, panRoom, trackRaw]);
+  }, [stage.w, stage.h, fsOn, pitched, wide, zoom, panRoom, camRaw9]);
   /** 미니맵 등이 '지금 보기'를 읽는 창 — 늘 ref를 비춘다(손끝 보기 xfLive를 따로 두던 것을 걷었다). */
   const viewLive9 = useMemo(() => ({ get current(): { z: number; p: { x: number; y: number } } { return { z: zoomRef.current, p: panRef.current }; } }), []);
   /** 임시 변환 손짓(휠·드래그·핀치)이 도는 중인가 — 도는 동안은 상태로 덮지 않는다
@@ -14790,8 +14916,8 @@ export default function ReplayMotionPlayer({
   const memMain9 = useMemo(() => {
     if (!diagOn) return { truth: 0, ent: 0, ui: 0, walks: 0 };
     const seen9 = new Set<object>();
-    return { truth: estBytes9(truth, seen9), ent: estBytes9(entData, seen9), ui: estBytes9(world, seen9), walks: estBytes9(entWalks9, seen9) };
-  }, [diagOn, truth, entData, world, entWalks9]);
+    return { truth: estBytes9(truth, seen9), ent: estBytes9(entData, seen9), ui: estBytes9(world, seen9), walks: estBytes9([...walksByRaw9.values()], seen9) };
+  }, [diagOn, truth, entData, world, walksByRaw9]);
   const dm9 = (k: string): boolean => diagModes9.has(k) || diagModes9.has("all");
   /* `#diag=fps` — 오른쪽 위 귀퉁이에 **작은 fps 오버레이만**(요청). 다른 진단 글은 안 그린다.
      붓의 fps 계측(paintFnRef9)이 0.5초마다 fpsTick9를 올려 이 숫자만 다시 그린다. */
@@ -16222,6 +16348,21 @@ export default function ReplayMotionPlayer({
               (CSS 주석) 평면에 늘 두어도 끌기·확대 비용이 안 는다. */}
           <div className="scr-fs-space" style={{ backgroundImage: spaceBg9 }} aria-hidden />
           {mapNode}
+          {/* ★ 중계 자막은 **무대 안**이다(요청: "플레이창 아래가운데") — 여기가 곧 플레이창이고,
+              프레임 배치에서는 조종부가 무대 **밖**으로 흐르므로 가릴 것이 없다(전체화면만 그 줄이
+              무대를 덮는데, 그때는 CSS가 그 높이만큼 비킨다). 무대는 지도의 배율·팬·입체 변환을
+              안 받으므로 자막이 끌 때 따라 움직이지 않는다(품질 알림과 같은 사정).
+              새것이 배열 앞이라 세로로 쌓으면 위에 선다(요청: "새로운 토스트가 위에 우선"). */}
+          {castToasts9.length > 0 && (
+            <div className="scr-motion-castbar" aria-live="polite">
+              {castToasts9.map((x9) => (
+                <span key={x9.id} className="scr-motion-casttoast">
+                  <i className="scr-motion-castdot" style={{ background: x9.col }} aria-hidden />
+                  {x9.text}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
         {/* 떠 있는 아이콘 줄 — 전체화면에서는 **화면 뿌리**에 선다(위 mapBtnRow 주석):
             지도 상자는 화면보다 크게 깔려 잘리므로 그 구석이 화면 밖이다. */}
@@ -16299,6 +16440,23 @@ export default function ReplayMotionPlayer({
             rosterMode === 0 && "scr-fs-panel-bare")}>
             {teamCol(1, true, rosterMode === 0, true)}
             {teamCol(2, true, rosterMode === 0, true)}
+            {/* ★ 중계 스위치는 **로스터 맨 아래**다(요청: "on/off 버튼은 로스터 가장 아래에
+                tv버튼으로") — 로스터가 곧 '누구를 볼까'의 표이고, 중계는 그 고르기를 맡기는
+                일이라 같은 판에 있어야 읽힌다. 자취가 없는 경기에는 안 그린다(고를 것이 없다). */}
+            {entData && (
+              <button
+                type="button"
+                className={cx("scr-motion-castbtn", castOn && "scr-motion-castbtn-on")}
+                aria-pressed={castOn}
+                title={castOn
+                  ? "중계 끄기 — 중요한 장면을 자동으로 따라가는 중"
+                  : "중계 — 중요한 장면의 선수를 자동으로 따라간다"}
+                onClick={() => toggleCast9()}
+              >
+                <Tv size={13} aria-hidden />
+                <span>중계</span>
+              </button>
+            )}
           </div>
         )}
         {/* (걷어냄·요청) 도구 판 — 품질·체력바·마우스 조작 줄(viewRowNode)이 들어 있던
@@ -16383,6 +16541,7 @@ export default function ReplayMotionPlayer({
           {qualityNote && (
             <span className="scr-motion-qualitynote">재생품질 {qualityNote}</span>
           )}
+
         </div>
       </div>
     </div>

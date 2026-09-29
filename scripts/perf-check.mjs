@@ -574,6 +574,60 @@ if (has("--dockprobe")) {
     const cvs = await page.evaluate(() => [...document.querySelectorAll("canvas")].map((c) => ({ cls: c.className.slice(0, 40), cw: c.clientWidth, ch: c.clientHeight, w: c.width, h: c.height })));
     console.log("[캔버스]", JSON.stringify(cvs));
 }
+/* 중계 자(--castprobe [초]): 중계 스위치·자막·카메라 임자를 한동안 지켜본다 — 편성표가
+   실제로 사람을 갈아타고 자막이 뜨는지는 정지 그림 한 장으로는 못 본다(자막은 2.6초다). */
+if (has("--castprobe")) {
+  const secs9 = Number(flag("--castprobe", 16)) || 16;
+  /* --fs 와 함께면 전체화면에서 본다 — 거기서만 조종부가 무대를 덮으므로 자막이 비키는지 확인한다. */
+  if (has("--fs")) {
+    await page.evaluate(() => {
+      const b = [...document.querySelectorAll("button[aria-label]")].find((el) => /^전체화면$/.test(el.getAttribute("aria-label") ?? ""));
+      if (b instanceof HTMLElement) b.click();
+    });
+    await page.waitForTimeout(900);
+  }
+  const seen9 = [];
+  let on9 = null;
+  for (let i9 = 0; i9 < secs9 * 5; i9 += 1) {
+    const r9 = await page.evaluate(() => ({
+      on: !!document.querySelector(".scr-motion-castbtn-on"),
+      btn: !!document.querySelector(".scr-motion-castbtn"),
+      toast: [...document.querySelectorAll(".scr-motion-casttoast")].map((el) => el.textContent ?? ""),
+      box: (() => { const b = document.querySelector(".scr-motion-castbar"); const st = document.querySelector(".scr-fs-stage");
+        if (!b || !st) return null; const r = b.getBoundingClientRect(); const q = st.getBoundingClientRect();
+        const lyr = document.querySelector(".scr-fs-layer");
+        return { cx: +((r.left + r.width / 2 - q.left) / q.width).toFixed(3), bot: +(q.bottom - r.bottom).toFixed(0),
+          par: b.offsetParent?.className?.slice(0, 30) ?? "?", stg: +q.bottom.toFixed(0), bar: +r.bottom.toFixed(0),
+          v: lyr ? getComputedStyle(lyr).getPropertyValue("--scr-fsbot") : "" }; })(),
+    }));
+    if (on9 === null) on9 = r9;
+    for (const tx9 of r9.toast) {
+      const last9 = seen9[seen9.length - 1];
+      if (!last9 || last9.text !== tx9) {
+        seen9.push({ text: tx9, at: +(i9 / 5).toFixed(1), box: r9.box });
+        // 첫 자막이 뜬 그 장면을 찍는다(--shot) — 정지 그림으로 자리를 보려면 이 순간이어야 한다.
+        if (SHOT && seen9.length === 1) await page.screenshot({ path: String(SHOT) });
+      }
+    }
+    await page.waitForTimeout(200);
+  }
+  console.log(`[중계] 단추 ${on9?.btn ? "있음" : "없음"} · 켜짐 ${on9?.on ? "예" : "아니오"} · 자막 ${seen9.length}번`);
+  /* 배타 검사 — 개인 추적을 켜면 중계가 꺼지고, 중계를 켜면 개인 추적이 풀려야 한다(요청). */
+  const excl9 = await page.evaluate(async () => {
+    const st = () => ({ cast: !!document.querySelector(".scr-motion-castbtn-on"), track: !!document.querySelector(".scr-motion-track-on") });
+    const wait = (ms) => new Promise((r) => { setTimeout(r, ms); });
+    const a = st();
+    (document.querySelector(".scr-motion-track-btn"))?.click();
+    await wait(300);
+    const b = st();
+    (document.querySelector(".scr-motion-castbtn"))?.click();
+    await wait(300);
+    const c = st();
+    return { 처음: a, 추적켬: b, 중계켬: c };
+  });
+  console.log("[중계 배타]", JSON.stringify(excl9));
+  for (const x9 of seen9) console.log(`  ${x9.at}s  "${x9.text}"  ${JSON.stringify(x9.box)}`);
+}
 if (SHOT) {
   await page.waitForTimeout(1500);
   // 특정 장면 맞추기(--wait ms) — 재생이 실시간이라, 몇 초 뒤 장면은 그만큼 기다려 찍는다.
