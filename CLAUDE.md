@@ -2125,6 +2125,24 @@ z 8.65 로 크레스트(≈7.8)보다 높고 뿌리 반폭 1.5 가 목(0.85)을 
     🔎 `node scripts/perf-check.mjs --wide --warm 0 --castprobe 4 [--track 정구 | --track '*' --zoom 4]` — `[중계 배타]` 의
       `share`(tr · pos)가 자동 `{"*", false}` · 사람 `{"정구", false}` · 끄기 `{null, true}` 여야 하고, `--track '*'` 는 배율을
       함께 줘도 중계가 켜진 채 열려야 한다(실측 셋 다 ✔). 픽스처가 이제 `clockKey "perf"` 를 주고 `window.__share9` 로 표를 읽는다.
+  · ★★ **링크는 재생기가 통째로 만들고 통째로 받는다 — 앱은 값을 한 톨도 안 만진다**(2026-09, 요청: "파라미터공유하는거
+    scplay에서 파라미터를 싹 만들어서 주고 그걸 인자로 받아서 각 사용처에서 그걸 전달하는 식으로 하면 안되나 가공 없이") —
+    여태 규약(기본값은 안 싣는다 · 중계·추적 중엔 자리 대신 `&tr=` · `*` 는 자동 중계 · 배율 상한 · 로스터에 있는 이름만
+    추적)이 **세 자리**(scplay 표 넷 · scplayer SceneShareButton 이 짓기 · GameResultStory 가 풀어 props 넷으로 나누기)에
+    흩어져 있었고, 바로 위 손질도 그래서 두 저장소를 함께 고쳤다(그 ⚠ 의 "같은 글자를 제 자리에 적는다"가 그 값이다).
+    이제 scplay 가 둘을 낸다: **`sceneLinkQueryOf9(clockKey)`**(지금 장면 → URLSearchParams · 앱은 경로 뒤에 붙일 뿐) ·
+    **`sceneLinkOf9(search)`**(쿼리 → `SceneLink9` {t·s·z·cx·cy·a·tr} · 값의 자를 여기서 죈다 · 열쇠가 하나도 없으면 null).
+    재생기(ReplayModule·ReplayMotionPlayer)는 props 넷(initialSec·initialSpeed·initialView·initialTrack) 대신 **`sceneLink`
+    한 벌**을 받아 제 안에서 넷을 편다(임자가 로스터에 있나는 `bases` 로 여기서 가른다 · 자리 상자는 링크 객체에 매어
+    한 번만 짓는다 — effect 들이 그 값을 의존성으로 든다). 열쇠 목록 `SCENE_LINK_KEYS9` 도 내어, 다른 화면으로 옮길 때
+    떼어 내는 자리(scplayer ExtShareScreen)와 '이 판의 링크인가'(GameResultStory linkQuery)가 같은 목록을 읽는다.
+    ⚠ 이 손질은 **두 저장소가 한 벌로만 선다** — scplayer 가 새 export 넷(`sceneLinkQueryOf9`·`sceneLinkOf9`·
+      `SCENE_LINK_KEYS9`·`sceneLink` prop)을 import 하므로 락이 옛 scplay 를 가리키는 동안은 scplayer 가 안 컴파일된다
+      (`??` 꼴로 견디는 그 규약의 **예외**다 — 규약을 한 곳으로 모으는 것이 곧 이 요청이라 옛 길을 남기면 뜻이 없다).
+      배포(락 갱신)가 그 짝이고, 로컬 관문은 scplay 의 `dist` 를 scplayer `node_modules/scplay/dist` 에 베껴 넣고 돌린다.
+    🔎 castprobe 의 `share` 는 이제 표가 아니라 **`sceneLinkQueryOf9` 가 낸 쿼리**에서 읽는다(`tr` = q.get · `pos` =
+      z 나 cx 가 실렸나) — 실측 셋 다 종전과 같다(자동 `{"*", false}` · 사람 `{"정구", false}` · 끄기 `{null, true}`).
+      perf-check·scene-sheet 의 마운트도 `sceneLink: { t: 46, … }` 한 벌이다.
 · ★ **로스터 1단계는 이름만이다**(2026-09, 요청: "로스터 1단계 APM 보이는거 제거하고 컴팩트하게 가자") — 최소 꼴
   (rosterMode 0 · `bare`)에서 지표 라벨 다섯과 값 칸(APM 하나 + 빈 칸 넷)을 **아예 안 그리고**, 격자를 이름 칸 하나로
   죈다(`.scr-fs-roster-fixed.scr-fs-panel-bare { --roster-cols: var(--roster-name) }` — 두 클래스를 겹쳐 좁은 화면의

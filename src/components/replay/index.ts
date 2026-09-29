@@ -27,10 +27,12 @@ export type { MinimapMarker } from "./markers";
 export { default as ReplayMapCanvas } from "./ReplayMapCanvas";
 export { default as RosterTableIcon } from "./RosterTableIcon";
 
-// 재생 상태를 밖에서 읽는 열쇠들(공유 링크가 쓴다).
+// 재생 상태를 밖에서 읽는 열쇠들과 장면 링크 — 앱은 sceneLinkQueryOf9(짓기)·sceneLinkOf9(풀기)만 부르고 값은 안 만진다.
 export {
   PLAYBACK_ZOOM_MAX, CAST_AUTO_LINK9, playbackClockOf, playbackSpeedOf, playbackTrackOf, playbackViewOf,
+  SCENE_LINK_KEYS9, sceneLinkQueryOf9, sceneLinkOf9,
 } from "./ReplayMotionPlayer";
+export type { SceneLink9 } from "./ReplayMotionPlayer";
 
 /* ── 도록(모델 자료실) — 앱이 제 화면으로 짓는다(요청: "scplayer에 도록 페이지 추가") ──
    재생기는 안 내주고 **모델을 보여 주는 데 필요한 것만** 낸다. 앱이 짓는 것은 배치·

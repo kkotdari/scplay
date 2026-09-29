@@ -320,9 +320,9 @@ const makeTerrain = () => {
 const ENTRY = `
 import React from "react";
 import { createRoot } from "react-dom/client";
-import ReplayMotionPlayer, { playbackTrackOf, playbackViewOf } from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
+import ReplayMotionPlayer, { sceneLinkQueryOf9 } from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
 /* 공유 표(clockKey "perf") — castprobe 가 '중계·추적 중에는 자리를 안 싣고 &tr= 만 싣나'를 읽는다. */
-window.__share9 = () => ({ tr: playbackTrackOf.get("perf") ?? null, view: playbackViewOf.get("perf") ?? null });
+window.__share9 = () => { const q = sceneLinkQueryOf9("perf"); return { tr: q.get("tr"), pos: q.has("z") || q.has("cx"), qs: q.toString() }; };
 window.__mount = (motion, players, walkJson, terrainB64) => {
   const el = document.getElementById("root");
   const tiles = btoa(String.fromCharCode(...new Uint8Array(128 * 128)));
@@ -341,16 +341,18 @@ window.__mount = (motion, players, walkJson, terrainB64) => {
   }));
   const teamOfRaw = (raw) => { const f = players.find((p) => p.name === raw); return f ? f.force : undefined; };
   createRoot(el).render(React.createElement(ReplayMotionPlayer, {
-    grid, endSec: 120, bases, teamOfRaw, active: true, initialSec: 46, clockKey: "perf",
-    /* --track <아이디|*> — 링크의 &tr= 로 여는 길(개인 추적 · * 는 자동 중계 표식). */
-    ...(window.__track ? { initialTrack: window.__track } : {}),
-    /* 중간 배율 계측(--zoom) — 공유 링크의 &z=와 같은 길로 확대·중심을 건다.
-       난전이 (64,64) = 분수 0.5라 화면 한가운데 온다. */
-    ...(window.__zoom > 1 || (window.__deg && window.__deg !== 90)
-      ? { initialView: { z: Math.max(1, window.__zoom || 1),
-        // --cx/--cy — 확대해서 볼 자리(지도 분수). 기본은 한가운데지만, 본진을 확대해
-        // 재려면 그 자리로 옮겨야 한다(가운데는 빈 땅이라 아무것도 안 그려진다).
-        cx: window.__cx ?? 0.5, cy: window.__cy ?? 0.5, deg: window.__deg || 90 } } : {}),
+    grid, endSec: 120, bases, teamOfRaw, active: true, clockKey: "perf",
+    /* 링크 한 벌(sceneLink) — 앱이 넘기는 그 꼴 그대로: t 46(고스트 검산 시각) · --track <아이디|*>(&tr= · * 는 자동 중계) ·
+       --zoom/--cx/--cy/--deg(&z=·&cx=·&cy=·&a= — 난전이 (64,64) = 분수 0.5라 화면 한가운데 온다 · 본진을 확대해 재려면
+       --cx/--cy 로 옮긴다(가운데는 빈 땅이라 아무것도 안 그려진다)). */
+    sceneLink: {
+      t: 46,
+      ...(window.__track ? { tr: window.__track } : {}),
+      ...(window.__zoom > 1 ? { z: window.__zoom } : {}),
+      ...(window.__zoom > 1 && window.__cx != null ? { cx: window.__cx } : {}),
+      ...(window.__zoom > 1 && window.__cy != null ? { cy: window.__cy } : {}),
+      ...(window.__deg && window.__deg !== 90 ? { a: window.__deg } : {}),
+    },
     loadUnitTracks: async () => ({ motion }),
     /* 장면 공유 버튼 자리(배치 검증용) — 실제 앱은 KakaoShareButton을 내려보낸다.
        없으면 그 줄이 빈 채라 '어디에 서는가'를 화면으로 못 가린다. */
@@ -653,7 +655,7 @@ if (has("--castprobe")) {
   const excl9 = await page.evaluate(async () => {
     /* share — 공유 표(요청: "중계는 자동이든 한사람이든 사용중이면 좌표, 배율 공유안하고 대신 중계 파라미터 공유"):
        tr 는 &tr= 에 실릴 값(사람 아이디 · 자동은 "*" · 꺼지면 null), pos 는 자리(z·cx·cy)가 실려 있나. */
-    const sh = () => { const r = window.__share9?.(); return r ? { tr: r.tr, pos: !!r.view && r.view.z !== undefined } : null; };
+    const sh = () => { const r = window.__share9?.(); return r ? { tr: r.tr, pos: r.pos } : null; };
     const st = () => ({ on: !!document.querySelector(".scr-motion-castbtn-on"), cap: document.querySelector(".scr-motion-castcap")?.textContent ?? null,
       items: [...document.querySelectorAll(".scr-motion-pickmenu .scr-motion-pickitem")].map((el) => `${el.textContent}${el.classList.contains("is-on") ? "*" : ""}`),
       share: sh() });

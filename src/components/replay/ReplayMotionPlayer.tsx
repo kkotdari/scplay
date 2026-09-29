@@ -7688,8 +7688,8 @@ export const playbackTrackOf = new Map<string, string>();
  *  대신 중계 파라미터 공유하기로 변경") — 그 표(playbackTrackOf)는 이제 '카메라를 누가 쥐고 있나'다: 사람이면
  *  그 아이디, 자동 중계면 이 글자. 게임 아이디로는 못 쓰는 글자라 사람과 안 겹치고, URLSearchParams 가
  *  안 감싸는(escape) 글자라 링크에 그대로 `&tr=*` 로 선다. 받는 쪽(initialTrack)이 이 값을 보면 개인 추적이
- *  아니라 중계를 켠 채로 연다. ⚠ scplayer 는 옛 scplay 타입으로도 컴파일되어야 해서 이 상수를 import 하지
- *  않고 같은 글자를 제 자리에 적는다(GameResultStory) — 값을 바꾸면 그쪽도 함께다. */
+ *  아니라 중계를 켠 채로 연다. 이 글자를 쓰는 자리는 이 파일뿐이다(짓는 sceneLinkQueryOf9 · 받는 sceneLink prop) —
+ *  앱은 링크를 만지지 않으므로(아래 ★★) 값을 바꿔도 여기 한 곳이다. */
 export const CAST_AUTO_LINK9 = "*";
 /** ★ 자리(배율·가운데점)는 **카메라를 기계가 쥐고 있으면 안 싣는다**(2026-09, 요청: "중계 활성화상태에서 공유시
  *  위치 좌표 전송 금지" → 넓힘: "중계는 자동이든 한사람이든 사용중이면 좌표, 배율 공유안하고 대신 중계 파라미터
@@ -7704,6 +7704,86 @@ export const playbackViewOf = new Map<string, {
   /** 세로 분수(0~1) — 중계·추적 중에는 없다 */ cy?: number;
   /** 시점 각도(도) */ deg: number;
 }>();
+
+/* ══ 장면 링크 — 재생기가 통째로 만들고 통째로 받는다(2026-09, 요청: "파라미터공유하는거 scplay에서 파라미터를
+   싹 만들어서 주고 그걸 인자로 받아서 각 사용처에서 그걸 전달하는 식으로 하면 안되나 가공 없이") ══════════════
+   여태는 위 표 넷(시각·배속·자리·추적)을 앱(scplayer SceneShareButton)이 읽어 제 손으로 쿼리를 짜고, 받는 쪽
+   (GameResultStory)이 또 제 손으로 풀어 재생기의 props 넷으로 나눠 넘겼다 — 규약(어느 값을 기본값으로 안 싣나 ·
+   `*` 가 자동 중계다 · 배율 상한)이 세 자리에 흩어져 있어 하나를 고치면 셋을 맞춰야 했다. 이제 규약은 이 둘뿐이다:
+     · `sceneLinkQueryOf9(clockKey)` → 지금 장면을 실은 URLSearchParams(앱은 주소 뒤에 그대로 붙인다)
+     · `sceneLinkOf9(search)`        → 링크의 쿼리를 푼 SceneLink9(앱은 재생기의 `sceneLink` prop 으로 그대로 넘긴다)
+   앱이 아는 것은 '어느 경기의 링크인가'(경로)뿐이고 값은 한 톨도 안 만진다. */
+/** 장면 링크의 열쇠 일곱 — 다른 화면으로 옮길 때 떼어 낼 것도 이 목록이다(scplayer ExtShareScreen). */
+export const SCENE_LINK_KEYS9 = ["t", "s", "z", "cx", "cy", "a", "tr"] as const;
+/** 링크에서 푼 장면 한 벌 — 없는 값은 없는 대로 둔다(기본값은 재생기가 안다). */
+export type SceneLink9 = {
+  /** 시작 시각(초) */ t?: number;
+  /** 배속 */ s?: number;
+  /** 배율(1~PLAYBACK_ZOOM_MAX) */ z?: number;
+  /** 화면 한가운데의 지도 분수(0~1) */ cx?: number; cy?: number;
+  /** 각도(도) */ a?: number;
+  /** 카메라 임자 — 게임 아이디 · `*`(CAST_AUTO_LINK9)는 자동 중계 */ tr?: string;
+};
+/** 지금 장면을 링크 쿼리로 — 시각·배속·자리·각도·카메라 임자. 기본값(0초 · 1배속 · 1배율 · 가운데 · 90도 ·
+ *  임자 없음)은 안 싣는다(지적: stargayte 처럼 기본값은 빼기) — 주소만 길어진다. 카메라를 기계가 쥔 장면(중계·
+ *  추적)은 playbackViewOf 가 자리를 비워 두므로 저절로 각도와 `&tr=` 만 실린다(위 ★). */
+export const sceneLinkQueryOf9 = (clockKey: string): URLSearchParams => {
+  const q = new URLSearchParams();
+  const t = playbackClockOf.get(clockKey);
+  if (t !== undefined && t > 0) q.set("t", String(Math.floor(t)));
+  const s = playbackSpeedOf.get(clockKey);
+  if (s !== undefined && s > 1) q.set("s", String(s));
+  const v = playbackViewOf.get(clockKey);
+  if (v) {
+    const z = v.z ?? 1;
+    const cx = v.cx ?? 0.5;
+    const cy = v.cy ?? 0.5;
+    if (z > 1.001) q.set("z", z.toFixed(2));
+    /* 가운데 자리도 기본값이면 안 싣는다 — 1배에서는 팬이 없어 가운데가 뜻이 없고, 확대해도 지도 한가운데면
+       받는 쪽 기본값과 같다. */
+    const centered = Math.abs(cx - 0.5) < 0.0005 && Math.abs(cy - 0.5) < 0.0005;
+    if (z > 1.001 && !centered) {
+      q.set("cx", cx.toFixed(3));
+      q.set("cy", cy.toFixed(3));
+    }
+    if (Math.round(v.deg) !== 90) q.set("a", String(Math.round(v.deg)));
+  }
+  const tr = playbackTrackOf.get(clockKey);
+  if (tr) q.set("tr", tr);
+  return q;
+};
+/** 링크의 쿼리(`?…` 문자열이든 URLSearchParams 든)를 장면 한 벌로 — 열쇠 일곱 중 하나도 없으면 null.
+ *  값의 자는 여기서 죈다(시각 > 0 · 배속 > 1 · 배율 1~PLAYBACK_ZOOM_MAX · 분수 0~1 · 각은 유한한 수 · 임자는 빈
+ *  글자가 아님). 못 읽는 값은 없는 것으로 둔다 — 옛 링크의 배속 5·10·20 은 재생기가 가장 가까운 칸으로 접는다.
+ *  ⚠ 임자(tr)가 로스터에 있는 사람인지는 여기서 모른다 — 재생기가 `bases` 로 걸러 낸다(sceneLink prop). */
+export const sceneLinkOf9 = (src: string | URLSearchParams): SceneLink9 | null => {
+  const q = typeof src === "string" ? new URLSearchParams(src) : src;
+  if (!SCENE_LINK_KEYS9.some((k) => q.has(k))) return null;
+  const num = (k: string): number | undefined => {
+    const raw9 = q.get(k);
+    if (raw9 === null || raw9.trim() === "") return undefined;
+    const v = Number(raw9);
+    return Number.isFinite(v) ? v : undefined;
+  };
+  const clamp = (v: number | undefined, lo: number, hi: number): number | undefined =>
+    v === undefined ? undefined : Math.min(hi, Math.max(lo, v));
+  const out: SceneLink9 = {};
+  const t = num("t");
+  if (t !== undefined && t > 0) out.t = Math.floor(t);
+  const s = num("s");
+  if (s !== undefined && s > 1) out.s = s;
+  const z = clamp(num("z"), 1, PLAYBACK_ZOOM_MAX);
+  if (z !== undefined) out.z = z;
+  const cx = clamp(num("cx"), 0, 1);
+  if (cx !== undefined) out.cx = cx;
+  const cy = clamp(num("cy"), 0, 1);
+  if (cy !== undefined) out.cy = cy;
+  const a = num("a");
+  if (a !== undefined) out.a = a;
+  const tr = q.get("tr");
+  if (tr) out.tr = tr;
+  return out;
+};
 /** 메인 개체 표에서 비운 배열들의 자리표(공유) — 같은 참조라 메모리를 안 먹는다. */
 const EMPTY_ARR9: never[] = [];
 /** React 상태 t를 올리는 간격(ms) — 유닛 캔버스는 틱이 프레임마다 칠하고, React는 이 박자로만 렌더한다(4번). */
@@ -7862,7 +7942,7 @@ const orgNote9 = (ox: number, liveOx: number): void => {
 const LIVE_VIEW_MS9 = 8;
 export default function ReplayMotionPlayer({
   grid, endSec, bases: basesIn, teamOfRaw, active = true, winnerTeam, side,
-  onDetailClose, loadUnitTracks, initialSec, initialSpeed, initialView, initialTrack,
+  onDetailClose, loadUnitTracks, sceneLink,
   clockKey, shareNode, onScrap, scrapLabel = "장면 스크랩", onShare, shareLabel = "장면 공유",
   onGuide, guide = true, avatars,
   soleView, melee,
@@ -7909,18 +7989,11 @@ export default function ReplayMotionPlayer({
    *  (자리·방향·상태·종류·체력·업그레이드·마법·핑·로스터). 없으면 재생기는 아무것도
    *  안 그리고 "재생할 수 없는 게임"이라고만 말한다(요청: 폴백 없음). */
   loadUnitTracks?: () => Promise<{ motion: string | null }>;
-  /** 이 시각(초)부터 재생 시작(요청: 카톡 공유 링크의 &t=) — 경기 길이를 넘으면 무시. */
-  initialSec?: number;
-  /** 이 사람을 **추적한 채로** 시작(요청: 공유 링크의 &tr=) — 그 판에서 쓴 게임 아이디다.
-   *  로스터도 함께 켠다(첫 단): 누구를 따라가고 있는지가 안 보이면 추적이 그냥
-   *  '화면이 저 혼자 움직이는 일'로만 보인다. 값이 CAST_AUTO_LINK9("*")면 사람이 아니라
-   *  **자동 중계를 켠 채로** 시작한다(2026-09 · 중계 파라미터 공유). */
-  initialTrack?: string | null;
-  /** 이 배속으로 시작(요청: 공유 파라미터에 속도 추가 — &s=). 사다리에 없는 값은 무시된다. */
-  initialSpeed?: number;
-  /** 이 자리에서 보기 시작(요청: 공유 링크의 &z=·&cx=·&cy=·&a=) — 보낸 사람이 보던
-   *  배율·가운데점·각도다. 지도 상자가 실제로 서고 나서 한 번만 건다. */
-  initialView?: { z: number; cx: number; cy: number; deg: number };
+  /** 링크로 받은 장면 한 벌(`sceneLinkOf9` 가 푼 그대로 — 앱은 안 만진다): 시작 시각(&t=) · 배속(&s= · 사다리에
+   *  없는 값은 가장 가까운 칸) · 자리(&z=·&cx=·&cy=·&a= · 지도 상자가 실제로 서고 나서 한 번만 건다) · 카메라 임자
+   *  (&tr= · 그 판의 게임 아이디면 그 사람을 **추적한 채로**, `*`(CAST_AUTO_LINK9)면 **자동 중계를 켠 채로** 시작 ·
+   *  로스터에 없는 이름은 무시). 없는 값은 기본값이다. */
+  sceneLink?: SceneLink9 | null;
   /** 현재 재생 시각을 적어 둘 열쇠(경기번호) — 공유 링크가 &t=로 실어 보낸다. */
   clockKey?: string;
   /** 로스터에 프사를 그릴까(지시: 쓰는 개발자가 API로 켜고 끈다) — 기본은 그린다.
@@ -7987,6 +8060,18 @@ export default function ReplayMotionPlayer({
     [basesIn]);
   /** 관전자 이름 — 참값(entData)에서 온 것들을 거를 때 쓴다. 그쪽은 제 로스터를 따로
    *  들고 있어(entData.players) bases를 안 거치므로, 이름으로 맞춰 봐야 한다. */
+  /* 링크 한 벌(sceneLink)에서 넷을 편다 — 값의 자는 sceneLinkOf9 가 이미 죄었고, 여기서는 '자리가 실렸나'(z·cx·a
+     중 하나라도)와 '임자가 로스터에 있나'만 가른다. 자리 상자는 링크 객체에 매어 한 번만 짓는다(아래 effect 들이
+     이 값을 의존성으로 든다 — 렌더마다 새 객체면 그 effect 가 되풀이된다). */
+  const initialSec = sceneLink?.t;
+  const initialSpeed = sceneLink?.s;
+  const initialView = useMemo(() => {
+    if (!sceneLink || (sceneLink.z === undefined && sceneLink.cx === undefined && sceneLink.a === undefined)) return undefined;
+    return { z: sceneLink.z ?? 1, cx: sceneLink.cx ?? 0.5, cy: sceneLink.cy ?? 0.5, deg: sceneLink.a ?? 90 };
+  }, [sceneLink]);
+  const initialTrack = sceneLink?.tr
+    && (sceneLink.tr === CAST_AUTO_LINK9 || basesIn.some((b9) => b9.key === sceneLink.tr))
+    ? sceneLink.tr : undefined;
   const obsNames = useMemo(
     () => new Set(basesIn.filter((b9) => b9.observer).map((b9) => b9.key)),
     [basesIn]);

@@ -334,8 +334,9 @@ window.__mount = (motion, players, walkJson, terrainB64, view) => {
     race: p.race === 1 ? "테란" : p.race === 0 ? "저그" : "프로토스", team: p.force, x: p.home[0], y: p.home[1], withName: true }));
   const teamOfRaw = (raw) => { const f = players.find((p) => p.name === raw); return f ? f.force : undefined; };
   createRoot(el).render(React.createElement(ReplayMotionPlayer, {
-    grid, endSec: 120, bases, teamOfRaw, active: true, initialSec: 46,
-    initialView: view, loadUnitTracks: async () => ({ motion }),
+    grid, endSec: 120, bases, teamOfRaw, active: true,
+    sceneLink: { t: 46, ...(view ? { z: view.z, cx: view.cx, cy: view.cy, a: view.deg } : {}) },
+    loadUnitTracks: async () => ({ motion }),
   }));
 };
 `;

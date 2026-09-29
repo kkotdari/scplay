@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import ReplayMotionPlayer from "./ReplayMotionPlayer";
-import type { MotionBase } from "./ReplayMotionPlayer";
+import type { MotionBase, SceneLink9 } from "./ReplayMotionPlayer";
 import type { ReplayMapGrid } from "./mapGrid";
 import "./replay.css";
 
@@ -45,11 +45,8 @@ export interface ReplayModuleProps {
   soleView?: boolean;
   /** 지금 실제로 보이는가 — 안 보이는 카드의 재생을 멈춘다. */
   active?: boolean;
-  /** 링크로 받은 첫 자리 — 시각·배속·보기·추적. */
-  initialSec?: number;
-  initialSpeed?: number;
-  initialView?: { z: number; cx: number; cy: number; deg: number };
-  initialTrack?: string;
+  /** 링크로 받은 장면 한 벌(시각·배속·자리·카메라 임자) — `sceneLinkOf9` 가 푼 그대로 넘긴다. */
+  sceneLink?: SceneLink9 | null;
   /** 재생 시각을 밖에서 읽는 열쇠(공유 링크가 쓴다). */
   clockKey?: string;
   /** 끝까지 봤다 — 승패를 드러내는 자리(위 head.win.veiled와 짝). */
@@ -88,7 +85,7 @@ export interface ReplayModuleProps {
 export default function ReplayModule({
   grid, endSec, bases, teamOfRaw, loadUnitTracks,
   head, winnerTeam, melee, soleView, active = true,
-  initialSec, initialSpeed, initialView, initialTrack, clockKey,
+  sceneLink, clockKey,
   onFinish, onDetailClose, shareNode, onScrap, scrapLabel, onShare, shareLabel,
   onGuide, guide, side, menu, avatars,
 }: ReplayModuleProps) {
@@ -134,10 +131,7 @@ export default function ReplayModule({
       <ReplayMotionPlayer
         grid={grid} endSec={endSec}
         bases={bases} teamOfRaw={teamOfRaw} active={active}
-        initialSec={initialSec}
-        initialSpeed={initialSpeed}
-        initialView={initialView}
-        initialTrack={initialTrack}
+        sceneLink={sceneLink}
         clockKey={clockKey}
         shareNode={shareNode}
         onScrap={onScrap}
