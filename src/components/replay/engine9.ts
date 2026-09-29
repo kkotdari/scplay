@@ -637,6 +637,8 @@ export function holsterAge9(mem: Map<string, DrawMem9>, key: string, t: number):
 }
 /** 꼴 번호 → 도형 이름 꼬리(①은 이름이 그냥 mineral이라 빈 글자다). */
 export const MIN_VARIANT_TAG = ["", "b", "c"] as const;
+/** ②판(mineralb)의 그리는 폭 배수 — 2026-09, 요청: "판 미네랄 … 20프로 축소". 자원 op 의 wTiles 에만 곱한다. */
+export const MIN_B_K9 = 0.8;
 /* (삭제·요청) 유닛 → 마커 갈래 표 — 전 유닛이 제 모델을 갖게 되어 갈래 표는 걷었다. */
 /* 유닛 → 3D 상징물(요청) — 지상 유닛만(지적: 저그도 지상만). 공중은 2D 기호 그대로.
    표에 없는 지상 유닛은 기본 쐐기(wedge)로 방향만 갖는다. */
@@ -1590,6 +1592,8 @@ export const UNIT_SIZE_TUNE: Record<string, number> = {   // 열쇠는 sizeKind(
   tank: 1.25, tanksiege: 1.25, vulture: 1.2,   // 요청: "시즈·벌처 그리기 1.2배" → 재요청: 일반·변신 중 탱크도 1.2 · 벌처는 1.1 → 재재요청: 탱크 1.5 · 벌처 1.2 → 탱크 1.25(재요청)
   /* 일꾼류(scv·probe·drone)는 **1.0이라 표에서 뺐다**(요청: "일꾼 그리기 0.8 → 1.0") —
      0.8은 전체 배수 1.12와 곱해져 0.896이었다. 표에 없으면 곧 1이다. */
+  probe: 0.8,   // 2026-09, 요청: "프로브 0.8"(값 자체 — 지금 값 1.0 을 알려 준 뒤 받은 수) · scv·drone 은 그대로 1
+
   /* (전부 걷음 — 요청: "유닛 크기 보정 모두 제거") — 일꾼·보병 0.68, 메딕 0.612,
      질럿 0.85, 템플러 0.808, 커세어 0.85, 마인 0.53, 옵저버 0.17, 스커지 0.7,
      시즈 1.257, 아콘 1.35, 아비터·디파일러 1.2, 울트라 1.5, 라바·알 0.5, 오버로드
@@ -2067,7 +2071,8 @@ export const BLD_DRAW_TUNE: Record<string, number> = {
   /* ★ **기지 다섯은 0.9 배**(2026-09, 요청: "모든 기지류 5종 0.9배") — 커맨드센터·넥서스·해처리·레어·하이브.
      다섯 다 표에 없던(= 1.0) 자리라 '값'으로 읽든 '곱'으로 읽든 같은 0.9 다. 모델 좌표(BLD_NORM)는 안 건드린다
      — 이것은 지도가 띄우는 자(BLD_DRAW_K 1.2 × tune)이고 tune 에 선형이다. */
-  tomb: 0.9, pyramidWide: 0.9, hatchery: 0.9, lair: 0.9, hive: 0.9,
+  tomb: 0.9, pyramidWide: 0.9, lair: 0.9, hive: 0.9,
+  hatchery: 1.0,   // 2026-09, 요청: "해처리 1.0"(값 자체 — 지금 값 0.9 를 알려 준 뒤 받은 수) · 레어·하이브는 0.9 그대로
   /* ★ 2026-09, 요청: "캐번 1.4 마운드 1로 변경"(값 자체 — 앞선 "1.2배/0.8배"의 곱은 되물렸다).
      평면에서 그리는 크기는 `BLD_DRAW_K × tune` 이라 tune 에 선형이다(`bldDrawK9` 는 CINE9 ≤ 0 이면
      tune 을 안 본다 — 시네마틱에서만 안에서 나누고 밖에서 곱해 지워진다). */
@@ -5962,12 +5967,12 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           wFrac: race2 === "프로토스" ? (WARP_TILES / grid.width) * mkK : wFrac * beat,
           hFrac: race2 === "프로토스" ? (WARP_TILES / grid.width) * mkK : hFrac * beat,
           boxFit: "meet", fitWidth: true,
-          /* 소환구는 떠 있다(요청: 그림자 작게 표현해 공중 느낌) — 발자국 폭의
-             절반짜리 작은 타원만 바닥에 깔린다. 몸은 WARP_LIFT만큼 떠 있으니
-             그 틈이 곧 높이로 읽힌다. 저그 고치·테란 공사장은 땅에 앉는다. */
+          /* 소환구는 떠 있다(WARP_LIFT) — 저그 고치·테란 공사장은 땅에 앉는다.
+             ★ 발자국 폭의 절반짜리 접지 타원(groundShadow · footRatio 0.5 — 옛 요청 "그림자 작게 표현해 공중 느낌")은
+               걷었다(2026-09, 요청: "프로토스 소환구 손으로 그린 그림자 제거") — 발광 종류(GL_GLOW_KINDS9)라 GL 사영
+               그림자가 애초에 안 깔리고, 붓이 그 자리에 대신 깔던 것이 이 캔버스 타원이었다. 이제 소환구는 그림자가 없다. */
           ...(race2 === "프로토스"
             ? {
-              groundShadow: true, footRatio: 0.5,
               // 소환구 에너지 그물의 칸(bake9 warpin 의 ★★) — 저사양·잔상은 안 돈다. 자리마다 위상을 흩는다.
               spin: !qAnim || bldFrozen9 ? 0 : Math.floor(t * spinRateOf9("warpin", true) * SPIN_ANIM9 + i * 5) % SPIN_ANIM9,
             }
@@ -7033,7 +7038,16 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
        홀의 절반(미네랄 0.50 · 간헐천 0.64)인데, 설정으로 보면 광맥 덩이와 가스 분출구는
        건물보다 훨씬 작은 지물이다. 간헐천 0.42 · 미네랄 0.30 으로 둔다(간헐천이 더 크다). */
     const wBase9 = gasSpot ? 3.84 * 0.8 : 2.4;
-    const wTiles = cineResTiles9(gasSpot, wBase9);
+    /* ★ 꼴은 **자리가 정한다**(요청: "총 3종으로 할거고 랜덤하게 화면에서 사용할거야") — 진짜 난수를 쓰면 프레임마다
+       밭이 다른 꼴로 바뀐다. 밭의 타일 자리를 섞어 셋 중 하나를 고르면, 흩어진 것처럼 보이면서도 같은 밭은 언제 봐도
+       같은 꼴이다(굽기 캐시도 그래야 산다). 아래 kind 와 폭이 함께 읽으므로 여기서 한 번 고른다. */
+    const hV9 = (Math.imul(res[0] | 0, 73856093) ^ Math.imul(res[1] | 0, 19349663)) >>> 0;
+    const v9 = gasSpot ? "" : MIN_VARIANT_TAG[hV9 % 3];
+    /* ★ **②판(mineralb)만 0.8 배**(2026-09, 요청: "미네랄중 판 미네랄이 너무 크게 그려짐 20프로 축소해야함") — 판은
+       부채처럼 벌어진 넓적한 결정이라 같은 2.4타일 폭에서도 기둥·덩이보다 크게 읽혔다. 그리는 폭(wTiles)에만 곱한다 —
+       BLD_NORM(mineralb 1.264)은 모델 좌표의 자라 안 건드리고, 시네마틱 분수(cineResTiles9) 뒤에 곱해 어느 시점에서나
+       판만 20% 작다. 자원 op 에는 건물의 drawK 가 없어(BLD_DRAW_TUNE 을 안 읽는다) 이 폭이 곧 그 손잡이다. */
+    const wTiles = cineResTiles9(gasSpot, wBase9) * (v9 === "b" ? MIN_B_K9 : 1);
     unitOps.push({
       fx, fy,
       /* 자원도 높이를 가진다(지적: 뒤 사물을 가려야) — 990 바닥층이 아니라 건물과
@@ -7072,14 +7086,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         ? (resStageAt(res[0], res[1]) === 0 ? "geyserdry" : "geyser")
         : (() => {
           const lv9 = resStageAt(res[0], res[1]);
-          /* ★ 꼴은 **자리가 정한다**(요청: "총 3종으로 할거고 랜덤하게 화면에서
-             사용할거야") — 진짜 난수를 쓰면 프레임마다 밭이 다른 꼴로 바뀐다.
-             밭의 타일 자리를 섞어 셋 중 하나를 고르면, 흩어진 것처럼 보이면서도
-             같은 밭은 언제 봐도 같은 꼴이다(굽기 캐시도 그래야 산다). */
-          const h9 = (Math.imul(res[0] | 0, 73856093)
-            ^ Math.imul(res[1] | 0, 19349663)) >>> 0;
-          const v9 = MIN_VARIANT_TAG[h9 % 3];
-          return lv9 >= 4 ? `mineral${v9}` : `mineral${v9}${lv9}`;
+          return lv9 >= 4 ? `mineral${v9}` : `mineral${v9}${lv9}`;   // 꼴(v9)은 위에서 자리로 골랐다
         })(),
       viewYaw: viewYawOf(res[0], res[1]), flat: !pitched, pitch: pitched,
       sizePx: 0,
