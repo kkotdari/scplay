@@ -12952,7 +12952,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        반폭**(DR9·BX9 = 1.067)보다 커서 보석이 코 양옆으로 비어져 나온다 — 어느 깊이로 물려도
        막을 수가 없다(밑 낯은 뒤·아래를 보므로 카메라에 안 걸리고, 비어져 나온 몫은 돔 낯이
        칼날로 여며지는 자리다). 요청이 이름 붙인 값이라 그대로 둔다. */
-    const GOV9 = 0.62 * 1.5;                             // 좌우 누름 × 1.5
+    const GOV9 = 0.7;                                    // 좌우 누름(7단 0.93 → 19단 "좌우를 누른 느낌" 0.7)
     /* ⚠ 물림은 **껍질을 고칠 때마다 다시 잰다** — 몸의 앞뒤가 1.6 으로 줄면 그 각이 껍질을 뚫는
        거리(gsh9)가 2.045 → 1.701 이라, 옛 0.55 로는 밑 테가 껍질 밖으로 3.6% 넘친다(실측). 0.58 이
        옛 자(2%)와 같은 자리다(솟은 몫 0.62). */
@@ -12971,62 +12971,81 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          도로 둔다(들린 뒤 그 평면이 껍질 위로 드러나 없으면 속이 보인다). */
     const CLT9 = 0.07;                                   // 판 반두께
     const CLFI9 = GR9 * 0.93;                            // 뒷면 판 안쪽 테 — 보석 살을 문다
-    const CLFO9 = GR9 * 1.14;                            // 뒷면 판 바깥 테 = L 의 모서리
-    const CLL9 = 0.46;                                   // 아래 판이 앞으로 뻗는 몫(축 방향)
+    const CLFO9 = GR9 * 1.35;                            // 뒷면 판 바깥 테 = L 의 모서리(19단: 1.14 → 1.35 — 부리 밑동 둘레에 보이는 목테 폭 0.3)
     const GCLR9 = 0.02;                                  // 고리 밑과 지면 사이 한 뼘
     const gbz09 = (gsh9 - GSINK9) * gdz9;                // 들기 전 밑면 한가운데 높이
     /* 고리의 가장 낮은 점 — 두 판 다 바깥 테가 CLFO9 이고 축 방향의 뒤 끝(ax 0)이 가장 낮다:
        z = gbz09 − CLFO9·cos(GT9)(û 의 z 몫이 gdy9 다). 뒷면 판(축 0~2·CLT9)·아래 판(축 0~CLL9) 둘의 최솟값이 같다. */
-    const gLow9 = gbz09 - CLFO9 * gdy9;
-    const GUP9 = Math.max(0, GCLR9 - gLow9);
+    const gLow9 = gbz09 - 2 * CLT9 * gdy9;              // 19단: 가장 낮은 점 = 용골 밑 판의 밑(밑동 · û 로 −2·CLT9)
+    /* 19단: 부리는 껍질 코의 **중턱**에서 난다 — 밑동을 GLIFT9 만큼 든다(0 이면 용골이 껍질 밑동에 붙어 부리가 땅에 깔린 듯
+       읽혔고, 목테(뒷면 반고리)도 통째로 껍질 속이었다). 땅 위 한 뼘(GCLR9)은 여전히 지킨다. */
+    const GLIFT9 = 0.45;
+    const GUP9 = Math.max(GLIFT9, GCLR9 - gLow9);
     const gbz9 = gbz09 + GUP9;
+    /* ★★ **19단 — 보석은 반구가 아니라 '반쪽 반구'다: 밑이 평평한 부리**(2026-09, 요청: "앞보석을 반구가 아니라 원작과 같이
+       앵무새 부리나 비행기 앞부분 같은 형태로 변경 L자 링도 그에 맞게 수정" → 되물음에: **"1/2 반구를 좌우를 누른 느낌"**) —
+       반구를 **축을 품은 수평면(û = 0)에서 반으로 갈라 위 반만** 남긴다: 뒤는 반원 판(밑면의 위 반) · 밑은 축을 따라 앞으로
+       뻗는 **평평한 용골**(반타원) · 위는 둥근 돔이 앞 끝 한 점으로 여민다. 좌우는 GOV9 로 눌러(0.93 → 0.7) 부리로 읽힌다.
+       · 돔은 옛 반구(`spirePillar` · 옆선 √(1−t²))를 `cutFace`(û 몫 · 음수 = 아래 반)로 벤 것이고, 뚜껑은 다 걷고(caps none)
+         **용골·뒤 반원 판을 손수 깐다** — cutFace 는 단면을 안 메우고 뚜껑은 cutFace 를 안 지나므로(그 규약) 둘 다 손이다.
+       · 부리는 껍질 코에서 **나온다** — 밑면 반원 판은 GSINK9 만큼 껍질 속이고 용골은 축을 따라 앞·위로 오른다. 14단의
+         들기(GUP9)는 이제 0 이다(가장 낮은 점이 밑 판의 밑 · 땅 위 0.3 — 아래 gLow9 를 그 자로 고쳤다). 옛 '반구 밑이 땅 밑'
+         문제는 아래 반을 걷은 것으로 저절로 사라졸다.
+       · **L 고리도 그 꼴이다**: 뒷면 판은 **반고리**(위 반만 · 반지름 CLFI9~CLFO9 · 두께 2·CLT9) · 아래 판은 **용골 밑에 깐 평판**
+         (용골 윤곽보다 CLT9 넓고 축 방향으로 CLB9 · 두께 2·CLT9) — 뒤 판과 밑 판이 밑동에서 직각으로 만나는 것이 그 L 이다.
+         고리는 부리 윤곽(`kx9`)을 그대로 읽으므로 반지름·누름·축을 고치면 따라온다. */
+    const GEMC9 = glowLit("#a3fff3", "#5fe6d4");
+    const gux9 = -gdz9; const guz9 = gdy9;               // û — 축에 수직인 세로(y-z 평면) · 위쪽
+    const gP9 = (xl9: number, s9: number, u9: number): [number, number, number] =>   // 부리 틀 (좌우 · 축 · 위) → 모형
+      [xl9, gby9 + s9 * gdy9 + u9 * gux9, gbz9 + s9 * gdz9 + u9 * guz9];
+    const gr9 = (t9: number): number => GR9 * Math.sqrt(Math.max(0, 1 - t9 * t9));   // 축 몫 t 의 반지름(반구 옆선)
+    const kx9 = (t9: number): number => gr9(t9) * GOV9;   // 그 자리 용골의 좌우 반폭(눌린 값)
     out.push(...tagKey(spirePillar({
-      x: 0, y: 0, h: 1, w: GR9, tipW: 0, segs: 8, sides: 20, caps: "bottom",
+      x: 0, y: 0, h: 1, w: GR9, tipW: 0, segs: 10, sides: 20, caps: "none",
       oval: GOV9, trueNormal: true,
-      path: (t9: number): [number, number, number] => [0, gby9 + GR9 * t9 * gdy9, gbz9 + GR9 * t9 * gdz9],
-      widthOf: (t9: number): number => GR9 * Math.sqrt(Math.max(0, 1 - t9 * t9)),
-      fill: glowLit("#a3fff3", "#5fe6d4"),
+      cutFace: (_x9: number, y9: number, z9: number): number => (y9 - gby9) * gux9 + (z9 - gbz9) * guz9,
+      path: (t9: number): [number, number, number] => gP9(0, GR9 * t9, 0),
+      widthOf: gr9,
+      fill: GEMC9,
     }), depthNow(0, DCY9 + DY9) * 1.6 + 9.6));
-    /* ★★ **보석은 L 로 접힌 은회색 고리에 앉는다**(2026-09, 요청: "앞보석의 뒷면과 아래를 같이
-       감싸는 L형 접힌 고리 은회색 추가") — 보석은 코에서 앞·위로 솟은 반구인데 그 **뒷면**(축에
-       수직인 밑면)은 껍질 속으로 `GSINK9` 물려 있고 아래 테는 지면선 밑으로 내려가, 뿌리가 그냥
-       살에 박힌 꼴이었다. 판 둘이 그 밑면의 바깥 테에서 **직각으로 만나** 둘을 함께 감싼다:
-       · ⓐ **뒷면 판** — 밑면 평면에 눕는 고리(축 방향으로 얇고 반지름으로 넓다). 안쪽 테는 보석
-         살을 물고(0.93·GR9) 바깥 테는 한 뼘 내밀어(1.14·GR9) 뿌리에 은빛 테를 두른다.
-       · ⓑ **아래 판** — 그 바깥 테에서 **앞으로 접혀** 보석의 옆·아래 낯을 따라 오르는 고리(축
-         방향으로 길고 반지름으로 얇다). 밑에서는 보석을 받치고 옆에서는 뿌리를 감싼다. 안쪽 낯이
-         밑동에서 보석 살에 닿고 위로 갈수록 보석이 여위므로 0.12 까지 벌어진다 — 그 틈이 곧
-         '감싸는' 꼴이다(딱 붙이면 z 싸움이다 · 그 규약).
-       · **자는 보석의 것이다** — 축(gdy9·gdz9)·밑면 자리(gby9·gbz9)·반지름(GR9)·좌우 누름(GOV9)을
-         그대로 읽으므로, 보석을 눕히거나 앞으로 밀면 고리가 따라온다(손으로 맞출 값이 없다).
-       · ⚠ 단면은 **낯 넷**이다 — 기본 위상이 π/sides 라 sides 4 면 꼭짓점이 45°+90k 에 서서 축·
-         반지름에 나란한 네모가 된다. 그 반폭이 반지름의 √½ 이므로 **√2 를 곱해 되돌린다**.
-         눌린 단면이라 `trueNormal` 을 함께 준다(그 ★★ 규약).
-       · ⚠ 키는 보석보다 **한 단 아래**다 — 고리의 안쪽 반은 보석의 빈 속에 들어가므로, 키를 보석
-         위로 올리면 부품 차례 편향이 그 몫을 껍질 앞으로 끌어낸다(그 ★★ 규약). */
+    {
+      /* 용골(밑 평면 · 아래를 본다) — 뒤 왼쪽에서 앞 끝을 돌아 뒤 오른쪽으로. 뒤 반원 판 — 뒤를 본다. */
+      const KN9 = 12;
+      const keel9: [number, number, number][] = [];
+      for (let i9 = 0; i9 <= KN9; i9 += 1) { const t9 = i9 / KN9; keel9.push(gP9(-kx9(t9), GR9 * t9, 0)); }
+      for (let i9 = KN9 - 1; i9 >= 0; i9 -= 1) { const t9 = i9 / KN9; keel9.push(gP9(kx9(t9), GR9 * t9, 0)); }
+      const back9: [number, number, number][] = [];
+      for (let i9 = 0; i9 <= 16; i9 += 1) { const a9 = Math.PI * (i9 / 16); back9.push(gP9(Math.cos(a9) * GR9 * GOV9, 0, Math.sin(a9) * GR9)); }
+      out.push(...tagKey(paintBase([bodyFace(polyPath3(keel9)), bodyFace(polyPath3(back9))], GEMC9), depthNow(0, DCY9 + DY9) * 1.6 + 9.6));
+    }
+    /* L 고리(은회색) — 윤곽을 법선 쪽으로 두께만큼 밀어 닫힌 판으로 짠다(앞 낯 · 뒤 낯 · 테두리 띠). */
     const CLR9 = "#a8afb8";                              // 은회색
-    const gux9 = -gdz9; const guz9 = gdy9;               // û — 축에 수직인 세로(y-z 평면)
-    const clPt9 = (t9: number, ru9: number, ax9: number): [number, number, number] => {
-      const a9 = t9 * Math.PI * 2;
-      const cu9 = Math.cos(a9) * ru9;
-      return [
-        Math.sin(a9) * ru9 * GOV9,                       // 좌우는 보석과 같은 몫으로 눌린다
-        gby9 + ax9 * gdy9 + cu9 * gux9,
-        gbz9 + ax9 * gdz9 + cu9 * guz9,
-      ];
+    const CLB9 = GR9 * 0.6;                              // 밑 판이 축을 따라 앞으로 뻗는 몫
+    const slab9 = (rim9: [number, number, number][], nx9: number, ny9: number, nz9: number, th9: number): ShapeFace[] => {
+      const o9 = (p9: [number, number, number]): [number, number, number] => [p9[0] + nx9 * th9, p9[1] + ny9 * th9, p9[2] + nz9 * th9];
+      const f9: ShapeFace[] = [bodyFace(polyPath3(rim9.map(o9))), bodyFace(polyPath3([...rim9].reverse()))];
+      for (let i9 = 0; i9 < rim9.length; i9 += 1) {
+        const j9 = (i9 + 1) % rim9.length;
+        f9.push(bodyFace(polyPath3([rim9[i9], rim9[j9], o9(rim9[j9]), o9(rim9[i9])])));
+      }
+      return f9;
     };
-    ([
-      [(CLFI9 + CLFO9) / 2, CLT9, CLT9, (CLFO9 - CLFI9) / 2],   // 뒷면 판 — 얇고 넓다
-      [CLFO9 - CLT9, CLL9 / 2, CLL9 / 2, CLT9],                 // 아래 판 — 길고 얇다
-    ] as [number, number, number, number][]).forEach(([ru9, ax9, ah9, rh9]) => {
-      out.push(...tagKey(paintBase(spirePillar({
-        x: 0, y: 0, h: 1, w: ah9 * Math.SQRT2,
-        widthOf: (): number => ah9 * Math.SQRT2,
-        oval: rh9 / ah9, sides: 4, segs: 28, caps: "none", trueNormal: true,
-        ref: [0, gdy9, gdz9],
-        path: (t9: number): [number, number, number] => clPt9(t9, ru9, ax9),
-      }), CLR9), depthNow(0, DCY9 + DY9) * 1.6 + 9.4));
-    });
+    {
+      // ⓐ 뒷면 반고리 — 밑면 평면(s 0) 위 · 바깥 호 CLFO9 → 안쪽 호 CLFI9 · 축 방향으로 뒤로 2·CLT9 두께
+      const ring9: [number, number, number][] = [];
+      for (let i9 = 0; i9 <= 16; i9 += 1) { const a9 = Math.PI * (i9 / 16); ring9.push(gP9(Math.cos(a9) * CLFO9 * GOV9, 0, Math.sin(a9) * CLFO9)); }
+      for (let i9 = 16; i9 >= 0; i9 -= 1) { const a9 = Math.PI * (i9 / 16); ring9.push(gP9(Math.cos(a9) * CLFI9 * GOV9, 0, Math.sin(a9) * CLFI9)); }
+      out.push(...tagKey(paintBase(slab9(ring9, 0, -gdy9, -gdz9, 2 * CLT9), CLR9), depthNow(0, DCY9 + DY9) * 1.6 + 9.4));
+      // ⓑ 밑 판 — 용골 밑(u 0 → −2·CLT9) · 윤곽은 용골보다 CLT9 넓다 · 뒤 끝은 뒷면 판 바깥 테(CLFO9)까지
+      const KB9 = 10;
+      const plate9: [number, number, number][] = [];
+      const tB9 = CLB9 / GR9;
+      plate9.push(gP9(-CLFO9 * GOV9, 0, 0));
+      for (let i9 = 0; i9 <= KB9; i9 += 1) { const t9 = tB9 * (i9 / KB9); plate9.push(gP9(-(kx9(t9) + CLT9), GR9 * t9, 0)); }
+      for (let i9 = KB9; i9 >= 0; i9 -= 1) { const t9 = tB9 * (i9 / KB9); plate9.push(gP9(kx9(t9) + CLT9, GR9 * t9, 0)); }
+      plate9.push(gP9(CLFO9 * GOV9, 0, 0));
+      out.push(...tagKey(paintBase(slab9(plate9, 0, -gux9, -guz9, 2 * CLT9), CLR9), depthNow(0, DCY9 + DY9) * 1.6 + 9.4));
+    }
     /* 창(요청: "창문 표시 및 평소 어둡다가 가스캘때는 네온색 불빛") — 프로토스 몸은
        둥근 껍데기라 테란처럼 벽에 유리를 낼 자리가 없다. 대신 네 귀 기둥 허리에 창
        띠를 두른다: 평소엔 식은 짙은 유리이고, 가스를 뽑는 동안 플라즈마 사이언이
