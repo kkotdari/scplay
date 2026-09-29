@@ -7684,15 +7684,24 @@ export const playbackSpeedOf = new Map<string, number>();
  *  회원 식별로 적으면 비회원·컴퓨터를 못 가리키고, 아이디를 바꾼 사람의 옛 판이 어긋난다.
  *  안 켜져 있으면 아예 안 담는다(지우고 나간다). */
 export const playbackTrackOf = new Map<string, string>();
-/** ★ 자리(배율·가운데점)는 **중계가 켜져 있으면 안 싣는다**(2026-09, 요청: "중계 활성화상태에서 공유시 위치
- *  좌표 전송 금지") — 중계 중의 카메라는 편성표가 몰고 있어 '내가 보던 자리'가 아니고, 받는 쪽도 중계가 첫
- *  토막에서 그 자리를 덮어쓴다. 그때는 z·cx·cy 를 비우고(공유 버튼은 없는 값을 안 싣는다) 각도(deg)만 남긴다 —
- *  각은 카메라가 아니라 보는 취향이다. 배율(z)도 함께 비운다: 가운데점 없는 배율은 반쪽 자리라 받는 쪽에서
- *  중계의 당김(trackZoom9)과 서로 민다. */
+/** ★ **자동 중계**를 뜻하는 `&tr=` 의 값(2026-09, 요청: "중계는 자동이든 한사람이든 사용중이면 좌표, 배율 공유안하고
+ *  대신 중계 파라미터 공유하기로 변경") — 그 표(playbackTrackOf)는 이제 '카메라를 누가 쥐고 있나'다: 사람이면
+ *  그 아이디, 자동 중계면 이 글자. 게임 아이디로는 못 쓰는 글자라 사람과 안 겹치고, URLSearchParams 가
+ *  안 감싸는(escape) 글자라 링크에 그대로 `&tr=*` 로 선다. 받는 쪽(initialTrack)이 이 값을 보면 개인 추적이
+ *  아니라 중계를 켠 채로 연다. ⚠ scplayer 는 옛 scplay 타입으로도 컴파일되어야 해서 이 상수를 import 하지
+ *  않고 같은 글자를 제 자리에 적는다(GameResultStory) — 값을 바꾸면 그쪽도 함께다. */
+export const CAST_AUTO_LINK9 = "*";
+/** ★ 자리(배율·가운데점)는 **카메라를 기계가 쥐고 있으면 안 싣는다**(2026-09, 요청: "중계 활성화상태에서 공유시
+ *  위치 좌표 전송 금지" → 넓힘: "중계는 자동이든 한사람이든 사용중이면 좌표, 배율 공유안하고 대신 중계 파라미터
+ *  공유하기로 변경") — 자동 중계든 개인 추적이든 그때의 카메라는 편성표·그 사람의 명령이 몰고 있어 '내가 보던
+ *  자리'가 아니고, 받는 쪽도 첫 토막·첫 자국에서 그 자리를 덮어쓴다. 그때는 z·cx·cy 를 비우고(공유 버튼은
+ *  없는 값을 안 싣는다) 각도(deg)만 남긴다 — 각은 카메라가 아니라 보는 취향이다. 배율(z)도 함께 비운다:
+ *  가운데점 없는 배율은 반쪽 자리라 받는 쪽에서 추적의 당김(trackZoom9)과 서로 민다. 대신 **누가 쥐고 있나**를
+ *  playbackTrackOf 가 싣는다(사람 아이디 · 자동은 CAST_AUTO_LINK9). */
 export const playbackViewOf = new Map<string, {
-  /** 배율(1이 기본) — 중계 중에는 없다 */ z?: number;
-  /** 화면 한가운데의 지도 가로 분수(0~1) — 중계 중에는 없다 */ cx?: number;
-  /** 세로 분수(0~1) — 중계 중에는 없다 */ cy?: number;
+  /** 배율(1이 기본) — 중계·추적 중에는 없다 */ z?: number;
+  /** 화면 한가운데의 지도 가로 분수(0~1) — 중계·추적 중에는 없다 */ cx?: number;
+  /** 세로 분수(0~1) — 중계·추적 중에는 없다 */ cy?: number;
   /** 시점 각도(도) */ deg: number;
 }>();
 /** 메인 개체 표에서 비운 배열들의 자리표(공유) — 같은 참조라 메모리를 안 먹는다. */
@@ -7904,7 +7913,8 @@ export default function ReplayMotionPlayer({
   initialSec?: number;
   /** 이 사람을 **추적한 채로** 시작(요청: 공유 링크의 &tr=) — 그 판에서 쓴 게임 아이디다.
    *  로스터도 함께 켠다(첫 단): 누구를 따라가고 있는지가 안 보이면 추적이 그냥
-   *  '화면이 저 혼자 움직이는 일'로만 보인다. */
+   *  '화면이 저 혼자 움직이는 일'로만 보인다. 값이 CAST_AUTO_LINK9("*")면 사람이 아니라
+   *  **자동 중계를 켠 채로** 시작한다(2026-09 · 중계 파라미터 공유). */
   initialTrack?: string | null;
   /** 이 배속으로 시작(요청: 공유 파라미터에 속도 추가 — &s=). 사다리에 없는 값은 무시된다. */
   initialSpeed?: number;
@@ -9234,7 +9244,11 @@ export default function ReplayMotionPlayer({
        '최근 명령 자리' 같은 것을 지어내야 한다. 보는 자리는 사람이 정한다. */
   /* 추적으로 열린 링크는 시야도 그 사람 것으로 시작한다 — 추적을 켜면 시점도 함께 가는
      규약 그대로다(아래 toggleTrack). */
-  const [viewRaw, setViewRaw] = useState<string | null>(initialTrack ?? null);
+  /* 링크의 &tr= 가 자동 중계 표식(CAST_AUTO_LINK9)이면 사람이 아니다 — 시야·개인 추적에는 안 넣고 아래 castOn 만
+     켠다(2026-09, 요청: "중계는 자동이든 한사람이든 사용중이면 … 중계 파라미터 공유하기로 변경"). */
+  const linkAuto9 = initialTrack === CAST_AUTO_LINK9;
+  const initialTrack9 = linkAuto9 ? null : (initialTrack ?? null);
+  const [viewRaw, setViewRaw] = useState<string | null>(initialTrack9);
   const viewTeam = viewRaw ? (teamOfRaw(viewRaw) ?? 0) : 0;
   /* ══ 선수 추적(요청: "로스터 각 멤버 왼쪽에 추적 버튼 추가 · 활성화시 해당유저의 시야
      적용 + 해당유저의 현재(마지막) 유닛/건물 선택 위치를 보여줌 · 배율은 기본 줌인 값")
@@ -9251,7 +9265,7 @@ export default function ReplayMotionPlayer({
      같은 장면을 보려면 '언제·어디를·얼마나 빠르게'에 더해 '누구를 따라가며'까지 같아야
      한다. 시야(viewRaw)도 함께 간다: 추적을 켜면 시점도 그 사람으로 가는 규약 그대로다
      (아래 toggleTrack). */
-  const [trackRaw, setTrackRaw] = useState<string | null>(initialTrack ?? null);
+  const [trackRaw, setTrackRaw] = useState<string | null>(initialTrack9);
   /* ══ 중계(중요도 기반 추적) — 요청: "현재 경기 장면 중 가장 중요하거나 가치있는 사람의
      추적 화면을 보여줌 · 1-2초전에 미리 그 사람으로 전환 · 중요도 차이가 없는 경우
      순환 중계(초반·소강) · 전환시 '누구 화면' 자막 · 개인 추적과는 배타" ══════════════
@@ -9266,10 +9280,11 @@ export default function ReplayMotionPlayer({
        덤으로 안개 갈래가 안 바뀌므로 워커가 지어 둔 장을 갈아탈 때마다 버리지 않는다. */
   /** 링크가 **자리**를 가리키면(배율이나 가운데점) 중계는 꺼진 채로 연다 — 그 링크의 뜻은 '그 자리를 보라'이고,
    *  중계가 켜지면 첫 토막에서 그 자리를 곧 덮어쓴다. 중계 중에 보낸 링크에는 자리가 없으므로(위 playbackViewOf
-   *  의 ★) 그 링크는 여기 안 걸려 중계가 켜진 채로 열린다 — 곧 보내는 쪽의 켜짐·꺼짐이 링크에 그대로 실린다. */
+   *  의 ★) 그 링크는 여기 안 걸려 중계가 켜진 채로 열린다 — 곧 보내는 쪽의 켜짐·꺼짐이 링크에 그대로 실린다.
+   *  ★ 자동 중계 표식(`&tr=*` · linkAuto9)이면 자리와 무관하게 **켠 채로** 연다 — 그 링크의 뜻이 곧 '자동 중계로 보라'다. */
   const linkPos9 = !!initialView && (initialView.z > 1.001
     || Math.abs(initialView.cx - 0.5) > 0.0005 || Math.abs(initialView.cy - 0.5) > 0.0005);
-  const [castOn, setCastOn] = useState(!initialTrack && !linkPos9);
+  const [castOn, setCastOn] = useState(linkAuto9 || (!initialTrack9 && !linkPos9));
   /** 로스터에 있는 이름만 중계에 세운다 — 관전자는 obsNames로 따로 뺀다. */
   const rosterKeys9 = useMemo(() => new Set(bases.map((b9) => b9.key)), [bases]);
   /** 편성표 — 참값 한 벌에 한 번 굽는다(끄면 아예 안 굽는다). */
@@ -10630,19 +10645,24 @@ export default function ReplayMotionPlayer({
     const bw = el.offsetWidth;
     const bh = el.offsetHeight;
     if (bw <= 0 || bh <= 0) return;
-    /* 중계 중에는 자리(z·cx·cy)를 비운다(요청: "중계 활성화상태에서 공유시 위치 좌표 전송 금지" — 위 playbackViewOf 의 ★). */
-    playbackViewOf.set(clockKey, castOn
+    /* 카메라를 기계가 쥐고 있으면(자동 중계 castOn · 개인 추적 trackRaw) 자리(z·cx·cy)를 비운다(요청: "중계
+       활성화상태에서 공유시 위치 좌표 전송 금지" → "중계는 자동이든 한사람이든 사용중이면 좌표, 배율 공유안하고" —
+       위 playbackViewOf 의 ★). 대신 누가 쥐고 있는지는 아래 playbackTrackOf 가 싣는다. */
+    playbackViewOf.set(clockKey, castOn || trackRaw !== null
       ? { deg: pitchDeg }
       : { z: zoom, cx: 0.5 - pan.x / (bw * zoom), cy: 0.5 - pan.y / (bh * zoom), deg: pitchDeg });
-  }, [clockKey, zoom, pan.x, pan.y, pitchDeg, fsOn, stage.w, stage.h, fsCoverW, castOn]);
+  }, [clockKey, zoom, pan.x, pan.y, pitchDeg, fsOn, stage.w, stage.h, fsCoverW, castOn, trackRaw]);
   useEffect(() => () => { if (clockKey) playbackViewOf.delete(clockKey); }, [clockKey]);
-  /* ★ 추적 중인 사람도 적어 둔다(playbackTrackOf — 공유 버튼이 &tr= 로 싣는다) — 표만 내보내 놓고 **적는 자리가
-     없었다**(2026-09 에 찾음: 추적을 켜고 공유해도 링크에 &tr= 가 한 번도 안 실렸다). 중계(castRaw)는 안 적는다 —
-     그 링크의 뜻은 개인 추적이고, 받는 쪽은 중계를 제 편성표로 다시 고른다. */
+  /* ★ 카메라 임자를 적어 둔다(playbackTrackOf — 공유 버튼이 &tr= 로 싣는다): 개인 추적이면 그 사람, 자동 중계면
+     CAST_AUTO_LINK9(요청: "대신 중계 파라미터 공유하기로 변경"). 표만 내보내 놓고 **적는 자리가 없었다**(2026-09 에
+     찾음: 추적을 켜고 공유해도 링크에 &tr= 가 한 번도 안 실렸다). 둘 다 꺼져 있으면 지운다. 중계 중 '지금 누구
+     화면인가'(castRaw)는 안 적는다 — 받는 쪽은 제 편성표로 같은 사람을 다시 고른다. */
   useEffect(() => {
     if (!clockKey) return;
-    if (trackRaw) playbackTrackOf.set(clockKey, trackRaw); else playbackTrackOf.delete(clockKey);
-  }, [clockKey, trackRaw]);
+    if (castOn) playbackTrackOf.set(clockKey, CAST_AUTO_LINK9);
+    else if (trackRaw) playbackTrackOf.set(clockKey, trackRaw);
+    else playbackTrackOf.delete(clockKey);
+  }, [clockKey, trackRaw, castOn]);
   useEffect(() => () => { if (clockKey) playbackTrackOf.delete(clockKey); }, [clockKey]);
   /* 받은 자리로 옮겨 앉는다(요청: 공유 링크의 &z=·&cx=·&cy=·&a=) — 딱 한 번이다.
      지도 상자가 실제로 설 때까지 프레임마다 기다린다: 자취를 받아 오고 배치가 정해지는

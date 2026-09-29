@@ -29,7 +29,7 @@ export { default as RosterTableIcon } from "./RosterTableIcon";
 
 // 재생 상태를 밖에서 읽는 열쇠들(공유 링크가 쓴다).
 export {
-  PLAYBACK_ZOOM_MAX, playbackClockOf, playbackSpeedOf, playbackTrackOf, playbackViewOf,
+  PLAYBACK_ZOOM_MAX, CAST_AUTO_LINK9, playbackClockOf, playbackSpeedOf, playbackTrackOf, playbackViewOf,
 } from "./ReplayMotionPlayer";
 
 /* ── 도록(모델 자료실) — 앱이 제 화면으로 짓는다(요청: "scplayer에 도록 페이지 추가") ──

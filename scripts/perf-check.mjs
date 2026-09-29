@@ -320,7 +320,9 @@ const makeTerrain = () => {
 const ENTRY = `
 import React from "react";
 import { createRoot } from "react-dom/client";
-import ReplayMotionPlayer from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
+import ReplayMotionPlayer, { playbackTrackOf, playbackViewOf } from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
+/* 공유 표(clockKey "perf") — castprobe 가 '중계·추적 중에는 자리를 안 싣고 &tr= 만 싣나'를 읽는다. */
+window.__share9 = () => ({ tr: playbackTrackOf.get("perf") ?? null, view: playbackViewOf.get("perf") ?? null });
 window.__mount = (motion, players, walkJson, terrainB64) => {
   const el = document.getElementById("root");
   const tiles = btoa(String.fromCharCode(...new Uint8Array(128 * 128)));
@@ -339,7 +341,9 @@ window.__mount = (motion, players, walkJson, terrainB64) => {
   }));
   const teamOfRaw = (raw) => { const f = players.find((p) => p.name === raw); return f ? f.force : undefined; };
   createRoot(el).render(React.createElement(ReplayMotionPlayer, {
-    grid, endSec: 120, bases, teamOfRaw, active: true, initialSec: 46,
+    grid, endSec: 120, bases, teamOfRaw, active: true, initialSec: 46, clockKey: "perf",
+    /* --track <아이디|*> — 링크의 &tr= 로 여는 길(개인 추적 · * 는 자동 중계 표식). */
+    ...(window.__track ? { initialTrack: window.__track } : {}),
     /* 중간 배율 계측(--zoom) — 공유 링크의 &z=와 같은 길로 확대·중심을 건다.
        난전이 (64,64) = 분수 0.5라 화면 한가운데 온다. */
     ...(window.__zoom > 1 || (window.__deg && window.__deg !== 90)
@@ -565,12 +569,12 @@ if (cssFile) {
 else console.warn("⚠ dist CSS 없음 — npm run build 먼저. 화면 배치가 안 맞을 수 있다.");
 await page.addScriptTag({ content: js, type: "module" });
 await page.waitForFunction("!!window.__mount");
-await page.evaluate(([z, d, mw, mh, cx, cy]) => {
+await page.evaluate(([z, d, mw, mh, cx, cy, tr]) => {
   window.__zoom = z; window.__deg = d; window.__mapw = mw; window.__maph = mh;
-  window.__cx = cx; window.__cy = cy;
+  window.__cx = cx; window.__cy = cy; window.__track = tr;
 }, [Number(flag("--zoom", 1)), Number(flag("--deg", 90)),
   Number(flag("--mapw", 128)), Number(flag("--maph", 128)),
-  Number(flag("--cx", 0.5)), Number(flag("--cy", 0.5))]);
+  Number(flag("--cx", 0.5)), Number(flag("--cy", 0.5)), flag("--track", "") || null]);
 await page.evaluate(([m, pl, wj, tb]) => window.__mount(m, pl, wj, tb), [world.motion, world.players, walkFixture, makeTerrain()]);
 // 재생이 실제로 그려질 때까지 — blit이 돌기 시작하면 준비된 것이다.
 // GL 붓(기본 켬)은 판을 안 찍는다 — 그린 개체 수(__glInst9)로도 준비를 안다.
@@ -647,8 +651,12 @@ if (has("--castprobe")) {
      첫 사람을 고르면 중계(자막)가 꺼지고 그 줄만 켜져야 하고, 다시 열어 맨 아래 '자동'을 고르면 중계가 돌아와야 한다.
      `on` 은 단추의 초록(자동·개인 어느 쪽이든 카메라를 쥐고 있다) · `cap` 은 상시 자막(중계일 때만) · `items` 는 목록 글귀. */
   const excl9 = await page.evaluate(async () => {
+    /* share — 공유 표(요청: "중계는 자동이든 한사람이든 사용중이면 좌표, 배율 공유안하고 대신 중계 파라미터 공유"):
+       tr 는 &tr= 에 실릴 값(사람 아이디 · 자동은 "*" · 꺼지면 null), pos 는 자리(z·cx·cy)가 실려 있나. */
+    const sh = () => { const r = window.__share9?.(); return r ? { tr: r.tr, pos: !!r.view && r.view.z !== undefined } : null; };
     const st = () => ({ on: !!document.querySelector(".scr-motion-castbtn-on"), cap: document.querySelector(".scr-motion-castcap")?.textContent ?? null,
-      items: [...document.querySelectorAll(".scr-motion-pickmenu .scr-motion-pickitem")].map((el) => `${el.textContent}${el.classList.contains("is-on") ? "*" : ""}`) });
+      items: [...document.querySelectorAll(".scr-motion-pickmenu .scr-motion-pickitem")].map((el) => `${el.textContent}${el.classList.contains("is-on") ? "*" : ""}`),
+      share: sh() });
     const wait = (ms) => new Promise((r) => { setTimeout(r, ms); });
     const a = st();
     (document.querySelector(".scr-motion-castbtn"))?.click();
@@ -671,7 +679,8 @@ if (has("--castprobe")) {
     its().find((el) => el.textContent === "끄기")?.click();
     await wait(300);
     const d = st();
-    return { 처음: a, 목록: open1.items, 첫사람고름: { on: b.on, cap: b.cap }, 다시연목록: open2.items, 자동고름: { on: c.on, cap: c.cap }, 끄기고름: { on: d.on, cap: d.cap } };
+    return { 처음: { on: a.on, cap: a.cap, share: a.share }, 목록: open1.items, 첫사람고름: { on: b.on, cap: b.cap, share: b.share }, 다시연목록: open2.items,
+      자동고름: { on: c.on, cap: c.cap, share: c.share }, 끄기고름: { on: d.on, cap: d.cap, share: d.share } };
   });
   console.log("[중계 배타]", JSON.stringify(excl9));
   for (const x9 of seen9) console.log(`  ${x9.at}s  "${x9.text}"  ${JSON.stringify(x9.box)}`);

@@ -2111,7 +2111,20 @@ z 8.65 로 크레스트(≈7.8)보다 높고 뿌리 반폭 1.5 가 목(0.85)을 
     열린다 — 곧 **보내는 쪽의 켜짐·꺼짐이 링크에 그대로 실린다**(`&tr=` 이 개인 추적을 켠 채로 여는 규약과 한 벌).
   · ⚠ **`playbackTrackOf` 는 표만 있고 적는 자리가 없었다**(같은 날 찾음) — 추적을 켜고 공유해도 `&tr=` 이 한 번도 안
     실렸다(`playbackClockOf`·`playbackSpeedOf`·`playbackViewOf` 는 다 적는 effect 가 있었다). 이제 `trackRaw` 를 적고
-    끄면 지운다. 중계(`castRaw`)는 안 적는다 — 그 링크의 뜻은 개인 추적이고 받는 쪽은 중계를 제 편성표로 다시 고른다.
+    끄면 지운다. 중계 중 '지금 누구 화면'(`castRaw`)은 안 적는다 — 받는 쪽은 제 편성표로 같은 사람을 다시 고른다.
+  · ★★ **자리를 안 싣는 자는 '중계가 켜졌나'가 아니라 '카메라를 기계가 쥐었나'다 — 그리고 그 임자를 대신 싣는다**
+    (2026-09, 요청: "중계는 자동이든 한사람이든 사용중이면 좌표, 배율 공유안하고 대신 중계 파라미터 공유하기로 변경") —
+    앞 판은 자동 중계(`castOn`)만 z·cx·cy 를 비우고 개인 추적은 자리와 `&tr=` 을 **둘 다** 실었다. 이제 `castOn ||
+    trackRaw !== null` 이면 `{ deg }` 뿐이고, `playbackTrackOf` 는 **카메라 임자**다: 사람이면 그 아이디 · 자동 중계면
+    `CAST_AUTO_LINK9`(`"*"` — 게임 아이디로 못 쓰는 글자라 사람과 안 겹치고 URLSearchParams 가 안 감싸 `&tr=*` 로 선다) ·
+    둘 다 꺼지면 지운다. 받는 쪽은 `initialTrack === "*"` 면 시야·개인 추적에 안 넣고 `castOn` 만 켠다(`linkAuto9` —
+    자리가 함께 와도 `linkPos9` 를 이긴다). scplayer `GameResultStory` 는 `*` 를 로스터에서 찾지 않고 그대로 넘기고,
+    `SceneShareButton` 은 한 줄도 안 바뀐다(없는 값을 안 싣고 `tr` 을 그대로 싣는 그 규약).
+    ⚠ scplayer 는 그 상수를 **import 하지 않고 같은 글자를 제 자리에 적는다** — 락이 옛 scplay 를 가리키는 동안에도
+      컴파일되어야 한다(`??` 꼴의 그 규약). 값을 바꾸면 두 저장소가 한 벌이다.
+    🔎 `node scripts/perf-check.mjs --wide --warm 0 --castprobe 4 [--track 정구 | --track '*' --zoom 4]` — `[중계 배타]` 의
+      `share`(tr · pos)가 자동 `{"*", false}` · 사람 `{"정구", false}` · 끄기 `{null, true}` 여야 하고, `--track '*'` 는 배율을
+      함께 줘도 중계가 켜진 채 열려야 한다(실측 셋 다 ✔). 픽스처가 이제 `clockKey "perf"` 를 주고 `window.__share9` 로 표를 읽는다.
 · ★ **로스터 1단계는 이름만이다**(2026-09, 요청: "로스터 1단계 APM 보이는거 제거하고 컴팩트하게 가자") — 최소 꼴
   (rosterMode 0 · `bare`)에서 지표 라벨 다섯과 값 칸(APM 하나 + 빈 칸 넷)을 **아예 안 그리고**, 격자를 이름 칸 하나로
   죈다(`.scr-fs-roster-fixed.scr-fs-panel-bare { --roster-cols: var(--roster-name) }` — 두 클래스를 겹쳐 좁은 화면의
