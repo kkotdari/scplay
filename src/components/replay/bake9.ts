@@ -13063,7 +13063,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       out.push(...tagKey(paintBase(spirePillar({
         // 네 모서리만 살짝 깎인 네모 단면(chimRad9)을 긴 축으로 1.6배 늘리고, 눌러 납작하게.
         // 누르는 축은 u(= ref) 다: 앞 둘은 좌우(x̂) · 뒤 가운데는 앞뒤(ŷ) — 요청 그대로.
-        x: px, y: py, z0: 0.24, h: ph, w: 0.5 * k9 * CFLAT9, tipW: 0.5 * k9 * CFLAT9,
+        /* ★ 밑은 **지면**이다(2026-09, 지적: "굴뚝들이 바닥에 안닿고 떠있는거 같아") — z0 0.24 는 옛 받침 위에 서던
+           시절의 값인데 받침이 걷힌 뒤로도 남아 굴뚝 셋이 0.24 떠 있었다(색 무리로 잰 min z 는 다른 금 부품이 0 이라
+           안 걸렸다). 꼭대기(0.24 + ph · 띠·아가리 고리·가스가 읽는 자)는 그대로 두고 밑만 땅으로 내린다. */
+        x: px, y: py, z0: 0, h: ph + 0.24, w: 0.5 * k9 * CFLAT9, tipW: 0.5 * k9 * CFLAT9,
         oval: COV9, radOf: chimRad9, ref: py < -2 ? [0, 1, 0] : [1, 0, 0],
         segs: 2, sides: CN9, hold: 1, trueNormal: true, leanX: lean * 0, leanY: 0,
         caps: "bottom",                                  // 윗뚜껑을 걷는다 — 아가리가 곧 구멍이다
@@ -13087,7 +13090,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           return py < -2 ? [px - sv9, py + cu9, z9] : [px + cu9, py + sv9, z9];
         };
         out.push(...tagKey(paintBase(spirePillar({
-          x: px, y: py, z0: 0.24, h: ph,
+          x: px, y: py, z0: 0, h: ph + 0.24,             // 속도 땅까지(겉벽과 같은 밑)
           w: 0.5 * k9 * CFLAT9 * CBORE9, tipW: 0.5 * k9 * CFLAT9 * CBORE9,
           oval: COV9, radOf: chimRad9, ref: py < -2 ? [0, 1, 0] : [1, 0, 0],
           segs: 2, sides: CN9, hold: 1, caps: "none",
