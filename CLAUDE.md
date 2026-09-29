@@ -2143,6 +2143,13 @@ z 8.65 로 크레스트(≈7.8)보다 높고 뿌리 반폭 1.5 가 목(0.85)을 
     🔎 castprobe 의 `share` 는 이제 표가 아니라 **`sceneLinkQueryOf9` 가 낸 쿼리**에서 읽는다(`tr` = q.get · `pos` =
       z 나 cx 가 실렸나) — 실측 셋 다 종전과 같다(자동 `{"*", false}` · 사람 `{"정구", false}` · 끄기 `{null, true}`).
       perf-check·scene-sheet 의 마운트도 `sceneLink: { t: 46, … }` 한 벌이다.
+  · ★ **scplayer 의 공유는 이제 `onShare` 콜백이다**(2026-09, 요청: "공유부터 onShare로 옮겨줘") — 옛 길은
+    앱이 제 버튼(`SceneShareButton`)을 `shareNode` 슬롯에 꽂고 X 키를 **앱이 따로** 듣던 것이라, 재생기가
+    스크랩·공유를 한 규약으로 그리는데 공유만 앱 꼴로 남아 있었다. 이제 `GameResultStory` 가 `onShare` 한 함수만
+    넘긴다(`sceneLinkQueryOf9(clockKey)` 로 링크를 짓고 navigator.share → 클립보드 → 실패면 undefined) —
+    버튼·X 키·완료 표시("공유됨"·"링크 복사됨")는 재생기 몫이다. 그 파일은 지웠다.
+    ⚠ 콜백은 `mapName` **뒤에** 세운다 — useCallback 의 의존성 배열이 렌더 중에 읽히므로 그 앞에 두면 TDZ 다.
+    스크랩(`onScrap`)은 같은 자리에 같은 꼴로 붙이면 된다 — 링크도 같은 `sceneLinkQueryOf9` 다.
 · ★ **로스터 1단계는 이름만이다**(2026-09, 요청: "로스터 1단계 APM 보이는거 제거하고 컴팩트하게 가자") — 최소 꼴
   (rosterMode 0 · `bare`)에서 지표 라벨 다섯과 값 칸(APM 하나 + 빈 칸 넷)을 **아예 안 그리고**, 격자를 이름 칸 하나로
   죈다(`.scr-fs-roster-fixed.scr-fs-panel-bare { --roster-cols: var(--roster-name) }` — 두 클래스를 겹쳐 좁은 화면의
