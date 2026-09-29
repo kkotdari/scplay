@@ -543,9 +543,14 @@
 .scr-motion-castbtn {
   pointer-events: auto;
   /* 판 폭을 다 먹지 않는다 — 로스터 판은 지도 **위에** 얹히므로 한 줄이 먹는 자리가 곧
-     가려지는 지형이다(그 판의 규약). 글자만 한 알약으로 가운데에 선다. */
-  align-self: center; display: inline-flex; align-items: center; justify-content: center; gap: 5px;
-  margin-top: 2px; padding: 4px 8px; border: 1px solid rgba(255, 255, 255, 0.18);
+     가려지는 지형이다(그 판의 규약). 글자만 한 알약이다.
+     ★ 폭을 못 박고 **로스터 왼쪽에 맞춘다**(요청: "중계 버튼 폭은 고정해서 컴팩트하게
+       하고 로스터 왼쪽에 정렬로") — 글자 길이로 폭이 나면 켜짐·꺼짐이나 글꼴에 따라
+       알약이 들썩이고, 가운데 정렬은 표의 왼쪽 세로줄(이름 칸)과 어긋난다. 왼쪽 여백
+       4px은 줄의 padding(.scr-fs-roster-fixed .scr-motion-teamrow)과 같은 자다. */
+  align-self: flex-start; display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  width: 56px; box-sizing: border-box; flex: 0 0 auto;
+  margin: 2px 0 0 4px; padding: 4px 0; border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 999px; background: rgba(255, 255, 255, 0.10);
   color: rgba(255, 255, 255, 0.74); cursor: pointer;
   font-size: 10.5px; font-weight: 600; letter-spacing: 0.2px; line-height: 1;

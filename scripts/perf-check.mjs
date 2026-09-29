@@ -593,6 +593,11 @@ if (has("--castprobe")) {
       on: !!document.querySelector(".scr-motion-castbtn-on"),
       btn: !!document.querySelector(".scr-motion-castbtn"),
       toast: [...document.querySelectorAll(".scr-motion-casttoast")].map((el) => el.textContent ?? ""),
+      /* 단추의 폭·왼쪽 자리 — 못 박은 폭이 켜짐·꺼짐에 안 흔들리나, 로스터 줄의 왼쪽과 맞나. */
+      bb: (() => { const b = document.querySelector(".scr-motion-castbtn");
+        const row = document.querySelector(".scr-fs-roster-fixed .scr-motion-teamrow") ?? document.querySelector(".scr-fs-roster-fixed .scr-motion-teamcol-pick");
+        if (!b) return null; const r = b.getBoundingClientRect();
+        return { w: +r.width.toFixed(1), dx: row ? +(r.left - row.getBoundingClientRect().left).toFixed(1) : null }; })(),
       box: (() => { const b = document.querySelector(".scr-motion-castbar"); const st = document.querySelector(".scr-fs-stage");
         if (!b || !st) return null; const r = b.getBoundingClientRect(); const q = st.getBoundingClientRect();
         const lyr = document.querySelector(".scr-fs-layer");
@@ -611,7 +616,8 @@ if (has("--castprobe")) {
     }
     await page.waitForTimeout(200);
   }
-  console.log(`[중계] 단추 ${on9?.btn ? "있음" : "없음"} · 켜짐 ${on9?.on ? "예" : "아니오"} · 자막 ${seen9.length}번`);
+  console.log(`[중계] 단추 ${on9?.btn ? "있음" : "없음"} · 켜짐 ${on9?.on ? "예" : "아니오"} · 자막 ${seen9.length}번`
+    + (on9?.bb ? ` · 단추 폭 ${on9.bb.w}px · 줄 왼쪽에서 ${on9.bb.dx}px` : ""));
   /* 배타 검사 — 개인 추적을 켜면 중계가 꺼지고, 중계를 켜면 개인 추적이 풀려야 한다(요청). */
   const excl9 = await page.evaluate(async () => {
     const st = () => ({ cast: !!document.querySelector(".scr-motion-castbtn-on"), track: !!document.querySelector(".scr-motion-track-on") });
