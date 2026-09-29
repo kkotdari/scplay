@@ -15249,6 +15249,13 @@ export default function ReplayMotionPlayer({
               dot: modeColor(b9.key, teamOfRaw(b9.key)), act: () => toggleTrack(b9.key),
             })),
             { key: "auto", label: "자동", on: castOn, act: () => toggleCast9() },
+            /* ★ 맨 아래 **끄기**(2026-09, 요청: "목록에 끄기도 있어야해") — 켜진 것을 다시 골라 끄는 길은 남지만, 무엇이 켜져
+               있는지 모르는 손에게는 '끄는 줄'이 따로 있어야 한다. 중계든 개인 추적이든 카메라를 쥔 쪽을 놓고(둘은 배타라 둘 중
+               하나다) 시점도 관전자로 되돌린다(toggleTrack 의 끄는 길과 같은 셈). 둘 다 꺼져 있을 때 이 줄이 켜진 줄이다. */
+            {
+              key: "off", label: "끄기", on: !castOn && trackRaw === null,
+              act: () => { if (castOn) stopCast9(); else if (trackRaw !== null) { stopTrack9(); setViewRaw(null); } },
+            },
           ], true)}
         </span>
       )}

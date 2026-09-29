@@ -661,10 +661,17 @@ if (has("--castprobe")) {
     (document.querySelector(".scr-motion-castbtn"))?.click();
     await wait(200);
     const open2 = st();
-    const l = its(); l[l.length - 1]?.click();
+    /* '자동'은 글귀로 찾는다 — 맨 아래는 이제 '끄기'다(2026-09, 요청: "목록에 끄기도 있어야해"). */
+    its().find((el) => el.textContent === "자동")?.click();
     await wait(300);
     const c = st();
-    return { 처음: a, 목록: open1.items, 첫사람고름: { on: b.on, cap: b.cap }, 다시연목록: open2.items, 자동고름: { on: c.on, cap: c.cap } };
+    /* 끄기 — 중계가 켜진 채 '끄기'를 고르면 단추 초록·자막이 함께 꺼져야 한다. */
+    (document.querySelector(".scr-motion-castbtn"))?.click();
+    await wait(200);
+    its().find((el) => el.textContent === "끄기")?.click();
+    await wait(300);
+    const d = st();
+    return { 처음: a, 목록: open1.items, 첫사람고름: { on: b.on, cap: b.cap }, 다시연목록: open2.items, 자동고름: { on: c.on, cap: c.cap }, 끄기고름: { on: d.on, cap: d.cap } };
   });
   console.log("[중계 배타]", JSON.stringify(excl9));
   for (const x9 of seen9) console.log(`  ${x9.at}s  "${x9.text}"  ${JSON.stringify(x9.box)}`);

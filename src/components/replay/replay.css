@@ -482,10 +482,11 @@
    에서 고르므로 이 단추와 그 규칙들은 없다. 깜빡임 박자(scr-track-blink)만 남는다 — TV 단추의 켜짐이 그 박자를 쓴다. */
 .scr-fs-roster-fixed .scr-motion-teamrow { padding: 0 4px; }
 
-/* 켜진 표시의 깜빡임 — 지금 따라가는 중이라는 살아 있는 신호다. 글자색이 초록 ↔ 검정을 오간다(TV 단추가 쓴다). */
+/* 켜진 표시의 깜빡임 — 지금 따라가는 중이라는 살아 있는 신호다. 글자색이 초록 ↔ 검정을 오간다(TV 단추가 쓴다).
+   ⚠ 아이콘 후광(drop-shadow)은 걷었다(2026-09 · 위 .scr-motion-castbtn-on 의 ★ — 그 후광이 곧 '중계 단추만 그림자'였다). */
 @keyframes scr-track-blink {
-  0%, 45% { color: #2ee59d; filter: drop-shadow(0 0 3px rgba(46, 229, 157, 0.9)); }
-  55%, 100% { color: #0b0f14; filter: none; }
+  0%, 45% { color: #2ee59d; }
+  55%, 100% { color: #0b0f14; }
 }
 /* ── 중계 스위치(TV) — **지도 위 아이콘 줄**의 로스터 단추 왼쪽이다(2026-09, 요청: "중계 버튼을 버튼행으로 이동(아이콘만
    표시) 위치는 로스터 버튼 왼쪽(다른 버튼과 다르게 활성화시 지금처럼 녹색 + 깜빡임 효과)") ────────────────────────────
@@ -494,14 +495,23 @@
    ★ 켜짐은 형제들의 is-on(흰 반투명)이 아니라 **초록 + 아이콘 깜빡임**이다 — 추적 단추(.scr-motion-track-on)와 같은
      결·같은 박자(scr-track-blink). 둘은 '지금 카메라를 누가 쥐고 있나'를 말하는 한 짝이고 배타라 한 화면에 하나만 초록이다.
    ⚠ 무게: 형제 규칙이 (0,2,1)이라 같은 꼴(.scr-motion-mapbtns button.…)로 **뒤에** 적어야 이긴다. 라이트 테마의 프레임
-     규칙은 (0,5,1)이라 그 짝을 따로 하나 더 적는다(안 적으면 라이트 프레임에서만 초록이 안 든다). */
-.scr-motion-mapbtns button.scr-motion-castbtn-on,
+     규칙은 (0,5,1)이라 그 짝을 따로 하나 더 적는다(안 적으면 라이트 프레임에서만 초록이 안 든다).
+   ★ **켜짐은 그림과 테두리만 초록이다 — 배경·그림자는 형제 그대로**(2026-09, 지적: "중계버튼만 그림자가 있어서 어색
+     다른 버튼과 동일하게 해주고 배경도 연한 초록색으로 하지말고 그림하고 테두리만 초록으로 표현") — 앞 판은 연한 초록
+     바탕(0.20) + 제 그림자(0 4px 12px 0.4 · 라이트 프레임의 형제는 0 1px 3px 0.12 이라 그 단추만 짙었다) + 아이콘의
+     drop-shadow 후광(깜빡임 keyframes 안)이었다. 셋을 다 걷고 남긴 것은 color 와 안쪽 테 한 줄이다. box-shadow 는 안쪽 테와
+     바깥 그림자가 한 속성이라 형제의 바깥 그림자를 **그대로 베껴** 둘(먹판 · 라이트 프레임)에 따로 적는다 — 그림자 값을
+     형제 규칙에서 고치면 여기 둘도 함께 고쳐야 한다. */
+.scr-motion-mapbtns button.scr-motion-castbtn-on {
+  color: #2ee59d;
+  box-shadow: inset 0 0 0 1px rgba(46, 229, 157, 0.72), 0 4px 12px rgba(0, 0, 0, 0.4);
+}
 .scr-light-theme .scr-fs-layer:not(.is-fs) .scr-motion-mapbtns button.scr-motion-castbtn-on {
-  background: rgba(46, 229, 157, 0.20); color: #2ee59d;
-  box-shadow: inset 0 0 0 1px rgba(46, 229, 157, 0.62), 0 4px 12px rgba(0, 0, 0, 0.4);
+  color: #2ee59d;
+  box-shadow: inset 0 0 0 1px rgba(46, 229, 157, 0.72), 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 .scr-motion-castbtn svg { display: block; }
-/* 켜진 동안 화면이 살아 있다는 신호 — 추적 단추의 깜빡임과 같은 박자다. */
+/* 켜진 동안 화면이 살아 있다는 신호 — 추적 단추의 깜빡임과 같은 박자다(후광 없이 색만 오간다 — 위 ★). */
 .scr-motion-castbtn-on svg { animation: scr-track-blink 1s steps(1, end) infinite; }
 @media (prefers-reduced-motion: reduce) {
   .scr-motion-castbtn-on svg { animation: none; }
@@ -551,11 +561,25 @@
   /* ★ --roster-name은 **여기서 정하지 않는다** — 판의 최상위 규칙(.scr-fs-roster-fixed)이
      이 파일 훨씬 뒤에 있고 무게가 같아(0,1,0) 여기 적으면 그쪽에 덮인다. 미디어 질의는
      무게를 안 올린다. 값은 그 규칙 **뒤**의 짝 미디어 블록이 정한다(판 폭과 한자리에서). */
-  .scr-motion-sidepanel, .scr-fs-roster-fixed {
+  .scr-motion-sidepanel {
     --roster-cols: var(--roster-name, 112px) 20px 38px 26px 26px 24px;
   }
   .scr-motion-teamcol-rows .scr-motion-teamrow { gap: 0 2px; padding: 0 3px; }
 }
+/* ★ **항시표시 로스터는 어느 폭에서나 폰의 컴팩트 꼴이다**(2026-09, 요청: "PC 레이아웃의 로스터도 모바일처럼 컴팩트하게
+   통일") — 여태 이 판은 세 폭(기본 · 1159 이하 · 900 이하)에 따로 자가 있어 PC 에서만 아바타가 서고 이름 11px · 지표 11px ·
+   칸 26/44/30/28/28 · 판 여백 8 이었다. 폰 값(칸 20/38/26/26/24 · 줄 사이 2 · 이름 9px · 지표 8px · 여백 5)을 미디어 밖으로 꺼내
+   **판 클래스에 못 박는다** — 아래 1159/900 미디어 블록의 로스터 줄은 다 여기로 왔다(그 블록에는 미니맵·도구 판만 남는다).
+   ⚠ 무게: 위 `.scr-motion-teamcol-rows .scr-motion-teamrow`(0,2,0)보다 뒤에 같은 무게로 적어 이긴다. 아바타는 폰이 안 그리므로
+     (`.scr-motion:not(.scr-motion-wide) …` 0,4,0) 여기서도 같은 무게(0,4,0)로 감춘다 — PC 의 뿌리는 .scr-motion-wide 라 그 규칙이
+     안 닿는다. 되살리려면 그 한 줄이다. */
+.scr-fs-roster-fixed { --roster-cols: var(--roster-name, 112px) 20px 38px 26px 26px 24px; }
+.scr-fs-roster-fixed .scr-motion-teamcol-rows .scr-motion-teamrow { gap: 0 2px; padding: 1px 4px; margin: -1px -4px; }
+.scr-motion .scr-fs-roster-fixed .scr-motion-teamcol-item .scr-motion-base-ring { display: none; }
+.scr-fs-roster-fixed .scr-motion-stat { font-size: 8px; }
+.scr-motion .scr-fs-roster-fixed .scr-motion-teamcol-name { font-size: 9px; max-width: 100%; }
+.scr-motion .scr-fs-roster-fixed .scr-motion-teamcol-cols { font-size: 6px; }
+.scr-motion .scr-fs-roster-fixed .scr-motion-teamhead { font-size: 8px; }
 
 
 /* 전체화면의 왼쪽 기둥은 이 판이 통째로 채운다 — 기둥의 옛 세로 배치(로스터·바·토글)는
@@ -750,18 +774,16 @@
   /* 아바타를 되살린다 — 좁은 화면 규칙이 감추고 있었다(위 :not(.scr-motion-wide)). */
   /* 뿌리 클래스 둘(.scr-motion.scr-fs-layer)로 무게를 (0,5,0)으로 — 아바타를 감추는
      좁은 화면 규칙(:not 포함 0,4,0)이 파일 **뒤**에 있어 같은 무게로는 그쪽이 이긴다. */
-  .scr-motion.scr-fs-layer .scr-fs-col .scr-motion-teamcol-item .scr-motion-base-ring,
-  .scr-motion.scr-fs-layer .scr-fs-roster-fixed .scr-motion-teamcol-item .scr-motion-base-ring {
+  /* (걷어냄 · 2026-09, 요청: "PC 레이아웃의 로스터도 모바일처럼 컴팩트하게 통일") — 여기 함께 적혀 있던 항시표시 로스터
+     (.scr-fs-roster-fixed)의 PC 몫(아바타 되살림 · 이름 11px · 지표 11px · 컬럼 라벨 9px)은 걷었다. 그 판은 이제 폭과 무관하게
+     한 자다(위 .scr-fs-roster-fixed 의 ★). 아래는 옛 기둥(.scr-fs-col)만의 규칙이다. */
+  .scr-motion.scr-fs-layer .scr-fs-col .scr-motion-teamcol-item .scr-motion-base-ring {
     display: inline-flex;
   }
-  .scr-motion .scr-fs-col .scr-motion-teamcol-name,
-  .scr-motion .scr-fs-roster-fixed .scr-motion-teamcol-name {
+  .scr-motion .scr-fs-col .scr-motion-teamcol-name {
     font-size: 11px; max-width: 100%; align-self: auto;
   }
-  .scr-motion .scr-fs-col .scr-motion-stats,
-  .scr-motion .scr-fs-roster-fixed .scr-motion-stats { font-size: 11px; }
-  /* 항시표시 로스터의 컬럼 라벨도 PC에서는 한 단 큰다 — 값 줄과 같은 자로. */
-  .scr-motion .scr-fs-roster-fixed .scr-motion-teamcol-cols { font-size: 9px; }
+  .scr-motion .scr-fs-col .scr-motion-stats { font-size: 11px; }
 }
 
 /* 숫자는 폭이 같은 글꼴로(요청의 같은 뜻) — 1과 4의 폭이 다르면 칸이 고정돼도 그 안에서
@@ -3445,8 +3467,10 @@
      그 몫이 통째로 빈자리로만 남는다. 끈 꼴에서 더 줄이지는 않는다 — 켤 때 글자가
      한 톨도 안 움직여야 한다(그것이 이 판의 규칙이다).
      여백을 줄인 만큼 폭 셈(아래 +200)도 함께 줄었다. */
-  left: calc(var(--scr-stage-l, 0px) + 6px); top: 6px;
-  padding: 8px;
+  /* 6 → 5 · 8 → 5 · 팀 사이 3(2026-09, 요청: "PC 레이아웃의 로스터도 모바일처럼 컴팩트하게 통일" — 폰의 값을 그대로) */
+  left: calc(var(--scr-stage-l, 0px) + 5px); top: 5px;
+  padding: 5px; gap: 3px;
+  max-width: calc(100vw - 10px);   /* 폭은 내용(아래 fit-content) — 아주 좁은 기기만 뷰포트로 막는다 */
   /* ★ 폭은 **이름 칸에서 나온다**(요청: 닉네임 항상 길게 고정) — 여태 320px을 손으로
      못 박아 두고 이름 칸이 그 나머지를 받아먹었다. 그러면 지표 칸을 한 뼘 손볼 때마다
      이름이 조용히 줄어든다(그 수리 이력이 이 자리에 쌓여 있었다: 300 → 320).
@@ -3460,7 +3484,9 @@
   /* 132 → 122(요청: 로스터가 먹는 자리 줄이기) — 칸 안의 조각이 그만큼 줄었다:
      아바타 −4 · 종족 배지 −2 · 조각 사이 −2 · 추적 단추 −2 = −10px. 칩이 받는 자리는
      한 픽셀도 안 줄었다. */
-  --roster-name: 122px;
+  /* 122 → 106(2026-09, 요청: "PC 레이아웃의 로스터도 모바일처럼 컴팩트하게 통일") — 폰의 값이다. 아바타가 어느 폭에서도
+     안 서므로(위 .scr-fs-roster-fixed 의 ★) 줄어든 것은 아바타·그 여백(−16)뿐이고 칩이 받는 자리는 그대로다. */
+  --roster-name: 106px;
   /* ★ 폭은 **내용이 정한다**(지적 사진: 로스터 판이 좁아 APM 칸이 밖으로 빠져나감) ────────
      여태 판 폭을 '이름칸 + 지표 다섯 + 사이 + 여백'을 **손으로 더한 수**로 못 박았는데, 그 합이
      세 자리(기본·1159 이하·좁은 폰)에 따로 있어 격자(--roster-cols·gap·padding)를 손볼 때마다
@@ -3471,10 +3497,7 @@
 /* 좁은 화면의 짝 — 이름 칸과 판 폭을 **한자리에서** 정한다(위 규칙 바로 뒤여야 덮인다).
    더하는 150px의 내역은 지표 다섯(20+38+26+26+24 = 134) + 칸 사이(2×5 = 10) +
    줄 여백(3×2 = 6)이다 — 판 여백은 위 규칙의 ★대로 안 센다. */
-@media (max-width: 1159px) {
-  /* 112 → 106 — 이 구간은 아바타가 안 서므로 줄어든 것은 배지·여백·단추(−6)뿐이다. */
-  .scr-fs-roster-fixed { --roster-name: 106px; }
-}
+/* (걷어냄 · 2026-09) 좁은 화면의 --roster-name 짝(106px) — 이제 모든 폭이 그 값이다(위). */
 .scr-fs-layer.is-fs .scr-fs-roster-fixed { top: calc(max(var(--safe-top, 0px), 10px)); }
 /* ★ 판만 걷은 꼴(요청: "자리는 활성화시와 같게하고 패널은 미표시") — 바탕·테두리·
    그림자만 지우고 자리·여백은 한 톨도 안 건드린다. 그래서 켜고 끌 때 이름이 안
@@ -3616,12 +3639,9 @@
      아주 좁은 기기에서 판이 화면을 넘지 않게 뷰포트로 한 번 더 막는다. */
   /* 여백 7 → 5 · 팀 사이 4 → 3(요청: 로스터가 먹는 자리 줄이기) — 더하는 값도 그만큼
      줄어든다(지표 134 + 칸 사이 10 + 판 여백 5×2 = 154). */
-  .scr-fs-roster-fixed {
-    max-width: calc(100vw - 10px);   /* 폭은 내용(위 fit-content) — 아주 좁은 기기만 뷰포트로 막는다 */
-    padding: 5px; gap: 3px; left: 5px;
-  }
-  /* 프레임에서는 노치가 없으므로 판을 가장자리에 바짝 붙인다(전체화면은 safe-top). */
-  .scr-fs-layer:not(.is-fs) .scr-fs-roster-fixed { top: 5px; }
+  /* (걷어냄 · 2026-09, 요청: "PC 레이아웃의 로스터도 모바일처럼 컴팩트하게 통일") — 여기 있던 항시표시 로스터의 폰 자
+     (판 여백 5 · 팀 사이 3 · 가장자리 5 · 글자 한 단 축소 · 줄 상자 1px 4px)는 다 판 클래스(.scr-fs-roster-fixed 와 그 ★)로
+     올라가 모든 폭에 걸린다. 이 블록에 남은 것은 도구 판뿐이다. */
   /* (되돌림·요청: "로스터는 원복하고") 끈 꼴만 좁히던 규칙이 있던 자리다 — 켠 꼴과
      끈 꼴의 폭이 갈리면 켤 때 이름이 움직여, '자리는 그대로 두고 판만 걷는다'는
      이 판의 규칙과 어긋났다. */
@@ -3630,10 +3650,6 @@
      작을수록 지형이 산다. 지표 10 → 9px · 이름 11 → 10px · 표 머리 8 → 7px ·
      팀 이름 10 → 9px, 줄 사이 4 → 3px, 줄 안 위아래 여백 2 → 1px. */
   /* 한 단씩 줄인다(요청: "모바일에서 로스터 폰트 1스텝 축소"). */
-  .scr-fs-roster-fixed .scr-motion-stat { font-size: 8px; }
-  .scr-motion .scr-fs-roster-fixed .scr-motion-teamcol-name { font-size: 9px; }
-  .scr-motion .scr-fs-roster-fixed .scr-motion-teamcol-cols { font-size: 6px; }
-  .scr-motion .scr-fs-roster-fixed .scr-motion-teamhead { font-size: 8px; }
   /* ★ 한 줄을 통째로 죈다(요청: 로스터가 먹는 자리 줄이기) — 줄 사이만 여기서
      한 뼘 더 줄인다:
        · 아바타 테 바깥 여백 4 → 2(위 .scr-motion-base-ring)
@@ -3641,7 +3657,6 @@
      이 구간은 아바타가 안 서므로 줄 높이를 정하는 것은 이름칩이다. */
   /* 상자는 **줄 클래스**에 건다(위 .scr-motion-teamrow 주석) — 사람 줄에만 걸어 두면
      라벨 줄이 그 음수 여백만큼 오른쪽으로 밀려 표가 어긋난다. */
-  .scr-fs-roster-fixed .scr-motion-teamrow { padding: 1px 4px; margin: -1px -4px; }
   /* 손가락 기기의 도구 판에는 미니맵이 없다(그쪽은 안 그린다) — 폭을 정하는 것이
      알약 한 기둥뿐이라 실측 최소(96)에 한 뼘만 얹는다. */
   .scr-fs-toolpanel { width: 112px; padding: 10px; }
