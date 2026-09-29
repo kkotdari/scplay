@@ -7637,10 +7637,15 @@ export const playbackSpeedOf = new Map<string, number>();
  *  회원 식별로 적으면 비회원·컴퓨터를 못 가리키고, 아이디를 바꾼 사람의 옛 판이 어긋난다.
  *  안 켜져 있으면 아예 안 담는다(지우고 나간다). */
 export const playbackTrackOf = new Map<string, string>();
+/** ★ 자리(배율·가운데점)는 **중계가 켜져 있으면 안 싣는다**(2026-09, 요청: "중계 활성화상태에서 공유시 위치
+ *  좌표 전송 금지") — 중계 중의 카메라는 편성표가 몰고 있어 '내가 보던 자리'가 아니고, 받는 쪽도 중계가 첫
+ *  토막에서 그 자리를 덮어쓴다. 그때는 z·cx·cy 를 비우고(공유 버튼은 없는 값을 안 싣는다) 각도(deg)만 남긴다 —
+ *  각은 카메라가 아니라 보는 취향이다. 배율(z)도 함께 비운다: 가운데점 없는 배율은 반쪽 자리라 받는 쪽에서
+ *  중계의 당김(trackZoom9)과 서로 민다. */
 export const playbackViewOf = new Map<string, {
-  /** 배율(1이 기본) */ z: number;
-  /** 화면 한가운데의 지도 가로 분수(0~1) */ cx: number;
-  /** 세로 분수(0~1) */ cy: number;
+  /** 배율(1이 기본) — 중계 중에는 없다 */ z?: number;
+  /** 화면 한가운데의 지도 가로 분수(0~1) — 중계 중에는 없다 */ cx?: number;
+  /** 세로 분수(0~1) — 중계 중에는 없다 */ cy?: number;
   /** 시점 각도(도) */ deg: number;
 }>();
 /** 메인 개체 표에서 비운 배열들의 자리표(공유) — 같은 참조라 메모리를 안 먹는다. */
@@ -9209,7 +9214,12 @@ export default function ReplayMotionPlayer({
        아직 안 보이는 일이 흔해서, 시야를 그 사람 것으로 좁히면 **정작 보여 주려던 장면이
        안개에 가린다**. 관전자(전체 시야)로 두고 카메라만 옮기는 것이 중계의 자다.
        덤으로 안개 갈래가 안 바뀌므로 워커가 지어 둔 장을 갈아탈 때마다 버리지 않는다. */
-  const [castOn, setCastOn] = useState(!initialTrack);
+  /** 링크가 **자리**를 가리키면(배율이나 가운데점) 중계는 꺼진 채로 연다 — 그 링크의 뜻은 '그 자리를 보라'이고,
+   *  중계가 켜지면 첫 토막에서 그 자리를 곧 덮어쓴다. 중계 중에 보낸 링크에는 자리가 없으므로(위 playbackViewOf
+   *  의 ★) 그 링크는 여기 안 걸려 중계가 켜진 채로 열린다 — 곧 보내는 쪽의 켜짐·꺼짐이 링크에 그대로 실린다. */
+  const linkPos9 = !!initialView && (initialView.z > 1.001
+    || Math.abs(initialView.cx - 0.5) > 0.0005 || Math.abs(initialView.cy - 0.5) > 0.0005);
+  const [castOn, setCastOn] = useState(!initialTrack && !linkPos9);
   /** 로스터에 있는 이름만 중계에 세운다 — 관전자는 obsNames로 따로 뺀다. */
   const rosterKeys9 = useMemo(() => new Set(bases.map((b9) => b9.key)), [bases]);
   /** 편성표 — 참값 한 벌에 한 번 굽는다(끄면 아예 안 굽는다). */
@@ -9226,18 +9236,13 @@ export default function ReplayMotionPlayer({
   const camRaw9 = trackRaw ?? castRaw;
   /** 그 사람의 걷기 — 보관함에서 꺼낸다(위 walksByRaw9). */
   const entWalks = walksByRaw9.get(camRaw9 ?? "") ?? EMPTY_WALKS9;
-  /* ── 중계 자막(요청: "전환시 플레이창 아래가운데에 누구 화면 이라고 자막 띄워줌(토스트)
-     바로 다른 사람으로 전환시 새로운 토스트가 위에 우선으로 보이게") ─────────────────────
-     앱의 토스트(replayToast)를 안 쓴다: 그쪽은 body로 포털되는 **화면 위 가운데** 알림이고,
-     이것은 플레이창(무대) 안 아래 가운데에 사는 중계 자막이다. 쌓임 규칙도 다르다 —
-     새것이 위로 얹히고 옛것은 제 시계로 스러진다. */
-  const CAST_TOAST_MS9 = 2600;
-  const [castToasts9, setCastToasts9] = useState<{ id: number; text: string; col: string }[]>([]);
-  /** 자막을 이미 띄운 토막 번호와 다음 자막 번호 — 같은 토막에서 두 번 뜨지 않게. */
-  const castToastRef9 = useRef({ idx: -2, seq: 0 });
-  /** 걸어 둔 시계들 — 컴포넌트가 사라질 때만 걷는다(다음 자막 때 걷으면 옛 자막이 안 스러진다). */
-  const castTimersRef9 = useRef<number[]>([]);
-  useEffect(() => () => { for (const x9 of castTimersRef9.current) window.clearTimeout(x9); }, []);
+  /* ── 중계 자막(요청: "전환시 플레이창 아래가운데에 누구 화면 이라고 자막 띄워줌(토스트)" → 되요청:
+     "토스터가 아니라 계속 노출로 변경") ─────────────────────────────────────────────────────
+     앱의 토스트(replayToast)를 안 쓴다: 그쪽은 body로 포털되는 **화면 위 가운데** 알림이고, 이것은
+     플레이창(무대) 안 아래 가운데에 **중계가 켜진 동안 늘 서 있는** 이름표다 — 지금 카메라가 누구
+     것인지를 말하는 자막이라 스러질 까닭이 없다(스러지면 그 사이에 들어온 사람은 누구 화면인지 모른다).
+     토막이 갈릴 때 글귀만 갈아 끼우고 그 순간만 살짝 떠오른다(CSS · key 가 토막 번호다). 옛 토스트의
+     시계·쌓임(셋까지)·스러짐은 다 걷었다 — 상태도 없다. 렌더마다 지금 토막에서 곧장 읽는다. */
   /** 자막 글귀 — 팀전만 팀을 붙인다(요청: "일대일이나 프리포올은 팀 생략"). 밀리(1:1·프리포올)는
    *  편이 없으므로 melee 한 문이 그 둘을 다 가른다. */
   const castLabel9 = (raw9: string): string => {
@@ -9245,19 +9250,10 @@ export default function ReplayMotionPlayer({
     const tm9 = melee ? 0 : (teamOfRaw(raw9) ?? 0);
     return tm9 ? `${tm9}팀 ${nm9} 화면` : `${nm9} 화면`;
   };
-  useEffect(() => {
-    if (!castOn || castIdx9 < 0) { castToastRef9.current.idx = -2; return; }
-    if (castToastRef9.current.idx === castIdx9) return;
-    castToastRef9.current.idx = castIdx9;
-    const raw9 = castPlan[castIdx9].raw;
-    const id9 = (castToastRef9.current.seq += 1);
-    /* 새것이 **앞**에 선다 — 그리는 쪽이 세로로 쌓으므로 배열 앞이 곧 위다(요청). 셋까지만 든다. */
-    setCastToasts9((a9) => [{ id: id9, text: castLabel9(raw9), col: modeColor(raw9, teamOfRaw(raw9)) }, ...a9].slice(0, 3));
-    const tm9 = window.setTimeout(() => setCastToasts9((a9) => a9.filter((x9) => x9.id !== id9)), CAST_TOAST_MS9);
-    castTimersRef9.current = [...castTimersRef9.current.slice(-8), tm9];
-    // castLabel9·modeColor는 렌더마다 새로 나는 클로저다 — 목록에 넣으면 토막이 안 바뀌어도 자막이 뜬다.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [castOn, castIdx9, castPlan]);
+  /** 지금 자막 — 중계가 켜져 있고 편성표가 사람을 가리킬 때만 선다. */
+  const castCap9 = castOn && castRaw !== null
+    ? { key: castIdx9, text: castLabel9(castRaw), col: modeColor(castRaw, teamOfRaw(castRaw)) }
+    : null;
   /** 추적 켜기·끄기 — 시야(viewRaw)를 함께 끌고 다닌다. 끄면 시야도 전체로 돌아간다. */
   /** 추적을 끈다 — **보던 자리에 머문다**(요청: "추적 보다가 끄면 맵 위치가 기존에 보던 곳으로 돌아가는데
    *  그러지 않게 추적이 보고 있던 곳에서 유지"). 추적 중의 팬은 trackView가 렌더마다 내는 값이라 panBase는
@@ -9722,6 +9718,11 @@ export default function ReplayMotionPlayer({
   const closePicked9 = useCallback((): void => {
     if (pickedRef.current !== null) setPicked(null);
   }, []);
+  /* ★ 화면이 갈리면 팝업은 닫는다(2026-09, 요청: "건물 선택시 인포팝업 노출하기(화면 전환되거나 다른거 선택시
+     닫혀야하는거 알지?)") — 중계·추적이 사람을 갈아타거나(camRaw9) 시점(viewRaw)이 바뀌면 카메라·안개가 통째로
+     딴 장면이라, 집어 둔 몸이 화면 밖이거나 안개 속이다. '다른 것 선택'은 pickAt 이 열쇠를 갈아 끼우는 것으로
+     이미 닫히고, 손짓·배율은 beginGestureXf 와 배율 단추·키보드가 이미 닫는다(위). */
+  useEffect(() => { closePicked9(); }, [camRaw9, viewRaw, closePicked9]);
   /* (걷어냄) mobBars — 좁은 화면의 배속·각도 바를 여닫던 상태다. 그 바가 지도 위
      값 버튼으로 바뀌면서 여닫을 것이 없어졌다(요청). */
   /** 이번 프레임에 그린 op — 클릭 판정과 팝업 내용이 여기서 지금 값을 읽는다. */
@@ -10579,14 +10580,20 @@ export default function ReplayMotionPlayer({
     const bw = el.offsetWidth;
     const bh = el.offsetHeight;
     if (bw <= 0 || bh <= 0) return;
-    playbackViewOf.set(clockKey, {
-      z: zoom,
-      cx: 0.5 - pan.x / (bw * zoom),
-      cy: 0.5 - pan.y / (bh * zoom),
-      deg: pitchDeg,
-    });
-  }, [clockKey, zoom, pan.x, pan.y, pitchDeg, fsOn, stage.w, stage.h, fsCoverW]);
+    /* 중계 중에는 자리(z·cx·cy)를 비운다(요청: "중계 활성화상태에서 공유시 위치 좌표 전송 금지" — 위 playbackViewOf 의 ★). */
+    playbackViewOf.set(clockKey, castOn
+      ? { deg: pitchDeg }
+      : { z: zoom, cx: 0.5 - pan.x / (bw * zoom), cy: 0.5 - pan.y / (bh * zoom), deg: pitchDeg });
+  }, [clockKey, zoom, pan.x, pan.y, pitchDeg, fsOn, stage.w, stage.h, fsCoverW, castOn]);
   useEffect(() => () => { if (clockKey) playbackViewOf.delete(clockKey); }, [clockKey]);
+  /* ★ 추적 중인 사람도 적어 둔다(playbackTrackOf — 공유 버튼이 &tr= 로 싣는다) — 표만 내보내 놓고 **적는 자리가
+     없었다**(2026-09 에 찾음: 추적을 켜고 공유해도 링크에 &tr= 가 한 번도 안 실렸다). 중계(castRaw)는 안 적는다 —
+     그 링크의 뜻은 개인 추적이고, 받는 쪽은 중계를 제 편성표로 다시 고른다. */
+  useEffect(() => {
+    if (!clockKey) return;
+    if (trackRaw) playbackTrackOf.set(clockKey, trackRaw); else playbackTrackOf.delete(clockKey);
+  }, [clockKey, trackRaw]);
+  useEffect(() => () => { if (clockKey) playbackTrackOf.delete(clockKey); }, [clockKey]);
   /* 받은 자리로 옮겨 앉는다(요청: 공유 링크의 &z=·&cx=·&cy=·&a=) — 딱 한 번이다.
      지도 상자가 실제로 설 때까지 프레임마다 기다린다: 자취를 받아 오고 배치가 정해지는
      동안 상자 폭이 0이라, 그때 셈하면 팬이 통째로 0으로 눌린다. 2초(120프레임)를
@@ -13772,7 +13779,11 @@ export default function ReplayMotionPlayer({
        PC에는 휠이 있어 확대가 한 손짓이고, 손가락 쪽 길게 누름은 시각 감기가 임자라
        어차피 두 기기에 같은 손짓이 못 된다. 길이 하나면 설명할 것도 없다.
        떠 있던 팝업을 닫는 것은 배율과 무관하다 — 그건 여전히 이 누름의 몫이다. */
-    const hit = zoomRef.current > 1 ? pickAt(e.clientX, e.clientY) : false;
+    /* ★ 그런데 **건물은 1배에서도 집는다**(2026-09, 요청: "건물 선택시 인포팝업 노출하기(화면 전환되거나 다른거
+       선택시 닫혀야하는거 알지?)") — 위 ★ 의 까닭(몇 픽셀짜리 유닛에 누름이 엉뚱하게 걸린다)은 유닛의 것이고,
+       건물은 1배에서도 서른 픽셀 남짓이라 누름이 헛걸릴 데가 없다. 한 번 누름이 오버레이를 여는 길도 이제 없어
+       (아래) 그 배율의 누름이 겨룰 것이 없다. 유닛은 종전대로 확대 뒤에만 집힌다. */
+    const hit = pickAt(e.clientX, e.clientY, zoomRef.current <= 1);
     if (!hit && hadPopup) setPicked(null);
     /* 아무것도 안 집힌 빈 곳의 누름 — **닫기만** 한다(요청: "이제 한번 클릭(터치)로
        오버레이 오픈은 아무데도 없음"). 여는 것은 어느 배치든 아이콘 버튼(·엔터)의
@@ -13789,7 +13800,7 @@ export default function ReplayMotionPlayer({
   /* 정보 팝업(요청: 유닛·건물 클릭하면 정보 툴팁, 딴 데 누르면 닫힘, 다른 몸을 누르면
      새 툴팁) — 집는 것은 '열쇠' 하나뿐이고, 내용은 프레임마다 지금 그린 op에서 다시
      읽는다. 그래서 체력·생산·업그레이드가 저절로 실시간이다. */
-  const pickAt = (clientX: number, clientY: number): boolean => {
+  const pickAt = (clientX: number, clientY: number, bldOnly9 = false): boolean => {
     const el = mapRef.current;
     if (!el) return false;
     const r = el.getBoundingClientRect();
@@ -13799,6 +13810,7 @@ export default function ReplayMotionPlayer({
     let bestD = Infinity;
     for (const o of opsRef.current) {
       if (!o.pickKey || o.ghost) continue;   // 잔상 판은 집지 않는다
+      if (bldOnly9 && !o.pickBld) continue;  // 1배 — 건물만(위 onMapPointerUp 의 ★)
       // UnitLayer의 분수→화면 사상과 같은 식(zx/zy 주석 참고).
       const ox = (o.fx - 0.5) * r.width * zoom + r.width / 2 + pan.x;
       const oy0 = (o.fy - 0.5) * r.height * zoom + r.height / 2 + pan.y;
@@ -14604,9 +14616,10 @@ export default function ReplayMotionPlayer({
        얹을 자리가 없다. 한 사람이 한 줄, 지표는 세로줄 맞춤 — 사이드바가 쓰던 줄 꼴이
        모든 자리의 기본이 된다. rows는 이제 '사이드바 판'이라는 뜻만 남는다(팀 머리와
        전체 이름을 그린다 — 좁은 판은 이름을 줄이고 팀은 좌우 자리가 말해 준다). */
+    /* (걷어냄) 최소 꼴 표식 클래스(scr-motion-teamcol-bare) — 라벨을 감추던 규칙이 유일한 쓰임이었고 그 규칙이
+       걷혔다(최소 꼴은 라벨을 안 그린다 · 격자는 판 클래스 .scr-fs-panel-bare 가 죈다). 규칙 없는 이름은 CSS 관문이 막는다. */
     return (
-    <div className={cx("scr-motion-teamcol", "scr-motion-teamcol-rows",
-      bare && "scr-motion-teamcol-bare")}>
+    <div className={cx("scr-motion-teamcol", "scr-motion-teamcol-rows")}>
       {/* ★ 표 머리와 팀 이름은 **한 줄**이다(지적: "on일 때 헤더줄이 하나 더 생겨서
           로스터 위치가 내려감 → 헤더줄을 별도 줄이 아닌 1팀 2팀 타이틀 줄에 병합") ──
           여태 둘은 따로 선 줄이었다. 그래서 표를 켜면 줄이 하나 늘어 아래 사람들이
@@ -14627,20 +14640,18 @@ export default function ReplayMotionPlayer({
             min-height로 못 박지 않는 까닭이 그것이다: 글자 크기가 화면마다
             갈리는데 공백은 저절로 따라간다. */}
         <span className="scr-motion-teamhead">{rows && !melee ? `${team}팀` : "\u00A0"}</span>
-        {/* 최소 꼴에서도 라벨을 **DOM에 그대로 둔다** — 글자만 CSS로 감춘다(같은 요청).
-            읽히면 안 되는 것은 맞다(아래에 숫자가 없으니 이름표만 남으면 빈 말이다).
-            다만 지워 버리면 줄 높이를 정하는 것이 남은 칸 하나뿐이 되어, 켜고 끌 때 줄이
-            **다른 글자의 높이**로 다시 잡힌다(밀리에서는 그 칸마저 비어 2px로 오므라들었다
-            — 실측). 같은 요소·같은 글꼴을 두고 보임만 끄면 높이가 정의상 같다. */}
-        {/* ★ 최소 꼴(1단계)에서 이 칸은 **APM 머리**다(요청: "로스터 1단계에서 APM 헤더
-            추가") — 그 꼴에서 값 줄의 첫 지표 칸에 APM이 앉으므로(아래 bare 줄), 머리도
-            같은 칸이라야 세로줄이 맞는다. 나머지 라벨은 종전대로 감춘다(값이 없는 칸의
-            이름표는 빈 말이다). 감추는 규칙에서 이 칸만 빠지도록 클래스를 단다. */}
-        <span className={cx(bare && "scr-motion-collabel-on")}>{bare ? "APM" : "일꾼"}</span>
+        {/* ★ 최소 꼴(1단계)은 지표 라벨을 **아예 안 그린다**(요청: "로스터 1단계 APM 보이는거 제거하고
+            컴팩트하게 가자") — 그 꼴의 격자는 이름 칸 하나라(replay.css --roster-cols) 감춘 라벨이 서 있을
+            자리가 없다. 한때 라벨을 DOM 에 두고 CSS 로 감췄던 까닭(줄 높이)은 위 팀 이름 칸의 공백이
+            이미 지고 있다 — 그 칸(9~10px)이 라벨(7~8px)보다 커서 줄 높이는 라벨이 있든 없든 같다.
+            그 앞 판의 'APM 머리 하나 남기기'(요청: "로스터 1단계에서 APM 헤더 추가")는 이 요청이 되물렸다. */}
+        {!bare && (<>
+        <span>일꾼</span>
         <span>인구</span>
         <span className="scr-motion-stat-min">광물</span>
         <span className="scr-motion-stat-gas">가스</span>
         <span>APM</span>
+        </>)}
       </div>
       {mates.map((m) => {
         const fallen = m.ghost || fallenHome(m);
@@ -14739,22 +14750,10 @@ export default function ReplayMotionPlayer({
                   '일꾼' 라벨은 뗐다(요청) — 그 이름은 이제 위 컬럼 라벨 줄이 한 번만
                   말한다. 값이 없어도 빈 칸을 그려 세로줄을 지킨다. 미네랄·가스는 색만
                   (파랑 미네랄·초록 가스 — 원작 색), APM은 지난 1분치다. */}
-              {/* ★ 최소 꼴(1단계)에서도 **APM 하나는 남긴다**(요청: "로스터 1단계 모드에서
-                  APM은 옆에 표시하기(닉네임 바로 오른쪽 위치하게)" · "세로 줄 맞추기") ──
-                  이름 글자 뒤에 그냥 붙이면 닉네임 길이가 사람마다 달라 숫자가 들쭉날쭉
-                  선다. 표의 **첫 지표 칸**(이름 칸 바로 오른쪽, 켠 꼴의 '일꾼' 자리)에
-                  앉히면 자리는 닉네임 바로 옆이면서 세로줄이 저절로 맞는다 — 칸 나눔은
-                  라벨 줄과 같은 --roster-cols 하나가 쥐기 때문이다. 나머지 네 칸은 빈
-                  칸으로 둔다(안 그리면 격자가 어긋난다). */}
-              {bare && (
-              <span className="scr-motion-stats">
-                <span className="scr-motion-stat">{apm9 ?? ""}</span>
-                <span className="scr-motion-stat" />
-                <span className="scr-motion-stat" />
-                <span className="scr-motion-stat" />
-                <span className="scr-motion-stat" />
-              </span>
-              )}
+              {/* ★ 최소 꼴(1단계)은 지표 칸을 **하나도 안 그린다**(요청: "로스터 1단계 APM 보이는거 제거하고
+                  컴팩트하게 가자") — 한때 첫 지표 칸에 APM 하나를 남기고 빈 칸 넷으로 격자를 지켰는데
+                  (요청: "로스터 1단계 모드에서 APM은 옆에 표시하기"), 이 요청이 그것을 되물렸다. 격자도
+                  이름 칸 하나로 죄어(replay.css --roster-cols) 판이 그만큼 좁다. */}
               {!bare && (
               <span
                 className="scr-motion-stats"
@@ -16352,15 +16351,14 @@ export default function ReplayMotionPlayer({
               프레임 배치에서는 조종부가 무대 **밖**으로 흐르므로 가릴 것이 없다(전체화면만 그 줄이
               무대를 덮는데, 그때는 CSS가 그 높이만큼 비킨다). 무대는 지도의 배율·팬·입체 변환을
               안 받으므로 자막이 끌 때 따라 움직이지 않는다(품질 알림과 같은 사정).
-              새것이 배열 앞이라 세로로 쌓으면 위에 선다(요청: "새로운 토스트가 위에 우선"). */}
-          {castToasts9.length > 0 && (
+              **상시**다(되요청: "토스터가 아니라 계속 노출로 변경") — 중계가 켜진 동안 한 줄이 늘 서 있고
+              토막이 갈리면 key 가 바뀌어 새 글귀가 떠오른다. */}
+          {castCap9 && (
             <div className="scr-motion-castbar" aria-live="polite">
-              {castToasts9.map((x9) => (
-                <span key={x9.id} className="scr-motion-casttoast">
-                  <i className="scr-motion-castdot" style={{ background: x9.col }} aria-hidden />
-                  {x9.text}
-                </span>
-              ))}
+              <span key={castCap9.key} className="scr-motion-castcap">
+                <i className="scr-motion-castdot" style={{ background: castCap9.col }} aria-hidden />
+                {castCap9.text}
+              </span>
             </div>
           )}
         </div>

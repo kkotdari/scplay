@@ -575,7 +575,8 @@ if (has("--dockprobe")) {
     console.log("[캔버스]", JSON.stringify(cvs));
 }
 /* 중계 자(--castprobe [초]): 중계 스위치·자막·카메라 임자를 한동안 지켜본다 — 편성표가
-   실제로 사람을 갈아타고 자막이 뜨는지는 정지 그림 한 장으로는 못 본다(자막은 2.6초다). */
+   실제로 사람을 갈아타는지는 정지 그림 한 장으로는 못 본다. 자막은 **상시**라(요청: "토스터가 아니라
+   계속 노출로") 뜨는 횟수가 아니라 **글귀가 갈린 횟수**(갈아탐)와 지금 글귀를 찍는다. */
 if (has("--castprobe")) {
   const secs9 = Number(flag("--castprobe", 16)) || 16;
   /* --fs 와 함께면 전체화면에서 본다 — 거기서만 조종부가 무대를 덮으므로 자막이 비키는지 확인한다. */
@@ -592,7 +593,7 @@ if (has("--castprobe")) {
     const r9 = await page.evaluate(() => ({
       on: !!document.querySelector(".scr-motion-castbtn-on"),
       btn: !!document.querySelector(".scr-motion-castbtn"),
-      toast: [...document.querySelectorAll(".scr-motion-casttoast")].map((el) => el.textContent ?? ""),
+      toast: [...document.querySelectorAll(".scr-motion-castcap")].map((el) => el.textContent ?? ""),
       /* 단추의 폭·왼쪽 자리 — 못 박은 폭이 켜짐·꺼짐에 안 흔들리나, 로스터 줄의 왼쪽과 맞나. */
       bb: (() => { const b = document.querySelector(".scr-motion-castbtn");
         const row = document.querySelector(".scr-fs-roster-fixed .scr-motion-teamrow") ?? document.querySelector(".scr-fs-roster-fixed .scr-motion-teamcol-pick");
@@ -610,13 +611,14 @@ if (has("--castprobe")) {
       const last9 = seen9[seen9.length - 1];
       if (!last9 || last9.text !== tx9) {
         seen9.push({ text: tx9, at: +(i9 / 5).toFixed(1), box: r9.box });
-        // 첫 자막이 뜬 그 장면을 찍는다(--shot) — 정지 그림으로 자리를 보려면 이 순간이어야 한다.
+        // 첫 자막이 선 그 장면을 찍는다(--shot) — 자리(무대 아래 몇 px)를 정지 그림으로 본다.
         if (SHOT && seen9.length === 1) await page.screenshot({ path: String(SHOT) });
       }
     }
     await page.waitForTimeout(200);
   }
-  console.log(`[중계] 단추 ${on9?.btn ? "있음" : "없음"} · 켜짐 ${on9?.on ? "예" : "아니오"} · 자막 ${seen9.length}번`
+  const capNow9 = await page.evaluate(() => document.querySelector(".scr-motion-castcap")?.textContent ?? null);
+  console.log(`[중계] 단추 ${on9?.btn ? "있음" : "없음"} · 켜짐 ${on9?.on ? "예" : "아니오"} · 상시 자막 ${capNow9 === null ? "없음" : `"${capNow9}"`} · 갈아탐 ${Math.max(0, seen9.length - 1)}번`
     + (on9?.bb ? ` · 단추 폭 ${on9.bb.w}px · 줄 왼쪽에서 ${on9.bb.dx}px` : ""));
   /* 배타 검사 — 개인 추적을 켜면 중계가 꺼지고, 중계를 켜면 개인 추적이 풀려야 한다(요청). */
   const excl9 = await page.evaluate(async () => {
@@ -633,6 +635,58 @@ if (has("--castprobe")) {
   });
   console.log("[중계 배타]", JSON.stringify(excl9));
   for (const x9 of seen9) console.log(`  ${x9.at}s  "${x9.text}"  ${JSON.stringify(x9.box)}`);
+}
+/* 집기 자(--pickprobe): **1배**에서 건물을 눌러 인포 팝업이 서나, 빈 땅을 누르면 닫히나, 다른 건물을 누르면
+   갈아타나, 중계가 카메라를 잡으면(화면 전환) 닫히나(요청: "건물 선택시 인포팝업 노출하기(화면 전환되거나 다른거
+   선택시 닫혀야하는거 알지?)") — 픽스처의 본진 홀(정구 CC (18,18) · 수달이 넥서스 (106,18) — 자리는 **몸 가운데**
+   타일)을 화면으로 옮겨 누른다. 유닛은 1배에서 여전히 안 집힌다(그 규약 — pickAt 의 bldOnly9). `--pickscan` 을
+   더하면 넥서스 둘레를 타일 단위로 훑어 **어디를 눌러야 잡히나**(판정 반경의 실측)를 찍는다 — 실측: 몸 가운데에서
+   위 3·아래 1·좌우 2타일(앵커가 몸 가운데보다 한 타일 위라 위쪽으로 더 넓다).
+   ⚠ 누름은 **플레이라이트의 진짜 마우스**다(page.mouse) — 페이지 안에서 지어 보낸 PointerEvent 는 활성 포인터가
+     없어 손짓의 setPointerCapture 가 던지고(실측) 누름이 통째로 버려진다.
+   ⚠ 중계가 켜져 있으면 첫 토막이 카메라를 4배로 당겨 1배 판정이 아니다 — 먼저 TV 단추로 끈다. */
+if (has("--pickprobe")) {
+  const rc9 = await page.evaluate(async () => {
+    const wait = (ms) => new Promise((r) => { setTimeout(r, ms); });
+    if (document.querySelector(".scr-motion-castbtn-on")) { document.querySelector(".scr-motion-castbtn")?.click(); await wait(400); }
+    const map = document.querySelector(".scr-motion-map");
+    if (!map) return null;
+    const r = map.getBoundingClientRect();
+    return { l: r.left, t: r.top, w: r.width, h: r.height };
+  });
+  /* ⚠ 중계가 첫 토막에서 이미 4배로 당겨 놓았다 — 끈 뒤에도 배율은 그대로라(stopCast9 는 보던 자리에 머문다)
+     1배로 도로 내린다(↓ 키가 한 칸 축소 · 사다리 바닥이 1). */
+  for (let i9 = 0; i9 < 5; i9 += 1) { await page.keyboard.press("ArrowDown"); await page.waitForTimeout(120); }
+  await page.waitForTimeout(400);
+  if (has("--pickscan")) {
+    // 앵커 훑기 — 홀(106,18) 둘레를 타일 단위로 눌러 어디서 잡히나 본다(판정 반경을 정하는 실측).
+    const hits9 = [];
+    for (let dy9 = -5; dy9 <= 3; dy9 += 1) for (let dx9 = -2; dx9 <= 2; dx9 += 1) {
+      await page.mouse.click(rc9.l + ((106 + dx9) / 128) * rc9.w, rc9.t + ((18 + dy9) / 128) * rc9.h);
+      await page.waitForTimeout(450);
+      const nm9 = await page.evaluate(() => document.querySelector(".scr-motion-info .scr-motion-info-name")?.textContent ?? null);
+      if (nm9) hits9.push(`${dx9},${dy9}:${nm9}`);
+    }
+    console.log("[집기 훑기]", hits9.join(" | ") || "없음");
+  }
+  const pop9 = () => page.evaluate(() => { const p = document.querySelector(".scr-motion-info"); return p ? (p.querySelector(".scr-motion-info-name")?.textContent ?? "?") : null; });
+  const tap9 = async (tx, ty) => {
+    await page.mouse.click(rc9.l + (tx / 128) * rc9.w, rc9.t + (ty / 128) * rc9.h);
+    await page.waitForTimeout(600);   // 더블탭 창(320ms)을 넘겨 다음 누름이 확대로 안 읽히게
+    return pop9();
+  };
+  const out9 = rc9 ? {
+    배율: await page.evaluate(() => window.__zoom ?? 1),
+    홀: await tap9(18, 18), 빈땅: await tap9(64, 64), 다른홀: await tap9(106, 18),
+  } : { err: "지도 없음" };
+  if (rc9) {
+    // 화면 전환 — 건물을 집은 채 중계를 켜면(카메라 임자가 바뀐다) 팝업이 닫혀야 한다.
+    out9.홀다시 = await tap9(18, 18);
+    await page.evaluate(() => { document.querySelector(".scr-motion-castbtn")?.click(); });
+    await page.waitForTimeout(500);
+    out9.중계켠뒤 = await pop9();
+  }
+  console.log("[집기]", JSON.stringify(out9));
 }
 if (SHOT) {
   await page.waitForTimeout(1500);

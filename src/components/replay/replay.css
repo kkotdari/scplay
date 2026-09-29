@@ -453,19 +453,12 @@
 /* 첫 칸은 팀 이름이다(표 머리와 한 줄로 병합·요청) — 라벨들과 달리 왼쪽 맞춤이고
    목소리도 한 단 크다. 지표 라벨이 없는 최소 꼴에서도 이 칸만 남아 줄 높이를 지킨다. */
 .scr-motion-teamcol-cols > .scr-motion-teamhead { text-align: left; }
-/* ★ 최소 꼴(지표 없음)에서는 라벨을 **감추되 자리는 남긴다**(요청: "밀리전도 헤더로우
-   자리 항상 확보해서 감춰도 로스터들이 안올라오게 하기") — DOM에서 지우면 줄 높이를
-   정하는 것이 팀 이름 칸 하나뿐이 되고, 밀리는 편이 없어 그 칸마저 비어 있어 격자 줄이
-   통째로 오므라들었다(실측: 15px → 2px). 그러면 로스터를 껐다 켤 때 사람들이 그만큼
-   오르내린다. 같은 요소·같은 글꼴을 두고 보임만 끄면 높이가 정의상 같다. */
-.scr-motion-teamcol-bare .scr-motion-teamcol-cols > span:not(.scr-motion-teamhead):not(.scr-motion-collabel-on) {
-  visibility: hidden;
-}
-/* ★ 최소 꼴에서 **살려 두는 라벨**(요청: "로스터 1단계에서 APM 헤더 추가") — 그 꼴의
-   값 줄은 첫 지표 칸 하나에만 숫자(APM)가 있으므로 그 칸의 이름표만 남긴다. 감추기가
-   `:not()`으로 이 클래스를 비켜 가고, 여기서는 되살릴 것이 없으니 보임만 못 박는다
-   (규칙이 없으면 CSS 관문이 이름 없는 클래스로 막는다). */
-.scr-motion-teamcol-cols > .scr-motion-collabel-on { visibility: visible; }
+/* ★ 최소 꼴(1단계)은 지표 라벨을 **아예 안 그린다**(요청: "로스터 1단계 APM 보이는거 제거하고
+   컴팩트하게 가자") — 그 꼴의 격자가 이름 칸 하나라(아래 .scr-fs-panel-bare 의 --roster-cols) 감춘
+   라벨이 서 있을 자리가 없다. 한때 라벨을 DOM 에 두고 visibility 로만 감춘 까닭(요청: "밀리전도
+   헤더로우 자리 항상 확보")은 팀 이름 칸의 공백(\u00A0)이 진다 — 그 칸(9~10px)이 라벨(7~8px)보다 커서
+   줄 높이는 라벨이 있든 없든 같다(실측 그때 2px 로 오므라든 것은 그 공백을 넣기 전이다).
+   그 뒤에 살려 두던 'APM 머리'(요청: "로스터 1단계에서 APM 헤더 추가")도 이 요청이 되물렸다. */
 /* ★ 지표의 **다섯 줄 자리 비움을 끈다**(지적: "로스터 줄간격 왜케 커 이제 로스터 밑에
    아무것도 없어서 필요없는데") — 칸 꼴에서는 지표가 이름 **아래** 다섯 줄로 쌓이므로,
    참값이 오기 전에 그 자리를 미리 비워 둬야 자료가 도착할 때 지도가 안 밀렸다
@@ -2585,24 +2578,24 @@
   80% { opacity: 1; }
   100% { opacity: 0; }
 }
-/* ── 중계 자막(요청: "플레이창 아래가운데에 누구 화면 이라고 자막 띄워줌(토스트) 바로
-   다른 사람으로 전환시 새로운 토스트가 위에 우선으로 보이게") ─────────────────────────
+/* ── 중계 자막(요청: "플레이창 아래가운데에 누구 화면 이라고 자막 띄워줌(토스트)" → 되요청:
+   "토스터가 아니라 계속 노출로 변경" · "위치도 조금 위로") ──────────────────────────────
    무대(.scr-fs-stage)의 직계 자식이라 지도의 배율·팬·입체 변환을 안 받는다(품질 알림과
    같은 자리 — 지도 상자 안에 두면 끌 때 따라 움직인다).
-   ★ 자리는 무대 아래 끝이다 — 프레임 배치에서는 조종부가 무대 **밖**으로 흐르므로 가릴
-     것이 없다. 전체화면만 그 줄이 무대를 덮으니, 거기서만 조종부 키(--scr-fsbot · 재생기가
-     재서 얹는다)만큼 비킨다.
-   ★ 쌓임: 새것이 **위**다(요청). 세로 정렬 하나로 낸다 — 그리는 쪽이 새것을 배열 앞에
-     담으므로 DOM 차례가 곧 위아래다. 겹치지 않으니 z를 다툴 일이 없다. */
+   ★ 자리는 무대 아래에서 36px 이다(되요청: "조금 위로" — 12 → 36) — 프레임 배치에서는
+     조종부가 무대 **밖**으로 흐르므로 가릴 것이 없다. 전체화면만 그 줄이 무대를 덮으니,
+     거기서만 조종부 키(--scr-fsbot · 재생기가 재서 얹는다)에 같은 몫(34px)을 얹어 비킨다.
+   ★ 한 줄이다 — 옛 토스트의 쌓임(새것이 위)은 상시 자막이 되며 걷혔다. */
 .scr-motion-castbar {
-  position: absolute; left: 50%; bottom: 12px;
+  position: absolute; left: 50%; bottom: 36px;
   transform: translateX(-50%);
   z-index: 30000; display: flex; flex-direction: column; align-items: center; gap: 6px;
   pointer-events: none; max-width: calc(100% - 24px);
 }
-/* ⚠ 애니메이션 길이는 재생기의 CAST_TOAST_MS9(2600ms)와 **같은 값**이어야 한다 — 짧으면
-   스러진 자막이 자리를 차지한 채 남고, 길면 사라지는 도중에 DOM에서 뽑혀 툭 끊긴다. */
-.scr-motion-casttoast {
+/* ★ 자막은 **상시**다(되요청: "토스터가 아니라 계속 노출로 변경") — 중계가 켜진 동안 늘 서 있고 토막이
+   갈릴 때 글귀만 갈아 끼운다(그리는 쪽이 토막 번호를 key 로 주어 그 순간 떠오름만 다시 돈다). 스러지는
+   애니메이션과 그 길이를 재생기 상수(옛 CAST_TOAST_MS9)와 맞추던 ⚠ 는 함께 걷혔다. */
+.scr-motion-castcap {
   display: inline-flex; align-items: center; gap: 7px;
   padding: 6px 14px; border-radius: 999px;
   background: rgba(8, 11, 17, 0.84); color: #fff;
@@ -2610,22 +2603,18 @@
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.45);
   font-size: 13px; font-weight: 600; letter-spacing: 0.2px;
   white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
-  animation: scr-casttoast-in 0.2s ease-out, scr-casttoast-out 0.4s ease-in 2.2s forwards;
+  animation: scr-castcap-in 0.25s ease-out;
 }
 /* 그 선수의 색 — 지도 위 유닛 색과 곧바로 이어져, 누구 화면인지가 글자를 읽기 전에 보인다. */
 .scr-motion-castdot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
 /* 전체화면만 조종부가 무대를 덮는다 — 그 키(실측 --scr-fsbot-m, 없으면 조립값)만큼 비킨다. */
-.scr-fs-layer.is-fs .scr-motion-castbar { bottom: calc(var(--scr-fsbot, 56px) + 10px); }
-@keyframes scr-casttoast-in {
+.scr-fs-layer.is-fs .scr-motion-castbar { bottom: calc(var(--scr-fsbot, 56px) + 34px); }
+@keyframes scr-castcap-in {
   0% { opacity: 0; transform: translateY(6px); }
   100% { opacity: 1; transform: translateY(0); }
 }
-@keyframes scr-casttoast-out {
-  0% { opacity: 1; }
-  100% { opacity: 0; }
-}
 @media (prefers-reduced-motion: reduce) {
-  .scr-motion-casttoast { animation: scr-casttoast-out 0.3s ease-in 2.3s forwards; }
+  .scr-motion-castcap { animation: none; }
 }
 .scr-motion-simnote {
   /* 맵 정가운데(요청) — 자취가 오기 전에는 지도가 텅 비어 있어, 귀퉁이의 작은 알약은
@@ -3556,6 +3545,12 @@
 .scr-fs-panel-bare {
   background: none; box-shadow: none; pointer-events: none;
 }
+/* ★ 최소 꼴의 격자는 **이름 칸 하나**다(요청: "로스터 1단계 APM 보이는거 제거하고 컴팩트하게 가자") —
+   지표 다섯 칸과 그 사이가 통째로 빠져 판이 그만큼 좁다(폭은 fit-content 라 저절로 따라온다). 이름 칸은
+   첫 칸·고정 폭(--roster-name) 그대로라 켜고 끌 때 아바타·이름이 한 픽셀도 안 움직인다 — 그것이 이 판의
+   규칙이다(위 .scr-fs-roster-fixed 의 ★). 두 클래스를 겹쳐 적어 좁은 화면의 --roster-cols(1159px 미디어
+   규칙 · 무게 0,1,0)보다 앞선다. 자료 없는 판(scr-motion-nodata 옆)도 같은 클래스라 함께 받는다. */
+.scr-fs-roster-fixed.scr-fs-panel-bare { --roster-cols: var(--roster-name); }
 /* (삭제·요청: "off일 때만 글자 뒤에 음영이 붙는다 — 필요없는 기능이라 원인까지 삭제")
    판이 없을 때만 걸던 검은 text-shadow 한 겹이었다. 켜고 끌 때 글자의 인상이 달라져
    같은 표로 안 읽혔다. 이름칩은 제 배경색을 갖고 있어 지도 위에서도 그것으로 읽힌다. */
