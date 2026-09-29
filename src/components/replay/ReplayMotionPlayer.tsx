@@ -9143,12 +9143,16 @@ export default function ReplayMotionPlayer({
      개인색(연두·노랑·흰색)은 밝은 맵에서 통째로 사라져 더 진한 링을 두른다(지적: "이색은
      흰색 바탕에서 잘 안보여"). */
   /* (걷어냄) glyphStyle — 마지막 쓰임새(전투 효과 스팬의 색)가 캔버스 이관으로 사라졌다. */
-  const chipStyle = (raw: string, team: 1 | 2 | undefined): React.CSSProperties => {
+  const chipStyle = (raw: string, team: 1 | 2 | undefined, alpha = 1): React.CSSProperties => {
     const bg = modeColor(raw, team);
     const lum = lumOf(bg);
     // 배지(칩)는 제 배경색이 있으니 테두리는 안 두른다(지적).
+    /* ★ 바탕에 투명도를 줄 수 있다(2026-09, 요청: "로스터 1단계시 닉네임 상자 배경 투명도 주기") — 최소 꼴(bare)의
+       로스터만 CHIP_BARE_A9 를 준다. 글자색은 **불투명한 제 색의 밝기**로 고른다 — 비치는 지도가 대개 어두워
+       바탕이 옅어져도 밝은 칩은 검정 글자가 그대로 읽힌다. 팀색(#rrggbb 가 아닌 값)은 그대로 둔다. */
+    const m9 = alpha < 1 ? /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(bg) : null;
     return {
-      background: bg,
+      background: m9 ? `rgba(${parseInt(m9[1], 16)}, ${parseInt(m9[2], 16)}, ${parseInt(m9[3], 16)}, ${alpha})` : bg,
       color: lum > 150 ? "#111" : "#fff",
     };
   };
@@ -9405,14 +9409,23 @@ export default function ReplayMotionPlayer({
      시계·쌓임(셋까지)·스러짐은 다 걷었다 — 상태도 없다. 렌더마다 지금 토막에서 곧장 읽는다. */
   /** 자막 글귀 — 팀전만 팀을 붙인다(요청: "일대일이나 프리포올은 팀 생략"). 밀리(1:1·프리포올)는
    *  편이 없으므로 melee 한 문이 그 둘을 다 가른다. */
+  /* ★ '화면' 글자는 걷었다(2026-09, 요청: "화면이라는 글자 제거") — 자막이 로스터 2단계의 지표를 함께 싣게 되어
+     (아래 castCap9) 이름 뒤의 그 낱말이 표의 첫 칸을 어지럽혔다. 색점·이름·팀만으로 누구 화면인지 읽힌다. */
   const castLabel9 = (raw9: string): string => {
     const nm9 = bases.find((b9) => b9.key === raw9)?.name ?? raw9;
     const tm9 = melee ? 0 : (teamOfRaw(raw9) ?? 0);
-    return tm9 ? `${tm9}팀 ${nm9} 화면` : `${nm9} 화면`;
+    return tm9 ? `${tm9}팀 ${nm9}` : nm9;
   };
-  /** 지금 자막 — 중계가 켜져 있고 편성표가 사람을 가리킬 때만 선다. */
+  /** 지금 자막 — 중계가 켜져 있고 편성표가 사람을 가리킬 때만 선다.
+   *  ★ **로스터 2단계의 지표를 함께 싣는다**(2026-09, 요청: "로스터 2단계 내용 같이 보여주기 · 내용별 라벨은 위쪽에
+   *    작게 표시" — 그림: 일꾼 · 자원(미네랄/가스 · 제 색) · 인구 · APM) — 값은 로스터가 읽는 **같은 표**(workerNow ·
+   *    resNow · supplyNow · apmNow)에서 그대로 읽는다. 자막이 제 셈을 들면 로스터와 조용히 어긋난다. */
   const castCap9 = castOn && castRaw !== null
-    ? { key: castIdx9, text: castLabel9(castRaw), col: modeColor(castRaw, teamOfRaw(castRaw)) }
+    ? {
+      key: castIdx9, text: castLabel9(castRaw), col: modeColor(castRaw, teamOfRaw(castRaw)),
+      worker: workerNow.get(castRaw) ?? null, res: resNow.get(castRaw) ?? null,
+      sup: supplyNow.get(castRaw) ?? null, apm: apmNow.get(castRaw) ?? bases.find((b9) => b9.key === castRaw)?.apm ?? null,
+    }
     : null;
   /** 추적 켜기·끄기 — 시야(viewRaw)를 함께 끌고 다닌다. 끄면 시야도 전체로 돌아간다. */
   /** 추적을 끈다 — **보던 자리에 머문다**(요청: "추적 보다가 끄면 맵 위치가 기존에 보던 곳으로 돌아가는데
@@ -14790,6 +14803,8 @@ export default function ReplayMotionPlayer({
    *  줄인다. 기둥(사이드바)의 로스터는 제 칸에 서므로 그대로다.
    *  ★ 폭이 아니라 **어느 판이냐**로 가른다 — 아바타가 서는 구간이 뷰포트 1160px 이상이라
    *    폭으로 가르면 정작 아바타가 보이는 화면에서 안 걸린다(그 판이 곧 이 판이다). */
+  /** 최소 꼴(1단계) 로스터 이름칩의 바탕 알파(2026-09, 요청: "로스터 1단계시 닉네임 상자 배경 투명도 주기"). */
+  const CHIP_BARE_A9 = 0.62;
   const teamCol = (team: 1 | 2, rows = false, bare = false, small = false) => {
     /* 한 팀에 몇이냐가 이름 길이를 정한다(요청) — 칸 폭은 고정인데 그 폭을 사람 수로
        나눠 쓰므로, 넷이면 세 자·셋이면 네 자·둘이면 여섯 자·혼자면 통째로다. */
@@ -14906,7 +14921,7 @@ export default function ReplayMotionPlayer({
             </span>
             <span className="scr-motion-teamcol-text">
               {/* 줄인 이름 하나로(재요청: 한글 3·영문 5 제한) — 전체 이름은 카드·댓글에서. */}
-              <span className="scr-motion-teamcol-name" style={chipStyle(m.key, m.team)}>
+              <span className="scr-motion-teamcol-name" style={chipStyle(m.key, m.team, bare ? CHIP_BARE_A9 : 1)}>
                 {rows ? m.name : shortName(m.name, mates.length)}
                 {/* ★ 종족 글자는 **이름과 같은 네모 안**이고 원은 없다(2026-09, 요청: "로스터 종족배지 원
                     제거하고 T P Z 만 표시하는데 그마저도 플레이어명과 같이 네모 안으로 이동") — 옆에 따로
@@ -16580,9 +16595,25 @@ export default function ReplayMotionPlayer({
               토막이 갈리면 key 가 바뀌어 새 글귀가 떠오른다. */}
           {castCap9 && (
             <div className="scr-motion-castbar" aria-live="polite">
+              {/* 표 한 장 — 첫 칸(색점 + 이름)은 두 줄을 다 차지하고, 지표 넷은 위 줄 작은 라벨 · 아래 줄 값이다.
+                  광물/가스는 로스터와 같은 색 클래스(scr-motion-stat-min/gas)를 물려받는다. */}
               <span key={castCap9.key} className="scr-motion-castcap">
-                <i className="scr-motion-castdot" style={{ background: castCap9.col }} aria-hidden />
-                {castCap9.text}
+                <span className="scr-motion-castcap-who">
+                  <i className="scr-motion-castdot" style={{ background: castCap9.col }} aria-hidden />
+                  {castCap9.text}
+                </span>
+                <span className="scr-motion-castcap-lab">일꾼</span>
+                <span className="scr-motion-castcap-lab">자원</span>
+                <span className="scr-motion-castcap-lab">인구</span>
+                <span className="scr-motion-castcap-lab">APM</span>
+                <span className="scr-motion-castcap-val">{castCap9.worker ?? "–"}</span>
+                <span className="scr-motion-castcap-val">
+                  <span className="scr-motion-stat-min">{castCap9.res ? castCap9.res[0] : "–"}</span>
+                  <span className="scr-motion-castcap-sl">/</span>
+                  <span className="scr-motion-stat-gas">{castCap9.res ? castCap9.res[1] : "–"}</span>
+                </span>
+                <span className="scr-motion-castcap-val">{castCap9.sup ? `${castCap9.sup[0]}/${castCap9.sup[1]}` : "–"}</span>
+                <span className="scr-motion-castcap-val">{castCap9.apm ?? "–"}</span>
               </span>
             </div>
           )}

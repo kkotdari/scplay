@@ -2578,15 +2578,23 @@
    갈릴 때 글귀만 갈아 끼운다(그리는 쪽이 토막 번호를 key 로 주어 그 순간 떠오름만 다시 돈다). 스러지는
    애니메이션과 그 길이를 재생기 상수(옛 CAST_TOAST_MS9)와 맞추던 ⚠ 는 함께 걷혔다. */
 .scr-motion-castcap {
-  display: inline-flex; align-items: center; gap: 7px;
-  padding: 6px 14px; border-radius: 999px;
-  background: rgba(8, 11, 17, 0.84); color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.20);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.45);
-  font-size: 13px; font-weight: 600; letter-spacing: 0.2px;
+  /* ★ 표 한 장(2026-09, 요청: "자동 중계 자막 배경 더 투명하게 하고 폰트크기 줄이고 로스터 2단계 내용 같이 보여주기.
+     내용별 라벨은 위쪽에 작게 표시") — 격자 두 줄: 위 줄은 지표 라벨(작게), 아래 줄은 값. 첫 칸(색점 + 이름)은 두 줄을
+     다 차지하고 세로 가운데다. 바탕 0.84 → 0.42 · 글자 13 → 11px. */
+  display: inline-grid; grid-template-columns: auto repeat(4, auto); grid-auto-rows: auto;
+  column-gap: 12px; row-gap: 0; align-items: center;
+  padding: 4px 12px; border-radius: 10px;
+  background: rgba(8, 11, 17, 0.42); color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  font-size: 11px; font-weight: 600; letter-spacing: 0.2px; line-height: 1.25;
   white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
   animation: scr-castcap-in 0.25s ease-out;
 }
+.scr-motion-castcap-who { grid-row: 1 / 3; display: inline-flex; align-items: center; gap: 6px; }
+.scr-motion-castcap-lab { grid-row: 1; font-size: 7px; font-weight: 600; opacity: 0.7; text-align: right; line-height: 1.1; }
+.scr-motion-castcap-val { grid-row: 2; text-align: right; font-variant-numeric: tabular-nums; }
+.scr-motion-castcap-sl { opacity: 0.55; margin: 0 1px; }
 /* 그 선수의 색 — 지도 위 유닛 색과 곧바로 이어져, 누구 화면인지가 글자를 읽기 전에 보인다. */
 .scr-motion-castdot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
 /* 전체화면만 조종부가 무대를 덮는다 — 그 키(실측 --scr-fsbot-m, 없으면 조립값)만큼 비킨다. */
