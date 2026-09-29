@@ -600,6 +600,30 @@ if (has("--dockprobe")) {
     const cvs = await page.evaluate(() => [...document.querySelectorAll("canvas")].map((c) => ({ cls: c.className.slice(0, 40), cw: c.clientWidth, ch: c.clientHeight, w: c.width, h: c.height })));
     console.log("[캔버스]", JSON.stringify(cvs));
 }
+/* 목록 자(--pickshot <png>): TV 단추의 목록을 **연 채** 찍는다(2026-09, 지적: "버튼줄의 버튼 셀렉트 목록이
+   화면캡션(~화면)에 가려져") — 자막(.scr-motion-castbar)과 목록(.scr-motion-pickmenu)의 겹 무게는 정지 그림에서만
+   보인다. 중계가 켜진 채(기본값) 목록을 열면 둘이 한 자리에 겹치므로, 목록이 온전히 위에 서야 한다. 상자도 찍는다. */
+if (has("--pickshot")) {
+  await page.waitForTimeout(1500);
+  const r9 = await page.evaluate(() => {
+    const b = document.querySelector(".scr-motion-mapbtns .scr-motion-castbtn");
+    if (b instanceof HTMLElement) b.click();
+    return !!b;
+  });
+  await page.waitForTimeout(400);
+  const bx9 = await page.evaluate(() => {
+    const q = (s) => { const el = document.querySelector(s); if (!el) return null; const r = el.getBoundingClientRect();
+      return { x: +r.left.toFixed(0), y: +r.top.toFixed(0), w: +r.width.toFixed(0), h: +r.height.toFixed(0), z: getComputedStyle(el).zIndex }; };
+    const m = q(".scr-motion-pickmenu"); const c = q(".scr-motion-castbar");
+    /* 겹친 자리의 한가운데에서 맨 위 요소가 목록 안인가 — 그것이 곧 '가려지나'다. */
+    let top = null;
+    if (m && c) { const x0 = Math.max(m.x, c.x), x1 = Math.min(m.x + m.w, c.x + c.w), y0 = Math.max(m.y, c.y), y1 = Math.min(m.y + m.h, c.y + c.h);
+      if (x1 > x0 && y1 > y0) { const el = document.elementFromPoint((x0 + x1) / 2, (y0 + y1) / 2); top = el?.closest(".scr-motion-pickmenu") ? "목록" : (el?.className ?? "?"); } else top = "안 겹침"; }
+    return { m, c, top };
+  });
+  console.log(`[목록] 단추 ${r9 ? "눌렀다" : "없음"} · 목록 ${JSON.stringify(bx9.m)} · 자막 ${JSON.stringify(bx9.c)} · 겹친 자리 맨 위: ${bx9.top}`);
+  await page.screenshot({ path: String(flag("--pickshot", "pick.png")) });
+}
 /* 중계 자(--castprobe [초]): 중계 스위치·자막·카메라 임자를 한동안 지켜본다 — 편성표가
    실제로 사람을 갈아타는지는 정지 그림 한 장으로는 못 본다. 자막은 **상시**라(요청: "토스터가 아니라
    계속 노출로") 뜨는 횟수가 아니라 **글귀가 갈린 횟수**(갈아탐)와 지금 글귀를 찍는다. */

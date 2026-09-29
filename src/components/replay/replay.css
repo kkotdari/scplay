@@ -2555,11 +2555,17 @@
    ★ 자리는 무대 아래에서 36px 이다(되요청: "조금 위로" — 12 → 36) — 프레임 배치에서는
      조종부가 무대 **밖**으로 흐르므로 가릴 것이 없다. 전체화면만 그 줄이 무대를 덮으니,
      거기서만 조종부 키(--scr-fsbot · 재생기가 재서 얹는다)에 같은 몫(34px)을 얹어 비킨다.
-   ★ 한 줄이다 — 옛 토스트의 쌓임(새것이 위)은 상시 자막이 되며 걷혔다. */
+   ★ 한 줄이다 — 옛 토스트의 쌓임(새것이 위)은 상시 자막이 되며 걷혔다.
+   ★★ **무게는 아이콘 줄 아래다**(지적: "버튼줄의 버튼 셀렉트 목록이 화면캡션(~화면)에 가려져") — 무대
+     (.scr-fs-stage)는 z-index 가 없어 제 겹 문맥을 안 세우므로, 여기 적은 값은 뿌리(.scr-fs-root)의
+     자리에서 형제인 아이콘 줄(.scr-motion-mapbtns · 전체화면 12 · 프레임은 static 이라 목록 7600 이 곧장
+     선다)과 겨룬다. 옛 30000 은 품질 알림을 베낀 값인데 그것이 버튼 위로 펼치는 목록(.scr-motion-pickmenu)
+     을 통째로 덮었다. 자막은 읽기만 하는 줄(pointer-events none)이라 만지는 것보다 위에 설 까닭이 없다 —
+     지도(1)·조작판(.scr-fs-ui 10) 위, 아이콘 줄(12) 아래인 **11** 이다. */
 .scr-motion-castbar {
   position: absolute; left: 50%; bottom: 36px;
   transform: translateX(-50%);
-  z-index: 30000; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  z-index: 11; display: flex; flex-direction: column; align-items: center; gap: 6px;
   pointer-events: none; max-width: calc(100% - 24px);
 }
 /* ★ 자막은 **상시**다(되요청: "토스터가 아니라 계속 노출로 변경") — 중계가 켜진 동안 늘 서 있고 토막이

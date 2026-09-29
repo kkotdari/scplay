@@ -2282,6 +2282,19 @@ z 8.65 로 크레스트(≈7.8)보다 높고 뿌리 반폭 1.5 가 목(0.85)을 
 · `replayChrome().RaceBadge` 슬롯과 `ReplayRaceBadge` 컴포넌트는 남긴다(앱이 갈아 끼울 수 있는 자리 · 로스터는 이제 안 부른다).
 · 🔎 `node scripts/perf-check.mjs --wide --warm 0 --glblit --shot x.png` 의 왼위 로스터 — "정구 T"·"Rex Z" 가 한 네모 안이다.
 
+## 중계 자막은 아이콘 줄 아래에 선다 — 무대는 겹 문맥이 아니다
+★ (2026-09, 지적: "버튼줄의 버튼 셀렉트 목록이 화면캡션(~화면)에 가려져 수정해줘") — TV·배속·확대 단추가 위로
+펼치는 목록(`.scr-motion-pickmenu` · z 7600)이 상시 자막(`.scr-motion-castbar` · 옛 z **30000**) 밑에 깔렸다.
+· **까닭은 무대다** — 자막은 무대(`.scr-fs-stage`)의 자식인데 무대는 `position` 만 있고 z-index 가 없어 제 겹 문맥을
+  안 세운다. 곧 자막의 z 는 뿌리(`.scr-fs-root`)의 자리에서 **형제인 아이콘 줄**(`.scr-motion-mapbtns` · 전체화면 12 ·
+  프레임은 `position: static` 이라 목록의 7600 이 곧장 선다)과 겨루고, 30000 은 어느 쪽이든 이긴다. 그 30000 은 품질
+  알림(`.scr-motion-qualitynote`)을 베낀 값이었다.
+· 자막은 **읽기만 하는 줄**(pointer-events none)이라 만지는 것보다 위에 설 까닭이 없다 → **11**(지도 1 · 조작판
+  `.scr-fs-ui` 10 위 · 아이콘 줄 12 아래). 목록 쪽은 한 톨도 안 건드렸다.
+· 🔎 `node scripts/perf-check.mjs --wide --warm 0 --glblit --pickshot <png>`(2026-09 에 두었다) — TV 단추의 목록을 **연 채**
+  찍고 `[목록]` 줄에 목록·자막 상자와 **겹친 자리 맨 위가 무엇인가**(`elementFromPoint` — "목록"이어야 한다)를 찍는다.
+  ⚠ 스크린샷은 DPR 2 라 자를 때 상자 값을 두 배로 준다.
+
 ## 맥 크롬의 전체화면 — 창이 이미 화면을 다 덮고 있으면 API 를 안 부른다
 ★ (2026-09, 지적: "맥 크롬에서 전체화면on -> 전체화면off시 맥 바탕화면으로 가는 문제") — 맥에서 크롬을 초록 단추(운영체제
 전체화면 Space)로 띄워 둔 채 이 단추를 누르면 HTML5 전체화면이 그 Space 위에 한 번 더 걸리고, `exitFullscreen()` 이 그 둘을 함께
