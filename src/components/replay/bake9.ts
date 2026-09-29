@@ -12953,21 +12953,29 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const gdy9 = Math.cos(GT9); const gdz9 = Math.sin(GT9);
     const gsh9 = 1 / Math.hypot(gdy9 / DY9, gdz9 / DH9z9);   // 그 축이 껍질을 뚫는 거리
     const gby9 = DCY9 + (gsh9 - GSINK9) * gdy9 + GFWD9;  // 밑면 한가운데(+ 곧은 앞 몫)
-    const gbz9 = (gsh9 - GSINK9) * gdz9;
-    /* ★★ **보석·고리는 지면에서 벤다**(2026-09, 지적: "어시밀레이터 모든 부품의 바닥높이가 같은지 확인 필요 뭔가 이상해") —
-       실측(model-mesh --dump 를 색으로 묶어 z 범위): 다른 부품은 다 z 0 에서 서는데 보석(#5fe6d4)은 **−0.64** · L 고리
-       (#a8afb8)는 **−0.81** 까지 내려가 있었다. 4단의 ⚠("몸이 짧아진 만큼 보석의 밑 테는 땅 밑으로 내려간다 — 값을 치르지는
-       않는다")는 밑 **낯**만 본 말이었고, 12단의 L 고리가 그 밑 테를 따라 땅 밑으로 0.8 더 뻗으며 0°·315° 에서 보석이
-       건물 밑선 아래로 통째로 매달렸다. 지면 아래에는 가릴 땅이 없어 GL 이 그대로 그린다. 옮기지 않고 **벤다**(`cutFace` =
-       z · 음수 = 파낼 쪽) — 보석은 지면에 평평히 앉은 반구가 되고 고리도 거기서 끊긴다. 위치·크기(GT9·GFWD9·GR9·GSINK9)는
-       한 톨도 안 건드린다.
-       ⚠⚠ **밑 뚜껑도 걷는다**(caps "bottom" → "none") — 뚜껑은 cutFace 를 안 지나므로 그 원판이 z −0.64 까지 남고, 보이지는
-         않아도 **잉크 상자의 바닥**(footOf 는 꼭짓점을 다 잰다)을 그것이 쥐어 건물 전체가 화면에서 0.24 모형칸 들려 앉았다
-         (실측 화면 자: 뚜껑 밑점 1.62 vs 앞 굴뚝 밑 1.38). 그 뚜껑은 껍질 속으로 GSINK9 물린 평면이라 없어도 구멍이 안 보인다. */
-    const GND9 = (_x: number, _y: number, z: number): number => z;
+    /* ★★ **보석·L 고리는 통째로 들어 올려 고리 밑이 지면에 앉는다**(2026-09, 지적: "어시밀레이터 모든 부품의 바닥높이가
+       같은지 확인 필요 뭔가 이상해" → 지면에서 벤 판을 보고: **"링이 아래가 잘리잖아"**) — 실측(model-mesh --dump 를 색으로
+       묶어 z 최솟값): 다른 부품은 다 z 0 에서 서는데 보석(#5fe6d4)은 −0.64 · L 고리(#a8afb8)는 −0.81 까지 내려가 있었다.
+       4단의 ⚠("밑 테는 땅 밑으로 — 값을 치르지는 않는다")는 안 보이는 밑 **낯**만 본 말이었고, 12단의 L 고리가 그 밑 테를
+       따라 땅 밑으로 뻗으며 0°·315° 에서 보석이 건물 밑선 아래로 매달렸다(지면 아래에는 가릴 땅이 없어 GL 이 그대로 그린다).
+       ⚠ 첫 판은 `cutFace`(z) 로 지면에서 **베었는데**, 그러면 고리가 밑에서 잘린 반고리가 된다(되지적). 자리를 옮기는 것이
+         맞다: 고리의 가장 낮은 점(뒷면 판·아래 판의 바깥 모서리 · 축 자에서 되짚는다)이 지면 위 `GCLR9` 에 오도록 보석·고리를
+         **같은 몫(`GUP9`) z 로 든다** — 자는 보석의 것이라 GT9·GR9·CLFO9 를 고치면 저절로 다시 난다. 밑 뚜껑(caps bottom)은
+         도로 둔다(들린 뒤 그 평면이 껍질 위로 드러나 없으면 속이 보인다). */
+    const CLT9 = 0.07;                                   // 판 반두께
+    const CLFI9 = GR9 * 0.93;                            // 뒷면 판 안쪽 테 — 보석 살을 문다
+    const CLFO9 = GR9 * 1.14;                            // 뒷면 판 바깥 테 = L 의 모서리
+    const CLL9 = 0.46;                                   // 아래 판이 앞으로 뻗는 몫(축 방향)
+    const GCLR9 = 0.02;                                  // 고리 밑과 지면 사이 한 뼘
+    const gbz09 = (gsh9 - GSINK9) * gdz9;                // 들기 전 밑면 한가운데 높이
+    /* 고리의 가장 낮은 점 — 두 판 다 바깥 테가 CLFO9 이고 축 방향의 뒤 끝(ax 0)이 가장 낮다:
+       z = gbz09 − CLFO9·cos(GT9)(û 의 z 몫이 gdy9 다). 뒷면 판(축 0~2·CLT9)·아래 판(축 0~CLL9) 둘의 최솟값이 같다. */
+    const gLow9 = gbz09 - CLFO9 * gdy9;
+    const GUP9 = Math.max(0, GCLR9 - gLow9);
+    const gbz9 = gbz09 + GUP9;
     out.push(...tagKey(spirePillar({
-      x: 0, y: 0, h: 1, w: GR9, tipW: 0, segs: 8, sides: 20, caps: "none",
-      oval: GOV9, trueNormal: true, cutFace: GND9,
+      x: 0, y: 0, h: 1, w: GR9, tipW: 0, segs: 8, sides: 20, caps: "bottom",
+      oval: GOV9, trueNormal: true,
       path: (t9: number): [number, number, number] => [0, gby9 + GR9 * t9 * gdy9, gbz9 + GR9 * t9 * gdz9],
       widthOf: (t9: number): number => GR9 * Math.sqrt(Math.max(0, 1 - t9 * t9)),
       fill: glowLit("#a3fff3", "#5fe6d4"),
@@ -12990,10 +12998,6 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        · ⚠ 키는 보석보다 **한 단 아래**다 — 고리의 안쪽 반은 보석의 빈 속에 들어가므로, 키를 보석
          위로 올리면 부품 차례 편향이 그 몫을 껍질 앞으로 끌어낸다(그 ★★ 규약). */
     const CLR9 = "#a8afb8";                              // 은회색
-    const CLT9 = 0.07;                                   // 판 반두께
-    const CLFI9 = GR9 * 0.93;                            // 뒷면 판 안쪽 테 — 보석 살을 문다
-    const CLFO9 = GR9 * 1.14;                            // 뒷면 판 바깥 테 = L 의 모서리
-    const CLL9 = 0.46;                                   // 아래 판이 앞으로 뻗는 몫(축 방향)
     const gux9 = -gdz9; const guz9 = gdy9;               // û — 축에 수직인 세로(y-z 평면)
     const clPt9 = (t9: number, ru9: number, ax9: number): [number, number, number] => {
       const a9 = t9 * Math.PI * 2;
@@ -13011,7 +13015,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       out.push(...tagKey(paintBase(spirePillar({
         x: 0, y: 0, h: 1, w: ah9 * Math.SQRT2,
         widthOf: (): number => ah9 * Math.SQRT2,
-        oval: rh9 / ah9, sides: 4, segs: 28, caps: "none", trueNormal: true, cutFace: GND9,
+        oval: rh9 / ah9, sides: 4, segs: 28, caps: "none", trueNormal: true,
         ref: [0, gdy9, gdz9],
         path: (t9: number): [number, number, number] => clPt9(t9, ru9, ax9),
       }), CLR9), depthNow(0, DCY9 + DY9) * 1.6 + 9.4));
