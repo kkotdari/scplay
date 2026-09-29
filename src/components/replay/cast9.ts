@@ -13,6 +13,7 @@
  * ■ 무엇이 '중요'인가 — 자료가 실제로 아는 것으로만 센다.
  *   ① 죽음(end "atk") — 잃은 몸값이 곧 그 순간의 무게다. **죽인 쪽**은 참값의 겨눔
  *      자국(tgt)으로 되짚는다: 그 태그를 겨누고 있던 적의 임자가 killer다.
+ *      ★ **일꾼만은 몸값이 아니라 경제의 값**(HARASS9 — 드랍·런바이 견제가 곧 그 꼴이다).
  *   ② 자폭(end "self") · ③ 마법(casts) — 스톰·핵·스테이시스처럼 값이 큰 기술은
  *      죽음이 안 따라도 그 자체가 장면이다.
  *   건설·업그레이드는 **안 센다** — 요청이 초반·소강을 순환 중계로 돌리라고 했으므로,
@@ -26,7 +27,7 @@
  * ■ 소강·초반 — 장면 사이가 IDLE9보다 벌면 CYCLE9마다 **살아 있는 사람을 돌아가며**
  *   보여준다(요청의 순환 중계). 경기 시작도 그 자리에서 시작한다.
  */
-import { costOf } from "../../utils/bwUnits";
+import { costOf, unitOf } from "../../utils/bwUnits";
 import { tkN, tkT, tkV } from "../../utils/openbwTracks";
 import type { TruthWorld } from "../../utils/truthLives";
 
@@ -85,6 +86,16 @@ const LOSS_K9 = 0.55;
 const BLD_K9 = 1.2;
 /** 한꺼번에 이만큼 사라지면서 겨눈 자가 하나도 없으면 **나간 것**이다(교전이 아니다). */
 const LEAVE_N9 = 8;
+/** ★★ **일꾼의 죽음은 견제다 — 몸값이 아니라 경제의 값으로 센다**(2026-09, 지적: "자동 중계에서
+ *  드랍견제 같은 중요한 장면을 중계안하는 경우가 있네") ─────────────────────────────────
+ *  드랍·런바이·벌처 견제의 꼴은 **일꾼 몇을 띄엄띄엄 잡는 것**이다. 몸값(50)으로 세면 한 킬이
+ *  77.5(죽인 쪽 50 + 잃은 쪽 27.5)라 셋을 한 장면에 몰아도 232 < MIN_SCENE9 고, 일꾼은 도망치며
+ *  잡히므로 킬 사이가 GAP9(4초)보다 벌어 **한 장면으로 묶이지도 않는다**(실측 합성 판: 드론 다섯을
+ *  5~8초 간격으로 잡으면 장면 0개). 곧 견제는 통째로 순환 뒤에 묻혔다.
+ *  `k` — 일꾼 하나의 무게 배수(50 → 200 · 한 킬이 310 으로 홀로 장면이 선다 — 캐스터가 일꾼 킬마다
+ *  화면을 돌리는 그 자다) · `tail` — 그 사건 뒤 장면을 열어 두는 초(GAP9 대신 · 도망치는 일꾼을 쫓아
+ *  잡는 사이를 한 장면으로 잇고, 그 사이에 순환이 끼어들지 않게 한다). */
+const HARASS9 = { k: 4, tail: 12 };
 
 /** 변태로 난 몸의 **누적** 몸값 — 표의 값은 변태 비용뿐이라 밑몸 값을 더해 준다. */
 const MORPH_BASE9: Record<string, string> = {
@@ -118,8 +129,8 @@ const CAST_W9: Record<string, number> = {
   "Scanner Sweep": 24,
 };
 
-/** 한 사건 — 시각·사람·무게. */
-type Ev9 = { sec: number; raw: string; w: number; why: string };
+/** 한 사건 — 시각·사람·무게 · `tail` 은 이 사건 뒤 장면을 열어 두는 초(없으면 GAP9). */
+type Ev9 = { sec: number; raw: string; w: number; why: string; tail?: number };
 
 /** 편성표를 굽는다 — 참값 한 벌에 한 번이다(재생 중에는 짚기만 한다). */
 export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
@@ -194,7 +205,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   };
 
   /** 죽음 한 벌 — 한꺼번에 사라지는 '나감'을 걸러 내려고 먼저 모은다. */
-  type D9 = { sec: number; owner: number; v: number; bld: boolean; killer: number };
+  type D9 = { sec: number; owner: number; v: number; bld: boolean; killer: number; wk: boolean };
   const ds9: D9[] = [];
   for (const e9 of world.lives) {
     if (e9.died === null) continue;
@@ -210,7 +221,9 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       continue;
     }
     if (e9.end !== "atk") continue;   // morph·own·끝까지 삶은 죽음이 아니다
-    ds9.push({ sec: e9.died, owner: e9.owner, v: v9, bld: e9.bld, killer: killerOf9(e9.tag, e9.died, e9.owner) });
+    const wk9 = !e9.bld && unitOf(e9.kind).worker;
+    ds9.push({ sec: e9.died, owner: e9.owner, v: wk9 ? v9 * HARASS9.k : v9, bld: e9.bld, wk: wk9,
+      killer: killerOf9(e9.tag, e9.died, e9.owner) });
   }
   ds9.sort((a9, b9) => a9.sec - b9.sec);
   /* ★ **나간 사람의 몸은 교전이 아니다** — 팀전에서 한 사람이 나가면 그 몸이 한 프레임에
@@ -237,9 +250,10 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     const d9 = ds9[i9];
     const mine9 = rawOf9.get(d9.owner);
     const kill9 = d9.killer >= 0 ? rawOf9.get(d9.killer) : undefined;
-    const why9 = d9.bld ? "건물 파괴" : "교전";
-    if (kill9) evs9.push({ sec: d9.sec, raw: kill9, w: d9.v * (d9.bld ? BLD_K9 : 1), why: why9 });
-    if (mine9) evs9.push({ sec: d9.sec, raw: mine9, w: d9.v * LOSS_K9, why: d9.bld ? "건물 잃음" : "교전" });
+    const why9 = d9.bld ? "건물 파괴" : d9.wk ? "견제" : "교전";
+    const tail9 = d9.wk ? HARASS9.tail : undefined;
+    if (kill9) evs9.push({ sec: d9.sec, raw: kill9, w: d9.v * (d9.bld ? BLD_K9 : 1), why: why9, tail: tail9 });
+    if (mine9) evs9.push({ sec: d9.sec, raw: mine9, w: d9.v * LOSS_K9, why: d9.bld ? "건물 잃음" : d9.wk ? "견제 당함" : "교전", tail: tail9 });
   }
   for (const [sec9, , , tech9, own9] of world.casts) {
     const w9 = CAST_W9[tech9];
@@ -251,15 +265,17 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   evs9.sort((a9, b9) => a9.sec - b9.sec);
 
   /* ── 장면으로 묶기 ────────────────────────────────────────────────────────── */
-  type Sc9 = { t0: number; t1: number; by: Map<string, number>; why: string };
+  type Sc9 = { t0: number; t1: number; by: Map<string, number>; why: string; tail: number };
   const scs9: Sc9[] = [];
   for (let i9 = 0; i9 < evs9.length;) {
-    const sc9: Sc9 = { t0: evs9[i9].sec, t1: evs9[i9].sec, by: new Map(), why: evs9[i9].why };
+    const sc9: Sc9 = { t0: evs9[i9].sec, t1: evs9[i9].sec, by: new Map(), why: evs9[i9].why, tail: GAP9 };
     let top9 = 0;
     let j9 = i9;
-    while (j9 < evs9.length && evs9[j9].sec - sc9.t1 <= GAP9 && evs9[j9].sec - sc9.t0 <= MAX_SCENE9) {
+    /* 다음 사건이 **앞 사건의 꼬리**(견제면 HARASS9.tail · 그 밖은 GAP9) 안이면 같은 장면이다. */
+    while (j9 < evs9.length && evs9[j9].sec - sc9.t1 <= sc9.tail && evs9[j9].sec - sc9.t0 <= MAX_SCENE9) {
       const e9 = evs9[j9];
       sc9.t1 = e9.sec;
+      sc9.tail = e9.tail ?? GAP9;
       sc9.by.set(e9.raw, (sc9.by.get(e9.raw) ?? 0) + e9.w);
       /* 꼬리표는 그 장면에서 **가장 무거운 사건**의 것이다 — 핵 한 발이 든 교전은 '핵'이다. */
       if (e9.w > top9) { top9 = e9.w; sc9.why = e9.why; }
@@ -331,7 +347,9 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     /* 머무는 중이면 **훨씬 무거운 장면**만 끼어든다 — 그래야 화면이 안 튄다. */
     const held9 = at9 - lastAt9() < MIN_HOLD9;
     if (!held9 || tot9 >= lastScore9() * JUMP9) push9(at9, pick9, sc9.why, false, tot9);
-    cur9 = Math.max(cur9, sc9.t1);
+    /* 장면의 끝은 마지막 사건 + **꼬리의 남는 몫**이다 — 견제는 마지막 킬 뒤에도 쫓는 몸이 그 자리에
+       있으니 그만큼 머물고, 그 사이에 순환이 끼어들지 않는다(교전은 tail = GAP9 라 종전 그대로). */
+    cur9 = Math.max(cur9, sc9.t1 + (sc9.tail - GAP9));
   }
   fill9(cur9, total);
   return out9;

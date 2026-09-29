@@ -11,6 +11,7 @@
  *   ① 장면의 임자 — 죽인 쪽이 잡히나(잃은 쪽이 아니라)
  *   ② 한꺼번에 사라지는 몸(나감)이 가짜 장면을 안 만드나
  *   ③ 소강·초반이 순환으로 채워지나
+ *   ⑤ 띄엄띄엄 잡는 일꾼 견제(드랍)가 한 장면으로 서나(2026-09)
  *   ④ 굽는 값 — 8인 20분 판에서 몇 ms 인가(메인 스레드에서 한 번 도는 값이다) */
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
@@ -56,6 +57,11 @@ const dg = [mk(0, "Dragoon", 200, 260, "atk"), mk(0, "Dragoon", 200, 261, "atk")
 for (const d of dg) mk(1, "Hydralisk", 200, null, "", [259.5, d.tag, 261.5, d.tag, 263, 0]);
 // 600초: B가 나간다 — 몸 열둘이 한꺼번에 사라지고 겨눈 자가 없다(가짜 장면이면 안 된다)
 for (let i = 0; i < 12; i += 1) mk(1, "Drone", 200, 600, "atk");
+// 800초: A 의 드랍 견제 — 마린 넷이 B 의 드론 다섯을 **6초 간격**으로 잡는다(2026-09, 지적: "드랍견제 같은 중요한
+// 장면을 중계안하는 경우가 있네" — 몸값 자로는 한 킬 77.5 · GAP9 4초 밖이라 장면 0개였다) → A 화면 · 장면 하나
+const dr = [];
+for (let i = 0; i < 5; i += 1) dr.push(mk(1, "Drone", 200, 800 + i * 6, "atk"));
+for (const d of dr) mk(0, "Marine", 700, null, "", [d.died - 1, d.tag, d.died, d.tag, d.died + 0.5, 0]);
 mk(0, "Command Center", 0, null, "");
 mk(1, "Hatchery", 0, null, "");
 const world = {
@@ -70,12 +76,15 @@ for (const s of (ALL ? plan : scenes)) {
   console.log(`  ${s.at.toFixed(1).padStart(7)}s  ${s.raw}  ${s.cyc ? "순환" : "장면"} ${s.why} ${s.score.toFixed(0)}`);
 }
 const at = (t) => plan[castAt9(plan, t)]?.raw ?? "-";
-console.log(`짚기: 0s ${at(0)} · 199s ${at(199)} · 262s ${at(262)} · 605s ${at(605)}`);
+console.log(`짚기: 0s ${at(0)} · 199s ${at(199)} · 262s ${at(262)} · 605s ${at(605)} · 815s ${at(815)}`);
+const drop9 = scenes.filter((s) => s.at > 790 && s.at < 830);
 const ok = [
   ["첫 장면은 죽인 쪽(A)", scenes[0]?.raw === "A"],
   ["둘째 장면은 죽인 쪽(B)", scenes[1]?.raw === "B"],
   ["나간 몸은 장면이 아니다", !scenes.some((s) => s.at > 590 && s.at < 610)],
   ["초반은 순환", plan[0]?.cyc === true],
+  ["띄엄띄엄 잡는 일꾼 견제는 한 장면(A)", drop9.length === 1 && drop9[0].raw === "A" && drop9[0].why === "견제"],
+  ["견제 사이·직후에 순환이 안 끼어든다", !plan.some((s) => s.cyc && s.at > 798.5 && s.at < 831)],
 ];
 for (const [name, pass] of ok) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 
