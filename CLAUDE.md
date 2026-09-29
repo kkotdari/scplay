@@ -2150,6 +2150,10 @@ z 8.65 로 크레스트(≈7.8)보다 높고 뿌리 반폭 1.5 가 목(0.85)을 
     버튼·X 키·완료 표시("공유됨"·"링크 복사됨")는 재생기 몫이다. 그 파일은 지웠다.
     ⚠ 콜백은 `mapName` **뒤에** 세운다 — useCallback 의 의존성 배열이 렌더 중에 읽히므로 그 앞에 두면 TDZ 다.
     스크랩(`onScrap`)은 같은 자리에 같은 꼴로 붙이면 된다 — 링크도 같은 `sceneLinkQueryOf9` 다.
+    · **붙이는 쪽에 줄 안내는 `docs/scrap-share-request.md` 다**(2026-09, 요청: "onScrap쓰는곳에 요청할 내용줘" →
+      "onShare도 같이") — 두 prop 의 규약(돌려주는 값 = 완료 표시 · Z/X 는 홀로 있는 화면에서만) · 링크는
+      `sceneLinkQueryOf9` 한 줄 · onShare 붙이는 꼴 · onScrap 이 지어야 하는 셋(제목 받기 · `{title, subtitle, link,
+      gameNo, createdAt}` 저장 · 되돌림) · 스크랩 화면은 '받는 쪽'과 같다 · scplayer 의 지금 자리(타입·화면 열쇠만 있다).
 · ★ **로스터 1단계는 이름만이다**(2026-09, 요청: "로스터 1단계 APM 보이는거 제거하고 컴팩트하게 가자") — 최소 꼴
   (rosterMode 0 · `bare`)에서 지표 라벨 다섯과 값 칸(APM 하나 + 빈 칸 넷)을 **아예 안 그리고**, 격자를 이름 칸 하나로
   죈다(`.scr-fs-roster-fixed.scr-fs-panel-bare { --roster-cols: var(--roster-name) }` — 두 클래스를 겹쳐 좁은 화면의
