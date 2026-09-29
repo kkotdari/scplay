@@ -12793,7 +12793,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const chimRad9 = (a9: number): number => 1 / (
       Math.abs(Math.cos(a9)) ** CPOW9 + Math.abs(Math.sin(a9)) ** CPOW9) ** (1 / CPOW9);
     const OTH9 = 0.21;                                   // 담 반두께(요청: 25% 감소 · 0.28 → 0.21)
-    const OEX9 = 2.75; const OEY9 = CYS9 - 0.2;          // 두 끝(양옆 굴뚝 살 속 — 굴뚝을 옮기면 따라온다)
+    /* ★ 앞 굴뚝 둘의 좌우 자리(2026-09, 요청: "앞 굴뚝 두개를 좀더 바깥쪽으로 이동" — 2.7 → **3.0**). 이 한 값을
+       읽는 것들: 굴뚝 표(px) · 지느러미(px 를 탄다) · 바깥 담의 두 끝(OEX9) · 종이 설 틈의 바깥 끝(BLOUT9 — 틈이 0.55 →
+       0.85 로 넓어져 종의 아가리도 0.425 → 0.575 로 통통해진다 · 6단의 그 ⚠⚠ 가 말한 '이웃을 옮기는' 손이다). */
+    const CXS9 = 3.0;
+    const OEX9 = CXS9 + 0.05; const OEY9 = CYS9 - 0.2;   // 두 끝(양옆 굴뚝 살 속 — 굴뚝을 옮기면 따라온다)
     /* ★ **바깥 담은 1차 싸개 바로 뒤에 딱 붙는다**(2026-09, 요청) — 손 값 −3.354 를 걷고 안쪽 싸개의
        뒤 바깥 낯(−0.2 − WRY9 − WTH9)에서 한 뼘(0.03)만 물러난 자리로 푼다. 곧 몸·싸개를 고치면
        담이 저절로 따라온다(손으로 맞출 값이 없다). */
@@ -13034,7 +13038,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        물린다. 앞 둘은 `CYS9` 로 조금 뒤로 물렀다(요청: "양옆굴뚝 위치 조금 뒤로"). */
     const CYB9 = OAP9 - OTH9 - 0.03 - 0.5 * CK9 * CFLAT9;
     const CHIM9: [number, number, number, number, number][] = [
-      [-2.7, CYS9, CH9 * CSH9, 0, CK9], [2.7, CYS9, CH9 * CSH9, 0, CK9], [0, CYB9, CH9, 0, CK9],
+      [-CXS9, CYS9, CH9 * CSH9, 0, CK9], [CXS9, CYS9, CH9 * CSH9, 0, CK9], [0, CYB9, CH9, 0, CK9],
     ];
     CHIM9.forEach(([px, py, ph, lean, k9]) => {
       const wx9 = px + lean * 0.72;
@@ -13182,7 +13186,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          ⚠ 밑 뚜껑은 `cutFace` 를 안 지난다(그 ★ 규약) — 땅에 닿아 아래를 보는 낯이라 그대로 둔다. */
     {
       const BLIN9 = WRX9 + WTH9;                         // 1차 싸개의 바깥 낯
-      const BLOUT9 = 2.7 - 0.5 * CK9 * CFLAT9;           // 양옆 굴뚝의 안쪽 테
+      const BLOUT9 = CXS9 - 0.5 * CK9 * CFLAT9;          // 양옆 굴뚝의 안쪽 테(CXS9 를 읽는다)
       const BLX9 = (BLIN9 + BLOUT9) / 2;                 // 그 사이 한가운데
       const BLW9 = (BLOUT9 - BLIN9) / 2 + 0.15;          // 아가리 반지름 — 양옆 살을 물고 선다
       /* ★ **종은 굴뚝보다 한 뼘 앞이다**(2026-09, 요청: "종 좀 앞으로 이동") — 9단의 −0.25 에
