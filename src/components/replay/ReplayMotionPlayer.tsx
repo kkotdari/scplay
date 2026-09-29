@@ -9380,9 +9380,12 @@ export default function ReplayMotionPlayer({
   /** 로스터에 있는 이름만 중계에 세운다 — 관전자는 obsNames로 따로 뺀다. */
   const rosterKeys9 = useMemo(() => new Set(bases.map((b9) => b9.key)), [bases]);
   /** 편성표 — 참값 한 벌에 한 번 굽는다(끄면 아예 안 굽는다). */
+  /* 순환 고리의 자(cast9 의 ★) — 로스터 차례(bases)와 팀. 밀리는 팀이 없으니 차례만 준다. */
   const castPlan = useMemo<CastSeg9[]>(
-    () => (castOn && entData ? castPlan9(entData, { total, skip: obsNames, only: rosterKeys9 }) : []),
-    [castOn, entData, total, obsNames, rosterKeys9]);
+    () => (castOn && entData
+      ? castPlan9(entData, { total, skip: obsNames, only: rosterKeys9, order: bases.map((b9) => b9.key), teamOf: melee ? undefined : teamMap9 })
+      : []),
+    [castOn, entData, total, obsNames, rosterKeys9, bases, melee, teamMap9]);
   /** 지금 짚히는 토막 번호 — 렌더마다 이분으로 찾는다(상태로 두면 프레임마다 렌더가 한 번 더 돈다). */
   const castIdx9 = castPlan.length > 0 ? castAt9(castPlan, t) : -1;
   /** 중계가 고른 사람 — 끄거나 표가 없으면 null. */

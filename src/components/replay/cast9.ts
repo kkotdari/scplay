@@ -26,6 +26,11 @@
  *
  * ■ 소강·초반 — 장면 사이가 IDLE9보다 벌면 CYCLE9마다 **살아 있는 사람을 돌아가며**
  *   보여준다(요청의 순환 중계). 경기 시작도 그 자리에서 시작한다.
+ *   ★ 돌아가는 차례는 **로스터 차례로 팀을 번갈아**(2026-09, 요청: "자동 중계시 중요장면 없어서 순환할때
+ *   순서를 로스터 순으로 팀 번갈아가며 보여주기") — 옛 '가장 오래 안 본 사람'은 장면이 끼어들 때마다 차례가
+ *   뒤섞여 누가 다음인지 읽히지 않았다. 이제 고리(ring9 — 1팀 첫째 · 2팀 첫째 · 1팀 둘째 · …)를 두고
+ *   마지막으로 보여 준 사람 **다음**부터 산 사람을 고른다(장면으로 보여 준 사람도 그 자리에서 잇는다).
+ *   밀리(팀 없음)는 로스터 차례 그대로. 동점 가름(TIE9)은 종전대로 '가장 오래 안 본 사람'이다.
  */
 import { costOf, unitOf } from "../../utils/bwUnits";
 import { tkN, tkT, tkV } from "../../utils/openbwTracks";
@@ -52,6 +57,10 @@ export type CastPlanOpts9 = {
   skip?: ReadonlySet<string>;
   /** 이 이름들만 세운다(로스터) — 안 주면 참값의 사람 전부. */
   only?: ReadonlySet<string>;
+  /** 로스터 차례(이름) — 순환 고리의 자다. 안 주면 참값의 사람 차례. */
+  order?: readonly string[];
+  /** 이름 → 팀 — 고리를 팀 번갈아 짠다. 안 주면(밀리) 로스터 차례 그대로. */
+  teamOf?: Readonly<Record<string, number | undefined>>;
 };
 
 /** 장면보다 몇 초 먼저 갈아타나(요청: "1-2초전에 미리") — 그 사이에 카메라가 자리를 잡는다. */
@@ -295,7 +304,37 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     const a9 = [...rawOf9.values()].filter((r9) => (liveTo9.get(r9) ?? 0) > sec9);
     return a9.length > 0 ? a9 : [...rawOf9.values()];
   };
-  /** 가장 오래 안 보여 준 사람 — 같으면 이름 차례(같은 경기에서 늘 같은 편성이 나오게). */
+  /** ★ 순환 고리 — 로스터 차례로 팀을 번갈아 짠다(위 머리말의 ★). 로스터 밖(참값에만 있는 사람)은 뒤에 잇는다. */
+  const ring9: string[] = (() => {
+    const names9 = [...rawOf9.values()];
+    const has9 = new Set(names9);
+    const ord9 = (opts.order ?? names9).filter((n9) => has9.has(n9));
+    for (const n9 of names9) if (!ord9.includes(n9)) ord9.push(n9);
+    const groups9: string[][] = [];
+    const gi9 = new Map<number, number>();
+    for (const n9 of ord9) {
+      const tm9 = opts.teamOf?.[n9] ?? 0;
+      let g9 = gi9.get(tm9);
+      if (g9 === undefined) { g9 = groups9.length; gi9.set(tm9, g9); groups9.push([]); }
+      groups9[g9].push(n9);
+    }
+    const out9: string[] = [];
+    const len9 = Math.max(0, ...groups9.map((g9) => g9.length));
+    for (let i9 = 0; i9 < len9; i9 += 1) for (const g9 of groups9) if (i9 < g9.length) out9.push(g9[i9]);
+    return out9;
+  })();
+  /** 고리에서 마지막으로 보여 준 사람의 자리 — 순환은 그 다음부터 돈다. */
+  let ringPos9 = -1;
+  /** 고리의 다음 사람 — 마지막으로 보여 준 자리 다음부터 돌며 후보(산 사람)에 든 첫 사람. */
+  const nextRing9 = (cands9: string[]): string => {
+    const ok9 = new Set(cands9);
+    for (let k9 = 1; k9 <= ring9.length; k9 += 1) {
+      const n9 = ring9[(ringPos9 + k9) % ring9.length];
+      if (ok9.has(n9)) return n9;
+    }
+    return cands9[0];
+  };
+  /** 가장 오래 안 보여 준 사람 — 같으면 이름 차례(같은 경기에서 늘 같은 편성이 나오게). 동점 가름의 자다. */
   const lonely9 = (cands9: string[]): string => cands9.reduce((b9, r9) => {
     const sb9 = shown9.get(b9) ?? -1000;
     const sr9 = shown9.get(r9) ?? -1000;
@@ -306,6 +345,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   /** 한 토막을 싣는다 — 같은 사람이 이어지면 토막을 안 늘린다(갈아타는 자리가 아니다). */
   const push9 = (at9: number, raw9: string, why9: string, cyc9: boolean, score9: number): void => {
     const a9 = Math.max(0, Math.min(total, at9));
+    ringPos9 = ring9.indexOf(raw9);
     const last9 = out9[out9.length - 1];
     if (last9 && last9.raw === raw9) {
       /* 이어지는 같은 사람 — 꼬리표만 갱신한다(장면이 순환을 이겼으면 장면 쪽으로). */
@@ -327,7 +367,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     const s09 = out9.length > 0 ? Math.max(from9, lastAt9() + MIN_HOLD9) : from9;
     /* 끝은 **MIN_HOLD9 앞**에서 멎는다 — 장면 바로 앞에 순환 한 토막을 끼우면 자막이
        두 번 잇달아 뜨고(그 둘은 다른 사람이다) 앞 토막은 몇 초 만에 끊긴다. */
-    for (let s9 = s09; s9 < to9 - MIN_HOLD9; s9 += CYCLE9) push9(s9, lonely9(aliveAt9(s9)), "순환 중계", true, 0);
+    for (let s9 = s09; s9 < to9 - MIN_HOLD9; s9 += CYCLE9) push9(s9, nextRing9(aliveAt9(s9)), "순환 중계", true, 0);
   };
 
   let cur9 = 0;

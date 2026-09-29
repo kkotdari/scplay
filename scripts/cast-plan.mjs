@@ -12,6 +12,7 @@
  *   ② 한꺼번에 사라지는 몸(나감)이 가짜 장면을 안 만드나
  *   ③ 소강·초반이 순환으로 채워지나
  *   ⑤ 띄엄띄엄 잡는 일꾼 견제(드랍)가 한 장면으로 서나(2026-09)
+ *   ⑥ 순환이 로스터 차례로 팀을 번갈아 도나(2026-09 · 2v2 소강 판)
  *   ④ 굽는 값 — 8인 20분 판에서 몇 ms 인가(메인 스레드에서 한 번 도는 값이다) */
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
@@ -87,6 +88,21 @@ const ok = [
   ["견제 사이·직후에 순환이 안 끼어든다", !plan.some((s) => s.cyc && s.at > 798.5 && s.at < 831)],
 ];
 for (const [name, pass] of ok) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+
+/* ── ⑥ 순환 차례 — 2v2 · 사건 없는 60초(2026-09, 요청: "순환할때 순서를 로스터 순으로 팀 번갈아가며") ── */
+const q4 = { players: [0, 1, 2, 3].map((o) => ({ owner: o, name: "PQRS"[o], race: "테란", color: "#fff", team: o < 2 ? 1 : 2 })),
+  lives: [0, 1, 2, 3].map((o) => ({ tag: 900 + o, owner: o, kind: "Command Center", born: 0, bornX: 10, bornY: 10, died: null, end: "",
+    bld: true, sites: [], doneAt: 0, lifts: [], cloaks: [], sieges: [], orders: [] })),
+  ups: [], casts: [], pings: [], resFields: [] };
+// 로스터 차례 P·Q(1팀) · R·S(2팀) → 고리 P R Q S
+const seq4 = castPlan9(q4, { total: 60, order: ["P", "Q", "R", "S"], teamOf: { P: 1, Q: 1, R: 2, S: 2 } }).map((s) => s.raw).join("");
+const seqM = castPlan9(q4, { total: 60, order: ["P", "Q", "R", "S"] }).map((s) => s.raw).join("");
+console.log(`
+순환 차례: 팀전 ${seq4} · 밀리 ${seqM}`);
+for (const [name, pass] of [
+  ["팀전은 로스터 차례로 팀을 번갈아(PRQS…)", "PRQSPRQS".startsWith(seq4) && seq4.length >= 4],
+  ["밀리는 로스터 차례 그대로(PQRS…)", "PQRSPQRS".startsWith(seqM) && seqM.length >= 4],
+]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 
 /* ── ② 값 — 8인 20분(생애 8천 · 겨눔 자국 넉넉히) ─────────────────────────── */
 const big = { players: [], lives: [], ups: [], casts: [], pings: [], resFields: [] };

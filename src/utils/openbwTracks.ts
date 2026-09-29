@@ -45,6 +45,7 @@
  */
 import { BW_UNIT_NAME } from "./bwUnitNames";
 import { bwUpgradeName, BW_TECH_NAME } from "./bwUpgradeNames";
+import { moveDynOf, speedOfUnit } from "./bwUnits";
 
 /** 앱이 쓰는 트랙 — src/legacy/simCore.ts 의 SimTrack과 같은 꼴이다.
  *  옛 길이 사라져도 이 꼴은 남으므로 여기에 다시 적어 둔다. */
@@ -249,6 +250,49 @@ const angDiff = (a: number, b: number): number => {
 };
 
 /** t초일 때 이 개체의 자리·방향·상태. 아직 안 태어났으면 null. */
+/* ★★ **채집 토막(GATHER)은 걸음과 서 있음이 한 토막에 든다 — 그래서 제 걸음으로 되짚는다**(2026-09, 지적:
+   "미네랄 캐러가는 일꾼들이 처음에 제 속도로 못가고 천천히 미네랄에 다가가는 문제") ─────────────────────
+   덤퍼(bwdump.cpp)는 키를 **상태가 바뀌거나 자리가 곧은 선에서 벗어날 때만** 적는다. 채집 상태(5)는 원작의
+   gathering 깃발이라 **미네랄로 걸어가는 동안·밭 앞에 줄 선 동안·캐는 동안**이 한 상태이고, 곧게 걸어가서
+   그 자리에 멈춰 서는 것은 '곧은 선에서 벗어남'이 아니라 키가 하나도 안 난다. 그래서 키는 '출발(5)' 과
+   '캐서 든 순간(7)' 둘뿐이고, 그 사이를 곧게 이으면 걸음 1~2초 + 캐기 3초를 **한 속도로** 나눠 갖는다 —
+   곧 일꾼이 제 걸음의 1/3 로 미네랄에 다가가 캐기가 끝나는 순간에야 닿는다.
+   고침은 **그 종류의 걸음(flingy 실값 MOVE_DYN — 최고속·가속)으로 앞부분을 걷고 나머지는 선다**는 것이다:
+   두 키 사이 거리 d 를 제 걸음으로 가는 데 tD 가 들면, tD 가 토막보다 짧을 때만 그 걸음을 쓰고 닿은 뒤는
+   그 자리에 선다(그때는 걷는 중이 아니다 — posAtW 가 moving 을 내린다). tD ≥ 토막이면 곧은 이음 그대로다 —
+   걷다가 난 중간 키(휨·10초 규칙)는 실제 걸음이 곧 토막이라 여기 안 걸린다.
+   ⚠ 가속을 넣은 까닭: 미네랄은 본진 옆이라 걸음이 두어 타일뿐이고, 그 안에서 0 에서 최고속까지 오르는
+     0.8초(정지거리 1.49 타일)가 걸음의 절반이다. 등속으로 두면 첫 걸음이 튄다. 가속표가 없는 종류는 등속.
+   ⚠ 되돌아오는 길(7·8 · 들고 감)과 가스(들어가면 2)는 서 있는 몫이 없어 안 건드린다 — 요청이 이름 붙인
+     것은 미네랄로 가는 일꾼이고, 채집 상태가 곧 그 자리다. */
+const WALK_DYN9 = new Map<string, { v: number; a: number }>();
+const walkDyn9 = (kind: string): { v: number; a: number } => {
+  let d9 = WALK_DYN9.get(kind);
+  if (!d9) {
+    const m9 = moveDynOf(kind);
+    d9 = m9 ? { v: m9.top, a: m9.ctrl === 2 ? 0 : m9.accel } : { v: speedOfUnit(kind), a: 0 };
+    WALK_DYN9.set(kind, d9);
+  }
+  return d9;
+};
+/** 채집 토막의 걸음 몫 — 키 lo → lo+1 사이(길이 span 초)의 dt 초 자리를 제 걸음으로 되짚는다.
+ *  걸음이 토막을 다 못 채울 때(= 서 있는 몫이 있을 때)만 값을 내고, 아니면 null(곧은 이음 그대로). */
+export function gatherWalk9(tr: TruthTrack, lo: number, span: number, dt: number): { u: number; tD: number } | null {
+  if (span <= 0 || lo + 1 >= tr.kt.length) return null;
+  const dx = kX(tr, lo + 1) - kX(tr, lo);
+  const dy = kY(tr, lo + 1) - kY(tr, lo);
+  const d = Math.hypot(dx, dy);
+  if (d < 0.05) return null;
+  const { v, a } = walkDyn9(tr.kind);
+  if (!(v > 0)) return null;
+  const tR = a > 0 ? v / a : 0;          // 최고속에 닿는 시각
+  const sR = a > 0 ? (v * v) / (2 * a) : 0;   // 그동안 간 거리
+  const tD = d <= sR ? Math.sqrt((2 * d) / a) : tR + (d - sR) / v;
+  if (!(tD < span)) return null;
+  const s = dt <= 0 ? 0 : dt < tR ? 0.5 * a * dt * dt : sR + v * (dt - tR);
+  return { u: Math.min(1, s / d), tD };
+}
+
 export function posAtTruth(
   tr: TruthTrack, t: number,
   cur?: { i: number },
@@ -282,7 +326,9 @@ export function posAtTruth(
   const j = lo + 1;
   if (kS(tr, j) === TRUTH_ST_GONE) return { x: kX(tr, lo), y: kY(tr, lo), hdg: kH(tr, lo), state: st };
   const span = kt[j] - kt[lo];
-  const u = span > 0 ? Math.min(1, Math.max(0, (t - kt[lo]) / span)) : 0;
+  let u = span > 0 ? Math.min(1, Math.max(0, (t - kt[lo]) / span)) : 0;
+  /* 채집 토막은 제 걸음으로 간다(아래 gatherWalk9) — 안 그러면 일꾼이 미네랄까지 슬금슬금 다가간다. */
+  if (st === TRUTH_ST_GATHER) { const g9 = gatherWalk9(tr, lo, span, t - kt[lo]); if (g9) u = g9.u; }
   /* 각은 선형으로 안 메운다 — 앞 키의 각에서 초당 TURN_DPS도로 따라가다 목표에 닿으면 멈춘다(원작의 회전).
      키에 늦지 않게 필요한 속도(need)와 견줘 더 빠른 쪽을 쓰므로 다음 키에 닿는 순간의 각은 그 키의 각 그대로다. */
   const h0 = kH(tr, lo);

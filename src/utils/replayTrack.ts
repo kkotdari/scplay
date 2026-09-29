@@ -1,4 +1,4 @@
-import { kX, kY, EMPTY_TRACK, type TruthTrack } from "./openbwTracks";
+import { kX, kY, kS, EMPTY_TRACK, TRUTH_ST_GATHER, gatherWalk9, type TruthTrack } from "./openbwTracks";
 /* 자취 위의 한 점 — 재생 화면이 "그때 그 개체는 어디 있었나"를 묻는 유일한 창구다.
  *
  * 여기 있는 이유(과제 #61): 이 셈은 원래 15,000줄짜리 재생 컴포넌트 한가운데 박혀 있어
@@ -113,7 +113,15 @@ export function posAtW(w: WalkView, t: number, cur?: TrackCur): TrackPos | null 
   const s0 = kt[b + lo]; const x0 = kX(tr, b + lo); const y0 = kY(tr, b + lo);
   const s1 = kt[b + lo + 1]; const x1 = kX(tr, b + lo + 1); const y1 = kY(tr, b + lo + 1);
   const dt0 = Math.max(0.001, s1 - s0);
-  const k = (t - s0) / dt0;
+  let k = (t - s0) / dt0;
+  /* ★ 채집 토막은 제 걸음으로 걷고 닿으면 선다(openbwTracks.gatherWalk9 의 ★★) — 닿은 뒤는 걷는 중이
+     아니다(moving 내림 · sinceLast 는 닿은 뒤 흐른 초). posAtTruth 와 같은 자다. */
+  let arr9 = -1;
+  if (kS(tr, b + lo) === TRUTH_ST_GATHER) {
+    const g9 = gatherWalk9(tr, b + lo, s1 - s0, t - s0);
+    if (g9) { k = g9.u; arr9 = s0 + g9.tD; }
+  }
   const still = Math.hypot(x1 - x0, y1 - y0) / dt0 < 0.4;
-  return { x: x0 + (x1 - x0) * k, y: y0 + (y1 - y0) * k, moving: !still, sinceLast: still ? t - s0 : 0 };
+  const walk9 = !still && (arr9 < 0 || t < arr9);
+  return { x: x0 + (x1 - x0) * k, y: y0 + (y1 - y0) * k, moving: walk9, sinceLast: walk9 ? 0 : (arr9 >= 0 ? t - arr9 : t - s0) };
 }
