@@ -84,7 +84,7 @@ function makeWorld() {
   /** 한 트랙 — path(t)->[x타일, y타일, 상태], hp 변곡점은 따로. */
   /** 건설 명령(판 9 · --ghost) — [프레임, 임자, 일꾼 태그, 타일 x, 타일 y, 종류]. */
   const builds = [];
-  /** 선택(판 10 · --selpick) — [프레임, 임자, 태그들]. 빈 배열이면 재생기는 대체 신호(생산·연구 시작)로 간다. */
+  /** 선택(판 10 · --selpick) — [프레임, 임자, 태그들]. 빈 배열이면 자동 팝업이 안 선다. */
   const sels = [];
   const track = (owner, type, pathOf, { hp = null, bornSec = 0, buildingAt = null, dieSec = null, lifted = false, wip = false } = {}) => {
     const keys = [];

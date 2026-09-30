@@ -32,7 +32,6 @@ import type { ReplayMapGrid } from "./mapGrid";
 import { revalidateReplayMap } from "./useReplayMap";
 import ReplayMapVector, { MAPVEC_LOST9, MAPVEC_M9 } from "./ReplayMapVector";
 import { AIR_UNITS } from "../../utils/statsMix";
-import { upgradeSeconds } from "../../utils/bwUnits";
 import { BLD_STATS, UNIT_BUILD_SEC, UNIT_STATS } from "./unitStats";
 /* 사거리는 이 파일이 들고 있던 상수(ENGAGE_SIGHT_TILES 9, 방어 건물 7/7/7/8/6, 벙커 안
    화염 3.5)가 아니라 표에서 온다(과제 #48) — 마린도 시즈 탱크도 한 값 9로 쏘고 9에서
@@ -105,8 +104,7 @@ import {
 } from "./bake9";
 import { glUnits9, glNow9, glBakeMsTake9, glScrubSet9, glScrubbing9, gasTops9, MESH_SHADOW9, GL_CANVAS_KINDS9, GL_ON9, GL_BLIT9, GL_WARM9, GL_GLOW_KINDS9, SHADOW_ALPHA9, camOf9, CAM_TOP9, glIconOk9, glIconRequest9, type GlUnits9, type GlFoot9 } from "./gl9";
 
-/** 중계·추적의 자동 건물 팝업(bldPicks9) — 대체 신호(생산·연구 시작)의 창 · 선택 절이 있을 때의 상한(초). */
-const AUTO_PICK_SEC9 = 2.5;
+/** 중계·추적의 자동 건물 팝업(bldPicks9) — 한 선택이 팝업을 쥐는 상한(초). */
 const AUTO_PICK_MAX9 = 6;
 export { LIMB_LOG, TURRET_BACK9, SHAPE_BUILDERS, ctx2d9, BAKE_ENV9, cropToInk, pathBox, tierTableOf, autoTier, stageFaces, rasterBld9, SHAPE_GALLERY, poseSet, poseSet9, bldLitSet, headYawSet, bldSpinSet, bldSpinRawSet9, lodSetCap, lodSetZoom, lodNoteFrame, tone9, TONE_DARK, TONE_SAT, silhouetteLight } from "./bake9";
 export type { BakeCv9, BakeCtx9, RasterOut9, ShapeGalleryItem } from "./bake9";
@@ -9922,43 +9920,22 @@ export default function ReplayMotionPlayer({
   /** 화면 주인이 **건물을 고른 자국** [시작 초, 건물 태그, 끝 초] — 시작 오름차순.
    *
    *  ★ 중계·추적 중에는 리플레이 기록이 고른 건물의 정보 팝업이 저절로 뜬다(2026-09, 요청: "중계시(화면 주인의)
-   *  건물 선택시 인포팝업 뜨게 해줘" → "보는 사람이 누르는게 아니라 리플레이 기록상 선택한 경우"). 자는 둘이다:
-   *  · **판 10 의 선택 절**(entData.sels) — 참값이 곧장 안다. 그 명령 뒤의 선택이 **건물 하나**면 그 건물이고,
-   *    다음 선택까지(상한 AUTO_PICK_MAX9) 띄운다. 이 절이 있으면 이것만 쓴다.
-   *  · 그 절이 없는 판(9 아래)은 **그 건물을 눌러야만 생기는 일**로 대신한다: 생산 시작(완성 − 생산 시간 ·
-   *    호스트는 워커의 prodByRawType) · 연구 시작(완성 − 연구 시간 · 연구 줄의 건물 태그). 저그 해처리류의
-   *    생산은 빼는데 — 그 생산은 라바를 골라 내는 것이지 건물을 고르는 게 아니다. 창은 AUTO_PICK_SEC9 다.
-   *    ⚠ 줄 선 생산은 시작이 누른 순간보다 늦다 — 앞 유닛이 나올 때 뜬다(대체 신호의 값이다). */
+   *  건물 선택시 인포팝업 뜨게 해줘" → "보는 사람이 누르는게 아니라 리플레이 기록상 선택한 경우"). 자는 **판 10 의
+   *  선택 절**(entData.sels) 하나다 — 그 명령 뒤의 선택이 **건물 하나**면 그 건물이고, 다음 선택까지(상한 AUTO_PICK_MAX9)
+   *  띄운다. 절이 없는 판(9 아래)에서는 안 뜬다 — 생산·연구 시작으로 짐작하던 대체 신호는 걷었다(요청: "대체 신호 제거"). */
   const bldPicks9 = useMemo(() => {
     const out9: [number, number, number][] = [];
     if (!camRaw9 || !entData) return out9;
     const mine9 = new Set(entData.players.filter((pl) => pl.name === camRaw9).map((pl) => pl.owner));
     const bldTag9 = new Set(entData.lives.filter((e9) => e9.bld && e9.tag > 0).map((e9) => e9.tag));
-    if (entData.sels.length > 0) {
-      const my9 = entData.sels.filter((s9) => mine9.has(s9[1]));
-      for (let i9 = 0; i9 < my9.length; i9 += 1) {
-        const [s9, , tg9] = my9[i9];
-        if (tg9.length !== 1 || !bldTag9.has(tg9[0])) continue;
-        out9.push([s9, tg9[0], Math.min(my9[i9 + 1]?.[0] ?? Infinity, s9 + AUTO_PICK_MAX9)]);
-      }
-      return out9;
+    const my9 = entData.sels.filter((s9) => mine9.has(s9[1]));
+    for (let i9 = 0; i9 < my9.length; i9 += 1) {
+      const [s9, , tg9] = my9[i9];
+      if (tg9.length !== 1 || !bldTag9.has(tg9[0])) continue;
+      out9.push([s9, tg9[0], Math.min(my9[i9 + 1]?.[0] ?? Infinity, s9 + AUTO_PICK_MAX9)]);
     }
-    for (const [k9, evs9] of world.prodByRawType) {
-      if (!k9.startsWith(`${camRaw9}|`)) continue;
-      const host9 = k9.slice(camRaw9.length + 1);
-      if (host9 === "Hatchery" || host9 === "Lair" || host9 === "Hive") continue;
-      for (const [born9, tag9, sec9] of evs9) {
-        if (tag9 > 0 && born9 - sec9 > 0) out9.push([born9 - sec9, tag9, born9 - sec9 + AUTO_PICK_SEC9]);
-      }
-    }
-    for (const [us9, nm9, utag9] of world.upsByRaw.get(camRaw9) ?? []) {
-      if (!(utag9 > 0)) continue;
-      const m9 = /^(.*) (\d)$/.exec(nm9);
-      const s9 = us9 - upgradeSeconds(m9 ? m9[1] : nm9, m9 ? Number(m9[2]) : 1);
-      if (s9 > 0) out9.push([s9, utag9, s9 + AUTO_PICK_SEC9]);
-    }
-    return out9.sort((a9, b9) => a9[0] - b9[0]);
-  }, [camRaw9, entData, world.prodByRawType, world.upsByRaw]);
+    return out9;
+  }, [camRaw9, entData]);
   /** 자동으로 띄운 팝업의 열쇠와 그 자국의 시작 초 — 보는 사람이 딴 것을 집었으면 그쪽이 이긴다. */
   const autoPickRef9 = useRef<{ key: string; s: number } | null>(null);
   /** 몸이 아직 안 그려져 못 찾았을 때 다시 볼 박자 — 멈춘 채(t 가 안 움직인다) 사람을 고르면 그 첫 렌더에는 op 가 없다.
