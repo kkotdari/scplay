@@ -86,6 +86,13 @@ function makeWorld() {
   const builds = [];
   /** 선택(판 10 · --selpick) — [프레임, 임자, 태그들]. 빈 배열이면 자동 팝업이 안 선다. */
   const sels = [];
+  /** 판 11 네 절(--info · 2026-09 하단 인포창) — 에너지 [프레임, 태그, 값] · 탑승 [프레임, 승객, 배] · 자원량 · 처치. */
+  const energyRows = [];
+  const loadRows = [];
+  const killRows = [];
+  /** 죽는 병력 [프레임, 태그, 임자] · 사람마다 병력 태그 — 처치 줄의 킬러를 적 병력에서 돌려 뽑는다(아래). */
+  const deathsFx = [];
+  const armyTags = new Map();
   const track = (owner, type, pathOf, { hp = null, bornSec = 0, buildingAt = null, dieSec = null, lifted = false, wip = false } = {}) => {
     const keys = [];
     if (buildingAt) {
@@ -202,6 +209,9 @@ function makeWorld() {
          찍어도 몇은 터지고 있게 한다. */
       const dieS = has("--deaths") && i % 2 === 0
         ? DIE_AT + (((pl.owner * 5 + i / 2) % 20) * DIE_GAP) : null;
+      if (!armyTags.has(pl.owner)) armyTags.set(pl.owner, []);
+      armyTags.get(pl.owner).push(tag);
+      if (dieS !== null) deathsFx.push([F(dieS) + 1, tag, pl.owner]);
       track(pl.owner, type, (s) => {
         if (s < 30) {                   // 본진 둘레 궤도
           const a = ang0 + s * 0.25;
@@ -218,6 +228,43 @@ function makeWorld() {
         return [mx + jig, my + Math.cos(s * 1.7 + i) * 1.2, 4];
       }, { hp, ...(dieS !== null ? { dieSec: dieS } : {}) });
     }
+  }
+
+  /* 처치(판 11) — 죽는 병력마다 적 편 병력 하나를 돌려 가며 킬러로 적는다(편 1: 정구·Rex · 편 2: 나머지). */
+  {
+    const force9 = (o) => (o <= 1 ? 1 : 2);
+    const foes9 = (o) => [...armyTags.entries()].filter(([o2]) => force9(o2) !== force9(o)).flatMap(([o2, ts]) => ts.map((t2) => [o2, t2]));
+    deathsFx.sort((a, b) => a[0] - b[0]).forEach(([f, vt, vo], i) => {
+      const fs = foes9(vo);
+      if (fs.length === 0) return;
+      const [ko, kt] = fs[(i * 7) % fs.length];
+      killRows.push([f, ko, kt, vt]);
+    });
+  }
+  /* 인포창 재료(--info · 2026-09) — 정구(테란)의 드랍십 하나에 마린 넷을 10초에 태우고, 벙커 하나에 마린 둘을 넣고,
+     사이언스 베슬 하나의 에너지를 50 → 200 으로 올린다. 44초에 정구가 병력 여덟을 한꺼번에 고른다(다중 격자). */
+  if (has("--info")) {
+    const DS = 11; const BUNKER = 125; const VESSEL = 9;
+    const dsTag = tag;
+    track(0, DS, (s) => [32 + Math.sin(s * 0.3) * 0.5, 40, s < 10 ? 1 : 0]);
+    for (let k = 0; k < 4; k += 1) {
+      const mt = tag;
+      track(0, T.Marine, (s) => (s < 10 ? [30 + k, 42, 1] : [32, 40, 2]));
+      loadRows.push([F(10) + k, mt, dsTag]);
+    }
+    const bkTag = tag;
+    track(0, BUNKER, null, { buildingAt: [36, 30] });
+    for (let k = 0; k < 2; k += 1) {
+      const mt = tag;
+      track(0, T.Marine, (s) => (s < 8 ? [34 + k, 33, 1] : [36, 30, 2]));
+      loadRows.push([F(8) + k, mt, bkTag]);
+    }
+    const vTag = tag;
+    track(0, VESSEL, (s) => [40, 36 + Math.sin(s * 0.2), 0]);
+    for (let e = 50; e <= 200; e += 1) energyRows.push([F(1 + (e - 50) * 1.3), vTag, e]);
+    const army0 = armyTags.get(0) ?? [];
+    sels.push([F(44), 0, army0.slice(0, 8)]);
+    sels.push([F(44.5), 2, (armyTags.get(2) ?? []).slice(0, 3)]);
   }
 
   /* 발키리 대 오버로드(재현: "미사일 두 발 사이 간격이 유닛폭보다 훨씬 넓어") —
@@ -256,7 +303,7 @@ function makeWorld() {
   /* ── 바이트로 굽는다 ── */
   const w = new W();
   w.u8(0x4f); w.u8(0x42); w.u8(0x57); w.u8(0x54);   // "OBWT"
-  w.u8(10); w.f32(FPS); w.i32(-1);   // 판 10 = 판 9 + 맨 뒤 선택 절(해독기는 8~10 을 읽는다 · 옛 4는 "재생할 수 없는 게임")
+  w.u8(11); w.f32(FPS); w.i32(-1);   // 판 11 = 판 10 + 맨 뒤 에너지·탑승·자원량·처치 절(해독기는 8~11 을 읽는다)
   w.u8(PLAYERS.length);
   for (const pl of PLAYERS) { w.u8(pl.owner); w.u8(pl.owner); w.u8(pl.race); w.u8(pl.force); w.u8(0); w.u32(pl.color); w.str(pl.name); }
   w.u32(tracks.length);
@@ -287,7 +334,14 @@ function makeWorld() {
   w.u32(builds.length);                // 건설 명령(판 9 · 맨 뒤)
   { let pf = 0; for (const [f, o, tg, tx, ty, ty9] of builds) { w.vz(f - pf); pf = f; w.u8(o); w.u32(tg); w.u16(tx); w.u16(ty); w.u16(ty9); } }
   w.u32(sels.length);                  // 선택(판 10 · 맨 뒤)
-  { let pf = 0; for (const [f, o, tgs] of sels) { w.vz(f - pf); pf = f; w.u8(o); w.u8(tgs.length); for (const tg of tgs) w.u32(tg); } }
+  { let pf = 0; for (const [f, o, tgs] of [...sels].sort((a, b) => a[0] - b[0])) { w.vz(f - pf); pf = f; w.u8(o); w.u8(tgs.length); for (const tg of tgs) w.u32(tg); } }
+  w.u32(energyRows.length);            // 에너지(판 11)
+  { let pf = 0; for (const [f, tg, v] of [...energyRows].sort((a, b) => a[0] - b[0])) { w.vz(f - pf); pf = f; w.u32(tg); w.u16(v); } }
+  w.u32(loadRows.length);              // 탑승(판 11)
+  { let pf = 0; for (const [f, px, sh] of [...loadRows].sort((a, b) => a[0] - b[0])) { w.vz(f - pf); pf = f; w.u32(px); w.u32(sh); } }
+  w.u32(0);                            // 자원량(판 11)
+  w.u32(killRows.length);              // 처치(판 11 · 맨 뒤)
+  { let pf = 0; for (const [f, ko, kt, vt] of killRows) { w.vz(f - pf); pf = f; w.u8(ko); w.u32(kt); w.u32(vt); } }
   const motion = deflateSync(w.out()).toString("base64");
   /* 합성 뭉치를 파일로도 낸다(PERF_MOTION_OUT=경로) — 엔진을 노드에서 곧장 돌려 보는 하네스의 재료(브라우저 없이 ghosts9·op 를 찍는다). */
   if (process.env.PERF_MOTION_OUT) writeFileSync(process.env.PERF_MOTION_OUT, JSON.stringify({ motion, players: PLAYERS }));

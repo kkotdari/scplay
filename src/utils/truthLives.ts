@@ -113,6 +113,11 @@ export type TruthWorld = {
   builds: [number, number, number, number, number, string][];
   /** 선택 [초, 임자, 그 명령 뒤의 선택 태그들] — 판 10부터(openbwTracks 의 sels). 옛 자취는 빈 배열이다. */
   sels: [number, number, number[]][];
+  /** 판 11 네 절 — openbwTracks 의 energy·loads·amounts·kills 그대로. 옛 자취는 빈 표다. */
+  energy: Map<number, Float32Array>;
+  loads: [number, number, number][];
+  amounts: [number, number, number, number][];
+  kills: [number, number, number, number][];
 };
 
 const RACE_OF: Record<number, "" | "테란" | "저그" | "프로토스"> =
@@ -413,5 +418,9 @@ export function truthWorld(truth: TruthTracks, buildSecOf: BuildSecOf): TruthWor
     resFields: truth.resFields,
     builds: truth.builds ?? [],
     sels: truth.sels ?? [],
+    energy: truth.energy ?? new Map(),
+    loads: truth.loads ?? [],
+    amounts: truth.amounts ?? [],
+    kills: truth.kills ?? [],
   };
 }

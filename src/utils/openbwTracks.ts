@@ -41,6 +41,14 @@
  *   건설명령   u32 개수, 개마다 varint(프레임차) · u8 임자 · u32 일꾼태그 · u16 타일x · u16 타일y · u16 건물종류 ← 판 9부터
  *   선택       u32 개수, 개마다 varint(프레임차) · u8 임자 · u8 태그수 · u32 태그 × 태그수   ← 판 10부터
  *              그 명령(Select·ShiftSelect·ShiftDeselect)을 치른 **뒤의 선택 전체**(최대 12) — 차이가 아니라 결과다.
+ *   에너지     u32 개수, 개마다 varint(프레임차) · u32 태그 · u16 에너지(정수 0~250)   ← 판 11부터
+ *              정수 값이 바뀔 때만 한 줄이다(계단 — 화면은 사이를 안 메운다).
+ *   탑승       u32 개수, 개마다 varint(프레임차) · u32 승객태그 · u32 배태그(0 = 내림)   ← 판 11부터
+ *              수송선·오버로드·벙커 셋 다 — 원작 load_unit / unload_unit 그대로.
+ *   자원량     u32 개수, 개마다 varint(프레임차) · u16 x · u16 y · u16 남은 양   ← 판 11부터
+ *              자원밭단과 같은 자리(픽셀) — set_unit_resources 가 부를 때마다.
+ *   처치       u32 개수, 개마다 varint(프레임차) · u8 킬러임자 · u32 킬러태그(0 = 몸 없음) · u32 죽은태그 ← 판 11부터
+ *              원작이 처치를 올려 주는 그 순간(kill_count·점수) — 어림이 아니다.
  *              단 4=750↑ · 3=500~749 · 2=250~499 · 1=1~249 · 0=바닥남(원작 경계 그대로)
  *
  * 왜 이렇게까지 접나 — 글자(TSV)로 내면 26분짜리 8인전이 39MB다. 폰으로 보내는 짐이라
@@ -218,6 +226,14 @@ export type TruthTracks = {
    *  골랐다'를 알아 그 건물의 정보 팝업을 띄우는 자다(2026-09, 요청: "중계시(화면 주인의) 건물 선택시 인포팝업
    *  뜨게 — 보는 사람이 누르는게 아니라 리플레이 기록상 선택한 경우"). 태그는 명령 절과 같은 자다. */
   sels: [number, number, number[]][];
+  /** 에너지 [초, 값] 계단 — 태그마다(값이 바뀔 때만 한 줄) · **판 11부터**. 옛 판은 빈 표다. */
+  energy: Map<number, Float32Array>;
+  /** 탑승 [초, 승객 태그, 배 태그(0 = 내림)] — 수송선·오버로드·벙커 · **판 11부터**. */
+  loads: [number, number, number][];
+  /** 자원 남은 양 [초, x(타일), y(타일), 양] — 자원밭단과 같은 자리 · **판 11부터**. */
+  amounts: [number, number, number, number][];
+  /** 처치 [초, 킬러 임자, 킬러 태그(0 = 몸 없음), 죽은 태그] — 원작이 처치를 올려 준 순간 · **판 11부터**. */
+  kills: [number, number, number, number][];
 };
 
 /* 개인색은 덤퍼가 리마스터의 **CCLR 구획**에서 읽어 온다(bwdump.cpp) — 사람마다 고른
@@ -382,7 +398,7 @@ class Cursor {
 /** 해독기가 읽는 판의 범위 — 화면의 진단 문구는 이 두 값에서 만든다(2026-09, 덤퍼 쪽 답신: 게이트는 8 인데
  *  문구가 "2~7만 읽는다"였다 — 문구와 게이트를 따로 적어 두면 다음 어긋남이 로그에서 안 읽힌다). */
 export const TRUTH_VER_MIN9 = 8;
-export const TRUTH_VER_MAX9 = 10;
+export const TRUTH_VER_MAX9 = 11;
 
 export async function peekTruthHead(
   b64: string,
@@ -419,6 +435,8 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
     const hasBuilds = version >= 9;
     /** 선택 절(판 10) — 건설 명령 절 뒤, 맨 뒤다. */
     const hasSels = version >= 10;
+    /** 에너지·탑승·자원량·처치 네 절(판 11) — 선택 절 뒤, 맨 뒤다(2026-09, 요청: 하단 인포창 — "어림 말고 덤퍼에 부탁"). */
+    const hasInfo = version >= 11;
     /* 은신은 판 5부터다(요청: "참값에 은신 칸 추가하는 쪽으로 가자") — 옛 덤프는 그 깃발이
        늘 0이라 '은신 아님'으로 읽히는데, 그건 **모르는 것**이지 아님이 아니다. 판으로 갈라
        옛 판에서는 칸 자체를 안 만든다(없으면 화면이 이름으로 아는 상시 은신만 쓴다). */
@@ -698,9 +716,60 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
       }
     }
 
+    /* 판 11 네 절 — 에너지(태그마다 [초, 값] 계단) · 탑승 · 자원량 · 처치. */
+    const energy = new Map<number, Float32Array>();
+    const loads: [number, number, number][] = [];
+    const amounts: [number, number, number, number][] = [];
+    const kills: [number, number, number, number][] = [];
+    if (hasInfo) {
+      {
+        let pf = 0;
+        const cnt = c.u32();
+        const tmp = new Map<number, number[]>();
+        for (let i = 0; i < cnt; i += 1) {
+          pf += c.varint();
+          const tag = c.u32();
+          const v = c.u16();
+          const a = tmp.get(tag);
+          if (a) a.push(pf / fps, v); else tmp.set(tag, [pf / fps, v]);
+        }
+        for (const [tag, a] of tmp) energy.set(tag, Float32Array.from(a));
+      }
+      {
+        let pf = 0;
+        const cnt = c.u32();
+        for (let i = 0; i < cnt; i += 1) {
+          pf += c.varint();
+          const pax = c.u32();
+          loads.push([pf / fps, pax, c.u32()]);
+        }
+      }
+      {
+        let pf = 0;
+        const cnt = c.u32();
+        for (let i = 0; i < cnt; i += 1) {
+          pf += c.varint();
+          const x = c.u16();
+          const y = c.u16();
+          amounts.push([pf / fps, x / 32, y / 32, c.u16()]);
+        }
+      }
+      {
+        let pf = 0;
+        const cnt = c.u32();
+        for (let i = 0; i < cnt; i += 1) {
+          pf += c.varint();
+          const who = c.u8();
+          const ktag = c.u32();
+          kills.push([pf / fps, who, ktag, c.u32()]);
+        }
+      }
+    }
+
     return { version, leftover: c.left,
       tracks, trustUntil: trustFrame < 0 ? null : trustFrame / fps,
-      players, ups, casts, pings, res, apm, apmBucketSec, orders, resFields, builds, sels };
+      players, ups, casts, pings, res, apm, apmBucketSec, orders, resFields, builds, sels,
+      energy, loads, amounts, kills };
   } catch {
     return null;
   }

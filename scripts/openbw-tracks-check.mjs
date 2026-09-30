@@ -77,10 +77,15 @@ const SPEC = {
     + " — action_build 의 tile_pos(발자국 좌상단 타일) 그대로. 글자 갈래는 #build\\t프레임\\t임자\\t태그\\t타일x\\t타일y\\t종류",
   선택: "[판10+] **맨 뒤**(건설명령 다음) u32 개수, 개마다 varint(프레임차) · u8 임자 · u8 태그수 · u32 태그 × 태그수"
     + " — Select·ShiftSelect·ShiftDeselect 를 치른 **뒤의 선택 전체**(최대 12). 글자 갈래는 #sel\\t프레임\\t임자\\t태그,태그,…",
+  에너지: "[판11+] (선택 다음) u32 개수, 개마다 varint(프레임차) · u32 태그 · u16 에너지(정수 0~250) — 정수 값이 바뀔 때만. 글자 #en\\t프레임\\t태그\\t값",
+  탑승: "[판11+] u32 개수, 개마다 varint(프레임차) · u32 승객태그 · u32 배태그(0 = 내림) — 수송선·오버로드·벙커. 글자 #load\\t프레임\\t승객\\t배",
+  자원량: "[판11+] u32 개수, 개마다 varint(프레임차) · u16 x · u16 y(픽셀 — 자원밭단과 같은 자) · u16 남은 양. 글자 #amt\\t프레임\\tx\\ty\\t양",
+  처치: "[판11+] **맨 뒤** u32 개수, 개마다 varint(프레임차) · u8 킬러임자 · u32 킬러태그(0 = 몸 없음) · u32 죽은태그 — 원작이 처치를 올려 준 순간."
+    + " 글자 #kill\\t프레임\\t임자\\t킬러\\t죽은",
 };
 /** 해독기가 받아 주어야 할 판 — 이 범위 밖은 물리쳐야 한다. */
 const VER_MIN = 8;   // 판 8(요청: 판 7은 더 이상 안 쓴다 — 폴백 없이) — 판 9 는 판 8 + 맨 뒤 건설 명령 절이라 둘 다 읽는다
-const VER_MAX = 10;  // 판 10 = 판 9 + 맨 뒤 선택 절
+const VER_MAX = 11;  // 판 11 = 판 10 + 맨 뒤 에너지·탑승·자원량·처치 절
 
 // ── 바이트 짓기 ────────────────────────────────────────────────────────────────
 const u8 = (v) => Buffer.from([v]);
@@ -166,6 +171,20 @@ function build(ver) {
     p.push(varint(120), u8(3), u8(1), u32(77));
     p.push(varint(24), u8(5), u8(2), u32(78), u32(79));
   }
+  if (ver >= 11) {                                       // 에너지 · 탑승 · 자원량 · 처치(맨 뒤) — 절마다 둘
+    p.push(u32(2));
+    p.push(varint(24), u32(77), u16(50));
+    p.push(varint(24), u32(77), u16(51));
+    p.push(u32(2));
+    p.push(varint(48), u32(78), u32(77));
+    p.push(varint(24), u32(78), u32(0));
+    p.push(u32(2));
+    p.push(varint(0), u16(32), u16(32), u16(1500));
+    p.push(varint(24), u16(32), u16(32), u16(1492));
+    p.push(u32(2));
+    p.push(varint(120), u8(3), u32(77), u32(78));
+    p.push(varint(24), u8(5), u32(0), u32(77));
+  }
   return zlib.deflateSync(Buffer.concat(p)).toString("base64");
 }
 
@@ -225,6 +244,10 @@ function expect(ver, r, fail) {
   // 건설 명령(판 9) — 자리는 타일 그대로(÷32 안 한다) · 종류는 이름으로.
   eq("건설명령", r.builds, ver >= 9 ? [[4, 3, 77, 40, 50, "Barracks"], [5, 5, 78, 60, 70, "Pylon"]] : []);
   eq("선택", r.sels, ver >= 10 ? [[5, 3, [77]], [6, 5, [78, 79]]] : []);
+  eq("에너지(태그 77)", r.energy.get(77) ? [...r.energy.get(77)] : [], ver >= 11 ? [1, 50, 2, 51] : []);
+  eq("탑승", r.loads, ver >= 11 ? [[2, 78, 77], [3, 78, 0]] : []);
+  eq("자원량", r.amounts, ver >= 11 ? [[0, 1, 1, 1500], [1, 1, 1, 1492]] : []);
+  eq("처치", r.kills, ver >= 11 ? [[5, 3, 77, 78], [6, 5, 0, 77]] : []);
 }
 
 // ── 해독기 불러오기 ────────────────────────────────────────────────────────────
@@ -303,6 +326,10 @@ const TSV = {
   "#apm": "(수만 견준다)",
   "#build": "[판9+] 프레임 · 임자 · 일꾼태그 · 타일x · 타일y · 종류",
   "#sel": "[판10+] 프레임 · 임자 · 태그,태그,…(그 명령 뒤의 선택 전체)",
+  "#en": "[판11+] 프레임 · 태그 · 에너지(정수)",
+  "#load": "[판11+] 프레임 · 승객태그 · 배태그(0 = 내림)",
+  "#amt": "[판11+] 프레임 · x · y(픽셀) · 남은 양",
+  "#kill": "[판11+] 프레임 · 킬러임자 · 킬러태그 · 죽은태그",
 };
 /* 지도 자원(미네랄·가스)은 이진 쪽에 안 실린다 — 앱이 지도에서 직접 그린다.
    글자 쪽에서도 같은 종류를 빼야 트랙 수가 맞는다. */
@@ -312,6 +339,7 @@ function readText(text) {
   const byTag = new Map();
   const hp = new Map(), ic = new Map(), tgt = new Map(), own = new Map();
   const up = [], cast = [], ping = [], player = [], res = [], apm = [], build = [], sel = [];
+  const en = [], load = [], amt = [], kill = [];
   let trust = -1;
   const typeOfTag = new Map();
   for (const line of text.split("\n")) {
@@ -336,6 +364,10 @@ function readText(text) {
       else if (p[0] === "#apm") apm.push(p.slice(1).map(Number));
       else if (p[0] === "#build") build.push(p.slice(1).map(Number));
       else if (p[0] === "#sel") sel.push([Number(p[1]), Number(p[2]), p[3] ? p[3].split(",").map(Number) : []]);
+      else if (p[0] === "#en") en.push(p.slice(1).map(Number));
+      else if (p[0] === "#load") load.push(p.slice(1).map(Number));
+      else if (p[0] === "#amt") amt.push(p.slice(1).map(Number));
+      else if (p[0] === "#kill") kill.push(p.slice(1).map(Number));
       continue;
     }
     if (line[0] === "f") continue;             // 머리글 줄
@@ -346,7 +378,7 @@ function readText(text) {
     a.push([frame, x, y, head, state, type]);
   }
   for (const [tag, ty] of typeOfTag) if (RES_TYPES.has(ty)) byTag.delete(tag);
-  return { byTag, hp, ic, tgt, own, up, cast, ping, player, res, apm, build, sel, trust };
+  return { byTag, hp, ic, tgt, own, up, cast, ping, player, res, apm, build, sel, en, load, amt, kill, trust };
 }
 
 /** 이진 머리에서 초당프레임을 곧장 읽는다 — 상수로 못 박으면 덤퍼가 바꿀 때 조용히 어긋난다. */
@@ -473,6 +505,34 @@ function compare(bin, txt, decoded, upName, fail) {
     if (!w) return;
     if (!near(s9[0], w[0] / fps, T) || s9[1] !== w[1] || s9[2].join(",") !== w[2].join(",")) fail(`선택 ${i}`);
   });
+  /* 판 11 네 절 — 글자 갈래와 줄마다 견준다. 에너지는 태그마다 묶여 오므로 (태그, 프레임) 차례로 편다. */
+  const enBin = [...decoded.energy.entries()].flatMap(([tg, a]) => {
+    const o = [];
+    for (let i = 0; i < a.length; i += 2) o.push([a[i], tg, a[i + 1]]);
+    return o;
+  });
+  if (enBin.length !== txt.en.length) fail(`에너지 ${enBin.length} vs ${txt.en.length}`);
+  const enTxt = [...txt.en].sort((a, b) => a[1] - b[1] || a[0] - b[0]);
+  const enB = [...enBin].sort((a, b) => a[1] - b[1] || a[0] - b[0]);
+  enB.forEach((e9, i) => {
+    const w = enTxt[i];
+    if (w && (!near(e9[0], w[0] / fps, T) || e9[1] !== w[1] || e9[2] !== w[2])) fail(`에너지 ${i}`);
+  });
+  if (decoded.loads.length !== txt.load.length) fail(`탑승 ${decoded.loads.length} vs ${txt.load.length}`);
+  decoded.loads.forEach((l9, i) => {
+    const w = txt.load[i];
+    if (w && (!near(l9[0], w[0] / fps, T) || l9[1] !== w[1] || l9[2] !== w[2])) fail(`탑승 ${i}`);
+  });
+  if (decoded.amounts.length !== txt.amt.length) fail(`자원량 ${decoded.amounts.length} vs ${txt.amt.length}`);
+  decoded.amounts.forEach((a9, i) => {
+    const w = txt.amt[i];
+    if (w && (!near(a9[0], w[0] / fps, T) || !near(a9[1], w[1] / 32, XY) || !near(a9[2], w[2] / 32, XY) || a9[3] !== w[3])) fail(`자원량 ${i}`);
+  });
+  if (decoded.kills.length !== txt.kill.length) fail(`처치 ${decoded.kills.length} vs ${txt.kill.length}`);
+  decoded.kills.forEach((k9, i) => {
+    const w = txt.kill[i];
+    if (w && (!near(k9[0], w[0] / fps, T) || k9[1] !== w[1] || k9[2] !== w[2] || k9[3] !== w[3])) fail(`처치 ${i}`);
+  });
   return { keys, fps };
 }
 
@@ -534,6 +594,8 @@ if (files.length === 0) {
       + ` · 업글 ${r.ups.length} · 마법 ${r.casts.length} · 핑 ${r.pings.length}`
       + ` · 명령 ${[...r.orders.values()].reduce((s, v) => s + v.length, 0)}`
       + ` · 자원밭 ${r.resFields.length} · 건설명령 ${r.builds.length} · 선택 ${r.sels.length}`
+      + ` · 에너지 ${[...r.energy.values()].reduce((s, a) => s + (a.length >> 1), 0)} · 탑승 ${r.loads.length}`
+      + ` · 자원량 ${r.amounts.length} · 처치 ${r.kills.length}`
       + `
       체력키 ${hpN} (트랙 ${hpTr}/${r.tracks.length})`
       + ` · 표적키 ${tgN} (트랙 ${tgTr}/${r.tracks.length})`;
