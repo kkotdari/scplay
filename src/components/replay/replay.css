@@ -453,7 +453,7 @@
      끌 때마다(지표 칸 156px + 사이 20px이 생겼다 사라진다) 이름 칸이 106 ↔ 282px로
      출렁이고, 종족 배지도 그만큼 좌우로 뛴다. 한 값으로 못 박으면 두 꼴이 한 픽셀도
      안 다르고, 판 폭은 아래에서 이 값으로부터 계산된다(--roster-name). */
-  grid-template-columns: var(--roster-cols, var(--roster-name, 132px) 26px 44px 30px 28px 28px);
+  grid-template-columns: var(--roster-cols, var(--roster-name, 132px) 26px 44px 30px 28px 36px 28px);
   align-items: center; gap: 0 4px; width: 100%; padding: 0 5px; margin: 0;
 }
 /* 컬럼 라벨 줄(요청: "일꾼 라벨 없애고 대신 컬럼 라벨을 맨위 추가(표 형식)") — 표의
@@ -575,7 +575,7 @@
      이 파일 훨씬 뒤에 있고 무게가 같아(0,1,0) 여기 적으면 그쪽에 덮인다. 미디어 질의는
      무게를 안 올린다. 값은 그 규칙 **뒤**의 짝 미디어 블록이 정한다(판 폭과 한자리에서). */
   .scr-motion-sidepanel {
-    --roster-cols: var(--roster-name, 112px) 20px 38px 26px 26px 24px;
+    --roster-cols: var(--roster-name, 112px) 20px 38px 26px 26px 30px 24px;
   }
   .scr-motion-teamcol-rows .scr-motion-teamrow { gap: 0 2px; padding: 0 3px; }
 }
@@ -590,7 +590,8 @@
    이름 9 → 8px · 칩 여백 1px 4px → 0 3px · 지표 8 → 7px · 팀 이름 8 → 7px · 칸 20/38/26/26/24 → 18/34/24/24/22 ·
    줄 사이 4 → 2 · 줄 상자 1px 4px → 0 3px · 손잡이 조각 사이 5 → 3 · 판 여백 5 → 4 · 팀 사이 3 → 2 · 이름 칸 106 → 90.
    값은 다 이 판(.scr-fs-roster-fixed)에만 건다 — 사이드바 로스터는 제 자를 그대로 든다. */
-.scr-fs-roster-fixed { --roster-cols: var(--roster-name, 90px) 18px 34px 24px 24px 22px; }
+/* K/D 칸(2026-09, 요청: "로스터와 중계자막에 킬데스 수치도 넣어줘 apm 앞에") — "123/45" 여섯 자가 7px 에서 26px 남짓. */
+.scr-fs-roster-fixed { --roster-cols: var(--roster-name, 90px) 18px 34px 24px 24px 28px 22px; }
 .scr-fs-roster-fixed .scr-motion-teamcol-rows .scr-motion-teamrow { gap: 0 2px; padding: 0 3px; margin: 0 -3px; }
 .scr-motion .scr-fs-roster-fixed .scr-motion-teamcol.scr-motion-teamcol-rows { gap: 2px; }
 .scr-fs-roster-fixed .scr-motion-teamcol-rows .scr-motion-teamcol-head { gap: 3px; }
@@ -2600,7 +2601,7 @@
   /* ★ 칸 폭은 미리 잡는다(2026-09, 요청: "자막이 글자길이에 따라 레이아웃 흔들리지 않게 미리 공간 확보하고 라벨은 각 항목의
      가운데 위") — 숫자 칸 넷은 ch 폭(일꾼 3 · 광물/가스 9 · 인구 7 · APM 3.5 · tabular-nums 라 자릿수가 곧 폭)이고 첫 칸은 그리는
      쪽이 가장 긴 이름표를 같은 칸에 숨겨 겹친다(.scr-motion-castcap-ghost). 라벨·값은 제 칸 가운데다. */
-  display: inline-grid; grid-template-columns: auto minmax(3ch, auto) minmax(9ch, auto) minmax(7ch, auto) minmax(3.5ch, auto);
+  display: inline-grid; grid-template-columns: auto minmax(3ch, auto) minmax(9ch, auto) minmax(7ch, auto) minmax(6ch, auto) minmax(3.5ch, auto);
   grid-auto-rows: auto;
   column-gap: 12px; row-gap: 0; align-items: center;
   padding: 4px 12px; border-radius: 10px;

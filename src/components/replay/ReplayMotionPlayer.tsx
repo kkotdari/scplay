@@ -106,6 +106,8 @@ import { glUnits9, glNow9, glBakeMsTake9, glScrubSet9, glScrubbing9, gasTops9, M
 
 /** 중계·추적의 자동 건물 팝업(bldPicks9) — 한 선택이 팝업을 쥐는 상한(초). */
 const AUTO_PICK_MAX9 = 6;
+/** K/D 에서 빼는 몸 — 알·고치·딸림 무기·핵(로스터·자막의 킬데스 · kdSeries9). */
+const KD_SKIP9 = new Set(["Larva", "Egg", "Lurker Egg", "Mutalisk Cocoon", "Interceptor", "Scarab", "Spider Mine", "Nuclear Missile"]);
 export { LIMB_LOG, TURRET_BACK9, SHAPE_BUILDERS, ctx2d9, BAKE_ENV9, cropToInk, pathBox, tierTableOf, autoTier, stageFaces, rasterBld9, SHAPE_GALLERY, poseSet, poseSet9, bldLitSet, headYawSet, bldSpinSet, bldSpinRawSet9, lodSetCap, lodSetZoom, lodNoteFrame, tone9, TONE_DARK, TONE_SAT, silhouetteLight } from "./bake9";
 export type { BakeCv9, BakeCtx9, RasterOut9, ShapeGalleryItem } from "./bake9";
 export { isAirUnit, flapCutOf, atkCutOf, unitTilesOf, buildingYawOf, galleryYawOf, BLD_NORM, BUILD_STAGES, SCR_DIAG, scrDiagOn, deriveWorld9, createEngine9, pickWorldUi9, emptyWorldUi9 } from "./engine9";
@@ -8977,6 +8979,53 @@ export default function ReplayMotionPlayer({
     }
     return out;
   }, [truth, entData, t]);
+  /* ── 킬·데스(2026-09, 요청: "로스터와 중계자막에 킬데스 수치도 넣어줘 apm 앞에") ──────────────────────────
+     킬은 참값 판 11 의 **처치 절**(원작이 처치를 올려 준 순간)에서, 데스는 생애의 끝(맞아 죽음·자폭)에서 센다.
+     · **유닛만**이다(요청: 건물은 안 넣음) — 죽은 몸이 건물이면 킬로도 데스로도 안 센다.
+     · 라바·알·고치·인터셉터·스캐럽·마인·핵은 뺀다(KD_SKIP9) — 캐리어전이 인터셉터로 통째로 부푸는 것을 막는다.
+     · 제 편을 죽인 것은 킬이 아니다. 처치를 준 사람이 없는 죽음은 킬로 안 센다(요청: 빼기) — 데스로는 센다.
+     셈은 경기당 한 번(시각 목록) · 화면은 지금 시각까지의 수만 이분으로 읽는다. */
+  const kdSeries9 = useMemo(() => {
+    const out = new Map<string, { k: number[]; d: number[] }>();
+    if (!entData) return out;
+    const nameOf = new Map(entData.players.map((pl) => [pl.owner, pl.name]));
+    const at9 = (raw: string) => {
+      let v = out.get(raw);
+      if (!v) { v = { k: [], d: [] }; out.set(raw, v); }
+      return v;
+    };
+    const byTag9 = new Map<number, TruthWorld["lives"]>();
+    for (const l9 of entData.lives) {
+      const a9 = byTag9.get(l9.tag);
+      if (a9) a9.push(l9); else byTag9.set(l9.tag, [l9]);
+      if (l9.bld || l9.died === null || (l9.end !== "atk" && l9.end !== "self") || KD_SKIP9.has(l9.kind)) continue;
+      const raw9 = nameOf.get(l9.owner);
+      if (raw9) at9(raw9).d.push(l9.died);
+    }
+    for (const [sec, kOwner, , vTag] of entData.kills) {
+      const kraw9 = nameOf.get(kOwner);
+      if (!kraw9) continue;
+      const v9 = (byTag9.get(vTag) ?? []).find((l9) => l9.born <= sec + 0.05 && (l9.died === null || l9.died >= sec - 0.5));
+      if (!v9 || v9.bld || KD_SKIP9.has(v9.kind) || v9.owner === kOwner) continue;
+      const vraw9 = nameOf.get(v9.owner);
+      if (vraw9 && teamOfRaw(vraw9) !== undefined && teamOfRaw(vraw9) === teamOfRaw(kraw9) && !melee) continue;
+      at9(kraw9).k.push(sec);
+    }
+    for (const v9 of out.values()) { v9.k.sort((a, b) => a - b); v9.d.sort((a, b) => a - b); }
+    return out;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entData, melee, teamMap9]);
+  /** 지금 시각까지의 [킬, 데스] — 사람마다. */
+  const kdNow = useMemo(() => {
+    const cnt9 = (a: number[]): number => {
+      let lo = 0; let hi = a.length;
+      while (lo < hi) { const m9 = (lo + hi) >> 1; if (a[m9] <= t) lo = m9 + 1; else hi = m9; }
+      return lo;
+    };
+    const m = new Map<string, [number, number]>();
+    for (const [raw, v] of kdSeries9) m.set(raw, [cnt9(v.k), cnt9(v.d)]);
+    return m;
+  }, [kdSeries9, t]);
   const workerNow = useMemo(() => {
     const m = new Map<string, number>();
     for (const [raw, series] of workerLive) {
@@ -9442,6 +9491,7 @@ export default function ReplayMotionPlayer({
       ghosts: capGhosts9,
       worker: workerNow.get(capRaw9) ?? null, res: resNow.get(capRaw9) ?? null,
       sup: supplyNow.get(capRaw9) ?? null, apm: apmNow.get(capRaw9) ?? bases.find((b9) => b9.key === capRaw9)?.apm ?? null,
+      kd: kdNow.get(capRaw9) ?? null,
     }
     : null;
   /** 추적 켜기·끄기 — 시야(viewRaw)를 함께 끌고 다닌다. 끄면 시야도 전체로 돌아간다. */
@@ -14949,6 +14999,7 @@ export default function ReplayMotionPlayer({
         <span>인구</span>
         <span className="scr-motion-stat-min">광물</span>
         <span className="scr-motion-stat-gas">가스</span>
+        <span>K/D</span>
         <span>APM</span>
         </>)}
       </div>
@@ -14960,6 +15011,7 @@ export default function ReplayMotionPlayer({
         const sup9 = supplyNow.get(m.key);
         const res9 = resNow.get(m.key);
         const apm9 = apmNow.get(m.key) ?? m.apm ?? null;
+        const kd9 = kdNow.get(m.key);
         return (
           <div
             key={m.key}
@@ -15053,6 +15105,7 @@ export default function ReplayMotionPlayer({
                 <span className="scr-motion-stat scr-motion-stat-gas">
                   {res9 ? res9[1] : ""}
                 </span>
+                <span className="scr-motion-stat">{kd9 ? `${kd9[0]}/${kd9[1]}` : ""}</span>
                 <span className="scr-motion-stat">{apm9 ?? ""}</span>
               </span>
               )}
@@ -16697,6 +16750,7 @@ export default function ReplayMotionPlayer({
                 <span className="scr-motion-castcap-lab">일꾼</span>
                 <span className="scr-motion-castcap-lab">자원</span>
                 <span className="scr-motion-castcap-lab">인구</span>
+                <span className="scr-motion-castcap-lab">K/D</span>
                 <span className="scr-motion-castcap-lab">APM</span>
                 <span className="scr-motion-castcap-val">{castCap9.worker ?? "–"}</span>
                 <span className="scr-motion-castcap-val">
@@ -16705,6 +16759,7 @@ export default function ReplayMotionPlayer({
                   <span className="scr-motion-stat-gas">{castCap9.res ? castCap9.res[1] : "–"}</span>
                 </span>
                 <span className="scr-motion-castcap-val">{castCap9.sup ? `${castCap9.sup[0]}/${castCap9.sup[1]}` : "–"}</span>
+                <span className="scr-motion-castcap-val">{castCap9.kd ? `${castCap9.kd[0]}/${castCap9.kd[1]}` : "–"}</span>
                 <span className="scr-motion-castcap-val">{castCap9.apm ?? "–"}</span>
               </span>
             </div>
