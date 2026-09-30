@@ -14896,8 +14896,10 @@ export default function ReplayMotionPlayer({
    *  줄인다. 기둥(사이드바)의 로스터는 제 칸에 서므로 그대로다.
    *  ★ 폭이 아니라 **어느 판이냐**로 가른다 — 아바타가 서는 구간이 뷰포트 1160px 이상이라
    *    폭으로 가르면 정작 아바타가 보이는 화면에서 안 걸린다(그 판이 곧 이 판이다). */
-  /** 최소 꼴(1단계) 로스터 이름칩의 바탕 알파(2026-09, 요청: "로스터 1단계시 닉네임 상자 배경 투명도 주기"). */
-  const CHIP_BARE_A9 = 0.62;
+  /** 로스터 이름칩의 바탕 알파 — 최소 꼴(1단계)·표 꼴(2단계)(2026-09, 요청: "로스터 1단계시 닉네임 상자 배경 투명도 주기" →
+   *  "닉네임 배경 더 투명하게" — 0.62 → 0.42 · 표 꼴도 1 → 0.7). 글자색은 불투명한 제 색의 밝기로 고른다(chipStyle). */
+  const CHIP_BARE_A9 = 0.42;
+  const CHIP_ROW_A9 = 0.7;
   const teamCol = (team: 1 | 2, rows = false, bare = false, small = false) => {
     /* 한 팀에 몇이냐가 이름 길이를 정한다(요청) — 칸 폭은 고정인데 그 폭을 사람 수로
        나눠 쓰므로, 넷이면 세 자·셋이면 네 자·둘이면 여섯 자·혼자면 통째로다. */
@@ -15014,7 +15016,7 @@ export default function ReplayMotionPlayer({
             </span>
             <span className="scr-motion-teamcol-text">
               {/* 줄인 이름 하나로(재요청: 한글 3·영문 5 제한) — 전체 이름은 카드·댓글에서. */}
-              <span className="scr-motion-teamcol-name" style={chipStyle(m.key, m.team, bare ? CHIP_BARE_A9 : 1)}>
+              <span className="scr-motion-teamcol-name" style={chipStyle(m.key, m.team, bare ? CHIP_BARE_A9 : CHIP_ROW_A9)}>
                 {rows ? m.name : shortName(m.name, mates.length)}
                 {/* ★ 종족 글자는 **이름과 같은 네모 안**이고 원은 없다(2026-09, 요청: "로스터 종족배지 원
                     제거하고 T P Z 만 표시하는데 그마저도 플레이어명과 같이 네모 안으로 이동") — 옆에 따로
