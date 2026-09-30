@@ -38,6 +38,9 @@
  *   명령       u32 개수, 개마다 varint(프레임차) · u32 태그 · u16 x · u16 y · u8 갈래
  *   APM        u32 개수 · u16 통크기(프레임), 개마다 varint(통차) · u8 사람 · varint(명령수)
  *   자원밭단   u32 개수, 개마다 varint(프레임차) · u16 x · u16 y · u8 단   ← 판 4부터
+ *   건설명령   u32 개수, 개마다 varint(프레임차) · u8 임자 · u32 일꾼태그 · u16 타일x · u16 타일y · u16 건물종류 ← 판 9부터
+ *   선택       u32 개수, 개마다 varint(프레임차) · u8 임자 · u8 태그수 · u32 태그 × 태그수   ← 판 10부터
+ *              그 명령(Select·ShiftSelect·ShiftDeselect)을 치른 **뒤의 선택 전체**(최대 12) — 차이가 아니라 결과다.
  *              단 4=750↑ · 3=500~749 · 2=250~499 · 1=1~249 · 0=바닥남(원작 경계 그대로)
  *
  * 왜 이렇게까지 접나 — 글자(TSV)로 내면 26분짜리 8인전이 39MB다. 폰으로 보내는 짐이라
@@ -210,6 +213,11 @@ export type TruthTracks = {
    *  (누른 순간의 일)이라 명령 스트림에서만 온다 — 명령 뒤 공사가 서기까지의 '예정 자리' 고스트가 이걸로 선다.
    *  취소된 명령은 공사가 안 서므로 짝이 없는 줄로 남는다(화면이 몇 초 뒤 스러지게 둔다). */
   builds: [number, number, number, number, number, string][];
+  /** 선택 [초, 임자, 그 명령 뒤의 선택 태그들] — **판 10부터**. 옛 판은 빈 배열이다.
+   *  선택은 게임 상태가 아니라 누른 사람의 손 안의 일이라 명령 스트림에서만 온다 — 중계가 '화면 주인이 건물을
+   *  골랐다'를 알아 그 건물의 정보 팝업을 띄우는 자다(2026-09, 요청: "중계시(화면 주인의) 건물 선택시 인포팝업
+   *  뜨게 — 보는 사람이 누르는게 아니라 리플레이 기록상 선택한 경우"). 태그는 명령 절과 같은 자다. */
+  sels: [number, number, number[]][];
 };
 
 /* 개인색은 덤퍼가 리마스터의 **CCLR 구획**에서 읽어 온다(bwdump.cpp) — 사람마다 고른
@@ -374,7 +382,7 @@ class Cursor {
 /** 해독기가 읽는 판의 범위 — 화면의 진단 문구는 이 두 값에서 만든다(2026-09, 덤퍼 쪽 답신: 게이트는 8 인데
  *  문구가 "2~7만 읽는다"였다 — 문구와 게이트를 따로 적어 두면 다음 어긋남이 로그에서 안 읽힌다). */
 export const TRUTH_VER_MIN9 = 8;
-export const TRUTH_VER_MAX9 = 9;
+export const TRUTH_VER_MAX9 = 10;
 
 export async function peekTruthHead(
   b64: string,
@@ -409,6 +417,8 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
     const hasAir = version >= 3;
     /** 건설 명령 절(판 9) — 맨 뒤라 옛 판은 그 앞에서 끝난다. */
     const hasBuilds = version >= 9;
+    /** 선택 절(판 10) — 건설 명령 절 뒤, 맨 뒤다. */
+    const hasSels = version >= 10;
     /* 은신은 판 5부터다(요청: "참값에 은신 칸 추가하는 쪽으로 가자") — 옛 덤프는 그 깃발이
        늘 0이라 '은신 아님'으로 읽히는데, 그건 **모르는 것**이지 아님이 아니다. 판으로 갈라
        옛 판에서는 칸 자체를 안 만든다(없으면 화면이 이름으로 아는 상시 은신만 쓴다). */
@@ -672,9 +682,25 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
       }
     }
 
+    /* 선택(판 10) — [초, 임자, 태그들]. 그 명령을 치른 **뒤의 선택 전체**라 화면은 한 줄만 보면 된다
+       (ShiftSelect·ShiftDeselect 를 덤퍼가 풀어 준다 — 차이를 쌓는 셈을 화면이 되풀이하지 않게). */
+    const sels: [number, number, number[]][] = [];
+    if (hasSels) {
+      let pf = 0;
+      const cnt = c.u32();
+      for (let i = 0; i < cnt; i += 1) {
+        pf += c.varint();
+        const who = c.u8();
+        const n = c.u8();
+        const tags: number[] = [];
+        for (let k = 0; k < n; k += 1) tags.push(c.u32());
+        sels.push([pf / fps, who, tags]);
+      }
+    }
+
     return { version, leftover: c.left,
       tracks, trustUntil: trustFrame < 0 ? null : trustFrame / fps,
-      players, ups, casts, pings, res, apm, apmBucketSec, orders, resFields, builds };
+      players, ups, casts, pings, res, apm, apmBucketSec, orders, resFields, builds, sels };
   } catch {
     return null;
   }

@@ -9840,11 +9840,14 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
 /** 화면(UI)이 읽는 파생 자료 — 워커가 세계를 세운 뒤 한 번 보내 준다(요청: 메인의 중복 파생 자료 제거).
  *  메인은 deriveWorld9를 안 부른다 — 폰 메모리에서 가장 큰 덩어리 하나가 빠진다. */
 export type WorldUi9 = Pick<EngineWorld9,
-  "buildsSrc" | "castsSrc" | "nukeLase" | "gasBuildings" | "prodDoneAt" | "prodDoneByRaw" | "upsByRaw" | "nukeImpacts">;
+  "buildsSrc" | "castsSrc" | "nukeLase" | "gasBuildings" | "prodDoneAt" | "prodDoneByRaw" | "upsByRaw" | "nukeImpacts"
+  /* 생산 호스트 표 — 중계의 '화면 주인이 건물을 골랐다' 대체 신호(선택 절이 없는 판 9 아래)가 읽는다. */
+  | "prodByRawType">;
 /** 걷기(entWalks)는 여기 안 든다 — 가장 큰 덩어리인데 추적(로스터 버튼)을 켤 때만 쓴다. 그때 워커에 따로 청한다(want walks). */
 export const pickWorldUi9 = (w: EngineWorld9): WorldUi9 => ({
   buildsSrc: w.buildsSrc, castsSrc: w.castsSrc, nukeLase: w.nukeLase, gasBuildings: w.gasBuildings,
   prodDoneAt: w.prodDoneAt, prodDoneByRaw: w.prodDoneByRaw, upsByRaw: w.upsByRaw, nukeImpacts: w.nukeImpacts,
+  prodByRawType: w.prodByRawType,
 });
 export let emptyWorldUiCache9: WorldUi9 | null = null;
 /** 워커의 것이 오기 전의 빈 표 — 한 번만 만들어 같은 참조를 준다(메모 deps가 흔들리지 않게). */

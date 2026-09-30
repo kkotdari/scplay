@@ -75,10 +75,12 @@ const SPEC = {
   임자바뀜: "[판8] 트랙표 줄 끝에 u8 수, 바뀜마다 u32 프레임(LE) · u8 새 임자 — 마인드 컨트롤·중립화(11). 글자 갈래는 #own\\t태그\\t프레임\\t새임자",
   건설명령: "[판9+] **맨 뒤** u32 개수, 개마다 varint(프레임차) · u8 임자 · u32 일꾼태그 · u16 타일x · u16 타일y · u16 건물종류(units.dat)"
     + " — action_build 의 tile_pos(발자국 좌상단 타일) 그대로. 글자 갈래는 #build\\t프레임\\t임자\\t태그\\t타일x\\t타일y\\t종류",
+  선택: "[판10+] **맨 뒤**(건설명령 다음) u32 개수, 개마다 varint(프레임차) · u8 임자 · u8 태그수 · u32 태그 × 태그수"
+    + " — Select·ShiftSelect·ShiftDeselect 를 치른 **뒤의 선택 전체**(최대 12). 글자 갈래는 #sel\\t프레임\\t임자\\t태그,태그,…",
 };
 /** 해독기가 받아 주어야 할 판 — 이 범위 밖은 물리쳐야 한다. */
 const VER_MIN = 8;   // 판 8(요청: 판 7은 더 이상 안 쓴다 — 폴백 없이) — 판 9 는 판 8 + 맨 뒤 건설 명령 절이라 둘 다 읽는다
-const VER_MAX = 9;
+const VER_MAX = 10;  // 판 10 = 판 9 + 맨 뒤 선택 절
 
 // ── 바이트 짓기 ────────────────────────────────────────────────────────────────
 const u8 = (v) => Buffer.from([v]);
@@ -159,6 +161,11 @@ function build(ver) {
     p.push(varint(96), u8(3), u32(77), u16(40), u16(50), u16(111));
     p.push(varint(24), u8(5), u32(78), u16(60), u16(70), u16(156));
   }
+  if (ver >= 10) {                                       // 선택(맨 뒤) — 배럭 하나 · 두 몸
+    p.push(u32(2));
+    p.push(varint(120), u8(3), u8(1), u32(77));
+    p.push(varint(24), u8(5), u8(2), u32(78), u32(79));
+  }
   return zlib.deflateSync(Buffer.concat(p)).toString("base64");
 }
 
@@ -217,6 +224,7 @@ function expect(ver, r, fail) {
   eq("자원밭단", r.resFields, ver >= 4 ? [[0, 1, 1, 4], [1, 2, 2, 2]] : []);
   // 건설 명령(판 9) — 자리는 타일 그대로(÷32 안 한다) · 종류는 이름으로.
   eq("건설명령", r.builds, ver >= 9 ? [[4, 3, 77, 40, 50, "Barracks"], [5, 5, 78, 60, 70, "Pylon"]] : []);
+  eq("선택", r.sels, ver >= 10 ? [[5, 3, [77]], [6, 5, [78, 79]]] : []);
 }
 
 // ── 해독기 불러오기 ────────────────────────────────────────────────────────────
@@ -294,6 +302,7 @@ const TSV = {
   "#res": "(수만 견준다 — 칸 차례를 이 저장소가 모른다)",
   "#apm": "(수만 견준다)",
   "#build": "[판9+] 프레임 · 임자 · 일꾼태그 · 타일x · 타일y · 종류",
+  "#sel": "[판10+] 프레임 · 임자 · 태그,태그,…(그 명령 뒤의 선택 전체)",
 };
 /* 지도 자원(미네랄·가스)은 이진 쪽에 안 실린다 — 앱이 지도에서 직접 그린다.
    글자 쪽에서도 같은 종류를 빼야 트랙 수가 맞는다. */
@@ -302,7 +311,7 @@ const RES_TYPES = new Set([176, 177, 178, 188, 214]);
 function readText(text) {
   const byTag = new Map();
   const hp = new Map(), ic = new Map(), tgt = new Map(), own = new Map();
-  const up = [], cast = [], ping = [], player = [], res = [], apm = [], build = [];
+  const up = [], cast = [], ping = [], player = [], res = [], apm = [], build = [], sel = [];
   let trust = -1;
   const typeOfTag = new Map();
   for (const line of text.split("\n")) {
@@ -326,6 +335,7 @@ function readText(text) {
       else if (p[0] === "#res") res.push(p.slice(1).map(Number));
       else if (p[0] === "#apm") apm.push(p.slice(1).map(Number));
       else if (p[0] === "#build") build.push(p.slice(1).map(Number));
+      else if (p[0] === "#sel") sel.push([Number(p[1]), Number(p[2]), p[3] ? p[3].split(",").map(Number) : []]);
       continue;
     }
     if (line[0] === "f") continue;             // 머리글 줄
@@ -336,7 +346,7 @@ function readText(text) {
     a.push([frame, x, y, head, state, type]);
   }
   for (const [tag, ty] of typeOfTag) if (RES_TYPES.has(ty)) byTag.delete(tag);
-  return { byTag, hp, ic, tgt, own, up, cast, ping, player, res, apm, build, trust };
+  return { byTag, hp, ic, tgt, own, up, cast, ping, player, res, apm, build, sel, trust };
 }
 
 /** 이진 머리에서 초당프레임을 곧장 읽는다 — 상수로 못 박으면 덤퍼가 바꿀 때 조용히 어긋난다. */
@@ -456,6 +466,13 @@ function compare(bin, txt, decoded, upName, fail) {
     if (!w) return;
     if (!near(b9[0], w[0] / fps, T) || b9[1] !== w[1] || b9[2] !== w[2] || b9[3] !== w[3] || b9[4] !== w[4]) fail(`건설명령 ${i}`);
   });
+  /* 선택(판 10) — 글자 갈래 #sel 과 줄마다 견준다(옛 덤퍼는 그 줄이 없으니 이진도 비어야 한다). */
+  if (decoded.sels.length !== txt.sel.length) fail(`선택 ${decoded.sels.length} vs ${txt.sel.length}`);
+  decoded.sels.forEach((s9, i) => {
+    const w = txt.sel[i];
+    if (!w) return;
+    if (!near(s9[0], w[0] / fps, T) || s9[1] !== w[1] || s9[2].join(",") !== w[2].join(",")) fail(`선택 ${i}`);
+  });
   return { keys, fps };
 }
 
@@ -516,7 +533,7 @@ if (files.length === 0) {
     const cen = `판 ${r.version} · 트랙 ${r.tracks.length} · 사람 ${r.players.length}`
       + ` · 업글 ${r.ups.length} · 마법 ${r.casts.length} · 핑 ${r.pings.length}`
       + ` · 명령 ${[...r.orders.values()].reduce((s, v) => s + v.length, 0)}`
-      + ` · 자원밭 ${r.resFields.length} · 건설명령 ${r.builds.length}`
+      + ` · 자원밭 ${r.resFields.length} · 건설명령 ${r.builds.length} · 선택 ${r.sels.length}`
       + `
       체력키 ${hpN} (트랙 ${hpTr}/${r.tracks.length})`
       + ` · 표적키 ${tgN} (트랙 ${tgTr}/${r.tracks.length})`;

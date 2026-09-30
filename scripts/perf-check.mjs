@@ -84,6 +84,8 @@ function makeWorld() {
   /** 한 트랙 — path(t)->[x타일, y타일, 상태], hp 변곡점은 따로. */
   /** 건설 명령(판 9 · --ghost) — [프레임, 임자, 일꾼 태그, 타일 x, 타일 y, 종류]. */
   const builds = [];
+  /** 선택(판 10 · --selpick) — [프레임, 임자, 태그들]. 빈 배열이면 재생기는 대체 신호(생산·연구 시작)로 간다. */
+  const sels = [];
   const track = (owner, type, pathOf, { hp = null, bornSec = 0, buildingAt = null, dieSec = null, lifted = false, wip = false } = {}) => {
     const keys = [];
     if (buildingAt) {
@@ -126,7 +128,14 @@ function makeWorld() {
     // 건물 — 홀 3(본진+멀티 둘) · 서플라이류 12 · 생산 6 · 방어 4 = 25채.
     const dirx = hx < 64 ? 1 : -1;
     const diry = hy < 64 ? 1 : -1;
+    const hallTag9 = tag;
     track(pl.owner, hall, null, { buildingAt: [hx, hy] });
+    /* 중계 자동 팝업(--selpick · 2026-09) — 정구가 44초에 제 본진 홀 하나만 고르고 50초에 딴 몸(일꾼 태그 자리)으로 갈아탄다.
+       --track 정구 로 열면 initialSec 46 에서 그 홀의 정보 팝업이 저절로 서 있어야 한다(perf-check --infoprobe). */
+    if (has("--selpick") && pl.owner === 0) {
+      sels.push([F(44), 0, [hallTag9]]);
+      sels.push([F(50), 0, [hallTag9 + 1000]]);
+    }
     /* 뜬 건물(--lifted) — 정구(테란)의 옆 멀티 홀 하나를 이륙한 채 세운다(2026-09, "뜬 건물 그림자 정리"의 검산:
        사영이 켜진 PC 에서 타원 + 검은 복사판 둘이 아니라 바닥에 눕힌 사영 하나여야 한다). 자리 (38, 18). */
     track(pl.owner, hall, null, { buildingAt: [hx + dirx * 20, hy], lifted: has("--lifted") && pl.owner === 0 });
@@ -247,7 +256,7 @@ function makeWorld() {
   /* ── 바이트로 굽는다 ── */
   const w = new W();
   w.u8(0x4f); w.u8(0x42); w.u8(0x57); w.u8(0x54);   // "OBWT"
-  w.u8(9); w.f32(FPS); w.i32(-1);   // 판 9 = 판 8 + 맨 뒤 건설 명령 절(해독기는 8·9 를 읽는다 · 옛 4는 "재생할 수 없는 게임")
+  w.u8(10); w.f32(FPS); w.i32(-1);   // 판 10 = 판 9 + 맨 뒤 선택 절(해독기는 8~10 을 읽는다 · 옛 4는 "재생할 수 없는 게임")
   w.u8(PLAYERS.length);
   for (const pl of PLAYERS) { w.u8(pl.owner); w.u8(pl.owner); w.u8(pl.race); w.u8(pl.force); w.u8(0); w.u32(pl.color); w.str(pl.name); }
   w.u32(tracks.length);
@@ -277,6 +286,8 @@ function makeWorld() {
   w.u32(0);                            // 자원밭단
   w.u32(builds.length);                // 건설 명령(판 9 · 맨 뒤)
   { let pf = 0; for (const [f, o, tg, tx, ty, ty9] of builds) { w.vz(f - pf); pf = f; w.u8(o); w.u32(tg); w.u16(tx); w.u16(ty); w.u16(ty9); } }
+  w.u32(sels.length);                  // 선택(판 10 · 맨 뒤)
+  { let pf = 0; for (const [f, o, tgs] of sels) { w.vz(f - pf); pf = f; w.u8(o); w.u8(tgs.length); for (const tg of tgs) w.u32(tg); } }
   const motion = deflateSync(w.out()).toString("base64");
   /* 합성 뭉치를 파일로도 낸다(PERF_MOTION_OUT=경로) — 엔진을 노드에서 곧장 돌려 보는 하네스의 재료(브라우저 없이 ghosts9·op 를 찍는다). */
   if (process.env.PERF_MOTION_OUT) writeFileSync(process.env.PERF_MOTION_OUT, JSON.stringify({ motion, players: PLAYERS }));
@@ -631,6 +642,24 @@ if (has("--pickshot")) {
   });
   console.log(`[목록] 단추 ${r9 ? "눌렀다" : "없음"} · 목록 ${JSON.stringify(bx9.m)} · 자막 ${JSON.stringify(bx9.c)} · 겹친 자리 맨 위: ${bx9.top} · 화면 안 ${bx9.fit} · 확대 ${bx9.zoom}`);
   await page.screenshot({ path: String(flag("--pickshot", "pick.png")) });
+}
+/* 자동 팝업 자(--infoprobe [png]): 중계·추적 중 화면 주인이 고른 건물의 정보 팝업이 저절로 서나(2026-09, 요청:
+   "중계시(화면 주인의) 건물 선택시 인포팝업 뜨게 — 리플레이 기록상 선택한 경우"). --selpick 과 --track 정구 로 연다:
+   44초에 홀을 고르고 50초에 딴 몸으로 갈아타므로 46초에는 떠 있고, 재생해 50초를 넘기면 닫혀야 한다. */
+if (has("--infoprobe")) {
+  const nm9 = () => page.evaluate(() => document.querySelector(".scr-motion-info-name")?.textContent ?? null);
+  await page.waitForTimeout(2500);
+  const a9 = await nm9();
+  const shot9 = flag("--infoprobe", "");
+  if (shot9 && shot9 !== true && String(shot9).endsWith(".png")) await page.screenshot({ path: String(shot9) });
+  let b9 = a9; let tb9 = null;
+  for (let i = 0; i < 30; i += 1) {
+    await page.waitForTimeout(500);
+    b9 = await nm9();
+    tb9 = await page.evaluate(() => { const r = document.querySelector(".scr-motion-seek, input[type=range]"); return r instanceof HTMLInputElement ? Number(r.value).toFixed(1) : null; });
+    if (b9 === null) break;
+  }
+  console.log(`[자동 팝업] 처음 ${JSON.stringify(a9)} · 재생 뒤 ${JSON.stringify(b9)} (시계 ${tb9})`);
 }
 /* 중계 자(--castprobe [초]): 중계 스위치·자막·카메라 임자를 한동안 지켜본다 — 편성표가
    실제로 사람을 갈아타는지는 정지 그림 한 장으로는 못 본다. 자막은 **상시**라(요청: "토스터가 아니라
