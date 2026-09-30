@@ -9420,11 +9420,25 @@ export default function ReplayMotionPlayer({
    *  ★ **로스터 2단계의 지표를 함께 싣는다**(2026-09, 요청: "로스터 2단계 내용 같이 보여주기 · 내용별 라벨은 위쪽에
    *    작게 표시" — 그림: 일꾼 · 자원(미네랄/가스 · 제 색) · 인구 · APM) — 값은 로스터가 읽는 **같은 표**(workerNow ·
    *    resNow · supplyNow · apmNow)에서 그대로 읽는다. 자막이 제 셈을 들면 로스터와 조용히 어긋난다. */
-  const castCap9 = castOn && castRaw !== null
+  /* ★ **자막의 임자는 카메라의 임자다**(2026-09, 요청: "중계시 사람 골라도 자막 켜고") — 여태 `castOn && castRaw` 라
+     TV 목록에서 **사람을 고른**(개인 추적 · castOn 은 꺼진다) 동안은 자막이 사라졌다. 개인 추적도 '누구 화면인가'는
+     같으니 `camRaw9`(trackRaw ?? castRaw)를 읽는다. 떠오름의 key 는 중계면 토막 번호, 개인 추적이면 그 사람이다
+     (사람이 갈릴 때만 다시 떠오른다). 중계가 켜졌는데 편성표가 아직 사람을 안 가리키면 종전대로 안 선다. */
+  const capRaw9 = trackRaw ?? (castOn ? castRaw : null);
+  /** 첫 칸의 자리를 미리 잡는 **이름표 전부**(요청: "자막이 글자길이에 따라 레이아웃 흔들리지 않게 미리 공간 확보") —
+   *  로스터 사람들의 이름표를 다 지어 같은 격자 칸에 숨겨(visibility hidden) 겹쳐 둔다. 칸 폭은 그중 가장 넓은 것이라
+   *  사람이 갈려도 첫 칸이 안 흔들린다. 숫자 칸 넷은 CSS 가 ch 폭으로 잡는다.
+   *  ⚠ '가장 긴 것 하나'를 글자 수로 고르면 틀린다 — 한글 한 자가 라틴 두 자보다 넓어 "1팀 Rex"(6자)가 "1팀 정구"(5자)보다
+   *    좁다(실측 51.8 vs 55.3px). 폭은 글꼴이 정하므로 다 넣고 브라우저가 재게 둔다(여덟 줄 남짓이라 값이 없다). */
+  const capGhosts9 = useMemo(() => bases.map((b9) => castLabel9(b9.key)),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [bases, melee, teamMap9]);
+  const castCap9 = capRaw9 !== null
     ? {
-      key: castIdx9, text: castLabel9(castRaw), col: modeColor(castRaw, teamOfRaw(castRaw)),
-      worker: workerNow.get(castRaw) ?? null, res: resNow.get(castRaw) ?? null,
-      sup: supplyNow.get(castRaw) ?? null, apm: apmNow.get(castRaw) ?? bases.find((b9) => b9.key === castRaw)?.apm ?? null,
+      key: trackRaw ? `t:${trackRaw}` : `c:${castIdx9}`, text: castLabel9(capRaw9), col: modeColor(capRaw9, teamOfRaw(capRaw9)),
+      ghosts: capGhosts9,
+      worker: workerNow.get(capRaw9) ?? null, res: resNow.get(capRaw9) ?? null,
+      sup: supplyNow.get(capRaw9) ?? null, apm: apmNow.get(capRaw9) ?? bases.find((b9) => b9.key === capRaw9)?.apm ?? null,
     }
     : null;
   /** 추적 켜기·끄기 — 시야(viewRaw)를 함께 끌고 다닌다. 끄면 시야도 전체로 돌아간다. */
@@ -16614,6 +16628,13 @@ export default function ReplayMotionPlayer({
                   <i className="scr-motion-castdot" style={{ background: castCap9.col }} aria-hidden />
                   {castCap9.text}
                 </span>
+                {/* 같은 칸에 숨긴 이름표 전부 — 칸 폭을 미리 잡는다(위 capGhosts9). */}
+                {castCap9.ghosts.map((g9, i9) => (
+                  <span key={i9} className="scr-motion-castcap-who scr-motion-castcap-ghost" aria-hidden>
+                    <i className="scr-motion-castdot" aria-hidden />
+                    {g9}
+                  </span>
+                ))}
                 <span className="scr-motion-castcap-lab">일꾼</span>
                 <span className="scr-motion-castcap-lab">자원</span>
                 <span className="scr-motion-castcap-lab">인구</span>

@@ -650,7 +650,11 @@ if (has("--castprobe")) {
     const r9 = await page.evaluate(() => ({
       on: !!document.querySelector(".scr-motion-castbtn-on"),
       btn: !!document.querySelector(".scr-motion-castbtn"),
-      toast: [...document.querySelectorAll(".scr-motion-castcap")].map((el) => el.textContent ?? ""),
+      /* 글귀는 숨긴 이름표(.scr-motion-castcap-ghost — 첫 칸 폭을 미리 잡는 겹판)를 빼고 읽는다. */
+      toast: [...document.querySelectorAll(".scr-motion-castcap")].map((el) => { const c = el.cloneNode(true); c.querySelectorAll(".scr-motion-castcap-ghost").forEach((g) => g.remove()); return c.textContent ?? ""; }),
+      /* 칸 폭(2026-09, 요청: "글자길이에 따라 레이아웃 흔들리지 않게 미리 공간 확보") — 사람이 갈려도 같아야 한다. */
+      cols: (() => { const el = document.querySelector(".scr-motion-castcap"); if (!el) return null; const r0 = el.getBoundingClientRect();
+        return { w: +r0.width.toFixed(1), cells: [...el.children].filter((c) => !c.classList.contains("scr-motion-castcap-ghost")).map((c) => +c.getBoundingClientRect().width.toFixed(1)) }; })(),
       /* 단추의 자리 — 아이콘 줄(.scr-motion-mapbtns) 안에서 **로스터 단추 바로 왼쪽**인가(요청), 크기가 형제와 같은가. */
       bb: (() => { const b = document.querySelector(".scr-motion-mapbtns .scr-motion-castbtn");
         /* 단추는 목록 감싸개(.scr-motion-pick) 안에 서므로 이웃은 그 감싸개의 형제다(2026-09 · 목록을 열게 되며). */
@@ -672,13 +676,22 @@ if (has("--castprobe")) {
       if (!last9 || last9.text !== tx9) {
         seen9.push({ text: tx9, at: +(i9 / 5).toFixed(1), box: r9.box });
         // 첫 자막이 선 그 장면을 찍는다(--shot) — 자리(무대 아래 몇 px)를 정지 그림으로 본다.
-        if (SHOT && seen9.length === 1) await page.screenshot({ path: String(SHOT) });
+        if (SHOT && seen9.length === 1) {
+          await page.screenshot({ path: String(SHOT) });
+          // 자막만 따로(라벨이 칸 가운데 위에 서나 · 칸 폭) — <shot>_cap.png
+          const cr9 = await page.evaluate(() => { const r = document.querySelector(".scr-motion-castbar")?.getBoundingClientRect(); return r ? { x: r.left, y: r.top, width: r.width, height: r.height } : null; });
+          if (cr9) await page.screenshot({ path: String(SHOT).replace(/\.png$/, "_cap.png"), clip: { x: cr9.x - 6, y: cr9.y - 6, width: cr9.width + 12, height: cr9.height + 12 } }).catch((e) => { console.log(`[중계] 자막 조각 실패 ${e?.message ?? e}`); });
+        }
       }
     }
     await page.waitForTimeout(200);
   }
-  const capNow9 = await page.evaluate(() => document.querySelector(".scr-motion-castcap")?.textContent ?? null);
+  const capNow9 = await page.evaluate(() => { const el = document.querySelector(".scr-motion-castcap"); if (!el) return null;
+    const c = el.cloneNode(true); c.querySelectorAll(".scr-motion-castcap-ghost").forEach((g) => g.remove()); return c.textContent ?? ""; });
+  const colsNow9 = await page.evaluate(() => { const el = document.querySelector(".scr-motion-castcap"); if (!el) return null;
+    return { w: +el.getBoundingClientRect().width.toFixed(1), cells: [...el.children].filter((c) => !c.classList.contains("scr-motion-castcap-ghost")).map((c) => +c.getBoundingClientRect().width.toFixed(1)) }; });
   console.log(`[중계] 단추 ${on9?.btn ? "있음" : "없음"} · 켜짐 ${on9?.on ? "예" : "아니오"} · 상시 자막 ${capNow9 === null ? "없음" : `"${capNow9}"`} · 갈아탐 ${Math.max(0, seen9.length - 1)}번`
+    + (colsNow9 ? ` · 자막 폭 ${colsNow9.w}px 칸 [${colsNow9.cells.join(" ")}]` : "")
     + (on9?.bb ? ` · 단추 ${on9.bb.w}×${on9.bb.h}px(이웃 ${on9.bb.nextW}) · 오른쪽 이웃 "${on9.bb.next}" 틈 ${on9.bb.gap}px` : " · 단추 자리 못 잼"));
   /* 배타 검사 — TV 단추의 **목록**(2026-09, 요청: "중계버튼 누르면 위에 선택목록 … 맨 아래 자동 · 로스터 추적버튼 제거")에서
      첫 사람을 고르면 중계(자막)가 꺼지고 그 줄만 켜져야 하고, 다시 열어 맨 아래 '자동'을 고르면 중계가 돌아와야 한다.
@@ -687,7 +700,11 @@ if (has("--castprobe")) {
     /* share — 공유 표(요청: "중계는 자동이든 한사람이든 사용중이면 좌표, 배율 공유안하고 대신 중계 파라미터 공유"):
        tr 는 &tr= 에 실릴 값(사람 아이디 · 자동은 "*" · 꺼지면 null), pos 는 자리(z·cx·cy)가 실려 있나. */
     const sh = () => { const r = window.__share9?.(); return r ? { tr: r.tr, pos: r.pos } : null; };
-    const st = () => ({ on: !!document.querySelector(".scr-motion-castbtn-on"), cap: document.querySelector(".scr-motion-castcap")?.textContent ?? null,
+    const capOf = () => { const el = document.querySelector(".scr-motion-castcap"); if (!el) return null;
+      const c = el.cloneNode(true); c.querySelectorAll(".scr-motion-castcap-ghost").forEach((g) => g.remove()); return c.textContent ?? ""; };
+    const colsOf = () => { const el = document.querySelector(".scr-motion-castcap"); if (!el) return null;
+      return [+el.getBoundingClientRect().width.toFixed(1), ...[...el.children].filter((c) => !c.classList.contains("scr-motion-castcap-ghost")).map((c) => +c.getBoundingClientRect().width.toFixed(1))]; };
+    const st = () => ({ on: !!document.querySelector(".scr-motion-castbtn-on"), cap: capOf(), cols: colsOf(),
       items: [...document.querySelectorAll(".scr-motion-pickmenu .scr-motion-pickitem")].map((el) => `${el.textContent}${el.classList.contains("is-on") ? "*" : ""}`),
       share: sh() });
     const wait = (ms) => new Promise((r) => { setTimeout(r, ms); });
