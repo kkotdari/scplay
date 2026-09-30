@@ -1,4 +1,4 @@
-import { Bookmark, Crosshair, Map as MapIcon, Maximize, Music, Palette, Play, Share2, Users, X } from "lucide-react";
+import { Bookmark, Crosshair, Map as MapIcon, Maximize, Music, Palette, Play, Share2, Tv, Users, X } from "lucide-react";
 import RosterTableIcon from "./RosterTableIcon";
 function K({ keys, plus = false, title, desc }: {
     keys: string[];
@@ -85,7 +85,6 @@ export default function ReplayGuide({ onClose }: {
             <span className="scr-guide-mbtn"><Users size={18}/></span>
             <span className="scr-guide-mbtn"><MapIcon size={18}/></span>
             <span className="scr-guide-mbtn scr-guide-mbtn-txt">×2</span>
-            <span className="scr-guide-mbtn scr-guide-mbtn-txt">8배</span>
             <span className="scr-guide-mbtn is-on"><Palette size={18}/></span>
             <span className="scr-guide-mbtn scr-guide-mbtn-txt">2D</span>
             <span className="scr-guide-mbtn"><Music size={18}/></span>
@@ -95,13 +94,26 @@ export default function ReplayGuide({ onClose }: {
             <li><span className="scr-guide-ic"><Users size={15}/></span><span><b>로스터</b> — 누를 때마다 <b>이름만 → 전체 → 숨김</b> 세 단으로 돕니다. 아이콘이 <b>사람+표</b>(<RosterTableIcon size={13}/>)로 바뀌면 APM 같은 지표까지 떠 있는 상태입니다.</span></li>
             <li><span className="scr-guide-ic"><MapIcon size={15}/></span><span><b>미니맵</b> — 전체 판을 한 눈에. 눌러서 그 자리로 바로 갑니다(전체화면에서 여닫습니다).</span></li>
             <li><span className="scr-guide-ic scr-guide-ic-txt">×2</span><span><b>배속</b> — 누르면 위로 목록(×1·×2·×4·×8)이 펼쳐집니다. 교전 하나를 뜯어볼 땐 낮추고, 초반 빌드를 넘길 땐 올립니다.</span></li>
-            <li><span className="scr-guide-ic scr-guide-ic-txt">8배</span><span><b>확대</b> — 누르면 위로 목록(1·2·4·8배)이 펼쳐집니다. 지도는 그 배율로 매번 다시 그리므로 아무리 키워도 안 뭉개집니다.</span></li>
             <li><span className="scr-guide-ic"><Palette size={15}/></span><span><b>색</b> — <b>팀색</b>은 편을 가르고, <b>개인색</b>은 그 경기에서 각자가 쓰던 색입니다.</span></li>
-            <li><span className="scr-guide-ic scr-guide-ic-txt">2D</span><span><b>보기</b> — 평면(2D)과 입체(3D)를 오갑니다. 언덕·램프는 입체에서 더 잘 읽힙니다.</span></li>
+            <li><span className="scr-guide-ic scr-guide-ic-txt">2D</span><span><b>보기</b> — 평면(2D)과 입체(3D)를 오갑니다. 언덕·램프는 입체에서 더 잘 읽힙니다. PC에만 있습니다.</span></li>
             <li><span className="scr-guide-ic"><Music size={15}/></span><span><b>음악</b> — 누르면 곡 목록이 펼쳐집니다. 고른 곡은 처음부터, 맨 위 '끄기'로 끕니다.</span></li>
             <li><span className="scr-guide-ic"><Maximize size={15}/></span><span><b>전체화면</b>.</span></li>
           </ul>
         </div>
+
+        {/* ★ 확대 단추가 줄에서 빠지며(2026-09, 요청: "배율 버튼: 모바일 피시에서 제거. 사용법에는 드래그나 핀치조작법 별도로 남기기")
+            움직이는 법·키우는 법은 여기 제 절로 선다 — 지도는 손으로만 움직이고 키운다. */}
+        <h3 className="scr-guide-h3">지도 움직이기 · 확대</h3>
+        <p className="scr-guide-sub">
+          지도는 <strong>손으로</strong> 움직이고 키웁니다. 확대 단추는 없습니다 — 배율은 1·2·4·8·16배 사이를 한 칸씩 오르내립니다.
+        </p>
+        <ul className="scr-guide-legend">
+          <li><span className="scr-guide-ic scr-guide-ic-txt">↔</span><span><b>끌기</b> — 지도를 잡고 끌면 그쪽으로 움직입니다(PC는 마우스, 폰은 한 손가락). PC에서는 W·A·S·D로도 밀립니다.</span></li>
+          <li><span className="scr-guide-ic scr-guide-ic-txt">휠</span><span><b>마우스 휠</b> — 굴리면 그 자리를 중심으로 한 칸씩 키우고 줄입니다. ↑·↓ 키도 같습니다.</span></li>
+          <li><span className="scr-guide-ic scr-guide-ic-txt">✌</span><span><b>핀치</b> — 폰에서 두 손가락을 벌리면 커지고 모으면 작아집니다. 한 손가락으로 끌면서 함께 해도 됩니다.</span></li>
+          <li><span className="scr-guide-ic scr-guide-ic-txt">×2</span><span><b>두 번 누르기</b> — 그 자리를 한 번에 8배로 당깁니다(더블클릭·더블탭). 한 번 더 누르면 1배로 돌아옵니다.</span></li>
+          <li><span className="scr-guide-ic"><Tv size={15}/></span><span><b>중계·추적</b>을 켜면 사람을 따라가며 알아서 당겨 놓습니다 — 그 뒤 손으로 바꾼 배율은 그대로 둡니다.</span></li>
+        </ul>
 
         <h3 className="scr-guide-h3">로스터에서 한 사람만 따라가기</h3>
         <p className="scr-guide-sub">

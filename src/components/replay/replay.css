@@ -287,7 +287,14 @@
    숫자 목록은 가운데 맞춤, 곡 목록(is-list)은 왼맞춤에 길이 상한·스크롤. */
 .scr-motion-mapbtns .scr-motion-pick {
   position: relative; display: flex; flex: 0 1 44px; min-width: 0; justify-content: center;
+  /* ★ 감싸개 안의 단추도 형제와 **같은 자**로 잰다(2026-09, 지적: "전체화면에서 활성버튼과 비활성버튼 크기 다름") — 감싸개는
+     flex 라 기본(align-items: stretch)이면 그 안의 단추가 감싸개 높이로 늘어나고, 감싸개 자체는 줄의 center 정렬을 받아 제
+     내용 높이라, 단추의 height:auto + aspect-ratio 가 두 자(줄어든 폭 · 감싸개 높이)를 동시에 받는다. 헤드리스 크로뮴은 둘이
+     같게 풀지만 브라우저마다 stretch 와 aspect-ratio 의 차례가 갈려 감싸인 단추(TV·배속·음악 — 켜진 것이 대개 이 무리다)만
+     한 뼘 다르게 선다. 감싸개도 정원(aspect-ratio)으로 못 박고 단추는 가운데 정렬로 둔다 — 자가 하나(폭)가 된다. */
+  align-items: center; aspect-ratio: 1 / 1;
 }
+.scr-motion-mapbtns .scr-motion-pick > button.scr-motion-mapbtn { align-self: center; }
 .scr-motion-pickmenu {
   position: absolute; bottom: calc(100% + 6px); right: 0;
   margin: 0; padding: 4px; list-style: none;

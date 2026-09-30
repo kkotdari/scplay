@@ -625,7 +625,8 @@ if (has("--pickshot")) {
       if (x1 > x0 && y1 > y0) { const el = document.elementFromPoint((x0 + x1) / 2, (y0 + y1) / 2); top = el?.closest(".scr-motion-pickmenu") ? "목록" : (el?.className ?? "?"); } else top = "안 겹침"; }
     /* 목록이 화면 안에 다 드나(2026-09, 지적: "중계 선택목록이 화면 밖으로 넘어감") · 확대 단추의 글자(폰 중계 6배 검산). */
     const fit = m ? (m.x >= 0 && m.x + m.w <= window.innerWidth && m.y >= 0 && m.y + m.h <= window.innerHeight) : null;
-    const zoom = [...document.querySelectorAll(".scr-motion-mapval-num")].map((e) => e.textContent ?? "").find((s) => /배$/.test(s)) ?? null;
+    /* 확대 단추가 줄에서 빠져(2026-09) 글자로는 못 읽는다 — 진단표(--diag 로 켠다)의 배율을 읽는다(안 켜면 null). */
+    const zoom = (() => { const z = window.__scrDiag?.zoom; return typeof z === "number" && z > 0 ? `${Math.round(z * 10) / 10}배` : null; })();
     return { m, c, top, fit, zoom };
   });
   console.log(`[목록] 단추 ${r9 ? "눌렀다" : "없음"} · 목록 ${JSON.stringify(bx9.m)} · 자막 ${JSON.stringify(bx9.c)} · 겹친 자리 맨 위: ${bx9.top} · 화면 안 ${bx9.fit} · 확대 ${bx9.zoom}`);
@@ -688,6 +689,12 @@ if (has("--castprobe")) {
   }
   const capNow9 = await page.evaluate(() => { const el = document.querySelector(".scr-motion-castcap"); if (!el) return null;
     const c = el.cloneNode(true); c.querySelectorAll(".scr-motion-castcap-ghost").forEach((g) => g.remove()); return c.textContent ?? ""; });
+  /* 아이콘 줄 단추 크기 — 켜진 것(is-on·castbtn-on)과 꺼진 것이 같은 크기여야 한다(2026-09, 지적: "전체화면에서 활성버튼과
+     비활성버튼 크기 다름"). */
+  const btns9 = await page.evaluate(() => [...document.querySelectorAll(".scr-motion-mapbtns button.scr-motion-mapbtn")].map((b) => {
+    const r = b.getBoundingClientRect(); const cs = getComputedStyle(b);
+    return `${(b.getAttribute("aria-label") ?? "").slice(0, 6)}${b.classList.contains("is-on") || b.classList.contains("scr-motion-castbtn-on") ? "*" : ""} ${r.width.toFixed(1)}×${r.height.toFixed(1)} bs=${cs.boxSizing} b=${cs.borderTopWidth}`; }));
+  console.log(`[단추] ${btns9.join(" · ")}`);
   const colsNow9 = await page.evaluate(() => { const el = document.querySelector(".scr-motion-castcap"); if (!el) return null;
     return { w: +el.getBoundingClientRect().width.toFixed(1), cells: [...el.children].filter((c) => !c.classList.contains("scr-motion-castcap-ghost")).map((c) => +c.getBoundingClientRect().width.toFixed(1)) }; });
   console.log(`[중계] 단추 ${on9?.btn ? "있음" : "없음"} · 켜짐 ${on9?.on ? "예" : "아니오"} · 상시 자막 ${capNow9 === null ? "없음" : `"${capNow9}"`} · 갈아탐 ${Math.max(0, seen9.length - 1)}번`

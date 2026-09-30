@@ -10221,7 +10221,8 @@ export default function ReplayMotionPlayer({
   /* ★ **폰은 6배**(2026-09, 요청: "모바일은 중계 기본줌을 6배로 올리기" → "개인추적도 모바일는 6배") — 폰 화면은 좁아 4배로는
      교전 한 자리가 화면의 한 귀퉁이라 몸이 몇 화소다. 사다리(1·2·4·8)에 없는 값이지만 배율 자체는 어느 값이든 받는다(휠·핀치가
      정수로 쌓는 그 자리). 중계·개인 추적이 다 이 한 문을 읽는다. */
-  const TRACK_ZOOM_PHONE9 = 6;
+  /* ★ 6 → **5**(2026-09, 요청: "모바일에서 중계기본 배율 5배로 변경"). */
+  const TRACK_ZOOM_PHONE9 = 5;
   const trackZoom9 = (): number => (smallDevice9 ? TRACK_ZOOM_PHONE9 : ZOOM_STEPS[2]);
   /** 지도가 무대를 채우는 폭 — 비율은 지킨다.
    *
@@ -15325,7 +15326,6 @@ export default function ReplayMotionPlayer({
   ) : null;
   /** 확대 버튼에 적을 값 — 화면의 지금 배율이다(핀치·더블탭·휠·한 손 줌 공통). 칸에
    *  딱 떨어지면 정수(4배), 손짓으로 온 어중간한 값이면 소수 한 자리(3.6배)다. */
-  const zoomText = `${zoomLive >= 9.95 ? Math.round(zoomLive) : Math.round(zoomLive * 10) / 10}배`;
   /** 위로 펼치는 목록(위 pick9) — 고르면 닫힌다. list9는 곡 목록처럼 긴 것(왼맞춤·스크롤). */
   /** 항목의 `key` 는 글귀가 겹칠 수 있는 목록(사람 이름)에서 준다 · `dot` 은 글귀 앞의 색점(그 사람 색). */
   /** left9 — 줄의 **왼쪽 끝** 단추(TV)의 목록 · 오른쪽 맞춤이면 화면 왼쪽 밖으로 넘친다(replay.css 의 is-left ★). */
@@ -15387,7 +15387,11 @@ export default function ReplayMotionPlayer({
           (위 toggleTrack·toggleCast9) 한 목록에서 고르는 것이 곧 그 뜻이다. 고른 것을 다시 고르면 끈다(종전 토글 그대로).
           켜짐(초록 + 깜빡임)은 **둘 중 어느 것이든 카메라를 쥐고 있을 때**다 — '지금 카메라를 기계가 쥐고 있다'는 신호라
           자동·개인을 안 가른다(누구인지는 목록의 켜진 줄과 자막이 말한다). */}
-      {entData && (
+      {/* ★ **자취를 받는 동안에도 선다**(2026-09, 지적: "자취받는중에 예전 버튼로우이다가 받으먄 중계버튼이 생기네?") —
+          `entData &&` 문이 있어 세계가 워커에서 오기 전에는 줄이 옛 꼴(TV 없음)로 서다가 받은 뒤 한 칸이 끼어들어 형제들이
+          왼쪽으로 밀렸다. 목록은 로스터(bases)에서 나므로 자취 없이도 지을 수 있고, 고르는 일은 편성표가 오면 그때 먹는다
+          (castOn 은 처음부터 켜져 있다). 줄의 꼴은 처음부터 끝까지 하나다. */}
+      {(
         <span className="scr-motion-pick">
           <button
             type="button"
@@ -15483,27 +15487,10 @@ export default function ReplayMotionPlayer({
         {/* 사다리처럼 **작은 값이 아래**(요청) — 목록이 위로 펼쳐지니 버튼 가까이가 ×1이다. */}
         {pickMenu9("speed", [...SPEEDS].reverse().map((s9) => ({ label: `×${s9}`, on: speed === s9, act: () => setSpeed(s9) })))}
       </span>
-      {/* 확대는 **다른 손잡이와 값을 나눠 쓴다**(요청: "다른 수단으로 확대축소해도 값
-          같이 연동되게") — 여기 적히는 것은 이 버튼이 기억하는 값이 아니라 화면의
-          지금 배율(zoomLive)이라, 핀치·더블탭·휠·한 손 줌으로 바꿔도 그대로 따라온다.
-          누르면 배율 사다리(ZOOM_STEPS)를 한 칸 올리고 맨 위에서는 1배로 돌아온다. */}
-      <span className="scr-motion-pick">
-        <button
-          type="button"
-          className={cx("scr-motion-litbtn scr-motion-mapbtn scr-motion-mapval", zoomLive !== 1 && "is-on")}
-          onClick={() => pickToggle9("zoom")}
-          aria-haspopup="menu" aria-expanded={pick9 === "zoom"}
-          aria-label={`확대 ${zoomLive.toFixed(1)}배 — 누르면 목록`}
-          title="확대"
-        >
-          {/* 값끼리 서로 안 헷갈리게 **꼴을 달리 적는다** — 배속은 앞에 ×(×2), 확대는 뒤에 배(4배), 보기는 2D/3D다.
-              핀치로 온 어중간한 값은 글자가 길어지므로(3.6배) 한 단 작게 적는다 — 동그라미 안에 들어가야 한다. */}
-          <span className={cx("scr-motion-mapval-num", zoomText.length >= 4 && "is-long")}>
-            {zoomText}
-          </span>
-        </button>
-        {pickMenu9("zoom", [...ZOOM_STEPS].reverse().map((z9) => ({ label: `${z9}배`, on: Math.abs(zoomLive - z9) < 1e-3, act: () => zoomTo(z9) })))}
-      </span>
+      {/* ★ **확대 단추는 걷었다 — 폰·PC 다**(2026-09, 요청: "배율 버튼: 모바일 피시에서 제거. 사용법에는 드래그나 핀치조작법
+          별도로 남기기") — 배율은 휠·핀치·더블탭·↑↓·추적의 당김이 다 쥐고 있어 단추가 하는 일은 '지금 몇 배인가'를 적는 것뿐이었고,
+          그 값은 어중간할 때(3.6배) 동그라미에 안 들어 글자를 줄여 가며 버텼다. 사다리(ZOOM_STEPS)·zoomTo·zoomLive 는 그대로다
+          (키·휠·더블탭이 쓴다). 조작법은 사용법 덮개(ReplayGuide)의 '지도 움직이기·확대' 절이 든다. */}
       {/* ★ 색 전환(요청: "색 전환 아이콘버튼 추가 오버레이에선 제거" → "색전환 버튼은
           전체화면 아니어도 지도에 표시로 변경 기존 버툰부에서 제거") ────────────────
           개인색·팀색은 **지도를 보면서** 바꾸는 것이다 — 누가 누구 편인지 헷갈릴 때
@@ -15525,19 +15512,23 @@ export default function ReplayMotionPlayer({
           <Palette size={18} />
         </button>
       )}
-      <button
-        type="button"
-        className={cx("scr-motion-litbtn scr-motion-mapbtn scr-motion-mapval", pitched && "is-on")}
-        onClick={() => {
-          if (!pitchAllowed()) { pitchDenied(); return; }
-          setPitchDeg((v) => (v === 90 ? PITCH_3D : 90));
-        }}
-        aria-pressed={pitched}
-        aria-label={pitched ? "입체 보기 — 누르면 평면" : "평면 보기 — 누르면 입체"}
-        title="보기"
-      >
-        <span className="scr-motion-mapval-num">{pitched ? "3D" : "2D"}</span>
-      </button>
+      {/* ★ **폰에는 2D/3D 단추가 없다**(2026-09, 요청: "3D버튼: 모바일에서 제거") — 폰은 입체 문턱(pitchAllowed · 벤치 12ms)을
+          거의 못 넘어 눌러도 '무거워요' 토스트만 났다. 손잡이만 남기면 고장난 단추다. 기기 판정은 smallDevice9 하나(DEV9 와 같은 자). */}
+      {!smallDevice9 && (
+        <button
+          type="button"
+          className={cx("scr-motion-litbtn scr-motion-mapbtn scr-motion-mapval", pitched && "is-on")}
+          onClick={() => {
+            if (!pitchAllowed()) { pitchDenied(); return; }
+            setPitchDeg((v) => (v === 90 ? PITCH_3D : 90));
+          }}
+          aria-pressed={pitched}
+          aria-label={pitched ? "입체 보기 — 누르면 평면" : "평면 보기 — 누르면 입체"}
+          title="보기"
+        >
+          <span className="scr-motion-mapval-num">{pitched ? "3D" : "2D"}</span>
+        </button>
+      )}
       {/* ★ 배경 음악(요청: "음악 on/off 아이콘 추가 · 전체화면 아이콘 왼쪽에") —
           아이콘은 하나고 **켜지면 밝아진다**(로스터·색 전환과 같은 결). 끈 꼴이 기본
           상태라 따로 표시하지 않는다 — 이 줄에서 밝은 것이 곧 '지금 켜 둔 것'이다.
