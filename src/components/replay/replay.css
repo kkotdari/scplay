@@ -2550,10 +2550,12 @@
      따라 좁아지고 넓어진다. 칸 한 변은 몸 키에 두 줄이 꼭 드는 값이다(2 × 40 + 4 + 위아래 여백 12 = 96).
      독 줄(.scr-fs-dockrow)이 창의 온 키(--dock-h)로 서고 미니맵이 그 남은 폭을 쓰므로 둘 다 뿌리(.scr-motion)에 둔다. */
   --dock-cell: calc(40px * var(--dk)); --dock-gap: calc(4px * var(--dk)); --dock-padx: calc(6px * var(--dk));
-  --dock-cap: calc(30px * var(--dk)); --dock-body: calc(96px * var(--dk)); --dock-big: calc(48px * var(--dk));
+  --dock-cap: calc(22px * var(--dk)); --dock-body: calc(96px * var(--dk)); --dock-big: calc(48px * var(--dk));
   --dock-slot: calc(20px * var(--dk));
   --dock-w: calc(var(--dock-cell) * 6 + var(--dock-gap) * 5 + var(--dock-padx) * 2);
-  --dock-h: calc(var(--dock-cap) + 1px + var(--dock-body));
+  /* 몸 키는 정보줄 키와 떼어 못 박는다(옛 띠 30 + 새긴 줄 1 + 96) — 정보줄을 죄어도 인포창·미니맵이 안 줄어든다
+     (요청: "유저정보 라벨 크기 줄여서 세로 줄이기" — 줄어드는 것은 정보줄 하나다). */
+  --dock-h: calc(30px * var(--dk) + 1px + var(--dock-body));
 }
 .scr-motion-infodock {
   /* ★ 하단 인포창(2026-09, 요청: "인포팝업을 없애고 원작처럼 하단 인포창 · 위치는 하단 가운데 고정폭 · 그 자리에 있던 중계 자막은
@@ -2587,15 +2589,16 @@
   display: flex; align-items: center; justify-content: center;
 }
 .scr-fs-dockcap .scr-motion-castcap {
-  background: none; border: none; box-shadow: none; padding: 0 calc(26px * var(--dk)) 0 4px; border-radius: 0;
-  column-gap: calc(6px * var(--dk)); font-size: calc(9px * var(--dk)); max-width: 100%;
+  background: none; border: none; box-shadow: none; padding: 1px calc(26px * var(--dk)) 1px 4px; border-radius: 0;
+  column-gap: calc(6px * var(--dk)); font-size: calc(9px * var(--dk)); line-height: 1.1; max-width: 100%;
 }
-.scr-fs-dockcap .scr-motion-castcap-lab { font-size: calc(7px * var(--dk)); }
+/* 라벨은 한 단 작게 · 줄 사이 없이(요청: "유저정보 라벨 크기 줄여서 세로 줄이기") — 정보줄 키 30 → 22·dk. */
+.scr-fs-dockcap .scr-motion-castcap-lab { font-size: calc(5.5px * var(--dk)); line-height: 1.25; }
 .scr-fs-dockcap .scr-motion-castdot { width: calc(7px * var(--dk)); height: calc(7px * var(--dk)); }
 .scr-motion-infodock-fold {
   position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
-  width: calc(22px * var(--dk)); height: calc(22px * var(--dk)); border-radius: 6px; border: none; cursor: pointer;
-  background: rgba(255, 255, 255, 0.08); color: #e8eef6; font-size: calc(12px * var(--dk)); line-height: calc(22px * var(--dk)); padding: 0;
+  width: calc(18px * var(--dk)); height: calc(18px * var(--dk)); border-radius: 5px; border: none; cursor: pointer;
+  background: rgba(255, 255, 255, 0.08); color: #e8eef6; font-size: calc(11px * var(--dk)); line-height: calc(18px * var(--dk)); padding: 0;
 }
 .scr-motion-infodock-fold:hover { background: rgba(255, 255, 255, 0.16); }
 /* 몸은 정보줄이 비운 키까지 받는다(요청: "그만큼 남는 높이는 인포창이 사용") — 옛 띠(--dock-cap + 1px 새긴 줄)만큼 늘어 독 줄의 온
@@ -2697,8 +2700,8 @@
      자리가 70px 뿐이다. 칸 36 · 사이 3 · 여백 5 면 창이 241px, 미니맵에 100px 남짓이 남는다. */
   .scr-motion { --dock-cell: 36px; --dock-gap: 3px; --dock-padx: 5px; }
   /* 정보줄은 이제 틀의 온 폭(미니맵 + 인포창)을 쓰므로 글자를 안 죈다. 접기 단추만 한 단 작게(22 → 18 · 그 자리 비움 26 → 22). */
-  .scr-fs-dockcap .scr-motion-castcap { padding-right: 22px; }
-  .scr-motion-infodock-fold { width: 18px; height: 18px; line-height: 18px; right: 3px; font-size: 10px; }
+  .scr-fs-dockcap .scr-motion-castcap { padding-right: 22px; }  /* 위아래 1px 는 그대로(라벨 글리프 윗머리가 넘친다) */
+  .scr-motion-infodock-fold { width: 16px; height: 16px; line-height: 16px; right: 3px; font-size: 10px; }
   /* 틀은 줄을 **다 채운다**(요청: "프레임의 외부 패딩 남는데 그거 제거하고 다 채우기") — 미니맵은 제 폭 그대로 두고 남는 폭을
      인포창이 받는다(내용이 잘리던 쪽이다). */
   .scr-fs-dockframe { width: 100%; }
