@@ -2590,9 +2590,10 @@
      인포창 내부 상단으로 이동 · 늘 표시(크기 고정) · 접기 필요") — 무대 안 아래 가운데. 폭·키를 못 박아 내용이 바뀌어도 안 흔들린다.
      z 11 = 옛 자막 자리(지도·조작판 위 · 아이콘 줄 12 아래 — 버튼 목록이 창을 덮는다). */
   /* ★ 폭은 내용이 정한다(2026-09, 요청: "복수선택시 유닛셀 정사각형으로 하면 폭을 좀더 컴팩트하게 · 유저정보도 컴팩트화") —
-     여럿은 한 변 --dock-cell 의 정사각 6×2(= 6·42 + 5·4 = 272) · 하나는 [실루엣 64][글(큐 다섯 칸 132)][탄 몸 4칸 105] 라
-     460 → 340 이다. 칸 한 변은 몸 키(100 − 위아래 여백 12 − 사이 4)의 반. */
-  --dock-w: 340px; --dock-body: 100px; --dock-big: 60px; --dock-slot: 24px; --dock-cell: 42px;
+     여럿은 한 변 --dock-cell 의 정사각 6×2(= 6·42 + 5·4 = 272) · 하나는 [실루엣 64][글][탄 몸 4칸 105] 라 460 → 340 → **300**
+     (되요청: "인포창 좌우를 좀더 줄일 여지") — 가장 넓은 것은 여럿 격자(272 + 여백 16)이고 정보줄(약 280)이 그 다음이다.
+     칸 한 변은 몸 키(100 − 위아래 여백 12 − 사이 4)의 반. */
+  --dock-w: 300px; --dock-body: 100px; --dock-big: 60px; --dock-slot: 24px; --dock-cell: 42px;
   position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
   width: var(--dock-w); max-width: calc(100% - 16px); z-index: 11;
   display: flex; flex-direction: column;
@@ -2655,7 +2656,9 @@
 .scr-motion-infodock-supply { display: grid; grid-template-columns: auto auto; justify-content: start; gap: 0 12px; font-size: 9px; color: rgba(255, 255, 255, 0.78); }
 .scr-motion-infodock-supply b { color: #fff; font-variant-numeric: tabular-nums; }
 .scr-motion-infodock-side { flex: none; display: flex; align-items: center; }
-/* 큐 — 진행 바 바로 아래 한 줄(원작 자리). */
+/* 생산 — [지금 뽑는 것 한 칸][진행 바] · 그 아래 대기 넷(원작 자리). */
+.scr-motion-infodock-prod { display: flex; align-items: center; gap: 6px; }
+.scr-motion-infodock-prod .scr-motion-info-prog { flex: 1 1 auto; min-width: 0; margin-top: 0; }
 .scr-motion-infodock-queue { display: flex; gap: 3px; margin-top: 3px; }
 /* 탄 몸 — 칸이 수송 공간만큼 넓다(span) · dense 로 빈 자리를 앞에서부터 메운다. 아이콘은 한 칸 크기 그대로. */
 .scr-motion-infodock-cargo { display: grid; gap: 3px; grid-auto-flow: row dense; grid-auto-rows: var(--dock-slot); }
@@ -2680,7 +2683,7 @@
 .scr-motion-infodock-gico { width: 100%; height: 100%; display: block; }
 /* 폰 — 창을 조금 줄인다(지도를 덜 가리게). */
 @media (max-width: 700px) {
-  .scr-motion-infodock { --dock-w: 300px; --dock-body: 84px; --dock-big: 48px; --dock-slot: 20px; --dock-cell: 34px; }
+  .scr-motion-infodock { --dock-w: 280px; --dock-body: 84px; --dock-big: 48px; --dock-slot: 20px; --dock-cell: 34px; }
   .scr-motion-infodock-pic { width: 54px; }
   .scr-motion-infodock-cap { height: 30px; }
   .scr-motion-infodock .scr-motion-castcap { font-size: 9.5px; column-gap: 5px; }

@@ -15988,22 +15988,30 @@ export default function ReplayMotionPlayer({
           if (queue.length >= 4) break;
         }
       }
-      if (making) {
-        lines.push(bar9(`생산 중 ${UNIT_KO[making[1]] ?? making[1]}`, Math.min(0.99, (t - (making[0] - making[2])) / making[2]), "prod"));
-      }
-      /* 큐 — 원작처럼 **진행 바 바로 아래** 다섯 칸(첫 칸이 지금 뽑는 것) · 칸마다 실루엣(요청: "건물의 경우 큐목록을
-         원작처럼 진행바 아래에 넣고"). 옛 판은 창 오른쪽 칸(side)이었다. */
+      /* ★ 원작 자리(2026-09, 요청: "원작은 생산 중인 유닛이 진행 바 좌측에 배치되고 대기들만 아래에 네 개") — 지금 뽑는
+         것은 진행 바 **왼쪽**의 칸 하나, 그 아래 줄이 대기 넷이다. 대기가 없으면 아래 줄도 안 선다. */
       if (making || queue.length > 0) {
-        const slots9 = [making, ...queue].filter(Boolean) as [number, string, number][];
         lines.push(
-          <div className="scr-motion-infodock-queue" key="queue">
-            {Array.from({ length: 5 }, (_, k) => (
-              <span key={k} className={cx("scr-motion-infodock-slot", k === 0 && "is-head")}>
-                {slots9[k] ? silIcon9(slots9[k][1], false, "#6fe36f", "scr-motion-infodock-sico") : null}
-              </span>
-            ))}
+          <div className="scr-motion-infodock-prod" key="prod">
+            <span className="scr-motion-infodock-slot is-head">
+              {making ? silIcon9(making[1], false, "#6fe36f", "scr-motion-infodock-sico") : null}
+            </span>
+            {making
+              ? bar9(`생산 중 ${UNIT_KO[making[1]] ?? making[1]}`, Math.min(0.99, (t - (making[0] - making[2])) / making[2]), "pbar")
+              : <span className="scr-motion-info-line">대기</span>}
           </div>,
         );
+        if (queue.length > 0) {
+          lines.push(
+            <div className="scr-motion-infodock-queue" key="queue">
+              {Array.from({ length: 4 }, (_, k) => (
+                <span key={k} className="scr-motion-infodock-slot">
+                  {queue[k] ? silIcon9(queue[k][1], false, "#6fe36f", "scr-motion-infodock-sico") : null}
+                </span>
+              ))}
+            </div>,
+          );
+        }
       }
       const hall9 = en === "Lair" || en === "Hive" ? "Hatchery" : en;
       const doing = (upsByRaw.get(op.pickRaw ?? "") ?? []).filter(([us, n, utag]) =>
