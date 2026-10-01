@@ -2557,7 +2557,8 @@
      독 줄(.scr-fs-dockrow)이 창의 온 키(--dock-h)로 서고 미니맵이 그 남은 폭을 쓰므로 둘 다 뿌리(.scr-motion)에 둔다. */
   --dock-cell: calc(40px * var(--dkd)); --dock-gap: calc(4px * var(--dkd)); --dock-padx: calc(6px * var(--dkd));
   --dock-cap: calc(22px * var(--dkd)); --dock-body: calc(96px * var(--dkd)); --dock-big: calc(60px * var(--dkd));
-  --dock-slot: calc(20px * var(--dkd));
+  /* 칸(생산·대기·탄 몸)은 업그레이드 칸과 같은 26·dkd 다(2026-09, 요청: "생산/업그레이드중/큐/수송칸 셀크기를 업그레이드 셀이랑 같게"). */
+  --dock-slot: calc(26px * var(--dkd));
   --dock-w: calc(var(--dock-cell) * 6 + var(--dock-gap) * 5 + var(--dock-padx) * 2);
   /* 몸 키는 정보줄 키와 떼어 못 박는다(옛 띠 30 + 새긴 줄 1 + 96) — 정보줄을 죄어도 인포창·미니맵이 안 줄어든다
      (요청: "유저정보 라벨 크기 줄여서 세로 줄이기" — 줄어드는 것은 정보줄 하나다). */
@@ -2678,15 +2679,17 @@
 .scr-motion-infodock-upsq { display: flex; gap: calc(3px * var(--dkd)); flex-wrap: wrap; }
 .scr-motion-infodock-upsq i {
   position: relative; flex: none; width: calc(26px * var(--dkd)); height: calc(26px * var(--dkd)); box-sizing: border-box;
-  border-radius: calc(4px * var(--dkd)); padding: 1px 1px calc(5px * var(--dkd));
+  /* 글자는 칸 **세로 가운데**다 — 숫자 자리를 아래 여백으로 비워 두던 것을 걷었다(2026-09, 요청: "업그레이드 셀의 텍스트 세로도
+     가운데 정렬"). 숫자는 구석에 겹쳐 앉고 대각선으로 한 뼘 안쪽이다(요청: "숫자는 좀더 안쪽으로 대각이동"). */
+  border-radius: calc(4px * var(--dkd)); padding: 1px;
   display: flex; align-items: center; justify-content: center; text-align: center; font-style: normal; font-weight: 700;
   font-size: calc(6.5px * var(--dkt)); line-height: 1.1; word-break: keep-all; overflow: hidden;
   background: rgba(255, 255, 255, 0.1); box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.22);
 }
 .scr-motion-infodock-upsq i.is-long { font-size: calc(5.5px * var(--dkt)); }
-.scr-motion-infodock-upsq i.is-one { font-size: calc(11px * var(--dkt)); padding-bottom: calc(3px * var(--dkd)); }
+.scr-motion-infodock-upsq i.is-one { font-size: calc(11px * var(--dkt)); }
 .scr-motion-infodock-upsq b {
-  position: absolute; right: calc(2px * var(--dkd)); bottom: 0; font-size: calc(7px * var(--dkt)); line-height: 1.15;
+  position: absolute; right: calc(3.5px * var(--dkd)); bottom: calc(1.5px * var(--dkd)); font-size: calc(7px * var(--dkt)); line-height: 1;
   font-variant-numeric: tabular-nums; color: #fff;
 }
 /* 연구 상황판(건물) — 안 한 것은 옅게 · 마친 것은 밝게 · 하는 중은 초록 테. */
@@ -2730,7 +2733,8 @@
 /* 여럿 — 6×2 격자(요청: "6기씩 두줄로" — 2026-09 에 한 번 8×2 로 갔다가 "6x2 · 셀 더 크게"로 되물렸다). 칸 테두리가 체력색이다. 창의 폭이 이 격자의 폭이다(위 ★★).
    왼쪽 맞춤(2026-09, 요청: "유닛 복수 선택시 좌 정렬해줘") — 한 몸 꼴(그림이 왼쪽)과 같은 자리에서 시작한다. */
 .scr-motion-infodock-grid {
-  height: 100%; display: grid; gap: var(--dock-gap); justify-content: start; align-content: center;
+  /* 가운데(2026-09, 요청: "멀티선택시 내용 가운데 정렬") — 한때 왼쪽 맞춤("유닛 복수 선택시 좌 정렬")이었다. */
+  height: 100%; display: grid; gap: var(--dock-gap); justify-content: center; align-content: center;
   grid-template-columns: repeat(6, var(--dock-cell)); grid-template-rows: repeat(2, var(--dock-cell));
 }
 .scr-motion-infodock-cell {

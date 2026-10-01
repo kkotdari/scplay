@@ -7,7 +7,7 @@ import {
 import { createPortal } from "react-dom";
 import { useBgm } from "./useBgm";
 import RosterTableIcon from "./RosterTableIcon";
-import { BookOpen, Bookmark, Check, Map as MapIcon, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Share2, Tv, Users } from "lucide-react";
+import { BookOpen, Bookmark, Check, Map as MapIcon, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Share2, Tv } from "lucide-react";
 /** 건설 명령 고스트 판의 색(원작의 배치 미리보기 초록) — 짙기는 op.plateAlpha 가 든다. */
 const GHOST_PLATE_COL9 = "#3ee06a";
 /** 툴박스가 손을 뗀 뒤 아이콘 하나로 접히기까지(2026-09, 요청: "안쓰면 몇초뒤 아이콘 하나로 최소화"). */
@@ -1965,9 +1965,11 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
   } else {
     /* 저그 — 솟구치는 피 둘. x는 등속, y는 포물선(위로 솟았다 떨어짐)이라 중력을 탄다.
        CSS 키프레임(11칸)의 식을 그대로 쓴다: y% = 10 − 280u + 350u². */
+    /* ★ 방울은 작고 많고 높다(2026-09, 요청: "저그 건물 손상효과 피방울 크기 많이 줄이고 갯수 늘리기 · 위치는 좀더 위로") —
+       폭 0.34·0.26W 의 둘 → 0.11~0.15W 의 다섯 · 솟는 자리 0.46W → 0.18W(상자 위쪽). 다섯은 주기·위상·옆자리·방향을 흩는다. */
     const drop9 = woundSpr9("drop");
-    const dw9 = W9 * 0.34; const dh9 = dw9 * 1.8;
-    const oy9 = top9 + W9 * 0.46;
+    const dw9 = W9 * 0.13; const dh9 = dw9 * 1.8;
+    const oy9 = top9 + W9 * 0.18;
     const spurt9 = (per9: number, off9: number, w9: number, sx9: number, dir9: number): void => {
       const u9 = (((t9 + dl9 + off9) / per9) % 1 + 1) % 1;
       const py9 = (10 - 280 * u9 + 350 * u9 * u9) / 100;
@@ -1979,7 +1981,10 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
         w9 * k9, hh9, (dir9 * (-15 + 95 * u9) * Math.PI) / 180, a9);
     };
     spurt9(1.1, 0, dw9, 0, 1);
-    spurt9(1.3, 0.55, W9 * 0.26, -0.08, -1);
+    spurt9(1.3, 0.55, W9 * 0.11, -0.08, -1);
+    spurt9(0.95, 0.3, W9 * 0.12, 0.1, 1);
+    spurt9(1.2, 0.8, W9 * 0.15, -0.16, -1);
+    spurt9(1.05, 0.15, W9 * 0.11, 0.05, -1);
   }
   }
   ctx.globalAlpha = op0;
@@ -14443,13 +14448,13 @@ export default function ReplayMotionPlayer({
         wakeUi();
         setColorMode(colorNextRef9.current);
       } else if (e.code === "KeyB") {
-        /* b = 로스터 여닫이(이름만 → 전체 → 숨김, 오른쪽 아래 단추와 같은 순서).
+        /* b = 로스터 현황 켬·끔(이름만 ↔ 전체 — 단추와 같은 두 단계).
            ★ **` 에서 b 로 옮겼다**(2026-09, 요청: "지도 켜고 끄기 단축키 N 로스터 단축키 B로
              수정") — 역따옴표는 자판마다 자리가 달라(한글 자판·노트북 축소 자판) 손이 안 간다.
              글자 키는 e.code(자판 자리)로 읽으므로 한글 자판에서도 그대로 듣는다. */
         e.preventDefault();
         wakeUi();
-        setRosterMode((v) => ((v + 1) % 3) as 0 | 1 | 2);
+        setRosterMode((v) => (v === 1 ? 0 : 1));
       } else if (e.code === "KeyN") {
         /* n = 미니맵(작은 지도) 여닫이 — 전체화면의 그 단추와 같은 손잡이다(요청).
            일반 화면에서는 미니맵이 지도 밖 독에 제 자리를 가져 가릴 것이 없으므로,
@@ -15582,17 +15587,14 @@ export default function ReplayMotionPlayer({
       {(
         <button
           type="button"
-          /* 켠 표시는 **전체 꼴**에만 — 안 보임 꼴은 흐리게 해 '지금 아무것도 없다'를,
-             이름만 꼴은 아무 표시 없이 그 사이를 말한다. */
-          /* 켠 표시는 이름만(0)·전체(1) 둘 다(지적: "기본 로스터일 때 버튼 활성화 표시가 안 되는 문제") — 숨김(2)만 흐리다. */
-          className={cx("scr-motion-litbtn scr-motion-mapbtn",
-            rosterMode !== 2 && "is-on", rosterMode === 2 && "is-mute")}
-          onClick={() => setRosterMode((v) => ((v + 1) % 3) as 0 | 1 | 2)}
-          aria-label={rosterMode === 0 ? "로스터 현황 보이기"
-            : rosterMode === 1 ? "로스터 숨기기" : "로스터 이름만 보이기"}
-          title={rosterMode === 0 ? "로스터 — 이름만" : rosterMode === 1 ? "로스터 — 전체" : "로스터 — 숨김"}
+          /* ★ 두 단계다 — 끔 = 로스터(이름)만 · 켬 = 데이터까지(2026-09, 요청: "로스터 아이콘 사람에서 테이블(표)로 변경 · 로스터
+             끄기는 없애고 2단계로 · 끈게 로스터만 보이는거고 켠게 데이터 보이는거"). 숨김(2)은 걷었다 — 아이콘은 늘 표다. */
+          className={cx("scr-motion-litbtn scr-motion-mapbtn", rosterMode === 1 && "is-on")}
+          onClick={() => setRosterMode((v) => (v === 1 ? 0 : 1))}
+          aria-label={rosterMode === 1 ? "로스터 현황 숨기기" : "로스터 현황 보이기"}
+          title={rosterMode === 1 ? "로스터 현황 — 켬" : "로스터 현황 — 끔(이름만)"}
         >
-          {rosterMode === 1 ? <RosterTableIcon size={18} /> : <Users size={18} />}
+          <RosterTableIcon size={18} />
         </button>
       )}
       {/* 미니맵 오버레이(요청) — 로스터와 같은 자리·같은 결의 여닫이다. 아이콘은 지도

@@ -1,4 +1,4 @@
-import { BookOpen, Bookmark, Map as MapIcon, Maximize, Music, Palette, Play, Share2, Tv, Users, X } from "lucide-react";
+import { BookOpen, Bookmark, Map as MapIcon, Maximize, Music, Palette, Play, Share2, Tv, X } from "lucide-react";
 import RosterTableIcon from "./RosterTableIcon";
 function K({ keys, plus = false, title, desc }: {
     keys: string[];
@@ -85,11 +85,11 @@ export default function ReplayGuide({ onClose }: {
 
         <h3 className="scr-guide-h3">도구 상자의 버튼</h3>
         <p className="scr-guide-sub">
-          켜져 있으면 <strong>환하게</strong> 빛납니다. <strong>중계</strong> 버튼은 아래 <strong>사람 정보줄 맨 왼쪽</strong>에 있고, 켜진 동안 <strong>초록 테두리로 깜빡</strong>입니다.
+          켜져 있으면 <strong>환하게</strong> 빛납니다. <strong>중계</strong> 버튼은 아래 <strong>사람 정보줄의 닉네임 왼쪽</strong>에 있고, 켜진 동안 <strong>초록 테두리로 깜빡</strong>입니다.
         </p>
         <div className="scr-guide-mock">
           <div className="scr-guide-toolrow">
-            <span className="scr-guide-mbtn"><Users size={18}/></span>
+            <span className="scr-guide-mbtn"><RosterTableIcon size={18}/></span>
             <span className="scr-guide-mbtn scr-guide-colsw is-personal"><Palette size={18}/></span>
             <span className="scr-guide-mbtn scr-guide-mbtn-txt">2D</span>
             <span className="scr-guide-mbtn"><Music size={18}/></span>
@@ -99,7 +99,7 @@ export default function ReplayGuide({ onClose }: {
           </div>
           <ul className="scr-guide-legend">
             <li><span className="scr-guide-ic"><Tv size={15}/></span><span><b>중계</b>(정보줄 맨 왼쪽) — 누르면 위로 목록이 펼쳐집니다: <b>사람 이름들 · 자동 · 끄기</b>. 아래 <b>중계 고르기</b>에서 자세히.</span></li>
-            <li><span className="scr-guide-ic"><Users size={15}/></span><span><b>로스터</b> — 누를 때마다 <b>이름만 → 전체 → 숨김</b> 세 단으로 돕니다. 아이콘이 <b>사람+표</b>(<RosterTableIcon size={13}/>)로 바뀌면 일꾼·자원·인구·K/D·APM까지 떠 있는 상태입니다.</span></li>
+            <li><span className="scr-guide-ic"><RosterTableIcon size={15}/></span><span><b>로스터 현황</b> — 끄면 <b>이름만</b>, 켜면 일꾼·자원·인구·K/D·APM까지 뜹니다.</span></li>
             <li><span className="scr-guide-ic"><Palette size={15}/></span><span><b>색</b> — 누를 때마다 색 모드가 바뀝니다. 버튼의 <b>원그래프</b>가 곧 지금 모드입니다(아래 <b>색 모드</b>).</span></li>
             <li><span className="scr-guide-ic scr-guide-ic-txt">2D</span><span><b>보기</b> — 평면(2D)과 입체(3D)를 오갑니다. 언덕·램프는 입체에서 더 잘 읽힙니다. PC에만 있습니다.</span></li>
             <li><span className="scr-guide-ic"><Music size={15}/></span><span><b>음악</b> — 누르면 곡 목록이 펼쳐집니다. 고른 곡은 처음부터, 맨 위 '끄기'로 끕니다.</span></li>
@@ -207,7 +207,7 @@ export default function ReplayGuide({ onClose }: {
           <K keys={["X"]} title="장면 공유" desc="지금 장면의 링크를 공유 시트로 보냅니다(안 되면 링크 복사)."/>
 
           <span className="scr-guide-group">보기</span>
-          <K keys={["B"]} title="로스터" desc="이름만 → 전체 → 숨김 순으로 돕니다."/>
+          <K keys={["B"]} title="로스터" desc="로스터 현황 켜기·끄기(이름만 ↔ 전체)."/>
           <K keys={["N"]} title="작은 지도 켜기 / 끄기" desc="전체화면일 때만. 도구 상자의 지도 단추와 같습니다."/>
           <K keys={["C"]} title="색 모드 바꾸기" desc="개인색 → 팀색 → 주인공색. 색 버튼과 같습니다."/>
           <K keys={["V"]} title="평면 ↔ 입체"/>
