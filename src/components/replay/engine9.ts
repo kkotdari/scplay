@@ -4162,7 +4162,22 @@ export function deriveWorld9(inp: {
     const v = { fade, landed, flown, succAt };
     return v;
   })();
+  /** 선택 줄 [임자 이름 → [초, 태그들] 시각순] — 선택 링의 자(판 10 선택 절 · 2026-09, 요청: "건물 선택시 선택 링이 안보이는데
+   *  링 나오게" → 링 대상은 "모든 사람"). 옛 링(명령을 받은 뒤 0.5초 · 클릭 자국 토글)은 걷었다 — 선택은 이제 참값이 말한다. */
+  const selRows9 = ((): Map<string, [number, number[]][]> => {
+    const m9 = new Map<string, [number, number[]][]>();
+    if (!entData) return m9;
+    const nameOfId = new Map(entData.players.map((pl) => [pl.owner, pl.name]));
+    for (const [s9, o9, tg9] of entData.sels ?? []) {
+      const raw9 = nameOfId.get(o9);
+      if (!raw9) continue;
+      const a9 = m9.get(raw9);
+      if (a9) a9.push([s9, tg9]); else m9.set(raw9, [[s9, tg9]]);
+    }
+    return m9;
+  })();
   return {
+    selRows9,
     entData, simTracks, buildsSrc, castsV2, entBldHp, bldTagSpots, droneMorph, buildsDrawOrder, bldNudge,
     entCombatStart, upsByRaw, prodDoneAt, prodDoneByRaw, marineBornOf, entWalks, nukeCasts, nukeLase, nukeArm9, castsSrc,
     nukeImpacts, bldGoneEff, goneEffOf, prodByRawType, bldTagAt, leftAt9, tagOrdinals, buildsByType, halls, gasBuildings,
@@ -4216,6 +4231,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     entCombatStart, upsByRaw, marineBornOf, entWalks, nukeLase, nukeArm9, castsSrc, nukeImpacts,
     goneEffOf, prodByRawType, bldTagAt, leftAt9, tagOrdinals, buildsByType, halls, gasBuildings,
     resStageSeries, gridHasGasFlags, gasHideOf, mines, bldPre9, bldRecMemo, teamOfRaw, bases, grid, total, ghosts9,
+    selRows9,
   } = world;
   /* ★ **자폭으로 맞은 자리는 죽은 몸이 낸다**(2026-09, 지적: "스커지가 배틀에 박아서
      폭발했는데 배틀에 피격 효과가 안나오는거 같은데") ─────────────────────────────
@@ -4430,6 +4446,16 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     const qBuildFx = view.qBuildFx;
     const qDeath = view.qDeath;
     const clickFx = view.clickFx;
+    void clickFx;
+    /** 지금 선택된 태그(모든 사람 · 판 10 선택 절의 t 이하 마지막 줄) — 시점 보기(안개)에서는 그 편의 선택만(상대의 손은 감춘다 ·
+     *  클릭 자국과 같은 규약). 유닛·건물 op 의 selRing 이 이것을 읽는다. */
+    const selTags9 = new Set<number>();
+    for (const [raw9, rows9] of selRows9) {
+      if (fogOn && !visAll && teamOfRaw(raw9) !== viewTeam) continue;
+      let lo9 = 0; let hi9 = rows9.length - 1; let at9 = -1;
+      while (lo9 <= hi9) { const m9 = (lo9 + hi9) >> 1; if (rows9[m9][0] <= t) { at9 = m9; lo9 = m9 + 1; } else hi9 = m9 - 1; }
+      if (at9 >= 0) for (const tg9 of rows9[at9][1]) selTags9.add(tg9);
+    }
     const crowd9 = view.crowd ?? 0;
     const zoom = 6;   // 프레임은 배율과 무관 — 배율이 섞인 옛 식 한 곳(미사일 쌍 간격)에 중간값을 준다.
     const liteView = false; const liteYaw = false; const markerView = false; const tracerView = true;
@@ -5919,6 +5945,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           pickKey: `b${raw}|${unit}|${Math.round(x * 4)}|${Math.round(y * 4)}`,
           pickName: unit, pickRaw: raw, pickBld: true, pickX: x, pickY: y,
           pickRep: myOrd === repOrd, pickTag: myTag9,
+          selRing: (myTag9 !== undefined && selTags9.has(myTag9)) || undefined,
           /* 종류별 배수는 **제 모델을 그릴 때만**(테란 공사) 얹는다 — 저그 고치·
              프로토스 소환구·폴백 공사장은 종류를 안 가리는 공용 모델이라, 거기에
              스파이어의 몫을 얹으면 고치만 커진다. */
@@ -6477,6 +6504,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           pickKey: `b${raw}|${unit}|${Math.round(x * 4)}|${Math.round(y * 4)}`,
           pickName: unit, pickRaw: raw, pickBld: true, pickX: x, pickY: y,
           pickRep: myOrd === repOrd, pickTag: myTag9,
+          selRing: (myTag9 !== undefined && selTags9.has(myTag9)) || undefined,
           drawK: bldDrawK9(shapeKind, FOOTPRINT[unit]?.[0] ?? 3, BLD_DRAW_TUNE[shapeKind] ?? 1) * (BLD_DRAW_TUNE[shapeKind] ?? 1),
           /* 땅에 앉은 건물은 그림자를 안 진다(요청: 건물 바닥 그림자는 제거) —
              건물은 발자국이 곧 제 자리라 바닥 타원이 정보를 더하지 않고, 모델
@@ -8347,7 +8375,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
     /* 0.35 → 0.5초 — 모바일 그리기가 20Hz라 0.35초는 일곱 프레임이고,
        그 사이 배속이 빠르면 두어 프레임으로 준다. 잡힌 것을 알아볼 만큼은
        남긴다(요청과 같은 결의 지적: "유닛 선택링이 안나와"). */
-    const selNow = clickFx && e.orders.some((os2) => t >= os2 && t - os2 <= 0.5);
+    const selNow = selTags9.has(e.tag);
     /* 시즈탱크 반동(요청: 발포 시 포탑·포신만) — 차체/포탑을 딴 판으로 밀어,
        쏘는 박자에 포탑 판만 뒤로 살짝 밀렸다 돌아온다. */
     /* 변태 중이면 알·고치다(요청) — 이제 참값이 껍질을 제 유닛으로 내므로

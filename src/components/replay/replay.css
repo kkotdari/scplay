@@ -2585,11 +2585,92 @@
      선다)과 겨룬다. 옛 30000 은 품질 알림을 베낀 값인데 그것이 버튼 위로 펼치는 목록(.scr-motion-pickmenu)
      을 통째로 덮었다. 자막은 읽기만 하는 줄(pointer-events none)이라 만지는 것보다 위에 설 까닭이 없다 —
      지도(1)·조작판(.scr-fs-ui 10) 위, 아이콘 줄(12) 아래인 **11** 이다. */
-.scr-motion-castbar {
-  position: absolute; left: 50%; bottom: 36px;
-  transform: translateX(-50%);
-  z-index: 11; display: flex; flex-direction: column; align-items: center; gap: 6px;
-  pointer-events: none; max-width: calc(100% - 24px);
+.scr-motion-infodock {
+  /* ★ 하단 인포창(2026-09, 요청: "인포팝업을 없애고 원작처럼 하단 인포창 · 위치는 하단 가운데 고정폭 · 그 자리에 있던 중계 자막은
+     인포창 내부 상단으로 이동 · 늘 표시(크기 고정) · 접기 필요") — 무대 안 아래 가운데. 폭·키를 못 박아 내용이 바뀌어도 안 흔들린다.
+     z 11 = 옛 자막 자리(지도·조작판 위 · 아이콘 줄 12 아래 — 버튼 목록이 창을 덮는다). */
+  --dock-w: 460px; --dock-body: 100px; --dock-big: 64px; --dock-slot: 26px;
+  position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
+  width: var(--dock-w); max-width: calc(100% - 16px); z-index: 11;
+  display: flex; flex-direction: column;
+  background: rgba(8, 11, 17, 0.72); color: #e8eef6;
+  border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  pointer-events: auto; overflow: hidden;
+}
+/* 전체화면은 조종부(재생바)와 그 위의 아이콘 줄(44px)이 무대를 덮는다 — 그 둘을 다 비킨다. */
+.scr-fs-layer.is-fs .scr-motion-infodock { bottom: calc(var(--scr-fsbot, 56px) + 60px); }
+/* 맨 위 띠 — 중계 자막 자리. 자막이 없어도 키를 지킨다(창이 안 들썩인다). 접기 단추는 오른쪽 끝. */
+.scr-motion-infodock-cap {
+  position: relative; height: 34px; display: flex; align-items: center; justify-content: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.scr-motion-infodock .scr-motion-castcap {
+  background: none; border: none; box-shadow: none; padding: 0 22px 0 6px; border-radius: 0;
+}
+.scr-motion-infodock-fold {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  width: 22px; height: 22px; border-radius: 6px; border: none; cursor: pointer;
+  background: rgba(255, 255, 255, 0.08); color: #e8eef6; font-size: 12px; line-height: 22px; padding: 0;
+}
+.scr-motion-infodock-fold:hover { background: rgba(255, 255, 255, 0.16); }
+.scr-motion-infodock.is-fold .scr-motion-infodock-cap { border-bottom: none; }
+.scr-motion-infodock-body { height: var(--dock-body); padding: 6px 10px; box-sizing: border-box; }
+.scr-motion-infodock-empty {
+  height: 100%; display: flex; align-items: center; justify-content: center;
+  font-size: 11px; color: rgba(255, 255, 255, 0.45);
+}
+/* 하나 — [실루엣·숫자] [글] [큐·탄 몸] */
+.scr-motion-infodock-one { height: 100%; display: flex; gap: 10px; align-items: stretch; min-width: 0; }
+.scr-motion-infodock-pic { flex: none; width: 86px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.scr-motion-infodock-big { width: var(--dock-big); height: var(--dock-big); display: block; }
+.scr-motion-infodock-glyph {
+  display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 20px;
+  border: 1px solid currentColor; border-radius: 6px; box-sizing: border-box;
+}
+.scr-motion-infodock-nums {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 0 6px;
+  font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.25;
+}
+.scr-motion-infodock-nums .is-sh { color: #f2f6ff; }
+.scr-motion-infodock-nums .is-en { color: #c79cff; }
+.scr-motion-infodock-text { flex: 1 1 auto; min-width: 0; overflow: hidden; display: flex; flex-direction: column; gap: 1px; }
+.scr-motion-infodock-name { font-size: 12px; font-weight: 800; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.scr-motion-infodock-ups { display: flex; gap: 3px; flex-wrap: wrap; }
+.scr-motion-infodock-ups i {
+  font-style: normal; font-size: 9px; font-weight: 700; padding: 1px 4px; border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1); box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.18);
+}
+.scr-motion-infodock-supply { display: grid; grid-template-columns: auto auto; justify-content: start; gap: 0 12px; font-size: 9px; color: rgba(255, 255, 255, 0.78); }
+.scr-motion-infodock-supply b { color: #fff; font-variant-numeric: tabular-nums; }
+.scr-motion-infodock-side { flex: none; display: flex; align-items: center; }
+.scr-motion-infodock-queue { display: flex; gap: 3px; }
+.scr-motion-infodock-cargo { display: grid; gap: 3px; }
+.scr-motion-infodock-slot {
+  width: var(--dock-slot); height: var(--dock-slot); box-sizing: border-box; border-radius: 4px;
+  border: 1px solid rgba(120, 170, 255, 0.35); background: rgba(0, 0, 0, 0.35);
+  display: flex; align-items: center; justify-content: center;
+}
+.scr-motion-infodock-slot.is-head { border-color: rgba(111, 227, 111, 0.7); }
+.scr-motion-infodock-sico { width: calc(var(--dock-slot) - 4px); height: calc(var(--dock-slot) - 4px); display: block; }
+/* 여럿 — 6×2 격자(요청: "여러 유닛 선택시 유닛 목록(아이콘) 표현 6기씩 두줄로"). 칸 테두리가 체력색이다. */
+.scr-motion-infodock-grid {
+  height: 100%; display: grid; grid-template-columns: repeat(6, 1fr); grid-template-rows: repeat(2, 1fr); gap: 4px;
+}
+.scr-motion-infodock-cell {
+  box-sizing: border-box; border-radius: 5px; border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.35); padding: 1px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; min-width: 0; min-height: 0;
+}
+.scr-motion-infodock-cell.is-empty { cursor: default; border-color: rgba(255, 255, 255, 0.06); }
+.scr-motion-infodock-gico { width: 100%; height: 100%; display: block; }
+/* 폰 — 창을 조금 줄인다(지도를 덜 가리게). */
+@media (max-width: 700px) {
+  .scr-motion-infodock { --dock-w: 360px; --dock-body: 84px; --dock-big: 50px; --dock-slot: 20px; }
+  .scr-motion-infodock-pic { width: 70px; }
+  .scr-motion-infodock-cap { height: 30px; }
+  .scr-motion-infodock .scr-motion-castcap { font-size: 10px; column-gap: 8px; }
 }
 /* ★ 자막은 **상시**다(되요청: "토스터가 아니라 계속 노출로 변경") — 중계가 켜진 동안 늘 서 있고 토막이
    갈릴 때 글귀만 갈아 끼운다(그리는 쪽이 토막 번호를 key 로 주어 그 순간 떠오름만 다시 돈다). 스러지는
@@ -2621,7 +2702,6 @@
 /* 그 선수의 색 — 지도 위 유닛 색과 곧바로 이어져, 누구 화면인지가 글자를 읽기 전에 보인다. */
 .scr-motion-castdot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
 /* 전체화면만 조종부가 무대를 덮는다 — 그 키(실측 --scr-fsbot-m, 없으면 조립값)만큼 비킨다. */
-.scr-fs-layer.is-fs .scr-motion-castbar { bottom: calc(var(--scr-fsbot, 56px) + 34px); }
 @keyframes scr-castcap-in {
   0% { opacity: 0; transform: translateY(6px); }
   100% { opacity: 1; transform: translateY(0); }
@@ -2670,34 +2750,7 @@
   width: max-content; max-width: calc(100% - 32px); text-align: center;
 }
 
-/* ── 정보 팝업(요청: 유닛·건물 클릭하면 정보 툴팁) ─────────────────────────────────
-   집은 몸 옆에 뜨는 작은 글 상자다. 내용은 프레임마다 다시 읽히므로(체력·생산·큐가
-   모두 지금 값이다) 여기서는 자리와 꼴만 맡는다. 지도 위에 얹히지만 클릭은 통과시키지
-   않는다 — 팝업 안을 눌렀다고 팝업이 닫히면 안 된다. */
-/* 폭은 **고정**이다(요청: "팝업폭은 제한이 아니라 고정") — 내용이 길고 짧음에 따라
-   상자가 늘었다 줄었다 하면, 재생 중 매 프레임 폭이 흔들려 읽기가 어렵다. 한 폭으로
-   못 박고 긴 줄은 접는다. 지도가 그보다 좁을 때만 지도 안으로 물러난다.
-   자리는 리액트 쪽에서 지도 상자 안으로 물린다(위/아래 뒤집기 포함). */
-.scr-motion-info {
-  position: absolute; z-index: 30000; transform: translate(-50%, calc(-100% - 14px));
-  /* 232 → 116px(요청: "정보팝업 모달 너비 반으로 축소 눈금도 폭 반으로") — 진행 바는
-     상자 폭을 채우는 flex라, 상자가 반이 되면 눈금 열 칸도 함께 반이 된다. */
-  width: 116px; max-width: calc(100% - 16px);
-  padding: 6px 9px; border-radius: 8px;
-  overflow-wrap: anywhere;
-  /* ★ **블러 반투명 창**(요청: "인포팝업 블러 반투명창으로 변경") — 여태 0.88이라
-     사실상 불투명한 검은 판이었고, 뒤의 전장이 통째로 잘렸다. 판을 절반 넘게 비우고
-     그만큼 흐림을 키우면(6 → 14px) 뒤가 비치면서도 글자는 그대로 읽힌다 — 흐림이
-     대비를 만들어 주므로 어두운 판에 기대지 않아도 된다. 살짝 채도를 올려(saturate)
-     뒤의 유닛 색이 유리 너머로 남게 한다. */
-  background: rgba(12, 16, 22, 0.42);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  backdrop-filter: blur(14px) saturate(1.25);
-  -webkit-backdrop-filter: blur(14px) saturate(1.25);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
-  pointer-events: auto; white-space: normal; text-align: left;
-}
-.scr-motion-info-name { font-size: var(--fs-caption); font-weight: 800; color: #fff; margin-bottom: 2px; }
+/* ── 인포창의 글·진행 바(옛 정보 팝업에서 이어 쓴다 — 창은 아래 .scr-motion-infodock) ─────────────────────── */
 .scr-motion-info-line { font-size: var(--fs-9); color: rgba(255, 255, 255, 0.82); line-height: 1.45; }
 /* 진행 바(요청: 스타 원작처럼 칸 수를 따라) — 통짜가 아니라 열 칸이 하나씩 차오른다. */
 .scr-motion-info-prog { display: flex; flex-direction: column; gap: 2px; margin-top: 2px; }
@@ -2708,19 +2761,6 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 .scr-motion-info-bar i.is-on { background: #6fe36f; border-color: rgba(255, 255, 255, 0.3); }
-/* 큐는 바가 아니라 **칸**이다(요청: "큐 목록은 바가 없어야되고 4칸인가 큐된 목록이
-   옆으로 쭉 나오면 돼") — 원작 생산 패널이 그렇다: 지금 뽑는 것 하나만 진행 바를 갖고,
-   뒤에 선 것들은 작은 칸에 담겨 옆으로 늘어선다. 좁은 상자라 글자를 한 단 더 줄인다. */
-.scr-motion-info-queue { display: flex; align-items: center; gap: 4px; margin-top: 2px; min-width: 0; }
-.scr-motion-info-slots { display: flex; gap: 2px; min-width: 0; }
-.scr-motion-info-slots i {
-  font-style: normal; font-size: 8px; font-weight: 700; line-height: 1;
-  padding: 2px 3px; border-radius: 3px; white-space: nowrap;
-  min-width: 0; overflow: hidden;
-  color: rgba(255, 255, 255, 0.82); background: rgba(255, 255, 255, 0.1);
-  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.12);
-}
-
 /* ── 전체화면 재생(요청: "모바일 피시에서 전체화면 버튼 클릭하면 화면을 꽉채우는
    전체화면 모드로 변함") ────────────────────────────────────────────────────────
    뿌리(.scr-motion)를 그대로 두고 클래스만 얹는다 — 전체화면 API는 그 엘리먼트가

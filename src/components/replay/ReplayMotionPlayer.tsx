@@ -104,8 +104,6 @@ import {
 } from "./bake9";
 import { glUnits9, glNow9, glBakeMsTake9, glScrubSet9, glScrubbing9, gasTops9, MESH_SHADOW9, GL_CANVAS_KINDS9, GL_ON9, GL_BLIT9, GL_WARM9, GL_GLOW_KINDS9, SHADOW_ALPHA9, camOf9, CAM_TOP9, glIconOk9, glIconRequest9, type GlUnits9, type GlFoot9 } from "./gl9";
 
-/** 중계·추적의 자동 건물 팝업(bldPicks9) — 한 선택이 팝업을 쥐는 상한(초). */
-const AUTO_PICK_MAX9 = 6;
 /** K/D 에서 빼는 몸 — 알·고치·딸림 무기·핵(로스터·자막의 킬데스 · kdSeries9). */
 const KD_SKIP9 = new Set(["Larva", "Egg", "Lurker Egg", "Mutalisk Cocoon", "Interceptor", "Scarab", "Spider Mine", "Nuclear Missile"]);
 export { LIMB_LOG, TURRET_BACK9, SHAPE_BUILDERS, ctx2d9, BAKE_ENV9, cropToInk, pathBox, tierTableOf, autoTier, stageFaces, rasterBld9, SHAPE_GALLERY, poseSet, poseSet9, bldLitSet, headYawSet, bldSpinSet, bldSpinRawSet9, lodSetCap, lodSetZoom, lodNoteFrame, tone9, TONE_DARK, TONE_SAT, silhouetteLight } from "./bake9";
@@ -4792,12 +4790,12 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             const my9 = sy - (op.air ? px9 * 0.45 : 0);
             if (gl9 && gl9.primOk) {
               gl9.prim(1, sx, my9, mw9 / 2, mw9 / 2, op.color, op.alpha);
-              if (op.selRing) gl9.prim(2, sx, my9, mw9 / 2 + 1.5, mw9 / 2 + 1.5, op.color, op.alpha, 1);
+              if (op.selRing || (pickedKey != null && op.pickKey === pickedKey)) gl9.prim(2, sx, my9, mw9 / 2 + 1.5, mw9 / 2 + 1.5, op.color, op.alpha, 1);
             } else {
               ctx.beginPath();
               ctx.arc(sx, my9, mw9 / 2, 0, Math.PI * 2);
               ctx.fill();
-              if (op.selRing) {
+              if (op.selRing || (pickedKey != null && op.pickKey === pickedKey)) {
                 ctx.strokeStyle = op.color;
                 ctx.lineWidth = 1;
                 ctx.beginPath();
@@ -5097,6 +5095,12 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
                 ? { ground: true, dy: gLift9, h: gLift9 / Math.max(1e-3, gk9), alpha: op.alpha * SHADOW_ALPHA9 }
                 : { ground: true, alpha: op.alpha * SHADOW_ALPHA9 }) : undefined;
             const gR9 = sidePx * 0.707; const gCy9 = -8 * gk9;
+            /* ★ 건물 선택 링(2026-09, 요청: "건물 선택시 선택 링이 안보이는데 링 나오게") — 유닛과 같은 가는 타원 테를 **발자국**
+               둘레에 깐다(바닥 도형 패스라 몸 밑에 깔린다). 자리는 발자국 한가운데 · 뜬 건물은 뜬 몫만큼 위(몸과 함께 든다). */
+            if ((op.selRing || (pickedKey != null && op.pickKey === pickedKey)) && gl9.primOk && op.mkFrac === undefined) {
+              const cy9 = (groundY ?? sy + hPx / 2) - hPx / 2 - gLift9;
+              gl9.prim(2, sx, cy9, wPx * 0.62, Math.max(4, hPx * 0.62), op.color, op.alpha, Math.max(1.1, wPx * 0.012));
+            }
             gl9.push({ mesh: glB9, ax: gax9, ay: gay9, k: gk9, yoff: op.mkFrac !== undefined ? 0 : -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind), over: true });
             /* ★ 가스 연기는 메시가 아니라 **프레임마다 놓는 덩이**다(2026-09, gl9 gasPush9) — 회전 칸이 소수(엔진)라 시계가 이어진다. */
             if (glB9.gas) gl9.gasPush9(glB9, gax9, gay9, gk9, -gk9 * glBf9.bot, -(op.rotDeg ?? 0), glBcam9, (op.spin ?? 0) / SPIN_ANIM9, op.color, op.alpha);
@@ -5317,7 +5321,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         /* 선택 링(지적: 드래그 선택 구분) — 잡힌 유닛 발밑의 가는 타원 테.
            색은 임자 색이다(요청: 흰색 말고 개인색) — 누가 잡은 유닛인지 링만 보고 안다.
            공중 유닛은 링도 공중이다(지적: 유닛 바닥에) — 들린 몸의 바닥선에 붙인다. */
-        if (op.selRing) {
+        /* ★ 링의 임자는 **선택**이다(2026-09) — 모든 사람의 선택(판 10 · op.selRing)과 보는 사람이 누른 몸(pickedKey). */
+        if ((op.selRing || (pickedKey != null && op.pickKey === pickedKey)) && !op.ghost) {
           /* 선 굵기는 화면 고정(지적: 링은 UI 요소 — 확대에 굵어지면 안 됨) — 반지름은
              유닛(px)을 따라가되 굵기에서 zoom을 뺀다. */
           /* ★ 굵기를 되돌린다(지적: "유닛 선택링이 안나와") — 두 번의 "더 가늘게"가
@@ -7111,7 +7116,7 @@ export function docCellBox9(kind: string, group?: string): Map<string, string | 
  *  지도가 그리는 그 그림을 본다. 색은 요소의 currentColor(도록의 --scr-doc-own)다. */
 export function DocIcon9({
   kind, rotDeg, pose, spin, headDeg, lit, stage, blink, attach, attachRot, parts,
-  flat, fit, fitPad, fitBox, wide, className, gl,
+  flat, fit, fitPad, fitBox, wide, className, gl, tint,
 }: {
   kind: string; rotDeg?: number; pose?: 0 | 1 | 2 | 3 | 4 | 5; spin?: number; flat?: boolean; fit?: boolean; fitPad?: number; fitBox?: string;
   wide?: boolean; className?: string;
@@ -7134,6 +7139,9 @@ export function DocIcon9({
   /** 한 칸에 겹쳐 그리는 판들(DocCell9.parts) — 지도가 한 개체를 여러 판으로 그리는 동작이 이 자다. */
   parts?: DocPart9[];
   /** GL 로 그릴지 못 박기(안 주면 GL_ON9). */ gl?: boolean;
+  /** ★ 한 색 실루엣(2026-09, 요청: 하단 인포창 아이콘 — "실루엣") — 주면 그 색 한 가지로 물들인다. 밝기(명암)는 남기고
+   *  색만 갈아 끼운다(캔버스 합성 'color' — 원작 와이어프레임처럼 체력색 한 벌이되 디테일은 읽힌다). */
+  tint?: string;
 }) {
   const wantGl = (gl ?? GL_ON9) && !!flat && !!SHAPE_BUILDERS[kind];
   const partsKey9 = (parts ?? []).map((p9) => `${p9.kind}:${p9.pose ?? 0}:${Math.round(p9.rotDeg ?? 1e4)}:${(p9.k ?? 1).toFixed(3)}`
@@ -7170,13 +7178,26 @@ export function DocIcon9({
         const g2 = c9.getContext("2d"); if (!g2) return;
         g2.clearRect(0, 0, sw9, sh9);
         g2.drawImage(sc9, sx9, sy9, sw9, sh9, 0, 0, sw9, sh9);
+        if (tint) {
+          /* 물들이기 — 'color' 로 색상·채도만 tint 로 갈고(밝기는 그림 것), 'destination-in' 으로 그림 밖을 도로 비운다.
+             어두운 몸은 그 색의 어두운 판이 되어 안 읽히므로 먼저 'screen' 으로 한 겹 밝힌다. */
+          g2.globalCompositeOperation = "screen";
+          g2.fillStyle = "rgba(90, 90, 90, 1)";
+          g2.fillRect(0, 0, sw9, sh9);
+          g2.globalCompositeOperation = "color";
+          g2.fillStyle = tint;
+          g2.fillRect(0, 0, sw9, sh9);
+          g2.globalCompositeOperation = "destination-in";
+          g2.drawImage(sc9, sx9, sy9, sw9, sh9, 0, 0, sw9, sh9);
+          g2.globalCompositeOperation = "source-over";
+        }
         c9.dataset.gl9 = "1";   // doc-sheet 가 기다리는 표식
       },
       done: (u9) => { if (live && u9 === null) setFail(true); },
     });
     return () => { live = false; };
     /* ⚠ parts 는 프레임마다 새 배열이라 그대로 의존성에 두면 안 된다 — 글자로 접어 견준다. */
-  }, [useGl, kind, rotDeg, pose, spin, headDeg, lit, stage, blink, attach, attachRot, partsKey9, fit, fitPad, fitBox, wide]);
+  }, [useGl, kind, rotDeg, pose, spin, headDeg, lit, stage, blink, attach, attachRot, partsKey9, fit, fitPad, fitBox, wide, tint]);
   if (!useGl) {
     return (
       <ShapeIcon
@@ -9958,6 +9979,8 @@ export default function ReplayMotionPlayer({
   }, [pitchFlat]);
   /** 정보 팝업으로 집어 둔 몸의 열쇠(요청) — null이면 닫힘. */
   const [picked, setPicked] = useState<string | null>(null);
+  /** 하단 인포창을 접었나(요청: 접기 버튼 — 폰에서 지도를 덜 가리게). */
+  const [dockFold9, setDockFold9] = useState(false);
   /** 인포 팝업이 열려 있으면 닫는다 — 화면 이동·배율 변경의 모든 문에서 부른다(beginGestureXf 주석). */
   const closePicked9 = useCallback((): void => {
     if (pickedRef.current !== null) setPicked(null);
@@ -9967,69 +9990,81 @@ export default function ReplayMotionPlayer({
      딴 장면이라, 집어 둔 몸이 화면 밖이거나 안개 속이다. '다른 것 선택'은 pickAt 이 열쇠를 갈아 끼우는 것으로
      이미 닫히고, 손짓·배율은 beginGestureXf 와 배율 단추·키보드가 이미 닫는다(위). */
   useEffect(() => { closePicked9(); }, [camRaw9, viewRaw, closePicked9]);
-  /** 화면 주인이 **건물을 고른 자국** [시작 초, 건물 태그, 끝 초] — 시작 오름차순.
-   *
-   *  ★ 중계·추적 중에는 리플레이 기록이 고른 건물의 정보 팝업이 저절로 뜬다(2026-09, 요청: "중계시(화면 주인의)
-   *  건물 선택시 인포팝업 뜨게 해줘" → "보는 사람이 누르는게 아니라 리플레이 기록상 선택한 경우"). 자는 **판 10 의
-   *  선택 절**(entData.sels) 하나다 — 그 명령 뒤의 선택이 **건물 하나**면 그 건물이고, 다음 선택까지(상한 AUTO_PICK_MAX9)
-   *  띄운다. 절이 없는 판(9 아래)에서는 안 뜬다 — 생산·연구 시작으로 짐작하던 대체 신호는 걷었다(요청: "대체 신호 제거"). */
-  const bldPicks9 = useMemo(() => {
-    const out9: [number, number, number][] = [];
-    if (!camRaw9 || !entData) return out9;
-    const mine9 = new Set(entData.players.filter((pl) => pl.name === camRaw9).map((pl) => pl.owner));
-    const bldTag9 = new Set(entData.lives.filter((e9) => e9.bld && e9.tag > 0).map((e9) => e9.tag));
-    const my9 = entData.sels.filter((s9) => mine9.has(s9[1]));
-    for (let i9 = 0; i9 < my9.length; i9 += 1) {
-      const [s9, , tg9] = my9[i9];
-      if (tg9.length !== 1 || !bldTag9.has(tg9[0])) continue;
-      out9.push([s9, tg9[0], Math.min(my9[i9 + 1]?.[0] ?? Infinity, s9 + AUTO_PICK_MAX9)]);
+  /* ── 하단 인포창의 재료(2026-09, 요청: "인포팝업을 없애고 원작처럼 하단 인포창") ─────────────────────────────
+     창이 보여 줄 것은 둘 중 하나다: ① 보는 사람이 누른 몸(picked · 하나) ② 없으면 **화면 주인의 선택**(판 10 선택 절 —
+     그 명령 뒤의 선택 전체). 여태 이 자리는 '화면 주인이 건물 하나를 고른 자국'만 골라 팝업을 저절로 띄웠다
+     (bldPicks9 · 상한 6초 · 자동 팝업 열쇠) — 창이 늘 서 있게 된 지금은 선택을 그대로 읽으면 되므로 그 기계를 걷었다. */
+  /** 선택 줄을 임자마다 — [초, 태그들] 시각순. */
+  const selsByOwner9 = useMemo(() => {
+    const m9 = new Map<number, [number, number[]][]>();
+    for (const [s9, o9, tg9] of entData?.sels ?? []) {
+      const a9 = m9.get(o9);
+      if (a9) a9.push([s9, tg9]); else m9.set(o9, [[s9, tg9]]);
     }
-    return out9;
-  }, [camRaw9, entData]);
-  /** 자동으로 띄운 팝업의 열쇠와 그 자국의 시작 초 — 보는 사람이 딴 것을 집었으면 그쪽이 이긴다. */
-  const autoPickRef9 = useRef<{ key: string; s: number } | null>(null);
-  /** 몸이 아직 안 그려져 못 찾았을 때 다시 볼 박자 — 멈춘 채(t 가 안 움직인다) 사람을 고르면 그 첫 렌더에는 op 가 없다.
-   *  한 자국에 여덟 번(2초)까지만 — 화면 밖 건물이면 그 뒤로는 안 본다. */
-  const [autoTick9, setAutoTick9] = useState(0);
-  const autoTryRef9 = useRef<{ s: number; n: number }>({ s: -1, n: 0 });
-  useEffect(() => {
-    const cur9 = pickedRef.current;
-    const auto9 = autoPickRef9.current;
-    const mineNow9 = auto9 !== null && cur9 === auto9.key;
-    /* 보는 사람이 제 손으로 집은 팝업은 안 건드린다 — 자동은 빈 자리나 제가 띄운 자리만 쓴다. */
-    if (cur9 !== null && !mineNow9) return;
-    let ev9: [number, number, number] | null = null;
-    if (camRaw9) {
-      let lo9 = 0;
-      let hi9 = bldPicks9.length - 1;
-      let at9 = -1;
-      while (lo9 <= hi9) {
-        const mid9 = (lo9 + hi9) >> 1;
-        if (bldPicks9[mid9][0] <= t) { at9 = mid9; lo9 = mid9 + 1; } else hi9 = mid9 - 1;
-      }
-      for (let k9 = at9; k9 >= 0 && k9 > at9 - 6; k9 -= 1) {
-        if (bldPicks9[k9][2] > t) { ev9 = bldPicks9[k9]; break; }
-      }
+    return m9;
+  }, [entData]);
+  /** 화면 주인의 지금 선택(태그들) — 카메라를 기계가 쥐었을 때만(중계·개인 추적). 없으면 null. */
+  const ownerSel9: number[] | null = (() => {
+    if (!camRaw9 || !entData) return null;
+    let best9: [number, number[]] | null = null;
+    for (const pl9 of entData.players) {
+      if (pl9.name !== camRaw9) continue;
+      const rows9 = selsByOwner9.get(pl9.owner);
+      if (!rows9) continue;
+      let lo9 = 0; let hi9 = rows9.length - 1; let at9 = -1;
+      while (lo9 <= hi9) { const m9 = (lo9 + hi9) >> 1; if (rows9[m9][0] <= t) { at9 = m9; lo9 = m9 + 1; } else hi9 = m9 - 1; }
+      if (at9 >= 0 && (!best9 || rows9[at9][0] > best9[0])) best9 = rows9[at9];
     }
-    /* 같은 자국은 한 번만 연다 — 보는 사람이 닫았으면 그 자국 동안은 다시 안 연다. */
-    if (ev9 && auto9 && auto9.s === ev9[0] && !mineNow9) return;
-    const op9 = ev9 ? opsRef.current.find((o9) => o9.pickBld && !o9.ghost && o9.pickKey && o9.pickTag === ev9![1]) : undefined;
-    if (!ev9 || !op9?.pickKey) {
-      if (mineNow9) { setPicked(null); autoPickRef9.current = null; }
-      if (ev9) {
-        const tr9 = autoTryRef9.current;
-        if (tr9.s !== ev9[0]) { tr9.s = ev9[0]; tr9.n = 0; }
-        if (tr9.n < 8) {
-          tr9.n += 1;
-          const id9 = window.setTimeout(() => setAutoTick9((n9) => n9 + 1), 250);
-          return () => window.clearTimeout(id9);
-        }
-      }
-      return;
+    return best9 ? best9[1] : null;
+  })();
+  /** 태그 → 생애들(메인의 개체 표 — 태그·종류·임자·생애 경계만 남아 있다). */
+  const livesByTag9 = useMemo(() => {
+    const m9 = new Map<number, TruthLife[]>();
+    for (const l9 of entData?.lives ?? []) {
+      const a9 = m9.get(l9.tag);
+      if (a9) a9.push(l9); else m9.set(l9.tag, [l9]);
     }
-    autoPickRef9.current = { key: op9.pickKey, s: ev9[0] };
-    if (cur9 !== op9.pickKey) setPicked(op9.pickKey);
-  }, [t, camRaw9, bldPicks9, autoTick9]);
+    return m9;
+  }, [entData]);
+  /** 그 태그의 t 초 생애 — 없으면 undefined. */
+  const lifeAt9 = (tag9: number, t9: number): TruthLife | undefined =>
+    (livesByTag9.get(tag9) ?? []).find((l9) => l9.born <= t9 + 0.05 && (l9.died === null || l9.died > t9));
+  /** 킬러 태그 → 처치 시각들(판 11 처치 절 · 오름차순) — 유닛 인포의 '처치 N'. */
+  const killsByTag9 = useMemo(() => {
+    const m9 = new Map<number, number[]>();
+    for (const [s9, , kt9] of entData?.kills ?? []) {
+      if (!kt9) continue;
+      const a9 = m9.get(kt9);
+      if (a9) a9.push(s9); else m9.set(kt9, [s9]);
+    }
+    for (const a9 of m9.values()) a9.sort((x9, y9) => x9 - y9);
+    return m9;
+  }, [entData]);
+  /** 배 태그 → [초, 승객 태그, 탔나] 시각순(판 11 탑승 절) — 내림 줄(배 0)은 그 승객이 마지막으로 탄 배로 돌린다. */
+  const cargoByShip9 = useMemo(() => {
+    const m9 = new Map<number, [number, number, boolean][]>();
+    const cur9 = new Map<number, number>();
+    const put9 = (ship9: number, row9: [number, number, boolean]): void => {
+      const a9 = m9.get(ship9);
+      if (a9) a9.push(row9); else m9.set(ship9, [row9]);
+    };
+    for (const [s9, pax9, ship9] of [...(entData?.loads ?? [])].sort((x9, y9) => x9[0] - y9[0])) {
+      const was9 = cur9.get(pax9);
+      if (was9) put9(was9, [s9, pax9, false]);
+      if (ship9) { put9(ship9, [s9, pax9, true]); cur9.set(pax9, ship9); } else cur9.delete(pax9);
+    }
+    return m9;
+  }, [entData]);
+  /** t 초에 그 배에 탄 승객 태그들(탄 차례 · 살아 있는 몸만). */
+  const cargoAt9 = (ship9: number, t9: number): number[] => {
+    const in9: number[] = [];
+    for (const [s9, pax9, on9] of cargoByShip9.get(ship9) ?? []) {
+      if (s9 > t9) break;
+      const i9 = in9.indexOf(pax9);
+      if (on9) { if (i9 < 0) in9.push(pax9); } else if (i9 >= 0) in9.splice(i9, 1);
+    }
+    return in9.filter((p9) => lifeAt9(p9, t9));
+  };
   /* (걷어냄) mobBars — 좁은 화면의 배속·각도 바를 여닫던 상태다. 그 바가 지도 위
      값 버튼으로 바뀌면서 여닫을 것이 없어졌다(요청). */
   /** 이번 프레임에 그린 op — 클릭 판정과 팝업 내용이 여기서 지금 값을 읽는다. */
@@ -15706,6 +15741,364 @@ export default function ReplayMotionPlayer({
      그래도 4배에서 그리는 몫이 1/4로 준다. 배율이 1.2 미만이면(거의 다 보인다)
      아무것도 안 거른다 — 이득이 없는데 위험만 지는 짓이다. */
   const pMap9 = PERF9 ? pNow() : 0;
+  /* ── 하단 인포창(2026-09, 요청: "인포팝업을 없애고 원작처럼 하단 인포창을 만든다") ─────────────────────────────────
+     무대 아래 가운데 **고정 크기**로 늘 선다(요청: 항상 표시) — 맨 위 띠가 중계 자막(옛 castbar), 그 아래가 몸의 칸이다.
+     · 하나: 큰 실루엣(체력색) + 그 아래 체력·실드·에너지 숫자 · 오른쪽에 이름 · 처치 · 업그레이드(글자) · 상태 ·
+       (건물) 생산 바 + 큐 칸 · 연구 바 · 보급 · (수송선 4×2 · 벙커 2×2) 탄 몸.
+     · 여럿: 6×2 칸의 실루엣 격자(누르면 그 몸 하나로 본다 — 원작 동작).
+     몸은 보는 사람이 누른 것(picked)이 먼저고, 없으면 화면 주인의 선택(ownerSel9)이다.
+     ⚠ 값은 다 **그리는 판(unitOps)** 과 개체 표(entData)에서 읽는다 — 창이 제 셈을 들면 지도와 어긋난다. */
+  /** 화면 밖 몸의 대역 — 워커는 보이는 자리의 몸만 그리므로(시야 컬링) 고른 몸이 화면 밖이면 그리는 판에 없다. 그때는
+   *  개체 표(생애)로 이름·임자·태그만 세운다 — 체력은 모른다(hpMax 없음 → '–'). */
+  const offOp9 = (tag9: number): UnitDrawOp | null => {
+    const l9 = lifeAt9(tag9, t);
+    if (!l9) return null;
+    const raw9 = entData?.players.find((pl) => pl.owner === l9.owner)?.name;
+    return {
+      pickName: l9.kind, pickBld: l9.bld, pickRaw: raw9, pickTag: tag9, pickKey: l9.bld ? `t${tag9}` : `u${tag9}`,
+      offView: true,
+    } as unknown as UnitDrawOp;
+  };
+  const dockOps9: UnitDrawOp[] = (() => {
+    if (picked) {
+      const o9 = unitOps.find((o) => o.pickKey === picked && !o.ghost);
+      if (o9) return [o9];
+      const tg9 = /^[ut](\d+)$/.exec(picked);
+      const f9 = tg9 ? offOp9(Number(tg9[1])) : null;
+      return f9 ? [f9] : [];
+    }
+    if (!ownerSel9 || ownerSel9.length === 0) return [];
+    const byKey9 = new Map<string, UnitDrawOp>();
+    const byTag9 = new Map<number, UnitDrawOp>();
+    for (const o of unitOps) {
+      if (!o.pickKey || o.ghost) continue;
+      if (!byKey9.has(o.pickKey)) byKey9.set(o.pickKey, o);
+      if (o.pickBld && o.pickTag !== undefined && !byTag9.has(o.pickTag)) byTag9.set(o.pickTag, o);
+    }
+    const out9: UnitDrawOp[] = [];
+    for (const tg9 of ownerSel9) {
+      const o9 = byKey9.get(`u${tg9}`) ?? byTag9.get(tg9) ?? offOp9(tg9);
+      if (o9 && !out9.includes(o9)) out9.push(o9);
+    }
+    return out9;
+  })();
+  /** 몸의 태그 — 유닛은 열쇠(u태그)에서, 건물은 pickTag. */
+  const tagOfOp9 = (o: UnitDrawOp): number | undefined =>
+    o.pickTag ?? (o.pickKey?.startsWith("u") ? Number(o.pickKey.slice(1)) : undefined);
+  /** 무기가 없는 유닛 — 업그레이드 글자에서 '공'을 뺀다(원작도 방어 아이콘만 선다). */
+  const NO_WEAPON9 = new Set(["Dropship", "Shuttle", "Overlord", "Observer", "Science Vessel", "Medic", "Queen", "Defiler",
+    "High Templar", "Dark Archon", "Larva", "Egg", "Lurker Egg", "Mutalisk Cocoon"]);
+  /** 체력 비 → 원작 세 단 색(연녹 · 노랑 · 빨강). */
+  const hpCol9 = (r9: number): string => (r9 > 0.5 ? "#6fe36f" : r9 > 0.33 ? "#e8d94a" : "#e05a4a");
+  /** 이름 → 도록 모델(실루엣) — 건물은 SHAPE_KIND, 유닛은 UNIT_3D. 없으면 null(글자 머리로 대신). */
+  const iconKind9 = (en9: string, bld9: boolean): string | null =>
+    (bld9 ? SHAPE_KIND[en9] : UNIT_3D[en9]) ?? null;
+  /** 실루엣 한 칸 — 체력색 한 벌로 물들인 도록 아이콘. */
+  const silIcon9 = (en9: string, bld9: boolean, col9: string, cls9: string): React.ReactNode => {
+    const k9 = iconKind9(en9, bld9);
+    return k9
+      ? <DocIcon9 kind={k9} flat fit fitPad={0.06} tint={col9} className={cls9} />
+      : <span className={cx(cls9, "scr-motion-infodock-glyph")} style={{ color: col9 }}>{(UNIT_KO[en9] ?? BUILDING_KO[en9] ?? en9).slice(0, 1)}</span>;
+  };
+  /** 진행 바 — 원작처럼 열 칸이 차오른다. */
+  const bar9 = (label9: string, p9: number, key9: string): React.ReactNode => (
+    <div className="scr-motion-info-prog" key={key9}>
+      <span className="scr-motion-info-line">{label9}</span>
+      <span className="scr-motion-info-bar">
+        {Array.from({ length: 10 }, (_, k) => <i key={k} className={k < Math.round(p9 * 10) ? "is-on" : undefined} />)}
+      </span>
+    </div>
+  );
+  /** 보급을 대는 몸(원작 인포의 사이 공급 네 줄) — 이 몸 하나가 대는 몫. */
+  const SUPPLY_OF9: Record<string, number> = {
+    Pylon: 8, "Supply Depot": 8, Overlord: 8, Hatchery: 1, Lair: 1, Hive: 1, "Command Center": 10, Nexus: 9,
+  };
+  /** 탈 수 있는 칸 수와 한 줄 칸 수(요청: 수송기 4기씩 두 줄 · 벙커 2기씩 두 줄). */
+  const CARGO9: Record<string, [number, number]> = { Dropship: [8, 4], Shuttle: [8, 4], Overlord: [8, 4], Bunker: [4, 2] };
+  /** 에너지 최대치 — 그 몸의 에너지 업그레이드를 마쳤으면 250(원작). 표에 없는 몸(컴샛)은 200. */
+  const ENERGY_UP9: Record<string, string> = {
+    "Science Vessel": "Titan Reactor", Ghost: "Moebius Reactor", Wraith: "Apollo Reactor", Battlecruiser: "Colossus Reactor",
+    Medic: "Caduceus Reactor", "High Templar": "Khaydarin Amulet", Arbiter: "Khaydarin Core", Corsair: "Argus Jewel",
+    "Dark Archon": "Argus Talisman", Queen: "Gamete Meiosis", Defiler: "Metasynaptic Node",
+  };
+  /** 한 몸의 칸 — 왼쪽 실루엣·숫자 · 가운데 글 · 오른쪽 탄 몸. */
+  const dockOne9 = (op: UnitDrawOp): React.ReactNode => {
+    const en = op.pickName ?? "";
+    const bld9 = !!op.pickBld;
+    const ko = bld9 ? BUILDING_KO[en] ?? en : UNIT_KO[en] ?? en;
+    const tag9 = tagOfOp9(op);
+    const life9 = tag9 !== undefined ? lifeAt9(tag9, t) : undefined;
+    const max = op.hpMax ?? 0;
+    const cur = Math.max(0, Math.round((op.hpFrac ?? 1) * max));
+    const sh = bld9 ? (BLD_STATS[en]?.[1] ?? 0) : (UNIT_STATS[en]?.sh ?? 0);
+    const hpOnly = Math.max(1, max - sh);
+    const hpCur = Math.min(cur, hpOnly);
+    const hpR = hpCur / hpOnly;
+    const shCur = Math.max(0, cur - hpOnly);
+    /* 에너지(판 11) — 그 생애 안의 마지막 값(계단). */
+    let en9: number | null = null;
+    if (tag9 !== undefined) {
+      const ser9 = entData?.energy.get(tag9);
+      if (ser9) {
+        for (let i9 = 0; i9 < ser9.length; i9 += 2) {
+          if (ser9[i9] > t) break;
+          if (life9 && ser9[i9] < life9.born - 0.05) continue;
+          en9 = ser9[i9 + 1];
+        }
+      }
+    }
+    const upDone9 = (name9: string): boolean =>
+      (upsByRaw.get(op.pickRaw ?? "") ?? []).some(([us, n]) => n === name9 && us <= t);
+    const enMax9 = ENERGY_UP9[en] && upDone9(ENERGY_UP9[en]) ? 250 : 200;
+    /* 처치(판 11) — 이 생애 동안 이 몸에게 올라간 처치. */
+    let kills9: number | null = null;
+    if (!bld9 && tag9 !== undefined) {
+      const ks9 = killsByTag9.get(tag9) ?? [];
+      kills9 = ks9.filter((s9) => s9 <= t && (!life9 || s9 >= life9.born - 0.05)).length;
+    }
+    const lines: React.ReactNode[] = [];
+    if (op.pickStatus && STATUS_FX[op.pickStatus]) {
+      const sfx = STATUS_FX[op.pickStatus];
+      lines.push(<div className="scr-motion-info-line" key="fx" style={{ color: sfx.col }}>{`${STATUS_KO[op.pickStatus] ?? op.pickStatus} — ${sfx.fx}`}</div>);
+    }
+    if (op.pickState) {
+      const m9 = /(\d+)%$/.exec(op.pickState);
+      if (m9) lines.push(bar9(op.pickState.replace(/\s*\d+%$/, ""), Number(m9[1]) / 100, "state"));
+      else lines.push(<div className="scr-motion-info-line" key="state">{op.pickState}</div>);
+    }
+    /** 오른쪽 칸들 — 생산 큐(건물) 또는 탄 몸(수송선·벙커). */
+    let side9: React.ReactNode = null;
+    if (bld9 && op.pickWip) {
+      /* 짓는 중인 건물은 아무 일도 못 한다 — 상태(건설 중 NN%)와 체력만. */
+    } else if (bld9) {
+      /* 생산·큐·연구 — 옛 팝업의 셈 그대로(이 건물에서 나온 것만 · 더 가까운 임자가 가져간다 · 줄줄이 이은 것만 큐). */
+      const fp9 = FOOTPRINT[en] ?? [4, 3];
+      const bx9 = op.pickX;
+      const by9 = op.pickY;
+      const nearer9 = (rx: number, ry: number, u: string): boolean => {
+        if (bx9 === undefined || by9 === undefined) return true;
+        const myD = Math.hypot(rx - (bx9 + fp9[0] / 2), ry - (by9 + fp9[1] / 2));
+        for (const [os9, ox9, oy9, ou9, or9, og9] of buildsSrc) {
+          if (or9 !== op.pickRaw) continue;
+          if (ox9 === bx9 && oy9 === by9) continue;
+          if (os9 > t || ((og9 ?? 0) > 0 && t >= (og9 ?? 0))) continue;
+          if (!(PRODUCED_BY[ou9] ?? []).includes(u)) continue;
+          const of9 = FOOTPRINT[ou9] ?? [4, 3];
+          const d9 = Math.hypot(rx - (ox9 + of9[0] / 2), ry - (oy9 + of9[1] / 2));
+          if (d9 < myD - 0.01) return false;
+        }
+        return true;
+      };
+      const mine9 = bx9 === undefined || by9 === undefined ? null
+        : (prodDoneAt.get(op.pickRaw ?? "") ?? []).filter((r9) =>
+          r9.x >= bx9 - 1.5 && r9.x <= bx9 + fp9[0] + 1.5
+          && r9.y >= by9 - 1.5 && r9.y <= by9 + fp9[1] + 2
+          && nearer9(r9.x, r9.y, r9.u));
+      /** [완성 초, 영어 이름, 걸리는 초] */
+      const evs: [number, string, number][] = [];
+      const kinds9 = new Set(PRODUCED_BY[en] ?? []);
+      if (mine9 && mine9.length > 0) {
+        for (const r9 of mine9) if (kinds9.has(r9.u)) evs.push([r9.s, r9.u, UNIT_BUILD_SEC[r9.u] ?? 30]);
+      } else {
+        for (const u of PRODUCED_BY[en] ?? []) {
+          const sec = UNIT_BUILD_SEC[u] ?? 30;
+          for (const ps of prodDoneByRaw.get(op.pickRaw ?? "")?.[u] ?? []) evs.push([ps, u, sec]);
+        }
+      }
+      evs.sort((a, b) => a[0] - b[0]);
+      const making = evs.find(([ps, , sec]) => t < ps && t >= ps - sec) ?? null;
+      const queue: [number, string, number][] = [];
+      {
+        const headEnd9 = making ? making[0] : t;
+        let prevEnd9 = headEnd9;
+        for (const ev9 of evs) {
+          if (ev9[0] <= headEnd9) continue;
+          if (ev9[0] - ev9[2] > prevEnd9 + 1.5) break;
+          queue.push(ev9);
+          prevEnd9 = ev9[0];
+          if (queue.length >= 4) break;
+        }
+      }
+      if (making) {
+        lines.push(bar9(`생산 중 ${UNIT_KO[making[1]] ?? making[1]}`, Math.min(0.99, (t - (making[0] - making[2])) / making[2]), "prod"));
+      }
+      /* 큐 — 원작처럼 다섯 칸(첫 칸이 지금 뽑는 것) · 칸마다 실루엣. */
+      if (making || queue.length > 0) {
+        const slots9 = [making, ...queue].filter(Boolean) as [number, string, number][];
+        side9 = (
+          <div className="scr-motion-infodock-queue">
+            {Array.from({ length: 5 }, (_, k) => (
+              <span key={k} className={cx("scr-motion-infodock-slot", k === 0 && "is-head")}>
+                {slots9[k] ? silIcon9(slots9[k][1], false, "#6fe36f", "scr-motion-infodock-sico") : null}
+              </span>
+            ))}
+          </div>
+        );
+      }
+      const hall9 = en === "Lair" || en === "Hive" ? "Hatchery" : en;
+      const doing = (upsByRaw.get(op.pickRaw ?? "") ?? []).filter(([us, n, utag]) =>
+        RESEARCH_BUILDING[n] === hall9 && t < us && us - t <= RESEARCH_SEC
+        && (utag > 0 && op.pickTag !== undefined ? utag === op.pickTag : op.pickRep !== false));
+      for (const [us, n] of doing) {
+        lines.push(bar9(`연구 중 ${researchKo(n)}`, Math.min(0.99, (RESEARCH_SEC - (us - t)) / RESEARCH_SEC), `r${n}`));
+      }
+    } else {
+      /* 유닛 — 그 유닛에 걸리는 업그레이드를 글자로(원작 아이콘 대신 · 공방실속사). */
+      const race9 = bases.find((b) => b.key === op.pickRaw)?.race ?? "";
+      const pairs = ARMOR_WEAPON_PAIRS[race9] ?? [];
+      const air9 = isAirUnit(en);
+      const infantry9 = new Set(["Marine", "Firebat", "Medic", "Ghost", "SCV"]);
+      const meleeU9 = new Set(["Zergling", "Ultralisk", "Broodling", "Drone"]);
+      const pick9 = pairs.find((pr) => {
+        const w = pr.weapon;
+        if (race9 === "테란") {
+          return air9 ? w === "Terran Ship Weapons"
+            : infantry9.has(en) ? w === "Terran Infantry Weapons" : w === "Terran Vehicle Weapons";
+        }
+        if (race9 === "저그") {
+          return air9 ? w === "Zerg Flyer Attacks"
+            : meleeU9.has(en) ? w === "Zerg Melee Attacks" : w === "Zerg Missile Attacks";
+        }
+        return air9 ? w === "Protoss Air Weapons" : w === "Protoss Ground Weapons";
+      });
+      const lv = (name: string): number =>
+        (upsByRaw.get(op.pickRaw ?? "") ?? []).filter(([us, n]) => n === name && us <= t).length;
+      const upBits: string[] = [];
+      if (pick9) { if (!NO_WEAPON9.has(en)) upBits.push(`공${lv(pick9.weapon)}`); upBits.push(`방${lv(pick9.armor)}`); }
+      if (race9 === "프로토스") upBits.push(`실${lv(PLASMA_SHIELD_UPGRADE)}`);
+      const other = (upsByRaw.get(op.pickRaw ?? "") ?? []).filter(([us, n]) =>
+        us <= t && n !== PLASMA_SHIELD_UPGRADE
+        && !pairs.some((pr) => pr.weapon === n || pr.armor === n)
+        && (UPGRADE_UNITS[n] ?? []).includes(en));
+      const rest9: string[] = [];
+      for (const [, n] of other) {
+        const tagU9 = UNIT_UPGRADE_TAG[n as keyof typeof UNIT_UPGRADE_TAG]?.tag;
+        const one9 = tagU9 ? UPGRADE_ONE_LETTER[tagU9] : undefined;
+        if (one9) { if (!upBits.includes(one9)) upBits.push(one9); }
+        else rest9.push(tagU9 ?? researchKo(n));
+      }
+      if (upBits.length > 0) lines.push(<div className="scr-motion-infodock-ups" key="ups">{upBits.map((b9) => <i key={b9}>{b9}</i>)}</div>);
+      if (rest9.length > 0) lines.push(<div className="scr-motion-info-line" key="rest">{`연구 ${rest9.slice(-4).join(" · ")}`}</div>);
+    }
+    /* 보급(원작 사이 공급 네 줄) — 대는 몸이면. 짓는 중이면 안 댄다. */
+    const give9 = SUPPLY_OF9[en];
+    const sup9 = supplyNow.get(op.pickRaw ?? "");
+    if (give9 && sup9 && !op.pickWip) {
+      lines.push(
+        <div className="scr-motion-infodock-supply" key="sup">
+          <span>사용 <b>{sup9[0]}</b></span><span>제공 <b>{give9}</b></span>
+          <span>전체 <b>{sup9[1]}</b></span><span>최대 <b>200</b></span>
+        </div>,
+      );
+    }
+    /* 탄 몸(판 11 탑승 절) — 수송선 4×2 · 벙커 2×2. */
+    const cg9 = CARGO9[en];
+    if (cg9 && tag9 !== undefined) {
+      const pax9 = cargoAt9(tag9, t);
+      side9 = (
+        <div className="scr-motion-infodock-cargo" style={{ gridTemplateColumns: `repeat(${cg9[1]}, var(--dock-slot))` }}>
+          {Array.from({ length: cg9[0] }, (_, k) => {
+            const p9 = pax9[k] !== undefined ? lifeAt9(pax9[k], t) : undefined;
+            return (
+              <span key={k} className="scr-motion-infodock-slot">
+                {p9 ? silIcon9(p9.kind, false, "#6fe36f", "scr-motion-infodock-sico") : null}
+              </span>
+            );
+          })}
+        </div>
+      );
+    }
+    const off9 = (op as { offView?: boolean }).offView === true;
+    const col9 = off9 ? "#8fc98f" : hpCol9(hpR);
+    return (
+      <div className="scr-motion-infodock-one">
+        <div className="scr-motion-infodock-pic">
+          {silIcon9(en, bld9, col9, "scr-motion-infodock-big")}
+          <div className="scr-motion-infodock-nums">
+            <span style={{ color: col9 }}>{off9 ? "–" : `${hpCur}/${hpOnly}`}</span>
+            {sh > 0 && !off9 && <span className="is-sh">{`${shCur}/${sh}`}</span>}
+            {en9 !== null && <span className="is-en">{`${en9}/${enMax9}`}</span>}
+          </div>
+        </div>
+        <div className="scr-motion-infodock-text">
+          <div className="scr-motion-infodock-name">{ko}</div>
+          {kills9 !== null && <div className="scr-motion-info-line">{`처치 ${kills9}`}</div>}
+          {lines}
+        </div>
+        {side9 && <div className="scr-motion-infodock-side">{side9}</div>}
+      </div>
+    );
+  };
+  const infoDock9 = (
+    <div
+      className={cx("scr-motion-infodock", dockFold9 && "is-fold")}
+      onPointerDown={(e) => e.stopPropagation()}
+      onWheel={(e) => e.stopPropagation()}
+    >
+      <div className="scr-motion-infodock-cap" aria-live="polite">
+        {castCap9 && (
+          <span key={castCap9.key} className="scr-motion-castcap">
+            <span className="scr-motion-castcap-who">
+              <i className="scr-motion-castdot" style={{ background: castCap9.col }} aria-hidden />
+              {castCap9.text}
+            </span>
+            {castCap9.ghosts.map((g9, i9) => (
+              <span key={i9} className="scr-motion-castcap-who scr-motion-castcap-ghost" aria-hidden>
+                <i className="scr-motion-castdot" aria-hidden />
+                {g9}
+              </span>
+            ))}
+            <span className="scr-motion-castcap-lab">일꾼</span>
+            <span className="scr-motion-castcap-lab">자원</span>
+            <span className="scr-motion-castcap-lab">인구</span>
+            <span className="scr-motion-castcap-lab">K/D</span>
+            <span className="scr-motion-castcap-lab">APM</span>
+            <span className="scr-motion-castcap-val">{castCap9.worker ?? "–"}</span>
+            <span className="scr-motion-castcap-val">
+              <span className="scr-motion-stat-min">{castCap9.res ? castCap9.res[0] : "–"}</span>
+              <span className="scr-motion-castcap-sl">/</span>
+              <span className="scr-motion-stat-gas">{castCap9.res ? castCap9.res[1] : "–"}</span>
+            </span>
+            <span className="scr-motion-castcap-val">{castCap9.sup ? `${castCap9.sup[0]}/${castCap9.sup[1]}` : "–"}</span>
+            <span className="scr-motion-castcap-val">{castCap9.kd ? `${castCap9.kd[0]}/${castCap9.kd[1]}` : "–"}</span>
+            <span className="scr-motion-castcap-val">{castCap9.apm ?? "–"}</span>
+          </span>
+        )}
+        <button
+          type="button" className="scr-motion-infodock-fold"
+          aria-label={dockFold9 ? "인포창 펼치기" : "인포창 접기"} aria-pressed={dockFold9}
+          onClick={() => setDockFold9((v) => !v)}
+        >
+          {dockFold9 ? "▴" : "▾"}
+        </button>
+      </div>
+      {!dockFold9 && (
+        <div className="scr-motion-infodock-body" key={dockOps9.length === 1 ? dockOps9[0].pickKey : `n${dockOps9.length}`}>
+          {dockOps9.length === 1 ? dockOne9(dockOps9[0])
+            : dockOps9.length > 1 ? (
+              <div className="scr-motion-infodock-grid">
+                {Array.from({ length: 12 }, (_, k) => {
+                  const o9 = dockOps9[k];
+                  if (!o9) return <span key={k} className="scr-motion-infodock-cell is-empty" />;
+                  const r9 = (o9 as { offView?: boolean }).offView ? 0.9 : (o9.hpFrac ?? 1);
+                  return (
+                    <button
+                      key={o9.pickKey ?? k} type="button" className="scr-motion-infodock-cell"
+                      title={o9.pickBld ? BUILDING_KO[o9.pickName ?? ""] ?? o9.pickName : UNIT_KO[o9.pickName ?? ""] ?? o9.pickName}
+                      style={{ borderColor: hpCol9(r9) }}
+                      onClick={() => { if (o9.pickKey) setPicked(o9.pickKey); }}
+                    >
+                      {silIcon9(o9.pickName ?? "", !!o9.pickBld, hpCol9(r9), "scr-motion-infodock-gico")}
+                    </button>
+                  );
+                })}
+              </div>
+            )
+              : <div className="scr-motion-infodock-empty">유닛이나 건물을 누르면 여기에 정보가 떠요</div>}
+        </div>
+      )}
+    </div>
+  );
   const mapNode = (
         <div
           /* ★ 준비될 때까지 판을 **안 보인다**(요청: "처음에 미니맵 전체 보였다가 모델들과
@@ -15954,375 +16347,6 @@ export default function ReplayMotionPlayer({
             opsRef.current = unitOps;
             miniExtraRef.current = frame9.miniExtra;
             return null;
-          })()}
-          {(() => {
-            if (!picked) return null;
-            const op = unitOps.find((o) => o.pickKey === picked);
-            // 죽거나 무너져 이번 프레임에 없으면 팝업도 닫힌 것처럼 사라진다.
-            if (!op) return null;
-            const en = op.pickName ?? "";
-            const ko = op.pickBld ? BUILDING_KO[en] ?? en : UNIT_KO[en] ?? en;
-            const max = op.hpMax ?? 0;
-            const cur = Math.max(0, Math.round((op.hpFrac ?? 1) * max));
-            const sh = op.pickBld ? (BLD_STATS[en]?.[1] ?? 0) : (UNIT_STATS[en]?.sh ?? 0);
-            const lines: React.ReactNode[] = [];
-            /* 진행 바(요청: 스타 원작처럼 칸 수를 따라) — 원작 진행 바는 통짜가 아니라
-               칸이 하나씩 차오른다. 열 칸으로 나눠 채운 만큼만 밝힌다. */
-            const bar = (label: string, p9: number, col = "#6fe36f"): React.ReactNode => (
-              <div className="scr-motion-info-prog" key={`${label}${p9.toFixed(2)}`}>
-                <span className="scr-motion-info-line">{label}</span>
-                <span className="scr-motion-info-bar">
-                  {Array.from({ length: 10 }, (_, k) => (
-                    <i
-                      key={k}
-                      className={k < Math.round(p9 * 10) ? "is-on" : undefined}
-                      style={k < Math.round(p9 * 10) ? { background: col } : undefined}
-                    />
-                  ))}
-                </span>
-              </div>
-            );
-            /* 걸린 마법은 제 줄에 효과까지(요청) — 무엇에 걸렸는지보다 '그래서 어떻게
-               되는가'가 읽는 사람이 알고 싶은 것이다. */
-            if (op.pickStatus && STATUS_FX[op.pickStatus]) {
-              const sfx = STATUS_FX[op.pickStatus];
-              lines.push(
-                <div className="scr-motion-info-line" key="fx" style={{ color: sfx.col }}>
-                  {`${STATUS_KO[op.pickStatus] ?? op.pickStatus} — ${sfx.fx}`}
-                </div>,
-              );
-            }
-            if (op.pickState) {
-              // 건설·변태도 글 대신 칸 바로(요청).
-              const m9 = /(\d+)%$/.exec(op.pickState);
-              if (m9) lines.push(bar(op.pickState.replace(/\s*\d+%$/, ""), Number(m9[1]) / 100));
-              else lines.push(op.pickState);
-            }
-            /* 실드는 따로 한 줄(요청) — 원작은 실드부터 깎이므로, 남은 값이 체력 몫을
-               넘으면 그 초과분이 곧 남은 실드다. */
-            /* 체력·실드도 원작 색을 따른다(요청: 실드 흰색·체력 연녹색 등 게임 테마를
-               충실히) — 원작 체력 바는 가득하면 연녹, 절반 아래로 노랑, 3분의 1 아래로
-               빨강이다. 실드는 그 위에 흰(옅은 하늘) 칸으로 얹힌다. */
-            const hpOnly = Math.max(1, max - sh);
-            const hpCur = Math.min(cur, hpOnly);
-            const hpR = hpCur / hpOnly;
-            /* 체력·실드는 **숫자만**(요청: "인포팝업의 체력바 제거 숫자만 표시") — 열 칸 바는
-               걷고 글자만 남긴다. 색은 원작 체력 바의 세 단(연녹·노랑·빨강)을 글자에 그대로 입혀
-               위험한 정도는 여전히 한눈에 읽힌다. 진행 바(건설·연구·생산)는 그대로다. */
-            lines.push(
-              <div className="scr-motion-info-line" key="hp"
-                style={{ color: hpR > 0.5 ? "#7ee07e" : hpR > 0.33 ? "#e8d94a" : "#e05a4a" }}>
-                {`체력 ${hpCur} / ${hpOnly}`}
-              </div>,
-            );
-            if (sh > 0) {
-              const shCur = Math.max(0, cur - hpOnly);
-              lines.push(<div className="scr-motion-info-line" key="sh" style={{ color: "#f2f6ff" }}>{`실드 ${shCur} / ${sh}`}</div>);
-            }
-            if (op.pickBld && op.pickWip) {
-              /* 짓는 중인 건물은 아무 일도 못 한다(요청: "건설중 건물에 생산중이나 큐가
-                 있으면 안돼 / 업그레이드 진행도 물론") — 원작에서 미완성 건물은 아직
-                 명령을 받지 않는다. 여태 이 갈래가 없어서, 착공 자리 언저리에서 나온
-                 옛 생산 기록이 짓는 중인 새 건물에도 그대로 붙어 '생산 중'·'큐'가 떴다.
-                 상태 줄(건설 중 NN%)과 체력만 남기고 여기서 끝낸다. */
-            } else if (op.pickBld) {
-              /* 생산·연구·큐(요청) — 생산 기록은 '완성 시각'이라, 지금 창 안이면 방금
-                 나온 것, 앞엣것은 큐로 읽는다(무엇이 언제 나오는지가 그대로 큐다). */
-              /* 이 건물에서 나온 것만(지적: 라바 변태 기록이 해처리끼리 공유된다) —
-                 출생 자리가 이 발자국 언저리인 것만 센다. 건물 태그를 아는 생산은 발자국
-                 원점에, 라바처럼 모르는 생산은 발자국 아래 출구에 꽂히므로 두 규약을 다
-                 담게 아래로 한 뼘 더 넓힌다. 자리를 모르는 옛 자취(출생 증거가 없는 것)는
-                 사람별 표로 물러난다 — 안 그러면 팝업이 통째로 비어 버린다. */
-              const fp9 = FOOTPRINT[en] ?? [4, 3];
-              const bx9 = op.pickX;
-              const by9 = op.pickY;
-              /* 낳은 자리가 **누구 것인가**(지적: "인포팝업에 다른 건물의 생산이 공유돼서
-                 생산바가 여러개 나옴") — 여태 '내 발자국 ±1.5타일 창 안'이면 다 내 것으로
-                 셌다. 배럭 둘이 나란히 서면 두 창이 3타일이나 겹쳐, 옆 건물이 뽑은 것이
-                 양쪽 팝업에 함께 떴다. 창은 그대로 두되(자리가 정확히 안 남는 생산이
-                 있다) 겹치는 자리는 **더 가까운 건물이 가져간다** — 같은 사람의, 그때
-                 서 있던, 그 유닛을 뽑을 수 있는 건물들끼리만 견준다. */
-              const nearer9 = (rx: number, ry: number, u: string): boolean => {
-                if (bx9 === undefined || by9 === undefined) return true;
-                const myD = Math.hypot(rx - (bx9 + fp9[0] / 2), ry - (by9 + fp9[1] / 2));
-                for (const [os9, ox9, oy9, ou9, or9, og9] of buildsSrc) {
-                  if (or9 !== op.pickRaw) continue;
-                  if (ox9 === bx9 && oy9 === by9) continue;           // 나 자신
-                  if (os9 > t || ((og9 ?? 0) > 0 && t >= (og9 ?? 0))) continue;
-                  if (!(PRODUCED_BY[ou9] ?? []).includes(u)) continue;
-                  const of9 = FOOTPRINT[ou9] ?? [4, 3];
-                  const d9 = Math.hypot(rx - (ox9 + of9[0] / 2), ry - (oy9 + of9[1] / 2));
-                  if (d9 < myD - 0.01) return false;                  // 더 가까운 임자가 있다
-                }
-                return true;
-              };
-              const mine9 = bx9 === undefined || by9 === undefined ? null
-                : (prodDoneAt.get(op.pickRaw ?? "") ?? []).filter((r9) =>
-                  r9.x >= bx9 - 1.5 && r9.x <= bx9 + fp9[0] + 1.5
-                  && r9.y >= by9 - 1.5 && r9.y <= by9 + fp9[1] + 2
-                  && nearer9(r9.x, r9.y, r9.u));
-              const evs: [number, string, number][] = [];
-              const kinds9 = new Set(PRODUCED_BY[en] ?? []);
-              if (mine9 && mine9.length > 0) {
-                for (const r9 of mine9) {
-                  if (!kinds9.has(r9.u)) continue;
-                  evs.push([r9.s, UNIT_KO[r9.u] ?? r9.u, UNIT_BUILD_SEC[r9.u] ?? 30]);
-                }
-              } else {
-                for (const u of PRODUCED_BY[en] ?? []) {
-                  const sec = UNIT_BUILD_SEC[u] ?? 30;
-                  for (const ps of prodDoneByRaw.get(op.pickRaw ?? "")?.[u] ?? []) evs.push([ps, UNIT_KO[u] ?? u, sec]);
-                }
-              }
-              evs.sort((a, b) => a[0] - b[0]);
-              /* 진행률(요청) — 리플레이에 남는 건 완성 시각뿐이라, 거기서 생산 시간을
-                 빼 시작을 되짚는다. 지금이 그 사이면 '생산 중 NN%'다. */
-              /* 건물은 한 번에 **하나만** 뽑는다(지적: 생산바가 여러 개) — 자리로 가른
-                 뒤에도 자리를 모르는 옛 생산이 사람별 표에서 흘러들 수 있고, 그때는
-                 같은 창에 여럿이 걸린다. 가장 먼저 나올 것 하나만 바로 세우고 나머지는
-                 아래 큐 칸으로 내려보낸다 — 원작 생산 패널이 그 꼴이다. */
-              const making = evs
-                .filter(([ps, , sec]) => t < ps && t >= ps - sec)
-                .sort((a, b) => a[0] - b[0])
-                .slice(0, 1);
-              /* ★ 큐는 **지금 뽑는 것에 이어지는 것들**뿐이다(지적: "인포팝업 큐 넘어감
-                 구현이 안돼있는듯") ────────────────────────────────────────────────
-                 여태는 '아직 시작 안 한 것' 전부에서 앞 넷을 잘랐다. 그러면 몇 분 뒤에
-                 나올 유닛까지 늘 네 칸을 채우고 앉아 있어, 앞의 것이 완성돼도 칸이 그대로
-                 남는다 — 그래서 '안 넘어간다'로 보였다.
-                 원작의 큐는 **줄줄이 이어 뽑는 것들**이다: 앞의 것이 나오는 순간 다음
-                 것이 시작한다. 그러니 앞 것의 완성 시각과 다음 것의 시작 시각이 맞물리는
-                 동안만 한 줄이고, 사이가 뜨면 거기서 끊는다(그 뒤는 그때 가서 누른
-                 것이지 지금 줄 서 있는 것이 아니다). 이러면 앞의 것이 완성될 때마다
-                 칸이 하나씩 앞으로 당겨진다. */
-              const chain9 = [...evs].sort((a, b) => a[0] - b[0]);
-              const queue: [number, string, number][] = [];
-              {
-                const headEnd9 = making.length > 0 ? making[0][0] : t;
-                let prevEnd9 = headEnd9;
-                for (const ev9 of chain9) {
-                  if (ev9[0] <= headEnd9) continue;              // 이미 나왔거나 지금 뽑는 것
-                  if (ev9[0] - ev9[2] > prevEnd9 + 1.5) break;   // 사이가 뜨면 줄이 아니다
-                  queue.push(ev9);
-                  prevEnd9 = ev9[0];
-                  if (queue.length >= 4) break;
-                }
-              }
-              const justOut = evs.filter(([ps]) => ps <= t && t - ps <= PROD_FLASH_SEC);
-              /* ★ 유닛을 못 뽑는 건물에는 생산 줄을 아예 안 쓴다(지적: "업글건물에
-                 생산대기가 뜸") — 엔지니어링 베이·포지·에볼루션 챔버 같은 연구 전용
-                 건물은 PRODUCED_BY에 아무것도 없어서, 위 evs가 늘 비고 그래서 '생산
-                 대기'만 떴다. 그 건물은 애초에 뽑을 것이 없으니 대기랄 것도 없다 —
-                 아래 '연구 중'이 뜨거나, 아무 일도 안 하면 아무 줄도 안 뜬다. */
-              if ((PRODUCED_BY[en] ?? []).length > 0) {
-                if (making.length > 0) {
-                  for (const [ps, n, sec] of making) {
-                    lines.push(bar(`생산 중 ${n}`, Math.min(0.99, (t - (ps - sec)) / sec)));
-                  }
-                } else if (justOut.length > 0) {
-                  lines.push(`생산 완료 ${justOut.map(([, n]) => n).join(" · ")}`);
-                } else lines.push("생산 대기");
-              }
-              /* 큐는 **바가 없고 칸이 옆으로 늘어선다**(요청: "큐 목록은 바가 없어야되고
-                 4칸인가 큐된 목록이 옆으로 쭉 나오면 돼") — 원작 생산 패널이 그렇다:
-                 지금 뽑는 것 하나만 진행 바를 갖고, 뒤에 선 것들은 칸에 담겨 옆으로
-                 늘어선다. 남은 초는 안 적는다 — 좁은 칸에 숫자까지 넣으면 이름이 잘린다. */
-              if (queue.length > 0) {
-                lines.push(
-                  <div className="scr-motion-info-queue" key="queue">
-                    <span className="scr-motion-info-line">큐</span>
-                    <span className="scr-motion-info-slots">
-                      {queue.map(([ps, n], qi) => <i key={`${ps}${qi}`}>{n}</i>)}
-                    </span>
-                  </div>,
-                );
-              }
-              /* ★ 연구 중 — 표는 **연구 이름 → 그 연구를 하는 건물**인데 여태 건물
-                 이름으로 뒤지고 있었다(RESEARCH_BUILDING["Engineering Bay"]는 없다).
-                 그래서 이 줄은 어느 건물에서도 한 번도 안 떴다 — 업그레이드 건물이
-                 '생산 대기'만 달고 서 있던 나머지 절반이다.
-                 라바 계보(해처리·레어·하이브)는 세 이름이 같은 연구를 하므로 홀 이름
-                 하나로 모아서 견준다.
-                 ★ **대표 건물에만 적는다**(지적: "업그레이드 상황이 같은 종류의 건물
-                   인포팝업에 공통으로 뜨는 현상") — 견주는 자가 임자와 종류뿐이라, 포지가
-                   셋이면 셋 다 같은 연구를 띄웠다. 연구 기록(ups)에 건물이 안 남으므로
-                   어느 포지인지는 원리적으로 모른다: 아는 척하는 대신 하나만 고른다.
-                   태그가 실려 오면(덤프 판 7) 그 건물 하나만, 안 실려 오면 지도와 같은
-                   대표 어림으로 — 어느 쪽이든 **불이 든 건물과 연구가 적히는 건물이 같다**.
-                   여태는 불은 하나인데 팝업은 전부라 서로 다른 말을 하고 있었다.
-                 ★ 창의 **방향도 바로잡는다**(같은 결의 어긋남) — 지도는 진작 [us−90, us]로
-                   뒤집었는데(그쪽 주석: us는 연구가 **끝난** 시각이다) 팝업만 옛 [us, us+90]
-                   그대로였다. 그래서 팝업은 연구가 끝난 **뒤** 90초 동안 '연구 중'이라고
-                   적었다 — 정확히 한 연구 길이만큼 늦은 말이다. 진행률도 함께 뒤집는다:
-                   남은 시간(us − t)이 줄수록 차오른다. */
-              const hall9 = en === "Lair" || en === "Hive" ? "Hatchery" : en;
-              const doing = (upsByRaw.get(op.pickRaw ?? "") ?? []).filter(([us, n, utag]) =>
-                RESEARCH_BUILDING[n] === hall9 && t < us && us - t <= RESEARCH_SEC
-                && (utag > 0 && op.pickTag !== undefined
-                  ? utag === op.pickTag : op.pickRep !== false));
-              for (const [us, n] of doing) {
-                lines.push(bar(`연구 중 ${researchKo(n)}`,
-                  Math.min(0.99, (RESEARCH_SEC - (us - t)) / RESEARCH_SEC)));
-              }
-            } else {
-              /* 그 유닛에 실제로 걸리는 공/방 줄만 레벨로 보여 준다(요청: 인게임보다
-                 풍부하게 — 해당 유닛의 업그레이드 상태). 줄 고르기는 종족과 공중 여부,
-                 테란만 보병/메카닉 갈래를 더 본다. */
-              const race9 = bases.find((b) => b.key === op.pickRaw)?.race ?? "";
-              const pairs = ARMOR_WEAPON_PAIRS[race9] ?? [];
-              const air9 = isAirUnit(en);
-              const infantry9 = new Set(["Marine", "Firebat", "Medic", "Ghost", "SCV"]);
-              const melee9 = new Set(["Zergling", "Ultralisk", "Broodling", "Drone"]);
-              const pick9 = pairs.find((pr) => {
-                const w = pr.weapon;
-                if (race9 === "테란") {
-                  return air9 ? w === "Terran Ship Weapons"
-                    : infantry9.has(en) ? w === "Terran Infantry Weapons" : w === "Terran Vehicle Weapons";
-                }
-                if (race9 === "저그") {
-                  return air9 ? w === "Zerg Flyer Attacks"
-                    : melee9.has(en) ? w === "Zerg Melee Attacks" : w === "Zerg Missile Attacks";
-                }
-                return air9 ? w === "Protoss Air Weapons" : w === "Protoss Ground Weapons";
-              });
-              const lv = (name: string): number =>
-                (upsByRaw.get(op.pickRaw ?? "") ?? []).filter(([us, n]) => n === name && us <= t).length;
-              /* 공방실속사(요청: "공방실드속업사업은 이름 말고 이해하기 쉽게 공방실속사로")
-                 — 이름을 늘어놓으면 좁은 팝업에서 두세 줄이 되고, 정작 궁금한 '몇 단계인가'
-                 는 이름 뒤에 숨는다. 한 글자 + 숫자로 접으면 한 줄에 다 든다:
-                   공2 방1  … 그 유닛에 걸리는 공/방 줄의 단계
-                   실2      … 프로토스만(실드는 종족 전체에 걸린다)
-                   속 사    … 속업·사업은 단계가 없으므로 글자만 켠다
-                 어느 줄(보병/메카닉/저글링/히드라…)인지는 팝업 제목이 곧 그 유닛이라
-                 말할 필요가 없다(줄 이름표 UPGRADE_LINE_KO는 통계 화면 쪽에 남는다). */
-              const upBits: string[] = [];
-              if (pick9) upBits.push(`공${lv(pick9.weapon)}`, `방${lv(pick9.armor)}`);
-              if (race9 === "프로토스") upBits.push(`실${lv(PLASMA_SHIELD_UPGRADE)}`);
-              /* ★ 그 유닛에 **실제로 걸리는** 연구만(지적: "유닛 인포팝업에 다른 유닛의
-                 업그레이드까지 뜸") — 여태는 임자가 마친 것 중 공/방이 아닌 것을 전부
-                 늘어놓아, 마린을 눌러도 저글링 속업이 떴다. 이제 연구마다 걸리는 유닛을
-                 적은 표(UPGRADE_UNITS)로 거른다. 표에 없는 이름은 안 띄운다 — 모르면
-                 지어내지 않는다. 공/방은 위 줄이 단계까지 따로 말한다. */
-              const other = (upsByRaw.get(op.pickRaw ?? "") ?? []).filter(([us, n]) =>
-                us <= t
-                && n !== PLASMA_SHIELD_UPGRADE
-                && !pairs.some((pr) => pr.weapon === n || pr.armor === n)
-                && (UPGRADE_UNITS[n] ?? []).includes(en));
-              /* 속·사는 위 한 줄로 접고, 나머지는 이름 그대로 남긴다(요청: 공방실속사) —
-                 에너지업·시야업까지 한 글자로 접으면 무엇인지 알 수가 없다. 이름은 그
-                 유닛의 것이 자명하므로 유닛 이름을 뗀 딱지(UNIT_UPGRADE_TAG)를 쓰고,
-                 표에 없는 것만 연구 이름표(researchKo)로 떨어진다. */
-              const rest9: string[] = [];
-              for (const [, n] of other) {
-                const tag9 = UNIT_UPGRADE_TAG[n as keyof typeof UNIT_UPGRADE_TAG]?.tag;
-                const one9 = tag9 ? UPGRADE_ONE_LETTER[tag9] : undefined;
-                if (one9) { if (!upBits.includes(one9)) upBits.push(one9); }
-                else rest9.push(tag9 ?? researchKo(n));
-              }
-              if (upBits.length > 0) lines.push(upBits.join(" "));
-              if (rest9.length > 0) lines.push(`연구 완료 ${rest9.slice(-6).join(" · ")}`);
-            }
-            const el = mapRef.current;
-            const w9 = el?.clientWidth ?? 1;
-            const h9 = el?.clientHeight ?? 1;
-            /* ★ 물리는 자리는 지도가 아니라 **보이는 창**이다(지적: "모바일 전체화면에서
-               인포팝업 클램프가 안 되는듯 화면 밖으로 나가서 뜸") ──────────────────────
-               전체화면에서 지도는 무대보다 **크게(cover)** 깔리고, 자르는 일은 무대가
-               맡는다(위 mapNode의 fsCoverW 주석: "지도를 화면보다 크게 깔고 자르는 일은
-               무대에"). 그런데 아래 물림자는 지도 상자(w9·h9)였다 — 잘려 나간 바깥까지
-               '자리 있음'으로 세니, 가장자리 유닛을 누르면 팝업이 크롭된 자리에 앉아
-               화면 밖이 된다. 지도비와 화면비가 많이 다른 폰일수록 그 몫이 커진다
-               (세로 폰에서 정사각 맵이면 좌우로 각각 수백 px이 창 밖이다).
-               두 상자의 실제 사각형으로 겹치는 창을 낸다. 지도는 무대 한가운데에 앉으므로
-               (left/top 50% + translate(-50%, -50%)) 넘치는 몫이 좌우·위아래로 반씩이고,
-               그 반씩이 여기서 vx0·vy0로 잡힌다. 프레임 모드는 덮는 몫이 0이라 vx0·vy0가
-               0, vx1·vy1이 w9·h9가 되어 예전 식과 한 톨도 안 달라진다.
-               지도 상자에 걸린 변환은 이동(translate)뿐이라 사각형 폭이 clientWidth와
-               같다 — 눕힌 보기의 회전은 이 상자가 아니라 안쪽 렌즈가 진다. */
-            const mr9 = el?.getBoundingClientRect();
-            const sr9 = stageRef.current?.getBoundingClientRect();
-            const vx09 = mr9 && sr9 ? Math.max(0, sr9.left - mr9.left) : 0;
-            const vx19 = mr9 && sr9 ? Math.min(w9, sr9.right - mr9.left) : w9;
-            const vy09 = mr9 && sr9 ? Math.max(0, sr9.top - mr9.top) : 0;
-            const vy19 = mr9 && sr9 ? Math.min(h9, sr9.bottom - mr9.top) : h9;
-            const lx = ((op.fx - 0.5) * zoom + 0.5) * w9 + pan.x;
-            /* 세로는 **그린 몸**에 맞춘다(같은 지적 결) — op.fy는 발밑 자리라, 공중
-               유닛처럼 들려 그려지는 몸은 팝업이 몸 아래를 겨눴다. 들기 식은 판정
-               (pickAt)·그리기(UnitLayer)와 같은 것을 쓴다. */
-            const pxU9 = op.sizePx * zoom;
-            const liftU9 = op.wFrac !== undefined
-              ? (op.airPx !== undefined ? op.airPx * zoom : (op.liftK ?? 0) * op.wFrac * w9 * zoom)
-              : (op.air ? (op.airPx ?? 0) * zoom : 0) + (op.rise ?? 0) * pxU9;
-            const ly = ((op.fy - 0.5) * zoom + 0.5) * h9 + pan.y - liftU9;
-            /* 팝업은 지도 밖으로 안 나간다(지적: "나오는 위치도 이상함 · 미니맵 내부로
-               제한") — 여태는 마커 자리에 그대로 띄워, 가장자리 유닛을 누르면 상자가
-               지도 밖(또는 화면 밖)으로 반쯤 잘려 나갔다.
-               폭은 CSS가 못 박은 값이라 여기서 그대로 쓸 수 있고,
-               높이는 줄 수로 어림한다(막대 줄은 두 줄 몫). 위로 띄울 자리가 모자라면
-               마커 아래로 뒤집는다 — 지도 위쪽 유닛이 그 경우다. */
-            const PAD9 = 6;
-            /* 폭은 CSS가 못 박은 값(116 + 좌우 여백 18)이다(요청: "정보팝업 모달 너비
-               반으로 축소") — 232에서 절반으로 줄였으니 여기 상한도 절반이다. */
-            const PW9 = Math.min(134, vx19 - vx09 - PAD9 * 2);
-            const barN9 = lines.filter((ln) => typeof ln !== "string").length;
-            const PH9 = 28 + (lines.length - barN9) * 17 + barN9 * 26;
-            /* ★ 팝업은 **집은 몸을 안 가린다**(지적: "인포팝업위치가 유닛이나 건물을
-               가려서 안가리게 위치 조정해줘") ────────────────────────────────────
-               여태는 마커 바로 위(위가 좁으면 바로 아래)에 **가운데 맞춤**으로 떴다.
-               곧 팝업의 한 변이 늘 몸에 붙어 있어서, 상자가 조금만 커지거나(생산 큐가
-               붙으면 열 줄이 넘는다) 배율이 낮으면 집은 몸을 그대로 덮었다.
-               이제 **옆으로** 비킨다: 몸의 화면 반지름만큼 띄워 오른쪽에 세우고,
-               오른쪽에 자리가 없으면 왼쪽으로 넘긴다. 둘 다 안 되는 좁은 화면에서만
-               예전처럼 위·아래로 물러난다. 세로는 몸 높이에 맞춰 가운데다.
-               ★ 몸의 화면 크기는 **집는 판정(pickAt)과 같은 식**으로 잰다 — 두 자가
-                 갈리면 '눌러서 잡히는 몸'과 '피해 서는 몸'이 서로 다른 것이 된다. */
-            /* ★ 비키는 거리는 **몸(잉크) 폭**이지 상자 폭이 아니다(지적: "인포팝업 너무
-               멀리 뜸 특히 고배율일수록") — op.sizePx는 그리는 **상자**라 실제 보이는
-               몸은 그 3분의 1 남짓이다(MODEL_INK). 상자로 재면 배율이 커질수록 그 차이가
-               그대로 벌어져, 16배에서는 팝업이 몸에서 한참 떨어진 허공에 떴다.
-               건물은 발자국 상자가 곧 몸이라 종전대로다. 그래도 아주 높은 배율에서는
-               '가리지 않을 만큼'이면 충분하므로 벌어짐에 상한을 둔다. */
-            const bodyW9 = op.wFrac !== undefined
-              ? Math.max(op.wFrac, op.hFrac ?? 0) * w9 * zoom
-              : op.sizePx * (modelInkOf(op.kind) / 16) * zoom;
-            const halfB9 = Math.min(72, Math.max(10, bodyW9 * 0.5) + 8);
-            const rightX9 = lx + halfB9 + PW9 / 2;
-            const leftX9 = lx - halfB9 - PW9 / 2;
-            /** 옆으로 설 자리가 있나 — 오른쪽 먼저, 없으면 왼쪽. */
-            const side9 = rightX9 + PW9 / 2 <= vx19 - PAD9 ? 1
-              : leftX9 - PW9 / 2 >= vx09 + PAD9 ? -1 : 0;
-            const cx9 = side9 === 1 ? rightX9 : side9 === -1 ? leftX9
-              : Math.min(Math.max(lx, vx09 + PW9 / 2 + PAD9), vx19 - PW9 / 2 - PAD9);
-            /* 옆에 설 때는 세로 가운데, 위아래로 물러날 때만 종전처럼 몸 위(아래)다. */
-            const flip9 = side9 === 0 && ly - PH9 - 14 < vy09 + PAD9;
-            const cy9 = side9 !== 0
-              ? Math.min(Math.max(ly, vy09 + PH9 / 2 + PAD9), vy19 - PH9 / 2 - PAD9)
-              : flip9
-                ? Math.min(ly, vy19 - PH9 - 14 - PAD9)
-                : Math.min(Math.max(ly, vy09 + PH9 + 14 + PAD9), vy19 - PAD9);
-            return (
-              <div
-                /* ★ 집은 몸이 바뀌면 상자를 **새로 세운다**(지적: "인포 팝업을 연속으로 열 때 기존 팝업 글자가 남아서
-                   섞여 보인다") — 여태 상자 하나를 되쓰며 글자만 갈았다. 이 상자는 backdrop-filter(블러) 층이라
-                   자리와 글자가 같은 프레임에 바뀌면 합성기가 옛 글자 판을 한 박자 더 비춰 새 글자와 겹쳐 보였다.
-                   열쇠를 집은 몸으로 두면 다른 몸을 집는 순간 DOM이 통째로 새것이라 옛 판이 남을 데가 없다. */
-                key={picked}
-                className="scr-motion-info"
-                style={{
-                  left: Math.round(cx9),
-                  top: Math.round(cy9),
-                  ...(side9 !== 0
-                    ? { transform: "translate(-50%, -50%)" }
-                    : flip9 ? { transform: "translate(-50%, 14px)" } : {}),
-                }}
-                onPointerDown={(e) => e.stopPropagation()}
-              >
-                <div className="scr-motion-info-name">{ko}</div>
-                {lines.map((ln, li) => (typeof ln === "string"
-                  ? <div key={li} className="scr-motion-info-line">{ln}</div>
-                  : <React.Fragment key={li}>{ln}</React.Fragment>))}
-              </div>
-            );
           })()}
           {/* ★ 전장의 안개 — **유닛 캔버스 바로 위**다(지적: "크립이 안개를 안먹는
               문제"). 처음에는 지도 배경 위(렌즈 안)에 두었는데, 크립·자원·잔상 건물처럼
@@ -16731,39 +16755,7 @@ export default function ReplayMotionPlayer({
               안 받으므로 자막이 끌 때 따라 움직이지 않는다(품질 알림과 같은 사정).
               **상시**다(되요청: "토스터가 아니라 계속 노출로 변경") — 중계가 켜진 동안 한 줄이 늘 서 있고
               토막이 갈리면 key 가 바뀌어 새 글귀가 떠오른다. */}
-          {castCap9 && (
-            <div className="scr-motion-castbar" aria-live="polite">
-              {/* 표 한 장 — 첫 칸(색점 + 이름)은 두 줄을 다 차지하고, 지표 넷은 위 줄 작은 라벨 · 아래 줄 값이다.
-                  광물/가스는 로스터와 같은 색 클래스(scr-motion-stat-min/gas)를 물려받는다. */}
-              <span key={castCap9.key} className="scr-motion-castcap">
-                <span className="scr-motion-castcap-who">
-                  <i className="scr-motion-castdot" style={{ background: castCap9.col }} aria-hidden />
-                  {castCap9.text}
-                </span>
-                {/* 같은 칸에 숨긴 이름표 전부 — 칸 폭을 미리 잡는다(위 capGhosts9). */}
-                {castCap9.ghosts.map((g9, i9) => (
-                  <span key={i9} className="scr-motion-castcap-who scr-motion-castcap-ghost" aria-hidden>
-                    <i className="scr-motion-castdot" aria-hidden />
-                    {g9}
-                  </span>
-                ))}
-                <span className="scr-motion-castcap-lab">일꾼</span>
-                <span className="scr-motion-castcap-lab">자원</span>
-                <span className="scr-motion-castcap-lab">인구</span>
-                <span className="scr-motion-castcap-lab">K/D</span>
-                <span className="scr-motion-castcap-lab">APM</span>
-                <span className="scr-motion-castcap-val">{castCap9.worker ?? "–"}</span>
-                <span className="scr-motion-castcap-val">
-                  <span className="scr-motion-stat-min">{castCap9.res ? castCap9.res[0] : "–"}</span>
-                  <span className="scr-motion-castcap-sl">/</span>
-                  <span className="scr-motion-stat-gas">{castCap9.res ? castCap9.res[1] : "–"}</span>
-                </span>
-                <span className="scr-motion-castcap-val">{castCap9.sup ? `${castCap9.sup[0]}/${castCap9.sup[1]}` : "–"}</span>
-                <span className="scr-motion-castcap-val">{castCap9.kd ? `${castCap9.kd[0]}/${castCap9.kd[1]}` : "–"}</span>
-                <span className="scr-motion-castcap-val">{castCap9.apm ?? "–"}</span>
-              </span>
-            </div>
-          )}
+          {infoDock9}
         </div>
         {/* 떠 있는 아이콘 줄 — 전체화면에서는 **화면 뿌리**에 선다(위 mapBtnRow 주석):
             지도 상자는 화면보다 크게 깔려 잘리므로 그 구석이 화면 밖이다. */}

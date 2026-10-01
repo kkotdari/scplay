@@ -263,7 +263,8 @@ function makeWorld() {
     track(0, VESSEL, (s) => [40, 36 + Math.sin(s * 0.2), 0]);
     for (let e = 50; e <= 200; e += 1) energyRows.push([F(1 + (e - 50) * 1.3), vTag, e]);
     const army0 = armyTags.get(0) ?? [];
-    sels.push([F(44), 0, army0.slice(0, 8)]);
+    /* --dockship · --dockbunker 면 44초에 그 배 하나를 고른다(탄 몸 칸의 검산) · 아니면 병력 여덟(다중 격자). */
+    sels.push([F(44), 0, has("--dockship") ? [dsTag] : has("--dockbunker") ? [bkTag] : army0.slice(0, 8)]);
     sels.push([F(44.5), 2, (armyTags.get(2) ?? []).slice(0, 3)]);
   }
 
@@ -683,7 +684,7 @@ if (has("--pickshot")) {
   const bx9 = await page.evaluate(() => {
     const q = (s) => { const el = document.querySelector(s); if (!el) return null; const r = el.getBoundingClientRect();
       return { x: +r.left.toFixed(0), y: +r.top.toFixed(0), w: +r.width.toFixed(0), h: +r.height.toFixed(0), z: getComputedStyle(el).zIndex }; };
-    const m = q(".scr-motion-pickmenu"); const c = q(".scr-motion-castbar");
+    const m = q(".scr-motion-pickmenu"); const c = q(".scr-motion-infodock");
     /* 겹친 자리의 한가운데에서 맨 위 요소가 목록 안인가 — 그것이 곧 '가려지나'다. */
     let top = null;
     if (m && c) { const x0 = Math.max(m.x, c.x), x1 = Math.min(m.x + m.w, c.x + c.w), y0 = Math.max(m.y, c.y), y1 = Math.min(m.y + m.h, c.y + c.h);
@@ -701,7 +702,7 @@ if (has("--pickshot")) {
    "중계시(화면 주인의) 건물 선택시 인포팝업 뜨게 — 리플레이 기록상 선택한 경우"). --selpick 과 --track 정구 로 연다:
    44초에 홀을 고르고 50초에 딴 몸으로 갈아타므로 46초에는 떠 있고, 재생해 50초를 넘기면 닫혀야 한다. */
 if (has("--infoprobe")) {
-  const nm9 = () => page.evaluate(() => document.querySelector(".scr-motion-info-name")?.textContent ?? null);
+  const nm9 = () => page.evaluate(() => document.querySelector(".scr-motion-infodock-name")?.textContent ?? null);
   await page.waitForTimeout(2500);
   const a9 = await nm9();
   const shot9 = flag("--infoprobe", "");
@@ -747,7 +748,7 @@ if (has("--castprobe")) {
         const r = b.getBoundingClientRect(); const rn = nx?.getBoundingClientRect();
         return { w: +r.width.toFixed(1), h: +r.height.toFixed(1), idx: i, next: nx?.getAttribute("aria-label") ?? null,
           gap: rn ? +(rn.left - r.right).toFixed(1) : null, nextW: rn ? +rn.width.toFixed(1) : null }; })(),
-      box: (() => { const b = document.querySelector(".scr-motion-castbar"); const st = document.querySelector(".scr-fs-stage");
+      box: (() => { const b = document.querySelector(".scr-motion-infodock"); const st = document.querySelector(".scr-fs-stage");
         if (!b || !st) return null; const r = b.getBoundingClientRect(); const q = st.getBoundingClientRect();
         const lyr = document.querySelector(".scr-fs-layer");
         return { cx: +((r.left + r.width / 2 - q.left) / q.width).toFixed(3), bot: +(q.bottom - r.bottom).toFixed(0),
@@ -763,7 +764,7 @@ if (has("--castprobe")) {
         if (SHOT && seen9.length === 1) {
           await page.screenshot({ path: String(SHOT) });
           // 자막만 따로(라벨이 칸 가운데 위에 서나 · 칸 폭) — <shot>_cap.png
-          const cr9 = await page.evaluate(() => { const r = document.querySelector(".scr-motion-castbar")?.getBoundingClientRect(); return r ? { x: r.left, y: r.top, width: r.width, height: r.height } : null; });
+          const cr9 = await page.evaluate(() => { const r = document.querySelector(".scr-motion-infodock")?.getBoundingClientRect(); return r ? { x: r.left, y: r.top, width: r.width, height: r.height } : null; });
           if (cr9) await page.screenshot({ path: String(SHOT).replace(/\.png$/, "_cap.png"), clip: { x: cr9.x - 6, y: cr9.y - 6, width: cr9.width + 12, height: cr9.height + 12 } }).catch((e) => { console.log(`[중계] 자막 조각 실패 ${e?.message ?? e}`); });
         }
       }
@@ -837,7 +838,13 @@ if (has("--castprobe")) {
 if (has("--pickprobe")) {
   const rc9 = await page.evaluate(async () => {
     const wait = (ms) => new Promise((r) => { setTimeout(r, ms); });
-    if (document.querySelector(".scr-motion-castbtn-on")) { document.querySelector(".scr-motion-castbtn")?.click(); await wait(400); }
+    /* TV 단추는 이제 목록이다(사람들 + 자동 + 끄기) — 열고 '끄기'를 고른다(옛 판은 단추 한 번이 끄기였다 — 그래서 이 자가
+       한동안 중계를 못 끄고, 중계가 사람을 갈아탈 때마다 집은 몸이 닫혀 늘 null 이었다). */
+    if (document.querySelector(".scr-motion-castbtn-on")) {
+      document.querySelector(".scr-motion-castbtn")?.click(); await wait(300);
+      [...document.querySelectorAll(".scr-motion-pickitem")].find((el) => (el.textContent ?? "").trim().startsWith("끄기"))?.click();
+      await wait(400);
+    }
     const map = document.querySelector(".scr-motion-map");
     if (!map) return null;
     const r = map.getBoundingClientRect();
@@ -853,12 +860,12 @@ if (has("--pickprobe")) {
     for (let dy9 = -5; dy9 <= 3; dy9 += 1) for (let dx9 = -2; dx9 <= 2; dx9 += 1) {
       await page.mouse.click(rc9.l + ((106 + dx9) / 128) * rc9.w, rc9.t + ((18 + dy9) / 128) * rc9.h);
       await page.waitForTimeout(450);
-      const nm9 = await page.evaluate(() => document.querySelector(".scr-motion-info .scr-motion-info-name")?.textContent ?? null);
+      const nm9 = await page.evaluate(() => document.querySelector(".scr-motion-infodock .scr-motion-infodock-name")?.textContent ?? null);
       if (nm9) hits9.push(`${dx9},${dy9}:${nm9}`);
     }
     console.log("[집기 훑기]", hits9.join(" | ") || "없음");
   }
-  const pop9 = () => page.evaluate(() => { const p = document.querySelector(".scr-motion-info"); return p ? (p.querySelector(".scr-motion-info-name")?.textContent ?? "?") : null; });
+  const pop9 = () => page.evaluate(() => document.querySelector(".scr-motion-infodock .scr-motion-infodock-name")?.textContent ?? null);
   const tap9 = async (tx, ty) => {
     await page.mouse.click(rc9.l + (tx / 128) * rc9.w, rc9.t + (ty / 128) * rc9.h);
     await page.waitForTimeout(600);   // 더블탭 창(320ms)을 넘겨 다음 누름이 확대로 안 읽히게
@@ -881,6 +888,26 @@ if (SHOT) {
   await page.waitForTimeout(1500);
   // 특정 장면 맞추기(--wait ms) — 재생이 실시간이라, 몇 초 뒤 장면은 그만큼 기다려 찍는다.
   if (flag("--wait", null)) await page.waitForTimeout(Number(flag("--wait", 0)));
+  /* 화면 자리 누르기(--clickat x,y · CSS px) — 보는 사람이 몸을 누르는 길(인포창)을 진짜 마우스로 찍는다. */
+  if (flag("--clickat", null)) {
+    const [cx9, cy9] = String(flag("--clickat", "0,0")).split(",").map(Number);
+    console.log("[누름 앞]", JSON.stringify(await page.evaluate(() => { const d = document.querySelector(".scr-motion-infodock");
+      return d ? [getComputedStyle(d).position, d.className, [...document.styleSheets].length] : null; })));
+    await page.mouse.click(cx9, cy9);
+    await page.waitForTimeout(700);
+    console.log("[누름]", JSON.stringify(await page.evaluate(() => document.querySelector(".scr-motion-infodock-name")?.textContent ?? null)));
+    await page.waitForTimeout(1500);
+    console.log("[누름 뒤]", JSON.stringify(await page.evaluate(() => {
+      const d = document.querySelector(".scr-motion-infodock");
+      const r = d?.getBoundingClientRect();
+      return { dock: !!d, rect: r ? [r.left, r.top, r.width, r.height].map(Math.round) : null,
+        name: document.querySelector(".scr-motion-infodock-name")?.textContent ?? null,
+        err: document.querySelector(".scr-motion-nodata")?.textContent ?? null,
+        n: document.querySelectorAll(".scr-motion-infodock").length,
+        cs: d ? (({ position, bottom, width, transform }) => ({ position, bottom, width, transform }))(getComputedStyle(d)) : null,
+        par: d?.parentElement?.className ?? null, scroll: [window.scrollX, window.scrollY] };
+    })));
+  }
   // 전체화면 화면 검증(--fs) — 앱 제 버튼을 눌러 들어간다(좁은 배치는 여닫이,
   // 넓은 배치는 미니맵 위 토글). --fsidle이면 조작부가 저절로 숨을 때까지(3초) 둬서
   // 항시표시 로스터·햄버거 줄이 찍히게 한다.
