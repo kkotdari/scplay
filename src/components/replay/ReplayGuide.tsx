@@ -67,6 +67,7 @@ export default function ReplayGuide({ onClose }: {
         </p>
         <div className="scr-guide-mock">
           <div className="scr-guide-bar">
+            <span className="scr-guide-mbtn scr-guide-mbtn-txt" aria-hidden="true">×2</span>
             <span className="scr-guide-play" aria-hidden="true"><Play size={18} fill="currentColor"/></span>
             <span className="scr-guide-seek"/>
             <span className="scr-guide-time">12:04 / 31:12</span>
@@ -74,6 +75,7 @@ export default function ReplayGuide({ onClose }: {
             <span className="scr-guide-tbtn scr-guide-tbtn-share" aria-hidden="true"><Share2 size={15}/></span>
           </div>
           <ul className="scr-guide-legend">
+            <li><span className="scr-guide-ic scr-guide-ic-txt">×2</span><span><b>배속</b> — 재생 버튼 왼쪽. 누르면 위로 목록(×1·×2·×4·×8)이 펼쳐집니다. 교전 하나를 뜯어볼 땐 낮추고, 초반 빌드를 넘길 땐 올립니다.</span></li>
             <li><span className="scr-guide-ic"><Play size={14} fill="currentColor"/></span><span><b>재생 / 일시정지</b> — 스페이스와 같습니다. 끝까지 본 뒤 누르면 처음부터(↺).</span></li>
             <li><span className="scr-guide-ic scr-guide-ic-txt">↔</span><span><b>진행바</b> — 끌어서 원하는 시각으로. 좌우 화살표는 누르는 동안 계속 감깁니다.</span></li>
             <li><span className="scr-guide-ic"><Bookmark size={14}/></span><span><b>장면 스크랩</b> — 제목을 붙여 담아 둡니다. 담아 둔 장면은 <b>스크랩</b> 화면에서 다시 엽니다.</span></li>
@@ -89,22 +91,20 @@ export default function ReplayGuide({ onClose }: {
           <div className="scr-guide-toolrow">
             <span className="scr-guide-mbtn scr-guide-mbtn-cast"><Tv size={18}/></span>
             <span className="scr-guide-mbtn"><Users size={18}/></span>
-            <span className="scr-guide-mbtn scr-guide-mbtn-txt">×2</span>
             <span className="scr-guide-mbtn scr-guide-colsw is-personal"><Palette size={18}/></span>
             <span className="scr-guide-mbtn scr-guide-mbtn-txt">2D</span>
             <span className="scr-guide-mbtn"><Music size={18}/></span>
-            <span className="scr-guide-mbtn"><Maximize size={18}/></span>
             <span className="scr-guide-tpill"><Share2 size={15}/></span>
             <span className="scr-guide-tpill"><BookOpen size={15}/></span>
+            <span className="scr-guide-tpill"><Maximize size={15}/></span>
           </div>
           <ul className="scr-guide-legend">
             <li><span className="scr-guide-ic"><Tv size={15}/></span><span><b>중계</b> — 누르면 위로 목록이 펼쳐집니다: <b>사람 이름들 · 자동 · 끄기</b>. 아래 <b>중계 고르기</b>에서 자세히.</span></li>
             <li><span className="scr-guide-ic"><Users size={15}/></span><span><b>로스터</b> — 누를 때마다 <b>이름만 → 전체 → 숨김</b> 세 단으로 돕니다. 아이콘이 <b>사람+표</b>(<RosterTableIcon size={13}/>)로 바뀌면 일꾼·자원·인구·K/D·APM까지 떠 있는 상태입니다.</span></li>
-            <li><span className="scr-guide-ic scr-guide-ic-txt">×2</span><span><b>배속</b> — 누르면 위로 목록(×1·×2·×4·×8)이 펼쳐집니다. 교전 하나를 뜯어볼 땐 낮추고, 초반 빌드를 넘길 땐 올립니다.</span></li>
             <li><span className="scr-guide-ic"><Palette size={15}/></span><span><b>색</b> — 누를 때마다 색 모드가 바뀝니다. 버튼의 <b>원그래프</b>가 곧 지금 모드입니다(아래 <b>색 모드</b>).</span></li>
             <li><span className="scr-guide-ic scr-guide-ic-txt">2D</span><span><b>보기</b> — 평면(2D)과 입체(3D)를 오갑니다. 언덕·램프는 입체에서 더 잘 읽힙니다. PC에만 있습니다.</span></li>
             <li><span className="scr-guide-ic"><Music size={15}/></span><span><b>음악</b> — 누르면 곡 목록이 펼쳐집니다. 고른 곡은 처음부터, 맨 위 '끄기'로 끕니다.</span></li>
-            <li><span className="scr-guide-ic"><Maximize size={15}/></span><span><b>전체화면</b>. 전체화면에서는 <b>미니맵</b>(<MapIcon size={12}/>) 버튼도 함께 서서 작은 지도를 여닫습니다.</span></li>
+            <li><span className="scr-guide-ic"><Maximize size={15}/></span><span><b>전체화면</b> — 줄의 맨 오른쪽. 전체화면에서는 사용법 버튼이 빠지고, <b>미니맵</b>(<MapIcon size={12}/>) 버튼도 함께 서서 작은 지도를 여닫습니다.</span></li>
           </ul>
         </div>
 

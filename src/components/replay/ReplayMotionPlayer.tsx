@@ -15470,6 +15470,29 @@ export default function ReplayMotionPlayer({
     </ul>
   ) : null);
   const pickToggle9 = (kind9: "speed" | "zoom" | "bgm" | "cast"): void => setPick9((p9) => (p9 === kind9 ? null : kind9));
+  /* ★ 배속 단추는 재생 줄의 **맨 왼쪽**(재생 단추 앞)이다(2026-09, 요청: "배속 버튼은 플레이버튼 왼쪽으로") — 꼴·목록은 아이콘
+     줄의 형제와 같아야 하므로 같은 감싸개(.scr-motion-mapbtns)에 한 칸만 담는다. 목록은 줄의 왼쪽 끝이라 is-left(왼쪽 맞춤). */
+  const speedNode9 = (
+    <div className="scr-motion-mapbtns scr-tb-speed">
+      <span className="scr-motion-pick">
+        <button
+          type="button"
+          /* 기본값이 아니면 켜진 꼴로(요청: "x1 1배 2D 가 기본값이고 다른 값이면 적용 css") —
+             셋 다 같은 자다: 배속 ×1 · 확대 1배 · 보기 2D가 아무것도 안 건드린 상태이고,
+             거기서 벗어난 값만 버튼이 밝아져 '지금 뭘 만져 뒀는지'가 줄에서 바로 읽힌다. */
+          className={cx("scr-motion-litbtn scr-motion-mapbtn scr-motion-mapval", speed !== 1 && "is-on")}
+          onClick={() => pickToggle9("speed")}
+          aria-haspopup="menu" aria-expanded={pick9 === "speed"}
+          aria-label={`배속 ${speed}배 — 누르면 목록`}
+          title="배속"
+        >
+          <span className="scr-motion-mapval-num">×{speed}</span>
+        </button>
+        {/* 사다리처럼 **작은 값이 아래**(요청) — 목록이 위로 펼쳐지니 버튼 가까이가 ×1이다. */}
+        {pickMenu9("speed", [...SPEEDS].reverse().map((s9) => ({ label: `×${s9}`, on: speed === s9, act: () => setSpeed(s9) })), false, true)}
+      </span>
+    </div>
+  );
   const mapBtnRow = (
     <div
       // (걷어냄) is-up — 도구 판이 없어져 밀어 줄 것이 없다(요청).
@@ -15591,23 +15614,7 @@ export default function ReplayMotionPlayer({
           ★ 셋을 가르는 것은 **작은 이름표**다(요청: 배속과 안 헷갈리게) — ×2 하나만
             적으면 배속인지 확대인지 알 수 없다. 위에 '배속·보기·확대'를 한 줄로 얹어
             두면 값이 같은 꼴(×2)이어도 서로 안 섞인다. */}
-      <span className="scr-motion-pick">
-        <button
-          type="button"
-          /* 기본값이 아니면 켜진 꼴로(요청: "x1 1배 2D 가 기본값이고 다른 값이면 적용 css") —
-             셋 다 같은 자다: 배속 ×1 · 확대 1배 · 보기 2D가 아무것도 안 건드린 상태이고,
-             거기서 벗어난 값만 버튼이 밝아져 '지금 뭘 만져 뒀는지'가 줄에서 바로 읽힌다. */
-          className={cx("scr-motion-litbtn scr-motion-mapbtn scr-motion-mapval", speed !== 1 && "is-on")}
-          onClick={() => pickToggle9("speed")}
-          aria-haspopup="menu" aria-expanded={pick9 === "speed"}
-          aria-label={`배속 ${speed}배 — 누르면 목록`}
-          title="배속"
-        >
-          <span className="scr-motion-mapval-num">×{speed}</span>
-        </button>
-        {/* 사다리처럼 **작은 값이 아래**(요청) — 목록이 위로 펼쳐지니 버튼 가까이가 ×1이다. */}
-        {pickMenu9("speed", [...SPEEDS].reverse().map((s9) => ({ label: `×${s9}`, on: speed === s9, act: () => setSpeed(s9) })))}
-      </span>
+      {/* (옮김) 배속 단추 — 재생 단추 **왼쪽**으로 갔다(2026-09, 요청: "배속 버튼은 플레이버튼 왼쪽으로") · 아래 speedNode9. */}
       {/* ★ **확대 단추는 걷었다 — 폰·PC 다**(2026-09, 요청: "배율 버튼: 모바일 피시에서 제거. 사용법에는 드래그나 핀치조작법
           별도로 남기기") — 배율은 휠·핀치·더블탭·↑↓·추적의 당김이 다 쥐고 있어 단추가 하는 일은 '지금 몇 배인가'를 적는 것뿐이었고,
           그 값은 어중간할 때(3.6배) 동그라미에 안 들어 글자를 줄여 가며 버텼다. 사다리(ZOOM_STEPS)·zoomTo·zoomLive 는 그대로다
@@ -15676,15 +15683,7 @@ export default function ReplayMotionPlayer({
           { label: "끄기", on: !bgm.on, act: () => { if (bgm.on) bgm.toggle(); } },
         ], true)}
       </span>
-      <button
-        type="button"
-        className="scr-motion-litbtn scr-motion-mapbtn"
-        onClick={() => (fsOn ? exitFs() : enterFs())}
-        aria-label={fsOn ? "전체화면 나가기" : "전체화면"}
-        title={fsOn ? "전체화면 나가기 (Alt+Enter)" : "전체화면 (Alt+Enter)"}
-      >
-        {fsOn ? <Minimize size={18} /> : <Maximize size={18} />}
-      </button>
+      {/* (옮김) 전체화면 단추 — 툴박스 꼬리의 **맨 오른쪽**으로 갔다(2026-09, 요청: "전체화면 온오프 버튼은 가장 오른쪽에 배치"). */}
     </div>
   );
   /* ★ 건물마다 `buildsSrc` **전체를 세 번** 훑던 것을 한 번만 (실측: 건물본체 13.58ms,
@@ -16886,14 +16885,25 @@ export default function ReplayMotionPlayer({
                 {shareNode}
                 {/* (걷어냄) 전체화면의 '도구 숨기기' 단추 — 툴박스가 저 혼자 아이콘 하나로 접히므로(위 ★★) 숨기는 손잡이가
                     따로 있을 까닭이 없다. 사용법은 이제 두 배치 다 이 자리다(요청: "툴박스 = 버튼로우 + 공유 + 사용법"). */}
-                {guide && (
+                {/* 사용법은 **프레임에서만**이다(2026-09, 요청: "전체화면에서 사용법 버튼 제거"). */}
+                {guide && !fsOn && (
                   <button type="button" className="scr-kakao-share-btn scr-guide-btn" onClick={openGuide9} aria-label="사용법" title="사용법">
                     <BookOpen size={18} aria-hidden />
                   </button>
                 )}
+                {/* 전체화면 켜고 끄기는 줄의 **맨 오른쪽**이다(2026-09, 요청: "전체화면 온오프 버튼은 가장 오른쪽에 배치"). */}
+                <button
+                  type="button"
+                  className="scr-kakao-share-btn scr-fsbtn"
+                  onClick={() => (fsOn ? exitFs() : enterFs())}
+                  aria-label={fsOn ? "전체화면 나가기" : "전체화면"}
+                  title={fsOn ? "전체화면 나가기 (Alt+Enter)" : "전체화면 (Alt+Enter)"}
+                >
+                  {fsOn ? <Minimize size={18} aria-hidden /> : <Maximize size={18} aria-hidden />}
+                </button>
               </div>
             </div>
-            <div className="scr-tb-seek">{controlsNode}</div>
+            <div className="scr-tb-seek">{speedNode9}{controlsNode}</div>
           </div>
           <div className="scr-fs-dockrow">
             {/* 미니맵 + 인포창을 **한 사각 틀**로 묶는다(2026-09, 요청: "미니맵과 인포창을 한데 묶는 사각 프레임 필요 인포창 래디우스 제거"). */}

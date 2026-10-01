@@ -2638,6 +2638,10 @@
 .scr-motion-infodock-nums {
   display: flex; flex-direction: column; align-items: center; gap: 0;
   font-size: calc(8px * var(--dkt)); font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2;
+  /* 바닥 줄은 글 칸 마지막 줄(9·dkt · 줄높이 1.45)과 **베이스라인**이 맞아야 한다(2026-09, 요청: "아래 줄을 맞춰야 예쁠듯
+     베이스라인") — 두 칸이 다 바닥에 붙으므로 글자 크기·줄높이가 다른 만큼 바닥에서 베이스라인까지의 거리가 갈린다.
+     그 차를 아래 여백으로 메운다 — 0.7·dkt 는 PC 화면에서 재서 고른 값이다(셈으로 낸 1.5 는 1.3px 높았다). */
+  padding-bottom: calc(0.7px * var(--dkt));
 }
 .scr-motion-infodock-nums .is-row { display: flex; gap: 0 0.45em; white-space: nowrap; }
 .scr-motion-infodock-nums .is-sh { color: #f2f6ff; }
@@ -2720,6 +2724,8 @@
      auto 면 바탕이 곧 내용 폭이라, 탄 몸 칸(4×2)처럼 넓은 내용이 들면 창이 그만큼 넓어지고 미니맵이 밀려 줄었다. 0 이면 창은
      늘 '미니맵을 뺀 나머지'(최소 --dock-w)라 무엇을 골라도 폭이 안 흔들린다. */
   .scr-fs-dockframe .scr-motion-infodock { flex: 1 1 0; width: auto; min-width: min(var(--dock-w), 100%); }
+  /* 숫자 줄 베이스라인 — 폰은 글자 크기와 무관한 몫이 더 있어 PC 의 비례값(0.7)으로는 1.2px 낮다(실측) · 재서 고른 값. */
+  .scr-motion-infodock-nums { padding-bottom: 1.9px; }
 }
 /* ★ 자막은 **상시**다(되요청: "토스터가 아니라 계속 노출로 변경") — 중계가 켜진 동안 늘 서 있고 토막이
    갈릴 때 글귀만 갈아 끼운다(그리는 쪽이 토막 번호를 key 로 주어 그 순간 떠오름만 다시 돈다). 스러지는
@@ -3228,7 +3234,8 @@
   --text: #f5f6f7; --dim: rgba(245, 246, 247, 0.72); --line-soft: rgba(255, 255, 255, 0.24);
   display: flex; flex-direction: column; gap: 4px; min-width: 0;
   /* 모서리는 각지고 판은 더 옅다(2026-09, 요청: "툴바배경 래디우스 제거 및 좀더 투명하게(전체화면 프레임모드 둘다)") — 옛 12px · 0.52. */
-  padding: 6px 8px; border-radius: 0; box-sizing: border-box;
+  /* 위 여백은 한 단 넉넉하다(2026-09, 요청: "툴박스 내부 위쪽 패딩 증가시키기" — 옛 6). */
+  padding: 10px 8px 6px; border-radius: 0; box-sizing: border-box;
   background: rgba(8, 11, 17, 0.34); color: var(--text);
   box-shadow: none;
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
@@ -3236,6 +3243,8 @@
 .scr-tb-btnrow { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .scr-tb-tail { display: flex; align-items: center; gap: 6px; flex: none; margin-left: auto; }
 .scr-tb-seek { display: flex; align-items: center; min-width: 0; }
+/* 재생 줄 맨 왼쪽의 배속 단추 한 칸(2026-09, 요청: "배속 버튼은 플레이버튼 왼쪽으로") — 줄지 않는다. */
+.scr-tb-speed { flex: none; margin-right: 6px; }
 .scr-tb-seek > .scr-motion-bar-controls { flex: 1 1 auto; min-width: 0; margin: 0; padding: 0; gap: 8px; }
 .scr-tb .scr-motion-range { touch-action: none; align-self: center; }
 .scr-tb .scr-motion-clock { font-size: 11px; }
@@ -3252,11 +3261,13 @@
 /* 셋의 차례는 스크랩 → 공유 → 사용법(안내 ReplayGuide 와 같다) — 사용법만 한 뼘 띄운다(보는 일과 내보내는 일을 가른다). */
 .scr-tb-tail .scr-scrapbtn, .scr-tb-tail .scr-sharebtn { order: 0; }
 .scr-tb-tail .scr-guide-btn { order: 1; margin-left: 2px; }
+/* 전체화면 켜고 끄기는 맨 오른쪽(2026-09, 요청) — 사용법처럼 한 뼘 띄운다(보기 바꾸기는 내보내기와 딴 일이다). */
+.scr-tb-tail .scr-fsbtn { order: 2; margin-left: 2px; }
 @media (hover: hover) {
   .scr-tb-tail .scr-kakao-share-btn:hover { background: rgba(255, 255, 255, 0.18); }
 }
 @media (max-width: 1159px) {
-  .scr-tb { padding: 5px 6px; }
+  .scr-tb { padding: 9px 6px 5px; }
   .scr-tb-tail { gap: 5px; }
 }
 /* (걷어냄) PC 한 줄 — 이제 어느 폭에서나 [단추 줄] / [재생·탐색바·시계] 두 줄이다(2026-09, 요청: "피시에서도 버튼하고
