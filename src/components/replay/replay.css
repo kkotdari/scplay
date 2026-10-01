@@ -2648,7 +2648,10 @@
 }
 /* 하나 — [실루엣·숫자] [글] [큐·탄 몸] */
 .scr-motion-infodock-one { height: 100%; display: flex; gap: calc(12px * var(--dk)); align-items: stretch; min-width: 0; }
-.scr-motion-infodock-pic { flex: none; width: calc(54px * var(--dk)); display: flex; flex-direction: column; align-items: center; gap: 2px; }
+/* ★ 위·아래로 붙인다(2026-09, 요청: "내용줄이 짧으면 아래 공간이 남는 문제 — 제목과 내용 가운데 띄우고 아래에 맞춰
+   정렬 · 메인아이콘 아래 수치들도") — 두 기둥 다 space-between: 그림·이름은 위, 숫자·내용 줄은 몸 칸 바닥에 앉고 남는 몫은
+   그 사이로 간다. 내용 줄은 한 덩이(-lines)로 묶어야 줄끼리 벌어지지 않는다. */
+.scr-motion-infodock-pic { flex: none; width: calc(54px * var(--dk)); display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 2px; }
 .scr-motion-infodock-big { width: var(--dock-big); height: var(--dock-big); display: block; }
 .scr-motion-infodock-glyph {
   display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: calc(20px * var(--dk));
@@ -2660,7 +2663,8 @@
 }
 .scr-motion-infodock-nums .is-sh { color: #f2f6ff; }
 .scr-motion-infodock-nums .is-en { color: #c79cff; }
-.scr-motion-infodock-text { flex: 1 1 auto; min-width: 0; overflow: hidden; display: flex; flex-direction: column; gap: 1px; }
+.scr-motion-infodock-text { flex: 1 1 auto; min-width: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; gap: 1px; }
+.scr-motion-infodock-lines { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .scr-motion-infodock-name { font-size: calc(12px * var(--dk)); font-weight: 800; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .scr-motion-infodock-ups { display: flex; gap: 3px; flex-wrap: wrap; }
 .scr-motion-infodock-ups i {

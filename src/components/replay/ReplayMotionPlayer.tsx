@@ -16137,8 +16137,10 @@ export default function ReplayMotionPlayer({
         </div>
         <div className="scr-motion-infodock-text">
           <div className="scr-motion-infodock-name">{ko}</div>
-          {kills9 !== null && <div className="scr-motion-info-line">{`처치 ${kills9}`}</div>}
-          {lines}
+          <div className="scr-motion-infodock-lines">
+            {kills9 !== null && <div className="scr-motion-info-line">{`처치 ${kills9}`}</div>}
+            {lines}
+          </div>
         </div>
         {side9 && <div className="scr-motion-infodock-side">{side9}</div>}
       </div>
