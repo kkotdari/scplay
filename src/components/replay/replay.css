@@ -2619,23 +2619,27 @@
    칸(side)은 셋째 칸이 1~2행을 다 쓴다. */
 .scr-motion-infodock-one {
   height: 100%; min-width: 0; display: grid; column-gap: calc(10px * var(--dkd)); row-gap: 1px;
-  grid-template-columns: calc(66px * var(--dkd)) minmax(0, 1fr) auto; grid-template-rows: auto minmax(0, 1fr);
+  grid-template-columns: calc(72px * var(--dkd)) minmax(0, 1fr) auto; grid-template-rows: auto minmax(0, 1fr);
 }
 /* ★ 위·아래로 붙인다(2026-09, 요청: "내용줄이 짧으면 아래 공간이 남는 문제 — 제목과 내용 가운데 띄우고 아래에 맞춰
    정렬 · 메인아이콘 아래 수치들도") — 두 기둥 다 space-between: 그림·이름은 위, 숫자·내용 줄은 몸 칸 바닥에 앉고 남는 몫은
    그 사이로 간다. 내용 줄은 한 덩이(-lines)로 묶어야 줄끼리 벌어지지 않는다. */
 .scr-motion-infodock-pic { grid-column: 1; grid-row: 2; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 2px; }
-/* 메인 그림 48 → 60·dkd(2026-09, 요청: "인포창 메인 그림 크기 키워야할듯") — 숫자가 두 줄(실드·에너지)로 넘쳐도 칸 밖으로 안 나가게
-   그림이 줄어들 수 있다(flex-shrink · 키를 정하고 폭은 비로 따른다). */
-.scr-motion-infodock-big { height: var(--dock-big); width: auto; aspect-ratio: 1; max-width: 100%; flex: 0 1 auto; min-height: 0; display: block; object-fit: contain; }
+/* 메인 그림 48 → 60·dkd(2026-09, 요청: "인포창 메인 그림 크기 키워야할듯") — ★ **크기는 못 박는다**(요청: "메인그림 크기 고정하고
+   아래 수치들 세줄이 안생기게") — 줄어들 수 있게 두었더니 숫자 줄 수에 따라 그림이 몸마다 들쭉날쭉했다. 숫자는 이제 늘 두 줄
+   안(체력·실드 한 줄 + 에너지 한 줄)이라 줄일 까닭이 없다. */
+.scr-motion-infodock-big { height: var(--dock-big); width: var(--dock-big); flex: none; display: block; object-fit: contain; }
 .scr-motion-infodock-glyph {
   display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: calc(20px * var(--dkt));
   border: 1px solid currentColor; border-radius: 6px; box-sizing: border-box;
 }
+/* ★ 두 줄이 끝이다(2026-09, 요청: "아래 수치들 세줄이 안생기게 · 폰트크기 줄이고 플토 체력과 실드를 한줄에") — 줄 하나(-row)가
+   체력·실드를 nowrap 으로 들고 에너지는 둘째 줄이다. 가장 긴 줄이 "750/750 750/750"(넥서스)이라 글자 8·dkt · 그림 칸 72·dkd 에 든다. */
 .scr-motion-infodock-nums {
-  display: flex; flex-wrap: wrap; justify-content: center; gap: 0 6px;
-  font-size: calc(10px * var(--dkt)); font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.25;
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+  font-size: calc(8px * var(--dkt)); font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2;
 }
+.scr-motion-infodock-nums .is-row { display: flex; gap: 0 0.45em; white-space: nowrap; }
 .scr-motion-infodock-nums .is-sh { color: #f2f6ff; }
 .scr-motion-infodock-nums .is-en { color: #c79cff; }
 .scr-motion-infodock-text { grid-column: 2; grid-row: 1 / 3; min-width: 0; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; gap: 1px; }

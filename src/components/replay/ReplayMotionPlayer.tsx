@@ -16045,8 +16045,10 @@ export default function ReplayMotionPlayer({
         <div className="scr-motion-infodock-pic">
           {silIcon9(en, bld9, col9, "scr-motion-infodock-big")}
           <div className="scr-motion-infodock-nums">
-            <span style={{ color: col9 }}>{off9 ? "–" : `${hpCur}/${hpOnly}`}</span>
-            {sh > 0 && !off9 && <span className="is-sh">{`${shCur}/${sh}`}</span>}
+            <span className="is-row">
+              <span style={{ color: col9 }}>{off9 ? "–" : `${hpCur}/${hpOnly}`}</span>
+              {sh > 0 && !off9 && <span className="is-sh">{`${shCur}/${sh}`}</span>}
+            </span>
             {en9 !== null && <span className="is-en">{`${en9}/${enMax9}`}</span>}
           </div>
         </div>
