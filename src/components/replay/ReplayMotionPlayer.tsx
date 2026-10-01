@@ -15953,12 +15953,12 @@ export default function ReplayMotionPlayer({
             const step9 = ns9.some((n9) => /^(Terran|Protoss|Zerg) /.test(n9));
             const busy9 = doing.some(([, n]) => ns9.includes(upBase9(n)));
             chips9.push(
-              <i key={ko9} className={cx(lv9 > 0 && "is-done", busy9 && "is-busy")}>
-                {ko9}{step9 && <b>{` ${Math.min(3, lv9)}/3`}</b>}
+              <i key={ko9} className={cx(lv9 > 0 && "is-done", busy9 && "is-busy", ko9.length > 4 && "is-long")} title={ko9}>
+                <span>{ko9}</span>{step9 && <b>{Math.min(3, lv9)}</b>}
               </i>,
             );
           }
-          foot9.push(<div className="scr-motion-infodock-ups scr-motion-infodock-tech" key="tech">{chips9}</div>);
+          foot9.push(<div className="scr-motion-infodock-upsq scr-motion-infodock-tech" key="tech">{chips9}</div>);
         }
       }
     } else {
@@ -15982,9 +15982,10 @@ export default function ReplayMotionPlayer({
       });
       const lv = (name: string): number =>
         (upsByRaw.get(op.pickRaw ?? "") ?? []).filter(([us, n]) => upBase9(n) === name && us <= t).length;
-      const upBits: string[] = [];
-      if (pick9) { if (!NO_WEAPON9.has(en)) upBits.push(`공${lv(pick9.weapon)}`); upBits.push(`방${lv(pick9.armor)}`); }
-      if (race9 === "프로토스") upBits.push(`실${lv(PLASMA_SHIELD_UPGRADE)}`);
+      /** [글자, 단계(없으면 한 번짜리)] — 원작처럼 정사각 칸 하나에 글자 · 우하단에 단계 숫자(나중에 아이콘으로 갈 자리). */
+      const upBits: [string, number | null][] = [];
+      if (pick9) { if (!NO_WEAPON9.has(en)) upBits.push(["공", lv(pick9.weapon)]); upBits.push(["방", lv(pick9.armor)]); }
+      if (race9 === "프로토스") upBits.push(["실", lv(PLASMA_SHIELD_UPGRADE)]);
       const other = (upsByRaw.get(op.pickRaw ?? "") ?? []).filter(([us, n]) =>
         us <= t && n !== PLASMA_SHIELD_UPGRADE
         && !pairs.some((pr) => pr.weapon === n || pr.armor === n)
@@ -15993,11 +15994,16 @@ export default function ReplayMotionPlayer({
       for (const [, n] of other) {
         const tagU9 = UNIT_UPGRADE_TAG[n as keyof typeof UNIT_UPGRADE_TAG]?.tag;
         const one9 = tagU9 ? UPGRADE_ONE_LETTER[tagU9] : undefined;
-        if (one9) { if (!upBits.includes(one9)) upBits.push(one9); }
+        if (one9) { if (!upBits.some(([b9]) => b9 === one9)) upBits.push([one9, null]); }
         else rest9.push(tagU9 ?? researchKo(n));
       }
-      if (upBits.length > 0) foot9.push(<div className="scr-motion-infodock-ups" key="ups">{upBits.map((b9) => <i key={b9}>{b9}</i>)}</div>);
-      if (rest9.length > 0) lines.push(<div className="scr-motion-info-line" key="rest">{`연구 ${rest9.slice(-4).join(" · ")}`}</div>);
+      /* 한 글자 업그레이드(공·방·실·속·사 …)와 그 밖의 연구(스팀팩 …)가 한 줄의 같은 정사각 칸이다(요청: "이런거 다 정사각둥근네모"). */
+      if (upBits.length > 0 || rest9.length > 0) foot9.push(
+        <div className="scr-motion-infodock-upsq" key="ups">
+          {upBits.map(([b9, n9]) => <i key={b9} className="is-one"><span>{b9}</span>{n9 !== null && <b>{n9}</b>}</i>)}
+          {rest9.slice(-4).map((r9) => <i key={`r${r9}`} className={cx(r9.length > 4 && "is-long")} title={r9}><span>{r9}</span></i>)}
+        </div>,
+      );
     }
     /* 보급(원작 사이 공급 네 줄) — 대는 몸이면. 짓는 중이면 안 댄다. */
     const give9 = SUPPLY_OF9[en];
