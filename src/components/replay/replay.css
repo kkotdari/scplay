@@ -591,18 +591,27 @@
    줄 사이 4 → 2 · 줄 상자 1px 4px → 0 3px · 손잡이 조각 사이 5 → 3 · 판 여백 5 → 4 · 팀 사이 3 → 2 · 이름 칸 106 → 90.
    값은 다 이 판(.scr-fs-roster-fixed)에만 건다 — 사이드바 로스터는 제 자를 그대로 든다. */
 /* K/D 칸(2026-09, 요청: "로스터와 중계자막에 킬데스 수치도 넣어줘 apm 앞에") — "123/45" 여섯 자가 7px 에서 26px 남짓. */
-.scr-fs-roster-fixed { --roster-cols: var(--roster-name, 90px) 18px 34px 24px 24px 28px 22px; }
-.scr-fs-roster-fixed .scr-motion-teamcol-rows .scr-motion-teamrow { gap: 0 2px; padding: 0 3px; margin: 0 -3px; }
-.scr-motion .scr-fs-roster-fixed .scr-motion-teamcol.scr-motion-teamcol-rows { gap: 2px; }
-.scr-fs-roster-fixed .scr-motion-teamcol-rows .scr-motion-teamcol-head { gap: 3px; }
-.scr-fs-roster-fixed .scr-motion-teamcol-pick { gap: 3px; padding: 0 2px; }
+/* ★ PC 는 이 판 전체가 ×1.2 다(2026-09, 요청: "로스터도 1.2배 해도 되겠다 같은 상수따르기로") — 인포창과 같은 --dk(뿌리
+   .scr-motion · 폰 1). 칸·사이·여백·글자가 다 calc(폰 값 * var(--dk)) 다. 새 치수도 그렇게 적어라. */
+.scr-fs-roster-fixed {
+  --roster-cols: var(--roster-name, calc(90px * var(--dk))) calc(18px * var(--dk)) calc(34px * var(--dk)) calc(24px * var(--dk))
+    calc(24px * var(--dk)) calc(28px * var(--dk)) calc(22px * var(--dk));
+}
+.scr-fs-roster-fixed .scr-motion-teamcol-rows .scr-motion-teamrow {
+  gap: 0 calc(2px * var(--dk)); padding: 0 calc(3px * var(--dk)); margin: 0 calc(-3px * var(--dk));
+}
+.scr-motion .scr-fs-roster-fixed .scr-motion-teamcol.scr-motion-teamcol-rows { gap: calc(2px * var(--dk)); }
+.scr-fs-roster-fixed .scr-motion-teamcol-rows .scr-motion-teamcol-head { gap: calc(3px * var(--dk)); }
+.scr-fs-roster-fixed .scr-motion-teamcol-pick { gap: calc(3px * var(--dk)); padding: 0 calc(2px * var(--dk)); }
 .scr-motion .scr-fs-roster-fixed .scr-motion-teamcol-item .scr-motion-base-ring { display: none; }
-.scr-fs-roster-fixed .scr-motion-stat { font-size: 7px; }
+.scr-fs-roster-fixed .scr-motion-stat { font-size: calc(7px * var(--dk)); }
 /* 무게 (0,4,0) — 좁은 화면의 칸 비례 글자(.scr-motion:not(.scr-motion-wide) .scr-motion-teamcol-name · clamp 8~11px)가 이 파일
    뒤쪽에 같은 (0,3,0)으로 있어 폰에서는 그쪽이 이겼다. 줄(item)을 한 겹 더 짚어 어느 폭에서나 8px 로 못 박는다. */
-.scr-motion .scr-fs-roster-fixed .scr-motion-teamcol-item .scr-motion-teamcol-name { font-size: 8px; max-width: 100%; padding: 0 3px; border-radius: 2px; line-height: 1.35; }
-.scr-motion .scr-fs-roster-fixed .scr-motion-teamcol-cols { font-size: 6px; }
-.scr-motion .scr-fs-roster-fixed .scr-motion-teamhead { font-size: 7px; }
+.scr-motion .scr-fs-roster-fixed .scr-motion-teamcol-item .scr-motion-teamcol-name {
+  font-size: calc(8px * var(--dk)); max-width: 100%; padding: 0 calc(3px * var(--dk)); border-radius: 2px; line-height: 1.35;
+}
+.scr-motion .scr-fs-roster-fixed .scr-motion-teamcol-cols { font-size: calc(6px * var(--dk)); }
+.scr-motion .scr-fs-roster-fixed .scr-motion-teamhead { font-size: calc(7px * var(--dk)); }
 
 
 /* 전체화면의 왼쪽 기둥은 이 판이 통째로 채운다 — 기둥의 옛 세로 배치(로스터·바·토글)는
@@ -2585,6 +2594,9 @@
      선다)과 겨룬다. 옛 30000 은 품질 알림을 베낀 값인데 그것이 버튼 위로 펼치는 목록(.scr-motion-pickmenu)
      을 통째로 덮었다. 자막은 읽기만 하는 줄(pointer-events none)이라 만지는 것보다 위에 설 까닭이 없다 —
      지도(1)·조작판(.scr-fs-ui 10) 위, 아이콘 줄(12) 아래인 **11** 이다. */
+/* ★ 화면 위에 뜨는 판(인포창·로스터)의 크기 배수(2026-09, 요청: "PC는 좀 크기를 키워도 될듯한데? 1.2배정도" · "로스터도
+   1.2배 해도 되겠다 같은 상수따르기로") — 치수는 폰의 값으로 적고 이 값을 곱한다. 폰(≤700px)은 1(인포창 미디어). */
+.scr-motion { --dk: 1.2; }
 .scr-motion-infodock {
   /* ★ 하단 인포창(2026-09, 요청: "인포팝업을 없애고 원작처럼 하단 인포창 · 위치는 하단 가운데 고정폭 · 그 자리에 있던 중계 자막은
      인포창 내부 상단으로 이동 · 늘 표시(크기 고정) · 접기 필요") — 무대 안 아래 가운데. 폭·키를 못 박아 내용이 바뀌어도 안 흔들린다.
@@ -2593,11 +2605,13 @@
      여럿은 한 변 --dock-cell 의 정사각 6×2(= 6·42 + 5·4 = 272) · 하나는 [실루엣 64][글][탄 몸 4칸 105] 라 460 → 340 → **300**
      (되요청: "인포창 좌우를 좀더 줄일 여지") — 가장 넓은 것은 여럿 격자(272 + 여백 16)이고 정보줄(약 280)이 그 다음이다.
      칸 한 변은 몸 키(100 − 위아래 여백 12 − 사이 4)의 반. */
-  /* ★ 크기는 --dk 한 배수다(2026-09, 요청: "PC는 좀 크기를 키워도 될듯한데? 1.2배정도") — 폭·키·칸·글자가 다 그 값을 탄다.
-     PC 1.2 · 폰 1(아래 미디어). 새 치수를 더할 때는 calc(Npx * var(--dk)) 로 적어라 — 손 px 는 PC 에서만 작게 남는다. */
-  --dk: 1.2;
-  --dock-w: calc(300px * var(--dk)); --dock-body: calc(100px * var(--dk)); --dock-big: calc(60px * var(--dk));
-  --dock-slot: calc(24px * var(--dk)); --dock-cell: calc(42px * var(--dk));
+  /* ★ 크기는 **폰 판 한 벌 × --dk** 다(2026-09, 요청: "PC는 좀 크기를 키워도 될듯한데? 1.2배정도" → 되물음: "PC는 모바일과
+     똑같이 360으로 늘린 상태에서 1.2배 했어야하는거 아니야? 모든 요소를") — 치수는 다 폰의 값(폭 360 · 몸 96 · 실루엣 48 ·
+     칸 20/34 · 정보줄 9px …)으로 적고 PC 는 --dk 1.2 를 곱한다(폭 432). 폰은 --dk 1 만 놓는다(아래 미디어).
+     새 치수는 calc(Npx * var(--dk)) 로 적어라 — 손 px 는 PC 에서만 작게 남는다.
+     --dk 자체는 뿌리(.scr-motion)가 든다 — 로스터도 같은 상수를 탄다(아래 .scr-fs-roster-fixed). */
+  --dock-w: calc(360px * var(--dk)); --dock-body: calc(96px * var(--dk)); --dock-big: calc(48px * var(--dk));
+  --dock-slot: calc(20px * var(--dk)); --dock-cell: calc(34px * var(--dk));
   position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
   width: var(--dock-w); max-width: calc(100% - 16px); z-index: 11;
   display: flex; flex-direction: column;
@@ -2611,12 +2625,12 @@
 .scr-fs-layer.is-fs .scr-motion-infodock { bottom: calc(var(--scr-fsbot, 56px) + 60px); }
 /* 맨 위 띠 — 중계 자막 자리. 자막이 없어도 키를 지킨다(창이 안 들썩인다). 접기 단추는 오른쪽 끝. */
 .scr-motion-infodock-cap {
-  position: relative; height: calc(34px * var(--dk)); display: flex; align-items: center; justify-content: center;
+  position: relative; height: calc(30px * var(--dk)); display: flex; align-items: center; justify-content: center;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 .scr-motion-infodock .scr-motion-castcap {
-  background: none; border: none; box-shadow: none; padding: 0 calc(24px * var(--dk)) 0 4px; border-radius: 0;
-  column-gap: calc(7px * var(--dk)); font-size: calc(10.5px * var(--dk)); max-width: 100%;
+  background: none; border: none; box-shadow: none; padding: 0 calc(26px * var(--dk)) 0 4px; border-radius: 0;
+  column-gap: calc(4px * var(--dk)); font-size: calc(9px * var(--dk)); max-width: 100%;
 }
 .scr-motion-infodock .scr-motion-castcap-lab { font-size: calc(7px * var(--dk)); }
 .scr-motion-infodock .scr-motion-castdot { width: calc(7px * var(--dk)); height: calc(7px * var(--dk)); }
@@ -2634,7 +2648,7 @@
 }
 /* 하나 — [실루엣·숫자] [글] [큐·탄 몸] */
 .scr-motion-infodock-one { height: 100%; display: flex; gap: calc(8px * var(--dk)); align-items: stretch; min-width: 0; }
-.scr-motion-infodock-pic { flex: none; width: calc(64px * var(--dk)); display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.scr-motion-infodock-pic { flex: none; width: calc(54px * var(--dk)); display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .scr-motion-infodock-big { width: var(--dock-big); height: var(--dock-big); display: block; }
 .scr-motion-infodock-glyph {
   display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: calc(20px * var(--dk));
@@ -2650,7 +2664,7 @@
 .scr-motion-infodock-name { font-size: calc(12px * var(--dk)); font-weight: 800; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .scr-motion-infodock-ups { display: flex; gap: 3px; flex-wrap: wrap; }
 .scr-motion-infodock-ups i {
-  font-style: normal; font-size: calc(9px * var(--dk)); font-weight: 700; padding: 1px calc(4px * var(--dk)); border-radius: 3px;
+  font-style: normal; font-size: calc(8.5px * var(--dk)); font-weight: 700; padding: 1px calc(3px * var(--dk)); border-radius: 3px;
   background: rgba(255, 255, 255, 0.1); box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.18);
 }
 /* 연구 상황판(건물) — 안 한 것은 옅게 · 마친 것은 밝게 · 하는 중은 초록 테. 단계 업그레이드는 n/3 을 굵게 붙인다. */
@@ -2695,11 +2709,7 @@
   /* ★ 폭이 모자라 정보줄이 잘리고 연구 칩이 둘째 줄로 밀려 몸 키 밖에서 안 보였다(2026-09, 지적: "모바일 인포창 내용이
      폭이 모자라나봐 유저정보도 잘리고 업그레이드 상태도 한줄 내려가서 안보여") — 280 → 360(화면 − 16 이 먼저 죈다) ·
      몸 84 → 96(칩이 두 줄이어도 든다) · 정보줄은 한 단 더 죈다. */
-  .scr-motion-infodock { --dk: 1; --dock-w: 360px; --dock-body: 96px; --dock-big: 48px; --dock-slot: 20px; --dock-cell: 34px; }
-  .scr-motion-infodock-pic { width: 54px; }
-  .scr-motion-infodock-cap { height: 30px; }
-  .scr-motion-infodock .scr-motion-castcap { font-size: 9px; column-gap: 4px; padding-right: 26px; }
-  .scr-motion-infodock-ups i { font-size: 8.5px; padding: 1px 3px; }
+  .scr-motion { --dk: 1; }
 }
 /* ★ 자막은 **상시**다(되요청: "토스터가 아니라 계속 노출로 변경") — 중계가 켜진 동안 늘 서 있고 토막이
    갈릴 때 글귀만 갈아 끼운다(그리는 쪽이 토막 번호를 key 로 주어 그 순간 떠오름만 다시 돈다). 스러지는
@@ -3586,7 +3596,7 @@
   /* 6 → 5 · 8 → 5 · 팀 사이 3(2026-09, 요청: "PC 레이아웃의 로스터도 모바일처럼 컴팩트하게 통일" — 폰의 값을 그대로) */
   /* 5 → 4 · 3 → 2(2026-09, 요청: "요소간 갭도 줄여서 전체 크기 줄이기") */
   left: calc(var(--scr-stage-l, 0px) + 5px); top: 5px;
-  padding: 4px; gap: 2px;
+  padding: calc(4px * var(--dk)); gap: calc(2px * var(--dk));
   max-width: calc(100vw - 10px);   /* 폭은 내용(아래 fit-content) — 아주 좁은 기기만 뷰포트로 막는다 */
   /* ★ 폭은 **이름 칸에서 나온다**(요청: 닉네임 항상 길게 고정) — 여태 320px을 손으로
      못 박아 두고 이름 칸이 그 나머지를 받아먹었다. 그러면 지표 칸을 한 뼘 손볼 때마다
@@ -3604,7 +3614,7 @@
   /* 122 → 106(2026-09, 요청: "PC 레이아웃의 로스터도 모바일처럼 컴팩트하게 통일") — 폰의 값이다. 아바타가 어느 폭에서도
      안 서므로(위 .scr-fs-roster-fixed 의 ★) 줄어든 것은 아바타·그 여백(−16)뿐이고 칩이 받는 자리는 그대로다. */
   /* 106 → 90(2026-09, 요청: "로스터 닉네임의 글자 축소 및 좀더 컴팩트하게") — 이름 글자 9 → 8px · 칩 여백 4 → 3 만큼. */
-  --roster-name: 90px;
+  --roster-name: calc(90px * var(--dk));
   /* ★ 폭은 **내용이 정한다**(지적 사진: 로스터 판이 좁아 APM 칸이 밖으로 빠져나감) ────────
      여태 판 폭을 '이름칸 + 지표 다섯 + 사이 + 여백'을 **손으로 더한 수**로 못 박았는데, 그 합이
      세 자리(기본·1159 이하·좁은 폰)에 따로 있어 격자(--roster-cols·gap·padding)를 손볼 때마다
