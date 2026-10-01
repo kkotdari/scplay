@@ -5111,10 +5111,11 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
               /* ★ 크기는 **발자국과 그린 몸 중 큰 쪽**이다(같은 지적) — 링은 몸 밑(바닥 도형 패스)에 깔리므로 몸이 발자국보다
                  넓은 종류(벙커 · 3×2 발자국에 날개가 넓다)에서는 링이 통째로 몸에 덮여 안 보였다. 비(세로/가로)는 그대로 둔다. */
               const rk9 = Math.max(1, (glBf9.w * gk9 * 0.56) / Math.max(1, wPx * 0.62));
-              /* ⚠ 세로의 자는 hPx 가 **아니다** — 그 상자는 높이 여유(riseOf)까지 든 것이라 키 큰 건물(터렛)에서 링이 세로로
-                 섰다. 발자국의 깊이 ÷ 폭(op.footD)을 폭에 곱한다(없으면 옛 자). */
-              const fdPx9 = op.footD !== undefined ? wPx * op.footD : hPx;
-              gl9.prim(2, sx, cy9, wPx * 0.62 * rk9, Math.max(3, fdPx9 * 0.62 * ryK9 * rk9), op.color, op.alpha, Math.max(1.1, wPx * 0.012));
+              /* ★ 세로는 **가로 × 유닛 링의 비**다(2026-09, 지적: "건물 선택링이 너무 눌려보이는데 · 유닛 선택링하고는 느낌이
+                 좀 다르네") — 발자국 깊이(op.footD = 깊이 ÷ 폭)를 곱했더니 4×3 은 0.42 · 3×2 는 0.38 로 유닛 링(0.564)보다
+                 납작했다. 링은 땅 위의 동그라미라는 신호이지 발자국의 꼴이 아니다 — 비를 하나로 둔다. */
+              const rx9 = wPx * 0.62 * rk9;
+              gl9.prim(2, sx, cy9, rx9, Math.max(3, rx9 * ryK9), op.color, op.alpha, Math.max(1.1, wPx * 0.012));
             }
             gl9.push({ mesh: glB9, ax: gax9, ay: gay9, k: gk9, yoff: op.mkFrac !== undefined ? 0 : -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind), over: true });
             /* ★ 가스 연기는 메시가 아니라 **프레임마다 놓는 덩이**다(2026-09, gl9 gasPush9) — 회전 칸이 소수(엔진)라 시계가 이어진다. */
@@ -9506,6 +9507,9 @@ export default function ReplayMotionPlayer({
    *  주인공색은 중계가 꺼지면 개인색이다(effect 가 상태를 되돌리기 전 한 렌더도 안 새게 여기서도 막는다). */
   const colorNow: ColorMode9 = (melee && colorMode === "team") || (colorMode === "hero" && !heroOk9) ? "personal" : colorMode;
   useEffect(() => { if (!heroOk9) setColorMode((m) => (m === "hero" ? "personal" : m)); }, [heroOk9]);
+  /** C 키가 도는 다음 갈래 — 키 처리기는 의존성이 길어 렌더마다 다시 안 짓으므로 ref 로 읽는다(단추와 같은 셈). */
+  const colorNextRef9 = useRef<ColorMode9>("team");
+  colorNextRef9.current = nextColorMode9(colorNow, !!melee, heroOk9);
   /** ★ 주인공색의 '나' = **화면 주인**(camRaw9 — 개인 추적이면 그 사람, 자동 중계면 중계가 고른 사람).
    *  자동 중계도 따른다(요청: "자동 중계에도 적용해야해") — 중계가 사람을 갈아타면 색도 그 사람 기준으로 갈린다
    *  (토막이 바뀔 때만 · 색표는 문자열 값으로 memo 하므로 그 사이 프레임에는 안 흔들린다). */
@@ -9555,15 +9559,15 @@ export default function ReplayMotionPlayer({
   const capGhosts9 = useMemo(() => bases.map((b9) => castLabel9(b9.key)),
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [bases, melee, teamMap9]);
-  const castCap9 = capRaw9 !== null
-    ? {
-      key: trackRaw ? `t:${trackRaw}` : `c:${castIdx9}`, text: castLabel9(capRaw9), col: modeColor(capRaw9, teamOfRaw(capRaw9)),
-      ghosts: capGhosts9,
-      worker: workerNow.get(capRaw9) ?? null, res: resNow.get(capRaw9) ?? null,
-      sup: supplyNow.get(capRaw9) ?? null, apm: apmNow.get(capRaw9) ?? bases.find((b9) => b9.key === capRaw9)?.apm ?? null,
-      kd: kdNow.get(capRaw9) ?? null,
-    }
-    : null;
+  /** 한 사람의 정보줄(자막) — 중계 자막과 인포창의 '고른 몸의 임자' 줄이 같은 셈을 나눠 쓴다. */
+  const capOf9 = (raw9: string, key9: string) => ({
+    key: key9, text: castLabel9(raw9), col: modeColor(raw9, teamOfRaw(raw9)),
+    ghosts: capGhosts9,
+    worker: workerNow.get(raw9) ?? null, res: resNow.get(raw9) ?? null,
+    sup: supplyNow.get(raw9) ?? null, apm: apmNow.get(raw9) ?? bases.find((b9) => b9.key === raw9)?.apm ?? null,
+    kd: kdNow.get(raw9) ?? null,
+  });
+  const castCap9 = capRaw9 !== null ? capOf9(capRaw9, trackRaw ? `t:${trackRaw}` : `c:${castIdx9}`) : null;
   /** 추적 켜기·끄기 — 시야(viewRaw)를 함께 끌고 다닌다. 끄면 시야도 전체로 돌아간다. */
   /** 추적을 끈다 — **보던 자리에 머문다**(요청: "추적 보다가 끄면 맵 위치가 기존에 보던 곳으로 돌아가는데
    *  그러지 않게 추적이 보고 있던 곳에서 유지"). 추적 중의 팬은 trackView가 렌더마다 내는 값이라 panBase는
@@ -14479,10 +14483,10 @@ export default function ReplayMotionPlayer({
            안 뺏는다. */
       // (걷어냄) ]/[ 확대·축소 별칭 · 2/3 평면·입체 · r 로스터 · t 색 — 안내에 없는 매핑은 두지 않는다(요청).
       } else if (e.code === "KeyC") {
-        // c = 팀색 ↔ 개인색(요청).
+        // c = 색 모드 다음 갈래(단추와 같다 — 개인 → 팀 → 주인공 · 밀리는 팀을, 중계가 꺼지면 주인공을 건너뛴다).
         e.preventDefault();
         wakeUi();
-        setColorMode((v) => (v === "team" ? "personal" : "team"));
+        setColorMode(colorNextRef9.current);
       } else if (e.code === "KeyB") {
         /* b = 로스터 여닫이(이름만 → 전체 → 숨김, 오른쪽 아래 단추와 같은 순서).
            ★ **` 에서 b 로 옮겼다**(2026-09, 요청: "지도 켜고 끄기 단축키 N 로스터 단축키 B로
@@ -16083,6 +16087,12 @@ export default function ReplayMotionPlayer({
       </div>
     );
   };
+  /* ★ **중계가 꺼져도 고른 몸의 임자 줄은 선다**(2026-09, 요청: "중계 끈 상태에서 뭔가 선택하면 인포창에 뜨잖아 그때
+     중계중일때처럼 주인에 대한 정보줄도 나와야지") — 화면 주인(capRaw9)이 없으면 인포창이 보이는 몸(dockOps9 첫 몸)의
+     임자로 같은 정보줄을 세운다. 중립(자원·주인 없음)은 로스터에 없어 안 선다. */
+  const dockRaw9 = dockOps9[0]?.pickRaw;
+  const dockCap9 = castCap9
+    ?? (dockRaw9 && bases.some((b9) => b9.key === dockRaw9) ? capOf9(dockRaw9, `p:${dockRaw9}`) : null);
   const infoDock9 = (
     <div
       className={cx("scr-motion-infodock", dockFold9 && "is-fold")}
@@ -16090,13 +16100,13 @@ export default function ReplayMotionPlayer({
       onWheel={(e) => e.stopPropagation()}
     >
       <div className="scr-motion-infodock-cap" aria-live="polite">
-        {castCap9 && (
-          <span key={castCap9.key} className="scr-motion-castcap">
+        {dockCap9 && (
+          <span key={dockCap9.key} className="scr-motion-castcap">
             <span className="scr-motion-castcap-who">
-              <i className="scr-motion-castdot" style={{ background: castCap9.col }} aria-hidden />
-              {castCap9.text}
+              <i className="scr-motion-castdot" style={{ background: dockCap9.col }} aria-hidden />
+              {dockCap9.text}
             </span>
-            {castCap9.ghosts.map((g9, i9) => (
+            {dockCap9.ghosts.map((g9, i9) => (
               <span key={i9} className="scr-motion-castcap-who scr-motion-castcap-ghost" aria-hidden>
                 <i className="scr-motion-castdot" aria-hidden />
                 {g9}
@@ -16107,15 +16117,15 @@ export default function ReplayMotionPlayer({
             <span className="scr-motion-castcap-lab">인구</span>
             <span className="scr-motion-castcap-lab">K/D</span>
             <span className="scr-motion-castcap-lab">APM</span>
-            <span className="scr-motion-castcap-val">{castCap9.worker ?? "–"}</span>
+            <span className="scr-motion-castcap-val">{dockCap9.worker ?? "–"}</span>
             <span className="scr-motion-castcap-val">
-              <span className="scr-motion-stat-min">{castCap9.res ? castCap9.res[0] : "–"}</span>
+              <span className="scr-motion-stat-min">{dockCap9.res ? dockCap9.res[0] : "–"}</span>
               <span className="scr-motion-castcap-sl">/</span>
-              <span className="scr-motion-stat-gas">{castCap9.res ? castCap9.res[1] : "–"}</span>
+              <span className="scr-motion-stat-gas">{dockCap9.res ? dockCap9.res[1] : "–"}</span>
             </span>
-            <span className="scr-motion-castcap-val">{castCap9.sup ? `${castCap9.sup[0]}/${castCap9.sup[1]}` : "–"}</span>
-            <span className="scr-motion-castcap-val">{castCap9.kd ? `${castCap9.kd[0]}/${castCap9.kd[1]}` : "–"}</span>
-            <span className="scr-motion-castcap-val">{castCap9.apm ?? "–"}</span>
+            <span className="scr-motion-castcap-val">{dockCap9.sup ? `${dockCap9.sup[0]}/${dockCap9.sup[1]}` : "–"}</span>
+            <span className="scr-motion-castcap-val">{dockCap9.kd ? `${dockCap9.kd[0]}/${dockCap9.kd[1]}` : "–"}</span>
+            <span className="scr-motion-castcap-val">{dockCap9.apm ?? "–"}</span>
           </span>
         )}
         <button

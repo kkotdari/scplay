@@ -888,6 +888,17 @@ if (SHOT) {
   await page.waitForTimeout(1500);
   // 특정 장면 맞추기(--wait ms) — 재생이 실시간이라, 몇 초 뒤 장면은 그만큼 기다려 찍는다.
   if (flag("--wait", null)) await page.waitForTimeout(Number(flag("--wait", 0)));
+  /* 사용법 덮개(--guide <png>) — '사용법' 단추를 눌러 덮개를 띄우고, 창을 덮개 높이만큼 키워 통째로 찍는다. */
+  if (flag("--guide", null)) {
+    await page.evaluate(() => { [...document.querySelectorAll("button")].find((b) => b.textContent?.trim() === "사용법")?.click(); });
+    await page.waitForTimeout(600);
+    const h9 = await page.evaluate(() => document.querySelector(".scr-guide")?.scrollHeight ?? 0);
+    const vp9 = page.viewportSize();
+    await page.setViewportSize({ width: vp9.width, height: Math.max(vp9.height, h9 + 40) });
+    await page.waitForTimeout(500);
+    await page.locator(".scr-guide").screenshot({ path: flag("--guide", "guide.png") });
+    console.log("[사용법]", h9, "px →", flag("--guide", ""));
+  }
   /* 화면 자리 누르기(--clickat x,y · CSS px) — 보는 사람이 몸을 누르는 길(인포창)을 진짜 마우스로 찍는다. */
   if (flag("--clickat", null)) {
     const [cx9, cy9] = String(flag("--clickat", "0,0")).split(",").map(Number);
@@ -902,6 +913,7 @@ if (SHOT) {
       const r = d?.getBoundingClientRect();
       return { dock: !!d, rect: r ? [r.left, r.top, r.width, r.height].map(Math.round) : null,
         name: document.querySelector(".scr-motion-infodock-name")?.textContent ?? null,
+        cap: document.querySelector(".scr-motion-infodock-cap .scr-motion-castcap-who")?.textContent ?? null,
         err: document.querySelector(".scr-motion-nodata")?.textContent ?? null,
         n: document.querySelectorAll(".scr-motion-infodock").length,
         cs: d ? (({ position, bottom, width, transform }) => ({ position, bottom, width, transform }))(getComputedStyle(d)) : null,
