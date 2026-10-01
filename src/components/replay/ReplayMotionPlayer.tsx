@@ -15858,7 +15858,16 @@ export default function ReplayMotionPlayer({
     }
     if (op.pickState) {
       const m9 = /(\d+)%$/.exec(op.pickState);
-      if (m9) lines.push(bar9(op.pickState.replace(/\s*\d+%$/, ""), Number(m9[1]) / 100, "state"));
+      if (m9 && bld9 && op.pickWip) {
+        /* ★ 짓는 중은 생산 줄과 같은 꼴이다 — [짓는 건물 한 칸][진행 바](2026-09, 요청: "건설중도 마찬가지로") · 위의 큰 그림·이름은
+           공사 모양(고치·소환구·공사장)이 맡으므로, 무엇을 짓는지는 이 칸이 말한다. */
+        lines.push(
+          <div className="scr-motion-infodock-prod" key="state">
+            <span className="scr-motion-infodock-slot is-head">{silIcon9(en, true, "#6fe36f", "scr-motion-infodock-sico")}</span>
+            {bar9(`${op.pickState.replace(/\s*\d+%$/, "")} ${ko}`, Number(m9[1]) / 100, "sbar")}
+          </div>,
+        );
+      } else if (m9) lines.push(bar9(op.pickState.replace(/\s*\d+%$/, ""), Number(m9[1]) / 100, "state"));
       else lines.push(<div className="scr-motion-info-line" key="state">{op.pickState}</div>);
     }
     /** 오른쪽 칸들 — 생산 큐(건물) 또는 탄 몸(수송선·벙커). */
@@ -15942,9 +15951,19 @@ export default function ReplayMotionPlayer({
       const doing = (upsByRaw.get(op.pickRaw ?? "") ?? []).filter(([us, n, utag]) =>
         RESEARCH_BUILDING[upBase9(n)] === hall9 && t < us && us - t <= RESEARCH_SEC
         && (utag > 0 && op.pickTag !== undefined ? utag === op.pickTag : op.pickRep !== false));
+      /* ★ 연구도 [무엇을 연구하는지 한 칸][진행 바](2026-09, 요청: "연구중도 뭐연구하는지 왼쪽에 그림셀 배치 · 아래에 불켜는 대신") —
+         칸은 아래 상황판과 같은 업그레이드 칸(글자 · 단계 숫자)이다. 상황판의 '하는 중' 초록 테는 걷었다(이 칸이 그 몫이다). */
       for (const [us, n] of doing) {
         const lvTxt9 = / (\d)$/.exec(n)?.[1];
-        lines.push(bar9(`연구 중 ${researchKo(upBase9(n))}${lvTxt9 ? ` ${lvTxt9}단계` : ""}`, Math.min(0.99, (RESEARCH_SEC - (us - t)) / RESEARCH_SEC), `r${n}`));
+        const rko9 = researchKo(upBase9(n));
+        lines.push(
+          <div className="scr-motion-infodock-prod" key={`r${n}`}>
+            <span className="scr-motion-infodock-upsq scr-motion-infodock-rhead">
+              <i className={cx(rko9.length > 4 && "is-long")} title={rko9}><span>{rko9}</span>{lvTxt9 && <b>{lvTxt9}</b>}</i>
+            </span>
+            {bar9(`연구 중 ${rko9}${lvTxt9 ? ` ${lvTxt9}단계` : ""}`, Math.min(0.99, (RESEARCH_SEC - (us - t)) / RESEARCH_SEC), `rb${n}`)}
+          </div>,
+        );
       }
       /* ★ 이 건물에서 하는 연구의 **상황판**(2026-09, 요청: "업그레이드 건물은 업그레이드 상황 보여주기(원작에 없는 것이라
          적절히 추가)") — 표(RESEARCH_BUILDING)에서 이 건물 몫을 모아 칩 하나씩: 단계 업그레이드(종족 공·방·실드)는
@@ -15964,9 +15983,8 @@ export default function ReplayMotionPlayer({
           for (const [ko9, ns9] of grp9) {
             const lv9 = mine9.filter(([us, n]) => us <= t && ns9.includes(upBase9(n))).length;
             const step9 = ns9.some((n9) => /^(Terran|Protoss|Zerg) /.test(n9));
-            const busy9 = doing.some(([, n]) => ns9.includes(upBase9(n)));
             chips9.push(
-              <i key={ko9} className={cx(lv9 > 0 && "is-done", busy9 && "is-busy", ko9.length > 4 && "is-long")} title={ko9}>
+              <i key={ko9} className={cx(lv9 > 0 && "is-done", ko9.length > 4 && "is-long")} title={ko9}>
                 <span>{ko9}</span>{step9 && <b>{Math.min(3, lv9)}</b>}
               </i>,
             );
@@ -16056,13 +16074,20 @@ export default function ReplayMotionPlayer({
     }
     const off9 = (op as { offView?: boolean }).offView === true;
     const col9 = off9 ? "#8fc98f" : hpCol9(hpR);
+    /* ★ 짓는 중의 큰 그림·이름은 **공사 모양**이다(2026-09, 요청: "건설시 메인그림과 타이틀은 저그 공사고치 플토 소환구 테란 공사장") —
+       지도가 그리는 그 몸(고치·소환구)과 테란은 공사 발판. 짓는 건물 자신은 진행 바 왼쪽 칸이 든다. */
+    const wipRace9 = bld9 && op.pickWip ? (bases.find((b) => b.key === op.pickRaw)?.race ?? "") : "";
+    const wip9: [string, string] | null = !wipRace9 ? null
+      : wipRace9 === "저그" ? ["cocoon", "공사 고치"] : wipRace9 === "프로토스" ? ["warpin", "소환구"] : ["scaffold", "공사장"];
     return (
       <div className="scr-motion-infodock-one">
         {/* 이름은 **메인 아이콘 위**다(2026-09, 요청: "유닛 건물 이름을 메인 아이콘 위로 · 메인 아이콘을 좀 내리더라도") — 격자 1행이
             그림 칸과 글 칸 머리를 가로지른다(글 칸은 2행부터 선다 — 긴 이름이 그 머리로 비어져 나가도 안 겹친다). */}
-        <div className="scr-motion-infodock-name">{ko}</div>
+        <div className="scr-motion-infodock-name">{wip9 ? wip9[1] : ko}</div>
         <div className="scr-motion-infodock-pic">
-          {silIcon9(en, bld9, col9, "scr-motion-infodock-big")}
+          {wip9
+            ? <DocIcon9 kind={wip9[0]} flat fit fitPad={0.06} tint={col9} className="scr-motion-infodock-big" />
+            : silIcon9(en, bld9, col9, "scr-motion-infodock-big")}
           <div className="scr-motion-infodock-nums">
             <span className="is-row">
               <span style={{ color: col9 }}>{off9 ? "–" : `${hpCur}/${hpOnly}`}</span>

@@ -2695,7 +2695,9 @@
 /* 연구 상황판(건물) — 안 한 것은 옅게 · 마친 것은 밝게 · 하는 중은 초록 테. */
 .scr-motion-infodock-tech i { opacity: 0.42; }
 .scr-motion-infodock-tech i.is-done { opacity: 1; background: rgba(255, 255, 255, 0.16); }
-.scr-motion-infodock-tech i.is-busy { opacity: 1; box-shadow: inset 0 0 0 1px rgba(111, 227, 111, 0.85); }
+/* 연구 줄의 머리 칸 — 생산 줄의 머리 칸(.is-head)과 같은 초록 테. 상황판의 '하는 중' 표시는 이 칸으로 옮겼다. */
+.scr-motion-infodock-rhead { flex: none; }
+.scr-motion-infodock-rhead i { box-shadow: inset 0 0 0 1px rgba(111, 227, 111, 0.85); }
 /* 보급 넷(사용·제공·전체·최대)은 한 줄이다 — 2×2 격자는 몸 칸의 세로를 두 줄 먹었다. 글자는 한 단 작다(요청: "그렇게 중요한
    정보가 아니라 폰트크기 줄여도 됨" — 9 → 7.5·dkt). */
 .scr-motion-infodock-supply { display: flex; flex-wrap: nowrap; gap: 0 calc(6px * var(--dkd)); white-space: nowrap; font-size: calc(7.5px * var(--dkt)); color: rgba(255, 255, 255, 0.7); }
