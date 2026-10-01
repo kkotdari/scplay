@@ -5099,7 +5099,11 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
                둘레에 깐다(바닥 도형 패스라 몸 밑에 깔린다). 자리는 발자국 한가운데 · 뜬 건물은 뜬 몫만큼 위(몸과 함께 든다). */
             if ((op.selRing || (pickedKey != null && op.pickKey === pickedKey)) && gl9.primOk && op.mkFrac === undefined) {
               const cy9 = (groundY ?? sy + hPx / 2) - hPx / 2 - gLift9;
-              gl9.prim(2, sx, cy9, wPx * 0.62, Math.max(4, hPx * 0.62), op.color, op.alpha, Math.max(1.1, wPx * 0.012));
+              /* ★ 세로는 **부감에 눌린다**(2026-09, 지적: "건물 선택 링에 눌림 적용안된듯") — 발자국 px 를 그대로 반지름으로
+                 주어 땅 위에 선 동그라미가 아니라 세로로 선 타원이었다. 유닛 링과 같은 눌림(0.31/0.55)을 건다 — 둘이 한 자라야
+                 같은 화면의 링끼리 결이 맞는다. 입체 보기는 유닛 링처럼 pitchFlatNow 를 더 곱한다. */
+              const ryK9 = (0.31 / 0.55) * (op.pitch ? pitchFlatNow : 1);
+              gl9.prim(2, sx, cy9, wPx * 0.62, Math.max(3, hPx * 0.62 * ryK9), op.color, op.alpha, Math.max(1.1, wPx * 0.012));
             }
             gl9.push({ mesh: glB9, ax: gax9, ay: gay9, k: gk9, yoff: op.mkFrac !== undefined ? 0 : -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind), over: true });
             /* ★ 가스 연기는 메시가 아니라 **프레임마다 놓는 덩이**다(2026-09, gl9 gasPush9) — 회전 칸이 소수(엔진)라 시계가 이어진다. */
