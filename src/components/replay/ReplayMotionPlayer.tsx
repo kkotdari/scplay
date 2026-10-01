@@ -15837,6 +15837,8 @@ export default function ReplayMotionPlayer({
       kills9 = ks9.filter((s9) => s9 <= t && (!life9 || s9 >= life9.born - 0.05)).length;
     }
     const lines: React.ReactNode[] = [];
+    /** 맨 아래에 붙박이로 서는 줄(연구 상황판 · 보급 · 유닛 업그레이드) — 나머지(lines)는 위에서부터 쌓는다. */
+    const foot9: React.ReactNode[] = [];
     if (op.pickStatus && STATUS_FX[op.pickStatus]) {
       const sfx = STATUS_FX[op.pickStatus];
       lines.push(<div className="scr-motion-info-line" key="fx" style={{ color: sfx.col }}>{`${STATUS_KO[op.pickStatus] ?? op.pickStatus} — ${sfx.fx}`}</div>);
@@ -15900,7 +15902,8 @@ export default function ReplayMotionPlayer({
         }
       }
       /* ★ 원작 자리(2026-09, 요청: "원작은 생산 중인 유닛이 진행 바 좌측에 배치되고 대기들만 아래에 네 개") — 지금 뽑는
-         것은 진행 바 **왼쪽**의 칸 하나, 그 아래 줄이 대기 넷이다. 대기가 없으면 아래 줄도 안 선다. */
+         것은 진행 바 **왼쪽**의 칸 하나, 그 아래 줄이 대기 넷이다. ★ 대기 줄은 **비어 있어도 선다**(요청: "건물의 진행바
+         위치 큐 여부와 관계없이 고정(큐 자리 남겨놓기)") — 대기가 생기고 빠질 때 그 아래 줄(연구 바)이 들썩이지 않는다. */
       if (making || queue.length > 0) {
         lines.push(
           <div className="scr-motion-infodock-prod" key="prod">
@@ -15912,17 +15915,15 @@ export default function ReplayMotionPlayer({
               : <span className="scr-motion-info-line">대기</span>}
           </div>,
         );
-        if (queue.length > 0) {
-          lines.push(
-            <div className="scr-motion-infodock-queue" key="queue">
-              {Array.from({ length: 4 }, (_, k) => (
-                <span key={k} className="scr-motion-infodock-slot">
-                  {queue[k] ? silIcon9(queue[k][1], false, "#6fe36f", "scr-motion-infodock-sico") : null}
-                </span>
-              ))}
-            </div>,
-          );
-        }
+        lines.push(
+          <div className="scr-motion-infodock-queue" key="queue">
+            {Array.from({ length: 4 }, (_, k) => (
+              <span key={k} className="scr-motion-infodock-slot">
+                {queue[k] ? silIcon9(queue[k][1], false, "#6fe36f", "scr-motion-infodock-sico") : null}
+              </span>
+            ))}
+          </div>,
+        );
       }
       const hall9 = en === "Lair" || en === "Hive" ? "Hatchery" : en;
       const doing = (upsByRaw.get(op.pickRaw ?? "") ?? []).filter(([us, n, utag]) =>
@@ -15957,7 +15958,7 @@ export default function ReplayMotionPlayer({
               </i>,
             );
           }
-          lines.push(<div className="scr-motion-infodock-ups scr-motion-infodock-tech" key="tech">{chips9}</div>);
+          foot9.push(<div className="scr-motion-infodock-ups scr-motion-infodock-tech" key="tech">{chips9}</div>);
         }
       }
     } else {
@@ -15995,14 +15996,14 @@ export default function ReplayMotionPlayer({
         if (one9) { if (!upBits.includes(one9)) upBits.push(one9); }
         else rest9.push(tagU9 ?? researchKo(n));
       }
-      if (upBits.length > 0) lines.push(<div className="scr-motion-infodock-ups" key="ups">{upBits.map((b9) => <i key={b9}>{b9}</i>)}</div>);
+      if (upBits.length > 0) foot9.push(<div className="scr-motion-infodock-ups" key="ups">{upBits.map((b9) => <i key={b9}>{b9}</i>)}</div>);
       if (rest9.length > 0) lines.push(<div className="scr-motion-info-line" key="rest">{`연구 ${rest9.slice(-4).join(" · ")}`}</div>);
     }
     /* 보급(원작 사이 공급 네 줄) — 대는 몸이면. 짓는 중이면 안 댄다. */
     const give9 = SUPPLY_OF9[en];
     const sup9 = supplyNow.get(op.pickRaw ?? "");
     if (give9 && sup9 && !op.pickWip) {
-      lines.push(
+      foot9.push(
         <div className="scr-motion-infodock-supply" key="sup">
           <span>사용 <b>{sup9[0]}</b></span><span>제공 <b>{give9}</b></span>
           <span>전체 <b>{sup9[1]}</b></span><span>최대 <b>200</b></span>
@@ -16039,7 +16040,7 @@ export default function ReplayMotionPlayer({
     return (
       <div className="scr-motion-infodock-one">
         {/* 이름은 **메인 아이콘 위**다(2026-09, 요청: "유닛 건물 이름을 메인 아이콘 위로 · 메인 아이콘을 좀 내리더라도") — 격자 1행이
-            그림 칸과 글 칸 머리를 가로지른다(글 칸의 내용은 바닥에 붙으므로 그 머리는 비어 있다 — replay.css 의 같은 ★). */}
+            그림 칸과 글 칸 머리를 가로지른다(글 칸은 2행부터 선다 — 긴 이름이 그 머리로 비어져 나가도 안 겹친다). */}
         <div className="scr-motion-infodock-name">{ko}</div>
         <div className="scr-motion-infodock-pic">
           {silIcon9(en, bld9, col9, "scr-motion-infodock-big")}
@@ -16056,6 +16057,7 @@ export default function ReplayMotionPlayer({
             {kills9 !== null && <div className="scr-motion-info-line">{`처치 ${kills9}`}</div>}
             {lines}
           </div>
+          {foot9.length > 0 && <div className="scr-motion-infodock-foot">{foot9}</div>}
         </div>
         {side9 && <div className="scr-motion-infodock-side">{side9}</div>}
       </div>

@@ -2646,8 +2646,14 @@
 .scr-motion-infodock-nums .is-row { display: flex; gap: 0 0.45em; white-space: nowrap; }
 .scr-motion-infodock-nums .is-sh { color: #f2f6ff; }
 .scr-motion-infodock-nums .is-en { color: #c79cff; }
-.scr-motion-infodock-text { grid-column: 2; grid-row: 1 / 3; min-width: 0; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; gap: 1px; }
-.scr-motion-infodock-lines { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+/* ★ 글 칸은 **위에서부터 쌓고, 맨 아래 것만 바닥에 붙박는다**(2026-09, 요청: "내용을 전부 아래에 배치하라는게 아니라 위쪽부터
+   만들되 맨 아래에 들어가는 내용은 맨 아래에 붙박이로 고정 · 지금 전체가 다 아래에 몰려서 이상해(줄간격도 너무 없음)") —
+   옛 판은 칸 전체를 flex-end 로 내려 생산·연구 바까지 바닥에 몰렸다. 이제 생산·연구·처치(-lines)는 그림 꼭대기와 같은 높이(2행)
+   에서 시작하고, 바닥 몫(-foot: 연구 상황판 · 보급 · 유닛 업그레이드)만 margin-top: auto 로 바닥에 앉는다 — 그 바닥 줄이 왼쪽
+   숫자 줄과 베이스라인을 나눠 쓴다. 줄 사이는 1 → 3·dkd. 글 칸이 2행부터 서므로 긴 이름이 1행 오른쪽으로 비어져 나가도 안 겹친다. */
+.scr-motion-infodock-text { grid-column: 2; grid-row: 2; min-width: 0; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-start; gap: calc(3px * var(--dkd)); }
+.scr-motion-infodock-lines { display: flex; flex-direction: column; gap: calc(3px * var(--dkd)); min-width: 0; }
+.scr-motion-infodock-foot { margin-top: auto; display: flex; flex-direction: column; gap: calc(3px * var(--dkd)); min-width: 0; }
 /* 이름은 메인 그림 위 **가운데**다(2026-09, 요청: "유닛건물 이름을 메인그림 위 가운데 정렬") — 그림 칸(1열)에만 서고 그 칸 가운데로
    맞춘다. 칸(54px)보다 긴 이름("사이언스 퍼실리티")은 safe 가 왼쪽 맞춤으로 물러나 오른쪽(글 칸 머리 — 비어 있다)으로 비어져
    나간다(그냥 center 면 양쪽으로 넘쳐 왼쪽이 우물 밖에서 잘린다). */
@@ -2661,13 +2667,13 @@
   background: rgba(255, 255, 255, 0.1); box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.18);
 }
 /* 연구 상황판(건물) — 안 한 것은 옅게 · 마친 것은 밝게 · 하는 중은 초록 테. 단계 업그레이드는 n/3 을 굵게 붙인다. */
-.scr-motion-infodock-tech { margin-top: 3px; }
 .scr-motion-infodock-tech i { opacity: 0.42; }
 .scr-motion-infodock-tech i.is-done { opacity: 1; background: rgba(255, 255, 255, 0.16); }
 .scr-motion-infodock-tech i.is-busy { opacity: 1; box-shadow: inset 0 0 0 1px rgba(111, 227, 111, 0.85); }
 .scr-motion-infodock-tech b { font-variant-numeric: tabular-nums; }
-/* 보급 넷(사용·제공·전체·최대)은 한 줄이다 — 2×2 격자는 몸 칸의 세로를 두 줄 먹었다. */
-.scr-motion-infodock-supply { display: flex; flex-wrap: nowrap; gap: 0 calc(7px * var(--dkd)); white-space: nowrap; font-size: calc(9px * var(--dkt)); color: rgba(255, 255, 255, 0.78); }
+/* 보급 넷(사용·제공·전체·최대)은 한 줄이다 — 2×2 격자는 몸 칸의 세로를 두 줄 먹었다. 글자는 한 단 작다(요청: "그렇게 중요한
+   정보가 아니라 폰트크기 줄여도 됨" — 9 → 7.5·dkt). */
+.scr-motion-infodock-supply { display: flex; flex-wrap: nowrap; gap: 0 calc(6px * var(--dkd)); white-space: nowrap; font-size: calc(7.5px * var(--dkt)); color: rgba(255, 255, 255, 0.7); }
 /* 옛 팝업에서 이어 쓰는 글·진행 바도 창의 배수를 탄다. */
 .scr-motion-infodock .scr-motion-info-line { font-size: calc(9px * var(--dkt)); }
 .scr-motion-infodock .scr-motion-info-bar { height: calc(6px * var(--dkd)); }
@@ -2682,7 +2688,7 @@
 /* 생산 글귀는 한 줄이다 — 바 폭(칸 셋 몫)이 좁아 다섯 글자 이름("생산 중 사이언스 베슬")의 끝 글자가 둘째 줄로 떨어졌다.
    글 칸이 그보다 넓으므로 바 오른쪽으로 비어져 나가게 둔다(2026-09, 지적: "다섯글자 유닛 생산중에 한글자가 줄이 내려감"). */
 .scr-motion-infodock-prod .scr-motion-info-line { white-space: nowrap; }
-.scr-motion-infodock-queue { display: flex; gap: var(--dock-qgap); margin-top: var(--dock-qgap); }
+.scr-motion-infodock-queue { display: flex; gap: var(--dock-qgap); margin-top: calc(var(--dock-qgap) - 3px * var(--dkd)); }
 /* 탄 몸 — 칸이 수송 공간만큼 넓다(span) · dense 로 빈 자리를 앞에서부터 메운다. 아이콘은 한 칸 크기 그대로. */
 .scr-motion-infodock-cargo { display: grid; gap: 3px; grid-auto-flow: row dense; grid-auto-rows: var(--dock-slot); }
 .scr-motion-infodock-slot {
@@ -3109,11 +3115,11 @@
       repeating-linear-gradient(90deg, transparent 0, rgba(255, 255, 255, 0.07) 23px, transparent 41px, rgba(0, 0, 0, 0.06) 67px, transparent 89px),
       repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px 2px),
       repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.09) 0 1px, transparent 1px 3px),
-      linear-gradient(180deg, #c6ccd3 0%, #8f97a1 13%, #5c636c 45%, #373c42 50%, #535a62 70%, #7f8791 100%);
+      linear-gradient(180deg, #b2b8c0 0%, #979fa8 15%, #7a828b 45%, #656c75 52%, #737b84 72%, #89919a 100%);
     box-shadow:
       inset 0 1px 0 #0b0d10, inset 0 2px 0 rgba(255, 255, 255, 0.55),
       inset 0 -1px 0 #0b0d10, inset 0 -2px 0 rgba(0, 0, 0, 0.55);
-    background-color: #7f8791; background-origin: content-box; background-repeat: no-repeat;
+    background-color: #89919a; background-origin: content-box; background-repeat: no-repeat;
     pointer-events: auto;
   }
   .scr-fs-layer .scr-fs-dockframe {
@@ -3165,11 +3171,11 @@
   box-sizing: border-box;
   position: relative; border: 1px solid #0b0d10; border-radius: 0;
   background:
-    linear-gradient(104deg, transparent 36%, rgba(255, 255, 255, 0.24) 46%, rgba(255, 255, 255, 0.05) 53%, transparent 61%),
+    linear-gradient(104deg, transparent 36%, rgba(255, 255, 255, 0.14) 46%, rgba(255, 255, 255, 0.03) 53%, transparent 61%),
     repeating-linear-gradient(90deg, transparent 0, rgba(255, 255, 255, 0.07) 23px, transparent 41px, rgba(0, 0, 0, 0.06) 67px, transparent 89px),
     repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px 2px),
     repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.09) 0 1px, transparent 1px 3px),
-    linear-gradient(180deg, #c6ccd3 0%, #8f97a1 13%, #5c636c 45%, #373c42 50%, #535a62 70%, #7f8791 100%);
+    linear-gradient(180deg, #b2b8c0 0%, #979fa8 15%, #7a828b 45%, #656c75 52%, #737b84 72%, #89919a 100%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.75), inset 0 -1px 0 rgba(0, 0, 0, 0.6),
     inset 1px 0 0 rgba(255, 255, 255, 0.18), inset -1px 0 0 rgba(0, 0, 0, 0.35),
@@ -3195,7 +3201,7 @@
     repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px 2px),
     repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.09) 0 1px, transparent 1px 3px),
     repeating-linear-gradient(180deg, transparent 0, rgba(255, 255, 255, 0.06) 19px, transparent 37px, rgba(0, 0, 0, 0.06) 53px, transparent 71px),
-    linear-gradient(180deg, #c6ccd3 0%, #8f97a1 13%, #5c636c 45%, #373c42 50%, #535a62 70%, #7f8791 100%);
+    linear-gradient(180deg, #b2b8c0 0%, #979fa8 15%, #7a828b 45%, #656c75 52%, #737b84 72%, #89919a 100%);
   /* 광택 띠는 틀의 온 키(위아래 여백 + 정보줄 + 그 아래 틈 포함)에 걸려 있으므로 막대도 그 자로 편다 — 같은 높이에서 같은 색이라
      이음매가 없다. 막대는 틀 위에서 '여백 + 정보줄 + 틈' 만큼 내려와 있다. */
   background-size: 100% calc(100% + var(--dock-cap) + 3 * var(--dock-bez));
