@@ -7325,30 +7325,35 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         r2 === raw && u2 === unit && l2 !== undefined && (g2 ?? 0) === sec
         && (x2 !== x || y2 !== y));
       if (!cameFrom) return;
-      /* 고리는 **그림자와 같은 평면**에 눕는다(요청: "충격파 그림자와 같은 각도
-         눕히기") — 눌림 상수(pitchFlat) 하나로 세로만 줄이면 그건 화면에서 흉내
-         낸 타원이라, 원근이 실린 그림자 다각형과 각이 안 맞는다. 자리 사상
-         (posFrac)으로 **그 자리에서** 가로·세로 반지름을 각각 재면, 지도가
-         그 줄에 실어 놓은 원근·기울기가 그대로 실린다 — 뜬 건물 그림자가
-         shadowPts로 하는 일과 같은 자다. */
+      /* ★★ **동심원 고리는 걷었다 — 네 귀퉁이의 먼지바람이다**(2026-09, 지적: "테란 건물 랜딩 충격파 — 반투명하게 건물을
+         뚫고 보여서 이상해 동심원으로 하지말고 건물 대각 네 귀퉁이에서 연기가 뿡하고 나오는건 어때? 먼지바람처럼") — 효과는
+         몸을 다 그린 **위에** 얹히므로(효과 층) 바닥에 누운 고리의 뒤쪽 반이 건물 몸을 가로질러 비쳤다. 이제 발자국의 네
+         귀퉁이(타일 자리를 posFrac 으로 옮긴 화면 점)마다 op 하나 — 먼지가 그 귀퉁이에서 **바깥으로**(dx·dy = 화면 단위
+         방향) 뿜어 나와 퍼지며 스러진다. 뒤 두 귀퉁이(sub "back")는 몸에 가리는 자리라 붓이 옆으로만 뿜게 하고 조금 밖에서
+         시작한다. 크기(size)는 발자국 폭(렌즈 px)이다. */
       const cx9 = x + footDx(unit);
       const cy9 = y + footDy(unit);
-      const r9 = ((FOOTPRINT[unit] ?? [4, 3])[0] * 1.4) / 2;
-      const wPct = Math.abs(posFrac(cx9 + r9, cy9)[0] - posFrac(cx9 - r9, cy9)[0]) * 100;
-      /* 평면(90도)에서는 자리 사상이 눌러 주지 않는다(지적: "리프트랜딩 충격파도
-         2디에서 너무 원이야 세로가 눌리지 않고") — posFrac은 입체에서만 원근을
-         싣고, 평면에서는 타일 원이 화면 원 그대로 나온다. 그런데 이 화면의 평면
-         바닥은 **의도적으로 눌려 있다**(원작 이동 마커와 같은 2:1 지면 관례):
-         건물 접지 그림자도 평면에서 0.55를 곱해 깐다. 같은 값을 여기에도 쓴다 —
-         충격파와 그림자가 같은 바닥에 누워야 한다는 것이 애초의 요청이다. */
-      const hPct = Math.abs(posFrac(cx9, cy9 + r9)[1] - posFrac(cx9, cy9 - r9)[1]) * 100
-        * (pitched ? 1 : GROUND_SQUISH_2D);
-      {
-        const [tfx9, tfy9] = posFrac(cx9, cy9);
+      const fw9 = (FOOTPRINT[unit] ?? [4, 3])[0];
+      const fh9 = (FOOTPRINT[unit] ?? [4, 3])[1];
+      const wPx9 = Math.abs(posFrac(cx9 + fw9 / 2, cy9)[0] - posFrac(cx9 - fw9 / 2, cy9)[0]) * mapW9;
+      const cfy9 = posFrac(cx9, cy9)[1];
+      for (const [sx9, sy9] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const) {
+        const kx9 = cx9 + (sx9 * fw9) / 2;
+        const ky9 = cy9 + (sy9 * fh9) / 2;
+        /* 평면(90도)에서는 posFrac 이 바닥을 눌러 주지 않는다 — 이 화면의 평면 바닥은 일부러 눌려 있으므로(옛 고리·접지 그림자의
+           GROUND_SQUISH_2D) 귀퉁이의 세로 몫도 같은 값으로 누른다. 안 누르면 귀퉁이가 위아래로 벌어져 건물 발자국에서 떨어진다. */
+        const sq9 = pitched ? 1 : GROUND_SQUISH_2D;
+        const [ax9, ay0] = posFrac(kx9, ky9);
+        const ay9 = cfy9 + (ay0 - cfy9) * sq9;
+        const [bx9, by0] = posFrac(kx9 + sx9 * 0.5, ky9 + sy9 * 0.5);
+        const by9 = cfy9 + (by0 - cfy9) * sq9;
+        const vx9 = (bx9 - ax9) * mapW9;
+        const vy9 = (by9 - ay9) * mapW9;
+        const vl9 = Math.hypot(vx9, vy9) || 1;
         fxOps.push({
-          kind: "dom", style: "land", fx: tfx9, fy: tfy9, lift: 0,
-          size: (wPct / 100) * mapW9, len: (hPct / 100) * mapW9, age: t - sec,
-          ...(pitched ? { skx: pitchFlat * Math.tan((viewYawOf(cx9, cy9) * Math.PI) / 180), sky: pitchFlat } : {}),
+          kind: "dom", style: "land", fx: ax9, fy: ay9, lift: 0,
+          size: wPx9, age: t - sec, dx: vx9 / vl9, dy: vy9 / vl9,
+          sub: vy9 < 0 ? "back" : "front", seed: (i * 4 + (sx9 + 1) + (sy9 + 1) * 2 + 1) % 100,
         });
       }
     });

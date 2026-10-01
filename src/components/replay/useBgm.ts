@@ -20,7 +20,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
  *    미디어는 미디어 음량을 따른다. 곧 여기서 지킬 수 있는 것은 '미디어 음량 0이면 안
  *    들린다'까지다. iOS는 무음 스위치가 미디어까지 덮으므로 요청 그대로 동작한다.
  *
- *  ★ 기본이 **꺼짐**이다(지시: "안 건드리면 조용하고 켜야 나는 게 맞아") — 켠 적이 있는
+ *  ★ (되물림 — 지금은 기본 켜짐 · 아래 wantOn) 기본이 **꺼짐**이다(지시: "안 건드리면 조용하고 켜야 나는 게 맞아") — 켠 적이 있는
  *    사람만 나고, 그 뜻은 브라우저에 남아 다음 경기에도 따라간다(아래 wantOn).
  *  ★ 켜 둔 사람에게도 '켜 둔 뜻'이 곧 '지금 소리가 난다'는 아니다 — 브라우저는 사람의
  *    누름 없이 소리 나는 재생을 막는다. **아이콘은 뜻이 아니라 지금을 말한다**(지적):
@@ -77,8 +77,10 @@ const KEY = "scr.bgm.on";
  *  그리고 브라우저가 막으면 아무 소리도 안 나서 켠 얼굴만 남는다(그 지적이 앞서 있었다).
  *  소리는 **사람이 부르는 것**으로 둔다: 켠 적이 있는 사람만 나고, 그 뜻은 그대로 남는다.
  *  ※ 값이 "0"인 사람(예전에 끈 적 있음)도 여기서는 꺼짐이라 달라질 것이 없다. */
+/* ★★ **되물렸다 — 기본은 켜짐이다**(2026-09, 지적: "음악이 기본으로 안켜지는 문제") — 위 '안 건드리면 조용하고'를
+   뒤집는다. 이제 적어 둔 값이 **"0"(끈 적이 있다)일 때만** 꺼짐이고, 값이 없거나 "1" 이면 켜짐이다. */
 const wantOn = (): boolean => {
-  try { return localStorage.getItem(KEY) === "1"; } catch { return false; }
+  try { return localStorage.getItem(KEY) !== "0"; } catch { return true; }
 };
 
 /** 차례를 **섞어 돌린다** — 매번 제비를 뽑으면 같은 곡이 연달아 나오는 일이 흔하다
@@ -111,6 +113,8 @@ export type Bgm = {
   index: number | null;
   /** 목록에서 한 곡을 골라 **처음부터** 튼다 — 켜 둔 뜻도 함께 켠다. */
   pick: (i: number) => void;
+  /** 끈다(이미 꺼져 있어도 '끈 뜻'을 적는다 — 첫 누름을 기다리던 기본 켜짐도 걷힌다). */
+  off: () => void;
 };
 /** 곡 제목 목록 — 파일 차례 그대로. */
 const BGM_TITLES = BGM_FILES.map(titleOf);
@@ -315,8 +319,21 @@ export function useBgm(playing = true): Bgm {
       setOn(false);
       // 막힌 채로 받아 오지는 않는다 — 한 곡이 6~13MB다. 켤 때 이어서 받는다.
       audio().pause();
+      /* ★ 기본이 켜짐이 된 뒤로는 막힌 채 영영 조용하면 '기본으로 안 켜진다'가 그대로 남는다(외부 링크로 바로 들어온 길 —
+         브라우저가 누름 전 소리를 막는다). 그래서 **첫 누름에 켠다** — 얼굴은 실제로 소리가 난 뒤에야 켜진다(위 ★ 그대로:
+         켜진 얼굴인데 조용한 일은 없다). 그새 사람이 음악 목록에서 끄기를 골랐으면(KEY "0") 안 켠다. */
+      const go = (): void => {
+        window.removeEventListener("pointerdown", go, true);
+        window.removeEventListener("keydown", go, true);
+        if (onRef.current || !wantOn()) return;
+        onRef.current = true;
+        if (!playingRef.current) { setOn(true); return; }
+        playOrNext().then(() => { if (onRef.current) setOn(true); else audio().pause(); }).catch(() => { onRef.current = false; setOn(false); });
+      };
+      window.addEventListener("pointerdown", go, true);
+      window.addEventListener("keydown", go, true);
     });
-  }, [next, audio]);
+  }, [next, audio, playOrNext]);
 
   /** 목록에서 고른 곡을 **처음부터** 튼다(요청) — 켜 둔 뜻도 켠다. 섞인 차례는 이 곡을 뺀 새 바퀴로 이어 간다. */
   const pick = useCallback((i: number) => {
@@ -334,5 +351,12 @@ export function useBgm(playing = true): Bgm {
     a.play().catch(() => armFirstGesture());
   }, [audio, armFirstGesture]);
 
-  return { on, toggle, now, tracks: BGM_TITLES, index, pick };
+  const off = useCallback(() => {
+    onRef.current = false;
+    setOn(false);
+    try { localStorage.setItem(KEY, "0"); } catch { /* 사파리 사생활 모드 */ }
+    audio().pause();
+  }, [audio]);
+
+  return { on, toggle, now, tracks: BGM_TITLES, index, pick, off };
 }

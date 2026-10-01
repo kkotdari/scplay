@@ -85,11 +85,10 @@ export default function ReplayGuide({ onClose }: {
 
         <h3 className="scr-guide-h3">도구 상자의 버튼</h3>
         <p className="scr-guide-sub">
-          켜져 있으면 <strong>환하게</strong> 빛나고, <strong>중계</strong>만은 켜진 동안 <strong>초록 테두리로 깜빡</strong>입니다.
+          켜져 있으면 <strong>환하게</strong> 빛납니다. <strong>중계</strong> 버튼은 아래 <strong>사람 정보줄 맨 왼쪽</strong>에 있고, 켜진 동안 <strong>초록 테두리로 깜빡</strong>입니다.
         </p>
         <div className="scr-guide-mock">
           <div className="scr-guide-toolrow">
-            <span className="scr-guide-mbtn scr-guide-mbtn-cast"><Tv size={18}/></span>
             <span className="scr-guide-mbtn"><Users size={18}/></span>
             <span className="scr-guide-mbtn scr-guide-colsw is-personal"><Palette size={18}/></span>
             <span className="scr-guide-mbtn scr-guide-mbtn-txt">2D</span>
@@ -99,7 +98,7 @@ export default function ReplayGuide({ onClose }: {
             <span className="scr-guide-tpill"><Maximize size={15}/></span>
           </div>
           <ul className="scr-guide-legend">
-            <li><span className="scr-guide-ic"><Tv size={15}/></span><span><b>중계</b> — 누르면 위로 목록이 펼쳐집니다: <b>사람 이름들 · 자동 · 끄기</b>. 아래 <b>중계 고르기</b>에서 자세히.</span></li>
+            <li><span className="scr-guide-ic"><Tv size={15}/></span><span><b>중계</b>(정보줄 맨 왼쪽) — 누르면 위로 목록이 펼쳐집니다: <b>사람 이름들 · 자동 · 끄기</b>. 아래 <b>중계 고르기</b>에서 자세히.</span></li>
             <li><span className="scr-guide-ic"><Users size={15}/></span><span><b>로스터</b> — 누를 때마다 <b>이름만 → 전체 → 숨김</b> 세 단으로 돕니다. 아이콘이 <b>사람+표</b>(<RosterTableIcon size={13}/>)로 바뀌면 일꾼·자원·인구·K/D·APM까지 떠 있는 상태입니다.</span></li>
             <li><span className="scr-guide-ic"><Palette size={15}/></span><span><b>색</b> — 누를 때마다 색 모드가 바뀝니다. 버튼의 <b>원그래프</b>가 곧 지금 모드입니다(아래 <b>색 모드</b>).</span></li>
             <li><span className="scr-guide-ic scr-guide-ic-txt">2D</span><span><b>보기</b> — 평면(2D)과 입체(3D)를 오갑니다. 언덕·램프는 입체에서 더 잘 읽힙니다. PC에만 있습니다.</span></li>

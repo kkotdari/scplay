@@ -2016,6 +2016,7 @@ function cbez9(x19: number, y19: number, x29: number, y29: number, t9: number): 
 }
 /** 죽음·붕괴·마인의 화구 팔레트(CSS의 radial-gradient 칸 그대로). */
 const DOM_RAD9: Record<string, [number, string][]> = {
+  "land-dust": [[0, "rgba(222,208,182,0.85)"], [0.4, "rgba(196,182,156,0.55)"], [0.72, "rgba(170,158,136,0)"]],
   "die-bio": [[0, "rgba(230,80,60,0.9)"], [0.55, "rgba(160,40,30,0.5)"], [0.75, "rgba(160,40,30,0)"]],
   "die-mech": [[0, "rgba(255,220,130,0.95)"], [0.45, "rgba(255,120,50,0.75)"], [0.7, "rgba(255,120,50,0)"]],
   "die-toss": [[0, "rgba(210,235,255,0.95)"], [0.5, "rgba(110,170,255,0.6)"], [0.75, "rgba(110,170,255,0)"]],
@@ -2323,20 +2324,35 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
       break;
     }
     case "land": {
-      /* 착지 충격파 1.2초 — 무게감 있게 천천히 밀려 나가는 고리(CSS의 베지어 그대로). */
-      const u9 = u0 / 1.2;
+      /* 착지 먼지바람 1.1초(2026-09, 요청: "동심원으로 하지말고 건물 대각 네 귀퉁이에서 연기가 뿡하고 나오는건 어때? 먼지바람
+         처럼") — op 하나가 귀퉁이 하나다(engine9). 덩이 넷이 바깥 방향(dx·dy) 둘레 ±30도로 **확 뿜어졌다**(ease-out) 퍼지며
+         스러진다. 뒤 귀퉁이(sub "back")는 몸이 가리는 자리라 옆으로만 뿜고 몸 밖(발자국 폭의 0.12)에서 시작한다 — 효과는
+         몸 위에 얹히므로 몸 쪽으로 뿜으면 건물을 뚫고 비친다(옛 고리의 그 병). W9 는 발자국 폭(화면 px)이다. */
+      const u9 = u0 / 1.1;
       if (u9 > 1) break;
-      const k9 = 0.5 + 0.5 * cbez9(0.34, 0.5, 0.24, 1, u9);
-      const al9 = u9 < 0.18 ? (u9 / 0.18) * 0.85 : 0.85 * (1 - (u9 - 0.18) / 0.82);
-      if (al9 <= 0.01) break;
-      lay9(() => {
+      const back9 = f.sub === "back";
+      let dx9 = f.dx ?? 0; let dy9 = f.dy ?? 1;
+      if (back9) { dx9 = dx9 < 0 ? -1 : 1; dy9 = -0.18; }
+      const dl9 = Math.hypot(dx9, dy9) || 1; dx9 /= dl9; dy9 /= dl9;
+      const e9 = 1 - (1 - u9) ** 3;
+      const spr9 = radOf9("land-dust");
+      const sd9 = f.seed ?? 0;
+      for (let b9 = 0; b9 < 4; b9 += 1) {
+        const h9 = ((sd9 * 7 + b9 * 13) % 10) / 10;
+        const ang9 = (b9 - 1.5) * 0.36 + (h9 - 0.5) * 0.18;
+        const ca9 = Math.cos(ang9); const sa9 = Math.sin(ang9);
+        const vx9 = dx9 * ca9 - dy9 * sa9;
+        const vy9 = dx9 * sa9 + dy9 * ca9;
+        const d9 = W9 * ((back9 ? 0.12 : 0.03) + (0.26 + 0.12 * h9) * e9);
+        const r9 = W9 * (0.06 + (0.15 + 0.06 * h9) * e9);
+        const al9 = (u9 < 0.1 ? u9 / 0.1 : (1 - (u9 - 0.1) / 0.9) ** 1.5) * 0.95;
+        if (al9 <= 0.01) continue;
         ctx.globalAlpha = al9;
-        ctx.strokeStyle = "rgba(226,214,190,0.75)";
-        ctx.lineWidth = Math.max(0.5, zoom);
-        ctx.beginPath();
-        ctx.ellipse(ax, ay, (W9 * k9) / 2, (((f.len ?? f.size ?? 8) * zoom) * k9) / 2, 0, 0, Math.PI * 2);
-        ctx.stroke();
-      });
+        /* 바닥을 따라 퍼지므로 세로는 눌린다(0.6) · 덩이는 조금씩 떠오른다. */
+        const px9 = ax + vx9 * d9;
+        const py9 = ay + vy9 * d9 * 0.6 - W9 * 0.05 * e9;
+        ctx.drawImage(spr9, px9 - r9, py9 - r9 * 0.8, r9 * 2, r9 * 1.6);
+      }
       break;
     }
     case "dig": {
@@ -15535,40 +15551,7 @@ export default function ReplayMotionPlayer({
           `entData &&` 문이 있어 세계가 워커에서 오기 전에는 줄이 옛 꼴(TV 없음)로 서다가 받은 뒤 한 칸이 끼어들어 형제들이
           왼쪽으로 밀렸다. 목록은 로스터(bases)에서 나므로 자취 없이도 지을 수 있고, 고르는 일은 편성표가 오면 그때 먹는다
           (castOn 은 처음부터 켜져 있다). 줄의 꼴은 처음부터 끝까지 하나다. */}
-      {(
-        <span className="scr-motion-pick">
-          <button
-            type="button"
-            className={cx("scr-motion-litbtn scr-motion-mapbtn scr-motion-castbtn", (castOn || trackRaw !== null) && "scr-motion-castbtn-on")}
-            onClick={() => pickToggle9("cast")}
-            aria-haspopup="menu" aria-expanded={pick9 === "cast"}
-            aria-pressed={castOn || trackRaw !== null}
-            aria-label={castOn ? "중계 — 자동 · 누르면 목록"
-              : trackRaw !== null ? `추적 — ${bases.find((b9) => b9.key === trackRaw)?.name ?? trackRaw} · 누르면 목록`
-                : "중계·추적 — 누르면 목록"}
-            title={castOn
-              ? "중계(자동) — 중요한 장면의 선수를 자동으로 따라가는 중"
-              : trackRaw !== null ? "개인 추적 중 — 누르면 다른 사람이나 자동을 고른다"
-                : "중계·추적 — 따라갈 사람을 고르거나 자동(중계)을 켠다"}
-          >
-            <Tv size={18} aria-hidden />
-          </button>
-          {pickMenu9("cast", [
-            ...bases.map((b9) => ({
-              key: `p:${b9.key}`, label: b9.name, on: trackRaw === b9.key,
-              dot: modeColor(b9.key, teamOfRaw(b9.key)), act: () => toggleTrack(b9.key),
-            })),
-            { key: "auto", label: "자동", on: castOn, act: () => toggleCast9() },
-            /* ★ 맨 아래 **끄기**(2026-09, 요청: "목록에 끄기도 있어야해") — 켜진 것을 다시 골라 끄는 길은 남지만, 무엇이 켜져
-               있는지 모르는 손에게는 '끄는 줄'이 따로 있어야 한다. 중계든 개인 추적이든 카메라를 쥔 쪽을 놓고(둘은 배타라 둘 중
-               하나다) 시점도 관전자로 되돌린다(toggleTrack 의 끄는 길과 같은 셈). 둘 다 꺼져 있을 때 이 줄이 켜진 줄이다. */
-            {
-              key: "off", label: "끄기", on: !castOn && trackRaw === null,
-              act: () => { if (castOn) stopCast9(); else if (trackRaw !== null) { stopTrack9(); setViewRaw(null); } },
-            },
-          ], true, true)}
-        </span>
-      )}
+      {/* (옮김) TV 단추 — 정보줄 맨 왼쪽으로 갔다(2026-09, 요청: "중계버튼 위치를 유저정보 라인 맨 왼쪽으로 이동") · 아래 castBtnNode9. */}
       {(
         <button
           type="button"
@@ -15680,7 +15663,7 @@ export default function ReplayMotionPlayer({
         {/* 곡 목록(요청: "노래도 목록으로 · 항상 처음부터") — 열 곡, 맨 아래 '끄기'(요청: 끄기는 맨 아래). 고른 곡은 처음부터(useBgm.pick). */}
         {pickMenu9("bgm", [
           ...bgm.tracks.map((t9, i9) => ({ label: t9, on: bgm.on && bgm.index === i9, act: () => bgm.pick(i9) })),
-          { label: "끄기", on: !bgm.on, act: () => { if (bgm.on) bgm.toggle(); } },
+          { label: "끄기", on: !bgm.on, act: () => bgm.off() },
         ], true)}
       </span>
       {/* (옮김) 전체화면 단추 — 툴박스 꼬리의 **맨 오른쪽**으로 갔다(2026-09, 요청: "전체화면 온오프 버튼은 가장 오른쪽에 배치"). */}
@@ -16081,12 +16064,52 @@ export default function ReplayMotionPlayer({
      이 줄로 옮겨 와 **아래 줄(미니맵 + 인포창)을 통째로** 접는다. */
   /** 접힘이 실제로 먹나 — 전체화면에서만(프레임에는 접기 단추가 없다). */
   const dockFoldOn9 = fsOn && dockFold9;
+  /* ★ TV 단추(중계·추적 목록)는 **정보줄 맨 왼쪽**이다(2026-09, 요청: "중계버튼 위치를 유저정보 라인 맨 왼쪽으로 이동") —
+     정보줄이 곧 '지금 누구 화면인가'를 말하는 자리라 그 손잡이를 같은 줄에 둔다. 꼴·켜짐(초록 + 깜빡임)·위로 펼치는 목록은
+     아이콘 줄에 있던 그대로다(형제 규칙을 받으려고 .scr-motion-mapbtns 한 칸 감싸개 · 크기 변수는 .scr-fs-dockcast 가 든다). */
+  const castBtnNode9 = (
+    <div className="scr-motion-mapbtns scr-fs-dockcast">
+          <span className="scr-motion-pick">
+            <button
+              type="button"
+              className={cx("scr-motion-litbtn scr-motion-mapbtn scr-motion-castbtn", (castOn || trackRaw !== null) && "scr-motion-castbtn-on")}
+              onClick={() => pickToggle9("cast")}
+              aria-haspopup="menu" aria-expanded={pick9 === "cast"}
+              aria-pressed={castOn || trackRaw !== null}
+              aria-label={castOn ? "중계 — 자동 · 누르면 목록"
+                : trackRaw !== null ? `추적 — ${bases.find((b9) => b9.key === trackRaw)?.name ?? trackRaw} · 누르면 목록`
+                  : "중계·추적 — 누르면 목록"}
+              title={castOn
+                ? "중계(자동) — 중요한 장면의 선수를 자동으로 따라가는 중"
+                : trackRaw !== null ? "개인 추적 중 — 누르면 다른 사람이나 자동을 고른다"
+                  : "중계·추적 — 따라갈 사람을 고르거나 자동(중계)을 켠다"}
+            >
+              <Tv size={18} aria-hidden />
+            </button>
+            {pickMenu9("cast", [
+              ...bases.map((b9) => ({
+                key: `p:${b9.key}`, label: b9.name, on: trackRaw === b9.key,
+                dot: modeColor(b9.key, teamOfRaw(b9.key)), act: () => toggleTrack(b9.key),
+              })),
+              { key: "auto", label: "자동", on: castOn, act: () => toggleCast9() },
+              /* ★ 맨 아래 **끄기**(2026-09, 요청: "목록에 끄기도 있어야해") — 켜진 것을 다시 골라 끄는 길은 남지만, 무엇이 켜져
+                 있는지 모르는 손에게는 '끄는 줄'이 따로 있어야 한다. 중계든 개인 추적이든 카메라를 쥔 쪽을 놓고(둘은 배타라 둘 중
+                 하나다) 시점도 관전자로 되돌린다(toggleTrack 의 끄는 길과 같은 셈). 둘 다 꺼져 있을 때 이 줄이 켜진 줄이다. */
+              {
+                key: "off", label: "끄기", on: !castOn && trackRaw === null,
+                act: () => { if (castOn) stopCast9(); else if (trackRaw !== null) { stopTrack9(); setViewRaw(null); } },
+              },
+            ], true, true)}
+          </span>
+    </div>
+  );
   const dockCapNode9 = (
     <div
       className="scr-fs-dockcap" aria-live="polite"
       onPointerDown={(e) => e.stopPropagation()}
       onWheel={(e) => e.stopPropagation()}
     >
+        {castBtnNode9}
         {dockCap9 && (
           <span key={dockCap9.key} className="scr-motion-castcap">
             <span className="scr-motion-castcap-who">

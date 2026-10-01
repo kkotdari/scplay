@@ -437,7 +437,7 @@ window.__mount = (motion, players, walkJson, terrainB64) => {
        --zoom/--cx/--cy/--deg(&z=·&cx=·&cy=·&a= — 난전이 (64,64) = 분수 0.5라 화면 한가운데 온다 · 본진을 확대해 재려면
        --cx/--cy 로 옮긴다(가운데는 빈 땅이라 아무것도 안 그려진다)). */
     sceneLink: {
-      t: 46,
+      t: window.__t ?? 46,   // --t N 으로 다른 시각에 연다(착지 먼지 1.1초 같은 짧은 효과를 볼 때)
       ...(window.__track ? { tr: window.__track } : {}),
       ...(window.__zoom > 1 ? { z: window.__zoom } : {}),
       ...(window.__zoom > 1 && window.__cx != null ? { cx: window.__cx } : {}),
@@ -663,12 +663,12 @@ if (cssFile) {
 else console.warn("⚠ dist CSS 없음 — npm run build 먼저. 화면 배치가 안 맞을 수 있다.");
 await page.addScriptTag({ content: js, type: "module" });
 await page.waitForFunction("!!window.__mount");
-await page.evaluate(([z, d, mw, mh, cx, cy, tr]) => {
+await page.evaluate(([z, d, mw, mh, cx, cy, tr, t0]) => {
   window.__zoom = z; window.__deg = d; window.__mapw = mw; window.__maph = mh;
-  window.__cx = cx; window.__cy = cy; window.__track = tr;
+  window.__cx = cx; window.__cy = cy; window.__track = tr; window.__t = t0;
 }, [Number(flag("--zoom", 1)), Number(flag("--deg", 90)),
   Number(flag("--mapw", 128)), Number(flag("--maph", 128)),
-  Number(flag("--cx", 0.5)), Number(flag("--cy", 0.5)), flag("--track", "") || null]);
+  Number(flag("--cx", 0.5)), Number(flag("--cy", 0.5)), flag("--track", "") || null, Number(flag("--t", 46))]);
 await page.evaluate(([m, pl, wj, tb]) => window.__mount(m, pl, wj, tb), [world.motion, world.players, walkFixture, makeTerrain()]);
 // 재생이 실제로 그려질 때까지 — blit이 돌기 시작하면 준비된 것이다.
 // GL 붓(기본 켬)은 판을 안 찍는다 — 그린 개체 수(__glInst9)로도 준비를 안다.
