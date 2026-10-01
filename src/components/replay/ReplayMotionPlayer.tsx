@@ -15814,6 +15814,14 @@ export default function ReplayMotionPlayer({
     Medic: "Caduceus Reactor", "High Templar": "Khaydarin Amulet", Arbiter: "Khaydarin Core", Corsair: "Argus Jewel",
     "Dark Archon": "Argus Talisman", Queen: "Gamete Meiosis", Defiler: "Metasynaptic Node",
   };
+  /** 짓는 중의 말(요청: "건설중: 배럭 · 소환중: 스타게이트 · 변태중: 스포닝풀") — 종족이 동사를 정한다(테란의 '건설 중단'만 따로). */
+  const wipVerb9 = (state9: string, race9?: string): string =>
+    /중단/.test(state9) ? "건설 중단" : /변태/.test(state9) || race9 === "저그" ? "변태중" : race9 === "프로토스" ? "소환중" : "건설중";
+  /** 선 건물이 다음 건물로 변태하는 다섯 — 변태하는 동안 큰 그림·이름은 **원래 건물**이다(요청: "레어변태시 메인그림은 해처리고
+   *  변태중 옆에 그림은 레어"). */
+  const MORPH_FROM9: Record<string, string> = {
+    Lair: "Hatchery", Hive: "Lair", "Greater Spire": "Spire", "Sunken Colony": "Creep Colony", "Spore Colony": "Creep Colony",
+  };
   /** 한 몸의 칸 — 왼쪽 실루엣·숫자 · 가운데 글 · 오른쪽 탄 몸. */
   const dockOne9 = (op: UnitDrawOp): React.ReactNode => {
     const en = op.pickName ?? "";
@@ -15864,7 +15872,7 @@ export default function ReplayMotionPlayer({
         lines.push(
           <div className="scr-motion-infodock-prod" key="state">
             <span className="scr-motion-infodock-slot is-head">{silIcon9(en, true, "#6fe36f", "scr-motion-infodock-sico")}</span>
-            {bar9(`${op.pickState.replace(/\s*\d+%$/, "")} ${ko}`, Number(m9[1]) / 100, "sbar")}
+            {bar9(`${wipVerb9(op.pickState, bases.find((b) => b.key === op.pickRaw)?.race)}: ${ko}`, Number(m9[1]) / 100, "sbar")}
           </div>,
         );
       } else if (m9) lines.push(bar9(op.pickState.replace(/\s*\d+%$/, ""), Number(m9[1]) / 100, "state"));
@@ -16077,15 +16085,20 @@ export default function ReplayMotionPlayer({
     /* ★ 짓는 중의 큰 그림·이름은 **공사 모양**이다(2026-09, 요청: "건설시 메인그림과 타이틀은 저그 공사고치 플토 소환구 테란 공사장") —
        지도가 그리는 그 몸(고치·소환구)과 테란은 공사 발판. 짓는 건물 자신은 진행 바 왼쪽 칸이 든다. */
     const wipRace9 = bld9 && op.pickWip ? (bases.find((b) => b.key === op.pickRaw)?.race ?? "") : "";
-    const wip9: [string, string] | null = !wipRace9 ? null
-      : wipRace9 === "저그" ? ["cocoon", "공사 고치"] : wipRace9 === "프로토스" ? ["warpin", "소환구"] : ["scaffold", "공사장"];
+    const from9 = wipRace9 ? MORPH_FROM9[en] : undefined;
+    /** [큰 그림(모델 kind 또는 null = 원래 건물의 실루엣), 이름] */
+    const wip9: [string | null, string] | null = !wipRace9 ? null
+      : from9 ? [null, BUILDING_KO[from9] ?? from9]
+        : wipRace9 === "저그" ? ["cocoon", "공사 고치"] : wipRace9 === "프로토스" ? ["warpin", "소환구"] : ["scaffold", "공사장"];
     return (
       <div className="scr-motion-infodock-one">
         {/* 이름은 **메인 아이콘 위**다(2026-09, 요청: "유닛 건물 이름을 메인 아이콘 위로 · 메인 아이콘을 좀 내리더라도") — 격자 1행이
             그림 칸과 글 칸 머리를 가로지른다(글 칸은 2행부터 선다 — 긴 이름이 그 머리로 비어져 나가도 안 겹친다). */}
         <div className="scr-motion-infodock-name">{wip9 ? wip9[1] : ko}</div>
         <div className="scr-motion-infodock-pic">
-          {wip9
+          {wip9 && from9
+            ? silIcon9(from9, true, col9, "scr-motion-infodock-big")
+            : wip9 && wip9[0]
             ? <DocIcon9 kind={wip9[0]} flat fit fitPad={0.06} tint={col9} className="scr-motion-infodock-big" />
             : silIcon9(en, bld9, col9, "scr-motion-infodock-big")}
           <div className="scr-motion-infodock-nums">
