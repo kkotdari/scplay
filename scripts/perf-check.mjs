@@ -106,6 +106,12 @@ function makeWorld() {
       const st9 = lifted ? 0x40 : 0;
       keys.push([F(bornSec), buildingAt[0] * 32, buildingAt[1] * 32, 0, (wip ? 0x80 : 0), type]);
       if (lifted) keys.push([F(bornSec + 20), buildingAt[0] * 32, buildingAt[1] * 32, 0, st9, type]);
+      /* --landed — 떠서 6타일 옆으로 날아가 26초에 앉는다(2026-09, "랜딩 시 떠난 자리에서 폭발" 검산 · 살아서 앉은 건물). */
+      if (lifted && has("--landed")) {
+        keys.push([F(bornSec + 24), (buildingAt[0] + 6) * 32, buildingAt[1] * 32, 0, st9, type]);
+        keys.push([F(bornSec + 26), (buildingAt[0] + 6) * 32, buildingAt[1] * 32, 0, 0, type]);
+        keys.push([F(GAME_SEC), (buildingAt[0] + 6) * 32, buildingAt[1] * 32, 0, 0, type]);
+      } else
       keys.push([F(GAME_SEC), buildingAt[0] * 32, buildingAt[1] * 32, 0, st9, type]);
     } else {
       // dieSec — 생애가 거기서 끝난다: 마지막 키가 GONE(상태 3)이다(핵 착탄 재현용).
@@ -955,7 +961,7 @@ if (SHOT) {
     // 조작부 판이 열린 화면을 원하면(--fsidle 아님) 도구 버튼으로 못 박아 연다 —
     // 저절로 숨는 3초를 스크린샷 대기가 넘겨 버려, 그냥 두면 늘 숨은 판이 찍힌다.
     if (!has("--fsidle")) {
-      await clickByLabel(/^도구 보이기$/);
+      await clickByLabel(/^도구 열기$/);
       await page.waitForTimeout(500);
     }
   }
@@ -1656,6 +1662,19 @@ if (SHOT) {
     return i < 0 ? null : document.body.innerText.slice(Math.max(0, i - 40), i + 120);
   });
   console.log(leak ? `⚠ 주석 누출:\n${leak}` : "주석 누출 없음");
+  /* 툴박스 펼친 꼴(--tbopen) — 툴박스는 손을 뗀 뒤 몇 초면 아이콘 하나로 접힌다(TB_IDLE_MS9). 찍기 직전에 펼치고 상자들을 적는다:
+     툴박스·두 줄·독 줄·미니맵·인포창의 [왼 위 폭 높이](CSS px). */
+  if (has("--tbopen")) {
+    /* 진짜 마우스로 누른다 — locator.click 은 '안정될 때까지' 기다리는데 재생 중인 판은 늘 다시 그려져 3초를 넘긴다. */
+    const ob9 = await page.evaluate(() => { const b = document.querySelector(".scr-tb-open")?.getBoundingClientRect(); return b && b.width > 0 ? [b.left + b.width / 2, b.top + b.height / 2] : null; });
+    if (ob9) await page.mouse.click(ob9[0], ob9[1]);
+    await page.waitForTimeout(400);
+    console.log("[툴박스]", JSON.stringify(await page.evaluate(() => {
+      const r = (q) => { const e = document.querySelector(q); if (!e) return null; const b = e.getBoundingClientRect(); return [b.left, b.top, b.width, b.height].map(Math.round); };
+      return { tb: r(".scr-tb"), min: document.querySelector(".scr-tb")?.classList.contains("is-min") ?? null, btns: r(".scr-tb-btnrow"), seek: r(".scr-tb-seek"),
+        row: r(".scr-fs-dockrow"), mini: r(".scr-fs-minipanel .scr-fs-minimap"), dock: r(".scr-motion-infodock"), stage: r(".scr-fs-stage") };
+    })));
+  }
   await page.screenshot({ path: SHOT });
   console.log(`스크린샷: ${SHOT}`);
   try { console.log(`[GL] ${await page.evaluate(() => (window.__scrDiag && window.__scrDiag.gl) || "(진단 없음 — --diag)")}`); } catch { /* 없음 */ }

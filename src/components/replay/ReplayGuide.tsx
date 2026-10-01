@@ -1,4 +1,4 @@
-import { Bookmark, Map as MapIcon, Maximize, Music, Palette, Play, Share2, Tv, Users, X } from "lucide-react";
+import { Bookmark, Map as MapIcon, Maximize, Music, Palette, Play, Share2, SlidersHorizontal, Tv, Users, X } from "lucide-react";
 import RosterTableIcon from "./RosterTableIcon";
 function K({ keys, plus = false, title, desc }: {
     keys: string[];
@@ -77,9 +77,11 @@ export default function ReplayGuide({ onClose }: {
           </ul>
         </div>
 
-        <h3 className="scr-guide-h3">지도 오른쪽 아래 도구</h3>
+        <h3 className="scr-guide-h3">지도 아래 도구 상자</h3>
         <p className="scr-guide-sub">
-          지도 위에 떠 있는 동그란 버튼들입니다. 켜져 있으면 <strong>환하게</strong> 빛나고,
+          지도 아래쪽에 떠 있는 상자입니다 — 동그란 버튼들과 <strong>장면 공유 · 사용법</strong>, 그리고 <strong>재생·탐색바·시간</strong>이
+          함께 있습니다(PC는 한 줄, 폰은 두 줄). 몇 초 동안 손대지 않으면 오른쪽의 <strong>아이콘 하나</strong>(<SlidersHorizontal size={12}/>)로
+          접히고, 그 아이콘을 누르면 다시 펼쳐집니다. 버튼이 켜져 있으면 <strong>환하게</strong> 빛나고,
           <strong> 중계</strong>만은 켜진 동안 <strong>초록 테두리로 깜빡</strong>입니다.
         </p>
         <div className="scr-guide-mock">
@@ -166,12 +168,12 @@ export default function ReplayGuide({ onClose }: {
 
         <h3 className="scr-guide-h3">아래 인포창</h3>
         <p className="scr-guide-sub">
-          지도 아래 가운데에 늘 떠 있는 창입니다. 오른쪽 위 <strong>▾</strong>로 접으면 맨 윗줄만 남습니다.
+          맨 아래 줄 오른쪽에 늘 서 있는 창입니다(왼쪽은 미니맵). 오른쪽 위 <strong>▾</strong>로 접으면 맨 윗줄만 남습니다.
         </p>
         <ul className="scr-guide-legend">
           <li><span className="scr-guide-ic scr-guide-ic-txt">윗줄</span><span><b>사람 정보줄</b> — 중계 중에는 <b>지금 누구 화면</b>인지, 중계를 껐을 때는 <b>내가 고른 것의 주인</b>을 보여 줍니다. 팀·이름 옆에 <b>일꾼 · 자원(광물/가스) · 인구 · K/D · APM</b>이 섭니다.</span></li>
           <li><span className="scr-guide-ic scr-guide-ic-txt">하나</span><span><b>유닛·건물 하나</b> — 지도에서 누르면 체력·실드·에너지, 처치 수, 업그레이드, 건물이면 생산 중인 유닛(진행 바 왼쪽)과 그 아래 대기 넷·연구·보급까지, 연구 건물이면 그 건물에서 하는 업그레이드가 칩으로 섭니다(마친 것은 밝게 · 공방은 단계 · 하는 중은 초록 테). 수송선·벙커는 탄 유닛이 칸으로 서고, 2칸짜리는 세로 두 칸 · 4칸짜리(탱크·드라군 같은)는 2×2 입니다.</span></li>
-          <li><span className="scr-guide-ic scr-guide-ic-txt">여럿</span><span><b>화면 주인의 선택</b> — 중계 중에 아무것도 안 눌렀으면, 그 사람이 지금 고른 부대가 칸으로 섭니다. 칸을 누르면 그 유닛 하나를 봅니다. 고른 것에는 지도에서도 <b>선택 링</b>이 둘립니다.</span></li>
+          <li><span className="scr-guide-ic scr-guide-ic-txt">여럿</span><span><b>화면 주인의 선택</b> — 중계 중에 아무것도 안 눌렀으면, 그 사람이 지금 고른 부대가 칸으로 섭니다(8칸씩 두 줄). 칸을 누르면 그 유닛 하나를 봅니다. 고른 것에는 지도에서도 <b>선택 링</b>이 둘립니다.</span></li>
           <li><span className="scr-guide-ic scr-guide-ic-txt">K/D</span><span><b>K/D</b> — 잡은 적 유닛 수 / 잃은 유닛 수입니다. 건물과 라바·알·인터셉터 같은 것은 안 셉니다.</span></li>
         </ul>
 
@@ -202,14 +204,14 @@ export default function ReplayGuide({ onClose }: {
 
           <span className="scr-guide-group">보기</span>
           <K keys={["B"]} title="로스터" desc="이름만 → 전체 → 숨김 순으로 돕니다."/>
-          <K keys={["N"]} title="작은 지도 켜기 / 끄기" desc="전체화면일 때만. 오른쪽 아래 지도 단추와 같습니다."/>
+          <K keys={["N"]} title="작은 지도 켜기 / 끄기" desc="전체화면일 때만. 도구 상자의 지도 단추와 같습니다."/>
           <K keys={["C"]} title="색 모드 바꾸기" desc="개인색 → 팀색 → 주인공색. 색 버튼과 같습니다."/>
           <K keys={["V"]} title="평면 ↔ 입체"/>
           <K keys={["M"]} title="음악 켜기 / 끄기"/>
 
           <span className="scr-guide-group">창</span>
           <K keys={["Alt", "Enter"]} plus title="전체화면 들어가기 / 나가기"/>
-          <K keys={["F"]} title="조작부 감추기 / 보이기" desc="전체화면일 때만. 지도를 넓게 볼 때 씁니다."/>
+          <K keys={["F"]} title="도구 상자 접기 / 펴기" desc="지도를 넓게 볼 때 씁니다. 손대지 않아도 몇 초 뒤 저절로 접힙니다."/>
           <K keys={["Esc"]} title="닫기" desc="지도에서 고른 것이 있으면 그 선택부터 풀고, 없으면 전체화면에서 나갑니다."/>
         </div>
 

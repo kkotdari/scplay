@@ -7,9 +7,11 @@ import {
 import { createPortal } from "react-dom";
 import { useBgm } from "./useBgm";
 import RosterTableIcon from "./RosterTableIcon";
-import { BookOpen, Bookmark, Eye, EyeOff, Map as MapIcon, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Share2, Tv, Users } from "lucide-react";
+import { BookOpen, Bookmark, Map as MapIcon, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Share2, SlidersHorizontal, Tv, Users } from "lucide-react";
 /** 건설 명령 고스트 판의 색(원작의 배치 미리보기 초록) — 짙기는 op.plateAlpha 가 든다. */
 const GHOST_PLATE_COL9 = "#3ee06a";
+/** 툴박스가 손을 뗀 뒤 아이콘 하나로 접히기까지(2026-09, 요청: "안쓰면 몇초뒤 아이콘 하나로 최소화"). */
+const TB_IDLE_MS9 = 4000;
 import ReplayGuide from "./ReplayGuide";
 /* 중계(중요도 기반 추적) — 편성표를 굽는 순수 문. 경기 한 벌에 한 번 돌고, 재생은 짚기만 한다. */
 import { castAt9, castPlan9, type CastSeg9 } from "./cast9";
@@ -10142,17 +10144,31 @@ export default function ReplayMotionPlayer({
   /* 사용법 덮개(요청: 공통) — 열면 history에 한 칸 밀어 뒤로가기(폰의 제스처 포함)가 덮개를 닫게 한다. 닫기 버튼은 그
      칸을 되돌려(back) 같은 길로 닫는다. */
   const [guideOpen9, setGuideOpen9] = useState(false);
-  /** ★ **오버레이 숨기기**(요청: "오른쪽 아래 사용법 버튼 대신 도구 숨기기 아이콘 버튼 추가:
-   *  누르면 모든 오버레이가 숨겨지고 숨기기 아이콘 있던 자리에 오버레이 보이기 버튼이 존재,
-   *  누르면 이전 오버레이 상태 그대로 복구" · 정정: "도구만 숨겨야 하는데 로스터 미니맵까지
-   *  숨기면 안 돼") ─────────────────────────────────────────────────────────────────────
-   *  '이전 상태 그대로'가 요점이라 **아무 상태도 안 건드린다** — 판에 클래스 한 겹을 얹어
-   *  CSS가 걷을 뿐이다. 로스터 단수·미니맵·아이콘 줄·재생바의 상태는 손대지 않으므로,
-   *  다시 켜면 저절로 있던 그대로다(끌 때 상태를 지웠다가 되살리는 길은 어딘가 한 칸을
-   *  반드시 흘린다).
-   *  단추 자신은 안 걷는다 — 꼬리 줄에 그대로 남아 아이콘만 눈(Eye)으로 바뀐다. 조종부의
-   *  다른 줄들이 사라지면 격자의 그 줄들이 0으로 접혀, 단추는 제자리(오른쪽 아래)에 선다. */
-  const [fsHide9, setFsHide9] = useState(false);
+  /* (걷어냄) fsHide9 — 전체화면의 '도구 숨기기'(is-uihide)였다. 툴박스가 몇 초 뒤 아이콘 하나로 접히므로(아래 tbMin9) 같은 일을
+     하는 손잡이가 둘일 까닭이 없다(2026-09, 요청: 툴박스 최소화). */
+  /** 툴박스가 아이콘 하나로 접혀 있나(2026-09, 요청: "툴박스는 안쓰면 몇초뒤 아이콘 하나로 최소화(우측에 배치)") — 툴박스를
+   *  만지면(누름·마우스가 위에 있음) 깨어나고, 손을 뗀 뒤 TB_IDLE_MS9 가 지나면 접힌다. 목록(pick9)이 열려 있거나 탐색바를
+   *  끄는 중이면 안 접는다(그 손이 아직 툴박스에 있다). */
+  const [tbMin9, setTbMin9] = useState(false);
+  const tbMinRef9 = useRef(false);
+  tbMinRef9.current = tbMin9;
+  const tbTimer9 = useRef(0);
+  const tbHover9 = useRef(false);
+  const tbBusy9 = useRef<() => boolean>(() => false);
+  const tbWake9 = useCallback((): void => {
+    setTbMin9(false);
+    window.clearTimeout(tbTimer9.current);
+    if (tbHover9.current) return;
+    const arm9 = (): void => {
+      tbTimer9.current = window.setTimeout(() => {
+        if (tbHover9.current) return;
+        if (tbBusy9.current()) { arm9(); return; }
+        setTbMin9(true);
+      }, TB_IDLE_MS9);
+    };
+    arm9();
+  }, []);
+  useEffect(() => { tbWake9(); return () => window.clearTimeout(tbTimer9.current); }, [tbWake9]);
   const guidePushed9 = useRef(false);
   /* ★ 꼬리 줄의 두 버튼(스크랩·공유) — **하는 일만 앱이 붙이고** 나머지는 여기 몫이다(지적: "쓰는 쪽에서
      쓸지 말지 선택하는 거고 함수도 알아서 연결해야 해"). 누름·완료 표시·단축키가 그 나머지다.
@@ -10218,82 +10234,9 @@ export default function ReplayMotionPlayer({
   fsOnRef.current = fsOn;
   /** 전체화면 무대(화면을 꽉 채우는 상자) — 지도를 이 크기에 맞춰 덮게 깐다. */
   const stageRef = useRef<HTMLDivElement | null>(null);
-  /* ★ 조종부의 **실제 높이**를 재서 위에 앉는 것들에게 알려 준다(지적: 모바일 전체화면
-     에서 아이콘 줄이 재생바를 덮는다) ────────────────────────────────────────────────
-     여태 그 높이는 CSS가 `32px + 여백 + 안전영역`으로 **조립한 값**이었다. 그 32는 조종부가
-     한 줄이던 시절의 안쪽 줄 높이인데, 좁은 화면에서는 조종부가 **두 줄**이다(요청으로
-     진행바를 윗줄로 올렸다: 그래야 끌 폭이 화면 전체가 된다). 곧 실제 높이가 조립값보다
-     한 줄만큼 크고, 그 차이가 그대로 겹침이 됐다 — 아이콘 줄이 진행바 위에 앉았다.
-     조각을 하나 더 더하는 길(‘두 줄이면 22px 더’)은 또 다른 못 박은 수라 언젠가 다시
-     어긋난다. 재는 편이 낫다: 조종부가 몇 줄이 되든, 글자가 커지든, 안전영역이 바뀌든
-     실제 값이 곧장 따라온다.
-     값은 `--scr-fsbot-m`으로 판에 얹고, CSS의 `--scr-fsbot`은 그것이 있으면 그것을 쓰고
-     없으면 옛 조립값으로 물러난다(프레임 모드는 제 규칙이 0으로 덮으므로 안 걸린다). */
-  /* ★ **붙는 자리(callback ref)로 단다** — effect + useRef로는 안 걸렸다(실측:
-     `--scr-fsbot-m`이 끝내 "(없음)"이었다). 까닭은 차례다: 이 판은 자취를 받기 전에는
-     조종부를 안 그리므로, 마운트 때 도는 effect의 눈에는 ref가 비어 있다. deps가 []라
-     한 번 비면 다시 볼 일이 없다 — 조용히 아무 일도 안 하는 코드가 된다.
-     붙는 자리로 두면 그 줄이 **실제로 생기는 순간** 불린다. 사라질 때도 같은 문으로
-     불려(el === null) 관찰자를 걷는다. */
-  const fsBotObsRef = useRef<ResizeObserver | null>(null);
-  const fsBotRef = useCallback((el: HTMLDivElement | null) => {
-    fsBotObsRef.current?.disconnect();
-    fsBotObsRef.current = null;
-    if (!el || typeof ResizeObserver === "undefined") return;
-    const lyr = el.closest(".scr-fs-layer") as HTMLElement | null;
-    if (!lyr) return;
-    const read = (): void => {
-      /* ★ **도구를 숨긴 동안은 안 잰다**(지적: "모바일 전체화면에서 도구 숨기면 미니맵이 작아짐") ──
-         전체화면 미니맵의 키는 이 실측(--scr-fsbot-m)에서 파생된다(--scr-mini-h). 도구 숨기기
-         (is-uihide)는 조종부의 줄들을 display:none으로 걷어 이 상자가 한 줄로 줄고, 관찰자가 그
-         줄어든 키를 그대로 올려 미니맵까지 따라 줄었다. 숨긴 것은 도구지 미니맵이 아니다 —
-         숨긴 동안은 마지막 실측을 그대로 두고, 다시 보이면 관찰자가 제 값을 도로 잰다. */
-      if (lyr.classList.contains("is-uihide")) return;
-      const h9 = Math.round(el.getBoundingClientRect().height);
-      if (h9 > 0) lyr.style.setProperty("--scr-fsbot-m", `${h9}px`);
-      /* ★ 미니맵 키를 오른쪽 조작부에 맞춘다(요청: "미니맵 높이하고 오른쪽 조작부 높이가 맞아야지") — 프레임 모드의 독은
-         [미니맵 | 지도 버튼 줄 / 재생부] 격자인데, 미니맵 높이를 손값(--scr-dock-mini)으로 박아 두면 오른쪽 세 줄과 위아래가
-         어긋난다. 여기서 실측한다: 지도 버튼의 윗변에서 꼬리 줄의 아랫변까지가 미니맵의 키고, 그 윗변·아랫변이 제 줄의
-         가장자리에서 떨어진 만큼이 미니맵의 위·아래 여백이다. 오른쪽이 미니맵보다 낮아 줄이 늘어나 있는 상태에서 재면 한
-         번에 안 맞을 수 있으나, 미니맵이 줄면 줄도 줄어 관찰자가 다시 부르고 몇 번 안에 맞물린다(1px 안이면 안 건드린다). */
-      if (!lyr.classList.contains("is-fs")) {
-        const btns9 = lyr.querySelector(".scr-motion-mapbtns") as HTMLElement | null;
-        const btn9 = btns9?.querySelector("button") as HTMLElement | null;
-        const tail9 = el.querySelector(".scr-fs-bottom-tail") as HTMLElement | null;
-        if (btns9 && btn9 && tail9) {
-          const rB9 = btns9.getBoundingClientRect();
-          const rb9 = btn9.getBoundingClientRect();
-          const rT9 = tail9.getBoundingClientRect();
-          const rE9 = el.getBoundingClientRect();
-          /* 미니맵 상자의 테두리(위·아래 1px)는 키에서 뺀다 — 안 빼면 판이 그만큼 커져 줄을 밀고 미니맵 윗변이 버튼보다
-             2px 올라간다(content-box). */
-          const mm9 = lyr.querySelector(".scr-fs-minipanel .scr-fs-minimap") as HTMLElement | null;
-          const bd9 = mm9 && getComputedStyle(mm9).boxSizing !== "border-box"
-            ? (parseFloat(getComputedStyle(mm9).borderTopWidth) || 0) + (parseFloat(getComputedStyle(mm9).borderBottomWidth) || 0) : 0;
-          const mini9 = Math.round(rT9.bottom - rb9.top - bd9);
-          /* 여백은 **격자 칸의 가장자리**에서 잰다(지적: 미니맵이 조작부보다 올라가 보임) — 버튼 줄·재생부의 바깥
-             margin은 칸 안에 있으므로, 요소의 변이 아니라 변에 margin을 더한 자리가 칸의 변이다. 미니맵 판도 칸에 붙어
-             선다(align-self: stretch) — 그래야 이 여백이 곧 미니맵의 자리다. */
-          const mtB9 = parseFloat(getComputedStyle(btns9).marginTop) || 0;
-          const mbE9 = parseFloat(getComputedStyle(el).marginBottom) || 0;
-          const cur9 = parseFloat(lyr.style.getPropertyValue("--scr-dock-mini")) || 0;
-          if (mini9 > 40 && Math.abs(mini9 - cur9) >= 1) {
-            lyr.style.setProperty("--scr-dock-mini", `${mini9}px`);
-            lyr.style.setProperty("--scr-dock-mini-mt", `${Math.max(0, Math.round(rb9.top - (rB9.top - mtB9)))}px`);
-            lyr.style.setProperty("--scr-dock-mini-mb", `${Math.max(0, Math.round(rE9.bottom + mbE9 - rT9.bottom))}px`);
-          }
-        }
-      }
-    };
-    const ro = new ResizeObserver(read);
-    ro.observe(el);
-    /* 지도 버튼 줄도 함께 본다(지적: 미니맵이 조작부보다 올라가 보임) — 미니맵이 넓어지면 버튼 줄이 좁아져 동그라미가
-       줄어드는데(aspect-ratio), 그건 재생부의 크기를 안 바꿔 관찰자가 안 울렸고, 그 사이 4px이 미니맵에 남았다. */
-    const btnsObs9 = lyr.querySelector(".scr-motion-mapbtns");
-    if (btnsObs9) ro.observe(btnsObs9);
-    fsBotObsRef.current = ro;
-    read();
-  }, []);
+  /* (걷어냄) fsBotRef — 조종부(.scr-fs-bottom)의 실측 높이를 --scr-fsbot-m 으로, 프레임 독의 미니맵 키를 --scr-dock-mini 로
+     얹던 관찰자다. 조종부가 툴박스로 지도 **안**에 들어가고 미니맵은 인포창과 한 줄(.scr-fs-dockrow — 그 줄의 키는 인포창이
+     정한다)이 되며(2026-09, 요청) 잴 것이 없어졌다. */
   /** 판 뿌리(.scr-fs-root) — 휠은 지도 상자가 아니라 **판 전체**가 받는다(아래 onWheel). */
   const fsRootRef = useRef<HTMLDivElement | null>(null);
   const [stage, setStage] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
@@ -11146,6 +11089,7 @@ export default function ReplayMotionPlayer({
      누를 때마다 한 칸씩 돌던 것을 걷었다: 원하는 값으로 한 번에 간다. 바깥을 누르거나 Esc면 닫힌다(붙잡기 단계에서 듣는다 —
      지도의 손짓이 사건을 삼켜도 먼저 온다). 한 번에 하나만 열린다. */
   const [pick9, setPick9] = useState<"speed" | "zoom" | "bgm" | "cast" | null>(null);
+  tbBusy9.current = () => pick9 !== null || scrubbing.current;
   useEffect(() => {
     if (!pick9) return;
     const off9 = (e9: Event): void => {
@@ -11216,7 +11160,6 @@ export default function ReplayMotionPlayer({
       setStage({ w: w9, h: h9 });
     }
     setFsOn(true);
-    setFsHide9(false);   // 들어갈 때는 늘 보이는 채로(위 fsHide9) — 지난번에 걷어 둔 것이 따라오면 조작부를 잃는다
     /* 그리드(로스터 현황 표)는 **들어갈 때마다 꺼진 채로** 시작한다(요청: "그리드 진입시
        비활성화로") — 전체화면을 켜는 뜻은 지도를 크게 보겠다는 것이고, 숫자 다섯 칸은
        그때 필요하면 부르는 것이다. 꺼져도 이름·종족은 남으므로 누가 하는지는 안 잃는다.
@@ -12282,7 +12225,7 @@ export default function ReplayMotionPlayer({
          조작부를 hover만으로 열었다**. 조종부 줄은 화면 아래 끝에 붙어 있으므로, 아래로
          밀려고 마우스를 내리는 그 길이 곧 그 판 위다 — 닿는 순간 판이 뜨고, 판이 뜨면
          엣지 스크롤은 꺼진다(아래 uiOn9). 아래·오른쪽으로 밀 때만 안 먹던 까닭이다. */
-      if (fsUiRef.current && e.target instanceof Element && e.target.closest(".scr-fs-ui")) fsWake();
+      if (fsUiRef.current && e.target instanceof Element && e.target.closest(".scr-tb")) fsWake();
     };
     const step9 = (now9: number): void => {
       raf9 = requestAnimationFrame(step9);
@@ -12588,7 +12531,7 @@ export default function ReplayMotionPlayer({
       const map9 = mapRef.current;
       if (map9 && el9 instanceof Node && !map9.contains(el9)) return true;
       return el9 instanceof Element
-        && !!el9.closest(".scr-fs-ui, .scr-motion-bar, input, select, textarea");
+        && !!el9.closest(".scr-tb, .scr-motion-bar, input, select, textarea");
     };
     /* (제거·요청: "인포팝업 때문에 더블탭/클릭 줌은 제거") — 여기 있던 것은 더블탭
        확대 갈래 전부다: 탭 시작 추적(onDocTS·onDocTM), 두 번째 탭 판정(onDocTE),
@@ -14458,11 +14401,11 @@ export default function ReplayMotionPlayer({
         e.preventDefault();
         if (fsOnRef.current) exitFs(); else enterFs();
       } else if (e.code === "KeyF") {
-        /* f — **조작부 여닫이**(요청: 엔터 → h → f). 오른쪽 위 아이콘과 같은 일이다.
-           전체화면이 아닐 때는 여닫을 판이 없으므로 아무 일도 안 한다. */
-        if (!fsOnRef.current) return;
+        /* f — **툴박스 접기/펴기**(2026-09) — 여태 전체화면 조작부(.scr-fs-ui) 여닫이였는데 그 판이 툴박스(.scr-tb)가 되며 저 혼자
+           접히게 됐다. 손으로도 접고 펼 수 있게 이 키가 그 일을 한다(두 배치 다). 펼치면 다시 몇 초 뒤 접히는 시계가 돈다. */
         e.preventDefault();
-        fsToggleUi();
+        if (tbMinRef9.current) tbWake9();
+        else { window.clearTimeout(tbTimer9.current); setTbMin9(true); }
       } else if (k === "Escape") {
         /* ESC — **인포 팝업이 열려 있으면 그것부터** 닫는다(요청). 전체화면 나가기는
            팝업이 없을 때만이고, 그 몫은 따로 선 ESC 판이 맡는다(그쪽도 같은 ref를
@@ -16127,6 +16070,9 @@ export default function ReplayMotionPlayer({
     const col9 = off9 ? "#8fc98f" : hpCol9(hpR);
     return (
       <div className="scr-motion-infodock-one">
+        {/* 이름은 **메인 아이콘 위**다(2026-09, 요청: "유닛 건물 이름을 메인 아이콘 위로 · 메인 아이콘을 좀 내리더라도") — 격자 1행이
+            그림 칸과 글 칸 머리를 가로지른다(글 칸의 내용은 바닥에 붙으므로 그 머리는 비어 있다 — replay.css 의 같은 ★). */}
+        <div className="scr-motion-infodock-name">{ko}</div>
         <div className="scr-motion-infodock-pic">
           {silIcon9(en, bld9, col9, "scr-motion-infodock-big")}
           <div className="scr-motion-infodock-nums">
@@ -16136,7 +16082,6 @@ export default function ReplayMotionPlayer({
           </div>
         </div>
         <div className="scr-motion-infodock-text">
-          <div className="scr-motion-infodock-name">{ko}</div>
           <div className="scr-motion-infodock-lines">
             {kills9 !== null && <div className="scr-motion-info-line">{`처치 ${kills9}`}</div>}
             {lines}
@@ -16200,6 +16145,8 @@ export default function ReplayMotionPlayer({
           {dockOps9.length === 1 ? dockOne9(dockOps9[0])
             : dockOps9.length > 1 ? (
               <div className="scr-motion-infodock-grid">
+                {/* 6×2(2026-09, 요청: "멀티 유닛 선택 그리드시에 여백 없게" → 정정: "8x2가 아니라 6x2 · 셀 더 크게") — 창의 폭이 곧 이
+                    격자의 폭이다(replay.css --dock-w). */}
                 {Array.from({ length: 12 }, (_, k) => {
                   const o9 = dockOps9[k];
                   if (!o9) return <span key={k} className="scr-motion-infodock-cell is-empty" />;
@@ -16821,8 +16768,7 @@ export default function ReplayMotionPlayer({
      가로세로비를 지도와 같게 주므로 평소에는 덮는 몫이 0이다(=꼭 맞는다). */
   const stageNode = (
     <div
-      className={cx("scr-motion", "scr-fs-layer", fsOn && "is-fs", !fsUi && "is-idle",
-        fsOn && fsHide9 && "is-uihide")}
+      className={cx("scr-motion", "scr-fs-layer", fsOn && "is-fs", !fsUi && "is-idle")}
       /* 프레임일 때의 크기 — 지도와 같은 가로세로비다(위). 전체화면에서는 CSS가
          화면을 채우므로 이 값이 안 쓰인다(is-fs가 덮는다). */
       /* 프레임 크기 — 비는 **지도 것**이라 크롭 0이 기본이고(지적: PC에서 높이가 낮음),
@@ -16872,57 +16818,7 @@ export default function ReplayMotionPlayer({
               (CSS 주석) 평면에 늘 두어도 끌기·확대 비용이 안 는다. */}
           <div className="scr-fs-space" style={{ backgroundImage: spaceBg9 }} aria-hidden />
           {mapNode}
-          {/* ★ 중계 자막은 **무대 안**이다(요청: "플레이창 아래가운데") — 여기가 곧 플레이창이고,
-              프레임 배치에서는 조종부가 무대 **밖**으로 흐르므로 가릴 것이 없다(전체화면만 그 줄이
-              무대를 덮는데, 그때는 CSS가 그 높이만큼 비킨다). 무대는 지도의 배율·팬·입체 변환을
-              안 받으므로 자막이 끌 때 따라 움직이지 않는다(품질 알림과 같은 사정).
-              **상시**다(되요청: "토스터가 아니라 계속 노출로 변경") — 중계가 켜진 동안 한 줄이 늘 서 있고
-              토막이 갈리면 key 가 바뀌어 새 글귀가 떠오른다. */}
-          {infoDock9}
         </div>
-        {/* 떠 있는 아이콘 줄 — 전체화면에서는 **화면 뿌리**에 선다(위 mapBtnRow 주석):
-            지도 상자는 화면보다 크게 깔려 잘리므로 그 구석이 화면 밖이다. */}
-        {mapBtnRow}
-        {/* ★ 미니맵 판은 **아래 독의 왼쪽**에 선다(요청: "PC/모바일 공통으로 미니맵까지
-            아래로 내려줘 — 미니맵이 좌측에 배치되고 그 오른쪽에 위는 버튼부 아래는
-            재생바부, 공통 CSS야") ────────────────────────────────────────────────────
-            지도 밖으로 나온 것이 이제 셋이다: 미니맵 · 아이콘 줄 · 조종부. 셋을 한 격자
-            (.scr-fs-root의 grid)에 앉혀 왼쪽 한 칸을 미니맵이 세로로 다 쓰고, 오른쪽
-            칸을 위아래로 갈라 버튼과 재생바가 나눠 쓴다 — 원작의 조작부 배치 그대로다.
-            자리는 CSS가 정하므로 JSX는 형제 셋을 순서대로 세우기만 한다.
-            ※ 전체화면에서는 셋 다 지도 위에 겹쳐야 한다(지도가 곧 화면이라 '밖'이 없다)
-              — 그때는 이 판이 예전처럼 절대 자리로 왼쪽 아래 구석에 앉는다. 뿌리와 무대가
-              같은 상자라 그 셈이 그대로 맞는다(한동안 무대 안에 넣어 두었던 것은 좁은
-              배치에서만 뿌리가 무대보다 길어져 밑값이 어긋났기 때문이고, 이제 그 배치
-              에서는 절대 자리를 아예 안 쓴다). */}
-        {/* 일반 화면에서는 늘 켠다(여닫이가 전체화면에만 있다 — 위 버튼 주석). */}
-        {/* ★ 미니맵은 **판을 안 두른다**(요청: "미니맵은 패널 없게 수정 미니맵 자체가
-            패널로 인식가능") — 미니맵은 제 테두리를 가진 네모라, 그 밖에 또 판을 두르면
-            테두리가 겹으로 서고 그 사이 여백이 지도를 가린다. 자리 잡는 몫만 남긴다
-            (.scr-fs-minipanel이 그 일을 이제 스스로 한다). */}
-        {(fsOn ? fsMiniOn : true) && (
-          <div className="scr-fs-minipanel">
-            <div className="scr-motion-minibox">
-              <ReplayFullscreenMinimap
-                grid={grid}
-                ratio={grid.width / Math.max(1, grid.height)}
-                dotsRef={opsRef}
-                extraRef={miniExtraRef}
-                tick={t}
-                viewAt={fsViewAt}
-                zoom={zoom} pan={pan}
-                painter={miniPaintRef} live={viewLive9}
-                onSeek={fsSeek}
-                onWheelZoom={fsWheelZoom}
-                unproject={miniUnproject}
-                fog={miniFog}
-                /* 큰 지도와 **같은 순간에** 나타난다(지적: 미니맵만 그대로였다) — 그쪽은
-                   is-warming으로 제 층을 통째로 감춘다(global.css). */
-                warming={!tracksReady}
-              />
-            </div>
-          </div>
-        )}
         {diagNode}
         {/* ★ 조작부는 **아이콘 버튼**으로 연다(요청: "아니다 탭버튼으로 변경 ·
             햄버거 메뉴나 필터 아이콘 · 피시도 마찬가지로 아이콘으로 변경 — 원클릭으로
@@ -16963,88 +16859,101 @@ export default function ReplayMotionPlayer({
         )}
         {/* (걷어냄·요청) 도구 판 — 품질·체력바·마우스 조작 줄(viewRowNode)이 들어 있던
             판이다. "일단 미사용"이라 그리지 않는다. */}
-        {/* 깨우기는 **캡처**로 받는다 — 슬라이드 바가 제 누름을 stopPropagation으로
-            끊으므로(지도 끌기와 겹치지 않게), 올라오는 길로는 여기까지 못 온다.
-            내려가는 길에서 먼저 받으면 바를 만지는 동안에도 조작부가 안 사라진다. */}
-        {/* 모서리 띠의 누름은 **깨우지 않는다** — 이 캡처가 그것까지 받으면 띠를 만지는
-            순간 조작부가 3초 떴다 사라져, 쓸어 여는 손짓이 뜻을 잃는다. */}
-        <div
-          className="scr-fs-ui"
-          onPointerDownCapture={(e) => {
-            if (e.target instanceof Element && e.target.closest(".scr-fs-menubtn")) return;
-            fsWake();
-          }}
-        >
-          {/* (옮김) 로스터·도구는 이 판 밖에서 각자 산다(위) — 여기 남는 것은
-              아래 조종부 줄뿐이고, 그것은 도구 여닫이를 함께 탄다. */}
-          {/* ★ 아래 줄은 **하나**다(요청: "모바일도 장면공유 버튼은 재생바 로우에 병합
-              한 줄로 피시처럼") — 여태 손가락 기기만 공유를 제 줄(.scr-motion-mobrow)에
-              따로 세워 아래가 두 겹이었다. 그 겹 때문에 아이콘 줄·미니맵의 밑값이 배치
-              마다 갈렸고, 실제로 공유 버튼이 아이콘 줄 뒤에 깔리기도 했다.
-              한 줄로 합치면 갈릴 자리가 없어진다 — 재생·진행바가 남는 폭을 먹고, 공유는
-              꼬리에 붙는다. */}
-          <div className="scr-fs-bottom" ref={fsBotRef}>
-            {controlsNode}
-            {/* 꼬리 줄(요청: 재생부 셋째 줄) — 스크랩·공유(shareNode) 옆에 사용법. 격자가 이 줄을 통째로 준다(replay.css). */}
-            <div className="scr-fs-bottom-tail">
-              {/* ★ 장면 스크랩 — 앱이 onScrap을 주면 여기서 그린다(위 프롭 주석). 차례는 안내(ReplayGuide)와 같다:
-                  스크랩(Z) → 공유(X) → 사용법. 꼴은 같은 줄의 공유·사용법과 한 벌이다(.scr-scrapbtn). */}
-              {onScrap && (
-                <button
-                  type="button"
-                  className={cx("scr-kakao-share-btn scr-scrapbtn", tailDone9?.k === "scrap" && "is-done")}
-                  onClick={() => { void runTail9("scrap"); }}
-                  aria-label={scrapLabel}
-                  title={`${scrapLabel} (Z)`}
-                >
-                  <Bookmark />
-                  {tailDone9?.k === "scrap" ? tailDone9.s : scrapLabel}
-                </button>
-              )}
-              {onShare && (
-                <button
-                  type="button"
-                  className={cx("scr-kakao-share-btn scr-sharebtn", tailDone9?.k === "share" && "is-done")}
-                  onClick={() => { void runTail9("share"); }}
-                  aria-label={shareLabel}
-                  title={`${shareLabel} (X)`}
-                >
-                  <Share2 />
-                  {tailDone9?.k === "share" ? tailDone9.s : shareLabel}
-                </button>
-              )}
-              {shareNode}
-              {/* ★ 전체화면의 꼬리는 **숨기기 단추**다(요청) — 사용법은 지도가 곧 화면인
-                  자리에서 덮개를 하나 더 얹는 것이라, 그 구석은 '지금 보고 있는 것을
-                  가리는 것들을 걷는' 손잡이가 쓴다. 프레임에서는 종전대로 사용법이다
-                  (거기서는 오버레이가 지도 밖 독이라 걷을 까닭이 없다). */}
-              {fsOn ? (
-                <button
-                  type="button"
-                  className="scr-kakao-share-btn scr-fs-hidebtn"
-                  onClick={() => setFsHide9((v9) => !v9)}
-                  aria-pressed={fsHide9}
-                  aria-label={fsHide9 ? "도구 보이기" : "도구 숨기기"}
-                  title={fsHide9 ? "도구 보이기" : "도구 숨기기"}
-                >
-                  {fsHide9 ? <Eye /> : <EyeOff />}
-                  {fsHide9 ? "도구 보이기" : "도구 숨기기"}
-                </button>
-              ) : guide && (
-                <button type="button" className="scr-kakao-share-btn scr-guide-btn" onClick={openGuide9} aria-label="사용법" title="사용법">
-                  <BookOpen />
-                  사용법
-                </button>
-              )}
+        {/* ★★ 아래는 **툴박스 + 독 줄** 두 겹이다(2026-09, 요청: "기본적인 배치는 미니맵 인포창이 한줄 툴박스는 그 위에 배치.
+            프레임모드에선 툴박스만 지도 내부. 툴박스는 안쓰면 몇초뒤 아이콘 하나로 최소화(우측에 배치)") — 한 감싸개
+            (.scr-fs-lower)가 두 배치를 다 낸다: 전체화면은 화면 아래에 겹쳐 뜨는 세로 줄이고, 프레임은 `display: contents` 라
+            툴박스는 무대 칸(격자 1행)의 아래에 겹쳐 서고 독 줄은 지도 밖 2행에 선다(replay.css 의 같은 ★★). */}
+        <div className="scr-fs-lower">
+          <div
+            className={cx("scr-tb", tbMin9 && "is-min")}
+            onPointerDownCapture={() => tbWake9()}
+            onPointerEnter={(e) => { if (e.pointerType === "mouse") { tbHover9.current = true; window.clearTimeout(tbTimer9.current); } }}
+            onPointerLeave={(e) => { if (e.pointerType === "mouse") { tbHover9.current = false; tbWake9(); } }}
+            onPointerDown={(e) => e.stopPropagation()}
+            onWheel={(e) => e.stopPropagation()}
+          >
+            {/* 최소화된 꼴 — 아이콘 하나(오른쪽). 줄들은 **안 내린다**(display 만 끈다): 탐색바·시계는 재생기가 ref 로
+                값을 밀어 넣는 비제어 요소라, 내렸다 올리면 그 사이의 값을 잃는다. */}
+            <button type="button" className="scr-tb-open" onClick={() => tbWake9()} aria-label="도구 열기" title="도구 열기">
+              <SlidersHorizontal size={18} aria-hidden />
+            </button>
+            <div className="scr-tb-btnrow">
+              {mapBtnRow}
+              <div className="scr-tb-tail">
+                {/* ★ 장면 스크랩 — 앱이 onScrap을 주면 여기서 그린다(위 프롭 주석). 차례는 안내(ReplayGuide)와 같다:
+                    스크랩(Z) → 공유(X) → 사용법. 꼴은 같은 줄의 공유·사용법과 한 벌이다(.scr-scrapbtn). */}
+                {onScrap && (
+                  <button
+                    type="button"
+                    className={cx("scr-kakao-share-btn scr-scrapbtn", tailDone9?.k === "scrap" && "is-done")}
+                    onClick={() => { void runTail9("scrap"); }}
+                    aria-label={scrapLabel}
+                    title={`${scrapLabel} (Z)`}
+                  >
+                    <Bookmark />
+                    {tailDone9?.k === "scrap" ? tailDone9.s : scrapLabel}
+                  </button>
+                )}
+                {onShare && (
+                  <button
+                    type="button"
+                    className={cx("scr-kakao-share-btn scr-sharebtn", tailDone9?.k === "share" && "is-done")}
+                    onClick={() => { void runTail9("share"); }}
+                    aria-label={shareLabel}
+                    title={`${shareLabel} (X)`}
+                  >
+                    <Share2 />
+                    {tailDone9?.k === "share" ? tailDone9.s : shareLabel}
+                  </button>
+                )}
+                {shareNode}
+                {/* (걷어냄) 전체화면의 '도구 숨기기' 단추 — 툴박스가 저 혼자 아이콘 하나로 접히므로(위 ★★) 숨기는 손잡이가
+                    따로 있을 까닭이 없다. 사용법은 이제 두 배치 다 이 자리다(요청: "툴박스 = 버튼로우 + 공유 + 사용법"). */}
+                {guide && (
+                  <button type="button" className="scr-kakao-share-btn scr-guide-btn" onClick={openGuide9} aria-label="사용법" title="사용법">
+                    <BookOpen />
+                    사용법
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="scr-tb-seek">{controlsNode}</div>
+          </div>
+          <div className="scr-fs-dockrow">
+            {/* 미니맵 + 인포창을 **한 사각 틀**로 묶는다(2026-09, 요청: "미니맵과 인포창을 한데 묶는 사각 프레임 필요 인포창 래디우스 제거"). */}
+            <div className="scr-fs-dockframe">
+            {(fsOn ? fsMiniOn : true) && (
+              <div className="scr-fs-minipanel">
+                <div className="scr-motion-minibox">
+                  <ReplayFullscreenMinimap
+                    grid={grid}
+                    ratio={grid.width / Math.max(1, grid.height)}
+                    dotsRef={opsRef}
+                    extraRef={miniExtraRef}
+                    tick={t}
+                    viewAt={fsViewAt}
+                    zoom={zoom} pan={pan}
+                    painter={miniPaintRef} live={viewLive9}
+                    onSeek={fsSeek}
+                    onWheelZoom={fsWheelZoom}
+                    unproject={miniUnproject}
+                    fog={miniFog}
+                    /* 큰 지도와 **같은 순간에** 나타난다(지적: 미니맵만 그대로였다) — 그쪽은
+                       is-warming으로 제 층을 통째로 감춘다(global.css). */
+                    warming={!tracksReady}
+                  />
+                </div>
+              </div>
+            )}
+              {infoDock9}
             </div>
           </div>
-          {/* 재생 품질(위 QUALITY9) — 진입·벤치 변경 때 무대 오른쪽 위에 3초. 지도 상자 안에 두면 배율·팬·입체 변환을
-              같이 받아 끌 때 따라 움직였다(지적: "잘 안 보이고 움직여") — 무대는 변환을 안 받는다. */}
-          {qualityNote && (
-            <span className="scr-motion-qualitynote">재생품질 {qualityNote}</span>
-          )}
-
         </div>
+        {/* 재생 품질(위 QUALITY9) — 진입·벤치 변경 때 무대 오른쪽 위에 3초. 지도 상자 안에 두면 배율·팬·입체 변환을
+            같이 받아 끌 때 따라 움직였다(지적: "잘 안 보이고 움직여") — 무대는 변환을 안 받는다. */}
+        {qualityNote && (
+          <span className="scr-motion-qualitynote">재생품질 {qualityNote}</span>
+        )}
       </div>
     </div>
   );
