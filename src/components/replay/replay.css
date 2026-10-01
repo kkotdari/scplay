@@ -195,8 +195,7 @@
 .scr-motion-mapbtns {
   /* ★ 툴박스 안의 한 줄이다(2026-09, 요청: 미니맵·인포창·툴박스 재편) — 여태 지도 위·조종부 위에 절대 자리로 떠 있었다
      (bottom: 조종부 실측 + 6 · left: 미니맵 폭 바깥). 이제 툴박스(.scr-tb)의 첫 줄이 흐름으로 세우므로 자리 셈이 하나도 없다. */
-  --mapbtn-h: 38px;
-  --mapbtn-gap: 6px;
+  /* 크기 변수(--mapbtn-h · --mapbtn-gap)는 툴박스(.scr-tb)가 든다 — 같은 줄의 공유·스크랩·사용법 원도 그 자를 읽는다. */
   display: flex; gap: var(--mapbtn-gap); flex: 0 1 auto; min-width: 0;
   flex-wrap: nowrap; justify-content: flex-start; align-items: center;
 }
@@ -233,15 +232,17 @@
        배속 ×2  ·  보기 2D/3D  ·  확대 4배
      ×가 앞에 붙은 것은 배속, 배가 뒤에 붙은 것은 확대다. 세 토큰이 안 겹친다. */
 .scr-motion-mapbtns button.scr-motion-mapval {
-  font-size: 13px; font-weight: 800;
+  font-size: 11px; font-weight: 800;
 }
+/* 아이콘 15px · 값 11px — 폰(32px)과 PC(30px) 원이 같은 자다(2026-09, 요청: PC 단추 20% 축소 · 38 → 30px). */
+.scr-motion-mapbtns button.scr-motion-mapbtn svg { width: 15px; height: 15px; }
 .scr-motion-mapval-num {
   font-variant-numeric: tabular-nums;
   /* 안 접는다(실측: "3.6배"가 "3.6"과 "배" 두 줄로 접혔다). */
   white-space: nowrap;
 }
 /* 손짓으로 온 어중간한 값(3.6배)은 다섯 글자라 44px 동그라미에 안 든다 — 한 단 줄인다. */
-.scr-motion-mapval-num.is-long { font-size: 10px; letter-spacing: -0.02em; }
+.scr-motion-mapval-num.is-long { font-size: 8px; letter-spacing: -0.02em; }
 /* ★ 값 버튼의 **위로 펼치는 목록**(요청: 배속·확대·음악 — 누르면 선택지가 위로) ─────────────────────────────
    감싸개(.scr-motion-pick)가 버튼 대신 줄의 flex 항목이 되고(같은 44px 바탕·줄어듦), 목록은 그 위에 절대배치로 선다.
    숫자 목록은 가운데 맞춤, 곡 목록(is-list)은 왼맞춤에 길이 상한·스크롤. */
@@ -299,14 +300,11 @@
      12 → 13, 값 글자 9 → 10, 긴 값 7 → 8px. 44 대비로는 70%다(0.8 × 0.8 × 1.1 = 0.704). */
 @media (max-width: 1159px) {
   /* 좁은 화면 — 툴박스 첫 줄에 단추 여섯 남짓 + 공유·사용법이 한 줄로 든다(390px 실측). */
-  .scr-motion-mapbtns { --mapbtn-h: 32px; --mapbtn-gap: 5px; }
+  .scr-tb { --mapbtn-h: 32px; --mapbtn-gap: 5px; }
   .scr-motion-pickitem { font-size: 12px; padding: 5px 10px; }
-  .scr-motion-mapbtns button.scr-motion-mapbtn svg { width: 15px; height: 15px; }
-  .scr-motion-mapbtns button.scr-motion-mapval { font-size: 11px; }
-  .scr-motion-mapval-num.is-long { font-size: 8px; }
 }
 @media (max-width: 400px) {
-  .scr-motion-mapbtns { --mapbtn-h: 30px; --mapbtn-gap: 4px; }
+  .scr-tb { --mapbtn-h: 30px; --mapbtn-gap: 4px; }
 }
 
 /* 켜져 있는 여닫이는 한 단 밝게 — 지금 무엇이 떠 있는지가 버튼에서 읽힌다. */
@@ -3063,7 +3061,7 @@
    여태 아래는 [미니맵 | 아이콘 줄 / 재생부] 격자(프레임은 지도 밖 · 전체화면은 미니맵 폭만큼 왼 끝을 물린 겹침)였고 인포창은
    무대 안 아래 가운데에 따로 떠 있었다. 이제 셋이 두 겹으로 정리된다:
      · **독 줄**(.scr-fs-dockrow) — [미니맵(남는 폭) | 인포창(8×2 격자가 꼭 맞는 폭)]. 줄의 키는 인포창의 온 키(--dock-h)다.
-     · **툴박스**(.scr-tb) — [아이콘 줄 + 공유·사용법] / [재생·탐색바·시계] 두 줄(PC 는 한 줄). 독 줄 바로 위.
+     · **툴박스**(.scr-tb) — [아이콘 줄 + 공유·사용법] / [재생·탐색바·시계] 두 줄(어느 폭이든). 독 줄 바로 위.
    JSX 는 한 벌(.scr-fs-lower 하나에 둘)이고 배치를 가르는 것은 감싸개의 꼴 하나다:
      · 전체화면 — 화면 아래에 겹쳐 뜨는 세로 줄(absolute). 지도가 곧 화면이라 '밖'이 없다.
      · 프레임 — 감싸개가 `display: contents` 라 두 자식이 뿌리 격자에 바로 선다: 툴박스는 **무대 칸(1행)의 아래에 겹쳐**
@@ -3181,6 +3179,9 @@
 /* ── 툴박스 — 어두운 반투명 판 한 장(테두리 없음). 안의 단추는 그 위의 옅은 흰 막이다(.scr-motion-mapbtn). 글자·트랙은 어느
    테마에서도 지도 위의 흰 잉크라 테마 변수를 여기서 판 몫으로 다시 둔다. */
 .scr-tb {
+  /* 단추 원의 자 — 아이콘 줄(.scr-motion-mapbtns)과 꼬리(공유·스크랩·사용법)가 나눠 쓴다. PC 30px(2026-09, 요청: "버튼 크기
+     20프로정도 줄여줘 피시에서" · 옛 38) · 좁은 화면 32 · 400px 아래 30(아래 미디어). */
+  --mapbtn-h: 30px; --mapbtn-gap: 6px;
   --text: #f5f6f7; --dim: rgba(245, 246, 247, 0.72); --line-soft: rgba(255, 255, 255, 0.24);
   display: flex; flex-direction: column; gap: 4px; min-width: 0;
   padding: 6px 8px; border-radius: 12px; box-sizing: border-box;
@@ -3194,14 +3195,15 @@
 .scr-tb-seek > .scr-motion-bar-controls { flex: 1 1 auto; min-width: 0; margin: 0; padding: 0; gap: 8px; }
 .scr-tb .scr-motion-range { touch-action: none; align-self: center; }
 .scr-tb .scr-motion-clock { font-size: 11px; }
-/* 공유·스크랩·사용법 — 단추와 같은 결의 반투명 알약(흰 알약을 걷었다 — 같은 요청의 "깔끔한 반투명"). */
+/* 공유·스크랩·사용법 — **아이콘 원**이다(2026-09, 요청: "장면공유 스크랩 사용법도 피시에서도 모두 아이콘 버튼으로") — 옆
+   아이콘 줄의 단추(.scr-motion-mapbtn)와 같은 자(--mapbtn-h)·같은 막. 글귀는 title·aria 로 가고, 마친 표시는 초록 체크다. */
 .scr-tb-tail .scr-kakao-share-btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 4px; margin: 0;
-  height: 28px; min-height: 0; padding: 0 9px; flex: 0 0 auto;
-  font-size: 11px; font-weight: 600; line-height: 1; white-space: nowrap;
+  display: inline-flex; align-items: center; justify-content: center; margin: 0;
+  width: var(--mapbtn-h); height: var(--mapbtn-h); min-height: 0; padding: 0; flex: 0 0 auto;
+  font-size: 0; line-height: 1;
   background: rgba(255, 255, 255, 0.10); color: #f5f6f7; border: none; border-radius: 999px; box-shadow: none;
 }
-.scr-tb-tail .scr-kakao-share-btn svg { width: 13px; height: 13px; flex: 0 0 auto; color: currentColor; }
+.scr-tb-tail .scr-kakao-share-btn svg { width: 15px; height: 15px; flex: 0 0 auto; color: currentColor; }
 .scr-tb-tail .scr-kakao-share-btn.is-done { color: #6fe39a; }
 /* 셋의 차례는 스크랩 → 공유 → 사용법(안내 ReplayGuide 와 같다) — 사용법만 한 뼘 띄운다(보는 일과 내보내는 일을 가른다). */
 .scr-tb-tail .scr-scrapbtn, .scr-tb-tail .scr-sharebtn { order: 0; }
@@ -3212,16 +3214,9 @@
 @media (max-width: 1159px) {
   .scr-tb { padding: 5px 6px; }
   .scr-tb-tail { gap: 5px; }
-  .scr-tb-tail .scr-kakao-share-btn { height: 26px; padding: 0 8px; }
-  .scr-tb-tail .scr-kakao-share-btn svg { display: none; }
 }
-/* PC 는 **한 줄**이다(요청: "pc에선 한줄") — 재생·탐색바·시계가 남는 폭을 먹고, 단추 줄이 그 오른쪽에 붙는다(최소화 단추가
-   서는 오른쪽 끝과 같은 쪽이다). */
-@media (min-width: 1160px) {
-  .scr-tb { flex-direction: row; align-items: center; gap: 12px; }
-  .scr-tb-seek { order: -1; flex: 1 1 auto; }
-  .scr-tb-btnrow { flex: none; }
-}
+/* (걷어냄) PC 한 줄 — 이제 어느 폭에서나 [단추 줄] / [재생·탐색바·시계] 두 줄이다(2026-09, 요청: "피시에서도 버튼하고
+   플레이줄 두줄로" · 옛 요청 "pc에선 한줄"을 되물렸다). */
 /* 최소화 — 판과 줄을 걷고 아이콘 단추 하나만 오른쪽에 남긴다. 줄은 display 만 끈다(재생기가 탐색바·시계에 값을 밀어 넣는
    비제어 요소라 안 내린다). */
 .scr-tb-open { display: none; }
@@ -3229,7 +3224,7 @@
 .scr-tb.is-min > .scr-tb-btnrow, .scr-tb.is-min > .scr-tb-seek { display: none; }
 .scr-tb.is-min > .scr-tb-open {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 40px; height: 40px; padding: 0; border: none; border-radius: 999px; cursor: pointer;
+  width: 32px; height: 32px; padding: 0; border: none; border-radius: 999px; cursor: pointer;
   color: #f5f6f7; background: rgba(8, 11, 17, 0.52); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
 }
@@ -3686,14 +3681,14 @@
 
 /* 재생기 단추와 같은 꼴(2026-09 — 테두리·그림자 없는 반투명 · .scr-motion-mapbtn). */
 .scr-guide-mbtn{
-  width: 38px; height: 38px; flex: none; display: grid; place-items: center;
+  width: 32px; height: 32px; flex: none; display: grid; place-items: center;
   border: none; border-radius: 999px;
   color: #f5f6f7; background: rgba(255, 255, 255, 0.10); box-shadow: none;
 }
-/* 툴박스 꼬리의 반투명 알약(장면 공유 · 사용법)과 접힌 아이콘 견본. */
+/* 툴박스 꼬리의 아이콘 원(장면 공유 · 사용법 — 2026-09 알약을 걷었다)과 접힌 아이콘 견본. */
 .scr-guide-tpill{
-  display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 9px; border-radius: 999px;
-  font-size: 11px; font-weight: 600; color: #f5f6f7; background: rgba(255, 255, 255, 0.10); white-space: nowrap;
+  display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border-radius: 999px;
+  flex: none; color: #f5f6f7; background: rgba(255, 255, 255, 0.10);
 }
 .scr-guide-tpill:first-of-type{ margin-left: auto; }
 .scr-guide-tbmin{ background: rgba(8, 11, 17, 0.88); }
@@ -3747,14 +3742,13 @@
 }
 
 
-/* 재생 줄 견본의 스크랩·공유 — 툴박스 꼬리 알약(.scr-tb-tail .scr-kakao-share-btn)과 같은 반투명(2026-09 · 흰 알약을 걷었다). */
+/* 재생 줄 견본의 스크랩·공유 — 툴박스 꼬리 아이콘 원(.scr-tb-tail .scr-kakao-share-btn)과 같은 반투명(2026-09 · 흰 알약을 걷었다). */
 .scr-guide-tbtn{
-  display: inline-flex; align-items: center; gap: 4px; flex: none;
-  height: 28px; padding: 0 9px; border-radius: 999px; border: none; box-shadow: none;
-  font-size: 11px; font-weight: 600; line-height: 1; white-space: nowrap;
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 30px; height: 30px; padding: 0; border-radius: 999px; border: none; box-shadow: none;
   background: rgba(255, 255, 255, 0.10); color: #f5f6f7;
 }
-.scr-guide-tbtn svg{ width: 13px; height: 13px; color: currentColor; }
+.scr-guide-tbtn svg{ width: 15px; height: 15px; color: currentColor; }
 
 
 .scr-guide-seek{ flex: 1 1 130px; min-width: 110px; height: 5px; border-radius: 3px; background: var(--line-soft); position: relative; }

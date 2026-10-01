@@ -7,7 +7,7 @@ import {
 import { createPortal } from "react-dom";
 import { useBgm } from "./useBgm";
 import RosterTableIcon from "./RosterTableIcon";
-import { BookOpen, Bookmark, Map as MapIcon, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Share2, SlidersHorizontal, Tv, Users } from "lucide-react";
+import { BookOpen, Bookmark, Check, Map as MapIcon, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Share2, SlidersHorizontal, Tv, Users } from "lucide-react";
 /** 건설 명령 고스트 판의 색(원작의 배치 미리보기 초록) — 짙기는 op.plateAlpha 가 든다. */
 const GHOST_PLATE_COL9 = "#3ee06a";
 /** 툴박스가 손을 뗀 뒤 아이콘 하나로 접히기까지(2026-09, 요청: "안쓰면 몇초뒤 아이콘 하나로 최소화"). */
@@ -16897,11 +16897,12 @@ export default function ReplayMotionPlayer({
                     type="button"
                     className={cx("scr-kakao-share-btn scr-scrapbtn", tailDone9?.k === "scrap" && "is-done")}
                     onClick={() => { void runTail9("scrap"); }}
-                    aria-label={scrapLabel}
-                    title={`${scrapLabel} (Z)`}
+                    aria-label={tailDone9?.k === "scrap" ? tailDone9.s : scrapLabel}
+                    title={tailDone9?.k === "scrap" ? tailDone9.s : `${scrapLabel} (Z)`}
                   >
-                    <Bookmark />
-                    {tailDone9?.k === "scrap" ? tailDone9.s : scrapLabel}
+                    {/* 아이콘만이다(2026-09, 요청: "장면공유 스크랩 사용법도 피시에서도 모두 아이콘 버튼으로") — 글귀는
+                        title·aria 로 가고, 마친 표시는 초록 체크 한 번이다. */}
+                    {tailDone9?.k === "scrap" ? <Check size={18} aria-hidden /> : <Bookmark size={18} aria-hidden />}
                   </button>
                 )}
                 {onShare && (
@@ -16909,11 +16910,10 @@ export default function ReplayMotionPlayer({
                     type="button"
                     className={cx("scr-kakao-share-btn scr-sharebtn", tailDone9?.k === "share" && "is-done")}
                     onClick={() => { void runTail9("share"); }}
-                    aria-label={shareLabel}
-                    title={`${shareLabel} (X)`}
+                    aria-label={tailDone9?.k === "share" ? tailDone9.s : shareLabel}
+                    title={tailDone9?.k === "share" ? tailDone9.s : `${shareLabel} (X)`}
                   >
-                    <Share2 />
-                    {tailDone9?.k === "share" ? tailDone9.s : shareLabel}
+                    {tailDone9?.k === "share" ? <Check size={18} aria-hidden /> : <Share2 size={18} aria-hidden />}
                   </button>
                 )}
                 {shareNode}
@@ -16921,8 +16921,7 @@ export default function ReplayMotionPlayer({
                     따로 있을 까닭이 없다. 사용법은 이제 두 배치 다 이 자리다(요청: "툴박스 = 버튼로우 + 공유 + 사용법"). */}
                 {guide && (
                   <button type="button" className="scr-kakao-share-btn scr-guide-btn" onClick={openGuide9} aria-label="사용법" title="사용법">
-                    <BookOpen />
-                    사용법
+                    <BookOpen size={18} aria-hidden />
                   </button>
                 )}
               </div>

@@ -445,9 +445,10 @@ window.__mount = (motion, players, walkJson, terrainB64) => {
       ...(window.__deg && window.__deg !== 90 ? { a: window.__deg } : {}),
     },
     loadUnitTracks: async () => ({ motion }),
-    /* 장면 공유 버튼 자리(배치 검증용) — 실제 앱은 KakaoShareButton을 내려보낸다.
+    /* 장면 스크랩·공유(배치 검증용) — 실제 앱(scplayer)이 넘기는 그 콜백 둘이다. 버튼은 재생기가 그린다(아이콘 원).
        없으면 그 줄이 빈 채라 '어디에 서는가'를 화면으로 못 가린다. */
-    shareNode: React.createElement("button", { className: "scr-kakao-share-btn" }, "장면 공유"),
+    onScrap: async () => "스크랩됨",
+    onShare: async () => "링크 복사됨",
   }));
 };
 `;

@@ -56,7 +56,7 @@ export default function ReplayGuide({ onClose }: {
         <h3 className="scr-guide-h3">도구 상자</h3>
         <p className="scr-guide-sub">
           지도 아래쪽에 떠 있는 어두운 상자입니다 — <strong>재생·진행바·시간</strong>, 동그란 <strong>버튼들</strong>,
-          <strong> 장면 공유 · 사용법</strong>이 함께 있습니다(PC는 한 줄, 폰은 두 줄). 몇 초 동안 손대지 않으면 오른쪽의{" "}
+          <strong> 장면 공유 · 사용법</strong>이 함께 있습니다(위 줄은 버튼, 아래 줄은 재생). 몇 초 동안 손대지 않으면 오른쪽의{" "}
           <strong>아이콘 하나</strong>(<SlidersHorizontal size={12}/>)로 접히고, 그 아이콘을 누르면 다시 펼쳐집니다(PC는 <b>F</b> 키).
         </p>
         <p className="scr-guide-sub">
@@ -71,8 +71,8 @@ export default function ReplayGuide({ onClose }: {
             <span className="scr-guide-play" aria-hidden="true"><Play size={18} fill="currentColor"/></span>
             <span className="scr-guide-seek"/>
             <span className="scr-guide-time">12:04 / 31:12</span>
-            <span className="scr-guide-tbtn" aria-hidden="true"><Bookmark size={15}/>장면 스크랩</span>
-            <span className="scr-guide-tbtn scr-guide-tbtn-share" aria-hidden="true"><Share2 size={15}/>장면 공유</span>
+            <span className="scr-guide-tbtn" aria-hidden="true"><Bookmark size={15}/></span>
+            <span className="scr-guide-tbtn scr-guide-tbtn-share" aria-hidden="true"><Share2 size={15}/></span>
           </div>
           <ul className="scr-guide-legend">
             <li><span className="scr-guide-ic"><Play size={14} fill="currentColor"/></span><span><b>재생 / 일시정지</b> — 스페이스와 같습니다. 끝까지 본 뒤 누르면 처음부터(↺).</span></li>
@@ -96,8 +96,8 @@ export default function ReplayGuide({ onClose }: {
             <span className="scr-guide-mbtn scr-guide-mbtn-txt">2D</span>
             <span className="scr-guide-mbtn"><Music size={18}/></span>
             <span className="scr-guide-mbtn"><Maximize size={18}/></span>
-            <span className="scr-guide-tpill"><Share2 size={13}/>장면 공유</span>
-            <span className="scr-guide-tpill"><BookOpen size={13}/>사용법</span>
+            <span className="scr-guide-tpill"><Share2 size={15}/></span>
+            <span className="scr-guide-tpill"><BookOpen size={15}/></span>
           </div>
           <ul className="scr-guide-legend">
             <li><span className="scr-guide-ic"><Tv size={15}/></span><span><b>중계</b> — 누르면 위로 목록이 펼쳐집니다: <b>사람 이름들 · 자동 · 끄기</b>. 아래 <b>중계 고르기</b>에서 자세히.</span></li>
