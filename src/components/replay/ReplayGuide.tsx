@@ -1,4 +1,4 @@
-import { BookOpen, Bookmark, Map as MapIcon, Maximize, Music, Palette, Play, Share2, Tv, X } from "lucide-react";
+import { Bookmark, CircleHelp, Map as MapIcon, Maximize, Music, Palette, Play, Share2, Tv, X } from "lucide-react";
 import RosterTableIcon from "./RosterTableIcon";
 function K({ keys, plus = false, title, desc }: {
     keys: string[];
@@ -55,8 +55,8 @@ export default function ReplayGuide({ onClose }: {
 
         <h3 className="scr-guide-h3">도구 상자</h3>
         <p className="scr-guide-sub">
-          지도 맨 아래에 붙은 어두운 띠입니다 — <strong>재생·진행바·시간</strong>, 동그란 <strong>버튼들</strong>,
-          <strong> 장면 공유 · 사용법</strong>이 함께 있습니다(위 줄은 버튼, 아래 줄은 재생). 늘 펼쳐져 있습니다.
+          지도 맨 아래에 붙은 어두운 띠입니다 — 위 줄은 동그란 <strong>버튼들</strong>과 오른쪽의 <strong>스크랩 · 공유 · 사용법(?) ·
+          전체화면</strong>, 아래 줄은 <strong>배속 · 재생 · 진행바 · 시간</strong>입니다. 늘 펼쳐져 있습니다.
         </p>
         <p className="scr-guide-sub">
           진행바를 끌면 그 시각으로 갑니다. <strong>스크랩·공유</strong> 두 버튼은 <strong>지금 이 장면</strong>을
@@ -93,17 +93,19 @@ export default function ReplayGuide({ onClose }: {
             <span className="scr-guide-mbtn scr-guide-colsw is-personal"><Palette size={18}/></span>
             <span className="scr-guide-mbtn scr-guide-mbtn-txt">2D</span>
             <span className="scr-guide-mbtn"><Music size={18}/></span>
+            <span className="scr-guide-tpill"><Bookmark size={15}/></span>
             <span className="scr-guide-tpill"><Share2 size={15}/></span>
-            <span className="scr-guide-tpill"><BookOpen size={15}/></span>
+            <span className="scr-guide-tpill"><CircleHelp size={15}/></span>
             <span className="scr-guide-tpill"><Maximize size={15}/></span>
           </div>
           <ul className="scr-guide-legend">
-            <li><span className="scr-guide-ic"><Tv size={15}/></span><span><b>중계</b>(정보줄 맨 왼쪽) — 누르면 위로 목록이 펼쳐집니다: <b>사람 이름들 · 자동 · 끄기</b>. 아래 <b>중계 고르기</b>에서 자세히.</span></li>
+            <li><span className="scr-guide-ic"><Tv size={15}/></span><span><b>중계</b>(아래 정보줄의 닉네임 왼쪽) — 누르면 위로 목록이 펼쳐집니다: <b>사람 이름들 · 자동 · 끄기</b>. 아래 <b>중계 고르기</b>에서 자세히.</span></li>
             <li><span className="scr-guide-ic"><RosterTableIcon size={15}/></span><span><b>로스터 현황</b> — 끄면 <b>이름만</b>, 켜면 일꾼·자원·인구·K/D·APM까지 뜹니다.</span></li>
             <li><span className="scr-guide-ic"><Palette size={15}/></span><span><b>색</b> — 누를 때마다 색 모드가 바뀝니다. 버튼의 <b>원그래프</b>가 곧 지금 모드입니다(아래 <b>색 모드</b>).</span></li>
             <li><span className="scr-guide-ic scr-guide-ic-txt">2D</span><span><b>보기</b> — 평면(2D)과 입체(3D)를 오갑니다. 언덕·램프는 입체에서 더 잘 읽힙니다. PC에만 있습니다.</span></li>
-            <li><span className="scr-guide-ic"><Music size={15}/></span><span><b>음악</b> — 누르면 곡 목록이 펼쳐집니다. 고른 곡은 처음부터, 맨 위 '끄기'로 끕니다.</span></li>
-            <li><span className="scr-guide-ic"><Maximize size={15}/></span><span><b>전체화면</b> — 줄의 맨 오른쪽. 전체화면에서는 사용법 버튼이 빠지고, <b>미니맵</b>(<MapIcon size={12}/>) 버튼도 함께 서서 작은 지도를 여닫습니다.</span></li>
+            <li><span className="scr-guide-ic"><Music size={15}/></span><span><b>음악</b> — 누르면 곡 목록이 펼쳐집니다. 고른 곡은 처음부터, 맨 아래 '끄기'로 끕니다. 처음 들어오면 켜져 있습니다.</span></li>
+            <li><span className="scr-guide-ic"><CircleHelp size={15}/></span><span><b>사용법</b> — 지금 보고 있는 이 안내입니다.</span></li>
+            <li><span className="scr-guide-ic"><Maximize size={15}/></span><span><b>전체화면</b> — 줄의 맨 오른쪽. 전체화면에서는 사용법 버튼이 빠지고, <b>미니맵</b>(<MapIcon size={12}/>) 버튼이 함께 서서 아래 작은 지도를 여닫습니다.</span></li>
           </ul>
         </div>
 
@@ -172,12 +174,12 @@ export default function ReplayGuide({ onClose }: {
         <h3 className="scr-guide-h3">아래 미니맵 · 인포창</h3>
         <p className="scr-guide-sub">
           맨 아래 가운데에 <strong>미니맵</strong>(왼쪽)과 <strong>인포창</strong>(오른쪽)이 한 틀로 늘 서 있고, 그 위 온 폭에
-          <strong>사람 정보줄</strong>이 섭니다. 오른쪽 위 <strong>▾</strong>로 접으면 정보줄만 남습니다.
+          <strong>사람 정보줄</strong>이 섭니다. 전체화면에서는 정보줄 오른쪽 <strong>▾</strong>로 접어 정보줄만 남길 수 있습니다.
         </p>
         <ul className="scr-guide-legend">
           <li><span className="scr-guide-ic scr-guide-ic-txt">윗줄</span><span><b>사람 정보줄</b> — 중계 중에는 <b>지금 누구 화면</b>인지, 중계를 껐을 때는 <b>내가 고른 것의 주인</b>을 보여 줍니다. 팀·이름 옆에 <b>일꾼 · 자원(광물/가스) · 인구 · K/D · APM</b>이 섭니다.</span></li>
-          <li><span className="scr-guide-ic scr-guide-ic-txt">하나</span><span><b>유닛·건물 하나</b> — 지도에서 누르면 그림 위 가운데에 이름, 그 아래 그림과 체력·실드·에너지, 처치 수, 업그레이드, 건물이면 생산 중인 유닛(진행 바 왼쪽)과 그 아래 대기 넷·연구·보급까지, 연구 건물이면 그 건물에서 하는 업그레이드가 칩으로 섭니다(마친 것은 밝게 · 공방은 단계 · 하는 중은 초록 테). 수송선·벙커는 탄 유닛이 칸으로 서고, 2칸짜리는 세로 두 칸 · 4칸짜리(탱크·드라군 같은)는 2×2 입니다.</span></li>
-          <li><span className="scr-guide-ic scr-guide-ic-txt">여럿</span><span><b>화면 주인의 선택</b> — 중계 중에 아무것도 안 눌렀으면, 그 사람이 지금 고른 부대가 칸으로 섭니다(6칸씩 두 줄). 칸을 누르면 그 유닛 하나를 봅니다. 고른 것에는 지도에서도 <b>선택 링</b>이 둘립니다.</span></li>
+          <li><span className="scr-guide-ic scr-guide-ic-txt">하나</span><span><b>유닛·건물 하나</b> — 지도에서 누르면 그림 위 가운데에 이름, 그 아래 그림과 체력·실드·에너지, 처치 수, 업그레이드, 건물이면 생산 중인 유닛(진행 바 왼쪽)과 그 아래 대기 넷·연구·보급까지, 연구 건물이면 그 건물에서 하는 업그레이드가 둥근 네모 칸으로 섭니다(마친 것은 밝게 · 단계는 칸 오른쪽 아래 숫자 · 하는 중은 초록 테). 유닛의 공격·방어·실드 업그레이드도 같은 칸입니다. 수송선·벙커는 탄 유닛이 칸으로 서고, 2칸짜리는 세로 두 칸 · 4칸짜리(탱크·드라군 같은)는 2×2 입니다.</span></li>
+          <li><span className="scr-guide-ic scr-guide-ic-txt">여럿</span><span><b>화면 주인의 선택</b> — 중계 중에 아무것도 안 눌렀으면, 그 사람이 지금 고른 부대가 칸으로 섭니다(6칸씩 두 줄 · 가운데 정렬). 칸을 누르면 그 유닛 하나를 봅니다. 고른 것에는 지도에서도 <b>선택 링</b>이 둘립니다.</span></li>
           <li><span className="scr-guide-ic scr-guide-ic-txt">K/D</span><span><b>K/D</b> — 잡은 적 유닛 수 / 잃은 유닛 수입니다. 건물과 라바·알·인터셉터 같은 것은 안 셉니다.</span></li>
         </ul>
 
@@ -215,7 +217,6 @@ export default function ReplayGuide({ onClose }: {
 
           <span className="scr-guide-group">창</span>
           <K keys={["Alt", "Enter"]} plus title="전체화면 들어가기 / 나가기"/>
-          <K keys={["F"]} title="도구 상자 접기 / 펴기" desc="지도를 넓게 볼 때 씁니다. 손대지 않아도 몇 초 뒤 저절로 접힙니다."/>
           <K keys={["Esc"]} title="닫기" desc="지도에서 고른 것이 있으면 그 선택부터 풀고, 없으면 전체화면에서 나갑니다."/>
         </div>
 

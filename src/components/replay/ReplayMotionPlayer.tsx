@@ -7,7 +7,7 @@ import {
 import { createPortal } from "react-dom";
 import { useBgm } from "./useBgm";
 import RosterTableIcon from "./RosterTableIcon";
-import { BookOpen, Bookmark, Check, Map as MapIcon, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Share2, Tv } from "lucide-react";
+import { Bookmark, Check, CircleHelp, Map as MapIcon, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Share2, Tv } from "lucide-react";
 /** 건설 명령 고스트 판의 색(원작의 배치 미리보기 초록) — 짙기는 op.plateAlpha 가 든다. */
 const GHOST_PLATE_COL9 = "#3ee06a";
 /** 툴박스가 손을 뗀 뒤 아이콘 하나로 접히기까지(2026-09, 요청: "안쓰면 몇초뒤 아이콘 하나로 최소화"). */
@@ -16949,7 +16949,7 @@ export default function ReplayMotionPlayer({
                 {/* 사용법은 **프레임에서만**이다(2026-09, 요청: "전체화면에서 사용법 버튼 제거"). */}
                 {guide && !fsOn && (
                   <button type="button" className="scr-kakao-share-btn scr-guide-btn" onClick={openGuide9} aria-label="사용법" title="사용법">
-                    <BookOpen size={18} aria-hidden />
+                    <CircleHelp size={18} aria-hidden />
                   </button>
                 )}
                 {/* 전체화면 켜고 끄기는 줄의 **맨 오른쪽**이다(2026-09, 요청: "전체화면 온오프 버튼은 가장 오른쪽에 배치"). */}

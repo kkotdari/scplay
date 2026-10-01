@@ -912,7 +912,7 @@ if (SHOT) {
   if (flag("--wait", null)) await page.waitForTimeout(Number(flag("--wait", 0)));
   /* 사용법 덮개(--guide <png>) — '사용법' 단추를 눌러 덮개를 띄우고, 창을 덮개 높이만큼 키워 통째로 찍는다. */
   if (flag("--guide", null)) {
-    await page.evaluate(() => { [...document.querySelectorAll("button")].find((b) => b.textContent?.trim() === "사용법")?.click(); });
+    await page.evaluate(() => { [...document.querySelectorAll("button")].find((b) => b.textContent?.trim() === "사용법" || b.getAttribute("aria-label") === "사용법")?.click(); });
     await page.waitForTimeout(600);
     const h9 = await page.evaluate(() => document.querySelector(".scr-guide")?.scrollHeight ?? 0);
     const vp9 = page.viewportSize();
