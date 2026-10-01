@@ -289,7 +289,7 @@ const AIRUP = Number(flag("--airup", 5.1));
   });
   const span = addonSpan || best.s;
   const w = new W();
-  w.u8(0x4f); w.u8(0x42); w.u8(0x57); w.u8(0x54); w.u8(8); w.f32(FPS); w.i32(-1);   // 판 8(해독기가 판 8만 읽는다)
+  w.u8(0x4f); w.u8(0x42); w.u8(0x57); w.u8(0x54); w.u8(11); w.f32(FPS); w.i32(-1);   // 판 11(해독기가 판 11만 읽는다)
   w.u8(PLAYERS.length);
   for (const pl of PLAYERS) { w.u8(pl.owner); w.u8(pl.owner); w.u8(pl.race); w.u8(pl.force); w.u8(0); w.u32(pl.color); w.str(pl.name); }
   w.u32(tracks.length);
@@ -302,6 +302,8 @@ const AIRUP = Number(flag("--airup", 5.1));
   // 체력 줄(키와 따로 · 트랙 차례 그대로): varint(zigzag 프레임차) · varint(zigzag 값차).
   for (const tr of tracks) { if (!tr.hp) continue; let pf = 0; let pv = 0; for (const [f, v] of tr.hp) { w.vz(f - pf); pf = f; w.vz(v - pv); pv = v; } }
   w.u32(0); w.u32(0); w.u32(0); w.u32(0); w.u32(0); w.u32(0); w.u16(119); w.u32(0);
+  // 판 9~11 의 맨 뒤 절 여섯(건설명령 · 선택 · 에너지 · 탑승 · 자원량 · 처치) — 장면 시트는 다 빈 절이다.
+  for (let i9 = 0; i9 < 6; i9 += 1) w.u32(0);
   const motion = deflateSync(w.out()).toString("base64");
   const zoom = ZM > 0 ? ZM : Math.min(ZOOM_MAX, 128 / (span + ZOOM_PAD));
   /* 잉크가 실제로 차지하는 가로 구간(타일) — 셋을 잇는 장면이 여기서 자른다(칸 폭은 몸·라벨 중 넓은 쪽이다). */

@@ -304,7 +304,7 @@ function makeWorld() {
   /* ── 바이트로 굽는다 ── */
   const w = new W();
   w.u8(0x4f); w.u8(0x42); w.u8(0x57); w.u8(0x54);   // "OBWT"
-  w.u8(11); w.f32(FPS); w.i32(-1);   // 판 11 = 판 10 + 맨 뒤 에너지·탑승·자원량·처치 절(해독기는 8~11 을 읽는다)
+  w.u8(11); w.f32(FPS); w.i32(-1);   // 판 11 = 판 10 + 맨 뒤 에너지·탑승·자원량·처치 절(해독기는 판 11 만 읽는다)
   w.u8(PLAYERS.length);
   for (const pl of PLAYERS) { w.u8(pl.owner); w.u8(pl.owner); w.u8(pl.race); w.u8(pl.force); w.u8(0); w.u32(pl.color); w.str(pl.name); }
   w.u32(tracks.length);
