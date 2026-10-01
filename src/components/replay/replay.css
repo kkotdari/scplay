@@ -2596,16 +2596,17 @@
   display: flex; align-items: center; justify-content: center;
 }
 .scr-fs-dockcap .scr-motion-castcap {
-  background: none; border: none; box-shadow: none; padding: 1px calc(26px * var(--dkd)) 1px calc(26px * var(--dkd)); border-radius: 0;
+  background: none; border: none; box-shadow: none; padding: 1px calc(26px * var(--dkd)) 1px 4px; border-radius: 0;
   column-gap: calc(6px * var(--dkd)); font-size: calc(9px * var(--dkt)); line-height: 1.1; max-width: 100%;
 }
-/* TV 단추(중계·추적 목록)는 정보줄 **맨 왼쪽**에 떠 있다(2026-09, 요청: "중계버튼 위치를 유저정보 라인 맨 왼쪽으로 이동") —
-   접기 단추(오른쪽 끝)와 같은 자리 셈 · 원은 정보줄 키(22·dkd)에 드는 18·dkd. 자막은 그 몫(26·dkd)을 왼쪽에 비워 두고 가운데에 선다. */
+/* TV 단추(중계·추적 목록)는 정보줄의 **닉네임 바로 왼쪽**이다(2026-09, 요청: "중계버튼 위치를 유저정보 라인 맨 왼쪽으로 이동" →
+   "중계버튼 크기 줄이고 닉네임 왼쪽으로") — 자막(castcap)과 한 덩이로 가운데에 선다(흐름 속 첫 칸 · 자막이 없으면 홀로 가운데).
+   원은 14·dkd(옛 18). 목록은 위로 펼쳐져 툴박스를 덮는다(정보줄 z 13). */
 .scr-fs-dockcap .scr-fs-dockcast {
-  position: absolute; left: 4px; top: 50%; transform: translateY(-50%); z-index: 2;
-  --mapbtn-h: calc(18px * var(--dkd)); --mapbtn-gap: 0px;
+  position: relative; flex: none; margin-right: calc(2px * var(--dkd));
+  --mapbtn-h: calc(14px * var(--dkd)); --mapbtn-gap: 0px;
 }
-.scr-fs-dockcast button.scr-motion-mapbtn svg { width: calc(11px * var(--dkd)); height: calc(11px * var(--dkd)); }
+.scr-fs-dockcast button.scr-motion-mapbtn svg { width: calc(9px * var(--dkd)); height: calc(9px * var(--dkd)); }
 /* 라벨은 한 단 작게 · 줄 사이 없이(요청: "유저정보 라벨 크기 줄여서 세로 줄이기") — 정보줄 키 30 → 22·dk. */
 .scr-fs-dockcap .scr-motion-castcap-lab { font-size: calc(5.5px * var(--dkt)); line-height: 1.25; }
 .scr-fs-dockcap .scr-motion-castdot { width: calc(7px * var(--dkd)); height: calc(7px * var(--dkd)); }
@@ -2749,7 +2750,7 @@
      자리가 70px 뿐이다. 칸 36 · 사이 3 · 여백 5 면 창이 241px, 미니맵에 100px 남짓이 남는다. */
   .scr-motion { --dock-cell: 36px; --dock-gap: 3px; --dock-padx: 5px; }
   /* 정보줄은 이제 틀의 온 폭(미니맵 + 인포창)을 쓰므로 글자를 안 죈다. 접기 단추만 한 단 작게(22 → 18 · 그 자리 비움 26 → 22). */
-  .scr-fs-dockcap .scr-motion-castcap { padding-right: 22px; padding-left: 24px; }  /* 위아래 1px 는 그대로(라벨 글리프 윗머리가 넘친다) */
+  .scr-fs-dockcap .scr-motion-castcap { padding-right: 22px; }  /* 위아래 1px 는 그대로(라벨 글리프 윗머리가 넘친다) */
   .scr-motion-infodock-fold { width: 16px; height: 16px; line-height: 16px; right: 3px; font-size: 10px; }
   /* 틀은 줄을 **다 채운다**(요청: "프레임의 외부 패딩 남는데 그거 제거하고 다 채우기") — 미니맵은 제 폭 그대로 두고 남는 폭을
      인포창이 받는다(내용이 잘리던 쪽이다). */

@@ -2326,14 +2326,11 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
     case "land": {
       /* 착지 먼지바람 1.1초(2026-09, 요청: "동심원으로 하지말고 건물 대각 네 귀퉁이에서 연기가 뿡하고 나오는건 어때? 먼지바람
          처럼") — op 하나가 귀퉁이 하나다(engine9). 덩이 넷이 바깥 방향(dx·dy) 둘레 ±30도로 **확 뿜어졌다**(ease-out) 퍼지며
-         스러진다. 뒤 귀퉁이(sub "back")는 몸이 가리는 자리라 옆으로만 뿜고 몸 밖(발자국 폭의 0.12)에서 시작한다 — 효과는
-         몸 위에 얹히므로 몸 쪽으로 뿜으면 건물을 뚫고 비친다(옛 고리의 그 병). W9 는 발자국 폭(화면 px)이다. */
+         스러진다. 자리·방향은 엔진이 다 낸다(몸 상자의 네 귀퉁이 + 바닥 눌림) — 붓은 손질 없이 그대로 편다(요청: "네 귀퉁이에서
+         나오고 눌림만 적용하면 되는거 아니야?"). W9 는 상자 폭(화면 px)이다. */
       const u9 = u0 / 1.1;
       if (u9 > 1) break;
-      const back9 = f.sub === "back";
-      let dx9 = f.dx ?? 0; let dy9 = f.dy ?? 1;
-      if (back9) { dx9 = dx9 < 0 ? -1 : 1; dy9 = -0.18; }
-      const dl9 = Math.hypot(dx9, dy9) || 1; dx9 /= dl9; dy9 /= dl9;
+      const dx9 = f.dx ?? 0; const dy9 = f.dy ?? 1;
       const e9 = 1 - (1 - u9) ** 3;
       const spr9 = radOf9("land-dust");
       const sd9 = f.seed ?? 0;
@@ -2343,14 +2340,14 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
         const ca9 = Math.cos(ang9); const sa9 = Math.sin(ang9);
         const vx9 = dx9 * ca9 - dy9 * sa9;
         const vy9 = dx9 * sa9 + dy9 * ca9;
-        const d9 = W9 * ((back9 ? 0.12 : 0.03) + (0.26 + 0.12 * h9) * e9);
+        const d9 = W9 * (0.26 + 0.12 * h9) * e9;
         const r9 = W9 * (0.06 + (0.15 + 0.06 * h9) * e9);
         const al9 = (u9 < 0.1 ? u9 / 0.1 : (1 - (u9 - 0.1) / 0.9) ** 1.5) * 0.95;
         if (al9 <= 0.01) continue;
         ctx.globalAlpha = al9;
-        /* 바닥을 따라 퍼지므로 세로는 눌린다(0.6) · 덩이는 조금씩 떠오른다. */
+        /* 귀퉁이에서 바깥 방향(dx·dy — 엔진이 이미 바닥 눌림을 먹인 화면 방향)으로 퍼진다. */
         const px9 = ax + vx9 * d9;
-        const py9 = ay + vy9 * d9 * 0.6 - W9 * 0.05 * e9;
+        const py9 = ay + vy9 * d9;
         ctx.drawImage(spr9, px9 - r9, py9 - r9 * 0.8, r9 * 2, r9 * 1.6);
       }
       break;

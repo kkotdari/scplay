@@ -7331,22 +7331,26 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
          귀퉁이(타일 자리를 posFrac 으로 옮긴 화면 점)마다 op 하나 — 먼지가 그 귀퉁이에서 **바깥으로**(dx·dy = 화면 단위
          방향) 뿜어 나와 퍼지며 스러진다. 뒤 두 귀퉁이(sub "back")는 몸에 가리는 자리라 붓이 옆으로만 뿜게 하고 조금 밖에서
          시작한다. 크기(size)는 발자국 폭(렌즈 px)이다. */
-      const cx9 = x + footDx(unit);
-      const cy9 = y + footDy(unit);
-      const fw9 = (FOOTPRINT[unit] ?? [4, 3])[0];
-      const fh9 = (FOOTPRINT[unit] ?? [4, 3])[1];
-      const wPx9 = Math.abs(posFrac(cx9 + fw9 / 2, cy9)[0] - posFrac(cx9 - fw9 / 2, cy9)[0]) * mapW9;
-      const cfy9 = posFrac(cx9, cy9)[1];
+      /* ★ 자리는 **몸 상자**다 — 건물은 발자국이 아니라 몸 상자(units.dat)의 아랫변(groundYT)에 앉고 그 위로 선다(위 건물 갈래의
+         ★). 발자국 가운데를 축으로 네 귀퉁이를 잡으면 앞 귀퉁이가 건물 밑으로 반 칸 넘게 처졌다(지적: "먼지 위치가 왜케 아래같지").
+         앞 두 귀퉁이 = 그 아랫변 · 뒤 두 귀퉁이 = 거기서 상자 깊이만큼 뒤, 가로는 상자 폭. 세로만 눌림(평면 GROUND_SQUISH_2D)을 먹인다 — 그 밖의 손질은 없다(요청: "네 귀퉁이에서 나오고 눌림만 적용"). */
+      const [bw9, bh9, box9, boy9] = buildingBox(unit);
+      const cx9 = x + footDx(unit) + box9;
+      const gy9 = y + footDy(unit) + boy9 + bh9 / 2;
+      const fw9 = bw9;
+      const fh9 = bh9;
+      const wPx9 = Math.abs(posFrac(cx9 + fw9 / 2, gy9)[0] - posFrac(cx9 - fw9 / 2, gy9)[0]) * mapW9;
+      const gfy9 = posFrac(cx9, gy9)[1];
       for (const [sx9, sy9] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const) {
         const kx9 = cx9 + (sx9 * fw9) / 2;
-        const ky9 = cy9 + (sy9 * fh9) / 2;
-        /* 평면(90도)에서는 posFrac 이 바닥을 눌러 주지 않는다 — 이 화면의 평면 바닥은 일부러 눌려 있으므로(옛 고리·접지 그림자의
-           GROUND_SQUISH_2D) 귀퉁이의 세로 몫도 같은 값으로 누른다. 안 누르면 귀퉁이가 위아래로 벌어져 건물 발자국에서 떨어진다. */
+        const ky9 = sy9 > 0 ? gy9 - fh9 * 0.35 : gy9 - fh9;
+        /* 평면(90도)에서는 posFrac 이 바닥을 안 누른다 — 이 화면의 평면 바닥은 일부러 눌려 있으므로(옛 고리·접지 그림자의
+           GROUND_SQUISH_2D) 귀퉁이의 세로 몫도 지면선에서 같은 값으로 누른다. */
         const sq9 = pitched ? 1 : GROUND_SQUISH_2D;
         const [ax9, ay0] = posFrac(kx9, ky9);
-        const ay9 = cfy9 + (ay0 - cfy9) * sq9;
+        const ay9 = gfy9 + (ay0 - gfy9) * sq9;
         const [bx9, by0] = posFrac(kx9 + sx9 * 0.5, ky9 + sy9 * 0.5);
-        const by9 = cfy9 + (by0 - cfy9) * sq9;
+        const by9 = gfy9 + (by0 - gfy9) * sq9;
         const vx9 = (bx9 - ax9) * mapW9;
         const vy9 = (by9 - ay9) * mapW9;
         const vl9 = Math.hypot(vx9, vy9) || 1;
