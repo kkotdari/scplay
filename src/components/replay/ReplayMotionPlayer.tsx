@@ -7985,9 +7985,11 @@ export type ColorMode9 = "personal" | "team" | "hero";
  *  '에메랄드 녹색'이 이 틸이다). 그래서 개인색과 같은 값이 겹치는 것이 원작 그대로다 — 손대지 마라. */
 export const HERO_COL9 = { me: "#2cb494", ally: "#fcfc38", foe: "#f40404" } as const;
 const COLOR_MODE_NAME9: Record<ColorMode9, string> = { personal: "개인색", team: "팀색", hero: "주인공색" };
-/** 다음 갈래 — 개인 → 팀 → 주인공 → 개인. 밀리는 팀을 건너뛴다(편이 없다). */
-const nextColorMode9 = (m: ColorMode9, melee: boolean): ColorMode9 =>
-  m === "personal" ? (melee ? "hero" : "team") : m === "team" ? "hero" : "personal";
+/** 다음 갈래 — 개인 → 팀 → 주인공 → 개인. 밀리는 팀을 건너뛰고(편이 없다) 중계가 꺼지면 주인공을 건너뛴다. */
+const nextColorMode9 = (m: ColorMode9, melee: boolean, hero: boolean): ColorMode9 => {
+  const ring9: ColorMode9[] = ["personal", ...(melee ? [] : ["team" as const]), ...(hero ? ["hero" as const] : [])];
+  return ring9[(ring9.indexOf(m) + 1) % ring9.length] ?? "personal";
+};
 export default function ReplayMotionPlayer({
   grid, endSec, bases: basesIn, teamOfRaw, active = true, winnerTeam, side,
   onDetailClose, loadUnitTracks, sceneLink,
@@ -8148,9 +8150,7 @@ export default function ReplayMotionPlayer({
      모드 · 나는 에메랄드 녹색, 아군은 밝은 노랑, 적군은 밝은 빨강)") — 원작의 '내 편/남의 편' 색이다. 누가 '나'인지는
      아래 heroRaw9 가 정한다. */
   const [colorMode, setColorMode] = useState<ColorMode9>("personal");
-  /** 실제로 쓰는 색 갈래 — 밀리는 편이 없으니 팀색은 개인색으로 떨어진다(요청: 팀컬러 변경 비활성화).
-   *  주인공색은 밀리에서도 선다(나 · 남 둘로 갈린다). */
-  const colorNow: ColorMode9 = melee && colorMode === "team" ? "personal" : colorMode;
+  /* 실제로 쓰는 색 갈래(colorNow)는 중계 상태를 알아야 해서 아래(camRaw9 뒤)에 둔다. */
   /* 개체 트랙 — 화면이 그리는 **유일한** 자료다(v1 부대 추적은 걷었다). 뜨자마자 한 번
      내려받고, 못 받으면 아래 보기 줄이 '재분석 필요'라고 말한다: 자료가 없는 것과
      "그 경기엔 아무 일도 없었다"가 화면에서 갈려야 한다. */
@@ -9487,10 +9487,18 @@ export default function ReplayMotionPlayer({
    *  아래 추적 기계(집은 자국·걷기·카메라)는 전부 이 하나를 본다. 로스터의 조준선 표시만
    *  trackRaw를 그대로 읽는다 — 개인 추적과 중계를 눈으로 갈라야 하기 때문이다. */
   const camRaw9 = trackRaw ?? castRaw;
-  /** ★ 주인공색의 '나' — 시점(이름을 눌러 고른 눈)이 먼저, 다음은 개인 추적, 둘 다 없으면 로스터 첫 사람이다.
-   *  ⚠ 자동 중계가 고른 사람(castRaw)은 **안 본다** — 8초마다 사람이 갈려 색이 통째로 뒤바뀌면 누가 누구 편인지
-   *  더 헷갈린다. 중계를 보면서 주인공을 바꾸려면 TV 목록에서 그 사람을 고르면 된다(시점·추적이 함께 선다). */
-  const heroRaw9: string | null = viewRaw ?? trackRaw ?? bases[0]?.key ?? null;
+  /** ★ 주인공색은 **중계가 켜졌을 때만** 선다(2026-09, 요청: "주인공색은 중계 on일때만 켜지고 만약 중계를 끄면
+   *  개인색으로 돌아감(기본)") — 중계 = TV 목록의 두 갈래(자동 · 개인 추적) 어느 쪽이든 카메라를 기계가 쥔 동안이다.
+   *  끄면 아래 effect 가 개인색으로 되돌리고, 꺼진 동안은 단추의 돌림에서도 빠진다. */
+  const heroOk9 = camRaw9 !== null;
+  /** 실제로 쓰는 색 갈래 — 밀리는 편이 없으니 팀색은 개인색으로 떨어진다(요청: 팀컬러 변경 비활성화) ·
+   *  주인공색은 중계가 꺼지면 개인색이다(effect 가 상태를 되돌리기 전 한 렌더도 안 새게 여기서도 막는다). */
+  const colorNow: ColorMode9 = (melee && colorMode === "team") || (colorMode === "hero" && !heroOk9) ? "personal" : colorMode;
+  useEffect(() => { if (!heroOk9) setColorMode((m) => (m === "hero" ? "personal" : m)); }, [heroOk9]);
+  /** ★ 주인공색의 '나' = **화면 주인**(camRaw9 — 개인 추적이면 그 사람, 자동 중계면 중계가 고른 사람).
+   *  자동 중계도 따른다(요청: "자동 중계에도 적용해야해") — 중계가 사람을 갈아타면 색도 그 사람 기준으로 갈린다
+   *  (토막이 바뀔 때만 · 색표는 문자열 값으로 memo 하므로 그 사이 프레임에는 안 흔들린다). */
+  const heroRaw9: string | null = camRaw9;
   /** 엔진에 건네는 색표 — 임자(raw)마다 지금 색 모드의 색. 엔진은 함수를 못 받으므로(워커) 표로 준다. */
   const colorTable9 = useMemo(() => {
     const m9: Record<string, string> = {};
@@ -15687,9 +15695,10 @@ export default function ReplayMotionPlayer({
       {/* 밀리에는 안 단다(요청: "팀컬러 변경 비활성화") — 편이 없으니 팀색이라는 것도
           없다. 손잡이만 남기면 눌러도 아무 일이 없는 버튼이 된다. */}
       {/* ★ 세 갈래를 돈다(2026-09, 요청: 개인색 → 팀색 → 주인공색) — 버튼 **바탕이 곧 지금 모드**다(무지개 · 빨/파 ·
-          녹/노/빨). 켜짐(is-on) 표시는 안 쓴다 — 세 모드 중 '꺼진' 것이 없다. 밀리는 팀색을 건너뛴다(편이 없다). */}
-      {(() => {
-        const next9 = nextColorMode9(colorNow, !!melee);
+          녹/노/빨). 켜짐(is-on) 표시는 안 쓴다 — 세 모드 중 '꺼진' 것이 없다. 밀리는 팀색을 건너뛰고, 중계가 꺼지면
+          주인공색을 건너뛴다 — 그래서 **밀리에 중계까지 꺼지면 고를 것이 개인색 하나라 단추를 안 단다**. */}
+      {(!melee || heroOk9) && (() => {
+        const next9 = nextColorMode9(colorNow, !!melee, heroOk9);
         return (
           <button
             type="button"

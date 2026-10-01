@@ -959,6 +959,25 @@ if (SHOT) {
       await page.waitForTimeout(400);
     }
     console.log("[색 모드]", await page.evaluate(() => document.querySelector(".scr-motion-colbtn")?.getAttribute("aria-label")));
+    /* 주인공색은 중계가 켜진 동안만이다 — TV 목록에서 '끄기'를 고르면 개인색으로 돌아와야 한다. */
+    if (has("--herocolor")) {
+      const off = await page.evaluate(async () => {
+        const w = (ms) => new Promise((r) => { setTimeout(r, ms); });
+        document.querySelector(".scr-motion-castbtn")?.click(); await w(200);
+        [...document.querySelectorAll(".scr-motion-pickmenu .scr-motion-pickitem")].find((el) => el.textContent === "끄기")?.click();
+        await w(400);
+        return document.querySelector(".scr-motion-colbtn")?.getAttribute("aria-label");
+      });
+      console.log("[색 모드] 중계 끈 뒤", off);
+      const ring = await page.evaluate(async () => {
+        const w = (ms) => new Promise((r) => { setTimeout(r, ms); });
+        const b = () => document.querySelector(".scr-motion-colbtn");
+        const out = [];
+        for (let i = 0; i < 2; i += 1) { b()?.click(); await w(250); out.push(b()?.getAttribute("aria-label")); }
+        return out;
+      });
+      console.log("[색 모드] 중계 꺼진 채 돌림", ring.join(" → "));
+    }
   }
   if (has("--quickzoom")) {
     // 지도 자신이 맞는 지점을 찾는다 — 모바일 세로 바 오버레이가 덮은 자리를 피해서.
