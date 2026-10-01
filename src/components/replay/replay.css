@@ -2544,18 +2544,21 @@
    1.2배 해도 되겠다 같은 상수따르기로") — 치수는 폰의 값으로 적고 이 값을 곱한다. 폰(≤700px)은 1(인포창 미디어). */
 .scr-motion {
   --dk: 1.2;
+  /* ★ 아래 독 줄(정보줄 · 미니맵 · 인포창)은 PC 에서 따로 **2.0** 이다(2026-09, 요청: "PC에서 지금 추가한 인터페이스 크기가
+     너무 작은거 같아 1.6~1.8배정도 확대") — 로스터(--dk 1.2)의 ×1.67. 독의 치수는 다 calc(폰 값 * var(--dkd)) 다. 폰은 1. */
+  --dkd: 2;
   /* ★★ 인포창의 폭은 **6×2 격자가 꼭 맞는 폭**이다(2026-09, 요청: "폭 기준을 멀티 유닛 선택 그리드시에 여백 없게 맞추고
      나머지 상황별 인포창 구성과 유저정보 행을 그 폭에 맞춰 재배치 또는 내부 요소 크기 조정" → 정정: "8x2가 아니라 6x2 · 셀 더
      크게") — 칸·사이·좌우 여백 셋을 변수로 두고 폭을 거기서 **거꾸로 푼다**: 칸 여섯 + 사이 다섯 + 여백 둘. 칸을 고치면 창이
      따라 좁아지고 넓어진다. 칸 한 변은 몸 키에 두 줄이 꼭 드는 값이다(2 × 40 + 4 + 위아래 여백 12 = 96).
      독 줄(.scr-fs-dockrow)이 창의 온 키(--dock-h)로 서고 미니맵이 그 남은 폭을 쓰므로 둘 다 뿌리(.scr-motion)에 둔다. */
-  --dock-cell: calc(40px * var(--dk)); --dock-gap: calc(4px * var(--dk)); --dock-padx: calc(6px * var(--dk));
-  --dock-cap: calc(22px * var(--dk)); --dock-body: calc(96px * var(--dk)); --dock-big: calc(48px * var(--dk));
-  --dock-slot: calc(20px * var(--dk));
+  --dock-cell: calc(40px * var(--dkd)); --dock-gap: calc(4px * var(--dkd)); --dock-padx: calc(6px * var(--dkd));
+  --dock-cap: calc(22px * var(--dkd)); --dock-body: calc(96px * var(--dkd)); --dock-big: calc(48px * var(--dkd));
+  --dock-slot: calc(20px * var(--dkd));
   --dock-w: calc(var(--dock-cell) * 6 + var(--dock-gap) * 5 + var(--dock-padx) * 2);
   /* 몸 키는 정보줄 키와 떼어 못 박는다(옛 띠 30 + 새긴 줄 1 + 96) — 정보줄을 죄어도 인포창·미니맵이 안 줄어든다
      (요청: "유저정보 라벨 크기 줄여서 세로 줄이기" — 줄어드는 것은 정보줄 하나다). */
-  --dock-h: calc(30px * var(--dk) + 1px + var(--dock-body));
+  --dock-h: calc(30px * var(--dkd) + 1px + var(--dock-body));
 }
 .scr-motion-infodock {
   /* ★ 하단 인포창(2026-09, 요청: "인포팝업을 없애고 원작처럼 하단 인포창 · 위치는 하단 가운데 고정폭 · 그 자리에 있던 중계 자막은
@@ -2568,7 +2571,7 @@
   /* ★ 크기는 **폰 판 한 벌 × --dk** 다(2026-09, 요청: "PC는 좀 크기를 키워도 될듯한데? 1.2배정도" → 되물음: "PC는 모바일과
      똑같이 360으로 늘린 상태에서 1.2배 했어야하는거 아니야? 모든 요소를") — 치수는 다 폰의 값(폭 360 · 몸 96 · 실루엣 48 ·
      칸 20/34 · 정보줄 9px …)으로 적고 PC 는 --dk 1.2 를 곱한다(폭 432). 폰은 --dk 1 만 놓는다(아래 미디어).
-     새 치수는 calc(Npx * var(--dk)) 로 적어라 — 손 px 는 PC 에서만 작게 남는다.
+     새 치수는 calc(Npx * var(--dkd)) 로 적어라 — 손 px 는 PC 에서만 작게 남는다.
      --dk 자체는 뿌리(.scr-motion)가 든다 — 로스터도 같은 상수를 탄다(아래 .scr-fs-roster-fixed). */
   /* 치수 변수는 뿌리(.scr-motion)로 올라갔다(위 ★★). 자리는 이제 독 줄(.scr-fs-dockrow)의 오른쪽 칸이다 — 무대 안 아래 가운데에
      떠 있던 절대 자리(left 50% · bottom 10 · 전체화면은 조종부 + 60)는 걷었다. */
@@ -2589,32 +2592,32 @@
   display: flex; align-items: center; justify-content: center;
 }
 .scr-fs-dockcap .scr-motion-castcap {
-  background: none; border: none; box-shadow: none; padding: 1px calc(26px * var(--dk)) 1px 4px; border-radius: 0;
-  column-gap: calc(6px * var(--dk)); font-size: calc(9px * var(--dk)); line-height: 1.1; max-width: 100%;
+  background: none; border: none; box-shadow: none; padding: 1px calc(26px * var(--dkd)) 1px 4px; border-radius: 0;
+  column-gap: calc(6px * var(--dkd)); font-size: calc(9px * var(--dkd)); line-height: 1.1; max-width: 100%;
 }
 /* 라벨은 한 단 작게 · 줄 사이 없이(요청: "유저정보 라벨 크기 줄여서 세로 줄이기") — 정보줄 키 30 → 22·dk. */
-.scr-fs-dockcap .scr-motion-castcap-lab { font-size: calc(5.5px * var(--dk)); line-height: 1.25; }
-.scr-fs-dockcap .scr-motion-castdot { width: calc(7px * var(--dk)); height: calc(7px * var(--dk)); }
+.scr-fs-dockcap .scr-motion-castcap-lab { font-size: calc(5.5px * var(--dkd)); line-height: 1.25; }
+.scr-fs-dockcap .scr-motion-castdot { width: calc(7px * var(--dkd)); height: calc(7px * var(--dkd)); }
 .scr-motion-infodock-fold {
   position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
-  width: calc(18px * var(--dk)); height: calc(18px * var(--dk)); border-radius: 5px; border: none; cursor: pointer;
-  background: rgba(255, 255, 255, 0.08); color: #e8eef6; font-size: calc(11px * var(--dk)); line-height: calc(18px * var(--dk)); padding: 0;
+  width: calc(18px * var(--dkd)); height: calc(18px * var(--dkd)); border-radius: 5px; border: none; cursor: pointer;
+  background: rgba(255, 255, 255, 0.08); color: #e8eef6; font-size: calc(11px * var(--dkd)); line-height: calc(18px * var(--dkd)); padding: 0;
 }
 .scr-motion-infodock-fold:hover { background: rgba(255, 255, 255, 0.16); }
 /* 몸은 정보줄이 비운 키까지 받는다(요청: "그만큼 남는 높이는 인포창이 사용") — 옛 띠(--dock-cap + 1px 새긴 줄)만큼 늘어 독 줄의 온
    키(--dock-h)가 곧 몸의 키다. 칸 수치(--dock-body)는 여럿 격자의 자로 남는다. */
-.scr-motion-infodock-body { height: var(--dock-h); padding: calc(6px * var(--dk)) var(--dock-padx); box-sizing: border-box; }
+.scr-motion-infodock-body { height: var(--dock-h); padding: calc(6px * var(--dkd)) var(--dock-padx); box-sizing: border-box; }
 .scr-motion-infodock-empty {
   height: 100%; display: flex; align-items: center; justify-content: center;
-  font-size: calc(11px * var(--dk)); color: rgba(255, 255, 255, 0.45);
+  font-size: calc(11px * var(--dkd)); color: rgba(255, 255, 255, 0.45);
 }
 /* 하나 — [실루엣·숫자] [글] [큐·탄 몸] */
 /* ★ 격자 둘·셋 칸이다(2026-09, 요청: "유닛 건물 이름을 메인 아이콘 위로") — 1행은 이름이 그림 칸과 글 칸 머리를 가로지르고, 2행에
    그림(실루엣·숫자)이 선다. 글 칸은 1~2행을 다 쓰되 내용을 **바닥에** 붙이므로 그 머리(이름이 지나는 자리)는 비어 있다. 탄 몸·큐
    칸(side)은 셋째 칸이 1~2행을 다 쓴다. */
 .scr-motion-infodock-one {
-  height: 100%; min-width: 0; display: grid; column-gap: calc(10px * var(--dk)); row-gap: 1px;
-  grid-template-columns: calc(54px * var(--dk)) minmax(0, 1fr) auto; grid-template-rows: auto minmax(0, 1fr);
+  height: 100%; min-width: 0; display: grid; column-gap: calc(10px * var(--dkd)); row-gap: 1px;
+  grid-template-columns: calc(54px * var(--dkd)) minmax(0, 1fr) auto; grid-template-rows: auto minmax(0, 1fr);
 }
 /* ★ 위·아래로 붙인다(2026-09, 요청: "내용줄이 짧으면 아래 공간이 남는 문제 — 제목과 내용 가운데 띄우고 아래에 맞춰
    정렬 · 메인아이콘 아래 수치들도") — 두 기둥 다 space-between: 그림·이름은 위, 숫자·내용 줄은 몸 칸 바닥에 앉고 남는 몫은
@@ -2622,12 +2625,12 @@
 .scr-motion-infodock-pic { grid-column: 1; grid-row: 2; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 2px; }
 .scr-motion-infodock-big { width: var(--dock-big); height: var(--dock-big); display: block; }
 .scr-motion-infodock-glyph {
-  display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: calc(20px * var(--dk));
+  display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: calc(20px * var(--dkd));
   border: 1px solid currentColor; border-radius: 6px; box-sizing: border-box;
 }
 .scr-motion-infodock-nums {
   display: flex; flex-wrap: wrap; justify-content: center; gap: 0 6px;
-  font-size: calc(10px * var(--dk)); font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.25;
+  font-size: calc(10px * var(--dkd)); font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.25;
 }
 .scr-motion-infodock-nums .is-sh { color: #f2f6ff; }
 .scr-motion-infodock-nums .is-en { color: #c79cff; }
@@ -2638,11 +2641,11 @@
    나간다(그냥 center 면 양쪽으로 넘쳐 왼쪽이 우물 밖에서 잘린다). */
 .scr-motion-infodock-name {
   grid-column: 1; grid-row: 1; justify-self: safe center; position: relative; z-index: 1; min-width: 0;
-  font-size: calc(12px * var(--dk)); font-weight: 800; color: #fff; white-space: nowrap; line-height: 1.25; text-align: center;
+  font-size: calc(12px * var(--dkd)); font-weight: 800; color: #fff; white-space: nowrap; line-height: 1.25; text-align: center;
 }
 .scr-motion-infodock-ups { display: flex; gap: 3px; flex-wrap: wrap; }
 .scr-motion-infodock-ups i {
-  font-style: normal; font-size: calc(8.5px * var(--dk)); font-weight: 700; padding: 1px calc(3px * var(--dk)); border-radius: 3px;
+  font-style: normal; font-size: calc(8.5px * var(--dkd)); font-weight: 700; padding: 1px calc(3px * var(--dkd)); border-radius: 3px;
   background: rgba(255, 255, 255, 0.1); box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.18);
 }
 /* 연구 상황판(건물) — 안 한 것은 옅게 · 마친 것은 밝게 · 하는 중은 초록 테. 단계 업그레이드는 n/3 을 굵게 붙인다. */
@@ -2652,16 +2655,16 @@
 .scr-motion-infodock-tech i.is-busy { opacity: 1; box-shadow: inset 0 0 0 1px rgba(111, 227, 111, 0.85); }
 .scr-motion-infodock-tech b { font-variant-numeric: tabular-nums; }
 /* 보급 넷(사용·제공·전체·최대)은 한 줄이다 — 2×2 격자는 몸 칸의 세로를 두 줄 먹었다. */
-.scr-motion-infodock-supply { display: flex; flex-wrap: nowrap; gap: 0 calc(7px * var(--dk)); white-space: nowrap; font-size: calc(9px * var(--dk)); color: rgba(255, 255, 255, 0.78); }
+.scr-motion-infodock-supply { display: flex; flex-wrap: nowrap; gap: 0 calc(7px * var(--dkd)); white-space: nowrap; font-size: calc(9px * var(--dkd)); color: rgba(255, 255, 255, 0.78); }
 /* 옛 팝업에서 이어 쓰는 글·진행 바도 창의 배수를 탄다. */
-.scr-motion-infodock .scr-motion-info-line { font-size: calc(9px * var(--dk)); }
-.scr-motion-infodock .scr-motion-info-bar { height: calc(6px * var(--dk)); }
+.scr-motion-infodock .scr-motion-info-line { font-size: calc(9px * var(--dkd)); }
+.scr-motion-infodock .scr-motion-info-bar { height: calc(6px * var(--dkd)); }
 .scr-motion-infodock-supply b { color: #fff; font-variant-numeric: tabular-nums; }
 .scr-motion-infodock-side { grid-column: 3; grid-row: 1 / 3; display: flex; align-items: center; }
 /* 생산 — [지금 뽑는 것 한 칸][진행 바] · 그 아래 대기 넷(원작 자리). */
 /* 생산 줄([지금 뽑는 것][진행 바])은 그 아래 대기 넷과 같은 폭이다(요청: "진행아이콘+진행바 너비를 아래 큐 너비와 같게") —
    폭을 대기 줄의 자(칸 넷 + 사이 셋)에서 낸다. 남는 오른쪽은 비워 둔다. */
-.scr-motion-infodock { --dock-qgap: calc(3px * var(--dk)); }
+.scr-motion-infodock { --dock-qgap: calc(3px * var(--dkd)); }
 .scr-motion-infodock-prod { display: flex; align-items: center; gap: var(--dock-qgap); width: calc(var(--dock-slot) * 4 + var(--dock-qgap) * 3); max-width: 100%; }
 .scr-motion-infodock-prod .scr-motion-info-prog { flex: 1 1 auto; min-width: 0; margin-top: 0; }
 /* 생산 글귀는 한 줄이다 — 바 폭(칸 셋 몫)이 좁아 다섯 글자 이름("생산 중 사이언스 베슬")의 끝 글자가 둘째 줄로 떨어졌다.
@@ -2695,7 +2698,7 @@
   /* ★ 폭이 모자라 정보줄이 잘리고 연구 칩이 둘째 줄로 밀려 몸 키 밖에서 안 보였다(2026-09, 지적: "모바일 인포창 내용이
      폭이 모자라나봐 유저정보도 잘리고 업그레이드 상태도 한줄 내려가서 안보여") — 280 → 360(화면 − 16 이 먼저 죈다) ·
      몸 84 → 96(칩이 두 줄이어도 든다) · 정보줄은 한 단 더 죈다. */
-  .scr-motion { --dk: 1; }
+  .scr-motion { --dk: 1; --dkd: 1; }
   /* 폰은 미니맵과 한 줄을 나눠 쓴다(위 ★★) — 폰 판의 폭은 358px 남짓(앱이 좌우 16px 을 둔다)이라 칸 40 이면 창이 272px, 미니맵
      자리가 70px 뿐이다. 칸 36 · 사이 3 · 여백 5 면 창이 241px, 미니맵에 100px 남짓이 남는다. */
   .scr-motion { --dock-cell: 36px; --dock-gap: 3px; --dock-padx: 5px; }
@@ -3109,7 +3112,7 @@
      ④ 베벨 — 바깥 검은 1px 테 + 안쪽 위 흰 한 줄 · 아래 검은 한 줄
    반투명·흐림(backdrop-filter)은 걷었다 — 쇠판은 비치지 않고, 흐림은 판 하나의 값이 크다. */
 .scr-fs-dockframe {
-  --dock-bez: calc(5px * var(--dk));
+  --dock-bez: calc(5px * var(--dkd));
   /* 두 줄 — [정보줄(온 폭)] / [미니맵 | 인포창](키 --dock-h). 접으면(is-fold) 정보줄만 남는다. */
   display: flex; flex-direction: column; align-items: stretch; gap: var(--dock-bez); padding: var(--dock-bez); min-width: 0; max-width: 100%;
   box-sizing: border-box;
