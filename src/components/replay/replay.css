@@ -2593,7 +2593,11 @@
      여럿은 한 변 --dock-cell 의 정사각 6×2(= 6·42 + 5·4 = 272) · 하나는 [실루엣 64][글][탄 몸 4칸 105] 라 460 → 340 → **300**
      (되요청: "인포창 좌우를 좀더 줄일 여지") — 가장 넓은 것은 여럿 격자(272 + 여백 16)이고 정보줄(약 280)이 그 다음이다.
      칸 한 변은 몸 키(100 − 위아래 여백 12 − 사이 4)의 반. */
-  --dock-w: 300px; --dock-body: 100px; --dock-big: 60px; --dock-slot: 24px; --dock-cell: 42px;
+  /* ★ 크기는 --dk 한 배수다(2026-09, 요청: "PC는 좀 크기를 키워도 될듯한데? 1.2배정도") — 폭·키·칸·글자가 다 그 값을 탄다.
+     PC 1.2 · 폰 1(아래 미디어). 새 치수를 더할 때는 calc(Npx * var(--dk)) 로 적어라 — 손 px 는 PC 에서만 작게 남는다. */
+  --dk: 1.2;
+  --dock-w: calc(300px * var(--dk)); --dock-body: calc(100px * var(--dk)); --dock-big: calc(60px * var(--dk));
+  --dock-slot: calc(24px * var(--dk)); --dock-cell: calc(42px * var(--dk));
   position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
   width: var(--dock-w); max-width: calc(100% - 16px); z-index: 11;
   display: flex; flex-direction: column;
@@ -2607,44 +2611,46 @@
 .scr-fs-layer.is-fs .scr-motion-infodock { bottom: calc(var(--scr-fsbot, 56px) + 60px); }
 /* 맨 위 띠 — 중계 자막 자리. 자막이 없어도 키를 지킨다(창이 안 들썩인다). 접기 단추는 오른쪽 끝. */
 .scr-motion-infodock-cap {
-  position: relative; height: 34px; display: flex; align-items: center; justify-content: center;
+  position: relative; height: calc(34px * var(--dk)); display: flex; align-items: center; justify-content: center;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 .scr-motion-infodock .scr-motion-castcap {
-  background: none; border: none; box-shadow: none; padding: 0 22px 0 4px; border-radius: 0;
-  column-gap: 7px; font-size: 10.5px;
+  background: none; border: none; box-shadow: none; padding: 0 calc(24px * var(--dk)) 0 4px; border-radius: 0;
+  column-gap: calc(7px * var(--dk)); font-size: calc(10.5px * var(--dk)); max-width: 100%;
 }
+.scr-motion-infodock .scr-motion-castcap-lab { font-size: calc(7px * var(--dk)); }
+.scr-motion-infodock .scr-motion-castdot { width: calc(7px * var(--dk)); height: calc(7px * var(--dk)); }
 .scr-motion-infodock-fold {
   position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
-  width: 22px; height: 22px; border-radius: 6px; border: none; cursor: pointer;
-  background: rgba(255, 255, 255, 0.08); color: #e8eef6; font-size: 12px; line-height: 22px; padding: 0;
+  width: calc(22px * var(--dk)); height: calc(22px * var(--dk)); border-radius: 6px; border: none; cursor: pointer;
+  background: rgba(255, 255, 255, 0.08); color: #e8eef6; font-size: calc(12px * var(--dk)); line-height: calc(22px * var(--dk)); padding: 0;
 }
 .scr-motion-infodock-fold:hover { background: rgba(255, 255, 255, 0.16); }
 .scr-motion-infodock.is-fold .scr-motion-infodock-cap { border-bottom: none; }
-.scr-motion-infodock-body { height: var(--dock-body); padding: 6px 8px; box-sizing: border-box; }
+.scr-motion-infodock-body { height: var(--dock-body); padding: calc(6px * var(--dk)) calc(8px * var(--dk)); box-sizing: border-box; }
 .scr-motion-infodock-empty {
   height: 100%; display: flex; align-items: center; justify-content: center;
-  font-size: 11px; color: rgba(255, 255, 255, 0.45);
+  font-size: calc(11px * var(--dk)); color: rgba(255, 255, 255, 0.45);
 }
 /* 하나 — [실루엣·숫자] [글] [큐·탄 몸] */
-.scr-motion-infodock-one { height: 100%; display: flex; gap: 8px; align-items: stretch; min-width: 0; }
-.scr-motion-infodock-pic { flex: none; width: 64px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.scr-motion-infodock-one { height: 100%; display: flex; gap: calc(8px * var(--dk)); align-items: stretch; min-width: 0; }
+.scr-motion-infodock-pic { flex: none; width: calc(64px * var(--dk)); display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .scr-motion-infodock-big { width: var(--dock-big); height: var(--dock-big); display: block; }
 .scr-motion-infodock-glyph {
-  display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 20px;
+  display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: calc(20px * var(--dk));
   border: 1px solid currentColor; border-radius: 6px; box-sizing: border-box;
 }
 .scr-motion-infodock-nums {
   display: flex; flex-wrap: wrap; justify-content: center; gap: 0 6px;
-  font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.25;
+  font-size: calc(10px * var(--dk)); font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.25;
 }
 .scr-motion-infodock-nums .is-sh { color: #f2f6ff; }
 .scr-motion-infodock-nums .is-en { color: #c79cff; }
 .scr-motion-infodock-text { flex: 1 1 auto; min-width: 0; overflow: hidden; display: flex; flex-direction: column; gap: 1px; }
-.scr-motion-infodock-name { font-size: 12px; font-weight: 800; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.scr-motion-infodock-name { font-size: calc(12px * var(--dk)); font-weight: 800; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .scr-motion-infodock-ups { display: flex; gap: 3px; flex-wrap: wrap; }
 .scr-motion-infodock-ups i {
-  font-style: normal; font-size: 9px; font-weight: 700; padding: 1px 4px; border-radius: 3px;
+  font-style: normal; font-size: calc(9px * var(--dk)); font-weight: 700; padding: 1px calc(4px * var(--dk)); border-radius: 3px;
   background: rgba(255, 255, 255, 0.1); box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.18);
 }
 /* 연구 상황판(건물) — 안 한 것은 옅게 · 마친 것은 밝게 · 하는 중은 초록 테. 단계 업그레이드는 n/3 을 굵게 붙인다. */
@@ -2653,7 +2659,10 @@
 .scr-motion-infodock-tech i.is-done { opacity: 1; background: rgba(255, 255, 255, 0.16); }
 .scr-motion-infodock-tech i.is-busy { opacity: 1; box-shadow: inset 0 0 0 1px rgba(111, 227, 111, 0.85); }
 .scr-motion-infodock-tech b { font-variant-numeric: tabular-nums; }
-.scr-motion-infodock-supply { display: grid; grid-template-columns: auto auto; justify-content: start; gap: 0 12px; font-size: 9px; color: rgba(255, 255, 255, 0.78); }
+.scr-motion-infodock-supply { display: grid; grid-template-columns: auto auto; justify-content: start; gap: 0 12px; font-size: calc(9px * var(--dk)); color: rgba(255, 255, 255, 0.78); }
+/* 옛 팝업에서 이어 쓰는 글·진행 바도 창의 배수를 탄다. */
+.scr-motion-infodock .scr-motion-info-line { font-size: calc(9px * var(--dk)); }
+.scr-motion-infodock .scr-motion-info-bar { height: calc(6px * var(--dk)); }
 .scr-motion-infodock-supply b { color: #fff; font-variant-numeric: tabular-nums; }
 .scr-motion-infodock-side { flex: none; display: flex; align-items: center; }
 /* 생산 — [지금 뽑는 것 한 칸][진행 바] · 그 아래 대기 넷(원작 자리). */
@@ -2683,10 +2692,14 @@
 .scr-motion-infodock-gico { width: 100%; height: 100%; display: block; }
 /* 폰 — 창을 조금 줄인다(지도를 덜 가리게). */
 @media (max-width: 700px) {
-  .scr-motion-infodock { --dock-w: 280px; --dock-body: 84px; --dock-big: 48px; --dock-slot: 20px; --dock-cell: 34px; }
+  /* ★ 폭이 모자라 정보줄이 잘리고 연구 칩이 둘째 줄로 밀려 몸 키 밖에서 안 보였다(2026-09, 지적: "모바일 인포창 내용이
+     폭이 모자라나봐 유저정보도 잘리고 업그레이드 상태도 한줄 내려가서 안보여") — 280 → 360(화면 − 16 이 먼저 죈다) ·
+     몸 84 → 96(칩이 두 줄이어도 든다) · 정보줄은 한 단 더 죈다. */
+  .scr-motion-infodock { --dk: 1; --dock-w: 360px; --dock-body: 96px; --dock-big: 48px; --dock-slot: 20px; --dock-cell: 34px; }
   .scr-motion-infodock-pic { width: 54px; }
   .scr-motion-infodock-cap { height: 30px; }
-  .scr-motion-infodock .scr-motion-castcap { font-size: 9.5px; column-gap: 5px; }
+  .scr-motion-infodock .scr-motion-castcap { font-size: 9px; column-gap: 4px; padding-right: 26px; }
+  .scr-motion-infodock-ups i { font-size: 8.5px; padding: 1px 3px; }
 }
 /* ★ 자막은 **상시**다(되요청: "토스터가 아니라 계속 노출로 변경") — 중계가 켜진 동안 늘 서 있고 토막이
    갈릴 때 글귀만 갈아 끼운다(그리는 쪽이 토막 번호를 key 로 주어 그 순간 떠오름만 다시 돈다). 스러지는
