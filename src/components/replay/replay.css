@@ -2606,7 +2606,7 @@
   position: relative; flex: none; margin-right: calc(2px * var(--dkd));
   --mapbtn-h: calc(14px * var(--dkd)); --mapbtn-gap: 0px;
 }
-.scr-fs-dockcast button.scr-motion-mapbtn svg { width: calc(9px * var(--dkd)); height: calc(9px * var(--dkd)); }
+.scr-fs-dockcast button.scr-motion-mapbtn svg { width: calc(7px * var(--dkd)); height: calc(7px * var(--dkd)); }
 /* 라벨은 한 단 작게 · 줄 사이 없이(요청: "유저정보 라벨 크기 줄여서 세로 줄이기") — 정보줄 키 30 → 22·dk. */
 .scr-fs-dockcap .scr-motion-castcap-lab { font-size: calc(5.5px * var(--dkt)); line-height: 1.25; }
 .scr-fs-dockcap .scr-motion-castdot { width: calc(7px * var(--dkd)); height: calc(7px * var(--dkd)); }

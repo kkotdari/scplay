@@ -959,6 +959,7 @@ if (SHOT) {
     return false;
   }, re.source ?? re);
   if (has("--fs")) {
+    if (has("--fsoff")) console.log("[전체화면 전] " + await page.evaluate(() => { const m = document.querySelector(".scr-motion-map"); const st = document.querySelector(".scr-fs-stage"); const r = m?.getBoundingClientRect(); const q = st?.getBoundingClientRect(); return `z ${window.__scrDiag?.zoom ?? null} 지도 ${r ? Math.round(r.width) + "×" + Math.round(r.height) : "-"} 무대 ${q ? Math.round(q.width) + "×" + Math.round(q.height) : "-"}`; }));
     if (!await clickByLabel(/^전체화면$/)) console.warn("⚠ 전체화면 버튼을 못 찾음");
     await page.waitForTimeout(has("--fsidle") ? 4200 : 800);
     // 조작부 판이 열린 화면을 원하면(--fsidle 아님) 도구 버튼으로 못 박아 연다 —
@@ -967,6 +968,28 @@ if (SHOT) {
       await clickByLabel(/^도구 열기$/);
       await page.waitForTimeout(500);
     }
+    /* --fsoff: 켰다가 다시 끈다(지적: "전체화면 on 했다가 off시 배율이 이상해짐") — 끈 뒤의 판·배율을 찍는다. */
+    if (has("--fsoff")) {
+      const mz = () => page.evaluate(() => { const m = document.querySelector(".scr-motion-map"); const st = document.querySelector(".scr-fs-stage"); const r = m?.getBoundingClientRect(); const q = st?.getBoundingClientRect(); return `z ${window.__scrDiag?.zoom ?? null} 지도 ${r ? Math.round(r.width) + "×" + Math.round(r.height) : "-"} 무대 ${q ? Math.round(q.width) + "×" + Math.round(q.height) : "-"}`; });
+      const z0 = await mz();
+      if (!await clickByLabel(/^전체화면 나가기$/)) console.warn("⚠ 전체화면 나가기 버튼을 못 찾음");
+      await page.waitForTimeout(900);
+      const z1 = await mz();
+      await page.waitForTimeout(1500);
+      const z2 = await mz();
+      console.log(`[전체화면 끔] ${z0} → ${z1} → ${z2}`);
+    }
+  }
+  /* --tvprobe: 정보줄 TV 단추·아이콘·감싸개 상자(지적: "중계버튼 티비아이콘 가운데 안맞고 너무 큼"). */
+  if (has("--tvprobe")) {
+    const r9 = await page.evaluate(() => {
+      const b = document.querySelector(".scr-fs-dockcast button.scr-motion-castbtn");
+      if (!b) return null;
+      const f = (e) => { const r = e.getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 10) / 10); };
+      const sv = b.querySelector("svg"); const cs = getComputedStyle(b);
+      return { btn: f(b), svg: sv ? f(sv) : null, wrap: f(b.parentElement), pad: cs.padding, disp: cs.display, ai: cs.alignItems, jc: cs.justifyContent, bw: cs.borderWidth };
+    });
+    console.log("[TV]", JSON.stringify(r9));
   }
   /* 로스터 전체 꼴 검증(--rosterfull) — 기본은 이름만이라, 지표 다섯이 들어간 폭
      다툼(이름 칸이 남는가)이 안 찍힌다. 한 번 눌러 '전체'로 올린다. */

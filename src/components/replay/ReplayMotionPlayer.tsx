@@ -11201,6 +11201,17 @@ export default function ReplayMotionPlayer({
     setFsOn(false);
     if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
   }, []);
+  /* ★ 전체화면을 들고날 때는 **높이 붙들기 둘을 다 놓는다**(지적: "전체화면 on 했다가 off시 배율이 이상해짐") — 무대 붙들기
+     (stageHold9)와 판 예산 붙들기(vhHold9)는 주소창이 접히고 펴지는 35% 안쪽 흔들림을 무시하는 자인데, 전체화면의 무대(화면
+     높이)와 평소 무대의 차가 그 안에 들면 **전체화면 높이를 그대로 붙든 채** 돌아왔다. 그러면 덮는 폭(fsCoverW)이 옛 높이로 셈해져
+     같은 배율에서 타일 크기가 달라진다. 켜는 길(enterFs)은 무대 붙들기를 이미 놓고 있었고, 끄는 길(버튼·Esc·브라우저)은 하나도
+     안 놓았다. 이 이펙트가 세 길을 다 받고, 한 프레임 뒤 창 크기 사건을 한 번 쏴 두 자가 새 배치로 다시 재게 한다. */
+  useLayoutEffect(() => {
+    stageHold9.current = null;
+    vhHold9.current = null;
+    const r9 = requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
+    return () => cancelAnimationFrame(r9);
+  }, [fsOn]);
   /* 브라우저 쪽에서 나간 것(Esc·시스템 제스처)도 우리 상태에 반영한다. CSS 폴백으로만
      덮고 있는 기기에서는 이 이벤트가 안 오므로 Esc를 따로 받는다. */
   useEffect(() => {
@@ -15680,7 +15691,8 @@ export default function ReplayMotionPlayer({
         {pickMenu9("bgm", [
           ...bgm.tracks.map((t9, i9) => ({ label: t9, on: bgm.on && bgm.index === i9, act: () => bgm.pick(i9) })),
           { label: "끄기", on: !bgm.on, act: () => bgm.off() },
-        ], true)}
+          /* 왼쪽 무리(인물·색 다음)의 단추라 목록은 **오른쪽으로** 자란다(지적: "음악 선택 목록 화면 밖으로 나감"). */
+        ], true, true)}
       </span>
       {/* (옮김) 전체화면 단추 — 툴박스 꼬리의 **맨 오른쪽**으로 갔다(2026-09, 요청: "전체화면 온오프 버튼은 가장 오른쪽에 배치"). */}
     </div>
