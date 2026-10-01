@@ -2582,7 +2582,12 @@
 /* 맨 위 띠 — 중계 자막 자리. 자막이 없어도 키를 지킨다(창이 안 들썩인다). 접기 단추는 오른쪽 끝. */
 .scr-motion-infodock-cap {
   position: relative; height: var(--dock-cap); display: flex; align-items: center; justify-content: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  /* 자막 띠와 몸 사이는 **새긴 줄**이다(쇠 틀과 한 벌 — 검은 홈 + 그 밑 옅은 빛 한 줄). 키는 종전 1px 그대로(--dock-h). */
+  border-bottom: 1px solid rgba(0, 0, 0, 0.75);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0) 70%);
+}
+.scr-motion-infodock-cap::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -2px; height: 1px; background: rgba(255, 255, 255, 0.07);
 }
 .scr-motion-infodock .scr-motion-castcap {
   background: none; border: none; box-shadow: none; padding: 0 calc(26px * var(--dk)) 0 4px; border-radius: 0;
@@ -2597,6 +2602,7 @@
 }
 .scr-motion-infodock-fold:hover { background: rgba(255, 255, 255, 0.16); }
 .scr-motion-infodock.is-fold .scr-motion-infodock-cap { border-bottom: none; }
+.scr-motion-infodock.is-fold .scr-motion-infodock-cap::after { display: none; }
 .scr-motion-infodock-body { height: var(--dock-body); padding: calc(6px * var(--dk)) var(--dock-padx); box-sizing: border-box; }
 .scr-motion-infodock-empty {
   height: 100%; display: flex; align-items: center; justify-content: center;
@@ -3081,15 +3087,51 @@
 }
 /* ★ 사각 틀 하나(2026-09, 요청: "미니맵과 인포창을 한데 묶는 사각 프레임") — 미니맵과 인포창이 이 틀 안에 붙어 서고 틀은 그 둘만큼만
    넓다(줄 가운데에 선다 — 한때 원작 콘솔처럼 왼쪽에 붙였다가 되물렸다). 둥글리지 않는다. 미니맵을 끄면(전체화면 단추) 인포창만 든다. */
+/* ★★ 틀은 **솔질한 쇠**다(2026-09, 요청: "미니맵+인포창 테두리와 구분선 좀더 세련되게 할수 있나. 광택 그라데이션과 헤어라인
+   들어간 쇠느낌이라던가") ────────────────────────────────────────────────────────────────────────────────
+   틀의 바탕 자체가 쇠판이고, 미니맵·인포창은 그 판에 **파인 우물**(어두운 속 · 위 안쪽 그늘 · 아래 밝은 입술)로 선다. 그러면
+   틀의 여백(--dock-bez)이 곧 테두리이고 둘 사이의 틈이 곧 **구분선(쇠 막대)**이다 — 선을 따로 긋지 않는다. 켜는 넷:
+     ① 광택 — 위가 밝고 가운데 아래에서 한 번 꺾이는 무광 강철 띠(수평선 하나가 '쇠'로 읽히게 하는 자다)
+     ② 헤어라인 — **판의 길이를 따라**(가로 띠는 가로 줄 · 세로 막대는 세로 줄) 1px 밝은 줄·어두운 줄을 딴 주기(2 · 3px)로 겹치고,
+        그 위에 길이 방향의 느린 얼룩(23 · 41 · 67 · 89px)을 얹어 결이 고르게 안 읽히게. ⚠ 줄을 띠에 **가로질러** 그으면(처음 판)
+        솔질이 아니라 골판 이랑으로 읽힌다(실측) — 결은 늘 그 쇠의 긴 쪽을 따른다.
+     ③ 비스듬한 반사 한 줄기 — 넓은 판을 한 번 쓸고 가는 빛
+     ④ 베벨 — 바깥 검은 1px 테 + 안쪽 위 흰 한 줄 · 아래 검은 한 줄
+   반투명·흐림(backdrop-filter)은 걷었다 — 쇠판은 비치지 않고, 흐림은 판 하나의 값이 크다. */
 .scr-fs-dockframe {
-  display: flex; align-items: stretch; gap: 4px; padding: 4px; min-width: 0; max-width: 100%;
-  height: calc(var(--dock-h) + 10px); box-sizing: border-box;
-  background: rgba(8, 11, 17, 0.72); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 0;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  --dock-bez: calc(5px * var(--dk));
+  display: flex; align-items: stretch; gap: var(--dock-bez); padding: var(--dock-bez); min-width: 0; max-width: 100%;
+  height: calc(var(--dock-h) + var(--dock-bez) * 2 + 2px); box-sizing: border-box;
+  position: relative; border: 1px solid #0b0d10; border-radius: 0;
+  background:
+    linear-gradient(104deg, transparent 38%, rgba(255, 255, 255, 0.10) 47%, rgba(255, 255, 255, 0.02) 53%, transparent 60%),
+    repeating-linear-gradient(90deg, transparent 0, rgba(255, 255, 255, 0.07) 23px, transparent 41px, rgba(0, 0, 0, 0.06) 67px, transparent 89px),
+    repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px 2px),
+    repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.09) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, #a3aab3 0%, #7c848e 14%, #5b626b 46%, #43494f 50%, #555c64 74%, #6f7780 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -1px 0 rgba(0, 0, 0, 0.55),
+    inset 1px 0 0 rgba(255, 255, 255, 0.18), inset -1px 0 0 rgba(0, 0, 0, 0.35),
+    0 6px 18px rgba(0, 0, 0, 0.45);
   pointer-events: auto;
 }
-.scr-fs-dockframe > .scr-motion-infodock { border-left: 1px solid rgba(255, 255, 255, 0.10); }
+/* 우물 — 쇠판에 파인 자리. 위 안쪽 그늘이 깊이를, 아래 밝은 입술이 판의 두께를 말한다. */
+.scr-fs-dockframe > .scr-fs-minipanel,
+.scr-fs-dockframe > .scr-motion-infodock {
+  background: #0a0d12;
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+/* 구분선 — 둘 사이의 쇠 막대. 세로로 서므로 결도 세로다: 판의 결은 가로라 막대만 결을 틀어 얹는다(한 판에서 결이 꺾이는 자리가
+   곧 '따로 끼운 막대'로 읽힌다). 가로로 도는 광택(어둠 → 가운데 밝은 등 → 어둠)이 막대의 둥근 면이고, 세로 결은 그 광택이
+   가로 방향 색 변화라 저절로 난다 — 위아래 느린 얼룩만 얹는다. */
+.scr-fs-dockframe > .scr-fs-minipanel { position: relative; }
+.scr-fs-dockframe > .scr-fs-minipanel::after {
+  content: ""; position: absolute; top: 0; bottom: 0; right: calc(-1 * var(--dock-bez)); width: var(--dock-bez);
+  background:
+    repeating-linear-gradient(180deg, transparent 0, rgba(255, 255, 255, 0.08) 19px, transparent 37px, rgba(0, 0, 0, 0.08) 53px, transparent 71px),
+    linear-gradient(90deg, #3e444a 0%, #8d959e 38%, #b7bec6 50%, #7a828b 62%, #3a4046 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
 /* ★ 미니맵은 **남는 폭**을 쓴다(2026-09, 요청: "폭은 인포창 넣고 남은 폭을 씀") — 칸(이 판)이 남는 폭 × 줄 키를 갖고, 미니맵은
    그 칸 안에 지도 비 그대로 **가득 맞춘다**(contain): 폭으로 정하면 키가 줄을 넘는 화면(PC 프레임의 넓은 줄)에서는 키가 막고,
    키로 정하면 폭이 모자란 화면(폰)에서는 폭이 막는다. 두 몫을 컨테이너 단위(cqw·cqh)로 견준다 — 재생기가 비를 뿌리에
@@ -3229,6 +3271,8 @@
    그것이 '아랫줄이 통째로 가려진다'의 정체이고, 아이폰에서만 났던 까닭이다.
    자리(absolute + inset 0)로 채우면 백분율을 풀 일이 없다 — 어느 엔진에서도 상자에
    정확히 맞는다. 상자는 이미 position: relative다. */
+/* 쇠 틀의 우물 안에서는 미니맵 테가 우물의 검은 가장자리다 — 회색 테는 쇠판과 우물 사이에 한 겹 더 선 띠로 읽힌다. */
+.scr-fs-layer .scr-fs-dockframe .scr-fs-minimap { box-shadow: none; border-color: rgba(0, 0, 0, 0.9); }
 .scr-fs-minimap > canvas {
   display: block; position: absolute; inset: 0; width: 100%; height: 100%;
 }
