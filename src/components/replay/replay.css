@@ -2641,13 +2641,13 @@
 }
 .scr-motion-infodock-fold:hover { background: rgba(255, 255, 255, 0.16); }
 .scr-motion-infodock.is-fold .scr-motion-infodock-cap { border-bottom: none; }
-.scr-motion-infodock-body { height: var(--dock-body); padding: calc(6px * var(--dk)) calc(8px * var(--dk)); box-sizing: border-box; }
+.scr-motion-infodock-body { height: var(--dock-body); padding: calc(6px * var(--dk)) calc(12px * var(--dk)); box-sizing: border-box; }
 .scr-motion-infodock-empty {
   height: 100%; display: flex; align-items: center; justify-content: center;
   font-size: calc(11px * var(--dk)); color: rgba(255, 255, 255, 0.45);
 }
 /* 하나 — [실루엣·숫자] [글] [큐·탄 몸] */
-.scr-motion-infodock-one { height: 100%; display: flex; gap: calc(8px * var(--dk)); align-items: stretch; min-width: 0; }
+.scr-motion-infodock-one { height: 100%; display: flex; gap: calc(12px * var(--dk)); align-items: stretch; min-width: 0; }
 .scr-motion-infodock-pic { flex: none; width: calc(54px * var(--dk)); display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .scr-motion-infodock-big { width: var(--dock-big); height: var(--dock-big); display: block; }
 .scr-motion-infodock-glyph {
@@ -2680,9 +2680,12 @@
 .scr-motion-infodock-supply b { color: #fff; font-variant-numeric: tabular-nums; }
 .scr-motion-infodock-side { flex: none; display: flex; align-items: center; }
 /* 생산 — [지금 뽑는 것 한 칸][진행 바] · 그 아래 대기 넷(원작 자리). */
-.scr-motion-infodock-prod { display: flex; align-items: center; gap: 6px; }
+/* 생산 줄([지금 뽑는 것][진행 바])은 그 아래 대기 넷과 같은 폭이다(요청: "진행아이콘+진행바 너비를 아래 큐 너비와 같게") —
+   폭을 대기 줄의 자(칸 넷 + 사이 셋)에서 낸다. 남는 오른쪽은 비워 둔다. */
+.scr-motion-infodock { --dock-qgap: calc(3px * var(--dk)); }
+.scr-motion-infodock-prod { display: flex; align-items: center; gap: var(--dock-qgap); width: calc(var(--dock-slot) * 4 + var(--dock-qgap) * 3); max-width: 100%; }
 .scr-motion-infodock-prod .scr-motion-info-prog { flex: 1 1 auto; min-width: 0; margin-top: 0; }
-.scr-motion-infodock-queue { display: flex; gap: 3px; margin-top: 3px; }
+.scr-motion-infodock-queue { display: flex; gap: var(--dock-qgap); margin-top: var(--dock-qgap); }
 /* 탄 몸 — 칸이 수송 공간만큼 넓다(span) · dense 로 빈 자리를 앞에서부터 메운다. 아이콘은 한 칸 크기 그대로. */
 .scr-motion-infodock-cargo { display: grid; gap: 3px; grid-auto-flow: row dense; grid-auto-rows: var(--dock-slot); }
 .scr-motion-infodock-slot {
