@@ -10155,8 +10155,9 @@ export default function ReplayMotionPlayer({
   const tbTimer9 = useRef(0);
   const tbHover9 = useRef(false);
   const tbBusy9 = useRef<() => boolean>(() => false);
-  const tbWake9 = useCallback((): void => {
-    setTbMin9(false);
+  /** 접힘 시계만 다시 건다 — **안 편다**(2026-09, 지적: "도구 열기 안눌러도 열리는 현상"). 여태 마우스가 툴박스를 떠날 때
+   *  tbWake9 를 불러, 접힌 아이콘 위를 마우스가 스치고 나가기만 해도 툴박스가 펴졌다. 펴는 손은 아이콘 누름·F 키뿐이다. */
+  const tbArm9 = useCallback((): void => {
     window.clearTimeout(tbTimer9.current);
     if (tbHover9.current) return;
     const arm9 = (): void => {
@@ -10168,6 +10169,10 @@ export default function ReplayMotionPlayer({
     };
     arm9();
   }, []);
+  const tbWake9 = useCallback((): void => {
+    setTbMin9(false);
+    tbArm9();
+  }, [tbArm9]);
   useEffect(() => { tbWake9(); return () => window.clearTimeout(tbTimer9.current); }, [tbWake9]);
   const guidePushed9 = useRef(false);
   /* ★ 꼬리 줄의 두 버튼(스크랩·공유) — **하는 일만 앱이 붙이고** 나머지는 여기 몫이다(지적: "쓰는 쪽에서
@@ -16101,6 +16106,8 @@ export default function ReplayMotionPlayer({
      넓음) · 그만큼 남는 높이는 인포창이 사용") — 인포창 안 맨 위 띠였을 때는 인포창 폭(폰 241px)에 갇혀 숫자가 잘리고 접기 단추가
      APM 을 덮었다. 이제 미니맵 + 인포창의 온 폭을 쓰고, 인포창 몸은 그 띠가 비운 키(--dock-cap + 1px)까지 받는다. 접기 단추도
      이 줄로 옮겨 와 **아래 줄(미니맵 + 인포창)을 통째로** 접는다. */
+  /** 접힘이 실제로 먹나 — 전체화면에서만(프레임에는 접기 단추가 없다). */
+  const dockFoldOn9 = fsOn && dockFold9;
   const dockCapNode9 = (
     <div
       className="scr-fs-dockcap" aria-live="polite"
@@ -16135,13 +16142,15 @@ export default function ReplayMotionPlayer({
             <span className="scr-motion-castcap-val">{dockCap9.apm ?? "–"}</span>
           </span>
         )}
-        <button
+        {/* 접기 단추는 전체화면에만 있다(2026-09, 요청: "프레임모드: 접기 버튼 제거") — 프레임에서는 독 줄이 지도 **밖**이라
+            덜 가릴 까닭이 없다. 접힘 상태도 그 모드에서만 먹는다(dockFoldOn9). */}
+        {fsOn && <button
           type="button" className="scr-motion-infodock-fold"
           aria-label={dockFold9 ? "미니맵·인포창 펼치기" : "미니맵·인포창 접기"} aria-pressed={dockFold9}
           onClick={() => setDockFold9((v) => !v)}
         >
           {dockFold9 ? "▴" : "▾"}
-        </button>
+        </button>}
     </div>
   );
   const infoDock9 = (
@@ -16150,7 +16159,7 @@ export default function ReplayMotionPlayer({
       onPointerDown={(e) => e.stopPropagation()}
       onWheel={(e) => e.stopPropagation()}
     >
-      {!dockFold9 && (
+      {!dockFoldOn9 && (
         <div className="scr-motion-infodock-body" key={dockOps9.length === 1 ? dockOps9[0].pickKey : `n${dockOps9.length}`}>
           {dockOps9.length === 1 ? dockOne9(dockOps9[0])
             : dockOps9.length > 1 ? (
@@ -16878,7 +16887,7 @@ export default function ReplayMotionPlayer({
             className={cx("scr-tb", tbMin9 && "is-min")}
             onPointerDownCapture={() => tbWake9()}
             onPointerEnter={(e) => { if (e.pointerType === "mouse") { tbHover9.current = true; window.clearTimeout(tbTimer9.current); } }}
-            onPointerLeave={(e) => { if (e.pointerType === "mouse") { tbHover9.current = false; tbWake9(); } }}
+            onPointerLeave={(e) => { if (e.pointerType === "mouse") { tbHover9.current = false; if (!tbMinRef9.current) tbArm9(); } }}
             onPointerDown={(e) => e.stopPropagation()}
             onWheel={(e) => e.stopPropagation()}
           >
@@ -16930,7 +16939,7 @@ export default function ReplayMotionPlayer({
           </div>
           <div className="scr-fs-dockrow">
             {/* 미니맵 + 인포창을 **한 사각 틀**로 묶는다(2026-09, 요청: "미니맵과 인포창을 한데 묶는 사각 프레임 필요 인포창 래디우스 제거"). */}
-            <div className={cx("scr-fs-dockframe", dockFold9 && "is-fold")}>
+            <div className={cx("scr-fs-dockframe", dockFoldOn9 && "is-fold")}>
             {dockCapNode9}
             <div className="scr-fs-dockmain">
             {(fsOn ? fsMiniOn : true) && (
