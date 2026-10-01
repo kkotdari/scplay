@@ -15873,6 +15873,14 @@ export default function ReplayMotionPlayer({
   };
   /** 탈 수 있는 칸 수와 한 줄 칸 수(요청: 수송기 4기씩 두 줄 · 벙커 2기씩 두 줄). */
   const CARGO9: Record<string, [number, number]> = { Dropship: [8, 4], Shuttle: [8, 4], Overlord: [8, 4], Bunker: [4, 2] };
+  /** 탄 몸이 차지하는 칸 수(원작 수송 공간 — 보병 1 · 벌처·골리앗·질럿·템플러·히드라·디파일러 2 · 탱크·드라군·리버·아콘·
+   *  럴커·울트라 4). 수송 칸은 이 수만큼 **폭이 넓어진다**(요청: "8자리를 몇칸이나 차지하는지에 따라 셀 폭을 달리 해줘 ·
+   *  유닛아이콘 자체는 안 늘어나고 셀만"). 표에 없는 몸은 1. */
+  const CARGO_SPACE9: Record<string, number> = {
+    Vulture: 2, Goliath: 2, Zealot: 2, "Dark Templar": 2, "High Templar": 2, Hydralisk: 2, Defiler: 2,
+    "Siege Tank": 4, "Siege Tank (Tank Mode)": 4, "Siege Tank (Siege Mode)": 4, Dragoon: 4, Reaver: 4, Archon: 4,
+    "Dark Archon": 4, Lurker: 4, Ultralisk: 4,
+  };
   /** 에너지 최대치 — 그 몸의 에너지 업그레이드를 마쳤으면 250(원작). 표에 없는 몸(컴샛)은 200. */
   const ENERGY_UP9: Record<string, string> = {
     "Science Vessel": "Titan Reactor", Ghost: "Moebius Reactor", Wraith: "Apollo Reactor", Battlecruiser: "Colossus Reactor",
@@ -15980,17 +15988,18 @@ export default function ReplayMotionPlayer({
       if (making) {
         lines.push(bar9(`생산 중 ${UNIT_KO[making[1]] ?? making[1]}`, Math.min(0.99, (t - (making[0] - making[2])) / making[2]), "prod"));
       }
-      /* 큐 — 원작처럼 다섯 칸(첫 칸이 지금 뽑는 것) · 칸마다 실루엣. */
+      /* 큐 — 원작처럼 **진행 바 바로 아래** 다섯 칸(첫 칸이 지금 뽑는 것) · 칸마다 실루엣(요청: "건물의 경우 큐목록을
+         원작처럼 진행바 아래에 넣고"). 옛 판은 창 오른쪽 칸(side)이었다. */
       if (making || queue.length > 0) {
         const slots9 = [making, ...queue].filter(Boolean) as [number, string, number][];
-        side9 = (
-          <div className="scr-motion-infodock-queue">
+        lines.push(
+          <div className="scr-motion-infodock-queue" key="queue">
             {Array.from({ length: 5 }, (_, k) => (
               <span key={k} className={cx("scr-motion-infodock-slot", k === 0 && "is-head")}>
                 {slots9[k] ? silIcon9(slots9[k][1], false, "#6fe36f", "scr-motion-infodock-sico") : null}
               </span>
             ))}
-          </div>
+          </div>,
         );
       }
       const hall9 = en === "Lair" || en === "Hive" ? "Hatchery" : en;
@@ -16052,17 +16061,21 @@ export default function ReplayMotionPlayer({
     /* 탄 몸(판 11 탑승 절) — 수송선 4×2 · 벙커 2×2. */
     const cg9 = CARGO9[en];
     if (cg9 && tag9 !== undefined) {
-      const pax9 = cargoAt9(tag9, t);
+      /* ★ 칸은 탄 몸의 수송 공간만큼 넓다(CARGO_SPACE9 · 한 줄 칸 수가 상한) — 줄을 dense 로 채워 큰 몸이 앞줄에 안
+         들어가면 다음 줄로 가고, 남는 자리는 빈 칸(1)으로 메운다. 아이콘은 늘 한 칸 크기다. */
+      const pax9 = cargoAt9(tag9, t).map((p) => lifeAt9(p, t)).filter((l) => !!l) as NonNullable<ReturnType<typeof lifeAt9>>[];
+      const used9 = pax9.reduce((a9, l9) => a9 + Math.min(cg9[1], CARGO_SPACE9[l9.kind] ?? 1), 0);
       side9 = (
         <div className="scr-motion-infodock-cargo" style={{ gridTemplateColumns: `repeat(${cg9[1]}, var(--dock-slot))` }}>
-          {Array.from({ length: cg9[0] }, (_, k) => {
-            const p9 = pax9[k] !== undefined ? lifeAt9(pax9[k], t) : undefined;
+          {pax9.map((l9, k) => {
+            const sp9 = Math.min(cg9[1], CARGO_SPACE9[l9.kind] ?? 1);
             return (
-              <span key={k} className="scr-motion-infodock-slot">
-                {p9 ? silIcon9(p9.kind, false, "#6fe36f", "scr-motion-infodock-sico") : null}
+              <span key={`p${k}`} className="scr-motion-infodock-slot" style={sp9 > 1 ? { gridColumn: `span ${sp9}`, width: "auto" } : undefined}>
+                {silIcon9(l9.kind, false, "#6fe36f", "scr-motion-infodock-sico")}
               </span>
             );
           })}
+          {Array.from({ length: Math.max(0, cg9[0] - used9) }, (_, k) => <span key={`e${k}`} className="scr-motion-infodock-slot" />)}
         </div>
       );
     }

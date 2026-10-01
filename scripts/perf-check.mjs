@@ -247,11 +247,17 @@ function makeWorld() {
     const DS = 11; const BUNKER = 125; const VESSEL = 9;
     const dsTag = tag;
     track(0, DS, (s) => [32 + Math.sin(s * 0.3) * 0.5, 40, s < 10 ? 1 : 0]);
+    /* --dockmix 면 크기가 섞인 짐(마린 1 · 골리앗 2 · 탱크 4 · 마린 1)을 태운다 — 칸 폭이 수송 공간을 따르나 본다. */
+    const cargo9 = has("--dockmix") ? [T.Marine, T.Goliath, T.Tank, T.Marine] : [T.Marine, T.Marine, T.Marine, T.Marine];
     for (let k = 0; k < 4; k += 1) {
       const mt = tag;
-      track(0, T.Marine, (s) => (s < 10 ? [30 + k, 42, 1] : [32, 40, 2]));
+      track(0, cargo9[k], (s) => (s < 10 ? [30 + k, 42, 1] : [32, 40, 2]));
       loadRows.push([F(10) + k, mt, dsTag]);
     }
+    /* 배럭 하나가 마린을 줄줄이 뽑는다(--dockrax) — 50초에 첫 마린이 나오고 24초마다 하나씩(큐가 진행 바 아래 서나 본다). */
+    const raxTag = tag;
+    track(0, T.Rax, null, { buildingAt: [44, 30] });
+    for (let k = 0; k < 4; k += 1) track(0, T.Marine, (s) => [46, 33 + k * 0.4, 1], { bornSec: 50 + k * 24 });
     const bkTag = tag;
     track(0, BUNKER, null, { buildingAt: [36, 30] });
     for (let k = 0; k < 2; k += 1) {
@@ -264,7 +270,7 @@ function makeWorld() {
     for (let e = 50; e <= 200; e += 1) energyRows.push([F(1 + (e - 50) * 1.3), vTag, e]);
     const army0 = armyTags.get(0) ?? [];
     /* --dockship · --dockbunker 면 44초에 그 배 하나를 고른다(탄 몸 칸의 검산) · 아니면 병력 여덟(다중 격자). */
-    sels.push([F(44), 0, has("--dockship") ? [dsTag] : has("--dockbunker") ? [bkTag] : army0.slice(0, 8)]);
+    sels.push([F(44), 0, has("--dockship") ? [dsTag] : has("--dockbunker") ? [bkTag] : has("--dockrax") ? [raxTag] : army0.slice(0, 8)]);
     sels.push([F(44.5), 2, (armyTags.get(2) ?? []).slice(0, 3)]);
   }
 

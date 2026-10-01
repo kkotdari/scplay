@@ -2589,7 +2589,10 @@
   /* ★ 하단 인포창(2026-09, 요청: "인포팝업을 없애고 원작처럼 하단 인포창 · 위치는 하단 가운데 고정폭 · 그 자리에 있던 중계 자막은
      인포창 내부 상단으로 이동 · 늘 표시(크기 고정) · 접기 필요") — 무대 안 아래 가운데. 폭·키를 못 박아 내용이 바뀌어도 안 흔들린다.
      z 11 = 옛 자막 자리(지도·조작판 위 · 아이콘 줄 12 아래 — 버튼 목록이 창을 덮는다). */
-  --dock-w: 460px; --dock-body: 100px; --dock-big: 64px; --dock-slot: 26px;
+  /* ★ 폭은 내용이 정한다(2026-09, 요청: "복수선택시 유닛셀 정사각형으로 하면 폭을 좀더 컴팩트하게 · 유저정보도 컴팩트화") —
+     여럿은 한 변 --dock-cell 의 정사각 6×2(= 6·42 + 5·4 = 272) · 하나는 [실루엣 64][글(큐 다섯 칸 132)][탄 몸 4칸 105] 라
+     460 → 340 이다. 칸 한 변은 몸 키(100 − 위아래 여백 12 − 사이 4)의 반. */
+  --dock-w: 340px; --dock-body: 100px; --dock-big: 60px; --dock-slot: 24px; --dock-cell: 42px;
   position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
   width: var(--dock-w); max-width: calc(100% - 16px); z-index: 11;
   display: flex; flex-direction: column;
@@ -2607,7 +2610,8 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 .scr-motion-infodock .scr-motion-castcap {
-  background: none; border: none; box-shadow: none; padding: 0 22px 0 6px; border-radius: 0;
+  background: none; border: none; box-shadow: none; padding: 0 22px 0 4px; border-radius: 0;
+  column-gap: 7px; font-size: 10.5px;
 }
 .scr-motion-infodock-fold {
   position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
@@ -2616,14 +2620,14 @@
 }
 .scr-motion-infodock-fold:hover { background: rgba(255, 255, 255, 0.16); }
 .scr-motion-infodock.is-fold .scr-motion-infodock-cap { border-bottom: none; }
-.scr-motion-infodock-body { height: var(--dock-body); padding: 6px 10px; box-sizing: border-box; }
+.scr-motion-infodock-body { height: var(--dock-body); padding: 6px 8px; box-sizing: border-box; }
 .scr-motion-infodock-empty {
   height: 100%; display: flex; align-items: center; justify-content: center;
   font-size: 11px; color: rgba(255, 255, 255, 0.45);
 }
 /* 하나 — [실루엣·숫자] [글] [큐·탄 몸] */
-.scr-motion-infodock-one { height: 100%; display: flex; gap: 10px; align-items: stretch; min-width: 0; }
-.scr-motion-infodock-pic { flex: none; width: 86px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.scr-motion-infodock-one { height: 100%; display: flex; gap: 8px; align-items: stretch; min-width: 0; }
+.scr-motion-infodock-pic { flex: none; width: 64px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .scr-motion-infodock-big { width: var(--dock-big); height: var(--dock-big); display: block; }
 .scr-motion-infodock-glyph {
   display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 20px;
@@ -2645,8 +2649,10 @@
 .scr-motion-infodock-supply { display: grid; grid-template-columns: auto auto; justify-content: start; gap: 0 12px; font-size: 9px; color: rgba(255, 255, 255, 0.78); }
 .scr-motion-infodock-supply b { color: #fff; font-variant-numeric: tabular-nums; }
 .scr-motion-infodock-side { flex: none; display: flex; align-items: center; }
-.scr-motion-infodock-queue { display: flex; gap: 3px; }
-.scr-motion-infodock-cargo { display: grid; gap: 3px; }
+/* 큐 — 진행 바 바로 아래 한 줄(원작 자리). */
+.scr-motion-infodock-queue { display: flex; gap: 3px; margin-top: 3px; }
+/* 탄 몸 — 칸이 수송 공간만큼 넓다(span) · dense 로 빈 자리를 앞에서부터 메운다. 아이콘은 한 칸 크기 그대로. */
+.scr-motion-infodock-cargo { display: grid; gap: 3px; grid-auto-flow: row dense; grid-auto-rows: var(--dock-slot); }
 .scr-motion-infodock-slot {
   width: var(--dock-slot); height: var(--dock-slot); box-sizing: border-box; border-radius: 4px;
   border: 1px solid rgba(120, 170, 255, 0.35); background: rgba(0, 0, 0, 0.35);
@@ -2656,7 +2662,8 @@
 .scr-motion-infodock-sico { width: calc(var(--dock-slot) - 4px); height: calc(var(--dock-slot) - 4px); display: block; }
 /* 여럿 — 6×2 격자(요청: "여러 유닛 선택시 유닛 목록(아이콘) 표현 6기씩 두줄로"). 칸 테두리가 체력색이다. */
 .scr-motion-infodock-grid {
-  height: 100%; display: grid; grid-template-columns: repeat(6, 1fr); grid-template-rows: repeat(2, 1fr); gap: 4px;
+  height: 100%; display: grid; gap: 4px; justify-content: center; align-content: center;
+  grid-template-columns: repeat(6, var(--dock-cell)); grid-template-rows: repeat(2, var(--dock-cell));
 }
 .scr-motion-infodock-cell {
   box-sizing: border-box; border-radius: 5px; border: 1px solid rgba(255, 255, 255, 0.12);
@@ -2667,10 +2674,10 @@
 .scr-motion-infodock-gico { width: 100%; height: 100%; display: block; }
 /* 폰 — 창을 조금 줄인다(지도를 덜 가리게). */
 @media (max-width: 700px) {
-  .scr-motion-infodock { --dock-w: 360px; --dock-body: 84px; --dock-big: 50px; --dock-slot: 20px; }
-  .scr-motion-infodock-pic { width: 70px; }
+  .scr-motion-infodock { --dock-w: 300px; --dock-body: 84px; --dock-big: 48px; --dock-slot: 20px; --dock-cell: 34px; }
+  .scr-motion-infodock-pic { width: 54px; }
   .scr-motion-infodock-cap { height: 30px; }
-  .scr-motion-infodock .scr-motion-castcap { font-size: 10px; column-gap: 8px; }
+  .scr-motion-infodock .scr-motion-castcap { font-size: 9.5px; column-gap: 5px; }
 }
 /* ★ 자막은 **상시**다(되요청: "토스터가 아니라 계속 노출로 변경") — 중계가 켜진 동안 늘 서 있고 토막이
    갈릴 때 글귀만 갈아 끼운다(그리는 쪽이 토막 번호를 key 로 주어 그 순간 떠오름만 다시 돈다). 스러지는
