@@ -917,7 +917,9 @@ if (SHOT) {
     const vp9 = page.viewportSize();
     await page.setViewportSize({ width: vp9.width, height: Math.max(vp9.height, h9 + 40) });
     await page.waitForTimeout(500);
-    await page.locator(".scr-guide").screenshot({ path: flag("--guide", "guide.png") });
+    /* 잘라 찍기(clip) — locator.screenshot 은 '안정될 때까지' 기다리는데 뒤의 재생기가 늘 다시 그려져 시간을 넘긴다. */
+    const gb9 = await page.evaluate(() => { const r = document.querySelector(".scr-guide")?.getBoundingClientRect(); return r ? { x: r.left, y: r.top, width: r.width, height: r.height } : null; });
+    if (gb9) await page.screenshot({ path: flag("--guide", "guide.png"), clip: gb9, animations: "disabled", timeout: 120000 });
     console.log("[사용법]", h9, "px →", flag("--guide", ""));
   }
   /* 화면 자리 누르기(--clickat x,y · CSS px) — 보는 사람이 몸을 누르는 길(인포창)을 진짜 마우스로 찍는다. */

@@ -3075,11 +3075,12 @@
 /* 독 줄 — 왼쪽 미니맵이 남는 폭을 다 먹고 인포창은 제 폭(--dock-w)으로 오른쪽에 선다. 키는 인포창의 온 키라 인포창을 접어도
    (is-fold) 줄이 안 줄고 미니맵이 그대로다. 빈 자리는 지도가 비치게 누름을 흘려보낸다(전체화면). */
 .scr-fs-dockrow {
-  display: flex; align-items: flex-end; justify-content: flex-start;
+  /* 틀은 줄 **가운데**다(2026-09, 요청: "미니맵+인포창 이거 가운데 정렬돼야지 한쪽에 몰지 말고"). */
+  display: flex; align-items: flex-end; justify-content: center;
   pointer-events: none;
 }
 /* ★ 사각 틀 하나(2026-09, 요청: "미니맵과 인포창을 한데 묶는 사각 프레임") — 미니맵과 인포창이 이 틀 안에 붙어 서고 틀은 그 둘만큼만
-   넓다(줄 왼쪽에 붙는다 · 원작 콘솔의 왼쪽 아래 자리). 둥글리지 않는다. 미니맵을 끄면(전체화면 단추) 인포창만 든다. */
+   넓다(줄 가운데에 선다 — 한때 원작 콘솔처럼 왼쪽에 붙였다가 되물렸다). 둥글리지 않는다. 미니맵을 끄면(전체화면 단추) 인포창만 든다. */
 .scr-fs-dockframe {
   display: flex; align-items: stretch; gap: 4px; padding: 4px; min-width: 0; max-width: 100%;
   height: calc(var(--dock-h) + 10px); box-sizing: border-box;
@@ -3589,9 +3590,10 @@
   font-variant-numeric: tabular-nums; flex: none;
 }
 
+/* 단추 줄 견본은 재생기의 툴박스 판(.scr-tb — 어두운 반투명)을 흉내 낸다 — 단추가 그 위의 옅은 흰 막이라 밝은 바탕에서는 안 보인다. */
 .scr-guide-toolrow{
   display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
-  padding: 10px 12px; background: var(--panel-raised); border-bottom: 1px solid var(--line-soft);
+  padding: 10px 12px; background: rgba(8, 11, 17, 0.88); border-bottom: 1px solid var(--line-soft);
 }
 
 .scr-guide-toolrow{ gap: 8px; }
@@ -3607,18 +3609,27 @@
   background: var(--panel-solid); overflow: hidden;
 }
 
+/* 재생 줄 견본도 툴박스 판(어두운 반투명) 위다 — 글자·트랙을 그 판의 흰 잉크로 다시 둔다. */
 .scr-guide-bar{
-  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
-  padding: 10px 12px; background: var(--panel-raised); border-bottom: 1px solid var(--line-soft);
+  --text: #f5f6f7; --line-soft: rgba(255, 255, 255, 0.24);
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap; color: var(--text);
+  padding: 10px 12px; background: rgba(8, 11, 17, 0.88); border-bottom: 1px solid rgba(255, 255, 255, 0.10);
 }
 
 
+/* 재생기 단추와 같은 꼴(2026-09 — 테두리·그림자 없는 반투명 · .scr-motion-mapbtn). */
 .scr-guide-mbtn{
-  width: 44px; height: 44px; flex: none; display: grid; place-items: center;
+  width: 38px; height: 38px; flex: none; display: grid; place-items: center;
   border: none; border-radius: 999px;
-  color: #f5f6f7; background: rgba(10, 14, 18, 0.55);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16), 0 4px 12px rgba(0, 0, 0, 0.4);
+  color: #f5f6f7; background: rgba(255, 255, 255, 0.10); box-shadow: none;
 }
+/* 툴박스 꼬리의 반투명 알약(장면 공유 · 사용법)과 접힌 아이콘 견본. */
+.scr-guide-tpill{
+  display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 9px; border-radius: 999px;
+  font-size: 11px; font-weight: 600; color: #f5f6f7; background: rgba(255, 255, 255, 0.10); white-space: nowrap;
+}
+.scr-guide-tpill:first-of-type{ margin-left: auto; }
+.scr-guide-tbmin{ background: rgba(8, 11, 17, 0.88); }
 
 
 .scr-guide-mbtn.is-on{
@@ -3627,23 +3638,25 @@
 
 /* 사용법의 중계·색 단추 — 재생기의 켜진 TV(초록 테 + 깜빡임)와 색 단추 바탕(지금 모드)을 그대로 흉내 낸다. */
 .scr-guide-mbtn-cast{
-  color: #2ee59d; box-shadow: inset 0 0 0 1px rgba(46, 229, 157, 0.72), 0 4px 12px rgba(0, 0, 0, 0.4);
+  color: #2ee59d; box-shadow: inset 0 0 0 1.5px rgba(46, 229, 157, 0.78);
 }
 .scr-guide-mbtn-cast svg{ animation: scr-track-blink 1s steps(1, end) infinite; }
 @media (prefers-reduced-motion: reduce){ .scr-guide-mbtn-cast svg{ animation: none; } }
 .scr-guide-colsw{ color: #fff; }
 .scr-guide-colsw svg{ filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.9)); }
+/* 색 단추와 같은 원그래프(재생기 .scr-motion-colbtn 의 ★ — 값을 바꾸면 둘을 함께). */
 .scr-guide-colsw.is-personal{
   background: linear-gradient(rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.08)),
-    linear-gradient(90deg, #f40404 0 16.667%, #f88c14 16.667% 33.333%, #fcfc38 33.333% 50%,
-      #088008 50% 66.667%, #0c48cc 66.667% 83.333%, #88409c 83.333% 100%);
+    conic-gradient(#f40404 0 60deg, #f88c14 60deg 120deg, #fcfc38 120deg 180deg,
+      #088008 180deg 240deg, #0c48cc 240deg 300deg, #88409c 300deg 360deg);
 }
 .scr-guide-colsw.is-team{
-  background: linear-gradient(rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.06)), linear-gradient(90deg, #d81f28 50%, #2050d0 50%);
+  background: linear-gradient(rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.06)),
+    conic-gradient(from 180deg, #d81f28 0 180deg, #2050d0 180deg 360deg);
 }
 .scr-guide-colsw.is-hero{
   background: linear-gradient(rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.08)),
-    linear-gradient(90deg, #fcfc38 0 33.333%, #2cb494 33.333% 66.667%, #f40404 66.667% 100%);
+    conic-gradient(from -60deg, #2cb494 0 120deg, #f40404 120deg 240deg, #fcfc38 240deg 360deg);
 }
 /* 범례 칸의 작은 견본(20px) */
 .scr-guide-colsw-s{ display: inline-block; width: 18px; height: 18px; border-radius: 999px; margin-top: 1px; }
@@ -3667,21 +3680,14 @@
 }
 
 
+/* 재생 줄 견본의 스크랩·공유 — 툴박스 꼬리 알약(.scr-tb-tail .scr-kakao-share-btn)과 같은 반투명(2026-09 · 흰 알약을 걷었다). */
 .scr-guide-tbtn{
   display: inline-flex; align-items: center; gap: 4px; flex: none;
-  height: 26px; padding: 0 7px; border-radius: 8px;
-  font-size: 11px; font-weight: 700; line-height: 1; white-space: nowrap;
-  background: #fff; color: #10151a; border: 1px solid #fff;
-  box-shadow: var(--lit-pill-glow);
+  height: 28px; padding: 0 9px; border-radius: 999px; border: none; box-shadow: none;
+  font-size: 11px; font-weight: 600; line-height: 1; white-space: nowrap;
+  background: rgba(255, 255, 255, 0.10); color: #f5f6f7;
 }
-
-.scr-guide-tbtn svg{ width: 13px; height: 13px; color: #10151a; }
-
-.scr-light-theme .scr-guide-tbtn{
-  background: var(--lit-pill-bg); border-color: transparent; color: var(--text);
-}
-
-.scr-light-theme .scr-guide-tbtn svg{ color: var(--text); }
+.scr-guide-tbtn svg{ width: 13px; height: 13px; color: currentColor; }
 
 
 .scr-guide-seek{ flex: 1 1 130px; min-width: 110px; height: 5px; border-radius: 3px; background: var(--line-soft); position: relative; }
