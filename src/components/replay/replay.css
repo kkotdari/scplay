@@ -3083,9 +3083,9 @@
   .scr-fs-layer:not(.is-fs) .scr-fs-lower { display: contents; }
   .scr-fs-layer:not(.is-fs) .scr-tb {
     grid-column: 1; grid-row: 1; align-self: end; justify-self: stretch; z-index: 12;
-    margin: 0 8px 8px;
+    /* 바깥 여백 없음 — 무대 아래 가장자리에 꽉 붙어 독 줄 바로 위에 선다(2026-09, 요청: "외곽 패딩 없애서 하단에 꽉 채워지게"). */
+    margin: 0;
   }
-  .scr-fs-layer:not(.is-fs) .scr-tb.is-min { justify-self: end; }
   /* 바깥 여백은 없다(2026-09, 요청: "프레임의 외부 패딩 남는데 그거 제거하고 다 채우기") — 틀이 무대 바로 밑에 붙는다. */
   .scr-fs-layer:not(.is-fs) .scr-fs-dockrow { grid-column: 1; grid-row: 2; padding: 0; }
   /* ★ 틀 바깥 좌우도 쇠다(2026-09, 요청: "프레임모드: 인터페이스 바깥 좌우 남는공간은 쇠재질로 채움" → "전체화면에서도 독 좌우
@@ -3115,16 +3115,17 @@
 /* 전체화면 — 화면 아래에 겹친 세로 줄. 안전 영역(홈 인디케이터·가로 노치)은 여기서만 문다. */
 .scr-fs-layer.is-fs .scr-fs-lower {
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 12;
-  display: flex; flex-direction: column; align-items: stretch; gap: 8px;
+  display: flex; flex-direction: column; align-items: stretch; gap: 0;
   padding: 0;
   pointer-events: none;
 }
+/* 툴박스는 좌우 끝까지 꽉 차고 독 줄 바로 위에 붙는다(2026-09, 요청: "외곽 패딩 없애서 하단에 꽉 채워지게") — 바깥 여백은 없고
+   안전 영역(가로 노치)만 안쪽 여백으로 문다. */
 .scr-fs-layer.is-fs .scr-tb {
-  pointer-events: auto;
-  margin: 0 calc(8px + env(safe-area-inset-right, 0px)) 0 calc(8px + env(safe-area-inset-left, 0px));
+  pointer-events: auto; margin: 0;
+  padding-left: calc(8px + env(safe-area-inset-left, 0px)); padding-right: calc(8px + env(safe-area-inset-right, 0px));
 }
 .scr-fs-layer.is-fs .scr-fs-dockrow { padding: 0 0 env(safe-area-inset-bottom, 0px); }
-.scr-fs-layer.is-fs .scr-tb.is-min { align-self: flex-end; }
 /* 독 줄 — 왼쪽 미니맵이 남는 폭을 다 먹고 인포창은 제 폭(--dock-w)으로 오른쪽에 선다. 키는 인포창의 온 키라 인포창을 접어도
    (is-fold) 줄이 안 줄고 미니맵이 그대로다. 빈 자리는 지도가 비치게 누름을 흘려보낸다(전체화면). */
 .scr-fs-dockrow {
@@ -3225,7 +3226,7 @@
   /* 모서리는 각지고 판은 더 옅다(2026-09, 요청: "툴바배경 래디우스 제거 및 좀더 투명하게(전체화면 프레임모드 둘다)") — 옛 12px · 0.52. */
   padding: 6px 8px; border-radius: 0; box-sizing: border-box;
   background: rgba(8, 11, 17, 0.34); color: var(--text);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  box-shadow: none;
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
 }
 .scr-tb-btnrow { display: flex; align-items: center; gap: 6px; min-width: 0; }
@@ -3256,20 +3257,7 @@
 }
 /* (걷어냄) PC 한 줄 — 이제 어느 폭에서나 [단추 줄] / [재생·탐색바·시계] 두 줄이다(2026-09, 요청: "피시에서도 버튼하고
    플레이줄 두줄로" · 옛 요청 "pc에선 한줄"을 되물렸다). */
-/* 최소화 — 판과 줄을 걷고 아이콘 단추 하나만 오른쪽에 남긴다. 줄은 display 만 끈다(재생기가 탐색바·시계에 값을 밀어 넣는
-   비제어 요소라 안 내린다). */
-.scr-tb-open { display: none; }
-.scr-tb.is-min { padding: 0; background: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
-.scr-tb.is-min > .scr-tb-btnrow, .scr-tb.is-min > .scr-tb-seek { display: none; }
-.scr-tb.is-min > .scr-tb-open {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 32px; height: 32px; padding: 0; border: none; border-radius: 999px; cursor: pointer;
-  color: #f5f6f7; background: rgba(8, 11, 17, 0.52); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-}
-@media (max-width: 1159px) {
-  .scr-tb.is-min > .scr-tb-open { width: 34px; height: 34px; }
-}
+/* (걷어냄) 최소화(.scr-tb.is-min · .scr-tb-open) — 툴박스는 늘 보인다(2026-09, 요청: "툴박스 접기 기능 제거하고 항상 보이게"). */
 
 /* PC 전체화면의 기둥은 두 칸씩 앉힌다 — 208px(좁은 창은 148px) 기둥에 넷을 한 줄로
    세우면 칸이 37~52px이라 '일꾼 14'가 안 든다. 지도 옆 기둥(.scr-motion-side)과 같은
@@ -3730,7 +3718,6 @@
   flex: none; color: #f5f6f7; background: rgba(255, 255, 255, 0.10);
 }
 .scr-guide-tpill:first-of-type{ margin-left: auto; }
-.scr-guide-tbmin{ background: rgba(8, 11, 17, 0.88); }
 
 
 .scr-guide-mbtn.is-on{

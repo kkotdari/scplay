@@ -1,4 +1,4 @@
-import { BookOpen, Bookmark, Map as MapIcon, Maximize, Music, Palette, Play, Share2, SlidersHorizontal, Tv, Users, X } from "lucide-react";
+import { BookOpen, Bookmark, Map as MapIcon, Maximize, Music, Palette, Play, Share2, Tv, Users, X } from "lucide-react";
 import RosterTableIcon from "./RosterTableIcon";
 function K({ keys, plus = false, title, desc }: {
     keys: string[];
@@ -55,9 +55,8 @@ export default function ReplayGuide({ onClose }: {
 
         <h3 className="scr-guide-h3">도구 상자</h3>
         <p className="scr-guide-sub">
-          지도 아래쪽에 떠 있는 어두운 상자입니다 — <strong>재생·진행바·시간</strong>, 동그란 <strong>버튼들</strong>,
-          <strong> 장면 공유 · 사용법</strong>이 함께 있습니다(위 줄은 버튼, 아래 줄은 재생). 몇 초 동안 손대지 않으면 오른쪽의{" "}
-          <strong>아이콘 하나</strong>(<SlidersHorizontal size={12}/>)로 접히고, 그 아이콘을 누르면 다시 펼쳐집니다(PC는 <b>F</b> 키).
+          지도 맨 아래에 붙은 어두운 띠입니다 — <strong>재생·진행바·시간</strong>, 동그란 <strong>버튼들</strong>,
+          <strong> 장면 공유 · 사용법</strong>이 함께 있습니다(위 줄은 버튼, 아래 줄은 재생). 늘 펼쳐져 있습니다.
         </p>
         <p className="scr-guide-sub">
           진행바를 끌면 그 시각으로 갑니다. <strong>스크랩·공유</strong> 두 버튼은 <strong>지금 이 장면</strong>을
@@ -79,7 +78,6 @@ export default function ReplayGuide({ onClose }: {
             <li><span className="scr-guide-ic scr-guide-ic-txt">↔</span><span><b>진행바</b> — 끌어서 원하는 시각으로. 좌우 화살표는 누르는 동안 계속 감깁니다.</span></li>
             <li><span className="scr-guide-ic"><Bookmark size={14}/></span><span><b>장면 스크랩</b> — 제목을 붙여 담아 둡니다. 담아 둔 장면은 <b>스크랩</b> 화면에서 다시 엽니다.</span></li>
             <li><span className="scr-guide-ic"><Share2 size={14}/></span><span><b>장면 공유</b> — 카톡으로 보냅니다(안 되면 링크 복사). 시각·자리·배율·각도까지 링크에 실립니다(중계 중이면 자리 대신 중계).</span></li>
-            <li><span className="scr-guide-ic scr-guide-tbmin"><SlidersHorizontal size={14}/></span><span><b>접힌 도구 상자</b> — 누르면 펼쳐집니다. 목록이 열려 있거나 진행바를 끄는 동안은 안 접힙니다.</span></li>
           </ul>
         </div>
 

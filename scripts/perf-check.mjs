@@ -1665,16 +1665,12 @@ if (SHOT) {
     return i < 0 ? null : document.body.innerText.slice(Math.max(0, i - 40), i + 120);
   });
   console.log(leak ? `⚠ 주석 누출:\n${leak}` : "주석 누출 없음");
-  /* 툴박스 펼친 꼴(--tbopen) — 툴박스는 손을 뗀 뒤 몇 초면 아이콘 하나로 접힌다(TB_IDLE_MS9). 찍기 직전에 펼치고 상자들을 적는다:
+  /* 툴박스 상자(--tbopen) — 툴박스는 늘 펼쳐져 있다(접기는 걷었다 · 이름은 옛 손잡이 그대로). 상자들을 적는다:
      툴박스·두 줄·독 줄·미니맵·인포창의 [왼 위 폭 높이](CSS px). */
   if (has("--tbopen")) {
-    /* 진짜 마우스로 누른다 — locator.click 은 '안정될 때까지' 기다리는데 재생 중인 판은 늘 다시 그려져 3초를 넘긴다. */
-    const ob9 = await page.evaluate(() => { const b = document.querySelector(".scr-tb-open")?.getBoundingClientRect(); return b && b.width > 0 ? [b.left + b.width / 2, b.top + b.height / 2] : null; });
-    if (ob9) await page.mouse.click(ob9[0], ob9[1]);
-    await page.waitForTimeout(400);
     console.log("[툴박스]", JSON.stringify(await page.evaluate(() => {
       const r = (q) => { const e = document.querySelector(q); if (!e) return null; const b = e.getBoundingClientRect(); return [b.left, b.top, b.width, b.height].map(Math.round); };
-      return { tb: r(".scr-tb"), min: document.querySelector(".scr-tb")?.classList.contains("is-min") ?? null, btns: r(".scr-tb-btnrow"), seek: r(".scr-tb-seek"),
+      return { tb: r(".scr-tb"), btns: r(".scr-tb-btnrow"), seek: r(".scr-tb-seek"),
         row: r(".scr-fs-dockrow"), mini: r(".scr-fs-minipanel .scr-fs-minimap"), dock: r(".scr-motion-infodock"), stage: r(".scr-fs-stage") };
     })));
   }

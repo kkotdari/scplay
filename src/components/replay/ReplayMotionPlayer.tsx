@@ -7,11 +7,10 @@ import {
 import { createPortal } from "react-dom";
 import { useBgm } from "./useBgm";
 import RosterTableIcon from "./RosterTableIcon";
-import { BookOpen, Bookmark, Check, Map as MapIcon, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Share2, SlidersHorizontal, Tv, Users } from "lucide-react";
+import { BookOpen, Bookmark, Check, Map as MapIcon, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Share2, Tv, Users } from "lucide-react";
 /** 건설 명령 고스트 판의 색(원작의 배치 미리보기 초록) — 짙기는 op.plateAlpha 가 든다. */
 const GHOST_PLATE_COL9 = "#3ee06a";
 /** 툴박스가 손을 뗀 뒤 아이콘 하나로 접히기까지(2026-09, 요청: "안쓰면 몇초뒤 아이콘 하나로 최소화"). */
-const TB_IDLE_MS9 = 4000;
 import ReplayGuide from "./ReplayGuide";
 /* 중계(중요도 기반 추적) — 편성표를 굽는 순수 문. 경기 한 벌에 한 번 돌고, 재생은 짚기만 한다. */
 import { castAt9, castPlan9, type CastSeg9 } from "./cast9";
@@ -10144,36 +10143,8 @@ export default function ReplayMotionPlayer({
   /* 사용법 덮개(요청: 공통) — 열면 history에 한 칸 밀어 뒤로가기(폰의 제스처 포함)가 덮개를 닫게 한다. 닫기 버튼은 그
      칸을 되돌려(back) 같은 길로 닫는다. */
   const [guideOpen9, setGuideOpen9] = useState(false);
-  /* (걷어냄) fsHide9 — 전체화면의 '도구 숨기기'(is-uihide)였다. 툴박스가 몇 초 뒤 아이콘 하나로 접히므로(아래 tbMin9) 같은 일을
-     하는 손잡이가 둘일 까닭이 없다(2026-09, 요청: 툴박스 최소화). */
-  /** 툴박스가 아이콘 하나로 접혀 있나(2026-09, 요청: "툴박스는 안쓰면 몇초뒤 아이콘 하나로 최소화(우측에 배치)") — 툴박스를
-   *  만지면(누름·마우스가 위에 있음) 깨어나고, 손을 뗀 뒤 TB_IDLE_MS9 가 지나면 접힌다. 목록(pick9)이 열려 있거나 탐색바를
-   *  끄는 중이면 안 접는다(그 손이 아직 툴박스에 있다). */
-  const [tbMin9, setTbMin9] = useState(false);
-  const tbMinRef9 = useRef(false);
-  tbMinRef9.current = tbMin9;
-  const tbTimer9 = useRef(0);
-  const tbHover9 = useRef(false);
-  const tbBusy9 = useRef<() => boolean>(() => false);
-  /** 접힘 시계만 다시 건다 — **안 편다**(2026-09, 지적: "도구 열기 안눌러도 열리는 현상"). 여태 마우스가 툴박스를 떠날 때
-   *  tbWake9 를 불러, 접힌 아이콘 위를 마우스가 스치고 나가기만 해도 툴박스가 펴졌다. 펴는 손은 아이콘 누름·F 키뿐이다. */
-  const tbArm9 = useCallback((): void => {
-    window.clearTimeout(tbTimer9.current);
-    if (tbHover9.current) return;
-    const arm9 = (): void => {
-      tbTimer9.current = window.setTimeout(() => {
-        if (tbHover9.current) return;
-        if (tbBusy9.current()) { arm9(); return; }
-        setTbMin9(true);
-      }, TB_IDLE_MS9);
-    };
-    arm9();
-  }, []);
-  const tbWake9 = useCallback((): void => {
-    setTbMin9(false);
-    tbArm9();
-  }, [tbArm9]);
-  useEffect(() => { tbWake9(); return () => window.clearTimeout(tbTimer9.current); }, [tbWake9]);
+  /* (걷어냄) fsHide9 — 전체화면의 '도구 숨기기'(is-uihide) · tbMin9 — 툴박스가 몇 초 뒤 아이콘 하나로 접히던 것(TB_IDLE_MS9 ·
+     F 키 · 접힌 아이콘 .scr-tb-open). 툴박스는 **늘 보인다**(2026-09, 요청: "툴박스 접기 기능 제거하고 항상 보이게"). */
   const guidePushed9 = useRef(false);
   /* ★ 꼬리 줄의 두 버튼(스크랩·공유) — **하는 일만 앱이 붙이고** 나머지는 여기 몫이다(지적: "쓰는 쪽에서
      쓸지 말지 선택하는 거고 함수도 알아서 연결해야 해"). 누름·완료 표시·단축키가 그 나머지다.
@@ -11094,7 +11065,6 @@ export default function ReplayMotionPlayer({
      누를 때마다 한 칸씩 돌던 것을 걷었다: 원하는 값으로 한 번에 간다. 바깥을 누르거나 Esc면 닫힌다(붙잡기 단계에서 듣는다 —
      지도의 손짓이 사건을 삼켜도 먼저 온다). 한 번에 하나만 열린다. */
   const [pick9, setPick9] = useState<"speed" | "zoom" | "bgm" | "cast" | null>(null);
-  tbBusy9.current = () => pick9 !== null || scrubbing.current;
   useEffect(() => {
     if (!pick9) return;
     const off9 = (e9: Event): void => {
@@ -14405,12 +14375,6 @@ export default function ReplayMotionPlayer({
         // 알트+엔터 전체화면 토글(요청) — 창 전체화면의 오래된 관례 그대로다.
         e.preventDefault();
         if (fsOnRef.current) exitFs(); else enterFs();
-      } else if (e.code === "KeyF") {
-        /* f — **툴박스 접기/펴기**(2026-09) — 여태 전체화면 조작부(.scr-fs-ui) 여닫이였는데 그 판이 툴박스(.scr-tb)가 되며 저 혼자
-           접히게 됐다. 손으로도 접고 펼 수 있게 이 키가 그 일을 한다(두 배치 다). 펼치면 다시 몇 초 뒤 접히는 시계가 돈다. */
-        e.preventDefault();
-        if (tbMinRef9.current) tbWake9();
-        else { window.clearTimeout(tbTimer9.current); setTbMin9(true); }
       } else if (k === "Escape") {
         /* ESC — **인포 팝업이 열려 있으면 그것부터** 닫는다(요청). 전체화면 나가기는
            팝업이 없을 때만이고, 그 몫은 따로 선 ESC 판이 맡는다(그쪽도 같은 ref를
@@ -16884,18 +16848,10 @@ export default function ReplayMotionPlayer({
             툴박스는 무대 칸(격자 1행)의 아래에 겹쳐 서고 독 줄은 지도 밖 2행에 선다(replay.css 의 같은 ★★). */}
         <div className="scr-fs-lower">
           <div
-            className={cx("scr-tb", tbMin9 && "is-min")}
-            onPointerDownCapture={() => tbWake9()}
-            onPointerEnter={(e) => { if (e.pointerType === "mouse") { tbHover9.current = true; window.clearTimeout(tbTimer9.current); } }}
-            onPointerLeave={(e) => { if (e.pointerType === "mouse") { tbHover9.current = false; if (!tbMinRef9.current) tbArm9(); } }}
+            className="scr-tb"
             onPointerDown={(e) => e.stopPropagation()}
             onWheel={(e) => e.stopPropagation()}
           >
-            {/* 최소화된 꼴 — 아이콘 하나(오른쪽). 줄들은 **안 내린다**(display 만 끈다): 탐색바·시계는 재생기가 ref 로
-                값을 밀어 넣는 비제어 요소라, 내렸다 올리면 그 사이의 값을 잃는다. */}
-            <button type="button" className="scr-tb-open" onClick={() => tbWake9()} aria-label="도구 열기" title="도구 열기">
-              <SlidersHorizontal size={18} aria-hidden />
-            </button>
             <div className="scr-tb-btnrow">
               {mapBtnRow}
               <div className="scr-tb-tail">
