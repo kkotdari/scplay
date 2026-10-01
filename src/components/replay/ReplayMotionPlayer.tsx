@@ -1085,6 +1085,17 @@ function lowZoomTrim9(zoom9: number, pitched9: boolean): 0 | 1 | 2 {
   return (pitched9 ? c9.k3 : c9.k) < 1 ? 2 : 1;
 }
 /** 1단에서 생략하는 꾸밈 효과(옛 DOM 갈래의 style) — 없어도 상황이 안 읽히지는 않는 것들. */
+/** 바를 걷은 화면 높이(100lvh · px) — 못 재면 0. 숨은 탐침 하나를 두고 잰다(CSS 단위를 JS 가 바로 못 읽는다). */
+let lvhProbe9: HTMLDivElement | null = null;
+function lvhOf9(): number {
+  if (typeof document === "undefined" || !document.body) return 0;
+  if (!lvhProbe9) {
+    lvhProbe9 = document.createElement("div");
+    lvhProbe9.style.cssText = "position:fixed;left:0;top:0;width:0;height:100lvh;visibility:hidden;pointer-events:none";
+    document.body.appendChild(lvhProbe9);
+  }
+  return lvhProbe9.offsetHeight;
+}
 const TRIM1_SKIP9 = new Set(["weld", "dig", "land", "swarm"]);
 /** 2단에서 더 생략하는 것 — 지역 마법의 얼룩·고리. */
 const TRIM2_SKIP9 = new Set(["cast"]);
@@ -10435,8 +10446,16 @@ export default function ReplayMotionPlayer({
       const below9 = 12;
       let ih9 = window.innerHeight;
       if (window.matchMedia?.("(pointer: coarse)").matches) {
+        /* ★ 폰의 innerHeight 는 **주소창·탭바가 펴진 때의 작은 높이**다(지적: iOS 사파리 "scplayer 하단 너무 남는 문제") —
+           iOS 26 의 떠 있는 탭바는 접힌 채 그 몫(100 남짓)이 비어 보이는데도 innerHeight 가 안 커져, 판 아래가 통째로 남았다.
+           바를 걷은 높이(100lvh)와의 차의 **반**을 더 쓴다 — 다 쓰면 펴진 바 밑으로 독이 들어가고, 안 쓰면 비어 보인다. */
+        const lv9 = lvhOf9();
+        if (lv9 > ih9) ih9 = Math.round(ih9 + (lv9 - ih9) * 0.5);
         const m9 = vhHold9.current;
-        if (m9 && m9.w === window.innerWidth && Math.abs(ih9 - m9.h) < m9.h * 0.35) ih9 = m9.h;
+        /* ★ 붙드는 것은 **줄어드는 쪽**뿐이다(지적: iOS 사파리 "scplayer 하단 너무 남는 문제") — 판이 서는 순간 주소창·
+           탭바가 펴져 있으면(목록에서 눌러 들어오는 길) 그 작은 높이를 붙든 채 영영 안 놓아, 바가 접힌 뒤에도 아래가 통째로
+           비었다. 커지는 쪽은 받아들인다 — 한 번 커지면 다시 펴질 때 안 줄어드므로 들썩임은 처음 한 번뿐이다. */
+        if (m9 && m9.w === window.innerWidth && ih9 <= m9.h && m9.h - ih9 < m9.h * 0.35) ih9 = m9.h;
         else vhHold9.current = { w: window.innerWidth, h: ih9 };
       }
       const want = Math.round(Math.min(1400, Math.max(300, ih9 - above - below9)));
