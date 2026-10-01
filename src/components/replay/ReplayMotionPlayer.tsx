@@ -16097,13 +16097,16 @@ export default function ReplayMotionPlayer({
   const dockRaw9 = dockOps9[0]?.pickRaw;
   const dockCap9 = castCap9
     ?? (dockRaw9 && bases.some((b9) => b9.key === dockRaw9) ? capOf9(dockRaw9, `p:${dockRaw9}`) : null);
-  const infoDock9 = (
+  /* ★★ 정보줄은 **틀의 맨 윗줄**이다(2026-09, 요청: "유저정보는 미니맵+인포창 합친거의 위로 배치(둘 합친 전체 폭을 사용하니 더
+     넓음) · 그만큼 남는 높이는 인포창이 사용") — 인포창 안 맨 위 띠였을 때는 인포창 폭(폰 241px)에 갇혀 숫자가 잘리고 접기 단추가
+     APM 을 덮었다. 이제 미니맵 + 인포창의 온 폭을 쓰고, 인포창 몸은 그 띠가 비운 키(--dock-cap + 1px)까지 받는다. 접기 단추도
+     이 줄로 옮겨 와 **아래 줄(미니맵 + 인포창)을 통째로** 접는다. */
+  const dockCapNode9 = (
     <div
-      className={cx("scr-motion-infodock", dockFold9 && "is-fold")}
+      className="scr-fs-dockcap" aria-live="polite"
       onPointerDown={(e) => e.stopPropagation()}
       onWheel={(e) => e.stopPropagation()}
     >
-      <div className="scr-motion-infodock-cap" aria-live="polite">
         {dockCap9 && (
           <span key={dockCap9.key} className="scr-motion-castcap">
             <span className="scr-motion-castcap-who">
@@ -16134,12 +16137,19 @@ export default function ReplayMotionPlayer({
         )}
         <button
           type="button" className="scr-motion-infodock-fold"
-          aria-label={dockFold9 ? "인포창 펼치기" : "인포창 접기"} aria-pressed={dockFold9}
+          aria-label={dockFold9 ? "미니맵·인포창 펼치기" : "미니맵·인포창 접기"} aria-pressed={dockFold9}
           onClick={() => setDockFold9((v) => !v)}
         >
           {dockFold9 ? "▴" : "▾"}
         </button>
-      </div>
+    </div>
+  );
+  const infoDock9 = (
+    <div
+      className="scr-motion-infodock"
+      onPointerDown={(e) => e.stopPropagation()}
+      onWheel={(e) => e.stopPropagation()}
+    >
       {!dockFold9 && (
         <div className="scr-motion-infodock-body" key={dockOps9.length === 1 ? dockOps9[0].pickKey : `n${dockOps9.length}`}>
           {dockOps9.length === 1 ? dockOne9(dockOps9[0])
@@ -16921,7 +16931,9 @@ export default function ReplayMotionPlayer({
           </div>
           <div className="scr-fs-dockrow">
             {/* 미니맵 + 인포창을 **한 사각 틀**로 묶는다(2026-09, 요청: "미니맵과 인포창을 한데 묶는 사각 프레임 필요 인포창 래디우스 제거"). */}
-            <div className="scr-fs-dockframe">
+            <div className={cx("scr-fs-dockframe", dockFold9 && "is-fold")}>
+            {dockCapNode9}
+            <div className="scr-fs-dockmain">
             {(fsOn ? fsMiniOn : true) && (
               <div className="scr-fs-minipanel">
                 <div className="scr-motion-minibox">
@@ -16946,6 +16958,7 @@ export default function ReplayMotionPlayer({
               </div>
             )}
               {infoDock9}
+            </div>
             </div>
           </div>
         </div>
