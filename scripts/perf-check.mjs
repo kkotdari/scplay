@@ -89,6 +89,8 @@ function makeWorld() {
   /** 판 11 네 절(--info · 2026-09 하단 인포창) — 에너지 [프레임, 태그, 값] · 탑승 [프레임, 승객, 배] · 자원량 · 처치. */
   const energyRows = [];
   const loadRows = [];
+  /** 업그레이드(--dockebay) — [프레임, id(0x8000|테크), 단계, 임자, 건물 태그]. */
+  const upRows = [];
   const killRows = [];
   /** 죽는 병력 [프레임, 태그, 임자] · 사람마다 병력 태그 — 처치 줄의 킬러를 적 병력에서 돌려 뽑는다(아래). */
   const deathsFx = [];
@@ -270,7 +272,13 @@ function makeWorld() {
     for (let e = 50; e <= 200; e += 1) energyRows.push([F(1 + (e - 50) * 1.3), vTag, e]);
     const army0 = armyTags.get(0) ?? [];
     /* --dockship · --dockbunker 면 44초에 그 배 하나를 고른다(탄 몸 칸의 검산) · 아니면 병력 여덟(다중 격자). */
-    sels.push([F(44), 0, has("--dockship") ? [dsTag] : has("--dockbunker") ? [bkTag] : has("--dockrax") ? [raxTag] : army0.slice(0, 8)]);
+    /* 엔지니어링 베이 하나(--dockebay) — 보병 공격 1(20초) · 보병 방어 1(30초) 을 마치고 보병 공격 2 를 70초에 마친다
+       (44초면 하는 중) · 아카데미의 스팀팩(테크 0x8000)도 25초에 마친다. 연구 상황판(칩)과 '연구 중 … 2단계' 바를 본다. */
+    const ebTag = tag;
+    track(0, 122, null, { buildingAt: [48, 36] });
+    upRows.push([F(20), 7, 1, 0, ebTag], [F(25), 0x8000, 1, 0, 0], [F(30), 0, 1, 0, ebTag], [F(70), 7, 2, 0, ebTag]);
+    sels.push([F(44), 0, has("--dockship") ? [dsTag] : has("--dockbunker") ? [bkTag] : has("--dockrax") ? [raxTag]
+      : has("--dockebay") ? [ebTag] : army0.slice(0, 8)]);
     sels.push([F(44.5), 2, (armyTags.get(2) ?? []).slice(0, 3)]);
   }
 
@@ -331,7 +339,8 @@ function makeWorld() {
     let pf = 0; let pv = 0;
     for (const [s, v] of tr.hp) { const f = F(s); w.vz(f - pf); pf = f; w.vz(v - pv); pv = v; }
   }
-  w.u32(0);                            // 업그레이드
+  w.u32(upRows.length);                // 업그레이드(--dockebay) — 판 7부터 줄마다 건물 태그
+  { let pf = 0; for (const [f, id, lv, o, tg] of upRows) { w.vz(f - pf); pf = f; w.u16(id); w.u8(lv); w.u8(o); w.u32(tg); } }
   w.u32(0);                            // 마법
   w.u32(0);                            // 핑
   w.u32(0);                            // 자원

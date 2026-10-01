@@ -15843,6 +15843,9 @@ export default function ReplayMotionPlayer({
   /** 몸의 태그 — 유닛은 열쇠(u태그)에서, 건물은 pickTag. */
   const tagOfOp9 = (o: UnitDrawOp): number | undefined =>
     o.pickTag ?? (o.pickKey?.startsWith("u") ? Number(o.pickKey.slice(1)) : undefined);
+  /** 업그레이드 이름의 밑 — 해독기가 2·3단계에 " 2"·" 3" 을 붙인다(openbwTracks). 단계를 세려면 그것을 떼고 견준다
+   *  (⚠ 여태 유닛의 공방 글자가 `n === name` 으로 세어 늘 1 에서 멈췄다). */
+  const upBase9 = (n9: string): string => n9.replace(/ \d$/, "");
   /** 무기가 없는 유닛 — 업그레이드 글자에서 '공'을 뺀다(원작도 방어 아이콘만 선다). */
   const NO_WEAPON9 = new Set(["Dropship", "Shuttle", "Overlord", "Observer", "Science Vessel", "Medic", "Queen", "Defiler",
     "High Templar", "Dark Archon", "Larva", "Egg", "Lurker Egg", "Mutalisk Cocoon"]);
@@ -16004,10 +16007,39 @@ export default function ReplayMotionPlayer({
       }
       const hall9 = en === "Lair" || en === "Hive" ? "Hatchery" : en;
       const doing = (upsByRaw.get(op.pickRaw ?? "") ?? []).filter(([us, n, utag]) =>
-        RESEARCH_BUILDING[n] === hall9 && t < us && us - t <= RESEARCH_SEC
+        RESEARCH_BUILDING[upBase9(n)] === hall9 && t < us && us - t <= RESEARCH_SEC
         && (utag > 0 && op.pickTag !== undefined ? utag === op.pickTag : op.pickRep !== false));
       for (const [us, n] of doing) {
-        lines.push(bar9(`연구 중 ${researchKo(n)}`, Math.min(0.99, (RESEARCH_SEC - (us - t)) / RESEARCH_SEC), `r${n}`));
+        const lvTxt9 = / (\d)$/.exec(n)?.[1];
+        lines.push(bar9(`연구 중 ${researchKo(upBase9(n))}${lvTxt9 ? ` ${lvTxt9}단계` : ""}`, Math.min(0.99, (RESEARCH_SEC - (us - t)) / RESEARCH_SEC), `r${n}`));
+      }
+      /* ★ 이 건물에서 하는 연구의 **상황판**(2026-09, 요청: "업그레이드 건물은 업그레이드 상황 보여주기(원작에 없는 것이라
+         적절히 추가)") — 표(RESEARCH_BUILDING)에서 이 건물 몫을 모아 칩 하나씩: 단계 업그레이드(종족 공·방·실드)는
+         `n/3`, 한 번짜리는 마쳤으면 밝게 · 아니면 옅게. 업그레이드는 그 사람 전체의 것이라 임자(pickRaw)의 기록을 읽는다.
+         이름이 두 꼴인 것(Leg Enhancement(s) 따위)은 화면 말로 묶는다. */
+      {
+        const grp9 = new Map<string, string[]>();
+        for (const [n9, b9] of Object.entries(RESEARCH_BUILDING)) {
+          if (b9 !== hall9) continue;
+          const ko9 = researchKo(n9);
+          const g9 = grp9.get(ko9);
+          if (g9) g9.push(n9); else grp9.set(ko9, [n9]);
+        }
+        if (grp9.size > 0) {
+          const mine9 = upsByRaw.get(op.pickRaw ?? "") ?? [];
+          const chips9: React.ReactNode[] = [];
+          for (const [ko9, ns9] of grp9) {
+            const lv9 = mine9.filter(([us, n]) => us <= t && ns9.includes(upBase9(n))).length;
+            const step9 = ns9.some((n9) => /^(Terran|Protoss|Zerg) /.test(n9));
+            const busy9 = doing.some(([, n]) => ns9.includes(upBase9(n)));
+            chips9.push(
+              <i key={ko9} className={cx(lv9 > 0 && "is-done", busy9 && "is-busy")}>
+                {ko9}{step9 && <b>{` ${Math.min(3, lv9)}/3`}</b>}
+              </i>,
+            );
+          }
+          lines.push(<div className="scr-motion-infodock-ups scr-motion-infodock-tech" key="tech">{chips9}</div>);
+        }
       }
     } else {
       /* 유닛 — 그 유닛에 걸리는 업그레이드를 글자로(원작 아이콘 대신 · 공방실속사). */
@@ -16029,7 +16061,7 @@ export default function ReplayMotionPlayer({
         return air9 ? w === "Protoss Air Weapons" : w === "Protoss Ground Weapons";
       });
       const lv = (name: string): number =>
-        (upsByRaw.get(op.pickRaw ?? "") ?? []).filter(([us, n]) => n === name && us <= t).length;
+        (upsByRaw.get(op.pickRaw ?? "") ?? []).filter(([us, n]) => upBase9(n) === name && us <= t).length;
       const upBits: string[] = [];
       if (pick9) { if (!NO_WEAPON9.has(en)) upBits.push(`공${lv(pick9.weapon)}`); upBits.push(`방${lv(pick9.armor)}`); }
       if (race9 === "프로토스") upBits.push(`실${lv(PLASMA_SHIELD_UPGRADE)}`);
@@ -16061,16 +16093,20 @@ export default function ReplayMotionPlayer({
     /* 탄 몸(판 11 탑승 절) — 수송선 4×2 · 벙커 2×2. */
     const cg9 = CARGO9[en];
     if (cg9 && tag9 !== undefined) {
-      /* ★ 칸은 탄 몸의 수송 공간만큼 넓다(CARGO_SPACE9 · 한 줄 칸 수가 상한) — 줄을 dense 로 채워 큰 몸이 앞줄에 안
-         들어가면 다음 줄로 가고, 남는 자리는 빈 칸(1)으로 메운다. 아이콘은 늘 한 칸 크기다. */
+      /* ★ 칸은 탄 몸의 수송 공간만큼이다(CARGO_SPACE9) — 2 는 세로 두 칸(1×2) · 4 는 2×2. 격자를 dense 로 채워 남는 자리는
+         빈 칸(1)으로 메운다. 아이콘은 늘 한 칸 크기다. */
       const pax9 = cargoAt9(tag9, t).map((p) => lifeAt9(p, t)).filter((l) => !!l) as NonNullable<ReturnType<typeof lifeAt9>>[];
       const used9 = pax9.reduce((a9, l9) => a9 + Math.min(cg9[1], CARGO_SPACE9[l9.kind] ?? 1), 0);
       side9 = (
         <div className="scr-motion-infodock-cargo" style={{ gridTemplateColumns: `repeat(${cg9[1]}, var(--dock-slot))` }}>
           {pax9.map((l9, k) => {
+            /* 원작처럼 칸의 꼴로 공간을 말한다(요청: "4칸짜리는 가로세로 2*2 · 2칸짜리는 1*2") — 4 = 2×2 · 2 = 가로 1 × 세로 2. */
             const sp9 = Math.min(cg9[1], CARGO_SPACE9[l9.kind] ?? 1);
+            const cw9 = sp9 >= 4 ? 2 : 1;
+            const ch9 = sp9 >= 2 ? 2 : 1;
             return (
-              <span key={`p${k}`} className="scr-motion-infodock-slot" style={sp9 > 1 ? { gridColumn: `span ${sp9}`, width: "auto" } : undefined}>
+              <span key={`p${k}`} className="scr-motion-infodock-slot"
+                style={sp9 > 1 ? { gridColumn: `span ${cw9}`, gridRow: `span ${ch9}`, width: "auto", height: "auto" } : undefined}>
                 {silIcon9(l9.kind, false, "#6fe36f", "scr-motion-infodock-sico")}
               </span>
             );

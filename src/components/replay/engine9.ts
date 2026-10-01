@@ -5696,7 +5696,8 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
            드는 셈이라, 화면에서는 정확히 한 연구 길이만큼 늦었다.
            [us−90, us]로 뒤집는다. 이제 불이 꺼지는 순간이 곧 연구가 끝난 순간이다. */
         && (upsByRaw.get(raw) ?? []).some(([us, name, utag]) =>
-          RESEARCH_BUILDING[name] === hallLike && t < us && us - t <= RESEARCH_SEC
+          /* 2·3단계는 이름 끝에 " 2"·" 3" 이 붙어 온다(해독기) — 떼고 찾아야 두 번째 연구부터도 불이 든다. */
+          RESEARCH_BUILDING[name.replace(/ \d$/, "")] === hallLike && t < us && us - t <= RESEARCH_SEC
           && (utag > 0 && myTag9 !== undefined ? utag === myTag9 : myOrd === repOrd));
       /* ★ 부속 둘의 제 활성 신호(2026-09 · 아래 op 의 lit) — 컴샛: 이 임자의 스캔이 살아 있는 동안 ·
          핵 사일로: 핵을 만드는 동안(장전 시각 앞 NUKE_BUILD_SEC9)은 깜빡이고, 장전된 뒤 쏠 때까지는 켜 둔다. */

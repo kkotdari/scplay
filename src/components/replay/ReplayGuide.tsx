@@ -170,7 +170,7 @@ export default function ReplayGuide({ onClose }: {
         </p>
         <ul className="scr-guide-legend">
           <li><span className="scr-guide-ic scr-guide-ic-txt">윗줄</span><span><b>사람 정보줄</b> — 중계 중에는 <b>지금 누구 화면</b>인지, 중계를 껐을 때는 <b>내가 고른 것의 주인</b>을 보여 줍니다. 팀·이름 옆에 <b>일꾼 · 자원(광물/가스) · 인구 · K/D · APM</b>이 섭니다.</span></li>
-          <li><span className="scr-guide-ic scr-guide-ic-txt">하나</span><span><b>유닛·건물 하나</b> — 지도에서 누르면 체력·실드·에너지, 처치 수, 업그레이드, 건물이면 진행 바 아래 생산 대기열·연구·보급까지. 수송선·벙커는 탄 유닛이 칸으로 서고, 큰 유닛(탱크·드라군 같은)일수록 칸이 넓습니다.</span></li>
+          <li><span className="scr-guide-ic scr-guide-ic-txt">하나</span><span><b>유닛·건물 하나</b> — 지도에서 누르면 체력·실드·에너지, 처치 수, 업그레이드, 건물이면 진행 바 아래 생산 대기열·연구·보급까지, 연구 건물이면 그 건물에서 하는 업그레이드가 칩으로 섭니다(마친 것은 밝게 · 공방은 단계 · 하는 중은 초록 테). 수송선·벙커는 탄 유닛이 칸으로 서고, 2칸짜리는 세로 두 칸 · 4칸짜리(탱크·드라군 같은)는 2×2 입니다.</span></li>
           <li><span className="scr-guide-ic scr-guide-ic-txt">여럿</span><span><b>화면 주인의 선택</b> — 중계 중에 아무것도 안 눌렀으면, 그 사람이 지금 고른 부대가 칸으로 섭니다. 칸을 누르면 그 유닛 하나를 봅니다. 고른 것에는 지도에서도 <b>선택 링</b>이 둘립니다.</span></li>
           <li><span className="scr-guide-ic scr-guide-ic-txt">K/D</span><span><b>K/D</b> — 잡은 적 유닛 수 / 잃은 유닛 수입니다. 건물과 라바·알·인터셉터 같은 것은 안 셉니다.</span></li>
         </ul>
