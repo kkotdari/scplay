@@ -2408,7 +2408,8 @@ n/n · n] · 로스터 1단계시 닉네임 상자 배경 투명도 주기") ─
   아군 = 나와 같은 편(`teamOfRaw`) · 밀리는 나 말고 다 적군.
 · 색은 `modeColor` 한 문에서 난다(로스터 칩 · 미니맵 · 자막 · 엔진 색표 colorTable9 가 다 그것을 읽는다). ⚠ `heroRaw9` 가
   그 함수보다 **아래**(camRaw9 뒤 · colorNow 도 함께)에 선언되므로 렌더 중 그 함수를 부르는 `colorTable9` 를 그 뒤로 옮겼다 — 위로 올리면 TDZ 다.
-· **단추 바탕이 곧 지금 모드다**(`.scr-motion-colbtn.is-personal|team|hero` — 원작 색 무지개 · 빨/파 반반 · 틸/노/빨 삼분) ·
+· **단추 바탕이 곧 지금 모드다**(`.scr-motion-colbtn.is-personal|team|hero` — 셋 다 **세로로 나눈 띠**: 원작 색 여섯(빨·주·노·초·파·보) · 빨/파 반반 ·
+  왼쪽부터 나(틸)·아군(노랑)·적군(빨강) — 2026-09, 요청: "무지개는 그라데이션 말고 세로로 나눠진 6색띠 · 주인공은 자신 동맹 적 순") ·
   켜짐(is-on) 표시는 안 쓴다(꺼진 모드가 없다). 흰 아이콘이 밝은 띠에서 읽히게 먹판 0.28 + 아이콘 그림자.
 · 🔎 `node scripts/perf-check.mjs --wide --warm 3 --glblit [--teamcolor | --herocolor] --shot x.png` — `[색 모드]` 줄이 단추의 글귀를 찍는다.
 

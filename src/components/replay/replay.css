@@ -3976,14 +3976,15 @@
 .scr-guide-colsw svg{ filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.9)); }
 .scr-guide-colsw.is-personal{
   background: linear-gradient(rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0.28)),
-    conic-gradient(#f40404, #f88c14, #fcfc38, #088008, #2cb494, #0c48cc, #88409c, #f40404);
+    linear-gradient(90deg, #f40404 0 16.667%, #f88c14 16.667% 33.333%, #fcfc38 33.333% 50%,
+      #088008 50% 66.667%, #0c48cc 66.667% 83.333%, #88409c 83.333% 100%);
 }
 .scr-guide-colsw.is-team{
   background: linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), linear-gradient(90deg, #d81f28 50%, #2050d0 50%);
 }
 .scr-guide-colsw.is-hero{
   background: linear-gradient(rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0.28)),
-    conic-gradient(#2cb494 0 120deg, #fcfc38 120deg 240deg, #f40404 240deg 360deg);
+    linear-gradient(90deg, #2cb494 0 33.333%, #fcfc38 33.333% 66.667%, #f40404 66.667% 100%);
 }
 /* 범례 칸의 작은 견본(20px) */
 .scr-guide-colsw-s{ display: inline-block; width: 18px; height: 18px; border-radius: 999px; margin-top: 1px; }
@@ -4134,7 +4135,10 @@
    세 가지 색으로)"). 세 모드 중 꺼진 것이 없어 켜짐(is-on) 표시 대신 바탕을 갈아 낀다. 흰 아이콘이 밝은 띠 위에서도
    읽히게 먹판을 한 겹 덮고(0.28) 아이콘에 그림자를 준다.
    ⚠ 무게: 형제 규칙(.scr-motion-mapbtns button.scr-motion-mapbtn (0,2,1) · 라이트 프레임 (0,4,1))보다 커야 한다 —
-     그래서 라이트 프레임 꼴까지 같은 접두로 한 벌 더 적는다. */
+     그래서 라이트 프레임 꼴까지 같은 접두로 한 벌 더 적는다.
+   ★ 셋 다 **세로로 나눈 띠**다(2026-09, 요청: "무지개는 그라데이션 말고 세로로 나눠진 6색띠 · 주인공모드는 자신 동맹 적
+     색순으로") — 개인 = 원작 색표의 여섯(빨·주·노·초·파·보) · 팀 = 빨/파 반반 · 주인공 = 왼쪽부터 나(틸) · 아군(노랑) ·
+     적군(빨강). 띠 경계는 같은 % 두 번(경계에 번짐이 없다). */
 .scr-motion-mapbtns button.scr-motion-mapbtn.scr-motion-colbtn,
 .scr-light-theme .scr-fs-layer:not(.is-fs) .scr-motion-mapbtns button.scr-motion-mapbtn.scr-motion-colbtn {
   color: #fff;
@@ -4144,7 +4148,8 @@
 .scr-motion-mapbtns button.scr-motion-mapbtn.scr-motion-colbtn.is-personal,
 .scr-light-theme .scr-fs-layer:not(.is-fs) .scr-motion-mapbtns button.scr-motion-mapbtn.scr-motion-colbtn.is-personal {
   background: linear-gradient(rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0.28)),
-    conic-gradient(#f40404, #f88c14, #fcfc38, #088008, #2cb494, #0c48cc, #88409c, #f40404);
+    linear-gradient(90deg, #f40404 0 16.667%, #f88c14 16.667% 33.333%, #fcfc38 33.333% 50%,
+      #088008 50% 66.667%, #0c48cc 66.667% 83.333%, #88409c 83.333% 100%);
 }
 .scr-motion-mapbtns button.scr-motion-mapbtn.scr-motion-colbtn.is-team,
 .scr-light-theme .scr-fs-layer:not(.is-fs) .scr-motion-mapbtns button.scr-motion-mapbtn.scr-motion-colbtn.is-team {
@@ -4154,5 +4159,5 @@
 .scr-motion-mapbtns button.scr-motion-mapbtn.scr-motion-colbtn.is-hero,
 .scr-light-theme .scr-fs-layer:not(.is-fs) .scr-motion-mapbtns button.scr-motion-mapbtn.scr-motion-colbtn.is-hero {
   background: linear-gradient(rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0.28)),
-    conic-gradient(#2cb494 0 120deg, #fcfc38 120deg 240deg, #f40404 240deg 360deg);
+    linear-gradient(90deg, #2cb494 0 33.333%, #fcfc38 33.333% 66.667%, #f40404 66.667% 100%);
 }
