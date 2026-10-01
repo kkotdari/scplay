@@ -2690,6 +2690,9 @@
 .scr-motion-infodock { --dock-qgap: calc(3px * var(--dk)); }
 .scr-motion-infodock-prod { display: flex; align-items: center; gap: var(--dock-qgap); width: calc(var(--dock-slot) * 4 + var(--dock-qgap) * 3); max-width: 100%; }
 .scr-motion-infodock-prod .scr-motion-info-prog { flex: 1 1 auto; min-width: 0; margin-top: 0; }
+/* 생산 글귀는 한 줄이다 — 바 폭(칸 셋 몫)이 좁아 다섯 글자 이름("생산 중 사이언스 베슬")의 끝 글자가 둘째 줄로 떨어졌다.
+   글 칸이 그보다 넓으므로 바 오른쪽으로 비어져 나가게 둔다(2026-09, 지적: "다섯글자 유닛 생산중에 한글자가 줄이 내려감"). */
+.scr-motion-infodock-prod .scr-motion-info-line { white-space: nowrap; }
 .scr-motion-infodock-queue { display: flex; gap: var(--dock-qgap); margin-top: var(--dock-qgap); }
 /* 탄 몸 — 칸이 수송 공간만큼 넓다(span) · dense 로 빈 자리를 앞에서부터 메운다. 아이콘은 한 칸 크기 그대로. */
 .scr-motion-infodock-cargo { display: grid; gap: 3px; grid-auto-flow: row dense; grid-auto-rows: var(--dock-slot); }
@@ -2700,9 +2703,10 @@
 }
 .scr-motion-infodock-slot.is-head { border-color: rgba(111, 227, 111, 0.7); }
 .scr-motion-infodock-sico { width: calc(var(--dock-slot) - 4px); height: calc(var(--dock-slot) - 4px); display: block; }
-/* 여럿 — 6×2 격자(요청: "여러 유닛 선택시 유닛 목록(아이콘) 표현 6기씩 두줄로"). 칸 테두리가 체력색이다. */
+/* 여럿 — 6×2 격자(요청: "여러 유닛 선택시 유닛 목록(아이콘) 표현 6기씩 두줄로"). 칸 테두리가 체력색이다.
+   왼쪽 맞춤(2026-09, 요청: "유닛 복수 선택시 좌 정렬해줘") — 한 몸 꼴(그림이 왼쪽)과 같은 자리에서 시작한다. */
 .scr-motion-infodock-grid {
-  height: 100%; display: grid; gap: 4px; justify-content: center; align-content: center;
+  height: 100%; display: grid; gap: 4px; justify-content: start; align-content: center;
   grid-template-columns: repeat(6, var(--dock-cell)); grid-template-rows: repeat(2, var(--dock-cell));
 }
 .scr-motion-infodock-cell {
@@ -3979,16 +3983,16 @@
 .scr-guide-colsw{ color: #fff; }
 .scr-guide-colsw svg{ filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.9)); }
 .scr-guide-colsw.is-personal{
-  background: linear-gradient(rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0.28)),
+  background: linear-gradient(rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.08)),
     linear-gradient(90deg, #f40404 0 16.667%, #f88c14 16.667% 33.333%, #fcfc38 33.333% 50%,
       #088008 50% 66.667%, #0c48cc 66.667% 83.333%, #88409c 83.333% 100%);
 }
 .scr-guide-colsw.is-team{
-  background: linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), linear-gradient(90deg, #d81f28 50%, #2050d0 50%);
+  background: linear-gradient(rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.06)), linear-gradient(90deg, #d81f28 50%, #2050d0 50%);
 }
 .scr-guide-colsw.is-hero{
-  background: linear-gradient(rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0.28)),
-    linear-gradient(90deg, #2cb494 0 33.333%, #fcfc38 33.333% 66.667%, #f40404 66.667% 100%);
+  background: linear-gradient(rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.08)),
+    linear-gradient(90deg, #fcfc38 0 33.333%, #2cb494 33.333% 66.667%, #f40404 66.667% 100%);
 }
 /* 범례 칸의 작은 견본(20px) */
 .scr-guide-colsw-s{ display: inline-block; width: 18px; height: 18px; border-radius: 999px; margin-top: 1px; }
@@ -4137,12 +4141,13 @@
 
 /* ★ 색 모드 단추 — **바탕이 곧 지금 모드**다(2026-09, 요청: "개인색(버튼 배경 무지개) · 팀색(빨/파) · 주인공색(이
    세 가지 색으로)"). 세 모드 중 꺼진 것이 없어 켜짐(is-on) 표시 대신 바탕을 갈아 낀다. 흰 아이콘이 밝은 띠 위에서도
-   읽히게 먹판을 한 겹 덮고(0.28) 아이콘에 그림자를 준다.
+   읽히게 아이콘에 그림자를 주고 먹판은 아주 옅게(0.08 · 팀 0.06) 덮는다 — 0.28 은 띠가 칙칙하게 죽었다(지적: "컬러 버튼
+   배경색 너무 어둡게 보임").
    ⚠ 무게: 형제 규칙(.scr-motion-mapbtns button.scr-motion-mapbtn (0,2,1) · 라이트 프레임 (0,4,1))보다 커야 한다 —
      그래서 라이트 프레임 꼴까지 같은 접두로 한 벌 더 적는다.
    ★ 셋 다 **세로로 나눈 띠**다(2026-09, 요청: "무지개는 그라데이션 말고 세로로 나눠진 6색띠 · 주인공모드는 자신 동맹 적
-     색순으로") — 개인 = 원작 색표의 여섯(빨·주·노·초·파·보) · 팀 = 빨/파 반반 · 주인공 = 왼쪽부터 나(틸) · 아군(노랑) ·
-     적군(빨강). 띠 경계는 같은 % 두 번(경계에 번짐이 없다). */
+     색순으로") — 개인 = 원작 색표의 여섯(빨·주·노·초·파·보) · 팀 = 빨/파 반반 · 주인공 = 왼쪽부터 노랑 · 틸 · 빨강(되요청:
+     "주인공 모드 노랑틸레드로 순서 변경" — 아군 · 나 · 적군). 띠 경계는 같은 % 두 번(경계에 번짐이 없다). */
 .scr-motion-mapbtns button.scr-motion-mapbtn.scr-motion-colbtn,
 .scr-light-theme .scr-fs-layer:not(.is-fs) .scr-motion-mapbtns button.scr-motion-mapbtn.scr-motion-colbtn {
   color: #fff;
@@ -4151,17 +4156,17 @@
 .scr-motion-mapbtns button.scr-motion-mapbtn.scr-motion-colbtn svg { filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.9)); }
 .scr-motion-mapbtns button.scr-motion-mapbtn.scr-motion-colbtn.is-personal,
 .scr-light-theme .scr-fs-layer:not(.is-fs) .scr-motion-mapbtns button.scr-motion-mapbtn.scr-motion-colbtn.is-personal {
-  background: linear-gradient(rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0.28)),
+  background: linear-gradient(rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.08)),
     linear-gradient(90deg, #f40404 0 16.667%, #f88c14 16.667% 33.333%, #fcfc38 33.333% 50%,
       #088008 50% 66.667%, #0c48cc 66.667% 83.333%, #88409c 83.333% 100%);
 }
 .scr-motion-mapbtns button.scr-motion-mapbtn.scr-motion-colbtn.is-team,
 .scr-light-theme .scr-fs-layer:not(.is-fs) .scr-motion-mapbtns button.scr-motion-mapbtn.scr-motion-colbtn.is-team {
-  background: linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)),
+  background: linear-gradient(rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.06)),
     linear-gradient(90deg, #d81f28 50%, #2050d0 50%);
 }
 .scr-motion-mapbtns button.scr-motion-mapbtn.scr-motion-colbtn.is-hero,
 .scr-light-theme .scr-fs-layer:not(.is-fs) .scr-motion-mapbtns button.scr-motion-mapbtn.scr-motion-colbtn.is-hero {
-  background: linear-gradient(rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0.28)),
-    linear-gradient(90deg, #2cb494 0 33.333%, #fcfc38 33.333% 66.667%, #f40404 66.667% 100%);
+  background: linear-gradient(rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.08)),
+    linear-gradient(90deg, #fcfc38 0 33.333%, #2cb494 33.333% 66.667%, #f40404 66.667% 100%);
 }
