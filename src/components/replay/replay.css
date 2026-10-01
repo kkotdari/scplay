@@ -4069,3 +4069,30 @@
    ★ 스테이시스·락다운은 그 전에 이미 걷혔다 — 시전 자리의 원반 한 장이 아니라 **걸린 몸마다** 우리를
      씌운다(요청). 그것은 캔버스의 cage 갈래다. */
 
+
+/* ★ 색 모드 단추 — **바탕이 곧 지금 모드**다(2026-09, 요청: "개인색(버튼 배경 무지개) · 팀색(빨/파) · 주인공색(이
+   세 가지 색으로)"). 세 모드 중 꺼진 것이 없어 켜짐(is-on) 표시 대신 바탕을 갈아 낀다. 흰 아이콘이 밝은 띠 위에서도
+   읽히게 먹판을 한 겹 덮고(0.28) 아이콘에 그림자를 준다.
+   ⚠ 무게: 형제 규칙(.scr-motion-mapbtns button.scr-motion-mapbtn (0,2,1) · 라이트 프레임 (0,4,1))보다 커야 한다 —
+     그래서 라이트 프레임 꼴까지 같은 접두로 한 벌 더 적는다. */
+.scr-motion-mapbtns button.scr-motion-mapbtn.scr-motion-colbtn,
+.scr-light-theme .scr-fs-layer:not(.is-fs) .scr-motion-mapbtns button.scr-motion-mapbtn.scr-motion-colbtn {
+  color: #fff;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35), 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+.scr-motion-mapbtns button.scr-motion-mapbtn.scr-motion-colbtn svg { filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.9)); }
+.scr-motion-mapbtns button.scr-motion-mapbtn.scr-motion-colbtn.is-personal,
+.scr-light-theme .scr-fs-layer:not(.is-fs) .scr-motion-mapbtns button.scr-motion-mapbtn.scr-motion-colbtn.is-personal {
+  background: linear-gradient(rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0.28)),
+    conic-gradient(#f40404, #f88c14, #fcfc38, #088008, #2cb494, #0c48cc, #88409c, #f40404);
+}
+.scr-motion-mapbtns button.scr-motion-mapbtn.scr-motion-colbtn.is-team,
+.scr-light-theme .scr-fs-layer:not(.is-fs) .scr-motion-mapbtns button.scr-motion-mapbtn.scr-motion-colbtn.is-team {
+  background: linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)),
+    linear-gradient(90deg, #d81f28 50%, #2050d0 50%);
+}
+.scr-motion-mapbtns button.scr-motion-mapbtn.scr-motion-colbtn.is-hero,
+.scr-light-theme .scr-fs-layer:not(.is-fs) .scr-motion-mapbtns button.scr-motion-mapbtn.scr-motion-colbtn.is-hero {
+  background: linear-gradient(rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0.28)),
+    conic-gradient(#2cb494 0 120deg, #fcfc38 120deg 240deg, #f40404 240deg 360deg);
+}

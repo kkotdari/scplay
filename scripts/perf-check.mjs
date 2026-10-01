@@ -950,9 +950,15 @@ if (SHOT) {
     await page.waitForTimeout(500);
   }
   // 색 전환 검증(--teamcolor) — 지도 위 색 아이콘을 눌러 팀색으로 바꾼다.
-  if (has("--teamcolor")) {
-    if (!await clickByLabel(/^팀색으로$/)) console.warn("⚠ 색 전환 버튼을 못 찾음");
+  /* --herocolor — 한 번 더 눌러 주인공색(나 · 아군 · 적군)까지 간다(색 모드 세 갈래: 개인 → 팀 → 주인공). */
+  if (has("--teamcolor") || has("--herocolor")) {
+    if (!await clickByLabel(/^개인색 —/)) console.warn("⚠ 색 전환 버튼을 못 찾음");
     await page.waitForTimeout(400);
+    if (has("--herocolor")) {
+      if (!await clickByLabel(/^팀색 —/)) console.warn("⚠ 색 전환 버튼(팀 → 주인공)을 못 찾음");
+      await page.waitForTimeout(400);
+    }
+    console.log("[색 모드]", await page.evaluate(() => document.querySelector(".scr-motion-colbtn")?.getAttribute("aria-label")));
   }
   if (has("--quickzoom")) {
     // 지도 자신이 맞는 지점을 찾는다 — 모바일 세로 바 오버레이가 덮은 자리를 피해서.

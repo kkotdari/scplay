@@ -7977,6 +7977,17 @@ const orgNote9 = (ox: number, liveOx: number): void => {
  *  대가는 워커가 끄는 동안 앞장을 못 짓고 지금 장만 짓는 것인데, 끄는 동안은 그것이 맞는 일이다
  *  (짓기 한 장 ~10ms이라 초당 예순 장 언저리를 낼 수 있다). 손을 떼면 곧바로 앞을 다시 채운다. */
 const LIVE_VIEW_MS9 = 8;
+/** 색 갈래 셋 — 개인색 · 팀색 · 주인공색(원작의 '나 / 아군 / 적군'). */
+export type ColorMode9 = "personal" | "team" | "hero";
+/** ★ 주인공색(2026-09, 요청: "나는 에메랄드 녹색, 아군은 밝은 노랑, 적군은 밝은 빨강" → "원작의 주인공색 모드 색이랑
+ *  똑같이 고증") — 원작 리마스터의 Shift+Tab 모드(상대 · 아군 · 나 = 빨강 · 노랑 · 틸)다. 그 모드는 새 색을 짓지 않고
+ *  **원작 플레이어 색표의 세 칸을 그대로** 쓴다: 1번 빨강 #F40404 · 8번 노랑 #FCFC38 · 3번 틸 #2CB494(사용자가 말한
+ *  '에메랄드 녹색'이 이 틸이다). 그래서 개인색과 같은 값이 겹치는 것이 원작 그대로다 — 손대지 마라. */
+export const HERO_COL9 = { me: "#2cb494", ally: "#fcfc38", foe: "#f40404" } as const;
+const COLOR_MODE_NAME9: Record<ColorMode9, string> = { personal: "개인색", team: "팀색", hero: "주인공색" };
+/** 다음 갈래 — 개인 → 팀 → 주인공 → 개인. 밀리는 팀을 건너뛴다(편이 없다). */
+const nextColorMode9 = (m: ColorMode9, melee: boolean): ColorMode9 =>
+  m === "personal" ? (melee ? "hero" : "team") : m === "team" ? "hero" : "personal";
 export default function ReplayMotionPlayer({
   grid, endSec, bases: basesIn, teamOfRaw, active = true, winnerTeam, side,
   onDetailClose, loadUnitTracks, sceneLink,
@@ -8133,9 +8144,13 @@ export default function ReplayMotionPlayer({
   const colorByRaw = useMemo(() => new Map<string, string>(), []);
   /* 색은 한 벌만 칠한다(요청: 중복 표시 제거) — 팀색/개인색을 전환 버튼으로 오간다.
      개인색이 없는 옛 기록은 개인색 모드여도 팀색으로 떨어진다. */
-  const [colorMode, setColorMode] = useState<"team" | "personal">("personal");
-  /** 실제로 쓰는 색 갈래 — 밀리는 편이 없으니 늘 개인색이다(요청: 팀컬러 변경 비활성화). */
-  const colorNow = melee ? "personal" : colorMode;
+  /* ★ 셋째 갈래 **주인공색**(2026-09, 요청: "색깔모드를 3단계로 · 1. 개인색 2. 팀색 3. 주인공색(원작에도 있는
+     모드 · 나는 에메랄드 녹색, 아군은 밝은 노랑, 적군은 밝은 빨강)") — 원작의 '내 편/남의 편' 색이다. 누가 '나'인지는
+     아래 heroRaw9 가 정한다. */
+  const [colorMode, setColorMode] = useState<ColorMode9>("personal");
+  /** 실제로 쓰는 색 갈래 — 밀리는 편이 없으니 팀색은 개인색으로 떨어진다(요청: 팀컬러 변경 비활성화).
+   *  주인공색은 밀리에서도 선다(나 · 남 둘로 갈린다). */
+  const colorNow: ColorMode9 = melee && colorMode === "team" ? "personal" : colorMode;
   /* 개체 트랙 — 화면이 그리는 **유일한** 자료다(v1 부대 추적은 걷었다). 뜨자마자 한 번
      내려받고, 못 받으면 아래 보기 줄이 '재분석 필요'라고 말한다: 자료가 없는 것과
      "그 경기엔 아무 일도 없었다"가 화면에서 갈려야 한다. */
@@ -9177,6 +9192,13 @@ export default function ReplayMotionPlayer({
     return new Set(m9.values()).size > 1 ? m9 : new Map<string, string>();
   }, [bases]);
   const modeColor = (raw: string, team: 1 | 2 | undefined): string => {
+    /* 주인공색 — 나 · 아군 · 적군 셋뿐이다. 개인색을 몰라도 서므로 기다리는 색(COLOR_PENDING)이 없다.
+       ⚠ heroRaw9 는 이 함수보다 **아래**에 선언된다 — 렌더 중 이 함수를 부르는 자리(colorTable9)를 그 뒤로 옮겼다. */
+    if (colorNow === "hero") {
+      if (raw === heroRaw9) return HERO_COL9.me;
+      const ht9 = heroRaw9 ? teamOfRaw(heroRaw9) : undefined;
+      return !melee && ht9 && team === ht9 ? HERO_COL9.ally : HERO_COL9.foe;
+    }
     const teamColor = team === 2 ? TEAM_EDGE[2] : TEAM_EDGE[1];
     // 요약 폐지 뒤 개인색의 원천은 개체 트랙이다(수리: 색이 팀 2색으로 퇴행).
     if (colorNow !== "personal") return teamColor;
@@ -9194,16 +9216,6 @@ export default function ReplayMotionPlayer({
     // 둘 다 없다 — 자취가 왔거나 끝내 안 오면 팀색, 아직 오는 중이면 중립(위 주석).
     return entData || entLoad === "none" ? teamColor : COLOR_PENDING;
   };
-  /** 엔진에 건네는 색표 — 임자(raw)마다 지금 색 모드의 색. 엔진은 함수를 못 받으므로(워커) 표로 준다. */
-  const colorTable9 = useMemo(() => {
-    const m9: Record<string, string> = {};
-    const raws9 = new Set<string>();
-    for (const b9 of bases) raws9.add(b9.key);
-    for (const pl9 of entData?.players ?? []) raws9.add(pl9.name);
-    for (const r9 of raws9) m9[r9] = modeColor(r9, teamOfRaw(r9));
-    return m9;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bases, entData, colorNow, personalUsable, rosterColor, entLoad, colorByRaw]);
   /** 색의 밝기 — 어두운 개인색은 흰 반투명 음영을 받쳐야 보인다(지적). */
   const lumOf = (hex: string): number => {
     if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return 255;
@@ -9475,6 +9487,20 @@ export default function ReplayMotionPlayer({
    *  아래 추적 기계(집은 자국·걷기·카메라)는 전부 이 하나를 본다. 로스터의 조준선 표시만
    *  trackRaw를 그대로 읽는다 — 개인 추적과 중계를 눈으로 갈라야 하기 때문이다. */
   const camRaw9 = trackRaw ?? castRaw;
+  /** ★ 주인공색의 '나' — 시점(이름을 눌러 고른 눈)이 먼저, 다음은 개인 추적, 둘 다 없으면 로스터 첫 사람이다.
+   *  ⚠ 자동 중계가 고른 사람(castRaw)은 **안 본다** — 8초마다 사람이 갈려 색이 통째로 뒤바뀌면 누가 누구 편인지
+   *  더 헷갈린다. 중계를 보면서 주인공을 바꾸려면 TV 목록에서 그 사람을 고르면 된다(시점·추적이 함께 선다). */
+  const heroRaw9: string | null = viewRaw ?? trackRaw ?? bases[0]?.key ?? null;
+  /** 엔진에 건네는 색표 — 임자(raw)마다 지금 색 모드의 색. 엔진은 함수를 못 받으므로(워커) 표로 준다. */
+  const colorTable9 = useMemo(() => {
+    const m9: Record<string, string> = {};
+    const raws9 = new Set<string>();
+    for (const b9 of bases) raws9.add(b9.key);
+    for (const pl9 of entData?.players ?? []) raws9.add(pl9.name);
+    for (const r9 of raws9) m9[r9] = modeColor(r9, teamOfRaw(r9));
+    return m9;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bases, entData, colorNow, heroRaw9, melee, personalUsable, rosterColor, entLoad, colorByRaw]);
   /** 그 사람의 걷기 — 보관함에서 꺼낸다(위 walksByRaw9). */
   const entWalks = walksByRaw9.get(camRaw9 ?? "") ?? EMPTY_WALKS9;
   /* ── 중계 자막(요청: "전환시 플레이창 아래가운데에 누구 화면 이라고 자막 띄워줌(토스트)" → 되요청:
@@ -15660,18 +15686,22 @@ export default function ReplayMotionPlayer({
           같은 요청으로 걷었다 — 한 가지 일에 손잡이는 하나다). */}
       {/* 밀리에는 안 단다(요청: "팀컬러 변경 비활성화") — 편이 없으니 팀색이라는 것도
           없다. 손잡이만 남기면 눌러도 아무 일이 없는 버튼이 된다. */}
-      {!melee && (
-        <button
-          type="button"
-          className={cx("scr-motion-litbtn scr-motion-mapbtn", colorMode === "team" && "is-on")}
-          onClick={() => setColorMode((v) => (v === "team" ? "personal" : "team"))}
-          aria-pressed={colorMode === "team"}
-          aria-label={colorMode === "team" ? "개인색으로" : "팀색으로"}
-          title={colorMode === "team" ? "팀색 (누르면 개인색)" : "개인색 (누르면 팀색)"}
-        >
-          <Palette size={18} />
-        </button>
-      )}
+      {/* ★ 세 갈래를 돈다(2026-09, 요청: 개인색 → 팀색 → 주인공색) — 버튼 **바탕이 곧 지금 모드**다(무지개 · 빨/파 ·
+          녹/노/빨). 켜짐(is-on) 표시는 안 쓴다 — 세 모드 중 '꺼진' 것이 없다. 밀리는 팀색을 건너뛴다(편이 없다). */}
+      {(() => {
+        const next9 = nextColorMode9(colorNow, !!melee);
+        return (
+          <button
+            type="button"
+            className={cx("scr-motion-litbtn scr-motion-mapbtn scr-motion-colbtn", `is-${colorNow}`)}
+            onClick={() => setColorMode(next9)}
+            aria-label={`${COLOR_MODE_NAME9[colorNow]} — 누르면 ${COLOR_MODE_NAME9[next9]}`}
+            title={`${COLOR_MODE_NAME9[colorNow]} (누르면 ${COLOR_MODE_NAME9[next9]})`}
+          >
+            <Palette size={18} />
+          </button>
+        );
+      })()}
       {/* ★ **폰에는 2D/3D 단추가 없다**(2026-09, 요청: "3D버튼: 모바일에서 제거") — 폰은 입체 문턱(pitchAllowed · 벤치 12ms)을
           거의 못 넘어 눌러도 '무거워요' 토스트만 났다. 손잡이만 남기면 고장난 단추다. 기기 판정은 smallDevice9 하나(DEV9 와 같은 자). */}
       {!smallDevice9 && (
