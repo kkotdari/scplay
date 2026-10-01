@@ -3197,6 +3197,9 @@
   --dock-bez: calc(3.2px * var(--dkd));
   /* 두 줄 — [정보줄(온 폭)] / [미니맵 | 인포창](키 --dock-h). 접으면(is-fold) 정보줄만 남는다. */
   display: flex; flex-direction: column; align-items: stretch; gap: var(--dock-bez); padding: var(--dock-bez); min-width: 0; max-width: 100%;
+  /* 아래 테두리는 2px 더 두껍다(2026-09, 지적: "독 아래테두리가 좀 얇게 보이는데") — 위는 바깥 검은 테 위에 흰 베벨이 서지만
+     아래는 바깥 검은 테 + 안쪽 검은 베벨이 겹쳐 쇠가 그 둘만큼 덜 보였다. 구분 막대의 광택 자(아래 background-size)도 이 몫을 센다. */
+  padding-bottom: calc(var(--dock-bez) + 2px);
   box-sizing: border-box;
   position: relative; border: 1px solid #0b0d10; border-radius: 0;
   background:
@@ -3233,7 +3236,7 @@
     linear-gradient(180deg, #b2b8c0 0%, #979fa8 15%, #7a828b 45%, #656c75 52%, #737b84 72%, #89919a 100%);
   /* 광택 띠는 틀의 온 키(위아래 여백 + 정보줄 + 그 아래 틈 포함)에 걸려 있으므로 막대도 그 자로 편다 — 같은 높이에서 같은 색이라
      이음매가 없다. 막대는 틀 위에서 '여백 + 정보줄 + 틈' 만큼 내려와 있다. */
-  background-size: 100% calc(100% + var(--dock-cap) + 3 * var(--dock-bez));
+  background-size: 100% calc(100% + var(--dock-cap) + 3 * var(--dock-bez) + 2px);
   background-position: 0 calc(-1 * (var(--dock-cap) + 2 * var(--dock-bez)));
   box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.16), inset -1px 0 0 rgba(0, 0, 0, 0.30);
 }
