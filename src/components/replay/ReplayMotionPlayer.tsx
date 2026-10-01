@@ -5098,12 +5098,23 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             /* ★ 건물 선택 링(2026-09, 요청: "건물 선택시 선택 링이 안보이는데 링 나오게") — 유닛과 같은 가는 타원 테를 **발자국**
                둘레에 깐다(바닥 도형 패스라 몸 밑에 깔린다). 자리는 발자국 한가운데 · 뜬 건물은 뜬 몫만큼 위(몸과 함께 든다). */
             if ((op.selRing || (pickedKey != null && op.pickKey === pickedKey)) && gl9.primOk && op.mkFrac === undefined) {
-              const cy9 = (groundY ?? sy + hPx / 2) - hPx / 2 - gLift9;
+              /* ★ 가운데는 **모델의 원점**(모형 (0, 0, 0) = 그 건물이 선 땅의 한가운데)이다(2026-09, 지적: "건물 선택링 위치가
+                 안맞는느낌 · 어떤건 맞고 어떤건 안맞고 특히 저그는 왜이렇게 위에 나오는거지") — 발자국 타일의 한가운데
+                 (지면선 − hPx/2)로 두었더니, 붓은 건물을 **잉크 바닥**으로 지면선에 앉히므로 몸이 발자국보다 작거나 앞뒤로
+                 치우친 종류(저그 — 나이더스 · 스파이어 · 고치)에서 링이 몸 위로 떴다. 원점은 메시를 미는 그 자(ay + yoff)에
+                 놓이므로 몸과 같이 움직인다. 뜬 몫은 gay9 에 이미 들어 있다. */
+              const cy9 = gay9 - gk9 * glBf9.bot;
               /* ★ 세로는 **부감에 눌린다**(2026-09, 지적: "건물 선택 링에 눌림 적용안된듯") — 발자국 px 를 그대로 반지름으로
                  주어 땅 위에 선 동그라미가 아니라 세로로 선 타원이었다. 유닛 링과 같은 눌림(0.31/0.55)을 건다 — 둘이 한 자라야
                  같은 화면의 링끼리 결이 맞는다. 입체 보기는 유닛 링처럼 pitchFlatNow 를 더 곱한다. */
               const ryK9 = (0.31 / 0.55) * (op.pitch ? pitchFlatNow : 1);
-              gl9.prim(2, sx, cy9, wPx * 0.62, Math.max(3, hPx * 0.62 * ryK9), op.color, op.alpha, Math.max(1.1, wPx * 0.012));
+              /* ★ 크기는 **발자국과 그린 몸 중 큰 쪽**이다(같은 지적) — 링은 몸 밑(바닥 도형 패스)에 깔리므로 몸이 발자국보다
+                 넓은 종류(벙커 · 3×2 발자국에 날개가 넓다)에서는 링이 통째로 몸에 덮여 안 보였다. 비(세로/가로)는 그대로 둔다. */
+              const rk9 = Math.max(1, (glBf9.w * gk9 * 0.56) / Math.max(1, wPx * 0.62));
+              /* ⚠ 세로의 자는 hPx 가 **아니다** — 그 상자는 높이 여유(riseOf)까지 든 것이라 키 큰 건물(터렛)에서 링이 세로로
+                 섰다. 발자국의 깊이 ÷ 폭(op.footD)을 폭에 곱한다(없으면 옛 자). */
+              const fdPx9 = op.footD !== undefined ? wPx * op.footD : hPx;
+              gl9.prim(2, sx, cy9, wPx * 0.62 * rk9, Math.max(3, fdPx9 * 0.62 * ryK9 * rk9), op.color, op.alpha, Math.max(1.1, wPx * 0.012));
             }
             gl9.push({ mesh: glB9, ax: gax9, ay: gay9, k: gk9, yoff: op.mkFrac !== undefined ? 0 : -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind), over: true });
             /* ★ 가스 연기는 메시가 아니라 **프레임마다 놓는 덩이**다(2026-09, gl9 gasPush9) — 회전 칸이 소수(엔진)라 시계가 이어진다. */

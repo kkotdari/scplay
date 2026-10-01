@@ -1881,6 +1881,8 @@ export type UnitDrawOp = {
   /** 상자 폭·높이 — 캔버스 '폭'에 대한 분수(스팬의 % 폭 + aspectRatio와 같은 자).
    *  있으면 sizePx 대신 이 상자를 쓴다. */
   wFrac?: number; hFrac?: number;
+  /** 건물 발자국의 **깊이 ÷ 폭**(타일) — hFrac 은 높이 여유(riseOf)까지 든 상자라 땅의 깊이가 아니다. 선택 링이 이것을 쓴다. */
+  footD?: number;
   /** ★ 통로(addonlink)의 **모델 한 칸 = 타일 몇**(그리드 폭 몫) — 있으면 붓이 잉크 상자로 크기를 맞추지 않고 이 배수로
    *  그리고, 모델 원점을 (fx, fy) 에 그대로 앉힌다(engine9 addonLinkGeom9 — 두 벽에서 푼 자리·길이). */
   mkFrac?: number;
@@ -6556,7 +6558,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           // 지면선 — 몸 상자 아랫변(그림자 타원의 아래 끝과 같은 지면).
           baseFy: posFrac(bodyX, groundYT)[1],
           viewYaw: viewYawOf(centerX, centerY), flat: !pitched, pitch: pitched,
-          sizePx: 0, wFrac: wFrac * pulse, hFrac: hFrac * pulse, boxFit: "meet",
+          sizePx: 0, wFrac: wFrac * pulse, hFrac: hFrac * pulse, boxFit: "meet", footD: boxH / boxW,
           /* 전 건물 폭 기준(요청: 바닥을 발자국에, 높이는 제 비율로) — meet
              (min(w,h)) 규칙은 상자가 낮으면 바닥까지 같이 줄여 발자국보다 작은
              바닥을 만들었다(벙커가 유난히 작던 이유와 같은 갈래). 폭을 기준 삼으면
