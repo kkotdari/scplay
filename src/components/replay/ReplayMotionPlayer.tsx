@@ -15985,7 +15985,8 @@ export default function ReplayMotionPlayer({
           왼쪽으로 밀렸다. 목록은 로스터(bases)에서 나므로 자취 없이도 지을 수 있고, 고르는 일은 편성표가 오면 그때 먹는다
           (castOn 은 처음부터 켜져 있다). 줄의 꼴은 처음부터 끝까지 하나다. */}
       {/* (옮김) TV 단추 — 정보줄 맨 왼쪽으로 갔다(2026-09, 요청: "중계버튼 위치를 유저정보 라인 맨 왼쪽으로 이동") · 아래 castBtnNode9. */}
-      {(
+      {/* ★ 폰에는 로스터가 없다 — 단추도 걷는다(2026-09, 요청: "모바일 로스터 사용 x 버튼도 제거") · 아래 판도 같은 문. */}
+      {!smallDevice9 && (
         <button
           type="button"
           /* ★ 두 단계다 — 끔 = 로스터(이름)만 · 켬 = 데이터까지(2026-09, 요청: "로스터 아이콘 사람에서 테이블(표)로 변경 · 로스터
@@ -17419,7 +17420,7 @@ export default function ReplayMotionPlayer({
             아니다. 끈 꼴은 같은 자리에 이름+종족만 남고, 판(바탕·테두리·그림자)은
             안 그린다: 자리·여백을 그대로 두므로 켤 때 글자가 한 톨도 안 움직이고,
             지도를 가리는 것은 판뿐이라 그 판만 걷으면 시야가 열린다. */}
-        {rosterMode !== 2 && !splitOn9 && (
+        {rosterMode !== 2 && !splitOn9 && !smallDevice9 && (
           <div className={cx("scr-fs-panel scr-fs-roster-fixed",
             rosterMode === 0 && "scr-fs-panel-bare")}>
             {teamCol(1, true, rosterMode === 0, true)}

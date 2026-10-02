@@ -101,7 +101,7 @@ export default function ReplayGuide({ onClose }: {
           </div>
           <ul className="scr-guide-legend">
             <li><span className="scr-guide-ic"><Tv size={15}/></span><span><b>중계</b>(버튼 줄 가운데 사람 정보 판의 흰 사각 단추) — 누르면 위로 목록이 펼쳐집니다: <b>사람 이름들 · 자동 · 전체 · 끄기</b>. 아래 <b>중계 고르기</b>에서 자세히.</span></li>
-            <li><span className="scr-guide-ic"><RosterTableIcon size={15}/></span><span><b>로스터 현황</b> — 끄면 <b>이름만</b>, 켜면 일꾼·자원·인구·K/D·APM까지 뜹니다.</span></li>
+            <li><span className="scr-guide-ic"><RosterTableIcon size={15}/></span><span><b>로스터 현황</b> — 끄면 <b>이름만</b>, 켜면 일꾼·자원·인구·K/D·APM까지 뜹니다. <b>PC에만</b> 있습니다(폰은 로스터 대신 가운데 사람 정보 판을 봅니다).</span></li>
             <li><span className="scr-guide-ic"><Palette size={15}/></span><span><b>색</b> — 누를 때마다 색 모드가 바뀝니다. 기본인 개인색에서는 <b>꺼진 버튼</b>(바탕 없음)이고, 팀색·주인공색에서는 버튼의 <b>원그래프</b>가 곧 그 모드입니다(아래 <b>색 모드</b>).</span></li>
             <li><span className="scr-guide-ic scr-guide-ic-txt">2D</span><span><b>보기</b> — 평면(2D)과 입체(3D)를 오갑니다. 언덕·램프는 입체에서 더 잘 읽힙니다. PC에만 있습니다.</span></li>
             <li><span className="scr-guide-ic"><Music size={15}/></span><span><b>음악</b> — 누르면 곡 목록이 펼쳐집니다. 고른 곡은 처음부터, 맨 아래 '끄기'로 끕니다. 처음 들어오면 켜져 있습니다.</span></li>
@@ -176,7 +176,7 @@ export default function ReplayGuide({ onClose }: {
             </li>
             <li>
               <span className="scr-guide-ic scr-guide-ic-txt">이름</span>
-              <span><b>시점 보기</b> — 로스터의 <b>이름</b>을 누릅니다. 그 사람의 시야만 켜고 화면은 안 따라갑니다 —
+              <span><b>시점 보기</b> — 로스터의 <b>이름</b>을 누릅니다(PC). 그 사람의 시야만 켜고 화면은 안 따라갑니다 —
               내가 보고 싶은 곳을 보면서 “저 사람 눈에는 지금 뭐가 보이나”만 겹쳐 볼 때 씁니다.</span>
             </li>
           </ul>

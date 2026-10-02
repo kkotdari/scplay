@@ -6253,3 +6253,6 @@ divisor 1)에 싣고 같은 메시의 개체를 `drawArraysInstanced` 한 번으
 · 분할 칸 머리의 이름도 같은 칩이다(`.scr-split-chip` · 색점 네모 걷음).
 · 🔎 `perf-check --wide|--ios --warm 0 --glblit --info --track 정구 --dockrax --shot x.png` · 접힘은 `--ios … --clickat 362,710`(폰
   손잡이 자리) · 목록은 `--ios --pickshot x.png`. ⚠ 픽스처는 꼬리 단추가 넷(스크랩 포함)이라 폰 판이 93px 로 좁다 — 앱(셋)은 130px 남짓.
+· ★ **폰에는 로스터가 없다**(2026-09, 요청: "모바일 로스터 사용 x 버튼도 제거") — 판(`.scr-fs-roster-fixed`)과 단추를 둘 다
+  `!smallDevice9` 로 막는다(2D/3D 단추와 같은 문). 사람 정보는 가운데 판이 맡고, 단추 하나가 빠진 만큼 그 판이 넓어진다
+  (폰 실측 판 ~130px · 이름 다 든다). B 키·rosterMode 는 그대로다(폰엔 키가 없다). 시점 보기(이름 누르기)는 PC 에만 남는다.
