@@ -6257,7 +6257,10 @@ divisor 1)에 싣고 같은 메시의 개체를 `drawArraysInstanced` 한 번으
     흰 TV 단추까지 검게 칠한다.
 · TV 목록은 **판 가운데 위**로 편다(`.scr-tb-who .scr-motion-pick { position: static }` + 목록 left 50% · translateX(−50%) ·
   max-width 100vw−16) — 판이 줄 가운데라 폰에서도 여덟 이름이 화면 안이다(pickshot `화면 안 true`).
-· **접기 손잡이는 인포창 안 오른 위 귀퉁이의 정사각**(2026-09, 요청: "접고펴기 버튼 정사각형으로 하고 삼각형 크기 키우고
+· ★ **접기 손잡이는 재생 줄의 시계 옆이다 — 접으면 독 줄이 통째로 사라진다**(2026-09, 요청: "접기버튼을 시간표시 옆으로 이동
+  접혔을때 인포창아예 안남게") — `dockFoldNode9` 가 `.scr-tb-seek` 끝에 서고, 접으면 `.scr-fs-dockrow.is-fold { display: none }`.
+  인포창이 손잡이 몫(--dock-foldin)을 비워 두던 여백·폭은 걷었다. 아래 두 줄(인포창 안 귀퉁이 · 접어도 폭 그대로)은 되물렸다.
+· (옛) **접기 손잡이는 인포창 안 오른 위 귀퉁이의 정사각**(2026-09, 요청: "접고펴기 버튼 정사각형으로 하고 삼각형 크기 키우고
   인포창 내부에 배치") — `--dock-fold` 18·dk 정사각 · ▼/▲ · 틀(.scr-fs-dockframe)의 **절대 자식**이라 접어도 남는다(접힌 틀은
   min-height 가 그 손잡이 키). 인포창 몸은 오른쪽에 그 몫(--dock-fold + --dock-foldin)을 비우고, `--dock-w` 도 그만큼 넓다 —
   안 비우면 6×2 격자의 오른 위 칸을 덮는다. 정보줄(.scr-fs-dockcap)·자막 표(.scr-motion-castcap)는 걷었다.

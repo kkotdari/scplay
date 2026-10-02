@@ -16657,7 +16657,9 @@ export default function ReplayMotionPlayer({
       </div>
     </div>
   );
-  /* 접기 손잡이(2026-09, 요청: "프레임모드에도 독 접기 버튼 추가" · "접기버튼은 유저정보말고 독 프레임 어딘가") — 프레임·전체화면
+  /* ★ 접기 손잡이는 **재생 줄의 시계 옆**이다(2026-09, 요청: "접기버튼을 시간표시 옆으로 이동 접혔을때 인포창아예 안남게") —
+     접으면 독 줄(미니맵 + 인포창)이 통째로 사라진다(.scr-fs-dockrow.is-fold). 옛 자리: 아래 주석의 틀 오른 끝·인포창 안 귀퉁이.
+     접기 손잡이(2026-09, 요청: "프레임모드에도 독 접기 버튼 추가" · "접기버튼은 유저정보말고 독 프레임 어딘가") — 프레임·전체화면
      둘 다 먹는다(옛 '전체화면에만'을 되물림). ★ 자리는 **틀의 오른 끝 기둥 위쪽**이다(2026-09, 요청: "접기버튼을 독 우상단으로
      이동" · "접은상태 - 미니맵 인포창 접기") — 정보줄이 툴박스로 나가 틀은 [미니맵 | 인포창 | 접기] 한 줄이고, 접으면 그 손잡이 키만 남는다. */
   const dockFoldNode9 = (
@@ -17506,13 +17508,13 @@ export default function ReplayMotionPlayer({
                 </button>
               </div>
             </div>
-            <div className="scr-tb-seek">{speedNode9}{controlsNode}</div>
+            <div className="scr-tb-seek">{speedNode9}{controlsNode}{dockFoldNode9}</div>
           </div>
-          <div className="scr-fs-dockrow" ref={dockRowRef9}>
+          <div className={cx("scr-fs-dockrow", dockFoldOn9 && "is-fold")} ref={dockRowRef9}>
             {/* 음각 글귀(위 dockMark9) — 틀 오른쪽 쇠 바탕에만. */}
             <span className={cx("scr-fs-dockmark", dockMark9 && "is-on")} ref={dockMarkRef9} aria-hidden>{"scplay.vercel.app    SINCE 2026"}</span>
             {/* 미니맵 + 인포창을 **한 사각 틀**로 묶는다(2026-09, 요청: "미니맵과 인포창을 한데 묶는 사각 프레임 필요 인포창 래디우스 제거"). */}
-            <div className={cx("scr-fs-dockframe", dockFoldOn9 && "is-fold")}>
+            <div className="scr-fs-dockframe">
             <div className="scr-fs-dockmain">
             {(fsOn ? fsMiniOn : true) && (
               <div className="scr-fs-minipanel">
@@ -17542,7 +17544,6 @@ export default function ReplayMotionPlayer({
             )}
               {infoDock9}
             </div>
-            {dockFoldNode9}
             </div>
           </div>
         </div>
