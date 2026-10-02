@@ -9874,13 +9874,18 @@ export default function ReplayMotionPlayer({
     }
     return splitStart9.get(raw9) ?? null;
   };
-  /** 칸 배치 — 2명 1×2 · 3~4명 2×2 · 5~6명 3×2 · 7~8명 3×3(가운데 비움). 사람은 **출발 자리에 가장 가까운 칸**에 앉힌다
+  /** 칸 배치 — 2명 1×2 · 3~4명 2×2 · 5~6명 3×2(세로로 긴 판 2×3) · 7~8명 3×3(가운데 비움 · 세로로 긴 판 2×4). 사람은 **출발 자리에 가장 가까운 칸**에 앉힌다
    *  (요청: "가능하면 스타팅 포인트 위치에 따라 배치") — 칸 가운데와 출발 자리(지도 분수)의 거리 제곱 합이 가장 작은 짝을
    *  다 훑어 고른다(8인이면 8! = 4만 남짓, 한 번이다). 출발 자리를 모르는 사람은 지도 가운데로 본다. */
+  /** 격자 판이 가로보다 세로가 긴가 — 아래 툴박스 키 effect(splitTbH9)가 무대 상자에서 함께 잰다. */
+  const [splitTall9, setSplitTall9] = useState(false);
+  /* ★ **세로가 긴 판에서는 두 줄 기둥이다**(2026-09, 요청: "분할 5-6명 모드에서 화면 가로보다 세로가 길면 2x3으로 변경 ·
+     7-8명도 2x4로") — 3×2·3×3 은 칸이 세로로 눌린 띠가 된다. 2×4 는 칸이 여덟이라 가운데를 비우지 않는다. */
   const splitLay9 = useMemo(() => {
     const n9 = bases.length;
     if (!splitOn9 || n9 < 2) return null;
-    const [cols9, rows9] = n9 <= 2 ? [2, 1] : n9 <= 4 ? [2, 2] : n9 <= 6 ? [3, 2] : [3, 3];
+    const [cols9, rows9] = n9 <= 2 ? [2, 1] : n9 <= 4 ? [2, 2]
+      : n9 <= 6 ? (splitTall9 ? [2, 3] : [3, 2]) : (splitTall9 ? [2, 4] : [3, 3]);
     const slots9: [number, number][] = [];
     for (let r9 = 0; r9 < rows9; r9 += 1) {
       for (let c9 = 0; c9 < cols9; c9 += 1) {
@@ -9918,7 +9923,7 @@ export default function ReplayMotionPlayer({
       cols: cols9, rows: rows9,
       cells: bases.map((b9, i) => ({ raw: b9.key, c: slots9[bestAs9[i]][0], r: slots9[bestAs9[i]][1] })),
     };
-  }, [splitOn9, bases, splitStart9, grid.width, grid.height]);
+  }, [splitOn9, splitTall9, bases, splitStart9, grid.width, grid.height]);
   const visAll = viewTeam !== 1 && viewTeam !== 2;
   /** 안개를 셈할 재료가 있나 — 자취가 없는 옛 기록은 종전대로 통째로 보인다. */
   // 안개는 개체 트랙이 있을 때만(옛 경기는 없다) — 걷기(entWalks)는 이제 추적을 켤 때만 받으므로 그 길이로 가리면 안 된다.
@@ -13811,7 +13816,12 @@ export default function ReplayMotionPlayer({
     const stg9 = stageRef.current;
     const tb9 = stg9?.parentElement?.querySelector<HTMLElement>(".scr-tb") ?? null;
     if (!stg9 || !tb9) return undefined;
-    const read9 = (): void => setSplitTbH9(Math.max(0, Math.round(stg9.getBoundingClientRect().bottom - tb9.getBoundingClientRect().top)));
+    const read9 = (): void => {
+      const r9 = stg9.getBoundingClientRect();
+      const h9 = Math.max(0, Math.round(r9.bottom - tb9.getBoundingClientRect().top));
+      setSplitTbH9(h9);
+      setSplitTall9(r9.height - h9 > r9.width);   // 격자 판(무대 − 가려지는 몫)이 세로로 긴가
+    };
     read9();
     const raf9 = requestAnimationFrame(read9);
     window.addEventListener("resize", read9);
