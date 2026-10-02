@@ -3349,9 +3349,22 @@
   .scr-tb .scr-tb-btnrow .scr-motion-mapbtns button.scr-motion-mapbtn:not(.is-on):not(.is-team):not(.is-hero):hover,
   .scr-tb .scr-tb-tail .scr-kakao-share-btn:hover { background: #1a2028; }
 }
+/* ★ 재생 줄은 **우물 없이 쇠 위에 바로** 선다(2026-09, 요청: "재생컨트롤부분 검정배경 없애기") — 그래서 그 줄만 잉크를 뒤집는다:
+   재생 단추·탐색바·시계가 흰 잉크면 밝은 쇠에서 안 읽히므로 **어두운 잉크 + 아래 흰 한 줄**(독의 음각 글귀와 같은 결)이다.
+   배속 단추는 형제 단추처럼 우물이다(아래 규칙). 탐색바의 차지 않은 몫은 판 홈(어두운 반투명)이다. */
 .scr-tb .scr-tb-seek {
-  padding: 2px 8px; background: #0a0d12;
-  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.22);
+  padding: 0 2px;
+  --text: #12161c; --dim: rgba(18, 22, 28, 0.82); --line-soft: rgba(0, 0, 0, 0.26);
+}
+.scr-tb .scr-tb-seek .scr-motion-play { filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.35)); }
+.scr-tb .scr-tb-seek .scr-motion-clock { font-weight: 700; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35); }
+.scr-tb .scr-tb-seek .scr-motion-range::-webkit-slider-runnable-track { box-shadow: 0 1px 0 rgba(255, 255, 255, 0.35); }
+.scr-tb .scr-tb-seek .scr-motion-range::-moz-range-track { box-shadow: 0 1px 0 rgba(255, 255, 255, 0.35); }
+.scr-tb .scr-tb-seek .scr-motion-range::-webkit-slider-thumb { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5), 0 1px 2px rgba(0, 0, 0, 0.5); }
+.scr-tb .scr-tb-seek .scr-motion-range::-moz-range-thumb { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5), 0 1px 2px rgba(0, 0, 0, 0.5); }
+.scr-tb .scr-tb-speed button.scr-motion-mapbtn:not(.is-on) {
+  background: #0d1116;
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 .scr-tb-btnrow { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .scr-tb-tail { display: flex; align-items: center; gap: 6px; flex: none; margin-left: auto; }
