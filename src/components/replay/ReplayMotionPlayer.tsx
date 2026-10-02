@@ -17411,6 +17411,7 @@ export default function ReplayMotionPlayer({
                     viewAt={splitOn9
                       ? ((z9, p9) => (splitPick9 ? splitViewRef9.current.get(splitPick9) : undefined) ?? fsViewAt(z9, p9))
                       : fsViewAt}
+                    viewColor={splitOn9 && splitPick9 ? modeColor(splitPick9, teamOfRaw(splitPick9)) : undefined}
                     zoom={zoom} pan={pan}
                     painter={miniPaintRef} live={viewLive9}
                     onSeek={fsSeek}
