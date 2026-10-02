@@ -2617,19 +2617,17 @@
    독 프레임 어딘가 적당히" → "접기 손잡이 정사각형으로 위쪽에 배치하고 독내용 가운데 정렬 안깨뜨리게 하기") — 한때 두 줄을 세로로
    다 걸친 기둥이었는데, 그 기둥이 아래 줄(미니맵 + 인포창)의 폭을 먹어 독 내용이 왼쪽으로 쏠렸다. 이제 **정보줄 줄에만** 서는
    정사각(한 변 = 정보줄 키)이고 아래 줄은 틀의 온 폭을 쓴다. 정보줄은 왼쪽에 같은 몫을 비워(아래 dockcap 의 padding-left) 글귀가
-   틀 한가운데에 그대로 선다. 결은 세로 · 가운데 홈 둘이 쥘 자리다. */
+   틀 한가운데에 그대로 선다. 결은 세로 · 홈·안쪽 베벨은 걷었다(삼각형이 곧 쥘 자리다). */
 .scr-motion-infodock-fold {
   grid-column: 2; grid-row: 1; align-self: stretch;
   width: var(--dock-cap); height: var(--dock-cap); min-height: 0; padding: 0; border-radius: 0; cursor: pointer; box-sizing: border-box;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(1.5px * var(--dkd));
-  border: 1px solid #0b0d10; color: #20252b; font-size: max(9px, calc(6px * var(--dkd))); line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  /* 삼각형은 정사각의 절반 남짓(요청: "버튼 삼각형 크기 키우고 내부 테두리는 제거") — 홈 둘·안쪽 베벨을 걷고 바깥 1px 테만 남긴다. */
+  border: 1px solid #0b0d10; color: #20252b; font-size: calc(13px * var(--dkd)); line-height: 1;
   background:
     repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 2px),
     linear-gradient(180deg, #c3c9d0 0%, #a3abb4 45%, #8d959e 55%, #747c85 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 0 -1px 0 rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.5);
-}
-.scr-motion-infodock-fold::before, .scr-motion-infodock-fold::after {
-  content: ""; width: 50%; height: 1px; background: rgba(0, 0, 0, 0.35); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 .scr-motion-infodock-fold:hover { filter: brightness(1.1); }
 /* 몸은 정보줄이 비운 키까지 받는다(요청: "그만큼 남는 높이는 인포창이 사용") — 옛 띠(--dock-cap + 1px 새긴 줄)만큼 늘어 독 줄의 온
