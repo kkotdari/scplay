@@ -2600,8 +2600,12 @@
 /* TV 단추(중계·추적 목록)는 정보줄의 **닉네임 바로 왼쪽**이다(2026-09, 요청: "중계버튼 위치를 유저정보 라인 맨 왼쪽으로 이동" →
    "중계버튼 크기 줄이고 닉네임 왼쪽으로") — 자막(castcap)과 한 덩이로 가운데에 선다(흐름 속 첫 칸 · 자막이 없으면 홀로 가운데).
    원은 14·dkd(옛 18). 목록은 위로 펼쳐져 툴박스를 덮는다(정보줄 z 13). */
+/* ★ **다시 맨 왼쪽에 못 박았다**(2026-09, 요청: "중계 아이콘 다시 줄 맨 왼쪽으로 고정") — 흐름 속 첫 칸이면 자막 글귀 폭에 따라
+   사람이 갈릴 때마다 자리가 옮겨 다닌다. 정보줄이 왼쪽에 비워 둔 몫(접기 정사각과 같은 --dock-cap + 틈) 안에 절대 자리로 서므로
+   글귀는 여전히 틀 한가운데이고 단추는 늘 같은 자리다. */
 .scr-fs-dockcap .scr-fs-dockcast {
-  position: relative; flex: none; margin-right: calc(2px * var(--dk));
+  position: absolute; left: calc((var(--dock-cap) + var(--dock-bez) - 14px * var(--dk)) / 2); top: 50%; transform: translateY(-50%);
+  flex: none; margin: 0;
   --mapbtn-h: calc(14px * var(--dk)); --mapbtn-gap: 0px;
 }
 .scr-fs-dockcast button.scr-motion-mapbtn svg { width: calc(7px * var(--dk)); height: calc(7px * var(--dk)); }
@@ -2630,7 +2634,8 @@
 .scr-motion-infodock-body { height: var(--dock-h); padding: calc(6px * var(--dk)) var(--dock-padx); box-sizing: border-box; }
 .scr-motion-infodock-empty {
   height: 100%; display: flex; align-items: center; justify-content: center;
-  font-size: calc(11px * var(--dk)); color: rgba(255, 255, 255, 0.45);
+  /* 글자는 한 단 작다(요청: "인포창 비었을때 안내문 폰트 줄이기" — 11 → 8·dk). */
+  font-size: calc(8px * var(--dk)); color: rgba(255, 255, 255, 0.45);
 }
 /* 하나 — [실루엣·숫자] [글] [큐·탄 몸] */
 /* ★ 격자 둘·셋 칸이다(2026-09, 요청: "유닛 건물 이름을 메인 아이콘 위로") — 1행은 이름이 그림 칸과 글 칸 머리를 가로지르고, 2행에
