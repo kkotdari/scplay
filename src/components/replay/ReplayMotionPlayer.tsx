@@ -7,11 +7,12 @@ import {
 import { createPortal } from "react-dom";
 import { useBgm } from "./useBgm";
 import RosterTableIcon from "./RosterTableIcon";
-import { Bookmark, Check, CircleHelp, Map as MapIcon, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Share2, Tv } from "lucide-react";
+import { Bookmark, Check, Map as MapIcon, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Share2, Tv } from "lucide-react";
 /** 건설 명령 고스트 판의 색(원작의 배치 미리보기 초록) — 짙기는 op.plateAlpha 가 든다. */
 const GHOST_PLATE_COL9 = "#3ee06a";
 /** 툴박스가 손을 뗀 뒤 아이콘 하나로 접히기까지(2026-09, 요청: "안쓰면 몇초뒤 아이콘 하나로 최소화"). */
 import ReplayGuide from "./ReplayGuide";
+import QMarkIcon from "./QMarkIcon";
 /* 중계(중요도 기반 추적) — 편성표를 굽는 순수 문. 경기 한 벌에 한 번 돌고, 재생은 짚기만 한다. */
 import { castAt9, castPlan9, type CastSeg9 } from "./cast9";
 /* 미니맵 — 이제 **제 오버레이 판**이고 제 아이콘으로 여닫는다(요청: "미니맵 오버레이
@@ -9926,11 +9927,12 @@ export default function ReplayMotionPlayer({
   /** 격자 판이 가로보다 세로가 긴가 — 아래 툴박스 키 effect(splitTbH9)가 무대 상자에서 함께 잰다. */
   const [splitTall9, setSplitTall9] = useState(false);
   /* ★ **세로가 긴 판에서는 두 줄 기둥이다**(2026-09, 요청: "분할 5-6명 모드에서 화면 가로보다 세로가 길면 2x3으로 변경 ·
-     7-8명도 2x4로") — 3×2·3×3 은 칸이 세로로 눌린 띠가 된다. 2×4 는 칸이 여덟이라 가운데를 비우지 않는다. */
+     7-8명도 2x4로") — 3×2·3×3 은 칸이 세로로 눌린 띠가 된다. 2×4 는 칸이 여덟이라 가운데를 비우지 않는다.
+     2명도 같은 자로 위아래 1×2 다(요청: "2명분할모드도 세로가 더 길면 위아래로"). */
   const splitLay9 = useMemo(() => {
     const n9 = splitBases9.length;
     if (!splitOn9 || n9 < 2) return null;
-    const [cols9, rows9] = n9 <= 2 ? [2, 1] : n9 <= 4 ? [2, 2]
+    const [cols9, rows9] = n9 <= 2 ? (splitTall9 ? [1, 2] : [2, 1]) : n9 <= 4 ? [2, 2]
       : n9 <= 6 ? (splitTall9 ? [2, 3] : [3, 2]) : (splitTall9 ? [2, 4] : [3, 3]);
     const slots9: [number, number][] = [];
     for (let r9 = 0; r9 < rows9; r9 += 1) {
@@ -17497,7 +17499,7 @@ export default function ReplayMotionPlayer({
                 {/* 사용법도 **PC 에만**이다(2026-09, 요청: "도움말 버튼도 로스터버튼과 함께 pc에서만 보이기"). */}
                 {guide && !fsOn && !smallDevice9 && (
                   <button type="button" className="scr-kakao-share-btn scr-guide-btn" onClick={openGuide9} aria-label="사용법" title="사용법">
-                    <CircleHelp size={18} aria-hidden />
+                    <QMarkIcon size={18} />
                   </button>
                 )}
                 {/* 전체화면 켜고 끄기는 줄의 **맨 오른쪽**이다(2026-09, 요청: "전체화면 온오프 버튼은 가장 오른쪽에 배치"). */}

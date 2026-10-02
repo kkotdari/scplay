@@ -3342,7 +3342,7 @@
    솟은 몫이 지도 위에 서려면 이 판이 z 를 가져야 한다(그 안의 TV 목록 z 7600 은 이 판의 문맥 안에서 무대보다 위다).
    목록은 판 가운데 위로 편다 — 판은 줄 가운데라 폰에서도 여덟 이름(360px)이 화면 안에 든다. */
 .scr-tb-who {
-  --who-up: 5px; --who-cast: 18px; --who-bez: 3px;
+  --who-up: 9px; --who-cast: 18px; --who-bez: 3px;
   position: relative; z-index: 2; container-type: inline-size;
   justify-self: center; width: 100%; max-width: var(--who-max); min-width: 0; align-self: stretch;
   margin: calc(-1 * (var(--tb-padt) + var(--who-up))) 0 0;
@@ -3375,8 +3375,8 @@
 }
 .scr-tb-who-in {
   flex: 1 1 auto; min-width: 0;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
-  padding: 3px 8px 3px; box-sizing: border-box;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+  padding: 5px 8px 5px; box-sizing: border-box;
   background: #0a0d12; color: #e8eef6; border-radius: 4px 4px 3px 3px; margin-bottom: 3px;
   box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.3);
 }

@@ -1,5 +1,6 @@
-import { Bookmark, CircleHelp, Map as MapIcon, Maximize, Music, Palette, Play, Share2, Tv, X } from "lucide-react";
+import { Bookmark, Map as MapIcon, Maximize, Music, Palette, Play, Share2, Tv, X } from "lucide-react";
 import RosterTableIcon from "./RosterTableIcon";
+import QMarkIcon from "./QMarkIcon";
 function K({ keys, plus = false, title, desc }: {
     keys: string[];
     plus?: boolean;
@@ -96,7 +97,7 @@ export default function ReplayGuide({ onClose }: {
             <span className="scr-guide-mbtn"><Music size={18}/></span>
             <span className="scr-guide-tpill"><Bookmark size={15}/></span>
             <span className="scr-guide-tpill"><Share2 size={15}/></span>
-            <span className="scr-guide-tpill"><CircleHelp size={15}/></span>
+            <span className="scr-guide-tpill"><QMarkIcon size={15}/></span>
             <span className="scr-guide-tpill"><Maximize size={15}/></span>
           </div>
           <ul className="scr-guide-legend">
@@ -105,7 +106,7 @@ export default function ReplayGuide({ onClose }: {
             <li><span className="scr-guide-ic"><Palette size={15}/></span><span><b>색</b> — 누를 때마다 색 모드가 바뀝니다. 기본인 개인색에서는 <b>꺼진 버튼</b>(바탕 없음)이고, 팀색·주인공색에서는 버튼의 <b>원그래프</b>가 곧 그 모드입니다(아래 <b>색 모드</b>).</span></li>
             <li><span className="scr-guide-ic scr-guide-ic-txt">2D</span><span><b>보기</b> — 평면(2D)과 입체(3D)를 오갑니다. 언덕·램프는 입체에서 더 잘 읽힙니다. PC에만 있습니다.</span></li>
             <li><span className="scr-guide-ic"><Music size={15}/></span><span><b>음악</b> — 누르면 곡 목록이 펼쳐집니다. 고른 곡은 처음부터, 맨 아래 '끄기'로 끕니다. 처음 들어오면 켜져 있습니다.</span></li>
-            <li><span className="scr-guide-ic"><CircleHelp size={15}/></span><span><b>사용법</b> — 지금 보고 있는 이 안내입니다(PC · 프레임에서만).</span></li>
+            <li><span className="scr-guide-ic"><QMarkIcon size={15}/></span><span><b>사용법</b> — 지금 보고 있는 이 안내입니다(PC · 프레임에서만).</span></li>
             <li><span className="scr-guide-ic"><Maximize size={15}/></span><span><b>전체화면</b> — 줄의 맨 오른쪽. 전체화면에서는 사용법 버튼이 빠지고, <b>미니맵</b>(<MapIcon size={12}/>) 버튼이 함께 서서 아래 작은 지도를 여닫습니다.</span></li>
           </ul>
         </div>
