@@ -3283,7 +3283,8 @@
   /* 모서리는 각지고 판은 더 옅다(2026-09, 요청: "툴바배경 래디우스 제거 및 좀더 투명하게(전체화면 프레임모드 둘다)") — 옛 12px · 0.52. */
   /* 위 여백은 한 단 넉넉하다(2026-09, 요청: "툴박스 내부 위쪽 패딩 증가시키기" — 옛 6). */
   --tb-padt: 10px;
-  padding: var(--tb-padt) 8px 6px; border-radius: 0; box-sizing: border-box;
+  /* 아래 여백은 한 단 얇다(2026-09, 요청: "재생툴바 아래 패딩 살짝 줄이고" — 6 → 3). */
+  padding: var(--tb-padt) 8px 3px; border-radius: 0; box-sizing: border-box;
   /* 판은 이제 **쇠**다(위 ★★ — 감싸개의 쇠판 위에 선다) · 옛 반투명 판(0.34)·흐림은 걷었다. */
   background: none; color: var(--text);
   box-shadow: none;
@@ -3338,14 +3339,22 @@
   justify-self: center; width: 100%; max-width: var(--who-max); min-width: 0; align-self: stretch;
   margin: calc(-1 * (var(--tb-padt) + var(--who-up))) 0 0;
   display: flex; box-sizing: border-box;
-  /* ★ 솟은 몫까지 **쇠 테두리**로 감싼다(2026-09, 요청: "튀어나온부분도 쇠테두리로 감싸기") — 바깥은 쇠판과 같은 광택의 테,
-     그 안이 어두운 우물(-in)이다. 아래는 쇠판 위에 그대로 앉는다. */
+  /* ★ 솟은 몫까지 **쇠 테두리**로 감싼다(2026-09, 요청: "튀어나온부분도 쇠테두리로 감싸기") — 그 쇠는 **쇠판 자체가 솟은 것**이다
+     (재요청: "테두리가 독과 자연스럽게 합쳐지게 경계없이"). 판 안쪽 몫은 바탕이 없어 쇠판이 그대로 비치고, 쇠판 위로 솟은 몫만
+     ::before 가 쇠판 윗변과 같은 색·결·윗변 선(검은 1px + 흰 입술)으로 채운다. 그 조각은 쇠판 윗변 선 두 줄까지 덮어 내려오므로
+     판 자리에서 쇠판의 윗선이 끊기고 판의 테두리가 그대로 이어진다 — 이음매가 없다. 그 안이 어두운 우물(-in)이다. */
   padding: var(--who-bez) var(--who-bez) 0;
-  border: 1px solid #0b0d10; border-bottom: none; border-radius: 7px 7px 0 0;
+  border: none; background: none; box-shadow: none;
+}
+.scr-tb-who::before {
+  content: ""; position: absolute; z-index: -1; left: 0; right: 0; top: 0;
+  height: calc(var(--who-up) + 2px);
+  border: 1px solid #0b0d10; border-bottom: none; border-radius: 7px 7px 0 0; box-sizing: border-box;
   background:
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.06) 0 1px, transparent 1px 3px),
-    linear-gradient(180deg, #c6ccd3 0%, #a7afb8 30%, #8f979f 60%, #89919a 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 -2px 6px rgba(0, 0, 0, 0.35);
+    repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px 2px),
+    repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.09) 0 1px, transparent 1px 3px),
+    #b4bac2;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 -1px 3px rgba(0, 0, 0, 0.3);
 }
 .scr-tb-who-in {
   flex: 1 1 auto; min-width: 0;
@@ -3419,7 +3428,7 @@
   .scr-tb-tail .scr-kakao-share-btn:hover { background: rgba(255, 255, 255, 0.18); }
 }
 @media (max-width: 1159px) {
-  .scr-tb { --tb-padt: 9px; padding: var(--tb-padt) 6px 5px; }
+  .scr-tb { --tb-padt: 9px; padding: var(--tb-padt) 6px 2px; }
   .scr-tb-tail { gap: 5px; }
 }
 /* (걷어냄) PC 한 줄 — 이제 어느 폭에서나 [단추 줄] / [재생·탐색바·시계] 두 줄이다(2026-09, 요청: "피시에서도 버튼하고
