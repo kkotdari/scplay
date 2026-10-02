@@ -4048,13 +4048,19 @@
    "해당 모드에서는 로스터 숨기고 대신 각 화면 위에 닉네임과 자원 인구 apm k/d 표시") — 무대를 통째로 덮는 칸들이다(무대가 제
    겹 문맥이라 지도 안의 높은 z 층보다 위에 서면 된다). 아래는 툴박스 키만큼 비운다(인라인 padding-bottom — 판은 끝까지 덮는다). 칸 그림은 붓이 칸
    캔버스에 베껴 넣는다(splitPaint9). 칸 사이 틈은 바탕색 — 그 밑의 지도(마지막 칸의 그림)가 비치지 않게 판 자체가 불투명이다. */
-.scr-split {
-  position: absolute; inset: 0; z-index: 40000; box-sizing: border-box;
-  display: grid; gap: 2px; background: #05070a;
+.scr-split, .scr-split-under {
+  position: absolute; inset: 0; box-sizing: border-box;
+  display: grid; gap: 2px;
 }
+/* ★★ 칸은 **세 층**이다(2026-09, 지적: "흐리고 버벅여" — 칸 캔버스로 베끼던 길을 걷었다): ① 밑 층(.scr-split-under · 지도 아래)
+   — 칸 사이 틈의 바탕색과 칸마다 땅 ② 본 지도의 유닛·GL·효과 캔버스 — splitPaint9 가 칸 네모에 제자리로 칠한다(나머지 층은
+   숨는다) ③ 위 층(.scr-split) — 칸 머리·누른 칸 테·누름. 위 층은 비어 있어야 몸이 보인다. */
+.scr-split-under { z-index: 0; background: #05070a; pointer-events: none; }
+.scr-split-ucell { position: relative; min-width: 0; min-height: 0; background: #0b0d10; overflow: hidden; }
+.scr-split { z-index: 40000; background: transparent; }
 .scr-split-cell {
   position: relative; min-width: 0; min-height: 0; padding: 0; margin: 0; border: 0;
-  background: #0b0d10; cursor: pointer; overflow: hidden;
+  background: transparent; cursor: pointer; overflow: hidden;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
 }
 .scr-split-cell.is-pick::after {
@@ -4103,3 +4109,5 @@
    걷어 내지는 않고(크기가 살아 있어야 칠하고 베낀다) 보이지만 않게 둔다. 밤하늘 바탕도 함께. */
 .scr-fs-stage.is-split > .scr-motion-map,
 .scr-fs-stage.is-split > .scr-fs-space { visibility: hidden; }
+/* 단 몸·효과 캔버스는 보인다 — 칸 붓이 그 판의 칸 네모에 제자리로 칠한다(splitPaint9 의 ★★). */
+.scr-fs-stage.is-split > .scr-motion-map > .scr-motion-unitlayer { visibility: visible; }

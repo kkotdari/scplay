@@ -243,8 +243,6 @@ const STORM_SEEDS = 2;
 const XF_ID9 = "translate(0px, 0px) scale(1)";
 /** 유닛 층 캔버스 셋(유닛·GL·효과 — 같은 클래스) — 손짓 변환은 셋에 다 건다. */
 const GL_HIDE9: React.CSSProperties = { display: "none" };
-/** 분할보기 — 한 장(틱)에 칸을 칠하는 예산(ms). 넘으면 남은 칸은 다음 틱으로 미룬다(차례로 돈다). */
-const SPLIT_BUDGET_MS9 = 14;
 /** 독 줄 음각 글귀 — 틀 옆 쇠 바탕이 글귀 폭보다 이만큼(px) 넘게 남을 때만 새긴다(양옆 여백 몫). */
 const DOCK_MARK_PAD9 = 40;
 /** 분할보기 칸 카메라의 가장자리 띠 — 그 사람이 창의 이 몫 안쪽에 있는 동안은 카메라를 안 옮긴다. */
@@ -254,7 +252,28 @@ const SPLIT_EDGE9 = 0.12;
 let PAINT_CLIP9: [number, number, number, number] | null = null;
 /** 분할보기 칸을 칠하는 배킹 배수 상한(2026-09, 요청: "모바일에서 모델많아지면 좀 버벅이는거같거든" → "피시도 적용") —
  *  칸은 작게 베껴지므로 그 판을 기기 화소(폰 3)로 칠하면 칠한 화소의 대부분을 버린다. 칸 캔버스의 배킹도 같은 값이다. */
-const SPLIT_DPR9 = 1.5;
+/** 분할보기 칠하기 계량기(SCR_DIAG.split) — 장·칸·칠·땅을 1초마다 묶는다. */
+const SPLIT_M9 = { at: 0, frames: 0, cells: 0, paint: 0, copy: 0 };
+/** 칸 땅 캔버스가 마지막으로 그린 카메라·크기 — 같으면 안 다시 그린다. */
+const SPLIT_TERR_KEY9 = new WeakMap<HTMLCanvasElement, string>();
+/** 분할 칸의 2D 오림(clip) — 붓이 칸마다 save·clip 을 걸고, 다음 칠하기의 머리(또는 분할 칠하기 끝)에서 푼다.
+ *  붓에는 이른 return 이 여럿이라 끝에서 풀 자리가 없다 — 그래서 '걸어 둔 것이 있으면 푼다'를 캔버스에 적어 둔다. */
+const CLIP_ON9 = new WeakSet<CanvasRenderingContext2D>();
+const clipEnd9 = (c: CanvasRenderingContext2D): void => { if (CLIP_ON9.has(c)) { c.restore(); CLIP_ON9.delete(c); } };
+/** 칸 네모만 지우고 그 안으로 오린다(PAINT_CLIP9 이 없으면 통째로 지운다) — 변환은 Bd 로 세워 둔 채로 부른다. */
+const clipBegin9 = (c: CanvasRenderingContext2D, cw: number, ch: number): void => {
+  clipEnd9(c);
+  const pk9 = PAINT_CLIP9;
+  if (!pk9) { c.clearRect(0, 0, cw, ch); return; }
+  const w9 = pk9[2] - pk9[0];
+  const h9 = pk9[3] - pk9[1];
+  c.clearRect(pk9[0], pk9[1], w9, h9);
+  c.save();
+  c.beginPath();
+  c.rect(pk9[0], pk9[1], w9, h9);
+  c.clip();
+  CLIP_ON9.add(c);
+};
 const unitCanvases9 = (root: HTMLElement | null): HTMLCanvasElement[] => root ? Array.from(root.querySelectorAll<HTMLCanvasElement>(".scr-motion-unitlayer")) : [];
 /** GL 붓이 못 맡아 판으로 떨어진 종류별 횟수(진단 'GL' 줄의 '판으로'). */
 const GL_MISS9 = new Map<string, number>();
@@ -4463,7 +4482,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           : xfMsRef9.v >= XF_HEAVY_MS9 ? 0.5
             : xfMsRef9.v >= 25 ? 0.7 : 1;
       if (gest9) { if (kWant9 < xfBackK9.k) xfBackK9.k = kWant9; } else xfBackK9.k = 1;
-      const Bd = PAINT_CLIP9 ? Math.min(B, SPLIT_DPR9) : gest9 ? B * xfBackK9.k : B;   // 분할 칸은 SPLIT_DPR9 로(위 ★)
+      const Bd = gest9 ? B * xfBackK9.k : B;   // 분할 칸도 본 화면의 배킹 그대로다(splitPaint9 의 ★★ — 칸을 제자리에 칠한다)
       /* ★ 그림자도 **배킹과 같은 자로** 접는다(지적: "드래그 중에 그림자 없어지는 거 봤어") — 위 깃발은 손짓이면
          무조건 그림자를 접었는데, 배킹은 손짓 프레임이 25ms를 넘을 때만 내린다. 6ms 벤치 PC의 손짓 프레임은
          그 문턱 한참 아래라 접을 까닭이 없고, 접으면 끌 때마다 그림자가 깜빡 사라진다. 배킹을 내린 손짓
@@ -4513,7 +4532,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       const fxCtx9 = vec9 ? (vec9 as unknown as CanvasRenderingContext2D) : (fctx9 ?? ctx);
       if (fctx9 && fcv9) {
         // 심이 그리는 동안 효과 캔버스는 빈 채로 둔다 — 비우기는 한 번이면 된다(프레임마다 온 화면을 지우는 값을 안 치른다).
-        if (!vec9 || !FX_CLEAN9.has(fcv9)) { fctx9.setTransform(Bd, 0, 0, Bd, 0, 0); fctx9.clearRect(0, 0, cw, ch); }
+        if (!vec9 || !FX_CLEAN9.has(fcv9)) { clipEnd9(fctx9); fctx9.setTransform(Bd, 0, 0, Bd, 0, 0); clipBegin9(fctx9, cw, ch); }
         if (vec9) FX_CLEAN9.add(fcv9); else FX_CLEAN9.delete(fcv9);
       }
       if (vec9) { vec9.qual = DEV9.fxQual; vec9.reset(); vec9.setTransform(Bd, 0, 0, Bd, 0, 0); }
@@ -4529,8 +4548,9 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       /* 등급도 굽는 배율을 따른다 — 손짓 중에 등급이 바뀌면 그 프레임에 판을 통째로
          다시 구워야 한다(굽는 크기를 못 박아 둔 뜻이 없어진다). */
       lodSetZoom(bakeZoom);
+      clipEnd9(ctx);
       ctx.setTransform(Bd, 0, 0, Bd, 0, 0);
-      ctx.clearRect(0, 0, cw, ch);
+      clipBegin9(ctx, cw, ch);   // 분할 칸이면 그 네모만 지우고 오린다(splitPaint9 의 ★★)
       glFx9 = !!gl9;   // 효과 모델(폭풍·핵)도 GL 이 맡는다 — drawDomFx9 가 판을 안 굽게   // #gl=1 이면 유닛 몸통을 GPU 큐에 넣고, 프레임 끝에서 한 번 그린다(아래)
       /* (제거·요청) 도형 드롭섀도 — 건물·유닛 그림자를 다 걷었다(떠다니는 것 제외).
          떠 있음은 아래 hover 분기의 발밑 타원만 말한다. */
@@ -13806,11 +13826,9 @@ export default function ReplayMotionPlayer({
   /* ── 분할보기의 붓(위 splitOn9) ──────────────────────────────────────────────────────────────────────────
      ★★ 붓을 칸 수만큼 갈래 짓지 않는다 — 유닛·GL 붓은 '한 배율·한 팬으로 무대 크기 판을 칠하는' 한 벌이고 그 안에 수천 줄의
      자(LOD·그림자·효과·덜어내기)가 들어 있다. 그래서 칸마다 **그 사람의 중계 화면**(배율 trackZoom9 · 그 사람이 한가운데)을
-     한 장 칠하고, 그 판의 가운데에서 칸의 비(가로:세로)로 가장 크게 드는 네모를 오려 칸 캔버스에 베낀다 — 지형(평면 한 장을
-     따로 구워 둔다) → 유닛 캔버스(크립·링·바) → GL(몸) → 효과 차례다. 곧 칸은 '그 사람을 중계할 때의 화면'을 줄인 그림이다.
-     · 안개·DOM 효과(클릭 자국·핑)는 안 베낀다 — 관전자 시야라 안개가 없고, 자국은 칸 크기에서 안 읽힌다.
-     · 한 장에 다 칠하면 칸 수만큼 값이 곱해지므로 **예산**(SPLIT_BUDGET_MS9) 안에서 차례로 돌린다 — 무거우면 칸마다 박자가 준다.
-     · GL 판은 미리곱 알파·preserveDrawingBuffer 없음이라 **칠한 그 자리(같은 일 안)**에서 곧장 베낀다. */
+     칸의 화면 네모에 **제자리로** 칠한다(splitPaint9 의 ★★ — 옛 '판 가운데를 오려 칸 캔버스에 베끼기'는 걷었다). 땅은 칸 밑 층이
+     따로 진다. 곧 칸은 '그 사람을 중계할 때의 화면'을 줄인 그림이다.
+     · 안개·DOM 효과(클릭 자국·핑)는 안 그린다 — 관전자 시야라 안개가 없고, 자국은 칸 크기에서 안 읽힌다. */
   /** 무대 바닥이 툴박스(전체화면은 독까지)에 가려지는 몫 — 분할 격자는 그만큼 위에서 끝난다.
    *  판(바탕)은 무대 끝까지 덮는다 — 반투명 툴박스 밑으로 숨은 지도(마지막 칸의 그림)가 비치지 않게. */
   const [splitTbH9, setSplitTbH9] = useState(0);
@@ -13845,7 +13863,6 @@ export default function ReplayMotionPlayer({
   /** 칸마다 마지막으로 칠한 창(지도 분수 cx·cy·w·h) — 미니맵이 누른 사람의 것을 흰 네모로 그린다(요청: "미니맵은 현재 선택한
    *  사람 화면의 미니맵을 적용"). */
   const splitViewRef9 = useRef(new Map<string, { cx: number; cy: number; w: number; h: number }>());
-  const splitRrRef9 = useRef(0);
   const splitTerrRef9 = useRef<HTMLCanvasElement | null>(null);
   useEffect(() => {
     if (!splitOn9) return undefined;
@@ -13868,48 +13885,65 @@ export default function ReplayMotionPlayer({
     return () => { dead9 = true; };
   }, [splitOn9, grid]);
   const splitPaint9 = (tNow9: number): void => {
+    /* ★★ 칸은 **제자리에** 칠한다 — 베끼지 않는다(2026-09, 지적: "흐리고 버벅여") ─────────────────────────────
+       옛 길은 칸마다 무대 판을 한 장 칠하고 그 가운데를 칸 캔버스로 drawImage 했다. 재 보니(SCR_DIAG.split) 칠하기는 칸당
+       3ms 인데 **베끼기가 228ms**(폰 프로필 · GL 판을 2D 판으로 옮기면 GPU 가 그 자리에서 판을 내려 줘야 한다)였고, 칸 배킹을
+       1.5 로 죈 탓에 흐리기까지 했다. 이제 유닛·GL·효과 캔버스(무대 크기 · 제 배킹 그대로)를 **그대로 보이게 두고**, 칸마다
+       그 칸의 화면 네모(PAINT_CLIP9)에 그 사람의 화면이 앉도록 팬을 옮겨 칠한다 — 2D 는 그 네모로 오리고, GL 은 가위로
+       지우고·그리고·옮긴다. 베끼기가 없고 해상도가 본 화면과 같다.
+       · ⚠ **한 장에 칸을 다 칠한다** — GL 캔버스(preserveDrawingBuffer 없음)는 합성 뒤 비워지므로 칸을 나눠 칠하면 안 칠한 칸이 빈다.
+       · 땅은 칸 밑 층(.scr-split-under)의 칸 캔버스가 진다(카메라가 갈릴 때만 다시 그린다). 칸 머리·테·누름은 위 층(.scr-split)이다. */
     const lay9 = splitLayRef9.current;
     const paint9 = unitPaintRef.current;
     if (!lay9 || !paint9) return;
     const cvs9 = unitCanvases9(mapRef.current);
     const ucv9 = cvs9.find((c) => !c.classList.contains("scr-motion-gl9") && !c.classList.contains("scr-motion-fx9"));
     if (!ucv9) return;
-    const gcv9 = cvs9.find((c) => c.classList.contains("scr-motion-gl9")) ?? null;
-    const fcv9 = cvs9.find((c) => c.classList.contains("scr-motion-fx9")) ?? null;
     const cw9 = ucv9.clientWidth;
     const ch9 = ucv9.clientHeight;
     const mh9 = Math.min(ch9, ucv9.parentElement?.clientHeight ?? ch9);
     const band9 = ch9 - mh9;
     if (!(cw9 > 0) || !(mh9 > 0)) return;
+    const ur9 = ucv9.getBoundingClientRect();
+    if (!(ur9.width > 0) || !(ur9.height > 0)) return;
+    const kx09 = cw9 / ur9.width;   // 화면 px → 캔버스 CSS px(변환이 걸려 있어도 맞다)
+    const ky09 = ch9 / ur9.height;
     const st9 = stageSizeRef.current;
     const sw9 = st9.w > 0 ? Math.min(st9.w, cw9) : cw9;
     const sh9 = st9.h > 0 ? Math.min(st9.h, mh9) : mh9;
     const z9 = trackZoom9();
     const gw = Math.max(1, grid.width);
     const gh = Math.max(1, grid.height);
-    const dpr9 = Math.min(SPLIT_DPR9, window.devicePixelRatio || 1);   // 칸을 칠하는 배킹과 같은 자(SPLIT_DPR9)
-    const n9 = lay9.cells.length;
-    const t09 = pNow();
-    let done9 = 0;
-    for (let k9 = 0; k9 < n9; k9 += 1) {
-      if (k9 > 0 && pNow() - t09 > SPLIT_BUDGET_MS9) break;
-      const cell9 = lay9.cells[(splitRrRef9.current + k9) % n9];
-      done9 += 1;
+    const dpr9 = Math.min(2, window.devicePixelRatio || 1);   // 땅 캔버스의 배킹
+    /* 무대 판 중 칸 밖(칸 사이 틈 · 분할을 켜기 전에 칠해 둔 본 화면)은 비운다 — 2D 는 칸 네모만 지우므로. */
+    for (const c09 of cvs9) {
+      if (c09.classList.contains("scr-motion-gl9")) continue;
+      const x09 = c09.getContext("2d");
+      if (!x09) continue;
+      clipEnd9(x09);
+      x09.setTransform(1, 0, 0, 1, 0, 0);
+      x09.clearRect(0, 0, c09.width, c09.height);
+    }
+    for (const cell9 of lay9.cells) {
       const el9 = splitCvRef9.current.get(cell9.raw);
       if (!el9) continue;
-      const cwC9 = el9.clientWidth;
-      const chC9 = el9.clientHeight;
+      const er9 = el9.getBoundingClientRect();
+      const cwC9 = er9.width;
+      const chC9 = er9.height;
       if (!(cwC9 > 0) || !(chC9 > 0)) continue;
-      /* 오려 낼 네모(유닛 캔버스 CSS px) — 무대에 칸의 비로 가장 크게 드는 것. 그만큼이 '그 사람의 중계 화면'이다. */
+      const pa09 = pNow();
+      /* 칸의 네모 — 유닛 캔버스 CSS px. */
+      const x09 = (er9.left - ur9.left) * kx09;
+      const y09 = (er9.top - ur9.top) * ky09;
+      const wC9 = cwC9 * kx09;
+      const hC9 = chC9 * ky09;
+      /* ★ 칠하는 배율은 **칸의 실제 배율**이다(2026-09, 요청: "각 화면 크기가 작아진 만큼 LOD 낮은 배율로 적용") — 칸은 그 사람의
+         중계 화면을 sc9 배 줄인 그림이라 그 화소 크기의 배율(z9 ÷ sc9)로 칠하면 붓의 문턱(자세함·요잉·LOD)이 저절로 낮아진다.
+         1배 밑으로는 안 내린다(그때는 칸이 지도를 더 넓게 보인다). */
       const sc9 = Math.min(sw9 / cwC9, sh9 / chC9);
-      const wf9 = (cwC9 * sc9) / (cw9 * z9);   // 그 칸이 덮는 지도 분수 폭·높이(= 그 사람의 중계 화면)
-      const hf9 = (chC9 * sc9) / (mh9 * z9);
-      /* ★ 칠하는 배율은 **칸의 실제 배율**이다(2026-09, 요청: "각 화면 크기가 작아진 만큼 LOD 낮은 배율로 적용") — 칸은 중계 화면을
-         sc9 배 줄인 그림이므로 그 화소 크기의 배율(z9 ÷ sc9)로 칠하면 붓의 문턱(자세함·요잉·LOD·배킹)이 저절로 그 크기에 맞게
-         낮아진다. 판에는 칸보다 넓은 땅이 들지만 오림 네모(PAINT_CLIP9) 밖의 몸은 안 그린다. 1배 밑으로는 안 내린다. */
       const zc9 = Math.max(1, z9 / sc9);
-      const cropW9 = wf9 * cw9 * zc9;
-      const cropH9 = hf9 * mh9 * zc9;
+      const wf9 = wC9 / (cw9 * zc9);   // 그 칸이 덮는 지도 분수 폭·높이
+      const hf9 = hC9 / (mh9 * zc9);
       /* 카메라 — 그 사람의 자리. 창 안(가장자리 SPLIT_EDGE9 몫 안쪽)에 있는 동안은 붙들고, 벗어나면 한가운데로 데려온다
          (개인 추적의 trackView 와 같은 규약 — 매 프레임 따라가면 무리가 꿈틀거릴 때마다 화면이 흔들린다). */
       const at9 = splitAt9(cell9.raw, tNow9);
@@ -13923,35 +13957,53 @@ export default function ReplayMotionPlayer({
       splitCamRef9.current.set(cell9.raw, cam9);
       const cx9 = wf9 >= 1 ? 0.5 : Math.min(1 - wf9 / 2, Math.max(wf9 / 2, cam9.x));
       const cy9 = hf9 >= 1 ? 0.5 : Math.min(1 - hf9 / 2, Math.max(hf9 / 2, cam9.y));
-      splitViewRef9.current.set(cell9.raw, { cx: cx9, cy: cy9, w: wf9, h: hf9 });   // 미니맵의 흰 네모(누른 칸)
-      const x09 = cw9 / 2 - cropW9 / 2;
-      const y09 = band9 + mh9 / 2 - cropH9 / 2;
-      PAINT_CLIP9 = [x09, y09, x09 + cropW9, y09 + cropH9];
-      try { paint9(zc9, { x: (0.5 - cx9) * cw9 * zc9, y: (0.5 - cy9) * mh9 * zc9 }, zc9); } finally { PAINT_CLIP9 = null; }
+      splitViewRef9.current.set(cell9.raw, { cx: cx9, cy: cy9, w: wf9, h: hf9 });   // 미니맵의 네모(누른 칸)
+      /* 팬 — 지도 분수 (cx9, cy9) 가 칸 한가운데에 앉게(붓의 zx·zy 를 거꾸로 푼다). */
+      const pan9 = {
+        x: x09 + wC9 / 2 - cw9 / 2 - (cx9 - 0.5) * cw9 * zc9,
+        y: y09 + hC9 / 2 - mh9 / 2 - band9 - (cy9 - 0.5) * mh9 * zc9,
+      };
+      PAINT_CLIP9 = [x09, y09, x09 + wC9, y09 + hC9];
+      try { paint9(zc9, pan9, zc9); } finally { PAINT_CLIP9 = null; }
+      const pa19 = pNow();
+      SPLIT_M9.paint += pa19 - pa09;
+      SPLIT_M9.cells += 1;
+      /* 땅 — 칸 밑 층의 칸 캔버스. 카메라·크기가 그대로면 안 다시 그린다. */
       const bw9 = Math.max(1, Math.round(cwC9 * dpr9));
       const bh9 = Math.max(1, Math.round(chC9 * dpr9));
-      if (el9.width !== bw9) el9.width = bw9;
-      if (el9.height !== bh9) el9.height = bh9;
-      const c9 = el9.getContext("2d");
-      if (!c9) continue;
-      c9.setTransform(1, 0, 0, 1, 0, 0);
-      c9.imageSmoothingEnabled = true;
-      c9.fillStyle = "#0b0d10";
-      c9.fillRect(0, 0, bw9, bh9);
-      const terr9 = splitTerrRef9.current;
-      if (terr9) {
-        const kx9 = bw9 / wf9;
-        const ky9 = bh9 / hf9;
-        c9.drawImage(terr9, -(cx9 - wf9 / 2) * kx9, -(cy9 - hf9 / 2) * ky9, kx9, ky9);
+      const tk9 = `${cx9.toFixed(5)},${cy9.toFixed(5)},${wf9.toFixed(5)},${hf9.toFixed(5)},${bw9},${bh9},${splitTerrRef9.current ? 1 : 0}`;
+      if (SPLIT_TERR_KEY9.get(el9) !== tk9) {
+        SPLIT_TERR_KEY9.set(el9, tk9);
+        if (el9.width !== bw9) el9.width = bw9;
+        if (el9.height !== bh9) el9.height = bh9;
+        const c9 = el9.getContext("2d");
+        if (c9) {
+          c9.setTransform(1, 0, 0, 1, 0, 0);
+          c9.imageSmoothingEnabled = true;
+          c9.fillStyle = "#0b0d10";
+          c9.fillRect(0, 0, bw9, bh9);
+          const terr9 = splitTerrRef9.current;
+          if (terr9) {
+            const kx9 = bw9 / wf9;
+            const ky9 = bh9 / hf9;
+            c9.drawImage(terr9, -(cx9 - wf9 / 2) * kx9, -(cy9 - hf9 / 2) * ky9, kx9, ky9);
+          }
+        }
       }
-      for (const src9 of [ucv9, gcv9, fcv9]) {
-        if (!src9 || !(src9.width > 0) || !(src9.height > 0)) continue;
-        const rx9 = src9.width / cw9;
-        const ry9 = src9.height / ch9;
-        try { c9.drawImage(src9, x09 * rx9, y09 * ry9, cropW9 * rx9, cropH9 * ry9, 0, 0, bw9, bh9); } catch { /* 판이 아직 없다 */ }
+      SPLIT_M9.copy += pNow() - pa19;
+    }
+    for (const c09 of cvs9) { const x09 = c09.classList.contains("scr-motion-gl9") ? null : c09.getContext("2d"); if (x09) clipEnd9(x09); }
+    SPLIT_M9.frames += 1;
+    {
+      const now9 = pNow();
+      if (now9 - SPLIT_M9.at >= 1000) {
+        const s9 = (now9 - SPLIT_M9.at) / 1000;
+        const f9 = Math.max(1, SPLIT_M9.frames);
+        const c9 = Math.max(1, SPLIT_M9.cells);
+        SCR_DIAG.split = `장 ${(SPLIT_M9.frames / s9).toFixed(1)}/s · 칸 ${(SPLIT_M9.cells / f9).toFixed(2)}/장 · 칠 ${(SPLIT_M9.paint / c9).toFixed(1)}ms · 땅 ${(SPLIT_M9.copy / c9).toFixed(1)}ms`;
+        SPLIT_M9.at = now9; SPLIT_M9.frames = 0; SPLIT_M9.cells = 0; SPLIT_M9.paint = 0; SPLIT_M9.copy = 0;
       }
     }
-    splitRrRef9.current = (splitRrRef9.current + done9) % Math.max(1, n9);
   };
   paintFnRef9.current = (tNow9: number, rebase9 = false, fogOnly9 = false): void => {
     /* 이 붓 한 장이 든 시간(위 WORK9) — 프레임 틈을 누구 몫인지로 가르는 자다. */
@@ -17262,6 +17314,23 @@ export default function ReplayMotionPlayer({
               뿐이라 지도 이미지·굽기와 한 톨도 안 얽힌다. 제 합성 층이고 안 움직이므로
               (CSS 주석) 평면에 늘 두어도 끌기·확대 비용이 안 는다. */}
           <div className="scr-fs-space" style={{ backgroundImage: spaceBg9 }} aria-hidden />
+          {splitLay9 && (
+            /* 분할보기 밑 층 — 칸마다 그 사람 화면의 **땅**(splitPaint9 가 카메라가 갈릴 때만 칠한다). 몸·효과는 그 위의 본 지도
+               캔버스가 칸 네모에 제자리로 칠하고, 머리·테·누름은 맨 위 층(.scr-split)이다. 셋이 같은 격자다. */
+            <div
+              className="scr-split-under" aria-hidden
+              style={{ paddingBottom: splitTbH9, gridTemplateColumns: `repeat(${splitLay9.cols}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${splitLay9.rows}, minmax(0, 1fr))` }}
+            >
+              {splitLay9.cells.map((c9) => (
+                <span key={c9.raw} className="scr-split-ucell" style={{ gridColumn: c9.c + 1, gridRow: c9.r + 1 }}>
+                  <canvas
+                    className="scr-split-cv"
+                    ref={(el) => { if (el) splitCvRef9.current.set(c9.raw, el); else splitCvRef9.current.delete(c9.raw); }}
+                  />
+                </span>
+              ))}
+            </div>
+          )}
           {mapNode}
           {splitLay9 && (
             /* 분할보기 격자(위 splitOn9 · splitPaint9) — 무대를 통째로 덮는다. 칸을 누르면 독이 그 사람의 것을 든다.
@@ -17284,10 +17353,6 @@ export default function ReplayMotionPlayer({
                     aria-label={`${cap9.text} 화면 — 누르면 아래 독에 이 사람`}
                     onClick={() => { setSplitPick9(c9.raw); setPicked(null); }}
                   >
-                    <canvas
-                      className="scr-split-cv" aria-hidden
-                      ref={(el) => { if (el) splitCvRef9.current.set(c9.raw, el); else splitCvRef9.current.delete(c9.raw); }}
-                    />
                     {/* 칸 머리(요청: "각 화면 위에 닉네임과 자원 인구 apm k/d 표시") — 로스터 대신이다. */}
                     <span className="scr-split-cap">
                       <span className="scr-split-who">

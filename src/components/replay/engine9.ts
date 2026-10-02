@@ -2772,11 +2772,13 @@ export const SCR_DIAG: {
    *    셋이 화면에서 같은 말을 하니 어디를 고쳐야 하는지가 안 보인다. 판 번호와 함께
    *    여기 적어 두면 #diag나 window.__scrDiag로 곧장 읽힌다. */
   truthWhy: string;
+  /** 분할보기 칠하기의 최근 1초 — "장 N/s · 칸 M/장 · 칠 a ms · 베낌 b ms · 칸 갱신 c Hz". */
+  split: string;
 } = {
   dpr: 0, unitCss: "", unitBack: "", unitB: 0,
   mapCss: "", mapBack: "", ppt: 0, needed: 0, scale: 0, unitScale: 0,
   areaCap: 0, allocOk: true, zoom: 0, xfms: 0, gest: "", fx: {}, prod: "", litN: 0, worker: "", gl: "", bakew: "", crowd: "", brush: "", fps: 0, fog: "", react: "", nukem: "",
-  truthVer: 0, truthTrust: -1, truthWhy: "",
+  truthVer: 0, truthTrust: -1, truthWhy: "", split: "",
 };
 /** #diag가 켜져 있나 — 주소가 바뀌지 않는 한 한 번만 읽는다. */
 export const scrDiagOn = (): boolean =>
