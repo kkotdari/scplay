@@ -2608,7 +2608,7 @@
 /* ★★ TV 단추는 **틀 위쪽 왼 끝의 쇠 정사각**이다 — 오른 끝 접기 손잡이(.scr-motion-infodock-fold)의 짝(2026-09, 요청: "독 중계 버튼을
    접기 버튼같은 형태로 변경하고 동그란 테두리 제거"). 정보줄 우물 안의 동그라미를 틀의 1열로 꺼냈다. 결·광택·테·크기(한 변 --dock-cap)가
    접기와 같고, 형제 규칙(.scr-motion-mapbtns button.scr-motion-mapbtn — 원·반투명 막)을 같은 무게로 **뒤에** 덮어쓴다.
-   켜짐은 반전이다(검은 우물 + 초록 깜빡임 · 아래). z 13 — 목록이 위로
+   (꼴은 아래 ★ 의 흰 볼록 단추로 바뀌었다.) z 13 — 목록이 위로
    펼쳐져 툴박스(12)를 덮는다. */
 .scr-fs-dockframe > .scr-fs-dockcast {
   grid-column: 1; grid-row: 1; position: relative; z-index: 13; align-self: stretch;
@@ -2616,28 +2616,29 @@
   --mapbtn-h: var(--dock-cap); --mapbtn-gap: 0px;
 }
 .scr-fs-dockcast .scr-motion-pick { width: 100%; height: 100%; aspect-ratio: auto; }
+/* ★ **볼록한 흰 사각 단추**다(2026-09, 요청: "중계 버튼 볼록한 사각 흰 버튼으로") — 쇠 정사각(접기의 짝)을 되물렸다:
+   흰 바탕 위에서 아래로 한 단 어두워지는 광택 · 위 안쪽 흰 입술 · 아래 안쪽 그늘 · 바깥 그림자 한 겹이 '솟은' 꼴을 낸다.
+   켜짐은 꺼진 꼴과 **같은 볼록 단추**이고 그림만 초록으로 깜빡인다(흰 위라 짙은 초록 ↔ 초록). */
 .scr-fs-dockcast button.scr-motion-mapbtn,
-.scr-motion-mapbtns.scr-fs-dockcast button.scr-motion-mapbtn.scr-motion-castbtn-on {
-  width: 100%; height: 100%; aspect-ratio: auto; align-self: stretch; padding: 0; border-radius: 0; box-sizing: border-box;
-  border: 1px solid #0b0d10; color: #20252b;
-  background:
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 2px),
-    linear-gradient(180deg, #c3c9d0 0%, #a3abb4 45%, #8d959e 55%, #747c85 100%);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-}
-.scr-fs-dockcast button.scr-motion-mapbtn:hover { filter: brightness(1.1); }
-.scr-fs-dockcast button.scr-motion-mapbtn svg { width: calc(12px * var(--dk)); height: calc(12px * var(--dk)); }
-/* 켜짐은 **반전** — 쇠 정사각이 파인 우물(정보줄과 같은 검은 속)이 되고 그 안에 초록 그림이 깜빡인다(옛 초록 박자 그대로). */
+.scr-motion-mapbtns.scr-fs-dockcast button.scr-motion-mapbtn.scr-motion-castbtn-on,
 .scr-motion-mapbtns.scr-fs-dockcast button.scr-motion-mapbtn.scr-motion-castbtn-on.scr-motion-castbtn {
-  color: #2ee59d;
-  background: #0a0d12;
-  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(46, 229, 157, 0.55);
+  width: 100%; height: 100%; aspect-ratio: auto; align-self: stretch; padding: 0; box-sizing: border-box;
+  border-radius: calc(2px * var(--dk));
+  border: 1px solid #0b0d10; color: #20252b;
+  background: linear-gradient(180deg, #ffffff 0%, #f1f3f5 45%, #dde1e6 100%);
+  box-shadow: inset 0 1px 0 #ffffff, inset 0 -2px 0 rgba(0, 0, 0, 0.16), 0 1px 2px rgba(0, 0, 0, 0.55);
 }
-/* 검은 우물 위라 옛 박자(초록 ↔ 검정)의 검은 반은 그림이 통째로 사라진다 — 초록 ↔ 짙은 초록으로 깜빡인다. */
-.scr-fs-dockcast .scr-motion-castbtn-on svg { animation: scr-cast-blink-well 1s steps(1, end) infinite; }
-@keyframes scr-cast-blink-well {
-  0%, 45% { color: #2ee59d; }
-  55%, 100% { color: #1a6b4a; }
+.scr-fs-dockcast button.scr-motion-mapbtn:hover { filter: brightness(1.04); }
+.scr-fs-dockcast button.scr-motion-mapbtn:active {
+  background: linear-gradient(180deg, #dde1e6 0%, #eef1f4 100%);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+.scr-fs-dockcast button.scr-motion-mapbtn svg { width: calc(12px * var(--dk)); height: calc(12px * var(--dk)); }
+.scr-motion-mapbtns.scr-fs-dockcast button.scr-motion-mapbtn.scr-motion-castbtn-on.scr-motion-castbtn { color: #0f9a5c; }
+.scr-fs-dockcast .scr-motion-castbtn-on svg { animation: scr-cast-blink-white 1s steps(1, end) infinite; }
+@keyframes scr-cast-blink-white {
+  0%, 45% { color: #0f9a5c; }
+  55%, 100% { color: #43c98a; }
 }
 @media (prefers-reduced-motion: reduce) {
   .scr-fs-dockcast .scr-motion-castbtn-on svg { animation: none; }
@@ -3837,14 +3838,14 @@
   background: rgba(255, 255, 255, 0.92); box-shadow: none; color: #10151a;
 }
 
-/* 사용법의 독 쇠 단추 견본(재생기 .scr-fs-dockcast 의 ★★ — 접기 손잡이와 같은 쇠 정사각 · 켜짐은 검은 우물 + 초록). */
+/* 사용법의 독 TV 단추 견본(재생기 .scr-fs-dockcast — 볼록한 흰 사각 · 켜짐은 초록 그림). */
 .scr-guide-msq{
   display: inline-grid; place-items: center; width: 18px; height: 18px; vertical-align: -4px; margin: 0 2px;
-  border: 1px solid #0b0d10; color: #20252b; box-sizing: border-box;
-  background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 2px),
-    linear-gradient(180deg, #c3c9d0 0%, #a3abb4 45%, #8d959e 55%, #747c85 100%);
+  border: 1px solid #0b0d10; border-radius: 2px; color: #20252b; box-sizing: border-box;
+  background: linear-gradient(180deg, #ffffff 0%, #f1f3f5 45%, #dde1e6 100%);
+  box-shadow: inset 0 1px 0 #ffffff, inset 0 -2px 0 rgba(0, 0, 0, 0.16), 0 1px 2px rgba(0, 0, 0, 0.45);
 }
-.scr-guide-msq.is-on{ background: #0a0d12; color: #2ee59d; box-shadow: inset 0 0 0 1px rgba(46, 229, 157, 0.55); }
+.scr-guide-msq.is-on{ color: #0f9a5c; }
 /* 사용법의 중계·색 단추 — 재생기의 켜진 TV(초록 테 + 깜빡임)와 색 단추 바탕(지금 모드)을 그대로 흉내 낸다. */
 .scr-guide-mbtn-cast{
   color: #2ee59d; box-shadow: inset 0 0 0 1.5px rgba(46, 229, 157, 0.78);
