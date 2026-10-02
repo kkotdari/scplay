@@ -6248,10 +6248,17 @@ divisor 1)에 싣고 같은 메시의 개체를 `drawArraysInstanced` 한 번으
     흰 TV 단추까지 검게 칠한다.
 · TV 목록은 **판 가운데 위**로 편다(`.scr-tb-who .scr-motion-pick { position: static }` + 목록 left 50% · translateX(−50%) ·
   max-width 100vw−16) — 판이 줄 가운데라 폰에서도 여덟 이름이 화면 안이다(pickshot `화면 안 true`).
-· **틀은 이제 한 줄** `[미니맵 + 인포창 | 접기]` — 접기 손잡이(16·dk × --dock-cap)는 오른 끝 기둥의 **위쪽**이고, 접으면 그
-  손잡이 키만 남는다. 정보줄(.scr-fs-dockcap)·자막 표(.scr-motion-castcap)는 걷었다.
+· **접기 손잡이는 인포창 안 오른 위 귀퉁이의 정사각**(2026-09, 요청: "접고펴기 버튼 정사각형으로 하고 삼각형 크기 키우고
+  인포창 내부에 배치") — `--dock-fold` 18·dk 정사각 · ▼/▲ · 틀(.scr-fs-dockframe)의 **절대 자식**이라 접어도 남는다(접힌 틀은
+  min-height 가 그 손잡이 키). 인포창 몸은 오른쪽에 그 몫(--dock-fold + --dock-foldin)을 비우고, `--dock-w` 도 그만큼 넓다 —
+  안 비우면 6×2 격자의 오른 위 칸을 덮는다. 정보줄(.scr-fs-dockcap)·자막 표(.scr-motion-castcap)는 걷었다.
+· ★ **정보 판은 가로 정가운데 · 솟은 몫까지 쇠 테두리**(같은 날, 요청: "유저정보는 가로 정가운데 위치하고 튀어나온부분도
+  쇠테두리로 감싸기") — 양옆 무리의 폭이 다르면(폰 왼 둘 · 오른 셋) 1fr 둘로는 안 가운데다. `tbRowRef9` 가 두 무리 중 넓은 쪽
+  폭을 재어 `--tb-side` 로 양옆 칸을 못 박는다(ResizeObserver). 판은 바깥이 쇠 테(쇠판과 같은 광택 · 위 둥글기 7px · 아래는
+  쇠판에 앉는다)이고 그 안이 어두운 우물(.scr-tb-who-in)이다.
+· **사용법 단추도 PC 에만**(`!smallDevice9` — 로스터 단추와 같은 문 · 요청: "도움말 버튼도 로스터버튼과 함께 pc에서만 보이기").
 · 분할 칸 머리의 이름도 같은 칩이다(`.scr-split-chip` · 색점 네모 걷음).
-· 🔎 `perf-check --wide|--ios --warm 0 --glblit --info --track 정구 --dockrax --shot x.png` · 접힘은 `--ios … --clickat 362,710`(폰
+· 🔎 `perf-check --wide|--ios --warm 0 --glblit --info --track 정구 --dockrax --shot x.png` · 접힘은 `--ios … --clickat 357,712`(폰
   손잡이 자리) · 목록은 `--ios --pickshot x.png`. ⚠ 픽스처는 꼬리 단추가 넷(스크랩 포함)이라 폰 판이 93px 로 좁다 — 앱(셋)은 130px 남짓.
 · ★ **폰에는 로스터가 없다**(2026-09, 요청: "모바일 로스터 사용 x 버튼도 제거") — 판(`.scr-fs-roster-fixed`)과 단추를 둘 다
   `!smallDevice9` 로 막는다(2D/3D 단추와 같은 문). 사람 정보는 가운데 판이 맡고, 단추 하나가 빠진 만큼 그 판이 넓어진다

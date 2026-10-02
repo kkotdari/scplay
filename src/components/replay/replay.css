@@ -2556,7 +2556,8 @@
   --dock-cap: calc(22px * var(--dk)); --dock-body: calc(96px * var(--dk)); --dock-big: calc(60px * var(--dk));
   /* 칸(생산·대기·탄 몸)은 업그레이드 칸과 같은 26·dkd 다(2026-09, 요청: "생산/업그레이드중/큐/수송칸 셀크기를 업그레이드 셀이랑 같게"). */
   --dock-slot: calc(26px * var(--dk));
-  --dock-w: calc(var(--dock-cell) * 6 + var(--dock-gap) * 5 + var(--dock-padx) * 2);
+  --dock-fold: calc(18px * var(--dk)); --dock-foldin: calc(3px * var(--dk));
+  --dock-w: calc(var(--dock-cell) * 6 + var(--dock-gap) * 5 + var(--dock-padx) * 2 + var(--dock-fold) + var(--dock-foldin));
   /* 몸 키는 정보줄 키와 떼어 못 박는다(옛 띠 30 + 새긴 줄 1 + 96) — 정보줄을 죄어도 인포창·미니맵이 안 줄어든다
      (요청: "유저정보 라벨 크기 줄여서 세로 줄이기" — 줄어드는 것은 정보줄 하나다). */
   --dock-h: calc(30px * var(--dk) + 1px + var(--dock-body));
@@ -2635,11 +2636,13 @@
    정사각(한 변 = 정보줄 키)이고 아래 줄은 틀의 온 폭을 쓴다. 정보줄은 왼쪽에 같은 몫을 비워(아래 dockcap 의 padding-left) 글귀가
    틀 한가운데에 그대로 선다. 결은 세로 · 홈·안쪽 베벨은 걷었다(삼각형이 곧 쥘 자리다). */
 .scr-motion-infodock-fold {
-  grid-column: 2; grid-row: 1; align-self: start;
-  width: calc(16px * var(--dk)); height: var(--dock-cap); min-height: 0; padding: 0; border-radius: 0; cursor: pointer; box-sizing: border-box;
+  /* ★ **인포창 안 오른 위 귀퉁이의 정사각**이다(2026-09, 요청: "접고펴기 버튼 정사각형으로 하고 삼각형 크기 키우고 인포창 내부에
+     배치") — 틀의 자식이라 접어도 남고(틀은 접히면 이 손잡이 키만 남는다), 인포창 몸은 오른쪽에 이 몫(--dock-fold)을 비워 둔다. */
+  position: absolute; z-index: 3;
+  top: calc(var(--dock-out) + var(--dock-foldin)); right: calc(var(--dock-out) + var(--dock-foldin));
+  width: var(--dock-fold); height: var(--dock-fold); min-height: 0; padding: 0; border-radius: calc(2px * var(--dk)); cursor: pointer; box-sizing: border-box;
   display: flex; align-items: center; justify-content: center;
-  /* 삼각형은 정사각의 절반 남짓(요청: "버튼 삼각형 크기 키우고 내부 테두리는 제거") — 홈 둘·안쪽 베벨을 걷고 바깥 1px 테만 남긴다. */
-  border: 1px solid #0b0d10; color: #20252b; font-size: calc(13px * var(--dk)); line-height: 1;
+  border: 1px solid #0b0d10; color: #20252b; font-size: calc(11px * var(--dk)); line-height: 1;
   background:
     repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 2px),
     linear-gradient(180deg, #c3c9d0 0%, #a3abb4 45%, #8d959e 55%, #747c85 100%);
@@ -2648,7 +2651,7 @@
 .scr-motion-infodock-fold:hover { filter: brightness(1.1); }
 /* 몸은 정보줄이 비운 키까지 받는다(요청: "그만큼 남는 높이는 인포창이 사용") — 옛 띠(--dock-cap + 1px 새긴 줄)만큼 늘어 독 줄의 온
    키(--dock-h)가 곧 몸의 키다. 칸 수치(--dock-body)는 여럿 격자의 자로 남는다. */
-.scr-motion-infodock-body { height: var(--dock-h); padding: calc(6px * var(--dk)) var(--dock-padx); box-sizing: border-box; }
+.scr-motion-infodock-body { height: var(--dock-h); padding: calc(6px * var(--dk)) calc(var(--dock-padx) + var(--dock-fold) + var(--dock-foldin)) calc(6px * var(--dk)) var(--dock-padx); box-sizing: border-box; }
 .scr-motion-infodock-empty {
   height: 100%; display: flex; align-items: center; justify-content: center;
   /* 글자는 한 단 작다(요청: "인포창 비었을때 안내문 폰트 줄이기" — 11 → 8·dk). */
@@ -3200,7 +3203,7 @@
      (옛 "독 아래테두리가 좀 얇게 보이는데"로 덧댄 그 2px 은 되물렸다). 안쪽 틈(--dock-bez · 구분 막대)과 갈라 둔다. */
   --dock-out: calc(3.4px * var(--dk));
   /* 두 줄 — [TV 정사각 | 정보줄 | 접기 정사각] / [미니맵 | 인포창](키 --dock-h · 온 폭). 접으면(is-fold) 정보줄만 남는다. */
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: var(--dock-bez); padding: var(--dock-out); min-width: 0; max-width: 100%;
+  display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: var(--dock-bez); padding: var(--dock-out); min-width: 0; max-width: 100%;
   box-sizing: border-box;
   position: relative; border: 1px solid #0b0d10; border-radius: 0;
   background:
@@ -3220,7 +3223,7 @@
 /* ★ 접어도 폭은 그대로다(2026-09, 지적: "접었을때 폭이 좁아지는 현상 없애기") — 틀은 내용만큼 넓은데(fit-content) 아래 줄을
    display: none 으로 걷으면 그 폭까지 빠져 틀이 정보줄 폭으로 쪼그라들었다. 키만 0 으로 눌러 숨기면 폭(미니맵·인포창의 width)은
    그대로 남아 틀을 받친다 · 줄 사이 틈도 걷는다. */
-.scr-fs-dockframe.is-fold { row-gap: 0; }
+.scr-fs-dockframe.is-fold { row-gap: 0; min-height: calc(var(--dock-fold) + 2 * var(--dock-foldin) + 2 * var(--dock-out) + 2px); }
 /* 접힘의 키는 접기 손잡이 하나다(그 손잡이가 오른 끝 기둥의 위쪽이라 — .scr-motion-infodock-fold). */
 .scr-fs-dockframe.is-fold .scr-fs-dockmain { height: 0; visibility: hidden; overflow: hidden; }
 .scr-fs-dockframe > .scr-fs-dockmain { grid-column: 1; grid-row: 1; }
@@ -3318,7 +3321,7 @@
    좁으면 양옆이 제 단추 폭을 지키고 정보 판이 남는 폭을 쓴다(상한 --who-max). */
 .scr-tb-btnrow {
   --who-max: 340px;
-  display: grid; grid-template-columns: minmax(max-content, 1fr) minmax(0, var(--who-max)) minmax(max-content, 1fr);
+  display: grid; grid-template-columns: var(--tb-side, max-content) minmax(0, 1fr) var(--tb-side, max-content);
   align-items: center; column-gap: 6px; min-width: 0;
 }
 .scr-tb-btnrow > .scr-motion-mapbtns { justify-self: start; }
@@ -3330,15 +3333,26 @@
    솟은 몫이 지도 위에 서려면 이 판이 z 를 가져야 한다(그 안의 TV 목록 z 7600 은 이 판의 문맥 안에서 무대보다 위다).
    목록은 판 가운데 위로 편다 — 판은 줄 가운데라 폰에서도 여덟 이름(360px)이 화면 안에 든다. */
 .scr-tb-who {
-  --who-up: 5px; --who-cast: 18px;
+  --who-up: 5px; --who-cast: 18px; --who-bez: 3px;
   position: relative; z-index: 2; container-type: inline-size;
-  min-width: 0; align-self: stretch;
+  justify-self: center; width: 100%; max-width: var(--who-max); min-width: 0; align-self: stretch;
   margin: calc(-1 * (var(--tb-padt) + var(--who-up))) 0 0;
+  display: flex; box-sizing: border-box;
+  /* ★ 솟은 몫까지 **쇠 테두리**로 감싼다(2026-09, 요청: "튀어나온부분도 쇠테두리로 감싸기") — 바깥은 쇠판과 같은 광택의 테,
+     그 안이 어두운 우물(-in)이다. 아래는 쇠판 위에 그대로 앉는다. */
+  padding: var(--who-bez) var(--who-bez) 0;
+  border: 1px solid #0b0d10; border-bottom: none; border-radius: 7px 7px 0 0;
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.06) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, #c6ccd3 0%, #a7afb8 30%, #8f979f 60%, #89919a 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 -2px 6px rgba(0, 0, 0, 0.35);
+}
+.scr-tb-who-in {
+  flex: 1 1 auto; min-width: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
-  padding: 4px 8px 3px; box-sizing: border-box;
-  background: #0a0d12; color: #e8eef6; border: 1px solid #0b0d10; border-radius: 6px 6px 4px 4px;
-  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(0, 0, 0, 0.9),
-    0 1px 0 rgba(255, 255, 255, 0.28), 0 -2px 6px rgba(0, 0, 0, 0.35);
+  padding: 3px 8px 3px; box-sizing: border-box;
+  background: #0a0d12; color: #e8eef6; border-radius: 4px 4px 3px 3px; margin-bottom: 3px;
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 .scr-tb-who-top { display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 0; max-width: 100%; }
 /* 이름 칩 — 임자색 둥근 네모(둥글기 작게) · 로스터 사람들의 이름표를 같은 칸에 숨겨 겹쳐 폭을 미리 잡는다. */

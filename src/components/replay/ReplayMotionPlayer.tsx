@@ -16537,6 +16537,22 @@ export default function ReplayMotionPlayer({
   /* ★ 독 줄 오른쪽의 음각 글귀(2026-09, 요청: "독 좌우 몇 px이상 남는경우 음각으로 scplay.vercel.app    SINCE 2026 추가(우측에만)")
      — 틀은 줄 가운데라 좌우에 쇠 바탕이 같은 폭으로 남는다. 그 한쪽 몫이 글귀 폭 + 여백(DOCK_MARK_PAD9)을 넘을 때만 오른쪽에
      새긴다(폰처럼 틀이 줄을 다 채우면 안 선다). 글귀는 늘 DOM 에 두고(폭을 재야 한다) 켜짐만 가른다. */
+  /* ★ 사람 정보 판은 단추 줄의 **가로 정가운데**다(2026-09, 요청: "유저정보는 가로 정가운데 위치") — 양옆 단추 무리의 폭이
+     다르면(왼 둘 · 오른 셋) 같은 1fr 로는 한가운데가 안 된다. 두 무리 중 넓은 쪽의 폭을 재어 양옆 칸을 그 폭으로 못 박는다
+     (--tb-side · 무리의 단추 수가 바뀌면 ResizeObserver 가 다시 잰다). */
+  const tbRowRef9 = useRef<HTMLDivElement | null>(null);
+  useLayoutEffect(() => {
+    const row9 = tbRowRef9.current;
+    const l9 = row9?.querySelector<HTMLElement>(":scope > .scr-motion-mapbtns") ?? null;
+    const r9 = row9?.querySelector<HTMLElement>(":scope > .scr-tb-tail") ?? null;
+    if (!row9 || !l9 || !r9) return undefined;
+    const read9 = (): void => { row9.style.setProperty("--tb-side", `${Math.ceil(Math.max(l9.scrollWidth, r9.scrollWidth))}px`); };
+    read9();
+    if (typeof ResizeObserver === "undefined") return undefined;
+    const ro9 = new ResizeObserver(read9);
+    ro9.observe(l9); ro9.observe(r9);
+    return () => ro9.disconnect();
+  }, [fsOn]);
   const dockRowRef9 = useRef<HTMLDivElement | null>(null);
   const dockMarkRef9 = useRef<HTMLSpanElement | null>(null);
   const [dockMark9, setDockMark9] = useState(false);
@@ -16617,6 +16633,7 @@ export default function ReplayMotionPlayer({
       onPointerDown={(e) => e.stopPropagation()}
       onWheel={(e) => e.stopPropagation()}
     >
+      <div className="scr-tb-who-in">
       <div className="scr-tb-who-top">
         {castBtnNode9}
         <span className={cx("scr-tb-who-name", !dockCap9 && "is-none")} style={dockCap9?.chip}>
@@ -16635,6 +16652,7 @@ export default function ReplayMotionPlayer({
         <span title="K/D"><b>K/D</b>{dockCap9?.kd ? `${dockCap9.kd[0]}/${dockCap9.kd[1]}` : "–"}</span>
         <span title="APM"><b>APM</b>{dockCap9?.apm ?? "–"}</span>
       </div>
+      </div>
     </div>
   );
   /* 접기 손잡이(2026-09, 요청: "프레임모드에도 독 접기 버튼 추가" · "접기버튼은 유저정보말고 독 프레임 어딘가") — 프레임·전체화면
@@ -16648,7 +16666,7 @@ export default function ReplayMotionPlayer({
       onPointerDown={(e) => e.stopPropagation()}
       onClick={() => setDockFold9((v) => !v)}
     >
-      {dockFold9 ? "▴" : "▾"}
+      {dockFold9 ? "▲" : "▼"}
     </button>
   );
   const infoDock9 = (
@@ -17442,7 +17460,7 @@ export default function ReplayMotionPlayer({
             onPointerDown={(e) => e.stopPropagation()}
             onWheel={(e) => e.stopPropagation()}
           >
-            <div className="scr-tb-btnrow">
+            <div className="scr-tb-btnrow" ref={tbRowRef9}>
               {mapBtnRow}
               {whoNode9}
               <div className="scr-tb-tail">
@@ -17476,7 +17494,8 @@ export default function ReplayMotionPlayer({
                 {/* (걷어냄) 전체화면의 '도구 숨기기' 단추 — 툴박스가 저 혼자 아이콘 하나로 접히므로(위 ★★) 숨기는 손잡이가
                     따로 있을 까닭이 없다. 사용법은 이제 두 배치 다 이 자리다(요청: "툴박스 = 버튼로우 + 공유 + 사용법"). */}
                 {/* 사용법은 **프레임에서만**이다(2026-09, 요청: "전체화면에서 사용법 버튼 제거"). */}
-                {guide && !fsOn && (
+                {/* 사용법도 **PC 에만**이다(2026-09, 요청: "도움말 버튼도 로스터버튼과 함께 pc에서만 보이기"). */}
+                {guide && !fsOn && !smallDevice9 && (
                   <button type="button" className="scr-kakao-share-btn scr-guide-btn" onClick={openGuide9} aria-label="사용법" title="사용법">
                     <CircleHelp size={18} aria-hidden />
                   </button>
