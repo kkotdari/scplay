@@ -2544,9 +2544,9 @@
    1.2배 해도 되겠다 같은 상수따르기로") — 치수는 폰의 값으로 적고 이 값을 곱한다. 폰(≤700px)은 1(인포창 미디어). */
 .scr-motion {
   /* ★★ 배수는 **하나**다(2026-09, 요청: "배율변수 하나로 합치고") — 로스터·독 줄(정보줄 · 미니맵 · 인포창)의 칸·우물·글자가
-     다 calc(폰 값 * var(--dk)) 다. PC **1.4**(요청: "1.4배로!" — 옛 1.8) · 폰 1(아래 미디어). 한때 셋으로 갈려 있었다(로스터 1.6 · 독 칸 --dkd 2.0 · 독 글자
+     다 calc(폰 값 * var(--dk)) 다. PC **1.6**(요청: "PC 미니맵 인포창 로스터 분할헤더 모두 1.6배로" — 옛 1.4 · 1.8) · 분할 칸 머리도 이 값을 탄다 · 폰 1(아래 미디어). 한때 셋으로 갈려 있었다(로스터 1.6 · 독 칸 --dkd 2.0 · 독 글자
      --dkt 1.6) — 새 치수도 이 한 값으로 적어라. */
-  --dk: 1.4;
+  --dk: 1.6;
   /* ★★ 인포창의 폭은 **6×2 격자가 꼭 맞는 폭**이다(2026-09, 요청: "폭 기준을 멀티 유닛 선택 그리드시에 여백 없게 맞추고
      나머지 상황별 인포창 구성과 유저정보 행을 그 폭에 맞춰 재배치 또는 내부 요소 크기 조정" → 정정: "8x2가 아니라 6x2 · 셀 더
      크게") — 칸·사이·좌우 여백 셋을 변수로 두고 폭을 거기서 **거꾸로 푼다**: 칸 여섯 + 사이 다섯 + 여백 둘. 칸을 고치면 창이
@@ -4118,9 +4118,14 @@
    "해당 모드에서는 로스터 숨기고 대신 각 화면 위에 닉네임과 자원 인구 apm k/d 표시") — 무대를 통째로 덮는 칸들이다(무대가 제
    겹 문맥이라 지도 안의 높은 z 층보다 위에 서면 된다). 아래는 툴박스 키만큼 비운다(인라인 padding-bottom — 판은 끝까지 덮는다). 칸 그림은 붓이 칸
    캔버스에 베껴 넣는다(splitPaint9). 칸 사이 틈은 바탕색 — 그 밑의 지도(마지막 칸의 그림)가 비치지 않게 판 자체가 불투명이다. */
+/* 틈(경계선)은 PC 6px · 폰 3px(2026-09, 요청: "분할모드 경계선 두껍게 해줘 특히 PC에서" — 옛 2px). 두 층이 같은 값을 읽어야
+   칸 네모(splitPaint9 가 DOM 에서 잰다)와 땅 칸이 맞는다. */
 .scr-split, .scr-split-under {
   position: absolute; inset: 0; box-sizing: border-box;
-  display: grid; gap: 2px;
+  display: grid; gap: var(--split-gap, 6px);
+}
+@media (max-width: 700px) {
+  .scr-split, .scr-split-under { --split-gap: 3px; }
 }
 /* ★★ 칸은 **세 층**이다(2026-09, 지적: "흐리고 버벅여" — 칸 캔버스로 베끼던 길을 걷었다): ① 밑 층(.scr-split-under · 지도 아래)
    — 칸 사이 틈의 바탕색과 칸마다 땅 ② 본 지도의 유닛·GL·효과 캔버스 — splitPaint9 가 칸 네모에 제자리로 칠한다(나머지 층은
@@ -4142,9 +4147,9 @@
    글자 폭만큼의 반투명 판(왼위 귀퉁이에 붙어 오른아래만 둥글다)이다. 칸의 그림이 머리 오른쪽으로 그대로 보인다. */
 .scr-split-cap {
   position: absolute; left: 0; top: 0; z-index: 1; max-width: 100%; box-sizing: border-box;
-  display: flex; align-items: center; gap: 8px; padding: 3px 8px 3px 7px;
-  font-size: 11px; line-height: 1.25; color: #e8edf3; white-space: nowrap; overflow: hidden;
-  background: rgba(0, 0, 0, 0.34); border-radius: 0 0 6px 0;
+  display: flex; align-items: center; gap: calc(5px * var(--dk)); padding: calc(2px * var(--dk)) calc(5px * var(--dk)) calc(2px * var(--dk)) calc(4px * var(--dk));
+  font-size: calc(9px * var(--dk)); line-height: 1.25; color: #e8edf3; white-space: nowrap; overflow: hidden;
+  background: rgba(0, 0, 0, 0.34); border-radius: 0 0 calc(4px * var(--dk)) 0;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
   font-variant-numeric: tabular-nums; text-align: left; pointer-events: none;
 }
@@ -4153,15 +4158,14 @@
    작게") — 글자색은 칩이 그 색의 밝기로 정하니 그림자는 걷는다. */
 .scr-split-chip {
   display: inline-block; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
-  padding: 0 5px; border-radius: 2px; text-shadow: none;
+  padding: 0 calc(3px * var(--dk)); border-radius: 2px; text-shadow: none;
 }
-.scr-split-stat { display: inline-flex; align-items: baseline; gap: 3px; flex: none; }
+.scr-split-stat { display: inline-flex; align-items: baseline; gap: calc(2px * var(--dk)); flex: none; }
 .scr-split-stat b { font-weight: 500; font-size: 0.82em; opacity: 0.62; }
 .scr-split-sl { opacity: 0.45; }
 /* ★ 폰에서는 칸 머리에 **이름만** 선다(2026-09, 요청: "모바일에서 분할 헤더에 이름만 표시 — 너무 비좁아서 상황정보는 제거") —
    자원·인구·APM·K/D 는 칸을 누르면 아래 독 정보줄이 그 사람 것으로 든다. */
 @media (max-width: 700px) {
-  .scr-split-cap { font-size: 9px; gap: 5px; padding: 2px 4px; }
   .scr-split-cap .scr-split-stat { display: none; }
 }
 /* 좁은 칸(폰의 2×2 따위)은 머리가 두 줄이다 — 이름이 첫 줄을 다 쓰고 숫자가 그 아래(한 줄에 넣으면 이름이 잘린다). */
