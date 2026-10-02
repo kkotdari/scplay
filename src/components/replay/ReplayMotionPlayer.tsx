@@ -16131,7 +16131,7 @@ export default function ReplayMotionPlayer({
      APM 을 덮었다. 이제 미니맵 + 인포창의 온 폭을 쓰고, 인포창 몸은 그 띠가 비운 키(--dock-cap + 1px)까지 받는다. 접기 단추도
      이 줄로 옮겨 와 **아래 줄(미니맵 + 인포창)을 통째로** 접는다. */
   /** 접힘이 실제로 먹나 — 전체화면에서만(프레임에는 접기 단추가 없다). */
-  const dockFoldOn9 = fsOn && dockFold9;
+  const dockFoldOn9 = dockFold9;
   /* ★ TV 단추(중계·추적 목록)는 **정보줄 맨 왼쪽**이다(2026-09, 요청: "중계버튼 위치를 유저정보 라인 맨 왼쪽으로 이동") —
      정보줄이 곧 '지금 누구 화면인가'를 말하는 자리라 그 손잡이를 같은 줄에 둔다. 꼴·켜짐(초록 + 깜빡임)·위로 펼치는 목록은
      아이콘 줄에 있던 그대로다(형제 규칙을 받으려고 .scr-motion-mapbtns 한 칸 감싸개 · 크기 변수는 .scr-fs-dockcast 가 든다). */
@@ -16206,16 +16206,20 @@ export default function ReplayMotionPlayer({
             <span className="scr-motion-castcap-val">{dockCap9.apm ?? "–"}</span>
           </span>
         )}
-        {/* 접기 단추는 전체화면에만 있다(2026-09, 요청: "프레임모드: 접기 버튼 제거") — 프레임에서는 독 줄이 지도 **밖**이라
-            덜 가릴 까닭이 없다. 접힘 상태도 그 모드에서만 먹는다(dockFoldOn9). */}
-        {fsOn && <button
-          type="button" className="scr-motion-infodock-fold"
-          aria-label={dockFold9 ? "미니맵·인포창 펼치기" : "미니맵·인포창 접기"} aria-pressed={dockFold9}
-          onClick={() => setDockFold9((v) => !v)}
-        >
-          {dockFold9 ? "▴" : "▾"}
-        </button>}
     </div>
+  );
+  /* 접기 손잡이(2026-09, 요청: "프레임모드에도 독 접기 버튼 추가" · "접기버튼은 유저정보말고 독 프레임 어딘가") — 틀의 오른 끝
+     쇠 띠다. 프레임·전체화면 둘 다 먹는다(옛 '전체화면에만'을 되물림). */
+  const dockFoldNode9 = (
+    <button
+      type="button" className="scr-motion-infodock-fold"
+      aria-label={dockFold9 ? "미니맵·인포창 펼치기" : "미니맵·인포창 접기"} aria-pressed={dockFold9}
+      title={dockFold9 ? "미니맵·인포창 펼치기" : "미니맵·인포창 접기"}
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={() => setDockFold9((v) => !v)}
+    >
+      {dockFold9 ? "▴" : "▾"}
+    </button>
   );
   const infoDock9 = (
     <div
@@ -17034,6 +17038,7 @@ export default function ReplayMotionPlayer({
             )}
               {infoDock9}
             </div>
+            {dockFoldNode9}
             </div>
           </div>
         </div>
