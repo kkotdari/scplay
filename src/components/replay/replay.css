@@ -4151,36 +4151,19 @@
   border: 2px solid; border-color: inherit;
 }
 .scr-split-cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-/* ★ 칸 머리는 **글자 있는 자리만 섬**이다(2026-09, 요청: "헤더 배경 투명도 높이고 글자있는부분만 섬으로") — 온 폭 띠를 걷고
-   글자 폭만큼의 반투명 판(왼위 귀퉁이에 붙어 오른아래만 둥글다)이다. 칸의 그림이 머리 오른쪽으로 그대로 보인다. */
+/* ★ 칸 머리는 **이름 칩 하나**다(2026-09, 요청: "헤더의 수치들 제거하고 음영 제거") — 옛 반투명 섬 바탕·글자 그림자·
+   자원·인구·APM·K/D 를 걷었다(수치는 칸을 누르면 아래 정보 판이 든다). 칩은 왼위 귀퉁이에서 한 뼘 띄운다. */
 .scr-split-cap {
-  position: absolute; left: 0; top: 0; z-index: 1; max-width: 100%; box-sizing: border-box;
-  display: flex; align-items: center; gap: calc(5px * var(--dk)); padding: calc(2px * var(--dk)) calc(5px * var(--dk)) calc(2px * var(--dk)) calc(4px * var(--dk));
-  font-size: calc(9px * var(--dk)); line-height: 1.25; color: #e8edf3; white-space: nowrap; overflow: hidden;
-  background: rgba(0, 0, 0, 0.34); border-radius: 0 0 calc(4px * var(--dk)) 0;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
-  font-variant-numeric: tabular-nums; text-align: left; pointer-events: none;
+  position: absolute; left: calc(3px * var(--dk)); top: calc(3px * var(--dk)); z-index: 1;
+  max-width: calc(100% - 6px * var(--dk)); box-sizing: border-box; display: flex; min-width: 0;
+  font-size: calc(9px * var(--dk)); line-height: 1.25; font-weight: 700; white-space: nowrap;
+  text-align: left; pointer-events: none;
 }
-.scr-split-who { display: inline-flex; min-width: 0; overflow: hidden; font-weight: 700; }
 /* 이름은 임자색 둥근 네모 칩이다(2026-09, 요청: "분할헤더도 임자색 둥근사각형안에 넣고 기존 색 네모 제거 · 둥근사각 래디우스
-   작게") — 글자색은 칩이 그 색의 밝기로 정하니 그림자는 걷는다. */
+   작게") — 글자색은 칩이 그 색의 밝기로 정한다. */
 .scr-split-chip {
   display: inline-block; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
-  padding: 0 calc(3px * var(--dk)); border-radius: 2px; text-shadow: none;
-}
-.scr-split-stat { display: inline-flex; align-items: baseline; gap: calc(2px * var(--dk)); flex: none; }
-.scr-split-stat b { font-weight: 500; font-size: 0.82em; opacity: 0.62; }
-.scr-split-sl { opacity: 0.45; }
-/* ★ 폰에서는 칸 머리에 **이름만** 선다(2026-09, 요청: "모바일에서 분할 헤더에 이름만 표시 — 너무 비좁아서 상황정보는 제거") —
-   자원·인구·APM·K/D 는 칸을 누르면 아래 독 정보줄이 그 사람 것으로 든다. */
-@media (max-width: 700px) {
-  .scr-split-cap .scr-split-stat { display: none; }
-}
-/* 좁은 칸(폰의 2×2 따위)은 머리가 두 줄이다 — 이름이 첫 줄을 다 쓰고 숫자가 그 아래(한 줄에 넣으면 이름이 잘린다). */
-.scr-split-cell { container-type: inline-size; }
-@container (max-width: 300px) {
-  .scr-split-cap { flex-wrap: wrap; row-gap: 1px; }
-  .scr-split-who { flex-basis: 100%; }
+  padding: 0 calc(3px * var(--dk)); border-radius: 2px;
 }
 
 /* ★ 독 줄 오른쪽의 음각 글귀(2026-09, 요청: "독 좌우 몇 px이상 남는경우 음각으로 scplay.vercel.app    SINCE 2026 추가(우측에만)")

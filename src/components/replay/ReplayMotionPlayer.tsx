@@ -17393,18 +17393,10 @@ export default function ReplayMotionPlayer({
                     aria-label={`${cap9.text} 화면 — 누르면 아래 독에 이 사람`}
                     onClick={() => { setSplitPick9((p9) => (p9 === c9.raw ? null : c9.raw)); setPicked(null); }}
                   >
-                    {/* 칸 머리(요청: "각 화면 위에 닉네임과 자원 인구 apm k/d 표시") — 로스터 대신이다. */}
+                    {/* 칸 머리 — 이름 칩 하나다(2026-09, 요청: "헤더의 수치들 제거하고 음영 제거" · 옛 자원·인구·APM·K/D 는 칸을 누르면
+                        아래 정보 판이 그 사람 것으로 든다). */}
                     <span className="scr-split-cap">
-                      {/* 이름은 임자색 둥근 네모 칩이다(2026-09, 요청: "분할헤더도 임자색 둥근사각형안에 넣고 기존 색 네모 제거"). */}
-                      <span className="scr-split-who"><span className="scr-split-chip" style={cap9.chip}>{cap9.text}</span></span>
-                      <span className="scr-split-stat">
-                        <span className="scr-motion-stat-min">{cap9.res ? cap9.res[0] : "–"}</span>
-                        <span className="scr-split-sl">/</span>
-                        <span className="scr-motion-stat-gas">{cap9.res ? cap9.res[1] : "–"}</span>
-                      </span>
-                      <span className="scr-split-stat"><b>인구</b>{cap9.sup ? `${cap9.sup[0]}/${cap9.sup[1]}` : "–"}</span>
-                      <span className="scr-split-stat"><b>APM</b>{cap9.apm ?? "–"}</span>
-                      <span className="scr-split-stat"><b>K/D</b>{cap9.kd ? `${cap9.kd[0]}/${cap9.kd[1]}` : "–"}</span>
+                      <span className="scr-split-chip" style={cap9.chip}>{cap9.text}</span>
                     </span>
                   </button>
                 );
