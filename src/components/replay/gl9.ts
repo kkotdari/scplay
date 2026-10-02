@@ -1372,6 +1372,9 @@ export class GlUnits9 implements VecSink9 {
    *  (옛 길은 숨은 GL 캔버스를 마스크로 읽어 2D 에서 파냈는데, 화면 층을 다시 그리면 화면이 지워진다). 스텐실이 없는
    *  문맥이면 못 파고 통째로 덮는다(`#gl=0` 과 같다). flush 가 쓰고 비운다. */
   swarmPlate: HTMLCanvasElement | null = null;
+  /** 칠할 네모(배킹 px · 위가 0 · [x0, y0, x1, y1]) — 분할보기 칸이 판의 일부만 쓸 때 그 밖은 안 지우고 안 칠하고 안 옮긴다
+   *  (2026-09, 분할 성능). 가위로 걸고 MSAA 풀기(blit)도 그 네모만이다. 번짐은 이 동안 끈다(칸 크기에서는 안 읽힌다). null 이면 판 전체. */
+  clip: [number, number, number, number] | null = null;
   private swarmTex: WebGLTexture | null = null;
   private stencilBits = 0;
   /** 연기 판을 스텐실로 파서 얹는다 — `mark` 가 건물·공중 유닛을 스텐실에 1 로 찍는다(없으면 안 판다). */
@@ -1455,15 +1458,23 @@ export class GlUnits9 implements VecSink9 {
     if (cv.width !== bw) cv.width = bw;
     if (cv.height !== bh) cv.height = bh;
     gl.viewport(0, 0, bw, bh);
+    /* 칠할 네모(this.clip)를 GL 자(아래가 0)로 — 있으면 지우기·몸 패스를 가위로 죈다. */
+    let sc9: [number, number, number, number] | null = null;
+    if (this.clip) {
+      const x09 = Math.max(0, Math.floor(this.clip[0])); const x19 = Math.min(bw, Math.ceil(this.clip[2]));
+      const y09 = Math.max(0, Math.floor(bh - this.clip[3])); const y19 = Math.min(bh, Math.ceil(bh - this.clip[1]));
+      if (x19 > x09 && y19 > y09) sc9 = [x09, y09, x19 - x09, y19 - y09];
+    }
+    if (sc9) { gl.enable(gl.SCISSOR_TEST); gl.scissor(sc9[0], sc9[1], sc9[2], sc9[3]); } else gl.disable(gl.SCISSOR_TEST);
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     const q = this.queue; this.queue = [];
     this.stat.inst = q.length; this.stat.tris = 0; this.stat.meshes = this.meshes.size; this.stat.draws = 0; this.stat.swarm = 0;
     (globalThis as unknown as { __glInst9?: number }).__glInst9 = q.length;   // 계측(perf-check)이 '그려졌다'를 아는 창
     const pl9 = this.swarmPlate; this.swarmPlate = null;
-    if (!q.length) { this.frameNo += 1; this.primPass(cw, ch); if (pl9) this.swarmPass(pl9, bw, bh, null); this.vecPass(bw, bh); return; }
+    if (!q.length) { this.frameNo += 1; this.primPass(cw, ch); if (pl9) this.swarmPass(pl9, bw, bh, null); this.vecPass(bw, bh); gl.disable(gl.SCISSOR_TEST); return; }
     /* ★ WebGL2: 몸은 MRT 판에 그린다(mrtEnsure 의 ★★) — 색과 빛 판을 함께. 번짐이 꺼진 단에서는 색 하나(AA 는 이 판이 낸다). */
-    const bloomWant9 = (GL_BLOOM9 === 1 || (GL_BLOOM9 < 0 && this.bloomOn)) && !this.blFail && !!this.fx;
+    const bloomWant9 = (GL_BLOOM9 === 1 || (GL_BLOOM9 < 0 && this.bloomOn)) && !this.blFail && !!this.fx && !sc9;   // 분할 칸(sc9)은 번짐 없음
     const mrtOn = this.mrtEnsure(bw, bh, bloomWant9);
     if (mrtOn) {
       const g2 = gl as WebGL2RenderingContext; const m = this.mrt!;
@@ -1611,7 +1622,7 @@ export class GlUnits9 implements VecSink9 {
     for (const it of q) this.stat.tris += it.mesh.n / 3;
     /* 번짐 몫도 같은 버퍼에 미리 적는다(한 번만 올리려고). */
     let nEm = 0; let sx0 = Infinity; let sy0 = Infinity; let sx1 = -Infinity; let sy1 = -Infinity;
-    const bloomOn9 = (GL_BLOOM9 === 1 || (GL_BLOOM9 < 0 && this.bloomOn)) && !this.blFail;
+    const bloomOn9 = (GL_BLOOM9 === 1 || (GL_BLOOM9 < 0 && this.bloomOn)) && !this.blFail && !sc9;
     const big9 = (it: GlInst9): boolean => it.mesh.emit && it.k * this.footOf(it.mesh, it.yawDeg, it.cam).w >= 14;
     let emG: Grp9[] = []; let dpG: Grp9[] = [];
     const PAD9 = 28;
@@ -1704,7 +1715,10 @@ export class GlUnits9 implements VecSink9 {
       gl.disable(gl.SCISSOR_TEST);   // 가위는 blit 에도 걸린다
       g2.bindFramebuffer(g2.READ_FRAMEBUFFER, m.fb); g2.readBuffer(g2.COLOR_ATTACHMENT0);
       g2.bindFramebuffer(g2.DRAW_FRAMEBUFFER, null);
-      g2.blitFramebuffer(0, 0, bw, bh, 0, 0, bw, bh, g2.COLOR_BUFFER_BIT, g2.NEAREST);
+      if (sc9) {   // 분할 칸 — 칠한 네모만 푼다
+        const [bx9, by9, bw9, bh9] = sc9;
+        g2.blitFramebuffer(bx9, by9, bx9 + bw9, by9 + bh9, bx9, by9, bx9 + bw9, by9 + bh9, g2.COLOR_BUFFER_BIT, g2.NEAREST);
+      } else g2.blitFramebuffer(0, 0, bw, bh, 0, 0, bw, bh, g2.COLOR_BUFFER_BIT, g2.NEAREST);
       const w4 = Math.max(4, bw >> 2); const h4 = Math.max(4, bh >> 2);
       if (m.em && m.emTex && m.emFb && bloomOn9 && nEm > 0 && this.blooms(w4, h4)) {
         g2.readBuffer(g2.COLOR_ATTACHMENT1);

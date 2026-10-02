@@ -252,6 +252,9 @@ const SPLIT_EDGE9 = 0.12;
 /** 분할보기 칸의 오림 네모(유닛 캔버스 CSS px · x0 y0 x1 y1) — 칸을 칠하는 동안만 서고, 붓의 화면 걸러내기(inView0)가 이 안의
  *  몸만 그린다. 칸은 제 실제 배율(낮다)로 칠하므로 판에는 그 칸보다 넓은 땅이 드는데, 그 몫을 안 그려야 칸 수만큼 값이 안 붙는다. */
 let PAINT_CLIP9: [number, number, number, number] | null = null;
+/** 분할보기 칸을 칠하는 배킹 배수 상한(2026-09, 요청: "모바일에서 모델많아지면 좀 버벅이는거같거든" → "피시도 적용") —
+ *  칸은 작게 베껴지므로 그 판을 기기 화소(폰 3)로 칠하면 칠한 화소의 대부분을 버린다. 칸 캔버스의 배킹도 같은 값이다. */
+const SPLIT_DPR9 = 1.5;
 const unitCanvases9 = (root: HTMLElement | null): HTMLCanvasElement[] => root ? Array.from(root.querySelectorAll<HTMLCanvasElement>(".scr-motion-unitlayer")) : [];
 /** GL 붓이 못 맡아 판으로 떨어진 종류별 횟수(진단 'GL' 줄의 '판으로'). */
 const GL_MISS9 = new Map<string, number>();
@@ -4460,7 +4463,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           : xfMsRef9.v >= XF_HEAVY_MS9 ? 0.5
             : xfMsRef9.v >= 25 ? 0.7 : 1;
       if (gest9) { if (kWant9 < xfBackK9.k) xfBackK9.k = kWant9; } else xfBackK9.k = 1;
-      const Bd = gest9 ? B * xfBackK9.k : B;
+      const Bd = PAINT_CLIP9 ? Math.min(B, SPLIT_DPR9) : gest9 ? B * xfBackK9.k : B;   // 분할 칸은 SPLIT_DPR9 로(위 ★)
       /* ★ 그림자도 **배킹과 같은 자로** 접는다(지적: "드래그 중에 그림자 없어지는 거 봤어") — 위 깃발은 손짓이면
          무조건 그림자를 접었는데, 배킹은 손짓 프레임이 25ms를 넘을 때만 내린다. 6ms 벤치 PC의 손짓 프레임은
          그 문턱 한참 아래라 접을 까닭이 없고, 접으면 끌 때마다 그림자가 깜빡 사라진다. 배킹을 내린 손짓
@@ -5720,6 +5723,9 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         if (vec9 && fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM)) {
           paintFxList9(fxCtx9, fx, { zoom, tilePx, zx, zy, cw, ch, Bd, trim9, detailAt, swarmDone9 });
         }
+        /* 분할 칸이면 그 오림 네모만 지우고·칠하고·옮긴다(gl9 clip — 판의 나머지는 버리는 화소다). */
+        const pcl9 = PAINT_CLIP9;
+        gl9.clip = pcl9 ? [pcl9[0] * Bd, pcl9[1] * Bd, pcl9[2] * Bd, pcl9[3] * Bd] : null;
         gl9.flush(cv.width, cv.height, cw, ch);   // GL 캔버스가 곧 화면 층이다 — 베끼지 않는다(UnitLayer 의 ★★)
         if (scrDiagOn()) {
           const miss9 = [...GL_MISS9].sort((a9, b9) => b9[1] - a9[1]).slice(0, 4).map(([k9, n9]) => `${k9}×${n9}`).join(" ");
@@ -13881,7 +13887,7 @@ export default function ReplayMotionPlayer({
     const z9 = trackZoom9();
     const gw = Math.max(1, grid.width);
     const gh = Math.max(1, grid.height);
-    const dpr9 = Math.min(2, window.devicePixelRatio || 1);
+    const dpr9 = Math.min(SPLIT_DPR9, window.devicePixelRatio || 1);   // 칸을 칠하는 배킹과 같은 자(SPLIT_DPR9)
     const n9 = lay9.cells.length;
     const t09 = pNow();
     let done9 = 0;
