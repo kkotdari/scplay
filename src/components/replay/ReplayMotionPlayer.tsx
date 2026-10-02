@@ -55,7 +55,8 @@ import {
 } from "../../utils/bwUnits";
 // (정리) DEFENSE_BUILDINGS — 건물 캔버스 전환으로 ▲ 글자 갈래가 없어져 더는 안 쓴다.
 import { type TerrainGrid } from "./terrainGrid";
-import { decodeMapTerrain, terrainGridOfMap } from "../../utils/mapTerrain";
+import { decodeMapTerrain, terrainFace, terrainGridOfMap } from "../../utils/mapTerrain";
+import { drawMapGrid, type MapTerrainLike } from "../../utils/mapTiles";
 /* 자취는 이제 서버가 굽는다 — 브라우저는 풀어서 읽기만 한다(tools/openbw/README.md).
    여태 이 자리에서 돌던 시뮬(legacy/simCore·simClient)은 명령에서 **유추**하던 것이라,
    참값이 생긴 뒤로는 견줄 것도 없어 통째로 걷었다. legacy는 유물로 남긴다. */
@@ -242,6 +243,12 @@ const STORM_SEEDS = 2;
 const XF_ID9 = "translate(0px, 0px) scale(1)";
 /** 유닛 층 캔버스 셋(유닛·GL·효과 — 같은 클래스) — 손짓 변환은 셋에 다 건다. */
 const GL_HIDE9: React.CSSProperties = { display: "none" };
+/** 분할보기 — 한 장(틱)에 칸을 칠하는 예산(ms). 넘으면 남은 칸은 다음 틱으로 미룬다(차례로 돈다). */
+const SPLIT_BUDGET_MS9 = 14;
+/** 독 줄 음각 글귀 — 틀 옆 쇠 바탕이 글귀 폭보다 이만큼(px) 넘게 남을 때만 새긴다(양옆 여백 몫). */
+const DOCK_MARK_PAD9 = 40;
+/** 분할보기 칸 카메라의 가장자리 띠 — 그 사람이 창의 이 몫 안쪽에 있는 동안은 카메라를 안 옮긴다. */
+const SPLIT_EDGE9 = 0.12;
 const unitCanvases9 = (root: HTMLElement | null): HTMLCanvasElement[] => root ? Array.from(root.querySelectorAll<HTMLCanvasElement>(".scr-motion-unitlayer")) : [];
 /** GL 붓이 못 맡아 판으로 떨어진 종류별 횟수(진단 'GL' 줄의 '판으로'). */
 const GL_MISS9 = new Map<string, number>();
@@ -8392,7 +8399,7 @@ export default function ReplayMotionPlayer({
    *    갈아타는 순간에 구조화 복제가 안 걸린다. 보관함은 WALKS_KEEP9 벌에서 가장 오래된 것을 버린다. */
   const [walksByRaw9, setWalksByRaw9] = useState<Map<string, EngineWorld9["entWalks"]>>(() => new Map());
   /** 몇 사람 것까지 들고 있나 — 지금 보는 사람·다음 사람에 여유 둘. */
-  const WALKS_KEEP9 = 4;
+  const WALKS_KEEP9 = 8;   // 분할보기는 모든 사람의 걷기를 함께 든다(8인까지 — 옛 4)
   /** 이미 청한 이름들 — 같은 사람을 두 번 청하지 않는다. 세계가 바뀌면 비운다. */
   const walksAskedRef9 = useRef<Set<string>>(new Set());
   /** 세계 세대 — 워커가 새 worldui를 보낼 때마다 오른다(걷기를 다시 청하는 자). */
@@ -9512,6 +9519,15 @@ export default function ReplayMotionPlayer({
   const linkPos9 = !!initialView && (initialView.z > 1.001
     || Math.abs(initialView.cx - 0.5) > 0.0005 || Math.abs(initialView.cy - 0.5) > 0.0005);
   const [castOn, setCastOn] = useState(linkAuto9 || (!initialTrack9 && !linkPos9));
+  /* ★★ 분할보기(2026-09, 요청: "중계에 분할보기 추가 — 모든 플레이어의 화면을 동시에 보여줌 · 2명은 좌우 · 3,4명은 2x2 ·
+     5,6명 3x2 · 7,8은 3*3(가운데 비움) · 독에는 화면을 누른 사람거 보여주기" · "해당 모드에서는 로스터 숨기고 대신 각 화면
+     위에 닉네임과 자원 인구 apm k/d 표시" · "가능하면 스타팅 포인트 위치에 따라 배치") — 중계(자동)·개인 추적과 배타다
+     (TV 목록의 한 줄). 칸마다 그 사람의 카메라(명령 자국 무게중심 · trackAt 과 같은 자)이고, 붓은 **한 판을 칸마다 다시
+     칠해 베낀다**(아래 splitPaint9). splitPick9 는 누른 칸의 사람 — 독(정보줄·인포창)이 그 사람의 것을 든다. */
+  const [splitOn9, setSplitOn9] = useState(false);
+  const [splitPick9, setSplitPick9] = useState<string | null>(null);
+  const splitOnRef9 = useRef(false);
+  splitOnRef9.current = splitOn9;
   /** 로스터에 있는 이름만 중계에 세운다 — 관전자는 obsNames로 따로 뺀다. */
   const rosterKeys9 = useMemo(() => new Set(bases.map((b9) => b9.key)), [bases]);
   /** 편성표 — 참값 한 벌에 한 번 굽는다(끄면 아예 안 굽는다). */
@@ -9580,7 +9596,7 @@ export default function ReplayMotionPlayer({
      TV 목록에서 **사람을 고른**(개인 추적 · castOn 은 꺼진다) 동안은 자막이 사라졌다. 개인 추적도 '누구 화면인가'는
      같으니 `camRaw9`(trackRaw ?? castRaw)를 읽는다. 떠오름의 key 는 중계면 토막 번호, 개인 추적이면 그 사람이다
      (사람이 갈릴 때만 다시 떠오른다). 중계가 켜졌는데 편성표가 아직 사람을 안 가리키면 종전대로 안 선다. */
-  const capRaw9 = trackRaw ?? (castOn ? castRaw : null);
+  const capRaw9 = trackRaw ?? (castOn ? castRaw : null) ?? (splitOn9 ? splitPick9 : null);   // 분할보기는 누른 칸의 사람
   /** 첫 칸의 자리를 미리 잡는 **이름표 전부**(요청: "자막이 글자길이에 따라 레이아웃 흔들리지 않게 미리 공간 확보") —
    *  로스터 사람들의 이름표를 다 지어 같은 격자 칸에 숨겨(visibility hidden) 겹쳐 둔다. 칸 폭은 그중 가장 넓은 것이라
    *  사람이 갈려도 첫 칸이 안 흔들린다. 숫자 칸 넷은 CSS 가 ch 폭으로 잡는다.
@@ -9597,7 +9613,7 @@ export default function ReplayMotionPlayer({
     sup: supplyNow.get(raw9) ?? null, apm: apmNow.get(raw9) ?? bases.find((b9) => b9.key === raw9)?.apm ?? null,
     kd: kdNow.get(raw9) ?? null,
   });
-  const castCap9 = capRaw9 !== null ? capOf9(capRaw9, trackRaw ? `t:${trackRaw}` : `c:${castIdx9}`) : null;
+  const castCap9 = capRaw9 !== null ? capOf9(capRaw9, trackRaw ? `t:${trackRaw}` : splitOn9 ? `s:${capRaw9}` : `c:${castIdx9}`) : null;
   /** 추적 켜기·끄기 — 시야(viewRaw)를 함께 끌고 다닌다. 끄면 시야도 전체로 돌아간다. */
   /** 추적을 끈다 — **보던 자리에 머문다**(요청: "추적 보다가 끄면 맵 위치가 기존에 보던 곳으로 돌아가는데
    *  그러지 않게 추적이 보고 있던 곳에서 유지"). 추적 중의 팬은 trackView가 렌더마다 내는 값이라 panBase는
@@ -9612,6 +9628,7 @@ export default function ReplayMotionPlayer({
     /* 개인 추적과 중계는 **배타**다(요청) — 손이 사람을 고르면 중계는 물러난다. 끌 때는
        중계를 되살리지 않는다: 껐다 켠 사람이 바라는 것은 '지금 자리에 머무는 것'이다. */
     if (on9 && castOn) stopCast9();
+    if (on9) setSplitOn9(false);   // 분할보기와도 배타다
     if (on9) setTrackRaw(key); else stopTrack9();
     setViewRaw(on9 ? key : null);
     /* 켜는 순간 **한 번만** 당겨 준다(요청: 배율은 기본 줌인 값, 사다리에서) — 그 뒤로는
@@ -9629,7 +9646,19 @@ export default function ReplayMotionPlayer({
     if (castOn) { stopCast9(); return; }
     stopTrack9();
     setViewRaw(null);
+    setSplitOn9(false);
     setCastOn(true);
+  };
+  /** 분할보기 켜고 끄기 — 중계·개인 추적을 놓고 시점은 관전자로. 입체는 평면으로 내린다(칸의 붓은 평면 한 벌이다). */
+  const toggleSplit9 = (): void => {
+    if (splitOn9) { setSplitOn9(false); return; }
+    if (castOn) stopCast9();
+    if (trackRaw !== null) stopTrack9();
+    setViewRaw(null);
+    if (pitchDegRef9.current < 90) setPitchDeg(90);
+    setPicked(null);
+    setSplitPick9((p9) => p9 ?? bases[0]?.key ?? null);   // 처음엔 첫 사람 — 독이 빈 채로 서지 않게
+    setSplitOn9(true);
   };
   /* ★ 중계가 카메라를 처음 잡을 때 **한 번** 당겨 준다 — 1배(지도 전체)에서는 팬의 여유가
      0이라 카메라가 아무 데도 못 가고, 그러면 중계가 자막만 뜨는 기능으로 보인다. 개인
@@ -9652,14 +9681,15 @@ export default function ReplayMotionPlayer({
     if (!w9) return;
     /* **다음 사람 것도 미리** 청한다(중계) — 편성표가 누구로 갈아탈지 이미 알고 있으므로,
        갈아타는 순간에 구조화 복제가 걸려 그 프레임이 멎는 일을 미리 치른다. */
-    const want9 = [camRaw9, castIdx9 >= 0 ? castPlan[castIdx9 + 1]?.raw ?? null : null];
+    const want9 = [camRaw9, castIdx9 >= 0 ? castPlan[castIdx9 + 1]?.raw ?? null : null,
+      ...(splitOn9 ? bases.map((b9) => b9.key) : [])];
     for (const r9 of want9) {
       if (!r9 || walksByRaw9.has(r9) || walksAskedRef9.current.has(r9)) continue;
       walksAskedRef9.current.add(r9);
       // 그 임자의 걷기만 — 걷기 창은 참값 키 배열을 가리키므로 복제하면 그 트랙의 키가 통째로 건너온다. 임자 하나면 견딜 만하다.
       w9.postMessage({ type: "want", what: "walks", raw: r9 });
     }
-  }, [camRaw9, castIdx9, castPlan, walksByRaw9, worldGen9, workerTick9]);
+  }, [camRaw9, castIdx9, castPlan, walksByRaw9, worldGen9, workerTick9, splitOn9, bases]);
   const walksByTag = useMemo(() => {
     const m9 = new Map<number, typeof entWalks>();
     /* 추적·중계가 사람을 잡기 전에는 **한 톨도 안 만든다** — 이 표를 쌓는 데 드는 것은 생애
@@ -9674,14 +9704,14 @@ export default function ReplayMotionPlayer({
   /** 태그 → 건물 생애들 — 건물은 자취(entWalks)에 안 들어간다(v1 건물 층이 그린다). */
   const bldsByTag = useMemo(() => {
     const m9 = new Map<number, TruthLife[]>();
-    if (!entData || !camRaw9) return m9;
+    if (!entData || (!camRaw9 && !splitOn9)) return m9;
     for (const e9 of entData.lives) {
       if (!e9.bld) continue;
       const a9 = m9.get(e9.tag);
       if (a9) a9.push(e9); else m9.set(e9.tag, [e9]);
     }
     return m9;
-  }, [entData, camRaw9]);
+  }, [entData, camRaw9, splitOn9]);
   /** 이 태그의 몸이 그 순간 서 있던 타일 — 죽었거나 아직 안 났으면 null. */
   const bodyAt9 = useCallback((tag9: number, sec9: number): { x: number; y: number } | null => {
     for (const e9 of walksByTag.get(tag9) ?? []) {
@@ -9757,6 +9787,133 @@ export default function ReplayMotionPlayer({
    *  검게 남고, 그것이 그 경기에서 실제로 밝혀진 만큼이다.
    *  이 보기에서는 **아무것도 안 가려진다**: 유닛은 언제나 제 임자의 시야 안에 있고,
    *  건물도 제 시야가 저를 덮는다. 곧 달라지는 것은 '아무도 안 본 땅'뿐이다. */
+  /* ── 분할보기의 칸 카메라 · 칸 배치(위 splitOn9) ───────────────────────────────────────────────────────────────
+     카메라는 사람마다 trackPicks·trackAt 과 **같은 자**다(그 순간 명령을 받은 무리의 무게중심) — 개인 추적과 한 셈이라
+     칸의 화면과 그 사람을 개인 추적으로 볼 때의 화면이 같은 곳을 본다. 걷기는 워커에 사람마다 청한다(위 want 효과). */
+  type SplitPick9 = { sec: number; tags: number[] };
+  const splitPicks9 = useMemo(() => {
+    const out9 = new Map<string, SplitPick9[]>();
+    if (!splitOn9 || !entData) return out9;
+    for (const b9 of bases) {
+      const mine9 = new Set(entData.players.filter((pl) => pl.name === b9.key).map((pl) => pl.owner));
+      const by9 = new Map<number, Set<number>>();
+      for (const e9 of entData.lives) {
+        if (!mine9.has(e9.owner)) continue;
+        for (const o9 of e9.orders) {
+          const k9 = Math.round(o9[0] * 4) / 4;
+          const g9 = by9.get(k9);
+          if (g9) g9.add(e9.tag); else by9.set(k9, new Set([e9.tag]));
+        }
+      }
+      out9.set(b9.key, [...by9.entries()].map(([sec, tags]) => ({ sec, tags: [...tags] })).sort((x, y) => x.sec - y.sec));
+    }
+    return out9;
+  }, [splitOn9, entData, bases]);
+  const splitWalks9 = useMemo(() => {
+    const out9 = new Map<string, Map<number, typeof entWalks>>();
+    if (!splitOn9) return out9;
+    for (const b9 of bases) {
+      const m9 = new Map<number, typeof entWalks>();
+      for (const e9 of walksByRaw9.get(b9.key) ?? []) {
+        const a9 = m9.get(e9.tag);
+        if (a9) a9.push(e9); else m9.set(e9.tag, [e9]);
+      }
+      out9.set(b9.key, m9);
+    }
+    return out9;
+  }, [splitOn9, bases, walksByRaw9]);
+  /** 사람마다 출발 자리(타일) — 그 임자의 가장 먼저 난 건물(시작 본진). 칸을 지도 위 자리대로 배치하는 자다. */
+  const splitStart9 = useMemo(() => {
+    const out9 = new Map<string, { x: number; y: number }>();
+    if (!splitOn9 || !entData) return out9;
+    for (const b9 of bases) {
+      const mine9 = new Set(entData.players.filter((pl) => pl.name === b9.key).map((pl) => pl.owner));
+      let best9: TruthLife | null = null;
+      for (const e9 of entData.lives) {
+        if (!e9.bld || !mine9.has(e9.owner)) continue;
+        if (!best9 || e9.born < best9.born) best9 = e9;
+      }
+      if (best9) out9.set(b9.key, { x: best9.bornX, y: best9.bornY });
+    }
+    return out9;
+  }, [splitOn9, entData, bases]);
+  /** 그 사람의 카메라 자리(타일) — trackAt 과 같은 셈을 사람마다. 없으면 출발 자리. */
+  const splitAt9 = (raw9: string, sec9: number): { x: number; y: number } | null => {
+    const picks9 = splitPicks9.get(raw9) ?? [];
+    const wk9 = splitWalks9.get(raw9);
+    const body9 = (tg9: number): { x: number; y: number } | null => {
+      for (const e9 of wk9?.get(tg9) ?? []) {
+        if (sec9 < e9.born || (e9.died !== null && sec9 > e9.died)) continue;
+        const p9 = posAtW(e9.walk, sec9);
+        if (p9) return { x: p9.x, y: p9.y };
+      }
+      for (const b9 of bldsByTag.get(tg9) ?? []) {
+        if (sec9 < b9.born || (b9.died !== null && sec9 > b9.died)) continue;
+        const fp9 = FOOTPRINT[b9.kind] ?? [3, 2];
+        let st9: [number, number, number] | null = null;
+        for (const q9 of b9.sites) if (q9[0] <= sec9) st9 = q9;
+        return st9 ? { x: st9[1] + fp9[0] / 2, y: st9[2] + fp9[1] / 2 } : { x: b9.bornX, y: b9.bornY };
+      }
+      return null;
+    };
+    let lo9 = 0; let hi9 = picks9.length - 1; let at9 = -1;
+    while (lo9 <= hi9) { const m9 = (lo9 + hi9) >> 1; if (picks9[m9].sec <= sec9) { at9 = m9; lo9 = m9 + 1; } else hi9 = m9 - 1; }
+    for (let k9 = at9; k9 >= 0 && k9 > at9 - 8; k9 -= 1) {
+      let sx9 = 0; let sy9 = 0; let n9 = 0;
+      for (const tg9 of picks9[k9].tags) {
+        const p9 = body9(tg9);
+        if (!p9) continue;
+        sx9 += p9.x; sy9 += p9.y; n9 += 1;
+      }
+      if (n9 > 0) return { x: sx9 / n9, y: sy9 / n9 };
+    }
+    return splitStart9.get(raw9) ?? null;
+  };
+  /** 칸 배치 — 2명 1×2 · 3~4명 2×2 · 5~6명 3×2 · 7~8명 3×3(가운데 비움). 사람은 **출발 자리에 가장 가까운 칸**에 앉힌다
+   *  (요청: "가능하면 스타팅 포인트 위치에 따라 배치") — 칸 가운데와 출발 자리(지도 분수)의 거리 제곱 합이 가장 작은 짝을
+   *  다 훑어 고른다(8인이면 8! = 4만 남짓, 한 번이다). 출발 자리를 모르는 사람은 지도 가운데로 본다. */
+  const splitLay9 = useMemo(() => {
+    const n9 = bases.length;
+    if (!splitOn9 || n9 < 2) return null;
+    const [cols9, rows9] = n9 <= 2 ? [2, 1] : n9 <= 4 ? [2, 2] : n9 <= 6 ? [3, 2] : [3, 3];
+    const slots9: [number, number][] = [];
+    for (let r9 = 0; r9 < rows9; r9 += 1) {
+      for (let c9 = 0; c9 < cols9; c9 += 1) {
+        if (cols9 === 3 && rows9 === 3 && c9 === 1 && r9 === 1) continue;   // 3×3 은 가운데를 비운다(요청)
+        slots9.push([c9, r9]);
+      }
+    }
+    const gw = Math.max(1, grid.width);
+    const gh = Math.max(1, grid.height);
+    const pts9 = bases.map((b9) => {
+      const st9 = splitStart9.get(b9.key);
+      return st9 ? [st9.x / gw, st9.y / gh] : [0.5, 0.5];
+    });
+    const cost9 = (i9: number, s9: number): number => {
+      const cx9 = (slots9[s9][0] + 0.5) / cols9;
+      const cy9 = (slots9[s9][1] + 0.5) / rows9;
+      return (pts9[i9][0] - cx9) ** 2 + (pts9[i9][1] - cy9) ** 2;
+    };
+    let best9 = Infinity;
+    let bestAs9: number[] = bases.map((_, i) => i);
+    const cur9: number[] = [];
+    const used9 = new Array(slots9.length).fill(false);
+    const dfs9 = (i9: number, acc9: number): void => {
+      if (acc9 >= best9) return;
+      if (i9 === n9) { best9 = acc9; bestAs9 = [...cur9]; return; }
+      for (let s9 = 0; s9 < slots9.length; s9 += 1) {
+        if (used9[s9]) continue;
+        used9[s9] = true; cur9.push(s9);
+        dfs9(i9 + 1, acc9 + cost9(i9, s9));
+        cur9.pop(); used9[s9] = false;
+      }
+    };
+    dfs9(0, 0);
+    return {
+      cols: cols9, rows: rows9,
+      cells: bases.map((b9, i) => ({ raw: b9.key, c: slots9[bestAs9[i]][0], r: slots9[bestAs9[i]][1] })),
+    };
+  }, [splitOn9, bases, splitStart9, grid.width, grid.height]);
   const visAll = viewTeam !== 1 && viewTeam !== 2;
   /** 안개를 셈할 재료가 있나 — 자취가 없는 옛 기록은 종전대로 통째로 보인다. */
   // 안개는 개체 트랙이 있을 때만(옛 경기는 없다) — 걷기(entWalks)는 이제 추적을 켤 때만 받으므로 그 길이로 가리면 안 된다.
@@ -10022,6 +10179,8 @@ export default function ReplayMotionPlayer({
   const [pitchDeg, setPitchDeg] = useState<number>(PITCH_DEGS[0]);
   /** 키 판(v 토글)이 읽는 지금 기울기 — 키 판은 렌더마다 다시 안 걸리므로 ref로 본다. */
   const pitchDegRef9 = useRef(pitchDeg);
+  /* 분할보기 동안은 평면이다(위 splitOn9 — 칸의 붓·지형 베끼기가 평면 한 벌이다). V 키·2D/3D 단추가 올려도 도로 내린다. */
+  useEffect(() => { if (splitOn9 && pitchDeg < 90) setPitchDeg(90); }, [splitOn9, pitchDeg]);
   pitchDegRef9.current = pitchDeg;
   const pitched = pitchDeg < 90;
   const pitchFlat = flatOf(pitchDeg);
@@ -10088,10 +10247,11 @@ export default function ReplayMotionPlayer({
   }, [entData]);
   /** 화면 주인의 지금 선택(태그들) — 카메라를 기계가 쥐었을 때만(중계·개인 추적). 없으면 null. */
   const ownerSel9: number[] | null = (() => {
-    if (!camRaw9 || !entData) return null;
+    const selRaw9 = camRaw9 ?? (splitOn9 ? splitPick9 : null);   // 분할보기는 누른 칸의 사람(위 splitOn9)
+    if (!selRaw9 || !entData) return null;
     let best9: [number, number[]] | null = null;
     for (const pl9 of entData.players) {
-      if (pl9.name !== camRaw9) continue;
+      if (pl9.name !== selRaw9) continue;
       const rows9 = selsByOwner9.get(pl9.owner);
       if (!rows9) continue;
       let lo9 = 0; let hi9 = rows9.length - 1; let at9 = -1;
@@ -13026,7 +13186,8 @@ export default function ReplayMotionPlayer({
   const cullSentRef9 = useRef<{ x0: number; x1: number; y0: number; y1: number } | null>(null);
   const cullRect9 = ((): { x0: number; x1: number; y0: number; y1: number } | null => {
     const sent9 = cullSentRef9.current;
-    if (!visRect9) { cullSentRef9.current = null; return null; }
+    /* 분할보기는 칸마다 딴 자리를 보므로 워커가 **지도 전체**를 짓는다(위 splitOn9). */
+    if (!visRect9 || splitOn9) { cullSentRef9.current = null; return null; }
     if (sent9) {
       const inside9 = visRect9.x0 >= sent9.x0 && visRect9.x1 <= sent9.x1 && visRect9.y0 >= sent9.y0 && visRect9.y1 <= sent9.y1;
       const aSent9 = (sent9.x1 - sent9.x0) * (sent9.y1 - sent9.y0);
@@ -13626,6 +13787,134 @@ export default function ReplayMotionPlayer({
     return lastFrameRef9.current[count9 ? 1 : 0] ?? lastFrameRef9.current[count9 ? 0 : 1] ?? EMPTY_FRAME9;
   };
   /* 틱의 붓 — 살아 있는 시각으로 프레임을 골라 op·효과를 ref에 두고 유닛 캔버스를 곧장 칠한다(React 없이). */
+  /* ── 분할보기의 붓(위 splitOn9) ──────────────────────────────────────────────────────────────────────────
+     ★★ 붓을 칸 수만큼 갈래 짓지 않는다 — 유닛·GL 붓은 '한 배율·한 팬으로 무대 크기 판을 칠하는' 한 벌이고 그 안에 수천 줄의
+     자(LOD·그림자·효과·덜어내기)가 들어 있다. 그래서 칸마다 **그 사람의 중계 화면**(배율 trackZoom9 · 그 사람이 한가운데)을
+     한 장 칠하고, 그 판의 가운데에서 칸의 비(가로:세로)로 가장 크게 드는 네모를 오려 칸 캔버스에 베낀다 — 지형(평면 한 장을
+     따로 구워 둔다) → 유닛 캔버스(크립·링·바) → GL(몸) → 효과 차례다. 곧 칸은 '그 사람을 중계할 때의 화면'을 줄인 그림이다.
+     · 안개·DOM 효과(클릭 자국·핑)는 안 베낀다 — 관전자 시야라 안개가 없고, 자국은 칸 크기에서 안 읽힌다.
+     · 한 장에 다 칠하면 칸 수만큼 값이 곱해지므로 **예산**(SPLIT_BUDGET_MS9) 안에서 차례로 돌린다 — 무거우면 칸마다 박자가 준다.
+     · GL 판은 미리곱 알파·preserveDrawingBuffer 없음이라 **칠한 그 자리(같은 일 안)**에서 곧장 베낀다. */
+  /** 툴박스 키 — 툴박스는 무대 아래 가장자리에 겹쳐 서므로(프레임·전체화면 둘 다) 분할 격자는 그만큼 위에서 끝난다.
+   *  판(바탕)은 무대 끝까지 덮는다 — 반투명 툴박스 밑으로 숨은 지도(마지막 칸의 그림)가 비치지 않게. */
+  const [splitTbH9, setSplitTbH9] = useState(0);
+  useEffect(() => {
+    if (!splitOn9) return undefined;
+    const tb9 = stageRef.current?.parentElement?.querySelector<HTMLElement>(".scr-tb") ?? null;
+    if (!tb9) return undefined;
+    const read9 = (): void => setSplitTbH9(Math.round(tb9.getBoundingClientRect().height));
+    read9();
+    if (typeof ResizeObserver === "undefined") return undefined;
+    const ro9 = new ResizeObserver(read9);
+    ro9.observe(tb9);
+    return () => ro9.disconnect();
+  }, [splitOn9, fsOn]);
+  const splitLayRef9 = useRef(splitLay9);
+  splitLayRef9.current = splitLay9;
+  const splitCvRef9 = useRef(new Map<string, HTMLCanvasElement>());
+  const splitCamRef9 = useRef(new Map<string, { x: number; y: number }>());
+  const splitRrRef9 = useRef(0);
+  const splitTerrRef9 = useRef<HTMLCanvasElement | null>(null);
+  useEffect(() => {
+    if (!splitOn9) return undefined;
+    let dead9 = false;
+    const bake9 = (mt9: MapTerrainLike | null): void => {
+      if (dead9) return;
+      const gw = Math.max(1, grid.width);
+      const gh = Math.max(1, grid.height);
+      const ppt9 = Math.max(4, Math.min(24, Math.floor(4096 / Math.max(gw, gh))));
+      const cv9 = document.createElement("canvas");
+      cv9.width = gw * ppt9;
+      cv9.height = gh * ppt9;
+      const c9 = cv9.getContext("2d");
+      if (!c9) return;
+      drawMapGrid(c9, grid, mt9, ppt9, false, 2);   // 2D 벽띠 배수(벡터층 WALL_2D_K9)와 같은 그림
+      splitTerrRef9.current = cv9;
+    };
+    if (grid.terrain) void decodeMapTerrain(grid.terrain).then((m9) => bake9(m9 ? terrainFace(m9) : null));
+    else bake9(null);
+    return () => { dead9 = true; };
+  }, [splitOn9, grid]);
+  const splitPaint9 = (tNow9: number): void => {
+    const lay9 = splitLayRef9.current;
+    const paint9 = unitPaintRef.current;
+    if (!lay9 || !paint9) return;
+    const cvs9 = unitCanvases9(mapRef.current);
+    const ucv9 = cvs9.find((c) => !c.classList.contains("scr-motion-gl9") && !c.classList.contains("scr-motion-fx9"));
+    if (!ucv9) return;
+    const gcv9 = cvs9.find((c) => c.classList.contains("scr-motion-gl9")) ?? null;
+    const fcv9 = cvs9.find((c) => c.classList.contains("scr-motion-fx9")) ?? null;
+    const cw9 = ucv9.clientWidth;
+    const ch9 = ucv9.clientHeight;
+    const mh9 = Math.min(ch9, ucv9.parentElement?.clientHeight ?? ch9);
+    const band9 = ch9 - mh9;
+    if (!(cw9 > 0) || !(mh9 > 0)) return;
+    const st9 = stageSizeRef.current;
+    const sw9 = st9.w > 0 ? Math.min(st9.w, cw9) : cw9;
+    const sh9 = st9.h > 0 ? Math.min(st9.h, mh9) : mh9;
+    const z9 = trackZoom9();
+    const gw = Math.max(1, grid.width);
+    const gh = Math.max(1, grid.height);
+    const dpr9 = Math.min(2, window.devicePixelRatio || 1);
+    const n9 = lay9.cells.length;
+    const t09 = pNow();
+    let done9 = 0;
+    for (let k9 = 0; k9 < n9; k9 += 1) {
+      if (k9 > 0 && pNow() - t09 > SPLIT_BUDGET_MS9) break;
+      const cell9 = lay9.cells[(splitRrRef9.current + k9) % n9];
+      done9 += 1;
+      const el9 = splitCvRef9.current.get(cell9.raw);
+      if (!el9) continue;
+      const cwC9 = el9.clientWidth;
+      const chC9 = el9.clientHeight;
+      if (!(cwC9 > 0) || !(chC9 > 0)) continue;
+      /* 오려 낼 네모(유닛 캔버스 CSS px) — 무대에 칸의 비로 가장 크게 드는 것. 그만큼이 '그 사람의 중계 화면'이다. */
+      const sc9 = Math.min(sw9 / cwC9, sh9 / chC9);
+      const cropW9 = cwC9 * sc9;
+      const cropH9 = chC9 * sc9;
+      const wf9 = cropW9 / (cw9 * z9);   // 그 네모가 덮는 지도 분수 폭·높이
+      const hf9 = cropH9 / (mh9 * z9);
+      /* 카메라 — 그 사람의 자리. 창 안(가장자리 SPLIT_EDGE9 몫 안쪽)에 있는 동안은 붙들고, 벗어나면 한가운데로 데려온다
+         (개인 추적의 trackView 와 같은 규약 — 매 프레임 따라가면 무리가 꿈틀거릴 때마다 화면이 흔들린다). */
+      const at9 = splitAt9(cell9.raw, tNow9);
+      let cam9 = splitCamRef9.current.get(cell9.raw);
+      if (at9) {
+        const fr9 = mapFracRef.current?.(at9.x, at9.y) ?? [at9.x / gw, at9.y / gh];
+        if (!cam9 || Math.abs(fr9[0] - cam9.x) > (wf9 / 2) * (1 - 2 * SPLIT_EDGE9)
+          || Math.abs(fr9[1] - cam9.y) > (hf9 / 2) * (1 - 2 * SPLIT_EDGE9)) cam9 = { x: fr9[0], y: fr9[1] };
+      }
+      if (!cam9) cam9 = { x: 0.5, y: 0.5 };
+      splitCamRef9.current.set(cell9.raw, cam9);
+      const cx9 = wf9 >= 1 ? 0.5 : Math.min(1 - wf9 / 2, Math.max(wf9 / 2, cam9.x));
+      const cy9 = hf9 >= 1 ? 0.5 : Math.min(1 - hf9 / 2, Math.max(hf9 / 2, cam9.y));
+      paint9(z9, { x: (0.5 - cx9) * cw9 * z9, y: (0.5 - cy9) * mh9 * z9 }, z9);
+      const bw9 = Math.max(1, Math.round(cwC9 * dpr9));
+      const bh9 = Math.max(1, Math.round(chC9 * dpr9));
+      if (el9.width !== bw9) el9.width = bw9;
+      if (el9.height !== bh9) el9.height = bh9;
+      const c9 = el9.getContext("2d");
+      if (!c9) continue;
+      c9.setTransform(1, 0, 0, 1, 0, 0);
+      c9.imageSmoothingEnabled = true;
+      c9.fillStyle = "#0b0d10";
+      c9.fillRect(0, 0, bw9, bh9);
+      const terr9 = splitTerrRef9.current;
+      if (terr9) {
+        const kx9 = bw9 / wf9;
+        const ky9 = bh9 / hf9;
+        c9.drawImage(terr9, -(cx9 - wf9 / 2) * kx9, -(cy9 - hf9 / 2) * ky9, kx9, ky9);
+      }
+      const x09 = cw9 / 2 - cropW9 / 2;
+      const y09 = band9 + mh9 / 2 - cropH9 / 2;
+      for (const src9 of [ucv9, gcv9, fcv9]) {
+        if (!src9 || !(src9.width > 0) || !(src9.height > 0)) continue;
+        const rx9 = src9.width / cw9;
+        const ry9 = src9.height / ch9;
+        try { c9.drawImage(src9, x09 * rx9, y09 * ry9, cropW9 * rx9, cropH9 * ry9, 0, 0, bw9, bh9); } catch { /* 판이 아직 없다 */ }
+      }
+    }
+    splitRrRef9.current = (splitRrRef9.current + done9) % Math.max(1, n9);
+  };
   paintFnRef9.current = (tNow9: number, rebase9 = false, fogOnly9 = false): void => {
     /* 이 붓 한 장이 든 시간(위 WORK9) — 프레임 틈을 누구 몫인지로 가르는 자다. */
     const bw09 = pNow();
@@ -13677,7 +13966,7 @@ export default function ReplayMotionPlayer({
     }
     fogBin9().brush += 1;
     if (!(fr9.visSrc && fr9.explored && fogPaintRef.current)) fogBin9().nosrc += 1;
-    if (fr9.visSrc && fr9.explored && fogPaintRef.current) {
+    if (fr9.visSrc && fr9.explored && fogPaintRef.current && !splitOnRef9.current) {   // 분할보기는 안개를 안 칠한다(본 지도가 숨는다)
       /* 계측: 지금 칠할 목록이 전 장보다 이른 시각인가(위 FOGBACK9의 ★). 칠할지 말지를
          가리기 **전에** 센다 — 같은 목록이라 건너뛴 장은 뒤로 간 것이 아니므로 여기서
          was가 그대로 유지되는 것이 맞다. */
@@ -13743,7 +14032,8 @@ export default function ReplayMotionPlayer({
        손을 떼야 채워졌다. 이제 누가 부르든 지금 보기에 그리고, 임시 변환은 '지금 보기 − 그려진 보기'의 차일 뿐이다
        (그린 직후엔 0이라 항등). 못 그린 프레임만 그 차가 남아 CSS가 잇는다. rebase9는 부르는 쪽을 가르는 표식으로만 남는다. */
     void rebase9;
-    unitPaintRef.current?.(zoomRef.current, panRef.current, zoomCommitRef.current);
+    if (splitOnRef9.current && splitLayRef9.current) splitPaint9(tNow9);   // 분할보기 — 칸마다 칠해 베낀다
+    else unitPaintRef.current?.(zoomRef.current, panRef.current, zoomCommitRef.current);
     xfCvXfRef.current = XF_ID9;
     // 유닛은 지금 보기로 칠했다 — 그쪽 임시 변환만 항등으로 되돌린다(안 그러면 두 번 먹는다).
     WORK9.brush += pNow() - bw09;
@@ -16132,6 +16422,28 @@ export default function ReplayMotionPlayer({
      이 줄로 옮겨 와 **아래 줄(미니맵 + 인포창)을 통째로** 접는다. */
   /** 접힘이 실제로 먹나 — 전체화면에서만(프레임에는 접기 단추가 없다). */
   const dockFoldOn9 = dockFold9;
+  /* ★ 독 줄 오른쪽의 음각 글귀(2026-09, 요청: "독 좌우 몇 px이상 남는경우 음각으로 scplay.vercel.app    SINCE 2026 추가(우측에만)")
+     — 틀은 줄 가운데라 좌우에 쇠 바탕이 같은 폭으로 남는다. 그 한쪽 몫이 글귀 폭 + 여백(DOCK_MARK_PAD9)을 넘을 때만 오른쪽에
+     새긴다(폰처럼 틀이 줄을 다 채우면 안 선다). 글귀는 늘 DOM 에 두고(폭을 재야 한다) 켜짐만 가른다. */
+  const dockRowRef9 = useRef<HTMLDivElement | null>(null);
+  const dockMarkRef9 = useRef<HTMLSpanElement | null>(null);
+  const [dockMark9, setDockMark9] = useState(false);
+  useLayoutEffect(() => {
+    const row9 = dockRowRef9.current;
+    const mk9 = dockMarkRef9.current;
+    const fr9 = row9?.querySelector<HTMLElement>(".scr-fs-dockframe") ?? null;
+    if (!row9 || !mk9 || !fr9) return undefined;
+    const read9 = (): void => {
+      const side9 = (row9.clientWidth - fr9.getBoundingClientRect().width) / 2;
+      setDockMark9(side9 >= mk9.getBoundingClientRect().width + DOCK_MARK_PAD9);
+    };
+    read9();
+    if (typeof ResizeObserver === "undefined") return undefined;
+    const ro9 = new ResizeObserver(read9);
+    ro9.observe(row9);
+    ro9.observe(fr9);
+    return () => ro9.disconnect();
+  }, [fsOn]);
   /* ★ TV 단추(중계·추적 목록)는 **정보줄 맨 왼쪽**이다(2026-09, 요청: "중계버튼 위치를 유저정보 라인 맨 왼쪽으로 이동") —
      정보줄이 곧 '지금 누구 화면인가'를 말하는 자리라 그 손잡이를 같은 줄에 둔다. 꼴·켜짐(초록 + 깜빡임)·위로 펼치는 목록은
      아이콘 줄에 있던 그대로다(형제 규칙을 받으려고 .scr-motion-mapbtns 한 칸 감싸개 · 크기 변수는 .scr-fs-dockcast 가 든다). */
@@ -16140,14 +16452,14 @@ export default function ReplayMotionPlayer({
           <span className="scr-motion-pick">
             <button
               type="button"
-              className={cx("scr-motion-litbtn scr-motion-mapbtn scr-motion-castbtn", (castOn || trackRaw !== null) && "scr-motion-castbtn-on")}
+              className={cx("scr-motion-litbtn scr-motion-mapbtn scr-motion-castbtn", (castOn || trackRaw !== null || splitOn9) && "scr-motion-castbtn-on")}
               onClick={() => pickToggle9("cast")}
               aria-haspopup="menu" aria-expanded={pick9 === "cast"}
-              aria-pressed={castOn || trackRaw !== null}
-              aria-label={castOn ? "중계 — 자동 · 누르면 목록"
+              aria-pressed={castOn || trackRaw !== null || splitOn9}
+              aria-label={splitOn9 ? "중계 — 분할보기 · 누르면 목록" : castOn ? "중계 — 자동 · 누르면 목록"
                 : trackRaw !== null ? `추적 — ${bases.find((b9) => b9.key === trackRaw)?.name ?? trackRaw} · 누르면 목록`
                   : "중계·추적 — 누르면 목록"}
-              title={castOn
+              title={splitOn9 ? "분할보기 — 모든 선수의 화면을 함께 보는 중" : castOn
                 ? "중계(자동) — 중요한 장면의 선수를 자동으로 따라가는 중"
                 : trackRaw !== null ? "개인 추적 중 — 누르면 다른 사람이나 자동을 고른다"
                   : "중계·추적 — 따라갈 사람을 고르거나 자동(중계)을 켠다"}
@@ -16160,12 +16472,17 @@ export default function ReplayMotionPlayer({
                 dot: modeColor(b9.key, teamOfRaw(b9.key)), act: () => toggleTrack(b9.key),
               })),
               { key: "auto", label: "자동", on: castOn, act: () => toggleCast9() },
+              /* 분할보기(위 splitOn9) — 둘 이상일 때만. */
+              ...(bases.length >= 2 ? [{ key: "split", label: "분할", on: splitOn9, act: () => toggleSplit9() }] : []),
               /* ★ 맨 아래 **끄기**(2026-09, 요청: "목록에 끄기도 있어야해") — 켜진 것을 다시 골라 끄는 길은 남지만, 무엇이 켜져
                  있는지 모르는 손에게는 '끄는 줄'이 따로 있어야 한다. 중계든 개인 추적이든 카메라를 쥔 쪽을 놓고(둘은 배타라 둘 중
                  하나다) 시점도 관전자로 되돌린다(toggleTrack 의 끄는 길과 같은 셈). 둘 다 꺼져 있을 때 이 줄이 켜진 줄이다. */
               {
-                key: "off", label: "끄기", on: !castOn && trackRaw === null,
-                act: () => { if (castOn) stopCast9(); else if (trackRaw !== null) { stopTrack9(); setViewRaw(null); } },
+                key: "off", label: "끄기", on: !castOn && trackRaw === null && !splitOn9,
+                act: () => {
+                  if (splitOn9) setSplitOn9(false);
+                  if (castOn) stopCast9(); else if (trackRaw !== null) { stopTrack9(); setViewRaw(null); }
+                },
               },
             ], true, true)}
           </span>
@@ -16872,7 +17189,7 @@ export default function ReplayMotionPlayer({
         style={{ ["--scr-mini-ar" as string]: `${grid.width / Math.max(1, grid.height)}` } as React.CSSProperties}
       >
         <div
-          className="scr-fs-stage" ref={stageRef}
+          className={cx("scr-fs-stage", splitOn9 && "is-split")} ref={stageRef}
           style={{
             ...stageStyle,
             touchAction: "none",
@@ -16905,6 +17222,51 @@ export default function ReplayMotionPlayer({
               (CSS 주석) 평면에 늘 두어도 끌기·확대 비용이 안 는다. */}
           <div className="scr-fs-space" style={{ backgroundImage: spaceBg9 }} aria-hidden />
           {mapNode}
+          {splitLay9 && (
+            /* 분할보기 격자(위 splitOn9 · splitPaint9) — 무대를 통째로 덮는다. 칸을 누르면 독이 그 사람의 것을 든다.
+               손짓은 여기서 끊는다(무대의 끌기·집기가 덮인 지도에 안 걸리게). */
+            <div
+              className={cx("scr-split", `is-n${splitLay9.cells.length}`)}
+              style={{ paddingBottom: splitTbH9, gridTemplateColumns: `repeat(${splitLay9.cols}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${splitLay9.rows}, minmax(0, 1fr))` }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onWheel={(e) => e.stopPropagation()}
+              onDoubleClick={(e) => e.stopPropagation()}
+            >
+              {splitLay9.cells.map((c9) => {
+                const cap9 = capOf9(c9.raw, c9.raw);
+                return (
+                  <button
+                    key={c9.raw} type="button"
+                    className={cx("scr-split-cell", splitPick9 === c9.raw && "is-pick")}
+                    style={{ gridColumn: c9.c + 1, gridRow: c9.r + 1, borderColor: splitPick9 === c9.raw ? cap9.col : undefined }}
+                    aria-pressed={splitPick9 === c9.raw}
+                    aria-label={`${cap9.text} 화면 — 누르면 아래 독에 이 사람`}
+                    onClick={() => { setSplitPick9(c9.raw); setPicked(null); }}
+                  >
+                    <canvas
+                      className="scr-split-cv" aria-hidden
+                      ref={(el) => { if (el) splitCvRef9.current.set(c9.raw, el); else splitCvRef9.current.delete(c9.raw); }}
+                    />
+                    {/* 칸 머리(요청: "각 화면 위에 닉네임과 자원 인구 apm k/d 표시") — 로스터 대신이다. */}
+                    <span className="scr-split-cap">
+                      <span className="scr-split-who">
+                        <i className="scr-motion-castdot" style={{ background: cap9.col }} aria-hidden />
+                        {cap9.text}
+                      </span>
+                      <span className="scr-split-stat">
+                        <span className="scr-motion-stat-min">{cap9.res ? cap9.res[0] : "–"}</span>
+                        <span className="scr-split-sl">/</span>
+                        <span className="scr-motion-stat-gas">{cap9.res ? cap9.res[1] : "–"}</span>
+                      </span>
+                      <span className="scr-split-stat"><b>인구</b>{cap9.sup ? `${cap9.sup[0]}/${cap9.sup[1]}` : "–"}</span>
+                      <span className="scr-split-stat"><b>APM</b>{cap9.apm ?? "–"}</span>
+                      <span className="scr-split-stat"><b>K/D</b>{cap9.kd ? `${cap9.kd[0]}/${cap9.kd[1]}` : "–"}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
         {diagNode}
         {/* ★ 조작부는 **아이콘 버튼**으로 연다(요청: "아니다 탭버튼으로 변경 ·
@@ -16934,7 +17296,7 @@ export default function ReplayMotionPlayer({
             아니다. 끈 꼴은 같은 자리에 이름+종족만 남고, 판(바탕·테두리·그림자)은
             안 그린다: 자리·여백을 그대로 두므로 켤 때 글자가 한 톨도 안 움직이고,
             지도를 가리는 것은 판뿐이라 그 판만 걷으면 시야가 열린다. */}
-        {rosterMode !== 2 && (
+        {rosterMode !== 2 && !splitOn9 && (
           <div className={cx("scr-fs-panel scr-fs-roster-fixed",
             rosterMode === 0 && "scr-fs-panel-bare")}>
             {teamCol(1, true, rosterMode === 0, true)}
@@ -17008,7 +17370,9 @@ export default function ReplayMotionPlayer({
             </div>
             <div className="scr-tb-seek">{speedNode9}{controlsNode}</div>
           </div>
-          <div className="scr-fs-dockrow">
+          <div className="scr-fs-dockrow" ref={dockRowRef9}>
+            {/* 음각 글귀(위 dockMark9) — 틀 오른쪽 쇠 바탕에만. */}
+            <span className={cx("scr-fs-dockmark", dockMark9 && "is-on")} ref={dockMarkRef9} aria-hidden>{"scplay.vercel.app    SINCE 2026"}</span>
             {/* 미니맵 + 인포창을 **한 사각 틀**로 묶는다(2026-09, 요청: "미니맵과 인포창을 한데 묶는 사각 프레임 필요 인포창 래디우스 제거"). */}
             <div className={cx("scr-fs-dockframe", dockFoldOn9 && "is-fold")}>
             {dockCapNode9}

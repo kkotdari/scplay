@@ -3994,3 +3994,60 @@
   background: linear-gradient(rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.08)),
     conic-gradient(from -60deg, #2cb494 0 120deg, #f40404 120deg 240deg, #fcfc38 240deg 360deg);
 }
+
+/* ★★ 분할보기 격자(2026-09, 요청: "중계에 분할보기 추가 — 2명은 좌우 · 3,4명은 2x2 · 5,6명 3x2 · 7,8은 3*3(가운데 비움)" ·
+   "해당 모드에서는 로스터 숨기고 대신 각 화면 위에 닉네임과 자원 인구 apm k/d 표시") — 무대를 통째로 덮는 칸들이다(무대가 제
+   겹 문맥이라 지도 안의 높은 z 층보다 위에 서면 된다). 아래는 툴박스 키만큼 비운다(인라인 padding-bottom — 판은 끝까지 덮는다). 칸 그림은 붓이 칸
+   캔버스에 베껴 넣는다(splitPaint9). 칸 사이 틈은 바탕색 — 그 밑의 지도(마지막 칸의 그림)가 비치지 않게 판 자체가 불투명이다. */
+.scr-split {
+  position: absolute; inset: 0; z-index: 40000; box-sizing: border-box;
+  display: grid; gap: 2px; background: #05070a;
+}
+.scr-split-cell {
+  position: relative; min-width: 0; min-height: 0; padding: 0; margin: 0; border: 0;
+  background: #0b0d10; cursor: pointer; overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+.scr-split-cell.is-pick::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  border: 2px solid; border-color: inherit;
+}
+.scr-split-cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.scr-split-cap {
+  position: absolute; left: 0; right: 0; top: 0; z-index: 1;
+  display: flex; align-items: center; gap: 8px; padding: 3px 7px;
+  font-size: 11px; line-height: 1.25; color: #e8edf3; white-space: nowrap; overflow: hidden;
+  background: linear-gradient(rgba(0, 0, 0, 0.62), rgba(0, 0, 0, 0.38));
+  font-variant-numeric: tabular-nums; text-align: left; pointer-events: none;
+}
+.scr-split-who { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.scr-split-stat { display: inline-flex; align-items: baseline; gap: 3px; flex: none; }
+.scr-split-stat b { font-weight: 500; font-size: 0.82em; opacity: 0.62; }
+.scr-split-sl { opacity: 0.45; }
+@media (max-width: 700px) {
+  .scr-split-cap { font-size: 9px; gap: 5px; padding: 2px 4px; }
+}
+/* 좁은 칸(폰의 2×2 따위)은 머리가 두 줄이다 — 이름이 첫 줄을 다 쓰고 숫자가 그 아래(한 줄에 넣으면 이름이 잘린다). */
+.scr-split-cell { container-type: inline-size; }
+@container (max-width: 300px) {
+  .scr-split-cap { flex-wrap: wrap; row-gap: 1px; }
+  .scr-split-who { flex-basis: 100%; }
+}
+
+/* ★ 독 줄 오른쪽의 음각 글귀(2026-09, 요청: "독 좌우 몇 px이상 남는경우 음각으로 scplay.vercel.app    SINCE 2026 추가(우측에만)")
+   — 쇠 바탕에 판 글자다: 글자는 바탕보다 어둡고, 아래 가장자리에 밝은 한 줄(파인 홈의 아래 입술) · 위에 어두운 한 줄을 얹는다.
+   틀 옆 남는 폭이 글귀보다 넉넉할 때만 is-on(위 dockMark9) — 꺼져 있어도 자리(폭)는 재야 하므로 숨기기만 한다. */
+.scr-fs-dockrow { position: relative; }
+.scr-fs-dockmark {
+  position: absolute; right: calc(14px * var(--dk)); top: 50%; transform: translateY(-50%);
+  white-space: pre; pointer-events: none; user-select: none;
+  font: 700 calc(9px * var(--dk)) / 1 ui-sans-serif, system-ui, sans-serif; letter-spacing: 0.08em;
+  color: rgba(28, 32, 38, 0.55);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.32), 0 -1px 0 rgba(0, 0, 0, 0.28);
+  visibility: hidden;
+}
+.scr-fs-dockmark.is-on { visibility: visible; }
+/* 분할보기 동안 본 지도는 **안 보인다**(2026-09, 지적: "배경에 깔리는 화면은 없애야해") — 칸 붓이 그 캔버스들을 판으로 쓰므로
+   걷어 내지는 않고(크기가 살아 있어야 칠하고 베낀다) 보이지만 않게 둔다. 밤하늘 바탕도 함께. */
+.scr-fs-stage.is-split > .scr-motion-map,
+.scr-fs-stage.is-split > .scr-fs-space { visibility: hidden; }

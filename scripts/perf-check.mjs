@@ -75,7 +75,10 @@ function makeWorld() {
     { owner: 2, race: 2, force: 2, name: "수달이", color: 0xd8d8b0, home: [106, 18], kit: "P" },
     { owner: 3, race: 2, force: 2, name: "크리스", color: 0xe8d040, home: [106, 106], kit: "P" },
     { owner: 4, race: 0, force: 2, name: "타센", color: 0xa060e0, home: [62, 106], kit: "Z" },
-  ];
+    { owner: 5, race: 1, force: 1, name: "보리", color: 0x40c0c0, home: [18, 62], kit: "T" },
+    { owner: 6, race: 2, force: 1, name: "모카", color: 0x80e060, home: [62, 18], kit: "P" },
+    { owner: 7, race: 1, force: 2, name: "산들", color: 0xe060a0, home: [106, 62], kit: "T" },
+  ].slice(0, Math.max(2, Math.min(8, Number(flag("--players", 5)) || 5)));   // --players N(2~8) — 분할보기 배치 검산(기본 다섯)
   const tracks = [];
   let tag = 100;
   const KEY_DT = 0.75;
@@ -538,7 +541,7 @@ const page = await browser.newPage({
   /* 창 높이(--vh) — 프레임의 높이 예산이 이 값에서 나오므로, 예산이 빠듯한 화면
      (아이폰 + 위에 제목 줄)에서만 나는 잘림을 여기서 재현한다. */
   viewport: WIDE
-    ? { width: 1280, height: Number(flag("--vh", 900)) }
+    ? { width: Number(flag("--vw", 1280)), height: Number(flag("--vh", 900)) }   // --vw 넓은 화면(독 음각 글귀 검산)
     : { width: 390, height: Number(flag("--vh", 844)) },
   deviceScaleFactor: Number(flag("--dpr", 2)),
   ...(has("--ios") ? { userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1", hasTouch: true, isMobile: true } : {}),
@@ -719,6 +722,46 @@ if (has("--pickshot")) {
   });
   console.log(`[목록] 단추 ${r9 ? "눌렀다" : "없음"} · 목록 ${JSON.stringify(bx9.m)} · 자막 ${JSON.stringify(bx9.c)} · 겹친 자리 맨 위: ${bx9.top} · 화면 안 ${bx9.fit} · 확대 ${bx9.zoom}`);
   await page.screenshot({ path: String(flag("--pickshot", "pick.png")) });
+}
+/* 분할보기 자(--split [png]) — TV 목록에서 '분할'을 골라 칸 수·자리·칸 그림(빈 판인가)·칸 머리 글귀를 찍고, 둘째 칸을 눌러
+   독의 정보줄이 그 사람으로 갈리나 본다(2026-09, 요청: "중계에 분할보기 추가 … 독에는 화면을 누른 사람거 보여주기"). */
+if (has("--split")) {
+  await page.waitForTimeout(800);
+  await page.evaluate(() => { const b = document.querySelector(".scr-motion-castbtn"); if (b instanceof HTMLElement) b.click(); });
+  await page.waitForTimeout(300);
+  await page.evaluate(() => {
+    const it = [...document.querySelectorAll(".scr-motion-pickmenu .scr-motion-pickitem")].find((el) => (el.textContent ?? "").trim() === "분할");
+    if (it instanceof HTMLElement) it.click();
+  });
+  await page.waitForTimeout(Number(flag("--splitwait", 4000)));
+  const sp9 = () => page.evaluate(() => {
+    const cells = [...document.querySelectorAll(".scr-split-cell")].map((el) => {
+      const r = el.getBoundingClientRect();
+      const cv = el.querySelector("canvas");
+      let ink = null;
+      if (cv instanceof HTMLCanvasElement && cv.width > 0) {
+        const d = cv.getContext("2d").getImageData(0, 0, cv.width, cv.height).data;
+        let n = 0; let lit = 0;
+        for (let i = 0; i < d.length; i += 64) { n += 1; if (d[i] + d[i + 1] + d[i + 2] > 90) lit += 1; }
+        ink = +(lit / Math.max(1, n)).toFixed(2);
+      }
+      return { x: +r.left.toFixed(0), y: +r.top.toFixed(0), w: +r.width.toFixed(0), h: +r.height.toFixed(0), ink,
+        cap: el.querySelector(".scr-split-cap")?.textContent ?? null, pick: el.classList.contains("is-pick") };
+    });
+    const g = document.querySelector(".scr-split")?.getBoundingClientRect();
+    const roster = !!document.querySelector(".scr-fs-roster-fixed");
+    const cap = document.querySelector(".scr-fs-dockcap .scr-motion-castcap-who")?.textContent ?? null;
+    return { grid: g ? [+g.width.toFixed(0), +g.height.toFixed(0)] : null, roster, cap, cells };
+  });
+  const a9 = await sp9();
+  console.log(`[분할] 격자 ${JSON.stringify(a9.grid)} · 로스터 ${a9.roster ? "보임" : "숨김"} · 독 "${a9.cap}"`);
+  for (const c of a9.cells) console.log(`  칸 ${c.x},${c.y} ${c.w}×${c.h} 잉크 ${c.ink}${c.pick ? " *" : ""} · ${c.cap}`);
+  const shot9 = flag("--split", "");
+  if (shot9 && shot9 !== true && String(shot9).endsWith(".png")) await page.screenshot({ path: String(shot9) });
+  await page.evaluate(() => { const c = document.querySelectorAll(".scr-split-cell")[1]; if (c instanceof HTMLElement) c.click(); });
+  await page.waitForTimeout(500);
+  const b9 = await sp9();
+  console.log(`[분할] 둘째 칸 누른 뒤 독 "${b9.cap}" · 켜진 칸 ${b9.cells.findIndex((c) => c.pick)}`);
 }
 /* 자동 팝업 자(--infoprobe [png]): 중계·추적 중 화면 주인이 고른 건물의 정보 팝업이 저절로 서나(2026-09, 요청:
    "중계시(화면 주인의) 건물 선택시 인포팝업 뜨게 — 리플레이 기록상 선택한 경우"). --selpick 과 --track 정구 로 연다:
