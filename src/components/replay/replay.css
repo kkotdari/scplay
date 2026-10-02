@@ -2585,20 +2585,6 @@
   pointer-events: auto; overflow: hidden;
 }
 /* 전체화면은 조종부(재생바)와 그 위의 아이콘 줄(44px)이 무대를 덮는다 — 그 둘을 다 비킨다. */
-/* 맨 윗줄 — 사람 정보줄(옛 중계 자막 자리). 인포창 안에 있다가 **틀의 맨 윗줄**로 나왔다(2026-09, 요청: "유저정보는 미니맵+인포창
-   합친거의 위로 배치(둘 합친 전체 폭을 사용하니 더 넓음)") — 미니맵 + 인포창의 온 폭을 쓰는 제 우물이다. 정보줄이 없어도 키를
-   지킨다(틀이 안 들썩인다). 접기 단추는 오른쪽 끝이고 아래 줄(미니맵 + 인포창)을 통째로 접는다. */
-.scr-fs-dockcap {
-  /* z 13 — TV 단추의 목록이 위로 펼쳐져 툴박스(12)를 덮어야 한다(그 아래로 깔리면 목록 밑이 흐린 판에 묻힌다). */
-  position: relative; z-index: 13; flex: none; height: var(--dock-cap); min-width: 0;
-  display: flex; align-items: center; justify-content: center;
-  /* 양옆에 같은 정사각(왼 TV · 오른 접기)이 제 칸으로 서므로 글귀는 그대로 틀 한가운데다(옛 왼쪽 비움 몫은 걷었다). */
-  box-sizing: border-box;
-}
-.scr-fs-dockcap .scr-motion-castcap {
-  background: none; border: none; box-shadow: none; padding: 1px 4px; border-radius: 0;
-  column-gap: calc(6px * var(--dk)); font-size: calc(9px * var(--dk)); line-height: 1.1; max-width: 100%;
-}
 /* TV 단추(중계·추적 목록)는 정보줄의 **닉네임 바로 왼쪽**이다(2026-09, 요청: "중계버튼 위치를 유저정보 라인 맨 왼쪽으로 이동" →
    "중계버튼 크기 줄이고 닉네임 왼쪽으로") — 자막(castcap)과 한 덩이로 가운데에 선다(흐름 속 첫 칸 · 자막이 없으면 홀로 가운데).
    원은 14·dkd(옛 18). 목록은 위로 펼쳐져 툴박스를 덮는다(정보줄 z 13). */
@@ -2610,10 +2596,10 @@
    접기와 같고, 형제 규칙(.scr-motion-mapbtns button.scr-motion-mapbtn — 원·반투명 막)을 같은 무게로 **뒤에** 덮어쓴다.
    (꼴은 아래 ★ 의 흰 볼록 단추로 바뀌었다.) z 13 — 목록이 위로
    펼쳐져 툴박스(12)를 덮는다. */
-.scr-fs-dockframe > .scr-fs-dockcast {
-  grid-column: 1; grid-row: 1; position: relative; z-index: 13; align-self: stretch;
-  width: var(--dock-cap); height: var(--dock-cap); margin: 0;
-  --mapbtn-h: var(--dock-cap); --mapbtn-gap: 0px;
+.scr-tb-who .scr-fs-dockcast {
+  position: relative; flex: none; margin: 0; padding: 0;
+  width: var(--who-cast); height: var(--who-cast);
+  --mapbtn-h: var(--who-cast); --mapbtn-gap: 0px;
 }
 .scr-fs-dockcast .scr-motion-pick { width: 100%; height: 100%; aspect-ratio: auto; }
 /* ★ **볼록한 흰 사각 단추**다(2026-09, 요청: "중계 버튼 볼록한 사각 흰 버튼으로") — 쇠 정사각(접기의 짝)을 되물렸다:
@@ -2643,18 +2629,14 @@
 @media (prefers-reduced-motion: reduce) {
   .scr-fs-dockcast .scr-motion-castbtn-on svg { animation: none; }
 }
-/* 라벨은 한 단 작게 · 줄 사이 없이(요청: "유저정보 라벨 크기 줄여서 세로 줄이기") — 정보줄 키 30 → 22·dk. */
-.scr-fs-dockcap .scr-motion-castcap-lab { font-size: calc(5.5px * var(--dk)); line-height: 1.25; }
-/* ★ 색점은 **큰 네모**다(2026-09, 요청: "닉네임 옆 색 동그라미 더 크게 · 네모로") — 7 → 10·dk · 둥글기 1.5·dk. */
-.scr-fs-dockcap .scr-motion-castdot { width: calc(10px * var(--dk)); height: calc(10px * var(--dk)); border-radius: calc(1.5px * var(--dk)); }
 /* ★ 접기 단추는 **틀 위쪽 오른 끝의 쇠 정사각**이다(2026-09, 요청: "프레임모드에도 독 접기 버튼 추가" → "접기버튼은 유저정보말고
    독 프레임 어딘가 적당히" → "접기 손잡이 정사각형으로 위쪽에 배치하고 독내용 가운데 정렬 안깨뜨리게 하기") — 한때 두 줄을 세로로
    다 걸친 기둥이었는데, 그 기둥이 아래 줄(미니맵 + 인포창)의 폭을 먹어 독 내용이 왼쪽으로 쏠렸다. 이제 **정보줄 줄에만** 서는
    정사각(한 변 = 정보줄 키)이고 아래 줄은 틀의 온 폭을 쓴다. 정보줄은 왼쪽에 같은 몫을 비워(아래 dockcap 의 padding-left) 글귀가
    틀 한가운데에 그대로 선다. 결은 세로 · 홈·안쪽 베벨은 걷었다(삼각형이 곧 쥘 자리다). */
 .scr-motion-infodock-fold {
-  grid-column: 3; grid-row: 1; align-self: stretch;
-  width: var(--dock-cap); height: var(--dock-cap); min-height: 0; padding: 0; border-radius: 0; cursor: pointer; box-sizing: border-box;
+  grid-column: 2; grid-row: 1; align-self: start;
+  width: calc(16px * var(--dk)); height: var(--dock-cap); min-height: 0; padding: 0; border-radius: 0; cursor: pointer; box-sizing: border-box;
   display: flex; align-items: center; justify-content: center;
   /* 삼각형은 정사각의 절반 남짓(요청: "버튼 삼각형 크기 키우고 내부 테두리는 제거") — 홈 둘·안쪽 베벨을 걷고 바깥 1px 테만 남긴다. */
   border: 1px solid #0b0d10; color: #20252b; font-size: calc(13px * var(--dk)); line-height: 1;
@@ -2813,42 +2795,8 @@
   /* 숫자 줄 베이스라인 — 폰은 글자 크기와 무관한 몫이 더 있어 PC 의 비례값(0.7)으로는 1.2px 낮다(실측) · 재서 고른 값. */
   .scr-motion-infodock-nums { padding-bottom: 1.9px; }
 }
-/* ★ 자막은 **상시**다(되요청: "토스터가 아니라 계속 노출로 변경") — 중계가 켜진 동안 늘 서 있고 토막이
-   갈릴 때 글귀만 갈아 끼운다(그리는 쪽이 토막 번호를 key 로 주어 그 순간 떠오름만 다시 돈다). 스러지는
-   애니메이션과 그 길이를 재생기 상수(옛 CAST_TOAST_MS9)와 맞추던 ⚠ 는 함께 걷혔다. */
-.scr-motion-castcap {
-  /* ★ 표 한 장(2026-09, 요청: "자동 중계 자막 배경 더 투명하게 하고 폰트크기 줄이고 로스터 2단계 내용 같이 보여주기.
-     내용별 라벨은 위쪽에 작게 표시") — 격자 두 줄: 위 줄은 지표 라벨(작게), 아래 줄은 값. 첫 칸(색점 + 이름)은 두 줄을
-     다 차지하고 세로 가운데다. 바탕 0.84 → 0.42 · 글자 13 → 11px. */
-  /* ★ 칸 폭은 미리 잡는다(2026-09, 요청: "자막이 글자길이에 따라 레이아웃 흔들리지 않게 미리 공간 확보하고 라벨은 각 항목의
-     가운데 위") — 숫자 칸 넷은 ch 폭(일꾼 3 · 광물/가스 9 · 인구 7 · APM 3.5 · tabular-nums 라 자릿수가 곧 폭)이고 첫 칸은 그리는
-     쪽이 가장 긴 이름표를 같은 칸에 숨겨 겹친다(.scr-motion-castcap-ghost). 라벨·값은 제 칸 가운데다. */
-  display: inline-grid; grid-template-columns: auto minmax(3ch, auto) minmax(9ch, auto) minmax(7ch, auto) minmax(6ch, auto) minmax(3.5ch, auto);
-  grid-auto-rows: auto;
-  column-gap: 12px; row-gap: 0; align-items: center;
-  padding: 4px 12px; border-radius: 10px;
-  background: rgba(8, 11, 17, 0.42); color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-  font-size: 11px; font-weight: 600; letter-spacing: 0.2px; line-height: 1.25;
-  white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
-  animation: scr-castcap-in 0.25s ease-out;
-}
-.scr-motion-castcap-who { grid-row: 1 / 3; grid-column: 1; display: inline-flex; align-items: center; gap: 6px; }
-/* 첫 칸에 겹쳐 숨긴 가장 긴 이름표 — 자리만 차지한다(같은 격자 칸 · 보이지 않는다). */
-.scr-motion-castcap-ghost { visibility: hidden; }
-.scr-motion-castcap-lab { grid-row: 1; font-size: 7px; font-weight: 600; opacity: 0.7; text-align: center; line-height: 1.1; }
-.scr-motion-castcap-val { grid-row: 2; text-align: center; font-variant-numeric: tabular-nums; }
-.scr-motion-castcap-sl { opacity: 0.55; margin: 0 1px; }
-/* 그 선수의 색 — 지도 위 유닛 색과 곧바로 이어져, 누구 화면인지가 글자를 읽기 전에 보인다. */
+/* (걷어냄) 중계 자막·독 정보줄의 표(.scr-motion-castcap) — 사람 정보는 툴박스 가운데 판(.scr-tb-who)으로 옮겼다(2026-09). */
 .scr-motion-castdot { width: 9px; height: 9px; border-radius: 1.5px; flex: none; }   /* 네모(위 독 색점의 ★) */
-@keyframes scr-castcap-in {
-  0% { opacity: 0; transform: translateY(6px); }
-  100% { opacity: 1; transform: translateY(0); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .scr-motion-castcap { animation: none; }
-}
 .scr-motion-simnote {
   /* 맵 정가운데(요청) — 자취가 오기 전에는 지도가 텅 비어 있어, 귀퉁이의 작은 알약은
      "비어 있다"와 "받는 중이다"를 구분해 주지 못했다. 한가운데면 눈이 먼저 간다. */
@@ -3252,7 +3200,7 @@
      (옛 "독 아래테두리가 좀 얇게 보이는데"로 덧댄 그 2px 은 되물렸다). 안쪽 틈(--dock-bez · 구분 막대)과 갈라 둔다. */
   --dock-out: calc(3.4px * var(--dk));
   /* 두 줄 — [TV 정사각 | 정보줄 | 접기 정사각] / [미니맵 | 인포창](키 --dock-h · 온 폭). 접으면(is-fold) 정보줄만 남는다. */
-  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: stretch; gap: var(--dock-bez); padding: var(--dock-out); min-width: 0; max-width: 100%;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: var(--dock-bez); padding: var(--dock-out); min-width: 0; max-width: 100%;
   box-sizing: border-box;
   position: relative; border: 1px solid #0b0d10; border-radius: 0;
   background:
@@ -3273,10 +3221,9 @@
    display: none 으로 걷으면 그 폭까지 빠져 틀이 정보줄 폭으로 쪼그라들었다. 키만 0 으로 눌러 숨기면 폭(미니맵·인포창의 width)은
    그대로 남아 틀을 받친다 · 줄 사이 틈도 걷는다. */
 .scr-fs-dockframe.is-fold { row-gap: 0; }
+/* 접힘의 키는 접기 손잡이 하나다(그 손잡이가 오른 끝 기둥의 위쪽이라 — .scr-motion-infodock-fold). */
 .scr-fs-dockframe.is-fold .scr-fs-dockmain { height: 0; visibility: hidden; overflow: hidden; }
-.scr-fs-dockframe > .scr-fs-dockcap { grid-column: 2; grid-row: 1; }
-.scr-fs-dockframe > .scr-fs-dockmain { grid-column: 1 / -1; grid-row: 2; }
-.scr-fs-dockframe > .scr-fs-dockcap,
+.scr-fs-dockframe > .scr-fs-dockmain { grid-column: 1; grid-row: 1; }
 .scr-fs-dockmain > .scr-fs-minipanel,
 .scr-fs-dockmain > .scr-motion-infodock {
   background: #0a0d12;
@@ -3295,8 +3242,8 @@
     linear-gradient(180deg, #b2b8c0 0%, #979fa8 15%, #7a828b 45%, #656c75 52%, #737b84 72%, #89919a 100%);
   /* 광택 띠는 틀의 온 키(위아래 여백 + 정보줄 + 그 아래 틈 포함)에 걸려 있으므로 막대도 그 자로 편다 — 같은 높이에서 같은 색이라
      이음매가 없다. 막대는 틀 위에서 '여백 + 정보줄 + 틈' 만큼 내려와 있다. */
-  background-size: 100% calc(100% + var(--dock-cap) + 2 * var(--dock-out) + var(--dock-bez) + 2px);
-  background-position: 0 calc(-1 * (1px + var(--dock-out) + var(--dock-cap) + var(--dock-bez)));
+  background-size: 100% calc(100% + 2 * var(--dock-out) + 2px);
+  background-position: 0 calc(-1 * (1px + var(--dock-out)));
   box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.16), inset -1px 0 0 rgba(0, 0, 0, 0.30);
 }
 /* ★ 미니맵은 **남는 폭**을 쓴다(2026-09, 요청: "폭은 인포창 넣고 남은 폭을 씀") — 칸(이 판)이 남는 폭 × 줄 키를 갖고, 미니맵은
@@ -3332,7 +3279,8 @@
   display: flex; flex-direction: column; gap: 4px; min-width: 0;
   /* 모서리는 각지고 판은 더 옅다(2026-09, 요청: "툴바배경 래디우스 제거 및 좀더 투명하게(전체화면 프레임모드 둘다)") — 옛 12px · 0.52. */
   /* 위 여백은 한 단 넉넉하다(2026-09, 요청: "툴박스 내부 위쪽 패딩 증가시키기" — 옛 6). */
-  padding: 10px 8px 6px; border-radius: 0; box-sizing: border-box;
+  --tb-padt: 10px;
+  padding: var(--tb-padt) 8px 6px; border-radius: 0; box-sizing: border-box;
   /* 판은 이제 **쇠**다(위 ★★ — 감싸개의 쇠판 위에 선다) · 옛 반투명 판(0.34)·흐림은 걷었다. */
   background: none; color: var(--text);
   box-shadow: none;
@@ -3340,13 +3288,13 @@
 /* ★ 쇠판 위의 단추·재생 줄은 **우물**이다(독의 미니맵·인포창 우물과 같은 꼴 — 어두운 속 · 위 안쪽 그늘 · 아래 밝은 입술) —
    옛 '옅은 흰 막'은 어두운 지도 위에서만 읽혔고 밝은 쇠 위에서는 안 보인다. 켜진 단추(is-on — 흰 반전)·색 단추(팀·주인공의
    원그래프)는 제 꼴 그대로다. 재생 줄은 줄째로 한 우물이라 그 안의 배속·재생·탐색바·시계는 옛 흰 잉크 그대로 읽힌다. */
-.scr-tb .scr-tb-btnrow .scr-motion-mapbtns button.scr-motion-mapbtn:not(.is-on):not(.is-team):not(.is-hero),
+.scr-tb .scr-tb-btnrow > .scr-motion-mapbtns button.scr-motion-mapbtn:not(.is-on):not(.is-team):not(.is-hero),
 .scr-tb .scr-tb-tail .scr-kakao-share-btn {
   background: #0d1116;
   box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 @media (hover: hover) {
-  .scr-tb .scr-tb-btnrow .scr-motion-mapbtns button.scr-motion-mapbtn:not(.is-on):not(.is-team):not(.is-hero):hover,
+  .scr-tb .scr-tb-btnrow > .scr-motion-mapbtns button.scr-motion-mapbtn:not(.is-on):not(.is-team):not(.is-hero):hover,
   .scr-tb .scr-tb-tail .scr-kakao-share-btn:hover { background: #1a2028; }
 }
 /* ★ 재생 줄은 **우물 없이 쇠 위에 바로** 선다(2026-09, 요청: "재생컨트롤부분 검정배경 없애기") — 그래서 그 줄만 잉크를 뒤집는다:
@@ -3366,8 +3314,66 @@
   background: #0d1116;
   box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.3);
 }
-.scr-tb-btnrow { display: flex; align-items: center; gap: 6px; min-width: 0; }
+/* 단추 줄은 세 칸 격자다 — [아이콘 줄 | 사람 정보 판 | 꼬리]. 양옆이 같은 1fr 라 넓은 화면에서 정보 판이 줄 한가운데에 서고,
+   좁으면 양옆이 제 단추 폭을 지키고 정보 판이 남는 폭을 쓴다(상한 --who-max). */
+.scr-tb-btnrow {
+  --who-max: 340px;
+  display: grid; grid-template-columns: minmax(max-content, 1fr) minmax(0, var(--who-max)) minmax(max-content, 1fr);
+  align-items: center; column-gap: 6px; min-width: 0;
+}
+.scr-tb-btnrow > .scr-motion-mapbtns { justify-self: start; }
+.scr-tb-btnrow > .scr-tb-tail { justify-self: end; margin-left: 0; }
 .scr-tb-tail { display: flex; align-items: center; gap: 6px; flex: none; margin-left: auto; }
+/* ★★ 사람 정보 판 — 툴박스 단추 줄의 **빈 가운데**(2026-09, 요청: "유저인포를 버튼 사이공간에 배치 · 독윗줄보다 살짝 돌출되는
+   형태로 배치하고 내용은 두줄로 구성 · 윗줄: 중계버튼, 이름(임자색 둥근사각형 · 래디우스 작게) · 아랫줄에 현황"). 쇠판 위 끝보다
+   `--who-up` 만큼 솟은 어두운 우물이다 — 위 여백(--tb-padt)을 음수 여백으로 먹고 그 위로 한 뼘 더 오른다. 무대가 제 겹 문맥(z 0)이라
+   솟은 몫이 지도 위에 서려면 이 판이 z 를 가져야 한다(그 안의 TV 목록 z 7600 은 이 판의 문맥 안에서 무대보다 위다).
+   목록은 판 가운데 위로 편다 — 판은 줄 가운데라 폰에서도 여덟 이름(360px)이 화면 안에 든다. */
+.scr-tb-who {
+  --who-up: 5px; --who-cast: 18px;
+  position: relative; z-index: 2; container-type: inline-size;
+  min-width: 0; align-self: stretch;
+  margin: calc(-1 * (var(--tb-padt) + var(--who-up))) 0 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  padding: 4px 8px 3px; box-sizing: border-box;
+  background: #0a0d12; color: #e8eef6; border: 1px solid #0b0d10; border-radius: 6px 6px 4px 4px;
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(0, 0, 0, 0.9),
+    0 1px 0 rgba(255, 255, 255, 0.28), 0 -2px 6px rgba(0, 0, 0, 0.35);
+}
+.scr-tb-who-top { display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 0; max-width: 100%; }
+/* 이름 칩 — 임자색 둥근 네모(둥글기 작게) · 로스터 사람들의 이름표를 같은 칸에 숨겨 겹쳐 폭을 미리 잡는다. */
+.scr-tb-who-name {
+  display: inline-grid; min-width: 0; max-width: 100%; overflow: hidden;
+  padding: 1px 6px; border-radius: 2px;
+  font-size: 11px; font-weight: 700; line-height: 1.35; white-space: nowrap; text-align: center;
+}
+.scr-tb-who-name.is-none { background: rgba(255, 255, 255, 0.08); color: rgba(232, 238, 246, 0.5); }
+.scr-tb-who-txt { grid-area: 1 / 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.scr-tb-who-ghost { visibility: hidden; }
+/* 아랫줄 — 현황(라벨은 작게 값 앞에). 칸마다 최소 폭을 잡아 숫자가 갈려도 안 흔들린다. */
+.scr-tb-who-st {
+  display: flex; align-items: baseline; justify-content: center; gap: 8px; max-width: 100%;
+  font-size: 10px; font-weight: 600; line-height: 1.2; white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.scr-tb-who-st > span { display: inline-flex; align-items: baseline; gap: 2px; }
+.scr-tb-who-st b { font-size: 7px; font-weight: 600; opacity: 0.62; margin-right: 1px; }
+.scr-tb-who-sl { opacity: 0.55; margin: 0 1px; }
+/* 좁은 판(폰)은 라벨을 접는다 — 값만 남고 라벨은 title 이 든다(두 줄 꼴을 지킨다). */
+@container (max-width: 230px) {
+  .scr-tb-who-st { gap: 6px; font-size: 9.5px; }
+  .scr-tb-who-st b { display: none; }
+}
+.scr-tb-who .scr-motion-mapbtns .scr-motion-pick { position: static; }
+.scr-tb-who .scr-motion-pickmenu.is-left {
+  left: 50%; right: auto; transform: translateX(-50%); max-width: calc(100vw - 16px);
+}
+@media (min-width: 1160px) {
+  .scr-tb-btnrow { --who-max: 400px; }
+  .scr-tb-who { --who-cast: 20px; }
+  .scr-tb-who-name { font-size: 12px; }
+  .scr-tb-who-st { font-size: 11px; gap: 10px; }
+  .scr-tb-who-st b { font-size: 8px; }
+}
 .scr-tb-seek { display: flex; align-items: center; min-width: 0; }
 /* 재생 줄 맨 왼쪽의 배속 단추 한 칸(2026-09, 요청: "배속 버튼은 플레이버튼 왼쪽으로") — 줄지 않는다. */
 .scr-tb-speed { flex: none; margin-right: 6px; }
@@ -3399,7 +3405,7 @@
   .scr-tb-tail .scr-kakao-share-btn:hover { background: rgba(255, 255, 255, 0.18); }
 }
 @media (max-width: 1159px) {
-  .scr-tb { padding: 9px 6px 5px; }
+  .scr-tb { --tb-padt: 9px; padding: var(--tb-padt) 6px 5px; }
   .scr-tb-tail { gap: 5px; }
 }
 /* (걷어냄) PC 한 줄 — 이제 어느 폭에서나 [단추 줄] / [재생·탐색바·시계] 두 줄이다(2026-09, 요청: "피시에서도 버튼하고
@@ -4110,7 +4116,13 @@
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
   font-variant-numeric: tabular-nums; text-align: left; pointer-events: none;
 }
-.scr-split-who { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.scr-split-who { display: inline-flex; min-width: 0; overflow: hidden; font-weight: 700; }
+/* 이름은 임자색 둥근 네모 칩이다(2026-09, 요청: "분할헤더도 임자색 둥근사각형안에 넣고 기존 색 네모 제거 · 둥근사각 래디우스
+   작게") — 글자색은 칩이 그 색의 밝기로 정하니 그림자는 걷는다. */
+.scr-split-chip {
+  display: inline-block; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+  padding: 0 5px; border-radius: 2px; text-shadow: none;
+}
 .scr-split-stat { display: inline-flex; align-items: baseline; gap: 3px; flex: none; }
 .scr-split-stat b { font-weight: 500; font-size: 0.82em; opacity: 0.62; }
 .scr-split-sl { opacity: 0.45; }

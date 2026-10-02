@@ -9643,6 +9643,8 @@ export default function ReplayMotionPlayer({
   /** 한 사람의 정보줄(자막) — 중계 자막과 인포창의 '고른 몸의 임자' 줄이 같은 셈을 나눠 쓴다. */
   const capOf9 = (raw9: string, key9: string) => ({
     key: key9, text: castLabel9(raw9), col: modeColor(raw9, teamOfRaw(raw9)),
+    /* 이름 칩(임자색 둥근 네모 · 글자색은 그 색의 밝기로) — 툴박스 정보 판·분할 칸 머리가 나눠 쓴다(로스터 칩과 같은 셈). */
+    chip: chipStyle(raw9, teamOfRaw(raw9)),
     ghosts: capGhosts9,
     worker: workerNow.get(raw9) ?? null, res: resNow.get(raw9) ?? null,
     sup: supplyNow.get(raw9) ?? null, apm: apmNow.get(raw9) ?? bases.find((b9) => b9.key === raw9)?.apm ?? null,
@@ -16604,44 +16606,39 @@ export default function ReplayMotionPlayer({
           </span>
     </div>
   );
-  const dockCapNode9 = (
+  /* ★★ 사람 정보 판은 **툴박스 단추 줄의 빈 가운데**다(2026-09, 요청: "유저인포를 버튼 사이공간에 배치 · 독윗줄보다 살짝
+     돌출되는 형태로 배치하고 내용은 두줄로 구성 · 윗줄: 중계버튼, 이름(임자색 둥근사각형안에 넣고 기존 색 네모 제거 · 둥근사각
+     래디우스 작게) · 아랫줄에 현황") — 옛 판은 미니맵 + 인포창 틀의 맨 윗줄이었다. 쇠판 위 끝보다 한 뼘 솟은 어두운 우물이다.
+     이름 칩은 로스터 사람들의 이름표를 같은 격자 칸에 숨겨 겹쳐(-ghost) 폭을 미리 잡는다 — 사람이 갈려도 판이 안 흔들린다. */
+  const whoNode9 = (
     <div
-      className="scr-fs-dockcap" aria-live="polite"
+      className="scr-tb-who" aria-live="polite"
       onPointerDown={(e) => e.stopPropagation()}
       onWheel={(e) => e.stopPropagation()}
     >
-        {dockCap9 && (
-          <span key={dockCap9.key} className="scr-motion-castcap">
-            <span className="scr-motion-castcap-who">
-              <i className="scr-motion-castdot" style={{ background: dockCap9.col }} aria-hidden />
-              {dockCap9.text}
-            </span>
-            {dockCap9.ghosts.map((g9, i9) => (
-              <span key={i9} className="scr-motion-castcap-who scr-motion-castcap-ghost" aria-hidden>
-                <i className="scr-motion-castdot" aria-hidden />
-                {g9}
-              </span>
-            ))}
-            <span className="scr-motion-castcap-lab">일꾼</span>
-            <span className="scr-motion-castcap-lab">자원</span>
-            <span className="scr-motion-castcap-lab">인구</span>
-            <span className="scr-motion-castcap-lab">K/D</span>
-            <span className="scr-motion-castcap-lab">APM</span>
-            <span className="scr-motion-castcap-val">{dockCap9.worker ?? "–"}</span>
-            <span className="scr-motion-castcap-val">
-              <span className="scr-motion-stat-min">{dockCap9.res ? dockCap9.res[0] : "–"}</span>
-              <span className="scr-motion-castcap-sl">/</span>
-              <span className="scr-motion-stat-gas">{dockCap9.res ? dockCap9.res[1] : "–"}</span>
-            </span>
-            <span className="scr-motion-castcap-val">{dockCap9.sup ? `${dockCap9.sup[0]}/${dockCap9.sup[1]}` : "–"}</span>
-            <span className="scr-motion-castcap-val">{dockCap9.kd ? `${dockCap9.kd[0]}/${dockCap9.kd[1]}` : "–"}</span>
-            <span className="scr-motion-castcap-val">{dockCap9.apm ?? "–"}</span>
-          </span>
-        )}
+      <div className="scr-tb-who-top">
+        {castBtnNode9}
+        <span className={cx("scr-tb-who-name", !dockCap9 && "is-none")} style={dockCap9?.chip}>
+          <span className="scr-tb-who-txt">{dockCap9 ? dockCap9.text : "–"}</span>
+          {capGhosts9.map((g9, i9) => <span key={i9} className="scr-tb-who-txt scr-tb-who-ghost" aria-hidden>{g9}</span>)}
+        </span>
+      </div>
+      <div className="scr-tb-who-st">
+        <span title="일꾼"><b>일꾼</b>{dockCap9?.worker ?? "–"}</span>
+        <span title="자원(광물/가스)"><b>자원</b>
+          <span className="scr-motion-stat-min">{dockCap9?.res ? dockCap9.res[0] : "–"}</span>
+          <span className="scr-tb-who-sl">/</span>
+          <span className="scr-motion-stat-gas">{dockCap9?.res ? dockCap9.res[1] : "–"}</span>
+        </span>
+        <span title="인구"><b>인구</b>{dockCap9?.sup ? `${dockCap9.sup[0]}/${dockCap9.sup[1]}` : "–"}</span>
+        <span title="K/D"><b>K/D</b>{dockCap9?.kd ? `${dockCap9.kd[0]}/${dockCap9.kd[1]}` : "–"}</span>
+        <span title="APM"><b>APM</b>{dockCap9?.apm ?? "–"}</span>
+      </div>
     </div>
   );
-  /* 접기 손잡이(2026-09, 요청: "프레임모드에도 독 접기 버튼 추가" · "접기버튼은 유저정보말고 독 프레임 어딘가") — 틀의 오른 끝
-     쇠 띠다. 프레임·전체화면 둘 다 먹는다(옛 '전체화면에만'을 되물림). */
+  /* 접기 손잡이(2026-09, 요청: "프레임모드에도 독 접기 버튼 추가" · "접기버튼은 유저정보말고 독 프레임 어딘가") — 프레임·전체화면
+     둘 다 먹는다(옛 '전체화면에만'을 되물림). ★ 자리는 **틀의 오른 끝 기둥 위쪽**이다(2026-09, 요청: "접기버튼을 독 우상단으로
+     이동" · "접은상태 - 미니맵 인포창 접기") — 정보줄이 툴박스로 나가 틀은 [미니맵 | 인포창 | 접기] 한 줄이고, 접으면 그 손잡이 키만 남는다. */
   const dockFoldNode9 = (
     <button
       type="button" className="scr-motion-infodock-fold"
@@ -17377,10 +17374,8 @@ export default function ReplayMotionPlayer({
                   >
                     {/* 칸 머리(요청: "각 화면 위에 닉네임과 자원 인구 apm k/d 표시") — 로스터 대신이다. */}
                     <span className="scr-split-cap">
-                      <span className="scr-split-who">
-                        <i className="scr-motion-castdot" style={{ background: cap9.col }} aria-hidden />
-                        {cap9.text}
-                      </span>
+                      {/* 이름은 임자색 둥근 네모 칩이다(2026-09, 요청: "분할헤더도 임자색 둥근사각형안에 넣고 기존 색 네모 제거"). */}
+                      <span className="scr-split-who"><span className="scr-split-chip" style={cap9.chip}>{cap9.text}</span></span>
                       <span className="scr-split-stat">
                         <span className="scr-motion-stat-min">{cap9.res ? cap9.res[0] : "–"}</span>
                         <span className="scr-split-sl">/</span>
@@ -17448,6 +17443,7 @@ export default function ReplayMotionPlayer({
           >
             <div className="scr-tb-btnrow">
               {mapBtnRow}
+              {whoNode9}
               <div className="scr-tb-tail">
                 {/* ★ 장면 스크랩 — 앱이 onScrap을 주면 여기서 그린다(위 프롭 주석). 차례는 안내(ReplayGuide)와 같다:
                     스크랩(Z) → 공유(X) → 사용법. 꼴은 같은 줄의 공유·사용법과 한 벌이다(.scr-scrapbtn). */}
@@ -17503,8 +17499,6 @@ export default function ReplayMotionPlayer({
             <span className={cx("scr-fs-dockmark", dockMark9 && "is-on")} ref={dockMarkRef9} aria-hidden>{"scplay.vercel.app    SINCE 2026"}</span>
             {/* 미니맵 + 인포창을 **한 사각 틀**로 묶는다(2026-09, 요청: "미니맵과 인포창을 한데 묶는 사각 프레임 필요 인포창 래디우스 제거"). */}
             <div className={cx("scr-fs-dockframe", dockFoldOn9 && "is-fold")}>
-            {castBtnNode9}
-            {dockCapNode9}
             <div className="scr-fs-dockmain">
             {(fsOn ? fsMiniOn : true) && (
               <div className="scr-fs-minipanel">

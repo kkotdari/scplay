@@ -757,7 +757,7 @@ if (has("--split")) {
     const tb = document.querySelector(".scr-tb")?.getBoundingClientRect();
     const lastBottom = Math.max(0, ...[...document.querySelectorAll(".scr-split-cell")].map((el) => el.getBoundingClientRect().bottom));
     const roster = !!document.querySelector(".scr-fs-roster-fixed");
-    const cap = document.querySelector(".scr-fs-dockcap .scr-motion-castcap-who")?.textContent ?? null;
+    const cap = document.querySelector(".scr-tb-who-name .scr-tb-who-txt:not(.scr-tb-who-ghost)")?.textContent ?? null;
     return { grid: g ? [+g.width.toFixed(0), +g.height.toFixed(0)] : null, roster, cap, cells, tbTop: tb ? +tb.top.toFixed(0) : null, cellBottom: +lastBottom.toFixed(0) };
   });
   const a9 = await sp9();
@@ -832,11 +832,11 @@ if (has("--castprobe")) {
     const r9 = await page.evaluate(() => ({
       on: !!document.querySelector(".scr-motion-castbtn-on"),
       btn: !!document.querySelector(".scr-motion-castbtn"),
-      /* 글귀는 숨긴 이름표(.scr-motion-castcap-ghost — 첫 칸 폭을 미리 잡는 겹판)를 빼고 읽는다. */
-      toast: [...document.querySelectorAll(".scr-motion-castcap")].map((el) => { const c = el.cloneNode(true); c.querySelectorAll(".scr-motion-castcap-ghost").forEach((g) => g.remove()); return c.textContent ?? ""; }),
+      /* 글귀는 숨긴 이름표(.scr-tb-who-ghost — 첫 칸 폭을 미리 잡는 겹판)를 빼고 읽는다. */
+      toast: [...document.querySelectorAll(".scr-tb-who")].map((el) => { const c = el.cloneNode(true); c.querySelectorAll(".scr-tb-who-ghost").forEach((g) => g.remove()); return c.textContent ?? ""; }),
       /* 칸 폭(2026-09, 요청: "글자길이에 따라 레이아웃 흔들리지 않게 미리 공간 확보") — 사람이 갈려도 같아야 한다. */
-      cols: (() => { const el = document.querySelector(".scr-motion-castcap"); if (!el) return null; const r0 = el.getBoundingClientRect();
-        return { w: +r0.width.toFixed(1), cells: [...el.children].filter((c) => !c.classList.contains("scr-motion-castcap-ghost")).map((c) => +c.getBoundingClientRect().width.toFixed(1)) }; })(),
+      cols: (() => { const el = document.querySelector(".scr-tb-who"); if (!el) return null; const r0 = el.getBoundingClientRect();
+        return { w: +r0.width.toFixed(1), cells: [...el.querySelectorAll(".scr-tb-who-st > span")].map((c) => +c.getBoundingClientRect().width.toFixed(1)) }; })(),
       /* 단추의 자리 — 아이콘 줄(.scr-motion-mapbtns) 안에서 **로스터 단추 바로 왼쪽**인가(요청), 크기가 형제와 같은가. */
       bb: (() => { const b = document.querySelector(".scr-motion-mapbtns .scr-motion-castbtn");
         /* 단추는 목록 감싸개(.scr-motion-pick) 안에 서므로 이웃은 그 감싸개의 형제다(2026-09 · 목록을 열게 되며). */
@@ -868,16 +868,16 @@ if (has("--castprobe")) {
     }
     await page.waitForTimeout(200);
   }
-  const capNow9 = await page.evaluate(() => { const el = document.querySelector(".scr-motion-castcap"); if (!el) return null;
-    const c = el.cloneNode(true); c.querySelectorAll(".scr-motion-castcap-ghost").forEach((g) => g.remove()); return c.textContent ?? ""; });
+  const capNow9 = await page.evaluate(() => { const el = document.querySelector(".scr-tb-who"); if (!el) return null;
+    const c = el.cloneNode(true); c.querySelectorAll(".scr-tb-who-ghost").forEach((g) => g.remove()); return c.textContent ?? ""; });
   /* 아이콘 줄 단추 크기 — 켜진 것(is-on·castbtn-on)과 꺼진 것이 같은 크기여야 한다(2026-09, 지적: "전체화면에서 활성버튼과
      비활성버튼 크기 다름"). */
   const btns9 = await page.evaluate(() => [...document.querySelectorAll(".scr-motion-mapbtns button.scr-motion-mapbtn")].map((b) => {
     const r = b.getBoundingClientRect(); const cs = getComputedStyle(b);
     return `${(b.getAttribute("aria-label") ?? "").slice(0, 6)}${b.classList.contains("is-on") || b.classList.contains("scr-motion-castbtn-on") ? "*" : ""} ${r.width.toFixed(1)}×${r.height.toFixed(1)} bs=${cs.boxSizing} b=${cs.borderTopWidth}`; }));
   console.log(`[단추] ${btns9.join(" · ")}`);
-  const colsNow9 = await page.evaluate(() => { const el = document.querySelector(".scr-motion-castcap"); if (!el) return null;
-    return { w: +el.getBoundingClientRect().width.toFixed(1), cells: [...el.children].filter((c) => !c.classList.contains("scr-motion-castcap-ghost")).map((c) => +c.getBoundingClientRect().width.toFixed(1)) }; });
+  const colsNow9 = await page.evaluate(() => { const el = document.querySelector(".scr-tb-who"); if (!el) return null;
+    return { w: +el.getBoundingClientRect().width.toFixed(1), cells: [...el.querySelectorAll(".scr-tb-who-st > span")].map((c) => +c.getBoundingClientRect().width.toFixed(1)) }; });
   console.log(`[중계] 단추 ${on9?.btn ? "있음" : "없음"} · 켜짐 ${on9?.on ? "예" : "아니오"} · 상시 자막 ${capNow9 === null ? "없음" : `"${capNow9}"`} · 갈아탐 ${Math.max(0, seen9.length - 1)}번`
     + (colsNow9 ? ` · 자막 폭 ${colsNow9.w}px 칸 [${colsNow9.cells.join(" ")}]` : "")
     + (on9?.bb ? ` · 단추 ${on9.bb.w}×${on9.bb.h}px(이웃 ${on9.bb.nextW}) · 오른쪽 이웃 "${on9.bb.next}" 틈 ${on9.bb.gap}px` : " · 단추 자리 못 잼"));
@@ -888,10 +888,10 @@ if (has("--castprobe")) {
     /* share — 공유 표(요청: "중계는 자동이든 한사람이든 사용중이면 좌표, 배율 공유안하고 대신 중계 파라미터 공유"):
        tr 는 &tr= 에 실릴 값(사람 아이디 · 자동은 "*" · 꺼지면 null), pos 는 자리(z·cx·cy)가 실려 있나. */
     const sh = () => { const r = window.__share9?.(); return r ? { tr: r.tr, pos: r.pos } : null; };
-    const capOf = () => { const el = document.querySelector(".scr-motion-castcap"); if (!el) return null;
-      const c = el.cloneNode(true); c.querySelectorAll(".scr-motion-castcap-ghost").forEach((g) => g.remove()); return c.textContent ?? ""; };
-    const colsOf = () => { const el = document.querySelector(".scr-motion-castcap"); if (!el) return null;
-      return [+el.getBoundingClientRect().width.toFixed(1), ...[...el.children].filter((c) => !c.classList.contains("scr-motion-castcap-ghost")).map((c) => +c.getBoundingClientRect().width.toFixed(1))]; };
+    const capOf = () => { const el = document.querySelector(".scr-tb-who"); if (!el) return null;
+      const c = el.cloneNode(true); c.querySelectorAll(".scr-tb-who-ghost").forEach((g) => g.remove()); return c.textContent ?? ""; };
+    const colsOf = () => { const el = document.querySelector(".scr-tb-who"); if (!el) return null;
+      return [+el.getBoundingClientRect().width.toFixed(1), ...[...el.querySelectorAll(".scr-tb-who-st > span")].map((c) => +c.getBoundingClientRect().width.toFixed(1))]; };
     const st = () => ({ on: !!document.querySelector(".scr-motion-castbtn-on"), cap: capOf(), cols: colsOf(),
       items: [...document.querySelectorAll(".scr-motion-pickmenu .scr-motion-pickitem")].map((el) => `${el.textContent}${el.classList.contains("is-on") ? "*" : ""}`),
       share: sh() });
@@ -1012,7 +1012,7 @@ if (SHOT) {
       const r = d?.getBoundingClientRect();
       return { dock: !!d, rect: r ? [r.left, r.top, r.width, r.height].map(Math.round) : null,
         name: document.querySelector(".scr-motion-infodock-name")?.textContent ?? null,
-        cap: document.querySelector(".scr-motion-infodock-cap .scr-motion-castcap-who")?.textContent ?? null,
+        cap: document.querySelector(".scr-tb-who-name .scr-tb-who-txt:not(.scr-tb-who-ghost)")?.textContent ?? null,
         err: document.querySelector(".scr-motion-nodata")?.textContent ?? null,
         n: document.querySelectorAll(".scr-motion-infodock").length,
         cs: d ? (({ position, bottom, width, transform }) => ({ position, bottom, width, transform }))(getComputedStyle(d)) : null,

@@ -85,7 +85,7 @@ export default function ReplayGuide({ onClose }: {
 
         <h3 className="scr-guide-h3">도구 상자의 버튼</h3>
         <p className="scr-guide-sub">
-          켜지면 <strong>흰 바탕에 검은 그림</strong>으로 뒤집힙니다(아래 견본의 로스터 버튼). <strong>중계</strong> 버튼은 아래 틀 <strong>왼쪽 위의 흰 사각 단추</strong>(<span className="scr-guide-msq" aria-hidden="true"><Tv size={11}/></span>)이고,
+          켜지면 <strong>흰 바탕에 검은 그림</strong>으로 뒤집힙니다(아래 견본의 로스터 버튼). <strong>중계</strong> 버튼은 버튼 줄 가운데 <strong>사람 정보 판의 흰 사각 단추</strong>(<span className="scr-guide-msq" aria-hidden="true"><Tv size={11}/></span>)이고,
           켜진 동안은 <strong>그림이 초록으로 깜빡</strong>입니다(<span className="scr-guide-msq is-on" aria-hidden="true"><Tv size={11}/></span>).
         </p>
         <div className="scr-guide-mock">
@@ -100,7 +100,7 @@ export default function ReplayGuide({ onClose }: {
             <span className="scr-guide-tpill"><Maximize size={15}/></span>
           </div>
           <ul className="scr-guide-legend">
-            <li><span className="scr-guide-ic"><Tv size={15}/></span><span><b>중계</b>(아래 틀 왼쪽 위의 흰 사각 단추) — 누르면 위로 목록이 펼쳐집니다: <b>사람 이름들 · 자동 · 전체 · 끄기</b>. 아래 <b>중계 고르기</b>에서 자세히.</span></li>
+            <li><span className="scr-guide-ic"><Tv size={15}/></span><span><b>중계</b>(버튼 줄 가운데 사람 정보 판의 흰 사각 단추) — 누르면 위로 목록이 펼쳐집니다: <b>사람 이름들 · 자동 · 전체 · 끄기</b>. 아래 <b>중계 고르기</b>에서 자세히.</span></li>
             <li><span className="scr-guide-ic"><RosterTableIcon size={15}/></span><span><b>로스터 현황</b> — 끄면 <b>이름만</b>, 켜면 일꾼·자원·인구·K/D·APM까지 뜹니다.</span></li>
             <li><span className="scr-guide-ic"><Palette size={15}/></span><span><b>색</b> — 누를 때마다 색 모드가 바뀝니다. 기본인 개인색에서는 <b>꺼진 버튼</b>(바탕 없음)이고, 팀색·주인공색에서는 버튼의 <b>원그래프</b>가 곧 그 모드입니다(아래 <b>색 모드</b>).</span></li>
             <li><span className="scr-guide-ic scr-guide-ic-txt">2D</span><span><b>보기</b> — 평면(2D)과 입체(3D)를 오갑니다. 언덕·램프는 입체에서 더 잘 읽힙니다. PC에만 있습니다.</span></li>
@@ -184,13 +184,12 @@ export default function ReplayGuide({ onClose }: {
 
         <h3 className="scr-guide-h3">아래 미니맵 · 인포창</h3>
         <p className="scr-guide-sub">
-          맨 아래 가운데에 <strong>미니맵</strong>(왼쪽)과 <strong>인포창</strong>(오른쪽)이 한 틀로 늘 서 있고, 그 위 온 폭에
-          <strong>사람 정보줄</strong>이 섭니다. 정보줄 양 끝에 단추가 둘입니다 — <strong>왼쪽 흰 단추</strong>가 <b>중계</b>(<Tv size={12}/>), 
-          <strong>오른쪽(▾)</strong>을 누르면 미니맵·인포창을 접어 정보줄만 남기고,
-          한 번 더 누르면(▴) 다시 펼칩니다 — 프레임·전체화면 어디서나 됩니다.
+          맨 아래 가운데에 <strong>미니맵</strong>(왼쪽)과 <strong>인포창</strong>(오른쪽)이 한 틀로 늘 서 있습니다.
+          <strong>사람 정보</strong>는 그 위 버튼 줄의 가운데 판에 섭니다(윗줄 <b>중계</b>(<Tv size={12}/>) 단추와 이름 · 아랫줄 현황).
+          틀 <strong>오른쪽 위(▾)</strong>를 누르면 미니맵·인포창을 접고, 한 번 더 누르면(▴) 다시 펼칩니다 — 프레임·전체화면 어디서나 됩니다.
         </p>
         <ul className="scr-guide-legend">
-          <li><span className="scr-guide-ic scr-guide-ic-txt">윗줄</span><span><b>사람 정보줄</b> — 중계 중에는 <b>지금 누구 화면</b>인지, 중계를 껐을 때는 <b>내가 고른 것의 주인</b>을 보여 줍니다. 팀·이름 옆에 <b>일꾼 · 자원(광물/가스) · 인구 · K/D · APM</b>이 섭니다.</span></li>
+          <li><span className="scr-guide-ic scr-guide-ic-txt">정보</span><span><b>사람 정보</b>(버튼 줄 가운데) — 중계 중에는 <b>지금 누구 화면</b>인지, 중계를 껐을 때는 <b>내가 고른 것의 주인</b>을 보여 줍니다. 윗줄은 그 사람 색 칸 안의 팀·이름, 아랫줄은 <b>일꾼 · 자원(광물/가스) · 인구 · K/D · APM</b>입니다(좁은 화면은 이름표 없이 숫자만).</span></li>
           <li><span className="scr-guide-ic scr-guide-ic-txt">하나</span><span><b>유닛·건물 하나</b> — 지도에서 누르면 그림 위 가운데에 이름, 그 아래 그림과 체력·실드·에너지, 처치 수, 업그레이드가 섭니다. 건물이 일하는 중이면 진행 줄이 <b>[작은 칸][진행 바]</b> 한 꼴로 섭니다:</span></li>
           <li><span className="scr-guide-ic scr-guide-ic-txt">생산</span><span><b>생산</b> — 왼쪽 칸이 지금 뽑는 유닛, 그 아래 <b>대기 넷</b>(비어 있어도 자리를 지킵니다).</span></li>
           <li><span className="scr-guide-ic scr-guide-ic-txt">연구</span><span><b>연구</b> — 왼쪽 칸이 하는 업그레이드(단계는 칸 오른쪽 아래 숫자), 바에 ‘N단계’. 연구 건물 아래쪽에는 그 건물에서 하는 업그레이드가 둥근 네모 칸으로 늘어섭니다(안 한 것은 흐리게 · 마친 것은 밝게).</span></li>
