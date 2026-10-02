@@ -735,7 +735,7 @@ if (has("--split")) {
   await page.evaluate(() => { const b = document.querySelector(".scr-motion-castbtn"); if (b instanceof HTMLElement) b.click(); });
   await page.waitForTimeout(300);
   await page.evaluate(() => {
-    const it = [...document.querySelectorAll(".scr-motion-pickmenu .scr-motion-pickitem")].find((el) => (el.textContent ?? "").trim() === "분할");
+    const it = [...document.querySelectorAll(".scr-motion-pickmenu .scr-motion-pickitem")].find((el) => (el.textContent ?? "").trim() === "전체");
     if (it instanceof HTMLElement) it.click();
   });
   await page.waitForTimeout(Number(flag("--splitwait", 4000)));
@@ -770,6 +770,30 @@ if (has("--split")) {
   await page.waitForTimeout(500);
   const b9 = await sp9();
   console.log(`[분할] 둘째 칸 누른 뒤 독 "${b9.cap}" · 켜진 칸 ${b9.cells.findIndex((c) => c.pick)}`);
+  await page.evaluate(() => { const c = document.querySelectorAll(".scr-split-cell")[1]; if (c instanceof HTMLElement) c.click(); });
+  await page.waitForTimeout(300);
+  const c9 = await sp9();
+  console.log(`[분할] 같은 칸 다시 누른 뒤 켜진 칸 ${c9.cells.findIndex((c) => c.pick)}`);
+  /* 닉네임 다중 선택(2026-09, 요청: "닉네임 누르면 선택 추가돼서 그 사람들만 분할모드로") — 목록을 열고 이름 둘·셋을 차례로 누른다. */
+  if (has("--splitsel")) {
+    await page.evaluate(() => { const b = document.querySelector(".scr-motion-castbtn"); if (b instanceof HTMLElement) b.click(); });
+    await page.waitForTimeout(300);
+    for (let k = 0; k < 3; k += 1) {
+      await page.evaluate((k) => {
+        const it = [...document.querySelectorAll(".scr-motion-pickmenu .scr-motion-pickitem-dot")][k];
+        if (it instanceof HTMLElement) it.click();
+      }, k);
+      await page.waitForTimeout(700);
+      const d9 = await page.evaluate(() => ({
+        cells: document.querySelectorAll(".scr-split-cell").length,
+        menu: !!document.querySelector(".scr-motion-pickmenu"),
+        on: [...document.querySelectorAll(".scr-motion-pickmenu .scr-motion-pickitem.is-on")].map((el) => (el.textContent ?? "").trim()),
+      }));
+      console.log(`[분할 고르기] 이름 ${k + 1}개 누른 뒤 · 칸 ${d9.cells} · 목록 ${d9.menu ? "열림" : "닫힘"} · 켜진 줄 ${JSON.stringify(d9.on)}`);
+    }
+    const shot = flag("--splitsel", "");
+    if (shot && shot !== true && String(shot).endsWith(".png")) await page.screenshot({ path: String(shot) });
+  }
 }
 /* 자동 팝업 자(--infoprobe [png]): 중계·추적 중 화면 주인이 고른 건물의 정보 팝업이 저절로 서나(2026-09, 요청:
    "중계시(화면 주인의) 건물 선택시 인포팝업 뜨게 — 리플레이 기록상 선택한 경우"). --selpick 과 --track 정구 로 연다:

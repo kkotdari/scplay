@@ -65,7 +65,8 @@ export default function ReplayFullscreenMinimap({
    *  변경") — 손짓이 도는 동안 zoom·pan 상태는 아직 안 굳으므로, 굳은 값으로 셈한
    *  네모 하나를 넘겨받으면 프레임이 손을 뗄 때까지 제자리에 얼어 있었다. 손끝 값을
    *  넣어 그때그때 셈할 수 있어야 한다. */
-  viewAt: (z: number, p: { x: number; y: number }) => { cx: number; cy: number; w: number; h: number };
+  /** 보고 있는 창 — null 이면 네모를 안 그린다(분할보기에서 아무 칸도 안 골랐을 때). */
+  viewAt: (z: number, p: { x: number; y: number }) => { cx: number; cy: number; w: number; h: number } | null;
   /** 보는 창의 테두리 색 — 없으면 흰색. 분할보기는 누른 사람의 색이다(요청: "미니맵은 흰 네모 대신 선택한 사람 색의 네모로"). */
   viewColor?: string;
   /** 굳은 배율·팬 — 손짓이 안 도는 동안의 값이다. */
@@ -275,6 +276,7 @@ export default function ReplayFullscreenMinimap({
        네 모서리를 각각 되돌려 잇는 것이 곧 정답이다 — 평면에서는 다시 네모가 된다.
        지도 밖으로는 안 나간다 — 창이 지도보다 넓을 수 있다(한 축만 크롭되는 비율). */
     const view = viewAt(zoom, pan);
+    if (!view) return;
     /* 진단(#diag·계측 도구) — 미니맵이 실제로 셈한 '보는 창'이다. 흰 네모가 안 보일 때
        그 까닭이 창 값인지(전체가 됐거나 상자 밖) 그리기인지를 여기서 가린다. */
     (window as unknown as Record<string, unknown>).__miniView = {

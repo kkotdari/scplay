@@ -9557,6 +9557,10 @@ export default function ReplayMotionPlayer({
      칠해 베낀다**(아래 splitPaint9). splitPick9 는 누른 칸의 사람 — 독(정보줄·인포창)이 그 사람의 것을 든다. */
   const [splitOn9, setSplitOn9] = useState(false);
   const [splitPick9, setSplitPick9] = useState<string | null>(null);
+  /* ★ 분할에 **세울 사람들**(2026-09, 요청: "중계선택에서 분할->전체로 변경하고 닉네임 누르면 선택 추가돼서 그 사람들만 분할모드로")
+     — null 이면 전체(TV 목록의 '전체'), 배열이면 목록에서 닉네임으로 고른 사람들(둘 이상)이다. 한 사람이면 분할이 아니라 개인 추적이다. */
+  const [splitSel9, setSplitSel9] = useState<string[] | null>(null);
+  const splitBases9 = useMemo(() => (splitSel9 ? bases.filter((b9) => splitSel9.includes(b9.key)) : bases), [splitSel9, bases]);
   const splitOnRef9 = useRef(false);
   splitOnRef9.current = splitOn9;
   /** 로스터에 있는 이름만 중계에 세운다 — 관전자는 obsNames로 따로 뺀다. */
@@ -9680,16 +9684,30 @@ export default function ReplayMotionPlayer({
     setSplitOn9(false);
     setCastOn(true);
   };
-  /** 분할보기 켜고 끄기 — 중계·개인 추적을 놓고 시점은 관전자로. 입체는 평면으로 내린다(칸의 붓은 평면 한 벌이다). */
-  const toggleSplit9 = (): void => {
-    if (splitOn9) { setSplitOn9(false); return; }
+  /** 분할보기 켜기 — sel 이 null 이면 전체, 배열이면 그 사람들만. 중계·개인 추적을 놓고 시점은 관전자로. 입체는 평면으로 내린다
+   *  (칸의 붓은 평면 한 벌이다). ★ 처음엔 **아무 칸도 안 고른다**(2026-09, 요청: "처음엔 화면 미선택 · 선택 상태에서 또 누르면
+   *  미선택으로") — 이미 켜진 분할에서 사람만 바뀌면 고른 칸이 남아 있을 때 그대로 둔다. */
+  const startSplit9 = (sel9: string[] | null): void => {
     if (castOn) stopCast9();
     if (trackRaw !== null) stopTrack9();
     setViewRaw(null);
     if (pitchDegRef9.current < 90) setPitchDeg(90);
     setPicked(null);
-    setSplitPick9((p9) => p9 ?? bases[0]?.key ?? null);   // 처음엔 첫 사람 — 독이 빈 채로 서지 않게
+    setSplitPick9((p9) => (splitOn9 && p9 !== null && (!sel9 || sel9.includes(p9)) ? p9 : null));
+    setSplitSel9(sel9);
     setSplitOn9(true);
+  };
+  /** TV 목록에서 고른 사람들 — 개인 추적이면 그 한 사람, 사람을 골라 세운 분할이면 그 사람들('전체' 분할은 고른 것이 아니다). */
+  const castSel9: string[] = trackRaw !== null ? [trackRaw] : splitOn9 && splitSel9 ? splitSel9 : [];
+  /** 닉네임 누르기 — 고른 사람에 더하거나 뺀다. 남은 사람이 0 이면 끄고, 하나면 개인 추적, 둘 이상이면 그 사람들만 분할이다. */
+  const pickPerson9 = (key9: string): void => {
+    const next9 = castSel9.includes(key9) ? castSel9.filter((k9) => k9 !== key9) : [...castSel9, key9];
+    if (next9.length === 0) {
+      if (splitOn9) setSplitOn9(false);
+      if (trackRaw !== null) { stopTrack9(); setViewRaw(null); }
+    } else if (next9.length === 1) {
+      if (trackRaw !== next9[0]) toggleTrack(next9[0]);   // 분할에서 내려오면 toggleTrack 이 분할을 끈다
+    } else startSplit9(next9);
   };
   /* ★ 중계가 카메라를 처음 잡을 때 **한 번** 당겨 준다 — 1배(지도 전체)에서는 팬의 여유가
      0이라 카메라가 아무 데도 못 가고, 그러면 중계가 자막만 뜨는 기능으로 보인다. 개인
@@ -9713,14 +9731,14 @@ export default function ReplayMotionPlayer({
     /* **다음 사람 것도 미리** 청한다(중계) — 편성표가 누구로 갈아탈지 이미 알고 있으므로,
        갈아타는 순간에 구조화 복제가 걸려 그 프레임이 멎는 일을 미리 치른다. */
     const want9 = [camRaw9, castIdx9 >= 0 ? castPlan[castIdx9 + 1]?.raw ?? null : null,
-      ...(splitOn9 ? bases.map((b9) => b9.key) : [])];
+      ...(splitOn9 ? splitBases9.map((b9) => b9.key) : [])];
     for (const r9 of want9) {
       if (!r9 || walksByRaw9.has(r9) || walksAskedRef9.current.has(r9)) continue;
       walksAskedRef9.current.add(r9);
       // 그 임자의 걷기만 — 걷기 창은 참값 키 배열을 가리키므로 복제하면 그 트랙의 키가 통째로 건너온다. 임자 하나면 견딜 만하다.
       w9.postMessage({ type: "want", what: "walks", raw: r9 });
     }
-  }, [camRaw9, castIdx9, castPlan, walksByRaw9, worldGen9, workerTick9, splitOn9, bases]);
+  }, [camRaw9, castIdx9, castPlan, walksByRaw9, worldGen9, workerTick9, splitOn9, splitBases9]);
   const walksByTag = useMemo(() => {
     const m9 = new Map<number, typeof entWalks>();
     /* 추적·중계가 사람을 잡기 전에는 **한 톨도 안 만든다** — 이 표를 쌓는 데 드는 것은 생애
@@ -9908,7 +9926,7 @@ export default function ReplayMotionPlayer({
   /* ★ **세로가 긴 판에서는 두 줄 기둥이다**(2026-09, 요청: "분할 5-6명 모드에서 화면 가로보다 세로가 길면 2x3으로 변경 ·
      7-8명도 2x4로") — 3×2·3×3 은 칸이 세로로 눌린 띠가 된다. 2×4 는 칸이 여덟이라 가운데를 비우지 않는다. */
   const splitLay9 = useMemo(() => {
-    const n9 = bases.length;
+    const n9 = splitBases9.length;
     if (!splitOn9 || n9 < 2) return null;
     const [cols9, rows9] = n9 <= 2 ? [2, 1] : n9 <= 4 ? [2, 2]
       : n9 <= 6 ? (splitTall9 ? [2, 3] : [3, 2]) : (splitTall9 ? [2, 4] : [3, 3]);
@@ -9921,7 +9939,7 @@ export default function ReplayMotionPlayer({
     }
     const gw = Math.max(1, grid.width);
     const gh = Math.max(1, grid.height);
-    const pts9 = bases.map((b9) => {
+    const pts9 = splitBases9.map((b9) => {
       const st9 = splitStart9.get(b9.key);
       return st9 ? [st9.x / gw, st9.y / gh] : [0.5, 0.5];
     });
@@ -9931,7 +9949,7 @@ export default function ReplayMotionPlayer({
       return (pts9[i9][0] - cx9) ** 2 + (pts9[i9][1] - cy9) ** 2;
     };
     let best9 = Infinity;
-    let bestAs9: number[] = bases.map((_, i) => i);
+    let bestAs9: number[] = splitBases9.map((_, i) => i);
     const cur9: number[] = [];
     const used9 = new Array(slots9.length).fill(false);
     const dfs9 = (i9: number, acc9: number): void => {
@@ -9947,9 +9965,9 @@ export default function ReplayMotionPlayer({
     dfs9(0, 0);
     return {
       cols: cols9, rows: rows9,
-      cells: bases.map((b9, i) => ({ raw: b9.key, c: slots9[bestAs9[i]][0], r: slots9[bestAs9[i]][1] })),
+      cells: splitBases9.map((b9, i) => ({ raw: b9.key, c: slots9[bestAs9[i]][0], r: slots9[bestAs9[i]][1] })),
     };
-  }, [splitOn9, splitTall9, bases, splitStart9, grid.width, grid.height]);
+  }, [splitOn9, splitTall9, splitBases9, splitStart9, grid.width, grid.height]);
   const visAll = viewTeam !== 1 && viewTeam !== 2;
   /** 안개를 셈할 재료가 있나 — 자취가 없는 옛 기록은 종전대로 통째로 보인다. */
   // 안개는 개체 트랙이 있을 때만(옛 경기는 없다) — 걷기(entWalks)는 이제 추적을 켤 때만 받으므로 그 길이로 가리면 안 된다.
@@ -15881,15 +15899,15 @@ export default function ReplayMotionPlayer({
   /** left9 — 줄의 **왼쪽 끝** 단추(TV)의 목록 · 오른쪽 맞춤이면 화면 왼쪽 밖으로 넘친다(replay.css 의 is-left ★). */
   const pickMenu9 = (
     kind9: "speed" | "zoom" | "bgm" | "cast",
-    items9: { label: string; on: boolean; act: () => void; key?: string; dot?: string }[], list9 = false, left9 = false,
+    items9: { label: string; on: boolean; act: () => void; key?: string; dot?: string; keep?: boolean }[], list9 = false, left9 = false,
   ): React.ReactNode => (pick9 === kind9 ? (
     <ul className={cx("scr-motion-pickmenu", list9 && "is-list", left9 && "is-left")} role="menu">
       {items9.map((it9) => (
         <li key={it9.key ?? it9.label}>
           <button
-            type="button" role="menuitemradio" aria-checked={it9.on}
+            type="button" role={it9.keep ? "menuitemcheckbox" : "menuitemradio"} aria-checked={it9.on}
             className={cx("scr-motion-pickitem", it9.on && "is-on", it9.dot && "scr-motion-pickitem-dot")}
-            onClick={() => { it9.act(); setPick9(null); }}
+            onClick={() => { it9.act(); if (!it9.keep) setPick9(null); }}
           >
             {it9.dot && <i className="scr-motion-castdot" style={{ background: it9.dot }} aria-hidden />}
             {it9.label}
@@ -16553,7 +16571,7 @@ export default function ReplayMotionPlayer({
               aria-label={splitOn9 ? "중계 — 분할보기 · 누르면 목록" : castOn ? "중계 — 자동 · 누르면 목록"
                 : trackRaw !== null ? `추적 — ${bases.find((b9) => b9.key === trackRaw)?.name ?? trackRaw} · 누르면 목록`
                   : "중계·추적 — 누르면 목록"}
-              title={splitOn9 ? "분할보기 — 모든 선수의 화면을 함께 보는 중" : castOn
+              title={splitOn9 ? (splitSel9 ? "분할보기 — 고른 선수들의 화면을 함께 보는 중" : "분할보기 — 모든 선수의 화면을 함께 보는 중") : castOn
                 ? "중계(자동) — 중요한 장면의 선수를 자동으로 따라가는 중"
                 : trackRaw !== null ? "개인 추적 중 — 누르면 다른 사람이나 자동을 고른다"
                   : "중계·추적 — 따라갈 사람을 고르거나 자동(중계)을 켠다"}
@@ -16561,13 +16579,17 @@ export default function ReplayMotionPlayer({
               <Tv size={18} aria-hidden />
             </button>
             {pickMenu9("cast", [
+              /* 닉네임은 **고른 사람에 더하고 뺀다**(pickPerson9 — 하나면 개인 추적 · 둘 이상이면 그 사람들만 분할) · 목록은 안 닫힌다(keep). */
               ...bases.map((b9) => ({
-                key: `p:${b9.key}`, label: b9.name, on: trackRaw === b9.key,
-                dot: modeColor(b9.key, teamOfRaw(b9.key)), act: () => toggleTrack(b9.key),
+                key: `p:${b9.key}`, label: b9.name, on: castSel9.includes(b9.key), keep: true,
+                dot: modeColor(b9.key, teamOfRaw(b9.key)), act: () => pickPerson9(b9.key),
               })),
               { key: "auto", label: "자동", on: castOn, act: () => toggleCast9() },
-              /* 분할보기(위 splitOn9) — 둘 이상일 때만. */
-              ...(bases.length >= 2 ? [{ key: "split", label: "분할", on: splitOn9, act: () => toggleSplit9() }] : []),
+              /* 전체(옛 '분할') — 모든 선수의 분할보기. 둘 이상일 때만. */
+              ...(bases.length >= 2 ? [{
+                key: "split", label: "전체", on: splitOn9 && splitSel9 === null,
+                act: () => { if (splitOn9 && splitSel9 === null) setSplitOn9(false); else startSplit9(null); },
+              }] : []),
               /* ★ 맨 아래 **끄기**(2026-09, 요청: "목록에 끄기도 있어야해") — 켜진 것을 다시 골라 끄는 길은 남지만, 무엇이 켜져
                  있는지 모르는 손에게는 '끄는 줄'이 따로 있어야 한다. 중계든 개인 추적이든 카메라를 쥔 쪽을 놓고(둘은 배타라 둘 중
                  하나다) 시점도 관전자로 되돌린다(toggleTrack 의 끄는 길과 같은 셈). 둘 다 꺼져 있을 때 이 줄이 켜진 줄이다. */
@@ -17351,7 +17373,7 @@ export default function ReplayMotionPlayer({
                     style={{ gridColumn: c9.c + 1, gridRow: c9.r + 1, borderColor: splitPick9 === c9.raw ? cap9.col : undefined }}
                     aria-pressed={splitPick9 === c9.raw}
                     aria-label={`${cap9.text} 화면 — 누르면 아래 독에 이 사람`}
-                    onClick={() => { setSplitPick9(c9.raw); setPicked(null); }}
+                    onClick={() => { setSplitPick9((p9) => (p9 === c9.raw ? null : c9.raw)); setPicked(null); }}
                   >
                     {/* 칸 머리(요청: "각 화면 위에 닉네임과 자원 인구 apm k/d 표시") — 로스터 대신이다. */}
                     <span className="scr-split-cap">
@@ -17494,7 +17516,7 @@ export default function ReplayMotionPlayer({
                     extraRef={miniExtraRef}
                     tick={t}
                     viewAt={splitOn9
-                      ? ((z9, p9) => (splitPick9 ? splitViewRef9.current.get(splitPick9) : undefined) ?? fsViewAt(z9, p9))
+                      ? ((z9, p9) => (splitPick9 ? splitViewRef9.current.get(splitPick9) ?? fsViewAt(z9, p9) : null))   // 안 고르면 네모 없음
                       : fsViewAt}
                     viewColor={splitOn9 && splitPick9 ? modeColor(splitPick9, teamOfRaw(splitPick9)) : undefined}
                     zoom={zoom} pan={pan}

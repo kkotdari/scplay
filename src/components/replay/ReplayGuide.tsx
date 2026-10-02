@@ -100,7 +100,7 @@ export default function ReplayGuide({ onClose }: {
             <span className="scr-guide-tpill"><Maximize size={15}/></span>
           </div>
           <ul className="scr-guide-legend">
-            <li><span className="scr-guide-ic"><Tv size={15}/></span><span><b>중계</b>(아래 틀 왼쪽 위의 흰 사각 단추) — 누르면 위로 목록이 펼쳐집니다: <b>사람 이름들 · 자동 · 끄기</b>. 아래 <b>중계 고르기</b>에서 자세히.</span></li>
+            <li><span className="scr-guide-ic"><Tv size={15}/></span><span><b>중계</b>(아래 틀 왼쪽 위의 흰 사각 단추) — 누르면 위로 목록이 펼쳐집니다: <b>사람 이름들 · 자동 · 전체 · 끄기</b>. 아래 <b>중계 고르기</b>에서 자세히.</span></li>
             <li><span className="scr-guide-ic"><RosterTableIcon size={15}/></span><span><b>로스터 현황</b> — 끄면 <b>이름만</b>, 켜면 일꾼·자원·인구·K/D·APM까지 뜹니다.</span></li>
             <li><span className="scr-guide-ic"><Palette size={15}/></span><span><b>색</b> — 누를 때마다 색 모드가 바뀝니다. 기본인 개인색에서는 <b>꺼진 버튼</b>(바탕 없음)이고, 팀색·주인공색에서는 버튼의 <b>원그래프</b>가 곧 그 모드입니다(아래 <b>색 모드</b>).</span></li>
             <li><span className="scr-guide-ic scr-guide-ic-txt">2D</span><span><b>보기</b> — 평면(2D)과 입체(3D)를 오갑니다. 언덕·램프는 입체에서 더 잘 읽힙니다. PC에만 있습니다.</span></li>
@@ -146,6 +146,7 @@ export default function ReplayGuide({ onClose }: {
             <span className="scr-guide-castitem"><i className="scr-guide-castdot" style={{ background: "#2b62e8" }}/>정구</span>
             <span className="scr-guide-castitem"><i className="scr-guide-castdot" style={{ background: "#f88c14" }}/>팍규</span>
             <span className="scr-guide-castitem is-on">자동</span>
+            <span className="scr-guide-castitem">전체</span>
             <span className="scr-guide-castitem">끄기</span>
           </div>
           <ul className="scr-guide-legend">
@@ -153,6 +154,15 @@ export default function ReplayGuide({ onClose }: {
               <span className="scr-guide-ic scr-guide-ic-txt">이름</span>
               <span><b>한 사람</b> — 그 사람의 <b>시야</b>로 밝히고, 그 사람이 <b>보고 있던 자리</b>로 화면이 따라갑니다.
               리플레이에는 카메라 좌표가 없어서, ‘방금 무엇을 집어 무엇을 시켰나’를 눈길로 삼습니다.</span>
+            </li>
+            <li>
+              <span className="scr-guide-ic scr-guide-ic-txt">이름+</span>
+              <span><b>여러 사람</b> — 이름을 더 누르면 고른 사람이 늘어나 <b>그 사람들만 화면을 나눠</b> 함께 봅니다(목록은 열린 채로
+              남습니다). 고른 이름을 다시 누르면 빠집니다. 칸을 누르면 아래 독이 그 사람 것을 들고, 다시 누르면 놓습니다.</span>
+            </li>
+            <li>
+              <span className="scr-guide-ic scr-guide-ic-txt">전체</span>
+              <span><b>전체</b> — 모든 선수의 화면을 나눠 함께 봅니다(로스터 대신 칸마다 이름이 섭니다).</span>
             </li>
             <li>
               <span className="scr-guide-ic"><Tv size={14}/></span>
