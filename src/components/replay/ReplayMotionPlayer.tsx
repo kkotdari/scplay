@@ -249,6 +249,9 @@ const SPLIT_BUDGET_MS9 = 14;
 const DOCK_MARK_PAD9 = 40;
 /** 분할보기 칸 카메라의 가장자리 띠 — 그 사람이 창의 이 몫 안쪽에 있는 동안은 카메라를 안 옮긴다. */
 const SPLIT_EDGE9 = 0.12;
+/** 분할보기 칸의 오림 네모(유닛 캔버스 CSS px · x0 y0 x1 y1) — 칸을 칠하는 동안만 서고, 붓의 화면 걸러내기(inView0)가 이 안의
+ *  몸만 그린다. 칸은 제 실제 배율(낮다)로 칠하므로 판에는 그 칸보다 넓은 땅이 드는데, 그 몫을 안 그려야 칸 수만큼 값이 안 붙는다. */
+let PAINT_CLIP9: [number, number, number, number] | null = null;
 const unitCanvases9 = (root: HTMLElement | null): HTMLCanvasElement[] => root ? Array.from(root.querySelectorAll<HTMLCanvasElement>(".scr-motion-unitlayer")) : [];
 /** GL 붓이 못 맡아 판으로 떨어진 종류별 횟수(진단 'GL' 줄의 '판으로'). */
 const GL_MISS9 = new Map<string, number>();
@@ -4571,6 +4574,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
            다 그린다 — 그 유닛은 지금 보이는 것이고, 발을 누르면 잡힌다. 발이 상자 위끝
            보다 위면 그 유닛은 창 밖이라 한 톨도 안 그린다. 배율·이동과 무관한 한 줄이다. */
         if (band9 > 0 && vy0 < band9 - 0.5) return false;
+        const pc9 = PAINT_CLIP9;   // 분할보기 칸의 오림 네모(위 PAINT_CLIP9) — 그 밖의 몸은 안 그린다
+        if (pc9) return vx0 >= pc9[0] - ex0 && vx0 <= pc9[2] + ex0 && vy0 >= pc9[1] - ex0 && vy0 <= pc9[3] + ex0;
         return vx0 >= -ex0 && vx0 <= cw + ex0 && vy0 >= -ex0 && vy0 <= ch + ex0;
       };
       /* 그리는 차례(z 순)는 **ops가 그대로면 그대로다** — 손짓 중에는 같은 ops로 여러
@@ -13795,24 +13800,35 @@ export default function ReplayMotionPlayer({
      · 안개·DOM 효과(클릭 자국·핑)는 안 베낀다 — 관전자 시야라 안개가 없고, 자국은 칸 크기에서 안 읽힌다.
      · 한 장에 다 칠하면 칸 수만큼 값이 곱해지므로 **예산**(SPLIT_BUDGET_MS9) 안에서 차례로 돌린다 — 무거우면 칸마다 박자가 준다.
      · GL 판은 미리곱 알파·preserveDrawingBuffer 없음이라 **칠한 그 자리(같은 일 안)**에서 곧장 베낀다. */
-  /** 툴박스 키 — 툴박스는 무대 아래 가장자리에 겹쳐 서므로(프레임·전체화면 둘 다) 분할 격자는 그만큼 위에서 끝난다.
+  /** 무대 바닥이 툴박스(전체화면은 독까지)에 가려지는 몫 — 분할 격자는 그만큼 위에서 끝난다.
    *  판(바탕)은 무대 끝까지 덮는다 — 반투명 툴박스 밑으로 숨은 지도(마지막 칸의 그림)가 비치지 않게. */
   const [splitTbH9, setSplitTbH9] = useState(0);
   useEffect(() => {
     if (!splitOn9) return undefined;
-    const tb9 = stageRef.current?.parentElement?.querySelector<HTMLElement>(".scr-tb") ?? null;
-    if (!tb9) return undefined;
-    const read9 = (): void => setSplitTbH9(Math.round(tb9.getBoundingClientRect().height));
+    /* ★ 툴박스 키가 아니라 **무대 아래에서 툴박스 위끝까지**를 잰다(2026-09, 지적: "분할보기 전체화면시 툴박스와 독에 화면
+       가려짐") — 프레임에서는 툴박스만 무대에 겹치지만 전체화면은 독 줄까지 통째로 무대 위에 얹힌다. 무대 바닥과 툴박스 위끝의
+       차가 곧 가려지는 몫이라 두 배치가 한 셈이다(접기·화면 돌림에도 따라온다). */
+    const stg9 = stageRef.current;
+    const tb9 = stg9?.parentElement?.querySelector<HTMLElement>(".scr-tb") ?? null;
+    if (!stg9 || !tb9) return undefined;
+    const read9 = (): void => setSplitTbH9(Math.max(0, Math.round(stg9.getBoundingClientRect().bottom - tb9.getBoundingClientRect().top)));
     read9();
-    if (typeof ResizeObserver === "undefined") return undefined;
-    const ro9 = new ResizeObserver(read9);
-    ro9.observe(tb9);
-    return () => ro9.disconnect();
-  }, [splitOn9, fsOn]);
+    const raf9 = requestAnimationFrame(read9);
+    window.addEventListener("resize", read9);
+    const ro9 = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(read9);
+    ro9?.observe(tb9);
+    ro9?.observe(stg9);
+    const low9 = tb9.parentElement;
+    if (ro9 && low9) ro9.observe(low9);
+    return () => { cancelAnimationFrame(raf9); window.removeEventListener("resize", read9); ro9?.disconnect(); };
+  }, [splitOn9, fsOn, dockFold9]);
   const splitLayRef9 = useRef(splitLay9);
   splitLayRef9.current = splitLay9;
   const splitCvRef9 = useRef(new Map<string, HTMLCanvasElement>());
   const splitCamRef9 = useRef(new Map<string, { x: number; y: number }>());
+  /** 칸마다 마지막으로 칠한 창(지도 분수 cx·cy·w·h) — 미니맵이 누른 사람의 것을 흰 네모로 그린다(요청: "미니맵은 현재 선택한
+   *  사람 화면의 미니맵을 적용"). */
+  const splitViewRef9 = useRef(new Map<string, { cx: number; cy: number; w: number; h: number }>());
   const splitRrRef9 = useRef(0);
   const splitTerrRef9 = useRef<HTMLCanvasElement | null>(null);
   useEffect(() => {
@@ -13870,10 +13886,14 @@ export default function ReplayMotionPlayer({
       if (!(cwC9 > 0) || !(chC9 > 0)) continue;
       /* 오려 낼 네모(유닛 캔버스 CSS px) — 무대에 칸의 비로 가장 크게 드는 것. 그만큼이 '그 사람의 중계 화면'이다. */
       const sc9 = Math.min(sw9 / cwC9, sh9 / chC9);
-      const cropW9 = cwC9 * sc9;
-      const cropH9 = chC9 * sc9;
-      const wf9 = cropW9 / (cw9 * z9);   // 그 네모가 덮는 지도 분수 폭·높이
-      const hf9 = cropH9 / (mh9 * z9);
+      const wf9 = (cwC9 * sc9) / (cw9 * z9);   // 그 칸이 덮는 지도 분수 폭·높이(= 그 사람의 중계 화면)
+      const hf9 = (chC9 * sc9) / (mh9 * z9);
+      /* ★ 칠하는 배율은 **칸의 실제 배율**이다(2026-09, 요청: "각 화면 크기가 작아진 만큼 LOD 낮은 배율로 적용") — 칸은 중계 화면을
+         sc9 배 줄인 그림이므로 그 화소 크기의 배율(z9 ÷ sc9)로 칠하면 붓의 문턱(자세함·요잉·LOD·배킹)이 저절로 그 크기에 맞게
+         낮아진다. 판에는 칸보다 넓은 땅이 들지만 오림 네모(PAINT_CLIP9) 밖의 몸은 안 그린다. 1배 밑으로는 안 내린다. */
+      const zc9 = Math.max(1, z9 / sc9);
+      const cropW9 = wf9 * cw9 * zc9;
+      const cropH9 = hf9 * mh9 * zc9;
       /* 카메라 — 그 사람의 자리. 창 안(가장자리 SPLIT_EDGE9 몫 안쪽)에 있는 동안은 붙들고, 벗어나면 한가운데로 데려온다
          (개인 추적의 trackView 와 같은 규약 — 매 프레임 따라가면 무리가 꿈틀거릴 때마다 화면이 흔들린다). */
       const at9 = splitAt9(cell9.raw, tNow9);
@@ -13887,7 +13907,11 @@ export default function ReplayMotionPlayer({
       splitCamRef9.current.set(cell9.raw, cam9);
       const cx9 = wf9 >= 1 ? 0.5 : Math.min(1 - wf9 / 2, Math.max(wf9 / 2, cam9.x));
       const cy9 = hf9 >= 1 ? 0.5 : Math.min(1 - hf9 / 2, Math.max(hf9 / 2, cam9.y));
-      paint9(z9, { x: (0.5 - cx9) * cw9 * z9, y: (0.5 - cy9) * mh9 * z9 }, z9);
+      splitViewRef9.current.set(cell9.raw, { cx: cx9, cy: cy9, w: wf9, h: hf9 });   // 미니맵의 흰 네모(누른 칸)
+      const x09 = cw9 / 2 - cropW9 / 2;
+      const y09 = band9 + mh9 / 2 - cropH9 / 2;
+      PAINT_CLIP9 = [x09, y09, x09 + cropW9, y09 + cropH9];
+      try { paint9(zc9, { x: (0.5 - cx9) * cw9 * zc9, y: (0.5 - cy9) * mh9 * zc9 }, zc9); } finally { PAINT_CLIP9 = null; }
       const bw9 = Math.max(1, Math.round(cwC9 * dpr9));
       const bh9 = Math.max(1, Math.round(chC9 * dpr9));
       if (el9.width !== bw9) el9.width = bw9;
@@ -13904,8 +13928,6 @@ export default function ReplayMotionPlayer({
         const ky9 = bh9 / hf9;
         c9.drawImage(terr9, -(cx9 - wf9 / 2) * kx9, -(cy9 - hf9 / 2) * ky9, kx9, ky9);
       }
-      const x09 = cw9 / 2 - cropW9 / 2;
-      const y09 = band9 + mh9 / 2 - cropH9 / 2;
       for (const src9 of [ucv9, gcv9, fcv9]) {
         if (!src9 || !(src9.width > 0) || !(src9.height > 0)) continue;
         const rx9 = src9.width / cw9;
@@ -17386,7 +17408,9 @@ export default function ReplayMotionPlayer({
                     dotsRef={opsRef}
                     extraRef={miniExtraRef}
                     tick={t}
-                    viewAt={fsViewAt}
+                    viewAt={splitOn9
+                      ? ((z9, p9) => (splitPick9 ? splitViewRef9.current.get(splitPick9) : undefined) ?? fsViewAt(z9, p9))
+                      : fsViewAt}
                     zoom={zoom} pan={pan}
                     painter={miniPaintRef} live={viewLive9}
                     onSeek={fsSeek}

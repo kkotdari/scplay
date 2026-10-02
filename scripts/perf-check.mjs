@@ -727,6 +727,11 @@ if (has("--pickshot")) {
    독의 정보줄이 그 사람으로 갈리나 본다(2026-09, 요청: "중계에 분할보기 추가 … 독에는 화면을 누른 사람거 보여주기"). */
 if (has("--split")) {
   await page.waitForTimeout(800);
+  /* --fs 면 분할을 켜기 **전에** 전체화면으로(아래 --fs 갈래는 이 자 뒤라 늦다) — 툴박스·독이 칸을 가리나 본다. */
+  if (has("--fs")) {
+    await page.evaluate(() => { const b = [...document.querySelectorAll("button")].find((el) => el.getAttribute("aria-label") === "전체화면"); if (b instanceof HTMLElement) b.click(); });
+    await page.waitForTimeout(900);
+  }
   await page.evaluate(() => { const b = document.querySelector(".scr-motion-castbtn"); if (b instanceof HTMLElement) b.click(); });
   await page.waitForTimeout(300);
   await page.evaluate(() => {
@@ -749,12 +754,14 @@ if (has("--split")) {
         cap: el.querySelector(".scr-split-cap")?.textContent ?? null, pick: el.classList.contains("is-pick") };
     });
     const g = document.querySelector(".scr-split")?.getBoundingClientRect();
+    const tb = document.querySelector(".scr-tb")?.getBoundingClientRect();
+    const lastBottom = Math.max(0, ...[...document.querySelectorAll(".scr-split-cell")].map((el) => el.getBoundingClientRect().bottom));
     const roster = !!document.querySelector(".scr-fs-roster-fixed");
     const cap = document.querySelector(".scr-fs-dockcap .scr-motion-castcap-who")?.textContent ?? null;
-    return { grid: g ? [+g.width.toFixed(0), +g.height.toFixed(0)] : null, roster, cap, cells };
+    return { grid: g ? [+g.width.toFixed(0), +g.height.toFixed(0)] : null, roster, cap, cells, tbTop: tb ? +tb.top.toFixed(0) : null, cellBottom: +lastBottom.toFixed(0) };
   });
   const a9 = await sp9();
-  console.log(`[분할] 격자 ${JSON.stringify(a9.grid)} · 로스터 ${a9.roster ? "보임" : "숨김"} · 독 "${a9.cap}"`);
+  console.log(`[분할] 격자 ${JSON.stringify(a9.grid)} · 로스터 ${a9.roster ? "보임" : "숨김"} · 독 "${a9.cap}" · 칸 바닥 ${a9.cellBottom} · 툴박스 위끝 ${a9.tbTop}`);
   for (const c of a9.cells) console.log(`  칸 ${c.x},${c.y} ${c.w}×${c.h} 잉크 ${c.ink}${c.pick ? " *" : ""} · ${c.cap}`);
   const shot9 = flag("--split", "");
   if (shot9 && shot9 !== true && String(shot9).endsWith(".png")) await page.screenshot({ path: String(shot9) });
