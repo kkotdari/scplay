@@ -2595,6 +2595,8 @@
   /* z 13 — TV 단추의 목록이 위로 펼쳐져 툴박스(12)를 덮어야 한다(그 아래로 깔리면 목록 밑이 흐린 판에 묻힌다). */
   position: relative; z-index: 13; flex: none; height: var(--dock-cap); min-width: 0;
   display: flex; align-items: center; justify-content: center;
+  /* 오른쪽 접기 정사각(한 변 --dock-cap + 틈)과 같은 몫을 왼쪽에 비워 글귀가 틀 한가운데에 선다. */
+  padding-left: calc(var(--dock-cap) + var(--dock-bez)); box-sizing: border-box;
 }
 .scr-fs-dockcap .scr-motion-castcap {
   background: none; border: none; box-shadow: none; padding: 1px 4px; border-radius: 0;
@@ -2611,21 +2613,23 @@
 /* 라벨은 한 단 작게 · 줄 사이 없이(요청: "유저정보 라벨 크기 줄여서 세로 줄이기") — 정보줄 키 30 → 22·dk. */
 .scr-fs-dockcap .scr-motion-castcap-lab { font-size: calc(5.5px * var(--dkt)); line-height: 1.25; }
 .scr-fs-dockcap .scr-motion-castdot { width: calc(7px * var(--dkd)); height: calc(7px * var(--dkd)); }
-/* ★ 접기 단추는 **틀의 오른쪽 손잡이**다(2026-09, 요청: "프레임모드에도 독 접기 버튼 추가" · "접기버튼은 유저정보말고 독
-   프레임 어딘가 적당히") — 정보줄 오른쪽 끝에 있던 동그라미를 걷고, 틀의 오른 끝에 정보줄 + 아래 줄을 세로로 다 걸치는 도드라진
-   쇠 띠(서랍 손잡이)로 세운다. 접으면 정보줄 키만큼 짧아진다. 결은 세로(손잡이의 긴 쪽) · 가운데 홈 셋이 쥘 자리다. */
+/* ★ 접기 단추는 **틀 위쪽 오른 끝의 쇠 정사각**이다(2026-09, 요청: "프레임모드에도 독 접기 버튼 추가" → "접기버튼은 유저정보말고
+   독 프레임 어딘가 적당히" → "접기 손잡이 정사각형으로 위쪽에 배치하고 독내용 가운데 정렬 안깨뜨리게 하기") — 한때 두 줄을 세로로
+   다 걸친 기둥이었는데, 그 기둥이 아래 줄(미니맵 + 인포창)의 폭을 먹어 독 내용이 왼쪽으로 쏠렸다. 이제 **정보줄 줄에만** 서는
+   정사각(한 변 = 정보줄 키)이고 아래 줄은 틀의 온 폭을 쓴다. 정보줄은 왼쪽에 같은 몫을 비워(아래 dockcap 의 padding-left) 글귀가
+   틀 한가운데에 그대로 선다. 결은 세로 · 가운데 홈 둘이 쥘 자리다. */
 .scr-motion-infodock-fold {
-  grid-column: 2; grid-row: 1 / span 2; align-self: stretch;
-  width: max(14px, calc(8px * var(--dkd))); min-height: 0; padding: 0; border-radius: 0; cursor: pointer;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(2px * var(--dkd));
+  grid-column: 2; grid-row: 1; align-self: stretch;
+  width: var(--dock-cap); height: var(--dock-cap); min-height: 0; padding: 0; border-radius: 0; cursor: pointer; box-sizing: border-box;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(1.5px * var(--dkd));
   border: 1px solid #0b0d10; color: #20252b; font-size: max(9px, calc(6px * var(--dkd))); line-height: 1;
   background:
     repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 2px),
-    linear-gradient(90deg, #8d959e 0%, #c3c9d0 30%, #a3abb4 60%, #747c85 100%);
-  box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.6), inset -1px 0 0 rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.5);
+    linear-gradient(180deg, #c3c9d0 0%, #a3abb4 45%, #8d959e 55%, #747c85 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 0 -1px 0 rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 .scr-motion-infodock-fold::before, .scr-motion-infodock-fold::after {
-  content: ""; width: 55%; height: 1px; background: rgba(0, 0, 0, 0.35); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
+  content: ""; width: 50%; height: 1px; background: rgba(0, 0, 0, 0.35); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
 }
 .scr-motion-infodock-fold:hover { filter: brightness(1.1); }
 /* 몸은 정보줄이 비운 키까지 받는다(요청: "그만큼 남는 높이는 인포창이 사용") — 옛 띠(--dock-cap + 1px 새긴 줄)만큼 늘어 독 줄의 온
@@ -3207,7 +3211,7 @@
   /* 테두리 두께 5 → 4 → 3.2 → 2.4·dkd(2026-09, 요청 셋: "하단인터페이스 쇠테두리 두께 20프로 줄이기" → "독 쇠테두리 두께 20프로
      더 축소" → "독 내부 프레임은 두께 25프로 더 줄이기"). 구분선 막대도 이 값이다. */
   --dock-bez: calc(2.4px * var(--dkd));
-  /* 두 줄 — [정보줄(온 폭)] / [미니맵 | 인포창](키 --dock-h) · 오른 끝 기둥은 접기 손잡이(두 줄을 걸친다). 접으면(is-fold) 정보줄만 남는다. */
+  /* 두 줄 — [정보줄 | 접기 정사각] / [미니맵 | 인포창](키 --dock-h · 온 폭). 접으면(is-fold) 정보줄만 남는다. */
   display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: stretch; gap: var(--dock-bez); padding: var(--dock-bez); min-width: 0; max-width: 100%;
   /* 아래 테두리는 2px 더 두껍다(2026-09, 지적: "독 아래테두리가 좀 얇게 보이는데") — 위는 바깥 검은 테 위에 흰 베벨이 서지만
      아래는 바깥 검은 테 + 안쪽 검은 베벨이 겹쳐 쇠가 그 둘만큼 덜 보였다. 구분 막대의 광택 자(아래 background-size)도 이 몫을 센다. */
@@ -3228,11 +3232,13 @@
 }
 /* 우물 — 쇠판에 파인 자리. 위 안쪽 그늘이 깊이를, 아래 밝은 입술이 판의 두께를 말한다. */
 .scr-fs-dockmain { display: flex; align-items: stretch; gap: var(--dock-bez); height: var(--dock-h); min-width: 0; }
-.scr-fs-dockframe.is-fold .scr-fs-dockmain { display: none; }
-/* 접히면 손잡이도 정보줄 한 줄만 걸친다(빈 둘째 줄을 걸치면 그 사이 틈만큼 틀이 늘어난다). */
-.scr-fs-dockframe.is-fold > .scr-motion-infodock-fold { grid-row: 1; }
+/* ★ 접어도 폭은 그대로다(2026-09, 지적: "접었을때 폭이 좁아지는 현상 없애기") — 틀은 내용만큼 넓은데(fit-content) 아래 줄을
+   display: none 으로 걷으면 그 폭까지 빠져 틀이 정보줄 폭으로 쪼그라들었다. 키만 0 으로 눌러 숨기면 폭(미니맵·인포창의 width)은
+   그대로 남아 틀을 받친다 · 줄 사이 틈도 걷는다. */
+.scr-fs-dockframe.is-fold { row-gap: 0; }
+.scr-fs-dockframe.is-fold .scr-fs-dockmain { height: 0; visibility: hidden; overflow: hidden; }
 .scr-fs-dockframe > .scr-fs-dockcap { grid-column: 1; grid-row: 1; }
-.scr-fs-dockframe > .scr-fs-dockmain { grid-column: 1; grid-row: 2; }
+.scr-fs-dockframe > .scr-fs-dockmain { grid-column: 1 / -1; grid-row: 2; }
 .scr-fs-dockframe > .scr-fs-dockcap,
 .scr-fs-dockmain > .scr-fs-minipanel,
 .scr-fs-dockmain > .scr-motion-infodock {

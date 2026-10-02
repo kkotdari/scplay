@@ -174,7 +174,7 @@ export default function ReplayGuide({ onClose }: {
         <h3 className="scr-guide-h3">아래 미니맵 · 인포창</h3>
         <p className="scr-guide-sub">
           맨 아래 가운데에 <strong>미니맵</strong>(왼쪽)과 <strong>인포창</strong>(오른쪽)이 한 틀로 늘 서 있고, 그 위 온 폭에
-          <strong>사람 정보줄</strong>이 섭니다. 틀 <strong>오른쪽 끝의 쇠 손잡이(▾)</strong>를 누르면 미니맵·인포창을 접어 정보줄만 남기고,
+          <strong>사람 정보줄</strong>이 섭니다. 틀 <strong>오른쪽 위의 작은 쇠 단추(▾)</strong>를 누르면 미니맵·인포창을 접어 정보줄만 남기고,
           한 번 더 누르면(▴) 다시 펼칩니다 — 프레임·전체화면 어디서나 됩니다.
         </p>
         <ul className="scr-guide-legend">
