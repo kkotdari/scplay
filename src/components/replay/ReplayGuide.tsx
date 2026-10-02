@@ -85,11 +85,12 @@ export default function ReplayGuide({ onClose }: {
 
         <h3 className="scr-guide-h3">도구 상자의 버튼</h3>
         <p className="scr-guide-sub">
-          켜져 있으면 <strong>환하게</strong> 빛납니다. <strong>중계</strong> 버튼은 아래 <strong>사람 정보줄의 닉네임 왼쪽</strong>에 있고, 켜진 동안 <strong>초록 테두리로 깜빡</strong>입니다.
+          켜지면 <strong>흰 바탕에 검은 그림</strong>으로 뒤집힙니다(아래 견본의 로스터 버튼). <strong>중계</strong> 버튼은 아래 틀 <strong>왼쪽 위의 쇠 단추</strong>(<span className="scr-guide-msq" aria-hidden="true"><Tv size={11}/></span>)이고,
+          켜진 동안은 <strong>검게 파이고 초록으로 깜빡</strong>입니다(<span className="scr-guide-msq is-on" aria-hidden="true"><Tv size={11}/></span>).
         </p>
         <div className="scr-guide-mock">
           <div className="scr-guide-toolrow">
-            <span className="scr-guide-mbtn"><RosterTableIcon size={18}/></span>
+            <span className="scr-guide-mbtn is-on"><RosterTableIcon size={18}/></span>
             <span className="scr-guide-mbtn scr-guide-colsw is-personal"><Palette size={18}/></span>
             <span className="scr-guide-mbtn scr-guide-mbtn-txt">2D</span>
             <span className="scr-guide-mbtn"><Music size={18}/></span>
@@ -99,9 +100,9 @@ export default function ReplayGuide({ onClose }: {
             <span className="scr-guide-tpill"><Maximize size={15}/></span>
           </div>
           <ul className="scr-guide-legend">
-            <li><span className="scr-guide-ic"><Tv size={15}/></span><span><b>중계</b>(아래 정보줄의 닉네임 왼쪽) — 누르면 위로 목록이 펼쳐집니다: <b>사람 이름들 · 자동 · 끄기</b>. 아래 <b>중계 고르기</b>에서 자세히.</span></li>
+            <li><span className="scr-guide-ic"><Tv size={15}/></span><span><b>중계</b>(아래 틀 왼쪽 위의 쇠 단추 — 오른쪽 위 접기 단추의 짝) — 누르면 위로 목록이 펼쳐집니다: <b>사람 이름들 · 자동 · 끄기</b>. 아래 <b>중계 고르기</b>에서 자세히.</span></li>
             <li><span className="scr-guide-ic"><RosterTableIcon size={15}/></span><span><b>로스터 현황</b> — 끄면 <b>이름만</b>, 켜면 일꾼·자원·인구·K/D·APM까지 뜹니다.</span></li>
-            <li><span className="scr-guide-ic"><Palette size={15}/></span><span><b>색</b> — 누를 때마다 색 모드가 바뀝니다. 버튼의 <b>원그래프</b>가 곧 지금 모드입니다(아래 <b>색 모드</b>).</span></li>
+            <li><span className="scr-guide-ic"><Palette size={15}/></span><span><b>색</b> — 누를 때마다 색 모드가 바뀝니다. 기본인 개인색에서는 <b>꺼진 버튼</b>(바탕 없음)이고, 팀색·주인공색에서는 버튼의 <b>원그래프</b>가 곧 그 모드입니다(아래 <b>색 모드</b>).</span></li>
             <li><span className="scr-guide-ic scr-guide-ic-txt">2D</span><span><b>보기</b> — 평면(2D)과 입체(3D)를 오갑니다. 언덕·램프는 입체에서 더 잘 읽힙니다. PC에만 있습니다.</span></li>
             <li><span className="scr-guide-ic"><Music size={15}/></span><span><b>음악</b> — 누르면 곡 목록이 펼쳐집니다. 고른 곡은 처음부터, 맨 아래 '끄기'로 끕니다. 처음 들어오면 켜져 있습니다.</span></li>
             <li><span className="scr-guide-ic"><CircleHelp size={15}/></span><span><b>사용법</b> — 지금 보고 있는 이 안내입니다.</span></li>
@@ -115,7 +116,7 @@ export default function ReplayGuide({ onClose }: {
           중계를 끄면 <strong>개인색</strong>으로 돌아옵니다. 1:1·개인전에는 편이 없어 팀색을 건너뜁니다.
         </p>
         <ul className="scr-guide-legend">
-          <li><span className="scr-guide-colsw scr-guide-colsw-s is-personal" aria-hidden="true"/><span><b>개인색</b>(기본) — 그 경기에서 각자가 쓰던 색입니다.</span></li>
+          <li><span className="scr-guide-colsw scr-guide-colsw-s is-personal" aria-hidden="true"/><span><b>개인색</b>(기본) — 그 경기에서 각자가 쓰던 색입니다. 기본이라 색 버튼은 <b>꺼진 꼴</b>(바탕 없음)입니다.</span></li>
           <li><span className="scr-guide-colsw scr-guide-colsw-s is-team" aria-hidden="true"/><span><b>팀색</b> — 편을 빨강·파랑 둘로 가릅니다.</span></li>
           <li><span className="scr-guide-colsw scr-guide-colsw-s is-hero" aria-hidden="true"/><span><b>주인공색</b> — 원작의 그 모드처럼 <b>나</b>는 청록, <b>우리 편</b>은 노랑, <b>상대</b>는 빨강입니다. ‘나’는 지금 <b>화면 주인</b>이라, 자동 중계가 사람을 바꾸면 색도 그 사람 기준으로 바뀝니다.</span></li>
         </ul>
@@ -174,7 +175,8 @@ export default function ReplayGuide({ onClose }: {
         <h3 className="scr-guide-h3">아래 미니맵 · 인포창</h3>
         <p className="scr-guide-sub">
           맨 아래 가운데에 <strong>미니맵</strong>(왼쪽)과 <strong>인포창</strong>(오른쪽)이 한 틀로 늘 서 있고, 그 위 온 폭에
-          <strong>사람 정보줄</strong>이 섭니다. 틀 <strong>오른쪽 위의 작은 쇠 단추(▾)</strong>를 누르면 미니맵·인포창을 접어 정보줄만 남기고,
+          <strong>사람 정보줄</strong>이 섭니다. 정보줄 양 끝은 쇠 단추 둘입니다 — <strong>왼쪽</strong>이 <b>중계</b>(<Tv size={12}/>), 
+          <strong>오른쪽(▾)</strong>을 누르면 미니맵·인포창을 접어 정보줄만 남기고,
           한 번 더 누르면(▴) 다시 펼칩니다 — 프레임·전체화면 어디서나 됩니다.
         </p>
         <ul className="scr-guide-legend">

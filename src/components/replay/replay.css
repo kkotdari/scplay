@@ -311,8 +311,10 @@
 /* 흐린 꼴 — '지금 꺼져 있다'를 알린다(표 버튼의 셋째 칸: 로스터 숨김). 켠 표시(is-on)의
    반대편이라, 아무 표시도 없는 기본 꼴과 셋이 서로 갈린다. */
 .scr-motion-mapbtns button.scr-motion-mapbtn.is-mute { opacity: 0.45; }
+/* ★ 켜짐은 **반전**이다 — 흰 바탕에 검은 그림(2026-09, 요청: "버튼들 활성화시 더 확실히 구분되게 반전(흰색에 검은 글씨 톤)") —
+   옛 흰 0.26 막은 꺼진 단추(0.10)와 한 단 차이라 밝은 지도 위에서 안 갈렸다. 목록의 켜진 줄(.scr-motion-pickitem.is-on)과 같은 색이다. */
 .scr-motion-mapbtns button.scr-motion-mapbtn.is-on {
-  background: rgba(255, 255, 255, 0.26);
+  background: rgba(255, 255, 255, 0.92); color: #10151a;
   box-shadow: none;
 }
 
@@ -2590,8 +2592,8 @@
   /* z 13 — TV 단추의 목록이 위로 펼쳐져 툴박스(12)를 덮어야 한다(그 아래로 깔리면 목록 밑이 흐린 판에 묻힌다). */
   position: relative; z-index: 13; flex: none; height: var(--dock-cap); min-width: 0;
   display: flex; align-items: center; justify-content: center;
-  /* 오른쪽 접기 정사각(한 변 --dock-cap + 틈)과 같은 몫을 왼쪽에 비워 글귀가 틀 한가운데에 선다. */
-  padding-left: calc(var(--dock-cap) + var(--dock-bez)); box-sizing: border-box;
+  /* 양옆에 같은 정사각(왼 TV · 오른 접기)이 제 칸으로 서므로 글귀는 그대로 틀 한가운데다(옛 왼쪽 비움 몫은 걷었다). */
+  box-sizing: border-box;
 }
 .scr-fs-dockcap .scr-motion-castcap {
   background: none; border: none; box-shadow: none; padding: 1px 4px; border-radius: 0;
@@ -2603,12 +2605,43 @@
 /* ★ **다시 맨 왼쪽에 못 박았다**(2026-09, 요청: "중계 아이콘 다시 줄 맨 왼쪽으로 고정") — 흐름 속 첫 칸이면 자막 글귀 폭에 따라
    사람이 갈릴 때마다 자리가 옮겨 다닌다. 정보줄이 왼쪽에 비워 둔 몫(접기 정사각과 같은 --dock-cap + 틈) 안에 절대 자리로 서므로
    글귀는 여전히 틀 한가운데이고 단추는 늘 같은 자리다. */
-.scr-fs-dockcap .scr-fs-dockcast {
-  position: absolute; left: calc((var(--dock-cap) + var(--dock-bez) - 14px * var(--dk)) / 2); top: 50%; transform: translateY(-50%);
-  flex: none; margin: 0;
-  --mapbtn-h: calc(14px * var(--dk)); --mapbtn-gap: 0px;
+/* ★★ TV 단추는 **틀 위쪽 왼 끝의 쇠 정사각**이다 — 오른 끝 접기 손잡이(.scr-motion-infodock-fold)의 짝(2026-09, 요청: "독 중계 버튼을
+   접기 버튼같은 형태로 변경하고 동그란 테두리 제거"). 정보줄 우물 안의 동그라미를 틀의 1열로 꺼냈다. 결·광택·테·크기(한 변 --dock-cap)가
+   접기와 같고, 형제 규칙(.scr-motion-mapbtns button.scr-motion-mapbtn — 원·반투명 막)을 같은 무게로 **뒤에** 덮어쓴다.
+   켜짐은 반전이다(검은 우물 + 초록 깜빡임 · 아래). z 13 — 목록이 위로
+   펼쳐져 툴박스(12)를 덮는다. */
+.scr-fs-dockframe > .scr-fs-dockcast {
+  grid-column: 1; grid-row: 1; position: relative; z-index: 13; align-self: stretch;
+  width: var(--dock-cap); height: var(--dock-cap); margin: 0;
+  --mapbtn-h: var(--dock-cap); --mapbtn-gap: 0px;
 }
-.scr-fs-dockcast button.scr-motion-mapbtn svg { width: calc(7px * var(--dk)); height: calc(7px * var(--dk)); }
+.scr-fs-dockcast .scr-motion-pick { width: 100%; height: 100%; aspect-ratio: auto; }
+.scr-fs-dockcast button.scr-motion-mapbtn,
+.scr-motion-mapbtns.scr-fs-dockcast button.scr-motion-mapbtn.scr-motion-castbtn-on {
+  width: 100%; height: 100%; aspect-ratio: auto; align-self: stretch; padding: 0; border-radius: 0; box-sizing: border-box;
+  border: 1px solid #0b0d10; color: #20252b;
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 2px),
+    linear-gradient(180deg, #c3c9d0 0%, #a3abb4 45%, #8d959e 55%, #747c85 100%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+.scr-fs-dockcast button.scr-motion-mapbtn:hover { filter: brightness(1.1); }
+.scr-fs-dockcast button.scr-motion-mapbtn svg { width: calc(12px * var(--dk)); height: calc(12px * var(--dk)); }
+/* 켜짐은 **반전** — 쇠 정사각이 파인 우물(정보줄과 같은 검은 속)이 되고 그 안에 초록 그림이 깜빡인다(옛 초록 박자 그대로). */
+.scr-motion-mapbtns.scr-fs-dockcast button.scr-motion-mapbtn.scr-motion-castbtn-on.scr-motion-castbtn {
+  color: #2ee59d;
+  background: #0a0d12;
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(46, 229, 157, 0.55);
+}
+/* 검은 우물 위라 옛 박자(초록 ↔ 검정)의 검은 반은 그림이 통째로 사라진다 — 초록 ↔ 짙은 초록으로 깜빡인다. */
+.scr-fs-dockcast .scr-motion-castbtn-on svg { animation: scr-cast-blink-well 1s steps(1, end) infinite; }
+@keyframes scr-cast-blink-well {
+  0%, 45% { color: #2ee59d; }
+  55%, 100% { color: #1a6b4a; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scr-fs-dockcast .scr-motion-castbtn-on svg { animation: none; }
+}
 /* 라벨은 한 단 작게 · 줄 사이 없이(요청: "유저정보 라벨 크기 줄여서 세로 줄이기") — 정보줄 키 30 → 22·dk. */
 .scr-fs-dockcap .scr-motion-castcap-lab { font-size: calc(5.5px * var(--dk)); line-height: 1.25; }
 .scr-fs-dockcap .scr-motion-castdot { width: calc(7px * var(--dk)); height: calc(7px * var(--dk)); }
@@ -2618,7 +2651,7 @@
    정사각(한 변 = 정보줄 키)이고 아래 줄은 틀의 온 폭을 쓴다. 정보줄은 왼쪽에 같은 몫을 비워(아래 dockcap 의 padding-left) 글귀가
    틀 한가운데에 그대로 선다. 결은 세로 · 홈·안쪽 베벨은 걷었다(삼각형이 곧 쥘 자리다). */
 .scr-motion-infodock-fold {
-  grid-column: 2; grid-row: 1; align-self: stretch;
+  grid-column: 3; grid-row: 1; align-self: stretch;
   width: var(--dock-cap); height: var(--dock-cap); min-height: 0; padding: 0; border-radius: 0; cursor: pointer; box-sizing: border-box;
   display: flex; align-items: center; justify-content: center;
   /* 삼각형은 정사각의 절반 남짓(요청: "버튼 삼각형 크기 키우고 내부 테두리는 제거") — 홈 둘·안쪽 베벨을 걷고 바깥 1px 테만 남긴다. */
@@ -3209,11 +3242,12 @@
   /* 테두리 두께 5 → 4 → 3.2 → 2.4·dkd(2026-09, 요청 셋: "하단인터페이스 쇠테두리 두께 20프로 줄이기" → "독 쇠테두리 두께 20프로
      더 축소" → "독 내부 프레임은 두께 25프로 더 줄이기"). 구분선 막대도 이 값이다. */
   --dock-bez: calc(2.4px * var(--dk));
-  /* 두 줄 — [정보줄 | 접기 정사각] / [미니맵 | 인포창](키 --dock-h · 온 폭). 접으면(is-fold) 정보줄만 남는다. */
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: stretch; gap: var(--dock-bez); padding: var(--dock-bez); min-width: 0; max-width: 100%;
-  /* 아래 테두리는 2px 더 두껍다(2026-09, 지적: "독 아래테두리가 좀 얇게 보이는데") — 위는 바깥 검은 테 위에 흰 베벨이 서지만
-     아래는 바깥 검은 테 + 안쪽 검은 베벨이 겹쳐 쇠가 그 둘만큼 덜 보였다. 구분 막대의 광택 자(아래 background-size)도 이 몫을 센다. */
-  padding-bottom: calc(var(--dock-bez) + 2px);
+  /* ★ 바깥 테두리는 **네 방이 한 값**이다(2026-09, 지적: "독 바깥 테두리 4방 모두 굵기 동일하게 위와 양옆은 좀 가늘고 아래는 너무
+     두껍") — 옛 판은 위·옆이 --dock-bez(안쪽 틈과 같은 값)이고 아래만 +2px 에 바깥 검은 테까지 얹혀 아래가 두 배 남짓이었다
+     (옛 "독 아래테두리가 좀 얇게 보이는데"로 덧댄 그 2px 은 되물렸다). 안쪽 틈(--dock-bez · 구분 막대)과 갈라 둔다. */
+  --dock-out: calc(3.4px * var(--dk));
+  /* 두 줄 — [TV 정사각 | 정보줄 | 접기 정사각] / [미니맵 | 인포창](키 --dock-h · 온 폭). 접으면(is-fold) 정보줄만 남는다. */
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: stretch; gap: var(--dock-bez); padding: var(--dock-out); min-width: 0; max-width: 100%;
   box-sizing: border-box;
   position: relative; border: 1px solid #0b0d10; border-radius: 0;
   background:
@@ -3235,7 +3269,7 @@
    그대로 남아 틀을 받친다 · 줄 사이 틈도 걷는다. */
 .scr-fs-dockframe.is-fold { row-gap: 0; }
 .scr-fs-dockframe.is-fold .scr-fs-dockmain { height: 0; visibility: hidden; overflow: hidden; }
-.scr-fs-dockframe > .scr-fs-dockcap { grid-column: 1; grid-row: 1; }
+.scr-fs-dockframe > .scr-fs-dockcap { grid-column: 2; grid-row: 1; }
 .scr-fs-dockframe > .scr-fs-dockmain { grid-column: 1 / -1; grid-row: 2; }
 .scr-fs-dockframe > .scr-fs-dockcap,
 .scr-fs-dockmain > .scr-fs-minipanel,
@@ -3256,8 +3290,8 @@
     linear-gradient(180deg, #b2b8c0 0%, #979fa8 15%, #7a828b 45%, #656c75 52%, #737b84 72%, #89919a 100%);
   /* 광택 띠는 틀의 온 키(위아래 여백 + 정보줄 + 그 아래 틈 포함)에 걸려 있으므로 막대도 그 자로 편다 — 같은 높이에서 같은 색이라
      이음매가 없다. 막대는 틀 위에서 '여백 + 정보줄 + 틈' 만큼 내려와 있다. */
-  background-size: 100% calc(100% + var(--dock-cap) + 3 * var(--dock-bez) + 2px);
-  background-position: 0 calc(-1 * (var(--dock-cap) + 2 * var(--dock-bez)));
+  background-size: 100% calc(100% + var(--dock-cap) + 2 * var(--dock-out) + var(--dock-bez) + 2px);
+  background-position: 0 calc(-1 * (1px + var(--dock-out) + var(--dock-cap) + var(--dock-bez)));
   box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.16), inset -1px 0 0 rgba(0, 0, 0, 0.30);
 }
 /* ★ 미니맵은 **남는 폭**을 쓴다(2026-09, 요청: "폭은 인포창 넣고 남은 폭을 씀") — 칸(이 판)이 남는 폭 × 줄 키를 갖고, 미니맵은
@@ -3800,9 +3834,17 @@
 
 
 .scr-guide-mbtn.is-on{
-  background: var(--lit-pill-bg); box-shadow: var(--lit-pill-glow); color: #10151a;
+  background: rgba(255, 255, 255, 0.92); box-shadow: none; color: #10151a;
 }
 
+/* 사용법의 독 쇠 단추 견본(재생기 .scr-fs-dockcast 의 ★★ — 접기 손잡이와 같은 쇠 정사각 · 켜짐은 검은 우물 + 초록). */
+.scr-guide-msq{
+  display: inline-grid; place-items: center; width: 18px; height: 18px; vertical-align: -4px; margin: 0 2px;
+  border: 1px solid #0b0d10; color: #20252b; box-sizing: border-box;
+  background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 2px),
+    linear-gradient(180deg, #c3c9d0 0%, #a3abb4 45%, #8d959e 55%, #747c85 100%);
+}
+.scr-guide-msq.is-on{ background: #0a0d12; color: #2ee59d; box-shadow: inset 0 0 0 1px rgba(46, 229, 157, 0.55); }
 /* 사용법의 중계·색 단추 — 재생기의 켜진 TV(초록 테 + 깜빡임)와 색 단추 바탕(지금 모드)을 그대로 흉내 낸다. */
 .scr-guide-mbtn-cast{
   color: #2ee59d; box-shadow: inset 0 0 0 1.5px rgba(46, 229, 157, 0.78);
@@ -3812,11 +3854,10 @@
 .scr-guide-colsw{ color: #fff; }
 .scr-guide-colsw svg{ filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.9)); }
 /* 색 단추와 같은 원그래프(재생기 .scr-motion-colbtn 의 ★ — 값을 바꾸면 둘을 함께). */
-.scr-guide-colsw.is-personal{
-  background: linear-gradient(rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.08)),
-    conic-gradient(#f40404 0 60deg, #f88c14 60deg 120deg, #fcfc38 120deg 180deg,
-      #088008 180deg 240deg, #0c48cc 240deg 300deg, #88409c 300deg 360deg);
-}
+.scr-guide-colsw.is-personal{ background: rgba(255, 255, 255, 0.10); }
+.scr-guide-colsw.is-personal svg{ filter: none; }
+/* 범례 칸의 개인색 견본은 흰 종이 위라 꺼진 막(흰 0.10)이 안 보인다 — 테두리 한 줄로 '빈 단추'를 말한다. */
+.scr-guide-colsw-s.is-personal{ background: transparent; box-shadow: inset 0 0 0 1.5px var(--line-soft, rgba(0, 0, 0, 0.25)); }
 .scr-guide-colsw.is-team{
   background: linear-gradient(rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.06)),
     conic-gradient(from 180deg, #d81f28 0 180deg, #2050d0 180deg 360deg);
@@ -3986,11 +4027,12 @@
      · 주인공 — 틸(나)이 **위 가운데**(−60 ~ +60도) · 오른 아래 빨강(적) · 왼 아래 노랑(아군). 옛 띠의 왼→오
        노랑·틸·빨강이 원 위에서도 왼·위·오른이다.
    먹판(0.08 · 0.06)은 그대로 첫 겹이다 — 흰 아이콘이 밝은 조각 위에서도 읽히게. */
+/* ★ 개인색은 **꺼진 단추**다(2026-09, 요청: "컬러 개인색은 배경없애고 꺼진것으로 표현") — 기본 모드라 '켜진 것이 없다'로 읽힌다.
+   원그래프는 팀·주인공(기본에서 갈아 낀 모드)에만 남는다. 바탕은 형제의 꺼진 막(흰 0.10) 그대로이고 아이콘 그림자도 걷는다. */
 .scr-motion-mapbtns button.scr-motion-mapbtn.scr-motion-colbtn.is-personal {
-  background: linear-gradient(rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.08)),
-    conic-gradient(#f40404 0 60deg, #f88c14 60deg 120deg, #fcfc38 120deg 180deg,
-      #088008 180deg 240deg, #0c48cc 240deg 300deg, #88409c 300deg 360deg);
+  background: rgba(255, 255, 255, 0.10);
 }
+.scr-motion-mapbtns button.scr-motion-mapbtn.scr-motion-colbtn.is-personal svg { filter: none; }
 .scr-motion-mapbtns button.scr-motion-mapbtn.scr-motion-colbtn.is-team {
   background: linear-gradient(rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.06)),
     conic-gradient(from 180deg, #d81f28 0 180deg, #2050d0 180deg 360deg);

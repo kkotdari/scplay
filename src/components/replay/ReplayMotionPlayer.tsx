@@ -15307,8 +15307,9 @@ export default function ReplayMotionPlayer({
    *  ★ 폭이 아니라 **어느 판이냐**로 가른다 — 아바타가 서는 구간이 뷰포트 1160px 이상이라
    *    폭으로 가르면 정작 아바타가 보이는 화면에서 안 걸린다(그 판이 곧 이 판이다). */
   /** 로스터 이름칩의 바탕 알파 — 최소 꼴(1단계)·표 꼴(2단계)(2026-09, 요청: "로스터 1단계시 닉네임 상자 배경 투명도 주기" →
-   *  "닉네임 배경 더 투명하게" — 0.62 → 0.42 · 표 꼴도 1 → 0.7). 글자색은 불투명한 제 색의 밝기로 고른다(chipStyle). */
-  const CHIP_BARE_A9 = 0.42;
+   *  "닉네임 배경 더 투명하게" — 0.62 → 0.42 · 표 꼴도 1 → 0.7 → "로스터 기본모드에서 투명도 낮추기" — 0.42 → 0.68: 어두운
+   *  색(Rex 의 갈색)이 0.42 에서는 지도에 묻혀 칩이 안 읽혔다). 글자색은 불투명한 제 색의 밝기로 고른다(chipStyle). */
+  const CHIP_BARE_A9 = 0.68;
   const CHIP_ROW_A9 = 0.7;
   const teamCol = (team: 1 | 2, rows = false, bare = false, small = false) => {
     /* 한 팀에 몇이냐가 이름 길이를 정한다(요청) — 칸 폭은 고정인데 그 폭을 사람 수로
@@ -16466,7 +16467,10 @@ export default function ReplayMotionPlayer({
     ro9.observe(fr9);
     return () => ro9.disconnect();
   }, [fsOn]);
-  /* ★ TV 단추(중계·추적 목록)는 **정보줄 맨 왼쪽**이다(2026-09, 요청: "중계버튼 위치를 유저정보 라인 맨 왼쪽으로 이동") —
+  /* ★★ TV 단추는 **틀 위쪽 왼 끝의 쇠 정사각**이다 — 오른 끝 접기 손잡이와 같은 꼴·같은 크기의 짝(2026-09, 요청: "독 중계 버튼을
+     접기 버튼같은 형태로 변경하고 동그란 테두리 제거"). 정보줄(우물) 안의 동그라미였던 것을 틀의 제 칸(1열)으로 꺼냈다 — 그래서
+     정보줄은 양쪽에 같은 정사각을 끼고 한가운데에 선다(옛 padding-left 몫은 걷었다).
+     ★ TV 단추(중계·추적 목록)는 **정보줄 맨 왼쪽**이다(2026-09, 요청: "중계버튼 위치를 유저정보 라인 맨 왼쪽으로 이동") —
      정보줄이 곧 '지금 누구 화면인가'를 말하는 자리라 그 손잡이를 같은 줄에 둔다. 꼴·켜짐(초록 + 깜빡임)·위로 펼치는 목록은
      아이콘 줄에 있던 그대로다(형제 규칙을 받으려고 .scr-motion-mapbtns 한 칸 감싸개 · 크기 변수는 .scr-fs-dockcast 가 든다). */
   const castBtnNode9 = (
@@ -16516,7 +16520,6 @@ export default function ReplayMotionPlayer({
       onPointerDown={(e) => e.stopPropagation()}
       onWheel={(e) => e.stopPropagation()}
     >
-        {castBtnNode9}
         {dockCap9 && (
           <span key={dockCap9.key} className="scr-motion-castcap">
             <span className="scr-motion-castcap-who">
@@ -17397,6 +17400,7 @@ export default function ReplayMotionPlayer({
             <span className={cx("scr-fs-dockmark", dockMark9 && "is-on")} ref={dockMarkRef9} aria-hidden>{"scplay.vercel.app    SINCE 2026"}</span>
             {/* 미니맵 + 인포창을 **한 사각 틀**로 묶는다(2026-09, 요청: "미니맵과 인포창을 한데 묶는 사각 프레임 필요 인포창 래디우스 제거"). */}
             <div className={cx("scr-fs-dockframe", dockFoldOn9 && "is-fold")}>
+            {castBtnNode9}
             {dockCapNode9}
             <div className="scr-fs-dockmain">
             {(fsOn ? fsMiniOn : true) && (
