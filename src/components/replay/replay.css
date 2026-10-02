@@ -2645,7 +2645,8 @@
 }
 /* 라벨은 한 단 작게 · 줄 사이 없이(요청: "유저정보 라벨 크기 줄여서 세로 줄이기") — 정보줄 키 30 → 22·dk. */
 .scr-fs-dockcap .scr-motion-castcap-lab { font-size: calc(5.5px * var(--dk)); line-height: 1.25; }
-.scr-fs-dockcap .scr-motion-castdot { width: calc(7px * var(--dk)); height: calc(7px * var(--dk)); }
+/* ★ 색점은 **큰 네모**다(2026-09, 요청: "닉네임 옆 색 동그라미 더 크게 · 네모로") — 7 → 10·dk · 둥글기 1.5·dk. */
+.scr-fs-dockcap .scr-motion-castdot { width: calc(10px * var(--dk)); height: calc(10px * var(--dk)); border-radius: calc(1.5px * var(--dk)); }
 /* ★ 접기 단추는 **틀 위쪽 오른 끝의 쇠 정사각**이다(2026-09, 요청: "프레임모드에도 독 접기 버튼 추가" → "접기버튼은 유저정보말고
    독 프레임 어딘가 적당히" → "접기 손잡이 정사각형으로 위쪽에 배치하고 독내용 가운데 정렬 안깨뜨리게 하기") — 한때 두 줄을 세로로
    다 걸친 기둥이었는데, 그 기둥이 아래 줄(미니맵 + 인포창)의 폭을 먹어 독 내용이 왼쪽으로 쏠렸다. 이제 **정보줄 줄에만** 서는
@@ -2840,7 +2841,7 @@
 .scr-motion-castcap-val { grid-row: 2; text-align: center; font-variant-numeric: tabular-nums; }
 .scr-motion-castcap-sl { opacity: 0.55; margin: 0 1px; }
 /* 그 선수의 색 — 지도 위 유닛 색과 곧바로 이어져, 누구 화면인지가 글자를 읽기 전에 보인다. */
-.scr-motion-castdot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.scr-motion-castdot { width: 9px; height: 9px; border-radius: 1.5px; flex: none; }   /* 네모(위 독 색점의 ★) */
 @keyframes scr-castcap-in {
   0% { opacity: 0; transform: translateY(6px); }
   100% { opacity: 1; transform: translateY(0); }
@@ -3880,7 +3881,7 @@
   border-radius: 7px; font-size: 13px; font-weight: 700; color: #f5f6f7;
 }
 .scr-guide-castitem.is-on{ background: rgba(255, 255, 255, 0.92); color: #10151a; }
-.scr-guide-castdot{ width: 8px; height: 8px; border-radius: 999px; flex: none; }
+.scr-guide-castdot{ width: 9px; height: 9px; border-radius: 1.5px; flex: none; }
 
 
 .scr-guide-play{
