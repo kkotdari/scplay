@@ -118,19 +118,45 @@ export function contoursOf(f: Float32Array, w: number, h: number): Loop[] {
   return loops;
 }
 
-/** Chaikin 깎기 — 한 번 돌 때마다 모서리가 둥글려진다. 닫힌 고리로 다룬다. */
-export function chaikin(loop: Loop): Loop {
+/** Chaikin 깎기 — 한 번 돌 때마다 모서리가 둥글려진다. 닫힌 고리로 다룬다.
+ *  `w`·`h` 를 주면 **지도 테두리 위의 꼭짓점은 못 박는다**(그 점을 그대로 한 번 더 낸다) — 테두리를 따라 가는 변의 깎은
+ *  점은 저절로 테두리 위에 남으므로, 지도의 네 모서리와 지형이 테두리를 만나는 자리가 둥글려지지 않는다. */
+export function chaikin(loop: Loop, w?: number, h?: number): Loop {
   const n = loop.length / 2;
   if (n < 4) return loop;
   const out: Loop = [];
+  const pin = w !== undefined && h !== undefined;
+  const onB = (x: number, y: number): boolean =>
+    Math.abs(x) < 1e-6 || Math.abs(y) < 1e-6 || Math.abs(x - w!) < 1e-6 || Math.abs(y - h!) < 1e-6;
   for (let i = 0; i < n; i += 1) {
     const j = (i + 1) % n;
     const x0 = loop[i * 2];
     const y0 = loop[i * 2 + 1];
     const x1 = loop[j * 2];
     const y1 = loop[j * 2 + 1];
+    if (pin && onB(x0, y0)) out.push(x0, y0);
     out.push(x0 + (x1 - x0) * 0.25, y0 + (y1 - y0) * 0.25);
     out.push(x0 + (x1 - x0) * 0.75, y0 + (y1 - y0) * 0.75);
+  }
+  return out;
+}
+
+/** 지도 모서리를 되살린다 — 마칭 스퀘어는 모서리 칸을 대각선으로 잘라(두 테두리 위의 점을 곧게 잇는다) 지도의 네 귀가
+ *  깎인다. 한 점은 세로 테두리(x 0·w)에, 다음 점은 가로 테두리(y 0·h)에 있으면(또는 그 반대) 그 사이에 모서리 점을 끼운다. */
+function squareCorners(loop: Loop, w: number, h: number): Loop {
+  const n = loop.length / 2;
+  const vx = (x: number): number | null => (Math.abs(x) < 1e-6 ? 0 : Math.abs(x - w) < 1e-6 ? w : null);
+  const vy = (y: number): number | null => (Math.abs(y) < 1e-6 ? 0 : Math.abs(y - h) < 1e-6 ? h : null);
+  const out: Loop = [];
+  for (let i = 0; i < n; i += 1) {
+    const j = (i + 1) % n;
+    const x0 = loop[i * 2]; const y0 = loop[i * 2 + 1];
+    const x1 = loop[j * 2]; const y1 = loop[j * 2 + 1];
+    out.push(x0, y0);
+    const ax = vx(x0); const by = vy(y1);
+    const ay = vy(y0); const bx = vx(x1);
+    if (ax !== null && by !== null && ay === null && bx === null) out.push(ax, by);
+    else if (ay !== null && bx !== null && ax === null && by === null) out.push(bx, ay);
   }
   return out;
 }
@@ -145,8 +171,10 @@ export function maskPath(
 ): Path2D {
   const f = new Float32Array(w * h);
   for (let i = 0; i < f.length; i += 1) f[i] = test(i) ? 1 : 0;
-  let loops = contoursOf(f, w, h);
-  for (let q = 0; q < smooth; q += 1) loops = loops.map(chaikin);
+  /* ★ 지도 테두리는 각지게 남긴다(2026-09, 지적: "맵 모서리가 둥근데") — 테두리 밖을 0 으로 둘러 고리를 닫으니 지도의 네 귀가
+     마칭 스퀘어에 대각선으로 잘리고 Chaikin 에 둥글려졌다. 귀를 되살리고 테두리 위 꼭짓점은 깎지 않는다. */
+  let loops = contoursOf(f, w, h).map((lp) => squareCorners(lp, w, h));
+  for (let q = 0; q < smooth; q += 1) loops = loops.map((lp) => chaikin(lp, w, h));
   const p = new Path2D();
   for (const lp of loops) {
     const m = lp.length / 2;
