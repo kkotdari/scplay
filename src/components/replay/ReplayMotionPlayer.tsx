@@ -4624,7 +4624,10 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       /* 낮은 배율 죄기 — 배율은 **지금 칠하는 값**으로 잰다(손짓 중에는 React가 안 돌므로
          프롭으로 받으면 한 박자 늦는다). 사정은 lowZoomTrim9 주석에. */
       const trim9 = lowZoomTrim9(zoom, !!pitchedProp);
-      const moveOk9 = moveAt === undefined || zoom >= moveAt;
+      /* ★ 분할 칸에서는 걸음·추진 컷을 늘 낸다(2026-09, 지적: "분할모드에서 과하게 빨리 없어져버려") — 칸은 중계 화면을 칸 크기만큼
+         줄여 **낮은 배율**(zc9 = 추적 배율 ÷ 줄인 몫 · 3×3 이면 1.33배)로 칠하므로 2배 문턱에 늘 걸려 걸음이 통째로 멎었다.
+         지도 화면의 문턱(2배)은 그대로다(옛 '1배부터'는 되물렸다 — "1배는 아니고 2배가 맞아"). */
+      const moveOk9 = moveAt === undefined || zoom >= moveAt || PAINT_CLIP9 !== null;
       /* 체력바·승하차 줄이 서는가 — 제 칸(DEEP_MIN_ZOOM)과 **배치 바닥**(detailAt) 중 늦은 쪽이다(효과 갈래의 fxMinZoom과 같은 규약).
          두 배치 모두 지금은 4배부터다(폰 바닥도 4배로 내렸다 — 아래 detailAt의 ★). 바닥이 다시 갈려도 이 규약이 따라간다. */
       const deepOk9 = zoom >= Math.max(DEEP_MIN_ZOOM, detailAt ?? 0);
@@ -17039,10 +17042,7 @@ export default function ReplayMotionPlayer({
                (갈아엎는 전환이 아니다). 조용한 화면에서는 종전대로 열여섯 칸이다. */
             yawAt={DEV9.yaw8Always || liteFlag9 || CROWD9.lv >= 1
               ? Infinity : ZOOM_STEPS[2]}
-            /* ★ PC 는 걸음·추진 컷을 1배부터 낸다(2026-09, 요청: "PC 이동 모션 문턱이 너무 높은거 같아 조금 낮은 배율에서도") —
-               배율이 자연수라 2배 아래는 곧 1배다. 자세 컷은 종류마다 메시 두 벌이 더 들 뿐이고 PC 는 덜어내기(trim)를 안 탄다.
-               폰은 종전대로 2배부터. */
-            moveAt={smallDevice9 ? ZOOM_STEPS[1] : ZOOM_STEPS[0]}
+            moveAt={ZOOM_STEPS[1]}
             pitched={pitched}
             /* 크립을 가두는 맵 모서리(재지적: 3D에서 크립이 영역을 벗어남) — 입체는 원근
                투영된 사다리꼴이라 네 모서리를 posFrac으로 투영해 넘긴다. 평면은 단위
