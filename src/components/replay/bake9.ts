@@ -2308,9 +2308,9 @@ export function suitLegJoints9(m: -1 | 1, spread: number, stride = 0, zk = 1): {
   const ankle0: [number, number, number] = [m * 0.58 * spread, -0.02 - LEG_BACK, 0.26];
   const Lt9 = legLenD9(hip, knee0);
   const Ls9 = legLenD9(knee0, ankle0);
-  const sp9 = stride === 0 ? m * LEG_STANCE9 : 0;
-  const [ankle] = legCap9(hip, [ankle0[0], ankle0[1] + st * 1.35 + sp9, ankle0[2] + Math.max(0, st) * 0.2112], Lt9, Ls9);
-  const knee: [number, number, number] = st === 0 && sp9 === 0 ? knee0 : jointBetween(hip, ankle, Lt9, Ls9, [0, 1, 0.165]);
+  /* 테란 보병은 선 자세에서 앞뒤로 안 짚는다(2026-10, 요청: "테란 보병들은 서있을때 다리 앞뒤는 아니야") — LEG_STANCE9 는 프로토스만. */
+  const [ankle] = legCap9(hip, [ankle0[0], ankle0[1] + st * 1.35, ankle0[2] + Math.max(0, st) * 0.2112], Lt9, Ls9);
+  const knee: [number, number, number] = st === 0 ? knee0 : jointBetween(hip, ankle, Lt9, Ls9, [0, 1, 0.165]);
   return { hip, knee, ankle };
 }
 export function suitLegs(
