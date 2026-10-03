@@ -271,6 +271,9 @@
 .scr-motion-pickmenu.is-list {
   min-width: 168px; max-height: min(60vh, 360px); overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y;
 }
+/* 중계 목록은 화면이 담을 수 있으면 다 편다(2026-09, 요청: "중계 선택 목록 화면 안넘어가면 스크롤바 안생기게") — 여덟 사람 + 전체·자동·끄기
+   열한 줄이 360 상한에 걸려 스크롤바가 섰다. 상한을 화면 키(위 여백 한 뼘을 뺀 것)로 두어 넘칠 때만 구른다. */
+.scr-fs-dockcast .scr-motion-pickmenu.is-list { max-height: calc(100vh - 140px); max-height: calc(100dvh - 140px); }
 .scr-motion-pickitem {
   display: block; width: 100%; padding: 6px 12px; border: none; border-radius: 2px;   /* 켜짐·hover 바탕도 함께 각지게(옛 8) */
   background: transparent; color: inherit; cursor: pointer;
@@ -2602,8 +2605,9 @@
   /* ★ 두 줄을 다 걸친 왼 기둥(2026-09, 요청: "중계 버튼은 위아래줄 통틀어 왼쪽에 꽉차게(살짝만 마진 남기고)") — 우물(-in) 격자의
      1열에서 1~2행을 다 쓰고 키는 두 줄의 키로 늘어난다(stretch). 폭은 그 키에 맞춘 --who-cast(정사각에 가깝게). */
   position: relative; flex: none; margin: 0; padding: 0;
-  grid-column: 1; grid-row: 1 / 3; align-self: stretch;
-  width: var(--who-cast); height: auto; min-height: var(--who-cast);
+  /* 정사각으로 두 줄 한가운데에 앉는다(2026-09, 요청: "중계버튼 크기 축소" — 두 줄을 꽉 채우던 기둥을 걷었다 · 폰 36 → 28 · PC 40 → 30). */
+  grid-column: 1; grid-row: 1 / 3; align-self: center;
+  width: var(--who-cast); height: var(--who-cast); min-height: 0;
   --mapbtn-h: var(--who-cast); --mapbtn-gap: 0px;
 }
 .scr-fs-dockcast .scr-motion-pick { width: 100%; height: 100%; aspect-ratio: auto; }
@@ -2630,14 +2634,14 @@
 .scr-fs-dockcast button.scr-motion-mapbtn { display: flex; align-items: center; justify-content: center; }
 .scr-fs-dockcast button.scr-motion-mapbtn svg {
   display: block; flex: none; margin: 0;
-  width: calc(var(--who-cast) * 0.62); height: calc(var(--who-cast) * 0.62);
-  transform: translateY(-0.5px);
+  width: calc(var(--who-cast) * 0.66); height: calc(var(--who-cast) * 0.66);
 }
 .scr-motion-mapbtns.scr-fs-dockcast button.scr-motion-mapbtn.scr-motion-castbtn-on.scr-motion-castbtn { color: #14c96f; }
 .scr-fs-dockcast .scr-motion-castbtn-on svg { animation: scr-cast-blink-white 1s steps(1, end) infinite; }
+/* 밝은 반은 더 밝게 빛난다(2026-09, 요청: "녹색 밝게 빛날때 더 밝게!") — 형광 초록 + 같은 색 후광 두 겹(흰 바탕 위라 색만 밝히면 옅어진다). */
 @keyframes scr-cast-blink-white {
-  0%, 45% { color: #14c96f; }
-  55%, 100% { color: #5ee8a2; }
+  0%, 45% { color: #14c96f; filter: none; }
+  55%, 100% { color: #2bff8c; filter: drop-shadow(0 0 1.5px #2bff8c) drop-shadow(0 0 3px rgba(43, 255, 140, 0.85)); }
 }
 @media (prefers-reduced-motion: reduce) {
   .scr-fs-dockcast .scr-motion-castbtn-on svg { animation: none; }
@@ -3344,7 +3348,7 @@
    솟은 몫이 지도 위에 서려면 이 판이 z 를 가져야 한다(그 안의 TV 목록 z 7600 은 이 판의 문맥 안에서 무대보다 위다).
    목록은 판 가운데 위로 편다 — 판은 줄 가운데라 폰에서도 여덟 이름(360px)이 화면 안에 든다. */
 .scr-tb-who {
-  --who-up: 9px; --who-cast: 36px; --who-bez: 3px;
+  --who-up: 9px; --who-cast: 28px; --who-bez: 3px;
   position: relative; z-index: 2; container-type: inline-size;
   justify-self: center; width: 100%; max-width: var(--who-max); min-width: 0; align-self: stretch;
   margin: calc(-1 * (var(--tb-padt) + var(--who-up))) 0 0;
@@ -3429,8 +3433,8 @@
    둔 채 가운데 맞춤을 걸어 왼쪽 반이 화면 밖으로 나갔다). 판이 줄 왼쪽에 붙는 폰에서도 오른쪽으로 자라 화면 안이다. */
 .scr-tb-who .scr-motion-pickmenu.is-left { max-width: calc(100vw - 16px); }
 @media (min-width: 1160px) {
-  .scr-tb-btnrow { --who-max: 470px; }
-  .scr-tb-who { --who-cast: 40px; }
+  .scr-tb-btnrow { --who-max: 600px; }   /* 옛 470(요청: "피시 유저창 폭 더 넓혀야함") */
+  .scr-tb-who { --who-cast: 30px; }
   .scr-tb-who-name { font-size: 12px; }
   .scr-tb-who-st { font-size: 13px; }
   .scr-tb-who-st b { font-size: 9px; }
@@ -4203,6 +4207,9 @@
   max-width: calc(100% - 6px * var(--dk)); box-sizing: border-box; display: flex; min-width: 0;
   font-size: calc(9px * var(--dk)); line-height: 1.25; font-weight: 700; white-space: nowrap;
   text-align: left; pointer-events: none;
+  /* 현황이 칸 폭에 다 안 들면 통째로 숨긴다(2026-09, 요청: "PC에서도 헤더 스탯이 잘리는 분할창의 가로 길이에서는 숨기기") — 한 줄 키로
+     못 박고 줄바꿈을 허락하면, 안 드는 현황이 둘째 줄로 내려가 잘려 나간다(칩 옆 자리가 남을 때만 선다 · JS 잼 없음). */
+  flex-wrap: wrap; height: 1.25em; overflow: hidden;
 }
 /* 이름은 임자색 둥근 네모 칩이다(2026-09, 요청: "분할헤더도 임자색 둥근사각형안에 넣고 기존 색 네모 제거 · 둥근사각 래디우스
    작게") — 글자색은 칩이 그 색의 밝기로 정한다. */
@@ -4216,7 +4223,7 @@
 .scr-split-st {
   /* 글자는 칩보다 한 단 작고(칸 0.88em · 라벨은 그 0.72em — 요청: "헤더 스탯의 폰트 1스텝씩 줄이기(박스 크기는 그대로)") 상자 키는
      칩과 같은 1.25em(칸 머리 글자 기준)으로 못 박아 가운데에 앉힌다. */
-  display: flex; align-items: center; height: 1.25em; box-sizing: border-box; flex: 0 1 auto; min-width: 0; overflow: hidden;
+  display: flex; align-items: center; height: 1.25em; box-sizing: border-box; flex: none; overflow: hidden;
   margin-left: calc(3px * var(--dk)); padding: 0 calc(3px * var(--dk)); border-radius: 2px;
   background: rgba(0, 0, 0, 0.5); color: #e8eef6; font-weight: 600;
 }
