@@ -4051,7 +4051,8 @@
 .scr-split-cap {
   position: absolute; left: calc(3px * var(--dk)); top: calc(3px * var(--dk)); z-index: 1;
   max-width: calc(100% - 6px * var(--dk)); box-sizing: border-box; display: flex; min-width: 0;
-  font-size: calc(9px * var(--dk)); line-height: 1.25; font-weight: 700; white-space: nowrap;
+  /* 8·dk — PC·폰 같은 한 단 작은 글자(2026-09, 요청: "피시 헤더 닉네임과 스탯 폰트 1스텝씩 줄이기" → "모바일도 동일하게 적용해야 갈림이 없을듯" · 옛 9). */
+  font-size: calc(8px * var(--dk)); line-height: 1.25; font-weight: 700; white-space: nowrap;
   text-align: left; pointer-events: none;
   /* 현황이 칸 폭에 다 안 들면 통째로 숨긴다(2026-09, 요청: "PC에서도 헤더 스탯이 잘리는 분할창의 가로 길이에서는 숨기기") — 한 줄 키로
      못 박고 줄바꿈을 허락하면, 안 드는 현황이 둘째 줄로 내려가 잘려 나간다(칩 옆 자리가 남을 때만 선다 · JS 잼 없음). */
@@ -4126,5 +4127,3 @@
 @media (prefers-reduced-motion: reduce) {
   .scr-tb .scr-tb-btnrow > .scr-motion-mapbtns .scr-motion-castbtn-on svg { animation: none; color: #3dffa8; }
 }
-/* PC 칸 머리 글자는 한 단 작다(2026-09, 요청: "피시 헤더 닉네임과 스탯 폰트 1스텝씩 줄이기") — 9 → 8·dk(현황은 그 0.88em 이라 함께 준다). */
-@media (min-width: 701px) { .scr-split-cap { font-size: calc(8px * var(--dk)); } }
