@@ -9726,7 +9726,7 @@ export default function ReplayMotionPlayer({
     /* 켜는 순간 **한 번만** 당겨 준다(요청: 배율은 기본 줌인 값, 사다리에서) — 그 뒤로는
        사람이 마음대로 바꾼다(요청: "줌은 변경 가능하게"). 끌 때는 안 되돌린다: 보던
        배율이 갑자기 튀면 추적을 껐다 켜는 것만으로 화면이 요동친다. */
-    if (on9) setView9(trackZoom9(), panRef.current);   // 켤 때 한 번 4배로(위 trackZoom9) — 그 뒤 수동 변경은 그대로 열려 있다
+    if (on9) setView9(castZoomFit9(), panRef.current);   // 켤 때 한 번 4배로(위 trackZoom9) — 그 뒤 수동 변경은 그대로 열려 있다
   };
   /** 중계를 끈다 — 개인 추적을 끄는 것과 같은 자리에 머문다(위 stopTrack9의 ★). */
   const stopCast9 = (): void => {
@@ -9784,8 +9784,8 @@ export default function ReplayMotionPlayer({
     if (!castOn || !castRaw) { castZoomRef9.current = false; return; }
     if (castZoomRef9.current) return;
     castZoomRef9.current = true;
-    setView9(trackZoom9(), panRef.current);
-    // setView9·trackZoom9는 안 바뀌는 클로저다 — 목록에 넣으면 선언 전(TDZ)에 읽힌다.
+    setView9(castZoomFit9(), panRef.current);
+    // setView9·castZoomFit9는 안 바뀌는 클로저다 — 목록에 넣으면 선언 전(TDZ)에 읽힌다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [castOn, castRaw]);
   /** 태그 → 그 태그의 유닛 생애들 — 변태로 갈린 생애가 같은 태그를 나눠 쓴다. */
@@ -9871,7 +9871,7 @@ export default function ReplayMotionPlayer({
    *  자국의 **클릭 좌표**가 아니라 집힌 몸의 **지금 자리**다(요청: "선택 위치") — 그래야
    *  카메라가 그 무리를 따라 흐른다. 다 죽었으면 그 앞 자국으로 몇 걸음 물러난다:
    *  방금 집은 것이 방금 죽는 일(교전)이 잦은데, 그때마다 화면이 멎으면 안 된다. */
-  const trackAt = ((): { x: number; y: number } | null => {
+  const trackAt = ((): { x: number; y: number; pts: { x: number; y: number }[] } | null => {
     if (!camRaw9 || trackPicks.length === 0) return null;
     let lo9 = 0;
     let hi9 = trackPicks.length - 1;
@@ -9884,12 +9884,14 @@ export default function ReplayMotionPlayer({
       let sx9 = 0;
       let sy9 = 0;
       let n9 = 0;
+      const pts9: { x: number; y: number }[] = [];
       for (const tg9 of trackPicks[k9].tags) {
         const p9 = bodyAt9(tg9, t);
         if (!p9) continue;
         sx9 += p9.x; sy9 += p9.y; n9 += 1;
+        pts9.push(p9);
       }
-      if (n9 > 0) return { x: sx9 / n9, y: sy9 / n9 };
+      if (n9 > 0) return { x: sx9 / n9, y: sy9 / n9, pts: pts9 };
     }
     return null;
   })();
@@ -9952,7 +9954,7 @@ export default function ReplayMotionPlayer({
     return out9;
   }, [splitOn9, entData, bases]);
   /** 그 사람의 카메라 자리(타일) — trackAt 과 같은 셈을 사람마다. 없으면 출발 자리. */
-  const splitAt9 = (raw9: string, sec9: number): { x: number; y: number } | null => {
+  const splitAt9 = (raw9: string, sec9: number): { x: number; y: number; pts?: { x: number; y: number }[] } | null => {
     const picks9 = splitPicks9.get(raw9) ?? [];
     const wk9 = splitWalks9.get(raw9);
     const body9 = (tg9: number): { x: number; y: number } | null => {
@@ -9974,12 +9976,14 @@ export default function ReplayMotionPlayer({
     while (lo9 <= hi9) { const m9 = (lo9 + hi9) >> 1; if (picks9[m9].sec <= sec9) { at9 = m9; lo9 = m9 + 1; } else hi9 = m9 - 1; }
     for (let k9 = at9; k9 >= 0 && k9 > at9 - 8; k9 -= 1) {
       let sx9 = 0; let sy9 = 0; let n9 = 0;
+      const pts9: { x: number; y: number }[] = [];
       for (const tg9 of picks9[k9].tags) {
         const p9 = body9(tg9);
         if (!p9) continue;
         sx9 += p9.x; sy9 += p9.y; n9 += 1;
+        pts9.push(p9);
       }
-      if (n9 > 0) return { x: sx9 / n9, y: sy9 / n9 };
+      if (n9 > 0) return { x: sx9 / n9, y: sy9 / n9, pts: pts9 };
     }
     return splitStart9.get(raw9) ?? null;
   };
@@ -10666,6 +10670,24 @@ export default function ReplayMotionPlayer({
   /* ★ 6 → **5**(2026-09, 요청: "모바일에서 중계기본 배율 5배로 변경"). */
   const TRACK_ZOOM_PHONE9 = 5;
   const trackZoom9 = (): number => (smallDevice9 ? TRACK_ZOOM_PHONE9 : ZOOM_STEPS[2]);
+  /** ★ 중계·개인 추적이 켤 때 당기는 배율은 **분할 칸과 같은 셈**이다(2026-10, 지적: "중계 자동모드도 분할과 같은 배율계산
+   *  적용 몇칸 보일지. 지금 분할보다 좁게 나오는거 같음") — 무대 하나를 칸 하나로 보고 splitPaint9 의 식을 그대로 돈다:
+   *  짧은 축이 `SPLIT_SPAN_K9 × (격자 폭 ÷ trackZoom9)` 타일 아래로는 안 좁아지고, 그 위에 `SPLIT_ZOOM_K9` 를 곱한다(1배 바닥).
+   *  여태는 trackZoom9 를 그대로 당겨, 넓고 낮은 무대에서 세로가 15칸 남짓만 보였다(분할 칸은 20칸). 무대를 아직 못 쟀으면 옛 값. */
+  const castZoomFit9 = (): number => {
+    const z9 = trackZoom9();
+    const cov9 = coverRef.current;
+    const st9 = stageSizeRef.current;
+    if (!(cov9.w > 0) || !(cov9.h > 0)) return z9;
+    const sw9 = st9.w > 0 ? Math.min(st9.w, cov9.w) : cov9.w;
+    const vh9 = viewHRef.current > 0 ? viewHRef.current : cov9.h;
+    const sh9 = st9.h > 0 ? Math.min(st9.h, vh9) : vh9;
+    const gw9 = Math.max(1, grid.width);
+    const gh9 = Math.max(1, grid.height);
+    const span9 = (gw9 / z9) * SPLIT_SPAN_K9;
+    const zCap9 = Math.min((sw9 * gw9) / (cov9.w * span9), (sh9 * gh9) / (cov9.h * span9));
+    return Math.max(1, Math.min(z9, zCap9) * SPLIT_ZOOM_K9);
+  };
   /** 지도가 무대를 채우는 폭 — 비율은 지킨다.
    *
    *  ★ **전체화면만 덮고(cover), 프레임에서는 높이에 맞춘다**(요청: "모바일 게임상세
@@ -11041,12 +11063,20 @@ export default function ReplayMotionPlayer({
        자리는 그 배율에서 잰 px이라 다른 배율에서는 뜻이 없다), 안전 상자를 벗어났거나. */
     let keep9 = cur9.raw === camRaw9 && cur9.z === z9 && lim9.winW > 0 && lim9.winH > 0;
     if (keep9) {
-      /** 지금 잡아 둔 자리에서 그 점이 화면 한가운데로부터 떨어진 px. */
-      const dx9 = (cx9 - 0.5) * cov9.w * z9 + cur9.pan.x;
-      const dy9 = (cy9 - 0.5) * cov9.h * z9 + cur9.pan.y;
+      /* ★ 무게중심 하나가 아니라 **집힌 몸 하나하나**를 본다(2026-10, 지적: "각 화면 벗어남 판단이 무뎌. 여러개 선택중에
+         하나라도 범위에 들면 화면 옮기기 필요") — 무리가 넓게 퍼지면 가운데점은 화면 안에 있어도 몸 몇은 이미 밖이다.
+         하나라도 안전 상자를 넘으면 다시 잡는다(옮기는 곳은 여전히 무게중심 — 떨어진 한 몸에 끌려가지 않게). */
       const keepW9 = (lim9.winW / 2) * (1 - 2 * TRACK_EDGE);
       const keepH9 = (lim9.winH / 2) * (1 - 2 * TRACK_EDGE);
-      if (Math.abs(dx9) > keepW9 || Math.abs(dy9) > keepH9) keep9 = false;
+      for (const q9 of trackAt.pts) {
+        const f9 = mapFracRef.current?.(q9.x, q9.y);
+        const qx9 = f9 ? f9[0] : q9.x / Math.max(1, grid.width);
+        const qy9 = f9 ? f9[1] : q9.y / Math.max(1, grid.height);
+        /** 지금 잡아 둔 자리에서 그 몸이 화면 한가운데로부터 떨어진 px. */
+        const dx9 = (qx9 - 0.5) * cov9.w * z9 + cur9.pan.x;
+        const dy9 = (qy9 - 0.5) * cov9.h * z9 + cur9.pan.y;
+        if (Math.abs(dx9) > keepW9 || Math.abs(dy9) > keepH9) { keep9 = false; break; }
+      }
     }
     if (!keep9) trackCamRef.current = { raw: camRaw9, z: z9, pan: mid9 };
     return { pan: trackCamRef.current.pan };
@@ -14373,8 +14403,20 @@ export default function ReplayMotionPlayer({
       let cam9 = splitCamRef9.current.get(cell9.raw);
       if (at9) {
         const fr9 = mapFracRef.current?.(at9.x, at9.y) ?? [at9.x / gw, at9.y / gh];
-        if (!cam9 || Math.abs(fr9[0] - cam9.x) > (wf9 / 2) * (1 - 2 * SPLIT_EDGE9)
-          || Math.abs(fr9[1] - cam9.y) > (hf9 / 2) * (1 - 2 * SPLIT_EDGE9)) cam9 = { x: fr9[0], y: fr9[1] };
+        /* ★ 무리의 **몸 하나하나**를 본다(위 trackView 의 ★ 와 같은 규약) — 하나라도 창의 안전 띠를 넘으면 옮긴다.
+           카메라를 지도 끝에 죈 칸이면 죈 자리(아래 cx9·cy9 와 같은 셈)로 재야 끝 쪽 몸이 늘 '밖'으로 안 잡힌다. */
+        let out9 = !cam9;
+        if (cam9) {
+          const kx9 = wf9 >= 1 ? 0.5 : Math.min(1 - wf9 / 2, Math.max(wf9 / 2, cam9.x));
+          const ky9 = hf9 >= 1 ? 0.5 : Math.min(1 - hf9 / 2, Math.max(hf9 / 2, cam9.y));
+          const hw9 = (wf9 / 2) * (1 - 2 * SPLIT_EDGE9);
+          const hh9 = (hf9 / 2) * (1 - 2 * SPLIT_EDGE9);
+          for (const q9 of at9.pts ?? [at9]) {
+            const f9 = mapFracRef.current?.(q9.x, q9.y) ?? [q9.x / gw, q9.y / gh];
+            if (Math.abs(f9[0] - kx9) > hw9 || Math.abs(f9[1] - ky9) > hh9) { out9 = true; break; }
+          }
+        }
+        if (out9) cam9 = { x: fr9[0], y: fr9[1] };
       }
       if (!cam9) cam9 = { x: 0.5, y: 0.5 };
       splitCamRef9.current.set(cell9.raw, cam9);
