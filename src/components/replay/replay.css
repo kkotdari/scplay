@@ -4042,7 +4042,13 @@
 }
 /* ★ 칸 테두리는 **팀색**이다(2026-09, 요청: "화면 선택 기능 제거 대신 화면테두리를 팀색으로 해서 팀 구분되게(컬러모드와 무관)") —
    칸은 이제 안 고른다(옛 is-pick 걷음 · 누름 없음). 색은 인라인 borderColor(TEAM_COLOR)라 색 모드를 안 탄다. */
-.scr-split-cell { cursor: default; }
+.scr-split-cell { cursor: pointer; }
+/* 누른 칸(2026-10, 요청: "분할시에는 화면 눌러서 해당사람 보여주기") — 팀색 테 안쪽에 흰 테 한 겹. */
+.scr-split-cell.is-pick::before {
+  content: ""; position: absolute; inset: calc(2px + 1px * var(--dk)); pointer-events: none; z-index: 2;
+  box-shadow: inset 0 0 0 calc(1.5px * var(--dk)) rgba(255, 255, 255, 0.9);
+}
+.scr-split-cell:focus-visible { outline: none; }
 .scr-split-cell.is-team::after {
   content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 2;
   /* 두께 PC 3.8 · 폰 3px(2026-09, 요청: "팀색 테두리가 잘 안보여서 좀더 두꺼웠으면" — 옛 2px). 틈이 0 이라 이웃 둘이 맞닿아 두 겹이 경계다. */

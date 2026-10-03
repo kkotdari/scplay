@@ -246,6 +246,17 @@ const XF_ID9 = "translate(0px, 0px) scale(1)";
 const GL_HIDE9: React.CSSProperties = { display: "none" };
 /** 독 줄 음각 글귀 — 틀 옆 쇠 바탕이 글귀 폭보다 이만큼(px) 넘게 남을 때만 새긴다(양옆 여백 몫). */
 const DOCK_MARK_PAD9 = 40;
+/** 카메라가 다시 잡을 때 미끄러지는 시간(ms) — 중계·개인 추적·분할 칸이 같은 값을 쓴다. */
+const CAM_GLIDE_MS9 = 450;
+/** 맞대결 자동 분할을 이만큼(경기 초) 앞서 팀 엔진을 데운다(splitTeamsKey9 의 ★). */
+const DUEL_WARM_SEC9 = 4;
+/** 미끄러짐의 그 순간 자리 — 끝났으면 null. ease-in-out(3차). */
+const camGlideAt9 = (g9: { from: { x: number; y: number }; to: { x: number; y: number }; t0: number }, now9: number): { x: number; y: number } | null => {
+  const u9 = (now9 - g9.t0) / CAM_GLIDE_MS9;
+  if (!(u9 < 1)) return null;
+  const e9 = u9 < 0.5 ? 4 * u9 * u9 * u9 : 1 - Math.pow(-2 * u9 + 2, 3) / 2;
+  return { x: g9.from.x + (g9.to.x - g9.from.x) * e9, y: g9.from.y + (g9.to.y - g9.from.y) * e9 };
+};
 /** 분할보기 칸 카메라의 가장자리 띠 — 그 사람이 창의 이 몫 안쪽에 있는 동안은 카메라를 안 옮긴다. */
 const SPLIT_EDGE9 = 0.12;
 /* 분할 칸의 짧은 축이 덮는 최소 타일 = 중계 화면 폭(타일)의 이 몫(splitPaint9 의 ★★). */
@@ -9611,6 +9622,7 @@ export default function ReplayMotionPlayer({
   const castIdx9 = castPlan.length > 0 ? castAt9(castPlan, t) : -1;
   /** 중계가 고른 사람 — 끄거나 표가 없으면 null. */
   const castRaw = castIdx9 >= 0 ? castPlan[castIdx9].raw : null;
+  if (scrDiagOn()) (SCR_DIAG as unknown as Record<string, unknown>).castRaw = castRaw;   // perf-check --fogprobe 가 갈아탐을 짚는다
   /* ★★ **맞대결 자동 분할**(2026-10, 요청: "교전 발생시 공격자만 보여줄게 아니라 화면 두개로 나눠서 대응하는쪽도 보여주기 ·
      침공이나 전투 드랍 견제 등에서 주인공의 상대역도 보여주는것 · 공격쪽 닉네임에 공격배지 방어는 방어배지 둘다 공격이면
      교전배지 붙이고 깜빡이기 · 자동으로 분할모드로 돌입하는것") — 편성표가 장면마다 상대역·몫을 적어 두고(cast9 의 duel9),
@@ -9627,12 +9639,19 @@ export default function ReplayMotionPlayer({
     : splitSel9 ? bases.filter((b9) => splitSel9.includes(b9.key)) : bases), [duelKey9, splitSel9, bases]);
   const splitOnRef9 = useRef(false);
   splitOnRef9.current = splitOn9;
+  /* 누른 칸의 사람이 분할에서 빠지면(분할 끔 · 맞대결 상대가 바뀜) 놓는다. */
+  useEffect(() => {
+    if (splitPick9 !== null && (!splitOn9 || !splitBases9.some((b9) => b9.key === splitPick9))) setSplitPick9(null);
+  }, [splitOn9, splitBases9, splitPick9]);
   /* ★★ **한 사람을 보여 주면 시야도 그 사람(팀)의 것이다**(2026-10, 요청: "한명보여주는경우(한명 선택하거나 자동에서 한명)도
      시야는 개인으로해야해 미니맵도") — 개인 추적은 toggleTrack 이 viewRaw 를 그 사람으로 둔다. 자동 중계는 여태 관전자 시야였다
      (옛 ★: 사건보다 1.5초 먼저 가므로 그 사람 눈에는 다가오는 적이 아직 안 보인다) — 그 규약을 되물려 **중계가 고른 사람**의
      시야로 그린다(맞대결 분할은 칸마다 제 팀 시야라 여기 안 든다). 큰 지도의 안개·적 걸러내기·미니맵(안개·점)이 다 이 값을 탄다.
      ⚠ 시야는 엔진의 자라 **팀 단위**다(teamOfRaw 1·2 — 분할 칸과 같다) · 팀이 없는 프리포올은 관전자 시야로 남는다. */
-  const viewRawNow9 = viewRaw ?? (castOn && !splitOn9 ? castRaw : null);
+  /* 분할보기에서 칸을 누르면 그 사람의 시야다(독의 미니맵 안개·점이 그 사람 것 · 아래 splitPick9). */
+  /* ⚠ 맞대결 자동 분할 동안에도 본 장은 **중계 주인의 시야**로 둔다(칸을 누르면 그 사람) — 관전자로 바꿨다가 분할이 끝날 때 되돌리면
+     본 장의 안개 갈래가 두 번 갈려, 분할이 끝난 직후 새 갈래의 장이 올 때까지 관전자 안개(다 보임)가 비쳤다(깜빡임). */
+  const viewRawNow9 = viewRaw ?? (splitOn9 ? splitPick9 : null) ?? (castOn ? castRaw : null);
   const viewTeam = viewRawNow9 ? (teamOfRaw(viewRawNow9) ?? 0) : 0;
   /** ★ 지금 **카메라의 임자** — 손으로 켠 추적이 이기고, 없으면 중계가 고른 사람이다.
    *  아래 추적 기계(집은 자국·걷기·카메라)는 전부 이 하나를 본다. 로스터의 조준선 표시만
@@ -10069,12 +10088,18 @@ export default function ReplayMotionPlayer({
   /** 안개를 셈할 재료가 있나 — 자취가 있는 경기인가. 켤지 말지는 아래 fogOn이 정한다. */
   const fogReady9 = !!entData && entData.lives.length > 0;
   /** 분할보기 칸들의 팀(차례 고정 · 겹침 없음) — 문자열이라 렌더마다 같은 값이면 시야 열쇠가 안 흔들린다. */
+  /* ★ **맞대결 자동 분할은 팀 장을 미리 데운다**(2026-10, 지적: "자동에서 선수 전환될때 안개 깜빡임이 좀 발생할때가 많음") —
+     분할이 서는 순간 워커의 팀 엔진이 처음 생겨 첫 장이 올 때까지 칸이 관전자 장(안개 없음)으로 칠해졌다가 팀 안개로 바뀌었다.
+     다음 토막이 맞대결이고 DUEL_WARM_SEC9 안에 서면 그 두 사람의 팀을 미리 시야에 실어, 분할이 설 때 팀 장이 이미 쌓여 있게 한다. */
+  const duelNext9 = castOn && castIdx9 >= 0 ? castPlan[castIdx9 + 1] : undefined;
+  const warmKey9 = duelNext9?.foe && duelNext9.at - t < DUEL_WARM_SEC9 ? `${duelNext9.raw}|${duelNext9.foe}` : "";
   const splitTeamsKey9 = useMemo(() => {
-    if (!splitLay9 || !fogReady9) return "";
+    if (!fogReady9) return "";
     const ts9 = new Set<number>();
-    for (const c9 of splitLay9.cells) { const tm9 = teamOfRaw(c9.raw); if (tm9) ts9.add(tm9); }
+    for (const c9 of splitLay9?.cells ?? []) { const tm9 = teamOfRaw(c9.raw); if (tm9) ts9.add(tm9); }
+    if (warmKey9) for (const r9 of warmKey9.split("|")) { const tm9 = teamOfRaw(r9); if (tm9) ts9.add(tm9); }
     return [...ts9].sort((a9, b9) => a9 - b9).join(",");
-  }, [splitLay9, fogReady9, teamOfRaw]);
+  }, [splitLay9, fogReady9, teamOfRaw, warmKey9]);
   void worldEnts9;
   const gw9 = grid.width;
   const gh9 = grid.height;
@@ -10376,9 +10401,10 @@ export default function ReplayMotionPlayer({
   const [picked, setPicked] = useState<string | null>(null);
   /** 하단 인포창을 접었나(요청: 접기 버튼 — 폰에서 지도를 덜 가리게). */
   const [dockFold9, setDockFold9] = useState(false);
-  /** 실제로 접혔나 — 분할보기는 늘 접는다(2026-09, 요청: "분할모드: 자동으로 독을 접는다(열기 불가)") · 칸마다 제 미니맵이 서므로
-   *  독의 미니맵·인포창이 겹칠 뿐이다. 손으로 접은 값(dockFold9)은 그대로 두어 분할을 끄면 그 자리로 돌아간다. */
-  const dockFoldOn9 = dockFold9 || splitOn9;
+  /** 실제로 접혔나 — ★ 분할보기도 **안 접는다**(2026-10, 요청: "분할화면에서 자동으로 독 접지 않기. 계산하느라 버벅임") — 접고
+   *  펴는 순간마다 무대 키가 바뀌어 칸 배치·칸 배율·분할 칠하기가 통째로 다시 돌았다(맞대결 자동 분할은 그것이 장면마다였다).
+   *  옛 '분할은 늘 접는다(열기 불가)'를 되물렸다 — 독은 칸을 누른 사람의 것을 든다(아래 splitPick9). */
+  const dockFoldOn9 = dockFold9;
   /** 인포 팝업이 열려 있으면 닫는다 — 화면 이동·배율 변경의 모든 문에서 부른다(beginGestureXf 주석). */
   const closePicked9 = useCallback((): void => {
     if (pickedRef.current !== null) setPicked(null);
@@ -11050,6 +11076,11 @@ export default function ReplayMotionPlayer({
   const TRACK_EDGE = 0;
   const trackCamRef = useRef<{ raw: string | null; z: number; pan: { x: number; y: number } }>(
     { raw: null, z: 0, pan: { x: 0, y: 0 } });
+  /** ★ 다시 잡을 때 **미끄러져 간다**(2026-10, 요청: "아웃오브스크린 화면 이동시 부드럽게") — 같은 사람·같은 배율에서 무리가 화면을
+   *  벗어나 다시 잡는 이동만 CAM_GLIDE_MS9 동안 ease-in-out 으로 옮긴다(사람이 바뀌거나 배율이 바뀌면 곧장 선다 — 누구 화면인지가
+   *  먼저 읽혀야 한다). 그 동안은 아래 effect 가 rAF 마다 렌더를 한 번씩 불러 trackView 가 사이 자리를 낸다. */
+  const camGlideRef9 = useRef<{ from: { x: number; y: number }; to: { x: number; y: number }; t0: number } | null>(null);
+  const [camGlideTick9, setCamGlideTick9] = useState(0);
   const trackView = ((): { pan: { x: number; y: number } } | null => {
     if (!camRaw9) return null;
     const cov9 = coverRef.current;
@@ -11103,9 +11134,27 @@ export default function ReplayMotionPlayer({
         if (Math.abs(dx9) > keepW9 || Math.abs(dy9) > keepH9) { keep9 = false; break; }
       }
     }
-    if (!keep9) trackCamRef.current = { raw: camRaw9, z: z9, pan: mid9 };
-    return { pan: trackCamRef.current.pan };
+    if (!keep9) {
+      /* 같은 사람·같은 배율에서 다시 잡는 것이면 지금 보이는 자리(미끄러지는 중이면 그 사이 자리)에서 미끄러져 간다. */
+      if (cur9.raw === camRaw9 && cur9.z === z9) {
+        const g09 = camGlideRef9.current;
+        const from9 = g09 ? camGlideAt9(g09, performance.now()) ?? g09.to : cur9.pan;
+        camGlideRef9.current = { from: from9, to: mid9, t0: performance.now() };
+      } else camGlideRef9.current = null;
+      trackCamRef.current = { raw: camRaw9, z: z9, pan: mid9 };
+    }
+    const g9 = camGlideRef9.current;
+    const gp9 = g9 ? camGlideAt9(g9, performance.now()) : null;
+    if (g9 && !gp9) camGlideRef9.current = null;
+    return { pan: gp9 ?? trackCamRef.current.pan };
   })();
+  /* 미끄러지는 동안 rAF 마다 렌더를 한 번씩 부른다(trackView 는 렌더가 내는 값이다). 끝나면 멎는다. */
+  const camGliding9 = camGlideRef9.current !== null;
+  useEffect(() => {
+    if (!camGliding9) return undefined;
+    const id9 = requestAnimationFrame(() => setCamGlideTick9((n9) => n9 + 1));
+    return () => cancelAnimationFrame(id9);
+  }, [camGliding9, camGlideTick9]);
   /** 화면에 실제로 먹는 자리 — 추적 중이면 추적이, 아니면 사람이 정한다.
    *  ★ 이 값이 곧 **카메라 잠금**이다(요청: "드래그나 wasd 이동 가장자리 스크롤등 다
    *    막아야해") — 미는 길이 몇이든 결국 손짓 한 벌(applyGestureXf)과 상태(panBase)를
@@ -14115,6 +14164,9 @@ export default function ReplayMotionPlayer({
   splitLayRef9.current = splitLay9;
   const splitCvRef9 = useRef(new Map<string, HTMLCanvasElement>());
   const splitCamRef9 = useRef(new Map<string, { x: number; y: number }>());
+  /** 칸 카메라의 미끄러짐(CAM_GLIDE_MS9) — 시작 자리·시각 · 칸마다 마지막으로 보인 자리(지도 분수). */
+  const splitGlideRef9 = useRef(new Map<string, { from: { x: number; y: number }; t0: number }>());
+  const splitShowRef9 = useRef(new Map<string, { x: number; y: number }>());
   /** 칸마다 마지막으로 칠한 창(지도 분수 cx·cy·w·h) — 미니맵이 누른 사람의 것을 흰 네모로 그린다(요청: "미니맵은 현재 선택한
    *  사람 화면의 미니맵을 적용"). */
   const splitViewRef9 = useRef(new Map<string, { cx: number; cy: number; w: number; h: number }>());
@@ -14134,10 +14186,13 @@ export default function ReplayMotionPlayer({
   /* 분할을 끄면 팀 판·등고선·보간 풀을 놓는다(워커도 팀 엔진을 걷는다 — 시야의 splitTeams 가 빈다). */
   useEffect(() => {
     if (splitOn9) return;
-    teamExpRef9.current.clear();
+    splitGlideRef9.current.clear(); splitShowRef9.current.clear();   // 다시 켤 때 옛 자리에서 미끄러지지 않게
     teamFogPathRef9.current.clear();
     teamLerpRef9.current.clear();
   }, [splitOn9]);
+  /* 팀 판(밝힌 이력)은 **워커가 팀 엔진을 걷을 때만** 놓는다(splitTeamsKey9 가 빔) — 맞대결을 미리 데우는 동안(분할 전)이나 분할이
+     끝난 뒤에도 다음 맞대결을 데우는 동안은 워커가 그 판을 '이미 보냈다'고 알고 다시 안 보내므로, 여기서 버리면 칸이 판 없이 선다. */
+  useEffect(() => { if (!splitTeamsKey9) teamExpRef9.current.clear(); }, [splitTeamsKey9]);
   useEffect(() => {
     if (!splitOn9) return undefined;
     let dead9 = false;
@@ -14455,12 +14510,23 @@ export default function ReplayMotionPlayer({
             if (Math.abs(f9[0] - kx9) > hw9 || Math.abs(f9[1] - ky9) > hh9) { out9 = true; break; }
           }
         }
-        if (out9) cam9 = { x: fr9[0], y: fr9[1] };
+        if (out9) {
+          /* 다시 잡을 때 미끄러져 간다(위 CAM_GLIDE_MS9 · trackView 와 같은 자) — 처음 잡는 칸은 곧장 선다. */
+          const show9 = splitShowRef9.current.get(cell9.raw);
+          if (cam9 && show9) splitGlideRef9.current.set(cell9.raw, { from: show9, t0: performance.now() });
+          cam9 = { x: fr9[0], y: fr9[1] };
+        }
       }
       if (!cam9) cam9 = { x: 0.5, y: 0.5 };
       splitCamRef9.current.set(cell9.raw, cam9);
-      const cx9 = wf9 >= 1 ? 0.5 : Math.min(1 - wf9 / 2, Math.max(wf9 / 2, cam9.x));
-      const cy9 = hf9 >= 1 ? 0.5 : Math.min(1 - hf9 / 2, Math.max(hf9 / 2, cam9.y));
+      let cx9 = wf9 >= 1 ? 0.5 : Math.min(1 - wf9 / 2, Math.max(wf9 / 2, cam9.x));
+      let cy9 = hf9 >= 1 ? 0.5 : Math.min(1 - hf9 / 2, Math.max(hf9 / 2, cam9.y));
+      {
+        const gl9 = splitGlideRef9.current.get(cell9.raw);
+        const gp9 = gl9 ? camGlideAt9({ from: gl9.from, to: { x: cx9, y: cy9 }, t0: gl9.t0 }, performance.now()) : null;
+        if (gp9) { cx9 = gp9.x; cy9 = gp9.y; } else if (gl9) splitGlideRef9.current.delete(cell9.raw);
+        splitShowRef9.current.set(cell9.raw, { x: cx9, y: cy9 });
+      }
       splitViewRef9.current.set(cell9.raw, { cx: cx9, cy: cy9, w: wf9, h: hf9 });   // 미니맵의 네모(누른 칸)
       /* 팬 — 지도 분수 (cx9, cy9) 가 칸 한가운데에 앉게(붓의 zx·zy 를 거꾸로 푼다). */
       const pan9 = {
@@ -17182,11 +17248,10 @@ export default function ReplayMotionPlayer({
   const dockFoldNode9 = (
     <button
       type="button" className="scr-motion-infodock-fold"
-      aria-label={splitOn9 ? "분할보기 중에는 미니맵·인포창이 접혀 있다" : dockFold9 ? "미니맵·인포창 펼치기" : "미니맵·인포창 접기"} aria-pressed={dockFoldOn9}
-      title={splitOn9 ? "분할보기 중에는 미니맵·인포창이 접혀 있어요(칸마다 미니맵)" : dockFold9 ? "미니맵·인포창 펼치기" : "미니맵·인포창 접기"}
-      disabled={splitOn9}
+      aria-label={dockFold9 ? "미니맵·인포창 펼치기" : "미니맵·인포창 접기"} aria-pressed={dockFoldOn9}
+      title={dockFold9 ? "미니맵·인포창 펼치기" : "미니맵·인포창 접기"}
       onPointerDown={(e) => e.stopPropagation()}
-      onClick={() => { if (!splitOn9) setDockFold9((v) => !v); }}
+      onClick={() => setDockFold9((v) => !v)}
     >
       <svg viewBox="0 0 10 10" aria-hidden>
         <polygon points={dockFoldOn9 ? "0,9.33 10,9.33 5,0.67" : "0,0.67 10,0.67 5,9.33"} fill="currentColor" />
@@ -17916,7 +17981,13 @@ export default function ReplayMotionPlayer({
                 return (
                   <div
                     key={c9.raw}
-                    className={cx("scr-split-cell", tm9 && "is-team")}
+                    role="button" tabIndex={0} aria-pressed={splitPick9 === c9.raw}
+                    /* ★ 칸을 누르면 그 사람을 독에 보여 준다 — 한 번 더 누르면 놓는다(2026-10, 요청: "분할시에는 화면 눌러서 해당사람
+                       보여주기로 변경. 한번더 누르면 끄기") · 옛 '칸은 안 고른다'를 되물렸다. 독(인포창 = 그 사람의 선택 · 미니맵 =
+                       그 사람의 시야와 그 칸의 화면 네모)이 그 사람을 든다. */
+                    onClick={() => setSplitPick9((p9) => (p9 === c9.raw ? null : c9.raw))}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSplitPick9((p9) => (p9 === c9.raw ? null : c9.raw)); } }}
+                    className={cx("scr-split-cell", tm9 && "is-team", splitPick9 === c9.raw && "is-pick")}
                     style={{ gridColumn: c9.c + 1, gridRow: c9.r + 1, ...(tm9 ? { borderColor: TEAM_COLOR[tm9] } : {}) }}
                     aria-label={`${cap9.text} 화면`}
                   >

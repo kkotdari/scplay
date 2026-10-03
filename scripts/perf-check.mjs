@@ -818,6 +818,41 @@ if (has("--infoprobe")) {
   }
   console.log(`[자동 팝업] 처음 ${JSON.stringify(a9)} · 재생 뒤 ${JSON.stringify(b9)} (시계 ${tb9})`);
 }
+/* 안개 자(--fogprobe [초]) — 자동 중계가 사람을 갈아탈 때 안개가 깜빡이나 본다(2026-10, 지적: "자동에서 선수 전환될때 안개 깜빡임").
+   rAF 마다 안개 캔버스를 32×32 로 줄여 어두운 몫(알파 평균)을 재고, 이웃 장보다 크게 튄 장(앞뒤 장과 둘 다 0.08 넘게 다르다 =
+   한 장짜리 깜빡임)을 센다. 갈아탄 시각은 window.__scrDiag.cast(있으면)로 찍는다. */
+if (has("--fogprobe")) {
+  const secs9 = Number(flag("--fogprobe", 20)) || 20;
+  const log9 = await page.evaluate(async (ms9) => {
+    const out = [];
+    const sm = document.createElement("canvas"); sm.width = 32; sm.height = 32;
+    const sx = sm.getContext("2d", { willReadFrequently: true });
+    const t0 = performance.now();
+    await new Promise((res) => {
+      const step = () => {
+        const cv = document.querySelector(".scr-motion-fog");
+        let a = -1;
+        if (cv instanceof HTMLCanvasElement && cv.width > 0 && getComputedStyle(cv).display !== "none") {
+          sx.clearRect(0, 0, 32, 32); sx.drawImage(cv, 0, 0, 32, 32);
+          const d = sx.getImageData(0, 0, 32, 32).data; let s = 0; for (let i = 3; i < d.length; i += 4) s += d[i]; a = s / (d.length / 4) / 255;
+        }
+        out.push({ ms: Math.round(performance.now() - t0), a: +a.toFixed(3), cast: window.__scrDiag?.castRaw ?? null });
+        if (performance.now() - t0 < ms9) requestAnimationFrame(step); else res();
+      };
+      requestAnimationFrame(step);
+    });
+    return out;
+  }, secs9 * 1000);
+  let blips9 = 0; const sw9 = [];
+  for (let i = 1; i < log9.length - 1; i += 1) {
+    const [p, c, n] = [log9[i - 1], log9[i], log9[i + 1]];
+    if (c.a >= 0 && p.a >= 0 && n.a >= 0 && Math.abs(c.a - p.a) > 0.08 && Math.abs(c.a - n.a) > 0.08) blips9 += 1;
+    if (c.cast !== p.cast) sw9.push(`${c.ms}ms→${c.cast}`);
+  }
+  const big9 = log9.slice(1).map((c, i) => ({ ms: c.ms, d: +(c.a - log9[i].a).toFixed(3), cast: c.cast })).filter((x) => Math.abs(x.d) > 0.05);
+  for (const x of sw9) { const ms = Number(x.split("ms")[0]); console.log(`[안개 곁] ${x} : ` + log9.filter((c) => c.ms >= ms - 600 && c.ms <= ms + 2500).map((c) => `${c.ms}:${c.a}`).join(" ")); }
+  console.log(`[안개] 장 ${log9.length} · 한 장짜리 튐 ${blips9} · 갈아탐 ${sw9.join(" ")} · 큰 변화 ${big9.map((x) => `${x.ms}ms ${x.d > 0 ? "+" : ""}${x.d}`).join(" ")}`);
+}
 /* 중계 자(--castprobe [초]): 중계 스위치·자막·카메라 임자를 한동안 지켜본다 — 편성표가
    실제로 사람을 갈아타는지는 정지 그림 한 장으로는 못 본다. 자막은 **상시**라(요청: "토스터가 아니라
    계속 노출로") 뜨는 횟수가 아니라 **글귀가 갈린 횟수**(갈아탐)와 지금 글귀를 찍는다. */
