@@ -3142,7 +3142,7 @@ export const ENGAGE_SKIP = new Set([
 export const SELF_CLOAK_UNITS = new Set(["Wraith", "Ghost"]);
 /** 탐지 못 한 상대 은신의 실루엣 — **색 없는**(무채색) 한 색 · 거의 투명한 알파(요청: "투명모델로 어느정도 실루엣만" →
  *  "반투명이지만 거의 투명" · "색 없이"). 임자색·팀색이 안 들어 누구 것인지도 안 읽힌다. */
-export const CLOAK_SIL_A9 = 0.12;
+export const CLOAK_SIL_A9 = 0.07;   // 0.12 → 0.07(2026-10, 요청: "상대팀 클로킹 유닛 좀더 투명하게")
 export const CLOAK_SIL_COL9 = "#d8d8d8";
 export interface EntConst9 { air: boolean; uk: string | undefined; noBody: boolean; burrowable: boolean; alwaysCloak: boolean; canCloak: boolean }
 export const entConst9 = new WeakMap<object, EntConst9>();
