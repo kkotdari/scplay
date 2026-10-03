@@ -3140,6 +3140,10 @@ export const ENGAGE_SKIP = new Set([
  *  **아비터 은신장**으로만 은신한다(그 판정은 arbiterSpots가 따로 한다). 그러니 개체가 든
  *  은신 창은 이 명단의 종류에서만 받는다. */
 export const SELF_CLOAK_UNITS = new Set(["Wraith", "Ghost"]);
+/** 탐지 못 한 상대 은신의 실루엣 — **색 없는**(무채색) 한 색 · 거의 투명한 알파(요청: "투명모델로 어느정도 실루엣만" →
+ *  "반투명이지만 거의 투명" · "색 없이"). 임자색·팀색이 안 들어 누구 것인지도 안 읽힌다. */
+export const CLOAK_SIL_A9 = 0.12;
+export const CLOAK_SIL_COL9 = "#d8d8d8";
 export interface EntConst9 { air: boolean; uk: string | undefined; noBody: boolean; burrowable: boolean; alwaysCloak: boolean; canCloak: boolean }
 export const entConst9 = new WeakMap<object, EntConst9>();
 export const constOf9 = (e: { unit: string }): EntConst9 => {
@@ -8562,9 +8566,12 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       || drawUnit === "Dark Templar" || drawUnit === "Observer"
       || (drawUnit !== "Arbiter" && arbiterSpots.some((asp) =>
         asp.raw === e.raw && Math.hypot(asp.x - pos.x, asp.y - pos.y) <= 4.5));
-    if (cloakedNow9 && fogOn && !visAll && viewTeam > 0 && team !== viewTeam
+    /* ★ 탐지 못 한 상대 은신은 **안 지우고 투명한 실루엣**으로 그린다(2026-09, 요청: "상대편 클로킹은 안보이는 대신 투명모델로
+       어느정도 실루엣만 나오게" · "분할모드와 일반모드에서 시야 적용했을대도 똑같이") — 원작의 일렁이는 왜곡처럼 '무엇인가 있다'만 읽히게: 몸을 색 없는 한 색(CLOAK_SIL_COL9)으로 굽고
+       알파 CLOAK_SIL_A9 · 그림자·체력바·링·상태 오라 없이 · 집을 수 없다(누르면 정체가 드러난다). 미니맵에는 여전히 안 선다. */
+    const cloakSil9 = cloakedNow9 && fogOn && !visAll && viewTeam > 0 && team !== viewTeam
       && !detectorSpots.some((dsp) => dsp.team === viewTeam
-        && Math.hypot(dsp.x - pos.x, dsp.y - pos.y) <= 9)) return null;
+        && Math.hypot(dsp.x - pos.x, dsp.y - pos.y) <= 9);
     unitOps.push({
       fx, fy,
       /* 공중은 2D에서도 y순(지적: 공중 유닛 간 앞뒤 섞임) — ei 나머지는 무작위
@@ -8816,6 +8823,13 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
            (아래 이완의 같은 임자 일꾼 예외). */
       noSep: !WORKER_KIND_SET.has(kindMain),
     });
+    if (cloakSil9) {
+      const o9 = unitOps[unitOps.length - 1];
+      o9.alpha = CLOAK_SIL_A9; o9.solid = CLOAK_SIL_COL9;
+      o9.noShadow = true; o9.hpShow = false; o9.selRing = undefined; o9.selBy = undefined; o9.tint = undefined;
+      o9.pickKey = undefined; o9.pickName = undefined; o9.pickRaw = undefined;
+      return o9;
+    }
     /* 귀신 활강(요청: 하템이 약간 귀신처럼 이동) — 걷는 동안 지나온 자리에
        몸 잔상을 끌고 다닌다. 그림자·체력바·링 없이 몸만.
        ★ 한 장·파란색으로(지적: "하템뒤그림자는 파란색이고 한장만 보이면 될듯")
