@@ -248,13 +248,15 @@ const GL_HIDE9: React.CSSProperties = { display: "none" };
 const DOCK_MARK_PAD9 = 40;
 /** 분할보기 칸 카메라의 가장자리 띠 — 그 사람이 창의 이 몫 안쪽에 있는 동안은 카메라를 안 옮긴다. */
 const SPLIT_EDGE9 = 0.12;
+/* 분할 칸의 짧은 축이 덮는 최소 타일 = 중계 화면 폭(타일)의 이 몫(splitPaint9 의 ★★). */
+const SPLIT_SPAN_K9 = 0.75;
 /** 분할보기 칸의 오림 네모(유닛 캔버스 CSS px · x0 y0 x1 y1) — 칸을 칠하는 동안만 서고, 붓의 화면 걸러내기(inView0)가 이 안의
  *  몸만 그린다. 칸은 제 실제 배율(낮다)로 칠하므로 판에는 그 칸보다 넓은 땅이 드는데, 그 몫을 안 그려야 칸 수만큼 값이 안 붙는다. */
 let PAINT_CLIP9: [number, number, number, number] | null = null;
 /** 분할보기 칸을 칠하는 배킹 배수 상한(2026-09, 요청: "모바일에서 모델많아지면 좀 버벅이는거같거든" → "피시도 적용") —
  *  칸은 작게 베껴지므로 그 판을 기기 화소(폰 3)로 칠하면 칠한 화소의 대부분을 버린다. 칸 캔버스의 배킹도 같은 값이다. */
 /** 분할보기 칠하기 계량기(SCR_DIAG.split) — 장·칸·칠·땅을 1초마다 묶는다. */
-const SPLIT_M9 = { at: 0, frames: 0, cells: 0, paint: 0, copy: 0 };
+const SPLIT_M9 = { at: 0, frames: 0, cells: 0, paint: 0, copy: 0, span: "" };
 /** 칸 땅 캔버스가 마지막으로 그린 카메라·크기 — 같으면 안 다시 그린다. */
 const SPLIT_TERR_KEY9 = new WeakMap<HTMLCanvasElement, string>();
 /** 분할 칸의 2D 오림(clip) — 붓이 칸마다 save·clip 을 걸고, 다음 칠하기의 머리(또는 분할 칠하기 끝)에서 푼다.
@@ -13987,8 +13989,14 @@ export default function ReplayMotionPlayer({
       /* ★ 칠하는 배율은 **칸의 실제 배율**이다(2026-09, 요청: "각 화면 크기가 작아진 만큼 LOD 낮은 배율로 적용") — 칸은 그 사람의
          중계 화면을 sc9 배 줄인 그림이라 그 화소 크기의 배율(z9 ÷ sc9)로 칠하면 붓의 문턱(자세함·요잉·LOD)이 저절로 낮아진다.
          1배 밑으로는 안 내린다(그때는 칸이 지도를 더 넓게 보인다). */
-      const sc9 = Math.min(sw9 / cwC9, sh9 / chC9);
-      const zc9 = Math.max(1, z9 / sc9);
+      /* ★ 칸은 그 사람 화면을 **담는다**(contain · max) — 옛 min(cover)은 칸 꼴이 무대와 다르면(1×2 · 2×3) 화면의 한 축만
+         맞추고 나머지를 잘라 그만큼 당겨 보였다. 그리고 ★★ 칸의 짧은 축이 `SPLIT_SPAN_K9 × 중계 화면 폭(타일)` 아래로는
+         안 좁아진다(2026-09, 지적: "분할화면에서 너무 좁게 보이는거 같아 배율이 높아지나?") — 배율 4는 '무대 폭의 1/4'이라
+         무대가 넓고 낮아질수록(1440·1980 페이지 · 툴박스가 무대 밖으로 나간 뒤) 칸이 세로로 보이는 타일이 13칸까지 줄었다. */
+      const sc9 = Math.max(sw9 / cwC9, sh9 / chC9);
+      const span9 = (gw / z9) * SPLIT_SPAN_K9;   // 칸의 짧은 축이 덮을 최소 타일
+      const zCap9 = Math.min((wC9 * gw) / (cw9 * span9), (hC9 * gh) / (mh9 * span9));
+      const zc9 = Math.max(1, Math.min(z9 / sc9, zCap9));
       const wf9 = wC9 / (cw9 * zc9);   // 그 칸이 덮는 지도 분수 폭·높이
       const hf9 = hC9 / (mh9 * zc9);
       /* 카메라 — 그 사람의 자리. 창 안(가장자리 SPLIT_EDGE9 몫 안쪽)에 있는 동안은 붙들고, 벗어나면 한가운데로 데려온다
@@ -14013,6 +14021,7 @@ export default function ReplayMotionPlayer({
       PAINT_CLIP9 = [x09, y09, x09 + wC9, y09 + hC9];
       try { paint9(zc9, pan9, zc9); } finally { PAINT_CLIP9 = null; }
       const pa19 = pNow();
+      SPLIT_M9.span = `${(wf9 * gw).toFixed(0)}×${(hf9 * gh).toFixed(0)}타일 ${zc9.toFixed(2)}배`;
       SPLIT_M9.paint += pa19 - pa09;
       SPLIT_M9.cells += 1;
       /* 땅 — 칸 밑 층의 칸 캔버스. 카메라·크기가 그대로면 안 다시 그린다. */
@@ -14047,7 +14056,7 @@ export default function ReplayMotionPlayer({
         const s9 = (now9 - SPLIT_M9.at) / 1000;
         const f9 = Math.max(1, SPLIT_M9.frames);
         const c9 = Math.max(1, SPLIT_M9.cells);
-        SCR_DIAG.split = `장 ${(SPLIT_M9.frames / s9).toFixed(1)}/s · 칸 ${(SPLIT_M9.cells / f9).toFixed(2)}/장 · 칠 ${(SPLIT_M9.paint / c9).toFixed(1)}ms · 땅 ${(SPLIT_M9.copy / c9).toFixed(1)}ms`;
+        SCR_DIAG.split = `장 ${(SPLIT_M9.frames / s9).toFixed(1)}/s · 칸 ${(SPLIT_M9.cells / f9).toFixed(2)}/장 · 칠 ${(SPLIT_M9.paint / c9).toFixed(1)}ms · 땅 ${(SPLIT_M9.copy / c9).toFixed(1)}ms · 칸 ${SPLIT_M9.span}`;
         SPLIT_M9.at = now9; SPLIT_M9.frames = 0; SPLIT_M9.cells = 0; SPLIT_M9.paint = 0; SPLIT_M9.copy = 0;
       }
     }
