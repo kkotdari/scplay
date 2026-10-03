@@ -3443,6 +3443,10 @@
   .scr-tb-btnrow > .scr-tb-tail { grid-column: 3; grid-row: 2; }
   .scr-tb-who::before, .scr-tb-who::after { display: none; }
   .scr-tb-who-in { margin-bottom: 0; }
+  /* 폰 글 칸(~300px)에 고정 폭 다섯이 다 들게 한 단 죈다 — 자원 10ch · K/D 6ch · 사이 5 · 11px(폭은 여전히 고정이다). */
+  .scr-tb-who-st { gap: 5px; font-size: 11px; }
+  .scr-who-stats > span:nth-child(2) .scr-who-v { width: 10ch; }
+  .scr-who-stats > span:nth-child(4) .scr-who-v { width: 6ch; }
 }
 .scr-tb-seek { display: flex; align-items: center; min-width: 0; }
 /* 재생 줄 맨 왼쪽의 배속 단추 한 칸(2026-09, 요청: "배속 버튼은 플레이버튼 왼쪽으로") — 줄지 않는다. */
