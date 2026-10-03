@@ -9661,10 +9661,11 @@ export default function ReplayMotionPlayer({
     <div className={cx("scr-who-stats", cls9)}>
       <span title="일꾼"><b>일꾼</b><i className="scr-who-v">{c9?.worker ?? "–"}</i></span>
       <span title="자원(광물/가스)"><b>자원</b>
+        {/* 광물·가스는 **제 자리를 따로 잡는다**(요청: "-/- 자원의 경우 이것도 각 데이터의 자리를 미리 확보") — 둘 다 고정 폭 · 오른쪽 맞춤. */}
         <i className="scr-who-v">
-          <span className="scr-motion-stat-min">{c9?.res ? c9.res[0] : "–"}</span>
+          <span className="scr-who-r scr-motion-stat-min">{c9?.res ? c9.res[0] : "–"}</span>
           <span className="scr-tb-who-sl">/</span>
-          <span className="scr-motion-stat-gas">{c9?.res ? c9.res[1] : "–"}</span>
+          <span className="scr-who-r scr-motion-stat-gas">{c9?.res ? c9.res[1] : "–"}</span>
         </i>
       </span>
       <span title="인구"><b>인구</b><i className="scr-who-v">{c9?.sup ? `${c9.sup[0]}/${c9.sup[1]}` : "–"}</i></span>

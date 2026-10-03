@@ -3396,23 +3396,30 @@
 .scr-tb-who-ghost { visibility: hidden; }
 /* 아랫줄 — 현황(라벨은 작게 값 앞에). 칸마다 최소 폭을 잡아 숫자가 갈려도 안 흔들린다. */
 .scr-tb-who-st {
-  grid-column: 2; grid-row: 2; justify-self: stretch; overflow: hidden;
-  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: baseline; gap: 8px; width: 100%;
+  grid-column: 2; grid-row: 2; justify-self: center; overflow: hidden; max-width: 100%;
+  display: flex; align-items: baseline;
   font-size: 11.5px; font-weight: 600; line-height: 1.2; white-space: nowrap; font-variant-numeric: tabular-nums;
 }
 .scr-tb-who-st > span { display: inline-flex; align-items: baseline; gap: 2px; }
-/* ★★ 현황 다섯 칸은 **모두 같은 폭**이다(2026-09, 요청: "데이터에 따라 움직이지 않게 그리드화" → "라벨들 위치도 안변해야해" →
-   "일꾼 자원 인구 kd apm 모두 같은 폭을 부여해줘 · 그게 시인성이 좋음") — 줄을 다섯 등분한 격자 칸에 라벨이 늘 칸 왼끝에 선다.
-   칸 폭이 값과 무관하므로 숫자가 갈려도 라벨·칸이 한 톨도 안 움직인다. 넘치는 값은 다음 칸 쪽으로 비어져 나갈 뿐이다.
-   정보 판(.scr-tb-who-st)은 글 칸 폭을 다섯 등분 · 분할 칸 머리(.scr-split-st)는 칸마다 5.4em 고정이다. */
+/* ★★ 현황 칸은 **값마다 제 폭 · 오른쪽 맞춤 · 사이 | **(2026-09, 요청: "스탯들 표시 방법 변경 라벨위치는 고정하고 데이터는 우측정렬 ·
+   -/- 자원의 경우 이것도 각 데이터의 자리를 미리 확보 · 동등 폭 취소하고 일꾼, apm은 적게 자원은 제일 넓게 인구 킬데스는 중간으로 ·
+   사이사이 | 로 구분") — 한때 다섯 등분(같은 폭)이었다가 되물렸다. 칸 = 라벨 + 고정 폭 값(오른쪽 맞춤)이라 줄 전체 폭이 늘 같고
+   (가운데 맞춤도 안 흔들린다) 라벨 자리가 값과 무관하다. 값 폭(ch · tabular-nums): 일꾼 3 · 자원 광물 5 + / + 가스 5 · 인구 7 ·
+   K/D 5 · APM 3. 칸 사이는 옅은 | (앞 칸 ::before). 정보 판(.scr-tb-who-st)·분할 칸 머리(.scr-split-st)가 같은 꼴이다. */
 .scr-who-stats { font-variant-numeric: tabular-nums; }
-.scr-who-stats > span { min-width: 0; overflow: visible; }
-.scr-who-v { font-style: normal; white-space: nowrap; }
+.scr-who-stats > span { display: inline-flex; align-items: baseline; flex: none; }
+.scr-who-stats > span + span::before { content: "|"; opacity: 0.28; margin: 0 0.55em; font-weight: 400; }
+.scr-who-v { display: inline-block; font-style: normal; white-space: nowrap; text-align: right; }
+.scr-who-r { display: inline-block; text-align: right; width: 5ch; }
+.scr-who-stats > span:nth-child(1) .scr-who-v { width: 3ch; }
+.scr-who-stats > span:nth-child(3) .scr-who-v { width: 7ch; }
+.scr-who-stats > span:nth-child(4) .scr-who-v { width: 5ch; }
+.scr-who-stats > span:nth-child(5) .scr-who-v { width: 3ch; }
 .scr-tb-who-st b { font-size: 8px; font-weight: 600; opacity: 0.62; margin-right: 1px; }
 .scr-tb-who-sl { opacity: 0.55; margin: 0 1px; }
 /* 좁은 판(폰)은 라벨을 접는다 — 값만 남고 라벨은 title 이 든다(두 줄 꼴을 지킨다). */
 @container (max-width: 230px) {
-  .scr-tb-who-st { gap: 5px; font-size: 10.5px; }
+  .scr-tb-who-st { font-size: 10.5px; }
   .scr-tb-who-st b { display: none; }
 }
 .scr-tb-who .scr-motion-mapbtns .scr-motion-pick { position: static; }
@@ -3424,7 +3431,7 @@
   .scr-tb-btnrow { --who-max: 470px; }
   .scr-tb-who { --who-cast: 40px; }
   .scr-tb-who-name { font-size: 12px; }
-  .scr-tb-who-st { font-size: 13px; gap: 10px; }
+  .scr-tb-who-st { font-size: 13px; }
   .scr-tb-who-st b { font-size: 9px; }
 }
 /* ★ 폰은 정보 판이 **단추 줄 위의 제 줄**이다(2026-09, 요청: "모바일에서는 유저창을 조작창위에 배치(돌출형이 아닌 아예 위에 프레임을
@@ -3443,7 +3450,11 @@
   .scr-fs-lower .scr-tb { --tb-padt: calc(3.4px * var(--dk)); }   /* = 독 틀의 --dock-out(그 틀에만 선언돼 여기선 값으로 적는다) */
   .scr-tb-btnrow > .scr-tb-who { margin: 0 calc(3.4px * var(--dk) - 6px); width: auto; justify-self: stretch; }
   /* 폰 글 칸(~300px)에 고정 폭 다섯이 다 들게 한 단 죈다 — 자원 10ch · K/D 6ch · 사이 5 · 11px(폭은 여전히 고정이다). */
-  .scr-tb-who-st { gap: 5px; font-size: 11px; }
+  /* 폰 글 칸(~300px)에 다 들게 한 단 죈다 — 글자 10.5 · 라벨 7.5 · | 여백 0.3em · 자원 칸 광물·가스 각 4ch(폭은 여전히 고정). */
+  .scr-tb-who-st { font-size: 10.5px; }
+  .scr-tb-who-st b { font-size: 7.5px; }
+  .scr-who-stats > span + span::before { margin: 0 0.3em; }
+  .scr-tb-who-st .scr-who-r { width: 4ch; }
 }
 .scr-tb-seek { display: flex; align-items: center; min-width: 0; }
 /* 재생 줄 맨 왼쪽의 배속 단추 한 칸(2026-09, 요청: "배속 버튼은 플레이버튼 왼쪽으로") — 줄지 않는다. */
@@ -4202,11 +4213,13 @@
    똑같이 · 폰트만 닉네임 수준 · 배경도 유저스탯쪽만 따로 반투명 네모(닉네임과 같은 래디우스와 높이)") — 글자 크기·줄 높이는 칸 머리
    (.scr-split-cap)의 것을 물려받아 칩과 키가 같고, 바탕·둥글기·좌우 여백도 칩과 같다. 라벨은 정보 판처럼 값 앞에 작게. 폰은 숨긴다. */
 .scr-split-st {
-  display: grid; grid-template-columns: repeat(5, 5.4em); align-items: baseline; gap: 0.4em; flex: 0 1 auto; min-width: 0; overflow: hidden;
+  /* 글자는 칩보다 한 단 작고(칸 0.88em · 라벨은 그 0.72em — 요청: "헤더 스탯의 폰트 1스텝씩 줄이기(박스 크기는 그대로)") 상자 키는
+     칩과 같은 1.25em(칸 머리 글자 기준)으로 못 박아 가운데에 앉힌다. */
+  display: flex; align-items: center; height: 1.25em; box-sizing: border-box; flex: 0 1 auto; min-width: 0; overflow: hidden;
   margin-left: calc(3px * var(--dk)); padding: 0 calc(3px * var(--dk)); border-radius: 2px;
   background: rgba(0, 0, 0, 0.5); color: #e8eef6; font-weight: 600;
 }
-.scr-split-st > span { display: inline-flex; align-items: baseline; gap: 0.2em; }
+.scr-split-st > span { gap: 0.2em; font-size: 0.88em; }
 .scr-split-st b { font-size: 0.72em; font-weight: 600; opacity: 0.62; }
 @media (max-width: 700px) { .scr-split-st { display: none; } }
 
