@@ -273,7 +273,7 @@
 }
 /* 중계 목록은 화면이 담을 수 있으면 다 편다(2026-09, 요청: "중계 선택 목록 화면 안넘어가면 스크롤바 안생기게") — 여덟 사람 + 전체·자동·끄기
    열한 줄이 360 상한에 걸려 스크롤바가 섰다. 상한을 화면 키(위 여백 한 뼘을 뺀 것)로 두어 넘칠 때만 구른다. */
-.scr-fs-dockcast .scr-motion-pickmenu.is-list { max-height: calc(100vh - 140px); max-height: calc(100dvh - 140px); }
+.scr-motion-castpick .scr-motion-pickmenu.is-list { max-height: calc(100vh - 140px); max-height: calc(100dvh - 140px); }
 .scr-motion-pickitem {
   display: block; width: 100%; padding: 6px 12px; border: none; border-radius: 2px;   /* 켜짐·hover 바탕도 함께 각지게(옛 8) */
   background: transparent; color: inherit; cursor: pointer;
@@ -543,13 +543,16 @@
 /* ★ PC 는 이 판 전체가 ×1.2 다(2026-09, 요청: "로스터도 1.2배 해도 되겠다 같은 상수따르기로") — 인포창과 같은 --dk(뿌리
    .scr-motion · 폰 1). 칸·사이·여백·글자가 다 calc(폰 값 * var(--dk)) 다. 새 치수도 그렇게 적어라. */
 .scr-fs-roster-fixed {
+  --dk: var(--dk-roster, 1.2);   /* 로스터만 독의 1.2배(위 .scr-motion 의 --dk-roster) */
   --roster-cols: var(--roster-name, calc(90px * var(--dk))) calc(18px * var(--dk)) calc(34px * var(--dk)) calc(24px * var(--dk))
     calc(24px * var(--dk)) calc(28px * var(--dk)) calc(22px * var(--dk));
 }
 .scr-fs-roster-fixed .scr-motion-teamcol-rows .scr-motion-teamrow {
   gap: 0 calc(2px * var(--dk)); padding: 0 calc(3px * var(--dk)); margin: 0 calc(-3px * var(--dk));
 }
-.scr-motion .scr-fs-roster-fixed .scr-motion-teamcol.scr-motion-teamcol-rows { gap: calc(2px * var(--dk)); }
+/* 줄 간격 ×1.25(2026-09, 요청: "로스터 줄간격 25프로 확대") — 줄 피치(칩 키 8·1.35 = 10.8 + 사이 2 = 12.8·dk)의 25% 를 사이에 얹는다
+   (2 → 5.2·dk). 칩 키(줄 높이)는 그대로라 이름 상자는 안 커지고 줄 사이만 벌어진다. */
+.scr-motion .scr-fs-roster-fixed .scr-motion-teamcol.scr-motion-teamcol-rows { gap: calc(5.2px * var(--dk)); }
 .scr-fs-roster-fixed .scr-motion-teamcol-rows .scr-motion-teamcol-head { gap: calc(3px * var(--dk)); }
 .scr-fs-roster-fixed .scr-motion-teamcol-pick { gap: calc(3px * var(--dk)); padding: 0 calc(2px * var(--dk)); }
 .scr-motion .scr-fs-roster-fixed .scr-motion-teamcol-item .scr-motion-base-ring { display: none; }
@@ -2550,6 +2553,9 @@
      다 calc(폰 값 * var(--dk)) 다. PC **1.8**(요청: "공통 PC dk 1.8배 적용" — 옛 1.6 · 1.4 · 1.8) · 분할 칸 머리도 이 값을 탄다 · 폰 1(아래 미디어). 한때 셋으로 갈려 있었다(로스터 1.6 · 독 칸 --dkd 2.0 · 독 글자
      --dkt 1.6) — 새 치수도 이 한 값으로 적어라. */
   --dk: 1.8;
+  /* ★ 로스터만 1.2배(2026-09, 요청: "로스터가 너무 작아서 활용도 떨어져서 로스터 크기만 20프로 확대") — 독은 --dk 그대로이고
+     항시표시 로스터(.scr-fs-roster-fixed)만 --dk 를 이 값으로 덮어쓴다(PC 1.8 × 1.2 · 폰 1 × 1.2 — 아래 미디어). */
+  --dk-roster: 2.16;
   /* ★★ 인포창의 폭은 **6×2 격자가 꼭 맞는 폭**이다(2026-09, 요청: "폭 기준을 멀티 유닛 선택 그리드시에 여백 없게 맞추고
      나머지 상황별 인포창 구성과 유저정보 행을 그 폭에 맞춰 재배치 또는 내부 요소 크기 조정" → 정정: "8x2가 아니라 6x2 · 셀 더
      크게") — 칸·사이·좌우 여백 셋을 변수로 두고 폭을 거기서 **거꾸로 푼다**: 칸 여섯 + 사이 다섯 + 여백 둘. 칸을 고치면 창이
@@ -2601,51 +2607,6 @@
    접기와 같고, 형제 규칙(.scr-motion-mapbtns button.scr-motion-mapbtn — 원·반투명 막)을 같은 무게로 **뒤에** 덮어쓴다.
    (꼴은 아래 ★ 의 흰 볼록 단추로 바뀌었다.) z 13 — 목록이 위로
    펼쳐져 툴박스(12)를 덮는다. */
-.scr-tb-who .scr-fs-dockcast {
-  /* ★ 두 줄을 다 걸친 왼 기둥(2026-09, 요청: "중계 버튼은 위아래줄 통틀어 왼쪽에 꽉차게(살짝만 마진 남기고)") — 우물(-in) 격자의
-     1열에서 1~2행을 다 쓰고 키는 두 줄의 키로 늘어난다(stretch). 폭은 그 키에 맞춘 --who-cast(정사각에 가깝게). */
-  position: relative; flex: none; margin: 0; padding: 0;
-  /* 정사각으로 두 줄 한가운데에 앉는다(2026-09, 요청: "중계버튼 크기 축소" — 두 줄을 꽉 채우던 기둥을 걷었다 · 폰 36 → 28 · PC 40 → 30). */
-  grid-column: 1; grid-row: 1 / 3; align-self: center;
-  width: var(--who-cast); height: var(--who-cast); min-height: 0;
-  --mapbtn-h: var(--who-cast); --mapbtn-gap: 0px;
-}
-.scr-fs-dockcast .scr-motion-pick { width: 100%; height: 100%; aspect-ratio: auto; }
-/* ★ **볼록한 흰 사각 단추**다(2026-09, 요청: "중계 버튼 볼록한 사각 흰 버튼으로") — 쇠 정사각(접기의 짝)을 되물렸다:
-   흰 바탕 위에서 아래로 한 단 어두워지는 광택 · 위 안쪽 흰 입술 · 아래 안쪽 그늘 · 바깥 그림자 한 겹이 '솟은' 꼴을 낸다.
-   켜짐은 꺼진 꼴과 **같은 볼록 단추**이고 그림만 초록으로 깜빡인다(흰 위라 짙은 초록 ↔ 초록). */
-.scr-fs-dockcast button.scr-motion-mapbtn,
-.scr-motion-mapbtns.scr-fs-dockcast button.scr-motion-mapbtn.scr-motion-castbtn-on,
-.scr-motion-mapbtns.scr-fs-dockcast button.scr-motion-mapbtn.scr-motion-castbtn-on.scr-motion-castbtn {
-  width: 100%; height: 100%; aspect-ratio: auto; align-self: stretch; padding: 0; box-sizing: border-box;
-  border-radius: calc(2px * var(--dk));
-  border: 1px solid #0b0d10; color: #20252b;
-  background: linear-gradient(180deg, #ffffff 0%, #f1f3f5 45%, #dde1e6 100%);
-  box-shadow: inset 0 1px 0 #ffffff, inset 0 -2px 0 rgba(0, 0, 0, 0.16), 0 1px 2px rgba(0, 0, 0, 0.55);
-}
-.scr-fs-dockcast button.scr-motion-mapbtn:hover { filter: brightness(1.04); }
-.scr-fs-dockcast button.scr-motion-mapbtn:active {
-  background: linear-gradient(180deg, #dde1e6 0%, #eef1f4 100%);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
-}
-/* ★ 아이콘은 **단추의 몫**이다(2026-09, 지적: "중계 버튼 아이콘이 너무 커서 쏠려 — 가운데 딱 맞게 줄이고 위치 조정") — 12·dk
-   (PC 19px)는 단추(--who-cast 20px)를 거의 다 채워 테에 닿고 한쪽으로 쏠렸다. 한 변의 0.62 로 두고 flex 로 가운데에 앉힌다 ·
-   아래 안쪽 그늘(2px)만큼 보이는 낯이 위로 짧으므로 0.5px 올린다. */
-.scr-fs-dockcast button.scr-motion-mapbtn { display: flex; align-items: center; justify-content: center; }
-.scr-fs-dockcast button.scr-motion-mapbtn svg {
-  display: block; flex: none; margin: 0;
-  width: calc(var(--who-cast) * 0.66); height: calc(var(--who-cast) * 0.66);
-}
-.scr-motion-mapbtns.scr-fs-dockcast button.scr-motion-mapbtn.scr-motion-castbtn-on.scr-motion-castbtn { color: #14c96f; }
-.scr-fs-dockcast .scr-motion-castbtn-on svg { animation: scr-cast-blink-white 1s steps(1, end) infinite; }
-/* 밝은 반은 더 밝게 빛난다(2026-09, 요청: "녹색 밝게 빛날때 더 밝게!") — 형광 초록 + 같은 색 후광 두 겹(흰 바탕 위라 색만 밝히면 옅어진다). */
-@keyframes scr-cast-blink-white {
-  0%, 45% { color: #14c96f; filter: none; }
-  55%, 100% { color: #2bff8c; filter: drop-shadow(0 0 1.5px #2bff8c) drop-shadow(0 0 3px rgba(43, 255, 140, 0.85)); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .scr-fs-dockcast .scr-motion-castbtn-on svg { animation: none; }
-}
 /* ★ 접기 단추는 **틀 위쪽 오른 끝의 쇠 정사각**이다(2026-09, 요청: "프레임모드에도 독 접기 버튼 추가" → "접기버튼은 유저정보말고
    독 프레임 어딘가 적당히" → "접기 손잡이 정사각형으로 위쪽에 배치하고 독내용 가운데 정렬 안깨뜨리게 하기") — 한때 두 줄을 세로로
    다 걸친 기둥이었는데, 그 기둥이 아래 줄(미니맵 + 인포창)의 폭을 먹어 독 내용이 왼쪽으로 쏠렸다. 이제 **정보줄 줄에만** 서는
@@ -2801,7 +2762,7 @@
   /* ★ 폭이 모자라 정보줄이 잘리고 연구 칩이 둘째 줄로 밀려 몸 키 밖에서 안 보였다(2026-09, 지적: "모바일 인포창 내용이
      폭이 모자라나봐 유저정보도 잘리고 업그레이드 상태도 한줄 내려가서 안보여") — 280 → 360(화면 − 16 이 먼저 죈다) ·
      몸 84 → 96(칩이 두 줄이어도 든다) · 정보줄은 한 단 더 죈다. */
-  .scr-motion { --dk: 1; }
+  .scr-motion { --dk: 1; --dk-roster: 1.2; }
   /* 폰은 미니맵과 한 줄을 나눠 쓴다(위 ★★) — 폰 판의 폭은 358px 남짓(앱이 좌우 16px 을 둔다)이라 칸 40 이면 창이 272px, 미니맵
      자리가 70px 뿐이다. 칸 36 · 사이 3 · 여백 5 면 창이 241px, 미니맵에 100px 남짓이 남는다. */
   .scr-motion { --dock-cell: 36px; --dock-gap: 3px; --dock-padx: 5px; }
@@ -3332,80 +3293,10 @@
   background: #0d1116;
   box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.3);
 }
-/* 단추 줄은 세 칸 격자다 — [아이콘 줄 | 사람 정보 판 | 꼬리]. 양옆이 같은 1fr 라 넓은 화면에서 정보 판이 줄 한가운데에 서고,
-   좁으면 양옆이 제 단추 폭을 지키고 정보 판이 남는 폭을 쓴다(상한 --who-max). */
-.scr-tb-btnrow {
-  --who-max: 420px;   /* 고정 폭 현황(32ch + 라벨)이 다 드는 폭 — 옛 340 은 APM 이 잘렸다 */
-  display: grid; grid-template-columns: var(--tb-side, max-content) minmax(0, 1fr) var(--tb-side, max-content);
-  align-items: center; column-gap: 6px; min-width: 0;
-}
-.scr-tb-btnrow > .scr-motion-mapbtns { justify-self: start; }
-.scr-tb-btnrow > .scr-tb-tail { justify-self: end; margin-left: 0; }
+/* 단추 줄은 [아이콘 줄 … 꼬리] 양 끝 한 줄이다(2026-09, 요청: "유저창 완전 제거" — 가운데 정보 판 칸을 걷었다). */
+.scr-tb-btnrow { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-width: 0; }
 .scr-tb-tail { display: flex; align-items: center; gap: 6px; flex: none; margin-left: auto; }
-/* ★★ 사람 정보 판 — 툴박스 단추 줄의 **빈 가운데**(2026-09, 요청: "유저인포를 버튼 사이공간에 배치 · 독윗줄보다 살짝 돌출되는
-   형태로 배치하고 내용은 두줄로 구성 · 윗줄: 중계버튼, 이름(임자색 둥근사각형 · 래디우스 작게) · 아랫줄에 현황"). 쇠판 위 끝보다
-   `--who-up` 만큼 솟은 어두운 우물이다 — 위 여백(--tb-padt)을 음수 여백으로 먹고 그 위로 한 뼘 더 오른다. 무대가 제 겹 문맥(z 0)이라
-   솟은 몫이 지도 위에 서려면 이 판이 z 를 가져야 한다(그 안의 TV 목록 z 7600 은 이 판의 문맥 안에서 무대보다 위다).
-   목록은 판 가운데 위로 편다 — 판은 줄 가운데라 폰에서도 여덟 이름(360px)이 화면 안에 든다. */
-.scr-tb-who {
-  --who-up: 9px; --who-cast: 28px; --who-bez: 3px;
-  position: relative; z-index: 2; container-type: inline-size;
-  justify-self: center; width: 100%; max-width: var(--who-max); min-width: 0; align-self: stretch;
-  margin: calc(-1 * (var(--tb-padt) + var(--who-up))) 0 0;
-  display: flex; box-sizing: border-box;
-  /* ★ 솟은 몫까지 **쇠 테두리**로 감싼다(2026-09, 요청: "튀어나온부분도 쇠테두리로 감싸기") — 그 쇠는 **쇠판 자체가 솟은 것**이다
-     (재요청: "테두리가 독과 자연스럽게 합쳐지게 경계없이"). 판 안쪽 몫은 바탕이 없어 쇠판이 그대로 비치고, 쇠판 위로 솟은 몫만
-     ::before 가 쇠판 윗변과 같은 색·결·윗변 선(검은 1px + 흰 입술)으로 채운다. 그 조각은 쇠판 윗변 선 두 줄까지 덮어 내려오므로
-     판 자리에서 쇠판의 윗선이 끊기고 판의 테두리가 그대로 이어진다 — 이음매가 없다. 그 안이 어두운 우물(-in)이다. */
-  padding: var(--who-bez) var(--who-bez) 0;
-  border: none; background: none; box-shadow: none;
-}
-.scr-tb-who::before {
-  content: ""; position: absolute; z-index: -1; left: 0; right: 0; top: 0;
-  height: calc(var(--who-up) + 2px);
-  border-radius: 4px 4px 0 0;
-  background:
-    repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px 2px),
-    repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.09) 0 1px, transparent 1px 3px),
-    #b4bac2;
-  box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.3);
-}
-/* ★ 테두리 선은 쇠판 윗변에서 **정확히** 끝난다(2026-09, 지적: "살짝 갈라진 틈이 있네") — 채움(::before)은 쇠판 윗선 두 줄을 덮으려고
-   2px 더 내려오는데, 검은 옆선까지 그 몫을 따라 내려오면 쇠판 윗면과 솟은 테 사이에 **검은 실금**이 한 줄 남았다. 선만 따로
-   떼어(::after) 솟은 몫(--who-up)에만 그으면 옆선이 쇠판의 검은 윗선과 한 점에서 꺾여 이어진다. */
-.scr-tb-who::after {
-  content: ""; position: absolute; z-index: -1; left: 0; right: 0; top: 0;
-  height: var(--who-up); pointer-events: none;
-  border: 1px solid #0b0d10; border-bottom: none; border-radius: 4px 4px 0 0; box-sizing: border-box;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
-}
-.scr-tb-who-in {
-  /* 격자 둘·두 줄 — [TV(1~2행)] [이름 / 현황](2026-09, 요청: "유저창 세로 좀 늘리고 · 중계 버튼은 위아래줄 통틀어 왼쪽에 꽉차게 ·
-     아래줄의 텍스트 크기 증가"). 위아래 여백 7 · 왼쪽은 TV 단추가 살짝만 남기고 붙는 5. */
-  flex: 1 1 auto; min-width: 0;
-  display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto;
-  column-gap: 8px; row-gap: 5px; align-items: center;
-  padding: 7px 8px 7px 5px; box-sizing: border-box;
-  background: #0a0d12; color: #e8eef6; border-radius: 4px 4px 3px 3px; margin-bottom: 3px;
-  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.3);
-}
-.scr-tb-who-top { grid-column: 2; grid-row: 1; display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 0; max-width: 100%; }
-/* 이름 칩 — 임자색 둥근 네모(둥글기 작게) · 로스터 사람들의 이름표를 같은 칸에 숨겨 겹쳐 폭을 미리 잡는다. */
-.scr-tb-who-name {
-  display: inline-grid; min-width: 0; max-width: 100%; overflow: hidden;
-  padding: 1px 6px; border-radius: 2px;
-  font-size: 11px; font-weight: 700; line-height: 1.35; white-space: nowrap; text-align: center;
-}
-.scr-tb-who-name.is-none { background: rgba(255, 255, 255, 0.08); color: rgba(232, 238, 246, 0.5); }
-.scr-tb-who-txt { grid-area: 1 / 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.scr-tb-who-ghost { visibility: hidden; }
-/* 아랫줄 — 현황(라벨은 작게 값 앞에). 칸마다 최소 폭을 잡아 숫자가 갈려도 안 흔들린다. */
-.scr-tb-who-st {
-  grid-column: 2; grid-row: 2; justify-self: center; overflow: hidden; max-width: 100%;
-  display: flex; align-items: baseline;
-  font-size: 11.5px; font-weight: 600; line-height: 1.2; white-space: nowrap; font-variant-numeric: tabular-nums;
-}
-.scr-tb-who-st > span { display: inline-flex; align-items: baseline; gap: 2px; }
+/* (걷어냄) 사람 정보 판(.scr-tb-who*) — 2026-09, 요청: "유저창 완전 제거". 현황 꼴(.scr-who-*)은 분할 칸 머리가 쓴다. */
 /* ★★ 현황 칸은 **값마다 제 폭 · 오른쪽 맞춤 · 사이 | **(2026-09, 요청: "스탯들 표시 방법 변경 라벨위치는 고정하고 데이터는 우측정렬 ·
    -/- 자원의 경우 이것도 각 데이터의 자리를 미리 확보 · 동등 폭 취소하고 일꾼, apm은 적게 자원은 제일 넓게 인구 킬데스는 중간으로 ·
    사이사이 | 로 구분") — 한때 다섯 등분(같은 폭)이었다가 되물렸다. 칸 = 라벨 + 고정 폭 값(오른쪽 맞춤)이라 줄 전체 폭이 늘 같고
@@ -3421,46 +3312,6 @@
 .scr-who-stats > span:nth-child(3) .scr-who-v { width: 7ch; }
 .scr-who-stats > span:nth-child(4) .scr-who-v { width: 5ch; }
 .scr-who-stats > span:nth-child(5) .scr-who-v { width: 3ch; }
-.scr-tb-who-st b { font-size: 8px; font-weight: 600; opacity: 0.62; margin-right: 1px; }
-/* 좁은 판(폰)은 라벨을 접는다 — 값만 남고 라벨은 title 이 든다(두 줄 꼴을 지킨다). */
-@container (max-width: 230px) {
-  .scr-tb-who-st { font-size: 10.5px; }
-  .scr-tb-who-st b { display: none; }
-}
-.scr-tb-who .scr-motion-mapbtns .scr-motion-pick { position: static; }
-/* ★ 중계 목록은 **TV 단추의 왼쪽 선**에 맞춰 오른쪽으로 편다(2026-09, 요청: "중계 선택창은 가운데 말고 버튼 왼쪽라인에 맞추기") —
-   감싸개(.scr-fs-dockcast · position: relative)가 기준이고 is-left(left 0)가 그대로 먹는다. 한때 판 가운데로 폈다(그때 기준을 단추로
-   둔 채 가운데 맞춤을 걸어 왼쪽 반이 화면 밖으로 나갔다). 판이 줄 왼쪽에 붙는 폰에서도 오른쪽으로 자라 화면 안이다. */
-.scr-tb-who .scr-motion-pickmenu.is-left { max-width: calc(100vw - 16px); }
-@media (min-width: 1160px) {
-  .scr-tb-btnrow { --who-max: 600px; }   /* 옛 470(요청: "피시 유저창 폭 더 넓혀야함") */
-  .scr-tb-who { --who-cast: 30px; }
-  .scr-tb-who-name { font-size: 12px; }
-  .scr-tb-who-st { font-size: 13px; }
-  .scr-tb-who-st b { font-size: 9px; }
-}
-/* ★ 폰은 정보 판이 **단추 줄 위의 제 줄**이다(2026-09, 요청: "모바일에서는 유저창을 조작창위에 배치(돌출형이 아닌 아예 위에 프레임을
-   늘려서 거기에 넓게 배치)") — 단추 줄 격자의 1행을 온 폭으로 쓰고 아이콘 줄·꼬리는 2행 양 끝으로 내려간다. 솟은 쇠 조각(::before ·
-   ::after)과 음수 여백은 걷는다 — 쇠판이 그만큼 키가 늘어 판을 품는다. 넓어진 만큼 현황 라벨도 다시 선다(컨테이너 230px 위). */
-@media (max-width: 700px) {
-  .scr-tb-btnrow { row-gap: 6px; }
-  .scr-tb-btnrow > .scr-tb-who { grid-column: 1 / -1; grid-row: 1; max-width: none; margin: 0; padding: 0; }
-  .scr-tb-btnrow > .scr-motion-mapbtns { grid-column: 1; grid-row: 2; }
-  .scr-tb-btnrow > .scr-tb-tail { grid-column: 3; grid-row: 2; }
-  .scr-tb-who::before, .scr-tb-who::after { display: none; }
-  .scr-tb-who-in { margin-bottom: 0; }
-  /* 쇠판 위 테 = 아래 테(2026-09, 지적: "쇠프레임 위아래 테두리 두께가 다름") — 판 위 여백(옛 9px)을 독 틀의 바깥 테(--dock-out)와
-     같게 · 판 좌우도 툴박스 여백(6px)을 같은 몫만큼 먹어 아래 우물들과 가장자리가 한 줄이다. */
-  /* ⚠ 뒤의 ≤1159px 규칙(.scr-tb { --tb-padt: 9px })보다 앞에 적히므로 무게를 하나 더 준다 — 같은 무게면 그 뒤 규칙이 이겨 위 테가 9px 로 남았다. */
-  .scr-fs-lower .scr-tb { --tb-padt: calc(3.4px * var(--dk)); }   /* = 독 틀의 --dock-out(그 틀에만 선언돼 여기선 값으로 적는다) */
-  .scr-tb-btnrow > .scr-tb-who { margin: 0 calc(3.4px * var(--dk) - 6px); width: auto; justify-self: stretch; }
-  /* 폰 글 칸(~300px)에 고정 폭 다섯이 다 들게 한 단 죈다 — 자원 10ch · K/D 6ch · 사이 5 · 11px(폭은 여전히 고정이다). */
-  /* 폰 글 칸(~300px)에 다 들게 한 단 죈다 — 글자 10.5 · 라벨 7.5 · | 여백 0.3em · 자원 칸 광물·가스 각 4ch(폭은 여전히 고정). */
-  .scr-tb-who-st { font-size: 10.5px; }
-  .scr-tb-who-st b { font-size: 7.5px; }
-  .scr-who-stats > span + span::before { margin: 0 0.3em; }
-  .scr-tb-who-st .scr-who-r { width: 4ch; }
-}
 .scr-tb-seek { display: flex; align-items: center; min-width: 0; }
 /* 재생 줄 맨 왼쪽의 배속 단추 한 칸(2026-09, 요청: "배속 버튼은 플레이버튼 왼쪽으로") — 줄지 않는다. */
 .scr-tb-speed { flex: none; margin-right: 6px; }
@@ -3964,14 +3815,6 @@
   background: rgba(255, 255, 255, 0.92); box-shadow: none; color: #10151a;
 }
 
-/* 사용법의 독 TV 단추 견본(재생기 .scr-fs-dockcast — 볼록한 흰 사각 · 켜짐은 초록 그림). */
-.scr-guide-msq{
-  display: inline-grid; place-items: center; width: 18px; height: 18px; vertical-align: -4px; margin: 0 2px;
-  border: 1px solid #0b0d10; border-radius: 2px; color: #20252b; box-sizing: border-box;
-  background: linear-gradient(180deg, #ffffff 0%, #f1f3f5 45%, #dde1e6 100%);
-  box-shadow: inset 0 1px 0 #ffffff, inset 0 -2px 0 rgba(0, 0, 0, 0.16), 0 1px 2px rgba(0, 0, 0, 0.45);
-}
-.scr-guide-msq.is-on{ color: #14c96f; }
 /* 사용법의 중계·색 단추 — 재생기의 켜진 TV(초록 테 + 깜빡임)와 색 단추 바탕(지금 모드)을 그대로 흉내 낸다. */
 .scr-guide-mbtn-cast{
   color: #2ee59d; box-shadow: inset 0 0 0 1.5px rgba(46, 229, 157, 0.78);
@@ -4195,8 +4038,11 @@
   font-family: inherit; color: inherit;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
 }
-.scr-split-cell.is-pick::after {
-  content: ""; position: absolute; inset: 0; pointer-events: none;
+/* ★ 칸 테두리는 **팀색**이다(2026-09, 요청: "화면 선택 기능 제거 대신 화면테두리를 팀색으로 해서 팀 구분되게(컬러모드와 무관)") —
+   칸은 이제 안 고른다(옛 is-pick 걷음 · 누름 없음). 색은 인라인 borderColor(TEAM_COLOR)라 색 모드를 안 탄다. */
+.scr-split-cell { cursor: default; }
+.scr-split-cell.is-team::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 2;
   border: 2px solid; border-color: inherit;
 }
 .scr-split-cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
@@ -4266,3 +4112,19 @@
   border: 1px solid rgba(0, 0, 0, 0.85); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18);
   background: #12161c;
 }
+/* ★ TV 단추는 **아이콘 줄 맨 왼쪽의 동그라미**다(2026-09, 요청: "중계버튼 버튼로우 왼쪽으로 이동하고 동그라미로 변경및 크기색상 디자인
+   다른 버튼과 통일(활성시 초록불깜빡임 유지)") — 꼴은 형제 우물 그대로(위 .scr-tb … :not(.is-on) 규칙)이고, 켜짐만 초록 테 + 아이콘이
+   밝은 초록 ↔ 어두운 초록으로 깜빡인다(검정으로 꺼지면 어두운 우물에 묻혀 '꺼진 단추'로 읽힌다). */
+.scr-tb .scr-tb-btnrow > .scr-motion-mapbtns button.scr-motion-mapbtn.scr-motion-castbtn-on {
+  box-shadow: inset 0 0 0 1.5px rgba(46, 229, 157, 0.78), inset 0 2px 3px rgba(0, 0, 0, 0.85), 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+.scr-tb .scr-tb-btnrow > .scr-motion-mapbtns .scr-motion-castbtn-on svg { animation: scr-cast-blink-well 1s steps(1, end) infinite; }
+@keyframes scr-cast-blink-well {
+  0%, 45% { color: #3dffa8; }
+  55%, 100% { color: #146b45; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scr-tb .scr-tb-btnrow > .scr-motion-mapbtns .scr-motion-castbtn-on svg { animation: none; color: #3dffa8; }
+}
+/* PC 칸 머리 글자는 한 단 작다(2026-09, 요청: "피시 헤더 닉네임과 스탯 폰트 1스텝씩 줄이기") — 9 → 8·dk(현황은 그 0.88em 이라 함께 준다). */
+@media (min-width: 701px) { .scr-split-cap { font-size: calc(8px * var(--dk)); } }

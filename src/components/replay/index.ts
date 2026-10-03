@@ -47,7 +47,7 @@ export type { SceneLink9 } from "./ReplayMotionPlayer";
      · poseCutsOf    — 그 종류가 **어느 컷을 갖나**(걸음·공격·날갯짓). 없는 칸은
        도록이 idle로 갈음한다.
      · galleryYawOf  — 도록의 방위 눈금(0·45·90…)을 **그 갈래의 기준각**으로 옮긴다.
-       건물은 지도에서 각이 하나(BUILDING_BASE_YAW = 40도)뿐이라, 45 눈금을 그대로 쓰면
+       건물은 지도에서 각이 하나(BUILDING_BASE_YAW = 45도 · 옛 40)뿐이라, 기준각이 45 의 배수가 아니면
        도록의 건물만 지도와 5도 어긋나 선다. 유닛은 준 각 그대로다.
      · shapeFitBox   — **여러 컷을 한 창으로** 재 준다(지적: "모션컷에 따라 모델 확대율이
        달라짐"). ShapeIcon의 fit은 그 컷의 잉크에 창을 맞추므로 자세가 갈리면 배율이

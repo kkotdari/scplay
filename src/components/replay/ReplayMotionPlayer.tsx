@@ -813,6 +813,8 @@ declare const __SCPLAY_BUILD__: string | undefined;
 /** `?lite=1` — 붓 간이화를 모든 배율에 강제한다(요잉 8칸·자세 컷 없음·포탑 한 판). 폰에서 판 스래싱이 남는지
  *  배포 없이 시험하는 깃발. */
 const liteFlag9 = typeof location !== "undefined" && /[?&]lite=1/.test(location.search);
+/** 폰의 분할보기 상한(2026-09, 요청: "모바일에서 분할모드 최대 2명"). */
+const SPLIT_PHONE_MAX9 = 2;
 const smallDevice9 = ((): boolean => {
   if (typeof window === "undefined") return false;
   const coarse9 = !!window.matchMedia?.("(pointer: coarse)").matches;
@@ -3147,6 +3149,9 @@ export type FxPaintEnv9 = {
    *  피격 4 · 먼지 더 위) 아래라 그 문을 그대로 두면 **럴커 가시·성큰 분출·버로우 먼지가 통째로
    *  안 그려진다**(2026-09, 실측: 도록 럴커 칸에 가시가 없었다). 도록은 늘 '자세히'라 그 문을 건너뛴다. */
   docView9?: boolean;
+  /** 분할보기 칸인가 — 칸은 줄인 배율(1~2배)로 칠하므로 트레이서 문턱(FX_MIN_ZOOM · detailAt)에 늘 걸려 효과가 통째로 빠졌다
+   *  (2026-09, 지적: "분할모드에서 트레이서가 안나오는 문제"). 도록 칸처럼 그 문을 건너뛴다(칸은 '그 사람의 중계 화면'을 줄인 그림이다). */
+  splitView9?: boolean;
   /** ★ **도록 칸에서만 별(표창)을 키우는 배수**(2026-09, 지적: "도록에서 벌처랑 뮤탈 글레이브가
    *  안 나오고 이상하게 나와") — 지도의 자로 그리면 글레이브가 몸의 15%(뮤탈 갈색 몸 위의 갈색
    *  별)·파편이 6px 라 칸에서 안 읽힌다. 스플래시를 도록에서만 0.78 배로 줄이는 것과 **같은
@@ -3186,7 +3191,7 @@ export function paintFxList9(
        그 바닥 위에 있다(요청: "모든 트레이서류 2배 줌부터") — beam(제자리 번쩍)과
        shot(날아가는 탄)이 곧 무기별 트레이서 전부라, 무기가 무엇이든 유닛이 쏘든
        방어 건물이 쏘든 이 한 줄을 지난다. */
-    if (!env.docView9 && zoom < (FX_NO_FLOOR.has(f.kind)
+    if (!env.docView9 && !env.splitView9 && zoom < (FX_NO_FLOOR.has(f.kind)
       ? FX_MIN_ZOOM[f.kind] : Math.max(FX_MIN_ZOOM[f.kind], detailAt ?? 0))) continue;
     /* 낮은 배율 죄기(위 lowZoomTrim9) — 꾸밈부터 덜고, 심하면 트레이서까지 던다.
        무슨 일이 있었나를 말하는 것(죽음 폭발·소환 섬광·우리·스톰·핵·붕괴)은 남는다. */
@@ -5696,10 +5701,10 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          트레이서(2배)가 그 가장 이른 갈래라 여기서는 그것만 보면 된다. */
       /* ★ GL 그림을 **여기서** 유닛 캔버스에 합성한다 — 몸은 다 큐에 들었고 효과(트레이서·피격)는 아직이라, 효과가 몸 위에 얹힌다. */
       /* ★ 효과 모델(폭풍·핵 폭발·핵 구름)은 GL 큐의 맨 뒤에 선다 — 더하기 합성이라 몸 위에 얹힌다(2D 의 lighter). 판은 안 굽는다. */
-      if (gl9 && fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM)) {
+      if (gl9 && fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM || PAINT_CLIP9 !== null)) {
         for (const f of fx) {
           if (f.kind !== "dom" || (f.style !== "storm" && f.style !== "nuke")) continue;
-          if (zoom < (FX_NO_FLOOR.has(f.kind) ? FX_MIN_ZOOM[f.kind] : Math.max(FX_MIN_ZOOM[f.kind], detailAt ?? 0))) continue;
+          if (PAINT_CLIP9 === null && zoom < (FX_NO_FLOOR.has(f.kind) ? FX_MIN_ZOOM[f.kind] : Math.max(FX_MIN_ZOOM[f.kind], detailAt ?? 0))) continue;
           if (trim9 >= 1 && TRIM1_SKIP9.has(f.style ?? "")) continue;
           if (trim9 >= 2 && TRIM2_SKIP9.has(f.style ?? "")) continue;
           const ax = zx(f.fx);
@@ -5718,7 +5723,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
            2D 판(swarmPlate9)에 그려 두면 flush 끝에서 그 판을 텍스처로 올려, 건물·공중 유닛이 스텐실에 남긴 자리만
            빼고 전체 화면 사각으로 얹는다. 지상 유닛은 스텐실에 없으므로 종전대로 연기 밑이다.
            연기가 화면에 없는 프레임은 이 가지에 아예 안 든다 — 판 한 장 올리기가 공짜가 아니다. */
-        if (fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM) && trim9 < 1
+        if (fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM || PAINT_CLIP9 !== null) && trim9 < 1
           && zoom >= FX_MIN_ZOOM.dom) {
           const sw9 = fx.filter((f9) => f9.kind === "dom" && f9.style === "swarm"
             && zx(f9.fx) > -60 && zx(f9.fx) < cw + 60
@@ -5746,8 +5751,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           }
         }
         /* 효과 삼각형은 flush 안에서 그려지므로 **그 전에** 붓이 다 말해야 한다(심이 모아 둔 꼭짓점을 flush 가 민다). */
-        if (vec9 && fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM)) {
-          paintFxList9(fxCtx9, fx, { zoom, tilePx, zx, zy, cw, ch, Bd, trim9, detailAt, swarmDone9 });
+        if (vec9 && fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM || PAINT_CLIP9 !== null)) {
+          paintFxList9(fxCtx9, fx, { zoom, tilePx, zx, zy, cw, ch, Bd, trim9, detailAt, swarmDone9, splitView9: PAINT_CLIP9 !== null });
         }
         /* 분할 칸이면 그 오림 네모만 지우고·칠하고·옮긴다(gl9 clip — 판의 나머지는 버리는 화소다). */
         const pcl9 = PAINT_CLIP9;
@@ -5758,9 +5763,9 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           SCR_DIAG.gl = `on${gl9.gl2 ? "2" : "1"}${gl9.instOn ? "" : "·인스턴싱 없음"} 개체 ${gl9.stat.inst} 드로 ${gl9.stat.draws} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}/${gl9.meshMax}(${gl9.stat.bakeMs.toFixed(0)}ms·${(gl9.stat.bytes / 1048576).toFixed(1)}MB${gl9.stat.evict ? "·버림 " + gl9.stat.evict : ""}) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit 번짐 ${gl9.stat.bloom} 바닥 ${gl9.stat.prims} 효과△ ${gl9.stat.fxTris}${miss9 ? " 판으로 " + miss9 : ""}`;
         }
       }
-      if (!vec9 && fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM)) {
+      if (!vec9 && fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM || PAINT_CLIP9 !== null)) {
         /* 효과 붓은 **모듈 함수**다(paintFxList9 의 ★) — 도록이 같은 붓으로 한 발을 그린다. */
-        paintFxList9(fxCtx9, fx, { zoom, tilePx, zx, zy, cw, ch, Bd, trim9, detailAt, swarmDone9 });
+        paintFxList9(fxCtx9, fx, { zoom, tilePx, zx, zy, cw, ch, Bd, trim9, detailAt, swarmDone9, splitView9: PAINT_CLIP9 !== null });
       }
       /* 다 그렸다 — 캔버스에 걸려 있던 손짓 임시 변환은 **여기서** 걷는다(수리:
          "드래그나 확대 축소시 깜빡이고 배율도 튀고"). 두 일이 같은 자리에 있어야 하는
@@ -9695,7 +9700,7 @@ export default function ReplayMotionPlayer({
       <span title="APM"><b>APM</b><i className="scr-who-v">{c9?.apm ?? "–"}</i></span>
     </div>
   );
-  const castCap9 = capRaw9 !== null ? capOf9(capRaw9, trackRaw ? `t:${trackRaw}` : splitOn9 ? `s:${capRaw9}` : `c:${castIdx9}`) : null;
+  /* (걷어냄) castCap9 — 정보 판이 사라져 읽는 자리가 없다(2026-09, "유저창 완전 제거"). */
   /** 추적 켜기·끄기 — 시야(viewRaw)를 함께 끌고 다닌다. 끄면 시야도 전체로 돌아간다. */
   /** 추적을 끈다 — **보던 자리에 머문다**(요청: "추적 보다가 끄면 맵 위치가 기존에 보던 곳으로 돌아가는데
    *  그러지 않게 추적이 보고 있던 곳에서 유지"). 추적 중의 팬은 trackView가 렌더마다 내는 값이라 panBase는
@@ -9751,6 +9756,11 @@ export default function ReplayMotionPlayer({
   /** 닉네임 누르기 — 고른 사람에 더하거나 뺀다. 남은 사람이 0 이면 끄고, 하나면 개인 추적, 둘 이상이면 그 사람들만 분할이다. */
   const pickPerson9 = (key9: string): void => {
     const next9 = castSel9.includes(key9) ? castSel9.filter((k9) => k9 !== key9) : [...castSel9, key9];
+    /* ★ 폰은 **두 명까지**다(2026-09, 요청: "모바일에서 분할모드 최대 2명 지정가능으로 변경") — 셋째부터는 칸이 너무 작다. */
+    if (smallDevice9 && next9.length > SPLIT_PHONE_MAX9) {
+      replayToast(`모바일에서는 분할보기를 ${SPLIT_PHONE_MAX9}명까지 볼 수 있어요`, { kind: "info" });
+      return;
+    }
     if (next9.length === 0) {
       if (splitOn9) setSplitOn9(false);
       if (trackRaw !== null) { stopTrack9(); setViewRaw(null); }
@@ -14206,6 +14216,70 @@ export default function ReplayMotionPlayer({
       }
     }
   };
+  /** 분할 칸의 몸 목록 — 선택 링은 그 칸 사람이 고른 몸에만, 건설 고스트는 그 사람 것만(위 splitPaint9 의 ★). */
+  const splitOwnOps9 = (ops9: UnitDrawOp[], raw9: string): UnitDrawOp[] => {
+    let out9: UnitDrawOp[] | null = null;
+    for (let i9 = 0; i9 < ops9.length; i9 += 1) {
+      const o9 = ops9[i9];
+      const ghost9 = o9.ghostRaw !== undefined && o9.ghostRaw !== raw9;
+      const ring9 = !!o9.selRing && !(o9.selBy?.includes(raw9));
+      if (!ghost9 && !ring9) { if (out9) out9.push(o9); continue; }
+      if (!out9) out9 = ops9.slice(0, i9);
+      if (!ghost9) out9.push({ ...o9, selRing: undefined });
+    }
+    return out9 ?? ops9;
+  };
+  /** 분할 칸의 손짓 자국 — 그 사람의 클릭 마커(0.9초 · 고리 + 점 · 공격은 붉은 고리)와 같은 편의 핑(3초 · 퍼지는 물결 둘).
+   *  큰 지도의 DOM 자국(.scr-motion-clickfx·pingfx)과 같은 자 — 크기는 한 타일(핑 1.4타일)이고 칸이 작아도 10px 아래로는 안 준다.
+   *  밀리(팀 없음)는 핑도 제 것만이다. 칸 안개 판(유닛·GL 위) 위에 그린다. */
+  const splitMarks9 = (ctx9: CanvasRenderingContext2D, raw9: string, team9: number | null, tNow9: number,
+    zx9: (tx: number) => number, zy9: (ty: number) => number, tile9: number): void => {
+    if (clickFx) {
+      for (const [cs, cx2, cy2, craw, ck] of entClicks) {
+        if (cs > tNow9) break;
+        if (tNow9 - cs > 0.9 || craw !== raw9) continue;
+        const a9 = (tNow9 - cs) / 0.9;
+        const k9 = a9 < 0.2 ? 1.15 - (a9 / 0.2) * 0.4 : 0.75 - ((a9 - 0.2) / 0.8) * 0.15;
+        const r9 = (Math.max(10, tile9) * k9) / 2;
+        const x9 = zx9(cx2);
+        const y9 = zy9(cy2);
+        ctx9.globalAlpha = a9 > 0.7 ? 1 - (a9 - 0.7) / 0.3 : 1;
+        const col9 = ck === 7 ? "#ff3b3b" : modeColor(craw, teamOfRaw(craw));
+        ctx9.strokeStyle = col9;
+        ctx9.lineWidth = Math.max(1.2, r9 * 0.16);
+        ctx9.beginPath();
+        ctx9.ellipse(x9, y9, r9, r9 * 0.55, 0, 0, Math.PI * 2);
+        ctx9.stroke();
+        ctx9.fillStyle = col9;
+        ctx9.beginPath();
+        ctx9.ellipse(x9, y9, r9 * 0.18, r9 * 0.1, 0, 0, Math.PI * 2);
+        ctx9.fill();
+      }
+    }
+    if (qPing && entData?.pings) {
+      for (const [ps, px, py, ppid] of entData.pings) {
+        if (ps > tNow9 || tNow9 - ps > 3) continue;
+        const praw9 = entData.players.find((pl) => pl.owner === ppid)?.name ?? "";
+        if (!praw9 || obsNames.has(praw9)) continue;
+        if (praw9 !== raw9 && (team9 === null || teamOfRaw(praw9) !== team9)) continue;
+        const col9 = modeColor(praw9, teamOfRaw(praw9));
+        const w9 = Math.max(14, tile9 * 1.4);
+        const x9 = zx9(px);
+        const y9 = zy9(py);
+        ctx9.strokeStyle = col9;
+        for (const off9 of [0, 0.5]) {
+          const ph9 = ((tNow9 - ps) / 1 + off9) % 1;
+          ctx9.globalAlpha = (1 - ph9) * (tNow9 - ps > 2.4 ? (3 - (tNow9 - ps)) / 0.6 : 1);
+          ctx9.lineWidth = Math.max(1.2, w9 * 0.07);
+          const rr9 = (w9 / 2) * (0.3 + ph9 * 0.9);
+          ctx9.beginPath();
+          ctx9.ellipse(x9, y9, rr9, rr9 * 0.55, 0, 0, Math.PI * 2);
+          ctx9.stroke();
+        }
+      }
+    }
+    ctx9.globalAlpha = 1;
+  };
   const splitPaint9 = (tNow9: number): void => {
     /* ★★ 칸은 **제자리에** 칠한다 — 베끼지 않는다(2026-09, 지적: "흐리고 버벅여") ─────────────────────────────
        옛 길은 칸마다 무대 판을 한 장 칠하고 그 가운데를 칸 캔버스로 drawImage 했다. 재 보니(SCR_DIAG.split) 칠하기는 칸당
@@ -14310,6 +14384,10 @@ export default function ReplayMotionPlayer({
       const keepOps9 = frameOpsRef9.current;
       const keepFx9 = frameFxRef9.current;
       if (tf9) { frameOpsRef9.current = tf9.unitOps; frameFxRef9.current = tf9.fxOps; }
+      /* ★ 칸은 **제 사람의 손**만 보인다(2026-09, 요청: "분할창에선 자신의 마우스마커, 선택링, 같은팀의 핑까지만 보여야해" ·
+         "건물짓기 고스트등도") — 팀 장은 같은 편 모두의 선택·건설 명령을 담으므로, 선택 링은 그 칸의 사람이 고른 몸에만
+         (op.selBy) 남기고 건설 고스트는 그 사람 것(op.ghostRaw)만 남긴다. 마커·핑은 아래 칸 안개 판 위에 따로 그린다. */
+      if (frameOpsRef9.current) frameOpsRef9.current = splitOwnOps9(frameOpsRef9.current, cell9.raw);
       try { paint9(zc9, pan9, zc9); } finally { PAINT_CLIP9 = null; frameOpsRef9.current = keepOps9; frameFxRef9.current = keepFx9; }
       /* 칸 안개 — 그 팀의 밝힌 판(등고선 · 팀마다 뜸하게 다시 뽑는다)과 눈 목록(원)을 큰 지도 안개 층과 같은 셈으로 판다. */
       const exp9 = tm9 ? teamExpRef9.current.get(tm9) : undefined;
@@ -14353,6 +14431,19 @@ export default function ReplayMotionPlayer({
           }
         }
         fctx9.fill();
+        fctx9.restore();
+      }
+      if (fcv9 && fctx9) {
+        const B9 = fcv9.width / Math.max(1, cw9);
+        const kx9 = (cw9 * zc9) / gw;
+        fctx9.save();
+        fctx9.setTransform(B9, 0, 0, B9, 0, 0);
+        fctx9.beginPath();
+        fctx9.rect(x09, y09, wC9, hC9);
+        fctx9.clip();
+        splitMarks9(fctx9, cell9.raw, tm9 ?? null, tNow9,
+          (tx: number) => (tx / gw - 0.5) * cw9 * zc9 + cw9 / 2 + pan9.x,
+          (ty: number) => (ty / gh - 0.5) * mh9 * zc9 + mh9 / 2 + band9 + pan9.y, kx9);
         fctx9.restore();
       }
       const pa19 = pNow();
@@ -16316,6 +16407,56 @@ export default function ReplayMotionPlayer({
       </span>
     </div>
   );
+  /* ★ TV 단추는 **아이콘 줄의 맨 왼쪽 동그라미**다(2026-09, 요청: "중계버튼 버튼로우 왼쪽으로 이동하고 동그라미로 변경및 크기색상
+     디자인 다른 버튼과 통일(활성시 초록불깜빡임 유지)") — 정보 판 왼 기둥의 흰 볼록 사각(.scr-fs-dockcast)을 걷었다. 꼴은 형제
+     (.scr-motion-mapbtn)가 다 주고 켜짐만 초록 깜빡임(.scr-motion-castbtn-on)이다. 목록은 줄 왼끝이라 is-left(오른쪽으로 편다). */
+  const castBtnNode9 = (
+    <>
+          <span className="scr-motion-pick scr-motion-castpick">
+            <button
+              type="button"
+              className={cx("scr-motion-litbtn scr-motion-mapbtn scr-motion-castbtn", (castOn || trackRaw !== null || splitOn9) && "scr-motion-castbtn-on")}
+              onClick={() => pickToggle9("cast")}
+              aria-haspopup="menu" aria-expanded={pick9 === "cast"}
+              aria-pressed={castOn || trackRaw !== null || splitOn9}
+              aria-label={splitOn9 ? "중계 — 분할보기 · 누르면 목록" : castOn ? "중계 — 자동 · 누르면 목록"
+                : trackRaw !== null ? `추적 — ${bases.find((b9) => b9.key === trackRaw)?.name ?? trackRaw} · 누르면 목록`
+                  : "중계·추적 — 누르면 목록"}
+              title={splitOn9 ? (splitSel9 ? "분할보기 — 고른 선수들의 화면을 함께 보는 중" : "분할보기 — 모든 선수의 화면을 함께 보는 중") : castOn
+                ? "중계(자동) — 중요한 장면의 선수를 자동으로 따라가는 중"
+                : trackRaw !== null ? "개인 추적 중 — 누르면 다른 사람이나 자동을 고른다"
+                  : "중계·추적 — 따라갈 사람을 고르거나 자동(중계)을 켠다"}
+            >
+              <Tv size={18} aria-hidden />
+            </button>
+            {pickMenu9("cast", [
+              /* ★ **전체는 맨 위**다(2026-09, 요청: "전체는 맨위에 배치하고 누르면 모두 선택되는걸로") — 모든 선수의 분할보기이고, 켜지면
+                 아래 닉네임이 **다 켜진 줄**로 선다(castSel9 가 모두를 낸다). 거기서 한 사람을 누르면 그 사람만 빠진 분할로 내려온다.
+                 둘 이상일 때만 · 목록은 안 닫힌다(keep — 다 켜진 것을 보여 준다). */
+              ...(bases.length >= 2 && (!smallDevice9 || bases.length <= SPLIT_PHONE_MAX9) ? [{
+                key: "split", label: "전체", on: splitOn9 && splitSel9 === null, keep: true,
+                act: () => { if (splitOn9 && splitSel9 === null) setSplitOn9(false); else startSplit9(null); },
+              }] : []),
+              /* 닉네임은 **고른 사람에 더하고 뺀다**(pickPerson9 — 하나면 개인 추적 · 둘 이상이면 그 사람들만 분할) · 목록은 안 닫힌다(keep). */
+              ...bases.map((b9) => ({
+                key: `p:${b9.key}`, label: b9.name, on: castSel9.includes(b9.key), keep: true,
+                dot: modeColor(b9.key, teamOfRaw(b9.key)), act: () => pickPerson9(b9.key),
+              })),
+              { key: "auto", label: "자동", on: castOn, act: () => toggleCast9() },
+              /* ★ 맨 아래 **끄기**(2026-09, 요청: "목록에 끄기도 있어야해") — 켜진 것을 다시 골라 끄는 길은 남지만, 무엇이 켜져
+                 있는지 모르는 손에게는 '끄는 줄'이 따로 있어야 한다. 중계든 개인 추적이든 카메라를 쥔 쪽을 놓고(둘은 배타라 둘 중
+                 하나다) 시점도 관전자로 되돌린다(toggleTrack 의 끄는 길과 같은 셈). 둘 다 꺼져 있을 때 이 줄이 켜진 줄이다. */
+              {
+                key: "off", label: "끄기", on: !castOn && trackRaw === null && !splitOn9,
+                act: () => {
+                  if (splitOn9) setSplitOn9(false);
+                  if (castOn) stopCast9(); else if (trackRaw !== null) { stopTrack9(); setViewRaw(null); }
+                },
+              },
+            ], true, true)}
+          </span>
+    </>
+  );
   const mapBtnRow = (
     <div
       // (걷어냄) is-up — 도구 판이 없어져 밀어 줄 것이 없다(요청).
@@ -16359,6 +16500,7 @@ export default function ReplayMotionPlayer({
           왼쪽으로 밀렸다. 목록은 로스터(bases)에서 나므로 자취 없이도 지을 수 있고, 고르는 일은 편성표가 오면 그때 먹는다
           (castOn 은 처음부터 켜져 있다). 줄의 꼴은 처음부터 끝까지 하나다. */}
       {/* (옮김) TV 단추 — 정보줄 맨 왼쪽으로 갔다(2026-09, 요청: "중계버튼 위치를 유저정보 라인 맨 왼쪽으로 이동") · 아래 castBtnNode9. */}
+      {castBtnNode9}
       {/* ★ 폰에는 로스터가 없다 — 단추도 걷는다(2026-09, 요청: "모바일 로스터 사용 x 버튼도 제거") · 아래 판도 같은 문. */}
       {!smallDevice9 && (
         <button
@@ -16899,9 +17041,6 @@ export default function ReplayMotionPlayer({
   /* ★ **중계가 꺼져도 고른 몸의 임자 줄은 선다**(2026-09, 요청: "중계 끈 상태에서 뭔가 선택하면 인포창에 뜨잖아 그때
      중계중일때처럼 주인에 대한 정보줄도 나와야지") — 화면 주인(capRaw9)이 없으면 인포창이 보이는 몸(dockOps9 첫 몸)의
      임자로 같은 정보줄을 세운다. 중립(자원·주인 없음)은 로스터에 없어 안 선다. */
-  const dockRaw9 = dockOps9[0]?.pickRaw;
-  const dockCap9 = castCap9
-    ?? (dockRaw9 && bases.some((b9) => b9.key === dockRaw9) ? capOf9(dockRaw9, `p:${dockRaw9}`) : null);
   /* ★★ 정보줄은 **틀의 맨 윗줄**이다(2026-09, 요청: "유저정보는 미니맵+인포창 합친거의 위로 배치(둘 합친 전체 폭을 사용하니 더
      넓음) · 그만큼 남는 높이는 인포창이 사용") — 인포창 안 맨 위 띠였을 때는 인포창 폭(폰 241px)에 갇혀 숫자가 잘리고 접기 단추가
      APM 을 덮었다. 이제 미니맵 + 인포창의 온 폭을 쓰고, 인포창 몸은 그 띠가 비운 키(--dock-cap + 1px)까지 받는다. 접기 단추도
@@ -16913,19 +17052,6 @@ export default function ReplayMotionPlayer({
   /* ★ 사람 정보 판은 단추 줄의 **가로 정가운데**다(2026-09, 요청: "유저정보는 가로 정가운데 위치") — 양옆 단추 무리의 폭이
      다르면(왼 둘 · 오른 셋) 같은 1fr 로는 한가운데가 안 된다. 두 무리 중 넓은 쪽의 폭을 재어 양옆 칸을 그 폭으로 못 박는다
      (--tb-side · 무리의 단추 수가 바뀌면 ResizeObserver 가 다시 잰다). */
-  const tbRowRef9 = useRef<HTMLDivElement | null>(null);
-  useLayoutEffect(() => {
-    const row9 = tbRowRef9.current;
-    const l9 = row9?.querySelector<HTMLElement>(":scope > .scr-motion-mapbtns") ?? null;
-    const r9 = row9?.querySelector<HTMLElement>(":scope > .scr-tb-tail") ?? null;
-    if (!row9 || !l9 || !r9) return undefined;
-    const read9 = (): void => { row9.style.setProperty("--tb-side", `${Math.ceil(Math.max(l9.scrollWidth, r9.scrollWidth))}px`); };
-    read9();
-    if (typeof ResizeObserver === "undefined") return undefined;
-    const ro9 = new ResizeObserver(read9);
-    ro9.observe(l9); ro9.observe(r9);
-    return () => ro9.disconnect();
-  }, [fsOn]);
   const dockRowRef9 = useRef<HTMLDivElement | null>(null);
   const dockMarkRef9 = useRef<HTMLSpanElement | null>(null);
   const [dockMark9, setDockMark9] = useState(false);
@@ -16952,75 +17078,11 @@ export default function ReplayMotionPlayer({
      ★ TV 단추(중계·추적 목록)는 **정보줄 맨 왼쪽**이다(2026-09, 요청: "중계버튼 위치를 유저정보 라인 맨 왼쪽으로 이동") —
      정보줄이 곧 '지금 누구 화면인가'를 말하는 자리라 그 손잡이를 같은 줄에 둔다. 꼴·켜짐(초록 + 깜빡임)·위로 펼치는 목록은
      아이콘 줄에 있던 그대로다(형제 규칙을 받으려고 .scr-motion-mapbtns 한 칸 감싸개 · 크기 변수는 .scr-fs-dockcast 가 든다). */
-  const castBtnNode9 = (
-    <div className="scr-motion-mapbtns scr-fs-dockcast">
-          <span className="scr-motion-pick">
-            <button
-              type="button"
-              className={cx("scr-motion-litbtn scr-motion-mapbtn scr-motion-castbtn", (castOn || trackRaw !== null || splitOn9) && "scr-motion-castbtn-on")}
-              onClick={() => pickToggle9("cast")}
-              aria-haspopup="menu" aria-expanded={pick9 === "cast"}
-              aria-pressed={castOn || trackRaw !== null || splitOn9}
-              aria-label={splitOn9 ? "중계 — 분할보기 · 누르면 목록" : castOn ? "중계 — 자동 · 누르면 목록"
-                : trackRaw !== null ? `추적 — ${bases.find((b9) => b9.key === trackRaw)?.name ?? trackRaw} · 누르면 목록`
-                  : "중계·추적 — 누르면 목록"}
-              title={splitOn9 ? (splitSel9 ? "분할보기 — 고른 선수들의 화면을 함께 보는 중" : "분할보기 — 모든 선수의 화면을 함께 보는 중") : castOn
-                ? "중계(자동) — 중요한 장면의 선수를 자동으로 따라가는 중"
-                : trackRaw !== null ? "개인 추적 중 — 누르면 다른 사람이나 자동을 고른다"
-                  : "중계·추적 — 따라갈 사람을 고르거나 자동(중계)을 켠다"}
-            >
-              <Tv size={18} aria-hidden />
-            </button>
-            {pickMenu9("cast", [
-              /* ★ **전체는 맨 위**다(2026-09, 요청: "전체는 맨위에 배치하고 누르면 모두 선택되는걸로") — 모든 선수의 분할보기이고, 켜지면
-                 아래 닉네임이 **다 켜진 줄**로 선다(castSel9 가 모두를 낸다). 거기서 한 사람을 누르면 그 사람만 빠진 분할로 내려온다.
-                 둘 이상일 때만 · 목록은 안 닫힌다(keep — 다 켜진 것을 보여 준다). */
-              ...(bases.length >= 2 ? [{
-                key: "split", label: "전체", on: splitOn9 && splitSel9 === null, keep: true,
-                act: () => { if (splitOn9 && splitSel9 === null) setSplitOn9(false); else startSplit9(null); },
-              }] : []),
-              /* 닉네임은 **고른 사람에 더하고 뺀다**(pickPerson9 — 하나면 개인 추적 · 둘 이상이면 그 사람들만 분할) · 목록은 안 닫힌다(keep). */
-              ...bases.map((b9) => ({
-                key: `p:${b9.key}`, label: b9.name, on: castSel9.includes(b9.key), keep: true,
-                dot: modeColor(b9.key, teamOfRaw(b9.key)), act: () => pickPerson9(b9.key),
-              })),
-              { key: "auto", label: "자동", on: castOn, act: () => toggleCast9() },
-              /* ★ 맨 아래 **끄기**(2026-09, 요청: "목록에 끄기도 있어야해") — 켜진 것을 다시 골라 끄는 길은 남지만, 무엇이 켜져
-                 있는지 모르는 손에게는 '끄는 줄'이 따로 있어야 한다. 중계든 개인 추적이든 카메라를 쥔 쪽을 놓고(둘은 배타라 둘 중
-                 하나다) 시점도 관전자로 되돌린다(toggleTrack 의 끄는 길과 같은 셈). 둘 다 꺼져 있을 때 이 줄이 켜진 줄이다. */
-              {
-                key: "off", label: "끄기", on: !castOn && trackRaw === null && !splitOn9,
-                act: () => {
-                  if (splitOn9) setSplitOn9(false);
-                  if (castOn) stopCast9(); else if (trackRaw !== null) { stopTrack9(); setViewRaw(null); }
-                },
-              },
-            ], true, true)}
-          </span>
-    </div>
-  );
   /* ★★ 사람 정보 판은 **툴박스 단추 줄의 빈 가운데**다(2026-09, 요청: "유저인포를 버튼 사이공간에 배치 · 독윗줄보다 살짝
      돌출되는 형태로 배치하고 내용은 두줄로 구성 · 윗줄: 중계버튼, 이름(임자색 둥근사각형안에 넣고 기존 색 네모 제거 · 둥근사각
      래디우스 작게) · 아랫줄에 현황") — 옛 판은 미니맵 + 인포창 틀의 맨 윗줄이었다. 쇠판 위 끝보다 한 뼘 솟은 어두운 우물이다.
      이름 칩은 로스터 사람들의 이름표를 같은 격자 칸에 숨겨 겹쳐(-ghost) 폭을 미리 잡는다 — 사람이 갈려도 판이 안 흔들린다. */
-  const whoNode9 = (
-    <div
-      className="scr-tb-who" aria-live="polite"
-      onPointerDown={(e) => e.stopPropagation()}
-      onWheel={(e) => e.stopPropagation()}
-    >
-      <div className="scr-tb-who-in">
-      {castBtnNode9}
-      <div className="scr-tb-who-top">
-        <span className={cx("scr-tb-who-name", !dockCap9 && "is-none")} style={dockCap9?.chip}>
-          <span className="scr-tb-who-txt">{dockCap9 ? dockCap9.text : "–"}</span>
-          {capGhosts9.map((g9, i9) => <span key={i9} className="scr-tb-who-txt scr-tb-who-ghost" aria-hidden>{g9}</span>)}
-        </span>
-      </div>
-      {whoStats9(dockCap9, "scr-tb-who-st")}
-      </div>
-    </div>
-  );
+  /* (걷어냄) 사람 정보 판(whoNode9 · .scr-tb-who) — 2026-09, 요청: "유저창 완전 제거". 가운데 칸은 비어 아이콘 줄·꼬리만 양 끝에 선다. */
   /* ★ 접기 손잡이는 **재생 줄의 시계 옆**이다(2026-09, 요청: "접기버튼을 시간표시 옆으로 이동 접혔을때 인포창아예 안남게") —
      접으면 독 줄(미니맵 + 인포창)이 통째로 사라진다(.scr-fs-dockrow.is-fold). 옛 자리: 아래 주석의 틀 오른 끝·인포창 안 귀퉁이.
      접기 손잡이(2026-09, 요청: "프레임모드에도 독 접기 버튼 추가" · "접기버튼은 유저정보말고 독 프레임 어딘가") — 프레임·전체화면
@@ -17755,18 +17817,20 @@ export default function ReplayMotionPlayer({
             >
               {splitLay9.cells.map((c9) => {
                 const cap9 = capOf9(c9.raw, c9.raw);
+                /* ★ 칸은 **안 고른다** — 테두리가 팀색이다(2026-09, 요청: "화면 선택 기능 제거 대신 화면테두리를 팀색으로 해서 팀 구분되게
+                   (컬러모드와 무관) 헤더에서 N팀 제거"). 팀색은 색 모드를 안 탄다(TEAM_COLOR 1 파랑 · 2 빨강) · 팀 없는 사람은 테두리 없음. */
+                const tm9 = melee ? undefined : teamOfRaw(c9.raw);
+                const nm9 = bases.find((b9) => b9.key === c9.raw)?.name ?? c9.raw;
                 return (
-                  <button
-                    key={c9.raw} type="button"
-                    className={cx("scr-split-cell", splitPick9 === c9.raw && "is-pick")}
-                    style={{ gridColumn: c9.c + 1, gridRow: c9.r + 1, borderColor: splitPick9 === c9.raw ? cap9.col : undefined }}
-                    aria-pressed={splitPick9 === c9.raw}
-                    aria-label={`${cap9.text} 화면 — 누르면 아래 독에 이 사람`}
-                    onClick={() => { setSplitPick9((p9) => (p9 === c9.raw ? null : c9.raw)); setPicked(null); }}
+                  <div
+                    key={c9.raw}
+                    className={cx("scr-split-cell", tm9 && "is-team")}
+                    style={{ gridColumn: c9.c + 1, gridRow: c9.r + 1, ...(tm9 ? { borderColor: TEAM_COLOR[tm9] } : {}) }}
+                    aria-label={`${cap9.text} 화면`}
                   >
-                    {/* 칸 머리 — 이름 칩 + 현황(PC 만 · 폰은 CSS 가 숨긴다 · 칸을 누르면 아래 정보 판이 그 사람 것으로 든다). */}
+                    {/* 칸 머리 — 이름 칩 + 현황(PC 만 · 폰은 CSS 가 숨긴다). */}
                     <span className="scr-split-cap">
-                      <span className="scr-split-chip" style={cap9.chip}>{cap9.text}</span>
+                      <span className="scr-split-chip" style={cap9.chip}>{nm9}</span>
                       {whoStats9(cap9, "scr-split-st")}
                     </span>
                     {/* 칸 미니맵(좌하단) — 그 팀 시야 · 제 화면 자리는 그 사람 색 네모(splitMiniPaint9). */}
@@ -17775,7 +17839,7 @@ export default function ReplayMotionPlayer({
                       style={{ ["--ar" as string]: String(Math.max(1, grid.width) / Math.max(1, grid.height)) } as React.CSSProperties}
                       ref={(el9) => { if (el9) splitMiniRef9.current.set(c9.raw, el9); else splitMiniRef9.current.delete(c9.raw); }}
                     />
-                  </button>
+                  </div>
                 );
               })}
             </div>
@@ -17831,9 +17895,8 @@ export default function ReplayMotionPlayer({
             onPointerDown={(e) => e.stopPropagation()}
             onWheel={(e) => e.stopPropagation()}
           >
-            <div className="scr-tb-btnrow" ref={tbRowRef9}>
+            <div className="scr-tb-btnrow">
               {mapBtnRow}
-              {whoNode9}
               <div className="scr-tb-tail">
                 {/* ★ 장면 스크랩 — 앱이 onScrap을 주면 여기서 그린다(위 프롭 주석). 차례는 안내(ReplayGuide)와 같다:
                     스크랩(Z) → 공유(X) → 사용법. 꼴은 같은 줄의 공유·사용법과 한 벌이다(.scr-scrapbtn). */}

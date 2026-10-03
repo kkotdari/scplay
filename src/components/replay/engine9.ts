@@ -1962,6 +1962,10 @@ export type UnitDrawOp = {
   solid?: string;
   /** 방금 명령을 받아 잡혀 있음 — 발밑에 임자 색 선택 링(지적: 드래그 선택 구분). */
   selRing?: boolean;
+  /** 이 몸을 지금 고른 사람들(selRing 의 임자) — 분할 칸이 제 사람 것만 남긴다. */
+  selBy?: string[];
+  /** 건설 명령 고스트의 임자 — 분할 칸이 제 사람 것만 남긴다. */
+  ghostRaw?: string;
   /* ── 정보 팝업(요청: 유닛·건물 클릭하면 정보 툴팁) ─────────────────────────────
      클릭 판정과 툴팁이 이 셋만 본다. 열쇠는 프레임이 바뀌어도 같은 몸을 가리켜야
      하므로 유닛은 개체 태그, 건물은 임자·종류·자리로 짓는다. */
@@ -4456,13 +4460,16 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     void clickFx;
     /** 지금 선택된 태그(모든 사람 · 판 10 선택 절의 t 이하 마지막 줄) — 시점 보기(안개)에서는 그 편의 선택만(상대의 손은 감춘다 ·
      *  클릭 자국과 같은 규약). 유닛·건물 op 의 selRing 이 이것을 읽는다. */
-    const selTags9 = new Set<number>();
+    /* 태그 → 그것을 고른 사람들(selBy) — 분할보기 칸이 **제 사람이 고른 몸에만** 링을 남기는 자다(2026-09, 요청: "분할창에선 자신의
+       마우스마커, 선택링, 같은팀의 핑까지만 보여야해"). 팀 장은 같은 편 모두의 선택을 담으므로 메인이 칸마다 이 목록으로 거른다. */
+    const selBy9 = new Map<number, string[]>();
     for (const [raw9, rows9] of selRows9) {
       if (fogOn && !visAll && teamOfRaw(raw9) !== viewTeam) continue;
       let lo9 = 0; let hi9 = rows9.length - 1; let at9 = -1;
       while (lo9 <= hi9) { const m9 = (lo9 + hi9) >> 1; if (rows9[m9][0] <= t) { at9 = m9; lo9 = m9 + 1; } else hi9 = m9 - 1; }
-      if (at9 >= 0) for (const tg9 of rows9[at9][1]) selTags9.add(tg9);
+      if (at9 >= 0) for (const tg9 of rows9[at9][1]) { const a9 = selBy9.get(tg9); if (a9) a9.push(raw9); else selBy9.set(tg9, [raw9]); }
     }
+    const selTags9 = { has: (tg9: number): boolean => selBy9.has(tg9) };
     const crowd9 = view.crowd ?? 0;
     const zoom = 6;   // 프레임은 배율과 무관 — 배율이 섞인 옛 식 한 곳(미사일 쌍 간격)에 중간값을 준다.
     const liteView = false; const liteYaw = false; const markerView = false; const tracerView = true;
@@ -5958,6 +5965,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           pickName: unit, pickRaw: raw, pickBld: true, pickX: x, pickY: y,
           pickRep: myOrd === repOrd, pickTag: myTag9,
           selRing: (myTag9 !== undefined && selTags9.has(myTag9)) || undefined,
+          selBy: myTag9 !== undefined ? selBy9.get(myTag9) : undefined,
           /* 종류별 배수는 **제 모델을 그릴 때만**(테란 공사) 얹는다 — 저그 고치·
              프로토스 소환구·폴백 공사장은 종류를 안 가리는 공용 모델이라, 거기에
              스파이어의 몫을 얹으면 고치만 커진다. */
@@ -6517,6 +6525,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           pickName: unit, pickRaw: raw, pickBld: true, pickX: x, pickY: y,
           pickRep: myOrd === repOrd, pickTag: myTag9,
           selRing: (myTag9 !== undefined && selTags9.has(myTag9)) || undefined,
+          selBy: myTag9 !== undefined ? selBy9.get(myTag9) : undefined,
           drawK: bldDrawK9(shapeKind, FOOTPRINT[unit]?.[0] ?? 3, BLD_DRAW_TUNE[shapeKind] ?? 1) * (BLD_DRAW_TUNE[shapeKind] ?? 1),
           /* 땅에 앉은 건물은 그림자를 안 진다(요청: 건물 바닥 그림자는 제거) —
              건물은 발자국이 곧 제 자리라 바닥 타원이 정보를 더하지 않고, 모델
@@ -7010,6 +7019,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         ...(shapeKind ? { drawK: bldDrawK9(shapeKind, fpG9[0], BLD_DRAW_TUNE[shapeKind] ?? 1) * (BLD_DRAW_TUNE[shapeKind] ?? 1) } : {}),
         color: modeColor(g9.raw, teamG9), alpha: GHOST_ALPHA9 * fadeG9, noShadow: true,
         platePts: pts9, plateAlpha: GHOST_PLATE_A9 * fadeG9,
+        ghostRaw: g9.raw,   // 분할 칸은 제 사람의 고스트만(메인 splitPaint9)
       });
     }
     }
@@ -8588,6 +8598,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       ...((legK9 !== null || kind0 === "tanksiege") && !markerView
         ? { attach: "tanksiegelegs", attach2: "tanksiegelegsF", attachK: 1 } : {}),
       selRing: selNow || undefined,
+      selBy: selNow ? selBy9.get(e.tag) : undefined,
       // 보임 토글이면 만피여도 표시(요청: 모든 유닛·건물 다 표시).
       hpFrac: Math.max(0.04, Math.min(1, hpNow / Math.max(1, hpFull))),
       hpShow: hurtAt >= 0 && t - hurtAt <= HP_BAR_SEC,
