@@ -14451,6 +14451,14 @@ export default function ReplayMotionPlayer({
           (ty: number) => (ty / gh - 0.5) * mh9 * zc9 + mh9 / 2 + band9 + pan9.y, kx9);
         fctx9.restore();
       }
+      /* ★ 칸 미니맵의 상한은 그 칸의 **3×3 타일**이다(2026-09, 요청: "분할창 미니맵크기는 3X3타일정도로 최대를 정해야할듯 너무
+         내용이 가려져서") — 칸의 한 타일이 화면에서 몇 px 인지(칸 배율 zc9 의 타일 자 · 화면 px)를 그 칸 미니맵에 적고 CSS 가
+         `3 × 그 값`으로 죈다. 바뀐 때만 적는다(스타일 쓰기는 매 프레임 하면 값이 든다). */
+      const mcv9 = splitMiniRef9.current.get(cell9.raw);
+      if (mcv9) {
+        const tp9 = `${((cw9 * zc9) / gw / kx09).toFixed(1)}px`;
+        if (mcv9.dataset.tile !== tp9) { mcv9.dataset.tile = tp9; mcv9.style.setProperty("--split-tile", tp9); }
+      }
       const pa19 = pNow();
       SPLIT_M9.span = `${(wf9 * gw).toFixed(0)}×${(hf9 * gh).toFixed(0)}타일 ${zc9.toFixed(2)}배`;
       SPLIT_M9.paint += pa19 - pa09;
