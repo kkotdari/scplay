@@ -1867,14 +1867,17 @@ export function pLimb(
      그 안에 넣는다(높이는 그대로라 발이 안 뜬다). */
 export const LEG_STANCE9 = 0.3;
 const LEG_REACH9 = 0.96;
+/** 걸음의 **뒷다리**는 이만큼 더 뒤로 뻗는다(2026-10, 요청: "보병들 걸을때 다리 뒤로 더 뻗게") — 뒷다리는 다 펴도 된다(상한 1.0 · 앞다리만 0.96). */
+const LEG_BACK_K9 = 1.6;
+const legSt9 = (st: number): number => (st < 0 ? st * LEG_BACK_K9 : st);
 /** 두 관절 사이 거리 — 설계 자(z 를 Z8 로 되돌림). jointBetween 이 푸는 자와 같다. */
 function legLenD9(a: [number, number, number], b: [number, number, number]): number {
   return Math.hypot(b[0] - a[0], b[1] - a[1], (b[2] - a[2]) / Z8);
 }
 /** 발목이 고관절에서 두 마디 합의 LEG_REACH9 밖이면 수평 몫만 당긴다 — 돌려주는 값은 [새 발목, 당긴 x, 당긴 y]. */
-function legCap9(hip: [number, number, number], ank: [number, number, number], La: number, Lc: number):
+function legCap9(hip: [number, number, number], ank: [number, number, number], La: number, Lc: number, reach = LEG_REACH9):
   [[number, number, number], number, number] {
-  const cap9 = LEG_REACH9 * (La + Lc);
+  const cap9 = reach * (La + Lc);
   const dz9 = (ank[2] - hip[2]) / Z8;
   const hx9 = ank[0] - hip[0]; const hy9 = ank[1] - hip[1];
   const h9 = Math.hypot(hx9, hy9);
@@ -1965,9 +1968,9 @@ export function protossLegs(
     /* 공격 컷(2·4·5)은 한 걸음 더 벌린 자세다(2026-10, 요청: "질럿 공격시에도 서있을때처럼 발자세 취하고" · "다크도 질럿처럼 공격시 다리"). */
     const atk9 = poseNow === 2 || poseNow === POSE_ATK_L || poseNow === POSE_ATK_R;
     const sp9 = stride === 0 && tuck === 0 ? m * LEG_STANCE9 * (atk9 ? 1.6 : 1) : 0;
-    const stv9 = yv9(0, st * 1.2 + sp9);
+    const stv9 = yv9(0, legSt9(st) * 1.2 + sp9);
     const [ankleR9, cx9, cy9] = legCap9(hip,
-      [ankle0[0] + stv9[0], ankle0[1] + stv9[1], ankle0[2] + Math.max(0, st) * 0.16], Lt9, Ls9);
+      [ankle0[0] + stv9[0], ankle0[1] + stv9[1], ankle0[2] + Math.max(0, st) * 0.16], Lt9, Ls9, st < 0 ? 1 : LEG_REACH9);
     const kh9 = yv9(0, 1);
     const knee: [number, number, number] = st === 0 && sp9 === 0 ? knee0 : jointBetween(hip, ankleR9, Lt9, Ls9, [kh9[0], kh9[1], 0.1]);
     /** 무릎을 축으로 한 접기(위 tuck) — 정강이·발·발가락이 모두 이 손을 지난다. */
@@ -2006,7 +2009,7 @@ export function protossLegs(
         ankle[2] + rz9 + ((sdz9 / sl9) * rl9 - rz9) * ANKLE_FLAT9,
       ];
     };
-    const toeY9 = yw9([m * P_TOE_X9, 0.5 - P_LEG_BACK9 + st * 1.2 + sp9, Z(0.15) + Math.max(0, st) * 0.12]);
+    const toeY9 = yw9([m * P_TOE_X9, 0.5 - P_LEG_BACK9 + legSt9(st) * 1.2 + sp9, Z(0.15) + Math.max(0, st) * 0.12]);
     const toe: [number, number, number] = footAt9(tuckAt9([toeY9[0] + cx9, toeY9[1] + cy9, toeY9[2]]));
     /* 하지가 허벅지보다 굵다(요청) — 허벅지 0.6, 정강이 0.72, 발목 0.58. 마디마다
        배가 부풀게 mid를 따로 줘, 곧은 막대가 아니라 근육 붙은 마디로 읽힌다. */
@@ -2313,7 +2316,7 @@ export function suitLegJoints9(m: -1 | 1, spread: number, stride = 0, zk = 1): {
   const Lt9 = legLenD9(hip, knee0);
   const Ls9 = legLenD9(knee0, ankle0);
   /* 테란 보병은 선 자세에서 앞뒤로 안 짚는다(2026-10, 요청: "테란 보병들은 서있을때 다리 앞뒤는 아니야") — LEG_STANCE9 는 프로토스만. */
-  const [ankle] = legCap9(hip, [ankle0[0], ankle0[1] + st * 1.35, ankle0[2] + Math.max(0, st) * 0.2112], Lt9, Ls9);
+  const [ankle] = legCap9(hip, [ankle0[0], ankle0[1] + legSt9(st) * 1.35, ankle0[2] + Math.max(0, st) * 0.2112], Lt9, Ls9, st < 0 ? 1 : LEG_REACH9);
   const knee: [number, number, number] = st === 0 ? knee0 : jointBetween(hip, ankle, Lt9, Ls9, [0, 1, 0.165]);
   return { hip, knee, ankle };
 }
