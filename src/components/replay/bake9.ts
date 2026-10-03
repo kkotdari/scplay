@@ -1875,6 +1875,9 @@ const P_TOE_X9 = 0.49;
 /** 다리 굵기 배수 — 수직으로 모인 두 다리가 서로 붙지 않게(요청: "다리두께 조절이 필요하면 좀 얇게 바꿔도 되고"). 허벅지·정강이·
  *  소매에만(발은 이미 작다) · 유닛마다의 thin 위에 곱한다. */
 const P_LEG_THIN9 = 0.8;
+/** 다리 통째 요잉(도) — 발끝이 살짝 바깥을 본다(2026-09, 요청: "다리를 통째로 요잉해서 발끝이 살짝씩만 밖을 향하게 · 걸을때도 그 방향으로
+ *  발이 나가게 정말 살짝만"). 고관절의 세로축으로 무릎·발목·발끝·발가락·걸음 방향을 함께 돌린다. */
+const P_LEG_YAW9 = 7;
 export function protossLegs(
   thighFill?: string, shinFill?: string, lift = 0, shrink = 1,
   /** 걸음 몫(요청: 애니메이션) — 부호가 컷(1/3)에서 오므로 두 컷이 서로 거울이다. */
@@ -1911,7 +1914,15 @@ export function protossLegs(
     /* ★ 걸음에도 **허벅지·정강이 길이는 그대로**(요청: 질럿·템플러류도 같은 함수로) —
        suitLegs와 같은 결이다. 발목·발끝만 보폭대로 옮기고 무릎은 서 있을 때의 두 마디
        길이로 푼다(jointBetween, 앞으로 굽힘). */
-    const ankle0: [number, number, number] = [m * P_ANKLE_X9, -0.75 - P_LEG_BACK9, Z(1)];
+    /* 다리 통째 요잉(위 P_LEG_YAW9) — 고관절 세로축 둘레로 (x, y) 를 돌린다. +y(앞)가 바깥(m 쪽)으로 기운다. 회전이라 마디 길이는 그대로다. */
+    const ya9 = (m * P_LEG_YAW9 * Math.PI) / 180;
+    const yc9 = Math.cos(ya9); const ys9 = Math.sin(ya9);
+    const yv9 = (dx: number, dy: number): [number, number] => [dx * yc9 + dy * ys9, -dx * ys9 + dy * yc9];
+    const yw9 = (q: [number, number, number]): [number, number, number] => {
+      const [rx9, ry9] = yv9(q[0] - hip[0], q[1] - hip[1]);
+      return [hip[0] + rx9, hip[1] + ry9, q[2]];
+    };
+    const ankle0: [number, number, number] = yw9([m * P_ANKLE_X9, -0.75 - P_LEG_BACK9, Z(1)]);
     // 무릎 높이에서 엉덩이~발목 직선의 y — 굽힘(bend)이 0이면 여기, 1이면 본디 자리(0.3).
     const kneeLineY9 = hip[1] + (ankle0[1] - hip[1]) * ((hip[2] - Z(2.2)) / Math.max(1e-6, hip[2] - ankle0[2]));
     /* ★ **대퇴는 거의 수직, 정강이·발이 뒤에서 > 꼴**(2026-09, 요청: "허리를 폈으니 대퇴도 거의 수직으로 세우고 하지와 발뼈만
@@ -1920,11 +1931,14 @@ export function protossLegs(
        그대로라 정강이가 뒤로 눕고 발이 앞으로 나가 옆에서 > 로 읽힌다. kneeLineY9 는 걸음 풀이의 자라 남긴다. */
     const KNEE_FWD9 = 0.12;
     void kneeLineY9;
-    const knee0: [number, number, number] = [m * P_KNEE_X9, hip[1] + KNEE_FWD9 * bend, Z(2.2)];
+    const knee0: [number, number, number] = yw9([m * P_KNEE_X9, hip[1] + KNEE_FWD9 * bend, Z(2.2)]);
     const Lt9 = Math.hypot(knee0[0] - hip[0], knee0[1] - hip[1], knee0[2] - hip[2]);
     const Ls9 = Math.hypot(ankle0[0] - knee0[0], ankle0[1] - knee0[1], ankle0[2] - knee0[2]);
-    const ankleR9: [number, number, number] = [ankle0[0], ankle0[1] + st * 1.2, ankle0[2] + Math.max(0, st) * 0.16];
-    const knee: [number, number, number] = st === 0 ? knee0 : jointBetween(hip, ankleR9, Lt9, Ls9, [0, 1, 0.1]);
+    // 걸음도 발끝 방향(돌린 +y)으로 나간다.
+    const stv9 = yv9(0, st * 1.2);
+    const ankleR9: [number, number, number] = [ankle0[0] + stv9[0], ankle0[1] + stv9[1], ankle0[2] + Math.max(0, st) * 0.16];
+    const kh9 = yv9(0, 1);
+    const knee: [number, number, number] = st === 0 ? knee0 : jointBetween(hip, ankleR9, Lt9, Ls9, [kh9[0], kh9[1], 0.1]);
     /** 무릎을 축으로 한 접기(위 tuck) — 정강이·발·발가락이 모두 이 손을 지난다. */
     const tuckAt9 = (q: [number, number, number]): [number, number, number] => {
       if (tuck === 0) return q;
@@ -1961,7 +1975,7 @@ export function protossLegs(
         ankle[2] + rz9 + ((sdz9 / sl9) * rl9 - rz9) * ANKLE_FLAT9,
       ];
     };
-    const toe: [number, number, number] = footAt9(tuckAt9([m * P_TOE_X9, 0.5 - P_LEG_BACK9 + st * 1.2, Z(0.15) + Math.max(0, st) * 0.12]));
+    const toe: [number, number, number] = footAt9(tuckAt9(yw9([m * P_TOE_X9, 0.5 - P_LEG_BACK9 + st * 1.2, Z(0.15) + Math.max(0, st) * 0.12])));
     /* 하지가 허벅지보다 굵다(요청) — 허벅지 0.6, 정강이 0.72, 발목 0.58. 마디마다
        배가 부풀게 mid를 따로 줘, 곧은 막대가 아니라 근육 붙은 마디로 읽힌다. */
     // 굵기 ×1.25(사진 대조 — 질럿1·4의 다리 갑판은 지금보다 한 뼘 굵다).
@@ -2017,13 +2031,13 @@ export function protossLegs(
     /* 발가락도 **걸음 몫을 탄다**(지적: "질럿 다크 다리가 부품이 몇개는 따로노는데")
        — 무릎·발목·발끝만 stride를 받고 이 두 갈래는 상수 자리에 남아 있어서, 다리가
        앞으로 나가면 발가락만 제자리에 서 있었다. 발목·발끝과 **같은 식**을 쓴다. */
-    const [fx, fy, fz] = footAt9(tuckAt9([m * (P_TOE_X9 + 0.1), 0.28 - P_LEG_BACK9 + st * 1.2, Z(0.02) + Math.max(0, st) * 0.12]));
+    const [fx, fy, fz] = footAt9(tuckAt9(yw9([m * (P_TOE_X9 + 0.1), 0.28 - P_LEG_BACK9 + st * 1.2, Z(0.02) + Math.max(0, st) * 0.12])));
     for (const s9 of [-1, 1] as const) {
       out.push(...paint(tagKey(spirePillar({
         x: 0, y: 0, h: 0.8, w: 1, segs: 2, sides: 6, oval: 1.8, caps: "none",
         // 발가락 둘 — 가늘고 끝이 뾰족하게(요청). 벌림 0.32 → 0.24, 굵기 0.24 → 0.15, 끝 0.02.
         path: (t9: number): [number, number, number] =>
-          [fx + s9 * (0.08 + 0.24 * t9), fy + 0.72 * t9, fz + 0.16 - 0.08 * t9],
+          ((): [number, number, number] => { const [ox9, oy9] = yv9(s9 * (0.08 + 0.24 * t9), 0.72 * t9); return [fx + ox9, fy + oy9, fz + 0.16 - 0.08 * t9]; })(),
         widthOf: (t9: number): number => 0.15 - 0.13 * t9,
       }), -0.9 + depthNow(fx + s9 * 0.26, fy + 0.4) * 0.25), shinFill));
     }
