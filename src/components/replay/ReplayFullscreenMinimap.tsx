@@ -134,7 +134,10 @@ export default function ReplayFullscreenMinimap({
   useEffect(() => {
     if (!grid || !(grid.width > 0) || !(grid.height > 0)) { bgRef.current = null; return undefined; }
     const cv = document.createElement("canvas");
-    const px = 3;
+    /* ★ 타일당 화소는 **판 크기에 맞춘다**(2026-09, 지적: "미니맵이 흐려보이는데 왜그러지") — 옛 3px 은 128타일 맵이 384px 이라,
+       PC 배수(--dk 1.8)로 커진 판(CSS 230px × 배킹 2 = 460px)보다 작아 **늘려 그려** 흐렸다. 긴 변이 1024px 남짓이 되게
+       잡고(128타일 → 8px · 256타일 → 4px) 3~8px 로 죈다 — 그 위는 메모리만 든다(1024² = 4MB). */
+    const px = Math.max(3, Math.min(8, Math.round(1024 / Math.max(grid.width, grid.height))));
     cv.width = grid.width * px;
     cv.height = grid.height * px;
     const c9 = cv.getContext("2d");
@@ -192,7 +195,8 @@ export default function ReplayFullscreenMinimap({
       retryRef.current = requestAnimationFrame(() => paint(zoom, pan));
       return;
     }
-    const B = Math.min(2, window.devicePixelRatio || 1);
+    /* 배킹 상한 3(옛 2) — 폰·레티나 3배 화면에서 2배 배킹은 그만큼 늘려 보여 흐렸다. 판이 작아 값은 거의 없다. */
+    const B = Math.min(3, window.devicePixelRatio || 1);
     if (cv.width !== Math.round(w * B) || cv.height !== Math.round(h * B)) {
       cv.width = Math.round(w * B);
       cv.height = Math.round(h * B);
@@ -214,6 +218,7 @@ export default function ReplayFullscreenMinimap({
     const bg = bgRef.current;
     const im = imgRef.current;
     if (bg) {
+      c.imageSmoothingEnabled = true; c.imageSmoothingQuality = "high";
       c.drawImage(bg, 0, 0, w, h);
     } else if (im) {
       c.globalAlpha = 0.85;

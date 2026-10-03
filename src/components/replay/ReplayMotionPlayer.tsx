@@ -9651,6 +9651,24 @@ export default function ReplayMotionPlayer({
     sup: supplyNow.get(raw9) ?? null, apm: apmNow.get(raw9) ?? bases.find((b9) => b9.key === raw9)?.apm ?? null,
     kd: kdNow.get(raw9) ?? null,
   });
+  /** 현황 한 줄 — 일꾼 · 자원 · 인구 · K/D · APM. 툴박스 정보 판과 분할 칸 머리(PC)가 같은 꼴을 나눠 쓴다(2026-09, 요청: "PC에서
+   *  헤더에 유저창과 똑같이 일꾼부터 apm까지 표시 모양도 똑같이"). 값 칸(.scr-who-v)은 칸마다 폭을 못 박아(ch) 숫자가 갈려도
+   *  옆 칸이 안 움직인다(요청: "데이터에 따라 움직이지 않게 그리드화해서 각 스탯정보칸 너비가 안변하게"). */
+  const whoStats9 = (c9: ReturnType<typeof capOf9> | null, cls9: string) => (
+    <div className={cx("scr-who-stats", cls9)}>
+      <span title="일꾼"><b>일꾼</b><i className="scr-who-v">{c9?.worker ?? "–"}</i></span>
+      <span title="자원(광물/가스)"><b>자원</b>
+        <i className="scr-who-v">
+          <span className="scr-motion-stat-min">{c9?.res ? c9.res[0] : "–"}</span>
+          <span className="scr-tb-who-sl">/</span>
+          <span className="scr-motion-stat-gas">{c9?.res ? c9.res[1] : "–"}</span>
+        </i>
+      </span>
+      <span title="인구"><b>인구</b><i className="scr-who-v">{c9?.sup ? `${c9.sup[0]}/${c9.sup[1]}` : "–"}</i></span>
+      <span title="K/D"><b>K/D</b><i className="scr-who-v">{c9?.kd ? `${c9.kd[0]}/${c9.kd[1]}` : "–"}</i></span>
+      <span title="APM"><b>APM</b><i className="scr-who-v">{c9?.apm ?? "–"}</i></span>
+    </div>
+  );
   const castCap9 = capRaw9 !== null ? capOf9(capRaw9, trackRaw ? `t:${trackRaw}` : splitOn9 ? `s:${capRaw9}` : `c:${castIdx9}`) : null;
   /** 추적 켜기·끄기 — 시야(viewRaw)를 함께 끌고 다닌다. 끄면 시야도 전체로 돌아간다. */
   /** 추적을 끈다 — **보던 자리에 머문다**(요청: "추적 보다가 끄면 맵 위치가 기존에 보던 곳으로 돌아가는데
@@ -16644,17 +16662,7 @@ export default function ReplayMotionPlayer({
           {capGhosts9.map((g9, i9) => <span key={i9} className="scr-tb-who-txt scr-tb-who-ghost" aria-hidden>{g9}</span>)}
         </span>
       </div>
-      <div className="scr-tb-who-st">
-        <span title="일꾼"><b>일꾼</b>{dockCap9?.worker ?? "–"}</span>
-        <span title="자원(광물/가스)"><b>자원</b>
-          <span className="scr-motion-stat-min">{dockCap9?.res ? dockCap9.res[0] : "–"}</span>
-          <span className="scr-tb-who-sl">/</span>
-          <span className="scr-motion-stat-gas">{dockCap9?.res ? dockCap9.res[1] : "–"}</span>
-        </span>
-        <span title="인구"><b>인구</b>{dockCap9?.sup ? `${dockCap9.sup[0]}/${dockCap9.sup[1]}` : "–"}</span>
-        <span title="K/D"><b>K/D</b>{dockCap9?.kd ? `${dockCap9.kd[0]}/${dockCap9.kd[1]}` : "–"}</span>
-        <span title="APM"><b>APM</b>{dockCap9?.apm ?? "–"}</span>
-      </div>
+      {whoStats9(dockCap9, "scr-tb-who-st")}
       </div>
     </div>
   );
@@ -17398,10 +17406,10 @@ export default function ReplayMotionPlayer({
                     aria-label={`${cap9.text} 화면 — 누르면 아래 독에 이 사람`}
                     onClick={() => { setSplitPick9((p9) => (p9 === c9.raw ? null : c9.raw)); setPicked(null); }}
                   >
-                    {/* 칸 머리 — 이름 칩 하나다(2026-09, 요청: "헤더의 수치들 제거하고 음영 제거" · 옛 자원·인구·APM·K/D 는 칸을 누르면
-                        아래 정보 판이 그 사람 것으로 든다). */}
+                    {/* 칸 머리 — 이름 칩 + 현황(PC 만 · 폰은 CSS 가 숨긴다 · 칸을 누르면 아래 정보 판이 그 사람 것으로 든다). */}
                     <span className="scr-split-cap">
                       <span className="scr-split-chip" style={cap9.chip}>{cap9.text}</span>
+                      {whoStats9(cap9, "scr-split-st")}
                     </span>
                   </button>
                 );

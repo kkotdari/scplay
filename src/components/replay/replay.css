@@ -3401,6 +3401,16 @@
   font-size: 11.5px; font-weight: 600; line-height: 1.2; white-space: nowrap; font-variant-numeric: tabular-nums;
 }
 .scr-tb-who-st > span { display: inline-flex; align-items: baseline; gap: 2px; }
+/* ★ 현황 칸은 폭을 못 박는다(2026-09, 요청: "데이터에 따라 움직이지 않게 그리드화해서 각 스탯정보칸 너비가 안변하게(유저창과 헤드 모두)")
+   — 값(.scr-who-v)마다 최소 폭을 ch 로 잡는다(tabular-nums 라 자릿수가 곧 폭): 일꾼 3 · 자원 9 · 인구 7 · K/D 5 · APM 3.
+   넘치면 늘어나지만 평소엔 숫자가 갈려도 옆 칸이 안 밀린다. 정보 판(.scr-tb-who-st)·분할 칸 머리(.scr-split-st)가 같은 꼴이다. */
+.scr-who-stats { font-variant-numeric: tabular-nums; }
+.scr-who-v { display: inline-block; font-style: normal; text-align: left; white-space: nowrap; }
+.scr-who-stats > span:nth-child(1) .scr-who-v { min-width: 3ch; }
+.scr-who-stats > span:nth-child(2) .scr-who-v { min-width: 9ch; }
+.scr-who-stats > span:nth-child(3) .scr-who-v { min-width: 7ch; }
+.scr-who-stats > span:nth-child(4) .scr-who-v { min-width: 5ch; }
+.scr-who-stats > span:nth-child(5) .scr-who-v { min-width: 3ch; }
 .scr-tb-who-st b { font-size: 8px; font-weight: 600; opacity: 0.62; margin-right: 1px; }
 .scr-tb-who-sl { opacity: 0.55; margin: 0 1px; }
 /* 좁은 판(폰)은 라벨을 접는다 — 값만 남고 라벨은 title 이 든다(두 줄 꼴을 지킨다). */
@@ -3418,6 +3428,17 @@
   .scr-tb-who-name { font-size: 12px; }
   .scr-tb-who-st { font-size: 13px; gap: 10px; }
   .scr-tb-who-st b { font-size: 9px; }
+}
+/* ★ 폰은 정보 판이 **단추 줄 위의 제 줄**이다(2026-09, 요청: "모바일에서는 유저창을 조작창위에 배치(돌출형이 아닌 아예 위에 프레임을
+   늘려서 거기에 넓게 배치)") — 단추 줄 격자의 1행을 온 폭으로 쓰고 아이콘 줄·꼬리는 2행 양 끝으로 내려간다. 솟은 쇠 조각(::before ·
+   ::after)과 음수 여백은 걷는다 — 쇠판이 그만큼 키가 늘어 판을 품는다. 넓어진 만큼 현황 라벨도 다시 선다(컨테이너 230px 위). */
+@media (max-width: 700px) {
+  .scr-tb-btnrow { row-gap: 6px; }
+  .scr-tb-btnrow > .scr-tb-who { grid-column: 1 / -1; grid-row: 1; max-width: none; margin: 0; padding: 0; }
+  .scr-tb-btnrow > .scr-motion-mapbtns { grid-column: 1; grid-row: 2; }
+  .scr-tb-btnrow > .scr-tb-tail { grid-column: 3; grid-row: 2; }
+  .scr-tb-who::before, .scr-tb-who::after { display: none; }
+  .scr-tb-who-in { margin-bottom: 0; }
 }
 .scr-tb-seek { display: flex; align-items: center; min-width: 0; }
 /* 재생 줄 맨 왼쪽의 배속 단추 한 칸(2026-09, 요청: "배속 버튼은 플레이버튼 왼쪽으로") — 줄지 않는다. */
@@ -4156,8 +4177,8 @@
   border: 2px solid; border-color: inherit;
 }
 .scr-split-cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-/* ★ 칸 머리는 **이름 칩 하나**다(2026-09, 요청: "헤더의 수치들 제거하고 음영 제거") — 옛 반투명 섬 바탕·글자 그림자·
-   자원·인구·APM·K/D 를 걷었다(수치는 칸을 누르면 아래 정보 판이 든다). 칩은 왼위 귀퉁이에서 한 뼘 띄운다. */
+/* ★ 칸 머리는 이름 칩(+ PC 는 현황 — 아래 .scr-split-st)이다(2026-09, 요청: "헤더의 수치들 제거하고 음영 제거" → PC 에는 도로
+   현황을 칩과 같은 꼴로 · 옛 반투명 섬 바탕·글자 그림자는 그대로 걷혀 있다). 칩은 왼위 귀퉁이에서 한 뼘 띄운다. */
 .scr-split-cap {
   position: absolute; left: calc(3px * var(--dk)); top: calc(3px * var(--dk)); z-index: 1;
   max-width: calc(100% - 6px * var(--dk)); box-sizing: border-box; display: flex; min-width: 0;
@@ -4167,9 +4188,20 @@
 /* 이름은 임자색 둥근 네모 칩이다(2026-09, 요청: "분할헤더도 임자색 둥근사각형안에 넣고 기존 색 네모 제거 · 둥근사각 래디우스
    작게") — 글자색은 칩이 그 색의 밝기로 정한다. */
 .scr-split-chip {
-  display: inline-block; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+  display: inline-block; flex: none; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
   padding: 0 calc(3px * var(--dk)); border-radius: 2px;
 }
+/* ★ PC 칸 머리에는 이름 칩 옆에 현황(일꾼 ~ APM)이 선다(2026-09, 요청: "PC에서 헤더에 유저창과 똑같이 일꾼부터 apm까지 표시 모양도
+   똑같이 · 폰트만 닉네임 수준 · 배경도 유저스탯쪽만 따로 반투명 네모(닉네임과 같은 래디우스와 높이)") — 글자 크기·줄 높이는 칸 머리
+   (.scr-split-cap)의 것을 물려받아 칩과 키가 같고, 바탕·둥글기·좌우 여백도 칩과 같다. 라벨은 정보 판처럼 값 앞에 작게. 폰은 숨긴다. */
+.scr-split-st {
+  display: flex; align-items: baseline; gap: 0.6em; flex: 0 1 auto; min-width: 0; overflow: hidden;
+  margin-left: calc(3px * var(--dk)); padding: 0 calc(3px * var(--dk)); border-radius: 2px;
+  background: rgba(0, 0, 0, 0.5); color: #e8eef6; font-weight: 600;
+}
+.scr-split-st > span { display: inline-flex; align-items: baseline; gap: 0.2em; }
+.scr-split-st b { font-size: 0.72em; font-weight: 600; opacity: 0.62; }
+@media (max-width: 700px) { .scr-split-st { display: none; } }
 
 /* ★ 독 줄 오른쪽의 음각 글귀(2026-09, 요청: "독 좌우 몇 px이상 남는경우 음각으로 scplay.vercel.app    SINCE 2026 추가(우측에만)")
    — 쇠 바탕에 판 글자다: 글자는 바탕보다 어둡고, 아래 가장자리에 밝은 한 줄(파인 홈의 아래 입술) · 위에 어두운 한 줄을 얹는다.
