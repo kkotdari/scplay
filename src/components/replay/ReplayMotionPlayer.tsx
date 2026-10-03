@@ -250,6 +250,9 @@ const DOCK_MARK_PAD9 = 40;
 const SPLIT_EDGE9 = 0.12;
 /* 분할 칸의 짧은 축이 덮는 최소 타일 = 중계 화면 폭(타일)의 이 몫(splitPaint9 의 ★★). */
 const SPLIT_SPAN_K9 = 0.75;
+/* 분할 칸 배율을 위 둘(담기 · 최소 타일)로 낸 뒤 한 번 더 당기는 몫(2026-10, 지적: "분할창 보이는 영역이 이제 너무 넓어짐" →
+   "살짝 줄여야할듯") — 칸에 보이는 타일이 가로·세로 다 1/1.2 로 준다. */
+const SPLIT_ZOOM_K9 = 1.2;
 /** 분할보기 칸의 오림 네모(유닛 캔버스 CSS px · x0 y0 x1 y1) — 칸을 칠하는 동안만 서고, 붓의 화면 걸러내기(inView0)가 이 안의
  *  몸만 그린다. 칸은 제 실제 배율(낮다)로 칠하므로 판에는 그 칸보다 넓은 땅이 드는데, 그 몫을 안 그려야 칸 수만큼 값이 안 붙는다. */
 let PAINT_CLIP9: [number, number, number, number] | null = null;
@@ -14359,7 +14362,7 @@ export default function ReplayMotionPlayer({
       const sc9 = Math.max(sw9 / cwC9, sh9 / chC9);
       const span9 = (gw / z9) * SPLIT_SPAN_K9;   // 칸의 짧은 축이 덮을 최소 타일
       const zCap9 = Math.min((wC9 * gw) / (cw9 * span9), (hC9 * gh) / (mh9 * span9));
-      const zc9 = Math.max(1, Math.min(z9 / sc9, zCap9));
+      const zc9 = Math.max(1, Math.min(z9 / sc9, zCap9) * SPLIT_ZOOM_K9);
       const wf9 = wC9 / (cw9 * zc9);   // 그 칸이 덮는 지도 분수 폭·높이
       const hf9 = hC9 / (mh9 * zc9);
       /* 카메라 — 그 사람의 자리. 창 안(가장자리 SPLIT_EDGE9 몫 안쪽)에 있는 동안은 붙들고, 벗어나면 한가운데로 데려온다
