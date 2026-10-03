@@ -24884,10 +24884,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ? [m9 * 1.15, 2.64, 4.04]
         /* ★ 평소 손은 몸 곁이다(2026-09, 요청: "질럿 팔을 너무 벌리고 있는듯 평소에") — 손 x 2.0 은 어깨(0.82)보다 1.18 바깥이라
            팔이 통째로 벌어져 섰다. 평소(g9 0)는 1.3 으로 당기고 겨눔(g9 1)은 옛 2.06 그대로 · 팔꿈치 힌트도 평소엔 덜 바깥(0.35). */
-        : [m9 * (1.3 + g9 * 0.76), 0.75 + aY + g9 * 0.58, 3.2 + g9 * 0.76];
+        /* ★★ 평소·걸음은 팔을 **아래로 늘어뜨린다 — 살짝 굽힌 채**(2026-09, 요청: "팔도 자연스럽게 아래로 늘어뜨리고(살짝
+           굽힌채) 그리고 걸을때도 사람처럼 팔을 앞뒤로 적절히 흔들면서 걷기") — 손이 어깨에서 2.3(두 마디 합 2.5 의 92%)이라
+           팔꿈치가 조금만 꺾인다(힌트는 뒤 — 팔꿈치가 뒤로 빠지고 하완이 앞을 본다). 걸음은 진자다: 손이 앞뒤로 aY 만큼
+           나가며 그 몫의 0.25 만큼 오른다(늘어진 팔이 어깨를 축으로 도는 호). */
+        : g9 ? [m9 * 2.06, 0.75 + aY + 0.58, 3.96]
+          : [m9 * 1.05, 0.62 + aY, 2.26 + 0.25 * Math.abs(aY)];
       /* 칼 — 손에서 이어 나간다. 겨눔에서는 앞·위로 서 있고(칼끝을 든 자세),
          잽에서는 **수평으로** 앞으로 내지른다(칼끝 높이가 손과 거의 같다). */
-      const el = jointBetween(sh, hd, 1.2, 1.3, [m9 * (0.35 + g9 * 0.45), -0.5, -0.3]);
+      const el = jointBetween(sh, hd, 1.2, 1.3, g9 ? [m9 * 0.8, -0.5, -0.3] : [m9 * 0.2, -1, 0]);
       return pRigid9(ZEALOT_LEAN9, 0, sh[2], (): ShapeFace[] => [
         ...paintBase(pLimb(sh, el, 0.44), "#3a4258"),
         ...paintBase(pLimb(el, hd, 0.6), P_GOLD),
@@ -24899,10 +24904,23 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ...((): ShapeFace[] => {
           const dx = hd[0] - el[0]; const dy = hd[1] - el[1]; const dz = hd[2] - el[2];
           const L = Math.hypot(dx, dy, dz) || 1;
-          const b0: [number, number, number] = [hd[0] + (dx / L) * 0.05, hd[1] + (dy / L) * 0.05, hd[2] + (dz / L) * 0.04 + 0.08];
-          const b1: [number, number, number] = [hd[0] + (dx / L) * 2.8, hd[1] + (dy / L) * 2.8, hd[2] + (dz / L) * 2.24 + 0.08];
-          if (m9 > 0) markMuzzle9(b1[0], b1[1], b1[2]);   // 검 끝
-          return tagKey(plasmaBlade(b0, b1, 0.95, P_PLASMA, 0.8),
+          /* ★★ 칼은 **공격 컷에서만** 나온다(2026-09, 요청: "평소에는 칼이 안나오고 끝만 살짝 에너지가 보이는 정도엿다가
+             공격시에만 칼이나오더라고") — 평소·걸음(g9 0)은 손등 끝에 짧은 빛 한 토막(0.16~0.72)만 남는다(같은 플라즈마
+             날이라 번짐도 같이 탄다). 공격 컷(2·4·5)이 2.8 짜리 칼이다. */
+          const bl9 = g9 ? 2.8 : 0.72;
+          const bs9 = g9 ? 0.05 : 0.16;   // 평소 빛은 주먹(반지름 0.24) 밖에서 시작해야 보인다
+          const b0: [number, number, number] = [hd[0] + (dx / L) * bs9, hd[1] + (dy / L) * bs9, hd[2] + (dz / L) * bs9 * 0.8 + 0.08];
+          const b1: [number, number, number] = [hd[0] + (dx / L) * bl9, hd[1] + (dy / L) * bl9, hd[2] + (dz / L) * bl9 * 0.8 + 0.08];
+          /* ⚠ 총구표는 자세 0 에서 굽히는데 그 자세에는 칼이 없다 — 오른칼 잽 컷의 칼끝을 손으로 셈해 적는다
+             (어깨가 못 박혀 있으므로 같은 pRigid9 몫을 탄다). */
+          if (m9 > 0) {
+            const jh9: [number, number, number] = [1.15, 2.64, 4.04];
+            const je9 = jointBetween(sh, jh9, 1.2, 1.3, [0.8, -0.5, -0.3]);
+            const jx = jh9[0] - je9[0]; const jy = jh9[1] - je9[1]; const jz = jh9[2] - je9[2];
+            const jl = Math.hypot(jx, jy, jz) || 1;
+            markMuzzle9(jh9[0] + (jx / jl) * 2.8, jh9[1] + (jy / jl) * 2.8, jh9[2] + (jz / jl) * 2.24 + 0.08);   // 검 끝
+          }
+          return tagKey(plasmaBlade(b0, b1, g9 ? 0.95 : 0.7, P_PLASMA, 0.8),
             depthNow((b0[0] + b1[0]) / 2, (b0[1] + b1[1]) / 2) * 1.6 + 1.2);
         })(),
       ]);
