@@ -6578,3 +6578,12 @@ divisor 1)에 싣고 같은 메시의 개체를 `drawArraysInstanced` 한 번으
 · 배지 `.scr-split-badge.is-atk|def|war`(빨강 공격 · 파랑 방어 · 주황 교전 · 칩과 같은 키 · 1초 깜빡임 `scr-duel-blink`).
 · 🔎 `node scripts/cast-plan.mjs` 의 새 셋(견제 = 상대역 B · 공격 · 교전 = war · 순환에는 상대역 없음) ·
   `perf-check --wide --warm 0 --glblit --deaths --shot x.png`(46초 난전에 두 칸 · 교전 배지).
+
+## 한 사람을 보여 주면 시야도 그 사람(팀)의 것이다 — 자동 중계 포함(2026-10)
+★ (요청: "한명보여주는경우(한명 선택하거나 자동에서 한명)도 시야는 개인으로해야해 미니맵도") — 옛 ★("중계는 시야(viewRaw)를 안
+건드린다 — 사건보다 1.5초 먼저 가므로 그 사람 눈에는 다가오는 적이 아직 안 보인다")를 되물렸다. `viewRawNow9 = viewRaw ?? (castOn &&
+!splitOn9 ? castRaw : null)` 이 viewTeam 을 낸다 — 큰 지도 안개·적 걸러내기·미니맵(안개·점)이 다 탄다. 개인 추적은 종전대로 toggleTrack 이
+viewRaw 를 그 사람으로 둔다 · 맞대결 분할은 칸마다 제 팀 시야다. 로스터의 -eye/-dim 표시는 손으로 고른 viewRaw 만 본다(자동은 칩 깜빡임).
+⚠ 시야는 엔진의 자라 **팀 단위**(teamOfRaw 1·2)다 — 2:2 에서는 같은 편의 눈이 함께 밝힌다 · 팀이 없는 프리포올은 관전자 시야.
+⚠ 사람이 갈릴 때마다 안개 갈래(fogKey)가 바뀌어 워커가 지어 둔 장을 버린다 — 그 값을 치르는 손질이다.
+🔎 `perf-check --wide --warm 0 --glblit --shot x.png`(자동) · `--track 정구`(개인) — 둘 다 큰 지도와 미니맵이 그 팀 시야다.

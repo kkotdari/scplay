@@ -9552,7 +9552,6 @@ export default function ReplayMotionPlayer({
   const linkAuto9 = initialTrack === CAST_AUTO_LINK9;
   const initialTrack9 = linkAuto9 ? null : (initialTrack ?? null);
   const [viewRaw, setViewRaw] = useState<string | null>(initialTrack9);
-  const viewTeam = viewRaw ? (teamOfRaw(viewRaw) ?? 0) : 0;
   /* ══ 선수 추적(요청: "로스터 각 멤버 왼쪽에 추적 버튼 추가 · 활성화시 해당유저의 시야
      적용 + 해당유저의 현재(마지막) 유닛/건물 선택 위치를 보여줌 · 배율은 기본 줌인 값")
      ═══════════════════════════════════════════════════════════════════════════════
@@ -9628,6 +9627,13 @@ export default function ReplayMotionPlayer({
     : splitSel9 ? bases.filter((b9) => splitSel9.includes(b9.key)) : bases), [duelKey9, splitSel9, bases]);
   const splitOnRef9 = useRef(false);
   splitOnRef9.current = splitOn9;
+  /* ★★ **한 사람을 보여 주면 시야도 그 사람(팀)의 것이다**(2026-10, 요청: "한명보여주는경우(한명 선택하거나 자동에서 한명)도
+     시야는 개인으로해야해 미니맵도") — 개인 추적은 toggleTrack 이 viewRaw 를 그 사람으로 둔다. 자동 중계는 여태 관전자 시야였다
+     (옛 ★: 사건보다 1.5초 먼저 가므로 그 사람 눈에는 다가오는 적이 아직 안 보인다) — 그 규약을 되물려 **중계가 고른 사람**의
+     시야로 그린다(맞대결 분할은 칸마다 제 팀 시야라 여기 안 든다). 큰 지도의 안개·적 걸러내기·미니맵(안개·점)이 다 이 값을 탄다.
+     ⚠ 시야는 엔진의 자라 **팀 단위**다(teamOfRaw 1·2 — 분할 칸과 같다) · 팀이 없는 프리포올은 관전자 시야로 남는다. */
+  const viewRawNow9 = viewRaw ?? (castOn && !splitOn9 ? castRaw : null);
+  const viewTeam = viewRawNow9 ? (teamOfRaw(viewRawNow9) ?? 0) : 0;
   /** ★ 지금 **카메라의 임자** — 손으로 켠 추적이 이기고, 없으면 중계가 고른 사람이다.
    *  아래 추적 기계(집은 자국·걷기·카메라)는 전부 이 하나를 본다. 로스터의 조준선 표시만
    *  trackRaw를 그대로 읽는다 — 개인 추적과 중계를 눈으로 갈라야 하기 때문이다. */
