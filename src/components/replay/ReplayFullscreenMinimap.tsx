@@ -116,6 +116,8 @@ export default function ReplayFullscreenMinimap({
   const bgRef = useRef<HTMLCanvasElement | null>(null);
   /** 안개 한 장 — 칸이 곧 화소다(가로×세로 타일). 늘려 깔면 가장자리가 부드럽다. */
   const fogRef = useRef<HTMLCanvasElement | null>(null);
+  /** 굽은 안개 판의 열쇠 — 같은 배열·같은 t 면 다시 안 굽는다. */
+  const fogKeyRef = useRef<{ e: unknown; v: unknown; t: number } | null>(null);
   /** 상자가 0일 때 다시 그리기를 예약해 둔 프레임 — 겹쳐 예약되지 않게 하나만 든다. */
   const retryRef = useRef(0);
   useEffect(() => () => cancelAnimationFrame(retryRef.current), []);
@@ -233,33 +235,71 @@ export default function ReplayFullscreenMinimap({
        ※ 점은 이미 재생기가 시점으로 걸러 넘긴다(안 보이는 적은 op에 아예 없다) —
          여기서 다시 지울 것이 없다. */
     if (fog && fog.w > 0 && fog.h > 0 && fog.explored.length === fog.w * fog.h) {
+      /* ★ 안개는 **칸의 3~4배로 굽고 가장자리를 세운다**(2026-09, 지적: "미니맵 흐림해결안됨 해상도가 낮나?") — 지형은 벡터라
+         선명한데, 안개를 타일 한 칸 = 1화소로 구워 판(PC 230px × 배킹 2)에 **4배 남짓 늘려** 깔아 경계가 흐린 계단으로 읽혔다.
+         이제 칸 값(a)을 먼저 내고, 하위 화소마다 이웃 넷을 bilinear 로 섞은 뒤 **단(0 · DIM · 1) 사이를 smoothstep 으로 조여**
+         경계를 곡선으로 세운다. 굽기는 안개 값이 바뀔 때만이다(같은 배열·같은 t 면 굽은 판을 다시 쓴다). */
+      const SS9 = Math.min(4, Math.max(2, Math.ceil((w * B) / fog.w)));
+      const fw9 = fog.w * SS9;
+      const fh9 = fog.h * SS9;
       let fc = fogRef.current;
-      if (!fc || fc.width !== fog.w || fc.height !== fog.h) {
+      if (!fc || fc.width !== fw9 || fc.height !== fh9) {
         fc = document.createElement("canvas");
-        fc.width = fog.w;
-        fc.height = fog.h;
+        fc.width = fw9;
+        fc.height = fh9;
         fogRef.current = fc;
+        fogKeyRef.current = null;
       }
+      const fk9 = fogKeyRef.current;
+      const fresh9 = !fk9 || fk9.e !== fog.explored || fk9.v !== fog.vis || fk9.t !== fog.t;
       const fx9 = fc.getContext("2d");
-      if (fx9) {
-        const img = fx9.createImageData(fog.w, fog.h);
-        const px9 = img.data;
+      if (fx9 && fresh9) {
         const n9 = fog.w * fog.h;
+        const av9 = new Float32Array(n9);
         for (let i = 0; i < n9; i += 1) {
           /* 밝힌 땅은 DIM, 못 밝힌 땅은 통짜다. 거기에 **지금 덮임**을 빼면 눈이
              닿은 자리가 그만큼 걷힌다 — 0~255 덮임이 그대로 가장자리 기울기가 된다. */
           const base = fog.explored[i] <= fog.t ? MINI_FOG_DIM : 1;
-          const a = base * (1 - (fog.vis[i] ?? 0) / 255);
-          const o = i * 4;
-          px9[o] = MINI_FOG_R;
-          px9[o + 1] = MINI_FOG_G;
-          px9[o + 2] = MINI_FOG_B;
-          px9[o + 3] = Math.round(a * 255);
+          av9[i] = base * (1 - (fog.vis[i] ?? 0) / 255);
+        }
+        const img = fx9.createImageData(fw9, fh9);
+        const px9 = img.data;
+        const W9 = fog.w;
+        const H9 = fog.h;
+        const D9 = MINI_FOG_DIM;
+        const sharp9 = (b: number): number => {
+          /* 단 사이의 기울기를 조인다 — [0, DIM] · [DIM, 1] 두 구간을 따로 smoothstep(0.3, 0.7). */
+          const lo = b <= D9 ? 0 : D9;
+          const hi = b <= D9 ? D9 : 1;
+          const t = (b - lo) / (hi - lo);
+          const u = Math.max(0, Math.min(1, (t - 0.3) / 0.4));
+          return lo + (hi - lo) * u * u * (3 - 2 * u);
+        };
+        for (let y = 0; y < fh9; y += 1) {
+          const gy = (y + 0.5) / SS9 - 0.5;
+          const y0 = Math.max(0, Math.min(H9 - 1, Math.floor(gy)));
+          const y1 = Math.min(H9 - 1, y0 + 1);
+          const ty = Math.max(0, Math.min(1, gy - y0));
+          for (let x = 0; x < fw9; x += 1) {
+            const gx = (x + 0.5) / SS9 - 0.5;
+            const x0 = Math.max(0, Math.min(W9 - 1, Math.floor(gx)));
+            const x1 = Math.min(W9 - 1, x0 + 1);
+            const tx = Math.max(0, Math.min(1, gx - x0));
+            const a0 = av9[y0 * W9 + x0] * (1 - tx) + av9[y0 * W9 + x1] * tx;
+            const a1 = av9[y1 * W9 + x0] * (1 - tx) + av9[y1 * W9 + x1] * tx;
+            const o = (y * fw9 + x) * 4;
+            px9[o] = MINI_FOG_R;
+            px9[o + 1] = MINI_FOG_G;
+            px9[o + 2] = MINI_FOG_B;
+            px9[o + 3] = Math.round(sharp9(a0 * (1 - ty) + a1 * ty) * 255);
+          }
         }
         fx9.putImageData(img, 0, 0);
-        c.imageSmoothingEnabled = true;
-        c.drawImage(fc, 0, 0, w, h);
+        fogKeyRef.current = { e: fog.explored, v: fog.vis, t: fog.t };
       }
+      c.imageSmoothingEnabled = true;
+      c.imageSmoothingQuality = "high";
+      c.drawImage(fc, 0, 0, w, h);
     }
     /* ③ 활동 네모 — 원작처럼 임자 색 점이다. 건물은 한 단 크게 찍어 무리와 갈린다.
        크기는 미니맵 폭에 비례해, 작은 미니맵에서도 뭉치지 않고 큰 데서도 안 성글다. */

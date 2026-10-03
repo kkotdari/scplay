@@ -1345,7 +1345,7 @@
 }
 /* 아이콘과 글자를 한 줄 가운데에(지적: "아이콘과 글자 세로가 안 맞네") — 기본 버튼은
    인라인 배치라 svg가 기준선에 앉아 글자보다 처졌다. */
-.scr-kakao-share-btn { display: inline-flex; align-items: center; justify-content: center; }
+.scr-kakao-share-btn { display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }   /* 공유·스크랩·사용법·전체화면 — 손가락 커서(지적: "커서가 포인터로 안바뀜") */
 .scr-kakao-share-btn svg { flex: 0 0 auto; }
 .scr-motion-mobrow .scr-kakao-share-btn {
   margin-left: auto;
@@ -3416,12 +3416,10 @@
   .scr-tb-who-st b { display: none; }
 }
 .scr-tb-who .scr-motion-mapbtns .scr-motion-pick { position: static; }
-/* ★ 목록의 기준은 **판**이다(2026-09, 지적: "중계 선택 목록 왼쪽이 밖으로 나감") — TV 단추 감싸개가 position: relative 라 목록이
-   판이 아니라 판 왼끝의 작은 단추 가운데에 서서 왼쪽 반이 화면 밖으로 나갔다. 감싸개를 static 으로 두면 기준이 판(.scr-tb-who)이 된다. */
-.scr-tb-who .scr-fs-dockcast { position: static; }
-.scr-tb-who .scr-motion-pickmenu.is-left {
-  left: 50%; right: auto; transform: translateX(-50%); max-width: calc(100vw - 16px);
-}
+/* ★ 중계 목록은 **TV 단추의 왼쪽 선**에 맞춰 오른쪽으로 편다(2026-09, 요청: "중계 선택창은 가운데 말고 버튼 왼쪽라인에 맞추기") —
+   감싸개(.scr-fs-dockcast · position: relative)가 기준이고 is-left(left 0)가 그대로 먹는다. 한때 판 가운데로 폈다(그때 기준을 단추로
+   둔 채 가운데 맞춤을 걸어 왼쪽 반이 화면 밖으로 나갔다). 판이 줄 왼쪽에 붙는 폰에서도 오른쪽으로 자라 화면 안이다. */
+.scr-tb-who .scr-motion-pickmenu.is-left { max-width: calc(100vw - 16px); }
 @media (min-width: 1160px) {
   .scr-tb-btnrow { --who-max: 470px; }
   .scr-tb-who { --who-cast: 40px; }
@@ -3441,7 +3439,8 @@
   .scr-tb-who-in { margin-bottom: 0; }
   /* 쇠판 위 테 = 아래 테(2026-09, 지적: "쇠프레임 위아래 테두리 두께가 다름") — 판 위 여백(옛 9px)을 독 틀의 바깥 테(--dock-out)와
      같게 · 판 좌우도 툴박스 여백(6px)을 같은 몫만큼 먹어 아래 우물들과 가장자리가 한 줄이다. */
-  .scr-tb { --tb-padt: calc(3.4px * var(--dk)); }   /* = 독 틀의 --dock-out(그 틀에만 선언돼 여기선 값으로 적는다) */
+  /* ⚠ 뒤의 ≤1159px 규칙(.scr-tb { --tb-padt: 9px })보다 앞에 적히므로 무게를 하나 더 준다 — 같은 무게면 그 뒤 규칙이 이겨 위 테가 9px 로 남았다. */
+  .scr-fs-lower .scr-tb { --tb-padt: calc(3.4px * var(--dk)); }   /* = 독 틀의 --dock-out(그 틀에만 선언돼 여기선 값으로 적는다) */
   .scr-tb-btnrow > .scr-tb-who { margin: 0 calc(3.4px * var(--dk) - 6px); width: auto; justify-self: stretch; }
   /* 폰 글 칸(~300px)에 고정 폭 다섯이 다 들게 한 단 죈다 — 자원 10ch · K/D 6ch · 사이 5 · 11px(폭은 여전히 고정이다). */
   .scr-tb-who-st { gap: 5px; font-size: 11px; }
@@ -4176,6 +4175,8 @@
 .scr-split-cell {
   position: relative; min-width: 0; min-height: 0; padding: 0; margin: 0; border: 0;
   background: transparent; cursor: pointer; overflow: hidden;
+  /* 칸은 <button> 이라 글꼴을 안 물려받는다(브라우저 기본 = 시스템 글꼴) — 칸 머리만 딴 글꼴로 보였다(지적: "헤더쪽 폰트가 다른 느낌?"). */
+  font-family: inherit; color: inherit;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
 }
 .scr-split-cell.is-pick::after {

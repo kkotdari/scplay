@@ -9721,8 +9721,10 @@ export default function ReplayMotionPlayer({
     setSplitSel9(sel9);
     setSplitOn9(true);
   };
-  /** TV 목록에서 고른 사람들 — 개인 추적이면 그 한 사람, 사람을 골라 세운 분할이면 그 사람들('전체' 분할은 고른 것이 아니다). */
-  const castSel9: string[] = trackRaw !== null ? [trackRaw] : splitOn9 && splitSel9 ? splitSel9 : [];
+  /** TV 목록에서 고른 사람들 — 개인 추적이면 그 한 사람, 분할이면 그 사람들이고 **'전체'면 모두**다(2026-09, 요청: "전체는 맨위에
+   *  배치하고 누르면 모두 선택되는걸로(전체도 선택되지만 모든 유저도 선택)" — 옛 '전체 분할은 고른 것이 아니다'를 되물렸다). */
+  const castSel9: string[] = trackRaw !== null ? [trackRaw]
+    : splitOn9 ? (splitSel9 ?? bases.map((b9) => b9.key)) : [];
   /** 닉네임 누르기 — 고른 사람에 더하거나 뺀다. 남은 사람이 0 이면 끄고, 하나면 개인 추적, 둘 이상이면 그 사람들만 분할이다. */
   const pickPerson9 = (key9: string): void => {
     const next9 = castSel9.includes(key9) ? castSel9.filter((k9) => k9 !== key9) : [...castSel9, key9];
@@ -9731,7 +9733,8 @@ export default function ReplayMotionPlayer({
       if (trackRaw !== null) { stopTrack9(); setViewRaw(null); }
     } else if (next9.length === 1) {
       if (trackRaw !== next9[0]) toggleTrack(next9[0]);   // 분할에서 내려오면 toggleTrack 이 분할을 끈다
-    } else startSplit9(next9);
+    } else if (next9.length >= bases.length) startSplit9(null);   // 다 고르면 곧 '전체'다
+    else startSplit9(next9);
   };
   /* ★ 중계가 카메라를 처음 잡을 때 **한 번** 당겨 준다 — 1배(지도 전체)에서는 팬의 여유가
      0이라 카메라가 아무 데도 못 가고, 그러면 중계가 자막만 뜨는 기능으로 보인다. 개인
@@ -16622,17 +16625,19 @@ export default function ReplayMotionPlayer({
               <Tv size={18} aria-hidden />
             </button>
             {pickMenu9("cast", [
+              /* ★ **전체는 맨 위**다(2026-09, 요청: "전체는 맨위에 배치하고 누르면 모두 선택되는걸로") — 모든 선수의 분할보기이고, 켜지면
+                 아래 닉네임이 **다 켜진 줄**로 선다(castSel9 가 모두를 낸다). 거기서 한 사람을 누르면 그 사람만 빠진 분할로 내려온다.
+                 둘 이상일 때만 · 목록은 안 닫힌다(keep — 다 켜진 것을 보여 준다). */
+              ...(bases.length >= 2 ? [{
+                key: "split", label: "전체", on: splitOn9 && splitSel9 === null, keep: true,
+                act: () => { if (splitOn9 && splitSel9 === null) setSplitOn9(false); else startSplit9(null); },
+              }] : []),
               /* 닉네임은 **고른 사람에 더하고 뺀다**(pickPerson9 — 하나면 개인 추적 · 둘 이상이면 그 사람들만 분할) · 목록은 안 닫힌다(keep). */
               ...bases.map((b9) => ({
                 key: `p:${b9.key}`, label: b9.name, on: castSel9.includes(b9.key), keep: true,
                 dot: modeColor(b9.key, teamOfRaw(b9.key)), act: () => pickPerson9(b9.key),
               })),
               { key: "auto", label: "자동", on: castOn, act: () => toggleCast9() },
-              /* 전체(옛 '분할') — 모든 선수의 분할보기. 둘 이상일 때만. */
-              ...(bases.length >= 2 ? [{
-                key: "split", label: "전체", on: splitOn9 && splitSel9 === null,
-                act: () => { if (splitOn9 && splitSel9 === null) setSplitOn9(false); else startSplit9(null); },
-              }] : []),
               /* ★ 맨 아래 **끄기**(2026-09, 요청: "목록에 끄기도 있어야해") — 켜진 것을 다시 골라 끄는 길은 남지만, 무엇이 켜져
                  있는지 모르는 손에게는 '끄는 줄'이 따로 있어야 한다. 중계든 개인 추적이든 카메라를 쥔 쪽을 놓고(둘은 배타라 둘 중
                  하나다) 시점도 관전자로 되돌린다(toggleTrack 의 끄는 길과 같은 셈). 둘 다 꺼져 있을 때 이 줄이 켜진 줄이다. */
@@ -17448,7 +17453,7 @@ export default function ReplayMotionPlayer({
             아니다. 끈 꼴은 같은 자리에 이름+종족만 남고, 판(바탕·테두리·그림자)은
             안 그린다: 자리·여백을 그대로 두므로 켤 때 글자가 한 톨도 안 움직이고,
             지도를 가리는 것은 판뿐이라 그 판만 걷으면 시야가 열린다. */}
-        {rosterMode !== 2 && !splitOn9 && !smallDevice9 && (
+        {rosterMode !== 2 && !splitOn9 && (
           <div className={cx("scr-fs-panel scr-fs-roster-fixed",
             rosterMode === 0 && "scr-fs-panel-bare")}>
             {teamCol(1, true, rosterMode === 0, true)}
