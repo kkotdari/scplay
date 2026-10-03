@@ -1857,6 +1857,32 @@ export function pLimb(
      부른 꼴로 읽히되, 부풀어 보이지는 않는 선이다. */
   return suitLimb(a, b, w * 0.5, w * 0.46, w * 0.65, { sides: 7, caps: "none", trueNormal: true, key: k9, tag: "limb" });
 }
+/* ★★ 보병 다리의 공통 자(2026-10, 요청: "평소 너무 차렷자세야 … 다리는 왼다리를 살짝 앞 오른다리를 살짝 뒤로 짚은 모습" ·
+   "걸을때나 평소 다리 짚을때 앞을 향한 다리도 살짝 굽힌상태 완전 펴지 않음" · "테란보병 플토보병 모두") ──────────────────
+   · **마디 길이는 설계 자로 잰다**(`legLenD9`) — jointBetween 은 z 를 Z8 로 되돌려 설계 자에서 푸는데 길이만 **접힌 자**로 재
+     넘기고 있었다. 접힌 길이가 설계 거리보다 짧으니 걸음 컷에서 다리가 늘 '안 닿는 발'로 풀려 **두 다리가 곧은 막대**였다.
+   · **편히 선 자세**(`LEG_STANCE9`) — 걸음 몫(stride)이 0 인 컷(평소·공격)에서 왼다리(+x)는 앞, 오른다리는 뒤로 짚는다.
+     발은 안 든다(걸음처럼 z 를 올리지 않는다).
+   · **앞으로 뻗은 다리도 다 안 편다**(`legCap9`) — 고관절~발목 거리가 두 마디 합의 LEG_REACH9 를 넘으면 발목의 수평 몫만 당겨
+     그 안에 넣는다(높이는 그대로라 발이 안 뜬다). */
+export const LEG_STANCE9 = 0.3;
+const LEG_REACH9 = 0.96;
+/** 두 관절 사이 거리 — 설계 자(z 를 Z8 로 되돌림). jointBetween 이 푸는 자와 같다. */
+function legLenD9(a: [number, number, number], b: [number, number, number]): number {
+  return Math.hypot(b[0] - a[0], b[1] - a[1], (b[2] - a[2]) / Z8);
+}
+/** 발목이 고관절에서 두 마디 합의 LEG_REACH9 밖이면 수평 몫만 당긴다 — 돌려주는 값은 [새 발목, 당긴 x, 당긴 y]. */
+function legCap9(hip: [number, number, number], ank: [number, number, number], La: number, Lc: number):
+  [[number, number, number], number, number] {
+  const cap9 = LEG_REACH9 * (La + Lc);
+  const dz9 = (ank[2] - hip[2]) / Z8;
+  const hx9 = ank[0] - hip[0]; const hy9 = ank[1] - hip[1];
+  const h9 = Math.hypot(hx9, hy9);
+  if (Math.hypot(h9, dz9) <= cap9 || h9 < 1e-6 || Math.abs(dz9) >= cap9) return [ank, 0, 0];
+  const k9 = Math.sqrt(cap9 * cap9 - dz9 * dz9) / h9;
+  const nx9 = hip[0] + hx9 * k9; const ny9 = hip[1] + hy9 * k9;
+  return [[nx9, ny9, ank[2]], nx9 - ank[0], ny9 - ank[1]];
+}
 /** 프로토스 다리 한 쌍 — 테란과 같은 뿔기둥 마디로 짠다. 다만 프로토스는 **역관절**
  *  (디지티그레이드)이다: 무릎이 앞으로 크게 나오고 발목이 뒤로 물러났다가 긴 발이
  *  앞으로 눕는다. 그 꺾임이 다섯의 공통 실루엣이라 굵기보다 먼저 지켜야 할 것이다. */
@@ -1932,13 +1958,15 @@ export function protossLegs(
     const KNEE_FWD9 = 0.12;
     void kneeLineY9;
     const knee0: [number, number, number] = yw9([m * P_KNEE_X9, hip[1] + KNEE_FWD9 * bend, Z(2.2)]);
-    const Lt9 = Math.hypot(knee0[0] - hip[0], knee0[1] - hip[1], knee0[2] - hip[2]);
-    const Ls9 = Math.hypot(ankle0[0] - knee0[0], ankle0[1] - knee0[1], ankle0[2] - knee0[2]);
-    // 걸음도 발끝 방향(돌린 +y)으로 나간다.
-    const stv9 = yv9(0, st * 1.2);
-    const ankleR9: [number, number, number] = [ankle0[0] + stv9[0], ankle0[1] + stv9[1], ankle0[2] + Math.max(0, st) * 0.16];
+    const Lt9 = legLenD9(hip, knee0);
+    const Ls9 = legLenD9(knee0, ankle0);
+    // 걸음도 발끝 방향(돌린 +y)으로 나간다. 편히 선 자세(LEG_STANCE9)는 걸음 몫이 0 일 때만 · 발은 안 든다.
+    const sp9 = stride === 0 ? m * LEG_STANCE9 : 0;
+    const stv9 = yv9(0, st * 1.2 + sp9);
+    const [ankleR9, cx9, cy9] = legCap9(hip,
+      [ankle0[0] + stv9[0], ankle0[1] + stv9[1], ankle0[2] + Math.max(0, st) * 0.16], Lt9, Ls9);
     const kh9 = yv9(0, 1);
-    const knee: [number, number, number] = st === 0 ? knee0 : jointBetween(hip, ankleR9, Lt9, Ls9, [kh9[0], kh9[1], 0.1]);
+    const knee: [number, number, number] = st === 0 && sp9 === 0 ? knee0 : jointBetween(hip, ankleR9, Lt9, Ls9, [kh9[0], kh9[1], 0.1]);
     /** 무릎을 축으로 한 접기(위 tuck) — 정강이·발·발가락이 모두 이 손을 지난다. */
     const tuckAt9 = (q: [number, number, number]): [number, number, number] => {
       if (tuck === 0) return q;
@@ -1975,7 +2003,8 @@ export function protossLegs(
         ankle[2] + rz9 + ((sdz9 / sl9) * rl9 - rz9) * ANKLE_FLAT9,
       ];
     };
-    const toe: [number, number, number] = footAt9(tuckAt9(yw9([m * P_TOE_X9, 0.5 - P_LEG_BACK9 + st * 1.2, Z(0.15) + Math.max(0, st) * 0.12])));
+    const toeY9 = yw9([m * P_TOE_X9, 0.5 - P_LEG_BACK9 + st * 1.2 + sp9, Z(0.15) + Math.max(0, st) * 0.12]);
+    const toe: [number, number, number] = footAt9(tuckAt9([toeY9[0] + cx9, toeY9[1] + cy9, toeY9[2]]));
     /* 하지가 허벅지보다 굵다(요청) — 허벅지 0.6, 정강이 0.72, 발목 0.58. 마디마다
        배가 부풀게 mid를 따로 줘, 곧은 막대가 아니라 근육 붙은 마디로 읽힌다. */
     // 굵기 ×1.25(사진 대조 — 질럿1·4의 다리 갑판은 지금보다 한 뼘 굵다).
@@ -2274,12 +2303,14 @@ export function suitLegJoints9(m: -1 | 1, spread: number, stride = 0, zk = 1): {
   const st = m * stride;
   const LEG_BACK = 0.2;
   const hip: [number, number, number] = [m * 0.54 * spread, -0.05 - LEG_BACK, 2.0768 * zk];
-  const knee0: [number, number, number] = [m * 0.6 * spread, 0.14 - LEG_BACK, 1.1792 * zk];
+  /* 무릎은 선 자세에서도 앞으로 0.32 나간다(옛 0.14 · 위 ★★ "차렷자세" — 두 마디 합의 96% 라 무릎이 살짝 굽는다). */
+  const knee0: [number, number, number] = [m * 0.6 * spread, 0.32 - LEG_BACK, 1.1792 * zk];
   const ankle0: [number, number, number] = [m * 0.58 * spread, -0.02 - LEG_BACK, 0.26];
-  const Lt9 = Math.hypot(knee0[0] - hip[0], knee0[1] - hip[1], knee0[2] - hip[2]);
-  const Ls9 = Math.hypot(ankle0[0] - knee0[0], ankle0[1] - knee0[1], ankle0[2] - knee0[2]);
-  const ankle: [number, number, number] = [ankle0[0], ankle0[1] + st * 1.35, ankle0[2] + Math.max(0, st) * 0.2112];
-  const knee: [number, number, number] = st === 0 ? knee0 : jointBetween(hip, ankle, Lt9, Ls9, [0, 1, 0.165]);
+  const Lt9 = legLenD9(hip, knee0);
+  const Ls9 = legLenD9(knee0, ankle0);
+  const sp9 = stride === 0 ? m * LEG_STANCE9 : 0;
+  const [ankle] = legCap9(hip, [ankle0[0], ankle0[1] + st * 1.35 + sp9, ankle0[2] + Math.max(0, st) * 0.2112], Lt9, Ls9);
+  const knee: [number, number, number] = st === 0 && sp9 === 0 ? knee0 : jointBetween(hip, ankle, Lt9, Ls9, [0, 1, 0.165]);
   return { hip, knee, ankle };
 }
 export function suitLegs(
@@ -3160,6 +3191,8 @@ export function crestPlate9(o: {
   tipK?: number;
   /** 가장자리 말림 배수(기본 1 — 울트라의 cu² 말림). 크면 판이 호처럼 좌우를 아래로 만다(히드라 덮개). */
   curlK?: number;
+  /** 한 겹만(켜 없이 본판만 · 2026-10, 럴커 볏 — 요청: "두겹아니고 한겹"). 띠는 본판의 앞 낯에 앉는다. */
+  single?: boolean;
 }): { faces: ShapeFace[]; at: (t: number) => [number, number, number]; halfW: (t: number) => number;
       skew: (cu: number, t: number) => number; halfT: (t: number) => number } {
   const { axis: A9, nrm: N9 } = o;
@@ -3172,7 +3205,7 @@ export function crestPlate9(o: {
   const halfT = (t9: number): number => halfW(t9) * o.oval;
   const off = (p: [number, number, number], n: number): [number, number, number] => [p[0] + N9[0] * n, p[1] + N9[1] * n, p[2] + N9[2] * n];
   const faces: ShapeFace[] = [];
-  for (const [lay9, sc9] of [[0, 1], [1, 0.72]] as [number, number][]) {
+  for (const [lay9, sc9] of (o.single ? [[0, 1]] : [[0, 1], [1, 0.72]]) as [number, number][]) {
     const tm = (t9: number): number => (lay9 ? 0.08 + t9 * 0.8 : t9);
     faces.push(...tagKey(paintBase(spirePillar({
       x: 0, y: 0, h: 0.8, w: 1, segs: 7, sides: 8, oval: o.oval, caps: "none", ref: [1, 0, 0], trueNormal: true,
@@ -3192,16 +3225,18 @@ export function crestPlate9(o: {
          늘 `본판 반폭·oval + 0.15` 앞이므로(켜 띄움 + 켜 반두께) 그 높이에 띠를 놓으면 켜가 있는 구간(0.08~0.88)에서는 켜 위에,
          밖에서는 본판 위 허공 0.15 에 뜬 채 한 줄로 이어진다 — 옆에서 보면 켜와 같은 층이라 어긋남으로 안 읽힌다. */
       const tm = (t9: number): number => 0.01 + t9 * 0.98;
-      const dw = (t9: number): number => halfW(tm(t9)) * 0.72 * wf;
+      const LK9 = o.single ? 1 : 0.72;      // 띠가 앉는 판의 폭 몫(켜 0.72 · 한 겹이면 본판)
+      const LF9 = o.single ? 0 : 0.15;      // 켜 띄움(한 겹이면 0 — 본판 앞 낯에 바로)
+      const dw = (t9: number): number => halfW(tm(t9)) * LK9 * wf;
       faces.push(...tagKey(spirePillar({
         x: 0, y: 0, h: 0.8, w: 1, segs: 8, sides: 6, oval: 0.12, caps: "none", ref: [1, 0, 0], trueNormal: true,
         path: (t9: number): [number, number, number] => {
-          const t = tm(t9); const hw = halfW(t) * 0.72;
-          const p = off(at(t), halfW(t) * o.oval + 0.15 + skew(cuAt(t), t) * 0.72 + dw(t9) * 0.12 + 0.03);
+          const t = tm(t9); const hw = halfW(t) * LK9;
+          const p = off(at(t), halfW(t) * o.oval + LF9 + skew(cuAt(t), t) * LK9 + dw(t9) * 0.12 + 0.03);
           return [p[0] + cuAt(t) * hw, p[1], p[2]];
         },
         widthOf: dw,
-        skewV: (cu9: number, t9: number): number => (skew(cuAt(tm(t9)) + cu9 * wf, tm(t9)) - skew(cuAt(tm(t9)), tm(t9))) * 0.72,
+        skewV: (cu9: number, t9: number): number => (skew(cuAt(tm(t9)) + cu9 * wf, tm(t9)) - skew(cuAt(tm(t9)), tm(t9))) * LK9,
       }), o.key + 0.2));
     }
   }
@@ -24881,18 +24916,22 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            늘어나므로(그 함수는 닿지 않는 손을 향해 곧게 뻗는다) 한 뼘 못 미치게 둔다.
            높이는 어깨보다 조금 아래(−0.55) — 칼이 수평으로 나가는 그 자세다(요청). */
       const hd: [number, number, number] = j9
-        ? [m9 * 1.15, 2.64, 4.04]
+        ? [m9 * 0.95, 2.64, 4.04]
         /* ★ 평소 손은 몸 곁이다(2026-09, 요청: "질럿 팔을 너무 벌리고 있는듯 평소에") — 손 x 2.0 은 어깨(0.82)보다 1.18 바깥이라
            팔이 통째로 벌어져 섰다. 평소(g9 0)는 1.3 으로 당기고 겨눔(g9 1)은 옛 2.06 그대로 · 팔꿈치 힌트도 평소엔 덜 바깥(0.35). */
         /* ★★ 평소·걸음은 팔을 **아래로 늘어뜨린다 — 살짝 굽힌 채**(2026-09, 요청: "팔도 자연스럽게 아래로 늘어뜨리고(살짝
            굽힌채) 그리고 걸을때도 사람처럼 팔을 앞뒤로 적절히 흔들면서 걷기") — 손이 어깨에서 2.3(두 마디 합 2.5 의 92%)이라
            팔꿈치가 조금만 꺾인다(힌트는 뒤 — 팔꿈치가 뒤로 빠지고 하완이 앞을 본다). 걸음은 진자다: 손이 앞뒤로 aY 만큼
            나가며 그 몫의 0.25 만큼 오른다(늘어진 팔이 어깨를 축으로 도는 호). */
-        : g9 ? [m9 * 2.06, 0.75 + aY + 0.58, 3.96]
-          : [m9 * 1.05, 0.62 + aY, 2.26 + 0.25 * Math.abs(aY)];
+        /* ★ 겨눔 손은 몸 앞으로 모은다(2026-10, 요청: "공격시 팔이 너무 양옆으로 벌리지 않게") — x 2.06 → 1.25 · 팔꿈치 힌트 바깥 몫도 줄였다. */
+        : g9 ? [m9 * 1.25, 0.75 + aY + 0.58, 3.96]
+          /* ★ 평소는 **더 굽히고** 다리와 반대로 앞뒤(2026-10, 요청: "팔을 좀더 굽히고 … 팔은 반대로 살짝 앞뒤로 배치") — 손이
+             어깨에서 설계 자로 2.2(두 마디 합의 88%) — ⚠ 옛 '2.3(92%)'은 접힌 z 로 잰 값이라 설계 자로는 2.8(두 마디 합 밖) —
+             팔이 곧게 펴진 막대였다(jointBetween 은 z 를 Z8 로 되돌려 푼다) · 걸음 몫이 0 일 때 왼팔(+x)은 뒤, 오른팔은 앞(왼다리가 앞이다 — LEG_STANCE9). */
+          : [m9 * 1.0, 0.8 + aY - (wd9 === 0 ? m9 * 0.32 : 0), 2.8 + 0.25 * Math.abs(aY)];
       /* 칼 — 손에서 이어 나간다. 겨눔에서는 앞·위로 서 있고(칼끝을 든 자세),
          잽에서는 **수평으로** 앞으로 내지른다(칼끝 높이가 손과 거의 같다). */
-      const el = jointBetween(sh, hd, 1.2, 1.3, g9 ? [m9 * 0.8, -0.5, -0.3] : [m9 * 0.2, -1, 0]);
+      const el = jointBetween(sh, hd, 1.2, 1.3, g9 ? [m9 * 0.35, -0.6, -0.4] : [m9 * 0.2, -1, 0]);
       return pRigid9(ZEALOT_LEAN9, 0, sh[2], (): ShapeFace[] => [
         ...paintBase(pLimb(sh, el, 0.44), "#3a4258"),
         ...paintBase(pLimb(el, hd, 0.6), P_GOLD),
@@ -24914,8 +24953,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           /* ⚠ 총구표는 자세 0 에서 굽히는데 그 자세에는 칼이 없다 — 오른칼 잽 컷의 칼끝을 손으로 셈해 적는다
              (어깨가 못 박혀 있으므로 같은 pRigid9 몫을 탄다). */
           if (m9 > 0) {
-            const jh9: [number, number, number] = [1.15, 2.64, 4.04];
-            const je9 = jointBetween(sh, jh9, 1.2, 1.3, [0.8, -0.5, -0.3]);
+            const jh9: [number, number, number] = [0.95, 2.64, 4.04];
+            const je9 = jointBetween(sh, jh9, 1.2, 1.3, [0.35, -0.6, -0.4]);
             const jx = jh9[0] - je9[0]; const jy = jh9[1] - je9[1]; const jz = jh9[2] - je9[2];
             const jl = Math.hypot(jx, jy, jz) || 1;
             markMuzzle9(jh9[0] + (jx / jl) * 2.8, jh9[1] + (jy / jl) * 2.8, jh9[2] + (jz / jl) * 2.24 + 0.08);   // 검 끝
@@ -26838,6 +26877,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 앞 머리 — 저그 공용 두개골(요청: 저그 얼굴을 다 같은 형태로). 여기 있던
        '반구 + 어두운 네모 + 눈'을 걷는다. 등딱지 앞에 물려 박히는 크기(0.9). */
     out.push(...zergFace(1.85, 2.36, 0.95));
+    /* ★ 머리장식은 히드라의 볏을 옮겨 심는다(2026-10, 요청: "럴커도 히드라같은 머리장식이 있어야함 · 이식 · 다만 두겹아니고
+       한겹(목덮개는 없음)") — 같은 crestPlate9 · 같은 자세(45도 뒤로)·데칼(가운데 임자색 한 줄)·뿌리 좁힘이고, 크기는 얼굴 배수
+       비(0.95 / 0.84)로 키웠다. 뿌리는 히드라와 같은 자(정수리 = 입선 + 수직 벽 + 앞 4분의 1 구 − 묻힘). 켜는 없다(single). */
+    {
+      const LS9 = 0.95;
+      out.push(...crestPlate9({
+        root: [0, 1.85 + 0.1, 2.36 + (0.30 + 0.34) * LS9 + 0.72 * LS9 - 0.06], axis: [0, -0.707, 0.707], nrm: [0, 0.707, 0.707],
+        len: 3.6 * (LS9 / 0.84), wk: 0.9 * (LS9 / 0.84), oval: 0.1, rootK: 0.55, single: true,
+        base: ZERG_FLESH, layer: "#3a2a24", key: 4 + depthNow(0, 1.95) * 1.6,
+        decals: [[0, 0.16]],
+      }).faces);
+    }
     return out;
   },
   /* 디파일러(요청 둘: "다리 관절을 두 개씩 더하고, 다리를 지면과 거의 수평으로

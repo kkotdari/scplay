@@ -4667,9 +4667,11 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
                남겨 두던 자리다. 그런데 1~3배에서 뮤탈은 일고여덟 화소다: 날개가 접혔는지
                폈는지는 안 읽히면서, 판 열쇠는 자세마다 하나씩 더 갈린다(그만큼 굽는 줄이 길다).
                배율을 올리면 그대로 돌아온다. */
+            /* ★ 분할 칸(PAINT_CLIP9)은 줄인 배율로 칠하므로 늘 이 갈래에 들어 **공격 컷까지 지워졌다**(지적: "질럿
+               공격모션이 분할에서 안나옴") — 칸은 그 사람을 보여 주는 화면이라 자세를 다 둔다(걸음 쪽 moveOk9 와 같은 문). */
             if (pk9 && !pk9.flap && trim9 < 1) {
               const walk9 = pose === 1 || pose === 3;
-              if (!walk9 || !moveOk9 || !(pk9.move || pk9.thrust)) pose = 0;
+              if (PAINT_CLIP9 === null && (!walk9 || !moveOk9 || !(pk9.move || pk9.thrust))) pose = 0;
             } else if (!pk9 || trim9 >= 1) pose = 0;
           }
           /* 요잉 칸 — 죄면 **네 칸**(90도)이다. 45도 칸의 부분집합이라 이미 구운 판이 그대로
