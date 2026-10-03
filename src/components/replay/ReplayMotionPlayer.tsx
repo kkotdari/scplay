@@ -9663,8 +9663,8 @@ export default function ReplayMotionPlayer({
       <span title="자원(광물/가스)"><b>자원</b>
         {/* 광물·가스는 **제 자리를 따로 잡는다**(요청: "-/- 자원의 경우 이것도 각 데이터의 자리를 미리 확보") — 둘 다 고정 폭 · 오른쪽 맞춤. */}
         <i className="scr-who-v">
+          {/* 사이의 / 는 걷었다(요청: "광물은 사실 / 필요 없을듯") — 두 색(파랑·초록)이 이미 갈라 준다. */}
           <span className="scr-who-r scr-motion-stat-min">{c9?.res ? c9.res[0] : "–"}</span>
-          <span className="scr-tb-who-sl">/</span>
           <span className="scr-who-r scr-motion-stat-gas">{c9?.res ? c9.res[1] : "–"}</span>
         </i>
       </span>
