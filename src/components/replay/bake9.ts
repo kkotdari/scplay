@@ -1962,7 +1962,9 @@ export function protossLegs(
     const Ls9 = legLenD9(knee0, ankle0);
     // 걸음도 발끝 방향(돌린 +y)으로 나간다. 편히 선 자세(LEG_STANCE9)는 걸음 몫이 0 일 때만 · 발은 안 든다.
     /* 떠 있는 몸(정강이를 접는 tuck — 하템)은 짚을 땅이 없어 편히 선 자세를 안 쓴다(2026-10, 지적: "하템도 아니지 떠있는데"). */
-    const sp9 = stride === 0 && tuck === 0 ? m * LEG_STANCE9 : 0;
+    /* 공격 컷(2·4·5)은 한 걸음 더 벌린 자세다(2026-10, 요청: "질럿 공격시에도 서있을때처럼 발자세 취하고" · "다크도 질럿처럼 공격시 다리"). */
+    const atk9 = poseNow === 2 || poseNow === POSE_ATK_L || poseNow === POSE_ATK_R;
+    const sp9 = stride === 0 && tuck === 0 ? m * LEG_STANCE9 * (atk9 ? 1.6 : 1) : 0;
     const stv9 = yv9(0, st * 1.2 + sp9);
     const [ankleR9, cx9, cy9] = legCap9(hip,
       [ankle0[0] + stv9[0], ankle0[1] + stv9[1], ankle0[2] + Math.max(0, st) * 0.16], Lt9, Ls9);
@@ -2304,8 +2306,9 @@ export function suitLegJoints9(m: -1 | 1, spread: number, stride = 0, zk = 1): {
   const st = m * stride;
   const LEG_BACK = 0.2;
   const hip: [number, number, number] = [m * 0.54 * spread, -0.05 - LEG_BACK, 2.0768 * zk];
-  /* 무릎은 선 자세에서도 앞으로 0.32 나간다(옛 0.14 · 위 ★★ "차렷자세" — 두 마디 합의 96% 라 무릎이 살짝 굽는다). */
-  const knee0: [number, number, number] = [m * 0.6 * spread, 0.32 - LEG_BACK, 1.1792 * zk];
+  /* 선 자세(평소·공격)의 무릎은 옛 0.14 그대로 — 곧게 선다(2026-10, 요청: "테란 보병들은 서있을때/공격자세에서 다리 굽힘 제거").
+     한때 0.32(굽힘)로 두었다. 걸을 때만 legCap9 가 앞다리를 다 안 펴게 한다. */
+  const knee0: [number, number, number] = [m * 0.6 * spread, 0.14 - LEG_BACK, 1.1792 * zk];
   const ankle0: [number, number, number] = [m * 0.58 * spread, -0.02 - LEG_BACK, 0.26];
   const Lt9 = legLenD9(hip, knee0);
   const Ls9 = legLenD9(knee0, ankle0);
@@ -24917,7 +24920,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            늘어나므로(그 함수는 닿지 않는 손을 향해 곧게 뻗는다) 한 뼘 못 미치게 둔다.
            높이는 어깨보다 조금 아래(−0.55) — 칼이 수평으로 나가는 그 자세다(요청). */
       const hd: [number, number, number] = j9
-        ? [m9 * 0.95, 2.64, 4.04]
+        ? [m9 * 0.95, 2.72, 4.04]
         /* ★ 평소 손은 몸 곁이다(2026-09, 요청: "질럿 팔을 너무 벌리고 있는듯 평소에") — 손 x 2.0 은 어깨(0.82)보다 1.18 바깥이라
            팔이 통째로 벌어져 섰다. 평소(g9 0)는 1.3 으로 당기고 겨눔(g9 1)은 옛 2.06 그대로 · 팔꿈치 힌트도 평소엔 덜 바깥(0.35). */
         /* ★★ 평소·걸음은 팔을 **아래로 늘어뜨린다 — 살짝 굽힌 채**(2026-09, 요청: "팔도 자연스럽게 아래로 늘어뜨리고(살짝
@@ -24925,7 +24928,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            팔꿈치가 조금만 꺾인다(힌트는 뒤 — 팔꿈치가 뒤로 빠지고 하완이 앞을 본다). 걸음은 진자다: 손이 앞뒤로 aY 만큼
            나가며 그 몫의 0.25 만큼 오른다(늘어진 팔이 어깨를 축으로 도는 호). */
         /* ★ 겨눔 손은 몸 앞으로 모은다(2026-10, 요청: "공격시 팔이 너무 양옆으로 벌리지 않게") — x 2.06 → 1.25 · 팔꿈치 힌트 바깥 몫도 줄였다. */
-        : g9 ? [m9 * 1.25, 0.75 + aY + 0.58, 3.96]
+        /* 잽 컷의 반대 팔은 몸 쪽으로 당긴다(2026-10, 요청: "팔 잽 앞뒤 폭 더 크게 이동") — 찌르는 팔(2.72)과 당긴 팔(0.55)의 앞뒤 폭이 크다. */
+        : g9 ? [m9 * 1.25, (poseNow === POSE_ATK_L || poseNow === POSE_ATK_R ? 0.55 : 0.75 + aY + 0.58), 3.96]
           /* ★ 평소는 **더 굽히고** 다리와 반대로 앞뒤(2026-10, 요청: "팔을 좀더 굽히고 … 팔은 반대로 살짝 앞뒤로 배치") — 손이
              어깨에서 설계 자로 2.2(두 마디 합의 88%) — ⚠ 옛 '2.3(92%)'은 접힌 z 로 잰 값이라 설계 자로는 2.8(두 마디 합 밖) —
              팔이 곧게 펴진 막대였다(jointBetween 은 z 를 Z8 로 되돌려 푼다) · 걸음 몫이 0 일 때 왼팔(+x)은 뒤, 오른팔은 앞(왼다리가 앞이다 — LEG_STANCE9). */
@@ -24954,7 +24958,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           /* ⚠ 총구표는 자세 0 에서 굽히는데 그 자세에는 칼이 없다 — 오른칼 잽 컷의 칼끝을 손으로 셈해 적는다
              (어깨가 못 박혀 있으므로 같은 pRigid9 몫을 탄다). */
           if (m9 > 0) {
-            const jh9: [number, number, number] = [0.95, 2.64, 4.04];
+            const jh9: [number, number, number] = [0.95, 2.72, 4.04];
             const je9 = jointBetween(sh, jh9, 1.2, 1.3, [0.35, -0.6, -0.4]);
             const jx = jh9[0] - je9[0]; const jy = jh9[1] - je9[1]; const jz = jh9[2] - je9[2];
             const jl = Math.hypot(jx, jy, jz) || 1;

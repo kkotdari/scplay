@@ -4111,7 +4111,7 @@
 .scr-split-mini {
   position: absolute; left: calc(3px * var(--dk)); bottom: calc(3px * var(--dk)); z-index: 1;
   width: min(26cqw, calc(34cqh * var(--ar, 1)),
-    max(calc(3 * var(--split-tile, 999px) * min(1, var(--ar, 1))), calc(36px * var(--dk))));
+    max(calc(6 * var(--split-tile, 999px) * min(1, var(--ar, 1))), calc(36px * var(--dk))));
   aspect-ratio: var(--ar, 1); height: auto;
   display: block; pointer-events: none; box-sizing: border-box;
   border: 1px solid rgba(0, 0, 0, 0.85); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18);

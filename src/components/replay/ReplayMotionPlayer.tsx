@@ -14215,7 +14215,7 @@ export default function ReplayMotionPlayer({
         const y09 = Math.max(0, (v9.cy - v9.h / 2) * bh9);
         const x19 = Math.min(bw9, (v9.cx + v9.w / 2) * bw9);
         const y19 = Math.min(bh9, (v9.cy + v9.h / 2) * bh9);
-        m9.lineWidth = Math.max(1, 1.5 * dpr9);
+        m9.lineWidth = Math.max(1, 0.8 * dpr9);   // 1.5 → 0.8 CSS px(2026-10, 지적: "미니맵 안 프레임이 좀 두꺼운듯 · 화면어디보는지 프레임")
         m9.strokeStyle = modeColor(cell9.raw, teamOfRaw(cell9.raw));
         m9.strokeRect(x09 + m9.lineWidth / 2, y09 + m9.lineWidth / 2, Math.max(1, x19 - x09 - m9.lineWidth), Math.max(1, y19 - y09 - m9.lineWidth));
       }
