@@ -851,6 +851,8 @@ if (has("--fogprobe")) {
   }
   const big9 = log9.slice(1).map((c, i) => ({ ms: c.ms, d: +(c.a - log9[i].a).toFixed(3), cast: c.cast })).filter((x) => Math.abs(x.d) > 0.05);
   for (const x of sw9) { const ms = Number(x.split("ms")[0]); console.log(`[안개 곁] ${x} : ` + log9.filter((c) => c.ms >= ms - 600 && c.ms <= ms + 2500).map((c) => `${c.ms}:${c.a}`).join(" ")); }
+  const swap9 = await page.evaluate(() => window.__scrDiag?.branchSwap ?? 0);
+  console.log(`[안개] 갈래 빈틈을 팀 장으로 메운 장 ${swap9}`);
   console.log(`[안개] 장 ${log9.length} · 한 장짜리 튐 ${blips9} · 갈아탐 ${sw9.join(" ")} · 큰 변화 ${big9.map((x) => `${x.ms}ms ${x.d > 0 ? "+" : ""}${x.d}`).join(" ")}`);
 }
 /* 중계 자(--castprobe [초]): 중계 스위치·자막·카메라 임자를 한동안 지켜본다 — 편성표가

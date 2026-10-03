@@ -75,7 +75,11 @@ export function exploredPath9(exploredAt: Uint16Array, w: number, h: number, t: 
   return { path, count };
 }
 /** 붓이 넘기는 최신 안개 한 벌 — 눈 목록(vis)·밝힌 시각 판(exploredAt)·그 시각(t). */
-export type FogOverride = { vis: Float32Array; exploredAt: Uint16Array; t: number };
+export type FogOverride = {
+  vis: Float32Array; exploredAt: Uint16Array; t: number;
+  /** 이 안개의 시야 갈래(부모의 fogSeq) — 바뀌면 밝힌 판 합치기를 새로 시작한다(아래 mergedRef 의 ★). 없으면 갈래를 안 따진다. */
+  branch?: number;
+};
 
 export default function ReplayFogLayer({
   w, h, exploredAt, t, vis, proj, zoom, pan, tilePx, flatK, flat, className, painter, onNeedPaint,
@@ -122,7 +126,7 @@ export default function ReplayFogLayer({
   /** 붓이 마지막으로 제 안개를 넘긴 **벽시계** — props로 되돌릴지 가리는 자(아래 ★). */
   const ovAtRef = useRef(0);
   /** 밝힌 판의 합(칸마다 가장 이른 밝힘 시각) — 위 paint의 ★ 주석. src는 마지막으로 합친 원본(같은 판이면 건너뛴다). */
-  const mergedRef = useRef<{ src: Uint16Array | null; out: Uint16Array | null; ver: number }>({ src: null, out: null, ver: 0 });
+  const mergedRef = useRef<{ src: Uint16Array | null; out: Uint16Array | null; ver: number; branch?: number }>({ src: null, out: null, ver: 0 });
   {
     /* ★ **props로 되돌리는 자리를 좁힌다**(지적: "안개가 과거로 갔다 현재로 왔다 덜덜덜 떨린다") ────────
        여태 조건이 `t >= lt.t`였다. 곧 React의 시각이 붓이 마지막에 칠한 시각과 같거나 뒤이기만 하면
@@ -162,6 +166,16 @@ export default function ReplayFogLayer({
     const exploredAt = ((): Uint16Array => {
       const src9 = latestRef.current.exploredAt;
       const mg9 = mergedRef.current;
+      /* ★ **시야 갈래가 바뀌면 합치기를 새로 시작한다**(2026-10) — 이 합치기는 '한 사람의 밝힘'을 전제로 한다. 중계가 사람(팀)을
+         갈아타면 새 판은 **다른 사람의** 시각표인데 그대로 min 으로 합치면 지금까지 본 모든 사람의 밝힘이 합집합으로 남았다
+         (관전자 → 한 사람이면 관전자의 밝힘이 통째로 남아 개인 시야가 밝힌 땅에서는 안 먹었다). 갈래가 바뀐 판은 합치지 않고
+         그 판으로 갈아 끼우고, 등고선도 그 자리에서 다시 뽑는다(아래 ① — 묵은 등고선이 한동안 남으면 그것이 또 하나의 깜빡임이다). */
+      const br9 = latestRef.current.branch;
+      if (br9 !== undefined && mg9.branch !== undefined && br9 !== mg9.branch) {
+        mg9.out = null;
+        ctRef.current = null;
+      }
+      if (br9 !== undefined) mg9.branch = br9;
       if (mg9.src === src9 && mg9.out) return mg9.out;
       if (!mg9.out || mg9.out.length !== src9.length) {
         mg9.out = src9.slice();

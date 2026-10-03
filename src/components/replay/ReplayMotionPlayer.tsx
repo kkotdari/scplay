@@ -250,6 +250,8 @@ const DOCK_MARK_PAD9 = 40;
 const CAM_GLIDE_MS9 = 450;
 /** 맞대결 자동 분할을 이만큼(경기 초) 앞서 팀 엔진을 데운다(splitTeamsKey9 의 ★). */
 const DUEL_WARM_SEC9 = 4;
+/** 한 사람 중계가 다른 팀으로 갈아탄 뒤 그 팀 엔진을 이만큼(경기 초) 남겨 둔다 — 새 시야 갈래의 장이 올 때까지 팀 장이 빈틈을 메운다. */
+const CAST_SWAP_HOLD9 = 1.5;
 /** 미끄러짐의 그 순간 자리 — 끝났으면 null. ease-in-out(3차). */
 const camGlideAt9 = (g9: { from: { x: number; y: number }; to: { x: number; y: number }; t0: number }, now9: number): { x: number; y: number } | null => {
   const u9 = (now9 - g9.t0) / CAM_GLIDE_MS9;
@@ -10092,7 +10094,22 @@ export default function ReplayMotionPlayer({
      분할이 서는 순간 워커의 팀 엔진이 처음 생겨 첫 장이 올 때까지 칸이 관전자 장(안개 없음)으로 칠해졌다가 팀 안개로 바뀌었다.
      다음 토막이 맞대결이고 DUEL_WARM_SEC9 안에 서면 그 두 사람의 팀을 미리 시야에 실어, 분할이 설 때 팀 장이 이미 쌓여 있게 한다. */
   const duelNext9 = castOn && castIdx9 >= 0 ? castPlan[castIdx9 + 1] : undefined;
-  const warmKey9 = duelNext9?.foe && duelNext9.at - t < DUEL_WARM_SEC9 ? `${duelNext9.raw}|${duelNext9.foe}` : "";
+  /* ★ **한 사람 중계의 갈아탐도 데운다**(2026-10, 지적: "사람 전환시 … 딱한번 바뀔때 깜빡임 무조건 있네") — 사람이 바뀌면 시야 갈래
+     (fogSeq)가 바뀌고, 워커가 새 갈래의 첫 장을 낼 때까지 붓은 **옛 사람의 안개**를 새 카메라 자리에 칠했다(그 자리는 대개 옛 사람이
+     못 본 땅이라 어둡다 → 새 장이 오며 밝아진다 = 한 번 깜빡). 다음 토막의 사람(맞대결이면 그 상대역도)의 팀을 DUEL_WARM_SEC9 앞서
+     팀 엔진으로 미리 짓고, 갈아탄 직후 CAST_SWAP_HOLD9 동안은 그 팀을 남겨 둔다 — 그 사이 붓은 팀 장으로 갈래의 빈틈을 메운다
+     (frameAt9 의 branchSwap9). 같은 팀으로 갈아타면 갈래가 안 바뀌므로 안 데운다. */
+  const castCur9 = castOn && castIdx9 >= 0 ? castPlan[castIdx9] : undefined;
+  const castPrev9 = castOn && castIdx9 > 0 ? castPlan[castIdx9 - 1] : undefined;
+  const warmKey9 = ((): string => {
+    const r9: string[] = [];
+    if (duelNext9 && duelNext9.at - t < DUEL_WARM_SEC9) {
+      if (duelNext9.foe) r9.push(duelNext9.raw, duelNext9.foe);
+      else if (castCur9 && teamOfRaw(duelNext9.raw) !== teamOfRaw(castCur9.raw)) r9.push(duelNext9.raw);
+    }
+    if (castCur9 && castPrev9 && t - castCur9.at < CAST_SWAP_HOLD9 && teamOfRaw(castCur9.raw) !== teamOfRaw(castPrev9.raw)) r9.push(castCur9.raw);
+    return r9.join("|");
+  })();
   const splitTeamsKey9 = useMemo(() => {
     if (!fogReady9) return "";
     const ts9 = new Set<number>();
@@ -12728,7 +12745,13 @@ export default function ReplayMotionPlayer({
   /* 렌즈 변환은 리액트 스타일이 아니라 이 effect가 쓴다(위 렌즈 상자 주석) — 손짓
      동안의 직접 변환과 싸우지 않게. 캔버스에 걸어 뒀던 임시 변환도 여기서 걷는다:
      자식(UnitLayer)의 그리기 effect가 먼저 돌아, 이 시점엔 이미 새 배율로 또렷하다. */
-  useEffect(() => {
+  /* ★ **레이아웃 effect 다**(2026-10, 지적: "사람 전환시 … 딱한번 바뀔때 깜빡임 무조건 있네") — 중계·추적의 팬은 렌더가 내는 값이라
+     panRef 가 **렌더 중에** 새 자리로 바뀐다(trackLockRef). 그런데 지형 렌즈는 이 effect 가 걸었고, 보통 effect 는 커밋 뒤 브라우저가
+     한 번 그린 다음에 돈다 — 그 사이 rAF 붓이 유닛·안개를 새 자리로 칠하면 **한 장 동안** 땅은 옛 자리 · 유닛·안개는 새 자리였다.
+     카메라가 툭 옮기는 갈아탐마다 꼭 한 번 나던 깜빡임이 그것이다(미끄러지는 동안에도 한 장씩 뒤졌다). 레이아웃 effect 는 커밋과 같은
+     일감에서 그리기 전에 돌므로 땅·유닛·안개가 늘 같은 자리로 선다. 자식 그리기(보통 effect)보다 먼저 돌게 되지만, 기준이 상태와 다르면
+     아래에서 지금 한 장 칠하므로 그림은 같다. */
+  useLayoutEffect(() => {
     /* 손짓 중의 굴림 커밋(드래그 버벅임 수리) — 방금 이 상태로 캔버스가 다시 그려졌으니
        (자식 effect가 먼저 돈다) **기준만** 이 상태로 갈아 끼우고 남은 델타를 다시 건다.
        여기서 상태값으로 덮어 되돌리면 다음 pointermove까지 한 프레임 튄다. 자식 그리기와
@@ -14040,12 +14063,40 @@ export default function ReplayMotionPlayer({
         if (f9.t < wPacked9.t && f9.subs) for (const u9 of f9.subs) { u9.dec = undefined; u9.byKey = undefined; }
       }
       if (count9) paintPackedRef9.current = wPacked9;
-      const fr9 = wPacked9.t <= tNow9 ? lerpFrame9(wPacked9, tNow9, count9 ? 1 : 0) : decodeFrame9(wPacked9);
+      const fr09 = wPacked9.t <= tNow9 ? lerpFrame9(wPacked9, tNow9, count9 ? 1 : 0) : decodeFrame9(wPacked9);
+      const fr9 = count9 ? branchSwap9(wPacked9, fr09, tNow9) : fr09;
       lastFrameRef9.current[count9 ? 1 : 0] = fr9;
       return fr9;
     }
     if (count9) wStatRef.current.missed += 1;
     return lastFrameRef9.current[count9 ? 1 : 0] ?? lastFrameRef9.current[count9 ? 0 : 1] ?? EMPTY_FRAME9;
+  };
+  /** 이번 장의 안개가 어느 갈래(시야)의 것인가 — 안개 층이 밝힌 판을 합칠 때 갈래가 바뀌면 새로 시작한다(ReplayFogLayer 의 branch). */
+  const fogBranchRef9 = useRef(0);
+  const swapFrameRef9 = useRef<Frame9 | null>(null);
+  /** ★ **시야 갈래의 빈틈을 팀 장으로 메운다**(2026-10, 지적: "사람 전환시 … 딱한번 바뀔때 깜빡임 무조건 있네") — 중계가 다른 팀의
+   *  사람으로 갈아타면 새 갈래(fogSeq)를 청하지만 그 첫 장이 올 때까지 붓이 고르는 장은 **옛 갈래**(옛 사람의 시야)다. 카메라는 이미
+   *  새 사람에게 가 있으므로 그 사이 새 자리가 옛 사람의 안개(대개 못 본 땅 = 어둠)로 칠해졌다가 새 장이 오며 밝아졌다 — 한 번의 깜빡임.
+   *  그 팀의 장을 미리 데워 두었으면(warmKey9) 같은 앞·뒤 장에 딸려 온 그 팀의 몸·눈·밝힌 판으로 바꿔 그린다. 새 갈래의 장이 오면
+   *  저절로 멎는다(wPacked9.fseq 가 따라잡는다). 분할보기는 칸마다 제 팀 장을 쓰므로 여기서는 안 건드린다. */
+  const branchSwap9 = (a9: PackedFrame9, fr9: Frame9, tNow9: number): Frame9 => {
+    const fq9 = fogSeqRef9.current;
+    fogBranchRef9.current = a9.fseq;
+    if (a9.fseq >= fq9.seq || splitOnRef9.current) return fr9;
+    const [vt9, va9, fo9] = fq9.key.split("|");
+    const tm9 = Number(vt9);
+    if (va9 !== "0" || fo9 !== "1" || (tm9 !== 1 && tm9 !== 2)) return fr9;
+    const ex9 = teamExpRef9.current.get(tm9);
+    if (!ex9 || ex9.length !== grid.width * grid.height) return fr9;
+    const tf9 = teamFrameAt9(tm9, tNow9);
+    if (!tf9 || !tf9.eyes) return fr9;
+    let h9 = swapFrameRef9.current;
+    if (!h9) { h9 = { ...fr9 }; swapFrameRef9.current = h9; } else Object.assign(h9, fr9);
+    h9.unitOps = tf9.unitOps; h9.fxOps = tf9.fxOps;
+    h9.visSrc = tf9.eyes; h9.visVer = undefined; h9.explored = ex9;
+    fogBranchRef9.current = fq9.seq;   // 안개는 이미 새 갈래의 것이다
+    if (scrDiagOn()) (SCR_DIAG as unknown as Record<string, number>).branchSwap = ((SCR_DIAG as unknown as Record<string, number>).branchSwap ?? 0) + 1;
+    return h9;
   };
   /** 붓이 이번 장에 고른 설계도(앞 장) — 분할보기의 팀 장이 같은 앞·뒤 장에서 나온다(teamFrameAt9). */
   const paintPackedRef9 = useRef<PackedFrame9 | null>(null);
@@ -14742,7 +14793,7 @@ export default function ReplayMotionPlayer({
         ft9.vis = fr9.visSrc; ft9.ver = fr9.visVer; ft9.explored = fr9.explored; ft9.tq = tq9; ft9.z = vz9; ft9.px = vx9; ft9.py = vy9;
         ft9.at = gnow9;
         const pt09 = pNow();
-        fogPaintRef.current(zoomRef.current, panRef.current, { vis: fr9.visSrc, exploredAt: fr9.explored, t: tNow9 });
+        fogPaintRef.current(zoomRef.current, panRef.current, { vis: fr9.visSrc, exploredAt: fr9.explored, t: tNow9, branch: fogBranchRef9.current });
         miniFogLiveRef9.current = { eyes: fr9.visSrc, explored: fr9.explored, t: tNow9, seq: (miniFogLiveRef9.current?.seq ?? 0) + 1 };
         fogBin9().pms += pNow() - pt09;
         fogXfRef9.current = { z: vz9, x: vx9, y: vy9 };   // 이 보기로 칠했다 — 임시 변환의 새 기준
