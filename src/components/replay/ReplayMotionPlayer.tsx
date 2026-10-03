@@ -10708,7 +10708,10 @@ export default function ReplayMotionPlayer({
     const gh9 = Math.max(1, grid.height);
     const span9 = (gw9 / z9) * SPLIT_SPAN_K9;
     const zCap9 = Math.min((sw9 * gw9) / (cov9.w * span9), (sh9 * gh9) / (cov9.h * span9));
-    return Math.max(1, Math.min(z9, zCap9) * SPLIT_ZOOM_K9);
+    /* ★ 한 화면은 **짧은 축의 타일 수를 못 박는다**(zCap9 그대로 · 분할 칸처럼 min(z9, …) 로 죄지 않는다) — 죄면 무대가 짧은 축
+       기준보다 넉넉한 배치(폰 프레임)에서만 trackZoom9 쪽이 이겨, 프레임과 전체화면의 타일 수가 갈렸다(지적: "모바일 전체화면에서
+       타일이 더 적게 나옴"). 이제 어느 배치에서나 짧은 축 = SPLIT_SPAN_K9 × (격자 폭 ÷ trackZoom9) ÷ SPLIT_ZOOM_K9 타일이다. */
+    return Math.max(1, zCap9 * SPLIT_ZOOM_K9);
   };
   /** 지도가 무대를 채우는 폭 — 비율은 지킨다.
    *
@@ -11974,6 +11977,20 @@ export default function ReplayMotionPlayer({
     if (!keepLink9) linkHoldRef9.current = null;
     zoomRef.current = z9; panRef.current = p9; setZoom(z9); setPan(p9);
   }, []);
+  /* ★ **무대 크기가 바뀌면 중계 배율을 다시 맞춘다**(2026-10, 지적: "모바일 전체화면에서 타일이 더 적게 나옴 화면 비율은
+     비슷한데") — 배율은 '덮는 판(fsCoverW) 폭의 몇 배'라 무대가 커지면(전체화면 · 회전 · 창 크기) 같은 배율이 더 적은 타일을
+     보인다. castZoomFit9 는 켤 때 한 번만 돌았으므로 그 차가 그대로 남았다. 중계·개인 추적이 카메라를 쥔 동안(분할 아님)
+     덮는 판·무대 크기가 바뀌면 그 식을 다시 돈다 — 곧 어느 크기에서나 보이는 타일 수가 같다. 처음 켤 때는 위 당김이 맡는다. */
+  const castFitKey9 = camRaw9 && !splitOn9 && fsCoverW > 0 ? `${Math.round(fsCoverW)}x${Math.round(stage.h)}` : "";
+  const castFitKeyRef9 = useRef("");
+  useEffect(() => {
+    const prev9 = castFitKeyRef9.current;
+    castFitKeyRef9.current = castFitKey9;
+    if (!castFitKey9 || !prev9 || prev9 === castFitKey9) return;
+    setView9(castZoomFit9(), panRef.current);
+    // castZoomFit9 는 ref 만 읽는 클로저다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [castFitKey9, setView9]);
   /* 배치가 다시 설 때마다 링크의 자리를 **다시 앉힌다**(위 linkHoldRef9) — 죔(clamp)
      레이아웃 이펙트보다 **뒤에** 서야 한다(선언 차례가 곧 도는 차례다): 죔이 먼저 옛 팬을
      새 한계로 자르고, 그다음 여기서 분수로 새로 낸다. */
