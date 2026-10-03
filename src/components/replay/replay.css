@@ -436,8 +436,7 @@
 /* 시점 손잡이(지적: 줄 전체가 눌려 빈 칸까지 범위였다) — 아바타+이름 조각만 누르는
    자리다. 폭은 제 내용만큼이고(위 flex: 0 0 auto), 손가락 기기에서 너무 얇지 않게
    위아래로만 조금 넓힌다. */
-.scr-motion-teamcol-pick { cursor: pointer; padding: 1px 3px; border-radius: 7px; }
-.scr-motion-teamcol-pick:focus-visible { outline: 1px solid rgba(255, 255, 255, 0.5); }
+.scr-motion-teamcol-pick { padding: 1px 3px; border-radius: 7px; }
 /* 손잡이 조각은 이제 머리(.scr-motion-teamcol-head) **안**에 산다 — 그 왼쪽에 추적
    버튼이 서면서 머리가 [추적][아바타+이름] 두 칸이 됐다. 옛 배치(머리 자신이 손잡이)의
    가로 정렬을 이 조각이 물려받는다. */
@@ -449,6 +448,17 @@
 
 /* 켜진 표시의 깜빡임 — 지금 따라가는 중이라는 살아 있는 신호다. 글자색이 초록 ↔ 검정을 오간다(TV 단추가 쓴다).
    ⚠ 아이콘 후광(drop-shadow)은 걷었다(2026-09 · 위 .scr-motion-castbtn-on 의 ★ — 그 후광이 곧 '중계 단추만 그림자'였다). */
+/* 자동 중계가 지금 보여 주는 사람의 이름 칩(2026-10, 요청: "중계 자동모드에서 누군지 알수없으니 로스터를 깜빡임발광
+   주기") — 칩의 바탕은 그 사람 색이라 어느 색에서도 읽히게 **흰 테 + 흰 후광**이 숨 쉬듯 켜졌다 꺼진다(TV 단추의
+   초록 깜빡임과 같은 박자 1초). 칩 크기는 안 바뀐다(그림자뿐이라 줄이 안 들썩인다). */
+.scr-motion-teamcol-name.scr-motion-teamcol-cast { animation: scr-cast-chip 1s ease-in-out infinite; }
+@keyframes scr-cast-chip {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.95), 0 0 6px 2px rgba(255, 255, 255, 0.85); filter: brightness(1.25); }
+  50% { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0), 0 0 0 0 rgba(255, 255, 255, 0); filter: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scr-motion-teamcol-name.scr-motion-teamcol-cast { animation: none; box-shadow: 0 0 0 1px #fff, 0 0 6px 2px rgba(255, 255, 255, 0.7); }
+}
 @keyframes scr-track-blink {
   0%, 45% { color: #2ee59d; }
   55%, 100% { color: #0b0f14; }
@@ -493,8 +503,8 @@
    손잡이(pick) 자신은 투명해도 된다 — 누름은 두 조각에서 시작해 **거품처럼 올라와**
    그 위의 onClick에 닿는다. 종족 배지는 읽는 표시라 되살리지 않는다. */
 .scr-motion-teamcol { pointer-events: none; }
-.scr-motion-teamcol .scr-motion-base-ring,
-.scr-motion-teamcol .scr-motion-teamcol-name { pointer-events: auto; }
+/* (걷어냄 · 2026-10, 요청: "로스터 눌러서 시야 끄고 켜는 기능 완전 제거") — 아바타·이름 글자만 손짓을 되살리던
+   두 줄이 있던 자리다. 이제 로스터는 통째로 투명해 그 위의 손짓을 다 지도가 받는다. */
 
 /* 이름칩은 **제 칸을 다 쓴다** — 자르는 자는 고정된 이름 칸(--roster-name) 하나다.
    여기 있던 max-width: 92px은 칸이 1fr이던 시절 '지표를 밀어내지 않게' 걸어 둔 재갈인데,
@@ -624,14 +634,7 @@
   border-radius: 8px;
   padding: 2px 4px; margin: -2px -4px;
   transition: background 0.15s ease, opacity 0.15s ease;
-}@media (hover: hover) {
-  /* 손잡이 자신은 손짓에 투명하므로(위 pointer-events 주석) :hover가 안 걸린다 —
-     되살린 두 조각 위에 손이 있을 때 켠다. */
-  .scr-motion-teamcol-pick:has(.scr-motion-base-ring:hover),
-  .scr-motion-teamcol-pick:has(.scr-motion-teamcol-name:hover) {
-    background: rgba(255, 255, 255, 0.07);
-  }
-}
+}/* (걷어냄 · 2026-10) 로스터 손잡이의 호버 바탕 — 이제 안 눌린다. */
 
 /* 지금 보고 있는 시점의 주인 — 옅은 테로 감싼다(글자·아바타는 안 건드린다). */
 /* 고른 사람에게 **테두리**를 두른다(요청: "선택한사람에 로스터에 테두리 넣어주기") —

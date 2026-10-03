@@ -173,16 +173,11 @@ export default function ReplayGuide({ onClose }: {
               <span className="scr-guide-ic"><Tv size={14}/></span>
               <span><b>자동</b> — 지금 가장 볼 만한 사람에게 저절로 갑니다. 교전·견제·마법이 크게 벌어지는 쪽을 장면이
               시작되기 <b>조금 전에</b> 미리 잡아 두고, 일이 이어지면 8초가 넘어도 그 사람에 머뭅니다. 볼 만한 일이 없으면
-              <b> 로스터 차례로 팀을 번갈아</b> 8초씩 돌아갑니다. 지도는 다 보이는 채로 카메라만 옮깁니다.</span>
+              <b> 로스터 차례로 팀을 번갈아</b> 8초씩 돌아갑니다. 지도는 다 보이는 채로 카메라만 옮깁니다. 지금 보여 주는 사람은 로스터의 <b>이름이 깜빡이며 빛납니다</b>.</span>
             </li>
             <li>
               <span className="scr-guide-ic scr-guide-ic-txt">끄기</span>
               <span><b>끄기</b> — 보던 자리에 그대로 멈추고 지도를 손으로 움직입니다. 시야도 전체로 돌아옵니다.</span>
-            </li>
-            <li>
-              <span className="scr-guide-ic scr-guide-ic-txt">이름</span>
-              <span><b>시점 보기</b> — 로스터의 <b>이름</b>을 누릅니다(PC). 그 사람의 시야만 켜고 화면은 안 따라갑니다 —
-              내가 보고 싶은 곳을 보면서 “저 사람 눈에는 지금 뭐가 보이나”만 겹쳐 볼 때 씁니다.</span>
             </li>
           </ul>
         </div>

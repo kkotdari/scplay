@@ -15970,22 +15970,10 @@ export default function ReplayMotionPlayer({
             {/* (걷어냄 · 2026-09, 요청: "기존 로스터에 추적버튼은 제거하고 여기로 통합") — 이름 왼쪽의 조준선(개인 추적)
                 단추다. 추적은 이제 아이콘 줄 TV 단추의 목록(사람들 + 자동)에서 고른다(아래 mapBtnRow). 시점(이름 누르기)은
                 그대로다: "그 눈으로 밝혀만 본다"와 "카메라까지 맡긴다"는 여전히 딴 손잡이다. */}
-            <span
-              className="scr-motion-teamcol-pick"
-              role="button"
-              tabIndex={0}
-              aria-pressed={viewRaw === m.key}
-              title={viewRaw === m.key ? `${m.name} 시점 끄기` : `${m.name} 시점으로 보기`}
-              /* 시점을 손으로 고르면 추적은 놓는다 — 추적이 켜 둔 시야를 그 자리에서
-                 갈아 끼우면, 카메라만 딴 사람을 따라가는 짝짝이 화면이 된다. */
-              onClick={() => { stopTrack9(); setViewRaw((v) => (v === m.key ? null : m.key)); }}
-              onKeyDown={(ev) => {
-                if (ev.key !== "Enter" && ev.key !== " ") return;
-                ev.preventDefault();
-                stopTrack9();
-                setViewRaw((v) => (v === m.key ? null : m.key));
-              }}
-            >
+            {/* ★ 로스터는 **안 눌린다**(2026-10, 요청: "로스터 눌러서 시야 끄고 켜는 기능 완전 제거") — 이름을 눌러
+                그 사람 시야만 켜던 '시점 보기'를 걷었다. 시야는 이제 TV 목록(사람 = 개인 추적 · 분할 = 칸마다 제 팀)만
+                바꾼다. 이 조각은 아바타+이름의 가로 배치만 맡는다(클래스 이름은 옛 손잡이의 것 그대로). */}
+            <span className="scr-motion-teamcol-pick">
             <span className="scr-motion-base-ring" style={{ boxShadow: `0 0 0 2px ${color}` }}>
               {(() => {
                 /* 프사는 **꽂혀 있고 켜져 있어야** 그린다(chrome.ts) — 앱이 주는가와
@@ -16000,7 +15988,11 @@ export default function ReplayMotionPlayer({
             </span>
             <span className="scr-motion-teamcol-text">
               {/* 줄인 이름 하나로(재요청: 한글 3·영문 5 제한) — 전체 이름은 카드·댓글에서. */}
-              <span className="scr-motion-teamcol-name" style={chipStyle(m.key, m.team, bare ? CHIP_BARE_A9 : CHIP_ROW_A9)}>
+              {/* ★ 자동 중계가 지금 보여 주는 사람의 칩은 **깜빡이며 빛난다**(2026-10, 요청: "중계 자동모드에서 누군지
+                  알수없으니 로스터를 깜빡임발광 주기") — 자막·정보 판을 걷은 뒤로 자동 중계는 '누구 화면인가'를 말할
+                  자리가 없었다. 개인 추적·분할은 손으로 고른 것이라 안 깜빡인다. */}
+              <span className={cx("scr-motion-teamcol-name", castOn && castRaw === m.key && "scr-motion-teamcol-cast")}
+                style={chipStyle(m.key, m.team, bare ? CHIP_BARE_A9 : CHIP_ROW_A9)}>
                 {rows ? m.name : shortName(m.name, mates.length)}
                 {/* ★ 종족 글자는 **이름과 같은 네모 안**이고 원은 없다(2026-09, 요청: "로스터 종족배지 원
                     제거하고 T P Z 만 표시하는데 그마저도 플레이어명과 같이 네모 안으로 이동") — 옆에 따로
