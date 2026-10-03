@@ -48,7 +48,16 @@ export type CastSeg9 = {
   cyc: boolean;
   /** 그 장면의 무게(진단·토스트 차례 정하기). */
   score: number;
+  /** ★ 그 장면의 **상대역**(2026-10 · 아래 머리말의 맞대결) — 있으면 재생기가 둘을 나란히 세운다(자동 분할). */
+  foe?: string;
+  /** 주인공(raw)의 몫 — atk 공격 · def 방어 · war 교전(둘 다 친다). 상대역은 그 거울(atk ↔ def · war 그대로). */
+  role?: CastRole9;
+  /** 맞대결이 끝나는 시각(초) — 그 뒤로는 같은 토막이어도 한 화면으로 돌아간다. */
+  foeTo?: number;
 };
+export type CastRole9 = "atk" | "def" | "war";
+/** 상대역의 몫 — 주인공의 거울. */
+export const castFoeRole9 = (r9: CastRole9): CastRole9 => (r9 === "atk" ? "def" : r9 === "def" ? "atk" : "war");
 
 export type CastPlanOpts9 = {
   /** 경기 길이(초). */
@@ -105,6 +114,8 @@ const LEAVE_N9 = 8;
  *  화면을 돌리는 그 자다) · `tail` — 그 사건 뒤 장면을 열어 두는 초(GAP9 대신 · 도망치는 일꾼을 쫓아
  *  잡는 사이를 한 장면으로 잇고, 그 사이에 순환이 끼어들지 않게 한다). */
 const HARASS9 = { k: 4, tail: 12 };
+/** 맞대결(자동 분할)을 장면의 마지막 사건 뒤 이만큼 더 둔다(초) — 끝나자마자 한 화면으로 접히면 결말이 안 읽힌다. */
+const DUEL_TAIL9 = 2;
 
 /** 변태로 난 몸의 **누적** 몸값 — 표의 값은 변태 비용뿐이라 밑몸 값을 더해 준다. */
 const MORPH_BASE9: Record<string, string> = {
@@ -139,7 +150,9 @@ const CAST_W9: Record<string, number> = {
 };
 
 /** 한 사건 — 시각·사람·무게 · `tail` 은 이 사건 뒤 장면을 열어 두는 초(없으면 GAP9). */
-type Ev9 = { sec: number; raw: string; w: number; why: string; tail?: number };
+type Ev9 = { sec: number; raw: string; w: number; why: string; tail?: number;
+  /** 맞상대(죽인 쪽이면 잃은 사람 · 잃은 쪽이면 죽인 사람) · 준 몸값(죽인 쪽) · 잃은 살림 값(일꾼·건물 · 잃은 쪽). */
+  vs?: string; dealt?: number; econ?: number };
 
 /** 편성표를 굽는다 — 참값 한 벌에 한 번이다(재생 중에는 짚기만 한다). */
 export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
@@ -192,8 +205,19 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       }
     }
   }
-  /** 그 태그를 그 순간 죽인 임자 — 창 안에서 가장 많이 겨눈 적. 없으면 -1. */
+  /** ★ 처치 절(판 11 · [초, 킬러 임자, 킬러 태그, 죽은 태그])이 있으면 그것이 먼저다 — 겨눔 자국은 어림이고 이것은
+   *  시뮬이 적은 참값이다(맞대결의 상대역도 이것으로 선다). 같은 태그가 변태로 여러 생애를 가지므로 초로 짝짓는다. */
+  const killBy9 = new Map<number, number[]>();
+  for (const [ks9, ko9, , kd9] of world.kills ?? []) {
+    const a9 = killBy9.get(kd9);
+    if (a9) a9.push(ks9, ko9); else killBy9.set(kd9, [ks9, ko9]);
+  }
+  /** 그 태그를 그 순간 죽인 임자 — 처치 절, 없으면 창 안에서 가장 많이 겨눈 적. 없으면 -1. */
   const killerOf9 = (tag9: number, sec9: number, mine9: number): number => {
+    const k9 = killBy9.get(tag9);
+    if (k9) for (let i9 = 0; i9 < k9.length; i9 += 2) {
+      if (Math.abs(k9[i9] - sec9) <= 1 && k9[i9 + 1] !== mine9) return k9[i9 + 1];
+    }
     const a9 = aim9.get(tag9);
     if (!a9) return -1;
     let best9 = -1;
@@ -261,8 +285,10 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     const kill9 = d9.killer >= 0 ? rawOf9.get(d9.killer) : undefined;
     const why9 = d9.bld ? "건물 파괴" : d9.wk ? "견제" : "교전";
     const tail9 = d9.wk ? HARASS9.tail : undefined;
-    if (kill9) evs9.push({ sec: d9.sec, raw: kill9, w: d9.v * (d9.bld ? BLD_K9 : 1), why: why9, tail: tail9 });
-    if (mine9) evs9.push({ sec: d9.sec, raw: mine9, w: d9.v * LOSS_K9, why: d9.bld ? "건물 잃음" : d9.wk ? "견제 당함" : "교전", tail: tail9 });
+    if (kill9) evs9.push({ sec: d9.sec, raw: kill9, w: d9.v * (d9.bld ? BLD_K9 : 1), why: why9, tail: tail9,
+      vs: mine9, dealt: d9.v });
+    if (mine9) evs9.push({ sec: d9.sec, raw: mine9, w: d9.v * LOSS_K9, why: d9.bld ? "건물 잃음" : d9.wk ? "견제 당함" : "교전", tail: tail9,
+      vs: kill9, econ: d9.bld || d9.wk ? d9.v : 0 });
   }
   for (const [sec9, , , tech9, own9] of world.casts) {
     const w9 = CAST_W9[tech9];
@@ -274,10 +300,13 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   evs9.sort((a9, b9) => a9.sec - b9.sec);
 
   /* ── 장면으로 묶기 ────────────────────────────────────────────────────────── */
-  type Sc9 = { t0: number; t1: number; by: Map<string, number>; why: string; tail: number };
+  type Sc9 = { t0: number; t1: number; by: Map<string, number>; why: string; tail: number;
+    /** "a>b" → a 가 b 에게 준 몸값 · 사람 → 잃은 살림 값(맞대결의 자 — 아래 duel9). */
+    pair: Map<string, number>; econ: Map<string, number> };
   const scs9: Sc9[] = [];
   for (let i9 = 0; i9 < evs9.length;) {
-    const sc9: Sc9 = { t0: evs9[i9].sec, t1: evs9[i9].sec, by: new Map(), why: evs9[i9].why, tail: GAP9 };
+    const sc9: Sc9 = { t0: evs9[i9].sec, t1: evs9[i9].sec, by: new Map(), why: evs9[i9].why, tail: GAP9,
+      pair: new Map(), econ: new Map() };
     let top9 = 0;
     let j9 = i9;
     /* 다음 사건이 **앞 사건의 꼬리**(견제면 HARASS9.tail · 그 밖은 GAP9) 안이면 같은 장면이다. */
@@ -286,6 +315,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       sc9.t1 = e9.sec;
       sc9.tail = e9.tail ?? GAP9;
       sc9.by.set(e9.raw, (sc9.by.get(e9.raw) ?? 0) + e9.w);
+      if (e9.vs && e9.dealt) sc9.pair.set(`${e9.raw}>${e9.vs}`, (sc9.pair.get(`${e9.raw}>${e9.vs}`) ?? 0) + e9.dealt);
+      if (e9.econ) sc9.econ.set(e9.raw, (sc9.econ.get(e9.raw) ?? 0) + e9.econ);
       /* 꼬리표는 그 장면에서 **가장 무거운 사건**의 것이다 — 핵 한 발이 든 교전은 '핵'이다. */
       if (e9.w > top9) { top9 = e9.w; sc9.why = e9.why; }
       j9 += 1;
@@ -343,19 +374,50 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     return r9 < b9 ? r9 : b9;
   }, cands9[0]);
   /** 한 토막을 싣는다 — 같은 사람이 이어지면 토막을 안 늘린다(갈아타는 자리가 아니다). */
-  const push9 = (at9: number, raw9: string, why9: string, cyc9: boolean, score9: number): void => {
+  type Duel9 = { foe: string; role: CastRole9; foeTo: number };
+  const push9 = (at9: number, raw9: string, why9: string, cyc9: boolean, score9: number, duel9?: Duel9): void => {
     const a9 = Math.max(0, Math.min(total, at9));
     ringPos9 = ring9.indexOf(raw9);
     const last9 = out9[out9.length - 1];
-    if (last9 && last9.raw === raw9) {
-      /* 이어지는 같은 사람 — 꼬리표만 갱신한다(장면이 순환을 이겼으면 장면 쪽으로). */
+    /* 이어지는 같은 사람 — 꼬리표만 갱신한다(장면이 순환을 이겼으면 장면 쪽으로). 맞대결은 **상대역까지 같아야** 잇는다
+       — 상대가 바뀌거나 맞대결이 끝난 뒤의 순환이면 새 토막이다(안 그러면 맞대결이 순환 내내 남는다). */
+    if (last9 && last9.raw === raw9 && (!last9.foe || a9 >= (last9.foeTo ?? 0)) && !duel9) {
       if (!cyc9 && last9.cyc) { last9.cyc = false; last9.why = why9; last9.score = score9; }
       shown9.set(raw9, a9);
       return;
     }
+    if (last9 && last9.raw === raw9 && duel9 && last9.foe === duel9.foe) {
+      last9.foeTo = Math.max(last9.foeTo ?? 0, duel9.foeTo);
+      if (!cyc9) { last9.cyc = false; last9.why = why9; last9.score = Math.max(last9.score, score9); last9.role = duel9.role; }
+      shown9.set(raw9, a9);
+      return;
+    }
     if (last9 && a9 <= last9.at) return;   // 시각이 뒤로 가는 토막은 안 싣는다
-    out9.push({ at: a9, raw: raw9, why: why9, cyc: cyc9, score: score9 });
+    out9.push({ at: a9, raw: raw9, why: why9, cyc: cyc9, score: score9, ...(duel9 ?? {}) });
     shown9.set(raw9, a9);
+  };
+  /** ★★ **맞대결** — 그 장면에서 주인공과 가장 많이 주고받은 적이 상대역이다(2026-10, 요청: "교전 발생시 공격자만 보여줄게
+   *  아니라 화면 두개로 나눠서 대응하는쪽도 보여주기 · 침공이나 전투 드랍 견제 등에서 주인공의 상대역도 보여주는것 · 공격쪽
+   *  닉네임에 공격배지 방어는 방어배지 둘다 공격이면 교전배지").
+   *  · 상대역 — `pair` 의 주고받은 몸값(주인공 → 그 · 그 → 주인공)의 합이 가장 큰 사람. 겨눔 자국이 없는 옛 덤프는 죽인 쪽을
+   *    모르니 맞대결이 안 선다(한 화면 그대로).
+   *  · 몫 — **잃은 살림**(일꾼·건물)으로 가른다: 침공·드랍·견제는 지키는 쪽의 일꾼·건물이 죽는 일이고, 군대끼리의 싸움은
+   *    살림이 안 죽는다. 둘의 살림 손실이 맞대결 몸값의 25% 아래면 교전 · 둘이 엇비슷하게(0.6배 안) 잃었으면 교전 ·
+   *    아니면 더 잃은 쪽이 방어, 다른 쪽이 공격이다. ⚠ '누가 더 죽였나'로 가르지 마라 — 막아 낸 방어가 더 많이 죽인다. */
+  const duel9 = (sc9: Sc9, pick9: string): Duel9 | undefined => {
+    let foe9 = "";
+    let fw9 = 0;
+    for (const o9 of sc9.by.keys()) {
+      if (o9 === pick9) continue;
+      const w9 = (sc9.pair.get(`${pick9}>${o9}`) ?? 0) + (sc9.pair.get(`${o9}>${pick9}`) ?? 0);
+      if (w9 > fw9) { fw9 = w9; foe9 = o9; }
+    }
+    if (!foe9) return undefined;
+    const eP9 = sc9.econ.get(pick9) ?? 0;
+    const eF9 = sc9.econ.get(foe9) ?? 0;
+    let role9: CastRole9 = "war";
+    if (eP9 + eF9 >= fw9 * 0.25 && !(eP9 >= eF9 * 0.6 && eF9 >= eP9 * 0.6)) role9 = eP9 > eF9 ? "def" : "atk";
+    return { foe: foe9, role: role9, foeTo: sc9.t1 + (sc9.tail - GAP9) + DUEL_TAIL9 };
   };
   /** 마지막 토막이 선 시각(없으면 -1000) · 그 무게. */
   const lastAt9 = (): number => (out9.length > 0 ? out9[out9.length - 1].at : -1000);
@@ -386,7 +448,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     }
     /* 머무는 중이면 **훨씬 무거운 장면**만 끼어든다 — 그래야 화면이 안 튄다. */
     const held9 = at9 - lastAt9() < MIN_HOLD9;
-    if (!held9 || tot9 >= lastScore9() * JUMP9) push9(at9, pick9, sc9.why, false, tot9);
+    if (!held9 || tot9 >= lastScore9() * JUMP9) push9(at9, pick9, sc9.why, false, tot9, duel9(sc9, pick9));
     /* 장면의 끝은 마지막 사건 + **꼬리의 남는 몫**이다 — 견제는 마지막 킬 뒤에도 쫓는 몸이 그 자리에
        있으니 그만큼 머물고, 그 사이에 순환이 끼어들지 않는다(교전은 tail = GAP9 라 종전 그대로). */
     cur9 = Math.max(cur9, sc9.t1 + (sc9.tail - GAP9));

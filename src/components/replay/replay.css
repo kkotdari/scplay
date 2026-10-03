@@ -4134,3 +4134,18 @@
 @media (prefers-reduced-motion: reduce) {
   .scr-tb .scr-tb-btnrow > .scr-motion-mapbtns .scr-motion-castbtn-on svg { animation: none; color: #3dffa8; }
 }
+/* ★ 맞대결 배지(2026-10, 요청: "공격쪽 닉네임에 공격배지 방어는 방어배지 둘다 공격이면 교전배지 붙이고 깜빡이기") — 자동 중계가
+   교전·침공·견제 장면을 두 칸으로 나눌 때 칸 머리의 이름 칩 바로 뒤에 선다. 칩과 같은 키·둥글기 · 1초 박자로 밝았다 옅어진다. */
+.scr-split-badge {
+  display: inline-flex; align-items: center; flex: none; height: 1.25em; box-sizing: border-box;
+  margin-left: calc(3px * var(--dk)); padding: 0 calc(3px * var(--dk)); border-radius: 2px;
+  color: #fff; font-weight: 800; animation: scr-duel-blink 1s ease-in-out infinite;
+}
+.scr-split-badge.is-atk { background: #e5383b; }
+.scr-split-badge.is-def { background: #2f6fe4; }
+.scr-split-badge.is-war { background: #e8890c; }
+@keyframes scr-duel-blink {
+  0%, 100% { opacity: 1; filter: brightness(1.2); box-shadow: 0 0 6px 1px rgba(255, 255, 255, 0.55); }
+  50% { opacity: 0.45; filter: none; box-shadow: none; }
+}
+@media (prefers-reduced-motion: reduce) { .scr-split-badge { animation: none; } }

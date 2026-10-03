@@ -14,7 +14,7 @@ const GHOST_PLATE_COL9 = "#3ee06a";
 import ReplayGuide from "./ReplayGuide";
 import QMarkIcon from "./QMarkIcon";
 /* 중계(중요도 기반 추적) — 편성표를 굽는 순수 문. 경기 한 벌에 한 번 돌고, 재생은 짚기만 한다. */
-import { castAt9, castPlan9, type CastSeg9 } from "./cast9";
+import { castAt9, castFoeRole9, castPlan9, type CastRole9, type CastSeg9 } from "./cast9";
 /* 미니맵 — 이제 **제 오버레이 판**이고 제 아이콘으로 여닫는다(요청: "미니맵 오버레이
    및 아이콘 추가"). 도구 판 안에 세들어 살던 시절과 달리, 켜고 끄는 것이 이것 하나다. */
 import ReplayFullscreenMinimap, { type MiniDot } from "./ReplayFullscreenMinimap";
@@ -253,6 +253,8 @@ const SPLIT_SPAN_K9 = 0.75;
 /* 분할 칸 배율을 위 둘(담기 · 최소 타일)로 낸 뒤 한 번 더 당기는 몫(2026-10, 지적: "분할창 보이는 영역이 이제 너무 넓어짐" →
    "살짝 줄여야할듯") — 칸에 보이는 타일이 가로·세로 다 1/1.2 로 준다. */
 const SPLIT_ZOOM_K9 = 1.2;
+/** 맞대결 배지 글자(위 duel9). */
+const DUEL_LABEL9: Record<CastRole9, string> = { atk: "공격", def: "방어", war: "교전" };
 /** 분할보기 칸의 오림 네모(유닛 캔버스 CSS px · x0 y0 x1 y1) — 칸을 칠하는 동안만 서고, 붓의 화면 걸러내기(inView0)가 이 안의
  *  몸만 그린다. 칸은 제 실제 배율(낮다)로 칠하므로 판에는 그 칸보다 넓은 땅이 드는데, 그 몫을 안 그려야 칸 수만큼 값이 안 붙는다. */
 let PAINT_CLIP9: [number, number, number, number] | null = null;
@@ -9591,14 +9593,12 @@ export default function ReplayMotionPlayer({
      위에 닉네임과 자원 인구 apm k/d 표시" · "가능하면 스타팅 포인트 위치에 따라 배치") — 중계(자동)·개인 추적과 배타다
      (TV 목록의 한 줄). 칸마다 그 사람의 카메라(명령 자국 무게중심 · trackAt 과 같은 자)이고, 붓은 **한 판을 칸마다 다시
      칠해 베낀다**(아래 splitPaint9). splitPick9 는 누른 칸의 사람 — 독(정보줄·인포창)이 그 사람의 것을 든다. */
-  const [splitOn9, setSplitOn9] = useState(false);
+  /** 손으로 켠 분할(TV 목록) — 실제 분할 여부는 아래 splitOn9(맞대결 자동 분할까지 아우른다). */
+  const [splitUser9, setSplitOn9] = useState(false);
   const [splitPick9, setSplitPick9] = useState<string | null>(null);
   /* ★ 분할에 **세울 사람들**(2026-09, 요청: "중계선택에서 분할->전체로 변경하고 닉네임 누르면 선택 추가돼서 그 사람들만 분할모드로")
      — null 이면 전체(TV 목록의 '전체'), 배열이면 목록에서 닉네임으로 고른 사람들(둘 이상)이다. 한 사람이면 분할이 아니라 개인 추적이다. */
   const [splitSel9, setSplitSel9] = useState<string[] | null>(null);
-  const splitBases9 = useMemo(() => (splitSel9 ? bases.filter((b9) => splitSel9.includes(b9.key)) : bases), [splitSel9, bases]);
-  const splitOnRef9 = useRef(false);
-  splitOnRef9.current = splitOn9;
   /** 로스터에 있는 이름만 중계에 세운다 — 관전자는 obsNames로 따로 뺀다. */
   const rosterKeys9 = useMemo(() => new Set(bases.map((b9) => b9.key)), [bases]);
   /** 편성표 — 참값 한 벌에 한 번 굽는다(끄면 아예 안 굽는다). */
@@ -9612,6 +9612,22 @@ export default function ReplayMotionPlayer({
   const castIdx9 = castPlan.length > 0 ? castAt9(castPlan, t) : -1;
   /** 중계가 고른 사람 — 끄거나 표가 없으면 null. */
   const castRaw = castIdx9 >= 0 ? castPlan[castIdx9].raw : null;
+  /* ★★ **맞대결 자동 분할**(2026-10, 요청: "교전 발생시 공격자만 보여줄게 아니라 화면 두개로 나눠서 대응하는쪽도 보여주기 ·
+     침공이나 전투 드랍 견제 등에서 주인공의 상대역도 보여주는것 · 공격쪽 닉네임에 공격배지 방어는 방어배지 둘다 공격이면
+     교전배지 붙이고 깜빡이기 · 자동으로 분할모드로 돌입하는것") — 편성표가 장면마다 상대역·몫을 적어 두고(cast9 의 duel9),
+     자동 중계 중 그 토막의 맞대결 창(foeTo) 안이면 두 사람으로 분할한다. 손으로 켠 분할·개인 추적과는 안 겹친다(그때는 castOn
+     이 꺼져 있다). 분할의 기계(칸 카메라·팀 시야·칸 미니맵·독 접기)는 그대로 탄다 — 끝나면 한 화면 중계로 돌아간다. */
+  const castSeg9 = castIdx9 >= 0 ? castPlan[castIdx9] : null;
+  const duel9: { a: string; b: string; ra: CastRole9; rb: CastRole9 } | null =
+    castOn && !splitUser9 && castSeg9?.foe && castSeg9.role && t < (castSeg9.foeTo ?? 0)
+      ? { a: castSeg9.raw, b: castSeg9.foe, ra: castSeg9.role, rb: castFoeRole9(castSeg9.role) } : null;
+  /** 분할보기가 서 있나 — 손으로 켠 분할이거나 맞대결 자동 분할이다. */
+  const splitOn9 = splitUser9 || duel9 !== null;
+  const duelKey9 = duel9 ? `${duel9.a}|${duel9.b}` : "";
+  const splitBases9 = useMemo(() => (duelKey9 ? bases.filter((b9) => duelKey9.split("|").includes(b9.key))
+    : splitSel9 ? bases.filter((b9) => splitSel9.includes(b9.key)) : bases), [duelKey9, splitSel9, bases]);
+  const splitOnRef9 = useRef(false);
+  splitOnRef9.current = splitOn9;
   /** ★ 지금 **카메라의 임자** — 손으로 켠 추적이 이기고, 없으면 중계가 고른 사람이다.
    *  아래 추적 기계(집은 자국·걷기·카메라)는 전부 이 하나를 본다. 로스터의 조준선 표시만
    *  trackRaw를 그대로 읽는다 — 개인 추적과 중계를 눈으로 갈라야 하기 때문이다. */
@@ -9619,7 +9635,7 @@ export default function ReplayMotionPlayer({
   /** ★ 주인공색은 **중계가 켜졌을 때만** 선다(2026-09, 요청: "주인공색은 중계 on일때만 켜지고 만약 중계를 끄면
    *  개인색으로 돌아감(기본)") — 중계 = TV 목록의 두 갈래(자동 · 개인 추적) 어느 쪽이든 카메라를 기계가 쥔 동안이다.
    *  끄면 아래 effect 가 개인색으로 되돌리고, 꺼진 동안은 단추의 돌림에서도 빠진다. */
-  const heroOk9 = camRaw9 !== null;
+  const heroOk9 = camRaw9 !== null && !splitOn9;   // 맞대결 분할은 칸이 둘이라 '나'가 없다
   /** 실제로 쓰는 색 갈래 — 밀리는 편이 없으니 팀색은 개인색으로 떨어진다(요청: 팀컬러 변경 비활성화) ·
    *  주인공색은 중계가 꺼지면 개인색이다(effect 가 상태를 되돌리기 전 한 렌더도 안 새게 여기서도 막는다). */
   const colorNow: ColorMode9 = (melee && colorMode === "team") || (colorMode === "hero" && !heroOk9) ? "personal" : colorMode;
@@ -9750,14 +9766,14 @@ export default function ReplayMotionPlayer({
     setViewRaw(null);
     if (pitchDegRef9.current < 90) setPitchDeg(90);
     setPicked(null);
-    setSplitPick9((p9) => (splitOn9 && p9 !== null && (!sel9 || sel9.includes(p9)) ? p9 : null));
+    setSplitPick9((p9) => (splitUser9 && p9 !== null && (!sel9 || sel9.includes(p9)) ? p9 : null));
     setSplitSel9(sel9);
     setSplitOn9(true);
   };
   /** TV 목록에서 고른 사람들 — 개인 추적이면 그 한 사람, 분할이면 그 사람들이고 **'전체'면 모두**다(2026-09, 요청: "전체는 맨위에
    *  배치하고 누르면 모두 선택되는걸로(전체도 선택되지만 모든 유저도 선택)" — 옛 '전체 분할은 고른 것이 아니다'를 되물렸다). */
   const castSel9: string[] = trackRaw !== null ? [trackRaw]
-    : splitOn9 ? (splitSel9 ?? bases.map((b9) => b9.key)) : [];
+    : splitUser9 ? (splitSel9 ?? bases.map((b9) => b9.key)) : [];
   /** 닉네임 누르기 — 고른 사람에 더하거나 뺀다. 남은 사람이 0 이면 끄고, 하나면 개인 추적, 둘 이상이면 그 사람들만 분할이다. */
   const pickPerson9 = (key9: string): void => {
     const next9 = castSel9.includes(key9) ? castSel9.filter((k9) => k9 !== key9) : [...castSel9, key9];
@@ -9767,7 +9783,7 @@ export default function ReplayMotionPlayer({
       return;
     }
     if (next9.length === 0) {
-      if (splitOn9) setSplitOn9(false);
+      if (splitUser9) setSplitOn9(false);
       if (trackRaw !== null) { stopTrack9(); setViewRaw(null); }
     } else if (next9.length === 1) {
       if (trackRaw !== next9[0]) toggleTrack(next9[0]);   // 분할에서 내려오면 toggleTrack 이 분할을 끈다
@@ -16471,10 +16487,10 @@ export default function ReplayMotionPlayer({
               onClick={() => pickToggle9("cast")}
               aria-haspopup="menu" aria-expanded={pick9 === "cast"}
               aria-pressed={castOn || trackRaw !== null || splitOn9}
-              aria-label={splitOn9 ? "중계 — 분할보기 · 누르면 목록" : castOn ? "중계 — 자동 · 누르면 목록"
+              aria-label={splitUser9 ? "중계 — 분할보기 · 누르면 목록" : castOn ? "중계 — 자동 · 누르면 목록"
                 : trackRaw !== null ? `추적 — ${bases.find((b9) => b9.key === trackRaw)?.name ?? trackRaw} · 누르면 목록`
                   : "중계·추적 — 누르면 목록"}
-              title={splitOn9 ? (splitSel9 ? "분할보기 — 고른 선수들의 화면을 함께 보는 중" : "분할보기 — 모든 선수의 화면을 함께 보는 중") : castOn
+              title={splitUser9 ? (splitSel9 ? "분할보기 — 고른 선수들의 화면을 함께 보는 중" : "분할보기 — 모든 선수의 화면을 함께 보는 중") : castOn
                 ? "중계(자동) — 중요한 장면의 선수를 자동으로 따라가는 중"
                 : trackRaw !== null ? "개인 추적 중 — 누르면 다른 사람이나 자동을 고른다"
                   : "중계·추적 — 따라갈 사람을 고르거나 자동(중계)을 켠다"}
@@ -16486,8 +16502,8 @@ export default function ReplayMotionPlayer({
                  아래 닉네임이 **다 켜진 줄**로 선다(castSel9 가 모두를 낸다). 거기서 한 사람을 누르면 그 사람만 빠진 분할로 내려온다.
                  둘 이상일 때만 · 목록은 안 닫힌다(keep — 다 켜진 것을 보여 준다). */
               ...(bases.length >= 2 && (!smallDevice9 || bases.length <= SPLIT_PHONE_MAX9) ? [{
-                key: "split", label: "전체", on: splitOn9 && splitSel9 === null, keep: true,
-                act: () => { if (splitOn9 && splitSel9 === null) setSplitOn9(false); else startSplit9(null); },
+                key: "split", label: "전체", on: splitUser9 && splitSel9 === null, keep: true,
+                act: () => { if (splitUser9 && splitSel9 === null) setSplitOn9(false); else startSplit9(null); },
               }] : []),
               /* 닉네임은 **고른 사람에 더하고 뺀다**(pickPerson9 — 하나면 개인 추적 · 둘 이상이면 그 사람들만 분할) · 목록은 안 닫힌다(keep). */
               ...bases.map((b9) => ({
@@ -16499,9 +16515,9 @@ export default function ReplayMotionPlayer({
                  있는지 모르는 손에게는 '끄는 줄'이 따로 있어야 한다. 중계든 개인 추적이든 카메라를 쥔 쪽을 놓고(둘은 배타라 둘 중
                  하나다) 시점도 관전자로 되돌린다(toggleTrack 의 끄는 길과 같은 셈). 둘 다 꺼져 있을 때 이 줄이 켜진 줄이다. */
               {
-                key: "off", label: "끄기", on: !castOn && trackRaw === null && !splitOn9,
+                key: "off", label: "끄기", on: !castOn && trackRaw === null && !splitUser9,
                 act: () => {
-                  if (splitOn9) setSplitOn9(false);
+                  if (splitUser9) setSplitOn9(false);
                   if (castOn) stopCast9(); else if (trackRaw !== null) { stopTrack9(); setViewRaw(null); }
                 },
               },
@@ -17873,6 +17889,7 @@ export default function ReplayMotionPlayer({
                    (컬러모드와 무관) 헤더에서 N팀 제거"). 팀색은 색 모드를 안 탄다(TEAM_COLOR 1 파랑 · 2 빨강) · 팀 없는 사람은 테두리 없음. */
                 const tm9 = melee ? undefined : teamOfRaw(c9.raw);
                 const nm9 = bases.find((b9) => b9.key === c9.raw)?.name ?? c9.raw;
+                const rl9: CastRole9 | null = !duel9 ? null : c9.raw === duel9.a ? duel9.ra : c9.raw === duel9.b ? duel9.rb : null;
                 return (
                   <div
                     key={c9.raw}
@@ -17883,6 +17900,8 @@ export default function ReplayMotionPlayer({
                     {/* 칸 머리 — 이름 칩 + 현황(PC 만 · 폰은 CSS 가 숨긴다). */}
                     <span className="scr-split-cap">
                       <span className="scr-split-chip" style={cap9.chip}>{nm9}</span>
+                      {/* 맞대결 배지(위 duel9) — 공격 · 방어 · 교전, 깜빡인다. 손으로 켠 분할에는 안 선다. */}
+                      {rl9 && <span className={cx("scr-split-badge", `is-${rl9}`)}>{DUEL_LABEL9[rl9]}</span>}
                       {whoStats9(cap9, "scr-split-st")}
                     </span>
                     {/* 칸 미니맵(좌하단) — 그 팀 시야 · 제 화면 자리는 그 사람 색 네모(splitMiniPaint9). */}

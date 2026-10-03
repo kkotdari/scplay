@@ -74,7 +74,7 @@ const plan = castPlan9(world, { total: 1200 });
 const scenes = plan.filter((s) => !s.cyc);
 console.log(`\n토막 ${plan.length}개(장면 ${scenes.length} · 순환 ${plan.length - scenes.length})`);
 for (const s of (ALL ? plan : scenes)) {
-  console.log(`  ${s.at.toFixed(1).padStart(7)}s  ${s.raw}  ${s.cyc ? "순환" : "장면"} ${s.why} ${s.score.toFixed(0)}`);
+  console.log(`  ${s.at.toFixed(1).padStart(7)}s  ${s.raw}  ${s.cyc ? "순환" : "장면"} ${s.why} ${s.score.toFixed(0)}${s.foe ? ` ⚔ ${s.foe} ${s.role} ~${s.foeTo.toFixed(1)}s` : ""}`);
 }
 const at = (t) => plan[castAt9(plan, t)]?.raw ?? "-";
 console.log(`짚기: 0s ${at(0)} · 199s ${at(199)} · 262s ${at(262)} · 605s ${at(605)} · 815s ${at(815)}`);
@@ -86,6 +86,9 @@ const ok = [
   ["초반은 순환", plan[0]?.cyc === true],
   ["띄엄띄엄 잡는 일꾼 견제는 한 장면(A)", drop9.length === 1 && drop9[0].raw === "A" && drop9[0].why === "견제"],
   ["견제 사이·직후에 순환이 안 끼어든다", !plan.some((s) => s.cyc && s.at > 798.5 && s.at < 831)],
+  ["견제는 맞대결 — 상대역 B · 견제한 A 는 공격", drop9[0]?.foe === "B" && drop9[0]?.role === "atk"],
+  ["군대끼리의 교전은 맞대결 교전(war)", scenes[1]?.foe === "A" && scenes[1]?.role === "war"],
+  ["맞대결이 끝난 뒤의 순환은 상대역이 없다", plan.every((s) => !s.cyc || !s.foe)],
 ];
 for (const [name, pass] of ok) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 
