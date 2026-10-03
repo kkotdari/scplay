@@ -101,6 +101,11 @@ export default function ReplayFullscreenMinimap({
     vis: Uint8Array;
     /** 지금 재생 시각(초). */
     t: number;
+    /** ★ **붓이 마지막으로 칠한 안개**(2026-09, 지적: "현재 미니맵의 안개가 시간을 앞뒤로 살짝씩 흔들린다") — 위 vis·t 는 React 렌더가
+     *  고른 장의 것(100ms 박자 · 붓보다 한 걸음 뒤진 장일 수 있다)이라, 큰 지도 안개(붓이 tLive 로 고른 장의 눈 목록)와 번갈아 앞뒤로
+     *  어긋났다 — 큰 지도 안개 층이 겪고 고친 그 병(ReplayFogLayer 의 '붓이 주인' ★)이다. 이 값이 있으면 그 눈 목록을 칸 격자에 직접
+     *  찍어 쓴다(시각도 붓의 것) — 두 그림이 늘 같은 순간이다. */
+    live?: { current: { eyes: Float32Array; explored: Uint16Array; t: number; seq: number } | null };
   } | null;
   /** 붓 넘기는 자리 — 손짓(휠·핀치·드래그)이 도는 동안 재생기가 이 붓을 손끝 배율·팬으로
    *  직접 부른다. 안개 층·유닛 캔버스가 쓰는 것과 같은 수법이다(리액트를 안 거친다). */
@@ -118,6 +123,8 @@ export default function ReplayFullscreenMinimap({
   const fogRef = useRef<HTMLCanvasElement | null>(null);
   /** 굽은 안개 판의 열쇠 — 같은 배열·같은 t 면 다시 안 굽는다. */
   const fogKeyRef = useRef<{ e: unknown; v: unknown; t: number } | null>(null);
+  /** 붓의 눈 목록을 찍어 둘 칸 격자(0~255 덮임) — 큰 지도 엔진의 disc 와 같은 식이다. */
+  const eyeGridRef = useRef<Uint8Array | null>(null);
   /** 상자가 0일 때 다시 그리기를 예약해 둔 프레임 — 겹쳐 예약되지 않게 하나만 든다. */
   const retryRef = useRef(0);
   useEffect(() => () => cancelAnimationFrame(retryRef.current), []);
@@ -250,8 +257,43 @@ export default function ReplayFullscreenMinimap({
         fogRef.current = fc;
         fogKeyRef.current = null;
       }
+      /* 붓의 안개가 있으면 그것을 쓴다(위 live 의 ★) — 눈 목록을 칸 격자에 찍는다(엔진 visNow 의 disc 와 같은 식). */
+      const lv9 = fog.live?.current ?? null;
+      const useLive9 = !!lv9 && lv9.explored.length === fog.w * fog.h;
+      const fExp9 = useLive9 ? lv9!.explored : fog.explored;
+      const fT9 = useLive9 ? lv9!.t : fog.t;
+      const fKey9: unknown = useLive9 ? lv9!.seq : fog.vis;
       const fk9 = fogKeyRef.current;
-      const fresh9 = !fk9 || fk9.e !== fog.explored || fk9.v !== fog.vis || fk9.t !== fog.t;
+      const fresh9 = !fk9 || fk9.e !== fExp9 || fk9.v !== fKey9 || fk9.t !== fT9;
+      let fVis9: Uint8Array = fog.vis;
+      if (useLive9 && fresh9) {
+        const n9 = fog.w * fog.h;
+        let g9 = eyeGridRef.current;
+        if (!g9 || g9.length !== n9) { g9 = new Uint8Array(n9); eyeGridRef.current = g9; }
+        g9.fill(0);
+        const W9 = fog.w;
+        const H9 = fog.h;
+        const ey9 = lv9!.eyes;
+        for (let k9 = 0; k9 + 2 < ey9.length; k9 += 4) {
+          const cx = ey9[k9]; const cy = ey9[k9 + 1]; const r = ey9[k9 + 2];
+          const x0 = Math.max(0, Math.floor(cx - r - 1)); const x1 = Math.min(W9 - 1, Math.ceil(cx + r + 1));
+          const y0 = Math.max(0, Math.floor(cy - r - 1)); const y1 = Math.min(H9 - 1, Math.ceil(cy + r + 1));
+          const ro = r + 0.5; const ri = r - 0.5; const r2o = ro * ro; const r2i = ri > 0 ? ri * ri : -1;
+          for (let y = y0; y <= y1; y += 1) {
+            const dy = y + 0.5 - cy; const dy2 = dy * dy; const row = y * W9;
+            for (let x = x0; x <= x1; x += 1) {
+              const dx = x + 0.5 - cx; const d2 = dx * dx + dy2;
+              if (d2 >= r2o) continue;
+              const i = row + x;
+              if (g9[i] === 255) continue;
+              if (d2 <= r2i) { g9[i] = 255; continue; }
+              const v = Math.round((ro - Math.sqrt(d2)) * 255);
+              if (v > g9[i]) g9[i] = v;
+            }
+          }
+        }
+        fVis9 = g9;
+      }
       const fx9 = fc.getContext("2d");
       if (fx9 && fresh9) {
         const n9 = fog.w * fog.h;
@@ -259,8 +301,8 @@ export default function ReplayFullscreenMinimap({
         for (let i = 0; i < n9; i += 1) {
           /* 밝힌 땅은 DIM, 못 밝힌 땅은 통짜다. 거기에 **지금 덮임**을 빼면 눈이
              닿은 자리가 그만큼 걷힌다 — 0~255 덮임이 그대로 가장자리 기울기가 된다. */
-          const base = fog.explored[i] <= fog.t ? MINI_FOG_DIM : 1;
-          av9[i] = base * (1 - (fog.vis[i] ?? 0) / 255);
+          const base = fExp9[i] <= fT9 ? MINI_FOG_DIM : 1;
+          av9[i] = base * (1 - (fVis9[i] ?? 0) / 255);
         }
         const img = fx9.createImageData(fw9, fh9);
         const px9 = img.data;
@@ -295,7 +337,7 @@ export default function ReplayFullscreenMinimap({
           }
         }
         fx9.putImageData(img, 0, 0);
-        fogKeyRef.current = { e: fog.explored, v: fog.vis, t: fog.t };
+        fogKeyRef.current = { e: fExp9, v: fKey9, t: fT9 };
       }
       c.imageSmoothingEnabled = true;
       c.imageSmoothingQuality = "high";

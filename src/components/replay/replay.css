@@ -4252,3 +4252,17 @@
 .scr-fs-stage.is-split > .scr-fs-space { visibility: hidden; }
 /* 단 몸·효과 캔버스는 보인다 — 칸 붓이 그 판의 칸 네모에 제자리로 칠한다(splitPaint9 의 ★★). */
 .scr-fs-stage.is-split > .scr-motion-map > .scr-motion-unitlayer { visibility: visible; }
+/* 분할보기 동안의 접기 단추 — 늘 접혀 있고 못 연다(2026-09, 요청: "분할모드: 자동으로 독을 접는다(열기 불가)"). */
+.scr-motion-infodock-fold:disabled { opacity: 0.45; cursor: default; filter: none; }
+/* 분할보기 칸 안개 판 — 유닛·GL 층 위에 선다(splitPaint9 가 칸마다 그 팀의 안개를 판다 · 2026-09, 요청: "분할모드: 시야는 각자 시야 사용"). */
+.scr-motion-unitlayer.scr-split-fog9 { background: transparent; }
+/* ★ 칸 미니맵(좌하단) — 그 팀 시야가 든 미니맵 · 제 화면 자리는 그 사람 색 네모(2026-09, 요청: "각 화면의 좌하단에 자신의 시야가 적용된
+   미니맵을 표시한다(자기 색깔 프레임으로 화면 위치 표시)"). 크기는 칸의 폭 26% · 높이 34% 중 작은 쪽(지도 비 --ar 로) — 칸이 크기 담는 칸이다. */
+.scr-split-cell { container-type: size; }
+.scr-split-mini {
+  position: absolute; left: calc(3px * var(--dk)); bottom: calc(3px * var(--dk)); z-index: 1;
+  width: min(26cqw, calc(34cqh * var(--ar, 1))); aspect-ratio: var(--ar, 1); height: auto;
+  display: block; pointer-events: none; box-sizing: border-box;
+  border: 1px solid rgba(0, 0, 0, 0.85); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18);
+  background: #12161c;
+}

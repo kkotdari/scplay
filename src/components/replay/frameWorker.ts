@@ -62,6 +62,24 @@ let gen = 0;
 /** 안개 갈래 — 장마다 되돌려 주어 메인이 옛 갈래의 안개 판을 가려낸다. */
 let fogSeq = 0;
 let engine: ReturnType<typeof createEngine9> | null = null;
+/** ★ 분할보기의 **팀 엔진**(2026-09, 요청: "분할모드: 시야는 각자 시야 사용") — 칸이 보는 팀마다 엔진을 하나 더 세워, 본 엔진(관전자)과
+ *  **같은 시각**의 장을 그 팀 시야(viewTeam = 그 팀 · 전체 시야 아님)로 짓는다. 엔진은 제 기억(안개·잔상·방향)을 제 안에 들므로 시야를
+ *  번갈아 갈아 끼우면 매번 처음부터 다시 쌓는다 — 그래서 팀마다 따로다. 메인은 그 장을 본 장에 딸려(subs) 받아 칸마다 갈아 끼운다. */
+const subs = new Map<number, ReturnType<typeof createEngine9>>();
+/** 팀 엔진마다 마지막으로 실어 보낸 밝힌 판(참조) — 팀 판은 시점이 안 바뀌는 한 그대로라 한 번만 싣는다. */
+const subExpSent = new Map<number, Uint16Array | null>();
+const subView = (v: EngineView9, team: number): EngineView9 => ({ ...v, viewTeam: team, visAll: false, splitTeams: undefined });
+/** 시야가 바라는 팀 엔진만 남기고 세운다(없는 팀은 새로 · 있는 팀은 시야만 갈아 끼운다). */
+const syncSubs = (): void => {
+  const want = new Set(world && view ? view.splitTeams ?? [] : []);
+  for (const k of [...subs.keys()]) if (!want.has(k)) { subs.delete(k); subExpSent.delete(k); }
+  if (!world || !view) return;
+  for (const tm of want) {
+    const e = subs.get(tm);
+    if (e) e.setView(subView(view, tm));
+    else { subs.set(tm, createEngine9(world, subView(view, tm))); subExpSent.delete(tm); }
+  }
+};
 /** 주인의 명령 + 받은 벽시계 시각 — 지금 시각은 이것으로 센다(clockT). */
 let clock: { playing: boolean; t0: number; speed: number; at: number; aheadSec: number; aheadBytes: number } = {
   playing: false, t0: 0, speed: 1, at: 0, aheadSec: AHEAD_WALL_SEC, aheadBytes: AHEAD_BYTES,
@@ -123,7 +141,8 @@ const stepNow = (): number => {
 
 const restartFrom = (t: number, forget: boolean): void => {
   if (!engine) return;
-  if (forget) { engine.reset(); resets += 1; }
+  if (forget) { engine.reset(); for (const se of subs.values()) se.reset(); resets += 1; }
+  subExpSent.clear();   // 새 창의 첫 장에는 팀 판도 다시 싣는다(메인이 옛 창의 판을 쥐고 있을 까닭이 없다)
   nextT = t;
   winStartT = t;
   built = [];
@@ -160,12 +179,31 @@ const emit = (t: number): number => {
   /* 눈 목록은 **장마다** 싣는다(엔진의 eyes9 ★) — 8KB 남짓이라 transfer로 넘긴다. 안개 판(fog)은 종전대로 바뀐 장에만. */
   const eyes = f.eyes.length > 0 ? f.eyes.slice() : null;
   if (eyes) { transfer.push(eyes.buffer); bytes += eyes.byteLength; }
+  /* 분할보기의 팀 장(위 subs) — 같은 시각을 팀 시야로 짓는다. 몸·효과·미니맵 점 + 눈 목록 + (바뀐 때만) 밝힌 판. */
+  let subsOut: { team: number; buf: Float32Array; strs: string[]; eyes: Float32Array | null; explored: Uint16Array | null }[] | null = null;
+  if (subs.size > 0) {
+    subsOut = [];
+    for (const [tm, se] of subs) {
+      const fs = se.build(t, still9);
+      const sb = pack9({ unitOps: fs.unitOps, fxOps: fs.fxOps, miniExtra: fs.miniExtra, gasBusy: fs.gasBusy });
+      transfer.push(sb.buf.buffer); bytes += sb.buf.byteLength;
+      const se9 = fs.eyes.length > 0 ? fs.eyes.slice() : null;
+      if (se9) { transfer.push(se9.buffer); bytes += se9.byteLength; }
+      let sx9: Uint16Array | null = null;
+      if (fs.explored && subExpSent.get(tm) !== fs.explored) {
+        subExpSent.set(tm, fs.explored);
+        sx9 = fs.explored.slice();
+        transfer.push(sx9.buffer); bytes += sx9.byteLength;
+      }
+      subsOut.push({ team: tm, buf: sb.buf, strs: sb.strs, eyes: se9, explored: sx9 });
+    }
+  }
   const ms = nowMs() - t0;
   buildMs = buildMs === 0 ? ms : buildMs * 0.85 + ms * 0.15;
   dutyAdd9(ms);   // 이 일꾼의 몫(위 DUTY9)
   const st = engine.stats();
   post({
-    type: "frame", t: f.t, buf: body.buf, strs: body.strs, fog, eyes, ms, n: f.unitOps.length, seq: viewSeq, fseq: fogSeq, gen,
+    type: "frame", t: f.t, buf: body.buf, strs: body.strs, fog, eyes, subs: subsOut, ms, n: f.unitOps.length, seq: viewSeq, fseq: fogSeq, gen,
     // 이 장을 지은 시점 원점(PitchGeom9.ox·oy) — 메인이 지형 변환·안개 사영을 이 값에 맞춘다(장과 지도가 늘 같은 눈).
     ox: view?.geom?.ox ?? 0, oy: view?.geom?.oy ?? 0,
     // 진단 — 짓기의 속(엔진·싸기), 안개 비용·횟수, 리셋 횟수, 워커 시계(주인 t와의 차를 메인이 본다)
@@ -272,6 +310,8 @@ const deriveNow = (): void => {
 const rebuildEngine = (): void => {
   if (!world || !view) return;
   engine = createEngine9(world, view);
+  subs.clear(); subExpSent.clear();
+  syncSubs();
   nextT = -1;
   winStartT = -1;
   lastCur = -1;
@@ -313,7 +353,7 @@ if (inWorker9) self.onmessage = (ev: MessageEvent<Msg>): void => {
       viewSeq = m.seq ?? viewSeq + 1;
       gen += 1;
       fogSeq = m.fogSeq ?? fogSeq;
-      if (engine) engine.setView(view); else rebuildEngine();
+      if (engine) { engine.setView(view); syncSubs(); } else rebuildEngine();
       // 시점·시야·색이 바뀌면 지어 둔 설계도는 옛 것이다 — 기억은 두고 지금 시각부터 다시.
       nextT = -1;
       /* ★ **끄는 동안의 시야는 '지금 한 장'만 짓는다**(m.live) — 계측: 그린 장의 원점이 손끝에서 최대 403px

@@ -43,9 +43,37 @@ export const fogPad9 = (len: number): number =>
 /** 밝힘 등고선을 다시 뽑는 최소 간격(ms) — 폰은 더 뜸하게(위 ①의 ★). */
 const CT_MS9 = smallDev9 ? 240 : 120;
 /** 밝혔지만 안 보이는 칸의 덮개 짙기(0~1). */
-const DIM = 0.6;
+export const DIM = 0.6;
 /** 안개 색 — 순검정이 아니라 푸른 밤. 순검정은 지형색을 통째로 죽인다. */
-const FOG_RGB = "5, 8, 14";
+export const FOG_RGB = "5, 8, 14";
+/** 밝힌 칸(처음 본 초 ≤ t)의 등고선 길 — **타일 자리**(아래 paint 의 ① 과 같은 식: 한 겹 흐리고 마칭 스퀘어 + Chaikin 두 번).
+ *  분할보기 칸마다 팀 안개를 그릴 때 재생기가 팀마다 이것을 뽑아 둔다(2026-09, 요청: "분할모드: 시야는 각자 시야 사용"). */
+export function exploredPath9(exploredAt: Uint16Array, w: number, h: number, t: number): { path: Path2D; count: number } {
+  const n = w * h;
+  const f = new Float32Array(n);
+  const tmp = new Float32Array(n);
+  let count = 0;
+  for (let i = 0; i < n; i += 1) if (exploredAt[i] <= t) { f[i] = 1; count += 1; }
+  for (let y = 0; y < h; y += 1) {
+    const r = y * w;
+    for (let x = 0; x < w; x += 1) tmp[r + x] = (f[r + (x > 0 ? x - 1 : 0)] + 2 * f[r + x] + f[r + (x < w - 1 ? x + 1 : w - 1)]) * 0.25;
+  }
+  for (let x = 0; x < w; x += 1) {
+    for (let y = 0; y < h; y += 1) {
+      f[y * w + x] = (tmp[(y > 0 ? y - 1 : 0) * w + x] + 2 * tmp[y * w + x] + tmp[(y < h - 1 ? y + 1 : h - 1) * w + x]) * 0.25;
+    }
+  }
+  const path = new Path2D();
+  for (const lp0 of contoursOf(f, w, h)) {
+    const lp = chaikin(chaikin(lp0));
+    const m = lp.length / 2;
+    if (m < 3) continue;
+    path.moveTo(lp[0], lp[1]);
+    for (let i = 1; i < m; i += 1) path.lineTo(lp[i * 2], lp[i * 2 + 1]);
+    path.closePath();
+  }
+  return { path, count };
+}
 /** 붓이 넘기는 최신 안개 한 벌 — 눈 목록(vis)·밝힌 시각 판(exploredAt)·그 시각(t). */
 export type FogOverride = { vis: Float32Array; exploredAt: Uint16Array; t: number };
 
