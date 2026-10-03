@@ -838,6 +838,8 @@ export function thrustFlame(
   /** 가로(x) 늘림 배수 — 노즐이 넙적한 타원이면 불꽃도 같은 비라야 한다(그 ⚠ 규약).
    *  1 이면 종전 그대로(단면 축도 안 건드린다). */
   ex = 1,
+  /** 뒤로 뻗는 길이 배수(노즐 자리에서 뒤로 · 굵기는 그대로) — 1 이면 종전 그대로(2026-09, 요청: 레이스 "불꽃길이는 2.5배로"). */
+  lk = 1,
 ): ShapeFace[] {
   const outer = race === "terran" ? "#ff8a1e" : "#5fb8ff";
   const inner = race === "terran" ? "#ffe066" : "#eaf8ff";
@@ -850,7 +852,7 @@ export function thrustFlame(
   const cone = (rr: number, len: number, fill: string, alpha: number): ShapeFace[] => tint(spirePillar({
     x: 0, y: 0, h: 0.8, w: rr, tipW: 0, segs: 4, sides: 8, caps: "none", trueNormal: true,
     ...wide9,
-    path: (t9: number): [number, number, number] => [x, y - len * t9, z],
+    path: (t9: number): [number, number, number] => [x, y - len * lk * t9, z],
     widthOf: (t9: number): number => rr * (1 - t9) ** 0.7,
   }), fill, alpha);
   /** 노즐 뒤로 짧게 뻗는 통 — y0에서 y0−len까지, 반지름 rr. 끝면(뒤 뚜껑)을 caps로 닫는다. */
@@ -860,7 +862,7 @@ export function thrustFlame(
     const fs = spirePillar({
       x: 0, y: 0, h: 0.8, w: rr, tipW: rr, segs: 1, sides: 12, caps, trueNormal: !shell,
       ...wide9,
-      path: (t9: number): [number, number, number] => [x, y0 - len * t9, z],
+      path: (t9: number): [number, number, number] => [x, y - (y - y0) * lk - len * lk * t9, z],
       widthOf: (): number => rr,
     });
     return shell
@@ -1858,6 +1860,21 @@ export function pLimb(
 /** 프로토스 다리 한 쌍 — 테란과 같은 뿔기둥 마디로 짠다. 다만 프로토스는 **역관절**
  *  (디지티그레이드)이다: 무릎이 앞으로 크게 나오고 발목이 뒤로 물러났다가 긴 발이
  *  앞으로 눕는다. 그 꺾임이 다섯의 공통 실루엣이라 굵기보다 먼저 지켜야 할 것이다. */
+/* ★ 대퇴는 **정면에서 수직**으로 내려온다(2026-09, 요청: "프로토스 인간형유닛의 다리 — 지금 대퇴가 여덟팔자로 내려오는데 이걸
+   정면에서 봤을때 자연스럽게 수직으로 내려오게 · 그래야 앞뒤로 걸을때 이상하지 않거든") — 무릎·발목·발끝의 x 가 0.72·0.86·0.96 으로
+   고관절(0.26)에서 바깥으로 벌어져, 걸음(stride · 앞뒤 y 만 옮긴다)에서 다리가 비스듬한 축 위를 미끄러지는 꼴이었다. 무릎을
+   고관절 바로 밑(0.28)에 두고 발목·발끝은 한 뼘씩만(0.31 · 0.33) 바깥 — 다리가 몸 밑으로 곧게 서서 앞뒤로만 흔들린다.
+   발가락 두 갈래 뿌리는 발끝보다 0.1 바깥(옛 1.06 − 0.96 그대로). */
+/* ★ 두 다리 사이는 **테란 보병처럼 다리 하나 남짓**이다(재요청: "다리를 너무 모으고 있는거 같은데 · 사이를 좀 띄워야할듯 테란
+   보병처럼") — 고관절 0.26 에 수직으로 세우니 두 다리가 맞붙었다. 테란(고관절 0.54 · 허벅지 지름 ≈0.51)의 '사이 ÷ 굵기' ≈1.1 에
+   맞춰 고관절 `P_HIP_X9` 0.42(허벅지 지름 0.38 · 사이 0.46)로 벌리고 무릎·발목·발끝은 거기서 한 뼘씩만 바깥이다(수직은 그대로). */
+const P_HIP_X9 = 0.42;
+const P_KNEE_X9 = 0.45;
+const P_ANKLE_X9 = 0.47;
+const P_TOE_X9 = 0.49;
+/** 다리 굵기 배수 — 수직으로 모인 두 다리가 서로 붙지 않게(요청: "다리두께 조절이 필요하면 좀 얇게 바꿔도 되고"). 허벅지·정강이·
+ *  소매에만(발은 이미 작다) · 유닛마다의 thin 위에 곱한다. */
+const P_LEG_THIN9 = 0.8;
 export function protossLegs(
   thighFill?: string, shinFill?: string, lift = 0, shrink = 1,
   /** 걸음 몫(요청: 애니메이션) — 부호가 컷(1/3)에서 오므로 두 컷이 서로 거울이다. */
@@ -1879,6 +1896,7 @@ export function protossLegs(
   teamShin = 0,
 ): ShapeFace[] {
   const paint = (f: ShapeFace[], c?: string): ShapeFace[] => (c ? paintBase(f, c) : f);
+  thin *= P_LEG_THIN9;
   /* 다리 길이 줄이기(요청: 하이템플러는 짧게) — 엉덩이(3.95)를 축으로 z를 눌러
      비율만 줄인다. 굽힘 각도와 팔자 벌림은 그대로 남는다. */
   const Z = (z: number): number => Z8 * (3.95 + (z - 3.95) * shrink) + lift;   // 설계 z → 접힌 z(lift 는 이미 접힌 값)
@@ -1889,11 +1907,11 @@ export function protossLegs(
        몸통 반폭에 가깝게 좁아져 두 다리가 몸 아래에서 시작한다. 무릎·발목·발끝도 한 단씩만 안으로 당겨
        (0.82→0.72 · 0.95→0.86 · 1.04→0.96) 팔자 벌림은 남기되 전체가 몸 밑으로 모인다 — 고관절만 당기면
        허벅지가 바깥으로 뻗쳐 가랑이가 벌어진 꼴이 된다. */
-    const hip: [number, number, number] = [m * 0.26, -0.3 - P_LEG_BACK9, Z(3.95)];
+    const hip: [number, number, number] = [m * P_HIP_X9, -0.3 - P_LEG_BACK9, Z(3.95)];
     /* ★ 걸음에도 **허벅지·정강이 길이는 그대로**(요청: 질럿·템플러류도 같은 함수로) —
        suitLegs와 같은 결이다. 발목·발끝만 보폭대로 옮기고 무릎은 서 있을 때의 두 마디
        길이로 푼다(jointBetween, 앞으로 굽힘). */
-    const ankle0: [number, number, number] = [m * 0.86, -0.75 - P_LEG_BACK9, Z(1)];
+    const ankle0: [number, number, number] = [m * P_ANKLE_X9, -0.75 - P_LEG_BACK9, Z(1)];
     // 무릎 높이에서 엉덩이~발목 직선의 y — 굽힘(bend)이 0이면 여기, 1이면 본디 자리(0.3).
     const kneeLineY9 = hip[1] + (ankle0[1] - hip[1]) * ((hip[2] - Z(2.2)) / Math.max(1e-6, hip[2] - ankle0[2]));
     /* ★ **대퇴는 거의 수직, 정강이·발이 뒤에서 > 꼴**(2026-09, 요청: "허리를 폈으니 대퇴도 거의 수직으로 세우고 하지와 발뼈만
@@ -1902,7 +1920,7 @@ export function protossLegs(
        그대로라 정강이가 뒤로 눕고 발이 앞으로 나가 옆에서 > 로 읽힌다. kneeLineY9 는 걸음 풀이의 자라 남긴다. */
     const KNEE_FWD9 = 0.12;
     void kneeLineY9;
-    const knee0: [number, number, number] = [m * 0.72, hip[1] + KNEE_FWD9 * bend, Z(2.2)];
+    const knee0: [number, number, number] = [m * P_KNEE_X9, hip[1] + KNEE_FWD9 * bend, Z(2.2)];
     const Lt9 = Math.hypot(knee0[0] - hip[0], knee0[1] - hip[1], knee0[2] - hip[2]);
     const Ls9 = Math.hypot(ankle0[0] - knee0[0], ankle0[1] - knee0[1], ankle0[2] - knee0[2]);
     const ankleR9: [number, number, number] = [ankle0[0], ankle0[1] + st * 1.2, ankle0[2] + Math.max(0, st) * 0.16];
@@ -1943,7 +1961,7 @@ export function protossLegs(
         ankle[2] + rz9 + ((sdz9 / sl9) * rl9 - rz9) * ANKLE_FLAT9,
       ];
     };
-    const toe: [number, number, number] = footAt9(tuckAt9([m * 0.96, 0.5 - P_LEG_BACK9 + st * 1.2, Z(0.15) + Math.max(0, st) * 0.12]));
+    const toe: [number, number, number] = footAt9(tuckAt9([m * P_TOE_X9, 0.5 - P_LEG_BACK9 + st * 1.2, Z(0.15) + Math.max(0, st) * 0.12]));
     /* 하지가 허벅지보다 굵다(요청) — 허벅지 0.6, 정강이 0.72, 발목 0.58. 마디마다
        배가 부풀게 mid를 따로 줘, 곧은 막대가 아니라 근육 붙은 마디로 읽힌다. */
     // 굵기 ×1.25(사진 대조 — 질럿1·4의 다리 갑판은 지금보다 한 뼘 굵다).
@@ -1999,7 +2017,7 @@ export function protossLegs(
     /* 발가락도 **걸음 몫을 탄다**(지적: "질럿 다크 다리가 부품이 몇개는 따로노는데")
        — 무릎·발목·발끝만 stride를 받고 이 두 갈래는 상수 자리에 남아 있어서, 다리가
        앞으로 나가면 발가락만 제자리에 서 있었다. 발목·발끝과 **같은 식**을 쓴다. */
-    const [fx, fy, fz] = footAt9(tuckAt9([m * 1.06, 0.28 - P_LEG_BACK9 + st * 1.2, Z(0.02) + Math.max(0, st) * 0.12]));
+    const [fx, fy, fz] = footAt9(tuckAt9([m * (P_TOE_X9 + 0.1), 0.28 - P_LEG_BACK9 + st * 1.2, Z(0.02) + Math.max(0, st) * 0.12]));
     for (const s9 of [-1, 1] as const) {
       out.push(...paint(tagKey(spirePillar({
         x: 0, y: 0, h: 0.8, w: 1, segs: 2, sides: 6, oval: 1.8, caps: "none",
@@ -19083,8 +19101,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 막대도 제 키를 스스로 단다(위 ★) — 싸매지 않는다.
       out.push(...tagKey(paintBase(rodFaces(bx9, -0.4, 4.84, bx9, -2.65, 4.84, 0.22), DARK),
         key9(bx9, -1.5, 6.05)));
-      out.push(...nozzleRim9(bx9, -2.60, 4.84, 0.47, key9(bx9, -3.2, 6.05) + 0.3, { sides: 10, th: 0.13, dep: 0.72 }));
-      if (poseNow === 1) out.push(...thrustFlame(bx9, -2.65, 4.84, 0.26, "terran", key9(bx9, -3.2, 6.05) + 0.4));
+      /* (걷어냄) 꼬리팔 끝의 노즐·불꽃 한 쌍 — 스러스터는 꼬리 한가운데 **하나**다(아래 ⑧ · 2026-09, 요청: "레이스 스러스터 1개로 변경"). */
       /* ⑥ 꼬리날개 — **화살 깃**이다(지적: "긴 변이 팔 옆쪽에 붙는다 · 화살 꼬리 날개
          생각하면 비슷") ─────────────────────────────────────────────────────────────
          앞판은 긴 쪽이 **바깥으로** 뻗어 있었다 — 그러면 작은 주익 한 쌍이 하나 더 달린
@@ -19103,6 +19120,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         widthOf: (): number => 0.9,
       }), DARK), key9(m9 * 1.1, -1.55, 6.05) + 0.25));
     }
+    /* ⑧ 스러스터 — 꼬리 한가운데 **하나**(2026-09, 요청: "레이스 스러스터 1개로 변경") — 꼬리팔 끝 한 쌍을 걷고, 동체 뒤끝(y −0.55)에서
+       두 꼬리팔 사이로 곧게 뒤로 나가는 엔진 통(어두운 강철 · 동체 살 속에서 난다) 끝에 노즐 테 하나 · 이동할 때만 불꽃(종전 규약). */
+    /* 통 길이 반(2026-09, 요청: "레이스 스러스터 길이 반으로 줄이고 불꽃길이는 2.5배로") — 동체 살 속(−0.2)에서 −1.075 까지(옛 −1.95) ·
+       불꽃은 thrustFlame 의 길이 배수 lk 2.5(굵기는 그대로). */
+    out.push(...tagKey(paintBase(spirePillar({
+      x: 0, y: 0, h: 0.8, w: 1, segs: 2, sides: 10, caps: "none", trueNormal: true,
+      path: (t9: number): [number, number, number] => [0, -0.2 - 0.875 * t9, 4.8],
+      widthOf: (t9: number): number => 0.5 - 0.03 * t9,
+    }), DARK), key9(0, -0.65, 6.0)));
+    out.push(...nozzleRim9(0, -1.045, 4.8, 0.5, key9(0, -1.6, 6.0) + 0.3, { sides: 10, th: 0.13, dep: 0.72 }));
+    if (poseNow === 1) out.push(...thrustFlame(0, -1.095, 4.8, 0.4, "terran", key9(0, -1.6, 6.0) + 0.4, 1, 2.5));
     return zsorted(out);
   },
   /* 배틀크루저(전면 단순화 — 지적: 가는 붐·캡슐 조합이 조각나 보임) — 전부 몸에 붙은
@@ -23518,12 +23546,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 치마(절두체) 벽에 물려 붙인다 — 그 높이의 벽 반지름이 0.82쯤이라 r0 0.68 이면 살 속으로
          한 뼘 파고든다(닿게만 두면 부감에서 그 틈으로 배경이 샌다). */
       // 스러스터 한 단 아래로(2026-09, 요청: "스러스터 좀더 아래로") — 4.60 → 4.42(치마 밑동 4.34 · 그 높이 벽 반지름 0.71 이라 r0 0.68 이 아직 파고든다).
-      const R09 = 0.68; const LN9 = 0.52; const ZC9 = 4.42;
-      out.push(...thrPod9(ang, R09, LN9, 0.30, ZC9));
+      /* ★ 둘이 **안 겹치게** 작다(2026-09, 요청: "프로브 스러스터 겹치지 않게 크기 줄이기") — 두 통은 ±12도로 벌어져 벽(반지름 0.71)
+         자리에서 중심 사이가 2·0.71·sin12 = 0.295 뿐이라, 반지름 0.30(지름 0.6)이면 절반이 서로 파묻혀 한 덩이로 읽혔다. 반지름 0.14
+         (지름 0.28 < 0.295) · 길이 0.52 → 0.42 · 불꽃 0.22 → 0.11 로 같은 몫만큼 줄인다. */
+      const R09 = 0.68; const LN9 = 0.42; const ZC9 = 4.42;
+      out.push(...thrPod9(ang, R09, LN9, 0.14, ZC9));
       const rr9 = R09 + LN9;
       const px9 = Math.sin(ar9) * rr9;
       const py9 = Math.cos(ar9) * rr9;
-      if (poseNow === 1) out.push(...thrustFlame(px9, py9, ZC9, 0.22, "toss", depthNow(px9, py9 - 0.6) * 1.6 + 1.1));
+      if (poseNow === 1) out.push(...thrustFlame(px9, py9, ZC9, 0.11, "toss", depthNow(px9, py9 - 0.6) * 1.6 + 1.1));
     }
     // 긴 뒷다리 한 쌍은 길이·두께 2/3(지적).
     // 짧은 뒷다리 한 쌍은 더 짧게(지적) — 1.67 → 1.05.
