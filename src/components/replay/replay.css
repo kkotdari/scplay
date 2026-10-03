@@ -3405,12 +3405,16 @@
    — 값(.scr-who-v)마다 최소 폭을 ch 로 잡는다(tabular-nums 라 자릿수가 곧 폭): 일꾼 3 · 자원 9 · 인구 7 · K/D 5 · APM 3.
    넘치면 늘어나지만 평소엔 숫자가 갈려도 옆 칸이 안 밀린다. 정보 판(.scr-tb-who-st)·분할 칸 머리(.scr-split-st)가 같은 꼴이다. */
 .scr-who-stats { font-variant-numeric: tabular-nums; }
-.scr-who-v { display: inline-block; font-style: normal; text-align: left; white-space: nowrap; }
-.scr-who-stats > span:nth-child(1) .scr-who-v { min-width: 3ch; }
-.scr-who-stats > span:nth-child(2) .scr-who-v { min-width: 9ch; }
-.scr-who-stats > span:nth-child(3) .scr-who-v { min-width: 7ch; }
-.scr-who-stats > span:nth-child(4) .scr-who-v { min-width: 5ch; }
-.scr-who-stats > span:nth-child(5) .scr-who-v { min-width: 3ch; }
+/* ★ 폭은 **최소가 아니라 고정**이다(재요청: "라벨들 위치도 안변해야해") — min-width 면 값이 그 폭을 넘는 순간(광물 다섯 자리)
+   뒤 칸 라벨이 밀린다. 넉넉히 잡은 고정 폭이라 라벨 자리는 어떤 값에서도 안 움직인다(넘치는 끝은 다음 칸 쪽으로 비어져 나갈 뿐이다):
+   일꾼 3ch · 자원 11ch(99999/99999) · 인구 7ch(200/200) · K/D 7ch(999/999) · APM 4ch. */
+.scr-who-v { display: inline-block; flex: none; font-style: normal; text-align: left; white-space: nowrap; overflow: visible; }
+.scr-who-stats > span { flex: none; }
+.scr-who-stats > span:nth-child(1) .scr-who-v { width: 3ch; }
+.scr-who-stats > span:nth-child(2) .scr-who-v { width: 11ch; }
+.scr-who-stats > span:nth-child(3) .scr-who-v { width: 7ch; }
+.scr-who-stats > span:nth-child(4) .scr-who-v { width: 7ch; }
+.scr-who-stats > span:nth-child(5) .scr-who-v { width: 4ch; }
 .scr-tb-who-st b { font-size: 8px; font-weight: 600; opacity: 0.62; margin-right: 1px; }
 .scr-tb-who-sl { opacity: 0.55; margin: 0 1px; }
 /* 좁은 판(폰)은 라벨을 접는다 — 값만 남고 라벨은 title 이 든다(두 줄 꼴을 지킨다). */
