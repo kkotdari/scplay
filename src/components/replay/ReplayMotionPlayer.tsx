@@ -16565,6 +16565,7 @@ export default function ReplayMotionPlayer({
     if (!row9 || !mk9 || !fr9) return undefined;
     const read9 = (): void => {
       const side9 = (row9.clientWidth - fr9.getBoundingClientRect().width) / 2;
+      row9.style.setProperty("--dock-side", `${Math.max(0, side9)}px`);
       setDockMark9(side9 >= mk9.getBoundingClientRect().width + DOCK_MARK_PAD9);
     };
     read9();
@@ -16636,8 +16637,8 @@ export default function ReplayMotionPlayer({
       onWheel={(e) => e.stopPropagation()}
     >
       <div className="scr-tb-who-in">
+      {castBtnNode9}
       <div className="scr-tb-who-top">
-        {castBtnNode9}
         <span className={cx("scr-tb-who-name", !dockCap9 && "is-none")} style={dockCap9?.chip}>
           <span className="scr-tb-who-txt">{dockCap9 ? dockCap9.text : "–"}</span>
           {capGhosts9.map((g9, i9) => <span key={i9} className="scr-tb-who-txt scr-tb-who-ghost" aria-hidden>{g9}</span>)}
@@ -16670,7 +16671,9 @@ export default function ReplayMotionPlayer({
       onPointerDown={(e) => e.stopPropagation()}
       onClick={() => setDockFold9((v) => !v)}
     >
-      {dockFold9 ? "▲" : "▼"}
+      <svg viewBox="0 0 10 10" aria-hidden>
+        <polygon points={dockFold9 ? "0,9.33 10,9.33 5,0.67" : "0,0.67 10,0.67 5,9.33"} fill="currentColor" />
+      </svg>
     </button>
   );
   const infoDock9 = (
