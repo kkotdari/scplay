@@ -721,7 +721,7 @@ if (has("--pickshot")) {
     return { m, c, top, fit, zoom };
   });
   console.log(`[목록] 단추 ${r9 ? "눌렀다" : "없음"} · 목록 ${JSON.stringify(bx9.m)} · 자막 ${JSON.stringify(bx9.c)} · 겹친 자리 맨 위: ${bx9.top} · 화면 안 ${bx9.fit} · 확대 ${bx9.zoom}`);
-  await page.screenshot({ path: String(flag("--pickshot", "pick.png")) });
+  await page.screenshot({ path: String(flag("--pickshot", "pick.png")), timeout: 120000 });
 }
 /* 분할보기 자(--split [png]) — TV 목록에서 '분할'을 골라 칸 수·자리·칸 그림(빈 판인가)·칸 머리 글귀를 찍고, 둘째 칸을 눌러
    독의 정보줄이 그 사람으로 갈리나 본다(2026-09, 요청: "중계에 분할보기 추가 … 독에는 화면을 누른 사람거 보여주기"). */
@@ -765,7 +765,7 @@ if (has("--split")) {
   console.log(`[분할] 격자 ${JSON.stringify(a9.grid)} · 로스터 ${a9.roster ? "보임" : "숨김"} · 독 "${a9.cap}" · 칸 바닥 ${a9.cellBottom} · 툴박스 위끝 ${a9.tbTop}`);
   for (const c of a9.cells) console.log(`  칸 ${c.x},${c.y} ${c.w}×${c.h} 잉크 ${c.ink}${c.pick ? " *" : ""} · ${c.cap}`);
   const shot9 = flag("--split", "");
-  if (shot9 && shot9 !== true && String(shot9).endsWith(".png")) await page.screenshot({ path: String(shot9) });
+  if (shot9 && shot9 !== true && String(shot9).endsWith(".png")) await page.screenshot({ path: String(shot9), timeout: 120000 });
   await page.evaluate(() => { const c = document.querySelectorAll(".scr-split-cell")[1]; if (c instanceof HTMLElement) c.click(); });
   await page.waitForTimeout(500);
   const b9 = await sp9();
@@ -803,7 +803,7 @@ if (has("--infoprobe")) {
   await page.waitForTimeout(2500);
   const a9 = await nm9();
   const shot9 = flag("--infoprobe", "");
-  if (shot9 && shot9 !== true && String(shot9).endsWith(".png")) await page.screenshot({ path: String(shot9) });
+  if (shot9 && shot9 !== true && String(shot9).endsWith(".png")) await page.screenshot({ path: String(shot9), timeout: 120000 });
   let b9 = a9; let tb9 = null;
   for (let i = 0; i < 30; i += 1) {
     await page.waitForTimeout(500);
