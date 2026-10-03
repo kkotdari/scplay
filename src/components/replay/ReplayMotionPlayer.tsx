@@ -14293,6 +14293,11 @@ export default function ReplayMotionPlayer({
     const paint9 = unitPaintRef.current;
     if (!lay9 || !paint9) return;
     const cvs9 = unitCanvases9(mapRef.current);
+    /* ★ 칸 자리를 재기 **전에** 캔버스들의 임시 변환을 걷는다(2026-09, 지적: 일시정지에서 분할을 고르니 칸 안개·몸이 땅과 어긋남) —
+       멈춘 채 배율·팬이 바뀌면 캔버스에 '지금 보기 − 그려진 보기'의 CSS 변환이 남는데, 칸 네모를 그 변환이 먹은 상자(ur9)로 재고 칠한
+       뒤 변환이 항등으로 돌아가면 캔버스(몸·안개)만 그 몫만큼 밀리고 땅(칸 밑 층 · DOM 격자)은 제자리라 둘이 갈렸다. 분할은 손짓이
+       막혀 있어 칸 캔버스는 늘 항등이어야 한다. */
+    for (const c09 of cvs9) if (c09.style.transform !== XF_ID9) { c09.style.transformOrigin = "center"; c09.style.transform = XF_ID9; }
     const ucv9 = cvs9.find((c) => !c.classList.contains("scr-motion-gl9") && !c.classList.contains("scr-motion-fx9") && !c.classList.contains("scr-split-fog9"));
     if (!ucv9) return;
     /* 칸 안개 판(.scr-split-fog9) — 유닛·GL 위에 선다. 배킹은 유닛 캔버스와 같은 자. */

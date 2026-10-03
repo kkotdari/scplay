@@ -4020,10 +4020,9 @@
    칸 네모(splitPaint9 가 DOM 에서 잰다)와 땅 칸이 맞는다. */
 .scr-split, .scr-split-under {
   position: absolute; inset: 0; box-sizing: border-box;
-  display: grid; gap: var(--split-gap, 6px);
-}
-@media (max-width: 700px) {
-  .scr-split, .scr-split-under { --split-gap: 3px; }
+  /* ★ 틈 0 — 칸 사이는 **테두리만큼**이다(2026-09, 요청: "분할화면 사이 갭이 이제 테두리만큼씩만 있으면 돼 남는 갭 없이") — 칸마다
+     팀색 테두리(2px · 안쪽)가 서므로 이웃 둘의 테두리가 맞닿아 경계선이 된다. 옛 틈 PC 6px · 폰 3px 은 걷었다. */
+  display: grid; gap: var(--split-gap, 0px);
 }
 /* ★★ 칸은 **세 층**이다(2026-09, 지적: "흐리고 버벅여" — 칸 캔버스로 베끼던 길을 걷었다): ① 밑 층(.scr-split-under · 지도 아래)
    — 칸 사이 틈의 바탕색과 칸마다 땅 ② 본 지도의 유닛·GL·효과 캔버스 — splitPaint9 가 칸 네모에 제자리로 칠한다(나머지 층은
@@ -4043,7 +4042,8 @@
 .scr-split-cell { cursor: default; }
 .scr-split-cell.is-team::after {
   content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 2;
-  border: 2px solid; border-color: inherit;
+  /* 두께 PC 3.8 · 폰 3px(2026-09, 요청: "팀색 테두리가 잘 안보여서 좀더 두꺼웠으면" — 옛 2px). 틈이 0 이라 이웃 둘이 맞닿아 두 겹이 경계다. */
+  border: calc(2px + 1px * var(--dk)) solid; border-color: inherit;
 }
 .scr-split-cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 /* ★ 칸 머리는 이름 칩(+ PC 는 현황 — 아래 .scr-split-st)이다(2026-09, 요청: "헤더의 수치들 제거하고 음영 제거" → PC 에는 도로

@@ -732,6 +732,11 @@ if (has("--split")) {
     await page.evaluate(() => { const b = [...document.querySelectorAll("button")].find((el) => el.getAttribute("aria-label") === "전체화면"); if (b instanceof HTMLElement) b.click(); });
     await page.waitForTimeout(900);
   }
+  /* --splitpause — 멈춘 채로 분할을 켠다(2026-09, 지적: 일시정지에서 분할을 고르면 칸 안개·땅이 어긋난다). */
+  if (has("--splitpause")) {
+    await page.evaluate(() => { const b = document.querySelector(".scr-motion-play"); if (b instanceof HTMLElement) b.click(); });
+    await page.waitForTimeout(600);
+  }
   await page.evaluate(() => { const b = document.querySelector(".scr-motion-castbtn"); if (b instanceof HTMLElement) b.click(); });
   await page.waitForTimeout(300);
   await page.evaluate(() => {
