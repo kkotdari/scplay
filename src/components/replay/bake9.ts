@@ -1961,7 +1961,8 @@ export function protossLegs(
     const Lt9 = legLenD9(hip, knee0);
     const Ls9 = legLenD9(knee0, ankle0);
     // 걸음도 발끝 방향(돌린 +y)으로 나간다. 편히 선 자세(LEG_STANCE9)는 걸음 몫이 0 일 때만 · 발은 안 든다.
-    const sp9 = stride === 0 ? m * LEG_STANCE9 : 0;
+    /* 떠 있는 몸(정강이를 접는 tuck — 하템)은 짚을 땅이 없어 편히 선 자세를 안 쓴다(2026-10, 지적: "하템도 아니지 떠있는데"). */
+    const sp9 = stride === 0 && tuck === 0 ? m * LEG_STANCE9 : 0;
     const stv9 = yv9(0, st * 1.2 + sp9);
     const [ankleR9, cx9, cy9] = legCap9(hip,
       [ankle0[0] + stv9[0], ankle0[1] + stv9[1], ankle0[2] + Math.max(0, st) * 0.16], Lt9, Ls9);
