@@ -2556,7 +2556,8 @@
   --dock-cap: calc(22px * var(--dk)); --dock-body: calc(96px * var(--dk)); --dock-big: calc(60px * var(--dk));
   /* 칸(생산·대기·탄 몸)은 업그레이드 칸과 같은 26·dkd 다(2026-09, 요청: "생산/업그레이드중/큐/수송칸 셀크기를 업그레이드 셀이랑 같게"). */
   --dock-slot: calc(26px * var(--dk));
-  --dock-fold: calc(18px * var(--dk));
+  /* 접기 손잡이 한 변 — 18 → 14.4·dk(2026-09, 요청: "접기 버튼 크기 20프로 축소"). */
+  --dock-fold: calc(14.4px * var(--dk));
   --dock-w: calc(var(--dock-cell) * 6 + var(--dock-gap) * 5 + var(--dock-padx) * 2);
   /* 몸 키는 정보줄 키와 떼어 못 박는다(옛 띠 30 + 새긴 줄 1 + 96) — 정보줄을 죄어도 인포창·미니맵이 안 줄어든다
      (요청: "유저정보 라벨 크기 줄여서 세로 줄이기" — 줄어드는 것은 정보줄 하나다). */
