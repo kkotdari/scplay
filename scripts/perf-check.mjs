@@ -762,7 +762,15 @@ if (has("--split")) {
     const tb = document.querySelector(".scr-tb")?.getBoundingClientRect();
     const lastBottom = Math.max(0, ...[...document.querySelectorAll(".scr-split-cell")].map((el) => el.getBoundingClientRect().bottom));
     const roster = !!document.querySelector(".scr-fs-roster-fixed");
-    const cap = document.querySelector(".scr-tb-who-name .scr-tb-who-txt:not(.scr-tb-who-ghost)")?.textContent ?? null;
+    /* 독 — 인포창 글귀(앞 40자)와 미니맵 안개의 어두운 몫(분할에서 칸을 누르면 그 사람 것으로 바뀌어야 한다). */
+    const dk = document.querySelector(".scr-motion-infodock")?.textContent?.replace(/\s+/g, " ").slice(0, 40) ?? null;
+    let mf = null;
+    const mc = [...document.querySelectorAll(".scr-fs-dockrow canvas")].find((e) => e instanceof HTMLCanvasElement && e.width > 0);
+    if (mc instanceof HTMLCanvasElement) {
+      const d = mc.getContext("2d")?.getImageData(0, 0, mc.width, mc.height).data;
+      if (d) { let n = 0; let dark = 0; for (let i = 0; i < d.length; i += 64) { n += 1; if (d[i] + d[i + 1] + d[i + 2] < 60) dark += 1; } mf = +(dark / Math.max(1, n)).toFixed(3); }
+    }
+    const cap = `${dk} · 미니맵 어둠 ${mf}`;
     return { grid: g ? [+g.width.toFixed(0), +g.height.toFixed(0)] : null, roster, cap, cells, tbTop: tb ? +tb.top.toFixed(0) : null, cellBottom: +lastBottom.toFixed(0) };
   });
   const a9 = await sp9();
@@ -775,6 +783,8 @@ if (has("--split")) {
   await page.waitForTimeout(500);
   const b9 = await sp9();
   console.log(`[분할] 둘째 칸 누른 뒤 독 "${b9.cap}" · 켜진 칸 ${b9.cells.findIndex((c) => c.pick)}`);
+  const pk9 = flag("--splitpick", "");
+  if (pk9 && pk9 !== true && String(pk9).endsWith(".png")) { await page.waitForTimeout(1500); await page.screenshot({ path: String(pk9), timeout: 120000 }); console.log(`[분할] 누른 뒤 1.5초 독 "${(await sp9()).cap}"`); }
   await page.evaluate(() => { const c = document.querySelectorAll(".scr-split-cell")[1]; if (c instanceof HTMLElement) c.click(); });
   await page.waitForTimeout(300);
   const c9 = await sp9();

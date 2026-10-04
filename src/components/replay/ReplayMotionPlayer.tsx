@@ -9717,7 +9717,9 @@ export default function ReplayMotionPlayer({
      TV 목록에서 **사람을 고른**(개인 추적 · castOn 은 꺼진다) 동안은 자막이 사라졌다. 개인 추적도 '누구 화면인가'는
      같으니 `camRaw9`(trackRaw ?? castRaw)를 읽는다. 떠오름의 key 는 중계면 토막 번호, 개인 추적이면 그 사람이다
      (사람이 갈릴 때만 다시 떠오른다). 중계가 켜졌는데 편성표가 아직 사람을 안 가리키면 종전대로 안 선다. */
-  const capRaw9 = trackRaw ?? (castOn ? castRaw : null) ?? (splitOn9 ? splitPick9 : null);   // 분할보기는 누른 칸의 사람
+  /* ⚠ 분할에서 누른 칸이 **중계 주인보다 먼저**다 — 맞대결 자동 분할은 castOn 이 켜진 채라 castRaw 가 먼저 오면 칸을 눌러도
+     독이 중계 주인에 남았다(지적: "분할시 화면 클릭해도 인포창과 미니맵이 그사람걸로 안바뀜"). */
+  const capRaw9 = trackRaw ?? (splitOn9 ? splitPick9 : null) ?? (castOn ? castRaw : null);
   /** 첫 칸의 자리를 미리 잡는 **이름표 전부**(요청: "자막이 글자길이에 따라 레이아웃 흔들리지 않게 미리 공간 확보") —
    *  로스터 사람들의 이름표를 다 지어 같은 격자 칸에 숨겨(visibility hidden) 겹쳐 둔다. 칸 폭은 그중 가장 넓은 것이라
    *  사람이 갈려도 첫 칸이 안 흔들린다. 숫자 칸 넷은 CSS 가 ch 폭으로 잡는다.
@@ -10451,7 +10453,7 @@ export default function ReplayMotionPlayer({
   }, [entData]);
   /** 화면 주인의 지금 선택(태그들) — 카메라를 기계가 쥐었을 때만(중계·개인 추적). 없으면 null. */
   const ownerSel9: number[] | null = (() => {
-    const selRaw9 = camRaw9 ?? (splitOn9 ? splitPick9 : null);   // 분할보기는 누른 칸의 사람(위 splitOn9)
+    const selRaw9 = (splitOn9 ? splitPick9 : null) ?? camRaw9;   // 분할보기는 누른 칸의 사람이 먼저(맞대결은 castRaw 가 켜져 있다)
     if (!selRaw9 || !entData) return null;
     let best9: [number, number[]] | null = null;
     for (const pl9 of entData.players) {
@@ -14932,6 +14934,15 @@ export default function ReplayMotionPlayer({
       } else fogBin9().same += 1;
     }
     /* 창 넘김은 **블록 끝**에서 — 위에서 넘기면 붓은 이 창, 칠은 다음 창에 들어가 '칠 > 붓'이 난다. */
+    /* ★ 분할보기는 큰 지도 안개를 안 칠하지만 **독 미니맵의 안개는 이 붓이 대 준다**(2026-10, 지적: "분할시 화면 클릭해도
+       인포창과 미니맵이 그사람걸로 안바뀜") — 위 블록을 통째로 건너뛰면 miniFogLiveRef9 가 분할 전 사람의 눈에 멈춰 있고
+       미니맵은 그것을 React 안개보다 먼저 읽는다. 본 장의 시야는 viewRawNow9(분할이면 누른 칸의 사람)라 그 장의 눈을 그대로 준다
+       — 눈 목록은 컬링을 안 탄다. */
+    if (fr9.visSrc && fr9.explored && splitOnRef9.current) {
+      const ml9 = miniFogLiveRef9.current;
+      if (!ml9 || ml9.eyes !== fr9.visSrc || ml9.explored !== fr9.explored || Math.floor(ml9.t * 10) !== Math.floor(tNow9 * 10))
+        miniFogLiveRef9.current = { eyes: fr9.visSrc, explored: fr9.explored, t: tNow9, seq: (ml9?.seq ?? 0) + 1 };
+    }
     fogMeterTick9();
     /* 핵 창 계량기는 남는다 — 멈춤을 재는 자라 그림이 어디에 있든 쓸모가 있다.
        시계를 긁어 주던 자(nukeClockTick9)는 걷혔다: 연출이 캔버스의 나이 함수라 맞출 것이 없다. */
