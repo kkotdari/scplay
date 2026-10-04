@@ -1811,7 +1811,7 @@ if (SHOT) {
     console.log("[툴박스]", JSON.stringify(await page.evaluate(() => {
       const r = (q) => { const e = document.querySelector(q); if (!e) return null; const b = e.getBoundingClientRect(); return [b.left, b.top, b.width, b.height].map(Math.round); };
       return { tb: r(".scr-tb"), btns: r(".scr-tb-btnrow"), seek: r(".scr-tb-seek"),
-        row: r(".scr-fs-dockrow"), mini: r(".scr-fs-minipanel .scr-fs-minimap"), dock: r(".scr-motion-infodock"), stage: r(".scr-fs-stage") };
+        row: r(".scr-fs-dockrow"), mini: r(".scr-fs-minipanel .scr-fs-minimap"), dock: r(".scr-motion-infodock"), stage: r(".scr-fs-stage"), map: r(".scr-motion-map"), lower: r(".scr-fs-lower") };
     })));
   }
   await page.screenshot({ path: SHOT });

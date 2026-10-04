@@ -9900,22 +9900,32 @@ export default function ReplayMotionPlayer({
    *  같은 순간에 명령을 받은 몸들이 곧 그때 잡혀 있던 무리다. 0.25초 칸으로 모으는 것은
    *  참값이 같은 틱의 명령을 정확히 같은 초로 적지 않을 수 있어서다 — 무리가 둘로
    *  갈리면 카메라가 그 사이에서 흔들린다. */
-  const trackPicks = useMemo(() => {
-    if (!camRaw9 || !entData) return [] as { sec: number; tags: number[]; sel: string }[];
-    const mine9 = new Set(entData.players.filter((pl) => pl.name === camRaw9).map((pl) => pl.owner));
+  /* ★ **선택도 자국이다**(2026-10, 지적: "독 부분에 선택된 유닛이나 건물있는걸 아웃오브윈도우로 안치는거 같기도") — 여태 자국은
+     **명령을 받은 몸**뿐이라, 건물·유닛을 고르기만 하고(생산 · 확인) 명령을 안 내리면 독(인포창)에는 그 몸이 떠 있는데 카메라는 옛 무리에
+     머물렀다. 판 10 선택 절(entData.sels — 그 명령 뒤의 선택 전체)을 같은 0.25초 칸에 섞는다 — 가장 늦은 자국이 이기므로 '고르고 →
+     명령'은 그대로 그 무리이고, 고르기만 한 것도 카메라가 본다. 독과 카메라가 같은 몸을 본다. */
+  const picksOf9 = useCallback((raw9: string): { sec: number; tags: number[]; sel: string }[] => {
+    if (!entData) return [];
+    const mine9 = new Set(entData.players.filter((pl) => pl.name === raw9).map((pl) => pl.owner));
     const by9 = new Map<number, Set<number>>();
+    const put9 = (s9: number, tg9: number): void => {
+      const k9 = Math.round(s9 * 4) / 4;
+      const g9 = by9.get(k9);
+      if (g9) g9.add(tg9); else by9.set(k9, new Set([tg9]));
+    };
     for (const e9 of entData.lives) {
       if (!mine9.has(e9.owner)) continue;
-      for (const o9 of e9.orders) {
-        const k9 = Math.round(o9[0] * 4) / 4;
-        const g9 = by9.get(k9);
-        if (g9) g9.add(e9.tag); else by9.set(k9, new Set([e9.tag]));
-      }
+      for (const o9 of e9.orders) put9(o9[0], e9.tag);
+    }
+    for (const [s9, o9, tg9] of entData.sels ?? []) {
+      if (!mine9.has(o9)) continue;
+      for (const g9 of tg9) put9(s9, g9);
     }
     return [...by9.entries()]
       .map(([sec, tags]) => ({ sec, tags: [...tags], sel: selKey9(tags) }))
       .sort((a, b) => a.sec - b.sec);
-  }, [camRaw9, entData]);
+  }, [entData]);
+  const trackPicks = useMemo(() => (camRaw9 ? picksOf9(camRaw9) : []), [camRaw9, picksOf9]);
   /** 지금 추적이 보고 있는 자리(타일) — 마지막 자국의 몸들을 평균한 점.
    *
    *  자국의 **클릭 좌표**가 아니라 집힌 몸의 **지금 자리**다(요청: "선택 위치") — 그래야
@@ -9960,21 +9970,9 @@ export default function ReplayMotionPlayer({
   const splitPicks9 = useMemo(() => {
     const out9 = new Map<string, SplitPick9[]>();
     if (!splitOn9 || !entData) return out9;
-    for (const b9 of bases) {
-      const mine9 = new Set(entData.players.filter((pl) => pl.name === b9.key).map((pl) => pl.owner));
-      const by9 = new Map<number, Set<number>>();
-      for (const e9 of entData.lives) {
-        if (!mine9.has(e9.owner)) continue;
-        for (const o9 of e9.orders) {
-          const k9 = Math.round(o9[0] * 4) / 4;
-          const g9 = by9.get(k9);
-          if (g9) g9.add(e9.tag); else by9.set(k9, new Set([e9.tag]));
-        }
-      }
-      out9.set(b9.key, [...by9.entries()].map(([sec, tags]) => ({ sec, tags: [...tags], sel: selKey9(tags) })).sort((x, y) => x.sec - y.sec));
-    }
+    for (const b9 of bases) out9.set(b9.key, picksOf9(b9.key));   // trackPicks 와 같은 자(명령 + 선택)
     return out9;
-  }, [splitOn9, entData, bases]);
+  }, [splitOn9, entData, bases, picksOf9]);
   const splitWalks9 = useMemo(() => {
     const out9 = new Map<string, Map<number, typeof entWalks>>();
     if (!splitOn9) return out9;
