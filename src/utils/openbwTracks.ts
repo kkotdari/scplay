@@ -225,7 +225,11 @@ export type TruthTracks = {
    *  선택은 게임 상태가 아니라 누른 사람의 손 안의 일이라 명령 스트림에서만 온다 — 중계가 '화면 주인이 건물을
    *  골랐다'를 알아 그 건물의 정보 팝업을 띄우는 자다(2026-09, 요청: "중계시(화면 주인의) 건물 선택시 인포팝업
    *  뜨게 — 보는 사람이 누르는게 아니라 리플레이 기록상 선택한 경우"). 태그는 명령 절과 같은 자다. */
-  sels: [number, number, number[]][];
+  /*  ★ 넷째 칸은 **선택 갈래**(판 12 · 옛 판은 −1 = 모름) — 아래 SEL_KIND9. 낮은 넉 비트가 갈래 · 높은 넉 비트가 부대 번호다
+   *  (2026-10, 요청: "중계에서 아웃오브 스크린을 스크롤로 이동한거랑 유닛선택해서 바로 옮긴거 구분해서 재현") — 리플레이에는
+   *  카메라가 없으므로 '어떻게 골랐나'가 그 사람 화면을 되짚는 유일한 단서다: 마우스로 고른 몸은 그 순간 화면 안이었고,
+   *  부대 불러오기는 화면을 안 옮기며, 같은 부대를 두 번 부르면 화면이 그 무리로 뛴다. */
+  sels: [number, number, number[], number][];
   /** 에너지 [초, 값] 계단 — 태그마다(값이 바뀔 때만 한 줄) · **판 11부터**. 옛 판은 빈 표다. */
   energy: Map<number, Float32Array>;
   /** 탑승 [초, 승객 태그, 배 태그(0 = 내림)] — 수송선·오버로드·벙커 · **판 11부터**. */
@@ -400,7 +404,23 @@ class Cursor {
 /* ★ 판 11 만 읽는다(2026-09, 요청: "판 10 이하 참값은 재생 안되게") — 하단 인포창·K/D 가 판 11 의 네 절(에너지·탑승·자원량·처치)
    위에 서므로 옛 판은 폴백 없이 물리친다. 덤퍼가 판 11 로 갈리고 일괄 재분석이 돈다. */
 export const TRUTH_VER_MIN9 = 11;
-export const TRUTH_VER_MAX9 = 11;
+/* 판 12 = 판 11 + 선택 줄마다 u8 갈래(아래 SEL_KIND9) — 덤퍼가 갈리고 재분석이 돌기까지 판 11 도 그대로 읽는다(갈래 −1). */
+export const TRUTH_VER_MAX9 = 12;
+/** 선택 갈래(판 12 선택 줄의 낮은 넉 비트) — 높은 넉 비트는 부대 번호(0~9 · 부대 갈래에서만 뜻이 있다). */
+export const SEL_KIND9 = {
+  /** 마우스로 고름(클릭·끌어 고르기 = Select) — 그 몸들은 그 순간 그 사람 화면 안이었다. */
+  click: 0,
+  /** 시프트로 더함(ShiftSelect) — 화면 안. */
+  add: 1,
+  /** 시프트로 뺌(ShiftDeselect) — 화면 안. */
+  remove: 2,
+  /** 부대 불러오기(숫자키) — 화면을 안 옮긴다. 선택이 그대로여도 한 줄 적는다(두 번 누름을 알아야 한다). */
+  recall: 3,
+  /** 부대 지정(Ctrl+숫자) — 선택이 안 바뀐다. */
+  assign: 4,
+  /** 부대에 더함(Shift+숫자) — 선택이 안 바뀐다. */
+  groupAdd: 5,
+} as const;
 
 export async function peekTruthHead(
   b64: string,
@@ -434,6 +454,8 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
     const hasBuilds = version >= 9;
     /** 선택 절(판 10) — 건설 명령 절 뒤, 맨 뒤다. */
     const hasSels = version >= 10;
+    /** 선택 줄마다 갈래 바이트(판 12). */
+    const hasSelKind = version >= 12;
     /** 에너지·탑승·자원량·처치 네 절(판 11) — 선택 절 뒤, 맨 뒤다(2026-09, 요청: 하단 인포창 — "어림 말고 덤퍼에 부탁"). */
     const hasInfo = version >= 11;
     /* 은신은 판 5부터다(요청: "참값에 은신 칸 추가하는 쪽으로 가자") — 옛 덤프는 그 깃발이
@@ -701,17 +723,18 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
 
     /* 선택(판 10) — [초, 임자, 태그들]. 그 명령을 치른 **뒤의 선택 전체**라 화면은 한 줄만 보면 된다
        (ShiftSelect·ShiftDeselect 를 덤퍼가 풀어 준다 — 차이를 쌓는 셈을 화면이 되풀이하지 않게). */
-    const sels: [number, number, number[]][] = [];
+    const sels: [number, number, number[], number][] = [];
     if (hasSels) {
       let pf = 0;
       const cnt = c.u32();
       for (let i = 0; i < cnt; i += 1) {
         pf += c.varint();
         const who = c.u8();
+        const kind = hasSelKind ? c.u8() : -1;
         const n = c.u8();
         const tags: number[] = [];
         for (let k = 0; k < n; k += 1) tags.push(c.u32());
-        sels.push([pf / fps, who, tags]);
+        sels.push([pf / fps, who, tags, kind]);
       }
     }
 

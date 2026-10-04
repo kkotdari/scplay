@@ -76,7 +76,9 @@ const SPEC = {
   건설명령: "[판9+] **맨 뒤** u32 개수, 개마다 varint(프레임차) · u8 임자 · u32 일꾼태그 · u16 타일x · u16 타일y · u16 건물종류(units.dat)"
     + " — action_build 의 tile_pos(발자국 좌상단 타일) 그대로. 글자 갈래는 #build\\t프레임\\t임자\\t태그\\t타일x\\t타일y\\t종류",
   선택: "[판10+] **맨 뒤**(건설명령 다음) u32 개수, 개마다 varint(프레임차) · u8 임자 · u8 태그수 · u32 태그 × 태그수"
-    + " — Select·ShiftSelect·ShiftDeselect 를 치른 **뒤의 선택 전체**(최대 12). 글자 갈래는 #sel\\t프레임\\t임자\\t태그,태그,…",
+    + " — Select·ShiftSelect·ShiftDeselect 를 치른 **뒤의 선택 전체**(최대 12). 글자 갈래는 #sel\\t프레임\\t임자\\t태그,태그,…"
+    + " · [판12+] 임자 다음에 u8 갈래(낮은 넉 비트 0 클릭 · 1 시프트더함 · 2 시프트뺌 · 3 부대불러오기 · 4 부대지정 · 5 부대에더함 ·"
+    + " 높은 넉 비트 부대번호) — 부대 셋(3·4·5)은 선택이 안 바뀌어도 한 줄. 글자 갈래는 다섯째 칸 \\t갈래",
   에너지: "[판11+] (선택 다음) u32 개수, 개마다 varint(프레임차) · u32 태그 · u16 에너지(정수 0~250) — 정수 값이 바뀔 때만. 글자 #en\\t프레임\\t태그\\t값",
   탑승: "[판11+] u32 개수, 개마다 varint(프레임차) · u32 승객태그 · u32 배태그(0 = 내림) — 수송선·오버로드·벙커. 글자 #load\\t프레임\\t승객\\t배",
   자원량: "[판11+] u32 개수, 개마다 varint(프레임차) · u16 x · u16 y(픽셀 — 자원밭단과 같은 자) · u16 남은 양. 글자 #amt\\t프레임\\tx\\ty\\t양",
@@ -85,7 +87,7 @@ const SPEC = {
 };
 /** 해독기가 받아 주어야 할 판 — 이 범위 밖은 물리쳐야 한다. */
 const VER_MIN = 11;  // 판 11 만(요청: "판 10 이하 참값은 재생 안되게") — 하단 인포창·K/D 가 판 11 네 절 위에 선다
-const VER_MAX = 11;  // 판 11 = 판 10 + 맨 뒤 에너지·탑승·자원량·처치 절
+const VER_MAX = 12;  // 판 11 = 판 10 + 맨 뒤 에너지·탑승·자원량·처치 절 · 판 12 = 선택 줄마다 u8 갈래
 
 // ── 바이트 짓기 ────────────────────────────────────────────────────────────────
 const u8 = (v) => Buffer.from([v]);
@@ -168,8 +170,9 @@ function build(ver) {
   }
   if (ver >= 10) {                                       // 선택(맨 뒤) — 배럭 하나 · 두 몸
     p.push(u32(2));
-    p.push(varint(120), u8(3), u8(1), u32(77));
-    p.push(varint(24), u8(5), u8(2), u32(78), u32(79));
+    const k = (v) => (ver >= 12 ? [u8(v)] : []);
+    p.push(varint(120), u8(3), ...k(0x00), u8(1), u32(77));
+    p.push(varint(24), u8(5), ...k(0x23), u8(2), u32(78), u32(79));   // 부대 2 불러오기
   }
   if (ver >= 11) {                                       // 에너지 · 탑승 · 자원량 · 처치(맨 뒤) — 절마다 둘
     p.push(u32(2));
@@ -243,7 +246,7 @@ function expect(ver, r, fail) {
   eq("자원밭단", r.resFields, ver >= 4 ? [[0, 1, 1, 4], [1, 2, 2, 2]] : []);
   // 건설 명령(판 9) — 자리는 타일 그대로(÷32 안 한다) · 종류는 이름으로.
   eq("건설명령", r.builds, ver >= 9 ? [[4, 3, 77, 40, 50, "Barracks"], [5, 5, 78, 60, 70, "Pylon"]] : []);
-  eq("선택", r.sels, ver >= 10 ? [[5, 3, [77]], [6, 5, [78, 79]]] : []);
+  eq("선택", r.sels, ver >= 10 ? [[5, 3, [77], ver >= 12 ? 0 : -1], [6, 5, [78, 79], ver >= 12 ? 0x23 : -1]] : []);
   eq("에너지(태그 77)", r.energy.get(77) ? [...r.energy.get(77)] : [], ver >= 11 ? [1, 50, 2, 51] : []);
   eq("탑승", r.loads, ver >= 11 ? [[2, 78, 77], [3, 78, 0]] : []);
   eq("자원량", r.amounts, ver >= 11 ? [[0, 1, 1, 1500], [1, 1, 1, 1492]] : []);
@@ -325,7 +328,7 @@ const TSV = {
   "#res": "(수만 견준다 — 칸 차례를 이 저장소가 모른다)",
   "#apm": "(수만 견준다)",
   "#build": "[판9+] 프레임 · 임자 · 일꾼태그 · 타일x · 타일y · 종류",
-  "#sel": "[판10+] 프레임 · 임자 · 태그,태그,…(그 명령 뒤의 선택 전체)",
+  "#sel": "[판10+] 프레임 · 임자 · 태그,태그,…(그 명령 뒤의 선택 전체) · [판12+] 갈래(낮은 넉 비트 갈래 · 높은 넉 비트 부대)",
   "#en": "[판11+] 프레임 · 태그 · 에너지(정수)",
   "#load": "[판11+] 프레임 · 승객태그 · 배태그(0 = 내림)",
   "#amt": "[판11+] 프레임 · x · y(픽셀) · 남은 양",
@@ -363,7 +366,7 @@ function readText(text) {
       else if (p[0] === "#res") res.push(p.slice(1).map(Number));
       else if (p[0] === "#apm") apm.push(p.slice(1).map(Number));
       else if (p[0] === "#build") build.push(p.slice(1).map(Number));
-      else if (p[0] === "#sel") sel.push([Number(p[1]), Number(p[2]), p[3] ? p[3].split(",").map(Number) : []]);
+      else if (p[0] === "#sel") sel.push([Number(p[1]), Number(p[2]), p[3] ? p[3].split(",").map(Number) : [], p[4] !== undefined ? Number(p[4]) : -1]);
       else if (p[0] === "#en") en.push(p.slice(1).map(Number));
       else if (p[0] === "#load") load.push(p.slice(1).map(Number));
       else if (p[0] === "#amt") amt.push(p.slice(1).map(Number));
@@ -503,7 +506,7 @@ function compare(bin, txt, decoded, upName, fail) {
   decoded.sels.forEach((s9, i) => {
     const w = txt.sel[i];
     if (!w) return;
-    if (!near(s9[0], w[0] / fps, T) || s9[1] !== w[1] || s9[2].join(",") !== w[2].join(",")) fail(`선택 ${i}`);
+    if (!near(s9[0], w[0] / fps, T) || s9[1] !== w[1] || s9[2].join(",") !== w[2].join(",") || s9[3] !== w[3]) fail(`선택 ${i}`);
   });
   /* 판 11 네 절 — 글자 갈래와 줄마다 견준다. 에너지는 태그마다 묶여 오므로 (태그, 프레임) 차례로 편다. */
   const enBin = [...decoded.energy.entries()].flatMap(([tg, a]) => {

@@ -66,7 +66,7 @@ import { truthWorld, type TruthLife, type TruthWorld } from "../../utils/truthLi
 import { unpack9 } from "./framePack";
 import { estBytes9, mb9 } from "./memEst9";
 import {
-  decodeTruthTracks, peekTruthHead, TRUTH_VER_MIN9, TRUTH_VER_MAX9, posAtTruth as posAtSim, type TruthTrack, type TruthTracks,
+  decodeTruthTracks, peekTruthHead, TRUTH_VER_MIN9, TRUTH_VER_MAX9, SEL_KIND9, posAtTruth as posAtSim, type TruthTrack, type TruthTracks,
   TRUTH_ST_CARRY_GAS as ST_CARRY_GAS, TRUTH_ST_CARRY_MIN as ST_CARRY_MIN,
   TRUTH_ST_BURROW as ST_BURROW,
   TRUTH_ST_FIGHT as ST_FIGHT,
@@ -250,6 +250,34 @@ const DOCK_MARK_PAD9 = 40;
 const CAM_GLIDE_MS9 = 450;
 /** 선택(한 명령을 받은 몸들)의 열쇠 — 태그를 정렬해 잇는다. 미끄러짐은 이 열쇠가 그대로일 때만이다(선택이 바뀌면 곧장 선다). */
 const selKey9 = (tags: Iterable<number>): string => [...tags].sort((a, b) => a - b).join(",");
+/* ★ **선택 갈래로 그 사람 화면을 되짚는다**(판 12 · 2026-10, 요청: "중계에서 아웃오브 스크린을 스크롤로 이동한거랑 유닛선택해서
+   바로 옮긴거 구분해서 재현") — 리플레이에는 카메라가 없다. 단서는 '어떻게 골랐나'다:
+   · view(마우스로 고름 · 시프트 더함/뺌) — 그 몸들은 그 순간 그 사람 화면 안이었다. 곧 화면이 **그 앞에 이미** 거기 가 있었다
+     (스크롤했다) → 고르기 VIEW_LEAD_SEC9 앞부터 그 무리로 **미끄러져** 간다(선택이 바뀌어도 미끄러진다).
+   · hold(부대 불러오기 한 번) — 원작은 화면을 안 옮긴다 → 카메라는 제자리 · 새 선택만 적어 둔다(그 뒤 그 무리가 명령을 받아
+     화면을 벗어나면 '같은 선택'이라 미끄러진다).
+   · jump(같은 부대를 RECALL_DBL_SEC9 안에 두 번) — 원작은 화면이 그 무리로 뛴다 → 한 번 곧장 선다.
+   · 부대 지정·부대에 더함 — 선택이 안 바뀌므로 자국이 아니다.
+   판 11(갈래 −1)과 명령 자국은 갈래가 없다 — 옛 규칙 그대로(벗어나면 다시 잡고, 선택이 바뀌었으면 곧장 선다). */
+type PickMode9 = "view" | "hold" | "jump";
+/** 마우스로 고르기 이만큼(경기 초) 앞서 카메라가 그 무리로 미끄러지기 시작한다. */
+const VIEW_LEAD_SEC9 = 0.6;
+/** 같은 부대를 이 안(경기 초)에 두 번 부르면 '두 번 누름'(화면이 뛴다). */
+const RECALL_DBL_SEC9 = 0.5;
+type Pick9 = { sec: number; tags: number[]; sel: string; mode?: PickMode9 };
+/** 자국 목록에서 t 에 쓸 자국 번호 — 다음 자국이 view 이고 VIEW_LEAD_SEC9 안이면 그것(미리 미끄러진다). */
+const pickIdx9 = (picks: Pick9[], t: number): { at: number; lead: boolean } => {
+  let lo9 = 0;
+  let hi9 = picks.length - 1;
+  let at9 = -1;
+  while (lo9 <= hi9) {
+    const m9 = (lo9 + hi9) >> 1;
+    if (picks[m9].sec <= t) { at9 = m9; lo9 = m9 + 1; } else hi9 = m9 - 1;
+  }
+  const nx9 = picks[at9 + 1];
+  if (nx9 && nx9.mode === "view" && nx9.sec - t <= VIEW_LEAD_SEC9) return { at: at9 + 1, lead: true };
+  return { at: at9, lead: false };
+};
 /** 맞대결 자동 분할을 이만큼(경기 초) 앞서 팀 엔진을 데운다(splitTeamsKey9 의 ★). */
 const DUEL_WARM_SEC9 = 2;
 /** 한 사람 중계가 다른 팀으로 갈아탄 뒤 그 팀 엔진을 이만큼(경기 초) 남겨 둔다 — 새 시야 갈래의 장이 올 때까지 팀 장이 빈틈을 메운다. */
@@ -9906,10 +9934,13 @@ export default function ReplayMotionPlayer({
      **명령을 받은 몸**뿐이라, 건물·유닛을 고르기만 하고(생산 · 확인) 명령을 안 내리면 독(인포창)에는 그 몸이 떠 있는데 카메라는 옛 무리에
      머물렀다. 판 10 선택 절(entData.sels — 그 명령 뒤의 선택 전체)을 같은 0.25초 칸에 섞는다 — 가장 늦은 자국이 이기므로 '고르고 →
      명령'은 그대로 그 무리이고, 고르기만 한 것도 카메라가 본다. 독과 카메라가 같은 몸을 본다. */
-  const picksOf9 = useCallback((raw9: string): { sec: number; tags: number[]; sel: string }[] => {
+  const picksOf9 = useCallback((raw9: string): Pick9[] => {
     if (!entData) return [];
     const mine9 = new Set(entData.players.filter((pl) => pl.name === raw9).map((pl) => pl.owner));
     const by9 = new Map<number, Set<number>>();
+    const mode9 = new Map<number, PickMode9>();
+    /** 임자·부대마다 마지막으로 불러온 초 — 두 번 누름(jump)을 가른다. */
+    const recall9 = new Map<number, number>();
     const put9 = (s9: number, tg9: number): void => {
       const k9 = Math.round(s9 * 4) / 4;
       const g9 = by9.get(k9);
@@ -9919,12 +9950,23 @@ export default function ReplayMotionPlayer({
       if (!mine9.has(e9.owner)) continue;
       for (const o9 of e9.orders) put9(o9[0], e9.tag);
     }
-    for (const [s9, o9, tg9] of entData.sels ?? []) {
+    for (const [s9, o9, tg9, kd9] of entData.sels ?? []) {
       if (!mine9.has(o9)) continue;
+      const k9 = kd9 < 0 ? -1 : kd9 & 15;
+      if (k9 === SEL_KIND9.assign || k9 === SEL_KIND9.groupAdd) continue;   // 선택이 안 바뀐다
       for (const g9 of tg9) put9(s9, g9);
+      if (k9 < 0) continue;
+      let m9: PickMode9 = "view";
+      if (k9 === SEL_KIND9.recall) {
+        const key9 = o9 * 16 + (kd9 >> 4);
+        const last9 = recall9.get(key9);
+        m9 = last9 !== undefined && s9 - last9 <= RECALL_DBL_SEC9 ? "jump" : "hold";
+        recall9.set(key9, s9);
+      }
+      mode9.set(Math.round(s9 * 4) / 4, m9);   // 같은 칸에서는 나중 갈래가 이긴다
     }
     return [...by9.entries()]
-      .map(([sec, tags]) => ({ sec, tags: [...tags], sel: selKey9(tags) }))
+      .map(([sec, tags]): Pick9 => ({ sec, tags: [...tags], sel: selKey9(tags), mode: mode9.get(sec) }))
       .sort((a, b) => a.sec - b.sec);
   }, [entData]);
   const trackPicks = useMemo(() => (camRaw9 ? picksOf9(camRaw9) : []), [camRaw9, picksOf9]);
@@ -9933,15 +9975,9 @@ export default function ReplayMotionPlayer({
    *  자국의 **클릭 좌표**가 아니라 집힌 몸의 **지금 자리**다(요청: "선택 위치") — 그래야
    *  카메라가 그 무리를 따라 흐른다. 다 죽었으면 그 앞 자국으로 몇 걸음 물러난다:
    *  방금 집은 것이 방금 죽는 일(교전)이 잦은데, 그때마다 화면이 멎으면 안 된다. */
-  const trackAt = ((): { x: number; y: number; pts: { x: number; y: number }[]; sel: string } | null => {
+  const trackAt = ((): { x: number; y: number; pts: { x: number; y: number }[]; sel: string; mode?: PickMode9; sec: number } | null => {
     if (!camRaw9 || trackPicks.length === 0) return null;
-    let lo9 = 0;
-    let hi9 = trackPicks.length - 1;
-    let at9 = -1;
-    while (lo9 <= hi9) {
-      const mid9 = (lo9 + hi9) >> 1;
-      if (trackPicks[mid9].sec <= t) { at9 = mid9; lo9 = mid9 + 1; } else hi9 = mid9 - 1;
-    }
+    const { at: at9 } = pickIdx9(trackPicks, t);
     for (let k9 = at9; k9 >= 0 && k9 > at9 - 8; k9 -= 1) {
       let sx9 = 0;
       let sy9 = 0;
@@ -9953,7 +9989,7 @@ export default function ReplayMotionPlayer({
         sx9 += p9.x; sy9 += p9.y; n9 += 1;
         pts9.push(p9);
       }
-      if (n9 > 0) return { x: sx9 / n9, y: sy9 / n9, pts: pts9, sel: trackPicks[k9].sel };
+      if (n9 > 0) return { x: sx9 / n9, y: sy9 / n9, pts: pts9, sel: trackPicks[k9].sel, mode: trackPicks[k9].mode, sec: trackPicks[k9].sec };
     }
     return null;
   })();
@@ -9968,7 +10004,7 @@ export default function ReplayMotionPlayer({
   /* ── 분할보기의 칸 카메라 · 칸 배치(위 splitOn9) ───────────────────────────────────────────────────────────────
      카메라는 사람마다 trackPicks·trackAt 과 **같은 자**다(그 순간 명령을 받은 무리의 무게중심) — 개인 추적과 한 셈이라
      칸의 화면과 그 사람을 개인 추적으로 볼 때의 화면이 같은 곳을 본다. 걷기는 워커에 사람마다 청한다(위 want 효과). */
-  type SplitPick9 = { sec: number; tags: number[]; sel: string };
+  type SplitPick9 = Pick9;
   const splitPicks9 = useMemo(() => {
     const out9 = new Map<string, SplitPick9[]>();
     if (!splitOn9 || !entData) return out9;
@@ -10004,7 +10040,7 @@ export default function ReplayMotionPlayer({
     return out9;
   }, [splitOn9, entData, bases]);
   /** 그 사람의 카메라 자리(타일) — trackAt 과 같은 셈을 사람마다. 없으면 출발 자리. */
-  const splitAt9 = (raw9: string, sec9: number): { x: number; y: number; pts?: { x: number; y: number }[]; sel?: string } | null => {
+  const splitAt9 = (raw9: string, sec9: number): { x: number; y: number; pts?: { x: number; y: number }[]; sel?: string; mode?: PickMode9; sec?: number } | null => {
     const picks9 = splitPicks9.get(raw9) ?? [];
     const wk9 = splitWalks9.get(raw9);
     const body9 = (tg9: number): { x: number; y: number } | null => {
@@ -10022,8 +10058,7 @@ export default function ReplayMotionPlayer({
       }
       return null;
     };
-    let lo9 = 0; let hi9 = picks9.length - 1; let at9 = -1;
-    while (lo9 <= hi9) { const m9 = (lo9 + hi9) >> 1; if (picks9[m9].sec <= sec9) { at9 = m9; lo9 = m9 + 1; } else hi9 = m9 - 1; }
+    const { at: at9 } = pickIdx9(picks9, sec9);
     for (let k9 = at9; k9 >= 0 && k9 > at9 - 8; k9 -= 1) {
       let sx9 = 0; let sy9 = 0; let n9 = 0;
       const pts9: { x: number; y: number }[] = [];
@@ -10033,7 +10068,7 @@ export default function ReplayMotionPlayer({
         sx9 += p9.x; sy9 += p9.y; n9 += 1;
         pts9.push(p9);
       }
-      if (n9 > 0) return { x: sx9 / n9, y: sy9 / n9, pts: pts9, sel: picks9[k9].sel };
+      if (n9 > 0) return { x: sx9 / n9, y: sy9 / n9, pts: pts9, sel: picks9[k9].sel, mode: picks9[k9].mode, sec: picks9[k9].sec };
     }
     return splitStart9.get(raw9) ?? null;
   };
@@ -11098,7 +11133,7 @@ export default function ReplayMotionPlayer({
    *    집힌 것의 자리가 화면 테두리를 **넘는** 순간에만 — 곧 그림이 반쯤 잘려 나가기
    *    시작할 때에만 — 한 번 크게 옮겨 한가운데로 데려온다. */
   const TRACK_EDGE = 0;
-  const trackCamRef = useRef<{ raw: string | null; z: number; pan: { x: number; y: number }; sel: string }>(
+  const trackCamRef = useRef<{ raw: string | null; z: number; pan: { x: number; y: number }; sel: string; jump?: number }>(
     { raw: null, z: 0, pan: { x: 0, y: 0 }, sel: "" });
   /** ★ 다시 잡을 때 **미끄러져 간다**(2026-10, 요청: "아웃오브스크린 화면 이동시 부드럽게") — 같은 사람·같은 배율에서 무리가 화면을
    *  벗어나 다시 잡는 이동만 CAM_GLIDE_MS9 동안 ease-in-out 으로 옮긴다(사람이 바뀌거나 배율이 바뀌면 곧장 선다 — 누구 화면인지가
@@ -11158,16 +11193,22 @@ export default function ReplayMotionPlayer({
         if (Math.abs(dx9) > keepW9 || Math.abs(dy9) > keepH9) { keep9 = false; break; }
       }
     }
+    /* 선택 갈래(판 12 · 위 PickMode9) — 부대 한 번 불러오기는 화면을 안 옮기고 · 두 번 누름은 한 번 곧장 선다. */
+    const same9 = cur9.raw === camRaw9 && cur9.z === z9;
+    let jump9 = false;
+    if (same9 && trackAt.mode === "hold") keep9 = true;
+    else if (trackAt.mode === "jump" && cur9.jump !== trackAt.sec) { keep9 = false; jump9 = true; }
     /* 안 옮기는 동안 선택이 바뀌었으면 새 선택을 적어 둔다 — 그 무리가 나중에 화면을 벗어날 때는 '같은 선택'이라 미끄러진다. */
     if (keep9 && cur9.sel !== trackAt.sel) trackCamRef.current = { ...cur9, sel: trackAt.sel };
     if (!keep9) {
-      /* 같은 사람·같은 배율·**같은 선택**에서 다시 잡는 것이면 지금 보이는 자리(미끄러지는 중이면 그 사이 자리)에서 미끄러져 간다. */
-      if (cur9.raw === camRaw9 && cur9.z === z9 && cur9.sel === trackAt.sel) {
+      /* 같은 사람·같은 배율·**같은 선택**에서 다시 잡는 것이면 지금 보이는 자리(미끄러지는 중이면 그 사이 자리)에서 미끄러져 간다.
+         마우스로 고른 자국(view)은 선택이 바뀌어도 미끄러진다 — 그 사람이 스크롤해 간 자리다. */
+      if (same9 && !jump9 && (cur9.sel === trackAt.sel || trackAt.mode === "view")) {
         const g09 = camGlideRef9.current;
         const from9 = g09 ? camGlideAt9(g09, performance.now()) ?? g09.to : cur9.pan;
         camGlideRef9.current = { from: from9, to: mid9, t0: performance.now() };
       } else camGlideRef9.current = null;
-      trackCamRef.current = { raw: camRaw9, z: z9, pan: mid9, sel: trackAt.sel };
+      trackCamRef.current = { raw: camRaw9, z: z9, pan: mid9, sel: trackAt.sel, jump: jump9 ? trackAt.sec : cur9.jump };
     }
     const g9 = camGlideRef9.current;
     const gp9 = g9 ? camGlideAt9(g9, performance.now()) : null;
@@ -14345,6 +14386,8 @@ export default function ReplayMotionPlayer({
   const splitGlideRef9 = useRef(new Map<string, { from: { x: number; y: number }; t0: number }>());
   /** 칸마다 지금 따라가는 선택의 열쇠(selKey9) — 같은 선택이 벗어날 때만 미끄러진다. */
   const splitSelRef9 = useRef(new Map<string, string>());
+  /** 칸마다 마지막으로 치른 두 번 누름(jump)의 초 — 한 자국에 한 번만 곧장 선다. */
+  const splitJumpRef9 = useRef(new Map<string, number>());
   const splitShowRef9 = useRef(new Map<string, { x: number; y: number }>());
   const splitTerrRef9 = useRef<HTMLCanvasElement | null>(null);
   /** 칸마다의 미니맵 캔버스(좌하단 · 2026-09, 요청: "각 화면의 좌하단에 자신의 시야가 적용된 미니맵을 표시"). */
@@ -14362,7 +14405,7 @@ export default function ReplayMotionPlayer({
   /* 분할을 끄면 팀 판·등고선·보간 풀을 놓는다(워커도 팀 엔진을 걷는다 — 시야의 splitTeams 가 빈다). */
   useEffect(() => {
     if (splitOn9) return;
-    splitGlideRef9.current.clear(); splitShowRef9.current.clear(); splitSelRef9.current.clear();   // 다시 켤 때 옛 자리에서 미끄러지지 않게
+    splitGlideRef9.current.clear(); splitShowRef9.current.clear(); splitSelRef9.current.clear(); splitJumpRef9.current.clear();   // 다시 켤 때 옛 자리에서 미끄러지지 않게
     splitViewRef9.current.clear(); splitCamRef9.current.clear();   // 옛 창으로 첫 컬링 사각형을 내지 않게(splitCull9)
     teamFogPathRef9.current.clear();
     teamLerpRef9.current.clear();
@@ -14705,10 +14748,16 @@ export default function ReplayMotionPlayer({
         }
         const sel9 = at9.sel ?? "";
         const same9 = splitSelRef9.current.get(cell9.raw) === sel9;
+        /* 선택 갈래(판 12 · PickMode9) — trackView 와 같은 규약: 한 번 불러오기는 제자리 · 두 번 누름은 한 번 곧장 · 마우스 고르기는 미끄러짐. */
+        let jump9 = false;
+        if (cam9 && at9.mode === "hold") out9 = false;
+        else if (at9.mode === "jump" && at9.sec !== undefined && splitJumpRef9.current.get(cell9.raw) !== at9.sec) {
+          out9 = true; jump9 = true; splitJumpRef9.current.set(cell9.raw, at9.sec);
+        }
         if (out9) {
           /* 다시 잡을 때 미끄러져 간다(위 CAM_GLIDE_MS9 · trackView 와 같은 자) — 처음 잡는 칸과 **선택이 바뀐** 칸은 곧장 선다. */
           const show9 = splitShowRef9.current.get(cell9.raw);
-          if (cam9 && show9 && same9) splitGlideRef9.current.set(cell9.raw, { from: show9, t0: performance.now() });
+          if (cam9 && show9 && !jump9 && (same9 || at9.mode === "view")) splitGlideRef9.current.set(cell9.raw, { from: show9, t0: performance.now() });
           else splitGlideRef9.current.delete(cell9.raw);
           cam9 = { x: fr9[0], y: fr9[1] };
         }

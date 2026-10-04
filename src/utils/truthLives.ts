@@ -112,7 +112,7 @@ export type TruthWorld = {
   /** 건설 명령 [초, 임자, 일꾼 태그, 타일 x, 타일 y, 건물 이름] — 판 9부터(openbwTracks 의 builds). 옛 자취는 빈 배열이다. */
   builds: [number, number, number, number, number, string][];
   /** 선택 [초, 임자, 그 명령 뒤의 선택 태그들] — 판 10부터(openbwTracks 의 sels). 옛 자취는 빈 배열이다. */
-  sels: [number, number, number[]][];
+  sels: [number, number, number[], number][];
   /** 판 11 네 절 — openbwTracks 의 energy·loads·amounts·kills 그대로. 옛 자취는 빈 표다. */
   energy: Map<number, Float32Array>;
   loads: [number, number, number][];

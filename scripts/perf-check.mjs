@@ -327,7 +327,7 @@ function makeWorld() {
   /* ── 바이트로 굽는다 ── */
   const w = new W();
   w.u8(0x4f); w.u8(0x42); w.u8(0x57); w.u8(0x54);   // "OBWT"
-  w.u8(11); w.f32(FPS); w.i32(-1);   // 판 11 = 판 10 + 맨 뒤 에너지·탑승·자원량·처치 절(해독기는 판 11 만 읽는다)
+  w.u8(12); w.f32(FPS); w.i32(-1);   // 판 12 = 판 11 + 선택 줄마다 u8 갈래(해독기는 판 11~12 를 읽는다)
   w.u8(PLAYERS.length);
   for (const pl of PLAYERS) { w.u8(pl.owner); w.u8(pl.owner); w.u8(pl.race); w.u8(pl.force); w.u8(0); w.u32(pl.color); w.str(pl.name); }
   w.u32(tracks.length);
@@ -358,8 +358,8 @@ function makeWorld() {
   w.u32(0);                            // 자원밭단
   w.u32(builds.length);                // 건설 명령(판 9 · 맨 뒤)
   { let pf = 0; for (const [f, o, tg, tx, ty, ty9] of builds) { w.vz(f - pf); pf = f; w.u8(o); w.u32(tg); w.u16(tx); w.u16(ty); w.u16(ty9); } }
-  w.u32(sels.length);                  // 선택(판 10 · 맨 뒤)
-  { let pf = 0; for (const [f, o, tgs] of [...sels].sort((a, b) => a[0] - b[0])) { w.vz(f - pf); pf = f; w.u8(o); w.u8(tgs.length); for (const tg of tgs) w.u32(tg); } }
+  w.u32(sels.length);                  // 선택(판 10 · 맨 뒤 · 판 12 부터 줄마다 u8 갈래 — 픽스처는 다 0 = 마우스 고름)
+  { let pf = 0; for (const [f, o, tgs] of [...sels].sort((a, b) => a[0] - b[0])) { w.vz(f - pf); pf = f; w.u8(o); w.u8(0); w.u8(tgs.length); for (const tg of tgs) w.u32(tg); } }
   w.u32(energyRows.length);            // 에너지(판 11)
   { let pf = 0; for (const [f, tg, v] of [...energyRows].sort((a, b) => a[0] - b[0])) { w.vz(f - pf); pf = f; w.u32(tg); w.u16(v); } }
   w.u32(loadRows.length);              // 탑승(판 11)
