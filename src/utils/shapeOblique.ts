@@ -785,11 +785,26 @@ export function withModelWarp<T>(
     modelWarp = p;
   }
 }
+/** 바깥 비틀기 — modelWarp **다음**에 한 번 더 태운다(그 슬롯은 겹치지 않고 바꿔 끼우므로, 몸 전체에 걸 비틀기와 부품마다의 비틀기를
+ *  함께 쓰려면 칸이 둘이어야 한다). 프로토스 보병의 몸통·다리 줄이기(bake9 pShrinkB9)가 쓴다. */
+let modelWarpOut: ((x: number, y: number, z: number) => [number, number, number]) | null = null;
+export function withModelWarpOut<T>(
+  warp: ((x: number, y: number, z: number) => [number, number, number]) | null, fn: () => T,
+): T {
+  const p = modelWarpOut;
+  modelWarpOut = warp;
+  try {
+    return fn();
+  } finally {
+    modelWarpOut = p;
+  }
+}
 /** 모형 좌표 하나를 **모델 변환만** 태운다(배율·평행이동·회전) — 요잉·시점·사영은 안 탄다.
  *  빌더가 제 부품 좌표로 적은 점(총구 등)을 그 빌더를 감싼 withModelScale·Shift·Spin을
  *  거친 '판의 모형 좌표'로 옮기는 데 쓴다. project의 앞 두 줄과 같은 셈이다. */
 export function modelPoint9(x0: number, y0: number, z0: number): [number, number, number] {
   if (modelWarp) [x0, y0, z0] = modelWarp(x0, y0, z0);
+  if (modelWarpOut) [x0, y0, z0] = modelWarpOut(x0, y0, z0);
   const z = z0 * modelZK + modelZOff;
   const [mx, my] = spun(x0 * modelXK + modelXOff, y0 * modelYK + modelYOff);
   return [mx, my, z];
@@ -797,6 +812,7 @@ export function modelPoint9(x0: number, y0: number, z0: number): [number, number
 /** 모형 좌표 (x,y,z) → 화면 [sx, sy]. y(앞)는 아래로, z(위)는 위로 간다. */
 export function project(x0: number, y0: number, z0: number): [number, number] {
   if (modelWarp) [x0, y0, z0] = modelWarp(x0, y0, z0);
+  if (modelWarpOut) [x0, y0, z0] = modelWarpOut(x0, y0, z0);
   const z = z0 * modelZK + modelZOff;
   // 모델 회전이 먼저다 — 돌아간 좌표를 카메라가 본다(카메라는 안 움직인다).
   const [mx, my] = spun(x0 * modelXK + modelXOff, y0 * modelYK + modelYOff);

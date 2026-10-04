@@ -7,7 +7,7 @@ import { cx } from "./cx";
 import { TIER_GEN9 } from "./tierTable.gen";
 import { kT } from "../../utils/openbwTracks";
 import {
-  POLY2, MESH9, EMIT_FILL9, meshPut9, meshSphere9, shinePath3, annulusPath3, orbPath3, billPath3, billPoly3, meshLoft9, meshRing9, loftZFaces, modelPoint9, annulusPath, bandPath, bodyFace, shellFaces9, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, boxOctFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelWarp, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
+  POLY2, MESH9, EMIT_FILL9, meshPut9, meshSphere9, shinePath3, annulusPath3, orbPath3, billPath3, billPoly3, meshLoft9, meshRing9, loftZFaces, modelPoint9, annulusPath, bandPath, bodyFace, shellFaces9, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, boxOctFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelWarp, withModelWarpOut, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
 import { BUILD_STAGES, GAIT_CYCLE9, LINK_CY_9, LINK_CZ_9, LINK_X0_9, linkLenOf9, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, type Pose9, SPIN_ANIM9, SPIN_STEPS, bldNormOf, modelInkOf, modelNormOf } from "./engine9";
 import { type UnitDrawOp } from "./engine9";
 /** 주소 해시(`#pitch=`·`#nocreep` 같은 진단 스위치) — 굽기 일꾼 안에서는 location.hash가 빈 문자열(blob 주소)이라,
@@ -1824,7 +1824,34 @@ export function pRigid9<T>(lean: number, lift: number, za: number, fn: () => T):
   if (lean >= 1) return fn();
   const p = pWarpOf9(lean, lift)(0, 0, za);
   const dy = p[1]; const dz = p[2] - za;
+  /* 몸통·다리 줄이기(pShrinkB9) 안이면 팔도 **어깨 자리의 내림 하나로** 통째로 옮긴다 — 세로로 같이 줄이면 늘어뜨린 팔이 짧아진다. */
+  const zc9 = pShrinkTop9;
+  if (zc9 !== null) {
+    const d2 = pShrinkZ9(p[2], zc9) - p[2];
+    return withModelWarpOut((x, y, z) => [x, y, z + d2], () => withModelWarp((x, y, z) => [x, y + dy, z + dz], fn));
+  }
   return withModelWarp((x, y, z) => [x, y + dy, z + dz], fn);
+}
+/* ★ **프로토스 보병의 몸통·다리는 10% 짧다**(2026-10, 요청: "프로토스 보병들 토르소와 다리길이 10프로줄이기") — 좌표 수백 자리를 고치는
+   대신 세로 비틀기 하나로 태운다(pUpright9 와 같은 길): **어깨 꼭대기(zc) 아래는 세로 ×0.9**(땅을 축으로 — 발은 땅에 그대로),
+   **그 위(목·머리·투구)는 같은 몫만큼 내린다**(모양 그대로). 팔은 pRigid9 가 어깨 자리의 내림 하나로 통째로 옮긴다.
+   zc = 몸통 밑동 + 띄움 + 세운 몸통 높이(pTorsoKz9) — 종류마다 숙임·띄움이 달라 셋이 제 값을 든다.
+   ⚠ 바깥 칸(withModelWarpOut)이라 pUpright9 의 안쪽 칸과 겹쳐 쓴다 · 총구표·잉크 중심은 다시 뽑는다 · MODEL_NORM 은 안 갈았다(요청으로
+     줄어든 잉크 — 재측정을 실으면 도로 커진다). */
+export const P_SHRINK9 = 0.9;
+let pShrinkTop9: number | null = null;
+const pShrinkZ9 = (z: number, zc: number): number => (z <= zc ? z * P_SHRINK9 : z - (1 - P_SHRINK9) * zc);
+export function pShrinkB9(fn: () => ShapeFace[], lean: number, lift: number): () => ShapeFace[] {
+  return () => {
+    const zc9 = P_TORSO_Z0 + lift + P_TORSO_H9 * pTorsoKz9(lean);
+    const prev9 = pShrinkTop9;
+    pShrinkTop9 = zc9;
+    try {
+      return withModelWarpOut((x, y, z) => [x, y, pShrinkZ9(z, zc9)], fn);
+    } finally {
+      pShrinkTop9 = prev9;
+    }
+  };
 }
 export function protossTorso(fill?: string, lift = 0, lean = 1): ShapeFace[] {
   const kz = pTorsoKz9(lean);
@@ -1959,11 +1986,13 @@ export function protossLegs(
     /* 여섯 컷 걸음(gaitLeg9) — 테란 다리(suitLegJoints9)와 같은 자. 아니면 옛 두 컷(오른다리가 나가면 왼다리는 물러난다). */
     const g9 = stride !== 0 && tuck === 0 ? gaitLeg9(m) : null;
     const amp9 = g9 ? Math.abs(stride / (walkDir() || 1)) : 0;
-    const st = g9 ? g9.f * amp9 : m * stride;
+    /* ★ 앞다리는 **더 힘차게 앞으로**(2026-10, 요청: "앞으로 더 힘차게 뻗어야하지 않나 무릎이 좀더 펴지게") — 앞 몫 ×1.4 ·
+       엉덩이 낮춤 0.09 → 0.05(낮추면 디딘 무릎이 굽는다) · 닿음은 다 편다(reach 1). */
+    const st = g9 ? g9.f * amp9 * (g9.f > 0 ? 1.4 : 1) : m * stride;
     const liftA9 = g9 ? g9.lift * amp9 * 0.75 : Math.max(0, st) * 0.16;
     const liftT9 = g9 ? g9.lift * amp9 * 0.55 : Math.max(0, st) * 0.12;
-    const reach9 = g9 ? g9.reach : st < 0 ? 1 : LEG_REACH9;
-    const drop9 = g9 ? 0.09 * g9.bob : 0;
+    const reach9 = g9 ? (g9.k === 0 ? 1 : g9.reach) : st < 0 ? 1 : LEG_REACH9;
+    const drop9 = g9 ? 0.05 * g9.bob : 0;
     /* ★ 고관절을 **몸 안쪽**으로(요청: "다리가 너무 바깥쪽 양옆에 붙은 느낌") — 0.5 → 0.26. 골반 폭이
        몸통 반폭에 가깝게 좁아져 두 다리가 몸 아래에서 시작한다. 무릎·발목·발끝도 한 단씩만 안으로 당겨
        (0.82→0.72 · 0.95→0.86 · 1.04→0.96) 팔자 벌림은 남기되 전체가 몸 밑으로 모인다 — 고관절만 당기면
@@ -28739,6 +28768,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   },
 
 };
+/* 프로토스 보병 셋의 몸통·다리 10% 줄이기(위 pShrinkB9) — 하템의 띄움 1.28 은 그 빌더의 L 과 같은 값이다. */
+SHAPE_BUILDERS.zealot = pShrinkB9(SHAPE_BUILDERS.zealot, ZEALOT_LEAN9, 0);
+SHAPE_BUILDERS.dtemp = pShrinkB9(SHAPE_BUILDERS.dtemp, DT_LEAN9, 0);
+SHAPE_BUILDERS.htemp = pShrinkB9(SHAPE_BUILDERS.htemp, HT_LEAN9, 1.28);
 SHAPE_BUILDERS.interceptor = () => {
   const GOLD9 = "#d4af37";
   const GLOW9 = "#bfe0ef";     // 청록 에너지 — 캐리어 조종석과 같은 색
