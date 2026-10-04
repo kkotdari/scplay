@@ -13277,6 +13277,33 @@ export default function ReplayMotionPlayer({
     if (centerOnTile(want.x, want.y)) holdRef.current = null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fsOn, pitchDeg, stage.w, stage.h, fsCoverW]);
+  /* ★★ **지도 상자를 기기 픽셀에 맞춘다**(2026-10, 지적: "재생기 폭이 1287 이하로 되면 갑자기 흐려지는데" ·
+     "맵 위의 모든게 흐려짐" · devicePixelRatio 1 · "폭을 줄여도 선명해짐 특정 구간만 흐린것?") ───────────────
+     상자는 무대 한가운데에 `left/top 50% + translate(−50%, −50%)` 로 앉는다. 무대와 상자의 크기 차가 홀수면
+     그 자리가 **0.5 CSS px** 에 떨어지고(실측: 지도 캔버스 y −324.5), 화면 배율 1 에서는 그것이 곧 반 화소라
+     지형·유닛·안개 캔버스가 **통째로** 반 칸씩 보간돼 흐려진다. 폭이 한 칸 바뀔 때마다 짝·홀이 갈리므로
+     '어느 구간만 흐리다'로 읽혔다(무대 자체가 페이지에서 소수 자리에 놓여도 같다).
+     그린 뒤 상자의 실제 화면 자리를 재서 기기 화소에 못 미친 몫만큼 되민다(`--snx`·`--sny` — React 가 안
+     쥐는 변수라 다음 렌더가 안 덮는다). 재는 자리는 보정을 뺀 값이라 되먹임이 없다. */
+  useLayoutEffect(() => {
+    const el9 = mapRef.current;
+    if (!el9 || fsCoverW <= 0) return undefined;
+    const snap9 = (): void => {
+      const dpr9 = window.devicePixelRatio || 1;
+      const ox9 = parseFloat(el9.style.getPropertyValue("--snx")) || 0;
+      const oy9 = parseFloat(el9.style.getPropertyValue("--sny")) || 0;
+      const r9 = el9.getBoundingClientRect();
+      const bx9 = (r9.left - ox9) * dpr9;
+      const by9 = (r9.top - oy9) * dpr9;
+      const nx9 = (Math.round(bx9) - bx9) / dpr9;
+      const ny9 = (Math.round(by9) - by9) / dpr9;
+      if (Math.abs(nx9 - ox9) > 0.004) el9.style.setProperty("--snx", `${nx9.toFixed(3)}px`);
+      if (Math.abs(ny9 - oy9) > 0.004) el9.style.setProperty("--sny", `${ny9.toFixed(3)}px`);
+    };
+    snap9();
+    window.addEventListener("resize", snap9);
+    return () => window.removeEventListener("resize", snap9);
+  });
   /* 크립 차단 마스크의 화면 자리(요청) — 평면은 맵 전체에 한 장이면 되고, 입체는
      원근 배율이 줄마다 달라 지형 한 줄씩 잘라 그 줄의 자리·폭으로 근사해 얹는다. */
   const creepMaskRects: [number, number, number, number, number, number][] = [];
@@ -17580,7 +17607,8 @@ export default function ReplayMotionPlayer({
                  3D도 같은 식이면 된다 — 회전이 그림을 상자 안 가운데로 눌러 놓으므로
                  상자 가운데가 곧 그림 가운데다. */
               top: "50%",
-              transform: "translate(-50%, -50%)",
+              /* --snx·--sny: 기기 화소 맞춤(위 '지도 상자를 기기 픽셀에 맞춘다'). */
+              transform: "translate(calc(-50% + var(--snx, 0px)), calc(-50% + var(--sny, 0px)))",
               width: `${fsCoverW}px`, flex: "0 0 auto", minWidth: 0,
               overflow: "visible" as const, borderRadius: 0,
               /* 유닛 캔버스가 이 값을 읽어 제 몸을 위로 늘린다(.scr-motion-unitlayer).
