@@ -56,9 +56,9 @@ export default function ReplayGuide({ onClose }: {
 
         <h3 className="scr-guide-h3">도구 상자</h3>
         <p className="scr-guide-sub">
-          지도 아래 <strong>쇠판</strong>입니다 — 위 줄은 왼쪽의 동그란 <strong>버튼들</strong>(맨 왼쪽이 <b>중계</b>) ·
-          오른쪽의 <strong>스크랩 · 공유 · 사용법(?) · 전체화면</strong>, 아래 줄은 <strong>배속 · 재생 · 진행바 · 시간 · 접기(▼)</strong>입니다.
-          그 아래에 <strong>미니맵 · 인포창</strong>이 섭니다. 사람들의 현황은 지도 왼위의 <b>로스터</b>가 보여 줍니다.
+          지도 아래 <strong>쇠판</strong>입니다 — 맨 위에 <strong>미니맵 · 인포창</strong>이 서고, 그 아래 버튼 줄은 왼쪽의 동그란 <strong>버튼들</strong>(맨 왼쪽이 <b>중계</b>) ·
+          오른쪽의 <strong>스크랩 · 공유 · 사용법(?) · 전체화면</strong>, 맨 아래 줄은 <strong>배속 · 재생 · 진행바 · 시간 · 접기(▼)</strong>입니다.
+          사람들의 현황은 지도 왼위의 <b>로스터</b>가 보여 줍니다.
         </p>
         <p className="scr-guide-sub">
           진행바를 끌면 그 시각으로 갑니다. <strong>스크랩·공유</strong> 두 버튼은 <strong>지금 이 장면</strong>을
@@ -80,7 +80,7 @@ export default function ReplayGuide({ onClose }: {
             <li><span className="scr-guide-ic scr-guide-ic-txt">×2</span><span><b>배속</b> — 재생 버튼 왼쪽. 누르면 위로 목록(×1·×2·×4·×8)이 펼쳐집니다. 교전 하나를 뜯어볼 땐 낮추고, 초반 빌드를 넘길 땐 올립니다.</span></li>
             <li><span className="scr-guide-ic"><Play size={14} fill="currentColor"/></span><span><b>재생 / 일시정지</b> — 스페이스와 같습니다. 끝까지 본 뒤 누르면 처음부터(↺).</span></li>
             <li><span className="scr-guide-ic scr-guide-ic-txt">↔</span><span><b>진행바</b> — 끌어서 원하는 시각으로. 좌우 화살표는 누르는 동안 계속 감깁니다.</span></li>
-            <li><span className="scr-guide-ic scr-guide-ic-txt">▼</span><span><b>접기</b> — 시간 오른쪽의 작은 단추. 누르면 아래 미니맵·인포창이 통째로 접혀 지도가 그만큼 넓어지고, 한 번 더 누르면(▲) 다시 펼쳐집니다.</span></li>
+            <li><span className="scr-guide-ic scr-guide-ic-txt">▼</span><span><b>접기</b> — 시간 오른쪽의 작은 단추. 누르면 그 위의 미니맵·인포창이 통째로 접혀 지도가 그만큼 넓어지고, 한 번 더 누르면(▲) 다시 펼쳐집니다.</span></li>
             <li><span className="scr-guide-ic"><Bookmark size={14}/></span><span><b>장면 스크랩</b> — 제목을 붙여 담아 둡니다. 담아 둔 장면은 <b>스크랩</b> 화면에서 다시 엽니다.</span></li>
             <li><span className="scr-guide-ic"><Share2 size={14}/></span><span><b>장면 공유</b> — 카톡으로 보냅니다(안 되면 링크 복사). 시각·자리·배율·각도까지 링크에 실립니다(중계 중이면 자리 대신 중계).</span></li>
           </ul>
@@ -135,7 +135,7 @@ export default function ReplayGuide({ onClose }: {
           <li><span className="scr-guide-ic scr-guide-ic-txt">휠</span><span><b>마우스 휠</b> — 굴리면 그 자리를 중심으로 한 배씩 키우고 줄입니다. ↑·↓ 키는 1·2·4·8·16배를 한 칸씩 오갑니다.</span></li>
           <li><span className="scr-guide-ic scr-guide-ic-txt">✌</span><span><b>핀치</b> — 폰에서 두 손가락을 벌리면 커지고 모으면 작아집니다. 한 손가락으로 끌면서 함께 해도 됩니다.</span></li>
           <li><span className="scr-guide-ic scr-guide-ic-txt">×2</span><span><b>두 번 누르기</b> — 그 자리를 한 번에 8배로 당깁니다(더블클릭·더블탭). 한 번 더 누르면 1배로 돌아옵니다.</span></li>
-          <li><span className="scr-guide-ic"><MapIcon size={15}/></span><span><b>미니맵</b> — 맨 아래 작은 지도를 누르거나 끌면 그 자리로 화면이 갑니다. 그 위에서 휠을 굴려도 확대·축소됩니다.</span></li>
+          <li><span className="scr-guide-ic"><MapIcon size={15}/></span><span><b>미니맵</b> — 쇠판 위쪽 작은 지도를 누르거나 끌면 그 자리로 화면이 갑니다. 그 위에서 휠을 굴려도 확대·축소됩니다.</span></li>
           <li><span className="scr-guide-ic"><Tv size={15}/></span><span><b>중계</b>를 켜면 사람을 따라가며 알아서 당겨 놓습니다 — 그 뒤 손으로 바꾼 배율은 그대로 둡니다.</span></li>
         </ul>
 
@@ -185,9 +185,9 @@ export default function ReplayGuide({ onClose }: {
           </ul>
         </div>
 
-        <h3 className="scr-guide-h3">아래 미니맵 · 인포창</h3>
+        <h3 className="scr-guide-h3">미니맵 · 인포창</h3>
         <p className="scr-guide-sub">
-          맨 아래 가운데에 <strong>미니맵</strong>(왼쪽)과 <strong>인포창</strong>(오른쪽)이 한 틀로 늘 서 있습니다.
+          지도 바로 아래 가운데에 <strong>미니맵</strong>(왼쪽)과 <strong>인포창</strong>(오른쪽)이 한 틀로 늘 서 있습니다.
           진행바 줄 끝 <strong>시간 옆의 접기(▼)</strong>를 누르면 미니맵·인포창이 통째로 접히고, 한 번 더 누르면(▲) 다시 펼쳐집니다 — 프레임·전체화면 어디서나 됩니다.
         </p>
         <ul className="scr-guide-legend">

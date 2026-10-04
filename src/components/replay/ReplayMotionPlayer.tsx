@@ -14361,7 +14361,7 @@ export default function ReplayMotionPlayer({
        가려짐") — 프레임에서는 툴박스만 무대에 겹치지만 전체화면은 독 줄까지 통째로 무대 위에 얹힌다. 무대 바닥과 툴박스 위끝의
        차가 곧 가려지는 몫이라 두 배치가 한 셈이다(접기·화면 돌림에도 따라온다). */
     const stg9 = stageRef.current;
-    const tb9 = stg9?.parentElement?.querySelector<HTMLElement>(".scr-tb") ?? null;
+    const tb9 = stg9?.parentElement?.querySelector<HTMLElement>(".scr-fs-lower") ?? null;   // 아래 감싸개의 위끝(독 줄이 위로 간 뒤로는 툴박스가 아니다)
     if (!stg9 || !tb9) return undefined;
     const read9 = (): void => {
       const r9 = stg9.getBoundingClientRect();
@@ -18329,6 +18329,44 @@ export default function ReplayMotionPlayer({
             (.scr-fs-lower)가 두 배치를 다 낸다: 전체화면은 화면 아래에 겹쳐 뜨는 세로 줄이고, 프레임은 `display: contents` 라
             툴박스는 무대 칸(격자 1행)의 아래에 겹쳐 서고 독 줄은 지도 밖 2행에 선다(replay.css 의 같은 ★★). */}
         <div className="scr-fs-lower">
+          {/* ★ 독 줄이 **위**, 툴박스(재생부)가 **아래**다(2026-10, 요청: "재생기 독 수정 — 재생부를 아래로 미니맵과 인포창을
+              위로 바꿈"). 옛 판은 [툴박스 / 독 줄]이었다. 접기(독 줄을 통째로 걷는다)는 재생 줄의 시계 옆이라 그대로 남는다. */}
+          <div className={cx("scr-fs-dockrow", dockFoldOn9 && "is-fold")} ref={dockRowRef9}>
+            {/* 음각 글귀(위 dockMark9) — 틀 오른쪽 쇠 바탕에만. */}
+            <span className={cx("scr-fs-dockmark", dockMark9 && "is-on")} ref={dockMarkRef9} aria-hidden>{"scplay.vercel.app    SINCE 2026"}</span>
+            {/* 미니맵 + 인포창을 **한 사각 틀**로 묶는다(2026-09, 요청: "미니맵과 인포창을 한데 묶는 사각 프레임 필요 인포창 래디우스 제거"). */}
+            <div className="scr-fs-dockframe">
+            <div className="scr-fs-dockmain">
+            {(fsOn ? fsMiniOn : true) && (
+              <div className="scr-fs-minipanel">
+                <div className="scr-motion-minibox">
+                  <ReplayFullscreenMinimap
+                    grid={grid}
+                    ratio={grid.width / Math.max(1, grid.height)}
+                    dotsRef={opsRef}
+                    extraRef={miniExtraRef}
+                    tick={t}
+                    viewAt={splitOn9
+                      ? ((z9, p9) => (splitPick9 ? splitViewRef9.current.get(splitPick9) ?? fsViewAt(z9, p9) : null))   // 안 고르면 네모 없음
+                      : fsViewAt}
+                    viewColor={splitOn9 && splitPick9 ? modeColor(splitPick9, teamOfRaw(splitPick9)) : undefined}
+                    zoom={zoom} pan={pan}
+                    painter={miniPaintRef} live={viewLive9}
+                    onSeek={fsSeek}
+                    onWheelZoom={fsWheelZoom}
+                    unproject={miniUnproject}
+                    fog={miniFog}
+                    /* 큰 지도와 **같은 순간에** 나타난다(지적: 미니맵만 그대로였다) — 그쪽은
+                       is-warming으로 제 층을 통째로 감춘다(global.css). */
+                    warming={!tracksReady}
+                  />
+                </div>
+              </div>
+            )}
+              {infoDock9}
+            </div>
+            </div>
+          </div>
           <div
             className="scr-tb"
             onPointerDown={(e) => e.stopPropagation()}
@@ -18386,42 +18424,6 @@ export default function ReplayMotionPlayer({
               </div>
             </div>
             <div className="scr-tb-seek">{speedNode9}{controlsNode}{dockFoldNode9}</div>
-          </div>
-          <div className={cx("scr-fs-dockrow", dockFoldOn9 && "is-fold")} ref={dockRowRef9}>
-            {/* 음각 글귀(위 dockMark9) — 틀 오른쪽 쇠 바탕에만. */}
-            <span className={cx("scr-fs-dockmark", dockMark9 && "is-on")} ref={dockMarkRef9} aria-hidden>{"scplay.vercel.app    SINCE 2026"}</span>
-            {/* 미니맵 + 인포창을 **한 사각 틀**로 묶는다(2026-09, 요청: "미니맵과 인포창을 한데 묶는 사각 프레임 필요 인포창 래디우스 제거"). */}
-            <div className="scr-fs-dockframe">
-            <div className="scr-fs-dockmain">
-            {(fsOn ? fsMiniOn : true) && (
-              <div className="scr-fs-minipanel">
-                <div className="scr-motion-minibox">
-                  <ReplayFullscreenMinimap
-                    grid={grid}
-                    ratio={grid.width / Math.max(1, grid.height)}
-                    dotsRef={opsRef}
-                    extraRef={miniExtraRef}
-                    tick={t}
-                    viewAt={splitOn9
-                      ? ((z9, p9) => (splitPick9 ? splitViewRef9.current.get(splitPick9) ?? fsViewAt(z9, p9) : null))   // 안 고르면 네모 없음
-                      : fsViewAt}
-                    viewColor={splitOn9 && splitPick9 ? modeColor(splitPick9, teamOfRaw(splitPick9)) : undefined}
-                    zoom={zoom} pan={pan}
-                    painter={miniPaintRef} live={viewLive9}
-                    onSeek={fsSeek}
-                    onWheelZoom={fsWheelZoom}
-                    unproject={miniUnproject}
-                    fog={miniFog}
-                    /* 큰 지도와 **같은 순간에** 나타난다(지적: 미니맵만 그대로였다) — 그쪽은
-                       is-warming으로 제 층을 통째로 감춘다(global.css). */
-                    warming={!tracksReady}
-                  />
-                </div>
-              </div>
-            )}
-              {infoDock9}
-            </div>
-            </div>
           </div>
         </div>
         {/* 재생 품질(위 QUALITY9) — 진입·벤치 변경 때 무대 오른쪽 위에 3초. 지도 상자 안에 두면 배율·팬·입체 변환을

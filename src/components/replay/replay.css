@@ -3204,6 +3204,7 @@
 /* ★ 접으면 독 줄이 **통째로** 사라진다(2026-09, 요청: "접혔을때 인포창아예 안남게") — 손잡이는 툴박스 재생 줄의 시계 옆이라 남는다.
    옛 '접어도 폭은 그대로 · 손잡이 키만 남는다'는 되물렸다. */
 .scr-fs-dockrow.is-fold { display: none; }
+.scr-fs-dockrow.is-fold + .scr-tb { padding-top: calc(3.4px * var(--dk)); }
 .scr-fs-dockframe > .scr-fs-dockmain { grid-column: 1; grid-row: 1; }
 .scr-fs-dockmain > .scr-fs-minipanel,
 .scr-fs-dockmain > .scr-motion-infodock {
@@ -3263,6 +3264,10 @@
   --tb-padt: 10px;
   /* 아래 여백은 한 단 얇다(2026-09, 요청: "재생툴바 아래 패딩 살짝 줄이고" — 6 → 3). */
   padding: var(--tb-padt) 8px 3px; border-radius: 0; box-sizing: border-box;
+  /* ★ 툴박스는 이제 독 줄 **아래**다(2026-10, 요청: "재생부를 아래로 미니맵과 인포창을 위로 바꿈") — 위는 독 틀의 아래 여백
+     (--dock-out)에 붙으므로 한 뼘(3px)만 두고, 아래(쇠판 아랫변)가 독 틀의 바깥 테와 같은 값(3.4·dk)이다. 독을 접으면 위도
+     그 값이라 쇠판의 위·아래 테가 같다(아래 .is-fold + .scr-tb). */
+  padding-top: 3px; padding-bottom: calc(3.4px * var(--dk));
   /* 판은 이제 **쇠**다(위 ★★ — 감싸개의 쇠판 위에 선다) · 옛 반투명 판(0.34)·흐림은 걷었다. */
   background: none; color: var(--text);
   box-shadow: none;
@@ -3346,7 +3351,7 @@
   .scr-tb-tail .scr-kakao-share-btn:hover { background: rgba(255, 255, 255, 0.18); }
 }
 @media (max-width: 1159px) {
-  .scr-tb { --tb-padt: 9px; padding: var(--tb-padt) 6px 2px; }
+  .scr-tb { --tb-padt: 9px; padding: 2px 6px calc(3.4px * var(--dk)); }
   .scr-tb-tail { gap: 5px; }
 }
 /* (걷어냄) PC 한 줄 — 이제 어느 폭에서나 [단추 줄] / [재생·탐색바·시계] 두 줄이다(2026-09, 요청: "피시에서도 버튼하고
