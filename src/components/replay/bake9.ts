@@ -732,11 +732,18 @@ export const walkDir = (): number => { const i9 = gaitIdx9(); return i9 < 0 ? 0 
 const GAIT_F9 = [1, 0.5, 0, -0.5, -1, 0] as const;
 const GAIT_LIFT9 = [0, 0, 0, 0, 0.12, 1] as const;
 const GAIT_BOB9 = [0.9, 1.6, 0.5] as const;
-export function gaitLeg9(m: -1 | 1): { f: number; lift: number; reach: number; bob: number; k: number } | null {
+/* ★ **보병의 앞다리는 닿기 전 공중에서 살짝 굽힌 채 뻗는다**(2026-10, 요청: "테란 플토 공통 보병 다리를 쫙펴진 말고 살짝만 구부려소
+   앞으로 뻗게가 자연스럽겠다 대신 땅에서 떨어져서 떠있어야해 발이") — 닿음 컷(k0)은 발을 `GAIT_REACH_LIFT9` 만큼 띄우고(보병 다리
+   빌더가 lift 에 더한다) reach 를 `GAIT_FRONT_REACH9`(0.93)로 죈다 — 띄운 만큼 엉덩이~발목이 짧아져 무릎이 저절로 살짝 굽는다.
+   골리앗은 이 몫(fl)을 안 읽는다. */
+const GAIT_REACH_LIFT9 = 0.45;
+const GAIT_FRONT_REACH9 = 0.93;
+export function gaitLeg9(m: -1 | 1): { f: number; lift: number; fl: number; reach: number; bob: number; k: number } | null {
   const i9 = gaitIdx9();
   if (i9 < 0) return null;
   const k9 = (i9 + (m === 1 ? 0 : 3)) % 6;
-  return { f: GAIT_F9[k9], lift: GAIT_LIFT9[k9], reach: k9 === 0 ? 0.995 : GAIT_F9[k9] > 0 ? LEG_REACH9 : 1, bob: GAIT_BOB9[i9 % 3], k: k9 };
+  return { f: GAIT_F9[k9], lift: GAIT_LIFT9[k9], fl: k9 === 0 ? GAIT_REACH_LIFT9 : 0,
+    reach: k9 === 0 ? GAIT_FRONT_REACH9 : GAIT_F9[k9] > 0 ? LEG_REACH9 : 1, bob: GAIT_BOB9[i9 % 3], k: k9 };
 }
 /** 걷는 몸의 낮춤 배수 — 여섯 컷 걸음이면 그 컷의 bob(받음에서 가장 낮다), 아니면 1(옛 고정 낮춤 그대로). 빌더의 몸 낮춤 dz 에 곱한다. */
 export const gaitBob9 = (): number => { const i9 = gaitIdx9(); return i9 < 0 ? 1 : GAIT_BOB9[i9 % 3]; };
@@ -1989,9 +1996,9 @@ export function protossLegs(
     /* ★ 앞다리는 **더 힘차게 앞으로**(2026-10, 요청: "앞으로 더 힘차게 뻗어야하지 않나 무릎이 좀더 펴지게") — 앞 몫 ×1.4 ·
        엉덩이 낮춤 0.09 → 0.05(낮추면 디딘 무릎이 굽는다) · 닿음은 다 편다(reach 1). */
     const st = g9 ? g9.f * amp9 * (g9.f > 0 ? 1.4 : 1) : m * stride;
-    const liftA9 = g9 ? g9.lift * amp9 * 0.75 : Math.max(0, st) * 0.16;
-    const liftT9 = g9 ? g9.lift * amp9 * 0.55 : Math.max(0, st) * 0.12;
-    const reach9 = g9 ? (g9.k === 0 ? 1 : g9.reach) : st < 0 ? 1 : LEG_REACH9;
+    const liftA9 = g9 ? (g9.lift + g9.fl) * amp9 * 0.75 : Math.max(0, st) * 0.16;
+    const liftT9 = g9 ? (g9.lift + g9.fl) * amp9 * 0.55 : Math.max(0, st) * 0.12;
+    const reach9 = g9 ? g9.reach : st < 0 ? 1 : LEG_REACH9;
     const drop9 = g9 ? 0.05 * g9.bob : 0;
     /* ★ 고관절을 **몸 안쪽**으로(요청: "다리가 너무 바깥쪽 양옆에 붙은 느낌") — 0.5 → 0.26. 골반 폭이
        몸통 반폭에 가깝게 좁아져 두 다리가 몸 아래에서 시작한다. 무릎·발목·발끝도 한 단씩만 안으로 당겨
@@ -2368,7 +2375,8 @@ export function suitLegJoints9(m: -1 | 1, spread: number, stride = 0, zk = 1): {
   const g9 = stride !== 0 ? gaitLeg9(m) : null;
   const amp9 = g9 ? Math.abs(stride / (walkDir() || 1)) : 0;
   const st = g9 ? g9.f * amp9 : m * stride;
-  const lift9 = g9 ? g9.lift * amp9 * 0.9 : Math.max(0, st) * 0.2112;
+  /* 테란 보병은 보폭이 작아(0.3) 앞발 띄움(fl)을 한 단 더 준다 — 같은 몫이면 0.12 라 군화가 땅에 붙어 보였다. */
+  const lift9 = g9 ? (g9.lift * 0.9 + g9.fl * 1.7) * amp9 : Math.max(0, st) * 0.2112;
   const reach9 = g9 ? g9.reach : st < 0 ? 1 : LEG_REACH9;
   /** 엉덩이 낮춤(접힌 z) — 몸통의 걸음 낮춤(빌더의 dz × gaitBob9)과 같은 자라 골반과 함께 내려간다. */
   const drop9 = g9 ? 0.088 * g9.bob : 0;
