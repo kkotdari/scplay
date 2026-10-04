@@ -274,7 +274,7 @@ let PAINT_CLIP9: [number, number, number, number] | null = null;
 /** 분할보기 칸을 칠하는 배킹 배수 상한(2026-09, 요청: "모바일에서 모델많아지면 좀 버벅이는거같거든" → "피시도 적용") —
  *  칸은 작게 베껴지므로 그 판을 기기 화소(폰 3)로 칠하면 칠한 화소의 대부분을 버린다. 칸 캔버스의 배킹도 같은 값이다. */
 /** 분할보기 칠하기 계량기(SCR_DIAG.split) — 장·칸·칠·땅을 1초마다 묶는다. */
-const SPLIT_M9 = { at: 0, frames: 0, cells: 0, paint: 0, copy: 0, span: "" };
+const SPLIT_M9 = { at: 0, frames: 0, cells: 0, paint: 0, fog: 0, mini: 0, copy: 0, span: "" };
 /** 칸 땅 캔버스가 마지막으로 그린 카메라·크기 — 같으면 안 다시 그린다. */
 const SPLIT_TERR_KEY9 = new WeakMap<HTMLCanvasElement, string>();
 /** 분할 칸의 2D 오림(clip) — 붓이 칸마다 save·clip 을 걸고, 다음 칠하기의 머리(또는 분할 칠하기 끝)에서 푼다.
@@ -14299,7 +14299,7 @@ export default function ReplayMotionPlayer({
   /** 칸마다의 미니맵 캔버스(좌하단 · 2026-09, 요청: "각 화면의 좌하단에 자신의 시야가 적용된 미니맵을 표시"). */
   const splitMiniRef9 = useRef(new Map<string, HTMLCanvasElement>());
   /** 팀마다 한 장 구운 미니맵(땅 + 팀 안개 + 팀 점) — 칸은 이것을 베끼고 제 네모만 얹는다(요청: "미니맵을 복사?하여 부하 적게"). */
-  const teamMiniRef9 = useRef(new Map<number, { cv: HTMLCanvasElement; grid: Uint8Array | null; img: ImageData | null; fog: HTMLCanvasElement | null }>());
+  const teamMiniRef9 = useRef(new Map<number, { cv: HTMLCanvasElement; grid: Uint8Array | null; img: ImageData | null; fog: HTMLCanvasElement | null; src?: unknown; tq?: number; ver?: number }>());
   /** 작게 구운 땅 한 장(미니맵 바탕) — 큰 땅 판에서 한 번만 줄여 둔다. */
   const splitMiniBgRef9 = useRef<HTMLCanvasElement | null>(null);
   /** 미니맵을 마지막으로 구운 벽시계(ms) — 초당 여덟 장이면 족하다(칸 미니맵은 손짓이 없다). */
@@ -14346,7 +14346,9 @@ export default function ReplayMotionPlayer({
     const lay9 = splitLayRef9.current;
     if (!lay9) return;
     const now9 = pNow();
-    if (now9 - splitMiniAtRef9.current < 120) return;
+    /* ★ 넉 장/초(2026-10, 발열) — 120ms 박자에 매번 팀 안개를 다시 찍고 칸마다 고품질로 줄여 그려 헤드리스로 장당 26ms 였다.
+       아래 두 캐시(팀 판은 새 장이 왔을 때만 · 칸은 판·창이 바뀌었을 때만)와 함께 줄였다. */
+    if (now9 - splitMiniAtRef9.current < 250) return;
     splitMiniAtRef9.current = now9;
     const gw = Math.max(1, grid.width);
     const gh = Math.max(1, grid.height);
@@ -14372,6 +14374,13 @@ export default function ReplayMotionPlayer({
       let tm9 = teamMiniRef9.current.get(key9);
       if (!tm9) { tm9 = { cv: document.createElement("canvas"), grid: null, img: null, fog: null }; teamMiniRef9.current.set(key9, tm9); }
       const cv9 = tm9.cv;
+      /* 팀 판은 **새 장이 왔을 때만** 다시 굽는다(그 팀의 장 꾸러미가 같고 밝힘 눈금(0.25초)이 같으면 그대로) — 점·안개는 보간이
+         필요 없는 작은 그림이라 붓이 고른 앞 장(ua9)을 그대로 쓴다(옛 teamFrameAt9 는 칸 칠하기와 같은 보간을 한 번 더 돌았다). */
+      const ua9 = key9 > 0 ? paintPackedRef9.current?.subs?.find((u9) => u9.team === key9) : undefined;
+      const srcK9: unknown = ua9 ?? (key9 > 0 ? null : frameOpsRef9.current);
+      const tq9 = Math.floor(tNow9 * 4);
+      if (tm9.src === srcK9 && tm9.tq === tq9 && cv9.width === MW9 && cv9.height === MH9) { baked9.set(key9, cv9); return cv9; }
+      tm9.src = srcK9; tm9.tq = tq9; tm9.ver = (tm9.ver ?? 0) + 1;
       if (cv9.width !== MW9) cv9.width = MW9;
       if (cv9.height !== MH9) cv9.height = MH9;
       const c9 = cv9.getContext("2d");
@@ -14382,7 +14391,7 @@ export default function ReplayMotionPlayer({
       c9.fillStyle = "#12161c";
       c9.fillRect(0, 0, MW9, MH9);
       if (bg9) c9.drawImage(bg9, 0, 0);
-      const tf9 = key9 > 0 ? teamFrameAt9(key9, tNow9) : null;
+      const tf9 = ua9 ? { unitOps: decodeSub9(ua9).unitOps, eyes: ua9.eyes } : null;
       const exp9 = key9 > 0 ? teamExpRef9.current.get(key9) : undefined;
       /* 안개 — 눈 목록을 칸 격자에 찍고(엔진 visNow 의 disc 와 같은 식) 칸 = 1화소 판을 늘려 깐다. */
       if (tf9 && exp9 && exp9.length === gw * gh) {
@@ -14440,8 +14449,7 @@ export default function ReplayMotionPlayer({
       };
       for (const d9 of ops9) dot9(d9);
       /* 칸 컬링(splitCull9) 밖의 몸은 장에 점으로만 실려 온다(miniExtra) — 그것도 찍는다. */
-      const ua9 = key9 > 0 ? paintPackedRef9.current?.subs?.find((u9) => u9.team === key9) : undefined;
-      for (const d9 of ua9 ? decodeSub9(ua9).miniExtra : tf9 ? [] : miniExtraRef.current) dot9(d9);
+      for (const d9 of ua9 ? decodeSub9(ua9).miniExtra : miniExtraRef.current) dot9(d9);
       baked9.set(key9, cv9);
       return cv9;
     };
@@ -14455,14 +14463,18 @@ export default function ReplayMotionPlayer({
       const bh9 = Math.max(1, Math.round(mc9.clientHeight * dpr9));
       if (mc9.width !== bw9) mc9.width = bw9;
       if (mc9.height !== bh9) mc9.height = bh9;
+      /* 칸은 판(ver)·창·크기가 그대로면 안 다시 그린다. */
+      const v9 = splitViewRef9.current.get(cell9.raw);
+      const ck9 = `${teamMiniRef9.current.get(teamOfRaw(cell9.raw) ?? 0)?.ver ?? 0}|${bw9}x${bh9}|${v9 ? `${v9.cx.toFixed(4)},${v9.cy.toFixed(4)},${v9.w.toFixed(4)},${v9.h.toFixed(4)}` : "-"}`;
+      if (mc9.dataset.mk === ck9) continue;
+      mc9.dataset.mk = ck9;
       const m9 = mc9.getContext("2d");
       if (!m9) continue;
       m9.setTransform(1, 0, 0, 1, 0, 0);
       m9.imageSmoothingEnabled = true;
-      m9.imageSmoothingQuality = "high";
+      m9.imageSmoothingQuality = "low";   // 256px 판을 백여 px 로 줄이는 데 고품질 필터는 값만 든다(헤드리스 칸당 4ms)
       m9.drawImage(src9, 0, 0, bw9, bh9);
       /* 제 화면 자리 — 그 사람 색 네모(요청: "자기 색깔 프레임으로 화면 위치 표시"). */
-      const v9 = splitViewRef9.current.get(cell9.raw);
       if (v9) {
         const x09 = Math.max(0, (v9.cx - v9.w / 2) * bw9);
         const y09 = Math.max(0, (v9.cy - v9.h / 2) * bh9);
@@ -14675,6 +14687,7 @@ export default function ReplayMotionPlayer({
          (op.selBy) 남기고 건설 고스트는 그 사람 것(op.ghostRaw)만 남긴다. 마커·핑은 아래 칸 안개 판 위에 따로 그린다. */
       if (frameOpsRef9.current) frameOpsRef9.current = splitOwnOps9(frameOpsRef9.current, cell9.raw);
       try { paint9(zc9, pan9, zc9); } finally { PAINT_CLIP9 = null; frameOpsRef9.current = keepOps9; frameFxRef9.current = keepFx9; }
+      const pf09 = pNow();   // 여기서부터 칸 안개·자국(SPLIT_M9.fog)
       /* 칸 안개 — 그 팀의 밝힌 판(등고선 · 팀마다 뜸하게 다시 뽑는다)과 눈 목록(원)을 큰 지도 안개 층과 같은 셈으로 판다. */
       const exp9 = tm9 ? teamExpRef9.current.get(tm9) : undefined;
       if (tf9 && exp9 && exp9.length === gw * gh && fcv9 && fctx9) {
@@ -14743,6 +14756,7 @@ export default function ReplayMotionPlayer({
       const pa19 = pNow();
       SPLIT_M9.span = `${(wf9 * gw).toFixed(0)}×${(hf9 * gh).toFixed(0)}타일 ${zc9.toFixed(2)}배`;
       SPLIT_M9.paint += pa19 - pa09;
+      SPLIT_M9.fog += pa19 - pf09;
       SPLIT_M9.cells += 1;
       /* 땅 — 칸 밑 층의 칸 캔버스. 카메라·크기가 그대로면 안 다시 그린다. */
       const bw9 = Math.max(1, Math.round(cwC9 * dpr9));
@@ -14769,7 +14783,7 @@ export default function ReplayMotionPlayer({
       SPLIT_M9.copy += pNow() - pa19;
     }
     for (const c09 of cvs9) { const x09 = c09.classList.contains("scr-motion-gl9") ? null : c09.getContext("2d"); if (x09) clipEnd9(x09); }
-    splitMiniPaint9(tNow9);
+    { const pm09 = pNow(); splitMiniPaint9(tNow9); SPLIT_M9.mini += pNow() - pm09; }
     SPLIT_M9.frames += 1;
     {
       const now9 = pNow();
@@ -14777,8 +14791,8 @@ export default function ReplayMotionPlayer({
         const s9 = (now9 - SPLIT_M9.at) / 1000;
         const f9 = Math.max(1, SPLIT_M9.frames);
         const c9 = Math.max(1, SPLIT_M9.cells);
-        SCR_DIAG.split = `장 ${(SPLIT_M9.frames / s9).toFixed(1)}/s · 칸 ${(SPLIT_M9.cells / f9).toFixed(2)}/장 · 칠 ${(SPLIT_M9.paint / c9).toFixed(1)}ms · 땅 ${(SPLIT_M9.copy / c9).toFixed(1)}ms · 칸 ${SPLIT_M9.span}`;
-        SPLIT_M9.at = now9; SPLIT_M9.frames = 0; SPLIT_M9.cells = 0; SPLIT_M9.paint = 0; SPLIT_M9.copy = 0;
+        SCR_DIAG.split = `장 ${(SPLIT_M9.frames / s9).toFixed(1)}/s · 칸 ${(SPLIT_M9.cells / f9).toFixed(2)}/장 · 칠 ${(SPLIT_M9.paint / c9).toFixed(1)}ms(안개 ${(SPLIT_M9.fog / c9).toFixed(1)}) · 미니맵 ${(SPLIT_M9.mini / f9).toFixed(1)}ms/장 · 땅 ${(SPLIT_M9.copy / c9).toFixed(1)}ms · 칸 ${SPLIT_M9.span}`;
+        SPLIT_M9.at = now9; SPLIT_M9.frames = 0; SPLIT_M9.cells = 0; SPLIT_M9.paint = 0; SPLIT_M9.fog = 0; SPLIT_M9.mini = 0; SPLIT_M9.copy = 0;
       }
     }
   };
