@@ -96,11 +96,11 @@ import {
 } from "../../utils/shapeOblique";
 import { TEAM_COLOR, type MinimapMarker } from "./markers";
 import {
-  atkCutOf as atkCutOf9, flapCutOf as flapCutOf9,
+  atkCutOf as atkCutOf9, flapCutOf as flapCutOf9, walkCutOf9, GAIT_CYCLE9,
   muzzlePoint as muzzlePoint9, muzzleLanes9, anchorPoint as anchorPoint9, spinMuzzle9, BLD_MUZZLE, HEAD_MUZZLE_KINDS9, TWIN_POD_BLD9, COMSAT_SWEEP9, SPIN_WORK_KINDS9, spinRateOf9, MUZZLE_BURST_FX9, SHELL_ONLY_FX9,
   AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, ATTACK_FX, NO_BEAM_FX, TARGET_FX, PROJECTILE_FX, NUKE_BOOM_SEC, NUKE_FALL_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, attackFxOf9, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SIEGE_TURN_U9, SIEGE_XF_SEC, BURROW_DIG_SEC, SPIN_ANIM9, SPIN_STEPS, SUNK_OUT9, sunkenCut9, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, addonPairGeom9, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
 } from "./engine9";
-import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, UnitDrawOp, WorldUi9 } from "./engine9";
+import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, Pose9, UnitDrawOp, WorldUi9 } from "./engine9";
 import {
   pitchFlatSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, stageFaces, TURRET_BACK9, SPIN_KINDS, HEAD_KINDS, LIT_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, spriteSideMax9, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, tone9, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
   GAS_KINDS9,
@@ -248,6 +248,8 @@ const GL_HIDE9: React.CSSProperties = { display: "none" };
 const DOCK_MARK_PAD9 = 40;
 /** 카메라가 다시 잡을 때 미끄러지는 시간(ms) — 중계·개인 추적·분할 칸이 같은 값을 쓴다. */
 const CAM_GLIDE_MS9 = 450;
+/** 선택(한 명령을 받은 몸들)의 열쇠 — 태그를 정렬해 잇는다. 미끄러짐은 이 열쇠가 그대로일 때만이다(선택이 바뀌면 곧장 선다). */
+const selKey9 = (tags: Iterable<number>): string => [...tags].sort((a, b) => a - b).join(",");
 /** 맞대결 자동 분할을 이만큼(경기 초) 앞서 팀 엔진을 데운다(splitTeamsKey9 의 ★). */
 const DUEL_WARM_SEC9 = 2;
 /** 한 사람 중계가 다른 팀으로 갈아탄 뒤 그 팀 엔진을 이만큼(경기 초) 남겨 둔다 — 새 시야 갈래의 장이 올 때까지 팀 장이 빈틈을 메운다. */
@@ -563,7 +565,7 @@ export function poseKindsOf(kind: string): { move?: boolean; atk?: boolean; flap
  *  날갯짓까지다. 없는 컷을 달라고 하면 굽기 열쇠(poseTag)가 "0"으로 접어 idle을
  *  돌려주는데 — 그림은 옳지만 **빌더는 그 컷으로 한 번 불린다**. 열쇠와 그림이
  *  어긋날 자리를 만드느니, 부르는 쪽이 있는 컷만 묻는 편이 낫다. */
-export function poseCutsOf(kind: string): { move?: boolean; atk?: boolean; flap?: number; thrust?: boolean; roll?: boolean } | null {
+export function poseCutsOf(kind: string): { move?: boolean; atk?: boolean; flap?: number; thrust?: boolean; roll?: boolean; gait?: boolean } | null {
   return POSE_KINDS[kind] ?? null;
 }
 export function poseTempoOf(kind: string): { walkHz: number; atkCd: number } | null {
@@ -4685,6 +4687,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             /* ★ 분할 칸(PAINT_CLIP9)은 줄인 배율로 칠하므로 늘 이 갈래에 들어 **공격 컷까지 지워졌다**(지적: "질럿
                공격모션이 분할에서 안나옴") — 칸은 그 사람을 보여 주는 화면이라 자세를 다 둔다(걸음 쪽 moveOk9 와 같은 문). */
             if (pk9 && !pk9.flap && trim9 < 1) {
+              /* 여섯 컷 걸음의 사잇컷(6~9)은 낮은 배율에서 가까운 닿음 컷(1·3)으로 접는다 — 몸이 몇 화소라 사잇컷이 안 읽히고 메시 벌만 는다. */
+              if (pose !== undefined && pose >= 6) pose = (pose === 6 || pose === 9 ? 1 : 3);
               const walk9 = pose === 1 || pose === 3;
               if (PAINT_CLIP9 === null && (!walk9 || !moveOk9 || !(pk9.move || pk9.thrust))) pose = 0;
             } else if (!pk9 || trim9 >= 1) pose = 0;
@@ -5965,7 +5969,7 @@ export function shapeFitBox(kind: string, opts?: {
   /** 요잉(도) — 안 주면 지도의 기본 자세(BUILDING_BASE_YAW)다. ShapeIcon과 같은 규약. */
   rotDeg?: number;
   /** 훑을 컷들 — 안 주면 여섯 컷 모두. 그 종류가 안 가진 컷은 idle과 같은 면이라 해가 없다. */
-  poses?: readonly (0 | 1 | 2 | 3 | 4 | 5)[];
+  poses?: readonly (Pose9)[];
   flat?: boolean;
   viewYaw?: number;
   pitchView?: boolean;
@@ -6447,7 +6451,7 @@ export function docAnimOf9(kind: string): DocAnim9 {
  *  동작이다. 공격 칸에서 빼낸 준비 동작이 여기 선다.
  *  고스트는 등에 멤(0) → 반쯤(4) → 겨눔(2) → 반쯤(4) 넷을 돌아 '꺼냈다 넣었다'가 둘 다
  *  읽힌다 — 공격 칸은 겨눈 채 반동만 치므로(atkCutOf), 꺼내는 길은 여기에만 있다. */
-const DOC_ACT_POSE9: Record<string, { note: string; poses: readonly (0 | 1 | 2 | 3 | 4 | 5)[]; sec: number }> = {
+const DOC_ACT_POSE9: Record<string, { note: string; poses: readonly (Pose9)[]; sec: number }> = {
   ghost: { note: "총 꺼내기", poses: [0, POSE_ATK_L, 2, POSE_ATK_L], sec: 0.45 },
   /* ★ 버팀다리 홑판은 **뻗는 몫이 자세**다(2026-09, 지적: 도록의 "시즈 버팀다리" 칸에 발판 둘만
      덩그러니 있다) — 자세 0 은 **다 접힌 상태**라 땅에 닿는 발만 남는다. 그것이 틀린 그림은
@@ -6751,7 +6755,7 @@ const DOC_ATK_BODY9: Record<string, { kind: string; attach: string }> = {
 };
 /** 한 칸에 겹쳐 그리는 판 하나 — 지도가 한 개체를 여러 판으로 그리는 그 자다(차체·버팀다리·포탑). */
 export type DocPart9 = {
-  kind: string; pose?: 0 | 1 | 2 | 3 | 4 | 5; rotDeg?: number;
+  kind: string; pose?: Pose9; rotDeg?: number;
   /** ★ 뜬 높이(16-상자 자) — `dy` 에 이미 뺀 값이고, 창(docCellBox9)이 땅의 원을 이 몫만큼 올려 아우르는 데 쓴다. */
   up?: number;
   /** ★★ **칸 안에서 옮겨 앉히는 몫**(16-상자 자 · 화면 방향 · y 는 아래가 +) — 2026-09 에
@@ -6794,7 +6798,7 @@ export type DocCell9 = {
    *  ⚠ 도록(앱)은 칸의 창을 '그 칸이 그릴 수 있는 종류'의 합집합으로 재므로 **이 목록도 그 셈에 넣어야**
    *    한다 — 안 넣으면 겹판이 창 밖으로 잘린다(GalleryScreen boxOf). */
   parts?: DocPart9[];
-  pose?: 0 | 1 | 2 | 3 | 4 | 5;
+  pose?: Pose9;
   spin?: number;
   headDeg?: number;
   lit?: boolean;
@@ -6867,7 +6871,7 @@ function docSiegeCell9(t: number, yaw: number): DocCell9 {
   const rot9 = yaw + DOC_SIEGE_TURN9 * (to9 === 1 ? sm9(k9) : 1 - sm9(k9));
   // 기계 마디(다리) · 포탑 자세 — engine9 의 xfMech9 · gunU9 와 같은 식이다.
   const mech9 = to9 === 1 ? cl9((u9 - T9) / (1 - T9)) : 1 - cl9(u9 / (1 - T9));
-  const cut9 = (v9: number): 0 | 1 | 2 | 3 | 4 | 5 => Math.max(0, Math.min(5, Math.round(v9 * 5))) as 0 | 1 | 2 | 3 | 4 | 5;
+  const cut9 = (v9: number): Pose9 => Math.max(0, Math.min(5, Math.round(v9 * 5))) as Pose9;
   const gun9 = to9 === 1 ? sm9(u9) : 1 - sm9(u9);
   if (tanked9) return { label: "액션", note: "탱크 모드", kind: "tankbody", rotDeg: rot9, parts: [{ kind: "tankgun", rotDeg: rot9 }] };
   /* 정착 시즈는 지도와 같은 판이다 — 차체 + 다 뻗은 다리 둘 + 시즈 포탑(그 판의 +y 가 겨누는
@@ -6906,7 +6910,7 @@ function docDigAge9(t: number): number | null {
 function docBurrowCell9(t: number): DocCell9 {
   const p9 = (((t % DOC_BURROW_CYCLE9) + DOC_BURROW_CYCLE9) % DOC_BURROW_CYCLE9);
   /* 파는 컷 — 지도와 **같은 박자**다(18Hz 로 4↔5). 도록이 제 숫자를 들면 파는 속도가 갈린다. */
-  const dig9: 0 | 1 | 2 | 3 | 4 | 5 = Math.floor(t * 18) % 2 === 1 ? 5 : 4;
+  const dig9: Pose9 = Math.floor(t * 18) % 2 === 1 ? 5 : 4;
   // 파는 창에는 **흙먼지**가 난다(지적: "버로우 시 흙먼지가 안 보임") — 지도의 dig 효과를 DocTracer9 가 그대로 부른다.
   if (p9 < BURROW_DIG_SEC) return { label: "액션", note: "버로우", kind: "lurker", pose: dig9, tracer: true, fx: "dig" };
   if (p9 < BURROW_DIG_SEC + DOC_BURROW_HOLD9) return { label: "액션", note: "묻힌 채", kind: "lurkerburrow" };
@@ -7005,13 +7009,14 @@ export function docCellsOf9(kind: string, t: number, yaw: number): DocCell9[] {
     /* 유닛 — 컷의 임자는 poseCutsOf·poseTempoOf·atkCutOf 다(지도와 같은 문). */
     const pk9 = poseCutsOf(kind);
     const tp9 = poseTempoOf(kind);
-    const idle9: 0 | 1 | 2 | 3 | 4 | 5 = pk9?.flap ? flapCutOf9(pk9.flap, t) : 0;
+    const idle9: Pose9 = pk9?.flap ? flapCutOf9(pk9.flap, t) : 0;
     out9.push({ label: "대기", pose: idle9 });
     /* 걸음은 두 컷을 오가고(1 ↔ 3), **궤도 굴림은 세 컷을 돈다**(0 → 1 → 3) — 두 컷은 서로의
        거울이라 앞뒤가 없지만, 궤도는 어느 쪽으로 도는지가 보여야 한다(POSE_KINDS 의 roll). */
     if (pk9?.move && tp9) {
+      /* 여섯 컷 걸음(gait)은 지도와 같은 문(walkCutOf9)이 고른다. */
       const wp9: readonly (0 | 1 | 3)[] = pk9.roll ? [0, 1, 3] : [1, 3];
-      out9.push({ label: "이동", pose: wp9[Math.floor(t * tp9.walkHz) % wp9.length] });
+      out9.push({ label: "이동", pose: pk9.roll ? wp9[Math.floor(t * tp9.walkHz) % wp9.length] : walkCutOf9(kind, tp9.walkHz, t) });
     }
     /* ★ **추진체는 걸음이 없어도 이동 칸을 세운다**(2026-09, 요청: "스러스터에 불 켜지는
        애들은 이동 모션에 그게 들어가면 됨") — 나는 몸·호버는 다리로 걷지 않아 걸음 컷이
@@ -7233,7 +7238,7 @@ export function DocIcon9({
   kind, rotDeg, pose, spin, headDeg, lit, stage, blink, attach, attachRot, parts,
   flat, fit, fitPad, fitBox, wide, className, gl, tint,
 }: {
-  kind: string; rotDeg?: number; pose?: 0 | 1 | 2 | 3 | 4 | 5; spin?: number; flat?: boolean; fit?: boolean; fitPad?: number; fitBox?: string;
+  kind: string; rotDeg?: number; pose?: Pose9; spin?: number; flat?: boolean; fit?: boolean; fitPad?: number; fitBox?: string;
   wide?: boolean; className?: string;
   /* ★ **건물의 움직임 다섯**(2026-09, 요청: "도록에서 건물도 유닛처럼 idle 상태 애니메이션
      재생(서플라이 팬, 터렛 포탑 돌기 등) · 액션칸에는 생산중/업그레이드중/공격중 등 가지고
@@ -7348,7 +7353,7 @@ export function ShapeIcon({
    *    끝나면 되돌려야 한다(안 되돌리면 다음에 굽는 남의 모델까지 그 컷으로 굽힌다).
    *    밖에서 poseSet을 부르면 리액트의 그리는 차례와 그 창을 맞출 길이 없다 — 여기
    *    안에서 spin과 **같은 규약**으로 감싼다. */
-  pose?: 0 | 1 | 2 | 3 | 4 | 5;
+  pose?: Pose9;
   /* 건물의 움직임 넷 — DocIcon9 의 같은 이름 프롭이 GL 이 안 설 때 여기로 내려 준다.
      세우는 자리는 rasterBld9 와 **같은 규약**이다(굽기 직전에 세우고 끝나면 되돌린다). */
   /** 포탑 각(절대 도). */ headDeg?: number;
@@ -9896,7 +9901,7 @@ export default function ReplayMotionPlayer({
    *  참값이 같은 틱의 명령을 정확히 같은 초로 적지 않을 수 있어서다 — 무리가 둘로
    *  갈리면 카메라가 그 사이에서 흔들린다. */
   const trackPicks = useMemo(() => {
-    if (!camRaw9 || !entData) return [] as { sec: number; tags: number[] }[];
+    if (!camRaw9 || !entData) return [] as { sec: number; tags: number[]; sel: string }[];
     const mine9 = new Set(entData.players.filter((pl) => pl.name === camRaw9).map((pl) => pl.owner));
     const by9 = new Map<number, Set<number>>();
     for (const e9 of entData.lives) {
@@ -9908,7 +9913,7 @@ export default function ReplayMotionPlayer({
       }
     }
     return [...by9.entries()]
-      .map(([sec, tags]) => ({ sec, tags: [...tags] }))
+      .map(([sec, tags]) => ({ sec, tags: [...tags], sel: selKey9(tags) }))
       .sort((a, b) => a.sec - b.sec);
   }, [camRaw9, entData]);
   /** 지금 추적이 보고 있는 자리(타일) — 마지막 자국의 몸들을 평균한 점.
@@ -9916,7 +9921,7 @@ export default function ReplayMotionPlayer({
    *  자국의 **클릭 좌표**가 아니라 집힌 몸의 **지금 자리**다(요청: "선택 위치") — 그래야
    *  카메라가 그 무리를 따라 흐른다. 다 죽었으면 그 앞 자국으로 몇 걸음 물러난다:
    *  방금 집은 것이 방금 죽는 일(교전)이 잦은데, 그때마다 화면이 멎으면 안 된다. */
-  const trackAt = ((): { x: number; y: number; pts: { x: number; y: number }[] } | null => {
+  const trackAt = ((): { x: number; y: number; pts: { x: number; y: number }[]; sel: string } | null => {
     if (!camRaw9 || trackPicks.length === 0) return null;
     let lo9 = 0;
     let hi9 = trackPicks.length - 1;
@@ -9936,7 +9941,7 @@ export default function ReplayMotionPlayer({
         sx9 += p9.x; sy9 += p9.y; n9 += 1;
         pts9.push(p9);
       }
-      if (n9 > 0) return { x: sx9 / n9, y: sy9 / n9, pts: pts9 };
+      if (n9 > 0) return { x: sx9 / n9, y: sy9 / n9, pts: pts9, sel: trackPicks[k9].sel };
     }
     return null;
   })();
@@ -9951,7 +9956,7 @@ export default function ReplayMotionPlayer({
   /* ── 분할보기의 칸 카메라 · 칸 배치(위 splitOn9) ───────────────────────────────────────────────────────────────
      카메라는 사람마다 trackPicks·trackAt 과 **같은 자**다(그 순간 명령을 받은 무리의 무게중심) — 개인 추적과 한 셈이라
      칸의 화면과 그 사람을 개인 추적으로 볼 때의 화면이 같은 곳을 본다. 걷기는 워커에 사람마다 청한다(위 want 효과). */
-  type SplitPick9 = { sec: number; tags: number[] };
+  type SplitPick9 = { sec: number; tags: number[]; sel: string };
   const splitPicks9 = useMemo(() => {
     const out9 = new Map<string, SplitPick9[]>();
     if (!splitOn9 || !entData) return out9;
@@ -9966,7 +9971,7 @@ export default function ReplayMotionPlayer({
           if (g9) g9.add(e9.tag); else by9.set(k9, new Set([e9.tag]));
         }
       }
-      out9.set(b9.key, [...by9.entries()].map(([sec, tags]) => ({ sec, tags: [...tags] })).sort((x, y) => x.sec - y.sec));
+      out9.set(b9.key, [...by9.entries()].map(([sec, tags]) => ({ sec, tags: [...tags], sel: selKey9(tags) })).sort((x, y) => x.sec - y.sec));
     }
     return out9;
   }, [splitOn9, entData, bases]);
@@ -9999,7 +10004,7 @@ export default function ReplayMotionPlayer({
     return out9;
   }, [splitOn9, entData, bases]);
   /** 그 사람의 카메라 자리(타일) — trackAt 과 같은 셈을 사람마다. 없으면 출발 자리. */
-  const splitAt9 = (raw9: string, sec9: number): { x: number; y: number; pts?: { x: number; y: number }[] } | null => {
+  const splitAt9 = (raw9: string, sec9: number): { x: number; y: number; pts?: { x: number; y: number }[]; sel?: string } | null => {
     const picks9 = splitPicks9.get(raw9) ?? [];
     const wk9 = splitWalks9.get(raw9);
     const body9 = (tg9: number): { x: number; y: number } | null => {
@@ -10028,7 +10033,7 @@ export default function ReplayMotionPlayer({
         sx9 += p9.x; sy9 += p9.y; n9 += 1;
         pts9.push(p9);
       }
-      if (n9 > 0) return { x: sx9 / n9, y: sy9 / n9, pts: pts9 };
+      if (n9 > 0) return { x: sx9 / n9, y: sy9 / n9, pts: pts9, sel: picks9[k9].sel };
     }
     return splitStart9.get(raw9) ?? null;
   };
@@ -11093,8 +11098,8 @@ export default function ReplayMotionPlayer({
    *    집힌 것의 자리가 화면 테두리를 **넘는** 순간에만 — 곧 그림이 반쯤 잘려 나가기
    *    시작할 때에만 — 한 번 크게 옮겨 한가운데로 데려온다. */
   const TRACK_EDGE = 0;
-  const trackCamRef = useRef<{ raw: string | null; z: number; pan: { x: number; y: number } }>(
-    { raw: null, z: 0, pan: { x: 0, y: 0 } });
+  const trackCamRef = useRef<{ raw: string | null; z: number; pan: { x: number; y: number }; sel: string }>(
+    { raw: null, z: 0, pan: { x: 0, y: 0 }, sel: "" });
   /** ★ 다시 잡을 때 **미끄러져 간다**(2026-10, 요청: "아웃오브스크린 화면 이동시 부드럽게") — 같은 사람·같은 배율에서 무리가 화면을
    *  벗어나 다시 잡는 이동만 CAM_GLIDE_MS9 동안 ease-in-out 으로 옮긴다(사람이 바뀌거나 배율이 바뀌면 곧장 선다 — 누구 화면인지가
    *  먼저 읽혀야 한다). 그 동안은 아래 effect 가 rAF 마다 렌더를 한 번씩 불러 trackView 가 사이 자리를 낸다. */
@@ -11153,14 +11158,16 @@ export default function ReplayMotionPlayer({
         if (Math.abs(dx9) > keepW9 || Math.abs(dy9) > keepH9) { keep9 = false; break; }
       }
     }
+    /* 안 옮기는 동안 선택이 바뀌었으면 새 선택을 적어 둔다 — 그 무리가 나중에 화면을 벗어날 때는 '같은 선택'이라 미끄러진다. */
+    if (keep9 && cur9.sel !== trackAt.sel) trackCamRef.current = { ...cur9, sel: trackAt.sel };
     if (!keep9) {
-      /* 같은 사람·같은 배율에서 다시 잡는 것이면 지금 보이는 자리(미끄러지는 중이면 그 사이 자리)에서 미끄러져 간다. */
-      if (cur9.raw === camRaw9 && cur9.z === z9) {
+      /* 같은 사람·같은 배율·**같은 선택**에서 다시 잡는 것이면 지금 보이는 자리(미끄러지는 중이면 그 사이 자리)에서 미끄러져 간다. */
+      if (cur9.raw === camRaw9 && cur9.z === z9 && cur9.sel === trackAt.sel) {
         const g09 = camGlideRef9.current;
         const from9 = g09 ? camGlideAt9(g09, performance.now()) ?? g09.to : cur9.pan;
         camGlideRef9.current = { from: from9, to: mid9, t0: performance.now() };
       } else camGlideRef9.current = null;
-      trackCamRef.current = { raw: camRaw9, z: z9, pan: mid9 };
+      trackCamRef.current = { raw: camRaw9, z: z9, pan: mid9, sel: trackAt.sel };
     }
     const g9 = camGlideRef9.current;
     const gp9 = g9 ? camGlideAt9(g9, performance.now()) : null;
@@ -14294,6 +14301,8 @@ export default function ReplayMotionPlayer({
   const splitCvRef9 = useRef(new Map<string, HTMLCanvasElement>());
   /** 칸 카메라의 미끄러짐(CAM_GLIDE_MS9) — 시작 자리·시각 · 칸마다 마지막으로 보인 자리(지도 분수). */
   const splitGlideRef9 = useRef(new Map<string, { from: { x: number; y: number }; t0: number }>());
+  /** 칸마다 지금 따라가는 선택의 열쇠(selKey9) — 같은 선택이 벗어날 때만 미끄러진다. */
+  const splitSelRef9 = useRef(new Map<string, string>());
   const splitShowRef9 = useRef(new Map<string, { x: number; y: number }>());
   const splitTerrRef9 = useRef<HTMLCanvasElement | null>(null);
   /** 칸마다의 미니맵 캔버스(좌하단 · 2026-09, 요청: "각 화면의 좌하단에 자신의 시야가 적용된 미니맵을 표시"). */
@@ -14311,7 +14320,7 @@ export default function ReplayMotionPlayer({
   /* 분할을 끄면 팀 판·등고선·보간 풀을 놓는다(워커도 팀 엔진을 걷는다 — 시야의 splitTeams 가 빈다). */
   useEffect(() => {
     if (splitOn9) return;
-    splitGlideRef9.current.clear(); splitShowRef9.current.clear();   // 다시 켤 때 옛 자리에서 미끄러지지 않게
+    splitGlideRef9.current.clear(); splitShowRef9.current.clear(); splitSelRef9.current.clear();   // 다시 켤 때 옛 자리에서 미끄러지지 않게
     teamFogPathRef9.current.clear();
     teamLerpRef9.current.clear();
   }, [splitOn9]);
@@ -14651,12 +14660,16 @@ export default function ReplayMotionPlayer({
             if (Math.abs(f9[0] - kx9) > hw9 || Math.abs(f9[1] - ky9) > hh9) { out9 = true; break; }
           }
         }
+        const sel9 = at9.sel ?? "";
+        const same9 = splitSelRef9.current.get(cell9.raw) === sel9;
         if (out9) {
-          /* 다시 잡을 때 미끄러져 간다(위 CAM_GLIDE_MS9 · trackView 와 같은 자) — 처음 잡는 칸은 곧장 선다. */
+          /* 다시 잡을 때 미끄러져 간다(위 CAM_GLIDE_MS9 · trackView 와 같은 자) — 처음 잡는 칸과 **선택이 바뀐** 칸은 곧장 선다. */
           const show9 = splitShowRef9.current.get(cell9.raw);
-          if (cam9 && show9) splitGlideRef9.current.set(cell9.raw, { from: show9, t0: performance.now() });
+          if (cam9 && show9 && same9) splitGlideRef9.current.set(cell9.raw, { from: show9, t0: performance.now() });
+          else splitGlideRef9.current.delete(cell9.raw);
           cam9 = { x: fr9[0], y: fr9[1] };
         }
+        if (!same9) splitSelRef9.current.set(cell9.raw, sel9);
       }
       if (!cam9) cam9 = { x: 0.5, y: 0.5 };
       splitCamRef9.current.set(cell9.raw, cam9);

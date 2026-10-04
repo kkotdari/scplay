@@ -439,6 +439,20 @@ export const sunkenCut9 = (ph: number): number =>
    그리는 쪽이 쿨다운 위상으로 4 → 2 → 5 → 2를 돌린다(아래 pose 고르기).
    판은 종류마다 세 벌이 더 구워질 뿐이고, 한 유닛이 찍는 판은 여전히 한 장이다. */
 export const POSE_ATK_L = 4;
+/** 자세 번호 — 0 기본 · 1/3 걸음(거울 한 쌍) · 2/4/5 공격 · 6~9 여섯 컷 걸음의 사잇컷(GAIT_CYCLE9). */
+export type Pose9 = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+/* ★★ **여섯 컷 걸음**(2026-10, 요청: "골리앗, 테란 플토 보병들 이동자세 팔다리 움직임 더 자연스럽게 4-5컷으로 늘려야할듯. 앞다리 쭉
+   뻗었다가 구부러지면서 앞으로 이동하자나 보통. 그다음 뒷다리가 쫙 펴지고 앞다리 살짝 구부러지면서") ────────────────────────────
+   두 컷(1 ↔ 3)은 서로의 거울이라 '앞 · 뒤'만 있고 그 사이가 없다 — 걸음이 아니라 가위질로 읽혔다. `gait` 를 가진 종류는 한
+   바퀴를 여섯 컷으로 돈다: 닿음(앞다리 쭉) → 받음(앞다리 굽으며 체중 · 뒷다리 쫙 펴 밂) → 지나감(뒷다리가 들려 앞으로) → 거울 셋.
+   1·3 은 그 '닿음' 두 컷이라 옛 걸음 컷과 같은 자리고, 6~9 가 사이를 메운다(빌더 쪽 gaitLeg9). 한 바퀴의 길이는 옛 두 컷과 같다
+   (컷 박자 ×3). */
+export const GAIT_CYCLE9: readonly Pose9[] = [1, 6, 7, 3, 8, 9];
+/** 걸음 컷 고르기 — gait 종류는 여섯 컷, 그 밖은 두 컷(1 ↔ 3). hz 는 옛 두 컷의 박자(컷/초). 지도·도록이 이 문 하나를 쓴다. */
+export function walkCutOf9(kind: string, hz: number, t: number): Pose9 {
+  if (POSE_KINDS[kind]?.gait) return GAIT_CYCLE9[Math.floor(t * hz * 3) % 6];
+  return Math.floor(t * hz) % 2 === 1 ? 3 : 1;
+}
 export const POSE_ATK_R = 5;
 /** 이 종류가 어떤 컷을 갖나 — move: 이동 컷 · atk: 공격 컷. 없는 종류는 컷이 없다.
  *  티가 가장 많이 나는 순서로 붙인다(요청) — ① 테란 보병류 ② 프로토스 인간형·드라군
@@ -460,6 +474,8 @@ export const POSE_KINDS: Record<string, { move?: boolean; atk?: boolean; flap?: 
    *  ⚠ **실제 굴림 속도는 못 낸다** — 탱크는 초당 40토막쯤 지나가는데 그리는 박자가 30Hz 다.
    *    곧 어느 값을 줘도 앨리어싱이고, 눈에 '도는 것으로 읽히는' 박자를 고른 것이다. */
   roll?: boolean;
+  /** 여섯 컷 걸음(위 GAIT_CYCLE9) — 다리 빌더가 다리마다 위상을 따로 탄다. */
+  gait?: boolean;
 }> = {
   // ── 비행체: 이동 중이면 자세 1(추진체 불꽃), 아니면 0 ──
   wraith: { thrust: true }, dship: { thrust: true }, valk: { thrust: true }, bc: { thrust: true },
@@ -477,15 +493,15 @@ export const POSE_KINDS: Record<string, { move?: boolean; atk?: boolean; flap?: 
      (xfOut9·xfTilt9). 걸음·공격 컷의 뜻이 아니라, 모든 자세가 메시 열쇠에 실리도록 둘 다 켠다. */
   tankturretxf: { move: true, atk: true },
   tanksiegelegs: { move: true, atk: true }, tanksiegelegsF: { move: true, atk: true },
-  gunner: { move: true, atk: true },
-  fbat: { move: true, atk: true },
-  ghost: { move: true, atk: true },
+  gunner: { move: true, atk: true, gait: true },
+  fbat: { move: true, atk: true, gait: true },
+  ghost: { move: true, atk: true, gait: true },
   // 메딕의 모델 kind는 "inf"다(UNIT_3D: Medic → inf) — "medic"으로 적으면 안 걸린다.
-  inf: { move: true, atk: true },
+  inf: { move: true, atk: true, gait: true },
   /* 2차(요청 순서 ② 프로토스 인간형·드라군 ③ 저그 지상 + 발사 모션 지시) —
      재작도가 끝난 종류에만 붙인다. */
-  zealot: { move: true, atk: true },   // 걸음 + 검 찌르기
-  dtemp: { move: true, atk: true },    // 걸음 + 검 썰기
+  zealot: { move: true, atk: true, gait: true },   // 걸음 + 검 찌르기
+  dtemp: { move: true, atk: true, gait: true },    // 걸음 + 검 썰기
   // 드라군은 대각 짝 다리가 번갈아 나간다(요청), 히드라는 꼬리가 호로 휜다(요청).
   goon: { move: true, atk: true },
   hydra: { move: true, atk: true },
@@ -499,7 +515,7 @@ export const POSE_KINDS: Record<string, { move?: boolean; atk?: boolean; flap?: 
   // 걷는 것 넷을 더한다(요청) — 울트라·디파일러·골리앗·럴커.
   ultra: { move: true, atk: true },
   defiler: { move: true },
-  goliath: { move: true, atk: true },   // 걸음 + 포신 앞뒤 반동(요청)
+  goliath: { move: true, atk: true, gait: true },   // 걸음 + 포신 앞뒤 반동(요청)
   /* 탱크는 **포탑 판**만 컷을 갖는다(요청: "탱크도") — 차체 판(tankbody)은 궤도+차체
      라 컷이 없고, 그것까지 표에 넣으면 같은 그림만 두 벌 굽는다. 포탑 op의 자세는
      아래 그리는 쪽이 발포 박자(fireK)로 따로 세운다. */
@@ -567,7 +583,7 @@ export function flapCutOf(hz: number, t: number): 1 | 3 | 4 {
  *  돌아간다 — 공중의 몸에게 기본 자세는 쉬는 것이 아니라 떨어지는 것이다. */
 export function atkCutOf(
   kindMain: string, ph: number, flapHz?: number, t = 0,
-): 0 | 1 | 2 | 3 | 4 | 5 {
+): Pose9 {
   /* 질럿 — 왼칼 잽 · 겨눔 · 오른칼 잽 · 쉼(요청). 잽은 짧고 쉼이 길다. */
   if (kindMain === "zealot") {
     if (ph < 0.22) return POSE_ATK_L;
@@ -1942,7 +1958,7 @@ export type UnitDrawOp = {
   blink?: number;
   /** 지금 그릴 자세(요청: 애니메이션) — 0 기본 · 1 이동 컷 · 2 공격 컷.
    *  컷을 가진 종류(POSE_KINDS)에서만 판이 갈리고, 나머지는 값이 있어도 무시된다. */
-  pose?: 0 | 1 | 2 | 3 | 4 | 5;
+  pose?: Pose9;
   /** 남은 체력 비율 0~1(요청: 스탯을 지닌 생애주기) — 다쳤을 때만 와서 바가 뜬다. */
   hpFrac?: number;
   /** 체력바를 지금 보일 것인가 — 맞은 지 HP_BAR_SEC 안(요청: 공격당한 뒤 한동안만). 선택된 개체는 붓이 따로 늘 보인다. */
@@ -7933,8 +7949,8 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
     const legK9 = siegeXf9 ? 0.3 + 0.7 * xfMech9 : null;
     /** 다리가 뻗은 몫을 자세 여섯 칸(0~5)으로 — 겹판(tanksiegelegs·F)이 몸 op의 pose를 물려받아 제 길이로 구워진다.
      *  배율(legK9)로 판을 키우던 방식은 축이 상자 중심이라 다리가 몸통 위쪽에서 시작해 보였다(지적). */
-    const legPose9: 0 | 1 | 2 | 3 | 4 | 5 = siegeXf9
-      ? Math.max(0, Math.min(5, Math.round(xfMech9 * 5))) as 0 | 1 | 2 | 3 | 4 | 5
+    const legPose9: Pose9 = siegeXf9
+      ? Math.max(0, Math.min(5, Math.round(xfMech9 * 5))) as Pose9
       : 0;
     /* 교전 당김·홀드·잽은 코어가 켜지면 안 돈다(과제 #61) — 코어는 표적까지
        걸어가 사거리에서 멈추는 일을 제 이동 모형으로 이미 했다. 여기서 한 번 더
@@ -8693,7 +8709,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
              때리는 자세이고 나머지는 기본으로 돌아온다 — 공속이 곧 타격 빈도다.
          공격이 이동을 이긴다(싸우는 중에는 걸음이 멈춘다). 마커 배율에서는
          아예 안 고른다 — 그 칸은 몸을 안 그린다. */
-      pose: ((): 0 | 1 | 2 | 3 | 4 | 5 => {
+      pose: ((): Pose9 => {
         // 시즈 전환 창 — 자세는 다리가 뻗은 몫이다(위 legPose9). 차체 판엔 컷이 없어 몸 그림은 안 바뀐다.
         if (legK9 !== null) return legPose9;
         /* 정착한 시즈는 다리가 **다 뻗은 컷**(5)이다 — 다리를 홑판으로 뗀 뒤(위 ★★) 그 몫을 자세가 든다.
@@ -8771,7 +8787,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         if (pk9.move && movingNow) {
           const sp0 = speedOf(drawUnit || "Marine", t, e.ups);
           const cad0 = Math.min(9, Math.max(2, sp0 * 2.2));
-          return Math.floor(t * cad0) % 2 === 1 ? 3 : 1;
+          return walkCutOf9(kindMain, cad0, t);
         }
         /* 컷 고르기는 **공용 문**(atkCutOf·flapCutOf)이 낸다 — 도록도 같은
            문을 지난다. 두 곳이 따로 적어 두었더니 갈렸다(그 함수의 ★ 주석). */
@@ -8800,7 +8816,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
           const cad9 = Math.min(9, Math.max(2, sp9 * 2.2));
           /* 걸음은 **두 컷을 오간다**(1 ↔ 3) — 기본 자세로 돌아오면 앞으로
              나가는 발이 늘 한쪽이 된다(위 POSE_WALK_B 주석). */
-          return Math.floor(t * cad9) % 2 === 1 ? 3 : 1;
+          return walkCutOf9(kindMain, cad9, t);
         }
         /* 고스트는 교전을 떠난 첫 마디에 같은 컷으로 총을 **넣는다** — 겨눔에서 등으로 한 프레임에 안 튄다. */
         if (kindMain === "ghost" && holsterAge9(drawMemRef.current, holdKey, t) >= 0) return POSE_ATK_L;
@@ -8953,7 +8969,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
            봐야 늘 0이다. 발포 박자(fireK)가 곧 이 판의 자세다.
            ★ 전환 창엔 자세가 '나온 몫' 여섯 칸이다(0~5) — 한 판(tankturretxf)이 그 자세로 두 포신의 길이를
              함께 낸다(배율 아님). 여기 한 줄이 위 spread를 덮으므로 여기서 정한다. */
-        pose: gunXf9 ? Math.max(0, Math.min(5, Math.round(gunU9 * 5))) as 0 | 1 | 2 | 3 | 4 | 5 : fireK ? 2 : 0,
+        pose: gunXf9 ? Math.max(0, Math.min(5, Math.round(gunU9 * 5))) as Pose9 : fireK ? 2 : 0,
         /* 포탑은 **표적을 본다**(요청: "포톤, 터렛, 시즈탱크는 공격방향에 맞게
            포탑부를 돌려줘야함") — 여태 포탑 판이 차체 방향(rotDeg)을 그대로
            물려받아, 옆에서 오는 적을 차체째 돌지 않고는 겨눌 수 없었다. 표적이

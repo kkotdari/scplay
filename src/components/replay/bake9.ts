@@ -8,7 +8,7 @@ import { TIER_GEN9 } from "./tierTable.gen";
 import { kT } from "../../utils/openbwTracks";
 import {
   POLY2, MESH9, EMIT_FILL9, meshPut9, meshSphere9, shinePath3, annulusPath3, orbPath3, billPath3, billPoly3, meshLoft9, meshRing9, loftZFaces, modelPoint9, annulusPath, bandPath, bodyFace, shellFaces9, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, boxOctFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelWarp, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
-import { BUILD_STAGES, LINK_CY_9, LINK_CZ_9, LINK_X0_9, linkLenOf9, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, SPIN_ANIM9, SPIN_STEPS, bldNormOf, modelInkOf, modelNormOf } from "./engine9";
+import { BUILD_STAGES, GAIT_CYCLE9, LINK_CY_9, LINK_CZ_9, LINK_X0_9, linkLenOf9, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, type Pose9, SPIN_ANIM9, SPIN_STEPS, bldNormOf, modelInkOf, modelNormOf } from "./engine9";
 import { type UnitDrawOp } from "./engine9";
 /** 주소 해시(`#pitch=`·`#nocreep` 같은 진단 스위치) — 굽기 일꾼 안에서는 location.hash가 빈 문자열(blob 주소)이라,
  *  메인이 일꾼을 만들 때 `name`에 해시를 실어 보내면(self.name) 그것을 먼저 본다. 메인·도구에서는 location.hash 그대로. */
@@ -706,18 +706,40 @@ export const POSE_WALK_B = 3;
 
 /** 굽는 도구(model-shot --pose)가 자세를 세우는 문 — 앱에서는 unitSprite가 op.pose로
  *  세우므로 이 문은 도구 전용이다. 애니 컷을 눈으로 확인하려면 이 문이 있어야 한다. */
-export function poseSet(p: 0 | 1 | 2 | 3 | 4 | 5): void { poseNow = p; }
+export function poseSet(p: Pose9): void { poseNow = p; }
 /** 굽기 열쇠에 박는 자세 표식 — 컷이 없는 종류·기본 자세는 "0"이라 옛 열쇠와 같다. */
 export const poseTag = (kind: string): string => {
   const p9 = POSE_KINDS[kind];
   if (!p9 || !poseNow) return "0";
-  if ((poseNow === 1 || poseNow === POSE_WALK_B) && !p9.move && !p9.flap && !p9.thrust) return "0";   // thrust(추진체 불꽃)도 제 열쇠를 가진다
+  if (gaitIdx9() >= 0 && !p9.move && !p9.flap && !p9.thrust) return "0";   // thrust(추진체 불꽃)도 제 열쇠를 가진다
   // 공격 컷 셋(2·4·5)은 전부 atk를 가진 종류만 갈린다.
   if ((poseNow === 2 || poseNow === POSE_ATK_L || poseNow === POSE_ATK_R) && !p9.atk) return "0";
   return String(poseNow);
 };
-/** 걸음 컷의 부호 — 1이면 +1, 3이면 −1(거울), 그 밖에는 0. 빌더가 이것만 곱하면 된다. */
-export const walkDir = (): number => (poseNow === 1 ? 1 : poseNow === POSE_WALK_B ? -1 : 0);
+/** 걸음 한 바퀴의 몇째 컷인가(engine9 GAIT_CYCLE9) — 1·3 은 0·3 이고 사잇컷 6~9 가 나머지다. 걸음이 아니면 −1. */
+export const gaitIdx9 = (): number => GAIT_CYCLE9.indexOf(poseNow as Pose9);
+/** 걸음 컷의 몫 — 1이면 +1, 3이면 −1(거울), 그 밖에는 0. 빌더가 이것만 곱하면 된다.
+ *  ★ 여섯 컷 걸음(gait)의 사잇컷은 ±0.5 다(한 바퀴의 코사인) — 팔 흔들기가 끊김 없이 오가고, `wd !== 0` 이 여전히 '걷는 중'이다. */
+const WALK_SWING9 = [1, 0.5, -0.5, -1, -0.5, 0.5] as const;
+export const walkDir = (): number => { const i9 = gaitIdx9(); return i9 < 0 ? 0 : WALK_SWING9[i9]; };
+/* ★★ 여섯 컷 걸음의 **다리 한 짝**(2026-10 · engine9 GAIT_CYCLE9 의 ★★) ─────────────────────────────────────────────────────
+   왼다리(m +1)는 한 바퀴의 컷 i, 오른다리(m −1)는 반 바퀴 뒤(i + 3)를 탄다. 디딤이 한 바퀴의 4/6, 흔듦이 2/6 이다:
+     k0 닿음 — 발이 맨 앞(+1) · 다리를 쭉 편다(reach 0.995)          k1 받음 — 발이 +0.5 · 엉덩이가 가장 낮아 무릎이 굽는다
+     k2 디딤 — 발이 몸 밑(0)                                       k3 디딤 — 발이 −0.5
+     k4 밂 — 발이 맨 뒤(−1 · 뒷다리 쫙) · 뒤꿈치 살짝 든다           k5 지나감 — 발이 몸 밑에서 크게 들려 앞으로(무릎이 굽는다)
+   돌려주는 값: f(보폭 몫 · 앞 +) · lift(0~1) · reach(앞다리를 얼마나 펴나) · bob(엉덩이 낮춤 몫 — 받음 1.6 · 닿음 0.9 · 지나감 0.5).
+   걸음 컷이 아니면 null — 부르는 쪽은 옛 두 컷 식(m·stride)으로 물러난다. */
+const GAIT_F9 = [1, 0.5, 0, -0.5, -1, 0] as const;
+const GAIT_LIFT9 = [0, 0, 0, 0, 0.12, 1] as const;
+const GAIT_BOB9 = [0.9, 1.6, 0.5] as const;
+export function gaitLeg9(m: -1 | 1): { f: number; lift: number; reach: number; bob: number; k: number } | null {
+  const i9 = gaitIdx9();
+  if (i9 < 0) return null;
+  const k9 = (i9 + (m === 1 ? 0 : 3)) % 6;
+  return { f: GAIT_F9[k9], lift: GAIT_LIFT9[k9], reach: k9 === 0 ? 0.995 : GAIT_F9[k9] > 0 ? LEG_REACH9 : 1, bob: GAIT_BOB9[i9 % 3], k: k9 };
+}
+/** 걷는 몸의 낮춤 배수 — 여섯 컷 걸음이면 그 컷의 bob(받음에서 가장 낮다), 아니면 1(옛 고정 낮춤 그대로). 빌더의 몸 낮춤 dz 에 곱한다. */
+export const gaitBob9 = (): number => { const i9 = gaitIdx9(); return i9 < 0 ? 1 : GAIT_BOB9[i9 % 3]; };
 /* 자원이 얼마나 남았나(요청: "미네랄 가스 고갈효과 표현 — 가스는 고갈시에 네온가스
    없애고 미네랄은 수에 따라 덩어리수 표현") — 굽는 동안만 서는 깃발이다(sunkenFire와
    같은 규약). 값은 참값이 싣는 단 그대로다: 4=750↑ · 3=500~749 · 2=250~499 · 1=1~249 ·
@@ -1934,12 +1956,19 @@ export function protossLegs(
   const Z = (z: number): number => Z8 * (3.95 + (z - 3.95) * shrink) + lift;   // 설계 z → 접힌 z(lift 는 이미 접힌 값)
   const out: ShapeFace[] = [];
   for (const m of [-1, 1] as const) {
-    const st = m * stride;   // 오른다리가 나가면 왼다리는 물러난다.
+    /* 여섯 컷 걸음(gaitLeg9) — 테란 다리(suitLegJoints9)와 같은 자. 아니면 옛 두 컷(오른다리가 나가면 왼다리는 물러난다). */
+    const g9 = stride !== 0 && tuck === 0 ? gaitLeg9(m) : null;
+    const amp9 = g9 ? Math.abs(stride / (walkDir() || 1)) : 0;
+    const st = g9 ? g9.f * amp9 : m * stride;
+    const liftA9 = g9 ? g9.lift * amp9 * 0.75 : Math.max(0, st) * 0.16;
+    const liftT9 = g9 ? g9.lift * amp9 * 0.55 : Math.max(0, st) * 0.12;
+    const reach9 = g9 ? g9.reach : st < 0 ? 1 : LEG_REACH9;
+    const drop9 = g9 ? 0.09 * g9.bob : 0;
     /* ★ 고관절을 **몸 안쪽**으로(요청: "다리가 너무 바깥쪽 양옆에 붙은 느낌") — 0.5 → 0.26. 골반 폭이
        몸통 반폭에 가깝게 좁아져 두 다리가 몸 아래에서 시작한다. 무릎·발목·발끝도 한 단씩만 안으로 당겨
        (0.82→0.72 · 0.95→0.86 · 1.04→0.96) 팔자 벌림은 남기되 전체가 몸 밑으로 모인다 — 고관절만 당기면
        허벅지가 바깥으로 뻗쳐 가랑이가 벌어진 꼴이 된다. */
-    const hip: [number, number, number] = [m * P_HIP_X9, -0.3 - P_LEG_BACK9, Z(3.95)];
+    const hip: [number, number, number] = [m * P_HIP_X9, -0.3 - P_LEG_BACK9, Z(3.95) - drop9];
     /* ★ 걸음에도 **허벅지·정강이 길이는 그대로**(요청: 질럿·템플러류도 같은 함수로) —
        suitLegs와 같은 결이다. 발목·발끝만 보폭대로 옮기고 무릎은 서 있을 때의 두 마디
        길이로 푼다(jointBetween, 앞으로 굽힘). */
@@ -1970,9 +1999,9 @@ export function protossLegs(
     const sp9 = stride === 0 && tuck === 0 ? m * LEG_STANCE9 * (atk9 ? 1.6 : 1) : 0;
     const stv9 = yv9(0, legSt9(st) * 1.2 + sp9);
     const [ankleR9, cx9, cy9] = legCap9(hip,
-      [ankle0[0] + stv9[0], ankle0[1] + stv9[1], ankle0[2] + Math.max(0, st) * 0.16], Lt9, Ls9, st < 0 ? 1 : LEG_REACH9);
+      [ankle0[0] + stv9[0], ankle0[1] + stv9[1], ankle0[2] + liftA9], Lt9, Ls9, reach9);
     const kh9 = yv9(0, 1);
-    const knee: [number, number, number] = st === 0 && sp9 === 0 ? knee0 : jointBetween(hip, ankleR9, Lt9, Ls9, [kh9[0], kh9[1], 0.1]);
+    const knee: [number, number, number] = st === 0 && sp9 === 0 && !g9 ? knee0 : jointBetween(hip, ankleR9, Lt9, Ls9, [kh9[0], kh9[1], 0.1]);
     /** 무릎을 축으로 한 접기(위 tuck) — 정강이·발·발가락이 모두 이 손을 지난다. */
     const tuckAt9 = (q: [number, number, number]): [number, number, number] => {
       if (tuck === 0) return q;
@@ -2009,7 +2038,7 @@ export function protossLegs(
         ankle[2] + rz9 + ((sdz9 / sl9) * rl9 - rz9) * ANKLE_FLAT9,
       ];
     };
-    const toeY9 = yw9([m * P_TOE_X9, 0.5 - P_LEG_BACK9 + legSt9(st) * 1.2 + sp9, Z(0.15) + Math.max(0, st) * 0.12]);
+    const toeY9 = yw9([m * P_TOE_X9, 0.5 - P_LEG_BACK9 + legSt9(st) * 1.2 + sp9, Z(0.15) + liftT9]);
     const toe: [number, number, number] = footAt9(tuckAt9([toeY9[0] + cx9, toeY9[1] + cy9, toeY9[2]]));
     /* 하지가 허벅지보다 굵다(요청) — 허벅지 0.6, 정강이 0.72, 발목 0.58. 마디마다
        배가 부풀게 mid를 따로 줘, 곧은 막대가 아니라 근육 붙은 마디로 읽힌다. */
@@ -2306,9 +2335,16 @@ export function bootFaces(
 export function suitLegJoints9(m: -1 | 1, spread: number, stride = 0, zk = 1): {
   hip: [number, number, number]; knee: [number, number, number]; ankle: [number, number, number];
 } {
-  const st = m * stride;
+  /* 여섯 컷 걸음(gaitLeg9) — 다리마다 제 위상의 보폭·들림·엉덩이 낮춤을 탄다. 보폭의 크기는 넘겨받은 stride(= 폭 × walkDir)에서 되푼다. */
+  const g9 = stride !== 0 ? gaitLeg9(m) : null;
+  const amp9 = g9 ? Math.abs(stride / (walkDir() || 1)) : 0;
+  const st = g9 ? g9.f * amp9 : m * stride;
+  const lift9 = g9 ? g9.lift * amp9 * 0.9 : Math.max(0, st) * 0.2112;
+  const reach9 = g9 ? g9.reach : st < 0 ? 1 : LEG_REACH9;
+  /** 엉덩이 낮춤(접힌 z) — 몸통의 걸음 낮춤(빌더의 dz × gaitBob9)과 같은 자라 골반과 함께 내려간다. */
+  const drop9 = g9 ? 0.088 * g9.bob : 0;
   const LEG_BACK = 0.2;
-  const hip: [number, number, number] = [m * 0.54 * spread, -0.05 - LEG_BACK, 2.0768 * zk];
+  const hip: [number, number, number] = [m * 0.54 * spread, -0.05 - LEG_BACK, 2.0768 * zk - drop9];
   /* 선 자세(평소·공격)의 무릎은 옛 0.14 그대로 — 곧게 선다(2026-10, 요청: "테란 보병들은 서있을때/공격자세에서 다리 굽힘 제거").
      한때 0.32(굽힘)로 두었다. 걸을 때만 legCap9 가 앞다리를 다 안 펴게 한다. */
   const knee0: [number, number, number] = [m * 0.6 * spread, 0.14 - LEG_BACK, 1.1792 * zk];
@@ -2316,8 +2352,8 @@ export function suitLegJoints9(m: -1 | 1, spread: number, stride = 0, zk = 1): {
   const Lt9 = legLenD9(hip, knee0);
   const Ls9 = legLenD9(knee0, ankle0);
   /* 테란 보병은 선 자세에서 앞뒤로 안 짚는다(2026-10, 요청: "테란 보병들은 서있을때 다리 앞뒤는 아니야") — LEG_STANCE9 는 프로토스만. */
-  const [ankle] = legCap9(hip, [ankle0[0], ankle0[1] + legSt9(st) * 1.35, ankle0[2] + Math.max(0, st) * 0.2112], Lt9, Ls9, st < 0 ? 1 : LEG_REACH9);
-  const knee: [number, number, number] = st === 0 ? knee0 : jointBetween(hip, ankle, Lt9, Ls9, [0, 1, 0.165]);
+  const [ankle] = legCap9(hip, [ankle0[0], ankle0[1] + legSt9(st) * 1.35, ankle0[2] + lift9], Lt9, Ls9, reach9);
+  const knee: [number, number, number] = st === 0 && !g9 ? knee0 : jointBetween(hip, ankle, Lt9, Ls9, [0, 1, 0.165]);
   return { hip, knee, ankle };
 }
 export function suitLegs(
@@ -18756,11 +18792,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        나가고, 나가는 발은 살짝 들려 미끄러지지 않는다. */
     const wd9 = walkDir();
     for (const m of [-1, 1] as const) {
-      const st9 = m * wd9 * 0.9;
-      const lf9 = Math.max(0, st9) * 0.35; const lf9z9 = Math.max(0, st9) * 0.28; /* z용 쌍둥이(model-z-scale ×0.8) */
+      /* 여섯 컷 걸음(gaitLeg9) — 다리마다 제 위상. 받음(k1)·지나감(k5)에 무릎이 더 앞으로 나와 굽는다(골리앗은 관절을 손으로 놓는다). */
+      const g9 = wd9 !== 0 ? gaitLeg9(m) : null;
+      const st9 = g9 ? g9.f * 0.9 : m * wd9 * 0.9;
+      const lf9 = g9 ? g9.lift * 0.6 : Math.max(0, st9) * 0.35; const lf9z9 = lf9 * 0.8; /* z용 쌍둥이(model-z-scale ×0.8) */
+      const kb9 = g9 ? (g9.k === 1 ? 0.45 : g9.k === 5 ? 0.6 : g9.k === 0 ? 0 : 0.2) : 0;
       const key = depthNow(m * 1.5, 0) * 1.6 - 2;
       const hip: [number, number, number] = [m * 1.35, -0.15, 3.44];
-      const knee: [number, number, number] = [m * 1.6, 1.15 + st9 * 0.55, 2.2 + lf9 * 0.4];
+      const knee: [number, number, number] = [m * 1.6, 1.15 + st9 * 0.55 + kb9 * 0.5, 2.2 + lf9 * (g9 ? 0.9 : 0.4) - kb9 * 0.2];
       const ankle: [number, number, number] = [m * 1.72, -0.55 + st9 * 1.1, 1 + lf9z9];
       const fx9 = m * 1.72;                 // 발 좌우 자리
       const fy9 = 0.25 + st9 * 1.1;         // 발 앞뒤 자리
@@ -24002,7 +24041,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const mv = wd !== 0 ? 1 : 0;     // 걷는 중인가(몸 낮춤·팔 흔들에 쓴다)
     const at = poseNow === 2 ? 1 : 0;
     const kick = 0.16 * at;    // 공격 컷에서 총·팔이 뒤로 밀리는 몫
-    const dz = -0.088 * mv;      // 걸을 때 몸이 낮아지는 몫
+    const dz = -0.088 * mv * gaitBob9();      // 걸을 때 몸이 낮아지는 몫
     /* 팔도 흔든다(요청: "이동시 다리만 움직이지말고 팔도 앞뒤로 흔들게") — 마린은 두
        손이 총에 붙어 있어 팔을 따로 흔들 수는 없다. 대신 **총과 두 팔을 한 덩이로**
        앞으로 내밀었다 당긴다: 걸을 때 총구가 위아래·앞뒤로 까딱이는 그 결이다. */
@@ -24238,7 +24277,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        겨눔(2)은 총이 앞으로 뻗은 자리 0 · 쏜 순간(POSE_ATK_R)만 0.34 뒤로 밀린다
        (평균이 옛 0.18 언저리라 자세는 그대로고 흔들림만 생긴다). */
     const kick = poseNow === POSE_ATK_R ? 0.34 : 0;   // ④ 반동 — 총과 두 팔이 뒤로 밀린다
-    const dz = wd !== 0 ? -0.0704 : 0;
+    const dz = wd !== 0 ? -0.0704 * gaitBob9() : 0;
     const sway = -0.12 * wd;
     /** 든 정도(0 평상시 — 총을 어깨 뒤로 멘다 · 1 공격 컷 — 겨눈다). */
     const lp = (a9: number, b9: number): number => a9 + (b9 - a9) * at;
@@ -24373,7 +24412,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const wd = walkDir();            // +1 · −1 · 0 — 걸음 두 컷이 서로 거울이다
     const mv = wd !== 0 ? 1 : 0;
     const at = poseNow === 2 ? 1 : 0;
-    const dz = -0.1 * mv; const dzz9 = -0.08 * mv; /* z용 쌍둥이(model-z-scale ×0.8) */            // 걸을 때 몸이 낮아지는 몫
+    const dz = -0.1 * mv * gaitBob9(); const dzz9 = -0.08 * mv * gaitBob9(); /* z용 쌍둥이(model-z-scale ×0.8) */            // 걸을 때 몸이 낮아지는 몫
     const sway = -0.1 * wd;          // 걸을 때 팔이 앞뒤로 까딱이는 몫
     const RED = "#b83a2c";           // 갑옷 붉은색
     const RED_D = "#8f2b20";         // 그늘진 팔 붉은색
