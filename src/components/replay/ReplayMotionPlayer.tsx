@@ -10615,7 +10615,7 @@ export default function ReplayMotionPlayer({
    *  걸쳐 높이가 바뀐다. 그 값이 상태(stage)에 실리면 재중심(centerOnTile)·팬 재죔·덮는 폭·캔버스 크기가 줄줄이 돌아 판이
    *  들썩였다. 굵은 포인터 기기에서 폭이 같고 높이 변화가 35% 미만이면 붙든 높이를 쓴다. 회전·전체화면 전환·fsOn 토글은
    *  진짜 변화라 다시 잰다(frameMaxH의 vhHold9와 같은 규칙). */
-  const stageHold9 = useRef<{ w: number; h: number } | null>(null);
+  const stageHold9 = useRef<{ w: number; h: number; ih: number } | null>(null);
   /** `#diag=view` — 보기 상태(팬·배율·무대·예산·창 높이)가 최근 3초에 몇 번, 어느 길로 바뀌었나(지적: "팬·핀치·감기 뒤
    *  안개·모델이 떨린다" — 에뮬레이터로는 재현이 안 돼, 폰에서 어느 상태가 흔들리는지 이 줄로 읽는다). 렌더마다 값을 견줘
    *  바뀐 것만 적고, 재죔(clamp)·재중심(center)·손짓 커밋(commit)·무대 붙들기(stagehold)는 그 자리에서 적는다. */
@@ -11716,10 +11716,15 @@ export default function ReplayMotionPlayer({
         const force9 = ev instanceof Event
           && (ev.type === "orientationchange" || ev.type === "fullscreenchange" || ev.type === "webkitfullscreenchange");
         const m9 = stageHold9.current;
-        if (!force9 && m9 && m9.w === v.w && Math.abs(v.h - m9.h) < m9.h * 0.35) {
+        /* ★ 붙드는 것은 **창 높이가 함께 움직였을 때뿐**이다(2026-10, 지적: "독 부분에 선택된 유닛이나 건물있는걸 아웃오브윈도우로
+           안치는거 같기도") — 주소창이 접히고 펴지면 innerHeight 가 같이 바뀐다. 창은 그대로인데 무대만 줄었으면(독을 펴고 접기 ·
+           분할 · 툴박스 키) 그것은 진짜 배치 변화다. 여태 그것까지 붙들어, 독을 편 뒤에도 무대 높이가 접힌 키로 남아 추적·중계가
+           **독 밑까지 화면으로** 셈했다(그 자리의 몸은 '안'이라 카메라가 안 옮겼다). */
+        const ih9 = window.innerHeight;
+        if (!force9 && m9 && m9.w === v.w && Math.abs(ih9 - m9.ih) > 2 && Math.abs(v.h - m9.h) < m9.h * 0.35) {
           if (v.h !== m9.h) viewDiagPush9("stagehold", `${v.h}→${m9.h}`);
           v.h = m9.h;
-        } else stageHold9.current = { w: v.w, h: v.h };
+        } else stageHold9.current = { w: v.w, h: v.h, ih: ih9 };
       }
       /* ★ 한 번 제대로 잰 뒤의 **0은 안 믿는다**(지적 4단계: "맵이 까맣게 변함. 미니맵
          오버레이 키면 프레임 안 그려져 있음") ──────────────────────────────────────
@@ -13511,9 +13516,19 @@ export default function ReplayMotionPlayer({
      · 보이는 창이 보낸 사각형 안에 있는 동안은 다시 안 보낸다(본 화면 cullRect9 와 같은 규약 — 시야가 바뀌면 워커가 새로 짓는다).
      · 칸 창을 아직 모르면(분할이 선 첫 장) 지도 전체다 — 붓이 첫 장을 칠해야 창이 선다. */
   type CullR9 = { x0: number; x1: number; y0: number; y1: number };
+  /** 칸 창이 보낸 컬링 사각형 밖으로 나갔을 때 렌더를 한 번 부른다(splitPaint9 — 사각형은 렌더가 낸다). rAF 마다 불려도 한 번만 건다. */
+  const [, setSplitCullTick9] = useState(0);
+  const splitCullKickRef9 = useRef(false);
+  const splitCullKick9 = (): void => {
+    if (splitCullKickRef9.current) return;
+    splitCullKickRef9.current = true;
+    setSplitCullTick9((n9) => n9 + 1);
+  };
+  splitCullKickRef9.current = false;
   const splitCullSentRef9 = useRef<{ key: string; byRaw: Map<string, CullR9>; all: CullR9[]; team: Record<number, CullR9[]> } | null>(null);
   const splitCull9 = ((): { all: CullR9[]; team: Record<number, CullR9[]> } | null => {
-    if (!splitOn9 || !splitLay9) { splitCullSentRef9.current = null; return null; }
+    /* `#splitcull=0` — 칸 컬링을 끈다(견줌용 · 지도 전체를 짓는다). */
+    if (!splitOn9 || !splitLay9 || (typeof location !== "undefined" && /splitcull=0/.test(location.hash))) { splitCullSentRef9.current = null; return null; }
     const cells9 = splitLay9.cells;
     const key9 = cells9.map((c9) => c9.raw).join("|") + "#" + (splitPick9 ?? "");
     const gw = Math.max(1, grid.width);
@@ -14321,6 +14336,7 @@ export default function ReplayMotionPlayer({
   useEffect(() => {
     if (splitOn9) return;
     splitGlideRef9.current.clear(); splitShowRef9.current.clear(); splitSelRef9.current.clear();   // 다시 켤 때 옛 자리에서 미끄러지지 않게
+    splitViewRef9.current.clear(); splitCamRef9.current.clear();   // 옛 창으로 첫 컬링 사각형을 내지 않게(splitCull9)
     teamFogPathRef9.current.clear();
     teamLerpRef9.current.clear();
   }, [splitOn9]);
@@ -14682,6 +14698,18 @@ export default function ReplayMotionPlayer({
         splitShowRef9.current.set(cell9.raw, { x: cx9, y: cy9 });
       }
       splitViewRef9.current.set(cell9.raw, { cx: cx9, cy: cy9, w: wf9, h: hf9 });   // 미니맵의 네모(누른 칸)
+      /* ★ 칸 창이 워커에 보낸 컬링 사각형(splitCull9) 밖으로 나가면 **곧장** 다시 보낸다(2026-10, 지적: "분할창에서 모델이 안그려지는
+         현상") — 그 사각형은 렌더가 내므로 여태는 다음 React 렌더(재생 중 100ms · **멈춤 중엔 영영**)까지 칸이 옛 사각형으로 지은 장을
+         칠해, 카메라가 옮겨 간 자리에 몸이 없었다. 카메라가 데려갈 자리(cam9)까지 아울러 보고 밖이면 렌더를 한 번 부른다. */
+      {
+        const r9 = splitCullSentRef9.current?.byRaw.get(cell9.raw);
+        if (r9) {
+          const tx9 = wf9 >= 1 ? 0.5 : Math.min(1 - wf9 / 2, Math.max(wf9 / 2, cam9.x));
+          const ty9 = hf9 >= 1 ? 0.5 : Math.min(1 - hf9 / 2, Math.max(hf9 / 2, cam9.y));
+          if (Math.min(cx9, tx9) - wf9 / 2 < r9.x0 || Math.max(cx9, tx9) + wf9 / 2 > r9.x1
+            || Math.min(cy9, ty9) - hf9 / 2 < r9.y0 || Math.max(cy9, ty9) + hf9 / 2 > r9.y1) splitCullKick9();
+        }
+      }
       /* 팬 — 지도 분수 (cx9, cy9) 가 칸 한가운데에 앉게(붓의 zx·zy 를 거꾸로 푼다). */
       const pan9 = {
         x: x09 + wC9 / 2 - cw9 / 2 - (cx9 - 0.5) * cw9 * zc9,
