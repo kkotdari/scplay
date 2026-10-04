@@ -116,6 +116,11 @@ const LEAVE_N9 = 8;
 const HARASS9 = { k: 4, tail: 12 };
 /** 맞대결(자동 분할)을 장면의 마지막 사건 뒤 이만큼 더 둔다(초) — 끝나자마자 한 화면으로 접히면 결말이 안 읽힌다. */
 const DUEL_TAIL9 = 2;
+/** 싸움터 가름(duel9 의 turf9Of) — home: 한 진영 몫이 이 위면 그 사람이 방어 · min: 자리를 아는 몸값이 맞대결 몸값의 이
+ *  몫 아래면 안 쓴다 · near: 두 출발 자리가 이 타일 안이면 안 쓴다(가를 선이 없다). */
+const TURF9 = { home: 0.65, min: 0.4, near: 12 };
+/** 유닛의 죽은 자리를 명령으로 어림하는 창(초) — 그보다 오래된 명령은 그 몸이 어디 있었는지 못 말한다. */
+const LOC_W9 = 25;
 
 /** 변태로 난 몸의 **누적** 몸값 — 표의 값은 변태 비용뿐이라 밑몸 값을 더해 준다. */
 const MORPH_BASE9: Record<string, string> = {
@@ -152,7 +157,9 @@ const CAST_W9: Record<string, number> = {
 /** 한 사건 — 시각·사람·무게 · `tail` 은 이 사건 뒤 장면을 열어 두는 초(없으면 GAP9). */
 type Ev9 = { sec: number; raw: string; w: number; why: string; tail?: number;
   /** 맞상대(죽인 쪽이면 잃은 사람 · 잃은 쪽이면 죽인 사람) · 준 몸값(죽인 쪽) · 잃은 살림 값(일꾼·건물 · 잃은 쪽). */
-  vs?: string; dealt?: number; econ?: number };
+  vs?: string; dealt?: number; econ?: number;
+  /** 잃은 자리(타일 · 잃은 쪽 사건만) — 싸움이 **누구 진영에서** 났나를 재는 자다(duel9). 모르면 없다. */
+  x?: number; y?: number };
 
 /** 편성표를 굽는다 — 참값 한 벌에 한 번이다(재생 중에는 짚기만 한다). */
 export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
@@ -238,7 +245,32 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   };
 
   /** 죽음 한 벌 — 한꺼번에 사라지는 '나감'을 걸러 내려고 먼저 모은다. */
-  type D9 = { sec: number; owner: number; v: number; bld: boolean; killer: number; wk: boolean };
+  type D9 = { sec: number; owner: number; v: number; bld: boolean; killer: number; wk: boolean; x?: number; y?: number };
+  /** 죽은 자리(타일) — 건물은 제 자리(bornX/Y · 앉은 자리가 여럿이면 마지막) · 유닛은 죽기 전 `LOC_W9` 초 안의 마지막 명령
+   *  자리(참값 생애는 죽은 자리를 안 든다 — 명령이 '어디에 가 있었나'의 가장 가까운 어림이다) · 그도 없으면 막 태어난 몸의
+   *  태어난 자리 · 모르면 null. */
+  const deadAt9 = (e9: (typeof world.lives)[number], sec9: number): { x: number; y: number } | null => {
+    if (e9.bld) {
+      const s9 = e9.sites.length > 1 ? e9.sites[e9.sites.length - 1] : null;
+      return s9 ? { x: s9[1] + 1, y: s9[2] + 1 } : { x: e9.bornX, y: e9.bornY };
+    }
+    for (let i9 = e9.orders.length - 1; i9 >= 0; i9 -= 1) {
+      const o9 = e9.orders[i9];
+      if (o9[0] > sec9) continue;
+      if (o9[0] >= sec9 - LOC_W9) return { x: o9[1], y: o9[2] };
+      break;
+    }
+    return sec9 - e9.born <= LOC_W9 ? { x: e9.bornX, y: e9.bornY } : null;
+  };
+  /** 사람 → 출발 자리(그 사람의 가장 먼저 난 건물 · 분할 칸 배치의 splitStart9 와 같은 자). */
+  const start9 = new Map<string, { x: number; y: number; t: number }>();
+  for (const e9 of world.lives) {
+    if (!e9.bld) continue;
+    const r9 = rawOf9.get(e9.owner);
+    if (!r9) continue;
+    const s9 = start9.get(r9);
+    if (!s9 || e9.born < s9.t) start9.set(r9, { x: e9.bornX, y: e9.bornY, t: e9.born });
+  }
   const ds9: D9[] = [];
   for (const e9 of world.lives) {
     if (e9.died === null) continue;
@@ -255,8 +287,9 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     }
     if (e9.end !== "atk") continue;   // morph·own·끝까지 삶은 죽음이 아니다
     const wk9 = !e9.bld && unitOf(e9.kind).worker;
+    const at9 = deadAt9(e9, e9.died);
     ds9.push({ sec: e9.died, owner: e9.owner, v: wk9 ? v9 * HARASS9.k : v9, bld: e9.bld, wk: wk9,
-      killer: killerOf9(e9.tag, e9.died, e9.owner) });
+      killer: killerOf9(e9.tag, e9.died, e9.owner), ...(at9 ?? {}) });
   }
   ds9.sort((a9, b9) => a9.sec - b9.sec);
   /* ★ **나간 사람의 몸은 교전이 아니다** — 팀전에서 한 사람이 나가면 그 몸이 한 프레임에
@@ -288,7 +321,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     if (kill9) evs9.push({ sec: d9.sec, raw: kill9, w: d9.v * (d9.bld ? BLD_K9 : 1), why: why9, tail: tail9,
       vs: mine9, dealt: d9.v });
     if (mine9) evs9.push({ sec: d9.sec, raw: mine9, w: d9.v * LOSS_K9, why: d9.bld ? "건물 잃음" : d9.wk ? "견제 당함" : "교전", tail: tail9,
-      vs: kill9, econ: d9.bld || d9.wk ? d9.v : 0 });
+      vs: kill9, econ: d9.bld || d9.wk ? d9.v : 0, x: d9.x, y: d9.y });
   }
   for (const [sec9, , , tech9, own9] of world.casts) {
     const w9 = CAST_W9[tech9];
@@ -302,11 +335,13 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   /* ── 장면으로 묶기 ────────────────────────────────────────────────────────── */
   type Sc9 = { t0: number; t1: number; by: Map<string, number>; why: string; tail: number;
     /** "a>b" → a 가 b 에게 준 몸값 · 사람 → 잃은 살림 값(맞대결의 자 — 아래 duel9). */
-    pair: Map<string, number>; econ: Map<string, number> };
+    pair: Map<string, number>; econ: Map<string, number>;
+    /** 잃은 자리들 [사람, x, y, 몸값] — 싸움터가 누구 진영인가(duel9). */
+    locs: [string, number, number, number][] };
   const scs9: Sc9[] = [];
   for (let i9 = 0; i9 < evs9.length;) {
     const sc9: Sc9 = { t0: evs9[i9].sec, t1: evs9[i9].sec, by: new Map(), why: evs9[i9].why, tail: GAP9,
-      pair: new Map(), econ: new Map() };
+      pair: new Map(), econ: new Map(), locs: [] };
     let top9 = 0;
     let j9 = i9;
     /* 다음 사건이 **앞 사건의 꼬리**(견제면 HARASS9.tail · 그 밖은 GAP9) 안이면 같은 장면이다. */
@@ -317,6 +352,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       sc9.by.set(e9.raw, (sc9.by.get(e9.raw) ?? 0) + e9.w);
       if (e9.vs && e9.dealt) sc9.pair.set(`${e9.raw}>${e9.vs}`, (sc9.pair.get(`${e9.raw}>${e9.vs}`) ?? 0) + e9.dealt);
       if (e9.econ) sc9.econ.set(e9.raw, (sc9.econ.get(e9.raw) ?? 0) + e9.econ);
+      if (e9.x !== undefined && e9.y !== undefined && e9.vs) sc9.locs.push([e9.raw, e9.x, e9.y, e9.dealt ?? e9.w / LOSS_K9]);
       /* 꼬리표는 그 장면에서 **가장 무거운 사건**의 것이다 — 핵 한 발이 든 교전은 '핵'이다. */
       if (e9.w > top9) { top9 = e9.w; sc9.why = e9.why; }
       j9 += 1;
@@ -404,6 +440,33 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
    *  · 몫 — **잃은 살림**(일꾼·건물)으로 가른다: 침공·드랍·견제는 지키는 쪽의 일꾼·건물이 죽는 일이고, 군대끼리의 싸움은
    *    살림이 안 죽는다. 둘의 살림 손실이 맞대결 몸값의 25% 아래면 교전 · 둘이 엇비슷하게(0.6배 안) 잃었으면 교전 ·
    *    아니면 더 잃은 쪽이 방어, 다른 쪽이 공격이다. ⚠ '누가 더 죽였나'로 가르지 마라 — 막아 낸 방어가 더 많이 죽인다. */
+  /** ★ **싸움터가 누구 진영인가**(2026-10, 지적: "포토러시 간 사람이 공격인데 방어로 나오는 현상") — 잃은 살림만 보면
+   *  프록시 러시가 뒤집힌다: 러시한 쪽의 파일런·캐논(건물 = 살림)이 **상대 본진에서** 부서지므로 그쪽이 더 잃은 쪽이 되어
+   *  방어로 섰다. 이제 그 장면의 죽음 자리를 두 사람의 출발 자리를 잇는 선에 사영해(0 = 주인공 본진 · 1 = 상대 본진) 몸값으로
+   *  무게를 둔 '주인공 진영 몫'을 낸다 — 1 에 가까우면 주인공의 땅이 싸움터이니 방어다. 자리를 아는 몸값이 맞대결의
+   *  `TURF9.min` 에 못 미치거나 출발 자리가 `TURF9.near` 타일 안에서 겹치면 null(옛 살림 자로 물러난다). */
+  const turf9Of = (sc9: Sc9, pick9: string, foe9: string): number | null => {
+    const a9 = start9.get(pick9);
+    const b9 = start9.get(foe9);
+    if (!a9 || !b9) return null;
+    const dx9 = b9.x - a9.x;
+    const dy9 = b9.y - a9.y;
+    const L9 = dx9 * dx9 + dy9 * dy9;
+    if (L9 < TURF9.near * TURF9.near) return null;
+    let home9 = 0;
+    let all9 = 0;
+    for (const [r9, x9, y9, v9] of sc9.locs) {
+      if (r9 !== pick9 && r9 !== foe9) continue;
+      const u9 = ((x9 - a9.x) * dx9 + (y9 - a9.y) * dy9) / L9;
+      /* 가운데 띠(0.35~0.65)는 어느 진영도 아니다 — 무게만 센다(곧 '가운데 싸움'이면 몫이 0.5 로 모인다). */
+      home9 += v9 * (u9 <= 0.35 ? 1 : u9 >= 0.65 ? 0 : 0.5);
+      all9 += v9;
+    }
+    let pair9 = 0;
+    for (const [k9, v9] of sc9.pair) if (k9 === `${pick9}>${foe9}` || k9 === `${foe9}>${pick9}`) pair9 += v9;
+    if (all9 <= 0 || all9 < pair9 * TURF9.min) return null;
+    return home9 / all9;
+  };
   const duel9 = (sc9: Sc9, pick9: string): Duel9 | undefined => {
     let foe9 = "";
     let fw9 = 0;
@@ -413,10 +476,16 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       if (w9 > fw9) { fw9 = w9; foe9 = o9; }
     }
     if (!foe9) return undefined;
-    const eP9 = sc9.econ.get(pick9) ?? 0;
-    const eF9 = sc9.econ.get(foe9) ?? 0;
     let role9: CastRole9 = "war";
-    if (eP9 + eF9 >= fw9 * 0.25 && !(eP9 >= eF9 * 0.6 && eF9 >= eP9 * 0.6)) role9 = eP9 > eF9 ? "def" : "atk";
+    const turf9 = turf9Of(sc9, pick9, foe9);
+    if (turf9 !== null) role9 = turf9 >= TURF9.home ? "def" : turf9 <= 1 - TURF9.home ? "atk" : "war";
+    if (turf9 === null || role9 === "war") {
+      /* 싸움터를 못 가르면(가운데 · 자리를 모름 · 출발 자리가 겹침) 옛 자 — 잃은 살림 — 로 간다. */
+      const eP9 = sc9.econ.get(pick9) ?? 0;
+      const eF9 = sc9.econ.get(foe9) ?? 0;
+      if (eP9 + eF9 >= fw9 * 0.25 && !(eP9 >= eF9 * 0.6 && eF9 >= eP9 * 0.6)) role9 = eP9 > eF9 ? "def" : "atk";
+      else role9 = "war";
+    }
     return { foe: foe9, role: role9, foeTo: sc9.t1 + (sc9.tail - GAP9) + DUEL_TAIL9 };
   };
   /** 마지막 토막이 선 시각(없으면 -1000) · 그 무게. */

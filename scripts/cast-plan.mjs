@@ -92,6 +92,34 @@ const ok = [
 ];
 for (const [name, pass] of ok) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 
+/* ── ⑦ 포토러시 — 러시한 쪽이 공격이다(2026-10, 지적: "포토러시 간 사람이 공격인데 방어로 나오는 현상") ──
+   R(0)의 파일런·캐논 둘이 **Z 본진**(100,100)에서 부서지고(건물 = 살림), Z(1)는 캐논에 드론 하나를 잃고 R 의 프로브도 잡는다. 잃은 살림만 보면
+   R 이 더 잃어 방어로 뒤집혔다 — 싸움터가 Z 진영이므로 R 공격 · Z 방어라야 한다. */
+let ptag = 5000;
+const pl = [];
+const pmk = (o, kind, bld, x, y, born, died, end, orders = []) => {
+  const e = { tag: (ptag += 1), owner: o, kind, born, bornX: x, bornY: y, died, end, bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders };
+  pl.push(e);
+  return e;
+};
+pmk(0, "Nexus", true, 10, 10, 0, null, "");
+pmk(1, "Hatchery", true, 100, 100, 0, null, "");
+const pr = [pmk(0, "Pylon", true, 95, 95, 100, 200, "atk"), pmk(0, "Photon Cannon", true, 96, 97, 130, 202, "atk"),
+  pmk(0, "Photon Cannon", true, 97, 95, 132, 204, "atk")];
+const pd = [pmk(1, "Drone", false, 100, 100, 50, 193, "atk", [[185, 98, 99, false]])];
+// 러시한 프로브도 Z 본진에서 잡힌다(명령 자리 96,96) — 옛 살림 자로는 R 600 : Z 200 이라 R 이 '방어'로 뒤집혔다
+pr.push(pmk(0, "Probe", false, 10, 10, 20, 196, "atk", [[180, 96, 96, false]]));
+const pkills = [...pr.map((e) => [e.died, 1, 0, e.tag]), ...pd.map((e) => [e.died, 0, 0, e.tag])];
+const pw = { players: [{ owner: 0, name: "R", race: "프로토스", color: "#ff0", team: 1 }, { owner: 1, name: "Z", race: "저그", color: "#0f0", team: 2 }],
+  lives: pl, ups: [], casts: [], pings: [], resFields: [], kills: pkills };
+const pplan = castPlan9(pw, { total: 400 }).filter((s) => !s.cyc && s.foe);
+console.log(`\n포토러시: ${pplan.map((s) => `${s.at.toFixed(0)}s ${s.raw} ${s.role} ⚔ ${s.foe}`).join(" · ")}`);
+const rOf = (s) => (s.raw === "R" ? s.role : s.role === "atk" ? "def" : s.role === "def" ? "atk" : "war");
+for (const [name, pass] of [
+  ["포토러시는 러시한 R 이 공격", pplan.length > 0 && pplan.every((s) => rOf(s) === "atk")],
+]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+
 /* ── ⑥ 순환 차례 — 2v2 · 사건 없는 60초(2026-09, 요청: "순환할때 순서를 로스터 순으로 팀 번갈아가며") ── */
 const q4 = { players: [0, 1, 2, 3].map((o) => ({ owner: o, name: "PQRS"[o], race: "테란", color: "#fff", team: o < 2 ? 1 : 2 })),
   lives: [0, 1, 2, 3].map((o) => ({ tag: 900 + o, owner: o, kind: "Command Center", born: 0, bornX: 10, bornY: 10, died: null, end: "",
