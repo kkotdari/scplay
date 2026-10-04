@@ -17513,7 +17513,7 @@ export default function ReplayMotionPlayer({
      래디우스 작게) · 아랫줄에 현황") — 옛 판은 미니맵 + 인포창 틀의 맨 윗줄이었다. 쇠판 위 끝보다 한 뼘 솟은 어두운 우물이다.
      이름 칩은 로스터 사람들의 이름표를 같은 격자 칸에 숨겨 겹쳐(-ghost) 폭을 미리 잡는다 — 사람이 갈려도 판이 안 흔들린다. */
   /* (걷어냄) 사람 정보 판(whoNode9 · .scr-tb-who) — 2026-09, 요청: "유저창 완전 제거". 가운데 칸은 비어 아이콘 줄·꼬리만 양 끝에 선다. */
-  /* ★ 접기 손잡이는 **재생 줄의 시계 옆**이다(2026-09, 요청: "접기버튼을 시간표시 옆으로 이동 접혔을때 인포창아예 안남게") —
+  /* ★ 접기 손잡이는 이제 **버튼 줄 정가운데**다(2026-10 — 아래 JSX). 옛 자리: **재생 줄의 시계 옆**(2026-09, 요청: "접기버튼을 시간표시 옆으로 이동 접혔을때 인포창아예 안남게") —
      접으면 독 줄(미니맵 + 인포창)이 통째로 사라진다(.scr-fs-dockrow.is-fold). 옛 자리: 아래 주석의 틀 오른 끝·인포창 안 귀퉁이.
      접기 손잡이(2026-09, 요청: "프레임모드에도 독 접기 버튼 추가" · "접기버튼은 유저정보말고 독 프레임 어딘가") — 프레임·전체화면
      둘 다 먹는다(옛 '전체화면에만'을 되물림). ★ 자리는 **틀의 오른 끝 기둥 위쪽**이다(2026-09, 요청: "접기버튼을 독 우상단으로
@@ -18374,6 +18374,9 @@ export default function ReplayMotionPlayer({
           >
             <div className="scr-tb-btnrow">
               {mapBtnRow}
+              {/* 접기 손잡이 — 버튼 줄 **정가운데**(2026-10, 요청: "접기버튼을 버튼줄 정가운데에" · 옛 자리 재생 줄의 시계 옆).
+                  양 무리의 폭이 달라도 가운데이게 절대 자리로 선다(replay.css .scr-tb-btnrow > .scr-motion-infodock-fold). */}
+              {dockFoldNode9}
               <div className="scr-tb-tail">
                 {/* ★ 장면 스크랩 — 앱이 onScrap을 주면 여기서 그린다(위 프롭 주석). 차례는 안내(ReplayGuide)와 같다:
                     스크랩(Z) → 공유(X) → 사용법. 꼴은 같은 줄의 공유·사용법과 한 벌이다(.scr-scrapbtn). */}
@@ -18423,7 +18426,7 @@ export default function ReplayMotionPlayer({
                 </button>
               </div>
             </div>
-            <div className="scr-tb-seek">{speedNode9}{controlsNode}{dockFoldNode9}</div>
+            <div className="scr-tb-seek">{speedNode9}{controlsNode}</div>
           </div>
         </div>
         {/* 재생 품질(위 QUALITY9) — 진입·벤치 변경 때 무대 오른쪽 위에 3초. 지도 상자 안에 두면 배율·팬·입체 변환을

@@ -3302,7 +3302,10 @@
   box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 /* 단추 줄은 [아이콘 줄 … 꼬리] 양 끝 한 줄이다(2026-09, 요청: "유저창 완전 제거" — 가운데 정보 판 칸을 걷었다). */
-.scr-tb-btnrow { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-width: 0; }
+.scr-tb-btnrow { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-width: 0; position: relative; }
+/* 접기 손잡이는 버튼 줄 **정가운데**다(2026-10, 요청: "접기버튼을 버튼줄 정가운데에") — 양옆 무리의 폭이 달라(PC 왼 다섯 · 오른 넷)
+   흐름에 두면 한쪽으로 쏠리므로 줄의 절대 가운데에 띄운다. */
+.scr-tb-btnrow > .scr-motion-infodock-fold { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); margin: 0; }
 .scr-tb-tail { display: flex; align-items: center; gap: 6px; flex: none; margin-left: auto; }
 /* (걷어냄) 사람 정보 판(.scr-tb-who*) — 2026-09, 요청: "유저창 완전 제거". 현황 꼴(.scr-who-*)은 분할 칸 머리가 쓴다. */
 /* ★★ 현황 칸은 **값마다 제 폭 · 오른쪽 맞춤 · 사이 | **(2026-09, 요청: "스탯들 표시 방법 변경 라벨위치는 고정하고 데이터는 우측정렬 ·
