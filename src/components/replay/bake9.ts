@@ -2368,13 +2368,16 @@ export function bootFaces(
  *  네모였다. 다리는 컷마다 보폭만큼 흔들리는데 표식만 제자리에 남으니, 걸을 때 허벅지가
  *  표식을 빠져나간다. `suitLegs` 가 쓰는 그 식을 여기로 빼 **둘이 같은 자리를 본다**.
  *  ⚠ 무릎은 보폭이 있으면 두 마디 길이로 푼다(jointBetween) — 손으로 밀면 마디가 늘어난다. */
+const SUIT_STRIDE_K9 = 1.5;
 export function suitLegJoints9(m: -1 | 1, spread: number, stride = 0, zk = 1): {
   hip: [number, number, number]; knee: [number, number, number]; ankle: [number, number, number];
 } {
   /* 여섯 컷 걸음(gaitLeg9) — 다리마다 제 위상의 보폭·들림·엉덩이 낮춤을 탄다. 보폭의 크기는 넘겨받은 stride(= 폭 × walkDir)에서 되푼다. */
   const g9 = stride !== 0 ? gaitLeg9(m) : null;
   const amp9 = g9 ? Math.abs(stride / (walkDir() || 1)) : 0;
-  const st = g9 ? g9.f * amp9 : m * stride;
+  /* 보폭은 SUIT_STRIDE_K9 배(2026-10, 요청: "테란 보병들 앞뒤로 다리 뻗는게 좀더 시원시원해야할듯 좀더 각이 커져야함") —
+     들림(lift9)은 옛 amp9 그대로 둔다(보폭만 넓힌다). */
+  const st = g9 ? g9.f * amp9 * SUIT_STRIDE_K9 : m * stride;
   /* 테란 보병은 보폭이 작아(0.3) 앞발 띄움(fl)을 한 단 더 준다 — 같은 몫이면 0.12 라 군화가 땅에 붙어 보였다. */
   const lift9 = g9 ? (g9.lift * 0.9 + g9.fl * 1.7) * amp9 : Math.max(0, st) * 0.2112;
   const reach9 = g9 ? g9.reach : st < 0 ? 1 : LEG_REACH9;
@@ -18832,8 +18835,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 여섯 컷 걸음(gaitLeg9) — 다리마다 제 위상. 받음(k1)·지나감(k5)에 무릎이 더 앞으로 나와 굽는다(골리앗은 관절을 손으로 놓는다). */
       const g9 = wd9 !== 0 ? gaitLeg9(m) : null;
       const st9 = g9 ? g9.f * 0.9 : m * wd9 * 0.9;
-      const lf9 = g9 ? g9.lift * 0.6 : Math.max(0, st9) * 0.35; const lf9z9 = lf9 * 0.8; /* z용 쌍둥이(model-z-scale ×0.8) */
-      const kb9 = g9 ? (g9.k === 1 ? 0.45 : g9.k === 5 ? 0.6 : g9.k === 0 ? 0 : 0.2) : 0;
+      /* 앞으로 뻗는 닿음 컷(k0)은 보병처럼 발을 공중에 띄우고(fl) 무릎을 살짝 굽힌다(2026-10, 요청: "골리앗도 앞다리 공중에서 살짝 굽혀 뻗게"). */
+      const lf9 = g9 ? g9.lift * 0.6 + g9.fl * 1.0 : Math.max(0, st9) * 0.35; const lf9z9 = lf9 * 0.8; /* z용 쌍둥이(model-z-scale ×0.8) */
+      const kb9 = g9 ? (g9.k === 1 ? 0.45 : g9.k === 5 ? 0.6 : g9.k === 0 ? 0.18 : 0.2) : 0;
       const key = depthNow(m * 1.5, 0) * 1.6 - 2;
       const hip: [number, number, number] = [m * 1.35, -0.15, 3.44];
       const knee: [number, number, number] = [m * 1.6, 1.15 + st9 * 0.55 + kb9 * 0.5, 2.2 + lf9 * (g9 ? 0.9 : 0.4) - kb9 * 0.2];
