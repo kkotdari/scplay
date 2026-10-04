@@ -818,6 +818,23 @@ if (has("--infoprobe")) {
   }
   console.log(`[자동 팝업] 처음 ${JSON.stringify(a9)} · 재생 뒤 ${JSON.stringify(b9)} (시계 ${tb9})`);
 }
+/* 시계 자(--clockprobe) — 재생바를 끌고 난 뒤에도 시계 글자가 흐르나 본다(2026-10, 지적: "시간표시부분이 안바뀌는 문제").
+   진짜 마우스로 손잡이 가운데를 눌러 끌고 놓은 뒤, 재생 중 1.5초 간격으로 시계 글자를 두 번 읽는다(같으면 멈춘 것이다). */
+if (has("--clockprobe")) {
+  const rd9 = () => page.evaluate(() => document.querySelector(".scr-motion-clock")?.textContent ?? "?");
+  const bx9 = await page.evaluate(() => { const r = document.querySelector("input[type=range]")?.getBoundingClientRect(); return r ? [r.left, r.top, r.width, r.height] : null; });
+  const c0 = await rd9();
+  if (bx9) {
+    const y9 = bx9[1] + bx9[3] / 2;
+    await page.mouse.move(bx9[0] + bx9[2] * 0.3, y9); await page.mouse.down();
+    await page.mouse.move(bx9[0] + bx9[2] * 0.5, y9, { steps: 6 }); await page.mouse.up();
+  }
+  const c1 = await rd9();
+  await page.evaluate(() => { const b = [...document.querySelectorAll("button")].find((e) => /재생|play/i.test(e.getAttribute("aria-label") ?? "")); if (b && /재생/.test(b.getAttribute("aria-label") ?? "") && !/정지|멈/.test(b.getAttribute("aria-label") ?? "")) b.click(); });
+  await page.waitForTimeout(1500); const c2 = await rd9();
+  await page.waitForTimeout(1500); const c3 = await rd9();
+  console.log(`[시계] 처음 ${c0} · 끈 뒤 ${c1} · 1.5초 ${c2} · 3초 ${c3} → ${c2 !== c3 ? "흐름 ✔" : "멈춤 ✘"}`);
+}
 /* 안개 자(--fogprobe [초]) — 자동 중계가 사람을 갈아탈 때 안개가 깜빡이나 본다(2026-10, 지적: "자동에서 선수 전환될때 안개 깜빡임").
    rAF 마다 안개 캔버스를 32×32 로 줄여 어두운 몫(알파 평균)을 재고, 이웃 장보다 크게 튄 장(앞뒤 장과 둘 다 0.08 넘게 다르다 =
    한 장짜리 깜빡임)을 센다. 갈아탄 시각은 window.__scrDiag.cast(있으면)로 찍는다. */

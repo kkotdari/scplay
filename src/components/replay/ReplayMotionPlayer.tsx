@@ -16470,8 +16470,12 @@ export default function ReplayMotionPlayer({
             숫자폭 빈칸(U+2007)으로 앞을 채워 글자 수를 늘 같게 만든다. tabular-nums와
             짝이라 빈칸 하나가 숫자 하나와 정확히 같은 폭이다. */}
         <span className="scr-motion-clockwrap" style={{ fontVariantNumeric: "tabular-nums" }}>
+          {/* ⚠ 글자는 **한 문자열**이어야 한다 — `{a} / {b}` 꼴이면 React 가 글 노드 셋을 따로 들고 있는데,
+              끌기 중의 직접 쓰기(textContent)가 그 셋을 갈아 끼워 React 가 떨어진 노드만 고치게 된다
+              (한 번이라도 끌고 나면 시계가 그 자리에 멈췄다 · 지적: "시간표시부분이 안바뀌는 문제").
+              문자열 하나면 React 도 이 요소의 textContent 로 고치므로 두 손이 같은 자리를 쓴다. */}
           <span className="scr-motion-clock" ref={clockElRef9}>
-            {fmtClock(t).padStart(fmtClock(total).length, "\u2007")} / {fmtClock(total)}
+            {`${fmtClock(t).padStart(fmtClock(total).length, "\u2007")} / ${fmtClock(total)}`}
           </span>
         </span>
       </div>
