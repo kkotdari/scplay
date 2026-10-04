@@ -799,12 +799,33 @@ export function withModelWarpOut<T>(
     modelWarpOut = p;
   }
 }
+/** ★ 걸음 상체 비틀림 칸(2026-10 · bake9 gaitTwistB9) — modelWarpOut **다음**에 태우는 셋째 칸이다. 상체를 통째로 세로축 둘레로
+ *  돌리고, 다리·머리는 이 칸만 null(또는 평행이동)로 바꿔 끼워 빠진다(안쪽 두 칸은 그대로 남는다). */
+let modelWarpTw: ((x: number, y: number, z: number) => [number, number, number]) | null = null;
+export function withModelWarpTw<T>(
+  warp: ((x: number, y: number, z: number) => [number, number, number]) | null, fn: () => T,
+): T {
+  const p = modelWarpTw;
+  modelWarpTw = warp;
+  try {
+    return fn();
+  } finally {
+    modelWarpTw = p;
+  }
+}
+/** 비틀림 칸 **앞**까지(안쪽 두 비틀기)만 태운 모형 점 — 머리를 몸통 비틀림에 평행이동만 시키려고 그 자리를 잰다. */
+export function preTwistPoint9(x0: number, y0: number, z0: number): [number, number, number] {
+  if (modelWarp) [x0, y0, z0] = modelWarp(x0, y0, z0);
+  if (modelWarpOut) [x0, y0, z0] = modelWarpOut(x0, y0, z0);
+  return [x0, y0, z0];
+}
 /** 모형 좌표 하나를 **모델 변환만** 태운다(배율·평행이동·회전) — 요잉·시점·사영은 안 탄다.
  *  빌더가 제 부품 좌표로 적은 점(총구 등)을 그 빌더를 감싼 withModelScale·Shift·Spin을
  *  거친 '판의 모형 좌표'로 옮기는 데 쓴다. project의 앞 두 줄과 같은 셈이다. */
 export function modelPoint9(x0: number, y0: number, z0: number): [number, number, number] {
   if (modelWarp) [x0, y0, z0] = modelWarp(x0, y0, z0);
   if (modelWarpOut) [x0, y0, z0] = modelWarpOut(x0, y0, z0);
+  if (modelWarpTw) [x0, y0, z0] = modelWarpTw(x0, y0, z0);
   const z = z0 * modelZK + modelZOff;
   const [mx, my] = spun(x0 * modelXK + modelXOff, y0 * modelYK + modelYOff);
   return [mx, my, z];
@@ -813,6 +834,7 @@ export function modelPoint9(x0: number, y0: number, z0: number): [number, number
 export function project(x0: number, y0: number, z0: number): [number, number] {
   if (modelWarp) [x0, y0, z0] = modelWarp(x0, y0, z0);
   if (modelWarpOut) [x0, y0, z0] = modelWarpOut(x0, y0, z0);
+  if (modelWarpTw) [x0, y0, z0] = modelWarpTw(x0, y0, z0);
   const z = z0 * modelZK + modelZOff;
   // 모델 회전이 먼저다 — 돌아간 좌표를 카메라가 본다(카메라는 안 움직인다).
   const [mx, my] = spun(x0 * modelXK + modelXOff, y0 * modelYK + modelYOff);

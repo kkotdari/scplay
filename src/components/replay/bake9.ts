@@ -7,7 +7,7 @@ import { cx } from "./cx";
 import { TIER_GEN9 } from "./tierTable.gen";
 import { kT } from "../../utils/openbwTracks";
 import {
-  POLY2, MESH9, EMIT_FILL9, meshPut9, meshSphere9, shinePath3, annulusPath3, orbPath3, billPath3, billPoly3, meshLoft9, meshRing9, loftZFaces, modelPoint9, annulusPath, bandPath, bodyFace, shellFaces9, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, boxOctFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelWarp, withModelWarpOut, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
+  POLY2, MESH9, EMIT_FILL9, meshPut9, meshSphere9, shinePath3, annulusPath3, orbPath3, billPath3, billPoly3, meshLoft9, meshRing9, loftZFaces, modelPoint9, annulusPath, bandPath, bodyFace, shellFaces9, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, boxOctFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelWarp, withModelWarpOut, withModelWarpTw, preTwistPoint9, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
 import { BUILD_STAGES, GAIT_CYCLE9, LINK_CY_9, LINK_CZ_9, LINK_X0_9, linkLenOf9, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, type Pose9, SPIN_ANIM9, SPIN_STEPS, bldNormOf, modelInkOf, modelNormOf } from "./engine9";
 import { type UnitDrawOp } from "./engine9";
 /** 주소 해시(`#pitch=`·`#nocreep` 같은 진단 스위치) — 굽기 일꾼 안에서는 location.hash가 빈 문자열(blob 주소)이라,
@@ -747,6 +747,51 @@ export function gaitLeg9(m: -1 | 1): { f: number; lift: number; fl: number; reac
 }
 /** 걷는 몸의 낮춤 배수 — 여섯 컷 걸음이면 그 컷의 bob(받음에서 가장 낮다), 아니면 1(옛 고정 낮춤 그대로). 빌더의 몸 낮춤 dz 에 곱한다. */
 export const gaitBob9 = (): number => { const i9 = gaitIdx9(); return i9 < 0 ? 1 : GAIT_BOB9[i9 % 3]; };
+/* ★★ **걸을 때 상체는 디딘 다리의 반대로 돈다**(2026-10, 요청: "테란 플토 보병 걸을때 발 나가는쪽 어깨가 앞으로 나가게 몸통 자체
+   요잉도 주기" → 되물음 뒤: "머리는 정면 남기고 발나가는 방향 반대가 나가는게 맞아") — 사람 걸음의 그 꼴이다: 왼발(+x)이 앞이면
+   오른 어깨(−x)가 앞으로 온다. 여섯 컷의 몫(walkDir ±1 · ±0.5)을 그대로 타 한 바퀴의 코사인으로 오간다.
+   · 셈은 **셋째 비틀기 칸**(shapeOblique withModelWarpTw)이다 — 빌더를 통째로 고골반 가운데(0, py) 세로축 둘레로 강체 회전시키고,
+     **다리**(suitLegs·protossLegs · 다리에 붙은 표식)는 `noTwist9` 로 그 칸을 비워 빠지고, **머리**(suitHelmet·protossFace)는
+     `headKeep9` 로 몸이 옮긴 만큼 **평행이동만** 한다(정면을 본다). 안쪽 두 칸(pUpright9·pShrinkB9)은 그대로 남는다.
+   · 회전이 강체라 팔·총·연료통이 한 덩이로 돈다(높이로 비튼 전단이면 늘어뜨린 손과 어깨가 따로 돈다).
+   · 부호: spun 과 같은 꼴이라 +각이 +x 를 +y(앞)로 보낸다 — 왼발이 앞(walkDir +1)이면 각은 음수다. */
+export const GAIT_TWIST9 = 9;   // 상체가 도는 가장 큰 각(도)
+let twistRad9 = 0; let twistPy9 = 0;
+const twRot9 = (x: number, y: number, a: number, py: number): [number, number] => {
+  const c = Math.cos(a); const s9 = Math.sin(a);
+  return [x * c - (y - py) * s9, x * s9 + (y - py) * c + py];
+};
+/** 걷는 보병 빌더를 상체 비틀림으로 감싼다(py = 골반 가운데의 y). 걸음 컷이 아니면 손대지 않는다. */
+export function gaitTwistB9(fn: () => ShapeFace[], py: number): () => ShapeFace[] {
+  return () => {
+    const a9 = (-GAIT_TWIST9 * walkDir() * Math.PI) / 180;
+    if (!a9) return fn();
+    const p0 = twistRad9; const p1 = twistPy9;
+    twistRad9 = a9; twistPy9 = py;
+    try {
+      return withModelWarpTw((x, y, z) => { const [rx, ry] = twRot9(x, y, a9, py); return [rx, ry, z]; }, fn);
+    } finally {
+      twistRad9 = p0; twistPy9 = p1;
+    }
+  };
+}
+/** 상체 비틀림에서 빠진다(다리) — 비틀림이 없으면 그냥 부른다. */
+export function noTwist9<T>(fn: () => T): T {
+  if (!twistRad9) return fn();
+  const p0 = twistRad9;
+  twistRad9 = 0;
+  try { return withModelWarpTw(null, fn); } finally { twistRad9 = p0; }
+}
+/** 상체 비틀림에서 **도는 몫만** 빠진다(머리) — 기준점(hx, hy, hz · 빌더 자)이 몸과 함께 옮긴 만큼 평행이동만 한다. */
+export function headKeep9<T>(hx: number, hy: number, hz: number, fn: () => T): T {
+  if (!twistRad9) return fn();
+  const [px, py] = preTwistPoint9(hx, hy, hz);
+  const [qx, qy] = twRot9(px, py, twistRad9, twistPy9);
+  const dx = qx - px; const dy = qy - py;
+  const p0 = twistRad9;
+  twistRad9 = 0;
+  try { return withModelWarpTw((x, y, z) => [x + dx, y + dy, z], fn); } finally { twistRad9 = p0; }
+}
 /* 자원이 얼마나 남았나(요청: "미네랄 가스 고갈효과 표현 — 가스는 고갈시에 네온가스
    없애고 미네랄은 수에 따라 덩어리수 표현") — 굽는 동안만 서는 깃발이다(sunkenFire와
    같은 규약). 값은 참값이 싣는 단 그대로다: 4=750↑ · 3=500~749 · 2=250~499 · 1=1~249 ·
@@ -1695,6 +1740,7 @@ export function pHelmet9(lift = 0, s = 1): ShapeFace[] {
   return tagKey(out, key9);
 }
 export function protossFace(fill?: string, lift = 0, s = 1): ShapeFace[] {
+  if (twistRad9) return headKeep9(0, 0.3, 5.1 + lift, () => protossFace(fill, lift, s));   // 머리는 정면 — 몸통 비틀림에 평행이동만
   const L9 = lift; const L9z9 = lift; /* z용 쌍둥이(model-z-scale ×0.8) */
   const out: ShapeFace[] = [];
   /** 얼굴 달걀의 축 y와 반지름 — 눈을 껍질 위에 앉히려면 이 둘이 필요하다(위 pFace*와 같은 자). */
@@ -1983,6 +2029,7 @@ export function protossLegs(
    *  **덧씌우는** 까닭: 쪼개면 이음매에 뚜껑이 생겨 각도에 따라 단면이 비친다. */
   teamShin = 0,
 ): ShapeFace[] {
+  if (twistRad9) return noTwist9(() => protossLegs(thighFill, shinFill, lift, shrink, stride, thin, bend, tuck, teamShin));   // 다리는 상체 비틀림에서 빠진다
   const paint = (f: ShapeFace[], c?: string): ShapeFace[] => (c ? paintBase(f, c) : f);
   thin *= P_LEG_THIN9;
   /* 다리 길이 줄이기(요청: 하이템플러는 짧게) — 엉덩이(3.95)를 축으로 z를 눌러
@@ -2409,6 +2456,7 @@ export function suitLegs(
   /** 정강이(하지)만의 굵기 배수(요청: 메딕 하지 +5%). */
   shinK = 1,
 ): ShapeFace[] {
+  if (twistRad9) return noTwist9(() => suitLegs(g, spread, _kneeFill, stride, thin, zk, thighK, shinK));   // 다리는 상체 비틀림에서 빠진다
   const out: ShapeFace[] = [];
   for (const m of [-1, 1] as const) {
     /* 오른다리가 나가면 왼다리는 물러난다(부호가 m이다). 앞다리는 무릎이 들리므로
@@ -2848,6 +2896,7 @@ export function suitHelmet(
    *  목에 앉는 자리를 한 바퀴 도는 얇은 고리다. */
   rimTeam = false,
 ): ShapeFace[] {
+  if (twistRad9) return headKeep9(0, cy, cz, () => suitHelmet(cy, cz, r, shell, glass, vk, glassAlpha, inner, rimTeam));   // 머리는 정면
   /* ★ 머리는 **늘 몸통 위**다(지적: 정면·후면에서 헬멧이 파란 몸통에 먹혀 안 보임)
      — 헬멧은 몸통 꼭대기보다 높은데 자리는 뒤로 물러나 있다(cy가 음수). 제 자리 깊이만
      들고 있으면 그 물러난 몫 때문에 몸통보다 뒤로 매겨져, 앞에서 볼 때 몸통이 머리를
@@ -24182,14 +24231,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 옅게 비쳐 헬멧이 빈 유리구로 읽힌다.
       // 유리는 껍데기보다 짙은 은색이어야 바이저로 갈려 읽힌다(같은 톤이면 통짜 은구).
       // 헬멧은 몸통을 비틀어도 **정면**을 본다(재요청: "공격시 몸 돌릴 때 얼굴·헬멧은 정면 향해야 함") — 비틀림을 되돌린다.
-      ...withModelSpin(-tw9, (): ShapeFace[] => [
+      ...headKeep9(0, -0.32, 3.8192, () => withModelSpin(-tw9, (): ShapeFace[] => [
       ...suitHelmet(-0.32, 3.8192, 0.62, TERRAN_STEEL, "#101318", 1, 0.72),   // 유리 앞은 짙은 검정(요청)
       /* 헬멧 귀 원판(사진 marine1 — 바이저 좌우의 둥근 볼트) — 껍데기 옆에 붙는 짧은
          원통. 머리와 같은 붙박이 키(+6)라 몸통에 안 먹힌다. */
       ...([-1, 1] as const).flatMap((m8) => tagKey(paintBase(
         quarterDome(m8 * 0.56, -0.28, 3.8368, 0.17, m8, 0, undefined, 0, 1), TERRAN_STEEL,
       ), depthNow(0, -0.28) * 1.6 + 6.2)),
-      ]),
+      ])),
       /* 가슴 통풍구 한 쌍(사진 marine1 — 흉갑 위쪽의 원형 그릴 둘) — 앞을 볼 때만
          그리는 어두운 원판 + 속의 밝은 심. 모델 좌표의 세로 판이라 몸과 함께 돈다. */
       ...(facingRatio(0, 1) > 0.1
@@ -24340,7 +24389,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          · 폭은 축과 x축에 모두 수직인 방향으로 ±0.11(옛 네모와 같은 폭).
          ★ 규약: **다리·팔에 얹는 띠·표식은 그 마디의 관절 자리에서 지어라** — 자세가 있는 모델에서
            모형 좌표 상수는 '서 있는 컷'에서만 맞는 값이다. */
-      ...([-1, 1] as const).flatMap((m8): ShapeFace[] => {
+      ...noTwist9(() => ([-1, 1] as const).flatMap((m8): ShapeFace[] => {   // 다리 표식은 상체 비틀림에서 빠진다
         if (facingRatio(m8, 0) < 0.12) return [];
         const { hip: hp9, knee: kn9 } = suitLegJoints9(m8, 0.62, 0.28 * wd);
         const at9x = (t9: number): [number, number, number] =>
@@ -24354,7 +24403,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           [q9[0] + RX9, q9[1] + sg9 * uy9, q9[2] + sg9 * uz9];
         return tagKey([[polyPath3([P9(A9, 1), P9(A9, -1), P9(B9, -1), P9(B9, 1)]), 1, RED] as ShapeFace],
           depthNow(A9[0] + RX9, A9[1]) * 1.6 - 0.6);
-      }),
+      })),
       /* ② 가슴 한복판을 흐르는 붉은 줄 — 앞을 볼 때만. 모델 좌표의 세로 판이라
          요잉·앞숙임을 몸과 똑같이 탄다. */
       ...(facingRatio(0, 1) > 0.1
@@ -24560,7 +24609,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       }),
       /* 무릎 데칼 한 쌍(사진 firebat2 — 무릎에 노란 불꽃 문양) — 무릎 앞에 붙는
          작은 노란 원판. 앞을 볼 때만 그린다. */
-      ...(facingRatio(0, 1) > 0.1
+      ...noTwist9(() => facingRatio(0, 1) > 0.1   // 무릎 표식은 상체 비틀림에서 빠진다
         ? ([-1, 1] as const).flatMap((m8) => tagKey([
           [wallDisc(m8 * 0.6, 0.32, 1.1792, 0.2, 0, 1), 1, "#e8c33a"] as ShapeFace,
           [wallDisc(m8 * 0.6, 0.34, 1.1968, 0.1, 0, 1), 1, "#b83a2c"] as ShapeFace,
@@ -28788,6 +28837,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
 SHAPE_BUILDERS.zealot = pShrinkB9(SHAPE_BUILDERS.zealot, ZEALOT_LEAN9, 0);
 SHAPE_BUILDERS.dtemp = pShrinkB9(SHAPE_BUILDERS.dtemp, DT_LEAN9, 0);
 SHAPE_BUILDERS.htemp = pShrinkB9(SHAPE_BUILDERS.htemp, HT_LEAN9, 1.28);
+/* 걷는 보병 여섯의 상체 비틀림(위 gaitTwistB9) — py 는 골반 가운데(테란 고관절 y −0.25 · 프로토스 −0.3 − P_LEG_BACK9). 하템은 떠 있어 안 건다. */
+for (const k9 of ["gunner", "fbat", "ghost", "inf"] as const) SHAPE_BUILDERS[k9] = gaitTwistB9(SHAPE_BUILDERS[k9], -0.25);
+for (const k9 of ["zealot", "dtemp"] as const) SHAPE_BUILDERS[k9] = gaitTwistB9(SHAPE_BUILDERS[k9], -0.3 - P_LEG_BACK9);
 SHAPE_BUILDERS.interceptor = () => {
   const GOLD9 = "#d4af37";
   const GLOW9 = "#bfe0ef";     // 청록 에너지 — 캐리어 조종석과 같은 색
