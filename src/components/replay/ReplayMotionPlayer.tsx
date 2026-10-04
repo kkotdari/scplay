@@ -249,7 +249,7 @@ const DOCK_MARK_PAD9 = 40;
 /** 카메라가 다시 잡을 때 미끄러지는 시간(ms) — 중계·개인 추적·분할 칸이 같은 값을 쓴다. */
 const CAM_GLIDE_MS9 = 450;
 /** 맞대결 자동 분할을 이만큼(경기 초) 앞서 팀 엔진을 데운다(splitTeamsKey9 의 ★). */
-const DUEL_WARM_SEC9 = 4;
+const DUEL_WARM_SEC9 = 2;
 /** 한 사람 중계가 다른 팀으로 갈아탄 뒤 그 팀 엔진을 이만큼(경기 초) 남겨 둔다 — 새 시야 갈래의 장이 올 때까지 팀 장이 빈틈을 메운다. */
 const CAST_SWAP_HOLD9 = 1.5;
 /** 미끄러짐의 그 순간 자리 — 끝났으면 null. ease-in-out(3차). */
@@ -7958,7 +7958,7 @@ export type PackedFrame9 = {
 /** 팀 장 한 벌 — 숫자 배열 + 눈 목록. 푼 것(dec)·보간 열쇠 표(byKey)는 쓸 때 붙인다. */
 export type TeamSub9 = {
   team: number; buf: Float32Array; strs: string[]; eyes: Float32Array | null;
-  dec?: { unitOps: UnitDrawOp[]; fxOps: FxOp[] };
+  dec?: { unitOps: UnitDrawOp[]; fxOps: FxOp[]; miniExtra: MiniDot[] };
   byKey?: Map<string, UnitDrawOp>;
 };
 /** 보간 열쇠 — 같은 개체의 같은 부위(몸·포탑·짐)를 두 장에서 잇는다. 열쇠가 없는 op(효과·장식)는 안 잇는다. */
@@ -7979,7 +7979,9 @@ function viewKeyOf9(v9: EngineView9): string {
     + `|${v9.geom.sox.toFixed(1)}`
     + `|${v9.viewTeam}|${v9.visAll ? 1 : 0}|${v9.fogOn ? 1 : 0}|s${v9.splitTeams?.join(",") ?? ""}`
     + `|${v9.qAnim ? 1 : 0}${v9.qBuildFx ? 1 : 0}${v9.qDeath ? 1 : 0}${v9.clickFx ? 1 : 0}`
-    + `|${v9.cull ? `${v9.cull.x0.toFixed(3)},${v9.cull.x1.toFixed(3)},${v9.cull.y0.toFixed(3)},${v9.cull.y1.toFixed(3)}` : "all"}`;
+    + `|${v9.cull ? `${v9.cull.x0.toFixed(3)},${v9.cull.x1.toFixed(3)},${v9.cull.y0.toFixed(3)},${v9.cull.y1.toFixed(3)}` : "all"}`
+    + `|${v9.cullList ? v9.cullList.map((r9) => `${r9.x0.toFixed(3)},${r9.x1.toFixed(3)},${r9.y0.toFixed(3)},${r9.y1.toFixed(3)}`).join(";") : "-"}`
+    + `|${v9.splitCull ? Object.keys(v9.splitCull).join(",") : "-"}`;
 }
 /** ★ 끄는 동안의 실시간 원근은 **기본으로 끈다**(주소에 `?live3d=1`이면 켠다) ────────────────────────
  *  지적 둘로 자리가 드러났다: "흔들림 발생했어. 그리고 두 번째 드래그부터 시점 변화 X".
@@ -13462,6 +13464,11 @@ export default function ReplayMotionPlayer({
     const cyF = 0.5 - panRef.current.y / (cv9.h * z9);
     return { x0: cxF - spanX / 2, x1: cxF + spanX / 2, y0: cyF - spanY / 2, y1: cyF + spanY / 2 };
   })();
+  /** 칸 카메라(지도 분수) — splitPaint9 가 잡고 아래 칸 컬링(splitCull9)이 읽는다. */
+  const splitCamRef9 = useRef(new Map<string, { x: number; y: number }>());
+  /** 칸마다 마지막으로 칠한 창(지도 분수 cx·cy·w·h) — 미니맵이 누른 사람의 것을 흰 네모로 그린다(요청: "미니맵은 현재 선택한
+   *  사람 화면의 미니맵을 적용"). */
+  const splitViewRef9 = useRef(new Map<string, { cx: number; cy: number; w: number; h: number }>());
   const cullSentRef9 = useRef<{ x0: number; x1: number; y0: number; y1: number } | null>(null);
   const cullRect9 = ((): { x0: number; x1: number; y0: number; y1: number } | null => {
     const sent9 = cullSentRef9.current;
@@ -13489,12 +13496,80 @@ export default function ReplayMotionPlayer({
   })();
   /* ★★ 프레임은 워커(설계 일꾼)가 낸다. 여기서는 화면 쪽 입력(상자 크기·기울기·시점·색·품질·시야)을 건넨다.
      배율·팬 자체는 안 건넨다 — 낮은 배율의 간이화는 붓이 한다. */
+  /* ★★ **분할 칸도 컬링한다 — 칸마다 제 창만, 팀 엔진은 제 팀 칸만**(2026-10, 지적: "분할모드 도입후 발열이 많이 심해졌는데") ───
+     여태 분할은 칸마다 딴 자리를 본다며 워커에 **지도 전체**를 짓게 했고, 관전자 엔진 + 팀 엔진(대개 둘)이 셋 다 그랬다. 재 보니
+     (perf-check 4명 분할) 한 장 짓기 3.3 → 17.7ms · op 258 → 605 · 워커 일 79 → 94% 였다 — 폰 발열의 첫 몫이다. 칸이 보는 것은
+     제 창뿐이므로 칸마다 그 창(+ 카메라가 데려갈 자리)에 여유를 붙인 사각형을 내고, 관전자 엔진은 그 전부(cullList — 팀 없는 칸과
+     누른 사람의 인포창이 이 장을 쓴다), 팀 엔진은 **제 팀 칸의 것만**(splitCull) 짓는다. 맞대결 두 칸이면 작은 창 두 개다.
+     · 보이는 창이 보낸 사각형 안에 있는 동안은 다시 안 보낸다(본 화면 cullRect9 와 같은 규약 — 시야가 바뀌면 워커가 새로 짓는다).
+     · 칸 창을 아직 모르면(분할이 선 첫 장) 지도 전체다 — 붓이 첫 장을 칠해야 창이 선다. */
+  type CullR9 = { x0: number; x1: number; y0: number; y1: number };
+  const splitCullSentRef9 = useRef<{ key: string; byRaw: Map<string, CullR9>; all: CullR9[]; team: Record<number, CullR9[]> } | null>(null);
+  const splitCull9 = ((): { all: CullR9[]; team: Record<number, CullR9[]> } | null => {
+    if (!splitOn9 || !splitLay9) { splitCullSentRef9.current = null; return null; }
+    const cells9 = splitLay9.cells;
+    const key9 = cells9.map((c9) => c9.raw).join("|") + "#" + (splitPick9 ?? "");
+    const gw = Math.max(1, grid.width);
+    const gh = Math.max(1, grid.height);
+    /* 그 칸이 지금 보는 창 + 카메라가 잡아 둔 자리(미끄러지는 중이면 그 끝)의 창을 아우른 사각형. */
+    const winOf9 = (raw9: string): CullR9 | null => {
+      const v9 = splitViewRef9.current.get(raw9);
+      if (!v9) return null;
+      const c9 = splitCamRef9.current.get(raw9) ?? { x: v9.cx, y: v9.cy };
+      const tx9 = v9.w >= 1 ? 0.5 : Math.min(1 - v9.w / 2, Math.max(v9.w / 2, c9.x));
+      const ty9 = v9.h >= 1 ? 0.5 : Math.min(1 - v9.h / 2, Math.max(v9.h / 2, c9.y));
+      return {
+        x0: Math.min(v9.cx, tx9) - v9.w / 2, x1: Math.max(v9.cx, tx9) + v9.w / 2,
+        y0: Math.min(v9.cy, ty9) - v9.h / 2, y1: Math.max(v9.cy, ty9) + v9.h / 2,
+      };
+    };
+    const wins9 = new Map<string, CullR9>();
+    for (const c9 of cells9) {
+      const w9 = winOf9(c9.raw);
+      if (!w9) { splitCullSentRef9.current = null; return null; }
+      wins9.set(c9.raw, w9);
+    }
+    const sent9 = splitCullSentRef9.current;
+    if (sent9 && sent9.key === key9) {
+      let ok9 = true;
+      for (const [raw9, w9] of wins9) {
+        const r9 = sent9.byRaw.get(raw9);
+        if (!r9 || w9.x0 < r9.x0 || w9.x1 > r9.x1 || w9.y0 < r9.y0 || w9.y1 > r9.y1) { ok9 = false; break; }
+      }
+      if (ok9) return { all: sent9.all, team: sent9.team };
+    }
+    /* 여유 — 창의 1/4 씩(여덟 타일 아래로는 안 내려간다). ⚠ 본 화면의 몫(PC 한 창씩 = 3×3)을 그대로 쓰면 칸 넷이 1.45배로
+       44×20타일씩을 보는 4인 분할에서 사각형 하나가 지도 전체를 덮어 컬링이 아무 일도 안 한다(실측 짓기 17.7 → 13.1ms 뿐).
+       카메라가 데려갈 자리는 위 창(winOf9)에 이미 들었으므로 여유는 가장자리에서 튀어나오는 몸 몫이면 된다. */
+    const mk9 = Math.min(DEV9.cullMargin, 0.25);
+    const byRaw9 = new Map<string, CullR9>();
+    const all9: CullR9[] = [];
+    const team9: Record<number, CullR9[]> = {};
+    for (const c9 of cells9) {
+      const w9 = wins9.get(c9.raw)!;
+      const mx9 = Math.max((w9.x1 - w9.x0) * mk9, 8 / gw);
+      const my9 = Math.max((w9.y1 - w9.y0) * mk9, 8 / gh);
+      const r9 = {
+        x0: Math.max(-0.05, w9.x0 - mx9), x1: Math.min(1.05, w9.x1 + mx9),
+        y0: Math.max(-0.05, w9.y0 - my9), y1: Math.min(1.05, w9.y1 + my9),
+      };
+      byRaw9.set(c9.raw, r9);
+      const tm9 = teamOfRaw(c9.raw);
+      /* 관전자(본) 엔진은 **팀 장이 못 덮는 칸**(팀 없는 사람)과 **누른 칸**(독의 인포창이 이 장에서 몸을 찾는다)만 짓는다 —
+         나머지 칸은 팀 장으로 칠하므로 본 장의 몸은 아무도 안 본다. 그것도 없으면 빈 목록 = 미니맵 점만. */
+      if (!tm9 || c9.raw === splitPick9) all9.push(r9);
+      if (tm9) (team9[tm9] ??= []).push(r9);
+    }
+    splitCullSentRef9.current = { key: key9, byRaw: byRaw9, all: all9, team: team9 };
+    return { all: all9, team: team9 };
+  })();
   const engView9: EngineView9 = {
     mapW: mapRef.current?.clientWidth ?? 320, mapH: mapRef.current?.clientHeight ?? 220, tilePx,
     pitched, pitchFlat, geom: pitchGeom(),
     viewTeam, visAll, fogOn, colors: colorTable9,
     qAnim, qBuildFx, qDeath, clickFx,
     cull: cullRect9,
+    ...(splitCull9 ? { cullList: splitCull9.all, splitCull: splitCull9.team } : {}),
     crowd: CROWD9.lv,
     // `#noscan` 해시(도구용) — 두리번을 끈다.
     ...(typeof location !== "undefined" && /noscan/.test(location.hash) ? { noIdleScan: true } : {}),
@@ -14102,10 +14177,10 @@ export default function ReplayMotionPlayer({
   const paintPackedRef9 = useRef<PackedFrame9 | null>(null);
   /** 팀마다의 보간 풀·눈 목록 버퍼(분할보기) — lerpFrame9 의 풀과 같은 짜임이다(객체를 되쓴다). */
   const teamLerpRef9 = useRef(new Map<number, { pool: Map<string, UnitDrawOp>; eyes: Float32Array | null }>());
-  const decodeSub9 = (u9: TeamSub9): { unitOps: UnitDrawOp[]; fxOps: FxOp[] } => {
+  const decodeSub9 = (u9: TeamSub9): { unitOps: UnitDrawOp[]; fxOps: FxOp[]; miniExtra: MiniDot[] } => {
     if (!u9.dec) {
-      const b9 = unpack9({ buf: u9.buf, strs: u9.strs }) as Pick<Frame9, "unitOps" | "fxOps">;
-      u9.dec = { unitOps: b9.unitOps, fxOps: b9.fxOps };
+      const b9 = unpack9({ buf: u9.buf, strs: u9.strs }) as Pick<Frame9, "unitOps" | "fxOps" | "miniExtra">;
+      u9.dec = { unitOps: b9.unitOps, fxOps: b9.fxOps, miniExtra: b9.miniExtra ?? [] };
     }
     return u9.dec;
   };
@@ -14187,8 +14262,11 @@ export default function ReplayMotionPlayer({
   /** 무대 바닥이 툴박스(전체화면은 독까지)에 가려지는 몫 — 분할 격자는 그만큼 위에서 끝난다.
    *  판(바탕)은 무대 끝까지 덮는다 — 반투명 툴박스 밑으로 숨은 지도(마지막 칸의 그림)가 비치지 않게. */
   const [splitTbH9, setSplitTbH9] = useState(0);
-  useEffect(() => {
-    if (!splitOn9) return undefined;
+  /* ★ **분할이 켜지기 전부터 잰다 · 레이아웃 effect 다**(2026-10, 지적: "2칸 분할시 처음에 좌우배치였다가 상하배치로 바꾸는게
+     보여") — 여태 분할이 켜진 **뒤의** 보통 effect 에서 처음 재어, 첫 장은 옛 값(좌우)으로 칸이 서고 브라우저가 한 번 그린 다음에야
+     상하로 바뀌었다. 늘 재 두면 분할이 서는 첫 렌더부터 맞는 배치이고, 레이아웃 effect 라 바뀌어도 그리기 전에 고쳐진다(같은 값이면
+     React 가 다시 그리지 않으므로 늘 재는 값이 없다). */
+  useLayoutEffect(() => {
     /* ★ 툴박스 키가 아니라 **무대 아래에서 툴박스 위끝까지**를 잰다(2026-09, 지적: "분할보기 전체화면시 툴박스와 독에 화면
        가려짐") — 프레임에서는 툴박스만 무대에 겹치지만 전체화면은 독 줄까지 통째로 무대 위에 얹힌다. 무대 바닥과 툴박스 위끝의
        차가 곧 가려지는 몫이라 두 배치가 한 셈이다(접기·화면 돌림에도 따라온다). */
@@ -14210,17 +14288,13 @@ export default function ReplayMotionPlayer({
     const low9 = tb9.parentElement;
     if (ro9 && low9) ro9.observe(low9);
     return () => { cancelAnimationFrame(raf9); window.removeEventListener("resize", read9); ro9?.disconnect(); };
-  }, [splitOn9, fsOn, dockFoldOn9]);
+  }, [fsOn, dockFoldOn9]);
   const splitLayRef9 = useRef(splitLay9);
   splitLayRef9.current = splitLay9;
   const splitCvRef9 = useRef(new Map<string, HTMLCanvasElement>());
-  const splitCamRef9 = useRef(new Map<string, { x: number; y: number }>());
   /** 칸 카메라의 미끄러짐(CAM_GLIDE_MS9) — 시작 자리·시각 · 칸마다 마지막으로 보인 자리(지도 분수). */
   const splitGlideRef9 = useRef(new Map<string, { from: { x: number; y: number }; t0: number }>());
   const splitShowRef9 = useRef(new Map<string, { x: number; y: number }>());
-  /** 칸마다 마지막으로 칠한 창(지도 분수 cx·cy·w·h) — 미니맵이 누른 사람의 것을 흰 네모로 그린다(요청: "미니맵은 현재 선택한
-   *  사람 화면의 미니맵을 적용"). */
-  const splitViewRef9 = useRef(new Map<string, { cx: number; cy: number; w: number; h: number }>());
   const splitTerrRef9 = useRef<HTMLCanvasElement | null>(null);
   /** 칸마다의 미니맵 캔버스(좌하단 · 2026-09, 요청: "각 화면의 좌하단에 자신의 시야가 적용된 미니맵을 표시"). */
   const splitMiniRef9 = useRef(new Map<string, HTMLCanvasElement>());
@@ -14358,12 +14432,16 @@ export default function ReplayMotionPlayer({
       const ops9 = tf9 ? tf9.unitOps : frameOpsRef9.current ?? [];
       const uS9 = Math.max(1.5, MW9 * 0.013);
       const bS9 = Math.max(2.5, MW9 * 0.022);
-      for (const d9 of ops9) {
-        if (!d9.color) continue;
+      const dot9 = (d9: { fx: number; fy: number; color?: string; wFrac?: number }): void => {
+        if (!d9.color) return;
         const sz9 = d9.wFrac !== undefined ? bS9 : uS9;
         c9.fillStyle = d9.color;
         c9.fillRect(d9.fx * MW9 - sz9 / 2, d9.fy * MH9 - sz9 / 2, sz9, sz9);
-      }
+      };
+      for (const d9 of ops9) dot9(d9);
+      /* 칸 컬링(splitCull9) 밖의 몸은 장에 점으로만 실려 온다(miniExtra) — 그것도 찍는다. */
+      const ua9 = key9 > 0 ? paintPackedRef9.current?.subs?.find((u9) => u9.team === key9) : undefined;
+      for (const d9 of ua9 ? decodeSub9(ua9).miniExtra : tf9 ? [] : miniExtraRef.current) dot9(d9);
       baked9.set(key9, cv9);
       return cv9;
     };

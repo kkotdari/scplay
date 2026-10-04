@@ -68,7 +68,11 @@ let engine: ReturnType<typeof createEngine9> | null = null;
 const subs = new Map<number, ReturnType<typeof createEngine9>>();
 /** 팀 엔진마다 마지막으로 실어 보낸 밝힌 판(참조) — 팀 판은 시점이 안 바뀌는 한 그대로라 한 번만 싣는다. */
 const subExpSent = new Map<number, Uint16Array | null>();
-const subView = (v: EngineView9, team: number): EngineView9 => ({ ...v, viewTeam: team, visAll: false, splitTeams: undefined });
+/* 팀 엔진은 **제 팀 칸의 창만** 짓는다(splitCull · 2026-10 발열) — 그 팀 칸이 없으면(미리 데우는 중) 지도 전체. */
+const subView = (v: EngineView9, team: number): EngineView9 => ({
+  ...v, viewTeam: team, visAll: false, splitTeams: undefined, splitCull: undefined,
+  cull: null, cullList: v.splitCull?.[team] ?? null,
+});
 /** 시야가 바라는 팀 엔진만 남기고 세운다(없는 팀은 새로 · 있는 팀은 시야만 갈아 끼운다). */
 const syncSubs = (): void => {
   const want = new Set(world && view ? view.splitTeams ?? [] : []);

@@ -4226,6 +4226,10 @@ export type EngineView9 = {
   /** 분할보기의 칸 팀들(2026-09, 요청: "분할모드: 시야는 각자 시야 사용(전체 시야 X)") — 워커가 이 팀마다 **제 엔진**을 하나씩 더
    *  세워 같은 시각의 장을 그 팀 시야로 짓는다(frameWorker 의 subs). 엔진 자체는 이 값을 안 읽는다. */
   splitTeams?: number[];
+  /** 시야 사각형 **여럿**(분할 칸마다 · 2026-10 발열) — 있으면 cull 대신 이것을 본다(어느 하나에 들면 안). */
+  cullList?: { x0: number; x1: number; y0: number; y1: number }[] | null;
+  /** 팀 엔진마다의 시야 사각형(분할 칸 중 그 팀의 것) — 워커가 팀 엔진의 cullList 로 옮긴다(frameWorker subView). 엔진은 안 읽는다. */
+  splitCull?: Record<number, { x0: number; x1: number; y0: number; y1: number }[]>;
 };
 /** ★★ **같은 자리에 겹쳐 쌓인 미네랄 밭은 하나만 그린다**(2026-09, 지적: "성능 하락과 얼룩의 정체 … 주변의 라이트가 다른 곳에
  *  영향을 주는 것 같아" → 스샷의 넥서스 앞 푸른 덩어리) — 빠른무한 맵은 한 자리(반 타일 안)에 밭을 수십 장 포갠다. 밭마다 op
@@ -4517,13 +4521,15 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     const miniExtra: MiniDot[] = [];
     const gasBusy = new Set<string>();
     const fxOps: FxOp[] = [];
-    const cull9 = view.cull;
+    /* 시야 사각형 — 하나(본 화면) 또는 여럿(분할 칸마다 · cullList). */
+    const cull9 = view.cullList ?? (view.cull ? [view.cull] : null);
     /** 이 자리가 시야(여유 포함) 안인가 — 밖이면 op를 아예 안 만든다. 밖일 때는 **분수 자리도 함께** 돌려준다:
      *  부르는 쪽이 그 자리에 미니맵 점 하나를 남긴다(miniExtra). */
     const onScreen9 = (x9: number, y9: number): [boolean, number, number] => {
       if (!cull9) return [true, 0, 0];
       const [fx9, fy9] = posFrac(x9, y9);
-      const in9 = fx9 >= cull9.x0 && fx9 <= cull9.x1 && fy9 >= cull9.y0 && fy9 <= cull9.y1;
+      let in9 = false;
+      for (const c9 of cull9) if (fx9 >= c9.x0 && fx9 <= c9.x1 && fy9 >= c9.y0 && fy9 <= c9.y1) { in9 = true; break; }
       return [in9, fx9, fy9];
     };
     /** 그 열쇠의 사격 박자 위상(0~1) — 사거리에 든 순간이 0이다. */
