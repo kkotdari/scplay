@@ -26489,22 +26489,26 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     for (const m of [-1, 1] as const) {
       const Y = (y9: number): number => y9 - HY_ARM_BK9;
       const Zu = (z9: number): number => z9 + HY_ARM_UP9;
+      /* ★ 팔은 **덜 벌린다**(2026-10, 요청: "히드라 팔 너무 밖으로 벌리지 않게 안쪽으로 살짝 수정") — 뿌리(|x| 0.8)는 그대로 두고
+         바깥으로 나간 몫만 HY_ARM_IN9 배로 당긴다(팔꿈치 1.9 → 1.63 · 손목 3.35 → 2.81 · 낫 끝 3.55 → 2.96). */
+      const HY_ARM_IN9 = 0.75;
+      const X = (x9: number): number => m * (0.8 + (x9 - 0.8) * HY_ARM_IN9);
       out.push(...tagKey([
         ...paintBase([
           /* 관절을 펴고 낮춘다(재요청: "팔관절 좀 펴서 낮추고") — 옛 팔은 팔꿈치에서 V 로 꺾여 셋째 마디가 z 6.16 까지 치솟았다.
              둘째 마디 끝 4.32 → 3.9 · 셋째 마디 끝 6.16 → 5.0 · 낫 뿌리도 그 자리에서. */
-          ...rodFaces(m * 0.8, Y(0.25), Zu(4.24), m * 1.9, Y(0.7), Zu(3.36), 0.85),
-          ...domeFaces3(m * 1.3, Y(0.45), 0.55, 0.36, Zu(3.8)),
-          ...rodFaces(m * 1.9, Y(0.7), Zu(3.36), m * 2.6, Y(1.2), Zu(3.9), 0.45),
+          ...rodFaces(X(0.8), Y(0.25), Zu(4.24), X(1.9), Y(0.7), Zu(3.36), 0.85),
+          ...domeFaces3(X(1.3), Y(0.45), 0.55, 0.36, Zu(3.8)),
+          ...rodFaces(X(1.9), Y(0.7), Zu(3.36), X(2.6), Y(1.2), Zu(3.9), 0.45),
         ], DARK),
         // 셋째 마디도 저그색(2026-09, 사진 재요청: "팔 두 마디는 저그색이고 마지막 마디만 상아색 낫") — 상아는 낫뿐이다.
-        ...paintBase(rodFaces(m * 2.54, Y(1.15), Zu(3.82), m * 3.35, Y(1.6), Zu(5.0), 0.6), DARK),
+        ...paintBase(rodFaces(X(2.54), Y(1.15), Zu(3.82), X(3.35), Y(1.6), Zu(5.0), 0.6), DARK),
         /* 낫은 **끝이 살짝 뒤로 휜다**(재요청: "낫 살짝 끝이 뒤로 휘게") — 곧은 뿔(hornFaces) 대신 2차 베지에 날: 앞으로 크게 나갔다가
            끝에서 y 가 되돌아온다(조종점 y 3.5 · 끝 y 2.5). 단면은 hornFaces 와 같은 날(oval 0.3 · ref z · 반지름 0.62×0.3 → 0). */
         ...ivory(spirePillar({
           x: 0, y: 0, h: 0.8, w: 0.36, tipW: 0.02, segs: 8, sides: 6, caps: "none", trueNormal: true, oval: 0.45, ref: [0, 0, 1],
           path: (t9: number): [number, number, number] => {
-            const a = m * 3.35, b = m * 3.6, c = m * 3.55;
+            const a = X(3.35), b = X(3.6), c = X(3.55);
             const ya = Y(1.6), yb = Y(3.5), yc = Y(2.5);
             const za = Zu(5.0), zb = Zu(3.2), zc = Zu(1.5);
             const u = 1 - t9;
