@@ -2151,25 +2151,23 @@ export function protossLegs(
     const toeY9 = yw9([m * P_TOE_X9, 0.5 - P_LEG_BACK9 + legSt9(st) * 1.2 + sp9, Z(0.15) + liftT9]);
     const toe1: [number, number, number] = footAt9(tuckAt9([toeY9[0] + cx9, toeY9[1] + cy9, toeY9[2]]));
     /* ★★ 선 자세의 **뒷다리는 발끝으로 선다**(2026-10, 요청: "뒷다리는 대퇴가 거의 수직으로 내려가서 무릎 발목 발끝이 각각 거의
-       직각으로 굽어져서 서있는것 발바닥 전체가 아닌 발끝으로 서기") — 대퇴는 수직에서 θ 만큼 뒤로 기울고, 정강이는 그에 **직각**
-       (뒤로 · 살짝 위), 발마디는 다시 직각(= 대퇴와 나란히 아래)이라 발끝(발가락 뿌리)이 땅에 닿고 발가락만 앞으로 눕는다.
-       세 마디 길이(Lt·Ls·Lf — 설계 자)는 그대로이고 θ 하나를 '발끝이 땅(설계 z TOE_GND9)에 닿는다'에서 푼다:
-       (Lt + Lf)·cosθ − Ls·sinθ = 고관절 높이 → θ = acos(H/R) − atan(Ls/(Lt+Lf)). 지금 자로 정지 ≈11° · 공격 ≈14°.
+       직각으로 굽어져서 서있는것 발바닥 전체가 아닌 발끝으로 서기" → 되지적: "뒷다리는 골반에서 수직으로 내려온당께 대퇴부가") —
+       대퇴는 고관절에서 **수직**으로 내려오고, 정강이는 직각으로 **수평** 뒤로, 발마디는 직각으로 **수직** 아래라 발끝(발가락
+       뿌리)이 땅(설계 z TOE_GND9)에 닿고 발가락만 앞으로 눕는다. 대퇴·정강이 길이는 그대로다.
+       ⚠ 발마디는 제 길이(≈1.36)가 아니라 **무릎 높이에서 땅까지**(≈1.0~1.1)다 — 대퇴 1.75 + 발 1.36 = 3.11 이 고관절 높이
+       (2.8~2.95 · crouch 포함)보다 길어 셋을 다 직각으로 두면 발이 땅 밑으로 들어간다. 한때 대퇴를 θ 뒤로 기울여 세 길이를
+       다 지켰는데(정강이가 θ 만큼 뒤로 오르는 값) 되지적으로 되물렸다 — 대퇴 수직이 먼저다.
        걸음·하템(tuck)·앞다리는 종전 그대로다. */
     const toeStance9 = !g9 && stride === 0 && tuck === 0 && sp9 < 0;
     const ts9 = toeStance9 ? ((): { knee: [number, number, number]; ankle: [number, number, number]; toe: [number, number, number] } => {
       const TOE_GND9 = 0.1;
-      const Lf9 = legLenD9(ankle1, toe1);
-      const Hd9 = (hip[2] - lift) / Z8 - TOE_GND9;
-      const A9 = Lt9 + Lf9; const B9 = Ls9;
-      const R9 = Math.hypot(A9, B9);
-      const th9 = Math.acos(Math.min(1, Hd9 / R9)) - Math.atan2(B9, A9);
-      const c9 = Math.cos(th9); const s9 = Math.sin(th9);
-      const [bx9, by9] = yv9(0, -1);   // 뒤(돌린 자)
       const zd9 = (hip[2] - lift) / Z8;
-      const kneeT: [number, number, number] = [hip[0] + bx9 * Lt9 * s9, hip[1] + by9 * Lt9 * s9, Z8 * (zd9 - Lt9 * c9) + lift];
-      const ankleT: [number, number, number] = [kneeT[0] + bx9 * Ls9 * c9, kneeT[1] + by9 * Ls9 * c9, Z8 * (zd9 - Lt9 * c9 + Ls9 * s9) + lift];
-      const toeT: [number, number, number] = [ankleT[0] + bx9 * Lf9 * s9, ankleT[1] + by9 * Lf9 * s9, Z8 * (zd9 - Lt9 * c9 + Ls9 * s9 - Lf9 * c9) + lift];
+      const kz9 = zd9 - Lt9;                     // 대퇴가 수직으로 내려온 무릎 높이(설계 자)
+      const Lf9 = Math.max(0.3, kz9 - TOE_GND9);   // 발마디 = 무릎 높이에서 땅까지(수직) — 제 길이(≈1.36)보다 짧다(아래 ⚠)
+      const [bx9, by9] = yv9(0, -1);   // 뒤(돌린 자)
+      const kneeT: [number, number, number] = [hip[0], hip[1], Z8 * kz9 + lift];
+      const ankleT: [number, number, number] = [hip[0] + bx9 * Ls9, hip[1] + by9 * Ls9, Z8 * kz9 + lift];
+      const toeT: [number, number, number] = [ankleT[0], ankleT[1], Z8 * (kz9 - Lf9) + lift];
       return { knee: kneeT, ankle: ankleT, toe: toeT };
     })() : null;
     const knee: [number, number, number] = ts9 ? ts9.knee : knee1;
