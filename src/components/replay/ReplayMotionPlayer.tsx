@@ -11200,9 +11200,14 @@ export default function ReplayMotionPlayer({
     const same9 = cur9.raw === camRaw9 && cur9.z === z9;
     let jump9 = false;
     if (same9 && trackAt.mode === "hold") keep9 = true;
-    else if (trackAt.mode === "jump" && cur9.jump !== trackAt.sec) { keep9 = false; jump9 = true; }
+    /* ★ 두 번 누름도 **화면 밖일 때만** 옮긴다(2026-10, 지적: "선택시 화면전환하고 센터맞추는데 화면안에 없을때만 센터맞추고
+       있으면 안해야지") — 여태 jump 는 무리가 이미 화면 안이어도 한가운데로 다시 섰다. 밖이면 종전대로 곧장 선다(미끄러지지 않는다). */
+    else if (trackAt.mode === "jump" && cur9.jump !== trackAt.sec) {
+      if (!keep9) jump9 = true;
+      else trackCamRef.current = { ...cur9, jump: trackAt.sec };
+    }
     /* 안 옮기는 동안 선택이 바뀌었으면 새 선택을 적어 둔다 — 그 무리가 나중에 화면을 벗어날 때는 '같은 선택'이라 미끄러진다. */
-    if (keep9 && cur9.sel !== trackAt.sel) trackCamRef.current = { ...cur9, sel: trackAt.sel };
+    if (keep9 && cur9.sel !== trackAt.sel) trackCamRef.current = { ...trackCamRef.current, sel: trackAt.sel };
     if (!keep9) {
       /* 같은 사람·같은 배율·**같은 선택**에서 다시 잡는 것이면 지금 보이는 자리(미끄러지는 중이면 그 사이 자리)에서 미끄러져 간다.
          마우스로 고른 자국(view)은 선택이 바뀌어도 미끄러진다 — 그 사람이 스크롤해 간 자리다. */
@@ -14738,24 +14743,27 @@ export default function ReplayMotionPlayer({
         const fr9 = mapFracRef.current?.(at9.x, at9.y) ?? [at9.x / gw, at9.y / gh];
         /* ★ 무리의 **몸 하나하나**를 본다(위 trackView 의 ★ 와 같은 규약) — 하나라도 창의 안전 띠를 넘으면 옮긴다.
            카메라를 지도 끝에 죈 칸이면 죈 자리(아래 cx9·cy9 와 같은 셈)로 재야 끝 쪽 몸이 늘 '밖'으로 안 잡힌다. */
+        const sel9 = at9.sel ?? "";
+        const same9 = splitSelRef9.current.get(cell9.raw) === sel9;
         let out9 = !cam9;
         if (cam9) {
           const kx9 = wf9 >= 1 ? 0.5 : Math.min(1 - wf9 / 2, Math.max(wf9 / 2, cam9.x));
           const ky9 = hf9 >= 1 ? 0.5 : Math.min(1 - hf9 / 2, Math.max(hf9 / 2, cam9.y));
-          const hw9 = (wf9 / 2) * (1 - 2 * SPLIT_EDGE9);
-          const hh9 = (hf9 / 2) * (1 - 2 * SPLIT_EDGE9);
+          /* ★ 선택이 막 바뀐 것은 **창 그대로**로 잰다(안전 띠 없이 — 위 trackView 의 ★ 와 같은 지적) — 새로 고른 무리가 이미
+             칸 안이면 안 옮긴다. 안전 띠는 같은 무리가 움직이다 가장자리에 붙을 때의 몫이다. */
+          const ek9 = same9 ? SPLIT_EDGE9 : 0;
+          const hw9 = (wf9 / 2) * (1 - 2 * ek9);
+          const hh9 = (hf9 / 2) * (1 - 2 * ek9);
           for (const q9 of at9.pts ?? [at9]) {
             const f9 = mapFracRef.current?.(q9.x, q9.y) ?? [q9.x / gw, q9.y / gh];
             if (Math.abs(f9[0] - kx9) > hw9 || Math.abs(f9[1] - ky9) > hh9) { out9 = true; break; }
           }
         }
-        const sel9 = at9.sel ?? "";
-        const same9 = splitSelRef9.current.get(cell9.raw) === sel9;
         /* 선택 갈래(판 12 · PickMode9) — trackView 와 같은 규약: 한 번 불러오기는 제자리 · 두 번 누름은 한 번 곧장 · 마우스 고르기는 미끄러짐. */
         let jump9 = false;
         if (cam9 && at9.mode === "hold") out9 = false;
         else if (at9.mode === "jump" && at9.sec !== undefined && splitJumpRef9.current.get(cell9.raw) !== at9.sec) {
-          out9 = true; jump9 = true; splitJumpRef9.current.set(cell9.raw, at9.sec);
+          jump9 = out9; splitJumpRef9.current.set(cell9.raw, at9.sec);   // 칸 안이면 안 옮긴다(위 trackView 의 ★)
         }
         if (out9) {
           /* 다시 잡을 때 미끄러져 간다(위 CAM_GLIDE_MS9 · trackView 와 같은 자) — 처음 잡는 칸과 **선택이 바뀐** 칸은 곧장 선다. */
