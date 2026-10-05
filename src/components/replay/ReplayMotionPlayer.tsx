@@ -346,11 +346,10 @@ function blurDiag9(root: HTMLElement | null, gest9: boolean, pinch9: boolean): s
     const gl9c = cv9.classList.contains("scr-motion-gl9");
     const nm9 = gl9c ? "GL" : cv9.classList.contains("scr-motion-fx9") ? "효과" : cv9.classList.contains("scr-split-fog9") ? "칸안개" : "유닛";
     const k9 = cr9.width > 0 ? (cv9.width / (cr9.width * dpr9)).toFixed(4) : "-";
-    let db9 = "";
-    if (gl9c) {
-      const g9 = (cv9.getContext("webgl2") ?? cv9.getContext("webgl")) as WebGLRenderingContext | null;
-      if (g9 && (g9.drawingBufferWidth !== cv9.width || g9.drawingBufferHeight !== cv9.height)) db9 = ` ⚠버퍼 ${g9.drawingBufferWidth}x${g9.drawingBufferHeight}`;
-    }
+    /* ⚠⚠ 여기서 `cv9.getContext("webgl2")` 를 부르지 마라(2026-10, 지적: "diag켜면 모델이 안나옴") — 진단 렌더가 붓의 첫 칠하기보다
+       먼저 돌면 그 호출이 **기본 속성**(antialias·stencil 없음·premultipliedAlpha)으로 문맥을 먼저 만들고, gl9 는 그 뒤 제 속성(opts2)으로
+       불러도 같은 문맥을 돌려받아 스텐실·MRT 가 안 서서 몸이 통째로 안 그려졌다. 버퍼 크기는 붓이 제 문맥에서 적어 둔다(SCR_DIAG.glBuf). */
+    const db9 = gl9c && SCR_DIAG.glBuf && SCR_DIAG.glBuf !== `${cv9.width}x${cv9.height}` ? ` ⚠버퍼 ${SCR_DIAG.glBuf}` : "";
     const xf9 = cv9.style.transform && cv9.style.transform !== XF_ID9 ? ` xf ${cv9.style.transform}` : "";
     parts9.push(`${nm9} ${cv9.width}x${cv9.height}/${cr9.width.toFixed(1)}x${cr9.height.toFixed(1)} ×${k9} @${fr9(cr9.left)},${fr9(cr9.top)}${db9}${xf9}`);
   }
@@ -4633,6 +4632,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       if (!ctx) return;
       /* 효과는 **위 캔버스**에 그린다(GL 층 위 — UnitLayer 의 ★★). GL 이 없으면(#gl=0) 종전대로 유닛 캔버스다. */
       const gl9 = glUnits9(glRef.current, DEV9.glMeshMax, DEV9.glBloom, DEV9.glSpec, DEV9.glMsaa);
+      if (gl9 && scrDiagOn()) SCR_DIAG.glBuf = `${gl9.gl.drawingBufferWidth}x${gl9.gl.drawingBufferHeight}`;   // 흐림 진단(blurDiag9)이 읽는다
       const fctx9 = fcv9 ? fcv9.getContext("2d") : null;
       /* ★ **효과도 GL 이 그린다**(2026-09, 다음 손 2 "링·체력바·효과 GL로") — 붓(paintFxList9)은 캔버스 2D 를 말하지만 그 말을
          받는 것은 `glctx9`(캔버스 2D 의 부분집합을 삼각형으로 옮기는 심)다. GL 층 안에서 몸·연기 다음에 같은 판(MRT)에 그려지므로

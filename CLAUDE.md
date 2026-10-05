@@ -6875,3 +6875,8 @@ React 가 안 쥐는 변수)로 되민다 — 보정을 뺀 자리로 재므로 
 transform·zoom·filter·backdrop-filter·perspective(합성기가 그 층을 통째로 재표본한다 — 앱 페이지의 전환 애니메이션·`zoom` 속성이
 의심 자리다) ⑤ `visualViewport.scale`(페이지 핀치) · 손짓 깃발 · 배킹 몫(xfBackK9 · live). 흐린 화면의 그 줄을 받으면 어느 길인지
 한 번에 갈린다. 다 정상이면 남는 것은 브라우저 합성 자체(GPU 래스터 타일 · 하드웨어 가속 설정)다.
+· ⚠⚠ **진단에서 `canvas.getContext("webgl2")` 를 부르지 마라**(2026-10, 지적: "diag켜면 모델이 안나옴") — GL 버퍼 크기를 재려고
+  그 캔버스에 getContext 를 불렀더니, 진단 렌더가 붓의 첫 칠하기보다 **먼저** 돌아 **기본 속성**(stencil 없음 · antialias · premultipliedAlpha)
+  으로 문맥을 먼저 만들었고, gl9 는 그 뒤 제 속성(opts2)으로 불러도 **같은 문맥**을 돌려받아(한 캔버스에 문맥은 하나다) 스텐실·MRT 가
+  안 서 몸이 통째로 안 그려졌다. 문맥 속성이 필요한 값은 **그 문맥의 임자(붓)가 적어 두고**(SCR_DIAG.glBuf) 진단은 읽기만 한다.
+  ★ 규약: **다른 임자의 캔버스에 getContext 를 부르지 마라** — 첫 호출이 속성을 못 박는다.
