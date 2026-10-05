@@ -16391,6 +16391,7 @@ export default function ReplayMotionPlayer({
         const res9 = resNow.get(m.key);
         const apm9 = apmNow.get(m.key) ?? m.apm ?? null;
         const kd9 = kdNow.get(m.key);
+        const st9 = bare && smallDevice9 && !splitOn9 && camRaw9 === m.key;   // 폰 단독 중계의 화면 주인(아래 scr-roster-st)
         return (
           <div
             key={m.key}
@@ -16413,7 +16414,7 @@ export default function ReplayMotionPlayer({
             {/* 위는 아바타+이름 한 줄, 아래는 지표 한 줄이다(요청: "각 로스터 아래
                 가운데 정렬로 새로배치") — 지표를 이름 칸 안에 두면 아바타 옆에 붙어
                 왼쪽으로 쏠린다. 항목 폭 전체를 쓰게 밖으로 뺀다. */}
-            <span className="scr-motion-teamcol-head">
+            <span className={cx("scr-motion-teamcol-head", st9 && "scr-roster-sthead")}>
             {/* (걷어냄 · 2026-09, 요청: "기존 로스터에 추적버튼은 제거하고 여기로 통합") — 이름 왼쪽의 조준선(개인 추적)
                 단추다. 추적은 이제 아이콘 줄 TV 단추의 목록(사람들 + 자동)에서 고른다(아래 mapBtnRow). 시점(이름 누르기)은
                 그대로다: "그 눈으로 밝혀만 본다"와 "카메라까지 맡긴다"는 여전히 딴 손잡이다. */}
@@ -16452,6 +16453,10 @@ export default function ReplayMotionPlayer({
               </span>
             </span>
             </span>
+              {/* ★ 폰에서 한 사람을 중계·추적하는 동안은 **그 사람 줄에만** 현황이 칩 옆에 선다(2026-10, 요청: "모바일에서 중계시
+                  단독화면인 경우 로스터의 해당 선수 스탯만 표시") — 폰 로스터는 늘 이름만(bare)이라 화면 주인의 숫자를 볼 자리가
+                  없었다. 꼴은 분할 칸 머리와 같은 현황 한 줄(whoStats9)이다. 분할은 칸 머리가 진다. */}
+              {st9 && whoStats9(capOf9(m.key, m.key), "scr-roster-st")}
             </span>
               {/* 지표 다섯 칸 — **어느 화면이든 같은 다섯**이다(요청: 표 형식 전면).
                   '일꾼' 라벨은 뗐다(요청) — 그 이름은 이제 위 컬럼 라벨 줄이 한 번만

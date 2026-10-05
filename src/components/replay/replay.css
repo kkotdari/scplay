@@ -3310,7 +3310,13 @@
 /* ★ 이제는 **전체화면 단추 오른쪽**이고 크기도 그 원과 같다(2026-10, 요청: "접기펴기 버튼 전체화면 버튼 오른쪽으로 이동 크기도 맞추기") —
    위 '버튼 줄 정가운데'는 되물렸다. 한 변 = --mapbtn-h · 꼬리의 맨 끝(order 3). */
 .scr-tb-tail > .scr-motion-infodock-fold {
-  order: 3; margin: 0 0 0 2px; width: var(--mapbtn-h); height: var(--mapbtn-h); border-radius: calc(3px * var(--dk));
+  order: 3; margin: 0 0 0 2px; width: var(--mapbtn-h); height: var(--mapbtn-h);
+  /* 입체감·둥글기를 한 단 낮춘다(2026-10, 요청: "접기펴기 버튼 입체감 줄이고 래디우스도 줄이기") — 세로 광택 폭을 좁히고(위 #c3c9d0 →
+     아래 #747c85 의 큰 꺾임 → 거의 고른 쇠) 바깥 그림자를 걷는다 · 둥글기 3·dk → 1.5px. */
+  border-radius: 1.5px; box-shadow: none;
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.06) 0 1px, transparent 1px 2px),
+    linear-gradient(180deg, #b0b7bf 0%, #a3abb4 50%, #98a0a9 100%);
 }
 .scr-tb-tail { display: flex; align-items: center; gap: 6px; flex: none; margin-left: auto; }
 /* (걷어냄) 사람 정보 판(.scr-tb-who*) — 2026-09, 요청: "유저창 완전 제거". 현황 꼴(.scr-who-*)은 분할 칸 머리가 쓴다. */
@@ -4095,11 +4101,28 @@
      칩과 같은 1.25em(칸 머리 글자 기준)으로 못 박아 가운데에 앉힌다. */
   display: flex; align-items: center; height: 1.25em; box-sizing: border-box; flex: none; overflow: hidden;
   margin-left: calc(3px * var(--dk)); padding: 0 calc(3px * var(--dk)); border-radius: 2px;
-  background: rgba(0, 0, 0, 0.5); color: #e8eef6; font-weight: 600;
+  background: rgba(0, 0, 0, 0.3); color: #e8eef6; font-weight: 600;   /* 0.5 → 0.3(2026-10, 요청: "스탯뒤 배경 좀더 투명하게") */
 }
 .scr-split-st > span { gap: 0.2em; font-size: 0.88em; }
 .scr-split-st b { font-size: 0.72em; font-weight: 600; opacity: 0.62; }
-@media (max-width: 700px) { .scr-split-st { display: none; } }
+/* ★ 폰에서도 칸 머리 현황이 선다(2026-10, 요청: "분할화면인 경우 헤더에 스탯 표시") — 옛 '폰은 숨긴다'를 되물렸다. 칸 폭에 안 들면
+   위 규칙(한 줄 키 + 줄바꿈)이 저절로 숨긴다. 폰은 사이 여백·자원 칸을 한 단 죈다(아래 로스터 현황과 같은 자). */
+@media (max-width: 700px) {
+  .scr-split-st > span + span::before, .scr-roster-st > span + span::before { margin: 0 0.3em; }
+  .scr-split-st .scr-who-r, .scr-roster-st .scr-who-r { width: 4ch; }
+}
+/* ★ 폰 로스터의 화면 주인 현황(2026-10, 요청: "모바일에서 중계시 단독화면인 경우 로스터의 해당 선수 스탯만 표시") — 이름 칩 옆에
+   칩과 같은 키·둥글기의 반투명 상자로 선다(분할 칸 머리 .scr-split-st 와 같은 꼴). 칸(이름 열 90·dk) 밖으로 지도 위에 비어져 나간다. */
+.scr-fs-roster-fixed .scr-roster-st {
+  display: flex; align-items: center; flex: none; box-sizing: border-box; white-space: nowrap;
+  font-size: calc(8px * var(--dk)); height: calc(8px * var(--dk) * 1.35); line-height: 1;
+  margin-left: calc(2px * var(--dk)); padding: 0 calc(3px * var(--dk)); border-radius: 2px;
+  background: rgba(0, 0, 0, 0.3); color: #e8eef6; font-weight: 600;   /* 0.5 → 0.3(2026-10, 요청: "스탯뒤 배경 좀더 투명하게") */
+}
+/* 현황이 선 머리는 이름 조각이 안 줄어든다 — 이름 열(90·dk)에 묶이면 칩이 현황에 밀려 한 글자로 접힌다. */
+.scr-fs-roster-fixed .scr-roster-sthead > .scr-motion-teamcol-pick { flex: none; }
+.scr-fs-roster-fixed .scr-roster-st > span { gap: 0.2em; font-size: 0.88em; }
+.scr-fs-roster-fixed .scr-roster-st b { font-size: 0.72em; font-weight: 600; opacity: 0.62; }
 
 /* ★ 독 줄 오른쪽의 음각 글귀(2026-09, 요청: "독 좌우 몇 px이상 남는경우 음각으로 scplay.vercel.app    SINCE 2026 추가(우측에만)")
    — 쇠 바탕에 판 글자다: 글자는 바탕보다 어둡고, 아래 가장자리에 밝은 한 줄(파인 홈의 아래 입술) · 위에 어두운 한 줄을 얹는다.
