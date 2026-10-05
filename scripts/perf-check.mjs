@@ -680,6 +680,15 @@ await page.waitForFunction("(window.__spritePerf && (window.__spritePerf.last.bl
 await page.waitForTimeout(Number(flag("--warm", 2500)));
 
 const SHOT = flag("--shot", null);
+/* 폭 바꾸기(--resizeto W) — 뜬 뒤 창 폭을 조금 바꾼다(2026-10, 지적: "아직 흐려지는데" — 지형 판의 '거의 같은 판' 지름길이
+   폭이 2% 안쪽으로 바뀌면 옛 판을 늘려 붙여 지도 전체를 재표본했다). --dockprobe 의 [캔버스] 줄에서 scr-mapvec-sharp 의
+   w(배킹)와 bw(화면 폭)가 같아야 한다(dpr 1). */
+if (has("--resizeto")) {
+  await page.waitForTimeout(1500);
+  const vp0 = page.viewportSize();
+  await page.setViewportSize({ width: Number(flag("--resizeto", vp0.width)), height: vp0.height });
+  await page.waitForTimeout(1500);
+}
 /* 독 자(--dockprobe): 미니맵·지도 버튼·꼬리 줄의 화면 자리를 찍는다 — 미니맵 키를 조작부에 맞추는 실측의 검산용. */
 if (has("--dockprobe")) {
   await page.waitForTimeout(1500);
