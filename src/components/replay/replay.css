@@ -208,7 +208,9 @@
 .scr-motion-mapbtns button.scr-motion-mapbtn {
   /* 크기는 **유동**이다(요청) — 44px을 바라되 줄이 좁으면 형제와 같이 줄어든다(min-width 0이라 글자 폭 아래로도 준다).
      세로는 가로를 따른다(aspect-ratio)라 늘 동그라미다. 글자(배속·배율)는 작은 원에서도 넘치지 않게 12px·숨김. */
-  flex: 0 1 var(--mapbtn-h); min-width: 0; width: var(--mapbtn-h); max-width: var(--mapbtn-h); height: auto; aspect-ratio: 1 / 1;
+  /* ★ 폭에 따른 축소는 걷었다(2026-10, 요청: "화면폭에의한 축소만 제거") — 옛 `flex: 0 1 · min-width: 0` 은 줄이 좁으면 형제와
+     함께 쪼그라들었다. 이제 한 변은 늘 --mapbtn-h 다(폰에 남은 단추가 여섯 남짓이라 360px 에도 든다). */
+  flex: 0 0 var(--mapbtn-h); width: var(--mapbtn-h); max-width: var(--mapbtn-h); height: auto; aspect-ratio: 1 / 1;
   min-height: 0; padding: 0; border-radius: 999px; overflow: hidden; font-size: 12px;
   display: inline-flex; align-items: center; justify-content: center;
   /* ★ 아이콘은 **무조건 흰색**이다(요청: "아이콘 버튼의 색은 무조건 흰색 · 로스터나
@@ -247,7 +249,7 @@
    감싸개(.scr-motion-pick)가 버튼 대신 줄의 flex 항목이 되고(같은 44px 바탕·줄어듦), 목록은 그 위에 절대배치로 선다.
    숫자 목록은 가운데 맞춤, 곡 목록(is-list)은 왼맞춤에 길이 상한·스크롤. */
 .scr-motion-mapbtns .scr-motion-pick {
-  position: relative; display: flex; flex: 0 1 var(--mapbtn-h); min-width: 0; justify-content: center;
+  position: relative; display: flex; flex: 0 0 var(--mapbtn-h); justify-content: center;   /* 감싸개도 안 쪼그라든다(위 ★ 폭에 따른 축소 걷음) */
   /* ★ 감싸개 안의 단추도 형제와 **같은 자**로 잰다(2026-09, 지적: "전체화면에서 활성버튼과 비활성버튼 크기 다름") — 감싸개는
      flex 라 기본(align-items: stretch)이면 그 안의 단추가 감싸개 높이로 늘어나고, 감싸개 자체는 줄의 center 정렬을 받아 제
      내용 높이라, 단추의 height:auto + aspect-ratio 가 두 자(줄어든 폭 · 감싸개 높이)를 동시에 받는다. 헤드리스 크로뮴은 둘이
@@ -303,12 +305,12 @@
      12 → 13, 값 글자 9 → 10, 긴 값 7 → 8px. 44 대비로는 70%다(0.8 × 0.8 × 1.1 = 0.704). */
 @media (max-width: 1159px) {
   /* 좁은 화면 — 툴박스 첫 줄에 단추 여섯 남짓 + 공유·사용법이 한 줄로 든다(390px 실측). */
-  .scr-tb { --mapbtn-h: 32px; --mapbtn-gap: 5px; }
+  /* (걷어냄 · 2026-10) `.scr-tb { --mapbtn-h: 32px }` — 이 미디어 블록은 `.scr-tb` 기본 규칙(아래 3260줄 · 같은 무게)보다 **앞**에 있어
+     한 번도 이긴 적이 없다(실측 폰 단추 30px). 폰·PC 다 30px 한 값이다 — 폭에 따른 축소는 flex-shrink 뿐이었고 그것을 걷었다. */
+  .scr-tb { --mapbtn-gap: 5px; }
   .scr-motion-pickitem { font-size: 12px; padding: 5px 10px; }
 }
-@media (max-width: 400px) {
-  .scr-tb { --mapbtn-h: 30px; --mapbtn-gap: 4px; }
-}
+/* (걷어냄 · 2026-10) ≤400px 에서 30px·4px 로 한 단 더 내리던 규칙 — "화면폭에의한 축소만 제거". 좁은 화면은 32px 한 값이다. */
 
 /* 켜져 있는 여닫이는 한 단 밝게 — 지금 무엇이 떠 있는지가 버튼에서 읽힌다. */
 /* 흐린 꼴 — '지금 꺼져 있다'를 알린다(표 버튼의 셋째 칸: 로스터 숨김). 켠 표시(is-on)의
@@ -3260,7 +3262,7 @@
      20프로정도 줄여줘 피시에서" · 옛 38) · 좁은 화면 32 · 400px 아래 30(아래 미디어). */
   --mapbtn-h: 30px; --mapbtn-gap: 6px;
   --text: #f5f6f7; --dim: rgba(245, 246, 247, 0.72); --line-soft: rgba(255, 255, 255, 0.24);
-  display: flex; flex-direction: column; gap: 4px; min-width: 0;
+  display: flex; flex-direction: column; gap: 4.8px; min-width: 0;   /* 단추 줄 ↔ 재생 줄 사이 — 4 → 4.8(2026-10, 요청: "갭 20프로 증가") · PC·폰 공통 */
   /* 모서리는 각지고 판은 더 옅다(2026-09, 요청: "툴바배경 래디우스 제거 및 좀더 투명하게(전체화면 프레임모드 둘다)") — 옛 12px · 0.52. */
   /* 위 여백은 한 단 넉넉하다(2026-09, 요청: "툴박스 내부 위쪽 패딩 증가시키기" — 옛 6). */
   --tb-padt: 10px;
@@ -3343,7 +3345,7 @@
 .scr-tb .scr-tb-speed { --mapbtn-h: 24px; }
 .scr-tb .scr-tb-speed .scr-motion-mapval-num { font-size: 10px; }
 @media (max-width: 1159px) { .scr-tb .scr-tb-speed { --mapbtn-h: 26px; } }
-@media (max-width: 400px) { .scr-tb .scr-tb-speed { --mapbtn-h: 24px; } }
+/* (걷어냄 · 2026-10) ≤400px 배속 단추 24px — 좁은 화면은 26px 한 값이다. */
 .scr-tb-seek > .scr-motion-bar-controls { flex: 1 1 auto; min-width: 0; margin: 0; padding: 0; gap: 8px; }
 .scr-tb .scr-motion-range { touch-action: none; align-self: center; }
 .scr-tb .scr-motion-clock { font-size: 11px; }
