@@ -328,6 +328,57 @@ const clipBegin9 = (c: CanvasRenderingContext2D, cw: number, ch: number): void =
   CLIP_ON9.add(c);
 };
 const unitCanvases9 = (root: HTMLElement | null): HTMLCanvasElement[] => root ? Array.from(root.querySelectorAll<HTMLCanvasElement>(".scr-motion-unitlayer")) : [];
+/** ★ **흐림 진단 한 줄**(2026-10, 지적: "지형뿐 아니라 모델이 흐려" — 사용자의 #diag 머리 줄에 ⚠재표본이 없는데도 흐렸다) ──
+ *  헤드리스로는 재현이 안 되는 흐림이라, 사용자가 찍어 보내는 **머리 줄** 자체가 범인을 가려야 한다. 캔버스의 배킹·CSS
+ *  크기·화면 자리는 다 정상인데도 화면이 뭉개지는 길은 캔버스 **밖**에 있다: 지도 상자가 기기 화소의 소수 자리에 놓임 ·
+ *  조상 어딘가의 transform/zoom/filter(합성기가 그 층을 통째로 재표본한다) · 페이지 핀치 확대(visualViewport.scale) ·
+ *  GL 그리기 버퍼가 캔버스 크기보다 작게 잡힘(drawingBufferWidth) · 끝 신호를 놓친 손짓(배킹 몫이 내려간 채).
+ *  그 다섯을 **지금 DOM 에서 바로 재어** 한 줄로 낸다(진단이 켜진 렌더에서만 — 강제 배치 셈이 몇 번 든다). */
+function blurDiag9(root: HTMLElement | null, gest9: boolean, pinch9: boolean): string {
+  if (!root) return "흐림: 상자 없음";
+  const dpr9 = window.devicePixelRatio || 1;
+  const fr9 = (v9: number): string => { const d9 = v9 * dpr9; const f9 = d9 - Math.round(d9); return (f9 >= 0 ? "+" : "") + f9.toFixed(2); };
+  const r9 = root.getBoundingClientRect();
+  const parts9: string[] = [];
+  parts9.push(`상자 ${r9.width.toFixed(1)}x${r9.height.toFixed(1)} @${fr9(r9.left)},${fr9(r9.top)}`);
+  for (const cv9 of unitCanvases9(root)) {
+    const cr9 = cv9.getBoundingClientRect();
+    const gl9c = cv9.classList.contains("scr-motion-gl9");
+    const nm9 = gl9c ? "GL" : cv9.classList.contains("scr-motion-fx9") ? "효과" : cv9.classList.contains("scr-split-fog9") ? "칸안개" : "유닛";
+    const k9 = cr9.width > 0 ? (cv9.width / (cr9.width * dpr9)).toFixed(4) : "-";
+    let db9 = "";
+    if (gl9c) {
+      const g9 = (cv9.getContext("webgl2") ?? cv9.getContext("webgl")) as WebGLRenderingContext | null;
+      if (g9 && (g9.drawingBufferWidth !== cv9.width || g9.drawingBufferHeight !== cv9.height)) db9 = ` ⚠버퍼 ${g9.drawingBufferWidth}x${g9.drawingBufferHeight}`;
+    }
+    const xf9 = cv9.style.transform && cv9.style.transform !== XF_ID9 ? ` xf ${cv9.style.transform}` : "";
+    parts9.push(`${nm9} ${cv9.width}x${cv9.height}/${cr9.width.toFixed(1)}x${cr9.height.toFixed(1)} ×${k9} @${fr9(cr9.left)},${fr9(cr9.top)}${db9}${xf9}`);
+  }
+  const tp9 = root.querySelector<HTMLCanvasElement>(".scr-mapvec-sharp");
+  if (tp9) {
+    const tr9 = tp9.getBoundingClientRect();
+    parts9.push(`지형 ${tp9.width}x${tp9.height}/${tr9.width.toFixed(1)} ×${tr9.width > 0 ? (tp9.width / (tr9.width * dpr9)).toFixed(4) : "-"} @${fr9(tr9.left)},${fr9(tr9.top)}`);
+  }
+  /* 조상 사슬 — transform·zoom·filter·backdrop-filter·perspective 가 none/1 이 아닌 요소만 적는다(상자 제 translate 는 뺀다). */
+  const anc9: string[] = [];
+  for (let el9: HTMLElement | null = root.parentElement; el9; el9 = el9.parentElement) {
+    const cs9 = getComputedStyle(el9);
+    const bad9: string[] = [];
+    if (cs9.transform && cs9.transform !== "none") bad9.push(`tf ${cs9.transform.slice(0, 40)}`);
+    const zm9 = (cs9 as unknown as { zoom?: string }).zoom;
+    if (zm9 && zm9 !== "1" && zm9 !== "normal" && zm9 !== "") bad9.push(`zoom ${zm9}`);
+    if (cs9.filter && cs9.filter !== "none") bad9.push(`filter`);
+    const bf9 = (cs9 as unknown as { backdropFilter?: string }).backdropFilter;
+    if (bf9 && bf9 !== "none") bad9.push(`backdrop`);
+    if (cs9.perspective && cs9.perspective !== "none") bad9.push(`persp`);
+    if (bad9.length) anc9.push(`${el9.tagName.toLowerCase()}${el9.className && typeof el9.className === "string" ? "." + el9.className.split(" ")[0] : ""}[${bad9.join(",")}]`);
+    if (anc9.length >= 4) break;
+  }
+  parts9.push(`조상 ${anc9.length ? anc9.join(" ") : "-"}`);
+  const vv9 = window.visualViewport;
+  parts9.push(`뷰 ${vv9 ? vv9.scale.toFixed(3) : "-"} 손짓 ${gest9 ? (pinch9 ? "핀치" : "on") : "-"} 배킹몫 ${xfBackK9.k}${xfLive9.on ? " live" : ""}`);
+  return `흐림: ${parts9.join(" · ")}`;
+}
 /** GL 붓이 못 맡아 판으로 떨어진 종류별 횟수(진단 'GL' 줄의 '판으로'). */
 const GL_MISS9 = new Map<string, number>();
 /** 공유 링크의 자리 앉히기 발자취(`#diag=view`의 '링크' 줄) — 실기기에서만 나는 어긋남을 눈으로 보려는 자다.
@@ -16691,6 +16742,10 @@ export default function ReplayMotionPlayer({
                   {SCR_DIAG.unitScale !== 1 || SCR_DIAG.scale !== 1 ? " · ⚠재표본" : ""}
                   {!SCR_DIAG.allocOk ? " · ⚠배킹확보 실패" : ""}
                 </div>
+                {/* 흐림 진단(위 blurDiag9) — 요약·draw·view 에서 보인다. 사용자가 찍어 보내는 머리 아래 한 줄이다. */}
+                {(diagModes9.size === 0 || dm9("draw") || dm9("view")) && (
+                  <div>{blurDiag9(mapRef.current, xfGestureRef.current, gestureRef.current)}</div>
+                )}
                 {/* 요약(값 없는 #diag) — 한 줄에 끊김·메모리·워커의 첫 자를 다 둔다. */}
                 {diagModes9.size === 0 && (
                   <div>

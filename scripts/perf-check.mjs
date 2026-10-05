@@ -744,6 +744,9 @@ if (has("--dockprobe")) {
     const cvs = await page.evaluate(() => [...document.querySelectorAll("canvas")].map((c) => { const b = c.getBoundingClientRect(); return { cls: c.className.slice(0, 40), cw: c.clientWidth, ch: c.clientHeight, w: c.width, h: c.height, x: +b.left.toFixed(2), y: +b.top.toFixed(2), bw: +b.width.toFixed(2), bh: +b.height.toFixed(2), xf: c.style.transform || "" }; }));
     console.log("[캔버스]", JSON.stringify(cvs));
     console.log("[지형 진단]", JSON.stringify(await page.evaluate(() => { const d = window.__scrDiag; return d ? { ppt: d.ppt, needed: d.needed, scale: d.scale, css: d.mapCss, back: d.mapBack, unitScale: d.unitScale, unitBack: d.unitBack, unitCss: d.unitCss } : null; })));
+    /* 흐림 진단 줄(ReplayMotionPlayer blurDiag9 — `--diag` 로 켠 머리 줄 아래 한 줄) — 상자·캔버스의 기기 화소 자리 · 조상 변환 · 뷰 배율 · 손짓. */
+    const blur9 = await page.evaluate(() => Array.from(document.querySelectorAll(".scr-motion-diag div")).map((d) => d.textContent ?? "").find((t) => t.startsWith("흐림:")) ?? null);
+    if (blur9) console.log("[흐림]", blur9);
 }
 /* 목록 자(--pickshot <png>): TV 단추의 목록을 **연 채** 찍는다(2026-09, 지적: "버튼줄의 버튼 셀렉트 목록이
    화면캡션(~화면)에 가려져") — 자막(.scr-motion-castbar)과 목록(.scr-motion-pickmenu)의 겹 무게는 정지 그림에서만
