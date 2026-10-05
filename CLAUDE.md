@@ -6908,3 +6908,27 @@ transform·zoom·filter·backdrop-filter·perspective(합성기가 그 층을 �
   `fillAt` 이 t < `CLAW_ARM_T9`(0.5)를 그 색으로 칠하고 `ovalOf` 가 단면을 팔 1(둥근 관) → 낫 1.75(납작한 날)로 한 마디 안에서 넘긴다.
   `ivory()` 는 fill 없는 낯만 상아로 칠하므로 팔 몫은 남는다. 드론만 `#6b4732`(뒷몸 갈색)를 준다 — 안 주면 종전대로 통째로 낫이다.
 · 🔎 `model-gl --kinds probe --rots 0,45,90,135,180 --pose 1 --fit 0.85` · `model-gl --kinds drone --rots 0,45,90,135 --fit 0.85`.
+
+## 네 유닛 여섯 컷 걸음 · 하템 다리 요잉 30 · 질럿·다크 선 자세는 앞뒤로 벌리고 crouch(2026-10)
+★ (요청: "이동모션 컷수 늘리기 -리버, 드라군, 저글링, 울트라 / 하템 고관절에서 다리전체를 바깥으로 더 많이 벌리기(돌리기) 걷지않아서 괜찮 /
+질럿 다크 정지와 공격시 앞뒤다리 간격더 멀리 변경. 굽힌 모양은 비슷하게(쭉뻗기x) 무릎 발목 각도 잘 조절해서 앞뒤로 다리만 벌려서 발바닥을
+땅에 대고 짚고 있게 기본자세에서 팔도 좀더 앞뒤로 벌리게(양팔 똑같은 자리가 아님 다리에 맞춰야함)")
+· **여섯 컷** — engine9 `POSE_KINDS` 의 reaver·goon·zling·ultra 에 `gait: true` 만 더했다. 넷 다 빌더가 `walkDir()` 한 값(이제 ±1·±0.5 의
+  코사인)으로 다리·몸을 움직이므로 사잇컷이 저절로 선다(리버 몸 오므림 · 드라군 다리 · 저글링 뻗음/모음 · 울트라 도약·낫). 낮은 배율의
+  접기(6·9 → 1 · 7·8 → 3)도 공용 길이다. 🔎 `model-gl --kinds reaver,goon,zling,ultra --rots 90 --pose 1|6|7|3`.
+· **하템** — `HT_LEG_YAW9`(30) 를 `protossLegs` 의 yaw 로 준다(질럿·다크는 P_LEG_YAW9 7 그대로). 떠 있어 걷지 않으니 발끝만 바깥을 본다.
+· ★★ **질럿·다크의 선 자세(정지·공격)는 crouch 다** — 고관절(설계 z 2.95)과 다리 두 마디 합(≈3.08)이 못 박혀 있어 앞뒤로 벌리기만 하면
+  두 다리가 곧은 막대가 된다(한 번 그렇게 섰다). 그래서 **몸 전체를 내리고 다리는 그 이동을 걷는다**: 빌더가 `withModelZOff(modelZOffNow() −
+  crouch, …)` 로 다리·몸통·팔·머리를 통째로 내리고, `protossLegs(…, crouch, stanceM)` 가 `withModelZOff(modelZOffNow() + crouch, …)` 로
+  되돌린 뒤 고관절만 `pStanceCrouch9(bend, atk)` 만큼 내린다 — 곧 발은 땅에 그대로, 무릎은 굽은 채 벌어진다. `LEG_STANCE9` 0.5(옛 0.3 ·
+  정지) · 공격 ×`LEG_STANCE_ATK9` 1.6. 걸음(stride ≠ 0)·하템(tuck)은 crouch 0.
+  · ⚠ `withModelZOff` 는 **덮어쓰는** 자다(더하지 않는다) — 그래서 `modelZOffNow()`(shapeOblique · 새 getter)를 읽어 더해 넘긴다. 부양
+    높이표(MODEL_Z_OFF9)가 바깥에서 건 값 위에 얹힌다.
+  · ⚠ crouch 의 판정(wd9 === 0 · 공격)은 **빌더와 다리가 같은 자**를 봐야 한다 — 어긋나면 다리가 골반에서 뜬다.
+· **팔은 다리의 반대** — 질럿은 왼다리(+x · stanceM 1)가 앞이라 왼팔 뒤 · 오른팔 앞(`ZL_IDLE_Y9` 0.65 · 옛 0.32). 다크는 검 팔(−x)이 뒤
+  (DT_HAND9[0] y −0.55 → −0.9) · 왼손 앞(`DT_LH_Y9` 1.2 → 1.5 — 손바닥·손가락 셋이 그 값을 읽는다)이라 **다리는 stanceM −1**(오른다리
+  −x 앞)로 팔과 엇갈린다.
+· 총구표 zealot [0.92, 4.94, 3.67] → [·, ·, 3.57](crouch 몫) · 잉크 중심(옛/새 차) zealot +0.05/+0.04 · dtemp +0.07/+0.07 · htemp 0/+0.01 ·
+  MODEL_NORM 그대로(자세로 달라진 잉크) · 덮임 100% · 등급표 그대로.
+· 🔎 `model-gl --kinds zealot,dtemp --rots 90,45,0 --cell 420 --fit 0.85 --pose 0|2` — 90 에서 두 다리가 앞뒤로 벌어진 채 무릎이 굽고
+  발이 한 높이에 있어야 한다 · `--kinds htemp --rots 0` 에서 발끝이 바깥을 본다.

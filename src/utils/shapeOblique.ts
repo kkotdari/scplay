@@ -747,6 +747,8 @@ export function withModelZ<T>(k: number, fn: () => T): T {
 }
 /** 모델 전체를 z로 평행이동(모델 단위) — 떠 있는 몸을 땅 쪽으로 내리는 데 쓴다(프로브). 배율 뒤에 더한다. */
 let modelZOff = 0;
+/** 지금 걸린 z 평행이동(모델 단위 · 배수를 먹인 값) — 겹쳐 더하려는 자리(프로토스 보병의 스탠스 crouch)가 읽는다. */
+export const modelZOffNow = (): number => modelZOff;
 export function withModelZOff<T>(dz: number, fn: () => T): T {
   const p = modelZOff;
   // 모델 z 배수(withModelScale·withModelZ) 안에서는 이 이동도 모델 z라 같은 배수를 탄다.
