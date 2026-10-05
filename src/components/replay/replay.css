@@ -3182,7 +3182,9 @@
   /* ★ 바깥 테두리는 **네 방이 한 값**이다(2026-09, 지적: "독 바깥 테두리 4방 모두 굵기 동일하게 위와 양옆은 좀 가늘고 아래는 너무
      두껍") — 옛 판은 위·옆이 --dock-bez(안쪽 틈과 같은 값)이고 아래만 +2px 에 바깥 검은 테까지 얹혀 아래가 두 배 남짓이었다
      (옛 "독 아래테두리가 좀 얇게 보이는데"로 덧댄 그 2px 은 되물렸다). 안쪽 틈(--dock-bez · 구분 막대)과 갈라 둔다. */
-  --dock-out: calc(3.4px * var(--dk));
+  /* ×1.5(2026-10, 요청: "독 상하좌우 프레임 두께 현재보다 50프로 더 두껍게 · 접었을때도 상단 프레임이 동일한 두께") — 3.4 → 5.1·dk.
+     툴박스 아래 여백 · 접힌 때의 툴박스 위 여백이 같은 값을 손으로 든다(.scr-tb 에서는 이 변수를 못 읽는다 — 하나를 고치면 넷 다). */
+  --dock-out: calc(5.1px * var(--dk));
   /* 두 줄 — [TV 정사각 | 정보줄 | 접기 정사각] / [미니맵 | 인포창](키 --dock-h · 온 폭). 접으면(is-fold) 정보줄만 남는다. */
   display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: var(--dock-bez); padding: var(--dock-out); min-width: 0; max-width: 100%;
   box-sizing: border-box;
@@ -3204,7 +3206,7 @@
 /* ★ 접으면 독 줄이 **통째로** 사라진다(2026-09, 요청: "접혔을때 인포창아예 안남게") — 손잡이는 툴박스 재생 줄의 시계 옆이라 남는다.
    옛 '접어도 폭은 그대로 · 손잡이 키만 남는다'는 되물렸다. */
 .scr-fs-dockrow.is-fold { display: none; }
-.scr-fs-dockrow.is-fold + .scr-tb { padding-top: calc(3.4px * var(--dk)); }
+.scr-fs-dockrow.is-fold + .scr-tb { padding-top: calc(1px + 5.1px * var(--dk)); }   /* 펼친 때의 위 테 = 틀의 투명 1px + --dock-out */
 .scr-fs-dockframe > .scr-fs-dockmain { grid-column: 1; grid-row: 1; }
 .scr-fs-dockmain > .scr-fs-minipanel,
 .scr-fs-dockmain > .scr-motion-infodock {
@@ -3267,7 +3269,7 @@
   /* ★ 툴박스는 이제 독 줄 **아래**다(2026-10, 요청: "재생부를 아래로 미니맵과 인포창을 위로 바꿈") — 위는 독 틀의 아래 여백
      (--dock-out)에 붙으므로 한 뼘(3px)만 두고, 아래(쇠판 아랫변)가 독 틀의 바깥 테와 같은 값(3.4·dk)이다. 독을 접으면 위도
      그 값이라 쇠판의 위·아래 테가 같다(아래 .is-fold + .scr-tb). */
-  padding-top: 3px; padding-bottom: calc(3.4px * var(--dk));
+  padding-top: 3px; padding-bottom: calc(5.1px * var(--dk));
   /* 판은 이제 **쇠**다(위 ★★ — 감싸개의 쇠판 위에 선다) · 옛 반투명 판(0.34)·흐림은 걷었다. */
   background: none; color: var(--text);
   box-shadow: none;
@@ -3305,7 +3307,11 @@
 .scr-tb-btnrow { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-width: 0; position: relative; }
 /* 접기 손잡이는 버튼 줄 **정가운데**다(2026-10, 요청: "접기버튼을 버튼줄 정가운데에") — 양옆 무리의 폭이 달라(PC 왼 다섯 · 오른 넷)
    흐름에 두면 한쪽으로 쏠리므로 줄의 절대 가운데에 띄운다. */
-.scr-tb-btnrow > .scr-motion-infodock-fold { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); margin: 0; }
+/* ★ 이제는 **전체화면 단추 오른쪽**이고 크기도 그 원과 같다(2026-10, 요청: "접기펴기 버튼 전체화면 버튼 오른쪽으로 이동 크기도 맞추기") —
+   위 '버튼 줄 정가운데'는 되물렸다. 한 변 = --mapbtn-h · 꼬리의 맨 끝(order 3). */
+.scr-tb-tail > .scr-motion-infodock-fold {
+  order: 3; margin: 0 0 0 2px; width: var(--mapbtn-h); height: var(--mapbtn-h); border-radius: calc(3px * var(--dk));
+}
 .scr-tb-tail { display: flex; align-items: center; gap: 6px; flex: none; margin-left: auto; }
 /* (걷어냄) 사람 정보 판(.scr-tb-who*) — 2026-09, 요청: "유저창 완전 제거". 현황 꼴(.scr-who-*)은 분할 칸 머리가 쓴다. */
 /* ★★ 현황 칸은 **값마다 제 폭 · 오른쪽 맞춤 · 사이 | **(2026-09, 요청: "스탯들 표시 방법 변경 라벨위치는 고정하고 데이터는 우측정렬 ·
@@ -3354,7 +3360,7 @@
   .scr-tb-tail .scr-kakao-share-btn:hover { background: rgba(255, 255, 255, 0.18); }
 }
 @media (max-width: 1159px) {
-  .scr-tb { --tb-padt: 9px; padding: 2px 6px calc(3.4px * var(--dk)); }
+  .scr-tb { --tb-padt: 9px; padding: 2px 6px calc(5.1px * var(--dk)); }
   .scr-tb-tail { gap: 5px; }
 }
 /* (걷어냄) PC 한 줄 — 이제 어느 폭에서나 [단추 줄] / [재생·탐색바·시계] 두 줄이다(2026-09, 요청: "피시에서도 버튼하고

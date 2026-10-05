@@ -692,7 +692,7 @@ if (has("--dockprobe")) {
   });
   console.log("[독 자]", JSON.stringify(r));
     // 캔버스·무대 폭(체력바 절대 폭 검산용) — 지도 한 타일이 화면 몇 px인지가 여기서 나온다.
-    const cvs = await page.evaluate(() => [...document.querySelectorAll("canvas")].map((c) => { const b = c.getBoundingClientRect(); return { cls: c.className.slice(0, 40), cw: c.clientWidth, ch: c.clientHeight, w: c.width, h: c.height, x: +b.left.toFixed(2), y: +b.top.toFixed(2), bw: +b.width.toFixed(2), xf: c.style.transform || "" }; }));
+    const cvs = await page.evaluate(() => [...document.querySelectorAll("canvas")].map((c) => { const b = c.getBoundingClientRect(); return { cls: c.className.slice(0, 40), cw: c.clientWidth, ch: c.clientHeight, w: c.width, h: c.height, x: +b.left.toFixed(2), y: +b.top.toFixed(2), bw: +b.width.toFixed(2), bh: +b.height.toFixed(2), xf: c.style.transform || "" }; }));
     console.log("[캔버스]", JSON.stringify(cvs));
 }
 /* 목록 자(--pickshot <png>): TV 단추의 목록을 **연 채** 찍는다(2026-09, 지적: "버튼줄의 버튼 셀렉트 목록이

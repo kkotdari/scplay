@@ -11101,10 +11101,15 @@ export default function ReplayMotionPlayer({
      채우는 용으로") — 한때 눌린 몫만큼 키워 무대를 채우게 했는데, 그러면 좌우가 크게
      잘리고 셈이 곳곳에서 갈렸다. 눕히면 지도가 무대를 못 채우는 것은 눕히기의 성질이고,
      그 남는 자리는 **밤하늘**이 맡는다. 덮는 크기는 2D·3D가 한 식이다. */
+  /* ★★ **덮는 크기는 정수 CSS px 다**(2026-10, 지적: "특정 크기에서 화면 흐림 여전") — 정사각이 아닌 지도(128×96 따위)는
+     세로가 `폭 × 96/128` 이라 폭이 4의 배수가 아니면 **소수 px** 다. 지도 상자의 높이가 소수면 그 안의 유닛·GL·안개 캔버스
+     (100% 높이)도 소수인데, 붓은 배킹을 `clientHeight`(반올림한 정수) × 배수로 잡는다 — 곧 비트맵이 표시 크기와 한 톨 어긋나
+     브라우저가 **판 전체를 다시 보간**한다(그래서 '맵 위의 모든 게' 흐리고, 폭에 따라 됐다 안 됐다 한다). 앞서 고친 0.5px
+     가운데 맞춤(--snx·--sny)은 자리였고 이것은 크기다. 반올림의 어긋남(<0.5px)은 지도 아래끝 한 줄뿐이다. */
   const fsCoverW = stage.w > 0
-    ? Math.max(stage.w, (fitH9 * grid.width) / Math.max(1, grid.height))
+    ? Math.round(Math.max(stage.w, (fitH9 * grid.width) / Math.max(1, grid.height)))
     : 0;
-  const fsCoverH = fsCoverW > 0 ? (fsCoverW * grid.height) / Math.max(1, grid.width) : 0;
+  const fsCoverH = fsCoverW > 0 ? Math.round((fsCoverW * grid.height) / Math.max(1, grid.width)) : 0;
 
 
   /* 팬 한계가 읽는 자 셋 — 그리는 값과 **같은 렌더에서** 심는다(한 박자 늦으면 손짓이
@@ -17684,7 +17689,9 @@ export default function ReplayMotionPlayer({
               top: "50%",
               /* --snx·--sny: 기기 화소 맞춤(위 '지도 상자를 기기 픽셀에 맞춘다'). */
               transform: "translate(calc(-50% + var(--snx, 0px)), calc(-50% + var(--sny, 0px)))",
-              width: `${fsCoverW}px`, flex: "0 0 auto", minWidth: 0,
+              /* 높이도 **정수로 못 박는다** — aspectRatio 로 두면 정사각이 아닌 지도에서 소수 px 가 되어 캔버스가 통째로 보간된다
+                 (위 fsCoverW 의 ★★). 폭·높이가 다 서므로 aspectRatio 는 이 갈래에서 안 먹는다. */
+              width: `${fsCoverW}px`, height: `${fsCoverH}px`, flex: "0 0 auto", minWidth: 0,
               overflow: "visible" as const, borderRadius: 0,
               /* 유닛 캔버스가 이 값을 읽어 제 몸을 위로 늘린다(.scr-motion-unitlayer).
                  늘림은 **배율과 무관하게 늘 켠다**(지적: "1배 아니어도 맨 윗줄의 유닛은
@@ -18400,9 +18407,6 @@ export default function ReplayMotionPlayer({
           >
             <div className="scr-tb-btnrow">
               {mapBtnRow}
-              {/* 접기 손잡이 — 버튼 줄 **정가운데**(2026-10, 요청: "접기버튼을 버튼줄 정가운데에" · 옛 자리 재생 줄의 시계 옆).
-                  양 무리의 폭이 달라도 가운데이게 절대 자리로 선다(replay.css .scr-tb-btnrow > .scr-motion-infodock-fold). */}
-              {dockFoldNode9}
               <div className="scr-tb-tail">
                 {/* ★ 장면 스크랩 — 앱이 onScrap을 주면 여기서 그린다(위 프롭 주석). 차례는 안내(ReplayGuide)와 같다:
                     스크랩(Z) → 공유(X) → 사용법. 꼴은 같은 줄의 공유·사용법과 한 벌이다(.scr-scrapbtn). */}
@@ -18450,6 +18454,9 @@ export default function ReplayMotionPlayer({
                 >
                   {fsOn ? <Minimize size={18} aria-hidden /> : <Maximize size={18} aria-hidden />}
                 </button>
+                {/* 접기 손잡이 — **전체화면 단추 오른쪽**(2026-10, 요청: "접기펴기 버튼 전체화면 버튼 오른쪽으로 이동 크기도 맞추기" ·
+                    옛 자리 버튼 줄 정가운데). 크기는 꼬리 원과 같은 --mapbtn-h(replay.css .scr-tb-tail > .scr-motion-infodock-fold). */}
+                {dockFoldNode9}
               </div>
             </div>
             <div className="scr-tb-seek">{speedNode9}{controlsNode}</div>
