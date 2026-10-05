@@ -2950,18 +2950,25 @@ export function suitHelmet(
 /** 큰 낫 하나 — 뿌리(P0)에서 밖·앞으로 크게 감겨 안으로 말린다.
  *  ox·oy는 **뿌리를 옮기는 몫**이다(지적: "울트라 큰 갈고리는 뿔이 아니라 팔끝에 달린
  *  갈고리임") — 낫을 몸에서 바로 뽑으면 뿔이 되고, 팔끝에서 뽑으면 갈고리가 된다. */
-export function claw3(m: 1 | -1, s: number, z0: number, ox = 0, oy = 0): ShapeFace[] {
+/** `arm` 을 주면 **뿌리 반(t < ARM_T9)은 그 색의 둥근 팔**이고 끝 반만 납작한 낫(상아)이다(2026-10, 요청: "드론 앞 팔
+ *  반정도는 갈색 팔 반만 낫으로 남기기") — 같은 등뼈 위에서 색(fillAt)·단면(ovalOf: 팔 1 → 낫 1.75)만 갈리므로 이음매가
+ *  없다. `ivory()` 는 fill 이 없는 낯만 상아로 칠하므로 팔 몫의 색은 그대로 남는다. 안 주면 종전대로 통째로 낫이다. */
+export const CLAW_ARM_T9 = 0.5;
+export function claw3(m: 1 | -1, s: number, z0: number, ox = 0, oy = 0, arm?: string): ShapeFace[] {
   const P0: [number, number, number] = [m * 0.75 * s + m * ox, 0.45 * s + oy, z0 + 0.08];
   const CP: [number, number, number] = [m * 3.05 * s + m * ox, 2.3 * s + oy, z0 + 0.4];
   const P1: [number, number, number] = [m * 0.95 * s + m * ox, 4.5 * s + oy, z0 - 0.36];
   const bez = (a: number, b: number, c: number, t: number): number =>
     (1 - t) * (1 - t) * a + 2 * (1 - t) * t * b + t * t * c;
   return spirePillar({
-    x: 0, y: 0, h: 0.8, w: 1, segs: 9, sides: 6, oval: 1.75, caps: "bottom",
+    x: 0, y: 0, h: 0.8, w: 1, segs: arm ? 10 : 9, sides: 6, oval: 1.75, caps: "bottom", trueNormal: !!arm,
     path: (t: number): [number, number, number] => [
       bez(P0[0], CP[0], P1[0], t), bez(P0[1], CP[1], P1[1], t), bez(P0[2], CP[2], P1[2], t),
     ],
     widthOf: (t: number): number => (0.44 * (1 - t) ** 1.25 + 0.028) * s,
+    // 팔 몫은 둥근 관(1) · 낫 몫은 납작한 날(1.75) — 경계 한 마디에서 부드럽게 넘어간다.
+    ovalOf: arm ? (t: number): number => 1 + 0.75 * Math.min(1, Math.max(0, (t - CLAW_ARM_T9 + 0.05) / 0.1)) : undefined,
+    fillAt: arm ? (t: number): string | undefined => (t < CLAW_ARM_T9 ? arm : undefined) : undefined,
   });
 }
 export function ivory(faces: ShapeFace[]): ShapeFace[] {
@@ -23587,7 +23594,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const out: ShapeFace[] = [];
     /** 몸통 축소 몫(요청: "프로브 몸체 크기 2/3로 축소") — 몸에 붙는 자리(다리 뿌리·
      *  눈·옆 포트)가 전부 이 값을 지나야 몸만 줄고 부품이 허공에 뜨는 일이 없다. */
-    const BD = 1.03 / 1.55;
+    const BD0 = 1.03 / 1.55;
+    /** ★ 몸통 25% 축소(2026-10, 요청: "프로브 몸통 25프로 축소 및 나머지 부품들 몸에 잘 붙게 맞춰서 위치 조정") — 몸통
+     *  반지름·치마 높이에 `PK9` 를 곱하고, 몸에 붙는 자리(날개 뿌리·눈·포트·입·스러스터)는 **새 벽**에서 다시 푼다.
+     *  날개의 **끝 자리는 그대로**(길이를 늘여 뿌리만 안으로) · 스러스터·눈·포트의 **크기도 그대로**(자리만). */
+    const PK9 = 0.75;
+    const BD = BD0 * PK9;
     /* 다리를 납작한 날개판으로(지적: 원통·원뿔이 아니라 비행기 날개 같은 형태) —
        윗판(넓적한 사다리꼴) + 바깥 모서리의 얇은 두께면. 옆다리는 뺐다(지적). */
     const wing = (
@@ -23689,7 +23701,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        굵기는 0.62배, 뿌리 높이는 몸통 원판(6.2)에 맞춰 올린다. */
     /* ★ 뒤 위 날개는 **더 길고 위를 향한다**(2026-09, 요청: "뒷윗날개 좀더 길게 하고 각도를 더 위를 향하게") — 옛 길이
        1.17 이 아래로 0.24 처졌다(5.04 → 4.8). 길이 ×1.4 · 끝 z 5.6(뿌리에서 0.56 오름 · 약 19도). */
-    for (const ang of [168, 192]) out.push(...backWing(ang, 1.1 * BD, (0.8 + 1.1 * (1 - BD)) * 1.4, 0.10, 0.04, 5.04, 5.6));
+    const TIP_BU9 = 1.1 * BD0 + (0.8 + 1.1 * (1 - BD0)) * 1.4;   // 뒤 위 날개 끝 자리(옛 값 그대로)
+    for (const ang of [168, 192]) out.push(...backWing(ang, 1.1 * BD, TIP_BU9 - 1.1 * BD, 0.10, 0.04, 5.04, 5.6));
     /* ★★ **분사구를 지어 주고 거기서 불을 낸다**(2026-09, 요청: "프로브 몸 뒤쪽 뒷날개 아래에
        납작한 스러스터 두 개 추가하고 추진 에너지 효과 거기에 맞춰 줘") ────────────────────
        처음에는 뒷날개 **끝**에서 불을 냈다(노즐이랄 것이 없는 몸이라 자리를 골라야 했다).
@@ -23726,7 +23739,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ...drum9(r19 - 0.12, r19 + 0.015, rad * 0.74, "#23272e", "top"),
       ], depthNow(dx9 * (r0 + len * 0.7), dy9 * (r0 + len * 0.7)) - 0.25);
     };
-    for (const ang of [168, 192]) {
+    for (const ang of [164, 196]) {   // ±12 → ±16도 — 벽이 좁아져(반지름 0.535) ±12 면 두 통(지름 0.28)이 겹친다(2·0.535·sin16 = 0.295)
       const ar9 = (ang * Math.PI) / 180;
       /* 치마(절두체) 벽에 물려 붙인다 — 그 높이의 벽 반지름이 0.82쯤이라 r0 0.68 이면 살 속으로
          한 뼘 파고든다(닿게만 두면 부감에서 그 틈으로 배경이 샌다). */
@@ -23734,7 +23747,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* ★ 둘이 **안 겹치게** 작다(2026-09, 요청: "프로브 스러스터 겹치지 않게 크기 줄이기") — 두 통은 ±12도로 벌어져 벽(반지름 0.71)
          자리에서 중심 사이가 2·0.71·sin12 = 0.295 뿐이라, 반지름 0.30(지름 0.6)이면 절반이 서로 파묻혀 한 덩이로 읽혔다. 반지름 0.14
          (지름 0.28 < 0.295) · 길이 0.52 → 0.42 · 불꽃 0.22 → 0.11 로 같은 몫만큼 줄인다. */
-      const R09 = 0.68; const LN9 = 0.42; const ZC9 = 4.42;
+      /* 몸통 ×0.75 뒤의 자리(2026-10) — 치마 4.495~4.96 · 반지름 0.50 → 0.77. 옛 자리(밑동 위 0.08 · 벽 속 0.03)를 새 벽에서
+         되푼다: zC = 밑동 + 0.06 → 4.555 · 그 높이 벽 0.535 · r0 = 0.51. 통의 크기(0.14 · 0.42)는 그대로다. */
+      const R09 = 0.51; const LN9 = 0.42; const ZC9 = 4.555;
       out.push(...thrPod9(ang, R09, LN9, 0.14, ZC9));
       const rr9 = R09 + LN9;
       const px9 = Math.sin(ar9) * rr9;
@@ -23743,7 +23758,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     }
     // 긴 뒷다리 한 쌍은 길이·두께 2/3(지적).
     // 짧은 뒷다리 한 쌍은 더 짧게(지적) — 1.67 → 1.05.
-    for (const ang of [138, 222]) out.push(...backWing(ang, 1.1 * BD, 1.05 + 1.1 * (1 - BD), 0.23, 0.09, 5, 4));
+    const TIP_BL9 = 1.1 * BD0 + 1.05 + 1.1 * (1 - BD0);   // 뒤 아래 날개 끝 자리(옛 값 그대로)
+    for (const ang of [138, 222]) out.push(...backWing(ang, 1.1 * BD, TIP_BL9 - 1.1 * BD, 0.23, 0.09, 5, 4));
     /* ★ 몸통은 **원**이다(지적: "프로브 몸체는 팔각형 아니고 원형임") — 여덟 모서리를
        세운 팔각 원반이라, 위에서 내려다보는 화면에서 각진 너트로 읽혔다. discPath3은 이
        사영의 바닥 원(눌린 타원)을 바로 내므로 요잉을 따라 도는 것도 그대로다.
@@ -23770,8 +23786,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        치마는 밑 뚜껑만·어깨는 윗 뚜껑만 두어 이음매가 열려 있지만 두 테가 같은 자리라
        닫힌 입체다(뒷면 걷기도 그대로 먹는다).
        ⚠ 꼭대기 광(topFace)도 함께 내려야 한다 — 5.44 에 두면 그것 역시 허공에 뜬 데칼이다. */
+    // 몸통 ×0.75(PK9) — 반지름은 BD 가 이미 품고, 높이는 어깨(ZTOP9)를 못 박은 채 치마·뚜껑 몫만 줄인다.
     const RTOP9 = 1.55 * BD; const RBOT9 = 1.00 * BD; const RCAP9 = 1.05 * BD;
-    const ZTOP9 = 4.96; const ZBOT9 = 4.34; const ZCAP9 = 5.20;
+    const ZTOP9 = 4.96; const ZBOT9 = ZTOP9 - 0.62 * PK9; const ZCAP9 = ZTOP9 + 0.24 * PK9;
     out.push(...tagKey([
       // 치마는 금색, 어깨·뚜껑은 안 칠한다 = 임자 색(요청: 몸통 위 원판만 개인색).
       ...paintBase(spirePillar({
@@ -23803,25 +23820,33 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          자로 준다: 벽은 위로 갈수록 넓어지므로(dr/dz 0.6) 법선이 앞·아래(−31도)를 보고, 렌즈 반지름 0.15 안에서 구와 원뿔의
          차는 0.01 이라 어느 각에서도 벽에 딱 붙는다. 좌우 자리는 몸 축 둘레의 **방위각**(±23.6도 = atan(0.35/0.80))이라
          `withModelSpin` 으로 돌린다(렌즈의 방향은 y-z 평면뿐이다). 크기 0.28 → 0.15(요청). 2D 는 종전처럼 마주 볼 때만. */
-      const EYE_R9 = 1.2; const EYE_EL9 = -Math.atan(0.6);
+      /* 몸통 ×0.75 뒤의 눈 자리(2026-10) — 치마 한가운데 z 4.73 · 그 높이 벽 반지름 0.635(옛 0.875). 렌즈 크기는 그대로. */
+      const EYE_Z9 = (ZBOT9 + ZTOP9) / 2;
+      const EYE_W9 = RBOT9 + (RTOP9 - RBOT9) * ((EYE_Z9 - ZBOT9) / (ZTOP9 - ZBOT9));
+      const EYE_R9 = 1.2; const EYE_EL9 = -Math.atan((RTOP9 - RBOT9) / (ZTOP9 - ZBOT9));
       for (const m of [-1, 1] as const) {
         out.push(...withModelSpin(m * 23.6, () => tagKey(contactLens9({
-          cx: 0, cy: 0.875 - EYE_R9 * Math.cos(EYE_EL9), r: EYE_R9, hh: EYE_R9, z0: 4.70 - EYE_R9 * Math.sin(EYE_EL9),
+          cx: 0, cy: EYE_W9 - EYE_R9 * Math.cos(EYE_EL9), r: EYE_R9, hh: EYE_R9, z0: EYE_Z9 - EYE_R9 * Math.sin(EYE_EL9),
           ang: 0.15 / EYE_R9, elev: EYE_EL9, thick: 0.05, rim: "#4e7f18", fill: "#8fe63a", core: "#d9ff8c",
-        }).map(([d, o, f, kk, l, n]) => [d, o * k, f, kk, l, n] as ShapeFace), depthNow(0, 0.875) * 1.6 + 3)));
+        }).map(([d, o, f, kk, l, n]) => [d, o * k, f, kk, l, n] as ShapeFace), depthNow(0, EYE_W9) * 1.6 + 3)));
       }
     }
     /* 옆면 둥근 포트(실물 참고) — 몸이 줄면서 가장자리 밖으로 삐져나와 떠 보였다(확인)
        — 몸 안쪽으로 당기고 더 작게. */
-    out.push(topFace(discPath3(-0.98 * BD, 0.5 * BD, 5.04, 0.28, 0.22), 0.3));
-    out.push(topFace(discPath3(0.98 * BD, 0.5 * BD, 5.04, 0.28, 0.22), 0.3));
+    // 포트 둘 — 자리는 BD(×0.75 포함)를 타고 크기는 그대로 · 높이는 새 어깨 비탈(ZTOP9~ZCAP9)의 한가운데.
+    out.push(topFace(discPath3(-0.98 * BD, 0.5 * BD, (ZTOP9 + ZCAP9) / 2, 0.28, 0.22), 0.3));
+    out.push(topFace(discPath3(0.98 * BD, 0.5 * BD, (ZTOP9 + ZCAP9) / 2, 0.28, 0.22), 0.3));
     /* 총구 = **눈 아래 앞면 한가운데(입)**(2026-09, 요청: "프로브는 입으로 이동") — 프로브의
        지지는 몸에서 나가는 빛이라, 안 적어 두면 붓이 상자 가운데에서 낸다. 눈 둘(±0.52·BD,
        1.45·BD, 5.04)의 사이 한 뼘 아래다. */
-    markMuzzle9(0, 1.2 * BD, 4.52);   // 눈(4.70)을 내린 만큼 입도 — 그 높이 벽 반지름 0.77 의 앞.
+    {   // 입 — 눈 아래 한 뼘(치마 아래 1/4 높이)의 벽 앞 0.03(2026-10, 몸통 ×0.75 뒤 새 벽에서 되푼 자리).
+      const MZ9 = ZBOT9 + (ZTOP9 - ZBOT9) * 0.25;
+      markMuzzle9(0, RBOT9 + (RTOP9 - RBOT9) * 0.25 + 0.03, MZ9);
+    }
     /* 앞다리 한 쌍(재지적: 길이 축소 + 두 다리 사이 벌리기 + 몸에 더 딱) — 뿌리를
        몸 바로 밑(0.65)까지 당기고, 각도를 ±14→±30으로 벌리고, 길이는 반 남짓으로. */
-    for (const ang of [30, -30]) out.push(...paintBase(wing(ang, 0.85 * BD, 0.8 + 0.85 * (1 - BD), 0.17, 0.08, 4.92, 4.4), TOSS_GOLD));
+    const TIP_F9 = 0.85 * BD0 + 0.8 + 0.85 * (1 - BD0);   // 앞 날개 끝 자리(옛 값 그대로 · 뿌리만 새 몸속으로)
+    for (const ang of [30, -30]) out.push(...paintBase(wing(ang, 0.85 * BD, TIP_F9 - 0.85 * BD, 0.17, 0.08, 4.92, 4.4), TOSS_GOLD));
     return out;
   },
   /* 드론(정정) — 갈퀴치마는 집게 사이가 아니라 집게팔과 꼬리 사이, 양옆에 부채처럼
@@ -23872,8 +23897,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          눈은 그 얼굴이 제 몫으로 달고 나온다 — 따로 얹던 눈은 걷는다. */
       ...tagKey(zergFace(0.75, 3.08, 0.85), depthNow(0, 0.9) * 1.6 + 2.5),
       /* 갈고리 — 아래로 내린다(요청: z 4 → 3). 치마가 그 안쪽 변에 물린다. */
-      ...tagKey(ivory(claw3(1, CLAW_S, CLAW_Z)), depthNow(2, 1.5) * 1.6 + 2),
-      ...tagKey(ivory(claw3(-1, CLAW_S, CLAW_Z)), depthNow(-2, 1.5) * 1.6 + 2),
+      // 뿌리 반은 갈색 팔(뒷몸과 같은 짙은 갈색) · 끝 반만 상아 낫(2026-10, 요청 — claw3 의 `arm`).
+      ...tagKey(ivory(claw3(1, CLAW_S, CLAW_Z, 0, 0, "#6b4732")), depthNow(2, 1.5) * 1.6 + 2),
+      ...tagKey(ivory(claw3(-1, CLAW_S, CLAW_Z, 0, 0, "#6b4732")), depthNow(-2, 1.5) * 1.6 + 2),
     ];
   },
 
