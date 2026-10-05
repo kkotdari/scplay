@@ -2111,17 +2111,17 @@ export function protossLegs(
     const [ankleR9, cx9, cy9] = legCap9(hip,
       [ankle0[0] + stv9[0], ankle0[1] + stv9[1], ankle0[2] + liftA9], Lt9, Ls9, reach9);
     const kh9 = yv9(0, 1);
-    const knee: [number, number, number] = st === 0 && sp9 === 0 && !g9 ? knee0 : jointBetween(hip, ankleR9, Lt9, Ls9, [kh9[0], kh9[1], 0.1]);
+    const knee1: [number, number, number] = st === 0 && sp9 === 0 && !g9 ? knee0 : jointBetween(hip, ankleR9, Lt9, Ls9, [kh9[0], kh9[1], 0.1]);
     /** 무릎을 축으로 한 접기(위 tuck) — 정강이·발·발가락이 모두 이 손을 지난다. */
     const tuckAt9 = (q: [number, number, number]): [number, number, number] => {
       if (tuck === 0) return q;
-      const vy9 = q[1] - knee[1];
-      const vz9 = q[2] - knee[2];
+      const vy9 = q[1] - knee1[1];
+      const vz9 = q[2] - knee1[2];
       const c9 = Math.cos(tuck);
       const s9 = Math.sin(tuck);
-      return [q[0], knee[1] + vy9 * c9 + vz9 * s9, knee[2] - vy9 * s9 + vz9 * c9];
+      return [q[0], knee1[1] + vy9 * c9 + vz9 * s9, knee1[2] - vy9 * s9 + vz9 * c9];
     };
-    const ankle: [number, number, number] = tuckAt9(ankleR9);
+    const ankle1: [number, number, number] = tuckAt9(ankleR9);
     /* ★ 발 마디(발목→발끝) — 길이 **0.375배**, 발목 각은 **절반만큼 편다**(요청: "첫째 두째 마디
        다리사이가 더 굽히고 두째셋째 사이는 더 펴지게 셋째마디 50프로 더 줄여줘") ─────────────────
        무릎을 더 굽히고(bend) 발목을 펴고 발마디를 짧게 하면 프로토스 특유의 **역관절 다리**가 된다:
@@ -2132,24 +2132,49 @@ export function protossLegs(
        발가락 두 갈래는 제 길이 그대로 두되 뿌리는 같은 손(footAt9)으로 옮겨, 줄고 펴진 발끝에 붙어 있게 한다. */
     const FOOT_K9 = 0.9;
     const ANKLE_FLAT9 = 0.25;
-    const sdx9 = ankle[0] - knee[0];
-    const sdy9 = ankle[1] - knee[1];
-    const sdz9 = ankle[2] - knee[2];
+    const sdx9 = ankle1[0] - knee1[0];
+    const sdy9 = ankle1[1] - knee1[1];
+    const sdz9 = ankle1[2] - knee1[2];
     const sl9 = Math.hypot(sdx9, sdy9, sdz9) || 1;
     /** 발 마디의 한 점 — 발목을 축으로 줄이고(FOOT_K9), 정강이 방향 쪽으로 편다(ANKLE_FLAT9). */
     const footAt9 = (q: [number, number, number]): [number, number, number] => {
-      const rx9 = (q[0] - ankle[0]) * FOOT_K9;
-      const ry9 = (q[1] - ankle[1]) * FOOT_K9;
-      const rz9 = (q[2] - ankle[2]) * FOOT_K9;
+      const rx9 = (q[0] - ankle1[0]) * FOOT_K9;
+      const ry9 = (q[1] - ankle1[1]) * FOOT_K9;
+      const rz9 = (q[2] - ankle1[2]) * FOOT_K9;
       const rl9 = Math.hypot(rx9, ry9, rz9);
       return [
-        ankle[0] + rx9 + ((sdx9 / sl9) * rl9 - rx9) * ANKLE_FLAT9,
-        ankle[1] + ry9 + ((sdy9 / sl9) * rl9 - ry9) * ANKLE_FLAT9,
-        ankle[2] + rz9 + ((sdz9 / sl9) * rl9 - rz9) * ANKLE_FLAT9,
+        ankle1[0] + rx9 + ((sdx9 / sl9) * rl9 - rx9) * ANKLE_FLAT9,
+        ankle1[1] + ry9 + ((sdy9 / sl9) * rl9 - ry9) * ANKLE_FLAT9,
+        ankle1[2] + rz9 + ((sdz9 / sl9) * rl9 - rz9) * ANKLE_FLAT9,
       ];
     };
     const toeY9 = yw9([m * P_TOE_X9, 0.5 - P_LEG_BACK9 + legSt9(st) * 1.2 + sp9, Z(0.15) + liftT9]);
-    const toe: [number, number, number] = footAt9(tuckAt9([toeY9[0] + cx9, toeY9[1] + cy9, toeY9[2]]));
+    const toe1: [number, number, number] = footAt9(tuckAt9([toeY9[0] + cx9, toeY9[1] + cy9, toeY9[2]]));
+    /* ★★ 선 자세의 **뒷다리는 발끝으로 선다**(2026-10, 요청: "뒷다리는 대퇴가 거의 수직으로 내려가서 무릎 발목 발끝이 각각 거의
+       직각으로 굽어져서 서있는것 발바닥 전체가 아닌 발끝으로 서기") — 대퇴는 수직에서 θ 만큼 뒤로 기울고, 정강이는 그에 **직각**
+       (뒤로 · 살짝 위), 발마디는 다시 직각(= 대퇴와 나란히 아래)이라 발끝(발가락 뿌리)이 땅에 닿고 발가락만 앞으로 눕는다.
+       세 마디 길이(Lt·Ls·Lf — 설계 자)는 그대로이고 θ 하나를 '발끝이 땅(설계 z TOE_GND9)에 닿는다'에서 푼다:
+       (Lt + Lf)·cosθ − Ls·sinθ = 고관절 높이 → θ = acos(H/R) − atan(Ls/(Lt+Lf)). 지금 자로 정지 ≈11° · 공격 ≈14°.
+       걸음·하템(tuck)·앞다리는 종전 그대로다. */
+    const toeStance9 = !g9 && stride === 0 && tuck === 0 && sp9 < 0;
+    const ts9 = toeStance9 ? ((): { knee: [number, number, number]; ankle: [number, number, number]; toe: [number, number, number] } => {
+      const TOE_GND9 = 0.1;
+      const Lf9 = legLenD9(ankle1, toe1);
+      const Hd9 = (hip[2] - lift) / Z8 - TOE_GND9;
+      const A9 = Lt9 + Lf9; const B9 = Ls9;
+      const R9 = Math.hypot(A9, B9);
+      const th9 = Math.acos(Math.min(1, Hd9 / R9)) - Math.atan2(B9, A9);
+      const c9 = Math.cos(th9); const s9 = Math.sin(th9);
+      const [bx9, by9] = yv9(0, -1);   // 뒤(돌린 자)
+      const zd9 = (hip[2] - lift) / Z8;
+      const kneeT: [number, number, number] = [hip[0] + bx9 * Lt9 * s9, hip[1] + by9 * Lt9 * s9, Z8 * (zd9 - Lt9 * c9) + lift];
+      const ankleT: [number, number, number] = [kneeT[0] + bx9 * Ls9 * c9, kneeT[1] + by9 * Ls9 * c9, Z8 * (zd9 - Lt9 * c9 + Ls9 * s9) + lift];
+      const toeT: [number, number, number] = [ankleT[0] + bx9 * Lf9 * s9, ankleT[1] + by9 * Lf9 * s9, Z8 * (zd9 - Lt9 * c9 + Ls9 * s9 - Lf9 * c9) + lift];
+      return { knee: kneeT, ankle: ankleT, toe: toeT };
+    })() : null;
+    const knee: [number, number, number] = ts9 ? ts9.knee : knee1;
+    const ankle: [number, number, number] = ts9 ? ts9.ankle : ankle1;
+    const toe: [number, number, number] = ts9 ? ts9.toe : toe1;
     /* 하지가 허벅지보다 굵다(요청) — 허벅지 0.6, 정강이 0.72, 발목 0.58. 마디마다
        배가 부풀게 mid를 따로 줘, 곧은 막대가 아니라 근육 붙은 마디로 읽힌다. */
     // 굵기 ×1.25(사진 대조 — 질럿1·4의 다리 갑판은 지금보다 한 뼘 굵다).
@@ -2205,7 +2230,8 @@ export function protossLegs(
     /* 발가락도 **걸음 몫을 탄다**(지적: "질럿 다크 다리가 부품이 몇개는 따로노는데")
        — 무릎·발목·발끝만 stride를 받고 이 두 갈래는 상수 자리에 남아 있어서, 다리가
        앞으로 나가면 발가락만 제자리에 서 있었다. 발목·발끝과 **같은 식**을 쓴다. */
-    const [fx, fy, fz] = footAt9(tuckAt9(yw9([m * (P_TOE_X9 + 0.1), 0.28 - P_LEG_BACK9 + st * 1.2, Z(0.02) + Math.max(0, st) * 0.12])));
+    // 발끝으로 선 뒷다리는 발가락 뿌리가 곧 발마디 끝(땅)이다 — 거기서 앞으로 눕는다.
+    const [fx, fy, fz] = ts9 ? [ts9.toe[0], ts9.toe[1], ts9.toe[2] - 0.12] as [number, number, number] : footAt9(tuckAt9(yw9([m * (P_TOE_X9 + 0.1), 0.28 - P_LEG_BACK9 + st * 1.2, Z(0.02) + Math.max(0, st) * 0.12])));
     for (const s9 of [-1, 1] as const) {
       out.push(...paint(tagKey(spirePillar({
         x: 0, y: 0, h: 0.8, w: 1, segs: 2, sides: 6, oval: 1.8, caps: "none",
