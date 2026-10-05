@@ -8014,7 +8014,10 @@ function viewKeyOf9(v9: EngineView9): string {
     + `|${v9.qAnim ? 1 : 0}${v9.qBuildFx ? 1 : 0}${v9.qDeath ? 1 : 0}${v9.clickFx ? 1 : 0}`
     + `|${v9.cull ? `${v9.cull.x0.toFixed(3)},${v9.cull.x1.toFixed(3)},${v9.cull.y0.toFixed(3)},${v9.cull.y1.toFixed(3)}` : "all"}`
     + `|${v9.cullList ? v9.cullList.map((r9) => `${r9.x0.toFixed(3)},${r9.x1.toFixed(3)},${r9.y0.toFixed(3)},${r9.y1.toFixed(3)}`).join(";") : "-"}`
-    + `|${v9.splitCull ? Object.keys(v9.splitCull).join(",") : "-"}`;
+    /* ★ 팀 엔진의 사각형은 **값까지** 열쇠에 든다(2026-10, 지적: "분할에서 … 화면 이동한 곳이 안 그려지는 듯") — 여태 팀 번호만
+       넣어, 칸 카메라가 옮겨 새 사각형을 내도 관전자 목록(cullList — 팀 칸은 대개 비어 있다)이 그대로면 열쇠가 같아 **안 보냈다**.
+       팀 엔진은 옛 사각형으로 계속 지어, 카메라가 옮겨 간 자리에 몸이 없었다. */
+    + `|${v9.splitCull ? Object.entries(v9.splitCull).map(([k9, rs9]) => `${k9}:${rs9.map((r9) => `${r9.x0.toFixed(3)},${r9.x1.toFixed(3)},${r9.y0.toFixed(3)},${r9.y1.toFixed(3)}`).join(";")}`).join("/") : "-"}`;
 }
 /** ★ 끄는 동안의 실시간 원근은 **기본으로 끈다**(주소에 `?live3d=1`이면 켠다) ────────────────────────
  *  지적 둘로 자리가 드러났다: "흔들림 발생했어. 그리고 두 번째 드래그부터 시점 변화 X".
