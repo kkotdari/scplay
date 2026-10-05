@@ -60,6 +60,12 @@ const STRIDE_B = 36;
 /** 인스턴스 기록 — 22 float(88바이트): aInA·aInB·aInC(vec4 셋) · aTeamC·aSolidC(vec3 둘) · aShad(vec4). */
 const INST_F9 = 22; const INST_B9 = INST_F9 * 4;
 const MESH_MAX9 = 600;   // 메시 상한 기본(종류×자세×LOD + 건물 변종) — 넘으면 오래된 것부터. 기기 표(DEV9.glMeshMax)가 덮는다(폰 240).
+/** 견줌 손잡이 `#glsoft=0` — 2026-10-02 의 음영 약화(그늘 ×0.7 · 등진 바닥 0.86)를 **옛 값**(×1.0 · 0.82+0.26)으로 되돌려 굽는다
+ *  (2026-10, 지적: "예전에 선명했을 때랑 느낌이 다른데" — 캔버스 자리·배킹·재표본이 다 정상인데 흐려 보이면 남는 것은 **대비**다:
+ *  그늘이 얕아지면 입체의 결이 눕고 그것이 '흐림'으로 읽힌다. 눈으로 가르는 자다 · 기본 1 = 지금 값). 셰이더 글자에 접혀 든다. */
+const GL_SOFT9 = ((): number => { const m = typeof location !== "undefined" ? /glsoft=(\d)/.exec(location.hash) : null; return m ? Number(m[1]) : 1; })();
+const SOFT_K9 = GL_SOFT9 === 0 ? "1.0" : "0.7";
+const SOFT_B9 = GL_SOFT9 === 0 ? "0.82 + 0.26 * nd" : "0.86 + 0.22 * nd";
 const VS = `
 attribute vec3 aPos; attribute vec3 aNrm; attribute vec3 aRgb; attribute float aTeam; attribute float aAlpha; attribute vec2 aOv; attribute float aOrd; attribute float aBb;
 /* ★★ **개체별 값은 유니폼이 아니라 인스턴스 속성이다**(2026-09, 요청: "gl2로") — 같은 메시의 개체 N 기를 **한 드로 콜**
@@ -200,7 +206,7 @@ void main() {
   /* ★ **어두운 몫은 0.7 배로 눅인다**(2026-09, 요청: "모델들 음영의 어두운부분 좀 밝게 되나 — 음(영) 약화") —
      구운 낯 음영·셰이더 낯 명암(ov.y)과 실루엣 빛의 오른아래 검정(gb)을 함께 누른다. 흰 몫은 그대로라
      입체의 결은 남고 그늘만 얕아진다. 아래 방향광의 등진 바닥도 0.82 → 0.86 으로 함께 올린다. */
-  col = mix(col, vec3(0.0), clamp((ov.y + gb) * 0.7, 0.0, 1.0));
+  col = mix(col, vec3(0.0), clamp((ov.y + gb) * ${SOFT_K9}, 0.0, 1.0));
   /* ★ 방향광(2026-09) — 2D 판에는 없던 몫이다. 법선은 카메라 쪽으로 뒤집혀 있으므로(위) 빛과의 각은 '얼마나 기울었나'를 뜻한다.
      · **반쪽 램버트**(0.5+0.5·n·L): 램버트를 그대로 쓰면 빛에 등진 낯이 통째로 검어져 실루엣만 남는다. 반으로 접으면
        밝은 낯 → 어두운 낯이 부드럽게 이어지고, 돔·관의 결이 살아난다.
@@ -229,7 +235,7 @@ void main() {
   /* ⚠ 폭을 **도로 좁힌다**(0.68~1.22 → 0.82~1.08) — 넓혔던 것은 위 '구운 명암이 몸과 함께 돈다'를
      덮으려던 미봉이었다(그 주석의 셋째 줄). 이제 그 명암을 셰이더가 제 각으로 내므로 이 자가 다시
      겹치면 빛 쪽이 두 번 밝아진다. */
-  col *= mix(0.86 + 0.22 * nd, 1.0, uFlat);   // 등진 바닥 0.82 → 0.86(위 ★ 음영 약화) · 마주 본 끝 1.08 그대로
+  col *= mix(${SOFT_B9}, 1.0, uFlat);   // 등진 바닥 0.82 → 0.86(위 ★ 음영 약화) · 마주 본 끝 1.08 그대로
   col = mix(col, uSolid.rgb, uSolid.a);   // 단색 판 — 덧칠·실루엣 빛·방향광을 다 걷고 그 색 하나
   /* 빛 판의 색은 옛 번짐 패스가 uFlat=1 로 그리던 그 색(음영 없는 제 색)이다 — 그림자·단색 판은 빛이 아니다. */
   vEm = vec4(mix(base, uSolid.rgb, uSolid.a), emit * (1.0 - uShadow.z) * (1.0 - step(0.001, uShade.a)));
