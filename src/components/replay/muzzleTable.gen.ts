@@ -47,7 +47,7 @@ export const MUZZLE_GEN9: Record<string, [number, number, number]> = {
   valk: [2.1, -0.66, 4.99],
   vulture: [0, 6.6, 2.94],
   wraith: [0, 3.1, 2.42],
-  zealot: [0.92, 4.94, 3.57],
+  zealot: [0.92, 4.94, 3.67],
   zling: [0, 2.17, 1.49],
 };
 /** **대공 채널**(markMuzzleAir9 를 적은 종류만) — 지대공 무기가 아예 딴 자리에서 나가는 셋이다

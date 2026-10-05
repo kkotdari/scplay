@@ -1981,12 +1981,12 @@ export const LEG_STANCE_ATK9 = 1.6;
    수평 거리에서 LEG_REACH9 를 지키는 세로 높이를 풀어 그 차를 돌려준다(접힌 z). 빌더는 그 값으로 몸 전체를 `withModelZOff`
    로 내리고, protossLegs 는 제 안에서 그 이동을 도로 걷고 고관절만 그만큼 내린다 — 발바닥은 땅에 남는다. 걸음에는 0 이다. */
 export function pStanceCrouch9(bend: number, atk: boolean): number {
-  const Lt9 = Math.hypot(P_KNEE_X9 - P_HIP_X9, 0.12 * bend, 1.75);
-  const Ls9 = Math.hypot(P_ANKLE_X9 - P_KNEE_X9, 0.45 + 0.12 * bend, 1.2);
+  const Lt9 = Math.hypot(P_KNEE_X9 - P_HIP_X9, 0.12 * bend, P_HIP_Z9 - P_KNEE_Z9);
+  const Ls9 = Math.hypot(P_ANKLE_X9 - P_KNEE_X9, 0.45 + 0.12 * bend, P_KNEE_Z9 - P_ANKLE_Z9);
   const cap9 = LEG_REACH9 * (Lt9 + Ls9);
   const h9 = 0.45 + LEG_STANCE9 * (atk ? LEG_STANCE_ATK9 : 1);   // 뒷다리의 수평 거리(발목은 서 있을 때 고관절 뒤 0.45)
   const vert9 = Math.sqrt(Math.max(0, cap9 * cap9 - h9 * h9));
-  return Math.max(0, 2.95 - vert9) * Z8;
+  return Math.max(0, P_HIP_Z9 - P_ANKLE_Z9 - vert9) * Z8;
 }
 /** 걸음의 **뒷다리**는 이만큼 더 뒤로 뻗는다(2026-10, 요청: "보병들 걸을때 다리 뒤로 더 뻗게") — 뒷다리는 다 펴도 된다(상한 1.0 · 앞다리만 0.96). */
 const LEG_BACK_K9 = 1.6;
@@ -2022,6 +2022,14 @@ const P_HIP_X9 = 0.42;
 const P_KNEE_X9 = 0.45;
 const P_ANKLE_X9 = 0.47;
 const P_TOE_X9 = 0.49;
+/* ★★ **세 마디의 비 — 대퇴·발등은 길고 정강이는 발가락만큼 짧다**(2026-10, 사진 지적: "플토 보병들의 다리구조에서 대퇴와 발등이
+   길이가 길고 정강이는 훨씬 길이가 짧아 발끝과 비슷한 정도에 구조로 맞춰야 자세들이 다 자연스러울거같아") — 옛 자리(무릎 2.2 ·
+   발목 1.0)는 대퇴 1.75 · 정강이 1.35 · 발등 1.36 으로 셋이 엇비슷했다. 무릎을 내리고(1.85) 발목을 올려(1.4) **대퇴 ≈2.1 ·
+   정강이 ≈0.77(발가락 0.72 와 같은 대) · 발등 ≈1.77** 이다(설계 자 · 고관절 3.95 그대로). 그 뒤로 발마디의 줄임(FOOT_K9)·펴기
+   (ANKLE_FLAT9)는 1·0 으로 걷혔다 — 비가 자리에 적혀 있으니 뒤에서 또 깎을 까닭이 없다. */
+const P_HIP_Z9 = 3.95;
+const P_KNEE_Z9 = 1.85;
+const P_ANKLE_Z9 = 1.4;
 /** 다리 굵기 배수 — 수직으로 모인 두 다리가 서로 붙지 않게(요청: "다리두께 조절이 필요하면 좀 얇게 바꿔도 되고"). 허벅지·정강이·
  *  소매에만(발은 이미 작다) · 유닛마다의 thin 위에 곱한다. */
 const P_LEG_THIN9 = 0.8;
@@ -2090,16 +2098,16 @@ export function protossLegs(
       const [rx9, ry9] = yv9(q[0] - hip[0], q[1] - hip[1]);
       return [hip[0] + rx9, hip[1] + ry9, q[2]];
     };
-    const ankle0: [number, number, number] = yw9([m * P_ANKLE_X9, -0.75 - P_LEG_BACK9, Z(1)]);
+    const ankle0: [number, number, number] = yw9([m * P_ANKLE_X9, -0.75 - P_LEG_BACK9, Z(P_ANKLE_Z9)]);
     // 무릎 높이에서 엉덩이~발목 직선의 y — 굽힘(bend)이 0이면 여기, 1이면 본디 자리(0.3).
-    const kneeLineY9 = hip[1] + (ankle0[1] - hip[1]) * ((hip[2] - Z(2.2)) / Math.max(1e-6, hip[2] - ankle0[2]));
+    const kneeLineY9 = hip[1] + (ankle0[1] - hip[1]) * ((hip[2] - Z(P_KNEE_Z9)) / Math.max(1e-6, hip[2] - ankle0[2]));
     /* ★ **대퇴는 거의 수직, 정강이·발이 뒤에서 > 꼴**(2026-09, 요청: "허리를 폈으니 대퇴도 거의 수직으로 세우고 하지와 발뼈만
        뒤에서 >모양이 되어야") — 옛 무릎은 골반~발목 선에서 앞으로 0.3 까지 bend 배로 나가(1.4 이면 y 0.65) 허벅지가 34도
        앞으로 누웠다. 이제 무릎은 고관절 바로 아래에서 앞으로 KNEE_FWD9·bend 만(질럿 0.17 · 하템 0.08) 나간다. 발목(−0.75)은
        그대로라 정강이가 뒤로 눕고 발이 앞으로 나가 옆에서 > 로 읽힌다. kneeLineY9 는 걸음 풀이의 자라 남긴다. */
     const KNEE_FWD9 = 0.12;
     void kneeLineY9;
-    const knee0: [number, number, number] = yw9([m * P_KNEE_X9, hip[1] + KNEE_FWD9 * bend, Z(2.2)]);
+    const knee0: [number, number, number] = yw9([m * P_KNEE_X9, hip[1] + KNEE_FWD9 * bend, Z(P_KNEE_Z9)]);
     const Lt9 = legLenD9(hip, knee0);
     const Ls9 = legLenD9(knee0, ankle0);
     // 걸음도 발끝 방향(돌린 +y)으로 나간다. 편히 선 자세(LEG_STANCE9)는 걸음 몫이 0 일 때만 · 발은 안 든다.
@@ -2130,8 +2138,8 @@ export function protossLegs(
        · 펴는 몫은 0.5 → 0.25(재요청: "두째셋째마디 사이 좀더 굽히고") — 발목 각이 도로 살아난다.
        · 펴기 — 자리 사이 보간이다. 0이면 본디 앞으로 뻗은 발, 1이면 **정강이와 한 직선**(길이는 유지).
        발가락 두 갈래는 제 길이 그대로 두되 뿌리는 같은 손(footAt9)으로 옮겨, 줄고 펴진 발끝에 붙어 있게 한다. */
-    const FOOT_K9 = 0.9;
-    const ANKLE_FLAT9 = 0.25;
+    const FOOT_K9 = 1;        // 2026-10: 0.9 → 1(비는 P_*_Z9 자리에 적혀 있다)
+    const ANKLE_FLAT9 = 0;    // 2026-10: 0.25 → 0
     const sdx9 = ankle1[0] - knee1[0];
     const sdy9 = ankle1[1] - knee1[1];
     const sdz9 = ankle1[2] - knee1[2];
@@ -2194,7 +2202,7 @@ export function protossLegs(
       ...suitLimb(knee, ankle, 0.45 * thin, 0.38 * thin, 0.56 * thin,
         { sides: 7, caps: "none", trueNormal: true, key: kS, tag: "leg.shin" }),
       // 발은 작고 예리하게(요청: 프로토스 인간형 발이 투박하고 큼) — 0.38/0.3/0.36 → 0.27/0.18/0.25.
-      ...suitLimb(ankle, toe, 0.27, 0.18, 0.31,
+      ...suitLimb(ankle, toe, 0.30, 0.20, 0.34,   // 발등이 길어진 만큼 한 단 굵게(2026-10)
         { sides: 7, caps: "none", trueNormal: true, key: kF, tag: "leg.foot" }),
     ], shinFill));
     /* 임자 색 소매 — 정강이의 아래쪽 teamShin만큼을 덮는다(위 ★). 굵기는 그 자리 정강이의
