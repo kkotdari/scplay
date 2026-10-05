@@ -242,6 +242,8 @@ const STORM_SEEDS = 2;
  *  더 보여 준다 — 그것이 '다 그리고 나서 한 번 툭'이다(사파리에서 열에 두 번). 항등 변환을 두면 층이 유지돼
  *  내용 갱신과 변환 변경이 늘 같은 프레임에 실린다. 그림은 "없음"과 똑같다. */
 const XF_ID9 = "translate(0px, 0px) scale(1)";
+/** 유닛 캔버스를 마지막으로 칠할 때의 CSS 크기(clientWidth×clientHeight) — 지도 상자 맞춤 곁의 파수꾼이 견준다. */
+const UNIT_PAINTED_CSS9 = new WeakMap<HTMLCanvasElement, string>();
 /** 유닛 층 캔버스 셋(유닛·GL·효과 — 같은 클래스) — 손짓 변환은 셋에 다 건다. */
 const GL_HIDE9: React.CSSProperties = { display: "none" };
 /** 독 줄 음각 글귀 — 틀 옆 쇠 바탕이 글귀 폭보다 이만큼(px) 넘게 남을 때만 새긴다(양옆 여백 몫). */
@@ -4550,6 +4552,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       const shFold9 = gest9 && xfBackK9.k < 1 && (smallDevice9 ? TIER9.v < 2 : TIER9.v === 0);
       const bw = Math.round(cw * Bd);
       const bh = Math.round(ch * Bd);
+      UNIT_PAINTED_CSS9.set(cv, `${cw}x${ch}`);   // 파수꾼(지도 상자 맞춤 곁)이 'CSS 크기만 바뀌고 안 칠함'을 잡는 자
       if (cv.width !== bw) cv.width = bw;
       if (cv.height !== bh) cv.height = bh;
       const fcv9 = fxRef.current;
@@ -12347,12 +12350,15 @@ export default function ReplayMotionPlayer({
      손짓이 도는 동안 렌즈·효과층·유닛 캔버스를 CSS 변환으로만 움직여 **합성기만**
      일하게 하고(리액트 리렌더 0), 커밋은 굴림(300ms)과 놓을 때뿐이다.
      읽는 값이 전부 ref라 정체성이 안정돼 어느 effect에서 불러도 된다. */
+  /** 손짓이 마지막으로 화면을 옮긴 시각 — 1.2초 넘게 안 옮긴 손짓은 파수꾼이 접는다. */
+  const xfApplyAtRef9 = useRef(0);
   const applyGestureXf = useCallback((repaint = true): void => {
     /* ★ 손짓이 끝난 뒤의 늦은 부름은 무시한다(실측: 감기 중 React 붓 팬 (−634.4,−1091.6) = 옛 손끝, 틱 붓 panRef 별개) ──
        드래그·핀치는 마지막 한 장을 rAF에 실어 두는데, 손을 떼는 처리(endGestureXf)가 그 rAF보다 먼저 돌면 뒤늦게 온 rAF가
        xfLive를 되살리고 panRef를 옮겼다. 정지·감기 중엔 상태가 안 바뀌어 xfLive가 지워질 기회가 없어, React 붓(xfLive)과
        틱·도착 붓(panRef)이 다른 자리를 번갈아 칠했다. 손짓이 살아 있지 않으면 여기서 아무것도 안 한다. */
     if (!xfGestureRef.current) return;
+    xfApplyAtRef9.current = performance.now();   // 파수꾼(지도 상자 맞춤 곁)이 '멈춘 손짓'을 가리는 자
     /* ★ 추적 중에는 **옮기는 것만** 막는다(요청: "드래그나 wasd 이동 가장자리 스크롤등
        다 막아야해" · "줌은 변경 가능하게") ────────────────────────────────────────────
        미는 길은 넷이다 — 드래그·wasd·가장자리 밀기·핀치. 그런데 넷 다 이 한 자리를
@@ -12619,6 +12625,7 @@ export default function ReplayMotionPlayer({
     // 사람의 손짓이다 — 링크가 쥐고 있던 자리를 여기서 놓는다(위 linkHoldRef9).
     linkHoldRef9.current = null;
     xfGestureRef.current = true;
+    xfApplyAtRef9.current = performance.now();
     xfBackK9.k = 1;   // 새 손짓은 제 배킹에서 시작한다 — 무거우면 그 안에서 내려간다(위 ★)
     /* ★★ 원근을 손끝에 맞추는 일은 **가벼운 자리에서만** 한다(계측: 배율 6·입체·949기에서
        손짓 한 장이 23 → **240ms**로 뛰었다 — 미룸으로 떨어져 끄는 동안 화면이 아예 멎고, 놓는
@@ -13349,6 +13356,7 @@ export default function ReplayMotionPlayer({
      '어느 구간만 흐리다'로 읽혔다(무대 자체가 페이지에서 소수 자리에 놓여도 같다).
      그린 뒤 상자의 실제 화면 자리를 재서 기기 화소에 못 미친 몫만큼 되민다(`--snx`·`--sny` — React 가 안
      쥐는 변수라 다음 렌더가 안 덮는다). 재는 자리는 보정을 뺀 값이라 되먹임이 없다. */
+  const snapFnRef9 = useRef<(() => void) | null>(null);
   useLayoutEffect(() => {
     const el9 = mapRef.current;
     if (!el9 || fsCoverW <= 0) return undefined;
@@ -13365,9 +13373,38 @@ export default function ReplayMotionPlayer({
       if (Math.abs(ny9 - oy9) > 0.004) el9.style.setProperty("--sny", `${ny9.toFixed(3)}px`);
     };
     snap9();
+    snapFnRef9.current = snap9;
     window.addEventListener("resize", snap9);
     return () => window.removeEventListener("resize", snap9);
   });
+  /* ★ **파수꾼 — 렌더도 resize 도 없이 자리·크기가 바뀌는 길**(2026-10, 지적: "지형뿐 아니라 모델이 흐려") ─────────────
+     위 맞춤은 렌더와 창 resize 에서만 돈다. 그런데 앱(재생기를 품은 페이지)의 배치는 그 둘 없이도 바뀐다 — 스크롤 ·
+     조상의 전환 애니메이션이 끝남 · 글꼴이 늦게 와 줄이 바뀜 · 스크롤바가 생기고 사라짐. 멈춘 채 그러면 다음 렌더가
+     영영 안 와서 상자가 반 화소에 남거나, 캔버스의 CSS 크기만 바뀌고 배킹은 옛 크기로 늘어난 채 굳는다(지도 위가
+     통째로 뭉갠다). 0.4초마다 ㉠ 맞춤을 한 번 더 돌고 ㉡ 유닛·GL 캔버스의 화면 크기(기기 화소)가 배킹과 1px 넘게
+     다르면 한 장 다시 칠한다. getBoundingClientRect 둘이라 배치가 깨끗하면 값이 거의 없다. 스크롤에도 같은 문을 건다. */
+  useEffect(() => {
+    const guard9 = (): void => {
+      snapFnRef9.current?.();
+      const el9 = mapRef.current;
+      if (!el9) return;
+      /* ㉢ **남은 손짓을 접는다** — 손짓 깃발(xfGestureRef)이 켜져 있으면 붓이 배킹을 0.7·0.5배로 내려 칠하고(무거운 장이면)
+         지형도 손짓 몫(pad 1.45)으로 덜 또렷하게 굽는다. 끝 신호(pointerup·휠 타이머·keyup)를 하나라도 놓치면 그 깃발이
+         켜진 채 남아 지도가 **통째로** 흐린 채 굳는다. 핀치(gestureRef)가 아니고 1.2초 넘게 화면을 안 옮겼으면 끝낸다 —
+         가만히 누르고 있던 드래그는 다음 움직임에서 다시 열린다(드래그는 시작 자리에서 잰 절대 델타라 안 튄다). */
+      if (xfGestureRef.current && !gestureRef.current && performance.now() - xfApplyAtRef9.current > 1200) endGestureXf();
+      const cv9 = el9.querySelector<HTMLCanvasElement>(".scr-motion-unitlayer");
+      if (!cv9 || (cv9.style.transform && cv9.style.transform !== XF_ID9)) return;   // 손짓·렌즈 중 — 그쪽이 다시 칠한다
+      const was9 = UNIT_PAINTED_CSS9.get(cv9);
+      if (was9 && was9 !== `${cv9.clientWidth}x${cv9.clientHeight}`) {
+        brushSrc9 = "guard";
+        paintFnRef9.current?.(tLiveRef9.current, true);
+      }
+    };
+    const id9 = window.setInterval(guard9, 400);
+    window.addEventListener("scroll", guard9, { capture: true, passive: true });
+    return () => { window.clearInterval(id9); window.removeEventListener("scroll", guard9, { capture: true }); };
+  }, []);
   /* 크립 차단 마스크의 화면 자리(요청) — 평면은 맵 전체에 한 장이면 되고, 입체는
      원근 배율이 줄마다 달라 지형 한 줄씩 잘라 그 줄의 자리·폭으로 근사해 얹는다. */
   const creepMaskRects: [number, number, number, number, number, number][] = [];

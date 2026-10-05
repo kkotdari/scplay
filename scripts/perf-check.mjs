@@ -685,13 +685,53 @@ const SHOT = flag("--shot", null);
    w(배킹)와 bw(화면 폭)가 같아야 한다(dpr 1). */
 if (has("--resizeto")) {
   await page.waitForTimeout(1500);
+  /* --pausefirst — 멈춘 뒤 폭을 바꾼다(2026-10, 지적: "지형뿐 아니라 모델이 흐려" — 멈춘 동안은 붓이 안 돌아 옛 배킹이 새 CSS 크기로 늘어났다). */
+  if (has("--pausefirst")) { await page.evaluate(() => { const b = document.querySelector(".scr-motion-play"); if (b instanceof HTMLElement) b.click(); }); await page.waitForTimeout(600); }
   const vp0 = page.viewportSize();
   await page.setViewportSize({ width: Number(flag("--resizeto", vp0.width)), height: vp0.height });
   await page.waitForTimeout(1500);
 }
+/* 파수꾼 자(--guardprobe): 멈춘 채 지도 상자의 CSS 크기만 바꾼다(렌더 없이) — 유닛 캔버스 배킹이 0.4초 안에 따라와야 한다
+   (2026-10, 지적: "지형뿐 아니라 모델이 흐려"). */
+if (has("--guardprobe")) {
+  await page.waitForTimeout(1500);
+  await page.evaluate(() => { const b = document.querySelector(".scr-motion-play"); if (b instanceof HTMLElement) b.click(); });
+  await page.waitForTimeout(800);
+  const rd = () => page.evaluate(() => { const c = document.querySelector(".scr-motion-unitlayer"); return c ? `${c.clientWidth}x${c.clientHeight} 배킹 ${c.width}x${c.height}` : null; });
+  const a9 = await rd();
+  await page.evaluate(() => { const m = document.querySelector(".scr-motion-map"); if (m instanceof HTMLElement) { m.style.width = `${m.clientWidth - 13}px`; m.style.height = `${m.clientHeight - 13}px`; } });
+  await page.waitForTimeout(100);
+  const b9 = await rd();
+  await page.waitForTimeout(900);
+  console.log("[파수꾼]", a9, "→ 바꾼 직후", b9, "→ 0.9초 뒤", await rd());
+}
+/* 멈춘 드래그 자(--dragholdprobe): 끌다가 2초 가만히 쥐고 있다가 다시 끈다 — 파수꾼이 멈춘 손짓을 접어도 팬이 안 튀어야 한다
+   (2026-10, '손짓 깃발이 남아 지도가 통째로 흐린 채 굳는' 길의 안전망). 첫 끌기 200px · 둘째 100px → 합 300px 이어야 한다. */
+if (has("--dragholdprobe")) {
+  await page.waitForTimeout(1500);
+  const box9 = await page.evaluate(() => { const m = document.querySelector(".scr-motion-map"); const st = document.querySelector(".scr-fs-stage"); const r = (st ?? m).getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+  const pan9 = () => page.evaluate(() => { const c = document.querySelector(".scr-mapvec-sharp"); return c ? c.style.transform : null; });
+  const p0 = await pan9();
+  await page.mouse.move(box9.x, box9.y); await page.mouse.down();
+  for (let i = 1; i <= 10; i += 1) { await page.mouse.move(box9.x - 20 * i, box9.y); await page.waitForTimeout(16); }
+  const p1 = await pan9();
+  await page.waitForTimeout(2000);
+  const g9 = await page.evaluate(() => window.__scrDiag?.gest ?? null);
+  for (let i = 1; i <= 5; i += 1) { await page.mouse.move(box9.x - 200 - 20 * i, box9.y); await page.waitForTimeout(16); }
+  await page.mouse.up();
+  await page.waitForTimeout(500);
+  console.log("[멈춘 드래그]", p0, "→ 200px", p1, "→ 2초 쥠 뒤 +100px", await pan9(), "· 손짓", g9);
+}
 /* 독 자(--dockprobe): 미니맵·지도 버튼·꼬리 줄의 화면 자리를 찍는다 — 미니맵 키를 조작부에 맞추는 실측의 검산용. */
 if (has("--dockprobe")) {
   await page.waitForTimeout(1500);
+  /* --scrollby N — 페이지를 N px 내린다(소수 허용 · 2026-10, 지적: "지형뿐 아니라 모델이 흐려" — 스크롤이 지도 상자를 반 화소에 놓나). */
+  if (has("--scrollby")) {
+    const sb9 = Number(flag("--scrollby", 0));
+    await page.evaluate((v) => { const d = document.createElement("div"); d.style.height = "3000px"; document.body.appendChild(d); window.scrollTo(0, v); }, sb9);
+    await page.waitForTimeout(1200);
+    console.log("[스크롤]", await page.evaluate(() => window.scrollY));
+  }
   const r = await page.evaluate(() => {
     const q = (sel) => { const el = document.querySelector(sel); if (!el) return null; const b = el.getBoundingClientRect(); return { top: +b.top.toFixed(2), bottom: +b.bottom.toFixed(2), h: +b.height.toFixed(2) }; };
     const lyr = document.querySelector(".scr-fs-layer");
@@ -703,6 +743,7 @@ if (has("--dockprobe")) {
     // 캔버스·무대 폭(체력바 절대 폭 검산용) — 지도 한 타일이 화면 몇 px인지가 여기서 나온다.
     const cvs = await page.evaluate(() => [...document.querySelectorAll("canvas")].map((c) => { const b = c.getBoundingClientRect(); return { cls: c.className.slice(0, 40), cw: c.clientWidth, ch: c.clientHeight, w: c.width, h: c.height, x: +b.left.toFixed(2), y: +b.top.toFixed(2), bw: +b.width.toFixed(2), bh: +b.height.toFixed(2), xf: c.style.transform || "" }; }));
     console.log("[캔버스]", JSON.stringify(cvs));
+    console.log("[지형 진단]", JSON.stringify(await page.evaluate(() => { const d = window.__scrDiag; return d ? { ppt: d.ppt, needed: d.needed, scale: d.scale, css: d.mapCss, back: d.mapBack, unitScale: d.unitScale, unitBack: d.unitBack, unitCss: d.unitCss } : null; })));
 }
 /* 목록 자(--pickshot <png>): TV 단추의 목록을 **연 채** 찍는다(2026-09, 지적: "버튼줄의 버튼 셀렉트 목록이
    화면캡션(~화면)에 가려져") — 자막(.scr-motion-castbar)과 목록(.scr-motion-pickmenu)의 겹 무게는 정지 그림에서만
