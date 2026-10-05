@@ -253,7 +253,7 @@ const selKey9 = (tags: Iterable<number>): string => [...tags].sort((a, b) => a -
 /* ★ **선택 갈래로 그 사람 화면을 되짚는다**(판 12 · 2026-10, 요청: "중계에서 아웃오브 스크린을 스크롤로 이동한거랑 유닛선택해서
    바로 옮긴거 구분해서 재현") — 리플레이에는 카메라가 없다. 단서는 '어떻게 골랐나'다:
    · view(마우스로 고름 · 시프트 더함/뺌) — 그 몸들은 그 순간 그 사람 화면 안이었다. 곧 화면이 **그 앞에 이미** 거기 가 있었다
-     (스크롤했다) → 고르기 VIEW_LEAD_SEC9 앞부터 그 무리로 **미끄러져** 간다(선택이 바뀌어도 미끄러진다).
+     (스크롤했다) → 고르기 VIEW_LEAD_SEC9 앞에 그 무리로 **곧장** 선다(미끄러짐은 같은 선택이 화면을 벗어날 때만 — trackView 의 ★).
    · hold(부대 불러오기 한 번) — 원작은 화면을 안 옮긴다 → 카메라는 제자리 · 새 선택만 적어 둔다(그 뒤 그 무리가 명령을 받아
      화면을 벗어나면 '같은 선택'이라 미끄러진다).
    · jump(같은 부대를 RECALL_DBL_SEC9 안에 두 번) — 원작은 화면이 그 무리로 뛴다 → 한 번 곧장 선다.
@@ -11180,12 +11180,16 @@ export default function ReplayMotionPlayer({
     /* 다시 잡아야 하나 — 사람이 바뀌었거나(처음 켬 포함), 배율이 바뀌었거나(잡아 둔
        자리는 그 배율에서 잰 px이라 다른 배율에서는 뜻이 없다), 안전 상자를 벗어났거나. */
     let keep9 = cur9.raw === camRaw9 && cur9.z === z9 && lim9.winW > 0 && lim9.winH > 0;
+    /** 카메라가 지금 보여 주는 무리 그대로인가 — 미끄러짐은 이것이 참일 때만이다(아래 ★). */
+    const selSame9 = cur9.sel === trackAt.sel;
     if (keep9) {
       /* ★ 무게중심 하나가 아니라 **집힌 몸 하나하나**를 본다(2026-10, 지적: "각 화면 벗어남 판단이 무뎌. 여러개 선택중에
          하나라도 범위에 들면 화면 옮기기 필요") — 무리가 넓게 퍼지면 가운데점은 화면 안에 있어도 몸 몇은 이미 밖이다.
          하나라도 안전 상자를 넘으면 다시 잡는다(옮기는 곳은 여전히 무게중심 — 떨어진 한 몸에 끌려가지 않게). */
-      const keepW9 = (lim9.winW / 2) * (1 - 2 * TRACK_EDGE);
-      const keepH9 = (lim9.winH / 2) * (1 - 2 * TRACK_EDGE);
+      /* 선택이 막 바뀐 것은 창 그대로로 잰다(안전 띠 없이 — 새로 고른 무리가 이미 화면 안이면 안 옮긴다 · 분할 칸과 같은 자). */
+      const ek9 = selSame9 ? TRACK_EDGE : 0;
+      const keepW9 = (lim9.winW / 2) * (1 - 2 * ek9);
+      const keepH9 = (lim9.winH / 2) * (1 - 2 * ek9);
       for (const q9 of trackAt.pts) {
         const f9 = mapFracRef.current?.(q9.x, q9.y);
         const qx9 = f9 ? f9[0] : q9.x / Math.max(1, grid.width);
@@ -11198,6 +11202,8 @@ export default function ReplayMotionPlayer({
     }
     /* 선택 갈래(판 12 · 위 PickMode9) — 부대 한 번 불러오기는 화면을 안 옮기고 · 두 번 누름은 한 번 곧장 선다. */
     const same9 = cur9.raw === camRaw9 && cur9.z === z9;
+    /** 그 무리가 지금 화면 안인가(선택 갈래로 덮어쓰기 전의 기하 판정). */
+    const inView9 = keep9;
     let jump9 = false;
     if (same9 && trackAt.mode === "hold") keep9 = true;
     /* ★ 두 번 누름도 **화면 밖일 때만** 옮긴다(2026-10, 지적: "선택시 화면전환하고 센터맞추는데 화면안에 없을때만 센터맞추고
@@ -11206,12 +11212,16 @@ export default function ReplayMotionPlayer({
       if (!keep9) jump9 = true;
       else trackCamRef.current = { ...cur9, jump: trackAt.sec };
     }
-    /* 안 옮기는 동안 선택이 바뀌었으면 새 선택을 적어 둔다 — 그 무리가 나중에 화면을 벗어날 때는 '같은 선택'이라 미끄러진다. */
-    if (keep9 && cur9.sel !== trackAt.sel) trackCamRef.current = { ...trackCamRef.current, sel: trackAt.sel };
+    /* 안 옮기는 동안 선택이 바뀌었으면 새 선택을 적어 둔다 — **그 무리가 화면 안일 때만**(2026-10 · 아래 ★). 부대 한 번 불러오기로
+       화면 밖의 무리를 골랐을 때 적어 두면, 그 무리가 미니맵 명령을 받는 순간 '같은 선택'으로 읽혀 지도 끝까지 미끄러졌다. */
+    if (keep9 && !selSame9 && inView9) trackCamRef.current = { ...trackCamRef.current, sel: trackAt.sel };
     if (!keep9) {
-      /* 같은 사람·같은 배율·**같은 선택**에서 다시 잡는 것이면 지금 보이는 자리(미끄러지는 중이면 그 사이 자리)에서 미끄러져 간다.
-         마우스로 고른 자국(view)은 선택이 바뀌어도 미끄러진다 — 그 사람이 스크롤해 간 자리다. */
-      if (same9 && !jump9 && (cur9.sel === trackAt.sel || trackAt.mode === "view")) {
+      /* ★ 미끄러짐은 **선택이 그대로인 무리가 화면 밖으로 걸어 나갈 때만**이다(2026-10, 지적: "미니맵으로 찍은 명령등에도 드래그
+         이동이 되다보니 엄청 먼 경우에도 직접 이동해서 이상 · 직접 드래그 이동하는 경우는 선택이 안 바뀐 상태에서 화면 밖으로 나갈
+         때만 · 나머지는 즉시 화면 이동") — 마우스로 고른 자국(view)도 이제 곧장 선다(VIEW_LEAD_SEC9 앞서 뛴다). 한 번에 창 하나 넘게
+         가야 하면 같은 선택이어도 곧장 선다(걸어 나간 것이 아니다). */
+      const far9 = Math.abs(mid9.x - cur9.pan.x) > lim9.winW || Math.abs(mid9.y - cur9.pan.y) > lim9.winH;
+      if (same9 && !jump9 && selSame9 && !far9) {
         const g09 = camGlideRef9.current;
         const from9 = g09 ? camGlideAt9(g09, performance.now()) ?? g09.to : cur9.pan;
         camGlideRef9.current = { from: from9, to: mid9, t0: performance.now() };
@@ -14761,6 +14771,8 @@ export default function ReplayMotionPlayer({
         }
         /* 선택 갈래(판 12 · PickMode9) — trackView 와 같은 규약: 한 번 불러오기는 제자리 · 두 번 누름은 한 번 곧장 · 마우스 고르기는 미끄러짐. */
         let jump9 = false;
+        /** 그 무리가 칸 안인가(선택 갈래로 덮어쓰기 전의 기하 판정). */
+        const inView9 = !out9;
         if (cam9 && at9.mode === "hold") out9 = false;
         else if (at9.mode === "jump" && at9.sec !== undefined && splitJumpRef9.current.get(cell9.raw) !== at9.sec) {
           jump9 = out9; splitJumpRef9.current.set(cell9.raw, at9.sec);   // 칸 안이면 안 옮긴다(위 trackView 의 ★)
@@ -14768,11 +14780,14 @@ export default function ReplayMotionPlayer({
         if (out9) {
           /* 다시 잡을 때 미끄러져 간다(위 CAM_GLIDE_MS9 · trackView 와 같은 자) — 처음 잡는 칸과 **선택이 바뀐** 칸은 곧장 선다. */
           const show9 = splitShowRef9.current.get(cell9.raw);
-          if (cam9 && show9 && !jump9 && (same9 || at9.mode === "view")) splitGlideRef9.current.set(cell9.raw, { from: show9, t0: performance.now() });
+          /* ★ 같은 선택이 칸 밖으로 걸어 나갈 때만 미끄러진다(위 trackView 의 ★ — view 도 곧장 · 창 하나 넘게면 곧장). */
+          const far9 = cam9 ? Math.abs(fr9[0] - cam9.x) > wf9 || Math.abs(fr9[1] - cam9.y) > hf9 : true;
+          if (cam9 && show9 && !jump9 && same9 && !far9) splitGlideRef9.current.set(cell9.raw, { from: show9, t0: performance.now() });
           else splitGlideRef9.current.delete(cell9.raw);
           cam9 = { x: fr9[0], y: fr9[1] };
         }
-        if (!same9) splitSelRef9.current.set(cell9.raw, sel9);
+        /* 선택은 카메라가 그 무리를 보여 줄 때만 적는다(옮겼거나 이미 칸 안) — 칸 밖의 무리를 불러온 것만으로 '같은 선택'이 되면 안 된다. */
+        if (!same9 && (out9 || inView9)) splitSelRef9.current.set(cell9.raw, sel9);
       }
       if (!cam9) cam9 = { x: 0.5, y: 0.5 };
       splitCamRef9.current.set(cell9.raw, cam9);
