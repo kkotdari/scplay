@@ -1880,17 +1880,26 @@ export function pUpright9<T>(lean: number, lift: number, fn: () => T): T {
 /** ⚠ **팔은 전단이 아니라 강체다** — 어깨(z 4.5)는 몸통 구간이라 뒤로 물러나는데 손(z 3)은 골반께라 안 물러나므로,
  *  전단을 그대로 태우면 어깨만 옮겨 가 팔이 늘어난다(잽 컷에서 1.8 → 2.5). 팔 무리는 **어깨 자리의 변위 하나**로
  *  통째로 옮긴다(pUpright9 안에서 그 몫만 갈아 끼운다 — withModelWarp 는 겹치지 않고 바꿔 낀다). */
-export function pRigid9<T>(lean: number, lift: number, za: number, fn: () => T): T {
-  if (lean >= 1) return fn();
+/** 팔 무리의 어깨 축 배율(2026-10, 요청: "플토 보병 공통으로 몸통과 팔길이 10프로 축소") — pRigid9 에 어깨 자리(sh)를 주면 그 점을
+ *  축으로 팔 무리 전체(마디·손·칼)를 이만큼 줄인다. 칼 길이를 지키려면 빌더가 1/P_ARM_K9 로 되돌린다(질럿·다크). */
+export const P_ARM_K9 = 0.9;
+export function pRigid9<T>(lean: number, lift: number, za: number, fn: () => T, sh?: [number, number, number]): T {
+  /** 어깨 축 줄이기 — sh 가 있으면 그 점을 축으로 P_ARM_K9 배(상체 비틀기 전의 모형 자). */
+  const sc9 = sh
+    ? (x: number, y: number, z: number): [number, number, number] =>
+      [sh[0] + (x - sh[0]) * P_ARM_K9, sh[1] + (y - sh[1]) * P_ARM_K9, sh[2] + (z - sh[2]) * P_ARM_K9]
+    : (x: number, y: number, z: number): [number, number, number] => [x, y, z];
+  if (lean >= 1) return withModelWarp(sc9, fn);
   const p = pWarpOf9(lean, lift)(0, 0, za);
   const dy = p[1]; const dz = p[2] - za;
+  const mv9 = (x: number, y: number, z: number): [number, number, number] => { const q = sc9(x, y, z); return [q[0], q[1] + dy, q[2] + dz]; };
   /* 몸통·다리 줄이기(pShrinkB9) 안이면 팔도 **어깨 자리의 내림 하나로** 통째로 옮긴다 — 세로로 같이 줄이면 늘어뜨린 팔이 짧아진다. */
   const zc9 = pShrinkTop9;
   if (zc9 !== null) {
-    const d2 = pShrinkZ9(p[2], zc9) - p[2];
-    return withModelWarpOut((x, y, z) => [x, y, z + d2], () => withModelWarp((x, y, z) => [x, y + dy, z + dz], fn));
+    const d2 = pShrinkZ9(p[2], zc9, pShrinkBot9) - p[2];
+    return withModelWarpOut((x, y, z) => [x, y, z + d2], () => withModelWarp(mv9, fn));
   }
-  return withModelWarp((x, y, z) => [x, y + dy, z + dz], fn);
+  return withModelWarp(mv9, fn);
 }
 /* ★ **프로토스 보병의 몸통·다리는 10% 짧다**(2026-10, 요청: "프로토스 보병들 토르소와 다리길이 10프로줄이기") — 좌표 수백 자리를 고치는
    대신 세로 비틀기 하나로 태운다(pUpright9 와 같은 길): **어깨 꼭대기(zc) 아래는 세로 ×0.9**(땅을 축으로 — 발은 땅에 그대로),
@@ -1899,17 +1908,28 @@ export function pRigid9<T>(lean: number, lift: number, za: number, fn: () => T):
    ⚠ 바깥 칸(withModelWarpOut)이라 pUpright9 의 안쪽 칸과 겹쳐 쓴다 · 총구표·잉크 중심은 다시 뽑는다 · MODEL_NORM 은 안 갈았다(요청으로
      줄어든 잉크 — 재측정을 실으면 도로 커진다). */
 export const P_SHRINK9 = 0.9;
+/* ★ **몸통만 한 번 더 10%**(2026-10, 요청: "플토 보병 공통으로 몸통과 팔길이 10프로 축소") — 몸통 띠(밑동 zb = P_TORSO_Z0 + lift ~ 어깨
+   꼭대기 zc)만 zb 를 축으로 세로 ×P_TORSO_K9 를 더 곱하고, 그 위(목·머리·어깨·팔)는 줄어든 몫만큼 더 내린다. 다리(zb 아래)는 위 ×0.9
+   그대로(고관절 3.16 은 띠 안이라 0.007 내려갈 뿐). 팔 길이는 pRigid9 의 어깨 축 배율(P_ARM_K9)이 맡는다. */
+export const P_TORSO_K9 = 0.9;
 let pShrinkTop9: number | null = null;
-const pShrinkZ9 = (z: number, zc: number): number => (z <= zc ? z * P_SHRINK9 : z - (1 - P_SHRINK9) * zc);
+let pShrinkBot9 = 0;
+const pShrinkZ9 = (z: number, zc: number, zb: number): number => {
+  if (z <= zb) return z * P_SHRINK9;
+  const b9 = zb * P_SHRINK9;
+  if (z <= zc) return b9 + (z - zb) * P_SHRINK9 * P_TORSO_K9;
+  return b9 + (zc - zb) * P_SHRINK9 * P_TORSO_K9 + (z - zc);
+};
 export function pShrinkB9(fn: () => ShapeFace[], lean: number, lift: number): () => ShapeFace[] {
   return () => {
-    const zc9 = P_TORSO_Z0 + lift + P_TORSO_H9 * pTorsoKz9(lean);
-    const prev9 = pShrinkTop9;
-    pShrinkTop9 = zc9;
+    const zb9 = P_TORSO_Z0 + lift;
+    const zc9 = zb9 + P_TORSO_H9 * pTorsoKz9(lean);
+    const prev9 = pShrinkTop9; const prevB9 = pShrinkBot9;
+    pShrinkTop9 = zc9; pShrinkBot9 = zb9;
     try {
-      return withModelWarpOut((x, y, z) => [x, y, pShrinkZ9(z, zc9)], fn);
+      return withModelWarpOut((x, y, z) => [x, y, pShrinkZ9(z, zc9, zb9)], fn);
     } finally {
-      pShrinkTop9 = prev9;
+      pShrinkTop9 = prev9; pShrinkBot9 = prevB9;
     }
   };
 }
@@ -25174,7 +25194,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           /* ★★ 칼은 **공격 컷에서만** 나온다(2026-09, 요청: "평소에는 칼이 안나오고 끝만 살짝 에너지가 보이는 정도엿다가
              공격시에만 칼이나오더라고") — 평소·걸음(g9 0)은 손등 끝에 짧은 빛 한 토막(0.16~0.72)만 남는다(같은 플라즈마
              날이라 번짐도 같이 탄다). 공격 컷(2·4·5)이 2.8 짜리 칼이다. */
-          const bl9 = g9 ? 2.8 : 0.72;
+          const bl9 = (g9 ? 2.8 : 0.72) / P_ARM_K9;   // 팔 무리의 어깨 축 배율을 되돌려 칼 길이는 2.8 그대로
           const bs9 = g9 ? 0.05 : 0.16;   // 평소 빛은 주먹(반지름 0.24) 밖에서 시작해야 보인다
           const b0: [number, number, number] = [hd[0] + (dx / L) * bs9, hd[1] + (dy / L) * bs9, hd[2] + (dz / L) * bs9 * 0.8 + 0.08];
           const b1: [number, number, number] = [hd[0] + (dx / L) * bl9, hd[1] + (dy / L) * bl9, hd[2] + (dz / L) * bl9 * 0.8 + 0.08];
@@ -25185,12 +25205,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
             const je9 = jointBetween(sh, jh9, 1.2, 1.3, [0.35, -0.6, -0.4]);
             const jx = jh9[0] - je9[0]; const jy = jh9[1] - je9[1]; const jz = jh9[2] - je9[2];
             const jl = Math.hypot(jx, jy, jz) || 1;
-            markMuzzle9(jh9[0] + (jx / jl) * 2.8, jh9[1] + (jy / jl) * 2.8, jh9[2] + (jz / jl) * 2.24 + 0.08);   // 검 끝
+            // 이 무리는 pRigid9 가 어깨 축으로 P_ARM_K9 배 하므로 칼 길이 몫만 되돌려 적는다(화면 칼 길이 2.8 그대로).
+            markMuzzle9(jh9[0] + (jx / jl) * (2.8 / P_ARM_K9), jh9[1] + (jy / jl) * (2.8 / P_ARM_K9), jh9[2] + (jz / jl) * (2.24 / P_ARM_K9) + 0.08);   // 검 끝
           }
           return tagKey(plasmaBlade(b0, b1, g9 ? 0.95 : 0.7, P_PLASMA, 0.8),
             depthNow((b0[0] + b1[0]) / 2, (b0[1] + b1[1]) / 2) * 1.6 + 1.2);
         })(),
-      ]);
+      ], sh);   // 팔 무리는 어깨 축으로 P_ARM_K9 배(2026-10, 요청: "팔길이 10프로 축소")
     }),
     ]),
   ];
@@ -25441,14 +25462,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           const dx = hdR9[0] - elR9[0]; const dy = hdR9[1] - elR9[1]; const dz = hdR9[2] - elR9[2];
           const L = Math.hypot(dx, dy, dz) || 1;
           const b0: [number, number, number] = [h9[0] + (dx / L) * 0.05, h9[1] + (dy / L) * 0.05, h9[2] + (dz / L) * 0.04 + 0.08];
-          const b1: [number, number, number] = [h9[0] + (dx / L) * 4.0, h9[1] + (dy / L) * 4.0, h9[2] + (dz / L) * 3.2 + 0.08];
+          const b1: [number, number, number] = [h9[0] + (dx / L) * (4.0 / P_ARM_K9), h9[1] + (dy / L) * (4.0 / P_ARM_K9), h9[2] + (dz / L) * (3.2 / P_ARM_K9) + 0.08];   // 어깨 축 배율을 되돌려 칼 길이 그대로
           return tagKey(plasmaBlade(b0, b1, 1.2, "#eefbff", 0.8),
             depthNow((b0[0] + b1[0]) / 2, (b0[1] + b1[1]) / 2) * 1.6 + 1.2);
         })(),
         // 칼날의 밝은 심 — 같은 두 점을 살짝 안쪽으로 물려 긋는다.
       ];
     })(),
-    ]),
+    ], shR9),   // 두 팔 무리는 오른 어깨 축으로 P_ARM_K9 배(2026-10, 요청: "팔길이 10프로 축소") — 왼팔은 어깨가 거울 자리라 0.1·1.64 만큼 안쪽으로 옮는다
     /* ★ (걷어냄) 후드 — 머리 정수리·뒤통수를 통째로 덮던 짙은 돔이다(지적: "다크템플러
        뚜껑 쓴 게 이상, 원작에선 그냥 프로토스 헤드형임"). 사진 한 장을 보고 씌운 것인데,
        원작 스프라이트의 다크템플러 머리는 다른 프로토스와 같은 **긴 두상**이고 그 위에
@@ -25644,7 +25665,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
               0.13, undefined, 6, 0.12,
             )),
           ], "#e9edf0"),
-        ]);
+        ], s9);   // 팔 무리는 어깨 축으로 P_ARM_K9 배(2026-10, 요청: "팔길이 10프로 축소")
       }),
       ]),
     ];
