@@ -2015,7 +2015,10 @@ const P_TOE_X9 = 0.49;
 const P_LEG_THIN9 = 0.8;
 /** 다리 통째 요잉(도) — 발끝이 살짝 바깥을 본다(2026-09, 요청: "다리를 통째로 요잉해서 발끝이 살짝씩만 밖을 향하게 · 걸을때도 그 방향으로
  *  발이 나가게 정말 살짝만"). 고관절의 세로축으로 무릎·발목·발끝·발가락·걸음 방향을 함께 돌린다. */
-const P_LEG_YAW9 = 7;
+/* ★ 7 → 15(2026-10, 지적: "왜 정면에서 봤을때 질럿 하템 등 다리가 11자로 보이지 약간 바깥을 향해 다리 전체가 요잉돼있을텐데") — 요잉은
+   고관절 세로축 둘레의 회전이라 **수직인 허벅지·정강이는 정면에서 그대로 수직**이고, 앞뒤로 뻗은 마디(발등·발가락)만 옆으로 돈다. 7도면
+   발끝 1.1 앞에서 옆으로 0.13 — 정면에서 안 읽혔다. 15도면 발끝이 바깥을 보는 것이 정면에서 읽히고 허벅지는 여전히 수직이다(벌림이 아니다). */
+const P_LEG_YAW9 = 15;
 /* ★★ **마디 길이 — 허벅지·발등은 길고 정강이는 짧다**(2026-10, 요청: "플토 보병들의 다리구조에서 대퇴와 발등이 길이가 길고 정강이는
    훨씬 길이가 짧아 발끝과 비슷한 정도의 구조로 맞춰야 자세들이 다 자연스러울거같아") — 설계 자. 옛 판(허벅지 1.75 · 정강이 1.33 ·
    발등 1.36×0.9)은 세 마디가 고만고만해 어느 자세에서도 역관절이 안 읽혔다. 정강이(0.8)는 발가락(0.72)과 비슷한 길이다. */
@@ -2042,6 +2045,9 @@ const P_STANCE_ATK9 = 1.5;
 const P_TIP_Y9 = 0.35;
 const P_WALK_FOOT_K9 = 25;
 const P_WALK_TOE_K9 = 15;
+/** 정강이·발등 굵기 [뿌리, 끝, 배](2026-10, 요청: "정강이 부위 두께 줄이고 발등부위 두께 늘리기") — 정강이는 thin 을 곱하고 발등은 안 곱한다(옛 그대로). */
+const P_SHIN_W9: readonly [number, number, number] = [0.36, 0.30, 0.44];
+const P_FOOT_W9: readonly [number, number, number] = [0.36, 0.26, 0.42];
 export function protossLegs(
   thighFill?: string, shinFill?: string, lift = 0, shrink = 1,
   /** 걸음 몫(요청: 애니메이션) — 부호가 컷(1/3)에서 오므로 두 컷이 서로 거울이다. */
@@ -2170,19 +2176,20 @@ export function protossLegs(
     out.push(...paint(suitLimb(hip, knee, 0.38 * thin, 0.33 * thin, 0.48 * thin,
       { sides: 7, caps: "none", trueNormal: true, key: kT, tag: "leg.thigh" }), thighFill));
     out.push(...paint([
-      // 정강이·발 단면은 안 그린다(지적: 하지 단면이 대퇴에 안 가려짐) — 두 끝이 다 남의 몸속이다.
-      ...suitLimb(knee, ankle, 0.45 * thin, 0.38 * thin, 0.56 * thin,
+      // 정강이·발 단면은 안 그린다(지적: 하지 단면에 대퇴에 안 가려짐) — 두 끝이 다 남의 몸속이다.
+      ...suitLimb(knee, ankle, P_SHIN_W9[0] * thin, P_SHIN_W9[1] * thin, P_SHIN_W9[2] * thin,
         { sides: 7, caps: "none", trueNormal: true, key: kS, tag: "leg.shin" }),
-      // 발등은 작고 예리하게(요청: 프로토스 인간형 발이 투박하고 큼) — 0.38/0.3/0.36 → 0.27/0.18/0.25.
-      ...suitLimb(ankle, toe, 0.27, 0.18, 0.31,
+      /* 발등 — 옛 '작고 예리하게'(0.27/0.18/0.31)는 짧은 발 마디 시절의 자다. 이제 발등이 긴 마디라 굵게(2026-10, 요청: "정강이 부위
+         두께 줄이고 발등부위 두께 늘리기" — 정강이 0.45/0.38/0.56 → P_SHIN_W9 · 발등 0.27/0.18/0.31 → P_FOOT_W9). */
+      ...suitLimb(ankle, toe, P_FOOT_W9[0], P_FOOT_W9[1], P_FOOT_W9[2],
         { sides: 7, caps: "none", trueNormal: true, key: kF, tag: "leg.foot" }),
     ], shinFill));
     /* 임자 색 소매 — 정강이의 아래쪽 teamShin만큼을 덮는다(위 ★). 굵기는 그 자리 정강이의
        옆선(2차 베지에)을 그대로 풀어 0.02만 키운 값이라, 어디서도 정강이가 소매를 뚫지 않는다. */
     if (teamShin > 0) {
       const s09 = 1 - Math.min(1, teamShin);
-      const shW9 = (t9: number): number => (1 - t9) * (1 - t9) * 0.45 * thin
-        + 2 * (1 - t9) * t9 * 0.56 * thin + t9 * t9 * 0.38 * thin;
+      const shW9 = (t9: number): number => (1 - t9) * (1 - t9) * P_SHIN_W9[0] * thin
+        + 2 * (1 - t9) * t9 * P_SHIN_W9[2] * thin + t9 * t9 * P_SHIN_W9[1] * thin;
       const shP9 = (t9: number): [number, number, number] => [
         knee[0] + (ankle[0] - knee[0]) * t9,
         knee[1] + (ankle[1] - knee[1]) * t9,
@@ -2194,7 +2201,7 @@ export function protossLegs(
          붙박이(+0.35)만큼만 위로 올라간다. */
       out.push(...suitLimb(
         shP9(s09), ankle,
-        shW9(s09) + 0.02, 0.38 * thin + 0.02, shW9((s09 + 1) / 2) + 0.02,
+        shW9(s09) + 0.02, P_SHIN_W9[1] * thin + 0.02, shW9((s09 + 1) / 2) + 0.02,
         { sides: 7, caps: "none", trueNormal: true, key: kS + 0.35, tag: "leg.shin.team" },
       ));
     }
