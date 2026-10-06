@@ -3211,7 +3211,7 @@
 /* ★ 접으면 독 줄이 **통째로** 사라진다(2026-09, 요청: "접혔을때 인포창아예 안남게") — 손잡이는 툴박스 재생 줄의 시계 옆이라 남는다.
    옛 '접어도 폭은 그대로 · 손잡이 키만 남는다'는 되물렸다. */
 .scr-fs-dockrow.is-fold { display: none; }
-.scr-fs-dockrow.is-fold + .scr-tb { padding-top: calc(1px + 5.1px * var(--dk)); }   /* 펼친 때의 위 테 = 틀의 투명 1px + --dock-out */
+.scr-fs-dockrow.is-fold + .scr-tb { padding-top: calc(1px + 2 * 5.1px * var(--dk)); }   /* 펼친 때의 위 테 = 틀의 투명 1px + --dock-out · ×2(2026-10-06 "위아래 여백 2배" — 아래 .scr-tb 의 padding-bottom 과 같은 값) */
 .scr-fs-dockframe > .scr-fs-dockmain { grid-column: 1; grid-row: 1; }
 .scr-fs-dockmain > .scr-fs-minipanel,
 .scr-fs-dockmain > .scr-motion-infodock {
@@ -3265,7 +3265,7 @@
      20프로정도 줄여줘 피시에서" · 옛 38) · 좁은 화면 32 · 400px 아래 30(아래 미디어). */
   --mapbtn-h: 30px; --mapbtn-gap: 6px;
   --text: #f5f6f7; --dim: rgba(245, 246, 247, 0.72); --line-soft: rgba(255, 255, 255, 0.24);
-  display: flex; flex-direction: column; gap: 4.8px; min-width: 0;   /* 단추 줄 ↔ 재생 줄 사이 — 4 → 4.8(2026-10, 요청: "갭 20프로 증가") · PC·폰 공통 */
+  display: flex; flex-direction: column; gap: 9.6px; min-width: 0;   /* 단추 줄 ↔ 재생 줄 사이 — 4 → 4.8(2026-10, 요청: "갭 20프로 증가") → 9.6(2026-10-06, 요청: "줄간격 2배") · PC·폰 공통 */
   /* 모서리는 각지고 판은 더 옅다(2026-09, 요청: "툴바배경 래디우스 제거 및 좀더 투명하게(전체화면 프레임모드 둘다)") — 옛 12px · 0.52. */
   /* 위 여백은 한 단 넉넉하다(2026-09, 요청: "툴박스 내부 위쪽 패딩 증가시키기" — 옛 6). */
   --tb-padt: 10px;
@@ -3274,7 +3274,9 @@
   /* ★ 툴박스는 이제 독 줄 **아래**다(2026-10, 요청: "재생부를 아래로 미니맵과 인포창을 위로 바꿈") — 위는 독 틀의 아래 여백
      (--dock-out)에 붙으므로 한 뼘(3px)만 두고, 아래(쇠판 아랫변)가 독 틀의 바깥 테와 같은 값(3.4·dk)이다. 독을 접으면 위도
      그 값이라 쇠판의 위·아래 테가 같다(아래 .is-fold + .scr-tb). */
-  padding-top: 3px; padding-bottom: calc(5.1px * var(--dk));
+  /* ★ 위·아래 여백 **2배**(2026-10-06, 요청: "버튼줄과 재생줄 위아래 여백과 줄간격 2배") — 위 3 → 6 · 아래 5.1·dk → 10.2·dk(독 틀 바깥 테의 두 배 ·
+     아래 .is-fold + .scr-tb 의 위도 같은 값). */
+  padding-top: 6px; padding-bottom: calc(2 * 5.1px * var(--dk));
   /* 판은 이제 **쇠**다(위 ★★ — 감싸개의 쇠판 위에 선다) · 옛 반투명 판(0.34)·흐림은 걷었다. */
   background: none; color: var(--text);
   box-shadow: none;
@@ -3371,7 +3373,7 @@
   .scr-tb-tail .scr-kakao-share-btn:hover { background: rgba(255, 255, 255, 0.18); }
 }
 @media (max-width: 1159px) {
-  .scr-tb { --tb-padt: 9px; padding: 2px 6px calc(5.1px * var(--dk)); }
+  .scr-tb { --tb-padt: 9px; padding: 4px 6px calc(2 * 5.1px * var(--dk)); }   /* 위 2 → 4 · 아래 ×2(2026-10-06 "위아래 여백 2배") */
   .scr-tb-tail { gap: 5px; }
 }
 /* (걷어냄) PC 한 줄 — 이제 어느 폭에서나 [단추 줄] / [재생·탐색바·시계] 두 줄이다(2026-09, 요청: "피시에서도 버튼하고
