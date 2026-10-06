@@ -23912,7 +23912,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         widthOf: (t9: number): number => RTOP9 + (RCAP9 - RTOP9) * t9,
       }), TOSS_GOLD),
       [discPath3(0, 0, ZCAP9 + 0.022, 0.744 * BD), 1] as ShapeFace,   // 임자색 원판(안 칠한 낯) — 지름 ×1.2(요청: 0.62 → 0.744·BD)
-      topFace(discPath3(0, 0, ZCAP9 + 0.044, 0.744 * BD), 0.3),
+      // (걷어냄 2026-10, 요청: "몸통 위 광택 효과 손으로 그린거도 제거") — 원판 위 흰 광(topFace 0.3). 광택은 셰이더의 몫이다.
     ], depthNow(0, 0) + 2.5));
     /* 눈 두 개(재지적: 몸통에 수직으로 붙여 정면을 보게 + 더 작게) — 바닥에 눕던
        타원을 정면 벽 데칼(wallDiscPath)로 세운다. 벽과 함께 돌고 눌리며, 뒤로 돌면
