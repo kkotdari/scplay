@@ -1243,8 +1243,6 @@ const CROWD_BENCH3D_MS9 = 16;
  *  안 줄이는 것: 죽음·파괴 폭발 · 소환 섬광 · 우리 · 스톰 · 핵 · 건물 붕괴 — 무슨 일이
  *  일어났는지를 말하는 것들이다. 입체는 제 벤치(bench3)로 잰다. */
 const NO_TRIM9 = typeof location !== "undefined" && /notrim/.test(location.hash);
-/** 지도 상자 크기를 기기 화소 정수로 못 박기(위 fsCoverW 의 ★★) — `#cvsnap=0` 이면 옛 정수 CSS px. */
-const CV_SNAP9 = !(typeof location !== "undefined" && /cvsnap=0/.test(location.hash));
 /** 견줌 손잡이 `#glfilter` — GL 캔버스에 거의 항등인 filter 를 걸어 합성기가 그 층을 **오버레이(CALayer)로 못 올리게** 한다(맥 크롬).
  *  흐림이 이것으로 사라지면 원인은 오버레이 층의 소수 크기·자리다. */
 const GL_FILTER9 = typeof location !== "undefined" && /glfilter/.test(location.hash);
@@ -11210,17 +11208,14 @@ export default function ReplayMotionPlayer({
      (100% 높이)도 소수인데, 붓은 배킹을 `clientHeight`(반올림한 정수) × 배수로 잡는다 — 곧 비트맵이 표시 크기와 한 톨 어긋나
      브라우저가 **판 전체를 다시 보간**한다(그래서 '맵 위의 모든 게' 흐리고, 폭에 따라 됐다 안 됐다 한다). 앞서 고친 0.5px
      가운데 맞춤(--snx·--sny)은 자리였고 이것은 크기다. 반올림의 어긋남(<0.5px)은 지도 아래끝 한 줄뿐이다. */
-  /* ★★ **정수 CSS px 가 아니라 정수 기기 화소다**(2026-10, 지적: "브라우저 폭을 줄이거나 늘리면 특정 크기에서만 흐려지고 … 여러 구간임" —
-     맥 크롬 · 브라우저 확대 90%(dpr 0.9)) — 위 ★★의 '정수 CSS px'는 dpr 1 에서만 기기 화소 정수다. dpr 0.9 면 CSS 1068 이 기기 961.2 라
-     상자 안의 유닛·GL·안개 캔버스(100%)가 소수 기기 화소 크기가 되고, 붓이 잡은 배킹(961)과 표시 크기가 어긋나 브라우저가 판을 다시
-     보간한다(진단 `유닛 ×0.9998`). 지형 캔버스는 제 크기를 `round(v·dpr)/dpr` 로 못 박아 ×1.0000 이라 안 흐렸다 — 상자도 같은 자로
-     못 박는다(CSS 는 소수가 되지만 기기 화소는 정수 · dpr 1·2 에서는 그대로 정수 CSS). `#cvsnap=0` 으로 끈다(견줌 손잡이). */
-  const dprB9 = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
-  const snapDev9 = (v: number): number => (CV_SNAP9 && v > 0 ? Math.round(v * dprB9) / dprB9 : v);
+  /* ⚠ (되물림) 상자 크기를 `round(v·dpr)/dpr`(소수 CSS · 정수 기기 화소)로 못 박던 `snapDev9`(2026-10 · 폭 구간 흐림 때문) — 그 흐림은
+     크롬 플래그(--force-device-scale-factor=1)였고, 소수 CSS 상자는 가운데 맞춤(-50%)을 소수 자리에 떨어뜨려 **선택이 바뀌어 다시 그릴
+     때마다 상자가 기기 화소 하나씩 흔들렸다**(지적: "중계모드에서 선택이 바뀔때 같은 화면안에 있는데도 미묘하게 화면이 흔들려" ·
+     `#cvsnap=0` 으로 사라짐). 상자는 **정수 CSS px** 그대로다 — 소수 dpr 에서 유닛·GL 캔버스의 ×0.9998 재표본은 눈에 안 드는 몫이다. */
   const fsCoverW = stage.w > 0
-    ? snapDev9(Math.round(Math.max(stage.w, (fitH9 * grid.width) / Math.max(1, grid.height))))
+    ? Math.round(Math.max(stage.w, (fitH9 * grid.width) / Math.max(1, grid.height)))
     : 0;
-  const fsCoverH = fsCoverW > 0 ? snapDev9(Math.round((fsCoverW * grid.height) / Math.max(1, grid.width))) : 0;
+  const fsCoverH = fsCoverW > 0 ? Math.round((fsCoverW * grid.height) / Math.max(1, grid.width)) : 0;
 
 
   /* 팬 한계가 읽는 자 셋 — 그리는 값과 **같은 렌더에서** 심는다(한 박자 늦으면 손짓이
