@@ -23686,16 +23686,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /** 길이축 둘레의 **앞으로 기울임**(2026-10, 요청: "옆날개는 넓은 면이 위아래를 보는 형태 · 살짝 앞으로 기울여") — 앞쪽(+y 쪽) 가장자리를
        *  반폭 × roll 만큼 내리고 뒤 가장자리를 그만큼 올린다(설계 z). 0 이면 넓은 면이 수평이다. */
       roll = 0,
+      /** 법선(n) 쪽으로의 **평행 이동**(2026-10, 요청: "앞다리 간격 벌리기 — 좀더 바깥쪽으로 뿌리 자체를 이동") — 방향·길이는 두고 뿌리와 끝을 함께 옆으로 민다. */
+      shift = 0,
     ): ShapeFace[] => {
       const a = (ang * Math.PI) / 180;
       const dx = Math.sin(a);
       const dy = Math.cos(a);
       const nx = Math.cos(a);
       const ny = -Math.sin(a);
-      const rx = dx * r0;
-      const ryy = dy * r0;
-      const tx = dx * (r0 + len);
-      const ty = dy * (r0 + len);
+      const rx = dx * r0 + nx * shift;
+      const ryy = dy * r0 + ny * shift;
+      const tx = dx * (r0 + len) + nx * shift;
+      const ty = dy * (r0 + len) + ny * shift;
       /** 앞 가장자리 쪽(법선 n 의 +y 몫이 양이면 +n 쪽) — 그쪽을 내린다. */
       const fsd9 = ny > 0 ? 1 : -1;
       const zc = (zb: number, sd: 1 | -1, w: number): number => zb - sd * fsd9 * roll * w;
@@ -23903,8 +23905,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         path: (t9: number): [number, number, number] => [0, 0, ZTOP9 + (ZCAP9 - ZTOP9) * t9],
         widthOf: (t9: number): number => RTOP9 + (RCAP9 - RTOP9) * t9,
       }), TOSS_GOLD),
-      [discPath3(0, 0, ZCAP9 + 0.022, 0.62 * BD), 1] as ShapeFace,   // 임자색 원판(안 칠한 낯)
-      topFace(discPath3(0, 0, ZCAP9 + 0.044, 0.62 * BD), 0.3),
+      [discPath3(0, 0, ZCAP9 + 0.022, 0.744 * BD), 1] as ShapeFace,   // 임자색 원판(안 칠한 낯) — 지름 ×1.2(요청: 0.62 → 0.744·BD)
+      topFace(discPath3(0, 0, ZCAP9 + 0.044, 0.744 * BD), 0.3),
     ], depthNow(0, 0) + 2.5));
     /* 눈 두 개(재지적: 몸통에 수직으로 붙여 정면을 보게 + 더 작게) — 바닥에 눕던
        타원을 정면 벽 데칼(wallDiscPath)로 세운다. 벽과 함께 돌고 눌리며, 뒤로 돌면
@@ -23963,7 +23965,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const TIP_F9 = 0.85 * BD0 + 0.8 + 0.85 * (1 - BD0);   // 앞 날개 끝 자리(옛 값 그대로 · 뿌리만 새 몸속으로)
     // 앞 두 다리 ×0.8 · **75도 아래**(재요청: "40도가 아니라 75도") — 참 길이 1.28(= √(0.98² + 0.82²)) 그대로 두고 수평 0.33 · 내림 1.24(4.92 → 3.68).
     // 앞다리 길이 ×0.9(참 1.28 → 1.15 · 수평 0.30 · 내림 1.11) · 끝은 좌우로 살짝만(±30 → ±15도)(재요청).
-    for (const ang of [15, -15]) out.push(...paintBase(wing(ang, 0.85 * BD, 0.30, 0.17, 0.08, 4.92, 3.81), TOSS_GOLD));
+    // 앞다리 뿌리를 **바깥으로**(요청: "앞다리 간격 벌리기 — 뿌리 자체를 이동") — 방향(±15)은 두고 법선 쪽으로 `PF_SHIFT9`(0.3) 평행 이동(뿌리 x ±0.11 → ±0.40).
+    const PF_SHIFT9 = 0.3;
+    for (const ang of [15, -15]) out.push(...paintBase(wing(ang, 0.85 * BD, 0.30, 0.17, 0.08, 4.92, 3.81, 1, 0, Math.sign(ang) * PF_SHIFT9), TOSS_GOLD));
     return out;
   },
   /* 드론(정정) — 갈퀴치마는 집게 사이가 아니라 집게팔과 꼬리 사이, 양옆에 부채처럼
