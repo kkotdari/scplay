@@ -2085,14 +2085,21 @@ export function protossLegs(
       [ankle0[0] + stv9[0], ankle0[1] + stv9[1], ankle0[2] + liftA9], Lt9, Ls9, reach9);
     const kh9 = yv9(0, 1);
     const knee: [number, number, number] = st === 0 && sp9 === 0 && !g9 ? knee0 : jointBetween(hip, ankleR9, Lt9, Ls9, [kh9[0], kh9[1], 0.1]);
-    /** 무릎을 축으로 한 접기(위 tuck) — 정강이·발·발가락이 모두 이 손을 지난다. */
+    /** 무릎을 축으로 한 접기(위 tuck) — 정강이·발·발가락이 모두 이 손을 지난다.
+     *  ★ 접는 축은 세계 x 가 아니라 **요잉한 다리의 무릎 축**이다(2026-10, 지적: "하템 다리 — 허벅지도 요잉해야지 외전을 하는게
+     *    아니라") — 세계 y-z 평면에서 접으면 뒤로 접힌 정강이는 요잉을 안 타고 곧게 뒤로 가는데 발·발가락만 요잉(yv9)을 타,
+     *    다리가 도는 것이 아니라 **발만 밖으로 벌어진**(외전) 꼴로 읽혔다. 무릎 둘레 벡터를 다리 틀로 되돌려(요잉 풀기) 접고
+     *    도로 요잉하면 허벅지·정강이·발이 한 몸으로 P_LEG_YAW9 만큼 돈다(tuck 0 인 질럿·다크는 한 톨도 안 바뀐다). */
     const tuckAt9 = (q: [number, number, number]): [number, number, number] => {
       if (tuck === 0) return q;
-      const vy9 = q[1] - knee[1];
+      const dx9 = q[0] - knee[0]; const dy9 = q[1] - knee[1];
+      const ux9 = dx9 * yc9 - dy9 * ys9; const uy9 = dx9 * ys9 + dy9 * yc9;   // yv9 의 역 — 다리 틀
       const vz9 = q[2] - knee[2];
       const c9 = Math.cos(tuck);
       const s9 = Math.sin(tuck);
-      return [q[0], knee[1] + vy9 * c9 + vz9 * s9, knee[2] - vy9 * s9 + vz9 * c9];
+      const ny9 = uy9 * c9 + vz9 * s9;
+      const [rx9, ry9] = yv9(ux9, ny9);
+      return [knee[0] + rx9, knee[1] + ry9, knee[2] - uy9 * s9 + vz9 * c9];
     };
     const ankle: [number, number, number] = tuckAt9(ankleR9);
     /* ★ 발 마디(발목→발끝) — 길이 **0.375배**, 발목 각은 **절반만큼 편다**(요청: "첫째 두째 마디
@@ -24741,7 +24748,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
    *    같은 폭으로 읽힌다. */
   const armY = (m9: number): number => -m9 * 0.55 * wd9 + g9 * 0.28;
   /** 걸음 팔 진자의 자(설계 자 · 라디안) — 늘어뜨린 자리 앞 13° · 앞으로 23° · 뒤로 48° · 반지름 2.15. */
-  const ZL_SW09 = 0.23, ZL_SWF9 = 0.40, ZL_SWB9 = 0.84, ZL_SWR9 = 2.15;
+  /* 늘어뜨린 팔의 자(2026-10): 쉬는 각 ZL_SW09(앞 4°) · 걸음 흔들림 앞 ZL_SWF9·뒤 ZL_SWB9(라디안 · 옛 0.40·0.84 — 상체 비틀림이
+     어깨를 나르므로 팔은 살짝만) · 서 있을 때 앞뒤 엇갈림 ZL_SWS9 · 반지름 ZL_SWR9(설계 자 · 두 마디 합의 86%) · 손 x ZL_HX9(어깨 0.82 안쪽). */
+  const ZL_SW09 = 0.07, ZL_SWF9 = 0.16, ZL_SWB9 = 0.24, ZL_SWS9 = 0.07, ZL_SWR9 = 2.15, ZL_HX9 = 0.74;
   return [
     /* 다리·몸통은 프로토스 인간형 공통 — 2관절 다리 + 앞으로 숙는 몸통. 금 갑주.
        보폭 0.55 → 0.85(지적: "질럿 걷기가 적용 안된듯?") — 컷은 돌고 있었지만
@@ -25093,19 +25102,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           /* ★ 평소는 **더 굽히고** 다리와 반대로 앞뒤(2026-10, 요청: "팔을 좀더 굽히고 … 팔은 반대로 살짝 앞뒤로 배치") — 손이
              어깨에서 설계 자로 2.2(두 마디 합의 88%) — ⚠ 옛 '2.3(92%)'은 접힌 z 로 잰 값이라 설계 자로는 2.8(두 마디 합 밖) —
              팔이 곧게 펴진 막대였다(jointBetween 은 z 를 Z8 로 되돌려 푼다) · 걸음 몫이 0 일 때 왼팔(+x)은 뒤, 오른팔은 앞(왼다리가 앞이다 — LEG_STANCE9). */
-          : wd9 === 0 ? [m9 * 1.0, 0.8 - m9 * 0.32, 2.8]
-          /* ★ 걸음은 어깨를 축으로 도는 **진자 호**다 — 앞은 덜, 뒤는 더(2026-10, 요청: "질럿 걸을때 팔 앞뒤로 더 크게
-             특히 뒤로") — 옛 판은 손을 앞뒤로 ±0.55 미는 것뿐이라(호로 치면 ±14°) 흔들림이 작고 앞뒤가 같았다. 이제 늘어뜨린
-             자리(앞 13°)에서 앞으로 ZL_SWF9 · 뒤로 ZL_SWB9 만큼 돈다(설계 자 반지름 ZL_SWR9 = 두 마디 합의 86% — 어느 각에서도
-             팔꿈치가 조금 굽은 채다). 손은 다리와 반대(armY 의 부호 그대로). */
+          /* ★★ 평소·걸음은 한 식이다 — 늘어뜨린 팔이 어깨를 축으로 도는 진자 호(2026-10, 요청: "앞으로 굽히는건 아주 살짝이고
+             안쪽으로도 살짝 굽혀야해 · 그 상태로 앞뒤로 살짝 흔들어주는데 몸통이 좌우로 요잉하게 돼있으니 그거에 따라 움직이겠지")
+             — 옛 판의 앞 13° + 걸음 앞 23°·뒤 48° 는 너무 컸다: 상체 비틀림(gaitTwistB9 · 9°)이 어깨를 이미 앞뒤로 나르므로
+             팔 자체의 흔들림은 그 위에 얹는 작은 몫(ZL_SWF9·ZL_SWB9)이면 된다. 손은 어깨보다 **안쪽**(ZL_HX9 < 0.82)이고
+             팔꿈치 힌트가 뒤·살짝 바깥이라 하완이 안으로 살짝 굽는다. 서 있을 때는 왼팔(+x) 뒤·오른팔 앞으로 ZL_SWS9 만. */
           : ((): [number, number, number] => {
-            const f9 = -m9 * wd9;
-            const th9 = ZL_SW09 + (f9 > 0 ? ZL_SWF9 : ZL_SWB9) * f9;
-            return [m9 * 1.0, sh[1] + ZL_SWR9 * Math.sin(th9), sh[2] - ZL_SWR9 * Math.cos(th9) * Z8];
+            const f9 = wd9 === 0 ? -m9 * ZL_SWS9 : -m9 * wd9;
+            const th9 = ZL_SW09 + (wd9 === 0 ? f9 : (f9 > 0 ? ZL_SWF9 : ZL_SWB9) * f9);
+            return [m9 * ZL_HX9, sh[1] + ZL_SWR9 * Math.sin(th9), sh[2] - ZL_SWR9 * Math.cos(th9) * Z8];
           })();
       /* 칼 — 손에서 이어 나간다. 겨눔에서는 앞·위로 서 있고(칼끝을 든 자세),
          잽에서는 **수평으로** 앞으로 내지른다(칼끝 높이가 손과 거의 같다). */
-      const el = jointBetween(sh, hd, 1.2, 1.3, g9 ? [m9 * 0.35, -0.6, -0.4] : [m9 * 0.2, -1, 0]);
+      const el = jointBetween(sh, hd, 1.2, 1.3, g9 ? [m9 * 0.35, -0.6, -0.4] : [m9 * 0.3, -1, 0]);   // 평소 힌트 뒤·살짝 바깥 — 팔꿈치가 밖으로 빠지고 손이 안쪽이다
       return pRigid9(ZEALOT_LEAN9, 0, sh[2], (): ShapeFace[] => [
         ...paintBase(pLimb(sh, el, 0.44), "#3a4258"),
         ...paintBase(pLimb(el, hd, 0.6), P_GOLD),
@@ -25558,11 +25567,16 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            1이면 머리 위로 뻗는다. */
       ...([-1, 1] as const).flatMap((m9): ShapeFace[] => {
         const at9 = poseNow === 2 ? 1 : 0;
-        const w9: [number, number, number] =
-          [m9 * (1.35 + 0.15 * at9), 0.5 + 0.65 * at9, 2.76 + 3.56 * at9 + L];
-        // 팔꿈치는 두 마디 길이(1.3·1.4) 고정으로 푼다(요청) — 내린 팔은 바깥·뒤로 굽고, 든 팔은 곧다.
+        /* ★ 내린 팔은 **어깨 밑에 늘어뜨린 채 앞·안쪽으로 살짝만 굽는다**(2026-10, 요청: "질럿하템 팔 — 앞으로 굽히는건 아주 살짝이고
+           안쪽으로도 살짝 굽혀야해") — 옛 손 [1.35, 0.5] 은 어깨(1.05)보다 0.3 바깥·0.7 앞이고 팔꿈치 힌트가 바깥(0.9)이라 팔이
+           통째로 옆으로 벌어졌다. 손을 어깨 안쪽(0.92)·앞 0.15 에 두고 힌트를 뒤·살짝 바깥으로 — 팔꿈치가 뒤·밖으로 빠지고 하완이
+           안으로 든다. 어깨~손 설계 거리는 옛 값(2.38 · 두 마디 합의 88%) 그대로. 든 팔(at9 1)은 한 톨도 안 바뀐다. */
+        const w9: [number, number, number] = at9
+          ? [m9 * 1.5, 1.15, 6.32 + L]
+          : [m9 * 0.92, -0.05, 2.67 + L];
+        // 팔꿈치는 두 마디 길이(1.3·1.4) 고정으로 푼다(요청) — 내린 팔은 뒤·살짝 바깥으로 굽고, 든 팔은 곧다.
         const s9: [number, number, number] = [m9 * 1.05, -0.2, 4.56 + L];
-        const e9 = jointBetween(s9, w9, 1.3, 1.4, [m9 * 0.9, -0.4, -0.2]);
+        const e9 = jointBetween(s9, w9, 1.3, 1.4, at9 ? [m9 * 0.9, -0.4, -0.2] : [m9 * 0.35, -1, -0.15]);
         // 손가락은 팔이 내려가면 아래를, 올라가면 위를 향한다.
         const fz9 = -0.56 + 1.12 * at9;
         return pRigid9(HT_LEAN9, L, s9[2], (): ShapeFace[] => [
