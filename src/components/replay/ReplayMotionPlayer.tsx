@@ -699,6 +699,19 @@ const NO_BLEND9 = typeof location !== "undefined" && /noblend/.test(location.has
  *  성질**이다. blur는 그 층을 따로 그린 뒤 한 번 더 지나가게 만들고(별도 render surface), 섞임(screen)은
  *  그 밑의 **배경 전체**(우리의 거대한 유닛 캔버스)를 읽어 오게 한다. 둘 다 넓이와 무관하게 값이 붙는다. */
 const NO_BLUR9 = typeof location !== "undefined" && /noblur/.test(location.hash);
+/* ★ 흐림 가르기 손잡이 셋(2026-10, 지적: "브라우저 폭 특정 구간에서만 유닛·GL 층이 흐림 — 지형은 멀쩡 · #gl=0 도 흐림 · DevTools 에서
+   인라인 transform 체크가 안 꺼진다(프레임마다 다시 쓴다)") — 유닛 캔버스 두 장이 지형 캔버스와 다른 점은 인라인 변환(translate·scale(1) ·
+   origin center) · z-index 6000 · height calc 뿐이다. 하나씩 끈다: `#noxf`(인라인 변환·origin 을 아예 안 쓴다 — 손짓 미끄러짐은 그동안 안
+   탄다) · `#nozi`(z-index auto) · `#nocalc`(top 0 · height 100%). */
+const NO_XF9 = typeof location !== "undefined" && /noxf/.test(location.hash);
+const NO_ZI9 = typeof location !== "undefined" && /nozi/.test(location.hash);
+const NO_CALC9 = typeof location !== "undefined" && /nocalc/.test(location.hash);
+/** 유닛·GL·효과 캔버스의 인라인 변환 한 줄 — `#noxf` 면 비운다. */
+function xfSet9(cv9: HTMLCanvasElement, xf9: string): void {
+  if (NO_XF9) { if (cv9.style.transform) { cv9.style.transform = ""; cv9.style.transformOrigin = ""; } return; }
+  cv9.style.transformOrigin = "center";
+  if (cv9.style.transform !== xf9) cv9.style.transform = xf9;
+}
 /** 이 프레임의 효과 DOM 수와 이제까지의 최대 — 층 폭발이 값인지 수로 가른다. */
 /** ★ **주 실마리가 막혔나, 화면만 굶었나**(조사: 10초 멎었다 풀림 · 메모리는 55MB로 멀쩡) ─────────────
  *  여태 잰 '최장 프레임'은 rAF 사이의 틈이다. 그 틈이 길다고 곧 주 실마리가 막힌 것은 아니다 — rAF는
@@ -5884,7 +5897,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          몫이 **두 번** 먹혀 한 프레임 튄다. 여태 그 걷어내기를 부모의 렌즈 effect가
          했는데, 그 effect는 zoom·pan **상태**가 바뀔 때만 돈다 — 손짓 중에는 상태가
          안 바뀌므로 한 번도 안 돌았고, 그 사이 재생 틱이 낸 리렌더마다 그림이 튀었다. */
-      for (const cv9 of [cv, glRef.current, fxRef.current]) if (cv9 && cv9.style.transform !== XF_ID9) { cv9.style.transformOrigin = "center"; cv9.style.transform = XF_ID9; }
+      for (const cv9 of [cv, glRef.current, fxRef.current]) if (cv9) xfSet9(cv9, XF_ID9);
       onPainted?.(zoom, pan);
     };
     /* 부모가 손짓 중에 쥘 붓을 넘긴다 — 렌더마다 새 ops를 문 채로 갈아 끼운다. */
@@ -12401,6 +12414,8 @@ export default function ReplayMotionPlayer({
     const cls9: string[] = [];
     if (NO_BLEND9) cls9.push("scr-noblend");
     if (NO_BLUR9) cls9.push("scr-noblur");
+    if (NO_ZI9) cls9.push("scr-nozi");
+    if (NO_CALC9) cls9.push("scr-nocalc");
     if (cls9.length === 0) return undefined;
     el9.classList.add(...cls9);
     return () => el9.classList.remove(...cls9);
@@ -12484,7 +12499,7 @@ export default function ReplayMotionPlayer({
         : `translate(${(px - s9 * b9.x).toFixed(2)}px, ${(py - s9 * b9.y).toFixed(2)}px) scale(${s9.toFixed(4)})`;
       xfCvXfRef.current = xf9;
       // 유닛·GL·효과 캔버스 셋이 같은 변환을 탄다(같은 클래스 — UnitLayer 의 ★★).
-      for (const cv9 of unitCanvases9(mapRef.current)) { cv9.style.transformOrigin = "center"; cv9.style.transform = xf9; }
+      for (const cv9 of unitCanvases9(mapRef.current)) xfSet9(cv9, xf9);
       /* 안개는 **제 기준**으로 민다(위 fogXfRef9) — 유닛과 다른 박자로 칠해지므로 같은
          델타를 걸면 그만큼 어긋난 자리에 선다. */
       if (fg9) {
@@ -12947,7 +12962,7 @@ export default function ReplayMotionPlayer({
         paintFnRef9.current?.(tLiveRef9.current, true);
       }
     }
-    for (const cv9 of unitCanvases9(mapRef.current)) if (cv9.style.transform !== XF_ID9) { cv9.style.transformOrigin = "center"; cv9.style.transform = XF_ID9; }
+    for (const cv9 of unitCanvases9(mapRef.current)) xfSet9(cv9, XF_ID9);
     {
       // 안개 캔버스도 — 이 렌더의 ReplayFogLayer effect(자식이 먼저 돈다)가 상태 자리로 칠했으니 변환만 걷는다.
       const fcv9 = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-fog");
@@ -14785,7 +14800,7 @@ export default function ReplayMotionPlayer({
        멈춘 채 배율·팬이 바뀌면 캔버스에 '지금 보기 − 그려진 보기'의 CSS 변환이 남는데, 칸 네모를 그 변환이 먹은 상자(ur9)로 재고 칠한
        뒤 변환이 항등으로 돌아가면 캔버스(몸·안개)만 그 몫만큼 밀리고 땅(칸 밑 층 · DOM 격자)은 제자리라 둘이 갈렸다. 분할은 손짓이
        막혀 있어 칸 캔버스는 늘 항등이어야 한다. */
-    for (const c09 of cvs9) if (c09.style.transform !== XF_ID9) { c09.style.transformOrigin = "center"; c09.style.transform = XF_ID9; }
+    for (const c09 of cvs9) xfSet9(c09, XF_ID9);
     const ucv9 = cvs9.find((c) => !c.classList.contains("scr-motion-gl9") && !c.classList.contains("scr-motion-fx9") && !c.classList.contains("scr-split-fog9"));
     if (!ucv9) return;
     /* 칸 안개 판(.scr-split-fog9) — 유닛·GL 위에 선다. 배킹은 유닛 캔버스와 같은 자. */
