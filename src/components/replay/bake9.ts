@@ -23770,9 +23770,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const f = 0.75;
       const wMid = wRoot + (wTip - wRoot) * f;
       const zMid = z0 + (z1 - z0) * f;
+      /* ★ 끝 임자색 조각은 **금색 날개를 덮어 씌우는 골무**다(2026-10, 지적: "프로브 날개 임자색 데칼 살짝 헐겁게 뜬 거 수정") — 옛 판은 금색
+         상자와 임자색 상자가 한 면(zMid)에서 맞닿아 이음매가 뜨고 z 싸움으로 벌어졌다. 이제 임자색 조각은 이음매보다 `OV9` 앞에서 시작해
+         금색을 파고들고, 반폭 +0.015 · 윗면 +0.012 · 두께 ×1.06 으로 한 뼘 크다(밑도 금색 아래로 내려간다). */
+      const OV9 = Math.min(0.06, len * f * 0.5);
+      const wOv = wRoot + (wTip - wRoot) * (f - OV9 / len);
+      const zOv = z0 + (z1 - z0) * (f - OV9 / len);
       return [
         ...paintBase(wing(ang, r0, len * f, wRoot, wMid, z0, zMid, thick, roll), TOSS_GOLD),
-        ...wing(ang, r0 + len * f, len * (1 - f), wMid, wTip, zMid, z1, thick, roll),
+        ...wing(ang, r0 + len * f - OV9, len * (1 - f) + OV9, wOv + 0.015, wTip + 0.015, zOv + 0.012, z1 + 0.012, thick * 1.06, roll),
       ];
     };
     // 뒤 위 날개 한 쌍 + 뒤 아래로 처지는 날개 한 쌍(옆다리는 제거 — 지적).
