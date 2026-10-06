@@ -23766,9 +23766,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       if (noCap !== "tip" && faceLight(dx, dy, 0).visible) caps9.push(dTip);
       if (noCap !== "root" && faceLight(-dx, -dy, 0).visible) caps9.push(dRoot);
       // 제 깊이(지적: 앞다리 안 가려짐) — 날개판마다 제 중심 깊이를 단다.
+      /* ★ 옆 그늘(sideFace 0.3)은 **2D 만**(2026-10, 지적: "속 그림자 비치는 건 뭐야 — 금색 부분과 데칼 부분") — 메시 기록 중엔
+         faceLight 가 늘 참이라 두 옆면의 그늘이 다 실리고, 몸(여섯 낯을 한 경로로 이은 bodyFace)과 경로가 달라 접히지 못해 제각기
+         반투명 데칼 부품이 된다. 먼 쪽 옆면의 그늘이 데칼 편향(0.18 + 차례)으로 앞면(반폭 0.1~0.3)을 뚫고 비쳐 '속 그림자'가 됐다.
+         GL 은 조명이 옆면을 제 손으로 어둡게 하므로 안 싣는다. */
       return tagKey(
         [bodyFace([dTop, ...edges9, ...caps9].join(" ")), topFace(dTop, 0.18),
-          ...edges9.map((d9) => sideFace(d9, 0.3))],
+          ...(MESH9.on ? [] : edges9.map((d9) => sideFace(d9, 0.3)))],
         depthNow(dx * (r0 + len * 0.7), dy * (r0 + len * 0.7)),
       );
     };
