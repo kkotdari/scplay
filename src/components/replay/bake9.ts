@@ -23683,6 +23683,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ang: number, r0: number, len: number, wRoot: number, wTip: number, z0: number, z1: number,
       /** 위아래 두께 배수(2026-10, 요청: "뒷 윗날개 한 쌍의 위아래 길이를 2.5배로 두껍게") — 뿌리 0.272 · 끝 0.224 에 곱한다. */
       thick = 1,
+      /** 길이축 둘레의 **앞으로 기울임**(2026-10, 요청: "옆날개는 넓은 면이 위아래를 보는 형태 · 살짝 앞으로 기울여") — 앞쪽(+y 쪽) 가장자리를
+       *  반폭 × roll 만큼 내리고 뒤 가장자리를 그만큼 올린다(설계 z). 0 이면 넓은 면이 수평이다. */
+      roll = 0,
     ): ShapeFace[] => {
       const a = (ang * Math.PI) / 180;
       const dx = Math.sin(a);
@@ -23693,11 +23696,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const ryy = dy * r0;
       const tx = dx * (r0 + len);
       const ty = dy * (r0 + len);
+      /** 앞 가장자리 쪽(법선 n 의 +y 몫이 양이면 +n 쪽) — 그쪽을 내린다. */
+      const fsd9 = ny > 0 ? 1 : -1;
+      const zc = (zb: number, sd: 1 | -1, w: number): number => zb - sd * fsd9 * roll * w;
       const dTop = polyPath3([
-        [rx - nx * wRoot, ryy - ny * wRoot, z0],
-        [rx + nx * wRoot, ryy + ny * wRoot, z0],
-        [tx + nx * wTip, ty + ny * wTip, z1],
-        [tx - nx * wTip, ty - ny * wTip, z1],
+        [rx - nx * wRoot, ryy - ny * wRoot, zc(z0, -1, wRoot)],
+        [rx + nx * wRoot, ryy + ny * wRoot, zc(z0, 1, wRoot)],
+        [tx + nx * wTip, ty + ny * wTip, zc(z1, 1, wTip)],
+        [tx - nx * wTip, ty - ny * wTip, zc(z1, -1, wTip)],
       ]);
       /* ★ 두께면은 **보이는 쪽**에 그린다(지적: "프로브 다리들이 정면 기준 좌우 대칭이
          아님… 면 처리가 잘못된 듯") ────────────────────────────────────────────────
@@ -23707,10 +23713,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          두 쪽을 다 만들고 **제 법선으로 보임을 판정**해 마주 보는 것만 그린다. 판정이
          면마다 제 값을 쓰므로 좌우가 저절로 짝이 맞는다. */
       const edgeOf = (sd: 1 | -1): string => polyPath3([
-        [rx + sd * nx * wRoot, ryy + sd * ny * wRoot, z0],
-        [tx + sd * nx * wTip, ty + sd * ny * wTip, z1],
-        [tx + sd * nx * wTip, ty + sd * ny * wTip, z1 - 0.224 * thick],
-        [rx + sd * nx * wRoot, ryy + sd * ny * wRoot, z0 - 0.272 * thick],
+        [rx + sd * nx * wRoot, ryy + sd * ny * wRoot, zc(z0, sd, wRoot)],
+        [tx + sd * nx * wTip, ty + sd * ny * wTip, zc(z1, sd, wTip)],
+        [tx + sd * nx * wTip, ty + sd * ny * wTip, zc(z1 - 0.224 * thick, sd, wTip)],
+        [rx + sd * nx * wRoot, ryy + sd * ny * wRoot, zc(z0 - 0.272 * thick, sd, wRoot)],
       ]);
       const edges9: string[] = [];
       for (const sd of [1, -1] as const) {
@@ -23723,22 +23729,22 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          닫힌 육면체로 — 2D 는 그 낯이 보이는 각(faceLight)에서만 싣는다(메시 기록 중엔 늘 참이라 여섯이 다 든다). */
       const zb0 = z0 - 0.272 * thick; const zb1 = z1 - 0.224 * thick;
       const dBot = polyPath3([
-        [rx - nx * wRoot, ryy - ny * wRoot, zb0],
-        [tx - nx * wTip, ty - ny * wTip, zb1],
-        [tx + nx * wTip, ty + ny * wTip, zb1],
-        [rx + nx * wRoot, ryy + ny * wRoot, zb0],
+        [rx - nx * wRoot, ryy - ny * wRoot, zc(zb0, -1, wRoot)],
+        [tx - nx * wTip, ty - ny * wTip, zc(zb1, -1, wTip)],
+        [tx + nx * wTip, ty + ny * wTip, zc(zb1, 1, wTip)],
+        [rx + nx * wRoot, ryy + ny * wRoot, zc(zb0, 1, wRoot)],
       ]);
       const dTip = polyPath3([
-        [tx - nx * wTip, ty - ny * wTip, z1],
-        [tx + nx * wTip, ty + ny * wTip, z1],
-        [tx + nx * wTip, ty + ny * wTip, zb1],
-        [tx - nx * wTip, ty - ny * wTip, zb1],
+        [tx - nx * wTip, ty - ny * wTip, zc(z1, -1, wTip)],
+        [tx + nx * wTip, ty + ny * wTip, zc(z1, 1, wTip)],
+        [tx + nx * wTip, ty + ny * wTip, zc(zb1, 1, wTip)],
+        [tx - nx * wTip, ty - ny * wTip, zc(zb1, -1, wTip)],
       ]);
       const dRoot = polyPath3([
-        [rx - nx * wRoot, ryy - ny * wRoot, z0],
-        [rx - nx * wRoot, ryy - ny * wRoot, zb0],
-        [rx + nx * wRoot, ryy + ny * wRoot, zb0],
-        [rx + nx * wRoot, ryy + ny * wRoot, z0],
+        [rx - nx * wRoot, ryy - ny * wRoot, zc(z0, -1, wRoot)],
+        [rx - nx * wRoot, ryy - ny * wRoot, zc(zb0, -1, wRoot)],
+        [rx + nx * wRoot, ryy + ny * wRoot, zc(zb0, 1, wRoot)],
+        [rx + nx * wRoot, ryy + ny * wRoot, zc(z0, 1, wRoot)],
       ]);
       const caps9: string[] = [];
       if (faceLight(0, 0, -1).visible) caps9.push(dBot);
@@ -23757,14 +23763,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        갈수록 깊이 키가 작아져(zsorted), 덧판이 도리어 원판 밑에 깔린다. 두 토막은 이음매
        에서 폭·높이가 같아 한 판처럼 이어지고 색만 갈린다 — 칠하지 않은 쪽이 임자 색이다. */
     const backWing = (
-      ang: number, r0: number, len: number, wRoot: number, wTip: number, z0: number, z1: number, thick = 1,
+      ang: number, r0: number, len: number, wRoot: number, wTip: number, z0: number, z1: number, thick = 1, roll = 0,
     ): ShapeFace[] => {
       const f = 0.75;
       const wMid = wRoot + (wTip - wRoot) * f;
       const zMid = z0 + (z1 - z0) * f;
       return [
-        ...paintBase(wing(ang, r0, len * f, wRoot, wMid, z0, zMid, thick), TOSS_GOLD),
-        ...wing(ang, r0 + len * f, len * (1 - f), wMid, wTip, zMid, z1, thick),
+        ...paintBase(wing(ang, r0, len * f, wRoot, wMid, z0, zMid, thick, roll), TOSS_GOLD),
+        ...wing(ang, r0 + len * f, len * (1 - f), wMid, wTip, zMid, z1, thick, roll),
       ];
     };
     // 뒤 위 날개 한 쌍 + 뒤 아래로 처지는 날개 한 쌍(옆다리는 제거 — 지적).
@@ -23789,8 +23795,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     for (const ang of [168, 192]) out.push(...backWing(ang, 1.1 * BD, (TIP_BU9 - 1.1 * BD) * PW_K9, 0.10, 0.04, 5.04, 5.04 + (5.6 - 5.04) * PW_K9, 2.5));
     /* 옆날개 한 쌍(새로) — 옆(±90)보다 뒤로 10도(±100) · 가장 큰 날개(길이 1.7 · 뿌리 0.26 · 끝 0.08) · 5.0 에서 4.2 로 **아래를 향한다**. 끝 1/4 임자색(backWing). */
     // 옆날개는 **60도 아래**(재요청) — 참 길이 1.88 그대로 두고 수평 0.94 · 내림 1.63(5.0 → 3.37).
-    // 원작 느낌(사진: 뒤 옆으로 내려가는 큰 **세로 지느러미** 한 쌍) — 폭은 좁히고(0.26/0.08 → 0.18/0.06) 위아래 두께 ×2.5 로 세운다.
-    for (const ang of [100, 260]) out.push(...backWing(ang, 1.1 * BD, 0.94, 0.18, 0.06, 5.0, 3.37, 2.5));
+    /* 옆날개는 **넓은 면이 위아래를 보는 판**(재요청: "옆날개는 넓은 면이 위아래를 보는 형태인듯 대신 완전 위아래는 아니고 살짝 앞으로 기울여")
+       — 세로 지느러미(두께 ×2.5 · 폭 0.18)를 되물려 넓은 판(뿌리 0.5 · 끝 0.16 · 두께 1)으로, 길이 1.5(가장 큼) · 내림은 살짝(5.0 → 4.7) ·
+       길이축 둘레로 앞 가장자리를 `roll` 0.45 만큼 내린다(반폭 0.5 에서 0.22 · 약 24도). */
+    for (const ang of [100, 260]) out.push(...backWing(ang, 1.1 * BD, 1.5, 0.5, 0.16, 5.0, 4.7, 1, 0.45));
     /* ★★ **분사구를 지어 주고 거기서 불을 낸다**(2026-09, 요청: "프로브 몸 뒤쪽 뒷날개 아래에
        납작한 스러스터 두 개 추가하고 추진 에너지 효과 거기에 맞춰 줘") ────────────────────
        처음에는 뒷날개 **끝**에서 불을 냈다(노즐이랄 것이 없는 몸이라 자리를 골라야 했다).
@@ -23918,11 +23926,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const EYE_Z9 = (ZBOT9 + ZTOP9) / 2;
       const EYE_W9 = RBOT9 + (RTOP9 - RBOT9) * ((EYE_Z9 - ZBOT9) / (ZTOP9 - ZBOT9));
       const EYE_R9 = 1.2; const EYE_EL9 = -Math.atan((RTOP9 - RBOT9) / (ZTOP9 - ZBOT9));
+      /* ★ 눈은 **훨씬 양옆으로**(방위각 ±23.6 → ±`EYE_AZ9` 62도) · **눈 뒤에 원통**(2026-10, 요청: "눈이 훨씬 양옆으로 벌어져있어야하고 눈뒤에
+         원통이 존재" — 사진의 초록 눈은 몸 앞 옆구리에서 튀어나온 짧은 금색 통 끝에 박혀 있다) — 통(반지름 0.16 · 벽 속 0.15 에서 밖으로
+         EYE_LEN9 0.32)은 벽 법선(방위각 축의 +y)을 따라 눕고, 렌즈는 그 통 끝면에 앉는다(가상 구 중심을 EYE_LEN9 만큼 밖으로). */
+      const EYE_AZ9 = 50; const EYE_LEN9 = 0.32; const EYE_TR9 = 0.16;   // 62 → 50(사진의 눈은 앞 옆구리)
       for (const m of [-1, 1] as const) {
-        out.push(...withModelSpin(m * 23.6, () => tagKey(contactLens9({
-          cx: 0, cy: EYE_W9 - EYE_R9 * Math.cos(EYE_EL9), r: EYE_R9, hh: EYE_R9, z0: EYE_Z9 - EYE_R9 * Math.sin(EYE_EL9),
-          ang: 0.15 / EYE_R9, elev: EYE_EL9, thick: 0.05, rim: "#4e7f18", fill: "#8fe63a", core: "#d9ff8c",
-        }).map(([d, o, f, kk, l, n]) => [d, o * k, f, kk, l, n] as ShapeFace), depthNow(0, EYE_W9) * 1.6 + 3)));
+        out.push(...withModelSpin(m * EYE_AZ9, () => [
+          ...tagKey(paintBase(tubeFaces(0, EYE_W9 - 0.15, 0, EYE_W9 + EYE_LEN9, EYE_TR9, EYE_Z9, false), TOSS_GOLD), depthNow(0, EYE_W9 + 0.1) * 1.6 + 2.9),
+          ...tagKey(contactLens9({
+            cx: 0, cy: EYE_W9 + EYE_LEN9 - EYE_R9 * Math.cos(EYE_EL9), r: EYE_R9, hh: EYE_R9, z0: EYE_Z9 - EYE_R9 * Math.sin(EYE_EL9),
+            ang: 0.15 / EYE_R9, elev: EYE_EL9, thick: 0.05, rim: "#4e7f18", fill: "#8fe63a", core: "#d9ff8c",
+          }).map(([d, o, f, kk, l, n]) => [d, o * k, f, kk, l, n] as ShapeFace), depthNow(0, EYE_W9 + EYE_LEN9) * 1.6 + 3),
+        ]));
       }
     }
     /* 옆면 둥근 포트(실물 참고) — 몸이 줄면서 가장자리 밖으로 삐져나와 떠 보였다(확인)
