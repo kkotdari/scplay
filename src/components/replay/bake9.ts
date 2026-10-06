@@ -23694,6 +23694,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       roll = 0,
       /** 법선(n) 쪽으로의 **평행 이동**(2026-10, 요청: "앞다리 간격 벌리기 — 좀더 바깥쪽으로 뿌리 자체를 이동") — 방향·길이는 두고 뿌리와 끝을 함께 옆으로 민다. */
       shift = 0,
+      /** 안 그릴 뚜껑(2026-10, 지적: "데칼이 아직도 날개보다 크고 층이지게 두꺼워") — 한 날개를 금색·임자색 두 토막으로 가를 때 이음매의
+       *  끝 뚜껑(앞 토막)·뿌리 뚜껑(뒤 토막)은 속에 묻힌 같은 평면 두 장이라 z 싸움만 한다. 빼면 두 토막은 같은 꼭짓점을 나눠 한 판이 된다. */
+      noCap: "tip" | "root" | "" = "",
     ): ShapeFace[] => {
       const a = (ang * Math.PI) / 180;
       const dx = Math.sin(a);
@@ -23756,8 +23759,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ]);
       const caps9: string[] = [];
       if (faceLight(0, 0, -1).visible) caps9.push(dBot);
-      if (faceLight(dx, dy, 0).visible) caps9.push(dTip);
-      if (faceLight(-dx, -dy, 0).visible) caps9.push(dRoot);
+      if (noCap !== "tip" && faceLight(dx, dy, 0).visible) caps9.push(dTip);
+      if (noCap !== "root" && faceLight(-dx, -dy, 0).visible) caps9.push(dRoot);
       // 제 깊이(지적: 앞다리 안 가려짐) — 날개판마다 제 중심 깊이를 단다.
       return tagKey(
         [bodyFace([dTop, ...edges9, ...caps9].join(" ")), topFace(dTop, 0.18),
@@ -23776,15 +23779,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const f = 0.75;
       const wMid = wRoot + (wTip - wRoot) * f;
       const zMid = z0 + (z1 - z0) * f;
-      /* ★ 끝 임자색 조각은 **금색 날개를 덮어 씌우는 골무**다(2026-10, 지적: "프로브 날개 임자색 데칼 살짝 헐겁게 뜬 거 수정") — 옛 판은 금색
-         상자와 임자색 상자가 한 면(zMid)에서 맞닿아 이음매가 뜨고 z 싸움으로 벌어졌다. 이제 임자색 조각은 이음매보다 `OV9` 앞에서 시작해
-         금색을 파고들고, 반폭 +0.015 · 윗면 +0.012 · 두께 ×1.06 으로 한 뼘 크다(밑도 금색 아래로 내려간다). */
-      const OV9 = Math.min(0.06, len * f * 0.5);
-      const wOv = wRoot + (wTip - wRoot) * (f - OV9 / len);
-      const zOv = z0 + (z1 - z0) * (f - OV9 / len);
+      /* ★ 끝 임자색 조각은 금색 날개와 **한 판**이다(2026-10, 지적: "데칼이 아직도 날개보다 크고 층이지게 두꺼워 — 날개 표면에 붙은
+         모양이어야 해, 심리스하게") — 앞서의 골무(반폭 +0.015 · 윗면 +0.012 · 두께 ×1.06 · 이음매 0.06 파고듦)는 턱이 졌다. 되돌려 두
+         토막을 같은 단면(wMid·zMid)으로 이음매에서 맞붙이되, 그 전의 '헐겁게 뜸'의 진짜 까닭이던 **속에 묻힌 뚜껑 두 장**(앞 토막의 끝 뚜껑
+         · 뒤 토막의 뿌리 뚜껑 — 같은 평면이라 z 싸움)을 `noCap` 으로 뺀다. 두 토막은 꼭짓점을 그대로 나눠 가져 색만 갈린다. */
       return [
-        ...paintBase(wing(ang, r0, len * f, wRoot, wMid, z0, zMid, thick, roll), TOSS_GOLD),
-        ...wing(ang, r0 + len * f - OV9, len * (1 - f) + OV9, wOv + 0.015, wTip + 0.015, zOv + 0.012, z1 + 0.012, thick * 1.06, roll),
+        ...paintBase(wing(ang, r0, len * f, wRoot, wMid, z0, zMid, thick, roll, 0, "tip"), TOSS_GOLD),
+        ...wing(ang, r0 + len * f, len * (1 - f), wMid, wTip, zMid, z1, thick, roll, 0, "root"),
       ];
     };
     // 뒤 위 날개 한 쌍 + 뒤 아래로 처지는 날개 한 쌍(옆다리는 제거 — 지적).
