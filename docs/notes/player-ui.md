@@ -815,3 +815,9 @@ dpr 0.9 · 캔버스 가속 켜짐 · WebGL 가속 · 벤치는 선명할 때도
   `#glblit=0` 은 모델이 안 나온다(옛 베끼기 길이 죽어 있다 — 따로 고칠 것). 진단 `조상` 에 overflow(+둥근 모서리)·clip-path·opacity·isolation·
   will-change·contain·blend·fixed/sticky 를 더했다(헤드리스: `div.scr-fs-stage[ov] div.scr-motion[ov]`). `#dumpcv` — GL·유닛 캔버스 배킹을
   PNG 로 내려받아(gl.png·unit.png) 내용 흐림인지 합성 흐림인지 가른다.
+· ★★ **결론 — 우리 쪽이 아니었다**(2026-10): 사용자가 맥 크롬을 `--force-device-scale-factor=1` 로 띄우고 있었다. 레티나 패널에 1x 로 그린
+  표면을 얹는 단계에서 폭에 따라 얹는 배율·자리가 달라져 구간마다 흐렸고, 플래그를 풀자 모든 폭에서 선명하다("해제하니까 선명해 플래그
+  때문이었네"). 진단이 재는 캔버스 안쪽(자리·배킹·조상·뷰)이 전부 정상인데 DevTools 캡처까지 흐린 꼴이면, **브라우저 실행 플래그·OS 해상도
+  설정부터 묻는다**. 그 과정에서 둔 것은 그대로 남긴다 — 상자 기기 화소 맞춤(`snapDev9` · dpr 0.9 에서 유닛·GL ×1.0000 · 옛 동작 `#cvsnap=0`) ·
+  `perf-check --wsweep` · 진단 `조상` 확장 · `#dumpcv` · 가르기 손잡이 `#noxf`·`#nozi`·`#nocalc`·`#glfilter`. ⚠ `#glblit=0`(GL 캔버스를 숨기고
+  베끼는 옛 길)은 모델이 안 나온다 — 쓸 일이 생기면 그때 고친다.
