@@ -11330,7 +11330,14 @@ export default function ReplayMotionPlayer({
     /* 안 옮기는 동안 선택이 바뀌었으면 새 선택을 적어 둔다 — **그 무리가 화면 안일 때만**(2026-10 · 아래 ★). 부대 한 번 불러오기로
        화면 밖의 무리를 골랐을 때 적어 두면, 그 무리가 미니맵 명령을 받는 순간 '같은 선택'으로 읽혀 지도 끝까지 미끄러졌다. */
     if (keep9 && !selSame9 && inView9) trackCamRef.current = { ...trackCamRef.current, sel: trackAt.sel };
+    /* #diag=view — 선택이 바뀐 때와 카메라를 다시 잡은 때를 적는다(2026-10, 지적: "중계모드에서 선택이 바뀔때 같은 화면안에 있는데도
+       미묘하게 화면이 흔들려") — 왜 잡았나(사람·배율·두번누름·밖·새선택밖)와 옮긴 px · 미끄러짐/곧장이 그 줄에 선다. */
+    if (!selSame9 && scrDiagOn()) viewDiagPush9("sel", `${inView9 ? "안" : "밖"} ${trackAt.mode ?? "-"} ${trackAt.pts.length}기${keep9 ? "" : " →잡음"}`);
     if (!keep9) {
+      if (scrDiagOn()) {
+        const why9 = cur9.raw !== camRaw9 ? "사람" : cur9.z !== z9 ? "배율" : jump9 ? "두번누름" : !inView9 ? (selSame9 ? "밖" : "새선택밖") : "?";
+        viewDiagPush9("cam", `${why9} Δ${(mid9.x - cur9.pan.x).toFixed(0)},${(mid9.y - cur9.pan.y).toFixed(0)}px`);
+      }
       /* ★ 미끄러짐은 **선택이 그대로인 무리가 화면 밖으로 걸어 나갈 때만**이다(2026-10, 지적: "미니맵으로 찍은 명령등에도 드래그
          이동이 되다보니 엄청 먼 경우에도 직접 이동해서 이상 · 직접 드래그 이동하는 경우는 선택이 안 바뀐 상태에서 화면 밖으로 나갈
          때만 · 나머지는 즉시 화면 이동") — 마우스로 고른 자국(view)도 이제 곧장 선다(VIEW_LEAD_SEC9 앞서 뛴다). 한 번에 창 하나 넘게
