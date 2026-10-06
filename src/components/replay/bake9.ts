@@ -23798,7 +23798,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 옆날개는 **넓은 면이 위아래를 보는 판**(재요청: "옆날개는 넓은 면이 위아래를 보는 형태인듯 대신 완전 위아래는 아니고 살짝 앞으로 기울여")
        — 세로 지느러미(두께 ×2.5 · 폭 0.18)를 되물려 넓은 판(뿌리 0.5 · 끝 0.16 · 두께 1)으로, 길이 1.5(가장 큼) · 내림은 살짝(5.0 → 4.7) ·
        길이축 둘레로 앞 가장자리를 `roll` 0.45 만큼 내린다(반폭 0.5 에서 0.22 · 약 24도). */
-    for (const ang of [100, 260]) out.push(...backWing(ang, 1.1 * BD, 1.5, 0.5, 0.16, 5.0, 4.7, 1, 0.45));
+    // 앞뒤 폭을 줄이고(0.5/0.16 → 0.3/0.1) 끝을 **아래 뒤쪽으로**(재요청) — 방위 ±100 → ±118 · 끝 4.7 → 4.0. 앞 기울임(roll)은 그대로.
+    for (const ang of [118, 242]) out.push(...backWing(ang, 1.1 * BD, 1.5, 0.3, 0.1, 5.0, 4.0, 1, 0.45));
     /* ★★ **분사구를 지어 주고 거기서 불을 낸다**(2026-09, 요청: "프로브 몸 뒤쪽 뒷날개 아래에
        납작한 스러스터 두 개 추가하고 추진 에너지 효과 거기에 맞춰 줘") ────────────────────
        처음에는 뒷날개 **끝**에서 불을 냈다(노즐이랄 것이 없는 몸이라 자리를 골라야 했다).
@@ -23929,15 +23930,18 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* ★ 눈은 **훨씬 양옆으로**(방위각 ±23.6 → ±`EYE_AZ9` 62도) · **눈 뒤에 원통**(2026-10, 요청: "눈이 훨씬 양옆으로 벌어져있어야하고 눈뒤에
          원통이 존재" — 사진의 초록 눈은 몸 앞 옆구리에서 튀어나온 짧은 금색 통 끝에 박혀 있다) — 통(반지름 0.16 · 벽 속 0.15 에서 밖으로
          EYE_LEN9 0.32)은 벽 법선(방위각 축의 +y)을 따라 눕고, 렌즈는 그 통 끝면에 앉는다(가상 구 중심을 EYE_LEN9 만큼 밖으로). */
-      const EYE_AZ9 = 50; const EYE_LEN9 = 0.32; const EYE_TR9 = 0.16;   // 62 → 50(사진의 눈은 앞 옆구리)
+      /* ★ 눈은 방위각이 아니라 **좌우 수평 이동**이고 통은 **수직**이다(재요청: "눈은 방위각이 아닌 좌우로 수평이동이어야해 원통도 수직으로")
+         — 앞 옆구리 x ±`EYE_X9`(0.55) 자리에 세로 통(반지름 0.17 · 높이 0.4 · 반은 벽 속)을 세우고, 눈(렌즈 반지름 0.12)은 그 통의 **앞면**
+         (+y · elev 0)에 앉는다. 통 중심 y 는 그 x 에서의 치마 벽(√(EYE_W9² − x²)) — 반이 살 속에 묻힌다. */
+      const EYE_X9 = 0.55; const EYE_TR9 = 0.17; const EYE_TH9 = 0.4;
+      const EYE_Y9 = Math.sqrt(Math.max(0.01, EYE_W9 * EYE_W9 - EYE_X9 * EYE_X9));
+      void EYE_R9; void EYE_EL9;
       for (const m of [-1, 1] as const) {
-        out.push(...withModelSpin(m * EYE_AZ9, () => [
-          ...tagKey(paintBase(tubeFaces(0, EYE_W9 - 0.15, 0, EYE_W9 + EYE_LEN9, EYE_TR9, EYE_Z9, false), TOSS_GOLD), depthNow(0, EYE_W9 + 0.1) * 1.6 + 2.9),
-          ...tagKey(contactLens9({
-            cx: 0, cy: EYE_W9 + EYE_LEN9 - EYE_R9 * Math.cos(EYE_EL9), r: EYE_R9, hh: EYE_R9, z0: EYE_Z9 - EYE_R9 * Math.sin(EYE_EL9),
-            ang: 0.15 / EYE_R9, elev: EYE_EL9, thick: 0.05, rim: "#4e7f18", fill: "#8fe63a", core: "#d9ff8c",
-          }).map(([d, o, f, kk, l, n]) => [d, o * k, f, kk, l, n] as ShapeFace), depthNow(0, EYE_W9 + EYE_LEN9) * 1.6 + 3),
-        ]));
+        out.push(...tagKey(paintBase(cylinderFaces3(m * EYE_X9, EYE_Y9, EYE_TR9, EYE_TH9, EYE_Z9 - EYE_TH9 / 2), TOSS_GOLD), depthNow(m * EYE_X9, EYE_Y9) * 1.6 + 2.9));
+        out.push(...tagKey(contactLens9({
+          cx: m * EYE_X9, cy: EYE_Y9, r: EYE_TR9, hh: EYE_TR9, z0: EYE_Z9,
+          ang: 0.12 / EYE_TR9, elev: 0, thick: 0.05, rim: "#4e7f18", fill: "#8fe63a", core: "#d9ff8c",
+        }).map(([d, o, f, kk, l, n]) => [d, o * k, f, kk, l, n] as ShapeFace), depthNow(m * EYE_X9, EYE_Y9 + EYE_TR9) * 1.6 + 3));
       }
     }
     /* 옆면 둥근 포트(실물 참고) — 몸이 줄면서 가장자리 밖으로 삐져나와 떠 보였다(확인)
@@ -23956,7 +23960,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        몸 바로 밑(0.65)까지 당기고, 각도를 ±14→±30으로 벌리고, 길이는 반 남짓으로. */
     const TIP_F9 = 0.85 * BD0 + 0.8 + 0.85 * (1 - BD0);   // 앞 날개 끝 자리(옛 값 그대로 · 뿌리만 새 몸속으로)
     // 앞 두 다리 ×0.8 · **75도 아래**(재요청: "40도가 아니라 75도") — 참 길이 1.28(= √(0.98² + 0.82²)) 그대로 두고 수평 0.33 · 내림 1.24(4.92 → 3.68).
-    for (const ang of [30, -30]) out.push(...paintBase(wing(ang, 0.85 * BD, 0.33, 0.17, 0.08, 4.92, 3.68), TOSS_GOLD));
+    // 앞다리 길이 ×0.9(참 1.28 → 1.15 · 수평 0.30 · 내림 1.11) · 끝은 좌우로 살짝만(±30 → ±15도)(재요청).
+    for (const ang of [15, -15]) out.push(...paintBase(wing(ang, 0.85 * BD, 0.30, 0.17, 0.08, 4.92, 3.81), TOSS_GOLD));
     return out;
   },
   /* 드론(정정) — 갈퀴치마는 집게 사이가 아니라 집게팔과 꼬리 사이, 양옆에 부채처럼
