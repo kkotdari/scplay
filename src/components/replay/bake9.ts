@@ -2019,6 +2019,8 @@ const P_LEG_THIN9 = 0.8;
    고관절 세로축 둘레의 회전이라 **수직인 허벅지·정강이는 정면에서 그대로 수직**이고, 앞뒤로 뻗은 마디(발등·발가락)만 옆으로 돈다. 7도면
    발끝 1.1 앞에서 옆으로 0.13 — 정면에서 안 읽혔다. 15도면 발끝이 바깥을 보는 것이 정면에서 읽히고 허벅지는 여전히 수직이다(벌림이 아니다). */
 const P_LEG_YAW9 = 15;
+/** 다리 통째 벌림(도 · 고관절 앞뒤축 둘레 — protossLegs abdDeg). 질럿·다크 3 · 하템은 제 값(HT_LEG_ABD9 9). */
+const P_LEG_ABD9 = 3;
 /* ★★ **마디 길이 — 허벅지·발등은 길고 정강이는 짧다**(2026-10, 요청: "플토 보병들의 다리구조에서 대퇴와 발등이 길이가 길고 정강이는
    훨씬 길이가 짧아 발끝과 비슷한 정도의 구조로 맞춰야 자세들이 다 자연스러울거같아") — 설계 자. 옛 판(허벅지 1.75 · 정강이 1.33 ·
    발등 1.36×0.9)은 세 마디가 고만고만해 어느 자세에서도 역관절이 안 읽혔다. 정강이(0.8)는 발가락(0.72)과 비슷한 길이다. */
@@ -2070,8 +2072,11 @@ export function protossLegs(
   /** ★ 다리 통째 요잉(도 · 기본 P_LEG_YAW9) — 하템은 떠 있어 다리 전체를 고관절에서 바깥으로 더 돌린다(2026-10, 요청: "하템 고관절에서
    *  다리전체를 바깥으로 더 많이 돌리기(벌리는게 아니라 외전)"). 벌림(x)이 아니라 고관절 세로축 둘레의 회전이다. */
   yawDeg = P_LEG_YAW9,
+  /** ★ 다리 통째 **벌림**(도 · 기본 P_LEG_ABD9) — 고관절의 앞뒤축 둘레로 다리 전체를 바깥으로 기울인다(2026-10, 요청: "다리를 살짝씩만
+   *  벌림을 줘 대신 하템은 좀더 많이 질럿 다템은 적게"). 요잉(세로축)은 수직 마디를 정면에서 못 기울이므로, 정면의 V 꼴은 이것이 낸다. */
+  abdDeg = P_LEG_ABD9,
 ): ShapeFace[] {
-  if (twistRad9) return noTwist9(() => protossLegs(thighFill, shinFill, lift, shrink, stride, thin, bend, tuck, teamShin, yawDeg));   // 다리는 상체 비틀림에서 빠진다
+  if (twistRad9) return noTwist9(() => protossLegs(thighFill, shinFill, lift, shrink, stride, thin, bend, tuck, teamShin, yawDeg, abdDeg));   // 다리는 상체 비틀림에서 빠진다
   const paint = (f: ShapeFace[], c?: string): ShapeFace[] => (c ? paintBase(f, c) : f);
   thin *= P_LEG_THIN9;
   /* 다리 길이 줄이기(요청: 하이템플러는 짧게) — 엉덩이(3.95)를 축으로 z를 눌러
@@ -2160,11 +2165,18 @@ export function protossLegs(
       const s9 = Math.sin(tuck);
       return [q[0], kneeD[1] + vy9 * c9 + vz9 * s9, kneeD[2] - vy9 * s9 + vz9 * c9];
     };
+    /** 벌림(위 abdDeg) — 고관절 앞뒤축 둘레의 회전(설계 자): 아래로 갈수록 바깥(m 쪽)으로. 접기(tuck) 뒤 · 요잉 전에 건다. */
+    const ab9 = (abdDeg * Math.PI) / 180;
+    const abc9 = Math.cos(ab9); const abs9 = Math.sin(ab9);
+    const abd9 = (q: [number, number, number]): [number, number, number] => {
+      const dx9 = q[0] - hipD[0]; const dn9 = hipD[2] - q[2];   // dn9: 고관절 아래로 내려간 몫
+      return [hipD[0] + dx9 * abc9 + m * dn9 * abs9, q[1], hipD[2] - (dn9 * abc9 - m * dx9 * abs9)];
+    };
     const hip = yw9(hipD);
-    const knee = yw9(kneeD);
-    const ankle = yw9(tuckAt9(ankleD));
-    const toe = yw9(tuckAt9(toeD));
-    const tip = yw9(tuckAt9(tipD));
+    const knee = yw9(abd9(kneeD));
+    const ankle = yw9(abd9(tuckAt9(ankleD)));
+    const toe = yw9(abd9(tuckAt9(toeD)));
+    const tip = yw9(abd9(tuckAt9(tipD)));
     /* ★ 세 마디의 키(지적) — 마디마다 **제 한가운데 깊이**로 매기고 단면은 셋 다 안 그린다:
        허벅지 위는 골반 속, 무릎·발목은 서로의 속이라 뚜껑이 보이면 곧 이음매가 뜬다.
        같은 깊이일 때는 아래 마디가 나중이라(배열 차례) 무릎에서 정강이가 허벅지를 덮고,
@@ -25462,12 +25474,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const L = 1.28;
     /** 다리 통째 바깥 회전(도) — 고관절 세로축 둘레(2026-10, 요청: "하템 고관절에서 다리전체를 바깥으로 더 많이 돌리기"). 보병 공통 7 → 28. */
     const HT_LEG_YAW9 = 28;
+    /** 다리 통째 벌림(도) — 보병 공통 3 보다 많이(2026-10, 요청: "하템은 좀더 많이 질럿 다템은 적게"). */
+    const HT_LEG_ABD9 = 9;
     return [
       // 다리는 금색(재지적) — 다리 길이 축소(요청): 엉덩이 축으로 0.68배.
       // 길이 1.2배(0.68 → 0.816)·굽힘 반(bend 0.5)(요청: "다리가 너무 심하게 구부린 듯 좀 더 펴고 길이도 1.2배로").
       // 다리 굵기 0.72배(지적: 너무 두꺼움) · 굽힘 0.7(질럿 1.4의 반) · 길이 0.816 → 0.95 → 1.14(재요청: 1.2배)
       // 정강이만 무릎에서 0.6rad(34도) 위로 접는다(요청: 떠다니는 자세) — 허벅지는 그대로.
-      ...protossLegs(P_GOLD, P_GOLD, L, 1.14, 0, 0.72, 0.7, 0.6, 0.5, HT_LEG_YAW9),   // 정강이 아래 절반은 임자 색(요청) · 다리 외회전(HT_LEG_YAW9)
+      ...protossLegs(P_GOLD, P_GOLD, L, 1.14, 0, 0.72, 0.7, 0.6, 0.5, HT_LEG_YAW9, HT_LEG_ABD9),   // 정강이 아래 절반은 임자 색(요청) · 다리 외회전(HT_LEG_YAW9)
       ...protossTorso(P_GOLD, L, HT_LEAN9),
       // 몸통 위(목·머리·앞가리개·보석·어깨판·망토·팔)는 세운 몸통에 맞춰 옮긴다.
       ...pUpright9(HT_LEAN9, L, (): ShapeFace[] => [
