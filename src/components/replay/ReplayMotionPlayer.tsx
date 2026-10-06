@@ -16975,7 +16975,8 @@ export default function ReplayMotionPlayer({
                     <div style={{ wordBreak: "break-all" }}>
                       보기 3초: {Object.entries(cnt9).map(([k9, n9]) => `${k9}×${n9}`).join(" ") || "-"}
                       {` · 지금 팬 ${d9.last.pan ?? "-"} 배율 ${d9.last.zoom ?? "-"} 무대 ${d9.last.stage ?? "-"} 예산 ${d9.last.budget ?? "-"} 창 ${d9.last.ih ?? "-"}`}
-                      {` · 최근 ${recent9.slice(-8).map((e9) => `${e9.k}@${((now9 - e9.t) / 1000).toFixed(1)}s`).join(" ") || "-"}`}
+                      {/* 마지막 여덟 사건은 **시간과 무관하게** 값까지 보인다(2026-10 — 3초 창만으로는 사람이 찍을 틈이 없었다). */}
+                      {` · 최근 ${d9.ev.slice(-8).map((e9) => `${e9.k}${e9.v ? `(${e9.v})` : ""}@${((now9 - e9.t) / 1000).toFixed(1)}s`).join(" ") || "-"}`}
                       <div>링크: {linkDiag9.join(" ‖ ") || "-"}</div>
                     </div>
                   );
