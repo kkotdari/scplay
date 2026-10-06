@@ -23681,6 +23681,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        윗판(넓적한 사다리꼴) + 바깥 모서리의 얇은 두께면. 옆다리는 뺐다(지적). */
     const wing = (
       ang: number, r0: number, len: number, wRoot: number, wTip: number, z0: number, z1: number,
+      /** 위아래 두께 배수(2026-10, 요청: "뒷 윗날개 한 쌍의 위아래 길이를 2.5배로 두껍게") — 뿌리 0.272 · 끝 0.224 에 곱한다. */
+      thick = 1,
     ): ShapeFace[] => {
       const a = (ang * Math.PI) / 180;
       const dx = Math.sin(a);
@@ -23707,8 +23709,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const edgeOf = (sd: 1 | -1): string => polyPath3([
         [rx + sd * nx * wRoot, ryy + sd * ny * wRoot, z0],
         [tx + sd * nx * wTip, ty + sd * ny * wTip, z1],
-        [tx + sd * nx * wTip, ty + sd * ny * wTip, z1 - 0.224],
-        [rx + sd * nx * wRoot, ryy + sd * ny * wRoot, z0 - 0.272],
+        [tx + sd * nx * wTip, ty + sd * ny * wTip, z1 - 0.224 * thick],
+        [rx + sd * nx * wRoot, ryy + sd * ny * wRoot, z0 - 0.272 * thick],
       ]);
       const edges9: string[] = [];
       for (const sd of [1, -1] as const) {
@@ -23719,7 +23721,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          진짜 깊이라 가파르게 내려간 다리(뒤 아래 날개 5 → 4)를 비스듬히 볼 때 열린 밑으로 **반대쪽 옆면의 뒷면**이
          드러나 속이 빈 판때기로 읽혔다(실측: 135·180 에서 다리마다 흰 안쪽 띠). 밑판 + 뿌리·끝 뚜껑을 더해 여섯 낯의
          닫힌 육면체로 — 2D 는 그 낯이 보이는 각(faceLight)에서만 싣는다(메시 기록 중엔 늘 참이라 여섯이 다 든다). */
-      const zb0 = z0 - 0.272; const zb1 = z1 - 0.224;
+      const zb0 = z0 - 0.272 * thick; const zb1 = z1 - 0.224 * thick;
       const dBot = polyPath3([
         [rx - nx * wRoot, ryy - ny * wRoot, zb0],
         [tx - nx * wTip, ty - ny * wTip, zb1],
@@ -23755,14 +23757,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        갈수록 깊이 키가 작아져(zsorted), 덧판이 도리어 원판 밑에 깔린다. 두 토막은 이음매
        에서 폭·높이가 같아 한 판처럼 이어지고 색만 갈린다 — 칠하지 않은 쪽이 임자 색이다. */
     const backWing = (
-      ang: number, r0: number, len: number, wRoot: number, wTip: number, z0: number, z1: number,
+      ang: number, r0: number, len: number, wRoot: number, wTip: number, z0: number, z1: number, thick = 1,
     ): ShapeFace[] => {
       const f = 0.75;
       const wMid = wRoot + (wTip - wRoot) * f;
       const zMid = z0 + (z1 - z0) * f;
       return [
-        ...paintBase(wing(ang, r0, len * f, wRoot, wMid, z0, zMid), TOSS_GOLD),
-        ...wing(ang, r0 + len * f, len * (1 - f), wMid, wTip, zMid, z1),
+        ...paintBase(wing(ang, r0, len * f, wRoot, wMid, z0, zMid, thick), TOSS_GOLD),
+        ...wing(ang, r0 + len * f, len * (1 - f), wMid, wTip, zMid, z1, thick),
       ];
     };
     // 뒤 위 날개 한 쌍 + 뒤 아래로 처지는 날개 한 쌍(옆다리는 제거 — 지적).
@@ -23783,9 +23785,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        정옆면은 아니고 옆보다 뒤쪽, 아래 향하기) · 뒷아랫날개 좀더 평행하게 들기") — 앞서의 ×0.9(긴 날개만 → 전부)를 ×`PW_K9`(0.8)로 간다.
        옛 길이(설계 자): 앞 1.23 · 뒤 위 1.82 · 뒤 아래 1.60. 뒤 위 날개의 오름(5.04 → 5.6)도 같은 몫. */
     const PW_K9 = 0.8;
-    for (const ang of [168, 192]) out.push(...backWing(ang, 1.1 * BD, (TIP_BU9 - 1.1 * BD) * PW_K9, 0.10, 0.04, 5.04, 5.04 + (5.6 - 5.04) * PW_K9));
+    // 뒤 위 날개는 위아래 두께 ×2.5(재요청) — wing 의 thick.
+    for (const ang of [168, 192]) out.push(...backWing(ang, 1.1 * BD, (TIP_BU9 - 1.1 * BD) * PW_K9, 0.10, 0.04, 5.04, 5.04 + (5.6 - 5.04) * PW_K9, 2.5));
     /* 옆날개 한 쌍(새로) — 옆(±90)보다 뒤로 10도(±100) · 가장 큰 날개(길이 1.7 · 뿌리 0.26 · 끝 0.08) · 5.0 에서 4.2 로 **아래를 향한다**. 끝 1/4 임자색(backWing). */
-    for (const ang of [100, 260]) out.push(...backWing(ang, 1.1 * BD, 1.7, 0.26, 0.08, 5.0, 4.2));
+    // 옆날개는 **60도 아래**(재요청) — 참 길이 1.88 그대로 두고 수평 0.94 · 내림 1.63(5.0 → 3.37).
+    // 원작 느낌(사진: 뒤 옆으로 내려가는 큰 **세로 지느러미** 한 쌍) — 폭은 좁히고(0.26/0.08 → 0.18/0.06) 위아래 두께 ×2.5 로 세운다.
+    for (const ang of [100, 260]) out.push(...backWing(ang, 1.1 * BD, 0.94, 0.18, 0.06, 5.0, 3.37, 2.5));
     /* ★★ **분사구를 지어 주고 거기서 불을 낸다**(2026-09, 요청: "프로브 몸 뒤쪽 뒷날개 아래에
        납작한 스러스터 두 개 추가하고 추진 에너지 효과 거기에 맞춰 줘") ────────────────────
        처음에는 뒷날개 **끝**에서 불을 냈다(노즐이랄 것이 없는 몸이라 자리를 골라야 했다).
@@ -23842,8 +23847,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // 긴 뒷다리 한 쌍은 길이·두께 2/3(지적).
     // 짧은 뒷다리 한 쌍은 더 짧게(지적) — 1.67 → 1.05.
     const TIP_BL9 = 1.1 * BD0 + 1.05 + 1.1 * (1 - BD0);   // 뒤 아래 날개 끝 자리(옛 값 그대로)
-    // 뒤 아래 날개 ×0.8(위 ★★) · **좀더 평행하게** — 내림 1.0 → 0.4(5 → 4.6).
-    for (const ang of [138, 222]) out.push(...backWing(ang, 1.1 * BD, (TIP_BL9 - 1.1 * BD) * PW_K9, 0.23, 0.09, 5, 4.6));
+    // 뒤 아래 날개 ×0.8(위 ★★) · **좀더 평행하게** — 내림 1.0 → 0.4(5 → 4.6) · **옆으로 안 벌리고 거의 곧게 뒤로**(재요청) 138/222 → 155/205.
+    // 뒤 아래 날개는 크기 자체 ×0.75(재요청) — 길이·뿌리·끝 굵기·내림 다 같은 배.
+    const PW_BL_K9 = 0.75;
+    for (const ang of [155, 205]) out.push(...backWing(ang, 1.1 * BD, (TIP_BL9 - 1.1 * BD) * PW_K9 * PW_BL_K9, 0.23 * PW_BL_K9, 0.09 * PW_BL_K9, 5, 5 - 0.4 * PW_BL_K9));
     /* ★ 몸통은 **원**이다(지적: "프로브 몸체는 팔각형 아니고 원형임") — 여덟 모서리를
        세운 팔각 원반이라, 위에서 내려다보는 화면에서 각진 너트로 읽혔다. discPath3은 이
        사영의 바닥 원(눌린 타원)을 바로 내므로 요잉을 따라 도는 것도 그대로다.
@@ -23933,8 +23940,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 앞다리 한 쌍(재지적: 길이 축소 + 두 다리 사이 벌리기 + 몸에 더 딱) — 뿌리를
        몸 바로 밑(0.65)까지 당기고, 각도를 ±14→±30으로 벌리고, 길이는 반 남짓으로. */
     const TIP_F9 = 0.85 * BD0 + 0.8 + 0.85 * (1 - BD0);   // 앞 날개 끝 자리(옛 값 그대로 · 뿌리만 새 몸속으로)
-    // 앞 두 다리 ×0.8 · **좀더 수직으로**(위 ★★) — 내림 0.52 → 0.82(4.92 → 4.1): 길이가 줄고 더 내려가 약 40도 아래를 본다(옛 23도).
-    for (const ang of [30, -30]) out.push(...paintBase(wing(ang, 0.85 * BD, (TIP_F9 - 0.85 * BD) * PW_K9, 0.17, 0.08, 4.92, 4.1), TOSS_GOLD));
+    // 앞 두 다리 ×0.8 · **75도 아래**(재요청: "40도가 아니라 75도") — 참 길이 1.28(= √(0.98² + 0.82²)) 그대로 두고 수평 0.33 · 내림 1.24(4.92 → 3.68).
+    for (const ang of [30, -30]) out.push(...paintBase(wing(ang, 0.85 * BD, 0.33, 0.17, 0.08, 4.92, 3.68), TOSS_GOLD));
     return out;
   },
   /* 드론(정정) — 갈퀴치마는 집게 사이가 아니라 집게팔과 꼬리 사이, 양옆에 부채처럼
