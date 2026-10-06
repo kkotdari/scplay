@@ -1374,3 +1374,5 @@ ARB_K9, ARB_K9)`(bake9 · 2.307)로 감싸 원 좌표를 그만큼 키우고 MOD
 · 🔎 `model-gl --kinds zealot,dtemp,htemp --rots 0,45,90 --cell 420 --fit 0.85`.
 · **하템 더**(재요청: "하템 좀더 벌리고 요잉도 더") — `HT_LEG_YAW9` 28 → 40 · `HT_LEG_ABD9` 9 → 14. 잉크 중심 −0.01/−0.01(표 옮김) · 관문 그대로 통과.
   🔎 `model-gl --kinds htemp --rots 0,45,90,315 --cell 420 --fit 0.85`.
+· **하템 허벅지를 앞으로 든다**(요청: "허벅지 각도를 좀더 앞으로 들게") — protossLegs `thighDeg`(중립 자세의 허벅지 각 · 없으면 P_THIGH_FWD9·bend)
+  · 하템 `HT_THIGH_DEG9` 22(옛 2.45). 떠서 앉은 꼴 — 정강이는 tuck 그대로라 무릎 뒤로 수평, 발은 아래·앞. 잉크 중심 +0.03/+0.03(표 옮김).

@@ -2075,8 +2075,10 @@ export function protossLegs(
   /** ★ 다리 통째 **벌림**(도 · 기본 P_LEG_ABD9) — 고관절의 앞뒤축 둘레로 다리 전체를 바깥으로 기울인다(2026-10, 요청: "다리를 살짝씩만
    *  벌림을 줘 대신 하템은 좀더 많이 질럿 다템은 적게"). 요잉(세로축)은 수직 마디를 정면에서 못 기울이므로, 정면의 V 꼴은 이것이 낸다. */
   abdDeg = P_LEG_ABD9,
+  /** 중립 자세(떠 있는 몸 — 하템)의 허벅지 각(도 · 아래 수직에서 앞 +). 없으면 P_THIGH_FWD9·bend(2026-10, 요청: "허벅지 각도를 좀더 앞으로 들게"). */
+  thighDeg?: number,
 ): ShapeFace[] {
-  if (twistRad9) return noTwist9(() => protossLegs(thighFill, shinFill, lift, shrink, stride, thin, bend, tuck, teamShin, yawDeg, abdDeg));   // 다리는 상체 비틀림에서 빠진다
+  if (twistRad9) return noTwist9(() => protossLegs(thighFill, shinFill, lift, shrink, stride, thin, bend, tuck, teamShin, yawDeg, abdDeg, thighDeg));   // 다리는 상체 비틀림에서 빠진다
   const paint = (f: ShapeFace[], c?: string): ShapeFace[] => (c ? paintBase(f, c) : f);
   thin *= P_LEG_THIN9;
   /* 다리 길이 줄이기(요청: 하이템플러는 짧게) — 엉덩이(3.95)를 축으로 z를 눌러
@@ -2121,7 +2123,7 @@ export function protossLegs(
          떠 있는 몸(tuck — 하템)은 짚을 땅이 없어 두 다리가 같은 중립 각이다(지적: "하템도 아니지 떠있는데"). */
       const w9 = tuck === 0 ? (atk9 ? P_STANCE_ATK9 : 1) : 0;
       const front9 = tuck === 0 && m > 0;
-      const tDeg9 = w9 === 0 ? P_THIGH_FWD9 * bend : front9 ? P_STANCE_F9[0] * w9 : P_STANCE_B9[0] * w9;
+      const tDeg9 = w9 === 0 ? (thighDeg ?? P_THIGH_FWD9 * bend) : front9 ? P_STANCE_F9[0] * w9 : P_STANCE_B9[0] * w9;
       const sDeg9 = w9 === 0 ? P_SHIN_NEUT9 : front9 ? P_STANCE_F9[1] : P_STANCE_B9[1];
       const fDeg9 = w9 === 0 ? P_FOOT_NEUT9 : front9 ? P_STANCE_F9[2] : P_STANCE_B9[2];
       kneeD = seg9(hipD, tDeg9, P_LT9, m * P_KNEE_X9);
@@ -25476,12 +25478,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const HT_LEG_YAW9 = 40;   // 28 → 40(재요청: "하템 좀더 벌리고 요잉도 더")
     /** 다리 통째 벌림(도) — 보병 공통 3 보다 많이(2026-10, 요청: "하템은 좀더 많이 질럿 다템은 적게"). */
     const HT_LEG_ABD9 = 14;   // 9 → 14(재요청: "하템 좀더 벌리고 요잉도 더")
+    /** 허벅지를 앞으로 든 각(도) — 옛 중립 2.45(P_THIGH_FWD9·0.7) → 22(2026-10, 요청: "허벅지 각도를 좀더 앞으로 들게"). 떠서 앉은 꼴. */
+    const HT_THIGH_DEG9 = 22;
     return [
       // 다리는 금색(재지적) — 다리 길이 축소(요청): 엉덩이 축으로 0.68배.
       // 길이 1.2배(0.68 → 0.816)·굽힘 반(bend 0.5)(요청: "다리가 너무 심하게 구부린 듯 좀 더 펴고 길이도 1.2배로").
       // 다리 굵기 0.72배(지적: 너무 두꺼움) · 굽힘 0.7(질럿 1.4의 반) · 길이 0.816 → 0.95 → 1.14(재요청: 1.2배)
       // 정강이만 무릎에서 0.6rad(34도) 위로 접는다(요청: 떠다니는 자세) — 허벅지는 그대로.
-      ...protossLegs(P_GOLD, P_GOLD, L, 1.14, 0, 0.72, 0.7, 0.6, 0.5, HT_LEG_YAW9, HT_LEG_ABD9),   // 정강이 아래 절반은 임자 색(요청) · 다리 외회전(HT_LEG_YAW9)
+      ...protossLegs(P_GOLD, P_GOLD, L, 1.14, 0, 0.72, 0.7, 0.6, 0.5, HT_LEG_YAW9, HT_LEG_ABD9, HT_THIGH_DEG9),   // 정강이 아래 절반은 임자 색(요청) · 다리 외회전(HT_LEG_YAW9)
       ...protossTorso(P_GOLD, L, HT_LEAN9),
       // 몸통 위(목·머리·앞가리개·보석·어깨판·망토·팔)는 세운 몸통에 맞춰 옮긴다.
       ...pUpright9(HT_LEAN9, L, (): ShapeFace[] => [
