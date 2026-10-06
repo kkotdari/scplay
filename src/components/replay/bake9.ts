@@ -23697,6 +23697,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /** 안 그릴 뚜껑(2026-10, 지적: "데칼이 아직도 날개보다 크고 층이지게 두꺼워") — 한 날개를 금색·임자색 두 토막으로 가를 때 이음매의
        *  끝 뚜껑(앞 토막)·뿌리 뚜껑(뒤 토막)은 속에 묻힌 같은 평면 두 장이라 z 싸움만 한다. 빼면 두 토막은 같은 꼭짓점을 나눠 한 판이 된다. */
       noCap: "tip" | "root" | "" = "",
+      /** 뿌리·끝의 **두께 값**(설계 z · 2026-10, 지적: "아래로 삐져나오잖아") — 안 주면 0.272·thick / 0.224·thick. 한 날개를 두 토막으로
+       *  가를 때 뒤 토막이 뿌리 두께(0.272)로 다시 시작해 이음매에서 앞 토막 끝(0.224)보다 두꺼워 밑으로 삐져나왔다 → 토막마다 전체 날개의
+       *  그 자리 두께를 이어 받게 준다. */
+      thRoot = 0.272 * thick, thTip = 0.224 * thick,
     ): ShapeFace[] => {
       const a = (ang * Math.PI) / 180;
       const dx = Math.sin(a);
@@ -23726,8 +23730,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const edgeOf = (sd: 1 | -1): string => polyPath3([
         [rx + sd * nx * wRoot, ryy + sd * ny * wRoot, zc(z0, sd, wRoot)],
         [tx + sd * nx * wTip, ty + sd * ny * wTip, zc(z1, sd, wTip)],
-        [tx + sd * nx * wTip, ty + sd * ny * wTip, zc(z1 - 0.224 * thick, sd, wTip)],
-        [rx + sd * nx * wRoot, ryy + sd * ny * wRoot, zc(z0 - 0.272 * thick, sd, wRoot)],
+        [tx + sd * nx * wTip, ty + sd * ny * wTip, zc(z1 - thTip, sd, wTip)],
+        [rx + sd * nx * wRoot, ryy + sd * ny * wRoot, zc(z0 - thRoot, sd, wRoot)],
       ]);
       const edges9: string[] = [];
       for (const sd of [1, -1] as const) {
@@ -23738,7 +23742,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          진짜 깊이라 가파르게 내려간 다리(뒤 아래 날개 5 → 4)를 비스듬히 볼 때 열린 밑으로 **반대쪽 옆면의 뒷면**이
          드러나 속이 빈 판때기로 읽혔다(실측: 135·180 에서 다리마다 흰 안쪽 띠). 밑판 + 뿌리·끝 뚜껑을 더해 여섯 낯의
          닫힌 육면체로 — 2D 는 그 낯이 보이는 각(faceLight)에서만 싣는다(메시 기록 중엔 늘 참이라 여섯이 다 든다). */
-      const zb0 = z0 - 0.272 * thick; const zb1 = z1 - 0.224 * thick;
+      const zb0 = z0 - thRoot; const zb1 = z1 - thTip;
       const dBot = polyPath3([
         [rx - nx * wRoot, ryy - ny * wRoot, zc(zb0, -1, wRoot)],
         [tx - nx * wTip, ty - ny * wTip, zc(zb1, -1, wTip)],
@@ -23783,9 +23787,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          모양이어야 해, 심리스하게") — 앞서의 골무(반폭 +0.015 · 윗면 +0.012 · 두께 ×1.06 · 이음매 0.06 파고듦)는 턱이 졌다. 되돌려 두
          토막을 같은 단면(wMid·zMid)으로 이음매에서 맞붙이되, 그 전의 '헐겁게 뜸'의 진짜 까닭이던 **속에 묻힌 뚜껑 두 장**(앞 토막의 끝 뚜껑
          · 뒤 토막의 뿌리 뚜껑 — 같은 평면이라 z 싸움)을 `noCap` 으로 뺀다. 두 토막은 꼭짓점을 그대로 나눠 가져 색만 갈린다. */
+      /* 두께도 전체 날개(뿌리 0.272 → 끝 0.224)를 따라 이음매 값(thMid)을 나눠 갖는다(지적: "아래로 삐져나오잖아" — 뒤 토막이 0.272 로 다시 시작했다). */
+      const thR9 = 0.272 * thick; const thT9 = 0.224 * thick; const thMid = thR9 + (thT9 - thR9) * f;
       return [
-        ...paintBase(wing(ang, r0, len * f, wRoot, wMid, z0, zMid, thick, roll, 0, "tip"), TOSS_GOLD),
-        ...wing(ang, r0 + len * f, len * (1 - f), wMid, wTip, zMid, z1, thick, roll, 0, "root"),
+        ...paintBase(wing(ang, r0, len * f, wRoot, wMid, z0, zMid, thick, roll, 0, "tip", thR9, thMid), TOSS_GOLD),
+        ...wing(ang, r0 + len * f, len * (1 - f), wMid, wTip, zMid, z1, thick, roll, 0, "root", thMid, thT9),
       ];
     };
     // 뒤 위 날개 한 쌍 + 뒤 아래로 처지는 날개 한 쌍(옆다리는 제거 — 지적).
