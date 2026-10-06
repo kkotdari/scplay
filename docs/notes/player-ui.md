@@ -810,3 +810,8 @@ dpr 0.9 · 캔버스 가속 켜짐 · WebGL 가속 · 벤치는 선명할 때도
   헤드리스 dpr 0.9 훑기에서 유닛·GL 이 ×1.0000 이 된다. 끄기 `#cvsnap=0`. 견줌 손잡이 `#glfilter`(GL 캔버스에 contrast(1.001) — 맥 크롬이 그 층을
   CALayer 오버레이로 못 올리게 한다): 상자 맞춤으로도 흐리면 이것으로 오버레이 길인지 가른다.
 · 🔎 `perf-check --wide --vw 1260 --dpr 0.9 --warm 0 --glblit --diag --wsweep 1260,1290,10 --wsweepdir DIR` — `[훑기]` 의 유닛·GL 이 ×1.0000.
+· **더 가른 것**(2026-10): 상자 기기 화소 맞춤(×1.0000) 뒤에도 흐림 · DevTools 캡처도 흐림(윈도 서버 아님) · `#glfilter` 는 더 흐림 ·
+  `#glmrt=0`·`#gl=0`(2D 붓) 흐림 → GL 무관 · `#noblend`·`#noxf`(인라인 변환 끔)·`#nozi`·`#nocalc` 다 그대로 → 유닛 캔버스의 CSS 차이도 무관.
+  `#glblit=0` 은 모델이 안 나온다(옛 베끼기 길이 죽어 있다 — 따로 고칠 것). 진단 `조상` 에 overflow(+둥근 모서리)·clip-path·opacity·isolation·
+  will-change·contain·blend·fixed/sticky 를 더했다(헤드리스: `div.scr-fs-stage[ov] div.scr-motion[ov]`). `#dumpcv` — GL·유닛 캔버스 배킹을
+  PNG 로 내려받아(gl.png·unit.png) 내용 흐림인지 합성 흐림인지 가른다.

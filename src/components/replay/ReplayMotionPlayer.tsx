@@ -370,8 +370,23 @@ function blurDiag9(root: HTMLElement | null, gest9: boolean, pinch9: boolean): s
     const bf9 = (cs9 as unknown as { backdropFilter?: string }).backdropFilter;
     if (bf9 && bf9 !== "none") bad9.push(`backdrop`);
     if (cs9.perspective && cs9.perspective !== "none") bad9.push(`persp`);
+    /* ★ 마스크·클립·표면을 만드는 성질도 적는다(2026-10, 지적: 폭 특정 구간에서 유닛·GL 층만 흐림 — 캔버스 쪽 값이 다 정상이고
+       #noxf·#nozi·#nocalc 도 그대로) — 둥근 모서리 + overflow 숨김 · clip-path · opacity < 1 · isolation · will-change · contain ·
+       mix-blend-mode 는 크롬이 그 서브트리를 중간 표면(render surface)에 그리게 하고, 그 표면의 배율이 낮으면 안의 층이 통째로 흐려진다. */
+    const ov9 = `${cs9.overflow}${cs9.overflowX}${cs9.overflowY}`;
+    const rad9 = cs9.borderRadius && cs9.borderRadius !== "0px";
+    if (/hidden|clip|auto|scroll/.test(ov9)) bad9.push(`ov${rad9 ? "+r" + cs9.borderRadius.slice(0, 6) : ""}`);
+    const cp9 = (cs9 as unknown as { clipPath?: string }).clipPath;
+    if (cp9 && cp9 !== "none") bad9.push(`clip`);
+    if (cs9.opacity && Number(cs9.opacity) < 1) bad9.push(`op${cs9.opacity}`);
+    if (cs9.isolation && cs9.isolation !== "auto") bad9.push(`iso`);
+    if (cs9.willChange && cs9.willChange !== "auto") bad9.push(`wc:${cs9.willChange.slice(0, 12)}`);
+    const ct9 = (cs9 as unknown as { contain?: string }).contain;
+    if (ct9 && ct9 !== "none") bad9.push(`contain:${ct9.slice(0, 10)}`);
+    if (cs9.mixBlendMode && cs9.mixBlendMode !== "normal") bad9.push(`blend`);
+    if (cs9.position === "fixed" || cs9.position === "sticky") bad9.push(cs9.position);
     if (bad9.length) anc9.push(`${el9.tagName.toLowerCase()}${el9.className && typeof el9.className === "string" ? "." + el9.className.split(" ")[0] : ""}[${bad9.join(",")}]`);
-    if (anc9.length >= 4) break;
+    if (anc9.length >= 8) break;
   }
   parts9.push(`조상 ${anc9.length ? anc9.join(" ") : "-"}`);
   const vv9 = window.visualViewport;
@@ -704,6 +719,18 @@ const NO_BLUR9 = typeof location !== "undefined" && /noblur/.test(location.hash)
    origin center) · z-index 6000 · height calc 뿐이다. 하나씩 끈다: `#noxf`(인라인 변환·origin 을 아예 안 쓴다 — 손짓 미끄러짐은 그동안 안
    탄다) · `#nozi`(z-index auto) · `#nocalc`(top 0 · height 100%). */
 const NO_XF9 = typeof location !== "undefined" && /noxf/.test(location.hash);
+/* ★ 캔버스 내용 내려받기 `#dumpcv`(2026-10, 흐림 가르기) — 첫 GL 칠하기 4초 뒤 한 번, GL 캔버스(flush 직후 · 같은 작업 안이라
+   preserveDrawingBuffer 없이도 읽힌다)와 유닛 캔버스를 그 배킹 그대로 PNG 로 내려받는다(gl.png · unit.png). 파일이 또렷하면 흐림은
+   합성 단계이고, 파일부터 흐리면 그리는 내용이다. */
+const DUMP_CV9 = typeof location !== "undefined" && /dumpcv/.test(location.hash);
+const DUMP9 = { at: 0, done: false };
+function dumpCv9(cv9: HTMLCanvasElement, name9: string): void {
+  cv9.toBlob((b9) => {
+    if (!b9) return;
+    const a9 = document.createElement("a"); a9.href = URL.createObjectURL(b9); a9.download = name9; a9.click();
+    window.setTimeout(() => URL.revokeObjectURL(a9.href), 5000);
+  });
+}
 const NO_ZI9 = typeof location !== "undefined" && /nozi/.test(location.hash);
 const NO_CALC9 = typeof location !== "undefined" && /nocalc/.test(location.hash);
 /** 유닛·GL·효과 캔버스의 인라인 변환 한 줄 — `#noxf` 면 비운다. */
@@ -5882,6 +5909,10 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         const pcl9 = PAINT_CLIP9;
         gl9.clip = pcl9 ? [pcl9[0] * Bd, pcl9[1] * Bd, pcl9[2] * Bd, pcl9[3] * Bd] : null;
         gl9.flush(cv.width, cv.height, cw, ch);   // GL 캔버스가 곧 화면 층이다 — 베끼지 않는다(UnitLayer 의 ★★)
+        if (DUMP_CV9 && !DUMP9.done) {   // 위 ★ — flush 직후 같은 작업 안에서 읽는다
+          if (!DUMP9.at) DUMP9.at = performance.now();
+          else if (performance.now() - DUMP9.at > 4000) { DUMP9.done = true; if (glRef.current) dumpCv9(glRef.current, "gl.png"); dumpCv9(cv, "unit.png"); }
+        }
         if (scrDiagOn()) {
           const miss9 = [...GL_MISS9].sort((a9, b9) => b9[1] - a9[1]).slice(0, 4).map(([k9, n9]) => `${k9}×${n9}`).join(" ");
           SCR_DIAG.gl = `on${gl9.gl2 ? "2" : "1"}${gl9.instOn ? "" : "·인스턴싱 없음"} 개체 ${gl9.stat.inst} 드로 ${gl9.stat.draws} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}/${gl9.meshMax}(${gl9.stat.bakeMs.toFixed(0)}ms·${(gl9.stat.bytes / 1048576).toFixed(1)}MB${gl9.stat.evict ? "·버림 " + gl9.stat.evict : ""}) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit 번짐 ${gl9.stat.bloom} 바닥 ${gl9.stat.prims} 효과△ ${gl9.stat.fxTris}${miss9 ? " 판으로 " + miss9 : ""}`;
