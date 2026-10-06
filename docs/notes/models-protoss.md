@@ -1372,3 +1372,5 @@ ARB_K9, ARB_K9)`(bake9 · 2.307)로 감싸 원 좌표를 그만큼 키우고 MOD
 낸다. 접기(tuck) 뒤 · 요잉(yw9) 전에 걸고 고관절은 안 움직인다. 발끝이 (1 − cos)·3.9 만큼 뜨는데 3도면 0.005 라 안 보인다.
 · 잉크 중심 옛/새 차 zealot +0.01/0 · htemp +0.11/+0.11 · dtemp 0(표 옮김) · MODEL_NORM·총구표·등급표 그대로 · 덮임 100%.
 · 🔎 `model-gl --kinds zealot,dtemp,htemp --rots 0,45,90 --cell 420 --fit 0.85`.
+· **하템 더**(재요청: "하템 좀더 벌리고 요잉도 더") — `HT_LEG_YAW9` 28 → 40 · `HT_LEG_ABD9` 9 → 14. 잉크 중심 −0.01/−0.01(표 옮김) · 관문 그대로 통과.
+  🔎 `model-gl --kinds htemp --rots 0,45,90,315 --cell 420 --fit 0.85`.
