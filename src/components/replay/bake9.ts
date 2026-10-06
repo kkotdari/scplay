@@ -2170,11 +2170,14 @@ export function protossLegs(
     const ts9 = toeStance9 ? ((): { knee: [number, number, number]; ankle: [number, number, number]; toe: [number, number, number] } => {
       const TOE_GND9 = 0.1;
       const zd9 = (hip[2] - lift) / Z8;
-      const kz9 = zd9 - Lt9;                     // 대퇴가 수직으로 내려온 무릎 높이(설계 자)
-      const Lf9 = Math.max(0.3, kz9 - TOE_GND9);   // 발마디 = 무릎 높이에서 땅까지(수직) — 제 길이(≈1.36)보다 짧다(아래 ⚠)
+      /** 대퇴가 수직에서 뒤로 기우는 각(2026-10, 요청: "뒷다리 대퇴도 살짝 더 뒤를 향해 내려가게") — 정강이는 그대로 수평, 발등은 수직. */
+      const TS_TILT9 = (12 * Math.PI) / 180;
+      const tc9 = Math.cos(TS_TILT9); const tsn9 = Math.sin(TS_TILT9);
+      const kz9 = zd9 - Lt9 * tc9;                 // 무릎 높이(설계 자)
+      const Lf9 = Math.max(0.3, kz9 - TOE_GND9);   // 발마디 = 무릎 높이에서 땅까지(수직) — 지금 비(발등 ≈1.77)와 거의 같다
       const [bx9, by9] = yv9(0, -1);   // 뒤(돌린 자)
-      const kneeT: [number, number, number] = [hip[0], hip[1], Z8 * kz9 + lift];
-      const ankleT: [number, number, number] = [hip[0] + bx9 * Ls9, hip[1] + by9 * Ls9, Z8 * kz9 + lift];
+      const kneeT: [number, number, number] = [hip[0] + bx9 * Lt9 * tsn9, hip[1] + by9 * Lt9 * tsn9, Z8 * kz9 + lift];
+      const ankleT: [number, number, number] = [kneeT[0] + bx9 * Ls9, kneeT[1] + by9 * Ls9, Z8 * kz9 + lift];
       const toeT: [number, number, number] = [ankleT[0], ankleT[1], Z8 * (kz9 - Lf9) + lift];
       return { knee: kneeT, ankle: ankleT, toe: toeT };
     })() : null;
