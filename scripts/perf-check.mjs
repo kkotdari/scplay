@@ -720,6 +720,39 @@ if (has("--wsweep")) {
   await browser.close();
   process.exit(0);
 }
+/* 흔들림 자(--shakeprobe [초]) — 중계 재생 중 rAF 마다 상자 자리·지형 변환·유닛/GL 변환·배율과 마지막 보기 사건(__scrDiag.lastEv)을
+   적어, 기하가 바뀐 프레임과 선택(sel)·카메라(cam) 사건을 나란히 낸다(2026-10, 지적: "중계모드에서 선택이 바뀔때 같은 화면안에 있는데도
+   미묘하게 화면이 흔들려"). `--diag` 와 함께. */
+if (has("--shakeprobe")) {
+  const secs9 = Number(flag("--shakeprobe", 12)) || 12;
+  await page.waitForTimeout(1500);
+  await page.evaluate(() => {
+    const L = []; window.__shake9 = L;
+    const tick = () => {
+      const d = window.__scrDiag || {};
+      const box = document.querySelector(".scr-motion-map"); const br = box ? box.getBoundingClientRect() : null;
+      const tp = document.querySelector(".scr-mapvec-sharp"); const u = document.querySelector(".scr-motion-unitlayer"); const g = document.querySelector(".scr-motion-gl9");
+      L.push({ t: Math.round(performance.now()), box: br ? `${br.left.toFixed(2)},${br.top.toFixed(2)}` : "-", terr: tp ? tp.style.transform : "-",
+        u: u ? u.style.transform : "-", g: g ? g.style.transform : "-", z: d.zoom, ev: d.lastEv || "" });
+      if (L.length < 3000) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+  await page.waitForTimeout(secs9 * 1000);
+  const L9 = await page.evaluate(() => window.__shake9 || []);
+  let prev = null; const out = [];
+  for (const r of L9) {
+    const geo = `${r.box}|${r.terr}|${r.u}|${r.g}|${r.z}`;
+    const evNew = prev && r.ev !== prev.ev;
+    const geoNew = prev && geo !== `${prev.box}|${prev.terr}|${prev.u}|${prev.g}|${prev.z}`;
+    if (evNew || geoNew) out.push(`${r.t}ms${evNew ? ` 사건 ${r.ev}` : ""}${geoNew ? ` 기하 상자 ${r.box} 지형 ${r.terr} 유닛 ${r.u} GL ${r.g} 배율 ${r.z}` : ""}`);
+    prev = r;
+  }
+  console.log(`[흔들림] ${L9.length}장 · 바뀐 프레임 ${out.length}`);
+  for (const l of out.slice(0, 120)) console.log(`[흔들림] ${l}`);
+  await browser.close();
+  process.exit(0);
+}
 /* 파수꾼 자(--guardprobe): 멈춘 채 지도 상자의 CSS 크기만 바꾼다(렌더 없이) — 유닛 캔버스 배킹이 0.4초 안에 따라와야 한다
    (2026-10, 지적: "지형뿐 아니라 모델이 흐려"). */
 if (has("--guardprobe")) {

@@ -10765,6 +10765,7 @@ export default function ReplayMotionPlayer({
     const d9 = viewDiag9.current;
     d9.ev.push({ t: performance.now(), k, v });
     if (d9.ev.length > 200) d9.ev.splice(0, d9.ev.length - 200);
+    SCR_DIAG.lastEv = `${d9.ev.length}:${k}:${v}`;   // perf-check --shakeprobe 가 프레임마다 읽는다(사건 번호로 새 사건을 안다)
   };
   /** 무대 크기를 ref로도 들고 있는다 — 팬 한계를 재는 곳 중에는 **한 번만 걸리는
    *  effect 안**(휠 줌)이 있어서, 상태를 읽으면 그 effect가 만들어질 때의 옛 값(0)에
