@@ -23318,9 +23318,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const key = depthNow(tx, -1.45) * 1.6;
       // 크기 축소(요청: "어깨랑 뒤 실린더도 크기 축소") — 반지름 0.66 → 0.54, 높이 3.1 → 2.6.
       // 몸통 뒤가 −1.5로 당겨져 탱크도 −1.7 → −1.25로 앞으로.
-      out.push(...tagKey(paintBase(cylinderFaces3(tx, -1.0, 0.54, 2.08, 3.44), DEEP), key));
-      out.push(...tagKey(paintBase(cylinderFaces3(tx, -1.0, 0.6, 0.304, 5.296), "#e2e6ea"), key + 0.3));
-      out.push(...tagKey(paintBase(cylinderFaces3(tx, -1.0, 0.58, 0.224, 4.52), "#3d3d3d"), key + 0.2));
+      /* ★ 기통을 **납작하게**(2026-10, 요청: "SCV 정규화시 스러스터 때문에 배율이 작게 나가는 거 같아 — 스러스터 납작하게 해서 안 튀어나오게")
+         — 옛 높이 2.08(z 3.44~5.52 · 뚜껑 5.6)은 조종석 유리 꼭대기(5.35)보다 높아 잉크 상자의 위를 기통이 정했다. 세로 몫을 `SCV_TK9`
+         (0.55)배 — 3.44~4.58 · 뚜껑 4.64(몸통 윗면 4.08 바로 위). 반지름·자리는 그대로. */
+      const SCV_TK9 = 0.55;
+      out.push(...tagKey(paintBase(cylinderFaces3(tx, -1.0, 0.54, 2.08 * SCV_TK9, 3.44), DEEP), key));
+      out.push(...tagKey(paintBase(cylinderFaces3(tx, -1.0, 0.6, 0.304 * SCV_TK9, 3.44 + (5.296 - 3.44) * SCV_TK9), "#e2e6ea"), key + 0.3));
+      out.push(...tagKey(paintBase(cylinderFaces3(tx, -1.0, 0.58, 0.224 * SCV_TK9, 3.44 + (4.52 - 3.44) * SCV_TK9), "#3d3d3d"), key + 0.2));
     }
     /* 몸통 — 앞이 좁고 뒤가 넓은 절두체. 앞이 좁아야 그 앞에 앉는 조종석 유리가
        머리처럼 튀어나온 것으로 읽힌다. */
@@ -23771,7 +23775,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* ★ 뒤 위 날개는 **더 길고 위를 향한다**(2026-09, 요청: "뒷윗날개 좀더 길게 하고 각도를 더 위를 향하게") — 옛 길이
        1.17 이 아래로 0.24 처졌다(5.04 → 4.8). 길이 ×1.4 · 끝 z 5.6(뿌리에서 0.56 오름 · 약 19도). */
     const TIP_BU9 = 1.1 * BD0 + (0.8 + 1.1 * (1 - BD0)) * 1.4;   // 뒤 위 날개 끝 자리(옛 값 그대로)
-    for (const ang of [168, 192]) out.push(...backWing(ang, 1.1 * BD, TIP_BU9 - 1.1 * BD, 0.10, 0.04, 5.04, 5.6));
+    /* ★ 긴 날개(뒤 위 한 쌍)만 길이 ×0.9(2026-10, 요청: "프로브 날개들 중 짧은 날개 말고 긴 날개들만 10프로 길이 줄이기") — 오름(5.04 → 5.6)도
+       같은 몫으로 줄여 각은 그대로. 짧은 뒤 아래 날개(TIP_BL9)는 안 건드린다. */
+    const PW_LONG_K9 = 0.9;
+    for (const ang of [168, 192]) out.push(...backWing(ang, 1.1 * BD, (TIP_BU9 - 1.1 * BD) * PW_LONG_K9, 0.10, 0.04, 5.04, 5.04 + (5.6 - 5.04) * PW_LONG_K9));
     /* ★★ **분사구를 지어 주고 거기서 불을 낸다**(2026-09, 요청: "프로브 몸 뒤쪽 뒷날개 아래에
        납작한 스러스터 두 개 추가하고 추진 에너지 효과 거기에 맞춰 줘") ────────────────────
        처음에는 뒷날개 **끝**에서 불을 냈다(노즐이랄 것이 없는 몸이라 자리를 골라야 했다).

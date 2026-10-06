@@ -1287,17 +1287,17 @@ export const MODEL_NORM: Record<string, number> = {
   mutacocoon: 1.744,   // 모델 z 손질 재측정 되돌림(2D 기하 복원)
   observer: 1.829,   // 접시 두 장 몸(실측 1.824 → 1.829) · 1.835 → ×(1.859/1.861) 구 몸·짧은 드럼·날개 띠 → ×(1.872/1.859) 도넛 제거·세로 1.3배 → ×(1.885/1.872) 세로 1.0 복귀(실측 1.872→1.885) → ×(1.814/1.885) 적도 링(실측 1.885→1.814) → ×(1.849/1.814) 링 90도 피칭(실측 1.814→1.849)
   ovie: 0.797,   // 모델 z 손질 재측정 되돌림(2D 기하 복원)
-  probe: 1.684,  // 다리 두께면을 양쪽으로 고친 뒤 model-norm 재측정
-  probeGas: 1.426,   // 모델 z 손질 재측정 되돌림(2D 기하 복원)
-  probeMin: 1.475,   // 모델 z 손질 재측정 되돌림(2D 기하 복원)
+  probe: 1.583,  // 다리 두께면을 양쪽으로 고친 뒤 model-norm 재측정
+  probeGas: 1.352,   // 모델 z 손질 재측정 되돌림(2D 기하 복원)
+  probeMin: 1.410,   // 모델 z 손질 재측정 되돌림(2D 기하 복원)
   queen: 0.585,
   reaver: 0.803,   // 모델 z 손질 재측정 되돌림(2D 기하 복원)
   scarab: 1.451,  // 상자 상한(원한 배수 1.591)
   scourge: 1.272,   // 모델 z 손질 재측정 되돌림(2D 기하 복원)
   scout: 0.755,  // 날개 수직·뒤로 · 카혼 엔진(짧게·바깥 대각) · 추진체(앞 좁게·뒤로)·꼬리 부채 뒤 재측정(model-norm)
-  scv: 0.793,  // 뒤 노즐 앞으로 물리며 재측정(model-norm top 0.724 → 0.793 — 잉크 상자가 그만큼 줄었다)
-  scvGas: 0.792,   // 같은 재측정(연장을 늘 그리므로 scv 와 거의 같은 실루엣)
-  scvMin: 0.793,   // 같은 재측정
+  scv: 0.854,  // 뒤 노즐 앞으로 물리며 재측정(model-norm top 0.724 → 0.793 — 잉크 상자가 그만큼 줄었다)
+  scvGas: 0.876,   // 같은 재측정(연장을 늘 그리므로 scv 와 거의 같은 실루엣)
+  scvMin: 0.881,   // 같은 재측정
   shuttle: 0.711,  // 말굽 물림 각을 막아 뿔이 제 자리로 온 뒤 재측정(model-norm top 0.764 → 0.744)
   /* ★ 시즈탱크 넷은 **차체 하나의 값으로 못 박는다**(지적: "정규화 시 포신 튀어나온
      부분과 시즈모드의 고정다리 크기는 빼고 정규화해야") — 스크립트가 재는 잉크 상자에
@@ -1616,7 +1616,8 @@ export const UNIT_SIZE_TUNE: Record<string, number> = {   // 열쇠는 sizeKind(
   tank: 1.25, tanksiege: 1.25, vulture: 1.2,   // 요청: "시즈·벌처 그리기 1.2배" → 재요청: 일반·변신 중 탱크도 1.2 · 벌처는 1.1 → 재재요청: 탱크 1.5 · 벌처 1.2 → 탱크 1.25(재요청)
   /* 일꾼류(scv·probe·drone)는 **1.0이라 표에서 뺐다**(요청: "일꾼 그리기 0.8 → 1.0") —
      0.8은 전체 배수 1.12와 곱해져 0.896이었다. 표에 없으면 곧 1이다. */
-  probe: 0.8,   // 2026-09, 요청: "프로브 0.8"(값 자체 — 지금 값 1.0 을 알려 준 뒤 받은 수) · scv·drone 은 그대로 1
+  probe: 0.8,   // 2026-09, 요청: "프로브 0.8"(값 자체 — 지금 값 1.0 을 알려 준 뒤 받은 수)
+  scv: 0.8, drone: 0.8,   // 2026-10, 요청: "일꾼 모두 0.8로 적용" — 셋이 한 값
 
   /* (전부 걷음 — 요청: "유닛 크기 보정 모두 제거") — 일꾼·보병 0.68, 메딕 0.612,
      질럿 0.85, 템플러 0.808, 커세어 0.85, 마인 0.53, 옵저버 0.17, 스커지 0.7,
@@ -2629,7 +2630,7 @@ export const BODY_MID_K9 = 0.02;
    · 건물: 잉크 바닥을 발자국 아랫변(지면선)에 앉히므로 '잉크 바닥→중심'(BLD_INK_MID9)에 배수·그리는 변을 곱하고,
      효과 앵커(발자국 가운데)에서 아랫변까지를 뺀다.
    다시 재려면 scripts/model-shot.mjs 사본에 잉크 질량 중심 출력을 붙여 돌린다(이 표를 낸 방법). */
-export const UNIT_INK_CY9: Record<string, [number, number]> = { scv: [7.91, 8.70], gunner: [10.23, 10.93], ghost: [10.26, 10.95], fbat: [10.18, 10.90], inf: [10.26, 10.96], vulture: [9.25, 9.96], tank: [11.10, 11.57], goliath: [9.76, 10.46], wraith: [8.21, 9.02], dship: [8.20, 9.00], vessel: [9.58, 10.30], valk: [8.19, 9.00], bc: [9.10, 9.85], scvMin: [7.88, 8.72], scvGas: [7.81, 8.68], tanksiege: [10.97, 11.44], mine: [11.65, 12.27], probe: [10.06, 10.76], zealot: [9.73, 10.51], goon: [9.65, 10.37], htemp: [9.47, 10.23], dtemp: [10.32, 10.98], archon: [8.79, 9.57], darchon: [8.78, 9.56], shuttle: [8.34, 9.05], reaver: [10.62, 11.29], observer: [9.38, 10.12], scout: [7.97, 8.78], corsair: [8.68, 9.47], carrier: [9.31, 10.01], interceptor: [6.53, 7.44], scarab: [10.97, 11.63], arbiter: [8.30, 8.83], larva: [11.32, 11.95], egg: [11.26, 11.85], probeMin: [10.35, 11.02], probeGas: [10.35, 11.05], drone: [9.79, 10.51], ovie: [9.15, 9.93], zling: [10.35, 11.05], hydra: [8.92, 9.71], lurker: [9.68, 10.39], muta: [7.58, 8.50], scourge: [7.02, 7.90], queen: [7.80, 8.60], ultra: [7.85, 8.34], defiler: [11.16, 11.80], guardian: [7.59, 8.43], devourer: [8.99, 9.77], lurkeregg: [11.71, 12.24], mutacocoon: [9.50, 10.24], droneMin: [9.78, 10.51], droneGas: [9.76, 10.48], tankbody: [11.19, 11.72], tankgun: [9.78, 10.20], tanksiegebody: [11.13, 11.66], tanksiegegun: [9.62, 10.03], burrowhole: [11.83, 12.44] };
+export const UNIT_INK_CY9: Record<string, [number, number]> = { scv: [8.02, 8.84], gunner: [10.23, 10.93], ghost: [10.26, 10.95], fbat: [10.18, 10.90], inf: [10.26, 10.96], vulture: [9.25, 9.96], tank: [11.10, 11.57], goliath: [9.76, 10.46], wraith: [8.21, 9.02], dship: [8.20, 9.00], vessel: [9.58, 10.30], valk: [8.19, 9.00], bc: [9.10, 9.85], scvMin: [7.99, 8.85], scvGas: [7.92, 8.81], tanksiege: [10.97, 11.44], mine: [11.65, 12.27], probe: [10.08, 10.78], zealot: [9.73, 10.51], goon: [9.65, 10.37], htemp: [9.47, 10.23], dtemp: [10.32, 10.98], archon: [8.79, 9.57], darchon: [8.78, 9.56], shuttle: [8.34, 9.05], reaver: [10.62, 11.29], observer: [9.38, 10.12], scout: [7.97, 8.78], corsair: [8.68, 9.47], carrier: [9.31, 10.01], interceptor: [6.53, 7.44], scarab: [10.97, 11.63], arbiter: [8.30, 8.83], larva: [11.32, 11.95], egg: [11.26, 11.85], probeMin: [10.37, 11.04], probeGas: [10.37, 11.07], drone: [9.79, 10.51], ovie: [9.15, 9.93], zling: [10.35, 11.05], hydra: [8.92, 9.71], lurker: [9.68, 10.39], muta: [7.58, 8.50], scourge: [7.02, 7.90], queen: [7.80, 8.60], ultra: [7.85, 8.34], defiler: [11.16, 11.80], guardian: [7.59, 8.43], devourer: [8.99, 9.77], lurkeregg: [11.71, 12.24], mutacocoon: [9.50, 10.24], droneMin: [9.78, 10.51], droneGas: [9.76, 10.48], tankbody: [11.19, 11.72], tankgun: [9.78, 10.20], tanksiegebody: [11.13, 11.66], tanksiegegun: [9.62, 10.03], burrowhole: [11.83, 12.44] };
 export const BLD_INK_MID9: Record<string, [number, number]> = { tomb: [4.66, 4.00], trapezoid: [2.82, 2.43], refinery: [4.10, 3.48], cube: [7.29, 6.65], ebay: [5.50, 4.64], tombFlat: [3.44, 2.83], academy: [4.20, 3.65], turret: [5.56, 4.95], factory: [4.37, 3.82], plane: [5.74, 5.03], armory: [4.20, 3.61], scifac: [3.35, 2.86], comsat: [3.08, 2.81], nsilo: [3.25, 2.86], mshop: [2.88, 2.52], ctower: [3.11, 2.65], covert: [2.42, 2.05], physlab: [2.62, 2.27], pyramidWide: [6.20, 5.25], diamond: [4.86, 4.28], assim: [2.93, 2.61], gate: [3.12, 2.66], forge: [3.96, 3.38], coil: [5.00, 4.13], sbattery: [3.08, 2.58], cyber: [3.20, 2.78], citadel: [4.14, 3.52], archives: [3.44, 2.85], dome: [4.31, 3.74], robobay: [3.17, 2.68], observatory: [3.41, 2.98], arch: [3.12, 2.71], fleetbeacon: [3.60, 3.14], tribunal: [3.11, 2.64], warpin: [4.48, 4.48], hatchery: [4.60, 3.90], lair: [5.79, 5.11], hive: [6.51, 5.83], creep: [4.07, 3.41], sunken: [4.77, 3.90], spore: [4.43, 3.83], extract: [4.74, 4.04], pool: [4.16, 3.34], evo: [4.51, 3.79], hydraden: [5.56, 4.99], spire: [6.54, 5.87], gspire: [10.36, 9.36], queensnest: [3.65, 3.19], nydus: [3.45, 2.92], cavern: [4.45, 3.64], dmound: [4.28, 3.57], cocoon: [2.41, 1.97], sunkenfire: [5.99, 5.18], mineral: [3.32, 2.81], mineralb: [4.16, 3.52], mineralc: [3.57, 2.99], geyser: [2.93, 3.22], nuke: [4.20, 3.90], storm: [3.17, 2.94], nukeblast: [5.08, 4.08], nukecloud: [6.69, 5.89], tankbody: [3.12, 2.74], tankgun: [1.80, 1.58], tanksiegebody: [3.65, 3.18], tanksiegegun: [1.96, 1.73], tanksiegelegs: [0.93, 0.78], addonlink: [4.02, 3.46], burrowhole: [2.67, 2.16], lurkerburrow: [2.67, 2.17], lurkerfire: [2.70, 2.21], creeppatch: [4.25, 3.44], creeppatch2: [4.25, 3.44], creeppatch3: [4.26, 3.45] };
 /** 유닛 몸 가운데의 들기 — 발 원점에서 위로, **상자 px의 비**. 표에 없는 종류는 원점 2.2칸 위(보병 언저리). */
 export const unitMidK9 = (kind: string, pitchView: boolean): number => {
