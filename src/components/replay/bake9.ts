@@ -3117,6 +3117,11 @@ export function contactLens9(o: {
   /** 좌우 반지름 — 안 주면 `r`(앞뒤와 같은 정원 단면). 몸이 한 축으로 눌린 타원돔이면 그 축의 반지름을 준다. */
   rx?: number;
   rim: string; fill: string; core: string;
+  /** 뒷판(2026-10, 프로브 눈: "눈알이 눈알원통뒤에있는데 비쳐보임") — 사발의 테 고리를 한 다각형으로 막아 **닫힌 입체**로 만든다.
+   *  열린 사발은 낯마다 한 장짜리 작은 폴리라 gl9 가 데칼로 잡아 앞으로 끌어내므로(편향 0.18 + 차례 ≤0.7 모델칸) 반지름 0.17 짜리
+   *  통쯤은 뚫고 비친다. 닫히면 mesh9 가 solid 로 실어 편향을 안 받고 등진 낯을 걷는다. 뒷판은 **맨 먼저** 밀어 2D 화가 차례에서
+   *  렌즈 켜들이 그 위에 얹히게 한다. 껍질에 붙는 렌즈(돔 위)는 뒤가 돔이라 필요 없다 — 허공에 선 렌즈만 준다. */
+  back?: boolean;
 }): ShapeFace[] {
   const { cx, cy, r, hh, z0 } = o;
   const rx9 = o.rx ?? r;
@@ -3139,6 +3144,7 @@ export function contactLens9(o: {
     return Array.from({ length: NB }, (_, j) => at9(a, (j / NB) * Math.PI * 2, off));
   };
   const rings = Array.from({ length: NA + 1 }, (_, i) => ring9(i));
+  if (o.back) out.push([polyPath3(rings[NA].slice().reverse()), 1, o.rim] as ShapeFace);   // 뒷판(테 색) — 닫힌 입체
   // 가운데 뚜껑 — 첫 고리 안을 한 다각형으로.
   out.push([polyPath3(rings[1]), 1, o.core] as ShapeFace);   // 가운데 심(불투명)
   for (let i = 1; i < NA; i += 1) {
@@ -23946,11 +23952,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const EYE_X9 = 0.55; const EYE_TR9 = 0.17; const EYE_LEN9 = 0.3;
       const EYE_Y9 = Math.sqrt(Math.max(0.01, EYE_W9 * EYE_W9 - EYE_X9 * EYE_X9));
       void EYE_R9; void EYE_EL9;
+      /* ★ 눈알이 통 뒤로 비쳐 보임(2026-10, 지적: "눈알이 눈알원통뒤에있는데 비쳐보임") — 둘: ① 열린 사발은 낯마다 데칼로 잡혀 앞으로
+         끌려 나왔다 → `back` 으로 닫아 solid. ② 가상 구 중심이 통 끝에서 반지름만큼 안이라 렌즈 테가 통 끝면 0.04 **안쪽**에 있었다 →
+         테(각 EYE_ANG9 · 바깥 띄움 0.02)가 통 끝면에 딱 앉도록 중심을 `EYE_TR9·cos(EYE_ANG9) + 0.02` 만큼만 안으로. */
+      const EYE_ANG9 = 0.12 / EYE_TR9;
       for (const m of [-1, 1] as const) {
         out.push(...tagKey(paintBase(tubeFaces(m * EYE_X9, EYE_Y9 - 0.15, m * EYE_X9, EYE_Y9 + EYE_LEN9, EYE_TR9, EYE_Z9, false), TOSS_GOLD), depthNow(m * EYE_X9, EYE_Y9 + 0.1) * 1.6 + 2.9));
         out.push(...tagKey(contactLens9({
-          cx: m * EYE_X9, cy: EYE_Y9 + EYE_LEN9 - EYE_TR9, r: EYE_TR9, hh: EYE_TR9, z0: EYE_Z9,
-          ang: 0.12 / EYE_TR9, elev: 0, thick: 0.05, rim: "#4e7f18", fill: "#8fe63a", core: "#d9ff8c",
+          cx: m * EYE_X9, cy: EYE_Y9 + EYE_LEN9 - EYE_TR9 * Math.cos(EYE_ANG9) - 0.02, r: EYE_TR9, hh: EYE_TR9, z0: EYE_Z9, back: true,
+          ang: EYE_ANG9, elev: 0, thick: 0.05, rim: "#4e7f18", fill: "#8fe63a", core: "#d9ff8c",
         }).map(([d, o, f, kk, l, n]) => [d, o * k, f, kk, l, n] as ShapeFace), depthNow(m * EYE_X9, EYE_Y9 + EYE_LEN9) * 1.6 + 3));
       }
     }
