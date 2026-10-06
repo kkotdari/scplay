@@ -745,6 +745,13 @@ export function gaitLeg9(m: -1 | 1): { f: number; lift: number; fl: number; reac
   return { f: GAIT_F9[k9], lift: GAIT_LIFT9[k9], fl: k9 === 0 ? GAIT_REACH_LIFT9 : 0,
     reach: k9 === 0 ? GAIT_FRONT_REACH9 : GAIT_F9[k9] > 0 ? LEG_REACH9 : 1, bob: GAIT_BOB9[i9 % 3], k: k9 };
 }
+/** 발이 **앞으로 옮겨 가는 반 바퀴**(흔듦)에만 1 — 발 자리가 s·walkDir 인 다리(s ±1)가 뒤 끝(−1)에서 앞 끝(+1)으로 가는 두 사잇컷.
+ *  디딘 반 바퀴(앞 → 뒤로 끌림)는 0 이라 땅을 긁지 않고, 두 극(±1)도 0 이라 닿은 채다. 여섯 컷이 아니면 옛 '앞에 있으면 든다'(max(0, s·wd)). */
+export function gaitSwing9(s: -1 | 1): number {
+  const i9 = gaitIdx9();
+  if (i9 < 0) return Math.max(0, s * walkDir());
+  return (s > 0 ? i9 === 4 || i9 === 5 : i9 === 1 || i9 === 2) ? 1 : 0;
+}
 /** 걷는 몸의 낮춤 배수 — 여섯 컷 걸음이면 그 컷의 bob(받음에서 가장 낮다), 아니면 1(옛 고정 낮춤 그대로). 빌더의 몸 낮춤 dz 에 곱한다. */
 export const gaitBob9 = (): number => { const i9 = gaitIdx9(); return i9 < 0 ? 1 : GAIT_BOB9[i9 % 3]; };
 /* ★★ **걸을 때 상체는 디딘 다리의 반대로 돈다**(2026-10, 요청: "테란 플토 보병 걸을때 발 나가는쪽 어깨가 앞으로 나가게 몸통 자체
@@ -2009,6 +2016,32 @@ const P_LEG_THIN9 = 0.8;
 /** 다리 통째 요잉(도) — 발끝이 살짝 바깥을 본다(2026-09, 요청: "다리를 통째로 요잉해서 발끝이 살짝씩만 밖을 향하게 · 걸을때도 그 방향으로
  *  발이 나가게 정말 살짝만"). 고관절의 세로축으로 무릎·발목·발끝·발가락·걸음 방향을 함께 돌린다. */
 const P_LEG_YAW9 = 7;
+/* ★★ **마디 길이 — 허벅지·발등은 길고 정강이는 짧다**(2026-10, 요청: "플토 보병들의 다리구조에서 대퇴와 발등이 길이가 길고 정강이는
+   훨씬 길이가 짧아 발끝과 비슷한 정도의 구조로 맞춰야 자세들이 다 자연스러울거같아") — 설계 자. 옛 판(허벅지 1.75 · 정강이 1.33 ·
+   발등 1.36×0.9)은 세 마디가 고만고만해 어느 자세에서도 역관절이 안 읽혔다. 정강이(0.8)는 발가락(0.72)과 비슷한 길이다. */
+const P_LT9 = 2.0;
+const P_LS9 = 0.8;
+const P_LF9 = 1.45;
+const P_LTOE9 = 0.72;
+/** 땅(설계 z) — 발끝이 닿는 높이. */
+const P_GROUND9 = 0.05;
+/** 중립 각(도 · 아래 수직에서 앞 +) — 허벅지는 bend 배로 살짝 앞(무릎이 앞으로) · 정강이 뒤로 · 발등 앞으로 · 발가락 앞으로. */
+const P_THIGH_FWD9 = 3.5;
+const P_SHIN_NEUT9 = -58;
+const P_FOOT_NEUT9 = 15;
+const P_TOE_NEUT9 = 65;
+/* ★★ **선 자세의 각**(2026-10, 요청: "질럿 다크 정지와 공격시 앞뒤다리 간격 더 멀리 · 굽힌 모양은 비슷하게(쭉뻗기x)" · "뒷다리는 대퇴가
+   거의 수직이되 살짝 뒤로 향하게 내려가서 무릎 발목 발끝이 각각 거의 직각으로 굽어져서 서있는것 발바닥 전체가 아닌 발끝으로 서기")
+   — [허벅지, 정강이, 발등] (도). 발가락 각은 땅에 닿게 푼다(protossLegs). 공격 컷은 허벅지 각만 P_STANCE_ATK9 배 — 굽힘은 그대로 두고
+   앞뒤 간격만 더 벌린다. 뒷다리: 허벅지 −6(살짝 뒤) · 정강이 −86(거의 수평으로 뒤) · 발등 0(수직) → 발가락이 56도로 서서 발끝으로 선다.
+   앞다리: 허벅지 15 · 정강이 −50 · 발등 18 → 발가락은 거의 납작(84도). 발끝 간격은 평소 1.45 · 공격 1.8(옛 0.6 · 0.96). */
+const P_STANCE_F9: readonly [number, number, number] = [15, -50, 18];
+const P_STANCE_B9: readonly [number, number, number] = [-6, -86, 0];
+const P_STANCE_ATK9 = 1.5;
+/** 걸음에서 발끝의 중립 자리(고관절 y 에서 앞으로) · 발등·발가락 각이 보폭 몫(f ±1)에 타는 기울기(도). */
+const P_TIP_Y9 = 0.35;
+const P_WALK_FOOT_K9 = 25;
+const P_WALK_TOE_K9 = 15;
 export function protossLegs(
   thighFill?: string, shinFill?: string, lift = 0, shrink = 1,
   /** 걸음 몫(요청: 애니메이션) — 부호가 컷(1/3)에서 오므로 두 컷이 서로 거울이다. */
@@ -2028,8 +2061,11 @@ export function protossLegs(
    *  규약을 그대로 쓴다(fill을 주면 고정색이 되어 요청이 뒤집힌다). 마디를 색으로 쪼개지 않고
    *  **덧씌우는** 까닭: 쪼개면 이음매에 뚜껑이 생겨 각도에 따라 단면이 비친다. */
   teamShin = 0,
+  /** ★ 다리 통째 요잉(도 · 기본 P_LEG_YAW9) — 하템은 떠 있어 다리 전체를 고관절에서 바깥으로 더 돌린다(2026-10, 요청: "하템 고관절에서
+   *  다리전체를 바깥으로 더 많이 돌리기(벌리는게 아니라 외전)"). 벌림(x)이 아니라 고관절 세로축 둘레의 회전이다. */
+  yawDeg = P_LEG_YAW9,
 ): ShapeFace[] {
-  if (twistRad9) return noTwist9(() => protossLegs(thighFill, shinFill, lift, shrink, stride, thin, bend, tuck, teamShin));   // 다리는 상체 비틀림에서 빠진다
+  if (twistRad9) return noTwist9(() => protossLegs(thighFill, shinFill, lift, shrink, stride, thin, bend, tuck, teamShin, yawDeg));   // 다리는 상체 비틀림에서 빠진다
   const paint = (f: ShapeFace[], c?: string): ShapeFace[] => (c ? paintBase(f, c) : f);
   thin *= P_LEG_THIN9;
   /* 다리 길이 줄이기(요청: 하이템플러는 짧게) — 엉덩이(3.95)를 축으로 z를 눌러
@@ -2041,94 +2077,88 @@ export function protossLegs(
     const g9 = stride !== 0 && tuck === 0 ? gaitLeg9(m) : null;
     const amp9 = g9 ? Math.abs(stride / (walkDir() || 1)) : 0;
     /* ★ 앞다리는 **더 힘차게 앞으로**(2026-10, 요청: "앞으로 더 힘차게 뻗어야하지 않나 무릎이 좀더 펴지게") — 앞 몫 ×1.4 ·
-       엉덩이 낮춤 0.09 → 0.05(낮추면 디딘 무릎이 굽는다) · 닿음은 다 편다(reach 1). */
+       엉덩이 낮춤 0.09 → 0.05(낮추면 디딘 무릎이 굽는다). */
     const st = g9 ? g9.f * amp9 * (g9.f > 0 ? 1.4 : 1) : m * stride;
-    const liftA9 = g9 ? (g9.lift + g9.fl) * amp9 * 0.75 : Math.max(0, st) * 0.16;
-    const liftT9 = g9 ? (g9.lift + g9.fl) * amp9 * 0.55 : Math.max(0, st) * 0.12;
+    const liftT9 = g9 ? (g9.lift + g9.fl) * amp9 * 0.75 : Math.max(0, st) * 0.16;
     const reach9 = g9 ? g9.reach : st < 0 ? 1 : LEG_REACH9;
     const drop9 = g9 ? 0.05 * g9.bob : 0;
-    /* ★ 고관절을 **몸 안쪽**으로(요청: "다리가 너무 바깥쪽 양옆에 붙은 느낌") — 0.5 → 0.26. 골반 폭이
-       몸통 반폭에 가깝게 좁아져 두 다리가 몸 아래에서 시작한다. 무릎·발목·발끝도 한 단씩만 안으로 당겨
-       (0.82→0.72 · 0.95→0.86 · 1.04→0.96) 팔자 벌림은 남기되 전체가 몸 밑으로 모인다 — 고관절만 당기면
-       허벅지가 바깥으로 뻗쳐 가랑이가 벌어진 꼴이 된다. */
-    const hip: [number, number, number] = [m * P_HIP_X9, -0.3 - P_LEG_BACK9, Z(3.95) - drop9];
-    /* ★ 걸음에도 **허벅지·정강이 길이는 그대로**(요청: 질럿·템플러류도 같은 함수로) —
-       suitLegs와 같은 결이다. 발목·발끝만 보폭대로 옮기고 무릎은 서 있을 때의 두 마디
-       길이로 푼다(jointBetween, 앞으로 굽힘). */
-    /* 다리 통째 요잉(위 P_LEG_YAW9) — 고관절 세로축 둘레로 (x, y) 를 돌린다. +y(앞)가 바깥(m 쪽)으로 기운다. 회전이라 마디 길이는 그대로다. */
-    const ya9 = (m * P_LEG_YAW9 * Math.PI) / 180;
+    /* ★ 고관절을 **몸 안쪽**으로(요청: "다리가 너무 바깥쪽 양옆에 붙은 느낌") — 0.5 → 0.26 → P_HIP_X9. */
+    /** 고관절 — 설계 자(z 는 Z() 로 접기 전). 걸음의 엉덩이 낮춤(drop9)은 접힌 값이라 설계 자로 되돌려 뺀다. */
+    const hipD: [number, number, number] = [m * P_HIP_X9, -0.3 - P_LEG_BACK9, 3.95 - drop9 / (Z8 * shrink)];
+    /* 다리 통째 요잉(위 P_LEG_YAW9 · yawDeg) — 고관절 세로축 둘레로 (x, y) 를 돌린다. +y(앞)가 바깥(m 쪽)으로 기운다. 회전이라 마디 길이는 그대로다. */
+    const ya9 = (m * yawDeg * Math.PI) / 180;
     const yc9 = Math.cos(ya9); const ys9 = Math.sin(ya9);
     const yv9 = (dx: number, dy: number): [number, number] => [dx * yc9 + dy * ys9, -dx * ys9 + dy * yc9];
+    /** 설계 자의 점을 요잉하고 z 를 접는다 — 빌더 밖으로 나가는 모든 관절이 이 손을 지난다. */
     const yw9 = (q: [number, number, number]): [number, number, number] => {
-      const [rx9, ry9] = yv9(q[0] - hip[0], q[1] - hip[1]);
-      return [hip[0] + rx9, hip[1] + ry9, q[2]];
+      const [rx9, ry9] = yv9(q[0] - hipD[0], q[1] - hipD[1]);
+      return [hipD[0] + rx9, hipD[1] + ry9, Z(q[2])];
     };
-    const ankle0: [number, number, number] = yw9([m * P_ANKLE_X9, -0.75 - P_LEG_BACK9, Z(1)]);
-    // 무릎 높이에서 엉덩이~발목 직선의 y — 굽힘(bend)이 0이면 여기, 1이면 본디 자리(0.3).
-    const kneeLineY9 = hip[1] + (ankle0[1] - hip[1]) * ((hip[2] - Z(2.2)) / Math.max(1e-6, hip[2] - ankle0[2]));
-    /* ★ **대퇴는 거의 수직, 정강이·발이 뒤에서 > 꼴**(2026-09, 요청: "허리를 폈으니 대퇴도 거의 수직으로 세우고 하지와 발뼈만
-       뒤에서 >모양이 되어야") — 옛 무릎은 골반~발목 선에서 앞으로 0.3 까지 bend 배로 나가(1.4 이면 y 0.65) 허벅지가 34도
-       앞으로 누웠다. 이제 무릎은 고관절 바로 아래에서 앞으로 KNEE_FWD9·bend 만(질럿 0.17 · 하템 0.08) 나간다. 발목(−0.75)은
-       그대로라 정강이가 뒤로 눕고 발이 앞으로 나가 옆에서 > 로 읽힌다. kneeLineY9 는 걸음 풀이의 자라 남긴다. */
-    const KNEE_FWD9 = 0.12;
-    void kneeLineY9;
-    const knee0: [number, number, number] = yw9([m * P_KNEE_X9, hip[1] + KNEE_FWD9 * bend, Z(2.2)]);
-    const Lt9 = legLenD9(hip, knee0);
-    const Ls9 = legLenD9(knee0, ankle0);
-    // 걸음도 발끝 방향(돌린 +y)으로 나간다. 편히 선 자세(LEG_STANCE9)는 걸음 몫이 0 일 때만 · 발은 안 든다.
-    /* 떠 있는 몸(정강이를 접는 tuck — 하템)은 짚을 땅이 없어 편히 선 자세를 안 쓴다(2026-10, 지적: "하템도 아니지 떠있는데"). */
-    /* 공격 컷(2·4·5)은 한 걸음 더 벌린 자세다(2026-10, 요청: "질럿 공격시에도 서있을때처럼 발자세 취하고" · "다크도 질럿처럼 공격시 다리"). */
+    /** 옆면(y·z)에서 '아래로 향한 수직'에서 잰 각(도 · +가 앞)으로 길이 L 의 마디 한 끝을 낸다 — 설계 자. */
+    const seg9 = (p: [number, number, number], deg: number, L: number, x: number): [number, number, number] => {
+      const r9 = (deg * Math.PI) / 180;
+      return [x, p[1] + L * Math.sin(r9), p[2] - L * Math.cos(r9)];
+    };
     const atk9 = poseNow === 2 || poseNow === POSE_ATK_L || poseNow === POSE_ATK_R;
-    const sp9 = stride === 0 && tuck === 0 ? m * LEG_STANCE9 * (atk9 ? 1.6 : 1) : 0;
-    const stv9 = yv9(0, legSt9(st) * 1.2 + sp9);
-    const [ankleR9, cx9, cy9] = legCap9(hip,
-      [ankle0[0] + stv9[0], ankle0[1] + stv9[1], ankle0[2] + liftA9], Lt9, Ls9, reach9);
-    const kh9 = yv9(0, 1);
-    const knee: [number, number, number] = st === 0 && sp9 === 0 && !g9 ? knee0 : jointBetween(hip, ankleR9, Lt9, Ls9, [kh9[0], kh9[1], 0.1]);
-    /** 무릎을 축으로 한 접기(위 tuck) — 정강이·발·발가락이 모두 이 손을 지난다. */
+    let kneeD: [number, number, number]; let ankleD: [number, number, number]; let toeD: [number, number, number]; let tipD: [number, number, number];
+    if (st === 0) {
+      /* ★★ **선 자세는 각으로 적는다**(2026-10, 요청: "질럿 다템 뒷다리는 대퇴가 거의 수직이되 살짝 뒤로 향하게 내려가서 무릎 발목
+         발끝이 각각 거의 직각으로 굽어져서 서있는것 발바닥 전체가 아닌 발끝으로 서기" · "정지와 공격시 앞뒤다리 간격 더 멀리 · 굽힌 모양은
+         비슷하게(쭉뻗기x)") — 고관절에서 허벅지·정강이·발등의 각을 주고 **발가락 각은 땅에 닿게 푼다**(고관절 높이가 못 박혀 있으므로
+         세 각을 다 90도로 두면 발이 땅에 안 닿는다 — 허벅지 수직 · 정강이 수평 · 발등 수직이면 발가락이 땅까지 0.46 을 맡아 56도로
+         서고, 그것이 곧 발끝으로 선 꼴이다). 왼다리(+x)가 앞 · 오른다리가 뒤(LEG_STANCE9 의 그 자리) · 공격 컷은 P_STANCE_ATK9 배 더 벌린다.
+         떠 있는 몸(tuck — 하템)은 짚을 땅이 없어 두 다리가 같은 중립 각이다(지적: "하템도 아니지 떠있는데"). */
+      const w9 = tuck === 0 ? (atk9 ? P_STANCE_ATK9 : 1) : 0;
+      const front9 = tuck === 0 && m > 0;
+      const tDeg9 = w9 === 0 ? P_THIGH_FWD9 * bend : front9 ? P_STANCE_F9[0] * w9 : P_STANCE_B9[0] * w9;
+      const sDeg9 = w9 === 0 ? P_SHIN_NEUT9 : front9 ? P_STANCE_F9[1] : P_STANCE_B9[1];
+      const fDeg9 = w9 === 0 ? P_FOOT_NEUT9 : front9 ? P_STANCE_F9[2] : P_STANCE_B9[2];
+      kneeD = seg9(hipD, tDeg9, P_LT9, m * P_KNEE_X9);
+      ankleD = seg9(kneeD, sDeg9, P_LS9, m * P_ANKLE_X9);
+      toeD = seg9(ankleD, fDeg9, P_LF9, m * P_TOE_X9);
+      /* 발가락 각 — 땅(P_GROUND9)에 닿는 각을 푼다 · 못 닿으면(떠 있는 몸) 중립 각. */
+      const need9 = toeD[2] - P_GROUND9;
+      const toeDeg9 = w9 === 0 || need9 >= P_LTOE9 ? P_TOE_NEUT9 : need9 <= 0 ? 90 : (Math.acos(need9 / P_LTOE9) * 180) / Math.PI;
+      tipD = seg9(toeD, toeDeg9, P_LTOE9, m * P_TOE_X9);
+    } else {
+      /* ★ 걸음은 **발끝이 끈다**(2026-10) — 발끝(땅에 닿는 점)을 보폭·들림대로 놓고 발가락·발등 각을 보폭 몫(f · 앞 +)으로 주어
+         발목을 거꾸로 풀고, 무릎은 고관절~발목 두 마디(IK)다. 미는 뒷다리(f −1)는 발등이 뒤로 눕고(−10도) 발끝으로 밀며, 닿는 앞다리
+         (f +1)는 발등이 앞으로 기울어(40도) 발가락이 납작하게 닿는다. 발목이 고관절에서 두 마디 합의 reach 밖이면 발 전체를 수평으로
+         당긴다(legCap9 와 같은 자). */
+      const f9 = g9 ? g9.f : Math.sign(st);
+      const lift9n = g9 ? g9.lift : 0;
+      const fDeg9 = P_FOOT_NEUT9 + P_WALK_FOOT_K9 * f9;
+      const toeDeg9 = P_TOE_NEUT9 + P_WALK_TOE_K9 * f9 - 25 * lift9n;   // 들린 발은 발가락이 처진다
+      tipD = [m * P_TOE_X9, hipD[1] + P_TIP_Y9 + legSt9(st) * 1.2, P_GROUND9 + liftT9];
+      toeD = seg9(tipD, toeDeg9 + 180, P_LTOE9, m * P_TOE_X9);
+      ankleD = seg9(toeD, fDeg9 + 180, P_LF9, m * P_ANKLE_X9);
+      const cap9 = reach9 * (P_LT9 + P_LS9);
+      const hdz9 = ankleD[2] - hipD[2]; const hdy9 = ankleD[1] - hipD[1]; const hdx9 = ankleD[0] - hipD[0];
+      const hh9 = Math.hypot(hdx9, hdy9);
+      if (Math.hypot(hh9, hdz9) > cap9 && hh9 > 1e-6 && Math.abs(hdz9) < cap9) {
+        const k9 = Math.sqrt(cap9 * cap9 - hdz9 * hdz9) / hh9;
+        const cy9 = hdy9 * (k9 - 1);
+        ankleD = [ankleD[0], ankleD[1] + cy9, ankleD[2]];
+        toeD = [toeD[0], toeD[1] + cy9, toeD[2]];
+        tipD = [tipD[0], tipD[1] + cy9, tipD[2]];
+      }
+      kneeD = jointBetweenD(hipD, ankleD, P_LT9, P_LS9, [0, 1, 0.1]);
+      kneeD[0] = m * P_KNEE_X9;
+    }
+    /** 무릎을 축으로 한 접기(위 tuck) — 정강이·발·발가락이 모두 이 손을 지난다(설계 자). */
     const tuckAt9 = (q: [number, number, number]): [number, number, number] => {
       if (tuck === 0) return q;
-      const vy9 = q[1] - knee[1];
-      const vz9 = q[2] - knee[2];
+      const vy9 = q[1] - kneeD[1];
+      const vz9 = q[2] - kneeD[2];
       const c9 = Math.cos(tuck);
       const s9 = Math.sin(tuck);
-      return [q[0], knee[1] + vy9 * c9 + vz9 * s9, knee[2] - vy9 * s9 + vz9 * c9];
+      return [q[0], kneeD[1] + vy9 * c9 + vz9 * s9, kneeD[2] - vy9 * s9 + vz9 * c9];
     };
-    const ankle: [number, number, number] = tuckAt9(ankleR9);
-    /* ★ 발 마디(발목→발끝) — 길이 **0.375배**, 발목 각은 **절반만큼 편다**(요청: "첫째 두째 마디
-       다리사이가 더 굽히고 두째셋째 사이는 더 펴지게 셋째마디 50프로 더 줄여줘") ─────────────────
-       무릎을 더 굽히고(bend) 발목을 펴고 발마디를 짧게 하면 프로토스 특유의 **역관절 다리**가 된다:
-       정강이가 뒤로 눕고 그 끝에 짧은 발마디가 거의 곧게 이어지며, 앞으로 벌어진 발가락만 땅을 짚는다.
-       · 길이 — 0.9다(0.375까지 줄였다가 0.75로 되돌리고 재요청으로 1.2배).
-       · 펴는 몫은 0.5 → 0.25(재요청: "두째셋째마디 사이 좀더 굽히고") — 발목 각이 도로 살아난다.
-       · 펴기 — 자리 사이 보간이다. 0이면 본디 앞으로 뻗은 발, 1이면 **정강이와 한 직선**(길이는 유지).
-       발가락 두 갈래는 제 길이 그대로 두되 뿌리는 같은 손(footAt9)으로 옮겨, 줄고 펴진 발끝에 붙어 있게 한다. */
-    const FOOT_K9 = 0.9;
-    const ANKLE_FLAT9 = 0.25;
-    const sdx9 = ankle[0] - knee[0];
-    const sdy9 = ankle[1] - knee[1];
-    const sdz9 = ankle[2] - knee[2];
-    const sl9 = Math.hypot(sdx9, sdy9, sdz9) || 1;
-    /** 발 마디의 한 점 — 발목을 축으로 줄이고(FOOT_K9), 정강이 방향 쪽으로 편다(ANKLE_FLAT9). */
-    const footAt9 = (q: [number, number, number]): [number, number, number] => {
-      const rx9 = (q[0] - ankle[0]) * FOOT_K9;
-      const ry9 = (q[1] - ankle[1]) * FOOT_K9;
-      const rz9 = (q[2] - ankle[2]) * FOOT_K9;
-      const rl9 = Math.hypot(rx9, ry9, rz9);
-      return [
-        ankle[0] + rx9 + ((sdx9 / sl9) * rl9 - rx9) * ANKLE_FLAT9,
-        ankle[1] + ry9 + ((sdy9 / sl9) * rl9 - ry9) * ANKLE_FLAT9,
-        ankle[2] + rz9 + ((sdz9 / sl9) * rl9 - rz9) * ANKLE_FLAT9,
-      ];
-    };
-    const toeY9 = yw9([m * P_TOE_X9, 0.5 - P_LEG_BACK9 + legSt9(st) * 1.2 + sp9, Z(0.15) + liftT9]);
-    const toe: [number, number, number] = footAt9(tuckAt9([toeY9[0] + cx9, toeY9[1] + cy9, toeY9[2]]));
-    /* 하지가 허벅지보다 굵다(요청) — 허벅지 0.6, 정강이 0.72, 발목 0.58. 마디마다
-       배가 부풀게 mid를 따로 줘, 곧은 막대가 아니라 근육 붙은 마디로 읽힌다. */
-    // 굵기 ×1.25(사진 대조 — 질럿1·4의 다리 갑판은 지금보다 한 뼘 굵다).
-    /* 다리 키(지적: "질럿 다템 하템 키가 엉망 다리쪽 팔쪽 얼굴쪽") — −0.9는 붙박이라
-       요잉을 돌려도 늘 같은 층이었다. 마디마다 제 자리 깊이를 실어 몸통(0)을 사이에
-       두고 앞뒤가 갈리게 한다: 앞다리는 몸 위, 뒷다리는 몸 뒤. */
+    const hip = yw9(hipD);
+    const knee = yw9(kneeD);
+    const ankle = yw9(tuckAt9(ankleD));
+    const toe = yw9(tuckAt9(toeD));
+    const tip = yw9(tuckAt9(tipD));
     /* ★ 세 마디의 키(지적) — 마디마다 **제 한가운데 깊이**로 매기고 단면은 셋 다 안 그린다:
        허벅지 위는 골반 속, 무릎·발목은 서로의 속이라 뚜껑이 보이면 곧 이음매가 뜬다.
        같은 깊이일 때는 아래 마디가 나중이라(배열 차례) 무릎에서 정강이가 허벅지를 덮고,
@@ -2143,7 +2173,7 @@ export function protossLegs(
       // 정강이·발 단면은 안 그린다(지적: 하지 단면이 대퇴에 안 가려짐) — 두 끝이 다 남의 몸속이다.
       ...suitLimb(knee, ankle, 0.45 * thin, 0.38 * thin, 0.56 * thin,
         { sides: 7, caps: "none", trueNormal: true, key: kS, tag: "leg.shin" }),
-      // 발은 작고 예리하게(요청: 프로토스 인간형 발이 투박하고 큼) — 0.38/0.3/0.36 → 0.27/0.18/0.25.
+      // 발등은 작고 예리하게(요청: 프로토스 인간형 발이 투박하고 큼) — 0.38/0.3/0.36 → 0.27/0.18/0.25.
       ...suitLimb(ankle, toe, 0.27, 0.18, 0.31,
         { sides: 7, caps: "none", trueNormal: true, key: kF, tag: "leg.foot" }),
     ], shinFill));
@@ -2168,25 +2198,23 @@ export function protossLegs(
         { sides: 7, caps: "none", trueNormal: true, key: kS + 0.35, tag: "leg.shin.team" },
       ));
     }
-    /* 발은 **두 갈래 발가락**이다(요청: "프로토스 보병류 발은 scv 발같은 발가락 2개
-       형태의 발 모양으로") — 삼각 말굽 한 장을 걷고, SCV 발굽과 같은 결로 짠다:
-       발목 앞에서 갈라진 납작한 발가락 둘이 앞으로 뻗고, 밑은 수평·발등만 경사라
-       땅을 딛는 밑면이 평평하다. 단면은 좌우로 넓은 타원(oval 1.8)이라 위에서
-       내려다보는 화면에서 갈래가 그대로 읽힌다. */
-    /* 발가락은 **V자로 벌어진다**(정정: "지금처럼 모이는 형태아님") — 발목 앞
-       한 점에서 나와 앞으로 갈수록 서로 멀어진다. 뿌리 벌림 0.1, 끝 벌림 0.42. */
-    /* 발가락도 **걸음 몫을 탄다**(지적: "질럿 다크 다리가 부품이 몇개는 따로노는데")
-       — 무릎·발목·발끝만 stride를 받고 이 두 갈래는 상수 자리에 남아 있어서, 다리가
-       앞으로 나가면 발가락만 제자리에 서 있었다. 발목·발끝과 **같은 식**을 쓴다. */
-    const [fx, fy, fz] = footAt9(tuckAt9(yw9([m * (P_TOE_X9 + 0.1), 0.28 - P_LEG_BACK9 + st * 1.2, Z(0.02) + Math.max(0, st) * 0.12])));
+    /* 발은 **두 갈래 발가락**이다(요청: "프로토스 보병류 발은 scv 발같은 발가락 2개 형태의 발 모양으로") — 발등 끝에서
+       갈라진 납작한 발가락 둘이 V자로 벌어지며(뿌리 0.08 · 끝 0.32) 발끝(tip)까지 뻗는다.
+       ★ **뿌리는 발등 끝 그 점이다**(2026-10, 요청: "발등과 발끝이 어긋나지 않게 끝과 끝이 관절처럼 만나게") — 옛 판은 발가락
+         뿌리를 따로 셈해(발등 끝보다 뒤·아래) 두 끝이 어긋났다. 이제 발등 끝(toe) → 발끝(tip)의 축을 그대로 타므로 선 자세·
+         걸음·접음 어디서도 관절처럼 만난다. */
+    const tdx9 = tip[0] - toe[0]; const tdy9 = tip[1] - toe[1]; const tdz9 = tip[2] - toe[2];
+    const sx9 = yv9(1, 0);   // 요잉한 옆 방향(발가락이 벌어지는 축)
     for (const s9 of [-1, 1] as const) {
       out.push(...paint(tagKey(spirePillar({
         x: 0, y: 0, h: 0.8, w: 1, segs: 2, sides: 6, oval: 1.8, caps: "none",
         // 발가락 둘 — 가늘고 끝이 뾰족하게(요청). 벌림 0.32 → 0.24, 굵기 0.24 → 0.15, 끝 0.02.
-        path: (t9: number): [number, number, number] =>
-          ((): [number, number, number] => { const [ox9, oy9] = yv9(s9 * (0.08 + 0.24 * t9), 0.72 * t9); return [fx + ox9, fy + oy9, fz + 0.16 - 0.08 * t9]; })(),
+        path: (t9: number): [number, number, number] => {
+          const w9 = s9 * (0.08 + 0.24 * t9);
+          return [toe[0] + tdx9 * t9 + sx9[0] * w9, toe[1] + tdy9 * t9 + sx9[1] * w9, toe[2] + tdz9 * t9 + 0.06 * (1 - t9)];
+        },
         widthOf: (t9: number): number => 0.15 - 0.13 * t9,
-      }), -0.9 + depthNow(fx + s9 * 0.26, fy + 0.4) * 0.25), shinFill));
+      }), -0.9 + depthNow((toe[0] + tip[0]) / 2 + s9 * 0.2, (toe[1] + tip[1]) / 2) * 0.25), shinFill));
     }
   }
   return out;
@@ -24740,8 +24768,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
    *    걸음의 흔들림은 0.34 → 0.55로 키운다: 어깨가 함께 안 나가는 만큼 손이 더 가야
    *    같은 폭으로 읽힌다. */
   const armY = (m9: number): number => -m9 * 0.55 * wd9 + g9 * 0.28;
-  /** 걸음 팔 진자의 자(설계 자 · 라디안) — 늘어뜨린 자리 앞 13° · 앞으로 23° · 뒤로 48° · 반지름 2.15. */
-  const ZL_SW09 = 0.23, ZL_SWF9 = 0.40, ZL_SWB9 = 0.84, ZL_SWR9 = 2.15;
+  /** 걸음 팔 진자의 자(설계 자 · 라디안) — 늘어뜨린 자리 앞 13° · 앞으로 23° · 뒤로 48° · 반지름 2.15.
+   *  ★ **앞으로 아주 살짝 · 안쪽으로 살짝 · 흔들림도 살짝**(2026-10, 요청: "질럿하템 팔 — 앞으로 굽히는건 아주 살짝이고 안쪽으로도 살짝
+   *    굽혀야해 그리고 그 상태로 앞뒤로 살짝 흔들어주는데 몸통이 좌우로 요잉하게 돼있으니 그거에 따라 움직이겠지") — 늘어뜨린 자리
+   *    13° → 4.5° · 앞 23° → 16° · 뒤 48° → 26° · 반지름 2.15 → 2.3(두 마디 합의 92% — 팔꿈치가 조금만 꺾인다). 평소도 같은 진자
+   *    (앞뒤 ∓ZL_SWS9 — 왼팔 뒤 · 오른팔 앞)라 걸음과 한 자다. 손 x 는 어깨(0.82)보다 안쪽 ZL_HX9(0.78)이고 팔꿈치 힌트는 바깥·뒤 —
+   *    하완이 안쪽으로 살짝 꺾인다. 상체 요잉(gaitTwistB9)은 강체라 팔이 몸통과 함께 돈다. */
+  const ZL_SW09 = 0.08, ZL_SWF9 = 0.28, ZL_SWB9 = 0.45, ZL_SWR9 = 2.3, ZL_SWS9 = 0.1, ZL_HX9 = 0.78;
   return [
     /* 다리·몸통은 프로토스 인간형 공통 — 2관절 다리 + 앞으로 숙는 몸통. 금 갑주.
        보폭 0.55 → 0.85(지적: "질럿 걷기가 적용 안된듯?") — 컷은 돌고 있었지만
@@ -25093,19 +25126,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           /* ★ 평소는 **더 굽히고** 다리와 반대로 앞뒤(2026-10, 요청: "팔을 좀더 굽히고 … 팔은 반대로 살짝 앞뒤로 배치") — 손이
              어깨에서 설계 자로 2.2(두 마디 합의 88%) — ⚠ 옛 '2.3(92%)'은 접힌 z 로 잰 값이라 설계 자로는 2.8(두 마디 합 밖) —
              팔이 곧게 펴진 막대였다(jointBetween 은 z 를 Z8 로 되돌려 푼다) · 걸음 몫이 0 일 때 왼팔(+x)은 뒤, 오른팔은 앞(왼다리가 앞이다 — LEG_STANCE9). */
-          : wd9 === 0 ? [m9 * 1.0, 0.8 - m9 * 0.32, 2.8]
           /* ★ 걸음은 어깨를 축으로 도는 **진자 호**다 — 앞은 덜, 뒤는 더(2026-10, 요청: "질럿 걸을때 팔 앞뒤로 더 크게
              특히 뒤로") — 옛 판은 손을 앞뒤로 ±0.55 미는 것뿐이라(호로 치면 ±14°) 흔들림이 작고 앞뒤가 같았다. 이제 늘어뜨린
-             자리(앞 13°)에서 앞으로 ZL_SWF9 · 뒤로 ZL_SWB9 만큼 돈다(설계 자 반지름 ZL_SWR9 = 두 마디 합의 86% — 어느 각에서도
-             팔꿈치가 조금 굽은 채다). 손은 다리와 반대(armY 의 부호 그대로). */
+             자리에서 앞으로 ZL_SWF9 · 뒤로 ZL_SWB9 만큼 돈다(설계 자 반지름 ZL_SWR9 — 어느 각에서도 팔꿈치가 조금 굽은 채다).
+             손은 다리와 반대(armY 의 부호 그대로). 평소(wd9 0)도 같은 진자다 — 왼팔(+x)은 뒤 · 오른팔은 앞으로 ZL_SWS9(위 ★). */
           : ((): [number, number, number] => {
-            const f9 = -m9 * wd9;
+            const f9 = wd9 === 0 ? -m9 * ZL_SWS9 / ZL_SWB9 : -m9 * wd9;
             const th9 = ZL_SW09 + (f9 > 0 ? ZL_SWF9 : ZL_SWB9) * f9;
-            return [m9 * 1.0, sh[1] + ZL_SWR9 * Math.sin(th9), sh[2] - ZL_SWR9 * Math.cos(th9) * Z8];
+            return [m9 * ZL_HX9, sh[1] + ZL_SWR9 * Math.sin(th9), sh[2] - ZL_SWR9 * Math.cos(th9) * Z8];
           })();
       /* 칼 — 손에서 이어 나간다. 겨눔에서는 앞·위로 서 있고(칼끝을 든 자세),
          잽에서는 **수평으로** 앞으로 내지른다(칼끝 높이가 손과 거의 같다). */
-      const el = jointBetween(sh, hd, 1.2, 1.3, g9 ? [m9 * 0.35, -0.6, -0.4] : [m9 * 0.2, -1, 0]);
+      // 평소·걸음 팔꿈치 힌트는 바깥·뒤(2026-10) — 손이 어깨보다 안쪽이라 팔꿈치가 밖으로 빠져야 하완이 안쪽으로 꺾인다.
+      const el = jointBetween(sh, hd, 1.2, 1.3, g9 ? [m9 * 0.35, -0.6, -0.4] : [m9 * 0.6, -0.8, 0]);
       return pRigid9(ZEALOT_LEAN9, 0, sh[2], (): ShapeFace[] => [
         ...paintBase(pLimb(sh, el, 0.44), "#3a4258"),
         ...paintBase(pLimb(el, hd, 0.6), P_GOLD),
@@ -25420,12 +25453,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // 떠 있을 뿐 다리는 있다(요청) — 공통 다리·몸통을 통째로 띄운다.
     // 더 높이 띄운다(요청) — 0.8 → 1.6.
     const L = 1.28;
+    /** 다리 통째 바깥 회전(도) — 고관절 세로축 둘레(2026-10, 요청: "하템 고관절에서 다리전체를 바깥으로 더 많이 돌리기"). 보병 공통 7 → 28. */
+    const HT_LEG_YAW9 = 28;
     return [
       // 다리는 금색(재지적) — 다리 길이 축소(요청): 엉덩이 축으로 0.68배.
       // 길이 1.2배(0.68 → 0.816)·굽힘 반(bend 0.5)(요청: "다리가 너무 심하게 구부린 듯 좀 더 펴고 길이도 1.2배로").
       // 다리 굵기 0.72배(지적: 너무 두꺼움) · 굽힘 0.7(질럿 1.4의 반) · 길이 0.816 → 0.95 → 1.14(재요청: 1.2배)
       // 정강이만 무릎에서 0.6rad(34도) 위로 접는다(요청: 떠다니는 자세) — 허벅지는 그대로.
-      ...protossLegs(P_GOLD, P_GOLD, L, 1.14, 0, 0.72, 0.7, 0.6, 0.5),   // 정강이 아래 절반은 임자 색(요청)
+      ...protossLegs(P_GOLD, P_GOLD, L, 1.14, 0, 0.72, 0.7, 0.6, 0.5, HT_LEG_YAW9),   // 정강이 아래 절반은 임자 색(요청) · 다리 외회전(HT_LEG_YAW9)
       ...protossTorso(P_GOLD, L, HT_LEAN9),
       // 몸통 위(목·머리·앞가리개·보석·어깨판·망토·팔)는 세운 몸통에 맞춰 옮긴다.
       ...pUpright9(HT_LEAN9, L, (): ShapeFace[] => [
@@ -25558,8 +25593,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            1이면 머리 위로 뻗는다. */
       ...([-1, 1] as const).flatMap((m9): ShapeFace[] => {
         const at9 = poseNow === 2 ? 1 : 0;
+        /* ★ 내린 팔은 **앞으로 아주 살짝 · 안쪽으로 살짝**(2026-10, 요청: "질럿하템 팔 — 앞으로 굽히는건 아주 살짝이고 안쪽으로도
+           살짝 굽혀야해") — 옛 손(x 1.35 · y 0.5)은 어깨(1.05 · −0.2)에서 바깥 0.3·앞 0.7 로 벌어져 늘어졌다. 손 x 0.98(어깨보다
+           안쪽) · y 0.05(앞 0.25) · 어깨에서 설계 자 2.54(두 마디 합 2.7 의 94%) — 팔꿈치가 조금만 바깥·뒤로 꺾인다. 든 팔(at9 1)은
+           그대로(x 1.5 · y 1.15 · z 6.32+L). */
         const w9: [number, number, number] =
-          [m9 * (1.35 + 0.15 * at9), 0.5 + 0.65 * at9, 2.76 + 3.56 * at9 + L];
+          [m9 * (0.98 + 0.52 * at9), 0.05 + 1.1 * at9, 2.54 + 3.78 * at9 + L];
         // 팔꿈치는 두 마디 길이(1.3·1.4) 고정으로 푼다(요청) — 내린 팔은 바깥·뒤로 굽고, 든 팔은 곧다.
         const s9: [number, number, number] = [m9 * 1.05, -0.2, 4.56 + L];
         const e9 = jointBetween(s9, w9, 1.3, 1.4, [m9 * 0.9, -0.4, -0.2]);
@@ -25646,8 +25685,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const dx = Math.sin(a);
       const dy = Math.cos(a);
       /** 이 다리가 나가는 몫 — 대각 짝끼리 같은 부호, 다른 짝은 반대다. */
-      const st9 = wd9 * (ang === 0 || ang === 90 ? 1 : -1) * 0.85;
-      const lift9 = Math.max(0, st9) * 0.5;
+      const sg9: -1 | 1 = ang === 0 || ang === 90 ? 1 : -1;
+      const st9 = wd9 * sg9 * 0.85;
+      // 들림은 **앞으로 옮겨 가는 반 바퀴**에만(2026-10, 여섯 컷 — gaitSwing9) — 앞에 닿은 발은 땅에 있다.
+      const lift9 = gaitSwing9(sg9) * 0.42;
       /* 굵기 감소 + 관절 겹침 제거(재지적: 각도에 따라 이상해 보임) — 무릎에서 두
          마디가 같은 자리를 물고 있어 모서리가 엇갈렸다. 대퇴는 무릎 못 미쳐 끝내고
          하지는 무릎 조금 아래서 시작해, 사이를 작은 관절 덩이가 잇는다. */
