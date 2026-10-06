@@ -23933,15 +23933,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* ★ 눈은 방위각이 아니라 **좌우 수평 이동**이고 통은 **수직**이다(재요청: "눈은 방위각이 아닌 좌우로 수평이동이어야해 원통도 수직으로")
          — 앞 옆구리 x ±`EYE_X9`(0.55) 자리에 세로 통(반지름 0.17 · 높이 0.4 · 반은 벽 속)을 세우고, 눈(렌즈 반지름 0.12)은 그 통의 **앞면**
          (+y · elev 0)에 앉는다. 통 중심 y 는 그 x 에서의 치마 벽(√(EYE_W9² − x²)) — 반이 살 속에 묻힌다. */
-      const EYE_X9 = 0.55; const EYE_TR9 = 0.17; const EYE_TH9 = 0.4;
+      /* ★ 통은 **눈판 뒤로, 눈판에 수직으로** 뻗는다(재재요청: "원통은 눈판 뒤로 수직으로 뻗는다고") — 세로 통이 아니라 눈 법선(+y) 축의
+         가로 통: 벽 속 0.15 에서 앞으로 `EYE_LEN9`(0.3)까지(tubeFaces · 반지름 0.17), 눈판(렌즈 반지름 0.12)은 그 앞 끝면에 정면(+y)으로. */
+      const EYE_X9 = 0.55; const EYE_TR9 = 0.17; const EYE_LEN9 = 0.3;
       const EYE_Y9 = Math.sqrt(Math.max(0.01, EYE_W9 * EYE_W9 - EYE_X9 * EYE_X9));
       void EYE_R9; void EYE_EL9;
       for (const m of [-1, 1] as const) {
-        out.push(...tagKey(paintBase(cylinderFaces3(m * EYE_X9, EYE_Y9, EYE_TR9, EYE_TH9, EYE_Z9 - EYE_TH9 / 2), TOSS_GOLD), depthNow(m * EYE_X9, EYE_Y9) * 1.6 + 2.9));
+        out.push(...tagKey(paintBase(tubeFaces(m * EYE_X9, EYE_Y9 - 0.15, m * EYE_X9, EYE_Y9 + EYE_LEN9, EYE_TR9, EYE_Z9, false), TOSS_GOLD), depthNow(m * EYE_X9, EYE_Y9 + 0.1) * 1.6 + 2.9));
         out.push(...tagKey(contactLens9({
-          cx: m * EYE_X9, cy: EYE_Y9, r: EYE_TR9, hh: EYE_TR9, z0: EYE_Z9,
+          cx: m * EYE_X9, cy: EYE_Y9 + EYE_LEN9 - EYE_TR9, r: EYE_TR9, hh: EYE_TR9, z0: EYE_Z9,
           ang: 0.12 / EYE_TR9, elev: 0, thick: 0.05, rim: "#4e7f18", fill: "#8fe63a", core: "#d9ff8c",
-        }).map(([d, o, f, kk, l, n]) => [d, o * k, f, kk, l, n] as ShapeFace), depthNow(m * EYE_X9, EYE_Y9 + EYE_TR9) * 1.6 + 3));
+        }).map(([d, o, f, kk, l, n]) => [d, o * k, f, kk, l, n] as ShapeFace), depthNow(m * EYE_X9, EYE_Y9 + EYE_LEN9) * 1.6 + 3));
       }
     }
     /* 옆면 둥근 포트(실물 참고) — 몸이 줄면서 가장자리 밖으로 삐져나와 떠 보였다(확인)
