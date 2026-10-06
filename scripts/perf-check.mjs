@@ -691,6 +691,35 @@ if (has("--resizeto")) {
   await page.setViewportSize({ width: Number(flag("--resizeto", vp0.width)), height: vp0.height });
   await page.waitForTimeout(1500);
 }
+/* 폭 훑기(--wsweep W0,W1,STEP [--wsweepdir DIR]) — 창 폭을 차례로 바꾸며 폭마다 `흐림:` 줄·상자·캔버스 배킹을 찍고 지도 상자만 잘라
+   DIR/w<폭>.png 로 남긴다(2026-10, 지적: "브라우저 폭을 줄이거나 늘리면 특정 크기에서만 흐려지고 … 특정 크기는 여러 구간임").
+   선명도는 밖에서 잰다(`$S/sharp.py` — 라플라시안 분산). --diag 와 함께. */
+if (has("--wsweep")) {
+  const [w0, w1, st] = String(flag("--wsweep", "1200,1300,10")).split(",").map(Number);
+  const dir9 = String(flag("--wsweepdir", "."));
+  const vp0 = page.viewportSize();
+  await page.waitForTimeout(1500);
+  await page.evaluate(() => { const b = document.querySelector(".scr-motion-play"); if (b instanceof HTMLElement) b.click(); });   // 멈춘 채 — 폭만 바꾼다
+  await page.waitForTimeout(600);
+  for (let w9 = w0; w9 <= w1; w9 += st) {
+    await page.setViewportSize({ width: w9, height: vp0.height });
+    await page.waitForTimeout(1800);
+    const r9 = await page.evaluate(() => {
+      const blur = Array.from(document.querySelectorAll(".scr-motion-diag div")).map((d) => d.textContent ?? "").find((t) => t.startsWith("흐림:")) ?? null;
+      const d = window.__scrDiag;
+      const m = document.querySelector(".scr-motion-map");
+      const b = m ? m.getBoundingClientRect() : null;
+      const cv = (sel) => { const c = document.querySelector(sel); if (!c) return null; const r = c.getBoundingClientRect(); return `${c.width}/${r.width.toFixed(2)}`; };
+      return { blur, ppt: d ? `${d.ppt}/${d.needed}` : "", box: b ? [b.left, b.top, b.width, b.height] : null,
+        unit: cv(".scr-motion-unitlayer"), terr: cv(".scr-mapvec-sharp"), base: cv(".scr-mapvec-base") };
+    });
+    console.log(`[훑기 ${w9}] 상자 ${r9.box ? r9.box.map((v) => v.toFixed(2)).join(",") : "-"} · 유닛 ${r9.unit} · 지형 ${r9.terr} · 밑판 ${r9.base} · 타일당 ${r9.ppt}`);
+    if (r9.blur) console.log(`[훑기 ${w9}] ${r9.blur}`);
+    if (r9.box) await page.screenshot({ path: `${dir9}/w${w9}.png`, clip: { x: r9.box[0], y: r9.box[1], width: r9.box[2], height: r9.box[3] } }).catch((e) => console.log(`[훑기 ${w9}] 사진 실패 ${e?.message ?? e}`));
+  }
+  await browser.close();
+  process.exit(0);
+}
 /* 파수꾼 자(--guardprobe): 멈춘 채 지도 상자의 CSS 크기만 바꾼다(렌더 없이) — 유닛 캔버스 배킹이 0.4초 안에 따라와야 한다
    (2026-10, 지적: "지형뿐 아니라 모델이 흐려"). */
 if (has("--guardprobe")) {
