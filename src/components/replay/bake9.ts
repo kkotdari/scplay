@@ -23318,13 +23318,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const key = depthNow(tx, -1.45) * 1.6;
       // 크기 축소(요청: "어깨랑 뒤 실린더도 크기 축소") — 반지름 0.66 → 0.54, 높이 3.1 → 2.6.
       // 몸통 뒤가 −1.5로 당겨져 탱크도 −1.7 → −1.25로 앞으로.
-      /* ★ 기통을 **납작하게**(2026-10, 요청: "SCV 정규화시 스러스터 때문에 배율이 작게 나가는 거 같아 — 스러스터 납작하게 해서 안 튀어나오게")
-         — 옛 높이 2.08(z 3.44~5.52 · 뚜껑 5.6)은 조종석 유리 꼭대기(5.35)보다 높아 잉크 상자의 위를 기통이 정했다. 세로 몫을 `SCV_TK9`
-         (0.55)배 — 3.44~4.58 · 뚜껑 4.64(몸통 윗면 4.08 바로 위). 반지름·자리는 그대로. */
-      const SCV_TK9 = 0.55;
-      out.push(...tagKey(paintBase(cylinderFaces3(tx, -1.0, 0.54, 2.08 * SCV_TK9, 3.44), DEEP), key));
-      out.push(...tagKey(paintBase(cylinderFaces3(tx, -1.0, 0.6, 0.304 * SCV_TK9, 3.44 + (5.296 - 3.44) * SCV_TK9), "#e2e6ea"), key + 0.3));
-      out.push(...tagKey(paintBase(cylinderFaces3(tx, -1.0, 0.58, 0.224 * SCV_TK9, 3.44 + (4.52 - 3.44) * SCV_TK9), "#3d3d3d"), key + 0.2));
+      /* (되물림 2026-10) 기통을 ×0.55 로 납작하게 했다가 원복 — 지적: "스러스터가 아니라 굴뚝을 줄였잖아. 굴뚝 원복하고 스러스터를 살짝
+         앞뒤 길이 줄이라고". 굴뚝은 이것(등 기통) · 스러스터는 꽁무니 배기 노즐(아래)이다. */
+      out.push(...tagKey(paintBase(cylinderFaces3(tx, -1.0, 0.54, 2.08, 3.44), DEEP), key));
+      out.push(...tagKey(paintBase(cylinderFaces3(tx, -1.0, 0.6, 0.304, 5.296), "#e2e6ea"), key + 0.3));
+      out.push(...tagKey(paintBase(cylinderFaces3(tx, -1.0, 0.58, 0.224, 4.52), "#3d3d3d"), key + 0.2));
     }
     /* 몸통 — 앞이 좁고 뒤가 넓은 절두체. 앞이 좁아야 그 앞에 앉는 조종석 유리가
        머리처럼 튀어나온 것으로 읽힌다. */
@@ -23412,6 +23410,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        뿌리를 (±1.32, −0.5) 로 옮긴다: x 1.32 에서 팔 각기둥의 안쪽 낯이 0.88 이라 몸통
        살(1.24) 속에 묻히고, y −0.5 는 몸통 앞뒤의 **한가운데**라 옆구리에서 난다. */
     const AK9 = 0.82 * 1.2 * 1.25;
+    /** 팔 두께 배수(2026-10, 요청: "팔 두께 10프로 증가") — 각기둥 0.62 → 0.682 · 하완 낱장 자도 같은 배. */
+    const SCV_ARM_K9 = 1.1; const SCV_ARM_W9 = 0.62 * SCV_ARM_K9;
     const SHX9 = 1.32;    // 뿌리 x — 몸통 옆구리(반폭 1.24) 속에 묻히는 자리
     const SHY9 = -0.5;    // 뿌리 y — 몸통 앞뒤의 한가운데
     /** ★ **짐을 들면 팔을 모은다**(2026-09, 요청: "자원 들었을 때 팔은 좀 모으기") — 팔은 앞으로
@@ -23488,8 +23488,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            이라 낯의 **7할**만 덮었고, 띄움(0.33)도 낯(0.438)보다 안쪽이라 낱장이 살 속에
            잠긴 채 깊이 편향으로만 겨우 비쳤다 — 그래서 '잘 안 보인다'. 둘 다 낯에 맞춘다:
            띄움은 낯 바로 밖(0.46), 반폭은 낯에 꽉 차되 넘지 않게(0.42). */
-        const H9 = 0.46; const H9z9 = 0.368; /* z용 쌍둥이(model-z-scale ×0.8) */                  // 하완 낯까지 + 띄움
-        const W9 = 0.42; const W9z9 = 0.336; /* z용 쌍둥이(model-z-scale ×0.8) */                  // 낱장 반폭 — 낯 너비에 꽉 차게
+        const H9 = 0.46 * SCV_ARM_K9; const H9z9 = 0.368 * SCV_ARM_K9; /* z용 쌍둥이(model-z-scale ×0.8) */                  // 하완 낯까지 + 띄움
+        const W9 = 0.42 * SCV_ARM_K9; const W9z9 = 0.336 * SCV_ARM_K9; /* z용 쌍둥이(model-z-scale ×0.8) */                  // 낱장 반폭 — 낯 너비에 꽉 차게
         const zc9 = 3.696;
         const out9: ShapeFace[] = [];
         // 윗면 낱장 — 내려다보는 화면에서 늘 보인다.
@@ -23522,7 +23522,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          보인다(선체 반폭 1.24 · 구 반지름 0.5 · 뿌리 1.32 이라 0.58 이 밖이다). */
       out.push(...tagKey(paintBase(sphereFaces3(m * SHX9, SHY9, 3.696, 0.5), STEEL),
         depthNow(m * SHX9, SHY9) * 1.6 + key + 0.05));
-      out.push(...tagKey(prism(0, 1, 0.62, STEEL), depthNow(u1, v1) * 1.6 + key + 0.1));   // 어깨부터 손끝까지 한 각기둥
+      // 팔 두께 ×1.1(2026-10, 요청: "팔 두께 10프로 증가") — 0.62 → SCV_ARM_W9. 하완 낱장(armDecal 의 H9·W9)도 같은 배로.
+      out.push(...tagKey(prism(0, 1, SCV_ARM_W9, STEEL), depthNow(u1, v1) * 1.6 + key + 0.1));   // 어깨부터 손끝까지 한 각기둥
       // 개인색 낱장 데칼 두 자리(위 armDecal 주석).
       /* ★ 임자색 띠는 **손끝**이다(요청: "팔길이 줄이고 끝에 임자색 띠 두르기") —
          팔 중턱(0.67~0.75)에 있던 것을 연장 바로 앞으로 옮긴다. 작게 그릴수록 '누구 것인가'가
@@ -23649,16 +23650,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        곧 0.38 이 **떠 있었고**, 부감이라 그 틈으로 배경이 보였다. 0.55 앞으로 옮겨
        앞 끝을 −1.30 에 두면 0.17 이 선체 살 속에 잠긴다('나란히 선 덩이 사이의
        틈' 규약 — 닿게 두지 말고 파고들게). 뒤로 나오는 몫(0.8)은 그대로다. */
+    /* ★ 스러스터 앞뒤 길이를 살짝 줄인다(2026-10, 요청: "스러스터를 살짝 앞뒤 길이 줄이라고") — 뒤 끝 −2.30 → `SCV_THR_Y9`(−2.12 · 몸 뒤로
+       나오는 몫 0.83 → 0.65). 앞 끝(−1.30 · 선체 속 0.17)과 반지름은 그대로 · 불도 그 끝에서 난다. */
+    const SCV_THR_Y9 = -2.12;
     for (const jx of [-0.9, 0.9]) {
       out.push(...tagKey(
-        paintBase(tubeFaces(jx, -1.30, jx, -2.30, 0.44, 3.12, true), TERRAN_STEEL_D),   // 몸통 뒤(−1.47)에 0.17 물림
-        depthNow(jx, -2.35) * 1.6 + 1.1,
+        paintBase(tubeFaces(jx, -1.30, jx, SCV_THR_Y9, 0.44, 3.12, true), TERRAN_STEEL_D),   // 몸통 뒤(−1.47)에 0.17 물림
+        depthNow(jx, SCV_THR_Y9 - 0.05) * 1.6 + 1.1,
       ));
       /* ★ **달릴 때 불이 든다**(2026-09, 요청: "스러스터에 불 켜지는 애들은 이동 모션에 그게
          들어가면 됨 — SCV·벌처·프로브도 스러스터 불 들어와야 하는데 지금 없으면 추가해 줘") —
          비행체가 쓰던 그 규약 그대로다(POSE_KINDS 의 thrust): 움직이는 동안만 자세 1 을 받고,
          빌더는 **그 자세에서만** 불꽃을 낸다. 노즐은 이미 있었으니 불만 얹으면 된다. */
-      if (poseNow === 1) out.push(...thrustFlame(jx, -2.30, 3.12, 0.34, "terran", depthNow(jx, -2.9) * 1.6 + 1.1));
+      if (poseNow === 1) out.push(...thrustFlame(jx, SCV_THR_Y9, 3.12, 0.34, "terran", depthNow(jx, SCV_THR_Y9 - 0.6) * 1.6 + 1.1));
     }
     return out;
   },
@@ -23835,7 +23839,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // 긴 뒷다리 한 쌍은 길이·두께 2/3(지적).
     // 짧은 뒷다리 한 쌍은 더 짧게(지적) — 1.67 → 1.05.
     const TIP_BL9 = 1.1 * BD0 + 1.05 + 1.1 * (1 - BD0);   // 뒤 아래 날개 끝 자리(옛 값 그대로)
-    for (const ang of [138, 222]) out.push(...backWing(ang, 1.1 * BD, TIP_BL9 - 1.1 * BD, 0.23, 0.09, 5, 4));
+    // 짧은 뒤 아래 날개도 ×0.9(2026-10, 요청: "전체적으로 다리 길이 10프로씩 줄여줘(귀여운 느낌)") — 긴 날개와 같은 배(PW_LONG_K9) · 내림(5 → 4)도 같은 몫.
+    for (const ang of [138, 222]) out.push(...backWing(ang, 1.1 * BD, (TIP_BL9 - 1.1 * BD) * PW_LONG_K9, 0.23, 0.09, 5, 5 - (5 - 4) * PW_LONG_K9));
     /* ★ 몸통은 **원**이다(지적: "프로브 몸체는 팔각형 아니고 원형임") — 여덟 모서리를
        세운 팔각 원반이라, 위에서 내려다보는 화면에서 각진 너트로 읽혔다. discPath3은 이
        사영의 바닥 원(눌린 타원)을 바로 내므로 요잉을 따라 도는 것도 그대로다.
@@ -23866,18 +23871,21 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const RTOP9 = 1.55 * BD; const RBOT9 = 1.00 * BD; const RCAP9 = 1.05 * BD;
     const ZTOP9 = 4.96; const ZBOT9 = ZTOP9 - 0.62 * PK9; const ZCAP9 = ZTOP9 + 0.24 * PK9;
     out.push(...tagKey([
-      // 치마는 금색, 어깨·뚜껑은 안 칠한다 = 임자 색(요청: 몸통 위 원판만 개인색).
+      /* ★ 몸통은 **전부 금색**이고 윗면 가운데에 **임자색 원판**만 덮인다(2026-10, 요청: "프로브 몸통은 금색이고 윗면의 가운데에 임자색
+         원판이 덮인 모양이어야함 전체가 임자색이 아니고") — 옛 판은 어깨·뚜껑을 안 칠해 몸통 위 절반이 통째로 임자 색이었다. 이제 치마·
+         어깨·뚜껑 다 금색, 원판(반지름 0.62·BD · 안 칠한 낯 = 임자 색)을 뚜껑 위 한 뼘(0.022)에 얹고 옛 광(0.3)은 그 위 한 뼘 더. */
       ...paintBase(spirePillar({
         x: 0, y: 0, h: 1, w: RBOT9, tipW: RTOP9, segs: 1, sides: 12, caps: "bottom", trueNormal: true,
         path: (t9: number): [number, number, number] => [0, 0, ZBOT9 + (ZTOP9 - ZBOT9) * t9],
         widthOf: (t9: number): number => RBOT9 + (RTOP9 - RBOT9) * t9,
       }), TOSS_GOLD),
-      ...spirePillar({
+      ...paintBase(spirePillar({
         x: 0, y: 0, h: 1, w: RTOP9, tipW: RCAP9, segs: 1, sides: 12, caps: "top", trueNormal: true,
         path: (t9: number): [number, number, number] => [0, 0, ZTOP9 + (ZCAP9 - ZTOP9) * t9],
         widthOf: (t9: number): number => RTOP9 + (RCAP9 - RTOP9) * t9,
-      }),
-      topFace(discPath3(0, 0, ZCAP9 + 0.02, 0.62 * BD), 0.3),
+      }), TOSS_GOLD),
+      [discPath3(0, 0, ZCAP9 + 0.022, 0.62 * BD), 1] as ShapeFace,   // 임자색 원판(안 칠한 낯)
+      topFace(discPath3(0, 0, ZCAP9 + 0.044, 0.62 * BD), 0.3),
     ], depthNow(0, 0) + 2.5));
     /* 눈 두 개(재지적: 몸통에 수직으로 붙여 정면을 보게 + 더 작게) — 바닥에 눕던
        타원을 정면 벽 데칼(wallDiscPath)로 세운다. 벽과 함께 돌고 눌리며, 뒤로 돌면
