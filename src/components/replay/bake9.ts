@@ -1971,7 +1971,7 @@ export const LEG_STANCE9 = 0.5;
 /** 하템 다리의 통째 요잉(도) — 고관절에서 다리 전체를 바깥으로 더 벌린다(2026-10, 요청: "걷지않아서 괜찮"). 질럿·다크는 P_LEG_YAW9(7). */
 export const HT_LEG_YAW9 = 30;
 /** 하템 다리의 외전(도) — 고관절에서 대퇴부터 바깥으로 벌어진다(2026-10, 지적: "하템 대퇴부터 바깥으로 돌려야지"). */
-export const HT_LEG_SPLAY9 = 22;
+export const HT_LEG_SPLAY9 = 10;   // 22 → 10(2026-10, 지적: "하템 다리 너무 벌림 여덟팔자로 벌리면서 내려가는건 좀 줄여야할듯")
 const LEG_REACH9 = 0.96;
 /** 공격 컷(2·4·5)의 스탠스 배수 — 선 자세보다 한 걸음 더 벌린다. */
 export const LEG_STANCE_ATK9 = 1.6;
