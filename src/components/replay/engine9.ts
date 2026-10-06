@@ -1027,6 +1027,11 @@ export const COMSAT_SWEEP9 = 36;
      덩이 하나가 2.2초에 나서 오르고 스러진다(초당 7.2번 갈림 · 덩이 걸음 1.6px 남짓이라 이어져 보인다).
      ⚠ 더 빠르게 하면 덩이가 튀고, 칸을 늘리면 메시 벌이 는다(폰 240벌) — 값을 고치려면 둘을 함께 보라. */
 export const SPIN_WORK_KINDS9 = new Set(["forge", "cyber", "mshop"]);
+/** ★ 코어는 **안 깜빡이고 켜 둔 채 빠르게 돈다**(2026-10-06, 요청: "코어 활성화시 디스크 깜빡이지 말고 불 계속 켜진 채 빠르게 회전")
+ *  — 연구 중 lit 를 0.9초 박자로 토글하지 않고(지도·도록 둘 다) 상시 켠다. 걸음은 1.6 → `CORE_SPIN_RATE9`(3.2 바퀴/초 · 살 셋이
+ *  120도 대칭이라 눈에는 1.07바퀴/초 · 16칸이라 초당 51번 갈림). 포지·머신샵은 그대로(1.6 · 깜빡임). */
+export const LIT_STEADY_KINDS9 = new Set(["cyber"]);
+export const CORE_SPIN_RATE9 = 3.2;
 export const GAS_SPIN_KINDS9 = new Set(["geyser", "refinery", "assim", "extract"]);
 /* ★ 0.45 → **0.3**(2026-09, 요청: "가스 나오는 텀 길게") — 한 바퀴 2.2 → 3.3초. 덩이는 바퀴의 앞 0.25 에서만 나고
    0.65 에 다 스러지므로(bake9 gasPuffs9 의 duty·life) 굴뚝 하나는 **2.2초 내고 1.2초 쉰다**(번갈아 나오는 간헐천·
@@ -1036,7 +1041,7 @@ export const GAS_SPIN_RATE9 = 0.3;
 export const spinRateOf9 = (kind: string, working: boolean): number =>
   GAS_SPIN_KINDS9.has(kind) ? GAS_SPIN_RATE9
     : kind === "warpin" ? 0.6   // 소환구 에너지 그물 — 열여섯 칸이 초당 9.6번 갈린다(다크 웹의 지직거림과 같은 박자)
-      : SPIN_WORK_KINDS9.has(kind) ? (working ? 1.6 : 0) : 2.2;
+      : SPIN_WORK_KINDS9.has(kind) ? (working ? (kind === "cyber" ? CORE_SPIN_RATE9 : 1.6) : 0) : 2.2;
 /** 사일로가 핵을 **만드는** 시간(초) — 원작 1500프레임(가장 빠름 ≈ 63초). 자취에는 미사일이 다 만들어진
  *  뒤(장전)부터 실리므로 그 앞 이만큼을 '만드는 중'으로 본다. */
 export const NUKE_BUILD_SEC9 = 63;
@@ -6493,8 +6498,9 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
              피직스랩은 연구(researching)가 켜고, **컴샛은 스캔**(그 임자의 Scanner Sweep 이 SCAN_DETECT_SEC 안)이,
              **핵 사일로는 핵**(만드는 동안 깜빡 · 장전되면 쏠 때까지 켜 둠 — nukeArm9)이 켠다. */
           /* ★ 나이더스 굴 속 라임 불빛은 **늘** 깜빡인다(2026-09, 요청: "평소에도 깜빡거리기") — 활성과 무관한 신호등이다. */
+          // 코어(LIT_STEADY_KINDS9)는 깜빡이지 않고 연구 중 내내 켜 둔다(2026-10-06 요청).
           lit: !bldFrozen9 && ((producing || researching || scanLit9 || nukeBuild9 || shapeKind === "nydus")
-            && (!qAnim || ((((t + i * 0.17) % 0.9) + 0.9) % 0.9) < 0.6) || nukeArmed9),
+            && (!qAnim || LIT_STEADY_KINDS9.has(shapeKind) || ((((t + i * 0.17) % 0.9) + 0.9) % 0.9) < 0.6) || nukeArmed9),
           ...((): { pulseK?: number } => {
             /* ★ 저그 활성 건물의 숨(ZERG_PULSE_K9 의 ★) — 해처리류의 생산(라바 → 알)은 뺀다. */
             if (race2 !== "저그" || bldFrozen9 || raising) return {};
