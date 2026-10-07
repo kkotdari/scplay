@@ -33,6 +33,11 @@ const MARKERS = new Set([
        scr-motion-warmnote  — 굽는 중 글줄. 화장은 .scr-motion-simnote가 진다
        scr-guide-tbtn-share — 안내의 '장면 공유' 단추. 화장은 .scr-guide-tbtn이 진다 */
   "scr-motion-pitched", "scr-motion-warmnote", "scr-guide-tbtn-share",
+  /* 도록(ModelCatalog — 2026-10 scplayer 에서 옮김)의 이름표 셋 — scplayer 시절에도 규칙이 없었다:
+       scr-doc-calitem  — 크기 보정 칸. 화장은 .scr-doc-item 이 진다
+       scr-doc-calsvg   — 크기 보정 그림. 화장은 .scr-doc-calbox .scr-doc-svg 가 진다
+       scr-doc-popclose — 모션 팝업 닫기. 화장은 단추 기본값이다 */
+  "scr-doc-calitem", "scr-doc-calsvg", "scr-doc-popclose",
 ]);
 
 const files = [];

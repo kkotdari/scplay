@@ -10,8 +10,8 @@
   --font-mono: "D2Coding", ui-monospace, "SF Mono", "Cascadia Code", "Consolas", "Roboto Mono", monospace;
   --fs-body: 16px; --fs-caption: 14px; --fs-micro: 12px; --fs-10: 10px; --fs-9: 9px;
   --radius: 12px; --radius-sm: 8px; --radius-chip: 6px; --safe-top: env(safe-area-inset-top, 0px);
-  --lit-pill-bg: rgba(255, 255, 255, 0.92); --lit-pill-glow: 0 0 10px rgba(255, 255, 255, 0.22), 0 0 26px rgba(255, 255, 255, 0.1);
-  --lit-hover-bg: rgba(255, 255, 255, 0.1); --lit-hover-glow: 0 0 8px rgba(255, 255, 255, 0.1), 0 0 16px rgba(255, 255, 255, 0.04);
+  --lighting-pill-bg: rgba(255, 255, 255, 0.92); --lighting-pill-glow: 0 0 10px rgba(255, 255, 255, 0.22), 0 0 26px rgba(255, 255, 255, 0.1);
+  --lighting-hover-bg: rgba(255, 255, 255, 0.1); --lighting-hover-glow: 0 0 8px rgba(255, 255, 255, 0.1), 0 0 16px rgba(255, 255, 255, 0.04);
   --overlay-rgb: 255, 255, 255;
 }
 :where(.scr-guide .scr-btn) {
@@ -1284,7 +1284,7 @@
 }
 
 .scr-motion-litbtn.scr-motion-litbtn-on {
-  background: var(--lit-pill-bg); box-shadow: var(--lit-pill-glow); color: #10151a;
+  background: var(--lighting-pill-bg); box-shadow: var(--lighting-pill-glow); color: #10151a;
 }
 /* 맵연결(요청: 별도로 맵 좌상단에) — 마커·칩(z 최대 3만대)보다 위, 어두운 지도 위라
    유리 바탕을 한 겹 진하게. */
@@ -1323,7 +1323,7 @@
   border: none; background: transparent; color: var(--text); cursor: pointer; padding: 0;
   -webkit-tap-highlight-color: transparent;
 }@media (hover: hover) {
-  .scr-motion-play:hover { color: var(--text); background: var(--lit-hover-bg); box-shadow: var(--lit-hover-glow); }
+  .scr-motion-play:hover { color: var(--text); background: var(--lighting-hover-bg); box-shadow: var(--lighting-hover-glow); }
 }
 
 /* 시각 위·공유 아래(요청) — 오른끝 세로 스택. */
@@ -1367,11 +1367,11 @@
   height: 24px; min-height: 0; padding: 0 6px; font-size: 11px; gap: 4px; font-weight: 600;
   white-space: nowrap; line-height: 1; flex: 0 0 auto;
   background: #fff; color: #10151a; border: 1px solid #fff; border-radius: 8px;
-  box-shadow: var(--lit-pill-glow);
+  box-shadow: var(--lighting-pill-glow);
 }
 .scr-motion-mobrow .scr-kakao-share-btn svg { width: 11px; height: 11px; color: #10151a; }
 .scr-light-theme .scr-motion-mobrow .scr-kakao-share-btn {
-  background: var(--lit-pill-bg); border-color: transparent; color: var(--text);
+  background: var(--lighting-pill-bg); border-color: transparent; color: var(--text);
 }
 .scr-light-theme .scr-motion-mobrow .scr-kakao-share-btn svg { color: var(--text); }
 /* 배속은 한 단 더 작게(요청: "크기를 줄이고") — 라벨을 위가 아니라 옆에 두어 줄
@@ -4199,3 +4199,235 @@
   50% { opacity: 0.45; filter: none; box-shadow: none; }
 }
 @media (prefers-reduced-motion: reduce) { .scr-split-badge { animation: none; } }
+
+/* ── 모델 도록(요청: "scplayer에 도록 페이지 추가" · 2026-10 scplayer global.css 에서 옮김 — ModelCatalog.tsx) ────────────────────────────────
+   모델을 그리는 일은 scplay의 ShapeIcon이 다 한다 — 여기는 **자리와 칸**만 정한다.
+   두 자리에서 화면 너비가 갈린다:
+     · 각도 줄  PC 여덟 방(0도부터 45도씩) · 좁은 화면 네 방(45·135·225·315).
+       칸 수 자체가 갈리므로 그리는 쪽(GalleryScreen)이 정하고, 여기서는 폭만 맞춘다.
+     · 모션 팝업 PC 가로 셋 · 모바일 세로 셋.
+   개인색은 화면이 style로 내려 준다(고정 에메랄드 연두) — 칠 안 한 면이 currentColor를
+   먹는 scplay 규약 그대로다. 그래서 이 파일에는 그 색이 안 적혀 있다. */
+.scr-doc {
+  display: flex; flex-direction: column; gap: 18px;
+  /* ★ 개인색 — **모델에만** 든다(지적: "도록의 글자들까지 에메랄드 네온이라 잘 안 보임").
+     ShapeIcon은 칠 안 한 면을 currentColor로 채우므로(scplay 규약), 이 색을 컨테이너의
+     color로 주면 **글자까지** 함께 물려받는다. 그래서 값은 변수로 두고, 실제로 color를
+     거는 자리는 아래 `.scr-doc-svg` 한 곳뿐이다 — 글자는 앱 기본색 그대로다.
+     색은 지시받은 값 그대로다. 고정이라 손잡이를 안 만든다. */
+  --scr-doc-own: #64ff64;
+}
+
+.scr-doc-picks { display: flex; flex-direction: column; gap: 8px; }
+
+.scr-doc-pickrow { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.scr-doc-pickrow button {
+  font-family: inherit; font-size: 13px; color: var(--text-dim);
+  background: none; border: 1px solid var(--line); border-radius: 999px;
+  padding: 6px 14px; cursor: pointer;
+}
+
+.scr-doc-pickrow button:hover { color: var(--text); border-color: var(--point); }
+
+.scr-doc-pickrow button.is-on { color: var(--text); border-color: var(--point); background: rgba(230, 162, 62, 0.12); }
+/* 라이트 테마의 활성 버튼은 푸른빛(요청) — 주황 포인트 대신 임자색 파랑 계열. */
+.scr-light-theme .scr-doc-pickrow button:hover { border-color: #2b62e8; }
+.scr-light-theme .scr-doc-pickrow button.is-on { color: #1d3f9a; border-color: #2b62e8; background: rgba(43, 98, 232, 0.12); }
+
+/* 종족 줄은 갈래 줄보다 한 단 작다 — 위가 페이지를 가르고 아래는 그 안을 거른다. */
+.scr-doc-pickrow.is-race button { font-size: 12px; padding: 5px 12px; }
+
+.scr-doc-empty { color: var(--text-dim); font-size: 13px; padding: 32px 0; text-align: center; }
+
+.scr-doc-list { display: flex; flex-direction: column; gap: 22px; }
+
+.scr-doc-item { border-top: 1px solid var(--line); padding-top: 14px; }
+
+.scr-doc-itemhead { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+
+.scr-doc-itemhead h3 { margin: 0; font-size: 15px; font-weight: 700; color: var(--text); }
+
+.scr-doc-race { font-size: 11px; color: var(--text-dim); border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; }
+
+/* 모션 버튼은 **오른쪽 끝**으로 민다 — 이름과 붙어 있으면 이름의 일부로 읽힌다. */
+.scr-doc-motion {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 4px;
+  font-family: inherit; font-size: 12px; color: var(--text-dim);
+  background: none; border: 1px solid var(--line); border-radius: 999px;
+  padding: 4px 10px; cursor: pointer;
+}
+
+.scr-doc-motion:hover { color: var(--text); border-color: var(--point); }
+
+/* 각도 줄 — 여덟 칸이 기본, 좁으면 네 칸이다. 폰에서는 **한 줄에 두 컷**(요청). */
+.scr-doc-angles { display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; }
+
+.scr-doc-angles.is-narrow { grid-template-columns: repeat(4, 1fr); }
+
+@media (max-width: 560px) {
+  .scr-doc-angles.is-narrow { grid-template-columns: repeat(2, 1fr); }
+}
+
+.scr-doc-angle {
+  /* 칸은 **늘려서** 담는다 — center로 담으면 자식이 내용 폭으로 오그라들어 SVG가 제
+     기본 폭(16px)에 갇힌다(실측). 가운데 정렬이 필요한 것은 글자뿐이라 그쪽만 따로 준다. */
+  display: flex; flex-direction: column; align-items: stretch; gap: 2px; text-align: center;
+  border: 1px solid var(--line); border-radius: 10px; padding: 6px 2px 3px;
+  background: var(--panel);
+}
+
+.scr-doc-angle > span { font-size: 10px; color: var(--text-dim); }
+
+/* 각도 칸은 곧 팝업의 문이다(요청: "이미지 클릭 시 바로 팝업") — 손이 닿는 자리임을 보여 준다. */
+.scr-doc-angle.is-link { cursor: pointer; }
+.scr-doc-angle.is-link:hover { border-color: var(--point); }
+
+/* 쓸어내려 닫기(모바일) — 상자가 손가락을 따라 내려오고, 놓으면 제자리로 돌아온다. */
+.scr-doc-popbox { transition: transform 0.18s ease-out, opacity 0.18s ease-out; touch-action: pan-y; }
+
+/* 모델 칸의 높이는 **못 박는다** — SVG는 제 안의 창(viewBox)만 알고 바깥 높이를 스스로
+   못 정한다. width만 주면 칸이 납작하게 눌려 모델이 점이 된다(첫 판이 그랬다). */
+/* ★ align-self: stretch가 있어야 한다 — 칸이 `align-items: center`인 세로 플렉스라
+   자식이 **내용 폭으로 오그라든다**. 그러면 width:100%가 그 오그라든 폭을 기준으로 풀려
+   SVG가 제 기본 폭(16px)에 갇힌다(실측: 팝업 SVG가 16x240이었다). */
+/* ★ 골라내는 자를 **한 단 올린다**(.scr-doc를 앞에 세운다) ────────────────────────
+   ShapeIcon이 붙이는 scplay 쪽 클래스가 `.scr-motion-shape-svg { width: 1em; height: 1em }`
+   이고, **scplay의 CSS가 앱 공통 CSS 뒤에 실린다**(그 패키지 README의 규약이다). 같은
+   급(0,1,0)이면 뒤가 이기므로 `.scr-doc-svg`만으로는 진다 — 실측으로 팝업 SVG가 계속
+   16x240이었다(1em = 16px가 그 16이다). 한 단 올리면 그 규약을 안 건드리고 이긴다. */
+.scr-doc .scr-doc-svg {
+  width: 100%; height: auto; display: block;
+  /* 개인색이 드는 **유일한 자리** — 위 --scr-doc-own 주석 참고. */
+  color: var(--scr-doc-own);
+}
+
+.scr-doc .scr-doc-angle .scr-doc-svg { height: 104px; }
+
+/* 폰은 한 줄에 두 컷이라 칸이 넓다 — 높이도 그만큼 준다. */
+@media (max-width: 560px) {
+  .scr-doc .scr-doc-angle .scr-doc-svg { height: 132px; }
+}
+
+.scr-doc .scr-doc-popcell .scr-doc-svg { height: 240px; }
+
+/* ★ 트레이서는 모델 **위에 겹친다**(요청: "트레이서는 공격 셀에 같이 넣어야 함") — 한 칸에
+   두 캔버스가 포개지므로 자리를 잡아 줄 상자가 하나 필요하다. 겹쳐 그리는 쪽은 그림이라
+   손짓을 가로채면 안 된다(pointer-events: none) — 칸을 끌어 요잉을 돌리는 자리다. */
+.scr-doc-popart { position: relative; display: block; }
+
+.scr-doc .scr-doc-popart .scr-doc-shot {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  display: block; pointer-events: none;
+}
+
+/* ── 모션 팝업 ─────────────────────────────────────────────────────────────── */
+.scr-doc-pop {
+  position: fixed; inset: 0; z-index: 90;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+  background: rgba(0, 0, 0, 0.62);
+}
+
+/* ★ 팝업 속을 끝까지 굴려도 **뒤 페이지가 안 따라 굴러간다**(2026-09, 지적: "도록 팝업 스크롤
+   최하단에서 뒷페이지의 세로 스크롤로 전파됨") — 브라우저 기본은 안쪽 상자가 끝에 닿으면 남은
+   몫을 **부모에게 넘긴다**(스크롤 체이닝). 덮개(.scr-doc-pop)가 화면을 다 가리고 있어도 휠·터치는
+   그 밑 목록을 굴린다. `contain` 이 그 넘김만 막는다(`none` 은 당겨서 새로고침까지 막는 자라,
+   덮개 안에서는 굳이 셀 일이 아니다).
+   ⚠ 덮개에도 함께 건다 — 팝업 상자 **밖(어두운 여백)**에서 굴리면 그 넘김은 덮개가 낸다.
+   ⚠⚠ **이 자만으로는 모자란다**(2026-09, 지적: "도록에서 스크롤 없는 경우 뒤로 세로 스크롤 아직
+     전파됨") — `overscroll-behavior` 는 **스크롤 포트**의 성질이라 굴릴 몫이 0 이면 브라우저가 그
+     상자를 아예 건너뛰고 문서를 굴린다(덮개는 overflow 가 visible 이라 포트도 아니다). 그래서
+     팝업이 열려 있는 동안 **문서 스크롤을 잠근다**(GalleryScreen 의 그 effect) — 여기 두 줄은
+     '끝까지 굴렸을 때의 넘김'을 막는 몫으로 남는다. */
+.scr-doc-pop { overscroll-behavior: contain; }
+
+.scr-doc-popbox {
+  width: min(880px, 100%); max-height: 92vh; overflow: auto; overscroll-behavior: contain;
+  border: 1px solid var(--line); border-radius: 16px; background: var(--card-bg);
+  padding: 14px 16px 16px;
+}
+
+.scr-doc-pophead { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+
+.scr-doc-pophead h3 { margin: 0; font-size: 15px; font-weight: 700; color: var(--text); }
+
+/* 자동 요잉 단추 — 모델명 바로 옆(요청). 켜지면 임자색으로 눌린 꼴이 된다. */
+.scr-doc-popspin {
+  font-family: inherit; font-size: 11px; line-height: 1;
+  display: inline-flex; align-items: center; gap: 4px;
+  color: var(--text-dim); background: none; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 999px; padding: 4px 8px;
+}
+
+.scr-doc-popspin:hover { color: var(--text); }
+
+.scr-doc-popspin.is-on { color: var(--accent); border-color: var(--accent); }
+
+.scr-doc-popview { margin-left: auto; display: flex; align-items: center; gap: 5px; }
+
+/* 시점 알약 셋(평면·사선·입체)은 걷었다(지시) — 이 줄에는 닫기만 남는다. */
+.scr-doc-popview button {
+  font-family: inherit; color: var(--text-dim);
+  background: none; border: 0; border-radius: 999px; padding: 4px; cursor: pointer;
+}
+
+.scr-doc-popview button:hover { color: var(--text); }
+
+/* 셋을 나란히 — PC 가로, 모바일 세로(요청). 끄는 손을 캔버스가 먹게 touch-action을 끈다
+   (안 그러면 브라우저가 세로 스크롤로 채 가서 요잉이 안 돈다). */
+/* touch-action: pan-y — 가로 손짓만 우리가 먹고 세로는 브라우저에 넘긴다(지적: "세로
+   스크롤이 안됨"). none이던 값이 팝업 안 스크롤을 통째로 끄고 있었다: 모바일에서는
+   세 칸이 세로로 쌓여 이 무대가 팝업의 거의 전부라, 창을 내릴 길이 없었다.
+   짝이 되는 자바스크립트 쪽 규약은 GalleryScreen의 onMove다 — 가로가 이길 때만
+   포인터를 잡는다. */
+.scr-doc-popstage {
+  /* 칸 수는 그 모델이 가진 움직임이 정한다(유닛 셋 · 건물 셋 · 핵탄두 둘) — 화면이
+     칸 수를 --cells 로 내려 준다. 못 박으면 두 칸짜리가 한쪽으로 쏠린다. */
+  display: grid; grid-template-columns: repeat(var(--cells, 3), 1fr); gap: 10px;
+  cursor: ew-resize; touch-action: pan-y; user-select: none;
+}
+
+.scr-doc-popstage.is-tall { grid-template-columns: 1fr; }
+
+.scr-doc-popcell {
+  margin: 0; display: flex; flex-direction: column; align-items: stretch; gap: 4px; text-align: center;
+  border: 1px solid var(--line); border-radius: 12px; padding: 8px 6px 6px;
+  background: var(--panel);
+}
+
+.scr-doc-popcell figcaption {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  /* 글자만 가운데로 — 칸 자체는 위에서 늘려 담는다. */
+  font-size: 12px; color: var(--text-dim);
+}
+
+.scr-doc-same { font-size: 10px; color: var(--dim); opacity: 0.75; }
+
+.scr-doc-pophint { margin: 10px 0 0; text-align: center; font-size: 11px; color: var(--text-dim); }
+
+.scr-doc-back {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 4px;
+  font-family: inherit; font-size: 12px; color: var(--text-dim);
+  background: none; border: 0; padding: 4px 6px; border-radius: 8px; cursor: pointer;
+}
+
+.scr-doc-back:hover { background: rgba(127, 127, 127, 0.16); color: var(--text); }
+
+/* 아직 안 구운 각도 칸 — 구운 칸과 같은 자리를 잡아 스크롤이 안 튄다(위 useNear). */
+.scr-doc .scr-doc-hold { background: rgba(127, 127, 127, 0.06); border-radius: 8px; }
+
+/* ── 도록 크기 보정 모드(?cal) — 격자 바닥 한 칸이 한 타일이고, 모델 상자는 지도가 앉히는 그 크기다. */
+.scr-doc-cal { --tile: 36px; }
+.scr-doc-calnote { opacity: 0.65; font-size: 12px; margin: 0 0 8px; }
+.scr-doc-calfloor {
+  position: relative; width: 100%; min-height: calc(var(--tile) * 6); padding: var(--tile);
+  display: flex; align-items: center; justify-content: center; box-sizing: border-box;
+  background-color: #3a4048;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.14) 0 1px, transparent 1px var(--tile)),
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.14) 0 1px, transparent 1px var(--tile));
+  background-size: var(--tile) var(--tile);
+  border-radius: 8px; overflow: hidden;
+}
+.scr-doc-calbox { position: relative; flex: 0 0 auto; }
+.scr-doc .scr-doc-calbox .scr-doc-svg { width: 100%; height: 100%; display: block; }

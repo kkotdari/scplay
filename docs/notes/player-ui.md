@@ -848,3 +848,8 @@ dpr 0.9 · 캔버스 가속 켜짐 · WebGL 가속 · 벤치는 선명할 때도
   `ffmpeg -i raw.wav -af volume=<봉우리를 −1.5dBFS로 맞추는 값>dB -b:a 192k out.mp3`.
   브라우저 안에서 MIDI 를 바로 트는 길은 없다고 본다 — 합성에 Web Audio 가 필요한데 AudioContext 를 열면 사파리가 무음 스위치를 무시하는
   세션으로 넘어간다(useBgm.ts 머리의 규칙). 미리 굽는 길만 그 성질을 지킨다.
+
+## 앱 라이팅 토큰 이름(2026-10-07)
+앱이 주는 빛 토큰 `--lit-*`(pill-bg·pill-glow·hover-bg·hover-glow 따위)를 `--lighting-*` 로 바꿨다(요청: "라이팅 테마 css에 lighting이라는 이름이
+안들어가있으면 맨 앞에 prefix로"). replay.css 의 쓰는 자리 10곳을 함께 갈았다 — 앱(sg-web·stargayte)은 같은 날 `--lighting-*` 로 정의한다.
+옛 이름을 쓰는 앱(scplayer)은 락을 올리면 그 빛이 빠진다 — scplayer 는 지울 예정이라 따로 안 맞췄다.

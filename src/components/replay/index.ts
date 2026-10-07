@@ -76,3 +76,7 @@ export {
 export { BUILD_STAGES } from "./engine9";
 export type { ShapeGalleryItem } from "./ReplayMotionPlayer";
 export type { DocAnim9, DocCell9 } from "./ReplayMotionPlayer";
+/* ── 도록 페이지(2026-10, 요청: "도록을 scplay에 포함시킬것임 재생기가 아니라 도록 페이지 자체를 제공함") ──
+   위 넷으로 scplayer 가 짓던 화면을 통째로 들였다(ModelCatalog.tsx 머리말). 앱은 갈래만 쥐고 넘긴다. */
+export { default as ModelCatalog } from "./ModelCatalog";
+export type { ModelCatalogGroup } from "./ModelCatalog";

@@ -405,3 +405,10 @@ sin40 = 0.643 칸인데, 인형은 `(−sin d, cos d)·거리` 의 **원** 위�
 흰 배경 · 임자색 #2b62e8 · 폭 660 · dpr 3)도 스크립트 안에 있다. 카드 판형은 doc-sheet 의 `--per-row N`(0 = 옛 한 종 한 줄)이다.
 그림은 **GL 붓**(`DocIcon9` → gl9 메시, 지도가 그리는 그 그림)이 기본이다(2026-09) — 키값·마주 봄 판정 같은 2D 전용 어긋남이 도록에
 안 실린다. 옛 2D 면 그림(ShapeIcon SVG)은 `--2d`(폰·`#gl=0` 이 아직 그 길이라 검토용). 앱 도록(scplayer GalleryScreen)도 DocIcon9 다.
+
+## 도록 페이지를 패키지로(2026-10-07)
+요청: "도록을 scplay에 포함시킬것임 재생기가 아니라 도록 페이지 자체를 제공함". scplayer 의 `GalleryScreen` 을 `ModelCatalog.tsx` 로 옮기고
+`ModelCatalog`·`ModelCatalogGroup` 을 index.ts 로 낸다. 앱은 갈래(`유닛`·`건물`·`부가`)와 `onGroup` 만 준다 — 주소는 앱이 적는다.
+`onClose` 를 주면 맨 아래 '돌아가기' 단추가 선다(탭 안에 둔 앱은 안 준다). CSS 는 scplayer global.css 의 '모델 도록' 절을 그대로
+replay.css 끝으로 옮겼고, 규칙 없던 이름표 셋(`scr-doc-calitem`·`calsvg`·`popclose`)은 css-guard MARKERS 에 적었다.
+쓰는 앱: sg-web(회원 탭 '도록' · 손님 탭 '도록'). scplayer 는 지울 예정이라 따로 안 바꿨다.
