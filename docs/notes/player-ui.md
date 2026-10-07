@@ -864,3 +864,10 @@ dpr 0.9 · 캔버스 가속 켜짐 · WebGL 가속 · 벤치는 선명할 때도
   (`body.scr-gamepage-open`) PWA(standalone)에서는 첫 화면의 조종 줄이 홈 인디케이터(아이폰 34px) 밑에 깔렸다. 브라우저는 바가 보이는 동안 0.
   ⚠ 헤드리스는 env() 가 0 이라 못 잰다 — 실기 PWA 에서 볼 값이다(판 바닥이 홈 인디케이터 위 12px 에 선다).
 🔎 앱 쪽 수치는 sg-web 하네스(실제 global.css + replay.css 를 393×852 에 올려 getBoundingClientRect)로 쟀다 — 밑줄→머리 줄 20 → 10 · 머리 줄→판 14 → 8.
+
+## K/D 표시를 걷었다(2026-10)
+요청: "킬데스 로직은 그대로 두되 통계와 재생기에서 숨기고" — 킬데스는 마지막에 죽인 사람만 세어 여럿이 함께 잡은 몫을 못 가른다
+(앱 통계는 준·입은 데미지로 간다 · 덤퍼 `##DMG##` · sg-api). 걷은 자리: 로스터 머리·줄의 K/D 칸(`--roster-cols` 세 벌에서
+36px · 30px · 28px×dk 칸을 뺐다), 현황 한 줄(`whoStats9` — `.scr-who-v` 폭은 APM 이 4번째가 되어 3ch · 5번째 규칙은 지웠다),
+안내(ReplayGuide)의 K/D 항목. 셈은 그대로다 — `kdSeries9`·`kdNow`·`capOf9.kd`·처치 절 해독(openbwTracks `kills`)·
+중계 편성(cast9 는 처치로 장면을 묶는다). 되살리려면 칸·폭을 되돌리고 세 자리에 span 을 다시 세운다.

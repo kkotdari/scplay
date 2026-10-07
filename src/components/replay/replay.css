@@ -407,7 +407,7 @@
      끌 때마다(지표 칸 156px + 사이 20px이 생겼다 사라진다) 이름 칸이 106 ↔ 282px로
      출렁이고, 종족 배지도 그만큼 좌우로 뛴다. 한 값으로 못 박으면 두 꼴이 한 픽셀도
      안 다르고, 판 폭은 아래에서 이 값으로부터 계산된다(--roster-name). */
-  grid-template-columns: var(--roster-cols, var(--roster-name, 132px) 26px 44px 30px 28px 36px 28px);
+  grid-template-columns: var(--roster-cols, var(--roster-name, 132px) 26px 44px 30px 28px 28px);
   align-items: center; gap: 0 4px; width: 100%; padding: 0 5px; margin: 0;
 }
 /* 컬럼 라벨 줄(요청: "일꾼 라벨 없애고 대신 컬럼 라벨을 맨위 추가(표 형식)") — 표의
@@ -536,7 +536,7 @@
      이 파일 훨씬 뒤에 있고 무게가 같아(0,1,0) 여기 적으면 그쪽에 덮인다. 미디어 질의는
      무게를 안 올린다. 값은 그 규칙 **뒤**의 짝 미디어 블록이 정한다(판 폭과 한자리에서). */
   .scr-motion-sidepanel {
-    --roster-cols: var(--roster-name, 112px) 20px 38px 26px 26px 30px 24px;
+    --roster-cols: var(--roster-name, 112px) 20px 38px 26px 26px 24px;
   }
   .scr-motion-teamcol-rows .scr-motion-teamrow { gap: 0 2px; padding: 0 3px; }
 }
@@ -557,7 +557,7 @@
 .scr-fs-roster-fixed {
   --dk: var(--dk-roster, 1.2);   /* 로스터만 독의 1.2배(위 .scr-motion 의 --dk-roster) */
   --roster-cols: var(--roster-name, calc(90px * var(--dk))) calc(18px * var(--dk)) calc(34px * var(--dk)) calc(24px * var(--dk))
-    calc(24px * var(--dk)) calc(28px * var(--dk)) calc(22px * var(--dk));
+    calc(24px * var(--dk)) calc(22px * var(--dk));
 }
 .scr-fs-roster-fixed .scr-motion-teamcol-rows .scr-motion-teamrow {
   gap: 0 calc(2px * var(--dk)); padding: 0 calc(3px * var(--dk)); margin: 0 calc(-3px * var(--dk));
@@ -3343,8 +3343,7 @@
 .scr-who-r + .scr-who-r { margin-left: 0.5ch; }   /* 광물·가스 사이 — / 를 걷은 자리(요청: "광물은 사실 / 필요 없을듯") */
 .scr-who-stats > span:nth-child(1) .scr-who-v { width: 3ch; }
 .scr-who-stats > span:nth-child(3) .scr-who-v { width: 7ch; }
-.scr-who-stats > span:nth-child(4) .scr-who-v { width: 5ch; }
-.scr-who-stats > span:nth-child(5) .scr-who-v { width: 3ch; }
+.scr-who-stats > span:nth-child(4) .scr-who-v { width: 3ch; }   /* APM — K/D 칸(5ch)은 2026-10 에 걷었다 */
 .scr-tb-seek { display: flex; align-items: center; min-width: 0; }
 /* 재생 줄 맨 왼쪽의 배속 단추 한 칸(2026-09, 요청: "배속 버튼은 플레이버튼 왼쪽으로") — 줄지 않는다. */
 .scr-tb-speed { flex: none; margin-right: 6px; }

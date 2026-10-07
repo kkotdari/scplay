@@ -9306,7 +9306,10 @@ export default function ReplayMotionPlayer({
      · **유닛만**이다(요청: 건물은 안 넣음) — 죽은 몸이 건물이면 킬로도 데스로도 안 센다.
      · 라바·알·고치·인터셉터·스캐럽·마인·핵은 뺀다(KD_SKIP9) — 캐리어전이 인터셉터로 통째로 부푸는 것을 막는다.
      · 제 편을 죽인 것은 킬이 아니다. 처치를 준 사람이 없는 죽음은 킬로 안 센다(요청: 빼기) — 데스로는 센다.
-     셈은 경기당 한 번(시각 목록) · 화면은 지금 시각까지의 수만 이분으로 읽는다. */
+     셈은 경기당 한 번(시각 목록) · 화면은 지금 시각까지의 수만 이분으로 읽는다.
+     ★ **화면에서는 걷었다**(2026-10, 요청: "킬데스 로직은 그대로 두되 통계와 재생기에서 숨기고" — 마지막에 죽인 사람만
+     세어 여럿이 함께 잡은 몫을 못 가른다 · 앱 통계는 준·입은 데미지로 간다). 로스터 칸·현황 한 줄·안내의 K/D 를 뺐고
+     셈(kdSeries9 · kdNow · capOf9.kd)은 그대로 남긴다(docs/notes/player-ui.md 'K/D 표시를 걷었다'). */
   const kdSeries9 = useMemo(() => {
     const out = new Map<string, { k: number[]; d: number[] }>();
     if (!entData) return out;
@@ -9882,7 +9885,7 @@ export default function ReplayMotionPlayer({
     sup: supplyNow.get(raw9) ?? null, apm: apmNow.get(raw9) ?? bases.find((b9) => b9.key === raw9)?.apm ?? null,
     kd: kdNow.get(raw9) ?? null,
   });
-  /** 현황 한 줄 — 일꾼 · 자원 · 인구 · K/D · APM. 툴박스 정보 판과 분할 칸 머리(PC)가 같은 꼴을 나눠 쓴다(2026-09, 요청: "PC에서
+  /** 현황 한 줄 — 일꾼 · 자원 · 인구 · APM(K/D 칸은 2026-10 에 걷었다 · 위 kdSeries9). 툴박스 정보 판과 분할 칸 머리(PC)가 같은 꼴을 나눠 쓴다(2026-09, 요청: "PC에서
    *  헤더에 유저창과 똑같이 일꾼부터 apm까지 표시 모양도 똑같이"). 값 칸(.scr-who-v)은 칸마다 폭을 못 박아(ch) 숫자가 갈려도
    *  옆 칸이 안 움직인다(요청: "데이터에 따라 움직이지 않게 그리드화해서 각 스탯정보칸 너비가 안변하게"). */
   const whoStats9 = (c9: ReturnType<typeof capOf9> | null, cls9: string) => (
@@ -9897,7 +9900,6 @@ export default function ReplayMotionPlayer({
         </i>
       </span>
       <span title="인구"><b>인구</b><i className="scr-who-v">{c9?.sup ? `${c9.sup[0]}/${c9.sup[1]}` : "–"}</i></span>
-      <span title="K/D"><b>K/D</b><i className="scr-who-v">{c9?.kd ? `${c9.kd[0]}/${c9.kd[1]}` : "–"}</i></span>
       <span title="APM"><b>APM</b><i className="scr-who-v">{c9?.apm ?? "–"}</i></span>
     </div>
   );
@@ -16545,7 +16547,6 @@ export default function ReplayMotionPlayer({
         <span>인구</span>
         <span className="scr-motion-stat-min">광물</span>
         <span className="scr-motion-stat-gas">가스</span>
-        <span>K/D</span>
         <span>APM</span>
         </>)}
       </div>
@@ -16557,7 +16558,6 @@ export default function ReplayMotionPlayer({
         const sup9 = supplyNow.get(m.key);
         const res9 = resNow.get(m.key);
         const apm9 = apmNow.get(m.key) ?? m.apm ?? null;
-        const kd9 = kdNow.get(m.key);
         const st9 = bare && smallDevice9 && !splitOn9 && camRaw9 === m.key;   // 폰 단독 중계의 화면 주인(아래 scr-roster-st)
         return (
           <div
@@ -16648,7 +16648,6 @@ export default function ReplayMotionPlayer({
                 <span className="scr-motion-stat scr-motion-stat-gas">
                   {res9 ? res9[1] : ""}
                 </span>
-                <span className="scr-motion-stat">{kd9 ? `${kd9[0]}/${kd9[1]}` : ""}</span>
                 <span className="scr-motion-stat">{apm9 ?? ""}</span>
               </span>
               )}
