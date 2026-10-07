@@ -77,6 +77,7 @@ export { BUILD_STAGES } from "./engine9";
 export type { ShapeGalleryItem } from "./ReplayMotionPlayer";
 export type { DocAnim9, DocCell9 } from "./ReplayMotionPlayer";
 /* ── 도록 페이지(2026-10, 요청: "도록을 scplay에 포함시킬것임 재생기가 아니라 도록 페이지 자체를 제공함") ──
-   위 넷으로 scplayer 가 짓던 화면을 통째로 들였다(ModelCatalog.tsx 머리말). 앱은 갈래만 쥐고 넘긴다. */
-export { default as ModelCatalog } from "./ModelCatalog";
-export type { ModelCatalogGroup } from "./ModelCatalog";
+   위 넷으로 scplayer 가 짓던 화면을 통째로 들였다(ModelCatalog.tsx 머리말). 앱이 갈래·종족 고르기를 제 알약으로
+   그리고 값만 넘긴다(2026-10) — 표 둘(MODEL_CATALOG_GROUPS·MODEL_CATALOG_RACES)은 앱이 알약 이름표를 쓰는 데 쓴다. */
+export { default as ModelCatalog, MODEL_CATALOG_GROUPS, MODEL_CATALOG_RACES } from "./ModelCatalog";
+export type { ModelCatalogGroup, ModelCatalogRace } from "./ModelCatalog";

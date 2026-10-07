@@ -4221,25 +4221,7 @@
   --scr-doc-own: #64ff64;
 }
 
-.scr-doc-picks { display: flex; flex-direction: column; gap: 8px; }
-
-.scr-doc-pickrow { display: flex; flex-wrap: wrap; gap: 6px; }
-
-.scr-doc-pickrow button {
-  font-family: inherit; font-size: 13px; color: var(--text-dim);
-  background: none; border: 1px solid var(--line); border-radius: 999px;
-  padding: 6px 14px; cursor: pointer;
-}
-
-.scr-doc-pickrow button:hover { color: var(--text); border-color: var(--point); }
-
-.scr-doc-pickrow button.is-on { color: var(--text); border-color: var(--point); background: rgba(230, 162, 62, 0.12); }
-/* 라이트 테마의 활성 버튼은 푸른빛(요청) — 주황 포인트 대신 임자색 파랑 계열. */
-.scr-light-theme .scr-doc-pickrow button:hover { border-color: #2b62e8; }
-.scr-light-theme .scr-doc-pickrow button.is-on { color: #1d3f9a; border-color: #2b62e8; background: rgba(43, 98, 232, 0.12); }
-
-/* 종족 줄은 갈래 줄보다 한 단 작다 — 위가 페이지를 가르고 아래는 그 안을 거른다. */
-.scr-doc-pickrow.is-race button { font-size: 12px; padding: 5px 12px; }
+/* (걷음·2026-10) 갈래·종족 고르기 알약(.scr-doc-picks·.scr-doc-pickrow) — 앱이 제 라디오 알약으로 그린다(ModelCatalog 머리의 ★). */
 
 .scr-doc-empty { color: var(--text-dim); font-size: 13px; padding: 32px 0; text-align: center; }
 

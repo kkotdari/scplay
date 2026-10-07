@@ -34,7 +34,16 @@ import {
 
 export type ModelCatalogGroup = ShapeGalleryItem["group"];
 type Group = ModelCatalogGroup;
-type RacePick = "전체" | "테란" | "프로토스" | "저그";
+/** 종족 고르기 값 — "전체"는 거르지 않음. 고르기 알약은 앱이 그린다(ModelCatalog 머리의 ★). */
+export type ModelCatalogRace = "전체" | "테란" | "프로토스" | "저그";
+type RacePick = ModelCatalogRace;
+/** 앱이 고르기 알약을 그릴 때 쓰는 표 — 갈래(차례·이름표)와 종족. 한 곳에 두어 앱마다 베끼지 않는다. */
+export const MODEL_CATALOG_GROUPS: readonly { key: ModelCatalogGroup; label: string }[] = [
+    { key: "유닛", label: "유닛" },
+    { key: "건물", label: "건물" },
+    { key: "부가", label: "그 밖의 모델" },
+];
+export const MODEL_CATALOG_RACES: readonly ModelCatalogRace[] = ["전체", "테란", "프로토스", "저그"];
 
 /** 각도 칸 — PC는 0도부터 45도씩 여덟 방, 좁은 화면은 네 방이다(요청).
  *  네 방을 45·135·225·315로 잡는 것도 요청이다: 0/90/180/270은 정면·측면이라 서로
@@ -480,15 +489,13 @@ function GalleryRow({ item, rots, wide, onMotion }: {
 
 /** 갈래 고르기 — 유닛·건물이 본 페이지이고, 그 밖은 **따로 한 페이지**다(요청).
  *  한 화면 안의 칸이지만 목록이 통째로 갈리고 종족 고르기도 새로 서므로, 사람에게는
- *  다른 페이지다. 주소에도 제 값이 실린다(?doc=aux). */
-const GROUPS: { key: Group; label: string }[] = [
-    { key: "유닛", label: "유닛" },
-    { key: "건물", label: "건물" },
-    { key: "부가", label: "그 밖의 모델" },
-];
-
-export default function ModelCatalog({ group, onGroup, onClose }: {
-    group: Group; onGroup: (g: Group) => void; onClose?: () => void;
+ *  다른 페이지다. 주소에도 제 값이 실린다(?doc=aux).
+ *  ★ 고르기 알약(갈래·종족)은 **앱이 그린다**(2026-10, 요청: "도록의 종족 유형까지는 앱에서 만드는거야 파라미터만
+ *    scplay에 던지는") — 앱마다 제 디자인 토큰(라이팅 테마 라디오 알약)이 있어 패키지가 그리면 앱과 꼴이 갈린다.
+ *    여기는 `group`·`race` 값만 받아 목록을 거른다(race 를 안 주면 "전체"). 표는 위 MODEL_CATALOG_GROUPS·
+ *    MODEL_CATALOG_RACES. 종족 상태도 앱 것이라 갈래를 갈아탈 때 되돌릴지 말지는 앱이 정한다(sg-web 은 안 되돌린다). */
+export default function ModelCatalog({ group, race = "전체", onClose }: {
+    group: Group; race?: RacePick; onClose?: () => void;
 }) {
     const wide = useWide();
     const docRef = useRef<HTMLDivElement | null>(null);
@@ -499,7 +506,6 @@ export default function ModelCatalog({ group, onGroup, onClose }: {
       setDocW(el.clientWidth);
     }, []);
     const calPx = useMemo(() => (docW > 0 ? calTilePx(docW) : null), [docW]);
-    const [race, setRace] = useState<RacePick>("전체");
     const [open, setOpen] = useState<ShapeGalleryItem | null>(null);
     const rots = wide ? ROTS_WIDE : ROTS_NARROW;
     const rows = useMemo(
@@ -509,27 +515,8 @@ export default function ModelCatalog({ group, onGroup, onClose }: {
         () => SHAPE_GALLERY.filter((g) => !g.hidden && g.group === group && (race === "전체" || g.race === race)),
         [group, race],
     );
-    /* (걷음·2026-10, 요청: "도록에서 종족 고르면 아래 구분 초기화되는거 초기화안되게") — 갈래(유닛·건물·부가)를
-       갈아타도 고른 종족은 그대로 둔다. 옛 판은 여기서 setRace("전체") 로 되돌렸다('부가'에는 프로토스가 하나뿐이라
-       테란·저그를 들고 넘어가면 빈 화면이 난다는 까닭). 그 빈 화면은 아래 .scr-doc-empty 글귀가 말한다. */
     return (
         <div className="scr-doc" ref={docRef}>
-          <div className="scr-doc-picks">
-            <div className="scr-doc-pickrow" role="group" aria-label="갈래">
-              {GROUPS.map((g) => (
-                <button type="button" key={g.key} className={g.key === group ? "is-on" : ""} onClick={() => onGroup(g.key)}>
-                  {g.label}
-                </button>
-              ))}
-            </div>
-            <div className="scr-doc-pickrow is-race" role="group" aria-label="종족">
-              {(["전체", "테란", "프로토스", "저그"] as RacePick[]).map((r) => (
-                <button type="button" key={r} className={r === race ? "is-on" : ""} onClick={() => setRace(r)}>
-                  {r}
-                </button>
-              ))}
-            </div>
-          </div>
           {rows.length === 0 && <p className="scr-doc-empty">해당하는 모델이 없습니다.</p>}
           {calPx !== null ? (
             /* 크기 보정 모드 — 격자 바닥(한 칸 = 한 타일) 위에 실제 크기·기준각 한 컷.

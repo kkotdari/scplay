@@ -418,3 +418,10 @@ replay.css 끝으로 옮겼고, 규칙 없던 이름표 셋(`scr-doc-calitem`·`
 유닛에서 테란을 골라 두고 건물로 넘어가도 테란이 남는다. '부가'+테란·저그는 빈 목록이라 `.scr-doc-empty`("해당하는 모델이 없습니다")가 선다
 (옛 판이 되돌리던 까닭이 이 빈 화면이었다 — 이제 글귀로 말한다). 알약 단추 간격은 안 건드린다("도록도"는 좌우 패딩 이야기였다 — 도록은
 앱 `.scr-main` 의 공통 패딩을 그대로 쓰므로 scplay 쪽 손질이 없다).
+
+## 도록 고르기 알약은 앱이 그린다 — ModelCatalog 는 group·race 만 받는다(2026-10-07)
+요청: "도록의 종족 유형까지는 앱에서 만드는거야 파라미터만 scplay에 던지는". `ModelCatalog({ group, race = "전체", onClose })` — `onGroup` 과 안의
+알약 줄(.scr-doc-picks·.scr-doc-pickrow · CSS 도 걷음)을 걷고, 앱이 쓸 표 `MODEL_CATALOG_GROUPS`(key·label)·`MODEL_CATALOG_RACES` 와
+타입 `ModelCatalogRace` 를 낸다. sg-web 은 `PillTabs`(라이팅 테마 라디오 알약 · `.scr-catalog-picks`) 두 줄로 그리고 종족은 제 상태로
+쥔다 — 갈래를 갈아타도 안 되돌린다(바로 앞 절의 요청은 이 손질로 앱 몫이 됐다). ⚠ 쓰는 앱(stargayte 등)이 락을 올리면 `onGroup` 이
+타입 오류로 서고 알약이 사라진다 — 제 알약을 그리고 `race` 를 넘겨야 한다.
