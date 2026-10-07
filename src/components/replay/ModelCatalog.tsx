@@ -509,9 +509,9 @@ export default function ModelCatalog({ group, onGroup, onClose }: {
         () => SHAPE_GALLERY.filter((g) => !g.hidden && g.group === group && (race === "전체" || g.race === race)),
         [group, race],
     );
-    /* 갈래를 갈아타면 종족 고르기를 되돌린다 — '부가'에는 프로토스가 하나뿐이라, 고른
-       종족을 들고 넘어가면 빈 화면이 나온다. */
-    useEffect(() => { setRace("전체"); }, [group]);
+    /* (걷음·2026-10, 요청: "도록에서 종족 고르면 아래 구분 초기화되는거 초기화안되게") — 갈래(유닛·건물·부가)를
+       갈아타도 고른 종족은 그대로 둔다. 옛 판은 여기서 setRace("전체") 로 되돌렸다('부가'에는 프로토스가 하나뿐이라
+       테란·저그를 들고 넘어가면 빈 화면이 난다는 까닭). 그 빈 화면은 아래 .scr-doc-empty 글귀가 말한다. */
     return (
         <div className="scr-doc" ref={docRef}>
           <div className="scr-doc-picks">
