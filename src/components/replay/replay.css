@@ -4122,8 +4122,9 @@
   .scr-split-st .scr-who-r { width: 4ch; }
 }
 /* ★ 폰 단독 중계·추적의 화면 주인 현황 — **무대 아래 가운데**(2026-10, 요청: "모바일에서 단일화면 화면주인 스탯을 로스터가 아닌
-   화면 하단 가운데에 표시") — 옛 자리(로스터 그 줄의 칩 옆 · .scr-roster-st · .scr-roster-sthead)는 걷었다. 이름 칩 + 분할 칸 머리와
-   같은 현황 상자(.scr-split-st)를 무대 안 절대 자리에 띄운다. 무대는 제 겹 문맥(z 0)이라 안의 높은 층(빔 25000)보다 위에 세운다.
+   화면 하단 가운데에 표시") — 옛 자리(로스터 그 줄의 칩 옆 · .scr-roster-st · .scr-roster-sthead)는 걷었다. 분할 칸 머리와 같은
+   현황 상자(.scr-split-st)만 무대 안 절대 자리에 띄운다(이름 칩은 없다 — 요청: "닉네임은 없어도 됨"). 무대는 제 겹 문맥(z 0)이라
+   안의 높은 층(빔 25000)보다 위에 세운다.
    읽기만 하는 줄이라 손짓은 지도로 흘린다. 글자 자(8·dk)는 로스터·분할 칸 머리와 같다. */
 .scr-fs-ownerst {
   --dk: var(--dk-roster, 1.2);
@@ -4132,7 +4133,7 @@
   font-size: calc(8px * var(--dk)); line-height: 1.25; font-weight: 700; white-space: nowrap;
   pointer-events: none;
 }
-.scr-fs-ownerst .scr-motion-teamcol-name { font-size: inherit; flex: none; }
+.scr-fs-ownerst .scr-split-st { margin-left: 0; }   /* 칩이 없으니 칩 옆 여백도 없다 — 상자가 정가운데 */
 
 /* ★ 독 줄 오른쪽의 음각 글귀(2026-09, 요청: "독 좌우 몇 px이상 남는경우 음각으로 scplay.vercel.app    SINCE 2026 추가(우측에만)")
    — 쇠 바탕에 판 글자다: 글자는 바탕보다 어둡고, 아래 가장자리에 밝은 한 줄(파인 홈의 아래 입술) · 위에 어두운 한 줄을 얹는다.

@@ -18463,24 +18463,14 @@ export default function ReplayMotionPlayer({
               (CSS 주석) 평면에 늘 두어도 끌기·확대 비용이 안 는다. */}
           <div className="scr-fs-space" style={{ backgroundImage: spaceBg9 }} aria-hidden />
           {/* ★ 폰 단독 중계·추적의 화면 주인 현황은 **무대 아래 가운데**다(2026-10, 요청: "모바일에서 단일화면 화면주인 스탯을 로스터가
-              아닌 화면 하단 가운데에 표시") — 옛 자리(로스터 그 줄의 칩 옆 · .scr-roster-st)는 걷었다. 이름 칩 + 분할 칸 머리와 같은
-              현황 상자(.scr-split-st). 읽기만 하는 줄이라 손짓은 지도로 흘린다(pointer-events none). 분할은 칸 머리가 진다. */}
-          {smallDevice9 && !splitOn9 && camRaw9 !== null && (() => {
-            const own9 = bases.find((m) => m.key === camRaw9) ?? null;
-            return (
-              <div className="scr-fs-ownerst" aria-hidden>
-                {own9 && (
-                  <span className="scr-motion-teamcol-name" style={chipStyle(own9.key, own9.team, CHIP_ROW_A9)}>
-                    {shortName(own9.name, 1)}
-                    {own9.race && raceLetter9(own9.race) ? (
-                      <span className="scr-motion-teamcol-race">{raceLetter9(own9.race)}</span>
-                    ) : null}
-                  </span>
-                )}
-                {whoStats9(capOf9(camRaw9, camRaw9), "scr-split-st")}
-              </div>
-            );
-          })()}
+              아닌 화면 하단 가운데에 표시") — 옛 자리(로스터 그 줄의 칩 옆 · .scr-roster-st)는 걷었다. 분할 칸 머리와 같은 현황 상자
+              (.scr-split-st)만이고 이름 칩은 없다(요청: "닉네임은 없어도 됨" — 누구인지는 로스터 칩의 글로우·TV 목록이 말한다).
+              읽기만 하는 줄이라 손짓은 지도로 흘린다(pointer-events none). 분할은 칸 머리가 진다. */}
+          {smallDevice9 && !splitOn9 && camRaw9 !== null && (
+            <div className="scr-fs-ownerst" aria-hidden>
+              {whoStats9(capOf9(camRaw9, camRaw9), "scr-split-st")}
+            </div>
+          )}
           {splitLay9 && (
             /* 분할보기 밑 층 — 칸마다 그 사람 화면의 **땅**(splitPaint9 가 카메라가 갈릴 때만 칠한다). 몸·효과는 그 위의 본 지도
                캔버스가 칸 네모에 제자리로 칠하고, 머리·테·누름은 맨 위 층(.scr-split)이다. 셋이 같은 격자다. */

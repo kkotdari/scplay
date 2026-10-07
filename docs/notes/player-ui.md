@@ -878,8 +878,9 @@ dpr 0.9 · 캔버스 가속 켜짐 · WebGL 가속 · 벤치는 선명할 때도
 · **데미지 칸**(로스터 머리·줄 · 현황 한 줄 `whoStats9` · 안내): 판 13 데미지 절(engine.md '판 13')을 `dmgSeries9` 가 사람마다 누적으로
   펴고 `dmgNow` 가 t 까지의 [준, 입은]을 준다 — 유닛+건물 합 · `fmtK9`("12.3k"). `--roster-cols` 세 벌에 칸을 더했다(52px · 46px ·
   44px×dk — 가스와 APM 사이) · `.scr-who-v` 4번째 10ch · APM 은 5번째 3ch. 옛 판(≤12)은 '–'(로스터는 빈 칸).
-· **폰 화면 주인 현황**은 `.scr-fs-ownerst`(무대 안 absolute · 아래 가운데 · z 30000 · 8·dk) — 이름 칩(`chipStyle` · `shortName(name, 1)`)
-  + `.scr-split-st` 현황 상자. 조건은 옛것 그대로 `smallDevice9 && !splitOn9 && camRaw9 !== null`. 로스터 줄의 `.scr-roster-st`·
+· **폰 화면 주인 현황**은 `.scr-fs-ownerst`(무대 안 absolute · 아래 가운데 · z 30000 · 8·dk) — `.scr-split-st` 현황 상자만이다.
+  이름 칩은 없다(요청: "닉네임은 없어도 됨" — 처음엔 칩을 함께 세웠다가 걷었다). 조건은 옛것 그대로 `smallDevice9 && !splitOn9 &&
+  camRaw9 !== null`. 로스터 줄의 `.scr-roster-st`·
   `.scr-roster-sthead` 는 걷었다(위 '폰 중계' 절의 단독 항목은 이 절이 되물렸다).
 · **중계 글로우**(`.scr-motion-teamcol-cast` · `scr-cast-chip`): 흰 테·후광 1초 → **임자색(--pcol) 테·후광 2초**. 줄이 `--pcol` 을 들고
   있어 칩이 물려받는다. TV 단추 깜빡임(`scr-track-blink` · `scr-cast-blink-well` · 안내의 흉내)도 1초 → **2초**.
