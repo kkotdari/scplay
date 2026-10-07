@@ -1276,6 +1276,18 @@ function lvhOf9(): number {
   }
   return lvhProbe9.offsetHeight;
 }
+/** 아래 안전 영역(`env(safe-area-inset-bottom)` · px) — 못 재면 0. lvhOf9 와 같은 수법의 숨은 탐침이다(CSS env() 도 JS 가 바로 못 읽는다).
+ *  PWA(standalone · viewport-fit=cover)에서는 홈 인디케이터 몫(아이폰 34)이고, 브라우저는 바가 보이는 동안 0 이다. */
+let safeBottomProbe9: HTMLDivElement | null = null;
+function safeBottomOf9(): number {
+  if (typeof document === "undefined" || !document.body) return 0;
+  if (!safeBottomProbe9) {
+    safeBottomProbe9 = document.createElement("div");
+    safeBottomProbe9.style.cssText = "position:fixed;left:0;top:0;width:0;height:env(safe-area-inset-bottom,0px);visibility:hidden;pointer-events:none";
+    document.body.appendChild(safeBottomProbe9);
+  }
+  return safeBottomProbe9.offsetHeight;
+}
 const TRIM1_SKIP9 = new Set(["weld", "dig", "land", "swarm"]);
 /** 2단에서 더 생략하는 것 — 지역 마법의 얼룩·고리. */
 const TRIM2_SKIP9 = new Set(["cast"]);
@@ -10965,8 +10977,14 @@ export default function ReplayMotionPlayer({
            ② 조작 줄이 지도 밖으로 나오면서 그 몫은 이미 따로 빠진다(무대의 max-height가
               rowsH를 뺀다) — 88 안에 그 몫이 또 들어 있으면 **두 번 빼는 셈**이다.
          그래서 실제로 아래를 먹는 것 하나(모바일 탭바)만 재고, 없으면 숨 쉴 자리 12만
-         둔다. 안전영역은 여기서 안 뺀다 — 이 판은 화면에 붙박인 것이 아니라 문서 흐름에
-         서므로 홈 인디케이터가 판을 먹지 않는다(그 몫은 탭바가 제 여백으로 이미 진다). */
+         둔다.
+         ★ 안전 영역(홈 인디케이터)은 **뺀다**(2026-10, 지적: "pwa 아래 안전공간 더 확보필요") —
+         앞판은 "이 판은 문서 흐름에 서므로 홈 인디케이터가 판을 먹지 않는다(그 몫은 탭바가 제
+         여백으로 진다)"며 안 뺐다. 그런데 게임 페이지는 탭바를 걷으므로(body.scr-gamepage-open)
+         그 몫을 지는 것이 아무도 없고, PWA(standalone · viewport-fit=cover)는 창 바닥이 곧 화면
+         바닥이라 첫 화면에서 조종 줄이 홈 인디케이터 밑에 깔렸다. env(safe-area-inset-bottom) 을
+         숨은 탐침(safeBottomOf9)으로 재서 숨 쉴 자리에 더한다 — 브라우저는 바가 보이는 동안 0 이라
+         종전과 같고, 바가 접혀 인셋이 생기는 순간은 창도 그만큼 커지는 때라 판이 줄지 않는다. */
       /* ★ 탭바는 **안 뺀다**(지적: "모바일에서 세로 가용폭을 너무 좁게 잡고 있어. 댓글부를
          보여 줄 공간이 있는데도 스테이지의 세로를 줄이고 있다구" · 앞서 못 박은 규칙의
          3번: "댓글부나 탭바는 고려하지 않아") ─────────────────────────────────────────
@@ -10974,8 +10992,8 @@ export default function ReplayMotionPlayer({
          스크롤되므로, 판이 탭바 아래까지 내려가도 손가락으로 조금 밀면 그만이고 그 아래
          댓글부가 이어진다. 그런데 그 높이(약 81px)를 예산에서 빼면 지도가 그만큼 작아진
          채로 **못 박힌다** — 되찾을 길이 없다.
-         남는 것은 숨 쉴 자리 하나(12)뿐이다. */
-      const below9 = 12;
+         남는 것은 숨 쉴 자리 하나(12)와 안전 영역(위 ★)뿐이다. */
+      const below9 = 12 + safeBottomOf9();
       let ih9 = window.innerHeight;
       if (window.matchMedia?.("(pointer: coarse)").matches) {
         /* ★ 폰의 innerHeight 는 **주소창·탭바가 펴진 때의 작은 높이**다(지적: iOS 사파리 "scplayer 하단 너무 남는 문제") —

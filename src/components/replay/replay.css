@@ -1866,6 +1866,9 @@
   .scr-activity-detail-full .scr-story-map-dur { font-size: 10px; }
   .scr-activity-group-page .scr-story-win,
   .scr-activity-detail-full .scr-story-win { font-size: 10px; height: 16px; padding: 0 5px; }
+  /* 머리 줄 **아래** 여백을 죈다(2026-10, 요청: "헤더줄 위아래 여백 타이트하게") — 기본 8 을 2 로. 그림과의 사이는
+     .scr-story-map 의 gap 6 과 합쳐 **8**. 위쪽은 앱의 제목 줄(.scr-v2-toolbar-crumb)이 같은 날 아래 여백 14+16 → 6+6 으로 죄었다. */
+  .scr-activity-group-page .scr-story-map-head { margin-bottom: 2px; }
   /* 게임 페이지의 모바일 맵도 뷰포트 폭(요청: 좌우 패딩 없이 최대한 넓게) — 전체화면
      상세(.scr-activity-detail-full)와 같은 트릭. */
   /* 거는 대상은 위와 같이 **프레임**이다(지도에 걸면 −16px 밀린다). */

@@ -853,3 +853,14 @@ dpr 0.9 · 캔버스 가속 켜짐 · WebGL 가속 · 벤치는 선명할 때도
 앱이 주는 빛 토큰 `--lit-*`(pill-bg·pill-glow·hover-bg·hover-glow 따위)를 `--lighting-*` 로 바꿨다(요청: "라이팅 테마 css에 lighting이라는 이름이
 안들어가있으면 맨 앞에 prefix로"). replay.css 의 쓰는 자리 10곳을 함께 갈았다 — 앱(sg-web·stargayte)은 같은 날 `--lighting-*` 로 정의한다.
 옛 이름을 쓰는 앱(scplayer)은 락을 올리면 그 빛이 빠진다 — scplayer 는 지울 예정이라 따로 안 맞췄다.
+
+## 게임 페이지 머리 줄 여백 · 프레임 예산에서 아래 안전 영역을 뺀다(2026-10-07)
+요청(폰 PWA 스크린샷): "제목줄 아래 여백 타이트하게 · 헤더줄 위아래 여백 타이트하게 · pwa 아래 안전공간 더 확보필요".
+· **머리 줄 아래**(`.scr-activity-group-page .scr-story-map-head` · ≤1159px): margin-bottom 8 → **2**(그림과의 사이는 `.scr-story-map` gap 6 과 합쳐 8).
+  PC 는 그대로 8. 머리 줄 **위**는 앱(sg-web `global.css`) 몫이다 — 제목 줄 `.scr-v2-toolbar-crumb` 아래 여백 14 → **6** · 그 다음 요소의
+  margin-top 16 → **6**(≤1159px · `.scr-screen` gap 4 와 합쳐 밑줄→머리 줄 10). 제목 글자 밑→밑줄은 실측 21 → 13(title-row 의 translateY(-6) 몫 포함).
+· **아래 안전 영역을 예산에서 뺀다**: `below9 = 12 + safeBottomOf9()` — `env(safe-area-inset-bottom)` 을 `lvhOf9` 와 같은 숨은 탐침으로 잰다.
+  되물린 까닭: 2026-09 의 "안전영역은 안 뺀다(탭바가 제 여백으로 진다)"는 탭바가 있는 목록 페이지의 말이었다. 게임 페이지는 탭바를 걷으므로
+  (`body.scr-gamepage-open`) PWA(standalone)에서는 첫 화면의 조종 줄이 홈 인디케이터(아이폰 34px) 밑에 깔렸다. 브라우저는 바가 보이는 동안 0.
+  ⚠ 헤드리스는 env() 가 0 이라 못 잰다 — 실기 PWA 에서 볼 값이다(판 바닥이 홈 인디케이터 위 12px 에 선다).
+🔎 앱 쪽 수치는 sg-web 하네스(실제 global.css + replay.css 를 393×852 에 올려 getBoundingClientRect)로 쟀다 — 밑줄→머리 줄 20 → 10 · 머리 줄→판 14 → 8.
