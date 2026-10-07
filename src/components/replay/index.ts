@@ -9,6 +9,8 @@ export type { ReplayHead, ReplayModuleProps } from "./ReplayModule";
 // 앱이 꽂아 주는 것들 — 붙이는 법은 README.md.
 export { setReplayChrome } from "./chrome";
 export type { ReplayChrome, ReplayChromeMember } from "./chrome";
+export { setReplayBgm } from "./useBgm";
+export type { ReplayBgmTrack } from "./useBgm";
 export {
   setReplayMapFetcher, useReplayMap, useReplayMapTick,
   primeReplayMaps, cachedReplayMap, revalidateReplayMap,

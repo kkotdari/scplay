@@ -101,7 +101,7 @@ utils/ (14)  openbwTracks · mapTerrain · mapTiles · replayTrack · replayName
 따라오던 사슬이 끊겼다: types/index.ts(38KB) · replayParser · date · minimapTerrain(776줄) ·
 legacy/replayUnits(211KB — 재생기가 쓰던 것은 표 셋 3.5KB뿐이었다) · bwTransport.
 
-## 앱이 꽂아 주는 것 — 넷
+## 앱이 꽂아 주는 것 — 다섯
 
 패키지는 **API 주소도, 회원 개념도, 토스트 층도 모른다.** 옮길 때 이을 곳이 이게 전부다.
 
@@ -119,6 +119,11 @@ setReplayChrome({ Avatar: MyAvatar, toast: mySnackbar });
 
 // ④ 프사를 이 화면에서 쓸까 — 쓰는 개발자가 정한다(기본 켜짐)
 <ReplayModule avatars={false} ... />
+
+// ⑤ 배경 음악 — 부팅에서 한 번. 파일은 앱의 public 에 두고 목록과 주소만 넘긴다.
+//    안 부르거나 빈 목록이면 음악 단추가 안 선다(음악 없는 앱).
+import { setReplayBgm } from "scplay";
+setReplayBgm([{ title: "Terran One", src: "/audio/bgm/03.%20Terran%20One.mp3" }]);
 ```
 
 무엇을 넣고 무엇을 받는지의 규칙은 `chrome.ts` 머리말에 있다 — 요지는 **필수만 넣는다**:

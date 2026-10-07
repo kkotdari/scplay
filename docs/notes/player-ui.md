@@ -832,3 +832,19 @@ dpr 0.9 · 캔버스 가속 켜짐 · WebGL 가속 · 벤치는 선명할 때도
 폰(360×740) 위 4 · 사이 10 · 아래 10. 되물린 값: 아래 6 → 3(2026-09) → 5.1·dk(2026-10 쇠판) → 10.2·dk · 사이 4 → 4.8 → 9.6.
 🔎 `perf-check --wide --warm 0 --glblit --tbopen --shot x.png` 의 `[툴박스]` tb/btns/seek 상자.
 · 줄 사이도 **dk 를 탄다**(재요청: "줄간격도 dk 적용해서 pc 모바일 다르게") — `gap: calc(9.6px * var(--dk))` → 폰 9.6 · PC 17.3. 실측 PC 사이 17(820 → 837) · 폰 10.
+
+## 배경 음악 목록은 앱이 준다(2026-10-07)
+요청: "scplay는 목록을 파라미터로 받고 실제 음악 파일과 목록은 쓰는 쪽에서 제공한다" · 곡을 패키지에 넣는 길은 "라이브러리가 너무 커져"로 물렸다.
+`useBgm.ts` 의 고정 목록(`BGM_FILES` — 앱 `public/audio/bgm` 의 mp3 열 곡)과 경로 규칙(`audio/bgm/<이름>`)을 걷고 **`setReplayBgm(tracks)`**
+(`{ title, src }[]`, index.ts 로 냄)를 둔다. 앱이 부팅에서 한 번 부른다(`setReplayChrome` 과 같은 결) · 판이 선 뒤에 바뀌어도
+`useSyncExternalStore` 로 따라온다(목록이 갈리면 섞은 차례를 버린다).
+**빈 목록 = 음악 없는 앱**: 음악 단추를 안 세우고, 켜기·m 키·자동 재생·resume 이 모두 아무 일도 안 한다. 걷기 전에는 빈 목록이면
+`titleOf(undefined)` 에서 판이 통째로 죽었다(`next` 가 `BGM_FILES[undefined]` 를 집음) — 이제 `next` 는 빈 목록이면 거절(promise reject)한다.
+쓰는 쪽: stargayte·scplayer 는 제 mp3 열 곡을 넘기고, 공개용 사본(stargate)은 빈 목록이다.
+· 옛 목록 자리에 있던 기록 — **MIDI 두 곡**: 한동안 `Terran 1.mp3`·`Terran 2.mp3` 가 목록에 있었다. 원본은 MIDI 이고 <audio> 가 MIDI 를 못 열어서
+  (실측 크로뮴: `canPlayType("audio/midi")` 빈 문자열, .mid 를 걸면 error code 4) 미리 구워 둔 것이었다. 되돌리며 구운 mp3 둘은 지웠고 원본
+  `Terran1.mid`·`Terran2.mid` 는 앱의 `public/audio/bgm` 에 남아 있다. 다시 구울 때의 명령(소리샘은 윈도우 기본 GM):
+  `fluidsynth -ni -q -g 0.5 -r 48000 -F raw.wav C:/Windows/System32/drivers/gm.dls in.mid` →
+  `ffmpeg -i raw.wav -af volume=<봉우리를 −1.5dBFS로 맞추는 값>dB -b:a 192k out.mp3`.
+  브라우저 안에서 MIDI 를 바로 트는 길은 없다고 본다 — 합성에 Web Audio 가 필요한데 AudioContext 를 열면 사파리가 무음 스위치를 무시하는
+  세션으로 넘어간다(useBgm.ts 머리의 규칙). 미리 굽는 길만 그 성질을 지킨다.

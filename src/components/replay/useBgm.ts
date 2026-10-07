@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 /** ── 배경 음악(요청: "public/audio에 mp3 파일 10개 있어 그거 랜덤하게 재생해 주고,
  *  대신 음악 on/off 아이콘 추가 · 기기 음량 따라가야 하고 음소거(진동·무음 포함)
@@ -32,41 +32,33 @@ import { useCallback, useEffect, useRef, useState } from "react";
  *    기억해 둔 뜻은 그대로 둔다 — 막힌 것은 브라우저 사정이지 사람이 끈 것이 아니다.
  */
 
-/** public/audio/bgm의 mp3 열 곡(요청: "다시 기존 mp3 열 개로").
- *
- *  ★ (걷어냄) **MIDI 두 곡** — 한동안 이 자리에 `Terran 1.mp3`·`Terran 2.mp3`가 있었다.
- *    이름은 mp3지만 원본은 MIDI였고, 브라우저의 <audio>가 MIDI를 못 열어서(실측 크로뮴:
- *    `canPlayType("audio/midi")`가 빈 문자열, .mid를 걸면 error code 4) 미리 구워 둔
- *    것이었다. 되돌리면서 그 구운 mp3 둘은 지운다 — 원본 `Terran1.mid`·`Terran2.mid`는
- *    같은 자리에 남겨 둔다(작고, 다시 구우려면 그것이 있어야 한다).
- *    다시 구울 일이 있으면 그때 쓴 명령이 이것이다(소리샘은 윈도우 기본 GM):
- *      fluidsynth -ni -q -g 0.5 -r 48000 -F raw.wav C:/Windows/System32/drivers/gm.dls in.mid
- *      ffmpeg -i raw.wav -af volume=<봉우리를 −1.5dBFS로 맞추는 값>dB -b:a 192k out.mp3
- *    ★ 브라우저 안에서 MIDI를 **바로** 트는 길은 앞으로도 없다고 봐야 한다: 신디사이저가
- *      소리를 합성해야 하고 그건 Web Audio가 필요한데, AudioContext를 열면 사파리가
- *      무음 스위치를 무시하는 세션으로 넘어간다(이 파일 머리의 그 규칙). 미리 굽는 길만
- *      그 성질을 지킨다.
- *
- *  이 목록은 **손으로 적는다** — public/은 번들러의 눈 밖이라 import.meta.glob이
- *  안 닿는다. 파일을 더하거나 빼면 여기도 함께 고쳐야 한다. */
-const BGM_FILES = [
-  "01. Starcraft Main Title.mp3",
-  "03. Terran One.mp3",
-  "05. Terran Two.mp3",
-  "07. Terran Three.mp3",
-  "09. Protoss One.mp3",
-  "11. Protoss Two.mp3",
-  "13. Protoss Three.mp3",
-  "15. Zerg One.mp3",
-  "17. Zerg Two.mp3",
-  "19. Zerg Three.mp3",
-];
+/** 곡 한 줄 — **앱이 준다**(요청: "scplay는 목록을 파라미터로 받고 실제 음악 파일과 목록은 쓰는 쪽에서 제공한다").
+ *  재생기는 음악 파일을 갖지 않는다: 한 곡이 6~13MB라 패키지에 넣으면 라이브러리가 너무 커지고(지적), 무엇을 틀지는
+ *  앱마다 다르다(곡이 없는 앱도 있다). 그래서 파일은 앱의 public 에 두고, 목록과 주소만 여기로 넘긴다.
+ *  옛 고정 목록(public/audio/bgm 의 mp3 열 곡)과 MIDI 두 곡을 굽던 기록은 docs/notes/player-ui.md '배경 음악 목록은 앱이 준다'. */
+export interface ReplayBgmTrack {
+  /** 곡 목록·툴팁에 적는 이름. */
+  title: string;
+  /** 파일 주소 — `<audio src>`에 그대로 건다. 공백 따위는 앱이 인코딩해서 넘긴다. */
+  src: string;
+}
 
-/** 파일 이름에 공백·마침표가 들어 있어 그대로는 URL이 안 된다 — 조각마다 인코딩한다. */
-const srcOf = (f: string): string => `${import.meta.env.BASE_URL}audio/bgm/${encodeURIComponent(f)}`;
+/* 앱이 꽂아 준 목록 — **비어 있으면 음악이 없는 앱이다**: 음악 단추를 안 세우고, 켜 둔 뜻(KEY)이 남아 있어도 아무것도
+   틀지 않는다. 꽂는 결은 chrome.ts 와 같지만(부팅에서 한 번), 판이 선 뒤에 바뀌어도 따라오게 구독을 단다. */
+let bgmTracks: readonly ReplayBgmTrack[] = [];
+const bgmSubs = new Set<() => void>();
 
-/** 곡 제목 — 앞의 트랙 번호와 확장자를 뗀다("03. Terran One.mp3" → "Terran One"). */
-export const titleOf = (f: string): string => f.replace(/^\d+\.\s*/, "").replace(/\.mp3$/i, "");
+/** 앱이 부팅에서 한 번 부른다 — 곡 목록을 통째로 갈아 끼운다(준 차례가 곧 목록의 차례). 빈 목록이면 음악을 끈 앱이다. */
+export function setReplayBgm(tracks: readonly ReplayBgmTrack[]): void {
+  bgmTracks = tracks.slice();
+  bgmSubs.forEach((f9) => f9());
+}
+
+const subscribeBgm = (f9: () => void): (() => void) => {
+  bgmSubs.add(f9);
+  return () => { bgmSubs.delete(f9); };
+};
+const bgmSnapshot = (): readonly ReplayBgmTrack[] => bgmTracks;
 
 const KEY = "scr.bgm.on";
 
@@ -107,7 +99,8 @@ export type Bgm = {
   /** 지금 걸린 곡 이름 — 버튼 툴팁에 적는다(켜져 있을 때만 읽힌다). 한 곡도 안 건
    *  동안만 null이고, 꺼도 그 곡 이름은 남는다. */
   now: string | null;
-  /** 곡 목록(제목) — 버튼의 목록이 이것을 편다(요청: "노래도 목록으로"). */
+  /** 곡 목록(제목) — 버튼의 목록이 이것을 편다(요청: "노래도 목록으로"). 비어 있으면 앱이 곡을 안 꽂은 것이라
+   *  음악 단추를 안 세운다(setReplayBgm). */
   tracks: readonly string[];
   /** 지금 걸린 곡의 목록 번호(없으면 null). */
   index: number | null;
@@ -116,8 +109,6 @@ export type Bgm = {
   /** 끈다(이미 꺼져 있어도 '끈 뜻'을 적는다 — 첫 누름을 기다리던 기본 켜짐도 걷힌다). */
   off: () => void;
 };
-/** 곡 제목 목록 — 파일 차례 그대로. */
-const BGM_TITLES = BGM_FILES.map(titleOf);
 
 /**
  * @param playing 재생기가 **지금 돌고 있나**(요청: "재생 멈추면 음악도 멈추기") —
@@ -143,6 +134,14 @@ export function useBgm(playing = true): Bgm {
   /** 재생기가 도는 중인가 — 귀들이 리렌더 없이 읽어야 해서 ref로 든다(위 onRef와 같다). */
   const playingRef = useRef(playing);
   playingRef.current = playing;
+  /** 앱이 꽂은 곡 목록(setReplayBgm) — 귀들이 리렌더 없이 읽어야 해서 ref로도 든다. */
+  const tracks = useSyncExternalStore(subscribeBgm, bgmSnapshot, bgmSnapshot);
+  const tracksRef = useRef(tracks);
+  tracksRef.current = tracks;
+  const titles = useMemo(() => tracks.map((t9) => t9.title), [tracks]);
+  const hasTracks = tracks.length > 0;
+  /* 목록이 갈리면 섞어 둔 차례를 버린다 — 옛 목록의 번호로 새 목록을 집으면 엉뚱한 곡이 걸린다. */
+  useEffect(() => { orderRef.current = []; atRef.current = 0; }, [tracks]);
 
   /** 오디오 한 대만 쓴다 — 곡이 바뀌어도 같은 대의 src만 갈아 끼운다. 새로 만들면
    *  기기마다 '사람 누름으로 열린 대'라는 허락이 안 따라와 두 곡째부터 막힌다. */
@@ -164,16 +163,19 @@ export function useBgm(playing = true): Bgm {
    *    두면 조용히 막힌다(게다가 StrictMode는 갱신 함수를 두 번 불러 곡이 두 칸 뛴다). */
   const next = useCallback((first: boolean) => {
     const a = audio();
+    const list = tracksRef.current;
+    // 곡이 없으면 걸 것이 없다 — 부르는 자리들은 막힌 재생과 같은 길(catch)로 받는다.
+    if (list.length === 0) return Promise.reject(new Error("배경 음악 목록이 비었다"));
     if (orderRef.current.length === 0 || atRef.current >= orderRef.current.length) {
       const last = orderRef.current[orderRef.current.length - 1];
-      orderRef.current = shuffled(BGM_FILES.length, first ? undefined : last);
+      orderRef.current = shuffled(list.length, first ? undefined : last);
       atRef.current = 0;
     }
     const fi9 = orderRef.current[atRef.current];
-    const f = BGM_FILES[fi9];
+    const t9 = list[fi9];
     atRef.current += 1;
-    a.src = srcOf(f);
-    setNow(titleOf(f));
+    a.src = t9.src;
+    setNow(t9.title);
     setIndex(fi9);
     /* (걷어냄) 첫 곡의 시작 지점을 섞던 것 — 요청: "항상 처음부터 재생". 어느 길로 걸리든 곡은 머리부터다. */
     return a.play();
@@ -210,7 +212,7 @@ export function useBgm(playing = true): Bgm {
    *  막히면 첫 누름을 기다린다 — 자동재생 규칙의 문은 '처음 한 번'뿐이라 대개는
    *  그냥 난다. */
   const resume = useCallback(() => {
-    if (!onRef.current || !playingRef.current) return;
+    if (!onRef.current || !playingRef.current || tracksRef.current.length === 0) return;
     const a = audio();
     if (!a.src) { next(true).catch(() => armFirstGesture()); return; }
     void a.play().catch(() => armFirstGesture());
@@ -238,7 +240,7 @@ export function useBgm(playing = true): Bgm {
     const onErr = (): void => {
       if (!a.src) return;
       failRef.current += 1;
-      if (failRef.current > BGM_FILES.length) { stop(); return; }
+      if (failRef.current > tracksRef.current.length) { stop(); return; }
       next(false).catch(stop);
     };
     a.addEventListener("ended", onEnd);
@@ -261,6 +263,8 @@ export function useBgm(playing = true): Bgm {
      재생(시각)이 멈추면 음악도 재우는 규약은 그대로다(위 playing) — 그건 판 안의 일이다. */
 
   const toggle = useCallback(() => {
+    // 곡이 없는 앱이면 켤 것이 없다 — 단추는 안 서지만 m 키는 여기로 온다.
+    if (tracksRef.current.length === 0) return;
     const nv = !onRef.current;
     onRef.current = nv;
     setOn(nv);
@@ -309,7 +313,8 @@ export function useBgm(playing = true): Bgm {
          사람이 끈 것이 아니다. 다음 판에서 앱 안을 거쳐 들어오면(누름이 이미 있다)
          그대로 켜진 채로 난다. */
   useEffect(() => {
-    if (!wantOn()) return;
+    // 곡이 없으면 틀 것이 없다 — 앱이 판이 선 뒤에 목록을 꽂으면(hasTracks) 그때 한 번 돈다.
+    if (!hasTracks || !wantOn()) return;
     onRef.current = true;
     // 멈춘 채로 들어왔으면 아직 안 튼다 — 재생이 시작될 때 resume이 첫 곡을 건다.
     // 그때는 켜진 얼굴이 참이다: 소리가 없는 까닭이 화면에 이미 있다(멈춘 재생).
@@ -333,20 +338,20 @@ export function useBgm(playing = true): Bgm {
       window.addEventListener("pointerdown", go, true);
       window.addEventListener("keydown", go, true);
     });
-  }, [next, audio, playOrNext]);
+  }, [next, audio, playOrNext, hasTracks]);
 
   /** 목록에서 고른 곡을 **처음부터** 튼다(요청) — 켜 둔 뜻도 켠다. 섞인 차례는 이 곡을 뺀 새 바퀴로 이어 간다. */
   const pick = useCallback((i: number) => {
-    const f = BGM_FILES[i];
-    if (!f) return;
+    const t9 = tracksRef.current[i];
+    if (!t9) return;
     onRef.current = true;
     setOn(true);
     try { localStorage.setItem(KEY, "1"); } catch { /* 사파리 사생활 모드 */ }
     const a = audio();
-    a.src = srcOf(f);   // src를 갈면 자리는 0이다 — 처음부터.
-    setNow(titleOf(f));
+    a.src = t9.src;   // src를 갈면 자리는 0이다 — 처음부터.
+    setNow(t9.title);
     setIndex(i);
-    orderRef.current = shuffled(BGM_FILES.length).filter((x9) => x9 !== i);
+    orderRef.current = shuffled(tracksRef.current.length).filter((x9) => x9 !== i);
     atRef.current = 0;
     a.play().catch(() => armFirstGesture());
   }, [audio, armFirstGesture]);
@@ -358,5 +363,5 @@ export function useBgm(playing = true): Bgm {
     audio().pause();
   }, [audio]);
 
-  return { on, toggle, now, tracks: BGM_TITLES, index, pick, off };
+  return { on, toggle, now, tracks: titles, index, pick, off };
 }
