@@ -28,7 +28,7 @@
 - 모델 빌더·표·헬퍼: `src/components/replay/bake9.ts`(SHAPE_BUILDERS · SHAPE_GALLERY — 문 차례를 바꾸지 마라)
 - 순수 엔진(시각 t → 프레임): `engine9.ts` · 워커 `frameWorker.ts` · 포장 `framePack.ts`
 - GL 붓: `gl9.ts`(메시·인스턴스·MRT·번짐) · 효과 심 `glctx9.ts` · 메시 접기 `src/utils/mesh9.ts` · 카메라/사영 `src/utils/shapeOblique.ts`
-- 붓·UI·재생기: `ReplayMotionPlayer.tsx` · CSS `replay.css` · 중계 편성표 `cast9.ts` · 참값 해독 `src/utils/openbwTracks.ts`(판 11~12)
+- 붓·UI·재생기: `ReplayMotionPlayer.tsx` · CSS `replay.css` · 중계 편성표 `cast9.ts` · 참값 해독 `src/utils/openbwTracks.ts`(판 11~13)
 - 굽는 표(빌드 시각): `tierTable.gen.ts`·`muzzleTable.gen.ts`·`addonWall.gen.ts` — 모델을 고치면 다시 뽑는다
 - 기기 프로필 `DEV9` 한 표(폰/PC · 벤치 단 PC_TIERS9/PHONE_TIERS9). 기기 판정은 `smallDevice9` 하나.
 

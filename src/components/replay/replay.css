@@ -407,7 +407,7 @@
      끌 때마다(지표 칸 156px + 사이 20px이 생겼다 사라진다) 이름 칸이 106 ↔ 282px로
      출렁이고, 종족 배지도 그만큼 좌우로 뛴다. 한 값으로 못 박으면 두 꼴이 한 픽셀도
      안 다르고, 판 폭은 아래에서 이 값으로부터 계산된다(--roster-name). */
-  grid-template-columns: var(--roster-cols, var(--roster-name, 132px) 26px 44px 30px 28px 28px);
+  grid-template-columns: var(--roster-cols, var(--roster-name, 132px) 26px 44px 30px 28px 52px 28px);
   align-items: center; gap: 0 4px; width: 100%; padding: 0 5px; margin: 0;
 }
 /* 컬럼 라벨 줄(요청: "일꾼 라벨 없애고 대신 컬럼 라벨을 맨위 추가(표 형식)") — 표의
@@ -451,15 +451,15 @@
 /* 켜진 표시의 깜빡임 — 지금 따라가는 중이라는 살아 있는 신호다. 글자색이 초록 ↔ 검정을 오간다(TV 단추가 쓴다).
    ⚠ 아이콘 후광(drop-shadow)은 걷었다(2026-09 · 위 .scr-motion-castbtn-on 의 ★ — 그 후광이 곧 '중계 단추만 그림자'였다). */
 /* 자동 중계가 지금 보여 주는 사람의 이름 칩(2026-10, 요청: "중계 자동모드에서 누군지 알수없으니 로스터를 깜빡임발광
-   주기") — 칩의 바탕은 그 사람 색이라 어느 색에서도 읽히게 **흰 테 + 흰 후광**이 숨 쉬듯 켜졌다 꺼진다(TV 단추의
-   초록 깜빡임과 같은 박자 1초). 칩 크기는 안 바뀐다(그림자뿐이라 줄이 안 들썩인다). */
-.scr-motion-teamcol-name.scr-motion-teamcol-cast { animation: scr-cast-chip 1s ease-in-out infinite; }
+   주기") — **임자색 테 + 임자색 후광**(줄의 --pcol · 2026-10, 요청: "글로우는 임자색으로 밝히고 깜빡임 속도 느리게" — 옛 판은
+   흰 후광 1초)이 숨 쉬듯 켜졌다 꺼진다(TV 단추의 초록 깜빡임과 같은 박자 2초). 칩 크기는 안 바뀐다(그림자뿐이라 줄이 안 들썩인다). */
+.scr-motion-teamcol-name.scr-motion-teamcol-cast { animation: scr-cast-chip 2s ease-in-out infinite; }
 @keyframes scr-cast-chip {
-  0%, 100% { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.95), 0 0 6px 2px rgba(255, 255, 255, 0.85); filter: brightness(1.25); }
-  50% { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0), 0 0 0 0 rgba(255, 255, 255, 0); filter: none; }
+  0%, 100% { box-shadow: 0 0 0 1px var(--pcol, #fff), 0 0 9px 3px var(--pcol, #fff); filter: brightness(1.35); }
+  50% { box-shadow: 0 0 0 1px transparent, 0 0 0 0 transparent; filter: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .scr-motion-teamcol-name.scr-motion-teamcol-cast { animation: none; box-shadow: 0 0 0 1px #fff, 0 0 6px 2px rgba(255, 255, 255, 0.7); }
+  .scr-motion-teamcol-name.scr-motion-teamcol-cast { animation: none; box-shadow: 0 0 0 1px var(--pcol, #fff), 0 0 9px 3px var(--pcol, #fff); }
 }
 @keyframes scr-track-blink {
   0%, 45% { color: #2ee59d; }
@@ -486,7 +486,7 @@
 }
 .scr-motion-castbtn svg { display: block; }
 /* 켜진 동안 화면이 살아 있다는 신호 — 추적 단추의 깜빡임과 같은 박자다(후광 없이 색만 오간다 — 위 ★). */
-.scr-motion-castbtn-on svg { animation: scr-track-blink 1s steps(1, end) infinite; }
+.scr-motion-castbtn-on svg { animation: scr-track-blink 2s steps(1, end) infinite; }   /* 1초 → 2초(2026-10, 요청: "중계버튼 깜빡임 속도 느리게") */
 @media (prefers-reduced-motion: reduce) {
   .scr-motion-castbtn-on svg { animation: none; }
 }
@@ -536,7 +536,7 @@
      이 파일 훨씬 뒤에 있고 무게가 같아(0,1,0) 여기 적으면 그쪽에 덮인다. 미디어 질의는
      무게를 안 올린다. 값은 그 규칙 **뒤**의 짝 미디어 블록이 정한다(판 폭과 한자리에서). */
   .scr-motion-sidepanel {
-    --roster-cols: var(--roster-name, 112px) 20px 38px 26px 26px 24px;
+    --roster-cols: var(--roster-name, 112px) 20px 38px 26px 26px 46px 24px;
   }
   .scr-motion-teamcol-rows .scr-motion-teamrow { gap: 0 2px; padding: 0 3px; }
 }
@@ -557,7 +557,7 @@
 .scr-fs-roster-fixed {
   --dk: var(--dk-roster, 1.2);   /* 로스터만 독의 1.2배(위 .scr-motion 의 --dk-roster) */
   --roster-cols: var(--roster-name, calc(90px * var(--dk))) calc(18px * var(--dk)) calc(34px * var(--dk)) calc(24px * var(--dk))
-    calc(24px * var(--dk)) calc(22px * var(--dk));
+    calc(24px * var(--dk)) calc(44px * var(--dk)) calc(22px * var(--dk));
 }
 .scr-fs-roster-fixed .scr-motion-teamcol-rows .scr-motion-teamrow {
   gap: 0 calc(2px * var(--dk)); padding: 0 calc(3px * var(--dk)); margin: 0 calc(-3px * var(--dk));
@@ -3343,7 +3343,8 @@
 .scr-who-r + .scr-who-r { margin-left: 0.5ch; }   /* 광물·가스 사이 — / 를 걷은 자리(요청: "광물은 사실 / 필요 없을듯") */
 .scr-who-stats > span:nth-child(1) .scr-who-v { width: 3ch; }
 .scr-who-stats > span:nth-child(3) .scr-who-v { width: 7ch; }
-.scr-who-stats > span:nth-child(4) .scr-who-v { width: 3ch; }   /* APM — K/D 칸(5ch)은 2026-10 에 걷었다 */
+.scr-who-stats > span:nth-child(4) .scr-who-v { width: 10ch; }   /* 데미지 "12.3k/9.8k" — K/D(5ch) 자리(2026-10) */
+.scr-who-stats > span:nth-child(5) .scr-who-v { width: 3ch; }
 .scr-tb-seek { display: flex; align-items: center; min-width: 0; }
 /* 재생 줄 맨 왼쪽의 배속 단추 한 칸(2026-09, 요청: "배속 버튼은 플레이버튼 왼쪽으로") — 줄지 않는다. */
 .scr-tb-speed { flex: none; margin-right: 6px; }
@@ -3851,7 +3852,7 @@
 .scr-guide-mbtn-cast{
   color: #2ee59d; box-shadow: inset 0 0 0 1.5px rgba(46, 229, 157, 0.78);
 }
-.scr-guide-mbtn-cast svg{ animation: scr-track-blink 1s steps(1, end) infinite; }
+.scr-guide-mbtn-cast svg{ animation: scr-track-blink 2s steps(1, end) infinite; }
 @media (prefers-reduced-motion: reduce){ .scr-guide-mbtn-cast svg{ animation: none; } }
 .scr-guide-colsw{ color: #fff; }
 .scr-guide-colsw svg{ filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.9)); }
@@ -4117,21 +4118,21 @@
 /* ★ 폰에서도 칸 머리 현황이 선다(2026-10, 요청: "분할화면인 경우 헤더에 스탯 표시") — 옛 '폰은 숨긴다'를 되물렸다. 칸 폭에 안 들면
    위 규칙(한 줄 키 + 줄바꿈)이 저절로 숨긴다. 폰은 사이 여백·자원 칸을 한 단 죈다(아래 로스터 현황과 같은 자). */
 @media (max-width: 700px) {
-  .scr-split-st > span + span::before, .scr-roster-st > span + span::before { margin: 0 0.3em; }
-  .scr-split-st .scr-who-r, .scr-roster-st .scr-who-r { width: 4ch; }
+  .scr-split-st > span + span::before { margin: 0 0.3em; }
+  .scr-split-st .scr-who-r { width: 4ch; }
 }
-/* ★ 폰 로스터의 화면 주인 현황(2026-10, 요청: "모바일에서 중계시 단독화면인 경우 로스터의 해당 선수 스탯만 표시") — 이름 칩 옆에
-   칩과 같은 키·둥글기의 반투명 상자로 선다(분할 칸 머리 .scr-split-st 와 같은 꼴). 칸(이름 열 90·dk) 밖으로 지도 위에 비어져 나간다. */
-.scr-fs-roster-fixed .scr-roster-st {
-  display: flex; align-items: center; flex: none; box-sizing: border-box; white-space: nowrap;
-  font-size: calc(8px * var(--dk)); height: calc(8px * var(--dk) * 1.35); line-height: 1;
-  margin-left: calc(2px * var(--dk)); padding: 0 calc(3px * var(--dk)); border-radius: 2px;
-  background: rgba(0, 0, 0, 0.3); color: #e8eef6; font-weight: 600;   /* 0.5 → 0.3(2026-10, 요청: "스탯뒤 배경 좀더 투명하게") */
+/* ★ 폰 단독 중계·추적의 화면 주인 현황 — **무대 아래 가운데**(2026-10, 요청: "모바일에서 단일화면 화면주인 스탯을 로스터가 아닌
+   화면 하단 가운데에 표시") — 옛 자리(로스터 그 줄의 칩 옆 · .scr-roster-st · .scr-roster-sthead)는 걷었다. 이름 칩 + 분할 칸 머리와
+   같은 현황 상자(.scr-split-st)를 무대 안 절대 자리에 띄운다. 무대는 제 겹 문맥(z 0)이라 안의 높은 층(빔 25000)보다 위에 세운다.
+   읽기만 하는 줄이라 손짓은 지도로 흘린다. 글자 자(8·dk)는 로스터·분할 칸 머리와 같다. */
+.scr-fs-ownerst {
+  --dk: var(--dk-roster, 1.2);
+  position: absolute; left: 50%; bottom: calc(6px * var(--dk)); transform: translateX(-50%); z-index: 30000;
+  display: flex; align-items: center; max-width: calc(100% - 12px); box-sizing: border-box;
+  font-size: calc(8px * var(--dk)); line-height: 1.25; font-weight: 700; white-space: nowrap;
+  pointer-events: none;
 }
-/* 현황이 선 머리는 이름 조각이 안 줄어든다 — 이름 열(90·dk)에 묶이면 칩이 현황에 밀려 한 글자로 접힌다. */
-.scr-fs-roster-fixed .scr-roster-sthead > .scr-motion-teamcol-pick { flex: none; }
-.scr-fs-roster-fixed .scr-roster-st > span { gap: 0.2em; font-size: 0.88em; }
-.scr-fs-roster-fixed .scr-roster-st b { font-size: 0.72em; font-weight: 600; opacity: 0.62; }
+.scr-fs-ownerst .scr-motion-teamcol-name { font-size: inherit; flex: none; }
 
 /* ★ 독 줄 오른쪽의 음각 글귀(2026-09, 요청: "독 좌우 몇 px이상 남는경우 음각으로 scplay.vercel.app    SINCE 2026 추가(우측에만)")
    — 쇠 바탕에 판 글자다: 글자는 바탕보다 어둡고, 아래 가장자리에 밝은 한 줄(파인 홈의 아래 입술) · 위에 어두운 한 줄을 얹는다.
@@ -4178,7 +4179,7 @@
 .scr-tb .scr-tb-btnrow > .scr-motion-mapbtns button.scr-motion-mapbtn.scr-motion-castbtn-on {
   box-shadow: inset 0 0 0 1.5px rgba(46, 229, 157, 0.78), inset 0 2px 3px rgba(0, 0, 0, 0.85), 0 1px 0 rgba(255, 255, 255, 0.3);
 }
-.scr-tb .scr-tb-btnrow > .scr-motion-mapbtns .scr-motion-castbtn-on svg { animation: scr-cast-blink-well 1s steps(1, end) infinite; }
+.scr-tb .scr-tb-btnrow > .scr-motion-mapbtns .scr-motion-castbtn-on svg { animation: scr-cast-blink-well 2s steps(1, end) infinite; }
 @keyframes scr-cast-blink-well {
   0%, 45% { color: #3dffa8; }
   55%, 100% { color: #146b45; }

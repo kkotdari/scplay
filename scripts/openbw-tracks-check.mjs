@@ -84,10 +84,12 @@ const SPEC = {
   자원량: "[판11+] u32 개수, 개마다 varint(프레임차) · u16 x · u16 y(픽셀 — 자원밭단과 같은 자) · u16 남은 양. 글자 #amt\\t프레임\\tx\\ty\\t양",
   처치: "[판11+] **맨 뒤** u32 개수, 개마다 varint(프레임차) · u8 킬러임자 · u32 킬러태그(0 = 몸 없음) · u32 죽은태그 — 원작이 처치를 올려 준 순간."
     + " 글자 #kill\\t프레임\\t임자\\t킬러\\t죽은",
+  "데미지": "[판13+] u32 수 · u16 통프레임(119) · 줄마다 varint 통차 · u8 임자 · varint 준·유닛 · varint 준·건물 · varint 입은·유닛"
+    + " · varint 입은·건물(체력+실드 점수 · 그 통의 몫 · 누적 반올림의 차) · 글자 #dmg\\t통\\t임자\\t넷",
 };
 /** 해독기가 받아 주어야 할 판 — 이 범위 밖은 물리쳐야 한다. */
 const VER_MIN = 11;  // 판 11 만(요청: "판 10 이하 참값은 재생 안되게") — 하단 인포창·K/D 가 판 11 네 절 위에 선다
-const VER_MAX = 12;  // 판 11 = 판 10 + 맨 뒤 에너지·탑승·자원량·처치 절 · 판 12 = 선택 줄마다 u8 갈래
+const VER_MAX = 13;  // 판 11 = 판 10 + 맨 뒤 에너지·탑승·자원량·처치 절 · 판 12 = 선택 줄마다 u8 갈래 · 판 13 = 맨 뒤 데미지 절
 
 // ── 바이트 짓기 ────────────────────────────────────────────────────────────────
 const u8 = (v) => Buffer.from([v]);
@@ -188,6 +190,11 @@ function build(ver) {
     p.push(varint(120), u8(3), u32(77), u32(78));
     p.push(varint(24), u8(5), u32(0), u32(77));
   }
+  if (ver >= 13) {                                       // 데미지(맨 뒤) — 통 1 의 사람 3 · 통 2 의 사람 5
+    p.push(u32(2), u16(119));
+    p.push(varint(1), u8(3), varint(120), varint(30), varint(45), varint(0));
+    p.push(varint(1), u8(5), varint(45), varint(0), varint(120), varint(30));
+  }
   return zlib.deflateSync(Buffer.concat(p)).toString("base64");
 }
 
@@ -251,6 +258,9 @@ function expect(ver, r, fail) {
   eq("탑승", r.loads, ver >= 11 ? [[2, 78, 77], [3, 78, 0]] : []);
   eq("자원량", r.amounts, ver >= 11 ? [[0, 1, 1, 1500], [1, 1, 1, 1492]] : []);
   eq("처치", r.kills, ver >= 11 ? [[5, 3, 77, 78], [6, 5, 0, 77]] : []);
+  // 데미지(판 13) — 초는 통 시작(통 × 통 길이) · 네 몫은 그대로.
+  eq("데미지 통(초)", r.dmgBucketSec, ver >= 13 ? 119 / FPS : 0);
+  eq("데미지", r.dmg, ver >= 13 ? [[(1 * 119) / FPS, 3, 120, 30, 45, 0], [(2 * 119) / FPS, 5, 45, 0, 120, 30]] : []);
 }
 
 // ── 해독기 불러오기 ────────────────────────────────────────────────────────────
@@ -333,6 +343,7 @@ const TSV = {
   "#load": "[판11+] 프레임 · 승객태그 · 배태그(0 = 내림)",
   "#amt": "[판11+] 프레임 · x · y(픽셀) · 남은 양",
   "#kill": "[판11+] 프레임 · 킬러임자 · 킬러태그 · 죽은태그",
+  "#dmg": "[판13+] 통(119프레임) · 임자 · 준·유닛 · 준·건물 · 입은·유닛 · 입은·건물(체력+실드 점수 · 그 통의 몫)",
 };
 /* 지도 자원(미네랄·가스)은 이진 쪽에 안 실린다 — 앱이 지도에서 직접 그린다.
    글자 쪽에서도 같은 종류를 빼야 트랙 수가 맞는다. */
@@ -342,7 +353,7 @@ function readText(text) {
   const byTag = new Map();
   const hp = new Map(), ic = new Map(), tgt = new Map(), own = new Map();
   const up = [], cast = [], ping = [], player = [], res = [], apm = [], build = [], sel = [];
-  const en = [], load = [], amt = [], kill = [];
+  const en = [], load = [], amt = [], kill = [], dmg = [];
   let trust = -1;
   const typeOfTag = new Map();
   for (const line of text.split("\n")) {
@@ -371,6 +382,7 @@ function readText(text) {
       else if (p[0] === "#load") load.push(p.slice(1).map(Number));
       else if (p[0] === "#amt") amt.push(p.slice(1).map(Number));
       else if (p[0] === "#kill") kill.push(p.slice(1).map(Number));
+      else if (p[0] === "#dmg") dmg.push(p.slice(1).map(Number));
       continue;
     }
     if (line[0] === "f") continue;             // 머리글 줄
@@ -381,7 +393,7 @@ function readText(text) {
     a.push([frame, x, y, head, state, type]);
   }
   for (const [tag, ty] of typeOfTag) if (RES_TYPES.has(ty)) byTag.delete(tag);
-  return { byTag, hp, ic, tgt, own, up, cast, ping, player, res, apm, build, sel, en, load, amt, kill, trust };
+  return { byTag, hp, ic, tgt, own, up, cast, ping, player, res, apm, build, sel, en, load, amt, kill, dmg, trust };
 }
 
 /** 이진 머리에서 초당프레임을 곧장 읽는다 — 상수로 못 박으면 덤퍼가 바꿀 때 조용히 어긋난다. */
@@ -535,6 +547,12 @@ function compare(bin, txt, decoded, upName, fail) {
   decoded.kills.forEach((k9, i) => {
     const w = txt.kill[i];
     if (w && (!near(k9[0], w[0] / fps, T) || k9[1] !== w[1] || k9[2] !== w[2] || k9[3] !== w[3])) fail(`처치 ${i}`);
+  });
+  /* 판 13 데미지 절 — 글자 #dmg(통 번호)와 줄마다 견준다. 이진의 초는 통 시작(통 × 통 길이)이다. */
+  if (decoded.dmg.length !== txt.dmg.length) fail(`데미지 ${decoded.dmg.length} vs ${txt.dmg.length}`);
+  decoded.dmg.forEach((d9, i) => {
+    const w = txt.dmg[i];
+    if (w && (!near(d9[0], w[0] * decoded.dmgBucketSec, T) || d9.slice(1).some((v, j) => v !== w[j + 1]))) fail(`데미지 ${i}`);
   });
   return { keys, fps };
 }

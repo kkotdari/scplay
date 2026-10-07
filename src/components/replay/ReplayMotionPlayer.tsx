@@ -7940,6 +7940,8 @@ const fmtClock = (sec: number): string => {
  *  한 자 폭은 한글 1 · 그 밖 0.6으로 센다(한글이 그만큼 넓다).
  *  말줄임표는 안 붙인다(요청) — 점 셋도 한 자리를 먹는데, 그 자리는 이름 한 글자를
  *  더 보여 주는 데 쓰는 편이 낫다(활동 목록의 clipName과 같은 결). */
+/** 데미지 숫자 — 천 단위는 "12.3k"(로스터·현황 한 줄의 좁은 칸). */
+const fmtK9 = (v: number): string => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(Math.round(v)));
 const shortName = (name: string, teamSize = 4): string => {
   const lim = teamSize <= 1 ? Infinity : teamSize === 2 ? 6 : teamSize === 3 ? 4 : 3;
   if (!Number.isFinite(lim)) return name;
@@ -9351,6 +9353,35 @@ export default function ReplayMotionPlayer({
     for (const [raw, v] of kdSeries9) m.set(raw, [cnt9(v.k), cnt9(v.d)]);
     return m;
   }, [kdSeries9, t]);
+  /* ── 준·입은 데미지(2026-10, 요청: K/D 는 숨기고 "재생기에도 보여줄거야") — 판 13 데미지 절(통마다 임자별 네 몫)을 사람마다
+     누적 계단으로 편다. 화면은 유닛+건물을 합쳐 보인다(요청 — 나중에 나눌 수 있게 네 몫은 entData.dmg 에 그대로 있다).
+     여럿이 함께 잡아도 때린 만큼 갈려 K/D 보다 공정하다. 옛 판(≤12)은 빈 표라 '–' 다. */
+  const dmgSeries9 = useMemo(() => {
+    const out = new Map<string, { t: number[]; dealt: number[]; taken: number[] }>();
+    if (!entData || entData.dmg.length === 0) return out;
+    const nameOf = new Map(entData.players.map((pl) => [pl.owner, pl.name]));
+    for (const [sec, who, du, db, tu, tb] of entData.dmg) {
+      const raw9 = nameOf.get(who);
+      if (!raw9) continue;
+      let v = out.get(raw9);
+      if (!v) { v = { t: [], dealt: [], taken: [] }; out.set(raw9, v); }
+      const n9 = v.t.length;
+      v.t.push(sec);
+      v.dealt.push((n9 ? v.dealt[n9 - 1] : 0) + du + db);
+      v.taken.push((n9 ? v.taken[n9 - 1] : 0) + tu + tb);
+    }
+    return out;
+  }, [entData]);
+  /** 지금 시각까지의 [준, 입은] 데미지 — 사람마다(통 시작 ≤ t 인 마지막 계단 · 아직 없으면 0/0). */
+  const dmgNow = useMemo(() => {
+    const m = new Map<string, [number, number]>();
+    for (const [raw, v] of dmgSeries9) {
+      let lo = 0; let hi = v.t.length;
+      while (lo < hi) { const m9 = (lo + hi) >> 1; if (v.t[m9] <= t) lo = m9 + 1; else hi = m9; }
+      m.set(raw, lo ? [v.dealt[lo - 1], v.taken[lo - 1]] : [0, 0]);
+    }
+    return m;
+  }, [dmgSeries9, t]);
   const workerNow = useMemo(() => {
     const m = new Map<string, number>();
     for (const [raw, series] of workerLive) {
@@ -9884,8 +9915,9 @@ export default function ReplayMotionPlayer({
     worker: workerNow.get(raw9) ?? null, res: resNow.get(raw9) ?? null,
     sup: supplyNow.get(raw9) ?? null, apm: apmNow.get(raw9) ?? bases.find((b9) => b9.key === raw9)?.apm ?? null,
     kd: kdNow.get(raw9) ?? null,
+    dmg: dmgNow.get(raw9) ?? null,
   });
-  /** 현황 한 줄 — 일꾼 · 자원 · 인구 · APM(K/D 칸은 2026-10 에 걷었다 · 위 kdSeries9). 툴박스 정보 판과 분할 칸 머리(PC)가 같은 꼴을 나눠 쓴다(2026-09, 요청: "PC에서
+  /** 현황 한 줄 — 일꾼 · 자원 · 인구 · 데미지 · APM(K/D 칸은 2026-10 에 데미지로 갈았다 · 위 dmgSeries9). 툴박스 정보 판과 분할 칸 머리(PC)가 같은 꼴을 나눠 쓴다(2026-09, 요청: "PC에서
    *  헤더에 유저창과 똑같이 일꾼부터 apm까지 표시 모양도 똑같이"). 값 칸(.scr-who-v)은 칸마다 폭을 못 박아(ch) 숫자가 갈려도
    *  옆 칸이 안 움직인다(요청: "데이터에 따라 움직이지 않게 그리드화해서 각 스탯정보칸 너비가 안변하게"). */
   const whoStats9 = (c9: ReturnType<typeof capOf9> | null, cls9: string) => (
@@ -9900,6 +9932,7 @@ export default function ReplayMotionPlayer({
         </i>
       </span>
       <span title="인구"><b>인구</b><i className="scr-who-v">{c9?.sup ? `${c9.sup[0]}/${c9.sup[1]}` : "–"}</i></span>
+      <span title="준 데미지 / 입은 데미지(체력+실드 · 유닛+건물)"><b>데미지</b><i className="scr-who-v">{c9?.dmg ? `${fmtK9(c9.dmg[0])}/${fmtK9(c9.dmg[1])}` : "–"}</i></span>
       <span title="APM"><b>APM</b><i className="scr-who-v">{c9?.apm ?? "–"}</i></span>
     </div>
   );
@@ -16547,6 +16580,7 @@ export default function ReplayMotionPlayer({
         <span>인구</span>
         <span className="scr-motion-stat-min">광물</span>
         <span className="scr-motion-stat-gas">가스</span>
+        <span>데미지</span>
         <span>APM</span>
         </>)}
       </div>
@@ -16558,7 +16592,7 @@ export default function ReplayMotionPlayer({
         const sup9 = supplyNow.get(m.key);
         const res9 = resNow.get(m.key);
         const apm9 = apmNow.get(m.key) ?? m.apm ?? null;
-        const st9 = bare && smallDevice9 && !splitOn9 && camRaw9 === m.key;   // 폰 단독 중계의 화면 주인(아래 scr-roster-st)
+        const dmg9 = dmgNow.get(m.key);
         return (
           <div
             key={m.key}
@@ -16581,7 +16615,7 @@ export default function ReplayMotionPlayer({
             {/* 위는 아바타+이름 한 줄, 아래는 지표 한 줄이다(요청: "각 로스터 아래
                 가운데 정렬로 새로배치") — 지표를 이름 칸 안에 두면 아바타 옆에 붙어
                 왼쪽으로 쏠린다. 항목 폭 전체를 쓰게 밖으로 뺀다. */}
-            <span className={cx("scr-motion-teamcol-head", st9 && "scr-roster-sthead")}>
+            <span className="scr-motion-teamcol-head">
             {/* (걷어냄 · 2026-09, 요청: "기존 로스터에 추적버튼은 제거하고 여기로 통합") — 이름 왼쪽의 조준선(개인 추적)
                 단추다. 추적은 이제 아이콘 줄 TV 단추의 목록(사람들 + 자동)에서 고른다(아래 mapBtnRow). 시점(이름 누르기)은
                 그대로다: "그 눈으로 밝혀만 본다"와 "카메라까지 맡긴다"는 여전히 딴 손잡이다. */}
@@ -16620,10 +16654,8 @@ export default function ReplayMotionPlayer({
               </span>
             </span>
             </span>
-              {/* ★ 폰에서 한 사람을 중계·추적하는 동안은 **그 사람 줄에만** 현황이 칩 옆에 선다(2026-10, 요청: "모바일에서 중계시
-                  단독화면인 경우 로스터의 해당 선수 스탯만 표시") — 폰 로스터는 늘 이름만(bare)이라 화면 주인의 숫자를 볼 자리가
-                  없었다. 꼴은 분할 칸 머리와 같은 현황 한 줄(whoStats9)이다. 분할은 칸 머리가 진다. */}
-              {st9 && whoStats9(capOf9(m.key, m.key), "scr-roster-st")}
+              {/* (옮김 · 2026-10, 요청: "화면주인 스탯을 로스터가 아닌 화면 하단 가운데에") — 폰 단독 중계의 화면 주인 현황은
+                  한때 이 줄의 칩 옆(.scr-roster-st)에 섰다. 이제 무대 아래 가운데(.scr-fs-ownerst · 무대 JSX)다. */}
             </span>
               {/* 지표 다섯 칸 — **어느 화면이든 같은 다섯**이다(요청: 표 형식 전면).
                   '일꾼' 라벨은 뗐다(요청) — 그 이름은 이제 위 컬럼 라벨 줄이 한 번만
@@ -16648,6 +16680,7 @@ export default function ReplayMotionPlayer({
                 <span className="scr-motion-stat scr-motion-stat-gas">
                   {res9 ? res9[1] : ""}
                 </span>
+                <span className="scr-motion-stat">{dmg9 ? `${fmtK9(dmg9[0])}/${fmtK9(dmg9[1])}` : ""}</span>
                 <span className="scr-motion-stat">{apm9 ?? ""}</span>
               </span>
               )}
@@ -18429,6 +18462,25 @@ export default function ReplayMotionPlayer({
               뿐이라 지도 이미지·굽기와 한 톨도 안 얽힌다. 제 합성 층이고 안 움직이므로
               (CSS 주석) 평면에 늘 두어도 끌기·확대 비용이 안 는다. */}
           <div className="scr-fs-space" style={{ backgroundImage: spaceBg9 }} aria-hidden />
+          {/* ★ 폰 단독 중계·추적의 화면 주인 현황은 **무대 아래 가운데**다(2026-10, 요청: "모바일에서 단일화면 화면주인 스탯을 로스터가
+              아닌 화면 하단 가운데에 표시") — 옛 자리(로스터 그 줄의 칩 옆 · .scr-roster-st)는 걷었다. 이름 칩 + 분할 칸 머리와 같은
+              현황 상자(.scr-split-st). 읽기만 하는 줄이라 손짓은 지도로 흘린다(pointer-events none). 분할은 칸 머리가 진다. */}
+          {smallDevice9 && !splitOn9 && camRaw9 !== null && (() => {
+            const own9 = bases.find((m) => m.key === camRaw9) ?? null;
+            return (
+              <div className="scr-fs-ownerst" aria-hidden>
+                {own9 && (
+                  <span className="scr-motion-teamcol-name" style={chipStyle(own9.key, own9.team, CHIP_ROW_A9)}>
+                    {shortName(own9.name, 1)}
+                    {own9.race && raceLetter9(own9.race) ? (
+                      <span className="scr-motion-teamcol-race">{raceLetter9(own9.race)}</span>
+                    ) : null}
+                  </span>
+                )}
+                {whoStats9(capOf9(camRaw9, camRaw9), "scr-split-st")}
+              </div>
+            );
+          })()}
           {splitLay9 && (
             /* 분할보기 밑 층 — 칸마다 그 사람 화면의 **땅**(splitPaint9 가 카메라가 갈릴 때만 칠한다). 몸·효과는 그 위의 본 지도
                캔버스가 칸 네모에 제자리로 칠하고, 머리·테·누름은 맨 위 층(.scr-split)이다. 셋이 같은 격자다. */

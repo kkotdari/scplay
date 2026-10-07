@@ -118,6 +118,9 @@ export type TruthWorld = {
   loads: [number, number, number][];
   amounts: [number, number, number, number][];
   kills: [number, number, number, number][];
+  /** 판 13 데미지 절 — openbwTracks 의 dmg·dmgBucketSec 그대로. 옛 자취는 빈 표·0 이다. */
+  dmg: [number, number, number, number, number, number][];
+  dmgBucketSec: number;
 };
 
 const RACE_OF: Record<number, "" | "테란" | "저그" | "프로토스"> =
@@ -422,5 +425,7 @@ export function truthWorld(truth: TruthTracks, buildSecOf: BuildSecOf): TruthWor
     loads: truth.loads ?? [],
     amounts: truth.amounts ?? [],
     kills: truth.kills ?? [],
+    dmg: truth.dmg ?? [],
+    dmgBucketSec: truth.dmgBucketSec ?? 0,
   };
 }

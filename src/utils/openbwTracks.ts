@@ -238,6 +238,12 @@ export type TruthTracks = {
   amounts: [number, number, number, number][];
   /** 처치 [초, 킬러 임자, 킬러 태그(0 = 몸 없음), 죽은 태그] — 원작이 처치를 올려 준 순간 · **판 11부터**. */
   kills: [number, number, number, number][];
+  /** 데미지 [초(통 시작), 임자, 준·유닛, 준·건물, 입은·유닛, 입은·건물] — 체력+실드 점수 · 그 통(119프레임 ≈ 5초) 안의 몫 ·
+   *  **판 13부터**. 적 편 사람끼리 실제로 깎인 몫만(덤퍼 bwdump_dmg_hit) · 누적을 반올림한 차라 어느 시각까지 더해도 경기 합과
+   *  1 안에서 맞는다. 재생기는 유닛+건물을 합쳐 보인다(나중에 나눌 수 있게 네 몫을 그대로 둔다). */
+  dmg: [number, number, number, number, number, number][];
+  /** 데미지 통의 길이(초) — 판 13 아래는 0. */
+  dmgBucketSec: number;
 };
 
 /* 개인색은 덤퍼가 리마스터의 **CCLR 구획**에서 읽어 온다(bwdump.cpp) — 사람마다 고른
@@ -405,7 +411,8 @@ class Cursor {
    위에 서므로 옛 판은 폴백 없이 물리친다. 덤퍼가 판 11 로 갈리고 일괄 재분석이 돈다. */
 export const TRUTH_VER_MIN9 = 11;
 /* 판 12 = 판 11 + 선택 줄마다 u8 갈래(아래 SEL_KIND9) — 덤퍼가 갈리고 재분석이 돌기까지 판 11 도 그대로 읽는다(갈래 −1). */
-export const TRUTH_VER_MAX9 = 12;
+/* 판 13 = 판 12 + 맨 뒤 **데미지 절**(통마다 임자별 준·입은 데미지 · 아래 dmg) — 옛 판은 빈 표다(2026-10). */
+export const TRUTH_VER_MAX9 = 13;
 /** 선택 갈래(판 12 선택 줄의 낮은 넉 비트) — 높은 넉 비트는 부대 번호(0~9 · 부대 갈래에서만 뜻이 있다). */
 export const SEL_KIND9 = {
   /** 마우스로 고름(클릭·끌어 고르기 = Select) — 그 몸들은 그 순간 그 사람 화면 안이었다. */
@@ -458,6 +465,8 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
     const hasSelKind = version >= 12;
     /** 에너지·탑승·자원량·처치 네 절(판 11) — 선택 절 뒤, 맨 뒤다(2026-09, 요청: 하단 인포창 — "어림 말고 덤퍼에 부탁"). */
     const hasInfo = version >= 11;
+    /** 데미지 절(판 13) — 네 절 뒤, 맨 뒤다. */
+    const hasDmg = version >= 13;
     /* 은신은 판 5부터다(요청: "참값에 은신 칸 추가하는 쪽으로 가자") — 옛 덤프는 그 깃발이
        늘 0이라 '은신 아님'으로 읽히는데, 그건 **모르는 것**이지 아님이 아니다. 판으로 갈라
        옛 판에서는 칸 자체를 안 만든다(없으면 화면이 이름으로 아는 상시 은신만 쓴다). */
@@ -788,10 +797,29 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
       }
     }
 
+    /* 판 13 — 데미지 절(맨 뒤): 수 · 통 프레임 · 줄마다 통 차 · 임자 · 네 몫. */
+    const dmg: [number, number, number, number, number, number][] = [];
+    let dmgBucketSec = 0;
+    if (hasDmg) {
+      const cnt = c.u32();
+      const bf = c.u16();
+      dmgBucketSec = bf / fps;
+      let pb = 0;
+      for (let i = 0; i < cnt; i += 1) {
+        pb += c.varint();
+        const who = c.u8();
+        const du = c.varint();
+        const db = c.varint();
+        const tu = c.varint();
+        const tb = c.varint();
+        dmg.push([(pb * bf) / fps, who, du, db, tu, tb]);
+      }
+    }
+
     return { version, leftover: c.left,
       tracks, trustUntil: trustFrame < 0 ? null : trustFrame / fps,
       players, ups, casts, pings, res, apm, apmBucketSec, orders, resFields, builds, sels,
-      energy, loads, amounts, kills };
+      energy, loads, amounts, kills, dmg, dmgBucketSec };
   } catch {
     return null;
   }
