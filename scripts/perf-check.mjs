@@ -5,7 +5,7 @@
  *   node scripts/perf-check.mjs --units 80          한 사람당 유닛 수
  *   node scripts/perf-check.mjs --wide              PC 화면(1280)으로
  *   node scripts/perf-check.mjs --mc --players 3    마인드 컨트롤(임자 바뀜 · 판 8) — 인구 칸의 종족 풀 덧줄 검산
- *   node scripts/perf-check.mjs --marks --info --players 3 --track 정구 [--herocolor]   핑·클릭 마커·선택 링의 색(색 모드 · 주인공 모드면 나·아군·적) 검산
+ *   node scripts/perf-check.mjs --marks --info --players 3 --track 정구 --diag [--herocolor]   핑·클릭 마커·선택 링의 색(화면 주인 제 것 원작 초록 · 같은 편은 색 모드) 검산 — [자국]·[링]
  *
  * 무엇을 재는가 — **실제 컴포넌트를 실제로 돌린다.** 참값 자취(OBWT 판 4)를 여기서
  * 합성해 ReplayMotionPlayer에 그대로 물리고, 폰 크기 화면 + CPU 조임(CDP)에서 재생을
@@ -372,7 +372,8 @@ function makeWorld() {
   w.u32(upRows.length);                // 업그레이드(--dockebay) — 판 7부터 줄마다 건물 태그
   { let pf = 0; for (const [f, id, lv, o, tg] of upRows) { w.vz(f - pf); pf = f; w.u16(id); w.u8(lv); w.u8(o); w.u32(tg); } }
   w.u32(0);                            // 마법
-  /* 핑(--marks · 2026-10, UI 색 검산) — 44.5초에 정구(0) · Rex(1 · 같은 편) · 수달이(2 · 적 → 시점 보기에선 안 보임). 색은 색 모드를 따른다.
+  /* 핑(--marks · 2026-10, UI 색 검산) — 44.5초에 정구(0 · 화면 주인이면 원작 초록 rgb(16,252,24)) · Rex(1 · 같은 편 → 제 색) · 수달이(2 · 적 →
+     시점 보기에선 안 보임).
      자리는 가운데 난전 근처(병력이 46초쯤 거기 모여 카메라가 그쪽을 본다) · 좌표는 px(타일 × 32) — 덤퍼가 쓰는 자와 같다. */
   const pings9 = has("--marks") ? [[F(44.5), 60 * 32, 60 * 32, 0], [F(44.6), 66 * 32, 58 * 32, 1], [F(44.7), 62 * 32, 68 * 32, 2]] : [];
   w.u32(pings9.length); { let pf = 0; for (const [f, x, y, o] of pings9) { w.vz(f - pf); pf = f; w.u16(x); w.u16(y); w.u8(o); } }
@@ -989,6 +990,9 @@ if (has("--marks")) {
   }));
   const t9 = await page.evaluate(() => { const r = document.querySelector(".scr-motion-seek, input[type=range]"); return r instanceof HTMLInputElement ? Number(r.value).toFixed(2) : null; });
   console.log(`[자국] 시계 ${t9} · ${r9.length}개 · ${JSON.stringify(r9)}`);
+  /* 선택 링은 캔버스라 DOM 으로 못 읽는다 — --diag 로 켜면 붓이 마지막 장의 링(종류:임자:고른이:색)을 SCR_DIAG.ring 에 적는다. */
+  const ring9 = await page.evaluate(() => window.__scrDiag?.ring ?? null);
+  console.log(`[링] ${ring9 ?? "(진단 없음 — --diag)"}`);
 }
 /* 자동 팝업 자(--infoprobe [png]): 중계·추적 중 화면 주인이 고른 건물의 정보 팝업이 저절로 서나(2026-09, 요청:
    "중계시(화면 주인의) 건물 선택시 인포팝업 뜨게 — 리플레이 기록상 선택한 경우"). --selpick 과 --track 정구 로 연다:
