@@ -982,7 +982,7 @@ const supProbe9 = async (label9) => {
       const b = el.getBoundingClientRect();
       const v = el.querySelector(".scr-who-v, .scr-motion-stat:nth-child(2)");
       const nm = el.querySelector(".scr-motion-teamcol-name")?.textContent ?? "";
-      out.push({ box: el.classList.contains("scr-split-st") ? "현황" : `로스터줄 ${nm}`, h: +b.height.toFixed(1),
+      out.push({ box: el.classList.contains("scr-split-st") ? "현황" : `로스터줄 ${nm}`, h: +b.height.toFixed(1), w: +b.width.toFixed(1),
         sup: sup ? [...sup.children].map((c) => c.textContent).join(" | ") : (v?.textContent ?? ""),
         supH: sup ? +sup.getBoundingClientRect().height.toFixed(1) : null,
         inkH: sup ? +(sup.lastElementChild.getBoundingClientRect().bottom - sup.firstElementChild.getBoundingClientRect().top).toFixed(1) : null,
@@ -991,7 +991,7 @@ const supProbe9 = async (label9) => {
     }
     return out;
   });
-  for (const r of r9) console.log(`[종족 풀 ${label9}] ${r.box} 키 ${r.h} · 인구 "${r.sup}"${r.supH !== null ? ` · 상자 ${r.supH} · 글 ${r.inkH} · 위아래 남김 ${r.gap[0]}/${r.gap[1]}` : ""}`);
+  for (const r of r9) console.log(`[종족 풀 ${label9}] ${r.box} 키 ${r.h} 폭 ${r.w} · 인구 "${r.sup}"${r.supH !== null ? ` · 상자 ${r.supH} · 글 ${r.inkH} · 위아래 남김 ${r.gap[0]}/${r.gap[1]}` : ""}`);
 };
 if (has("--mc")) await supProbe9("A");
 /* 자국 자(--marks 와 함께 · 2026-10) — 큰 지도의 핑·클릭 마커 DOM 과 그 색·자리 · 선택 링은 캔버스라 못 읽으니 색 규칙은 눈으로. */
