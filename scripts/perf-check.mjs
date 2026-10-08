@@ -6,6 +6,7 @@
  *   node scripts/perf-check.mjs --wide              PC 화면(1280)으로
  *   node scripts/perf-check.mjs --mc --players 3    마인드 컨트롤(임자 바뀜 · 판 8) — 인구 칸의 종족 풀 덧줄 검산
  *   node scripts/perf-check.mjs --marks --info --players 3 --track 정구 --diag [--herocolor]   핑·클릭 마커·선택 링의 색(화면 주인 제 것 원작 초록 · 같은 편은 색 모드) 검산 — [자국]·[링]
+ *   node scripts/perf-check.mjs --ios --players 2 --dmg --glblit --split x.png   폰 분할 칸의 두 줄 현황(데미지 칸에 값 — 판 13 데미지 절 합성)
  *
  * 무엇을 재는가 — **실제 컴포넌트를 실제로 돌린다.** 참값 자취(OBWT 판 4)를 여기서
  * 합성해 ReplayMotionPlayer에 그대로 물리고, 폰 크기 화면 + CPU 조임(CDP)에서 재생을
@@ -344,7 +345,8 @@ function makeWorld() {
   /* ── 바이트로 굽는다 ── */
   const w = new W();
   w.u8(0x4f); w.u8(0x42); w.u8(0x57); w.u8(0x54);   // "OBWT"
-  w.u8(12); w.f32(FPS); w.i32(-1);   // 판 12 = 판 11 + 선택 줄마다 u8 갈래(해독기는 판 11~12 를 읽는다)
+  /* 판 12 = 판 11 + 선택 줄마다 u8 갈래 · --dmg 면 판 13(= 판 12 + 맨 뒤 데미지 절 — 현황 데미지 칸 "1.2k(46%)/0.9k(52%)" 의 재료). */
+  w.u8(has("--dmg") ? 13 : 12); w.f32(FPS); w.i32(-1);
   w.u8(PLAYERS.length);
   for (const pl of PLAYERS) { w.u8(pl.owner); w.u8(pl.owner); w.u8(pl.race); w.u8(pl.force); w.u8(0); w.u32(pl.color); w.str(pl.name); }
   w.u32(tracks.length);
@@ -402,6 +404,16 @@ function makeWorld() {
   w.u32(0);                            // 자원량(판 11)
   w.u32(killRows.length);              // 처치(판 11 · 맨 뒤)
   { let pf = 0; for (const [f, ko, kt, vt] of killRows) { w.vz(f - pf); pf = f; w.u8(ko); w.u32(kt); w.u32(vt); } }
+  /* 데미지 절(판 13 · --dmg · 2026-10, 폰 두 줄 현황의 데미지 칸 폭 검산) — 10초 통 · 20초부터 통마다 사람마다 준(유닛·건물)·입은(유닛·건물)을
+     적는다. 임자마다 조금 다르게(who 비례) 하여 팀 내 몫 %가 50 아닌 수로 선다. 46초면 통 셋(20·30·40)이 쌓여 "1.1k(46%)/0.8k(52%)" 꼴. */
+  if (has("--dmg")) {
+    const bf9 = Math.round(10 * FPS);
+    const rows9 = [];
+    for (let b9 = 2; b9 <= 12; b9 += 1) for (const pl of PLAYERS) rows9.push([b9, pl.owner, 300 + 70 * pl.owner, 40, 250 + 40 * pl.owner, 20]);
+    w.u32(rows9.length); w.u16(bf9);
+    let pb9 = 0;
+    for (const [b9, who, du, db, tu, tb] of rows9) { w.vz(b9 - pb9); pb9 = b9; w.u8(who); w.vz(du); w.vz(db); w.vz(tu); w.vz(tb); }
+  }
   const motion = deflateSync(w.out()).toString("base64");
   /* 합성 뭉치를 파일로도 낸다(PERF_MOTION_OUT=경로) — 엔진을 노드에서 곧장 돌려 보는 하네스의 재료(브라우저 없이 ghosts9·op 를 찍는다). */
   if (process.env.PERF_MOTION_OUT) writeFileSync(process.env.PERF_MOTION_OUT, JSON.stringify({ motion, players: PLAYERS }));
