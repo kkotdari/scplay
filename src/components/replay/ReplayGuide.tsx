@@ -197,7 +197,7 @@ export default function ReplayGuide({ onClose }: {
           <li><span className="scr-guide-ic scr-guide-ic-txt">건설</span><span><b>짓는 중</b> — 큰 그림·이름이 <b>공사장</b>(테란) · <b>소환구</b>(프로토스) · <b>공사 고치</b>(저그)가 되고, 바에 <b>건설중 · 소환중 · 변태중: 건물 이름</b>이 섭니다. 레어·하이브·그레이터 스파이어·성큰·스포어처럼 <b>건물이 변태</b>하면 큰 그림은 원래 건물(해처리…)이고 칸이 새 건물(레어…)입니다.</span></li>
           <li><span className="scr-guide-ic scr-guide-ic-txt">탑승</span><span><b>수송선·벙커</b> — 탄 유닛이 칸으로 섭니다. 2칸짜리는 세로 두 칸 · 4칸짜리(탱크·드라군 같은)는 2×2 입니다. 유닛의 공격·방어·실드 업그레이드도 둥근 네모 칸입니다.</span></li>
           <li><span className="scr-guide-ic scr-guide-ic-txt">여럿</span><span><b>화면 주인의 선택</b> — 중계 중에 아무것도 안 눌렀으면, 그 사람이 지금 고른 부대가 칸으로 섭니다(6칸씩 두 줄 · 왼쪽부터). 칸을 누르면 그 유닛 하나를 봅니다. 고른 것에는 지도에서도 <b>선택 링</b>이 둘립니다.</span></li>
-            <li><span className="scr-guide-ic scr-guide-ic-txt">데미지</span><span><b>데미지</b> — <b>준 데미지/입은 데미지</b>(체력+실드 점수 · 유닛과 건물을 합친 값)입니다. 여럿이 함께 잡아도 때린 만큼 갈려 K/D 보다 공정합니다. 천 단위는 12.3k 꼴.</span></li>
+            <li><span className="scr-guide-ic scr-guide-ic-txt">데미지</span><span><b>데미지</b> — <b>준 데미지/입은 데미지</b>(체력+실드 점수 · 유닛과 건물을 합친 값)입니다. 여럿이 함께 잡아도 때린 만큼 갈려 K/D 보다 공정합니다. 천 단위는 12.3k 꼴. 팀전에서는 괄호에 지금까지 <b>우리 팀이 준(입은) 데미지 가운데 내 몫(%)</b>이 섭니다.</span></li>
         </ul>
 
       </section>

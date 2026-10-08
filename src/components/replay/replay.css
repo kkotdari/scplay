@@ -559,6 +559,11 @@
   --roster-cols: var(--roster-name, calc(90px * var(--dk))) calc(18px * var(--dk)) calc(34px * var(--dk)) calc(24px * var(--dk))
     calc(24px * var(--dk)) calc(44px * var(--dk)) calc(22px * var(--dk));
 }
+/* 팀전의 로스터는 데미지 칸이 괄호(팀 내 몫 %)까지 들어 넓다(44 → 86·dk) — 밀리는 괄호가 없어 좁은 칸 그대로. 최소 꼴(bare)은 이름 칸 하나. */
+.scr-fs-roster-fixed.is-team:not(.scr-fs-panel-bare) {
+  --roster-cols: var(--roster-name, calc(90px * var(--dk))) calc(18px * var(--dk)) calc(34px * var(--dk)) calc(24px * var(--dk))
+    calc(24px * var(--dk)) calc(86px * var(--dk)) calc(22px * var(--dk));
+}
 .scr-fs-roster-fixed .scr-motion-teamcol-rows .scr-motion-teamrow {
   gap: 0 calc(2px * var(--dk)); padding: 0 calc(3px * var(--dk)); margin: 0 calc(-3px * var(--dk));
 }
@@ -3344,6 +3349,7 @@
 .scr-who-stats > span:nth-child(1) .scr-who-v { width: 3ch; }
 .scr-who-stats > span:nth-child(3) .scr-who-v { width: 7ch; }
 .scr-who-stats > span:nth-child(4) .scr-who-v { width: 10ch; }   /* 데미지 "12.3k/9.8k" — K/D(5ch) 자리(2026-10) */
+.scr-who-stats.is-team > span:nth-child(4) .scr-who-v { width: 20ch; }   /* 팀전은 괄호의 팀 내 몫까지 "12.3k(62%)/9.8k(41%)" */
 .scr-who-stats > span:nth-child(5) .scr-who-v { width: 3ch; }
 .scr-tb-seek { display: flex; align-items: center; min-width: 0; }
 /* 재생 줄 맨 왼쪽의 배속 단추 한 칸(2026-09, 요청: "배속 버튼은 플레이버튼 왼쪽으로") — 줄지 않는다. */
