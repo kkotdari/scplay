@@ -3343,7 +3343,8 @@
    -/- 자원의 경우 이것도 각 데이터의 자리를 미리 확보 · 동등 폭 취소하고 일꾼, apm은 적게 자원은 제일 넓게 인구 킬데스는 중간으로 ·
    사이사이 | 로 구분") — 한때 다섯 등분(같은 폭)이었다가 되물렸다. 칸 = 라벨 + 고정 폭 값(오른쪽 맞춤)이라 줄 전체 폭이 늘 같고
    (가운데 맞춤도 안 흔들린다) 라벨 자리가 값과 무관하다. 값 폭(ch · tabular-nums): 일꾼 3 · 자원 광물 5 + / + 가스 5 · 인구 7 ·
-   K/D 5 · APM 3. 칸 사이는 옅은 | (앞 칸 ::before). 정보 판(.scr-tb-who-st)·분할 칸 머리(.scr-split-st)가 같은 꼴이다. */
+   K/D 5 · APM 3. 칸 사이는 옅은 | (앞 칸 ::before). 정보 판(.scr-tb-who-st)·분할 칸 머리(.scr-split-st)가 같은 꼴이다.
+   ⚠ 값의 맞춤은 2026-10 에 **가운데**로 갈았다(아래 .scr-who-v 주석) — 칸 폭 못 박기는 그대로다. */
 .scr-who-stats { font-variant-numeric: tabular-nums; }
 /* 칸은 이름으로 짚는다(.scr-who-i.is-* · 2026-10) — 자리(nth-child)로 짚던 것을 바꿨다: 폰 좌우 분할의 두 줄 현황이 칸들을 줄(.scr-who-row)로
    싸므로 자리가 흐트러진다. 줄 안에서만 | 가 선다(둘째 줄 머리에는 안 선다). */
@@ -3351,8 +3352,10 @@
 .scr-who-i + .scr-who-i::before { content: "|"; opacity: 0.28; margin: 0 0.55em; font-weight: 400; }
 .scr-who-row { display: inline-flex; align-items: baseline; justify-content: center; }
 .scr-who-stats.is-two { flex-direction: column; align-items: center; }
-.scr-who-v { display: inline-block; font-style: normal; white-space: nowrap; text-align: right; }
-.scr-who-r { display: inline-block; text-align: right; width: 5ch; }
+/* ★ 값은 제 칸 **가운데**(2026-10, 요청: "라벨과 데이터칸은 지금처럼 미리 확보 · 데이터는 데이터칸에서 가운데 정렬로") — 오른쪽 맞춤이던 것을
+   돌렸다: 못 박은 칸에 짧은 값("–")이 오른쪽 끝에 붙어 라벨과 멀어졌다(폰 두 줄 현황의 데미지 칸 실측). */
+.scr-who-v { display: inline-block; font-style: normal; white-space: nowrap; text-align: center; }
+.scr-who-r { display: inline-block; text-align: center; width: 5ch; }
 .scr-who-r + .scr-who-r { margin-left: 0.5ch; }   /* 광물·가스 사이 — / 를 걷은 자리(요청: "광물은 사실 / 필요 없을듯") */
 .scr-who-i.is-worker .scr-who-v { width: 3ch; }
 .scr-who-i.is-sup .scr-who-v { width: 7ch; }
@@ -4144,7 +4147,8 @@
 }
 /* ★ PC 칸 머리에는 이름 칩 옆에 현황(일꾼 ~ APM)이 선다(2026-09, 요청: "PC에서 헤더에 유저창과 똑같이 일꾼부터 apm까지 표시 모양도
    똑같이 · 폰트만 닉네임 수준 · 배경도 유저스탯쪽만 따로 반투명 네모(닉네임과 같은 래디우스와 높이)") — 글자 크기·줄 높이는 칸 머리
-   (.scr-split-cap)의 것을 물려받아 칩과 키가 같고, 바탕·둥글기·좌우 여백도 칩과 같다. 라벨은 정보 판처럼 값 앞에 작게. 폰은 숨긴다. */
+   (.scr-split-cap)의 것을 물려받아 칩과 키가 같고, 바탕·둥글기·좌우 여백도 칩과 같다. 라벨은 값 앞에(크기는 아래 ★ — 2026-10 부터 라벨이 값보다
+   크다). 폰은 숨긴다. */
 .scr-split-st {
   /* 글자는 칩보다 한 단 작고(칸 0.88em · 라벨은 그 0.72em — 요청: "헤더 스탯의 폰트 1스텝씩 줄이기(박스 크기는 그대로)") 상자 키는
      칩과 같은 1.25em(칸 머리 글자 기준)으로 못 박아 가운데에 앉힌다. */
@@ -4153,7 +4157,13 @@
   background: rgba(0, 0, 0, 0.3); color: #e8eef6; font-weight: 600;   /* 0.5 → 0.3(2026-10, 요청: "스탯뒤 배경 좀더 투명하게") */
 }
 .scr-split-st .scr-who-i { gap: 0.2em; font-size: 0.88em; }
-.scr-split-st b { font-size: 0.72em; font-weight: 600; opacity: 0.62; }
+/* ★ 라벨이 값보다 크다(2026-10, 요청: "스탯창에서 라벨이 데이터보다 크게 서로 크기 바꾸기" · PC·폰 같이) — 둘의 크기를 맞바꿨다: 라벨 = 칸
+   글자(0.88em) · 값 = 그 0.72em(옛 라벨 크기). 값 칸의 ch 폭도 값 글자를 따라 그만큼 준다(줄 전체가 좁아진다). 라벨의 옅음(0.62)은 그대로. */
+.scr-split-st b { font-weight: 600; opacity: 0.62; }
+.scr-split-st .scr-who-v { font-size: 0.72em; }
+/* 인구 덧줄 상자(.scr-sup — 두세 종족 풀)는 값이 작아진 만큼 되돌려 **상자 키 1.25em 에 맞춘 옛 절대 크기**를 지킨다(위 .scr-sup 주석의
+   두 줄 0.72 + 0.56 · 세 줄 0.56 + 0.37×2 는 칸 글자 기준이었다). 본줄 0.72 = 다른 값과 같은 크기라 결이 맞는다. */
+.scr-split-st .scr-who-v .scr-sup { font-size: calc(1em / 0.72); }
 /* ★ 폰에서도 칸 머리 현황이 선다(2026-10, 요청: "분할화면인 경우 헤더에 스탯 표시") — 옛 '폰은 숨긴다'를 되물렸다. 칸 폭에 안 들면
    위 규칙(한 줄 키 + 줄바꿈)이 저절로 숨긴다. 폰은 사이 여백·자원 칸을 한 단 죈다(아래 로스터 현황과 같은 자). */
 @media (max-width: 700px) {
@@ -4191,10 +4201,8 @@
 }
 .scr-split-ownerst .scr-split-st { margin-left: 0; }
 .scr-split-st.is-two { height: auto; row-gap: 1px; padding: 1px calc(3px * var(--dk)); }
-/* ★ 두 줄 현황의 데미지 값은 **제 폭**이다(2026-10, 요청: "모바일에서 스탯창 아랫줄에 데미지만 너무 넓음 조절 필요 · 라벨과 데이터 거리도") —
-   한 줄 현황(PC 머리·로스터)은 값 폭을 11ch(팀전 21ch)로 못 박아 옆 칸이 안 움직이지만, 둘째 줄은 데미지·APM 둘뿐이라 못 박은 폭이
-   곧 빈자리였다(값 "–"·짧은 수가 오른쪽 끝에 붙고 라벨과 멀어졌다 · 실측 폰 세로 칸). 줄 가운데 맞춤이라 폭이 자라도 라벨 자리만 조금 움직인다. */
-.scr-split-st.is-two .scr-who-i.is-dmg .scr-who-v { width: auto; }
+/* (되물림 · 2026-10) 두 줄 현황의 데미지 값을 제 폭(width auto)으로 둔 적이 있다 — "라벨과 데이터칸은 지금처럼 미리 확보 · 데이터는 가운데
+   정렬"로 갈음했다(값이 오른쪽 끝에 붙어 라벨과 멀던 것은 가운데 맞춤이 푼다 · 위 .scr-who-v). 폭 규칙은 한 줄과 같다(11ch · 팀전 21ch). */
 
 /* ★ 독 줄 오른쪽의 음각 글귀(2026-09, 요청: "독 좌우 몇 px이상 남는경우 음각으로 scplay.vercel.app    SINCE 2026 추가(우측에만)")
    — 쇠 바탕에 판 글자다: 글자는 바탕보다 어둡고, 아래 가장자리에 밝은 한 줄(파인 홈의 아래 입술) · 위에 어두운 한 줄을 얹는다.
