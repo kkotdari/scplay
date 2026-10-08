@@ -706,29 +706,10 @@ function suitFist(
  *  해서, 웹킷이 그 순간 합성을 소프트웨어로 떨어뜨리는 일이 있다. 핵·스톰·시전 고리가 한꺼번에 뜰 때 끊김이
  *  나는 것과 앞뒤가 맞는다.
  *  짐작을 더 쌓지 않으려고 **끄고 켜서 가른다** — 주소에 #noblend를 붙이면 섞임만 빠지고 나머지는 그대로다. */
-/** 원작 UI 색(2026-10, 요청: "중계시 화면에 보이는 저런 UI 색 원작색으로 … 어차피 한 화면엔 한 사람이 보는 UI만 나오니까") ──────
- *  원작의 선택 원은 **보는 사람 기준** 셋이다: 내 것 초록 · 같은 편 노랑 · 적 빨강. 클릭 마커는 공격만 빨강. 핑은 제 것 초록 · 같은 편
- *  노랑(요청: "자기 거와 팀원 색 잘 구분"). 화면 주인(UI_SCREEN9 — 개인 추적·중계 자동의 그 사람 · 분할은 칸마다 제 사람)이 있을 때만
- *  이 색이고, 주인 없는 전체 보기는 null → 임자색 그대로(여러 사람의 UI 가 한 화면에 섞이므로). */
-const UI_OWN9 = "#43f05a";
-const UI_ALLY9 = "#f5e04a";
-const UI_FOE9 = "#ff3b3b";
-/** 지금 칠하는 화면의 주인 — 렌더가 메인 화면 몫을 놓고(camRaw9), splitPaint9 가 칸마다 제 사람으로 갈아 끼웠다 되돌린다. */
-let UI_SCREEN9: { raw: string; teamOf: (raw: string) => 1 | 2 | undefined } | null = null;
-/** 화면 주인 screen9 가 보는 raw9 의 UI 색 — 제 것·같은 편·적. atk9(공격 클릭)는 늘 빨강. */
-function uiColRel9(screen9: string, raw9: string, teamOf: (raw: string) => 1 | 2 | undefined, atk9 = false): string {
-  if (atk9) return UI_FOE9;
-  if (raw9 === screen9) return UI_OWN9;
-  const ts9 = teamOf(screen9);
-  return ts9 !== undefined && teamOf(raw9) === ts9 ? UI_ALLY9 : UI_FOE9;
-}
-/** 지금 화면 주인 기준의 UI 색 — 주인이 없거나 임자를 모르면 null(부르는 쪽이 임자색으로 물러난다). */
-function uiColOf9(raw9: string | undefined, atk9 = false): string | null {
-  if (UI_SCREEN9 === null) return null;
-  if (atk9) return UI_FOE9;
-  if (raw9 === undefined) return null;
-  return uiColRel9(UI_SCREEN9.raw, raw9, UI_SCREEN9.teamOf);
-}
+/* (되물림 · 2026-10) 화면 주인 기준 원작 UI 색(제 것 초록 · 같은 편 노랑 · 적 빨강 · 모듈 변수 하나로 화면 주인을 넘기던 길) — 지적: "너가 한 건
+   주인공 모드고 일반 보기 모드에서는 각자 자기색으로 나올 걸". 링·마커·핑은 다시 **색 모드**(modeColor · op.color)를 따른다: 개인·팀 모드는 제 색,
+   주인공 모드는 나·아군·적(HERO_COL9 · 주인공 = 화면 주인 heroRaw9 = camRaw9)이라 그 셋만으로 원작 규칙이 선다. 공격 클릭은 전처럼 X 자(DOM)·
+   붉은 고리(분할 2D). */
 /** 선택 링의 자 — 메시의 **여덟 요잉 화면 상자 폭의 평균**(모델 자 · 16 = 상자 한 변). 요잉 칸이 바뀌어도 한 값이라 링이 안 흔들린다
  *  (2026-10, 요청: "선택링이 유닛/건물의 방향이나 자세 모션에 따라 크기가 바뀌거나 위치가 바뀌지 않게"). 메시·카메라마다 한 번 센다. */
 const RING_W_CACHE9 = new WeakMap<object, Map<string, number>>();
@@ -5075,13 +5056,13 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             const my9 = sy - (op.air ? px9 * 0.45 : 0);
             if (gl9 && gl9.primOk) {
               gl9.prim(1, sx, my9, mw9 / 2, mw9 / 2, op.color, op.alpha);
-              if (op.selRing || (pickedKey != null && op.pickKey === pickedKey)) gl9.prim(2, sx, my9, mw9 / 2 + 1.5, mw9 / 2 + 1.5, uiColOf9(op.pickRaw) ?? op.color, op.alpha, 1);
+              if (op.selRing || (pickedKey != null && op.pickKey === pickedKey)) gl9.prim(2, sx, my9, mw9 / 2 + 1.5, mw9 / 2 + 1.5, op.color, op.alpha, 1);
             } else {
               ctx.beginPath();
               ctx.arc(sx, my9, mw9 / 2, 0, Math.PI * 2);
               ctx.fill();
               if (op.selRing || (pickedKey != null && op.pickKey === pickedKey)) {
-                ctx.strokeStyle = uiColOf9(op.pickRaw) ?? op.color;
+                ctx.strokeStyle = op.color;
                 ctx.lineWidth = 1;
                 ctx.beginPath();
                 ctx.arc(sx, my9, mw9 / 2 + 1.5, 0, Math.PI * 2);
@@ -5400,7 +5381,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
                  좀 다르네") — 발자국 깊이(op.footD = 깊이 ÷ 폭)를 곱했더니 4×3 은 0.42 · 3×2 는 0.38 로 유닛 링(0.564)보다
                  납작했다. 링은 땅 위의 동그라미라는 신호이지 발자국의 꼴이 아니다 — 비를 하나로 둔다. */
               const rx9 = wPx * 0.62 * rk9;
-              gl9.prim(2, sx, cy9, rx9, Math.max(3, rx9 * ryK9), uiColOf9(op.pickRaw) ?? op.color, op.alpha, Math.max(1.1, wPx * 0.012));   // 색은 원작 규칙(uiColOf9)
+              gl9.prim(2, sx, cy9, rx9, Math.max(3, rx9 * ryK9), op.color, op.alpha, Math.max(1.1, wPx * 0.012));
             }
             gl9.push({ mesh: glB9, ax: gax9, ay: gay9, k: gk9, yoff: op.mkFrac !== undefined ? 0 : -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind), over: true });
             /* ★ 가스 연기는 메시가 아니라 **프레임마다 놓는 덩이**다(2026-09, gl9 gasPush9) — 회전 칸이 소수(엔진)라 시계가 이어진다. */
@@ -5643,8 +5624,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           const ringWd9 = glM9 && gl9 ? ringWidth9(gl9, glM9, glCam9) * (px / 16) * modelNormOf(op.kind) : inkW;
           const ringX = sx;
           const ringY = (groundY ?? groundOy9) - lift;
-          /* 색은 **화면 주인 기준 원작 색**(2026-10 · 위 uiColOf9: 주인 초록 · 같은 편 노랑 · 적 빨강) · 주인 없는 전체 보기는 임자색. */
-          const ringCol9 = uiColOf9(op.pickRaw) ?? op.color;
+          const ringCol9 = op.color;   // 색 모드를 따른다(주인공 모드면 나·아군·적 · 위 되물림 주석)
           const ringPath = (): void => {
             ctx.beginPath();
             /* 입체에서는 좌우 시점 밀림도 먹인다(요청: 선택 링·마커도 사영 밀림) — 바닥 깊이에 tan(시점각)을
@@ -10849,17 +10829,15 @@ export default function ReplayMotionPlayer({
   const miniExtraRef = useRef<MiniDot[]>([]);
   /** 미니맵 핑(아래에서 렌더마다 채운다 · 2026-10). */
   const miniPingsRef9 = useRef<MiniPing[]>([]);
-  /* ★ 원작 UI 색의 기준 — **화면 주인**(개인 추적 · 중계 자동 · 2026-10, 위 uiColOf9). 분할은 칸마다 splitPaint9 가 갈아 끼운다. */
-  UI_SCREEN9 = camRaw9 !== null && !splitOn9 ? { raw: camRaw9, teamOf: teamOfRaw } : null;
   /* 미니맵 핑 목록(2026-10, 요청: "미니맵 내 색 포함" — 원작처럼 미니맵에도 번진다) — 큰 지도 핑(아래 JSX)과 같은 거름(관전자 제외 ·
-     시점 보기에선 상대편 제외)과 같은 색. age 는 3초 창의 0~1. 핑은 몇 개 안 되어 렌더마다 다시 센다. */
+     시점 보기에선 상대편 제외)과 같은 색(색 모드). age 는 3초 창의 0~1. 핑은 몇 개 안 되어 렌더마다 다시 센다. */
   miniPingsRef9.current = qPing && entData?.pings
     ? entData.pings.flatMap(([ps, px, py, ppid]): MiniPing[] => {
       if (t < ps || t - ps > 3) return [];
       const raw = entData.players.find((pl) => pl.owner === ppid)?.name ?? "";
       if (!raw || obsNames.has(raw)) return [];
       if (fogOn && !visAll && teamOfRaw(raw) !== viewTeam) return [];
-      return [{ fx: px / Math.max(1, grid.width), fy: py / Math.max(1, grid.height), color: uiColOf9(raw) ?? modeColor(raw, teamOfRaw(raw)), age: (t - ps) / 3 }];
+      return [{ fx: px / Math.max(1, grid.width), fy: py / Math.max(1, grid.height), color: modeColor(raw, teamOfRaw(raw)), age: (t - ps) / 3 }];
     })
     : [];
   /* (걷어냄·요청: "모델크기 토글 제거") — '표준/확대' 라디오와 그 배수(unitMul 3.1·
@@ -14954,7 +14932,7 @@ export default function ReplayMotionPlayer({
       m9.imageSmoothingEnabled = true;
       m9.imageSmoothingQuality = "low";   // 256px 판을 백여 px 로 줄이는 데 고품질 필터는 값만 든다(헤드리스 칸당 4ms)
       m9.drawImage(src9, 0, 0, bw9, bh9);
-      /* 핑 — 그 사람 것과 같은 편 것만 · 원작 색(제 것 초록 · 같은 편 노랑 · 2026-10 "미니맵 내 색 포함") · 번지는 고리. */
+      /* 핑 — 그 사람 것과 같은 편 것만 · 색 모드를 따른다(2026-10 "미니맵 내 색 포함") · 번지는 고리. */
       if (livePings9.length > 0 && entData) {
         const tm0 = teamOfRaw(cell9.raw);
         for (const [ps, px, py, ppid] of livePings9) {
@@ -14964,7 +14942,7 @@ export default function ReplayMotionPlayer({
           const age = (tNow9 - ps) / 3;
           const r = Math.max(2, bw9 * 0.012) * (0.6 + age * 1.6);
           m9.globalAlpha = 1 - age * 0.8;
-          m9.strokeStyle = uiColRel9(cell9.raw, praw, teamOfRaw);
+          m9.strokeStyle = modeColor(praw, teamOfRaw(praw));
           m9.lineWidth = Math.max(1, bw9 * 0.006);
           m9.beginPath();
           m9.arc((px / gw) * bw9, (py / gh) * bh9, r, 0, Math.PI * 2);
@@ -15012,7 +14990,7 @@ export default function ReplayMotionPlayer({
         const x9 = zx9(cx2);
         const y9 = zy9(cy2);
         ctx9.globalAlpha = a9 > 0.7 ? 1 - (a9 - 0.7) / 0.3 : 1;
-        const col9 = uiColRel9(raw9, craw, teamOfRaw, ck === 7);   // 원작 색 — 화면 주인은 그 칸 사람(2026-10)
+        const col9 = ck === 7 ? "#ff3b3b" : modeColor(craw, teamOfRaw(craw));
         ctx9.strokeStyle = col9;
         ctx9.lineWidth = Math.max(1.2, r9 * 0.16);
         ctx9.beginPath();
@@ -15030,7 +15008,7 @@ export default function ReplayMotionPlayer({
         const praw9 = entData.players.find((pl) => pl.owner === ppid)?.name ?? "";
         if (!praw9 || obsNames.has(praw9)) continue;
         if (praw9 !== raw9 && (team9 === null || teamOfRaw(praw9) !== team9)) continue;
-        const col9 = uiColRel9(raw9, praw9, teamOfRaw);   // 제 것 초록 · 같은 편 노랑(2026-10)
+        const col9 = modeColor(praw9, teamOfRaw(praw9));
         const w9 = Math.max(14, tile9 * 1.4);
         const x9 = zx9(px);
         const y9 = zy9(py);
@@ -15214,10 +15192,7 @@ export default function ReplayMotionPlayer({
          "건물짓기 고스트등도") — 팀 장은 같은 편 모두의 선택·건설 명령을 담으므로, 선택 링은 그 칸의 사람이 고른 몸에만
          (op.selBy) 남기고 건설 고스트는 그 사람 것(op.ghostRaw)만 남긴다. 마커·핑은 아래 칸 안개 판 위에 따로 그린다. */
       if (frameOpsRef9.current) frameOpsRef9.current = splitOwnOps9(frameOpsRef9.current, cell9.raw);
-      /* 원작 UI 색의 기준(uiColOf9)은 이 칸의 사람이다 — 붓이 링을 칠하는 동안만 갈아 끼우고 되돌린다. */
-      const keepUi9 = UI_SCREEN9;
-      UI_SCREEN9 = { raw: cell9.raw, teamOf: teamOfRaw };
-      try { paint9(zc9, pan9, zc9); } finally { PAINT_CLIP9 = null; frameOpsRef9.current = keepOps9; frameFxRef9.current = keepFx9; UI_SCREEN9 = keepUi9; }
+      try { paint9(zc9, pan9, zc9); } finally { PAINT_CLIP9 = null; frameOpsRef9.current = keepOps9; frameFxRef9.current = keepFx9; }
       const pf09 = pNow();   // 여기서부터 칸 안개·자국(SPLIT_M9.fog)
       /* 칸 안개 — 그 팀의 밝힌 판(등고선 · 팀마다 뜸하게 다시 뽑는다)과 눈 목록(원)을 큰 지도 안개 층과 같은 셈으로 판다. */
       const exp9 = tm9 ? teamExpRef9.current.get(tm9) : undefined;
@@ -18389,7 +18364,7 @@ export default function ReplayMotionPlayer({
                      풀었다). 자국은 몇 개 안 되는 0.9초짜리라 캔버스로 옮길 값이
                      아니므로 층만 올린다 — Z_FX(6100)가 캔버스 바로 위 DOM 효과 층이다. */
                   // 효과 렌즈 안이다 — 배율은 층의 폭이 먹으므로 px은 곧 화면 px, 역배율은 안 건다.
-                  ...posStyle(cx2, cy2), color: uiColOf9(raw, ck === 7) ?? modeColor(raw, teamOfRaw(raw)), zIndex: 20,   // 화면 주인이 있으면 원작 색(공격 빨강 · 제 것 초록 · 같은 편 노랑)
+                  ...posStyle(cx2, cy2), color: modeColor(raw, teamOfRaw(raw)), zIndex: 20,
                   "--ckw": `${(ckw * pitchK(cy2)).toFixed(1)}px`,
                   ...groundXfAt9(cx2, cy2),   // 입체: 눕히기 + 시점 밀림(요청)
                 } as React.CSSProperties}
@@ -18415,7 +18390,7 @@ export default function ReplayMotionPlayer({
                 // 핑도 같은 사정 — 캔버스 위로 올린다(크립·유닛 위에서도 보인다).
                 /* 크기도 배율을 따른다(요청: 마커처럼) — 4배 기준 아래서는 강제 확대, 위로는 타일 1.4배. */
                 style={{
-                  ...posStyle(px, py), color: uiColOf9(raw) ?? modeColor(raw, teamOfRaw(raw)), zIndex: 25,   // 화면 주인이 있으면 제 것 초록 · 같은 편 노랑
+                  ...posStyle(px, py), color: modeColor(raw, teamOfRaw(raw)), zIndex: 25,
                   "--pgw": `${(((mapRef.current?.clientWidth ?? 320) / grid.width) * Math.max(4, zoom) * 1.4 * pitchK(py)).toFixed(1)}px`,
                   ...groundXfAt9(px, py),   // 입체: 눕히기 + 시점 밀림(요청)
                 } as React.CSSProperties}
@@ -18650,7 +18625,8 @@ export default function ReplayMotionPlayer({
               읽기만 하는 줄이라 손짓은 지도로 흘린다(pointer-events none). 분할은 칸 머리가 진다. */}
           {smallDevice9 && !splitOn9 && camRaw9 !== null && (
             <div className="scr-fs-ownerst" aria-hidden>
-              {whoStats9(capOf9(camRaw9, camRaw9), "scr-split-st")}
+              {/* 폰은 늘 두 줄(일꾼·자원·인구 / 데미지·APM · 2026-10, 요청: "스탯창 그냥 두 줄 고정") — 분할 칸 아래 현황과 같은 꼴. */}
+              {whoStats9(capOf9(camRaw9, camRaw9), "scr-split-st is-two", true)}
             </div>
           )}
           {splitLay9 && (
@@ -18697,8 +18673,7 @@ export default function ReplayMotionPlayer({
                        그 사람의 시야와 그 칸의 화면 네모)이 그 사람을 든다. */
                     onClick={() => setSplitPick9((p9) => (p9 === c9.raw ? null : c9.raw))}
                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSplitPick9((p9) => (p9 === c9.raw ? null : c9.raw)); } }}
-                    className={cx("scr-split-cell", tm9 && "is-team", splitPick9 === c9.raw && "is-pick",
-                      smallDevice9 && "is-stbot", smallDevice9 && splitLay9.cols > 1 && "is-two")}
+                    className={cx("scr-split-cell", tm9 && "is-team", splitPick9 === c9.raw && "is-pick", smallDevice9 && "is-stbot")}
                     style={{ gridColumn: c9.c + 1, gridRow: c9.r + 1, ...(tm9 ? { borderColor: TEAM_COLOR[tm9] } : {}) }}
                     aria-label={`${cap9.text} 화면`}
                   >
@@ -18709,12 +18684,12 @@ export default function ReplayMotionPlayer({
                       {rl9 && <span className={cx("scr-split-badge", `is-${rl9}`)}>{DUEL_LABEL9[rl9]}</span>}
                       {!smallDevice9 && whoStats9(cap9, "scr-split-st")}
                     </span>
-                    {/* ★ 폰은 현황이 칸 **아래 가운데**다(2026-10, 요청: "모바일 2분할화면에서 가로 2분할이면 한 줄 세로 2분할이면 두 줄로 각 화면
-                        아래쪽에 스탯 표시") — 위아래로 나뉜 칸(폭이 무대 전체 · cols 1)은 한 줄, 좌우로 나뉜 칸(폭이 반 · cols 2)은 두 줄
-                        (일꾼·자원·인구 / 데미지·APM). 칸 미니맵은 그만큼 위로 올라간다(replay.css .is-stbot). PC 는 칸 머리의 현황 그대로. */}
+                    {/* ★ 폰은 현황이 칸 **아래 가운데**다(2026-10, 요청: "모바일 2분할화면에서 … 각 화면 아래쪽에 스탯 표시") — 처음엔 위아래 분할 한 줄 ·
+                        좌우 분할 두 줄이었다가 **늘 두 줄**(일꾼·자원·인구 / 데미지·APM)로(요청: "스탯창 그냥 두 줄 고정하고 글자 크기 1스텝 키워 · 화면
+                        가운데 정렬"). 칸 미니맵은 그만큼 위로 올라간다(replay.css .is-stbot). PC 는 칸 머리의 현황 그대로. */}
                     {smallDevice9 && (
                       <span className="scr-split-ownerst">
-                        {whoStats9(cap9, cx("scr-split-st", splitLay9.cols > 1 && "is-two"), splitLay9.cols > 1)}
+                        {whoStats9(cap9, "scr-split-st is-two", true)}
                       </span>
                     )}
                     {/* 칸 미니맵(좌하단) — 그 팀 시야 · 제 화면 자리는 그 사람 색 네모(splitMiniPaint9). */}

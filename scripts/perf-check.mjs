@@ -5,7 +5,7 @@
  *   node scripts/perf-check.mjs --units 80          한 사람당 유닛 수
  *   node scripts/perf-check.mjs --wide              PC 화면(1280)으로
  *   node scripts/perf-check.mjs --mc --players 3    마인드 컨트롤(임자 바뀜 · 판 8) — 인구 칸의 종족 풀 덧줄 검산
- *   node scripts/perf-check.mjs --marks --info --players 3 --track 정구   핑·클릭 마커·선택 링의 원작 색(화면 주인 기준) 검산
+ *   node scripts/perf-check.mjs --marks --info --players 3 --track 정구 [--herocolor]   핑·클릭 마커·선택 링의 색(색 모드 · 주인공 모드면 나·아군·적) 검산
  *
  * 무엇을 재는가 — **실제 컴포넌트를 실제로 돌린다.** 참값 자취(OBWT 판 4)를 여기서
  * 합성해 ReplayMotionPlayer에 그대로 물리고, 폰 크기 화면 + CPU 조임(CDP)에서 재생을
@@ -372,12 +372,12 @@ function makeWorld() {
   w.u32(upRows.length);                // 업그레이드(--dockebay) — 판 7부터 줄마다 건물 태그
   { let pf = 0; for (const [f, id, lv, o, tg] of upRows) { w.vz(f - pf); pf = f; w.u16(id); w.u8(lv); w.u8(o); w.u32(tg); } }
   w.u32(0);                            // 마법
-  /* 핑(--marks · 2026-10, 원작 UI 색 검산) — 44.5초에 정구(0 · 화면 주인이면 초록) · Rex(1 · 같은 편 → 노랑) · 수달이(2 · 적 → 안 보임).
+  /* 핑(--marks · 2026-10, UI 색 검산) — 44.5초에 정구(0) · Rex(1 · 같은 편) · 수달이(2 · 적 → 시점 보기에선 안 보임). 색은 색 모드를 따른다.
      자리는 가운데 난전 근처(병력이 46초쯤 거기 모여 카메라가 그쪽을 본다) · 좌표는 px(타일 × 32) — 덤퍼가 쓰는 자와 같다. */
   const pings9 = has("--marks") ? [[F(44.5), 60 * 32, 60 * 32, 0], [F(44.6), 66 * 32, 58 * 32, 1], [F(44.7), 62 * 32, 68 * 32, 2]] : [];
   w.u32(pings9.length); { let pf = 0; for (const [f, x, y, o] of pings9) { w.vz(f - pf); pf = f; w.u16(x); w.u16(y); w.u8(o); } }
   w.u32(0);                            // 자원
-  /* 명령(--marks) — 클릭 마커의 재료: 정구 병력 하나 이동(0 → 초록)·다른 하나 공격(7 → 빨강) · Rex 병력 이동(같은 편 → 노랑) ·
+  /* 명령(--marks) — 클릭 마커의 재료: 정구 병력 하나 이동(0)·다른 하나 공격(7 · X 자) · Rex 병력 이동(같은 편) ·
      수달이 병력 공격(적 → 시점 보기에선 안 보임). 마커는 0.9초만 사니 45.6초와 46.4초 두 벌을 심는다(사진이 46~47초). */
   const cmds9 = [];
   if (has("--marks")) {
@@ -1343,6 +1343,15 @@ if (SHOT) {
       await page.waitForTimeout(400);
     }
     console.log("[색 모드]", await page.evaluate(() => document.querySelector(".scr-motion-colbtn")?.getAttribute("aria-label")));
+    /* 자국 색을 바꾼 모드로 한 번 더 잰다(--marks · 2026-10) — 주인공 모드면 나·아군·적(HERO_COL9 #2cb494·#fcfc38·#f40404)이어야 한다.
+       --heroshot <png> 면 그 모드의 사진도 찍는다(선택 링은 캔버스라 눈으로). */
+    if (has("--marks")) {
+      await page.waitForTimeout(300);
+      const r9 = await page.evaluate(() => [...document.querySelectorAll(".scr-motion-pingfx, .scr-motion-clickfx")].map((el) => ({ cls: el.className.replace("scr-motion-", ""), col: getComputedStyle(el).color })));
+      console.log(`[자국 · 색 모드 뒤] ${r9.length}개 · ${JSON.stringify(r9)}`);
+      const hs9 = flag("--heroshot", "");
+      if (hs9 && hs9 !== true && String(hs9).endsWith(".png")) await page.screenshot({ path: String(hs9), timeout: 120000 });
+    }
     /* 주인공색은 중계가 켜진 동안만이다 — TV 목록에서 '끄기'를 고르면 개인색으로 돌아와야 한다. */
     if (has("--herocolor")) {
       const off = await page.evaluate(async () => {

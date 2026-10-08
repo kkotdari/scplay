@@ -4169,26 +4169,25 @@
   --dk: var(--dk-roster, 1.2);
   position: absolute; left: 50%; bottom: calc(6px * var(--dk)); transform: translateX(-50%); z-index: 30000;
   display: flex; align-items: center; max-width: calc(100% - 12px); box-sizing: border-box;
-  font-size: calc(8px * var(--dk)); line-height: 1.25; font-weight: 700; white-space: nowrap;
+  /* 글자 9·dk — 한 단 키웠다(2026-10, 요청: "글자 크기 1스텝 키워" · 옛 8·dk) · 두 줄 고정은 JSX(whoStats9 two9). */
+  font-size: calc(9px * var(--dk)); line-height: 1.25; font-weight: 700; white-space: nowrap;
   pointer-events: none;
 }
 .scr-fs-ownerst .scr-split-st { margin-left: 0; }   /* 칩이 없으니 칩 옆 여백도 없다 — 상자가 정가운데 */
-/* ★ 폰 분할 칸의 현황은 칸 **아래 가운데**다(2026-10, 요청: "모바일 2분할화면에서 가로 2분할이면 한 줄 세로 2분할이면 두 줄로 각 화면 아래쪽에
-   스탯 표시") — 칸 머리에는 이름 칩만 남는다(.scr-split-cap 의 현황은 PC 만 · JSX smallDevice9). 위아래 분할(칸 폭 = 무대 폭 · cols 1)은 한 줄,
-   좌우 분할(칸 폭 = 반 · cols 2)은 두 줄(.is-two — 일꾼·자원·인구 / 데미지·APM · 두 줄은 .scr-who-row 로 싼다). 칸 미니맵은
-   현황 키만큼 위로 올라간다(.is-stbot --stbot-h · 한 줄 1.25em + 여백 · 두 줄 2.5em + 여백) — 좌하단 미니맵과 안 겹친다. 글자 자는 폰 단독
-   현황(.scr-fs-ownerst)과 같은 8·dk. */
+/* ★ 폰 분할 칸의 현황은 칸 **아래 가운데**다(2026-10, 요청: "모바일 2분할화면에서 … 각 화면 아래쪽에 스탯 표시") — 칸 머리에는 이름 칩만 남는다
+   (.scr-split-cap 의 현황은 PC 만 · JSX smallDevice9). 폰 현황은 **늘 두 줄**(.is-two — 일꾼·자원·인구 / 데미지·APM · 두 줄은 .scr-who-row 로 싼다 ·
+   요청: "스탯창 그냥 두 줄 고정" — 처음의 '위아래 분할 한 줄 · 좌우 분할 두 줄'을 되물림) · 글자 9·dk(한 단 키움) · 가운데 맞춤(상자도 줄도).
+   칸 미니맵은 현황 키만큼 위로 올라간다(.is-stbot --stbot-h · 두 줄 2.5em + 여백) — 좌하단 미니맵과 안 겹친다. */
 .scr-split-ownerst {
   --dk: var(--dk-roster, 1.2);
   position: absolute; left: 50%; bottom: calc(6px * var(--dk)); transform: translateX(-50%); z-index: 1;
-  display: flex; align-items: center; max-width: calc(100% - 12px); box-sizing: border-box;
-  font-size: calc(8px * var(--dk)); line-height: 1.25; font-weight: 700; white-space: nowrap;
+  display: flex; align-items: center; justify-content: center; max-width: calc(100% - 12px); box-sizing: border-box;
+  font-size: calc(9px * var(--dk)); line-height: 1.25; font-weight: 700; white-space: nowrap;
   pointer-events: none;
 }
 .scr-split-ownerst .scr-split-st { margin-left: 0; }
 .scr-split-st.is-two { height: auto; row-gap: 1px; padding: 1px calc(3px * var(--dk)); }
-.scr-split-cell.is-stbot { --stbot-h: calc(8px * var(--dk-roster, 1.2) * 1.25 + 6px * var(--dk-roster, 1.2)); }
-.scr-split-cell.is-stbot.is-two { --stbot-h: calc(8px * var(--dk-roster, 1.2) * 2.5 + 8px * var(--dk-roster, 1.2)); }
+.scr-split-cell.is-stbot { --stbot-h: calc(9px * var(--dk-roster, 1.2) * 2.5 + 8px * var(--dk-roster, 1.2)); }
 .scr-split-cell.is-stbot .scr-split-mini { bottom: calc(3px * var(--dk) + var(--stbot-h)); }
 
 /* ★ 독 줄 오른쪽의 음각 글귀(2026-09, 요청: "독 좌우 몇 px이상 남는경우 음각으로 scplay.vercel.app    SINCE 2026 추가(우측에만)")
