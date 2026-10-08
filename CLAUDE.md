@@ -30,7 +30,7 @@
 - GL 붓: `gl9.ts`(메시·인스턴스·MRT·번짐) · 효과 심 `glctx9.ts` · 메시 접기 `src/utils/mesh9.ts` · 카메라/사영 `src/utils/shapeOblique.ts`
 - 붓·UI·재생기: `ReplayMotionPlayer.tsx` · CSS `replay.css` · 중계 편성표 `cast9.ts` · 참값 해독 `src/utils/openbwTracks.ts`(판 11~13)
 - 굽는 표(빌드 시각): `tierTable.gen.ts`·`muzzleTable.gen.ts`·`addonWall.gen.ts` — 모델을 고치면 다시 뽑는다
-- 기기 프로필 `DEV9` 한 표(폰/PC · 벤치 단 PC_TIERS9/PHONE_TIERS9). 기기 판정은 `smallDevice9` 하나.
+- 기기 프로필 `DEV9` 한 표(폰/PC · 벤치 단 PC_TIERS9/PHONE_TIERS9). 기기 판정은 `smallDevice9` 하나 · 해상도 단(UI 배수 `--ui`·`--dk`)은 `uiStep9`(player-ui.md).
 
 ## 도록(카탈로그) 뽑기
 "도록 뽑아줘"는 아래 한 줄이다. 파일명·조건은 스크립트가 정한다 — 손으로 바꾸지 않는다.

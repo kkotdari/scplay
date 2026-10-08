@@ -211,7 +211,7 @@
   /* ★ 폭에 따른 축소는 걷었다(2026-10, 요청: "화면폭에의한 축소만 제거") — 옛 `flex: 0 1 · min-width: 0` 은 줄이 좁으면 형제와
      함께 쪼그라들었다. 이제 한 변은 늘 --mapbtn-h 다(폰에 남은 단추가 여섯 남짓이라 360px 에도 든다). */
   flex: 0 0 var(--mapbtn-h); width: var(--mapbtn-h); max-width: var(--mapbtn-h); height: auto; aspect-ratio: 1 / 1;
-  min-height: 0; padding: 0; border-radius: 999px; overflow: hidden; font-size: 12px;
+  min-height: 0; padding: 0; border-radius: 999px; overflow: hidden; font-size: calc(12px * var(--ui));
   display: inline-flex; align-items: center; justify-content: center;
   /* ★ 아이콘은 **무조건 흰색**이다(요청: "아이콘 버튼의 색은 무조건 흰색 · 로스터나
      도구의 글씨처럼") — 이 버튼들은 앱의 종이가 아니라 **지도** 위에 뜬다. 지도는
@@ -234,17 +234,17 @@
        배속 ×2  ·  보기 2D/3D  ·  확대 4배
      ×가 앞에 붙은 것은 배속, 배가 뒤에 붙은 것은 확대다. 세 토큰이 안 겹친다. */
 .scr-motion-mapbtns button.scr-motion-mapval {
-  font-size: 11px; font-weight: 800;
+  font-size: calc(11px * var(--ui)); font-weight: 800;
 }
 /* 아이콘 15px · 값 11px — 폰(32px)과 PC(30px) 원이 같은 자다(2026-09, 요청: PC 단추 20% 축소 · 38 → 30px). */
-.scr-motion-mapbtns button.scr-motion-mapbtn svg { width: 15px; height: 15px; }
+.scr-motion-mapbtns button.scr-motion-mapbtn svg { width: calc(15px * var(--ui)); height: calc(15px * var(--ui)); }
 .scr-motion-mapval-num {
   font-variant-numeric: tabular-nums;
   /* 안 접는다(실측: "3.6배"가 "3.6"과 "배" 두 줄로 접혔다). */
   white-space: nowrap;
 }
 /* 손짓으로 온 어중간한 값(3.6배)은 다섯 글자라 44px 동그라미에 안 든다 — 한 단 줄인다. */
-.scr-motion-mapval-num.is-long { font-size: 8px; letter-spacing: -0.02em; }
+.scr-motion-mapval-num.is-long { font-size: calc(8px * var(--ui)); letter-spacing: -0.02em; }
 /* ★ 값 버튼의 **위로 펼치는 목록**(요청: 배속·확대·음악 — 누르면 선택지가 위로) ─────────────────────────────
    감싸개(.scr-motion-pick)가 버튼 대신 줄의 flex 항목이 되고(같은 44px 바탕·줄어듦), 목록은 그 위에 절대배치로 선다.
    숫자 목록은 가운데 맞춤, 곡 목록(is-list)은 왼맞춤에 길이 상한·스크롤. */
@@ -259,9 +259,9 @@
 }
 .scr-motion-mapbtns .scr-motion-pick > button.scr-motion-mapbtn { align-self: center; }
 .scr-motion-pickmenu {
-  position: absolute; bottom: calc(100% + 6px); right: 0;
-  margin: 0; padding: 4px; list-style: none;
-  display: flex; flex-direction: column; gap: 2px;
+  position: absolute; bottom: calc(100% + 6px * var(--ui)); right: 0;
+  margin: 0; padding: calc(4px * var(--ui)); list-style: none;
+  display: flex; flex-direction: column; gap: calc(2px * var(--ui));
   min-width: 100%;
   background: rgba(14, 18, 26, 0.94); color: #eef2f7;
   border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 4px;   /* 옛 12 — 요청: "버튼들 선택 목록 래디우스 감소" */
@@ -271,15 +271,15 @@
 /* 제 안에서만 구른다(지적: "음악 목록 스크롤 시 뒤 맵이 스크롤이 돼") — contain이 **페이지**로 번지는 연쇄를
    끊고, 지도 줌으로 새는 것은 휠 손잡이가 막는다(ReplayMotionPlayer의 onWheelHost). */
 .scr-motion-pickmenu.is-list {
-  min-width: 168px; max-height: min(60vh, 360px); overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y;
+  min-width: calc(168px * var(--ui)); max-height: min(60vh, 360px * var(--ui)); overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y;
 }
 /* 중계 목록은 화면이 담을 수 있으면 다 편다(2026-09, 요청: "중계 선택 목록 화면 안넘어가면 스크롤바 안생기게") — 여덟 사람 + 전체·자동·끄기
    열한 줄이 360 상한에 걸려 스크롤바가 섰다. 상한을 화면 키(위 여백 한 뼘을 뺀 것)로 두어 넘칠 때만 구른다. */
 .scr-motion-castpick .scr-motion-pickmenu.is-list { max-height: calc(100vh - 140px); max-height: calc(100dvh - 140px); }
 .scr-motion-pickitem {
-  display: block; width: 100%; padding: 6px 12px; border: none; border-radius: 2px;   /* 켜짐·hover 바탕도 함께 각지게(옛 8) */
+  display: block; width: 100%; padding: calc(6px * var(--ui)) calc(12px * var(--ui)); border: none; border-radius: 2px;   /* 켜짐·hover 바탕도 함께 각지게(옛 8) */
   background: transparent; color: inherit; cursor: pointer;
-  font-family: inherit; font-size: 13px; font-weight: 700; line-height: 1.4;
+  font-family: inherit; font-size: calc(13px * var(--ui)); font-weight: 700; line-height: 1.4;   /* × 해상도 단(--ui) */
   font-variant-numeric: tabular-nums; text-align: center; white-space: nowrap;
 }
 .scr-motion-pickmenu.is-list .scr-motion-pickitem { text-align: left; font-weight: 600; }
@@ -308,7 +308,7 @@
   /* (걷어냄 · 2026-10) `.scr-tb { --mapbtn-h: 32px }` — 이 미디어 블록은 `.scr-tb` 기본 규칙(아래 3260줄 · 같은 무게)보다 **앞**에 있어
      한 번도 이긴 적이 없다(실측 폰 단추 30px). 폰·PC 다 30px 한 값이다 — 폭에 따른 축소는 flex-shrink 뿐이었고 그것을 걷었다. */
   .scr-tb { --mapbtn-gap: 5px; }
-  .scr-motion-pickitem { font-size: 12px; padding: 5px 10px; }
+  .scr-motion-pickitem { font-size: calc(12px * var(--ui)); padding: calc(5px * var(--ui)) calc(10px * var(--ui)); }
 }
 /* (걷어냄 · 2026-10) ≤400px 에서 30px·4px 로 한 단 더 내리던 규칙 — "화면폭에의한 축소만 제거". 좁은 화면은 32px 한 값이다. */
 
@@ -1327,7 +1327,7 @@
 /* 컴팩트(요청: 버튼 상하좌우 패딩 다 줄이기) — 46px 원 → 30px. */
 .scr-motion-play {
   flex-shrink: 0;
-  width: 30px; height: 30px; min-width: 30px; border-radius: 50%;
+  width: calc(30px * var(--ui, 1)); height: calc(30px * var(--ui, 1)); min-width: calc(30px * var(--ui, 1)); border-radius: 50%;   /* × 해상도 단(--ui) */
   display: inline-flex; align-items: center; justify-content: center;
   border: none; background: transparent; color: var(--text); cursor: pointer; padding: 0;
   -webkit-tap-highlight-color: transparent;
@@ -1552,7 +1552,7 @@
 }
 .scr-motion-speed-on { background: rgba(255, 255, 255, 0.1); color: var(--text); border-color: var(--line-soft); }
 .scr-motion-range {
-  flex: 1 1 0; min-width: 0; height: 16px; cursor: pointer;
+  flex: 1 1 0; min-width: 0; height: calc(16px * var(--ui, 1)); cursor: pointer;   /* 자들은 해상도 단(--ui · 2026-10)을 곱한다 — 손잡이·줄·미디어 판도 */
   -webkit-appearance: none; appearance: none; background: transparent;
   /* 가로 끌기만 탐색바 몫이다(재지적: 재생바 위에서 위아래 스와이프가 페이지 스크롤로
      안 이어짐) — none은 세로 손짓까지 삼켰다. pan-y면 세로로 시작한 손짓은 브라우저가
@@ -1561,10 +1561,10 @@
 }/* 모바일 — 손가락 표적을 키운다(지적: 터치로 잡기가 안 됨). 상자 높이 16→32px에
    손잡이도 12→20px. 트랙(4px)은 가운데 정렬만 다시 맞춘다. */
 @media (max-width: 1159px) {
-  .scr-motion-range { height: 32px; }
+  .scr-motion-range { height: calc(32px * var(--ui, 1)); }
   .scr-motion-range::-webkit-slider-runnable-track { margin-top: 0; }
-  .scr-motion-range::-webkit-slider-thumb { width: 20px; height: 20px; margin-top: -8px; }
-  .scr-motion-range::-moz-range-thumb { width: 20px; height: 20px; }
+  .scr-motion-range::-webkit-slider-thumb { width: calc(20px * var(--ui, 1)); height: calc(20px * var(--ui, 1)); margin-top: calc(-8px * var(--ui, 1)); }
+  .scr-motion-range::-moz-range-thumb { width: calc(20px * var(--ui, 1)); height: calc(20px * var(--ui, 1)); }
 }
 /* 손가락 기기는 한 단 더(요청: "가로 세로 슬라이드 모두 잘 안집혀" → 재요청: "진행바
    다이얼 크기 키우고 터치영역도 넓게") — 상자 32→48px, 손잡이 20→28px, 줄도 4→6px로
@@ -1578,11 +1578,11 @@
      상자 36 · 손잡이 26 · 줄 6으로 내린다. 손가락 표적은 26px이라 여전히 넉넉하고
      (애플 권고 44는 **버튼**의 자이고 이건 끌어서 쓰는 손잡이다), 상자가 손잡이를 딱
      감싸므로 남는 자리가 없다. 손잡이 중심 보정은 −(26−6)/2 = −10px이다. */
-  .scr-motion-range { height: 36px; }
-  .scr-motion-range::-webkit-slider-runnable-track { height: 6px; }
-  .scr-motion-range::-moz-range-track { height: 6px; }
-  .scr-motion-range::-webkit-slider-thumb { width: 26px; height: 26px; margin-top: -10px; }
-  .scr-motion-range::-moz-range-thumb { width: 26px; height: 26px; }
+  .scr-motion-range { height: calc(36px * var(--ui, 1)); }
+  .scr-motion-range::-webkit-slider-runnable-track { height: calc(6px * var(--ui, 1)); }
+  .scr-motion-range::-moz-range-track { height: calc(6px * var(--ui, 1)); }
+  .scr-motion-range::-webkit-slider-thumb { width: calc(26px * var(--ui, 1)); height: calc(26px * var(--ui, 1)); margin-top: calc(-10px * var(--ui, 1)); }
+  .scr-motion-range::-moz-range-thumb { width: calc(26px * var(--ui, 1)); height: calc(26px * var(--ui, 1)); }
 }
 
 /* 전체화면에서는 손짓을 통째로 바가 갖는다 — 평소 화면의 pan-y는 "재생바 위에서 위아래
@@ -1603,23 +1603,23 @@
    그 56px은 진행바가 지도 **밖** 아래에 서던 시절 요청된 값이다("터치영역도 넓게") —
    그때는 높이가 남의 자리를 안 먹었다. 지금 이 줄은 지도 **위**라 높이가 곧 가려지는
    지형이고, 그래서 자리는 되돌리되 표적은 지킨다. */
-.scr-tb-seek > .scr-motion-bar-controls { height: 32px; }
+.scr-tb-seek > .scr-motion-bar-controls { height: calc(32px * var(--ui, 1)); }
 .scr-fs-layer .scr-motion-range { align-self: center; }
 .scr-motion-range::-webkit-slider-runnable-track {
-  height: 4px; border-radius: 999px;
+  height: calc(4px * var(--ui, 1)); border-radius: 999px;
   background: linear-gradient(to right, var(--text) var(--p, 0%), var(--line-soft) var(--p, 0%));
 }
 .scr-motion-range::-webkit-slider-thumb {
   -webkit-appearance: none; appearance: none;
-  width: 12px; height: 12px; margin-top: -4px; border: none; border-radius: 50%;
+  width: calc(12px * var(--ui, 1)); height: calc(12px * var(--ui, 1)); margin-top: calc(-4px * var(--ui, 1)); border: none; border-radius: 50%;
   background: var(--text); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
 }
 .scr-motion-range::-moz-range-track {
-  height: 4px; border-radius: 999px;
+  height: calc(4px * var(--ui, 1)); border-radius: 999px;
   background: linear-gradient(to right, var(--text) var(--p, 0%), var(--line-soft) var(--p, 0%));
 }
 .scr-motion-range::-moz-range-thumb {
-  width: 12px; height: 12px; border: none; border-radius: 50%;
+  width: calc(12px * var(--ui, 1)); height: calc(12px * var(--ui, 1)); border: none; border-radius: 50%;
   background: var(--text); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
 }
 .scr-motion-clock {
@@ -2572,10 +2572,14 @@
   /* ★★ 배수는 **하나**다(2026-09, 요청: "배율변수 하나로 합치고") — 로스터·독 줄(정보줄 · 미니맵 · 인포창)의 칸·우물·글자가
      다 calc(폰 값 * var(--dk)) 다. PC **1.8**(요청: "공통 PC dk 1.8배 적용" — 옛 1.6 · 1.4 · 1.8) · 분할 칸 머리도 이 값을 탄다 · 폰 1(아래 미디어). 한때 셋으로 갈려 있었다(로스터 1.6 · 독 칸 --dkd 2.0 · 독 글자
      --dkt 1.6) — 새 치수도 이 한 값으로 적어라. */
-  --dk: 1.8;
+  /* ★ 해상도 단 `--ui`(2026-10, 요청: "해상도에 따라 UI 크기 조절 — PC FHD·QHD·UHD 세 단 · 폰 작은 폰·큰 폰·폴드") — 재생기가 뿌리에
+     인라인으로 놓는다(ReplayMotionPlayer uiStep9 · QHD/아이폰 14 프로 = 1). 여기 기본 1 은 서버 렌더·옛 호스트용. --dk·--dk-roster·
+     툴박스 단추·목록 글자가 이 값을 곱한다 — 새 UI 치수는 `calc(값 * var(--dk))` 또는 `calc(값 * var(--ui))` 로 적어라. */
+  --ui: 1;
+  --dk: calc(1.8 * var(--ui));
   /* ★ 로스터만 1.2배(2026-09, 요청: "로스터가 너무 작아서 활용도 떨어져서 로스터 크기만 20프로 확대") — 독은 --dk 그대로이고
      항시표시 로스터(.scr-fs-roster-fixed)만 --dk 를 이 값으로 덮어쓴다(PC 1.8 × 1.2 · 폰 1 × 1.2 — 아래 미디어). */
-  --dk-roster: 2.16;
+  --dk-roster: calc(2.16 * var(--ui));
   /* ★★ 인포창의 폭은 **6×2 격자가 꼭 맞는 폭**이다(2026-09, 요청: "폭 기준을 멀티 유닛 선택 그리드시에 여백 없게 맞추고
      나머지 상황별 인포창 구성과 유저정보 행을 그 폭에 맞춰 재배치 또는 내부 요소 크기 조정" → 정정: "8x2가 아니라 6x2 · 셀 더
      크게") — 칸·사이·좌우 여백 셋을 변수로 두고 폭을 거기서 **거꾸로 푼다**: 칸 여섯 + 사이 다섯 + 여백 둘. 칸을 고치면 창이
@@ -2782,10 +2786,10 @@
   /* ★ 폭이 모자라 정보줄이 잘리고 연구 칩이 둘째 줄로 밀려 몸 키 밖에서 안 보였다(2026-09, 지적: "모바일 인포창 내용이
      폭이 모자라나봐 유저정보도 잘리고 업그레이드 상태도 한줄 내려가서 안보여") — 280 → 360(화면 − 16 이 먼저 죈다) ·
      몸 84 → 96(칩이 두 줄이어도 든다) · 정보줄은 한 단 더 죈다. */
-  .scr-motion { --dk: 1; --dk-roster: 1.2; }
+  .scr-motion { --dk: var(--ui); --dk-roster: calc(1.2 * var(--ui)); }   /* 폰 1 × 해상도 단(--ui · 큰 폰 1.1 · 폴드 1.3) */
   /* 폰은 미니맵과 한 줄을 나눠 쓴다(위 ★★) — 폰 판의 폭은 358px 남짓(앱이 좌우 16px 을 둔다)이라 칸 40 이면 창이 272px, 미니맵
      자리가 70px 뿐이다. 칸 36 · 사이 3 · 여백 5 면 창이 241px, 미니맵에 100px 남짓이 남는다. */
-  .scr-motion { --dock-cell: 36px; --dock-gap: 3px; --dock-padx: 5px; }
+  .scr-motion { --dock-cell: calc(36px * var(--ui)); --dock-gap: calc(3px * var(--ui)); --dock-padx: calc(5px * var(--ui)); }
   /* 틀은 줄을 **다 채운다**(요청: "프레임의 외부 패딩 남는데 그거 제거하고 다 채우기") — 미니맵은 제 폭 그대로 두고 남는 폭을
      인포창이 받는다(내용이 잘리던 쪽이다). */
   .scr-fs-dockframe { width: 100%; }
@@ -3275,14 +3279,14 @@
 .scr-tb {
   /* 단추 원의 자 — 아이콘 줄(.scr-motion-mapbtns)과 꼬리(공유·스크랩·사용법)가 나눠 쓴다. PC 30px(2026-09, 요청: "버튼 크기
      20프로정도 줄여줘 피시에서" · 옛 38) · 좁은 화면 32 · 400px 아래 30(아래 미디어). */
-  --mapbtn-h: 30px; --mapbtn-gap: 6px;
+  --mapbtn-h: calc(30px * var(--ui)); --mapbtn-gap: calc(6px * var(--ui));   /* × 해상도 단(--ui · 2026-10) — 아래 px 자들도 같이 곱한다 */
   --text: #f5f6f7; --dim: rgba(245, 246, 247, 0.72); --line-soft: rgba(255, 255, 255, 0.24);
   display: flex; flex-direction: column; gap: calc(9.6px * var(--dk)); min-width: 0;   /* 단추 줄 ↔ 재생 줄 사이 — 4 → 4.8(2026-10, 요청: "갭 20프로 증가") → 9.6(2026-10-06, 요청: "줄간격 2배") → ×dk(재요청: "줄간격도 dk 적용해서 pc 모바일 다르게" · 폰 9.6 · PC 17.3) */
   /* 모서리는 각지고 판은 더 옅다(2026-09, 요청: "툴바배경 래디우스 제거 및 좀더 투명하게(전체화면 프레임모드 둘다)") — 옛 12px · 0.52. */
   /* 위 여백은 한 단 넉넉하다(2026-09, 요청: "툴박스 내부 위쪽 패딩 증가시키기" — 옛 6). */
-  --tb-padt: 10px;
+  --tb-padt: calc(10px * var(--ui));
   /* 아래 여백은 한 단 얇다(2026-09, 요청: "재생툴바 아래 패딩 살짝 줄이고" — 6 → 3). */
-  padding: var(--tb-padt) 8px 3px; border-radius: 0; box-sizing: border-box;
+  padding: var(--tb-padt) calc(8px * var(--ui)) calc(3px * var(--ui)); border-radius: 0; box-sizing: border-box;
   /* ★ 툴박스는 이제 독 줄 **아래**다(2026-10, 요청: "재생부를 아래로 미니맵과 인포창을 위로 바꿈") — 위는 독 틀의 아래 여백
      (--dock-out)에 붙으므로 한 뼘(3px)만 두고, 아래(쇠판 아랫변)가 독 틀의 바깥 테와 같은 값(3.4·dk)이다. 독을 접으면 위도
      그 값이라 쇠판의 위·아래 테가 같다(아래 .is-fold + .scr-tb). */
@@ -3323,7 +3327,7 @@
   box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 /* 단추 줄은 [아이콘 줄 … 꼬리] 양 끝 한 줄이다(2026-09, 요청: "유저창 완전 제거" — 가운데 정보 판 칸을 걷었다). */
-.scr-tb-btnrow { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-width: 0; position: relative; }
+.scr-tb-btnrow { display: flex; align-items: center; justify-content: space-between; gap: calc(6px * var(--ui)); min-width: 0; position: relative; }
 /* 접기 손잡이는 버튼 줄 **정가운데**다(2026-10, 요청: "접기버튼을 버튼줄 정가운데에") — 양옆 무리의 폭이 달라(PC 왼 다섯 · 오른 넷)
    흐름에 두면 한쪽으로 쏠리므로 줄의 절대 가운데에 띄운다. */
 /* ★ 이제는 **전체화면 단추 오른쪽**이고 크기도 그 원과 같다(2026-10, 요청: "접기펴기 버튼 전체화면 버튼 오른쪽으로 이동 크기도 맞추기") —
@@ -3337,7 +3341,7 @@
     repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.06) 0 1px, transparent 1px 2px),
     linear-gradient(180deg, #b0b7bf 0%, #a3abb4 50%, #98a0a9 100%);
 }
-.scr-tb-tail { display: flex; align-items: center; gap: 6px; flex: none; margin-left: auto; }
+.scr-tb-tail { display: flex; align-items: center; gap: calc(6px * var(--ui)); flex: none; margin-left: auto; }
 /* (걷어냄) 사람 정보 판(.scr-tb-who*) — 2026-09, 요청: "유저창 완전 제거". 현황 꼴(.scr-who-*)은 분할 칸 머리가 쓴다. */
 /* ★★ 현황 칸은 **값마다 제 폭 · 오른쪽 맞춤 · 사이 | **(2026-09, 요청: "스탯들 표시 방법 변경 라벨위치는 고정하고 데이터는 우측정렬 ·
    -/- 자원의 경우 이것도 각 데이터의 자리를 미리 확보 · 동등 폭 취소하고 일꾼, apm은 적게 자원은 제일 넓게 인구 킬데스는 중간으로 ·
@@ -3389,16 +3393,16 @@
 .scr-motion-teamcol-rows .scr-motion-stat.is-sup { overflow: visible; }
 .scr-tb-seek { display: flex; align-items: center; min-width: 0; }
 /* 재생 줄 맨 왼쪽의 배속 단추 한 칸(2026-09, 요청: "배속 버튼은 플레이버튼 왼쪽으로") — 줄지 않는다. */
-.scr-tb-speed { flex: none; margin-right: 6px; }
+.scr-tb-speed { flex: none; margin-right: calc(6px * var(--ui)); }
 /* 배속 단추만 한 단 작다(2026-09, 요청: "배속 버튼만 크기 좀 줄이기") — 재생 줄의 재생 단추·시계 곁이라 아이콘 줄의 원(30/32)보다
    0.8배(24/26). 크기 변수만 갈아 끼우므로 목록·켜짐 꼴은 형제 그대로다. */
-.scr-tb .scr-tb-speed { --mapbtn-h: 24px; }
-.scr-tb .scr-tb-speed .scr-motion-mapval-num { font-size: 10px; }
-@media (max-width: 1159px) { .scr-tb .scr-tb-speed { --mapbtn-h: 26px; } }
+.scr-tb .scr-tb-speed { --mapbtn-h: calc(24px * var(--ui)); }
+.scr-tb .scr-tb-speed .scr-motion-mapval-num { font-size: calc(10px * var(--ui)); }
+@media (max-width: 1159px) { .scr-tb .scr-tb-speed { --mapbtn-h: calc(26px * var(--ui)); } }
 /* (걷어냄 · 2026-10) ≤400px 배속 단추 24px — 좁은 화면은 26px 한 값이다. */
-.scr-tb-seek > .scr-motion-bar-controls { flex: 1 1 auto; min-width: 0; margin: 0; padding: 0; gap: 8px; }
+.scr-tb-seek > .scr-motion-bar-controls { flex: 1 1 auto; min-width: 0; margin: 0; padding: 0; gap: calc(8px * var(--ui)); }
 .scr-tb .scr-motion-range { touch-action: none; align-self: center; }
-.scr-tb .scr-motion-clock { font-size: 11px; }
+.scr-tb .scr-motion-clock { font-size: calc(11px * var(--ui)); }
 /* 공유·스크랩·사용법 — **아이콘 원**이다(2026-09, 요청: "장면공유 스크랩 사용법도 피시에서도 모두 아이콘 버튼으로") — 옆
    아이콘 줄의 단추(.scr-motion-mapbtn)와 같은 자(--mapbtn-h)·같은 막. 글귀는 title·aria 로 가고, 마친 표시는 초록 체크다. */
 .scr-tb-tail .scr-kakao-share-btn {
@@ -3407,7 +3411,7 @@
   font-size: 0; line-height: 1;
   background: rgba(255, 255, 255, 0.10); color: #f5f6f7; border: none; border-radius: 999px; box-shadow: none;
 }
-.scr-tb-tail .scr-kakao-share-btn svg { width: 15px; height: 15px; flex: 0 0 auto; color: currentColor; }
+.scr-tb-tail .scr-kakao-share-btn svg { width: calc(15px * var(--ui)); height: calc(15px * var(--ui)); flex: 0 0 auto; color: currentColor; }
 .scr-tb-tail .scr-kakao-share-btn.is-done { color: #6fe39a; }
 /* 셋의 차례는 스크랩 → 공유 → 사용법(안내 ReplayGuide 와 같다) — 사용법만 한 뼘 띄운다(보는 일과 내보내는 일을 가른다). */
 .scr-tb-tail .scr-scrapbtn, .scr-tb-tail .scr-sharebtn { order: 0; }

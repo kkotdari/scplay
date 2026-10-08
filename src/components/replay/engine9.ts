@@ -2817,11 +2817,13 @@ export const SCR_DIAG: {
   /** 마지막 본 장의 선택 링 — "주인 <raw> · 몸 N · 링 M · 종류:임자:고른이:색 …"(ReplayMotionPlayer UI_OWN9 — perf-check `[링]`).
    *  링은 캔버스라 DOM 으로 못 읽는다 — 색 규칙(화면 주인 제 것 원작 초록 · 나머지 색 모드)을 수로 가르는 자다. */
   ring: string;
+  /** 해상도 단(ReplayMotionPlayer uiStep9) — "qhd ×1 · 화면 2560×1440"(perf-check `[UI단]` · #diag 머리). */
+  ui: string;
 } = {
   dpr: 0, unitCss: "", unitBack: "", unitB: 0,
   mapCss: "", mapBack: "", ppt: 0, needed: 0, scale: 0, unitScale: 0,
   areaCap: 0, allocOk: true, zoom: 0, xfms: 0, gest: "", glBuf: "", lastEv: "", fx: {}, prod: "", litN: 0, worker: "", gl: "", bakew: "", crowd: "", brush: "", fps: 0, fog: "", react: "", nukem: "",
-  truthVer: 0, truthTrust: -1, truthWhy: "", split: "", ring: "",
+  truthVer: 0, truthTrust: -1, truthWhy: "", split: "", ring: "", ui: "",
 };
 /** #diag가 켜져 있나 — 주소가 바뀌지 않는 한 한 번만 읽는다. */
 export const scrDiagOn = (): boolean =>

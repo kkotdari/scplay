@@ -7,6 +7,8 @@
  *   node scripts/perf-check.mjs --mc --players 3    마인드 컨트롤(임자 바뀜 · 판 8) — 인구 칸의 종족 풀 덧줄 검산
  *   node scripts/perf-check.mjs --marks --info --players 3 --track 정구 --diag [--herocolor]   핑·클릭 마커·선택 링의 색(화면 주인 제 것 원작 초록 · 같은 편은 색 모드) 검산 — [자국]·[링]
  *   node scripts/perf-check.mjs --ios --players 2 --dmg --glblit --split x.png   폰 분할 칸의 두 줄 현황(데미지 칸에 값 — 판 13 데미지 절 합성)
+ *   node scripts/perf-check.mjs --wide --vw 1920 --vh 1080 --glblit --shot x.png   해상도 단([UI단] 줄 · FHD 0.75 · 2560×1440 QHD 1 · 3840×2160 UHD 1.5 ·
+ *                                                                               폰 --ios --vw 430 --vh 932 큰 폰 1.1 · --vw 755 --vh 905 폴드 1.3)
  *
  * 무엇을 재는가 — **실제 컴포넌트를 실제로 돌린다.** 참값 자취(OBWT 판 4)를 여기서
  * 합성해 ReplayMotionPlayer에 그대로 물리고, 폰 크기 화면 + CPU 조임(CDP)에서 재생을
@@ -589,7 +591,15 @@ const page = await browser.newPage({
      (아이폰 + 위에 제목 줄)에서만 나는 잘림을 여기서 재현한다. */
   viewport: WIDE
     ? { width: Number(flag("--vw", 1280)), height: Number(flag("--vh", 900)) }   // --vw 넓은 화면(독 음각 글귀 검산)
-    : { width: 390, height: Number(flag("--vh", 844)) },
+    : { width: Number(flag("--vw", 390)), height: Number(flag("--vh", 844)) },   // 폰도 --vw(큰 폰 430 · 폴드 755 — 해상도 단 검산)
+  /* 화면(screen) — 해상도 단(uiStep9)이 window.screen 을 잰다(기본 헤드리스 화면은 1280×720 으로 창과 따로 논다). --vw/--vh 를 준
+     돌림은 창 = 화면(해상도 단 검산 · 1920×1080 → FHD 0.75). 기본 PC 돌림(1280×900 창)은 **QHD 화면(2560×1440)** 으로 꾸민다 — 개발
+     기준이 QHD 모니터의 창이라 옛 실측(dk 1.8 · 로스터 줄 23.8 …)이 그대로 맞는다. 폰 기본(390×844)은 작은 폰 단 1. */
+  screen: WIDE && !has("--vw") && !has("--vh")
+    ? { width: 2560, height: 1440 }
+    : WIDE
+      ? { width: Number(flag("--vw", 1280)), height: Number(flag("--vh", 900)) }
+      : { width: Number(flag("--vw", 390)), height: Number(flag("--vh", 844)) },
   deviceScaleFactor: Number(flag("--dpr", 2)),
   ...(has("--ios") ? { userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1", hasTouch: true, isMobile: true } : {}),
 });
@@ -993,6 +1003,18 @@ const supProbe9 = async (label9) => {
   });
   for (const r of r9) console.log(`[종족 풀 ${label9}] ${r.box} 키 ${r.h} 폭 ${r.w} · 인구 "${r.sup}"${r.supH !== null ? ` · 상자 ${r.supH} · 글 ${r.inkH} · 위아래 남김 ${r.gap[0]}/${r.gap[1]}` : ""}`);
 };
+/* 해상도 단(uiStep9 · 2026-10) — 뿌리의 --ui 와 그 값을 탄 자(툴박스 키 · 로스터 줄 키 · 독 줄 키 · 단추 한 변). 늘 한 줄. */
+{
+  const u9 = await page.evaluate(() => {
+    const root = document.querySelector(".scr-fs-layer, .scr-motion");
+    const r = (q) => { const e = document.querySelector(q); return e ? +e.getBoundingClientRect().height.toFixed(1) : null; };
+    const btn = document.querySelector(".scr-motion-mapbtns button.scr-motion-mapbtn");
+    return { ui: window.__scrDiag?.ui ?? null, cssUi: root ? getComputedStyle(root).getPropertyValue("--ui").trim() : null,
+      tb: r(".scr-tb"), roster: r(".scr-motion-teamrow"), dock: r(".scr-fs-dockrow"), btn: btn ? +btn.getBoundingClientRect().width.toFixed(1) : null,
+      vw: window.innerWidth, vh: window.innerHeight, sw: window.screen.width, sh: window.screen.height };
+  });
+  console.log(`[UI단] ${u9.ui} · --ui ${u9.cssUi} · 창 ${u9.vw}×${u9.vh} 화면 ${u9.sw}×${u9.sh} · 툴박스 키 ${u9.tb} · 로스터줄 키 ${u9.roster} · 독 줄 키 ${u9.dock} · 단추 ${u9.btn}`);
+}
 if (has("--mc")) await supProbe9("A");
 /* 자국 자(--marks 와 함께 · 2026-10) — 큰 지도의 핑·클릭 마커 DOM 과 그 색·자리 · 선택 링은 캔버스라 못 읽으니 색 규칙은 눈으로. */
 if (has("--marks")) {
