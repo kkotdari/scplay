@@ -4153,6 +4153,9 @@
   /* 글자는 칩보다 한 단 작고(칸 0.88em · 라벨은 그 0.72em — 요청: "헤더 스탯의 폰트 1스텝씩 줄이기(박스 크기는 그대로)") 상자 키는
      칩과 같은 1.25em(칸 머리 글자 기준)으로 못 박아 가운데에 앉힌다. */
   display: flex; align-items: center; height: 1.25em; box-sizing: border-box; flex: none; overflow: hidden;
+  /* (한 줄 상자의 위아래 — 2026-10) 글자 잉크가 글줄 상자에서 위로 치우쳐(실측 14.4px 글자: 위 3.25 · 아래 4.0px) 아래가 0.75px 더 비어 보이나,
+     아래 패딩 0.05~0.1em 으로는 글줄 자리가 CSS 픽셀에 눌려 안 움직이고 2px 이면 반대로 넘친다(실측 · harness whostats.mjs) — 그대로 둔다.
+     키는 칩과 같은 1.25em 이라 넉넉히 할 자리가 없다(두 줄 상자는 아래 .is-two 가 패딩으로 푼다). */
   margin-left: calc(3px * var(--dk)); padding: 0 calc(3px * var(--dk)); border-radius: 2px;
   background: rgba(0, 0, 0, 0.3); color: #e8eef6; font-weight: 600;   /* 0.5 → 0.3(2026-10, 요청: "스탯뒤 배경 좀더 투명하게") */
 }
@@ -4197,7 +4200,11 @@
   font-size: calc(9px * var(--dk)); line-height: 1.25; font-weight: 700; white-space: nowrap;
 }
 .scr-split-ownerst .scr-split-st { margin-left: 0; }
-.scr-split-st.is-two { height: auto; row-gap: 1px; padding: 1px calc(3px * var(--dk)); }
+/* ★ 두 줄 상자의 위아래 여백은 **같고 조금 넉넉하다**(2026-10, 요청: "재생기 스탯창의 위아래 패딩 같게 하되 좀 여유있게") — 옛 1px 에서 3·dk 로.
+   글자의 잉크는 글줄 상자 안에서 위로 치우쳐(Noto Sans KR · 실측 10.8px 글자: 윗 여백 1.75 · 아랫 여백 2.5) 같은 패딩이면 아래가 0.75px 더 비어
+   보이므로 아래 패딩에서 0.12em 을 뺀다(글줄 자리가 기기 픽셀에 눌려 0.07em 으로는 안 움직였다 · 실측) — 보이는 여백이 위아래 같다. 🔎 scratch
+   harness whostats.mjs(4배 픽셀로 잉크 위아래 틈을 센다). */
+.scr-split-st.is-two { height: auto; row-gap: 1px; padding: calc(3px * var(--dk)) calc(3px * var(--dk)) calc(3px * var(--dk) - 0.12em); }
 /* (되물림 · 2026-10) 두 줄 현황의 데미지 값을 제 폭(width auto)으로 둔 적이 있다 — "라벨과 데이터칸은 지금처럼 미리 확보 · 데이터는 가운데
    정렬"로 갈음했다(값이 오른쪽 끝에 붙어 라벨과 멀던 것은 가운데 맞춤이 푼다 · 위 .scr-who-v). 폭 규칙은 한 줄과 같다(11ch · 팀전 21ch). */
 
