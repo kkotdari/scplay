@@ -20,6 +20,8 @@ import { pWrap } from "./perf9";
 /** 미니맵에 찍는 한 점 — 재생기가 그리는 op에서 필요한 넷만 본다. `wFrac`이 있으면
  *  건물이라 한 단 크게 찍는다(원작 미니맵도 건물이 더 크다). */
 export type MiniDot = { fx: number; fy: number; color: string; wFrac?: number };
+/** 미니맵 핑 — 지도 분수 자리 · 색 · 나이(3초 창의 0~1). 원작처럼 미니맵에도 번지는 고리로 그린다(2026-10). */
+export type MiniPing = { fx: number; fy: number; color: string; age: number };
 
 /* 안개 값은 큰 지도의 안개 층(ReplayFogLayer)에서 그대로 가져온다 — 두 그림이 같은
    짙기·같은 색이라야 미니맵과 지도가 한 벌로 읽힌다. */
@@ -31,7 +33,7 @@ const MINI_FOG_G = 8;
 const MINI_FOG_B = 14;
 
 export default function ReplayFullscreenMinimap({
-  image, grid, ratio, dotsRef, extraRef, tick, viewAt, viewColor, zoom, pan, onSeek, onWheelZoom,
+  image, grid, ratio, dotsRef, extraRef, pingsRef, tick, viewAt, viewColor, zoom, pan, onSeek, onWheelZoom,
   unproject, fog, painter, live,
   warming,
 }: {
@@ -58,6 +60,8 @@ export default function ReplayFullscreenMinimap({
    *  밖을 보여 주는 것이 일이라, 걷어낸 것도 여기서는 찍어야 한다. 없으면 확대할수록
    *  미니맵이 텅 빈다. */
   extraRef?: { current: readonly MiniDot[] };
+  /** 미니맵 핑(2026-10) — 재생기가 렌더마다 채운다. 색은 재생기가 정한다(원작 규칙 · 임자색). */
+  pingsRef?: { current: readonly MiniPing[] };
   /** 다시 그릴 신호(재생 시각) — 이 값이 바뀔 때만 덧그린다. */
   tick: number;
   /** 그 배율·팬일 때 보이는 창 — 지도 분수 좌표 [중심x, 중심y, 폭, 높이].
@@ -357,6 +361,21 @@ export default function ReplayFullscreenMinimap({
       const [mx, my] = unproject ? unproject(d.fx, d.fy) : [d.fx, d.fy];
       c.fillStyle = d.color;
       c.fillRect(mx * w - s / 2, my * h - s / 2, s, s);
+    }
+    /* ③-2 핑 — 원작처럼 미니맵에도 번지는 고리(2026-10, 요청: "미니맵 내 색 포함"). 나이 0 → 1 동안 반지름이 커지고 흐려진다.
+       색은 재생기가 정해 보낸다(화면 주인 기준 원작 색 · 주인 없으면 임자색). */
+    if (pingsRef) {
+      for (const p of pingsRef.current) {
+        const [mx, my] = unproject ? unproject(p.fx, p.fy) : [p.fx, p.fy];
+        const r = Math.max(2, w * 0.012) * (0.6 + p.age * 1.6);
+        c.globalAlpha = Math.max(0, 1 - p.age * 0.8);
+        c.strokeStyle = p.color;
+        c.lineWidth = Math.max(1, w * 0.006);
+        c.beginPath();
+        c.arc(mx * w, my * h, r, 0, Math.PI * 2);
+        c.stroke();
+      }
+      c.globalAlpha = 1;
     }
     /* ④ 보고 있는 자리 — 흰 테두리. 입체 보기에서는 **네모가 아니라 사다리꼴**이다
        (같은 지적) — 화면의 네모를 평면 지도로 되돌리면 먼 쪽(위)이 더 넓기 때문이다.

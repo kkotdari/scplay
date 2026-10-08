@@ -5,6 +5,7 @@
  *   node scripts/perf-check.mjs --units 80          한 사람당 유닛 수
  *   node scripts/perf-check.mjs --wide              PC 화면(1280)으로
  *   node scripts/perf-check.mjs --mc --players 3    마인드 컨트롤(임자 바뀜 · 판 8) — 인구 칸의 종족 풀 덧줄 검산
+ *   node scripts/perf-check.mjs --marks --info --players 3 --track 정구   핑·클릭 마커·선택 링의 원작 색(화면 주인 기준) 검산
  *
  * 무엇을 재는가 — **실제 컴포넌트를 실제로 돌린다.** 참값 자취(OBWT 판 4)를 여기서
  * 합성해 ReplayMotionPlayer에 그대로 물리고, 폰 크기 화면 + CPU 조임(CDP)에서 재생을
@@ -371,9 +372,22 @@ function makeWorld() {
   w.u32(upRows.length);                // 업그레이드(--dockebay) — 판 7부터 줄마다 건물 태그
   { let pf = 0; for (const [f, id, lv, o, tg] of upRows) { w.vz(f - pf); pf = f; w.u16(id); w.u8(lv); w.u8(o); w.u32(tg); } }
   w.u32(0);                            // 마법
-  w.u32(0);                            // 핑
+  /* 핑(--marks · 2026-10, 원작 UI 색 검산) — 44.5초에 정구(0 · 화면 주인이면 초록) · Rex(1 · 같은 편 → 노랑) · 수달이(2 · 적 → 안 보임).
+     자리는 가운데 난전 근처(병력이 46초쯤 거기 모여 카메라가 그쪽을 본다) · 좌표는 px(타일 × 32) — 덤퍼가 쓰는 자와 같다. */
+  const pings9 = has("--marks") ? [[F(44.5), 60 * 32, 60 * 32, 0], [F(44.6), 66 * 32, 58 * 32, 1], [F(44.7), 62 * 32, 68 * 32, 2]] : [];
+  w.u32(pings9.length); { let pf = 0; for (const [f, x, y, o] of pings9) { w.vz(f - pf); pf = f; w.u16(x); w.u16(y); w.u8(o); } }
   w.u32(0);                            // 자원
-  w.u32(0);                            // 명령
+  /* 명령(--marks) — 클릭 마커의 재료: 정구 병력 하나 이동(0 → 초록)·다른 하나 공격(7 → 빨강) · Rex 병력 이동(같은 편 → 노랑) ·
+     수달이 병력 공격(적 → 시점 보기에선 안 보임). 마커는 0.9초만 사니 45.6초와 46.4초 두 벌을 심는다(사진이 46~47초). */
+  const cmds9 = [];
+  if (has("--marks")) {
+    for (const s0 of [45.6, 46.4]) {
+      cmds9.push([F(s0), armyTags.get(0)[0], 58 * 32, 66 * 32, 0], [F(s0 + 0.05), armyTags.get(0)[1], 68 * 32, 62 * 32, 7]);
+      if (armyTags.has(1)) cmds9.push([F(s0 + 0.1), armyTags.get(1)[0], 56 * 32, 60 * 32, 0]);
+      if (armyTags.has(2)) cmds9.push([F(s0 + 0.15), armyTags.get(2)[0], 70 * 32, 66 * 32, 7]);
+    }
+  }
+  w.u32(cmds9.length); { let pf = 0; for (const [f, tg, x, y, k] of cmds9) { w.vz(f - pf); pf = f; w.u32(tg); w.u16(x); w.u16(y); w.u8(k); } }
   w.u32(0); w.u16(119);                // APM(빈) — 통 크기만 적는다
   w.u32(0);                            // 자원밭단
   w.u32(builds.length);                // 건설 명령(판 9 · 맨 뒤)
@@ -967,6 +981,15 @@ const supProbe9 = async (label9) => {
   for (const r of r9) console.log(`[종족 풀 ${label9}] ${r.box} 키 ${r.h} · 인구 "${r.sup}"${r.supH !== null ? ` · 상자 ${r.supH} · 글 ${r.inkH} · 위아래 남김 ${r.gap[0]}/${r.gap[1]}` : ""}`);
 };
 if (has("--mc")) await supProbe9("A");
+/* 자국 자(--marks 와 함께 · 2026-10) — 큰 지도의 핑·클릭 마커 DOM 과 그 색·자리 · 선택 링은 캔버스라 못 읽으니 색 규칙은 눈으로. */
+if (has("--marks")) {
+  const r9 = await page.evaluate(() => [...document.querySelectorAll(".scr-motion-pingfx, .scr-motion-clickfx")].map((el) => {
+    const b = el.getBoundingClientRect();
+    return { cls: el.className.replace("scr-motion-", ""), col: getComputedStyle(el).color, x: Math.round(b.left), y: Math.round(b.top) };
+  }));
+  const t9 = await page.evaluate(() => { const r = document.querySelector(".scr-motion-seek, input[type=range]"); return r instanceof HTMLInputElement ? Number(r.value).toFixed(2) : null; });
+  console.log(`[자국] 시계 ${t9} · ${r9.length}개 · ${JSON.stringify(r9)}`);
+}
 /* 자동 팝업 자(--infoprobe [png]): 중계·추적 중 화면 주인이 고른 건물의 정보 팝업이 저절로 서나(2026-09, 요청:
    "중계시(화면 주인의) 건물 선택시 인포팝업 뜨게 — 리플레이 기록상 선택한 경우"). --selpick 과 --track 정구 로 연다:
    44초에 홀을 고르고 50초에 딴 몸으로 갈아타므로 46초에는 떠 있고, 재생해 50초를 넘기면 닫혀야 한다. */

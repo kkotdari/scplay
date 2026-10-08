@@ -17,7 +17,7 @@ import QMarkIcon from "./QMarkIcon";
 import { castAt9, castFoeRole9, castPlan9, type CastRole9, type CastSeg9 } from "./cast9";
 /* 미니맵 — 이제 **제 오버레이 판**이고 제 아이콘으로 여닫는다(요청: "미니맵 오버레이
    및 아이콘 추가"). 도구 판 안에 세들어 살던 시절과 달리, 켜고 끄는 것이 이것 하나다. */
-import ReplayFullscreenMinimap, { type MiniDot } from "./ReplayFullscreenMinimap";
+import ReplayFullscreenMinimap, { type MiniDot, type MiniPing } from "./ReplayFullscreenMinimap";
 import ReplayFogLayer, { DIM as FOG_DIM9, FOG_RGB as FOG_RGB9, exploredPath9, fogPad9, type FogOverride } from "./ReplayFogLayer";
 /* (걷어냄) PillTabs — 품질 알약이 있던 시절의 것(도구 판과 함께 미사용). */
 import { cx } from "./cx";
@@ -706,6 +706,44 @@ function suitFist(
  *  해서, 웹킷이 그 순간 합성을 소프트웨어로 떨어뜨리는 일이 있다. 핵·스톰·시전 고리가 한꺼번에 뜰 때 끊김이
  *  나는 것과 앞뒤가 맞는다.
  *  짐작을 더 쌓지 않으려고 **끄고 켜서 가른다** — 주소에 #noblend를 붙이면 섞임만 빠지고 나머지는 그대로다. */
+/** 원작 UI 색(2026-10, 요청: "중계시 화면에 보이는 저런 UI 색 원작색으로 … 어차피 한 화면엔 한 사람이 보는 UI만 나오니까") ──────
+ *  원작의 선택 원은 **보는 사람 기준** 셋이다: 내 것 초록 · 같은 편 노랑 · 적 빨강. 클릭 마커는 공격만 빨강. 핑은 제 것 초록 · 같은 편
+ *  노랑(요청: "자기 거와 팀원 색 잘 구분"). 화면 주인(UI_SCREEN9 — 개인 추적·중계 자동의 그 사람 · 분할은 칸마다 제 사람)이 있을 때만
+ *  이 색이고, 주인 없는 전체 보기는 null → 임자색 그대로(여러 사람의 UI 가 한 화면에 섞이므로). */
+const UI_OWN9 = "#43f05a";
+const UI_ALLY9 = "#f5e04a";
+const UI_FOE9 = "#ff3b3b";
+/** 지금 칠하는 화면의 주인 — 렌더가 메인 화면 몫을 놓고(camRaw9), splitPaint9 가 칸마다 제 사람으로 갈아 끼웠다 되돌린다. */
+let UI_SCREEN9: { raw: string; teamOf: (raw: string) => 1 | 2 | undefined } | null = null;
+/** 화면 주인 screen9 가 보는 raw9 의 UI 색 — 제 것·같은 편·적. atk9(공격 클릭)는 늘 빨강. */
+function uiColRel9(screen9: string, raw9: string, teamOf: (raw: string) => 1 | 2 | undefined, atk9 = false): string {
+  if (atk9) return UI_FOE9;
+  if (raw9 === screen9) return UI_OWN9;
+  const ts9 = teamOf(screen9);
+  return ts9 !== undefined && teamOf(raw9) === ts9 ? UI_ALLY9 : UI_FOE9;
+}
+/** 지금 화면 주인 기준의 UI 색 — 주인이 없거나 임자를 모르면 null(부르는 쪽이 임자색으로 물러난다). */
+function uiColOf9(raw9: string | undefined, atk9 = false): string | null {
+  if (UI_SCREEN9 === null) return null;
+  if (atk9) return UI_FOE9;
+  if (raw9 === undefined) return null;
+  return uiColRel9(UI_SCREEN9.raw, raw9, UI_SCREEN9.teamOf);
+}
+/** 선택 링의 자 — 메시의 **여덟 요잉 화면 상자 폭의 평균**(모델 자 · 16 = 상자 한 변). 요잉 칸이 바뀌어도 한 값이라 링이 안 흔들린다
+ *  (2026-10, 요청: "선택링이 유닛/건물의 방향이나 자세 모션에 따라 크기가 바뀌거나 위치가 바뀌지 않게"). 메시·카메라마다 한 번 센다. */
+const RING_W_CACHE9 = new WeakMap<object, Map<string, number>>();
+function ringWidth9(gl: GlUnits9, mesh: Parameters<GlUnits9["footOf"]>[0], cam: Parameters<GlUnits9["footOf"]>[2]): number {
+  let m9 = RING_W_CACHE9.get(mesh);
+  if (!m9) { m9 = new Map(); RING_W_CACHE9.set(mesh, m9); }
+  const key9 = cam === undefined || cam === CAM_TOP9 ? "" : cam.key;
+  const got9 = m9.get(key9);
+  if (got9 !== undefined) return got9;
+  let sum9 = 0;
+  for (let i9 = 0; i9 < 8; i9 += 1) sum9 += gl.footOf(mesh, i9 * 45, cam).w;
+  const w9 = sum9 / 8;
+  m9.set(key9, w9);
+  return w9;
+}
 /** 인구 계단([초, 먹은, 준][])을 at9 에서 읽는다 — [먹은, 준](내부 단위). supplyNow·supplyExtraNow 가 나눠 쓴다. */
 function supplyStepAt9(series: [number, number, number][] | undefined, at9: number): [number, number] {
   let used = 0;
@@ -5037,13 +5075,13 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             const my9 = sy - (op.air ? px9 * 0.45 : 0);
             if (gl9 && gl9.primOk) {
               gl9.prim(1, sx, my9, mw9 / 2, mw9 / 2, op.color, op.alpha);
-              if (op.selRing || (pickedKey != null && op.pickKey === pickedKey)) gl9.prim(2, sx, my9, mw9 / 2 + 1.5, mw9 / 2 + 1.5, op.color, op.alpha, 1);
+              if (op.selRing || (pickedKey != null && op.pickKey === pickedKey)) gl9.prim(2, sx, my9, mw9 / 2 + 1.5, mw9 / 2 + 1.5, uiColOf9(op.pickRaw) ?? op.color, op.alpha, 1);
             } else {
               ctx.beginPath();
               ctx.arc(sx, my9, mw9 / 2, 0, Math.PI * 2);
               ctx.fill();
               if (op.selRing || (pickedKey != null && op.pickKey === pickedKey)) {
-                ctx.strokeStyle = op.color;
+                ctx.strokeStyle = uiColOf9(op.pickRaw) ?? op.color;
                 ctx.lineWidth = 1;
                 ctx.beginPath();
                 ctx.arc(sx, my9, mw9 / 2 + 1.5, 0, Math.PI * 2);
@@ -5362,7 +5400,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
                  좀 다르네") — 발자국 깊이(op.footD = 깊이 ÷ 폭)를 곱했더니 4×3 은 0.42 · 3×2 는 0.38 로 유닛 링(0.564)보다
                  납작했다. 링은 땅 위의 동그라미라는 신호이지 발자국의 꼴이 아니다 — 비를 하나로 둔다. */
               const rx9 = wPx * 0.62 * rk9;
-              gl9.prim(2, sx, cy9, rx9, Math.max(3, rx9 * ryK9), op.color, op.alpha, Math.max(1.1, wPx * 0.012));
+              gl9.prim(2, sx, cy9, rx9, Math.max(3, rx9 * ryK9), uiColOf9(op.pickRaw) ?? op.color, op.alpha, Math.max(1.1, wPx * 0.012));   // 색은 원작 규칙(uiColOf9)
             }
             gl9.push({ mesh: glB9, ax: gax9, ay: gay9, k: gk9, yoff: op.mkFrac !== undefined ? 0 : -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind), over: true });
             /* ★ 가스 연기는 메시가 아니라 **프레임마다 놓는 덩이**다(2026-09, gl9 gasPush9) — 회전 칸이 소수(엔진)라 시계가 이어진다. */
@@ -5597,28 +5635,34 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              배수도 0.034 → 0.06으로 올려 큰 몸에서는 조금 더 또렷하다. */
           const ringW = Math.max(1.1, op.sizePx * inkK * 0.06);
           const ringK9 = RING_K9[op.kind] ?? 1;
-          // 링도 내용물 발끝에(재지적) — 상자 고정 오프셋은 작은 모델에서 몸 아래로 떨어졌다.
-          const ringY = op.air ? footY - lift : footY - px * 0.03;
+          /* ★ 링은 **땅 원점에 종류별 고정 크기**다(2026-10, 요청: "선택링이 유닛/건물의 방향이나 자세 모션에 따라 크기가 바뀌거나
+             위치가 바뀌지 않게") — 여태 자(inkW · footX · footY)가 메시의 **요잉 칸별 화면 상자**(footOf)라 몸이 돌 때마다 링이 칸
+             단위로 커졌다 작아졌다 하고 가운데도 뛰었다. 가운데는 그림자와 같은 땅 원점(groundOy9 · 공중은 뜬 몫만큼 위), 폭은 여덟
+             요잉의 상자 폭 평균(ringWidth9 — 요잉과 무관 · 자세 0에서 잰 값이라 모션과도 무관). 2D 폴백(inkK)은 원래 요잉을 안 탄다.
+             (옛 "링도 내용물 발끝에"는 되물렸다 — 발끝은 요잉 상자의 바닥이라 그것이 곧 흔들림이었다.) */
+          const ringWd9 = glM9 && gl9 ? ringWidth9(gl9, glM9, glCam9) * (px / 16) * modelNormOf(op.kind) : inkW;
+          const ringX = sx;
+          const ringY = (groundY ?? groundOy9) - lift;
+          /* 색은 **화면 주인 기준 원작 색**(2026-10 · 위 uiColOf9: 주인 초록 · 같은 편 노랑 · 적 빨강) · 주인 없는 전체 보기는 임자색. */
+          const ringCol9 = uiColOf9(op.pickRaw) ?? op.color;
           const ringPath = (): void => {
             ctx.beginPath();
-            /* 링은 몸 폭의 1.1배 — 발 언저리에 살짝 걸친다(지적: 링이 몸보다 크다).
-               상자 기준이던 예전엔 종류에 따라 0.64~2.61배로 벌어졌다. */
             /* 입체에서는 좌우 시점 밀림도 먹인다(요청: 선택 링·마커도 사영 밀림) — 바닥 깊이에 tan(시점각)을
                곱해 x를 미는 것을 캔버스 변환(가로 밀림)으로 얹는다. 변환은 경로를 만드는 동안만 걸고 되돌린다. */
             ctx.save();
-            ctx.translate(footX, ringY);
+            ctx.translate(ringX, ringY);
             if (op.pitch && op.viewYaw) ctx.transform(1, 0, Math.tan((op.viewYaw * Math.PI) / 180), 1, 0, 0);
-            ctx.ellipse(0, 0, inkW * 0.55 * ringK9, inkW * 0.31 * ringK9 * (op.pitch ? pitchFlatNow : 1), 0, 0, Math.PI * 2);
+            ctx.ellipse(0, 0, ringWd9 * 0.55 * ringK9, ringWd9 * 0.31 * ringK9 * (op.pitch ? pitchFlatNow : 1), 0, 0, Math.PI * 2);
             ctx.restore();
           };
           /* 검은 테는 걷었다(지적: 깔려면 마우스 마커에도 깔아야 한다) — 링만 두 겹이라
-             둘이 따로 놀았다. 임자 색 실선 한 겹으로 통일한다. */
+             둘이 따로 놀았다. 실선 한 겹으로 통일한다. */
           if (gl9 && gl9.primOk) {
-            gl9.prim(2, footX, ringY, inkW * 0.55 * ringK9, inkW * 0.31 * ringK9 * (op.pitch ? pitchFlatNow : 1), op.color, op.alpha * 0.95, ringW,
+            gl9.prim(2, ringX, ringY, ringWd9 * 0.55 * ringK9, ringWd9 * 0.31 * ringK9 * (op.pitch ? pitchFlatNow : 1), ringCol9, op.alpha * 0.95, ringW,
               op.pitch && op.viewYaw ? Math.tan((op.viewYaw * Math.PI) / 180) : 0);
           } else {
             ctx.globalAlpha = op.alpha * 0.95;
-            ctx.strokeStyle = op.color;
+            ctx.strokeStyle = ringCol9;
             ctx.lineWidth = ringW;
             ringPath();
             ctx.stroke();
@@ -10793,6 +10837,21 @@ export default function ReplayMotionPlayer({
   const opsRef = useRef<UnitDrawOp[]>([]);
   /** 걷어낸 개체·건물의 미니맵 점(위 miniExtra ★) — 미니맵이 이것도 함께 찍는다. */
   const miniExtraRef = useRef<MiniDot[]>([]);
+  /** 미니맵 핑(아래에서 렌더마다 채운다 · 2026-10). */
+  const miniPingsRef9 = useRef<MiniPing[]>([]);
+  /* ★ 원작 UI 색의 기준 — **화면 주인**(개인 추적 · 중계 자동 · 2026-10, 위 uiColOf9). 분할은 칸마다 splitPaint9 가 갈아 끼운다. */
+  UI_SCREEN9 = camRaw9 !== null && !splitOn9 ? { raw: camRaw9, teamOf: teamOfRaw } : null;
+  /* 미니맵 핑 목록(2026-10, 요청: "미니맵 내 색 포함" — 원작처럼 미니맵에도 번진다) — 큰 지도 핑(아래 JSX)과 같은 거름(관전자 제외 ·
+     시점 보기에선 상대편 제외)과 같은 색. age 는 3초 창의 0~1. 핑은 몇 개 안 되어 렌더마다 다시 센다. */
+  miniPingsRef9.current = qPing && entData?.pings
+    ? entData.pings.flatMap(([ps, px, py, ppid]): MiniPing[] => {
+      if (t < ps || t - ps > 3) return [];
+      const raw = entData.players.find((pl) => pl.owner === ppid)?.name ?? "";
+      if (!raw || obsNames.has(raw)) return [];
+      if (fogOn && !visAll && teamOfRaw(raw) !== viewTeam) return [];
+      return [{ fx: px / Math.max(1, grid.width), fy: py / Math.max(1, grid.height), color: uiColOf9(raw) ?? modeColor(raw, teamOfRaw(raw)), age: (t - ps) / 3 }];
+    })
+    : [];
   /* (걷어냄·요청: "모델크기 토글 제거") — '표준/확대' 라디오와 그 배수(unitMul 3.1·
      bldMul 1.2)가 있던 자리다. 표준이 곧 원작 크기라(아래 크기표 주석) 확대는 원작
      비율을 일부러 어그러뜨리는 손잡이였고, 진형 간격·그림자·체력바는 안 따라 커져
@@ -14861,6 +14920,9 @@ export default function ReplayMotionPlayer({
       return cv9;
     };
     const dpr9 = Math.min(2, window.devicePixelRatio || 1);
+    /* 핑이 살아 있는 동안은 칸 열쇠에 박자를 섞어 다시 그린다(핑 고리가 번져야 하므로 · 2026-10). */
+    const livePings9 = qPing && entData?.pings ? entData.pings.filter(([ps]) => ps <= tNow9 && tNow9 - ps <= 3) : [];
+    const pk9 = livePings9.length > 0 ? Math.floor(tNow9 * 6) : 0;
     for (const cell9 of lay9.cells) {
       const mc9 = splitMiniRef9.current.get(cell9.raw);
       if (!mc9) continue;
@@ -14873,14 +14935,33 @@ export default function ReplayMotionPlayer({
       /* 칸은 판(ver)·창·크기가 그대로면 안 다시 그린다. */
       const v9 = splitViewRef9.current.get(cell9.raw);
       const ck9 = `${teamMiniRef9.current.get(teamOfRaw(cell9.raw) ?? 0)?.ver ?? 0}|${bw9}x${bh9}|${v9 ? `${v9.cx.toFixed(4)},${v9.cy.toFixed(4)},${v9.w.toFixed(4)},${v9.h.toFixed(4)}` : "-"}`;
-      if (mc9.dataset.mk === ck9) continue;
-      mc9.dataset.mk = ck9;
+      const ckp9 = `${ck9}|p${pk9}`;
+      if (mc9.dataset.mk === ckp9) continue;
+      mc9.dataset.mk = ckp9;
       const m9 = mc9.getContext("2d");
       if (!m9) continue;
       m9.setTransform(1, 0, 0, 1, 0, 0);
       m9.imageSmoothingEnabled = true;
       m9.imageSmoothingQuality = "low";   // 256px 판을 백여 px 로 줄이는 데 고품질 필터는 값만 든다(헤드리스 칸당 4ms)
       m9.drawImage(src9, 0, 0, bw9, bh9);
+      /* 핑 — 그 사람 것과 같은 편 것만 · 원작 색(제 것 초록 · 같은 편 노랑 · 2026-10 "미니맵 내 색 포함") · 번지는 고리. */
+      if (livePings9.length > 0 && entData) {
+        const tm0 = teamOfRaw(cell9.raw);
+        for (const [ps, px, py, ppid] of livePings9) {
+          const praw = entData.players.find((pl) => pl.owner === ppid)?.name ?? "";
+          if (!praw || obsNames.has(praw)) continue;
+          if (praw !== cell9.raw && (tm0 === undefined || teamOfRaw(praw) !== tm0)) continue;
+          const age = (tNow9 - ps) / 3;
+          const r = Math.max(2, bw9 * 0.012) * (0.6 + age * 1.6);
+          m9.globalAlpha = 1 - age * 0.8;
+          m9.strokeStyle = uiColRel9(cell9.raw, praw, teamOfRaw);
+          m9.lineWidth = Math.max(1, bw9 * 0.006);
+          m9.beginPath();
+          m9.arc((px / gw) * bw9, (py / gh) * bh9, r, 0, Math.PI * 2);
+          m9.stroke();
+        }
+        m9.globalAlpha = 1;
+      }
       /* 제 화면 자리 — 그 사람 색 네모(요청: "자기 색깔 프레임으로 화면 위치 표시"). */
       if (v9) {
         const x09 = Math.max(0, (v9.cx - v9.w / 2) * bw9);
@@ -14921,7 +15002,7 @@ export default function ReplayMotionPlayer({
         const x9 = zx9(cx2);
         const y9 = zy9(cy2);
         ctx9.globalAlpha = a9 > 0.7 ? 1 - (a9 - 0.7) / 0.3 : 1;
-        const col9 = ck === 7 ? "#ff3b3b" : modeColor(craw, teamOfRaw(craw));
+        const col9 = uiColRel9(raw9, craw, teamOfRaw, ck === 7);   // 원작 색 — 화면 주인은 그 칸 사람(2026-10)
         ctx9.strokeStyle = col9;
         ctx9.lineWidth = Math.max(1.2, r9 * 0.16);
         ctx9.beginPath();
@@ -14939,7 +15020,7 @@ export default function ReplayMotionPlayer({
         const praw9 = entData.players.find((pl) => pl.owner === ppid)?.name ?? "";
         if (!praw9 || obsNames.has(praw9)) continue;
         if (praw9 !== raw9 && (team9 === null || teamOfRaw(praw9) !== team9)) continue;
-        const col9 = modeColor(praw9, teamOfRaw(praw9));
+        const col9 = uiColRel9(raw9, praw9, teamOfRaw);   // 제 것 초록 · 같은 편 노랑(2026-10)
         const w9 = Math.max(14, tile9 * 1.4);
         const x9 = zx9(px);
         const y9 = zy9(py);
@@ -15123,7 +15204,10 @@ export default function ReplayMotionPlayer({
          "건물짓기 고스트등도") — 팀 장은 같은 편 모두의 선택·건설 명령을 담으므로, 선택 링은 그 칸의 사람이 고른 몸에만
          (op.selBy) 남기고 건설 고스트는 그 사람 것(op.ghostRaw)만 남긴다. 마커·핑은 아래 칸 안개 판 위에 따로 그린다. */
       if (frameOpsRef9.current) frameOpsRef9.current = splitOwnOps9(frameOpsRef9.current, cell9.raw);
-      try { paint9(zc9, pan9, zc9); } finally { PAINT_CLIP9 = null; frameOpsRef9.current = keepOps9; frameFxRef9.current = keepFx9; }
+      /* 원작 UI 색의 기준(uiColOf9)은 이 칸의 사람이다 — 붓이 링을 칠하는 동안만 갈아 끼우고 되돌린다. */
+      const keepUi9 = UI_SCREEN9;
+      UI_SCREEN9 = { raw: cell9.raw, teamOf: teamOfRaw };
+      try { paint9(zc9, pan9, zc9); } finally { PAINT_CLIP9 = null; frameOpsRef9.current = keepOps9; frameFxRef9.current = keepFx9; UI_SCREEN9 = keepUi9; }
       const pf09 = pNow();   // 여기서부터 칸 안개·자국(SPLIT_M9.fog)
       /* 칸 안개 — 그 팀의 밝힌 판(등고선 · 팀마다 뜸하게 다시 뽑는다)과 눈 목록(원)을 큰 지도 안개 층과 같은 셈으로 판다. */
       const exp9 = tm9 ? teamExpRef9.current.get(tm9) : undefined;
@@ -18295,7 +18379,7 @@ export default function ReplayMotionPlayer({
                      풀었다). 자국은 몇 개 안 되는 0.9초짜리라 캔버스로 옮길 값이
                      아니므로 층만 올린다 — Z_FX(6100)가 캔버스 바로 위 DOM 효과 층이다. */
                   // 효과 렌즈 안이다 — 배율은 층의 폭이 먹으므로 px은 곧 화면 px, 역배율은 안 건다.
-                  ...posStyle(cx2, cy2), color: modeColor(raw, teamOfRaw(raw)), zIndex: 20,
+                  ...posStyle(cx2, cy2), color: uiColOf9(raw, ck === 7) ?? modeColor(raw, teamOfRaw(raw)), zIndex: 20,   // 화면 주인이 있으면 원작 색(공격 빨강 · 제 것 초록 · 같은 편 노랑)
                   "--ckw": `${(ckw * pitchK(cy2)).toFixed(1)}px`,
                   ...groundXfAt9(cx2, cy2),   // 입체: 눕히기 + 시점 밀림(요청)
                 } as React.CSSProperties}
@@ -18321,7 +18405,7 @@ export default function ReplayMotionPlayer({
                 // 핑도 같은 사정 — 캔버스 위로 올린다(크립·유닛 위에서도 보인다).
                 /* 크기도 배율을 따른다(요청: 마커처럼) — 4배 기준 아래서는 강제 확대, 위로는 타일 1.4배. */
                 style={{
-                  ...posStyle(px, py), color: modeColor(raw, teamOfRaw(raw)), zIndex: 25,
+                  ...posStyle(px, py), color: uiColOf9(raw) ?? modeColor(raw, teamOfRaw(raw)), zIndex: 25,   // 화면 주인이 있으면 제 것 초록 · 같은 편 노랑
                   "--pgw": `${(((mapRef.current?.clientWidth ?? 320) / grid.width) * Math.max(4, zoom) * 1.4 * pitchK(py)).toFixed(1)}px`,
                   ...groundXfAt9(px, py),   // 입체: 눕히기 + 시점 밀림(요청)
                 } as React.CSSProperties}
@@ -18687,6 +18771,7 @@ export default function ReplayMotionPlayer({
                     ratio={grid.width / Math.max(1, grid.height)}
                     dotsRef={opsRef}
                     extraRef={miniExtraRef}
+                    pingsRef={miniPingsRef9}
                     tick={t}
                     viewAt={splitOn9
                       ? ((z9, p9) => (splitPick9 ? splitViewRef9.current.get(splitPick9) ?? fsViewAt(z9, p9) : null))   // 안 고르면 네모 없음
