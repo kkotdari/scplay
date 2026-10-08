@@ -1,3 +1,5 @@
+import { BW_UNIT_NAME } from "./bwUnitNames";
+
 /* 원작 유닛·전투 자료표 — OpenBW(bwgame.h)와 BWAPI 원시 배열에서 **생성**한 것.
  *
  * 왜 다시 썼나: 여기 있던 앞 판은 파일 머리에 "이 표의 숫자는 아직 대조 전"이라고 스스로
@@ -814,6 +816,28 @@ export const SUPPLY_GIVES: Record<string, number> = {
   Nexus: 18, Pylon: 16,
   Hatchery: 2, Lair: 2, Hive: 2, Overlord: 16,
 };
+
+/** 유닛 종류(BW 이름)의 **종족** — units.dat 번호 띠로 가른다(유닛: 테란 0~34 · 저그 35~59 · 프로토스 60~88 · 건물: 테란 106~129 ·
+ *  저그 130~153 · 프로토스 154~175). ⚠ 확장팩 유닛은 띠 밖에 끼어 있다 — 발키리 58(저그 띠) · 디바우러 62(프로토스 띠) · 럴커 103 ·
+ *  럴커 알 97(중립 띠) — 번호 예외표로 바로잡는다. 앱만 쓰는 별칭("Siege Tank" · "Cocoon")은 이름 예외표. 그 밖의 중립·마법·자원밭·
+ *  모르는 이름은 "". 인구 풀을 종족마다 가르는 데 쓴다(ReplayMotionPlayer supplyLive — 마인드 컨트롤·넘겨받은 몸은 원작처럼 **그 몸의
+ *  종족** 풀에 든다). 이름 → 번호 표는 첫 호출에 만든다(적재 차례 무관). 검산: `node scripts/supply-race-check.mjs`. */
+const RACE_OF_ID_FIX9: Record<number, "테란" | "저그" | "프로토스"> = { 58: "테란", 62: "저그", 97: "저그", 103: "저그" };
+const RACE_OF_ALIAS9: Record<string, "테란" | "저그" | "프로토스"> = { "Siege Tank": "테란", Cocoon: "저그" };
+let bwIdOf9: Map<string, number> | null = null;
+export function raceOfBwKind9(kind: string): "" | "테란" | "저그" | "프로토스" {
+  const alias9 = RACE_OF_ALIAS9[kind];
+  if (alias9) return alias9;
+  if (!bwIdOf9) bwIdOf9 = new Map(Object.entries(BW_UNIT_NAME).map(([id9, n9]) => [n9, Number(id9)]));
+  const id9 = bwIdOf9.get(kind);
+  if (id9 === undefined) return "";
+  const fix9 = RACE_OF_ID_FIX9[id9];
+  if (fix9) return fix9;
+  if (id9 <= 34 || (id9 >= 106 && id9 <= 129)) return "테란";
+  if (id9 <= 59 || (id9 >= 130 && id9 <= 153)) return "저그";
+  if (id9 <= 88 || (id9 >= 154 && id9 <= 175)) return "프로토스";
+  return "";
+}
 
 /** 울트라리스크 갑피 — 카라파스와 별개로 방어력 +2 고정. */
 export const CHITINOUS_PLATING = "Chitinous Plating";

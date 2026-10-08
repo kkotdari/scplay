@@ -4,6 +4,7 @@
  *   node scripts/perf-check.mjs --cpu 6 --secs 8
  *   node scripts/perf-check.mjs --units 80          한 사람당 유닛 수
  *   node scripts/perf-check.mjs --wide              PC 화면(1280)으로
+ *   node scripts/perf-check.mjs --mc --players 3    마인드 컨트롤(임자 바뀜 · 판 8) — 인구 칸의 종족 풀 덧줄 검산
  *
  * 무엇을 재는가 — **실제 컴포넌트를 실제로 돌린다.** 참값 자취(OBWT 판 4)를 여기서
  * 합성해 ReplayMotionPlayer에 그대로 물리고, 폰 크기 화면 + CPU 조임(CDP)에서 재생을
@@ -241,6 +242,21 @@ function makeWorld() {
     }
   }
 
+  /* 마인드 컨트롤(--mc · 2026-10, "인구 칸의 종족 풀 덧줄" 검산) — 임자 바뀜(판 8)을 셋 심는다. 30초에 정구(테란)가 Rex(저그)의
+     오버로드 하나를 뺏고(정구에 저그 풀 0/8 · Rex 상한 −8), Rex 가 정구의 마린 하나를 뺏는다(Rex 에 테란 풀 1/0). --players 3 이상이면
+     정구가 수달이(프로토스)의 질럿도 뺏어 정구는 세 줄(테란 본줄 · 저 0/8 · 프 1/0)이다. 오버로드는 5초에 나서(2초 규칙 밖) Rex 의
+     상한에 들어 있다가 넘어간다. 몸은 제자리에서 조금 흔들릴 뿐 안 싸운다. */
+  if (has("--mc")) {
+    const mcF = F(30);
+    track(1, Z.Ovie, (s) => [18 + Math.sin(s * 0.3) * 1.5, 98, 1], { bornSec: 5 });
+    tracks[tracks.length - 1].own = [[mcF, 0]];
+    track(0, T.Marine, (s) => [26, 26 + Math.sin(s * 0.5), 1]);
+    tracks[tracks.length - 1].own = [[mcF, 1]];
+    if (PLAYERS.length >= 3) {
+      track(2, P.Zealot, (s) => [98, 26 + Math.sin(s * 0.5), 1]);
+      tracks[tracks.length - 1].own = [[mcF, 0]];
+    }
+  }
   /* 처치(판 11) — 죽는 병력마다 적 편 병력 하나를 돌려 가며 킬러로 적는다(편 1: 정구·Rex · 편 2: 나머지). */
   {
     const force9 = (o) => (o <= 1 ? 1 : 2);
@@ -331,8 +347,12 @@ function makeWorld() {
   w.u8(PLAYERS.length);
   for (const pl of PLAYERS) { w.u8(pl.owner); w.u8(pl.owner); w.u8(pl.race); w.u8(pl.force); w.u8(0); w.u32(pl.color); w.str(pl.name); }
   w.u32(tracks.length);
-  // 판 8 트랙표 줄: … + 표적 수(u32, 0) + 임자바뀜 목록(u8 개수, 0).
-  for (const tr of tracks) { w.u32(tr.tag); w.u8(tr.owner); w.u16(tr.type); w.u32(tr.keys.length); w.u32(tr.hp ? tr.hp.length : 0); w.u32(0); w.u32(0); w.u8(0); }
+  // 판 8 트랙표 줄: … + 표적 수(u32, 0) + 임자바뀜 목록(u8 개수 · 바뀜마다 u32 프레임 · u8 새 임자 — --mc 만 0 이 아니다).
+  for (const tr of tracks) {
+    w.u32(tr.tag); w.u8(tr.owner); w.u16(tr.type); w.u32(tr.keys.length); w.u32(tr.hp ? tr.hp.length : 0); w.u32(0); w.u32(0);
+    const own9 = tr.own ?? [];
+    w.u8(own9.length); for (const [f, o] of own9) { w.u32(f); w.u8(o); }
+  }
   for (const tr of tracks) {
     let pf = 0; let px = 0; let py = 0; let pt = 0;
     for (const [f, x, y, hb, st, ty] of tr.keys) {
@@ -925,6 +945,28 @@ if (has("--split")) {
     if (shot && shot !== true && String(shot).endsWith(".png")) await page.screenshot({ path: String(shot) });
   }
 }
+/* 종족 풀 덧줄 자(--mc 와 함께 · 2026-10) — .scr-sup 의 글줄과 그 그릇(로스터 줄 · 현황 상자)의 키를 적는다: 덧줄이 그릇을 못 키웠나.
+   덧줄 없는 줄은 인구 칸 글자만 적어 견준다. 로스터는 --rosterfull 뒤(B)에서 읽힌다. */
+const supProbe9 = async (label9) => {
+  const r9 = await page.evaluate(() => {
+    const out = [];
+    for (const el of document.querySelectorAll(".scr-motion-teamrow, .scr-split-st")) {
+      const sup = el.querySelector(".scr-sup");
+      const b = el.getBoundingClientRect();
+      const v = el.querySelector(".scr-who-v, .scr-motion-stat:nth-child(2)");
+      const nm = el.querySelector(".scr-motion-teamcol-name")?.textContent ?? "";
+      out.push({ box: el.classList.contains("scr-split-st") ? "현황" : `로스터줄 ${nm}`, h: +b.height.toFixed(1),
+        sup: sup ? [...sup.children].map((c) => c.textContent).join(" | ") : (v?.textContent ?? ""),
+        supH: sup ? +sup.getBoundingClientRect().height.toFixed(1) : null,
+        inkH: sup ? +(sup.lastElementChild.getBoundingClientRect().bottom - sup.firstElementChild.getBoundingClientRect().top).toFixed(1) : null,
+        /* 글의 위·아래가 그릇 안에서 얼마나 남나(음수 = 그릇 밖으로 넘침) */
+        gap: sup ? [+(sup.firstElementChild.getBoundingClientRect().top - b.top).toFixed(1), +(b.bottom - sup.lastElementChild.getBoundingClientRect().bottom).toFixed(1)] : null });
+    }
+    return out;
+  });
+  for (const r of r9) console.log(`[종족 풀 ${label9}] ${r.box} 키 ${r.h} · 인구 "${r.sup}"${r.supH !== null ? ` · 상자 ${r.supH} · 글 ${r.inkH} · 위아래 남김 ${r.gap[0]}/${r.gap[1]}` : ""}`);
+};
+if (has("--mc")) await supProbe9("A");
 /* 자동 팝업 자(--infoprobe [png]): 중계·추적 중 화면 주인이 고른 건물의 정보 팝업이 저절로 서나(2026-09, 요청:
    "중계시(화면 주인의) 건물 선택시 인포팝업 뜨게 — 리플레이 기록상 선택한 경우"). --selpick 과 --track 정구 로 연다:
    44초에 홀을 고르고 50초에 딴 몸으로 갈아타므로 46초에는 떠 있고, 재생해 50초를 넘기면 닫혀야 한다. */
@@ -1255,6 +1297,7 @@ if (SHOT) {
   if (has("--rosterfull")) {
     if (!await clickByLabel(/^로스터 현황 보이기$/)) console.warn("⚠ 로스터 버튼을 못 찾음");
     await page.waitForTimeout(400);
+    if (has("--mc")) await supProbe9("B");
   }
   // 로스터 여닫이 검증(--fsroster) — 전체화면에서 로스터 현황을 끈 화면을 찍는다.
   if (has("--fsroster")) {

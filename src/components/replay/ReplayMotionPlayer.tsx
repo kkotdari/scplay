@@ -52,7 +52,7 @@ import {
 import {
   BUILDING_FOOT, FRAME_SEC, GEYSER_FOOT, LURKER_SPINE_SPEED_PX,
   LURKER_SPINE_TRAVEL_PX, MEDIC_HEAL_RANGE_PX, MINERAL_FOOT, PLASMA_SHIELD_UPGRADE,
-  buildingBox, SUPPLY_CAP, SUPPLY_COST, SUPPLY_GIVES, sightTiles,
+  buildingBox, raceOfBwKind9, SUPPLY_CAP, SUPPLY_COST, SUPPLY_GIVES, sightTiles,
 } from "../../utils/bwUnits";
 // (정리) DEFENSE_BUILDINGS — 건물 캔버스 전환으로 ▲ 글자 갈래가 없어져 더는 안 쓴다.
 import { type TerrainGrid } from "./terrainGrid";
@@ -706,6 +706,16 @@ function suitFist(
  *  해서, 웹킷이 그 순간 합성을 소프트웨어로 떨어뜨리는 일이 있다. 핵·스톰·시전 고리가 한꺼번에 뜰 때 끊김이
  *  나는 것과 앞뒤가 맞는다.
  *  짐작을 더 쌓지 않으려고 **끄고 켜서 가른다** — 주소에 #noblend를 붙이면 섞임만 빠지고 나머지는 그대로다. */
+/** 인구 계단([초, 먹은, 준][])을 at9 에서 읽는다 — [먹은, 준](내부 단위). supplyNow·supplyExtraNow 가 나눠 쓴다. */
+function supplyStepAt9(series: [number, number, number][] | undefined, at9: number): [number, number] {
+  let used = 0;
+  let give = 0;
+  for (const [sec, u, g] of series ?? []) {
+    if (sec > at9) break;
+    used = u; give = g;
+  }
+  return [used, give];
+}
 const NO_BLEND9 = typeof location !== "undefined" && /noblend/.test(location.hash);
 /* (걷어냄) 진단 스위치 `#nodomfx` — 효과 스팬을 끄고 견주던 자다. 그 실험이 답을 냈고(값은 넓이가
    아니라 층 하나하나의 성질이었다), 이제 효과는 전부 캔버스라 끌 스팬이 없다. */
@@ -9181,55 +9191,61 @@ export default function ReplayMotionPlayer({
        종족이 정한다. */
   const RACE_START_SUPPLY: Record<string, number> = { 테란: 20, 프로토스: 18, 저그: 18 };
   const supplyLive = useMemo(() => {
-    /** raw → [초, 먹은 인구(내부단위), 준 인구(내부단위)] 계단 */
-    const m = new Map<string, [number, number, number][]>();
+    /** raw → 종족 풀 → [초, 먹은 인구(내부단위), 준 인구(내부단위)] 계단.
+     *  ★ 풀은 **몸의 종족**으로 가른다(2026-10, 요청: "마인드컨트롤한 경우 … 따로 보여줘야") — 원작처럼 뺏은 SCV 는 테란 풀, 뺏은
+     *    오버로드는 저그 풀(상한 +8)에 든다. 임자 바뀜(판 8)은 truthLives 가 생애를 갈라 두었으므로(앞 생애는 end "own" 으로 그
+     *    시각에 끝나고 뒤 생애는 새 임자로 그 시각에 태어난다) 여기서는 생애의 임자·종류만 본다. 종족 모르는 사람("")은 한 풀. */
+    const m = new Map<string, Map<string, [number, number, number][]>>();
     if (!entData) return m;
     const nameOfId = new Map(entData.players.map((pl) => [pl.owner, pl.name]));
     const raceOfId = new Map(entData.players.map((pl) => [pl.owner, pl.race ?? ""]));
-    const evs = new Map<string, [number, number, number][]>();
+    const evs = new Map<string, Map<string, [number, number, number][]>>();
     for (const e of entData.lives) {
       const raw = nameOfId.get(e.owner);
       if (raw === undefined) continue;
-      const a = evs.get(raw) ?? [];
       const gives = SUPPLY_GIVES[e.kind] ?? 0;
       const eats = e.bld ? 0 : (SUPPLY_COST[e.kind] ?? 0);
       /* 주는 쪽은 시작 밑천과 겹치지 않게 2초 뒤에 난 것만 센다(위 ★). */
       const g = gives > 0 && e.born > 2 ? gives : 0;
       if (eats === 0 && g === 0) continue;
+      const own9 = raceOfId.get(e.owner) ?? "";
+      const pool9 = own9 === "" ? "" : (raceOfBwKind9(e.kind) || own9);
+      const byRace = evs.get(raw) ?? new Map<string, [number, number, number][]>();
+      const a = byRace.get(pool9) ?? [];
       a.push([e.born, eats, g]);
       if (e.died !== null) a.push([e.died, -eats, -g]);
-      evs.set(raw, a);
+      byRace.set(pool9, a);
+      evs.set(raw, byRace);
     }
-    for (const [raw, a] of evs) {
-      a.sort((p, q) => p[0] - q[0]);
-      const series: [number, number, number][] = [];
-      let used = 0;
-      let give = 0;
-      for (const [sec, du, dg] of a) {
-        used += du;
-        give += dg;
-        if (series.length > 0 && series[series.length - 1][0] === sec) {
-          series[series.length - 1][1] = used;
-          series[series.length - 1][2] = give;
-        } else series.push([sec, used, give]);
+    for (const [raw, byRace] of evs) {
+      const pools = new Map<string, [number, number, number][]>();
+      for (const [race9, a] of byRace) {
+        a.sort((p, q) => p[0] - q[0]);
+        const series: [number, number, number][] = [];
+        let used = 0;
+        let give = 0;
+        for (const [sec, du, dg] of a) {
+          used += du;
+          give += dg;
+          if (series.length > 0 && series[series.length - 1][0] === sec) {
+            series[series.length - 1][1] = used;
+            series[series.length - 1][2] = give;
+          } else series.push([sec, used, give]);
+        }
+        pools.set(race9, series);
       }
-      m.set(raw, series);
+      m.set(raw, pools);
     }
-    void raceOfId;
     return m;
   }, [entData]);
-  /** 지금(t)의 인구 — raw별 [먹은 수, 상한] (둘 다 화면 단위). */
+  /** 지금(t)의 인구 — raw별 [먹은 수, 상한] (둘 다 화면 단위) · **내 종족 풀**이다. 다른 종족 풀은 아래 supplyExtraNow. */
   const supplyNow = useMemo(() => {
     const m = new Map<string, [number, number]>();
     const raceOfRaw = new Map((entData?.players ?? []).map((pl) => [pl.name, pl.race ?? ""]));
-    for (const [raw, series] of supplyLive) {
-      let used = 0;
-      let give = 0;
-      for (const [sec, u, g] of series) {
-        if (sec > t) break;
-        used = u; give = g;
-      }
-      const base = RACE_START_SUPPLY[raceOfRaw.get(raw) ?? ""] ?? 0;
+    for (const [raw, pools] of supplyLive) {
+      const own9 = raceOfRaw.get(raw) ?? "";
+      const [used, give] = supplyStepAt9(pools.get(own9), t);
+      const base = RACE_START_SUPPLY[own9] ?? 0;
       m.set(raw, [
         Math.round(used / 2),
         Math.min(SUPPLY_CAP, base + give) / 2,
@@ -9237,6 +9253,42 @@ export default function ReplayMotionPlayer({
     }
     return m;
   }, [supplyLive, entData, t]);
+  /** 지금(t) **내 종족이 아닌** 풀 — raw별 [종족, 먹은 수, 상한][] (화면 단위 · 테란·저그·프로토스 차례 · 빈 풀은 뺀다 · 최대 둘).
+   *  시작 밑천은 없다(0에서 시작) — 그 종족 서플라이·오버로드·홀을 들어야 상한이 선다. 원작은 선택한 몸의 종족 풀을 보여 주지만
+   *  재생기는 본줄(내 풀) 아래 덧줄로 함께 보인다(supNode9). */
+  const supplyExtraNow = useMemo(() => {
+    const m = new Map<string, [string, number, number][]>();
+    const raceOfRaw = new Map((entData?.players ?? []).map((pl) => [pl.name, pl.race ?? ""]));
+    for (const [raw, pools] of supplyLive) {
+      const own9 = raceOfRaw.get(raw) ?? "";
+      const xs: [string, number, number][] = [];
+      for (const race9 of ["테란", "저그", "프로토스"]) {
+        if (race9 === own9 || !pools.has(race9)) continue;
+        const [used, give] = supplyStepAt9(pools.get(race9), t);
+        if (used <= 0 && give <= 0) continue;
+        xs.push([race9, Math.round(used / 2), Math.min(SUPPLY_CAP, give) / 2]);
+      }
+      if (xs.length > 0) m.set(raw, xs);
+    }
+    return m;
+  }, [supplyLive, entData, t]);
+  /** 인구 칸 — 본줄은 내 종족 풀(N/상한) · 다른 종족 몸을 들고 있으면(마인드 컨트롤 · 나간 사람의 몸) 그 종족 풀을 작은 덧줄로
+   *  ("테 3/8") — 최대 둘. 덧줄이 있으면 본줄도 같이 줄어 **칸 키는 그대로**다(replay.css .scr-sup). 로스터·현황 한 줄이 나눠 쓴다. */
+  const supNode9 = (sup9: [number, number], x9: [string, number, number][] | undefined): React.ReactNode => {
+    if (!x9 || x9.length === 0) return `${sup9[0]}/${sup9[1]}`;
+    return (
+      <span className={cx("scr-sup", x9.length >= 2 ? "is-3" : "is-2")}>
+        <span className="scr-sup-main">{`${sup9[0]}/${sup9[1]}`}</span>
+        {x9.map(([r9, u9, c9]) => <span key={r9} className="scr-sup-x"><i>{r9.slice(0, 1)}</i>{`${u9}/${c9}`}</span>)}
+      </span>
+    );
+  };
+  /** 인포창 보급 네 줄이 읽는 풀 — **그 건물 종족**의 것이다(원작처럼: 뺏은 SCV 가 지은 디포·뺏은 오버로드는 그 종족 풀을 보인다). */
+  const supplyPoolOf9 = (raw9: string, kind9: string): [number, number] | undefined => {
+    const r9 = raceOfBwKind9(kind9);
+    const x9 = supplyExtraNow.get(raw9)?.find(([r]) => r === r9);
+    return x9 ? [x9[1], x9[2]] : supplyNow.get(raw9);
+  };
   /** 지금(t) 살아 있는 일꾼 수 — raw별. 개체 트랙이 없는 옛 경기는 비어 있고, 부르는
    *  쪽이 옛 누계 모형으로 떨어진다. */
   /* 지금 이 순간의 미네랄·가스(요청) — 참값이 바뀔 때마다 적어 둔 것을 t로 되짚는다.
@@ -9948,7 +10000,7 @@ export default function ReplayMotionPlayer({
     chip: chipStyle(raw9, teamOfRaw(raw9)),
     ghosts: capGhosts9,
     worker: workerNow.get(raw9) ?? null, res: resNow.get(raw9) ?? null,
-    sup: supplyNow.get(raw9) ?? null, apm: apmNow.get(raw9) ?? bases.find((b9) => b9.key === raw9)?.apm ?? null,
+    sup: supplyNow.get(raw9) ?? null, supX: supplyExtraNow.get(raw9) ?? [], apm: apmNow.get(raw9) ?? bases.find((b9) => b9.key === raw9)?.apm ?? null,
     kd: kdNow.get(raw9) ?? null,
     dmg: dmgOf9(raw9),
   });
@@ -9966,7 +10018,7 @@ export default function ReplayMotionPlayer({
           <span className="scr-who-r scr-motion-stat-gas">{c9?.res ? c9.res[1] : "–"}</span>
         </i>
       </span>
-      <span title="인구"><b>인구</b><i className="scr-who-v">{c9?.sup ? `${c9.sup[0]}/${c9.sup[1]}` : "–"}</i></span>
+      <span title="인구 — 내 종족 풀 · 다른 종족 몸(마인드 컨트롤)을 들면 그 종족 풀을 작은 덧줄로"><b>인구</b><i className="scr-who-v">{c9?.sup ? supNode9(c9.sup, c9.supX) : "–"}</i></span>
       <span title="준 데미지 / 입은 데미지(체력+실드 · 유닛+건물) · 괄호는 지금까지 우리 팀 몫 가운데 내 %"><b>데미지</b><i className="scr-who-v">{c9?.dmg ? dmgNode9(c9.dmg) : "–"}</i></span>
       <span title="APM"><b>APM</b><i className="scr-who-v">{c9?.apm ?? "–"}</i></span>
     </div>
@@ -16625,6 +16677,7 @@ export default function ReplayMotionPlayer({
         /* 줄 꼴의 다섯 지표 — 값이 없어도 **빈 칸을 그린다**(요청: "컬럼별로 줄맞게").
            칸 꼴처럼 없는 것을 안 그리면 사람마다 칸 수가 달라져 세로줄이 어긋난다. */
         const sup9 = supplyNow.get(m.key);
+        const supX9 = supplyExtraNow.get(m.key);
         const res9 = resNow.get(m.key);
         const apm9 = apmNow.get(m.key) ?? m.apm ?? null;
         const dmg9 = dmgOf9(m.key);
@@ -16706,8 +16759,8 @@ export default function ReplayMotionPlayer({
                 style={workerNow.has(m.key) ? undefined : { visibility: "hidden" }}
               >
                 <span className="scr-motion-stat">{workerNow.get(m.key) ?? 0}</span>
-                <span className="scr-motion-stat">
-                  {sup9 ? `${sup9[0]}/${sup9[1]}` : ""}
+                <span className={cx("scr-motion-stat", supX9 !== undefined && supX9.length > 0 && "is-sup")}>
+                  {sup9 ? supNode9(sup9, supX9) : ""}
                 </span>
                 <span className="scr-motion-stat scr-motion-stat-min">
                   {res9 ? res9[0] : ""}
@@ -17672,7 +17725,7 @@ export default function ReplayMotionPlayer({
     }
     /* 보급(원작 사이 공급 네 줄) — 대는 몸이면. 짓는 중이면 안 댄다. */
     const give9 = SUPPLY_OF9[en];
-    const sup9 = supplyNow.get(op.pickRaw ?? "");
+    const sup9 = supplyPoolOf9(op.pickRaw ?? "", en);   // 그 건물 종족의 풀(위 supplyPoolOf9)
     if (give9 && sup9 && !op.pickWip) {
       foot9.push(
         <div className="scr-motion-infodock-supply" key="sup">

@@ -3355,6 +3355,31 @@
 .scr-who-stats > span:nth-child(4) .scr-who-v { width: 11ch; }   /* 데미지 "12.3k / 9.8k" — K/D(5ch) 자리(2026-10) */
 .scr-who-stats.is-team > span:nth-child(4) .scr-who-v { width: 21ch; }   /* 팀전은 괄호의 팀 내 몫까지 "12.3k(62%) / 9.8k(41%)" */
 .scr-who-stats > span:nth-child(5) .scr-who-v { width: 3ch; }
+/* ★ 인구 칸의 **종족 풀 덧줄**(2026-10, 요청: "마인드컨트롤한 경우는 인구를 두 줄로 보여주고 크기를 반 이하로 줄여서 레이아웃에 전혀
+   영향 없게 · 최대 3줄까지로 하고 그때마다 크기 줄여서 로스터나 스탯창 높아지지 않게") — 본줄(내 종족 N/상한) 아래 다른 종족 풀("테 3/8")이
+   선다(ReplayMotionPlayer supNode9). 상자 키를 **글줄 하나(1.2em)로 못 박고** 안의 줄들을 작게 세워 가운데 맞춘다 — 넘치는 몫은 위아래로
+   흘러 넘칠 뿐 줄 키를 못 민다. 글자 수는 그릇마다 아래. */
+.scr-sup {
+  display: inline-flex; flex-direction: column; align-items: flex-end; justify-content: center;
+  height: 1.2em; line-height: 1; vertical-align: middle; white-space: nowrap; overflow: visible;
+}
+/* 현황 상자(.scr-split-st · 키 1.25em · overflow hidden · 값 글자 0.88em)는 **안에 다 들어야** 한다 — 분할 칸 머리는 판 맨 위라 위로
+   넘치면 판이 잘라 먹는다(실측: 본줄 윗부분이 잘렸다). 들 수 있는 키 1.25/0.88 = 1.42em 에서 한 뼘 남겨 1.3em — 두 줄 본 0.72 + 덧 0.56 ·
+   세 줄 본 0.56 + 덧 0.37×2. 라벨과 값은 글줄 밑선이 아니라 **가운데**로 맞춘다(덧줄 상자가 밑선에 매달리면 위로 올라가 잘린다 · 실측). */
+.scr-who-stats > span:has(.scr-sup) { align-items: center; }
+.scr-sup.is-2 .scr-sup-main { font-size: 0.72em; }
+.scr-sup.is-2 .scr-sup-x { font-size: 0.56em; }
+.scr-sup.is-3 .scr-sup-main { font-size: 0.56em; }
+.scr-sup.is-3 .scr-sup-x { font-size: 0.37em; }
+/* 로스터 칸은 줄 키(글줄 1.2em 보다 큰 칩 줄 · 실측 PC 23.8px 에 글 15.1px)가 받쳐 줘 한 단 크다 — 두 줄 0.86 + 0.68 = 1.54em · 세 줄
+   0.62 + 0.47×2 = 1.56em(둘 다 줄 키 1.57em 안). 칸의 overflow hidden 은 덧줄 있을 때만 연다(.is-sup). */
+.scr-motion-teamcol-rows .scr-sup.is-2 .scr-sup-main { font-size: 0.86em; }
+.scr-motion-teamcol-rows .scr-sup.is-2 .scr-sup-x { font-size: 0.68em; }
+.scr-motion-teamcol-rows .scr-sup.is-3 .scr-sup-main { font-size: 0.62em; }
+.scr-motion-teamcol-rows .scr-sup.is-3 .scr-sup-x { font-size: 0.47em; }
+.scr-sup-x { opacity: 0.85; }
+.scr-sup-x > i { font-style: normal; font-weight: 700; opacity: 0.6; margin-right: 0.3em; }
+.scr-motion-teamcol-rows .scr-motion-stat.is-sup { overflow: visible; }
 .scr-tb-seek { display: flex; align-items: center; min-width: 0; }
 /* 재생 줄 맨 왼쪽의 배속 단추 한 칸(2026-09, 요청: "배속 버튼은 플레이버튼 왼쪽으로") — 줄지 않는다. */
 .scr-tb-speed { flex: none; margin-right: 6px; }
