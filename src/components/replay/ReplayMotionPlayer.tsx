@@ -10051,22 +10051,32 @@ export default function ReplayMotionPlayer({
   /** 현황 한 줄 — 일꾼 · 자원 · 인구 · 데미지 · APM(K/D 칸은 2026-10 에 데미지로 갈았다 · 위 dmgSeries9). 툴박스 정보 판과 분할 칸 머리(PC)가 같은 꼴을 나눠 쓴다(2026-09, 요청: "PC에서
    *  헤더에 유저창과 똑같이 일꾼부터 apm까지 표시 모양도 똑같이"). 값 칸(.scr-who-v)은 칸마다 폭을 못 박아(ch) 숫자가 갈려도
    *  옆 칸이 안 움직인다(요청: "데이터에 따라 움직이지 않게 그리드화해서 각 스탯정보칸 너비가 안변하게"). */
-  const whoStats9 = (c9: ReturnType<typeof capOf9> | null, cls9: string) => (
-    <div className={cx("scr-who-stats", cls9, !melee && "is-team")}>
-      <span title="일꾼"><b>일꾼</b><i className="scr-who-v">{c9?.worker ?? "–"}</i></span>
-      <span title="자원(광물/가스)"><b>자원</b>
+  /** two9 — 두 줄(일꾼·자원·인구 / 데미지·APM · 폰 좌우 분할 칸의 아래 현황): 칸을 두 줄(.scr-who-row)로 싸서 세운다. 칸마다 제 이름
+   *  (.scr-who-i.is-worker|res|sup|dmg|apm)이 있어 CSS 가 자리(nth-child)가 아니라 이름으로 폭을 잡는다 — 줄로 싸도 같은 자다.
+   *  (처음엔 flex 줄바꿈 조각 하나를 끼웠는데 접히는 flex 상자의 제 폭이 첫 줄에 맞춰져 값이 잘렸다 · 실측.) */
+  const whoStats9 = (c9: ReturnType<typeof capOf9> | null, cls9: string, two9 = false) => {
+    const items9 = [
+      <span key="w" className="scr-who-i is-worker" title="일꾼"><b>일꾼</b><i className="scr-who-v">{c9?.worker ?? "–"}</i></span>,
+      <span key="r" className="scr-who-i is-res" title="자원(광물/가스)"><b>자원</b>
         {/* 광물·가스는 **제 자리를 따로 잡는다**(요청: "-/- 자원의 경우 이것도 각 데이터의 자리를 미리 확보") — 둘 다 고정 폭 · 오른쪽 맞춤. */}
         <i className="scr-who-v">
           {/* 사이의 / 는 걷었다(요청: "광물은 사실 / 필요 없을듯") — 두 색(파랑·초록)이 이미 갈라 준다. */}
           <span className="scr-who-r scr-motion-stat-min">{c9?.res ? c9.res[0] : "–"}</span>
           <span className="scr-who-r scr-motion-stat-gas">{c9?.res ? c9.res[1] : "–"}</span>
         </i>
-      </span>
-      <span title="인구 — 내 종족 풀 · 다른 종족 몸(마인드 컨트롤)을 들면 그 종족 풀을 작은 덧줄로"><b>인구</b><i className="scr-who-v">{c9?.sup ? supNode9(c9.sup, c9.supX) : "–"}</i></span>
-      <span title="준 데미지 / 입은 데미지(체력+실드 · 유닛+건물) · 괄호는 지금까지 우리 팀 몫 가운데 내 %"><b>데미지</b><i className="scr-who-v">{c9?.dmg ? dmgNode9(c9.dmg) : "–"}</i></span>
-      <span title="APM"><b>APM</b><i className="scr-who-v">{c9?.apm ?? "–"}</i></span>
-    </div>
-  );
+      </span>,
+      <span key="s" className="scr-who-i is-sup" title="인구 — 내 종족 풀 · 다른 종족 몸(마인드 컨트롤)을 들면 그 종족 풀을 작은 덧줄로"><b>인구</b><i className="scr-who-v">{c9?.sup ? supNode9(c9.sup, c9.supX) : "–"}</i></span>,
+      <span key="d" className="scr-who-i is-dmg" title="준 데미지 / 입은 데미지(체력+실드 · 유닛+건물) · 괄호는 지금까지 우리 팀 몫 가운데 내 %"><b>데미지</b><i className="scr-who-v">{c9?.dmg ? dmgNode9(c9.dmg) : "–"}</i></span>,
+      <span key="a" className="scr-who-i is-apm" title="APM"><b>APM</b><i className="scr-who-v">{c9?.apm ?? "–"}</i></span>,
+    ];
+    return (
+      <div className={cx("scr-who-stats", cls9, !melee && "is-team", two9 && "is-two")}>
+        {two9
+          ? <><span className="scr-who-row">{items9.slice(0, 3)}</span><span className="scr-who-row">{items9.slice(3)}</span></>
+          : items9}
+      </div>
+    );
+  };
   /* (걷어냄) castCap9 — 정보 판이 사라져 읽는 자리가 없다(2026-09, "유저창 완전 제거"). */
   /** 추적 켜기·끄기 — 시야(viewRaw)를 함께 끌고 다닌다. 끄면 시야도 전체로 돌아간다. */
   /** 추적을 끈다 — **보던 자리에 머문다**(요청: "추적 보다가 끄면 맵 위치가 기존에 보던 곳으로 돌아가는데
@@ -18687,17 +18697,26 @@ export default function ReplayMotionPlayer({
                        그 사람의 시야와 그 칸의 화면 네모)이 그 사람을 든다. */
                     onClick={() => setSplitPick9((p9) => (p9 === c9.raw ? null : c9.raw))}
                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSplitPick9((p9) => (p9 === c9.raw ? null : c9.raw)); } }}
-                    className={cx("scr-split-cell", tm9 && "is-team", splitPick9 === c9.raw && "is-pick")}
+                    className={cx("scr-split-cell", tm9 && "is-team", splitPick9 === c9.raw && "is-pick",
+                      smallDevice9 && "is-stbot", smallDevice9 && splitLay9.cols > 1 && "is-two")}
                     style={{ gridColumn: c9.c + 1, gridRow: c9.r + 1, ...(tm9 ? { borderColor: TEAM_COLOR[tm9] } : {}) }}
                     aria-label={`${cap9.text} 화면`}
                   >
-                    {/* 칸 머리 — 이름 칩 + 현황(PC 만 · 폰은 CSS 가 숨긴다). */}
+                    {/* 칸 머리 — 이름 칩 + 현황(PC 만 · 폰은 아래 .scr-split-ownerst). */}
                     <span className="scr-split-cap">
                       <span className="scr-split-chip" style={cap9.chip}>{nm9}</span>
                       {/* 맞대결 배지(위 duel9) — 공격 · 방어 · 교전, 깜빡인다. 손으로 켠 분할에는 안 선다. */}
                       {rl9 && <span className={cx("scr-split-badge", `is-${rl9}`)}>{DUEL_LABEL9[rl9]}</span>}
-                      {whoStats9(cap9, "scr-split-st")}
+                      {!smallDevice9 && whoStats9(cap9, "scr-split-st")}
                     </span>
+                    {/* ★ 폰은 현황이 칸 **아래 가운데**다(2026-10, 요청: "모바일 2분할화면에서 가로 2분할이면 한 줄 세로 2분할이면 두 줄로 각 화면
+                        아래쪽에 스탯 표시") — 위아래로 나뉜 칸(폭이 무대 전체 · cols 1)은 한 줄, 좌우로 나뉜 칸(폭이 반 · cols 2)은 두 줄
+                        (일꾼·자원·인구 / 데미지·APM). 칸 미니맵은 그만큼 위로 올라간다(replay.css .is-stbot). PC 는 칸 머리의 현황 그대로. */}
+                    {smallDevice9 && (
+                      <span className="scr-split-ownerst">
+                        {whoStats9(cap9, cx("scr-split-st", splitLay9.cols > 1 && "is-two"), splitLay9.cols > 1)}
+                      </span>
+                    )}
                     {/* 칸 미니맵(좌하단) — 그 팀 시야 · 제 화면 자리는 그 사람 색 네모(splitMiniPaint9). */}
                     <canvas
                       className="scr-split-mini" aria-hidden

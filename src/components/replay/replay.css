@@ -3345,16 +3345,20 @@
    (가운데 맞춤도 안 흔들린다) 라벨 자리가 값과 무관하다. 값 폭(ch · tabular-nums): 일꾼 3 · 자원 광물 5 + / + 가스 5 · 인구 7 ·
    K/D 5 · APM 3. 칸 사이는 옅은 | (앞 칸 ::before). 정보 판(.scr-tb-who-st)·분할 칸 머리(.scr-split-st)가 같은 꼴이다. */
 .scr-who-stats { font-variant-numeric: tabular-nums; }
-.scr-who-stats > span { display: inline-flex; align-items: baseline; flex: none; }
-.scr-who-stats > span + span::before { content: "|"; opacity: 0.28; margin: 0 0.55em; font-weight: 400; }
+/* 칸은 이름으로 짚는다(.scr-who-i.is-* · 2026-10) — 자리(nth-child)로 짚던 것을 바꿨다: 폰 좌우 분할의 두 줄 현황이 칸들을 줄(.scr-who-row)로
+   싸므로 자리가 흐트러진다. 줄 안에서만 | 가 선다(둘째 줄 머리에는 안 선다). */
+.scr-who-i { display: inline-flex; align-items: baseline; flex: none; }
+.scr-who-i + .scr-who-i::before { content: "|"; opacity: 0.28; margin: 0 0.55em; font-weight: 400; }
+.scr-who-row { display: inline-flex; align-items: baseline; justify-content: center; }
+.scr-who-stats.is-two { flex-direction: column; align-items: center; }
 .scr-who-v { display: inline-block; font-style: normal; white-space: nowrap; text-align: right; }
 .scr-who-r { display: inline-block; text-align: right; width: 5ch; }
 .scr-who-r + .scr-who-r { margin-left: 0.5ch; }   /* 광물·가스 사이 — / 를 걷은 자리(요청: "광물은 사실 / 필요 없을듯") */
-.scr-who-stats > span:nth-child(1) .scr-who-v { width: 3ch; }
-.scr-who-stats > span:nth-child(3) .scr-who-v { width: 7ch; }
-.scr-who-stats > span:nth-child(4) .scr-who-v { width: 11ch; }   /* 데미지 "12.3k / 9.8k" — K/D(5ch) 자리(2026-10) */
-.scr-who-stats.is-team > span:nth-child(4) .scr-who-v { width: 21ch; }   /* 팀전은 괄호의 팀 내 몫까지 "12.3k(62%) / 9.8k(41%)" */
-.scr-who-stats > span:nth-child(5) .scr-who-v { width: 3ch; }
+.scr-who-i.is-worker .scr-who-v { width: 3ch; }
+.scr-who-i.is-sup .scr-who-v { width: 7ch; }
+.scr-who-i.is-dmg .scr-who-v { width: 11ch; }   /* 데미지 "12.3k / 9.8k" — K/D(5ch) 자리(2026-10) */
+.scr-who-stats.is-team .scr-who-i.is-dmg .scr-who-v { width: 21ch; }   /* 팀전은 괄호의 팀 내 몫까지 "12.3k(62%) / 9.8k(41%)" */
+.scr-who-i.is-apm .scr-who-v { width: 3ch; }
 /* ★ 인구 칸의 **종족 풀 덧줄**(2026-10, 요청: "마인드컨트롤한 경우는 인구를 두 줄로 보여주고 크기를 반 이하로 줄여서 레이아웃에 전혀
    영향 없게 · 최대 3줄까지로 하고 그때마다 크기 줄여서 로스터나 스탯창 높아지지 않게") — 본줄(내 종족 N/상한) 아래 다른 종족 풀("테 3/8")이
    선다(ReplayMotionPlayer supNode9). 상자 키를 **글줄 하나(1.2em)로 못 박고** 안의 줄들을 작게 세워 가운데 맞춘다 — 넘치는 몫은 위아래로
@@ -3366,7 +3370,7 @@
 /* 현황 상자(.scr-split-st · 키 1.25em · overflow hidden · 값 글자 0.88em)는 **안에 다 들어야** 한다 — 분할 칸 머리는 판 맨 위라 위로
    넘치면 판이 잘라 먹는다(실측: 본줄 윗부분이 잘렸다). 들 수 있는 키 1.25/0.88 = 1.42em 에서 한 뼘 남겨 1.3em — 두 줄 본 0.72 + 덧 0.56 ·
    세 줄 본 0.56 + 덧 0.37×2. 라벨과 값은 글줄 밑선이 아니라 **가운데**로 맞춘다(덧줄 상자가 밑선에 매달리면 위로 올라가 잘린다 · 실측). */
-.scr-who-stats > span:has(.scr-sup) { align-items: center; }
+.scr-who-i:has(.scr-sup) { align-items: center; }
 .scr-sup.is-2 .scr-sup-main { font-size: 0.72em; }
 .scr-sup.is-2 .scr-sup-x { font-size: 0.56em; }
 .scr-sup.is-3 .scr-sup-main { font-size: 0.56em; }
@@ -4148,12 +4152,12 @@
   margin-left: calc(3px * var(--dk)); padding: 0 calc(3px * var(--dk)); border-radius: 2px;
   background: rgba(0, 0, 0, 0.3); color: #e8eef6; font-weight: 600;   /* 0.5 → 0.3(2026-10, 요청: "스탯뒤 배경 좀더 투명하게") */
 }
-.scr-split-st > span { gap: 0.2em; font-size: 0.88em; }
+.scr-split-st .scr-who-i { gap: 0.2em; font-size: 0.88em; }
 .scr-split-st b { font-size: 0.72em; font-weight: 600; opacity: 0.62; }
 /* ★ 폰에서도 칸 머리 현황이 선다(2026-10, 요청: "분할화면인 경우 헤더에 스탯 표시") — 옛 '폰은 숨긴다'를 되물렸다. 칸 폭에 안 들면
    위 규칙(한 줄 키 + 줄바꿈)이 저절로 숨긴다. 폰은 사이 여백·자원 칸을 한 단 죈다(아래 로스터 현황과 같은 자). */
 @media (max-width: 700px) {
-  .scr-split-st > span + span::before { margin: 0 0.3em; }
+  .scr-split-st .scr-who-i + .scr-who-i::before { margin: 0 0.3em; }
   .scr-split-st .scr-who-r { width: 4ch; }
 }
 /* ★ 폰 단독 중계·추적의 화면 주인 현황 — **무대 아래 가운데**(2026-10, 요청: "모바일에서 단일화면 화면주인 스탯을 로스터가 아닌
@@ -4169,6 +4173,23 @@
   pointer-events: none;
 }
 .scr-fs-ownerst .scr-split-st { margin-left: 0; }   /* 칩이 없으니 칩 옆 여백도 없다 — 상자가 정가운데 */
+/* ★ 폰 분할 칸의 현황은 칸 **아래 가운데**다(2026-10, 요청: "모바일 2분할화면에서 가로 2분할이면 한 줄 세로 2분할이면 두 줄로 각 화면 아래쪽에
+   스탯 표시") — 칸 머리에는 이름 칩만 남는다(.scr-split-cap 의 현황은 PC 만 · JSX smallDevice9). 위아래 분할(칸 폭 = 무대 폭 · cols 1)은 한 줄,
+   좌우 분할(칸 폭 = 반 · cols 2)은 두 줄(.is-two — 일꾼·자원·인구 / 데미지·APM · 두 줄은 .scr-who-row 로 싼다). 칸 미니맵은
+   현황 키만큼 위로 올라간다(.is-stbot --stbot-h · 한 줄 1.25em + 여백 · 두 줄 2.5em + 여백) — 좌하단 미니맵과 안 겹친다. 글자 자는 폰 단독
+   현황(.scr-fs-ownerst)과 같은 8·dk. */
+.scr-split-ownerst {
+  --dk: var(--dk-roster, 1.2);
+  position: absolute; left: 50%; bottom: calc(6px * var(--dk)); transform: translateX(-50%); z-index: 1;
+  display: flex; align-items: center; max-width: calc(100% - 12px); box-sizing: border-box;
+  font-size: calc(8px * var(--dk)); line-height: 1.25; font-weight: 700; white-space: nowrap;
+  pointer-events: none;
+}
+.scr-split-ownerst .scr-split-st { margin-left: 0; }
+.scr-split-st.is-two { height: auto; row-gap: 1px; padding: 1px calc(3px * var(--dk)); }
+.scr-split-cell.is-stbot { --stbot-h: calc(8px * var(--dk-roster, 1.2) * 1.25 + 6px * var(--dk-roster, 1.2)); }
+.scr-split-cell.is-stbot.is-two { --stbot-h: calc(8px * var(--dk-roster, 1.2) * 2.5 + 8px * var(--dk-roster, 1.2)); }
+.scr-split-cell.is-stbot .scr-split-mini { bottom: calc(3px * var(--dk) + var(--stbot-h)); }
 
 /* ★ 독 줄 오른쪽의 음각 글귀(2026-09, 요청: "독 좌우 몇 px이상 남는경우 음각으로 scplay.vercel.app    SINCE 2026 추가(우측에만)")
    — 쇠 바탕에 판 글자다: 글자는 바탕보다 어둡고, 아래 가장자리에 밝은 한 줄(파인 홈의 아래 입술) · 위에 어두운 한 줄을 얹는다.
