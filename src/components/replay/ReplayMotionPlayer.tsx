@@ -18673,7 +18673,7 @@ export default function ReplayMotionPlayer({
                        그 사람의 시야와 그 칸의 화면 네모)이 그 사람을 든다. */
                     onClick={() => setSplitPick9((p9) => (p9 === c9.raw ? null : c9.raw))}
                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSplitPick9((p9) => (p9 === c9.raw ? null : c9.raw)); } }}
-                    className={cx("scr-split-cell", tm9 && "is-team", splitPick9 === c9.raw && "is-pick", smallDevice9 && "is-stbot")}
+                    className={cx("scr-split-cell", tm9 && "is-team", splitPick9 === c9.raw && "is-pick")}
                     style={{ gridColumn: c9.c + 1, gridRow: c9.r + 1, ...(tm9 ? { borderColor: TEAM_COLOR[tm9] } : {}) }}
                     aria-label={`${cap9.text} 화면`}
                   >
@@ -18684,20 +18684,22 @@ export default function ReplayMotionPlayer({
                       {rl9 && <span className={cx("scr-split-badge", `is-${rl9}`)}>{DUEL_LABEL9[rl9]}</span>}
                       {!smallDevice9 && whoStats9(cap9, "scr-split-st")}
                     </span>
-                    {/* ★ 폰은 현황이 칸 **아래 가운데**다(2026-10, 요청: "모바일 2분할화면에서 … 각 화면 아래쪽에 스탯 표시") — 처음엔 위아래 분할 한 줄 ·
-                        좌우 분할 두 줄이었다가 **늘 두 줄**(일꾼·자원·인구 / 데미지·APM)로(요청: "스탯창 그냥 두 줄 고정하고 글자 크기 1스텝 키워 · 화면
-                        가운데 정렬"). 칸 미니맵은 그만큼 위로 올라간다(replay.css .is-stbot). PC 는 칸 머리의 현황 그대로. */}
-                    {smallDevice9 && (
-                      <span className="scr-split-ownerst">
-                        {whoStats9(cap9, "scr-split-st is-two", true)}
-                      </span>
-                    )}
-                    {/* 칸 미니맵(좌하단) — 그 팀 시야 · 제 화면 자리는 그 사람 색 네모(splitMiniPaint9). */}
-                    <canvas
-                      className="scr-split-mini" aria-hidden
-                      style={{ ["--ar" as string]: String(Math.max(1, grid.width) / Math.max(1, grid.height)) } as React.CSSProperties}
-                      ref={(el9) => { if (el9) splitMiniRef9.current.set(c9.raw, el9); else splitMiniRef9.current.delete(c9.raw); }}
-                    />
+                    {/* 칸 발치(.scr-split-foot) — 미니맵(좌하단 · 그 팀 시야 · 제 화면 자리는 그 사람 색 네모 · splitMiniPaint9) + 폰은 그 **오른쪽**에
+                        현황(2026-10, 요청: "각 화면 아래쪽에 스탯 표시" → "스탯창 그냥 두 줄 고정 · 글자 1스텝 키워" → "미니맵 올리지 않고 스탯을 미니맵
+                        오른쪽에 배치") — 늘 두 줄(일꾼·자원·인구 / 데미지·APM) · 바닥 맞춤. 한때 칸 아래 가운데에 두고 미니맵을 그만큼 올렸다(되물림).
+                        PC 는 미니맵뿐(현황은 칸 머리). */}
+                    <span className="scr-split-foot">
+                      <canvas
+                        className="scr-split-mini" aria-hidden
+                        style={{ ["--ar" as string]: String(Math.max(1, grid.width) / Math.max(1, grid.height)) } as React.CSSProperties}
+                        ref={(el9) => { if (el9) splitMiniRef9.current.set(c9.raw, el9); else splitMiniRef9.current.delete(c9.raw); }}
+                      />
+                      {smallDevice9 && (
+                        <span className="scr-split-ownerst">
+                          {whoStats9(cap9, "scr-split-st is-two", true)}
+                        </span>
+                      )}
+                    </span>
                   </div>
                 );
               })}

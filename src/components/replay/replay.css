@@ -4174,21 +4174,23 @@
   pointer-events: none;
 }
 .scr-fs-ownerst .scr-split-st { margin-left: 0; }   /* 칩이 없으니 칩 옆 여백도 없다 — 상자가 정가운데 */
-/* ★ 폰 분할 칸의 현황은 칸 **아래 가운데**다(2026-10, 요청: "모바일 2분할화면에서 … 각 화면 아래쪽에 스탯 표시") — 칸 머리에는 이름 칩만 남는다
-   (.scr-split-cap 의 현황은 PC 만 · JSX smallDevice9). 폰 현황은 **늘 두 줄**(.is-two — 일꾼·자원·인구 / 데미지·APM · 두 줄은 .scr-who-row 로 싼다 ·
-   요청: "스탯창 그냥 두 줄 고정" — 처음의 '위아래 분할 한 줄 · 좌우 분할 두 줄'을 되물림) · 글자 9·dk(한 단 키움) · 가운데 맞춤(상자도 줄도).
-   칸 미니맵은 현황 키만큼 위로 올라간다(.is-stbot --stbot-h · 두 줄 2.5em + 여백) — 좌하단 미니맵과 안 겹친다. */
+/* ★ 폰 분할 칸의 현황은 **미니맵 오른쪽**, 바닥 맞춤이다(2026-10, 요청: "각 화면 아래쪽에 스탯 표시" → "스탯창 그냥 두 줄 고정 · 글자 1스텝 키워" →
+   "미니맵 올리지 않고 스탯을 미니맵 오른쪽에 배치") — 칸 발치(.scr-split-foot · 좌하단 절대 자리 · flex 한 줄 · 아래 맞춤)에 미니맵과 현황이 나란히
+   선다. 미니맵은 제자리(발치 안에선 static · 폭 식은 cq 단위 그대로 — 질의 그릇은 칸). 현황은 **늘 두 줄**(.is-two — 일꾼·자원·인구 / 데미지·APM ·
+   .scr-who-row) · 글자 9·dk. 칸 머리에는 이름 칩만(.scr-split-cap 의 현황은 PC 만 · JSX smallDevice9). 한때 칸 아래 가운데에 두고 미니맵을
+   그만큼 올렸다(--stbot-h · 되물림). 폰 세로 칸 358 폭: 미니맵 93 + 현황 ≈170 이라 남는다 · 좁은 가로 칸도 두 줄이라 든다. */
+.scr-split-foot {
+  position: absolute; left: calc(3px * var(--dk)); right: calc(3px * var(--dk)); bottom: calc(3px * var(--dk)); z-index: 1;
+  display: flex; align-items: flex-end; gap: calc(4px * var(--dk)); pointer-events: none;
+}
+.scr-split-foot > .scr-split-mini { position: static; flex: none; }
 .scr-split-ownerst {
   --dk: var(--dk-roster, 1.2);
-  position: absolute; left: 50%; bottom: calc(6px * var(--dk)); transform: translateX(-50%); z-index: 1;
-  display: flex; align-items: center; justify-content: center; max-width: calc(100% - 12px); box-sizing: border-box;
+  display: flex; align-items: flex-end; min-width: 0;
   font-size: calc(9px * var(--dk)); line-height: 1.25; font-weight: 700; white-space: nowrap;
-  pointer-events: none;
 }
 .scr-split-ownerst .scr-split-st { margin-left: 0; }
 .scr-split-st.is-two { height: auto; row-gap: 1px; padding: 1px calc(3px * var(--dk)); }
-.scr-split-cell.is-stbot { --stbot-h: calc(9px * var(--dk-roster, 1.2) * 2.5 + 8px * var(--dk-roster, 1.2)); }
-.scr-split-cell.is-stbot .scr-split-mini { bottom: calc(3px * var(--dk) + var(--stbot-h)); }
 
 /* ★ 독 줄 오른쪽의 음각 글귀(2026-09, 요청: "독 좌우 몇 px이상 남는경우 음각으로 scplay.vercel.app    SINCE 2026 추가(우측에만)")
    — 쇠 바탕에 판 글자다: 글자는 바탕보다 어둡고, 아래 가장자리에 밝은 한 줄(파인 홈의 아래 입술) · 위에 어두운 한 줄을 얹는다.
