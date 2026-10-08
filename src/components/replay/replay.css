@@ -1202,6 +1202,9 @@
 /* 미네랄은 파랑, 가스는 초록(요청) — 원작의 자원 아이콘 색이다. */
 .scr-motion-stat-min { color: #63b3ff; }
 .scr-motion-stat-gas { color: #4fd08a; }
+/* 데미지 칸의 두 몫 — 준 녹색 · 입은 붉은색, 둘 다 밝은 톤(2026-10, 요청) · 앱 통계 카드(global.css --dmg-dealt/--dmg-taken)와 같은 값. */
+.scr-dmg-dealt { color: #5fdc92; }
+.scr-dmg-taken { color: #ff8585; }
 .scr-motion-build-razed { color: var(--dim); animation: scr-motion-in 0.3s ease-out; }
 /* (삭제) 생산·연구 라임 테(-glow) — 하는 일은 가운데 아이콘(망치·톱니·플라스크)만으로
    말한다(요청: 건물 액티브 사각형 효과 제거). */

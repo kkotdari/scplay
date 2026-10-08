@@ -7942,9 +7942,15 @@ const fmtClock = (sec: number): string => {
  *  더 보여 주는 데 쓰는 편이 낫다(활동 목록의 clipName과 같은 결). */
 /** 데미지 숫자 — 천 단위는 "12.3k"(로스터·현황 한 줄의 좁은 칸). */
 const fmtK9 = (v: number): string => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(Math.round(v)));
-/** 데미지 칸 글자 — "준/입은" · 팀전이면 괄호에 지금까지 우리 팀 몫 가운데 내 %: "12.3k(62%)/9.8k(41%)". */
-const dmgText9 = (d: readonly [number, number, number | null, number | null]): string =>
-  `${fmtK9(d[0])}${d[2] === null ? "" : `(${d[2]}%)`}/${fmtK9(d[1])}${d[3] === null ? "" : `(${d[3]}%)`}`;
+/** 데미지 칸 — "준(%)/입은(%)" · 팀전이면 괄호에 지금까지 우리 팀 몫 가운데 내 %: "12.3k(62%)/9.8k(41%)".
+ *  준은 녹색 · 입은은 붉은색(괄호까지 · 둘 다 밝은 톤 — 요청) · 가운데 / 는 글자색 그대로. */
+const dmgNode9 = (d: readonly [number, number, number | null, number | null]): React.ReactNode => (
+  <>
+    <span className="scr-dmg-dealt">{fmtK9(d[0])}{d[2] === null ? "" : `(${d[2]}%)`}</span>
+    /
+    <span className="scr-dmg-taken">{fmtK9(d[1])}{d[3] === null ? "" : `(${d[3]}%)`}</span>
+  </>
+);
 const shortName = (name: string, teamSize = 4): string => {
   const lim = teamSize <= 1 ? Infinity : teamSize === 2 ? 6 : teamSize === 3 ? 4 : 3;
   if (!Number.isFinite(lim)) return name;
@@ -9961,7 +9967,7 @@ export default function ReplayMotionPlayer({
         </i>
       </span>
       <span title="인구"><b>인구</b><i className="scr-who-v">{c9?.sup ? `${c9.sup[0]}/${c9.sup[1]}` : "–"}</i></span>
-      <span title="준 데미지 / 입은 데미지(체력+실드 · 유닛+건물) · 괄호는 지금까지 우리 팀 몫 가운데 내 %"><b>데미지</b><i className="scr-who-v">{c9?.dmg ? dmgText9(c9.dmg) : "–"}</i></span>
+      <span title="준 데미지 / 입은 데미지(체력+실드 · 유닛+건물) · 괄호는 지금까지 우리 팀 몫 가운데 내 %"><b>데미지</b><i className="scr-who-v">{c9?.dmg ? dmgNode9(c9.dmg) : "–"}</i></span>
       <span title="APM"><b>APM</b><i className="scr-who-v">{c9?.apm ?? "–"}</i></span>
     </div>
   );
@@ -16709,7 +16715,7 @@ export default function ReplayMotionPlayer({
                 <span className="scr-motion-stat scr-motion-stat-gas">
                   {res9 ? res9[1] : ""}
                 </span>
-                <span className="scr-motion-stat">{dmg9 ? dmgText9(dmg9) : ""}</span>
+                <span className="scr-motion-stat">{dmg9 ? dmgNode9(dmg9) : ""}</span>
                 <span className="scr-motion-stat">{apm9 ?? ""}</span>
               </span>
               )}
