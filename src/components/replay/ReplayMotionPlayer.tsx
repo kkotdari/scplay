@@ -7947,7 +7947,7 @@ const fmtK9 = (v: number): string => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : 
 const dmgNode9 = (d: readonly [number, number, number | null, number | null]): React.ReactNode => (
   <>
     <span className="scr-dmg-dealt">{fmtK9(d[0])}{d[2] === null ? "" : `(${d[2]}%)`}</span>
-    /
+    <span className="scr-dmg-sep">/</span>
     <span className="scr-dmg-taken">{fmtK9(d[1])}{d[3] === null ? "" : `(${d[3]}%)`}</span>
   </>
 );

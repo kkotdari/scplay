@@ -562,7 +562,7 @@
 /* 팀전의 로스터는 데미지 칸이 괄호(팀 내 몫 %)까지 들어 넓다(44 → 86·dk) — 밀리는 괄호가 없어 좁은 칸 그대로. 최소 꼴(bare)은 이름 칸 하나. */
 .scr-fs-roster-fixed.is-team:not(.scr-fs-panel-bare) {
   --roster-cols: var(--roster-name, calc(90px * var(--dk))) calc(18px * var(--dk)) calc(34px * var(--dk)) calc(24px * var(--dk))
-    calc(24px * var(--dk)) calc(86px * var(--dk)) calc(22px * var(--dk));
+    calc(24px * var(--dk)) calc(90px * var(--dk)) calc(22px * var(--dk));
 }
 .scr-fs-roster-fixed .scr-motion-teamcol-rows .scr-motion-teamrow {
   gap: 0 calc(2px * var(--dk)); padding: 0 calc(3px * var(--dk)); margin: 0 calc(-3px * var(--dk));
@@ -1205,6 +1205,7 @@
 /* 데미지 칸의 두 몫 — 준 녹색 · 입은 붉은색, 둘 다 밝은 톤(2026-10, 요청) · 앱 통계 카드(global.css --dmg-dealt/--dmg-taken)와 같은 값. */
 .scr-dmg-dealt { color: #5fdc92; }
 .scr-dmg-taken { color: #ff8585; }
+.scr-dmg-sep { margin: 0 0.25em; opacity: 0.6; }   /* / 양옆 한 뼘(요청) — 아래 칸 폭(20 → 21ch · 86 → 90·dk)이 그만큼 넓다 */
 .scr-motion-build-razed { color: var(--dim); animation: scr-motion-in 0.3s ease-out; }
 /* (삭제) 생산·연구 라임 테(-glow) — 하는 일은 가운데 아이콘(망치·톱니·플라스크)만으로
    말한다(요청: 건물 액티브 사각형 효과 제거). */
@@ -3351,8 +3352,8 @@
 .scr-who-r + .scr-who-r { margin-left: 0.5ch; }   /* 광물·가스 사이 — / 를 걷은 자리(요청: "광물은 사실 / 필요 없을듯") */
 .scr-who-stats > span:nth-child(1) .scr-who-v { width: 3ch; }
 .scr-who-stats > span:nth-child(3) .scr-who-v { width: 7ch; }
-.scr-who-stats > span:nth-child(4) .scr-who-v { width: 10ch; }   /* 데미지 "12.3k/9.8k" — K/D(5ch) 자리(2026-10) */
-.scr-who-stats.is-team > span:nth-child(4) .scr-who-v { width: 20ch; }   /* 팀전은 괄호의 팀 내 몫까지 "12.3k(62%)/9.8k(41%)" */
+.scr-who-stats > span:nth-child(4) .scr-who-v { width: 11ch; }   /* 데미지 "12.3k / 9.8k" — K/D(5ch) 자리(2026-10) */
+.scr-who-stats.is-team > span:nth-child(4) .scr-who-v { width: 21ch; }   /* 팀전은 괄호의 팀 내 몫까지 "12.3k(62%) / 9.8k(41%)" */
 .scr-who-stats > span:nth-child(5) .scr-who-v { width: 3ch; }
 .scr-tb-seek { display: flex; align-items: center; min-width: 0; }
 /* 재생 줄 맨 왼쪽의 배속 단추 한 칸(2026-09, 요청: "배속 버튼은 플레이버튼 왼쪽으로") — 줄지 않는다. */
