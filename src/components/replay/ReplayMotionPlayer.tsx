@@ -11297,31 +11297,6 @@ export default function ReplayMotionPlayer({
       const want = Math.round(Math.min(1400, Math.max(300, ih9 - above - below9)));
       // 2px 안쪽 흔들림은 무시한다 — 아래 관찰자와 서로 되먹임하지 않게.
       setFrameMaxH((v) => (Math.abs(v - want) > 2 ? want : v));
-      /* ★ 판이 실제로 앉은 자리를 **바깥에 알린다**(지적: "상세에서 타이틀 로우가 중앙정렬이
-         안 맞는 것 같으니 확인" → "타이틀 중앙정렬은 이 문제 같아: padding-right 244px")
-         ────────────────────────────────────────────────────────────────────────────
-         타이틀 줄은 재생기 **밖의 형제**라 판이 어디에 얼마나 넓게 앉았는지를 모른다.
-         여태는 그것을 **가정**으로 메웠다: "오른쪽에 댓글 기둥 232 + 사이 12가 있으니
-         244를 물러서면 줄의 가운데가 지도의 가운데다." 그 가정은 판이 제 칸을 꽉 채울
-         때만 참이다 — 이제 판은 제 폭(높이 예산이 정한다)으로 **칸 안에서 가운데** 서고,
-         댓글 기둥이 없는 자리도 있다. 그러면 가정과 실제가 갈리고 그 차의 절반만큼
-         제목이 밀린다.
-         가정을 걷고 **잰 값**을 넘긴다: 판의 왼끝과 폭을 조상(.scr-story-map)에 CSS 값
-         으로 적어 두면, 제목 줄이 그 두 값으로 제 상자를 판에 정확히 겹친다. 배율·예산·
-         댓글 유무가 어떻게 바뀌어도 저절로 따라온다(이 함수는 창·문서가 바뀔 때마다 돈다). */
-      const host9 = el.closest(".scr-story-map") as HTMLElement | null;
-      /* 제목이 겹쳐야 할 것은 **지도**다 — 판은 이제 제 칸을 꽉 채우므로(frameStyle의
-         폭 상한 주석) 그 폭을 넘기면 제목이 지도가 아니라 조종부 폭에 맞는다. */
-      const lay9 = (el.querySelector(".scr-fs-stage")
-        ?? el.querySelector(".scr-fs-layer")) as HTMLElement | null;
-      if (host9 && lay9) {
-        const hr9 = host9.getBoundingClientRect();
-        const lr9 = lay9.getBoundingClientRect();
-        if (lr9.width > 0) {
-          host9.style.setProperty("--scr-frame-l", `${Math.round(lr9.left - hr9.left)}px`);
-          host9.style.setProperty("--scr-frame-w", `${Math.round(lr9.width)}px`);
-        }
-      }
       /* ★ 로스터도 **지도에 붙어 있어야 한다** — 판이 제 칸을 꽉 채우게 되면서(폭 상한을
          무대로 옮긴 그 손질) 판의 왼끝이 곧 페이지의 왼끝이 됐다. 로스터는 판 기준의
          절대 배치라 그대로 페이지 구석으로 끌려가, 지도에서 한참 떨어져 떴다.

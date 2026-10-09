@@ -4,7 +4,7 @@
 
 export { default as ReplayModule } from "./ReplayModule";
 export { default as ReplayGuide } from "./ReplayGuide";
-export type { ReplayHead, ReplayModuleProps } from "./ReplayModule";
+export type { ReplayModuleProps } from "./ReplayModule";
 
 // 앱이 꽂아 주는 것들 — 붙이는 법은 README.md.
 export { setReplayChrome } from "./chrome";

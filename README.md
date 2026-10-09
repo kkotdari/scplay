@@ -15,7 +15,6 @@ import ReplayModule from "./components/replay/ReplayModule";
   bases={roster}                 // 이름·종족·편 몇 줄
   teamOfRaw={(raw) => 1 | 2}     // 그 게임 아이디가 어느 편인가
   loadUnitTracks={() => api.getTracks(id)}   // 참값 자취 가져오기
-  head={{ stamp, mapName, minutes, win, by }}// 맵 이름 줄에 적을 것
   side={...} menu={...}                      // 앱의 물건을 꽂는 슬롯
   onScrap={() => saveScene()}                // 주면 '장면 스크랩' 버튼이 선다(꼴·단축키 Z는 모듈 몫)
   onShare={() => shareScene()}               // 주면 '장면 공유' 버튼이 선다(단축키 X)
@@ -23,7 +22,7 @@ import ReplayModule from "./components/replay/ReplayModule";
 ```
 
 이 모듈은 **경기라는 것을 모른다.** GameResult·회원·API가 하나도 안 들어온다 — 지도 격자,
-로스터, 자취를 가져오는 함수, 머리 줄 글자뿐이다. 그래서 자료만 이 꼴로 맞추면 그대로 돈다.
+로스터, 자취를 가져오는 함수뿐이다(맵 이름·시각·승패 줄은 앱의 페이지 제목 줄이 그린다). 그래서 자료만 이 꼴로 맞추면 그대로 돈다.
 
 **댓글은 안 만든다**(지시). 앱마다 다른 물건이라 `side` 슬롯으로 받기만 한다. 공유도 같은
 까닭으로 `shareNode` 슬롯이다.

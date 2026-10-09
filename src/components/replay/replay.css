@@ -1772,121 +1772,16 @@
    maxWidth가 여전히 지도 크기를 잡으므로 세로가 넘칠 일은 없다. */
 
 
-/* 알약 둘(승패·BEST)의 높이는 이 줄이 한 값으로 쥔다 — 알약마다 제 값을 적으면 한쪽만
-   고칠 때 어긋나고, 실제로 그렇게 어긋나 있었다(지적). 글자가 커지는 PC에서는 이 값도
-   함께 커진다(아래 min-width 블록). */
-.scr-story-map-head {
-  /* 알약 높이도 글자와 함께 한 단 낮춘다(요청) — 22 → 20px. */
-  --scr-story-pill-h: 20px;
-  /* 밑선이 아니라 중심으로 맞춘다(지적: 두 배지 높이가 안 맞는다) — 밑선 정렬은 상자가
-     아니라 '첫 글자의 밑선'을 맞추는 것이라, 안에 든 글자 크기가 다른 두 알약(승패는
-     14px 한 덩이, BEST는 12px 태그 + 14px 이름)은 상자 위아래가 서로 어긋나 앉는다.
-     높이를 같게 못 박아도 이 정렬이 남아 있으면 그 어긋남은 그대로다. */
-  /* 두 줄이다(요청: 맵 이름·경기시간 / 승패·베스트) — 바깥은 줄을 쌓고, 줄 안에서
-     가운데 정렬과 배지 정렬(중심 맞춤)을 그대로 이어받는다. */
-  display: flex; flex-direction: column; align-items: center; gap: 4px;
-  font-size: var(--fs-caption); line-height: 1.2;
-  /* 그림과의 사이를 벌린다(요청: 아래 여백 좀 더) — .scr-story-map의 gap 6px만으로는
-     배지 줄이 미니맵 윗변에 붙어, 배지가 그림에 얹힌 표지처럼 보였다. */
-  margin-bottom: 8px;
-}
-.scr-story-map-head-line {
-  display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center;
-  position: relative;
-}
-/* 경기 시각을 맵 이름 줄 왼쪽 끝에(요청: 머리 타임스탬프가 은근 자리를 차지 — 합치자) —
-   게임 페이지에서만 보인다. 목록·묶음 카드는 머리의 시각(.scr-activity-card-time)이
-   그대로 말하므로 두 번 나오지 않게 기본은 숨김. absolute라 맵 이름의 가운데 정렬을
-   안 민다. */
-.scr-story-when { display: none; }
-.scr-story-when-by { display: none; }
-/* 게임 타이틀 로우(재요청: 타임스탬프 왼쪽·작성자 오른쪽·맵/시간/승리 가운데) —
-   게임 페이지에서만. 케밥은 페이지 타이틀 줄(툴바 actions)로 갔다. */
-.scr-story-map-mid { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
-.scr-activity-group-page .scr-story-map-head { align-self: stretch; }
-/* 타이틀 줄은 지도 폭까지만이다(지적: "위에 타이틀 라인(타임스탬프 맵이름 작성자)은
-   댓글영역은 미포함이야") — 이 줄은 재생기 밖 형제라 여태 댓글 기둥까지 걸쳐 있었다.
-   그래서 맵 이름은 지도가 아니라 '지도+댓글'의 가운데에 섰고, 등록자는 댓글 기둥 위에
-   떠 있었다. 오른쪽에서 댓글 기둥 폭(232) + 칸 사이(12)만큼 물러서면 줄의 왼끝·가운데·
-   오른끝이 정확히 지도의 그것이 된다. 넓은 배치일 때만이다 — 그 판을 아는 것은 재생기
-   안의 .scr-motion-wide뿐이라 :has로 묻는다(같은 수법이 아래 댓글 숨김에도 쓰인다). */
-/* ★ 제목 줄은 **판에 정확히 겹친다**(지적: "타이틀 중앙정렬은 이 문제 같아") ─────────
-   여기 있던 `padding-right: 244px`는 가정이었다 — "오른쪽에 댓글 기둥 232 + 사이 12가
-   있으니 그만큼 물러서면 줄의 가운데가 지도의 가운데다." 판이 제 칸을 꽉 채울 때만
-   참인 가정이고, 이제 판은 제 폭(높이 예산이 정한다)으로 칸 안에서 **가운데** 선다.
-   그래서 가정과 실제가 갈리고 그 차의 절반만큼 제목이 밀렸다.
-   이제 재생기가 판의 왼끝(--scr-frame-l)과 폭(--scr-frame-w)을 재서 적어 준다. 값이
-   아직 없으면(재생기가 없는 경기) 종전처럼 줄 전체를 쓴다. */
-.scr-story-map:has(.scr-motion-wide) .scr-story-map-head {
-  width: var(--scr-frame-w, auto);
-  margin-left: var(--scr-frame-l, 0);
-  /* ★ 가운데 정렬에서 **빼야** 이 margin이 자리를 잡는다(지적: "map-head 부분 왼쪽 여백
-     뭐지" — 개발자 도구가 margin-left 249px을 가리켰다) ────────────────────────────
-     부모(.scr-story-map)가 `align-items: center`인 세로 플렉스다. 거기서는 자식의
-     **margin 상자**가 가운데에 놓이므로, margin-left는 자리를 '정하는' 것이 아니라
-     가운데 정렬 **위에 덧붙는다**: 왼끝이 l이 아니라 (C − w + l)/2가 된다.
-     재 봤다(컨테이너 850 · 판 폭 603 · 판 왼끝 124): 제목 줄이 124가 아니라 **186**에
-     섰고, align-self로 빼자 정확히 124가 됐다. 판에 겹치라고 준 값이 오히려 판에서
-     떼어 놓고 있었던 셈이다.
-     ※ 이 줄만 빠지고 형제(미니맵·조종부)의 가운데 정렬은 그대로다. */
-  align-self: flex-start;
-  box-sizing: border-box;
-}
-/* ★ 가운데는 **격자로** 못 박는다(지적: "상세에서 타이틀 로우가 중앙정렬이 안 맞는 것
-   같으니 확인") — 맞는 지적이다. space-between은 남는 자리를 사이사이에 나눠 줄 뿐이라
-   **양옆 폭이 같을 때만** 가운데 것이 가운데에 온다. 여기 양옆은 시각("8월 10일 22:25")과
-   등록자(아바타 + 닉네임 + "등록")로 폭이 딴판이고, 그 차이의 절반만큼 맵 이름이 밀렸다.
-   1fr auto 1fr이면 양옆 칸이 **정의상 같은 폭**이라 가운데 칸이 줄의 한가운데다.
-   양옆은 제 칸 안에서 바깥쪽으로 붙고, 넘치면 줄임표로 마무리한다. */
-.scr-activity-group-page .scr-story-map-head-line {
-  align-self: stretch;
-  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
-}
-.scr-activity-group-page .scr-story-when { justify-self: start; min-width: 0; }
-.scr-activity-group-page .scr-story-map-mid { justify-self: center; min-width: 0; }
-.scr-activity-group-page .scr-story-when-by {
-  justify-self: end; min-width: 0; overflow: hidden;
-}
-.scr-activity-group-page .scr-story-when {
-  display: inline-flex; align-items: center;
-  font-size: var(--fs-caption); color: var(--muted); font-variant-numeric: tabular-nums;
-  font-weight: 400; white-space: nowrap;
-}
-.scr-activity-group-page .scr-story-when-by {
-  display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
-  font-size: var(--fs-caption); color: var(--dim); font-weight: 600;
-}/* 모바일 한 줄 머리(요청: 타임스탬프·맵이름·승패까지 한 줄에, 폰트 한 단씩 축소) —
-   게임 페이지·전체화면 상세에서만: 시각을 줄 안으로 들이고(카드 머리의 시각 줄은 걷는다)
-   전부 한 단씩 줄여 좁은 폭에 한 줄로 선다. 등록자는 모바일에선 아래 등록 줄이 말한다. */
+/* (걷음 · 2026-10-09) 머리 줄 .scr-story-map-head(시각 | 맵·길이·승패 | 올린 이)는 재생기에서 뺐다 — 앱(sg-web)이 페이지 제목 줄에
+   그린다(요청: 재생기 위 타이틀 상자를 걷어 화면 확보). 승패 배지 .scr-story-win 과 가림 .scr-story-win-veil 은 앱이 그대로 쓰므로 남긴다. */
+/* 모바일 — 게임 페이지의 승패 배지(로스터 옆)는 한 단 작게 · 지도는 뷰포트 폭(아래). */
 @media (max-width: 1159px) {
-  .scr-activity-group-page .scr-story-when,
-  .scr-activity-detail-full .scr-story-when {
-    display: inline-flex; align-items: center; position: static; transform: none;
-    font-size: var(--fs-micro); color: var(--muted); font-variant-numeric: tabular-nums;
-    font-weight: 400;
-  }
-  .scr-activity-group-page .scr-story-when-by { font-size: 10px; }
-  .scr-activity-group-page .scr-story-when-by .scr-avatar { width: 14px; height: 14px; }
-  .scr-activity-group-page .scr-story-map-head-line,
-  .scr-activity-detail-full .scr-story-map-head-line { flex-wrap: nowrap; }
-  .scr-activity-group-page .scr-story-map-name,
-  .scr-activity-detail-full .scr-story-map-name { font-size: var(--fs-micro); white-space: nowrap; }
-  .scr-activity-group-page .scr-story-map-dur,
-  .scr-activity-detail-full .scr-story-map-dur { font-size: 10px; }
   .scr-activity-group-page .scr-story-win,
   .scr-activity-detail-full .scr-story-win { font-size: 10px; height: 16px; padding: 0 5px; }
-  /* 머리 줄 **아래** 여백을 죈다(2026-10, 요청: "헤더줄 위아래 여백 타이트하게") — 기본 8 을 2 로. 그림과의 사이는
-     .scr-story-map 의 gap 6 과 합쳐 **8**. 위쪽은 앱의 제목 줄(.scr-v2-toolbar-crumb)이 같은 날 아래 여백 14+16 → 6+6 으로 죄었다. */
-  .scr-activity-group-page .scr-story-map-head { margin-bottom: 2px; }
   /* 게임 페이지의 모바일 맵도 뷰포트 폭(요청: 좌우 패딩 없이 최대한 넓게) — 전체화면
      상세(.scr-activity-detail-full)와 같은 트릭. */
   /* 거는 대상은 위와 같이 **프레임**이다(지도에 걸면 −16px 밀린다). */
   .scr-activity-group-page .scr-motion-frame { width: 100vw; margin-left: calc(50% - 50vw); }
-}
-/* 미니맵이 커진 PC에서는 그 위 요소(맵 이름·시간, 승/무 배지)도 같이 키운다(요청: 미니맵
-   위 요소 알맞게 확대) — 작은 미니맵 시절 크기 그대로면 위아래 균형이 안 맞는다. */
-@media (min-width: 1160px) {
-  .scr-story-mid .scr-story-map-head { font-size: var(--fs-body); gap: 8px; --scr-story-pill-h: 22px; }
 }
 
 /* (이동) 미니맵 조작 안내 — 재생 버튼 아래로 내렸다(요청). 규칙은 .scr-story-hint에 있다. */
@@ -1897,9 +1792,6 @@
   text-align: center; color: var(--dim);
   font-size: calc(var(--fs-caption) - 1px); line-height: 1.3; margin: 4px 0 2px;
 }
-/* 이름·시간 한 단 작게(요청: 맵 이름 텍스트 줄이기) — 배지 줄과 급을 맞춘다. */
-.scr-story-map-name { font-weight: 700; color: var(--text); font-size: var(--fs-caption); }
-.scr-story-map-dur { color: var(--muted); font-size: var(--fs-caption); }
 /* (제거·재요청) 벽 정렬 규칙 — 승리 배지가 맵 이름 좌우로 인라인 배치되며 필요 없어졌다. */
 /* 승패 — 로스터를 감춘 자리(모바일)에서 vs 양옆의 배지가 사라지므로 여기서 알린다.
    색이 곧 이긴 편이다(미니맵 표시의 팀 색과 같은 값). */

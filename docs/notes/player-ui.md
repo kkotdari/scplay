@@ -1026,3 +1026,15 @@ dpr 0.9 · 캔버스 가속 켜짐 · WebGL 가속 · 벤치는 선명할 때도
   반 픽셀이라도 밀리거나 늘어나면 회색으로 뭉갠다. 흐림: 줄의 기하가 다 1.0000 인데 무늬가 회색이면 브라우저 합성기 쪽이다(실기에서 가를 자).
 · 🔎 `perf-check --wide --vw 1920 --vh 1065 --dpr 1 --players 2 --glblit --mrt --diag --hash ss=2 --split x.png` — `[진단머리]` 두 줄(머리 · 흐림:)을
   그대로 적는다 · 헤드리스 벤치 단은 기기마다 달라 기본값은 `[진단머리]`로 확인.
+
+## 머리 줄(.scr-story-map-head)을 걷었다 — 앱의 페이지 제목 줄로(2026-10-09)
+요청(게임 페이지 스크린샷의 빨간 상자: "11시간 전 · 빨무 18분 · ○○ 등록" 줄): "재생기에서 저 타이틀 부분을 제거해서 화면을 더 확보 … 저 내용을
+컴팩트하게 어디다" → 고른 자리는 **앱의 페이지 제목 줄**(← 게임 | 261006… 게임 | 시각 · 맵 길이 [승패] … 등록자 | ⋮) → "그럼 scplay에서는 제거네".
+· `ReplayModule` 에서 `head` prop · `ReplayHead` 타입 · 머리 줄 JSX(winSpan 양쪽 배지 포함)를 뺐다. `onFinish` 는 그대로다 — 앱이 이때 제 배지를 드러낸다.
+· replay.css 에서 `.scr-story-map-head(-line)` · `.scr-story-when(-by)` · `.scr-story-map-mid/-name/-dur` · `:has(.scr-motion-wide)` 판 겹침 규칙 ·
+  `.scr-activity-group-page` 격자(1fr auto 1fr) 규칙 · 모바일 한 줄 머리 규칙을 걷었다. **남긴 것**: `.scr-story-win(-t1/-t2/-draw)` 과
+  `.scr-story-win-veil`(앱이 로스터·제목 줄 배지에 그대로 쓴다) · 모바일 `.scr-activity-group-page .scr-story-win` 한 단 축소 · `.scr-motion-frame` 100vw.
+· `ReplayMotionPlayer` 의 `--scr-frame-l/--scr-frame-w`(머리 줄을 판에 겹치려고 재서 적던 값)도 뺐다 — 읽는 곳이 없어졌다. `--scr-stage-l/r` 은 로스터가 쓰므로 그대로.
+· 앱 쪽(sg-web): `GameResultStory`/`GuestGameStory` 가 `headSlot`(제목 줄의 `.scr-crumb-meta`)에 포털로 그린다 — 시각 `.scr-game-crumb-when` · 맵
+  `.scr-game-crumb-map`(+`-dur`) · 배지 `.scr-story-win` · 등록자 `.scr-game-crumb-by`. 칸이 없는 자리(피드 카드·공유 페이지)는 판 위에 맵 이름 한 줄
+  (`.scr-story-maphead`)만 — 시각·등록자는 카드 머리와 아래 등록 줄이 이미 말한다. 위 '게임 페이지 머리 줄 여백' 절의 수치는 이제 옛말이다.
