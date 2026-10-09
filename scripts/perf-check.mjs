@@ -71,7 +71,7 @@ const GAME_SEC = 120;                 // 합성 경기 길이
 
 // 유닛 종류 번호(bwUnitNames.ts) — 종족 섞어 셋.
 const T = { SCV: 7, Marine: 0, Vulture: 2, Goliath: 3, Tank: 5, TankSiege: 30, Wraith: 8, CC: 106, Depot: 109, Rax: 111, Turret: 124 };
-const Z = { Drone: 41, Zergling: 37, Hydra: 38, Ovie: 42, Hatch: 131, Pool: 142, Sunken: 146 };
+const Z = { Drone: 41, Zergling: 37, Hydra: 38, Ovie: 42, Egg: 36, Hatch: 131, Pool: 142, Sunken: 146 };
 const P = { Probe: 64, Zealot: 65, Goon: 66, Scout: 71, Nexus: 154, Pylon: 156, Gate: 160, Cannon: 162 };
 
 function makeWorld() {
@@ -139,6 +139,7 @@ function makeWorld() {
     tracks.push({ tag: tag++, owner, type, keys, hp });
   };
 
+  let hallTag1_9 = -1;   // Rex(저그 · owner 1)의 본진 해처리 태그 — --dockhatch 가 고른다
   for (const pl of PLAYERS) {
     const [hx, hy] = pl.home;
     const kit = pl.kit;
@@ -154,6 +155,7 @@ function makeWorld() {
     const dirx = hx < 64 ? 1 : -1;
     const diry = hy < 64 ? 1 : -1;
     const hallTag9 = tag;
+    if (pl.owner === 1) hallTag1_9 = hallTag9;
     track(pl.owner, hall, null, { buildingAt: [hx, hy] });
     /* 중계 자동 팝업(--selpick · 2026-09) — 정구가 44초에 제 본진 홀 하나만 고르고 50초에 딴 몸(일꾼 태그 자리)으로 갈아탄다.
        --track 정구 로 열면 initialSec 46 에서 그 홀의 정보 팝업이 저절로 서 있어야 한다(perf-check --infoprobe). */
@@ -311,6 +313,13 @@ function makeWorld() {
     sels.push([F(44), 0, has("--dockship") ? [dsTag] : has("--dockbunker") ? [bkTag] : has("--dockrax") ? [raxTag]
       : has("--dockebay") ? [ebTag] : army0.slice(0, 8)]);
     sels.push([F(44.5), 2, (armyTags.get(2) ?? []).slice(0, 3)]);
+    /* 해처리류·알(--dockhatch · --dockegg · 2026-10-09 · `--track Rex` 와 함께) — Rex(저그 · owner 1)의 본진 해처리를 고르면 생산·대기 줄이
+       **없어야** 하고, 알 하나(저글링 생산 시간만큼 살다 50초에 깨지고 그 자리에 저글링이 난다)를 고르면 "변태 중 저글링" 바가 서야 한다. */
+    const eggTag = tag;
+    track(1, Z.Egg, () => [20, 100, 0], { bornSec: 50 - 28, dieSec: 50 });   // 28 = UNIT_BUILD_SEC.Zergling(unitStats)
+    track(1, Z.Zergling, () => [20.5, 100.5, 0], { bornSec: 50 });
+    if (has("--dockegg")) sels.push([F(44), 1, [eggTag]]);
+    if (has("--dockhatch") && hallTag1_9 >= 0) sels.push([F(44), 1, [hallTag1_9]]);
   }
 
   /* 발키리 대 오버로드(재현: "미사일 두 발 사이 간격이 유닛폭보다 훨씬 넓어") —
@@ -1063,10 +1072,22 @@ const supProbe9 = async (label9) => {
     const btn = document.querySelector(".scr-motion-mapbtns button.scr-motion-mapbtn");
     return { ui: window.__scrDiag?.ui ?? null, cssUi: root ? getComputedStyle(root).getPropertyValue("--ui").trim() : null,
       tb: r(".scr-tb"), roster: r(".scr-dock-row"), dock: r(".scr-fs-dockrow"), btn: btn ? +btn.getBoundingClientRect().width.toFixed(1) : null,
-      infow: w(".scr-fs-dockmain > .scr-motion-infodock"), rosterw: w(".scr-fs-rosterpanel"),   // 독 두 판의 폭(독 0.9배 검산 · 2026-10-09)
+      infow: w(".scr-fs-dockmain > .scr-motion-infodock"), rosterw: w(".scr-fs-rosterpanel"),   // 독 두 판의 폭(1080p 180/320/480 검산 · 2026-10-09)
+      rosterCls: document.querySelector(".scr-dock-roster")?.className ?? null,   // is-paged 가 섰나(쪽 꼴 판정 검산)
+      rprobe: ["\u002escr-dock-roster", ".scr-dock-headrow .scr-dock-names", ".scr-dock-headrow .scr-dock-data", ".scr-dock-headrow .scr-dock-strip", ".scr-dock-headrow .scr-dock-page", ".scr-dock-cell.is-worker", ".scr-dock-cell.is-worker .scr-dock-lab", ".scr-dock-cell.is-apm"].map((q) => {
+        const e = document.querySelector(q); if (!e) return `${q}: 없음`; const b = e.getBoundingClientRect(); const cs = getComputedStyle(e);
+        return `${q}: x${b.left.toFixed(0)} w${b.width.toFixed(1)} h${b.height.toFixed(1)} fs${cs.fontSize} rp${cs.getPropertyValue("--rp").trim()} tf${cs.transform === "none" ? "-" : cs.transform} ov${cs.overflow}`; }),
       vw: window.innerWidth, vh: window.innerHeight, sw: window.screen.width, sh: window.screen.height };
   });
-  console.log(`[UI단] ${u9.ui} · --ui ${u9.cssUi} · 창 ${u9.vw}×${u9.vh} 화면 ${u9.sw}×${u9.sh} · 툴박스 키 ${u9.tb} · 로스터줄 키 ${u9.roster} · 독 줄 키 ${u9.dock} · 단추 ${u9.btn} · 인포창 폭 ${u9.infow} · 로스터 판 폭 ${u9.rosterw}`);
+  console.log(`[UI단] ${u9.ui} · --ui ${u9.cssUi} · 창 ${u9.vw}×${u9.vh} 화면 ${u9.sw}×${u9.sh} · 툴박스 키 ${u9.tb} · 로스터줄 키 ${u9.roster} · 독 줄 키 ${u9.dock} · 단추 ${u9.btn} · 인포창 폭 ${u9.infow} · 로스터 판 폭 ${u9.rosterw} · 로스터 ${u9.rosterCls}`);
+  if (has("--rosterprobe")) {
+    for (const l of u9.rprobe) console.log("[로스터 자]", l);
+    console.log("[로스터 글]", await page.evaluate(() => [...document.querySelectorAll(".scr-dock-headrow .scr-dock-cell")].map((e) => {
+      const b = e.getBoundingClientRect(); const cs = getComputedStyle(e.firstElementChild ?? e);
+      return `${e.textContent}@${b.left.toFixed(0)}+${b.width.toFixed(0)} col${cs.color} op${cs.opacity} vis${cs.visibility} ff${cs.fontFamily.slice(0, 24)}`;
+    }).join(" | ")));
+    console.log("[로스터 값]", await page.evaluate(() => [...document.querySelectorAll(".scr-dock-team:not(.scr-dock-headrow) .scr-dock-row")].slice(0, 2).map((r) => `${r.textContent}`).join(" | ")));
+  }
   /* --diag 면 진단 머리 두 줄(dpr·배율·UI·초해상·⚠재표본 / 흐림: …)을 그대로 적는다 — 사용자가 찍어 보내는 그 줄과 같은 글. */
   if (has("--diag")) {
     const h9 = await page.evaluate(() => [...document.querySelectorAll(".scr-motion-diag > div")].slice(0, 2).map((d) => d.textContent ?? ""));
@@ -2143,6 +2164,10 @@ if (SHOT) {
         row: r(".scr-fs-dockrow"), mini: r(".scr-fs-minipanel .scr-fs-minimap"), dock: r(".scr-motion-infodock"), stage: r(".scr-fs-stage"), map: r(".scr-motion-map"), lower: r(".scr-fs-lower") };
     })));
   }
+  if (has("--rosterprobe")) console.log("[로스터 끝]", await page.evaluate(() => {
+    const w = (q) => { const e = document.querySelector(q); return e ? +e.getBoundingClientRect().width.toFixed(1) : null; };
+    return `${document.querySelector(".scr-dock-roster")?.className} · 인포창 ${w(".scr-fs-dockmain > .scr-motion-infodock")} · 판 ${w(".scr-fs-rosterpanel")} · 독메인 ${w(".scr-fs-dockmain")} · 줄 ${w(".scr-fs-dockrow")}`;
+  }));
   await page.screenshot({ path: SHOT });
   console.log(`스크린샷: ${SHOT}`);
   try { console.log(`[GL] ${await page.evaluate(() => (window.__scrDiag && window.__scrDiag.gl) || "(진단 없음 — --diag)")}`); } catch { /* 없음 */ }

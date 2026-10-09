@@ -2497,19 +2497,36 @@
    그만큼 크다. 무대 키는 아래 줄 전체 키(실측)에서 나오므로 그대로다. */
 /* ⚠ 안쪽 판(.scr-motion.scr-fs-layer)도 .scr-motion 이라 변수를 제 값으로 되덮는다 — 자손 꼴로도 적는다(실측: 뿌리에만 적으니 독 줄 키가 그대로 248 이었다). */
 .scr-motion.scr-motion-pc9, .scr-motion-pc9 .scr-motion { --dock-body: calc(96px * var(--dk) + 30px * var(--ui) + 9.6px * var(--dk)); }
-/* ★ PC 독은 **0.9배**(2026-10-09, 지적: "독의 크기가 좀 화면에 비해 큰 거 같은데 — 아까 만든 거에서 10프로 정도") — 틀(.scr-fs-dockframe) 안에서 --dk 를
-   0.9 로 되덮는다. 변수는 **선언한 요소에서** 셈하므로 뿌리의 --dock-w·--dock-h 는 뿌리 dk 로 굳어 있다 → 독 치수 변수를 여기서 다시 선언해 작은 dk 로
-   다시 셈한다(위 뿌리 선언과 같은 식 · 하나를 고치면 둘 다). 틀 안의 글자·칸·테두리·구분 막대·로스터 줄 키가 다 같은 비로 준다. 폰은 그대로.
-   무대 키는 아래 줄 실측이라 저절로 따라온다. 툴박스가 손으로 든 여백(--dock-out 값)은 0.5px 어긋나는데 눈에 안 띈다. */
+/* ★★ PC 독의 치수는 **1080p 화소**로 적는다(2026-10-09, 요청: "1080p 에서 독 줄 키 180 · 인포창 폭 320 · 로스터 판 폭 480 으로 정수로 맞추기 ·
+   모든 글자나 요소 크기도 짝수 정수로 · dk 0.9 적용하지 않고 실제 크기를 세팅") — 틀(.scr-fs-dockframe) 안에서 `--dks` = dk/1.35(1080p 에서
+   1 · QHD 1.333 · UHD 2)를 두고 독 치수 변수를 **틀 안에서 다시 선언**한다(변수는 선언한 요소에서 셈하므로 뿌리의 --dock-w·--dock-h 는 뿌리
+   dk 로 굳어 있다 — 뿌리 선언은 폰의 자로 남는다). 틀 = 바깥 여백 6 + 테 1 + 몸 166 + 테 1 + 여백 6 = **180**. 인포창 = 칸 48 × 6 + 틈 4 × 5
+   + 좌우 6 × 2 = **320**. 로스터 판 = **480**(--roster-w). 글자는 아래 PC 덮어쓰기 묶음이 짝수로 못 박는다. 옛 0.9배 되덮기는 걷었다. */
 .scr-motion-pc9 .scr-fs-dockframe {
-  --dk: calc(1.8 * var(--ui) * 0.9);
-  --dock-cell: calc(40px * var(--dk)); --dock-gap: calc(4px * var(--dk)); --dock-padx: calc(6px * var(--dk));
-  --dock-cap: calc(22px * var(--dk)); --dock-big: calc(60px * var(--dk));
-  --dock-slot: calc(26px * var(--dk)); --dock-fold: calc(14.4px * var(--dk));
-  --dock-w: calc(var(--dock-cell) * 6 + var(--dock-gap) * 5 + var(--dock-padx) * 2);
-  --dock-body: calc(96px * var(--dk) + 27px * var(--ui) + 9.6px * var(--dk));   /* 30·ui 몫도 0.9 */
-  --dock-h: calc(30px * var(--dk) + 1px + var(--dock-body));
+  --dks: calc(var(--dk) / 1.35);
+  --dock-cell: calc(48px * var(--dks)); --dock-gap: calc(4px * var(--dks)); --dock-padx: calc(6px * var(--dks));
+  --dock-cap: calc(30px * var(--dks)); --dock-big: calc(80px * var(--dks));
+  --dock-slot: calc(36px * var(--dks)); --dock-fold: calc(20px * var(--dks));
+  --dock-w: calc(var(--dock-cell) * 6 + var(--dock-gap) * 5 + var(--dock-padx) * 2);   /* 320 */
+  --dock-body: calc(125px * var(--dks));
+  --dock-h: calc(41px * var(--dks) + var(--dock-body));   /* 166 — 정보줄 40 + 새긴 줄 1 + 몸 125 */
+  --roster-w: calc(480px * var(--dks));
+  --dock-bez: calc(4px * var(--dks)); --dock-out: calc(6px * var(--dks)); --dock-sep: calc(8px * var(--dks));
 }
+/* 인포창 글자·바 — 1080p 에서 짝수 px(옛 N·dk 는 14.85·10.8·27·16.2·8.8·7.4·9.45·10.1·12.15 였다). 접기 손잡이 글자 14 · 빈 안내 10 · 글자 머리 26 ·
+   숫자 10 · 이름 16 · 업그레이드 칸 8(긴 것 8 · 하나짜리 14 · 단계 10) · 보급 10 · 줄 글 12 · 진행 바 키 8. */
+.scr-motion-pc9 .scr-motion-infodock-fold { font-size: calc(14px * var(--dks)); }
+.scr-motion-pc9 .scr-motion-infodock-empty { font-size: calc(10px * var(--dks)); }
+.scr-motion-pc9 .scr-motion-infodock-glyph { font-size: calc(26px * var(--dks)); }
+.scr-motion-pc9 .scr-motion-infodock-nums { font-size: calc(10px * var(--dks)); }
+.scr-motion-pc9 .scr-motion-infodock-name { font-size: calc(16px * var(--dks)); }
+.scr-motion-pc9 .scr-motion-infodock-upsq i { font-size: calc(8px * var(--dks)); }
+.scr-motion-pc9 .scr-motion-infodock-upsq i.is-long { font-size: calc(8px * var(--dks)); }
+.scr-motion-pc9 .scr-motion-infodock-upsq i.is-one { font-size: calc(14px * var(--dks)); }
+.scr-motion-pc9 .scr-motion-infodock-upsq b { font-size: calc(10px * var(--dks)); }
+.scr-motion-pc9 .scr-motion-infodock-supply { font-size: calc(10px * var(--dks)); }
+.scr-motion-pc9 .scr-motion-infodock .scr-motion-info-line { font-size: calc(12px * var(--dks)); }
+.scr-motion-pc9 .scr-motion-infodock .scr-motion-info-bar { height: calc(8px * var(--dks)); }
 .scr-motion-infodock {
   /* ★ 하단 인포창(2026-09, 요청: "인포팝업을 없애고 원작처럼 하단 인포창 · 위치는 하단 가운데 고정폭 · 그 자리에 있던 중계 자막은
      인포창 내부 상단으로 이동 · 늘 표시(크기 고정) · 접기 필요") — 무대 안 아래 가운데. 폭·키를 못 박아 내용이 바뀌어도 안 흔들린다.
@@ -3181,7 +3198,7 @@
   container-type: inline-size;   /* 안의 글자 상한이 판 폭(cqw)으로 선다(아래 .scr-motion-pc9 .scr-dock-roster) */
   /* 상한은 인포창의 **1.25배**(2026-10-09, 요청: "로스터는 최소폭 좀 넓게 강제" — 옛 상한 = 인포창 폭에서는 4:4 이름이 두 자로 접혔다). 남는 폭이 그보다
      모자라면 판은 그만큼이고 안은 쪽(is-paged · JSX rosterPaged9)으로 간다. */
-  width: max(0px, min(calc(var(--dock-w) * 1.25), calc(100cqw - var(--dock-w) - var(--dock-sep) - 2 * var(--dock-out) - 2px)));
+  width: max(0px, min(var(--roster-w, calc(var(--dock-w) * 1.25)), calc(100cqw - var(--dock-w) - var(--dock-sep) - 2 * var(--dock-out) - 2px)));   /* PC 는 --roster-w 480(위 틀 블록) */
 }
 /* ★★ 독 로스터(ReplayMotionPlayer dockRoster9 · 2026-10-09) — [AUTO 줄] / 팀마다 [이름 기둥 | 자료 띠]. 줄 키 --rp 는 독 키를 줄 수(--rows · JSX)로
    나눈 값(상한 13·dk)이라 4:4 도 한 우물에 든다 — 글자는 그 줄 키에 비례한다. */
@@ -3195,12 +3212,19 @@
 /* ★ PC 는 독이 커진 만큼 줄도 크다(2026-10-09, 요청: "로스터칸은 높아진 만큼 요소 크기 키우기") — 줄 키 상한 13 → 17·dk(1:1 넷 줄 · 2:2 일곱 줄이 다
    상한에 닿는다 · 4:4 열한 줄은 키가 정한다). 글자는 **폭**이 먼저 막는다(판 폭 = 인포창 폭 490 에 여섯 칸 46ch 가 들어야 한다): min(줄 키 비례, (판 폭 − 90)/30).
    칩·카메라 단추의 키는 줄 키를 따라 커진다(아래 .scr-dock-name · .scr-roster-cam). */
+/* ★ PC 는 1080p 짝수 px(2026-10-09, 요청 "모든 글자나 요소 크기도 짝수 정수") — 줄 키 상한 24 · 줄 키는 **짝수로 내림**(round(down, …, 2px) ·
+   Chrome 125+/Safari 15.4+ · 못 읽는 브라우저는 위 기본 줄 키로 선다) · 글자 = 줄 키의 반(12) · 라벨 = 글자 − 2(10) · 칩·단추 키 = 줄 키 − 4(20) ·
+   단추 그림 14 · AUTO 글자 10 · 트로피 12. 사방 안쪽 여백 8/12(요청: "로스터판 자체의 안쪽 패딩" — 줄 키 셈이 16 을 뺀다). 폭 상한((판 폭 − 90)/30)은
+   판 480 이면 13 이라 안 닿는다. */
 .scr-motion-pc9 .scr-dock-roster {
-  --rp: min(calc(17px * var(--dk)), calc((var(--dock-h) - 12px * var(--dk)) / var(--rows, 6)));
-  font-size: min(calc(var(--rp) * 0.52), calc((100cqw - 90px) / 30));
+  --rp: round(down, min(calc(24px * var(--dks)), calc((var(--dock-h) - 16px * var(--dks)) / var(--rows, 6))), 2px);
+  padding: calc(8px * var(--dks)) calc(12px * var(--dks));
+  font-size: round(down, min(calc(var(--rp) * 0.5), calc((100cqw - 90px) / 30)), 2px);
 }
 /* PC 쪽 꼴(좁은 창)은 글자를 폭이 아니라 줄 키가 정한다 — 쪽마다 두 칸뿐이라 폭이 남는다. */
-.scr-motion-pc9 .scr-dock-roster.is-paged { font-size: calc(var(--rp) * 0.52); }
+.scr-motion-pc9 .scr-dock-roster.is-paged { font-size: round(down, calc(var(--rp) * 0.5), 2px); }
+.scr-motion-pc9 .scr-dock-lab { font-size: calc(var(--rp) * 0.5 - 2px); }
+.scr-motion-pc9 .scr-dock-gap::after { left: calc(12px * var(--dks)); right: calc(12px * var(--dks)); }
 /* 머리 줄(.scr-dock-headrow — AUTO 단추 + 칸 라벨 · 2026-10-09)은 여느 팀 덩이와 같은 [이름 기둥 | 자료 띠] 꼴이라 따로 둘 규칙이 없다.
    팀 사이 틈 — 줄 키의 0.6(ROSTER_GAP_ROWS9 · --rows 에 든다) · 가운데 실금 하나로 두 팀을 가른다(요청: "1팀 2팀 사이를 좀 더 갭"). */
 .scr-dock-headrow { flex: none; }
@@ -3236,9 +3260,6 @@
   font-size: calc(var(--rp) * 0.5); line-height: 1; pointer-events: none;
   filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.7)); animation: scr-motion-in 0.3s ease-out;
 }
-/* ★ 트로피 자리만큼 칩 글자를 민다(2026-10-09, 지적: "로스터 닉네임 자리 확보 안됨" — 오버레이가 첫 글자를 덮었다). 트로피 폭 ≈ 0.5줄 + 왼쪽 2px 밖 →
-   안쪽 여백 0.5줄이면 글자가 트로피 오른쪽에서 시작한다. 무게 (0,6,0) — 칩 여백 규칙 (0,4,0)을 이긴다. */
-.scr-motion .scr-fs-rosterpanel .scr-dock-row .scr-dock-namewrap.has-trophy > .scr-dock-name { padding-left: calc(var(--rp) * 0.5); }
 /* 무게 (0,4,0) — 칩 글자 규칙 둘(.scr-motion-wide … 11px · .scr-motion:not(.scr-motion-wide) … clamp)이 (0,2,0)·(0,3,0)이라 독 칩은 한 겹 더 짚어
    줄 키 비례(1em)로 못 박는다(폰에서 칩만 두 배로 커져 "정…"으로 접혔다 · 실측). */
 .scr-motion .scr-fs-rosterpanel .scr-dock-row .scr-dock-name {
@@ -3258,6 +3279,12 @@
 .scr-roster-cam-txt { font-size: calc(var(--rp) * 0.42); font-weight: 800; letter-spacing: 0.03em; }
 .scr-roster-cam-auto.is-on svg, .scr-roster-cam-auto.is-on .scr-roster-cam-txt { animation: scr-cast-blink-well 2s steps(1, end) infinite; }
 @media (prefers-reduced-motion: reduce) { .scr-roster-cam-auto.is-on svg, .scr-roster-cam-auto.is-on .scr-roster-cam-txt { animation: none; } }
+/* PC 짝수 px(위 .scr-motion-pc9 .scr-dock-roster 의 ★) — 칩·단추 키 = 줄 키 − 4 · 단추 그림 ≈ 0.6줄을 짝수로 · AUTO 글자 ≈ 0.42줄 · 트로피 = 글자. */
+.scr-motion-pc9 .scr-fs-rosterpanel .scr-dock-row .scr-dock-name { height: calc(var(--rp) - 4px * var(--dks)); padding: 0 calc(4px * var(--dks)); }
+.scr-motion-pc9 .scr-roster-cam { height: calc(var(--rp) - 4px * var(--dks)); min-width: calc(var(--rp) - 4px * var(--dks)); }
+.scr-motion-pc9 .scr-roster-cam svg { width: round(nearest, calc(var(--rp) * 0.6), 2px); height: round(nearest, calc(var(--rp) * 0.6), 2px); }
+.scr-motion-pc9 .scr-roster-cam-txt { font-size: round(nearest, calc(var(--rp) * 0.42), 2px); }
+.scr-motion-pc9 .scr-dock-trophy { font-size: round(down, calc(var(--rp) * 0.5), 2px); }
 /* 인구 칸의 종족 풀 덧줄(.scr-sup) — 로스터 칸과 같은 자. */
 .scr-dock-cell .scr-sup.is-2 .scr-sup-main { font-size: 0.86em; }
 .scr-dock-cell .scr-sup.is-2 .scr-sup-x { font-size: 0.68em; }

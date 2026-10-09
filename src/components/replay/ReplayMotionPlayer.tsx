@@ -17158,7 +17158,7 @@ export default function ReplayMotionPlayer({
     if (!el9 || smallDevice9 || typeof ResizeObserver === "undefined") return;
     const read9 = (): void => {
       const info9 = el9.parentElement?.querySelector<HTMLElement>(".scr-motion-infodock");
-      const need9 = (info9?.getBoundingClientRect().width ?? 0) * 1.25 - 2;
+      const need9 = (info9?.getBoundingClientRect().width ?? 0) * 1.5 - 2;   // 판 상한 = 인포창 × 1.5(480/320 · replay.css --roster-w)
       setRosterPaged9(el9.getBoundingClientRect().width < need9);
     };
     read9();
@@ -17253,9 +17253,7 @@ export default function ReplayMotionPlayer({
                       </button>
                       {/* 칩 + 트로피 겹싸개 — 트로피는 칩의 **왼쪽 위에 얹힌 오버레이**다(2026-10-09, 요청: "승리팀 트로피는 닉네임 위에 오버레이로
                           왼쪽 위에 붙여주기"). 칩은 overflow hidden(긴 이름 자름)이라 칩 안에 못 두고, 겹싸개(position relative)에 절대 자리로. */}
-                      {/* ★ 트로피가 뜨면 칩 글자는 **그만큼 오른쪽에서 시작**한다(2026-10-09, 지적: "로스터 닉네임 자리 확보 안됨") — 오버레이가 첫 글자를 덮지 않게
-                          칩이 왼쪽 안쪽 여백(has-trophy)으로 트로피 자리를 비운다. */}
-                      <span className={cx("scr-dock-namewrap", trophy9 && "has-trophy")}>
+                      <span className="scr-dock-namewrap">
                         <span className={cx("scr-motion-teamcol-name scr-dock-name", shownRaws9.has(m.key) && "scr-motion-teamcol-cast")} style={chipStyle(m.key, m.team, CHIP_ROW_A9)}>
                           {m.name}
                           {m.race && raceLetter9(m.race) ? <span className="scr-motion-teamcol-race">{raceLetter9(m.race)}</span> : null}
@@ -17912,14 +17910,18 @@ export default function ReplayMotionPlayer({
     "High Templar", "Dark Archon", "Larva", "Egg", "Lurker Egg", "Mutalisk Cocoon"]);
   /** 체력 비 → 원작 세 단 색(연녹 · 노랑 · 빨강). */
   const hpCol9 = (r9: number): string => (r9 > 0.5 ? "#6fe36f" : r9 > 0.33 ? "#e8d94a" : "#e05a4a");
+  /** 인포창 유닛 그림의 요잉(도) — 건물 각의 반대쪽(위 silIcon9 ★). */
+  const UNIT_ICON_YAW9 = -BUILDING_BASE_YAW;
   /** 이름 → 도록 모델(실루엣) — 건물은 SHAPE_KIND, 유닛은 UNIT_3D. 없으면 null(글자 머리로 대신). */
   const iconKind9 = (en9: string, bld9: boolean): string | null =>
     (bld9 ? SHAPE_KIND[en9] : UNIT_3D[en9]) ?? null;
-  /** 실루엣 한 칸 — 체력색 한 벌로 물들인 도록 아이콘. */
+  /** 실루엣 한 칸 — 체력색 한 벌로 물들인 도록 아이콘.
+   *  ★ 유닛은 건물과 **반대쪽 45도**(2026-10-09, 요청: "인포창 그림 중 건물은 유지하고 유닛은 반대로 45도 요잉 — 정면이 살짝 오른쪽을 보게 ·
+   *  원작이 그렇다") — 건물은 지도의 각(BUILDING_BASE_YAW) 그대로, 유닛은 그 음수(UNIT_ICON_YAW9). */
   const silIcon9 = (en9: string, bld9: boolean, col9: string, cls9: string): React.ReactNode => {
     const k9 = iconKind9(en9, bld9);
     return k9
-      ? <DocIcon9 kind={k9} flat fit fitPad={0.06} tint={col9} className={cls9} />
+      ? <DocIcon9 kind={k9} rotDeg={bld9 ? undefined : UNIT_ICON_YAW9} flat fit fitPad={0.06} tint={col9} className={cls9} />
       : <span className={cx(cls9, "scr-motion-infodock-glyph")} style={{ color: col9 }}>{(UNIT_KO[en9] ?? BUILDING_KO[en9] ?? en9).slice(0, 1)}</span>;
   };
   /** 진행 바 — 원작처럼 열 칸이 차오른다. */
@@ -18071,7 +18073,10 @@ export default function ReplayMotionPlayer({
       /* ★ 원작 자리(2026-09, 요청: "원작은 생산 중인 유닛이 진행 바 좌측에 배치되고 대기들만 아래에 네 개") — 지금 뽑는
          것은 진행 바 **왼쪽**의 칸 하나, 그 아래 줄이 대기 넷이다. ★ 대기 줄은 **비어 있어도 선다**(요청: "건물의 진행바
          위치 큐 여부와 관계없이 고정(큐 자리 남겨놓기)") — 대기가 생기고 빠질 때 그 아래 줄(연구 바)이 들썩이지 않는다. */
-      if (making || queue.length > 0) {
+      /* ★ 해처리·레어·하이브는 **생산 줄·대기 줄이 없다**(2026-10-09, 요청: "해처리류 생산 중 안 뜨게 — 대신 알 클릭 시 거기에서 보이게") —
+         저그의 생산은 라바가 알이 되는 것이라 건물이 만드는 게 아니고, 화면에는 이미 알이 서 있다. 품은 것은 알의 인포(아래 유닛 갈래 ★)가 말한다. */
+      const hatchLike9 = en === "Hatchery" || en === "Lair" || en === "Hive";
+      if (!hatchLike9 && (making || queue.length > 0)) {
         lines.push(
           <div className="scr-motion-infodock-prod" key="prod">
             <span className="scr-motion-infodock-slot is-head">
@@ -18193,6 +18198,29 @@ export default function ReplayMotionPlayer({
       );
     }
     /* 탄 몸(판 11 탑승 절) — 수송선 4×2 · 벙커 2×2. */
+    /* ★ 알·럴커알·고치는 **무엇으로 변태 중인지**를 보인다(2026-10-09, 같은 요청) — 참값에는 알이 품은 종류가 없다. 알이 깨지는 자리에 알이
+       깨질 때쯤 태어나는 그 임자의 유닛(prodDoneAt · 출생 자리·시각)이 곧 품은 것이다: 알 자리에서 2.5타일 안 · 완성이 지금 뒤 · 그 유닛의
+       생산 시간(UNIT_BUILD_SEC)을 빼면 알의 출생 ±2.5초. 저글링·스커지는 둘이 나지만 같은 종류라 아무거나 맞다. 진행은 그 창에서 잰다. */
+    if (!bld9 && tag9 !== undefined && (en === "Egg" || en === "Lurker Egg" || en === "Mutalisk Cocoon")) {
+      let best9: { u: string; s: number; sec: number } | null = null;
+      for (const r9 of prodDoneAt.get(op.pickRaw ?? "") ?? []) {
+        if (r9.s <= t) continue;
+        if (r9.u === "Egg" || r9.u === "Larva" || r9.u === "Lurker Egg" || r9.u === "Mutalisk Cocoon") continue;
+        const sec9 = UNIT_BUILD_SEC[r9.u] ?? 30;
+        if (life9 && Math.hypot(r9.x - life9.bornX, r9.y - life9.bornY) > 2.5) continue;
+        if (life9 && Math.abs((r9.s - sec9) - life9.born) > 2.5) continue;
+        if (!best9 || r9.s < best9.s) best9 = { u: r9.u, s: r9.s, sec: sec9 };
+      }
+      if (best9) {
+        const b9 = best9;
+        lines.push(
+          <div className="scr-motion-infodock-prod" key="morph">
+            <span className="scr-motion-infodock-slot is-head">{silIcon9(b9.u, false, "#6fe36f", "scr-motion-infodock-sico")}</span>
+            {bar9(`변태 중 ${UNIT_KO[b9.u] ?? b9.u}`, Math.min(0.99, Math.max(0, (t - (b9.s - b9.sec)) / b9.sec)), "mbar")}
+          </div>,
+        );
+      }
+    }
     const cg9 = CARGO9[en];
     if (cg9 && tag9 !== undefined) {
       /* ★ 칸은 탄 몸의 수송 공간만큼이다(CARGO_SPACE9) — 2 는 세로 두 칸(1×2) · 4 는 2×2. 격자를 dense 로 채워 남는 자리는
@@ -19024,7 +19052,10 @@ export default function ReplayMotionPlayer({
   );
   const stageNode = (
     <div
-      className={cx("scr-motion", "scr-fs-layer", fsOn && "is-fs", !fsUi && "is-idle")}
+      /* ★ PC 표식(scr-motion-pc9)은 **이 판에도** 단다(2026-10-09, 지적: "전체화면에서 독이 작아지는데") — 전체화면이면 이 판을 document.body 로
+         포털하므로(아래 fsInner) 뿌리(.scr-motion-root)의 자손이 아니다. 그래서 `.scr-motion-pc9 …` 로 적은 PC 독 규칙(독 몸 키 · 1080p 치수 틀 블록 ·
+         로스터 글자)이 전체화면에서는 하나도 안 맞아 폰 자(뿌리 변수)로 떨어졌다 — 그것이 "전체화면에서 독이 작아진" 까닭이다. */
+      className={cx("scr-motion", "scr-fs-layer", fsOn && "is-fs", !fsUi && "is-idle", !smallDevice9 && "scr-motion-pc9")}
       /* 프레임일 때의 크기 — 지도와 같은 가로세로비다(위). 전체화면에서는 CSS가
          화면을 채우므로 이 값이 안 쓰인다(is-fs가 덮는다). */
       /* 프레임 크기 — 비는 **지도 것**이라 크롭 0이 기본이고(지적: PC에서 높이가 낮음),

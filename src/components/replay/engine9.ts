@@ -1099,6 +1099,10 @@ export function muzzlePoint(
 /** 이미 선 건물이 바뀌어 되는 건물들 — 여기 드는 공사는 고치가 **안 자란다**(지적:
  *  "드론에서 변태시엔 커져야하고 그냥 건물간 변태는 그대로"). 드론이 녹아 되는 건물만
  *  작은 고치에서 자라 오른다. 브루드워의 저그 건물 변태는 이 다섯이 전부다. */
+/** 선 건물에서 변태하는 건물 → 원래 건물(공사 중 체력의 시작점 · 아래 공사 op 의 ★). */
+const WIP_FROM9: Record<string, string> = {
+  Lair: "Hatchery", Hive: "Lair", "Greater Spire": "Spire", "Sunken Colony": "Creep Colony", "Spore Colony": "Creep Colony",
+};
 export const BLD_FROM_BLD = new Set([
   "Lair", "Hive", "Greater Spire", "Sunken Colony", "Spore Colony",
 ]);
@@ -6095,6 +6099,30 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
             race2 === "테란" ? (BLD_DRAW_TUNE[shapeKind] ?? 1) : 1)
             * (race2 === "테란" ? (BLD_DRAW_TUNE[shapeKind] ?? 1) : 1),
           pickWip: true,
+          /* ★ **공사 중 체력**(2026-10-09, 지적: "짓다만 건물 또는 건설 중 건물 체력 표시 문제") — 여태 공사 op 에는 체력이 없어 인포창이 "0/0"
+             이고 체력바도 없었다. 원작은 착공 때 만피의 10%에서 시작해 진행률대로 차오른다(선 건물의 변태는 원래 건물의 만피에서 새 만피로 —
+             WIP_FROM9). 맞은 기록(entBldHp · 그 자리의 생애)이 있으면 그 값(만피 대비)을 **상한**으로 — 맞은 뒤에도 공사는 차오르지만 덤퍼는
+             맞을 때만 적으니 그만큼은 모른다(아래로 어림). 멈춘 공사(테란 건설 중단)는 진행률이 선 자리의 값 그대로다. 바는 완성 건물과 같은 자. */
+          ...((): { hpMax: number; hpFrac: number; hpShow: boolean; shFrac: number; hpBarW: number; hpBarFrac: number } => {
+            const bs0 = BLD_STATS[unit];
+            const full0 = bs0 ? bs0[0] + bs0[1] : 850;
+            const fromB9 = WIP_FROM9[unit] ? BLD_STATS[WIP_FROM9[unit]] : undefined;
+            const base0 = fromB9 ? Math.min(1, (fromB9[0] + fromB9[1]) / full0) : 0.1;
+            let f9 = base0 + (1 - base0) * Math.max(0, Math.min(1, prog));
+            const arr9 = entBldHp.get(`${raw}|${Math.round(x)}|${Math.round(y)}`);
+            const rec0 = arr9 ? ([...arr9].filter((r2) => r2.born <= sec + 5).sort((a2, b2) => b2.born - a2.born)[0] ?? arr9[0]) : undefined;
+            if (rec0) {
+              let now0 = full0;
+              for (let hi3 = 0, hn3 = tkN(rec0.hp); hi3 < hn3; hi3 += 1) { if (tkT(rec0.hp, hi3) > t) break; now0 = tkV(rec0.hp, hi3); }
+              f9 = Math.min(f9, now0 / Math.max(1, full0));
+            }
+            const bwB9 = hpBarGamePx9((FOOTPRINT[unit]?.[0] ?? 4) * 32 * 0.95);
+            return {
+              hpMax: full0, hpFrac: Math.max(0.04, Math.min(1, f9)), hpShow: true,
+              shFrac: bs0 && bs0[1] > 0 ? bs0[1] / (bs0[0] + bs0[1]) : 0,
+              hpBarW: bwB9, hpBarFrac: (bwB9 / (gw9 * 32)) * (pitched ? pitchK(centerY) * HP_BAR_3D_K : 1),
+            };
+          })(),
           /* 상태 줄 — 테란은 '건설 중단'을 따로 말한다(요청): 일꾼이 떠나거나
              죽어 공사가 그 진행률에 멈춰 선 동안이다. */
           pickState: race2 === "저그"
