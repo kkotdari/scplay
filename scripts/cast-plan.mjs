@@ -120,6 +120,32 @@ for (const [name, pass] of [
   ["포토러시는 러시한 R 이 공격", pplan.length > 0 && pplan.every((s) => rOf(s) === "atk")],
 ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 
+/* ── ⑦ 기지 피해 자막(2026-10-09, 되요청: "공격 와서 뭘 부쉈는지까지보다 기지를 반파시킴 대파시킴 궤멸시킴 등으로") — Y 가 X 의 게이트웨이 셋·파일런을 300초에
+   부순다(기지 = 넥서스 + 게이트 셋 + 파일런 둘) → 잃은 몫으로 단이 선다 · 파일런 하나만 부수면 "건물 파괴". */
+const capTxt = (s) => (s.caps ?? []).map((c) => (c.raw !== undefined ? `[${c.raw}]${c.p ?? ""}` : c.text)).join("");
+const razeWorld = (nKill) => {
+  let rt = 7000;
+  const rl = [];
+  const rmk = (o, kind, bld, x, y, born, died, end) => { const e = { tag: (rt += 1), owner: o, kind, born, bornX: x, bornY: y, died, end, bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [] }; rl.push(e); return e; };
+  rmk(0, "Nexus", true, 10, 10, 0, null, "");
+  rmk(1, "Hatchery", true, 100, 100, 0, null, "");
+  const vict = [rmk(0, "Gateway", true, 12, 14, 60, null, ""), rmk(0, "Gateway", true, 15, 14, 70, null, ""), rmk(0, "Gateway", true, 18, 14, 80, null, ""),
+    rmk(0, "Pylon", true, 8, 8, 20, null, ""), rmk(0, "Pylon", true, 20, 8, 30, null, "")];
+  const dead = vict.slice(0, nKill);
+  dead.forEach((e, i) => { e.died = 300 + i * 1.5; e.end = "atk"; });
+  for (let i = 0; i < 6; i += 1) rmk(1, "Zergling", 200, null, "");
+  return { world: { players: [{ owner: 0, name: "X", race: "프로토스", color: "#ff0", team: 1 }, { owner: 1, name: "Y", race: "저그", color: "#0f0", team: 2 }],
+    lives: rl, ups: [], casts: [], pings: [], resFields: [], kills: dead.map((e) => [e.died, 1, 0, e.tag]) } };
+};
+const razeCap = (nKill) => { const pl9 = castPlan9(razeWorld(nKill).world, { total: 600 }).filter((s) => !s.cyc); return pl9.length > 0 ? capTxt(pl9[0]) : "(장면 없음)"; };
+const raze4 = razeCap(4); const raze1 = razeCap(1);
+console.log(`\n기지 피해: 넷 부숨 → ${raze4} · 하나 부숨 → ${raze1}`);
+for (const [name, pass] of [
+  ["건물 넷을 잃으면 기지 피해 단(반파·대파·궤멸)", /\[Y\]ga \[X\] 기지 (반파|대파|궤멸)시킴/.test(raze4)],   // ga = 재생기가 받침 보고 붙일 '가/이'
+  ["파일런 하나면 건물 파괴", /\[Y\]ga \[X\] 건물 파괴/.test(raze1)],
+]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+
 /* ── ⑥ 순환 차례 — 2v2 · 사건 없는 60초(2026-09, 요청: "순환할때 순서를 로스터 순으로 팀 번갈아가며") ── */
 const q4 = { players: [0, 1, 2, 3].map((o) => ({ owner: o, name: "PQRS"[o], race: "테란", color: "#fff", team: o < 2 ? 1 : 2 })),
   lives: [0, 1, 2, 3].map((o) => ({ tag: 900 + o, owner: o, kind: "Command Center", born: 0, bornX: 10, bornY: 10, died: null, end: "",

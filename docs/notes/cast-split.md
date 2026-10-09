@@ -648,3 +648,6 @@ op 258 → 605 · 일 79 → 94% — 분할은 칸마다 딴 자리를 본다며
   (bases)의 받침으로(koGa9/koEul9/koWa9). 옛 맞대결 창(foeTo)·몫별 왼쪽 띠는 걷었다.
 - **꼴**(.scr-cast-caption): 글자 = 이름표 × 0.875(PC 7·dk · 폰 14·dk) · white-space normal + 폭 상한 min(무대 − 12·dk, 36em) 으로 줄바꿈 · 칩은 inline-block(14em 상한).
 - 🔎 `node scripts/cast-plan.mjs --plan` 에 토막마다 자막 글귀가 찍힌다 · `perf-check --wide … --track 정구 --capprobe atk|def|war|long --shot x.png`(long = 줄바꿈 검산).
+- (되요청 · 2026-10-09: "공격 와서 뭘 부쉈는지까지보다 기지를 반파시킴 대파시킴 궤멸시킴 등으로") 건물 피해 자막은 건물 이름 대신 **기지 피해 단** — 그 장면에서 건물을 가장
+  많이 부순 짝(k>v · Sc9.bldPair)의, v 가 장면 머리에 갖고 있던 기지 몸값(baseValue9 · 짓는 중 포함) 대비 잃은 몫(bldLost)으로 "A가 B 기지 반파시킴"(≥ 0.2) · "대파시킴"(≥ 0.45) ·
+  "궤멸시킴"(≥ 0.75 · RAZE9) · 그 아래는 "A가 B 건물 파괴". 맞대결 글귀보다 먼저 선다. 🔎 cast-plan.mjs ⑦ 기지 피해(넷 부숨 → 대파 · 하나 → 건물 파괴).

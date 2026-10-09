@@ -127,6 +127,8 @@ const LEAVE_N9 = 8;
 const HARASS9 = { k: 4, tail: 12 };
 /** 맞대결(자동 분할)을 장면의 마지막 사건 뒤 이만큼 더 둔다(초) — 끝나자마자 한 화면으로 접히면 결말이 안 읽힌다. */
 const DUEL_TAIL9 = 2;
+/** 기지 피해 단(자막 · 2026-10-09) — 그 장면에서 잃은 건물 몸값 / 장면 머리의 기지 몸값: 반파 ≥ 0.2 · 대파 ≥ 0.45 · 궤멸 ≥ 0.75. */
+const RAZE9 = { half: 0.2, heavy: 0.45, wipe: 0.75 };
 /** 싸움터 가름(duel9 의 turf9Of) — home: 한 진영 몫이 이 위면 그 사람이 방어 · min: 자리를 아는 몸값이 맞대결 몸값의 이
  *  몫 아래면 안 쓴다 · near: 두 출발 자리가 이 타일 안이면 안 쓴다(가를 선이 없다). */
 const TURF9 = { home: 0.65, min: 0.4, near: 12 };
@@ -349,6 +351,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   type Sc9 = { t0: number; t1: number; by: Map<string, number>; why: string; tail: number;
     /** 가장 무거운 사건(자막 재료 · 2026-10-09). */
     top?: Ev9;
+    /** "k>v" → k 가 v 의 **건물**을 부순 몸값 · v → 잃은 건물 몸값(자막의 기지 피해 단 — 반파·대파·궤멸 · 2026-10-09). */
+    bldPair: Map<string, number>; bldLost: Map<string, number>;
     /** "a>b" → a 가 b 에게 준 몸값 · 사람 → 잃은 살림 값(맞대결의 자 — 아래 duel9). */
     pair: Map<string, number>; econ: Map<string, number>;
     /** 잃은 자리들 [사람, x, y, 몸값] — 싸움터가 누구 진영인가(duel9). */
@@ -356,7 +360,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   const scs9: Sc9[] = [];
   for (let i9 = 0; i9 < evs9.length;) {
     const sc9: Sc9 = { t0: evs9[i9].sec, t1: evs9[i9].sec, by: new Map(), why: evs9[i9].why, tail: GAP9,
-      pair: new Map(), econ: new Map(), locs: [] };
+      pair: new Map(), econ: new Map(), locs: [], bldPair: new Map(), bldLost: new Map() };
     let top9 = 0;
     let j9 = i9;
     /* 다음 사건이 **앞 사건의 꼬리**(견제면 HARASS9.tail · 그 밖은 GAP9) 안이면 같은 장면이다. */
@@ -366,6 +370,10 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       sc9.tail = e9.tail ?? GAP9;
       sc9.by.set(e9.raw, (sc9.by.get(e9.raw) ?? 0) + e9.w);
       if (e9.vs && e9.dealt) sc9.pair.set(`${e9.raw}>${e9.vs}`, (sc9.pair.get(`${e9.raw}>${e9.vs}`) ?? 0) + e9.dealt);
+      if (e9.why === "건물 파괴" && e9.vs && e9.dealt) {
+        sc9.bldPair.set(`${e9.raw}>${e9.vs}`, (sc9.bldPair.get(`${e9.raw}>${e9.vs}`) ?? 0) + e9.dealt);
+        sc9.bldLost.set(e9.vs, (sc9.bldLost.get(e9.vs) ?? 0) + e9.dealt);
+      }
       if (e9.econ) sc9.econ.set(e9.raw, (sc9.econ.get(e9.raw) ?? 0) + e9.econ);
       if (e9.x !== undefined && e9.y !== undefined && e9.vs) sc9.locs.push([e9.raw, e9.x, e9.y, e9.dealt ?? e9.w / LOSS_K9]);
       /* 꼬리표는 그 장면에서 **가장 무거운 사건**의 것이다 — 핵 한 발이 든 교전은 '핵'이다. */
@@ -533,7 +541,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
      담백하고 단순하게") ───────────────────────────────────────────────────────────
      장면 토막은 그 장면의 **가장 무거운 사건**(sc.top)과 맞대결 몫으로, 순환 토막은 그 사람이 그 창에서 한 일(연구 · 확장 · 건설)로 짓는다. 사람은 조각(raw)으로 두고
      재생기가 이름표 칩으로 그린다 — 조사는 표시 이름의 받침을 재생기가 안다(p). 글귀 보기:
-       교전 — 공격 "A의 B 공격" · 방어 "B가 공격함 · C가 헬프옴" · 호각 "A·B 교전" · 견제 "A의 B 견제" · 건물 "A의 B 해처리 파괴" · 핵 "A 핵 투하" · 마법 "A 스톰"
+       교전 — 공격 "A의 B 공격" · 방어 "B가 공격함 · C가 헬프옴" · 호각 "A·B 교전" · 견제 "A의 B 견제" · 기지 피해 "A가 B 기지 반파/대파/궤멸시킴"(잃은 건물 몸값이 그때
+       기지 몸값의 20/45/75% — 되요청: "공격 와서 뭘 부쉈는지까지보다 기지를 반파시킴 대파시킴 궤멸시킴 등으로") · 그 아래면 "A가 B 건물 파괴" · 핵 "A 핵 투하" · 마법 "A 스톰"
        순환 — "A 메타볼릭 부스트 개발" · "A 확장" · "A 팩토리 건설" · "A 운영". */
   const chips9 = (raws9: string[], last9?: CapPart9["p"]): CapPart9[] =>
     raws9.flatMap((r9, i9): CapPart9[] => (i9 < raws9.length - 1 ? [{ raw: r9 }, { text: "·" }] : [{ raw: r9, p: last9 }]));
@@ -549,12 +558,18 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       if (k9 && v9) return [{ raw: k9, p: "ui" }, { text: " " }, { raw: v9 }, { text: " 견제" }];
       return [{ raw: v9 ?? pick9 }, { text: " 견제 당함" }];
     }
-    if (top9 && (why9 === "건물 파괴" || why9 === "건물 잃음")) {
-      const k9 = why9 === "건물 파괴" ? top9.raw : top9.vs;
-      const v9 = why9 === "건물 파괴" ? top9.vs : top9.raw;
-      const b9 = BUILDING_KO[top9.kind ?? ""] ?? top9.kind ?? "건물";
-      if (k9 && v9) return [{ raw: k9, p: "ui" }, { text: " " }, { raw: v9 }, { text: ` ${b9} 파괴` }];
-      return [{ raw: v9 ?? pick9 }, { text: ` ${b9} 파괴됨` }];
+    /* 기지 피해 — 그 장면에서 건물을 가장 많이 부순 짝(k>v)의, v 가 장면 머리에 갖고 있던 건물 몸값 대비 잃은 몫으로 단을 가른다(RAZE9). 20% 아래는 "건물 파괴". */
+    let bk9 = ""; let bv9 = ""; let bw9 = 0;
+    for (const [key9, w9] of sc9.bldPair) if (w9 > bw9) { bw9 = w9; [bk9, bv9] = key9.split(">"); }
+    if (bk9 && bv9) {
+      const lost9 = sc9.bldLost.get(bv9) ?? 0;
+      const base9 = baseValue9(bv9, sc9.t0);
+      const f9 = base9 > 0 ? lost9 / base9 : 0;
+      const deg9 = f9 >= RAZE9.wipe ? "궤멸시킴" : f9 >= RAZE9.heavy ? "대파시킴" : f9 >= RAZE9.half ? "반파시킴" : "";
+      if (deg9) return [{ raw: bk9, p: "ga" }, { text: " " }, { raw: bv9 }, { text: ` 기지 ${deg9}` }];
+      if (why9 === "건물 파괴" || why9 === "건물 잃음") return [{ raw: bk9, p: "ga" }, { text: " " }, { raw: bv9 }, { text: " 건물 파괴" }];
+    } else if (top9 && (why9 === "건물 파괴" || why9 === "건물 잃음")) {
+      return [{ raw: why9 === "건물 파괴" ? (top9.vs ?? pick9) : top9.raw }, { text: " 건물 파괴됨" }];
     }
     if (d9) {
       const foes9 = d9.foes.length > 0 ? d9.foes : [d9.foe];
@@ -565,6 +580,16 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       return [...chips9([pick9, ...d9.allies]), { text: "·" }, ...chips9(foes9), { text: " 교전" }];
     }
     return [{ raw: pick9 }, { text: ` ${why9}` }];
+  };
+  /** 그 사람이 sec 에 갖고 있던 건물 몸값의 합(기지 피해 단의 분모 · 짓는 중인 것도 든다). */
+  const baseValue9 = (raw9: string, sec9: number): number => {
+    const own9 = ownersOf9(raw9);
+    let v9 = 0;
+    for (const e9 of world.lives) {
+      if (!e9.bld || !own9.has(e9.owner) || e9.born > sec9 || (e9.died !== null && e9.died <= sec9)) continue;
+      v9 += castValue9(e9.kind);
+    }
+    return v9;
   };
   /** 순환 토막 — 그 사람의 창 [t0, t1) 에서 연구 완료 · 확장(본진 건물) · 건설(보급·가스 빼고) 차례로 찾는다. */
   const HALL9 = new Set(["Command Center", "Nexus", "Hatchery"]);
