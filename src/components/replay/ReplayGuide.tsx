@@ -108,7 +108,7 @@ export default function ReplayGuide({ onClose }: {
             <li><span className="scr-guide-ic scr-guide-ic-txt">2D</span><span><b>보기</b> — 평면(2D)과 입체(3D)를 오갑니다. 언덕·램프는 입체에서 더 잘 읽힙니다. PC에만 있습니다.</span></li>
             <li><span className="scr-guide-ic"><Music size={15}/></span><span><b>음악</b> — 누르면 곡 목록이 펼쳐집니다. 고른 곡은 처음부터, 맨 아래 '끄기'로 끕니다. 처음 들어오면 켜져 있습니다.</span></li>
             <li><span className="scr-guide-ic"><QMarkIcon size={15}/></span><span><b>사용법</b> — 지금 보고 있는 이 안내입니다(PC · 전체화면이 아닐 때만).</span></li>
-            <li><span className="scr-guide-ic"><Maximize size={15}/></span><span><b>전체화면</b> — 줄의 맨 오른쪽. 전체화면에서는 사용법 버튼이 빠지고, <b>미니맵</b>(<MapIcon size={12}/>) 버튼이 함께 서서 아래 작은 지도를 여닫습니다.</span></li>
+            <li><span className="scr-guide-ic"><Maximize size={15}/></span><span><b>전체화면</b> — 줄의 맨 오른쪽. 전체화면에서는 사용법 버튼이 빠지고, <b>미니맵</b>(<MapIcon size={12}/>) 버튼이 함께 서서 쇠판의 미니맵을 여닫습니다.</span></li>
           </ul>
         </div>
 
@@ -141,7 +141,7 @@ export default function ReplayGuide({ onClose }: {
         <h3 className="scr-guide-h3">중계 고르기</h3>
         <p className="scr-guide-sub">
           <strong>전광판</strong>의 카메라 단추나 <strong>미니맵 위 이름표</strong>로 <strong>누구 화면</strong>을 볼지 고릅니다. 들어오면 <strong>AUTO</strong>(자동)로 켜져 있습니다.
-          중계가 켜진 동안은 카메라를 중계가 쥐어, 지도를 손으로 끌어도 안 움직이고 배율도 못 바꿉니다. 화면 아래 가운데에 <b>누구 화면인지</b> 이름표가 서고, 왼아래 작은 미니맵은 그 사람 시야입니다.
+          중계가 켜진 동안은 카메라를 중계가 쥐어, 지도를 손으로 끌어도 안 움직이고 배율도 못 바꿉니다. 화면 아래 가운데에 <b>누구 화면인지</b> 이름표가 서고, 쇠판의 미니맵은 그 사람 시야입니다.
         </p>
         <div className="scr-guide-mock">
           <div className="scr-guide-castlist" aria-hidden="true">
@@ -228,7 +228,7 @@ export default function ReplayGuide({ onClose }: {
 
           <span className="scr-guide-group">보기</span>
           <K keys={["B"]} title="전광판" desc="전광판 현황 켜기·끄기(이름만 ↔ 전체)."/>
-          <K keys={["N"]} title="작은 지도 켜기 / 끄기" desc="전체화면일 때만. 도구 상자의 지도 단추와 같습니다."/>
+          <K keys={["N"]} title="미니맵 켜기 / 끄기" desc="전체화면일 때만. 쇠판의 미니맵을 여닫습니다 — 도구 상자의 지도 단추와 같습니다."/>
           <K keys={["C"]} title="색 모드 바꾸기" desc="개인색 → 팀색 → 주인공색. 색 버튼과 같습니다."/>
           <K keys={["V"]} title="평면 ↔ 입체"/>
           <K keys={["M"]} title="음악 켜기 / 끄기"/>

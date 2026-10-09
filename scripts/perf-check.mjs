@@ -923,7 +923,7 @@ if (has("--dockprobe")) {
   const r = await page.evaluate(() => {
     const q = (sel) => { const el = document.querySelector(sel); if (!el) return null; const b = el.getBoundingClientRect(); return { top: +b.top.toFixed(2), bottom: +b.bottom.toFixed(2), h: +b.height.toFixed(2) }; };
     const lyr = document.querySelector(".scr-fs-layer");
-    return { mini: q(".scr-fs-solo-mini .scr-fs-minimap"), panel: q(".scr-fs-solo-mini"), btns: q(".scr-motion-mapbtns"), btn: q(".scr-motion-mapbtns button"),
+    return { mini: q(".scr-fs-minipanel .scr-fs-minimap"), panel: q(".scr-fs-minipanel"), btns: q(".scr-motion-mapbtns"), btn: q(".scr-motion-mapbtns button"),
       bottom: q(".scr-fs-bottom"), play: q(".scr-motion-play"), range: q(".scr-motion-range"), tail: q(".scr-fs-bottom-tail"),
       vars: lyr ? { mini: lyr.style.getPropertyValue("--scr-dock-mini"), mt: lyr.style.getPropertyValue("--scr-dock-mini-mt"), mb: lyr.style.getPropertyValue("--scr-dock-mini-mb") } : null };
   });
@@ -1715,7 +1715,7 @@ if (SHOT) {
       const m = map.getBoundingClientRect();
       const l = lens ? lens.getBoundingClientRect() : null;
       const btns = document.querySelector(".scr-motion-mapbtns");
-      const mini = document.querySelector(".scr-fs-solo-mini");
+      const mini = document.querySelector(".scr-fs-minipanel");
       const bot = document.querySelector(".scr-fs-bottom");
       const rng = document.querySelector(".scr-motion-range");
       const rw = row ? row.getBoundingClientRect() : null;
@@ -1784,7 +1784,7 @@ if (SHOT) {
     const R = (q) => { const e = document.querySelector(q);
       if (!e) return null; const r = e.getBoundingClientRect();
       return [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)]; };
-    const mini = document.querySelector(".scr-fs-solo-mini");
+    const mini = document.querySelector(".scr-fs-minipanel");
     return {
       stage: R(".scr-fs-stage"), mini: R(".scr-fs-minipanel"),
       miniCv: R(".scr-fs-minipanel canvas"),

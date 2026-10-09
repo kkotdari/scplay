@@ -247,8 +247,11 @@ const UNIT_PAINTED_CSS9 = new WeakMap<HTMLCanvasElement, string>();
 const GL_HIDE9: React.CSSProperties = { display: "none" };
 /** 독 줄 음각 글귀 — 틀 옆 쇠 바탕이 글귀 폭보다 이만큼(px) 넘게 남을 때만 새긴다(양옆 여백 몫). */
 const DOCK_MARK_PAD9 = 40;
-/** 독 맞춤(dockFit9) — 인포창이 서려면 남는 폭이 설계 폭의 이 몫은 되어야 한다(그 아래면 안 보인다 · 2026-10-09). */
-const INFO_MIN_K9 = 0.6;
+/** 독 맞춤(dockFit9)의 **폭 구간 사다리**(2026-10-09, 요청: "폭 구간을 정해서 보여줄 요소를 정하고 구간 안에서는 전광판 미니맵 인포창 크기가 안 변하면 좋겠어
+ *  (양옆에 빈공간을 조정)") — 전광판·미니맵은 이 배수 가운데 **드는 가장 큰 것**으로 서고(구간 안에서는 그 크기 그대로 · 남는 폭은 양옆 빈 쇠), 인포창은
+ *  남는 폭에 드는 가장 큰 배수(INFO_STEPS9)로 선다 · 하나도 안 들면 안 보인다. 연속 배율(옛 k = W/need)은 창을 끌 때마다 크기가 흔들려 되물렸다. */
+const DOCK_STEPS9 = [1, 0.9, 0.85, 0.8, 0.75, 0.7, 0.6, 0.5];   // 폰 390(독 줄 358)은 0.85 — 0.9 는 4px 모자라고 0.8 은 34px 이 남았다(실측)
+const INFO_STEPS9 = [1, 0.8, 0.65];
 /** 카메라가 다시 잡을 때 미끄러지는 시간(ms) — 중계·개인 추적·분할 칸이 같은 값을 쓴다. */
 const CAM_GLIDE_MS9 = 450;
 /** 선택(한 명령을 받은 몸들)의 열쇠 — 태그를 정렬해 잇는다. 미끄러짐은 이 열쇠가 그대로일 때만이다(선택이 바뀌면 곧장 선다). */
@@ -18219,9 +18222,10 @@ export default function ReplayMotionPlayer({
   /** ★★ 독 맞춤(2026-10-09, 요청: "로스터 미니맵 인포창을 각각의 최적 비율을 고정한 상태로 조립 — 높이가 서로 다를 수 있고 독 프레임은 그걸 따라 만들어짐 ·
    *  피시 모바일 모두 전광판과 미니맵을 우선 보여주고 자리가 있으면 인포창 · 너비를 배분하고 그에 맞는 높이로 · 너무 높아지진 않게(설계 키가 상한) · 인포창 폭이
    *  안 나오면 폭을 줄이고 안의 내용은 폭에 비례해 축소 · 세로 가운데") — 독 줄 폭 W(틀 여백·테 뺀 것)에서:
-   *    ① 전광판(설계 비 --roster-r × 키)과 미니맵(지도 비 × 키)이 먼저다 — 둘이 설계 키 h0 로 안 들면 함께 줄인다: h = h0 · min(1, W / (h0·(Rr + ar) + 틈)).
-   *    ② 남는 폭이 인포창 설계 폭(--dock-w)의 INFO_MIN_K9 이상이면 인포창을 그 폭에 맞춰 **비례 축소**(k_i = min(1, 남는 폭 / 설계 폭) · CSS transform ·
-   *       내용은 통째로 세로 가운데) · 그보다 모자라면 안 보인다(is-noinfo). 틀 키 = h(가장 큰 우물) · 틀은 그 셋만큼만 넓고 나머지 독 폭은 빈 쇠로 남는다.
+   *    ① 전광판(설계 비 --roster-r × 키)과 미니맵(지도 비 × 키 · 전체화면에서 N 으로 껐으면 없음)이 먼저다 — 둘이 설계 키 h0 로 안 들면 **구간 사다리**
+   *       (DOCK_STEPS9 · 1 → 0.9 → … · 되요청: "구간 안에서는 크기가 안 변하게 · 양옆 빈공간을 조정")에서 드는 가장 큰 배수 k 로 함께 줄인다: h = h0 · k.
+   *    ② 남는 폭에 인포창 설계 폭(--dock-w)의 INFO_STEPS9(1 · 0.8 · 0.65) 가운데 드는 가장 큰 배수 k_i 로 인포창을 **비례 축소**(CSS transform · 내용은 통째로
+   *       세로 가운데) · 하나도 안 들면 안 보인다(is-noinfo). 틀 키 = h(가장 큰 우물) · 틀은 그 셋만큼만 넓고 나머지 독 폭은 빈 쇠로 남는다.
    *  설계 치수(h0 · 인포창 폭 · 틈 · 여백)는 CSS 가 쥔다 — 숨은 자(.scr-fs-dockprobe)의 계산값을 읽어 한 벌로 쓴다(JS 에 상수를 베끼지 않는다).
    *  결과는 상태(dockFit9 → 틀의 --dock-h · --info-k · is-noinfo)로 내려 CSS 가 자리를 잡는다 · 독 줄 폭은 이 결과에 안 매이므로 되먹임이 없다. */
   const [dockFit9, setDockFit9] = useState<{ h: number | null; ki: number; k: number }>({ h: null, ki: 1, k: 1 });
@@ -18231,6 +18235,7 @@ export default function ReplayMotionPlayer({
     const fr9 = row9?.querySelector<HTMLElement>(".scr-fs-dockframe") ?? null;
     if (!row9 || !mk9 || !fr9) return undefined;
     const ar9 = Math.max(0.25, Math.min(4, Math.max(1, grid.width) / Math.max(1, grid.height)));
+    const miniOn9 = fsOn ? fsMiniOn : true;
     const fit9 = (): void => {
       const pr9 = fr9.querySelector<HTMLElement>(".scr-fs-dockprobe");
       if (!pr9) return;
@@ -18242,10 +18247,12 @@ export default function ReplayMotionPlayer({
       const rr9 = parseFloat(getComputedStyle(fr9).getPropertyValue("--roster-r")) || 2.58;
       if (h0 <= 0) return;
       const W9 = row9.clientWidth - 2 * out9 - 2;   // 틀 테 1px 둘
-      const k9 = Math.max(0.3, Math.min(1, W9 / (h0 * (rr9 + ar9) + sep9)));
+      const arOn9 = miniOn9 ? ar9 : 0;              // 미니맵을 껐으면(전체화면 N) 그 폭·틈이 없다
+      const pairW9 = (k: number): number => h0 * k * (rr9 + arOn9) + (miniOn9 ? sep9 : 0);
+      const k9 = DOCK_STEPS9.find((k) => pairW9(k) <= W9) ?? DOCK_STEPS9[DOCK_STEPS9.length - 1];
       const h9 = h0 * k9;
-      const room9 = W9 - h9 * (rr9 + ar9) - 2 * sep9;
-      const ki9 = room9 >= infoW9 * INFO_MIN_K9 ? Math.min(1, room9 / infoW9) : 0;
+      const room9 = W9 - pairW9(k9) - sep9;
+      const ki9 = INFO_STEPS9.find((k) => infoW9 * k <= room9) ?? 0;
       setDockFit9((p9) => (Math.abs((p9.h ?? -1) - h9) < 0.5 && Math.abs(p9.ki - ki9) < 0.005 ? p9 : { h: h9, ki: ki9, k: k9 }));
       setRosterPaged9(smallDevice9 || k9 < 0.999);
     };
@@ -18261,7 +18268,7 @@ export default function ReplayMotionPlayer({
     ro9.observe(row9);
     ro9.observe(fr9);
     return () => ro9.disconnect();
-  }, [fsOn, grid.width, grid.height]);
+  }, [fsOn, fsMiniOn, grid.width, grid.height]);
   /* ★★ TV 단추는 **틀 위쪽 왼 끝의 쇠 정사각**이다 — 오른 끝 접기 손잡이와 같은 꼴·같은 크기의 짝(2026-09, 요청: "독 중계 버튼을
      접기 버튼같은 형태로 변경하고 동그란 테두리 제거"). 정보줄(우물) 안의 동그라미였던 것을 틀의 제 칸(1열)으로 꺼냈다 — 그래서
      정보줄은 양쪽에 같은 정사각을 끼고 한가운데에 선다(옛 padding-left 몫은 걷었다).
@@ -19077,8 +19084,7 @@ export default function ReplayMotionPlayer({
               단추(N)는 이것을 여닫는다. 현황(스탯) 상자는 없다(요청 3 — 값은 독 로스터가 든다). 분할은 칸이 제 것을 든다. */}
           {!splitOn9 && (
             <div
-              className={cx("scr-fs-solo", camRaw9 !== null && "is-cast")}
-              style={camRaw9 !== null ? { ["--split-tile" as string]: `${(tilePx * zoom).toFixed(2)}px` } as React.CSSProperties : undefined}
+              className="scr-fs-solo"
             >
               {camRaw9 !== null && (
                 <span className="scr-split-cap scr-fs-solo-cap">
@@ -19089,29 +19095,8 @@ export default function ReplayMotionPlayer({
               {castCap9 && (
                 <span key={`${castIdx9}:${castCap9.text}`} className={cx("scr-cast-caption", `is-${castCap9.role}`)}>{castCap9.text}</span>
               )}
-              {(fsOn ? fsMiniOn : true) && (
-                <div className="scr-fs-solo-mini" style={{ ["--ar" as string]: String(Math.max(1, grid.width) / Math.max(1, grid.height)) } as React.CSSProperties}>
-                  <ReplayFullscreenMinimap
-                    grid={grid}
-                    ratio={grid.width / Math.max(1, grid.height)}
-                    dotsRef={opsRef}
-                    extraRef={miniExtraRef}
-                    pingsRef={miniPingsRef9}
-                    tick={t}
-                    viewAt={fsViewAt}
-                    zoom={zoom} pan={pan}
-                    /* ★ 주인의 점은 원작 초록(2026-10-09, 요청) — 개인 추적·자동 중계의 화면 주인. 네모는 늘 흰색. 손끝 붓(painter·live)은 독 미니맵의
-                       것이다(2026-10-09 · 붓 자리는 하나뿐) — 이 미니맵은 중계·추적 동안만 서고 그때 배율 손짓은 다 잠겨 있어 틱 그리기로 족하다. */
-                    ownRaw={uiOwnerRef9.current}
-                    ownColor={UI_OWN9}
-                    onSeek={fsSeek}
-                    onWheelZoom={fsWheelZoom}
-                    unproject={miniUnproject}
-                    fog={miniFog}
-                    warming={!tracksReady}
-                  />
-                </div>
-              )}
+              {/* (걷어냄 · 2026-10-09, 요청: "앞으로 독 외에 지도에는 미니맵이 있으면 안됨 개인화면이든 중계끄기든") 무대 왼아래의 중계용 작은 미니맵
+                  (.scr-fs-solo-mini · 같은 날 요청 2·5 로 세웠던 것) — 미니맵은 독의 우물 하나뿐이다(.scr-fs-minipanel). */}
             </div>
           )}
           {splitLay9 && (
