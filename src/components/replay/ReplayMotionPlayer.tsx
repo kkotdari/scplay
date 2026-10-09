@@ -757,6 +757,39 @@ function ownUiCol9(raw9: string | undefined, atk9 = false): string | null {
   if (UI_SCREEN9 === null || raw9 === undefined || raw9 !== UI_SCREEN9) return null;
   return atk9 ? UI_ATK9 : UI_OWN9;
 }
+/** 화면 주인의 **적**인가(밀리는 남 모두) — 붓이 도는 동안만 선다(UI_SCREEN9 과 한 벌 · 부르는 쪽이 enemyOf9 로 짓는다). */
+let UI_ENEMY9: ((raw9: string) => boolean) | null = null;
+/** ★ **공격 표적의 빨간 링**(2026-10-09, 사용자 원작 조사: "적 공격(또는 우클릭) 시 빨간 링 두 번 깜빡이고 사라짐") — 화면 주인이 유닛을
+ *  겨눈 공격 명령(워커 clickTargets9 가 짝지은 표적 태그 → 명령 초)의 0.9초 창. 표적 몸의 선택 링 자리에 UI_ATK9 로, 0.225초마다 켜고 끈다
+ *  (켬 0~0.225 · 끔 · 켬 0.45~0.675 · 끔 = 두 번). 땅 마커는 안 찍는다(원작은 유닛을 겨눈 명령에 땅 마커가 없다). */
+let ATK_FLASH9: Map<number, number> | null = null;
+let ATK_T9 = 0;
+function tagOfOp9(op: UnitDrawOp): number | undefined {
+  if (op.pickTag !== undefined) return op.pickTag;
+  const k9 = op.pickKey;
+  return k9 && k9.charCodeAt(0) === 117 /* u */ ? Number(k9.slice(1)) : undefined;   // 유닛 op 는 pickKey "u<태그>"
+}
+function atkFlashOn9(op: UnitDrawOp): boolean {
+  if (!ATK_FLASH9) return false;
+  const tag9 = tagOfOp9(op);
+  if (tag9 === undefined) return false;
+  const cs9 = ATK_FLASH9.get(tag9);
+  if (cs9 === undefined) return false;
+  const a9 = ATK_T9 - cs9;
+  return a9 >= 0 && a9 < 0.9 && Math.floor(a9 / 0.225) % 2 === 0;
+}
+/** 화면 주인이 **고른** 몸인가(판 10 선택 · 주인 있을 때만) — 원작처럼 고른 몸은 체력바를 보인다. */
+function ownSel9(op: UnitDrawOp): boolean {
+  return UI_SCREEN9 !== null && !!op.selRing && !!op.selBy?.includes(UI_SCREEN9);
+}
+/** 선택 링의 색 — 공격 표적 깜빡임(빨강) › 주인 제 몸(초록) › 주인이 고른 **적**(빨강 · 원작: "적 클릭 시 빨간 선택 링") › null(색 모드). */
+function selRingCol9(op: UnitDrawOp): string | null {
+  if (atkFlashOn9(op)) return UI_ATK9;
+  const own9 = ownUiCol9(op.pickRaw);
+  if (own9) return own9;
+  if (UI_SCREEN9 !== null && op.pickRaw !== undefined && !!op.selBy?.includes(UI_SCREEN9) && UI_ENEMY9?.(op.pickRaw)) return UI_ATK9;
+  return null;
+}
 /** 진단(#diag)용 — 본 장에서 칠한 선택 링(종류:임자:고른이:색 · 여덟까지). 그리기 틱이 비우고 SCR_DIAG.ring 으로 적는다. */
 const RING_DIAG9: string[] = [];
 function ringDiagPush9(op: UnitDrawOp, col9: string, wd9?: number): void {
@@ -5164,13 +5197,13 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             const my9 = sy - (op.air ? px9 * 0.45 : 0);
             if (gl9 && gl9.primOk) {
               gl9.prim(1, sx, my9, mw9 / 2, mw9 / 2, op.color, op.alpha);
-              if (op.selRing || (pickedKey != null && op.pickKey === pickedKey)) gl9.prim(2, sx, my9, mw9 / 2 + 1.5, mw9 / 2 + 1.5, ownUiCol9(op.pickRaw) ?? op.color, op.alpha, 1);
+              if (op.selRing || atkFlashOn9(op) || (pickedKey != null && op.pickKey === pickedKey)) gl9.prim(2, sx, my9, mw9 / 2 + 1.5, mw9 / 2 + 1.5, selRingCol9(op) ?? op.color, op.alpha, 1);
             } else {
               ctx.beginPath();
               ctx.arc(sx, my9, mw9 / 2, 0, Math.PI * 2);
               ctx.fill();
-              if (op.selRing || (pickedKey != null && op.pickKey === pickedKey)) {
-                ctx.strokeStyle = ownUiCol9(op.pickRaw) ?? op.color;
+              if (op.selRing || atkFlashOn9(op) || (pickedKey != null && op.pickKey === pickedKey)) {
+                ctx.strokeStyle = selRingCol9(op) ?? op.color;
                 ctx.lineWidth = 1;
                 ctx.beginPath();
                 ctx.arc(sx, my9, mw9 / 2 + 1.5, 0, Math.PI * 2);
@@ -5435,7 +5468,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              GL 이면 prim(유닛 쪽과 같은 네모), 폴백이면 캔버스다. */
           const bldHpBar9 = (byTop: number): void => {
             if (!(showHp !== false && deepOk9 && op.hpFrac !== undefined && op.hpFrac > 0
-              && (op.hpShow || (pickedKey != null && op.pickKey === pickedKey)))) return;   // 맞은 지 잠깐·선택된 개체만(요청)
+              && (op.hpShow || ownSel9(op) || (pickedKey != null && op.pickKey === pickedKey)))) return;   // 맞은 지 잠깐·선택된 개체만(요청)
             const bw3 = Math.max(3, (op.hpBarFrac ?? 0) * cw * zoom);
             const bh3 = Math.max(hpBarH9(zoom), 5 * (bw3 / (op.hpBarW ?? 19)));
             const bx3 = sx - bw3 / 2;
@@ -5471,7 +5504,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             const gR9 = sidePx * 0.707; const gCy9 = -8 * gk9;
             /* ★ 건물 선택 링(2026-09, 요청: "건물 선택시 선택 링이 안보이는데 링 나오게") — 유닛과 같은 가는 타원 테를 **발자국**
                둘레에 깐다(바닥 도형 패스라 몸 밑에 깔린다). 자리는 발자국 한가운데 · 뜬 건물은 뜬 몫만큼 위(몸과 함께 든다). */
-            if ((op.selRing || (pickedKey != null && op.pickKey === pickedKey)) && gl9.primOk && op.mkFrac === undefined) {
+            if ((op.selRing || atkFlashOn9(op) || (pickedKey != null && op.pickKey === pickedKey)) && gl9.primOk && op.mkFrac === undefined) {
               /* ★ 가운데는 **모델의 원점**(모형 (0, 0, 0) = 그 건물이 선 땅의 한가운데)이다(2026-09, 지적: "건물 선택링 위치가
                  안맞는느낌 · 어떤건 맞고 어떤건 안맞고 특히 저그는 왜이렇게 위에 나오는거지") — 발자국 타일의 한가운데
                  (지면선 − hPx/2)로 두었더니, 붓은 건물을 **잉크 바닥**으로 지면선에 앉히므로 몸이 발자국보다 작거나 앞뒤로
@@ -5489,7 +5522,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
                  좀 다르네") — 발자국 깊이(op.footD = 깊이 ÷ 폭)를 곱했더니 4×3 은 0.42 · 3×2 는 0.38 로 유닛 링(0.564)보다
                  납작했다. 링은 땅 위의 동그라미라는 신호이지 발자국의 꼴이 아니다 — 비를 하나로 둔다. */
               const rx9 = wPx * 0.62 * rk9;
-              const bRingCol9 = ownUiCol9(op.pickRaw) ?? op.color;
+              const bRingCol9 = selRingCol9(op) ?? op.color;
               ringDiagPush9(op, bRingCol9);
               gl9.prim(2, sx, cy9, rx9, Math.max(3, rx9 * ryK9), bRingCol9, op.alpha, Math.max(1.1, wPx * 0.012));
             }
@@ -5715,7 +5748,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
            색은 임자 색이다(요청: 흰색 말고 개인색) — 누가 잡은 유닛인지 링만 보고 안다.
            공중 유닛은 링도 공중이다(지적: 유닛 바닥에) — 들린 몸의 바닥선에 붙인다. */
         /* ★ 링의 임자는 **선택**이다(2026-09) — 모든 사람의 선택(판 10 · op.selRing)과 보는 사람이 누른 몸(pickedKey). */
-        if ((op.selRing || (pickedKey != null && op.pickKey === pickedKey)) && !op.ghost) {
+        if ((op.selRing || atkFlashOn9(op) || (pickedKey != null && op.pickKey === pickedKey)) && !op.ghost) {
           /* 선 굵기는 화면 고정(지적: 링은 UI 요소 — 확대에 굵어지면 안 됨) — 반지름은
              유닛(px)을 따라가되 굵기에서 zoom을 뺀다. */
           /* ★ 굵기를 되돌린다(지적: "유닛 선택링이 안나와") — 두 번의 "더 가늘게"가
@@ -5735,7 +5768,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           const ringWd9 = glM9 && gl9 ? ringWidth9(gl9, op.kind, glM9, lod9, glCam9) * (px / 16) * modelNormOf(op.kind) : inkW;
           const ringX = sx;
           const ringY = (groundY ?? groundOy9) - lift;
-          const ringCol9 = ownUiCol9(op.pickRaw) ?? op.color;   // 화면 주인 제 몸은 원작 초록 · 나머지는 색 모드(위 UI_OWN9)
+          const ringCol9 = selRingCol9(op) ?? op.color;   // 화면 주인 제 몸은 원작 초록 · 나머지는 색 모드(위 UI_OWN9)
           ringDiagPush9(op, ringCol9, ringWd9);
           const ringPath = (): void => {
             ctx.beginPath();
@@ -5786,7 +5819,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         /* 체력바(요청: 체력을 지니고 다니는 생애주기) — 다친 유닛 머리 위에 원작풍
            바: 초록(>66%)·노랑(>33%)·빨강. 성한 유닛에는 안 띄워 화면을 아낀다. */
         if (showHp !== false && deepOk9 && op.hpFrac !== undefined && op.hpFrac > 0
-              && (op.hpShow || (pickedKey != null && op.pickKey === pickedKey))) {   // 맞은 지 잠깐·선택된 개체만(요청)
+              && (op.hpShow || ownSel9(op) || (pickedKey != null && op.pickKey === pickedKey))) {   // 맞은 지 잠깐·선택된 개체만(요청)
           // 원작 폭(요청) — 건물 쪽(bw3)과 같은 자. 옛 잉크 폭·체력 보정 자는 걷었다.
           const bw2 = Math.max(3, (op.hpBarFrac ?? 0) * cw * zoom);
           const bh2 = Math.max(hpBarH9(zoom), 5 * (bw2 / (op.hpBarW ?? 19)));
@@ -9676,13 +9709,15 @@ export default function ReplayMotionPlayer({
      이동 명령 목적지(f=0)가 곧 그 사람의 클릭이다. 같은 클릭이 골라진 유닛 수만큼
      중복돼 있으니(12기 선택 우클릭 = 12개체에 같은 점) 사람·초·자리로 합친다.
      별도 저장이 필요 없어 이미 재분석된 경기에서도 바로 나온다. */
-  const entClicks = useMemo<[number, number, number, string, number][]>(() => {
+  /** 공격 명령의 표적 유닛(워커 clickTargets9 · 열쇠 = 아래 key) — 유닛을 겨눈 명령은 땅 마커 대신 표적 몸의 빨간 링(위 ATK_FLASH9). */
+  const clickTargets9 = useMemo(() => new Map<string, number>(world.clickTargets9 ?? []), [world.clickTargets9]);
+  const entClicks = useMemo<[number, number, number, string, number, number][]>(() => {
     if (!entData) return [];
     const nameOfId = new Map(entData.players.map((pl) => [pl.owner, pl.name]));
     const seen = new Set<string>();
     /* 다섯째 값은 클릭의 종류(지적: 클릭·우클릭이 구분이 안 된다) — 0 이동 우클릭,
        7 공격 클릭. 선택(드래그)은 자리가 아니라 잡힌 유닛들 몸에 켜지는 링이 맡는다. */
-    const out: [number, number, number, string, number][] = [];
+    const out: [number, number, number, string, number, number][] = [];
     for (const e of entData.lives) {
       if (e.tag < 0) continue;
       const raw = nameOfId.get(e.owner) ?? "";
@@ -9691,11 +9726,35 @@ export default function ReplayMotionPlayer({
         const key = `${e.owner}:${o[0]}:${o[1]}:${o[2]}`;
         if (seen.has(key)) continue;
         seen.add(key);
-        out.push([o[0], o[1], o[2], raw, o[3] ? 7 : 0]);
+        out.push([o[0], o[1], o[2], raw, o[3] ? 7 : 0, clickTargets9.get(key) ?? -1]);   // 여섯째 — 표적 태그(없으면 −1 = 땅)
       }
     }
     return out.sort((a, b) => a[0] - b[0]);
-  }, [entData, obsNames]);
+  }, [entData, obsNames, clickTargets9]);
+  const entClicksRef9 = useRef(entClicks);
+  entClicksRef9.current = entClicks;
+  /** 그 사람의 공격 표적 창(표적 태그 → 명령 초 · 지금부터 0.9초 안) — 붓이 돌기 전에 ATK_FLASH9 에 건다(메인 · 분할 칸). */
+  const atkFlashFor9 = (raw9: string | null, t9: number): Map<number, number> | null => {
+    const cl9 = entClicksRef9.current;
+    if (raw9 === null || cl9.length === 0) return null;
+    let lo9 = 0; let hi9 = cl9.length;
+    while (lo9 < hi9) { const mid9 = (lo9 + hi9) >> 1; if (cl9[mid9][0] < t9 - 0.9) lo9 = mid9 + 1; else hi9 = mid9; }
+    let m9: Map<number, number> | null = null;
+    for (let i9 = lo9; i9 < cl9.length; i9 += 1) {
+      const c9 = cl9[i9];
+      if (c9[0] > t9) break;
+      if (c9[3] !== raw9 || c9[5] < 0) continue;
+      if (!m9) m9 = new Map();
+      m9.set(c9[5], c9[0]);
+    }
+    return m9;
+  };
+  /** 화면 주인의 적 판정(밀리는 남 모두) — 붓이 도는 동안 UI_ENEMY9 에 건다. */
+  const enemyOf9 = (owner9: string | null): ((raw9: string) => boolean) | null => {
+    if (owner9 === null) return null;
+    const tm9 = teamOfRaw(owner9);
+    return (raw9: string) => raw9 !== owner9 && (tm9 === undefined || teamOfRaw(raw9) !== tm9);
+  };
   /* 팀색은 미니맵과 한 벌이다(요청: 덜 파스텔·진하게·원작 색) — 값은 ReplayMinimap의
      TEAM_COLOR 한 곳에서만 정한다. 여태 두 파일이 각자 다른 색을 들고 있어(재생 #5ea2ff·
      #ff7d95, 미니맵 #2b9bff·#ff4d68) 같은 팀이 화면마다 다른 파랑이었다. */
@@ -15131,9 +15190,9 @@ export default function ReplayMotionPlayer({
   const splitMarks9 = (ctx9: CanvasRenderingContext2D, raw9: string, team9: number | null, tNow9: number,
     zx9: (tx: number) => number, zy9: (ty: number) => number, tile9: number): void => {
     if (clickFx) {
-      for (const [cs, cx2, cy2, craw, ck] of entClicks) {
+      for (const [cs, cx2, cy2, craw, ck, tgt9] of entClicks) {
         if (cs > tNow9) break;
-        if (tNow9 - cs > 0.9 || craw !== raw9) continue;
+        if (tNow9 - cs > 0.9 || craw !== raw9 || tgt9 >= 0) continue;   // 유닛을 겨눈 공격은 땅 마커 없음 — 표적 몸의 빨간 링(ATK_FLASH9)
         const a9 = (tNow9 - cs) / 0.9;
         const k9 = a9 < 0.2 ? 1.15 - (a9 / 0.2) * 0.4 : 0.75 - ((a9 - 0.2) / 0.8) * 0.15;
         const r9 = (Math.max(10, tile9) * k9) / 2;
@@ -15146,10 +15205,21 @@ export default function ReplayMotionPlayer({
         ctx9.beginPath();
         ctx9.ellipse(x9, y9, r9, r9 * 0.55, 0, 0, Math.PI * 2);
         ctx9.stroke();
-        ctx9.fillStyle = col9;
-        ctx9.beginPath();
-        ctx9.ellipse(x9, y9, r9 * 0.18, r9 * 0.1, 0, 0, Math.PI * 2);
-        ctx9.fill();
+        if (ck === 7) {
+          /* 땅 공격(A-클릭)은 X — DOM 마커(.scr-clickfx-atk)와 같은 자: 고리 지름의 0.54 × 0.27 · 선은 고리 선 굵기. 유닛을 겨눈 공격은 위에서
+             걸러졌다(표적 몸의 빨간 링이 말한다). 점·X 는 더 가늘게(2026-10-09, 요청: "X자와 가운데 점 모두 너무 두꺼워 더 얇게"). */
+          const hx9 = r9 * 0.54; const hy9 = r9 * 0.27;
+          ctx9.lineWidth = Math.max(1, r9 * 0.08);
+          ctx9.beginPath();
+          ctx9.moveTo(x9 - hx9, y9 - hy9); ctx9.lineTo(x9 + hx9, y9 + hy9);
+          ctx9.moveTo(x9 - hx9, y9 + hy9); ctx9.lineTo(x9 + hx9, y9 - hy9);
+          ctx9.stroke();
+        } else {
+          ctx9.fillStyle = col9;
+          ctx9.beginPath();
+          ctx9.ellipse(x9, y9, r9 * 0.1, r9 * 0.055, 0, 0, Math.PI * 2);   // 점 0.18 → 0.10(요청: 더 얇게)
+          ctx9.fill();
+        }
       }
     }
     if (qPing && entData?.pings) {
@@ -15346,11 +15416,12 @@ export default function ReplayMotionPlayer({
          (op.selBy) 남기고 건설 고스트는 그 사람 것(op.ghostRaw)만 남긴다. 마커·핑은 아래 칸 안개 판 위에 따로 그린다. */
       if (frameOpsRef9.current) frameOpsRef9.current = splitOwnOps9(frameOpsRef9.current, cell9.raw);
       /* 원작 초록(ownUiCol9)의 기준은 이 칸의 사람이다 — 붓이 링을 칠하는 동안만 갈아 끼우고 되돌린다. */
-      const keepUi9 = UI_SCREEN9;
+      const keepUi9 = UI_SCREEN9; const keepEn9 = UI_ENEMY9; const keepFl9 = ATK_FLASH9;
       UI_SCREEN9 = cell9.raw;
+      UI_ENEMY9 = enemyOf9(cell9.raw); ATK_FLASH9 = atkFlashFor9(cell9.raw, tNow9); ATK_T9 = tNow9;   // 그 칸 사람의 적 판정 · 공격 표적 창
       RING_DIAG9.length = 0;
       try { paint9(zc9, pan9, zc9); } finally {
-        PAINT_CLIP9 = null; frameOpsRef9.current = keepOps9; frameFxRef9.current = keepFx9; UI_SCREEN9 = keepUi9;
+        PAINT_CLIP9 = null; frameOpsRef9.current = keepOps9; frameFxRef9.current = keepFx9; UI_SCREEN9 = keepUi9; UI_ENEMY9 = keepEn9; ATK_FLASH9 = keepFl9;
         if (scrDiagOn()) ringCells9.push(`칸 ${cell9.raw} · 링 ${RING_DIAG9.length}${RING_DIAG9.length > 0 ? ` · ${RING_DIAG9.join(" ")}` : ""}`);
       }
       const pf09 = pNow();   // 여기서부터 칸 안개·자국(SPLIT_M9.fog)
@@ -15611,6 +15682,7 @@ export default function ReplayMotionPlayer({
     else {
       /* 원작 초록의 기준(UI_SCREEN9)은 붓이 도는 동안만 — 렌더에서 놓으면 딴 인스턴스의 렌더가 덮는다(위 UI_OWN9 주석). */
       UI_SCREEN9 = uiOwnerRef9.current;
+      UI_ENEMY9 = enemyOf9(UI_SCREEN9); ATK_FLASH9 = atkFlashFor9(UI_SCREEN9, tNow9); ATK_T9 = tNow9;   // 적 판정 · 공격 표적 창(위 ★)
       RING_DIAG9.length = 0;
       /* ★ 주인이 있으면 선택 링·건설 고스트도 **주인 것만**(2026-10, 같은 지적 — 동맹의 선택 링·고스트는 분할 칸처럼 걷는다 · splitOwnOps9). */
       const keepOps9 = frameOpsRef9.current;
@@ -15618,7 +15690,7 @@ export default function ReplayMotionPlayer({
       try { unitPaintRef.current?.(zoomRef.current, panRef.current, zoomCommitRef.current); } finally {
         if (scrDiagOn()) SCR_DIAG.ring = `주인 ${UI_SCREEN9 ?? "없음"} · 몸 ${frameOpsRef9.current?.length ?? -1} · 링 ${RING_DIAG9.length}${RING_DIAG9.length > 0 ? ` · ${RING_DIAG9.join(" ")}` : ""}`;
         frameOpsRef9.current = keepOps9;
-        UI_SCREEN9 = null;
+        UI_SCREEN9 = null; UI_ENEMY9 = null; ATK_FLASH9 = null;
       }
     }
     xfCvXfRef.current = XF_ID9;
@@ -18520,8 +18592,9 @@ export default function ReplayMotionPlayer({
           {/* 클릭 자국(요청: 동그라미 안에 점, 납작하게 + 토글) — 브루드워의 이동 클릭
               표시처럼, 명령이 떨어진 자리에 찍은 사람 색의 납작한 고리+가운데 점이 잠깐
               남는다. v2 데이터로 그리므로 v2 모드 + 클릭 토글이 켜져 있을 때만이다. */}
-          {clickFx && entClicks.map(([cs, cx2, cy2, raw, ck], i) => {
+          {clickFx && entClicks.map(([cs, cx2, cy2, raw, ck, tgt9], i) => {
             if (t < cs || t - cs > 0.9) return null;
+            if (tgt9 >= 0) return null;   // 유닛을 겨눈 공격 — 땅 마커 없음(원작) · 표적 몸의 빨간 링은 붓이 그린다(ATK_FLASH9)
             /* 시점 보기에서는 **상대편 손짓을 안 보여 준다**(지적: "상대편 마우스조작은
                감춰야해 이땐") — 클릭 자국은 '그 사람이 무엇을 눌렀나'라, 안개로 유닛을
                가려 놓고 조작만 보이면 시야를 가린 뜻이 사라진다. 같은 팀은 보인다

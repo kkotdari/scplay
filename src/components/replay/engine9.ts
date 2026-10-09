@@ -3451,6 +3451,64 @@ export function deriveWorld9(inp: {
    *  짝은 **같은 임자·같은 종류·같은 타일(±0.75 — 자취의 자리는 px 라 반 타일 안에서 흔들린다)·명령 뒤 GHOST_WAIT_SEC9 안**
    *  의 가장 이른 착공이고 한 공사는 한 명령의 짝이다(claimed). 같은 일꾼에게 **다음 건설 명령**이 떨어지면 앞 명령은
    *  그 순간 끝난다(다시 찍은 자리가 곧 취소다). */
+  /** ★ **공격 명령의 표적 유닛**(2026-10-09, 사용자 원작 조사: "우클릭 X 마커는 없고 모두 가운데 점 마커 · 적 공격(우클릭)은 표적에 빨간
+   *  링이 두 번 깜빡이고 사라짐") — 명령 줄(갈래 0 이동·7 공격)에는 대상 태그가 없어 땅 공격(A-클릭)과 유닛을 겨눈 공격을 못 갈랐고,
+   *  적 우클릭도 7 로 와서 땅에 빨간 X 가 찍혔다. 공격 명령마다 **그 초에 클릭 자리에 선 적**(밀리는 남 · 중립 제외)을 찾는다 —
+   *  유닛은 0.75타일, 건물은 발자국 반 대각 + 0.25 안(반지름 비로 가장 가까운 것). 열쇠는 메인의 entClicks 와 같은
+   *  `${임자}:${초}:${x}:${y}`(같은 참값에서 난 같은 수라 글자가 맞는다). 못 찾으면 땅 공격이라 X 마커 그대로. 자취의 자리 상자로 먼저
+   *  거르고 이분 탐색(posAtSim)은 상자에 든 자취에만 든다. 메인에는 worldui(WorldUi9)로 간다. */
+  const clickTargets9 = ((): [string, number][] => {
+    if (!entData || !simTracks) return [];
+    const nameOfId9 = new Map(entData.players.map((pl) => [pl.owner, pl.name]));
+    const byOwner9 = new Map<number, TruthTrack[]>();
+    for (const tr of simTracks.values()) { const a9 = byOwner9.get(tr.owner) ?? []; a9.push(tr); byOwner9.set(tr.owner, a9); }
+    const box9 = new Map<TruthTrack, [number, number, number, number, number]>();   // [x0, y0, x1, y1, 반지름(타일)]
+    const boxOf9 = (tr: TruthTrack): [number, number, number, number, number] => {
+      const got9 = box9.get(tr);
+      if (got9) return got9;
+      let x0 = Infinity; let y0 = Infinity; let x1 = -Infinity; let y1 = -Infinity;
+      const xy9 = tr.kxy;
+      for (let k9 = 0; k9 + 1 < xy9.length; k9 += 2) {
+        const x9 = xy9[k9] / 32; const y9 = xy9[k9 + 1] / 32;
+        if (x9 < x0) x0 = x9; if (x9 > x1) x1 = x9; if (y9 < y0) y0 = y9; if (y9 > y1) y1 = y9;
+      }
+      const fp9 = FOOTPRINT[tr.kind];
+      const b9: [number, number, number, number, number] = [x0, y0, x1, y1, fp9 ? Math.hypot(fp9[0], fp9[1]) / 2 + 0.25 : 0.75];
+      box9.set(tr, b9);
+      return b9;
+    };
+    const out9: [string, number][] = [];
+    const seen9 = new Set<string>();
+    for (const e of entData.lives) {
+      if (e.tag < 0) continue;
+      const raw9 = nameOfId9.get(e.owner) ?? "";
+      if (!raw9) continue;
+      const tm9 = teamOfRaw(raw9);
+      for (const o of e.orders) {
+        if (!o[3]) continue;
+        const key9 = `${e.owner}:${o[0]}:${o[1]}:${o[2]}`;
+        if (seen9.has(key9)) continue;
+        seen9.add(key9);
+        let best9 = -1; let bd9 = Infinity;
+        for (const [own2, trs9] of byOwner9) {
+          if (own2 === e.owner) continue;
+          const raw2 = nameOfId9.get(own2) ?? "";
+          if (!raw2 || (tm9 !== undefined && teamOfRaw(raw2) === tm9)) continue;
+          for (const tr of trs9) {
+            if (o[0] < tr.born - 0.1 || (tr.died !== null && o[0] > tr.died + 0.1)) continue;
+            const b9 = boxOf9(tr);
+            if (o[1] < b9[0] - b9[4] || o[1] > b9[2] + b9[4] || o[2] < b9[1] - b9[4] || o[2] > b9[3] + b9[4]) continue;
+            const p9 = posAtSim(tr, o[0]);
+            if (!p9) continue;
+            const d9 = Math.hypot(p9.x - o[1], p9.y - o[2]) / b9[4];
+            if (d9 <= 1 && d9 < bd9) { bd9 = d9; best9 = tr.tag; }
+          }
+        }
+        if (best9 >= 0) out9.push([key9, best9]);
+      }
+    }
+    return out9;
+  })();
   const ghosts9 = ((): { t0: number; t1: number; x: number; y: number; unit: string; raw: string; done: boolean }[] => {
     if (!entData || !entData.builds || entData.builds.length === 0) return [];
     const nameOfId = new Map(entData.players.map((pl) => [pl.owner, pl.name]));
@@ -4244,7 +4302,7 @@ export function deriveWorld9(inp: {
     entData, simTracks, buildsSrc, castsV2, entBldHp, bldTagSpots, droneMorph, buildsDrawOrder, bldNudge,
     entCombatStart, upsByRaw, prodDoneAt, prodDoneByRaw, marineBornOf, entWalks, nukeCasts, nukeLase, nukeArm9, castsSrc,
     nukeImpacts, bldGoneEff, goneEffOf, prodByRawType, bldTagAt, leftAt9, tagOrdinals, buildsByType, halls, gasBuildings,
-    resStageSeries, gridHasGasFlags, gasHideOf, mines, bldPre9, bldRecMemo, teamOfRaw, bases, grid, total, ghosts9,
+    resStageSeries, gridHasGasFlags, gasHideOf, mines, bldPre9, bldRecMemo, teamOfRaw, bases, grid, total, ghosts9, clickTargets9,
   };
 }
 
@@ -4300,7 +4358,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     entData, simTracks, buildsSrc, entBldHp, bldTagSpots, droneMorph, buildsDrawOrder, bldNudge,
     entCombatStart, upsByRaw, marineBornOf, entWalks, nukeLase, nukeArm9, castsSrc, nukeImpacts,
     goneEffOf, prodByRawType, bldTagAt, leftAt9, tagOrdinals, buildsByType, halls, gasBuildings,
-    resStageSeries, gridHasGasFlags, gasHideOf, mines, bldPre9, bldRecMemo, teamOfRaw, bases, grid, total, ghosts9,
+    resStageSeries, gridHasGasFlags, gasHideOf, mines, bldPre9, bldRecMemo, teamOfRaw, bases, grid, total, ghosts9, clickTargets9,
     selRows9,
   } = world;
   /* ★ **자폭으로 맞은 자리는 죽은 몸이 낸다**(2026-09, 지적: "스커지가 배틀에 박아서
@@ -9972,11 +10030,12 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
 /** 화면(UI)이 읽는 파생 자료 — 워커가 세계를 세운 뒤 한 번 보내 준다(요청: 메인의 중복 파생 자료 제거).
  *  메인은 deriveWorld9를 안 부른다 — 폰 메모리에서 가장 큰 덩어리 하나가 빠진다. */
 export type WorldUi9 = Pick<EngineWorld9,
-  "buildsSrc" | "castsSrc" | "nukeLase" | "gasBuildings" | "prodDoneAt" | "prodDoneByRaw" | "upsByRaw" | "nukeImpacts">;
+  "buildsSrc" | "castsSrc" | "nukeLase" | "gasBuildings" | "prodDoneAt" | "prodDoneByRaw" | "upsByRaw" | "nukeImpacts" | "clickTargets9">;
 /** 걷기(entWalks)는 여기 안 든다 — 가장 큰 덩어리인데 추적(로스터 버튼)을 켤 때만 쓴다. 그때 워커에 따로 청한다(want walks). */
 export const pickWorldUi9 = (w: EngineWorld9): WorldUi9 => ({
   buildsSrc: w.buildsSrc, castsSrc: w.castsSrc, nukeLase: w.nukeLase, gasBuildings: w.gasBuildings,
   prodDoneAt: w.prodDoneAt, prodDoneByRaw: w.prodDoneByRaw, upsByRaw: w.upsByRaw, nukeImpacts: w.nukeImpacts,
+  clickTargets9: w.clickTargets9,
 });
 export let emptyWorldUiCache9: WorldUi9 | null = null;
 /** 워커의 것이 오기 전의 빈 표 — 한 번만 만들어 같은 참조를 준다(메모 deps가 흔들리지 않게). */

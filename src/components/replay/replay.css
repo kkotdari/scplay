@@ -1874,7 +1874,9 @@
   --ckline: max(1px, calc(var(--ckw, 9px) * 0.04));
   /* 가운데 점도 같은 결로 바닥을 깐다 — 지름이 10px일 때 0.18배면 1.8px, 그 절반인
      세로는 0.9px이라 납작한 점이 선처럼 흐려졌다. */
-  --ckdot: max(2px, calc(var(--ckw, 9px) * 0.18));
+  /* 점 0.18 → 0.10 · X 는 지름의 0.54 폭을 제 변수로(2026-10-09, 요청: "X자와 가운데 점 모두 너무 두꺼워 둘 다 더 얇게"). */
+  --ckdot: max(1.5px, calc(var(--ckw, 9px) * 0.10));
+  --ckx: max(5px, calc(var(--ckw, 9px) * 0.54));
 }
 /* 핑도 같은 함정을 지난다 — 그쪽 규칙은 핑 블록에 제 자리로 있다(아래 --mz 되돌림). */
 .scr-motion-lens > .scr-motion-clickfx,
@@ -3931,14 +3933,14 @@
    눕힌 X로 보인다(바닥에 누운 표식). 선 굵기는 고리 선(--ckline)의 1.5배. 크기는 옛 점(--ckdot)의 3배 폭.
    모서리에서 모서리로 가는 그라디언트의 가운데 띠가 곧 대각선이다 — 상자 비율이 바뀌어도 늘 대각선이다. */
 .scr-clickfx-atk::after {
-  width: calc(var(--ckdot) * 3); height: calc(var(--ckdot) * 1.5);
-  margin: calc(var(--ckdot) * -0.75) 0 0 calc(var(--ckdot) * -1.5);
+  width: var(--ckx); height: calc(var(--ckx) / 2);
+  margin: calc(var(--ckx) / -4) 0 0 calc(var(--ckx) / -2);
   border-radius: 0;
   background:
-    linear-gradient(to top right, transparent calc(50% - var(--ckline) * 0.75), currentColor calc(50% - var(--ckline) * 0.75),
-      currentColor calc(50% + var(--ckline) * 0.75), transparent calc(50% + var(--ckline) * 0.75)),
-    linear-gradient(to top left, transparent calc(50% - var(--ckline) * 0.75), currentColor calc(50% - var(--ckline) * 0.75),
-      currentColor calc(50% + var(--ckline) * 0.75), transparent calc(50% + var(--ckline) * 0.75));
+    linear-gradient(to top right, transparent calc(50% - var(--ckline) * 0.5), currentColor calc(50% - var(--ckline) * 0.5),
+      currentColor calc(50% + var(--ckline) * 0.5), transparent calc(50% + var(--ckline) * 0.5)),
+    linear-gradient(to top left, transparent calc(50% - var(--ckline) * 0.5), currentColor calc(50% - var(--ckline) * 0.5),
+      currentColor calc(50% + var(--ckline) * 0.5), transparent calc(50% + var(--ckline) * 0.5));
 }
 /* ── 지역 마법의 그림(야마토·플레이그·인스네어·이레디에이트·EMP·마엘스톰·리콜·스캔·별가루·웹) —
    **캔버스로 옮겼다**(위 큰 주석). 뜻과 사정은 재생기의 drawDomFx9에 옮겨 적었다.
