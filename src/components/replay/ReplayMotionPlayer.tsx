@@ -1011,11 +1011,13 @@ const smallDevice9 = ((): boolean => {
 })();
 /** ★ 해상도 단 — UI 크기 배수(2026-10, 요청: "재생기를 해상도에 따라 UI 크기를 조절하는 기능 · PC 는 FHD·QHD(2K)·UHD(4K) 세 단 ·
  *  폰은 내 폰(아이폰 14 프로)이 작은 편이고 큰 건 갤럭시 폴드 8·아이폰 듀오"). 개발 기준은 PC QHD · 폰 아이폰 14 프로 = 배수 1.
- *  자는 **화면(screen) 크기 — CSS px** 다(OS 배율이 이미 든 값: 4K 를 150% 로 쓰면 2560 이라 QHD 단 — 눈에 같은 크기이니 맞다 · 창 크기는
- *  안 본다 — 창을 줄여도 단이 안 뛴다). PC 는 **세로**로 가른다(가로는 울트라와이드 3440×1440 이 4K 로 잘못 간다): ≤1200 FHD 0.75 ·
- *  ≤1700 QHD 1 · 그 위 UHD 1.5 — 화면 비례(1080:1440:2160). 폰은 **짧은 변**(가로 세로 돌려도 한 단): <410 작은 폰 1(393) ·
- *  <600 큰 폰 1.1(아이폰 프로 맥스 430~440 · 갤럭시 울트라 412~440) · 그 위 폴드·태블릿 1.3(폴드 안쪽 ≈755). 폴드를 펴고 접으면
- *  resize 가 와서 다시 잰다. 값은 뿌리(.scr-motion)의 `--ui` 로 가고 CSS 가 툴박스·목록 자에 곱한다. `--dk`·`--dk-roster` 는 **재생기가
+ *  자는 CSS px 다(OS 배율이 이미 든 값: 4K 를 150% 로 쓰면 2560 이라 QHD 단 — 눈에 같은 크기이니 맞다). **PC 는 창(innerHeight)** 이다
+ *  (요청: "피시는 해상도가 아니라 창 기준으로" — 창을 줄이면 UI 도 그 몫으로 준다 · 전체화면이면 창 = 화면 · 첫 판은 화면이었다): 창 세로
+ *  ≤1200 FHD 0.75 · ≤1700 QHD 1 · 그 위 UHD 1.5 — 화면 비례(1080:1440:2160 · 최대화한 창은 탭·주소줄 몫 ≈130 이 빠져 950·1300·2030
+ *  쯤이라 같은 단에 든다). 세로로 가르는 까닭: 가로면 울트라와이드 3440×1440 이 4K 로 잘못 간다. **폰은 기기(screen) 짧은 변**(창 세로는
+ *  주소줄로 흔들리고 가로로 돌리면 프로 맥스도 380 이라 작은 폰이 된다): <410 작은 폰 1(393) · <600 큰 폰 1.1(아이폰 프로 맥스 430~440 ·
+ *  갤럭시 울트라 412~440) · 그 위 폴드·태블릿 1.3(폴드 안쪽 ≈755). 창 크기·폴드 펴고 접기는 resize 로 다시 잰다(단이 바뀔 때만 렌더).
+ *  값은 뿌리(.scr-motion)의 `--ui` 로 가고 CSS 가 툴박스·목록 자에 곱한다. `--dk`·`--dk-roster` 는 **재생기가
  *  인라인으로 직접 놓는다**(PC 1.8·2.16 × 단 · 폰 1·1.2 × 단) — 폰 값은 '폰 자'라 폴드처럼 CSS 폭(>700)이 PC 배치를 고르는 기기에서도
  *  dk 1.3 이지 PC 식(1.8 × 1.3 = 2.34)이 아니다(실측: 755 폭 독 줄 322px 로 화면 셋 중 하나를 먹었다). 주소 `#ui=0.8` 이면 그 값으로
  *  못 박는다(실기 비교용). 진단: SCR_DIAG.ui · #diag 머리 · perf-check `[UI단]`. */
@@ -1025,10 +1027,11 @@ const UI_STEPS9 = {
 } as const;
 function uiStep9(): { name: string; k: number; w: number; h: number } {
   if (typeof window === "undefined") return { name: "qhd", k: 1, w: 0, h: 0 };
-  const w9 = window.screen?.width || window.innerWidth;
-  const h9 = window.screen?.height || window.innerHeight;
+  /* PC 는 창 · 폰은 기기 화면(위 주석). */
+  const w9 = smallDevice9 ? (window.screen?.width || window.innerWidth) : window.innerWidth;
+  const h9 = smallDevice9 ? (window.screen?.height || window.innerHeight) : window.innerHeight;
   const tbl9 = smallDevice9 ? UI_STEPS9.phone : UI_STEPS9.pc;
-  const side9 = smallDevice9 ? Math.min(w9, h9) : Math.min(w9, h9);   // 폰 짧은 변 · PC 세로(가로 모니터) — 둘 다 짧은 변이다
+  const side9 = smallDevice9 ? Math.min(w9, h9) : h9;   // 폰 짧은 변 · PC 창 세로
   const row9 = tbl9.find(([lim9]) => side9 < lim9) ?? tbl9[tbl9.length - 1];
   const m9 = /(^|[#&,])ui=([0-9.]+)/.exec(window.location.hash);
   const k9 = m9 ? Number(m9[2]) : row9[2];
@@ -10921,7 +10924,7 @@ export default function ReplayMotionPlayer({
     "--dk": smallDevice9 ? ui9.k : 1.8 * ui9.k,
     "--dk-roster": smallDevice9 ? 1.2 * ui9.k : 2.16 * ui9.k,
   }) as React.CSSProperties, [ui9.k]);
-  SCR_DIAG.ui = `${ui9.name} ×${ui9.k} · dk ${(smallDevice9 ? ui9.k : 1.8 * ui9.k).toFixed(2)} · 화면 ${ui9.w}×${ui9.h}`;
+  SCR_DIAG.ui = `${ui9.name} ×${ui9.k} · dk ${(smallDevice9 ? ui9.k : 1.8 * ui9.k).toFixed(2)} · ${smallDevice9 ? "화면" : "창"} ${ui9.w}×${ui9.h}`;
   /* 사용법 덮개(요청: 공통) — 열면 history에 한 칸 밀어 뒤로가기(폰의 제스처 포함)가 덮개를 닫게 한다. 닫기 버튼은 그
      칸을 되돌려(back) 같은 길로 닫는다. */
   const [guideOpen9, setGuideOpen9] = useState(false);

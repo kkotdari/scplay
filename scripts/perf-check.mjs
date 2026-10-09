@@ -7,8 +7,9 @@
  *   node scripts/perf-check.mjs --mc --players 3    마인드 컨트롤(임자 바뀜 · 판 8) — 인구 칸의 종족 풀 덧줄 검산
  *   node scripts/perf-check.mjs --marks --info --players 3 --track 정구 --diag [--herocolor]   핑·클릭 마커·선택 링의 색(화면 주인 제 것 원작 초록 · 같은 편은 색 모드) 검산 — [자국]·[링]
  *   node scripts/perf-check.mjs --ios --players 2 --dmg --glblit --split x.png   폰 분할 칸의 두 줄 현황(데미지 칸에 값 — 판 13 데미지 절 합성)
- *   node scripts/perf-check.mjs --wide --vw 1920 --vh 1080 --glblit --shot x.png   해상도 단([UI단] 줄 · FHD 0.75 · 2560×1440 QHD 1 · 3840×2160 UHD 1.5 ·
- *                                                                               폰 --ios --vw 430 --vh 932 큰 폰 1.1 · --vw 755 --vh 905 폴드 1.3)
+ *   node scripts/perf-check.mjs --wide --vw 1920 --vh 1080 --glblit --shot x.png   해상도 단([UI단] 줄 · PC 는 창 세로: 1080 FHD 0.75 · 1440 QHD 1 ·
+ *                                                                               2160 UHD 1.5 · 폰은 기기 짧은 변: --ios --vw 430 --vh 932 큰 폰 1.1 ·
+ *                                                                               --vw 755 --vh 905 폴드 1.3 · --vw/--vh 없는 PC 돌림은 ui=1 로 못 박는다)
  *
  * 무엇을 재는가 — **실제 컴포넌트를 실제로 돌린다.** 참값 자취(OBWT 판 4)를 여기서
  * 합성해 ReplayMotionPlayer에 그대로 물리고, 폰 크기 화면 + CPU 조임(CDP)에서 재생을
@@ -592,14 +593,12 @@ const page = await browser.newPage({
   viewport: WIDE
     ? { width: Number(flag("--vw", 1280)), height: Number(flag("--vh", 900)) }   // --vw 넓은 화면(독 음각 글귀 검산)
     : { width: Number(flag("--vw", 390)), height: Number(flag("--vh", 844)) },   // 폰도 --vw(큰 폰 430 · 폴드 755 — 해상도 단 검산)
-  /* 화면(screen) — 해상도 단(uiStep9)이 window.screen 을 잰다(기본 헤드리스 화면은 1280×720 으로 창과 따로 논다). --vw/--vh 를 준
-     돌림은 창 = 화면(해상도 단 검산 · 1920×1080 → FHD 0.75). 기본 PC 돌림(1280×900 창)은 **QHD 화면(2560×1440)** 으로 꾸민다 — 개발
-     기준이 QHD 모니터의 창이라 옛 실측(dk 1.8 · 로스터 줄 23.8 …)이 그대로 맞는다. 폰 기본(390×844)은 작은 폰 단 1. */
-  screen: WIDE && !has("--vw") && !has("--vh")
-    ? { width: 2560, height: 1440 }
-    : WIDE
-      ? { width: Number(flag("--vw", 1280)), height: Number(flag("--vh", 900)) }
-      : { width: Number(flag("--vw", 390)), height: Number(flag("--vh", 844)) },
+  /* 화면(screen)도 창과 같게 — 폰의 해상도 단(uiStep9)이 window.screen 의 짧은 변을 잰다(기본 헤드리스 화면은 1280×720 으로 창과 따로 논다).
+     PC 단은 창 세로(innerHeight)라 창이 곧 자다. 기본 PC 돌림(1280×900 창 · 그대로면 FHD 0.75)은 아래 hash9 가 `ui=1` 로 못 박아 옛 실측
+     (dk 1.8 · 로스터 줄 23.8 …)이 그대로 맞는다 — --vw/--vh 를 주면 안 못 박는다(해상도 단 검산). */
+  screen: WIDE
+    ? { width: Number(flag("--vw", 1280)), height: Number(flag("--vh", 900)) }
+    : { width: Number(flag("--vw", 390)), height: Number(flag("--vh", 844)) },
   deviceScaleFactor: Number(flag("--dpr", 2)),
   ...(has("--ios") ? { userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1", hasTouch: true, isMobile: true } : {}),
 });
@@ -702,7 +701,10 @@ await page.route("http://perf-check.local/*", (r) => r.fulfill({
    공짜라 이 3초는 헤드리스만의 값이다 — 재면 늘 헤드리스의 그 값이 되므로 뺀다. */
 /* ★ MRT 판(gl9 mrtEnsure)도 기본으로 뺀다(`glmrt=0` · `--mrt` 로 도로 켬)(2026-09) — SwiftShader 는 FBO 에 그리고 캔버스로 옮기는
    값이 커서(실측 p50 50 → 67ms · p95 1.5초 튐) 실기에 없는 몫이 계측을 덮는다. 번짐을 뺀 것과 같은 까닭이다. */
-const hash9 = [has("--diag") ? "diag" : "", has("--crowd") ? `crowd=${flag("--crowd", 2)}` : "", String(flag("--hash", "") || ""), has("--glblit") ? "" : "glblit=0", has("--bloom") || /glbloom=/.test(String(flag("--hash", "") || "")) ? "" : "glbloom=0", has("--mrt") || /glmrt=/.test(String(flag("--hash", "") || "")) ? "" : "glmrt=0"].filter(Boolean).join(",");
+/* 해상도 단 못 박기(2026-10) — PC 기본 창(1280×900)은 FHD 단(0.75)이라, --vw/--vh 없는 PC 돌림은 `ui=1`(QHD 단 · 개발 기준)로 못 박는다
+   (옛 실측과 견주려고). --hash ui=… 를 주면 그 값. */
+const uiPin9 = WIDE && !has("--vw") && !has("--vh") && !/(^|,)ui=/.test(String(flag("--hash", "") || "")) ? "ui=1" : "";
+const hash9 = [uiPin9, has("--diag") ? "diag" : "", has("--crowd") ? `crowd=${flag("--crowd", 2)}` : "", String(flag("--hash", "") || ""), has("--glblit") ? "" : "glblit=0", has("--bloom") || /glbloom=/.test(String(flag("--hash", "") || "")) ? "" : "glbloom=0", has("--mrt") || /glmrt=/.test(String(flag("--hash", "") || "")) ? "" : "glmrt=0"].filter(Boolean).join(",");
 await page.goto(`http://perf-check.local/${hash9 ? `#${hash9}` : ""}`);
 /* 앱 CSS — 레이어 크기·자리·이펙트가 전부 클래스에 실려 있어 없으면 화면이 안 선다.
    빌드 산출물(dist)의 CSS를 그대로 얹는다(npm run build가 먼저 돌아 있어야 한다). */
