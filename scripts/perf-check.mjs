@@ -312,7 +312,7 @@ function makeWorld() {
     upRows.push([F(20), 7, 1, 0, ebTag], [F(25), 0x8000, 1, 0, 0], [F(30), 0, 1, 0, ebTag], [F(70), 7, 2, 0, ebTag]);
     sels.push([F(44), 0, has("--dockship") ? [dsTag] : has("--dockbunker") ? [bkTag] : has("--dockrax") ? [raxTag]
       : has("--dockebay") ? [ebTag] : army0.slice(0, 8)]);
-    sels.push([F(44.5), 2, (armyTags.get(2) ?? []).slice(0, 3)]);
+    sels.push([F(44.5), 2, has("--dockzealot") ? (armyTags.get(2) ?? []).slice(0, 1) : (armyTags.get(2) ?? []).slice(0, 3)]);   // --dockzealot — 수달이(프로토스)의 병력 하나(체력·실드 줄 검산 · --track 수달이)
     /* 해처리류·알(--dockhatch · --dockegg · 2026-10-09 · `--track Rex` 와 함께) — Rex(저그 · owner 1)의 본진 해처리를 고르면 생산·대기 줄이
        **없어야** 하고, 알 하나(저글링 생산 시간만큼 살다 50초에 깨지고 그 자리에 저글링이 난다)를 고르면 "변태 중 저글링" 바가 서야 한다. */
     const eggTag = tag;

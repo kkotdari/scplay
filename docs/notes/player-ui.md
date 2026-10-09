@@ -1249,3 +1249,10 @@ AUTO 글자 합성) · 현재 화면에 보여주는 화면 주인(들)은 기�
 - 폰 인포창 글자 ×1.2(이름 14 · 줄 글 11 · 숫자 10 · 보급 9 · 칸 7.5 · 머리 24 · 바 7 · 틈 4) — `.scr-motion:not(.scr-motion-pc9)` 로 가른다.
 - 검산(perf-check `--rosterprobe` · `인포 넘침·바닥 밖·옆 넘침·오른쪽 밖`): PC 로스터 · 폰 로스터 · 폰 배럭/이베이/드랍십/병력8/해처리/알 모두 0.
   🔎 `node scripts/perf-check.mjs --ios --players 4 --dmg --glblit --fs --rosterprobe --shot x.png` · 인포는 `--ios --players 4 --glblit --fs --info --track 정구 --dockrax --rosterprobe`.
+
+## 폰 종족 배지는 칩 밖(겹싸개)에 · 칩 클릭 = 카메라 단추 · 폰 프로토스 체력·실드는 제 줄(2026-10-09)
+지적 셋: "종족 배지 오버레이인데 닉네임 칸에 맞춰서 잘려" · "닉네임 눌러도 카메라 버튼 누른 것과 동일하게(PC 도)" · "프로토스 체력 글자 잘림(플토만 모바일서 세 줄)".
+- 칩은 긴 이름을 자르려 overflow hidden 이라 그 안의 배지도 잘렸다 → 폰은 배지를 **겹싸개(.scr-dock-namewrap)** 에 두고 오른쪽 위에 absolute(JSX 가 기기로 가른다 · PC 는 칩 안 이름 앞).
+- 칩에 onClick = pickPerson9 · role button · cursor pointer(PC·폰 같이).
+- `.scr-motion-infodock-nums .is-row.has-sh`(실드 > 0)는 폰에서 column — 체력 · 실드 · 에너지 세 줄. PC 는 한 줄.
+  🔎 `node scripts/perf-check.mjs --ios --players 4 --glblit --fs --info --track 수달이 --dockzealot --rosterprobe --shot x.png`(`--dockzealot` 새로 둠 — 수달이 병력 하나).

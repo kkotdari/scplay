@@ -17278,11 +17278,17 @@ export default function ReplayMotionPlayer({
                       {/* 칩 + 트로피 겹싸개 — 트로피는 칩의 **왼쪽 위에 얹힌 오버레이**다(2026-10-09, 요청: "승리팀 트로피는 닉네임 위에 오버레이로
                           왼쪽 위에 붙여주기"). 칩은 overflow hidden(긴 이름 자름)이라 칩 안에 못 두고, 겹싸개(position relative)에 절대 자리로. */}
                       <span className="scr-dock-namewrap">
-                        <span className={cx("scr-motion-teamcol-name scr-dock-name", shownRaws9.has(m.key) && "scr-motion-teamcol-cast")} style={chipStyle(m.key, m.team, CHIP_ROW_A9)}>
-                          {/* 종족 배지는 이름 **앞**(2026-10-09, 지적: 뒤에 두면 긴 이름에서 먼저 잘린다 · replay.css .scr-dock-name .scr-motion-teamcol-race). */}
-                          {m.race && raceLetter9(m.race) ? <span className="scr-motion-teamcol-race">{raceLetter9(m.race)}</span> : null}
+                        {/* 칩을 눌러도 카메라 단추와 같다(2026-10-09, 요청: "닉네임 눌러도 카메라 버튼 누른 것과 동일하게 — PC 도"). */}
+                        <span
+                          className={cx("scr-motion-teamcol-name scr-dock-name", shownRaws9.has(m.key) && "scr-motion-teamcol-cast")} style={chipStyle(m.key, m.team, CHIP_ROW_A9)}
+                          role="button" tabIndex={-1} onClick={() => pickPerson9(m.key)} title={on9 ? "이 사람 화면을 놓는다" : "이 사람 화면을 따라간다 — 둘 이상 켜면 나눠 본다"}
+                        >
+                          {/* 종족 배지는 이름 **앞**(2026-10-09, 지적: 뒤에 두면 긴 이름에서 먼저 잘린다 · replay.css .scr-dock-name .scr-motion-teamcol-race).
+                              폰은 칩 **밖**(겹싸개)에 두고 오른쪽 위에 얹는다 — 칩은 overflow hidden 이라 안에 두면 칩 테두리에서 잘렸다(지적). */}
+                          {!smallDevice9 && m.race && raceLetter9(m.race) ? <span className="scr-motion-teamcol-race">{raceLetter9(m.race)}</span> : null}
                           {m.name}
                         </span>
+                        {smallDevice9 && m.race && raceLetter9(m.race) ? <span className="scr-motion-teamcol-race" aria-hidden>{raceLetter9(m.race)}</span> : null}
                         {trophy9 && <span className="scr-dock-trophy" aria-label="승리">🏆</span>}
                       </span>
                     </div>
@@ -18292,7 +18298,8 @@ export default function ReplayMotionPlayer({
             ? <DocIcon9 kind={wip9[0]} flat fit fitPad={0.06} tint={col9} className="scr-motion-infodock-big" />
             : silIcon9(en, bld9, col9, "scr-motion-infodock-big")}
           <div className="scr-motion-infodock-nums">
-            <span className="is-row">
+            {/* 실드가 있으면(프로토스) 폰에서는 체력·실드가 **제 줄**이다(2026-10-09, 지적: "프로토스 체력 글자 잘림 — 플토만 모바일서 세 줄") · replay.css .has-sh */}
+            <span className={cx("is-row", sh > 0 && "has-sh")}>
               <span style={{ color: col9 }}>{off9 ? "–" : `${hpCur}/${hpOnly}`}</span>
               {sh > 0 && !off9 && <span className="is-sh">{`${shCur}/${sh}`}</span>}
             </span>

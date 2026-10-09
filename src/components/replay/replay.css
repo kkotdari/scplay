@@ -2642,6 +2642,9 @@
   padding-bottom: calc(0.7px * var(--dk));
 }
 .scr-motion-infodock-nums .is-row { display: flex; gap: 0 0.45em; white-space: nowrap; }
+/* 폰은 실드가 있으면(프로토스 · .has-sh) 체력·실드를 **제 줄**로 쌓는다(2026-10-09, 지적: "프로토스 체력 글자 잘림 — 플토만 모바일서 세 줄") — 그림 기둥 72·dk 에 "100/100 60/60"
+   은 안 들었다. 체력 · 실드 · 에너지 세 줄. PC 는 한 줄 그대로. */
+.scr-motion:not(.scr-motion-pc9) .scr-motion-infodock-nums .is-row.has-sh { flex-direction: column; gap: 0; align-items: center; }
 .scr-motion-infodock-nums .is-sh { color: #f2f6ff; }
 .scr-motion-infodock-nums .is-en { color: #c79cff; }
 /* ★ 글 칸은 **위에서부터 쌓고, 맨 아래 것만 바닥에 붙박는다**(2026-09, 요청: "내용을 전부 아래에 배치하라는게 아니라 위쪽부터
@@ -3320,7 +3323,8 @@
 .scr-dock-roster.is-paged .scr-dock-name { padding: 0 calc(2px * var(--dk)); }
 /* ★ 종족 글자는 **이름 앞의 동그란 배지**다(2026-10-09, 지적: "로스터 닉네임에 종족이 맨 뒤라 잘리네 — 맨 앞으로 이동하고 동그란 배경 추가") —
    칩이 긴 이름을 오른쪽에서 자르므로 뒤에 두면 먼저 잘렸다. 지름 ≈ 0.6줄(PC 는 짝수로) · 어두운 반투명 바탕 · 흰 글자. JSX(dockRoster9)가 이름 앞에 둔다. */
-.scr-dock-name .scr-motion-teamcol-race {
+.scr-dock-name { cursor: pointer; }   /* 칩도 단추다(2026-10-09 · JSX onClick = pickPerson9) */
+.scr-dock-name .scr-motion-teamcol-race, .scr-dock-namewrap > .scr-motion-teamcol-race {
   flex: none; display: inline-flex; align-items: center; justify-content: center; margin: 0 0.35em 0 0;
   width: calc(var(--rp) * 0.6); height: calc(var(--rp) * 0.6); border-radius: 50%;
   background: #fff; color: #1b2027; opacity: 1; font-size: 0.72em; font-weight: 800; line-height: 1; letter-spacing: 0;   /* 바탕은 흰색(재요청) · 글자는 어두운 회색 */
@@ -3329,10 +3333,11 @@
 .scr-dock-roster.is-paged .scr-dock-name .scr-motion-teamcol-race { margin-right: 0.3em; }
 /* ★ 폰은 종족 배지를 **칩 오른쪽 위에 작게 얹는다**(2026-10-09, 요청: "모바일에선 종족을 닉네임 오른쪽 상단에 오버레이 배지로 작게 — 안 그래도 좁으니까 공간 아끼게")
    — 흐름에서 빼(absolute) 이름이 칩 왼쪽부터 쓰고, 지름 0.5줄 · 글자 0.58em. 기기 판정(pc9 없음)으로 가른다. */
-.scr-motion:not(.scr-motion-pc9) .scr-dock-name { position: relative; }
-.scr-motion:not(.scr-motion-pc9) .scr-dock-name .scr-motion-teamcol-race {
-  position: absolute; top: -1px; right: -1px; margin: 0; width: calc(var(--rp) * 0.5); height: calc(var(--rp) * 0.5); font-size: 0.58em;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+/* 폰 배지는 칩 **밖**(겹싸개 .scr-dock-namewrap · position relative)에 두고 오른쪽 위에 얹는다(2026-10-09, 지적: "오버레이인데 닉네임 칸에 맞춰서 잘려" —
+   칩은 긴 이름을 자르려 overflow hidden 이라 그 안의 배지도 테두리에서 잘렸다). 겹싸개는 안 자른다. */
+.scr-dock-namewrap > .scr-motion-teamcol-race {
+  position: absolute; top: -2px; right: -2px; z-index: 1; margin: 0; width: calc(var(--rp) * 0.5); height: calc(var(--rp) * 0.5); font-size: 0.58em;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35); pointer-events: none;
 }
 .scr-dock-roster.is-paged .scr-dock-data { flex: 1 1 0; overflow: hidden; }
 .scr-dock-roster.is-paged .scr-dock-strip { transition: transform 0.45s ease-in-out; will-change: transform; }   /* 0.45s = ROSTER_SLIDE_MS9 */
