@@ -1363,3 +1363,8 @@ AUTO 글자 합성) · 현재 화면에 보여주는 화면 주인(들)은 기�
 - (되지적: "자막 네임칩 안의 가운데 말고 네임칩 자체랑 다른 자막 글자랑 세로 높이가 안 맞는다") .scr-cast-chip 은 vertical-align **middle + top −0.08em**(position relative) — 기준선 맞춤은
   상자 중심이 글꼴 지표 (어센트 − 디센트)/2(노토 CJK 0.435em)에 서서 한글 그림 중심(≈0.35em)보다 떠 보였다. middle(기준선 + x높이/2 ≈ 0.27em)에 0.08em 을 올리면 글꼴이 달라도
   (애플 고딕·맑은 고딕·노토) 한글 중심에 선다. 🔎 `perf-check --wide --vw 1920 --vh 1080 --fs --warm 0 --glblit --track 정구 --capprobe def --shot x.png` → 자막 crop.
+
+## 카메라 단추 켜짐은 반투명 초록(AUTO 포함 · 테 없음)(2026-10-09)
+★ (되요청: "카메라 버튼(AUTO 포함) 테두리 제거 및 활성 시 배경은 반투명 녹색, 지금처럼 파스텔 연한 처리 말고") — 앞 절의 파스텔(#b4f0c6 + 진한 초록 아이콘)과 AUTO 의 옛 초록 테
+  (inset 1.5px)는 걷었다. `.scr-roster-cam.is-on { background: rgba(46,229,157,.32); color: #3dffa8 }`(hover .42) — 개인·AUTO 같다 · AUTO 글자·아이콘 깜빡임(scr-cast-blink-well)은 그대로.
+  🔎 `perf-check --wide --vw 1920 --vh 1080 --fs --warm 0 --glblit --track 정구 --shot x.png`(개인 켜짐) · `--track` 없이(AUTO 켜짐) → 전광판 crop.
