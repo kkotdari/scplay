@@ -28980,44 +28980,65 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const k9 = e9 >= 1 ? 1 : e9 * e9 * (3 - 2 * e9);
         return mixHex(ROCK, LROCK9, k9 * (0.86 + 0.14 * blot9(t9 * 1.7 + 2, u9 + 0.31)));
       };
+      /* ★ **뚜껑을 그릇처럼 판다**(2026-10-09, 요청: "간헐천의 뚜껑을 그릇처럼 파줘. 테두리는 좀 두껍게. 그 안에 간헐천이 위쪽에서
+         조금 아래까지만 차있는걸로 · 그라데이션으로 가운데가 좀더 진하게 · 뚜껑면색도 옆면색으로 통일") ───────────────────────
+         기둥은 뚜껑을 안 낸다(caps "bottom" — 그 낯이 곧 뚜껑이라 남기면 GL 에서 그릇을 덮는다 · modeling-rules '오목한 속').
+         그 자리에 ① 두꺼운 테(테 반지름의 26% · 마디마다 네모 한 장 · 색은 옆면이 꼭대기 마디에서 내는 바로 그 색 fillAt9(t, u) 라
+         얼룩이 테까지 이어진다) ② 안쪽 아가리(RI9)에서 역돔으로 판 그릇(dishFaces9 · 깊이 RI9 의 반 · 속은 바위를 그늘지게 섞은 색)
+         ③ 테에서 GAP9 만큼 내려간 높이의 가스면 — 동심 고리 켜가 **한 평면에 맞닿아**(겹치지 않아 z 싸움이 없다 · 꼭짓점이 같은
+         식에서 나와 실금도 없다) 가장자리 GAS 에서 가운데 GASD9(짙은 녹색)로 섞인다. 가스면 반지름은 그 깊이의 역돔 벽 반지름
+         RI9·√(1−(GAP/깊이)²) 에 2% 묻힌다(벽 뒤라 안 보인다).
+         ⚠ 기둥 단면의 위상을 0 으로 못 박는다(기본 π/sides) — 테·그릇·가스면의 24각이 기둥 윗둥과 **같은 꼭짓점**에 서야 틈·실금이
+         없다(옛 24각 원반을 쓴 까닭과 같다). 실루엣 차 0.6% 안쪽이라 BLD_NORM 은 그대로. 옛 '원반 여섯 켜(갈색→가스)'는 걷었다. */
       out.push(...tagKey(paintBase(spirePillar({
         x: cx9, y: cy9, z0: 0, h: h9, w: r9, tipW: r9 * 0.72,
-        segs: 16, sides: 24, hold: 0.1, taper: 1.4, fillAt: fillAt9,
+        segs: 16, sides: 24, hold: 0.1, taper: 1.4, fillAt: fillAt9, caps: "bottom", phase: 0,
       }), ROCK), key));
       const rim = r9 * 0.72;
-      // 테 안쪽 그늘 — 구멍으로 읽히는 어두운 원. 음영이라 2티어(요청). 이제는 **마른 간헐천에만** 남는다(아래 ★).
-      if (geyserDry) out.push(...trim(tagKey([
-        [discPath3(cx9, cy9, h9, rim * 0.94), 1, "#3d342a"] as ShapeFace,
-      ], key + 0.6)));
-      /* 고인 베스핀은 **어느 등급에서도 남는다**(요청: "lod 낮은 티어에서도 분화구들
-         윗면에 네온색 가스 색칠은 보이게") — 여태 3티어(fine)라 가장 먼저 빠졌고,
-         그러면 지도에 회색 돌그릇 셋만 남아 미네랄과 구분이 안 갔다. 간헐천을
-         간헐천으로 만드는 것은 그릇이 아니라 그 안의 네온 초록이다.
-         3티어로 두면 크기 자동 강등에도 걸린다(분화구에 견줘 작은 부품이라 auto가
-         3으로 올린다) — 그래서 '장식(1)'이 아니라 **형체 확정(0)**으로 못 박는다.
-         김(연기)은 그대로 3티어다: 그건 정말 장식이고, 색은 아래 고인 가스가 말한다. */
-      /* 마르면 네온이 사라진다(요청: "가스는 고갈시에 네온가스 없애고") — 돌그릇과
-         테 안쪽 그늘만 남아, 다 캔 간헐천이 한눈에 갈린다. */
-      /* ★ **윗면 전체가 가스색이고 가장자리로 갈수록 갈색이 비친다**(2026-10, 요청: "간헐천 윗면 모두 가스색으로 대신 가장자리로
-         갈수록 갈색 보이게") — 옛 판은 어두운 그늘 원(#3d342a) 안에 반투명 가스 원반 둘이 테 밑으로 파여 있어 윗면이 거의 검었다.
-         이제 테 안 전체를 불투명 원반 여섯으로 덮는다: 바깥 켜가 갈색(GBROWN9)이고 안으로 갈수록 가스색으로 섞여 가운데 절반이
-         온전한 가스다. ⚠ 겹친 원반은 **켜마다 한 뼘(ZS9)씩 올린다** — 같은 평면이면 GL 에서 z 싸움으로 갈색이 얼룩처럼 뚫고
-         나온다(스포닝풀 연못의 그 규약). 맨 아래 켜도 테 뚜껑(h9) 위 한 뼘이다. */
+      const NSEG9 = 24;
+      const RI9 = rim * (1 - 0.26);                 // 아가리 반지름 — 테 두께가 테 반지름의 26%
+      const DEPTH9 = RI9 * 0.5;                     // 그릇 깊이(역돔)
+      const GAP9 = Math.max(0.06, RI9 * 0.14);      // 가스면이 테 아래로 내려간 만큼
+      const ang9 = (i9: number): number => (i9 / NSEG9) * Math.PI * 2;   // 기둥 단면과 같은 각(위상 0 · cos·sin 차례)
+      const at9 = (rr9: number, a9: number, z9: number): [number, number, number] =>
+        [cx9 + Math.cos(a9) * rr9, cy9 + Math.sin(a9) * rr9, z9];
+      const ringQuads9 = (ro9: number, ri9: number, z9: number, colAt9: (i9: number) => string): ShapeFace[] =>
+        Array.from({ length: NSEG9 }, (_, i9) => [
+          polyPath3([at9(ro9, ang9(i9), z9), at9(ro9, ang9(i9 + 1), z9), at9(ri9, ang9(i9 + 1), z9), at9(ri9, ang9(i9), z9)]),
+          1, colAt9(i9),
+        ] as ShapeFace);
+      // ① 테 — 옆면 꼭대기 마디(t = 1 − 0.5/16)의 색 그대로(요청: 뚜껑면색도 옆면색으로 통일).
+      const RIMTOP9 = mixHex(ROCK, LROCK9, 0.86);
+      out.push(...shape(tagKey(ringQuads9(rim, RI9, h9, (i9) => fillAt9(1 - 0.5 / 16, (i9 + 0.5) / NSEG9) ?? RIMTOP9), key + 0.5)));
+      // ② 속 — 역돔. 마르면 바닥까지 어둡다(옛 그늘 원 #3d342a 의 몫).
+      const INNER9 = geyserDry ? "#3d342a" : mixHex(ROCK, "#3d342a", 0.45);
+      out.push(...shape(tagKey(dishFaces9({
+        x: cx9, y: cy9, z: h9, r: RI9, depth: DEPTH9, seg: NSEG9, dome: true,
+        fill: INNER9, shade0: 0.1, shade: 0.08,
+      }), key + 0.55)));
+      // ③ 가스면 — 테 아래 GAP9 · 가장자리에서 가운데로 짙어지는 동심 고리(마르면 없다 — 돌그릇만 남는다).
+      const zg9 = h9 - GAP9;
       if (!geyserDry) {
-        const GBROWN9 = "#7d5432";
-        const ZS9 = 0.022;
-        const RK9 = [1, 0.9, 0.8, 0.7, 0.6, 0.5];
-        out.push(...shape(tagKey(RK9.map((rk9, i9) => [
-          discPath3(cx9, cy9, h9 + ZS9 * (i9 + 1), rim * rk9, undefined, 24), 1,
-          i9 === RK9.length - 1 ? GAS : mixHex(GBROWN9, GAS, (i9 / (RK9.length - 1)) ** 0.8),
-        ] as ShapeFace), key + 0.6)));
+        const GASD9 = "#1fa843";
+        const ug9 = Math.sqrt(Math.max(0.25, 1 - (GAP9 / DEPTH9) ** 2));
+        const rg9 = RI9 * ug9 * 1.02;
+        const RK9 = [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3];   // 켜 여덟 — 띠가 아니라 번짐으로 읽히게 잘게
+        const gasCol9 = (k9: number): string => mixHex(GAS, GASD9, 0.72 * (1 - k9) ** 1.3);
+        for (let i9 = 0; i9 < RK9.length - 1; i9 += 1) {
+          const km9 = (RK9[i9] + RK9[i9 + 1]) / 2;
+          out.push(...shape(tagKey(ringQuads9(rg9 * RK9[i9], rg9 * RK9[i9 + 1], zg9, () => gasCol9(km9)), key + 0.6)));
+        }
+        const rc9 = rg9 * RK9[RK9.length - 1];
+        out.push(...shape(tagKey([[
+          polyPath3(Array.from({ length: NSEG9 }, (_, i9) => at9(rc9, ang9(i9), zg9))), 1, gasCol9(RK9[RK9.length - 1] / 2),
+        ] as ShapeFace], key + 0.6)));
       }
       /* 초록 김 — **뭉게뭉게 덩이**(2026-09, 요청: "간헐천 … 가스연기를 뭉게뭉게로 바꾸고 애니메이션화
          (간헐천과 어시밀레이터는 가운데와 좌우 가스가 번갈아 나오게하기)") — 옛 세 켜 타원은 정지 그림이었다.
          큰 분화구(가운데)는 위상 0, 작은 둘은 1/4 이라 큰 것이 낼 때 작은 것들은 쉰다(gasPuffs9 의 ★).
          이것도 가스라 3티어(요청). 마른 간헐천은 김도 안 오른다(위 고갈 주석). */
       if (!geyserDry) out.push(...fine(tagKey(gasPuffs9({
-        x: cx9 - 0.05, y: cy9 + 0.1, z: h9 - 0.1, r: rim * 0.5, h: 1.9 + rim * 0.35,
+        x: cx9 - 0.05, y: cy9 + 0.1, z: zg9, r: rim * 0.5, h: 1.9 + rim * 0.35,   // 김은 가스면에서 오른다
         col: GAS, n: 2, phase: ph9, a: 0.6, duty: 0.1, life: 0.28,
       }), key + 1)));
     };
