@@ -15107,7 +15107,7 @@ export default function ReplayMotionPlayer({
         const x19 = Math.min(bw9, (v9.cx + v9.w / 2) * bw9);
         const y19 = Math.min(bh9, (v9.cy + v9.h / 2) * bh9);
         m9.lineWidth = Math.max(1, 0.8 * dpr9);   // 1.5 → 0.8 CSS px(2026-10, 지적: "미니맵 안 프레임이 좀 두꺼운듯 · 화면어디보는지 프레임")
-        m9.strokeStyle = modeColor(cell9.raw, teamOfRaw(cell9.raw));
+        m9.strokeStyle = "rgba(255,255,255,.92)";   // ★ 늘 흰색(2026-10-09, 요청: "주인공 있을 때도 미니맵 화면 위치 네모는 원작처럼 모두 흰색") — 옛 '그 사람 색' 되물림
         m9.strokeRect(x09 + m9.lineWidth / 2, y09 + m9.lineWidth / 2, Math.max(1, x19 - x09 - m9.lineWidth), Math.max(1, y19 - y09 - m9.lineWidth));
       }
     }
@@ -18970,7 +18970,7 @@ export default function ReplayMotionPlayer({
                     viewAt={splitOn9
                       ? ((z9, p9) => (splitPick9 ? splitViewRef9.current.get(splitPick9) ?? fsViewAt(z9, p9) : null))   // 안 고르면 네모 없음
                       : fsViewAt}
-                    viewColor={splitOn9 && splitPick9 ? modeColor(splitPick9, teamOfRaw(splitPick9)) : undefined}
+                    /* 네모 색은 안 준다 — **늘 흰색**(2026-10-09, 요청: 원작처럼). 옛 '누른 사람 색'(viewColor)은 되물렸다. */
                     zoom={zoom} pan={pan}
                     /* ★ 주인의 점은 원작 초록(2026-10-09, 요청) — 개인 추적·자동 중계는 화면 주인, 분할은 고른 칸의 사람. */
                     ownRaw={splitOn9 ? splitPick9 : uiOwnerRef9.current}

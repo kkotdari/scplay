@@ -76,7 +76,7 @@ export default function ReplayFullscreenMinimap({
    *  넣어 그때그때 셈할 수 있어야 한다. */
   /** 보고 있는 창 — null 이면 네모를 안 그린다(분할보기에서 아무 칸도 안 골랐을 때). */
   viewAt: (z: number, p: { x: number; y: number }) => { cx: number; cy: number; w: number; h: number } | null;
-  /** 보는 창의 테두리 색 — 없으면 흰색. 분할보기는 누른 사람의 색이다(요청: "미니맵은 흰 네모 대신 선택한 사람 색의 네모로"). */
+  /** 보는 창의 테두리 색 — 없으면 흰색. ⚠ 지금은 아무도 안 준다(2026-10-09, 요청: "미니맵 화면 위치 네모는 원작처럼 모두 흰색" — 옛 '누른 사람 색' 되물림). */
   viewColor?: string;
   /** 굳은 배율·팬 — 손짓이 안 도는 동안의 값이다. */
   zoom: number;
