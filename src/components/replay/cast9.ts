@@ -543,12 +543,14 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
      재생기가 이름표 칩으로 그린다 — 조사는 표시 이름의 받침을 재생기가 안다(p). 글귀 보기:
        교전 — 공격 "A의 B 공격" · 방어 "B가 공격함 · C가 헬프옴" · 호각 "A·B 교전" · 견제 "A의 B 견제" · 기지 피해 "A가 B 기지 반파/대파/궤멸시킴"(잃은 건물 몸값이 그때
        기지 몸값의 20/45/75% — 되요청: "공격 와서 뭘 부쉈는지까지보다 기지를 반파시킴 대파시킴 궤멸시킴 등으로") · 그 아래면 "A가 B 건물 파괴" · 핵 "A 핵 투하" · 마법 "A 스톰"
-       순환 — "A 메타볼릭 부스트 개발" · "A 확장" · "A 팩토리 건설" · "A 운영". */
+       순환 — "A 메타볼릭 부스트 개발" · 빌드 읽기 "A 선스포닝풀 후 해처리" · "A 빠른 넥서스 늘리기" · "A 로보틱스 테크" · "A 포토 건설" · 국면 "A 3기지 운영 중"(아래 ★★). */
   const chips9 = (raws9: string[], last9?: CapPart9["p"]): CapPart9[] =>
     raws9.flatMap((r9, i9): CapPart9[] => (i9 < raws9.length - 1 ? [{ raw: r9 }, { text: "·" }] : [{ raw: r9, p: last9 }]));
   const sceneCaps9 = (sc9: Sc9, pick9: string, d9: Duel9 | undefined): CapPart9[] => {
-    const top9 = sc9.top;
-    const why9 = sc9.why;
+    /* ★ 자막은 **주인공(pick9)의 일만** 말한다(2026-10-09, 요청: "자막엔 주인공 관련 사건 위주로 그 외엔 굳이 넣지 않기") — 장면의 가장 무거운 사건(top)이나 건물을
+       가장 많이 부순 짝이 주인공과 무관하면(팀전에서 같은 장면의 딴 짝) 그것을 안 쓰고 주인공의 맞대결 글귀로 간다. 건물 짝은 주인공이 든 것 중 가장 무거운 것. */
+    const top9 = sc9.top && (sc9.top.raw === pick9 || sc9.top.vs === pick9) ? sc9.top : undefined;
+    const why9 = top9 ? sc9.why : "";
     if (top9 && why9 === "핵") return [{ raw: top9.raw }, { text: " 핵 투하" }];
     if (top9 && why9 === "마법") return [{ raw: top9.raw }, { text: ` ${TECH_KO[top9.tech ?? ""] ?? top9.tech ?? "마법"}` }];
     if (top9 && why9 === "자폭") return [{ raw: top9.raw }, { text: " 자폭" }];
@@ -558,9 +560,13 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       if (k9 && v9) return [{ raw: k9, p: "ui" }, { text: " " }, { raw: v9 }, { text: " 견제" }];
       return [{ raw: v9 ?? pick9 }, { text: " 견제 당함" }];
     }
-    /* 기지 피해 — 그 장면에서 건물을 가장 많이 부순 짝(k>v)의, v 가 장면 머리에 갖고 있던 건물 몸값 대비 잃은 몫으로 단을 가른다(RAZE9). 20% 아래는 "건물 파괴". */
+    /* 기지 피해 — 그 장면에서 **주인공이 든 짝** 가운데 건물을 가장 많이 부순 짝(k>v)의, v 가 장면 머리에 갖고 있던 건물 몸값 대비 잃은 몫으로 단을 가른다(RAZE9).
+       20% 아래는 "건물 파괴". */
     let bk9 = ""; let bv9 = ""; let bw9 = 0;
-    for (const [key9, w9] of sc9.bldPair) if (w9 > bw9) { bw9 = w9; [bk9, bv9] = key9.split(">"); }
+    for (const [key9, w9] of sc9.bldPair) {
+      const [k9, v9] = key9.split(">");
+      if ((k9 === pick9 || v9 === pick9) && w9 > bw9) { bw9 = w9; bk9 = k9; bv9 = v9; }
+    }
     if (bk9 && bv9) {
       const lost9 = sc9.bldLost.get(bv9) ?? 0;
       const base9 = baseValue9(bv9, sc9.t0);
@@ -579,7 +585,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       }
       return [...chips9([pick9, ...d9.allies]), { text: "·" }, ...chips9(foes9), { text: " 교전" }];
     }
-    return [{ raw: pick9 }, { text: ` ${why9}` }];
+    return [{ raw: pick9 }, { text: ` ${sc9.why}` }];
   };
   /** 그 사람이 sec 에 갖고 있던 건물 몸값의 합(기지 피해 단의 분모 · 짓는 중인 것도 든다). */
   const baseValue9 = (raw9: string, sec9: number): number => {
@@ -591,10 +597,121 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     }
     return v9;
   };
-  /** 순환 토막 — 그 사람의 창 [t0, t1) 에서 연구 완료 · 확장(본진 건물) · 건설(보급·가스 빼고) 차례로 찾는다. */
+  /** 순환 토막 — 그 사람의 창 [t0, t1) 에서 연구 완료 > 빌드 이정표(창 안 > 최근) > 그 밖의 건설 > 국면 요약 차례로 찾는다. */
   const HALL9 = new Set(["Command Center", "Nexus", "Hatchery"]);
   const PLAIN_BLD9 = new Set(["Supply Depot", "Pylon", "Extractor", "Refinery", "Assimilator", "Creep Colony"]);
   const ownersOf9 = (raw9: string): Set<number> => new Set([...rawOf9.entries()].filter(([, n9]) => n9 === raw9).map(([o9]) => o9));
+  /* ★★ **빌드 읽기**(2026-10-09, 요청: "소강 상태에서 '누구 운영'이라는 자막보다는 순조로운 테크/발전 중 · 빠른 넥서스/커맨드 늘리기 · 선스포닝풀/노스포닝풀 해처리 등
+     초반/중반 빌드에 대한 분석이 들어가면 좋을듯") ─────────────────────────────────────────────────────────────
+     그 사람의 건물 **착공 차례**(world.lives · born — 레어로 변태한 해처리의 앞 생애도 착공이다)에서 이정표를 뽑는다(buildMiles9):
+       · 둘째 본진이 핵심 테크(스포닝풀 · 코어 · 팩토리)보다 먼저 → "빠른 넥서스/커맨드 늘리기" · 저그는 "노스포닝풀 해처리"(셋째까지 먼저면 "노스포닝풀 3해처리") ·
+         스포닝풀이 먼저면 "선스포닝풀" → 그 뒤 해처리는 "선스포닝풀 후 해처리" · 테크 뒤의 둘째는 "앞마당 … 늘리기" · 셋째부터 "N번째 … 늘리기"/"N해처리 늘리기"
+       · 포지가 게이트보다 먼저 → "선포지"(그 뒤 넥서스가 게이트보다 먼저면 "선포지 더블넥서스") · 익스트랙터가 스포닝풀보다 먼저 → "선가스"
+       · 코어·팩토리 앞의 둘째·셋째 생산 건물 → "투게이트/쓰리게이트" · "투배럭/쓰리배럭" · 테크 건물은 TECH_MILE9 의 이름("로보틱스 테크" …)
+     자막은 창 안의 이정표 > 창 앞 MILE_RECENT9 초 안의 마지막 이정표 > 그 밖의 건물 건설(옛 "X 건설") > 국면 요약(phaseCap9: 최근 테크 → "순조로운 테크/발전 중" ·
+     본진 셋 이상 → "N기지 운영 중" · 병력이 한창 나오면 "병력 모으는 중" · 그 밖 "순조로운 발전 중"). 옛 "확장"·"운영" 글귀는 걷었다.
+     🔎 cast-plan.mjs ⑧ 빌드 읽기. */
+  const TECH_MILE9: Record<string, string> = {
+    "Cybernetics Core": "코어 테크", "Robotics Facility": "로보틱스 테크", Stargate: "스타게이트 테크", "Citadel of Adun": "시타델 테크", "Templar Archives": "템플러 테크",
+    "Robotics Support Bay": "리버 테크", Observatory: "옵저버 테크", "Fleet Beacon": "캐리어 테크", "Arbiter Tribunal": "아비터 테크",
+    Factory: "팩토리 테크", Starport: "스타포트 테크", Armory: "아머리 테크", Academy: "아카데미 테크", "Science Facility": "사이언스 테크",
+    "Engineering Bay": "엔지니어링 베이 업그레이드", "Machine Shop": "머신샵 테크", "Control Tower": "컨트롤 타워 테크", "Covert Ops": "고스트 테크", "Physics Lab": "배틀크루저 테크",
+    Lair: "레어 테크", Spire: "뮤탈리스크 테크", "Hydralisk Den": "히드라 테크", "Evolution Chamber": "챔버 업그레이드", "Queen's Nest": "하이브 테크 준비",
+    Hive: "하이브 테크", "Ultralisk Cavern": "울트라리스크 테크", "Defiler Mound": "디파일러 테크", "Greater Spire": "가디언·디바우러 테크",
+  };
+  /** 종족의 핵심 테크 — 둘째 본진·둘째 생산 건물이 이보다 먼저면 '빠른'·'투…'다. */
+  const CORE_TECH9: Record<string, string> = { Nexus: "Cybernetics Core", "Command Center": "Factory", Hatchery: "Spawning Pool" };
+  const PROD9: Record<string, [string, string]> = { Gateway: ["투게이트", "쓰리게이트"], Barracks: ["투배럭", "쓰리배럭"], Factory: ["투팩", "쓰리팩"] };   // 게이트·배럭은 핵심 테크 앞의 수 · 팩토리는 늘
+  const HALL_KO9: Record<string, string> = { Nexus: "넥서스", "Command Center": "커맨드", Hatchery: "해처리" };
+  /** 이정표를 창 앞 이만큼(초)까지 되짚는다 — 그보다 오래면 국면 요약으로. */
+  const MILE_RECENT9 = 120;
+  /** 국면 요약의 '최근 테크'(초) · '병력이 한창'의 창(초)과 수. */
+  const PHASE9 = { tech: 240, armyWin: 60, armyN: 4 };
+  const WORKER9 = new Set(["SCV", "Probe", "Drone"]);
+  const NON_ARMY9 = new Set(["Larva", "Egg", "Overlord", "Cocoon", "Lurker Egg", "Scarab", "Interceptor", "Broodling"]);
+  type Mile9 = { at: number; text: string };
+  /** 그 사람의 빌드 이정표(착공 시각 차례) — 한 번 세어 두고 자막마다 짚는다. */
+  const milesOf9 = new Map<string, Mile9[]>();
+  const buildMiles9 = (raw9: string): Mile9[] => {
+    const got9 = milesOf9.get(raw9);
+    if (got9) return got9;
+    const own9 = ownersOf9(raw9);
+    const blds9 = world.lives
+      .filter((e9) => e9.bld && own9.has(e9.owner) && !e9.handoff && (!PLAIN_BLD9.has(e9.kind) || e9.kind === "Extractor"))
+      .sort((a9, b9) => a9.born - b9.born);
+    const miles9: Mile9[] = [];
+    const halls9: string[] = [];        // 착공한 본진 종류(처음 것은 born 0 이라 안 든다 — 둘째부터)
+    let hallKind9 = "";
+    for (const p9 of world.players) if (own9.has(p9.owner)) hallKind9 = p9.race === "저그" ? "Hatchery" : p9.race === "프로토스" ? "Nexus" : p9.race === "테란" ? "Command Center" : "";
+    if (!hallKind9) { const h9 = blds9.find((e9) => HALL9.has(e9.kind)); hallKind9 = h9?.kind ?? (blds9.some((e9) => e9.kind === "Gateway" || e9.kind === "Forge") ? "Nexus" : blds9.some((e9) => e9.kind === "Barracks") ? "Command Center" : "Hatchery"); }
+    const coreTech9 = CORE_TECH9[hallKind9] ?? "";
+    let coreAt9 = Infinity;            // 핵심 테크 착공 시각
+    let firstProdAt9 = Infinity;       // 첫 생산 건물(게이트·배럭) 착공
+    let forgeFirst9 = false;
+    const prodN9 = new Map<string, number>();
+    const seen9 = new Set<string>();
+    let hallN9 = 0;
+    for (const e9 of blds9) {
+      const k9 = e9.kind;
+      const n9 = (prodN9.get(k9) ?? 0) + 1;
+      prodN9.set(k9, n9);
+      if (k9 === coreTech9 && coreAt9 === Infinity) {
+        coreAt9 = e9.born;
+        seen9.add(k9);
+        if (k9 === "Spawning Pool") miles9.push({ at: e9.born, text: halls9.length === 0 ? "선스포닝풀" : "해처리 후 스포닝풀" });
+        else miles9.push({ at: e9.born, text: TECH_MILE9[k9] ?? `${BUILDING_KO[k9] ?? k9} 건설` });
+        continue;
+      }
+      if (k9 === "Extractor") { if (coreAt9 === Infinity && hallKind9 === "Hatchery" && n9 === 1) miles9.push({ at: e9.born, text: "선가스" }); continue; }
+      if (k9 === "Forge" && n9 === 1 && firstProdAt9 === Infinity && hallKind9 === "Nexus") { forgeFirst9 = true; miles9.push({ at: e9.born, text: "선포지" }); continue; }
+      if (PROD9[k9]) {
+        if (firstProdAt9 === Infinity) firstProdAt9 = e9.born;
+        if ((n9 === 2 || n9 === 3) && (k9 === "Factory" || coreAt9 === Infinity)) miles9.push({ at: e9.born, text: PROD9[k9][n9 - 2] });
+        continue;
+      }
+      if (HALL9.has(k9)) {
+        /* 처음 본진(born 0 · 덤프가 늦게 시작해도 첫 몇 초)은 이정표가 아니다. 변태로 끝난 해처리(레어가 된 것)도 착공은 착공 — 같은 태그의 레어 생애는 TECH_MILE9 로 따로 선다. */
+        hallN9 += 1;
+        if (hallN9 === 1 && e9.born < 5) continue;
+        halls9.push(k9);
+        const nth9 = halls9.length + 1;   // 처음 본진까지 센 차례
+        const ko9 = HALL_KO9[hallKind9] ?? "본진";
+        let text9: string;
+        if (hallKind9 === "Hatchery") {
+          if (coreAt9 === Infinity) text9 = nth9 === 2 ? "노스포닝풀 해처리" : `노스포닝풀 ${nth9}해처리`;
+          else text9 = nth9 === 2 ? "선스포닝풀 후 해처리" : `${nth9}해처리 늘리기`;
+        } else if (nth9 === 2) {
+          text9 = forgeFirst9 && firstProdAt9 === Infinity ? "선포지 더블넥서스"
+            : hallKind9 === "Command Center" && firstProdAt9 === Infinity ? "노배럭 더블커맨드"
+              : coreAt9 === Infinity ? `빠른 ${ko9} 늘리기` : `앞마당 ${ko9} 늘리기`;
+        } else text9 = `${nth9}번째 ${ko9} 늘리기`;
+        miles9.push({ at: e9.born, text: text9 });
+        continue;
+      }
+      const t9 = TECH_MILE9[k9];
+      if (t9 && !seen9.has(k9)) { seen9.add(k9); miles9.push({ at: e9.born, text: t9 }); }
+    }
+    milesOf9.set(raw9, miles9);
+    return miles9;
+  };
+  /** 본진 전부(레어·하이브는 변태한 해처리의 뒷 생애) — 국면 요약의 기지 수. */
+  const HALL_ANY9 = new Set([...HALL9, "Lair", "Hive"]);
+  /** 국면 요약 — 창 끝 시각의 그 사람. */
+  const phaseCap9 = (raw9: string, sec9: number): string => {
+    const own9 = ownersOf9(raw9);
+    let halls9 = 0; let lastTech9 = -Infinity; let army9 = 0;
+    for (const e9 of world.lives) {
+      if (!own9.has(e9.owner) || e9.handoff || e9.born > sec9) continue;
+      if (e9.bld) {
+        if (HALL_ANY9.has(e9.kind) && (e9.died === null || e9.died > sec9)) halls9 += 1;
+        if (TECH_MILE9[e9.kind] && e9.born > lastTech9) lastTech9 = e9.born;
+      } else if (e9.born >= sec9 - PHASE9.armyWin && !WORKER9.has(e9.kind) && !NON_ARMY9.has(e9.kind) && castValue9(e9.kind) > 0) army9 += 1;
+    }
+    if (sec9 - lastTech9 <= PHASE9.tech) return "순조로운 테크/발전 중";
+    if (halls9 >= 3) return `${halls9}기지 운영 중`;
+    if (army9 >= PHASE9.armyN) return "병력 모으는 중";
+    return "순조로운 발전 중";
+  };
   const cycleCaps9 = (raw9: string, t0: number, t1: number): CapPart9[] => {
     const own9 = ownersOf9(raw9);
     const lo9 = t0 - 2;
@@ -606,14 +723,19 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       const lv9 = m9?.[2];
       return [{ raw: raw9 }, { text: ` ${researchKo(base9)}${lv9 ? ` ${lv9}단계` : ""} 개발` }];
     }
+    const miles9 = buildMiles9(raw9);
+    const inWin9 = miles9.find((m9) => m9.at >= lo9 && m9.at < hi9);
+    if (inWin9) return [{ raw: raw9 }, { text: ` ${inWin9.text}` }];
+    let recent9: Mile9 | undefined;
+    for (const m9 of miles9) if (m9.at < lo9 && m9.at >= lo9 - MILE_RECENT9) recent9 = m9;
+    if (recent9) return [{ raw: raw9 }, { text: ` ${recent9.text}` }];
     let bld9: string | null = null;
     for (const e9 of world.lives) {
       if (!e9.bld || !own9.has(e9.owner) || e9.born < lo9 || e9.born >= hi9 || e9.end === "morph") continue;
-      if (HALL9.has(e9.kind)) return [{ raw: raw9 }, { text: " 확장" }];
-      if (!bld9 && !PLAIN_BLD9.has(e9.kind)) bld9 = e9.kind;
+      if (!bld9 && !PLAIN_BLD9.has(e9.kind) && !HALL9.has(e9.kind) && !TECH_MILE9[e9.kind]) bld9 = e9.kind;
     }
     if (bld9) return [{ raw: raw9 }, { text: ` ${BUILDING_KO[bld9] ?? bld9} 건설` }];
-    return [{ raw: raw9 }, { text: " 운영" }];
+    return [{ raw: raw9 }, { text: ` ${phaseCap9(raw9, hi9)}` }];
   };
 
   let cur9 = 0;
@@ -642,7 +764,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     cur9 = Math.max(cur9, sc9.t1 + (sc9.tail - GAP9));
   }
   fill9(cur9, total);
-  /* ★ 순환 토막의 자막(2026-10-09) — 그 사람이 그 창(다음 토막까지)에서 한 일: 연구 완료 > 확장 > 건물 건설 > "운영". */
+  /* ★ 순환 토막의 자막(2026-10-09) — 그 사람이 그 창(다음 토막까지)에서 한 일: 연구 완료 > 빌드 이정표(창 안 > 최근) > 그 밖의 건설 > 국면 요약(위 ★★ 빌드 읽기). */
   for (let i9 = 0; i9 < out9.length; i9 += 1) {
     const sg9 = out9[i9];
     if (sg9.caps && sg9.caps.length > 0) continue;

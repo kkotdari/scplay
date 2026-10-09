@@ -146,6 +146,35 @@ for (const [name, pass] of [
   ["파일런 하나면 건물 파괴", /\[Y\]ga \[X\] 건물 파괴/.test(raze1)],
 ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 
+/* ── ⑧ 빌드 읽기(2026-10-09, 요청: "소강 상태에서 '누구 운영'이라는 자막보다는 … 초반/중반 빌드에 대한 분석") — 사건 없는 FFA 넷 · 착공 차례만 다르다 ── */
+const bw9 = (() => {
+  let bt = 9000;
+  const bl = [];
+  const bmk = (o, kind, born, bld = true, died = null, end = "") => { const e = { tag: (bt += 1), owner: o, kind, born, bornX: 10, bornY: 10, died, end, bld,
+    sites: bld ? [[born, 9, 9]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [] }; bl.push(e); return e; };
+  bmk(0, "Hatchery", 0); bmk(1, "Hatchery", 0); bmk(2, "Nexus", 0); bmk(3, "Command Center", 0);
+  // Z1 선스포닝풀 → 해처리 → 레어   |  Z2 노스포닝풀 해처리 → 스포닝풀 → 셋째 해처리
+  bmk(0, "Spawning Pool", 60); bmk(0, "Hatchery", 150); bmk(0, "Lair", 500);
+  bmk(1, "Hatchery", 90); bmk(1, "Spawning Pool", 150); bmk(1, "Hatchery", 400);
+  // P1 게이트 → 넥서스(코어 앞 = 빠른) → 코어 → 로보틱스   |  T1 배럭 둘(팩토리 앞 = 투배럭) → 팩토리 → 커맨드(팩토리 뒤 = 앞마당)
+  bmk(2, "Gateway", 60); bmk(2, "Nexus", 150); bmk(2, "Cybernetics Core", 200); bmk(2, "Robotics Facility", 400);
+  bmk(3, "Barracks", 60); bmk(3, "Barracks", 120); bmk(3, "Factory", 200); bmk(3, "Command Center", 300);
+  for (let i = 0; i < 6; i += 1) bmk(2, "Zealot", 700 + i * 5, false);   // P1 은 700초대에 병력이 한창
+  return { players: [["Z1", "저그"], ["Z2", "저그"], ["P1", "프로토스"], ["T1", "테란"]].map(([name, race], o) => ({ owner: o, name, race, color: "#fff", team: 0 })),
+    lives: bl, ups: [], casts: [], pings: [], resFields: [] };
+})();
+const bplan9 = castPlan9(bw9, { total: 900, order: ["Z1", "Z2", "P1", "T1"] });
+/** raw 의 토막 중 at ∈ [t, t + 40) 첫 것의 자막. */
+const capAt9 = (raw, t) => { const sg = bplan9.find((s) => s.raw === raw && s.at >= t && s.at < t + 40); return sg ? capTxt(sg) : "(토막 없음)"; };
+const bcases9 = [
+  ["Z1", 64, "[Z1] 선스포닝풀"], ["Z1", 155, "[Z1] 선스포닝풀 후 해처리"], ["Z1", 505, "[Z1] 레어 테크"],
+  ["Z2", 95, "[Z2] 노스포닝풀 해처리"], ["Z2", 155, "[Z2] 해처리 후 스포닝풀"], ["Z2", 405, "[Z2] 3해처리 늘리기"], ["Z2", 800, "[Z2] 3기지 운영 중"],
+  ["P1", 155, "[P1] 빠른 넥서스 늘리기"], ["P1", 205, "[P1] 코어 테크"], ["P1", 405, "[P1] 로보틱스 테크"], ["P1", 735, "[P1] 병력 모으는 중"],
+  ["T1", 125, "[T1] 투배럭"], ["T1", 205, "[T1] 팩토리 테크"], ["T1", 305, "[T1] 앞마당 커맨드 늘리기"], ["T1", 800, "[T1] 순조로운 발전 중"],
+];
+console.log(`\n빌드 읽기: ${bcases9.slice(0, 4).map(([r, t]) => `${r}@${t}s ${capAt9(r, t)}`).join(" · ")} …`);
+for (const [raw, t, want] of bcases9) { const got = capAt9(raw, t); console.log(`  ${got === want ? "✔" : "✘"} ${raw} ${t}s → ${want}${got === want ? "" : ` (실제 ${got})`}`); }
+
 /* ── ⑥ 순환 차례 — 2v2 · 사건 없는 60초(2026-09, 요청: "순환할때 순서를 로스터 순으로 팀 번갈아가며") ── */
 const q4 = { players: [0, 1, 2, 3].map((o) => ({ owner: o, name: "PQRS"[o], race: "테란", color: "#fff", team: o < 2 ? 1 : 2 })),
   lives: [0, 1, 2, 3].map((o) => ({ tag: 900 + o, owner: o, kind: "Command Center", born: 0, bornX: 10, bornY: 10, died: null, end: "",

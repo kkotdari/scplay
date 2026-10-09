@@ -39,7 +39,7 @@ const MINI_FOG_B = 14;
 export default function ReplayFullscreenMinimap({
   image, grid, ratio, dotsRef, extraRef, pingsRef, tick, viewAt, viewColor, zoom, pan, onSeek, onWheelZoom,
   unproject, fog, painter, live,
-  warming, ownRaw, ownColor, tags, onTag,
+  warming, ownRaw, ownColor, tags,
 }: {
   /** 장면이 아직 데워지는 중인가 — 참이면 **아무것도 안 보인다**(지적: "지도 초기 로딩
    *  시 초록색 맵 뜨는 거랑 안개 없이 지도 전체 뜨는 거 수정했는데 미니맵은 그대로야").
@@ -68,10 +68,9 @@ export default function ReplayFullscreenMinimap({
    *  색깔이 원작처럼 녹색으로(마커색)") — 그 사람의 점(`raw`/`pickRaw` 가 ownRaw)만 ownColor 로 찍고 나머지는 제 색 그대로. */
   ownRaw?: string | null;
   ownColor?: string;
-  /** 이름표(위 MiniTag) — 캔버스 위 DOM 겹층(.scr-fs-minitags)에 선다. 몇 명뿐이라 DOM 이고, 재생기가 1초마다 한 번 다시 센다. */
+  /** 이름표(위 MiniTag) — 캔버스 위 DOM 겹층(.scr-fs-minitags)에 선다. 몇 명뿐이라 DOM 이고, 재생기가 1초마다 한 번 다시 센다.
+   *  **그림뿐**이다(2026-10-09, 요청: "미니맵 네임칩 터치 시 화면 설정 기능 제거") — 옛 onTag(누르면 그 사람 카메라)는 걷었다. 손짓은 캔버스(짚기)로 지나간다. */
   tags?: readonly MiniTag[];
-  /** 이름표를 눌렀다 — 그 사람 카메라(재생기 pickPerson9 · 전광판 카메라 단추와 같은 일). 없으면 이름표는 그림뿐이다. */
-  onTag?: (key: string) => void;
   /** 미니맵 핑(2026-10) — 재생기가 렌더마다 채운다. 색은 재생기가 정한다(원작 규칙 · 임자색). */
   pingsRef?: { current: readonly MiniPing[] };
   /** 다시 그릴 신호(재생 시각) — 이 값이 바뀔 때만 덧그린다. */
@@ -568,22 +567,17 @@ export default function ReplayFullscreenMinimap({
       role="presentation"
     >
       <canvas ref={cvRef} aria-hidden style={warming ? { opacity: 0 } : undefined} />
-      {/* ★ 이름표 겹층(2026-10-09) — 캔버스 위에 자리(백분율)로 선다. 누름은 미니맵 짚기(위 onPointerDown · seek)와 섞이지 않게 여기서 끊는다.
+      {/* ★ 이름표 겹층(2026-10-09) — 캔버스 위에 자리(백분율)로 선다. 그림뿐이라(pointer-events none · 위 tags ★) 손짓은 캔버스의 짚기로 지나간다.
           데워지는 동안(warming)은 캔버스처럼 안 보인다. */}
       {!warming && tags && tags.length > 0 && (
-        <div className="scr-fs-minitags" ref={tagsRef}>
+        <div className="scr-fs-minitags" ref={tagsRef} aria-hidden>
           {tags.map((tg) => (
-            <button
-              key={tg.key} type="button"
+            <span
+              key={tg.key}
               className={`scr-fs-minitag is-${tg.tier}${tg.dim ? " is-dim" : ""}`}
               style={{ left: `${(tg.fx * 100).toFixed(2)}%`, top: `${(tg.fy * 100).toFixed(2)}%`, background: tg.bg, color: tg.fg }}
-              onPointerDown={(e) => e.stopPropagation()}
-              onPointerUp={(e) => e.stopPropagation()}
-              onClick={(e) => { e.stopPropagation(); onTag?.(tg.key); }}
               title={tg.dim ? `${tg.name} — 나감·탈락` : tg.name}
-              tabIndex={onTag ? 0 : -1}
-              aria-label={`${tg.name} 화면 보기`}
-            >{tg.name}</button>
+            >{tg.name}</span>
           ))}
         </div>
       )}

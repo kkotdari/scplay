@@ -140,7 +140,7 @@ export default function ReplayGuide({ onClose }: {
 
         <h3 className="scr-guide-h3">중계 고르기</h3>
         <p className="scr-guide-sub">
-          <strong>전광판</strong>의 카메라 단추나 <strong>미니맵 위 이름표</strong>로 <strong>누구 화면</strong>을 볼지 고릅니다. 들어오면 <strong>AUTO</strong>(자동)로 켜져 있습니다.
+          <strong>전광판</strong>의 카메라 단추로 <strong>누구 화면</strong>을 볼지 고릅니다. 들어오면 <strong>AUTO</strong>(자동)로 켜져 있습니다.
           중계가 켜진 동안은 카메라를 중계가 쥐어, 지도를 손으로 끌어도 안 움직이고 배율도 못 바꿉니다. 화면 위 가운데에 <b>누구 화면인지</b> 이름표가 서고, 쇠판의 미니맵은 그 사람 시야입니다.
         </p>
         <div className="scr-guide-mock">
@@ -176,7 +176,7 @@ export default function ReplayGuide({ onClose }: {
               시작되기 <b>조금 전에</b> 미리 잡아 두고, 일이 이어지면 8초가 넘어도 그 사람에 머뭅니다. 볼 만한 일이 없으면
               <b> 전광판 차례로 팀을 번갈아</b> 8초씩 돌아갑니다. 지도는 다 보이는 채로 카메라만 옮깁니다. 지금 보여 주는 사람은 전광판의 <b>이름이 깜빡이며 빛납니다</b>.
               교전·침공·드랍 견제처럼 <b>맞서는 상대</b>가 있는 장면이면 <b>더 잘 싸운 쪽</b> 한 사람 화면을 보여 줍니다. 화면은 늘 하나이고,
-              화면 아래 가운데에는 <b>장면마다 자막</b>이 섭니다 — 공격·방어·교전·견제·건물 파괴·핵·마법, 조용할 때는 연구 개발·확장·건설·운영. 자막 속 이름은 이름표 칩입니다.</span>
+              화면 아래 가운데에는 <b>장면마다 자막</b>이 섭니다 — 공격·방어·교전·견제·건물 파괴·핵·마법, 조용할 때는 그 사람의 <b>빌드 읽기</b> — 선스포닝풀·노스포닝풀 해처리·빠른 넥서스/커맨드 늘리기·투게이트·로보틱스 테크·N기지 운영 중처럼 초반·중반 빌드를 짧게 말합니다. 자막은 화면 주인의 일만 말합니다. 자막 속 이름은 이름표 칩입니다.</span>
             </li>
             <li>
               <span className="scr-guide-ic scr-guide-ic-txt">끄기</span>
@@ -188,7 +188,7 @@ export default function ReplayGuide({ onClose }: {
         <h3 className="scr-guide-h3">미니맵 · 인포창</h3>
         <p className="scr-guide-sub">
           지도 바로 아래 가운데에 <strong>전광판</strong>(왼쪽) · <strong>미니맵</strong>(가운데) · <strong>인포창</strong>(오른쪽)이 한 틀로 서 있습니다(좁으면 인포창부터 줄거나 빠집니다).
-          미니맵 위의 <strong>이름표</strong>는 각 사람의 진영 자리입니다 — 본진을 잃고 옮기면 따라가고, 진영이 클수록 크며, 나갔거나 생산이 끊긴 사람은 어둡습니다. 누르면 그 사람 화면입니다.
+          미니맵 위의 <strong>이름표</strong>는 각 사람의 진영 자리입니다 — 본진을 잃고 옮기면 따라가고, 진영이 클수록 크며, 나갔거나 생산이 끊긴 사람은 어둡습니다. 중계가 켜진 동안은 미니맵을 눌러도 카메라가 안 움직입니다(안내만 뜹니다).
           버튼 줄 정가운데의 <strong>접기(▼)</strong>를 누르면 전광판·인포창이 통째로 접히고, 한 번 더 누르면(▲) 다시 펼쳐집니다 — 프레임·전체화면 어디서나 됩니다.
         </p>
         <ul className="scr-guide-legend">

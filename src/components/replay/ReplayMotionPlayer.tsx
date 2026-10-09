@@ -17721,7 +17721,7 @@ export default function ReplayMotionPlayer({
        출발 자리에 남아 있으면 거기, 본진을 잃고 앞마당·딴 데로 옮겼으면 거기('이사 간 자리'). 본진이 하나도 없으면 남은 건물 전부의 무게 중심.
      · 크기 — 살아 있는 건물 수(TAG_TIER9: ≤5 s · ≤14 m · 그 위 l).
      · 어두움 — 본진도 생산 건물도 하나 없으면(나감 = 다 사라짐 · 엘리 · 생산 끊김) 어둡고, 자리는 마지막 건물이 죽기 직전의 진영이다(어디 있던 사람인지는 남긴다).
-     관전자(bases 밖)·건물이 한 채도 없던 사람은 이름표가 없다. 그리기·누르기는 ReplayFullscreenMinimap(tags · onTag). */
+     관전자(bases 밖)·건물이 한 채도 없던 사람은 이름표가 없다. 그리기는 ReplayFullscreenMinimap(tags) — 누름은 없다(2026-10-09 · 그림뿐). */
   const tTag9 = Math.floor(t);
   const miniTags9 = useMemo((): MiniTag[] => {
     if (!entData || bases.length === 0) return [];
@@ -18877,9 +18877,19 @@ export default function ReplayMotionPlayer({
      하나가 되면서 미니맵도 하나가 됐다(fsViewAt·fsSeek) — 무대 크기는 프레임이든
      전체화면이든 같은 자(stage)로 재므로 셈이 갈릴 자리가 없다.
   /** 미니맵을 끌었다 — 그 분수 자리가 화면 한가운데로 오게 팬을 푼다(위 식의 역). */
+  /* ★ 카메라가 잠긴 동안(중계 · 개인 화면 · 분할 — camLockRef9)의 미니맵 손짓은 **토스트**로 말한다(2026-10-09, 요청: "중계 중에 미니맵 터치 시 토스트로 '중계 모드에선
+     미니맵 조작이 안 돼요'") — 짚기(fsSeek)·휠(fsWheelZoom) 둘 다. 끌면 pointermove 마다 부르므로 2.5초에 한 번만. */
+  const miniLockToastAt9 = useRef(0);
+  const miniLockToast9 = (): void => {
+    const now9 = performance.now();
+    if (now9 - miniLockToastAt9.current < 2500) return;
+    miniLockToastAt9.current = now9;
+    replayToast(castOn ? "중계 모드에선 미니맵 조작이 안 돼요" : splitOn9 ? "분할보기에선 미니맵 조작이 안 돼요" : "개인 화면에선 미니맵 조작이 안 돼요", { kind: "info" });
+  };
   /** 미니맵을 짚으면 그 자리가 가운데로 온다. */
   const fsSeek = (mx: number, my: number): void => {
     if (fsCoverW <= 0 || fsCoverH <= 0) return;
+    if (camLockRef9.current) { miniLockToast9(); return; }   // 중계·개인 화면·분할은 카메라가 기계 것이다(위 ★)
     const [fx, fy] = miniProject(mx, my);
     const zS9 = zoomRef.current;
     const lim = panLimit(zS9);
@@ -18906,7 +18916,7 @@ export default function ReplayMotionPlayer({
    *  푼 다음 그 점이 화면 한가운데에 오게 팬을 맞춘다 — fsSeek와 같은 식이다. */
   const fsWheelZoom = (mx: number, my: number, up: boolean): void => {
     if (fsCoverW <= 0 || fsCoverH <= 0) return;
-    if (camLockRef9.current) return;   // 중계 중엔 미니맵 휠 배율도 없다(camLockRef9 · 2026-10-09)
+    if (camLockRef9.current) { miniLockToast9(); return; }   // 중계 중엔 미니맵 휠 배율도 없다(camLockRef9 · 2026-10-09) — 토스트로 말한다(위 ★)
     const z9 = zoomNext(zoomRef.current, up);
     if (z9 === null || z9 === zoomRef.current) return;
     closePicked9();   // 미니맵 위 휠 배율도 팝업을 닫는다(요청).
@@ -19216,7 +19226,8 @@ export default function ReplayMotionPlayer({
             {/* ★★ 독의 우물 셋 [전광판 | 미니맵 | 인포창](2026-10-09, 요청: "피시 모바일 모두 전광판과 미니맵을 우선 보여주고 자리가 있으면 인포창을 보여줌 ·
                 너비를 배분하고 그에 맞는 높이로") — 자리와 크기는 위 dockFit9(전광판·미니맵 먼저 · 인포창은 남는 폭에 비례 축소 · 모자라면 숨김).
                 독 미니맵은 요청 5(2026-10-09)로 걷었던 것을 되살렸다(.scr-fs-minipanel) — 분할보기에서는 누른 칸의 사람(시야·네모·초록 점)을 들고 안 골랐으면
-                전체(관전자) 그대로다(요청 3). 이름표(miniTags9 · 진영 자리)를 얹고 누르면 그 사람 카메라다(pickPerson9 — 전광판 카메라 단추와 같은 일).
+                전체(관전자) 그대로다(요청 3). 이름표(miniTags9 · 진영 자리)는 **그림뿐**이다(2026-10-09, 요청: "미니맵 네임칩 터치 시 화면 설정 기능 제거" — 옛 '누르면
+                그 사람 카메라(pickPerson9)'는 걷었다 · 카메라는 전광판 단추로). 잠긴 카메라에서의 손짓은 토스트(fsSeek 의 miniLockToast9).
                 전체화면의 미니맵 단추(N · fsMiniOn)는 미니맵 우물을 여닫는다. */}
             <div className="scr-fs-rosterpanel">{dockRoster9}</div>
             {(fsOn ? fsMiniOn : true) && (
@@ -19242,7 +19253,6 @@ export default function ReplayMotionPlayer({
                     fog={miniFog}
                     warming={!tracksReady}
                     tags={miniTags9}
-                    onTag={pickPerson9}
                   />
                 </div>
               </div>
