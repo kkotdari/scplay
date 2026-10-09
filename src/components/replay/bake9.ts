@@ -18503,13 +18503,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const pa9 = rnd() * Math.PI * 2;                    // 꺾는 가로 축
       const px9 = Math.cos(pa9); const py9 = Math.sin(pa9);
       const amp9 = R9 * (0.3 + rnd() * 0.25);             // 비껴가는 진폭 2.0~3.7
-      const sg9 = rnd() < 0.5 ? 1 : -1;                   // 첫 마디가 나가는 쪽
+      /* ★ 꼭 번갈아 가지는 않는다(재요청: "무조건 번갈아 좌우가 아니라 두 번까지는 같은 방향 가능하게") — 마디마다 반반으로 같은 쪽을
+         이어 가되 **같은 쪽은 두 마디까지**(run9). 같은 쪽 두 마디 사이는 거의 세로 획이라, 꺾임의 박자가 고르지 않아 더 자유롭게 읽힌다. */
+      let dir9 = rnd() < 0.5 ? 1 : -1;                    // 첫 마디가 나가는 쪽
+      let run9 = 0;
       for (let k9 = 0; k9 <= seg9; k9 += 1) {
         const u9 = k9 / seg9;
         const end9 = k9 === 0 || k9 === seg9;
-        const r19 = rnd(); const r29 = rnd(); const r39 = rnd();
+        const r19 = rnd(); const r29 = rnd(); const r39 = rnd(); const r49 = rnd();   // 끝 마디도 뽑는다 — 소비 수 고정
+        if (!end9) {
+          if (run9 >= 2 || (run9 >= 1 && r49 < 0.5)) { dir9 = -dir9; run9 = 1; } else run9 += 1;
+        }
         const uz9 = end9 ? u9 : u9 + (r19 - 0.5) * (0.7 / seg9);
-        const sw9 = end9 ? 0 : sg9 * (k9 % 2 ? 1 : -1) * amp9 * (0.55 + r29 * 0.45) * Math.sqrt(Math.sin(Math.PI * u9));
+        const sw9 = end9 ? 0 : dir9 * amp9 * (0.55 + r29 * 0.45) * Math.sqrt(Math.sin(Math.PI * u9));
         const jx9 = end9 ? 0 : (r39 - 0.5) * 0.8;
         pts.push([
           tx9 + (gx9 - tx9) * uz9 + px9 * sw9 - py9 * jx9,
