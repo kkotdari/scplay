@@ -17241,6 +17241,7 @@ export default function ReplayMotionPlayer({
                 {mates.map((m) => {
                   const fallen9 = m.ghost || fallenHome(m);
                   const on9 = castSel9.includes(m.key);
+                  const trophy9 = Boolean(winnerTeam && (m.team === 2 ? 2 : 1) === winnerTeam && t >= total - 0.5 && !fallen9);
                   return (
                     <div key={m.key} className={cx("scr-dock-row", fallen9 && "scr-motion-base-ghost")} style={{ ["--pcol" as string]: modeColor(m.key, m.team) } as React.CSSProperties}>
                       <button
@@ -17252,12 +17253,14 @@ export default function ReplayMotionPlayer({
                       </button>
                       {/* 칩 + 트로피 겹싸개 — 트로피는 칩의 **왼쪽 위에 얹힌 오버레이**다(2026-10-09, 요청: "승리팀 트로피는 닉네임 위에 오버레이로
                           왼쪽 위에 붙여주기"). 칩은 overflow hidden(긴 이름 자름)이라 칩 안에 못 두고, 겹싸개(position relative)에 절대 자리로. */}
-                      <span className="scr-dock-namewrap">
+                      {/* ★ 트로피가 뜨면 칩 글자는 **그만큼 오른쪽에서 시작**한다(2026-10-09, 지적: "로스터 닉네임 자리 확보 안됨") — 오버레이가 첫 글자를 덮지 않게
+                          칩이 왼쪽 안쪽 여백(has-trophy)으로 트로피 자리를 비운다. */}
+                      <span className={cx("scr-dock-namewrap", trophy9 && "has-trophy")}>
                         <span className={cx("scr-motion-teamcol-name scr-dock-name", shownRaws9.has(m.key) && "scr-motion-teamcol-cast")} style={chipStyle(m.key, m.team, CHIP_ROW_A9)}>
                           {m.name}
                           {m.race && raceLetter9(m.race) ? <span className="scr-motion-teamcol-race">{raceLetter9(m.race)}</span> : null}
                         </span>
-                        {winnerTeam && (m.team === 2 ? 2 : 1) === winnerTeam && t >= total - 0.5 && !fallen9 && <span className="scr-dock-trophy" aria-label="승리">🏆</span>}
+                        {trophy9 && <span className="scr-dock-trophy" aria-label="승리">🏆</span>}
                       </span>
                     </div>
                   );

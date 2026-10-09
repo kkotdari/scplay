@@ -1059,12 +1059,14 @@ const supProbe9 = async (label9) => {
   const u9 = await page.evaluate(() => {
     const root = document.querySelector(".scr-fs-layer, .scr-motion");
     const r = (q) => { const e = document.querySelector(q); return e ? +e.getBoundingClientRect().height.toFixed(1) : null; };
+    const w = (q) => { const e = document.querySelector(q); return e ? +e.getBoundingClientRect().width.toFixed(1) : null; };   // 폭(독 두 판 — 2026-10-09)
     const btn = document.querySelector(".scr-motion-mapbtns button.scr-motion-mapbtn");
     return { ui: window.__scrDiag?.ui ?? null, cssUi: root ? getComputedStyle(root).getPropertyValue("--ui").trim() : null,
-      tb: r(".scr-tb"), roster: r(".scr-motion-teamrow"), dock: r(".scr-fs-dockrow"), btn: btn ? +btn.getBoundingClientRect().width.toFixed(1) : null,
+      tb: r(".scr-tb"), roster: r(".scr-dock-row"), dock: r(".scr-fs-dockrow"), btn: btn ? +btn.getBoundingClientRect().width.toFixed(1) : null,
+      infow: w(".scr-fs-dockmain > .scr-motion-infodock"), rosterw: w(".scr-fs-rosterpanel"),   // 독 두 판의 폭(독 0.9배 검산 · 2026-10-09)
       vw: window.innerWidth, vh: window.innerHeight, sw: window.screen.width, sh: window.screen.height };
   });
-  console.log(`[UI단] ${u9.ui} · --ui ${u9.cssUi} · 창 ${u9.vw}×${u9.vh} 화면 ${u9.sw}×${u9.sh} · 툴박스 키 ${u9.tb} · 로스터줄 키 ${u9.roster} · 독 줄 키 ${u9.dock} · 단추 ${u9.btn}`);
+  console.log(`[UI단] ${u9.ui} · --ui ${u9.cssUi} · 창 ${u9.vw}×${u9.vh} 화면 ${u9.sw}×${u9.sh} · 툴박스 키 ${u9.tb} · 로스터줄 키 ${u9.roster} · 독 줄 키 ${u9.dock} · 단추 ${u9.btn} · 인포창 폭 ${u9.infow} · 로스터 판 폭 ${u9.rosterw}`);
   /* --diag 면 진단 머리 두 줄(dpr·배율·UI·초해상·⚠재표본 / 흐림: …)을 그대로 적는다 — 사용자가 찍어 보내는 그 줄과 같은 글. */
   if (has("--diag")) {
     const h9 = await page.evaluate(() => [...document.querySelectorAll(".scr-motion-diag > div")].slice(0, 2).map((d) => d.textContent ?? ""));
