@@ -19107,7 +19107,8 @@ export default function ReplayMotionPlayer({
             >
               {camRaw9 !== null && (
                 <span className="scr-split-cap scr-fs-solo-cap">
-                  <span className="scr-split-chip" style={capOf9(camRaw9, camRaw9).chip}>{bases.find((b9) => b9.key === camRaw9)?.name ?? camRaw9}</span>
+                  {/* "정구 화면" 꼴(2026-10-09, 요청: "화면 주인 네임택은 '정구 화면' 이런 식으로") — 옛 '화면 글자 제거'(2026-09 · 자막 표의 첫 칸 사정)는 자막의 것이었다. */}
+                  <span className="scr-split-chip" style={capOf9(camRaw9, camRaw9).chip}>{`${bases.find((b9) => b9.key === camRaw9)?.name ?? camRaw9} 화면`}</span>
                 </span>
               )}
               {/* ★★ 중계 자막(위 castCap9 · 2026-10-09, 요청 2) — 이름표 **바로 위**(정가운데가 아니다). 토막이 갈리면(key) 살짝 떠오른다. */}
@@ -19161,7 +19162,7 @@ export default function ReplayMotionPlayer({
                     {/* 칸 머리 — 이름 칩 하나(바닥 가운데 · 2026-10-09, 요청 1: "화면 주인 닉네임택을 화면 하단 가운데로"). 옛 맞대결 배지·표는 걷었다.
                         칸 발치의 미니맵(.scr-split-foot · 2026-09)도 걷었다(2026-10-09, 요청 3) — 독 미니맵이 누른 칸의 사람을 든다. */}
                     <span className="scr-split-cap">
-                      <span className="scr-split-chip" style={cap9.chip}>{nm9}</span>
+                      <span className="scr-split-chip" style={cap9.chip}>{`${nm9} 화면`}</span>   {/* "정구 화면"(2026-10-09 · 단독 화면과 같은 꼴) */}
                     </span>
                   </div>
                 );
