@@ -789,6 +789,10 @@ function dumpCv9(cv9: HTMLCanvasElement, name9: string): void {
   });
 }
 const NO_ZI9 = typeof location !== "undefined" && /nozi/.test(location.hash);
+/** `#diag=grid` — 유닛(2D 효과 캔버스)·GL 층에 **기기 픽셀 한 줄짜리 시험 무늬**(검은 줄 + 흰 줄 · 64px 마다, GL 은 1px 고리)를 얹는다(2026-10-09,
+ *  지적: "같은 창 크기에서도 분할 여부에 따라 흐려") — 어느 층이 재표본되는지 눈으로 가르는 자: 1:1 이면 줄이 또렷한 흑백이고, 반 픽셀이라도
+ *  밀리거나 늘어나면 회색으로 뭉갠다. 흐림: 줄(기하)과 짝이다 — 기하가 다 1.0000 인데 무늬가 회색이면 합성기(브라우저) 쪽이다. */
+const DIAG_GRID9 = typeof location !== "undefined" && /diag=[^&#]*grid/.test(location.hash);
 const NO_CALC9 = typeof location !== "undefined" && /nocalc/.test(location.hash);
 /** 유닛·GL·효과 캔버스의 인라인 변환 한 줄 — `#noxf` 면 비운다. */
 function xfSet9(cv9: HTMLCanvasElement, xf9: string): void {
@@ -1225,13 +1229,19 @@ const TIER9 = { v: 0, force: -1 };
  *  아니었다 · 남은 자리는 기기 밀도 자체다: 폰 dpr 3 에 견주면 dpr 1 의 몸은 타일당 20~30 px 로 또렷할 길이 없다). 목표 밀도 2(폰·맥
  *  수준)까지만 올린다 — dpr 1 → 2 · 1.25 → 1.6 · 1.5 → 1.33 · 2 이상 → 1. 상한은 벤치 단: 0단 1(안 켬) · 1단(보통) 1.5 · 2단 이상 2 — 칠하는
  *  픽셀이 배수의 제곱이라(1.5 → 2.25배 · 2 → 4배) 약한 기기엔 안 준다. 캔버스 한 변 4096 상한(아래 B)이 따로 죈다(4K dpr 1 은 저절로 1.1).
- *  주소 `#ss=N` 이면 그 값(실기 견줌용 · 1 = 끔). 폰(smallDevice9)은 늘 1 — dpr 이 이미 2~3 이다. 진단: 머리 `초해상 ×1.5` · SCR_DIAG.ss. */
+ *  **기본은 끔** — 주소 `#ss=N`(1.5 · 2) 또는 `#ss=auto`(벤치 단 규칙)로만 켠다(요청: "스위치로만 · 기본값 아님"). 폰은 auto 에서도 1 —
+ *  dpr 이 이미 2~3 이다. 진단: 머리 `초해상 ×1.5` · SCR_DIAG.ss. */
 const SS_HASH9 = ((): number => { const m9 = typeof location !== "undefined" ? /(^|[#&,])ss=([0-9.]+)/.exec(location.hash) : null; const v9 = m9 ? Number(m9[2]) : NaN; return Number.isFinite(v9) && v9 > 0 ? v9 : -1; })();
+const SS_AUTO9 = typeof location !== "undefined" && /(^|[#&,])ss=auto/.test(location.hash);
 function ssK9(dpr: number): number {
   if (SS_HASH9 > 0) return SS_HASH9;
-  if (smallDevice9) return 1;
-  const cap9 = TIER9.v >= 2 ? 2 : TIER9.v === 1 ? 1.5 : 1;
-  return Math.max(1, Math.min(cap9, 2 / Math.max(0.5, dpr)));
+  /* ★ 기본은 **끔**(2026-10-09, 요청: "초해상은 스위치로만 켤 수 있게 할 것 · 기본값 아님") — `#ss=N` 으로만 켠다. `#ss=auto` 면 아래 벤치 단
+     규칙(폰 1 · 1단 1.5 · 2단 이상 2 · 목표 밀도 2). */
+  if (SS_AUTO9 && !smallDevice9) {
+    const cap9 = TIER9.v >= 2 ? 2 : TIER9.v === 1 ? 1.5 : 1;
+    return Math.max(1, Math.min(cap9, 2 / Math.max(0.5, dpr)));
+  }
+  return 1;
 }
 /* ★ **재생 품질 알림**(요청: "처음 시작할 때나 벤치 변경 시 맵 오른쪽 위에 토스트로 재생품질: 높음/보통/낮음 3초간") ────
    눈금은 넷이다 — PC는 벤치 단(2단 높음 · 1단 보통 · 0단 낮음), 폰은 낮음이고 벤치 미달(효과를 덜어내는 기기)이면
@@ -6024,6 +6034,16 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         /* 효과 삼각형은 flush 안에서 그려지므로 **그 전에** 붓이 다 말해야 한다(심이 모아 둔 꼭짓점을 flush 가 민다). */
         if (vec9 && fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM || PAINT_CLIP9 !== null)) {
           paintFxList9(fxCtx9, fx, { zoom, tilePx, zx, zy, cw, ch, Bd, trim9, detailAt, swarmDone9, splitView9: PAINT_CLIP9 !== null });
+        }
+        /* 시험 무늬(위 DIAG_GRID9) — GL 층: 1px 흰 고리를 64px 격자 교점에 · 2D 효과 캔버스: 기기 픽셀 한 줄 검정 + 흰 줄. */
+        if (DIAG_GRID9) {
+          for (let gy9 = 32; gy9 < ch; gy9 += 64) for (let gx9 = 32; gx9 < cw; gx9 += 64) gl9.prim(2, gx9, gy9, 12, 12, "#ffffff", 1, 1 / Bd);
+          if (fctx9 && fcv9) {
+            fctx9.save(); fctx9.setTransform(1, 0, 0, 1, 0, 0);
+            for (let gx9 = 0; gx9 < fcv9.width; gx9 += Math.round(64 * Bd)) { fctx9.fillStyle = "#000"; fctx9.fillRect(gx9, 0, 1, fcv9.height); fctx9.fillStyle = "#fff"; fctx9.fillRect(gx9 + 1, 0, 1, fcv9.height); }
+            for (let gy9 = 0; gy9 < fcv9.height; gy9 += Math.round(64 * Bd)) { fctx9.fillStyle = "#000"; fctx9.fillRect(0, gy9, fcv9.width, 1); fctx9.fillStyle = "#fff"; fctx9.fillRect(0, gy9 + 1, fcv9.width, 1); }
+            fctx9.restore();
+          }
         }
         /* 분할 칸이면 그 오림 네모만 지우고·칠하고·옮긴다(gl9 clip — 판의 나머지는 버리는 화소다). */
         const pcl9 = PAINT_CLIP9;
