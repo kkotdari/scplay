@@ -14876,7 +14876,9 @@ export default function ReplayMotionPlayer({
   /** 칸마다의 미니맵 캔버스(좌하단 · 2026-09, 요청: "각 화면의 좌하단에 자신의 시야가 적용된 미니맵을 표시"). */
   const splitMiniRef9 = useRef(new Map<string, HTMLCanvasElement>());
   /** 팀마다 한 장 구운 미니맵(땅 + 팀 안개 + 팀 점) — 칸은 이것을 베끼고 제 네모만 얹는다(요청: "미니맵을 복사?하여 부하 적게"). */
-  const teamMiniRef9 = useRef(new Map<number, { cv: HTMLCanvasElement; grid: Uint8Array | null; img: ImageData | null; fog: HTMLCanvasElement | null; src?: unknown; tq?: number; ver?: number }>());
+  const teamMiniRef9 = useRef(new Map<number, { cv: HTMLCanvasElement; grid: Uint8Array | null; img: ImageData | null; fog: HTMLCanvasElement | null; src?: unknown; tq?: number; ver?: number;
+    /** 임자별 점(fx·fy·임자·건물인가) — 칸 그림이 그 칸 사람의 점만 원작 초록으로 덧찍는 자(아래 ★ 주인 점). */
+    dots?: { fx: number; fy: number; raw: string; b: boolean }[] }>());
   /** 작게 구운 땅 한 장(미니맵 바탕) — 큰 땅 판에서 한 번만 줄여 둔다. */
   const splitMiniBgRef9 = useRef<HTMLCanvasElement | null>(null);
   /** 미니맵을 마지막으로 구운 벽시계(ms) — 초당 여덟 장이면 족하다(칸 미니맵은 손짓이 없다). */
@@ -15027,7 +15029,14 @@ export default function ReplayMotionPlayer({
       };
       for (const d9 of ops9) dot9(d9);
       /* 칸 컬링(splitCull9) 밖의 몸은 장에 점으로만 실려 온다(miniExtra) — 그것도 찍는다. */
-      for (const d9 of ua9 ? decodeSub9(ua9).miniExtra : miniExtraRef.current) dot9(d9);
+      const extra9 = ua9 ? decodeSub9(ua9).miniExtra : miniExtraRef.current;
+      for (const d9 of extra9) dot9(d9);
+      /* ★ 임자별 점 목록 — 팀 판은 팀마다 한 장이라 여기서 색을 못 바꾼다. 칸 그림을 만들 때(아래 ★ 주인 점) 그 칸 사람의 점만
+         원작 초록으로 덧찍도록 임자를 적어 둔다(op 는 pickRaw · 걷어낸 점은 raw). */
+      const dl9: { fx: number; fy: number; raw: string; b: boolean }[] = [];
+      for (const d9 of ops9) if (d9.color && d9.pickRaw) dl9.push({ fx: d9.fx, fy: d9.fy, raw: d9.pickRaw, b: d9.wFrac !== undefined });
+      for (const d9 of extra9) if (d9.color && d9.raw) dl9.push({ fx: d9.fx, fy: d9.fy, raw: d9.raw, b: d9.wFrac !== undefined });
+      tm9.dots = dl9;
       baked9.set(key9, cv9);
       return cv9;
     };
@@ -15056,6 +15065,23 @@ export default function ReplayMotionPlayer({
       m9.imageSmoothingEnabled = true;
       m9.imageSmoothingQuality = "low";   // 256px 판을 백여 px 로 줄이는 데 고품질 필터는 값만 든다(헤드리스 칸당 4ms)
       m9.drawImage(src9, 0, 0, bw9, bh9);
+      /* ★ **주인 점** — 그 칸 사람의 점은 원작 초록(2026-10-09, 요청: "주인 있는 경우 미니맵의 그 사람 색깔이 원작처럼 녹색으로(마커색) —
+         분할화면 안의 미니맵과 독의 미니맵 모두") — 팀 판 위에 그 사람 것만 다시 찍는다(크기 자는 bake9 의 uS9·bS9 를 칸 크기로 줄인 값).
+         독 미니맵은 ReplayFullscreenMinimap 의 ownRaw 가 같은 일을 한다. */
+      {
+        const dl9 = teamMiniRef9.current.get(teamOfRaw(cell9.raw) ?? 0)?.dots;
+        if (dl9) {
+          const k9 = bw9 / MW9;
+          const us9 = Math.max(1, Math.max(1.5, MW9 * 0.013) * k9);
+          const bs9 = Math.max(1.5, Math.max(2.5, MW9 * 0.022) * k9);
+          m9.fillStyle = UI_OWN9;
+          for (const d9 of dl9) {
+            if (d9.raw !== cell9.raw) continue;
+            const sz9 = d9.b ? bs9 : us9;
+            m9.fillRect(d9.fx * bw9 - sz9 / 2, d9.fy * bh9 - sz9 / 2, sz9, sz9);
+          }
+        }
+      }
       /* 핑 — 그 사람 것과 같은 편 것만 · 제 것 원작 초록 · 같은 편은 색 모드(2026-10 "미니맵 내 색 포함") · 번지는 고리. */
       if (livePings9.length > 0 && entData) {
         const tm0 = teamOfRaw(cell9.raw);
@@ -18946,6 +18972,9 @@ export default function ReplayMotionPlayer({
                       : fsViewAt}
                     viewColor={splitOn9 && splitPick9 ? modeColor(splitPick9, teamOfRaw(splitPick9)) : undefined}
                     zoom={zoom} pan={pan}
+                    /* ★ 주인의 점은 원작 초록(2026-10-09, 요청) — 개인 추적·자동 중계는 화면 주인, 분할은 고른 칸의 사람. */
+                    ownRaw={splitOn9 ? splitPick9 : uiOwnerRef9.current}
+                    ownColor={UI_OWN9}
                     painter={miniPaintRef} live={viewLive9}
                     onSeek={fsSeek}
                     onWheelZoom={fsWheelZoom}

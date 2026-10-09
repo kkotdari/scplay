@@ -19,7 +19,8 @@ import { pWrap } from "./perf9";
 
 /** 미니맵에 찍는 한 점 — 재생기가 그리는 op에서 필요한 넷만 본다. `wFrac`이 있으면
  *  건물이라 한 단 크게 찍는다(원작 미니맵도 건물이 더 크다). */
-export type MiniDot = { fx: number; fy: number; color: string; wFrac?: number };
+/** 임자(`raw` — 걷어낸 점 miniExtra · `pickRaw` — 그리는 op 그대로)는 **화면 주인의 점을 원작 초록으로** 바꿔 찍는 자다(2026-10-09). */
+export type MiniDot = { fx: number; fy: number; color: string; wFrac?: number; raw?: string; pickRaw?: string };
 /** 미니맵 핑 — 지도 분수 자리 · 색 · 나이(3초 창의 0~1). 원작처럼 미니맵에도 번지는 고리로 그린다(2026-10). */
 export type MiniPing = { fx: number; fy: number; color: string; age: number };
 
@@ -35,7 +36,7 @@ const MINI_FOG_B = 14;
 export default function ReplayFullscreenMinimap({
   image, grid, ratio, dotsRef, extraRef, pingsRef, tick, viewAt, viewColor, zoom, pan, onSeek, onWheelZoom,
   unproject, fog, painter, live,
-  warming,
+  warming, ownRaw, ownColor,
 }: {
   /** 장면이 아직 데워지는 중인가 — 참이면 **아무것도 안 보인다**(지적: "지도 초기 로딩
    *  시 초록색 맵 뜨는 거랑 안개 없이 지도 전체 뜨는 거 수정했는데 미니맵은 그대로야").
@@ -60,6 +61,10 @@ export default function ReplayFullscreenMinimap({
    *  밖을 보여 주는 것이 일이라, 걷어낸 것도 여기서는 찍어야 한다. 없으면 확대할수록
    *  미니맵이 텅 빈다. */
   extraRef?: { current: readonly MiniDot[] };
+  /** ★ 화면 주인(개인 추적·자동 중계 · 분할은 고른 칸)의 점은 **원작 초록**(2026-10-09, 요청: "주인 있는 경우 미니맵의 그 사람
+   *  색깔이 원작처럼 녹색으로(마커색)") — 그 사람의 점(`raw`/`pickRaw` 가 ownRaw)만 ownColor 로 찍고 나머지는 제 색 그대로. */
+  ownRaw?: string | null;
+  ownColor?: string;
   /** 미니맵 핑(2026-10) — 재생기가 렌더마다 채운다. 색은 재생기가 정한다(원작 규칙 · 임자색). */
   pingsRef?: { current: readonly MiniPing[] };
   /** 다시 그릴 신호(재생 시각) — 이 값이 바뀔 때만 덧그린다. */
@@ -359,7 +364,7 @@ export default function ReplayFullscreenMinimap({
       const s = d.wFrac !== undefined ? bS : uS;
       // 입체 보기의 원근을 벗겨 **평면 지도 분수**로 되돌린다(위 unproject 주석).
       const [mx, my] = unproject ? unproject(d.fx, d.fy) : [d.fx, d.fy];
-      c.fillStyle = d.color;
+      c.fillStyle = ownRaw && ownColor && (d.pickRaw ?? d.raw) === ownRaw ? ownColor : d.color;
       c.fillRect(mx * w - s / 2, my * h - s / 2, s, s);
     }
     /* ③-2 핑 — 원작처럼 미니맵에도 번지는 고리(2026-10, 요청: "미니맵 내 색 포함"). 나이 0 → 1 동안 반지름이 커지고 흐려진다.

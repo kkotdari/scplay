@@ -4192,6 +4192,12 @@ export function deriveWorld9(inp: {
       let land9 = false;
       let fl9: (typeof buildsSrc)[number] | undefined;
       let sa9 = Infinity;
+      /* ★ 날아오는 것은 **테란 건물뿐**이다(2026-10-09, 신고: "프로토스 여러 개 건물 지을 때 소환구가 아니라 건물로 바로 나오는 경우") —
+         아래 짝짓기는 '같은 임자·같은 종류의 앞 줄이 내 시작 시각(±0.35초)에 걷혔으면 거기서 날아왔다'인데 종족을 안 봤다. 프로토스·
+         저그는 건물이 못 뜨므로, 같은 종류 하나가 걷히는 그 순간(취소·파괴 — 여러 개 짓는 러시·수비에서 흔하다) 딴 자리에 새로 선 것이
+         '날아온 건물'로 잡혀 **공사 없이 완성형으로 바로 섰다**(raising 의 !flownFrom). 종족은 건물 이름이 정하고(마인드 컨트롤된 드론의
+         건물) 모르면 임자의 종족이다. */
+      const flier9 = (raceOfName9(unit9) ?? raceByKey9.get(raw9)) === "테란";
       for (let mi9 = 0; mi9 < mates9.length; mi9 += 1) {
         const j9 = mates9[mi9];
         const [s2, x2, y2, u2, , g2, l2] = buildsSrc[j9];
@@ -4203,7 +4209,7 @@ export function deriveWorld9(inp: {
            '잠깐 사라졌다 스르륵 나타남'으로 보인다. 시각 맞춤도 **딱 같음**에서 한 틱
            여유로 바꾼다: 앞 줄의 끝과 뒤 줄의 시작이 자료에서 미세하게 어긋나면
            같은 증상이 그대로 난다. */
-        if (sec9 > 0 && u2 === unit9 && j9 !== i9 && Math.abs((g2 ?? 0) - sec9) <= 0.35) {
+        if (flier9 && sec9 > 0 && u2 === unit9 && j9 !== i9 && Math.abs((g2 ?? 0) - sec9) <= 0.35) {
           if (l2 !== undefined) land9 = true;
           if (!fl9 && (g2 ?? 0) > 0 && (x2 !== x9 || y2 !== y9)) fl9 = buildsSrc[j9];
         }
@@ -5564,7 +5570,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           /* 건물 점은 **한 단 크게** 찍힌다 — 미니맵이 wFrac의 유무로 유닛과
              건물을 가른다(그쪽 uS·bS). 값은 안 읽으므로 0이면 된다. */
           miniExtra.push({
-            fx: dfx9, fy: dfy9, color: modeColor(raw, bteam9), wFrac: 0,
+            fx: dfx9, fy: dfy9, color: modeColor(raw, bteam9), wFrac: 0, raw,   // raw — 미니맵이 주인의 점을 초록으로 바꿔 찍는 자
           });
           return null;
         }
@@ -7579,7 +7585,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       const [in9, dfx9, dfy9] = onScreen9(rawPos.x, rawPos.y);
       if (!in9) {
         // 점 하나만 남긴다 — 미니맵은 화면 밖을 봐야 한다(위 miniExtra ★).
-        miniExtra.push({ fx: dfx9, fy: dfy9, color: modeColor(e.raw, team) });
+        miniExtra.push({ fx: dfx9, fy: dfy9, color: modeColor(e.raw, team), raw: e.raw });
         return null;
       }
     }
