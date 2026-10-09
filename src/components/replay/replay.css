@@ -4324,8 +4324,9 @@
    무대 폭 26%·키 34% · --split-tile 상한 · is-cast 손짓 끊기)과 그 크기 담기(container-type) — 미니맵은 독의 우물 하나뿐이다. */
 .scr-fs-solo { position: absolute; inset: 0; z-index: 30000; pointer-events: none; }
 .scr-fs-layer.is-fs .scr-fs-solo { top: var(--safe-top, 0px); }
-/* 받침이 무대 아래 가운데를 덮는 만큼(--dock-lift · dockFit9) 이름표·자막을 올린다(2026-10-09 층). */
+/* 받침이 무대 아래 가운데를 덮는 만큼(--dock-lift · dockFit9) 이름표·자막을 올린다(2026-10-09 층). 분할 칸은 받침에 걸리는 바닥 줄 칸만(--cell-lift · 셀 JSX). */
 .scr-fs-solo-cap { pointer-events: none; bottom: calc(3px * var(--dk) + var(--dock-lift, 0px)); }
+.scr-split-cell > .scr-split-cap { bottom: calc(3px * var(--dk) + var(--cell-lift, 0px)); }
 /* (걷어냄 · 2026-10-09 — 아래 규칙은 옛 TV 단추의 것 · 깜빡임 박자만 독 로스터의 AUTO 가 쓴다) ★ TV 단추는 **아이콘 줄 맨 왼쪽의 동그라미**다(2026-09, 요청: "중계버튼 버튼로우 왼쪽으로 이동하고 동그라미로 변경및 크기색상 디자인
    다른 버튼과 통일(활성시 초록불깜빡임 유지)") — 꼴은 형제 우물 그대로(위 .scr-tb … :not(.is-on) 규칙)이고, 켜짐만 초록 테 + 아이콘이
    밝은 초록 ↔ 어두운 초록으로 깜빡인다(검정으로 꺼지면 어두운 우물에 묻혀 '꺼진 단추'로 읽힌다). */

@@ -1317,7 +1317,10 @@ AUTO 글자 합성) · 현재 화면에 보여주는 화면 주인(들)은 기�
   솟은 몫은 **받침** `.scr-fs-minipanel::before`(우물 둘레 틀 여백 `--dock-out` 만큼 두른 쇠 덩이 · 위·양옆 테를 제가 긋고 아래는 쇠판 윗선의 테를 3px 덮어 이음매를 지운다 ·
   미니맵 상자는 z 1 로 그 위)가 받친다. 쇠판은 `position: relative; z-index: 0`(전체화면 12) — 솟은 받침이 앞 형제인 무대(z 0) 위에 그려지는 자.
 - 지도는 쇠판 윗선까지 내려오고 받침이 그 아래 가운데를 덮는다 → 화면 주인 이름표(.scr-fs-solo-cap)·자막(.scr-cast-caption)은 `--dock-lift`(= (up − 1)·h + 틀 여백 + 테 ·
-  dockFit9 가 뿌리 .scr-fs-layer 에 적는다 · 미니맵을 끄면 0)만큼 올라서고, 분할 격자(.scr-split/.scr-split-under)는 그만큼 아래를 비운다(받침 옆은 밑층의 어두운 띠).
+  dockFit9 가 뿌리 .scr-fs-layer 에 적는다 · 미니맵을 끄면 0)만큼 올라선다. 분할 격자는 아래를 **안 비운다**(되요청: "분할보기도 아래 비우지 않기" — 한때 paddingBottom 에
+  더했다가 되물림) — 받침이 덮는 자리(dockFit9 pedL~pedR · 무대 왼끝 기준)에 이름표가 걸리는 **바닥 줄 칸만** `--cell-lift`(셀 JSX cellLift9 · 이름표 가운데 x 가 받침 ±80px 안)로
+  그만큼 올린다: 셋 기둥 판(3×2 · 3×3)의 가운데 아랫칸 · 폰 위아래 두 칸의 아랫칸 · 두 기둥 판은 안 걸린다.
 - ⚠ 쇠판에 `clip-path` 로 윗선을 깎는 길은 되물렸다 — 툴박스에서 위로 펼치는 목록(배속·음악)까지 잘린다. 쇠를 가짜 요소에 떼어 깎는 길도 지웠다(받침 넘침이 더 단순).
 - 실측 1080p: 받침 위 = 무대 바닥 − 44(lift 37 + 6 + 1) · 이름표 y 754(옛 798) · 자막 734 · 전체화면도 같은 층. 폰 세로: 미니맵 168 이 쇠판 위로 28 솟는다.
-- 🔎 `perf-check --wide … --track 정구 --capprobe atk --tagprobe --shot x.png`(이름표·자막이 받침 위) · `--players 4 --split x.png`(칸 바닥 772 = 무대 816 − 44).
+- 🔎 `perf-check --wide … --track 정구 --capprobe atk --tagprobe --shot x.png`(이름표·자막이 받침 위) · `--players 6 --split x.png`(칸 바닥 816 = 무대 끝 · 가운데 아랫칸 타센의
+  이름표만 받침 위로) · `--ios --players 2 --split`(아랫칸 Rex 의 이름표가 받침 위).

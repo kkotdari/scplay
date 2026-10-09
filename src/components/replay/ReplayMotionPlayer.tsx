@@ -18228,7 +18228,8 @@ export default function ReplayMotionPlayer({
    *       세로 가운데) · 하나도 안 들면 안 보인다(is-noinfo). 틀 키 = h(가장 큰 우물) · 틀은 그 셋만큼만 넓고 나머지 독 폭은 빈 쇠로 남는다.
    *  설계 치수(h0 · 인포창 폭 · 틈 · 여백)는 CSS 가 쥔다 — 숨은 자(.scr-fs-dockprobe)의 계산값을 읽어 한 벌로 쓴다(JS 에 상수를 베끼지 않는다).
    *  결과는 상태(dockFit9 → 틀의 --dock-h · --info-k · is-noinfo)로 내려 CSS 가 자리를 잡는다 · 독 줄 폭은 이 결과에 안 매이므로 되먹임이 없다. */
-  const [dockFit9, setDockFit9] = useState<{ h: number | null; ki: number; k: number; lift: number }>({ h: null, ki: 1, k: 1, lift: 0 });
+  const [dockFit9, setDockFit9] = useState<{ h: number | null; ki: number; k: number; lift: number; pedL: number; pedR: number; rowW: number }>(
+    { h: null, ki: 1, k: 1, lift: 0, pedL: 0, pedR: 0, rowW: 0 });
   useLayoutEffect(() => {
     const row9 = dockRowRef9.current;
     const mk9 = dockMarkRef9.current;
@@ -18255,10 +18256,17 @@ export default function ReplayMotionPlayer({
       const room9 = W9 - pairW9(k9) - sep9;   // 미니맵 폭에도 --mini-up 이 들어 있다(pairW9)
       const ki9 = INFO_STEPS9.find((k) => infoW9 * k <= room9) ?? 0;
       /* ★ 받침이 무대 위로 솟은 몫(2026-10-09, 요청: "독 윗부분은 일자가 아니라 요소에 맞춰서 층이 있게" — replay.css 쇠판 ★★) = (up − 1)·h + 틀 여백 + 테. 뿌리(.scr-fs-layer)에
-         --dock-lift 로 적어 화면 주인 이름표·자막이 그만큼 올라서고(.scr-fs-solo-cap · .scr-cast-caption), 분할 격자는 그만큼 아래를 비운다(아래 JSX paddingBottom).
-         미니맵이 없으면(N) 0. */
+         --dock-lift 로 적어 화면 주인 이름표·자막이 그만큼 올라선다(.scr-fs-solo-cap · .scr-cast-caption). 분할 격자는 아래를 **안 비운다**(되요청: "분할보기도 아래 비우지 않기")
+         — 받침이 덮는 자리(pedL~pedR · 무대 왼끝 기준 px)에 걸리는 바닥 줄 칸의 이름표만 그만큼 올린다(아래 셀 JSX --cell-lift). 미니맵이 없으면(N) 0. */
       const lift9 = miniOn9 && W9 > 0 ? Math.max(0, h9 * (up9 - 1) + out9 + 1) : 0;
-      setDockFit9((p9) => (Math.abs((p9.h ?? -1) - h9) < 0.5 && Math.abs(p9.ki - ki9) < 0.005 && Math.abs(p9.lift - lift9) < 0.5 ? p9 : { h: h9, ki: ki9, k: k9, lift: lift9 }));
+      const mp9 = fr9.querySelector<HTMLElement>(".scr-fs-minipanel");
+      const rowR9 = row9.getBoundingClientRect();
+      const mr9 = mp9?.getBoundingClientRect();
+      const pedL9 = mr9 ? Math.round(mr9.left - rowR9.left - out9) : 0;
+      const pedR9 = mr9 ? Math.round(mr9.right - rowR9.left + out9) : 0;
+      setDockFit9((p9) => (Math.abs((p9.h ?? -1) - h9) < 0.5 && Math.abs(p9.ki - ki9) < 0.005 && Math.abs(p9.lift - lift9) < 0.5
+        && p9.pedL === pedL9 && p9.pedR === pedR9 && p9.rowW === row9.clientWidth
+        ? p9 : { h: h9, ki: ki9, k: k9, lift: lift9, pedL: pedL9, pedR: pedR9, rowW: row9.clientWidth }));
       setRosterPaged9(smallDevice9 || k9 < 0.999);
       fr9.closest<HTMLElement>(".scr-fs-layer")?.style.setProperty("--dock-lift", `${lift9.toFixed(1)}px`);
     };
@@ -19070,7 +19078,7 @@ export default function ReplayMotionPlayer({
                캔버스가 칸 네모에 제자리로 칠하고, 머리·테·누름은 맨 위 층(.scr-split)이다. 셋이 같은 격자다. */
             <div
               className="scr-split-under" aria-hidden
-              style={{ paddingBottom: splitTbH9 + dockFit9.lift, gridTemplateColumns: `repeat(${splitLay9.cols}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${splitLay9.rows}, minmax(0, 1fr))` }}   /* 받침(--dock-lift)만큼 아래를 비운다 */
+              style={{ paddingBottom: splitTbH9, gridTemplateColumns: `repeat(${splitLay9.cols}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${splitLay9.rows}, minmax(0, 1fr))` }}
             >
               {splitLay9.cells.map((c9) => (
                 <span key={c9.raw} className="scr-split-ucell" style={{ gridColumn: c9.c + 1, gridRow: c9.r + 1 }}>
@@ -19110,7 +19118,7 @@ export default function ReplayMotionPlayer({
                손짓은 여기서 끊는다(무대의 끌기·집기가 덮인 지도에 안 걸리게). */
             <div
               className={cx("scr-split", `is-n${splitLay9.cells.length}`)}
-              style={{ paddingBottom: splitTbH9 + dockFit9.lift, gridTemplateColumns: `repeat(${splitLay9.cols}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${splitLay9.rows}, minmax(0, 1fr))` }}   /* 받침(--dock-lift)만큼 아래를 비운다 */
+              style={{ paddingBottom: splitTbH9, gridTemplateColumns: `repeat(${splitLay9.cols}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${splitLay9.rows}, minmax(0, 1fr))` }}
               onPointerDown={(e) => e.stopPropagation()}
               onWheel={(e) => e.stopPropagation()}
               onDoubleClick={(e) => e.stopPropagation()}
@@ -19122,6 +19130,12 @@ export default function ReplayMotionPlayer({
                 const tm9 = melee ? undefined : teamOfRaw(c9.raw);
                 const nm9 = bases.find((b9) => b9.key === c9.raw)?.name ?? c9.raw;
                 /* (되물림 · 2026-10-09) 맞대결 칸 머리의 경계 쪽 자리(is-cap-r/l/b/t)와 맞대결 표 — 자동 분할이 없어졌다. 머리는 바닥 가운데 하나다. */
+                /* ★ 바닥 줄 칸의 이름표가 미니맵 받침(독 위로 솟은 쇠 · dockFit9 pedL~pedR)에 가리면 그만큼 올린다(2026-10-09, 되요청: "분할보기도 아래 비우지 않기" —
+                   격자는 받침 아래까지 내려가고 받침이 가운데 아래를 덮는다). 셋 기둥 판의 가운데 아랫칸이 그 자리다 · 두 기둥은 안 걸린다. */
+                const cw9 = dockFit9.rowW > 0 ? dockFit9.rowW / splitLay9.cols : 0;
+                const capX9 = (c9.c + 0.5) * cw9;
+                const cellLift9 = c9.r === splitLay9.rows - 1 && dockFit9.lift > 0 && cw9 > 0 && capX9 > dockFit9.pedL - 80 && capX9 < dockFit9.pedR + 80
+                  ? dockFit9.lift : 0;
                 return (
                   <div
                     key={c9.raw}
@@ -19132,7 +19146,7 @@ export default function ReplayMotionPlayer({
                     onClick={() => setSplitPick9((p9) => (p9 === c9.raw ? null : c9.raw))}
                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSplitPick9((p9) => (p9 === c9.raw ? null : c9.raw)); } }}
                     className={cx("scr-split-cell", tm9 && "is-team", splitPick9 === c9.raw && "is-pick")}
-                    style={{ gridColumn: c9.c + 1, gridRow: c9.r + 1, ...(tm9 ? { borderColor: TEAM_COLOR[tm9] } : {}) }}
+                    style={{ gridColumn: c9.c + 1, gridRow: c9.r + 1, ...(tm9 ? { borderColor: TEAM_COLOR[tm9] } : {}), ...(cellLift9 > 0 ? { ["--cell-lift" as string]: `${cellLift9.toFixed(1)}px` } : {}) } as React.CSSProperties}
                     aria-label={`${cap9.text} 화면`}
                   >
                     {/* 칸 머리 — 이름 칩 하나(바닥 가운데 · 2026-10-09, 요청 1: "화면 주인 닉네임택을 화면 하단 가운데로"). 옛 맞대결 배지·표는 걷었다.
