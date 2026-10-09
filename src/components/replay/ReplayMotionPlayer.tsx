@@ -13,7 +13,7 @@ const GHOST_PLATE_COL9 = "#3ee06a";
 import ReplayGuide from "./ReplayGuide";
 import QMarkIcon from "./QMarkIcon";
 /* 중계(중요도 기반 추적) — 편성표를 굽는 순수 문. 경기 한 벌에 한 번 돌고, 재생은 짚기만 한다. */
-import { castAt9, castPlan9, type CastRole9, type CastSeg9 } from "./cast9";
+import { castAt9, castPlan9, type CapPart9, type CastRole9, type CastSeg9 } from "./cast9";
 /* 미니맵 — 이제 **제 오버레이 판**이고 제 아이콘으로 여닫는다(요청: "미니맵 오버레이
    및 아이콘 추가"). 도구 판 안에 세들어 살던 시절과 달리, 켜고 끄는 것이 이것 하나다. */
 import ReplayFullscreenMinimap, { type MiniDot, type MiniPing, type MiniTag } from "./ReplayFullscreenMinimap";
@@ -1170,6 +1170,8 @@ const ROSTER_LABEL9: Record<RosterCol9, string> = { res: "자원", sup: "인구"
 const ROSTER_PAGE_MS9 = 6000;
 /** 쪽 미끄럼 시간(ms) — replay.css `.scr-dock-roster.is-paged .scr-dock-strip` 의 transition 0.45s 와 한 값. 되감기(아래 ★)가 이 뒤에 한다. */
 const ROSTER_SLIDE_MS9 = 450;
+/** 머리 줄(AUTO) 아래 틈(줄 키의 몫 · 2026-10-09, 요청: "자동 중계 버튼 … 외부 아래 갭 늘려줘") — --rows 셈에도 든다 · replay.css .scr-dock-headrow. */
+const ROSTER_HEAD_GAP9 = 0.3;
 /** 팀 사이 틈(줄 키의 몫 · 2026-10-09, 요청: "1팀 2팀 사이를 좀 더 갭") — --rows 셈에도 든다. */
 const ROSTER_GAP_ROWS9 = 0.6;
 const smallDevice9 = ((): boolean => {
@@ -10314,26 +10316,14 @@ export default function ReplayMotionPlayer({
   /* ⚠ 분할에서 누른 칸이 **중계 주인보다 먼저**다 — 맞대결 자동 분할은 castOn 이 켜진 채라 castRaw 가 먼저 오면 칸을 눌러도
      독이 중계 주인에 남았다(지적: "분할시 화면 클릭해도 인포창과 미니맵이 그사람걸로 안바뀜"). */
   const capRaw9 = trackRaw ?? (splitOn9 ? splitPick9 : null) ?? (castOn ? castRaw : null);
-  /** ★★ 중계 자막(2026-10-09, 요청 2: "공격이나 교전 발생시 더 잘한 사람 보여주고 화면주인 닉네임택은 원래자리에 표시하고 누구누구누구의 공격/누구누구와
-   *  누구를 공격/누구와 함께 누구누구와 교전 이런 자막을 닉넴택 위쪽에 좀 띄우고 노출(정 가운데 X)") — 자동 중계의 지금 토막이 맞대결(foe · role)이고 그 창
-   *  (foeTo) 안이면 **화면 주인의 몫**으로 글귀를 짓는다: 방어 "A가 공격함"(같은 편이 함께 막으면 " · C가 헬프옴") · 공격 "B를 공격"(같은 편이 함께 치면 "C와 함께 B를 공격") · 교전 "B와 교전"
-   *  ("C와 함께 B와 교전"). 이름은 로스터 이름(bases) · 공격 표적 둘은 "A와 B" · 그 밖의 여럿은 "A·B·C". 조사는 마지막 글자의 받침(koWa9·koEul9).
-   *  '더 잘한 사람'은 편성표가 고른다(cast9 — 맞대결의 동점은 더 많이 준 쪽). 개인 추적·손 분할에는 안 선다. */
-  const castCap9 = ((): { role: CastRole9; text: string } | null => {
-    if (!castOn || trackRaw !== null || !castSeg9?.foe || !castSeg9.role || t >= (castSeg9.foeTo ?? 0)) return null;
-    const nm9 = (r9: string): string => bases.find((b9) => b9.key === r9)?.name ?? r9;
-    const foes9 = (castSeg9.foes && castSeg9.foes.length > 0 ? castSeg9.foes : [castSeg9.foe]).map(nm9);
-    const allies9 = (castSeg9.allies ?? []).map(nm9);
-    const dot9 = (a9: string[]): string => a9.join("·");
-    const lastF9 = foes9[foes9.length - 1];
-    const with9 = allies9.length > 0 ? `${dot9(allies9)}${koWa9(allies9[allies9.length - 1])} 함께 ` : "";
-    /* 방어는 "X가 공격함" + 같은 편이 함께면 " · Y가 헬프옴"(2026-10-09, 요청: "수비하는 입장이 주인공일땐 자막이 누가 공격함. 누가 헬프옴"). */
-    const text9 = castSeg9.role === "def"
-      ? `${dot9(foes9)}${koGa9(lastF9)} 공격함${allies9.length > 0 ? ` · ${dot9(allies9)}${koGa9(allies9[allies9.length - 1])} 헬프옴` : ""}`
-      : castSeg9.role === "atk" ? `${with9}${foes9.length === 2 ? `${foes9[0]}${koWa9(foes9[0])} ${foes9[1]}` : dot9(foes9)}${koEul9(lastF9)} 공격`
-        : `${with9}${dot9(foes9)}${koWa9(lastF9)} 교전`;
-    return { role: castSeg9.role, text: text9 };
-  })();
+  /** ★★ 중계 자막 — **모든 토막**(2026-10-09, 요청: "앞으로 자동중계에서는 모든 장면에 자막 삽입 · 장면의 전투 내용이나 특수한 기술/성과(견제, 전투, 공격뿐 아니라 방어,
+   *  기술 개발, 건설 등)를 자연스러운 말투로(개조식) · 화려한 표현 X 담백하고 단순하게" · "자막 중 닉네임도 모두 닉네임택으로 처리 · 줄 넘어가면 줄바꿈 · 자막 글씨는
+   *  닉네임택보다 1스텝 작게") — 글귀는 편성표(cast9 castCaps9)가 토막마다 조각(CapPart9 · 글 / 사람)으로 적어 두고, 여기서는 사람 조각을 **이름표 칩**(chipStyle · 색 모드를
+   *  따른다)으로, 조사(가/이 · 를/을 · 와/과)는 그 사람의 **표시 이름**(bases)의 받침으로 붙인다. 자동 중계일 때만(개인 추적·손 분할은 없음). 옛 맞대결 창(foeTo) 문은 걷었다. */
+  const castCap9: CapPart9[] | null = castOn && trackRaw === null && castSeg9?.caps && castSeg9.caps.length > 0 ? castSeg9.caps : null;
+  const capName9 = (r9: string): string => bases.find((b9) => b9.key === r9)?.name ?? r9;
+  const capParticle9 = (nm9: string, p9: CapPart9["p"]): string =>
+    (p9 === "ga" ? koGa9(nm9) : p9 === "eul" ? koEul9(nm9) : p9 === "wa" ? koWa9(nm9) : p9 === "ui" ? "의" : "");
   /** 첫 칸의 자리를 미리 잡는 **이름표 전부**(요청: "자막이 글자길이에 따라 레이아웃 흔들리지 않게 미리 공간 확보") —
    *  로스터 사람들의 이름표를 다 지어 같은 격자 칸에 숨겨(visibility hidden) 겹쳐 둔다. 칸 폭은 그중 가장 넓은 것이라
    *  사람이 갈려도 첫 칸이 안 흔들린다. 숫자 칸 넷은 CSS 가 ch 폭으로 잡는다.
@@ -12338,6 +12328,12 @@ export default function ReplayMotionPlayer({
       de.style.overscrollBehaviorX = prevO;
     };
   }, [fsOn]);
+  /** 독 맞춤의 결과(아래 ★★ dockFit9 effect 가 채운다) — 틀의 --dock-h · 인포창 배수 · 받침 솟은 몫 · 받침 좌우 · 독 줄 폭. 여기(무대 크기 effect 앞)에 선언하는 까닭은
+   *  무대 크기 effect 의 의존성에 들어야 해서다(2026-10-09, 지적: "페이지 처음 로딩시 지도 우측과 하단이 조금씩 비었다가 꽉 채워지는 현상" · "독 접었다 펼 때 재생기가
+   *  잠깐 안전영역까지 내려갔다 다시 올라옴" — 독 맞춤이 쇠판 키를 바꾸면 무대 키가 같이 바뀌는데, 무대 크기 상태는 ResizeObserver(칠한 **뒤**)로만 따라와 한 프레임을
+   *  옛 덮는 폭(fsCoverW)으로 칠했다 → 오른쪽·아래가 비었다가 채워졌다). */
+  const [dockFit9, setDockFit9] = useState<{ h: number | null; ki: number; k: number; lift: number; pedL: number; pedR: number; rowW: number }>(
+    { h: null, ki: 1, k: 1, lift: 0, pedL: 0, pedR: 0, rowW: 0 });
   /* 무대 크기 — 지도를 이 크기에 맞춰 **덮게**(cover) 깔아야 크롭이 나온다. 화면 회전·
      주소창 여닫힘까지 따라오도록 ResizeObserver로 지켜본다.
      ★ **레이아웃 이펙트**다(같은 지적) — 지나가는 이펙트는 브라우저가 한 번 칠한 **뒤**에
@@ -12439,7 +12435,8 @@ export default function ReplayMotionPlayer({
        그 관찰자는 **다음 프레임에** 온다. 프레임의 높이 예산(frameMaxH)이 뒤늦게 정해질
        때마다 무대는 한 박자 낡은 값으로 남고, 그 사이 덮는 폭(fsCoverW)이 어긋나 판
        아래위에 남는 자리가 생긴다. 예산을 목록에 넣어 **같은 판**에 다시 재게 한다. */
-  }, [fsOn, frameMaxH, wide]);
+    /* ★ 독 맞춤(dockFit9 — 쇠판 키 --dock-h · 받침 솟음)이 바뀌어도 같은 판에서 다시 잰다(위 dockFit9 선언의 지적 둘). */
+  }, [fsOn, frameMaxH, wide, dockFit9.h, dockFit9.lift, dockFit9.ki]);
   useEffect(() => {
     const el = mapRef.current;
     if (!el) return undefined;
@@ -17022,7 +17019,10 @@ export default function ReplayMotionPlayer({
     /* 줄 수 = 머리 줄 하나 + 사람 + 팀 사이 틈(ROSTER_GAP_ROWS9 · 2026-10-09). 팀마다 두던 머리 줄(팀 이름 + 라벨)은 걷었다(요청: "팀1과 2에
        중복으로 라벨을 붙일 필요는 없을 듯 · 오토 중계 버튼이 한 줄 차지하는 게 아쉬운데") — 라벨은 맨 위 한 줄에만, AUTO 단추는 그 줄의
        이름 기둥 자리(카메라 단추 열의 머리)에 앉는다. 4:4 는 열한 줄 → 9.6 줄이라 줄 키가 그만큼 는다. */
-    const rows9 = 1 + teams9.reduce((n9, t9) => n9 + t9.mates.length, 0) + ROSTER_GAP_ROWS9 * Math.max(0, teams9.length - 1);
+    /* ★ 폰은 팀마다 이름이 **두 기둥**(2×2 · 2026-10-09, 요청: "모바일에서 로스터는 각팀 2*2배열로 — 그만큼 폰트를 키우라는 뜻") — 줄 수가 반으로 줄어 줄 키(--rp)가 그만큼
+       큰다(replay.css 폰 상한 30·dk). 머리 줄 아래 틈(ROSTER_HEAD_GAP9 · AUTO 단추 밖 아래 갭)도 줄 수에 든다. */
+    const rows9 = 1 + ROSTER_HEAD_GAP9 + teams9.reduce((n9, t9) => n9 + (smallDevice9 ? Math.ceil(t9.mates.length / 2) : t9.mates.length), 0)
+      + ROSTER_GAP_ROWS9 * Math.max(0, teams9.length - 1);
     const pages9 = rosterPaged9 ? [...ROSTER_PAGES9, ROSTER_PAGES9[0]] : ROSTER_PAGES9;   // 끝의 복제 첫 쪽(위 ★ 되감기)은 쪽 꼴에서만
     const stripStyle9 = rosterPaged9 ? { transform: `translateX(-${rosterPage9 * 100}%)` } : undefined;
     const cell9 = (m: MotionBase, col9: RosterCol9): React.ReactNode => {
@@ -17070,7 +17070,7 @@ export default function ReplayMotionPlayer({
           <React.Fragment key={team}>
             {ti9 > 0 && <div className="scr-dock-gap" aria-hidden />}
             <div className="scr-dock-team">
-              <div className="scr-dock-names">
+              <div className={cx("scr-dock-names", smallDevice9 && "is-grid2")}>
                 {mates.map((m) => {
                   const fallen9 = m.ghost || fallenHome(m);
                   const on9 = castSel9.includes(m.key);
@@ -17092,12 +17092,11 @@ export default function ReplayMotionPlayer({
                           className={cx("scr-motion-teamcol-name scr-dock-name", shownRaws9.has(m.key) && "scr-motion-teamcol-cast")} style={chipStyle(m.key, m.team, CHIP_ROW_A9)}
                           role="button" tabIndex={-1} onClick={() => pickPerson9(m.key)} title={on9 ? "이 사람 화면을 놓는다" : "이 사람 화면을 따라간다 — 둘 이상 켜면 나눠 본다"}
                         >
-                          {/* 종족 배지는 이름 **앞**(2026-10-09, 지적: 뒤에 두면 긴 이름에서 먼저 잘린다 · replay.css .scr-dock-name .scr-motion-teamcol-race).
-                              폰은 칩 **밖**(겹싸개)에 두고 오른쪽 위에 얹는다 — 칩은 overflow hidden 이라 안에 두면 칩 테두리에서 잘렸다(지적). */}
-                          {!smallDevice9 && m.race && raceLetter9(m.race) ? <span className="scr-motion-teamcol-race">{raceLetter9(m.race)}</span> : null}
+                          {/* 종족 배지는 이름 **앞**(2026-10-09, 지적: 뒤에 두면 긴 이름에서 먼저 잘린다 · replay.css .scr-dock-name .scr-motion-teamcol-race) — 폰도
+                              같다(2026-10-09 되요청: "모바일에서도 종족배지는 그냥 닉네임 왼쪽으로" · 옛 칩 오른쪽 위 오버레이는 걷었다). */}
+                          {m.race && raceLetter9(m.race) ? <span className="scr-motion-teamcol-race">{raceLetter9(m.race)}</span> : null}
                           {m.name}
                         </span>
-                        {smallDevice9 && m.race && raceLetter9(m.race) ? <span className="scr-motion-teamcol-race" aria-hidden>{raceLetter9(m.race)}</span> : null}
                         {trophy9 && <span className="scr-dock-trophy" aria-label="승리">🏆</span>}
                       </span>
                     </div>
@@ -18228,8 +18227,7 @@ export default function ReplayMotionPlayer({
    *       세로 가운데) · 하나도 안 들면 안 보인다(is-noinfo). 틀 키 = h(가장 큰 우물) · 틀은 그 셋만큼만 넓고 나머지 독 폭은 빈 쇠로 남는다.
    *  설계 치수(h0 · 인포창 폭 · 틈 · 여백)는 CSS 가 쥔다 — 숨은 자(.scr-fs-dockprobe)의 계산값을 읽어 한 벌로 쓴다(JS 에 상수를 베끼지 않는다).
    *  결과는 상태(dockFit9 → 틀의 --dock-h · --info-k · is-noinfo)로 내려 CSS 가 자리를 잡는다 · 독 줄 폭은 이 결과에 안 매이므로 되먹임이 없다. */
-  const [dockFit9, setDockFit9] = useState<{ h: number | null; ki: number; k: number; lift: number; pedL: number; pedR: number; rowW: number }>(
-    { h: null, ki: 1, k: 1, lift: 0, pedL: 0, pedR: 0, rowW: 0 });
+  /* dockFit9 상태는 무대 크기 effect 보다 **앞에** 선언돼 있다(아래 ★ 무대 크기 — 독 맞춤이 바뀌면 무대를 같은 판에서 다시 잰다). */
   useLayoutEffect(() => {
     const row9 = dockRowRef9.current;
     const mk9 = dockMarkRef9.current;
@@ -18240,6 +18238,13 @@ export default function ReplayMotionPlayer({
     const fit9 = (): void => {
       const pr9 = fr9.querySelector<HTMLElement>(".scr-fs-dockprobe");
       if (!pr9) return;
+      /* ★ 접힌 독(is-fold · display none)은 폭이 0 이라 셈이 헛돈다 — 마지막 맞춤은 그대로 두고 받침 솟음만 0 으로(2026-10-09, 지적: "독 접었다 펼 때 재생기가 잠깐
+         안전영역까지 내려갔다 다시 올라옴" — 접힌 동안 0 폭으로 셈한 작은 키가 펼 때 한 프레임 보였다). 펼치면 의존성(dockFoldOn9)으로 이 effect 가 칠하기 전에 다시 돈다. */
+      if (row9.clientWidth === 0) {
+        setDockFit9((p9) => (p9.lift === 0 ? p9 : { ...p9, lift: 0 }));
+        fr9.closest<HTMLElement>(".scr-fs-layer")?.style.setProperty("--dock-lift", "0px");
+        return;
+      }
       const cs9 = getComputedStyle(pr9);
       const h0 = parseFloat(cs9.height) || 0;
       const infoW9 = parseFloat(cs9.width) || 0;
@@ -18282,7 +18287,7 @@ export default function ReplayMotionPlayer({
     ro9.observe(row9);
     ro9.observe(fr9);
     return () => ro9.disconnect();
-  }, [fsOn, fsMiniOn, grid.width, grid.height]);
+  }, [fsOn, fsMiniOn, dockFoldOn9, grid.width, grid.height]);
   /* ★★ TV 단추는 **틀 위쪽 왼 끝의 쇠 정사각**이다 — 오른 끝 접기 손잡이와 같은 꼴·같은 크기의 짝(2026-09, 요청: "독 중계 버튼을
      접기 버튼같은 형태로 변경하고 동그란 테두리 제거"). 정보줄(우물) 안의 동그라미였던 것을 틀의 제 칸(1열)으로 꺼냈다 — 그래서
      정보줄은 양쪽에 같은 정사각을 끼고 한가운데에 선다(옛 padding-left 몫은 걷었다).
@@ -19107,7 +19112,11 @@ export default function ReplayMotionPlayer({
               )}
               {/* ★★ 중계 자막(위 castCap9 · 2026-10-09, 요청 2) — 이름표 **바로 위**(정가운데가 아니다). 토막이 갈리면(key) 살짝 떠오른다. */}
               {castCap9 && (
-                <span key={`${castIdx9}:${castCap9.text}`} className={cx("scr-cast-caption", `is-${castCap9.role}`)}>{castCap9.text}</span>
+                <span key={castIdx9} className="scr-cast-caption">
+                  {castCap9.map((p9, i9) => (p9.raw !== undefined
+                    ? <React.Fragment key={i9}><span className="scr-split-chip scr-cast-chip" style={capOf9(p9.raw, p9.raw).chip}>{capName9(p9.raw)}</span>{capParticle9(capName9(p9.raw), p9.p)}</React.Fragment>
+                    : <React.Fragment key={i9}>{p9.text}</React.Fragment>))}
+                </span>
               )}
               {/* (걷어냄 · 2026-10-09, 요청: "앞으로 독 외에 지도에는 미니맵이 있으면 안됨 개인화면이든 중계끄기든") 무대 왼아래의 중계용 작은 미니맵
                   (.scr-fs-solo-mini · 같은 날 요청 2·5 로 세웠던 것) — 미니맵은 독의 우물 하나뿐이다(.scr-fs-minipanel). */}

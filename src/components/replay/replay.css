@@ -3256,8 +3256,10 @@
 .scr-fs-dockmain > .scr-fs-minipanel { position: relative; }
 .scr-fs-dockmain > .scr-fs-minipanel::before {
   content: ""; position: absolute; z-index: 0; pointer-events: none;
-  left: calc(-1 * var(--dock-out)); right: calc(-1 * var(--dock-out)); top: calc(-1 * var(--dock-out) - 1px);
-  height: calc(var(--dock-h) * (var(--mini-up, 1) - 1) + 4px);   /* 우물 위 틀 여백·테부터 쇠판 윗선 아래 3px 까지(쇠판 윗선 = 우물 바닥 − --dock-h − 여백 − 테) */
+  /* ★ 양옆은 틀 테까지(−out − 1 · 폰은 틀이 쇠판 폭 100% 라 받침의 옆 테가 쇠판의 옆 테와 **한 줄**로 겹친다) · 아래는 **쇠판 윗선에서 딱 끝난다**(키 = 솟은 몫 · 옛 +4px 는
+     옆 테가 쇠판 안으로 3px 파고들어 보였다 — 2026-10-09, 지적: "부자연스럽게 테두리가 파고든 거 수정 · 심리스하게"). 쇠판 윗선의 테(2px)는 아래 ::after 띠가 덮는다. */
+  left: calc(-1 * var(--dock-out) - 1px); right: calc(-1 * var(--dock-out) - 1px); top: calc(-1 * var(--dock-out) - 1px);
+  height: calc(var(--dock-h) * (var(--mini-up, 1) - 1));
   background:
     repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px 2px),
     repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.09) 0 1px, transparent 1px 3px),
@@ -3265,6 +3267,17 @@
   box-shadow:
     inset 0 1px 0 #0b0d10, inset 0 2px 0 rgba(255, 255, 255, 0.55),
     inset 1px 0 0 #0b0d10, inset -1px 0 0 #0b0d10, inset 2px 0 0 rgba(255, 255, 255, 0.18), inset -2px 0 0 rgba(0, 0, 0, 0.35);
+}
+/* 받침 발치의 민무늬 띠 — 쇠판 윗선의 테(검은 1px + 흰 1px)를 받침 폭 안에서만 덮어 받침과 쇠판이 한 덩이로 이어진다(옆 테 안쪽까지만 · 받침 옆 테는 쇠판 윗선의 테와
+   귀에서 만난다). 색은 쇠판 맨 위의 쇠(#b2b8c0 · 세로 헤어라인). */
+.scr-fs-dockmain > .scr-fs-minipanel::after {
+  content: ""; position: absolute; z-index: 0; pointer-events: none;
+  left: calc(-1 * var(--dock-out)); right: calc(-1 * var(--dock-out));
+  top: calc(var(--dock-h) * (var(--mini-up, 1) - 1) - var(--dock-out) - 1px); height: 4px;
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px 2px),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.09) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, #b2b8c0, #afb5bd);
 }
 .scr-fs-minipanel .scr-fs-minimap {
   pointer-events: auto; box-sizing: border-box; flex: none;
@@ -3287,7 +3300,7 @@
   /* 사방 안쪽 여백 3/4 → **6/8**·dk(2026-10-09, 요청: "로스터창 사방 패딩 증가") — 줄 키 셈의 빼는 몫도 그만큼(6 → 12). */
   /* 줄 키 상한 13 → **20**·dk(2026-10-09, 요청: "모바일에서 로스터 버튼과 글자가 작아 — 1.5배") — 글자·칩·단추·배지가 다 줄 키 비례라 함께 큰다.
      독 몸도 96 → 120·dk(뿌리 --dock-body)라 2:2 까지 상한에 닿고 3:3 18 · 4:4 14. PC 는 위 pc9 덮어쓰기(round · 28). */
-  --rp: min(calc(24px * var(--dk)), calc((var(--dock-h) - 12px * var(--dk)) / var(--rows, 6)));   /* 20 → 24(2026-10-09 "전광판 글자 크기 20프로 확대" · 글자 12.5) */
+  --rp: min(calc(30px * var(--dk)), calc((var(--dock-h) - 12px * var(--dk)) / var(--rows, 6)));   /* 20 → 24 → **30**(2026-10-09 "모바일 로스터 각 팀 2×2 — 그만큼 폰트를 키우라는 뜻" · 줄이 반이라 글자 15.6) */
   position: absolute; inset: 0; padding: calc(6px * var(--dk)) calc(8px * var(--dk)); box-sizing: border-box;
   display: flex; flex-direction: column; overflow: hidden;
   font-size: calc(var(--rp) * 0.52); line-height: 1; color: #e8eef6; font-variant-numeric: tabular-nums; text-align: left;
@@ -3312,11 +3325,19 @@
 .scr-motion-pc9 .scr-dock-gap::after { left: calc(12px * var(--dks)); right: calc(12px * var(--dks)); }
 /* 머리 줄(.scr-dock-headrow — AUTO 단추 + 칸 라벨 · 2026-10-09)은 여느 팀 덩이와 같은 [이름 기둥 | 자료 띠] 꼴이라 따로 둘 규칙이 없다.
    팀 사이 틈 — 줄 키의 0.6(ROSTER_GAP_ROWS9 · --rows 에 든다) · 가운데 실금 하나로 두 팀을 가른다(요청: "1팀 2팀 사이를 좀 더 갭"). */
-.scr-dock-headrow { flex: none; }
+.scr-dock-headrow { flex: none; margin-bottom: calc(var(--rp) * 0.3); }   /* AUTO 단추 밖 아래 갭(ROSTER_HEAD_GAP9 · 2026-10-09, 요청: "외부 아래 갭 늘려줘") */
 .scr-dock-gap { height: calc(var(--rp) * 0.6); flex: none; position: relative; }
 .scr-dock-gap::after { content: ""; position: absolute; left: calc(4px * var(--dk)); right: calc(4px * var(--dk)); top: 50%; border-top: 1px solid rgba(255, 255, 255, 0.16); }
 .scr-dock-team { display: flex; align-items: flex-start; min-width: 0; flex: none; }
 .scr-dock-names { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
+/* ★ 폰은 팀마다 이름이 **두 기둥**(2×2 · 2026-10-09, 요청: "모바일에서 로스터는 각팀 2*2배열로" — JSX is-grid2) — 줄 수가 반이라 줄 키·글자가 큰다(위 --rp 상한 30). */
+.scr-dock-names.is-grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: calc(4px * var(--dk)); align-content: start; }
+/* 두 기둥의 한 칸은 좁다(폰 세로 전광판 168 → 칸 82 · 실측: "수달이"가 "수달"로 잘렸다) — 카메라 단추 0.84 → 0.7 줄 · 배지 0.6 → 0.5 줄(여백 0.2em) · 칩 여백 2·dk 로 죈다. */
+.scr-dock-names.is-grid2 .scr-roster-cam { height: calc(var(--rp) * 0.7); min-width: calc(var(--rp) * 0.7); padding: 0; }
+.scr-dock-names.is-grid2 .scr-roster-cam svg { width: calc(var(--rp) * 0.5); height: calc(var(--rp) * 0.5); }
+.scr-dock-names.is-grid2 .scr-dock-row { gap: calc(2px * var(--dk)); }
+.scr-motion .scr-fs-rosterpanel .scr-dock-names.is-grid2 .scr-dock-row .scr-dock-name { padding: 0 calc(2px * var(--dk)); font-size: 0.94em; }   /* "크리스"의 끝 글자가 반 잘렸다(실측) */
+.scr-dock-names.is-grid2 .scr-dock-name .scr-motion-teamcol-race { width: calc(var(--rp) * 0.5); height: calc(var(--rp) * 0.5); margin-right: 0.2em; font-size: 0.62em; }
 .scr-dock-data { flex: 0 0 auto; min-width: 0; }
 .scr-dock-strip { display: flex; align-items: flex-start; }
 .scr-dock-page { flex: 0 0 auto; display: flex; flex-direction: column; padding-left: calc(6px * var(--dk)); }
@@ -3362,6 +3383,8 @@
 .scr-roster-cam:hover { background: rgba(255, 255, 255, 0.18); }
 .scr-roster-cam.is-on { box-shadow: inset 0 0 0 1.5px rgba(46, 229, 157, 0.78); color: #3dffa8; }
 .scr-roster-cam-txt { font-size: calc(var(--rp) * 0.42); font-weight: 800; letter-spacing: 0.03em; }
+/* AUTO 알약 — 안 여백 2 → **6**·dk · 둥글기 3 → **6**·dk(2026-10-09, 요청: "자동 중계 버튼 안 패딩 늘리고 래디우스 증가" — PC·폰 다). 아래 갭은 .scr-dock-headrow. */
+.scr-roster-cam-auto { padding: 0 calc(6px * var(--dk)); border-radius: calc(6px * var(--dk)); gap: calc(3px * var(--dk)); }
 .scr-roster-cam-auto.is-on svg, .scr-roster-cam-auto.is-on .scr-roster-cam-txt { animation: scr-cast-blink-well 2s steps(1, end) infinite; }
 @media (prefers-reduced-motion: reduce) { .scr-roster-cam-auto.is-on svg, .scr-roster-cam-auto.is-on .scr-roster-cam-txt { animation: none; } }
 /* PC 짝수 px(위 .scr-motion-pc9 .scr-dock-roster 의 ★) — 칩·단추 키 = 줄 키 − 4 · 단추 그림 ≈ 0.6줄을 짝수로 · AUTO 글자 ≈ 0.42줄 · 트로피 = 글자. */
@@ -3379,26 +3402,25 @@
 /* 이름 기둥 58 → **50%**(2026-10-09, 요청: "글자 20% 확대 대신 닉네임 카드 길이를 적절히 조절") — 글자가 커진 만큼 자료 칸("45%/47%" · "1234/567")이 폭을 더 쓰고 이름 카드가
    그만큼 짧다(긴 이름은 종전대로 오른쪽에서 잘린다). 쪽 꼴의 데미지 / 양옆 띄움은 0.1em 으로 죈다. */
 .scr-dock-roster.is-paged .scr-dock-names { flex: 0 0 50%; }
+/* ★ 판이 좁으면 자료 띠(현황 쪽)를 **숨기고** 이름 기둥이 판을 다 쓴다(2026-10-09, 요청: "스탯창은 너비가 부족하면 숨기기") — 판(.scr-fs-rosterpanel · inline-size 그릇)이
+   320px 아래일 때(폰 세로·가로의 전광판 설계 폭 210·dk 와 아주 좁은 PC 창). 머리 줄의 라벨 띠도 함께. */
+@container (max-width: 319px) {
+  .scr-dock-roster.is-paged .scr-dock-data { display: none; }
+  .scr-dock-roster.is-paged .scr-dock-names { flex: 1 1 100%; }
+}
 .scr-dock-roster.is-paged .scr-dmg-sep { margin: 0 0.1em; }
 .scr-dock-roster.is-paged .scr-dock-name { padding: 0 calc(2px * var(--dk)); }
 /* ★ 종족 글자는 **이름 앞의 동그란 배지**다(2026-10-09, 지적: "로스터 닉네임에 종족이 맨 뒤라 잘리네 — 맨 앞으로 이동하고 동그란 배경 추가") —
    칩이 긴 이름을 오른쪽에서 자르므로 뒤에 두면 먼저 잘렸다. 지름 ≈ 0.6줄(PC 는 짝수로) · 어두운 반투명 바탕 · 흰 글자. JSX(dockRoster9)가 이름 앞에 둔다. */
 .scr-dock-name { cursor: pointer; }   /* 칩도 단추다(2026-10-09 · JSX onClick = pickPerson9) */
-.scr-dock-name .scr-motion-teamcol-race, .scr-dock-namewrap > .scr-motion-teamcol-race {
+.scr-dock-name .scr-motion-teamcol-race {
   flex: none; display: inline-flex; align-items: center; justify-content: center; margin: 0 0.35em 0 0;
   width: calc(var(--rp) * 0.6); height: calc(var(--rp) * 0.6); border-radius: 50%;
   background: #fff; color: #1b2027; opacity: 1; font-size: 0.72em; font-weight: 800; line-height: 1; letter-spacing: 0;   /* 바탕은 흰색(재요청) · 글자는 어두운 회색 */
 }
 .scr-motion-pc9 .scr-dock-name .scr-motion-teamcol-race { width: round(nearest, calc(var(--rp) * 0.6), 2px); height: round(nearest, calc(var(--rp) * 0.6), 2px); }
 .scr-dock-roster.is-paged .scr-dock-name .scr-motion-teamcol-race { margin-right: 0.3em; }
-/* ★ 폰은 종족 배지를 **칩 오른쪽 위에 작게 얹는다**(2026-10-09, 요청: "모바일에선 종족을 닉네임 오른쪽 상단에 오버레이 배지로 작게 — 안 그래도 좁으니까 공간 아끼게")
-   — 흐름에서 빼(absolute) 이름이 칩 왼쪽부터 쓰고, 지름 0.5줄 · 글자 0.58em. 기기 판정(pc9 없음)으로 가른다. */
-/* 폰 배지는 칩 **밖**(겹싸개 .scr-dock-namewrap · position relative)에 두고 오른쪽 위에 얹는다(2026-10-09, 지적: "오버레이인데 닉네임 칸에 맞춰서 잘려" —
-   칩은 긴 이름을 자르려 overflow hidden 이라 그 안의 배지도 테두리에서 잘렸다). 겹싸개는 안 자른다. */
-.scr-dock-namewrap > .scr-motion-teamcol-race {
-  position: absolute; top: -2px; right: -2px; z-index: 1; margin: 0; width: calc(var(--rp) * 0.5); height: calc(var(--rp) * 0.5); font-size: 0.58em;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35); pointer-events: none;
-}
+/* (되물림 · 2026-10-09, 되요청: "모바일에서도 종족배지는 그냥 닉네임 왼쪽으로") 폰의 칩 오른쪽 위 오버레이 배지(.scr-dock-namewrap > .scr-motion-teamcol-race) — 폰도 위 동그라미다. */
 .scr-dock-roster.is-paged .scr-dock-data { flex: 1 1 0; overflow: hidden; }
 .scr-dock-roster.is-paged .scr-dock-strip { transition: transform 0.45s ease-in-out; will-change: transform; }   /* 0.45s = ROSTER_SLIDE_MS9 */
 .scr-dock-roster.is-snap .scr-dock-strip { transition: none; }   /* 복제 첫 쪽 → 진짜 첫 쪽 되감기(JSX ★) — 같은 그림이라 전이 없이 */
@@ -4343,20 +4365,20 @@
 }
 /* (되물림 · 2026-10-09, 요청 2) 맞대결 표(공격 화살표 + '공격' · ⚔️ + '교전' · 글로우·바운스)와 그 앞의 배지(.scr-split-badge) — 자동 분할이 없어져 설 자리가
    없다. 같은 뜻은 아래 중계 자막이 글귀로 말한다. */
-/* ★★ 중계 자막(2026-10-09, 요청 2: "공격이나 교전 발생시 더 잘한 사람 보여주고 화면주인 닉네임택은 원래자리에 표시하고 '누구의 공격 / 누구와 누구를 공격 /
-   누구와 함께 누구와 교전' 자막을 닉넴택 위쪽에 좀 띄우고 노출(정 가운데 X)" — ReplayMotionPlayer castCap9) — 단독 화면(.scr-fs-solo)에서 화면 주인 이름표
-   (바닥 가운데 · 키 1.25·cap-fs · 바닥 3·dk) **바로 위** 6·dk 에 선다. 글자는 이름표의 1.1배 · 어두운 반투명 알약 · 왼쪽 띠가 몫 색(공격 빨강 · 방어 파랑 ·
-   교전 주황). 토막이 갈릴 때(key) 아래서 살짝 떠오른다 · 움직임 줄이기면 안 뜬다. */
+/* ★★ 중계 자막(2026-10-09 — ReplayMotionPlayer castCap9 · 편성표 cast9 castCaps9) — 자동 중계의 **모든 토막**에 선다(요청: "모든 장면에 자막 삽입 … 담백하고
+   단순하게"). 단독 화면(.scr-fs-solo)에서 화면 주인 이름표(바닥 가운데 · 키 1.25·cap-fs · 바닥 3·dk) **바로 위** 6·dk(받침 솟음 --dock-lift 더함). 글자는 이름표보다
+   **한 단 작게**(cap-fs × 0.875 — PC 7·dk · 폰 14·dk) · 어두운 반투명 알약 · 사람은 **이름표 칩**(.scr-cast-chip = .scr-split-chip · 임자색 · 색 모드) · 길면 **줄바꿈**
+   (white-space normal · 폭 상한 36em / 무대 − 12·dk). 옛 왼쪽 몫 색 띠(공격 빨강 · 방어 파랑 · 교전 주황)는 걷었다(되요청: "자막에 왼쪽 색깔 데칼 제거"). 토막이 갈릴
+   때(key) 아래서 살짝 떠오른다 · 움직임 줄이기면 안 뜬다. */
 .scr-cast-caption {
   position: absolute; left: 50%; bottom: calc(3px * var(--dk) + 1.25 * var(--cap-fs) + 6px * var(--dk) + var(--dock-lift, 0px)); transform: translateX(-50%); z-index: 1;
-  max-width: calc(100% - 6px * var(--dk)); box-sizing: border-box; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  font-size: calc(var(--cap-fs) * 1.1); line-height: 1.3; font-weight: 700; color: #fff; pointer-events: none;
-  padding: 0.12em 0.6em 0.12em 0.5em; border-radius: 3px; background: rgba(8, 10, 14, 0.62); border-left: 0.3em solid #e5383b;
+  max-width: min(calc(100% - 12px * var(--dk)), 36em); box-sizing: border-box; white-space: normal; overflow-wrap: anywhere; text-align: center;
+  font-size: calc(var(--cap-fs) * 0.875); line-height: 1.5; font-weight: 700; color: #fff; pointer-events: none;
+  padding: 0.15em 0.6em; border-radius: 3px; background: rgba(8, 10, 14, 0.62);
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.8);
   animation: scr-cast-caption-in 0.4s ease-out;
 }
-.scr-cast-caption.is-def { border-left-color: #2f6fe4; }
-.scr-cast-caption.is-war { border-left-color: #e8890c; }
+.scr-cast-caption .scr-cast-chip { display: inline-block; vertical-align: baseline; margin: 0 0.1em; line-height: 1.25; text-shadow: none; max-width: 14em; }
 @keyframes scr-cast-caption-in {
   from { opacity: 0; transform: translate(-50%, 0.5em); }
   to { opacity: 1; transform: translate(-50%, 0); }

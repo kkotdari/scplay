@@ -51,8 +51,12 @@ const capProbe9 = async (page) => {
     const solo = document.querySelector(".scr-fs-solo");
     if (!solo) return;
     const cap = document.createElement("span");
-    cap.className = `scr-cast-caption is-${role}`;
-    cap.textContent = role === "def" ? "Rex가 공격함 · 수달이가 헬프옴" : role === "war" ? "수달이와 함께 Rex·타센과 교전" : "Rex를 공격";
+    cap.className = "scr-cast-caption";
+    /* 사람은 이름표 칩(.scr-cast-chip · 2026-10-09) — 재생기 castCap9 와 같은 꼴. long 은 줄바꿈 검산. */
+    const chip = (nm, bg, fg) => `<span class="scr-split-chip scr-cast-chip" style="background:${bg};color:${fg}">${nm}</span>`;
+    const J = chip("정구", "#2b62e8", "#fff"); const R = chip("Rex", "#e07b1a", "#111"); const S = chip("수달이", "#c9c9a3", "#111"); const T = chip("타센", "#8a3fb8", "#fff");
+    cap.innerHTML = role === "def" ? `${R}가 공격함 · ${S}가 헬프옴` : role === "war" ? `${J}·${S}·${R}·${T} 교전`
+      : role === "long" ? `${J}의 ${R} 사이언스 퍼실리티 파괴 · ${S}가 헬프옴 · ${T} 메타볼릭 부스트 개발` : `${J}의 ${R} 공격`;
     solo.appendChild(cap);
   }, role);
   await page.waitForTimeout(500);

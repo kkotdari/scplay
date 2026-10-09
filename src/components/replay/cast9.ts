@@ -32,6 +32,8 @@
  *   마지막으로 보여 준 사람 **다음**부터 산 사람을 고른다(장면으로 보여 준 사람도 그 자리에서 잇는다).
  *   밀리(팀 없음)는 로스터 차례 그대로. 동점 가름(TIE9)은 종전대로 '가장 오래 안 본 사람'이다.
  */
+import { BUILDING_KO, TECH_KO } from "../../utils/replayNames";
+import { researchKo } from "../../utils/replayTechNames";
 import { costOf, unitOf } from "../../utils/bwUnits";
 import { tkN, tkT, tkV } from "../../utils/openbwTracks";
 import type { TruthWorld } from "../../utils/truthLives";
@@ -58,7 +60,12 @@ export type CastSeg9 = {
   /** 그 장면의 **적 전부**(주인공과 주고받은 몸값 큰 차례 · 첫째가 foe) · **같은 편**(함께 싸운 팀원) — 자막의 "A·B의 공격 · C와 함께"(2026-10-09). */
   foes?: string[];
   allies?: string[];
+  /** ★ 자막 조각(2026-10-09, 요청: "모든 장면에 자막 — 전투·견제·공격·방어·기술 개발·건설 등을 담백한 개조식으로") — 글귀와 사람(재생기가 이름표 칩으로 그린다 ·
+   *  조사 p 는 그 사람의 표시 이름 받침으로 재생기가 붙인다). 아래 castCaps9. */
+  caps?: CapPart9[];
 };
+/** 자막 한 조각 — 글귀(text) 또는 사람(raw · 뒤에 붙일 조사 p: ga 가/이 · eul 를/을 · wa 와/과 · ui 의). */
+export type CapPart9 = { text: string; raw?: undefined; p?: undefined } | { raw: string; p?: "ga" | "eul" | "wa" | "ui"; text?: undefined };
 export type CastRole9 = "atk" | "def" | "war";
 /** 상대역의 몫 — 주인공의 거울. */
 export const castFoeRole9 = (r9: CastRole9): CastRole9 => (r9 === "atk" ? "def" : r9 === "def" ? "atk" : "war");
@@ -162,6 +169,8 @@ const CAST_W9: Record<string, number> = {
 type Ev9 = { sec: number; raw: string; w: number; why: string; tail?: number;
   /** 맞상대(죽인 쪽이면 잃은 사람 · 잃은 쪽이면 죽인 사람) · 준 몸값(죽인 쪽) · 잃은 살림 값(일꾼·건물 · 잃은 쪽). */
   vs?: string; dealt?: number; econ?: number;
+  /** 자막 재료(2026-10-09) — 죽은 몸의 종류(건물 파괴 자막의 건물 이름) · 마법 이름. */
+  kind?: string; tech?: string;
   /** 잃은 자리(타일 · 잃은 쪽 사건만) — 싸움이 **누구 진영에서** 났나를 재는 자다(duel9). 모르면 없다. */
   x?: number; y?: number };
 
@@ -249,7 +258,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   };
 
   /** 죽음 한 벌 — 한꺼번에 사라지는 '나감'을 걸러 내려고 먼저 모은다. */
-  type D9 = { sec: number; owner: number; v: number; bld: boolean; killer: number; wk: boolean; x?: number; y?: number };
+  type D9 = { sec: number; owner: number; v: number; bld: boolean; killer: number; wk: boolean; x?: number; y?: number; kind: string };
   /** 죽은 자리(타일) — 건물은 제 자리(bornX/Y · 앉은 자리가 여럿이면 마지막) · 유닛은 죽기 전 `LOC_W9` 초 안의 마지막 명령
    *  자리(참값 생애는 죽은 자리를 안 든다 — 명령이 '어디에 가 있었나'의 가장 가까운 어림이다) · 그도 없으면 막 태어난 몸의
    *  태어난 자리 · 모르면 null. */
@@ -292,7 +301,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     if (e9.end !== "atk") continue;   // morph·own·끝까지 삶은 죽음이 아니다
     const wk9 = !e9.bld && unitOf(e9.kind).worker;
     const at9 = deadAt9(e9, e9.died);
-    ds9.push({ sec: e9.died, owner: e9.owner, v: wk9 ? v9 * HARASS9.k : v9, bld: e9.bld, wk: wk9,
+    ds9.push({ sec: e9.died, owner: e9.owner, v: wk9 ? v9 * HARASS9.k : v9, bld: e9.bld, wk: wk9, kind: e9.kind,
       killer: killerOf9(e9.tag, e9.died, e9.owner), ...(at9 ?? {}) });
   }
   ds9.sort((a9, b9) => a9.sec - b9.sec);
@@ -323,21 +332,23 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     const why9 = d9.bld ? "건물 파괴" : d9.wk ? "견제" : "교전";
     const tail9 = d9.wk ? HARASS9.tail : undefined;
     if (kill9) evs9.push({ sec: d9.sec, raw: kill9, w: d9.v * (d9.bld ? BLD_K9 : 1), why: why9, tail: tail9,
-      vs: mine9, dealt: d9.v });
+      vs: mine9, dealt: d9.v, kind: d9.kind });
     if (mine9) evs9.push({ sec: d9.sec, raw: mine9, w: d9.v * LOSS_K9, why: d9.bld ? "건물 잃음" : d9.wk ? "견제 당함" : "교전", tail: tail9,
-      vs: kill9, econ: d9.bld || d9.wk ? d9.v : 0, x: d9.x, y: d9.y });
+      vs: kill9, econ: d9.bld || d9.wk ? d9.v : 0, x: d9.x, y: d9.y, kind: d9.kind });
   }
   for (const [sec9, , , tech9, own9] of world.casts) {
     const w9 = CAST_W9[tech9];
     if (!w9) continue;
     const r9 = rawOf9.get(own9);
     if (!r9 || sec9 > total - 3) continue;
-    evs9.push({ sec: sec9, raw: r9, w: w9, why: tech9 === "Nuclear Strike" ? "핵" : "마법" });
+    evs9.push({ sec: sec9, raw: r9, w: w9, why: tech9 === "Nuclear Strike" ? "핵" : "마법", tech: tech9 });
   }
   evs9.sort((a9, b9) => a9.sec - b9.sec);
 
   /* ── 장면으로 묶기 ────────────────────────────────────────────────────────── */
   type Sc9 = { t0: number; t1: number; by: Map<string, number>; why: string; tail: number;
+    /** 가장 무거운 사건(자막 재료 · 2026-10-09). */
+    top?: Ev9;
     /** "a>b" → a 가 b 에게 준 몸값 · 사람 → 잃은 살림 값(맞대결의 자 — 아래 duel9). */
     pair: Map<string, number>; econ: Map<string, number>;
     /** 잃은 자리들 [사람, x, y, 몸값] — 싸움터가 누구 진영인가(duel9). */
@@ -358,7 +369,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       if (e9.econ) sc9.econ.set(e9.raw, (sc9.econ.get(e9.raw) ?? 0) + e9.econ);
       if (e9.x !== undefined && e9.y !== undefined && e9.vs) sc9.locs.push([e9.raw, e9.x, e9.y, e9.dealt ?? e9.w / LOSS_K9]);
       /* 꼬리표는 그 장면에서 **가장 무거운 사건**의 것이다 — 핵 한 발이 든 교전은 '핵'이다. */
-      if (e9.w > top9) { top9 = e9.w; sc9.why = e9.why; }
+      if (e9.w > top9) { top9 = e9.w; sc9.why = e9.why; sc9.top = e9; }
       j9 += 1;
     }
     scs9.push(sc9);
@@ -415,25 +426,25 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   }, cands9[0]);
   /** 한 토막을 싣는다 — 같은 사람이 이어지면 토막을 안 늘린다(갈아타는 자리가 아니다). */
   type Duel9 = { foe: string; role: CastRole9; foeTo: number; foes: string[]; allies: string[] };
-  const push9 = (at9: number, raw9: string, why9: string, cyc9: boolean, score9: number, duel9?: Duel9): void => {
+  const push9 = (at9: number, raw9: string, why9: string, cyc9: boolean, score9: number, duel9?: Duel9, caps9?: CapPart9[]): void => {
     const a9 = Math.max(0, Math.min(total, at9));
     ringPos9 = ring9.indexOf(raw9);
     const last9 = out9[out9.length - 1];
     /* 이어지는 같은 사람 — 꼬리표만 갱신한다(장면이 순환을 이겼으면 장면 쪽으로). 맞대결은 **상대역까지 같아야** 잇는다
        — 상대가 바뀌거나 맞대결이 끝난 뒤의 순환이면 새 토막이다(안 그러면 맞대결이 순환 내내 남는다). */
     if (last9 && last9.raw === raw9 && (!last9.foe || a9 >= (last9.foeTo ?? 0)) && !duel9) {
-      if (!cyc9 && last9.cyc) { last9.cyc = false; last9.why = why9; last9.score = score9; }
+      if (!cyc9 && last9.cyc) { last9.cyc = false; last9.why = why9; last9.score = score9; if (caps9) last9.caps = caps9; }
       shown9.set(raw9, a9);
       return;
     }
     if (last9 && last9.raw === raw9 && duel9 && last9.foe === duel9.foe) {
       last9.foeTo = Math.max(last9.foeTo ?? 0, duel9.foeTo);
-      if (!cyc9) { last9.cyc = false; last9.why = why9; last9.score = Math.max(last9.score, score9); last9.role = duel9.role; }
+      if (!cyc9) { last9.cyc = false; last9.why = why9; last9.score = Math.max(last9.score, score9); last9.role = duel9.role; if (caps9) last9.caps = caps9; }
       shown9.set(raw9, a9);
       return;
     }
     if (last9 && a9 <= last9.at) return;   // 시각이 뒤로 가는 토막은 안 싣는다
-    out9.push({ at: a9, raw: raw9, why: why9, cyc: cyc9, score: score9, ...(duel9 ?? {}) });   // duel9 의 foes·allies 도 함께 실린다
+    out9.push({ at: a9, raw: raw9, why: why9, cyc: cyc9, score: score9, ...(duel9 ?? {}), ...(caps9 ? { caps: caps9 } : {}) });   // duel9 의 foes·allies 도 함께 실린다
     shown9.set(raw9, a9);
   };
   /** ★★ **맞대결** — 그 장면에서 주인공과 가장 많이 주고받은 적이 상대역이다(2026-10, 요청: "교전 발생시 공격자만 보여줄게
@@ -518,6 +529,68 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     for (let s9 = s09; s9 < to9 - MIN_HOLD9; s9 += CYCLE9) push9(s9, nextRing9(aliveAt9(s9)), "순환 중계", true, 0);
   };
 
+  /* ── 자막(2026-10-09, 요청: "앞으로 자동중계에서는 모든 장면에 자막 삽입 — 전투·견제·공격·방어·기술 개발·건설 등을 자연스러운 말투로(개조식) · 화려한 표현 X
+     담백하고 단순하게") ───────────────────────────────────────────────────────────
+     장면 토막은 그 장면의 **가장 무거운 사건**(sc.top)과 맞대결 몫으로, 순환 토막은 그 사람이 그 창에서 한 일(연구 · 확장 · 건설)로 짓는다. 사람은 조각(raw)으로 두고
+     재생기가 이름표 칩으로 그린다 — 조사는 표시 이름의 받침을 재생기가 안다(p). 글귀 보기:
+       교전 — 공격 "A의 B 공격" · 방어 "B가 공격함 · C가 헬프옴" · 호각 "A·B 교전" · 견제 "A의 B 견제" · 건물 "A의 B 해처리 파괴" · 핵 "A 핵 투하" · 마법 "A 스톰"
+       순환 — "A 메타볼릭 부스트 개발" · "A 확장" · "A 팩토리 건설" · "A 운영". */
+  const chips9 = (raws9: string[], last9?: CapPart9["p"]): CapPart9[] =>
+    raws9.flatMap((r9, i9): CapPart9[] => (i9 < raws9.length - 1 ? [{ raw: r9 }, { text: "·" }] : [{ raw: r9, p: last9 }]));
+  const sceneCaps9 = (sc9: Sc9, pick9: string, d9: Duel9 | undefined): CapPart9[] => {
+    const top9 = sc9.top;
+    const why9 = sc9.why;
+    if (top9 && why9 === "핵") return [{ raw: top9.raw }, { text: " 핵 투하" }];
+    if (top9 && why9 === "마법") return [{ raw: top9.raw }, { text: ` ${TECH_KO[top9.tech ?? ""] ?? top9.tech ?? "마법"}` }];
+    if (top9 && why9 === "자폭") return [{ raw: top9.raw }, { text: " 자폭" }];
+    if (top9 && (why9 === "견제" || why9 === "견제 당함")) {
+      const k9 = why9 === "견제" ? top9.raw : top9.vs;
+      const v9 = why9 === "견제" ? top9.vs : top9.raw;
+      if (k9 && v9) return [{ raw: k9, p: "ui" }, { text: " " }, { raw: v9 }, { text: " 견제" }];
+      return [{ raw: v9 ?? pick9 }, { text: " 견제 당함" }];
+    }
+    if (top9 && (why9 === "건물 파괴" || why9 === "건물 잃음")) {
+      const k9 = why9 === "건물 파괴" ? top9.raw : top9.vs;
+      const v9 = why9 === "건물 파괴" ? top9.vs : top9.raw;
+      const b9 = BUILDING_KO[top9.kind ?? ""] ?? top9.kind ?? "건물";
+      if (k9 && v9) return [{ raw: k9, p: "ui" }, { text: " " }, { raw: v9 }, { text: ` ${b9} 파괴` }];
+      return [{ raw: v9 ?? pick9 }, { text: ` ${b9} 파괴됨` }];
+    }
+    if (d9) {
+      const foes9 = d9.foes.length > 0 ? d9.foes : [d9.foe];
+      if (d9.role === "atk") return [...chips9([pick9, ...d9.allies], "ui"), { text: " " }, ...chips9(foes9), { text: " 공격" }];
+      if (d9.role === "def") {
+        return [...chips9(foes9, "ga"), { text: " 공격함" }, ...(d9.allies.length > 0 ? [{ text: " · " } as CapPart9, ...chips9(d9.allies, "ga"), { text: " 헬프옴" } as CapPart9] : [])];
+      }
+      return [...chips9([pick9, ...d9.allies]), { text: "·" }, ...chips9(foes9), { text: " 교전" }];
+    }
+    return [{ raw: pick9 }, { text: ` ${why9}` }];
+  };
+  /** 순환 토막 — 그 사람의 창 [t0, t1) 에서 연구 완료 · 확장(본진 건물) · 건설(보급·가스 빼고) 차례로 찾는다. */
+  const HALL9 = new Set(["Command Center", "Nexus", "Hatchery"]);
+  const PLAIN_BLD9 = new Set(["Supply Depot", "Pylon", "Extractor", "Refinery", "Assimilator", "Creep Colony"]);
+  const ownersOf9 = (raw9: string): Set<number> => new Set([...rawOf9.entries()].filter(([, n9]) => n9 === raw9).map(([o9]) => o9));
+  const cycleCaps9 = (raw9: string, t0: number, t1: number): CapPart9[] => {
+    const own9 = ownersOf9(raw9);
+    const lo9 = t0 - 2;
+    const hi9 = Math.max(t0 + 1, t1);
+    for (const [sec9, name9, o9] of world.ups) {
+      if (!own9.has(o9) || sec9 < lo9 || sec9 >= hi9) continue;
+      const m9 = /^(.*?)(?: (\d+))?$/.exec(name9);
+      const base9 = m9?.[1] ?? name9;
+      const lv9 = m9?.[2];
+      return [{ raw: raw9 }, { text: ` ${researchKo(base9)}${lv9 ? ` ${lv9}단계` : ""} 개발` }];
+    }
+    let bld9: string | null = null;
+    for (const e9 of world.lives) {
+      if (!e9.bld || !own9.has(e9.owner) || e9.born < lo9 || e9.born >= hi9 || e9.end === "morph") continue;
+      if (HALL9.has(e9.kind)) return [{ raw: raw9 }, { text: " 확장" }];
+      if (!bld9 && !PLAIN_BLD9.has(e9.kind)) bld9 = e9.kind;
+    }
+    if (bld9) return [{ raw: raw9 }, { text: ` ${BUILDING_KO[bld9] ?? bld9} 건설` }];
+    return [{ raw: raw9 }, { text: " 운영" }];
+  };
+
   let cur9 = 0;
   for (const sc9 of scs9) {
     const at9 = Math.max(0, sc9.t0 - CAST_LEAD9);
@@ -538,12 +611,18 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     }
     /* 머무는 중이면 **훨씬 무거운 장면**만 끼어든다 — 그래야 화면이 안 튄다. */
     const held9 = at9 - lastAt9() < MIN_HOLD9;
-    if (!held9 || tot9 >= lastScore9() * JUMP9) push9(at9, pick9, sc9.why, false, tot9, duel9(sc9, pick9));
+    if (!held9 || tot9 >= lastScore9() * JUMP9) { const d9 = duel9(sc9, pick9); push9(at9, pick9, sc9.why, false, tot9, d9, sceneCaps9(sc9, pick9, d9)); }
     /* 장면의 끝은 마지막 사건 + **꼬리의 남는 몫**이다 — 견제는 마지막 킬 뒤에도 쫓는 몸이 그 자리에
        있으니 그만큼 머물고, 그 사이에 순환이 끼어들지 않는다(교전은 tail = GAP9 라 종전 그대로). */
     cur9 = Math.max(cur9, sc9.t1 + (sc9.tail - GAP9));
   }
   fill9(cur9, total);
+  /* ★ 순환 토막의 자막(2026-10-09) — 그 사람이 그 창(다음 토막까지)에서 한 일: 연구 완료 > 확장 > 건물 건설 > "운영". */
+  for (let i9 = 0; i9 < out9.length; i9 += 1) {
+    const sg9 = out9[i9];
+    if (sg9.caps && sg9.caps.length > 0) continue;
+    sg9.caps = cycleCaps9(sg9.raw, sg9.at, i9 + 1 < out9.length ? out9[i9 + 1].at : total);
+  }
   return out9;
 }
 

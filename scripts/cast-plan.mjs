@@ -74,7 +74,7 @@ const plan = castPlan9(world, { total: 1200 });
 const scenes = plan.filter((s) => !s.cyc);
 console.log(`\n토막 ${plan.length}개(장면 ${scenes.length} · 순환 ${plan.length - scenes.length})`);
 for (const s of (ALL ? plan : scenes)) {
-  console.log(`  ${s.at.toFixed(1).padStart(7)}s  ${s.raw}  ${s.cyc ? "순환" : "장면"} ${s.why} ${s.score.toFixed(0)}${s.foe ? ` ⚔ ${s.foe} ${s.role} ~${s.foeTo.toFixed(1)}s` : ""}`);
+  console.log(`  ${s.at.toFixed(1).padStart(7)}s  ${s.raw}  ${s.cyc ? "순환" : "장면"} ${s.why} ${s.score.toFixed(0)}${s.foe ? ` ⚔ ${s.foe} ${s.role} ~${s.foeTo.toFixed(1)}s` : ""}`, "자막:", (s.caps ?? []).map((c) => (c.raw !== undefined ? "[" + c.raw + "]" + (c.p ?? "") : c.text)).join(""));
 }
 const at = (t) => plan[castAt9(plan, t)]?.raw ?? "-";
 console.log(`짚기: 0s ${at(0)} · 199s ${at(199)} · 262s ${at(262)} · 605s ${at(605)} · 815s ${at(815)}`);

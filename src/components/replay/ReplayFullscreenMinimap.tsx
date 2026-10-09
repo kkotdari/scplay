@@ -153,8 +153,8 @@ export default function ReplayFullscreenMinimap({
     const host = tagsRef.current;
     if (!host) return;
     const els = Array.from(host.querySelectorAll<HTMLElement>(".scr-fs-minitag"));
-    for (const el of els) el.style.marginTop = "0px";
-    if (els.length < 2) return;
+    for (const el of els) { el.style.marginTop = "0px"; el.style.marginLeft = "0px"; }
+    if (els.length < 1) return;
     const W = host.clientWidth || 1;
     const H = host.clientHeight || 1;
     const items = els.map((el) => {
@@ -171,9 +171,13 @@ export default function ReplayFullscreenMinimap({
         if (a.y + a.dy <= b.y + b.dy) { a.dy -= half; b.dy += half; } else { a.dy += half; b.dy -= half; }
       }
     }
+    /* ★ 판 밖으로 나가는 이름표는 **안으로 죈다**(2026-10-09, 지적: "미니맵 닉네임 태그 잘림 현상 — 클램핑 필요") — 가운데 맞춤이라 귀퉁이 진영의 이름표 반이 판 밖(overflow
+       hidden)으로 잘렸다. 가로·세로 다 제 네모가 판 안에 다 들게 민다(margin). */
     for (const it of items) {
       const dy = Math.max(it.h / 2 - it.y, Math.min(H - it.h / 2 - it.y, it.dy));
-      if (Math.abs(dy) > 0.5) it.el.style.marginTop = `${dy.toFixed(1)}px`;
+      const dx = Math.max(it.w / 2 - it.x, Math.min(W - it.w / 2 - it.x, 0));
+      it.el.style.marginTop = Math.abs(dy) > 0.5 ? `${dy.toFixed(1)}px` : "0px";
+      it.el.style.marginLeft = Math.abs(dx) > 0.5 ? `${dx.toFixed(1)}px` : "0px";
     }
   }, [tags, warming]);
 
