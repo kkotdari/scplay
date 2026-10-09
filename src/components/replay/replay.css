@@ -3187,7 +3187,11 @@
 }
 /* PC 쪽 꼴(좁은 창)은 글자를 폭이 아니라 줄 키가 정한다 — 쪽마다 두 칸뿐이라 폭이 남는다. */
 .scr-motion-pc9 .scr-dock-roster.is-paged { font-size: calc(var(--rp) * 0.52); }
-.scr-dock-roster-top { height: var(--rp); display: flex; align-items: center; flex: none; }
+/* 머리 줄(.scr-dock-headrow — AUTO 단추 + 칸 라벨 · 2026-10-09)은 여느 팀 덩이와 같은 [이름 기둥 | 자료 띠] 꼴이라 따로 둘 규칙이 없다.
+   팀 사이 틈 — 줄 키의 0.6(ROSTER_GAP_ROWS9 · --rows 에 든다) · 가운데 실금 하나로 두 팀을 가른다(요청: "1팀 2팀 사이를 좀 더 갭"). */
+.scr-dock-headrow { flex: none; }
+.scr-dock-gap { height: calc(var(--rp) * 0.6); flex: none; position: relative; }
+.scr-dock-gap::after { content: ""; position: absolute; left: calc(4px * var(--dk)); right: calc(4px * var(--dk)); top: 50%; border-top: 1px solid rgba(255, 255, 255, 0.16); }
 .scr-dock-team { display: flex; align-items: flex-start; min-width: 0; flex: none; }
 .scr-dock-names { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
 .scr-dock-data { flex: 0 0 auto; min-width: 0; }
@@ -3197,7 +3201,6 @@
 /* 머리 줄의 칸은 값 칸과 **같은 글자 크기**(ch 폭이 같아야 가운데가 맞는다 · 2026-10-09 지적) — 라벨 글자만 안의 .scr-dock-lab 이 작게. */
 .scr-dock-head { color: #9aa3ad; font-weight: 700; }
 .scr-dock-lab { font-size: 0.86em; }
-.scr-dock-teamname { padding-left: calc(2px * var(--dk)); font-size: 0.86em; }
 /* 라벨과 값은 **가운데 맞춤**으로 줄을 맞춘다(2026-10-09, 요청: "로스터의 라벨과 데이터를 가운데 정렬해서 줄맞추기(모바일도 똑같이)") — 옛 오른쪽 맞춤 되물림. */
 .scr-dock-cell { display: inline-block; text-align: center; overflow: hidden; min-width: 0; font-weight: 600; flex: none; }
 .scr-dock-cell.is-worker { width: 4ch; }   /* 머리 '일꾼'(한글 둘 = 3.6ch)이 든다 */
@@ -3241,11 +3244,14 @@
 .scr-dock-roster.is-paged .scr-dock-name .scr-motion-teamcol-race { margin-left: 2px; }
 .scr-dock-roster.is-paged .scr-dock-cell.is-dmg { font-size: 0.85em; }   /* "1.0k(45%) / 810(47%)" 스무 자가 창에 들게 */
 .scr-dock-roster.is-paged .scr-dock-data { flex: 1 1 0; overflow: hidden; }
-.scr-dock-roster.is-paged .scr-dock-strip { transition: transform 0.45s ease-in-out; will-change: transform; }
+.scr-dock-roster.is-paged .scr-dock-strip { transition: transform 0.45s ease-in-out; will-change: transform; }   /* 0.45s = ROSTER_SLIDE_MS9 */
+.scr-dock-roster.is-snap .scr-dock-strip { transition: none; }   /* 복제 첫 쪽 → 진짜 첫 쪽 되감기(JSX ★) — 같은 그림이라 전이 없이 */
 .scr-dock-roster.is-paged .scr-dock-page { flex: 0 0 100%; box-sizing: border-box; padding-left: calc(2px * var(--dk)); font-size: 0.92em; overflow: hidden; }   /* 넘치는 쪽(데미지 스무 자)이 옆 쪽에 안 비친다 */
-/* 폰의 칸은 제 폭(내용)이고 줄 안에 고르게 흩어진다 — 셋으로 등분하면 인구("149/10")가 잘린다(실측). 쪽이 창보다 넓으면 끝이 잘린다. */
-.scr-dock-roster.is-paged .scr-dock-cell { flex: 0 1 auto; width: auto; min-width: 0; text-align: center; }
-.scr-dock-roster.is-paged .scr-dock-page .scr-dock-row { justify-content: space-around; gap: calc(1px * var(--dk)); }
+/* 쪽 꼴의 칸은 **등분**이다(2026-10-09) — 라벨 줄이 팀 덩이 밖 머리 줄로 나갔으므로 라벨과 값은 같은 줄 안이 아니라 **같은 폭 규칙**으로
+   줄을 맞춘다: 내용 폭 + space-around(옛)는 라벨("일꾼")과 값("12")의 폭이 달라 가운데가 어긋난다. 쪽은 이제 두 칸 이하라(네 쪽) 반씩이면
+   인구("149/10")도 든다 — 옛 '셋으로 등분하면 잘린다'는 세 칸 쪽 시절의 실측이다. */
+.scr-dock-roster.is-paged .scr-dock-cell { flex: 1 1 0; width: auto; min-width: 0; text-align: center; }
+.scr-dock-roster.is-paged .scr-dock-page .scr-dock-row { gap: calc(1px * var(--dk)); }
 .scr-dock-roster.is-paged .scr-dock-row { gap: calc(2px * var(--dk)); }
 /* ── 툴박스 — 어두운 반투명 판 한 장(테두리 없음). 안의 단추는 그 위의 옅은 흰 막이다(.scr-motion-mapbtn). 글자·트랙은 어느
    테마에서도 지도 위의 흰 잉크라 테마 변수를 여기서 판 몫으로 다시 둔다. */

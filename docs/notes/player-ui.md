@@ -1188,3 +1188,12 @@ AUTO 글자 합성) · 현재 화면에 보여주는 화면 주인(들)은 기�
 · **쇠판 헤어라인**: 앞서 틀(`.scr-fs-dockframe`)만 세로로 돌렸는데 판 안에서는 틀 바탕이 꺼져 있고(`.scr-fs-layer .scr-fs-dockframe { background: none }`)
   보이는 쇠는 감싸개 `.scr-fs-layer .scr-fs-lower` 의 것이었다 — 그 줄을 90deg(세로), 느린 얼룩을 180deg 로.
 · 🔎 `perf-check --wide --vw 1280|820 --vh 900 --dpr 1 --glblit --dmg --players 8 --castoff --shot x.png`(전부 / 쪽) · 폰 `--ios --players 4 --track 정구`.
+
+## 독 로스터 — 머리 줄 하나(AUTO + 라벨) · 팀 사이 틈 0.6줄 · 쪽 되감기도 오른쪽에서(2026-10-09)
+지적 셋: "팀1과 2에 중복으로 라벨을 붙일 필요는 없을 듯 · 1팀 2팀 사이 갭 · 오토 중계 버튼이 한 줄 차지하는 게 아쉬운데" + "페이지 전환시 마지막 → 첫 페이지도 오른쪽에서".
+- 팀마다 두던 머리 줄(팀 이름 + 라벨)을 걷고 **머리 줄 하나**(.scr-dock-headrow): 이름 기둥 자리에 AUTO 단추, 자료 기둥에 칸 라벨. 쪽 꼴이면 라벨 띠도 자료 띠와 같은 translateX 로 미끄러진다.
+  줄 수 `--rows` = 1 + 사람 + 0.6×(팀 − 1)(`ROSTER_GAP_ROWS9`) — 4:4 열한 줄 → 9.6 줄. 팀 이름 글자는 사라졌다(틈 + 임자색 칩이 가른다).
+- 팀 사이 `.scr-dock-gap`(0.6 줄 · 가운데 실금).
+- 쪽 꼴 칸은 **등분**(flex 1 1 0)이다 — 라벨 줄이 팀 덩이 밖으로 나가 '같은 줄 안 space-around'가 아니라 같은 폭 규칙으로 줄을 맞춘다. 쪽은 두 칸 이하라 반씩이어도 인구 "149/10" 이 든다.
+- 되감기: 띠 끝에 첫 쪽 복제(pages9 · 쪽 꼴에서만) → 거기까지 미끄러진 뒤 `ROSTER_SLIDE_MS9`(450 = CSS 0.45s)+40ms 에 is-snap(전이 없음)으로 0 쪽으로 되감고 두 rAF 뒤 전이를 되살린다.
+🔎 `node scripts/perf-check.mjs --wide --vw 1920 --vh 1080 --dpr 1 --glblit --dmg --players 4 --fs --shot x.png` · 폰 `--ios --players 4 --dmg --glblit --fs --shot`. perf-check 의 `로스터줄 키` 는 옛 .scr-motion-teamrow 라 null(걷힌 무대 로스터 — 진단만 남았다).

@@ -716,3 +716,8 @@ scplayer 쪽 소스를 만졌으면 그쪽에서 `npx tsc --noEmit -p tsconfig.j
 옛 방식(빈 "배포 트리거" 커밋 · installCommand의 HEAD 덮어쓰기)은 걷었다.
 락을 통째로 다시 만들 일이 있으면 **node_modules를 치운 채** `npm install --package-lock-only`로 만든다 — 설치된 트리에서
 뽑으면 이 기계 플랫폼의 선택 패키지만 실려 Vercel의 `npm ci`가 거부한다(esbuild·rollup 바이너리·fsevents).
+
+## 모델 피칭은 회전 **뒤** 칸이다 — `withModelPitch`(2026-10-09)
+몸 전체를 x축 둘레로 숙이는 손은 shapeOblique `withModelPitch(deg, py, pz, fn)` — project·modelPoint9(메시 mp3·총구) 가 **회전(spun) 뒤 · z 평행이동(modelZOff) 앞**에 (y, z) 를 돌린다.
+비틀기 칸(withModelWarp·Out·Tw)으로 숙이면 안 되는 까닭: 그 칸들은 회전 **앞**이라 `withModelSpin` 으로 돌려 세운 부품(프로브 눈 렌즈)에서는 제 국소 축으로 기울어 몸과 어긋난다.
+각은 설계 자(z/0.8)로 셈하고 다시 접는다(강체 회전). depthNow(키)·2D 법선은 안 태운다(GL 은 꼭짓점에서 법선을 다시 낸다). +deg 는 앞(+y)이 내려간다. 첫 손님은 프로브(models-protoss.md).

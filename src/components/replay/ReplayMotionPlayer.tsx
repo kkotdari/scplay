@@ -1147,6 +1147,10 @@ const ROSTER_PAGES9: readonly (readonly RosterCol9[])[] = [["worker", "sup"], ["
 const ROSTER_LABEL9: Record<RosterCol9, string> = { min: "광물", gas: "가스", sup: "인구", dmg: "데미지", worker: "일꾼", apm: "APM" };
 /** 폰 로스터가 한 쪽에 머무는 시간(ms). */
 const ROSTER_PAGE_MS9 = 3000;
+/** 쪽 미끄럼 시간(ms) — replay.css `.scr-dock-roster.is-paged .scr-dock-strip` 의 transition 0.45s 와 한 값. 되감기(아래 ★)가 이 뒤에 한다. */
+const ROSTER_SLIDE_MS9 = 450;
+/** 팀 사이 틈(줄 키의 몫 · 2026-10-09, 요청: "1팀 2팀 사이를 좀 더 갭") — --rows 셈에도 든다. */
+const ROSTER_GAP_ROWS9 = 0.6;
 const smallDevice9 = ((): boolean => {
   if (typeof window === "undefined") return false;
   const coarse9 = !!window.matchMedia?.("(pointer: coarse)").matches;
@@ -17142,7 +17146,8 @@ export default function ReplayMotionPlayer({
        AUTO = toggleCast9. 켜짐은 초록 테(AUTO 는 깜빡임 — 옛 TV 단추의 박자). 지금 화면에 보이는 사람(들)의 칩은 임자색 글로우
        (.scr-motion-teamcol-cast · 자동 중계의 주인 · 개인 추적의 그 사람 · 분할의 칸 사람들 — 옛 '자동만 깜빡인다'를 되물렸다). */
   const shownRaws9 = new Set<string>(splitOn9 && splitLay9 ? splitLay9.cells.map((c9) => c9.raw) : camRaw9 !== null ? [camRaw9] : []);
-  const [rosterPage9, setRosterPage9] = useState(0);
+  const [rosterPage9, setRosterPage9] = useState(0);   // 0..ROSTER_PAGES9.length — 끝 값은 첫 쪽의 **복제**(아래 ★ 되감기)
+  const [rosterSnap9, setRosterSnap9] = useState(false);
   /* ★ PC 도 **좁으면 쪽으로**(2026-10-09, 요청: "로스터 닉네임이 너무 좁아 로스터는 최소폭 좀 넓게 강제하고 만약 좁으면 페이징처리") — 판 폭은
      인포창의 1.25배까지(replay.css .scr-fs-rosterpanel)이고, 그보다 좁은 판(작은 창)이면 폰처럼 쪽(is-paged)이다. 판 폭은 ResizeObserver 로 재서
      인포창 폭 × 1.25 에 못 미치면 쪽이다(판은 그 값 이하로만 작아지므로 '남는 폭이 모자라다'와 같은 말). */
@@ -17162,15 +17167,33 @@ export default function ReplayMotionPlayer({
   };
   useEffect(() => {
     if (!rosterPaged9) return undefined;
-    const id9 = window.setInterval(() => setRosterPage9((p9) => (p9 + 1) % ROSTER_PAGES9.length), ROSTER_PAGE_MS9);
+    const id9 = window.setInterval(() => setRosterPage9((p9) => (p9 >= ROSTER_PAGES9.length ? 1 : p9 + 1)), ROSTER_PAGE_MS9);
     return () => window.clearInterval(id9);
   }, [rosterPaged9]);
+  /* ★ 마지막 쪽 → 첫 쪽도 **오른쪽에서** 온다(2026-10-09, 요청: "페이지 전환시 마지막 페이지 → 첫 페이지도 오른쪽에서 나오게") — 띠 끝에
+     첫 쪽의 복제를 하나 더 두고(아래 pages9) 거기까지 여느 쪽처럼 왼쪽으로 미끄러진 뒤, 전환이 끝나면 전이 없이(is-snap) 진짜 첫 쪽(0)으로
+     되감는다. 복제와 첫 쪽은 같은 그림이라 되감기는 눈에 안 보인다. 옛 `(p+1) % n` 은 3 → 0 에서 띠가 오른쪽으로 세 쪽을 되감아 갔다. */
+  useEffect(() => {
+    if (rosterPage9 !== ROSTER_PAGES9.length) return undefined;
+    const id9 = window.setTimeout(() => { setRosterSnap9(true); setRosterPage9(0); }, ROSTER_SLIDE_MS9 + 40);
+    return () => window.clearTimeout(id9);
+  }, [rosterPage9]);
+  useEffect(() => {
+    if (!rosterSnap9) return undefined;
+    let raf9 = requestAnimationFrame(() => { raf9 = requestAnimationFrame(() => setRosterSnap9(false)); });
+    return () => cancelAnimationFrame(raf9);
+  }, [rosterSnap9]);
   const dockRoster9 = ((): React.ReactNode => {
     const teams9 = (melee ? [1] : [1, 2]).map((t9) => ({
       team: t9 as 1 | 2,
       mates: melee ? bases : bases.filter((m) => (m.team === 2 ? 2 : 1) === t9),
     })).filter((t9) => t9.mates.length > 0);
-    const rows9 = 1 + teams9.reduce((n9, t9) => n9 + 1 + t9.mates.length, 0);
+    /* 줄 수 = 머리 줄 하나 + 사람 + 팀 사이 틈(ROSTER_GAP_ROWS9 · 2026-10-09). 팀마다 두던 머리 줄(팀 이름 + 라벨)은 걷었다(요청: "팀1과 2에
+       중복으로 라벨을 붙일 필요는 없을 듯 · 오토 중계 버튼이 한 줄 차지하는 게 아쉬운데") — 라벨은 맨 위 한 줄에만, AUTO 단추는 그 줄의
+       이름 기둥 자리(카메라 단추 열의 머리)에 앉는다. 4:4 는 열한 줄 → 9.6 줄이라 줄 키가 그만큼 는다. */
+    const rows9 = 1 + teams9.reduce((n9, t9) => n9 + t9.mates.length, 0) + ROSTER_GAP_ROWS9 * Math.max(0, teams9.length - 1);
+    const pages9 = rosterPaged9 ? [...ROSTER_PAGES9, ROSTER_PAGES9[0]] : ROSTER_PAGES9;   // 끝의 복제 첫 쪽(위 ★ 되감기)은 쪽 꼴에서만
+    const stripStyle9 = rosterPaged9 ? { transform: `translateX(-${rosterPage9 * 100}%)` } : undefined;
     const cell9 = (m: MotionBase, col9: RosterCol9): React.ReactNode => {
       switch (col9) {
         case "min": { const r9 = resNow.get(m.key); return r9 ? r9[0] : ""; }
@@ -17182,62 +17205,77 @@ export default function ReplayMotionPlayer({
       }
     };
     return (
-      <div className={cx("scr-dock-roster", !melee && "is-team", rosterPaged9 && "is-paged")} style={{ ["--rows" as string]: String(rows9) } as React.CSSProperties}>
-        {/* 맨 위 AUTO — 자동 중계(요청: "자동은 맨위에 따로. 버튼 라벨은 비디오카메라에 AUTO 글자 합성"). */}
-        <div className="scr-dock-roster-top">
-          <button
-            type="button" className={cx("scr-roster-cam scr-roster-cam-auto", castOn && "is-on")} onClick={toggleCast9} aria-pressed={castOn}
-            aria-label={castOn ? "자동 중계 끄기" : "자동 중계 켜기"} title={castOn ? "자동 중계 — 켜짐(누르면 끔)" : "자동 중계 — 볼 만한 사람을 저절로 따라간다"}
-          >
-            <Video aria-hidden /><span className="scr-roster-cam-txt">AUTO</span>
-          </button>
-        </div>
-        {teams9.map(({ team, mates }) => (
-          <div key={team} className="scr-dock-team">
-            <div className="scr-dock-names">
-              <div className="scr-dock-row scr-dock-head"><span className="scr-dock-teamname">{melee ? "\u00A0" : `${team}팀`}</span></div>
-              {mates.map((m) => {
-                const fallen9 = m.ghost || fallenHome(m);
-                const on9 = castSel9.includes(m.key);
-                return (
-                  <div key={m.key} className={cx("scr-dock-row", fallen9 && "scr-motion-base-ghost")} style={{ ["--pcol" as string]: modeColor(m.key, m.team) } as React.CSSProperties}>
-                    <button
-                      type="button" className={cx("scr-roster-cam", on9 && "is-on")} onClick={() => pickPerson9(m.key)} aria-pressed={on9}
-                      aria-label={on9 ? `${m.name} 화면 놓기` : `${m.name} 화면 보기`}
-                      title={on9 ? "이 사람 화면을 놓는다" : "이 사람 화면을 따라간다 — 둘 이상 켜면 나눠 본다"}
-                    >
-                      <Video aria-hidden />
-                    </button>
-                    <span className={cx("scr-motion-teamcol-name scr-dock-name", shownRaws9.has(m.key) && "scr-motion-teamcol-cast")} style={chipStyle(m.key, m.team, CHIP_ROW_A9)}>
-                      {m.name}
-                      {m.race && raceLetter9(m.race) ? <span className="scr-motion-teamcol-race">{raceLetter9(m.race)}</span> : null}
-                    </span>
-                    {winnerTeam && (m.team === 2 ? 2 : 1) === winnerTeam && t >= total - 0.5 && !fallen9 && <span className="scr-dock-trophy">🏆</span>}
-                  </div>
-                );
-              })}
-            </div>
-            <div className="scr-dock-data">
-              <div className="scr-dock-strip" style={rosterPaged9 ? { transform: `translateX(-${rosterPage9 * 100}%)` } : undefined}>
-                {ROSTER_PAGES9.map((pg9, i9) => (
-                  <div key={i9} className="scr-dock-page">
-                    <div className="scr-dock-row scr-dock-head">
-                      {/* 라벨은 칸 **안의** 작은 글자다(2026-10-09, 지적: "라벨 헤더와 데이터 줄이 가운데 정렬이 다른듯") — 칸 폭은 ch 라 칸 글자가 작으면 폭도
-                          좁아져 가운데가 어긋났다. 칸은 값과 같은 글자, 라벨만 작게. */}
-                      {pg9.map((c9) => <span key={c9} className={cx("scr-dock-cell", `is-${c9}`)}><span className="scr-dock-lab">{ROSTER_LABEL9[c9]}</span></span>)}
-                    </div>
-                    {mates.map((m) => (
-                      <div key={m.key} className="scr-dock-row">
-                        {pg9.map((c9) => (
-                          <span key={c9} className={cx("scr-dock-cell", `is-${c9}`, c9 === "min" && "scr-motion-stat-min", c9 === "gas" && "scr-motion-stat-gas")}>{cell9(m, c9)}</span>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
+      <div className={cx("scr-dock-roster", !melee && "is-team", rosterPaged9 && "is-paged", rosterSnap9 && "is-snap")} style={{ ["--rows" as string]: String(rows9) } as React.CSSProperties}>
+        {/* 머리 줄 하나 — 왼쪽(이름 기둥)은 AUTO(자동 중계 · 요청: "비디오카메라에 AUTO 글자 합성"), 오른쪽(자료 기둥)은 칸 라벨.
+            쪽 꼴이면 라벨 띠도 자료 띠와 **같은 translateX** 로 미끄러져 쪽마다 제 라벨이 선다. */}
+        <div className="scr-dock-team scr-dock-headrow">
+          <div className="scr-dock-names">
+            <div className="scr-dock-row scr-dock-head">
+              <button
+                type="button" className={cx("scr-roster-cam scr-roster-cam-auto", castOn && "is-on")} onClick={toggleCast9} aria-pressed={castOn}
+                aria-label={castOn ? "자동 중계 끄기" : "자동 중계 켜기"} title={castOn ? "자동 중계 — 켜짐(누르면 끔)" : "자동 중계 — 볼 만한 사람을 저절로 따라간다"}
+              >
+                <Video aria-hidden /><span className="scr-roster-cam-txt">AUTO</span>
+              </button>
             </div>
           </div>
+          <div className="scr-dock-data">
+            <div className="scr-dock-strip" style={stripStyle9}>
+              {pages9.map((pg9, i9) => (
+                <div key={i9} className="scr-dock-page">
+                  <div className="scr-dock-row scr-dock-head">
+                    {/* 라벨은 칸 **안의** 작은 글자다(2026-10-09, 지적: "라벨 헤더와 데이터 줄이 가운데 정렬이 다른듯") — 칸 폭은 ch 라 칸 글자가 작으면 폭도
+                        좁아져 가운데가 어긋났다. 칸은 값과 같은 글자, 라벨만 작게. */}
+                    {pg9.map((c9) => <span key={c9} className={cx("scr-dock-cell", `is-${c9}`)}><span className="scr-dock-lab">{ROSTER_LABEL9[c9]}</span></span>)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        {teams9.map(({ team, mates }, ti9) => (
+          <React.Fragment key={team}>
+            {ti9 > 0 && <div className="scr-dock-gap" aria-hidden />}
+            <div className="scr-dock-team">
+              <div className="scr-dock-names">
+                {mates.map((m) => {
+                  const fallen9 = m.ghost || fallenHome(m);
+                  const on9 = castSel9.includes(m.key);
+                  return (
+                    <div key={m.key} className={cx("scr-dock-row", fallen9 && "scr-motion-base-ghost")} style={{ ["--pcol" as string]: modeColor(m.key, m.team) } as React.CSSProperties}>
+                      <button
+                        type="button" className={cx("scr-roster-cam", on9 && "is-on")} onClick={() => pickPerson9(m.key)} aria-pressed={on9}
+                        aria-label={on9 ? `${m.name} 화면 놓기` : `${m.name} 화면 보기`}
+                        title={on9 ? "이 사람 화면을 놓는다" : "이 사람 화면을 따라간다 — 둘 이상 켜면 나눠 본다"}
+                      >
+                        <Video aria-hidden />
+                      </button>
+                      <span className={cx("scr-motion-teamcol-name scr-dock-name", shownRaws9.has(m.key) && "scr-motion-teamcol-cast")} style={chipStyle(m.key, m.team, CHIP_ROW_A9)}>
+                        {m.name}
+                        {m.race && raceLetter9(m.race) ? <span className="scr-motion-teamcol-race">{raceLetter9(m.race)}</span> : null}
+                      </span>
+                      {winnerTeam && (m.team === 2 ? 2 : 1) === winnerTeam && t >= total - 0.5 && !fallen9 && <span className="scr-dock-trophy">🏆</span>}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="scr-dock-data">
+                <div className="scr-dock-strip" style={stripStyle9}>
+                  {pages9.map((pg9, i9) => (
+                    <div key={i9} className="scr-dock-page">
+                      {mates.map((m) => (
+                        <div key={m.key} className="scr-dock-row">
+                          {pg9.map((c9) => (
+                            <span key={c9} className={cx("scr-dock-cell", `is-${c9}`, c9 === "min" && "scr-motion-stat-min", c9 === "gas" && "scr-motion-stat-gas")}>{cell9(m, c9)}</span>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </React.Fragment>
         ))}
       </div>
     );

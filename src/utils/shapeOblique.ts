@@ -813,6 +813,32 @@ export function withModelWarpTw<T>(
     modelWarpTw = p;
   }
 }
+/** ★ **모델 피칭**(2026-10-09 · bake9 프로브 "살짝 피칭해서 앞이 내려가게") — 모델 회전(spun) **뒤**, z 평행이동(modelZOff) **앞**에
+ *  판 모형 공간의 x축 둘레로 (y, z) 를 돌린다. 비틀기 칸(modelWarp…)은 회전 **앞**이라, `withModelSpin` 으로 돌려 세운 부품(프로브 눈
+ *  렌즈)에 걸면 그 부품만 제 국소 축으로 기울어 몸과 어긋난다 — 회전 뒤 한 자리에서 돌려야 몸·부품·총구(modelPoint9)·메시(mp3)가
+ *  한 몸으로 숙는다. 각은 **설계 자**(모델 z 는 ×0.8 로 접혀 있다 — bake9 Z8)로 셈하고 꼭짓점에서 다시 접는다(강체 회전이 되게).
+ *  pivot(py · pz: 접힌 모델 z · 배율 뒤)은 안 움직이는 축의 자리 · +deg 는 앞(+y)이 **내려간다**. depthNow(키)·2D 법선은 안 태운다
+ *  (키는 상대 차례만 쓰고, 법선은 GL 이 꼭짓점에서 다시 낸다 — 2D 폴백의 명암 몇 도 차는 눈에 안 띈다). */
+const PITCH_Z8 = 0.8;
+let modelPitch: { s: number; c: number; py: number; pz: number } | null = null;
+export function withModelPitch<T>(deg: number, py: number, pz: number, fn: () => T): T {
+  const p = modelPitch;
+  const a = (deg * Math.PI) / 180;
+  modelPitch = { s: Math.sin(a), c: Math.cos(a), py, pz };
+  try {
+    return fn();
+  } finally {
+    modelPitch = p;
+  }
+}
+/** 회전 뒤 (y, z) 한 점을 피칭만큼 돌린다 — 피칭이 없으면 그대로(안 감싼 모델은 값도 비용도 그대로). */
+function pitched(my: number, z: number): [number, number] {
+  if (!modelPitch) return [my, z];
+  const { s, c, py, pz } = modelPitch;
+  const dy = my - py;
+  const dz = (z - pz) / PITCH_Z8;
+  return [py + dy * c + dz * s, pz + (dz * c - dy * s) * PITCH_Z8];
+}
 /** 비틀림 칸 **앞**까지(안쪽 두 비틀기)만 태운 모형 점 — 머리를 몸통 비틀림에 평행이동만 시키려고 그 자리를 잰다. */
 export function preTwistPoint9(x0: number, y0: number, z0: number): [number, number, number] {
   if (modelWarp) [x0, y0, z0] = modelWarp(x0, y0, z0);
@@ -826,18 +852,19 @@ export function modelPoint9(x0: number, y0: number, z0: number): [number, number
   if (modelWarp) [x0, y0, z0] = modelWarp(x0, y0, z0);
   if (modelWarpOut) [x0, y0, z0] = modelWarpOut(x0, y0, z0);
   if (modelWarpTw) [x0, y0, z0] = modelWarpTw(x0, y0, z0);
-  const z = z0 * modelZK + modelZOff;
-  const [mx, my] = spun(x0 * modelXK + modelXOff, y0 * modelYK + modelYOff);
-  return [mx, my, z];
+  const [mx, my0] = spun(x0 * modelXK + modelXOff, y0 * modelYK + modelYOff);
+  const [my, zp] = pitched(my0, z0 * modelZK);   // 피칭(withModelPitch)은 회전 뒤 · z 평행이동 앞 — project 와 같은 차례
+  return [mx, my, zp + modelZOff];
 }
 /** 모형 좌표 (x,y,z) → 화면 [sx, sy]. y(앞)는 아래로, z(위)는 위로 간다. */
 export function project(x0: number, y0: number, z0: number): [number, number] {
   if (modelWarp) [x0, y0, z0] = modelWarp(x0, y0, z0);
   if (modelWarpOut) [x0, y0, z0] = modelWarpOut(x0, y0, z0);
   if (modelWarpTw) [x0, y0, z0] = modelWarpTw(x0, y0, z0);
-  const z = z0 * modelZK + modelZOff;
   // 모델 회전이 먼저다 — 돌아간 좌표를 카메라가 본다(카메라는 안 움직인다).
-  const [mx, my] = spun(x0 * modelXK + modelXOff, y0 * modelYK + modelYOff);
+  const [mx, my0] = spun(x0 * modelXK + modelXOff, y0 * modelYK + modelYOff);
+  const [my, zp] = pitched(my0, z0 * modelZK);   // 피칭(withModelPitch)은 회전 뒤 · z 평행이동 앞
+  const z = zp + modelZOff;
   const th = ((yawOverride ?? VIEW.yawDeg) * Math.PI) / 180;
   const c = Math.cos(th);
   const sn = Math.sin(th);

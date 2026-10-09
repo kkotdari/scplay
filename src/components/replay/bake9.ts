@@ -7,7 +7,7 @@ import { cx } from "./cx";
 import { TIER_GEN9 } from "./tierTable.gen";
 import { kT } from "../../utils/openbwTracks";
 import {
-  POLY2, MESH9, EMIT_FILL9, meshPut9, meshSphere9, shinePath3, annulusPath3, orbPath3, billPath3, billPoly3, meshLoft9, meshRing9, loftZFaces, modelPoint9, annulusPath, bandPath, bodyFace, shellFaces9, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, boxOctFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelShift, withModelWarp, withModelWarpOut, withModelWarpTw, preTwistPoint9, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
+  POLY2, MESH9, EMIT_FILL9, meshPut9, meshSphere9, shinePath3, annulusPath3, orbPath3, billPath3, billPoly3, meshLoft9, meshRing9, loftZFaces, modelPoint9, annulusPath, bandPath, bodyFace, shellFaces9, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, boxOctFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelPitch, withModelShift, withModelWarp, withModelWarpOut, withModelWarpTw, preTwistPoint9, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
 import { BUILD_STAGES, GAIT_CYCLE9, LINK_CY_9, LINK_CZ_9, LINK_X0_9, linkLenOf9, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, type Pose9, SPIN_ANIM9, SPIN_STEPS, bldNormOf, modelInkOf, modelNormOf } from "./engine9";
 import { type UnitDrawOp } from "./engine9";
 /** 주소 해시(`#pitch=`·`#nocreep` 같은 진단 스위치) — 굽기 일꾼 안에서는 location.hash가 빈 문자열(blob 주소)이라,
@@ -6078,6 +6078,15 @@ function cocoonBuild9(stage9: number): ShapeFace[] {
     })(),
   ];
 }
+/** ★ 프로브 **앞숙임**(2026-10-09, 요청: "프로브 살짝 피칭해서 앞이 내려가게") — 몸·날개·눈·스러스터·총구·짐이 **한 몸으로** x축
+ *  (y 0 · z `PROBE_PIVOT_Z9`) 둘레로 `PROBE_PITCH9`도 숙는다(+ 가 앞 내려감). 비틀기 칸(withModelWarp)이 아니라 회전 **뒤** 칸
+ *  (shapeOblique withModelPitch)인 까닭: 눈 렌즈가 `withModelSpin` 으로 돌려 세운 부품이라 회전 앞에서 걸면 렌즈만 딴 축으로 기운다.
+ *  짐(probeMin·probeGas·loadProbe…)도 같은 손으로 감싼다 — 짐은 몸에 딸린 부품이다(loadZ9 의 ⚠ 과 같은 까닭 · 안 감싸면 코가
+ *  내려간 만큼 짐과 사이가 벌어진다). 총구는 modelPoint9 를 지나므로 함께 숙는다 → muzzle-table 다시 뽑는다. */
+export const PROBE_PITCH9 = 12;
+export const PROBE_PIVOT_Z9 = 4.8;   // 치마 밑(ZBOT9 4.495)~뚜껑(ZCAP9 5.14)의 가운데 — 몸통이 제자리에서 돈다
+function probePitch9<T>(fn: () => T): T { return withModelPitch(PROBE_PITCH9, 0, PROBE_PIVOT_Z9, fn); }
+
 export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   /* 커맨드 센터(재작도 — 사진 기준, 기존 비율·자세는 그대로) ─────────────────────
      여태 선체 전체가 개인색이라 종족이 안 읽히고 팀마다 딴 건물처럼 보였다. 테란의
@@ -10179,7 +10188,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         for (const q9 of [0, 1]) {
           const seed9 = ((cx9 * 7.3 + cy9 * 3.1 + k9 * 11.7 + q9 * 4.9) % 1 + 1) % 1;
           const at9 = 0.3 + 0.4 * ((seed9 * 2.3) % 1) + q9 * 0.05;   // 변 위 자리(0.3~0.75)
-          const len9 = 0.5 + 0.45 * seed9;                             // 뻗는 길이
+          /* 길이 0.5~0.95 → **0.12~0.24**(2026-10-09, 요청: "발판의 철사 튀어나온 거 길이 많이 축소 — 살짝만 튀어나오게"). */
+          const len9 = 0.12 + 0.12 * seed9;                            // 뻗는 길이
           const rx9 = ax9 + ex9 * at9; const ry9 = ay9 + ey9 * at9;
           const z9 = zTop9(rx9, ry9) + 0.032;
           f9.push(...rodFaces(rx9, ry9, z9, rx9 + nx9 * len9, ry9 + ny9 * len9, z9 + 0.016, 0.07));
@@ -14788,7 +14798,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 반지름 3 → 2.25(요청: "포지 톱니바퀴 반지름 3/4으로 축소") → **1.8**(2026-09, 요청:
          "포지 톱니바퀴 크기 20프로 축소") — 이 한 값이 이빨 높이·둘레 마디 수까지 함께
          정한다(아래 R9). 이빨·둘레 눌림(GEAR_WK9)은 반지름 배수라 저절로 따라 준다. */
-      const RIM = 1.8;
+      // → **1.62**(2026-10-09, 요청: "포지 톱니바퀴 크기 전체 10프로 축소") — 이빨·마디·눌림이 전부 이 값에서 나므로 이 한 줄이 전체 ×0.9 다.
+      const RIM = 1.62;
       /* ★ 세로만 보정한다 — **요잉은 그대로 먹인다**(지적: "포지 톱니 각도 아직도
          안맞음... +45도에서 정면에서 본거랑 똑같이 보여").
          앞 판은 이 평면의 두 기저를 재서 **역행렬**로 좌표를 잡았다. 그러면 어느
@@ -18444,6 +18455,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        ★ 처음엔 꼭대기 한 점에서 부챗살로 내려보냈는데, 그러면 번개 다섯이 아니라
          **천막 하나**로 읽혔다(실측 렌더). 위·아래 자리를 따로 뽑아야 서로 남남인
          번개가 된다 — 실제 벼락도 한 점에서 갈라지지 않고 제각각 떨어진다. */
+    let prevEnd9 = 0;   // 앞 줄기의 끝 칸(bs + 수명) — 아래 ★ 빈 칸 없이 잇기
     for (let i9 = 0; i9 < 5; i9 += 1) {
       /* ★ 닿는 자리를 **영역에 고르게** 흩는다(지적: "스톰 영역이 커 보이지 않는다") —
          전에는 다섯 줄기의 위·아래 자리를 모두 −0.5~0.5 균등에서 뽑아, 다섯 개가 죄다
@@ -18470,7 +18482,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          칸까지** 닿아야 꼬리도 안 빈다(실측: 끝 두세 칸이 비어 거기서도 깜빡였다). 넘치는
          몫은 씨앗이 갈리며 잘리는데, 그 자리는 새 벼락이 곧장 채우므로 빈틈이 아니다. */
       const r09 = rnd();
-      const bs9 = i9 === 0 ? 0
+      let bs9 = i9 === 0 ? 0
         : Math.min(STAGES9 - 4, 1 + Math.floor((i9 - 1 + r09 * 0.9) * ((STAGES9 - 4) / 4)));
       // 줄기 길이도 살짝씩 다르게(지적) — 시작 높이를 85~115%로.
       const top9 = TOP9 * (0.85 + rnd() * 0.3);
@@ -18478,22 +18490,43 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          옛 0.5R(±1.7 · 높이 15.5 라 6도 안쪽)는 사실상 수직이었다. ±1.2R(±8.2)이면 수직에서 0~28도 사이로 흩어진다. */
       const tx9 = gx9 + (rnd() - 0.5) * R9 * 2.4; // 꼭대기 자리(크게 비껴간다)
       const ty9 = gy9 + (rnd() - 0.5) * R9 * 2.4;
+      /* ★★ **ㄹ·Z 꼴로 확 꺾인다**(2026-10-09, 요청: "메인 줄기 꺾임이 더 확 꺾이고 자유자재로 꺾이게 — ㄹ, Z자 느낌") ─────────────
+         옛 줄기는 곧은 선에 ±0.65 의 잔떨림(sin 창 1.3)을 얹은 것이라 높이 15 에 견주면 **거의 직선**이었다(실측: 살짝 휜 막대).
+         이제 마디마다 **번갈아 좌우로 크게** 비껴간다 — 줄기마다 가로 축 하나(pa9)를 뽑고, 마디 k 는 그 축의 (−1)^k 쪽으로 진폭
+         `amp9`(0.3~0.55R = 2.0~3.7 · 마디마다 55~100%)만큼 나간다. 번갈아 나가니 이웃 마디 사이 가로 획이 최대 7 이고, 마디 높이
+         (uz9)도 ±35% 흔들어 어떤 획은 거의 **가로로 눕는다**(ㄹ 의 ㅡ) — 그것이 Z·ㄹ 의 결이다. 축에 수직한 잔떨림(jx9 ±0.4)은 남겨
+         평면 지그재그로만 안 읽히게 했다. 창은 √sin 이라 가운데가 가장 크고 양 끝은 잦아들며 **끝 두 점은 그대로**다(꼭대기·닿는
+         자리가 흔들리면 '어디서 어디로'가 안 읽힌다). 마디 7 → 6 — 꺾임이 커졌으니 마디가 많으면 톱니로 읽힌다.
+         끝 마디도 난수를 뽑아 버린다 — 줄기마다 소비 수가 같아야 칸이 넘어가도 같은 줄기가 이어진다(위 from9 규약). */
       const pts: [number, number, number][] = [];
-      const seg9 = 7;
+      const seg9 = 6;
+      const pa9 = rnd() * Math.PI * 2;                    // 꺾는 가로 축
+      const px9 = Math.cos(pa9); const py9 = Math.sin(pa9);
+      const amp9 = R9 * (0.3 + rnd() * 0.25);             // 비껴가는 진폭 2.0~3.7
+      const sg9 = rnd() < 0.5 ? 1 : -1;                   // 첫 마디가 나가는 쪽
       for (let k9 = 0; k9 <= seg9; k9 += 1) {
         const u9 = k9 / seg9;
-        /* 지그재그는 가운데가 가장 크고 양 끝은 잦아든다 — 끝이 흔들리면 시작·닿는
-           자리가 흐려져 '어디서 어디로'가 안 읽힌다. */
-        const j9 = Math.sin(Math.PI * u9) * 1.3;
+        const end9 = k9 === 0 || k9 === seg9;
+        const r19 = rnd(); const r29 = rnd(); const r39 = rnd();
+        const uz9 = end9 ? u9 : u9 + (r19 - 0.5) * (0.7 / seg9);
+        const sw9 = end9 ? 0 : sg9 * (k9 % 2 ? 1 : -1) * amp9 * (0.55 + r29 * 0.45) * Math.sqrt(Math.sin(Math.PI * u9));
+        const jx9 = end9 ? 0 : (r39 - 0.5) * 0.8;
         pts.push([
-          tx9 + (gx9 - tx9) * u9 + (rnd() - 0.5) * j9,
-          ty9 + (gy9 - ty9) * u9 + (rnd() - 0.5) * j9,
-          top9 * (1 - u9) ** 1.15,
+          tx9 + (gx9 - tx9) * uz9 + px9 * sw9 - py9 * jx9,
+          ty9 + (gy9 - ty9) * uz9 + py9 * sw9 + px9 * jx9,
+          top9 * (1 - uz9) ** 1.15,
         ]);
       }
       // 줄기 굵기는 제각각(요청) — 0.13~0.27.
       /* 줄기 수명 4~6칸(요청: 생애 2배) — 칸 박자는 그대로라 0.29~0.43초 번쩍이고 사라진다. */
-      const life9 = 4 + Math.floor(rnd() * 3);
+      let life9 = 4 + Math.floor(rnd() * 3);
+      /* ★ **빈 칸 없이 잇는다**(2026-10-09, 실측: ㄹ·Z 꺾임으로 난수 차례가 바뀌자 씨앗 0 의 8칸과 14~15칸에 줄기가 한 올도 없었다 — 앞 줄기가
+         4칸 만에 꺼지고 다음 줄기는 두 칸 뒤에 나는 뽑기였다. 옛 판은 운이 좋았을 뿐 같은 구멍이 있었다) — 줄기는 **앞 줄기가 아직 살아 있는
+         칸**에 난다(bs ≤ 앞 끝 − 1 · 앞 끝 = 앞 줄기의 bs + 수명). 마지막 줄기는 씨앗의 끝 칸까지 산다. 값만 죄고 뽑기 수는 그대로라 칸이
+         넘어가도 같은 줄기다(위 from9 규약). */
+      if (i9 > 0) bs9 = Math.max(1, Math.min(bs9, prevEnd9 - 1));
+      if (i9 === 4) life9 = Math.max(life9, STAGES9 - bs9);
+      prevEnd9 = bs9 + life9;
       /* 잔가지·발밑 가지는 줄기보다 **오래 살지 않는다**(지적: "메인 가지만 남거나 잔가지만 남는 경우 — 자연에선
          잔가지가 같이 사라지거나 먼저 사라진다") — 가지의 끝 칸을 줄기의 끝 칸(endMain9)으로 자른다. */
       const endMain9 = bs9 + life9;
@@ -23673,7 +23706,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     return out;
   },
   /* 프로브(실물 참고) — 팔각 보석 몸(밝은 윗판 층층) + 방사 가시들. */
-  probe: () => {
+  probe: () => probePitch9(() => {   // ★ 앞숙임(위 PROBE_PITCH9)
     const out: ShapeFace[] = [];
     /** 몸통 축소 몫(요청: "프로브 몸체 크기 2/3로 축소") — 몸에 붙는 자리(다리 뿌리·
      *  눈·옆 포트)가 전부 이 값을 지나야 몸만 줄고 부품이 허공에 뜨는 일이 없다. */
@@ -23996,7 +24029,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const PF_SHIFT9 = 0.3;
     for (const ang of [15, -15]) out.push(...paintBase(wing(ang, 0.85 * BD, 0.30, 0.17, 0.08, 4.92, 3.81, 1, 0, Math.sign(ang) * PF_SHIFT9), TOSS_GOLD));
     return out;
-  },
+  }),
   /* 드론(정정) — 갈퀴치마는 집게 사이가 아니라 집게팔과 꼬리 사이, 양옆에 부채처럼
      펼쳐진다. 몸통(꼬리 겹돔) + 칼날팔 한 쌍 + 양옆 톱니 부채막. */
   drone: () => {
@@ -24035,15 +24068,23 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 뒷몸은 **뒤로 갈수록 얇아진다**(재요청) — 돔 대신 y축 방추: 앞몸 속(y −1.0)에서 나와
          꽁무니(y −2.9)로 가늘어진다. 위아래는 0.6으로 눌러 납작하고, 축이 뒤로 조금 내려앉는다. */
       ...tagKey(paintBase(spirePillar({
-        x: 0, y: 0, h: 0.8, w: 1, segs: 6, sides: 10, ref: [1, 0, 0], caps: "none", oval: 0.6, trueNormal: true,
+        /* ★ 꼬리 **많이** 누름(2026-10-09, 요청: "드론 몸통은 살짝 꼬리는 많이 높이를 누르고") — 단면 세로비 0.6 → 0.36. 옛 꼬리는
+           반높이 0.75 라 앞 끝(z 3.16)에서 위로 3.91 — 몸통 꼭대기(3.84)보다 **높이 솟아** 등에 혹처럼 얹혔다. 0.36 이면 2.71~3.61
+           로 몸 속에 든다(그 자리 몸 꼭대기 3.68). 축 높이는 그대로. */
+        x: 0, y: 0, h: 0.8, w: 1, segs: 6, sides: 10, ref: [1, 0, 0], caps: "none", oval: 0.36, trueNormal: true,
         path: (t9: number): [number, number, number] => [0, -1.0 - 1.9 * t9, 3.16 - 0.28 * t9],
         widthOf: (t9: number): number => 1.2 * (1 - 0.88 * t9 ** 1.15) + 0.05,
       }), "#6b4732"), depthNow(0, -2) * 1.6 + 1),
-      ...tagKey(domeFaces3(0, -0.7, 1.6, 1.04, 2.8), depthNow(0, -0.7) * 1.6 + 1),
+      // 몸통은 **살짝** 누름(2026-10-09, 같은 요청) — 돔 높이 1.04 → 0.9(꼭대기 3.84 → 3.7). 반지름 1.6 그대로.
+      ...tagKey(domeFaces3(0, -0.7, 1.6, 0.9, 2.8), depthNow(0, -0.7) * 1.6 + 1),
       /* 얼굴(요청: "얼굴 달고 눈을 얼굴로 옮기기") — 눈 한 쌍만 몸통 앞면에 떠 있어
          '얼굴'이 없었다. 저그 지상 유닛 공용 얼굴(zergFace)을 몸 앞머리에 물려 박고,
          눈은 그 얼굴이 제 몫으로 달고 나온다 — 따로 얹던 눈은 걷는다. */
-      ...tagKey(zergFace(0.75, 3.08, 0.85), depthNow(0, 0.9) * 1.6 + 2.5),
+      /* ★ 얼굴을 **몸 앞으로 내린다**(2026-10-09, 요청: "얼굴 높이 내리기 — 지금은 몸보다 위에 있는데 몸 앞으로") — zergFace(y, z, s) 의
+         z 는 턱 아래 자리라 정수리는 z + 1.156s 다: 옛 (0.75, 3.08) 은 정수리 4.24 로 몸통 꼭대기(3.84)보다 **0.4 위**에 떠 있었다.
+         z 3.08 → 2.65(정수리 3.8 ≈ 새 몸 꼭대기 3.7 · 턱 밑 2.43 — 집게 축 2.4 높이) · y 0.75 → 0.85(얼굴 앞 1.46 · 뒤 0.27 은
+         돔 속 — 그 높이 돔 앞면 y ≈ 0.8 이라 얼굴 반이 몸 앞으로 나온다). */
+      ...tagKey(zergFace(0.85, 2.65, 0.85), depthNow(0, 0.9) * 1.6 + 2.5),
       /* 갈고리 — 아래로 내린다(요청: z 4 → 3). 치마가 그 안쪽 변에 물린다. */
       // 뿌리 반은 갈색 팔(뒷몸과 같은 짙은 갈색) · 끝 반만 상아 낫(2026-10, 요청 — claw3 의 `arm`).
       ...tagKey(ivory(claw3(1, CLAW_S, CLAW_Z, 0, 0, "#6b4732")), depthNow(2, 1.5) * 1.6 + 2),
@@ -29043,14 +29084,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       }), key + 1)));
     };
     // 분화구는 반대로 키운다(정정: "분화구들은 크기 증가") — 2.6/1.35/1.0 → 3.2/1.85/1.35.
-    crater(-0.7, 0.4, 3.2, 2.08, depthNow(-0.7, 0.4) * 1.6 + 0.2);
-    crater(2.6, -1.5, 1.85, 1.4, depthNow(2.6, -1.5) * 1.6 + 0.2, 0.5);   // 반 바퀴 뒤 — 큰 분화구가 쉴 때 낸다
+    /* ★ 큰 분화구 ×0.75 · 셋이 **안 겹치고 살짝 떨어진다**(2026-10-09, 요청: "가장 왼쪽 큰 분화구를 25프로 줄이고 세 개가 겹치지 않고
+       살짝 떨어져 있게") — 큰 것 3.2/2.08 → 2.4/1.56(반지름·높이 함께). 옛 자리에서는 작은 둘이 큰 것 밑동에 **파묻혀** 있었다
+       (중심 거리 3.8 < 반지름 합 5.05 · 작은 둘끼리도 2.7 < 3.2). 작은 둘은 크기 그대로 바깥으로 옮겨 밑동 사이 틈을 0.2~0.35 로:
+       (2.6,−1.5) → (3.0,−2.1) 거리 4.47(합 4.25) · (3.5,1) → (3.2,1.45) 거리 4.04(합 3.75) · 둘 사이 3.56(합 3.2).
+       잉크 폭은 8.75 → 8.2 로 줄고 중심이 오른쪽으로 옮겨 가지만 BLD_NORM 은 그대로 둔다(요청으로 달라진 잉크) · 잉크 중심표만 측정 차만큼. */
+    crater(-0.7, 0.4, 2.4, 1.56, depthNow(-0.7, 0.4) * 1.6 + 0.2);
+    crater(3.0, -2.1, 1.85, 1.4, depthNow(3.0, -2.1) * 1.6 + 0.2, 0.5);   // 반 바퀴 뒤 — 큰 분화구가 쉴 때 낸다
     /* 지적: "작은 분화구 앞바깥쪽에 더 낮은 분화구 하나 추가" — 작은 분화구는
        (2.3, -1.4), 화면으로는 오른쪽 뒤에 있다. 그 앞(+y가 시청자 쪽)이자 바깥
        (+x가 화면 오른쪽)인 (3.4, 0.9)에 셋째를 판다. 높이는 1.5 → 0.9로 더 낮춰
        큰 것·작은 것·이것이 계단처럼 층지게 했고, 지름 1.0은 흙바닥 타원(4.7) 안에
        들어와 발자국을 넘지 않는다. */
-    crater(3.5, 1, 1.35, 0.88, depthNow(3.5, 1) * 1.6 + 0.2, 0.5);   // 작은 둘은 같은 반 바퀴 — 가운데가 다 스러진 뒤 좌우가 함께 낸다(0.25 면 큰 것의 꼬리와 겹쳐 쉬는 때가 없다)
+    crater(3.2, 1.45, 1.35, 0.88, depthNow(3.2, 1.45) * 1.6 + 0.2, 0.5);   // 작은 둘은 같은 반 바퀴 — 가운데가 다 스러진 뒤 좌우가 함께 낸다(0.25 면 큰 것의 꼬리와 겹쳐 쉬는 때가 없다)
     return out;
   },
 
@@ -29483,7 +29529,15 @@ export function lurkerBurrowFaces(fire: boolean): ShapeFace[] {
   out.push(capFace(discPath3(0, 0, 0.08, 3), 0.6));
   /* 땅 위로 내민 등딱지 — 럴커 본판의 등딱지(domeFaces3(0, −0.2, 2.5, 2, 3.4))를
      땅 높이로 낮춰 얹은 것이다. 쏠 때는 몸을 조금 일으켜 한 단 솟는다. */
-  out.push(...paintBase(domeFaces3(0, -0.2, 2.6, fire ? 0.96 : 0.68, 0.096), "#6b5a4a"));
+  /* ★ **임자색 몸체가 흙더미 밑으로 엿보인다**(2026-10-09, 요청: "럴커 버로우 상태에 임자색이 너무 없어서 구분 안 됨 — 흙더미 아래쪽에
+     숨겨진 임자색 몸체가 살짝 엿보이는 형태로, 그 위에 가시") — 여태 땅 위에 보이는 것은 흙 돔(#6b5a4a)과 가시뿐이라 누구 럴커인지
+     색이 없었다. 흙 돔 **밑에** 한 둘레 넓고 납작한 등딱지 돔(반지름 2.65 · 안 칠한 낯 = 임자색 — 본판 등딱지 domeFaces3(…2.5…) 과
+     같은 규약)을 깔고, 흙 돔은 반지름 2.6 → 2.3 으로 좁혀 그 위에 얹는다(밑동이 등딱지 속으로 0.08 파고든다 — 닿게 말고 파고들게).
+     그래서 흙 둘레로 0.35 폭의 임자색 띠가 돌아 보이고(첫 판 2.75/2.2 의 0.55 띠는 "살짝 엿보이는"이 아니라 파란 고리였다 · 실측), 가시는 종전대로 흙 돔 위로 솟는다(뿌리 z 0.56 은 흙 속 — 그 자리 흙 표면 0.77).
+     쏠 때는 둘 다 한 단 솟는다. 등딱지 밑동 z 0.1 은 구멍 원반(0.08) 위다(같은 평면이면 z 싸움) · 구멍(반지름 3)·흙 띠(2.9~4.2)는
+     그대로(버로우 자리 공용). */
+  out.push(...domeFaces3(0, -0.2, 2.65, fire ? 0.62 : 0.46, 0.1));
+  out.push(...paintBase(domeFaces3(0, -0.2, 2.3, fire ? 0.8 : 0.56, fire ? 0.4 : 0.3), "#6b5a4a"));
   /* 등 가시 다섯 — 자리는 럴커 본판의 등 가시 그대로다. 평소에는 짧고 뒤로 눕고,
      쏠 때는 두 배 넘게 길어지며 곧추선다(끝점의 x·y를 뿌리 쪽으로 당기면 선다). */
   const h9 = fire ? 3.84 : 1.44;
@@ -29637,9 +29691,9 @@ SHAPE_BUILDERS.scvGas = () => {
   } finally { scvCarry = false; }
 };
 
-SHAPE_BUILDERS.probeMin = () => [...SHAPE_BUILDERS.probe(), ...loadZ9("probe", () => mineralLoad(0, 1.9, 3.48, 0.9))];
+SHAPE_BUILDERS.probeMin = () => [...SHAPE_BUILDERS.probe(), ...loadZ9("probe", () => probePitch9(() => mineralLoad(0, 1.9, 3.48, 0.9)))];
 
-SHAPE_BUILDERS.probeGas = () => [...SHAPE_BUILDERS.probe(), ...loadZ9("probe", () => gasBoxLoad(0, 1.9, 3.48, 0.9, "#d4bd3c"))];
+SHAPE_BUILDERS.probeGas = () => [...SHAPE_BUILDERS.probe(), ...loadZ9("probe", () => probePitch9(() => gasBoxLoad(0, 1.9, 3.48, 0.9, "#d4bd3c")))];
 
 SHAPE_BUILDERS.droneMin = () => {
   scvCarry = true;
@@ -29683,9 +29737,9 @@ SHAPE_BUILDERS.loadScvMin = () => loadZ9("scv", () => mineralLoad(0, 3.15, 3.16,
 
 SHAPE_BUILDERS.loadScvGas = () => loadZ9("scv", () => gasBoxLoad(0, 3.15, 3.16, 1.0));
 
-SHAPE_BUILDERS.loadProbeMin = () => loadZ9("probe", () => mineralLoad(0, 1.9, 3.48, 0.9));
+SHAPE_BUILDERS.loadProbeMin = () => loadZ9("probe", () => probePitch9(() => mineralLoad(0, 1.9, 3.48, 0.9)));
 
-SHAPE_BUILDERS.loadProbeGas = () => loadZ9("probe", () => gasBoxLoad(0, 1.9, 3.48, 0.9, "#d4bd3c"));
+SHAPE_BUILDERS.loadProbeGas = () => loadZ9("probe", () => probePitch9(() => gasBoxLoad(0, 1.9, 3.48, 0.9, "#d4bd3c")));
 
 SHAPE_BUILDERS.loadDroneMin = () => loadZ9("drone", () => mineralLoad(0, 2.7, 2.16, 0.95));
 
