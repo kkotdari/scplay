@@ -55,9 +55,10 @@ export default function ReplayGuide({ onClose }: {
 
         <h3 className="scr-guide-h3">도구 상자</h3>
         <p className="scr-guide-sub">
-          지도 아래 <strong>쇠판</strong>입니다 — 맨 위에 <strong>전광판 · 인포창</strong>이 서고, 그 아래 버튼 줄은 왼쪽의 동그란 <strong>버튼들</strong> ·
+          지도 아래 <strong>쇠판</strong>입니다 — 맨 위에 <strong>전광판 · 미니맵 · 인포창</strong>이 서고, 그 아래 버튼 줄은 왼쪽의 동그란 <strong>버튼들</strong> ·
           오른쪽의 <strong>스크랩 · 공유 · 사용법(?) · 전체화면</strong>, 맨 아래 줄은 <strong>배속 · 재생 · 진행바 · 시간</strong>입니다. 버튼 줄 정가운데의 작은 단추가 <strong>접기(▼)</strong>입니다.
-          사람들의 현황은 쇠판 왼쪽의 <b>전광판</b>가 늘 보여 줍니다(폰은 일꾼 / 인구 / 자원 / 데미지 / APM 다섯 쪽이 6초마다 번갈아 넘어갑니다). <b>미니맵</b>은 지도 왼쪽 아래 구석에 섭니다.
+          사람들의 현황은 쇠판 왼쪽의 <b>전광판</b>이 늘 보여 줍니다(폰은 일꾼 / 인구 / 자원 / 데미지 / APM 다섯 쪽이 6초마다 번갈아 넘어갑니다). 그 오른쪽이 <b>미니맵</b>,
+          자리가 남으면 <b>인포창</b>이 섭니다 — 좁으면 인포창이 작아지거나(폰 세로) 빠지고, 전광판과 미니맵이 함께 줄어 높이도 낮아집니다.
         </p>
         <p className="scr-guide-sub">
           진행바를 끌면 그 시각으로 갑니다. <strong>스크랩·공유</strong> 두 버튼은 <strong>지금 이 장면</strong>을
@@ -133,14 +134,14 @@ export default function ReplayGuide({ onClose }: {
           <li><span className="scr-guide-ic scr-guide-ic-txt">휠</span><span><b>마우스 휠</b> — 굴리면 그 자리를 중심으로 한 배씩 키우고 줄입니다. ↑·↓ 키는 1·2·4·8·16배를 한 칸씩 오갑니다.</span></li>
           <li><span className="scr-guide-ic scr-guide-ic-txt">✌</span><span><b>핀치</b> — 폰에서 두 손가락을 벌리면 커지고 모으면 작아집니다. 한 손가락으로 끌면서 함께 해도 됩니다.</span></li>
           <li><span className="scr-guide-ic scr-guide-ic-txt">×2</span><span><b>두 번 누르기</b> — 그 자리를 한 번에 8배로 당깁니다(더블클릭·더블탭). 한 번 더 누르면 1배로 돌아옵니다.</span></li>
-          <li><span className="scr-guide-ic"><MapIcon size={15}/></span><span><b>미니맵</b> — 지도 왼쪽 아래 작은 지도를 누르거나 끌면 그 자리로 화면이 갑니다. 그 위에서 휠을 굴려도 확대·축소됩니다(중계가 꺼져 있을 때).</span></li>
+          <li><span className="scr-guide-ic"><MapIcon size={15}/></span><span><b>미니맵</b> — 쇠판 가운데의 작은 지도를 누르거나 끌면 그 자리로 화면이 갑니다. 그 위에서 휠을 굴려도 확대·축소됩니다(중계가 꺼져 있을 때). 그 위의 <b>이름표</b>를 누르면 그 사람 화면입니다.</span></li>
           <li><span className="scr-guide-ic"><Video size={15}/></span><span><b>중계</b>를 켜면 사람을 따라가며 알아서 당겨 놓습니다 — 켜진 동안은 휠·핀치·↑↓ 배율이 잠깁니다.</span></li>
         </ul>
 
         <h3 className="scr-guide-h3">중계 고르기</h3>
         <p className="scr-guide-sub">
-          <strong>전광판</strong>의 카메라 단추로 <strong>누구 화면</strong>을 볼지 고릅니다. 들어오면 <strong>AUTO</strong>(자동)로 켜져 있습니다.
-          중계가 켜진 동안은 카메라를 중계가 쥐어, 지도를 손으로 끌어도 안 움직이고 배율도 못 바꿉니다. 화면 왼위에 <b>누구 화면인지</b> 이름 칩이 서고, 왼아래 미니맵은 그 사람 시야입니다.
+          <strong>전광판</strong>의 카메라 단추나 <strong>미니맵 위 이름표</strong>로 <strong>누구 화면</strong>을 볼지 고릅니다. 들어오면 <strong>AUTO</strong>(자동)로 켜져 있습니다.
+          중계가 켜진 동안은 카메라를 중계가 쥐어, 지도를 손으로 끌어도 안 움직이고 배율도 못 바꿉니다. 화면 아래 가운데에 <b>누구 화면인지</b> 이름표가 서고, 왼아래 작은 미니맵은 그 사람 시야입니다.
         </p>
         <div className="scr-guide-mock">
           <div className="scr-guide-castlist" aria-hidden="true">
@@ -154,7 +155,7 @@ export default function ReplayGuide({ onClose }: {
             <li>
               <span className="scr-guide-ic scr-guide-ic-txt">전체</span>
               <span><b>전체</b>(맨 위) — 모든 선수의 화면을 나눠 함께 봅니다. 켜면 아래 이름이 <b>모두 선택된 채</b>로 서고, 거기서 한 사람을
-              누르면 그 사람만 빠진 화면 나누기가 됩니다. 칸마다 위에 그 사람 이름이, PC에서는 그 옆에 <b>일꾼 · 자원 · 인구 · 데미지 · APM</b>이 섭니다.</span>
+              누르면 그 사람만 빠진 화면 나누기가 됩니다. 칸마다 아래 가운데에 그 사람 이름표가 섭니다.</span>
             </li>
             <li>
               <span className="scr-guide-ic scr-guide-ic-txt">이름</span>
@@ -166,16 +167,16 @@ export default function ReplayGuide({ onClose }: {
               <span><b>여러 사람</b> — 카메라 단추를 더 켜면 고른 사람이 늘어나 <b>그 사람들만 화면을 나눠</b> 함께 봅니다.
               켜진 단추를 다시 누르면 빠지고, 모두 켜면 곧 <b>전체</b>입니다. 폰에서는 <b>두 명까지</b>입니다.
               칸마다 그 사람 팀의 <b>시야</b>이고, 칸 안에는 <b>그 사람의</b> 클릭 자국·선택 링·건설 자리와 <b>같은 편의 핑</b>만 보입니다.
-              <b>칸을 누르면</b> 아래 인포창이 그 사람의 것(선택)이 되고 칸에 흰 테가 둘립니다. 한 번 더 누르면 놓습니다.</span>
+              아래 <b>미니맵</b>은 처음엔 전체(관전자)와 같고, 인포창은 <b>'화면을 선택해주세요'</b>만 보입니다. <b>칸을 누르면</b> 미니맵이 그 사람 시야·화면 자리가 되고
+              인포창이 그 사람의 것(선택)이 되며 칸에 흰 테가 둘립니다. 한 번 더 누르면 놓습니다.</span>
             </li>
             <li>
               <span className="scr-guide-ic"><Video size={14}/></span>
               <span><b>자동</b>(AUTO) — 지금 가장 볼 만한 사람에게 저절로 갑니다. 교전·견제·마법이 크게 벌어지는 쪽을 장면이
               시작되기 <b>조금 전에</b> 미리 잡아 두고, 일이 이어지면 8초가 넘어도 그 사람에 머뭅니다. 볼 만한 일이 없으면
               <b> 전광판 차례로 팀을 번갈아</b> 8초씩 돌아갑니다. 지도는 다 보이는 채로 카메라만 옮깁니다. 지금 보여 주는 사람은 전광판의 <b>이름이 깜빡이며 빛납니다</b>.
-              교전·침공·드랍 견제처럼 <b>맞서는 상대</b>가 있는 장면이면 화면이 저절로 <b>둘로 나뉘어</b> 상대 쪽 화면도 함께 보여 주고,
-              두 화면의 경계 가운데에 공격하는 쪽에서 막는 쪽으로 향한 <b>붉은 '공격' 화살표</b>가, 둘 다 공격 중이면 <b>⚔️ '교전'</b> 표가
-              빛나며 뜁니다. 이름표는 화면 아래 가운데(맞대결 중엔 경계 쪽)에 있습니다. 장면이 끝나면 한 화면으로 돌아옵니다.</span>
+              교전·침공·드랍 견제처럼 <b>맞서는 상대</b>가 있는 장면이면 <b>더 잘 싸운 쪽</b> 한 사람 화면을 보여 주고, 이름표 위에
+              <b>'누구를 공격' · '누가 공격함 · 누가 헬프옴' · '누구와 교전'</b> 자막이 뜹니다(왼쪽 띠가 빨강 공격 · 파랑 방어 · 주황 교전). 화면은 늘 하나입니다.</span>
             </li>
             <li>
               <span className="scr-guide-ic scr-guide-ic-txt">끄기</span>
@@ -186,7 +187,8 @@ export default function ReplayGuide({ onClose }: {
 
         <h3 className="scr-guide-h3">미니맵 · 인포창</h3>
         <p className="scr-guide-sub">
-          지도 바로 아래 가운데에 <strong>전광판</strong>(왼쪽)와 <strong>인포창</strong>(오른쪽)이 한 틀로 늘 서 있습니다. <strong>미니맵</strong>은 지도 안 왼쪽 아래입니다.
+          지도 바로 아래 가운데에 <strong>전광판</strong>(왼쪽) · <strong>미니맵</strong>(가운데) · <strong>인포창</strong>(오른쪽)이 한 틀로 서 있습니다(좁으면 인포창부터 줄거나 빠집니다).
+          미니맵 위의 <strong>이름표</strong>는 각 사람의 진영 자리입니다 — 본진을 잃고 옮기면 따라가고, 진영이 클수록 크며, 나갔거나 생산이 끊긴 사람은 어둡습니다. 누르면 그 사람 화면입니다.
           버튼 줄 정가운데의 <strong>접기(▼)</strong>를 누르면 전광판·인포창이 통째로 접히고, 한 번 더 누르면(▲) 다시 펼쳐집니다 — 프레임·전체화면 어디서나 됩니다.
         </p>
         <ul className="scr-guide-legend">

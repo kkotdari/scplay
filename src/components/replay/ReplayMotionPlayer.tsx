@@ -13,10 +13,10 @@ const GHOST_PLATE_COL9 = "#3ee06a";
 import ReplayGuide from "./ReplayGuide";
 import QMarkIcon from "./QMarkIcon";
 /* 중계(중요도 기반 추적) — 편성표를 굽는 순수 문. 경기 한 벌에 한 번 돌고, 재생은 짚기만 한다. */
-import { castAt9, castFoeRole9, castPlan9, type CastRole9, type CastSeg9 } from "./cast9";
+import { castAt9, castPlan9, type CastRole9, type CastSeg9 } from "./cast9";
 /* 미니맵 — 이제 **제 오버레이 판**이고 제 아이콘으로 여닫는다(요청: "미니맵 오버레이
    및 아이콘 추가"). 도구 판 안에 세들어 살던 시절과 달리, 켜고 끄는 것이 이것 하나다. */
-import ReplayFullscreenMinimap, { type MiniDot, type MiniPing } from "./ReplayFullscreenMinimap";
+import ReplayFullscreenMinimap, { type MiniDot, type MiniPing, type MiniTag } from "./ReplayFullscreenMinimap";
 import ReplayFogLayer, { DIM as FOG_DIM9, FOG_RGB as FOG_RGB9, exploredPath9, fogPad9, type FogOverride } from "./ReplayFogLayer";
 /* (걷어냄) PillTabs — 품질 알약이 있던 시절의 것(도구 판과 함께 미사용). */
 import { cx } from "./cx";
@@ -247,6 +247,8 @@ const UNIT_PAINTED_CSS9 = new WeakMap<HTMLCanvasElement, string>();
 const GL_HIDE9: React.CSSProperties = { display: "none" };
 /** 독 줄 음각 글귀 — 틀 옆 쇠 바탕이 글귀 폭보다 이만큼(px) 넘게 남을 때만 새긴다(양옆 여백 몫). */
 const DOCK_MARK_PAD9 = 40;
+/** 독 맞춤(dockFit9) — 인포창이 서려면 남는 폭이 설계 폭의 이 몫은 되어야 한다(그 아래면 안 보인다 · 2026-10-09). */
+const INFO_MIN_K9 = 0.6;
 /** 카메라가 다시 잡을 때 미끄러지는 시간(ms) — 중계·개인 추적·분할 칸이 같은 값을 쓴다. */
 const CAM_GLIDE_MS9 = 450;
 /** 선택(한 명령을 받은 몸들)의 열쇠 — 태그를 정렬해 잇는다. 미끄러짐은 이 열쇠가 그대로일 때만이다(선택이 바뀌면 곧장 선다). */
@@ -280,7 +282,7 @@ const pickIdx9 = (picks: Pick9[], t: number): { at: number; lead: boolean } => {
   return { at: at9, lead: false };
 };
 /** 맞대결 자동 분할을 이만큼(경기 초) 앞서 팀 엔진을 데운다(splitTeamsKey9 의 ★). */
-const DUEL_WARM_SEC9 = 2;
+const CAST_WARM_SEC9 = 2;
 /** 한 사람 중계가 다른 팀으로 갈아탄 뒤 그 팀 엔진을 이만큼(경기 초) 남겨 둔다 — 새 시야 갈래의 장이 올 때까지 팀 장이 빈틈을 메운다. */
 const CAST_SWAP_HOLD9 = 1.5;
 /** 미끄러짐의 그 순간 자리 — 끝났으면 null. ease-in-out(3차). */
@@ -297,17 +299,28 @@ const SPLIT_SPAN_K9 = 0.75;
 /* 분할 칸 배율을 위 둘(담기 · 최소 타일)로 낸 뒤 한 번 더 당기는 몫(2026-10, 지적: "분할창 보이는 영역이 이제 너무 넓어짐" →
    "살짝 줄여야할듯") — 칸에 보이는 타일이 가로·세로 다 1/1.2 로 준다. */
 const SPLIT_ZOOM_K9 = 1.2;
-/** 맞대결 표의 라벨 글자(위 duel9 · .scr-duel-mark — 공격 화살표 '공격' · ⚔️ '교전' · def 는 안 쓴다(화살표의 끝이 수비다)). */
-const DUEL_LABEL9: Record<CastRole9, string> = { atk: "공격", def: "방어", war: "교전" };
-/** 맞대결 공격 화살표의 꼴(100×40 · 오른쪽을 향한다 — 방향은 CSS is-dir-* 가 돌린다 · 자루 14 · 촉 34). */
-const DUEL_ARROW_D9 = "M3 13H64V3L97 20L64 37V27H3Z";
+/** 한글 마지막 글자의 받침 유무 — 중계 자막의 조사(와/과 · 를/을) 고르기. 한글이 아니면(라틴 이름) 받침 없음으로 본다. */
+const koBatchim9 = (s9: string): boolean => {
+  const c9 = s9.charCodeAt(s9.length - 1);
+  return c9 >= 0xac00 && c9 <= 0xd7a3 && (c9 - 0xac00) % 28 !== 0;
+};
+const koWa9 = (s9: string): string => (koBatchim9(s9) ? "과" : "와");
+const koEul9 = (s9: string): string => (koBatchim9(s9) ? "을" : "를");
+const koGa9 = (s9: string): string => (koBatchim9(s9) ? "이" : "가");
+/** 미니맵 이름표가 진영을 묶는 반지름(타일) — 본진 둘레 이만큼의 건물이 한 진영이다(앞마당은 대개 더 멀다 · 아래 miniTags9). */
+const TAG_R9 = 14;
+/** 미니맵 이름표의 크기 단 — 살아 있는 건물 수가 이 값 이하면 s · m, 그 위는 l. */
+const TAG_TIER9 = { s: 5, m: 14 };
+/** 본진(자원 건물) · 생산 건물 — 미니맵 이름표의 진영 무게(본진 3 · 생산 2 · 나머지 1)와 '생산 끊김' 판정에 쓴다. */
+const TAG_HALL9 = new Set(["Command Center", "Nexus", "Hatchery", "Lair", "Hive"]);
+const TAG_PROD9 = new Set(["Barracks", "Factory", "Starport", "Gateway", "Stargate", "Robotics Facility"]);
 /** 분할보기 칸의 오림 네모(유닛 캔버스 CSS px · x0 y0 x1 y1) — 칸을 칠하는 동안만 서고, 붓의 화면 걸러내기(inView0)가 이 안의
  *  몸만 그린다. 칸은 제 실제 배율(낮다)로 칠하므로 판에는 그 칸보다 넓은 땅이 드는데, 그 몫을 안 그려야 칸 수만큼 값이 안 붙는다. */
 let PAINT_CLIP9: [number, number, number, number] | null = null;
 /** 분할보기 칸을 칠하는 배킹 배수 상한(2026-09, 요청: "모바일에서 모델많아지면 좀 버벅이는거같거든" → "피시도 적용") —
  *  칸은 작게 베껴지므로 그 판을 기기 화소(폰 3)로 칠하면 칠한 화소의 대부분을 버린다. 칸 캔버스의 배킹도 같은 값이다. */
 /** 분할보기 칠하기 계량기(SCR_DIAG.split) — 장·칸·칠·땅을 1초마다 묶는다. */
-const SPLIT_M9 = { at: 0, frames: 0, cells: 0, paint: 0, fog: 0, mini: 0, copy: 0, span: "" };
+const SPLIT_M9 = { at: 0, frames: 0, cells: 0, paint: 0, fog: 0, copy: 0, span: "" };
 /** 칸 땅 캔버스가 마지막으로 그린 카메라·크기 — 같으면 안 다시 그린다. */
 const SPLIT_TERR_KEY9 = new WeakMap<HTMLCanvasElement, string>();
 /** 분할 칸의 2D 오림(clip) — 붓이 칸마다 save·clip 을 걸고, 다음 칠하기의 머리(또는 분할 칠하기 끝)에서 푼다.
@@ -10211,20 +10224,14 @@ export default function ReplayMotionPlayer({
   /** 중계가 고른 사람 — 끄거나 표가 없으면 null. */
   const castRaw = castIdx9 >= 0 ? castPlan[castIdx9].raw : null;
   if (scrDiagOn()) (SCR_DIAG as unknown as Record<string, unknown>).castRaw = castRaw;   // perf-check --fogprobe 가 갈아탐을 짚는다
-  /* ★★ **맞대결 자동 분할**(2026-10, 요청: "교전 발생시 공격자만 보여줄게 아니라 화면 두개로 나눠서 대응하는쪽도 보여주기 ·
-     침공이나 전투 드랍 견제 등에서 주인공의 상대역도 보여주는것 · 공격쪽 닉네임에 공격배지 방어는 방어배지 둘다 공격이면
-     교전배지 붙이고 깜빡이기 · 자동으로 분할모드로 돌입하는것") — 편성표가 장면마다 상대역·몫을 적어 두고(cast9 의 duel9),
-     자동 중계 중 그 토막의 맞대결 창(foeTo) 안이면 두 사람으로 분할한다. 손으로 켠 분할·개인 추적과는 안 겹친다(그때는 castOn
-     이 꺼져 있다). 분할의 기계(칸 카메라·팀 시야·칸 미니맵·독 접기)는 그대로 탄다 — 끝나면 한 화면 중계로 돌아간다. */
+  /* ★★ 자동 중계는 **늘 한 사람 화면**이다(2026-10-09, 요청 2: "자동 카메라 모드 — 무조건 1사람 화면만 노출 · 공격이나 교전 발생시 더 잘한 사람
+     보여주고 화면주인 닉네임택은 원래자리에 표시하고 '누구의 공격 / 누구와 누구를 공격 / 누구와 함께 누구와 교전' 자막을 닉넴택 위쪽에") —
+     옛 **맞대결 자동 분할**(2026-10 · 편성표의 foe 로 두 사람을 나란히 · 배지 → 화살표·⚔️ 표)은 되물렸다. 편성표는 여전히 장면마다 상대역·
+     몫(foe · role · foes · allies)을 적고, 재생기는 그것으로 자막(아래 castCap9)만 짓는다. 분할은 이제 손으로 켠 것뿐이다. */
   const castSeg9 = castIdx9 >= 0 ? castPlan[castIdx9] : null;
-  const duel9: { a: string; b: string; ra: CastRole9; rb: CastRole9 } | null =
-    castOn && !splitUser9 && castSeg9?.foe && castSeg9.role && t < (castSeg9.foeTo ?? 0)
-      ? { a: castSeg9.raw, b: castSeg9.foe, ra: castSeg9.role, rb: castFoeRole9(castSeg9.role) } : null;
-  /** 분할보기가 서 있나 — 손으로 켠 분할이거나 맞대결 자동 분할이다. */
-  const splitOn9 = splitUser9 || duel9 !== null;
-  const duelKey9 = duel9 ? `${duel9.a}|${duel9.b}` : "";
-  const splitBases9 = useMemo(() => (duelKey9 ? bases.filter((b9) => duelKey9.split("|").includes(b9.key))
-    : splitSel9 ? bases.filter((b9) => splitSel9.includes(b9.key)) : bases), [duelKey9, splitSel9, bases]);
+  /** 분할보기가 서 있나 — 손으로 켠 분할이다(자동 분할은 걷었다 · 위). */
+  const splitOn9 = splitUser9;
+  const splitBases9 = useMemo(() => (splitSel9 ? bases.filter((b9) => splitSel9.includes(b9.key)) : bases), [splitSel9, bases]);
   const splitOnRef9 = useRef(false);
   splitOnRef9.current = splitOn9;
   /** ★ 중계가 켜진 동안(자동 · 개인 추적 · 분할 — 사람 수 무관) **배율 손짓은 다 막는다**(2026-10-09, 요청: "중계가 켜진 순간(사람수 관계없이
@@ -10304,6 +10311,26 @@ export default function ReplayMotionPlayer({
   /* ⚠ 분할에서 누른 칸이 **중계 주인보다 먼저**다 — 맞대결 자동 분할은 castOn 이 켜진 채라 castRaw 가 먼저 오면 칸을 눌러도
      독이 중계 주인에 남았다(지적: "분할시 화면 클릭해도 인포창과 미니맵이 그사람걸로 안바뀜"). */
   const capRaw9 = trackRaw ?? (splitOn9 ? splitPick9 : null) ?? (castOn ? castRaw : null);
+  /** ★★ 중계 자막(2026-10-09, 요청 2: "공격이나 교전 발생시 더 잘한 사람 보여주고 화면주인 닉네임택은 원래자리에 표시하고 누구누구누구의 공격/누구누구와
+   *  누구를 공격/누구와 함께 누구누구와 교전 이런 자막을 닉넴택 위쪽에 좀 띄우고 노출(정 가운데 X)") — 자동 중계의 지금 토막이 맞대결(foe · role)이고 그 창
+   *  (foeTo) 안이면 **화면 주인의 몫**으로 글귀를 짓는다: 방어 "A가 공격함"(같은 편이 함께 막으면 " · C가 헬프옴") · 공격 "B를 공격"(같은 편이 함께 치면 "C와 함께 B를 공격") · 교전 "B와 교전"
+   *  ("C와 함께 B와 교전"). 이름은 로스터 이름(bases) · 공격 표적 둘은 "A와 B" · 그 밖의 여럿은 "A·B·C". 조사는 마지막 글자의 받침(koWa9·koEul9).
+   *  '더 잘한 사람'은 편성표가 고른다(cast9 — 맞대결의 동점은 더 많이 준 쪽). 개인 추적·손 분할에는 안 선다. */
+  const castCap9 = ((): { role: CastRole9; text: string } | null => {
+    if (!castOn || trackRaw !== null || !castSeg9?.foe || !castSeg9.role || t >= (castSeg9.foeTo ?? 0)) return null;
+    const nm9 = (r9: string): string => bases.find((b9) => b9.key === r9)?.name ?? r9;
+    const foes9 = (castSeg9.foes && castSeg9.foes.length > 0 ? castSeg9.foes : [castSeg9.foe]).map(nm9);
+    const allies9 = (castSeg9.allies ?? []).map(nm9);
+    const dot9 = (a9: string[]): string => a9.join("·");
+    const lastF9 = foes9[foes9.length - 1];
+    const with9 = allies9.length > 0 ? `${dot9(allies9)}${koWa9(allies9[allies9.length - 1])} 함께 ` : "";
+    /* 방어는 "X가 공격함" + 같은 편이 함께면 " · Y가 헬프옴"(2026-10-09, 요청: "수비하는 입장이 주인공일땐 자막이 누가 공격함. 누가 헬프옴"). */
+    const text9 = castSeg9.role === "def"
+      ? `${dot9(foes9)}${koGa9(lastF9)} 공격함${allies9.length > 0 ? ` · ${dot9(allies9)}${koGa9(allies9[allies9.length - 1])} 헬프옴` : ""}`
+      : castSeg9.role === "atk" ? `${with9}${foes9.length === 2 ? `${foes9[0]}${koWa9(foes9[0])} ${foes9[1]}` : dot9(foes9)}${koEul9(lastF9)} 공격`
+        : `${with9}${dot9(foes9)}${koWa9(lastF9)} 교전`;
+    return { role: castSeg9.role, text: text9 };
+  })();
   /** 첫 칸의 자리를 미리 잡는 **이름표 전부**(요청: "자막이 글자길이에 따라 레이아웃 흔들리지 않게 미리 공간 확보") —
    *  로스터 사람들의 이름표를 다 지어 같은 격자 칸에 숨겨(visibility hidden) 겹쳐 둔다. 칸 폭은 그중 가장 넓은 것이라
    *  사람이 갈려도 첫 칸이 안 흔들린다. 숫자 칸 넷은 CSS 가 ch 폭으로 잡는다.
@@ -10674,23 +10701,18 @@ export default function ReplayMotionPlayer({
   /** 안개를 셈할 재료가 있나 — 자취가 있는 경기인가. 켤지 말지는 아래 fogOn이 정한다. */
   const fogReady9 = !!entData && entData.lives.length > 0;
   /** 분할보기 칸들의 팀(차례 고정 · 겹침 없음) — 문자열이라 렌더마다 같은 값이면 시야 열쇠가 안 흔들린다. */
-  /* ★ **맞대결 자동 분할은 팀 장을 미리 데운다**(2026-10, 지적: "자동에서 선수 전환될때 안개 깜빡임이 좀 발생할때가 많음") —
-     분할이 서는 순간 워커의 팀 엔진이 처음 생겨 첫 장이 올 때까지 칸이 관전자 장(안개 없음)으로 칠해졌다가 팀 안개로 바뀌었다.
-     다음 토막이 맞대결이고 DUEL_WARM_SEC9 안에 서면 그 두 사람의 팀을 미리 시야에 실어, 분할이 설 때 팀 장이 이미 쌓여 있게 한다. */
-  const duelNext9 = castOn && castIdx9 >= 0 ? castPlan[castIdx9 + 1] : undefined;
+  /* (되물림 · 2026-10-09) 맞대결 자동 분할의 팀 장 데우기 — 자동 분할이 없어졌다. 아래 '갈아탐 데우기'만 남는다. */
+  const castNext9 = castOn && castIdx9 >= 0 ? castPlan[castIdx9 + 1] : undefined;
   /* ★ **한 사람 중계의 갈아탐도 데운다**(2026-10, 지적: "사람 전환시 … 딱한번 바뀔때 깜빡임 무조건 있네") — 사람이 바뀌면 시야 갈래
      (fogSeq)가 바뀌고, 워커가 새 갈래의 첫 장을 낼 때까지 붓은 **옛 사람의 안개**를 새 카메라 자리에 칠했다(그 자리는 대개 옛 사람이
-     못 본 땅이라 어둡다 → 새 장이 오며 밝아진다 = 한 번 깜빡). 다음 토막의 사람(맞대결이면 그 상대역도)의 팀을 DUEL_WARM_SEC9 앞서
+     못 본 땅이라 어둡다 → 새 장이 오며 밝아진다 = 한 번 깜빡). 다음 토막의 사람의 팀을 CAST_WARM_SEC9 앞서
      팀 엔진으로 미리 짓고, 갈아탄 직후 CAST_SWAP_HOLD9 동안은 그 팀을 남겨 둔다 — 그 사이 붓은 팀 장으로 갈래의 빈틈을 메운다
      (frameAt9 의 branchSwap9). 같은 팀으로 갈아타면 갈래가 안 바뀌므로 안 데운다. */
   const castCur9 = castOn && castIdx9 >= 0 ? castPlan[castIdx9] : undefined;
   const castPrev9 = castOn && castIdx9 > 0 ? castPlan[castIdx9 - 1] : undefined;
   const warmKey9 = ((): string => {
     const r9: string[] = [];
-    if (duelNext9 && duelNext9.at - t < DUEL_WARM_SEC9) {
-      if (duelNext9.foe) r9.push(duelNext9.raw, duelNext9.foe);
-      else if (castCur9 && teamOfRaw(duelNext9.raw) !== teamOfRaw(castCur9.raw)) r9.push(duelNext9.raw);
-    }
+    if (castNext9 && castNext9.at - t < CAST_WARM_SEC9 && castCur9 && teamOfRaw(castNext9.raw) !== teamOfRaw(castCur9.raw)) r9.push(castNext9.raw);
     if (castCur9 && castPrev9 && t - castCur9.at < CAST_SWAP_HOLD9 && teamOfRaw(castCur9.raw) !== teamOfRaw(castPrev9.raw)) r9.push(castCur9.raw);
     return r9.join("|");
   })();
@@ -14983,16 +15005,9 @@ export default function ReplayMotionPlayer({
   const splitJumpRef9 = useRef(new Map<string, number>());
   const splitShowRef9 = useRef(new Map<string, { x: number; y: number }>());
   const splitTerrRef9 = useRef<HTMLCanvasElement | null>(null);
-  /** 칸마다의 미니맵 캔버스(좌하단 · 2026-09, 요청: "각 화면의 좌하단에 자신의 시야가 적용된 미니맵을 표시"). */
-  const splitMiniRef9 = useRef(new Map<string, HTMLCanvasElement>());
-  /** 팀마다 한 장 구운 미니맵(땅 + 팀 안개 + 팀 점) — 칸은 이것을 베끼고 제 네모만 얹는다(요청: "미니맵을 복사?하여 부하 적게"). */
-  const teamMiniRef9 = useRef(new Map<number, { cv: HTMLCanvasElement; grid: Uint8Array | null; img: ImageData | null; fog: HTMLCanvasElement | null; src?: unknown; tq?: number; ver?: number;
-    /** 임자별 점(fx·fy·임자·건물인가) — 칸 그림이 그 칸 사람의 점만 원작 초록으로 덧찍는 자(아래 ★ 주인 점). */
-    dots?: { fx: number; fy: number; raw: string; b: boolean }[] }>());
-  /** 작게 구운 땅 한 장(미니맵 바탕) — 큰 땅 판에서 한 번만 줄여 둔다. */
-  const splitMiniBgRef9 = useRef<HTMLCanvasElement | null>(null);
-  /** 미니맵을 마지막으로 구운 벽시계(ms) — 초당 여덟 장이면 족하다(칸 미니맵은 손짓이 없다). */
-  const splitMiniAtRef9 = useRef(0);
+  /* (걷어냄 · 2026-10-09, 요청 3: "분할보기 미니맵 제거 — 아래 미니맵은 처음엔 전체모드와 같게 쓰다가 화면 고른 사람걸 보여주기") 칸마다의 미니맵
+     캔버스(splitMiniRef9)와 팀마다 한 장 굽던 미니맵 판(teamMiniRef9 · splitMiniBgRef9 · splitMiniAtRef9 · splitMiniPaint9) — 독 미니맵
+     (ReplayFullscreenMinimap · viewAt/ownRaw 가 누른 칸의 사람을 따른다)이 그 일을 한다. */
   /** 칸 안개 판(유닛·GL 위 · 분할보기 동안만 선다). */
   const splitFogRef9 = useRef<HTMLCanvasElement | null>(null);
   /** 팀마다의 밝힘 등고선(타일 자리) — 밝힌 판이 바뀌거나 경기 시간 0.25초마다 다시 뽑는다. */
@@ -15028,200 +15043,7 @@ export default function ReplayMotionPlayer({
     else bake9(null);
     return () => { dead9 = true; };
   }, [splitOn9, grid]);
-  /** ★ 칸마다의 **팀 미니맵**(2026-09, 요청: "각 화면의 좌하단에 자신의 시야가 적용된 미니맵을 표시한다(자기 색깔 프레임으로 화면
-   *  위치 표시)(미니맵을 복사?하여 부하 적게 할수있는 방법 연구)") — 칸이 여덟이어도 시야는 팀 수(대개 둘)뿐이다. 그래서 **팀마다 한 장만**
-   *  굽고(땅 · 그 팀의 안개 · 그 팀이 보는 점) 칸은 그 판을 drawImage 로 베낀 뒤 제 네모(그 사람 색)만 얹는다. 굽기는 초당 여덟 장.
-   *  팀이 없는 사람(밀리 FFA)은 관전자 장(키 0 · 안개 없음)이다. */
-  const splitMiniPaint9 = (tNow9: number): void => {
-    const lay9 = splitLayRef9.current;
-    if (!lay9) return;
-    const now9 = pNow();
-    /* ★ 넉 장/초(2026-10, 발열) — 120ms 박자에 매번 팀 안개를 다시 찍고 칸마다 고품질로 줄여 그려 헤드리스로 장당 26ms 였다.
-       아래 두 캐시(팀 판은 새 장이 왔을 때만 · 칸은 판·창이 바뀌었을 때만)와 함께 줄였다. */
-    if (now9 - splitMiniAtRef9.current < 250) return;
-    splitMiniAtRef9.current = now9;
-    const gw = Math.max(1, grid.width);
-    const gh = Math.max(1, grid.height);
-    const ar9 = gw / gh;
-    /* 바탕 — 큰 땅 판을 긴 변 256px 로 한 번만 줄여 둔다. */
-    let bg9 = splitMiniBgRef9.current;
-    const terr9 = splitTerrRef9.current;
-    if (!bg9 && terr9) {
-      bg9 = document.createElement("canvas");
-      bg9.width = ar9 >= 1 ? 256 : Math.max(1, Math.round(256 * ar9));
-      bg9.height = ar9 >= 1 ? Math.max(1, Math.round(256 / ar9)) : 256;
-      const b9 = bg9.getContext("2d");
-      if (b9) { b9.imageSmoothingEnabled = true; b9.imageSmoothingQuality = "high"; b9.drawImage(terr9, 0, 0, bg9.width, bg9.height); }
-      splitMiniBgRef9.current = bg9;
-    }
-    const MW9 = bg9?.width ?? (ar9 >= 1 ? 256 : Math.round(256 * ar9));
-    const MH9 = bg9?.height ?? (ar9 >= 1 ? Math.round(256 / ar9) : 256);
-    /* 팀마다 한 장. */
-    const baked9 = new Map<number, HTMLCanvasElement>();
-    const bake9 = (key9: number): HTMLCanvasElement | null => {
-      const got9 = baked9.get(key9);
-      if (got9) return got9;
-      let tm9 = teamMiniRef9.current.get(key9);
-      if (!tm9) { tm9 = { cv: document.createElement("canvas"), grid: null, img: null, fog: null }; teamMiniRef9.current.set(key9, tm9); }
-      const cv9 = tm9.cv;
-      /* 팀 판은 **새 장이 왔을 때만** 다시 굽는다(그 팀의 장 꾸러미가 같고 밝힘 눈금(0.25초)이 같으면 그대로) — 점·안개는 보간이
-         필요 없는 작은 그림이라 붓이 고른 앞 장(ua9)을 그대로 쓴다(옛 teamFrameAt9 는 칸 칠하기와 같은 보간을 한 번 더 돌았다). */
-      const ua9 = key9 > 0 ? paintPackedRef9.current?.subs?.find((u9) => u9.team === key9) : undefined;
-      const srcK9: unknown = ua9 ?? (key9 > 0 ? null : frameOpsRef9.current);
-      const tq9 = Math.floor(tNow9 * 4);
-      if (tm9.src === srcK9 && tm9.tq === tq9 && cv9.width === MW9 && cv9.height === MH9) { baked9.set(key9, cv9); return cv9; }
-      tm9.src = srcK9; tm9.tq = tq9; tm9.ver = (tm9.ver ?? 0) + 1;
-      if (cv9.width !== MW9) cv9.width = MW9;
-      if (cv9.height !== MH9) cv9.height = MH9;
-      const c9 = cv9.getContext("2d");
-      if (!c9) return null;
-      c9.setTransform(1, 0, 0, 1, 0, 0);
-      c9.globalCompositeOperation = "source-over";
-      c9.globalAlpha = 1;
-      c9.fillStyle = "#12161c";
-      c9.fillRect(0, 0, MW9, MH9);
-      if (bg9) c9.drawImage(bg9, 0, 0);
-      const tf9 = ua9 ? { unitOps: decodeSub9(ua9).unitOps, eyes: ua9.eyes } : null;
-      const exp9 = key9 > 0 ? teamExpRef9.current.get(key9) : undefined;
-      /* 안개 — 눈 목록을 칸 격자에 찍고(엔진 visNow 의 disc 와 같은 식) 칸 = 1화소 판을 늘려 깐다. */
-      if (tf9 && exp9 && exp9.length === gw * gh) {
-        const n9 = gw * gh;
-        if (!tm9.grid || tm9.grid.length !== n9) tm9.grid = new Uint8Array(n9);
-        const g9 = tm9.grid;
-        g9.fill(0);
-        const ey9 = tf9.eyes;
-        if (ey9) {
-          for (let k9 = 0; k9 + 2 < ey9.length; k9 += 4) {
-            const cx = ey9[k9]; const cy = ey9[k9 + 1]; const r = ey9[k9 + 2];
-            const x0 = Math.max(0, Math.floor(cx - r - 1)); const x1 = Math.min(gw - 1, Math.ceil(cx + r + 1));
-            const y0 = Math.max(0, Math.floor(cy - r - 1)); const y1 = Math.min(gh - 1, Math.ceil(cy + r + 1));
-            const ro = r + 0.5; const r2o = ro * ro;
-            for (let y = y0; y <= y1; y += 1) {
-              const dy = y + 0.5 - cy;
-              for (let x = x0; x <= x1; x += 1) {
-                const dx = x + 0.5 - cx; const d2 = dx * dx + dy * dy;
-                if (d2 >= r2o) continue;
-                const v = Math.min(255, Math.round((ro - Math.sqrt(d2)) * 255));
-                if (v > g9[y * gw + x]) g9[y * gw + x] = v;
-              }
-            }
-          }
-        }
-        if (!tm9.fog || tm9.fog.width !== gw || tm9.fog.height !== gh) {
-          tm9.fog = document.createElement("canvas");
-          tm9.fog.width = gw; tm9.fog.height = gh;
-          tm9.img = null;
-        }
-        const fc9 = tm9.fog.getContext("2d");
-        if (fc9) {
-          if (!tm9.img) tm9.img = fc9.createImageData(gw, gh);
-          const px9 = tm9.img.data;
-          for (let i9 = 0; i9 < n9; i9 += 1) {
-            const base9 = exp9[i9] <= tNow9 ? FOG_DIM9 : 1;
-            const o9 = i9 * 4;
-            px9[o9] = 5; px9[o9 + 1] = 8; px9[o9 + 2] = 14;
-            px9[o9 + 3] = Math.round(base9 * (1 - g9[i9] / 255) * 255);
-          }
-          fc9.putImageData(tm9.img, 0, 0);
-          c9.imageSmoothingEnabled = true;
-          c9.drawImage(tm9.fog, 0, 0, MW9, MH9);
-        }
-      }
-      /* 점 — 그 팀이 보는 몸(팀 장) · 건물은 한 단 크게. */
-      const ops9 = tf9 ? tf9.unitOps : frameOpsRef9.current ?? [];
-      const uS9 = Math.max(1.5, MW9 * 0.013);
-      const bS9 = Math.max(2.5, MW9 * 0.022);
-      const dot9 = (d9: { fx: number; fy: number; color?: string; wFrac?: number }): void => {
-        if (!d9.color) return;
-        const sz9 = d9.wFrac !== undefined ? bS9 : uS9;
-        c9.fillStyle = d9.color;
-        c9.fillRect(d9.fx * MW9 - sz9 / 2, d9.fy * MH9 - sz9 / 2, sz9, sz9);
-      };
-      for (const d9 of ops9) dot9(d9);
-      /* 칸 컬링(splitCull9) 밖의 몸은 장에 점으로만 실려 온다(miniExtra) — 그것도 찍는다. */
-      const extra9 = ua9 ? decodeSub9(ua9).miniExtra : miniExtraRef.current;
-      for (const d9 of extra9) dot9(d9);
-      /* ★ 임자별 점 목록 — 팀 판은 팀마다 한 장이라 여기서 색을 못 바꾼다. 칸 그림을 만들 때(아래 ★ 주인 점) 그 칸 사람의 점만
-         원작 초록으로 덧찍도록 임자를 적어 둔다(op 는 pickRaw · 걷어낸 점은 raw). */
-      const dl9: { fx: number; fy: number; raw: string; b: boolean }[] = [];
-      for (const d9 of ops9) if (d9.color && d9.pickRaw) dl9.push({ fx: d9.fx, fy: d9.fy, raw: d9.pickRaw, b: d9.wFrac !== undefined });
-      for (const d9 of extra9) if (d9.color && d9.raw) dl9.push({ fx: d9.fx, fy: d9.fy, raw: d9.raw, b: d9.wFrac !== undefined });
-      tm9.dots = dl9;
-      baked9.set(key9, cv9);
-      return cv9;
-    };
-    const dpr9 = Math.min(2, window.devicePixelRatio || 1);
-    /* 핑이 살아 있는 동안은 칸 열쇠에 박자를 섞어 다시 그린다(핑 고리가 번져야 하므로 · 2026-10). */
-    const livePings9 = qPing && entData?.pings ? entData.pings.filter(([ps]) => ps <= tNow9 && tNow9 - ps <= 3) : [];
-    const pk9 = livePings9.length > 0 ? Math.floor(tNow9 * 6) : 0;
-    for (const cell9 of lay9.cells) {
-      const mc9 = splitMiniRef9.current.get(cell9.raw);
-      if (!mc9) continue;
-      const src9 = bake9(teamOfRaw(cell9.raw) ?? 0);
-      if (!src9) continue;
-      const bw9 = Math.max(1, Math.round(mc9.clientWidth * dpr9));
-      const bh9 = Math.max(1, Math.round(mc9.clientHeight * dpr9));
-      if (mc9.width !== bw9) mc9.width = bw9;
-      if (mc9.height !== bh9) mc9.height = bh9;
-      /* 칸은 판(ver)·창·크기가 그대로면 안 다시 그린다. */
-      const v9 = splitViewRef9.current.get(cell9.raw);
-      const ck9 = `${teamMiniRef9.current.get(teamOfRaw(cell9.raw) ?? 0)?.ver ?? 0}|${bw9}x${bh9}|${v9 ? `${v9.cx.toFixed(4)},${v9.cy.toFixed(4)},${v9.w.toFixed(4)},${v9.h.toFixed(4)}` : "-"}`;
-      const ckp9 = `${ck9}|p${pk9}`;
-      if (mc9.dataset.mk === ckp9) continue;
-      mc9.dataset.mk = ckp9;
-      const m9 = mc9.getContext("2d");
-      if (!m9) continue;
-      m9.setTransform(1, 0, 0, 1, 0, 0);
-      m9.imageSmoothingEnabled = true;
-      m9.imageSmoothingQuality = "low";   // 256px 판을 백여 px 로 줄이는 데 고품질 필터는 값만 든다(헤드리스 칸당 4ms)
-      m9.drawImage(src9, 0, 0, bw9, bh9);
-      /* ★ **주인 점** — 그 칸 사람의 점은 원작 초록(2026-10-09, 요청: "주인 있는 경우 미니맵의 그 사람 색깔이 원작처럼 녹색으로(마커색) —
-         분할화면 안의 미니맵과 독의 미니맵 모두") — 팀 판 위에 그 사람 것만 다시 찍는다(크기 자는 bake9 의 uS9·bS9 를 칸 크기로 줄인 값).
-         독 미니맵은 ReplayFullscreenMinimap 의 ownRaw 가 같은 일을 한다. */
-      {
-        const dl9 = teamMiniRef9.current.get(teamOfRaw(cell9.raw) ?? 0)?.dots;
-        if (dl9) {
-          const k9 = bw9 / MW9;
-          const us9 = Math.max(1, Math.max(1.5, MW9 * 0.013) * k9);
-          const bs9 = Math.max(1.5, Math.max(2.5, MW9 * 0.022) * k9);
-          m9.fillStyle = UI_OWN9;
-          for (const d9 of dl9) {
-            if (d9.raw !== cell9.raw) continue;
-            const sz9 = d9.b ? bs9 : us9;
-            m9.fillRect(d9.fx * bw9 - sz9 / 2, d9.fy * bh9 - sz9 / 2, sz9, sz9);
-          }
-        }
-      }
-      /* 핑 — 그 사람 것과 같은 편 것만 · 제 것 원작 초록 · 같은 편은 색 모드(2026-10 "미니맵 내 색 포함") · 번지는 고리. */
-      if (livePings9.length > 0 && entData) {
-        const tm0 = teamOfRaw(cell9.raw);
-        for (const [ps, px, py, ppid] of livePings9) {
-          const praw = entData.players.find((pl) => pl.owner === ppid)?.name ?? "";
-          if (!praw || obsNames.has(praw)) continue;
-          if (praw !== cell9.raw && (tm0 === undefined || teamOfRaw(praw) !== tm0)) continue;
-          const age = (tNow9 - ps) / 3;
-          const r = Math.max(2, bw9 * 0.012) * (0.6 + age * 1.6);
-          m9.globalAlpha = 1 - age * 0.8;
-          m9.strokeStyle = praw === cell9.raw ? UI_OWN9 : modeColor(praw, teamOfRaw(praw));   // 제 핑 초록 · 같은 편은 제 색
-          m9.lineWidth = Math.max(1, bw9 * 0.006);
-          m9.beginPath();
-          m9.arc((px / gw) * bw9, (py / gh) * bh9, r, 0, Math.PI * 2);
-          m9.stroke();
-        }
-        m9.globalAlpha = 1;
-      }
-      /* 제 화면 자리 — 그 사람 색 네모(요청: "자기 색깔 프레임으로 화면 위치 표시"). */
-      if (v9) {
-        const x09 = Math.max(0, (v9.cx - v9.w / 2) * bw9);
-        const y09 = Math.max(0, (v9.cy - v9.h / 2) * bh9);
-        const x19 = Math.min(bw9, (v9.cx + v9.w / 2) * bw9);
-        const y19 = Math.min(bh9, (v9.cy + v9.h / 2) * bh9);
-        m9.lineWidth = Math.max(1, 0.8 * dpr9);   // 1.5 → 0.8 CSS px(2026-10, 지적: "미니맵 안 프레임이 좀 두꺼운듯 · 화면어디보는지 프레임")
-        m9.strokeStyle = "rgba(255,255,255,.92)";   // ★ 늘 흰색(2026-10-09, 요청: "주인공 있을 때도 미니맵 화면 위치 네모는 원작처럼 모두 흰색") — 옛 '그 사람 색' 되물림
-        m9.strokeRect(x09 + m9.lineWidth / 2, y09 + m9.lineWidth / 2, Math.max(1, x19 - x09 - m9.lineWidth), Math.max(1, y19 - y09 - m9.lineWidth));
-      }
-    }
-  };
+  /* (걷어냄 · 2026-10-09, 요청 3) splitMiniPaint9 — 칸 미니맵 붓(팀 판 굽기 · 칸 베끼기 · 주인 점 · 핑). 위 refs 주석. */
   /** 분할 칸의 몸 목록 — 선택 링은 그 칸 사람이 고른 몸에만, 건설 고스트는 그 사람 것만(위 splitPaint9 의 ★). */
   const splitOwnOps9 = (ops9: UnitDrawOp[], raw9: string): UnitDrawOp[] => {
     let out9: UnitDrawOp[] | null = null;
@@ -15535,14 +15357,7 @@ export default function ReplayMotionPlayer({
           (ty: number) => (ty / gh - 0.5) * mh9 * zc9 + mh9 / 2 + band9 + pan9.y, kx9);
         fctx9.restore();
       }
-      /* ★ 칸 미니맵의 상한은 그 칸의 **3×3 타일**이다(2026-09, 요청: "분할창 미니맵크기는 3X3타일정도로 최대를 정해야할듯 너무
-         내용이 가려져서") — 칸의 한 타일이 화면에서 몇 px 인지(칸 배율 zc9 의 타일 자 · 화면 px)를 그 칸 미니맵에 적고 CSS 가
-         `3 × 그 값`으로 죈다. 바뀐 때만 적는다(스타일 쓰기는 매 프레임 하면 값이 든다). */
-      const mcv9 = splitMiniRef9.current.get(cell9.raw);
-      if (mcv9) {
-        const tp9 = `${((cw9 * zc9) / gw / kx09).toFixed(1)}px`;
-        if (mcv9.dataset.tile !== tp9) { mcv9.dataset.tile = tp9; mcv9.style.setProperty("--split-tile", tp9); }
-      }
+      /* (걷어냄 · 2026-10-09, 요청 3) 칸 미니맵의 3×3 타일 상한(--split-tile 쓰기) — 칸 미니맵이 없다. */
       const pa19 = pNow();
       SPLIT_M9.span = `${(wf9 * gw).toFixed(0)}×${(hf9 * gh).toFixed(0)}타일 ${zc9.toFixed(2)}배`;
       SPLIT_M9.paint += pa19 - pa09;
@@ -15590,7 +15405,6 @@ export default function ReplayMotionPlayer({
       SPLIT_M9.copy += pNow() - pa19;
     }
     for (const c09 of cvs9) { const x09 = c09.classList.contains("scr-motion-gl9") ? null : c09.getContext("2d"); if (x09) clipEnd9(x09); }
-    { const pm09 = pNow(); splitMiniPaint9(tNow9); SPLIT_M9.mini += pNow() - pm09; }
     if (ringCells9.length > 0) SCR_DIAG.ring = ringCells9.join(" | ");
     SPLIT_M9.frames += 1;
     {
@@ -15599,8 +15413,8 @@ export default function ReplayMotionPlayer({
         const s9 = (now9 - SPLIT_M9.at) / 1000;
         const f9 = Math.max(1, SPLIT_M9.frames);
         const c9 = Math.max(1, SPLIT_M9.cells);
-        SCR_DIAG.split = `장 ${(SPLIT_M9.frames / s9).toFixed(1)}/s · 칸 ${(SPLIT_M9.cells / f9).toFixed(2)}/장 · 칠 ${(SPLIT_M9.paint / c9).toFixed(1)}ms(안개 ${(SPLIT_M9.fog / c9).toFixed(1)}) · 미니맵 ${(SPLIT_M9.mini / f9).toFixed(1)}ms/장 · 땅 ${(SPLIT_M9.copy / c9).toFixed(1)}ms · 칸 ${SPLIT_M9.span}`;
-        SPLIT_M9.at = now9; SPLIT_M9.frames = 0; SPLIT_M9.cells = 0; SPLIT_M9.paint = 0; SPLIT_M9.fog = 0; SPLIT_M9.mini = 0; SPLIT_M9.copy = 0;
+        SCR_DIAG.split = `장 ${(SPLIT_M9.frames / s9).toFixed(1)}/s · 칸 ${(SPLIT_M9.cells / f9).toFixed(2)}/장 · 칠 ${(SPLIT_M9.paint / c9).toFixed(1)}ms(안개 ${(SPLIT_M9.fog / c9).toFixed(1)}) · 땅 ${(SPLIT_M9.copy / c9).toFixed(1)}ms · 칸 ${SPLIT_M9.span}`;
+        SPLIT_M9.at = now9; SPLIT_M9.frames = 0; SPLIT_M9.cells = 0; SPLIT_M9.paint = 0; SPLIT_M9.fog = 0; SPLIT_M9.copy = 0;
       }
     }
   };
@@ -17176,20 +16990,9 @@ export default function ReplayMotionPlayer({
   /* ★ PC 도 **좁으면 쪽으로**(2026-10-09, 요청: "로스터 닉네임이 너무 좁아 로스터는 최소폭 좀 넓게 강제하고 만약 좁으면 페이징처리") — 판 폭은
      인포창의 1.25배까지(replay.css .scr-fs-rosterpanel)이고, 그보다 좁은 판(작은 창)이면 폰처럼 쪽(is-paged)이다. 판 폭은 ResizeObserver 로 재서
      인포창 폭 × 1.25 에 못 미치면 쪽이다(판은 그 값 이하로만 작아지므로 '남는 폭이 모자라다'와 같은 말). */
+  /* ★ 쪽(is-paged)은 **독 맞춤**(아래 dockFit9 · 2026-10-09)이 정한다 — 폰은 늘 쪽, PC 는 전광판·미니맵이 제 설계 폭을 못 받아 줄었을 때(k < 1)만 쪽이다.
+     옛 '판 폭 < 인포창 × 1.5' 자(ResizeObserver)는 인포창이 숨거나 줄어드는 지금 판에서는 틀린다. */
   const [rosterPaged9, setRosterPaged9] = useState(smallDevice9);
-  const rosterRo9 = useRef<ResizeObserver | null>(null);
-  const rosterPanelRef9 = (el9: HTMLDivElement | null): void => {
-    rosterRo9.current?.disconnect(); rosterRo9.current = null;
-    if (!el9 || smallDevice9 || typeof ResizeObserver === "undefined") return;
-    const read9 = (): void => {
-      const info9 = el9.parentElement?.querySelector<HTMLElement>(".scr-motion-infodock");
-      const need9 = (info9?.getBoundingClientRect().width ?? 0) * 1.5 - 2;   // 판 상한 = 인포창 × 1.5(480/320 · replay.css --roster-w)
-      setRosterPaged9(el9.getBoundingClientRect().width < need9);
-    };
-    read9();
-    rosterRo9.current = new ResizeObserver(read9);
-    rosterRo9.current.observe(el9);
-  };
   useEffect(() => {
     if (!rosterPaged9) return undefined;
     const id9 = window.setInterval(() => setRosterPage9((p9) => (p9 >= ROSTER_PAGES9.length ? 1 : p9 + 1)), ROSTER_PAGE_MS9);
@@ -17910,6 +17713,82 @@ export default function ReplayMotionPlayer({
       offView: true,
     } as unknown as UnitDrawOp;
   };
+  /* ★★ 미니맵 이름표(2026-10-09, 요청 1: "미니맵 중 스타팅포인트 또는 이사간 위치에 닉네임택을 오버레이로 표시(진영을 펼친걸 판단할 로직 필요. 진영크기에 따라
+     택 크기 차등). 나가거나 엘리 생산끊긴 사람은 어둡게 표시") — 1초에 한 번(tTag9) 참값 생애에서 사람마다 **살아 있는 건물**을 모아 진영을 찾는다.
+     · 자리 — 건물마다 t 에 앉은 자리(sites 의 마지막 착륙을 첫 자리와의 차로 몸 가운데(bornX/Y)에 옮긴다 · 뜬 건물은 마지막 착륙 자리). 본진(TAG_HALL9)마다
+       둘레 TAG_R9 타일 안 건물의 무게(본진 3 · 생산 2 · 나머지 1)를 더해 **가장 무거운 본진의 무리**가 그 사람의 진영이고 이름표는 그 무리의 무게 중심이다 —
+       출발 자리에 남아 있으면 거기, 본진을 잃고 앞마당·딴 데로 옮겼으면 거기('이사 간 자리'). 본진이 하나도 없으면 남은 건물 전부의 무게 중심.
+     · 크기 — 살아 있는 건물 수(TAG_TIER9: ≤5 s · ≤14 m · 그 위 l).
+     · 어두움 — 본진도 생산 건물도 하나 없으면(나감 = 다 사라짐 · 엘리 · 생산 끊김) 어둡고, 자리는 마지막 건물이 죽기 직전의 진영이다(어디 있던 사람인지는 남긴다).
+     관전자(bases 밖)·건물이 한 채도 없던 사람은 이름표가 없다. 그리기·누르기는 ReplayFullscreenMinimap(tags · onTag). */
+  const tTag9 = Math.floor(t);
+  const miniTags9 = useMemo((): MiniTag[] => {
+    if (!entData || bases.length === 0) return [];
+    const gw = Math.max(1, grid.width);
+    const gh = Math.max(1, grid.height);
+    const rawOf9 = new Map<number, string>();
+    for (const pl9 of entData.players) if (bases.some((b9) => b9.key === pl9.name)) rawOf9.set(pl9.owner, pl9.name);
+    const blds9 = new Map<string, TruthLife[]>();
+    for (const e9 of entData.lives) {
+      if (!e9.bld) continue;
+      const r9 = rawOf9.get(e9.owner);
+      if (!r9) continue;
+      const a9 = blds9.get(r9);
+      if (a9) a9.push(e9); else blds9.set(r9, [e9]);
+    }
+    type B9 = { x: number; y: number; w: number; hall: boolean };
+    const at9 = (e9: TruthLife, sec9: number): { x: number; y: number } => {
+      let s9: [number, number, number] | null = null;
+      for (const st9 of e9.sites) if (st9[0] <= sec9) s9 = st9;
+      const s0 = e9.sites[0];
+      return s9 && s0 ? { x: e9.bornX + (s9[1] - s0[1]), y: e9.bornY + (s9[2] - s0[2]) } : { x: e9.bornX, y: e9.bornY };
+    };
+    const camp9 = (all9: TruthLife[], sec9: number): { x: number; y: number; n: number; prod: boolean } | null => {
+      const live9: B9[] = [];
+      let prod9 = false;
+      for (const e9 of all9) {
+        if (e9.born > sec9 || (e9.died !== null && e9.died <= sec9)) continue;
+        const hall9 = TAG_HALL9.has(e9.kind);
+        if (hall9 || TAG_PROD9.has(e9.kind)) prod9 = true;
+        live9.push({ ...at9(e9, sec9), w: hall9 ? 3 : TAG_PROD9.has(e9.kind) ? 2 : 1, hall: hall9 });
+      }
+      if (live9.length === 0) return null;
+      let best9: B9[] | null = null;
+      let bw9 = -1;
+      for (const h9 of live9) {
+        if (!h9.hall) continue;
+        const grp9 = live9.filter((b9) => (b9.x - h9.x) ** 2 + (b9.y - h9.y) ** 2 <= TAG_R9 * TAG_R9);
+        const w9 = grp9.reduce((a9, b9) => a9 + b9.w, 0);
+        if (w9 > bw9) { bw9 = w9; best9 = grp9; }
+      }
+      const grp9 = best9 ?? live9;
+      let sx9 = 0; let sy9 = 0; let sw9 = 0;
+      for (const b9 of grp9) { sx9 += b9.x * b9.w; sy9 += b9.y * b9.w; sw9 += b9.w; }
+      return { x: sx9 / sw9, y: sy9 / sw9, n: live9.length, prod: prod9 };
+    };
+    const out9: MiniTag[] = [];
+    for (const b9 of bases) {
+      const all9 = blds9.get(b9.key);
+      if (!all9 || all9.length === 0) continue;
+      let c9 = camp9(all9, t);
+      const dead9 = !c9 || !c9.prod;
+      if (!c9) {
+        /* 다 사라진 사람 — 마지막 건물이 죽기 직전의 진영 자리에 어둡게. */
+        let last9 = -1;
+        for (const e9 of all9) if (e9.died !== null && e9.died <= t && e9.died > last9) last9 = e9.died;
+        c9 = last9 >= 0 ? camp9(all9, last9 - 0.05) : null;
+        if (!c9) continue;
+      }
+      const chip9 = chipStyle(b9.key, teamOfRaw(b9.key));
+      out9.push({
+        key: b9.key, name: b9.name, fx: Math.max(0.02, Math.min(0.98, c9.x / gw)), fy: Math.max(0.02, Math.min(0.98, c9.y / gh)),
+        bg: String(chip9.background ?? chip9.backgroundColor ?? "#888"), fg: String(chip9.color ?? "#fff"),
+        tier: c9.n <= TAG_TIER9.s ? "s" : c9.n <= TAG_TIER9.m ? "m" : "l", dim: dead9,
+      });
+    }
+    return out9;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entData, bases, tTag9, grid.width, grid.height, colorNow, heroRaw9]);
   const dockOps9: UnitDrawOp[] = (() => {
     if (picked) {
       const o9 = unitOps.find((o) => o.pickKey === picked && !o.ghost);
@@ -18337,12 +18216,41 @@ export default function ReplayMotionPlayer({
   const dockRowRef9 = useRef<HTMLDivElement | null>(null);
   const dockMarkRef9 = useRef<HTMLSpanElement | null>(null);
   const [dockMark9, setDockMark9] = useState(false);
+  /** ★★ 독 맞춤(2026-10-09, 요청: "로스터 미니맵 인포창을 각각의 최적 비율을 고정한 상태로 조립 — 높이가 서로 다를 수 있고 독 프레임은 그걸 따라 만들어짐 ·
+   *  피시 모바일 모두 전광판과 미니맵을 우선 보여주고 자리가 있으면 인포창 · 너비를 배분하고 그에 맞는 높이로 · 너무 높아지진 않게(설계 키가 상한) · 인포창 폭이
+   *  안 나오면 폭을 줄이고 안의 내용은 폭에 비례해 축소 · 세로 가운데") — 독 줄 폭 W(틀 여백·테 뺀 것)에서:
+   *    ① 전광판(설계 비 --roster-r × 키)과 미니맵(지도 비 × 키)이 먼저다 — 둘이 설계 키 h0 로 안 들면 함께 줄인다: h = h0 · min(1, W / (h0·(Rr + ar) + 틈)).
+   *    ② 남는 폭이 인포창 설계 폭(--dock-w)의 INFO_MIN_K9 이상이면 인포창을 그 폭에 맞춰 **비례 축소**(k_i = min(1, 남는 폭 / 설계 폭) · CSS transform ·
+   *       내용은 통째로 세로 가운데) · 그보다 모자라면 안 보인다(is-noinfo). 틀 키 = h(가장 큰 우물) · 틀은 그 셋만큼만 넓고 나머지 독 폭은 빈 쇠로 남는다.
+   *  설계 치수(h0 · 인포창 폭 · 틈 · 여백)는 CSS 가 쥔다 — 숨은 자(.scr-fs-dockprobe)의 계산값을 읽어 한 벌로 쓴다(JS 에 상수를 베끼지 않는다).
+   *  결과는 상태(dockFit9 → 틀의 --dock-h · --info-k · is-noinfo)로 내려 CSS 가 자리를 잡는다 · 독 줄 폭은 이 결과에 안 매이므로 되먹임이 없다. */
+  const [dockFit9, setDockFit9] = useState<{ h: number | null; ki: number; k: number }>({ h: null, ki: 1, k: 1 });
   useLayoutEffect(() => {
     const row9 = dockRowRef9.current;
     const mk9 = dockMarkRef9.current;
     const fr9 = row9?.querySelector<HTMLElement>(".scr-fs-dockframe") ?? null;
     if (!row9 || !mk9 || !fr9) return undefined;
+    const ar9 = Math.max(0.25, Math.min(4, Math.max(1, grid.width) / Math.max(1, grid.height)));
+    const fit9 = (): void => {
+      const pr9 = fr9.querySelector<HTMLElement>(".scr-fs-dockprobe");
+      if (!pr9) return;
+      const cs9 = getComputedStyle(pr9);
+      const h0 = parseFloat(cs9.height) || 0;
+      const infoW9 = parseFloat(cs9.width) || 0;
+      const sep9 = parseFloat(cs9.marginLeft) || 0;
+      const out9 = parseFloat(cs9.marginRight) || 0;
+      const rr9 = parseFloat(getComputedStyle(fr9).getPropertyValue("--roster-r")) || 2.58;
+      if (h0 <= 0) return;
+      const W9 = row9.clientWidth - 2 * out9 - 2;   // 틀 테 1px 둘
+      const k9 = Math.max(0.3, Math.min(1, W9 / (h0 * (rr9 + ar9) + sep9)));
+      const h9 = h0 * k9;
+      const room9 = W9 - h9 * (rr9 + ar9) - 2 * sep9;
+      const ki9 = room9 >= infoW9 * INFO_MIN_K9 ? Math.min(1, room9 / infoW9) : 0;
+      setDockFit9((p9) => (Math.abs((p9.h ?? -1) - h9) < 0.5 && Math.abs(p9.ki - ki9) < 0.005 ? p9 : { h: h9, ki: ki9, k: k9 }));
+      setRosterPaged9(smallDevice9 || k9 < 0.999);
+    };
     const read9 = (): void => {
+      fit9();
       const side9 = (row9.clientWidth - fr9.getBoundingClientRect().width) / 2;
       row9.style.setProperty("--dock-side", `${Math.max(0, side9)}px`);
       setDockMark9(side9 >= mk9.getBoundingClientRect().width + DOCK_MARK_PAD9);
@@ -18353,7 +18261,7 @@ export default function ReplayMotionPlayer({
     ro9.observe(row9);
     ro9.observe(fr9);
     return () => ro9.disconnect();
-  }, [fsOn]);
+  }, [fsOn, grid.width, grid.height]);
   /* ★★ TV 단추는 **틀 위쪽 왼 끝의 쇠 정사각**이다 — 오른 끝 접기 손잡이와 같은 꼴·같은 크기의 짝(2026-09, 요청: "독 중계 버튼을
      접기 버튼같은 형태로 변경하고 동그란 테두리 제거"). 정보줄(우물) 안의 동그라미였던 것을 틀의 제 칸(1열)으로 꺼냈다 — 그래서
      정보줄은 양쪽에 같은 정사각을 끼고 한가운데에 선다(옛 padding-left 몫은 걷었다).
@@ -18413,7 +18321,11 @@ export default function ReplayMotionPlayer({
                 })}
               </div>
             )
-              : <div className="scr-motion-infodock-empty">유닛이나 건물을 누르면 여기에 정보가 떠요</div>}
+              : (
+                /* ★ 손 분할에서 아무 칸도 안 골랐으면 **'화면을 선택해주세요'**(2026-10-09, 요청 3: "인포창은 처음엔 아무것도 안뜨고 화면을 선택해주세요
+                   뜨다가 선택하면 그사람걸로") — 고르면 그 사람의 선택(ownerSel9 · selRaw9 가 splitPick9)이 든다. */
+                <div className="scr-motion-infodock-empty">{splitUser9 && splitPick9 === null ? "화면을 선택해주세요" : "유닛이나 건물을 누르면 여기에 정보가 떠요"}</div>
+              )}
         </div>
       )}
     </div>
@@ -19173,6 +19085,10 @@ export default function ReplayMotionPlayer({
                   <span className="scr-split-chip" style={capOf9(camRaw9, camRaw9).chip}>{bases.find((b9) => b9.key === camRaw9)?.name ?? camRaw9}</span>
                 </span>
               )}
+              {/* ★★ 중계 자막(위 castCap9 · 2026-10-09, 요청 2) — 이름표 **바로 위**(정가운데가 아니다). 토막이 갈리면(key) 살짝 떠오른다. */}
+              {castCap9 && (
+                <span key={`${castIdx9}:${castCap9.text}`} className={cx("scr-cast-caption", `is-${castCap9.role}`)}>{castCap9.text}</span>
+              )}
               {(fsOn ? fsMiniOn : true) && (
                 <div className="scr-fs-solo-mini" style={{ ["--ar" as string]: String(Math.max(1, grid.width) / Math.max(1, grid.height)) } as React.CSSProperties}>
                   <ReplayFullscreenMinimap
@@ -19184,10 +19100,10 @@ export default function ReplayMotionPlayer({
                     tick={t}
                     viewAt={fsViewAt}
                     zoom={zoom} pan={pan}
-                    /* ★ 주인의 점은 원작 초록(2026-10-09, 요청) — 개인 추적·자동 중계의 화면 주인. 네모는 늘 흰색. */
+                    /* ★ 주인의 점은 원작 초록(2026-10-09, 요청) — 개인 추적·자동 중계의 화면 주인. 네모는 늘 흰색. 손끝 붓(painter·live)은 독 미니맵의
+                       것이다(2026-10-09 · 붓 자리는 하나뿐) — 이 미니맵은 중계·추적 동안만 서고 그때 배율 손짓은 다 잠겨 있어 틱 그리기로 족하다. */
                     ownRaw={uiOwnerRef9.current}
                     ownColor={UI_OWN9}
-                    painter={miniPaintRef} live={viewLive9}
                     onSeek={fsSeek}
                     onWheelZoom={fsWheelZoom}
                     unproject={miniUnproject}
@@ -19214,12 +19130,7 @@ export default function ReplayMotionPlayer({
                    (컬러모드와 무관) 헤더에서 N팀 제거"). 팀색은 색 모드를 안 탄다(TEAM_COLOR 1 파랑 · 2 빨강) · 팀 없는 사람은 테두리 없음. */
                 const tm9 = melee ? undefined : teamOfRaw(c9.raw);
                 const nm9 = bases.find((b9) => b9.key === c9.raw)?.name ?? c9.raw;
-                /* ★ 맞대결의 칸 머리(이름 칩)는 **맞붙은 경계선 가운데**다(2026-10-09, 요청: "교전화면에서 공격/방어/교전배지와 닉네임을 좌상단이
-                   아닌 맞붙은 경계선 좌우나 위아래 가운데에 배치 — 주인공과 상황이 쉽게 파악되게") — 좌우 두 칸이면 왼 칸은 오른변 가운데(r) · 오른 칸은
-                   왼변 가운데(l), 위아래 두 칸이면 위 칸은 아랫변(b) · 아래 칸은 윗변(t). 경계에서 --duel-off 만큼 물러나 사이에 맞대결 표(아래 .scr-duel-mark)가
-                   선다(2026-10-09, 요청: "화살표 들어갈수있게 닉네임택은 가장자리에서 좀 띄우기"). 손으로 켠 분할·셋 이상은 바닥 가운데(.scr-split-cap 기본). */
-                const capSide9 = duel9 && splitLay9.cells.length === 2
-                  ? (splitLay9.cols === 2 ? (c9.c === 0 ? "r" : "l") : (c9.r === 0 ? "b" : "t")) : null;
+                /* (되물림 · 2026-10-09) 맞대결 칸 머리의 경계 쪽 자리(is-cap-r/l/b/t)와 맞대결 표 — 자동 분할이 없어졌다. 머리는 바닥 가운데 하나다. */
                 return (
                   <div
                     key={c9.raw}
@@ -19229,53 +19140,18 @@ export default function ReplayMotionPlayer({
                        그 사람의 시야와 그 칸의 화면 네모)이 그 사람을 든다. */
                     onClick={() => setSplitPick9((p9) => (p9 === c9.raw ? null : c9.raw))}
                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSplitPick9((p9) => (p9 === c9.raw ? null : c9.raw)); } }}
-                    className={cx("scr-split-cell", tm9 && "is-team", splitPick9 === c9.raw && "is-pick", capSide9 && `is-cap-${capSide9}`)}
+                    className={cx("scr-split-cell", tm9 && "is-team", splitPick9 === c9.raw && "is-pick")}
                     style={{ gridColumn: c9.c + 1, gridRow: c9.r + 1, ...(tm9 ? { borderColor: TEAM_COLOR[tm9] } : {}) }}
                     aria-label={`${cap9.text} 화면`}
                   >
-                    {/* 칸 머리 — 이름 칩 하나(바닥 가운데 · 맞대결이면 경계 쪽 · 2026-10-09, 요청 1: "화면 주인 닉네임택을 화면 하단 가운데로").
-                        옛 맞대결 배지(.scr-split-badge 공격·방어·교전)는 걷었다 — 아래 .scr-duel-mark 가 대신한다. */}
+                    {/* 칸 머리 — 이름 칩 하나(바닥 가운데 · 2026-10-09, 요청 1: "화면 주인 닉네임택을 화면 하단 가운데로"). 옛 맞대결 배지·표는 걷었다.
+                        칸 발치의 미니맵(.scr-split-foot · 2026-09)도 걷었다(2026-10-09, 요청 3) — 독 미니맵이 누른 칸의 사람을 든다. */}
                     <span className="scr-split-cap">
                       <span className="scr-split-chip" style={cap9.chip}>{nm9}</span>
-                      {/* (걷어냄 · 2026-10-09, 요청 3: "스탯바는 중계화면에서 모두 제거") PC 칸 머리의 현황 한 줄(.scr-split-st). */}
-                    </span>
-                    {/* 칸 발치(.scr-split-foot) — 미니맵(좌하단 · 그 팀 시야 · 제 화면 자리는 그 사람 색 네모 · splitMiniPaint9) + 폰은 그 **오른쪽**에
-                        현황(2026-10, 요청: "각 화면 아래쪽에 스탯 표시" → "스탯창 그냥 두 줄 고정 · 글자 1스텝 키워" → "미니맵 올리지 않고 스탯을 미니맵
-                        오른쪽에 배치") — 늘 두 줄(일꾼·자원·인구 / 데미지·APM) · 바닥 맞춤. 한때 칸 아래 가운데에 두고 미니맵을 그만큼 올렸다(되물림).
-                        PC 는 미니맵뿐(현황은 칸 머리). */}
-                    <span className="scr-split-foot">
-                      <canvas
-                        className="scr-split-mini" aria-hidden
-                        style={{ ["--ar" as string]: String(Math.max(1, grid.width) / Math.max(1, grid.height)) } as React.CSSProperties}
-                        ref={(el9) => { if (el9) splitMiniRef9.current.set(c9.raw, el9); else splitMiniRef9.current.delete(c9.raw); }}
-                      />
-                      {/* (걷어냄 · 2026-10-09, 요청 3) 폰 칸 발치의 두 줄 현황(.scr-split-ownerst) — 발치는 미니맵뿐이다. */}
                     </span>
                   </div>
                 );
               })}
-              {/* ★★ 맞대결 표(2026-10-09, 요청 3·4·5: "공격방어 배지대신 화살표에 텍스트라벨 — 공격자 닉네임택에서 수비자 닉네임택쪽으로 붉은 화살표에
-                  공격이라는 라벨 얹기 · 교전은 권투장갑 맞부딪힘이나 칼교차 이모지에 교전 라벨 · 화살표와 이모지는 글로우 및 확대바운스") — 두 칸에 걸치므로
-                  칸이 아니라 **격자의 것**이다(모든 칸을 덮는 격자 자리 grid 1/-1 · 그 가운데 = 두 칸의 경계선 가운데에 핀). 공격이면 공격 칸 → 수비 칸으로
-                  향한 붉은 화살표(오른쪽 꼴 하나를 is-dir-r/l/d/u 로 돌린다) 가운데에 '공격', 둘 다 공격이면 ⚔️ 에 '교전'. 글로우·확대 바운스는 .scr-duel-fx.
-                  두 칸 머리는 --duel-off 만큼 경계에서 물러나 있다(위 capSide9). 손짓은 안 받는다(pointer-events none). */}
-              {duel9 && splitLay9.cells.length === 2 && (() => {
-                const war9 = duel9.ra === "war";
-                const atk9 = splitLay9.cells.find((c9) => (c9.raw === duel9.a ? duel9.ra : duel9.rb) === "atk") ?? splitLay9.cells[0];
-                const dir9 = war9 ? "" : splitLay9.cols === 2 ? (atk9.c === 0 ? "r" : "l") : (atk9.r === 0 ? "d" : "u");
-                return (
-                  <span className={cx("scr-duel-mark", war9 ? "is-war" : `is-atk is-dir-${dir9}`)} aria-hidden>
-                    <span className="scr-duel-pin">
-                      <span className="scr-duel-fx">
-                        {war9
-                          ? <span className="scr-duel-emoji">⚔️</span>
-                          : <svg className="scr-duel-arrow" viewBox="0 0 100 40" aria-hidden><path d={DUEL_ARROW_D9} /></svg>}
-                        <span className="scr-duel-label">{DUEL_LABEL9[war9 ? "war" : "atk"]}</span>
-                      </span>
-                    </span>
-                  </span>
-                );
-              })()}
             </div>
           )}
         </div>
@@ -19322,12 +19198,48 @@ export default function ReplayMotionPlayer({
             {/* 음각 글귀(위 dockMark9) — 틀 오른쪽 쇠 바탕에만. */}
             <span className={cx("scr-fs-dockmark", dockMark9 && "is-on")} ref={dockMarkRef9} aria-hidden>{"scplay.vercel.app    SINCE 2026"}</span>
             {/* 미니맵 + 인포창을 **한 사각 틀**로 묶는다(2026-09, 요청: "미니맵과 인포창을 한데 묶는 사각 프레임 필요 인포창 래디우스 제거"). */}
-            <div className="scr-fs-dockframe">
+            <div
+              className={cx("scr-fs-dockframe", dockFit9.ki === 0 && "is-noinfo")}
+              style={dockFit9.h !== null ? { ["--dock-h" as string]: `${dockFit9.h.toFixed(2)}px`, ["--info-k" as string]: dockFit9.ki.toFixed(4) } as React.CSSProperties : undefined}
+            >
+            {/* 숨은 자 — 설계 치수(인포창 폭 · 설계 키 h0 · 틈 · 여백)를 CSS 계산값 그대로 읽는 자리(위 dockFit9). */}
+            <i className="scr-fs-dockprobe" aria-hidden />
             <div className="scr-fs-dockmain">
-            {/* ★★ 미니맵 자리에 **로스터**(2026-10-09, 요청 5: "독의 미니맵은 필요가 없어 … 제거하고 그 자리에 로스터를 넣어") — 미니맵은 무대
-                왼아래(.scr-fs-solo-mini · 분할 칸과 같은 자리)로 갔다. 판의 폭은 '인포창을 뺀 남는 폭, 최대 인포창 폭'(replay.css .scr-fs-rosterpanel). */}
-            <div className="scr-fs-rosterpanel" ref={rosterPanelRef9}>{dockRoster9}</div>
-              {infoDock9}
+            {/* ★★ 독의 우물 셋 [전광판 | 미니맵 | 인포창](2026-10-09, 요청: "피시 모바일 모두 전광판과 미니맵을 우선 보여주고 자리가 있으면 인포창을 보여줌 ·
+                너비를 배분하고 그에 맞는 높이로") — 자리와 크기는 위 dockFit9(전광판·미니맵 먼저 · 인포창은 남는 폭에 비례 축소 · 모자라면 숨김).
+                독 미니맵은 요청 5(2026-10-09)로 걷었던 것을 되살렸다(.scr-fs-minipanel) — 분할보기에서는 누른 칸의 사람(시야·네모·초록 점)을 들고 안 골랐으면
+                전체(관전자) 그대로다(요청 3). 이름표(miniTags9 · 진영 자리)를 얹고 누르면 그 사람 카메라다(pickPerson9 — 전광판 카메라 단추와 같은 일).
+                전체화면의 미니맵 단추(N · fsMiniOn)는 미니맵 우물을 여닫는다. */}
+            <div className="scr-fs-rosterpanel">{dockRoster9}</div>
+            {(fsOn ? fsMiniOn : true) && (
+              <div className="scr-fs-minipanel">
+                <div className="scr-motion-minibox">
+                  <ReplayFullscreenMinimap
+                    grid={grid}
+                    ratio={grid.width / Math.max(1, grid.height)}
+                    dotsRef={opsRef}
+                    extraRef={miniExtraRef}
+                    pingsRef={miniPingsRef9}
+                    tick={t}
+                    viewAt={splitOn9
+                      ? ((z9, p9) => (splitPick9 ? splitViewRef9.current.get(splitPick9) ?? fsViewAt(z9, p9) : null))   // 안 고르면 네모 없음(전체)
+                      : fsViewAt}
+                    zoom={zoom} pan={pan}
+                    ownRaw={splitOn9 ? splitPick9 : uiOwnerRef9.current}
+                    ownColor={UI_OWN9}
+                    painter={miniPaintRef} live={viewLive9}
+                    onSeek={fsSeek}
+                    onWheelZoom={fsWheelZoom}
+                    unproject={miniUnproject}
+                    fog={miniFog}
+                    warming={!tracksReady}
+                    tags={miniTags9}
+                    onTag={pickPerson9}
+                  />
+                </div>
+              </div>
+            )}
+              {dockFit9.ki > 0 && infoDock9}
             </div>
             </div>
           </div>

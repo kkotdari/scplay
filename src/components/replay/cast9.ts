@@ -48,12 +48,16 @@ export type CastSeg9 = {
   cyc: boolean;
   /** 그 장면의 무게(진단·토스트 차례 정하기). */
   score: number;
-  /** ★ 그 장면의 **상대역**(2026-10 · 아래 머리말의 맞대결) — 있으면 재생기가 둘을 나란히 세운다(자동 분할). */
+  /** ★ 그 장면의 **상대역**(2026-10 · 아래 머리말의 맞대결) — 재생기가 자막("A의 공격 · B를 공격 · B와 교전")을 짓는 자다
+   *  (2026-10-09: 옛 자동 분할은 되물렸다 — 화면은 늘 한 사람). */
   foe?: string;
   /** 주인공(raw)의 몫 — atk 공격 · def 방어 · war 교전(둘 다 친다). 상대역은 그 거울(atk ↔ def · war 그대로). */
   role?: CastRole9;
-  /** 맞대결이 끝나는 시각(초) — 그 뒤로는 같은 토막이어도 한 화면으로 돌아간다. */
+  /** 맞대결이 끝나는 시각(초) — 그 뒤로는 같은 토막이어도 자막이 내린다. */
   foeTo?: number;
+  /** 그 장면의 **적 전부**(주인공과 주고받은 몸값 큰 차례 · 첫째가 foe) · **같은 편**(함께 싸운 팀원) — 자막의 "A·B의 공격 · C와 함께"(2026-10-09). */
+  foes?: string[];
+  allies?: string[];
 };
 export type CastRole9 = "atk" | "def" | "war";
 /** 상대역의 몫 — 주인공의 거울. */
@@ -410,7 +414,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     return r9 < b9 ? r9 : b9;
   }, cands9[0]);
   /** 한 토막을 싣는다 — 같은 사람이 이어지면 토막을 안 늘린다(갈아타는 자리가 아니다). */
-  type Duel9 = { foe: string; role: CastRole9; foeTo: number };
+  type Duel9 = { foe: string; role: CastRole9; foeTo: number; foes: string[]; allies: string[] };
   const push9 = (at9: number, raw9: string, why9: string, cyc9: boolean, score9: number, duel9?: Duel9): void => {
     const a9 = Math.max(0, Math.min(total, at9));
     ringPos9 = ring9.indexOf(raw9);
@@ -429,7 +433,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       return;
     }
     if (last9 && a9 <= last9.at) return;   // 시각이 뒤로 가는 토막은 안 싣는다
-    out9.push({ at: a9, raw: raw9, why: why9, cyc: cyc9, score: score9, ...(duel9 ?? {}) });
+    out9.push({ at: a9, raw: raw9, why: why9, cyc: cyc9, score: score9, ...(duel9 ?? {}) });   // duel9 의 foes·allies 도 함께 실린다
     shown9.set(raw9, a9);
   };
   /** ★★ **맞대결** — 그 장면에서 주인공과 가장 많이 주고받은 적이 상대역이다(2026-10, 요청: "교전 발생시 공격자만 보여줄게
@@ -486,7 +490,20 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       if (eP9 + eF9 >= fw9 * 0.25 && !(eP9 >= eF9 * 0.6 && eF9 >= eP9 * 0.6)) role9 = eP9 > eF9 ? "def" : "atk";
       else role9 = "war";
     }
-    return { foe: foe9, role: role9, foeTo: sc9.t1 + (sc9.tail - GAP9) + DUEL_TAIL9 };
+    /* ★ 자막의 이름들(2026-10-09) — 적은 주인공과 주고받은 몸값이 큰 차례(첫째가 상대역 · 팀전이면 다른 팀 참가자 전부 · 팀이 없으면 주고받은 사람만) ·
+       같은 편은 그 장면에 든 팀원이다. */
+    const tmP9 = opts.teamOf?.[pick9];
+    const xch9 = (o9: string): number => (sc9.pair.get(`${pick9}>${o9}`) ?? 0) + (sc9.pair.get(`${o9}>${pick9}`) ?? 0);
+    const foes9: string[] = [];
+    const allies9: string[] = [];
+    for (const o9 of sc9.by.keys()) {
+      if (o9 === pick9) continue;
+      const tmO9 = opts.teamOf?.[o9];
+      if (tmP9 !== undefined && tmO9 === tmP9) allies9.push(o9);
+      else if (o9 === foe9 || xch9(o9) > 0 || (tmP9 !== undefined && tmO9 !== undefined)) foes9.push(o9);
+    }
+    foes9.sort((a9, b9) => (a9 === foe9 ? -1 : b9 === foe9 ? 1 : xch9(b9) - xch9(a9)));
+    return { foe: foe9, role: role9, foeTo: sc9.t1 + (sc9.tail - GAP9) + DUEL_TAIL9, foes: foes9, allies: allies9 };
   };
   /** 마지막 토막이 선 시각(없으면 -1000) · 그 무게. */
   const lastAt9 = (): number => (out9.length > 0 ? out9[out9.length - 1].at : -1000);
@@ -509,11 +526,15 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     if (tot9 < MIN_SCENE9) continue;      // 잔 사건은 장면이 아니다 — 순환이 그 자리를 메운다
     /* 소강이 길면 그 사이를 순환으로 채운다(요청) — 장면 바로 앞까지만. */
     if (at9 - cur9 >= IDLE9 || out9.length === 0) fill9(cur9, at9);
-    /* 누구를 보여주나 — 1·2등이 엇비슷하면 순환 원칙(가장 오래 안 본 사람)이 가른다. */
+    /* 누구를 보여주나 — 1·2등이 엇비슷하면 ★ **서로 맞붙은 둘이면 더 많이 준 쪽**(2026-10-09, 요청: "공격이나 교전 발생시 더 잘한 사람 보여주고" — 무게
+       by 는 준 것 + 잃은 것×LOSS_K9 라 엇비슷할 수 있다), 그도 같거나 맞붙은 사이가 아니면 순환 원칙(가장 오래 안 본 사람)이 가른다. */
     const rank9 = [...sc9.by.entries()].sort((a9, b9) => b9[1] - a9[1]);
     let pick9 = rank9[0][0];
     if (rank9.length > 1 && rank9[0][1] <= rank9[1][1] * TIE9) {
-      pick9 = lonely9(rank9.slice(0, 2).map(([r9]) => r9));
+      const [p09, p19] = [rank9[0][0], rank9[1][0]];
+      const d019 = sc9.pair.get(`${p09}>${p19}`) ?? 0;
+      const d109 = sc9.pair.get(`${p19}>${p09}`) ?? 0;
+      pick9 = d019 !== d109 ? (d019 > d109 ? p09 : p19) : lonely9([p09, p19]);
     }
     /* 머무는 중이면 **훨씬 무거운 장면**만 끼어든다 — 그래야 화면이 안 튄다. */
     const held9 = at9 - lastAt9() < MIN_HOLD9;

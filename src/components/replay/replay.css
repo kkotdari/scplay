@@ -2490,7 +2490,11 @@
   --dock-w: calc(var(--dock-cell) * 6 + var(--dock-gap) * 5 + var(--dock-padx) * 2);
   /* 몸 키는 정보줄 키와 떼어 못 박는다(옛 띠 30 + 새긴 줄 1 + 96) — 정보줄을 죄어도 인포창·미니맵이 안 줄어든다
      (요청: "유저정보 라벨 크기 줄여서 세로 줄이기" — 줄어드는 것은 정보줄 하나다). */
-  --dock-h: calc(30px * var(--dk) + 1px + var(--dock-body));
+  /* ★ 설계 키 --dock-h0 · 실제 키 --dock-h(2026-10-09 독 맞춤 — ReplayMotionPlayer dockFit9 가 틀에 인라인으로 덮어쓴다 · 전광판·미니맵이 설계 키로 안 들면 그만큼
+     낮다 · 설계 키가 상한). 전광판의 설계 비 --roster-r(폭/키) — 폰 1.2(이름 기둥 + 자료 한 칸 · 175·dk 키에 210) · PC 는 아래 틀 블록(480/186). */
+  --dock-h0: calc(30px * var(--dk) + 1px + var(--dock-body));
+  --dock-h: var(--dock-h0);
+  --roster-r: 1.2;
 }
 /* ★ PC 는 툴박스가 한 줄이라 비는 키(단추 줄 30·ui + 줄 사이 9.6·dk)를 **독이 받는다**(2026-10-09, 요청: "독에서 그만큼 남은 세로 공간은 로스터와
    인포창에 할애해서 높이를 그만큼 높이기. 인포창은 어차피 아래가 잘리는 경우가 있었어서") — 몸 키(--dock-body → --dock-h → 인포창 몸 · 로스터 판)가
@@ -2511,8 +2515,9 @@
   /* 틀 180 → **200**(2026-10-09 재요청: "1080p 기준 독 높이 200 · 로스터창·인포창 높이를 늘려 · 재생부 사이 갭도 · 생긴 공간은 안쪽 줄 간격에") —
      몸 125 → 145(독 몸 186) · 틀 아래 여백 8(재생부와의 틈 · 옛 0). 안쪽 여유는 아래 PC 덮어쓰기(인포창 줄 틈 6 · 로스터 줄 키 상한 28 · 글자는 12 그대로). */
   --dock-body: calc(145px * var(--dks));
-  --dock-h: calc(41px * var(--dks) + var(--dock-body));   /* 186 — 정보줄 40 + 새긴 줄 1 + 몸 145 → 틀 200 */
-  --roster-w: calc(480px * var(--dks));
+  --dock-h0: calc(41px * var(--dks) + var(--dock-body));   /* 186 — 정보줄 40 + 새긴 줄 1 + 몸 145 → 틀 200 */
+  --dock-h: var(--dock-h0);
+  --roster-r: 2.5806;   /* 480/186 — 전광판 설계 비(옛 --roster-w 480·dks · 2026-10-09 독 맞춤) */
   --dock-bez: calc(4px * var(--dks)); --dock-out: calc(6px * var(--dks)); --dock-sep: calc(8px * var(--dks));
   margin-bottom: calc(8px * var(--dks));
 }
@@ -2751,7 +2756,7 @@
   /* ⚠ 바탕(flex-basis)은 **0** 이다(2026-09, 지적: "오버로드 인포창일때 더 넓어지는 현상 발생 (미니맵 줄어듦) 인포창 폭 고정되게") —
      auto 면 바탕이 곧 내용 폭이라, 탄 몸 칸(4×2)처럼 넓은 내용이 들면 창이 그만큼 넓어지고 미니맵이 밀려 줄었다. 0 이면 창은
      늘 '미니맵을 뺀 나머지'(최소 --dock-w)라 무엇을 골라도 폭이 안 흔들린다. */
-  .scr-fs-dockframe .scr-motion-infodock { flex: 1 1 0; width: auto; min-width: min(var(--dock-w), 100%); }
+  /* (걷어냄 · 2026-10-09 독 맞춤) 인포창의 '남는 폭 다 쓰기'(flex 1 1 0 · min-width) — 폭은 dockFit9 의 --info-k 가 정한다(위 .scr-fs-dockmain > .scr-motion-infodock). */
   /* 숫자 줄 베이스라인 — 폰은 글자 크기와 무관한 몫이 더 있어 PC 의 비례값(0.7)으로는 1.2px 낮다(실측) · 재서 고른 값. */
   .scr-motion-infodock-nums { padding-bottom: 1.9px; }
 }
@@ -3116,7 +3121,7 @@
   /* 틀은 이제 **제 판이 없다** — 미니맵·정보줄·인포창 우물이 감싸개의 쇠에 바로 파인다(판을 두 겹 깔면 광택 띠가 두 높이에서
      갈려 이음매가 보인다). 구분 막대도 같은 까닭으로 걷는다 — 틈이 곧 아래 쇠다. */
   .scr-fs-layer .scr-fs-dockframe { background: none; border-color: transparent; box-shadow: none; }
-  .scr-fs-layer .scr-fs-dockmain > .scr-fs-rosterpanel::after { display: none; }
+  .scr-fs-layer .scr-fs-dockmain > .scr-fs-rosterpanel::after, .scr-fs-layer .scr-fs-dockmain > .scr-fs-minipanel::after { display: none; }
 /* 전체화면 — 뿌리가 세로 줄이다: [무대(남는 키) / 쇠판(툴박스 + 독 줄)]. 옛 판은 쇠판이 무대 아래에 겹쳐 떴다(위 ★★ — 이제 재생
    영역에서 뺀다). 안전 영역(홈 인디케이터·가로 노치)은 여기서만 문다 — 아래 몫은 쇠판의 아래 여백(바탕색 한 장)이다. */
 .scr-fs-layer.is-fs > .scr-fs-root { display: flex; flex-direction: column; }
@@ -3184,13 +3189,26 @@
   pointer-events: auto;
 }
 /* 우물 — 쇠판에 파인 자리. 위 안쪽 그늘이 깊이를, 아래 밝은 입술이 판의 두께를 말한다. */
-.scr-fs-dockmain { display: flex; align-items: stretch; gap: var(--dock-sep); height: var(--dock-h); min-width: 0; }
+.scr-fs-dockmain { display: flex; align-items: stretch; justify-content: center; gap: var(--dock-sep); height: var(--dock-h); min-width: 0; }
+/* 숨은 자(ReplayMotionPlayer dockFit9) — 설계 치수의 CSS 계산값을 JS 가 읽는 자리: 폭 = 인포창 설계 폭 · 키 = 설계 키 · 왼 여백 = 구분 틈 · 오른 여백 = 틀 여백. */
+.scr-fs-dockprobe { position: absolute; left: 0; top: 0; visibility: hidden; pointer-events: none; width: var(--dock-w); height: var(--dock-h0); margin: 0 var(--dock-out) 0 var(--dock-sep); }
+/* 인포창이 안 서는 틀(is-noinfo · 남는 폭이 설계 폭의 INFO_MIN_K9 아래) — 미니맵 뒤 구분 막대도 걷는다. */
+.scr-fs-dockframe.is-noinfo .scr-fs-dockmain > .scr-fs-minipanel::after { display: none; }
+/* ★ 인포창 우물은 **비례 축소**다(2026-10-09, 요청: "인포창 폭이 확보 안될 수 있음 그럴 땐 인포창 폭을 줄이고 안의 내용은 폭에 비례해서 축소해서 안 잘리게 하고
+   내용 전체 통째로 세로는 가운데 정렬") — 우물 폭 = 설계 폭 × --info-k(dockFit9) · 몸은 설계 폭·설계 키 그대로 짜고 transform 으로 k 배(가운데 기준) · 우물이
+   flex 가운데 맞춤이라 축소된 몸이 세로 가운데에 선다. k = 1 이면 종전과 같다. */
+.scr-fs-dockmain > .scr-motion-infodock {
+  flex: none; align-self: stretch; width: calc(var(--dock-w) * var(--info-k, 1)); max-width: none; height: 100%;
+  flex-direction: row; align-items: center; justify-content: center;
+}
+.scr-fs-dockmain > .scr-motion-infodock > .scr-motion-infodock-body { flex: none; width: var(--dock-w); transform: scale(var(--info-k, 1)); transform-origin: center center; }
 /* ★ 접으면 독 줄이 **통째로** 사라진다(2026-09, 요청: "접혔을때 인포창아예 안남게") — 손잡이는 툴박스 재생 줄의 시계 옆이라 남는다.
    옛 '접어도 폭은 그대로 · 손잡이 키만 남는다'는 되물렸다. */
 .scr-fs-dockrow.is-fold { display: none; }
 .scr-fs-dockrow.is-fold + .scr-tb { padding-top: calc(1px + 2 * 5.1px * var(--dk)); }   /* 펼친 때의 위 테 = 틀의 투명 1px + --dock-out · ×2(2026-10-06 "위아래 여백 2배" — 아래 .scr-tb 의 padding-bottom 과 같은 값) */
 .scr-fs-dockframe > .scr-fs-dockmain { grid-column: 1; grid-row: 1; }
 .scr-fs-dockmain > .scr-fs-rosterpanel,
+.scr-fs-dockmain > .scr-fs-minipanel,
 .scr-fs-dockmain > .scr-motion-infodock {
   background: #0a0d12;
   box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.22);
@@ -3198,8 +3216,8 @@
 /* 구분선 — 둘 사이의 쇠 막대. **평평하다**(2026-09, 요청: "둥근쇠막대말도 평평하게" — 가로로 도는 광택(어둠 → 밝은 등 → 어둠)을
    준 첫 판은 둥근 봉으로 읽혔다). 광택은 틀과 **같은 세로 띠**를 그대로 써서 테두리와 한 판으로 이어지고, 막대만 결을 세로로
    틀어(1px 줄 · 2·3px 딴 주기) 따로 끼운 판으로 읽힌다. 양옆 1px 은 우물 쪽으로 꺾이는 모서리(밝은 왼 · 어두운 오른). */
-.scr-fs-dockmain > .scr-fs-rosterpanel { position: relative; }
-.scr-fs-dockmain > .scr-fs-rosterpanel::after {
+.scr-fs-dockmain > .scr-fs-rosterpanel, .scr-fs-dockmain > .scr-fs-minipanel { position: relative; }
+.scr-fs-dockmain > .scr-fs-rosterpanel::after, .scr-fs-dockmain > .scr-fs-minipanel::after {
   content: ""; position: absolute; top: 0; bottom: 0; right: calc(-1 * var(--dock-sep)); width: var(--dock-sep);
   background:
     repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px 2px),
@@ -3212,7 +3230,20 @@
   background-position: 0 calc(-1 * (1px + var(--dock-out)));
   box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.16), inset -1px 0 0 rgba(0, 0, 0, 0.30);
 }
-/* (걷어냄 · 2026-10-09, 요청 5) 독 미니맵 판(.scr-fs-minipanel · 남는 폭 · 상한 1.3 틀 키 · contain) — 미니맵은 무대 왼아래(.scr-fs-solo-mini)로 갔다. */
+/* ★★ 독 미니맵 판 — **되돌림**(2026-10-09, 요청 1: "모바일은 전광판 제거하고 그자리에 다시 미니맵 넣기. 피시는 독에 전광판-미니맵-인포창 순으로 표시") —
+   같은 날 요청 5 로 걷었던 판(남는 폭 · 상한 1.3 틀 키 · contain)을 옛 자 그대로 되살렸다. 바라는 폭 --mini-w 는 '지도 비 × 틀 키'와 상한 중 작은 쪽
+   (전광판 판의 폭 셈도 이 값을 뺀다) · 자리가 모자라면 그 아래로 준다(flex-shrink — 폰은 인포창 272 가 먼저라 100px 남짓 · 미니맵은 그 폭에 맞고 위아래가
+   빈다). ⚠ 바라는 폭은 flex-basis 가 아니라 **width** 로(크기를 담는 칸은 내용 기여가 0 이라 basis 만으로는 틀이 그 몫을 안 잡아 2px 로 접혔다 · 실측).
+   이름표(.scr-fs-minitag)는 ReplayFullscreenMinimap 안의 겹층이다(아래). */
+/* 폭 = 키 × 지도 비 — 제 비율 그대로(2026-10-09, 요청: "각각의 최적 비율을 고정한 상태로 조립") · 옛 상한 1.3·키와 flex-shrink 는 걷었다(크기는 dockFit9 가 정한다). */
+.scr-fs-minipanel {
+  flex: none; width: calc(var(--dock-h) * var(--scr-mini-ar, 1)); min-width: 0; height: 100%; container-type: size; pointer-events: none;
+}
+.scr-fs-minipanel .scr-motion-minibox { width: 100%; height: 100%; margin: 0; display: flex; align-items: center; justify-content: center; }
+.scr-fs-minipanel .scr-fs-minimap {
+  pointer-events: auto; box-sizing: border-box; flex: none;
+  width: auto; height: min(100cqh, calc(100cqw / var(--scr-mini-ar, 1)));
+}
 /* ★★ 로스터 판 — 미니맵이 서던 우물(2026-10-09, 요청 5: "독의 미니맵은 필요가 없어 … 그 자리에 로스터를 넣어 · 로스터 폭은 인포창 빼고 남은
    폭을 다 쓰되 최대 인포창폭 넘지 않기") — 폭 = min(인포창 폭, 독 줄 폭 − 인포창 − 틈 − 틀 여백·테). 독 줄(.scr-fs-dockrow)이 크기 질의 그릇
    (inline-size)이라 cqw 로 잰다 — JS 셈이 없다. 안은 .scr-dock-roster(absolute)가 채운다. 폰(틀 100% · 인포창 flex 1)도 같은 식이다. */
@@ -3220,9 +3251,9 @@
 .scr-fs-rosterpanel {
   flex: 0 0 auto; position: relative; height: 100%; min-width: 0; box-sizing: border-box; overflow: hidden; pointer-events: auto;
   container-type: inline-size;   /* 안의 글자 상한이 판 폭(cqw)으로 선다(아래 .scr-motion-pc9 .scr-dock-roster) */
-  /* 상한은 인포창의 **1.25배**(2026-10-09, 요청: "로스터는 최소폭 좀 넓게 강제" — 옛 상한 = 인포창 폭에서는 4:4 이름이 두 자로 접혔다). 남는 폭이 그보다
-     모자라면 판은 그만큼이고 안은 쪽(is-paged · JSX rosterPaged9)으로 간다. */
-  width: max(0px, min(var(--roster-w, calc(var(--dock-w) * 1.25)), calc(100cqw - var(--dock-w) - var(--dock-sep) - 2 * var(--dock-out) - 2px)));   /* PC 는 --roster-w 480(위 틀 블록) */
+  /* 폭 = 키 × 설계 비 --roster-r(PC 480/186 · 폰 1.2) — 키는 독 맞춤(dockFit9)이 전광판·미니맵이 함께 들게 낮춘 값이라 폭도 함께 준다(2026-10-09, 요청: "너비를
+     배분하고 그에 맞는 높이로"). 옛 '인포창 폭 × 1.25 상한 · 남는 폭' 셈은 걷었다 — 전광판이 인포창보다 먼저다. 줄어든 때는 쪽(is-paged · JSX rosterPaged9). */
+  width: calc(var(--dock-h) * var(--roster-r, 2.58));
 }
 /* ★★ 독 로스터(ReplayMotionPlayer dockRoster9 · 2026-10-09) — [AUTO 줄] / 팀마다 [이름 기둥 | 자료 띠]. 줄 키 --rp 는 독 키를 줄 수(--rows · JSX)로
    나눈 값(상한 13·dk)이라 4:4 도 한 우물에 든다 — 글자는 그 줄 키에 비례한다. */
@@ -3550,6 +3581,25 @@
 .scr-fs-minimap > canvas {
   display: block; position: absolute; inset: 0; width: 100%; height: 100%;
 }
+/* ★★ 미니맵 이름표(2026-10-09, 요청 1: "미니맵 중 스타팅포인트 또는 이사간 위치에 닉네임택을 오버레이로 표시 … 진영크기에 따라 택 크기 차등 · 나가거나 엘리
+   생산끊긴 사람은 어둡게" — ReplayFullscreenMinimap tags · 재생기 miniTags9) — 캔버스 위 겹층에 임자색 칩이 진영 자리(백분율)에 가운데 맞춰 선다.
+   크기 세 단(s/m/l = 살아 있는 건물 ≤5 · ≤14 · 그 위) · 어두움(is-dim · 흐리고 잿빛). 누르면 그 사람 카메라(전광판 카메라 단추와 같은 일 · 폰은 전광판이 없어
+   이것이 사람 고르기다) — 겹층은 포인터를 안 받고 칩만 받는다(미니맵 짚기와 안 섞이게 칩이 거품을 끊는다). 글자는 PC 7/8/10(1080p · --dks) · 폰 6.5/7.5/9·dk. */
+.scr-fs-minitags { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 1; }
+.scr-fs-minitag {
+  position: absolute; transform: translate(-50%, -50%); pointer-events: auto; cursor: pointer;
+  display: inline-block; max-width: 46%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-sizing: border-box;
+  margin: 0; border: 0; padding: 0 0.35em; border-radius: 2px; font-family: inherit; font-weight: 700; line-height: 1.35;
+  font-size: calc(6.5px * var(--dk));
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.75), 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+.scr-fs-minitag.is-m { font-size: calc(7.5px * var(--dk)); }
+.scr-fs-minitag.is-l { font-size: calc(9px * var(--dk)); }
+.scr-motion-pc9 .scr-fs-minitag { font-size: calc(7px * var(--dks, 1)); }
+.scr-motion-pc9 .scr-fs-minitag.is-m { font-size: calc(8px * var(--dks, 1)); }
+.scr-motion-pc9 .scr-fs-minitag.is-l { font-size: calc(10px * var(--dks, 1)); }
+.scr-fs-minitag.is-dim { opacity: 0.42; filter: grayscale(0.85); }
+.scr-fs-minitag:focus-visible { outline: 1px solid #fff; outline-offset: 1px; }
 
 /* (삭제·요청: "모바일 전체화면 메뉴 버튼 제거") — 구석에 떠 있던 '⋯' 깨우기 알약
    (.scr-fs-wake)이 있던 자리다. 이제 지도 아무 데나 누르면 조작부가 켜졌다 꺼진다
@@ -4193,12 +4243,8 @@
 /* ★ 칸 머리는 이름 칩 하나다(2026-09, 요청: "헤더의 수치들 제거하고 음영 제거" · 2026-10-09 요청 3 으로 PC 현황도 걷음 · 옛 반투명 섬 바탕·글자 그림자 없음).
    ★ 자리는 **바닥 가운데**(2026-10-09, 요청 1: "화면 주인 닉네임택을 화면 하단 가운데로 이동(개인/분할화면)" — 옛 왼위 3·dk). 발치 미니맵(왼아래)과는
    가운데라 안 겹친다(이름이 아주 길면 max-width 가 자른다). 글자는 --cap-fs(PC 8·dk · 폰 16·dk — 2026-10-09, 요청 2: "모바일에서 닉네임택 글자크기 두배").
-   맞대결 두 칸은 아래 is-cap-* 가 경계 쪽으로 옮긴다. */
-.scr-split, .scr-fs-solo {
-  --cap-fs: calc(8px * var(--dk));
-  /* 맞대결 표(.scr-duel-mark)의 길이 — 글자 7자 · 머리가 경계에서 물러나는 몫은 표 반 + 5·dk(화살표 끝과 칩 사이 숨). */
-  --duel-len: calc(7 * var(--cap-fs)); --duel-off: calc(var(--duel-len) / 2 + 5px * var(--dk));
-}
+   (되물림 · 2026-10-09) 맞대결 두 칸의 경계 쪽 자리(is-cap-r/l/b/t)와 맞대결 표 — 자동 분할이 없어졌다(요청 2 · 화면은 늘 한 사람). */
+.scr-split, .scr-fs-solo { --cap-fs: calc(8px * var(--dk)); }
 .scr-motion:not(.scr-motion-pc9) :is(.scr-split, .scr-fs-solo) { --cap-fs: calc(16px * var(--dk)); }
 .scr-split-cap {
   position: absolute; left: 50%; bottom: calc(3px * var(--dk)); transform: translateX(-50%); z-index: 1;
@@ -4208,13 +4254,6 @@
   /* 한 줄 키로 못 박고 넘치는 것은 숨긴다(옛 현황 숨기기의 자 — 지금은 칩 하나라 자르기만 한다). */
   flex-wrap: wrap; height: 1.25em; overflow: hidden;
 }
-/* ★ 맞대결 두 칸의 머리는 **맞붙은 경계선 가운데**(2026-10-09, 요청: "교전화면에서 공격/방어/교전배지와 닉네임을 … 맞붙은 경계선 좌우나 위아래 가운데에") —
-   r = 오른변 가운데(왼 칸) · l = 왼변 가운데(오른 칸) · b = 아랫변 가운데(위 칸) · t = 윗변 가운데(아래 칸). JSX capSide9. 경계에서 --duel-off 만큼 물러난다
-   (2026-10-09, 요청: "화살표 들어갈수있게 닉네임택은 가장자리에서 좀 띄우기" — 옛 3·dk) · 그 사이에 맞대결 표(.scr-duel-mark)가 선다. */
-.scr-split-cell.is-cap-r > .scr-split-cap { left: auto; right: var(--duel-off); bottom: auto; top: 50%; transform: translateY(-50%); }
-.scr-split-cell.is-cap-l > .scr-split-cap { left: var(--duel-off); bottom: auto; top: 50%; transform: translateY(-50%); }
-.scr-split-cell.is-cap-b > .scr-split-cap { bottom: var(--duel-off); }
-.scr-split-cell.is-cap-t > .scr-split-cap { bottom: auto; top: var(--duel-off); }
 /* 흐림 가르기 손잡이(2026-10-09 · ReplayMotionPlayer NO_MAP_ISO9 · NO_STAGE_OV9) — 시험 동안만 켠다. */
 .scr-motion-map.scr-t-nomapiso { isolation: auto; }
 .scr-fs-stage.scr-t-nostageov { overflow: visible; }
@@ -4226,17 +4265,7 @@
 }
 /* (걷어냄 · 2026-10-09, 요청 3) PC 칸 머리의 현황 한 줄(.scr-split-st) — 칸 머리는 이름 칩뿐이다. */
 /* (걷어냄 · 2026-10-09, 요청 3) 폰 단독 화면 주인의 두 줄 현황(.scr-fs-ownerst) — 독 로스터가 든다. */
-/* ★ 폰 분할 칸의 현황은 **미니맵 오른쪽**, 바닥 맞춤이다(2026-10, 요청: "각 화면 아래쪽에 스탯 표시" → "스탯창 그냥 두 줄 고정 · 글자 1스텝 키워" →
-   "미니맵 올리지 않고 스탯을 미니맵 오른쪽에 배치") — 칸 발치(.scr-split-foot · 좌하단 절대 자리 · flex 한 줄 · 아래 맞춤)에 미니맵과 현황이 나란히
-   선다. 미니맵은 제자리(발치 안에선 static · 폭 식은 cq 단위 그대로 — 질의 그릇은 칸). 현황은 **늘 두 줄**(.is-two — 일꾼·자원·인구 / 데미지·APM ·
-   .scr-who-row) · 글자 9·dk. 칸 머리에는 이름 칩만(.scr-split-cap 의 현황은 PC 만 · JSX smallDevice9). 한때 칸 아래 가운데에 두고 미니맵을
-   그만큼 올렸다(--stbot-h · 되물림). 폰 세로 칸 358 폭: 미니맵 93 + 현황 ≈170 이라 남는다 · 좁은 가로 칸도 두 줄이라 든다. */
-.scr-split-foot {
-  position: absolute; left: calc(3px * var(--dk)); right: calc(3px * var(--dk)); bottom: calc(3px * var(--dk)); z-index: 1;
-  display: flex; align-items: flex-end; gap: calc(4px * var(--dk)); pointer-events: none;
-}
-.scr-split-foot > .scr-split-mini { position: static; flex: none; }
-/* (걷어냄 · 2026-10-09, 요청 3) 폰 칸 발치의 두 줄 현황(.scr-split-ownerst) — 발치는 미니맵뿐이다. */
+/* (걷어냄 · 2026-10-09, 요청 3: "분할보기 미니맵 제거") 칸 발치(.scr-split-foot — 미니맵 + 한때 폰 현황 두 줄) — 독 미니맵이 누른 칸의 사람을 든다. */
 
 /* ★ 독 줄 오른쪽의 음각 글귀(2026-09, 요청: "독 좌우 몇 px이상 남는경우 음각으로 scplay.vercel.app    SINCE 2026 추가(우측에만)")
    — 쇠 바탕에 판 글자다: 글자는 바탕보다 어둡고, 아래 가장자리에 밝은 한 줄(파인 홈의 아래 입술) · 위에 어두운 한 줄을 얹는다.
@@ -4263,20 +4292,7 @@
 .scr-motion-infodock-fold:disabled { opacity: 0.45; cursor: default; filter: none; }
 /* 분할보기 칸 안개 판 — 유닛·GL 층 위에 선다(splitPaint9 가 칸마다 그 팀의 안개를 판다 · 2026-09, 요청: "분할모드: 시야는 각자 시야 사용"). */
 .scr-motion-unitlayer.scr-split-fog9 { background: transparent; }
-/* ★ 칸 미니맵(좌하단) — 그 팀 시야가 든 미니맵 · 제 화면 자리는 그 사람 색 네모(2026-09, 요청: "각 화면의 좌하단에 자신의 시야가 적용된
-   미니맵을 표시한다(자기 색깔 프레임으로 화면 위치 표시)"). 크기는 칸의 폭 26% · 높이 34% 중 작은 쪽(지도 비 --ar 로) — 칸이 크기 담는 칸이다.
-   ★ 그리고 그 칸의 **3×3 타일**을 안 넘는다(--split-tile = 칸 한 타일의 화면 px · splitPaint9 가 적는다 · 긴 변이 3타일) — 바닥은
-   36·dk px(그보다 작으면 미니맵이 점이 된다). */
-.scr-split-cell { container-type: size; }
-.scr-split-mini {
-  position: absolute; left: calc(3px * var(--dk)); bottom: calc(3px * var(--dk)); z-index: 1;
-  width: min(26cqw, calc(34cqh * var(--ar, 1)),
-    max(calc(6 * var(--split-tile, 999px) * min(1, var(--ar, 1))), calc(36px * var(--dk))));
-  aspect-ratio: var(--ar, 1); height: auto;
-  display: block; pointer-events: none; box-sizing: border-box;
-  border: 1px solid rgba(0, 0, 0, 0.85); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18);
-  background: #12161c;
-}
+/* (걷어냄 · 2026-10-09, 요청 3) 칸 미니맵(.scr-split-mini · 칸 폭 26%·키 34% · 3×3 타일 상한 --split-tile)과 칸의 크기 담기(container-type) — 독 미니맵이 든다. */
 /* ★★ 단독 화면의 머리·미니맵(2026-10-09, 요청 2·5 · ReplayMotionPlayer 의 .scr-fs-solo) — 분할 칸과 같은 자리·자: 머리(이름 칩)는 왼위
    (.scr-split-cap 그대로), 미니맵은 왼아래 · 폭은 .scr-split-mini 의 식(무대 폭 26% · 키 34% · 중계 중엔 그 화면 6×6 타일 상한 --split-tile ·
    바닥 36·dk). 무대 덮개(absolute)가 크기 질의 그릇이다. 중계 중(.is-cast)엔 손짓을 안 받는다(카메라가 기계 것). 전체화면 노치는 위 여백으로 문다.
@@ -4307,34 +4323,27 @@
 @media (prefers-reduced-motion: reduce) {
   .scr-tb .scr-tb-btnrow > .scr-motion-mapbtns .scr-motion-castbtn-on svg { animation: none; color: #3dffa8; }
 }
-/* ★★ 맞대결 표(2026-10-09, 요청 3·4·5: "공격방어 배지대신 화살표에 텍스트라벨 … 공격자 닉네임택에서 수비자 닉네임택쪽으로 붉은 화살표에 공격이라는
-   라벨 얹기 · 교전은 … 칼교차 이모지에 교전 라벨 얹기 · 화살표와 이모지는 글로우 및 확대바운스" — JSX .scr-duel-mark) — 격자의 **모든 칸을 덮는 자리**
-   (grid 1/-1)에 서서 그 한가운데(= 두 칸의 경계선 가운데)에 핀(.scr-duel-pin)을 박는다. 공격: 붉은 화살표(오른쪽 꼴 하나 · is-dir-l/d/u 로 돌린다) 가운데에
-   '공격' 라벨 · 교전: ⚔️ 아래턱에 '교전' 라벨(주황). .scr-duel-fx 가 글로우(drop-shadow 두 겹)와 확대 바운스(1 → 1.22)를 1초 박자로 탄다.
-   옛 맞대결 배지(.scr-split-badge 공격·방어·교전 · 칩 뒤에서 깜빡임)는 걷었다. 길이 --duel-len · 두 칸 머리는 --duel-off 만큼 물러나 있다(위). */
-.scr-duel-mark { grid-column: 1 / -1; grid-row: 1 / -1; position: relative; z-index: 2; min-width: 0; min-height: 0; pointer-events: none; }
-.scr-duel-pin { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: block; }
-.scr-duel-fx { position: relative; display: block; --duel-glow: rgba(255, 64, 64, 0.9); animation: scr-duel-pop 1s ease-in-out infinite; }
-.scr-duel-mark.is-war .scr-duel-fx { --duel-glow: rgba(255, 168, 48, 0.9); }
-.scr-duel-arrow { display: block; width: var(--duel-len); height: calc(var(--duel-len) * 0.4); overflow: visible; }
-.scr-duel-arrow path { fill: #e5383b; stroke: #fff; stroke-width: 2.5; stroke-linejoin: round; }
-.scr-duel-mark.is-dir-l .scr-duel-arrow { transform: rotate(180deg); }
-.scr-duel-mark.is-dir-d .scr-duel-arrow { transform: rotate(90deg); }
-.scr-duel-mark.is-dir-u .scr-duel-arrow { transform: rotate(-90deg); }
-.scr-duel-emoji { display: block; font-size: calc(2.6 * var(--cap-fs)); line-height: 1; text-align: center; padding: 0 0.1em; }
-.scr-duel-label {
-  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); white-space: nowrap;
-  font-size: var(--cap-fs); line-height: 1.3; font-weight: 800; color: #fff; padding: 0 0.35em; border-radius: 2px;
-  background: #c4181c; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.75);
+/* (되물림 · 2026-10-09, 요청 2) 맞대결 표(공격 화살표 + '공격' · ⚔️ + '교전' · 글로우·바운스)와 그 앞의 배지(.scr-split-badge) — 자동 분할이 없어져 설 자리가
+   없다. 같은 뜻은 아래 중계 자막이 글귀로 말한다. */
+/* ★★ 중계 자막(2026-10-09, 요청 2: "공격이나 교전 발생시 더 잘한 사람 보여주고 화면주인 닉네임택은 원래자리에 표시하고 '누구의 공격 / 누구와 누구를 공격 /
+   누구와 함께 누구와 교전' 자막을 닉넴택 위쪽에 좀 띄우고 노출(정 가운데 X)" — ReplayMotionPlayer castCap9) — 단독 화면(.scr-fs-solo)에서 화면 주인 이름표
+   (바닥 가운데 · 키 1.25·cap-fs · 바닥 3·dk) **바로 위** 6·dk 에 선다. 글자는 이름표의 1.1배 · 어두운 반투명 알약 · 왼쪽 띠가 몫 색(공격 빨강 · 방어 파랑 ·
+   교전 주황). 토막이 갈릴 때(key) 아래서 살짝 떠오른다 · 움직임 줄이기면 안 뜬다. */
+.scr-cast-caption {
+  position: absolute; left: 50%; bottom: calc(3px * var(--dk) + 1.25 * var(--cap-fs) + 6px * var(--dk)); transform: translateX(-50%); z-index: 1;
+  max-width: calc(100% - 6px * var(--dk)); box-sizing: border-box; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: calc(var(--cap-fs) * 1.1); line-height: 1.3; font-weight: 700; color: #fff; pointer-events: none;
+  padding: 0.12em 0.6em 0.12em 0.5em; border-radius: 3px; background: rgba(8, 10, 14, 0.62); border-left: 0.3em solid #e5383b;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.8);
+  animation: scr-cast-caption-in 0.4s ease-out;
 }
-.scr-duel-mark.is-war .scr-duel-label { top: auto; bottom: -0.3em; transform: translateX(-50%); background: #e8890c; }
-@keyframes scr-duel-pop {
-  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px var(--duel-glow)) drop-shadow(0 0 6px var(--duel-glow)); }
-  50% { transform: scale(1.22); filter: drop-shadow(0 0 4px var(--duel-glow)) drop-shadow(0 0 14px var(--duel-glow)); }
+.scr-cast-caption.is-def { border-left-color: #2f6fe4; }
+.scr-cast-caption.is-war { border-left-color: #e8890c; }
+@keyframes scr-cast-caption-in {
+  from { opacity: 0; transform: translate(-50%, 0.5em); }
+  to { opacity: 1; transform: translate(-50%, 0); }
 }
-@media (prefers-reduced-motion: reduce) {
-  .scr-duel-fx { animation: none; filter: drop-shadow(0 0 3px var(--duel-glow)) drop-shadow(0 0 8px var(--duel-glow)); }
-}
+@media (prefers-reduced-motion: reduce) { .scr-cast-caption { animation: none; } }
 
 /* ── 모델 도록(요청: "scplayer에 도록 페이지 추가" · 2026-10 scplayer global.css 에서 옮김 — ModelCatalog.tsx) ────────────────────────────────
    모델을 그리는 일은 scplay의 ShapeIcon이 다 한다 — 여기는 **자리와 칸**만 정한다.

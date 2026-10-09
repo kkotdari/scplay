@@ -34,6 +34,34 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const argv = process.argv.slice(2);
 const flag = (n, d = null) => { const i = argv.indexOf(n); return i < 0 ? d : (argv[i + 1] ?? true); };
 const has = (n) => argv.includes(n);
+/* --tagprobe — 독 미니맵의 이름표(.scr-fs-minitag · 2026-10-09)를 찍는다: 이름 · 자리(%) · 크기 단 · 어두움 · 화면 폭. 독 미니맵 판(.scr-fs-minipanel)의 네모도. */
+const tagProbe9 = (page) => page.evaluate(() => {
+  const r = (el) => { const b = el.getBoundingClientRect(); return [+b.left.toFixed(0), +b.top.toFixed(0), +b.width.toFixed(0), +b.height.toFixed(0)]; };
+  const mm = document.querySelector(".scr-fs-minipanel .scr-fs-minimap");
+  const tags = [...document.querySelectorAll(".scr-fs-minipanel .scr-fs-minitag")].map((el) => ({
+    n: el.textContent, l: el.style.left, t: el.style.top, k: el.className.replace("scr-fs-minitag", "").trim(), w: r(el)[2], h: r(el)[3],
+    fs: getComputedStyle(el).fontSize,
+  }));
+  return JSON.stringify({ mini: mm ? r(mm) : null, panel: document.querySelector(".scr-fs-minipanel") ? r(document.querySelector(".scr-fs-minipanel")) : null, roster: document.querySelector(".scr-fs-rosterpanel") ? r(document.querySelector(".scr-fs-rosterpanel")) : null, info: document.querySelector(".scr-motion-infodock") ? r(document.querySelector(".scr-motion-infodock")) : null, tags });
+});
+/* --capprobe [atk|def|war] — 단독 중계 화면에 가짜 중계 자막(.scr-cast-caption · 2026-10-09)을 입혀 찍는다(합성 세계는 맞대결 장면을 못 낸다 · 사진용). */
+const capProbe9 = async (page) => {
+  const role = String(flag("--capprobe", "atk") || "atk");
+  await page.evaluate((role) => {
+    const solo = document.querySelector(".scr-fs-solo");
+    if (!solo) return;
+    const cap = document.createElement("span");
+    cap.className = `scr-cast-caption is-${role}`;
+    cap.textContent = role === "def" ? "Rex가 공격함 · 수달이가 헬프옴" : role === "war" ? "수달이와 함께 Rex·타센과 교전" : "Rex를 공격";
+    solo.appendChild(cap);
+  }, role);
+  await page.waitForTimeout(500);
+  console.log("[자막]", await page.evaluate(() => {
+    const el = document.querySelector(".scr-cast-caption"); const tag = document.querySelector(".scr-fs-solo-cap");
+    const r = (e) => { const b = e.getBoundingClientRect(); return [+b.left.toFixed(0), +b.top.toFixed(0), +b.width.toFixed(0), +b.height.toFixed(0)]; };
+    return el ? JSON.stringify({ cap: r(el), tag: tag ? r(tag) : null, fs: getComputedStyle(el).fontSize, text: el.textContent }) : "없음";
+  }));
+};
 
 const CPU = Number(flag("--cpu", 4));          // CDP CPU 조임 배수 — 중급 폰 흉내
 const SECS = Number(flag("--secs", 8));        // 표본 시간(초)
@@ -957,42 +985,7 @@ if (has("--split")) {
     await page.waitForTimeout(150);
   }
   await page.waitForTimeout(Number(flag("--splitwait", 4000)));
-  /* --capside [atk|war] — 맞대결 머리·표 자리 검산(2026-10-09): 손으로 켠 2분할에 맞대결의 칸 머리 클래스(is-cap-r/l · b/t)와 가짜 맞대결 표
-     (.scr-duel-mark — 첫 칸이 공격자인 붉은 화살표 + '공격' · war 면 ⚔️ + '교전')를 입혀 찍는다(합성 세계는 맞대결 장면을 못 낸다). 사진용이다 — 상태는
-     안 건드린다. 표의 꼴은 ReplayMotionPlayer 의 JSX(DUEL_ARROW_D9)와 같은 글자 그대로다 — 바꾸면 여기도. [맞대결 표] 줄에 표·두 머리의 네모와 겹침을 찍는다. */
-  if (has("--capside")) {
-    const war9 = flag("--capside", "") === "war";
-    await page.evaluate((war) => {
-      const cells = [...document.querySelectorAll(".scr-split-cell")];
-      if (cells.length !== 2) return;
-      const [a, b] = cells.map((el) => el.getBoundingClientRect());
-      const lr = Math.abs(a.top - b.top) < 2;
-      const side = lr ? ["r", "l"] : ["b", "t"];
-      cells.forEach((el, i) => el.classList.add(`is-cap-${side[i]}`));
-      const grid = cells[0].parentElement;
-      const mk = document.createElement("span");
-      mk.className = `scr-duel-mark ${war ? "is-war" : `is-atk is-dir-${lr ? "r" : "d"}`}`;
-      mk.setAttribute("aria-hidden", "true");
-      const body = war
-        ? `<span class="scr-duel-emoji">⚔️</span>`
-        : `<svg class="scr-duel-arrow" viewBox="0 0 100 40"><path d="M3 13H64V3L97 20L64 37V27H3Z"></path></svg>`;
-      mk.innerHTML = `<span class="scr-duel-pin"><span class="scr-duel-fx">${body}<span class="scr-duel-label">${war ? "교전" : "공격"}</span></span></span>`;
-      grid.appendChild(mk);
-    }, war9);
-    await page.waitForTimeout(300);
-    const dm9 = await page.evaluate(() => {
-      const r = (el) => { const b = el.getBoundingClientRect(); return [+b.left.toFixed(0), +b.top.toFixed(0), +b.width.toFixed(0), +b.height.toFixed(0)]; };
-      const fx = document.querySelector(".scr-duel-fx");
-      const caps = [...document.querySelectorAll(".scr-split-cell .scr-split-cap")];
-      const mark = fx ? r(fx) : null;
-      const capsR = caps.map(r);
-      const hit = (p, q) => p[0] < q[0] + q[2] && q[0] < p[0] + p[2] && p[1] < q[1] + q[3] && q[1] < p[1] + p[3];
-      const over = mark ? capsR.filter((c) => hit(mark, c)).length : 0;
-      const fs = caps[0] ? getComputedStyle(caps[0]).fontSize : null;
-      return { mark, caps: capsR, over, fs, label: document.querySelector(".scr-duel-label")?.textContent ?? null };
-    });
-    console.log(`[맞대결 표] 표 ${JSON.stringify(dm9.mark)} "${dm9.label}" · 머리 ${JSON.stringify(dm9.caps)} · 글자 ${dm9.fs} · 겹침 ${dm9.over}`);
-  }
+  /* (걷어냄 · 2026-10-09) --capside — 맞대결 머리·표의 가짜 입히기. 자동 분할이 없어졌다(요청 2 · 화면은 늘 한 사람 · 자막은 --capprobe). */
   const sp9 = () => page.evaluate(() => {
     const cells = [...document.querySelectorAll(".scr-split-cell")].map((el) => {
       const r = el.getBoundingClientRect();
@@ -1026,6 +1019,7 @@ if (has("--split")) {
   console.log(`[분할 값] ${await page.evaluate(() => window.__scrDiag?.split ?? "")}`);
   console.log(`[분할] 격자 ${JSON.stringify(a9.grid)} · 로스터 ${a9.roster ? "보임" : "숨김"} · 독 "${a9.cap}" · 칸 바닥 ${a9.cellBottom} · 툴박스 위끝 ${a9.tbTop}`);
   for (const c of a9.cells) console.log(`  칸 ${c.x},${c.y} ${c.w}×${c.h} 잉크 ${c.ink}${c.pick ? " *" : ""} · ${c.cap}`);
+  if (has("--tagprobe")) console.log("[미니맵 택]", await tagProbe9(page));
   const shot9 = flag("--split", "");
   if (shot9 && shot9 !== true && String(shot9).endsWith(".png")) await page.screenshot({ path: String(shot9), timeout: 120000 });
   await page.evaluate(() => { const c = document.querySelectorAll(".scr-split-cell")[1]; if (c instanceof HTMLElement) c.click(); });
@@ -2198,6 +2192,8 @@ if (SHOT) {
     }
     return `${document.querySelector(".scr-dock-roster")?.className} · 인포창 ${w(".scr-fs-dockmain > .scr-motion-infodock")} · 판 ${w(".scr-fs-rosterpanel")} · 독메인 ${w(".scr-fs-dockmain")} · 줄 ${w(".scr-fs-dockrow")} · 인포 넘침 ${over.toFixed(1)} · 바닥 밖 ${below.toFixed(1)} · 옆 넘침 ${overX.toFixed(1)} · 오른쪽 밖 ${right.toFixed(1)}`;
   }));
+  if (has("--tagprobe")) console.log("[미니맵 택]", await tagProbe9(page));
+  if (has("--capprobe")) await capProbe9(page);
   await page.screenshot({ path: SHOT });
   console.log(`스크린샷: ${SHOT}`);
   try { console.log(`[GL] ${await page.evaluate(() => (window.__scrDiag && window.__scrDiag.gl) || "(진단 없음 — --diag)")}`); } catch { /* 없음 */ }

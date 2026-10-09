@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useLayoutEffect, useRef } from "react";
 import type { ReplayMapGrid } from "./mapGrid";
 import { drawMapGrid } from "../../utils/mapTiles";
 import { decodeMapTerrain, terrainFace } from "../../utils/mapTerrain";
@@ -23,6 +23,9 @@ import { pWrap } from "./perf9";
 export type MiniDot = { fx: number; fy: number; color: string; wFrac?: number; raw?: string; pickRaw?: string };
 /** 미니맵 핑 — 지도 분수 자리 · 색 · 나이(3초 창의 0~1). 원작처럼 미니맵에도 번지는 고리로 그린다(2026-10). */
 export type MiniPing = { fx: number; fy: number; color: string; age: number };
+/** 미니맵 이름표(2026-10-09, 요청: "미니맵 중 스타팅포인트 또는 이사간 위치에 닉네임택을 오버레이로 표시 … 진영크기에 따라 택 크기 차등 · 나가거나 엘리
+ *  생산끊긴 사람은 어둡게") — 그 사람 진영의 **평면 지도 분수** 자리(재생기 miniTags9 가 센다 · 원근 없음) · 임자색 칩(bg·fg) · 크기 단(s/m/l) · 어두움. */
+export type MiniTag = { key: string; name: string; fx: number; fy: number; bg: string; fg: string; tier: "s" | "m" | "l"; dim: boolean };
 
 /* 안개 값은 큰 지도의 안개 층(ReplayFogLayer)에서 그대로 가져온다 — 두 그림이 같은
    짙기·같은 색이라야 미니맵과 지도가 한 벌로 읽힌다. */
@@ -36,7 +39,7 @@ const MINI_FOG_B = 14;
 export default function ReplayFullscreenMinimap({
   image, grid, ratio, dotsRef, extraRef, pingsRef, tick, viewAt, viewColor, zoom, pan, onSeek, onWheelZoom,
   unproject, fog, painter, live,
-  warming, ownRaw, ownColor,
+  warming, ownRaw, ownColor, tags, onTag,
 }: {
   /** 장면이 아직 데워지는 중인가 — 참이면 **아무것도 안 보인다**(지적: "지도 초기 로딩
    *  시 초록색 맵 뜨는 거랑 안개 없이 지도 전체 뜨는 거 수정했는데 미니맵은 그대로야").
@@ -65,6 +68,10 @@ export default function ReplayFullscreenMinimap({
    *  색깔이 원작처럼 녹색으로(마커색)") — 그 사람의 점(`raw`/`pickRaw` 가 ownRaw)만 ownColor 로 찍고 나머지는 제 색 그대로. */
   ownRaw?: string | null;
   ownColor?: string;
+  /** 이름표(위 MiniTag) — 캔버스 위 DOM 겹층(.scr-fs-minitags)에 선다. 몇 명뿐이라 DOM 이고, 재생기가 1초마다 한 번 다시 센다. */
+  tags?: readonly MiniTag[];
+  /** 이름표를 눌렀다 — 그 사람 카메라(재생기 pickPerson9 · 전광판 카메라 단추와 같은 일). 없으면 이름표는 그림뿐이다. */
+  onTag?: (key: string) => void;
   /** 미니맵 핑(2026-10) — 재생기가 렌더마다 채운다. 색은 재생기가 정한다(원작 규칙 · 임자색). */
   pingsRef?: { current: readonly MiniPing[] };
   /** 다시 그릴 신호(재생 시각) — 이 값이 바뀔 때만 덧그린다. */
@@ -138,6 +145,37 @@ export default function ReplayFullscreenMinimap({
   const retryRef = useRef(0);
   useEffect(() => () => cancelAnimationFrame(retryRef.current), []);
   const bumpRef = useRef(0);
+  /** 이름표 겹층 — 겹친 이름표를 위아래로 벌리는 자(아래 useLayoutEffect). */
+  const tagsRef = useRef<HTMLDivElement | null>(null);
+  /* ★ 이웃한 진영의 이름표가 **겹치면 위아래로 벌린다**(2026-10-09 · 실측: 2:2 지도의 아래쪽 두 본진 이름표가 포개졌다) — 자리는 지도 분수라 겹침은 판 크기와
+     이름 길이에 달렸으니(폰 100px 판 · PC 186px), 그려진 뒤 네모를 재서 겹친 짝마다 겹친 키의 반씩 서로 반대로 민다(margin-top · 세 번 되풀이). 판 밖으로는 안 민다. */
+  useLayoutEffect(() => {
+    const host = tagsRef.current;
+    if (!host) return;
+    const els = Array.from(host.querySelectorAll<HTMLElement>(".scr-fs-minitag"));
+    for (const el of els) el.style.marginTop = "0px";
+    if (els.length < 2) return;
+    const W = host.clientWidth || 1;
+    const H = host.clientHeight || 1;
+    const items = els.map((el) => {
+      const r = el.getBoundingClientRect();
+      return { el, x: (parseFloat(el.style.left) / 100) * W, y: (parseFloat(el.style.top) / 100) * H, w: r.width, h: r.height, dy: 0 };
+    });
+    for (let pass = 0; pass < 3; pass += 1) {
+      for (let i = 0; i < items.length; i += 1) for (let j = i + 1; j < items.length; j += 1) {
+        const a = items[i]; const b = items[j];
+        const ox = (a.w + b.w) / 2 - Math.abs(a.x - b.x);
+        const oy = (a.h + b.h) / 2 + 1 - Math.abs((a.y + a.dy) - (b.y + b.dy));
+        if (ox <= 0 || oy <= 0) continue;
+        const half = oy / 2;
+        if (a.y + a.dy <= b.y + b.dy) { a.dy -= half; b.dy += half; } else { a.dy += half; b.dy -= half; }
+      }
+    }
+    for (const it of items) {
+      const dy = Math.max(it.h / 2 - it.y, Math.min(H - it.h / 2 - it.y, it.dy));
+      if (Math.abs(dy) > 0.5) it.el.style.marginTop = `${dy.toFixed(1)}px`;
+    }
+  }, [tags, warming]);
 
   /* 지도 그림은 한 번만 읽어 붙들어 둔다 — 프레임마다 새로 만들면 그때마다 디코딩한다. */
   useEffect(() => {
@@ -526,6 +564,25 @@ export default function ReplayFullscreenMinimap({
       role="presentation"
     >
       <canvas ref={cvRef} aria-hidden style={warming ? { opacity: 0 } : undefined} />
+      {/* ★ 이름표 겹층(2026-10-09) — 캔버스 위에 자리(백분율)로 선다. 누름은 미니맵 짚기(위 onPointerDown · seek)와 섞이지 않게 여기서 끊는다.
+          데워지는 동안(warming)은 캔버스처럼 안 보인다. */}
+      {!warming && tags && tags.length > 0 && (
+        <div className="scr-fs-minitags" ref={tagsRef}>
+          {tags.map((tg) => (
+            <button
+              key={tg.key} type="button"
+              className={`scr-fs-minitag is-${tg.tier}${tg.dim ? " is-dim" : ""}`}
+              style={{ left: `${(tg.fx * 100).toFixed(2)}%`, top: `${(tg.fy * 100).toFixed(2)}%`, background: tg.bg, color: tg.fg }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onPointerUp={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); onTag?.(tg.key); }}
+              title={tg.dim ? `${tg.name} — 나감·탈락` : tg.name}
+              tabIndex={onTag ? 0 : -1}
+              aria-label={`${tg.name} 화면 보기`}
+            >{tg.name}</button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
