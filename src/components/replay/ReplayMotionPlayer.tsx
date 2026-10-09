@@ -725,22 +725,24 @@ function ownUiCol9(raw9: string | undefined, atk9 = false): string | null {
 }
 /** 진단(#diag)용 — 본 장에서 칠한 선택 링(종류:임자:고른이:색 · 여덟까지). 그리기 틱이 비우고 SCR_DIAG.ring 으로 적는다. */
 const RING_DIAG9: string[] = [];
-function ringDiagPush9(op: UnitDrawOp, col9: string): void {
-  if (RING_DIAG9.length < 8 && scrDiagOn()) RING_DIAG9.push(`${op.kind}:${op.pickRaw ?? "?"}:${(op.selBy ?? []).join("+") || "-"}:${col9}(몸 ${op.color})`);
+function ringDiagPush9(op: UnitDrawOp, col9: string, wd9?: number): void {
+  if (RING_DIAG9.length < 8 && scrDiagOn()) RING_DIAG9.push(`${op.kind}${op.pickKey ? "#" + op.pickKey : ""}:${op.pickRaw ?? "?"}:${(op.selBy ?? []).join("+") || "-"}:${col9}(몸 ${op.color}${wd9 !== undefined ? ` 폭 ${wd9.toFixed(1)}` : ""})`);
 }
-/** 선택 링의 자 — 메시의 **여덟 요잉 화면 상자 폭의 평균**(모델 자 · 16 = 상자 한 변). 요잉 칸이 바뀌어도 한 값이라 링이 안 흔들린다
- *  (2026-10, 요청: "선택링이 유닛/건물의 방향이나 자세 모션에 따라 크기가 바뀌거나 위치가 바뀌지 않게"). 메시·카메라마다 한 번 센다. */
-const RING_W_CACHE9 = new WeakMap<object, Map<string, number>>();
-function ringWidth9(gl: GlUnits9, mesh: Parameters<GlUnits9["footOf"]>[0], cam: Parameters<GlUnits9["footOf"]>[2]): number {
-  let m9 = RING_W_CACHE9.get(mesh);
-  if (!m9) { m9 = new Map(); RING_W_CACHE9.set(mesh, m9); }
-  const key9 = cam === undefined || cam === CAM_TOP9 ? "" : cam.key;
-  const got9 = m9.get(key9);
+/** 선택 링의 자 — **종류마다 한 값**: 서 있는 자세(pose 0) 메시의 여덟 요잉 화면 상자 폭의 평균(모델 자 · 16 = 상자 한 변).
+ *  (2026-10, 요청: "선택링이 유닛/건물의 방향이나 자세 모션에 따라 크기가 바뀌거나 위치가 바뀌지 않게" → 재지적 "아직도 자세나 동작에
+ *  따라 선택링이 달라져") — 첫 판은 **지금 그리는 메시**(gl9.unitMesh 의 열쇠 `u:종류:자세:등급`)마다 쟀다. 걷기 컷·공격 자세·시즈 자세와
+ *  등급(LOD · 배율에 따라 갈린다)마다 메시가 딴 물건이라 상자 폭도 달라 링이 자세·동작·배율마다 뛰었다. 이제 종류 + 카메라마다 한 번,
+ *  자세 0 메시(없으면 지금 메시)로 재고 영영 그 값이다(그 뒤 등급이 바뀌어도 안 다시 잰다 — 등급 사이 상자 차는 한 뼘 아래). */
+const RING_W_KIND9 = new Map<string, number>();
+function ringWidth9(gl: GlUnits9, kind: string, meshNow: Parameters<GlUnits9["footOf"]>[0], lod: number, cam: Parameters<GlUnits9["footOf"]>[2]): number {
+  const key9 = `${kind}|${cam === undefined || cam === CAM_TOP9 ? "" : cam.key}`;
+  const got9 = RING_W_KIND9.get(key9);
   if (got9 !== undefined) return got9;
+  const base9 = gl.unitMesh(kind, 0, lod) ?? meshNow;   // 서 있는 자세 — 걷기·공격 컷과 무관한 자
   let sum9 = 0;
-  for (let i9 = 0; i9 < 8; i9 += 1) sum9 += gl.footOf(mesh, i9 * 45, cam).w;
+  for (let i9 = 0; i9 < 8; i9 += 1) sum9 += gl.footOf(base9, i9 * 45, cam).w;
   const w9 = sum9 / 8;
-  m9.set(key9, w9);
+  RING_W_KIND9.set(key9, w9);
   return w9;
 }
 /** 인구 계단([초, 먹은, 준][])을 at9 에서 읽는다 — [먹은, 준](내부 단위). supplyNow·supplyExtraNow 가 나눠 쓴다. */
@@ -1210,6 +1212,19 @@ BAKE_ENV9.poolBytes = DEV9.bakePoolMB * 1024 * 1024;
 BAKE_ENV9.sideMax = DEV9.bakeSideMax;
 /** 지금 오른 벤치 단 — 프로필(DEV9.tiers)의 줄 번호다. 폰·PC 둘 다 이 자를 탄다(2026-09 전에는 PC 전용이었다). */
 const TIER9 = { v: 0, force: -1 };
+/** ★ 초해상(SSAA) 배수 — **dpr 1 PC 화면**(QHD 100% 배율 · 1 CSS px = 1 기기 px)에서 유닛·GL·효과·안개 캔버스를 화면 밀도보다 촘촘하게
+ *  칠하고 브라우저가 줄여 보이게 한다(2026-10, 지적: "아직도 화면 크기에 따라 흐려지는 때가 있어" — 진단은 모든 층 ×1.0000 이라 재표본이
+ *  아니었다 · 남은 자리는 기기 밀도 자체다: 폰 dpr 3 에 견주면 dpr 1 의 몸은 타일당 20~30 px 로 또렷할 길이 없다). 목표 밀도 2(폰·맥
+ *  수준)까지만 올린다 — dpr 1 → 2 · 1.25 → 1.6 · 1.5 → 1.33 · 2 이상 → 1. 상한은 벤치 단: 0단 1(안 켬) · 1단(보통) 1.5 · 2단 이상 2 — 칠하는
+ *  픽셀이 배수의 제곱이라(1.5 → 2.25배 · 2 → 4배) 약한 기기엔 안 준다. 캔버스 한 변 4096 상한(아래 B)이 따로 죈다(4K dpr 1 은 저절로 1.1).
+ *  주소 `#ss=N` 이면 그 값(실기 견줌용 · 1 = 끔). 폰(smallDevice9)은 늘 1 — dpr 이 이미 2~3 이다. 진단: 머리 `초해상 ×1.5` · SCR_DIAG.ss. */
+const SS_HASH9 = ((): number => { const m9 = typeof location !== "undefined" ? /(^|[#&,])ss=([0-9.]+)/.exec(location.hash) : null; const v9 = m9 ? Number(m9[2]) : NaN; return Number.isFinite(v9) && v9 > 0 ? v9 : -1; })();
+function ssK9(dpr: number): number {
+  if (SS_HASH9 > 0) return SS_HASH9;
+  if (smallDevice9) return 1;
+  const cap9 = TIER9.v >= 2 ? 2 : TIER9.v === 1 ? 1.5 : 1;
+  return Math.max(1, Math.min(cap9, 2 / Math.max(0.5, dpr)));
+}
 /* ★ **재생 품질 알림**(요청: "처음 시작할 때나 벤치 변경 시 맵 오른쪽 위에 토스트로 재생품질: 높음/보통/낮음 3초간") ────
    눈금은 넷이다 — PC는 벤치 단(2단 높음 · 1단 보통 · 0단 낮음), 폰은 낮음이고 벤치 미달(효과를 덜어내는 기기)이면
    **매우 낮음**(요청: "모바일은 보통 낮음이겠지 · PC 낮음보다 더 낮으면 매우 낮음"). 벤치는 진입 때 한 번 재고 유휴에
@@ -4677,7 +4692,9 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          담긴다. 3배 이하는 판이 작아 예산에 여유가 있으니 화면 픽셀(dpr 3) 그대로 둔다. `?dpr=`이 있으면 그것이
          우선이다(더 낮은 쪽). */
       const capSmall9 = smallDevice9 && zoom >= 6 ? 2 : Infinity;
-      const B = Math.min(dpr, DPRCAP9, capSmall9, 4096 / Math.max(cw, ch, 1));
+      /* 초해상(위 ssK9) — dpr 1 PC 는 배킹을 화면 밀도 위로(1.5~2배). 손짓 중 줄이기(xfBackK9)는 그 위에서 그대로 돈다. */
+      const ssNow9 = ssK9(dpr);
+      const B = Math.min(dpr * ssNow9, DPRCAP9, capSmall9, 4096 / Math.max(cw, ch, 1));
       /* ★ 손짓이 도는 동안은 **배킹을 줄여 칠한다**(요청: "이동 시 더 빠르게 시점 변경") ─────────────────────
          병목은 셈이 아니라 칠하는 **픽셀 수**이고(계측: 표본의 3분의 2가 네이티브 칠하기), 그 수는 배킹 배수의
          제곱으로 는다. 끄는 동안 0.7배로 내리면 픽셀이 절반이 된다 — 그만큼 한 장이 싸지고, 주 실마리가 그만큼
@@ -4745,6 +4762,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         SCR_DIAG.unitCss = `${cw}x${ch}`;
         SCR_DIAG.unitBack = `${cv.width}x${cv.height}`;
         SCR_DIAG.unitB = B;
+        SCR_DIAG.ss = ssNow9;
         /* 잰다 — clientWidth(정수)가 아니라 **실제로 그려지는 폭**과 견줘야 한다. */
         const r9 = cv.getBoundingClientRect();
         SCR_DIAG.unitScale = r9.width > 0
@@ -5480,7 +5498,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           continue;
         }
         /* GL 붓이 맡을 몸은 2D 면(요잉 칸별 빌더 굽기, resolveShapeFaces)을 아예 안 짓는다 — 메시는 종류·자세당 한 벌이다. */
-        const glPre9 = gl9 && SHAPE_BUILDERS[op.kind] ? gl9.unitMesh(op.kind, op.pose ?? 0, lodOf((Math.max(4, op.sizePx * bakeZoom) * modelInkOf(op.kind)) / 16, LOD_INK_POINT, LOD_INK_DECO)) : null;
+        const lod9 = lodOf((Math.max(4, op.sizePx * bakeZoom) * modelInkOf(op.kind)) / 16, LOD_INK_POINT, LOD_INK_DECO);
+        const glPre9 = gl9 && SHAPE_BUILDERS[op.kind] ? gl9.unitMesh(op.kind, op.pose ?? 0, lod9) : null;
         if (gl9 && !glPre9 && glScrubbing9() && SHAPE_BUILDERS[op.kind] && !GL_CANVAS_KINDS9.has(op.kind)) continue;   // 끌기 중 예산 밖(위 건물 쪽 ★)
         if (gl9 && !glPre9) GL_MISS9.set(op.kind, (GL_MISS9.get(op.kind) ?? 0) + 1);   // 진단: GL 이 못 맡아 판으로 떨어진 종류
         const { faces, rot } = glPre9 ? { faces: null, rot: 0 } : resolveShapeFaces(op.kind, op.rotDeg, op.flat, op.viewYaw, op.pitch);
@@ -5669,11 +5688,11 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              단위로 커졌다 작아졌다 하고 가운데도 뛰었다. 가운데는 그림자와 같은 땅 원점(groundOy9 · 공중은 뜬 몫만큼 위), 폭은 여덟
              요잉의 상자 폭 평균(ringWidth9 — 요잉과 무관 · 자세 0에서 잰 값이라 모션과도 무관). 2D 폴백(inkK)은 원래 요잉을 안 탄다.
              (옛 "링도 내용물 발끝에"는 되물렸다 — 발끝은 요잉 상자의 바닥이라 그것이 곧 흔들림이었다.) */
-          const ringWd9 = glM9 && gl9 ? ringWidth9(gl9, glM9, glCam9) * (px / 16) * modelNormOf(op.kind) : inkW;
+          const ringWd9 = glM9 && gl9 ? ringWidth9(gl9, op.kind, glM9, lod9, glCam9) * (px / 16) * modelNormOf(op.kind) : inkW;
           const ringX = sx;
           const ringY = (groundY ?? groundOy9) - lift;
           const ringCol9 = ownUiCol9(op.pickRaw) ?? op.color;   // 화면 주인 제 몸은 원작 초록 · 나머지는 색 모드(위 UI_OWN9)
-          ringDiagPush9(op, ringCol9);
+          ringDiagPush9(op, ringCol9, ringWd9);
           const ringPath = (): void => {
             ctx.beginPath();
             /* 입체에서는 좌우 시점 밀림도 먹인다(요청: 선택 링·마커도 사영 밀림) — 바닥 깊이에 tan(시점각)을
@@ -15513,8 +15532,12 @@ export default function ReplayMotionPlayer({
       /* 원작 초록의 기준(UI_SCREEN9)은 붓이 도는 동안만 — 렌더에서 놓으면 딴 인스턴스의 렌더가 덮는다(위 UI_OWN9 주석). */
       UI_SCREEN9 = uiOwnerRef9.current;
       RING_DIAG9.length = 0;
+      /* ★ 주인이 있으면 선택 링·건설 고스트도 **주인 것만**(2026-10, 같은 지적 — 동맹의 선택 링·고스트는 분할 칸처럼 걷는다 · splitOwnOps9). */
+      const keepOps9 = frameOpsRef9.current;
+      if (UI_SCREEN9 !== null && keepOps9) frameOpsRef9.current = splitOwnOps9(keepOps9, UI_SCREEN9);
       try { unitPaintRef.current?.(zoomRef.current, panRef.current, zoomCommitRef.current); } finally {
         if (scrDiagOn()) SCR_DIAG.ring = `주인 ${UI_SCREEN9 ?? "없음"} · 몸 ${frameOpsRef9.current?.length ?? -1} · 링 ${RING_DIAG9.length}${RING_DIAG9.length > 0 ? ` · ${RING_DIAG9.join(" ")}` : ""}`;
+        frameOpsRef9.current = keepOps9;
         UI_SCREEN9 = null;
       }
     }
@@ -17095,7 +17118,8 @@ export default function ReplayMotionPlayer({
                   dpr {SCR_DIAG.dpr} · 배율 {SCR_DIAG.zoom.toFixed(2)}
                   {" · UI "}{SCR_DIAG.ui}
                   {" · 판 "}{typeof __SCPLAY_BUILD__ !== "undefined" ? __SCPLAY_BUILD__ : "dev"}
-                  {SCR_DIAG.unitScale !== 1 || SCR_DIAG.scale !== 1 ? " · ⚠재표본" : ""}
+                  {SCR_DIAG.ss !== 1 ? ` · 초해상 ×${SCR_DIAG.ss.toFixed(2)}` : ""}
+                  {Math.abs(SCR_DIAG.unitScale - SCR_DIAG.ss) > 0.002 || SCR_DIAG.scale !== 1 ? " · ⚠재표본" : ""}
                   {!SCR_DIAG.allocOk ? " · ⚠배킹확보 실패" : ""}
                 </div>
                 {/* 흐림 진단(위 blurDiag9) — 요약·draw·view 에서 보인다. 사용자가 찍어 보내는 머리 아래 한 줄이다. */}
@@ -18421,6 +18445,10 @@ export default function ReplayMotionPlayer({
                가려 놓고 조작만 보이면 시야를 가린 뜻이 사라진다. 같은 팀은 보인다
                (시야를 나누는 사이라 손짓도 함께 본다). */
             if (fogOn && !visAll && teamOfRaw(raw) !== viewTeam) return null;
+            /* ★ 화면 주인이 있으면(개인 추적 · 자동 중계) **주인의 클릭만**(2026-10, 지적: "중계 개인 화면에 왜 동맹 마우스 마커가
+               보이지?") — 원작처럼 제 손짓만 보인다. 핑은 같은 편 것까지(원작도 핑은 팀이 함께 본다). 분할 칸(splitMarks9)과 같은 규약.
+               옛 '같은 팀은 보인다'는 주인 없는 시점 보기(전체 보기에서 한 편 시야만 켠 때)에만 남는다. */
+            if (uiOwnerRef9.current !== null && raw !== uiOwnerRef9.current) return null;
             /* UI 고정 크기 — 가장 축소(줌 1)에서도 또렷한 18px 기준(재지적). 타일 비례는
                큰 화면에서만 그보다 커진다. */
             /* ★ 크기는 **배율을 따라간다**(요청: "마우스 클릭 마커크기를 배율에 따라 다르게

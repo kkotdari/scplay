@@ -5,7 +5,8 @@
  *   node scripts/perf-check.mjs --units 80          한 사람당 유닛 수
  *   node scripts/perf-check.mjs --wide              PC 화면(1280)으로
  *   node scripts/perf-check.mjs --mc --players 3    마인드 컨트롤(임자 바뀜 · 판 8) — 인구 칸의 종족 풀 덧줄 검산
- *   node scripts/perf-check.mjs --marks --info --players 3 --track 정구 --diag [--herocolor]   핑·클릭 마커·선택 링의 색(화면 주인 제 것 원작 초록 · 같은 편은 색 모드) 검산 — [자국]·[링]
+ *   node scripts/perf-check.mjs --marks --info --players 3 --track 정구 --diag [--herocolor] [--ringprobe 10]   핑·클릭 마커·선택 링의 색(화면 주인 제 것 원작 초록 ·
+ *                                                                               같은 편은 색 모드 · 주인 있으면 주인 클릭·링만) — [자국]·[링]·[링 폭](시간에 따른 폭 흔들림)
  *   node scripts/perf-check.mjs --ios --players 2 --dmg --glblit --split x.png   폰 분할 칸의 두 줄 현황(데미지 칸에 값 — 판 13 데미지 절 합성)
  *   node scripts/perf-check.mjs --wide --vw 1920 --vh 1080 --glblit --shot x.png   해상도 단([UI단] 줄 · PC 는 창 세로: 1080 FHD 0.75 · 1440 QHD 1 ·
  *                                                                               2160 UHD 1.5 · 폰은 기기 짧은 변: --ios --vw 430 --vh 932 큰 폰 1.1 ·
@@ -1016,6 +1017,11 @@ const supProbe9 = async (label9) => {
       vw: window.innerWidth, vh: window.innerHeight, sw: window.screen.width, sh: window.screen.height };
   });
   console.log(`[UI단] ${u9.ui} · --ui ${u9.cssUi} · 창 ${u9.vw}×${u9.vh} 화면 ${u9.sw}×${u9.sh} · 툴박스 키 ${u9.tb} · 로스터줄 키 ${u9.roster} · 독 줄 키 ${u9.dock} · 단추 ${u9.btn}`);
+  /* --diag 면 진단 머리 두 줄(dpr·배율·UI·초해상·⚠재표본 / 흐림: …)을 그대로 적는다 — 사용자가 찍어 보내는 그 줄과 같은 글. */
+  if (has("--diag")) {
+    const h9 = await page.evaluate(() => [...document.querySelectorAll(".scr-motion-diag > div")].slice(0, 2).map((d) => d.textContent ?? ""));
+    for (const l9 of h9) console.log(`[진단머리] ${l9}`);
+  }
 }
 if (has("--mc")) await supProbe9("A");
 /* 자국 자(--marks 와 함께 · 2026-10) — 큰 지도의 핑·클릭 마커 DOM 과 그 색·자리 · 선택 링은 캔버스라 못 읽으니 색 규칙은 눈으로. */
@@ -1026,9 +1032,25 @@ if (has("--marks")) {
   }));
   const t9 = await page.evaluate(() => { const r = document.querySelector(".scr-motion-seek, input[type=range]"); return r instanceof HTMLInputElement ? Number(r.value).toFixed(2) : null; });
   console.log(`[자국] 시계 ${t9} · ${r9.length}개 · ${JSON.stringify(r9)}`);
-  /* 선택 링은 캔버스라 DOM 으로 못 읽는다 — --diag 로 켜면 붓이 마지막 장의 링(종류:임자:고른이:색)을 SCR_DIAG.ring 에 적는다. */
+  /* 선택 링은 캔버스라 DOM 으로 못 읽는다 — --diag 로 켜면 붓이 마지막 장의 링(종류#태그:임자:고른이:색(몸 색 폭 N))을 SCR_DIAG.ring 에 적는다. */
   const ring9 = await page.evaluate(() => window.__scrDiag?.ring ?? null);
   console.log(`[링] ${ring9 ?? "(진단 없음 — --diag)"}`);
+  /* --ringprobe N — 링 폭이 자세·동작에 따라 뛰나(2026-10, 지적: "아직도 자세나 동작에 따라 선택링이 달라져"): 0.3초마다 N번 장을 떠서
+     태그마다 폭의 최소·최대를 모은다. 같은 태그의 폭이 두 값이면 흔들리는 것이다. */
+  if (has("--ringprobe")) {
+    const n9 = Number(flag("--ringprobe", 8)) || 8;
+    const seen9 = new Map();
+    for (let i9 = 0; i9 < n9; i9 += 1) {
+      const r = await page.evaluate(() => window.__scrDiag?.ring ?? "");
+      for (const m of String(r).matchAll(/([a-z0-9_]+)#(u\d+):\S*\(몸 \S+ 폭 ([0-9.]+)\)/g)) {
+        const k = `${m[1]}#${m[2]}`; const w = Number(m[3]);
+        const e = seen9.get(k) ?? { lo: w, hi: w, n: 0 }; e.lo = Math.min(e.lo, w); e.hi = Math.max(e.hi, w); e.n += 1; seen9.set(k, e);
+      }
+      await page.waitForTimeout(300);
+    }
+    const rows9 = [...seen9.entries()].map(([k, e]) => `${k} ${e.lo === e.hi ? e.lo : `${e.lo}~${e.hi} ⚠`}(${e.n})`);
+    console.log(`[링 폭] ${rows9.length ? rows9.join(" · ") : "(링 없음)"}`);
+  }
 }
 /* 자동 팝업 자(--infoprobe [png]): 중계·추적 중 화면 주인이 고른 건물의 정보 팝업이 저절로 서나(2026-09, 요청:
    "중계시(화면 주인의) 건물 선택시 인포팝업 뜨게 — 리플레이 기록상 선택한 경우"). --selpick 과 --track 정구 로 연다:
