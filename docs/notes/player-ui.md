@@ -1339,3 +1339,16 @@ AUTO 글자 합성) · 현재 화면에 보여주는 화면 주인(들)은 기�
 - **첫 칠하기 빈 자리 · 접기 튐**: dockFit9 상태를 무대 크기 effect 앞에 선언하고 그 effect 의 의존성에 넣었다(--dock-h · 받침 솟음이 바뀌면 같은 판에서 무대를 다시 잰다 —
   옛 판은 ResizeObserver(칠한 뒤)로만 따라와 한 프레임을 옛 덮는 폭으로 칠했다). 접힌 독(폭 0)은 셈하지 않고 마지막 맞춤을 두되 받침 솟음만 0 · 펼치면 의존성(dockFoldOn9)으로
   칠하기 전에 다시 잰다(옛 판은 0 폭으로 셈한 0.5 배 키가 펼 때 한 프레임 보였다).
+
+## 받침은 쇠판 안으로 4px · 옆 테는 솟은 몫에서 끝 · 화면 주인 이름표는 위 가운데(2026-10-09)
+★ (지적: "심리스로 해달랬는데 이번엔 가로 틈이 생김") — 앞 판의 발치 띠(.scr-fs-minipanel::after)는 구분 막대 공통 규칙(top 0 · bottom 0 · width --dock-sep · 베벨)을
+  물려받아 6px 덩이로 섰고, is-noinfo(폰)에선 아예 숨어 쇠판 위 테(검은 1px + 흰 1px)가 받침 밑을 가로질렀다(= 가로 틈). 이제 받침(::before) 하나가 쇠판 윗선 **아래 4px
+  까지** 내려가 그 테를 덮고, 옆 테·안쪽 밝은 줄은 box-shadow 가 아니라 **--ped-h(솟은 몫 · .scr-fs-minipanel 에 정의) 키로 자른 90deg 그라데이션 켜**라 쇠판 안으로 안
+  파고든다. 바닥 색 #afb5bd(쇠판 윗 쇠의 3px 깊이 색이라 단이 없다) · z 1(구분 막대의 윗 4px 과 밝은 모서리 줄을 덮는다 · 미니맵 상자 z 1 은 뒤 형제라 그 위).
+  미니맵 뒤 구분 막대(::after)는 `top: var(--ped-h)` 로 쇠판 키만 선다(is-noinfo 면 숨김 그대로).
+  🔎 `perf-check --ios --fs --warm 0 --glblit --track 정구 --dockprobe --shot x.png` → 받침 발치 모서리를 crop(×6 · `$S/crop.mjs in out x y w h scale` — 사진은 dpr 2) ·
+  PC `--wide --vw 1920 --vh 1080 --fs`.
+- 화면 주인 이름표(.scr-fs-solo-cap · 분할 칸 .scr-split-cap)는 **위 가운데**(top 3·dk · 전체화면 단독은 .scr-fs-solo 가 safe-top 만큼 내려 있고 분할은 맨 윗줄 칸 is-top
+  만 safe-top 더 · 요청: "화면 주인 이름칩은 화면 상단 가운데로 이동하고 자막을 내리기") — 꼴은 [임자색 칩(이름)] + 흰 글자 "화면"(.scr-split-word · 칩 밖 · 요청: "이름칩 +
+  흰 글씨 화면"). 옛 '바닥 가운데'·"정구 화면" 한 칩·바닥 줄 칸 올리기(--cell-lift · dockFit9 pedL~pedR)는 걷었다. 자막(.scr-cast-caption)이 바닥 가운데(3·dk +
+  --dock-lift)를 받는다. 이름표 줄은 안 접는다(nowrap — 좁으면 칩이 말줄임, "화면"은 남는다).

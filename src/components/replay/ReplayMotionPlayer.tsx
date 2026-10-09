@@ -12332,8 +12332,7 @@ export default function ReplayMotionPlayer({
    *  무대 크기 effect 의 의존성에 들어야 해서다(2026-10-09, 지적: "페이지 처음 로딩시 지도 우측과 하단이 조금씩 비었다가 꽉 채워지는 현상" · "독 접었다 펼 때 재생기가
    *  잠깐 안전영역까지 내려갔다 다시 올라옴" — 독 맞춤이 쇠판 키를 바꾸면 무대 키가 같이 바뀌는데, 무대 크기 상태는 ResizeObserver(칠한 **뒤**)로만 따라와 한 프레임을
    *  옛 덮는 폭(fsCoverW)으로 칠했다 → 오른쪽·아래가 비었다가 채워졌다). */
-  const [dockFit9, setDockFit9] = useState<{ h: number | null; ki: number; k: number; lift: number; pedL: number; pedR: number; rowW: number }>(
-    { h: null, ki: 1, k: 1, lift: 0, pedL: 0, pedR: 0, rowW: 0 });
+  const [dockFit9, setDockFit9] = useState<{ h: number | null; ki: number; k: number; lift: number }>({ h: null, ki: 1, k: 1, lift: 0 });
   /* 무대 크기 — 지도를 이 크기에 맞춰 **덮게**(cover) 깔아야 크롭이 나온다. 화면 회전·
      주소창 여닫힘까지 따라오도록 ResizeObserver로 지켜본다.
      ★ **레이아웃 이펙트**다(같은 지적) — 지나가는 이펙트는 브라우저가 한 번 칠한 **뒤**에
@@ -18261,17 +18260,12 @@ export default function ReplayMotionPlayer({
       const room9 = W9 - pairW9(k9) - sep9;   // 미니맵 폭에도 --mini-up 이 들어 있다(pairW9)
       const ki9 = INFO_STEPS9.find((k) => infoW9 * k <= room9) ?? 0;
       /* ★ 받침이 무대 위로 솟은 몫(2026-10-09, 요청: "독 윗부분은 일자가 아니라 요소에 맞춰서 층이 있게" — replay.css 쇠판 ★★) = (up − 1)·h + 틀 여백 + 테. 뿌리(.scr-fs-layer)에
-         --dock-lift 로 적어 화면 주인 이름표·자막이 그만큼 올라선다(.scr-fs-solo-cap · .scr-cast-caption). 분할 격자는 아래를 **안 비운다**(되요청: "분할보기도 아래 비우지 않기")
-         — 받침이 덮는 자리(pedL~pedR · 무대 왼끝 기준 px)에 걸리는 바닥 줄 칸의 이름표만 그만큼 올린다(아래 셀 JSX --cell-lift). 미니맵이 없으면(N) 0. */
+         --dock-lift 로 적어 바닥 가운데의 중계 자막이 그만큼 올라선다(.scr-cast-caption). 화면 주인 이름표는 **위 가운데**라(2026-10-09, 요청: "화면 주인 이름칩은 화면 상단
+         가운데로 이동하고 자막을 내리기") 안 탄다 — 옛 '바닥 줄 칸 이름표 올리기'(--cell-lift · pedL~pedR)도 그때 걷었다. 분할 격자는 아래를 **안 비운다**(되요청: "분할보기도
+         아래 비우지 않기"). 미니맵이 없으면(N) 0. */
       const lift9 = miniOn9 && W9 > 0 ? Math.max(0, h9 * (up9 - 1) + out9 + 1) : 0;
-      const mp9 = fr9.querySelector<HTMLElement>(".scr-fs-minipanel");
-      const rowR9 = row9.getBoundingClientRect();
-      const mr9 = mp9?.getBoundingClientRect();
-      const pedL9 = mr9 ? Math.round(mr9.left - rowR9.left - out9) : 0;
-      const pedR9 = mr9 ? Math.round(mr9.right - rowR9.left + out9) : 0;
       setDockFit9((p9) => (Math.abs((p9.h ?? -1) - h9) < 0.5 && Math.abs(p9.ki - ki9) < 0.005 && Math.abs(p9.lift - lift9) < 0.5
-        && p9.pedL === pedL9 && p9.pedR === pedR9 && p9.rowW === row9.clientWidth
-        ? p9 : { h: h9, ki: ki9, k: k9, lift: lift9, pedL: pedL9, pedR: pedR9, rowW: row9.clientWidth }));
+        ? p9 : { h: h9, ki: ki9, k: k9, lift: lift9 }));
       setRosterPaged9(smallDevice9 || k9 < 0.999);
       fr9.closest<HTMLElement>(".scr-fs-layer")?.style.setProperty("--dock-lift", `${lift9.toFixed(1)}px`);
     };
@@ -19107,11 +19101,13 @@ export default function ReplayMotionPlayer({
             >
               {camRaw9 !== null && (
                 <span className="scr-split-cap scr-fs-solo-cap">
-                  {/* "정구 화면" 꼴(2026-10-09, 요청: "화면 주인 네임택은 '정구 화면' 이런 식으로") — 옛 '화면 글자 제거'(2026-09 · 자막 표의 첫 칸 사정)는 자막의 것이었다. */}
-                  <span className="scr-split-chip" style={capOf9(camRaw9, camRaw9).chip}>{`${bases.find((b9) => b9.key === camRaw9)?.name ?? camRaw9} 화면`}</span>
+                  {/* 위 가운데의 [임자색 칩(이름)] + 흰 "화면"(2026-10-09, 요청: "화면 주인 이름칩은 화면 상단 가운데로 이동 … 이름칩 + 흰 글씨 화면으로 표시") — 옛 "정구 화면"
+                      한 칩(같은 날 요청)·바닥 가운데 자리는 되물렸다. 자막(.scr-cast-caption)이 바닥을 받는다. */}
+                  <span className="scr-split-chip" style={capOf9(camRaw9, camRaw9).chip}>{bases.find((b9) => b9.key === camRaw9)?.name ?? camRaw9}</span>
+                  <span className="scr-split-word">화면</span>
                 </span>
               )}
-              {/* ★★ 중계 자막(위 castCap9 · 2026-10-09, 요청 2) — 이름표 **바로 위**(정가운데가 아니다). 토막이 갈리면(key) 살짝 떠오른다. */}
+              {/* ★★ 중계 자막(위 castCap9 · 2026-10-09, 요청 2) — **바닥 가운데**(옛 이름표 자리 · 같은 날 되요청: "자막을 내리기" · 정가운데가 아니다). 토막이 갈리면(key) 살짝 떠오른다. */}
               {castCap9 && (
                 <span key={castIdx9} className="scr-cast-caption">
                   {castCap9.map((p9, i9) => (p9.raw !== undefined
@@ -19140,12 +19136,7 @@ export default function ReplayMotionPlayer({
                 const tm9 = melee ? undefined : teamOfRaw(c9.raw);
                 const nm9 = bases.find((b9) => b9.key === c9.raw)?.name ?? c9.raw;
                 /* (되물림 · 2026-10-09) 맞대결 칸 머리의 경계 쪽 자리(is-cap-r/l/b/t)와 맞대결 표 — 자동 분할이 없어졌다. 머리는 바닥 가운데 하나다. */
-                /* ★ 바닥 줄 칸의 이름표가 미니맵 받침(독 위로 솟은 쇠 · dockFit9 pedL~pedR)에 가리면 그만큼 올린다(2026-10-09, 되요청: "분할보기도 아래 비우지 않기" —
-                   격자는 받침 아래까지 내려가고 받침이 가운데 아래를 덮는다). 셋 기둥 판의 가운데 아랫칸이 그 자리다 · 두 기둥은 안 걸린다. */
-                const cw9 = dockFit9.rowW > 0 ? dockFit9.rowW / splitLay9.cols : 0;
-                const capX9 = (c9.c + 0.5) * cw9;
-                const cellLift9 = c9.r === splitLay9.rows - 1 && dockFit9.lift > 0 && cw9 > 0 && capX9 > dockFit9.pedL - 80 && capX9 < dockFit9.pedR + 80
-                  ? dockFit9.lift : 0;
+                /* (걷어냄 · 2026-10-09) 바닥 줄 칸 이름표를 미니맵 받침만큼 올리던 셈(--cell-lift · dockFit9 pedL~pedR) — 이름표가 칸 **위** 가운데로 갔다(아래). */
                 return (
                   <div
                     key={c9.raw}
@@ -19155,14 +19146,16 @@ export default function ReplayMotionPlayer({
                        그 사람의 시야와 그 칸의 화면 네모)이 그 사람을 든다. */
                     onClick={() => setSplitPick9((p9) => (p9 === c9.raw ? null : c9.raw))}
                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSplitPick9((p9) => (p9 === c9.raw ? null : c9.raw)); } }}
-                    className={cx("scr-split-cell", tm9 && "is-team", splitPick9 === c9.raw && "is-pick")}
-                    style={{ gridColumn: c9.c + 1, gridRow: c9.r + 1, ...(tm9 ? { borderColor: TEAM_COLOR[tm9] } : {}), ...(cellLift9 > 0 ? { ["--cell-lift" as string]: `${cellLift9.toFixed(1)}px` } : {}) } as React.CSSProperties}
+                    className={cx("scr-split-cell", tm9 && "is-team", splitPick9 === c9.raw && "is-pick", c9.r === 0 && "is-top")}
+                    style={{ gridColumn: c9.c + 1, gridRow: c9.r + 1, ...(tm9 ? { borderColor: TEAM_COLOR[tm9] } : {}) } as React.CSSProperties}
                     aria-label={`${cap9.text} 화면`}
                   >
-                    {/* 칸 머리 — 이름 칩 하나(바닥 가운데 · 2026-10-09, 요청 1: "화면 주인 닉네임택을 화면 하단 가운데로"). 옛 맞대결 배지·표는 걷었다.
-                        칸 발치의 미니맵(.scr-split-foot · 2026-09)도 걷었다(2026-10-09, 요청 3) — 독 미니맵이 누른 칸의 사람을 든다. */}
+                    {/* 칸 머리 — [임자색 칩(이름)] + 흰 "화면", 칸 **위** 가운데(2026-10-09, 요청: "화면 주인 이름칩은 화면 상단 가운데로 … 이름칩 + 흰 글씨 화면" — 단독 화면과
+                        같은 꼴 · 옛 '바닥 가운데'(같은 날 요청 1)는 되물렸다). 맨 윗줄 칸(is-top)은 전체화면 폰 노치만큼 내린다(.scr-fs-layer.is-fs … is-top). 옛 맞대결 배지·표는
+                        걷었다. 칸 발치의 미니맵(.scr-split-foot · 2026-09)도 걷었다(2026-10-09, 요청 3) — 독 미니맵이 누른 칸의 사람을 든다. */}
                     <span className="scr-split-cap">
-                      <span className="scr-split-chip" style={cap9.chip}>{`${nm9} 화면`}</span>   {/* "정구 화면"(2026-10-09 · 단독 화면과 같은 꼴) */}
+                      <span className="scr-split-chip" style={cap9.chip}>{nm9}</span>
+                      <span className="scr-split-word">화면</span>
                     </span>
                   </div>
                 );

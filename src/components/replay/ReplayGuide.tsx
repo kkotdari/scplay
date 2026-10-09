@@ -141,7 +141,7 @@ export default function ReplayGuide({ onClose }: {
         <h3 className="scr-guide-h3">중계 고르기</h3>
         <p className="scr-guide-sub">
           <strong>전광판</strong>의 카메라 단추나 <strong>미니맵 위 이름표</strong>로 <strong>누구 화면</strong>을 볼지 고릅니다. 들어오면 <strong>AUTO</strong>(자동)로 켜져 있습니다.
-          중계가 켜진 동안은 카메라를 중계가 쥐어, 지도를 손으로 끌어도 안 움직이고 배율도 못 바꿉니다. 화면 아래 가운데에 <b>누구 화면인지</b> 이름표가 서고, 쇠판의 미니맵은 그 사람 시야입니다.
+          중계가 켜진 동안은 카메라를 중계가 쥐어, 지도를 손으로 끌어도 안 움직이고 배율도 못 바꿉니다. 화면 위 가운데에 <b>누구 화면인지</b> 이름표가 서고, 쇠판의 미니맵은 그 사람 시야입니다.
         </p>
         <div className="scr-guide-mock">
           <div className="scr-guide-castlist" aria-hidden="true">
@@ -155,7 +155,7 @@ export default function ReplayGuide({ onClose }: {
             <li>
               <span className="scr-guide-ic scr-guide-ic-txt">전체</span>
               <span><b>전체</b>(맨 위) — 모든 선수의 화면을 나눠 함께 봅니다. 켜면 아래 이름이 <b>모두 선택된 채</b>로 서고, 거기서 한 사람을
-              누르면 그 사람만 빠진 화면 나누기가 됩니다. 칸마다 아래 가운데에 그 사람 이름표가 섭니다.</span>
+              누르면 그 사람만 빠진 화면 나누기가 됩니다. 칸마다 위 가운데에 그 사람 이름표가 섭니다.</span>
             </li>
             <li>
               <span className="scr-guide-ic scr-guide-ic-txt">이름</span>
@@ -176,7 +176,7 @@ export default function ReplayGuide({ onClose }: {
               시작되기 <b>조금 전에</b> 미리 잡아 두고, 일이 이어지면 8초가 넘어도 그 사람에 머뭅니다. 볼 만한 일이 없으면
               <b> 전광판 차례로 팀을 번갈아</b> 8초씩 돌아갑니다. 지도는 다 보이는 채로 카메라만 옮깁니다. 지금 보여 주는 사람은 전광판의 <b>이름이 깜빡이며 빛납니다</b>.
               교전·침공·드랍 견제처럼 <b>맞서는 상대</b>가 있는 장면이면 <b>더 잘 싸운 쪽</b> 한 사람 화면을 보여 줍니다. 화면은 늘 하나이고,
-              이름표 위에는 <b>장면마다 자막</b>이 섭니다 — 공격·방어·교전·견제·건물 파괴·핵·마법, 조용할 때는 연구 개발·확장·건설·운영. 자막 속 이름은 이름표 칩입니다.</span>
+              화면 아래 가운데에는 <b>장면마다 자막</b>이 섭니다 — 공격·방어·교전·견제·건물 파괴·핵·마법, 조용할 때는 연구 개발·확장·건설·운영. 자막 속 이름은 이름표 칩입니다.</span>
             </li>
             <li>
               <span className="scr-guide-ic scr-guide-ic-txt">끄기</span>
