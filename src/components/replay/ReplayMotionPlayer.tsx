@@ -327,31 +327,8 @@ const clipBegin9 = (c: CanvasRenderingContext2D, cw: number, ch: number): void =
   CLIP_ON9.add(c);
 };
 const unitCanvases9 = (root: HTMLElement | null): HTMLCanvasElement[] => root ? Array.from(root.querySelectorAll<HTMLCanvasElement>(".scr-motion-unitlayer")) : [];
-/** ★ **지도 상자를 기기 화소 자리에 세운다**(2026-10-09, 사용자 스크린샷의 `#diag=grid` 고리: 1px 흰 고리가 세 화소에 걸쳐 48% 로
- *  퍼졌다 — 헤드리스 같은 창(1278×1304 · dpr 1)에서는 한 화소 255. 잉크 총량은 같고 꼴이 0.25/0.5/0.25 라 **반 화소 밀린 재표본**이다)
- *  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────
- *  상자(.scr-motion-map)는 정수 CSS px 크기지만 **자리**는 배치가 정한다: 가운데 맞춤(margin auto · 그리드 가운데)은 남는 폭이 홀수면
- *  .5 에 떨어지고, 위쪽 요소의 소수 높이도 그대로 내려온다. 캔버스는 그 자리에 inset:0 이라 한 화소의 반을 두 화소에 나눠 그려진다 —
- *  크기·배킹 비(×1.0000)가 다 정상인데도 흐린 길이다. 그래서 상자의 배치 자리를 재서 가장 가까운 기기 화소까지의 차만큼 `translate`
- *  로 민다(크기는 안 건드린다 — 옛 snapDev9 가 소수 CSS 크기로 가운데 맞춤을 흔들던 되물림을 피한다). 되맞춤 뒤 자리는 늘 정수
- *  기기 화소라, 배치가 .5 를 오가도 그림이 한 화소씩 다르게 붙는 일이 없다. 끄기 `#rootsnap=0`. 진단 흐림: 줄의 `되맞춤`. */
-const ROOT_SNAP9 = typeof location === "undefined" || !/rootsnap=0/.test(location.hash);
-const ROOT_SNAP_AT9 = new WeakMap<HTMLElement, { x: number; y: number }>();
-function snapRoot9(root: HTMLElement | null): void {
-  if (!root || !ROOT_SNAP9 || typeof window === "undefined") return;
-  const dpr9 = window.devicePixelRatio || 1;
-  const cur9 = ROOT_SNAP_AT9.get(root) ?? { x: 0, y: 0 };
-  const r9 = root.getBoundingClientRect();
-  if (!(r9.width > 0)) return;
-  const lx9 = r9.left - cur9.x; const ly9 = r9.top - cur9.y;   // 배치 자리(지금 민 양을 뺀다)
-  let nx9 = Math.round(lx9 * dpr9) / dpr9 - lx9; let ny9 = Math.round(ly9 * dpr9) / dpr9 - ly9;
-  if (Math.abs(nx9) < 0.002) nx9 = 0;
-  if (Math.abs(ny9) < 0.002) ny9 = 0;
-  if (nx9 === cur9.x && ny9 === cur9.y) return;
-  ROOT_SNAP_AT9.set(root, { x: nx9, y: ny9 });
-  root.style.setProperty("translate", nx9 === 0 && ny9 === 0 ? "" : `${nx9.toFixed(3)}px ${ny9.toFixed(3)}px`);
-  SCR_DIAG.rootSnap = nx9 === 0 && ny9 === 0 ? "" : `${nx9.toFixed(2)},${ny9.toFixed(2)}`;
-}
+/* (걷어냄 · 2026-10-09) snapRoot9 — 상자 뿌리를 `translate` 로 기기 화소에 되밀던 손(`#rootsnap=0`). 변환으로 되미는 것 자체가 합성기의 반올림과 어긋나는
+   길이라 걷었다(지도 상자 style 의 ★★). SCR_DIAG.rootSnap 은 "-" 로 남는다. */
 /** ★ **흐림 진단 한 줄**(2026-10, 지적: "지형뿐 아니라 모델이 흐려" — 사용자의 #diag 머리 줄에 ⚠재표본이 없는데도 흐렸다) ──
  *  헤드리스로는 재현이 안 되는 흐림이라, 사용자가 찍어 보내는 **머리 줄** 자체가 범인을 가려야 한다. 캔버스의 배킹·CSS
  *  크기·화면 자리는 다 정상인데도 화면이 뭉개지는 길은 캔버스 **밖**에 있다: 지도 상자가 기기 화소의 소수 자리에 놓임 ·
@@ -11477,8 +11454,6 @@ export default function ReplayMotionPlayer({
         lyr9.style.setProperty("--scr-stage-l", `${Math.max(0, Math.round(b9.left - a9.left))}px`);
         lyr9.style.setProperty("--scr-stage-r", `${Math.max(0, Math.round(a9.right - b9.right))}px`);
       }
-      /* 상자 자리를 기기 화소에 세운다(위 snapRoot9) — 창·문서·무대가 바뀔 때마다 여기서 다시 잰다. */
-      snapRoot9(mapRef.current);
     };
     read();
     /* ★ **위에 있는 것이 자리를 잡은 뒤에 다시 잰다**(지적: "아래 여백이 너무 높아져
@@ -13905,35 +13880,8 @@ export default function ReplayMotionPlayer({
     if (centerOnTile(want.x, want.y)) holdRef.current = null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fsOn, pitchDeg, stage.w, stage.h, fsCoverW]);
-  /* ★★ **지도 상자를 기기 픽셀에 맞춘다**(2026-10, 지적: "재생기 폭이 1287 이하로 되면 갑자기 흐려지는데" ·
-     "맵 위의 모든게 흐려짐" · devicePixelRatio 1 · "폭을 줄여도 선명해짐 특정 구간만 흐린것?") ───────────────
-     상자는 무대 한가운데에 `left/top 50% + translate(−50%, −50%)` 로 앉는다. 무대와 상자의 크기 차가 홀수면
-     그 자리가 **0.5 CSS px** 에 떨어지고(실측: 지도 캔버스 y −324.5), 화면 배율 1 에서는 그것이 곧 반 화소라
-     지형·유닛·안개 캔버스가 **통째로** 반 칸씩 보간돼 흐려진다. 폭이 한 칸 바뀔 때마다 짝·홀이 갈리므로
-     '어느 구간만 흐리다'로 읽혔다(무대 자체가 페이지에서 소수 자리에 놓여도 같다).
-     그린 뒤 상자의 실제 화면 자리를 재서 기기 화소에 못 미친 몫만큼 되민다(`--snx`·`--sny` — React 가 안
-     쥐는 변수라 다음 렌더가 안 덮는다). 재는 자리는 보정을 뺀 값이라 되먹임이 없다. */
-  const snapFnRef9 = useRef<(() => void) | null>(null);
-  useLayoutEffect(() => {
-    const el9 = mapRef.current;
-    if (!el9 || fsCoverW <= 0) return undefined;
-    const snap9 = (): void => {
-      const dpr9 = window.devicePixelRatio || 1;
-      const ox9 = parseFloat(el9.style.getPropertyValue("--snx")) || 0;
-      const oy9 = parseFloat(el9.style.getPropertyValue("--sny")) || 0;
-      const r9 = el9.getBoundingClientRect();
-      const bx9 = (r9.left - ox9) * dpr9;
-      const by9 = (r9.top - oy9) * dpr9;
-      const nx9 = (Math.round(bx9) - bx9) / dpr9;
-      const ny9 = (Math.round(by9) - by9) / dpr9;
-      if (Math.abs(nx9 - ox9) > 0.004) el9.style.setProperty("--snx", `${nx9.toFixed(3)}px`);
-      if (Math.abs(ny9 - oy9) > 0.004) el9.style.setProperty("--sny", `${ny9.toFixed(3)}px`);
-    };
-    snap9();
-    snapFnRef9.current = snap9;
-    window.addEventListener("resize", snap9);
-    return () => window.removeEventListener("resize", snap9);
-  });
+  /* (걷어냄 · 2026-10-09) 지도 상자의 기기 화소 되밀기(`--snx`·`--sny` · snapFnRef9) — 상자가 translate(−50%) 로 앉던 시절의 보정. 이제 상자는 정수
+     left/top 이라(아래 지도 상자 style 의 ★★) 되밀 것이 없고, DOM 자리를 믿는 되밀기는 합성기의 반올림과 어긋나 되레 반 화소를 만들었다. */
   /* ★ **파수꾼 — 렌더도 resize 도 없이 자리·크기가 바뀌는 길**(2026-10, 지적: "지형뿐 아니라 모델이 흐려") ─────────────
      위 맞춤은 렌더와 창 resize 에서만 돈다. 그런데 앱(재생기를 품은 페이지)의 배치는 그 둘 없이도 바뀐다 — 스크롤 ·
      조상의 전환 애니메이션이 끝남 · 글꼴이 늦게 와 줄이 바뀜 · 스크롤바가 생기고 사라짐. 멈춘 채 그러면 다음 렌더가
@@ -13942,7 +13890,6 @@ export default function ReplayMotionPlayer({
      다르면 한 장 다시 칠한다. getBoundingClientRect 둘이라 배치가 깨끗하면 값이 거의 없다. 스크롤에도 같은 문을 건다. */
   useEffect(() => {
     const guard9 = (): void => {
-      snapFnRef9.current?.();
       const el9 = mapRef.current;
       if (!el9) return;
       /* ㉢ **남은 손짓을 접는다** — 손짓 깃발(xfGestureRef)이 켜져 있으면 붓이 배킹을 0.7·0.5배로 내려 칠하고(무거운 장이면)
@@ -17196,11 +17143,28 @@ export default function ReplayMotionPlayer({
        (.scr-motion-teamcol-cast · 자동 중계의 주인 · 개인 추적의 그 사람 · 분할의 칸 사람들 — 옛 '자동만 깜빡인다'를 되물렸다). */
   const shownRaws9 = new Set<string>(splitOn9 && splitLay9 ? splitLay9.cells.map((c9) => c9.raw) : camRaw9 !== null ? [camRaw9] : []);
   const [rosterPage9, setRosterPage9] = useState(0);
+  /* ★ PC 도 **좁으면 쪽으로**(2026-10-09, 요청: "로스터 닉네임이 너무 좁아 로스터는 최소폭 좀 넓게 강제하고 만약 좁으면 페이징처리") — 판 폭은
+     인포창의 1.25배까지(replay.css .scr-fs-rosterpanel)이고, 그보다 좁은 판(작은 창)이면 폰처럼 쪽(is-paged)이다. 판 폭은 ResizeObserver 로 재서
+     인포창 폭 × 1.25 에 못 미치면 쪽이다(판은 그 값 이하로만 작아지므로 '남는 폭이 모자라다'와 같은 말). */
+  const [rosterPaged9, setRosterPaged9] = useState(smallDevice9);
+  const rosterRo9 = useRef<ResizeObserver | null>(null);
+  const rosterPanelRef9 = (el9: HTMLDivElement | null): void => {
+    rosterRo9.current?.disconnect(); rosterRo9.current = null;
+    if (!el9 || smallDevice9 || typeof ResizeObserver === "undefined") return;
+    const read9 = (): void => {
+      const info9 = el9.parentElement?.querySelector<HTMLElement>(".scr-motion-infodock");
+      const need9 = (info9?.getBoundingClientRect().width ?? 0) * 1.25 - 2;
+      setRosterPaged9(el9.getBoundingClientRect().width < need9);
+    };
+    read9();
+    rosterRo9.current = new ResizeObserver(read9);
+    rosterRo9.current.observe(el9);
+  };
   useEffect(() => {
-    if (!smallDevice9) return undefined;
+    if (!rosterPaged9) return undefined;
     const id9 = window.setInterval(() => setRosterPage9((p9) => (p9 + 1) % ROSTER_PAGES9.length), ROSTER_PAGE_MS9);
     return () => window.clearInterval(id9);
-  }, []);
+  }, [rosterPaged9]);
   const dockRoster9 = ((): React.ReactNode => {
     const teams9 = (melee ? [1] : [1, 2]).map((t9) => ({
       team: t9 as 1 | 2,
@@ -17218,7 +17182,7 @@ export default function ReplayMotionPlayer({
       }
     };
     return (
-      <div className={cx("scr-dock-roster", !melee && "is-team", smallDevice9 && "is-paged")} style={{ ["--rows" as string]: String(rows9) } as React.CSSProperties}>
+      <div className={cx("scr-dock-roster", !melee && "is-team", rosterPaged9 && "is-paged")} style={{ ["--rows" as string]: String(rows9) } as React.CSSProperties}>
         {/* 맨 위 AUTO — 자동 중계(요청: "자동은 맨위에 따로. 버튼 라벨은 비디오카메라에 AUTO 글자 합성"). */}
         <div className="scr-dock-roster-top">
           <button
@@ -17254,11 +17218,13 @@ export default function ReplayMotionPlayer({
               })}
             </div>
             <div className="scr-dock-data">
-              <div className="scr-dock-strip" style={smallDevice9 ? { transform: `translateX(-${rosterPage9 * 100}%)` } : undefined}>
+              <div className="scr-dock-strip" style={rosterPaged9 ? { transform: `translateX(-${rosterPage9 * 100}%)` } : undefined}>
                 {ROSTER_PAGES9.map((pg9, i9) => (
                   <div key={i9} className="scr-dock-page">
                     <div className="scr-dock-row scr-dock-head">
-                      {pg9.map((c9) => <span key={c9} className={cx("scr-dock-cell", `is-${c9}`)}>{ROSTER_LABEL9[c9]}</span>)}
+                      {/* 라벨은 칸 **안의** 작은 글자다(2026-10-09, 지적: "라벨 헤더와 데이터 줄이 가운데 정렬이 다른듯") — 칸 폭은 ch 라 칸 글자가 작으면 폭도
+                          좁아져 가운데가 어긋났다. 칸은 값과 같은 글자, 라벨만 작게. */}
+                      {pg9.map((c9) => <span key={c9} className={cx("scr-dock-cell", `is-${c9}`)}><span className="scr-dock-lab">{ROSTER_LABEL9[c9]}</span></span>)}
                     </div>
                     {mates.map((m) => (
                       <div key={m.key} className="scr-dock-row">
@@ -18418,7 +18384,12 @@ export default function ReplayMotionPlayer({
               position: "absolute" as const,
               /* 위 여유가 있으면 **아래에 붙인다** — 가운데로 두면 그 여유가 위아래로
                  반씩 갈려, 정작 필요한 위쪽에 절반밖에 안 남는다. */
-              left: "50%",
+              /* ★★ 자리는 **정수 px 로 직접 놓는다**(2026-10-09, 사용자 실측: 무대 폭이 홀수면 지도 안 캔버스만 번짐 · `#evenbox`(상자만 짝수)로는 그대로 ·
+                 헤드리스 재현 1279/1280 창 = 한칸 가장자리 17.9% / 32.7%) — 옛 `left/top 50% + translate(−50%)` 는 무대가 홀수면 레이아웃 자리 447.5
+                 + 변환 −447.5 였다. 크롬은 합성 층의 **레이아웃 자리는 정수로 반올림**하고(paint offset snapping) **변환은 그대로** 두므로 둘이 0.5px 어긋나
+                 안의 캔버스(유닛·GL·지형·안개)가 통째로 반 칸 보간됐다. DOM(getBoundingClientRect)은 정수를 돌려줘 진단에 안 잡혔고, --snx 되밀기는 그 DOM 을
+                 믿어 오히려 더 밀기도 했다. 변환 없이 정수 left/top 이면 반올림할 것이 없다. */
+              left: `${Math.round((stage.w - fsCoverW) / 2)}px`,
               /* ★ 상자는 **창 한가운데**에 앉는다 — 2D·3D가 한 식이다(지적: "여전히 맵
                  세로가 무대를 넘치는 경우는 아예 여백 도화지가 안 보이는데? 2D에서") ─────
                  여기 있던 것은 `bottom: 0`, 곧 상자를 **무대** 바닥에 붙이는 것이었다.
@@ -18433,9 +18404,8 @@ export default function ReplayMotionPlayer({
                  경우(fsCoverH = fitH9)에는 이 식이 그대로 `bottom: 0`이 된다.
                  3D도 같은 식이면 된다 — 회전이 그림을 상자 안 가운데로 눌러 놓으므로
                  상자 가운데가 곧 그림 가운데다. */
-              top: "50%",
-              /* --snx·--sny: 기기 화소 맞춤(위 '지도 상자를 기기 픽셀에 맞춘다'). */
-              transform: "translate(calc(-50% + var(--snx, 0px)), calc(-50% + var(--sny, 0px)))",
+              top: `${Math.round((stage.h - fsCoverH) / 2)}px`,
+              /* (걷어냄 · 2026-10-09) translate(−50% + --snx) 가운데 맞춤 — 위 ★★. 변환은 없다. */
               /* 높이도 **정수로 못 박는다** — aspectRatio 로 두면 정사각이 아닌 지도에서 소수 px 가 되어 캔버스가 통째로 보간된다
                  (위 fsCoverW 의 ★★). 폭·높이가 다 서므로 aspectRatio 는 이 갈래에서 안 먹는다. */
               width: `${fsCoverW}px`, height: `${fsCoverH}px`, flex: "0 0 auto", minWidth: 0,
@@ -19224,7 +19194,7 @@ export default function ReplayMotionPlayer({
             <div className="scr-fs-dockmain">
             {/* ★★ 미니맵 자리에 **로스터**(2026-10-09, 요청 5: "독의 미니맵은 필요가 없어 … 제거하고 그 자리에 로스터를 넣어") — 미니맵은 무대
                 왼아래(.scr-fs-solo-mini · 분할 칸과 같은 자리)로 갔다. 판의 폭은 '인포창을 뺀 남는 폭, 최대 인포창 폭'(replay.css .scr-fs-rosterpanel). */}
-            <div className="scr-fs-rosterpanel">{dockRoster9}</div>
+            <div className="scr-fs-rosterpanel" ref={rosterPanelRef9}>{dockRoster9}</div>
               {infoDock9}
             </div>
             </div>

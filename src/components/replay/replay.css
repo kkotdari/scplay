@@ -3046,10 +3046,12 @@
      비스듬한 반사 한 줄기는 틀에만 남아 가운데 판이 살짝 도드라진다. 위·아래 베벨은 줄이 진다. */
   /* 쇠판은 감싸개(.scr-fs-lower) 한 장이다 — 툴박스와 독 줄이 같은 판 위에 선다(위 ★★). 옛 판은 독 줄이 제 쇠를 깔았다. */
   .scr-fs-layer .scr-fs-lower {
+    /* ★ 헤어라인은 **세로**다(2026-10-09, 지적: "독 헤어라인 왜 가로지 아직도" — 앞서 틀(.scr-fs-dockframe)만 돌렸는데 판 안에서 틀의 바탕은 꺼져 있고
+       보이는 쇠는 이 감싸개의 것이었다). 줄은 90deg(세로 줄) · 느린 얼룩은 180deg(줄을 따라). */
     background:
-      repeating-linear-gradient(90deg, transparent 0, rgba(255, 255, 255, 0.07) 23px, transparent 41px, rgba(0, 0, 0, 0.06) 67px, transparent 89px),
-      repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px 2px),
-      repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.09) 0 1px, transparent 1px 3px),
+      repeating-linear-gradient(180deg, transparent 0, rgba(255, 255, 255, 0.07) 23px, transparent 41px, rgba(0, 0, 0, 0.06) 67px, transparent 89px),
+      repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px 2px),
+      repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.09) 0 1px, transparent 1px 3px),
       linear-gradient(180deg, #b2b8c0 0%, #979fa8 15%, #7a828b 45%, #656c75 52%, #737b84 72%, #89919a 100%);
     box-shadow:
       inset 0 1px 0 #0b0d10, inset 0 2px 0 rgba(255, 255, 255, 0.55),
@@ -3107,6 +3109,8 @@
   /* ×1.5(2026-10, 요청: "독 상하좌우 프레임 두께 현재보다 50프로 더 두껍게 · 접었을때도 상단 프레임이 동일한 두께") — 3.4 → 5.1·dk.
      툴박스 아래 여백 · 접힌 때의 툴박스 위 여백이 같은 값을 손으로 든다(.scr-tb 에서는 이 변수를 못 읽는다 — 하나를 고치면 넷 다). */
   --dock-out: calc(5.1px * var(--dk));
+  /* 로스터와 인포창 **사이** 틈(구분 막대) — 테두리의 2.5배(2026-10-09, 요청: "로스터와 인포창 사이 프레임 2.5배 두껍게"). */
+  --dock-sep: calc(2.5 * var(--dock-bez));
   /* 두 줄 — [TV 정사각 | 정보줄 | 접기 정사각] / [미니맵 | 인포창](키 --dock-h · 온 폭). 접으면(is-fold) 정보줄만 남는다. */
   display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: var(--dock-bez); padding: var(--dock-out); min-width: 0; max-width: 100%;
   box-sizing: border-box;
@@ -3126,7 +3130,7 @@
   pointer-events: auto;
 }
 /* 우물 — 쇠판에 파인 자리. 위 안쪽 그늘이 깊이를, 아래 밝은 입술이 판의 두께를 말한다. */
-.scr-fs-dockmain { display: flex; align-items: stretch; gap: var(--dock-bez); height: var(--dock-h); min-width: 0; }
+.scr-fs-dockmain { display: flex; align-items: stretch; gap: var(--dock-sep); height: var(--dock-h); min-width: 0; }
 /* ★ 접으면 독 줄이 **통째로** 사라진다(2026-09, 요청: "접혔을때 인포창아예 안남게") — 손잡이는 툴박스 재생 줄의 시계 옆이라 남는다.
    옛 '접어도 폭은 그대로 · 손잡이 키만 남는다'는 되물렸다. */
 .scr-fs-dockrow.is-fold { display: none; }
@@ -3142,7 +3146,7 @@
    틀어(1px 줄 · 2·3px 딴 주기) 따로 끼운 판으로 읽힌다. 양옆 1px 은 우물 쪽으로 꺾이는 모서리(밝은 왼 · 어두운 오른). */
 .scr-fs-dockmain > .scr-fs-rosterpanel { position: relative; }
 .scr-fs-dockmain > .scr-fs-rosterpanel::after {
-  content: ""; position: absolute; top: 0; bottom: 0; right: calc(-1 * var(--dock-bez)); width: var(--dock-bez);
+  content: ""; position: absolute; top: 0; bottom: 0; right: calc(-1 * var(--dock-sep)); width: var(--dock-sep);
   background:
     repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px 2px),
     repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.09) 0 1px, transparent 1px 3px),
@@ -3162,7 +3166,9 @@
 .scr-fs-rosterpanel {
   flex: 0 0 auto; position: relative; height: 100%; min-width: 0; box-sizing: border-box; overflow: hidden; pointer-events: auto;
   container-type: inline-size;   /* 안의 글자 상한이 판 폭(cqw)으로 선다(아래 .scr-motion-pc9 .scr-dock-roster) */
-  width: max(0px, min(var(--dock-w), calc(100cqw - var(--dock-w) - var(--dock-bez) - 2 * var(--dock-out) - 2px)));
+  /* 상한은 인포창의 **1.25배**(2026-10-09, 요청: "로스터는 최소폭 좀 넓게 강제" — 옛 상한 = 인포창 폭에서는 4:4 이름이 두 자로 접혔다). 남는 폭이 그보다
+     모자라면 판은 그만큼이고 안은 쪽(is-paged · JSX rosterPaged9)으로 간다. */
+  width: max(0px, min(calc(var(--dock-w) * 1.25), calc(100cqw - var(--dock-w) - var(--dock-sep) - 2 * var(--dock-out) - 2px)));
 }
 /* ★★ 독 로스터(ReplayMotionPlayer dockRoster9 · 2026-10-09) — [AUTO 줄] / 팀마다 [이름 기둥 | 자료 띠]. 줄 키 --rp 는 독 키를 줄 수(--rows · JSX)로
    나눈 값(상한 13·dk)이라 4:4 도 한 우물에 든다 — 글자는 그 줄 키에 비례한다. */
@@ -3179,6 +3185,8 @@
   --rp: min(calc(17px * var(--dk)), calc((var(--dock-h) - 6px * var(--dk)) / var(--rows, 6)));
   font-size: min(calc(var(--rp) * 0.52), calc((100cqw - 90px) / 30));
 }
+/* PC 쪽 꼴(좁은 창)은 글자를 폭이 아니라 줄 키가 정한다 — 쪽마다 두 칸뿐이라 폭이 남는다. */
+.scr-motion-pc9 .scr-dock-roster.is-paged { font-size: calc(var(--rp) * 0.52); }
 .scr-dock-roster-top { height: var(--rp); display: flex; align-items: center; flex: none; }
 .scr-dock-team { display: flex; align-items: flex-start; min-width: 0; flex: none; }
 .scr-dock-names { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
@@ -3186,8 +3194,10 @@
 .scr-dock-strip { display: flex; align-items: flex-start; }
 .scr-dock-page { flex: 0 0 auto; display: flex; flex-direction: column; padding-left: calc(6px * var(--dk)); }
 .scr-dock-row { height: var(--rp); display: flex; align-items: center; gap: calc(3px * var(--dk)); min-width: 0; white-space: nowrap; }
-.scr-dock-head { color: #9aa3ad; font-size: 0.86em; font-weight: 700; }
-.scr-dock-teamname { padding-left: calc(2px * var(--dk)); }
+/* 머리 줄의 칸은 값 칸과 **같은 글자 크기**(ch 폭이 같아야 가운데가 맞는다 · 2026-10-09 지적) — 라벨 글자만 안의 .scr-dock-lab 이 작게. */
+.scr-dock-head { color: #9aa3ad; font-weight: 700; }
+.scr-dock-lab { font-size: 0.86em; }
+.scr-dock-teamname { padding-left: calc(2px * var(--dk)); font-size: 0.86em; }
 /* 라벨과 값은 **가운데 맞춤**으로 줄을 맞춘다(2026-10-09, 요청: "로스터의 라벨과 데이터를 가운데 정렬해서 줄맞추기(모바일도 똑같이)") — 옛 오른쪽 맞춤 되물림. */
 .scr-dock-cell { display: inline-block; text-align: center; overflow: hidden; min-width: 0; font-weight: 600; flex: none; }
 .scr-dock-cell.is-worker { width: 4ch; }   /* 머리 '일꾼'(한글 둘 = 3.6ch)이 든다 */
