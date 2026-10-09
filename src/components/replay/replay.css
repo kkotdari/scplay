@@ -3189,7 +3189,10 @@
   pointer-events: auto;
 }
 /* 우물 — 쇠판에 파인 자리. 위 안쪽 그늘이 깊이를, 아래 밝은 입술이 판의 두께를 말한다. */
-.scr-fs-dockmain { display: flex; align-items: stretch; justify-content: center; gap: var(--dock-sep); height: var(--dock-h); min-width: 0; }
+/* ★ 미니맵은 **한 단 크다**(2026-10-09, 요청: "미니맵이 더 올라가게 미니맵을 한단 크게" — 층을 둔다) — 미니맵 우물의 키 = --dock-h × --mini-up(1.2) · 전광판·인포창은
+   --dock-h 그대로 바닥에 맞춰 서고, 틀은 미니맵 키를 따른다(그 위의 쇠가 층으로 읽힌다). 독 맞춤(dockFit9)의 폭 셈에도 이 배수가 든다. */
+.scr-fs-dockframe { --mini-up: 1.2; }
+.scr-fs-dockmain { display: flex; align-items: flex-end; justify-content: center; gap: var(--dock-sep); height: calc(var(--dock-h) * var(--mini-up, 1)); min-width: 0; }
 /* 숨은 자(ReplayMotionPlayer dockFit9) — 설계 치수의 CSS 계산값을 JS 가 읽는 자리: 폭 = 인포창 설계 폭 · 키 = 설계 키 · 왼 여백 = 구분 틈 · 오른 여백 = 틀 여백. */
 .scr-fs-dockprobe { position: absolute; left: 0; top: 0; visibility: hidden; pointer-events: none; width: var(--dock-w); height: var(--dock-h0); margin: 0 var(--dock-out) 0 var(--dock-sep); }
 /* 인포창이 안 서는 틀(is-noinfo · 남는 폭이 설계 폭의 INFO_MIN_K9 아래) — 미니맵 뒤 구분 막대도 걷는다. */
@@ -3198,7 +3201,7 @@
    내용 전체 통째로 세로는 가운데 정렬") — 우물 폭 = 설계 폭 × --info-k(dockFit9) · 몸은 설계 폭·설계 키 그대로 짜고 transform 으로 k 배(가운데 기준) · 우물이
    flex 가운데 맞춤이라 축소된 몸이 세로 가운데에 선다. k = 1 이면 종전과 같다. */
 .scr-fs-dockmain > .scr-motion-infodock {
-  flex: none; align-self: stretch; width: calc(var(--dock-w) * var(--info-k, 1)); max-width: none; height: 100%;
+  flex: none; align-self: flex-end; width: calc(var(--dock-w) * var(--info-k, 1)); max-width: none; height: var(--dock-h);
   flex-direction: row; align-items: center; justify-content: center;
 }
 .scr-fs-dockmain > .scr-motion-infodock > .scr-motion-infodock-body { flex: none; width: var(--dock-w); transform: scale(var(--info-k, 1)); transform-origin: center center; }
@@ -3218,7 +3221,7 @@
    틀어(1px 줄 · 2·3px 딴 주기) 따로 끼운 판으로 읽힌다. 양옆 1px 은 우물 쪽으로 꺾이는 모서리(밝은 왼 · 어두운 오른). */
 .scr-fs-dockmain > .scr-fs-rosterpanel, .scr-fs-dockmain > .scr-fs-minipanel { position: relative; }
 .scr-fs-dockmain > .scr-fs-rosterpanel::after, .scr-fs-dockmain > .scr-fs-minipanel::after {
-  content: ""; position: absolute; top: 0; bottom: 0; right: calc(-1 * var(--dock-sep)); width: var(--dock-sep);
+  content: ""; position: absolute; top: auto; bottom: 0; height: calc(var(--dock-h) * var(--mini-up, 1)); right: calc(-1 * var(--dock-sep)); width: var(--dock-sep);   /* 틀 온 키(미니맵 키) */
   background:
     repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px 2px),
     repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.09) 0 1px, transparent 1px 3px),
@@ -3237,7 +3240,8 @@
    이름표(.scr-fs-minitag)는 ReplayFullscreenMinimap 안의 겹층이다(아래). */
 /* 폭 = 키 × 지도 비 — 제 비율 그대로(2026-10-09, 요청: "각각의 최적 비율을 고정한 상태로 조립") · 옛 상한 1.3·키와 flex-shrink 는 걷었다(크기는 dockFit9 가 정한다). */
 .scr-fs-minipanel {
-  flex: none; width: calc(var(--dock-h) * var(--scr-mini-ar, 1)); min-width: 0; height: 100%; container-type: size; pointer-events: none;
+  flex: none; width: calc(var(--dock-h) * var(--mini-up, 1) * var(--scr-mini-ar, 1)); min-width: 0; height: calc(var(--dock-h) * var(--mini-up, 1));
+  container-type: size; pointer-events: none;
 }
 .scr-fs-minipanel .scr-motion-minibox { width: 100%; height: 100%; margin: 0; display: flex; align-items: center; justify-content: center; }
 .scr-fs-minipanel .scr-fs-minimap {
@@ -3249,7 +3253,7 @@
    (inline-size)이라 cqw 로 잰다 — JS 셈이 없다. 안은 .scr-dock-roster(absolute)가 채운다. 폰(틀 100% · 인포창 flex 1)도 같은 식이다. */
 .scr-fs-dockrow { container-type: inline-size; }
 .scr-fs-rosterpanel {
-  flex: 0 0 auto; position: relative; height: 100%; min-width: 0; box-sizing: border-box; overflow: hidden; pointer-events: auto;
+  flex: 0 0 auto; position: relative; height: var(--dock-h); min-width: 0; box-sizing: border-box; overflow: hidden; pointer-events: auto;
   container-type: inline-size;   /* 안의 글자 상한이 판 폭(cqw)으로 선다(아래 .scr-motion-pc9 .scr-dock-roster) */
   /* 폭 = 키 × 설계 비 --roster-r(PC 480/186 · 폰 1.2) — 키는 독 맞춤(dockFit9)이 전광판·미니맵이 함께 들게 낮춘 값이라 폭도 함께 준다(2026-10-09, 요청: "너비를
      배분하고 그에 맞는 높이로"). 옛 '인포창 폭 × 1.25 상한 · 남는 폭' 셈은 걷었다 — 전광판이 인포창보다 먼저다. 줄어든 때는 쪽(is-paged · JSX rosterPaged9). */

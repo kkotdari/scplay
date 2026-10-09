@@ -18245,13 +18245,14 @@ export default function ReplayMotionPlayer({
       const sep9 = parseFloat(cs9.marginLeft) || 0;
       const out9 = parseFloat(cs9.marginRight) || 0;
       const rr9 = parseFloat(getComputedStyle(fr9).getPropertyValue("--roster-r")) || 2.58;
+      const up9 = parseFloat(getComputedStyle(fr9).getPropertyValue("--mini-up")) || 1;   // 미니맵은 한 단 크다(replay.css --mini-up · 2026-10-09)
       if (h0 <= 0) return;
       const W9 = row9.clientWidth - 2 * out9 - 2;   // 틀 테 1px 둘
       const arOn9 = miniOn9 ? ar9 : 0;              // 미니맵을 껐으면(전체화면 N) 그 폭·틈이 없다
-      const pairW9 = (k: number): number => h0 * k * (rr9 + arOn9) + (miniOn9 ? sep9 : 0);
+      const pairW9 = (k: number): number => h0 * k * (rr9 + arOn9 * up9) + (miniOn9 ? sep9 : 0);
       const k9 = DOCK_STEPS9.find((k) => pairW9(k) <= W9) ?? DOCK_STEPS9[DOCK_STEPS9.length - 1];
       const h9 = h0 * k9;
-      const room9 = W9 - pairW9(k9) - sep9;
+      const room9 = W9 - pairW9(k9) - sep9;   // 미니맵 폭에도 --mini-up 이 들어 있다(pairW9)
       const ki9 = INFO_STEPS9.find((k) => infoW9 * k <= room9) ?? 0;
       setDockFit9((p9) => (Math.abs((p9.h ?? -1) - h9) < 0.5 && Math.abs(p9.ki - ki9) < 0.005 ? p9 : { h: h9, ki: ki9, k: k9 }));
       setRosterPaged9(smallDevice9 || k9 < 0.999);
