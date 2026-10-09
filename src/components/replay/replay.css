@@ -968,6 +968,8 @@
   background: rgba(0, 0, 0, 0.6);
 }
 .scr-diag-fps-u { font-size: 8px; opacity: 0.8; margin-left: 1px; }
+/* `#diag=pix` 의 4배 창 — 192 css px 에 192 배킹(dpr 1 기준) · 보간 없이. */
+.scr-diag-pix { display: block; width: 192px; height: 192px; margin-top: 3px; image-rendering: pixelated; background: #2f6d3a; }
 .scr-motion-diag {
   /* absolute다 — 붙는 자리를 배치마다 바꿔서 화면 안에 세운다(평소엔 지도 상자,
      전체화면엔 판 뿌리). fixed는 답이 못 된다: 조상이 변환을 쓰면 fixed의 기준이

@@ -1458,6 +1458,17 @@ export class GlUnits9 implements VecSink9 {
    *  (aInA…aShad · 88바이트)으로 바꿔 같은 메시의 개체를 한 번에 그린다. 패스 넷:
    *  ① 그림자(메시 무리) ② 불투명 몸(메시 무리 — 깊이가 있어 차례가 무관하다) ③ 차례 몫(큐 차례 그대로 — 반투명 꼬리·
    *  반투명 개체·발광·더하기; 같은 메시·같은 상태가 잇달으면 한 묶음) ④ 번짐(깊이 → 빛나는 낯 · 메시 무리). */
+  /** ★ **GL 판 읽기**(`#diag=pix` · 2026-10-09, 흐림 가르기) — flush 직후 **같은 작업 안에서** 기본 프레임버퍼를 그대로 읽는다(아래가 0 행 ·
+   *  미리곱한 RGBA). MRT 면 blit 로 옮겨진(MSAA 푼) 색이고 캔버스 AA 면 이 읽기가 곧 풀기라, **합성기가 받는 바로 그 화소**다 — 여기서
+   *  가장자리가 한 칸이면 화면의 번짐은 합성기(브라우저·GPU 합성) 몫이고, 여기부터 번져 있으면 GPU 의 MSAA 풀기·그리기 몫이다.
+   *  진단에서만 부른다(readPixels 는 GPU 를 세운다). */
+  peek9(): { w: number; h: number; px: Uint8Array } | null {
+    const gl = this.gl; const w = this.canvas.width; const h = this.canvas.height;
+    if (!(w > 0 && h > 0)) return null;
+    const px = new Uint8Array(w * h * 4);
+    try { gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px); } catch { return null; }
+    return { w, h, px };
+  }
   flush(bw: number, bh: number, cw: number, ch: number): void {
     const gl = this.gl; const cv = this.canvas;
     this.scrubMs = 0;

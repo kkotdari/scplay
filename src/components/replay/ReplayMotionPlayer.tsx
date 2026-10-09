@@ -847,6 +847,70 @@ function dumpCv9(cv9: HTMLCanvasElement, name9: string): void {
     window.setTimeout(() => URL.revokeObjectURL(a9.href), 5000);
   });
 }
+/** ★ **`#diag=pix` — GL 판의 가장자리 날카로움**(2026-10-09, 흐림 가르기: 사용자 PC(dpr 1) 화면 크롭은 유닛 가장자리가 **모두** 2~3px 로
+ *  번졌고 한 칸에서 바로 뛰는 가장자리가 0.7% 뿐인데, 헤드리스 1:1 GL 그림은 35% 가 한 칸이다 — 기하(배킹·CSS·자리)는 전부 1:1 이라
+ *  진단 머리로는 못 가른다). flush 직후 GL 판을 읽어(gl9.peek9 · 합성기가 받는 바로 그 화소) 실루엣(알파 0→255)·속(불투명 밝기 ΔL≥60)
+ *  가장자리의 단조 구간 길이를 센다: **한칸 몫이 30% 안팎이면 판은 또렷하고 번짐은 그 뒤(합성·화면) 몫**, 0% 에 가까우면 GPU 가 그리고
+ *  MSAA 를 푸는 단계부터 번진 것이다. 가장자리가 가장 많은 48×48 창을 4배(화소 그대로)로 진단판에 보인다. 1초에 한 번(readPixels 멈춤). */
+const DIAG_PIX9 = typeof location !== "undefined" && /diag=[^&#]*pix/.test(location.hash);
+const PIX9: { at: number; line: string; win: ImageData | null } = { at: 0, line: "", win: null };
+function pixStat9(p9: { w: number; h: number; px: Uint8Array }): void {
+  const { w, h, px } = p9;
+  const ra9 = [0, 0, 0, 0]; const rl9 = [0, 0, 0, 0];   // 길이 1·2·3·4+ — 실루엣(알파) · 속(밝기)
+  const CELL9 = 48; const cols9 = Math.ceil(w / CELL9);
+  const hit9 = new Uint32Array(cols9 * Math.ceil(h / CELL9));
+  const lum9 = (i9: number): number => 0.299 * px[i9] + 0.587 * px[i9 + 1] + 0.114 * px[i9 + 2];
+  for (let y = 0; y < h; y += 1) {
+    const row9 = y * w * 4; const cy9 = Math.floor(y / CELL9) * cols9;
+    let x = 0;
+    while (x < w - 1) {
+      const i0 = row9 + x * 4; const a0 = px[i0 + 3]; const a1 = px[i0 + 7];
+      if (Math.abs(a1 - a0) > 4) {   // 알파 단조 구간
+        const s9 = a1 > a0 ? 1 : -1; let xe = x;
+        while (xe < w - 1 && (px[row9 + xe * 4 + 7] - px[row9 + xe * 4 + 3]) * s9 > 4) xe += 1;
+        const ae = px[row9 + xe * 4 + 3];
+        if (Math.min(a0, ae) < 16 && Math.max(a0, ae) >= 240) { ra9[Math.min(3, xe - x - 1)] += 1; hit9[cy9 + Math.floor(x / CELL9)] += 1; }
+        x = xe; continue;
+      }
+      if (a0 >= 240 && a1 >= 240) {   // 속 밝기 단조 구간(불투명끼리)
+        const L0 = lum9(i0); let Lp = L0; let xe = x;
+        const s9 = lum9(i0 + 4) > L0 ? 1 : -1;
+        while (xe < w - 1 && px[row9 + xe * 4 + 7] >= 240) { const Ln = lum9(row9 + xe * 4 + 4); if ((Ln - Lp) * s9 <= 1.5) break; xe += 1; Lp = Ln; }
+        if (xe > x) {
+          if (Math.abs(Lp - L0) >= 60) { rl9[Math.min(3, xe - x - 1)] += 1; hit9[cy9 + Math.floor(x / CELL9)] += 1; }
+          x = xe; continue;
+        }
+      }
+      x += 1;
+    }
+  }
+  const pct9 = (r9: number[]): string => { const n9 = r9[0] + r9[1] + r9[2] + r9[3]; return n9 ? `한칸 ${(100 * r9[0] / n9).toFixed(0)}%·두칸 ${(100 * r9[1] / n9).toFixed(0)}%·세칸+ ${(100 * (r9[2] + r9[3]) / n9).toFixed(0)}% (${n9})` : "없음"; };
+  PIX9.line = `GL판 가장자리 — 실루엣 ${pct9(ra9)} · 속 ${pct9(rl9)} · 판 ${w}×${h}`;
+  let best9 = 0; for (let i9 = 1; i9 < hit9.length; i9 += 1) if (hit9[i9] > hit9[best9]) best9 = i9;
+  if (hit9[best9] > 0 && typeof ImageData !== "undefined") {
+    const cx9 = (best9 % cols9) * CELL9; const cy0 = Math.floor(best9 / cols9) * CELL9;
+    const cw9 = Math.min(CELL9, w - cx9); const chh9 = Math.min(CELL9, h - cy0);
+    const out9 = new ImageData(CELL9, CELL9);
+    for (let yy = 0; yy < chh9; yy += 1) for (let xx = 0; xx < cw9; xx += 1) {
+      const si = ((cy0 + yy) * w + cx9 + xx) * 4; const di = ((CELL9 - 1 - yy) * CELL9 + xx) * 4;   // GL 은 아래가 0 행 — 뒤집는다
+      const a9 = px[si + 3]; const k9 = a9 > 0 ? 255 / a9 : 0;   // 미리곱한 알파를 푼다(보이기용)
+      out9.data[di] = Math.min(255, px[si] * k9); out9.data[di + 1] = Math.min(255, px[si + 1] * k9); out9.data[di + 2] = Math.min(255, px[si + 2] * k9); out9.data[di + 3] = a9;
+    }
+    PIX9.win = out9;
+  }
+}
+let pixTmp9: HTMLCanvasElement | null = null;
+/** 진단판의 4배 창 — 화소를 그대로(보간 없이) 키운다. **인라인** 콜백 ref 로 걸어야 렌더마다 다시 그린다(모듈 함수를 그대로 주면 처음 한 번뿐). */
+function pixPaint9(c9: HTMLCanvasElement | null): void {
+  if (!c9 || !PIX9.win) return;
+  if (!pixTmp9) { pixTmp9 = document.createElement("canvas"); pixTmp9.width = PIX9.win.width; pixTmp9.height = PIX9.win.height; }
+  const t9 = pixTmp9.getContext("2d"); const x9 = c9.getContext("2d");
+  if (!t9 || !x9) return;
+  t9.putImageData(PIX9.win, 0, 0);
+  x9.imageSmoothingEnabled = false;
+  x9.fillStyle = "#2f6d3a"; x9.fillRect(0, 0, c9.width, c9.height);   // 투명 바탕은 초록 땅빛으로 — 실루엣 가장자리가 보이게
+  x9.drawImage(pixTmp9, 0, 0, c9.width, c9.height);
+}
 const NO_ZI9 = typeof location !== "undefined" && /nozi/.test(location.hash);
 /** `#diag=grid` — 유닛(2D 효과 캔버스)·GL 층에 **기기 픽셀 한 줄짜리 시험 무늬**(검은 줄 + 흰 줄 · 64px 마다, GL 은 1px 고리)를 얹는다(2026-10-09,
  *  지적: "같은 창 크기에서도 분할 여부에 따라 흐려") — 어느 층이 재표본되는지 눈으로 가르는 자: 1:1 이면 줄이 또렷한 흑백이고, 반 픽셀이라도
@@ -6115,6 +6179,10 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         if (DUMP_CV9 && !DUMP9.done) {   // 위 ★ — flush 직후 같은 작업 안에서 읽는다
           if (!DUMP9.at) DUMP9.at = performance.now();
           else if (performance.now() - DUMP9.at > 4000) { DUMP9.done = true; if (glRef.current) dumpCv9(glRef.current, "gl.png"); dumpCv9(cv, "unit.png"); }
+        }
+        if (DIAG_PIX9 && performance.now() - PIX9.at > 1000) {   // ★ `#diag=pix` — flush 직후 같은 작업 안에서 읽는다(위 pixStat9)
+          PIX9.at = performance.now();
+          const p9 = gl9.peek9(); if (p9) pixStat9(p9);
         }
         if (scrDiagOn()) {
           const miss9 = [...GL_MISS9].sort((a9, b9) => b9[1] - a9[1]).slice(0, 4).map(([k9, n9]) => `${k9}×${n9}`).join(" ");
@@ -17280,6 +17348,13 @@ export default function ReplayMotionPlayer({
                 {/* 흐림 진단(위 blurDiag9) — **어느 모드에서나** 보인다(2026-10-09: `#diag=grid` 에서 이 줄이 빠져 사용자가 무늬만 찍어 보냈다).
                     사용자가 찍어 보내는 머리 아래 한 줄이다. */}
                 <div>{blurDiag9(mapRef.current, xfGestureRef.current, gestureRef.current)}</div>
+                {/* `#diag=pix` — GL 판 자체의 가장자리(위 pixStat9) + 가장자리가 가장 많은 48×48 창의 4배 화소. */}
+                {DIAG_PIX9 && (
+                  <div>
+                    {PIX9.line || "GL판 읽는 중…(GL 붓이 칠한 뒤 1초)"}
+                    <canvas className="scr-diag-pix" width={192} height={192} ref={(c9) => pixPaint9(c9)} aria-hidden />   {/* 인라인 콜백 — 렌더마다 다시 그린다 */}
+                  </div>
+                )}
                 {/* 요약(값 없는 #diag) — 한 줄에 끊김·메모리·워커의 첫 자를 다 둔다. */}
                 {diagModes9.size === 0 && (
                   <div>
