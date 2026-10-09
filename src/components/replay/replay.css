@@ -3104,7 +3104,13 @@
      없다) 두 판의 광택 띠가 같은 높이에서 같은 색으로 이어진다 — 틀의 바탕을 border-box 에 맞춘 것이 그 이음의 자다.
      비스듬한 반사 한 줄기는 틀에만 남아 가운데 판이 살짝 도드라진다. 위·아래 베벨은 줄이 진다. */
   /* 쇠판은 감싸개(.scr-fs-lower) 한 장이다 — 툴박스와 독 줄이 같은 판 위에 선다(위 ★★). 옛 판은 독 줄이 제 쇠를 깔았다. */
+  /* ★★ 쇠판의 윗선은 **층**이다(2026-10-09, 요청: "독 윗부분은 일자가 아니라 요소에 맞춰서 층이 있게") — 쇠판(이 감싸개)은 전광판·인포창 키(--dock-h)의
+     평평한 판이고, 미니맵 우물(키 × --mini-up)은 그 위로 **넘쳐 솟는다**(dockmain 바닥 맞춤 · overflow visible) — 솟은 몫은 미니맵 받침(.scr-fs-minipanel::before ·
+     제 테를 긋는 쇠 덩이)이 받친다. 지도는 쇠판 윗선까지 내려오고 받침이 그 아래 가운데를 덮는다 — 화면 주인 이름표·자막은 그만큼 올린다(--dock-lift ·
+     dockFit9 가 뿌리에 적는다 · 분할 격자는 그만큼 아래를 비운다). 판 자체에 clip-path 를 걸면 툴박스에서 위로 펼치는 목록(배속·음악)까지 잘리므로 안 깎는다.
+     위치·겹 문맥(z 0)은 솟은 받침이 무대(앞 형제 · z 0) 위에 그려지게 하는 자다(전체화면은 z 12). */
   .scr-fs-layer .scr-fs-lower {
+    position: relative; z-index: 0;
     /* ★ 헤어라인은 **세로**다(2026-10-09, 지적: "독 헤어라인 왜 가로지 아직도" — 앞서 틀(.scr-fs-dockframe)만 돌렸는데 판 안에서 틀의 바탕은 꺼져 있고
        보이는 쇠는 이 감싸개의 것이었다). 줄은 90deg(세로 줄) · 느린 얼룩은 180deg(줄을 따라). */
     background:
@@ -3189,10 +3195,11 @@
   pointer-events: auto;
 }
 /* 우물 — 쇠판에 파인 자리. 위 안쪽 그늘이 깊이를, 아래 밝은 입술이 판의 두께를 말한다. */
-/* ★ 미니맵은 **한 단 크다**(2026-10-09, 요청: "미니맵이 더 올라가게 미니맵을 한단 크게" — 층을 둔다) — 미니맵 우물의 키 = --dock-h × --mini-up(1.2) · 전광판·인포창은
-   --dock-h 그대로 바닥에 맞춰 서고, 틀은 미니맵 키를 따른다(그 위의 쇠가 층으로 읽힌다). 독 맞춤(dockFit9)의 폭 셈에도 이 배수가 든다. */
+/* ★ 미니맵은 **한 단 크다**(2026-10-09, 요청: "미니맵이 더 올라가게 미니맵을 한단 크게" → "독 윗부분은 일자가 아니라 요소에 맞춰서 층이 있게") — 미니맵 우물의 키 =
+   --dock-h × --mini-up(1.2) · 전광판·인포창·틀은 --dock-h 그대로이고 미니맵 우물은 바닥 맞춤으로 틀 위로 넘쳐 솟는다(받침 .scr-fs-minipanel::before · 위 쇠판 ★★).
+   독 맞춤(dockFit9)의 폭 셈에도 이 배수가 든다. */
 .scr-fs-dockframe { --mini-up: 1.2; }
-.scr-fs-dockmain { display: flex; align-items: flex-end; justify-content: center; gap: var(--dock-sep); height: calc(var(--dock-h) * var(--mini-up, 1)); min-width: 0; }
+.scr-fs-dockmain { display: flex; align-items: flex-end; justify-content: center; gap: var(--dock-sep); height: var(--dock-h); min-width: 0; }
 /* 숨은 자(ReplayMotionPlayer dockFit9) — 설계 치수의 CSS 계산값을 JS 가 읽는 자리: 폭 = 인포창 설계 폭 · 키 = 설계 키 · 왼 여백 = 구분 틈 · 오른 여백 = 틀 여백. */
 .scr-fs-dockprobe { position: absolute; left: 0; top: 0; visibility: hidden; pointer-events: none; width: var(--dock-w); height: var(--dock-h0); margin: 0 var(--dock-out) 0 var(--dock-sep); }
 /* 인포창이 안 서는 틀(is-noinfo · 남는 폭이 설계 폭의 INFO_MIN_K9 아래) — 미니맵 뒤 구분 막대도 걷는다. */
@@ -3221,7 +3228,7 @@
    틀어(1px 줄 · 2·3px 딴 주기) 따로 끼운 판으로 읽힌다. 양옆 1px 은 우물 쪽으로 꺾이는 모서리(밝은 왼 · 어두운 오른). */
 .scr-fs-dockmain > .scr-fs-rosterpanel, .scr-fs-dockmain > .scr-fs-minipanel { position: relative; }
 .scr-fs-dockmain > .scr-fs-rosterpanel::after, .scr-fs-dockmain > .scr-fs-minipanel::after {
-  content: ""; position: absolute; top: auto; bottom: 0; height: calc(var(--dock-h) * var(--mini-up, 1)); right: calc(-1 * var(--dock-sep)); width: var(--dock-sep);   /* 틀 온 키(미니맵 키) */
+  content: ""; position: absolute; top: 0; bottom: 0; right: calc(-1 * var(--dock-sep)); width: var(--dock-sep);
   background:
     repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px 2px),
     repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.09) 0 1px, transparent 1px 3px),
@@ -3243,7 +3250,22 @@
   flex: none; width: calc(var(--dock-h) * var(--mini-up, 1) * var(--scr-mini-ar, 1)); min-width: 0; height: calc(var(--dock-h) * var(--mini-up, 1));
   container-type: size; pointer-events: none;
 }
-.scr-fs-minipanel .scr-motion-minibox { width: 100%; height: 100%; margin: 0; display: flex; align-items: center; justify-content: center; }
+.scr-fs-minipanel .scr-motion-minibox { width: 100%; height: 100%; margin: 0; display: flex; align-items: center; justify-content: center; position: relative; z-index: 1; }
+/* ★ 미니맵 받침 — 쇠판 윗선 위로 솟은 쇠 덩이(위 쇠판의 ★★ 층). 우물 둘레를 틀 여백(--dock-out)만큼 두르고 위 테·양옆 테(검은 1px + 밝은 1px)를 제가 긋는다 ·
+   아래는 쇠판 윗선의 테(2px)를 몇 px 덮어 이음매를 지운다. 미니맵 상자(.scr-motion-minibox · z 1)가 그 위에 선다. */
+.scr-fs-dockmain > .scr-fs-minipanel { position: relative; }
+.scr-fs-dockmain > .scr-fs-minipanel::before {
+  content: ""; position: absolute; z-index: 0; pointer-events: none;
+  left: calc(-1 * var(--dock-out)); right: calc(-1 * var(--dock-out)); top: calc(-1 * var(--dock-out) - 1px);
+  height: calc(var(--dock-h) * (var(--mini-up, 1) - 1) + 4px);   /* 우물 위 틀 여백·테부터 쇠판 윗선 아래 3px 까지(쇠판 윗선 = 우물 바닥 − --dock-h − 여백 − 테) */
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px 2px),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.09) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, #b2b8c0 0%, #a3abb4 70%, #9aa2ab 100%);
+  box-shadow:
+    inset 0 1px 0 #0b0d10, inset 0 2px 0 rgba(255, 255, 255, 0.55),
+    inset 1px 0 0 #0b0d10, inset -1px 0 0 #0b0d10, inset 2px 0 0 rgba(255, 255, 255, 0.18), inset -2px 0 0 rgba(0, 0, 0, 0.35);
+}
 .scr-fs-minipanel .scr-fs-minimap {
   pointer-events: auto; box-sizing: border-box; flex: none;
   width: auto; height: min(100cqh, calc(100cqw / var(--scr-mini-ar, 1)));
@@ -4302,7 +4324,8 @@
    무대 폭 26%·키 34% · --split-tile 상한 · is-cast 손짓 끊기)과 그 크기 담기(container-type) — 미니맵은 독의 우물 하나뿐이다. */
 .scr-fs-solo { position: absolute; inset: 0; z-index: 30000; pointer-events: none; }
 .scr-fs-layer.is-fs .scr-fs-solo { top: var(--safe-top, 0px); }
-.scr-fs-solo-cap { pointer-events: none; }
+/* 받침이 무대 아래 가운데를 덮는 만큼(--dock-lift · dockFit9) 이름표·자막을 올린다(2026-10-09 층). */
+.scr-fs-solo-cap { pointer-events: none; bottom: calc(3px * var(--dk) + var(--dock-lift, 0px)); }
 /* (걷어냄 · 2026-10-09 — 아래 규칙은 옛 TV 단추의 것 · 깜빡임 박자만 독 로스터의 AUTO 가 쓴다) ★ TV 단추는 **아이콘 줄 맨 왼쪽의 동그라미**다(2026-09, 요청: "중계버튼 버튼로우 왼쪽으로 이동하고 동그라미로 변경및 크기색상 디자인
    다른 버튼과 통일(활성시 초록불깜빡임 유지)") — 꼴은 형제 우물 그대로(위 .scr-tb … :not(.is-on) 규칙)이고, 켜짐만 초록 테 + 아이콘이
    밝은 초록 ↔ 어두운 초록으로 깜빡인다(검정으로 꺼지면 어두운 우물에 묻혀 '꺼진 단추'로 읽힌다). */
@@ -4324,7 +4347,7 @@
    (바닥 가운데 · 키 1.25·cap-fs · 바닥 3·dk) **바로 위** 6·dk 에 선다. 글자는 이름표의 1.1배 · 어두운 반투명 알약 · 왼쪽 띠가 몫 색(공격 빨강 · 방어 파랑 ·
    교전 주황). 토막이 갈릴 때(key) 아래서 살짝 떠오른다 · 움직임 줄이기면 안 뜬다. */
 .scr-cast-caption {
-  position: absolute; left: 50%; bottom: calc(3px * var(--dk) + 1.25 * var(--cap-fs) + 6px * var(--dk)); transform: translateX(-50%); z-index: 1;
+  position: absolute; left: 50%; bottom: calc(3px * var(--dk) + 1.25 * var(--cap-fs) + 6px * var(--dk) + var(--dock-lift, 0px)); transform: translateX(-50%); z-index: 1;
   max-width: calc(100% - 6px * var(--dk)); box-sizing: border-box; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   font-size: calc(var(--cap-fs) * 1.1); line-height: 1.3; font-weight: 700; color: #fff; pointer-events: none;
   padding: 0.12em 0.6em 0.12em 0.5em; border-radius: 3px; background: rgba(8, 10, 14, 0.62); border-left: 0.3em solid #e5383b;
