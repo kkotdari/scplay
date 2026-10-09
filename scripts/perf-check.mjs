@@ -2169,13 +2169,14 @@ if (SHOT) {
     /* 인포창 넘침 자(2026-10-09, 물음: "어떤 경우에도 인포창 내용 잘림 없지?") — 몸(.scr-motion-infodock-body)의 scrollHeight − clientHeight 와,
        자손 가운데 몸 바닥 아래로 내려간 가장 큰 몫(px). 둘 다 0 이어야 잘림이 없다. */
     const body = document.querySelector(".scr-motion-infodock-body");
-    let over = 0; let below = 0;
+    let over = 0; let below = 0; let overX = 0; let right = 0;
     if (body) {
       over = body.scrollHeight - body.clientHeight;
+      overX = body.scrollWidth - body.clientWidth;   // 옆 넘침(폰 글자 키움 검산 · 2026-10-09)
       const bb = body.getBoundingClientRect();
-      for (const el of body.querySelectorAll("*")) { const r = el.getBoundingClientRect(); if (r.height > 0) below = Math.max(below, r.bottom - bb.bottom); }
+      for (const el of body.querySelectorAll("*")) { const r = el.getBoundingClientRect(); if (r.height > 0) { below = Math.max(below, r.bottom - bb.bottom); right = Math.max(right, r.right - bb.right); } }
     }
-    return `${document.querySelector(".scr-dock-roster")?.className} · 인포창 ${w(".scr-fs-dockmain > .scr-motion-infodock")} · 판 ${w(".scr-fs-rosterpanel")} · 독메인 ${w(".scr-fs-dockmain")} · 줄 ${w(".scr-fs-dockrow")} · 인포 넘침 ${over.toFixed(1)} · 바닥 밖 ${below.toFixed(1)}`;
+    return `${document.querySelector(".scr-dock-roster")?.className} · 인포창 ${w(".scr-fs-dockmain > .scr-motion-infodock")} · 판 ${w(".scr-fs-rosterpanel")} · 독메인 ${w(".scr-fs-dockmain")} · 줄 ${w(".scr-fs-dockrow")} · 인포 넘침 ${over.toFixed(1)} · 바닥 밖 ${below.toFixed(1)} · 옆 넘침 ${overX.toFixed(1)} · 오른쪽 밖 ${right.toFixed(1)}`;
   }));
   await page.screenshot({ path: SHOT });
   console.log(`스크린샷: ${SHOT}`);

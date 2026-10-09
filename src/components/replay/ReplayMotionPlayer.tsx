@@ -1142,9 +1142,11 @@ const liteFlag9 = typeof location !== "undefined" && /[?&]lite=1/.test(location.
 const SPLIT_PHONE_MAX9 = 2;
 /** 독 로스터의 자료 쪽(2026-10-09, 요청: "모바일은 자원&인구/데미지/일꾼& APM 세 페이지로 자동 슬라이딩 순환" → 같은 날 "3페이지에서 4페이지로:
  *  일꾼&인구 - 광물&가스 - 데미지 - APM") — PC 는 넷이 나란히 = 여섯 칸 전부(차례도 이 차례 = 옛 로스터 차례). */
-type RosterCol9 = "min" | "gas" | "sup" | "dmg" | "worker" | "apm";
-const ROSTER_PAGES9: readonly (readonly RosterCol9[])[] = [["worker", "sup"], ["min", "gas"], ["dmg"], ["apm"]];
-const ROSTER_LABEL9: Record<RosterCol9, string> = { min: "광물", gas: "가스", sup: "인구", dmg: "데미지", worker: "일꾼", apm: "APM" };
+/* 광물·가스는 **한 칸 "자원"**("1234/567" · 2026-10-09, 요청: "광물도 하나로 합쳐 보이기 — 사이에 / · 라벨은 자원 · PC 도") · 데미지는 퍼센트만(dmgPctNode9). */
+type RosterCol9 = "res" | "sup" | "dmg" | "worker" | "apm";
+/* 쪽은 칸 하나씩(2026-10-09, 요청: "일꾼과 인구도 페이지 나누기 — 안 그래도 좁으니까") — 다섯 쪽. PC 는 쪽 꼴이 아니면 다 나란히라 쪽 수는 상관없다. */
+const ROSTER_PAGES9: readonly (readonly RosterCol9[])[] = [["worker"], ["sup"], ["res"], ["dmg"], ["apm"]];
+const ROSTER_LABEL9: Record<RosterCol9, string> = { res: "자원", sup: "인구", dmg: "데미지", worker: "일꾼", apm: "APM" };
 /** 폰 로스터가 한 쪽에 머무는 시간(ms). */
 const ROSTER_PAGE_MS9 = 3000;
 /** 쪽 미끄럼 시간(ms) — replay.css `.scr-dock-roster.is-paged .scr-dock-strip` 의 transition 0.45s 와 한 값. 되감기(아래 ★)가 이 뒤에 한다. */
@@ -9732,6 +9734,26 @@ export default function ReplayMotionPlayer({
       (t9 && t9[2] >= 2 && tot > 0 ? Math.round((mine / tot) * 100) : null);
     return [d9[0], d9[1], pct9(d9[0], t9?.[0] ?? 0), pct9(d9[1], t9?.[1] ?? 0)];
   };
+  /** 독 로스터의 데미지 칸 — **퍼센트만**(2026-10-09, 요청: "데미지의 수치 없애고 퍼센트만 보이기 · PC 도 똑같이") — 팀전은 팀 안의 내 몫(위 dmgOf9) ·
+   *  1:1 이나 혼자인 팀(몫이 null)은 **모두 가운데 내 몫**(준 = 내 준 ÷ 모두의 준 · 입은 = 내 입은 ÷ 모두의 입은)이라 1:1 에서 55%/45% 가 곧 우열이다.
+   *  합이 0 이면 "–". 준은 녹색 · 입은은 붉은색(dmgNode9 와 같은 색). */
+  const dmgPctNode9 = (d9: readonly [number, number, number | null, number | null]): React.ReactNode => {
+    let p0 = d9[2];
+    let p1 = d9[3];
+    if (p0 === null || p1 === null) {
+      let s0 = 0; let s1 = 0;
+      for (const v9 of dmgNow.values()) { s0 += v9[0]; s1 += v9[1]; }
+      p0 = s0 > 0 ? Math.round((d9[0] / s0) * 100) : null;
+      p1 = s1 > 0 ? Math.round((d9[1] / s1) * 100) : null;
+    }
+    return (
+      <>
+        <span className="scr-dmg-dealt">{p0 === null ? "–" : `${p0}%`}</span>
+        <span className="scr-dmg-sep">/</span>
+        <span className="scr-dmg-taken">{p1 === null ? "–" : `${p1}%`}</span>
+      </>
+    );
+  };
   const workerNow = useMemo(() => {
     const m = new Map<string, number>();
     for (const [raw, series] of workerLive) {
@@ -17196,10 +17218,12 @@ export default function ReplayMotionPlayer({
     const stripStyle9 = rosterPaged9 ? { transform: `translateX(-${rosterPage9 * 100}%)` } : undefined;
     const cell9 = (m: MotionBase, col9: RosterCol9): React.ReactNode => {
       switch (col9) {
-        case "min": { const r9 = resNow.get(m.key); return r9 ? r9[0] : ""; }
-        case "gas": { const r9 = resNow.get(m.key); return r9 ? r9[1] : ""; }
+        case "res": {
+          const r9 = resNow.get(m.key);
+          return r9 ? <><span className="scr-motion-stat-min">{r9[0]}</span><span className="scr-dock-ressep">/</span><span className="scr-motion-stat-gas">{r9[1]}</span></> : "";
+        }
         case "sup": { const s9 = supplyNow.get(m.key); return s9 ? supNode9(s9, supplyExtraNow.get(m.key)) : ""; }
-        case "dmg": { const d9 = dmgOf9(m.key); return d9 ? dmgNode9(d9) : ""; }
+        case "dmg": { const d9 = dmgOf9(m.key); return d9 ? dmgPctNode9(d9) : ""; }
         case "worker": return workerNow.has(m.key) ? (workerNow.get(m.key) ?? 0) : "";
         default: return apmNow.get(m.key) ?? m.apm ?? "";
       }
@@ -17272,7 +17296,7 @@ export default function ReplayMotionPlayer({
                       {mates.map((m) => (
                         <div key={m.key} className="scr-dock-row">
                           {pg9.map((c9) => (
-                            <span key={c9} className={cx("scr-dock-cell", `is-${c9}`, c9 === "min" && "scr-motion-stat-min", c9 === "gas" && "scr-motion-stat-gas")}>{cell9(m, c9)}</span>
+                            <span key={c9} className={cx("scr-dock-cell", `is-${c9}`)}>{cell9(m, c9)}</span>
                           ))}
                         </div>
                       ))}
