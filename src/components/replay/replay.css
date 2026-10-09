@@ -3306,7 +3306,7 @@
 .scr-dock-name .scr-motion-teamcol-race {
   flex: none; display: inline-flex; align-items: center; justify-content: center; margin: 0 0.35em 0 0;
   width: calc(var(--rp) * 0.6); height: calc(var(--rp) * 0.6); border-radius: 50%;
-  background: rgba(0, 0, 0, 0.4); color: #fff; opacity: 1; font-size: 0.72em; font-weight: 800; line-height: 1; letter-spacing: 0;
+  background: #fff; color: #1b2027; opacity: 1; font-size: 0.72em; font-weight: 800; line-height: 1; letter-spacing: 0;   /* 바탕은 흰색(재요청) · 글자는 어두운 회색 */
 }
 .scr-motion-pc9 .scr-dock-name .scr-motion-teamcol-race { width: round(nearest, calc(var(--rp) * 0.6), 2px); height: round(nearest, calc(var(--rp) * 0.6), 2px); }
 .scr-dock-roster.is-paged .scr-dock-name .scr-motion-teamcol-race { margin-right: 0.3em; }
