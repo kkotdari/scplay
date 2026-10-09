@@ -17250,11 +17250,15 @@ export default function ReplayMotionPlayer({
                       >
                         <Video aria-hidden />
                       </button>
-                      <span className={cx("scr-motion-teamcol-name scr-dock-name", shownRaws9.has(m.key) && "scr-motion-teamcol-cast")} style={chipStyle(m.key, m.team, CHIP_ROW_A9)}>
-                        {m.name}
-                        {m.race && raceLetter9(m.race) ? <span className="scr-motion-teamcol-race">{raceLetter9(m.race)}</span> : null}
+                      {/* 칩 + 트로피 겹싸개 — 트로피는 칩의 **왼쪽 위에 얹힌 오버레이**다(2026-10-09, 요청: "승리팀 트로피는 닉네임 위에 오버레이로
+                          왼쪽 위에 붙여주기"). 칩은 overflow hidden(긴 이름 자름)이라 칩 안에 못 두고, 겹싸개(position relative)에 절대 자리로. */}
+                      <span className="scr-dock-namewrap">
+                        <span className={cx("scr-motion-teamcol-name scr-dock-name", shownRaws9.has(m.key) && "scr-motion-teamcol-cast")} style={chipStyle(m.key, m.team, CHIP_ROW_A9)}>
+                          {m.name}
+                          {m.race && raceLetter9(m.race) ? <span className="scr-motion-teamcol-race">{raceLetter9(m.race)}</span> : null}
+                        </span>
+                        {winnerTeam && (m.team === 2 ? 2 : 1) === winnerTeam && t >= total - 0.5 && !fallen9 && <span className="scr-dock-trophy" aria-label="승리">🏆</span>}
                       </span>
-                      {winnerTeam && (m.team === 2 ? 2 : 1) === winnerTeam && t >= total - 0.5 && !fallen9 && <span className="scr-dock-trophy">🏆</span>}
                     </div>
                   );
                 })}

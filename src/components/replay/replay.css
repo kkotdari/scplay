@@ -3213,7 +3213,15 @@
   flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: clip; white-space: nowrap;   /* 말줄임표는 안 쓴다(로스터 칩의 규칙 — 위 .scr-motion-teamcol-name) */
   padding: 0 calc(3px * var(--dk)); border-radius: 2px; line-height: 1.3; font-weight: 700; font-size: 1em;
 }
-.scr-dock-trophy { flex: none; font-size: 0.8em; }
+/* 칩 겹싸개 — 칩이 차지하던 자리(flex 1 1 auto)를 대신 차지하고 트로피의 기준이 된다. 칩은 그 안에서 폭을 다 쓴다. */
+.scr-dock-namewrap { position: relative; flex: 1 1 auto; min-width: 0; display: flex; align-items: center; }
+.scr-dock-namewrap > .scr-dock-name { flex: 1 1 auto; }
+/* 승리 트로피 — 칩의 **왼쪽 위**에 얹힌 오버레이(2026-10-09). 줄 키 비례 · 클릭은 통과 · 나타날 때 옛 아바타 트로피와 같은 들어옴(scr-motion-in). */
+.scr-dock-trophy {
+  position: absolute; left: calc(-3px * var(--dk)); top: calc(var(--rp) * -0.2); z-index: 1;
+  font-size: calc(var(--rp) * 0.5); line-height: 1; pointer-events: none;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.7)); animation: scr-motion-in 0.3s ease-out;
+}
 /* 무게 (0,4,0) — 칩 글자 규칙 둘(.scr-motion-wide … 11px · .scr-motion:not(.scr-motion-wide) … clamp)이 (0,2,0)·(0,3,0)이라 독 칩은 한 겹 더 짚어
    줄 키 비례(1em)로 못 박는다(폰에서 칩만 두 배로 커져 "정…"으로 접혔다 · 실측). */
 .scr-motion .scr-fs-rosterpanel .scr-dock-row .scr-dock-name {

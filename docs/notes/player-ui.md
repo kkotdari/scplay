@@ -1197,3 +1197,10 @@ AUTO 글자 합성) · 현재 화면에 보여주는 화면 주인(들)은 기�
 - 쪽 꼴 칸은 **등분**(flex 1 1 0)이다 — 라벨 줄이 팀 덩이 밖으로 나가 '같은 줄 안 space-around'가 아니라 같은 폭 규칙으로 줄을 맞춘다. 쪽은 두 칸 이하라 반씩이어도 인구 "149/10" 이 든다.
 - 되감기: 띠 끝에 첫 쪽 복제(pages9 · 쪽 꼴에서만) → 거기까지 미끄러진 뒤 `ROSTER_SLIDE_MS9`(450 = CSS 0.45s)+40ms 에 is-snap(전이 없음)으로 0 쪽으로 되감고 두 rAF 뒤 전이를 되살린다.
 🔎 `node scripts/perf-check.mjs --wide --vw 1920 --vh 1080 --dpr 1 --glblit --dmg --players 4 --fs --shot x.png` · 폰 `--ios --players 4 --dmg --glblit --fs --shot`. perf-check 의 `로스터줄 키` 는 옛 .scr-motion-teamrow 라 null(걷힌 무대 로스터 — 진단만 남았다).
+
+## 독 로스터 승리 트로피는 닉네임 칩의 왼쪽 위 오버레이(2026-10-09)
+요청: "승리팀 트로피는 닉네임 위에 오버레이로 왼쪽 위에 붙여주기, 타이틀에 결과 표시 없애기". 칩은 overflow hidden(긴 이름 자름)이라 칩 안에 못 두고,
+칩 + 트로피를 `.scr-dock-namewrap`(position relative · 칩이 차지하던 flex 1 1 auto)으로 싸고 `.scr-dock-trophy` 를 절대 자리(left −3px·dk · top −0.2줄 · 글자 0.5줄)로 얹는다.
+제목 줄의 승패 배지("1팀 승")는 sg-web(GameResultStory·GuestGameStory 의 headMeta)에서 걷었다 — 카드의 맵 줄(.scr-story-maphead)에는 그대로.
+🔎 `node scripts/perf-check.mjs --wide --vw 1920 --vh 1080 --dpr 1 --glblit --dmg --players 4 --fs --t 118.99 --winner 1 --shot x.png` — `--winner 1|2` 를 새로 두었다
+(합성 세계는 이긴 편이 없었다). 트로피는 끝 0.5초 안에서만 뜨고 시작 시각은 `total − 1` 미만만 받으므로 118.99 로 열어 사진 때 119.5 를 넘긴다.

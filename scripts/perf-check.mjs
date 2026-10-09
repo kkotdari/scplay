@@ -487,6 +487,7 @@ window.__mount = (motion, players, walkJson, terrainB64) => {
   const teamOfRaw = (raw) => { const f = players.find((p) => p.name === raw); return f ? f.force : undefined; };
   createRoot(el).render(React.createElement(ReplayMotionPlayer, {
     grid, endSec: 120, bases, teamOfRaw, active: true, clockKey: "perf",
+    ...(window.__winner === 1 || window.__winner === 2 ? { winnerTeam: window.__winner } : {}),
     /* 링크 한 벌(sceneLink) — 앱이 넘기는 그 꼴 그대로: t 46(고스트 검산 시각) · --track <아이디|*>(&tr= · * 는 자동 중계) ·
        --zoom/--cx/--cy/--deg(&z=·&cx=·&cy=·&a= — 난전이 (64,64) = 분수 0.5라 화면 한가운데 온다 · 본진을 확대해 재려면
        --cx/--cy 로 옮긴다(가운데는 빈 땅이라 아무것도 안 그려진다)). */
@@ -726,12 +727,13 @@ if (cssFile) {
 else console.warn("⚠ dist CSS 없음 — npm run build 먼저. 화면 배치가 안 맞을 수 있다.");
 await page.addScriptTag({ content: js, type: "module" });
 await page.waitForFunction("!!window.__mount");
-await page.evaluate(([z, d, mw, mh, cx, cy, tr, t0]) => {
+await page.evaluate(([z, d, mw, mh, cx, cy, tr, t0, w9]) => {
   window.__zoom = z; window.__deg = d; window.__mapw = mw; window.__maph = mh;
-  window.__cx = cx; window.__cy = cy; window.__track = tr; window.__t = t0;
+  window.__cx = cx; window.__cy = cy; window.__track = tr; window.__t = t0; window.__winner = w9;
 }, [Number(flag("--zoom", 1)), Number(flag("--deg", 90)),
   Number(flag("--mapw", 128)), Number(flag("--maph", 128)),
-  Number(flag("--cx", 0.5)), Number(flag("--cy", 0.5)), flag("--track", "") || null, Number(flag("--t", 46))]);
+  Number(flag("--cx", 0.5)), Number(flag("--cy", 0.5)), flag("--track", "") || null, Number(flag("--t", 46)),
+  Number(flag("--winner", 0))]);   // --winner 1|2 — 이긴 편(로스터 칩 트로피 검산 · 끝 0.5초 안에서만 뜨므로 --t 118.9 와 함께)
 await page.evaluate(([m, pl, wj, tb]) => window.__mount(m, pl, wj, tb), [world.motion, world.players, walkFixture, makeTerrain()]);
 // 재생이 실제로 그려질 때까지 — blit이 돌기 시작하면 준비된 것이다.
 // GL 붓(기본 켬)은 판을 안 찍는다 — 그린 개체 수(__glInst9)로도 준비를 안다.
