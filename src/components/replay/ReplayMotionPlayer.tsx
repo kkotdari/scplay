@@ -328,6 +328,31 @@ const clipBegin9 = (c: CanvasRenderingContext2D, cw: number, ch: number): void =
   CLIP_ON9.add(c);
 };
 const unitCanvases9 = (root: HTMLElement | null): HTMLCanvasElement[] => root ? Array.from(root.querySelectorAll<HTMLCanvasElement>(".scr-motion-unitlayer")) : [];
+/** ★ **지도 상자를 기기 화소 자리에 세운다**(2026-10-09, 사용자 스크린샷의 `#diag=grid` 고리: 1px 흰 고리가 세 화소에 걸쳐 48% 로
+ *  퍼졌다 — 헤드리스 같은 창(1278×1304 · dpr 1)에서는 한 화소 255. 잉크 총량은 같고 꼴이 0.25/0.5/0.25 라 **반 화소 밀린 재표본**이다)
+ *  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ *  상자(.scr-motion-map)는 정수 CSS px 크기지만 **자리**는 배치가 정한다: 가운데 맞춤(margin auto · 그리드 가운데)은 남는 폭이 홀수면
+ *  .5 에 떨어지고, 위쪽 요소의 소수 높이도 그대로 내려온다. 캔버스는 그 자리에 inset:0 이라 한 화소의 반을 두 화소에 나눠 그려진다 —
+ *  크기·배킹 비(×1.0000)가 다 정상인데도 흐린 길이다. 그래서 상자의 배치 자리를 재서 가장 가까운 기기 화소까지의 차만큼 `translate`
+ *  로 민다(크기는 안 건드린다 — 옛 snapDev9 가 소수 CSS 크기로 가운데 맞춤을 흔들던 되물림을 피한다). 되맞춤 뒤 자리는 늘 정수
+ *  기기 화소라, 배치가 .5 를 오가도 그림이 한 화소씩 다르게 붙는 일이 없다. 끄기 `#rootsnap=0`. 진단 흐림: 줄의 `되맞춤`. */
+const ROOT_SNAP9 = typeof location === "undefined" || !/rootsnap=0/.test(location.hash);
+const ROOT_SNAP_AT9 = new WeakMap<HTMLElement, { x: number; y: number }>();
+function snapRoot9(root: HTMLElement | null): void {
+  if (!root || !ROOT_SNAP9 || typeof window === "undefined") return;
+  const dpr9 = window.devicePixelRatio || 1;
+  const cur9 = ROOT_SNAP_AT9.get(root) ?? { x: 0, y: 0 };
+  const r9 = root.getBoundingClientRect();
+  if (!(r9.width > 0)) return;
+  const lx9 = r9.left - cur9.x; const ly9 = r9.top - cur9.y;   // 배치 자리(지금 민 양을 뺀다)
+  let nx9 = Math.round(lx9 * dpr9) / dpr9 - lx9; let ny9 = Math.round(ly9 * dpr9) / dpr9 - ly9;
+  if (Math.abs(nx9) < 0.002) nx9 = 0;
+  if (Math.abs(ny9) < 0.002) ny9 = 0;
+  if (nx9 === cur9.x && ny9 === cur9.y) return;
+  ROOT_SNAP_AT9.set(root, { x: nx9, y: ny9 });
+  root.style.setProperty("translate", nx9 === 0 && ny9 === 0 ? "" : `${nx9.toFixed(3)}px ${ny9.toFixed(3)}px`);
+  SCR_DIAG.rootSnap = nx9 === 0 && ny9 === 0 ? "" : `${nx9.toFixed(2)},${ny9.toFixed(2)}`;
+}
 /** ★ **흐림 진단 한 줄**(2026-10, 지적: "지형뿐 아니라 모델이 흐려" — 사용자의 #diag 머리 줄에 ⚠재표본이 없는데도 흐렸다) ──
  *  헤드리스로는 재현이 안 되는 흐림이라, 사용자가 찍어 보내는 **머리 줄** 자체가 범인을 가려야 한다. 캔버스의 배킹·CSS
  *  크기·화면 자리는 다 정상인데도 화면이 뭉개지는 길은 캔버스 **밖**에 있다: 지도 상자가 기기 화소의 소수 자리에 놓임 ·
@@ -398,7 +423,8 @@ function blurDiag9(root: HTMLElement | null, gest9: boolean, pinch9: boolean): s
   }
   parts9.push(`조상 ${anc9.length ? anc9.join(" ") : "-"}`);
   const vv9 = window.visualViewport;
-  parts9.push(`뷰 ${vv9 ? vv9.scale.toFixed(3) : "-"} 손짓 ${gest9 ? (pinch9 ? "핀치" : "on") : "-"} 배킹몫 ${xfBackK9.k}${xfLive9.on ? " live" : ""}`);
+  const sc9 = document.scrollingElement;
+  parts9.push(`뷰 ${vv9 ? vv9.scale.toFixed(3) : "-"} 스크롤 ${fr9(sc9 ? sc9.scrollTop : 0)} 되맞춤 ${SCR_DIAG.rootSnap || "-"} 손짓 ${gest9 ? (pinch9 ? "핀치" : "on") : "-"} 배킹몫 ${xfBackK9.k}${xfLive9.on ? " live" : ""}`);
   return `흐림: ${parts9.join(" · ")}`;
 }
 /** GL 붓이 못 맡아 판으로 떨어진 종류별 횟수(진단 'GL' 줄의 '판으로'). */
@@ -6038,11 +6064,15 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         /* 시험 무늬(위 DIAG_GRID9) — GL 층: 1px 흰 고리를 64px 격자 교점에 · 2D 효과 캔버스: 기기 픽셀 한 줄 검정 + 흰 줄. */
         if (DIAG_GRID9) {
           for (let gy9 = 32; gy9 < ch; gy9 += 64) for (let gx9 = 32; gx9 < cw; gx9 += 64) gl9.prim(2, gx9, gy9, 12, 12, "#ffffff", 1, 1 / Bd);
-          if (fctx9 && fcv9) {
-            fctx9.save(); fctx9.setTransform(1, 0, 0, 1, 0, 0);
-            for (let gx9 = 0; gx9 < fcv9.width; gx9 += Math.round(64 * Bd)) { fctx9.fillStyle = "#000"; fctx9.fillRect(gx9, 0, 1, fcv9.height); fctx9.fillStyle = "#fff"; fctx9.fillRect(gx9 + 1, 0, 1, fcv9.height); }
-            for (let gy9 = 0; gy9 < fcv9.height; gy9 += Math.round(64 * Bd)) { fctx9.fillStyle = "#000"; fctx9.fillRect(0, gy9, fcv9.width, 1); fctx9.fillStyle = "#fff"; fctx9.fillRect(0, gy9 + 1, fcv9.width, 1); }
-            fctx9.restore();
+          /* 머리카락 줄은 **효과 붓**(fxCtx9)으로 — GL 심(vec9)이 있으면 GL 판의 삼각형이고, 없으면 2D 캔버스다(2026-10-09: 효과 캔버스
+             (fcv9)는 심이 없을 때만 서므로 종전 길은 심이 있는 기기에서 줄이 아예 안 그려졌다 — 사용자 스크린샷에 고리만 섰다).
+             기기 화소 한 줄 검정 + 흰 줄: 합성이 1:1 이면 흑백이 또렷하고, 반 화소라도 밀리면 회색으로 뭉갠다. */
+          {
+            const hx9 = fxCtx9; const stepPx9 = Math.max(8, Math.round(64 * Bd));
+            hx9.save(); hx9.setTransform(1, 0, 0, 1, 0, 0);
+            for (let gx9 = 0; gx9 < cv.width; gx9 += stepPx9) { hx9.fillStyle = "#000"; hx9.fillRect(gx9, 0, 1, cv.height); hx9.fillStyle = "#fff"; hx9.fillRect(gx9 + 1, 0, 1, cv.height); }
+            for (let gy9 = 0; gy9 < cv.height; gy9 += stepPx9) { hx9.fillStyle = "#000"; hx9.fillRect(0, gy9, cv.width, 1); hx9.fillStyle = "#fff"; hx9.fillRect(0, gy9 + 1, cv.width, 1); }
+            hx9.restore();
           }
         }
         /* 분할 칸이면 그 오림 네모만 지우고·칠하고·옮긴다(gl9 clip — 판의 나머지는 버리는 화소다). */
@@ -11309,6 +11339,8 @@ export default function ReplayMotionPlayer({
         lyr9.style.setProperty("--scr-stage-l", `${Math.max(0, Math.round(b9.left - a9.left))}px`);
         lyr9.style.setProperty("--scr-stage-r", `${Math.max(0, Math.round(a9.right - b9.right))}px`);
       }
+      /* 상자 자리를 기기 화소에 세운다(위 snapRoot9) — 창·문서·무대가 바뀔 때마다 여기서 다시 잰다. */
+      snapRoot9(mapRef.current);
     };
     read();
     /* ★ **위에 있는 것이 자리를 잡은 뒤에 다시 잰다**(지적: "아래 여백이 너무 높아져
@@ -17141,13 +17173,15 @@ export default function ReplayMotionPlayer({
                   {" · UI "}{SCR_DIAG.ui}
                   {" · 판 "}{typeof __SCPLAY_BUILD__ !== "undefined" ? __SCPLAY_BUILD__ : "dev"}
                   {SCR_DIAG.ss !== 1 ? ` · 초해상 ×${SCR_DIAG.ss.toFixed(2)}` : ""}
-                  {Math.abs(SCR_DIAG.unitScale - SCR_DIAG.ss) > 0.002 || SCR_DIAG.scale !== 1 ? " · ⚠재표본" : ""}
+                  {/* ⚠ 에는 **어느 값이 걸렸나**를 함께 적는다(2026-10-09, 사용자 스크린샷에 ⚠재표본만 서서 범인을 못 가렸다) —
+                      유닛 캔버스 배킹÷화면(unitScale) 과 지형 배킹÷화면(scale · 0 은 아직 안 구움). */}
+                  {Math.abs(SCR_DIAG.unitScale - SCR_DIAG.ss) > 0.002 ? ` · ⚠재표본(유닛 ×${SCR_DIAG.unitScale.toFixed(4)})`
+                    : SCR_DIAG.scale > 0 && Math.abs(SCR_DIAG.scale - 1) > 0.002 ? ` · ⚠재표본(지형 ×${SCR_DIAG.scale.toFixed(4)})` : ""}
                   {!SCR_DIAG.allocOk ? " · ⚠배킹확보 실패" : ""}
                 </div>
-                {/* 흐림 진단(위 blurDiag9) — 요약·draw·view 에서 보인다. 사용자가 찍어 보내는 머리 아래 한 줄이다. */}
-                {(diagModes9.size === 0 || dm9("draw") || dm9("view")) && (
-                  <div>{blurDiag9(mapRef.current, xfGestureRef.current, gestureRef.current)}</div>
-                )}
+                {/* 흐림 진단(위 blurDiag9) — **어느 모드에서나** 보인다(2026-10-09: `#diag=grid` 에서 이 줄이 빠져 사용자가 무늬만 찍어 보냈다).
+                    사용자가 찍어 보내는 머리 아래 한 줄이다. */}
+                <div>{blurDiag9(mapRef.current, xfGestureRef.current, gestureRef.current)}</div>
                 {/* 요약(값 없는 #diag) — 한 줄에 끊김·메모리·워커의 첫 자를 다 둔다. */}
                 {diagModes9.size === 0 && (
                   <div>
