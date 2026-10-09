@@ -1142,3 +1142,23 @@ AUTO 글자 합성) · 현재 화면에 보여주는 화면 주인(들)은 기�
   더 둔다: `#nomapiso`(지도 상자 isolation 끔 · `.scr-t-nomapiso`) · `#nostageov`(무대 overflow 열기 · `.scr-t-nostageov` — 시험 동안 지형이 독 위로 비어져
   나온다). 진단 `상자` 항목에 상자 **제** 성질(iso·tf·persp·wc·contain·filter·op·blend)도 적는다. `#glblit=0` 은 죽은 손잡이(베끼기 길 걷힘 → 모델 안 보임 ·
   옛 기록 그대로) · `#gl=0` 의 흐림은 2D 붓이 구운 판을 배율에 맞춰 늘리는 길이라 증거가 못 된다.
+
+## PC 툴박스 한 줄 · 독이 그만큼 큼 · 로스터 줄 키 상한 17 · 라벨·값 가운데 · 중계 중 평면 고정(2026-10-09)
+★ (요청: "버튼이 이제 몇개 안되니 버튼과 재생부를 한줄로 합치기(슬라이드바 길이를 가변적으로). 버튼을 현재 재생부 좌우로 배치. 2D/3D전환은 중계중엔
+비활성화(성능에 무리가)" · "독에서 그만큼 남은 세로 공간은 로스터와 인포창에 할애해서 높이를 그만큼 높이기 … 로스터칸은 높아진 만큼 요소 크기 키우기.
+그리고 로스터의 라벨과 데이터를 가운데 정렬해서 줄맞추기(모바일도)")
+· **PC 툴박스 `.scr-tb.is-one`**(`!smallDevice9`): [아이콘 단추들 | 배속 · 재생 · 진행바(남는 폭 전부) · 시계 | 꼬리(스크랩·공유·사용법·전체화면·접기)]. 꼬리는
+  `tailNode9` 한 벌(폰은 종전 두 줄 — 단추 줄 끝에). 위아래 여백은 두 줄 때와 같아 비는 키 = 단추 줄 한 줄 + 줄 사이 = 30·ui + 9.6·dk. 실측 PC 1280×900:
+  툴박스 키 101.6 → **56.4** · 독 줄 키 248.1 → **295.4** · 무대는 그대로(아래 줄 전체 키가 같다). 우물 규칙(`.scr-tb .scr-tb-btnrow > …`)에 `.scr-tb.is-one > …`
+  짝을 더했다(단추 무리가 줄의 직계 자식이 됐다).
+· **독 키**: `.scr-motion.scr-motion-pc9, .scr-motion-pc9 .scr-motion { --dock-body: 96·dk + 30·ui + 9.6·dk }` — ⚠ 안쪽 판(`.scr-motion.scr-fs-layer`)도
+  `.scr-motion` 이라 변수를 제 값으로 되덮는다 — 자손 꼴로도 적어야 한다(뿌리에만 적으니 248 그대로였다 · 실측). 뿌리 클래스 `scr-motion-pc9` 는
+  `!smallDevice9`. 인포창 몸(`.scr-motion-infodock-body` = --dock-h)도 그만큼 커 아래 잘림이 준다.
+· **로스터**: PC 줄 키 상한 13 → **17·dk**(1:1·2:2 는 상한 · 4:4 는 키가 정한다) · 글자는 **폭**이 먼저 막는다 `min(0.52·rp, (판 폭 cqw − 90)/30)`
+  (판 폭 = 인포창 폭 490 에 여섯 칸 46ch 가 들어야 — `.scr-fs-rosterpanel { container-type: inline-size }`) · 칩 키 = 카메라 단추 키(0.84·rp · inline-flex) ·
+  칸 라벨·값 `text-align: center`(PC·폰 — 옛 오른쪽 맞춤 되물림).
+· **중계 중 2D/3D**: 단추 `disabled`(camLockRef9) · V 키 무시 · 켜질 때 평면으로 내린다(toggleCast9 · toggleTrack — startSplit9 와 같은 문).
+· 🔎 `perf-check --wide --warm 0 --glblit --dmg --castoff --shot x.png`(한 줄 · 독 295) · `--players 8 --track 정구`(열한 줄) · `--ios … --players 4`(폰은 두 줄 그대로).
+· **흐림 가르기 `#evenbox`**(사용자 chrome://gpu: 크롬 154 · Skia Graphite **GraphiteDawnD3D11** · RTX 5080 활성 + AMD 내장 · `#nomapiso`·`#nostageov` 둘 다 흐림):
+  지도 상자 한 변(fsCoverW·H)을 짝수로 내린다 — 번진 화면은 늘 홀수 변(877·895)이었고 또렷한 진단판 캔버스는 192 였다(홀수 한 변 가설 · 폭 구간·분할 여부
+  의존과도 맞는다). 다음 자: 창 폭 1px 씩 바꿔 `상자` 홀/짝과 흐림 대조(배포 없이) · `chrome://flags/#skia-graphite` 끄기.

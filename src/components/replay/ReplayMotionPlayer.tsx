@@ -935,6 +935,11 @@ const NO_CALC9 = typeof location !== "undefined" && /nocalc/.test(location.hash)
  *  차이는 지도 상자(.scr-motion-map · isolation)와 무대(.scr-fs-stage · overflow hidden)뿐이다): `#nomapiso` = 지도 상자의 isolation 을 끈다 ·
  *  `#nostageov` = 무대의 overflow 를 연다(지형이 독 위로 비어져 나오는 것은 시험 동안만). 둘 다 replay.css 의 .scr-t-* 한 줄씩이다. */
 const NO_MAP_ISO9 = typeof location !== "undefined" && /nomapiso/.test(location.hash);
+/** `#evenbox` — 지도 상자(= 유닛·GL 캔버스) 한 변을 **짝수** px 로 내린다(2026-10-09, 흐림 가르기: 사용자 PC(크롬 154 · Skia Graphite Dawn/D3D11 ·
+ *  RTX 5080 + AMD 내장)는 상자 877·895(홀수)에서 지도 안 캔버스만 번지고 진단판의 192(짝수) 캔버스는 또렷했다 — 폭 구간·분할 여부에 따라
+ *  갈리던 옛 증상과도 맞는 **홀수 한 변 가설**. 홀수면 1px 줄여 오른·아래에 한 줄 틈이 생긴다 — 시험용). */
+const EVEN_BOX9 = typeof location !== "undefined" && /evenbox/.test(location.hash);
+const evenIf9 = (v9: number): number => (EVEN_BOX9 ? v9 - (v9 & 1) : v9);
 const NO_STAGE_OV9 = typeof location !== "undefined" && /nostageov/.test(location.hash);
 /** 유닛·GL·효과 캔버스의 인라인 변환 한 줄 — `#noxf` 면 비운다. */
 function xfSet9(cv9: HTMLCanvasElement, xf9: string): void {
@@ -11657,9 +11662,9 @@ export default function ReplayMotionPlayer({
      때마다 상자가 기기 화소 하나씩 흔들렸다**(지적: "중계모드에서 선택이 바뀔때 같은 화면안에 있는데도 미묘하게 화면이 흔들려" ·
      `#cvsnap=0` 으로 사라짐). 상자는 **정수 CSS px** 그대로다 — 소수 dpr 에서 유닛·GL 캔버스의 ×0.9998 재표본은 눈에 안 드는 몫이다. */
   const fsCoverW = stage.w > 0
-    ? Math.round(Math.max(stage.w, (fitH9 * grid.width) / Math.max(1, grid.height)))
+    ? evenIf9(Math.round(Math.max(stage.w, (fitH9 * grid.width) / Math.max(1, grid.height))))
     : 0;
-  const fsCoverH = fsCoverW > 0 ? Math.round((fsCoverW * grid.height) / Math.max(1, grid.width)) : 0;
+  const fsCoverH = fsCoverW > 0 ? evenIf9(Math.round((fsCoverW * grid.height) / Math.max(1, grid.width))) : 0;
 
 
   /* 팬 한계가 읽는 자 셋 — 그리는 값과 **같은 렌더에서** 심는다(한 박자 늦으면 손짓이
