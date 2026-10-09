@@ -4190,25 +4190,31 @@
   border: calc(2px + 1px * var(--dk)) solid; border-color: inherit;
 }
 .scr-split-cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-/* ★ 칸 머리는 이름 칩(+ PC 는 현황 — 아래 .scr-split-st)이다(2026-09, 요청: "헤더의 수치들 제거하고 음영 제거" → PC 에는 도로
-   현황을 칩과 같은 꼴로 · 옛 반투명 섬 바탕·글자 그림자는 그대로 걷혀 있다). 칩은 왼위 귀퉁이에서 한 뼘 띄운다. */
+/* ★ 칸 머리는 이름 칩 하나다(2026-09, 요청: "헤더의 수치들 제거하고 음영 제거" · 2026-10-09 요청 3 으로 PC 현황도 걷음 · 옛 반투명 섬 바탕·글자 그림자 없음).
+   ★ 자리는 **바닥 가운데**(2026-10-09, 요청 1: "화면 주인 닉네임택을 화면 하단 가운데로 이동(개인/분할화면)" — 옛 왼위 3·dk). 발치 미니맵(왼아래)과는
+   가운데라 안 겹친다(이름이 아주 길면 max-width 가 자른다). 글자는 --cap-fs(PC 8·dk · 폰 16·dk — 2026-10-09, 요청 2: "모바일에서 닉네임택 글자크기 두배").
+   맞대결 두 칸은 아래 is-cap-* 가 경계 쪽으로 옮긴다. */
+.scr-split, .scr-fs-solo {
+  --cap-fs: calc(8px * var(--dk));
+  /* 맞대결 표(.scr-duel-mark)의 길이 — 글자 7자 · 머리가 경계에서 물러나는 몫은 표 반 + 5·dk(화살표 끝과 칩 사이 숨). */
+  --duel-len: calc(7 * var(--cap-fs)); --duel-off: calc(var(--duel-len) / 2 + 5px * var(--dk));
+}
+.scr-motion:not(.scr-motion-pc9) :is(.scr-split, .scr-fs-solo) { --cap-fs: calc(16px * var(--dk)); }
 .scr-split-cap {
-  position: absolute; left: calc(3px * var(--dk)); top: calc(3px * var(--dk)); z-index: 1;
+  position: absolute; left: 50%; bottom: calc(3px * var(--dk)); transform: translateX(-50%); z-index: 1;
   max-width: calc(100% - 6px * var(--dk)); box-sizing: border-box; display: flex; min-width: 0;
-  /* 8·dk — PC·폰 같은 한 단 작은 글자(2026-09, 요청: "피시 헤더 닉네임과 스탯 폰트 1스텝씩 줄이기" → "모바일도 동일하게 적용해야 갈림이 없을듯" · 옛 9). */
-  font-size: calc(8px * var(--dk)); line-height: 1.25; font-weight: 700; white-space: nowrap;
+  font-size: var(--cap-fs); line-height: 1.25; font-weight: 700; white-space: nowrap;
   text-align: left; pointer-events: none;
-  /* 현황이 칸 폭에 다 안 들면 통째로 숨긴다(2026-09, 요청: "PC에서도 헤더 스탯이 잘리는 분할창의 가로 길이에서는 숨기기") — 한 줄 키로
-     못 박고 줄바꿈을 허락하면, 안 드는 현황이 둘째 줄로 내려가 잘려 나간다(칩 옆 자리가 남을 때만 선다 · JS 잼 없음). */
+  /* 한 줄 키로 못 박고 넘치는 것은 숨긴다(옛 현황 숨기기의 자 — 지금은 칩 하나라 자르기만 한다). */
   flex-wrap: wrap; height: 1.25em; overflow: hidden;
 }
 /* ★ 맞대결 두 칸의 머리는 **맞붙은 경계선 가운데**(2026-10-09, 요청: "교전화면에서 공격/방어/교전배지와 닉네임을 … 맞붙은 경계선 좌우나 위아래 가운데에") —
-   r = 오른변 가운데(왼 칸) · l = 왼변 가운데(오른 칸 · 배지가 경계 쪽에 오게 row-reverse) · b = 아랫변 가운데(위 칸) · t = 윗변 가운데(아래 칸). JSX capSide9. */
-.scr-split-cell.is-cap-r > .scr-split-cap { left: auto; right: calc(3px * var(--dk)); top: 50%; transform: translateY(-50%); }
-.scr-split-cell.is-cap-l > .scr-split-cap { top: 50%; transform: translateY(-50%); flex-direction: row-reverse; justify-content: flex-end; }
-.scr-split-cell.is-cap-l > .scr-split-cap .scr-split-badge { margin-left: 0; margin-right: calc(3px * var(--dk)); }
-.scr-split-cell.is-cap-b > .scr-split-cap { top: auto; bottom: calc(3px * var(--dk)); left: 50%; transform: translateX(-50%); max-width: calc(100% - 6px * var(--dk)); }
-.scr-split-cell.is-cap-t > .scr-split-cap { left: 50%; transform: translateX(-50%); }
+   r = 오른변 가운데(왼 칸) · l = 왼변 가운데(오른 칸) · b = 아랫변 가운데(위 칸) · t = 윗변 가운데(아래 칸). JSX capSide9. 경계에서 --duel-off 만큼 물러난다
+   (2026-10-09, 요청: "화살표 들어갈수있게 닉네임택은 가장자리에서 좀 띄우기" — 옛 3·dk) · 그 사이에 맞대결 표(.scr-duel-mark)가 선다. */
+.scr-split-cell.is-cap-r > .scr-split-cap { left: auto; right: var(--duel-off); bottom: auto; top: 50%; transform: translateY(-50%); }
+.scr-split-cell.is-cap-l > .scr-split-cap { left: var(--duel-off); bottom: auto; top: 50%; transform: translateY(-50%); }
+.scr-split-cell.is-cap-b > .scr-split-cap { bottom: var(--duel-off); }
+.scr-split-cell.is-cap-t > .scr-split-cap { bottom: auto; top: var(--duel-off); }
 /* 흐림 가르기 손잡이(2026-10-09 · ReplayMotionPlayer NO_MAP_ISO9 · NO_STAGE_OV9) — 시험 동안만 켠다. */
 .scr-motion-map.scr-t-nomapiso { isolation: auto; }
 .scr-fs-stage.scr-t-nostageov { overflow: visible; }
@@ -4216,7 +4222,7 @@
    작게") — 글자색은 칩이 그 색의 밝기로 정한다. */
 .scr-split-chip {
   display: inline-block; flex: none; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
-  padding: 0 calc(3px * var(--dk)); border-radius: 2px;
+  padding: 0 0.35em; border-radius: 2px;   /* em — 폰의 두 배 글자(--cap-fs 16·dk)에서도 같은 비례(옛 3px·dk ≈ PC 의 0.35em) */
 }
 /* (걷어냄 · 2026-10-09, 요청 3) PC 칸 머리의 현황 한 줄(.scr-split-st) — 칸 머리는 이름 칩뿐이다. */
 /* (걷어냄 · 2026-10-09, 요청 3) 폰 단독 화면 주인의 두 줄 현황(.scr-fs-ownerst) — 독 로스터가 든다. */
@@ -4301,21 +4307,34 @@
 @media (prefers-reduced-motion: reduce) {
   .scr-tb .scr-tb-btnrow > .scr-motion-mapbtns .scr-motion-castbtn-on svg { animation: none; color: #3dffa8; }
 }
-/* ★ 맞대결 배지(2026-10, 요청: "공격쪽 닉네임에 공격배지 방어는 방어배지 둘다 공격이면 교전배지 붙이고 깜빡이기") — 자동 중계가
-   교전·침공·견제 장면을 두 칸으로 나눌 때 칸 머리의 이름 칩 바로 뒤에 선다. 칩과 같은 키·둥글기 · 1초 박자로 밝았다 옅어진다. */
-.scr-split-badge {
-  display: inline-flex; align-items: center; flex: none; height: 1.25em; box-sizing: border-box;
-  margin-left: calc(3px * var(--dk)); padding: 0 calc(3px * var(--dk)); border-radius: 2px;
-  color: #fff; font-weight: 800; animation: scr-duel-blink 1s ease-in-out infinite;
+/* ★★ 맞대결 표(2026-10-09, 요청 3·4·5: "공격방어 배지대신 화살표에 텍스트라벨 … 공격자 닉네임택에서 수비자 닉네임택쪽으로 붉은 화살표에 공격이라는
+   라벨 얹기 · 교전은 … 칼교차 이모지에 교전 라벨 얹기 · 화살표와 이모지는 글로우 및 확대바운스" — JSX .scr-duel-mark) — 격자의 **모든 칸을 덮는 자리**
+   (grid 1/-1)에 서서 그 한가운데(= 두 칸의 경계선 가운데)에 핀(.scr-duel-pin)을 박는다. 공격: 붉은 화살표(오른쪽 꼴 하나 · is-dir-l/d/u 로 돌린다) 가운데에
+   '공격' 라벨 · 교전: ⚔️ 아래턱에 '교전' 라벨(주황). .scr-duel-fx 가 글로우(drop-shadow 두 겹)와 확대 바운스(1 → 1.22)를 1초 박자로 탄다.
+   옛 맞대결 배지(.scr-split-badge 공격·방어·교전 · 칩 뒤에서 깜빡임)는 걷었다. 길이 --duel-len · 두 칸 머리는 --duel-off 만큼 물러나 있다(위). */
+.scr-duel-mark { grid-column: 1 / -1; grid-row: 1 / -1; position: relative; z-index: 2; min-width: 0; min-height: 0; pointer-events: none; }
+.scr-duel-pin { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: block; }
+.scr-duel-fx { position: relative; display: block; --duel-glow: rgba(255, 64, 64, 0.9); animation: scr-duel-pop 1s ease-in-out infinite; }
+.scr-duel-mark.is-war .scr-duel-fx { --duel-glow: rgba(255, 168, 48, 0.9); }
+.scr-duel-arrow { display: block; width: var(--duel-len); height: calc(var(--duel-len) * 0.4); overflow: visible; }
+.scr-duel-arrow path { fill: #e5383b; stroke: #fff; stroke-width: 2.5; stroke-linejoin: round; }
+.scr-duel-mark.is-dir-l .scr-duel-arrow { transform: rotate(180deg); }
+.scr-duel-mark.is-dir-d .scr-duel-arrow { transform: rotate(90deg); }
+.scr-duel-mark.is-dir-u .scr-duel-arrow { transform: rotate(-90deg); }
+.scr-duel-emoji { display: block; font-size: calc(2.6 * var(--cap-fs)); line-height: 1; text-align: center; padding: 0 0.1em; }
+.scr-duel-label {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); white-space: nowrap;
+  font-size: var(--cap-fs); line-height: 1.3; font-weight: 800; color: #fff; padding: 0 0.35em; border-radius: 2px;
+  background: #c4181c; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.75);
 }
-.scr-split-badge.is-atk { background: #e5383b; }
-.scr-split-badge.is-def { background: #2f6fe4; }
-.scr-split-badge.is-war { background: #e8890c; }
-@keyframes scr-duel-blink {
-  0%, 100% { opacity: 1; filter: brightness(1.2); box-shadow: 0 0 6px 1px rgba(255, 255, 255, 0.55); }
-  50% { opacity: 0.45; filter: none; box-shadow: none; }
+.scr-duel-mark.is-war .scr-duel-label { top: auto; bottom: -0.3em; transform: translateX(-50%); background: #e8890c; }
+@keyframes scr-duel-pop {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px var(--duel-glow)) drop-shadow(0 0 6px var(--duel-glow)); }
+  50% { transform: scale(1.22); filter: drop-shadow(0 0 4px var(--duel-glow)) drop-shadow(0 0 14px var(--duel-glow)); }
 }
-@media (prefers-reduced-motion: reduce) { .scr-split-badge { animation: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .scr-duel-fx { animation: none; filter: drop-shadow(0 0 3px var(--duel-glow)) drop-shadow(0 0 8px var(--duel-glow)); }
+}
 
 /* ── 모델 도록(요청: "scplayer에 도록 페이지 추가" · 2026-10 scplayer global.css 에서 옮김 — ModelCatalog.tsx) ────────────────────────────────
    모델을 그리는 일은 scplay의 ShapeIcon이 다 한다 — 여기는 **자리와 칸**만 정한다.

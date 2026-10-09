@@ -957,21 +957,41 @@ if (has("--split")) {
     await page.waitForTimeout(150);
   }
   await page.waitForTimeout(Number(flag("--splitwait", 4000)));
-  /* --capside — 맞대결 머리 자리 검산(2026-10-09): 손으로 켠 2분할에 맞대결의 칸 머리 클래스(is-cap-r/l · b/t)와 가짜 배지(공격/방어)를 입혀 찍는다
-     (합성 세계는 맞대결 장면을 못 낸다). 사진용이다 — 상태는 안 건드린다. */
+  /* --capside [atk|war] — 맞대결 머리·표 자리 검산(2026-10-09): 손으로 켠 2분할에 맞대결의 칸 머리 클래스(is-cap-r/l · b/t)와 가짜 맞대결 표
+     (.scr-duel-mark — 첫 칸이 공격자인 붉은 화살표 + '공격' · war 면 ⚔️ + '교전')를 입혀 찍는다(합성 세계는 맞대결 장면을 못 낸다). 사진용이다 — 상태는
+     안 건드린다. 표의 꼴은 ReplayMotionPlayer 의 JSX(DUEL_ARROW_D9)와 같은 글자 그대로다 — 바꾸면 여기도. [맞대결 표] 줄에 표·두 머리의 네모와 겹침을 찍는다. */
   if (has("--capside")) {
-    await page.evaluate(() => {
+    const war9 = flag("--capside", "") === "war";
+    await page.evaluate((war) => {
       const cells = [...document.querySelectorAll(".scr-split-cell")];
       if (cells.length !== 2) return;
       const [a, b] = cells.map((el) => el.getBoundingClientRect());
-      const side = Math.abs(a.top - b.top) < 2 ? ["r", "l"] : ["b", "t"];
-      cells.forEach((el, i) => {
-        el.classList.add(`is-cap-${side[i]}`);
-        const cap = el.querySelector(".scr-split-cap");
-        if (cap) { const bd = document.createElement("span"); bd.className = `scr-split-badge is-${i === 0 ? "atk" : "def"}`; bd.textContent = i === 0 ? "공격" : "방어"; cap.appendChild(bd); }
-      });
-    });
+      const lr = Math.abs(a.top - b.top) < 2;
+      const side = lr ? ["r", "l"] : ["b", "t"];
+      cells.forEach((el, i) => el.classList.add(`is-cap-${side[i]}`));
+      const grid = cells[0].parentElement;
+      const mk = document.createElement("span");
+      mk.className = `scr-duel-mark ${war ? "is-war" : `is-atk is-dir-${lr ? "r" : "d"}`}`;
+      mk.setAttribute("aria-hidden", "true");
+      const body = war
+        ? `<span class="scr-duel-emoji">⚔️</span>`
+        : `<svg class="scr-duel-arrow" viewBox="0 0 100 40"><path d="M3 13H64V3L97 20L64 37V27H3Z"></path></svg>`;
+      mk.innerHTML = `<span class="scr-duel-pin"><span class="scr-duel-fx">${body}<span class="scr-duel-label">${war ? "교전" : "공격"}</span></span></span>`;
+      grid.appendChild(mk);
+    }, war9);
     await page.waitForTimeout(300);
+    const dm9 = await page.evaluate(() => {
+      const r = (el) => { const b = el.getBoundingClientRect(); return [+b.left.toFixed(0), +b.top.toFixed(0), +b.width.toFixed(0), +b.height.toFixed(0)]; };
+      const fx = document.querySelector(".scr-duel-fx");
+      const caps = [...document.querySelectorAll(".scr-split-cell .scr-split-cap")];
+      const mark = fx ? r(fx) : null;
+      const capsR = caps.map(r);
+      const hit = (p, q) => p[0] < q[0] + q[2] && q[0] < p[0] + p[2] && p[1] < q[1] + q[3] && q[1] < p[1] + p[3];
+      const over = mark ? capsR.filter((c) => hit(mark, c)).length : 0;
+      const fs = caps[0] ? getComputedStyle(caps[0]).fontSize : null;
+      return { mark, caps: capsR, over, fs, label: document.querySelector(".scr-duel-label")?.textContent ?? null };
+    });
+    console.log(`[맞대결 표] 표 ${JSON.stringify(dm9.mark)} "${dm9.label}" · 머리 ${JSON.stringify(dm9.caps)} · 글자 ${dm9.fs} · 겹침 ${dm9.over}`);
   }
   const sp9 = () => page.evaluate(() => {
     const cells = [...document.querySelectorAll(".scr-split-cell")].map((el) => {

@@ -297,8 +297,10 @@ const SPLIT_SPAN_K9 = 0.75;
 /* 분할 칸 배율을 위 둘(담기 · 최소 타일)로 낸 뒤 한 번 더 당기는 몫(2026-10, 지적: "분할창 보이는 영역이 이제 너무 넓어짐" →
    "살짝 줄여야할듯") — 칸에 보이는 타일이 가로·세로 다 1/1.2 로 준다. */
 const SPLIT_ZOOM_K9 = 1.2;
-/** 맞대결 배지 글자(위 duel9). */
+/** 맞대결 표의 라벨 글자(위 duel9 · .scr-duel-mark — 공격 화살표 '공격' · ⚔️ '교전' · def 는 안 쓴다(화살표의 끝이 수비다)). */
 const DUEL_LABEL9: Record<CastRole9, string> = { atk: "공격", def: "방어", war: "교전" };
+/** 맞대결 공격 화살표의 꼴(100×40 · 오른쪽을 향한다 — 방향은 CSS is-dir-* 가 돌린다 · 자루 14 · 촉 34). */
+const DUEL_ARROW_D9 = "M3 13H64V3L97 20L64 37V27H3Z";
 /** 분할보기 칸의 오림 네모(유닛 캔버스 CSS px · x0 y0 x1 y1) — 칸을 칠하는 동안만 서고, 붓의 화면 걸러내기(inView0)가 이 안의
  *  몸만 그린다. 칸은 제 실제 배율(낮다)로 칠하므로 판에는 그 칸보다 넓은 땅이 드는데, 그 몫을 안 그려야 칸 수만큼 값이 안 붙는다. */
 let PAINT_CLIP9: [number, number, number, number] | null = null;
@@ -19212,10 +19214,10 @@ export default function ReplayMotionPlayer({
                    (컬러모드와 무관) 헤더에서 N팀 제거"). 팀색은 색 모드를 안 탄다(TEAM_COLOR 1 파랑 · 2 빨강) · 팀 없는 사람은 테두리 없음. */
                 const tm9 = melee ? undefined : teamOfRaw(c9.raw);
                 const nm9 = bases.find((b9) => b9.key === c9.raw)?.name ?? c9.raw;
-                const rl9: CastRole9 | null = !duel9 ? null : c9.raw === duel9.a ? duel9.ra : c9.raw === duel9.b ? duel9.rb : null;
-                /* ★ 맞대결의 칸 머리(이름 칩 + 배지)는 **맞붙은 경계선 가운데**다(2026-10-09, 요청: "교전화면에서 공격/방어/교전배지와 닉네임을 좌상단이
+                /* ★ 맞대결의 칸 머리(이름 칩)는 **맞붙은 경계선 가운데**다(2026-10-09, 요청: "교전화면에서 공격/방어/교전배지와 닉네임을 좌상단이
                    아닌 맞붙은 경계선 좌우나 위아래 가운데에 배치 — 주인공과 상황이 쉽게 파악되게") — 좌우 두 칸이면 왼 칸은 오른변 가운데(r) · 오른 칸은
-                   왼변 가운데(l · 배지가 경계 쪽에 오게 뒤집는다), 위아래 두 칸이면 위 칸은 아랫변(b) · 아래 칸은 윗변(t). 손으로 켠 분할은 왼위 그대로. */
+                   왼변 가운데(l), 위아래 두 칸이면 위 칸은 아랫변(b) · 아래 칸은 윗변(t). 경계에서 --duel-off 만큼 물러나 사이에 맞대결 표(아래 .scr-duel-mark)가
+                   선다(2026-10-09, 요청: "화살표 들어갈수있게 닉네임택은 가장자리에서 좀 띄우기"). 손으로 켠 분할·셋 이상은 바닥 가운데(.scr-split-cap 기본). */
                 const capSide9 = duel9 && splitLay9.cells.length === 2
                   ? (splitLay9.cols === 2 ? (c9.c === 0 ? "r" : "l") : (c9.r === 0 ? "b" : "t")) : null;
                 return (
@@ -19231,11 +19233,10 @@ export default function ReplayMotionPlayer({
                     style={{ gridColumn: c9.c + 1, gridRow: c9.r + 1, ...(tm9 ? { borderColor: TEAM_COLOR[tm9] } : {}) }}
                     aria-label={`${cap9.text} 화면`}
                   >
-                    {/* 칸 머리 — 이름 칩 + 현황(PC 만 · 폰은 아래 .scr-split-ownerst). */}
+                    {/* 칸 머리 — 이름 칩 하나(바닥 가운데 · 맞대결이면 경계 쪽 · 2026-10-09, 요청 1: "화면 주인 닉네임택을 화면 하단 가운데로").
+                        옛 맞대결 배지(.scr-split-badge 공격·방어·교전)는 걷었다 — 아래 .scr-duel-mark 가 대신한다. */}
                     <span className="scr-split-cap">
                       <span className="scr-split-chip" style={cap9.chip}>{nm9}</span>
-                      {/* 맞대결 배지(위 duel9) — 공격 · 방어 · 교전, 깜빡인다. 손으로 켠 분할에는 안 선다. */}
-                      {rl9 && <span className={cx("scr-split-badge", `is-${rl9}`)}>{DUEL_LABEL9[rl9]}</span>}
                       {/* (걷어냄 · 2026-10-09, 요청 3: "스탯바는 중계화면에서 모두 제거") PC 칸 머리의 현황 한 줄(.scr-split-st). */}
                     </span>
                     {/* 칸 발치(.scr-split-foot) — 미니맵(좌하단 · 그 팀 시야 · 제 화면 자리는 그 사람 색 네모 · splitMiniPaint9) + 폰은 그 **오른쪽**에
@@ -19253,6 +19254,28 @@ export default function ReplayMotionPlayer({
                   </div>
                 );
               })}
+              {/* ★★ 맞대결 표(2026-10-09, 요청 3·4·5: "공격방어 배지대신 화살표에 텍스트라벨 — 공격자 닉네임택에서 수비자 닉네임택쪽으로 붉은 화살표에
+                  공격이라는 라벨 얹기 · 교전은 권투장갑 맞부딪힘이나 칼교차 이모지에 교전 라벨 · 화살표와 이모지는 글로우 및 확대바운스") — 두 칸에 걸치므로
+                  칸이 아니라 **격자의 것**이다(모든 칸을 덮는 격자 자리 grid 1/-1 · 그 가운데 = 두 칸의 경계선 가운데에 핀). 공격이면 공격 칸 → 수비 칸으로
+                  향한 붉은 화살표(오른쪽 꼴 하나를 is-dir-r/l/d/u 로 돌린다) 가운데에 '공격', 둘 다 공격이면 ⚔️ 에 '교전'. 글로우·확대 바운스는 .scr-duel-fx.
+                  두 칸 머리는 --duel-off 만큼 경계에서 물러나 있다(위 capSide9). 손짓은 안 받는다(pointer-events none). */}
+              {duel9 && splitLay9.cells.length === 2 && (() => {
+                const war9 = duel9.ra === "war";
+                const atk9 = splitLay9.cells.find((c9) => (c9.raw === duel9.a ? duel9.ra : duel9.rb) === "atk") ?? splitLay9.cells[0];
+                const dir9 = war9 ? "" : splitLay9.cols === 2 ? (atk9.c === 0 ? "r" : "l") : (atk9.r === 0 ? "d" : "u");
+                return (
+                  <span className={cx("scr-duel-mark", war9 ? "is-war" : `is-atk is-dir-${dir9}`)} aria-hidden>
+                    <span className="scr-duel-pin">
+                      <span className="scr-duel-fx">
+                        {war9
+                          ? <span className="scr-duel-emoji">⚔️</span>
+                          : <svg className="scr-duel-arrow" viewBox="0 0 100 40" aria-hidden><path d={DUEL_ARROW_D9} /></svg>}
+                        <span className="scr-duel-label">{DUEL_LABEL9[war9 ? "war" : "atk"]}</span>
+                      </span>
+                    </span>
+                  </span>
+                );
+              })()}
             </div>
           )}
         </div>
