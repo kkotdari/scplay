@@ -1,5 +1,4 @@
-import { Bookmark, Map as MapIcon, Maximize, Music, Palette, Play, Share2, Tv, X } from "lucide-react";
-import RosterTableIcon from "./RosterTableIcon";
+import { Bookmark, Map as MapIcon, Maximize, Music, Palette, Play, Share2, Video, X } from "lucide-react";
 import QMarkIcon from "./QMarkIcon";
 function K({ keys, plus = false, title, desc }: {
     keys: string[];
@@ -56,9 +55,9 @@ export default function ReplayGuide({ onClose }: {
 
         <h3 className="scr-guide-h3">도구 상자</h3>
         <p className="scr-guide-sub">
-          지도 아래 <strong>쇠판</strong>입니다 — 맨 위에 <strong>미니맵 · 인포창</strong>이 서고, 그 아래 버튼 줄은 왼쪽의 동그란 <strong>버튼들</strong>(맨 왼쪽이 <b>중계</b>) ·
+          지도 아래 <strong>쇠판</strong>입니다 — 맨 위에 <strong>로스터 · 인포창</strong>이 서고, 그 아래 버튼 줄은 왼쪽의 동그란 <strong>버튼들</strong> ·
           오른쪽의 <strong>스크랩 · 공유 · 사용법(?) · 전체화면</strong>, 맨 아래 줄은 <strong>배속 · 재생 · 진행바 · 시간</strong>입니다. 버튼 줄 정가운데의 작은 단추가 <strong>접기(▼)</strong>입니다.
-          사람들의 현황은 지도 왼위의 <b>로스터</b>가 보여 줍니다.
+          사람들의 현황은 쇠판 왼쪽의 <b>로스터</b>가 늘 보여 줍니다(폰은 자원·인구 / 데미지 / 일꾼·APM 세 쪽이 번갈아 넘어갑니다). <b>미니맵</b>은 지도 왼쪽 아래 구석에 섭니다.
         </p>
         <p className="scr-guide-sub">
           진행바를 끌면 그 시각으로 갑니다. <strong>스크랩·공유</strong> 두 버튼은 <strong>지금 이 장면</strong>을
@@ -88,12 +87,12 @@ export default function ReplayGuide({ onClose }: {
 
         <h3 className="scr-guide-h3">도구 상자의 버튼</h3>
         <p className="scr-guide-sub">
-          켜지면 <strong>흰 바탕에 검은 그림</strong>으로 뒤집힙니다(아래 견본의 로스터 버튼). <strong>중계</strong> 버튼은 버튼 줄 <strong>맨 왼쪽 동그라미</strong>(<Tv size={12}/>)이고,
-          켜진 동안은 <strong>그림이 초록으로 깜빡</strong>입니다.
+          켜지면 <strong>흰 바탕에 검은 그림</strong>으로 뒤집힙니다. <strong>중계</strong>는 버튼 줄이 아니라 <strong>로스터</strong>의 카메라 단추(<Video size={12}/>)로 고릅니다 —
+          켜진 단추는 <strong>초록 테</strong>이고, 맨 위 <b>AUTO</b>(자동)는 켜진 동안 <strong>초록으로 깜빡</strong>입니다.
         </p>
         <div className="scr-guide-mock">
           <div className="scr-guide-toolrow">
-            <span className="scr-guide-mbtn is-on"><RosterTableIcon size={18}/></span>
+            <span className="scr-guide-mbtn is-on"><MapIcon size={18}/></span>
             <span className="scr-guide-mbtn scr-guide-colsw is-personal"><Palette size={18}/></span>
             <span className="scr-guide-mbtn scr-guide-mbtn-txt">2D</span>
             <span className="scr-guide-mbtn"><Music size={18}/></span>
@@ -103,8 +102,7 @@ export default function ReplayGuide({ onClose }: {
             <span className="scr-guide-tpill"><Maximize size={15}/></span>
           </div>
           <ul className="scr-guide-legend">
-            <li><span className="scr-guide-ic"><Tv size={15}/></span><span><b>중계</b>(버튼 줄 맨 왼쪽) — 누르면 단추 왼쪽 선에 맞춰 위로 목록이 펼쳐집니다: <b>전체 · 사람 이름들 · 자동 · 끄기</b>. 아래 <b>중계 고르기</b>에서 자세히.</span></li>
-            <li><span className="scr-guide-ic"><RosterTableIcon size={15}/></span><span><b>로스터 현황</b> — 끄면 <b>이름만</b>, 켜면 일꾼·자원·인구·데미지·APM까지 뜹니다. 이 버튼은 <b>PC에만</b> 있습니다(폰은 로스터가 늘 이름만이고, 한 사람을 중계·추적할 때 그 사람의 현황이 화면 아래 가운데에 섭니다).</span></li>
+            <li><span className="scr-guide-ic"><Video size={15}/></span><span><b>카메라</b>(로스터 이름 왼쪽) — 누르면 그 사람 화면을 따라갑니다. 둘 이상 켜면 그 사람들만 화면을 나눠 보고, 켜진 것을 다시 누르면 놓습니다. 맨 위 <b>AUTO</b>가 자동 중계입니다. 아래 <b>중계 고르기</b>에서 자세히.</span></li>
             <li><span className="scr-guide-ic"><Palette size={15}/></span><span><b>색</b> — 누를 때마다 색 모드가 바뀝니다. 기본인 개인색에서는 <b>꺼진 버튼</b>(바탕 없음)이고, 팀색·주인공색에서는 버튼의 <b>원그래프</b>가 곧 그 모드입니다(아래 <b>색 모드</b>).</span></li>
             <li><span className="scr-guide-ic scr-guide-ic-txt">2D</span><span><b>보기</b> — 평면(2D)과 입체(3D)를 오갑니다. 언덕·램프는 입체에서 더 잘 읽힙니다. PC에만 있습니다.</span></li>
             <li><span className="scr-guide-ic"><Music size={15}/></span><span><b>음악</b> — 누르면 곡 목록이 펼쳐집니다. 고른 곡은 처음부터, 맨 아래 '끄기'로 끕니다. 처음 들어오면 켜져 있습니다.</span></li>
@@ -135,14 +133,14 @@ export default function ReplayGuide({ onClose }: {
           <li><span className="scr-guide-ic scr-guide-ic-txt">휠</span><span><b>마우스 휠</b> — 굴리면 그 자리를 중심으로 한 배씩 키우고 줄입니다. ↑·↓ 키는 1·2·4·8·16배를 한 칸씩 오갑니다.</span></li>
           <li><span className="scr-guide-ic scr-guide-ic-txt">✌</span><span><b>핀치</b> — 폰에서 두 손가락을 벌리면 커지고 모으면 작아집니다. 한 손가락으로 끌면서 함께 해도 됩니다.</span></li>
           <li><span className="scr-guide-ic scr-guide-ic-txt">×2</span><span><b>두 번 누르기</b> — 그 자리를 한 번에 8배로 당깁니다(더블클릭·더블탭). 한 번 더 누르면 1배로 돌아옵니다.</span></li>
-          <li><span className="scr-guide-ic"><MapIcon size={15}/></span><span><b>미니맵</b> — 쇠판 위쪽 작은 지도를 누르거나 끌면 그 자리로 화면이 갑니다. 그 위에서 휠을 굴려도 확대·축소됩니다.</span></li>
-          <li><span className="scr-guide-ic"><Tv size={15}/></span><span><b>중계</b>를 켜면 사람을 따라가며 알아서 당겨 놓습니다 — 그 뒤 손으로 바꾼 배율은 그대로 둡니다.</span></li>
+          <li><span className="scr-guide-ic"><MapIcon size={15}/></span><span><b>미니맵</b> — 지도 왼쪽 아래 작은 지도를 누르거나 끌면 그 자리로 화면이 갑니다. 그 위에서 휠을 굴려도 확대·축소됩니다(중계가 꺼져 있을 때).</span></li>
+          <li><span className="scr-guide-ic"><Video size={15}/></span><span><b>중계</b>를 켜면 사람을 따라가며 알아서 당겨 놓습니다 — 켜진 동안은 휠·핀치·↑↓ 배율이 잠깁니다.</span></li>
         </ul>
 
         <h3 className="scr-guide-h3">중계 고르기</h3>
         <p className="scr-guide-sub">
-          <strong>중계</strong> 버튼의 목록에서 <strong>누구 화면</strong>을 볼지 고릅니다. 들어오면 <strong>자동</strong>으로 켜져 있습니다.
-          중계가 켜진 동안은 카메라를 중계가 쥐어, 지도를 손으로 끌어도 안 움직입니다(배율은 바꿀 수 있습니다).
+          <strong>로스터</strong>의 카메라 단추로 <strong>누구 화면</strong>을 볼지 고릅니다. 들어오면 <strong>AUTO</strong>(자동)로 켜져 있습니다.
+          중계가 켜진 동안은 카메라를 중계가 쥐어, 지도를 손으로 끌어도 안 움직이고 배율도 못 바꿉니다. 화면 왼위에 <b>누구 화면인지</b> 이름 칩이 서고, 왼아래 미니맵은 그 사람 시야입니다.
         </p>
         <div className="scr-guide-mock">
           <div className="scr-guide-castlist" aria-hidden="true">
@@ -165,14 +163,14 @@ export default function ReplayGuide({ onClose }: {
             </li>
             <li>
               <span className="scr-guide-ic scr-guide-ic-txt">이름+</span>
-              <span><b>여러 사람</b> — 이름을 더 누르면 고른 사람이 늘어나 <b>그 사람들만 화면을 나눠</b> 함께 봅니다(목록은 열린 채로
-              남습니다). 고른 이름을 다시 누르면 빠지고, 모두 고르면 곧 <b>전체</b>입니다. 폰에서는 <b>두 명까지</b>입니다.
+              <span><b>여러 사람</b> — 카메라 단추를 더 켜면 고른 사람이 늘어나 <b>그 사람들만 화면을 나눠</b> 함께 봅니다.
+              켜진 단추를 다시 누르면 빠지고, 모두 켜면 곧 <b>전체</b>입니다. 폰에서는 <b>두 명까지</b>입니다.
               칸마다 그 사람 팀의 <b>시야</b>이고, 칸 안에는 <b>그 사람의</b> 클릭 자국·선택 링·건설 자리와 <b>같은 편의 핑</b>만 보입니다.
-              <b>칸을 누르면</b> 아래 미니맵·인포창이 그 사람의 것(시야·선택)이 되고 칸에 흰 테가 둘립니다. 한 번 더 누르면 놓습니다.</span>
+              <b>칸을 누르면</b> 아래 인포창이 그 사람의 것(선택)이 되고 칸에 흰 테가 둘립니다. 한 번 더 누르면 놓습니다.</span>
             </li>
             <li>
-              <span className="scr-guide-ic"><Tv size={14}/></span>
-              <span><b>자동</b> — 지금 가장 볼 만한 사람에게 저절로 갑니다. 교전·견제·마법이 크게 벌어지는 쪽을 장면이
+              <span className="scr-guide-ic"><Video size={14}/></span>
+              <span><b>자동</b>(AUTO) — 지금 가장 볼 만한 사람에게 저절로 갑니다. 교전·견제·마법이 크게 벌어지는 쪽을 장면이
               시작되기 <b>조금 전에</b> 미리 잡아 두고, 일이 이어지면 8초가 넘어도 그 사람에 머뭅니다. 볼 만한 일이 없으면
               <b> 로스터 차례로 팀을 번갈아</b> 8초씩 돌아갑니다. 지도는 다 보이는 채로 카메라만 옮깁니다. 지금 보여 주는 사람은 로스터의 <b>이름이 깜빡이며 빛납니다</b>.
               교전·침공·드랍 견제처럼 <b>맞서는 상대</b>가 있는 장면이면 화면이 저절로 <b>둘로 나뉘어</b> 상대 쪽 화면도 함께 보여 주고,
@@ -187,8 +185,8 @@ export default function ReplayGuide({ onClose }: {
 
         <h3 className="scr-guide-h3">미니맵 · 인포창</h3>
         <p className="scr-guide-sub">
-          지도 바로 아래 가운데에 <strong>미니맵</strong>(왼쪽)과 <strong>인포창</strong>(오른쪽)이 한 틀로 늘 서 있습니다.
-          버튼 줄 정가운데의 <strong>접기(▼)</strong>를 누르면 미니맵·인포창이 통째로 접히고, 한 번 더 누르면(▲) 다시 펼쳐집니다 — 프레임·전체화면 어디서나 됩니다.
+          지도 바로 아래 가운데에 <strong>로스터</strong>(왼쪽)와 <strong>인포창</strong>(오른쪽)이 한 틀로 늘 서 있습니다. <strong>미니맵</strong>은 지도 안 왼쪽 아래입니다.
+          버튼 줄 정가운데의 <strong>접기(▼)</strong>를 누르면 로스터·인포창이 통째로 접히고, 한 번 더 누르면(▲) 다시 펼쳐집니다 — 프레임·전체화면 어디서나 됩니다.
         </p>
         <ul className="scr-guide-legend">
           <li><span className="scr-guide-ic scr-guide-ic-txt">하나</span><span><b>유닛·건물 하나</b> — 지도에서 누르면 그림 위 가운데에 이름, 그 아래 그림과 체력·실드·에너지, 처치 수, 업그레이드가 섭니다. 건물이 일하는 중이면 진행 줄이 <b>[작은 칸][진행 바]</b> 한 꼴로 섭니다:</span></li>

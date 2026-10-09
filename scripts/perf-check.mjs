@@ -740,6 +740,33 @@ await page.waitForFunction("(window.__spritePerf && (window.__spritePerf.last.bl
 await page.waitForTimeout(Number(flag("--warm", 2500)));
 
 const SHOT = flag("--shot", null);
+/* --castoff — 들어오자마자 켜진 자동 중계(AUTO)를 끈다(2026-10-09 — 중계 꺼진 단독 화면 검산 · 무대 왼아래 미니맵이 손짓을 받는 꼴). */
+if (has("--castoff")) {
+  await page.evaluate(() => { const b = document.querySelector(".scr-roster-cam-auto.is-on"); if (b instanceof HTMLElement) b.click(); });
+  await page.waitForTimeout(500);
+}
+/* --zoomlockprobe — 중계 중엔 휠·↑ 배율이 잠기나(2026-10-09, 요청: "중계가 켜진 순간 드래그 줌 다 막혀야해") — 켠 채 휠·ArrowUp 뒤 배율,
+   카메라를 놓은 뒤 같은 손짓의 배율을 찍는다(`__scrDiag.zoom` 은 붓이 장마다 적는다 · --diag 와 함께). */
+if (has("--zoomlockprobe")) {
+  const z9 = () => page.evaluate(() => window.__scrDiag?.zoom ?? null);
+  const poke9 = async () => {
+    const m9 = await page.$(".scr-motion-map"); const b9 = await m9.boundingBox();
+    await page.mouse.move(b9.x + b9.width / 2, b9.y + b9.height / 2);
+    await page.mouse.wheel(0, -300); await page.waitForTimeout(500);
+    const zw9 = await z9();
+    await page.keyboard.press("ArrowUp"); await page.waitForTimeout(500);
+    return [zw9, await z9()];
+  };
+  const on9 = await page.evaluate(() => !!document.querySelector(".scr-dock-roster .scr-roster-cam.is-on"));
+  const z0 = await z9(); const [zw, zk] = await poke9();
+  console.log(`[배율 잠금] 중계 ${on9 ? "켬" : "끔"} · 전 ${z0} · 휠 뒤 ${zw} · ↑ 뒤 ${zk}`);
+  if (on9) {
+    await page.evaluate(() => { for (const b of document.querySelectorAll(".scr-dock-roster .scr-roster-cam.is-on")) if (b instanceof HTMLElement) b.click(); });
+    await page.waitForTimeout(600);
+    const z2 = await z9(); const [zw2, zk2] = await poke9();
+    console.log(`[배율 잠금] 놓은 뒤 · 전 ${z2} · 휠 뒤 ${zw2} · ↑ 뒤 ${zk2}`);
+  }
+}
 /* 폭 바꾸기(--resizeto W) — 뜬 뒤 창 폭을 조금 바꾼다(2026-10, 지적: "아직 흐려지는데" — 지형 판의 '거의 같은 판' 지름길이
    폭이 2% 안쪽으로 바뀌면 옛 판을 늘려 붙여 지도 전체를 재표본했다). --dockprobe 의 [캔버스] 줄에서 scr-mapvec-sharp 의
    w(배킹)와 bw(화면 폭)가 같아야 한다(dpr 1). */
@@ -857,7 +884,7 @@ if (has("--dockprobe")) {
   const r = await page.evaluate(() => {
     const q = (sel) => { const el = document.querySelector(sel); if (!el) return null; const b = el.getBoundingClientRect(); return { top: +b.top.toFixed(2), bottom: +b.bottom.toFixed(2), h: +b.height.toFixed(2) }; };
     const lyr = document.querySelector(".scr-fs-layer");
-    return { mini: q(".scr-fs-minipanel .scr-fs-minimap"), panel: q(".scr-fs-minipanel"), btns: q(".scr-motion-mapbtns"), btn: q(".scr-motion-mapbtns button"),
+    return { mini: q(".scr-fs-solo-mini .scr-fs-minimap"), panel: q(".scr-fs-solo-mini"), btns: q(".scr-motion-mapbtns"), btn: q(".scr-motion-mapbtns button"),
       bottom: q(".scr-fs-bottom"), play: q(".scr-motion-play"), range: q(".scr-motion-range"), tail: q(".scr-fs-bottom-tail"),
       vars: lyr ? { mini: lyr.style.getPropertyValue("--scr-dock-mini"), mt: lyr.style.getPropertyValue("--scr-dock-mini-mt"), mb: lyr.style.getPropertyValue("--scr-dock-mini-mb") } : null };
   });
@@ -876,7 +903,7 @@ if (has("--dockprobe")) {
 if (has("--pickshot")) {
   await page.waitForTimeout(1500);
   const r9 = await page.evaluate(() => {
-    const b = document.querySelector(".scr-motion-mapbtns .scr-motion-castbtn");
+    const b = document.querySelector(".scr-roster-cam-auto");
     if (b instanceof HTMLElement) b.click();
     return !!b;
   });
@@ -912,12 +939,12 @@ if (has("--split")) {
     await page.evaluate(() => { const b = document.querySelector(".scr-motion-play"); if (b instanceof HTMLElement) b.click(); });
     await page.waitForTimeout(600);
   }
-  await page.evaluate(() => { const b = document.querySelector(".scr-motion-castbtn"); if (b instanceof HTMLElement) b.click(); });
-  await page.waitForTimeout(300);
-  await page.evaluate(() => {
-    const it = [...document.querySelectorAll(".scr-motion-pickmenu .scr-motion-pickitem")].find((el) => (el.textContent ?? "").trim() === "전체");
-    if (it instanceof HTMLElement) it.click();
-  });
+  /* ★ 전체 분할 = 독 로스터의 사람 카메라 단추를 **다** 켠다(2026-10-09 — TV 목록의 '전체'는 걷혔다 · pickPerson9: 다 고르면 곧 전체). 한 번에 하나씩(상태가 누름마다 갈린다). */
+  const nCam9 = await page.evaluate(() => document.querySelectorAll(".scr-dock-roster .scr-roster-cam:not(.scr-roster-cam-auto)").length);
+  for (let k = 0; k < nCam9; k += 1) {
+    await page.evaluate((k) => { const b = document.querySelectorAll(".scr-dock-roster .scr-roster-cam:not(.scr-roster-cam-auto)")[k]; if (b instanceof HTMLElement) b.click(); }, k);
+    await page.waitForTimeout(150);
+  }
   await page.waitForTimeout(Number(flag("--splitwait", 4000)));
   const sp9 = () => page.evaluate(() => {
     const cells = [...document.querySelectorAll(".scr-split-cell")].map((el) => {
@@ -966,11 +993,14 @@ if (has("--split")) {
   console.log(`[분할] 같은 칸 다시 누른 뒤 켜진 칸 ${c9.cells.findIndex((c) => c.pick)}`);
   /* 닉네임 다중 선택(2026-09, 요청: "닉네임 누르면 선택 추가돼서 그 사람들만 분할모드로") — 목록을 열고 이름 둘·셋을 차례로 누른다. */
   if (has("--splitsel")) {
-    await page.evaluate(() => { const b = document.querySelector(".scr-motion-castbtn"); if (b instanceof HTMLElement) b.click(); });
-    await page.waitForTimeout(300);
+    /* 고르기 = 독 로스터의 사람 카메라 단추(2026-10-09 — 옛 TV 목록의 이름 줄). 먼저 전부 끈다(위에서 다 켰다). */
+    for (let k = 0; k < nCam9; k += 1) {
+      await page.evaluate((k) => { const b = document.querySelectorAll(".scr-dock-roster .scr-roster-cam:not(.scr-roster-cam-auto)")[k]; if (b instanceof HTMLElement) b.click(); }, k);
+      await page.waitForTimeout(150);
+    }
     for (let k = 0; k < 3; k += 1) {
       await page.evaluate((k) => {
-        const it = [...document.querySelectorAll(".scr-motion-pickmenu .scr-motion-pickitem-dot")][k];
+        const it = document.querySelectorAll(".scr-dock-roster .scr-roster-cam:not(.scr-roster-cam-auto)")[k];
         if (it instanceof HTMLElement) it.click();
       }, k);
       await page.waitForTimeout(700);
@@ -1141,15 +1171,15 @@ if (has("--castprobe")) {
   let on9 = null;
   for (let i9 = 0; i9 < secs9 * 5; i9 += 1) {
     const r9 = await page.evaluate(() => ({
-      on: !!document.querySelector(".scr-motion-castbtn-on"),
-      btn: !!document.querySelector(".scr-motion-castbtn"),
+      on: !!document.querySelector(".scr-roster-cam-auto.is-on"),
+      btn: !!document.querySelector(".scr-roster-cam-auto"),
       /* 글귀는 숨긴 이름표(.scr-tb-who-ghost — 첫 칸 폭을 미리 잡는 겹판)를 빼고 읽는다. */
       toast: [...document.querySelectorAll(".scr-tb-who")].map((el) => { const c = el.cloneNode(true); c.querySelectorAll(".scr-tb-who-ghost").forEach((g) => g.remove()); return c.textContent ?? ""; }),
       /* 칸 폭(2026-09, 요청: "글자길이에 따라 레이아웃 흔들리지 않게 미리 공간 확보") — 사람이 갈려도 같아야 한다. */
       cols: (() => { const el = document.querySelector(".scr-tb-who"); if (!el) return null; const r0 = el.getBoundingClientRect();
         return { w: +r0.width.toFixed(1), cells: [...el.querySelectorAll(".scr-tb-who-st > span")].map((c) => +c.getBoundingClientRect().width.toFixed(1)) }; })(),
       /* 단추의 자리 — 아이콘 줄(.scr-motion-mapbtns) 안에서 **로스터 단추 바로 왼쪽**인가(요청), 크기가 형제와 같은가. */
-      bb: (() => { const b = document.querySelector(".scr-motion-mapbtns .scr-motion-castbtn");
+      bb: (() => { const b = document.querySelector(".scr-roster-cam-auto");
         /* 단추는 목록 감싸개(.scr-motion-pick) 안에 서므로 이웃은 그 감싸개의 형제다(2026-09 · 목록을 열게 되며). */
         if (!b) return null; const el = b.closest(".scr-motion-pick") ?? b;
         const kids = [...(el.parentElement?.children ?? [])]; const i = kids.indexOf(el); const nx = kids[i + 1]?.matches("button") ? kids[i + 1] : kids[i + 1]?.querySelector("button");
@@ -1203,19 +1233,19 @@ if (has("--castprobe")) {
       const c = el.cloneNode(true); c.querySelectorAll(".scr-tb-who-ghost").forEach((g) => g.remove()); return c.textContent ?? ""; };
     const colsOf = () => { const el = document.querySelector(".scr-tb-who"); if (!el) return null;
       return [+el.getBoundingClientRect().width.toFixed(1), ...[...el.querySelectorAll(".scr-tb-who-st > span")].map((c) => +c.getBoundingClientRect().width.toFixed(1))]; };
-    const st = () => ({ on: !!document.querySelector(".scr-motion-castbtn-on"), cap: capOf(), cols: colsOf(),
+    const st = () => ({ on: !!document.querySelector(".scr-roster-cam-auto.is-on"), cap: capOf(), cols: colsOf(),
       items: [...document.querySelectorAll(".scr-motion-pickmenu .scr-motion-pickitem")].map((el) => `${el.textContent}${el.classList.contains("is-on") ? "*" : ""}`),
       share: sh() });
     const wait = (ms) => new Promise((r) => { setTimeout(r, ms); });
     const a = st();
-    (document.querySelector(".scr-motion-castbtn"))?.click();
+    (document.querySelector(".scr-roster-cam-auto"))?.click();
     await wait(200);
     const open1 = st();
     const its = () => [...document.querySelectorAll(".scr-motion-pickmenu .scr-motion-pickitem")];
     its()[0]?.click();
     await wait(300);
     const b = st();
-    (document.querySelector(".scr-motion-castbtn"))?.click();
+    (document.querySelector(".scr-roster-cam-auto"))?.click();
     await wait(200);
     const open2 = st();
     /* '자동'은 글귀로 찾는다 — 맨 아래는 이제 '끄기'다(2026-09, 요청: "목록에 끄기도 있어야해"). */
@@ -1223,7 +1253,7 @@ if (has("--castprobe")) {
     await wait(300);
     const c = st();
     /* 끄기 — 중계가 켜진 채 '끄기'를 고르면 단추 초록·자막이 함께 꺼져야 한다. */
-    (document.querySelector(".scr-motion-castbtn"))?.click();
+    (document.querySelector(".scr-roster-cam-auto"))?.click();
     await wait(200);
     its().find((el) => el.textContent === "끄기")?.click();
     await wait(300);
@@ -1248,8 +1278,8 @@ if (has("--pickprobe")) {
     const wait = (ms) => new Promise((r) => { setTimeout(r, ms); });
     /* TV 단추는 이제 목록이다(사람들 + 자동 + 끄기) — 열고 '끄기'를 고른다(옛 판은 단추 한 번이 끄기였다 — 그래서 이 자가
        한동안 중계를 못 끄고, 중계가 사람을 갈아탈 때마다 집은 몸이 닫혀 늘 null 이었다). */
-    if (document.querySelector(".scr-motion-castbtn-on")) {
-      document.querySelector(".scr-motion-castbtn")?.click(); await wait(300);
+    if (document.querySelector(".scr-roster-cam-auto.is-on")) {
+      document.querySelector(".scr-roster-cam-auto")?.click(); await wait(300);
       [...document.querySelectorAll(".scr-motion-pickitem")].find((el) => (el.textContent ?? "").trim().startsWith("끄기"))?.click();
       await wait(400);
     }
@@ -1286,7 +1316,7 @@ if (has("--pickprobe")) {
   if (rc9) {
     // 화면 전환 — 건물을 집은 채 중계를 켜면(카메라 임자가 바뀐다) 팝업이 닫혀야 한다.
     out9.홀다시 = await tap9(18, 18);
-    await page.evaluate(() => { document.querySelector(".scr-motion-castbtn")?.click(); });
+    await page.evaluate(() => { document.querySelector(".scr-roster-cam-auto")?.click(); });
     await page.waitForTimeout(500);
     out9.중계켠뒤 = await pop9();
   }
@@ -1369,7 +1399,7 @@ if (SHOT) {
   /* --tvprobe: 정보줄 TV 단추·아이콘·감싸개 상자(지적: "중계버튼 티비아이콘 가운데 안맞고 너무 큼"). */
   if (has("--tvprobe")) {
     const r9 = await page.evaluate(() => {
-      const b = document.querySelector(".scr-fs-dockcast button.scr-motion-castbtn");
+      const b = document.querySelector(".scr-roster-cam-auto");
       if (!b) return null;
       const f = (e) => { const r = e.getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 10) / 10); };
       const sv = b.querySelector("svg"); const cs = getComputedStyle(b);
@@ -1418,7 +1448,7 @@ if (SHOT) {
     if (has("--herocolor")) {
       const off = await page.evaluate(async () => {
         const w = (ms) => new Promise((r) => { setTimeout(r, ms); });
-        document.querySelector(".scr-motion-castbtn")?.click(); await w(200);
+        document.querySelector(".scr-roster-cam-auto")?.click(); await w(200);
         [...document.querySelectorAll(".scr-motion-pickmenu .scr-motion-pickitem")].find((el) => el.textContent === "끄기")?.click();
         await w(400);
         return document.querySelector(".scr-motion-colbtn")?.getAttribute("aria-label");
@@ -1630,7 +1660,7 @@ if (SHOT) {
       const m = map.getBoundingClientRect();
       const l = lens ? lens.getBoundingClientRect() : null;
       const btns = document.querySelector(".scr-motion-mapbtns");
-      const mini = document.querySelector(".scr-fs-minipanel");
+      const mini = document.querySelector(".scr-fs-solo-mini");
       const bot = document.querySelector(".scr-fs-bottom");
       const rng = document.querySelector(".scr-motion-range");
       const rw = row ? row.getBoundingClientRect() : null;
@@ -1699,7 +1729,7 @@ if (SHOT) {
     const R = (q) => { const e = document.querySelector(q);
       if (!e) return null; const r = e.getBoundingClientRect();
       return [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)]; };
-    const mini = document.querySelector(".scr-fs-minipanel");
+    const mini = document.querySelector(".scr-fs-solo-mini");
     return {
       stage: R(".scr-fs-stage"), mini: R(".scr-fs-minipanel"),
       miniCv: R(".scr-fs-minipanel canvas"),

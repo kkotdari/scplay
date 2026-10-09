@@ -6,8 +6,7 @@ import {
 } from "./perf9";
 import { createPortal } from "react-dom";
 import { useBgm } from "./useBgm";
-import RosterTableIcon from "./RosterTableIcon";
-import { Bookmark, Check, Map as MapIcon, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Share2, Tv } from "lucide-react";
+import { Bookmark, Check, Map as MapIcon, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Share2, Video } from "lucide-react";
 /** 건설 명령 고스트 판의 색(원작의 배치 미리보기 초록) — 짙기는 op.plateAlpha 가 든다. */
 const GHOST_PLATE_COL9 = "#3ee06a";
 /** 툴박스가 손을 뗀 뒤 아이콘 하나로 접히기까지(2026-09, 요청: "안쓰면 몇초뒤 아이콘 하나로 최소화"). */
@@ -1139,6 +1138,12 @@ declare const __SCPLAY_BUILD__: string | undefined;
 const liteFlag9 = typeof location !== "undefined" && /[?&]lite=1/.test(location.search);
 /** 폰의 분할보기 상한(2026-09, 요청: "모바일에서 분할모드 최대 2명"). */
 const SPLIT_PHONE_MAX9 = 2;
+/** 독 로스터의 자료 쪽(2026-10-09, 요청: "모바일은 자원&인구/데미지/일꾼& APM 세 페이지로 자동 슬라이딩 순환") — PC 는 셋이 나란히 = 여섯 칸 전부. */
+type RosterCol9 = "min" | "gas" | "sup" | "dmg" | "worker" | "apm";
+const ROSTER_PAGES9: readonly (readonly RosterCol9[])[] = [["min", "gas", "sup"], ["dmg"], ["worker", "apm"]];
+const ROSTER_LABEL9: Record<RosterCol9, string> = { min: "광물", gas: "가스", sup: "인구", dmg: "데미지", worker: "일꾼", apm: "APM" };
+/** 폰 로스터가 한 쪽에 머무는 시간(ms). */
+const ROSTER_PAGE_MS9 = 3000;
 const smallDevice9 = ((): boolean => {
   if (typeof window === "undefined") return false;
   const coarse9 = !!window.matchMedia?.("(pointer: coarse)").matches;
@@ -10190,6 +10195,11 @@ export default function ReplayMotionPlayer({
     : splitSel9 ? bases.filter((b9) => splitSel9.includes(b9.key)) : bases), [duelKey9, splitSel9, bases]);
   const splitOnRef9 = useRef(false);
   splitOnRef9.current = splitOn9;
+  /** ★ 중계가 켜진 동안(자동 · 개인 추적 · 분할 — 사람 수 무관) **배율 손짓은 다 막는다**(2026-10-09, 요청: "중계가 켜진 순간(사람수 관계없이
+   *  자동도 포함) 드래그 줌(마우스, 손제스쳐, 단축키) 다 막혀야해 꼭 분할화면이 아니라 단독화면이라도") — 휠(onWheel) · 핀치(onTS) · 한 손 줌
+   *  (quickZoom) · ↑↓(zoomStep9) · 미니맵 휠(fsWheelZoom). 카메라가 기계 것일 때 배율은 중계의 자(castZoomFit9)다. 옛 '분할만 막는다'는 이 안에 든다. */
+  const camLockRef9 = useRef(false);
+  camLockRef9.current = castOn || trackRaw !== null || splitOn9;
   /* 누른 칸의 사람이 분할에서 빠지면(분할 끔 · 맞대결 상대가 바뀜) 놓는다. */
   useEffect(() => {
     if (splitPick9 !== null && (!splitOn9 || !splitBases9.some((b9) => b9.key === splitPick9))) setSplitPick9(null);
@@ -10281,35 +10291,8 @@ export default function ReplayMotionPlayer({
     kd: kdNow.get(raw9) ?? null,
     dmg: dmgOf9(raw9),
   });
-  /** 현황 한 줄 — 일꾼 · 자원 · 인구 · 데미지 · APM(K/D 칸은 2026-10 에 데미지로 갈았다 · 위 dmgSeries9). 툴박스 정보 판과 분할 칸 머리(PC)가 같은 꼴을 나눠 쓴다(2026-09, 요청: "PC에서
-   *  헤더에 유저창과 똑같이 일꾼부터 apm까지 표시 모양도 똑같이"). 값 칸(.scr-who-v)은 칸마다 폭을 못 박아(ch) 숫자가 갈려도
-   *  옆 칸이 안 움직인다(요청: "데이터에 따라 움직이지 않게 그리드화해서 각 스탯정보칸 너비가 안변하게"). */
-  /** two9 — 두 줄(일꾼·자원·인구 / 데미지·APM · 폰 좌우 분할 칸의 아래 현황): 칸을 두 줄(.scr-who-row)로 싸서 세운다. 칸마다 제 이름
-   *  (.scr-who-i.is-worker|res|sup|dmg|apm)이 있어 CSS 가 자리(nth-child)가 아니라 이름으로 폭을 잡는다 — 줄로 싸도 같은 자다.
-   *  (처음엔 flex 줄바꿈 조각 하나를 끼웠는데 접히는 flex 상자의 제 폭이 첫 줄에 맞춰져 값이 잘렸다 · 실측.) */
-  const whoStats9 = (c9: ReturnType<typeof capOf9> | null, cls9: string, two9 = false) => {
-    const items9 = [
-      <span key="w" className="scr-who-i is-worker" title="일꾼"><b>일꾼</b><i className="scr-who-v">{c9?.worker ?? "–"}</i></span>,
-      <span key="r" className="scr-who-i is-res" title="자원(광물/가스)"><b>자원</b>
-        {/* 광물·가스는 **제 자리를 따로 잡는다**(요청: "-/- 자원의 경우 이것도 각 데이터의 자리를 미리 확보") — 둘 다 고정 폭 · 오른쪽 맞춤. */}
-        <i className="scr-who-v">
-          {/* 사이의 / 는 걷었다(요청: "광물은 사실 / 필요 없을듯") — 두 색(파랑·초록)이 이미 갈라 준다. */}
-          <span className="scr-who-r scr-motion-stat-min">{c9?.res ? c9.res[0] : "–"}</span>
-          <span className="scr-who-r scr-motion-stat-gas">{c9?.res ? c9.res[1] : "–"}</span>
-        </i>
-      </span>,
-      <span key="s" className="scr-who-i is-sup" title="인구 — 내 종족 풀 · 다른 종족 몸(마인드 컨트롤)을 들면 그 종족 풀을 작은 덧줄로"><b>인구</b><i className="scr-who-v">{c9?.sup ? supNode9(c9.sup, c9.supX) : "–"}</i></span>,
-      <span key="d" className="scr-who-i is-dmg" title="준 데미지 / 입은 데미지(체력+실드 · 유닛+건물) · 괄호는 지금까지 우리 팀 몫 가운데 내 %"><b>데미지</b><i className="scr-who-v">{c9?.dmg ? dmgNode9(c9.dmg) : "–"}</i></span>,
-      <span key="a" className="scr-who-i is-apm" title="APM"><b>APM</b><i className="scr-who-v">{c9?.apm ?? "–"}</i></span>,
-    ];
-    return (
-      <div className={cx("scr-who-stats", cls9, !melee && "is-team", two9 && "is-two")}>
-        {two9
-          ? <><span className="scr-who-row">{items9.slice(0, 3)}</span><span className="scr-who-row">{items9.slice(3)}</span></>
-          : items9}
-      </div>
-    );
-  };
+  /* (걷어냄 · 2026-10-09, 요청: "스탯바는 중계화면에서 모두 제거") whoStats9 — 현황 한 줄/두 줄(일꾼·자원·인구·데미지·APM · .scr-who-*). 분할 칸 머리(PC)·
+     칸 발치(폰)·폰 단독 화면 주인 상자(.scr-fs-ownerst)가 쓰던 것인데 셋 다 걷었다 — 값은 독 로스터(dockRoster9)가 늘 든다. */
   /* (걷어냄) castCap9 — 정보 판이 사라져 읽는 자리가 없다(2026-09, "유저창 완전 제거"). */
   /** 추적 켜기·끄기 — 시야(viewRaw)를 함께 끌고 다닌다. 끄면 시야도 전체로 돌아간다. */
   /** 추적을 끈다 — **보던 자리에 머문다**(요청: "추적 보다가 끄면 맵 위치가 기존에 보던 곳으로 돌아가는데
@@ -12119,7 +12102,7 @@ export default function ReplayMotionPlayer({
      추적은 그냥 '화면이 저 혼자 움직이는 일'로만 보인다. 첫 단인 까닭은 그 한 가지만
      말하면 되기 때문이다: 지표까지 펴면(전체) 지도를 그만큼 더 가린다. */
   // 처음부터 기본 로스터(이름만)로 시작한다(요청: "프레임 모드에서도 기본 로스터는 켠 상태로 시작") — 추적 링크든 아니든.
-  const [rosterMode, setRosterMode] = useState<0 | 1 | 2>(0);
+  /* (걷어냄 · 2026-10-09) rosterMode — 무대 로스터(이름만 ↔ 현황)의 두 단계. 로스터가 독으로 내려가 늘 전부를 보이므로 단추(표)·B 키와 함께 걷었다. */
   void initialTrack;
   /** 미니맵 판이 켜져 있나(요청: "미니맵 오버레이 및 아이콘 추가") — 로스터와 같은 결로
    *  제 아이콘이 여닫는다.
@@ -12207,11 +12190,7 @@ export default function ReplayMotionPlayer({
       setStage({ w: w9, h: h9 });
     }
     setFsOn(true);
-    /* 그리드(로스터 현황 표)는 **들어갈 때마다 꺼진 채로** 시작한다(요청: "그리드 진입시
-       비활성화로") — 전체화면을 켜는 뜻은 지도를 크게 보겠다는 것이고, 숫자 다섯 칸은
-       그때 필요하면 부르는 것이다. 꺼져도 이름·종족은 남으므로 누가 하는지는 안 잃는다.
-       매번 되돌린다 — 지난번에 켜 둔 것이 다음 진입까지 따라오면 '진입 시 꺼짐'이 아니다. */
-    setRosterMode(0);
+    /* (걷어냄 · 2026-10-09) setRosterMode(0) — 전체화면에 들 때 무대 로스터의 현황을 접던 줄. 로스터는 이제 독에 있다. */
     /* (걷어냄) setFsMiniOn(false) — 전체화면에 들 때 미니맵을 끄던 줄이다. 기본이
        꺼짐이던 시절에 '진입 시 꺼짐'을 로스터와 맞춘 것인데, 이제 기본이 켜짐이라
        (위) 이 줄이 남으면 **전체화면에서만 미니맵이 사라진다**(실측: 일반 화면은
@@ -12440,7 +12419,7 @@ export default function ReplayMotionPlayer({
       e.preventDefault();
       /* 분할보기에서는 휠 배율이 없다(요청: "분할모드에서 엣지투스크롤 휠 드래그 핀치 팬 모두 막기") — 칸마다 제 카메라가 있고
          본 지도는 숨어 있다. 기본 동작(페이지 굴림)만 끊고 돌아간다. */
-      if (splitOnRef9.current) return;
+      if (splitOnRef9.current || camLockRef9.current) return;   // ★ 중계가 켜진 동안도(camLockRef9 · 2026-10-09)
       const lens = lensRef.current;
       if (!lens) return;
       const rect = el.getBoundingClientRect();
@@ -12509,7 +12488,7 @@ export default function ReplayMotionPlayer({
       /* 곡 목록도 제 안이 스크롤된다(지적: "음악 목록 스크롤 시 뒤 맵이 스크롤이 돼") — 도구 판·미니맵과 같은 손이다.
          CSS의 overscroll-behavior가 **페이지** 연쇄를 막고, 이 줄이 **지도 줌**으로 새는 것을 막는다(둘 다 있어야 한다). */
       if (e.target instanceof Element
-        && e.target.closest(".scr-fs-toolpanel, .scr-fs-minipanel, .scr-fs-minimap, .scr-motion-pickmenu")) return;
+        && e.target.closest(".scr-fs-toolpanel, .scr-fs-rosterpanel, .scr-fs-minimap, .scr-motion-pickmenu")) return;
       onWheel(e);
     };
     // passive:false 라야 브라우저의 페이지 스크롤을 막을 수 있다.
@@ -13494,7 +13473,7 @@ export default function ReplayMotionPlayer({
          점이 없어 통째로 죽은 코드였다 — 그래서 두 손가락을 벌려도 아무 일도 안 났다. */
       if (!twoInMap(e)) return;
       // 분할보기는 핀치가 없다 — 브라우저 확대만 끊는다.
-      if (splitOnRef9.current) { if (e.cancelable) e.preventDefault(); return; }
+      if (splitOnRef9.current || camLockRef9.current) { if (e.cancelable) e.preventDefault(); return; }   // 중계 중엔 핀치도 없다(camLockRef9)
       const el2 = mapRef.current;
       if (!el2) return;
       if (e.cancelable) e.preventDefault();
@@ -15940,7 +15919,7 @@ export default function ReplayMotionPlayer({
        그 탭을 삼킨다. 가만히 오래 누르는 것(감기)은 **앞선 탭이 없을 때**만이라
        서로 안 겹친다. */
     const lt0 = lastTapRef.current;
-    if (coarse && lt0 && performance.now() - lt0.t <= DTAP_MS
+    if (coarse && !camLockRef9.current && lt0 && performance.now() - lt0.t <= DTAP_MS
       && Math.hypot(e.clientX - lt0.x, e.clientY - lt0.y) <= DTAP_SLOP) {
       quickZoomRef.current = {
         id: e.pointerId, ax: e.clientX, ay: e.clientY,
@@ -16376,7 +16355,7 @@ export default function ReplayMotionPlayer({
          `, c, v · 조작부 감추기/보이기: f · 도움말에 표기된 단축키 이외의 매핑은 모두 제거"). 글자 키는 e.code(자판
          자리)로 읽어 한글 자판에서도 듣는다. 안내(ReplayGuide)에 적힌 키만 여기 있어야 한다 — 별칭을 더하지 않는다. */
       const zoomStep9 = (up9: boolean): void => {
-        if (splitOnRef9.current) return;   // 분할보기는 칸마다 제 배율이다 — 키 배율도 없다
+        if (splitOnRef9.current || camLockRef9.current) return;   // 분할보기는 칸마다 제 배율이다 — 키 배율도 없다 · 중계 중에도(camLockRef9)
         closePicked9();   // 키보드 배율도 팝업을 닫는다(요청).
         const el9 = mapRef.current;
         const r9 = el9?.getBoundingClientRect();
@@ -16465,14 +16444,7 @@ export default function ReplayMotionPlayer({
         e.preventDefault();
         wakeUi();
         setColorMode(colorNextRef9.current);
-      } else if (e.code === "KeyB") {
-        /* b = 로스터 현황 켬·끔(이름만 ↔ 전체 — 단추와 같은 두 단계).
-           ★ **` 에서 b 로 옮겼다**(2026-09, 요청: "지도 켜고 끄기 단축키 N 로스터 단축키 B로
-             수정") — 역따옴표는 자판마다 자리가 달라(한글 자판·노트북 축소 자판) 손이 안 간다.
-             글자 키는 e.code(자판 자리)로 읽으므로 한글 자판에서도 그대로 듣는다. */
-        e.preventDefault();
-        wakeUi();
-        setRosterMode((v) => (v === 1 ? 0 : 1));
+      /* (걷어냄 · 2026-10-09) b = 로스터 현황 켬·끔 — 로스터가 독에서 늘 전부를 보인다. */
       } else if (e.code === "KeyN") {
         /* n = 미니맵(작은 지도) 여닫이 — 전체화면의 그 단추와 같은 손잡이다(요청).
            일반 화면에서는 미니맵이 지도 밖 독에 제 자리를 가져 가릴 것이 없으므로,
@@ -17181,6 +17153,99 @@ export default function ReplayMotionPlayer({
     );
   };
 
+  /* ★★ **독 로스터** — 미니맵이 서던 우물에 로스터가 선다(2026-10-09, 요청 5·6: "독의 미니맵은 필요가 없어 … 제거하고 그 자리에 로스터를
+     넣어(이제 로스터는 중계 ON/OFF 및 단독/분할 무관하게 같은 자리에 노출) · 정보는 PC 는 다 보여 주고 · 모바일은 자원&인구/데미지/일꾼&APM 세
+     페이지로 자동 슬라이딩 순환 · 로스터 폭은 인포창 빼고 남은 폭을 다 쓰되 최대 인포창 폭 · 중계 버튼 제거하고 로스터 닉네임 왼쪽에 비디오카메라
+     버튼 · 자동은 맨 위에 따로(비디오카메라 + AUTO) · 화면 주인(들)은 기존처럼 글로우") ─────────────────────────────────────────
+     · 줄 수(--rows = AUTO 줄 + 팀마다 머리 + 사람)로 줄 키(--rp)를 독 키 안에 맞춘다(replay.css .scr-dock-roster) — 4:4 도 한 우물에 든다.
+     · [이름 기둥 | 자료 띠] 두 기둥이고 자료 띠는 쪽 셋(ROSTER_PAGES9 — 광물·가스·인구 / 데미지 / 일꾼·APM). PC 는 셋이 나란히(= 여섯 칸 전부),
+       폰(is-paged)은 보이는 창(.scr-dock-data) 안에서 띠(.scr-dock-strip)가 ROSTER_PAGE_MS9 마다 한 쪽씩 미끄러진다(translateX · 세 쪽 순환).
+     · 카메라 단추(.scr-roster-cam)는 옛 TV 목록의 그 줄이다 — 사람 = pickPerson9(하나면 개인 추적 · 둘 이상이면 그 사람들만 분할 · 다 빼면 끔) ·
+       AUTO = toggleCast9. 켜짐은 초록 테(AUTO 는 깜빡임 — 옛 TV 단추의 박자). 지금 화면에 보이는 사람(들)의 칩은 임자색 글로우
+       (.scr-motion-teamcol-cast · 자동 중계의 주인 · 개인 추적의 그 사람 · 분할의 칸 사람들 — 옛 '자동만 깜빡인다'를 되물렸다). */
+  const shownRaws9 = new Set<string>(splitOn9 && splitLay9 ? splitLay9.cells.map((c9) => c9.raw) : camRaw9 !== null ? [camRaw9] : []);
+  const [rosterPage9, setRosterPage9] = useState(0);
+  useEffect(() => {
+    if (!smallDevice9) return undefined;
+    const id9 = window.setInterval(() => setRosterPage9((p9) => (p9 + 1) % ROSTER_PAGES9.length), ROSTER_PAGE_MS9);
+    return () => window.clearInterval(id9);
+  }, []);
+  const dockRoster9 = ((): React.ReactNode => {
+    const teams9 = (melee ? [1] : [1, 2]).map((t9) => ({
+      team: t9 as 1 | 2,
+      mates: melee ? bases : bases.filter((m) => (m.team === 2 ? 2 : 1) === t9),
+    })).filter((t9) => t9.mates.length > 0);
+    const rows9 = 1 + teams9.reduce((n9, t9) => n9 + 1 + t9.mates.length, 0);
+    const cell9 = (m: MotionBase, col9: RosterCol9): React.ReactNode => {
+      switch (col9) {
+        case "min": { const r9 = resNow.get(m.key); return r9 ? r9[0] : ""; }
+        case "gas": { const r9 = resNow.get(m.key); return r9 ? r9[1] : ""; }
+        case "sup": { const s9 = supplyNow.get(m.key); return s9 ? supNode9(s9, supplyExtraNow.get(m.key)) : ""; }
+        case "dmg": { const d9 = dmgOf9(m.key); return d9 ? dmgNode9(d9) : ""; }
+        case "worker": return workerNow.has(m.key) ? (workerNow.get(m.key) ?? 0) : "";
+        default: return apmNow.get(m.key) ?? m.apm ?? "";
+      }
+    };
+    return (
+      <div className={cx("scr-dock-roster", !melee && "is-team", smallDevice9 && "is-paged")} style={{ ["--rows" as string]: String(rows9) } as React.CSSProperties}>
+        {/* 맨 위 AUTO — 자동 중계(요청: "자동은 맨위에 따로. 버튼 라벨은 비디오카메라에 AUTO 글자 합성"). */}
+        <div className="scr-dock-roster-top">
+          <button
+            type="button" className={cx("scr-roster-cam scr-roster-cam-auto", castOn && "is-on")} onClick={toggleCast9} aria-pressed={castOn}
+            aria-label={castOn ? "자동 중계 끄기" : "자동 중계 켜기"} title={castOn ? "자동 중계 — 켜짐(누르면 끔)" : "자동 중계 — 볼 만한 사람을 저절로 따라간다"}
+          >
+            <Video aria-hidden /><span className="scr-roster-cam-txt">AUTO</span>
+          </button>
+        </div>
+        {teams9.map(({ team, mates }) => (
+          <div key={team} className="scr-dock-team">
+            <div className="scr-dock-names">
+              <div className="scr-dock-row scr-dock-head"><span className="scr-dock-teamname">{melee ? "\u00A0" : `${team}팀`}</span></div>
+              {mates.map((m) => {
+                const fallen9 = m.ghost || fallenHome(m);
+                const on9 = castSel9.includes(m.key);
+                return (
+                  <div key={m.key} className={cx("scr-dock-row", fallen9 && "scr-motion-base-ghost")} style={{ ["--pcol" as string]: modeColor(m.key, m.team) } as React.CSSProperties}>
+                    <button
+                      type="button" className={cx("scr-roster-cam", on9 && "is-on")} onClick={() => pickPerson9(m.key)} aria-pressed={on9}
+                      aria-label={on9 ? `${m.name} 화면 놓기` : `${m.name} 화면 보기`}
+                      title={on9 ? "이 사람 화면을 놓는다" : "이 사람 화면을 따라간다 — 둘 이상 켜면 나눠 본다"}
+                    >
+                      <Video aria-hidden />
+                    </button>
+                    <span className={cx("scr-motion-teamcol-name scr-dock-name", shownRaws9.has(m.key) && "scr-motion-teamcol-cast")} style={chipStyle(m.key, m.team, CHIP_ROW_A9)}>
+                      {m.name}
+                      {m.race && raceLetter9(m.race) ? <span className="scr-motion-teamcol-race">{raceLetter9(m.race)}</span> : null}
+                    </span>
+                    {winnerTeam && (m.team === 2 ? 2 : 1) === winnerTeam && t >= total - 0.5 && !fallen9 && <span className="scr-dock-trophy">🏆</span>}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="scr-dock-data">
+              <div className="scr-dock-strip" style={smallDevice9 ? { transform: `translateX(-${rosterPage9 * 100}%)` } : undefined}>
+                {ROSTER_PAGES9.map((pg9, i9) => (
+                  <div key={i9} className="scr-dock-page">
+                    <div className="scr-dock-row scr-dock-head">
+                      {pg9.map((c9) => <span key={c9} className={cx("scr-dock-cell", `is-${c9}`)}>{ROSTER_LABEL9[c9]}</span>)}
+                    </div>
+                    {mates.map((m) => (
+                      <div key={m.key} className="scr-dock-row">
+                        {pg9.map((c9) => (
+                          <span key={c9} className={cx("scr-dock-cell", `is-${c9}`, c9 === "min" && "scr-motion-stat-min", c9 === "gas" && "scr-motion-stat-gas")}>{cell9(m, c9)}</span>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  })();
+
   /* (삭제·요청: 안 쓰는 범례 정리) — 건물·유닛·일꾼이 전부 제 모델로 그려져 기호
      범례(■·●)가 더는 화면과 안 맞았다. 범례 한 벌을 통째로 걷는다. */
 
@@ -17575,56 +17640,8 @@ export default function ReplayMotionPlayer({
       </span>
     </div>
   );
-  /* ★ TV 단추는 **아이콘 줄의 맨 왼쪽 동그라미**다(2026-09, 요청: "중계버튼 버튼로우 왼쪽으로 이동하고 동그라미로 변경및 크기색상
-     디자인 다른 버튼과 통일(활성시 초록불깜빡임 유지)") — 정보 판 왼 기둥의 흰 볼록 사각(.scr-fs-dockcast)을 걷었다. 꼴은 형제
-     (.scr-motion-mapbtn)가 다 주고 켜짐만 초록 깜빡임(.scr-motion-castbtn-on)이다. 목록은 줄 왼끝이라 is-left(오른쪽으로 편다). */
-  const castBtnNode9 = (
-    <>
-          <span className="scr-motion-pick scr-motion-castpick">
-            <button
-              type="button"
-              className={cx("scr-motion-litbtn scr-motion-mapbtn scr-motion-castbtn", (castOn || trackRaw !== null || splitOn9) && "scr-motion-castbtn-on")}
-              onClick={() => pickToggle9("cast")}
-              aria-haspopup="menu" aria-expanded={pick9 === "cast"}
-              aria-pressed={castOn || trackRaw !== null || splitOn9}
-              aria-label={splitUser9 ? "중계 — 분할보기 · 누르면 목록" : castOn ? "중계 — 자동 · 누르면 목록"
-                : trackRaw !== null ? `추적 — ${bases.find((b9) => b9.key === trackRaw)?.name ?? trackRaw} · 누르면 목록`
-                  : "중계·추적 — 누르면 목록"}
-              title={splitUser9 ? (splitSel9 ? "분할보기 — 고른 선수들의 화면을 함께 보는 중" : "분할보기 — 모든 선수의 화면을 함께 보는 중") : castOn
-                ? "중계(자동) — 중요한 장면의 선수를 자동으로 따라가는 중"
-                : trackRaw !== null ? "개인 추적 중 — 누르면 다른 사람이나 자동을 고른다"
-                  : "중계·추적 — 따라갈 사람을 고르거나 자동(중계)을 켠다"}
-            >
-              <Tv size={18} aria-hidden />
-            </button>
-            {pickMenu9("cast", [
-              /* ★ **전체는 맨 위**다(2026-09, 요청: "전체는 맨위에 배치하고 누르면 모두 선택되는걸로") — 모든 선수의 분할보기이고, 켜지면
-                 아래 닉네임이 **다 켜진 줄**로 선다(castSel9 가 모두를 낸다). 거기서 한 사람을 누르면 그 사람만 빠진 분할로 내려온다.
-                 둘 이상일 때만 · 목록은 안 닫힌다(keep — 다 켜진 것을 보여 준다). */
-              ...(bases.length >= 2 && (!smallDevice9 || bases.length <= SPLIT_PHONE_MAX9) ? [{
-                key: "split", label: "전체", on: splitUser9 && splitSel9 === null, keep: true,
-                act: () => { if (splitUser9 && splitSel9 === null) setSplitOn9(false); else startSplit9(null); },
-              }] : []),
-              /* 닉네임은 **고른 사람에 더하고 뺀다**(pickPerson9 — 하나면 개인 추적 · 둘 이상이면 그 사람들만 분할) · 목록은 안 닫힌다(keep). */
-              ...bases.map((b9) => ({
-                key: `p:${b9.key}`, label: b9.name, on: castSel9.includes(b9.key), keep: true,
-                dot: modeColor(b9.key, teamOfRaw(b9.key)), act: () => pickPerson9(b9.key),
-              })),
-              { key: "auto", label: "자동", on: castOn, act: () => toggleCast9() },
-              /* ★ 맨 아래 **끄기**(2026-09, 요청: "목록에 끄기도 있어야해") — 켜진 것을 다시 골라 끄는 길은 남지만, 무엇이 켜져
-                 있는지 모르는 손에게는 '끄는 줄'이 따로 있어야 한다. 중계든 개인 추적이든 카메라를 쥔 쪽을 놓고(둘은 배타라 둘 중
-                 하나다) 시점도 관전자로 되돌린다(toggleTrack 의 끄는 길과 같은 셈). 둘 다 꺼져 있을 때 이 줄이 켜진 줄이다. */
-              {
-                key: "off", label: "끄기", on: !castOn && trackRaw === null && !splitUser9,
-                act: () => {
-                  if (splitUser9) setSplitOn9(false);
-                  if (castOn) stopCast9(); else if (trackRaw !== null) { stopTrack9(); setViewRaw(null); }
-                },
-              },
-            ], true, true)}
-          </span>
-    </>
-  );
+  /* (걷어냄 · 2026-10-09, 요청: "중계버튼 제거하고 로스터 닉네임 왼쪽에 비디오카메라 버튼 추가") — 아이콘 줄 맨 왼쪽의 TV 단추(castBtnNode9)와
+     그 위로 펼치는 목록(전체 · 사람들 · 자동 · 끄기). 고르는 손잡이는 독 로스터의 카메라 단추(아래 dockRoster9)다 — 사람 = pickPerson9 · AUTO = toggleCast9. */
   const mapBtnRow = (
     <div
       // (걷어냄) is-up — 도구 판이 없어져 밀어 줄 것이 없다(요청).
@@ -17667,22 +17684,7 @@ export default function ReplayMotionPlayer({
           `entData &&` 문이 있어 세계가 워커에서 오기 전에는 줄이 옛 꼴(TV 없음)로 서다가 받은 뒤 한 칸이 끼어들어 형제들이
           왼쪽으로 밀렸다. 목록은 로스터(bases)에서 나므로 자취 없이도 지을 수 있고, 고르는 일은 편성표가 오면 그때 먹는다
           (castOn 은 처음부터 켜져 있다). 줄의 꼴은 처음부터 끝까지 하나다. */}
-      {/* (옮김) TV 단추 — 정보줄 맨 왼쪽으로 갔다(2026-09, 요청: "중계버튼 위치를 유저정보 라인 맨 왼쪽으로 이동") · 아래 castBtnNode9. */}
-      {castBtnNode9}
-      {/* ★ 폰에는 로스터가 없다 — 단추도 걷는다(2026-09, 요청: "모바일 로스터 사용 x 버튼도 제거") · 아래 판도 같은 문. */}
-      {!smallDevice9 && (
-        <button
-          type="button"
-          /* ★ 두 단계다 — 끔 = 로스터(이름)만 · 켬 = 데이터까지(2026-09, 요청: "로스터 아이콘 사람에서 테이블(표)로 변경 · 로스터
-             끄기는 없애고 2단계로 · 끈게 로스터만 보이는거고 켠게 데이터 보이는거"). 숨김(2)은 걷었다 — 아이콘은 늘 표다. */
-          className={cx("scr-motion-litbtn scr-motion-mapbtn", rosterMode === 1 && "is-on")}
-          onClick={() => setRosterMode((v) => (v === 1 ? 0 : 1))}
-          aria-label={rosterMode === 1 ? "로스터 현황 숨기기" : "로스터 현황 보이기"}
-          title={rosterMode === 1 ? "로스터 현황 — 켬" : "로스터 현황 — 끔(이름만)"}
-        >
-          <RosterTableIcon size={18} />
-        </button>
-      )}
+      {/* (걷어냄 · 2026-10-09) TV 단추(중계 목록)와 로스터 현황 단추(표) — 중계는 독 로스터의 카메라 단추로, 현황은 독 로스터가 늘 보인다. */}
       {/* 미니맵 오버레이(요청) — 로스터와 같은 자리·같은 결의 여닫이다. 아이콘은 지도
           모양: 이 버튼이 여는 것이 '작은 지도' 그 자체다. 전체화면에만 둔다 — 일반 화면
           에서 미니맵은 지도 밖 독에 제 자리를 가져 지도를 안 가린다.
@@ -18858,6 +18860,7 @@ export default function ReplayMotionPlayer({
    *  푼 다음 그 점이 화면 한가운데에 오게 팬을 맞춘다 — fsSeek와 같은 식이다. */
   const fsWheelZoom = (mx: number, my: number, up: boolean): void => {
     if (fsCoverW <= 0 || fsCoverH <= 0) return;
+    if (camLockRef9.current) return;   // 중계 중엔 미니맵 휠 배율도 없다(camLockRef9 · 2026-10-09)
     const z9 = zoomNext(zoomRef.current, up);
     if (z9 === null || z9 === zoomRef.current) return;
     closePicked9();   // 미니맵 위 휠 배율도 팝업을 닫는다(요청).
@@ -18965,16 +18968,7 @@ export default function ReplayMotionPlayer({
               뿐이라 지도 이미지·굽기와 한 톨도 안 얽힌다. 제 합성 층이고 안 움직이므로
               (CSS 주석) 평면에 늘 두어도 끌기·확대 비용이 안 는다. */}
           <div className="scr-fs-space" style={{ backgroundImage: spaceBg9 }} aria-hidden />
-          {/* ★ 폰 단독 중계·추적의 화면 주인 현황은 **무대 아래 가운데**다(2026-10, 요청: "모바일에서 단일화면 화면주인 스탯을 로스터가
-              아닌 화면 하단 가운데에 표시") — 옛 자리(로스터 그 줄의 칩 옆 · .scr-roster-st)는 걷었다. 분할 칸 머리와 같은 현황 상자
-              (.scr-split-st)만이고 이름 칩은 없다(요청: "닉네임은 없어도 됨" — 누구인지는 로스터 칩의 글로우·TV 목록이 말한다).
-              읽기만 하는 줄이라 손짓은 지도로 흘린다(pointer-events none). 분할은 칸 머리가 진다. */}
-          {smallDevice9 && !splitOn9 && camRaw9 !== null && (
-            <div className="scr-fs-ownerst" aria-hidden>
-              {/* 폰은 늘 두 줄(일꾼·자원·인구 / 데미지·APM · 2026-10, 요청: "스탯창 그냥 두 줄 고정") — 분할 칸 아래 현황과 같은 꼴. */}
-              {whoStats9(capOf9(camRaw9, camRaw9), "scr-split-st is-two", true)}
-            </div>
-          )}
+          {/* (걷어냄 · 2026-10-09, 요청 3) 폰 단독 중계·추적의 화면 주인 현황(.scr-fs-ownerst · 무대 아래 가운데 두 줄) — 독 로스터가 든다. */}
           {splitLay9 && (
             /* 분할보기 밑 층 — 칸마다 그 사람 화면의 **땅**(splitPaint9 가 카메라가 갈릴 때만 칠한다). 몸·효과는 그 위의 본 지도
                캔버스가 칸 네모에 제자리로 칠하고, 머리·테·누름은 맨 위 층(.scr-split)이다. 셋이 같은 격자다. */
@@ -18993,6 +18987,46 @@ export default function ReplayMotionPlayer({
             </div>
           )}
           {mapNode}
+          {/* ★★ 단독 화면의 머리·미니맵 — **분할 칸과 같은 꼴**(2026-10-09, 요청 2·5: "단독화면의 경우도 분할화면과 똑같은 미니맵, 헤더 적용(PC/모바일
+              각각의 특성도 그대로)" · "독의 미니맵은 필요가 없어(중계 꺼져도 단독화면 미니맵 위치 그대로 사용)") — 칸 머리(이름 칩 · 중계 중일 때만)는 왼위,
+              미니맵은 왼아래(.scr-split-mini 와 같은 자 — 중계 중엔 그 화면의 6×6 타일 상한(--split-tile) · 꺼지면 상한 없음). 미니맵은 옛 독 미니맵
+              그대로(짚기·휠·안개·핑 · ReplayFullscreenMinimap)이고 중계 중엔 카메라가 기계 것이라 손짓을 안 받는다(.is-cast). 전체화면의 미니맵
+              단추(N)는 이것을 여닫는다. 현황(스탯) 상자는 없다(요청 3 — 값은 독 로스터가 든다). 분할은 칸이 제 것을 든다. */}
+          {!splitOn9 && (
+            <div
+              className={cx("scr-fs-solo", camRaw9 !== null && "is-cast")}
+              style={camRaw9 !== null ? { ["--split-tile" as string]: `${(tilePx * zoom).toFixed(2)}px` } as React.CSSProperties : undefined}
+            >
+              {camRaw9 !== null && (
+                <span className="scr-split-cap scr-fs-solo-cap">
+                  <span className="scr-split-chip" style={capOf9(camRaw9, camRaw9).chip}>{bases.find((b9) => b9.key === camRaw9)?.name ?? camRaw9}</span>
+                </span>
+              )}
+              {(fsOn ? fsMiniOn : true) && (
+                <div className="scr-fs-solo-mini" style={{ ["--ar" as string]: String(Math.max(1, grid.width) / Math.max(1, grid.height)) } as React.CSSProperties}>
+                  <ReplayFullscreenMinimap
+                    grid={grid}
+                    ratio={grid.width / Math.max(1, grid.height)}
+                    dotsRef={opsRef}
+                    extraRef={miniExtraRef}
+                    pingsRef={miniPingsRef9}
+                    tick={t}
+                    viewAt={fsViewAt}
+                    zoom={zoom} pan={pan}
+                    /* ★ 주인의 점은 원작 초록(2026-10-09, 요청) — 개인 추적·자동 중계의 화면 주인. 네모는 늘 흰색. */
+                    ownRaw={uiOwnerRef9.current}
+                    ownColor={UI_OWN9}
+                    painter={miniPaintRef} live={viewLive9}
+                    onSeek={fsSeek}
+                    onWheelZoom={fsWheelZoom}
+                    unproject={miniUnproject}
+                    fog={miniFog}
+                    warming={!tracksReady}
+                  />
+                </div>
+              )}
+            </div>
+          )}
           {splitLay9 && (
             /* 분할보기 격자(위 splitOn9 · splitPaint9) — 무대를 통째로 덮는다. 칸을 누르면 독이 그 사람의 것을 든다.
                손짓은 여기서 끊는다(무대의 끌기·집기가 덮인 지도에 안 걸리게). */
@@ -19028,7 +19062,7 @@ export default function ReplayMotionPlayer({
                       <span className="scr-split-chip" style={cap9.chip}>{nm9}</span>
                       {/* 맞대결 배지(위 duel9) — 공격 · 방어 · 교전, 깜빡인다. 손으로 켠 분할에는 안 선다. */}
                       {rl9 && <span className={cx("scr-split-badge", `is-${rl9}`)}>{DUEL_LABEL9[rl9]}</span>}
-                      {!smallDevice9 && whoStats9(cap9, "scr-split-st")}
+                      {/* (걷어냄 · 2026-10-09, 요청 3: "스탯바는 중계화면에서 모두 제거") PC 칸 머리의 현황 한 줄(.scr-split-st). */}
                     </span>
                     {/* 칸 발치(.scr-split-foot) — 미니맵(좌하단 · 그 팀 시야 · 제 화면 자리는 그 사람 색 네모 · splitMiniPaint9) + 폰은 그 **오른쪽**에
                         현황(2026-10, 요청: "각 화면 아래쪽에 스탯 표시" → "스탯창 그냥 두 줄 고정 · 글자 1스텝 키워" → "미니맵 올리지 않고 스탯을 미니맵
@@ -19040,11 +19074,7 @@ export default function ReplayMotionPlayer({
                         style={{ ["--ar" as string]: String(Math.max(1, grid.width) / Math.max(1, grid.height)) } as React.CSSProperties}
                         ref={(el9) => { if (el9) splitMiniRef9.current.set(c9.raw, el9); else splitMiniRef9.current.delete(c9.raw); }}
                       />
-                      {smallDevice9 && (
-                        <span className="scr-split-ownerst">
-                          {whoStats9(cap9, "scr-split-st is-two", true)}
-                        </span>
-                      )}
+                      {/* (걷어냄 · 2026-10-09, 요청 3) 폰 칸 발치의 두 줄 현황(.scr-split-ownerst) — 발치는 미니맵뿐이다. */}
                     </span>
                   </div>
                 );
@@ -19080,16 +19110,8 @@ export default function ReplayMotionPlayer({
             아니다. 끈 꼴은 같은 자리에 이름+종족만 남고, 판(바탕·테두리·그림자)은
             안 그린다: 자리·여백을 그대로 두므로 켤 때 글자가 한 톨도 안 움직이고,
             지도를 가리는 것은 판뿐이라 그 판만 걷으면 시야가 열린다. */}
-        {rosterMode !== 2 && !splitOn9 && (
-          <div className={cx("scr-fs-panel scr-fs-roster-fixed",
-            rosterMode === 0 && "scr-fs-panel-bare", !melee && "is-team")}>
-            {teamCol(1, true, rosterMode === 0, true)}
-            {teamCol(2, true, rosterMode === 0, true)}
-            {/* (옮김) 중계 스위치 — 한때 여기 로스터 맨 아래의 글자 알약이었다(요청: "on/off 버튼은 로스터
-                가장 아래에 tv버튼으로"). 이제 지도 위 아이콘 줄의 로스터 단추 왼쪽에 선다(요청: "중계 버튼을
-                버튼행으로 이동(아이콘만 표시)" — 위 mapBtnRow). 로스터를 숨겨도 스위치는 남는다. */}
-          </div>
-        )}
+        {/* (걷어냄 · 2026-10-09, 요청 4: "중계 off화면과 중계 단독화면에서 로스터 제거") — 지도 왼위의 항시표시 로스터(.scr-fs-roster-fixed ·
+            teamCol). 로스터는 독의 미니맵 자리(dockRoster9)에 중계 ON/OFF·단독/분할 무관하게 선다. teamCol 은 자료 없는 판에만 남는다. */}
         {/* (걷어냄·요청) 도구 판 — 품질·체력바·마우스 조작 줄(viewRowNode)이 들어 있던
             판이다. "일단 미사용"이라 그리지 않는다. */}
         {/* ★★ 아래는 **툴박스 + 독 줄** 두 겹이다(2026-09, 요청: "기본적인 배치는 미니맵 인포창이 한줄 툴박스는 그 위에 배치.
@@ -19105,36 +19127,9 @@ export default function ReplayMotionPlayer({
             {/* 미니맵 + 인포창을 **한 사각 틀**로 묶는다(2026-09, 요청: "미니맵과 인포창을 한데 묶는 사각 프레임 필요 인포창 래디우스 제거"). */}
             <div className="scr-fs-dockframe">
             <div className="scr-fs-dockmain">
-            {(fsOn ? fsMiniOn : true) && (
-              <div className="scr-fs-minipanel">
-                <div className="scr-motion-minibox">
-                  <ReplayFullscreenMinimap
-                    grid={grid}
-                    ratio={grid.width / Math.max(1, grid.height)}
-                    dotsRef={opsRef}
-                    extraRef={miniExtraRef}
-                    pingsRef={miniPingsRef9}
-                    tick={t}
-                    viewAt={splitOn9
-                      ? ((z9, p9) => (splitPick9 ? splitViewRef9.current.get(splitPick9) ?? fsViewAt(z9, p9) : null))   // 안 고르면 네모 없음
-                      : fsViewAt}
-                    /* 네모 색은 안 준다 — **늘 흰색**(2026-10-09, 요청: 원작처럼). 옛 '누른 사람 색'(viewColor)은 되물렸다. */
-                    zoom={zoom} pan={pan}
-                    /* ★ 주인의 점은 원작 초록(2026-10-09, 요청) — 개인 추적·자동 중계는 화면 주인, 분할은 고른 칸의 사람. */
-                    ownRaw={splitOn9 ? splitPick9 : uiOwnerRef9.current}
-                    ownColor={UI_OWN9}
-                    painter={miniPaintRef} live={viewLive9}
-                    onSeek={fsSeek}
-                    onWheelZoom={fsWheelZoom}
-                    unproject={miniUnproject}
-                    fog={miniFog}
-                    /* 큰 지도와 **같은 순간에** 나타난다(지적: 미니맵만 그대로였다) — 그쪽은
-                       is-warming으로 제 층을 통째로 감춘다(global.css). */
-                    warming={!tracksReady}
-                  />
-                </div>
-              </div>
-            )}
+            {/* ★★ 미니맵 자리에 **로스터**(2026-10-09, 요청 5: "독의 미니맵은 필요가 없어 … 제거하고 그 자리에 로스터를 넣어") — 미니맵은 무대
+                왼아래(.scr-fs-solo-mini · 분할 칸과 같은 자리)로 갔다. 판의 폭은 '인포창을 뺀 남는 폭, 최대 인포창 폭'(replay.css .scr-fs-rosterpanel). */}
+            <div className="scr-fs-rosterpanel">{dockRoster9}</div>
               {infoDock9}
             </div>
             </div>
