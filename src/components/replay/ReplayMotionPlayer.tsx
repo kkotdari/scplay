@@ -17255,8 +17255,9 @@ export default function ReplayMotionPlayer({
                           왼쪽 위에 붙여주기"). 칩은 overflow hidden(긴 이름 자름)이라 칩 안에 못 두고, 겹싸개(position relative)에 절대 자리로. */}
                       <span className="scr-dock-namewrap">
                         <span className={cx("scr-motion-teamcol-name scr-dock-name", shownRaws9.has(m.key) && "scr-motion-teamcol-cast")} style={chipStyle(m.key, m.team, CHIP_ROW_A9)}>
-                          {m.name}
+                          {/* 종족 배지는 이름 **앞**(2026-10-09, 지적: 뒤에 두면 긴 이름에서 먼저 잘린다 · replay.css .scr-dock-name .scr-motion-teamcol-race). */}
                           {m.race && raceLetter9(m.race) ? <span className="scr-motion-teamcol-race">{raceLetter9(m.race)}</span> : null}
+                          {m.name}
                         </span>
                         {trophy9 && <span className="scr-dock-trophy" aria-label="승리">🏆</span>}
                       </span>

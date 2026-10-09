@@ -1228,3 +1228,13 @@ AUTO 글자 합성) · 현재 화면에 보여주는 화면 주인(들)은 기�
   유닛을 찾아 "변태 중 저글링" 바. 🔎 `node scripts/perf-check.mjs --wide --vw 1920 --vh 1080 --dpr 1 --glblit --players 4 --fs --info --track Rex --dockegg|--dockhatch --shot x.png`.
 - **공사 중 체력**(engine9 공사 op) — 만피의 10%에서 진행률대로(선 건물의 변태는 원래 건물 만피에서) · 맞은 기록은 상한 · 바는 늘 보인다. 옛 공사 op 는 체력이 없어 "0/0".
 - **인포창 유닛 그림** — `silIcon9` 가 유닛이면 `UNIT_ICON_YAW9 = −BUILDING_BASE_YAW`(정면이 살짝 오른쪽 · 원작 꼴). 건물·공사 모양은 그대로.
+
+## PC 독 200 · 재생부와 틈 8 · 안쪽 줄 간격 · 종족 배지는 이름 앞 동그라미(2026-10-09)
+재요청: "1080p 기준 독 높이 200 · 로스터창·인포창 높이를 늘려 · 재생부 사이 갭도 · 생긴 공간은 안쪽 줄 간격에 · 로스터 닉네임의 종족이 맨 뒤라 잘리네 — 맨 앞으로, 동그란 배경".
+- 틀 몸 125 → **145**(독 몸 186 · 틀 200) · 틀 아래 여백 8(재생부와의 틈 · 독 줄 키 실측 208 = 틀 200 + 8). 인포창 줄 틈 3·dk → 6 · 몸 위아래 여백 8.
+  로스터 줄 키 상한 24 → **28**, 글자는 `--rf` 12 에 못 박아(줄이 커져도 글자 그대로) 늘어난 키가 줄 간격이 된다 · 라벨 10 · 칩 24.
+- **종족 배지** — `.scr-dock-name .scr-motion-teamcol-race` 를 이름 **앞** 동그라미(지름 0.6줄 · PC 짝수 · 어두운 반투명 바탕 · 흰 글자)로. JSX(dockRoster9)도 이름 앞에 둔다.
+- 인포창 잘림 검산(물음: "어떤 경우에도 인포창 내용 잘림 없지?") — perf-check `--rosterprobe` 가 사진 직전 몸(.scr-motion-infodock-body)의 scrollHeight − clientHeight 와
+  자손이 바닥 아래로 내려간 몫을 찍는다(`인포 넘침 · 바닥 밖`). 배럭(생산+대기) · 이베이(연구+칩) · 드랍십(탄 몸) · 벙커 · 병력 여덟(6×2 격자) · 해처리(칩+보급) · 알 — 일곱 꼴 모두 0.
+  🔎 `for c in --dockrax --dockebay --dockship --dockbunker ""; do node scripts/perf-check.mjs --wide --vw 1920 --vh 1080 --dpr 1 --glblit --players 4 --fs --info --track 정구 $c --rosterprobe --shot x.png; done`
+  (해처리·알은 `--track Rex --dockhatch|--dockegg`).

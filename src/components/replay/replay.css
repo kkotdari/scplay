@@ -2508,11 +2508,17 @@
   --dock-cap: calc(30px * var(--dks)); --dock-big: calc(80px * var(--dks));
   --dock-slot: calc(36px * var(--dks)); --dock-fold: calc(20px * var(--dks));
   --dock-w: calc(var(--dock-cell) * 6 + var(--dock-gap) * 5 + var(--dock-padx) * 2);   /* 320 */
-  --dock-body: calc(125px * var(--dks));
-  --dock-h: calc(41px * var(--dks) + var(--dock-body));   /* 166 — 정보줄 40 + 새긴 줄 1 + 몸 125 */
+  /* 틀 180 → **200**(2026-10-09 재요청: "1080p 기준 독 높이 200 · 로스터창·인포창 높이를 늘려 · 재생부 사이 갭도 · 생긴 공간은 안쪽 줄 간격에") —
+     몸 125 → 145(독 몸 186) · 틀 아래 여백 8(재생부와의 틈 · 옛 0). 안쪽 여유는 아래 PC 덮어쓰기(인포창 줄 틈 6 · 로스터 줄 키 상한 28 · 글자는 12 그대로). */
+  --dock-body: calc(145px * var(--dks));
+  --dock-h: calc(41px * var(--dks) + var(--dock-body));   /* 186 — 정보줄 40 + 새긴 줄 1 + 몸 145 → 틀 200 */
   --roster-w: calc(480px * var(--dks));
   --dock-bez: calc(4px * var(--dks)); --dock-out: calc(6px * var(--dks)); --dock-sep: calc(8px * var(--dks));
+  margin-bottom: calc(8px * var(--dks));
 }
+/* 인포창 안쪽 줄 틈 — 3·dk(4.05) → **6**(2026-10-09, 같은 재요청) · 몸 위아래 여백 6·dk(8.1) → 8. */
+.scr-motion-pc9 .scr-motion-infodock-body { padding-top: calc(8px * var(--dks)); padding-bottom: calc(8px * var(--dks)); }
+.scr-motion-pc9 .scr-motion-infodock-text, .scr-motion-pc9 .scr-motion-infodock-lines, .scr-motion-pc9 .scr-motion-infodock-foot { gap: calc(6px * var(--dks)); }
 /* 인포창 글자·바 — 1080p 에서 짝수 px(옛 N·dk 는 14.85·10.8·27·16.2·8.8·7.4·9.45·10.1·12.15 였다). 접기 손잡이 글자 14 · 빈 안내 10 · 글자 머리 26 ·
    숫자 10 · 이름 16 · 업그레이드 칸 8(긴 것 8 · 하나짜리 14 · 단계 10) · 보급 10 · 줄 글 12 · 진행 바 키 8. */
 .scr-motion-pc9 .scr-motion-infodock-fold { font-size: calc(14px * var(--dks)); }
@@ -3217,13 +3223,15 @@
    단추 그림 14 · AUTO 글자 10 · 트로피 12. 사방 안쪽 여백 8/12(요청: "로스터판 자체의 안쪽 패딩" — 줄 키 셈이 16 을 뺀다). 폭 상한((판 폭 − 90)/30)은
    판 480 이면 13 이라 안 닿는다. */
 .scr-motion-pc9 .scr-dock-roster {
-  --rp: round(down, min(calc(24px * var(--dks)), calc((var(--dock-h) - 16px * var(--dks)) / var(--rows, 6))), 2px);
+  /* 줄 키 상한 24 → **28**(2026-10-09 재요청: 늘어난 독 키는 줄 간격으로) — 글자는 12 에 못 박는다(`--rf` · 줄이 커져도 글자는 그대로 · 쪽 꼴·라벨도 이 자). */
+  --rp: round(down, min(calc(28px * var(--dks)), calc((var(--dock-h) - 16px * var(--dks)) / var(--rows, 6))), 2px);
+  --rf: round(down, min(calc(var(--rp) * 0.5), calc(12px * var(--dks)), calc((100cqw - 90px) / 30)), 2px);
   padding: calc(8px * var(--dks)) calc(12px * var(--dks));
-  font-size: round(down, min(calc(var(--rp) * 0.5), calc((100cqw - 90px) / 30)), 2px);
+  font-size: var(--rf);
 }
 /* PC 쪽 꼴(좁은 창)은 글자를 폭이 아니라 줄 키가 정한다 — 쪽마다 두 칸뿐이라 폭이 남는다. */
-.scr-motion-pc9 .scr-dock-roster.is-paged { font-size: round(down, calc(var(--rp) * 0.5), 2px); }
-.scr-motion-pc9 .scr-dock-lab { font-size: calc(var(--rp) * 0.5 - 2px); }
+.scr-motion-pc9 .scr-dock-roster.is-paged { font-size: round(down, min(calc(var(--rp) * 0.5), calc(12px * var(--dks))), 2px); }
+.scr-motion-pc9 .scr-dock-lab { font-size: calc(var(--rf) - 2px); }
 .scr-motion-pc9 .scr-dock-gap::after { left: calc(12px * var(--dks)); right: calc(12px * var(--dks)); }
 /* 머리 줄(.scr-dock-headrow — AUTO 단추 + 칸 라벨 · 2026-10-09)은 여느 팀 덩이와 같은 [이름 기둥 | 자료 띠] 꼴이라 따로 둘 규칙이 없다.
    팀 사이 틈 — 줄 키의 0.6(ROSTER_GAP_ROWS9 · --rows 에 든다) · 가운데 실금 하나로 두 팀을 가른다(요청: "1팀 2팀 사이를 좀 더 갭"). */
@@ -3293,7 +3301,15 @@
 /* 폰(is-paged) — 이름 기둥은 고정 몫, 자료 띠는 남는 폭의 창(overflow hidden) 안에서 쪽 셋이 한 창 폭씩이고 translateX 로 미끄러진다(JSX). */
 .scr-dock-roster.is-paged .scr-dock-names { flex: 0 0 46%; }
 .scr-dock-roster.is-paged .scr-dock-name { padding: 0 calc(2px * var(--dk)); }
-.scr-dock-roster.is-paged .scr-dock-name .scr-motion-teamcol-race { margin-left: 2px; }
+/* ★ 종족 글자는 **이름 앞의 동그란 배지**다(2026-10-09, 지적: "로스터 닉네임에 종족이 맨 뒤라 잘리네 — 맨 앞으로 이동하고 동그란 배경 추가") —
+   칩이 긴 이름을 오른쪽에서 자르므로 뒤에 두면 먼저 잘렸다. 지름 ≈ 0.6줄(PC 는 짝수로) · 어두운 반투명 바탕 · 흰 글자. JSX(dockRoster9)가 이름 앞에 둔다. */
+.scr-dock-name .scr-motion-teamcol-race {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; margin: 0 0.35em 0 0;
+  width: calc(var(--rp) * 0.6); height: calc(var(--rp) * 0.6); border-radius: 50%;
+  background: rgba(0, 0, 0, 0.4); color: #fff; opacity: 1; font-size: 0.72em; font-weight: 800; line-height: 1; letter-spacing: 0;
+}
+.scr-motion-pc9 .scr-dock-name .scr-motion-teamcol-race { width: round(nearest, calc(var(--rp) * 0.6), 2px); height: round(nearest, calc(var(--rp) * 0.6), 2px); }
+.scr-dock-roster.is-paged .scr-dock-name .scr-motion-teamcol-race { margin-right: 0.3em; }
 .scr-dock-roster.is-paged .scr-dock-cell.is-dmg { font-size: 0.85em; }   /* "1.0k(45%) / 810(47%)" 스무 자가 창에 들게 */
 .scr-dock-roster.is-paged .scr-dock-data { flex: 1 1 0; overflow: hidden; }
 .scr-dock-roster.is-paged .scr-dock-strip { transition: transform 0.45s ease-in-out; will-change: transform; }   /* 0.45s = ROSTER_SLIDE_MS9 */
