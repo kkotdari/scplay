@@ -10400,6 +10400,13 @@ export default function ReplayMotionPlayer({
    *  배치하고 누르면 모두 선택되는걸로(전체도 선택되지만 모든 유저도 선택)" — 옛 '전체 분할은 고른 것이 아니다'를 되물렸다). */
   const castSel9: string[] = trackRaw !== null ? [trackRaw]
     : splitUser9 ? (splitSel9 ?? bases.map((b9) => b9.key)) : [];
+  /** ★ '전체'가 켜져 있나 — 사람 전부를 고른 분할(2026-10-09, 요청: "PC 전광판 카메라 전체 선택 필요" — 전광판 머리 줄의 전체 알약 · 폰은 둘까지라 없다). */
+  const allOn9 = splitUser9 && bases.length > 0 && castSel9.length >= bases.length;
+  /** 전체 알약 — 누르면 모든 사람 분할(startSplit9(null)) · 켜진 채 누르면 다 놓는다(사람 단추로 하나씩 빼는 것과 같은 끝 = 중계 꺼짐). */
+  const toggleAll9 = (): void => {
+    if (allOn9) { setSplitOn9(false); return; }
+    startSplit9(null);
+  };
   /** 닉네임 누르기 — 고른 사람에 더하거나 뺀다. 남은 사람이 0 이면 끄고, 하나면 개인 추적, 둘 이상이면 그 사람들만 분할이다. */
   const pickPerson9 = (key9: string): void => {
     const next9 = castSel9.includes(key9) ? castSel9.filter((k9) => k9 !== key9) : [...castSel9, key9];
@@ -17049,6 +17056,15 @@ export default function ReplayMotionPlayer({
               >
                 <Video aria-hidden /><span className="scr-roster-cam-txt">AUTO</span>
               </button>
+              {/* ★ 전체 알약 — PC 만(2026-10-09, 요청: "PC 전광판 카메라 전체 선택 필요") · 모든 사람 화면 나누기(옛 TV 목록의 '전체'). 폰은 분할이 둘까지라 없다. */}
+              {!smallDevice9 && (
+                <button
+                  type="button" className={cx("scr-roster-cam scr-roster-cam-all", allOn9 && "is-on")} onClick={toggleAll9} aria-pressed={allOn9}
+                  aria-label={allOn9 ? "전체 화면 나누기 끄기" : "전체 화면 나누기"} title={allOn9 ? "전체 — 모든 사람 화면 나누기(누르면 끔)" : "전체 — 모든 사람 화면을 나눠 본다"}
+                >
+                  <Video aria-hidden /><span className="scr-roster-cam-txt">전체</span>
+                </button>
+              )}
             </div>
           </div>
           <div className="scr-dock-data">

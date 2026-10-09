@@ -29053,7 +29053,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       }), ROCK), key));
       const rim = r9 * 0.72;
       const NSEG9 = 24;
-      const RI9 = rim * (1 - 0.26);                 // 아가리 반지름 — 테 두께가 테 반지름의 26%
+      /* ★ 테 두께는 **분화구 크기와 무관하게 한 값**(2026-10-09, 요청: "간헐천 분화구들 크기는 달라도 테두리 두께는 같게") — 옛 '테 반지름의 26%'는 큰 것 0.45 ·
+         작은 것 0.25 로 달랐다. 0.34(가운데 것의 옛 값)로 못 박는다 — 큰 분화구는 조금 얇게, 셋째(테 반지름 0.97 → 아가리 0.63)는 조금 두껍게. 그릇 깊이·가스면 틈은 아가리 비례 그대로. */
+      const RIM_T9 = 0.34;
+      const RI9 = rim - RIM_T9;                     // 아가리 반지름 = 테 반지름 − 테 두께
       const DEPTH9 = RI9 * 0.5;                     // 그릇 깊이(역돔)
       const GAP9 = Math.max(0.06, RI9 * 0.14);      // 가스면이 테 아래로 내려간 만큼
       const ang9 = (i9: number): number => (i9 / NSEG9) * Math.PI * 2;   // 기둥 단면과 같은 각(위상 0 · cos·sin 차례)

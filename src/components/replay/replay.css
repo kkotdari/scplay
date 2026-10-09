@@ -3326,15 +3326,17 @@
 .scr-dock-team { display: flex; align-items: flex-start; min-width: 0; flex: none; }
 .scr-dock-names { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
 /* ★ 폰은 팀마다 이름이 **두 기둥**(2×2 · 2026-10-09, 요청: "모바일에서 로스터는 각팀 2*2배열로" — JSX is-grid2) — 줄 수가 반이라 줄 키·글자가 큰다(위 --rp 상한 30). */
-.scr-dock-names.is-grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: calc(4px * var(--dk)); align-content: start; }
+/* 두 기둥 사이 틈 4 → **9**·dk(2026-10-09, 요청: "모바일 전광판 가로 배치 유저 사이 갭 좀 늘리기") — 칸이 그만큼 좁아져(74 → 71.5px) 카메라 단추 0.7 → 0.64 줄 키 ·
+   칩 글자 0.9 → 0.88em · 배지 0.44 → 0.42 줄 키로 세 글자 이름이 그대로 든다(아래). */
+.scr-dock-names.is-grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: calc(9px * var(--dk)); align-content: start; }
 /* 두 기둥의 한 칸은 좁다(폰 세로 전광판 168 → 칸 82 · 실측: "수달이"가 "수달"로 잘렸다) — 카메라 단추 0.84 → 0.7 줄 · 배지 0.6 → 0.5 줄(여백 0.2em) · 칩 여백 2·dk 로 죈다. */
-.scr-dock-names.is-grid2 .scr-roster-cam { height: calc(var(--rp) * 0.7); min-width: calc(var(--rp) * 0.7); padding: 0; }
+.scr-dock-names.is-grid2 .scr-roster-cam { height: calc(var(--rp) * 0.64); min-width: calc(var(--rp) * 0.64); padding: 0; }
 .scr-dock-names.is-grid2 .scr-roster-cam svg { width: calc(var(--rp) * 0.5); height: calc(var(--rp) * 0.5); }
 .scr-dock-names.is-grid2 .scr-dock-row { gap: calc(2px * var(--dk)); }
 /* 폰 2×2 칩은 폭이 빠듯하다(이름 기둥 152 → 칸 74 − 카메라 단추 18 ≈ 54px) — 좌우 여백은 한 뼘만(2 → 3·dk · 2026-10-09 "닉네임칩 좌우 패딩 더 주기") 주고 글자 0.94 → 0.9em ·
    배지 0.5 → 0.44 줄 키로 "수달이"·"크리스"(세 글자)가 안 잘리게(실측: 4·dk 여백에선 "수달0"으로 잘렸다). */
-.scr-motion .scr-fs-rosterpanel .scr-dock-names.is-grid2 .scr-dock-row .scr-dock-name { padding: 0 calc(3px * var(--dk)); font-size: 0.9em; }
-.scr-dock-names.is-grid2 .scr-dock-name .scr-motion-teamcol-race { width: calc(var(--rp) * 0.44); height: calc(var(--rp) * 0.44); margin-right: 0.15em; font-size: 0.58em; }
+.scr-motion .scr-fs-rosterpanel .scr-dock-names.is-grid2 .scr-dock-row .scr-dock-name { padding: 0 calc(3px * var(--dk)); font-size: 0.88em; }
+.scr-dock-names.is-grid2 .scr-dock-name .scr-motion-teamcol-race { width: calc(var(--rp) * 0.42); height: calc(var(--rp) * 0.42); margin-right: 0.15em; font-size: 0.56em; }
 .scr-dock-data { flex: 0 0 auto; min-width: 0; }
 .scr-dock-strip { display: flex; align-items: flex-start; }
 .scr-dock-page { flex: 0 0 auto; display: flex; flex-direction: column; padding-left: calc(6px * var(--dk)); }
@@ -3385,7 +3387,7 @@
 .scr-roster-cam.is-on:hover { background: rgba(46, 229, 157, 0.42); }
 .scr-roster-cam-txt { font-size: calc(var(--rp) * 0.42); font-weight: 800; letter-spacing: 0.03em; }
 /* AUTO 알약 — 안 여백 2 → **6**·dk · 둥글기 3 → **6**·dk(2026-10-09, 요청: "자동 중계 버튼 안 패딩 늘리고 래디우스 증가" — PC·폰 다). 아래 갭은 .scr-dock-headrow. */
-.scr-roster-cam-auto { padding: 0 calc(6px * var(--dk)); border-radius: calc(6px * var(--dk)); gap: calc(3px * var(--dk)); }
+.scr-roster-cam-auto, .scr-roster-cam-all { padding: 0 calc(6px * var(--dk)); border-radius: calc(6px * var(--dk)); gap: calc(3px * var(--dk)); }   /* 전체 알약(PC · 2026-10-09)도 같은 꼴 · 깜빡임은 AUTO 만 */
 .scr-roster-cam-auto.is-on svg, .scr-roster-cam-auto.is-on .scr-roster-cam-txt { animation: scr-cast-blink-well 2s steps(1, end) infinite; }
 @media (prefers-reduced-motion: reduce) { .scr-roster-cam-auto.is-on svg, .scr-roster-cam-auto.is-on .scr-roster-cam-txt { animation: none; } }
 /* PC 짝수 px(위 .scr-motion-pc9 .scr-dock-roster 의 ★) — 칩·단추 키 = 줄 키 − 4 · 단추 그림 ≈ 0.6줄을 짝수로 · AUTO 글자 ≈ 0.42줄 · 트로피 = 글자. */

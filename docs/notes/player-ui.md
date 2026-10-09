@@ -1368,3 +1368,10 @@ AUTO 글자 합성) · 현재 화면에 보여주는 화면 주인(들)은 기�
 ★ (되요청: "카메라 버튼(AUTO 포함) 테두리 제거 및 활성 시 배경은 반투명 녹색, 지금처럼 파스텔 연한 처리 말고") — 앞 절의 파스텔(#b4f0c6 + 진한 초록 아이콘)과 AUTO 의 옛 초록 테
   (inset 1.5px)는 걷었다. `.scr-roster-cam.is-on { background: rgba(46,229,157,.32); color: #3dffa8 }`(hover .42) — 개인·AUTO 같다 · AUTO 글자·아이콘 깜빡임(scr-cast-blink-well)은 그대로.
   🔎 `perf-check --wide --vw 1920 --vh 1080 --fs --warm 0 --glblit --track 정구 --shot x.png`(개인 켜짐) · `--track` 없이(AUTO 켜짐) → 전광판 crop.
+
+## PC 전광판의 전체 알약 · 폰 2×2 기둥 틈(2026-10-09)
+- (요청: "PC 전광판 카메라 전체 선택 필요") 머리 줄의 AUTO 옆에 **전체** 알약(.scr-roster-cam-all · PC 만 — 폰은 분할이 둘까지라 없다) — 누르면 모든 사람 화면 나누기
+  (startSplit9(null) · 옛 TV 목록의 '전체'), 켜진 채(allOn9 = 사람 전부 고른 분할) 누르면 다 놓는다(setSplitOn9(false) — 사람 단추로 하나씩 빼는 끝과 같다). 꼴은 AUTO 알약과
+  같고 깜빡임은 AUTO 만.
+- (요청: "모바일 전광판 가로 배치 유저 사이 갭 좀 늘리기") .scr-dock-names.is-grid2 column-gap 4 → **9·dk** · 칸이 좁아진 만큼 카메라 단추 0.7 → 0.64 줄 키 · 칩 글자 0.9 → 0.88em ·
+  배지 0.44 → 0.42 줄 키 — 세 글자 이름("수달이"·"크리스")이 그대로 든다(실측 `perf-check --ios --fs --warm 0 --glblit --track 정구 --shot x.png` → 전광판 crop).
