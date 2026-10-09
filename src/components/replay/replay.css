@@ -2482,7 +2482,7 @@
      따라 좁아지고 넓어진다. 칸 한 변은 몸 키에 두 줄이 꼭 드는 값이다(2 × 40 + 4 + 위아래 여백 12 = 96).
      독 줄(.scr-fs-dockrow)이 창의 온 키(--dock-h)로 서고 미니맵이 그 남은 폭을 쓰므로 둘 다 뿌리(.scr-motion)에 둔다. */
   --dock-cell: calc(40px * var(--dk)); --dock-gap: calc(4px * var(--dk)); --dock-padx: calc(6px * var(--dk));
-  --dock-cap: calc(22px * var(--dk)); --dock-body: calc(120px * var(--dk)); --dock-big: calc(60px * var(--dk));   /* 몸 96 → 120·dk(2026-10-09 폰 "인포/로스터 높이 늘리기" · PC 는 틀 블록이 145 로 되덮는다) */
+  --dock-cap: calc(22px * var(--dk)); --dock-body: calc(144px * var(--dk)); --dock-big: calc(60px * var(--dk));   /* 몸 96 → 120 → **144**·dk(2026-10-09 폰 "인포/로스터 높이 늘리기" → "전광판·인포판 높이 20프로" · PC 는 틀 블록이 145 로 되덮는다) */
   /* 칸(생산·대기·탄 몸)은 업그레이드 칸과 같은 26·dkd 다(2026-09, 요청: "생산/업그레이드중/큐/수송칸 셀크기를 업그레이드 셀이랑 같게"). */
   --dock-slot: calc(26px * var(--dk));
   /* 접기 손잡이 한 변 — 18 → 14.4·dk(2026-09, 요청: "접기 버튼 크기 20프로 축소"). */
@@ -3230,7 +3230,7 @@
   /* 사방 안쪽 여백 3/4 → **6/8**·dk(2026-10-09, 요청: "로스터창 사방 패딩 증가") — 줄 키 셈의 빼는 몫도 그만큼(6 → 12). */
   /* 줄 키 상한 13 → **20**·dk(2026-10-09, 요청: "모바일에서 로스터 버튼과 글자가 작아 — 1.5배") — 글자·칩·단추·배지가 다 줄 키 비례라 함께 큰다.
      독 몸도 96 → 120·dk(뿌리 --dock-body)라 2:2 까지 상한에 닿고 3:3 18 · 4:4 14. PC 는 위 pc9 덮어쓰기(round · 28). */
-  --rp: min(calc(20px * var(--dk)), calc((var(--dock-h) - 12px * var(--dk)) / var(--rows, 6)));
+  --rp: min(calc(24px * var(--dk)), calc((var(--dock-h) - 12px * var(--dk)) / var(--rows, 6)));   /* 20 → 24(2026-10-09 "전광판 글자 크기 20프로 확대" · 글자 12.5) */
   position: absolute; inset: 0; padding: calc(6px * var(--dk)) calc(8px * var(--dk)); box-sizing: border-box;
   display: flex; flex-direction: column; overflow: hidden;
   font-size: calc(var(--rp) * 0.52); line-height: 1; color: #e8eef6; font-variant-numeric: tabular-nums; text-align: left;
@@ -3319,7 +3319,10 @@
 .scr-dock-cell .scr-sup.is-3 .scr-sup-main { font-size: 0.62em; }
 .scr-dock-cell .scr-sup.is-3 .scr-sup-x { font-size: 0.47em; }
 /* 폰(is-paged) — 이름 기둥은 고정 몫, 자료 띠는 남는 폭의 창(overflow hidden) 안에서 쪽 셋이 한 창 폭씩이고 translateX 로 미끄러진다(JSX). */
-.scr-dock-roster.is-paged .scr-dock-names { flex: 0 0 58%; }   /* 46 → 58%(2026-10-09) — 쪽이 칸 하나씩이라 자료 기둥은 "45% / 47%"·"9999/9999" 아홉 자면 족하다 · 이름이 한 자 더 든다 */
+/* 이름 기둥 58 → **50%**(2026-10-09, 요청: "글자 20% 확대 대신 닉네임 카드 길이를 적절히 조절") — 글자가 커진 만큼 자료 칸("45%/47%" · "1234/567")이 폭을 더 쓰고 이름 카드가
+   그만큼 짧다(긴 이름은 종전대로 오른쪽에서 잘린다). 쪽 꼴의 데미지 / 양옆 띄움은 0.1em 으로 죈다. */
+.scr-dock-roster.is-paged .scr-dock-names { flex: 0 0 50%; }
+.scr-dock-roster.is-paged .scr-dmg-sep { margin: 0 0.1em; }
 .scr-dock-roster.is-paged .scr-dock-name { padding: 0 calc(2px * var(--dk)); }
 /* ★ 종족 글자는 **이름 앞의 동그란 배지**다(2026-10-09, 지적: "로스터 닉네임에 종족이 맨 뒤라 잘리네 — 맨 앞으로 이동하고 동그란 배경 추가") —
    칩이 긴 이름을 오른쪽에서 자르므로 뒤에 두면 먼저 잘렸다. 지름 ≈ 0.6줄(PC 는 짝수로) · 어두운 반투명 바탕 · 흰 글자. JSX(dockRoster9)가 이름 앞에 둔다. */

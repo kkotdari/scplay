@@ -1256,3 +1256,11 @@ AUTO 글자 합성) · 현재 화면에 보여주는 화면 주인(들)은 기�
 - 칩에 onClick = pickPerson9 · role button · cursor pointer(PC·폰 같이).
 - `.scr-motion-infodock-nums .is-row.has-sh`(실드 > 0)는 폰에서 column — 체력 · 실드 · 에너지 세 줄. PC 는 한 줄.
   🔎 `node scripts/perf-check.mjs --ios --players 4 --glblit --fs --info --track 수달이 --dockzealot --rosterprobe --shot x.png`(`--dockzealot` 새로 둠 — 수달이 병력 하나).
+
+## 전광판(옛 로스터) — 쪽 6초 · 폰 독 몸 144 · 폰 줄 키 24(글자 ×1.2) · 이름 기둥 50%(2026-10-09)
+요청: "로스터를 이제 전광판으로 명칭을 바꿀게 · 페이지 전환 속도 두 배로 느리게 · 전광판과 인포판 높이 20프로 늘리고 전광판 글자 크기도 20프로 확대, 대신 닉네임 카드 길이를 적절히 조절".
+- **이름** — 사용자 말·안내문(ReplayGuide)은 **전광판**. 코드 이름(dockRoster9 · scr-dock-roster · ROSTER_*)은 그대로(바꾸면 perf-check·CSS 전부 흔들린다).
+- 쪽 바뀜 `ROSTER_PAGE_MS9` 3000 → **6000**.
+- **폰**: 뿌리 독 몸 120 → **144**·dk(독 줄 키 163 → 187) · 줄 키 상한 20 → **24**(글자 10.4 → 12.5) · 이름 기둥 58 → **50%**(자료 칸 "45%/47%"·"1234/567"이 큰 글자로 들게 · 데미지 / 띄움 0.1em) —
+  이름 카드는 그만큼 짧아 긴 이름은 오른쪽에서 잘린다(요청대로). 4:4 는 줄 키 17 로 여덟 줄이 다 든다. PC 는 틀 블록(200 · 줄 키 28 · 글자 12)이 그대로다 — 폰 쪽 요청으로 읽었다.
+  🔎 `node scripts/perf-check.mjs --ios --players 4|8 --dmg --glblit --fs --rosterprobe --shot x.png`.

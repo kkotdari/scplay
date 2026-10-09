@@ -18,7 +18,7 @@
 | `docs/notes/modeling-rules.md` | 종족 무관 빌더 규약·함정(감싸개·z 접기·띠·기둥·총구·회전 칸·정규화…) |
 | `docs/notes/gl-renderer.md` | GL 붓·메시 층·MRT/번짐·그림자·효과 심(트레이서·피격·캐스트)·가스 연기·장면 시트 |
 | `docs/notes/engine.md` | 프레임 엔진·워커 구조 · OBWT 판 9~12(건설 고스트·선택 절·갈래) · 덤퍼 · 은신 |
-| `docs/notes/player-ui.md` | 독·툴박스·인포창·로스터·색 모드·전체화면·재생바·흐림 진단·폰 높이 |
+| `docs/notes/player-ui.md` | 독·툴박스·인포창·전광판(옛 로스터 · 코드 이름 roster)·색 모드·전체화면·재생바·흐림 진단·폰 높이 |
 | `docs/notes/cast-split.md` | 중계 편성표·개인 추적·맞대결·분할보기(칸 카메라·팀 시야·컬링·미니맵) |
 
 코드 주석의 "CLAUDE.md '<제목>'" 은 옛 자리다 — 이제 `docs/notes/` 에서 그 제목으로 찾는다.

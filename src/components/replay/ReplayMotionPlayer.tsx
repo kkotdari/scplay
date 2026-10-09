@@ -1148,7 +1148,8 @@ type RosterCol9 = "res" | "sup" | "dmg" | "worker" | "apm";
 const ROSTER_PAGES9: readonly (readonly RosterCol9[])[] = [["worker"], ["sup"], ["res"], ["dmg"], ["apm"]];
 const ROSTER_LABEL9: Record<RosterCol9, string> = { res: "자원", sup: "인구", dmg: "데미지", worker: "일꾼", apm: "APM" };
 /** 폰 로스터가 한 쪽에 머무는 시간(ms). */
-const ROSTER_PAGE_MS9 = 3000;
+/* 쪽 바뀌는 사이 3초 → **6초**(2026-10-09, 요청: "전광판의 페이지 전환 속도 두 배로 느리게"). 사용자 말로 로스터는 이제 **전광판**이다(코드 이름 roster 는 그대로). */
+const ROSTER_PAGE_MS9 = 6000;
 /** 쪽 미끄럼 시간(ms) — replay.css `.scr-dock-roster.is-paged .scr-dock-strip` 의 transition 0.45s 와 한 값. 되감기(아래 ★)가 이 뒤에 한다. */
 const ROSTER_SLIDE_MS9 = 450;
 /** 팀 사이 틈(줄 키의 몫 · 2026-10-09, 요청: "1팀 2팀 사이를 좀 더 갭") — --rows 셈에도 든다. */
