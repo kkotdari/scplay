@@ -946,6 +946,22 @@ if (has("--split")) {
     await page.waitForTimeout(150);
   }
   await page.waitForTimeout(Number(flag("--splitwait", 4000)));
+  /* --capside — 맞대결 머리 자리 검산(2026-10-09): 손으로 켠 2분할에 맞대결의 칸 머리 클래스(is-cap-r/l · b/t)와 가짜 배지(공격/방어)를 입혀 찍는다
+     (합성 세계는 맞대결 장면을 못 낸다). 사진용이다 — 상태는 안 건드린다. */
+  if (has("--capside")) {
+    await page.evaluate(() => {
+      const cells = [...document.querySelectorAll(".scr-split-cell")];
+      if (cells.length !== 2) return;
+      const [a, b] = cells.map((el) => el.getBoundingClientRect());
+      const side = Math.abs(a.top - b.top) < 2 ? ["r", "l"] : ["b", "t"];
+      cells.forEach((el, i) => {
+        el.classList.add(`is-cap-${side[i]}`);
+        const cap = el.querySelector(".scr-split-cap");
+        if (cap) { const bd = document.createElement("span"); bd.className = `scr-split-badge is-${i === 0 ? "atk" : "def"}`; bd.textContent = i === 0 ? "공격" : "방어"; cap.appendChild(bd); }
+      });
+    });
+    await page.waitForTimeout(300);
+  }
   const sp9 = () => page.evaluate(() => {
     const cells = [...document.querySelectorAll(".scr-split-cell")].map((el) => {
       const r = el.getBoundingClientRect();

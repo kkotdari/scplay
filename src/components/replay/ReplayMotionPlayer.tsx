@@ -364,7 +364,18 @@ function blurDiag9(root: HTMLElement | null, gest9: boolean, pinch9: boolean): s
   const fr9 = (v9: number): string => { const d9 = v9 * dpr9; const f9 = d9 - Math.round(d9); return (f9 >= 0 ? "+" : "") + f9.toFixed(2); };
   const r9 = root.getBoundingClientRect();
   const parts9: string[] = [];
-  parts9.push(`상자 ${r9.width.toFixed(1)}x${r9.height.toFixed(1)} @${fr9(r9.left)},${fr9(r9.top)}`);
+  /* 상자 **제** 성질도 적는다(2026-10-09 — 조상 사슬은 parentElement 부터라 상자 자신(isolation · 변환 · will-change…)이 빠져 있었다). */
+  const own9: string[] = [];
+  { const cs0 = getComputedStyle(root);
+    if (cs0.transform && cs0.transform !== "none") own9.push(`tf ${cs0.transform.slice(0, 40)}`);
+    if (cs0.perspective && cs0.perspective !== "none") own9.push("persp");
+    if (cs0.isolation && cs0.isolation !== "auto") own9.push("iso");
+    if (cs0.willChange && cs0.willChange !== "auto") own9.push(`wc:${cs0.willChange.slice(0, 12)}`);
+    const ct0 = (cs0 as unknown as { contain?: string }).contain; if (ct0 && ct0 !== "none") own9.push(`contain:${ct0.slice(0, 10)}`);
+    if (cs0.filter && cs0.filter !== "none") own9.push("filter");
+    if (cs0.opacity && Number(cs0.opacity) < 1) own9.push(`op${cs0.opacity}`);
+    if (cs0.mixBlendMode && cs0.mixBlendMode !== "normal") own9.push("blend"); }
+  parts9.push(`상자 ${r9.width.toFixed(1)}x${r9.height.toFixed(1)} @${fr9(r9.left)},${fr9(r9.top)}${own9.length ? `[${own9.join(",")}]` : ""}`);
   for (const cv9 of unitCanvases9(root)) {
     const cr9 = cv9.getBoundingClientRect();
     const gl9c = cv9.classList.contains("scr-motion-gl9");
@@ -756,6 +767,8 @@ function ownUiCol9(raw9: string | undefined, atk9 = false): string | null {
   if (UI_SCREEN9 === null || raw9 === undefined || raw9 !== UI_SCREEN9) return null;
   return atk9 ? UI_ATK9 : UI_OWN9;
 }
+/** 동맹(적도 나도 아닌 사람 · 중립)을 고른 링 — 원작 노랑(2026-10-09, 요청: "동맹 선택시 … 빨간색은 아닌듯 노란색이 적당"). */
+const UI_ALLY9 = "#fcfc38";
 /** 화면 주인의 **적**인가(밀리는 남 모두) — 붓이 도는 동안만 선다(UI_SCREEN9 과 한 벌 · 부르는 쪽이 enemyOf9 로 짓는다). */
 let UI_ENEMY9: ((raw9: string) => boolean) | null = null;
 /** ★ **공격 표적의 빨간 링**(2026-10-09, 사용자 원작 조사: "적 공격(또는 우클릭) 시 빨간 링 두 번 깜빡이고 사라짐") — 화면 주인이 유닛을
@@ -786,7 +799,9 @@ function selRingCol9(op: UnitDrawOp): string | null {
   if (atkFlashOn9(op)) return UI_ATK9;
   const own9 = ownUiCol9(op.pickRaw);
   if (own9) return own9;
-  if (UI_SCREEN9 !== null && op.pickRaw !== undefined && !!op.selBy?.includes(UI_SCREEN9) && UI_ENEMY9?.(op.pickRaw)) return UI_ATK9;
+  /* 주인이 고른 남의 몸 — 적은 빨강 · 동맹(같은 편)과 중립(임자 없음)은 **노랑**(2026-10-09, 요청) · 원작 선택 원색 셋(초록·노랑·빨강). 옛 판은 적만 빨강이고
+     동맹은 제 몸 색(개인색이 빨강이면 빨강으로 읽혔다). */
+  if (UI_SCREEN9 !== null && !!op.selBy?.includes(UI_SCREEN9)) return op.pickRaw && UI_ENEMY9?.(op.pickRaw) ? UI_ATK9 : UI_ALLY9;
   return null;
 }
 /** 진단(#diag)용 — 본 장에서 칠한 선택 링(종류:임자:고른이:색 · 여덟까지). 그리기 틱이 비우고 SCR_DIAG.ring 으로 적는다. */
@@ -916,6 +931,11 @@ const NO_ZI9 = typeof location !== "undefined" && /nozi/.test(location.hash);
  *  밀리거나 늘어나면 회색으로 뭉갠다. 흐림: 줄(기하)과 짝이다 — 기하가 다 1.0000 인데 무늬가 회색이면 합성기(브라우저) 쪽이다. */
 const DIAG_GRID9 = typeof location !== "undefined" && /diag=[^&#]*grid/.test(location.hash);
 const NO_CALC9 = typeof location !== "undefined" && /nocalc/.test(location.hash);
+/** 흐림 가르기 손잡이 둘(2026-10-09 — `#diag=pix` 가 "GL 판은 또렷 · 진단판의 2D 캔버스도 또렷 · 지도 상자 안 캔버스만 번짐"을 보였다 — 상자 안 층과 밖 층의
+ *  차이는 지도 상자(.scr-motion-map · isolation)와 무대(.scr-fs-stage · overflow hidden)뿐이다): `#nomapiso` = 지도 상자의 isolation 을 끈다 ·
+ *  `#nostageov` = 무대의 overflow 를 연다(지형이 독 위로 비어져 나오는 것은 시험 동안만). 둘 다 replay.css 의 .scr-t-* 한 줄씩이다. */
+const NO_MAP_ISO9 = typeof location !== "undefined" && /nomapiso/.test(location.hash);
+const NO_STAGE_OV9 = typeof location !== "undefined" && /nostageov/.test(location.hash);
 /** 유닛·GL·효과 캔버스의 인라인 변환 한 줄 — `#noxf` 면 비운다. */
 function xfSet9(cv9: HTMLCanvasElement, xf9: string): void {
   if (NO_XF9) { if (cv9.style.transform) { cv9.style.transform = ""; cv9.style.transformOrigin = ""; } return; }
@@ -1138,9 +1158,10 @@ declare const __SCPLAY_BUILD__: string | undefined;
 const liteFlag9 = typeof location !== "undefined" && /[?&]lite=1/.test(location.search);
 /** 폰의 분할보기 상한(2026-09, 요청: "모바일에서 분할모드 최대 2명"). */
 const SPLIT_PHONE_MAX9 = 2;
-/** 독 로스터의 자료 쪽(2026-10-09, 요청: "모바일은 자원&인구/데미지/일꾼& APM 세 페이지로 자동 슬라이딩 순환") — PC 는 셋이 나란히 = 여섯 칸 전부. */
+/** 독 로스터의 자료 쪽(2026-10-09, 요청: "모바일은 자원&인구/데미지/일꾼& APM 세 페이지로 자동 슬라이딩 순환" → 같은 날 "3페이지에서 4페이지로:
+ *  일꾼&인구 - 광물&가스 - 데미지 - APM") — PC 는 넷이 나란히 = 여섯 칸 전부(차례도 이 차례 = 옛 로스터 차례). */
 type RosterCol9 = "min" | "gas" | "sup" | "dmg" | "worker" | "apm";
-const ROSTER_PAGES9: readonly (readonly RosterCol9[])[] = [["min", "gas", "sup"], ["dmg"], ["worker", "apm"]];
+const ROSTER_PAGES9: readonly (readonly RosterCol9[])[] = [["worker", "sup"], ["min", "gas"], ["dmg"], ["apm"]];
 const ROSTER_LABEL9: Record<RosterCol9, string> = { min: "광물", gas: "가스", sup: "인구", dmg: "데미지", worker: "일꾼", apm: "APM" };
 /** 폰 로스터가 한 쪽에 머무는 시간(ms). */
 const ROSTER_PAGE_MS9 = 3000;
@@ -15246,7 +15267,9 @@ export default function ReplayMotionPlayer({
         const x9 = zx9(cx2);
         const y9 = zy9(cy2);
         ctx9.globalAlpha = a9 > 0.7 ? 1 - (a9 - 0.7) / 0.3 : 1;
-        const col9 = craw === raw9 ? (ck === 7 ? UI_ATK9 : UI_OWN9) : ck === 7 ? "#ff3b3b" : modeColor(craw, teamOfRaw(craw));   // 칸 사람 제 것은 원작 초록(공격 빨강)
+        /* 칸 사람 제 것뿐이라(위 continue) 늘 원작 초록 — 땅 공격도 초록(2026-10-09, 요청: "우클릭도 초록색으로" · 명령 줄은 우클릭과 A-클릭을 못
+           가르니 땅 마커는 다 초록이고 공격은 X 꼴로만 갈린다). 옛 '공격 빨강'은 되물렸다. */
+        const col9 = UI_OWN9;
         ctx9.strokeStyle = col9;
         ctx9.lineWidth = Math.max(1.2, r9 * 0.16);
         ctx9.beginPath();
@@ -17159,7 +17182,7 @@ export default function ReplayMotionPlayer({
      버튼 · 자동은 맨 위에 따로(비디오카메라 + AUTO) · 화면 주인(들)은 기존처럼 글로우") ─────────────────────────────────────────
      · 줄 수(--rows = AUTO 줄 + 팀마다 머리 + 사람)로 줄 키(--rp)를 독 키 안에 맞춘다(replay.css .scr-dock-roster) — 4:4 도 한 우물에 든다.
      · [이름 기둥 | 자료 띠] 두 기둥이고 자료 띠는 쪽 셋(ROSTER_PAGES9 — 광물·가스·인구 / 데미지 / 일꾼·APM). PC 는 셋이 나란히(= 여섯 칸 전부),
-       폰(is-paged)은 보이는 창(.scr-dock-data) 안에서 띠(.scr-dock-strip)가 ROSTER_PAGE_MS9 마다 한 쪽씩 미끄러진다(translateX · 세 쪽 순환).
+       폰(is-paged)은 보이는 창(.scr-dock-data) 안에서 띠(.scr-dock-strip)가 ROSTER_PAGE_MS9 마다 한 쪽씩 미끄러진다(translateX · 네 쪽 순환).
      · 카메라 단추(.scr-roster-cam)는 옛 TV 목록의 그 줄이다 — 사람 = pickPerson9(하나면 개인 추적 · 둘 이상이면 그 사람들만 분할 · 다 빼면 끔) ·
        AUTO = toggleCast9. 켜짐은 초록 테(AUTO 는 깜빡임 — 옛 TV 단추의 박자). 지금 화면에 보이는 사람(들)의 칩은 임자색 글로우
        (.scr-motion-teamcol-cast · 자동 중계의 주인 · 개인 추적의 그 사람 · 분할의 칸 사람들 — 옛 '자동만 깜빡인다'를 되물렸다). */
@@ -18329,7 +18352,7 @@ export default function ReplayMotionPlayer({
              뺐다고 믿고 잰 값들이 전부 '아무것도 안 뺀' 값이었다.
              자를 든 자리를 옮긴다. NOSHADOW9는 렌즈에 그대로 둔다 — 그쪽이 겨누는 것은
              렌즈 안의 DOM 마커 그림자라 자리가 맞다. */
-          className={cx("scr-motion-map", pitched && "scr-motion-pitched",
+          className={cx("scr-motion-map", pitched && "scr-motion-pitched", NO_MAP_ISO9 && "scr-t-nomapiso",
             !tracksReady && "is-warming", baking9 && "is-baking") + HIDECLS9} ref={mapRef}
           /* (이동) 손짓 받는 자리 — **무대**로 올렸다(아래 stageNode의 onPointerDown
              주석). 손짓은 여기서 시작해도 거품처럼 올라가 무대가 받으므로 지도 위 동작은
@@ -18712,7 +18735,8 @@ export default function ReplayMotionPlayer({
                      풀었다). 자국은 몇 개 안 되는 0.9초짜리라 캔버스로 옮길 값이
                      아니므로 층만 올린다 — Z_FX(6100)가 캔버스 바로 위 DOM 효과 층이다. */
                   // 효과 렌즈 안이다 — 배율은 층의 폭이 먹으므로 px은 곧 화면 px, 역배율은 안 건다.
-                  ...posStyle(cx2, cy2), color: ownCol9(raw, ck === 7) ?? modeColor(raw, teamOfRaw(raw)), zIndex: 20,   // 화면 주인 제 것은 원작 초록(공격 빨강)
+                  // 화면 주인 제 것은 원작 초록 — 땅 공격(X)도 초록(2026-10-09, 요청: "우클릭도 초록색으로" · 옛 '공격 빨강' 되물림)
+                  ...posStyle(cx2, cy2), color: ownCol9(raw) ?? modeColor(raw, teamOfRaw(raw)), zIndex: 20,
                   "--ckw": `${(ckw * pitchK(cy2)).toFixed(1)}px`,
                   ...groundXfAt9(cx2, cy2),   // 입체: 눕히기 + 시점 밀림(요청)
                 } as React.CSSProperties}
@@ -18936,7 +18960,7 @@ export default function ReplayMotionPlayer({
         style={{ ["--scr-mini-ar" as string]: `${grid.width / Math.max(1, grid.height)}` } as React.CSSProperties}
       >
         <div
-          className={cx("scr-fs-stage", splitOn9 && "is-split")} ref={stageRef}
+          className={cx("scr-fs-stage", splitOn9 && "is-split", NO_STAGE_OV9 && "scr-t-nostageov")} ref={stageRef}
           style={{
             ...stageStyle,
             touchAction: "none",
@@ -19044,6 +19068,11 @@ export default function ReplayMotionPlayer({
                 const tm9 = melee ? undefined : teamOfRaw(c9.raw);
                 const nm9 = bases.find((b9) => b9.key === c9.raw)?.name ?? c9.raw;
                 const rl9: CastRole9 | null = !duel9 ? null : c9.raw === duel9.a ? duel9.ra : c9.raw === duel9.b ? duel9.rb : null;
+                /* ★ 맞대결의 칸 머리(이름 칩 + 배지)는 **맞붙은 경계선 가운데**다(2026-10-09, 요청: "교전화면에서 공격/방어/교전배지와 닉네임을 좌상단이
+                   아닌 맞붙은 경계선 좌우나 위아래 가운데에 배치 — 주인공과 상황이 쉽게 파악되게") — 좌우 두 칸이면 왼 칸은 오른변 가운데(r) · 오른 칸은
+                   왼변 가운데(l · 배지가 경계 쪽에 오게 뒤집는다), 위아래 두 칸이면 위 칸은 아랫변(b) · 아래 칸은 윗변(t). 손으로 켠 분할은 왼위 그대로. */
+                const capSide9 = duel9 && splitLay9.cells.length === 2
+                  ? (splitLay9.cols === 2 ? (c9.c === 0 ? "r" : "l") : (c9.r === 0 ? "b" : "t")) : null;
                 return (
                   <div
                     key={c9.raw}
@@ -19053,7 +19082,7 @@ export default function ReplayMotionPlayer({
                        그 사람의 시야와 그 칸의 화면 네모)이 그 사람을 든다. */
                     onClick={() => setSplitPick9((p9) => (p9 === c9.raw ? null : c9.raw))}
                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSplitPick9((p9) => (p9 === c9.raw ? null : c9.raw)); } }}
-                    className={cx("scr-split-cell", tm9 && "is-team", splitPick9 === c9.raw && "is-pick")}
+                    className={cx("scr-split-cell", tm9 && "is-team", splitPick9 === c9.raw && "is-pick", capSide9 && `is-cap-${capSide9}`)}
                     style={{ gridColumn: c9.c + 1, gridRow: c9.r + 1, ...(tm9 ? { borderColor: TEAM_COLOR[tm9] } : {}) }}
                     aria-label={`${cap9.text} 화면`}
                   >

@@ -3473,7 +3473,8 @@ export function deriveWorld9(inp: {
         if (x9 < x0) x0 = x9; if (x9 > x1) x1 = x9; if (y9 < y0) y0 = y9; if (y9 > y1) y1 = y9;
       }
       const fp9 = FOOTPRINT[tr.kind];
-      const b9: [number, number, number, number, number] = [x0, y0, x1, y1, fp9 ? Math.hypot(fp9[0], fp9[1]) / 2 + 0.25 : 0.75];
+      /* 유닛 0.75 → 0.9타일(2026-10-09, 지적: 적 유닛 우클릭이 땅 마커로 새어 보였다 — 큰 몸의 그림 가장자리를 눌러도 짝이 되게). */
+      const b9: [number, number, number, number, number] = [x0, y0, x1, y1, fp9 ? Math.hypot(fp9[0], fp9[1]) / 2 + 0.25 : 0.9];
       box9.set(tr, b9);
       return b9;
     };

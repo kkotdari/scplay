@@ -57,7 +57,7 @@ export default function ReplayGuide({ onClose }: {
         <p className="scr-guide-sub">
           지도 아래 <strong>쇠판</strong>입니다 — 맨 위에 <strong>로스터 · 인포창</strong>이 서고, 그 아래 버튼 줄은 왼쪽의 동그란 <strong>버튼들</strong> ·
           오른쪽의 <strong>스크랩 · 공유 · 사용법(?) · 전체화면</strong>, 맨 아래 줄은 <strong>배속 · 재생 · 진행바 · 시간</strong>입니다. 버튼 줄 정가운데의 작은 단추가 <strong>접기(▼)</strong>입니다.
-          사람들의 현황은 쇠판 왼쪽의 <b>로스터</b>가 늘 보여 줍니다(폰은 자원·인구 / 데미지 / 일꾼·APM 세 쪽이 번갈아 넘어갑니다). <b>미니맵</b>은 지도 왼쪽 아래 구석에 섭니다.
+          사람들의 현황은 쇠판 왼쪽의 <b>로스터</b>가 늘 보여 줍니다(폰은 일꾼·인구 / 광물·가스 / 데미지 / APM 네 쪽이 번갈아 넘어갑니다). <b>미니맵</b>은 지도 왼쪽 아래 구석에 섭니다.
         </p>
         <p className="scr-guide-sub">
           진행바를 끌면 그 시각으로 갑니다. <strong>스크랩·공유</strong> 두 버튼은 <strong>지금 이 장면</strong>을

@@ -4061,6 +4061,16 @@
      못 박고 줄바꿈을 허락하면, 안 드는 현황이 둘째 줄로 내려가 잘려 나간다(칩 옆 자리가 남을 때만 선다 · JS 잼 없음). */
   flex-wrap: wrap; height: 1.25em; overflow: hidden;
 }
+/* ★ 맞대결 두 칸의 머리는 **맞붙은 경계선 가운데**(2026-10-09, 요청: "교전화면에서 공격/방어/교전배지와 닉네임을 … 맞붙은 경계선 좌우나 위아래 가운데에") —
+   r = 오른변 가운데(왼 칸) · l = 왼변 가운데(오른 칸 · 배지가 경계 쪽에 오게 row-reverse) · b = 아랫변 가운데(위 칸) · t = 윗변 가운데(아래 칸). JSX capSide9. */
+.scr-split-cell.is-cap-r > .scr-split-cap { left: auto; right: calc(3px * var(--dk)); top: 50%; transform: translateY(-50%); }
+.scr-split-cell.is-cap-l > .scr-split-cap { top: 50%; transform: translateY(-50%); flex-direction: row-reverse; justify-content: flex-end; }
+.scr-split-cell.is-cap-l > .scr-split-cap .scr-split-badge { margin-left: 0; margin-right: calc(3px * var(--dk)); }
+.scr-split-cell.is-cap-b > .scr-split-cap { top: auto; bottom: calc(3px * var(--dk)); left: 50%; transform: translateX(-50%); max-width: calc(100% - 6px * var(--dk)); }
+.scr-split-cell.is-cap-t > .scr-split-cap { left: 50%; transform: translateX(-50%); }
+/* 흐림 가르기 손잡이(2026-10-09 · ReplayMotionPlayer NO_MAP_ISO9 · NO_STAGE_OV9) — 시험 동안만 켠다. */
+.scr-motion-map.scr-t-nomapiso { isolation: auto; }
+.scr-fs-stage.scr-t-nostageov { overflow: visible; }
 /* 이름은 임자색 둥근 네모 칩이다(2026-09, 요청: "분할헤더도 임자색 둥근사각형안에 넣고 기존 색 네모 제거 · 둥근사각 래디우스
    작게") — 글자색은 칩이 그 색의 밝기로 정한다. */
 .scr-split-chip {
