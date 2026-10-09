@@ -353,6 +353,14 @@ function blurDiag9(root: HTMLElement | null, gest9: boolean, pinch9: boolean): s
     const xf9 = cv9.style.transform && cv9.style.transform !== XF_ID9 ? ` xf ${cv9.style.transform}` : "";
     parts9.push(`${nm9} ${cv9.width}x${cv9.height}/${cr9.width.toFixed(1)}x${cr9.height.toFixed(1)} ×${k9} @${fr9(cr9.left)},${fr9(cr9.top)}${db9}${xf9}`);
   }
+  /* 분할 칸의 땅 캔버스(.scr-split-cv) — 칸은 CSS 격자(1fr)라 상자가 홀수면 904.5px 같은 반 픽셀 칸이 나오고, 그 안의 캔버스가 반 픽셀에
+     걸쳐 재표본된다(2026-10-09, 지적: "같은 창 크기에서도 분할 여부에 따라 갈려") — 배킹/CSS 비와 자리 끝수를 적는다(아래 splitPaint9 가 기기
+     픽셀에 맞춰 세운 뒤에는 ×1.0000 @+0.00 이어야 한다). */
+  for (const sc9 of Array.from((root.closest(".scr-fs-layer, .scr-motion") ?? root).querySelectorAll<HTMLCanvasElement>(".scr-split-cv"))) {   // 칸은 지도 상자 밖(무대)이다
+    const sr9 = sc9.getBoundingClientRect();
+    if (!(sr9.width > 0)) continue;
+    parts9.push(`칸땅 ${sc9.width}x${sc9.height}/${sr9.width.toFixed(1)}x${sr9.height.toFixed(1)} ×${(sc9.width / (sr9.width * dpr9)).toFixed(4)} @${fr9(sr9.left)},${fr9(sr9.top)}`);
+  }
   const tp9 = root.querySelector<HTMLCanvasElement>(".scr-mapvec-sharp");
   if (tp9) {
     const tr9 = tp9.getBoundingClientRect();
@@ -15175,7 +15183,9 @@ export default function ReplayMotionPlayer({
     for (const cell9 of lay9.cells) {
       const el9 = splitCvRef9.current.get(cell9.raw);
       if (!el9) continue;
-      const er9 = el9.getBoundingClientRect();
+      /* 칸의 네모는 **칸(부모 button)** 에서 잰다 — 땅 캔버스 자체는 아래에서 기기 픽셀에 맞춰 반 픽셀 당겨 세우므로 제 네모를 재면 다음 장이
+         그 당긴 값을 또 당겨 흔들린다(실측: 폭이 장마다 자랐다). */
+      const er9 = (el9.parentElement ?? el9).getBoundingClientRect();
       const cwC9 = er9.width;
       const chC9 = er9.height;
       if (!(cwC9 > 0) || !(chC9 > 0)) continue;
@@ -15362,8 +15372,25 @@ export default function ReplayMotionPlayer({
       SPLIT_M9.fog += pa19 - pf09;
       SPLIT_M9.cells += 1;
       /* 땅 — 칸 밑 층의 칸 캔버스. 카메라·크기가 그대로면 안 다시 그린다. */
-      const bw9 = Math.max(1, Math.round(cwC9 * dpr9));
-      const bh9 = Math.max(1, Math.round(chC9 * dpr9));
+      /* ★ 캔버스를 **기기 픽셀에 맞춰 세운다**(2026-10-09, 지적: "같은 창 크기에서도 분할 여부에 따라 흐려") — 칸은 CSS 격자(1fr)라 상자
+         1809 를 둘로 가르면 904.5px 칸이고, inset:0 캔버스는 그 반 픽셀 자리에서 반 픽셀 폭으로 서서 브라우저가 땅을 통째로 재표본했다(한쪽
+         끝은 또렷하고 반대쪽으로 갈수록 반 픽셀 밀린 흐림 — 창 크기·칸 수에 따라 생겼다 말았다 한다). 캔버스의 왼위를 칸의 반 픽셀만큼 당겨
+         기기 픽셀 경계에 놓고 폭·높이는 그 경계부터 기기 픽셀 정수로 둔다(칸이 overflow hidden 이라 삐져나온 몫은 안 보인다). 배킹 = 그 정수.
+         땅 그림의 자(아래 kx9·ky9)는 캔버스 폭 기준이라 반 픽셀 안의 어긋남뿐이다(유닛·안개는 무대 공용 캔버스라 그대로 정확하다). */
+      const dprCss9 = window.devicePixelRatio || 1;
+      const dl9 = er9.left * dprCss9; const dt9 = er9.top * dprCss9;
+      const fx9 = dl9 - Math.floor(dl9); const fy9 = dt9 - Math.floor(dt9);
+      const wDev9 = Math.max(1, Math.ceil(cwC9 * dprCss9 + fx9)); const hDev9 = Math.max(1, Math.ceil(chC9 * dprCss9 + fy9));
+      {
+        const st9 = el9.style;
+        const left9 = `${(-fx9 / dprCss9).toFixed(3)}px`; const top9 = `${(-fy9 / dprCss9).toFixed(3)}px`;
+        const w9 = `${(wDev9 / dprCss9).toFixed(3)}px`; const h9 = `${(hDev9 / dprCss9).toFixed(3)}px`;
+        if (st9.left !== left9) st9.left = left9; if (st9.top !== top9) st9.top = top9;
+        if (st9.width !== w9) st9.width = w9; if (st9.height !== h9) st9.height = h9;
+      }
+      /* 배킹 — 기기 픽셀 그대로(dpr 1·2) · 폰(dpr 3)은 종전처럼 2 로 눌러 한 겹 줄여 보인다(땅은 바탕이라 값보다 비용). */
+      const bw9 = dpr9 >= dprCss9 ? wDev9 : Math.max(1, Math.round((wDev9 / dprCss9) * dpr9));
+      const bh9 = dpr9 >= dprCss9 ? hDev9 : Math.max(1, Math.round((hDev9 / dprCss9) * dpr9));
       const tk9 = `${cx9.toFixed(5)},${cy9.toFixed(5)},${wf9.toFixed(5)},${hf9.toFixed(5)},${bw9},${bh9},${splitTerrRef9.current ? 1 : 0}`;
       if (SPLIT_TERR_KEY9.get(el9) !== tk9) {
         SPLIT_TERR_KEY9.set(el9, tk9);
