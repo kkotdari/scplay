@@ -10326,6 +10326,7 @@ export default function ReplayMotionPlayer({
   };
   const toggleTrack = (key: string): void => {
     const on9 = trackRaw !== key;
+    if (on9 && pitchDegRef9.current < 90) setPitchDeg(90);   // 중계 중엔 평면(2026-10-09, 요청: "2D/3D전환은 중계중엔 비활성화(성능)")
     /* 개인 추적과 중계는 **배타**다(요청) — 손이 사람을 고르면 중계는 물러난다. 끌 때는
        중계를 되살리지 않는다: 껐다 켠 사람이 바라는 것은 '지금 자리에 머무는 것'이다. */
     if (on9 && castOn) stopCast9();
@@ -10345,6 +10346,7 @@ export default function ReplayMotionPlayer({
   /** 중계 켜기·끄기(로스터 맨 아래 TV 단추) — 켜면 개인 추적이 풀린다(배타). */
   const toggleCast9 = (): void => {
     if (castOn) { stopCast9(); return; }
+    if (pitchDegRef9.current < 90) setPitchDeg(90);   // 중계 중엔 평면(위 toggleTrack 과 같은 문)
     stopTrack9();
     setViewRaw(null);
     setSplitOn9(false);
@@ -16479,6 +16481,7 @@ export default function ReplayMotionPlayer({
         // v = 평면 ↔ 입체 토글(요청). 입체가 막힌 기기면 안내만 띄운다.
         e.preventDefault();
         wakeUi();
+        if (camLockRef9.current) return;   // 중계 중엔 입체 전환 없음(2026-10-09, 요청: 성능 — 단추도 비활성)
         if (pitchDegRef9.current < 90) setPitchDeg(90);
         else if (!pitchAllowed()) pitchDenied();
         else setPitchDeg(PITCH_3D);
@@ -17775,12 +17778,16 @@ export default function ReplayMotionPlayer({
           type="button"
           className={cx("scr-motion-litbtn scr-motion-mapbtn scr-motion-mapval", pitched && "is-on")}
           onClick={() => {
+            if (camLockRef9.current) return;   // 중계 중엔 입체 전환 없음(아래 disabled 와 한 벌)
             if (!pitchAllowed()) { pitchDenied(); return; }
             setPitchDeg((v) => (v === 90 ? PITCH_3D : 90));
           }}
+          /* ★ 중계 중(자동·개인·분할)엔 **비활성**(2026-10-09, 요청: "2D/3D전환은 중계중엔 비활성화(성능에 무리가)") — 켜질 때 평면으로 내린다(toggleCast9 ·
+             toggleTrack · startSplit9). V 키도 같은 문. */
+          disabled={camLockRef9.current}
           aria-pressed={pitched}
-          aria-label={pitched ? "입체 보기 — 누르면 평면" : "평면 보기 — 누르면 입체"}
-          title="보기"
+          aria-label={camLockRef9.current ? "보기 — 중계 중에는 평면 고정" : pitched ? "입체 보기 — 누르면 평면" : "평면 보기 — 누르면 입체"}
+          title={camLockRef9.current ? "중계 중에는 평면 고정(성능)" : "보기"}
         >
           <span className="scr-motion-mapval-num">{pitched ? "3D" : "2D"}</span>
         </button>
@@ -18941,6 +18948,60 @@ export default function ReplayMotionPlayer({
      심는** 일일 뿐이다(fixed·inset:0). 평소에는 제자리에서 프레임 크기로 선다.
      크롭도 저절로 하나가 된다: 지도는 늘 무대를 덮게(cover) 깔리는데, 프레임의
      가로세로비를 지도와 같게 주므로 평소에는 덮는 몫이 0이다(=꼭 맞는다). */
+  /** 툴박스 꼬리 — 스크랩 · 공유 · 사용법(PC 프레임) · 전체화면 · 접기. 폰은 단추 줄 끝에, PC 는 한 줄의 오른끝에 선다(아래 .scr-tb). */
+  const tailNode9 = (
+            <div className="scr-tb-tail">
+              {/* ★ 장면 스크랩 — 앱이 onScrap을 주면 여기서 그린다(위 프롭 주석). 차례는 안내(ReplayGuide)와 같다:
+                  스크랩(Z) → 공유(X) → 사용법. 꼴은 같은 줄의 공유·사용법과 한 벌이다(.scr-scrapbtn). */}
+              {onScrap && (
+                <button
+                  type="button"
+                  className={cx("scr-kakao-share-btn scr-scrapbtn", tailDone9?.k === "scrap" && "is-done")}
+                  onClick={() => { void runTail9("scrap"); }}
+                  aria-label={tailDone9?.k === "scrap" ? tailDone9.s : scrapLabel}
+                  title={tailDone9?.k === "scrap" ? tailDone9.s : `${scrapLabel} (Z)`}
+                >
+                  {/* 아이콘만이다(2026-09, 요청: "장면공유 스크랩 사용법도 피시에서도 모두 아이콘 버튼으로") — 글귀는
+                      title·aria 로 가고, 마친 표시는 초록 체크 한 번이다. */}
+                  {tailDone9?.k === "scrap" ? <Check size={18} aria-hidden /> : <Bookmark size={18} aria-hidden />}
+                </button>
+              )}
+              {onShare && (
+                <button
+                  type="button"
+                  className={cx("scr-kakao-share-btn scr-sharebtn", tailDone9?.k === "share" && "is-done")}
+                  onClick={() => { void runTail9("share"); }}
+                  aria-label={tailDone9?.k === "share" ? tailDone9.s : shareLabel}
+                  title={tailDone9?.k === "share" ? tailDone9.s : `${shareLabel} (X)`}
+                >
+                  {tailDone9?.k === "share" ? <Check size={18} aria-hidden /> : <Share2 size={18} aria-hidden />}
+                </button>
+              )}
+              {shareNode}
+              {/* (걷어냄) 전체화면의 '도구 숨기기' 단추 — 툴박스가 저 혼자 아이콘 하나로 접히므로(위 ★★) 숨기는 손잡이가
+                  따로 있을 까닭이 없다. 사용법은 이제 두 배치 다 이 자리다(요청: "툴박스 = 버튼로우 + 공유 + 사용법"). */}
+              {/* 사용법은 **프레임에서만**이다(2026-09, 요청: "전체화면에서 사용법 버튼 제거"). */}
+              {/* 사용법도 **PC 에만**이다(2026-09, 요청: "도움말 버튼도 로스터버튼과 함께 pc에서만 보이기"). */}
+              {guide && !fsOn && !smallDevice9 && (
+                <button type="button" className="scr-kakao-share-btn scr-guide-btn" onClick={openGuide9} aria-label="사용법" title="사용법">
+                  <QMarkIcon size={18} />
+                </button>
+              )}
+              {/* 전체화면 켜고 끄기는 줄의 **맨 오른쪽**이다(2026-09, 요청: "전체화면 온오프 버튼은 가장 오른쪽에 배치"). */}
+              <button
+                type="button"
+                className="scr-kakao-share-btn scr-fsbtn"
+                onClick={() => (fsOn ? exitFs() : enterFs())}
+                aria-label={fsOn ? "전체화면 나가기" : "전체화면"}
+                title={fsOn ? "전체화면 나가기 (Alt+Enter)" : "전체화면 (Alt+Enter)"}
+              >
+                {fsOn ? <Minimize size={18} aria-hidden /> : <Maximize size={18} aria-hidden />}
+              </button>
+              {/* 접기 손잡이 — **전체화면 단추 오른쪽**(2026-10, 요청: "접기펴기 버튼 전체화면 버튼 오른쪽으로 이동 크기도 맞추기" ·
+                  옛 자리 버튼 줄 정가운데). 크기는 꼬리 원과 같은 --mapbtn-h(replay.css .scr-tb-tail > .scr-motion-infodock-fold). */}
+              {dockFoldNode9}
+            </div>
+  );
   const stageNode = (
     <div
       className={cx("scr-motion", "scr-fs-layer", fsOn && "is-fs", !fsUi && "is-idle")}
@@ -19164,65 +19225,28 @@ export default function ReplayMotionPlayer({
             </div>
           </div>
           <div
-            className="scr-tb"
+            className={cx("scr-tb", !smallDevice9 && "is-one")}
             onPointerDown={(e) => e.stopPropagation()}
             onWheel={(e) => e.stopPropagation()}
           >
-            <div className="scr-tb-btnrow">
-              {mapBtnRow}
-              <div className="scr-tb-tail">
-                {/* ★ 장면 스크랩 — 앱이 onScrap을 주면 여기서 그린다(위 프롭 주석). 차례는 안내(ReplayGuide)와 같다:
-                    스크랩(Z) → 공유(X) → 사용법. 꼴은 같은 줄의 공유·사용법과 한 벌이다(.scr-scrapbtn). */}
-                {onScrap && (
-                  <button
-                    type="button"
-                    className={cx("scr-kakao-share-btn scr-scrapbtn", tailDone9?.k === "scrap" && "is-done")}
-                    onClick={() => { void runTail9("scrap"); }}
-                    aria-label={tailDone9?.k === "scrap" ? tailDone9.s : scrapLabel}
-                    title={tailDone9?.k === "scrap" ? tailDone9.s : `${scrapLabel} (Z)`}
-                  >
-                    {/* 아이콘만이다(2026-09, 요청: "장면공유 스크랩 사용법도 피시에서도 모두 아이콘 버튼으로") — 글귀는
-                        title·aria 로 가고, 마친 표시는 초록 체크 한 번이다. */}
-                    {tailDone9?.k === "scrap" ? <Check size={18} aria-hidden /> : <Bookmark size={18} aria-hidden />}
-                  </button>
-                )}
-                {onShare && (
-                  <button
-                    type="button"
-                    className={cx("scr-kakao-share-btn scr-sharebtn", tailDone9?.k === "share" && "is-done")}
-                    onClick={() => { void runTail9("share"); }}
-                    aria-label={tailDone9?.k === "share" ? tailDone9.s : shareLabel}
-                    title={tailDone9?.k === "share" ? tailDone9.s : `${shareLabel} (X)`}
-                  >
-                    {tailDone9?.k === "share" ? <Check size={18} aria-hidden /> : <Share2 size={18} aria-hidden />}
-                  </button>
-                )}
-                {shareNode}
-                {/* (걷어냄) 전체화면의 '도구 숨기기' 단추 — 툴박스가 저 혼자 아이콘 하나로 접히므로(위 ★★) 숨기는 손잡이가
-                    따로 있을 까닭이 없다. 사용법은 이제 두 배치 다 이 자리다(요청: "툴박스 = 버튼로우 + 공유 + 사용법"). */}
-                {/* 사용법은 **프레임에서만**이다(2026-09, 요청: "전체화면에서 사용법 버튼 제거"). */}
-                {/* 사용법도 **PC 에만**이다(2026-09, 요청: "도움말 버튼도 로스터버튼과 함께 pc에서만 보이기"). */}
-                {guide && !fsOn && !smallDevice9 && (
-                  <button type="button" className="scr-kakao-share-btn scr-guide-btn" onClick={openGuide9} aria-label="사용법" title="사용법">
-                    <QMarkIcon size={18} />
-                  </button>
-                )}
-                {/* 전체화면 켜고 끄기는 줄의 **맨 오른쪽**이다(2026-09, 요청: "전체화면 온오프 버튼은 가장 오른쪽에 배치"). */}
-                <button
-                  type="button"
-                  className="scr-kakao-share-btn scr-fsbtn"
-                  onClick={() => (fsOn ? exitFs() : enterFs())}
-                  aria-label={fsOn ? "전체화면 나가기" : "전체화면"}
-                  title={fsOn ? "전체화면 나가기 (Alt+Enter)" : "전체화면 (Alt+Enter)"}
-                >
-                  {fsOn ? <Minimize size={18} aria-hidden /> : <Maximize size={18} aria-hidden />}
-                </button>
-                {/* 접기 손잡이 — **전체화면 단추 오른쪽**(2026-10, 요청: "접기펴기 버튼 전체화면 버튼 오른쪽으로 이동 크기도 맞추기" ·
-                    옛 자리 버튼 줄 정가운데). 크기는 꼬리 원과 같은 --mapbtn-h(replay.css .scr-tb-tail > .scr-motion-infodock-fold). */}
-                {dockFoldNode9}
-              </div>
-            </div>
-            <div className="scr-tb-seek">{speedNode9}{controlsNode}</div>
+            {/* ★ PC 는 **한 줄**이다 — [아이콘 단추들 | 배속 · 재생 · 진행바(가변) · 시계 | 스크랩 · 공유 · 사용법 · 전체화면 · 접기](2026-10-09, 요청:
+                "버튼이 이제 몇개 안되니 버튼과 재생부를 한줄로 합치기(슬라이드바 길이를 가변적으로). 버튼을 현재 재생부 좌우로 배치") — 단추 줄 한 줄의
+                키(--mapbtn-h + 줄 사이)가 비고 그만큼 독(--dock-body · replay.css .scr-motion-pc9)이 자란다. 폰은 종전 두 줄 그대로. 꼬리는 한 벌(tailNode9). */}
+            {smallDevice9 ? (
+              <>
+                <div className="scr-tb-btnrow">
+                  {mapBtnRow}
+                  {tailNode9}
+                </div>
+                <div className="scr-tb-seek">{speedNode9}{controlsNode}</div>
+              </>
+            ) : (
+              <>
+                {mapBtnRow}
+                <div className="scr-tb-seek">{speedNode9}{controlsNode}</div>
+                {tailNode9}
+              </>
+            )}
           </div>
         </div>
         {/* 재생 품질(위 QUALITY9) — 진입·벤치 변경 때 무대 오른쪽 위에 3초. 지도 상자 안에 두면 배율·팬·입체 변환을
@@ -19254,7 +19278,7 @@ export default function ReplayMotionPlayer({
   const body = (
     <div
       ref={setRoot}
-      className={cx("scr-motion", "scr-motion-root", wide && "scr-motion-wide")}
+      className={cx("scr-motion", "scr-motion-root", wide && "scr-motion-wide", !smallDevice9 && "scr-motion-pc9")}
       style={{ margin: "0 auto", ...uiVars9 }}
     >
       <div className="scr-motion-frame" ref={frameRef}>
@@ -19294,7 +19318,7 @@ export default function ReplayMotionPlayer({
     return (
       <div
         ref={setRoot}
-        className={cx("scr-motion", "scr-motion-root", wide && "scr-motion-wide")}
+        className={cx("scr-motion", "scr-motion-root", wide && "scr-motion-wide", !smallDevice9 && "scr-motion-pc9")}
         style={{ margin: "0 auto", ...uiVars9 }}
       >
         <div className="scr-motion-frame">
