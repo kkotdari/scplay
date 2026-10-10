@@ -4441,6 +4441,39 @@
    위 여백으로 문다. (걷어냄 · 2026-10-09, 요청: "앞으로 독 외에 지도에는 미니맵이 있으면 안됨 개인화면이든 중계끄기든") 왼아래 중계용 작은 미니맵(.scr-fs-solo-mini ·
    무대 폭 26%·키 34% · --split-tile 상한 · is-cast 손짓 끊기)과 그 크기 담기(container-type) — 미니맵은 독의 우물 하나뿐이다. */
 .scr-fs-solo { position: absolute; inset: 0; z-index: 30000; pointer-events: none; }
+/* ★★ 배속 다이얼(2026-10-10, 요청: "배속 버튼 제거하고 화면 우하단에 반투명 오버레이로 배속 다이얼 · 배경은 둥근 네모 거의 투명에 내용 선과 글자는 흰색 · 세로로 긴 선에
+   배속 눈금 · 터치나 다이얼 드래그로 부드럽게 조절 · PC 에서는 그 위에서 스크롤로도") — 무대 오른아래 · 받침 솟음(--dock-lift) 위. 자(--sdk)는 폰 --dk · PC --dks.
+   글자·선은 흰색 + 검은 그림자(바탕이 거의 투명이라 밝은 땅 위에서도 읽혀야 한다). 자막 폭은 다이얼 자리만큼 양쪽을 비운다(--sd-room). */
+.scr-fs-stage { --sdk: var(--dk, 1); --sd-w: calc(44px * var(--sdk)); --sd-h: calc(150px * var(--sdk)); --sd-gap: calc(10px * var(--sdk)); --sd-room: calc(var(--sd-w) + var(--sd-gap) * 2); }
+.scr-motion-pc9 .scr-fs-stage { --sdk: calc(var(--dks, 1) * 1.3); --sd-w: calc(48px * var(--sdk)); --sd-h: calc(180px * var(--sdk)); }   /* PC 는 --dks 가 0.75 쯤이라 한 단 키운다 */
+.scr-speeddial {
+  position: absolute; right: var(--sd-gap); bottom: calc(var(--dock-lift, 0px) + var(--sd-gap)); z-index: 30001;
+  width: var(--sd-w); height: var(--sd-h); box-sizing: border-box; padding: calc(7px * var(--sdk)) 0 calc(10px * var(--sdk));
+  display: flex; flex-direction: column; align-items: stretch;
+  border-radius: calc(12px * var(--sdk)); background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85); pointer-events: auto; touch-action: none; user-select: none; -webkit-user-select: none;
+  cursor: ns-resize; outline: none; -webkit-tap-highlight-color: transparent;
+}
+.scr-speeddial:focus-visible { border-color: rgba(255, 255, 255, 0.6); }
+.scr-speeddial-val { text-align: center; font-size: calc(12px * var(--sdk)); line-height: 1.2; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.scr-speeddial-track { position: relative; flex: 1 1 auto; margin: calc(10px * var(--sdk)) 0 calc(2px * var(--sdk)); }
+.scr-speeddial-line, .scr-speeddial-fill {
+  position: absolute; left: 36%; width: 2px; margin-left: -1px; border-radius: 1px; box-shadow: 0 0 2px rgba(0, 0, 0, 0.7);
+}
+.scr-speeddial-line { top: 0; bottom: 0; background: rgba(255, 255, 255, 0.45); }
+.scr-speeddial-fill { bottom: 0; background: #fff; transition: height 0.12s ease-out; }
+.scr-speeddial-tick {
+  position: absolute; left: 36%; transform: translateY(50%); display: flex; align-items: center; gap: calc(4px * var(--sdk));
+  margin-left: calc(-5px * var(--sdk)); font-size: calc(10px * var(--sdk)); line-height: 1; font-weight: 600; color: rgba(255, 255, 255, 0.78);
+  font-variant-numeric: tabular-nums; pointer-events: none;
+}
+.scr-speeddial-tick > b { display: block; width: calc(10px * var(--sdk)); height: 1.5px; background: currentColor; box-shadow: 0 0 2px rgba(0, 0, 0, 0.7); }
+.scr-speeddial-tick.is-on { color: #fff; font-weight: 800; }
+.scr-speeddial-knob {
+  position: absolute; left: 36%; width: calc(14px * var(--sdk)); height: calc(14px * var(--sdk)); border-radius: 50%; transform: translate(-50%, 50%);
+  background: #fff; box-shadow: 0 0 0 calc(3px * var(--sdk)) rgba(255, 255, 255, 0.2), 0 1px 3px rgba(0, 0, 0, 0.6); transition: bottom 0.12s ease-out; pointer-events: none;
+}
+.scr-speeddial.is-drag .scr-speeddial-knob, .scr-speeddial.is-drag .scr-speeddial-fill { transition: none; }
 .scr-fs-layer.is-fs .scr-fs-solo { top: var(--safe-top, 0px); }
 /* ★ 화면 주인 이름표는 **위 가운데**다(2026-10-09, 요청: "화면 주인 이름칩은 화면 상단 가운데로 이동하고 자막을 내리기" — 옛 '아래 가운데'(같은 날 요청 1)는 되물렸다 ·
    자막(.scr-cast-caption)이 그 바닥 자리를 받는다). 단독 화면·분할 칸 다 같다 — 받침 솟음(--dock-lift)·바닥 줄 칸 올리기(옛 --cell-lift)는 이름표엔 이제 안 걸린다.
@@ -4476,7 +4509,7 @@
   /* ★ 폭 상한 = 무대 폭 **80%**(2026-10-09, 요청: "자막 폭은 화면폭 80프로 활용") — 옛 `left 50% + translateX(−50%)` 는 absolute 의 shrink-to-fit 가용 폭이 '담는 상자 − left'
      = 50% 라 max-width 와 무관하게 무대의 반에서 접혔다(폰 195/390 실측). left·right 0 + width fit-content + margin auto 로 가운데 두고 상한만 80%. */
   position: absolute; left: 0; right: 0; margin: 0 auto; width: fit-content; bottom: calc(3px * var(--dk) + var(--dock-lift, 0px)); z-index: 1;
-  max-width: 80%; box-sizing: border-box; white-space: normal; overflow-wrap: anywhere; text-align: center;
+  max-width: min(80%, calc(100% - var(--sd-room, 0px) * 2)); box-sizing: border-box; white-space: normal; overflow-wrap: anywhere; text-align: center;   /* 다이얼 자리는 비운다(2026-10-10) */
   font-size: calc(var(--cap-fs) * 0.875); line-height: round(nearest, 1.5em, 2px); font-weight: 700; color: #fff; pointer-events: none;
   padding: round(nearest, 0.15em, 2px) round(nearest, 0.6em, 2px); border-radius: 4px; background: rgba(8, 10, 14, 0.62);
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.8);

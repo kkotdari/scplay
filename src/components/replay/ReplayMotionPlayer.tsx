@@ -131,6 +131,19 @@ export type MotionBase = Omit<MinimapMarker, "x" | "y"> & { x?: number; y?: numb
 const EMPTY_WALKS9: EngineWorld9["entWalks"] = [];
 /** 배속 사다리 — 두 배씩 넷(요청: "배속 사다리 1 2 4 8"). 옛 1·2·5·10·20은 걷었다; 링크의 &s=가 옛 값이면 가장 가까운 칸으로 앉힌다. */
 const SPEEDS = [1, 2, 4, 8] as const;
+/** ★ 배속 다이얼(2026-10-10, 요청: "배속 버튼 제거하고 화면 우하단에 반투명 오버레이로 배속 다이얼 · 세로로 긴 선에 배속 눈금 · 터치나 다이얼 드래그로 부드럽게 조절 ·
+ *  PC 에서는 그 위에서 스크롤로도") — 배속은 이제 **이어진 값**이다(SPEEDS 는 눈금). 다이얼 자리 u(0 아래 ~ 1 위)는 log2 자라 눈금 1·2·4·8 이 고르게 선다.
+ *  끌기는 눈금 곁(SPEED_SNAP9 · log2 칸)에서 그 눈금에 붙고, 휠은 안 붙는다(작은 굴림이 눈금에 갇힌다). 값은 0.05 칸으로 접는다(워커 명령이 화소마다 안 나가게). */
+const SPEED_MIN9 = SPEEDS[0];
+const SPEED_MAX9 = SPEEDS[SPEEDS.length - 1];
+const SPEED_SNAP9 = 0.08;
+const spdU9 = (s9: number): number => Math.log2(s9 / SPEED_MIN9) / Math.log2(SPEED_MAX9 / SPEED_MIN9);
+const uSpd9 = (u9: number, snap9: boolean): number => {
+  let l9 = Math.min(1, Math.max(0, u9)) * Math.log2(SPEED_MAX9 / SPEED_MIN9);
+  if (snap9) { const r9 = Math.round(l9); if (Math.abs(l9 - r9) < SPEED_SNAP9) l9 = r9; }
+  return Math.round(SPEED_MIN9 * 2 ** l9 * 20) / 20;
+};
+const spdTxt9 = (s9: number): string => (Number.isInteger(s9) ? `${s9}` : s9.toFixed(s9 < 2 ? 2 : 1).replace(/0$/, ""));
 /** 탄두가 내려오는 창(초) — 착탄 시각은 위 값 그대로 두고 **시작만 당긴다**(요청: 2배
  *  느리게). 그래야 터지는 순간이 안 밀린다. */
 const NUKE_DROP_SEC = 4;
@@ -10802,10 +10815,10 @@ export default function ReplayMotionPlayer({
      화면은 '빠르게 넘긴 것'이 아니라 그냥 어수선한 것이고, 배속은 손잡이가 화면에 있어
      원하면 올리면 된다. 링크가 배속을 실어 왔으면(&s=) 그것으로 시작한다 — 보낸 사람이
      보던 그 장면에는 속도도 들어 있다. */
-  const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(() => {
+  const [speed, setSpeed] = useState<number>(() => {
     if (initialSpeed === undefined || !(initialSpeed > 1)) return 1;
-    // 옛 링크의 5·10·20도 받는다 — 가장 가까운 칸(5 → 4, 10·20 → 8).
-    return SPEEDS.reduce((b9, s9) => (Math.abs(s9 - initialSpeed) < Math.abs(b9 - initialSpeed) ? s9 : b9), SPEEDS[0]);
+    // 이어진 배속(다이얼 · 2026-10-10) — 링크 값을 다이얼 범위(1~8)로 죄어 그대로 받는다(옛 10·20 → 8).
+    return uSpd9(spdU9(Math.min(SPEED_MAX9, Math.max(SPEED_MIN9, initialSpeed))), false);
   });
   /* 배속도 시각·자리와 같은 결로 적어 둔다(위 playbackSpeedOf) — 공유 버튼이 &s=로 싣는다.
      시계 적기(playbackClockOf)와 나란히 두고 싶지만 그쪽은 speed가 서기 전이라 여기다. */
@@ -12581,7 +12594,7 @@ export default function ReplayMotionPlayer({
       /* 곡 목록도 제 안이 스크롤된다(지적: "음악 목록 스크롤 시 뒤 맵이 스크롤이 돼") — 도구 판·미니맵과 같은 손이다.
          CSS의 overscroll-behavior가 **페이지** 연쇄를 막고, 이 줄이 **지도 줌**으로 새는 것을 막는다(둘 다 있어야 한다). */
       if (e.target instanceof Element
-        && e.target.closest(".scr-fs-toolpanel, .scr-fs-rosterpanel, .scr-fs-minimap, .scr-motion-pickmenu")) return;
+        && e.target.closest(".scr-fs-toolpanel, .scr-fs-rosterpanel, .scr-fs-minimap, .scr-motion-pickmenu, .scr-speeddial")) return;
       onWheel(e);
     };
     // passive:false 라야 브라우저의 페이지 스크롤을 막을 수 있다.
@@ -16254,10 +16267,8 @@ export default function ReplayMotionPlayer({
         e.preventDefault();
         wakeUi();
         const up9 = e.code === "KeyE";
-        setSpeed((v) => {
-          const i = SPEEDS.indexOf(v);
-          return SPEEDS[up9 ? Math.min(SPEEDS.length - 1, i + 1) : Math.max(0, i - 1)];
-        });
+        /* 이어진 배속에서도 **다음 눈금**으로 간다(1.5 에서 E → 2 · Q → 1). */
+        setSpeed((v) => (up9 ? SPEEDS.find((s9) => s9 > v + 1e-6) ?? SPEED_MAX9 : [...SPEEDS].reverse().find((s9) => s9 < v - 1e-6) ?? SPEED_MIN9));
       } else if (k === "ArrowLeft" || k === "ArrowRight") {
         /* ←→ — 톡 누르면 5초, **붙잡으면 이어 감기**다(요청: "좌우화살표도 모바일처럼
            부드럽게 감기"). 손가락 기기의 길게 누르기와 같은 손잡이(startHold)를 그대로
@@ -17560,29 +17571,75 @@ export default function ReplayMotionPlayer({
     </ul>
   ) : null);
   const pickToggle9 = (kind9: "speed" | "zoom" | "bgm" | "cast"): void => setPick9((p9) => (p9 === kind9 ? null : kind9));
-  /* ★ 배속 단추는 재생 줄의 **맨 왼쪽**(재생 단추 앞)이다(2026-09, 요청: "배속 버튼은 플레이버튼 왼쪽으로") — 꼴·목록은 아이콘
-     줄의 형제와 같아야 하므로 같은 감싸개(.scr-motion-mapbtns)에 한 칸만 담는다. 목록은 줄의 왼쪽 끝이라 is-left(왼쪽 맞춤). */
-  const speedNode9 = (
-    <div className="scr-motion-mapbtns scr-tb-speed">
-      <span className="scr-motion-pick">
-        <button
-          type="button"
-          /* 기본값이 아니면 켜진 꼴로(요청: "x1 1배 2D 가 기본값이고 다른 값이면 적용 css") —
-             셋 다 같은 자다: 배속 ×1 · 확대 1배 · 보기 2D가 아무것도 안 건드린 상태이고,
-             거기서 벗어난 값만 버튼이 밝아져 '지금 뭘 만져 뒀는지'가 줄에서 바로 읽힌다. */
-          className={cx("scr-motion-litbtn scr-motion-mapbtn scr-motion-mapval", speed !== 1 && "is-on")}
-          onClick={() => pickToggle9("speed")}
-          aria-haspopup="menu" aria-expanded={pick9 === "speed"}
-          aria-label={`배속 ${speed}배 — 누르면 목록`}
-          title="배속"
-        >
-          <span className="scr-motion-mapval-num">×{speed}</span>
-        </button>
-        {/* 사다리처럼 **작은 값이 아래**(요청) — 목록이 위로 펼쳐지니 버튼 가까이가 ×1이다. */}
-        {pickMenu9("speed", [...SPEEDS].reverse().map((s9) => ({ label: `×${s9}`, on: speed === s9, act: () => setSpeed(s9) })), false, true)}
-      </span>
+  /* ★★ **배속 다이얼**(2026-10-10, 요청: "화면 우하단에 반투명 오버레이로 배속 다이얼 · 배경은 둥근 네모 거의 투명에 내용 선과 글자는 흰색 · 세로로 긴 선에 배속 눈금 ·
+     터치나 다이얼 드래그로 부드럽게 조절 · PC 에서는 그 위에서 스크롤로도") — 무대 오른아래(받침 솟음 위). 상자 어디를 눌러도 그 높이의 배속으로 가고 끌면 따라온다
+     (눈금 곁에서는 붙는다 · uSpd9). 휠은 제 것으로 받는다(판 뿌리 휠 손잡이가 .scr-speeddial 은 흘려보낸다 · 아래 effect 가 passive:false 로 막는다). 손짓이 무대의
+     끌기·두 번 누름으로 새지 않게 거품을 끊는다. ↑↓ 키로 눈금 한 칸. */
+  const dialRef9 = useRef<HTMLDivElement | null>(null);
+  const dialTrackRef9 = useRef<HTMLDivElement | null>(null);
+  const dialDrag9 = useRef<number | null>(null);
+  const [dialOn9, setDialOn9] = useState(false);
+  const dialAt9 = (y9: number): void => {
+    const tr9 = dialTrackRef9.current?.getBoundingClientRect();
+    if (!tr9 || tr9.height <= 0) return;
+    setSpeed(uSpd9(1 - (y9 - tr9.top) / tr9.height, true));
+  };
+  useEffect(() => {
+    const el9 = dialRef9.current;
+    if (!el9) return undefined;
+    const onWheel9 = (e: WheelEvent): void => {
+      e.preventDefault();
+      e.stopPropagation();
+      const px9 = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
+      setSpeed((v9) => uSpd9(spdU9(v9) - px9 * 0.0012, false));
+    };
+    el9.addEventListener("wheel", onWheel9, { passive: false });
+    return () => el9.removeEventListener("wheel", onWheel9);
+  });
+  const speedDial9 = (
+    <div
+      ref={dialRef9}
+      className={cx("scr-speeddial", dialOn9 && "is-drag")}
+      role="slider" tabIndex={0}
+      aria-label="배속" aria-orientation="vertical"
+      aria-valuemin={SPEED_MIN9} aria-valuemax={SPEED_MAX9} aria-valuenow={speed} aria-valuetext={`${spdTxt9(speed)}배`}
+      title="배속 — 끌거나 굴려서 조절"
+      onPointerDown={(e) => {
+        e.stopPropagation();
+        if (e.button !== 0 && e.pointerType === "mouse") return;
+        dialDrag9.current = e.pointerId;
+        e.currentTarget.setPointerCapture(e.pointerId);
+        setDialOn9(true);
+        dialAt9(e.clientY);
+      }}
+      onPointerMove={(e) => { if (dialDrag9.current === e.pointerId) { e.stopPropagation(); dialAt9(e.clientY); } }}
+      onPointerUp={(e) => { e.stopPropagation(); if (dialDrag9.current === e.pointerId) { dialDrag9.current = null; setDialOn9(false); } }}
+      onPointerCancel={(e) => { e.stopPropagation(); dialDrag9.current = null; setDialOn9(false); }}
+      onDoubleClick={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+        e.preventDefault();
+        e.stopPropagation();
+        const up9 = e.key === "ArrowUp";
+        setSpeed((v) => (up9 ? SPEEDS.find((s9) => s9 > v + 1e-6) ?? SPEED_MAX9 : [...SPEEDS].reverse().find((s9) => s9 < v - 1e-6) ?? SPEED_MIN9));
+      }}
+    >
+      <span className="scr-speeddial-val">×{spdTxt9(speed)}</span>
+      <div className="scr-speeddial-track" ref={dialTrackRef9}>
+        <i className="scr-speeddial-line" aria-hidden />
+        <i className="scr-speeddial-fill" aria-hidden style={{ height: `${spdU9(speed) * 100}%` }} />
+        {SPEEDS.map((s9) => (
+          <span key={s9} className={cx("scr-speeddial-tick", Math.abs(speed - s9) < 1e-6 && "is-on")} style={{ bottom: `${spdU9(s9) * 100}%` }} aria-hidden>
+            <b />{s9}
+          </span>
+        ))}
+        <i className="scr-speeddial-knob" aria-hidden style={{ bottom: `${spdU9(speed) * 100}%` }} />
+      </div>
     </div>
   );
+  /* (걷어냄 · 2026-10-10, 요청: "배속 버튼 제거하고 화면 우하단에 반투명 오버레이로 배속 다이얼") 재생 줄 맨 왼쪽의 배속 단추(옛 speedNode9 · 위로 펼치는 ×1·×2·×4·×8 목록) —
+     무대 오른아래의 다이얼(speedDial9)이 맡는다. */
   /* (걷어냄 · 2026-10-09, 요청: "중계버튼 제거하고 로스터 닉네임 왼쪽에 비디오카메라 버튼 추가") — 아이콘 줄 맨 왼쪽의 TV 단추(castBtnNode9)와
      그 위로 펼치는 목록(전체 · 사람들 · 자동 · 끄기). 고르는 손잡이는 독 로스터의 카메라 단추(아래 dockRoster9)다 — 사람 = pickPerson9 · AUTO = toggleCast9. */
   const mapBtnRow = (
@@ -19194,6 +19251,8 @@ export default function ReplayMotionPlayer({
               미니맵은 왼아래(.scr-split-mini 와 같은 자 — 중계 중엔 그 화면의 6×6 타일 상한(--split-tile) · 꺼지면 상한 없음). 미니맵은 옛 독 미니맵
               그대로(짚기·휠·안개·핑 · ReplayFullscreenMinimap)이고 중계 중엔 카메라가 기계 것이라 손짓을 안 받는다(.is-cast). 전체화면의 미니맵
               단추(N)는 이것을 여닫는다. 현황(스탯) 상자는 없다(요청 3 — 값은 독 로스터가 든다). 분할은 칸이 제 것을 든다. */}
+          {/* 배속 다이얼 — 무대 오른아래(위 speedDial9 ★★). 단독·분할 다 선다. */}
+          {speedDial9}
           {!splitOn9 && (
             <div
               /* 지도와 함께 켠다(2026-10-10, 요청: "자막이랑 주인이름도 로딩 다 끝나면 같이 나오게") — 위 introReady9 · .scr-motion-map.is-warming 과 같은 깃발. */
@@ -19370,12 +19429,12 @@ export default function ReplayMotionPlayer({
                   {mapBtnRow}
                   {tailNode9}
                 </div>
-                <div className="scr-tb-seek">{speedNode9}{controlsNode}</div>
+                <div className="scr-tb-seek">{controlsNode}</div>
               </>
             ) : (
               <>
                 {mapBtnRow}
-                <div className="scr-tb-seek">{speedNode9}{controlsNode}</div>
+                <div className="scr-tb-seek">{controlsNode}</div>
                 {tailNode9}
               </>
             )}

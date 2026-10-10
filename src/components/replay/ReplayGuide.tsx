@@ -56,7 +56,7 @@ export default function ReplayGuide({ onClose }: {
         <h3 className="scr-guide-h3">도구 상자</h3>
         <p className="scr-guide-sub">
           지도 아래 <strong>쇠판</strong>입니다 — 맨 위에 <strong>전광판 · 미니맵 · 인포창</strong>이 서고, 그 아래 버튼 줄은 왼쪽의 동그란 <strong>버튼들</strong> ·
-          오른쪽의 <strong>스크랩 · 공유 · 사용법(?) · 전체화면</strong>, 맨 아래 줄은 <strong>배속 · 재생 · 진행바 · 시간</strong>입니다. 버튼 줄 정가운데의 작은 단추가 <strong>접기(▼)</strong>입니다.
+          오른쪽의 <strong>스크랩 · 공유 · 사용법(?) · 전체화면</strong>, 맨 아래 줄은 <strong>재생 · 진행바 · 시간</strong>입니다. 버튼 줄 정가운데의 작은 단추가 <strong>접기(▼)</strong>입니다.
           사람들의 현황은 쇠판 왼쪽의 <b>전광판</b>이 늘 보여 줍니다(폰은 일꾼 / 인구 / 자원 / 데미지 / APM 다섯 쪽이 6초마다 번갈아 넘어갑니다). 그 오른쪽이 <b>미니맵</b>,
           자리가 남으면 <b>인포창</b>이 섭니다 — 좁으면 인포창이 작아지거나(폰 세로) 빠지고, 전광판과 미니맵이 함께 줄어 높이도 낮아집니다.
         </p>
@@ -77,7 +77,7 @@ export default function ReplayGuide({ onClose }: {
             <span className="scr-guide-tbtn scr-guide-tbtn-share" aria-hidden="true"><Share2 size={15}/></span>
           </div>
           <ul className="scr-guide-legend">
-            <li><span className="scr-guide-ic scr-guide-ic-txt">×2</span><span><b>배속</b> — 재생 버튼 왼쪽. 누르면 위로 목록(×1·×2·×4·×8)이 펼쳐집니다. 교전 하나를 뜯어볼 땐 낮추고, 초반 빌드를 넘길 땐 올립니다.</span></li>
+            <li><span className="scr-guide-ic scr-guide-ic-txt">×2</span><span><b>배속</b> — 화면 오른쪽 아래의 세로 다이얼. 누르거나 위아래로 끌면 ×1~×8 사이에서 부드럽게 바뀌고(눈금 1·2·4·8 근처에서는 그 눈금에 붙습니다), PC에서는 그 위에서 휠을 굴려도 됩니다. 교전 하나를 뜯어볼 땐 낮추고, 초반 빌드를 넘길 땐 올립니다.</span></li>
             <li><span className="scr-guide-ic"><Play size={14} fill="currentColor"/></span><span><b>재생 / 일시정지</b> — 스페이스와 같습니다. 끝까지 본 뒤 누르면 처음부터(↺).</span></li>
             <li><span className="scr-guide-ic scr-guide-ic-txt">↔</span><span><b>진행바</b> — 끌어서 원하는 시각으로. 좌우 화살표는 누르는 동안 계속 감깁니다.</span></li>
             <li><span className="scr-guide-ic scr-guide-ic-txt">▼</span><span><b>접기</b> — 버튼 줄 정가운데의 작은 단추. 누르면 그 위의 미니맵·인포창이 통째로 접혀 지도가 그만큼 넓어지고, 한 번 더 누르면(▲) 다시 펼쳐집니다.</span></li>
