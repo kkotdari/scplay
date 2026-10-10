@@ -32,7 +32,7 @@
  *   마지막으로 보여 준 사람 **다음**부터 산 사람을 고른다(장면으로 보여 준 사람도 그 자리에서 잇는다).
  *   밀리(팀 없음)는 로스터 차례 그대로. 동점 가름(TIE9)은 종전대로 '가장 오래 안 본 사람'이다.
  */
-import { BUILDING_KO, TECH_KO, UNIT_KO } from "../../utils/replayNames";
+import { BUILDING_KO, UNIT_KO } from "../../utils/replayNames";
 import { researchKo } from "../../utils/replayTechNames";
 import { costOf, unitOf } from "../../utils/bwUnits";
 import { tkN, tkT, tkV } from "../../utils/openbwTracks";
@@ -176,7 +176,9 @@ type Ev9 = { sec: number; raw: string; w: number; why: string; tail?: number;
   /** 자막 재료(2026-10-09) — 죽은 몸의 종류(건물 파괴 자막의 건물 이름) · 마법 이름 · **죽인 유닛의 종류**(by · 리버/하이템플러 일꾼 견제 · 저글링러시의 자). */
   kind?: string; tech?: string; by?: string;
   /** 잃은 자리(타일 · 잃은 쪽 사건만) — 싸움이 **누구 진영에서** 났나를 재는 자다(duel9). 모르면 없다. */
-  x?: number; y?: number };
+  x?: number; y?: number;
+  /** 기지 밖에서 잡힌 일꾼의 갈래(2026-10-10) — "정찰" · "전진 건설" · ""(그 밖 · 이동·도망). */
+  wkw?: string };
 
 /** 편성표를 굽는다 — 참값 한 벌에 한 번이다(재생 중에는 짚기만 한다). */
 export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
@@ -295,7 +297,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   };
 
   /** 죽음 한 벌 — 한꺼번에 사라지는 '나감'을 걸러 내려고 먼저 모은다. */
-  type D9 = { sec: number; owner: number; v: number; bld: boolean; killer: number; wk: boolean; x?: number; y?: number; kind: string; by: string };
+  type D9 = { sec: number; owner: number; v: number; bld: boolean; killer: number; wk: boolean; wkw?: string; x?: number; y?: number; kind: string; by: string };
   /** 죽은 자리(타일) — 건물은 제 자리(bornX/Y · 앉은 자리가 여럿이면 마지막) · 유닛은 죽기 전 `LOC_W9` 초 안의 마지막 명령
    *  자리(참값 생애는 죽은 자리를 안 든다 — 명령이 '어디에 가 있었나'의 가장 가까운 어림이다) · 그도 없으면 막 태어난 몸의
    *  태어난 자리 · 모르면 null. */
@@ -336,6 +338,18 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     if (x9 === undefined || y9 === undefined) return true;
     const halls9 = hallsOfOwner9(new Set([owner9]), sec9);
     return halls9.length === 0 || halls9.some(([hx9, hy9]) => Math.hypot(hx9 - x9, hy9 - y9) <= BASE_R9);
+  };
+  /** 기지 밖에서 잡힌 일꾼의 갈래 — 제 짓는 중인 건물(기지 밖) FWD_R9 타일 안이면 "전진 건설" · 죽인 사람의 기지 안이면 "정찰" · 그 밖 "". */
+  const FWD_R9 = 6;
+  const workerOut9 = (owner9: number, killer9: number, x9: number, y9: number, sec9: number): string => {
+    for (const b9 of world.lives) {
+      if (!b9.bld || b9.owner !== owner9 || b9.born > sec9 || (b9.doneAt ?? b9.born) < sec9 - 2) continue;
+      if (Math.hypot(b9.bornX - x9, b9.bornY - y9) > FWD_R9) continue;
+      if (atOwnBase9(owner9, b9.bornX, b9.bornY, sec9) && hallsOfOwner9(new Set([owner9]), sec9).length > 0) continue;
+      return "전진 건설";
+    }
+    if (killer9 >= 0 && hallsOfOwner9(new Set([killer9]), sec9).length > 0 && atOwnBase9(killer9, x9, y9, sec9)) return "정찰";
+    return "";
   };
   /* ★★ 자원 무더기(2026-10-10, 요청: "빨무같이 앞마당 없는 맵인데 앞마당 넥서스 건설이라고 나오네 — 3넥서스 이렇게 나와야지. 자원 무더기가 따로 있는 맵만 앞마당·멀티 용어") ──────
      지도 자원 점(opts.resources — 미네랄 밭·가스)을 RES_LINK9 타일 단일 연결로 묶은 것이 **자원 무더기**다(한 기지의 미네랄 줄 + 가스 · 기지끼리는 10타일 넘게 떨어진다).
@@ -412,8 +426,9 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     const wk9 = !e9.bld && unitOf(e9.kind).worker && atOwnBase9(e9.owner, at9?.x, at9?.y, e9.died);
     let [killer9, by9] = killerOf9(e9.tag, e9.died, e9.owner);
     if (killer9 < 0) { const st9 = stormBy9(e9.died, at9?.x, at9?.y, e9.owner); if (st9 >= 0) { killer9 = st9; by9 = "High Templar"; } }
+    const wkw9 = !e9.bld && unitOf(e9.kind).worker && !wk9 && at9 ? workerOut9(e9.owner, killer9, at9.x, at9.y, e9.died) : undefined;
     ds9.push({ sec: e9.died, owner: e9.owner, v: wk9 ? v9 * HARASS9.k : v9, bld: e9.bld, wk: wk9, kind: e9.kind,
-      killer: killer9, by: by9, ...(at9 ?? {}) });
+      killer: killer9, by: by9, ...(at9 ?? {}), ...(wkw9 !== undefined ? { wkw: wkw9 } : {}) });
   }
   ds9.sort((a9, b9) => a9.sec - b9.sec);
   /* ★ **나간 사람의 몸은 교전이 아니다** — 팀전에서 한 사람이 나가면 그 몸이 한 프레임에
@@ -443,12 +458,14 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     /* ★ 제 기지 밖의 건물(프록시 파일런·러시 캐논·성큰)이 부서진 것은 **기지 피해가 아니라 교전**이다(2026-10-10) — 포토러시의 캐논이 상대 본진에서 깨진 것을 "기지 대파"로
        읽었다. 몸값·살림(econ)은 그대로 센다. */
     const base9 = d9.bld && atOwnBase9(d9.owner, d9.x, d9.y, d9.sec);
-    const why9 = base9 ? "건물 파괴" : d9.wk ? "견제" : "교전";
+    /* ★ 일꾼 견제는 **그 사람의 기지 안**에서 잡힌 일꾼뿐이다(2026-10-10, 요청: "일꾼 견제는 적 본진의 일꾼을 잡는 경우 · 다른 곳에서 잡는 건 견제가 아니고
+       정찰병을 잡거나 도망가는 일꾼을 잡은 것 · 아니면 전진 건설하는 일꾼을 잡은 것") — 기지 밖 일꾼은 "일꾼 잡음"(갈래 wkw: 정찰 · 전진 건설 · 그 밖). */
+    const why9 = base9 ? "건물 파괴" : d9.wk ? "견제" : d9.wkw !== undefined ? "일꾼 잡음" : "교전";
     const tail9 = d9.wk ? HARASS9.tail : undefined;
     if (kill9) evs9.push({ sec: d9.sec, raw: kill9, w: d9.v * (d9.bld ? BLD_K9 : 1), why: why9, tail: tail9,
-      vs: mine9, dealt: d9.v, kind: d9.kind, ...(d9.by ? { by: d9.by } : {}) });
-    if (mine9) evs9.push({ sec: d9.sec, raw: mine9, w: d9.v * LOSS_K9, why: base9 ? "건물 잃음" : d9.wk ? "견제 당함" : "교전", tail: tail9,
-      vs: kill9, econ: d9.bld || d9.wk ? d9.v : 0, x: d9.x, y: d9.y, kind: d9.kind });
+      vs: mine9, dealt: d9.v, kind: d9.kind, ...(d9.by ? { by: d9.by } : {}), ...(d9.wkw !== undefined ? { wkw: d9.wkw } : {}) });
+    if (mine9) evs9.push({ sec: d9.sec, raw: mine9, w: d9.v * LOSS_K9, why: base9 ? "건물 잃음" : d9.wk ? "견제 당함" : d9.wkw !== undefined ? "일꾼 잃음" : "교전", tail: tail9,
+      vs: kill9, econ: d9.bld || d9.wk ? d9.v : 0, x: d9.x, y: d9.y, kind: d9.kind, ...(d9.wkw !== undefined ? { wkw: d9.wkw } : {}) });
   }
   for (const [sec9, , , tech9, own9] of world.casts) {
     const w9 = CAST_W9[tech9];
@@ -748,8 +765,15 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     const top9 = sc9.top && (sc9.top.raw === pick9 || sc9.top.vs === pick9) ? sc9.top : undefined;
     const why9 = top9 ? sc9.why : "";
     if (top9 && why9 === "핵") return [{ raw: top9.raw }, { text: " 핵 투하" }];
-    if (top9 && why9 === "마법") return [{ raw: top9.raw }, { text: ` ${TECH_KO[top9.tech ?? ""] ?? top9.tech ?? "마법"}` }];
+    if (top9 && why9 === "마법") return [{ raw: top9.raw }, { text: ` ${top9.tech ? researchKo(top9.tech) : "마법"}` }];
     if (top9 && why9 === "자폭") return [{ raw: top9.raw }, { text: " 자폭" }];
+    if (top9 && (why9 === "일꾼 잡음" || why9 === "일꾼 잃음")) {
+      const k9 = why9 === "일꾼 잡음" ? top9.raw : top9.vs;
+      const v9 = why9 === "일꾼 잡음" ? top9.vs : top9.raw;
+      const what9 = top9.wkw === "정찰" ? "정찰 일꾼" : top9.wkw === "전진 건설" ? "전진 건설 일꾼" : "일꾼";
+      if (k9 && v9) return [{ raw: k9, p: "ga" }, { text: " " }, { raw: v9 }, { text: ` ${what9} 잡음` }];
+      return [{ raw: v9 ?? pick9 }, { text: ` ${what9} 잃음` }];
+    }
     if (top9 && (why9 === "견제" || why9 === "견제 당함")) {
       const k9 = why9 === "견제" ? top9.raw : top9.vs;
       const v9 = why9 === "견제" ? top9.vs : top9.raw;
@@ -847,6 +871,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   const ADV9 = new Set(["Robotics Facility", "Stargate", "Citadel of Adun", "Templar Archives", "Starport", "Armory", "Science Facility"]);
   /** 러시 건물 — 상대 기지(본진 건물 BASE_R9 안)에 세운 것의 글귀(요청: "포토러시 · 성큰러시"). */
   const RUSH_BLD9: Record<string, string> = { "Photon Cannon": "포토러시", "Sunken Colony": "성큰러시", "Creep Colony": "성큰러시" };
+  const PROXY_KO9: Record<string, string> = { Gateway: "게이트", Barracks: "배럭", Factory: "팩토리", Starport: "스타포트", Stargate: "스타게이트" };
+  const PROXY_MIN9 = 36;
   const HALL_KO9: Record<string, string> = { Nexus: "넥서스", "Command Center": "커맨드", Hatchery: "해처리" };
   /** 이정표를 창 앞 이만큼(초)까지 되짚는다 — 그보다 오래면 국면 요약으로. */
   const MILE_RECENT9 = 120;
@@ -931,10 +957,35 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     const prodN9 = new Map<string, number>();
     const seen9 = new Set<string>();
     let hallN9 = 0;
+    /** ★ 전진·몰래 생산 건물(2026-10-10, 요청: "몰래배럭, 전진 건설(게이트/팩토리/배럭 등) 전략 판단 필요") — 제 출발 자리에서 PROXY_MIN9 타일 넘게 떨어지고
+     *  제 본진 건물·같은 편 기지 곁도 아닌 자리. 적 기지 안이면 "몰래", 그 밖은 "전진". 앞마당 심시티(36 안)는 안 든다. */
+    const proxyOf9 = (e9: (typeof blds9)[number]): string => {
+      const t9 = e9.born; const x9 = e9.bornX; const y9 = e9.bornY;
+      const st9 = start9.get(raw9);
+      if (!st9 || Math.hypot(st9.x - x9, st9.y - y9) <= PROXY_MIN9) return "";
+      if (hallsOfOwner9(own9, t9).some(([hx9, hy9]) => Math.hypot(hx9 - x9, hy9 - y9) <= BASE_R9)) return "";
+      if (allyBaseAt9(raw9, x9, y9, t9)) return "";
+      /* "몰래"는 **적 기지 안**에 지은 것(2026-10-10, 되요청: "몰래는 적기지에 짓는거") — 적의 본진 건물·출발 자리 BASE_R9 안. 그 밖(제 기지 밖)은 "전진". */
+      for (const r9 of new Set(rawOf9.values())) {
+        if (r9 === raw9 || (opts.teamOf?.[r9] !== undefined && opts.teamOf?.[r9] === opts.teamOf?.[raw9])) continue;
+        const sf9 = start9.get(r9);
+        if (sf9 && Math.hypot(sf9.x - x9, sf9.y - y9) <= BASE_R9) return "몰래";
+        if (hallsAt9(r9, t9).some(([hx9, hy9]) => Math.hypot(hx9 - x9, hy9 - y9) <= BASE_R9)) return "몰래";
+      }
+      return "전진";
+    };
     for (const e9 of blds9) {
       const k9 = e9.kind;
       const n9 = (prodN9.get(k9) ?? 0) + 1;
       prodN9.set(k9, n9);
+      const px9 = PROXY_KO9[k9] ? proxyOf9(e9) : "";
+      if (px9) {
+        mile9(e9.born, `${px9} ${PROXY_KO9[k9]}`);
+        if (PROD9[k9] && firstProdAt9 === Infinity) firstProdAt9 = e9.born;
+        if (k9 === coreTech9 && coreAt9 === Infinity) { coreAt9 = e9.born; seen9.add(k9); }
+        if (ADV9.has(k9) && advAt9 === Infinity) advAt9 = e9.born;
+        continue;
+      }
       const rushText9 = RUSH_BLD9[k9];
       if (rushText9) {
         /* 상대 기지 안의 캐논·성큰(크립 콜로니 포함) → "A의 B 포토러시"(요청: 포토러시 · 성큰러시). 같은 러시의 건물 여럿은 RUSH_W9 안이면 한 이정표. */

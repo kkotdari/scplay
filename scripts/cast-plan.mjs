@@ -314,3 +314,37 @@ const big9 = castPlan9(big, { total: 1200 });
 const ms = performance.now() - t0;
 console.log(`\n값: 8인 · 생애 ${big.lives.length} · 겨눔 자국 ${big.lives.length * 4} → 토막 ${big9.length}개 · ${ms.toFixed(1)}ms`);
 rmSync(tmp, { recursive: true, force: true });
+
+/* ── ⑫ 기지 밖 일꾼 · 전진/몰래 생산 건물(2026-10-10, 요청: "일꾼 견제는 적 본진의 일꾼을 잡는 경우 · 다른 곳에서 잡는 건 정찰병·도망가는 일꾼 · 전진 건설하는 일꾼" ·
+   "몰래배럭, 전진 건설(게이트/팩토리/배럭 등) 전략 판단") — T(0) 본진 (20,20) · Z(1) 본진 (170,170).
+   ① 60초 T 배럭 (120,120)(가운데 너머 · Z 기지 밖) → "전진 배럭" · 짓는 동안(60~120) 그 곁에서 SCV 여섯이 Z 의 저글링에 잡힘 → "[Z] [T] 전진 건설 일꾼 잡음"
+   ② 400초 T 배럭 (165,160)(Z 기지 안 · "몰래는 적기지에 짓는거") → "몰래 배럭" ③ 300초 T 본진(22,22)에서 Z 의 드론 여섯이 T 의 마린에 잡힘 → "[T] [Z] 정찰 일꾼 잡음". */
+{
+  const pw = (() => {
+    let pt = 17000;
+    const pl = [];
+    const kills = [];
+    const pmk = (o, kind, bld, x, y, born, died = null, end = "", orders = [], doneAt = born) => { const e = { tag: (pt += 1), owner: o, kind, born, bornX: x, bornY: y, died, end, bld,
+      sites: bld ? [[born, x - 1, y - 1]] : [], doneAt, lifts: [], cloaks: [], sieges: [], orders }; pl.push(e); return e; };
+    pmk(0, "Command Center", true, 20, 20, 0); pmk(1, "Hatchery", true, 170, 170, 0);
+    pmk(0, "Barracks", true, 120, 120, 60, null, "", [], 120);
+    const zl = pmk(1, "Zergling", false, 170, 170, 50);
+    for (const t of [90, 91, 92, 93, 94, 95]) { const v = pmk(0, "SCV", false, 20, 20, 0, t, "atk", [[t - 2, 121, 121, false]]); kills.push([t, 1, zl.tag, v.tag]); }
+    const mr = pmk(0, "Marine", false, 20, 20, 200);
+    for (const t of [300, 301, 302, 303, 304, 305]) { const v = pmk(1, "Drone", false, 170, 170, 0, t, "atk", [[t - 2, 23, 23, false]]); kills.push([t, 0, mr.tag, v.tag]); }
+    pmk(0, "Barracks", true, 165, 160, 400, null, "", [], 460);
+    return { players: [["T", "테란"], ["Z", "저그"]].map(([name, race], o) => ({ owner: o, name, race, color: "#fff", team: o + 1 })),
+      lives: pl, ups: [], casts: [], pings: [], resFields: [], kills };
+  })();
+  const pplan = castPlan9(pw, { total: 900, order: ["T", "Z"], teamOf: { T: 1, Z: 2 } });
+  const allCaps = pplan.map((s) => `${s.at.toFixed(0)}s ${s.raw} ${capTxt(s)}`);
+  console.log(`\n기지 밖 일꾼·전진/몰래: ${allCaps.filter((c) => !/순조로운/.test(c)).join(" · ")}`);
+  const has = (re) => pplan.some((s) => re.test(capTxt(s)));
+  for (const [name, pass] of [
+    ["Z 쪽 배럭은 '전진 배럭'", has(/\[T\] 전진 배럭/)],
+    ["적 기지 안의 배럭은 '몰래 배럭'", has(/\[T\] 몰래 배럭/)],
+    ["짓는 중인 전진 건물 곁의 일꾼은 '전진 건설 일꾼 잡음'", has(/\[Z\]ga \[T\] 전진 건설 일꾼 잡음/)],
+    ["제 기지에 들어온 일꾼은 '정찰 일꾼 잡음'", has(/\[T\]ga \[Z\] 정찰 일꾼 잡음/)],
+    ["기지 밖 일꾼은 '견제'가 아니다", !has(/일꾼 견제/)],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}

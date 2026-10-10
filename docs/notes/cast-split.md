@@ -739,3 +739,15 @@ op 258 → 605 · 일 79 → 94% — 분할은 칸마다 딴 자리를 본다며
 - 이제 `fogKeyOfSeq9`(갈래 → 시야 열쇠 팀|전체|켬)를 두고 `sameFogView9` 인 판만 빌린다. 같은 시야면 뒤 시각의 판도 빌린다(밝힌 판은 경기 전체 것) ·
   마지막 장은 그 장의 갈래(`lastFrameFseq9`)가 같은 시야일 때만. 없으면 안개를 새로 안 칠한다(옛 그림이 남는다).
 - 🔎 `perf-check --wide --warm 0 --diag --players 4 --fogprobe 30` — 한 장짜리 튐 0 · 갈래 빈틈 팀 장 2(헤드리스는 섞임 자체를 못 본다).
+
+## 기지 밖 일꾼은 견제가 아니다 · 전진/몰래 생산 건물 · 덤퍼 업그레이드 이름(2026-10-10)
+요청: "일꾼 견제는 적 본진의 일꾼을 잡는 경우 · 다른 곳에서 잡는 건 견제가 아니고 정찰병을 잡거나 도망가는 일꾼을 잡은 것 · 아니면 전진 건설하는 일꾼" ·
+"몰래배럭, 전진 건설(게이트/팩토리/배럭 등) 전략 판단 필요" → "몰래는 적기지에 짓는거" · "Leg Enhancement 같이 한글로 번역 안 된 스킬명 — 질럿 속업".
+- 일꾼 죽음: 제 기지(본진 건물 BASE_R9 안) → "견제"(그대로 · HARASS9 무게). 기지 밖은 `workerOut9` 갈래로 "일꾼 잡음"/"일꾼 잃음" 사건:
+  제 짓는 중인 건물(기지 밖) FWD_R9 6 안 → "A가 B 전진 건설 일꾼 잡음" · 죽인 사람의 기지 안 → "A가 B 정찰 일꾼 잡음" · 그 밖 "A가 B 일꾼 잡음". 무게는 몸값 그대로(옛 '교전').
+- 빌드 읽기 `proxyOf9`: 게이트·배럭·팩토리·스타포트·스타게이트가 제 출발 자리 PROXY_MIN9 36 타일 밖(앞마당 심시티 제외)이고 제 본진 건물·같은 편 기지 곁이 아니면 —
+  적 출발 자리·본진 건물 BASE_R9 안 → "몰래 배럭" · 그 밖 → "전진 배럭". 그 건물은 다른 이정표(2배럭 …)로 안 센다.
+- `researchKo`: 덤퍼(openbw) 이름 → screp 이름 `OPENBW_UPGRADE_ALIAS`(Leg Enhancements · U 238 Shells · Gravitic Boosters · Metasynaptic Node) +
+  `EXTRA_TECH_KO`(Infestation · Parasite · Archon Warp · Dark Archon Meld · Healing). 마법 자막도 researchKo. 🔎 BW_UPGRADE_NAME·BW_TECH_NAME 을 researchKo 로 돌려
+  그대로 나오는 이름을 센다(남은 것 Unused 26·33 뿐).
+- 🔎 `node scripts/cast-plan.mjs` ⑫(전진·몰래·정찰·전진 건설 일꾼) — 56 통과.

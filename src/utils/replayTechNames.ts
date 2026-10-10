@@ -174,9 +174,23 @@ export const UPGRADE_KO: Record<UpgradeName, string> = {
   "Anabolic Synthesis": "울트라 속업", "Charon Boosters": "골리앗 사업",
 };
 
+/** 덤퍼(openbw bwenums)의 이름 → 위 표의 screp 이름(2026-10-10, 지적: "Leg Enhancement 같이 한글로 번역 안 된 스킬명 — 질럿 속업") —
+ *  같은 업그레이드를 두 꼴로 적는다(복수형·하이픈·옛 이름). 자막·인포가 덤퍼 이름을 그대로 받아 영문이 샜다. */
+const OPENBW_UPGRADE_ALIAS: Record<string, UpgradeName> = {
+  "Leg Enhancements": "Leg Enhancement",
+  "U 238 Shells": "U-238 Shells",
+  "Gravitic Boosters": "Gravitic Booster",
+  "Metasynaptic Node": "Defiler Energy",
+};
+/** 연구 표(TECH_KO)에 없던 기술 — 덤퍼가 번호로 내는 다섯. */
+const EXTRA_TECH_KO: Record<string, string> = {
+  Infestation: "인페스트", Parasite: "패러사이트", "Archon Warp": "아콘 합체",
+  "Dark Archon Meld": "다크아콘 합체", Healing: "힐",
+};
+
 /** 연구(기술·업그레이드) 이름 → 화면 말. 어느 갈래인지 모르는 자리에서 이것만 부르면 된다. */
 export function researchKo(name: string): string {
-  return TECH_KO[name] ?? UPGRADE_KO[name as UpgradeName] ?? name;
+  return TECH_KO[name] ?? UPGRADE_KO[(OPENBW_UPGRADE_ALIAS[name] ?? name) as UpgradeName] ?? EXTRA_TECH_KO[name] ?? name;
 }
 
 /** 그 유닛의 팝업에서 쓸 짧은 딱지(요청: "공방실드속업사업은 이름 말고 이해하기 쉽게
