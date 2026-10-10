@@ -163,10 +163,10 @@ const dw9 = (() => {
   // ① P 앞마당의 싸움 — F 의 히드라 넷이 P 의 드라군 셋을 겨눈다(죽은 자리 = 마지막 명령 62,52)
   const dg = [300, 301, 302].map((t) => dmk(0, "Dragoon", false, 10, 10, 150, t, "atk", [[290, 62, 52, false]]));
   for (const d of dg) dmk(2, "Hydralisk", false, 100, 100, 150, null, "", [], [299, d.tag, 302.5, d.tag, 303, 0]);
-  // ② 가운데 호각 교전
-  const zl = [500, 500.5, 501, 501.5].map((t) => dmk(2, "Zergling", false, 100, 100, 400, t, "atk", [[495, 55, 55, false]]));
+  // ② 가운데 호각 교전 — (55,78) · 어느 본진 건물에서도 BASE_R9(18) 밖(2026-10-10: 옛 (55,55)는 P 앞마당(60,50) 7타일 안이라 이제 P 기지 싸움으로 읽힌다)
+  const zl = [500, 500.5, 501, 501.5].map((t) => dmk(2, "Zergling", false, 100, 100, 400, t, "atk", [[495, 55, 78, false]]));
   for (const z of zl) dmk(0, "Zealot", false, 10, 10, 400, null, "", [], [499, z.tag, 501.5, z.tag, 502, 0]);
-  const qd = dmk(1, "Dragoon", false, 10, 100, 400, 501, "atk", [[495, 56, 54, false]]);
+  const qd = dmk(1, "Dragoon", false, 10, 100, 400, 501, "atk", [[495, 56, 77, false]]);
   dmk(3, "Hydralisk", false, 100, 10, 400, null, "", [], [499, qd.tag, 501.5, qd.tag, 502, 0]);
   // ③ 리버 일꾼 견제 — 처치 절(kills)에 킬러 태그가 리버
   const rv = dmk(2, "Reaver", false, 100, 100, 600, null, "");
@@ -524,7 +524,7 @@ rmSync(tmp, { recursive: true, force: true });
     mk(1, "Ultralisk", false, 100, 100, 500, { died: 700, end: "own" });
     mk(0, "Ultralisk", false, 60, 60, 700, { handoff: true });
     casts.push([700, 60, 60, "Mind Control", 0]);
-  })), (c) => c.some((x) => /\[P\] 마인드컨트롤로 울트라 빼앗음/.test(x))]);
+  })), (c) => c.some((x) => /\[P\]ga 마인드컨트롤로 울트라 빼앗음/.test(x))]);
   // ⑥ 다크스웜 + 럴커 돌파 — B 가 A 본진(20,20)에 스웜 · B 럴커가 A 마린 넷을 잡는다
   res.push(["스웜 아래 럴커가 본진 마린 → 다크스웜+럴커 돌파", run(mkw(PL, ({ mk, kills, casts }) => {
     mk(0, "Command Center", true, 20, 20, 0); mk(1, "Hatchery", true, 100, 100, 0);
@@ -547,4 +547,42 @@ rmSync(tmp, { recursive: true, force: true });
   }), { mapW: 128, mapH: 128, terrain: hillT }), (c) => c.some((x) => /언덕 지형 활용/.test(x))]);
   console.log("\n구성·조이기·마법·캐리어·지형:");
   for (const [name, caps, ok] of res) console.log(`  ${ok(caps) ? "✔" : "✘"} ${name}${ok(caps) ? "" : ` (실제 ${[...new Set(caps)].filter((c) => !/순조로운/.test(c)).join(" · ")})`}`);
+}
+
+/* ── ⑲ 사건 단위 자막(2026-10-10, 요청: "자막이 사건단위로 분리 — 일꾼 견제를 한 명이 했는데 여러 명이 누구에게 폭탄드랍 · 다른 싸움이 섞여서 하나로 · 타이밍에 맞게 나눠서 ·
+   스톰 옆탱 이런 거 붙이지 말고 문장 안에 누가 썼는지 · 누구 기지에서 싸우냐가 중요 — 그 사람이 공격당한 사람") — 2v2 A·B(1팀) 대 C·D(2팀).
+   본진 A(10,10) · B(10,100) · C(100,100) · D(100,10).
+   ① 400초: A 벌처가 C 본진에서 SCV 셋을 잡는 동안(400·403·406) B 마린이 가운데(55,55)에서 D 저글링 넷을 잡는다(401~402.5) → 두 장면 · A 와 B 가 한 자막에 안 선다.
+   ② 600초: A 가 C 본진(98,98)에서 C 마린 셋을 잡고 D 히드라가 그곳에서 A 마린 둘을 잡는다 → "[A]ga [C] 기지 공격 · [D]ga 헬프"(주인공이 누구든).
+   ③ 800초: C 가 A 본진(12,12)에서 A 마린 다섯을 잡고 → 804초: A 가 가운데(60,80)에서 C 히드라 넷을 잡는다 → 자막이 두 때로 갈린다(앞 글귀를 뒤 글귀가 덮지 않는다). */
+{
+  let ht = 40000;
+  const L = []; const kills = [];
+  const mk = (o, kind, bld, x, y, born, ex = {}) => { const e = { tag: (ht += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [], ...ex }; L.push(e); return e; };
+  const die = (o, kind, x, y, t, killer) => { const v = mk(o, kind, false, x, y, Math.max(0, t - 60), { died: t, end: "atk", orders: [[t - 2, x, y, false]] }); kills.push([t, killer.owner, killer.tag, v.tag]); return v; };
+  mk(0, "Command Center", true, 10, 10, 0); mk(1, "Command Center", true, 10, 100, 0); mk(2, "Command Center", true, 100, 100, 0); mk(3, "Hatchery", true, 100, 10, 0);
+  // ①
+  const vu = mk(0, "Vulture", false, 10, 10, 300); [400, 403, 406].forEach((t) => die(2, "SCV", 101, 101, t, vu));
+  const bm = mk(1, "Marine", false, 10, 100, 300); [401, 401.5, 402, 402.5].forEach((t) => die(3, "Zergling", 55, 55, t, bm));
+  // ②
+  const am = mk(0, "Siege Tank (Tank Mode)", false, 10, 10, 500); [600, 600.5, 601].forEach((t) => die(2, "Marine", 98, 98, t, am));
+  const dh = mk(3, "Hydralisk", false, 100, 10, 500); [601.5, 602].forEach((t) => die(0, "Marine", 99, 99, t, dh));
+  // ③
+  const ch = mk(2, "Hydralisk", false, 100, 100, 700); [800, 800.5, 801, 801.5, 802].forEach((t) => die(0, "Marine", 12, 12, t, ch));
+  const at = mk(0, "Siege Tank (Tank Mode)", false, 10, 10, 700); [804, 804.5, 805, 805.5].forEach((t) => die(2, "Hydralisk", 60, 80, t, at));
+  const w = { players: [["A", 1], ["B", 1], ["C", 2], ["D", 2]].map(([name, team], o) => ({ owner: o, name, race: "테란", color: "#fff", team })),
+    lives: L, ups: [], casts: [], pings: [], resFields: [], kills };
+  const plan = castPlan9(w, { total: 1000, order: ["A", "B", "C", "D"], teamOf: { A: 1, B: 1, C: 2, D: 2 } }).filter((s) => !s.cyc);
+  const show = plan.filter((s) => s.at > 390 && s.at < 820).map((s) => `${s.at.toFixed(1)}s ${s.raw} ${capTxt(s)}`);
+  console.log(`\n사건 단위 자막: ${show.join(" · ")}`);
+  const in9 = (t0, t1) => plan.filter((s) => s.at >= t0 && s.at < t1);
+  const s600 = in9(595, 605);
+  const s800 = in9(795, 810);
+  for (const [name, pass] of [
+    ["딴 자리의 동시 사건은 한 자막에 안 섞인다(A 견제 · B 가운데)", in9(390, 410).every((s) => !(/\[A\]/.test(capTxt(s)) && /\[B\]/.test(capTxt(s))))],
+    ["견제 자막의 주어는 견제한 한 사람", in9(390, 410).some((s) => /^\[A\]ga .*\[C\] 일꾼 견제$/.test(capTxt(s)))],
+    ["기지 싸움은 그 기지 임자가 공격당한 사람 · 팀원은 헬프", s600.length > 0 && s600.every((s) => /^\[A\]ga \[C\] 기지 공격 · \[D\]ga 헬프$/.test(capTxt(s)))],
+    ["이어진 두 사건(딴 자리)은 자막이 그 때마다 갈린다", s800.length >= 2 && /\[C\]ga \[A\] 기지 공격/.test(capTxt(s800[0])) && !/\[C\]ga \[A\] 기지 공격/.test(capTxt(s800[s800.length - 1]))],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }
