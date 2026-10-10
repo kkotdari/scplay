@@ -513,11 +513,11 @@ rmSync(tmp, { recursive: true, force: true });
     [400, 415, 430].forEach((t, i) => mk(0, "Siege Tank (Tank Mode)", false, 20, 20, 300, { orders: [[t - 10, 70 + i, 70, false]], sieges: [[t, true]] }));
   })), (c) => c.some((x) => /\[A\] 탱크 조이기/.test(x))]);
   // ④ 스톰 — P 가 600초에 (60,60)에 스톰 · B 히드라 넷이 601~602초에 그 자리에서 죽는다
-  res.push(["스톰에 넷 → 스톰으로 4기 잡음", run(mkw([["P", "프로토스", 1], ["B", "저그", 2]], ({ mk, casts }) => {
+  res.push(["스톰에 히드라 넷 → 스톰으로 히드라 4기 잡음", run(mkw([["P", "프로토스", 1], ["B", "저그", 2]], ({ mk, casts }) => {
     mk(0, "Nexus", true, 20, 20, 0); mk(1, "Hatchery", true, 100, 100, 0);
     for (let i = 0; i < 4; i += 1) mk(1, "Hydralisk", false, 100, 100, 500, { died: 601 + i * 0.3, end: "atk", orders: [[598, 60, 60, false]] });
     casts.push([600, 60, 60, "Psionic Storm", 0]);
-  })), (c) => c.some((x) => /스톰으로 4기 잡음/.test(x))]);
+  })), (c) => c.some((x) => /스톰으로 히드라 4기 잡음/.test(x))]);
   // ⑤ 마인드컨트롤 — P 가 700초에 B 의 울트라를 빼앗는다(손바뀜 생애)
   res.push(["마인드컨트롤 → 울트라 빼앗음", run(mkw([["P", "프로토스", 1], ["B", "저그", 2]], ({ mk, casts }) => {
     mk(0, "Nexus", true, 20, 20, 0); mk(1, "Hatchery", true, 100, 100, 0);
@@ -613,5 +613,44 @@ rmSync(tmp, { recursive: true, force: true });
     ["골라 둔 배럭 곁에서 난 마린 → '배럭에서 마린 생산'", capsIn(398, 440).some((c) => c === "[A] 배럭에서 마린 생산")],
     ["적 본진으로 공격 이동 → '[A] 마린 6기 [B] 기지로 공격 이동'", capsIn(498, 540).some((c) => c === "[A] 마린 6기 [B] 기지로 공격 이동")],
     ["연구 완료는 순환 자막에 '개발'로 안 선다", !plan.some((s) => /개발/.test(capTxt(s)))],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
+
+/* ── ㉑ 하템 드랍 · 이어진 기지 피해(2026-10-10, 요청: "스톰으로 몇 기 잡음 → A가 B 기지에 하템 드랍. 스톰으로 일꾼 몇 기 잡음 · 이미 반파된 기지에 뒤늦게 가서 대파시킨
+   경우 마무리지음 · A가 이어서 B 기지를 대파시킴 궤멸시킴 이렇게 정당하게") — 2v2 A·B(1팀 · 프로토스) 대 C·D(2팀).
+   ① 300초: A 셔틀 한 대가 C 본진(100,100)으로 · A 하템이 스톰(101,101) · C 프로브 넷이 죽는다 → "[A]ga [C] 기지에 하이템플러 드랍. 스톰으로 일꾼 4기 잡음".
+   ② D 기지(100,10 · 넥서스 + 게이트 넷 + 파일런 둘 = 1200): 500초 A 가 게이트 둘·파일런 하나(400 · 반파 0.33) → 520초 A 가 게이트 하나(대파 0.46) "이어서" →
+      600초 B 가 남은 게이트·파일런·넥서스(궤멸) → "마무리지음". */
+{
+  let qt = 60000;
+  const L = []; const kills = []; const casts = [];
+  const mk = (o, kind, bld, x, y, born, ex = {}) => { const e = { tag: (qt += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [], ...ex }; L.push(e); return e; };
+  mk(0, "Nexus", true, 10, 10, 0); mk(1, "Nexus", true, 10, 100, 0); mk(2, "Nexus", true, 100, 100, 0);
+  // ①
+  mk(0, "Shuttle", false, 10, 10, 200, { orders: [[290, 99, 99, false]] });
+  mk(0, "High Templar", false, 10, 10, 200, { orders: [[295, 99, 99, false]] });
+  casts.push([300, 101, 101, "Psionic Storm", 0]);
+  for (let i = 0; i < 4; i += 1) mk(2, "Probe", false, 100, 100, 100, { died: 301 + i * 0.5, end: "atk", orders: [[299, 101, 101, false]] });
+  // ②
+  const dn = mk(3, "Nexus", true, 100, 10, 0);
+  const gw = [0, 1, 2, 3].map((i) => mk(3, "Gateway", true, 104 + i * 3, 14, 50));
+  const py = [mk(3, "Pylon", true, 96, 6, 30), mk(3, "Pylon", true, 106, 6, 30)];
+  const az = mk(0, "Zealot", false, 10, 10, 400); const bz = mk(1, "Zealot", false, 10, 100, 400);
+  const kill = (e, t, k) => { e.died = t; e.end = "atk"; kills.push([t, k.owner, k.tag, e.tag]); };
+  kill(gw[0], 500, az); kill(gw[1], 501, az); kill(py[0], 502, az);
+  kill(gw[2], 520, az);
+  kill(gw[3], 600, bz); kill(py[1], 601, bz); kill(dn, 603, bz);
+  const w = { players: [["A", 1], ["B", 1], ["C", 2], ["D", 2]].map(([name, team], o) => ({ owner: o, name, race: "프로토스", color: "#fff", team })),
+    lives: L, ups: [], casts, pings: [], resFields: [], kills };
+  const plan = castPlan9(w, { total: 900, order: ["A", "B", "C", "D"], teamOf: { A: 1, B: 1, C: 2, D: 2 } }).filter((s) => !s.cyc);
+  const caps = plan.map((s) => `${s.at.toFixed(0)}s ${capTxt(s)}`);
+  console.log(`\n하템 드랍·이어진 기지 피해: ${caps.join(" · ")}`);
+  const at = (t0, t1) => plan.filter((s) => s.at >= t0 && s.at < t1).map((s) => capTxt(s));
+  for (const [name, pass] of [
+    ["하템 한 대 드랍 + 스톰 일꾼 → '기지에 하이템플러 드랍. 스톰으로 일꾼 4기 잡음'", at(290, 310).some((c) => c === "[A]ga [C] 기지에 하이템플러 드랍. 스톰으로 일꾼 4기 잡음")],
+    ["처음 피해 → '[A]ga [D] 기지 반파시킴'", at(490, 510).some((c) => c === "[A]ga [D] 기지 반파시킴")],
+    ["같은 사람이 더 부숨 → '[A]ga 이어서 [D] 기지 대파시킴'", at(510, 530).some((c) => c === "[A]ga 이어서 [D] 기지 대파시킴")],
+    ["뒤늦게 온 사람이 끝냄 → '[B]ga [D] 기지 마무리지음'", at(590, 610).some((c) => c === "[B]ga [D] 기지 마무리지음")],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }

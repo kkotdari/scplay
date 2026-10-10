@@ -709,7 +709,9 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     /** 사람 → (죽인 유닛 종류 → 잡은 수) · 사람 → 처치 기록 [초, 죽인 태그, 죽은 x, y](마법 활약·지형 활용 자막 · 2026-10-10). */
     killN: Map<string, Map<string, number>>; kills: Map<string, [number, number, number, number][]>;
     /** 장면의 가운데(사건 자리의 평균 · 타일) — 그 장면의 마법만 세는 자(spellNote9). 자리를 모르면 없다. */
-    cx?: number; cy?: number };
+    cx?: number; cy?: number;
+    /** 사람 → (죽인 유닛 종류 → (죽은 몸 종류 → 수)) — 마법 덧말의 "스톰으로 일꾼 4기 잡음"(2026-10-10). */
+    killVic: Map<string, Map<string, Map<string, number>>> };
   const scs9: Sc9[] = [];
   /* ★★ **장면은 때와 자리로 묶는다**(2026-10-10, 지적: "자막이 사건단위로 분리돼야 할 듯 — 일꾼 견제를 한 명이 했는데 여러 명이 누구에게 폭탄드랍 이렇게 뜨거나
      다른 싸움이 섞여서 하나로 나옴 · 자막을 타이밍에 맞게 나눠서") ───────────────────────────────────────────────────────────────
@@ -738,6 +740,13 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
         let kn9 = sc9.killN.get(e9.raw);
         if (!kn9) { kn9 = new Map(); sc9.killN.set(e9.raw, kn9); }
         kn9.set(e9.by, (kn9.get(e9.by) ?? 0) + 1);
+        if (e9.kind) {
+          let kv9 = sc9.killVic.get(e9.raw);
+          if (!kv9) { kv9 = new Map(); sc9.killVic.set(e9.raw, kv9); }
+          let vk9 = kv9.get(e9.by);
+          if (!vk9) { vk9 = new Map(); kv9.set(e9.by, vk9); }
+          vk9.set(e9.kind, (vk9.get(e9.kind) ?? 0) + 1);
+        }
       }
     }
     if (e9.dealt && e9.ktag !== undefined && e9.vx !== undefined && e9.vy !== undefined) {
@@ -769,7 +778,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     if (!best9) {
       best9 = { sc: { t0: e9.sec, t1: e9.sec, by: new Map(), why: e9.why, tail: GAP9,
         pair: new Map(), econ: new Map(), locs: [], bldPair: new Map(), bldLost: new Map(), byKind: new Map(), killKind: new Map(), ovl: new Map(),
-        killN: new Map(), kills: new Map() }, sx: 0, sy: 0, n: 0 };
+        killN: new Map(), kills: new Map(), killVic: new Map() }, sx: 0, sy: 0, n: 0 };
       open9.push(best9);
     }
     addEv9(best9.sc, e9);
@@ -1043,10 +1052,11 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   /** 폭탄드랍의 수송선 수 하한 — 드랍십 둘이면 16 인구(마린·메딕 열여섯). */
   const BOMB_DROP_N9 = 2;
   const TRANSPORT9 = new Set(["Dropship", "Shuttle", "Overlord"]);
-  const dropKind9 = (att9: string, def9: string, sec9: number): string | null => {
+  /** att 의 수송선 가운데 장면 앞 DROP_W9 초 안에 def 기지로 명령받은 수. */
+  const dropN9 = (att9: string, def9: string, sec9: number): number => {
     const own9 = ownersOf9(att9);
     const halls9 = hallsAt9(def9, sec9);
-    if (halls9.length === 0) return null;
+    if (halls9.length === 0) return 0;
     const sacs9 = world.ups.some(([us9, name9, uo9]) => name9 === "Ventral Sacs" && own9.has(uo9) && us9 <= sec9);
     /* ★ **수송선이 여럿**이어야 폭탄드랍이다(2026-10-10, 요청: "폭탄드랍은 수가 많아야 함 · 그 외에는 주로 일꾼 견제가 많음") — 한 대는 그냥 드랍이라
        이름을 안 붙이고 일꾼 견제·공격 글귀로 간다. */
@@ -1057,7 +1067,16 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       if (e9.orders.some((o9) => o9[0] >= sec9 - DROP_W9 && o9[0] <= sec9 + 5
         && halls9.some(([hx9, hy9]) => Math.hypot(hx9 - o9[1], hy9 - o9[2]) <= BASE_R9))) n9 += 1;
     }
-    return n9 >= BOMB_DROP_N9 ? "폭탄드랍" : null;
+    return n9;
+  };
+  const dropKind9 = (att9: string, def9: string, sec9: number): string | null => (dropN9(att9, def9, sec9) >= BOMB_DROP_N9 ? "폭탄드랍" : null);
+  /** ★ **한 대 드랍도 실은 것이 무거우면 이름이다**(2026-10-10, 요청: "A가 B 기지에 하템 드랍. 스톰으로 일꾼 몇 기 잡음") — 수송선이 그 기지로 갔고(한 대라도) 잡은 것의
+   *  대개를 DROP_UNIT9 의 유닛이 냈으면 "하이템플러 드랍"·"리버 드랍". 여럿이면 폭탄드랍(위) · 마린 한 대 드랍은 종전대로 일꾼 견제다. */
+  const DROP_UNIT9 = new Set(["High Templar", "Reaver", "Scarab", "Dark Templar", "Lurker", "Siege Tank (Tank Mode)", "Siege Tank (Siege Mode)"]);
+  const unitDrop9 = (att9: string, def9: string, sec9: number, kind9: string): string | null => {
+    if (!DROP_UNIT9.has(kind9)) return null;
+    const n9 = dropN9(att9, def9, sec9);
+    return n9 >= 1 && n9 < BOMB_DROP_N9 ? `${harassName9(kind9)} 드랍` : null;
   };
   /** 저글링러시 — ZL_RUSH_T9 초 전의 장면에서 att 의 킬이 대개 저글링이면. */
   const ZL_RUSH_T9 = 420;
@@ -1105,7 +1124,10 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     }
     const txt9 = base9.map((c9) => c9.text ?? "").join("");
     const add9 = notes9.find(([, n9]) => !txt9.includes(n9));
-    return add9 ? [...base9, { text: " · " }, { raw: add9[0], p: "ga" }, { text: ` ${add9[1]}` }] : base9;
+    /* 둘째 문장 — "A가 B 기지에 하이템플러 드랍. 스톰으로 일꾼 4기 잡음"(2026-10-10, 요청) · 첫 문장의 주어와 같은 사람이면 주어를 안 되풀이한다. */
+    const subj9 = base9[0]?.raw !== undefined && base9[0].p === "ga" ? base9[0].raw : null;
+    if (!add9) return base9;
+    return add9[0] === subj9 ? [...base9, { text: `. ${add9[1]}` }] : [...base9, { text: ". " }, { raw: add9[0], p: "ga" }, { text: ` ${add9[1]}` }];
   };
   /** 마법 활약 — 그 장면(앞 8초 ~ 끝 2초)에 주인공이 쓴 마법 가운데 가장 앞(SPELL_NOTE9) 것. 스톰·이레디에이트 등은 잡은 수 · 마인드컨트롤은 빼앗은 몸 ·
    *  다크스웜은 럴커·저글링과 함께면 "다크스웜+럴커 돌파/방어". */
@@ -1140,7 +1162,17 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     }
     const by9 = SPELL_KILLER9[tech9];
     const n9 = by9 ? sc9.killN.get(pick9)?.get(by9) ?? 0 : 0;
-    return n9 >= 2 ? `${ko9}${koRo9(ko9)} ${n9}기 잡음` : `${ko9} 사용`;
+    /* 잡은 것을 이름으로(2026-10-10, 요청: "스톰으로 일꾼 몇 기 잡음") — 다 일꾼이면 "일꾼 N기" · 한 종류면 그 이름 · 섞이면 "많은 것 등 N기". */
+    return n9 >= 2 ? `${ko9}${koRo9(ko9)} ${vicTxt9(sc9.killVic.get(pick9)?.get(by9!))} 잡음` : `${ko9} 사용`;
+  };
+  /** 잡은 몸들의 글귀 — 다 일꾼 "일꾼 N기" · 한 종류 "히드라 N기" · 섞이면 가장 많은 것 "히드라 등 N기". */
+  const vicTxt9 = (m9: Map<string, number> | undefined): string => {
+    if (!m9 || m9.size === 0) return "";
+    let all9 = 0; let wk9 = 0; let top9 = ""; let tn9 = 0;
+    for (const [k9, n9] of m9) { all9 += n9; if (WORKER9.has(k9)) wk9 += n9; if (n9 > tn9) { tn9 = n9; top9 = k9; } }
+    if (wk9 === all9) return `일꾼 ${all9}기`;
+    const ko9 = UNIT_KO[top9] ?? BUILDING_KO[top9] ?? top9;
+    return tn9 === all9 ? `${ko9} ${all9}기` : `${ko9} 등 ${all9}기`;
   };
   /** 캐리어 기동 공격 — 공격 장면에서 주인공이 잡은 몸값의 절반 넘게를 캐리어·인터셉터가 냈을 때. */
   const carrierNote9 = (sc9: Sc9, pick9: string, role9: string): string | null => {
@@ -1175,7 +1207,15 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     const top9 = sc9.top && (sc9.top.raw === pick9 || sc9.top.vs === pick9) ? sc9.top : undefined;
     const why9 = top9 ? sc9.why : "";
     if (top9 && why9 === "핵") return [{ raw: top9.raw, p: "ga" }, { text: " 핵 투하" }];
-    if (top9 && why9 === "마법") return [{ raw: top9.raw, p: "ga" }, { text: ` ${spellNote9(sc9, top9.raw, top9.raw === pick9 ? d9?.role : undefined) ?? `${top9.tech ? researchKo(top9.tech) : "마법"} 사용`}` }];
+    if (top9 && why9 === "마법") {
+      const sp9 = spellNote9(sc9, top9.raw, top9.raw === pick9 ? d9?.role : undefined) ?? `${top9.tech ? researchKo(top9.tech) : "마법"} 사용`;
+      /* 적 기지에 수송선으로 실어 와 친 마법이면 드랍이 첫 문장이다(2026-10-10, 요청: "A가 B 기지에 하템 드랍. 스톰으로 일꾼 몇 기 잡음"). */
+      const bo9 = baseOwner9(sc9);
+      const unit9 = top9.tech ? SPELL_KILLER9[top9.tech] : undefined;
+      const dn9 = bo9 && unit9 && !sameSide9(bo9, top9.raw) ? unitDrop9(top9.raw, bo9, sc9.t0, unit9) : null;
+      if (bo9 && dn9) return [{ raw: top9.raw, p: "ga" }, { text: " " }, { raw: bo9 }, { text: ` 기지에 ${dn9}. ${sp9}` }];
+      return [{ raw: top9.raw, p: "ga" }, { text: ` ${sp9}` }];
+    }
     if (top9 && why9 === "자폭") return [{ raw: top9.raw }, { text: " 자폭" }];
     if (top9 && (why9 === "일꾼 잡음" || why9 === "일꾼 잃음")) {
       const k9 = why9 === "일꾼 잡음" ? top9.raw : top9.vs;
@@ -1195,6 +1235,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       /* 상대 기지의 캐논·성큰이 잡은 일꾼은 **포토러시/성큰러시**, 수송선이 그 기지로 간 뒤의 일꾼 킬은 **폭탄드랍**(요청) — 리버·하이템플러는 제 이름(리버 드랍 = "리버 일꾼 견제")이
          더 말한다. */
       const named9 = k9 && v9 ? rushKind9(k9, v9, sc9.t0) ?? (nm9 !== "리버" && nm9 !== "하이템플러" ? dropKind9(k9, v9, sc9.t0) : null) : null;
+      const udrop9 = k9 && v9 && !named9 && best9 ? unitDrop9(k9, v9, sc9.t0, best9) : null;
+      if (k9 && v9 && (udrop9 || named9 === "폭탄드랍")) return [{ raw: k9, p: "ga" }, { text: " " }, { raw: v9 }, { text: ` 기지에 ${udrop9 ?? named9}` }];
       /* ★ 서술로 "A가 리버로 B 일꾼 견제" · "A가 B에게 포토러시"(2026-10-10, 요청: "~의 공격 말고 서술로 누가 누구를 공격 · 주어나 목적어가 화면주인이어도 넣기 · 제 3자 느낌") — 옛 "A의 B 리버 일꾼 견제". */
       if (k9 && v9) {
         if (named9) return [{ raw: k9, p: "ga" }, { text: " " }, { raw: v9 }, { text: `에게 ${named9}` }];
@@ -1210,11 +1252,21 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       if ((k9 === pick9 || v9 === pick9) && w9 > bw9) { bw9 = w9; bk9 = k9; bv9 = v9; }
     }
     if (bk9 && bv9) {
-      const lost9 = sc9.bldLost.get(bv9) ?? 0;
-      const base9 = baseValue9(bv9, sc9.t0);
-      const f9 = base9 > 0 ? lost9 / base9 : 0;
-      const deg9 = f9 >= RAZE9.wipe ? "궤멸시킴" : f9 >= RAZE9.heavy ? "대파시킴" : f9 >= RAZE9.half ? "반파시킴" : "";
-      if (deg9) return [{ raw: bk9, p: "ga" }, { text: " " }, { raw: bv9 }, { text: ` 기지 ${deg9}` }];
+      /* ★ **그 기지가 이미 입은 피해까지 셈한다**(2026-10-10, 요청: "이미 반파된 기지에 뒤늦게 가서 대파시킨 경우 — 마무리지음 · A가 이어서 B 기지를 대파시킴 · 궤멸시킴
+         이렇게 정당하게 표현") — 옛 단은 '이 장면에 잃은 몸값 ÷ 장면 머리에 남아 있던 **모든** 건물'이라, 반파된 기지에 늦게 와 몇 채 부순 사람이 남은 것의 큰 몫을
+         부순 것으로 "궤멸"을 받았다. 이제 그 **기지 하나**(razeOf9 — 부서진 자리 곁)의 RAZE_MEM9 초 전부터의 건물로 앞·뒤 단을 재고:
+           앞 단 없음 → "A가 B 기지 반파/대파/궤멸시킴" · 앞 단이 있고 오름: 앞 피해를 낸 사람이 A 면 "A가 이어서 B 기지 대파/궤멸시킴" · 딴 사람이면 "A가 B 기지 마무리지음" ·
+           단이 안 오르면 "A가 B 건물 파괴". */
+      const rz9 = razeOf9(sc9, bv9);
+      const lv9 = (f9: number): number => (f9 >= RAZE9.wipe ? 3 : f9 >= RAZE9.heavy ? 2 : f9 >= RAZE9.half ? 1 : 0);
+      const DEG9 = ["", "반파시킴", "대파시킴", "궤멸시킴"];
+      const la9 = lv9(rz9.after);
+      const lb9 = lv9(rz9.before);
+      if (la9 > lb9) {
+        if (lb9 === 0) return [{ raw: bk9, p: "ga" }, { text: " " }, { raw: bv9 }, { text: ` 기지 ${DEG9[la9]}` }];
+        if (rz9.prior && rz9.prior !== bk9) return [{ raw: bk9, p: "ga" }, { text: " " }, { raw: bv9 }, { text: " 기지 마무리지음" }];
+        return [{ raw: bk9, p: "ga" }, { text: " 이어서 " }, { raw: bv9 }, { text: ` 기지 ${DEG9[la9]}` }];
+      }
       if (why9 === "건물 파괴" || why9 === "건물 잃음") return [{ raw: bk9, p: "ga" }, { text: " " }, { raw: bv9 }, { text: " 건물 파괴" }];
     } else if (top9 && (why9 === "건물 파괴" || why9 === "건물 잃음")) {
       return [{ raw: why9 === "건물 파괴" ? (top9.vs ?? pick9) : top9.raw }, { text: " 건물 파괴됨" }];
@@ -1224,7 +1276,9 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
          임자 편의 다른 사람은 " · C가 헬프". 주인공이 어느 편이든 글귀는 같다(제3자 서술). */
       const bo9 = d9.owner;
       const a09 = d9.atks[0];
-      const name9 = rushKind9(a09, bo9, sc9.t0) ?? dropKind9(a09, bo9, sc9.t0) ?? zlRush9(sc9, a09) ?? "공격";
+      let ak9 = ""; let aw9 = 0;
+      for (const [k9, w9] of sc9.killKind.get(a09) ?? []) if (w9 > aw9) { aw9 = w9; ak9 = k9; }
+      const name9 = rushKind9(a09, bo9, sc9.t0) ?? dropKind9(a09, bo9, sc9.t0) ?? (ak9 ? unitDrop9(a09, bo9, sc9.t0, ak9) : null) ?? zlRush9(sc9, a09) ?? "공격";
       const atts9 = name9 === "공격" ? d9.atks : [a09];
       return [...chips9(atts9, "ga"), { text: " " }, { raw: bo9 }, { text: name9 === "공격" ? " 기지 공격" : ` 기지에 ${name9}` },
         ...(d9.helps && d9.helps.length > 0 ? [{ text: " · " } as CapPart9, ...chips9(d9.helps, "ga"), { text: " 헬프" } as CapPart9] : [])];
@@ -1248,6 +1302,36 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       return [...chips9([pick9, ...d9.allies]), { text: " vs " }, ...chips9(foes9), { text: " 교전" }];
     }
     return [{ raw: pick9 }, { text: ` ${sc9.why}` }];
+  };
+  /** 기지 피해의 자(위 ★) — 그 장면에서 bv 가 잃은 건물 자리의 가운데 RAZE_R9 타일 안, RAZE_MEM9 초 전부터 장면 끝까지 서 있던 bv 의 건물(변태 앞 생애는 뺀다)이 분모 ·
+   *  장면 앞에 공격으로 잃은 몫(before) · 장면 끝까지 잃은 몫(after) · 장면 앞 피해를 가장 많이 낸 사람(prior). */
+  const RAZE_MEM9 = 240;
+  const RAZE_R9 = 22;
+  const razeOf9 = (sc9: Sc9, bv9: string): { before: number; after: number; prior: string | null } => {
+    const own9 = ownersOf9(bv9);
+    let sx9 = 0; let sy9 = 0; let n9 = 0;
+    for (const d9 of ds9) {
+      if (!d9.bld || !own9.has(d9.owner) || d9.sec < sc9.t0 - 0.1 || d9.sec > sc9.t1 + 0.1 || d9.x === undefined || d9.y === undefined) continue;
+      sx9 += d9.x; sy9 += d9.y; n9 += 1;
+    }
+    const near9 = (x9: number, y9: number): boolean => n9 === 0 || Math.hypot(x9 - sx9 / n9, y9 - sy9 / n9) <= RAZE_R9;
+    const from9 = sc9.t0 - RAZE_MEM9;
+    let all9 = 0; let lb9 = 0; let la9 = 0;
+    for (const e9 of world.lives) {
+      if (!e9.bld || !own9.has(e9.owner) || e9.born > sc9.t1 || (e9.died !== null && e9.died < from9) || e9.end === "morph" || !near9(e9.bornX, e9.bornY)) continue;
+      const v9 = castValue9(e9.kind);
+      all9 += v9;
+      if (e9.died !== null && e9.end === "atk") { if (e9.died < sc9.t0 - 0.1) lb9 += v9; else if (e9.died <= sc9.t1 + 0.5) la9 += v9; }
+    }
+    const by9 = new Map<string, number>();
+    for (const d9 of ds9) {
+      if (!d9.bld || !own9.has(d9.owner) || d9.sec < from9 || d9.sec >= sc9.t0 - 0.1 || d9.killer < 0 || d9.x === undefined || d9.y === undefined || !near9(d9.x, d9.y)) continue;
+      const k9 = rawOf9.get(d9.killer);
+      if (k9) by9.set(k9, (by9.get(k9) ?? 0) + d9.v);
+    }
+    let prior9: string | null = null; let pw9 = 0;
+    for (const [k9, w9] of by9) if (w9 > pw9) { pw9 = w9; prior9 = k9; }
+    return all9 > 0 ? { before: lb9 / all9, after: (lb9 + la9) / all9, prior: prior9 } : { before: 0, after: 0, prior: null };
   };
   /** 그 사람이 sec 에 갖고 있던 건물 몸값의 합(기지 피해 단의 분모 · 짓는 중인 것도 든다). */
   const baseValue9 = (raw9: string, sec9: number): number => {
