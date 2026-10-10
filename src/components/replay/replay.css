@@ -4380,8 +4380,10 @@
    때(key) 아래서 살짝 떠오른다 · 움직임 줄이기면 안 뜬다. */
 .scr-cast-caption {
   /* 자리는 **바닥 가운데**(옛 이름표 자리 · 2026-10-09, 요청: "자막을 내리기") — 받침 솟음(--dock-lift)만큼 올라선다. */
-  position: absolute; left: 50%; bottom: calc(3px * var(--dk) + var(--dock-lift, 0px)); transform: translateX(-50%); z-index: 1;
-  max-width: min(calc(100% - 12px * var(--dk)), 36em); box-sizing: border-box; white-space: normal; overflow-wrap: anywhere; text-align: center;
+  /* ★ 폭 상한 = 무대 폭 **80%**(2026-10-09, 요청: "자막 폭은 화면폭 80프로 활용") — 옛 `left 50% + translateX(−50%)` 는 absolute 의 shrink-to-fit 가용 폭이 '담는 상자 − left'
+     = 50% 라 max-width 와 무관하게 무대의 반에서 접혔다(폰 195/390 실측). left·right 0 + width fit-content + margin auto 로 가운데 두고 상한만 80%. */
+  position: absolute; left: 0; right: 0; margin: 0 auto; width: fit-content; bottom: calc(3px * var(--dk) + var(--dock-lift, 0px)); z-index: 1;
+  max-width: 80%; box-sizing: border-box; white-space: normal; overflow-wrap: anywhere; text-align: center;
   font-size: calc(var(--cap-fs) * 0.875); line-height: 1.5; font-weight: 700; color: #fff; pointer-events: none;
   padding: 0.15em 0.6em; border-radius: 3px; background: rgba(8, 10, 14, 0.62);
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.8);
@@ -4392,10 +4394,10 @@
 /* ★ 칩 **상자**를 글자와 세로 가운데에(2026-10-09, 되지적: "네임칩 안의 가운데 말고 네임칩 자체랑 다른 자막 글자랑 세로 높이가 안 맞는다") — 기준선 맞춤은 상자를 글꼴
    지표 중심((어센트 − 디센트)/2 · 노토 CJK 0.435em)에 두어 한글 그림 중심(≈0.35em)보다 위로 떴다. vertical-align middle(기준선 + x높이/2 ≈ 0.27em)에 0.08em 을
    올려 글꼴이 달라도(애플 고딕·맑은 고딕·노토) 한글 중심에 선다. 상자 키 1.2em. */
-.scr-cast-caption .scr-cast-chip { display: inline-block; vertical-align: middle; position: relative; top: -0.08em; margin: 0 0.08em; font-size: 1em; line-height: 1.2; padding: 0 0.3em; text-shadow: none; max-width: 14em; }
+.scr-cast-caption .scr-cast-chip { display: inline-block; vertical-align: middle; position: relative; top: -0.08em; margin: 0 0.12em; font-size: 1em; line-height: 1.2; padding: 0 0.3em; text-shadow: none; max-width: 14em; }   /* 여백 0.08 → 0.12em — 잇닿은 칩 사이를 점 대신 여백이 가른다(2026-10-10, 지적: "유저칩 사이 점이 아래에 내려가 있음" → "점 굳이 없어도 될듯") */
 @keyframes scr-cast-caption-in {
-  from { opacity: 0; transform: translate(-50%, 0.5em); }
-  to { opacity: 1; transform: translate(-50%, 0); }
+  from { opacity: 0; transform: translateY(0.5em); }
+  to { opacity: 1; transform: none; }
 }
 @media (prefers-reduced-motion: reduce) { .scr-cast-caption { animation: none; } }
 

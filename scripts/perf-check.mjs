@@ -55,7 +55,7 @@ const capProbe9 = async (page) => {
     /* 사람은 이름표 칩(.scr-cast-chip · 2026-10-09) — 재생기 castCap9 와 같은 꼴. long 은 줄바꿈 검산. */
     const chip = (nm, bg, fg) => `<span class="scr-split-chip scr-cast-chip" style="background:${bg};color:${fg}">${nm}</span>`;
     const J = chip("정구", "#2b62e8", "#fff"); const R = chip("Rex", "#e07b1a", "#111"); const S = chip("수달이", "#c9c9a3", "#111"); const T = chip("타센", "#8a3fb8", "#fff");
-    cap.innerHTML = role === "def" ? `${R}가 공격함 · ${S}가 헬프옴` : role === "war" ? `${J}·${S}·${R}·${T} 교전`
+    cap.innerHTML = role === "def" ? `${R}가 공격함 · ${S}가 헬프옴` : role === "war" ? `${J}${S} vs ${R}${T} 교전`   // 칩 사이 점 없음(2026-10-10)
       : role === "long" ? `${J}의 ${R} 사이언스 퍼실리티 파괴 · ${S}가 헬프옴 · ${T} 메타볼릭 부스트 개발` : `${J}의 ${R} 공격`;
     solo.appendChild(cap);
   }, role);

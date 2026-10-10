@@ -35,6 +35,8 @@ console.log("몸값:", ["Zergling", "Marine", "Dragoon", "Siege Tank", "Archon",
   .map((k) => `${k} ${castValue9(k)}`).join(" · "));
 
 /* ── ① 규칙 판 — 1v1 20분 ──────────────────────────────────────────────────── */
+/** 토막의 자막 글귀 — 사람은 [이름]조사 꼴(ga·ui …는 재생기가 받침 보고 붙일 조사). */
+const capTxt = (s) => (s.caps ?? []).map((c) => (c.raw !== undefined ? `[${c.raw}]${c.p ?? ""}` : c.text)).join("");
 let tag = 1;
 const lives = [];
 const mk = (o, kind, born, died, end, tgt) => {
@@ -114,15 +116,15 @@ const pkills = [...pr.map((e) => [e.died, 1, 0, e.tag]), ...pd.map((e) => [e.die
 const pw = { players: [{ owner: 0, name: "R", race: "프로토스", color: "#ff0", team: 1 }, { owner: 1, name: "Z", race: "저그", color: "#0f0", team: 2 }],
   lives: pl, ups: [], casts: [], pings: [], resFields: [], kills: pkills };
 const pplan = castPlan9(pw, { total: 400 }).filter((s) => !s.cyc && s.foe);
-console.log(`\n포토러시: ${pplan.map((s) => `${s.at.toFixed(0)}s ${s.raw} ${s.role} ⚔ ${s.foe}`).join(" · ")}`);
+console.log(`\n포토러시: ${pplan.map((s) => `${s.at.toFixed(0)}s ${s.raw} ${s.role} ⚔ ${s.foe} 자막: ${capTxt(s)}`).join(" · ")}`);
 const rOf = (s) => (s.raw === "R" ? s.role : s.role === "atk" ? "def" : s.role === "def" ? "atk" : "war");
 for (const [name, pass] of [
   ["포토러시는 러시한 R 이 공격", pplan.length > 0 && pplan.every((s) => rOf(s) === "atk")],
+  ["자막은 '포토러시'(상대 기지의 캐논 — 2026-10-09)", pplan.length > 0 && pplan.every((s) => /포토러시/.test(capTxt(s)))],
 ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 
 /* ── ⑦ 기지 피해 자막(2026-10-09, 되요청: "공격 와서 뭘 부쉈는지까지보다 기지를 반파시킴 대파시킴 궤멸시킴 등으로") — Y 가 X 의 게이트웨이 셋·파일런을 300초에
    부순다(기지 = 넥서스 + 게이트 셋 + 파일런 둘) → 잃은 몫으로 단이 선다 · 파일런 하나만 부수면 "건물 파괴". */
-const capTxt = (s) => (s.caps ?? []).map((c) => (c.raw !== undefined ? `[${c.raw}]${c.p ?? ""}` : c.text)).join("");
 const razeWorld = (nKill) => {
   let rt = 7000;
   const rl = [];
@@ -146,6 +148,49 @@ for (const [name, pass] of [
   ["파일런 하나면 건물 파괴", /\[Y\]ga \[X\] 건물 파괴/.test(raze1)],
 ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 
+/* ── ⑨ 기지 싸움 · vs · 일꾼 견제 유닛 · 폭탄드랍(2026-10-09, 요청: "교전 시 vs 로 팀 갈라서 · 특정 기지에서 교전 시 공격·방어·헬프로 기술 · 리버 일꾼 견제 · 폭탄드랍") ──
+   P(0)·Q(1) 대 F(2)·G(3) 2v2. ① 300초: P 의 앞마당(60,50)에서 F 의 히드라가 P 의 드라군 셋을 잡는다 — 출발 자리 선으로는 가운데(교전)지만 P 의 기지라 F 의 공격이다.
+   ② 500초: 지도 가운데(55,55 · 아무 기지도 아님)에서 P 의 질럿이 F 의 저글링 넷을, G 의 히드라가 Q 의 드라군 하나를 잡는다 → 호각 교전 "P·Q vs F·G".
+   ③ 700초: F 의 리버(처치 절의 킬러 태그)가 P 의 프로브 셋을 잡는다 → "F의 P 리버 일꾼 견제". ④ 850초: F 의 셔틀이 P 본진(10,10)으로 명령받고 F 의 질럿이 P 의 프로브·드라군을 잡는다 → "폭탄드랍". */
+const dw9 = (() => {
+  let dt = 11000;
+  const dl = [];
+  const dmk = (o, kind, bld, x, y, born, died, end, orders = [], tgt) => { const e = { tag: (dt += 1), owner: o, kind, born, bornX: x, bornY: y, died, end, bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders }; if (tgt) e.tgt = Float64Array.from(tgt); dl.push(e); return e; };
+  dmk(0, "Nexus", true, 10, 10, 0, null, ""); dmk(0, "Nexus", true, 60, 50, 100, null, "");
+  dmk(1, "Nexus", true, 10, 100, 0, null, ""); dmk(2, "Hatchery", true, 100, 100, 0, null, ""); dmk(3, "Hatchery", true, 100, 10, 0, null, "");
+  const kills = [];
+  // ① P 앞마당의 싸움 — F 의 히드라 넷이 P 의 드라군 셋을 겨눈다(죽은 자리 = 마지막 명령 62,52)
+  const dg = [300, 301, 302].map((t) => dmk(0, "Dragoon", false, 10, 10, 150, t, "atk", [[290, 62, 52, false]]));
+  for (const d of dg) dmk(2, "Hydralisk", false, 100, 100, 150, null, "", [], [299, d.tag, 302.5, d.tag, 303, 0]);
+  // ② 가운데 호각 교전
+  const zl = [500, 500.5, 501, 501.5].map((t) => dmk(2, "Zergling", false, 100, 100, 400, t, "atk", [[495, 55, 55, false]]));
+  for (const z of zl) dmk(0, "Zealot", false, 10, 10, 400, null, "", [], [499, z.tag, 501.5, z.tag, 502, 0]);
+  const qd = dmk(1, "Dragoon", false, 10, 100, 400, 501, "atk", [[495, 56, 54, false]]);
+  dmk(3, "Hydralisk", false, 100, 10, 400, null, "", [], [499, qd.tag, 501.5, qd.tag, 502, 0]);
+  // ③ 리버 일꾼 견제 — 처치 절(kills)에 킬러 태그가 리버
+  const rv = dmk(2, "Reaver", false, 100, 100, 600, null, "");
+  for (const t of [700, 704, 708]) { const p = dmk(0, "Probe", false, 12, 12, 0, t, "atk", [[t - 2, 12, 12, false]]); kills.push([t, 2, rv.tag, p.tag]); }
+  // ④ 폭탄드랍 — F 의 셔틀이 P 본진으로(845초 명령) · F 의 질럿 둘이 P 의 프로브 둘·드라군 하나를 잡는다
+  dmk(2, "Shuttle", false, 100, 100, 700, null, "", [[845, 12, 12, false]]);
+  const vict = [dmk(0, "Probe", false, 12, 12, 0, 850, "atk", [[848, 12, 12, false]]), dmk(0, "Probe", false, 12, 12, 0, 851, "atk", [[848, 12, 12, false]]),
+    dmk(0, "Dragoon", false, 10, 10, 800, 852, "atk", [[848, 12, 12, false]])];
+  for (const v of vict) dmk(2, "Zealot", false, 100, 100, 700, null, "", [], [849, v.tag, 852.5, v.tag, 853, 0]);
+  return { players: [["P", 1], ["Q", 1], ["F", 2], ["G", 2]].map(([name, team], o) => ({ owner: o, name, race: "프로토스", color: "#fff", team })),
+    lives: dl, ups: [], casts: [], pings: [], resFields: [], kills };
+})();
+const dplan9 = castPlan9(dw9, { total: 1000, order: ["P", "Q", "F", "G"], teamOf: { P: 1, Q: 1, F: 2, G: 2 } }).filter((s) => !s.cyc);
+const dAt9 = (t) => dplan9.find((s) => Math.abs(s.at - t) < 6);
+const d1 = dAt9(298.5); const d2 = dAt9(498.5); const d3 = dAt9(698.5); const d4 = dAt9(848.5);
+const dshow = (s) => (s ? `${s.at.toFixed(0)}s ${s.raw} ${s.role ?? "-"} ${capTxt(s)}` : "(장면 없음)");
+console.log(`\n기지 싸움·vs·견제·드랍: ${[d1, d2, d3, d4].map(dshow).join(" · ")}`);
+for (const [name, pass] of [
+  ["앞마당의 싸움은 기지 싸움 — F 의 공격(교전이 아니다)", !!d1 && d1.role === (d1.raw === "F" ? "atk" : "def") && /공격/.test(capTxt(d1)) && !/교전/.test(capTxt(d1))],
+  ["가운데 호각 교전은 vs 로 팀을 가른다", !!d2 && d2.role === "war" && /\[P\]\[Q\] vs \[F\]\[G\] 교전|\[F\]\[G\] vs \[P\]\[Q\] 교전|\[Q\]\[P\] vs|\[G\]\[F\] vs/.test(capTxt(d2))],
+  ["리버가 잡은 일꾼은 '리버 일꾼 견제'", !!d3 && /\[F\]ui \[P\] 리버 일꾼 견제/.test(capTxt(d3))],
+  ["셔틀이 본진으로 간 뒤의 싸움은 '폭탄드랍'", !!d4 && /폭탄드랍/.test(capTxt(d4))],
+]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+
 /* ── ⑧ 빌드 읽기(2026-10-09, 요청: "소강 상태에서 '누구 운영'이라는 자막보다는 … 초반/중반 빌드에 대한 분석") — 사건 없는 FFA 넷 · 착공 차례만 다르다 ── */
 const bw9 = (() => {
   let bt = 9000;
@@ -160,17 +205,21 @@ const bw9 = (() => {
   bmk(2, "Gateway", 60); bmk(2, "Nexus", 150); bmk(2, "Cybernetics Core", 200); bmk(2, "Robotics Facility", 400);
   bmk(3, "Barracks", 60); bmk(3, "Barracks", 120); bmk(3, "Factory", 200); bmk(3, "Command Center", 300);
   for (let i = 0; i < 6; i += 1) bmk(2, "Zealot", 700 + i * 5, false);   // P1 은 700초대에 병력이 한창
-  return { players: [["Z1", "저그"], ["Z2", "저그"], ["P1", "프로토스"], ["T1", "테란"]].map(([name, race], o) => ({ owner: o, name, race, color: "#fff", team: 0 })),
+  // Z3 — 드론 넷으로 시작해 넷을 더 뽑고(8드론) 70초에 스포닝풀 → "8드론 저글링러시"  |  P2 — 게이트 → 코어 → 게이트 둘(240초에 셋째) → "3게이트"
+  bmk(4, "Hatchery", 0); for (let i = 0; i < 8; i += 1) bmk(4, "Drone", i < 4 ? 0 : 20 + i * 6, false); bmk(4, "Spawning Pool", 70);   // 70초엔 드론 여덟
+  bmk(5, "Nexus", 0); bmk(5, "Gateway", 60); bmk(5, "Cybernetics Core", 120); bmk(5, "Gateway", 200); bmk(5, "Gateway", 240);
+  return { players: [["Z1", "저그"], ["Z2", "저그"], ["P1", "프로토스"], ["T1", "테란"], ["Z3", "저그"], ["P2", "프로토스"]].map(([name, race], o) => ({ owner: o, name, race, color: "#fff", team: 0 })),
     lives: bl, ups: [], casts: [], pings: [], resFields: [] };
 })();
-const bplan9 = castPlan9(bw9, { total: 900, order: ["Z1", "Z2", "P1", "T1"] });
-/** raw 의 토막 중 at ∈ [t, t + 40) 첫 것의 자막. */
-const capAt9 = (raw, t) => { const sg = bplan9.find((s) => s.raw === raw && s.at >= t && s.at < t + 40); return sg ? capTxt(sg) : "(토막 없음)"; };
+const bplan9 = castPlan9(bw9, { total: 900, order: ["Z1", "Z2", "P1", "T1", "Z3", "P2"] });
+/** raw 의 토막 중 at ∈ [t, t + 60) 첫 것의 자막(여섯이 돌아가니 48초마다 제 차례). */
+const capAt9 = (raw, t) => { const sg = bplan9.find((s) => s.raw === raw && s.at >= t && s.at < t + 60); return sg ? capTxt(sg) : "(토막 없음)"; };
 const bcases9 = [
   ["Z1", 64, "[Z1] 선스포닝풀"], ["Z1", 155, "[Z1] 선스포닝풀 후 해처리"], ["Z1", 505, "[Z1] 레어 테크"],
   ["Z2", 95, "[Z2] 노스포닝풀 해처리"], ["Z2", 155, "[Z2] 해처리 후 스포닝풀"], ["Z2", 405, "[Z2] 3해처리 늘리기"], ["Z2", 800, "[Z2] 3기지 운영 중"],
   ["P1", 155, "[P1] 빠른 넥서스 늘리기"], ["P1", 205, "[P1] 코어 테크"], ["P1", 405, "[P1] 로보틱스 테크"], ["P1", 735, "[P1] 병력 모으는 중"],
-  ["T1", 125, "[T1] 투배럭"], ["T1", 205, "[T1] 팩토리 테크"], ["T1", 305, "[T1] 앞마당 커맨드 늘리기"], ["T1", 800, "[T1] 순조로운 발전 중"],
+  ["T1", 125, "[T1] 2배럭"], ["T1", 205, "[T1] 팩토리 테크"], ["T1", 305, "[T1] 앞마당 커맨드 늘리기"], ["T1", 800, "[T1] 순조로운 발전 중"],
+  ["Z3", 75, "[Z3] 8드론 저글링러시"], ["P2", 245, "[P2] 3게이트"],
 ];
 console.log(`\n빌드 읽기: ${bcases9.slice(0, 4).map(([r, t]) => `${r}@${t}s ${capAt9(r, t)}`).join(" · ")} …`);
 for (const [raw, t, want] of bcases9) { const got = capAt9(raw, t); console.log(`  ${got === want ? "✔" : "✘"} ${raw} ${t}s → ${want}${got === want ? "" : ` (실제 ${got})`}`); }

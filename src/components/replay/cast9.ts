@@ -32,7 +32,7 @@
  *   마지막으로 보여 준 사람 **다음**부터 산 사람을 고른다(장면으로 보여 준 사람도 그 자리에서 잇는다).
  *   밀리(팀 없음)는 로스터 차례 그대로. 동점 가름(TIE9)은 종전대로 '가장 오래 안 본 사람'이다.
  */
-import { BUILDING_KO, TECH_KO } from "../../utils/replayNames";
+import { BUILDING_KO, TECH_KO, UNIT_KO } from "../../utils/replayNames";
 import { researchKo } from "../../utils/replayTechNames";
 import { costOf, unitOf } from "../../utils/bwUnits";
 import { tkN, tkT, tkV } from "../../utils/openbwTracks";
@@ -171,8 +171,8 @@ const CAST_W9: Record<string, number> = {
 type Ev9 = { sec: number; raw: string; w: number; why: string; tail?: number;
   /** 맞상대(죽인 쪽이면 잃은 사람 · 잃은 쪽이면 죽인 사람) · 준 몸값(죽인 쪽) · 잃은 살림 값(일꾼·건물 · 잃은 쪽). */
   vs?: string; dealt?: number; econ?: number;
-  /** 자막 재료(2026-10-09) — 죽은 몸의 종류(건물 파괴 자막의 건물 이름) · 마법 이름. */
-  kind?: string; tech?: string;
+  /** 자막 재료(2026-10-09) — 죽은 몸의 종류(건물 파괴 자막의 건물 이름) · 마법 이름 · **죽인 유닛의 종류**(by · 리버/하이템플러 일꾼 견제 · 저글링러시의 자). */
+  kind?: string; tech?: string; by?: string;
   /** 잃은 자리(타일 · 잃은 쪽 사건만) — 싸움이 **누구 진영에서** 났나를 재는 자다(duel9). 모르면 없다. */
   x?: number; y?: number };
 
@@ -212,55 +212,88 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
    *  ★ **안 정렬한다**(한 태그의 목록은 대개 스물 안쪽이라 통째로 훑는 편이 싸다) ·
    *    **평평한 수 배열**이다(자국이 수만 개라 {s, o} 객체를 그만큼 짓지 않는다).
    *    실측(8인 20분 · 생애 8천 · 자국 3만2천): 43.6ms → 26.5ms(scripts/cast-plan.mjs). */
+  /* ★ 자국마다 **겨눈 유닛의 종류**(kindId · 걸음 3 · 2026-10-09)도 싣는다 — 죽인 유닛이 리버인지 하이템플러인지 저글링인지가 자막의 재료다(아래 by). */
+  const kindIds9 = new Map<string, number>();
+  const kindNames9: string[] = [];
+  const kindId9 = (k9: string): number => {
+    let id9 = kindIds9.get(k9);
+    if (id9 === undefined) { id9 = kindNames9.length; kindNames9.push(k9); kindIds9.set(k9, id9); }
+    return id9;
+  };
   const aim9 = new Map<number, number[]>();
   if (vics9.size > 0) {
     for (const e9 of world.lives) {
       const tg9 = e9.tgt;
       if (!tg9) continue;
       const n9 = tkN(tg9);
+      const kid9 = kindId9(e9.kind);
       for (let i9 = 0; i9 < n9; i9 += 1) {
         const tag9 = tkV(tg9, i9);
         if (!tag9 || !vics9.has(tag9)) continue;
         const a9 = aim9.get(tag9);
-        if (a9) a9.push(tkT(tg9, i9), e9.owner);
-        else aim9.set(tag9, [tkT(tg9, i9), e9.owner]);
+        if (a9) a9.push(tkT(tg9, i9), e9.owner, kid9);
+        else aim9.set(tag9, [tkT(tg9, i9), e9.owner, kid9]);
       }
     }
   }
+  /** 태그 → 그 태그의 생애들(변태로 여럿) — 처치 절의 킬러 태그를 종류로 푼다. */
+  const byTag9 = new Map<number, (typeof world.lives)[number][]>();
+  for (const e9 of world.lives) { const a9 = byTag9.get(e9.tag); if (a9) a9.push(e9); else byTag9.set(e9.tag, [e9]); }
+  const kindAt9 = (tag9: number, sec9: number): string => {
+    const a9 = byTag9.get(tag9);
+    if (!a9) return "";
+    for (const e9 of a9) if (e9.born <= sec9 + 0.5 && (e9.died === null || e9.died >= sec9 - 0.5)) return e9.kind;
+    return a9[a9.length - 1].kind;
+  };
   /** ★ 처치 절(판 11 · [초, 킬러 임자, 킬러 태그, 죽은 태그])이 있으면 그것이 먼저다 — 겨눔 자국은 어림이고 이것은
    *  시뮬이 적은 참값이다(맞대결의 상대역도 이것으로 선다). 같은 태그가 변태로 여러 생애를 가지므로 초로 짝짓는다. */
   const killBy9 = new Map<number, number[]>();
-  for (const [ks9, ko9, , kd9] of world.kills ?? []) {
+  for (const [ks9, ko9, kt9, kd9] of world.kills ?? []) {
     const a9 = killBy9.get(kd9);
-    if (a9) a9.push(ks9, ko9); else killBy9.set(kd9, [ks9, ko9]);
+    if (a9) a9.push(ks9, ko9, kt9); else killBy9.set(kd9, [ks9, ko9, kt9]);
   }
-  /** 그 태그를 그 순간 죽인 임자 — 처치 절, 없으면 창 안에서 가장 많이 겨눈 적. 없으면 -1. */
-  const killerOf9 = (tag9: number, sec9: number, mine9: number): number => {
+  /** 그 태그를 그 순간 죽인 [임자, 유닛 종류] — 처치 절, 없으면 창 안에서 가장 많이 겨눈 적(그 임자가 가장 많이 겨눈 유닛 종류). 없으면 [-1, ""]. */
+  const killerOf9 = (tag9: number, sec9: number, mine9: number): [number, string] => {
     const k9 = killBy9.get(tag9);
-    if (k9) for (let i9 = 0; i9 < k9.length; i9 += 2) {
-      if (Math.abs(k9[i9] - sec9) <= 1 && k9[i9 + 1] !== mine9) return k9[i9 + 1];
+    if (k9) for (let i9 = 0; i9 < k9.length; i9 += 3) {
+      if (Math.abs(k9[i9] - sec9) <= 1 && k9[i9 + 1] !== mine9) return [k9[i9 + 1], k9[i9 + 2] ? kindAt9(k9[i9 + 2], k9[i9]) : ""];
     }
     const a9 = aim9.get(tag9);
-    if (!a9) return -1;
+    if (!a9) return [-1, ""];
     let best9 = -1;
     let bn9 = 0;
-    for (let i9 = 0; i9 < a9.length; i9 += 2) {
+    let bk9 = "";
+    for (let i9 = 0; i9 < a9.length; i9 += 3) {
       const s9 = a9[i9];
       const o9 = a9[i9 + 1];
       if (s9 < sec9 - KILL_W9 || s9 > sec9 + 0.5 || o9 === mine9) continue;
       let n9 = 0;
-      for (let j9 = 1; j9 < a9.length; j9 += 2) {
+      const kn9 = new Map<number, number>();
+      for (let j9 = 1; j9 < a9.length; j9 += 3) {
         if (a9[j9] !== o9) continue;
         const sj9 = a9[j9 - 1];
-        if (sj9 >= sec9 - KILL_W9 && sj9 <= sec9 + 0.5) n9 += 1;
+        if (sj9 >= sec9 - KILL_W9 && sj9 <= sec9 + 0.5) { n9 += 1; kn9.set(a9[j9 + 1], (kn9.get(a9[j9 + 1]) ?? 0) + 1); }
       }
-      if (n9 > bn9) { best9 = o9; bn9 = n9; }
+      if (n9 > bn9) {
+        best9 = o9; bn9 = n9;
+        let bc9 = 0;
+        for (const [id9, c9] of kn9) if (c9 > bc9) { bc9 = c9; bk9 = kindNames9[id9]; }
+      }
     }
-    return best9;
+    return [best9, bk9];
+  };
+  /** ★ 사이오닉 스톰에 죽은 몸 — 겨눈 자가 없으니 killerOf9 는 모른다. 죽은 자리 6타일 · 3초 안에 적이 내린 스톰이 있으면 그 임자의 **하이템플러** 킬(2026-10-09). */
+  const stormBy9 = (sec9: number, x9: number | undefined, y9: number | undefined, mine9: number): number => {
+    if (x9 === undefined || y9 === undefined) return -1;
+    for (const [cs9, cx9, cy9, tech9, co9] of world.casts) {
+      if (tech9 !== "Psionic Storm" || co9 === mine9 || Math.abs(cs9 - sec9) > 3) continue;
+      if (Math.hypot(cx9 - x9, cy9 - y9) <= 6) return co9;
+    }
+    return -1;
   };
 
   /** 죽음 한 벌 — 한꺼번에 사라지는 '나감'을 걸러 내려고 먼저 모은다. */
-  type D9 = { sec: number; owner: number; v: number; bld: boolean; killer: number; wk: boolean; x?: number; y?: number; kind: string };
+  type D9 = { sec: number; owner: number; v: number; bld: boolean; killer: number; wk: boolean; x?: number; y?: number; kind: string; by: string };
   /** 죽은 자리(타일) — 건물은 제 자리(bornX/Y · 앉은 자리가 여럿이면 마지막) · 유닛은 죽기 전 `LOC_W9` 초 안의 마지막 명령
    *  자리(참값 생애는 죽은 자리를 안 든다 — 명령이 '어디에 가 있었나'의 가장 가까운 어림이다) · 그도 없으면 막 태어난 몸의
    *  태어난 자리 · 모르면 null. */
@@ -286,6 +319,22 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     const s9 = start9.get(r9);
     if (!s9 || e9.born < s9.t) start9.set(r9, { x: e9.bornX, y: e9.bornY, t: e9.born });
   }
+  /** 그 임자의 **살아 있는 본진 건물** 자리(확장 포함) — 기지 싸움(baseRole9)·프록시 건물 가름·드랍의 자. */
+  const HALL_ANY9 = new Set(["Command Center", "Nexus", "Hatchery", "Lair", "Hive"]);
+  const BASE_R9 = 18;
+  const hallsOfOwner9 = (owners9: ReadonlySet<number>, sec9: number): [number, number][] => {
+    const out9: [number, number][] = [];
+    for (const e9 of world.lives) {
+      if (e9.bld && owners9.has(e9.owner) && HALL_ANY9.has(e9.kind) && e9.born <= sec9 && (e9.died === null || e9.died > sec9)) out9.push([e9.bornX, e9.bornY]);
+    }
+    return out9;
+  };
+  /** 그 건물이 제 임자의 기지(본진 건물 BASE_R9 안)에 있었나 — 자리를 모르거나 본진이 하나도 없으면 참(프록시로 안 본다). */
+  const atOwnBase9 = (owner9: number, x9: number | undefined, y9: number | undefined, sec9: number): boolean => {
+    if (x9 === undefined || y9 === undefined) return true;
+    const halls9 = hallsOfOwner9(new Set([owner9]), sec9);
+    return halls9.length === 0 || halls9.some(([hx9, hy9]) => Math.hypot(hx9 - x9, hy9 - y9) <= BASE_R9);
+  };
   const ds9: D9[] = [];
   for (const e9 of world.lives) {
     if (e9.died === null) continue;
@@ -301,10 +350,14 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       continue;
     }
     if (e9.end !== "atk") continue;   // morph·own·끝까지 삶은 죽음이 아니다
-    const wk9 = !e9.bld && unitOf(e9.kind).worker;
     const at9 = deadAt9(e9, e9.died);
+    /* ★ 일꾼의 죽음이 견제인 것은 **제 기지에서** 죽을 때다(2026-10-10) — 상대 본진에서 캐논을 짓다 죽은 프로브·정찰 일꾼은 견제가 아니라 그 싸움의 몫(몸값 그대로 · 꼬리 없음).
+       포토러시의 프로브가 "Z의 R 일꾼 견제"로 읽혔다. */
+    const wk9 = !e9.bld && unitOf(e9.kind).worker && atOwnBase9(e9.owner, at9?.x, at9?.y, e9.died);
+    let [killer9, by9] = killerOf9(e9.tag, e9.died, e9.owner);
+    if (killer9 < 0) { const st9 = stormBy9(e9.died, at9?.x, at9?.y, e9.owner); if (st9 >= 0) { killer9 = st9; by9 = "High Templar"; } }
     ds9.push({ sec: e9.died, owner: e9.owner, v: wk9 ? v9 * HARASS9.k : v9, bld: e9.bld, wk: wk9, kind: e9.kind,
-      killer: killerOf9(e9.tag, e9.died, e9.owner), ...(at9 ?? {}) });
+      killer: killer9, by: by9, ...(at9 ?? {}) });
   }
   ds9.sort((a9, b9) => a9.sec - b9.sec);
   /* ★ **나간 사람의 몸은 교전이 아니다** — 팀전에서 한 사람이 나가면 그 몸이 한 프레임에
@@ -331,11 +384,14 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     const d9 = ds9[i9];
     const mine9 = rawOf9.get(d9.owner);
     const kill9 = d9.killer >= 0 ? rawOf9.get(d9.killer) : undefined;
-    const why9 = d9.bld ? "건물 파괴" : d9.wk ? "견제" : "교전";
+    /* ★ 제 기지 밖의 건물(프록시 파일런·러시 캐논·성큰)이 부서진 것은 **기지 피해가 아니라 교전**이다(2026-10-10) — 포토러시의 캐논이 상대 본진에서 깨진 것을 "기지 대파"로
+       읽었다. 몸값·살림(econ)은 그대로 센다. */
+    const base9 = d9.bld && atOwnBase9(d9.owner, d9.x, d9.y, d9.sec);
+    const why9 = base9 ? "건물 파괴" : d9.wk ? "견제" : "교전";
     const tail9 = d9.wk ? HARASS9.tail : undefined;
     if (kill9) evs9.push({ sec: d9.sec, raw: kill9, w: d9.v * (d9.bld ? BLD_K9 : 1), why: why9, tail: tail9,
-      vs: mine9, dealt: d9.v, kind: d9.kind });
-    if (mine9) evs9.push({ sec: d9.sec, raw: mine9, w: d9.v * LOSS_K9, why: d9.bld ? "건물 잃음" : d9.wk ? "견제 당함" : "교전", tail: tail9,
+      vs: mine9, dealt: d9.v, kind: d9.kind, ...(d9.by ? { by: d9.by } : {}) });
+    if (mine9) evs9.push({ sec: d9.sec, raw: mine9, w: d9.v * LOSS_K9, why: base9 ? "건물 잃음" : d9.wk ? "견제 당함" : "교전", tail: tail9,
       vs: kill9, econ: d9.bld || d9.wk ? d9.v : 0, x: d9.x, y: d9.y, kind: d9.kind });
   }
   for (const [sec9, , , tech9, own9] of world.casts) {
@@ -356,11 +412,13 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     /** "a>b" → a 가 b 에게 준 몸값 · 사람 → 잃은 살림 값(맞대결의 자 — 아래 duel9). */
     pair: Map<string, number>; econ: Map<string, number>;
     /** 잃은 자리들 [사람, x, y, 몸값] — 싸움터가 누구 진영인가(duel9). */
-    locs: [string, number, number, number][] };
+    locs: [string, number, number, number][];
+    /** 일꾼을 죽인 유닛 종류 → 무게(견제 자막의 "리버 일꾼 견제") · 사람 → (죽인 유닛 종류 → 무게)(저글링러시 · 2026-10-09). */
+    byKind: Map<string, number>; killKind: Map<string, Map<string, number>> };
   const scs9: Sc9[] = [];
   for (let i9 = 0; i9 < evs9.length;) {
     const sc9: Sc9 = { t0: evs9[i9].sec, t1: evs9[i9].sec, by: new Map(), why: evs9[i9].why, tail: GAP9,
-      pair: new Map(), econ: new Map(), locs: [], bldPair: new Map(), bldLost: new Map() };
+      pair: new Map(), econ: new Map(), locs: [], bldPair: new Map(), bldLost: new Map(), byKind: new Map(), killKind: new Map() };
     let top9 = 0;
     let j9 = i9;
     /* 다음 사건이 **앞 사건의 꼬리**(견제면 HARASS9.tail · 그 밖은 GAP9) 안이면 같은 장면이다. */
@@ -375,6 +433,12 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
         sc9.bldLost.set(e9.vs, (sc9.bldLost.get(e9.vs) ?? 0) + e9.dealt);
       }
       if (e9.econ) sc9.econ.set(e9.raw, (sc9.econ.get(e9.raw) ?? 0) + e9.econ);
+      if (e9.by && e9.vs) {
+        if (e9.why === "견제") sc9.byKind.set(e9.by, (sc9.byKind.get(e9.by) ?? 0) + e9.w);
+        let kk9 = sc9.killKind.get(e9.raw);
+        if (!kk9) { kk9 = new Map(); sc9.killKind.set(e9.raw, kk9); }
+        kk9.set(e9.by, (kk9.get(e9.by) ?? 0) + e9.w);
+      }
       if (e9.x !== undefined && e9.y !== undefined && e9.vs) sc9.locs.push([e9.raw, e9.x, e9.y, e9.dealt ?? e9.w / LOSS_K9]);
       /* 꼬리표는 그 장면에서 **가장 무거운 사건**의 것이다 — 핵 한 발이 든 교전은 '핵'이다. */
       if (e9.w > top9) { top9 = e9.w; sc9.why = e9.why; sc9.top = e9; }
@@ -490,6 +554,33 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     if (all9 <= 0 || all9 < pair9 * TURF9.min) return null;
     return home9 / all9;
   };
+  /** ★ 그 장면이 **누구 기지에서** 났나(2026-10-09, 요청: "특정 기지에서 교전 시 교전보다는 공격·방어·헬프로 기술") — 죽은 자리들이 한쪽의 **살아 있는 본진 건물**
+   *  (확장 포함 · HALL_ANY9)에서 BASE_R9 타일 안이면 그 사람의 기지다(몸값 무게 · 한쪽 몫이 TURF9.home 이상 → 주인공 기지면 방어 · 상대 기지면 공격). 출발 자리 선
+   *  (turf9Of)은 가운데 확장에서의 싸움을 '가운데'(교전)로 읽었다 — 이 자가 먼저고, 못 가르면 그 선으로. */
+  const hallsAt9 = (raw9: string, sec9: number): [number, number][] => hallsOfOwner9(ownersOf9(raw9), sec9);
+  const baseRole9 = (sc9: Sc9, pick9: string, foe9: string): CastRole9 | null => {
+    const hp9 = hallsAt9(pick9, sc9.t0);
+    const hf9 = hallsAt9(foe9, sc9.t0);
+    if (hp9.length === 0 && hf9.length === 0) return null;
+    const near9 = (halls9: [number, number][], x9: number, y9: number): number => {
+      let d9 = Infinity;
+      for (const [hx9, hy9] of halls9) d9 = Math.min(d9, Math.hypot(hx9 - x9, hy9 - y9));
+      return d9;
+    };
+    let atP9 = 0; let atF9 = 0; let all9 = 0;
+    for (const [r9, x9, y9, v9] of sc9.locs) {
+      if (r9 !== pick9 && r9 !== foe9) continue;
+      const dp9 = near9(hp9, x9, y9);
+      const df9 = near9(hf9, x9, y9);
+      all9 += v9;
+      if (dp9 <= BASE_R9 && dp9 <= df9) atP9 += v9;
+      else if (df9 <= BASE_R9 && df9 < dp9) atF9 += v9;
+    }
+    if (all9 <= 0) return null;
+    if (atP9 / all9 >= TURF9.home) return "def";
+    if (atF9 / all9 >= TURF9.home) return "atk";
+    return null;
+  };
   const duel9 = (sc9: Sc9, pick9: string): Duel9 | undefined => {
     let foe9 = "";
     let fw9 = 0;
@@ -500,9 +591,11 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     }
     if (!foe9) return undefined;
     let role9: CastRole9 = "war";
-    const turf9 = turf9Of(sc9, pick9, foe9);
-    if (turf9 !== null) role9 = turf9 >= TURF9.home ? "def" : turf9 <= 1 - TURF9.home ? "atk" : "war";
-    if (turf9 === null || role9 === "war") {
+    const base9 = baseRole9(sc9, pick9, foe9);
+    const turf9 = base9 !== null ? null : turf9Of(sc9, pick9, foe9);
+    if (base9 !== null) role9 = base9;
+    else if (turf9 !== null) role9 = turf9 >= TURF9.home ? "def" : turf9 <= 1 - TURF9.home ? "atk" : "war";
+    if (base9 === null && (turf9 === null || role9 === "war")) {
       /* 싸움터를 못 가르면(가운데 · 자리를 모름 · 출발 자리가 겹침) 옛 자 — 잃은 살림 — 로 간다. */
       const eP9 = sc9.econ.get(pick9) ?? 0;
       const eF9 = sc9.econ.get(foe9) ?? 0;
@@ -541,11 +634,51 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
      담백하고 단순하게") ───────────────────────────────────────────────────────────
      장면 토막은 그 장면의 **가장 무거운 사건**(sc.top)과 맞대결 몫으로, 순환 토막은 그 사람이 그 창에서 한 일(연구 · 확장 · 건설)로 짓는다. 사람은 조각(raw)으로 두고
      재생기가 이름표 칩으로 그린다 — 조사는 표시 이름의 받침을 재생기가 안다(p). 글귀 보기:
-       교전 — 공격 "A의 B 공격" · 방어 "B가 공격함 · C가 헬프옴" · 호각 "A·B 교전" · 견제 "A의 B 견제" · 기지 피해 "A가 B 기지 반파/대파/궤멸시킴"(잃은 건물 몸값이 그때
+       교전 — 공격 "A의 B 공격" · 방어 "B가 공격함 · C가 헬프옴" · 호각 "A B vs C D 교전"(vs · 2026-10-09 · 칩은 점 없이 잇닿는다) · 견제 "A의 B 리버 일꾼 견제" · 기지 피해 "A가 B 기지 반파/대파/궤멸시킴"(잃은 건물 몸값이 그때
        기지 몸값의 20/45/75% — 되요청: "공격 와서 뭘 부쉈는지까지보다 기지를 반파시킴 대파시킴 궤멸시킴 등으로") · 그 아래면 "A가 B 건물 파괴" · 핵 "A 핵 투하" · 마법 "A 스톰"
        순환 — "A 메타볼릭 부스트 개발" · 빌드 읽기 "A 선스포닝풀 후 해처리" · "A 빠른 넥서스 늘리기" · "A 로보틱스 테크" · "A 포토 건설" · 국면 "A 3기지 운영 중"(아래 ★★). */
+  /** 일꾼을 잡은 유닛의 자막 이름 — 스캐럽은 리버 · 탱크는 모드 없이 · 그 밖은 UNIT_KO(없으면 영문 그대로). */
+  const harassName9 = (kind9: string): string =>
+    (kind9 === "Scarab" || kind9 === "Reaver" ? "리버" : kind9.startsWith("Siege Tank") ? "탱크" : UNIT_KO[kind9] ?? BUILDING_KO[kind9] ?? kind9);   // 캐논·성큰·벙커도 든다
+  /** 그 사람의 러시 건물(상대 기지 안의 캐논·성큰) — buildMiles9 가 채운다 [착공 초, 상대, 글귀]. */
+  const rushes9 = new Map<string, [number, string, string][]>();
+  /** att 가 def 기지에 RUSH_W9 초 안에 세운 캐논/성큰 → "포토러시"/"성큰러시". */
+  const RUSH_W9 = 240;
+  const rushKind9 = (att9: string, def9: string, sec9: number): string | null => {
+    buildMiles9(att9);
+    for (const [at9, foe9, text9] of rushes9.get(att9) ?? []) if (foe9 === def9 && at9 >= sec9 - RUSH_W9 && at9 <= sec9 + 10) return text9;
+    return null;
+  };
+  /** ★ 폭탄드랍 — att 의 수송선(드랍십·셔틀·복부 주머니 뒤의 오버로드)이 장면 앞 DROP_W9 초 안에 def 기지(본진 건물 BASE_R9 안)로 명령받았으면 그 싸움은 드랍이다. */
+  const DROP_W9 = 30;
+  const TRANSPORT9 = new Set(["Dropship", "Shuttle", "Overlord"]);
+  const dropKind9 = (att9: string, def9: string, sec9: number): string | null => {
+    const own9 = ownersOf9(att9);
+    const halls9 = hallsAt9(def9, sec9);
+    if (halls9.length === 0) return null;
+    const sacs9 = world.ups.some(([us9, name9, uo9]) => name9 === "Ventral Sacs" && own9.has(uo9) && us9 <= sec9);
+    for (const e9 of world.lives) {
+      if (e9.bld || !own9.has(e9.owner) || !TRANSPORT9.has(e9.kind) || e9.born > sec9 || (e9.died !== null && e9.died < sec9 - DROP_W9)) continue;
+      if (e9.kind === "Overlord" && !sacs9) continue;
+      for (const o9 of e9.orders) {
+        if (o9[0] < sec9 - DROP_W9 || o9[0] > sec9 + 5) continue;
+        if (halls9.some(([hx9, hy9]) => Math.hypot(hx9 - o9[1], hy9 - o9[2]) <= BASE_R9)) return "폭탄드랍";
+      }
+    }
+    return null;
+  };
+  /** 저글링러시 — ZL_RUSH_T9 초 전의 장면에서 att 의 킬이 대개 저글링이면. */
+  const ZL_RUSH_T9 = 420;
+  const zlRush9 = (sc9: Sc9, att9: string): string | null => {
+    if (sc9.t0 >= ZL_RUSH_T9) return null;
+    const kk9 = sc9.killKind.get(att9);
+    if (!kk9) return null;
+    let all9 = 0; let zl9 = 0;
+    for (const [kind9, w9] of kk9) { all9 += w9; if (kind9 === "Zergling") zl9 += w9; }
+    return all9 > 0 && zl9 / all9 >= 0.6 ? "저글링러시" : null;
+  };
   const chips9 = (raws9: string[], last9?: CapPart9["p"]): CapPart9[] =>
-    raws9.flatMap((r9, i9): CapPart9[] => (i9 < raws9.length - 1 ? [{ raw: r9 }, { text: "·" }] : [{ raw: r9, p: last9 }]));
+    raws9.map((r9, i9): CapPart9 => (i9 < raws9.length - 1 ? { raw: r9 } : { raw: r9, p: last9 }));   // 칩 사이 점은 없다(2026-10-10, 요청: "사이에 점 굳이 없어도 될듯") — 칩 여백이 가른다
   const sceneCaps9 = (sc9: Sc9, pick9: string, d9: Duel9 | undefined): CapPart9[] => {
     /* ★ 자막은 **주인공(pick9)의 일만** 말한다(2026-10-09, 요청: "자막엔 주인공 관련 사건 위주로 그 외엔 굳이 넣지 않기") — 장면의 가장 무거운 사건(top)이나 건물을
        가장 많이 부순 짝이 주인공과 무관하면(팀전에서 같은 장면의 딴 짝) 그것을 안 쓰고 주인공의 맞대결 글귀로 간다. 건물 짝은 주인공이 든 것 중 가장 무거운 것. */
@@ -557,8 +690,16 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     if (top9 && (why9 === "견제" || why9 === "견제 당함")) {
       const k9 = why9 === "견제" ? top9.raw : top9.vs;
       const v9 = why9 === "견제" ? top9.vs : top9.raw;
-      if (k9 && v9) return [{ raw: k9, p: "ui" }, { text: " " }, { raw: v9 }, { text: " 견제" }];
-      return [{ raw: v9 ?? pick9 }, { text: " 견제 당함" }];
+      /* ★ 일꾼을 가장 많이 잡은 유닛의 이름을 붙인다(2026-10-09, 요청: "자주 나오는 전략 — 하이템플러 일꾼 견제 · 리버 일꾼 견제") — "A의 B 리버 일꾼 견제". 스캐럽은 리버 ·
+         스톰 킬은 stormBy9 가 하이템플러로 적는다 · 다른 유닛도 제 이름(벌처·뮤탈·질럿·다크템플러 …). 모르면 "일꾼 견제". */
+      let best9 = ""; let bw9 = 0;
+      for (const [kind9, w9] of sc9.byKind) if (w9 > bw9) { bw9 = w9; best9 = kind9; }
+      const nm9 = best9 ? harassName9(best9) : "";
+      /* 상대 기지의 캐논·성큰이 잡은 일꾼은 **포토러시/성큰러시**, 수송선이 그 기지로 간 뒤의 일꾼 킬은 **폭탄드랍**(요청) — 리버·하이템플러는 제 이름(리버 드랍 = "리버 일꾼 견제")이
+         더 말한다. */
+      const named9 = k9 && v9 ? rushKind9(k9, v9, sc9.t0) ?? (nm9 !== "리버" && nm9 !== "하이템플러" ? dropKind9(k9, v9, sc9.t0) : null) : null;
+      if (k9 && v9) return [{ raw: k9, p: "ui" }, { text: " " }, { raw: v9 }, { text: named9 ? ` ${named9}` : nm9 ? ` ${nm9} 일꾼 견제` : " 일꾼 견제" }];
+      return [{ raw: v9 ?? pick9 }, { text: nm9 ? ` ${nm9} 일꾼 견제 당함` : " 일꾼 견제 당함" }];
     }
     /* 기지 피해 — 그 장면에서 **주인공이 든 짝** 가운데 건물을 가장 많이 부순 짝(k>v)의, v 가 장면 머리에 갖고 있던 건물 몸값 대비 잃은 몫으로 단을 가른다(RAZE9).
        20% 아래는 "건물 파괴". */
@@ -579,11 +720,15 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     }
     if (d9) {
       const foes9 = d9.foes.length > 0 ? d9.foes : [d9.foe];
-      if (d9.role === "atk") return [...chips9([pick9, ...d9.allies], "ui"), { text: " " }, ...chips9(foes9), { text: " 공격" }];
+      /* ★ 공격의 **이름**(2026-10-09, 요청: "자주 나오는 전략 — 포토러시 · 성큰러시 · 9드론 저글링러시 · 폭탄드랍") — 상대 기지의 캐논/성큰(rushKind9) > 수송선이 그 기지로
+         간 뒤의 싸움(dropKind9) > 초반 저글링 킬(zlRush9) > 그냥 "공격". 방어 쪽은 "…함"(공격함과 같은 꼴). */
+      const attack9 = (att9: string, def9: string): string => rushKind9(att9, def9, sc9.t0) ?? dropKind9(att9, def9, sc9.t0) ?? zlRush9(sc9, att9) ?? "공격";
+      if (d9.role === "atk") return [...chips9([pick9, ...d9.allies], "ui"), { text: " " }, ...chips9(foes9), { text: ` ${attack9(pick9, d9.foe)}` }];
       if (d9.role === "def") {
-        return [...chips9(foes9, "ga"), { text: " 공격함" }, ...(d9.allies.length > 0 ? [{ text: " · " } as CapPart9, ...chips9(d9.allies, "ga"), { text: " 헬프옴" } as CapPart9] : [])];
+        return [...chips9(foes9, "ga"), { text: ` ${attack9(d9.foe, pick9)}함` }, ...(d9.allies.length > 0 ? [{ text: " · " } as CapPart9, ...chips9(d9.allies, "ga"), { text: " 헬프옴" } as CapPart9] : [])];
       }
-      return [...chips9([pick9, ...d9.allies]), { text: "·" }, ...chips9(foes9), { text: " 교전" }];
+      // 교전은 **vs 로 팀을 가른다**(2026-10-09, 요청: "교전 시 vs 로 팀 갈라서 보여주고") — "A·B vs C·D 교전".
+      return [...chips9([pick9, ...d9.allies]), { text: " vs " }, ...chips9(foes9), { text: " 교전" }];
     }
     return [{ raw: pick9 }, { text: ` ${sc9.why}` }];
   };
@@ -607,7 +752,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
        · 둘째 본진이 핵심 테크(스포닝풀 · 코어 · 팩토리)보다 먼저 → "빠른 넥서스/커맨드 늘리기" · 저그는 "노스포닝풀 해처리"(셋째까지 먼저면 "노스포닝풀 3해처리") ·
          스포닝풀이 먼저면 "선스포닝풀" → 그 뒤 해처리는 "선스포닝풀 후 해처리" · 테크 뒤의 둘째는 "앞마당 … 늘리기" · 셋째부터 "N번째 … 늘리기"/"N해처리 늘리기"
        · 포지가 게이트보다 먼저 → "선포지"(그 뒤 넥서스가 게이트보다 먼저면 "선포지 더블넥서스") · 익스트랙터가 스포닝풀보다 먼저 → "선가스"
-       · 코어·팩토리 앞의 둘째·셋째 생산 건물 → "투게이트/쓰리게이트" · "투배럭/쓰리배럭" · 테크 건물은 TECH_MILE9 의 이름("로보틱스 테크" …)
+       · 둘째·셋째 생산 건물 → "2게이트/3게이트" · "2배럭/3배럭" · "2팩/3팩" · 테크 건물은 TECH_MILE9 의 이름("로보틱스 테크" …) · 아홉 드론 아래 스포닝풀 "9드론 저글링러시" ·
+         상대 기지 안의 캐논·성큰 "A의 B 포토러시/성큰러시"(rushes9 — 장면 자막의 공격 이름도 이것)
      자막은 창 안의 이정표 > 창 앞 MILE_RECENT9 초 안의 마지막 이정표 > 그 밖의 건물 건설(옛 "X 건설") > 국면 요약(phaseCap9: 최근 테크 → "순조로운 테크/발전 중" ·
      본진 셋 이상 → "N기지 운영 중" · 병력이 한창 나오면 "병력 모으는 중" · 그 밖 "순조로운 발전 중"). 옛 "확장"·"운영" 글귀는 걷었다.
      🔎 cast-plan.mjs ⑧ 빌드 읽기. */
@@ -621,7 +767,12 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   };
   /** 종족의 핵심 테크 — 둘째 본진·둘째 생산 건물이 이보다 먼저면 '빠른'·'투…'다. */
   const CORE_TECH9: Record<string, string> = { Nexus: "Cybernetics Core", "Command Center": "Factory", Hatchery: "Spawning Pool" };
-  const PROD9: Record<string, [string, string]> = { Gateway: ["투게이트", "쓰리게이트"], Barracks: ["투배럭", "쓰리배럭"], Factory: ["투팩", "쓰리팩"] };   // 게이트·배럭은 핵심 테크 앞의 수 · 팩토리는 늘
+  /* 둘째·셋째 생산 건물(2026-10-09, 요청: "자주 나오는 전략 — 3게이트") — 숫자 이름. 둘째는 핵심 테크(코어·팩토리) 앞일 때, 셋째는 윗 테크(ADV9) 앞이면 늘(코어 뒤 3게이트도
+     3게이트다) · 팩토리는 늘. */
+  const PROD9: Record<string, [string, string]> = { Gateway: ["2게이트", "3게이트"], Barracks: ["2배럭", "3배럭"], Factory: ["2팩", "3팩"] };
+  const ADV9 = new Set(["Robotics Facility", "Stargate", "Citadel of Adun", "Templar Archives", "Starport", "Armory", "Science Facility"]);
+  /** 러시 건물 — 상대 기지(본진 건물 BASE_R9 안)에 세운 것의 글귀(요청: "포토러시 · 성큰러시"). */
+  const RUSH_BLD9: Record<string, string> = { "Photon Cannon": "포토러시", "Sunken Colony": "성큰러시", "Creep Colony": "성큰러시" };
   const HALL_KO9: Record<string, string> = { Nexus: "넥서스", "Command Center": "커맨드", Hatchery: "해처리" };
   /** 이정표를 창 앞 이만큼(초)까지 되짚는다 — 그보다 오래면 국면 요약으로. */
   const MILE_RECENT9 = 120;
@@ -629,7 +780,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   const PHASE9 = { tech: 240, armyWin: 60, armyN: 4 };
   const WORKER9 = new Set(["SCV", "Probe", "Drone"]);
   const NON_ARMY9 = new Set(["Larva", "Egg", "Overlord", "Cocoon", "Lurker Egg", "Scarab", "Interceptor", "Broodling"]);
-  type Mile9 = { at: number; text: string };
+  type Mile9 = { at: number; caps: CapPart9[] };
   /** 그 사람의 빌드 이정표(착공 시각 차례) — 한 번 세어 두고 자막마다 짚는다. */
   const milesOf9 = new Map<string, Mile9[]>();
   const buildMiles9 = (raw9: string): Mile9[] => {
@@ -637,15 +788,27 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     if (got9) return got9;
     const own9 = ownersOf9(raw9);
     const blds9 = world.lives
-      .filter((e9) => e9.bld && own9.has(e9.owner) && !e9.handoff && (!PLAIN_BLD9.has(e9.kind) || e9.kind === "Extractor"))
+      .filter((e9) => e9.bld && own9.has(e9.owner) && !e9.handoff && (!PLAIN_BLD9.has(e9.kind) || e9.kind === "Extractor" || e9.kind === "Creep Colony"))
       .sort((a9, b9) => a9.born - b9.born);
     const miles9: Mile9[] = [];
+    const mile9 = (at9: number, text9: string): void => { miles9.push({ at: at9, caps: [{ raw: raw9 }, { text: ` ${text9}` }] }); };
+    const mileVs9 = (at9: number, foe9: string, text9: string): void => { miles9.push({ at: at9, caps: [{ raw: raw9, p: "ui" }, { text: " " }, { raw: foe9 }, { text: ` ${text9}` }] }); };
+    /** 그때 살아 있던 드론 수(9드론 저글링러시의 자). */
+    const dronesAt9 = (sec9: number): number => {
+      let n9 = 0;
+      for (const e9 of world.lives) if (!e9.bld && e9.kind === "Drone" && own9.has(e9.owner) && e9.born <= sec9 && (e9.died === null || e9.died > sec9)) n9 += 1;
+      return n9;
+    };
+    const rushList9: [number, string, string][] = [];
+    rushes9.set(raw9, rushList9);
+    const rushed9 = new Map<string, number>();   // "상대|글귀" → 마지막 착공(같은 러시의 캐논 여럿은 한 이정표)
     const halls9: string[] = [];        // 착공한 본진 종류(처음 것은 born 0 이라 안 든다 — 둘째부터)
     let hallKind9 = "";
     for (const p9 of world.players) if (own9.has(p9.owner)) hallKind9 = p9.race === "저그" ? "Hatchery" : p9.race === "프로토스" ? "Nexus" : p9.race === "테란" ? "Command Center" : "";
     if (!hallKind9) { const h9 = blds9.find((e9) => HALL9.has(e9.kind)); hallKind9 = h9?.kind ?? (blds9.some((e9) => e9.kind === "Gateway" || e9.kind === "Forge") ? "Nexus" : blds9.some((e9) => e9.kind === "Barracks") ? "Command Center" : "Hatchery"); }
     const coreTech9 = CORE_TECH9[hallKind9] ?? "";
     let coreAt9 = Infinity;            // 핵심 테크 착공 시각
+    let advAt9 = Infinity;             // 윗 테크(ADV9) 착공 시각
     let firstProdAt9 = Infinity;       // 첫 생산 건물(게이트·배럭) 착공
     let forgeFirst9 = false;
     const prodN9 = new Map<string, number>();
@@ -655,18 +818,37 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       const k9 = e9.kind;
       const n9 = (prodN9.get(k9) ?? 0) + 1;
       prodN9.set(k9, n9);
+      const rushText9 = RUSH_BLD9[k9];
+      if (rushText9) {
+        /* 상대 기지 안의 캐논·성큰(크립 콜로니 포함) → "A의 B 포토러시"(요청: 포토러시 · 성큰러시). 같은 러시의 건물 여럿은 RUSH_W9 안이면 한 이정표. */
+        for (const [o9, foeRaw9] of rawOf9) {
+          if (own9.has(o9) || (opts.teamOf?.[foeRaw9] !== undefined && opts.teamOf?.[foeRaw9] === opts.teamOf?.[raw9])) continue;
+          if (!hallsAt9(foeRaw9, e9.born).some(([hx9, hy9]) => Math.hypot(hx9 - e9.bornX, hy9 - e9.bornY) <= BASE_R9)) continue;
+          const key9 = `${foeRaw9}|${rushText9}`;
+          const last9 = rushed9.get(key9);
+          rushed9.set(key9, e9.born);
+          rushList9.push([e9.born, foeRaw9, rushText9]);
+          if (last9 === undefined || e9.born - last9 > RUSH_W9) mileVs9(e9.born, foeRaw9, rushText9);
+          break;
+        }
+        if (k9 === "Creep Colony") continue;
+      }
       if (k9 === coreTech9 && coreAt9 === Infinity) {
         coreAt9 = e9.born;
         seen9.add(k9);
-        if (k9 === "Spawning Pool") miles9.push({ at: e9.born, text: halls9.length === 0 ? "선스포닝풀" : "해처리 후 스포닝풀" });
-        else miles9.push({ at: e9.born, text: TECH_MILE9[k9] ?? `${BUILDING_KO[k9] ?? k9} 건설` });
+        if (k9 === "Spawning Pool") {
+          const dn9 = dronesAt9(e9.born);
+          /* 아홉 드론 아래의 스포닝풀은 저글링 러시다(요청: "9드론 저글링러시") — 드론 수를 그대로 적는다. */
+          mile9(e9.born, dn9 >= 4 && dn9 <= 9 ? `${dn9}드론 저글링러시` : halls9.length === 0 ? "선스포닝풀" : "해처리 후 스포닝풀");   // 드론을 안 세는 판(0)은 그냥 스포닝풀
+        } else mile9(e9.born, TECH_MILE9[k9] ?? `${BUILDING_KO[k9] ?? k9} 건설`);
         continue;
       }
-      if (k9 === "Extractor") { if (coreAt9 === Infinity && hallKind9 === "Hatchery" && n9 === 1) miles9.push({ at: e9.born, text: "선가스" }); continue; }
-      if (k9 === "Forge" && n9 === 1 && firstProdAt9 === Infinity && hallKind9 === "Nexus") { forgeFirst9 = true; miles9.push({ at: e9.born, text: "선포지" }); continue; }
+      if (ADV9.has(k9) && advAt9 === Infinity) advAt9 = e9.born;
+      if (k9 === "Extractor") { if (coreAt9 === Infinity && hallKind9 === "Hatchery" && n9 === 1) mile9(e9.born, "선가스"); continue; }
+      if (k9 === "Forge" && n9 === 1 && firstProdAt9 === Infinity && hallKind9 === "Nexus") { forgeFirst9 = true; mile9(e9.born, "선포지"); continue; }
       if (PROD9[k9]) {
         if (firstProdAt9 === Infinity) firstProdAt9 = e9.born;
-        if ((n9 === 2 || n9 === 3) && (k9 === "Factory" || coreAt9 === Infinity)) miles9.push({ at: e9.born, text: PROD9[k9][n9 - 2] });
+        if (k9 === "Factory" ? (n9 === 2 || n9 === 3) : (n9 === 2 && coreAt9 === Infinity) || (n9 === 3 && advAt9 === Infinity)) mile9(e9.born, PROD9[k9][n9 - 2]);
         continue;
       }
       if (HALL9.has(k9)) {
@@ -685,17 +867,15 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
             : hallKind9 === "Command Center" && firstProdAt9 === Infinity ? "노배럭 더블커맨드"
               : coreAt9 === Infinity ? `빠른 ${ko9} 늘리기` : `앞마당 ${ko9} 늘리기`;
         } else text9 = `${nth9}번째 ${ko9} 늘리기`;
-        miles9.push({ at: e9.born, text: text9 });
+        mile9(e9.born, text9);
         continue;
       }
       const t9 = TECH_MILE9[k9];
-      if (t9 && !seen9.has(k9)) { seen9.add(k9); miles9.push({ at: e9.born, text: t9 }); }
+      if (t9 && !seen9.has(k9)) { seen9.add(k9); mile9(e9.born, t9); }
     }
     milesOf9.set(raw9, miles9);
     return miles9;
   };
-  /** 본진 전부(레어·하이브는 변태한 해처리의 뒷 생애) — 국면 요약의 기지 수. */
-  const HALL_ANY9 = new Set([...HALL9, "Lair", "Hive"]);
   /** 국면 요약 — 창 끝 시각의 그 사람. */
   const phaseCap9 = (raw9: string, sec9: number): string => {
     const own9 = ownersOf9(raw9);
@@ -725,10 +905,10 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     }
     const miles9 = buildMiles9(raw9);
     const inWin9 = miles9.find((m9) => m9.at >= lo9 && m9.at < hi9);
-    if (inWin9) return [{ raw: raw9 }, { text: ` ${inWin9.text}` }];
+    if (inWin9) return inWin9.caps;
     let recent9: Mile9 | undefined;
     for (const m9 of miles9) if (m9.at < lo9 && m9.at >= lo9 - MILE_RECENT9) recent9 = m9;
-    if (recent9) return [{ raw: raw9 }, { text: ` ${recent9.text}` }];
+    if (recent9) return recent9.caps;
     let bld9: string | null = null;
     for (const e9 of world.lives) {
       if (!e9.bld || !own9.has(e9.owner) || e9.born < lo9 || e9.born >= hi9 || e9.end === "morph") continue;
