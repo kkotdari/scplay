@@ -187,7 +187,8 @@ console.log(`\n기지 싸움·vs·견제·드랍: ${[d1, d2, d3, d4].map(dshow).
 for (const [name, pass] of [
   ["앞마당의 싸움은 기지 싸움 — F 의 공격(교전이 아니다)", !!d1 && d1.role === (d1.raw === "F" ? "atk" : "def") && /공격/.test(capTxt(d1)) && !/교전/.test(capTxt(d1))],
   ["가운데 호각 교전은 vs 로 팀을 가른다", !!d2 && d2.role === "war" && /\[P\]\[Q\] vs \[F\]\[G\] 교전|\[F\]\[G\] vs \[P\]\[Q\] 교전|\[Q\]\[P\] vs|\[G\]\[F\] vs/.test(capTxt(d2))],
-  ["리버가 잡은 일꾼은 '리버 일꾼 견제'", !!d3 && /\[F\]ui \[P\] 리버 일꾼 견제/.test(capTxt(d3))],
+  ["리버가 잡은 일꾼은 '리버로 … 일꾼 견제'(서술 · 2026-10-10)", !!d3 && /\[F\]ga 리버로 \[P\] 일꾼 견제/.test(capTxt(d3))],
+  ["공격·방어 자막은 'A가 B를 공격' 서술 — '의' 꼴이 없다(2026-10-10)", [d1, d3, d4].every((d) => !d || !/\]ui/.test(capTxt(d)))],
   ["셔틀이 본진으로 간 뒤의 싸움은 '폭탄드랍'", !!d4 && /폭탄드랍/.test(capTxt(d4))],
 ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 

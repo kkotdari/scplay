@@ -690,7 +690,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
      담백하고 단순하게") ───────────────────────────────────────────────────────────
      장면 토막은 그 장면의 **가장 무거운 사건**(sc.top)과 맞대결 몫으로, 순환 토막은 그 사람이 그 창에서 한 일(연구 · 확장 · 건설)로 짓는다. 사람은 조각(raw)으로 두고
      재생기가 이름표 칩으로 그린다 — 조사는 표시 이름의 받침을 재생기가 안다(p). 글귀 보기:
-       교전 — 공격 "A의 B 공격" · 방어 "B가 공격함 · C가 헬프옴" · 호각 "A B vs C D 교전"(vs · 2026-10-09 · 칩은 점 없이 잇닿는다) · 견제 "A의 B 리버 일꾼 견제" · 기지 피해 "A가 B 기지 반파/대파/궤멸시킴"(잃은 건물 몸값이 그때
+       교전 — 공격·방어 "A가 B를 공격" · "A가 B에게 포토러시"(방어는 뒤에 " · C가 헬프") · 호각 "A B vs C D 교전"(vs · 칩은 점 없이 잇닿는다) · 견제 "A가 리버로 B 일꾼 견제" · 기지 피해 "A가 B 기지 반파/대파/궤멸시킴"(잃은 건물 몸값이 그때
        기지 몸값의 20/45/75% — 되요청: "공격 와서 뭘 부쉈는지까지보다 기지를 반파시킴 대파시킴 궤멸시킴 등으로") · 그 아래면 "A가 B 건물 파괴" · 핵 "A 핵 투하" · 마법 "A 스톰"
        순환 — "A 메타볼릭 부스트 개발" · 빌드 읽기 "A 선스포닝풀 후 해처리" · "A 빠른 넥서스 늘리기" · "A 로보틱스 테크" · "A 포토 건설" · 국면 "A 3기지 운영 중"(아래 ★★). */
   /** 일꾼을 잡은 유닛의 자막 이름 — 스캐럽은 리버 · 탱크는 모드 없이 · 그 밖은 UNIT_KO(없으면 영문 그대로). */
@@ -733,6 +733,13 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     for (const [kind9, w9] of kk9) { all9 += w9; if (kind9 === "Zergling") zl9 += w9; }
     return all9 > 0 && zl9 / all9 >= 0.6 ? "저글링러시" : null;
   };
+  /** 로/으로 — 받침(ㄹ 아닌)이 있으면 "으로" · 없거나 ㄹ 이면 "로"(한글 아닌 이름은 "로"). */
+  const koRo9 = (s9: string): string => {
+    const c9 = s9.charCodeAt(s9.length - 1);
+    if (c9 < 0xac00 || c9 > 0xd7a3) return "로";
+    const jong9 = (c9 - 0xac00) % 28;
+    return jong9 === 0 || jong9 === 8 ? "로" : "으로";
+  };
   const chips9 = (raws9: string[], last9?: CapPart9["p"]): CapPart9[] =>
     raws9.map((r9, i9): CapPart9 => (i9 < raws9.length - 1 ? { raw: r9 } : { raw: r9, p: last9 }));   // 칩 사이 점은 없다(2026-10-10, 요청: "사이에 점 굳이 없어도 될듯") — 칩 여백이 가른다
   const sceneCaps9 = (sc9: Sc9, pick9: string, d9: Duel9 | undefined): CapPart9[] => {
@@ -754,7 +761,11 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       /* 상대 기지의 캐논·성큰이 잡은 일꾼은 **포토러시/성큰러시**, 수송선이 그 기지로 간 뒤의 일꾼 킬은 **폭탄드랍**(요청) — 리버·하이템플러는 제 이름(리버 드랍 = "리버 일꾼 견제")이
          더 말한다. */
       const named9 = k9 && v9 ? rushKind9(k9, v9, sc9.t0) ?? (nm9 !== "리버" && nm9 !== "하이템플러" ? dropKind9(k9, v9, sc9.t0) : null) : null;
-      if (k9 && v9) return [{ raw: k9, p: "ui" }, { text: " " }, { raw: v9 }, { text: named9 ? ` ${named9}` : nm9 ? ` ${nm9} 일꾼 견제` : " 일꾼 견제" }];
+      /* ★ 서술로 "A가 리버로 B 일꾼 견제" · "A가 B에게 포토러시"(2026-10-10, 요청: "~의 공격 말고 서술로 누가 누구를 공격 · 주어나 목적어가 화면주인이어도 넣기 · 제 3자 느낌") — 옛 "A의 B 리버 일꾼 견제". */
+      if (k9 && v9) {
+        if (named9) return [{ raw: k9, p: "ga" }, { text: " " }, { raw: v9 }, { text: `에게 ${named9}` }];
+        return [{ raw: k9, p: "ga" }, { text: nm9 ? ` ${nm9}${koRo9(nm9)} ` : " " }, { raw: v9 }, { text: " 일꾼 견제" }];
+      }
       return [{ raw: v9 ?? pick9 }, { text: nm9 ? ` ${nm9} 일꾼 견제 당함` : " 일꾼 견제 당함" }];
     }
     /* 기지 피해 — 그 장면에서 **주인공이 든 짝** 가운데 건물을 가장 많이 부순 짝(k>v)의, v 가 장면 머리에 갖고 있던 건물 몸값 대비 잃은 몫으로 단을 가른다(RAZE9).
@@ -779,9 +790,15 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       /* ★ 공격의 **이름**(2026-10-09, 요청: "자주 나오는 전략 — 포토러시 · 성큰러시 · 9드론 저글링러시 · 폭탄드랍") — 상대 기지의 캐논/성큰(rushKind9) > 수송선이 그 기지로
          간 뒤의 싸움(dropKind9) > 초반 저글링 킬(zlRush9) > 그냥 "공격". 방어 쪽은 "…함"(공격함과 같은 꼴). */
       const attack9 = (att9: string, def9: string): string => rushKind9(att9, def9, sc9.t0) ?? dropKind9(att9, def9, sc9.t0) ?? zlRush9(sc9, att9) ?? "공격";
-      if (d9.role === "atk") return [...chips9([pick9, ...d9.allies], "ui"), { text: " " }, ...chips9(foes9), { text: ` ${attack9(pick9, d9.foe)}` }];
+      /* ★ 공격·방어 다 **"A가 B를 공격"** 서술이다(2026-10-10, 요청: "누가 누구를 공격했는지 주어나 목적어가 화면주인이어도 넣기(자막은 제 3자 느낌으로) · ~의 공격
+         말고 서술로") — 옛 공격 "A의 B 공격" · 방어 "A가 공격함 · C가 헬프옴"(화면 주인 B 를 뺐다). 이름 붙은 공격은 "A가 B에게 포토러시". 방어의 팀원은 "C가 헬프". */
+      const hit9 = (atts9: string[], defs9: string[], name9: string): CapPart9[] =>
+        (name9 === "공격"
+          ? [...chips9(atts9, "ga"), { text: " " }, ...chips9(defs9, "eul"), { text: " 공격" }]
+          : [...chips9(atts9, "ga"), { text: " " }, ...chips9(defs9), { text: `에게 ${name9}` }]);
+      if (d9.role === "atk") return hit9([pick9, ...d9.allies], foes9, attack9(pick9, d9.foe));
       if (d9.role === "def") {
-        return [...chips9(foes9, "ga"), { text: ` ${attack9(d9.foe, pick9)}함` }, ...(d9.allies.length > 0 ? [{ text: " · " } as CapPart9, ...chips9(d9.allies, "ga"), { text: " 헬프옴" } as CapPart9] : [])];
+        return [...hit9(foes9, [pick9], attack9(d9.foe, pick9)), ...(d9.allies.length > 0 ? [{ text: " · " } as CapPart9, ...chips9(d9.allies, "ga"), { text: " 헬프" } as CapPart9] : [])];
       }
       // 교전은 **vs 로 팀을 가른다**(2026-10-09, 요청: "교전 시 vs 로 팀 갈라서 보여주고") — "A·B vs C·D 교전".
       return [...chips9([pick9, ...d9.allies]), { text: " vs " }, ...chips9(foes9), { text: " 교전" }];
@@ -892,7 +909,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       .sort((a9, b9) => a9.born - b9.born);
     const miles9: Mile9[] = [];
     const mile9 = (at9: number, text9: string): void => { miles9.push({ at: at9, caps: [{ raw: raw9 }, { text: ` ${text9}` }] }); };
-    const mileVs9 = (at9: number, foe9: string, text9: string): void => { miles9.push({ at: at9, caps: [{ raw: raw9, p: "ui" }, { text: " " }, { raw: foe9 }, { text: ` ${text9}` }] }); };
+    const mileVs9 = (at9: number, foe9: string, text9: string): void => { miles9.push({ at: at9, caps: [{ raw: raw9, p: "ga" }, { text: " " }, { raw: foe9 }, { text: `에게 ${text9}` }] }); };
     /** 그때 살아 있던 드론 수(9드론 저글링러시의 자). */
     const dronesAt9 = (sec9: number): number => {
       let n9 = 0;

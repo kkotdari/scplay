@@ -2525,16 +2525,18 @@
   --dock-cap: calc(34px * var(--dks)); --dock-big: calc(88px * var(--dks));
   --dock-slot: calc(38px * var(--dks)); --dock-fold: calc(22px * var(--dks));
   --dock-w: calc(var(--dock-cell) * 6 + var(--dock-gap) * 5 + var(--dock-padx) * 2);   /* 370 */
-  --dock-body: calc(164px * var(--dks));
-  --dock-h0: calc(206px * var(--dks));   /* 우물 206 → 틀 224 → 아래 띠 280 */
+  /* ★ 틀 아래 틈 12 → **4**(2026-10-10, 요청: "독의 윗줄과 아랫줄 사이 갭 줄이기 · 독 높이는 그대로 · 윗줄 세 요소 확대(짝수)") — 줄인 8 을 우물이 받는다:
+     우물 206 → **214** · 몸 164 → 172 · 미니맵 246 → **254**(틀 위로 40 그대로) · 전광판은 비(--roster-r)대로 440 → 458. 띠 280 · 미니맵 칸 320 은 그대로. */
+  --dock-body: calc(172px * var(--dks));
+  --dock-h0: calc(214px * var(--dks));   /* 우물 214 → 틀 232 → 아래 띠 280(틈 4 + 재생 줄 44) */
   --dock-h: var(--dock-h0);
   /* 전광판 설계 폭 **576**(비 576/280 · 2026-10-10 재요청 "닉네임칩 폭 25프로 정도 더 축소") — 이름 기둥은 이제 **남는 폭이 아니라 못 박은 폭**(--name-w 168 = 카메라 단추 + 칩 ·
      옛 남는 폭 127 × 1.4 × 0.75 ≈ 134 칩) · 자료 기둥이 나머지를 받고 칸 사이를 고르게 벌린다(아래 .scr-dock-data). 576 은 2:2 글자 18 에서 자료 기둥(35.1ch ≈ 글자 × 20.7)이 꼭 드는 폭. */
   --roster-r: 2.1359224;   /* 440/206 — 2:2 글자 14 에서 자료 기둥(≈ 290) + 이름 122 + 여백 28 이 든다 */
   --name-w: calc(122px * var(--dks));
-  --mini-up: 1.1941748;   /* 246/206 — 미니맵이 틀 위로 40 · 폰·기본은 1.2(아래 .scr-fs-dockframe) */
+  --mini-up: 1.1869159;   /* 254/214 — 미니맵이 틀 위로 40 · 폰·기본은 1.2(아래 .scr-fs-dockframe) */
   --dock-bez: calc(6px * var(--dks)); --dock-out: calc(8px * var(--dks)); --dock-sep: calc(12px * var(--dks));
-  margin-bottom: calc(12px * var(--dks));
+  margin-bottom: calc(4px * var(--dks));
 }
 /* 인포창 안쪽 줄 틈 — 3·dk(4.05) → **6**(2026-10-09, 같은 재요청) · 몸 위아래 여백 6·dk(8.1) → 8. */
 /* ★ 폰 독 짝수(2026-10-10, 요청: "모바일도 독바와 자막·닉네임택의 모든 요소를 짝수로") — 틀 테 2.4 → 2 · 바깥 여백 5.1 → 6 · 구분 막대 6(× --dk 를 2px 로 반올림 · 큰 폰 1.1 · 폴드 1.3도). */
@@ -3432,7 +3434,9 @@
 .scr-roster-cam-auto.is-on svg, .scr-roster-cam-auto.is-on .scr-roster-cam-txt { animation: scr-cast-blink-well 2s steps(1, end) infinite; }
 @media (prefers-reduced-motion: reduce) { .scr-roster-cam-auto.is-on svg, .scr-roster-cam-auto.is-on .scr-roster-cam-txt { animation: none; } }
 /* PC 짝수 px(위 .scr-motion-pc9 .scr-dock-roster 의 ★) — 칩·단추 키 = 줄 키 − 4 · 단추 그림 ≈ 0.6줄을 짝수로 · AUTO 글자 ≈ 0.42줄 · 트로피 = 글자. */
-.scr-motion-pc9 .scr-fs-rosterpanel .scr-dock-row .scr-dock-name { height: calc(var(--rp) - 4px * var(--dks)); padding: 0 calc(10px * var(--dks)); }   /* 좌우 4 → 8·dks(2026-10-09) */
+.scr-motion-pc9 .scr-fs-rosterpanel .scr-dock-row .scr-dock-name { height: calc(var(--rp) - 4px * var(--dks)); padding: 0 calc(8px * var(--dks)); }   /* 좌우 10 → 8·dks(2026-10-10, 요청: "유저칩 내의 좌우 패딩 살짝 줄이기") */
+/* PC 전광판은 불투명(2026-10-10, 요청: "유저칩 불투명하게 · 다른 요소들도 불투명 · 카메라 버튼 배경만 반투명") — 칩 바탕 알파는 JSX(smallDevice9 ? CHIP_ROW_A9 : 1) · 자원 빗금도 온 빛. */
+.scr-motion-pc9 .scr-dock-ressep { opacity: 1; }
 .scr-motion-pc9 .scr-roster-cam { height: calc(var(--rp) - 4px * var(--dks)); min-width: calc(var(--rp) - 4px * var(--dks)); }
 .scr-motion-pc9 .scr-roster-cam svg { width: round(nearest, calc(var(--rp) * 0.6), 2px); height: round(nearest, calc(var(--rp) * 0.6), 2px); }
 .scr-motion-pc9 .scr-roster-cam-txt { font-size: round(nearest, calc(var(--rp) * 0.42), 2px); }
@@ -4475,6 +4479,9 @@
    올려 글꼴이 달라도(애플 고딕·맑은 고딕·노토) 한글 중심에 선다. 상자 키 1.2em. */
 .scr-cast-caption .scr-cast-chip { display: inline-block; vertical-align: middle; position: relative; top: -0.08em; margin: 0 round(nearest, 0.12em, 2px); font-size: 1em; line-height: round(nearest, 1.2em, 2px); padding: 0 round(nearest, 0.3em, 2px); text-shadow: none; max-width: 14em; }   /* 여백 0.08 → 0.12em — 잇닿은 칩 사이를 점 대신 여백이 가른다(2026-10-10, 지적: "유저칩 사이 점이 아래에 내려가 있음" → "점 굳이 없어도 될듯") */
 .scr-motion-pc9 .scr-cast-caption { font-size: round(nearest, calc(var(--cap-fs) * 0.875), 2px); }   /* PC 짝수 — 1080p 10 → 16(×1.5 · 2026-10-10) */
+/* PC 단독 화면 여백(2026-10-10, 요청: "화면의 유저칩 위쪽 여백 늘리고 자막은 아래쪽 여백 많이 늘려서 위로 올리기") — 이름표 위 3·dk(≈4) → **16** · 자막 바닥 3·dk(≈4) → **48**(받침 솟음 더함 · 1080p 짝수). */
+.scr-motion-pc9 .scr-fs-solo-cap { top: round(nearest, calc(16px * var(--dks, 1)), 2px); }
+.scr-motion-pc9 .scr-cast-caption { bottom: calc(round(nearest, calc(48px * var(--dks, 1)), 2px) + var(--dock-lift, 0px)); }
 @keyframes scr-cast-caption-in {
   from { opacity: 0; transform: translateY(0.5em); }
   to { opacity: 1; transform: none; }
