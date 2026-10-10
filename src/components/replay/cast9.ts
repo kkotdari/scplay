@@ -1676,7 +1676,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
      순환 토막의 카메라는 그 사람이 **고르거나 명령한 무리**를 따른다(재생기 picksOf9 · trackAt). 옛 순환 자막은 그 창에 끝난 연구("메타볼릭 부스트 개발")나 창 밖의
      최근 이정표를 말해, 화면에 없는 일이 자막에 섰다. 이제 그 창에서 **가장 오래 잡힌 무리**(재생기와 같은 자국: 명령 + 선택 · 0.25초 칸)를 말한다:
        · 건물 — 짓는 중이면 "X 건설 중" · 그 곁에서 그 창에 난 유닛이 있으면 "X에서 Y 생산" · 그 건물에서 연구가 진행 중이면(완료가 RESEARCH_AHEAD9 초 안) "X에서 Z 연구 중"
-       · 일꾼 — 그 창의 건설 명령이면 "일꾼으로 X 건설" · 아니면 "일꾼 N기 이동"
+       · 일꾼 — 그 창의 건설 명령이면 "X 건설"(일꾼 이름은 안 붙인다) · 아니면 "일꾼 N기 이동"
        · 병력 — 많은 종류 둘 "마린 12기·메딕 4기" + 그 창의 마지막 명령: 적 기지 안 → "[B] 기지로 공격 이동/이동" · 센터 → "센터로 …" · 그 밖 "공격 이동/이동" · 명령 없으면 "대기".
      차례: 창 안의 빌드 이정표(착공 = 건설 명령 = 그때 화면) > 창 안의 건설 > 화면 무리 > 창 앞 이정표 > 국면 요약. 연구 **완료**는 안 쓴다(골라 둔 건물의 '연구 중'만). */
   const RESEARCH_AHEAD9 = 200;
@@ -1756,8 +1756,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     if (wk9.length > 0 && army9.length === 0) {
       const tags9 = new Set(wk9.map((e9) => e9.tag));
       const bd9 = (world.builds ?? []).find(([bs9, , btg9]) => tags9.has(btg9) && bs9 >= t0 - 2 && bs9 < t1);
-      const wn9 = UNIT_KO[wk9[0].kind] ?? wk9[0].kind;
-      if (bd9) { const bk9 = BUILDING_KO[bd9[5]] ?? bd9[5]; return [{ raw: raw9 }, { text: ` ${wn9}${koRo9(wn9)} ${bk9} 건설` }]; }
+      /* 짓는 것은 늘 일꾼이라 "프로브로"는 군말이다(2026-10-10, 요청: "프로브로 파일런 건설 — 당연한 거라 프로브로는 빼") — "[A] 파일런 건설". */
+      if (bd9) { const bk9 = BUILDING_KO[bd9[5]] ?? bd9[5]; return [{ raw: raw9 }, { text: ` ${bk9} 건설` }]; }
       return weak9([{ raw: raw9 }, { text: ` 일꾼 ${wk9.length}기 이동` }]);
     }
     if (army9.length === 0) return null;
