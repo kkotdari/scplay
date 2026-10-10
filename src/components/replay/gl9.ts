@@ -40,7 +40,12 @@ export interface GlInst9 {
    *  아니라 자국이라 낯의 제 색을 버리고 이 색 하나로 민다(2D 판 굽기의 solid 와 같은 뜻). 명암·광택도
    *  안 탄다(uSolid.a 가 1 이면 셰이더가 색을 통째로 갈아 끼우고 빛 몫을 끈다). */
   solid?: string;
+  /** ★ **제 깊이 칸을 타는 바닥 테**(2026-10-10, 지적: "공중유닛의 링이 왜 지상건물에 가려지지") — 바닥 도형 패스는 몸보다 먼저 깊이
+   *  없이 그리므로 뒤에 칠하는 지상 건물이 공중 유닛·뜬 건물의 선택 링을 덮었다. 이 테는 몸 패스 **뒤**에 그 몸의 칸 바로 뒤 깊이
+   *  (1 − 칸폭·(칸 + 0.5))로 깊이를 재며 그린다 — 몸이 이기는 것(아래 칸)보다 앞 · 제 몸과 위 칸의 몸보다 뒤. 값은 prim() 의 인자 그대로. */
+  ring?: { kind: 0 | 1 | 2; x: number; y: number; rx: number; ry: number; color: string; alpha: number; lineW: number; shear: number };
 }
+export type GlRing9 = NonNullable<GlInst9["ring"]>;
 /** 카메라 — squash(앞뒤 납작비)·zk(높이 배율)·lean(z→앞뒤, 입체 0.34)·shear(시각 밀림 tan(vq), 입체만). project() 의 식 그대로. */
 export interface GlCam9 { squash: number; zk: number; lean: number; shear: number; key: string }
 /** 요잉별 화면 상자 — 모델 16-상자 자(배수·px 전): x 폭·x 가운데·바닥(가장 아래 화면 y = ry·sinE − z·cosE 의 최댓값). */
@@ -702,7 +707,7 @@ void main() {
   vP = aQ * e;
   vC = aPB; vK = aPC; vR = aPA.zw;
   vec2 X = aPA.xy + vP;
-  gl_Position = vec4(X.x / uCanvas.x * 2.0 - 1.0, 1.0 - X.y / uCanvas.y * 2.0, 0.0, 1.0);
+  gl_Position = vec4(X.x / uCanvas.x * 2.0 - 1.0, 1.0 - X.y / uCanvas.y * 2.0, aPC.w, 1.0);
 }`;
 const PR_FS = `
 precision mediump float;
@@ -984,24 +989,25 @@ export class GlUnits9 implements VecSink9 {
     return v;
   }
   /** 바닥 도형 하나 — kind 0 네모 · 1 타원 채움 · 2 타원 테. (x, y) 가운데 · rx·ry 반지름(CSS px) · 색·알파 · lineW(테) · shear(전단 = 입체 시점 밀림). */
-  prim(kind: 0 | 1 | 2, x: number, y: number, rx: number, ry: number, color: string, alpha: number, lineW = 0, shear = 0): void {
+  prim(kind: 0 | 1 | 2, x: number, y: number, rx: number, ry: number, color: string, alpha: number, lineW = 0, shear = 0, z = 0): void {
     if (!this.primOk || alpha <= 0) return;
     if ((this.nPr + 1) * PR_F9 > this.prArr.length) { const n = new Float32Array(this.prArr.length * 2); n.set(this.prArr); this.prArr = n; }
     const c = this.prColOf(color); const a = Math.min(1, alpha * c[3]);
     const o = this.nPr * PR_F9; const p = this.prArr;
     p[o] = x; p[o + 1] = y; p[o + 2] = rx; p[o + 3] = ry;
     p[o + 4] = c[0] * a; p[o + 5] = c[1] * a; p[o + 6] = c[2] * a; p[o + 7] = a;
-    p[o + 8] = kind; p[o + 9] = lineW; p[o + 10] = shear; p[o + 11] = 0;
+    p[o + 8] = kind; p[o + 9] = lineW; p[o + 10] = shear; p[o + 11] = z;
     this.nPr += 1;
   }
   /** 바닥 도형 패스 — 몸보다 먼저, 깊이 없이 한 드로 콜. 속성 번호가 본 프로그램의 것과 겹칠 수 있으니 divisor 를 되돌린다. */
-  private primPass(cw: number, ch: number): void {
+  private primPass(cw: number, ch: number, depth = false): void {
     const pr = this.pr; const n = this.nPr; this.nPr = 0;
     if (!pr || n <= 0) return;
     const gl = this.gl;
     gl.useProgram(pr.prog);
     gl.uniform2f(pr.uCanvas, cw, ch);
-    gl.disable(gl.DEPTH_TEST); gl.depthMask(false);
+    if (depth && GL_DEPTH9) { gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LESS); } else gl.disable(gl.DEPTH_TEST);
+    gl.depthMask(false);
     gl.bindBuffer(gl.ARRAY_BUFFER, pr.vbo);
     gl.enableVertexAttribArray(pr.aQ); gl.vertexAttribPointer(pr.aQ, 2, gl.FLOAT, false, 0, 0); this.divisor(pr.aQ, 0);
     gl.bindBuffer(gl.ARRAY_BUFFER, pr.ivbo);
@@ -1712,6 +1718,12 @@ export class GlUnits9 implements VecSink9 {
     }
     if (addNow) gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     if (flatNow) gl.uniform1f(this.loc.uFlat, 0);
+    /* ★ 제 칸을 타는 바닥 테(GlInst9.ring) — 몸을 다 그린 뒤 그 몸의 칸 바로 뒤 깊이로. */
+    for (let i = 0; i < q.length; i += 1) {
+      const g = q[i].ring;
+      if (g) this.prim(g.kind, g.x, g.y, g.rx, g.ry, g.color, g.alpha, g.lineW, g.shear, 1 - slot * (slotOf[i] + 0.5));
+    }
+    if (this.nPr > 0) this.primPass(cw, ch, true);
     /* 4) **번짐(블룸)** — 빛나는 낯만 1/4 판에 한 번 더 그리고, 가로·세로로 흐린 뒤 화면에 더한다.
        빛나는 메시가 없는 프레임은 건너뛴다(대부분의 유닛은 빛이 없다). */
     this.stat.bloom = 0;

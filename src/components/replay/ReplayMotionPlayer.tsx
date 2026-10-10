@@ -104,7 +104,7 @@ import {
   pitchFlatSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, stageFaces, TURRET_BACK9, SPIN_KINDS, HEAD_KINDS, LIT_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, spriteSideMax9, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, tone9, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
   GAS_KINDS9,
 } from "./bake9";
-import { glUnits9, glNow9, glBakeMsTake9, glScrubSet9, glScrubbing9, gasTops9, MESH_SHADOW9, GL_CANVAS_KINDS9, GL_ON9, GL_BLIT9, GL_WARM9, GL_GLOW_KINDS9, SHADOW_ALPHA9, camOf9, CAM_TOP9, glIconOk9, glIconRequest9, type GlUnits9, type GlFoot9 } from "./gl9";
+import { glUnits9, glNow9, glBakeMsTake9, glScrubSet9, glScrubbing9, gasTops9, MESH_SHADOW9, GL_CANVAS_KINDS9, GL_ON9, GL_BLIT9, GL_WARM9, GL_GLOW_KINDS9, SHADOW_ALPHA9, camOf9, CAM_TOP9, glIconOk9, glIconRequest9, type GlUnits9, type GlFoot9, type GlRing9 } from "./gl9";
 
 /** K/D 에서 빼는 몸 — 알·고치·딸림 무기·핵(로스터·자막의 킬데스 · kdSeries9). */
 const KD_SKIP9 = new Set(["Larva", "Egg", "Lurker Egg", "Mutalisk Cocoon", "Interceptor", "Scarab", "Spider Mine", "Nuclear Missile"]);
@@ -5601,6 +5601,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
                 ? { ground: true, dy: gLift9, h: gLift9 / Math.max(1e-3, gk9), alpha: op.alpha * SHADOW_ALPHA9 }
                 : { ground: true, alpha: op.alpha * SHADOW_ALPHA9 }) : undefined;
             const gR9 = sidePx * 0.707; const gCy9 = -8 * gk9;
+            let bRing9: GlRing9 | undefined;
             /* ★ 건물 선택 링(2026-09, 요청: "건물 선택시 선택 링이 안보이는데 링 나오게") — 유닛과 같은 가는 타원 테를 **발자국**
                둘레에 깐다(바닥 도형 패스라 몸 밑에 깔린다). 자리는 발자국 한가운데 · 뜬 건물은 뜬 몫만큼 위(몸과 함께 든다). */
             if ((op.selRing || atkFlashOn9(op) || (pickedKey != null && op.pickKey === pickedKey)) && gl9.primOk && op.mkFrac === undefined) {
@@ -5623,9 +5624,11 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
               const rx9 = wPx * 0.62 * rk9;
               const bRingCol9 = selRingCol9(op) ?? op.color;
               ringDiagPush9(op, bRingCol9);
-              gl9.prim(2, sx, cy9, rx9, Math.max(3, rx9 * ryK9), bRingCol9, op.alpha, Math.max(1.1, wPx * 0.012));
+              const rg9: GlRing9 = { kind: 2, x: sx, y: cy9, rx: rx9, ry: Math.max(3, rx9 * ryK9), color: bRingCol9, alpha: op.alpha, lineW: Math.max(1.1, wPx * 0.012), shear: 0 };
+              if (gLift9 > 0.5) bRing9 = rg9;   // 뜬 건물은 공중 유닛처럼 몸의 깊이 칸을 탄다(유닛 airRing9 와 같은 자)
+              else gl9.prim(rg9.kind, rg9.x, rg9.y, rg9.rx, rg9.ry, rg9.color, rg9.alpha, rg9.lineW);
             }
-            gl9.push({ mesh: glB9, ax: gax9, ay: gay9, k: gk9, yoff: op.mkFrac !== undefined ? 0 : -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind), over: true });
+            gl9.push({ mesh: glB9, ax: gax9, ay: gay9, k: gk9, yoff: op.mkFrac !== undefined ? 0 : -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind), over: true, ...(bRing9 ? { ring: bRing9 } : {}) });
             /* ★ 가스 연기는 메시가 아니라 **프레임마다 놓는 덩이**다(2026-09, gl9 gasPush9) — 회전 칸이 소수(엔진)라 시계가 이어진다. */
             if (glB9.gas) gl9.gasPush9(glB9, gax9, gay9, gk9, -gk9 * glBf9.bot, -(op.rotDeg ?? 0), glBcam9, (op.spin ?? 0) / SPIN_ANIM9, op.color, op.alpha);
             if (op.attach) {
@@ -5847,6 +5850,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
            색은 임자 색이다(요청: 흰색 말고 개인색) — 누가 잡은 유닛인지 링만 보고 안다.
            공중 유닛은 링도 공중이다(지적: 유닛 바닥에) — 들린 몸의 바닥선에 붙인다. */
         /* ★ 링의 임자는 **선택**이다(2026-09) — 모든 사람의 선택(판 10 · op.selRing)과 보는 사람이 누른 몸(pickedKey). */
+        /* ★ 공중 유닛의 링은 몸에 실어 몸의 깊이 칸을 탄다(gl9 GlInst9.ring · 2026-10-10, 지적: "공중유닛의 링이 왜 지상건물에 가려지지"). */
+        let airRing9: GlRing9 | undefined;
         if ((op.selRing || atkFlashOn9(op) || (pickedKey != null && op.pickKey === pickedKey)) && !op.ghost) {
           /* 선 굵기는 화면 고정(지적: 링은 UI 요소 — 확대에 굵어지면 안 됨) — 반지름은
              유닛(px)을 따라가되 굵기에서 zoom을 뺀다. */
@@ -5882,8 +5887,10 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           /* 검은 테는 걷었다(지적: 깔려면 마우스 마커에도 깔아야 한다) — 링만 두 겹이라
              둘이 따로 놀았다. 실선 한 겹으로 통일한다. */
           if (gl9 && gl9.primOk) {
-            gl9.prim(2, ringX, ringY, ringWd9 * 0.55 * ringK9, ringWd9 * 0.31 * ringK9 * (op.pitch ? pitchFlatNow : 1), ringCol9, op.alpha * 0.95, ringW,
-              op.pitch && op.viewYaw ? Math.tan((op.viewYaw * Math.PI) / 180) : 0);
+            const rg9: GlRing9 = { kind: 2, x: ringX, y: ringY, rx: ringWd9 * 0.55 * ringK9, ry: ringWd9 * 0.31 * ringK9 * (op.pitch ? pitchFlatNow : 1), color: ringCol9,
+              alpha: op.alpha * 0.95, lineW: ringW, shear: op.pitch && op.viewYaw ? Math.tan((op.viewYaw * Math.PI) / 180) : 0 };
+            if (op.air && glM9) airRing9 = rg9;
+            else gl9.prim(rg9.kind, rg9.x, rg9.y, rg9.rx, rg9.ry, rg9.color, rg9.alpha, rg9.lineW, rg9.shear);
           } else {
             ctx.globalAlpha = op.alpha * 0.95;
             ctx.strokeStyle = ringCol9;
@@ -5996,7 +6003,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             const gm9 = gkind9 ? (gkind9 === op.kind ? glM9 : gl9.unitMesh(gkind9, op.pose ?? 0)) : null;
             if (!gm9) continue;
             const grot9 = gkind9 === op.kind ? (op.rotDeg ?? 0) : (op.attachRot ?? op.rotDeg ?? 0);
-            gl9.push({ mesh: gm9, ax: gax9, ay: gay9, k: gk9, yoff: (px / 16) * ((op.flat ? 12 : 12.6) - 8), yawDeg: -grot9, color: op.color, alpha: op.alpha, cam: glCam9, gradR: px * 0.707, gradCy: 0, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind), over: !!op.air, ...(op.solid ? { solid: op.solid } : {}) });
+            gl9.push({ mesh: gm9, ax: gax9, ay: gay9, k: gk9, yoff: (px / 16) * ((op.flat ? 12 : 12.6) - 8), yawDeg: -grot9, color: op.color, alpha: op.alpha, cam: glCam9, gradR: px * 0.707, gradCy: 0, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind), over: !!op.air, ...(op.solid ? { solid: op.solid } : {}), ...(gkind9 === op.kind && airRing9 ? { ring: airRing9 } : {}) });
           }
           ctx.setTransform(Bd, 0, 0, Bd, 0, 0);
           continue;
