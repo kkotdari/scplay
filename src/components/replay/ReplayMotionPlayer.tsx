@@ -17793,7 +17793,10 @@ export default function ReplayMotionPlayer({
       const s0 = e9.sites[0];
       return s9 && s0 ? { x: e9.bornX + (s9[1] - s0[1]), y: e9.bornY + (s9[2] - s0[2]) } : { x: e9.bornX, y: e9.bornY };
     };
-    const camp9 = (all9: TruthLife[], sec9: number): { x: number; y: number; n: number; prod: boolean } | null => {
+    /* ★ **기지마다 이름표**(2026-10-10, 요청: "여러 군데에 본진과 멀티 또는 이사 병행 중인 경우 미니맵 여러 곳에 유저칩을 보여줘야 함 · 단순 방어 건물이나 정찰용 건물 말고") —
+       본진 건물(TAG_HALL9)끼리 TAG_R9 안이면 한 기지(빨무 본진의 넥서스 셋)로 묶고, 기지마다 둘레 TAG_R9 안 건물의 무게 중심에 하나씩 선다. 본진 건물이 없는 자리(캐논·벙커·
+       정찰 파일런만 선 곳)는 이름표가 아니다. 본진 건물이 하나도 없으면 옛 셈대로 남은 건물 전부의 무게 중심 하나. 단(tier)은 그 기지의 건물 수다. */
+    const camps9 = (all9: TruthLife[], sec9: number): { x: number; y: number; n: number; prod: boolean; w: number }[] => {
       const live9: B9[] = [];
       let prod9 = false;
       for (const e9 of all9) {
@@ -17802,38 +17805,44 @@ export default function ReplayMotionPlayer({
         if (hall9 || TAG_PROD9.has(e9.kind)) prod9 = true;
         live9.push({ ...at9(e9, sec9), w: hall9 ? 3 : TAG_PROD9.has(e9.kind) ? 2 : 1, hall: hall9 });
       }
-      if (live9.length === 0) return null;
-      let best9: B9[] | null = null;
-      let bw9 = -1;
-      for (const h9 of live9) {
-        if (!h9.hall) continue;
-        const grp9 = live9.filter((b9) => (b9.x - h9.x) ** 2 + (b9.y - h9.y) ** 2 <= TAG_R9 * TAG_R9);
-        const w9 = grp9.reduce((a9, b9) => a9 + b9.w, 0);
-        if (w9 > bw9) { bw9 = w9; best9 = grp9; }
+      if (live9.length === 0) return [];
+      const halls9 = live9.filter((b9) => b9.hall);
+      const near9 = (a9: B9, b9: B9): boolean => (a9.x - b9.x) ** 2 + (a9.y - b9.y) ** 2 <= TAG_R9 * TAG_R9;
+      const groups9: B9[][] = [];
+      for (const h9 of halls9) {
+        const hit9 = groups9.filter((g9) => g9.some((x9) => near9(x9, h9)));
+        const merged9 = [h9, ...hit9.flat()];
+        for (const g9 of hit9) groups9.splice(groups9.indexOf(g9), 1);
+        groups9.push(merged9);
       }
-      const grp9 = best9 ?? live9;
-      let sx9 = 0; let sy9 = 0; let sw9 = 0;
-      for (const b9 of grp9) { sx9 += b9.x * b9.w; sy9 += b9.y * b9.w; sw9 += b9.w; }
-      return { x: sx9 / sw9, y: sy9 / sw9, n: live9.length, prod: prod9 };
+      const sum9 = (grp9: B9[]): { x: number; y: number; n: number; prod: boolean; w: number } => {
+        let sx9 = 0; let sy9 = 0; let sw9 = 0;
+        for (const b9 of grp9) { sx9 += b9.x * b9.w; sy9 += b9.y * b9.w; sw9 += b9.w; }
+        return { x: sx9 / sw9, y: sy9 / sw9, n: grp9.length, prod: prod9, w: sw9 };
+      };
+      if (groups9.length === 0) return [sum9(live9)];
+      return groups9.map((g9) => sum9(live9.filter((b9) => g9.some((h9) => near9(h9, b9))))).sort((a9, b9) => b9.w - a9.w);
     };
     const out9: MiniTag[] = [];
     for (const b9 of bases) {
       const all9 = blds9.get(b9.key);
       if (!all9 || all9.length === 0) continue;
-      let c9 = camp9(all9, t);
-      const dead9 = !c9 || !c9.prod;
-      if (!c9) {
-        /* 다 사라진 사람 — 마지막 건물이 죽기 직전의 진영 자리에 어둡게. */
+      let cs9 = camps9(all9, t);
+      const dead9 = cs9.length === 0 || !cs9[0].prod;
+      if (cs9.length === 0) {
+        /* 다 사라진 사람 — 마지막 건물이 죽기 직전의 가장 무거운 진영 자리에 어둡게(하나만). */
         let last9 = -1;
         for (const e9 of all9) if (e9.died !== null && e9.died <= t && e9.died > last9) last9 = e9.died;
-        c9 = last9 >= 0 ? camp9(all9, last9 - 0.05) : null;
-        if (!c9) continue;
+        cs9 = last9 >= 0 ? camps9(all9, last9 - 0.05).slice(0, 1) : [];
+        if (cs9.length === 0) continue;
       }
       const chip9 = chipStyle(b9.key, teamOfRaw(b9.key));
-      out9.push({
-        key: b9.key, name: b9.name, fx: Math.max(0.02, Math.min(0.98, c9.x / gw)), fy: Math.max(0.02, Math.min(0.98, c9.y / gh)),
-        bg: String(chip9.background ?? chip9.backgroundColor ?? "#888"), fg: String(chip9.color ?? "#fff"),
-        tier: c9.n <= TAG_TIER9.s ? "s" : c9.n <= TAG_TIER9.m ? "m" : "l", dim: dead9,
+      cs9.forEach((c9, i9) => {
+        out9.push({
+          key: i9 === 0 ? b9.key : `${b9.key}#${i9}`, name: b9.name, fx: Math.max(0.02, Math.min(0.98, c9.x / gw)), fy: Math.max(0.02, Math.min(0.98, c9.y / gh)),
+          bg: String(chip9.background ?? chip9.backgroundColor ?? "#888"), fg: String(chip9.color ?? "#fff"),
+          tier: c9.n <= TAG_TIER9.s ? "s" : c9.n <= TAG_TIER9.m ? "m" : "l", dim: dead9,
+        });
       });
     }
     return out9;

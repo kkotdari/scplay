@@ -318,7 +318,8 @@ rmSync(tmp, { recursive: true, force: true });
 
 /* ── ⑫ 기지 밖 일꾼 · 전진/몰래 생산 건물(2026-10-10, 요청: "일꾼 견제는 적 본진의 일꾼을 잡는 경우 · 다른 곳에서 잡는 건 정찰병·도망가는 일꾼 · 전진 건설하는 일꾼" ·
    "몰래배럭, 전진 건설(게이트/팩토리/배럭 등) 전략 판단") — T(0) 본진 (20,20) · Z(1) 본진 (170,170).
-   ① 60초 T 배럭 (120,120)(가운데 너머 · Z 기지 밖) → "전진 배럭" · 짓는 동안(60~120) 그 곁에서 SCV 여섯이 Z 의 저글링에 잡힘 → "[Z] [T] 전진 건설 일꾼 잡음"
+   ① 60초 T 배럭 (150,150)(Z 기지 바로 앞 · Z 기지 밖) → "전진 배럭" · 짓는 동안(60~120) 그 곁에서 SCV 여섯이 Z 의 저글링에 잡힘 → "[Z] [T] 전진 건설 일꾼 잡음"
+   (되요청 "전진은 거의 적 기지 앞이나 안 · 멀티에 짓는 건 전진 아님" — 가운데(120,120)는 이제 전진이 아니다 · ⑰)
    ② 400초 T 배럭 (165,160)(Z 기지 안 · "몰래는 적기지에 짓는거") → "몰래 배럭" ③ 300초 T 본진(22,22)에서 Z 의 드론 여섯이 T 의 마린에 잡힘 → "[T] [Z] 정찰 일꾼 잡음". */
 {
   const pw = (() => {
@@ -328,9 +329,9 @@ rmSync(tmp, { recursive: true, force: true });
     const pmk = (o, kind, bld, x, y, born, died = null, end = "", orders = [], doneAt = born) => { const e = { tag: (pt += 1), owner: o, kind, born, bornX: x, bornY: y, died, end, bld,
       sites: bld ? [[born, x - 1, y - 1]] : [], doneAt, lifts: [], cloaks: [], sieges: [], orders }; pl.push(e); return e; };
     pmk(0, "Command Center", true, 20, 20, 0); pmk(1, "Hatchery", true, 170, 170, 0);
-    pmk(0, "Barracks", true, 120, 120, 60, null, "", [], 120);
+    pmk(0, "Barracks", true, 150, 150, 60, null, "", [], 120);
     const zl = pmk(1, "Zergling", false, 170, 170, 50);
-    for (const t of [90, 91, 92, 93, 94, 95]) { const v = pmk(0, "SCV", false, 20, 20, 0, t, "atk", [[t - 2, 121, 121, false]]); kills.push([t, 1, zl.tag, v.tag]); }
+    for (const t of [90, 91, 92, 93, 94, 95]) { const v = pmk(0, "SCV", false, 20, 20, 0, t, "atk", [[t - 2, 151, 151, false]]); kills.push([t, 1, zl.tag, v.tag]); }
     const mr = pmk(0, "Marine", false, 20, 20, 200);
     for (const t of [300, 301, 302, 303, 304, 305]) { const v = pmk(1, "Drone", false, 170, 170, 0, t, "atk", [[t - 2, 23, 23, false]]); kills.push([t, 0, mr.tag, v.tag]); }
     pmk(0, "Barracks", true, 165, 160, 400, null, "", [], 460);
@@ -462,4 +463,19 @@ rmSync(tmp, { recursive: true, force: true });
     ["적 일꾼이 곁으로 온 배럭은 '전진 배럭'", capAt(300).some((c) => /\[T\] 전진 배럭/.test(c))],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
   void caps;
+}
+
+/* ── ⑰ 멀티·가운데의 생산 건물은 전진이 아니다(2026-10-10, 되요청: "멀티에 짓는 생산건물은 전진이 아님 · 전진은 내 기지보다(멀티 포함) 적 기지에 훨씬 가깝게 · 거의 적 기지 앞이나 안")
+   T(20,20) · Z(170,170). 200초 T 커맨드 멀티 (70,70) · 260초 그 곁 배럭 (74,72) → 전진 아님 · 300초 가운데 배럭 (95,95) → 전진 아님(적 기지에서 멀다). */
+{
+  let mt2 = 27000;
+  const ml2 = [];
+  const mk2 = (o, kind, x, y, born) => { ml2.push({ tag: (mt2 += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld: true,
+    sites: [[born, x - 1, y - 1]], doneAt: born + 60, lifts: [], cloaks: [], sieges: [], orders: [] }); };
+  mk2(0, "Command Center", 20, 20, 0); mk2(1, "Hatchery", 170, 170, 0);
+  mk2(0, "Command Center", 70, 70, 200); mk2(0, "Barracks", 74, 72, 260); mk2(0, "Barracks", 95, 95, 300);
+  const w2 = { players: [["T", "테란", 1], ["Z", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })), lives: ml2, ups: [], casts: [], pings: [], resFields: [] };
+  const caps = castPlan9(w2, { total: 900, order: ["T", "Z"], teamOf: { T: 1, Z: 2 } }).map((s) => capTxt(s));
+  console.log(`\n멀티·가운데 배럭: ${[...new Set(caps)].filter((c) => !/순조로운/.test(c)).join(" · ")}`);
+  console.log(`  ${caps.some((c) => /전진|몰래/.test(c)) ? "✘" : "✔"} 멀티 곁·가운데 배럭은 전진/몰래가 아니다`);
 }

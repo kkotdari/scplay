@@ -106,6 +106,9 @@ const JUMP9 = 1.7;
 const TIE9 = 1.12;
 /** 장면으로 세울 최소 무게 — 저글링 셋(또는 드라군 하나) 어치. */
 const MIN_SCENE9 = 240;
+/** 전진의 자(2026-10-10) — 적 기지(본진 건물·출발 자리)까지 이 타일 안(기지 앞이나 안) · 제 기지(멀티 포함)까지가 그 몇 배 넘게 멂. 전진 건물·전진 건설 일꾼이 함께 쓴다. */
+const PROXY_FRONT9 = 30;
+const PROXY_FAR9 = 2;
 /** 오버로드 사냥꾼(2026-10-10, 요청: "스카우트·커세어·발키리·레이스 등 공중공격 강한 유닛으로 오버로드를 대량으로 잡는 것") — 한 장면에 OVL_HUNT_N9 마리 이상. */
 const OVL_HUNTER9 = new Set(["Scout", "Corsair", "Valkyrie", "Wraith", "Mutalisk", "Devourer"]);
 const OVL_HUNT_N9 = 3;
@@ -372,6 +375,14 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       if (!b9.bld || b9.owner !== owner9 || b9.born > sec9 || (b9.doneAt ?? b9.born) < sec9 - 2) continue;
       if (Math.hypot(b9.bornX - x9, b9.bornY - y9) > FWD_R9) continue;
       if (atOwnBase9(owner9, b9.bornX, b9.bornY, sec9) && hallsOfOwner9(new Set([owner9]), sec9).length > 0) continue;
+      /* 전진 건물의 자와 같다 — 적 기지 앞·안(PROXY_FRONT9)이고 제 기지(멀티 포함)보다 훨씬(PROXY_FAR9) 가까울 때만. */
+      const ownD9 = Math.min(Infinity, ...hallsOfOwner9(new Set([owner9]), sec9).map(([hx9, hy9]) => Math.hypot(hx9 - b9.bornX, hy9 - b9.bornY)));
+      let foeD9 = Infinity;
+      for (const [o9] of rawOf9) {
+        if (o9 === owner9 || (opts.teamOf?.[rawOf9.get(o9)!] !== undefined && opts.teamOf?.[rawOf9.get(o9)!] === opts.teamOf?.[rawOf9.get(owner9) ?? ""])) continue;
+        for (const [hx9, hy9] of hallsOfOwner9(new Set([o9]), sec9)) foeD9 = Math.min(foeD9, Math.hypot(hx9 - b9.bornX, hy9 - b9.bornY));
+      }
+      if (!(foeD9 <= PROXY_FRONT9) || !(ownD9 > foeD9 * PROXY_FAR9)) continue;
       return "전진 건설";
     }
     if (killer9 >= 0 && hallsOfOwner9(new Set([killer9]), sec9).length > 0 && atOwnBase9(killer9, x9, y9, sec9)) return "정찰";
@@ -1048,7 +1059,6 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   /** 러시 건물 — 상대 기지(본진 건물 BASE_R9 안)에 세운 것의 글귀(요청: "포토러시 · 성큰러시"). */
   const RUSH_BLD9: Record<string, string> = { "Photon Cannon": "포토러시", "Sunken Colony": "성큰러시", "Creep Colony": "성큰러시" };
   const PROXY_KO9: Record<string, string> = { Gateway: "게이트", Barracks: "배럭", Factory: "팩토리", Starport: "스타포트", Stargate: "스타게이트" };
-  const PROXY_MIN9 = 36;
   const HALL_KO9: Record<string, string> = { Nexus: "넥서스", "Command Center": "커맨드", Hatchery: "해처리" };
   /** 이정표를 창 앞 이만큼(초)까지 되짚는다 — 그보다 오래면 국면 요약으로. */
   const MILE_RECENT9 = 120;
@@ -1133,8 +1143,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     const prodN9 = new Map<string, number>();
     const seen9 = new Set<string>();
     let hallN9 = 0;
-    /** ★ 전진·몰래 생산 건물(2026-10-10, 요청: "몰래배럭, 전진 건설(게이트/팩토리/배럭 등) 전략 판단 필요") — 제 출발 자리에서 PROXY_MIN9 타일 넘게 떨어지고
-     *  제 본진 건물·같은 편 기지 곁도 아닌 자리. 적 기지 안이면 "몰래", 그 밖은 "전진". 앞마당 심시티(36 안)는 안 든다. */
+    /** ★ 전진·몰래 생산 건물(2026-10-10, 요청: "몰래배럭, 전진 건설(게이트/팩토리/배럭 등) 전략 판단 필요") — 자는 아래 proxyAt9. */
     /** 그 자리를 [t, tEnd] 사이에 적이 봤나 — 적 건물(그 사이 서 있던 것)의 시야 · 적 유닛의 명령 자리(그 사이)의 시야 안이면 본 것이다. */
     const seenByFoe9 = (x9: number, y9: number, t9: number, tEnd9: number): boolean => {
       for (const f9 of world.lives) {
@@ -1150,20 +1159,31 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       }
       return false;
     };
-    /** 그 자리·때의 전진/몰래 — 제 출발 자리에서 PROXY_MIN9 밖 · 제 본진 건물·같은 편 기지 곁이 아님. 적 기지 안이고 **적이 못 봤으면** "몰래", 그 밖은 "전진"(2026-10-10, 되요청:
+    /** 그 자리·때의 전진/몰래 — 적 기지 앞·안이고 제 기지(멀티 포함)보다 훨씬 가까움. 적 기지 안이고 **적이 못 봤으면** "몰래", 그 밖은 "전진"(2026-10-10, 되요청:
      *  "몰래는 적기지에 짓는거" · "몰래의 특징은 적 시야에 안 보여야 한다는 것"). 지은 것은 [착공, 완공], 띄워 옮긴 것은 [착륙, +20초] 동안 봤나를 본다. */
     const proxyAt9 = (x9: number, y9: number, t9: number, tEnd9: number): string => {
+      /* ★ 전진은 **적 기지 앞이나 안**이고 **제 기지(멀티 포함)보다 적 기지에 훨씬 가까운** 자리다(2026-10-10, 되요청: "멀티에 짓는 생산 건물은 전진이 아님 · 전진은 내 기지보다
+         (멀티 포함) 적 기지에 훨씬 가깝게 지은 거 · 거의 적 기지 앞이나 안") — 적 본진 건물·출발 자리까지 PROXY_FRONT9(BASE_R9+12) 안이고, 제 본진 건물·출발 자리까지의
+         거리가 그 PROXY_FAR9(2) 배를 넘을 때만. 그 가운데 적 기지(BASE_R9) 안이고 적이 못 봤으면 "몰래". */
       const st9 = start9.get(raw9);
-      if (!st9 || Math.hypot(st9.x - x9, st9.y - y9) <= PROXY_MIN9) return "";
-      if (hallsOfOwner9(own9, t9).some(([hx9, hy9]) => Math.hypot(hx9 - x9, hy9 - y9) <= BASE_R9)) return "";
+      const ownPts9: [number, number][] = [...hallsOfOwner9(own9, t9)];
+      if (st9) ownPts9.push([st9.x, st9.y]);
+      if (ownPts9.length === 0) return "";
+      const dOwn9 = Math.min(...ownPts9.map(([hx9, hy9]) => Math.hypot(hx9 - x9, hy9 - y9)));
       if (allyBaseAt9(raw9, x9, y9, t9)) return "";
+      let dFoe9 = Infinity; let inBase9 = false;
       for (const r9 of new Set(rawOf9.values())) {
         if (r9 === raw9 || (opts.teamOf?.[r9] !== undefined && opts.teamOf?.[r9] === opts.teamOf?.[raw9])) continue;
-        const sf9 = start9.get(r9);
-        const inBase9 = (sf9 && Math.hypot(sf9.x - x9, sf9.y - y9) <= BASE_R9)
-          || hallsAt9(r9, t9).some(([hx9, hy9]) => Math.hypot(hx9 - x9, hy9 - y9) <= BASE_R9);
-        if (inBase9) return seenByFoe9(x9, y9, t9, tEnd9) ? "전진" : "몰래";
+        const pts9: [number, number][] = [...hallsAt9(r9, t9)];
+        const sf9 = start9.get(r9); if (sf9) pts9.push([sf9.x, sf9.y]);
+        for (const [hx9, hy9] of pts9) {
+          const d9 = Math.hypot(hx9 - x9, hy9 - y9);
+          if (d9 < dFoe9) dFoe9 = d9;
+          if (d9 <= BASE_R9) inBase9 = true;
+        }
       }
+      if (!(dFoe9 <= PROXY_FRONT9) || !(dOwn9 > dFoe9 * PROXY_FAR9)) return "";
+      if (inBase9 && !seenByFoe9(x9, y9, t9, tEnd9)) return "몰래";
       return "전진";
     };
     const proxyOf9 = (e9: (typeof blds9)[number]): string =>
