@@ -1380,7 +1380,9 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   /** 이정표를 창 앞 이만큼(초)까지 되짚는다 — 그보다 오래면 국면 요약으로. */
   const MILE_RECENT9 = 120;
   /** 국면 요약의 '최근 테크'(초) · '병력이 한창'의 창(초)과 수. */
-  const PHASE9 = { tech: 240, armyWin: 60, armyN: 4 };
+  const PHASE9 = { tech: 240, armyWin: 60, armyN: 4, prodWin: 90, upAhead: 120 };
+  /** 생산 건물 — 짓는 것은 "생산 건물 늘리는 중"으로 말한다(이름 하나하나는 군말). */
+  const PROD_BLD9 = new Set(["Gateway", "Barracks", "Factory", "Starport", "Stargate"]);
   const WORKER9 = new Set(["SCV", "Probe", "Drone"]);
   const NON_ARMY9 = new Set(["Larva", "Egg", "Overlord", "Cocoon", "Lurker Egg", "Scarab", "Interceptor", "Broodling"]);
   /** 그 자리가 **같은 편의 기지**인가 — 같은 편(teamOf 같음)의 살아 있는 본진 건물 또는 출발 자리가 BASE_R9 안이면 그 사람. 밀리·팀 모름이면 없다. */
@@ -1667,10 +1669,16 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
         if (mech9 >= all9 * COMP9.k) return "메카닉 운영";
       }
     }
-    if (sec9 - lastTech9 <= PHASE9.tech) return "순조로운 테크/발전 중";
+    /* ★ 소강의 말(2026-10-10, 요청: "파일런 건설은 굳이 안 나와도 되는 자막 — 순조롭게 발전 중 · 생산건물 늘리는 중 · 업그레이드 진행 중 등등을 표현하는 게 나음") —
+       생산 건물이 PHASE9.prodWin 초 안에 둘 넘게 섰으면 "생산 건물 늘리는 중" · 연구가 PHASE9.upAhead 초 안에 끝나면(곧 지금 돌고 있으면) "업그레이드 진행 중". */
+    let prod9 = 0;
+    for (const e9 of world.lives) if (e9.bld && own9.has(e9.owner) && PROD_BLD9.has(e9.kind) && e9.born <= sec9 && e9.born >= sec9 - PHASE9.prodWin && e9.end !== "morph") prod9 += 1;
+    if (prod9 >= 2) return "생산 건물 늘리는 중";
+    if (world.ups.some(([us9, , uo9]) => own9.has(uo9) && us9 > sec9 && us9 <= sec9 + PHASE9.upAhead)) return "업그레이드 진행 중";
+    if (sec9 - lastTech9 <= PHASE9.tech) return "테크 올리는 중";
     if (bases9 >= 3) return `${bases9}기지 운영 중`;
     if (army9 >= PHASE9.armyN) return "병력 모으는 중";
-    return "순조로운 발전 중";
+    return "순조롭게 발전 중";
   };
   /* ★★ **화면에 나오는 것을 말한다**(2026-10-10, 지적: "화면에서 보여주는 내용이 자막으로 나와야 함 · 업그레이드 보이지 않는데 업그레이드 내용이 나온다거나") ─────
      순환 토막의 카메라는 그 사람이 **고르거나 명령한 무리**를 따른다(재생기 picksOf9 · trackAt). 옛 순환 자막은 그 창에 끝난 연구("메타볼릭 부스트 개발")나 창 밖의
@@ -1680,6 +1688,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
        · 병력 — 많은 종류 둘 "마린 12기·메딕 4기" + 그 창의 마지막 명령: 적 기지 안 → "[B] 기지로 공격 이동/이동" · 센터 → "센터로 …" · 그 밖 "공격 이동/이동" · 명령 없으면 "대기".
      차례: 창 안의 빌드 이정표(착공 = 건설 명령 = 그때 화면) > 창 안의 건설 > 화면 무리 > 창 앞 이정표 > 국면 요약. 연구 **완료**는 안 쓴다(골라 둔 건물의 '연구 중'만). */
   const RESEARCH_AHEAD9 = 200;
+  const PICK_STALE9 = 30;
   const picksMemo9 = new Map<string, [number, number[]][]>();
   const picksOfRaw9 = (raw9: string): [number, number[]][] => {
     const got9 = picksMemo9.get(raw9);
@@ -1718,6 +1727,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       const a9 = Math.max(t0, picks9[i9][0]);
       const b9 = Math.min(t1, i9 + 1 < picks9.length ? picks9[i9 + 1][0] : t1);
       if (b9 <= a9) continue;
+      /* 오래전에 골라 둔 채 그대로인 무리(PICK_STALE9 초 넘게 안 건드림)는 화면 글귀가 아니다 — 그 사람이 지금 보고 있다고 못 한다(2026-10-10). */
+      if (picks9[i9][0] < t0 - PICK_STALE9) continue;
       const key9 = picks9[i9][1].join(",");
       const g9 = dur9.get(key9);
       if (g9) g9.d += b9 - a9; else dur9.set(key9, { d: b9 - a9, tags: picks9[i9][1], at: (a9 + b9) / 2 });
@@ -1733,7 +1744,10 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     if (blds9.length > 0) {
       const b9 = blds9[0];
       const bk9 = BUILDING_KO[b9.kind] ?? b9.kind;
-      if (b9.doneAt > at9) return [{ raw: raw9 }, { text: ` ${bk9} 건설 중` }];
+      if (b9.doneAt > at9) {
+        if (PLAIN_BLD9.has(b9.kind)) return null;
+        return [{ raw: raw9 }, { text: PROD_BLD9.has(b9.kind) ? " 생산 건물 늘리는 중" : ` ${bk9} 건설 중` }];
+      }
       const made9 = new Map<string, number>();
       for (const e9 of world.lives) {
         if (e9.bld || !own9.has(e9.owner) || e9.born < t0 - 2 || e9.born >= t1 || WORKER9.has(e9.kind) && !HALL_ANY9.has(b9.kind)) continue;
@@ -1757,8 +1771,11 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       const tags9 = new Set(wk9.map((e9) => e9.tag));
       const bd9 = (world.builds ?? []).find(([bs9, , btg9]) => tags9.has(btg9) && bs9 >= t0 - 2 && bs9 < t1);
       /* 짓는 것은 늘 일꾼이라 "프로브로"는 군말이다(2026-10-10, 요청: "프로브로 파일런 건설 — 당연한 거라 프로브로는 빼") — "[A] 파일런 건설". */
+      /* 파일런·서플라이·가스는 군말이다(2026-10-10) — 말하지 않고 국면 요약으로 · 생산 건물은 "생산 건물 늘리는 중". */
+      if (bd9 && PLAIN_BLD9.has(bd9[5])) return null;
+      if (bd9 && PROD_BLD9.has(bd9[5])) return [{ raw: raw9 }, { text: " 생산 건물 늘리는 중" }];
       if (bd9) { const bk9 = BUILDING_KO[bd9[5]] ?? bd9[5]; return [{ raw: raw9 }, { text: ` ${bk9} 건설` }]; }
-      return weak9([{ raw: raw9 }, { text: ` 일꾼 ${wk9.length}기 이동` }]);
+      return null;   // 일꾼 이동은 군말이다(2026-10-10 · 옛 "일꾼 N기 이동") — 국면 요약으로
     }
     if (army9.length === 0) return null;
     const cnt9 = new Map<string, number>();
@@ -1790,7 +1807,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       if (!e9.bld || !own9.has(e9.owner) || e9.born < lo9 || e9.born >= hi9 || e9.end === "morph") continue;
       if (!bld9 && !PLAIN_BLD9.has(e9.kind) && !HALL9.has(e9.kind) && !TECH_MILE9[e9.kind]) bld9 = e9.kind;
     }
-    if (bld9) return [{ raw: raw9 }, { text: ` ${BUILDING_KO[bld9] ?? bld9} 건설` }];
+    if (bld9) return [{ raw: raw9 }, { text: PROD_BLD9.has(bld9) ? " 생산 건물 늘리는 중" : ` ${BUILDING_KO[bld9] ?? bld9} 건설` }];
     const scr9 = screenCap9(raw9, t0, hi9);
     if (scr9 && !WEAK9.has(scr9)) return scr9;
     /* 화면 무리가 약하거나(대기 · 일꾼 이동) 못 읽으면 창 앞 MILE_RECENT9 초 안의 마지막 이정표(빌드 읽기 · 전술 — 그 사람의 빌드·자리를 말할 뿐 '지금 일어나는
@@ -1799,7 +1816,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     for (const m9 of miles9) if (m9.at < lo9 && m9.at >= lo9 - MILE_RECENT9) recent9 = m9;
     if (recent9) return recent9.caps;
     const ph9 = phaseCap9(raw9, hi9);
-    if (scr9 && /^순조로운|기지 운영 중$|^병력 모으는 중$/.test(ph9)) return scr9;
+    if (scr9 && /^순조롭게|기지 운영 중$|^병력 모으는 중$/.test(ph9)) return scr9;
     return [{ raw: raw9 }, { text: ` ${ph9}` }];
   };
 
