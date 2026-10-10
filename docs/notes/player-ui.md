@@ -1414,3 +1414,14 @@ AUTO 글자 합성) · 현재 화면에 보여주는 화면 주인(들)은 기�
   `viewsAt`(창 여럿 · 창마다 color) — 분할이면 고른 사람(castSel9)마다 칸의 창(splitViewRef9)을 modeColor(색 모드 따름)로 다 그린다. 앞 둘은 종전 viewAt(fsViewAt · 지금 카메라 = 중계·개인
   화면의 카메라) 흰 네모. 분할에서 칸을 눌러도 네모는 그대로 다 선다(옛 '누른 칸 하나 · 안 누르면 없음'은 걷었다).
 - perf-check `--split`: 사람 카메라 단추 고르는 선택자가 전체 알약(.scr-roster-cam-all)까지 눌러 분할이 켜졌다 꺼졌다 — `:not(.scr-roster-cam-all)` 를 더했다.
+
+## PC 독 280/320 · 짝수 화소 · 주소 글귀(2026-10-10)
+요청: "독(돌출부분제외) 높이가 FHD기준 320 …" → "플레이백 바 로우까지 포함" → "280/320이야 숫자가" · "모바일도 독바와 자막, 닉네임택의 모든 요소를 짝수로" ·
+"웹페이지 주소 sg8.vercel.app 으로 변경".
+- 숫자는 **재생 줄까지 포함한 아래 띠**(`.scr-fs-lower` = 쇠판 + 12 + 재생 줄 44)다. FHD: 띠 280 · 쇠판 224 · 우물 206(`--dock-h0: 206·dks`) ·
+  미니맵 246(`--mini-up` 246/206) → 받침 윗선(우물 위 − out 8 − 1)부터 띠 바닥까지 320. 전광판 폭 440(`--roster-r` 440/206) · 인포 370.
+- 🔎 `perf-check --wide --vw 1920 --vh 1080 --fs --warm 0 --glblit --dockprobe` 의 `[독 자]` 에 `lower`(띠)·`dockrow`(쇠판)를 더했다.
+  실측: lower 280 · dockrow 224 · mini top 757 → 받침 748 → 1068−748 = 320.
+- 짝수: CSS 는 `round(nearest|down, …, 2px)` · dockFit9 는 `ev9 = round(v/2)*2` 로 dock-h·mini-h·전광판 폭·미니맵 폭을 굴린다.
+  폰도 전광판 rp/rf·칩·캠·배지·미니맵 택(6/8/10)·자막 글자·줄 키를 2px 로 굴렸다.
+- 독 줄 음각 글귀 `scplay.vercel.app` → `sg8.vercel.app    SINCE 2026`(ReplayMotionPlayer `.scr-fs-dockmark`).

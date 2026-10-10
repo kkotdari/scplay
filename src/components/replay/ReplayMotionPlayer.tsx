@@ -18274,9 +18274,11 @@ export default function ReplayMotionPlayer({
       const arOn9 = miniOn9 ? ar9 : 0;              // 미니맵을 껐으면(전체화면 N) 그 폭·틈이 없다
       const pairW9 = (k: number): number => h0 * k * (rr9 + arOn9 * up9) + (miniOn9 ? sep9 : 0);
       const k9 = DOCK_STEPS9.find((k) => pairW9(k) <= W9) ?? DOCK_STEPS9[DOCK_STEPS9.length - 1];
-      const h9 = h0 * k9;
-      const rosterW9 = h9 * rr9;
-      const miniW9 = miniOn9 ? h9 * up9 * ar9 : 0;
+      const ev9 = (v9: number): number => Math.round(v9 / 2) * 2;   // 짝수 px(2026-10-10 "모든 요소 짝수" — replay.css 의 round(…, 2px) 와 같은 자)
+      const h9 = ev9(h0 * k9);
+      const miniH9 = ev9(h9 * up9);
+      const rosterW9 = ev9(h9 * rr9);
+      const miniW9 = miniOn9 ? ev9(miniH9 * ar9) : 0;
       /* ★ 셋이 다 서면 미니맵이 화면 한가운데(2026-10-10, 요청: "전광판 미니맵 인포창이 다 나올 때는 미니맵이 정가운데에 오게") — 양옆 기둥을 max(전광판, 인포창) 폭으로 같게 둔
          격자(replay.css .is-trio · --side-w)라 그 폭이 2·max + 미니맵 + 틈 둘이다. 인포창 단은 그 격자가 독 줄에 들 때까지 낮춘다. 미니맵이 없으면(N) 둘이 나란히(종전 셈). */
       const trioW9 = (k: number): number => 2 * Math.max(rosterW9, infoW9 * k) + miniW9 + 2 * sep9;
@@ -18289,7 +18291,7 @@ export default function ReplayMotionPlayer({
          --dock-lift 로 적어 바닥 가운데의 중계 자막이 그만큼 올라선다(.scr-cast-caption). 화면 주인 이름표는 **위 가운데**라(2026-10-09, 요청: "화면 주인 이름칩은 화면 상단
          가운데로 이동하고 자막을 내리기") 안 탄다 — 옛 '바닥 줄 칸 이름표 올리기'(--cell-lift · pedL~pedR)도 그때 걷었다. 분할 격자는 아래를 **안 비운다**(되요청: "분할보기도
          아래 비우지 않기"). 미니맵이 없으면(N) 0. */
-      const lift9 = miniOn9 && W9 > 0 ? Math.max(0, h9 * (up9 - 1) + out9 + 1) : 0;
+      const lift9 = miniOn9 && W9 > 0 ? Math.max(0, miniH9 - h9 + out9 + 1) : 0;
       setDockFit9((p9) => (Math.abs((p9.h ?? -1) - h9) < 0.5 && Math.abs(p9.ki - ki9) < 0.005 && Math.abs(p9.lift - lift9) < 0.5
         && p9.trio === trio9 && Math.abs(p9.sideW - sideW9) < 0.5
         ? p9 : { h: h9, ki: ki9, k: k9, lift: lift9, trio: trio9, sideW: sideW9 }));
@@ -19245,7 +19247,7 @@ export default function ReplayMotionPlayer({
               위로 바꿈"). 옛 판은 [툴박스 / 독 줄]이었다. 접기(독 줄을 통째로 걷는다)는 재생 줄의 시계 옆이라 그대로 남는다. */}
           <div className={cx("scr-fs-dockrow", dockFoldOn9 && "is-fold")} ref={dockRowRef9}>
             {/* 음각 글귀(위 dockMark9) — 틀 오른쪽 쇠 바탕에만. */}
-            <span className={cx("scr-fs-dockmark", dockMark9 && "is-on")} ref={dockMarkRef9} aria-hidden>{"scplay.vercel.app    SINCE 2026"}</span>
+            <span className={cx("scr-fs-dockmark", dockMark9 && "is-on")} ref={dockMarkRef9} aria-hidden>{"sg8.vercel.app    SINCE 2026"}</span>
             {/* 미니맵 + 인포창을 **한 사각 틀**로 묶는다(2026-09, 요청: "미니맵과 인포창을 한데 묶는 사각 프레임 필요 인포창 래디우스 제거"). */}
             <div
               className={cx("scr-fs-dockframe", dockFit9.ki === 0 && "is-noinfo")}
