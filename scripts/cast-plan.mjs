@@ -479,3 +479,72 @@ rmSync(tmp, { recursive: true, force: true });
   console.log(`\n멀티·가운데 배럭: ${[...new Set(caps)].filter((c) => !/순조로운/.test(c)).join(" · ")}`);
   console.log(`  ${caps.some((c) => /전진|몰래/.test(c)) ? "✘" : "✔"} 멀티 곁·가운데 배럭은 전진/몰래가 아니다`);
 }
+
+/* ── ⑱ 병력 구성·조이기·마법 활약·캐리어·지형(2026-10-10, 요청: "목동저그 · 다크스웜+저글링+럴커 방어/돌파 · 탱크/메카닉 조이기 · 바이오닉/메카닉 운영 ·
+   스톰·마엘스트롬·마인드컨트롤·스테이시스·EMP·이레디에이트 활약 · 파워 드라군 · 캐리어 기동성 공격 · 지형 활용 유리한 전투") — 판마다 작은 합성 세계. */
+{
+  let gt = 30000;
+  const mkw = (players, build, extra = {}) => {
+    const L = []; const kills = []; const casts = []; const ups = [];
+    const mk = (o, kind, bld, x, y, born, ex = {}) => { const e = { tag: (gt += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+      sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [], ...ex }; L.push(e); return e; };
+    build({ mk, kills, casts, ups });
+    return { players: players.map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })), lives: L, ups, casts, pings: [], resFields: [], kills, ...extra };
+  };
+  const run = (w, o = {}) => castPlan9(w, { total: 900, order: w.players.map((p) => p.name), teamOf: Object.fromEntries(w.players.map((p) => [p.name, p.team])), ...o }).map((s) => capTxt(s));
+  const PL = [["A", "테란", 1], ["B", "저그", 2]];
+  const res = [];
+  // ① 구성 — A 마린 열둘(바이오닉) · B 아드레날린 + 울트라 둘 + 저글링 여덟(목동)
+  res.push(["마린 열둘 → 바이오닉 운영", run(mkw(PL, ({ mk, ups }) => {
+    mk(0, "Command Center", true, 20, 20, 0); mk(1, "Hatchery", true, 100, 100, 0);
+    for (let i = 0; i < 12; i += 1) mk(0, "Marine", false, 20, 20, 300);
+    for (let i = 0; i < 2; i += 1) mk(1, "Ultralisk", false, 100, 100, 300);
+    for (let i = 0; i < 8; i += 1) mk(1, "Zergling", false, 100, 100, 300);
+    ups.push([290, "Adrenal Glands", 1, 0]);
+  })), (c) => c.some((x) => /\[A\] 바이오닉 운영/.test(x)) && c.some((x) => /\[B\] 목동저그/.test(x))]);
+  // ② 파워 드라군
+  res.push(["드라군 열둘 → 파워 드라군", run(mkw([["P", "프로토스", 1], ["B", "저그", 2]], ({ mk }) => {
+    mk(0, "Nexus", true, 20, 20, 0); mk(1, "Hatchery", true, 100, 100, 0);
+    for (let i = 0; i < 12; i += 1) mk(0, "Dragoon", false, 20, 20, 300);
+  })), (c) => c.some((x) => /\[P\] 파워 드라군/.test(x))]);
+  // ③ 탱크 조이기 — A 탱크 셋이 400~430초에 B 쪽(70,70 언저리)에 박는다
+  res.push(["앞으로 박은 탱크 셋 → 탱크 조이기", run(mkw(PL, ({ mk }) => {
+    mk(0, "Command Center", true, 20, 20, 0); mk(1, "Hatchery", true, 100, 100, 0);
+    [400, 415, 430].forEach((t, i) => mk(0, "Siege Tank (Tank Mode)", false, 20, 20, 300, { orders: [[t - 10, 70 + i, 70, false]], sieges: [[t, true]] }));
+  })), (c) => c.some((x) => /\[A\] 탱크 조이기/.test(x))]);
+  // ④ 스톰 — P 가 600초에 (60,60)에 스톰 · B 히드라 넷이 601~602초에 그 자리에서 죽는다
+  res.push(["스톰에 넷 → 스톰으로 4기 잡음", run(mkw([["P", "프로토스", 1], ["B", "저그", 2]], ({ mk, casts }) => {
+    mk(0, "Nexus", true, 20, 20, 0); mk(1, "Hatchery", true, 100, 100, 0);
+    for (let i = 0; i < 4; i += 1) mk(1, "Hydralisk", false, 100, 100, 500, { died: 601 + i * 0.3, end: "atk", orders: [[598, 60, 60, false]] });
+    casts.push([600, 60, 60, "Psionic Storm", 0]);
+  })), (c) => c.some((x) => /스톰으로 4기 잡음/.test(x))]);
+  // ⑤ 마인드컨트롤 — P 가 700초에 B 의 울트라를 빼앗는다(손바뀜 생애)
+  res.push(["마인드컨트롤 → 울트라 빼앗음", run(mkw([["P", "프로토스", 1], ["B", "저그", 2]], ({ mk, casts }) => {
+    mk(0, "Nexus", true, 20, 20, 0); mk(1, "Hatchery", true, 100, 100, 0);
+    mk(1, "Ultralisk", false, 100, 100, 500, { died: 700, end: "own" });
+    mk(0, "Ultralisk", false, 60, 60, 700, { handoff: true });
+    casts.push([700, 60, 60, "Mind Control", 0]);
+  })), (c) => c.some((x) => /\[P\] 마인드컨트롤로 울트라 빼앗음/.test(x))]);
+  // ⑥ 다크스웜 + 럴커 돌파 — B 가 A 본진(20,20)에 스웜 · B 럴커가 A 마린 넷을 잡는다
+  res.push(["스웜 아래 럴커가 본진 마린 → 다크스웜+럴커 돌파", run(mkw(PL, ({ mk, kills, casts }) => {
+    mk(0, "Command Center", true, 20, 20, 0); mk(1, "Hatchery", true, 100, 100, 0);
+    const lk = mk(1, "Lurker", false, 100, 100, 500, { orders: [[590, 22, 22, false]] });
+    for (let i = 0; i < 4; i += 1) { const m = mk(0, "Marine", false, 20, 20, 400, { died: 602 + i, end: "atk", orders: [[598, 21, 21, false]] }); kills.push([602 + i, 1, lk.tag, m.tag]); }
+    casts.push([600, 22, 22, "Dark Swarm", 1]);
+  })), (c) => c.some((x) => /다크스웜\+럴커 돌파/.test(x))]);
+  // ⑦ 캐리어 — P 인터셉터가 B 본진에서 히드라 넷을 잡는다
+  res.push(["인터셉터가 적 본진에서 → 캐리어 기동 공격", run(mkw([["P", "프로토스", 1], ["B", "저그", 2]], ({ mk, kills }) => {
+    mk(0, "Nexus", true, 20, 20, 0); mk(1, "Hatchery", true, 100, 100, 0);
+    const ic = mk(0, "Interceptor", false, 100, 100, 600);
+    for (let i = 0; i < 4; i += 1) { const h = mk(1, "Hydralisk", false, 100, 100, 500, { died: 650 + i, end: "atk", orders: [[648, 101, 101, false]] }); kills.push([650 + i, 0, ic.tag, h.tag]); }
+  })), (c) => c.some((x) => /캐리어 기동 공격/.test(x))]);
+  // ⑧ 지형 — A 마린 넷이 언덕(고도 2 · 50,50 둘레 6)에서 아래(58,58)의 B 히드라 다섯을 잡는다
+  const hillT = { level: (x, y) => (Math.hypot(x - 50, y - 50) <= 6 ? 2 : 0), walk: () => true };
+  res.push(["언덕 위에서 아래를 잡은 싸움 → 언덕 지형 활용", run(mkw(PL, ({ mk, kills }) => {
+    mk(0, "Command Center", true, 20, 20, 0); mk(1, "Hatchery", true, 100, 100, 0);
+    const ms = [0, 1, 2, 3].map(() => mk(0, "Marine", false, 20, 20, 400, { orders: [[740, 50, 50, false]] }));
+    for (let i = 0; i < 5; i += 1) { const h = mk(1, "Hydralisk", false, 100, 100, 500, { died: 750 + i, end: "atk", orders: [[745, 58, 58, false]] }); kills.push([750 + i, 0, ms[i % 4].tag, h.tag]); }
+  }), { mapW: 128, mapH: 128, terrain: hillT }), (c) => c.some((x) => /언덕 지형 활용/.test(x))]);
+  console.log("\n구성·조이기·마법·캐리어·지형:");
+  for (const [name, caps, ok] of res) console.log(`  ${ok(caps) ? "✔" : "✘"} ${name}${ok(caps) ? "" : ` (실제 ${[...new Set(caps)].filter((c) => !/순조로운/.test(c)).join(" · ")})`}`);
+}

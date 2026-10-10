@@ -118,6 +118,17 @@ const CENTER_DEF9: Record<string, string> = { "Photon Cannon": "포토", Bunker:
 const CENTER_K9 = { def: 0.12, hold: 0.18 };
 /** 센터 장악 — 제 병력+건물 수가 이 이상이고 적의 이 배 이상. */
 const CENTER_HOLD9 = { n: 8, k: 2 };
+/** 장면 자막에 활약을 붙이는 마법(2026-10-10, 요청: "스톰도 중요한 기술 · 마엘스트롬·마인드컨트롤·스테이시스 등도 중요 · EMP·이레디에이트 등 마법 유닛의 활약도 묘사") — 앞일수록 먼저. */
+const SPELL_NOTE9 = ["Psionic Storm", "Maelstrom", "Stasis Field", "Mind Control", "EMP Shockwave", "Irradiate", "Plague", "Dark Swarm",
+  "Lockdown", "Ensnare", "Disruption Web", "Recall", "Spawn Broodlings", "Feedback", "Defensive Matrix"];
+/** 마법으로 잡은 몸의 '죽인 유닛 종류'(처치 절) — 스톰은 stormBy9 가 하이템플러로 적는다. */
+const SPELL_KILLER9: Record<string, string> = { "Psionic Storm": "High Templar", Irradiate: "Science Vessel", Plague: "Defiler", "Spawn Broodlings": "Queen" };
+/** 병력 구성(국면 요약 · 2026-10-10, 요청: "바이오닉/메카닉 운영 · 파워 드라군 · 목동저그(아드레날린 저글링 울트라 조합)"). */
+const BIO9 = new Set(["Marine", "Firebat", "Medic", "Ghost"]);
+const MECH9 = new Set(["Vulture", "Siege Tank (Tank Mode)", "Siege Tank (Siege Mode)", "Siege Tank", "Goliath"]);
+const COMP9 = { n: 10, k: 0.6, ultra: 2, ling: 8 };
+/** 탱크 조이기 — 이 초 창 안에 앞으로(적 쪽) 박은 탱크가 이 수 이상 · 메카닉은 그때 벌처·골리앗이 이 수 이상. */
+const PUSH9 = { win: 90, tanks: 3, mech: 6 };
 /** 순환 한 토막의 길이(초) — 소강에서 한 사람을 보여주는 시간(요청: "순환중계시 한 사람
  *  유지시간 줄이기" — 14 → 9 → 재요청 "9초 -> 8초"). 자막이 상시 표시가 된 뒤로는 갈아타는 박자가
  *  곧 자막 박자라는 옛 ⚠(토스트가 그만큼 잦다)가 걷혀, 값을 정하는 것은 **한 사람을 읽을 만한
@@ -194,7 +205,9 @@ type Ev9 = { sec: number; raw: string; w: number; why: string; tail?: number;
   /** 잃은 자리(타일 · 잃은 쪽 사건만) — 싸움이 **누구 진영에서** 났나를 재는 자다(duel9). 모르면 없다. */
   x?: number; y?: number;
   /** 기지 밖에서 잡힌 일꾼의 갈래(2026-10-10) — "정찰" · "전진 건설" · ""(그 밖 · 이동·도망). */
-  wkw?: string };
+  wkw?: string;
+  /** 죽인 쪽 사건만 — 죽인 몸의 태그(처치 절에서만 안다 · 모르면 없다)와 죽은 몸의 자리(지형 활용 판정 · 2026-10-10). */
+  ktag?: number; vx?: number; vy?: number };
 
 /** 편성표를 굽는다 — 참값 한 벌에 한 번이다(재생 중에는 짚기만 한다). */
 export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
@@ -273,13 +286,13 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     if (a9) a9.push(ks9, ko9, kt9); else killBy9.set(kd9, [ks9, ko9, kt9]);
   }
   /** 그 태그를 그 순간 죽인 [임자, 유닛 종류] — 처치 절, 없으면 창 안에서 가장 많이 겨눈 적(그 임자가 가장 많이 겨눈 유닛 종류). 없으면 [-1, ""]. */
-  const killerOf9 = (tag9: number, sec9: number, mine9: number): [number, string] => {
+  const killerOf9 = (tag9: number, sec9: number, mine9: number): [number, string, number] => {
     const k9 = killBy9.get(tag9);
     if (k9) for (let i9 = 0; i9 < k9.length; i9 += 3) {
-      if (Math.abs(k9[i9] - sec9) <= 1 && k9[i9 + 1] !== mine9) return [k9[i9 + 1], k9[i9 + 2] ? kindAt9(k9[i9 + 2], k9[i9]) : ""];
+      if (Math.abs(k9[i9] - sec9) <= 1 && k9[i9 + 1] !== mine9) return [k9[i9 + 1], k9[i9 + 2] ? kindAt9(k9[i9 + 2], k9[i9]) : "", k9[i9 + 2] || -1];
     }
     const a9 = aim9.get(tag9);
-    if (!a9) return [-1, ""];
+    if (!a9) return [-1, "", -1];
     let best9 = -1;
     let bn9 = 0;
     let bk9 = "";
@@ -300,7 +313,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
         for (const [id9, c9] of kn9) if (c9 > bc9) { bc9 = c9; bk9 = kindNames9[id9]; }
       }
     }
-    return [best9, bk9];
+    return [best9, bk9, -1];
   };
   /** ★ 사이오닉 스톰에 죽은 몸 — 겨눈 자가 없으니 killerOf9 는 모른다. 죽은 자리 6타일 · 3초 안에 적이 내린 스톰이 있으면 그 임자의 **하이템플러** 킬(2026-10-09). */
   const stormBy9 = (sec9: number, x9: number | undefined, y9: number | undefined, mine9: number): number => {
@@ -313,7 +326,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   };
 
   /** 죽음 한 벌 — 한꺼번에 사라지는 '나감'을 걸러 내려고 먼저 모은다. */
-  type D9 = { sec: number; owner: number; v: number; bld: boolean; killer: number; wk: boolean; wkw?: string; x?: number; y?: number; kind: string; by: string };
+  type D9 = { sec: number; owner: number; v: number; bld: boolean; killer: number; ktag: number; wk: boolean; wkw?: string; x?: number; y?: number; kind: string; by: string };
   /** 죽은 자리(타일) — 건물은 제 자리(bornX/Y · 앉은 자리가 여럿이면 마지막) · 유닛은 죽기 전 `LOC_W9` 초 안의 마지막 명령
    *  자리(참값 생애는 죽은 자리를 안 든다 — 명령이 '어디에 가 있었나'의 가장 가까운 어림이다) · 그도 없으면 막 태어난 몸의
    *  태어난 자리 · 모르면 null. */
@@ -396,6 +409,9 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     return [x9, y9];
   };
   const mapC9 = opts.mapW && opts.mapH ? { x: opts.mapW / 2, y: opts.mapH / 2, s: Math.min(opts.mapW, opts.mapH) } : null;
+  /** 태그 → 생애들(변태로 갈린 생애가 같은 태그를 나눠 쓴다). */
+  const livesByTag9 = new Map<number, (typeof world.lives)[number][]>();
+  for (const e9 of world.lives) { const a9 = livesByTag9.get(e9.tag); if (a9) a9.push(e9); else livesByTag9.set(e9.tag, [e9]); }
   const inCenter9 = (x9: number, y9: number, k9: number): boolean => !!mapC9 && Math.hypot(x9 - mapC9.x, y9 - mapC9.y) <= mapC9.s * k9;
   /** 적(다른 편) 임자 번호들. */
   const foeOwners9 = (raw9: string): number[] => [...rawOf9.entries()]
@@ -509,6 +525,32 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
         }
       }
     }
+    /* 탱크 조이기·메카닉 조이기(2026-10-10, 요청) — 제 기지 밖이고 적 기지가 더 가까운 자리에 PUSH9.win 초 안에 서로 다른 탱크가 PUSH9.tanks 대 넘게 박으면.
+       그때 살아 있는 벌처·골리앗이 PUSH9.mech 넘으면 메카닉 조이기. */
+    const pushes9: [number, number][] = [];
+    for (const e9 of world.lives) {
+      if (!own9.has(e9.owner) || !e9.kind.startsWith("Siege Tank")) continue;
+      for (const [ts9, on9] of e9.sieges) {
+        if (!on9) continue;
+        const [px9, py9] = posAt9(e9, ts9);
+        const ownD9 = Math.min(Infinity, ...[...hallsOfOwner9(own9, ts9), ...(st9 ? [[st9.x, st9.y] as [number, number]] : [])].map(([hx9, hy9]) => Math.hypot(hx9 - px9, hy9 - py9)));
+        const fb9 = nearFoeBase9(px9, py9, ts9);
+        if (fb9 && ownD9 > BASE_R9 && fb9.d < ownD9) pushes9.push([ts9, e9.tag]);
+      }
+    }
+    pushes9.sort((a9, b9) => a9[0] - b9[0]);
+    for (let i9 = 0; i9 < pushes9.length; i9 += 1) {
+      const tanks9 = new Set<number>();
+      for (let j9 = i9; j9 < pushes9.length && pushes9[j9][0] - pushes9[i9][0] <= PUSH9.win; j9 += 1) tanks9.add(pushes9[j9][1]);
+      if (tanks9.size < PUSH9.tanks) continue;
+      const t9 = pushes9[i9][0];
+      let mech9 = 0;
+      for (const e9 of world.lives) {
+        if (own9.has(e9.owner) && (e9.kind === "Vulture" || e9.kind === "Goliath") && e9.born <= t9 && (e9.died === null || e9.died > t9)) mech9 += 1;
+      }
+      const name9 = mech9 >= PUSH9.mech ? "메카닉 조이기" : "탱크 조이기";
+      add9("push", t9, [{ raw: raw9 }, { text: ` ${name9}` }], name9);
+    }
     out9.sort((a9, b9) => a9.at - b9.at);
     tacticsMemo9.set(raw9, out9);
     return out9;
@@ -585,7 +627,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     const at9 = deadAt9(e9, e9.died);
     /* ★ 일꾼의 죽음이 견제인 것은 **제 기지에서** 죽을 때다(2026-10-10) — 상대 본진에서 캐논을 짓다 죽은 프로브·정찰 일꾼은 견제가 아니라 그 싸움의 몫(몸값 그대로 · 꼬리 없음).
        포토러시의 프로브가 "Z의 R 일꾼 견제"로 읽혔다. */
-    let [killer9, by9] = killerOf9(e9.tag, e9.died, e9.owner);
+    let [killer9, by9, ktag9] = killerOf9(e9.tag, e9.died, e9.owner);
     if (killer9 < 0) { const st9 = stormBy9(e9.died, at9?.x, at9?.y, e9.owner); if (st9 >= 0) { killer9 = st9; by9 = "High Templar"; } }
     /* ★ 일꾼은 죽은 자리를 **모르면 견제가 아니다**(2026-10-10, 재지적: "아직도 정찰 온 일꾼 잡은 게 일꾼 견제로 나와") — 옛 판은 자리를 모르면(죽기 전 LOC_W9 초 안에
        명령이 없으면 — 정찰 일꾼은 대개 그렇다) atOwnBase9 가 '제 기지'로 쳐 견제가 됐다. 이제 일꾼은 그 앞 **아무 때의 마지막 명령 자리**(정찰 보낸 자리)까지 되짚고,
@@ -595,7 +637,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     const wk9 = isWk9 && !!wat9 && workerAtHome9(e9.owner, killer9, wat9.x, wat9.y, e9.died);
     const wkw9 = isWk9 && !wk9 ? (wat9 ? workerOut9(e9.owner, killer9, wat9.x, wat9.y, e9.died) : "") : undefined;
     ds9.push({ sec: e9.died, owner: e9.owner, v: wk9 ? v9 * HARASS9.k : v9, bld: e9.bld, wk: wk9, kind: e9.kind,
-      killer: killer9, by: by9, ...(at9 ?? {}), ...(wkw9 !== undefined ? { wkw: wkw9 } : {}) });
+      killer: killer9, ktag: ktag9, by: by9, ...(at9 ?? {}), ...(wkw9 !== undefined ? { wkw: wkw9 } : {}) });
   }
   ds9.sort((a9, b9) => a9.sec - b9.sec);
   /* ★ **나간 사람의 몸은 교전이 아니다** — 팀전에서 한 사람이 나가면 그 몸이 한 프레임에
@@ -630,7 +672,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     const why9 = base9 ? "건물 파괴" : d9.wk ? "견제" : d9.wkw !== undefined ? "일꾼 잡음" : "교전";
     const tail9 = d9.wk ? HARASS9.tail : undefined;
     if (kill9) evs9.push({ sec: d9.sec, raw: kill9, w: d9.v * (d9.bld ? BLD_K9 : 1), why: why9, tail: tail9,
-      vs: mine9, dealt: d9.v, kind: d9.kind, ...(d9.by ? { by: d9.by } : {}), ...(d9.wkw !== undefined ? { wkw: d9.wkw } : {}) });
+      vs: mine9, dealt: d9.v, kind: d9.kind, ...(d9.by ? { by: d9.by } : {}), ...(d9.wkw !== undefined ? { wkw: d9.wkw } : {}),
+      ...(d9.ktag > 0 ? { ktag: d9.ktag } : {}), ...(d9.x !== undefined && d9.y !== undefined ? { vx: d9.x, vy: d9.y } : {}) });
     if (mine9) evs9.push({ sec: d9.sec, raw: mine9, w: d9.v * LOSS_K9, why: base9 ? "건물 잃음" : d9.wk ? "견제 당함" : d9.wkw !== undefined ? "일꾼 잃음" : "교전", tail: tail9,
       vs: kill9, econ: d9.bld || d9.wk ? d9.v : 0, x: d9.x, y: d9.y, kind: d9.kind, ...(d9.wkw !== undefined ? { wkw: d9.wkw } : {}) });
   }
@@ -656,11 +699,14 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     /** 일꾼을 죽인 유닛 종류 → 무게(견제 자막의 "리버 일꾼 견제") · 사람 → (죽인 유닛 종류 → 무게)(저글링러시 · 2026-10-09). */
     byKind: Map<string, number>; killKind: Map<string, Map<string, number>>;
     /** "k>v" → k 의 공중 사냥꾼(OVL_HUNTER9)이 잡은 v 의 오버로드 수(오버로드 사냥 자막 · 2026-10-10). */
-    ovl: Map<string, number> };
+    ovl: Map<string, number>;
+    /** 사람 → (죽인 유닛 종류 → 잡은 수) · 사람 → 처치 기록 [초, 죽인 태그, 죽은 x, y](마법 활약·지형 활용 자막 · 2026-10-10). */
+    killN: Map<string, Map<string, number>>; kills: Map<string, [number, number, number, number][]> };
   const scs9: Sc9[] = [];
   for (let i9 = 0; i9 < evs9.length;) {
     const sc9: Sc9 = { t0: evs9[i9].sec, t1: evs9[i9].sec, by: new Map(), why: evs9[i9].why, tail: GAP9,
-      pair: new Map(), econ: new Map(), locs: [], bldPair: new Map(), bldLost: new Map(), byKind: new Map(), killKind: new Map(), ovl: new Map() };
+      pair: new Map(), econ: new Map(), locs: [], bldPair: new Map(), bldLost: new Map(), byKind: new Map(), killKind: new Map(), ovl: new Map(),
+      killN: new Map(), kills: new Map() };
     let top9 = 0;
     let j9 = i9;
     /* 다음 사건이 **앞 사건의 꼬리**(견제면 HARASS9.tail · 그 밖은 GAP9) 안이면 같은 장면이다. */
@@ -681,6 +727,16 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
         let kk9 = sc9.killKind.get(e9.raw);
         if (!kk9) { kk9 = new Map(); sc9.killKind.set(e9.raw, kk9); }
         kk9.set(e9.by, (kk9.get(e9.by) ?? 0) + e9.w);
+        if (e9.dealt) {
+          let kn9 = sc9.killN.get(e9.raw);
+          if (!kn9) { kn9 = new Map(); sc9.killN.set(e9.raw, kn9); }
+          kn9.set(e9.by, (kn9.get(e9.by) ?? 0) + 1);
+        }
+      }
+      if (e9.dealt && e9.ktag !== undefined && e9.vx !== undefined && e9.vy !== undefined) {
+        let kr9 = sc9.kills.get(e9.raw);
+        if (!kr9) { kr9 = []; sc9.kills.set(e9.raw, kr9); }
+        kr9.push([e9.sec, e9.ktag, e9.vx, e9.vy]);
       }
       if (e9.x !== undefined && e9.y !== undefined && e9.vs) sc9.locs.push([e9.raw, e9.x, e9.y, e9.dealt ?? e9.w / LOSS_K9]);
       /* 꼬리표는 그 장면에서 **가장 무거운 사건**의 것이다 — 핵 한 발이 든 교전은 '핵'이다. */
@@ -939,12 +995,82 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       if (n9 >= OVL_HUNT_N9 && (k9 === pick9 || v9 === pick9)) return [{ raw: k9, p: "ga" }, { text: " " }, { raw: v9 }, { text: " 오버로드 사냥" }];
     }
     const base9 = sceneCaps0_9(sc9, pick9, d9);
-    /* 그 장면 무렵(앞 60초 ~ 끝)에 주인공의 전술(옆탱·언덕탱·입구 막기)이 있었으면 꼬리에 붙인다. */
+    /* 꼬리 — 마법 활약 · 캐리어 기동 공격 · 지형 활용 · 그 무렵(앞 60초 ~ 끝)의 전술(옆탱·언덕탱·입구 막기·조이기). 둘까지. */
+    const notes9: string[] = [];
+    const sp9 = sc9.why === "마법" && sc9.top?.raw === pick9 ? null : spellNote9(sc9, pick9, d9?.role);   // 마법이 장면 머리면 위 글귀가 이미 그것이다
+    if (sp9) notes9.push(sp9);
     if (d9) {
+      const cr9 = carrierNote9(sc9, pick9, d9.role);
+      if (cr9) notes9.push(cr9);
+      const hl9 = hillNote9(sc9, pick9);
+      if (hl9) notes9.push(hl9);
       const tc9 = tacticsOf9(pick9).find((x9) => x9.short && x9.at >= sc9.t0 - 60 && x9.at <= sc9.t1);
-      if (tc9 && !base9.some((c9) => c9.text?.includes(tc9.short!))) return [...base9, { text: ` · ${tc9.short}` }];
+      if (tc9) notes9.push(tc9.short!);
     }
-    return base9;
+    const txt9 = base9.map((c9) => c9.text ?? "").join("");
+    const add9 = notes9.filter((n9, i9) => notes9.indexOf(n9) === i9 && !txt9.includes(n9)).slice(0, 2);
+    return add9.length > 0 ? [...base9, { text: ` · ${add9.join(" · ")}` }] : base9;
+  };
+  /** 마법 활약 — 그 장면(앞 8초 ~ 끝 2초)에 주인공이 쓴 마법 가운데 가장 앞(SPELL_NOTE9) 것. 스톰·이레디에이트 등은 잡은 수 · 마인드컨트롤은 빼앗은 몸 ·
+   *  다크스웜은 럴커·저글링과 함께면 "다크스웜+럴커 돌파/방어". */
+  const spellNote9 = (sc9: Sc9, pick9: string, role9: string | undefined): string | null => {
+    const own9 = ownersOf9(pick9);
+    const used9 = new Map<string, number>();
+    const at9 = new Map<string, [number, number]>();
+    for (const [cs9, cx9, cy9, tech9, co9] of world.casts) {
+      if (!own9.has(co9) || cs9 < sc9.t0 - 8 || cs9 > sc9.t1 + 2 || !SPELL_NOTE9.includes(tech9)) continue;
+      used9.set(tech9, (used9.get(tech9) ?? 0) + 1);
+      if (!at9.has(tech9)) at9.set(tech9, [cx9, cy9]);
+    }
+    const tech9 = SPELL_NOTE9.find((t9) => used9.has(t9));
+    if (!tech9) return null;
+    const ko9 = researchKo(tech9);
+    if (tech9 === "Dark Swarm") {
+      const kk9 = sc9.killN.get(pick9);
+      const with9 = (kk9?.get("Lurker") ?? 0) > 0 ? "럴커" : (kk9?.get("Zergling") ?? 0) > 0 ? "저글링" : "";
+      /* 돌파/방어는 스웜을 친 자리로 — 적 기지 안이면 돌파 · 제 기지 안이면 방어 · 그 밖은 맞대결의 몫. */
+      const [sx9, sy9] = at9.get(tech9)!;
+      const sec9 = sc9.t0;
+      const inOwn9 = hallsOfOwner9(own9, sec9).some(([hx9, hy9]) => Math.hypot(hx9 - sx9, hy9 - sy9) <= BASE_R9);
+      const inFoe9 = foeOwners9(pick9).some((o9) => hallsOfOwner9(new Set([o9]), sec9).some(([hx9, hy9]) => Math.hypot(hx9 - sx9, hy9 - sy9) <= BASE_R9));
+      const how9 = inFoe9 ? "돌파" : inOwn9 ? "방어" : role9 === "def" ? "방어" : role9 === "atk" ? "돌파" : "교전";
+      if (with9) return `다크스웜+${with9} ${how9}`;
+      return ko9;
+    }
+    if (tech9 === "Mind Control") {
+      const got9 = world.lives.find((e9) => e9.handoff && own9.has(e9.owner) && e9.born >= sc9.t0 - 8 && e9.born <= sc9.t1 + 2);
+      return got9 ? `마인드컨트롤로 ${UNIT_KO[got9.kind] ?? got9.kind} 빼앗음` : ko9;
+    }
+    const by9 = SPELL_KILLER9[tech9];
+    const n9 = by9 ? sc9.killN.get(pick9)?.get(by9) ?? 0 : 0;
+    return n9 >= 2 ? `${ko9}${koRo9(ko9)} ${n9}기 잡음` : ko9;
+  };
+  /** 캐리어 기동 공격 — 공격 장면에서 주인공이 잡은 몸값의 절반 넘게를 캐리어·인터셉터가 냈을 때. */
+  const carrierNote9 = (sc9: Sc9, pick9: string, role9: string): string | null => {
+    if (role9 !== "atk") return null;
+    const kk9 = sc9.killKind.get(pick9);
+    if (!kk9) return null;
+    let all9 = 0; let cv9 = 0;
+    for (const [k9, w9] of kk9) { all9 += w9; if (k9 === "Carrier" || k9 === "Interceptor") cv9 += w9; }
+    return all9 > 0 && cv9 / all9 > 0.5 ? "캐리어 기동 공격" : null;
+  };
+  /** 지형 활용 — 주인공이 잡은 몸 셋 이상에서, 죽인 몸(처치 절의 태그 · 그때 명령 자리)이 죽은 몸보다 평균 한 단 넘게 높고 준 몸값이 받은 것의 1.5배 넘을 때. 지형이 있어야. */
+  const hillNote9 = (sc9: Sc9, pick9: string): string | null => {
+    const tr9 = opts.terrain;
+    const kr9 = sc9.kills.get(pick9);
+    if (!tr9 || !kr9 || kr9.length < 3) return null;
+    let up9 = 0; let n9 = 0;
+    for (const [ks9, kt9, vx9, vy9] of kr9) {
+      const life9 = livesByTag9.get(kt9)?.find((e9) => e9.born <= ks9 && (e9.died === null || e9.died >= ks9));
+      if (!life9 || life9.bld) continue;
+      const [kx9, ky9] = posAt9(life9, ks9);
+      up9 += tr9.level(Math.floor(kx9), Math.floor(ky9)) - tr9.level(Math.floor(vx9), Math.floor(vy9));
+      n9 += 1;
+    }
+    if (n9 < 3 || up9 / n9 < 1) return null;
+    let dealt9 = 0; let got9 = 0;
+    for (const [key9, w9] of sc9.pair) { const [a9, b9] = key9.split(">"); if (a9 === pick9) dealt9 += w9; if (b9 === pick9) got9 += w9; }
+    return dealt9 >= got9 * 1.5 ? "언덕 지형 활용" : null;
   };
   const sceneCaps0_9 = (sc9: Sc9, pick9: string, d9: Duel9 | undefined): CapPart9[] => {
     /* ★ 자막은 **주인공(pick9)의 일만** 말한다(2026-10-09, 요청: "자막엔 주인공 관련 사건 위주로 그 외엔 굳이 넣지 않기") — 장면의 가장 무거운 사건(top)이나 건물을
@@ -952,7 +1078,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     const top9 = sc9.top && (sc9.top.raw === pick9 || sc9.top.vs === pick9) ? sc9.top : undefined;
     const why9 = top9 ? sc9.why : "";
     if (top9 && why9 === "핵") return [{ raw: top9.raw }, { text: " 핵 투하" }];
-    if (top9 && why9 === "마법") return [{ raw: top9.raw }, { text: ` ${top9.tech ? researchKo(top9.tech) : "마법"}` }];
+    if (top9 && why9 === "마법") return [{ raw: top9.raw }, { text: ` ${(top9.raw === pick9 ? spellNote9(sc9, pick9, undefined) : null) ?? (top9.tech ? researchKo(top9.tech) : "마법")}` }];
     if (top9 && why9 === "자폭") return [{ raw: top9.raw }, { text: " 자폭" }];
     if (top9 && (why9 === "일꾼 잡음" || why9 === "일꾼 잃음")) {
       const k9 = why9 === "일꾼 잡음" ? top9.raw : top9.vs;
@@ -1328,6 +1454,27 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
         if (own9.has(e9.owner)) mine9 += 1; else if (foes9.has(e9.owner)) theirs9 += 1;
       }
       if (mine9 >= CENTER_HOLD9.n && mine9 >= theirs9 * CENTER_HOLD9.k) return "센터 장악";
+    }
+    /* 병력 구성 — 그 순간 살아 있는 제 병력(일꾼·오버로드 등 뺌)으로 가른다. */
+    {
+      let all9 = 0; let bio9 = 0; let mech9 = 0; let goon9 = 0; let ultra9 = 0; let ling9 = 0;
+      for (const e9 of world.lives) {
+        if (!own9.has(e9.owner) || e9.bld || e9.born > sec9 || (e9.died !== null && e9.died <= sec9)) continue;
+        if (WORKER9.has(e9.kind) || NON_ARMY9.has(e9.kind) || castValue9(e9.kind) <= 0) continue;
+        all9 += 1;
+        if (BIO9.has(e9.kind)) bio9 += 1;
+        if (MECH9.has(e9.kind)) mech9 += 1;
+        if (e9.kind === "Dragoon") goon9 += 1;
+        if (e9.kind === "Ultralisk") ultra9 += 1;
+        if (e9.kind === "Zergling") ling9 += 1;
+      }
+      const adrenal9 = world.ups.some(([us9, n9, uo9]) => own9.has(uo9) && us9 <= sec9 && /^Adrenal Glands/.test(n9));
+      if (adrenal9 && ultra9 >= COMP9.ultra && ling9 >= COMP9.ling) return "목동저그(아드레날린 저글링 + 울트라)";
+      if (all9 >= COMP9.n) {
+        if (goon9 >= COMP9.n && goon9 >= all9 * COMP9.k) return "파워 드라군";
+        if (bio9 >= all9 * COMP9.k) return "바이오닉 운영";
+        if (mech9 >= all9 * COMP9.k) return "메카닉 운영";
+      }
     }
     if (sec9 - lastTech9 <= PHASE9.tech) return "순조로운 테크/발전 중";
     if (bases9 >= 3) return `${bases9}기지 운영 중`;
