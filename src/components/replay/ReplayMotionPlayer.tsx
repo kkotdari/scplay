@@ -8955,6 +8955,12 @@ export default function ReplayMotionPlayer({
   const eyeSnapsRef9 = useRef<{ t: number; fseq: number; vis: Float32Array }[]>([]);
   /** 안개 갈래 — 시야 주인·전체시야·안개 켬(fogKey)이 바뀔 때마다 오르고 시야 명령에 실린다. */
   const fogSeqRef9 = useRef({ key: "", seq: 0, seen: 0, firstT: -1 });
+  /** ★ 안개 갈래(fseq) → 그 갈래의 시야 열쇠(팀|전체|켬)(2026-10-10, 지적: "초반 소강상태 순서대로 보여주는데 A팀원의 화면인데 B팀원의 오버로드가 이동하는
+   *  경로에 따라 반투명하게 안개가 걷힌 경로가 보였어") — 제 판이 없는 장이 빌려 오는 안개(fogSnapFor9 · 마지막 장)는 **같은 열쇠의 갈래**에서만 빌린다.
+   *  옛 판은 '옛 갈래라도 빈 안개보다 낫다'며 딴 팀 갈래의 밝힌 판을 붙였고, 눈(fogPairFor9)은 제 갈래 것이라 A 의 눈 + B 의 밝힌 판(오버로드 길이 반투명)이 섞였다.
+   *  밝힌 판은 팀마다 경기 전체의 '처음 본 초'라 같은 열쇠면 어느 시각의 판이든 맞다. */
+  const fogKeyOfSeq9 = useRef(new Map<number, string>());
+  const lastFrameFseq9 = useRef(-1);
   /** 본 가장 높은 세대(위 PackedFrame9.gen) — 붓은 이 세대의 장을 먼저 고른다. */
   const genSeenRef9 = useRef({ seen: 0 });
   /** 붓이 마지막으로 그린 앞 장의 시각 — 고르기는 이보다 뒤 시각의 장으로 **되돌아가지 않는다**(아래 pickWorkerFrame9).
@@ -14328,7 +14334,7 @@ export default function ReplayMotionPlayer({
       // 안개 갈래 — 안개 판의 내용을 정하는 셋(시야 주인·전체시야·안개 켬)이 바뀔 때만 오른다(팬·줌으로는 안 오른다).
       const fogKey9 = `${engView9.viewTeam}|${engView9.visAll ? 1 : 0}|${engView9.fogOn ? 1 : 0}`;
       const fq9 = fogSeqRef9.current;
-      if (fq9.key !== fogKey9) { fq9.key = fogKey9; fq9.seq += 1; }
+      if (fq9.key !== fogKey9) { fq9.key = fogKey9; fq9.seq += 1; fogKeyOfSeq9.current.set(fq9.seq, fogKey9); }
       w9.postMessage({ type: "view", view: sendView9, seq: wStatRef.current.sentView, fogSeq: fq9.seq, ...(liveGeom9 ? { live: true } : {}) });
     }
   }
@@ -14459,17 +14465,25 @@ export default function ReplayMotionPlayer({
   /** 설계도 풀기 — 그릴 장만 푼다(한 번 푼 것은 붙여 둔다). 안개는 장에 실렸으면 그것, 아니면 그 시각 이하 가장
    *  늦은 안개 판, 그것도 없으면 마지막 프레임의 것. */
   /** 이 장(제 안개 판이 없는 장)에 붙일 안개 판 — 그 시각 이하 가장 늦은 판. */
+  const sameFogView9 = (a9: number, b9: number): boolean => {
+    if (a9 === b9) return true;
+    const ka9 = fogKeyOfSeq9.current.get(a9);
+    return ka9 !== undefined && ka9 === fogKeyOfSeq9.current.get(b9);
+  };
   const fogSnapFor9 = (t9: number, fseq9: number): { explored: Uint16Array | null; visNow: Uint8Array | null; visSrc: Float32Array } | null => {
     const snaps9 = fogSnapsRef9.current;
     const cells9 = grid.width * grid.height;
     let any9: (typeof snaps9)[number]["fog"] | null = null;
+    let later9: (typeof snaps9)[number]["fog"] | null = null;
     for (let i9 = snaps9.length - 1; i9 >= 0; i9 -= 1) {
       const sf9 = snaps9[i9];
-      if (!(sf9.t <= t9 + 1e-6 && (!sf9.fog.explored || sf9.fog.explored.length === cells9))) continue;
+      if (sf9.fog.explored && sf9.fog.explored.length !== cells9) continue;
+      if (!sameFogView9(sf9.fseq, fseq9)) continue;   // 딴 시야(팀)의 판은 안 빌린다(위 fogKeyOfSeq9 의 ★)
+      if (sf9.t > t9 + 1e-6) { later9 = sf9.fog; continue; }
       if (sf9.fseq === fseq9) return sf9.fog;   // 같은 갈래의 가장 늦은 판
-      if (!any9) any9 = sf9.fog;                 // 같은 갈래가 아직 없으면 아무 판(옛 갈래)이라도 — 빈 안개보다 낫다
+      if (!any9) any9 = sf9.fog;                 // 같은 시야의 옛 갈래
     }
-    return any9;
+    return any9 ?? later9;                       // 같은 시야면 뒤 시각의 판이라도(밝힌 판은 경기 전체 것)
   };
   /** ★ **안개는 제 흐름이다 — 판끼리 잇는다**(4차 계측: 역행0/60 · 떨림 비1.2 · 전환17) ────
    *  빗장으로 되돌아감은 멎었는데 떨림이 '잘아진 채' 남았다(지적). 남은 것은 **걸음의 들쭉날쭉**
@@ -14540,6 +14554,7 @@ export default function ReplayMotionPlayer({
       let any9: { explored: Uint16Array | null; visNow: Uint8Array | null; visSrc: Float32Array } | null = null;
       for (let i9 = snaps9.length - 1; i9 >= 0; i9 -= 1) {
         const sf9 = snaps9[i9];
+        if (!sameFogView9(sf9.fseq, pf9.fseq)) continue;
         if (!sf9.fog.explored || sf9.fog.explored.length === cells9) { any9 = sf9.fog; break; }
       }
       /* ★ **차례를 뒤집는다**(지적: "가끔 안개가 뒤 시각의 안개로 왔다갔다 흔들린다") ─────────────────
@@ -14549,7 +14564,7 @@ export default function ReplayMotionPlayer({
          이어야 할 것은 **지금 화면에 있는 안개**다 — 마지막으로 그린 장의 것이면 튀는 일이 없고,
          제 판이 오는 순간 조용히 갈린다. 미래 판은 그릴 것이 아예 없는 **첫 로딩**의 몫으로만 남긴다
          (그 자리가 원래 any9를 둔 까닭이다 — '다 걷힘'으로 떨어지는 첫 깜빡임 막기). */
-      const lf9 = lastFrameRef9.current[1] ?? lastFrameRef9.current[0];
+      const lf9 = sameFogView9(lastFrameFseq9.current, pf9.fseq) ? lastFrameRef9.current[1] ?? lastFrameRef9.current[0] : null;
       const last9 = (lf9 && lf9.explored && lf9.explored.length === cells9
         ? { explored: lf9.explored, visNow: lf9.visNow, visSrc: lf9.visSrc } : null) ?? any9;
       fog9 = last9 ? { explored: last9.explored, visNow: last9.visNow, visSrc: last9.visSrc }
@@ -14861,6 +14876,7 @@ export default function ReplayMotionPlayer({
       const fr09 = wPacked9.t <= tNow9 ? lerpFrame9(wPacked9, tNow9, count9 ? 1 : 0) : decodeFrame9(wPacked9);
       const fr9 = count9 ? branchSwap9(wPacked9, fr09, tNow9) : fr09;
       lastFrameRef9.current[count9 ? 1 : 0] = fr9;
+      lastFrameFseq9.current = fogBranchRef9.current;
       return fr9;
     }
     if (count9) wStatRef.current.missed += 1;
