@@ -35,7 +35,7 @@
 import { BUILDING_KO, UNIT_KO } from "../../utils/replayNames";
 import { researchKo } from "../../utils/replayTechNames";
 import { costOf, sightTiles, unitOf } from "../../utils/bwUnits";
-import { tkN, tkT, tkV } from "../../utils/openbwTracks";
+import { SEL_KIND9, tkN, tkT, tkV } from "../../utils/openbwTracks";
 import type { TruthWorld } from "../../utils/truthLives";
 
 /** 한 토막 — 이 시각부터 다음 토막까지 이 사람을 보여준다. */
@@ -1588,30 +1588,135 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     if (army9 >= PHASE9.armyN) return "병력 모으는 중";
     return "순조로운 발전 중";
   };
+  /* ★★ **화면에 나오는 것을 말한다**(2026-10-10, 지적: "화면에서 보여주는 내용이 자막으로 나와야 함 · 업그레이드 보이지 않는데 업그레이드 내용이 나온다거나") ─────
+     순환 토막의 카메라는 그 사람이 **고르거나 명령한 무리**를 따른다(재생기 picksOf9 · trackAt). 옛 순환 자막은 그 창에 끝난 연구("메타볼릭 부스트 개발")나 창 밖의
+     최근 이정표를 말해, 화면에 없는 일이 자막에 섰다. 이제 그 창에서 **가장 오래 잡힌 무리**(재생기와 같은 자국: 명령 + 선택 · 0.25초 칸)를 말한다:
+       · 건물 — 짓는 중이면 "X 건설 중" · 그 곁에서 그 창에 난 유닛이 있으면 "X에서 Y 생산" · 그 건물에서 연구가 진행 중이면(완료가 RESEARCH_AHEAD9 초 안) "X에서 Z 연구 중"
+       · 일꾼 — 그 창의 건설 명령이면 "일꾼으로 X 건설" · 아니면 "일꾼 N기 이동"
+       · 병력 — 많은 종류 둘 "마린 12기·메딕 4기" + 그 창의 마지막 명령: 적 기지 안 → "[B] 기지로 공격 이동/이동" · 센터 → "센터로 …" · 그 밖 "공격 이동/이동" · 명령 없으면 "대기".
+     차례: 창 안의 빌드 이정표(착공 = 건설 명령 = 그때 화면) > 창 안의 건설 > 화면 무리 > 창 앞 이정표 > 국면 요약. 연구 **완료**는 안 쓴다(골라 둔 건물의 '연구 중'만). */
+  const RESEARCH_AHEAD9 = 200;
+  const picksMemo9 = new Map<string, [number, number[]][]>();
+  const picksOfRaw9 = (raw9: string): [number, number[]][] => {
+    const got9 = picksMemo9.get(raw9);
+    if (got9) return got9;
+    const own9 = ownersOf9(raw9);
+    const by9 = new Map<number, Set<number>>();
+    const put9 = (s9: number, tg9: number): void => {
+      const k9 = Math.round(s9 * 4) / 4;
+      const g9 = by9.get(k9);
+      if (g9) g9.add(tg9); else by9.set(k9, new Set([tg9]));
+    };
+    for (const e9 of world.lives) if (own9.has(e9.owner)) for (const o9 of e9.orders) put9(o9[0], e9.tag);
+    for (const [s9, o9, tg9, kd9] of world.sels ?? []) {
+      if (!own9.has(o9)) continue;
+      const k9 = kd9 < 0 ? -1 : kd9 & 15;
+      if (k9 === SEL_KIND9.assign || k9 === SEL_KIND9.groupAdd) continue;
+      for (const g9 of tg9) put9(s9, g9);
+    }
+    const out9 = [...by9.entries()].map(([sec9, tags9]): [number, number[]] => [sec9, [...tags9].sort((a9, b9) => a9 - b9)]).sort((a9, b9) => a9[0] - b9[0]);
+    picksMemo9.set(raw9, out9);
+    return out9;
+  };
+  const lifeAt9 = (tag9: number, sec9: number): (typeof world.lives)[number] | undefined =>
+    livesByTag9.get(tag9)?.find((e9) => e9.born <= sec9 && (e9.died === null || e9.died > sec9));
+  /** 약한 화면 글귀(명령 없는 무리 '대기' · 일꾼 이동) — 창 앞 이정표·눈에 띄는 국면(센터 장악·병력 구성)에 진다(cycleCaps9). */
+  const WEAK9 = new WeakSet<CapPart9[]>();
+  const weak9 = (c9: CapPart9[]): CapPart9[] => { WEAK9.add(c9); return c9; };
+  const screenCap9 = (raw9: string, t0: number, t1: number): CapPart9[] | null => {
+    const picks9 = picksOfRaw9(raw9);
+    if (picks9.length === 0) return null;
+    /* 창 안에서 무리마다 잡혀 있던 시간 — 창 머리 앞의 마지막 자국부터 센다. */
+    let i09 = 0;
+    for (let i9 = 0; i9 < picks9.length; i9 += 1) { if (picks9[i9][0] <= t0) i09 = i9; else break; }
+    const dur9 = new Map<string, { d: number; tags: number[]; at: number }>();
+    for (let i9 = i09; i9 < picks9.length && picks9[i9][0] < t1; i9 += 1) {
+      const a9 = Math.max(t0, picks9[i9][0]);
+      const b9 = Math.min(t1, i9 + 1 < picks9.length ? picks9[i9 + 1][0] : t1);
+      if (b9 <= a9) continue;
+      const key9 = picks9[i9][1].join(",");
+      const g9 = dur9.get(key9);
+      if (g9) g9.d += b9 - a9; else dur9.set(key9, { d: b9 - a9, tags: picks9[i9][1], at: (a9 + b9) / 2 });
+    }
+    let best9: { d: number; tags: number[]; at: number } | null = null;
+    for (const g9 of dur9.values()) if (!best9 || g9.d > best9.d) best9 = g9;
+    if (!best9) return null;
+    const at9 = best9.at;
+    const lives9 = best9.tags.map((tg9) => lifeAt9(tg9, at9)).filter((e9): e9 is NonNullable<typeof e9> => !!e9);
+    if (lives9.length === 0) return null;
+    const own9 = ownersOf9(raw9);
+    const blds9 = lives9.filter((e9) => e9.bld);
+    if (blds9.length > 0) {
+      const b9 = blds9[0];
+      const bk9 = BUILDING_KO[b9.kind] ?? b9.kind;
+      if (b9.doneAt > at9) return [{ raw: raw9 }, { text: ` ${bk9} 건설 중` }];
+      const made9 = new Map<string, number>();
+      for (const e9 of world.lives) {
+        if (e9.bld || !own9.has(e9.owner) || e9.born < t0 - 2 || e9.born >= t1 || WORKER9.has(e9.kind) && !HALL_ANY9.has(b9.kind)) continue;
+        if (NON_ARMY9.has(e9.kind) && e9.kind !== "Overlord") continue;
+        if (Math.hypot(e9.bornX - b9.bornX, e9.bornY - b9.bornY) > 6) continue;
+        made9.set(e9.kind, (made9.get(e9.kind) ?? 0) + 1);
+      }
+      let mk9 = ""; let mn9 = 0;
+      for (const [k9, n9] of made9) if (n9 > mn9) { mn9 = n9; mk9 = k9; }
+      if (mk9) return [{ raw: raw9 }, { text: ` ${bk9}에서 ${UNIT_KO[mk9] ?? mk9} 생산` }];
+      const up9 = world.ups.find(([us9, , uo9, ut9]) => ut9 === b9.tag && own9.has(uo9) && us9 > at9 && us9 <= at9 + RESEARCH_AHEAD9);
+      if (up9) {
+        const m9 = /^(.*?)(?: (\d+))?$/.exec(up9[1]);
+        return [{ raw: raw9 }, { text: ` ${bk9}에서 ${researchKo(m9?.[1] ?? up9[1])}${m9?.[2] ? ` ${m9[2]}단계` : ""} 연구 중` }];
+      }
+      return null;
+    }
+    const wk9 = lives9.filter((e9) => WORKER9.has(e9.kind));
+    const army9 = lives9.filter((e9) => !WORKER9.has(e9.kind) && !NON_ARMY9.has(e9.kind));
+    if (wk9.length > 0 && army9.length === 0) {
+      const tags9 = new Set(wk9.map((e9) => e9.tag));
+      const bd9 = (world.builds ?? []).find(([bs9, , btg9]) => tags9.has(btg9) && bs9 >= t0 - 2 && bs9 < t1);
+      const wn9 = UNIT_KO[wk9[0].kind] ?? wk9[0].kind;
+      if (bd9) { const bk9 = BUILDING_KO[bd9[5]] ?? bd9[5]; return [{ raw: raw9 }, { text: ` ${wn9}${koRo9(wn9)} ${bk9} 건설` }]; }
+      return weak9([{ raw: raw9 }, { text: ` 일꾼 ${wk9.length}기 이동` }]);
+    }
+    if (army9.length === 0) return null;
+    const cnt9 = new Map<string, number>();
+    for (const e9 of army9) { const k9 = UNIT_KO[e9.kind] ?? e9.kind; cnt9.set(k9, (cnt9.get(k9) ?? 0) + 1); }
+    const what9 = [...cnt9.entries()].sort((a9, b9) => b9[1] - a9[1]).slice(0, 2).map(([k9, n9]) => `${k9} ${n9}기`).join("·");
+    /* 그 창의 마지막 명령 — 무리의 몸 가운데 가장 늦은 것. */
+    let ord9: [number, number, number, boolean] | null = null;
+    for (const e9 of army9) for (const o9 of e9.orders) if (o9[0] >= t0 - 2 && o9[0] < t1 && (!ord9 || o9[0] > ord9[0])) ord9 = o9;
+    if (!ord9) return weak9([{ raw: raw9 }, { text: ` ${what9} 대기` }]);
+    const verb9 = ord9[3] ? "공격 이동" : "이동";
+    for (const fo9 of foeOwners9(raw9)) {
+      const fr9 = rawOf9.get(fo9);
+      if (fr9 && hallsOfOwner9(new Set([fo9]), ord9[0]).some(([hx9, hy9]) => Math.hypot(hx9 - ord9![1], hy9 - ord9![2]) <= BASE_R9)) {
+        return [{ raw: raw9 }, { text: ` ${what9} ` }, { raw: fr9 }, { text: ` 기지로 ${verb9}` }];
+      }
+    }
+    if (inCenter9(ord9[1], ord9[2], CENTER_K9.hold)) return [{ raw: raw9 }, { text: ` ${what9} 센터로 ${verb9}` }];
+    return [{ raw: raw9 }, { text: ` ${what9} ${verb9}` }];
+  };
   const cycleCaps9 = (raw9: string, t0: number, t1: number): CapPart9[] => {
     const own9 = ownersOf9(raw9);
     const lo9 = t0 - 2;
     const hi9 = Math.max(t0 + 1, t1);
-    for (const [sec9, name9, o9] of world.ups) {
-      if (!own9.has(o9) || sec9 < lo9 || sec9 >= hi9) continue;
-      const m9 = /^(.*?)(?: (\d+))?$/.exec(name9);
-      const base9 = m9?.[1] ?? name9;
-      const lv9 = m9?.[2];
-      return [{ raw: raw9 }, { text: ` ${researchKo(base9)}${lv9 ? ` ${lv9}단계` : ""} 개발` }];
-    }
     const miles9 = buildMiles9(raw9);
     const inWin9 = miles9.find((m9) => m9.at >= lo9 && m9.at < hi9);
     if (inWin9) return inWin9.caps;
-    let recent9: Mile9 | undefined;
-    for (const m9 of miles9) if (m9.at < lo9 && m9.at >= lo9 - MILE_RECENT9) recent9 = m9;
-    if (recent9) return recent9.caps;
     let bld9: string | null = null;
     for (const e9 of world.lives) {
       if (!e9.bld || !own9.has(e9.owner) || e9.born < lo9 || e9.born >= hi9 || e9.end === "morph") continue;
       if (!bld9 && !PLAIN_BLD9.has(e9.kind) && !HALL9.has(e9.kind) && !TECH_MILE9[e9.kind]) bld9 = e9.kind;
     }
     if (bld9) return [{ raw: raw9 }, { text: ` ${BUILDING_KO[bld9] ?? bld9} 건설` }];
-    return [{ raw: raw9 }, { text: ` ${phaseCap9(raw9, hi9)}` }];
+    const scr9 = screenCap9(raw9, t0, hi9);
+    if (scr9 && !WEAK9.has(scr9)) return scr9;
+    /* 화면 무리가 약하거나(대기 · 일꾼 이동) 못 읽으면 창 앞 MILE_RECENT9 초 안의 마지막 이정표(빌드 읽기 · 전술 — 그 사람의 빌드·자리를 말할 뿐 '지금 일어나는
+       일'이라 하지 않는다) > 눈에 띄는 국면(센터 장악 · 병력 구성) > 약한 화면 글귀 > 국면 요약. */
+    let recent9: Mile9 | undefined;
+    for (const m9 of miles9) if (m9.at < lo9 && m9.at >= lo9 - MILE_RECENT9) recent9 = m9;
+    if (recent9) return recent9.caps;
+    const ph9 = phaseCap9(raw9, hi9);
+    if (scr9 && /^순조로운|기지 운영 중$|^병력 모으는 중$/.test(ph9)) return scr9;
+    return [{ raw: raw9 }, { text: ` ${ph9}` }];
   };
 
   let cur9 = 0;

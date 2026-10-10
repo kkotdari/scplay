@@ -586,3 +586,32 @@ rmSync(tmp, { recursive: true, force: true });
     ["이어진 두 사건(딴 자리)은 자막이 그 때마다 갈린다", s800.length >= 2 && /\[C\]ga \[A\] 기지 공격/.test(capTxt(s800[0])) && !/\[C\]ga \[A\] 기지 공격/.test(capTxt(s800[s800.length - 1]))],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }
+
+/* ── ⑳ 화면 글귀(2026-10-10, 지적: "화면에서 보여주는 내용이 자막으로 나와야 함 · 업그레이드 보이지 않는데 업그레이드 내용이 나온다거나") — 1v1 A(테란 20,20) · B(저그 100,100).
+   순환 자막은 그 창에서 A 가 가장 오래 고른 무리를 말한다: ① 190~230초 아카데미 골라 둠(300초에 U-238 완료) → "아카데미에서 … 연구 중" ·
+   ② 400~440초 배럭 골라 둠 · 곁에서 마린이 난다 → "배럭에서 마린 생산" ③ 500~540초 마린 여섯 B 본진으로 공격 이동 → "[A] 마린 6기 [B] 기지로 공격 이동" ·
+   ④ 연구 완료(300초)는 순환 자막에 "개발"로 안 선다. */
+{
+  let st = 50000;
+  const L = []; const sels = [];
+  const mk = (o, kind, bld, x, y, born, ex = {}) => { const e = { tag: (st += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [], ...ex }; L.push(e); return e; };
+  mk(0, "Command Center", true, 20, 20, 0); mk(1, "Hatchery", true, 100, 100, 0);
+  const ac = mk(0, "Academy", true, 26, 20, 100); const rx = mk(0, "Barracks", true, 20, 28, 100);
+  for (const t of [190, 200, 210, 220]) sels.push([t, 0, [ac.tag], 0]);
+  for (const t of [400, 410, 420, 430]) sels.push([t, 0, [rx.tag], 0]);
+  for (let t = 401; t < 440; t += 3) mk(0, "Marine", false, 21, 30, t);
+  const ms = [0, 1, 2, 3, 4, 5].map(() => mk(0, "Marine", false, 20, 30, 300, { orders: [500, 510, 520, 530].map((t) => [t, 98, 98, true]) }));
+  sels.push([440, 0, [ms[0].tag], 0]);
+  const w = { players: [["A", "테란", 1], ["B", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
+    lives: L, ups: [[300, "U-238 Shells", 0, ac.tag]], casts: [], pings: [], resFields: [], kills: [], sels, builds: [] };
+  const plan = castPlan9(w, { total: 700, order: ["A", "B"], teamOf: { A: 1, B: 2 } });
+  const capsIn = (t0, t1) => plan.filter((s) => s.raw === "A" && s.at >= t0 && s.at < t1).map((s) => capTxt(s));
+  console.log(`\n화면 글귀: ${[...new Set(plan.filter((s) => s.raw === "A").map((s) => capTxt(s)))].join(" · ")}`);
+  for (const [name, pass] of [
+    ["골라 둔 건물의 연구 → '… 연구 중'", capsIn(188, 230).some((c) => /^\[A\] 아카데미에서 .+ 연구 중$/.test(c))],
+    ["골라 둔 배럭 곁에서 난 마린 → '배럭에서 마린 생산'", capsIn(398, 440).some((c) => c === "[A] 배럭에서 마린 생산")],
+    ["적 본진으로 공격 이동 → '[A] 마린 6기 [B] 기지로 공격 이동'", capsIn(498, 540).some((c) => c === "[A] 마린 6기 [B] 기지로 공격 이동")],
+    ["연구 완료는 순환 자막에 '개발'로 안 선다", !plan.some((s) => /개발/.test(capTxt(s)))],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
