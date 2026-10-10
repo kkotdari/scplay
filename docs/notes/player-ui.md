@@ -1467,3 +1467,5 @@ AUTO 글자 합성) · 현재 화면에 보여주는 화면 주인(들)은 기�
 - 건물: 링 자(cy9·rx9·ryK9)를 if 밖으로 올려 `bRingBot9` → `bldHpBar9(max(옛 자리, bRingBot9 + 1))`(공사 중 mkFrac 은 링이 없어 옛 자리).
 - 링이 없을 때(맞은 지 잠깐)도 같은 자리 — 고를 때 바가 뛰지 않는다. 작은 몸은 옛 자리가 이겨 그대로다.
 - 헤드리스 perf-check 화면에 몸이 안 그려져 눈 확인은 못 했다(tsc·빌드만).
+- (같은 날 덧) 요청: "자막이랑 주인이름도 로딩 다 끝나면 같이 나오게" — `.scr-fs-solo`(주인 이름 칩 + 자막)·`.scr-split`(칸 머리)에 같은 깃발
+  `!introReady9 && "is-warming"` · CSS 는 opacity 0 + **visibility hidden**(자막 떠오름 애니메이션이 opacity 를 덮어 한 번 비칠 수 있다) · 0.28s 로 지도와 함께 켠다.

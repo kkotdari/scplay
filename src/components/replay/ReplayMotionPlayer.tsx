@@ -19196,7 +19196,8 @@ export default function ReplayMotionPlayer({
               단추(N)는 이것을 여닫는다. 현황(스탯) 상자는 없다(요청 3 — 값은 독 로스터가 든다). 분할은 칸이 제 것을 든다. */}
           {!splitOn9 && (
             <div
-              className="scr-fs-solo"
+              /* 지도와 함께 켠다(2026-10-10, 요청: "자막이랑 주인이름도 로딩 다 끝나면 같이 나오게") — 위 introReady9 · .scr-motion-map.is-warming 과 같은 깃발. */
+              className={cx("scr-fs-solo", !introReady9 && "is-warming")}
             >
               {camRaw9 !== null && (
                 <span className="scr-split-cap scr-fs-solo-cap">
@@ -19222,7 +19223,7 @@ export default function ReplayMotionPlayer({
             /* 분할보기 격자(위 splitOn9 · splitPaint9) — 무대를 통째로 덮는다. 칸을 누르면 독이 그 사람의 것을 든다.
                손짓은 여기서 끊는다(무대의 끌기·집기가 덮인 지도에 안 걸리게). */
             <div
-              className={cx("scr-split", `is-n${splitLay9.cells.length}`)}
+              className={cx("scr-split", `is-n${splitLay9.cells.length}`, !introReady9 && "is-warming")}
               style={{ paddingBottom: splitTbH9, gridTemplateColumns: `repeat(${splitLay9.cols}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${splitLay9.rows}, minmax(0, 1fr))` }}
               onPointerDown={(e) => e.stopPropagation()}
               onWheel={(e) => e.stopPropagation()}

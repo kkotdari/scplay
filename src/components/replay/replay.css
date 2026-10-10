@@ -878,6 +878,10 @@
 .scr-motion-map.is-warming > .scr-motion-fog { opacity: 0; }
 /* 그동안 바탕은 까맣다(2026-10-10, 요청: "처음 로딩시 미니맵과 화면 까맣게") — 미니맵(.scr-fs-minimap.is-warming)도 같다. */
 .scr-motion-map.is-warming { background: #000; }
+/* 화면 주인 이름·자막·분할 칸 머리도 지도와 함께 켠다(2026-10-10, 요청: "자막이랑 주인이름도 로딩 다 끝나면 같이 나오게"). */
+.scr-fs-solo > *, .scr-split .scr-split-cap { transition: opacity 0.28s ease, visibility 0.28s; }
+/* visibility 도 건다 — 자막의 떠오름 애니메이션(scr-cast-cap-in)이 opacity 를 덮어 감춘 동안 한 번 비칠 수 있다. */
+.scr-fs-solo.is-warming > *, .scr-split.is-warming .scr-split-cap { opacity: 0; visibility: hidden; }
 /* 굽는 중에는 **유닛 층만** 감춘다(지적: 굽는 동안 지도와 안개까지 까맣게 지워졌다) —
    지형은 이미 그려져 있고 안개도 이미 셈해져 있다. 그때 아직 없는 것은 몸뿐이다. */
 .scr-motion-map.is-baking > .scr-motion-unitlayer { opacity: 0; }
