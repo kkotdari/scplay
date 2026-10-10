@@ -173,6 +173,7 @@ const dw9 = (() => {
   for (const t of [700, 704, 708]) { const p = dmk(0, "Probe", false, 12, 12, 0, t, "atk", [[t - 2, 12, 12, false]]); kills.push([t, 2, rv.tag, p.tag]); }
   // ④ 폭탄드랍 — F 의 셔틀이 P 본진으로(845초 명령) · F 의 질럿 둘이 P 의 프로브 둘·드라군 하나를 잡는다
   dmk(2, "Shuttle", false, 100, 100, 700, null, "", [[845, 12, 12, false]]);
+  dmk(2, "Shuttle", false, 100, 100, 700, null, "", [[846, 13, 12, false]]);   // 폭탄드랍은 수송선 둘 이상(2026-10-10)
   const vict = [dmk(0, "Probe", false, 12, 12, 0, 850, "atk", [[848, 12, 12, false]]), dmk(0, "Probe", false, 12, 12, 0, 851, "atk", [[848, 12, 12, false]]),
     dmk(0, "Dragoon", false, 10, 10, 800, 852, "atk", [[848, 12, 12, false]])];
   for (const v of vict) dmk(2, "Zealot", false, 100, 100, 700, null, "", [], [849, v.tag, 852.5, v.tag, 853, 0]);
@@ -392,4 +393,73 @@ rmSync(tmp, { recursive: true, force: true });
     ["센터에 모인 병력 → 센터 장악", has(/\[P\] 센터 장악/)],
     ["커세어가 오버로드 넷 → 오버로드 사냥", has(/\[P\]ga \[Z\] 오버로드 사냥/)],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
+
+/* ── ⑭ 드랍십 한 대는 폭탄드랍이 아니다(2026-10-10, 요청: "폭탄드랍은 수가 많아야 함 · 그 외에는 주로 일꾼 견제") —
+   T(0) 드랍십 하나가 400초에 Z 본진(100,100)으로 · T 마린이 Z 드론 셋을 잡는다 → "마린으로 … 일꾼 견제". */
+{
+  let st = 21000;
+  const sl = [];
+  const kills = [];
+  const smk = (o, kind, bld, x, y, born, extra = {}) => { const e = { tag: (st += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [], ...extra }; sl.push(e); return e; };
+  smk(0, "Command Center", true, 20, 20, 0); smk(1, "Hatchery", true, 100, 100, 0);
+  smk(0, "Dropship", false, 20, 20, 300, { orders: [[398, 100, 100, false]] });
+  const mr = smk(0, "Marine", false, 20, 20, 300);
+  for (const t of [402, 404, 406]) { const v = smk(1, "Drone", false, 100, 100, 0, { died: t, end: "atk", orders: [[t - 2, 101, 101, false]] }); kills.push([t, 0, mr.tag, v.tag]); }
+  const sw = { players: [["T", "테란", 1], ["Z", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })), lives: sl, ups: [], casts: [], pings: [], resFields: [], kills };
+  const splan = castPlan9(sw, { total: 900, order: ["T", "Z"], teamOf: { T: 1, Z: 2 } });
+  const caps = splan.map((s) => capTxt(s));
+  console.log(`\n드랍 한 대: ${[...new Set(caps)].filter((c) => !/순조로운/.test(c)).join(" · ")}`);
+  for (const [name, pass] of [
+    ["수송선 하나는 폭탄드랍이 아니다", !caps.some((c) => /폭탄드랍/.test(c))],
+    ["그 드랍의 일꾼 킬은 '일꾼 견제'", caps.some((c) => /\[T\]ga 마린으로 \[Z\] 일꾼 견제/.test(c))],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
+
+/* ── ⑮ 죽기 직전 명령이 없는 정찰 일꾼(2026-10-10, 재지적: "아직도 정찰 온 일꾼 잡은 게 일꾼 견제로 나와") — Z 드론 셋이 120초에 T 본진으로 정찰 명령을 받고
+   180~184초(명령 뒤 60초 · LOC_W9 25 밖)에 T 마린에 잡힌다 → "정찰 일꾼 잡음"이지 견제가 아니다. 명령 없는 Z 드론(랠리로 캔다)이 제 본진에서 잡히면 견제다. */
+{
+  let ut = 23000;
+  const ul = [];
+  const kills = [];
+  const umk = (o, kind, bld, x, y, born, extra = {}) => { const e = { tag: (ut += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [], ...extra }; ul.push(e); return e; };
+  umk(0, "Command Center", true, 20, 20, 0); umk(1, "Hatchery", true, 100, 100, 0);
+  const mr = umk(0, "Marine", false, 20, 20, 100);
+  for (const t of [180, 182, 184, 186, 188, 190]) { const v = umk(1, "Drone", false, 100, 100, 0, { died: t, end: "atk", orders: [[120, 22, 22, false]] }); kills.push([t, 0, mr.tag, v.tag]); }
+  const vu = umk(0, "Vulture", false, 20, 20, 400);
+  for (const t of [500, 502, 504]) { const v = umk(1, "Drone", false, 100, 100, 0, { died: t, end: "atk" }); kills.push([t, 0, vu.tag, v.tag]); }
+  const uw = { players: [["T", "테란", 1], ["Z", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })), lives: ul, ups: [], casts: [], pings: [], resFields: [], kills };
+  const caps = castPlan9(uw, { total: 900, order: ["T", "Z"], teamOf: { T: 1, Z: 2 } }).map((s) => capTxt(s));
+  console.log(`\n늦게 잡힌 정찰 일꾼: ${[...new Set(caps)].filter((c) => !/순조로운/.test(c)).join(" · ")}`);
+  for (const [name, pass] of [
+    ["정찰 명령 60초 뒤 제 기지에서 잡힌 드론은 '정찰 일꾼 잡음'", caps.some((c) => /\[T\]ga \[Z\] 정찰 일꾼 잡음/.test(c))],
+    ["…그리고 견제가 아니다(벌처 견제 장면만 견제)", caps.filter((c) => /일꾼 견제/.test(c)).every((c) => /벌처/.test(c))],
+    ["명령 없이 본진에서 캐던 드론을 벌처가 잡으면 '벌처로 … 일꾼 견제'", caps.some((c) => /\[T\]ga 벌처로 \[Z\] 일꾼 견제/.test(c))],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
+
+/* ── ⑯ 띄워 옮긴 배럭 · 적이 본 배럭(2026-10-10, 요청: "테란은 건물을 지어서 적 기지로 옮길 수 있어 그런 경우도 몰래/전진" · "몰래의 특징은 적 시야에 안 보여야")
+   T(20,20) · Z(100,100). ① 100초 T 배럭을 제 본진(26,26)에 짓고 200초에 Z 기지 구석(112,112)에 내린다(Z 해처리 시야 밖) → "몰래 배럭"
+   ② 300초 T 배럭을 Z 기지 안(90,96)에 짓는데 Z 드론이 310초에 그 곁(91,97)으로 명령받는다(봤다) → "전진 배럭". */
+{
+  let vt = 25000;
+  const vl = [];
+  const vmk = (o, kind, bld, x, y, born, extra = {}) => { const e = { tag: (vt += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [], ...extra }; vl.push(e); return e; };
+  vmk(0, "Command Center", true, 20, 20, 0); vmk(1, "Hatchery", true, 100, 100, 0);
+  vmk(0, "Barracks", true, 26, 26, 100, { doneAt: 150, lifts: [180], sites: [[100, 25, 25], [200, 111, 111]] });
+  vmk(0, "Barracks", true, 90, 96, 300, { doneAt: 360 });
+  vmk(1, "Drone", false, 100, 100, 0, { orders: [[310, 91, 97, false]] });
+  const vw = { players: [["T", "테란", 1], ["Z", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })), lives: vl, ups: [], casts: [], pings: [], resFields: [] };
+  const plan = castPlan9(vw, { total: 900, order: ["T", "Z"], teamOf: { T: 1, Z: 2 } });
+  const caps = plan.map((s) => `${Math.round(s.at)}s ${capTxt(s)}`);
+  console.log(`\n띄운 배럭·본 배럭: ${[...new Set(plan.map((s) => capTxt(s)))].filter((c) => !/순조로운/.test(c)).join(" · ")}`);
+  const capAt = (t) => plan.filter((s) => s.raw === "T" && s.at >= t && s.at < t + 30).map((s) => capTxt(s));
+  for (const [name, pass] of [
+    ["지어서 적 기지 구석에 내린 배럭은 '몰래 배럭'(그때)", capAt(200).some((c) => /\[T\] 몰래 배럭/.test(c))],
+    ["적 일꾼이 곁으로 온 배럭은 '전진 배럭'", capAt(300).some((c) => /\[T\] 전진 배럭/.test(c))],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+  void caps;
 }

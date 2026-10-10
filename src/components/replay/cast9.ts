@@ -34,7 +34,7 @@
  */
 import { BUILDING_KO, UNIT_KO } from "../../utils/replayNames";
 import { researchKo } from "../../utils/replayTechNames";
-import { costOf, unitOf } from "../../utils/bwUnits";
+import { costOf, sightTiles, unitOf } from "../../utils/bwUnits";
 import { tkN, tkT, tkV } from "../../utils/openbwTracks";
 import type { TruthWorld } from "../../utils/truthLives";
 
@@ -327,6 +327,11 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     }
     return sec9 - e9.born <= LOC_W9 ? { x: e9.bornX, y: e9.bornY } : null;
   };
+  /** 그 앞 아무 때의 마지막 명령 자리 — 일꾼의 죽은 자리 되짚기(정찰 보낸 자리). */
+  const lastOrderAt9 = (e9: (typeof world.lives)[number], sec9: number): { x: number; y: number } | null => {
+    for (let i9 = e9.orders.length - 1; i9 >= 0; i9 -= 1) if (e9.orders[i9][0] <= sec9) return { x: e9.orders[i9][1], y: e9.orders[i9][2] };
+    return null;
+  };
   /** 사람 → 출발 자리(그 사람의 가장 먼저 난 건물 · 분할 칸 배치의 splitStart9 와 같은 자). */
   const start9 = new Map<string, { x: number; y: number; t: number }>();
   for (const e9 of world.lives) {
@@ -351,6 +356,14 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     if (x9 === undefined || y9 === undefined) return true;
     const halls9 = hallsOfOwner9(new Set([owner9]), sec9);
     return halls9.length === 0 || halls9.some(([hx9, hy9]) => Math.hypot(hx9 - x9, hy9 - y9) <= BASE_R9);
+  };
+  /** 일꾼이 **제 기지에서** 죽었나 — 제 본진 건물 BASE_R9 안이고, 죽인 사람의 본진 건물이 더 가깝지 않을 때(빨무처럼 기지가 붙은 맵). 제 본진 건물이 없으면 아니다. */
+  const workerAtHome9 = (owner9: number, killer9: number, x9: number, y9: number, sec9: number): boolean => {
+    const near9 = (o9: number): number => Math.min(Infinity, ...hallsOfOwner9(new Set([o9]), sec9).map(([hx9, hy9]) => Math.hypot(hx9 - x9, hy9 - y9)));
+    if (hallsOfOwner9(new Set([owner9]), sec9).length === 0) return true;   // 본진 건물을 모르면(옛 판 · 합성 판) 옛 셈대로 제 기지
+    const mine9 = near9(owner9);
+    if (!(mine9 <= BASE_R9)) return false;
+    return killer9 < 0 || !(near9(killer9) < mine9);
   };
   /** 기지 밖에서 잡힌 일꾼의 갈래 — 제 짓는 중인 건물(기지 밖) FWD_R9 타일 안이면 "전진 건설" · 죽인 사람의 기지 안이면 "정찰" · 그 밖 "". */
   const FWD_R9 = 6;
@@ -561,10 +574,15 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     const at9 = deadAt9(e9, e9.died);
     /* ★ 일꾼의 죽음이 견제인 것은 **제 기지에서** 죽을 때다(2026-10-10) — 상대 본진에서 캐논을 짓다 죽은 프로브·정찰 일꾼은 견제가 아니라 그 싸움의 몫(몸값 그대로 · 꼬리 없음).
        포토러시의 프로브가 "Z의 R 일꾼 견제"로 읽혔다. */
-    const wk9 = !e9.bld && unitOf(e9.kind).worker && atOwnBase9(e9.owner, at9?.x, at9?.y, e9.died);
     let [killer9, by9] = killerOf9(e9.tag, e9.died, e9.owner);
     if (killer9 < 0) { const st9 = stormBy9(e9.died, at9?.x, at9?.y, e9.owner); if (st9 >= 0) { killer9 = st9; by9 = "High Templar"; } }
-    const wkw9 = !e9.bld && unitOf(e9.kind).worker && !wk9 && at9 ? workerOut9(e9.owner, killer9, at9.x, at9.y, e9.died) : undefined;
+    /* ★ 일꾼은 죽은 자리를 **모르면 견제가 아니다**(2026-10-10, 재지적: "아직도 정찰 온 일꾼 잡은 게 일꾼 견제로 나와") — 옛 판은 자리를 모르면(죽기 전 LOC_W9 초 안에
+       명령이 없으면 — 정찰 일꾼은 대개 그렇다) atOwnBase9 가 '제 기지'로 쳐 견제가 됐다. 이제 일꾼은 그 앞 **아무 때의 마지막 명령 자리**(정찰 보낸 자리)까지 되짚고,
+       그도 없으면 견제로 안 친다. 두 사람 기지가 다 가까우면(빨무) 더 가까운 쪽 기지다. */
+    const isWk9 = !e9.bld && unitOf(e9.kind).worker;
+    const wat9 = isWk9 ? at9 ?? lastOrderAt9(e9, e9.died) ?? { x: e9.bornX, y: e9.bornY } : null;   // 명령을 한 번도 안 받은 일꾼(랠리로 곧장 캔다)은 난 자리
+    const wk9 = isWk9 && !!wat9 && workerAtHome9(e9.owner, killer9, wat9.x, wat9.y, e9.died);
+    const wkw9 = isWk9 && !wk9 ? (wat9 ? workerOut9(e9.owner, killer9, wat9.x, wat9.y, e9.died) : "") : undefined;
     ds9.push({ sec: e9.died, owner: e9.owner, v: wk9 ? v9 * HARASS9.k : v9, bld: e9.bld, wk: wk9, kind: e9.kind,
       killer: killer9, by: by9, ...(at9 ?? {}), ...(wkw9 !== undefined ? { wkw: wkw9 } : {}) });
   }
@@ -865,21 +883,24 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   };
   /** ★ 폭탄드랍 — att 의 수송선(드랍십·셔틀·복부 주머니 뒤의 오버로드)이 장면 앞 DROP_W9 초 안에 def 기지(본진 건물 BASE_R9 안)로 명령받았으면 그 싸움은 드랍이다. */
   const DROP_W9 = 30;
+  /** 폭탄드랍의 수송선 수 하한 — 드랍십 둘이면 16 인구(마린·메딕 열여섯). */
+  const BOMB_DROP_N9 = 2;
   const TRANSPORT9 = new Set(["Dropship", "Shuttle", "Overlord"]);
   const dropKind9 = (att9: string, def9: string, sec9: number): string | null => {
     const own9 = ownersOf9(att9);
     const halls9 = hallsAt9(def9, sec9);
     if (halls9.length === 0) return null;
     const sacs9 = world.ups.some(([us9, name9, uo9]) => name9 === "Ventral Sacs" && own9.has(uo9) && us9 <= sec9);
+    /* ★ **수송선이 여럿**이어야 폭탄드랍이다(2026-10-10, 요청: "폭탄드랍은 수가 많아야 함 · 그 외에는 주로 일꾼 견제가 많음") — 한 대는 그냥 드랍이라
+       이름을 안 붙이고 일꾼 견제·공격 글귀로 간다. */
+    let n9 = 0;
     for (const e9 of world.lives) {
       if (e9.bld || !own9.has(e9.owner) || !TRANSPORT9.has(e9.kind) || e9.born > sec9 || (e9.died !== null && e9.died < sec9 - DROP_W9)) continue;
       if (e9.kind === "Overlord" && !sacs9) continue;
-      for (const o9 of e9.orders) {
-        if (o9[0] < sec9 - DROP_W9 || o9[0] > sec9 + 5) continue;
-        if (halls9.some(([hx9, hy9]) => Math.hypot(hx9 - o9[1], hy9 - o9[2]) <= BASE_R9)) return "폭탄드랍";
-      }
+      if (e9.orders.some((o9) => o9[0] >= sec9 - DROP_W9 && o9[0] <= sec9 + 5
+        && halls9.some(([hx9, hy9]) => Math.hypot(hx9 - o9[1], hy9 - o9[2]) <= BASE_R9))) n9 += 1;
     }
-    return null;
+    return n9 >= BOMB_DROP_N9 ? "폭탄드랍" : null;
   };
   /** 저글링러시 — ZL_RUSH_T9 초 전의 장면에서 att 의 킬이 대개 저글링이면. */
   const ZL_RUSH_T9 = 420;
@@ -1114,21 +1135,39 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     let hallN9 = 0;
     /** ★ 전진·몰래 생산 건물(2026-10-10, 요청: "몰래배럭, 전진 건설(게이트/팩토리/배럭 등) 전략 판단 필요") — 제 출발 자리에서 PROXY_MIN9 타일 넘게 떨어지고
      *  제 본진 건물·같은 편 기지 곁도 아닌 자리. 적 기지 안이면 "몰래", 그 밖은 "전진". 앞마당 심시티(36 안)는 안 든다. */
-    const proxyOf9 = (e9: (typeof blds9)[number]): string => {
-      const t9 = e9.born; const x9 = e9.bornX; const y9 = e9.bornY;
+    /** 그 자리를 [t, tEnd] 사이에 적이 봤나 — 적 건물(그 사이 서 있던 것)의 시야 · 적 유닛의 명령 자리(그 사이)의 시야 안이면 본 것이다. */
+    const seenByFoe9 = (x9: number, y9: number, t9: number, tEnd9: number): boolean => {
+      for (const f9 of world.lives) {
+        const fr9 = rawOf9.get(f9.owner);
+        if (!fr9 || fr9 === raw9 || (opts.teamOf?.[fr9] !== undefined && opts.teamOf?.[fr9] === opts.teamOf?.[raw9])) continue;
+        if (f9.born > tEnd9 || (f9.died !== null && f9.died < t9)) continue;
+        const r9 = sightTiles(f9.kind) + 1;
+        if (f9.bld) { if (Math.hypot(f9.bornX - x9, f9.bornY - y9) <= r9) return true; continue; }
+        for (const o9 of f9.orders) {
+          if (o9[0] > tEnd9) break;
+          if (o9[0] >= t9 - 5 && Math.hypot(o9[1] - x9, o9[2] - y9) <= r9) return true;
+        }
+      }
+      return false;
+    };
+    /** 그 자리·때의 전진/몰래 — 제 출발 자리에서 PROXY_MIN9 밖 · 제 본진 건물·같은 편 기지 곁이 아님. 적 기지 안이고 **적이 못 봤으면** "몰래", 그 밖은 "전진"(2026-10-10, 되요청:
+     *  "몰래는 적기지에 짓는거" · "몰래의 특징은 적 시야에 안 보여야 한다는 것"). 지은 것은 [착공, 완공], 띄워 옮긴 것은 [착륙, +20초] 동안 봤나를 본다. */
+    const proxyAt9 = (x9: number, y9: number, t9: number, tEnd9: number): string => {
       const st9 = start9.get(raw9);
       if (!st9 || Math.hypot(st9.x - x9, st9.y - y9) <= PROXY_MIN9) return "";
       if (hallsOfOwner9(own9, t9).some(([hx9, hy9]) => Math.hypot(hx9 - x9, hy9 - y9) <= BASE_R9)) return "";
       if (allyBaseAt9(raw9, x9, y9, t9)) return "";
-      /* "몰래"는 **적 기지 안**에 지은 것(2026-10-10, 되요청: "몰래는 적기지에 짓는거") — 적의 본진 건물·출발 자리 BASE_R9 안. 그 밖(제 기지 밖)은 "전진". */
       for (const r9 of new Set(rawOf9.values())) {
         if (r9 === raw9 || (opts.teamOf?.[r9] !== undefined && opts.teamOf?.[r9] === opts.teamOf?.[raw9])) continue;
         const sf9 = start9.get(r9);
-        if (sf9 && Math.hypot(sf9.x - x9, sf9.y - y9) <= BASE_R9) return "몰래";
-        if (hallsAt9(r9, t9).some(([hx9, hy9]) => Math.hypot(hx9 - x9, hy9 - y9) <= BASE_R9)) return "몰래";
+        const inBase9 = (sf9 && Math.hypot(sf9.x - x9, sf9.y - y9) <= BASE_R9)
+          || hallsAt9(r9, t9).some(([hx9, hy9]) => Math.hypot(hx9 - x9, hy9 - y9) <= BASE_R9);
+        if (inBase9) return seenByFoe9(x9, y9, t9, tEnd9) ? "전진" : "몰래";
       }
       return "전진";
     };
+    const proxyOf9 = (e9: (typeof blds9)[number]): string =>
+      proxyAt9(e9.bornX, e9.bornY, e9.born, Number.isFinite(e9.doneAt) ? Math.max(e9.doneAt, e9.born) : e9.born + 60);
     for (const e9 of blds9) {
       const k9 = e9.kind;
       const n9 = (prodN9.get(k9) ?? 0) + 1;
@@ -1138,6 +1177,14 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
         && !hallsOfOwner9(own9, e9.born).some(([hx9, hy9]) => Math.hypot(hx9 - e9.bornX, hy9 - e9.bornY) <= BASE_R9)) {
         mile9(e9.born, `센터 ${CENTER_DEF9[k9]}`);
         continue;
+      }
+      /* ★ 테란은 **지어서 띄워 옮긴다**(2026-10-10, 요청: "테란의 경우 건물을 지어서 적 기지로 옮길 수가 있어 그런 경우도 몰래/전진으로") — 옮겨 앉은 자리(sites 둘째부터)도
+         같은 자로 본다. 착공 자리가 이미 전진/몰래였으면 그것 하나만. */
+      if (PROXY_KO9[k9] && e9.sites.length > 1 && !proxyOf9(e9)) {
+        for (const [ls9, lx9, ly9] of e9.sites.slice(1)) {
+          const lp9 = proxyAt9(lx9 + 1, ly9 + 1, ls9, ls9 + 20);
+          if (lp9) { mile9(ls9, `${lp9} ${PROXY_KO9[k9]}`); break; }
+        }
       }
       const px9 = PROXY_KO9[k9] ? proxyOf9(e9) : "";
       if (px9) {
