@@ -561,7 +561,7 @@ export default function ReplayFullscreenMinimap({
   return (
     <div
       ref={boxRef}
-      className="scr-fs-minimap"
+      className={warming ? "scr-fs-minimap is-warming" : "scr-fs-minimap"}
       style={{ aspectRatio: `${ratio}` }}
       onPointerDown={(e) => {
         e.stopPropagation();

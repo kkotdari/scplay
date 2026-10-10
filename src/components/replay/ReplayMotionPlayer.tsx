@@ -16443,6 +16443,11 @@ export default function ReplayMotionPlayer({
      자취 전(tracksReady 거짓)에만 통째로 감춘다 — 그때는 안개가 없어 지도가 다 밝고
      지형 밑칠(초록)이 그대로 비치므로 보여 줄 수 없다. 굽는 동안은 유닛 층만 감춘다. */
   const tracksReady = !loadUnitTracks || entData !== null || entLoad === "none";
+  /* ★ **첫 굽기까지 까맣게**(2026-10-10, 요청: "처음 로딩시 미니맵과 화면 까맣게 표현하고 준비되면 그때 보여주기") ──
+     자취가 와도 첫 예열이 끝나기 전엔 지도·안개·미니맵을 다 감춘다 — 자취가 온 판과 예열이 warmAt 을 놓는
+     판 사이에 한 판이 비어, 지형이 한 번 번쩍였다. 한 번 서면 걸쇠다(시점 각을 바꿔 다시 구울 땐 몸만 감춘다 — is-baking). */
+  const [introWarm9, setIntroWarm9] = useState(false);
+  const introReady9 = tracksReady && (entData === null || introWarm9);
   const baking9 = !!warmAt;
   // (걷어냄) sceneReady — 두 뜻을 묶어 두던 이름이다. 이제 쓰는 쪽이 둘을 따로 본다.
   /** 굽는 중인가 — 재생 틱이 이 깃발을 보고 시간을 멈춘다(핀치와 같은 자리). 상태로
@@ -16490,7 +16495,7 @@ export default function ReplayMotionPlayer({
       const k9 = e.bld ? SHAPE_KIND[e.kind] : UNIT_3D[e.kind];
       if (k9) { kinds.add(k9); useN9.set(k9, (useN9.get(k9) ?? 0) + 1); }
     }
-    if (kinds.size === 0) return undefined;
+    if (kinds.size === 0) { setIntroWarm9(true); return undefined; }
     /* 일감 — 종류마다 **부품 등급표 한 벌 + 방향 판**이다(건물은 방향이 없어 한 벌).
        ★ **등급표를 여기서 짓는다**(실기 계측: "굽기 7장 314ms · 최악판 devourer 270ms",
          최악 프레임 487ms 중 굽기 289ms) ──────────────────────────────────────────────
@@ -16611,6 +16616,7 @@ export default function ReplayMotionPlayer({
       } else {
         warmingRef.current = false;
         setWarmAt(null);
+        setIntroWarm9(true);
       }
     };
     raf9 = requestAnimationFrame(step9);
@@ -18440,7 +18446,7 @@ export default function ReplayMotionPlayer({
              자를 든 자리를 옮긴다. NOSHADOW9는 렌즈에 그대로 둔다 — 그쪽이 겨누는 것은
              렌즈 안의 DOM 마커 그림자라 자리가 맞다. */
           className={cx("scr-motion-map", pitched && "scr-motion-pitched", NO_MAP_ISO9 && "scr-t-nomapiso",
-            !tracksReady && "is-warming", baking9 && "is-baking") + HIDECLS9} ref={mapRef}
+            !introReady9 && "is-warming", baking9 && "is-baking") + HIDECLS9} ref={mapRef}
           /* (이동) 손짓 받는 자리 — **무대**로 올렸다(아래 stageNode의 onPointerDown
              주석). 손짓은 여기서 시작해도 거품처럼 올라가 무대가 받으므로 지도 위 동작은
              한 톨도 안 달라진다. */
@@ -19329,7 +19335,7 @@ export default function ReplayMotionPlayer({
                     onWheelZoom={fsWheelZoom}
                     unproject={miniUnproject}
                     fog={miniFog}
-                    warming={!tracksReady}
+                    warming={!introReady9}
                     tags={miniTags9}
                   />
                 </div>

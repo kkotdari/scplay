@@ -876,6 +876,8 @@
 .scr-motion-map.is-warming > .scr-motion-canvas,
 .scr-motion-map.is-warming > .scr-motion-unitlayer,
 .scr-motion-map.is-warming > .scr-motion-fog { opacity: 0; }
+/* 그동안 바탕은 까맣다(2026-10-10, 요청: "처음 로딩시 미니맵과 화면 까맣게") — 미니맵(.scr-fs-minimap.is-warming)도 같다. */
+.scr-motion-map.is-warming { background: #000; }
 /* 굽는 중에는 **유닛 층만** 감춘다(지적: 굽는 동안 지도와 안개까지 까맣게 지워졌다) —
    지형은 이미 그려져 있고 안개도 이미 셈해져 있다. 그때 아직 없는 것은 몸뿐이다. */
 .scr-motion-map.is-baking > .scr-motion-unitlayer { opacity: 0; }
@@ -3702,6 +3704,7 @@
    정확히 맞는다. 상자는 이미 position: relative다. */
 /* 쇠 틀의 우물 안에서는 미니맵 테가 우물의 검은 가장자리다 — 회색 테는 쇠판과 우물 사이에 한 겹 더 선 띠로 읽힌다. */
 .scr-fs-layer .scr-fs-dockframe .scr-fs-minimap { box-shadow: none; border-color: rgba(0, 0, 0, 0.9); }
+.scr-fs-minimap.is-warming { background: #000; }
 .scr-fs-minimap > canvas {
   display: block; position: absolute; inset: 0; width: 100%; height: 100%;
 }
