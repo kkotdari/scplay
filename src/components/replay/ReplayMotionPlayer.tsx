@@ -5604,24 +5604,26 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             let bRing9: GlRing9 | undefined;
             /* ★ 건물 선택 링(2026-09, 요청: "건물 선택시 선택 링이 안보이는데 링 나오게") — 유닛과 같은 가는 타원 테를 **발자국**
                둘레에 깐다(바닥 도형 패스라 몸 밑에 깔린다). 자리는 발자국 한가운데 · 뜬 건물은 뜬 몫만큼 위(몸과 함께 든다). */
+            /* ★ 가운데는 **모델의 원점**(모형 (0, 0, 0) = 그 건물이 선 땅의 한가운데)이다(2026-09, 지적: "건물 선택링 위치가
+               안맞는느낌 · 어떤건 맞고 어떤건 안맞고 특히 저그는 왜이렇게 위에 나오는거지") — 발자국 타일의 한가운데
+               (지면선 − hPx/2)로 두었더니, 붓은 건물을 **잉크 바닥**으로 지면선에 앉히므로 몸이 발자국보다 작거나 앞뒤로
+               치우친 종류(저그 — 나이더스 · 스파이어 · 고치)에서 링이 몸 위로 떴다. 원점은 메시를 미는 그 자(ay + yoff)에
+               놓이므로 몸과 같이 움직인다. 뜬 몫은 gay9 에 이미 들어 있다. */
+            const cy9 = gay9 - gk9 * glBf9.bot;
+            /* ★ 세로는 **부감에 눌린다**(2026-09, 지적: "건물 선택 링에 눌림 적용안된듯") — 발자국 px 를 그대로 반지름으로
+               주어 땅 위에 선 동그라미가 아니라 세로로 선 타원이었다. 유닛 링과 같은 눌림(0.31/0.55)을 건다 — 둘이 한 자라야
+               같은 화면의 링끼리 결이 맞는다. 입체 보기는 유닛 링처럼 pitchFlatNow 를 더 곱한다. */
+            const ryK9 = (0.31 / 0.55) * (op.pitch ? pitchFlatNow : 1);
+            /* ★ 크기는 **발자국과 그린 몸 중 큰 쪽**이다(같은 지적) — 링은 몸 밑(바닥 도형 패스)에 깔리므로 몸이 발자국보다
+               넓은 종류(벙커 · 3×2 발자국에 날개가 넓다)에서는 링이 통째로 몸에 덮여 안 보였다. 비(세로/가로)는 그대로 둔다. */
+            const rk9 = Math.max(1, (glBf9.w * gk9 * 0.56) / Math.max(1, wPx * 0.62));
+            /* ★ 세로는 **가로 × 유닛 링의 비**다(2026-09, 지적: "건물 선택링이 너무 눌려보이는데 · 유닛 선택링하고는 느낌이
+               좀 다르네") — 발자국 깊이(op.footD = 깊이 ÷ 폭)를 곱했더니 4×3 은 0.42 · 3×2 는 0.38 로 유닛 링(0.564)보다
+               납작했다. 링은 땅 위의 동그라미라는 신호이지 발자국의 꼴이 아니다 — 비를 하나로 둔다. */
+            const rx9 = wPx * 0.62 * rk9;
+            /* 링 밑단은 고르지 않아도 잰다 — 체력바가 그 밑단 아래에 선다(2026-10-10, 지적: "선택링이 체력바에 가려지는 경우"). */
+            const bRingBot9 = cy9 + Math.max(3, rx9 * ryK9) + Math.max(1.1, wPx * 0.012) / 2;
             if ((op.selRing || atkFlashOn9(op) || (pickedKey != null && op.pickKey === pickedKey)) && gl9.primOk && op.mkFrac === undefined) {
-              /* ★ 가운데는 **모델의 원점**(모형 (0, 0, 0) = 그 건물이 선 땅의 한가운데)이다(2026-09, 지적: "건물 선택링 위치가
-                 안맞는느낌 · 어떤건 맞고 어떤건 안맞고 특히 저그는 왜이렇게 위에 나오는거지") — 발자국 타일의 한가운데
-                 (지면선 − hPx/2)로 두었더니, 붓은 건물을 **잉크 바닥**으로 지면선에 앉히므로 몸이 발자국보다 작거나 앞뒤로
-                 치우친 종류(저그 — 나이더스 · 스파이어 · 고치)에서 링이 몸 위로 떴다. 원점은 메시를 미는 그 자(ay + yoff)에
-                 놓이므로 몸과 같이 움직인다. 뜬 몫은 gay9 에 이미 들어 있다. */
-              const cy9 = gay9 - gk9 * glBf9.bot;
-              /* ★ 세로는 **부감에 눌린다**(2026-09, 지적: "건물 선택 링에 눌림 적용안된듯") — 발자국 px 를 그대로 반지름으로
-                 주어 땅 위에 선 동그라미가 아니라 세로로 선 타원이었다. 유닛 링과 같은 눌림(0.31/0.55)을 건다 — 둘이 한 자라야
-                 같은 화면의 링끼리 결이 맞는다. 입체 보기는 유닛 링처럼 pitchFlatNow 를 더 곱한다. */
-              const ryK9 = (0.31 / 0.55) * (op.pitch ? pitchFlatNow : 1);
-              /* ★ 크기는 **발자국과 그린 몸 중 큰 쪽**이다(같은 지적) — 링은 몸 밑(바닥 도형 패스)에 깔리므로 몸이 발자국보다
-                 넓은 종류(벙커 · 3×2 발자국에 날개가 넓다)에서는 링이 통째로 몸에 덮여 안 보였다. 비(세로/가로)는 그대로 둔다. */
-              const rk9 = Math.max(1, (glBf9.w * gk9 * 0.56) / Math.max(1, wPx * 0.62));
-              /* ★ 세로는 **가로 × 유닛 링의 비**다(2026-09, 지적: "건물 선택링이 너무 눌려보이는데 · 유닛 선택링하고는 느낌이
-                 좀 다르네") — 발자국 깊이(op.footD = 깊이 ÷ 폭)를 곱했더니 4×3 은 0.42 · 3×2 는 0.38 로 유닛 링(0.564)보다
-                 납작했다. 링은 땅 위의 동그라미라는 신호이지 발자국의 꼴이 아니다 — 비를 하나로 둔다. */
-              const rx9 = wPx * 0.62 * rk9;
               const bRingCol9 = selRingCol9(op) ?? op.color;
               ringDiagPush9(op, bRingCol9);
               const rg9: GlRing9 = { kind: 2, x: sx, y: cy9, rx: rx9, ry: Math.max(3, rx9 * ryK9), color: bRingCol9, alpha: op.alpha, lineW: Math.max(1.1, wPx * 0.012), shear: 0 };
@@ -5642,7 +5644,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
               if (gm9) gl9.push({ mesh: gm9, ax: gax9, ay: gay9, k: gk9, yoff: -gk9 * glBf9.bot, yawDeg: -arot9, color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, flat: GL_GLOW_KINDS9.has(op.kind), over: true });
             }
             // 바닥선(gay9 = 잉크 바닥이 앉는 줄) 바로 밑 — 옛 판 길의 `bspr.bot + 2 + wPx·0.03` 과 같은 자리다.
-            bldHpBar9(gay9 + 2 + wPx * 0.03);
+            bldHpBar9(Math.max(gay9 + 2 + wPx * 0.03, op.mkFrac === undefined ? bRingBot9 + 1 : -Infinity));
             continue;
           }
           /* ★ 폴백도 **딸림 부품을 그린다**(2026-09) — 여태 op.kind 하나만 그려, `#gl=0`·WebGL 이 안 서는
@@ -5852,6 +5854,14 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         /* ★ 링의 임자는 **선택**이다(2026-09) — 모든 사람의 선택(판 10 · op.selRing)과 보는 사람이 누른 몸(pickedKey). */
         /* ★ 공중 유닛의 링은 몸에 실어 몸의 깊이 칸을 탄다(gl9 GlInst9.ring · 2026-10-10, 지적: "공중유닛의 링이 왜 지상건물에 가려지지"). */
         let airRing9: GlRing9 | undefined;
+        /* 링의 자 — 링과 체력바(링 밑단 아래에 선다)가 함께 쓴다. ringWidth9 는 종류마다 한 번 재고 담아 둔다. */
+        const ringGeo9 = () => {
+          const ringW = Math.max(1.1, op.sizePx * inkK * 0.06);
+          const ringK9 = RING_K9[op.kind] ?? 1;
+          const ringWd9 = glM9 && gl9 ? ringWidth9(gl9, op.kind, glM9, lod9, glCam9) * (px / 16) * modelNormOf(op.kind) : inkW;
+          const ringY = (groundY ?? groundOy9) - lift;
+          return { ringW, ringK9, ringWd9, ringY, ringBot: ringY + ringWd9 * 0.31 * ringK9 * (op.pitch ? pitchFlatNow : 1) + ringW / 2 };
+        };
         if ((op.selRing || atkFlashOn9(op) || (pickedKey != null && op.pickKey === pickedKey)) && !op.ghost) {
           /* 선 굵기는 화면 고정(지적: 링은 UI 요소 — 확대에 굵어지면 안 됨) — 반지름은
              유닛(px)을 따라가되 굵기에서 zoom을 뺀다. */
@@ -5862,16 +5872,13 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              회색 자국이라, 0.35초 동안 스치고 지나가면 안 보이는 것과 같다.
              1.1px을 바닥으로 잡는다 — 여전히 한 획짜리 가는 테지만 화소 하나는 채운다.
              배수도 0.034 → 0.06으로 올려 큰 몸에서는 조금 더 또렷하다. */
-          const ringW = Math.max(1.1, op.sizePx * inkK * 0.06);
-          const ringK9 = RING_K9[op.kind] ?? 1;
+          const { ringW, ringK9, ringWd9, ringY } = ringGeo9();
           /* ★ 링은 **땅 원점에 종류별 고정 크기**다(2026-10, 요청: "선택링이 유닛/건물의 방향이나 자세 모션에 따라 크기가 바뀌거나
              위치가 바뀌지 않게") — 여태 자(inkW · footX · footY)가 메시의 **요잉 칸별 화면 상자**(footOf)라 몸이 돌 때마다 링이 칸
              단위로 커졌다 작아졌다 하고 가운데도 뛰었다. 가운데는 그림자와 같은 땅 원점(groundOy9 · 공중은 뜬 몫만큼 위), 폭은 여덟
              요잉의 상자 폭 평균(ringWidth9 — 요잉과 무관 · 자세 0에서 잰 값이라 모션과도 무관). 2D 폴백(inkK)은 원래 요잉을 안 탄다.
              (옛 "링도 내용물 발끝에"는 되물렸다 — 발끝은 요잉 상자의 바닥이라 그것이 곧 흔들림이었다.) */
-          const ringWd9 = glM9 && gl9 ? ringWidth9(gl9, op.kind, glM9, lod9, glCam9) * (px / 16) * modelNormOf(op.kind) : inkW;
           const ringX = sx;
-          const ringY = (groundY ?? groundOy9) - lift;
           const ringCol9 = selRingCol9(op) ?? op.color;   // 화면 주인 제 몸은 원작 초록 · 나머지는 색 모드(위 UI_OWN9)
           ringDiagPush9(op, ringCol9, ringWd9);
           const ringPath = (): void => {
@@ -5937,7 +5944,10 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              유닛에서는 몸이 아니라 그림자 곁에 눕는다(지적: "공중유닛 체력바는 모델
              아래로") — 몸은 lift만큼 떠 있으므로 그만큼 함께 올려야 발치에 붙는다.
              지상 유닛은 lift가 0이라 예전과 같은 자리다. */
-          const by2 = footY - lift + Math.max(2, px * 0.11);   // 살짝 아래로(지적)
+          /* ★ 그리고 **선택 링 밑단 아래**다(2026-10-10, 지적: "선택링이 체력바에 가려지는 경우") — 링 세로 반지름은 몸 폭을 따라
+             커지는데(0.31 × 링 폭) 바는 발 줄 아래 고정 몫(0.11)이라 큰 몸에서 바가 링 아래쪽을 덮었다. 원작도 바가 링 밑에 선다.
+             링이 없는 때(맞은 지 잠깐)도 같은 자리라 고를 때 바가 뛰지 않는다. */
+          const by2 = Math.max(footY - lift + Math.max(2, px * 0.11), ringGeo9().ringBot + 1);
           if (gl9 && gl9.primOk) {
             const g9 = gl9;
             g9.prim(0, bx2 + bw2 / 2, by2 + bh2 / 2, bw2 / 2 + 0.5, bh2 / 2 + 0.5, "rgba(10, 14, 10, 0.75)", op.alpha * 0.9);
