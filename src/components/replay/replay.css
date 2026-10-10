@@ -2516,43 +2516,45 @@
   /* ★★ 우물 200 → **280** · 미니맵 220 → **320**(--mini-up 8/7) · 안의 요소 ×1.4 **짝수 정수**(2026-10-10 재요청: "전광판과 인포창 부분의 독은 280 · 미니맵 부분은 320 · 너비도
      비율적으로 · 모든 요소는 짝수 정수로") — 인포창 칸 52 → 72 · 틈 4 → 6 · 좌우 여백 6 → 8(폭 344 → **478**) · 머리 32 → 44 · 실루엣 86 → 120 · 칸 39 → 54 · 접기 22 → 30 ·
      틀 테·여백·구분 막대 4·6·8 → 6·8·12. 글자는 아래 덮어쓰기(22·16·40·16·24·12·12·22·16·16·18 · 바 12). 1080p(--dks 1) 값이다. */
-  --dock-cell: calc(72px * var(--dks)); --dock-gap: calc(6px * var(--dks)); --dock-padx: calc(8px * var(--dks));
-  --dock-cap: calc(44px * var(--dks)); --dock-big: calc(120px * var(--dks));
-  --dock-slot: calc(54px * var(--dks)); --dock-fold: calc(30px * var(--dks));
-  --dock-w: calc(var(--dock-cell) * 6 + var(--dock-gap) * 5 + var(--dock-padx) * 2);   /* 478 */
-  --dock-body: calc(222px * var(--dks));
-  --dock-h0: calc(280px * var(--dks));   /* 280(옛 41 + 몸 159 = 200) */
+  /* ★ 280·320 은 **틀까지 합친 온 키**다(2026-10-10 되지적: "280 패널을 뜻하지 않고 프레임까지 합친 전체 높이") — 틀 = 테 1 + 여백 8 + 우물 + 여백 8 + 테 1 이라 우물 **262**,
+     미니맵 칸 = 받침 테 1 + 여백 8 + 우물 + 여백 8 + 테 1 이라 미니맵 **302**. 안의 요소는 280 판의 ×262/280 짝수: 칸 68(폭 454) · 머리 42 · 실루엣 112 · 칸 50 · 접기 28. */
+  --dock-cell: calc(68px * var(--dks)); --dock-gap: calc(6px * var(--dks)); --dock-padx: calc(8px * var(--dks));
+  --dock-cap: calc(42px * var(--dks)); --dock-big: calc(112px * var(--dks));
+  --dock-slot: calc(50px * var(--dks)); --dock-fold: calc(28px * var(--dks));
+  --dock-w: calc(var(--dock-cell) * 6 + var(--dock-gap) * 5 + var(--dock-padx) * 2);   /* 454 */
+  --dock-body: calc(208px * var(--dks));
+  --dock-h0: calc(262px * var(--dks));   /* 우물 262 → 틀 온 키 280 */
   --dock-h: var(--dock-h0);
   /* 전광판 설계 폭 **576**(비 576/280 · 2026-10-10 재요청 "닉네임칩 폭 25프로 정도 더 축소") — 이름 기둥은 이제 **남는 폭이 아니라 못 박은 폭**(--name-w 168 = 카메라 단추 + 칩 ·
      옛 남는 폭 127 × 1.4 × 0.75 ≈ 134 칩) · 자료 기둥이 나머지를 받고 칸 사이를 고르게 벌린다(아래 .scr-dock-data). 576 은 2:2 글자 18 에서 자료 기둥(35.1ch ≈ 글자 × 20.7)이 꼭 드는 폭. */
-  --roster-r: 2.0571429;
-  --name-w: calc(168px * var(--dks));
-  --mini-up: 1.1428572;   /* 320/280 — 폰·기본은 1.2(아래 .scr-fs-dockframe) */
+  --roster-r: 2;   /* 524/262 — 2:2 글자 16 에서 자료 기둥(≈ 글자 × 20.7 = 331) + 이름 156 + 여백 32 가 든다 */
+  --name-w: calc(156px * var(--dks));
+  --mini-up: 1.1526718;   /* 302/262 — 미니맵 칸 온 키 320 · 폰·기본은 1.2(아래 .scr-fs-dockframe) */
   --dock-bez: calc(6px * var(--dks)); --dock-out: calc(8px * var(--dks)); --dock-sep: calc(12px * var(--dks));
   margin-bottom: calc(12px * var(--dks));
 }
 /* 인포창 안쪽 줄 틈 — 3·dk(4.05) → **6**(2026-10-09, 같은 재요청) · 몸 위아래 여백 6·dk(8.1) → 8. */
 .scr-motion-pc9 .scr-motion-infodock-body { padding-top: calc(12px * var(--dks)); padding-bottom: calc(12px * var(--dks)); }   /* 8 → 12(×1.4 짝수 · 2026-10-10) */
 /* 인포창 속 칸들(2026-10-10 ×1.4 짝수) — 그림 기둥 97 → 136 · 기둥 틈 14 → 18 · 업그레이드 칸 35 → 48(둥글기 8 · 틈 6) · 보급 틈 12 · 대기 틈 6. */
-.scr-motion-pc9 .scr-motion-infodock-one { column-gap: calc(18px * var(--dks)); grid-template-columns: calc(136px * var(--dks)) minmax(0, 1fr) auto; }
+.scr-motion-pc9 .scr-motion-infodock-one { column-gap: calc(16px * var(--dks)); grid-template-columns: calc(128px * var(--dks)) minmax(0, 1fr) auto; }
 .scr-motion-pc9 .scr-motion-infodock-upsq { gap: calc(6px * var(--dks)); }
-.scr-motion-pc9 .scr-motion-infodock-upsq i { width: calc(48px * var(--dks)); height: calc(48px * var(--dks)); border-radius: calc(8px * var(--dks)); }
+.scr-motion-pc9 .scr-motion-infodock-upsq i { width: calc(44px * var(--dks)); height: calc(44px * var(--dks)); border-radius: calc(8px * var(--dks)); }
 .scr-motion-pc9 .scr-motion-infodock-supply { gap: 0 calc(12px * var(--dks)); }
 .scr-motion-pc9 .scr-motion-infodock { --dock-qgap: calc(6px * var(--dks)); }
 .scr-motion-pc9 .scr-motion-infodock-text, .scr-motion-pc9 .scr-motion-infodock-lines, .scr-motion-pc9 .scr-motion-infodock-foot { gap: calc(8px * var(--dks)); }
 /* 인포창 글자·바 — 1080p 정수 px(옛 N·dk 는 14.85·10.8·27·16.2·8.8·7.4·9.45·10.1·12.15 였다 · 2026-10-09 짝수 14·10·26·10·16·8·8·14·10·10·12·8 → 2026-10-10 ×1.075 정수).
    접기 손잡이 글자 15 · 빈 안내 11 · 글자 머리 28 · 숫자 11 · 이름 17 · 업그레이드 칸 9(긴 것 9 · 하나짜리 15 · 단계 11) · 보급 11 · 줄 글 13 · 진행 바 키 9. */
-.scr-motion-pc9 .scr-motion-infodock-fold { font-size: calc(22px * var(--dks)); }
-.scr-motion-pc9 .scr-motion-infodock-empty { font-size: calc(16px * var(--dks)); }
-.scr-motion-pc9 .scr-motion-infodock-glyph { font-size: calc(40px * var(--dks)); }
-.scr-motion-pc9 .scr-motion-infodock-nums { font-size: calc(16px * var(--dks)); }
-.scr-motion-pc9 .scr-motion-infodock-name { font-size: calc(24px * var(--dks)); }
+.scr-motion-pc9 .scr-motion-infodock-fold { font-size: calc(20px * var(--dks)); }
+.scr-motion-pc9 .scr-motion-infodock-empty { font-size: calc(14px * var(--dks)); }
+.scr-motion-pc9 .scr-motion-infodock-glyph { font-size: calc(38px * var(--dks)); }
+.scr-motion-pc9 .scr-motion-infodock-nums { font-size: calc(14px * var(--dks)); }
+.scr-motion-pc9 .scr-motion-infodock-name { font-size: calc(22px * var(--dks)); }
 .scr-motion-pc9 .scr-motion-infodock-upsq i { font-size: calc(12px * var(--dks)); }
 .scr-motion-pc9 .scr-motion-infodock-upsq i.is-long { font-size: calc(12px * var(--dks)); }
-.scr-motion-pc9 .scr-motion-infodock-upsq i.is-one { font-size: calc(22px * var(--dks)); }
-.scr-motion-pc9 .scr-motion-infodock-upsq b { font-size: calc(16px * var(--dks)); }
-.scr-motion-pc9 .scr-motion-infodock-supply { font-size: calc(16px * var(--dks)); }
-.scr-motion-pc9 .scr-motion-infodock .scr-motion-info-line { font-size: calc(18px * var(--dks)); }
+.scr-motion-pc9 .scr-motion-infodock-upsq i.is-one { font-size: calc(20px * var(--dks)); }
+.scr-motion-pc9 .scr-motion-infodock-upsq b { font-size: calc(14px * var(--dks)); }
+.scr-motion-pc9 .scr-motion-infodock-supply { font-size: calc(14px * var(--dks)); }
+.scr-motion-pc9 .scr-motion-infodock .scr-motion-info-line { font-size: calc(16px * var(--dks)); }
 .scr-motion-pc9 .scr-motion-infodock .scr-motion-info-bar { height: calc(12px * var(--dks)); }
 /* ★ 폰 인포창 글자 ×1.2(2026-10-09, 요청: "인포창도 글자 크기 좀 키우면 — 높이 늘어나니까 옆으로 안 넘어가는 선에서") — 기기 판정(pc9 없음)으로 가른다.
    이름 12 → 14 · 줄 글 9 → 11 · 숫자 8 → 10 · 보급 7.5 → 9 · 업그레이드 칸 6.5 → 7.5(긴 것 6.5 · 하나짜리 13 · 단계 8) · 글자 머리 20 → 24 · 빈 안내 8 → 10 ·
@@ -3219,7 +3221,9 @@
 /* ★ 전광판·미니맵·인포창이 다 서면 **미니맵이 화면 한가운데**(2026-10-10, 요청: "셋이 다 나올 때는 미니맵이 정가운데에 오게") — 양옆 기둥을 max(전광판, 인포창) 폭(--side-w ·
    dockFit9)으로 같게 둔 격자라 틀이 가운데 서면 미니맵도 가운데다. 전광판은 제 기둥의 오른끝, 인포창은 왼끝에 붙어 틈(--dock-sep · 구분 막대)이 그대로다 · 좁은 쪽 기둥의
    남는 폭은 쇠판으로 빈다. 인포창 단(--info-k)은 이 격자가 독 줄에 들 때까지 낮춘다(dockFit9 trioW9). 둘만 설 때(인포창 없음 · 미니맵 N)는 종전 flex 가운데 맞춤. */
-.scr-fs-dockmain.is-trio { display: grid; grid-template-columns: var(--side-w) auto var(--side-w); column-gap: var(--dock-sep); align-items: end; justify-content: center; }
+/* ⚠ 줄 키는 **우물 키로 못 박는다**(grid-template-rows · 2026-10-10, 지적: "왜 갑자기 독 윗부분의 층이 사라진 거야? 미니맵 부분만 돌출된 형태로") — auto 줄은 키 큰 미니맵(×--mini-up)에 맞춰
+   늘어 틀 전체가 미니맵 키로 솟아 윗선이 일자가 됐다. 줄을 --dock-h 로 두면 미니맵은 끝 맞춤으로 위로 넘친다(flex 꼴과 같은 받침 층). */
+.scr-fs-dockmain.is-trio { display: grid; grid-template-columns: var(--side-w) auto var(--side-w); grid-template-rows: var(--dock-h); column-gap: var(--dock-sep); align-items: end; justify-content: center; }
 .scr-fs-dockmain.is-trio > .scr-fs-rosterpanel { justify-self: end; }
 .scr-fs-dockmain.is-trio > .scr-motion-infodock { justify-self: start; }
 /* 숨은 자(ReplayMotionPlayer dockFit9) — 설계 치수의 CSS 계산값을 JS 가 읽는 자리: 폭 = 인포창 설계 폭 · 키 = 설계 키 · 왼 여백 = 구분 틈 · 오른 여백 = 틀 여백. */
@@ -3335,7 +3339,7 @@
   /* 2026-10-10 재요청(우물 280 · 짝수 정수): 줄 키 상한 30 → **42** · 글자 상한 13 → **18** · 반올림 **2px**(짝수) · 여백 8/12 → 12/16. 글자 폭 상한은 자료 기둥(≈ 글자 × 20.7)이
      판 − 여백 32 − 이름 기둥 168 에 들게. 1080p 4:4 줄 키 24 · 글자 12 · 2:2 줄 키 36 · 글자 18. */
   --rp: round(down, min(calc(42px * var(--dks)), calc((var(--dock-h) - 24px * var(--dks)) / var(--rows, 6))), 2px);
-  --rf: round(down, min(calc(var(--rp) * 0.5), calc(18px * var(--dks)), calc((100cqw - 200px * var(--dks)) / 20.7)), 2px);
+  --rf: round(down, min(calc(var(--rp) * 0.5), calc(18px * var(--dks)), calc((100cqw - 188px * var(--dks)) / 20.7)), 2px);
   padding: calc(12px * var(--dks)) calc(16px * var(--dks));
   font-size: var(--rf);
 }

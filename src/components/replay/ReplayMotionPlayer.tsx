@@ -19274,6 +19274,11 @@ export default function ReplayMotionPlayer({
                     viewAt={splitOn9
                       ? ((z9, p9) => (splitPick9 ? splitViewRef9.current.get(splitPick9) ?? fsViewAt(z9, p9) : null))   // 안 고르면 네모 없음(전체)
                       : fsViewAt}
+                    /* ★ 미니맵 화면 프레임(2026-10-10, 요청: "중계 끄기 — 지금 보는 화면 흰색 · 중계 켜기(자동·한 명) — 화면 주인 화면 흰색 · 두 명 이상 — 화면 주인들의 임자색으로 모두") —
+                       앞 둘은 viewAt(fsViewAt — 지금 카메라 = 중계·개인 화면의 카메라) 흰 네모 · 분할은 고른 사람마다 칸의 창(splitViewRef9)을 그 사람 임자색(modeColor · 색 모드 따름)으로. */
+                    viewsAt={splitOn9
+                      ? (() => castSel9.flatMap((r9) => { const v9 = splitViewRef9.current.get(r9); return v9 ? [{ ...v9, color: modeColor(r9, teamOfRaw(r9)) }] : []; }))
+                      : undefined}
                     zoom={zoom} pan={pan}
                     ownRaw={splitOn9 ? splitPick9 : uiOwnerRef9.current}
                     ownColor={UI_OWN9}

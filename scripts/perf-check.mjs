@@ -983,9 +983,9 @@ if (has("--split")) {
     await page.waitForTimeout(600);
   }
   /* ★ 전체 분할 = 독 로스터의 사람 카메라 단추를 **다** 켠다(2026-10-09 — TV 목록의 '전체'는 걷혔다 · pickPerson9: 다 고르면 곧 전체). 한 번에 하나씩(상태가 누름마다 갈린다). */
-  const nCam9 = await page.evaluate(() => document.querySelectorAll(".scr-dock-roster .scr-roster-cam:not(.scr-roster-cam-auto)").length);
+  const nCam9 = await page.evaluate(() => document.querySelectorAll(".scr-dock-roster .scr-roster-cam:not(.scr-roster-cam-auto):not(.scr-roster-cam-all)").length);
   for (let k = 0; k < nCam9; k += 1) {
-    await page.evaluate((k) => { const b = document.querySelectorAll(".scr-dock-roster .scr-roster-cam:not(.scr-roster-cam-auto)")[k]; if (b instanceof HTMLElement) b.click(); }, k);
+    await page.evaluate((k) => { const b = document.querySelectorAll(".scr-dock-roster .scr-roster-cam:not(.scr-roster-cam-auto):not(.scr-roster-cam-all)")[k]; if (b instanceof HTMLElement) b.click(); }, k);
     await page.waitForTimeout(150);
   }
   await page.waitForTimeout(Number(flag("--splitwait", 4000)));
@@ -1040,12 +1040,12 @@ if (has("--split")) {
   if (has("--splitsel")) {
     /* 고르기 = 독 로스터의 사람 카메라 단추(2026-10-09 — 옛 TV 목록의 이름 줄). 먼저 전부 끈다(위에서 다 켰다). */
     for (let k = 0; k < nCam9; k += 1) {
-      await page.evaluate((k) => { const b = document.querySelectorAll(".scr-dock-roster .scr-roster-cam:not(.scr-roster-cam-auto)")[k]; if (b instanceof HTMLElement) b.click(); }, k);
+      await page.evaluate((k) => { const b = document.querySelectorAll(".scr-dock-roster .scr-roster-cam:not(.scr-roster-cam-auto):not(.scr-roster-cam-all)")[k]; if (b instanceof HTMLElement) b.click(); }, k);
       await page.waitForTimeout(150);
     }
     for (let k = 0; k < 3; k += 1) {
       await page.evaluate((k) => {
-        const it = document.querySelectorAll(".scr-dock-roster .scr-roster-cam:not(.scr-roster-cam-auto)")[k];
+        const it = document.querySelectorAll(".scr-dock-roster .scr-roster-cam:not(.scr-roster-cam-auto):not(.scr-roster-cam-all)")[k];
         if (it instanceof HTMLElement) it.click();
       }, k);
       await page.waitForTimeout(700);

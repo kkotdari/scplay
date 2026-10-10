@@ -37,7 +37,7 @@ const MINI_FOG_G = 8;
 const MINI_FOG_B = 14;
 
 export default function ReplayFullscreenMinimap({
-  image, grid, ratio, dotsRef, extraRef, pingsRef, tick, viewAt, viewColor, zoom, pan, onSeek, onWheelZoom,
+  image, grid, ratio, dotsRef, extraRef, pingsRef, tick, viewAt, viewsAt, viewColor, zoom, pan, onSeek, onWheelZoom,
   unproject, fog, painter, live,
   warming, ownRaw, ownColor, tags,
 }: {
@@ -82,6 +82,9 @@ export default function ReplayFullscreenMinimap({
    *  넣어 그때그때 셈할 수 있어야 한다. */
   /** 보고 있는 창 — null 이면 네모를 안 그린다(분할보기에서 아무 칸도 안 골랐을 때). */
   viewAt: (z: number, p: { x: number; y: number }) => { cx: number; cy: number; w: number; h: number } | null;
+  /** ★ 여러 화면의 창(2026-10-10, 요청: "중계 켜기 — 두 명 이상 선택: 화면 주인들의 임자색으로 화면 프레임 모두 표시") — 주면 viewAt 대신 이것을 다 그린다(창마다 제 색).
+   *  null·빈 배열이면 viewAt 으로 물러난다. */
+  viewsAt?: (z: number, p: { x: number; y: number }) => { cx: number; cy: number; w: number; h: number; color: string }[] | null;
   /** 보는 창의 테두리 색 — 없으면 흰색. ⚠ 지금은 아무도 안 준다(2026-10-09, 요청: "미니맵 화면 위치 네모는 원작처럼 모두 흰색" — 옛 '누른 사람 색' 되물림). */
   viewColor?: string;
   /** 굳은 배율·팬 — 손짓이 안 도는 동안의 값이다. */
@@ -427,8 +430,11 @@ export default function ReplayFullscreenMinimap({
        (같은 지적) — 화면의 네모를 평면 지도로 되돌리면 먼 쪽(위)이 더 넓기 때문이다.
        네 모서리를 각각 되돌려 잇는 것이 곧 정답이다 — 평면에서는 다시 네모가 된다.
        지도 밖으로는 안 나간다 — 창이 지도보다 넓을 수 있다(한 축만 크롭되는 비율). */
-    const view = viewAt(zoom, pan);
-    if (!view) return;
+    const many9 = viewsAt?.(zoom, pan) ?? null;
+    const views9: { cx: number; cy: number; w: number; h: number; color?: string }[] = many9 && many9.length > 0 ? many9 : [];
+    if (views9.length === 0) { const v1 = viewAt(zoom, pan); if (v1) views9.push(v1); }
+    if (views9.length === 0) return;
+    const view = views9[0];
     /* 진단(#diag·계측 도구) — 미니맵이 실제로 셈한 '보는 창'이다. 흰 네모가 안 보일 때
        그 까닭이 창 값인지(전체가 됐거나 상자 밖) 그리기인지를 여기서 가린다. */
     (window as unknown as Record<string, unknown>).__miniView = {
@@ -436,10 +442,11 @@ export default function ReplayFullscreenMinimap({
       cx: +view.cx.toFixed(4), cy: +view.cy.toFixed(4),
       w: +view.w.toFixed(4), h: +view.h.toFixed(4),
     };
-    const vx0 = view.cx - view.w / 2;
-    const vy0 = view.cy - view.h / 2;
-    const vx1 = view.cx + view.w / 2;
-    const vy1 = view.cy + view.h / 2;
+    for (const vw9 of views9) {
+    const vx0 = vw9.cx - vw9.w / 2;
+    const vy0 = vw9.cy - vw9.h / 2;
+    const vx1 = vw9.cx + vw9.w / 2;
+    const vy1 = vw9.cy + vw9.h / 2;
     const raw: [number, number][] = [[vx0, vy0], [vx1, vy0], [vx1, vy1], [vx0, vy1]];
     const cor = raw.map(([qx, qy]) => (unproject ? unproject(qx, qy) : [qx, qy]));
     /* 원근 역사상은 지평선 너머에서 발산한다 — 값이 성치 않으면 평면 네모로 물러난다. */
@@ -474,12 +481,13 @@ export default function ReplayFullscreenMinimap({
       w / 2 + (cap9(qx) * w - w / 2) * k9,
       h / 2 + (cap9(qy) * h - h / 2) * k9,
     ] as [number, number]);
-    c.strokeStyle = viewColor ?? "rgba(255,255,255,.92)";
+    c.strokeStyle = vw9.color ?? viewColor ?? "rgba(255,255,255,.92)";
     c.lineWidth = LW9;
     c.beginPath();
     pts.forEach(([qx, qy], i) => { if (i === 0) c.moveTo(qx, qy); else c.lineTo(qx, qy); });
     c.closePath();
     c.stroke();
+    }
     };
     if (painter) painter.current = paint;
     /* 상자 크기가 바뀌면 다시 그린다 — 판이 막 뜨거나(0 → 제 크기) 전체화면 전환으로
