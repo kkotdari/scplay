@@ -81,6 +81,8 @@ export type CastPlanOpts9 = {
   order?: readonly string[];
   /** 이름 → 팀 — 고리를 팀 번갈아 짠다. 안 주면(밀리) 로스터 차례 그대로. */
   teamOf?: Readonly<Record<string, number | undefined>>;
+  /** 지도 자원 점(ReplayMapGrid.resources — 미네랄 밭(겹친 것은 하나)·가스 [타일 x, 타일 y, 가스]) — 앞마당·멀티를 가르는 자(2026-10-10). 없으면 본진 건물은 수로만 센다. */
+  resources?: readonly (readonly [number, number, number])[];
 };
 
 /** 장면보다 몇 초 먼저 갈아타나(요청: "1-2초전에 미리") — 그 사이에 카메라가 자리를 잡는다. */
@@ -334,6 +336,60 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     if (x9 === undefined || y9 === undefined) return true;
     const halls9 = hallsOfOwner9(new Set([owner9]), sec9);
     return halls9.length === 0 || halls9.some(([hx9, hy9]) => Math.hypot(hx9 - x9, hy9 - y9) <= BASE_R9);
+  };
+  /* ★★ 자원 무더기(2026-10-10, 요청: "빨무같이 앞마당 없는 맵인데 앞마당 넥서스 건설이라고 나오네 — 3넥서스 이렇게 나와야지. 자원 무더기가 따로 있는 맵만 앞마당·멀티 용어") ──────
+     지도 자원 점(opts.resources — 미네랄 밭·가스)을 RES_LINK9 타일 단일 연결로 묶은 것이 **자원 무더기**다(한 기지의 미네랄 줄 + 가스 · 기지끼리는 10타일 넘게 떨어진다).
+     본진 건물이 무더기에서 SERVE_R9 안이면 그 무더기를 **먹는다**. 새 본진 건물이 제 것 아무도 안 먹는 무더기 곁이면 **새 기지**(앞마당·멀티 — buildMiles9), 이미 먹는
+     무더기 곁이거나 곁에 무더기가 없으면 같은 기지에 하나 더("3넥서스"). 빨무처럼 본진 무더기뿐인 맵은 늘 수로 센다. 자원 자료가 없으면(옛 판) 앞마당·멀티라 단정하지 않는다. */
+  const RES_LINK9 = 6;
+  const SERVE_R9 = 10;
+  /** 자원 무더기가 없는 본진 건물끼리 한 기지로 묶는 거리(타일) — 자원 자료가 없을 때의 기지 수 셈. */
+  const BASE_JOIN9 = 12;
+  const resGroups9: [number, number][][] = (() => {
+    const pts9 = (opts.resources ?? []).map(([x9, y9]): [number, number] => [x9, y9]);
+    const par9 = pts9.map((_, i9) => i9);
+    const find9 = (i9: number): number => { while (par9[i9] !== i9) { par9[i9] = par9[par9[i9]]; i9 = par9[i9]; } return i9; };
+    for (let i9 = 0; i9 < pts9.length; i9 += 1) {
+      for (let j9 = i9 + 1; j9 < pts9.length; j9 += 1) {
+        if (Math.hypot(pts9[i9][0] - pts9[j9][0], pts9[i9][1] - pts9[j9][1]) <= RES_LINK9) par9[find9(i9)] = find9(j9);
+      }
+    }
+    const by9 = new Map<number, [number, number][]>();
+    for (let i9 = 0; i9 < pts9.length; i9 += 1) {
+      const r9 = find9(i9);
+      const g9 = by9.get(r9);
+      if (g9) g9.push(pts9[i9]); else by9.set(r9, [pts9[i9]]);
+    }
+    return [...by9.values()];
+  })();
+  const groupDist9 = (g9: readonly [number, number][], x9: number, y9: number): number => {
+    let d9 = Infinity;
+    for (const [px9, py9] of g9) d9 = Math.min(d9, Math.hypot(px9 - x9, py9 - y9));
+    return d9;
+  };
+  /** 그 자리에서 SERVE_R9 안의 무더기 번호들. */
+  const groupsNear9 = (x9: number, y9: number): number[] => {
+    const out9: number[] = [];
+    for (let i9 = 0; i9 < resGroups9.length; i9 += 1) if (groupDist9(resGroups9[i9], x9, y9) <= SERVE_R9) out9.push(i9);
+    return out9;
+  };
+  type Hall9 = { x: number; y: number };
+  /** 본진 건물들의 기지 수 — 무더기를 함께 먹거나 BASE_JOIN9 안이면 한 기지. 자원 자료가 있으면 무더기를 먹는 기지만 센다(곁에 무더기 없는 해처리 홀로는 기지가 아니다). */
+  const basesOf9 = (halls9: readonly Hall9[]): number => {
+    if (halls9.length === 0) return 0;
+    const near9 = halls9.map((h9) => groupsNear9(h9.x, h9.y));
+    const par9 = halls9.map((_, i9) => i9);
+    const find9 = (i9: number): number => { while (par9[i9] !== i9) { par9[i9] = par9[par9[i9]]; i9 = par9[i9]; } return i9; };
+    for (let i9 = 0; i9 < halls9.length; i9 += 1) {
+      for (let j9 = i9 + 1; j9 < halls9.length; j9 += 1) {
+        const share9 = near9[i9].some((g9) => near9[j9].includes(g9));
+        if (share9 || Math.hypot(halls9[i9].x - halls9[j9].x, halls9[i9].y - halls9[j9].y) <= BASE_JOIN9) par9[find9(i9)] = find9(j9);
+      }
+    }
+    const roots9 = new Set<number>();
+    const fed9 = new Set<number>();
+    for (let i9 = 0; i9 < halls9.length; i9 += 1) { const r9 = find9(i9); roots9.add(r9); if (near9[i9].length > 0) fed9.add(r9); }
+    return resGroups9.length > 0 && fed9.size > 0 ? fed9.size : roots9.size;
   };
   const ds9: D9[] = [];
   for (const e9 of world.lives) {
@@ -781,6 +837,49 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   const PHASE9 = { tech: 240, armyWin: 60, armyN: 4 };
   const WORKER9 = new Set(["SCV", "Probe", "Drone"]);
   const NON_ARMY9 = new Set(["Larva", "Egg", "Overlord", "Cocoon", "Lurker Egg", "Scarab", "Interceptor", "Broodling"]);
+  /** 그 자리가 **같은 편의 기지**인가 — 같은 편(teamOf 같음)의 살아 있는 본진 건물 또는 출발 자리가 BASE_R9 안이면 그 사람. 밀리·팀 모름이면 없다. */
+  const allyBaseAt9 = (raw9: string, x9: number, y9: number, sec9: number): string | null => {
+    const tm9 = opts.teamOf?.[raw9];
+    if (tm9 === undefined) return null;
+    for (const r9 of new Set(rawOf9.values())) {
+      if (r9 === raw9 || opts.teamOf?.[r9] !== tm9) continue;
+      if (hallsAt9(r9, sec9).some(([hx9, hy9]) => Math.hypot(hx9 - x9, hy9 - y9) <= BASE_R9)) return r9;
+      const st9 = start9.get(r9);
+      if (st9 && Math.hypot(st9.x - x9, st9.y - y9) <= BASE_R9) return r9;
+    }
+    return null;
+  };
+  /** 그 사람이 sec 앞 LOST_W9 초 동안 잃은 건물 몸값 / 그때 기지 몸값 — "이사"의 자(대파 RAZE9.heavy 이상). */
+  const LOST_W9 = 300;
+  const lostFrac9 = (raw9: string, sec9: number): number => {
+    const own9 = ownersOf9(raw9);
+    let lost9 = 0;
+    for (const e9 of world.lives) {
+      if (e9.bld && own9.has(e9.owner) && e9.end === "atk" && e9.died !== null && e9.died > sec9 - LOST_W9 && e9.died <= sec9) lost9 += castValue9(e9.kind);
+    }
+    const base9 = baseValue9(raw9, sec9 - LOST_W9);
+    return base9 > 0 ? lost9 / base9 : 0;
+  };
+  /** 그 사람의 **앞마당** 무더기 — 출발 자리가 먹는 무더기를 뺀, 출발 자리에서 가장 가까운 무더기(NATURAL_R9 타일 안). 자원 자료가 없거나 없으면 -1. */
+  const NATURAL_R9 = 40;
+  const natOf9 = new Map<string, number>();
+  const naturalOf9 = (raw9: string): number => {
+    const got9 = natOf9.get(raw9);
+    if (got9 !== undefined) return got9;
+    const st9 = start9.get(raw9);
+    let best9 = -1;
+    if (st9) {
+      const main9 = new Set(groupsNear9(st9.x, st9.y));
+      let bd9 = NATURAL_R9;
+      for (let i9 = 0; i9 < resGroups9.length; i9 += 1) {
+        if (main9.has(i9)) continue;
+        const d9 = groupDist9(resGroups9[i9], st9.x, st9.y);
+        if (d9 <= bd9) { bd9 = d9; best9 = i9; }
+      }
+    }
+    natOf9.set(raw9, best9);
+    return best9;
+  };
   type Mile9 = { at: number; caps: CapPart9[] };
   /** 그 사람의 빌드 이정표(착공 시각 차례) — 한 번 세어 두고 자막마다 짚는다. */
   const milesOf9 = new Map<string, Mile9[]>();
@@ -858,18 +957,46 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
         hallN9 += 1;
         if (hallN9 === 1 && e9.born < 5) continue;
         halls9.push(k9);
-        const nth9 = halls9.length + 1;   // 처음 본진까지 센 차례
+        /* ★ 본진 건물의 이름은 **그 순간의 사실**로 가른다(2026-10-10, 지적: "기지가 대파돼서 아군 기지로 이사 가서 새로 해처리를 짓는데 7해처리라고 나와 — 누구 기지로 이사 ·
+           빨무같이 앞마당 없는 맵인데 앞마당 넥서스 — 3넥서스. 자원 무더기가 따로 있는 맵만 앞마당·멀티") — 옛 '지은 차례(누적)'는 잃은 본진까지 세어 7해처리가 됐다.
+           ① 같은 편 기지(그 편의 살아 있는 본진 건물 또는 출발 자리 BASE_R9 안) → 제 기지를 잃었거나 대파됐으면 "[P] [A] 기지로 이사" · 아니면 "[P] [A] 기지에 해처리 건설"
+           ② 제 본진 건물이 하나도 없으면 → 출발 자리 곁 "본진 재건" · 딴 곳 "새 기지로 이사"
+           ③ 아무도(제 것) 안 먹는 자원 무더기 곁 → 새 기지: 출발 자리에서 가장 가까운 딴 무더기면 "앞마당 …"(둘째 기지일 때 빌드 이름 — 노스포닝풀·선포지 더블넥서스·노배럭
+              더블커맨드·빠른) · 그 밖은 "첫 멀티 / N번째 멀티"
+           ④ 그 밖(같은 무더기 · 무더기 없음 · 자원 자료 없음) → 살아 있는 본진 건물 수 "3넥서스 · 3해처리 · 2커맨드"(스포닝풀 전이면 "노스포닝풀 2해처리"). */
+        const t9 = e9.born;
+        const hallsNow9 = world.lives.filter((h9) => h9 !== e9 && h9.bld && own9.has(h9.owner) && HALL_ANY9.has(h9.kind) && h9.born <= t9 && (h9.died === null || h9.died > t9))
+          .map((h9): Hall9 => ({ x: h9.bornX, y: h9.bornY }));
         const ko9 = HALL_KO9[hallKind9] ?? "본진";
-        let text9: string;
-        if (hallKind9 === "Hatchery") {
-          if (coreAt9 === Infinity) text9 = nth9 === 2 ? "노스포닝풀 해처리" : `노스포닝풀 ${nth9}해처리`;
-          else text9 = nth9 === 2 ? "선스포닝풀 후 해처리" : `${nth9}해처리 늘리기`;
-        } else if (nth9 === 2) {
-          text9 = forgeFirst9 && firstProdAt9 === Infinity ? "선포지 더블넥서스"
-            : hallKind9 === "Command Center" && firstProdAt9 === Infinity ? "노배럭 더블커맨드"
-              : coreAt9 === Infinity ? `빠른 ${ko9} 늘리기` : `앞마당 ${ko9} 늘리기`;
-        } else text9 = `${nth9}번째 ${ko9} 늘리기`;
-        mile9(e9.born, text9);
+        const ally9 = allyBaseAt9(raw9, e9.bornX, e9.bornY, t9);
+        if (ally9) {
+          const home9 = hallsNow9.filter((h9) => !allyBaseAt9(raw9, h9.x, h9.y, t9));
+          const moved9 = home9.length === 0 || lostFrac9(raw9, t9) >= RAZE9.heavy;
+          miles9.push({ at: t9, caps: [{ raw: raw9 }, { text: " " }, { raw: ally9 }, { text: moved9 ? " 기지로 이사" : ` 기지에 ${ko9} 건설` }] });
+          continue;
+        }
+        if (hallsNow9.length === 0) {
+          const st9 = start9.get(raw9);
+          mile9(t9, st9 && Math.hypot(st9.x - e9.bornX, st9.y - e9.bornY) <= BASE_R9 ? "본진 재건" : "새 기지로 이사");
+          continue;
+        }
+        const mine9 = groupsNear9(e9.bornX, e9.bornY);
+        const fed9 = new Set(hallsNow9.flatMap((h9) => groupsNear9(h9.x, h9.y)));
+        if (mine9.length > 0 && mine9.every((g9) => !fed9.has(g9))) {
+          const nat9 = naturalOf9(raw9);
+          const before9 = basesOf9(hallsNow9);
+          let text9: string;
+          if (nat9 >= 0 && mine9.includes(nat9)) {
+            if (before9 > 1) text9 = `앞마당 ${ko9}`;
+            else if (hallKind9 === "Hatchery") text9 = coreAt9 === Infinity ? "노스포닝풀 앞마당 해처리" : "앞마당 해처리";
+            else if (hallKind9 === "Nexus") text9 = forgeFirst9 && firstProdAt9 === Infinity ? "선포지 더블넥서스" : coreAt9 === Infinity ? "빠른 앞마당 넥서스" : "앞마당 넥서스";
+            else text9 = firstProdAt9 === Infinity ? "노배럭 더블커맨드" : coreAt9 === Infinity ? `빠른 앞마당 ${ko9}` : `앞마당 ${ko9}`;
+          } else text9 = before9 <= 1 ? "첫 멀티" : `${before9}번째 멀티`;
+          mile9(t9, text9);
+          continue;
+        }
+        const n9 = hallsNow9.length + 1;
+        mile9(t9, hallKind9 === "Hatchery" ? (coreAt9 === Infinity ? `노스포닝풀 ${n9}해처리` : `${n9}해처리`) : `${n9}${ko9}`);
         continue;
       }
       const t9 = TECH_MILE9[k9];
@@ -881,16 +1008,18 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   /** 국면 요약 — 창 끝 시각의 그 사람. */
   const phaseCap9 = (raw9: string, sec9: number): string => {
     const own9 = ownersOf9(raw9);
-    let halls9 = 0; let lastTech9 = -Infinity; let army9 = 0;
+    const halls9: Hall9[] = []; let lastTech9 = -Infinity; let army9 = 0;
     for (const e9 of world.lives) {
       if (!own9.has(e9.owner) || e9.handoff || e9.born > sec9) continue;
       if (e9.bld) {
-        if (HALL_ANY9.has(e9.kind) && (e9.died === null || e9.died > sec9)) halls9 += 1;
+        if (HALL_ANY9.has(e9.kind) && (e9.died === null || e9.died > sec9)) halls9.push({ x: e9.bornX, y: e9.bornY });
         if (TECH_MILE9[e9.kind] && e9.born > lastTech9) lastTech9 = e9.born;
       } else if (e9.born >= sec9 - PHASE9.armyWin && !WORKER9.has(e9.kind) && !NON_ARMY9.has(e9.kind) && castValue9(e9.kind) > 0) army9 += 1;
     }
+    /* 기지 수는 본진 건물 수가 아니라 **기지**(basesOf9 — 2026-10-10: 빨무 본진의 넥서스 셋은 1기지다). */
+    const bases9 = basesOf9(halls9);
     if (sec9 - lastTech9 <= PHASE9.tech) return "순조로운 테크/발전 중";
-    if (halls9 >= 3) return `${halls9}기지 운영 중`;
+    if (bases9 >= 3) return `${bases9}기지 운영 중`;
     if (army9 >= PHASE9.armyN) return "병력 모으는 중";
     return "순조로운 발전 중";
   };

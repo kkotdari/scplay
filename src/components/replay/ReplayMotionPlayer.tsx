@@ -10221,9 +10221,10 @@ export default function ReplayMotionPlayer({
   /* 순환 고리의 자(cast9 의 ★) — 로스터 차례(bases)와 팀. 밀리는 팀이 없으니 차례만 준다. */
   const castPlan = useMemo<CastSeg9[]>(
     () => (castOn && entData
-      ? castPlan9(entData, { total, skip: obsNames, only: rosterKeys9, order: bases.map((b9) => b9.key), teamOf: melee ? undefined : teamMap9 })
+      ? castPlan9(entData, { total, skip: obsNames, only: rosterKeys9, order: bases.map((b9) => b9.key), teamOf: melee ? undefined : teamMap9,
+        resources: grid.resources })   // 자원 점 — 앞마당·멀티 가름(cast9 ★★ 자원 무더기 · 2026-10-10)
       : []),
-    [castOn, entData, total, obsNames, rosterKeys9, bases, melee, teamMap9]);
+    [castOn, entData, total, obsNames, rosterKeys9, bases, melee, teamMap9, grid.resources]);
   /** 지금 짚히는 토막 번호 — 렌더마다 이분으로 찾는다(상태로 두면 프레임마다 렌더가 한 번 더 돈다). */
   const castIdx9 = castPlan.length > 0 ? castAt9(castPlan, t) : -1;
   /** 중계가 고른 사람 — 끄거나 표가 없으면 null. */

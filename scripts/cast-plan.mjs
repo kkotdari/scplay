@@ -191,38 +191,93 @@ for (const [name, pass] of [
   ["셔틀이 본진으로 간 뒤의 싸움은 '폭탄드랍'", !!d4 && /폭탄드랍/.test(capTxt(d4))],
 ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 
-/* ── ⑧ 빌드 읽기(2026-10-09, 요청: "소강 상태에서 '누구 운영'이라는 자막보다는 … 초반/중반 빌드에 대한 분석") — 사건 없는 FFA 넷 · 착공 차례만 다르다 ── */
+/* ── ⑧ 빌드 읽기(2026-10-09, 요청: "소강 상태에서 '누구 운영'이라는 자막보다는 … 초반/중반 빌드에 대한 분석") — 사건 없는 FFA 여섯 · 착공 차례만 다르다 ──
+   2026-10-10: 본진 건물은 **자리**로 가른다(cast9 ★★ 자원 무더기) — 지도 192 · 사람마다 본진 무더기(미네랄 다섯 + 가스) · 앞마당(가운데 쪽 22타일) · 셋째(44타일). */
+/** 본진 건물이 (x, y) 에 설 기지의 자원 점 — 미네랄 다섯(위 6타일 줄) + 가스(오른 위). */
+const baseRes9 = (x, y) => [...[-4, -2, 0, 2, 4].map((dx) => [x + dx, y - 6, 0]), [x + 6, y - 3, 1]];
+const toward9 = ([x, y], d) => { const l = Math.hypot(96 - x, 96 - y) || 1; return [Math.round(x + ((96 - x) / l) * d), Math.round(y + ((96 - y) / l) * d)]; };
+const bstarts9 = [[20, 20], [172, 20], [20, 172], [172, 172], [96, 20], [96, 172]];
+const bres9 = bstarts9.flatMap((st) => [...baseRes9(...st), ...baseRes9(...toward9(st, 22)), ...baseRes9(...toward9(st, 44))]);
 const bw9 = (() => {
   let bt = 9000;
   const bl = [];
-  const bmk = (o, kind, born, bld = true, died = null, end = "") => { const e = { tag: (bt += 1), owner: o, kind, born, bornX: 10, bornY: 10, died, end, bld,
-    sites: bld ? [[born, 9, 9]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [] }; bl.push(e); return e; };
+  const bmk = (o, kind, born, bld = true, at = bstarts9[o]) => { const e = { tag: (bt += 1), owner: o, kind, born, bornX: at[0], bornY: at[1], died: null, end: "", bld,
+    sites: bld ? [[born, at[0] - 1, at[1] - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [] }; bl.push(e); return e; };
+  const nat = (o) => toward9(bstarts9[o], 22);
+  const third = (o) => toward9(bstarts9[o], 44);
   bmk(0, "Hatchery", 0); bmk(1, "Hatchery", 0); bmk(2, "Nexus", 0); bmk(3, "Command Center", 0);
-  // Z1 선스포닝풀 → 해처리 → 레어   |  Z2 노스포닝풀 해처리 → 스포닝풀 → 셋째 해처리
-  bmk(0, "Spawning Pool", 60); bmk(0, "Hatchery", 150); bmk(0, "Lair", 500);
-  bmk(1, "Hatchery", 90); bmk(1, "Spawning Pool", 150); bmk(1, "Hatchery", 400);
-  // P1 게이트 → 넥서스(코어 앞 = 빠른) → 코어 → 로보틱스   |  T1 배럭 둘(팩토리 앞 = 투배럭) → 팩토리 → 커맨드(팩토리 뒤 = 앞마당)
-  bmk(2, "Gateway", 60); bmk(2, "Nexus", 150); bmk(2, "Cybernetics Core", 200); bmk(2, "Robotics Facility", 400);
-  bmk(3, "Barracks", 60); bmk(3, "Barracks", 120); bmk(3, "Factory", 200); bmk(3, "Command Center", 300);
+  // Z1 선스포닝풀 → 앞마당 해처리 → 레어   |  Z2 노스포닝풀 앞마당 해처리 → 스포닝풀 → 셋째 기지 해처리
+  bmk(0, "Spawning Pool", 60); bmk(0, "Hatchery", 150, true, nat(0)); bmk(0, "Lair", 500);
+  bmk(1, "Hatchery", 90, true, nat(1)); bmk(1, "Spawning Pool", 150); bmk(1, "Hatchery", 400, true, third(1));
+  // P1 게이트 → 앞마당 넥서스(코어 앞 = 빠른) → 코어 → 로보틱스   |  T1 배럭 둘(팩토리 앞 = 2배럭) → 팩토리 → 앞마당 커맨드(팩토리 뒤)
+  bmk(2, "Gateway", 60); bmk(2, "Nexus", 150, true, nat(2)); bmk(2, "Cybernetics Core", 200); bmk(2, "Robotics Facility", 400);
+  bmk(3, "Barracks", 60); bmk(3, "Barracks", 120); bmk(3, "Factory", 200); bmk(3, "Command Center", 300, true, nat(3));
   for (let i = 0; i < 6; i += 1) bmk(2, "Zealot", 700 + i * 5, false);   // P1 은 700초대에 병력이 한창
-  // Z3 — 드론 넷으로 시작해 넷을 더 뽑고(8드론) 70초에 스포닝풀 → "8드론 저글링러시"  |  P2 — 게이트 → 코어 → 게이트 둘(240초에 셋째) → "3게이트"
+  // Z3 — 드론 넷으로 시작해 넷을 더 뽑고(8드론) 70초에 스포닝풀 → "8드론 스포닝풀 건설"  |  P2 — 게이트 → 코어 → 게이트 둘(240초에 셋째) → "3게이트"
   bmk(4, "Hatchery", 0); for (let i = 0; i < 8; i += 1) bmk(4, "Drone", i < 4 ? 0 : 20 + i * 6, false); bmk(4, "Spawning Pool", 70);   // 70초엔 드론 여덟
   bmk(5, "Nexus", 0); bmk(5, "Gateway", 60); bmk(5, "Cybernetics Core", 120); bmk(5, "Gateway", 200); bmk(5, "Gateway", 240);
   return { players: [["Z1", "저그"], ["Z2", "저그"], ["P1", "프로토스"], ["T1", "테란"], ["Z3", "저그"], ["P2", "프로토스"]].map(([name, race], o) => ({ owner: o, name, race, color: "#fff", team: 0 })),
     lives: bl, ups: [], casts: [], pings: [], resFields: [] };
 })();
-const bplan9 = castPlan9(bw9, { total: 900, order: ["Z1", "Z2", "P1", "T1", "Z3", "P2"] });
-/** raw 의 토막 중 at ∈ [t, t + 60) 첫 것의 자막(여섯이 돌아가니 48초마다 제 차례). */
-const capAt9 = (raw, t) => { const sg = bplan9.find((s) => s.raw === raw && s.at >= t && s.at < t + 60); return sg ? capTxt(sg) : "(토막 없음)"; };
+const bord9 = ["Z1", "Z2", "P1", "T1", "Z3", "P2"];
+const bplan9 = castPlan9(bw9, { total: 900, order: bord9, resources: bres9 });
+const bplanNo9 = castPlan9(bw9, { total: 900, order: bord9 });   // 자원 자료 없음(옛 판) — 앞마당·멀티라 단정하지 않는다
+/** plan 에서 raw 의 토막 중 at ∈ [t, t + 60) 첫 것의 자막(여섯이 돌아가니 48초마다 제 차례). */
+const capIn9 = (plan, raw, t) => { const sg = plan.find((s) => s.raw === raw && s.at >= t && s.at < t + 60); return sg ? capTxt(sg) : "(토막 없음)"; };
+const capAt9 = (raw, t) => capIn9(bplan9, raw, t);
 const bcases9 = [
-  ["Z1", 64, "[Z1] 선스포닝풀"], ["Z1", 155, "[Z1] 선스포닝풀 후 해처리"], ["Z1", 505, "[Z1] 레어 테크"],
-  ["Z2", 95, "[Z2] 노스포닝풀 해처리"], ["Z2", 155, "[Z2] 해처리 후 스포닝풀"], ["Z2", 405, "[Z2] 3해처리 늘리기"], ["Z2", 800, "[Z2] 3기지 운영 중"],
-  ["P1", 155, "[P1] 빠른 넥서스 늘리기"], ["P1", 205, "[P1] 코어 테크"], ["P1", 405, "[P1] 로보틱스 테크"], ["P1", 735, "[P1] 병력 모으는 중"],
-  ["T1", 125, "[T1] 2배럭"], ["T1", 205, "[T1] 팩토리 테크"], ["T1", 305, "[T1] 앞마당 커맨드 늘리기"], ["T1", 800, "[T1] 순조로운 발전 중"],
+  ["Z1", 64, "[Z1] 선스포닝풀"], ["Z1", 155, "[Z1] 앞마당 해처리"], ["Z1", 505, "[Z1] 레어 테크"],
+  ["Z2", 95, "[Z2] 노스포닝풀 앞마당 해처리"], ["Z2", 155, "[Z2] 해처리 후 스포닝풀"], ["Z2", 405, "[Z2] 2번째 멀티"], ["Z2", 800, "[Z2] 3기지 운영 중"],
+  ["P1", 155, "[P1] 빠른 앞마당 넥서스"], ["P1", 205, "[P1] 코어 테크"], ["P1", 405, "[P1] 로보틱스 테크"], ["P1", 735, "[P1] 병력 모으는 중"],
+  ["T1", 125, "[T1] 2배럭"], ["T1", 205, "[T1] 팩토리 테크"], ["T1", 305, "[T1] 앞마당 커맨드"], ["T1", 800, "[T1] 순조로운 발전 중"],
   ["Z3", 75, "[Z3] 8드론 스포닝풀 건설"], ["P2", 245, "[P2] 3게이트"],
 ];
 console.log(`\n빌드 읽기: ${bcases9.slice(0, 4).map(([r, t]) => `${r}@${t}s ${capAt9(r, t)}`).join(" · ")} …`);
 for (const [raw, t, want] of bcases9) { const got = capAt9(raw, t); console.log(`  ${got === want ? "✔" : "✘"} ${raw} ${t}s → ${want}${got === want ? "" : ` (실제 ${got})`}`); }
+/* 자원 자료가 없으면 본진 건물은 수로만(2026-10-10 — "확실하게 알아낸 것만"). */
+for (const [raw, t, want] of [["Z1", 155, "[Z1] 2해처리"], ["Z2", 95, "[Z2] 노스포닝풀 2해처리"], ["Z2", 405, "[Z2] 3해처리"], ["P1", 155, "[P1] 2넥서스"], ["T1", 305, "[T1] 2커맨드"]]) {
+  const got = capIn9(bplanNo9, raw, t); console.log(`  ${got === want ? "✔" : "✘"} 자원 자료 없음 ${raw} ${t}s → ${want}${got === want ? "" : ` (실제 ${got})`}`);
+}
+
+/* ── ⑩ 빨무(본진 무더기뿐인 맵 · 2026-10-10, 지적: "빨무같이 앞마당 없는 맵인데 앞마당 넥서스 건설이라고 나오네 — 3넥서스") — 본진 안의 넥서스·해처리는 수로 센다 ──
+   F1(프로토스) 본진 (30,30): 200초 가스 곁(38,33) · 300초 미네랄 곁(22,33) · 400초 무더기 없는 곳(30,46) · F2(저그) 본진 (150,30): 스포닝풀 앞 해처리(158,33) · 뒤 해처리(142,33). */
+const fw9 = (() => {
+  let ft = 13000;
+  const fl = [];
+  const fmk = (o, kind, born, bld, x, y) => { const e = { tag: (ft += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [] }; fl.push(e); return e; };
+  fmk(0, "Nexus", 0, true, 30, 30); fmk(0, "Nexus", 200, true, 38, 33); fmk(0, "Nexus", 300, true, 22, 33); fmk(0, "Nexus", 400, true, 30, 46);
+  fmk(1, "Hatchery", 0, true, 150, 30); fmk(1, "Hatchery", 80, true, 158, 33); fmk(1, "Spawning Pool", 120, true, 150, 36); fmk(1, "Hatchery", 300, true, 142, 33);
+  return { players: [["F1", "프로토스"], ["F2", "저그"]].map(([name, race], o) => ({ owner: o, name, race, color: "#fff", team: 0 })), lives: fl, ups: [], casts: [], pings: [], resFields: [] };
+})();
+const fplan9 = castPlan9(fw9, { total: 900, order: ["F1", "F2"], resources: [...baseRes9(30, 30), ...baseRes9(150, 30)] });
+console.log(`\n빨무: ${[["F1", 205], ["F1", 305], ["F1", 405], ["F2", 85], ["F2", 305]].map(([r, t]) => `${r}@${t}s ${capIn9(fplan9, r, t)}`).join(" · ")}`);
+for (const [raw, t, want] of [["F1", 205, "[F1] 2넥서스"], ["F1", 305, "[F1] 3넥서스"], ["F1", 405, "[F1] 4넥서스"], ["F1", 800, "[F1] 순조로운 발전 중"],
+  ["F2", 85, "[F2] 노스포닝풀 2해처리"], ["F2", 305, "[F2] 3해처리"]]) {
+  const got = capIn9(fplan9, raw, t); console.log(`  ${got === want ? "✔" : "✘"} ${raw} ${t}s → ${want}${got === want ? "" : ` (실제 ${got})`}`);
+}
+
+/* ── ⑪ 이사(2026-10-10, 지적: "기지가 대파돼서 아군 기지로 이사 가서 새로 해처리를 짓는데 7해처리라고 나와 — 누구 기지로 이사") ──
+   1팀 Z·A·W · 2팀 E. Z 는 500초에 본진 해처리를 잃고 520초에 A 기지 곁에 해처리 → "Z A 기지로 이사" · W 는 제 본진이 멀쩡한 채 300초에 A 기지에 해처리 → "W A 기지에 해처리 건설" ·
+   E 는 400초에 커맨드를 잃고 450초에 제 자리에 다시 → "본진 재건". */
+const mw9 = (() => {
+  let mt = 15000;
+  const ml = [];
+  const mmk = (o, kind, born, bld, x, y, died = null, end = "") => { const e = { tag: (mt += 1), owner: o, kind, born, bornX: x, bornY: y, died, end, bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [] }; ml.push(e); return e; };
+  mmk(0, "Hatchery", 0, true, 20, 20, 500, "atk"); mmk(0, "Drone", 0, false, 20, 20); mmk(0, "Hatchery", 520, true, 28, 174);
+  mmk(1, "Hatchery", 0, true, 20, 170); mmk(1, "Drone", 0, false, 20, 170);
+  mmk(2, "Hatchery", 0, true, 170, 170); mmk(2, "Drone", 0, false, 170, 170); mmk(2, "Hatchery", 300, true, 12, 174);
+  mmk(3, "Command Center", 0, true, 170, 20, 400, "atk"); mmk(3, "SCV", 0, false, 170, 20); mmk(3, "Command Center", 450, true, 170, 20);
+  return { players: [["Z", "저그", 1], ["A", "저그", 1], ["W", "저그", 1], ["E", "테란", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
+    lives: ml, ups: [], casts: [], pings: [], resFields: [] };
+})();
+const mplan9 = castPlan9(mw9, { total: 900, order: ["Z", "A", "W", "E"], teamOf: { Z: 1, A: 1, W: 1, E: 2 },
+  resources: [...baseRes9(20, 20), ...baseRes9(20, 170), ...baseRes9(170, 170), ...baseRes9(170, 20)] });
+console.log(`\n이사: ${[["Z", 521], ["W", 301], ["E", 451]].map(([r, t]) => `${r}@${t}s ${capIn9(mplan9, r, t)}`).join(" · ")}`);
+for (const [raw, t, want] of [["Z", 521, "[Z] [A] 기지로 이사"], ["W", 301, "[W] [A] 기지에 해처리 건설"], ["E", 451, "[E] 본진 재건"]]) {
+  const got = capIn9(mplan9, raw, t); console.log(`  ${got === want ? "✔" : "✘"} ${raw} ${t}s → ${want}${got === want ? "" : ` (실제 ${got})`}`);
+}
 
 /* ── ⑥ 순환 차례 — 2v2 · 사건 없는 60초(2026-09, 요청: "순환할때 순서를 로스터 순으로 팀 번갈아가며") ── */
 const q4 = { players: [0, 1, 2, 3].map((o) => ({ owner: o, name: "PQRS"[o], race: "테란", color: "#fff", team: o < 2 ? 1 : 2 })),
