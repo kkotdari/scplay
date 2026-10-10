@@ -348,3 +348,48 @@ rmSync(tmp, { recursive: true, force: true });
     ["기지 밖 일꾼은 '견제'가 아니다", !has(/일꾼 견제/)],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }
+
+/* ── ⑬ 전술 읽기(2026-10-10, 요청: "센터 포토/벙커/터렛 · 센터 장악 · 상대 입구 막기 · 옆탱(건물 띄워 시야) · 언덕탱 · 오버로드 사냥 · 입구럴커") ──
+   지도 128. 지형: x 36·37 (y 0~40) 벽 · (60,60) 반지름 3 언덕(고도 2) · (84,100) 램프(Z 입구). 1팀 T(테란 20,20)·P(프로토스 20,100) · 2팀 Y(저그 52,20)·Z(저그 100,100).
+   ① 160초 T 탱크 (34,22) 시즈 — 벽 너머 Y 의 스포닝풀(44,20) · 140초 T 배럭 이륙 → "옆탱 · 건물 띄워 시야 확보" ② 310초 T 탱크 언덕(60,60) 시즈 — Y 크립(68,60) → "언덕탱"
+   ③ 100초 P 포토 (64,64) → "센터 포토" ④ 200초 P 포토 (82,100) 램프 곁 → "입구를 포토로 막음" ⑤ 300초 Z 럴커 (88,100) 머묾 → "입구 럴커로 방어"
+   ⑥ 380초 P 질럿 열 (62,64) → 500초 무렵 "센터 장악" ⑦ 600초 P 커세어가 Z 오버로드 넷 → "오버로드 사냥". */
+{
+  const W = 128;
+  const wall = (x, y) => (x === 36 || x === 37) && y >= 0 && y <= 40;
+  const tw = {
+    level: (x, y) => (Math.hypot(x - 60, y - 60) <= 3 ? 2 : 0),
+    walk: (x, y) => x >= 0 && y >= 0 && x < W && y < W && !wall(x, y),
+    ramp: (x, y) => x === 84 && y === 100,
+  };
+  let tt = 19000;
+  const tl = [];
+  const kills = [];
+  const tmk = (o, kind, bld, x, y, born, extra = {}) => { const e = { tag: (tt += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [], ...extra }; tl.push(e); return e; };
+  tmk(0, "Command Center", true, 20, 20, 0); tmk(1, "Nexus", true, 20, 100, 0); tmk(2, "Hatchery", true, 52, 20, 0); tmk(3, "Hatchery", true, 100, 100, 0);
+  tmk(2, "Spawning Pool", true, 44, 20, 0); tmk(2, "Creep Colony", true, 68, 60, 0);
+  tmk(0, "Barracks", true, 24, 24, 50, { lifts: [140] });
+  tmk(0, "Siege Tank (Tank Mode)", false, 20, 20, 100, { orders: [[150, 34, 22, false]], sieges: [[160, true]] });
+  tmk(0, "Siege Tank (Tank Mode)", false, 20, 20, 100, { orders: [[300, 60, 60, false]], sieges: [[310, true]] });
+  tmk(1, "Photon Cannon", true, 64, 64, 100); tmk(1, "Photon Cannon", true, 82, 100, 200);
+  tmk(3, "Lurker", false, 100, 100, 280, { orders: [[300, 88, 100, false]] });
+  for (let i = 0; i < 10; i += 1) tmk(1, "Zealot", false, 20, 100, 380, { orders: [[380, 62 + (i % 3), 64, false]] });
+  const cs = tmk(1, "Corsair", false, 20, 100, 550);
+  for (const t of [600, 601, 602, 603]) { const v = tmk(3, "Overlord", false, 100, 100, 0, { died: t, end: "atk", orders: [[t - 2, 90, 90, false]] }); kills.push([t, 1, cs.tag, v.tag]); }
+  const tworld = { players: [["T", "테란", 1], ["P", "프로토스", 1], ["Y", "저그", 2], ["Z", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
+    lives: tl, ups: [], casts: [], pings: [], resFields: [], kills };
+  const tplan = castPlan9(tworld, { total: 900, order: ["T", "P", "Y", "Z"], teamOf: { T: 1, P: 1, Y: 2, Z: 2 }, mapW: W, mapH: W, terrain: tw });
+  const caps = tplan.map((s) => capTxt(s));
+  console.log(`\n전술: ${[...new Set(caps)].filter((c) => !/순조로운/.test(c)).join(" · ")}`);
+  const has = (re) => caps.some((c) => re.test(c));
+  for (const [name, pass] of [
+    ["벽 너머 시즈 + 건물 이륙 → 옆탱 · 시야 확보", has(/\[T\]ga \[Y\] 기지에 옆탱 · 건물 띄워 시야 확보/)],
+    ["언덕 위 시즈 → 언덕탱", has(/\[T\]ga 언덕탱으로 \[Y\]eul 공격/)],
+    ["가운데 포토 → 센터 포토", has(/\[P\] 센터 포토/)],
+    ["적 램프 곁 포토 → 입구 막기", has(/\[P\]ga \[Z\] 입구를 포토로 막음/)],
+    ["제 입구 안쪽 럴커 → 입구 럴커", has(/\[Z\] 입구 럴커로 방어/)],
+    ["센터에 모인 병력 → 센터 장악", has(/\[P\] 센터 장악/)],
+    ["커세어가 오버로드 넷 → 오버로드 사냥", has(/\[P\]ga \[Z\] 오버로드 사냥/)],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}

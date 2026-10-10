@@ -83,6 +83,10 @@ export type CastPlanOpts9 = {
   teamOf?: Readonly<Record<string, number | undefined>>;
   /** 지도 자원 점(ReplayMapGrid.resources — 미네랄 밭(겹친 것은 하나)·가스 [타일 x, 타일 y, 가스]) — 앞마당·멀티를 가르는 자(2026-10-10). 없으면 본진 건물은 수로만 센다. */
   resources?: readonly (readonly [number, number, number])[];
+  /** 지도 크기(타일) — 센터 판정(2026-10-10). 없으면 센터 전술은 안 읽는다. */
+  mapW?: number; mapH?: number;
+  /** 참값 지형(2026-10-10) — 고도(0~3) · 걸을 수 있나 · 램프. 없으면 언덕탱·옆탱·입구 판정은 안 읽는다. */
+  terrain?: { level: (x: number, y: number) => number; walk: (x: number, y: number) => boolean; ramp?: (x: number, y: number) => boolean };
 };
 
 /** 장면보다 몇 초 먼저 갈아타나(요청: "1-2초전에 미리") — 그 사이에 카메라가 자리를 잡는다. */
@@ -102,6 +106,15 @@ const JUMP9 = 1.7;
 const TIE9 = 1.12;
 /** 장면으로 세울 최소 무게 — 저글링 셋(또는 드라군 하나) 어치. */
 const MIN_SCENE9 = 240;
+/** 오버로드 사냥꾼(2026-10-10, 요청: "스카우트·커세어·발키리·레이스 등 공중공격 강한 유닛으로 오버로드를 대량으로 잡는 것") — 한 장면에 OVL_HUNT_N9 마리 이상. */
+const OVL_HUNTER9 = new Set(["Scout", "Corsair", "Valkyrie", "Wraith", "Mutalisk", "Devourer"]);
+const OVL_HUNT_N9 = 3;
+/** 센터 방어 건물의 이름(요청: "센터 포토/벙커/터렛 등 — 맵 중앙 부근에 짓는 것"). */
+const CENTER_DEF9: Record<string, string> = { "Photon Cannon": "포토", Bunker: "벙커", "Missile Turret": "터렛", "Sunken Colony": "성큰", "Spore Colony": "스포어" };
+/** 센터 반지름 — 지도 짧은 변의 몫: 방어 건물 · 장악(병력·건물이 모인 자리). */
+const CENTER_K9 = { def: 0.12, hold: 0.18 };
+/** 센터 장악 — 제 병력+건물 수가 이 이상이고 적의 이 배 이상. */
+const CENTER_HOLD9 = { n: 8, k: 2 };
 /** 순환 한 토막의 길이(초) — 소강에서 한 사람을 보여주는 시간(요청: "순환중계시 한 사람
  *  유지시간 줄이기" — 14 → 9 → 재요청 "9초 -> 8초"). 자막이 상시 표시가 된 뒤로는 갈아타는 박자가
  *  곧 자막 박자라는 옛 ⚠(토스트가 그만큼 잦다)가 걷혀, 값을 정하는 것은 **한 사람을 읽을 만한
@@ -351,6 +364,131 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     if (killer9 >= 0 && hallsOfOwner9(new Set([killer9]), sec9).length > 0 && atOwnBase9(killer9, x9, y9, sec9)) return "정찰";
     return "";
   };
+  /* ── 전술 읽기(2026-10-10, 요청: "센터 포토/벙커/터렛 · 센터 장악 · 상대 입구 막기 · 옆탱 · 언덕탱 · 오버로드 사냥 · 입구럴커") ───────────────
+     자리는 **그 순간 마지막 명령 자리**(posAt9 — 참값 생애는 자리 자취를 안 들고 명령만 든다)다. 지형(opts.terrain)이 있어야 언덕·벽·램프를 본다. */
+  const posAt9 = (e9: (typeof world.lives)[number], sec9: number): [number, number] => {
+    let x9 = e9.bornX; let y9 = e9.bornY;
+    for (const o9 of e9.orders) { if (o9[0] > sec9) break; x9 = o9[1]; y9 = o9[2]; }
+    return [x9, y9];
+  };
+  const mapC9 = opts.mapW && opts.mapH ? { x: opts.mapW / 2, y: opts.mapH / 2, s: Math.min(opts.mapW, opts.mapH) } : null;
+  const inCenter9 = (x9: number, y9: number, k9: number): boolean => !!mapC9 && Math.hypot(x9 - mapC9.x, y9 - mapC9.y) <= mapC9.s * k9;
+  /** 적(다른 편) 임자 번호들. */
+  const foeOwners9 = (raw9: string): number[] => [...rawOf9.entries()]
+    .filter(([, r9]) => r9 !== raw9 && !(opts.teamOf?.[r9] !== undefined && opts.teamOf?.[r9] === opts.teamOf?.[raw9])).map(([o9]) => o9);
+  /** 두 자리 사이에 못 걷는 칸(벽·절벽)이 끼었나 — 반 타일 간격으로 짚는다. */
+  const wallBetween9 = (ax9: number, ay9: number, bx9: number, by9: number): boolean => {
+    const tr9 = opts.terrain;
+    if (!tr9) return false;
+    const n9 = Math.ceil(Math.hypot(bx9 - ax9, by9 - ay9) * 2);
+    for (let i9 = 1; i9 < n9; i9 += 1) {
+      const u9 = i9 / n9;
+      if (!tr9.walk(Math.floor(ax9 + (bx9 - ax9) * u9), Math.floor(ay9 + (by9 - ay9) * u9))) return true;
+    }
+    return false;
+  };
+  /** 그 자리 r 타일 안에 램프가 있나. */
+  const rampNear9 = (x9: number, y9: number, r9: number): boolean => {
+    const ramp9 = opts.terrain?.ramp;
+    if (!ramp9) return false;
+    for (let dy9 = -r9; dy9 <= r9; dy9 += 1) for (let dx9 = -r9; dx9 <= r9; dx9 += 1) {
+      if (dx9 * dx9 + dy9 * dy9 <= r9 * r9 && ramp9(Math.floor(x9) + dx9, Math.floor(y9) + dy9)) return true;
+    }
+    return false;
+  };
+  /** 한 자리에 SETTLE9 초 넘게 머문 몸의 [초, x, y] — 다음 명령까지(또는 죽기·끝까지) 그 자리다(럴커 입구 판정). */
+  const SETTLE9 = 20;
+  const settles9 = (e9: (typeof world.lives)[number]): [number, number, number][] => {
+    const out9: [number, number, number][] = [];
+    const end9 = e9.died ?? total;
+    for (let i9 = 0; i9 < e9.orders.length; i9 += 1) {
+      const [t9, x9, y9] = e9.orders[i9];
+      const next9 = i9 + 1 < e9.orders.length ? e9.orders[i9 + 1][0] : end9;
+      if (next9 - t9 >= SETTLE9) out9.push([t9, x9, y9]);
+    }
+    return out9;
+  };
+  type Tactic9 = { at: number; caps: CapPart9[]; short?: string };
+  const tacticsMemo9 = new Map<string, Tactic9[]>();
+  const TACTIC_DEDUP9 = 120;
+  const tacticsOf9 = (raw9: string): Tactic9[] => {
+    const got9 = tacticsMemo9.get(raw9);
+    if (got9) return got9;
+    const own9 = new Set([...rawOf9.entries()].filter(([, r9]) => r9 === raw9).map(([o9]) => o9));
+    const foes9 = new Set(foeOwners9(raw9));
+    const out9: Tactic9[] = [];
+    const lastAt9 = new Map<string, number>();
+    const add9 = (key9: string, t9: number, caps9: CapPart9[], short9?: string): void => {
+      const l9 = lastAt9.get(key9);
+      if (l9 !== undefined && t9 - l9 < TACTIC_DEDUP9) return;
+      lastAt9.set(key9, t9);
+      out9.push({ at: t9, caps: caps9, ...(short9 ? { short: short9 } : {}) });
+    };
+    const tr9 = opts.terrain;
+    const st9 = start9.get(raw9);
+    /** 그 자리에서 가장 가까운 적 출발 자리·본진 건물(이름 · 거리 · 자리). */
+    const nearFoeBase9 = (x9: number, y9: number, sec9: number): { raw: string; d: number; x: number; y: number } | null => {
+      let best9: { raw: string; d: number; x: number; y: number } | null = null;
+      for (const o9 of foes9) {
+        const r9 = rawOf9.get(o9)!;
+        const pts9: [number, number][] = [...hallsOfOwner9(new Set([o9]), sec9)];
+        const s9 = start9.get(r9); if (s9) pts9.push([s9.x, s9.y]);
+        for (const [hx9, hy9] of pts9) { const d9 = Math.hypot(hx9 - x9, hy9 - y9); if (!best9 || d9 < best9.d) best9 = { raw: r9, d: d9, x: hx9, y: hy9 }; }
+      }
+      return best9;
+    };
+    for (const e9 of world.lives) {
+      if (!own9.has(e9.owner)) continue;
+      /* 탱크 — 박은 자리에서 12 타일 안의 가장 가까운 적 건물을 본다. 언덕(제 고도가 더 높다) → 언덕탱 · 적 기지 밖에서 벽 너머로 → 옆탱(그 무렵 제 건물을 띄웠으면 시야 확보). */
+      if (e9.kind.startsWith("Siege Tank") && tr9) {
+        for (const [ts9, on9] of e9.sieges) {
+          if (!on9) continue;
+          const [px9, py9] = posAt9(e9, ts9);
+          let tgt9: (typeof world.lives)[number] | null = null; let td9 = 12;
+          for (const b9 of world.lives) {
+            if (!b9.bld || !foes9.has(b9.owner) || b9.born > ts9 || (b9.died !== null && b9.died <= ts9)) continue;
+            const d9 = Math.hypot(b9.bornX - px9, b9.bornY - py9);
+            if (d9 <= td9) { td9 = d9; tgt9 = b9; }
+          }
+          if (!tgt9) continue;
+          const foe9 = rawOf9.get(tgt9.owner)!;
+          if (tr9.level(Math.floor(px9), Math.floor(py9)) > tr9.level(Math.floor(tgt9.bornX), Math.floor(tgt9.bornY))) {
+            add9(`hill|${foe9}`, ts9, [{ raw: raw9, p: "ga" }, { text: " 언덕탱으로 " }, { raw: foe9, p: "eul" }, { text: " 공격" }], "언덕탱");
+            continue;
+          }
+          const fb9 = nearFoeBase9(tgt9.bornX, tgt9.bornY, ts9);
+          const tankOut9 = !fb9 || Math.hypot(fb9.x - px9, fb9.y - py9) > BASE_R9;
+          if (fb9 && fb9.d <= BASE_R9 && tankOut9 && wallBetween9(px9, py9, tgt9.bornX, tgt9.bornY)) {
+            const lift9 = world.lives.some((b9) => b9.bld && own9.has(b9.owner) && b9.lifts.some((l9) => l9 >= ts9 - 90 && l9 <= ts9 + 10));
+            add9(`side|${foe9}`, ts9, [{ raw: raw9, p: "ga" }, { text: " " }, { raw: foe9 }, { text: lift9 ? " 기지에 옆탱 · 건물 띄워 시야 확보" : " 기지에 옆탱" }], "옆탱");
+          }
+        }
+      }
+      /* 상대 입구 막기 — 포토·럴커가 적 기지 바로 바깥(BASE_R9 ~ +12)에, 지형이 있으면 램프 곁(6 타일)에 선 것. */
+      const blockAt9 = (t9: number, x9: number, y9: number): void => {
+        const fb9 = nearFoeBase9(x9, y9, t9);
+        if (!fb9 || fb9.d <= BASE_R9 - 4 || fb9.d > BASE_R9 + 12) return;
+        if (tr9?.ramp && !rampNear9(x9, y9, 6)) return;
+        add9(`block|${fb9.raw}`, t9, [{ raw: raw9, p: "ga" }, { text: " " }, { raw: fb9.raw }, { text: e9.kind === "Lurker" ? " 입구를 럴커로 막음" : " 입구를 포토로 막음" }], "입구 막기");
+      };
+      if (e9.bld && e9.kind === "Photon Cannon") blockAt9(e9.born, e9.bornX, e9.bornY);
+      if (e9.kind === "Lurker") {
+        for (const [t9, x9, y9] of settles9(e9)) {
+          blockAt9(t9, x9, y9);
+          /* 입구럴커 — 제 본진 안쪽 가장자리(출발 자리 8 ~ BASE_R9+4 · 본진과 같은 고도 · 램프 5 타일 안). 지형이 있을 때만. */
+          if (tr9?.ramp && st9) {
+            const d9 = Math.hypot(st9.x - x9, st9.y - y9);
+            if (d9 >= 8 && d9 <= BASE_R9 + 4 && tr9.level(Math.floor(x9), Math.floor(y9)) === tr9.level(Math.floor(st9.x), Math.floor(st9.y)) && rampNear9(x9, y9, 5)) {
+              add9("homeLurker", t9, [{ raw: raw9 }, { text: " 입구 럴커로 방어" }], "입구 럴커");
+            }
+          }
+        }
+      }
+    }
+    out9.sort((a9, b9) => a9.at - b9.at);
+    tacticsMemo9.set(raw9, out9);
+    return out9;
+  };
   /* ★★ 자원 무더기(2026-10-10, 요청: "빨무같이 앞마당 없는 맵인데 앞마당 넥서스 건설이라고 나오네 — 3넥서스 이렇게 나와야지. 자원 무더기가 따로 있는 맵만 앞마당·멀티 용어") ──────
      지도 자원 점(opts.resources — 미네랄 밭·가스)을 RES_LINK9 타일 단일 연결로 묶은 것이 **자원 무더기**다(한 기지의 미네랄 줄 + 가스 · 기지끼리는 10타일 넘게 떨어진다).
      본진 건물이 무더기에서 SERVE_R9 안이면 그 무더기를 **먹는다**. 새 본진 건물이 제 것 아무도 안 먹는 무더기 곁이면 **새 기지**(앞마당·멀티 — buildMiles9), 이미 먹는
@@ -487,11 +625,13 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     /** 잃은 자리들 [사람, x, y, 몸값] — 싸움터가 누구 진영인가(duel9). */
     locs: [string, number, number, number][];
     /** 일꾼을 죽인 유닛 종류 → 무게(견제 자막의 "리버 일꾼 견제") · 사람 → (죽인 유닛 종류 → 무게)(저글링러시 · 2026-10-09). */
-    byKind: Map<string, number>; killKind: Map<string, Map<string, number>> };
+    byKind: Map<string, number>; killKind: Map<string, Map<string, number>>;
+    /** "k>v" → k 의 공중 사냥꾼(OVL_HUNTER9)이 잡은 v 의 오버로드 수(오버로드 사냥 자막 · 2026-10-10). */
+    ovl: Map<string, number> };
   const scs9: Sc9[] = [];
   for (let i9 = 0; i9 < evs9.length;) {
     const sc9: Sc9 = { t0: evs9[i9].sec, t1: evs9[i9].sec, by: new Map(), why: evs9[i9].why, tail: GAP9,
-      pair: new Map(), econ: new Map(), locs: [], bldPair: new Map(), bldLost: new Map(), byKind: new Map(), killKind: new Map() };
+      pair: new Map(), econ: new Map(), locs: [], bldPair: new Map(), bldLost: new Map(), byKind: new Map(), killKind: new Map(), ovl: new Map() };
     let top9 = 0;
     let j9 = i9;
     /* 다음 사건이 **앞 사건의 꼬리**(견제면 HARASS9.tail · 그 밖은 GAP9) 안이면 같은 장면이다. */
@@ -507,6 +647,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       }
       if (e9.econ) sc9.econ.set(e9.raw, (sc9.econ.get(e9.raw) ?? 0) + e9.econ);
       if (e9.by && e9.vs) {
+        if (e9.kind === "Overlord" && e9.dealt && OVL_HUNTER9.has(e9.by)) sc9.ovl.set(`${e9.raw}>${e9.vs}`, (sc9.ovl.get(`${e9.raw}>${e9.vs}`) ?? 0) + 1);
         if (e9.why === "견제") sc9.byKind.set(e9.by, (sc9.byKind.get(e9.by) ?? 0) + e9.w);
         let kk9 = sc9.killKind.get(e9.raw);
         if (!kk9) { kk9 = new Map(); sc9.killKind.set(e9.raw, kk9); }
@@ -760,6 +901,20 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   const chips9 = (raws9: string[], last9?: CapPart9["p"]): CapPart9[] =>
     raws9.map((r9, i9): CapPart9 => (i9 < raws9.length - 1 ? { raw: r9 } : { raw: r9, p: last9 }));   // 칩 사이 점은 없다(2026-10-10, 요청: "사이에 점 굳이 없어도 될듯") — 칩 여백이 가른다
   const sceneCaps9 = (sc9: Sc9, pick9: string, d9: Duel9 | undefined): CapPart9[] => {
+    /* 오버로드 사냥 — 그 장면에서 주인공이 든 짝 가운데 공중 사냥꾼이 잡은 오버로드가 OVL_HUNT_N9 이상. */
+    for (const [key9, n9] of sc9.ovl) {
+      const [k9, v9] = key9.split(">");
+      if (n9 >= OVL_HUNT_N9 && (k9 === pick9 || v9 === pick9)) return [{ raw: k9, p: "ga" }, { text: " " }, { raw: v9 }, { text: " 오버로드 사냥" }];
+    }
+    const base9 = sceneCaps0_9(sc9, pick9, d9);
+    /* 그 장면 무렵(앞 60초 ~ 끝)에 주인공의 전술(옆탱·언덕탱·입구 막기)이 있었으면 꼬리에 붙인다. */
+    if (d9) {
+      const tc9 = tacticsOf9(pick9).find((x9) => x9.short && x9.at >= sc9.t0 - 60 && x9.at <= sc9.t1);
+      if (tc9 && !base9.some((c9) => c9.text?.includes(tc9.short!))) return [...base9, { text: ` · ${tc9.short}` }];
+    }
+    return base9;
+  };
+  const sceneCaps0_9 = (sc9: Sc9, pick9: string, d9: Duel9 | undefined): CapPart9[] => {
     /* ★ 자막은 **주인공(pick9)의 일만** 말한다(2026-10-09, 요청: "자막엔 주인공 관련 사건 위주로 그 외엔 굳이 넣지 않기") — 장면의 가장 무거운 사건(top)이나 건물을
        가장 많이 부순 짝이 주인공과 무관하면(팀전에서 같은 장면의 딴 짝) 그것을 안 쓰고 주인공의 맞대결 글귀로 간다. 건물 짝은 주인공이 든 것 중 가장 무거운 것. */
     const top9 = sc9.top && (sc9.top.raw === pick9 || sc9.top.vs === pick9) ? sc9.top : undefined;
@@ -978,6 +1133,12 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       const k9 = e9.kind;
       const n9 = (prodN9.get(k9) ?? 0) + 1;
       prodN9.set(k9, n9);
+      /* 센터 방어 건물(포토·벙커·터렛·성큰·스포어) — 지도 한가운데(짧은 변 × CENTER_K9.def) · 제 본진 건물 곁이 아닌 것. */
+      if (CENTER_DEF9[k9] && inCenter9(e9.bornX, e9.bornY, CENTER_K9.def)
+        && !hallsOfOwner9(own9, e9.born).some(([hx9, hy9]) => Math.hypot(hx9 - e9.bornX, hy9 - e9.bornY) <= BASE_R9)) {
+        mile9(e9.born, `센터 ${CENTER_DEF9[k9]}`);
+        continue;
+      }
       const px9 = PROXY_KO9[k9] ? proxyOf9(e9) : "";
       if (px9) {
         mile9(e9.born, `${px9} ${PROXY_KO9[k9]}`);
@@ -1070,6 +1231,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       const t9 = TECH_MILE9[k9];
       if (t9 && !seen9.has(k9)) { seen9.add(k9); mile9(e9.born, t9); }
     }
+    for (const tc9 of tacticsOf9(raw9)) miles9.push({ at: tc9.at, caps: tc9.caps });
+    miles9.sort((a9, b9) => a9.at - b9.at);
     milesOf9.set(raw9, miles9);
     return miles9;
   };
@@ -1086,6 +1249,19 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     }
     /* 기지 수는 본진 건물 수가 아니라 **기지**(basesOf9 — 2026-10-10: 빨무 본진의 넥서스 셋은 1기지다). */
     const bases9 = basesOf9(halls9);
+    /* 센터 장악 — 그 순간 센터(짧은 변 × CENTER_K9.hold)에 선 제 병력·건물이 CENTER_HOLD9.n 이상이고 적의 CENTER_HOLD9.k 배 이상. */
+    if (mapC9) {
+      const foes9 = new Set(foeOwners9(raw9));
+      let mine9 = 0; let theirs9 = 0;
+      for (const e9 of world.lives) {
+        if (e9.born > sec9 || (e9.died !== null && e9.died <= sec9) || WORKER9.has(e9.kind) || NON_ARMY9.has(e9.kind)) continue;
+        if (!e9.bld && castValue9(e9.kind) <= 0) continue;
+        const [x9, y9] = e9.bld ? [e9.bornX, e9.bornY] : posAt9(e9, sec9);
+        if (!inCenter9(x9, y9, CENTER_K9.hold)) continue;
+        if (own9.has(e9.owner)) mine9 += 1; else if (foes9.has(e9.owner)) theirs9 += 1;
+      }
+      if (mine9 >= CENTER_HOLD9.n && mine9 >= theirs9 * CENTER_HOLD9.k) return "센터 장악";
+    }
     if (sec9 - lastTech9 <= PHASE9.tech) return "순조로운 테크/발전 중";
     if (bases9 >= 3) return `${bases9}기지 운영 중`;
     if (army9 >= PHASE9.armyN) return "병력 모으는 중";

@@ -13,7 +13,7 @@ const GHOST_PLATE_COL9 = "#3ee06a";
 import ReplayGuide from "./ReplayGuide";
 import QMarkIcon from "./QMarkIcon";
 /* 중계(중요도 기반 추적) — 편성표를 굽는 순수 문. 경기 한 벌에 한 번 돌고, 재생은 짚기만 한다. */
-import { castAt9, castPlan9, type CapPart9, type CastRole9, type CastSeg9 } from "./cast9";
+import { castAt9, castPlan9, type CapPart9, type CastPlanOpts9, type CastRole9, type CastSeg9 } from "./cast9";
 /* 미니맵 — 이제 **제 오버레이 판**이고 제 아이콘으로 여닫는다(요청: "미니맵 오버레이
    및 아이콘 추가"). 도구 판 안에 세들어 살던 시절과 달리, 켜고 끄는 것이 이것 하나다. */
 import ReplayFullscreenMinimap, { type MiniDot, type MiniPing, type MiniTag } from "./ReplayFullscreenMinimap";
@@ -55,7 +55,7 @@ import {
 } from "../../utils/bwUnits";
 // (정리) DEFENSE_BUILDINGS — 건물 캔버스 전환으로 ▲ 글자 갈래가 없어져 더는 안 쓴다.
 import { type TerrainGrid } from "./terrainGrid";
-import { decodeMapTerrain, terrainFace, terrainGridOfMap } from "../../utils/mapTerrain";
+import { decodeMapTerrain, levelAt, TILE, terrainFace, terrainGridOfMap } from "../../utils/mapTerrain";
 import { drawMapGrid, type MapTerrainLike } from "../../utils/mapTiles";
 /* 자취는 이제 서버가 굽는다 — 브라우저는 풀어서 읽기만 한다(tools/openbw/README.md).
    여태 이 자리에서 돌던 시뮬(legacy/simCore·simClient)은 명령에서 **유추**하던 것이라,
@@ -10006,6 +10006,8 @@ export default function ReplayMotionPlayer({
      지역이 통째로 끊겼다. 길찾기가 실패하면 직선 폴백이라 전부 벽을 뚫었다. 조인 격자로
      길이 안 나오면 이 원본으로 한 번 더 찾는다 — 실틈만 조이고 길목은 살리는 절충이다. */
   const [terrainRaw, setTerrainRaw] = useState<TerrainGrid | null>(null);
+  /** 중계 편성표의 지형 손잡이(cast9 전술 읽기 — 고도·통행·램프 · 2026-10-10). */
+  const [castTerrain9, setCastTerrain9] = useState<CastPlanOpts9["terrain"]>(undefined);
   /* 랠리 걸음의 경로 갈무리(지적: 벽뚫기) — (출발, 목적지) 짝마다 지형 길을 한 번만 셈한다.
      지형이 갈리면(검수 저장 등) 비운다. */
   const rallyRoutes = useRef(new Map<string, [number, number][]>());
@@ -10022,13 +10024,18 @@ export default function ReplayMotionPlayer({
        값이라 램프·벽·언덕이 한 칸도 안 틀린다.
        (걷음) 그림 색을 훑던 어림(terrainOf)과 사람이 칠하던 검수값(walk) — 둘 다 참값이
        없던 시절의 대역이다. 아직 안 구운 맵은 지형 없이 그린다(재분석이 채운다). */
-    if (!grid.terrain) { setTerrain(null); setTerrainRaw(null); return undefined; }
+    if (!grid.terrain) { setTerrain(null); setTerrainRaw(null); setCastTerrain9(undefined); return undefined; }
     decodeMapTerrain(grid.terrain).then((mt) => {
       if (cancelled) return;
       if (!mt) return;   // 못 풀면 다음 로드에 다시 본다
       const tg = terrainGridOfMap(mt);
       setTerrain(closeNarrowGaps(tg));
       setTerrainRaw(tg);
+      setCastTerrain9({
+        level: (x9: number, y9: number) => levelAt(mt, x9, y9),
+        walk: (x9: number, y9: number) => x9 >= 0 && y9 >= 0 && x9 < mt.w && y9 < mt.h && (mt.tile[y9 * mt.w + x9] & TILE.walkable) !== 0,
+        ...(mt.ver >= 2 ? { ramp: (x9: number, y9: number) => x9 >= 0 && y9 >= 0 && x9 < mt.w && y9 < mt.h && (mt.tile[y9 * mt.w + x9] & TILE.ramp) !== 0 } : {}),
+      });
     });
     return () => { cancelled = true; };
   }, [grid.terrain]);
@@ -10235,9 +10242,10 @@ export default function ReplayMotionPlayer({
   const castPlan = useMemo<CastSeg9[]>(
     () => (castOn && entData
       ? castPlan9(entData, { total, skip: obsNames, only: rosterKeys9, order: bases.map((b9) => b9.key), teamOf: melee ? undefined : teamMap9,
-        resources: grid.resources })   // 자원 점 — 앞마당·멀티 가름(cast9 ★★ 자원 무더기 · 2026-10-10)
+        resources: grid.resources,   // 자원 점 — 앞마당·멀티 가름(cast9 ★★ 자원 무더기 · 2026-10-10)
+        mapW: grid.width, mapH: grid.height, terrain: castTerrain9 })   // 센터·언덕·벽·램프(cast9 전술 읽기 · 2026-10-10)
       : []),
-    [castOn, entData, total, obsNames, rosterKeys9, bases, melee, teamMap9, grid.resources]);
+    [castOn, entData, total, obsNames, rosterKeys9, bases, melee, teamMap9, grid.resources, grid.width, grid.height, castTerrain9]);
   /** 지금 짚히는 토막 번호 — 렌더마다 이분으로 찾는다(상태로 두면 프레임마다 렌더가 한 번 더 돈다). */
   const castIdx9 = castPlan.length > 0 ? castAt9(castPlan, t) : -1;
   /** 중계가 고른 사람 — 끄거나 표가 없으면 null. */
