@@ -2072,9 +2072,9 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
      한 **전투**(bid)로 묶고 무게는 그 전투 **전부의 합**이다:
        · 장면이 되는 문턱(MIN_SCENE9)도 전투의 합으로 — 큰 전투의 가벼운 끝 토막도 보여 준다(처음부터 끝까지).
        · 지금 보이는 전투의 토막은 늘 잇는다 — 주인공이 그 토막에 들면 그대로(카메라 안 움직임 · 자막만 사건 때에 갈림 · push9 CAP_SPLIT9).
-       · 지금 전투가 이어지는 동안(끝 = 마지막 토막 끝 + 꼬리 몫) 딴 전투는 **전체 무게가 BATTLE_JUMP9 배 넘을 때만** 끼어든다. 밀린 전투가 그 뒤에도 이어지면
+       · 지금 전투가 이어지는 동안(끝 = 마지막 토막 끝 + 꼬리 몫) 딴 전투는 **전체 무게가 BATTLE_JUMP9(2) 배 넘을 때만** 끼어든다. 밀린 전투가 그 뒤에도 이어지면
          지금 전투가 끝나는 때에 그리로 간다(resume9). */
-  const BATTLE_JUMP9 = 1.2;
+  const BATTLE_JUMP9 = 2;   // 1.2 → 2(2026-10-11, 지적: "전투 끼어들기 1.2배는 너무 낮은 것 같아") — 딴 전투는 합이 지금 전투의 두 배는 돼야 끼어든다(뚝배기는 늘 · must9)
   const bidOf9 = new Map<Sc9, number>();
   const bTot9 = new Map<number, number>();
   const bEnd9 = new Map<number, number>();
