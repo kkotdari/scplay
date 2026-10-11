@@ -19372,9 +19372,14 @@ export default function ReplayMotionPlayer({
                       한 칩(같은 날 요청)·바닥 가운데 자리는 되물렸다. 자막(.scr-cast-caption)이 바닥을 받는다. */}
                   {/* ★ "화면"도 칩 **안**이고 팀이 있으면 앞에 "N팀"(2026-10-11, 요청: "화면 유저칩에서 화면 글자를 유저칩 안으로 이동 · 그리고 N팀 누구 화면으로") —
                       [1팀 정구 화면] 한 칩. 밀리(팀 없음)는 [정구 화면]. 분할 칸 머리는 요청 밖이라 그대로(칩 + 흰 "화면" · 팀은 테두리색). */}
-                  <span className="scr-split-chip" style={capOf9(camRaw9, camRaw9).chip}>
-                    {(() => { const tm9 = melee ? undefined : teamOfRaw(camRaw9); return `${tm9 ? `${tm9}팀 ` : ""}${bases.find((b9) => b9.key === camRaw9)?.name ?? camRaw9} 화면`; })()}
+                  {/* ★ [깜빡이는 카메라] [이름 칩 + 팀 배지] + 칩 밖 흰 "개인 화면"(2026-10-11, 요청: "화면 유저칩에 팀배지 붙이고 개인 화면이라고 뒤에 붙이고 이 글자는 칩 밖으로
+                      다시 빼줘 · 칩 왼쪽에 깜빡이는 비디오카메라 아이콘") — 옛 [1팀 정구 화면] 한 칩은 되물렸다. 팀은 배지(자막 칩과 같은 꼴 · 팀전만)가 말한다. */}
+                  <Video className="scr-solo-cam" aria-hidden />
+                  <span className="scr-split-chip scr-solo-chip" style={capOf9(camRaw9, camRaw9).chip}>
+                    <span className="scr-cast-chip-txt">{bases.find((b9) => b9.key === camRaw9)?.name ?? camRaw9}</span>
+                    {!melee && teamOfRaw(camRaw9) !== undefined && <i className="scr-team-badge" style={{ background: TEAM_COLOR[teamOfRaw(camRaw9)!] ?? "#666" }}>{teamOfRaw(camRaw9)}</i>}
                   </span>
+                  <span className="scr-split-word">개인 화면</span>
                 </span>
               )}
               {/* ★★ 중계 자막(위 castCap9 · 2026-10-09, 요청 2) — **바닥 가운데**(옛 이름표 자리 · 같은 날 되요청: "자막을 내리기" · 정가운데가 아니다). 토막이 갈리면(key) 살짝 떠오른다. */}

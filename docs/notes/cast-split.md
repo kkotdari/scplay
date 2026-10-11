@@ -1021,3 +1021,8 @@ B 기지를 대파시킴 궤멸시킴 이렇게 정당하게 표현".
   부르는 곳: 휠 · 핀치 · Q/E(zoomStep9) · 더블탭/더블클릭(tapZoom — 여태 잠금이 안 걸려 중계 중에도 배율이 뛰었다 → 이제 막고 토스트) · 끌기(누른 뒤 DRAG_SLOP×2 넘게 움직일 때만 ·
   그냥 누름은 몸 집기라 안 부름) · WASD. 가장자리 밀기는 마우스가 머무는 것만으로 걸려 안 부른다. 끌기·WASD 문에 camLockRef9 를 더했다(trackLockRef 는 무대를 재기 전 null).
 - 🔎 `perf-check.mjs --track '*' --locktoast [--castoff]` — 하네스가 chrome.toast 를 window.__toasts 로 모은다.
+
+## 화면 주인 줄 — 카메라 · 칩 + 팀 배지 · "개인 화면"(2026-10-11)
+- 요청: "화면 유저칩에 팀배지 붙이고 개인 화면이라고 뒤에 붙이고 이 글자는 칩 밖으로 다시 빼줘 · 칩 왼쪽에 깜빡이는 비디오카메라 아이콘 추가" — 옛 [1팀 정구 화면] 한 칩 되물림.
+  이제 `.scr-fs-solo-cap` = [`.scr-solo-cam`(lucide Video · #ff5a5a · 1.2초 계단 깜빡 · 줄임 동작 설정이면 멈춤)] [이름 칩(`.scr-cast-chip-txt` 말줄임) + `.scr-team-badge`(자막 칩과 같은 꼴 0.38em · 팀전만)]
+  + 칩 밖 흰 `.scr-split-word` "개인 화면"(0.55em 띄움). 줄은 overflow visible(배지가 위로 걸친다). 분할 칸 머리는 요청 밖이라 그대로.
