@@ -231,7 +231,7 @@ const bcases9 = [
   ["Z1", 64, "[Z1] 선스포닝풀"], ["Z1", 155, "[Z1] 앞마당 해처리"], ["Z1", 505, "[Z1] 레어 테크"],
   ["Z2", 95, "[Z2] 노스포닝풀 앞마당 해처리"], ["Z2", 155, "[Z2] 해처리 후 스포닝풀"], ["Z2", 405, "[Z2] 2번째 멀티"], ["Z2", 800, "[Z2] 3기지 운영 중"],
   ["P1", 155, "[P1] 빠른 앞마당 넥서스"], ["P1", 205, "[P1] 코어 테크"], ["P1", 405, "[P1] 로보틱스 테크"], ["P1", 730, "[P1] 병력 모으는 중"],
-  ["T1", 125, "[T1] 2배럭"], ["T1", 205, "[T1] 팩토리 테크"], ["T1", 305, "[T1] 앞마당 커맨드"], ["T1", 800, "[T1] 순조롭게 발전 중"],
+  ["T1", 125, "[T1] 2배럭"], ["T1", 205, "[T1] 팩토리 테크"], ["T1", 305, "[T1] 앞마당 커맨드"], ["T1", 800, "[T1] 평화롭게 발전 중"],
   ["Z3", 75, "[Z3] 8드론 스포닝풀 건설"], ["P2", 245, "[P2] 3게이트"],
 ];
 console.log(`\n빌드 읽기: ${bcases9.slice(0, 4).map(([r, t]) => `${r}@${t}s ${capAt9(r, t)}`).join(" · ")} …`);
@@ -254,7 +254,7 @@ const fw9 = (() => {
 })();
 const fplan9 = castPlan9(fw9, { total: 900, order: ["F1", "F2"], resources: [...baseRes9(30, 30), ...baseRes9(150, 30)] });
 console.log(`\n빨무: ${[["F1", 205], ["F1", 305], ["F1", 405], ["F2", 85], ["F2", 305]].map(([r, t]) => `${r}@${t}s ${capIn9(fplan9, r, t)}`).join(" · ")}`);
-for (const [raw, t, want] of [["F1", 205, "[F1] 2넥서스"], ["F1", 305, "[F1] 3넥서스"], ["F1", 405, "[F1] 4넥서스"], ["F1", 800, "[F1] 순조롭게 발전 중"],
+for (const [raw, t, want] of [["F1", 205, "[F1] 2넥서스"], ["F1", 305, "[F1] 3넥서스"], ["F1", 405, "[F1] 4넥서스"], ["F1", 800, "[F1] 평화롭게 발전 중"],
   ["F2", 85, "[F2] 노스포닝풀 2해처리"], ["F2", 305, "[F2] 3해처리"]]) {
   const got = capIn9(fplan9, raw, t); console.log(`  ${got === want ? "✔" : "✘"} ${raw} ${t}s → ${want}${got === want ? "" : ` (실제 ${got})`}`);
 }
@@ -340,7 +340,7 @@ rmSync(tmp, { recursive: true, force: true });
   })();
   const pplan = castPlan9(pw, { total: 900, order: ["T", "Z"], teamOf: { T: 1, Z: 2 } });
   const allCaps = pplan.map((s) => `${s.at.toFixed(0)}s ${s.raw} ${capTxt(s)}`);
-  console.log(`\n기지 밖 일꾼·전진/몰래: ${allCaps.filter((c) => !/순조롭게/.test(c)).join(" · ")}`);
+  console.log(`\n기지 밖 일꾼·전진/몰래: ${allCaps.filter((c) => !/순조롭게|평화롭게/.test(c)).join(" · ")}`);
   const has = (re) => pplan.some((s) => re.test(capTxt(s)));
   for (const [name, pass] of [
     ["Z 쪽 배럭은 '전진 배럭'", has(/\[T\] 전진 배럭/)],
@@ -383,7 +383,7 @@ rmSync(tmp, { recursive: true, force: true });
     lives: tl, ups: [], casts: [], pings: [], resFields: [], kills };
   const tplan = castPlan9(tworld, { total: 900, order: ["T", "P", "Y", "Z"], teamOf: { T: 1, P: 1, Y: 2, Z: 2 }, mapW: W, mapH: W, terrain: tw });
   const caps = tplan.map((s) => capTxt(s));
-  console.log(`\n전술: ${[...new Set(caps)].filter((c) => !/순조롭게/.test(c)).join(" · ")}`);
+  console.log(`\n전술: ${[...new Set(caps)].filter((c) => !/순조롭게|평화롭게/.test(c)).join(" · ")}`);
   const has = (re) => caps.some((c) => re.test(c));
   for (const [name, pass] of [
     ["벽 너머 시즈 + 건물 이륙 → 옆탱 · 시야 확보", has(/\[T\]ga \[Y\] 기지에 옆탱 · 건물 띄워 시야 확보/)],
@@ -411,7 +411,7 @@ rmSync(tmp, { recursive: true, force: true });
   const sw = { players: [["T", "테란", 1], ["Z", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })), lives: sl, ups: [], casts: [], pings: [], resFields: [], kills };
   const splan = castPlan9(sw, { total: 900, order: ["T", "Z"], teamOf: { T: 1, Z: 2 } });
   const caps = splan.map((s) => capTxt(s));
-  console.log(`\n드랍 한 대: ${[...new Set(caps)].filter((c) => !/순조롭게/.test(c)).join(" · ")}`);
+  console.log(`\n드랍 한 대: ${[...new Set(caps)].filter((c) => !/순조롭게|평화롭게/.test(c)).join(" · ")}`);
   for (const [name, pass] of [
     ["수송선 하나는 폭탄드랍이 아니다", !caps.some((c) => /폭탄드랍/.test(c))],
     ["그 드랍의 일꾼 킬은 '일꾼 견제'", caps.some((c) => /\[T\]ga 마린으로 \[Z\] 일꾼 견제/.test(c))],
@@ -433,7 +433,7 @@ rmSync(tmp, { recursive: true, force: true });
   for (const t of [500, 502, 504]) { const v = umk(1, "Drone", false, 100, 100, 0, { died: t, end: "atk" }); kills.push([t, 0, vu.tag, v.tag]); }
   const uw = { players: [["T", "테란", 1], ["Z", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })), lives: ul, ups: [], casts: [], pings: [], resFields: [], kills };
   const caps = castPlan9(uw, { total: 900, order: ["T", "Z"], teamOf: { T: 1, Z: 2 } }).map((s) => capTxt(s));
-  console.log(`\n늦게 잡힌 정찰 일꾼: ${[...new Set(caps)].filter((c) => !/순조롭게/.test(c)).join(" · ")}`);
+  console.log(`\n늦게 잡힌 정찰 일꾼: ${[...new Set(caps)].filter((c) => !/순조롭게|평화롭게/.test(c)).join(" · ")}`);
   for (const [name, pass] of [
     ["정찰 명령 60초 뒤 제 기지에서 잡힌 드론은 '정찰 일꾼 잡음'", caps.some((c) => /\[T\]ga \[Z\] 정찰 일꾼 잡음/.test(c))],
     ["…그리고 견제가 아니다(벌처 견제 장면만 견제)", caps.filter((c) => /일꾼 견제/.test(c)).every((c) => /벌처/.test(c))],
@@ -456,7 +456,7 @@ rmSync(tmp, { recursive: true, force: true });
   const vw = { players: [["T", "테란", 1], ["Z", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })), lives: vl, ups: [], casts: [], pings: [], resFields: [] };
   const plan = castPlan9(vw, { total: 900, order: ["T", "Z"], teamOf: { T: 1, Z: 2 } });
   const caps = plan.map((s) => `${Math.round(s.at)}s ${capTxt(s)}`);
-  console.log(`\n띄운 배럭·본 배럭: ${[...new Set(plan.map((s) => capTxt(s)))].filter((c) => !/순조롭게/.test(c)).join(" · ")}`);
+  console.log(`\n띄운 배럭·본 배럭: ${[...new Set(plan.map((s) => capTxt(s)))].filter((c) => !/순조롭게|평화롭게/.test(c)).join(" · ")}`);
   const capAt = (t) => plan.filter((s) => s.raw === "T" && s.at >= t && s.at < t + 30).map((s) => capTxt(s));
   for (const [name, pass] of [
     ["지어서 적 기지 구석에 내린 배럭은 '몰래 배럭'(그때)", capAt(200).some((c) => /\[T\] 몰래 배럭/.test(c))],
@@ -476,7 +476,7 @@ rmSync(tmp, { recursive: true, force: true });
   mk2(0, "Command Center", 70, 70, 200); mk2(0, "Barracks", 74, 72, 260); mk2(0, "Barracks", 95, 95, 300);
   const w2 = { players: [["T", "테란", 1], ["Z", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })), lives: ml2, ups: [], casts: [], pings: [], resFields: [] };
   const caps = castPlan9(w2, { total: 900, order: ["T", "Z"], teamOf: { T: 1, Z: 2 } }).map((s) => capTxt(s));
-  console.log(`\n멀티·가운데 배럭: ${[...new Set(caps)].filter((c) => !/순조롭게/.test(c)).join(" · ")}`);
+  console.log(`\n멀티·가운데 배럭: ${[...new Set(caps)].filter((c) => !/순조롭게|평화롭게/.test(c)).join(" · ")}`);
   console.log(`  ${caps.some((c) => /전진|몰래/.test(c)) ? "✘" : "✔"} 멀티 곁·가운데 배럭은 전진/몰래가 아니다`);
 }
 
@@ -546,7 +546,7 @@ rmSync(tmp, { recursive: true, force: true });
     for (let i = 0; i < 5; i += 1) { const h = mk(1, "Hydralisk", false, 100, 100, 500, { died: 750 + i, end: "atk", orders: [[745, 58, 58, false]] }); kills.push([750 + i, 0, ms[i % 4].tag, h.tag]); }
   }), { mapW: 128, mapH: 128, terrain: hillT }), (c) => c.some((x) => /언덕 지형 활용/.test(x))]);
   console.log("\n구성·조이기·마법·캐리어·지형:");
-  for (const [name, caps, ok] of res) console.log(`  ${ok(caps) ? "✔" : "✘"} ${name}${ok(caps) ? "" : ` (실제 ${[...new Set(caps)].filter((c) => !/순조롭게/.test(c)).join(" · ")})`}`);
+  for (const [name, caps, ok] of res) console.log(`  ${ok(caps) ? "✔" : "✘"} ${name}${ok(caps) ? "" : ` (실제 ${[...new Set(caps)].filter((c) => !/순조롭게|평화롭게/.test(c)).join(" · ")})`}`);
 }
 
 /* ── ⑲ 사건 단위 자막(2026-10-10, 요청: "자막이 사건단위로 분리 — 일꾼 견제를 한 명이 했는데 여러 명이 누구에게 폭탄드랍 · 다른 싸움이 섞여서 하나로 · 타이밍에 맞게 나눠서 ·
@@ -609,7 +609,7 @@ rmSync(tmp, { recursive: true, force: true });
   const capsIn = (t0, t1) => plan.filter((s) => s.raw === "A" && s.at >= t0 && s.at < t1).map((s) => capTxt(s));
   console.log(`\n화면 글귀: ${[...new Set(plan.filter((s) => s.raw === "A").map((s) => capTxt(s)))].join(" · ")}`);
   for (const [name, pass] of [
-    ["골라 둔 건물의 연구 → '… 연구 중'", capsIn(188, 230).some((c) => /^\[A\] 아카데미에서 .+ 연구 중$/.test(c))],
+    ["골라 둔 건물의 연구 → '… 연구 중'(건물 이름은 군말 · 2026-10-11)", capsIn(188, 230).some((c) => /^\[A\] [^에]+ 연구 중$/.test(c) && !/에서/.test(c))],
     ["골라 둔 배럭 곁에서 난 마린 → '마린 생산'('배럭에서'는 군말 · 2026-10-10)", capsIn(398, 440).some((c) => c === "[A] 마린 생산")],
     ["대규모 병력이 적 본진으로 → '[A] 마린 [B] 기지로 공격 이동'(수 없음 · 2026-10-10)", capsIn(498, 540).some((c) => c === "[A] 마린 [B] 기지로 공격 이동")],
     ["몇 기 안 되는 무리의 이동·대기는 안 말한다", !plan.some((s) => /대기|\d+기 /.test(capTxt(s)))],
@@ -701,7 +701,7 @@ rmSync(tmp, { recursive: true, force: true });
   const w = { players: [["A", "테란", 1], ["B", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
     lives: L, ups: [], casts: [], pings: [], resFields: [], kills, sels: [], builds: [] };
   const plan = castPlan9(w, { total: 700, order: ["A", "B"], teamOf: { A: 1, B: 2 } });
-  console.log(`\n인구 막힘·엘리: ${[...new Set(plan.map((s) => `${s.raw} ${capTxt(s)}`))].filter((c) => !/순조롭게/.test(c)).join(" · ")}`);
+  console.log(`\n인구 막힘·엘리: ${[...new Set(plan.map((s) => `${s.raw} ${capTxt(s)}`))].filter((c) => !/순조롭게|평화롭게/.test(c)).join(" · ")}`);
   for (const [name, pass] of [
     ["꽉 찬 인구 → '[A] 인구 막힘 10/10'", plan.some((s) => s.raw === "A" && s.at >= 205 && s.at < 262 && capTxt(s) === "[A] 인구 막힘 10/10")],
     ["유일한 건물이 깨짐 → '[A]ga [B] 엘리시킴'", plan.some((s) => capTxt(s) === "[A]ga [B] 엘리시킴")],
@@ -744,4 +744,36 @@ rmSync(tmp, { recursive: true, force: true });
   console.log(`\n팀 전원: ${plan.map((s) => `${s.at.toFixed(0)}s ${capTxt(s)}`).join(" · ")}`);
   const pass = plan.some((s) => capTxt(s) === "1팀 전원이 [C] 기지 공격");
   console.log(`  ${pass ? "✔" : "✘"} 한 팀 전부가 친 기지 싸움 → '1팀 전원이 [C] 기지 공격'`);
+}
+
+/* ── ㉓ 제 입구 막기 · 일꾼 생산 · 엔베 건설 · 끝말(2026-10-11, 요청: "엔지니어링 베이 건설하는데 엔지니어링 베이 업그레이드라고 자막이 나와 · 자신의 입구를 건물로
+   막아서 적들이 못 들어오게 하는 게 중요한 포인트인데 그건 안 나오네 · 일꾼 생산 이런 건 굳이 · 그냥 순조롭게 진행 중 · 평화롭게 발전 중 · 히드라 덴에서는 군말").
+   지도 64. 지형: x 30·31 절벽(y 30~35 만 틈 · 여섯 칸). A(테란 · 커맨드 10,32) · B(저그 · 해처리 55,32).
+   ① 100초 서플라이(31,31) — 틈 넷이 남아 아직 열림 ② 150초 배럭(32,34.5) — 한 칸만 남아 막힘 → "[A] 서플라이·배럭으로 입구 막음"
+   ③ 60초 엔지니어링 베이(20,40) → "엔지니어링 베이 건설"(옛 "… 업그레이드") ④ 커맨드를 골라 둔 동안 SCV 가 나도 "SCV 생산"은 안 선다 ⑤ 잃은 것 없는 소강은 "평화롭게 발전 중". */
+{
+  const W = 64;
+  const tw = { level: () => 0, walk: (x, y) => x >= 0 && y >= 0 && x < W && y < W && !((x === 30 || x === 31) && !(y >= 30 && y <= 35)) };
+  let st = 61000;
+  const L = []; const sels = [];
+  const mk = (o, kind, bld, x, y, born, ex = {}) => { const e = { tag: (st += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [], ...ex }; L.push(e); return e; };
+  const cc = mk(0, "Command Center", true, 10, 32, 0); mk(1, "Hatchery", true, 55, 32, 0);
+  mk(0, "Engineering Bay", true, 20, 40, 60);
+  mk(0, "Supply Depot", true, 31, 31, 100); mk(0, "Barracks", true, 32, 34.5, 150);
+  for (const t of [300, 310, 320, 330]) sels.push([t, 0, [cc.tag], 0]);
+  for (let t = 301; t < 340; t += 6) mk(0, "SCV", false, 12, 34, t);
+  const w = { players: [["A", "테란", 1], ["B", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
+    lives: L, ups: [], casts: [], pings: [], resFields: [], kills: [], sels, builds: [] };
+  const plan = castPlan9(w, { total: 600, order: ["A", "B"], teamOf: { A: 1, B: 2 }, mapW: W, mapH: W, terrain: tw });
+  const caps = plan.filter((s) => s.raw === "A").map((s) => capTxt(s));
+  console.log(`\n입구 막기·일꾼: ${[...new Set(caps)].join(" · ")}`);
+  const has = (re) => caps.some((c) => re.test(c));
+  for (const [name, pass] of [
+    ["틈을 한 칸만 남긴 서플라이·배럭 → '[A] 서플라이·배럭으로 입구 막음'", has(/^\[A\] 서플라이·배럭으로 입구 막음$/)],
+    ["서플라이 하나(틈 넷)로는 안 막혔다 — 막음은 배럭(150초) 뒤에만", !plan.some((s) => s.raw === "A" && s.at < 140 && /입구 막음/.test(capTxt(s)))],
+    ["엔지니어링 베이는 '건설'(업그레이드 아님)", has(/엔지니어링 베이 건설/) && !has(/업그레이드$/)],
+    ["일꾼 생산은 안 말한다", !has(/SCV 생산|일꾼 생산/)],
+    ["잃은 것 없는 소강 → '평화롭게 발전 중'", has(/^\[A\] 평화롭게 발전 중$/)],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }

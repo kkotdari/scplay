@@ -34,7 +34,7 @@
  */
 import { BUILDING_KO, UNIT_KO } from "../../utils/replayNames";
 import { researchKo } from "../../utils/replayTechNames";
-import { costOf, raceOfBwKind9, sightTiles, SUPPLY_CAP, SUPPLY_COST, SUPPLY_GIVES, unitOf } from "../../utils/bwUnits";
+import { BUILDING_FOOT, costOf, raceOfBwKind9, sightTiles, SUPPLY_CAP, SUPPLY_COST, SUPPLY_GIVES, unitOf } from "../../utils/bwUnits";
 import { SEL_KIND9, tkN, tkT, tkV } from "../../utils/openbwTracks";
 import type { TruthWorld } from "../../utils/truthLives";
 
@@ -457,6 +457,11 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     return out9;
   };
   type Tactic9 = { at: number; caps: CapPart9[]; short?: string };
+  /** 제 입구를 막는 건물(심시티 — 테란 서플라이·배럭·엔베 · 토스 파일런·게이트·포지·코어·캐논 · 저그 에볼·스포닝풀·크립/성큰·해처리). */
+  const WALL_BLD9 = new Set(["Supply Depot", "Barracks", "Engineering Bay", "Factory", "Bunker", "Academy", "Pylon", "Gateway", "Forge", "Cybernetics Core",
+    "Photon Cannon", "Evolution Chamber", "Spawning Pool", "Creep Colony", "Sunken Colony", "Hatchery"]);
+  /** 막는 건물이 제 기지(본진 건물·출발 자리)에서 BASE_R9 + near 안 · 갇힌 넓이 하한(칸) · 곁 절벽을 찾는 반경(타일). */
+  const WALL9 = { near: 10, area: 300, cliff: 4 };
   const tacticsMemo9 = new Map<string, Tactic9[]>();
   const TACTIC_DEDUP9 = 120;
   const tacticsOf9 = (raw9: string): Tactic9[] => {
@@ -558,6 +563,81 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       }
       const name9 = mech9 >= PUSH9.mech ? "메카닉 조이기" : "탱크 조이기";
       add9("push", t9, [{ raw: raw9 }, { text: ` ${name9}` }], name9);
+    }
+    /* ★ 제 입구 막기(심시티 · 2026-10-11, 요청: "자신의 입구를 건물로 막아서 적들이 못 들어오게 하는 게 중요한 포인트인데 그건 안 나오네") — 제 기지 곁(본진 건물·출발
+       자리에서 BASE_R9 + WALL9.near)에 막는 건물(WALL_BLD9)이 설 때마다, 지형 위에 그 순간 제 건물 발자국(BUILDING_FOOT)을 얹고 **출발 자리에서 적 출발 자리까지 길이
+       끊기나** 본다. 길은 2×2 칸이 비어야 지나간다(한 칸 틈 = 막힘 — 질럿 하나로 메우는 토스 입구도 막은 것이다). 지형만으로는 이어지고 · 갇힌 넓이가 WALL9.area 칸
+       넘어야(본진 건물을 둘러싼 작은 주머니가 아니라 기지 하나) 막은 것이다. 글귀는 그 둘레 WALL9.near 타일 안 제 막는 건물 이름("[A] 배럭·서플라이로 입구 막음"). */
+    const W9 = opts.mapW ?? 0; const H9 = opts.mapH ?? 0;
+    if (tr9 && st9 && W9 > 0 && H9 > 0 && W9 * H9 <= 512 * 512) {
+      const foeSt9 = [...new Set([...foes9].map((o9) => rawOf9.get(o9)!))].map((r9) => start9.get(r9)).filter((p9): p9 is NonNullable<typeof p9> => !!p9);
+      const walk9 = new Uint8Array(W9 * H9);
+      for (let y9 = 0; y9 < H9; y9 += 1) for (let x9 = 0; x9 < W9; x9 += 1) walk9[y9 * W9 + x9] = tr9.walk(x9, y9) ? 1 : 0;
+      /** 2×2 칸(그 칸과 오른쪽·아래)이 다 비었나. */
+      const fits9 = (g9: Uint8Array, x9: number, y9: number): boolean => x9 >= 0 && y9 >= 0 && x9 + 1 < W9 && y9 + 1 < H9
+        && g9[y9 * W9 + x9] === 1 && g9[y9 * W9 + x9 + 1] === 1 && g9[(y9 + 1) * W9 + x9] === 1 && g9[(y9 + 1) * W9 + x9 + 1] === 1;
+      /** 자리 곁(4 타일) 가장 가까운 지나갈 수 있는 칸. */
+      const seed9 = (g9: Uint8Array, px9: number, py9: number): number => {
+        let best9 = -1; let bd9 = Infinity;
+        for (let dy9 = -4; dy9 <= 4; dy9 += 1) for (let dx9 = -4; dx9 <= 4; dx9 += 1) {
+          const x9 = Math.floor(px9) + dx9; const y9 = Math.floor(py9) + dy9;
+          if (fits9(g9, x9, y9) && dx9 * dx9 + dy9 * dy9 < bd9) { bd9 = dx9 * dx9 + dy9 * dy9; best9 = y9 * W9 + x9; }
+        }
+        return best9;
+      };
+      /** 출발 자리에서 2×2 로 닿는 칸들(넓이 · 닿은 표). */
+      const flood9 = (g9: Uint8Array, from9: number): Uint8Array => {
+        const seen9 = new Uint8Array(W9 * H9);
+        if (from9 < 0) return seen9;
+        const q9 = [from9]; seen9[from9] = 1;
+        while (q9.length > 0) {
+          const i9 = q9.pop()!; const x9 = i9 % W9; const y9 = (i9 - x9) / W9;
+          for (const [dx9, dy9] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            const nx9 = x9 + dx9; const ny9 = y9 + dy9; const j9 = ny9 * W9 + nx9;
+            if (nx9 < 0 || ny9 < 0 || nx9 >= W9 || ny9 >= H9 || seen9[j9] || !fits9(g9, nx9, ny9)) continue;
+            seen9[j9] = 1; q9.push(j9);
+          }
+        }
+        return seen9;
+      };
+      const reaches9 = (g9: Uint8Array, seen9: Uint8Array): boolean => foeSt9.some((f9) => { const j9 = seed9(g9, f9.x, f9.y); return j9 >= 0 && seen9[j9] === 1; });
+      const open9 = foeSt9.length > 0 && reaches9(walk9, flood9(walk9, seed9(walk9, st9.x, st9.y)));
+      const ownBlds9 = world.lives.filter((e9) => e9.bld && own9.has(e9.owner) && BUILDING_FOOT[e9.kind] && !e9.kind.endsWith("Extractor") && e9.kind !== "Refinery" && e9.kind !== "Assimilator");
+      for (const c9 of open9 ? ownBlds9 : []) {
+        if (!WALL_BLD9.has(c9.kind)) continue;
+        const t9 = c9.born;
+        const home9 = [...hallsOfOwner9(own9, t9), [st9.x, st9.y] as [number, number]];
+        if (!home9.some(([hx9, hy9]) => Math.hypot(hx9 - c9.bornX, hy9 - c9.bornY) <= BASE_R9 + WALL9.near)) continue;
+        /* 거름 — 곁(WALL9.cliff 타일)에 못 걷는 칸(절벽)이 없는 건물은 입구를 마저 막을 수 없다(넓은 땅 한가운데) · 길 찾기를 안 돌린다. */
+        let cliff9 = false;
+        for (let dy9 = -WALL9.cliff; dy9 <= WALL9.cliff && !cliff9; dy9 += 1) for (let dx9 = -WALL9.cliff; dx9 <= WALL9.cliff; dx9 += 1) {
+          const x9 = Math.floor(c9.bornX) + dx9; const y9 = Math.floor(c9.bornY) + dy9;
+          if (x9 >= 0 && y9 >= 0 && x9 < W9 && y9 < H9 && walk9[y9 * W9 + x9] === 0) { cliff9 = true; break; }
+        }
+        if (!cliff9) continue;
+        const g9 = walk9.slice();
+        for (const b9 of ownBlds9) {
+          if (b9.born > t9 || (b9.died !== null && b9.died <= t9)) continue;
+          const [fw9, fh9] = BUILDING_FOOT[b9.kind];
+          const x0 = Math.round(b9.bornX - fw9 / 2); const y0 = Math.round(b9.bornY - fh9 / 2);
+          for (let y9 = y0; y9 < y0 + fh9; y9 += 1) for (let x9 = x0; x9 < x0 + fw9; x9 += 1) if (x9 >= 0 && y9 >= 0 && x9 < W9 && y9 < H9) g9[y9 * W9 + x9] = 0;
+        }
+        const seen9 = flood9(g9, seed9(g9, st9.x, st9.y));
+        if (reaches9(g9, seen9)) continue;
+        let area9 = 0; for (let i9 = 0; i9 < seen9.length; i9 += 1) area9 += seen9[i9];
+        if (area9 < WALL9.area) continue;
+        const names9: string[] = [];
+        for (const b9 of ownBlds9) {
+          if (!WALL_BLD9.has(b9.kind) || b9.born > t9 || (b9.died !== null && b9.died <= t9) || Math.hypot(b9.bornX - c9.bornX, b9.bornY - c9.bornY) > WALL9.near) continue;
+          const n9 = BUILDING_KO[b9.kind] ?? b9.kind;
+          if (!names9.includes(n9) && names9.length < 3) names9.push(n9);
+        }
+        /* 조사 '(으)로' — 끝 글자 받침(ㄹ 받침은 '로'). */
+        const last9 = names9.length > 0 ? names9[names9.length - 1].charCodeAt(names9[names9.length - 1].length - 1) - 0xac00 : -1;
+        const ro9 = last9 >= 0 && last9 < 11172 && last9 % 28 !== 0 && last9 % 28 !== 8 ? "으로" : "로";
+        add9("wall", t9, [{ raw: raw9 }, { text: names9.length > 0 ? ` ${names9.join("·")}${ro9} 입구 막음` : " 건물로 입구 막음" }], "입구 막기");
+        break;   // 막은 뒤로는 늘 막혀 있다 — 처음 한 번만
+      }
     }
     out9.sort((a9, b9) => a9.at - b9.at);
     tacticsMemo9.set(raw9, out9);
@@ -1385,8 +1465,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     "Cybernetics Core": "코어 테크", "Robotics Facility": "로보틱스 테크", Stargate: "스타게이트 테크", "Citadel of Adun": "시타델 테크", "Templar Archives": "템플러 테크",
     "Robotics Support Bay": "리버 테크", Observatory: "옵저버 테크", "Fleet Beacon": "캐리어 테크", "Arbiter Tribunal": "아비터 테크",
     Factory: "팩토리 테크", Starport: "스타포트 테크", Armory: "아머리 테크", Academy: "아카데미 테크", "Science Facility": "사이언스 테크",
-    "Engineering Bay": "엔지니어링 베이 업그레이드", "Machine Shop": "머신샵 테크", "Control Tower": "컨트롤 타워 테크", "Covert Ops": "고스트 테크", "Physics Lab": "배틀크루저 테크",
-    Lair: "레어 테크", Spire: "뮤탈리스크 테크", "Hydralisk Den": "히드라 테크", "Evolution Chamber": "챔버 업그레이드", "Queen's Nest": "하이브 테크 준비",
+    "Engineering Bay": "엔지니어링 베이 건설", "Machine Shop": "머신샵 테크", "Control Tower": "컨트롤 타워 테크", "Covert Ops": "고스트 테크", "Physics Lab": "배틀크루저 테크",
+    Lair: "레어 테크", Spire: "뮤탈리스크 테크", "Hydralisk Den": "히드라 테크", "Evolution Chamber": "에볼루션 챔버 건설", "Queen's Nest": "하이브 테크 준비",
     Hive: "하이브 테크", "Ultralisk Cavern": "울트라리스크 테크", "Defiler Mound": "디파일러 테크", "Greater Spire": "가디언·디바우러 테크",
   };
   /** 종족의 핵심 테크 — 둘째 본진·둘째 생산 건물이 이보다 먼저면 '빠른'·'투…'다. */
@@ -1402,7 +1482,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   /** 이정표를 창 앞 이만큼(초)까지 되짚는다 — 그보다 오래면 국면 요약으로. */
   const MILE_RECENT9 = 120;
   /** 국면 요약의 '최근 테크'(초) · '병력이 한창'의 창(초)과 수. */
-  const PHASE9 = { tech: 240, armyWin: 60, armyN: 4, prodWin: 90, upAhead: 120 };
+  const PHASE9 = { tech: 240, armyWin: 60, armyN: 4, prodWin: 90, upAhead: 120, calm: 60 };
   /** 생산 건물 — 짓는 것은 "생산 건물 늘리는 중"으로 말한다(이름 하나하나는 군말). */
   const PROD_BLD9 = new Set(["Gateway", "Barracks", "Factory", "Starport", "Stargate"]);
   const WORKER9 = new Set(["SCV", "Probe", "Drone"]);
@@ -1700,7 +1780,9 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     if (sec9 - lastTech9 <= PHASE9.tech) return "테크 올리는 중";
     if (bases9 >= 3) return `${bases9}기지 운영 중`;
     if (army9 >= PHASE9.armyN) return "병력 모으는 중";
-    return "순조롭게 발전 중";
+    /* 끝말(2026-10-11, 요청: "그냥 순조롭게 진행 중 · 평화롭게 발전 중 이런 거가 나을 듯") — PHASE9.calm 초 안에 제 것을 하나도 안 잃었으면 "평화롭게 발전 중", 잃었으면 "순조롭게 진행 중". */
+    const lost9 = world.lives.some((e9) => own9.has(e9.owner) && e9.died !== null && e9.died <= sec9 && e9.died > sec9 - PHASE9.calm && e9.end !== "morph");
+    return lost9 ? "순조롭게 진행 중" : "평화롭게 발전 중";
   };
   /* ★★ **화면에 나오는 것을 말한다**(2026-10-10, 지적: "화면에서 보여주는 내용이 자막으로 나와야 함 · 업그레이드 보이지 않는데 업그레이드 내용이 나온다거나") ─────
      순환 토막의 카메라는 그 사람이 **고르거나 명령한 무리**를 따른다(재생기 picksOf9 · trackAt). 옛 순환 자막은 그 창에 끝난 연구("메타볼릭 부스트 개발")나 창 밖의
@@ -1772,7 +1854,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       }
       const made9 = new Map<string, number>();
       for (const e9 of world.lives) {
-        if (e9.bld || !own9.has(e9.owner) || e9.born < t0 - 2 || e9.born >= t1 || WORKER9.has(e9.kind) && !HALL_ANY9.has(b9.kind)) continue;
+        /* 일꾼 생산은 군말이다(2026-10-11, 요청: "일꾼 생산 이런 건 굳이 안 넣어도 될 듯 — 그냥 순조롭게 진행 중 · 평화롭게 발전 중 이런 거가 나을 듯") — 국면 요약으로. */
+        if (e9.bld || !own9.has(e9.owner) || e9.born < t0 - 2 || e9.born >= t1 || WORKER9.has(e9.kind)) continue;
         if (NON_ARMY9.has(e9.kind) && e9.kind !== "Overlord") continue;
         if (Math.hypot(e9.bornX - b9.bornX, e9.bornY - b9.bornY) > 6) continue;
         made9.set(e9.kind, (made9.get(e9.kind) ?? 0) + 1);
@@ -1783,7 +1866,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       const up9 = world.ups.find(([us9, , uo9, ut9]) => ut9 === b9.tag && own9.has(uo9) && us9 > at9 && us9 <= at9 + RESEARCH_AHEAD9);
       if (up9) {
         const m9 = /^(.*?)(?: (\d+))?$/.exec(up9[1]);
-        return [{ raw: raw9 }, { text: ` ${bk9}에서 ${researchKo(m9?.[1] ?? up9[1])}${m9?.[2] ? ` ${m9[2]}단계` : ""} 연구 중` }];
+        /* "히드라 덴에서"는 군말(2026-10-11, 요청: "어디서인지는 빼도 되겠지 — 히드라 속업 연구 중 · 중요한 것만 깔끔하게") — 연구 이름만. */
+        return [{ raw: raw9 }, { text: ` ${researchKo(m9?.[1] ?? up9[1])}${m9?.[2] ? ` ${m9[2]}단계` : ""} 연구 중` }];
       }
       return null;
     }
