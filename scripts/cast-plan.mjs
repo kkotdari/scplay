@@ -1024,7 +1024,7 @@ rmSync(tmp, { recursive: true, force: true });
 /* ── ㉞ 막아 낸 쪽은 방어로(2026-10-11, 지적: "처들어온 걸 방어한 건데 자막은 공격한 걸로 반대로 나오는 케이스") — 1v1 A(테란 · 본진 16,16) 대 C(저그 · 본진 100,100).
    100~118초 C 저글링이 A 본진에 쳐들어와 3초마다 죽고(SCV 둘도 잃는다) · 121~133초 물러나는 저글링을 A 마린이 C 쪽 길(74~80)까지 쫓아 잡는다.
    물러나는 몸은 마지막 명령이 '본진으로 이동'(100,100)이라 옛 어림은 C 본진에서 죽은 것으로 읽어 "A가 C 기지 공격"으로 뒤집었다 → 이제 죽은 자리는 생애의 마지막
-   키(endX/Y · 가운데 길) · 기지 밖 싸움은 교전(요청: "공격이라는 말은 그 목적어의 기지에 쳐들어간 경우만 · 나머지는 교전"). */
+   키(endX/Y · 가운데 길). 쫓는 창은 같은 전투라 싸움터 임자(A)를 그대로 잇는다(battleOwner9 · 같은 날 "어느 기지를 공격하는지는 안 변하거든"). */
 {
   let t9 = 190000;
   const L = []; const kills = [];
@@ -1046,6 +1046,35 @@ rmSync(tmp, { recursive: true, force: true });
   for (const [name, pass] of [
     ["막아 낸 A 가 공격한 사람으로 안 나온다", caps.length > 0 && !caps.some((s) => /^\[A\]ga \[C\]eul 공격|^\[A\]ga \[C\] 기지 공격/.test(capTxt(s)))],
     ["쳐들어온 C 가 A 기지 공격으로 나온다", caps.some((s) => /^\[C\]ga \[A\] 기지 공격/.test(capTxt(s)))],
-    ["쫓아 잡은 기지 밖 싸움은 교전", caps.some((s) => s.at >= 119 && /교전$/.test(capTxt(s))) && !caps.some((s) => s.at >= 119 && /공격/.test(capTxt(s)))],
+    ["한 전투의 싸움터(A 기지)는 쫓는 때도 안 바뀐다 — 교전으로 안 끊긴다(2026-10-11 \"어느 기지를 공격하는지는 안 변하거든\")", !caps.some((s) => /교전$/.test(capTxt(s)))],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
+
+/* ── ㉟ 기지 영역은 벽·언덕으로(2026-10-11, 지적: "기지 영역 판단이 잘 안 돼서 — 벽이나 언덕으로 구분해야") — A 본진(8,8)은 언덕(고도 2 · x 0~40 · y 0~20) ·
+   그 아래 절벽(y 21~22 · x 41~42 못 걸음) · 램프는 x 36~39. ① 200초 언덕 구석(38,14 — 본진에서 30타일 · 옛 18타일 원 밖)에서 C 저글링이 죽는다 → A 기지 공격.
+   ② 400초 절벽 아래(12,25 — 17.5타일 · 옛 원 안)에서 죽는다 → 기지가 아니다(교전). */
+{
+  let t9 = 200000;
+  const L = []; const kills = [];
+  const mk = (o, kind, bld, x, y, born, ex = {}) => { const e = { tag: (t9 += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [], ...ex }; L.push(e); return e; };
+  mk(0, "Command Center", true, 8, 8, 0); mk(1, "Hatchery", true, 100, 100, 0);
+  const ms = Array.from({ length: 6 }, () => mk(0, "Marine", false, 8, 8, 50));
+  const fight = (t0, x, y) => { for (let i = 0; i < 6; i += 1) { const t = t0 + i * 2; const z = mk(1, "Zergling", false, 100, 100, t0 - 60, { died: t, end: "atk", orders: [[t0 - 20, x, y, true]], endX: x + (i % 2), endY: y });
+    kills.push([t, 0, ms[i].tag, z.tag]); } };
+  fight(200, 38, 14); fight(400, 12, 25);
+  const plat = (x, y) => x <= 40 && y <= 20;
+  const ramp = (x, y) => x >= 36 && x <= 39 && (y === 21 || y === 22);
+  const cliff = (x, y) => !ramp(x, y) && ((y >= 21 && y <= 22 && x <= 42) || (x >= 41 && x <= 42 && y <= 22));
+  const terrain = { level: (x, y) => (plat(x, y) ? 2 : ramp(x, y) ? 1 : 0), walk: (x, y) => x >= 0 && y >= 0 && x < 128 && y < 128 && !cliff(x, y), ramp };
+  const w = { players: [["A", "테란", 1], ["C", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
+    lives: L, ups: [], casts: [], pings: [], resFields: [], kills, sels: [], builds: [] };
+  const plan = castPlan9(w, { total: 600, order: ["A", "C"], teamOf: { A: 1, C: 2 }, mapW: 128, mapH: 128, terrain });
+  const c1 = plan.filter((s) => s.at >= 195 && s.at < 215 && !s.cyc).map((s) => capTxt(s));
+  const c2 = plan.filter((s) => s.at >= 395 && s.at < 415 && !s.cyc).map((s) => capTxt(s));
+  console.log(`\n기지 영역: 언덕 구석 ${c1.join(" · ")} | 절벽 아래 ${c2.join(" · ")}`);
+  for (const [name, pass] of [
+    ["언덕 구석(옛 원 밖)도 A 기지 — C가 A 기지 공격", c1.some((c) => /\[C\]ga \[A\] 기지 공격/.test(c))],
+    ["절벽 아래(옛 원 안)는 A 기지가 아니다", c2.length > 0 && !c2.some((c) => /기지 공격/.test(c))],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }

@@ -392,6 +392,74 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   const startHallTags9 = new Set<number>();
   for (const e9 of world.lives) if (e9.bld && e9.born <= 2 && HALL_ANY9.has(e9.kind)) startHallTags9.add(e9.tag);
   const BASE_R9 = 18;
+  /* ★★ **기지 영역은 벽·언덕으로 가른다**(2026-10-11, 지적: "기지 영역 판단이 잘 안 돼서 그런 듯 — 벽이나 언덕으로 구분해야 하는데 그게 잘 안 되니 기지 공격을 그냥 공격이나
+     교전으로 보고 맥이 계속 끊긴다") — 옛 자는 본진 건물에서 BASE_R9(18) 타일 원이라, 넓은 본진 언덕의 구석·입구 램프는 밖으로, 절벽 아래 남의 땅은 안으로 읽혔다.
+     이제 지형이 있으면 본진 건물 칸에서 **같은 고도의 걸을 수 있는 칸**을 넘쳐 채우고(벽·절벽·고도 바뀜이 경계 · BASE_RMAX9 안), 그 가장자리에서 BASE_GATE9 걸음
+     (램프·입구 앞)까지 붙인다. 넘쳐 채움이 BASE_OPEN9 원까지 새어 나갈 만큼 열린 땅(벌판 확장)이면 BASE_R9 원으로 자른다. 지형이 없으면 옛 원. */
+  const BASE_RMAX9 = 32;
+  /** 열린 땅 가름 — 넘쳐 채움이 이 원에 막히면(벽·절벽이 못 닫으면) 열린 땅이다. */
+  const BASE_OPEN9 = 48;
+  const BASE_GATE9 = 4;
+  const areaCache9 = new Map<number, Set<number> | null>();
+  const areaOf9 = (hx9: number, hy9: number): Set<number> | null => {
+    const tr9 = opts.terrain;
+    const W9 = opts.mapW ?? 0; const H9 = opts.mapH ?? 0;
+    if (!tr9 || !(W9 > 0) || !(H9 > 0)) return null;
+    const cx9 = Math.floor(hx9); const cy9 = Math.floor(hy9);
+    const key9 = cy9 * W9 + cx9;
+    if (areaCache9.has(key9)) return areaCache9.get(key9)!;
+    const cnt9 = new Map<number, number>();
+    for (let dy9 = -3; dy9 <= 3; dy9 += 1) for (let dx9 = -3; dx9 <= 3; dx9 += 1) {
+      if (tr9.walk(cx9 + dx9, cy9 + dy9)) { const lv9 = tr9.level(cx9 + dx9, cy9 + dy9); cnt9.set(lv9, (cnt9.get(lv9) ?? 0) + 1); }
+    }
+    let lv9 = -1; let ln9 = 0;
+    for (const [l9, n9] of cnt9) if (n9 > ln9) { ln9 = n9; lv9 = l9; }
+    if (lv9 < 0) { areaCache9.set(key9, null); return null; }
+    const d9 = (i9: number): number => Math.hypot((i9 % W9) + 0.5 - hx9, Math.floor(i9 / W9) + 0.5 - hy9);
+    const area9 = new Set<number>();
+    const q9: number[] = [];
+    for (let dy9 = -3; dy9 <= 3; dy9 += 1) for (let dx9 = -3; dx9 <= 3; dx9 += 1) {
+      const x9 = cx9 + dx9; const y9 = cy9 + dy9;
+      if (x9 >= 0 && y9 >= 0 && x9 < W9 && y9 < H9 && tr9.walk(x9, y9) && tr9.level(x9, y9) === lv9) { area9.add(y9 * W9 + x9); q9.push(y9 * W9 + x9); }
+    }
+    let rim9 = 0;
+    for (let qi9 = 0; qi9 < q9.length; qi9 += 1) {
+      const i9 = q9[qi9]; const x9 = i9 % W9; const y9 = Math.floor(i9 / W9);
+      for (const [nx9, ny9] of [[x9 + 1, y9], [x9 - 1, y9], [x9, y9 + 1], [x9, y9 - 1]]) {
+        if (nx9 < 0 || ny9 < 0 || nx9 >= W9 || ny9 >= H9) continue;
+        const j9 = ny9 * W9 + nx9;
+        if (area9.has(j9) || !tr9.walk(nx9, ny9) || tr9.level(nx9, ny9) !== lv9 || tr9.ramp?.(nx9, ny9)) continue;   // 램프는 경계(입구 걸음이 붙인다)
+        if (d9(j9) > BASE_OPEN9) { rim9 += 1; continue; }
+        area9.add(j9); q9.push(j9);
+      }
+    }
+    /* 닫힌 언덕이면 BASE_RMAX9 까지 · 열린 땅이면 BASE_R9 원으로 자른다(벌판 확장 · 낮은 땅 본진). */
+    const cut9 = rim9 > 6 ? BASE_R9 : BASE_RMAX9;
+    for (const i9 of [...area9]) if (d9(i9) > cut9) area9.delete(i9);
+    /* 입구 — 가장자리에서 걸을 수 있는 칸(어느 고도든 · 램프 포함)으로 BASE_GATE9 걸음. */
+    let front9 = [...area9];
+    for (let g9 = 0; g9 < BASE_GATE9; g9 += 1) {
+      const next9: number[] = [];
+      for (const i9 of front9) {
+        const x9 = i9 % W9; const y9 = Math.floor(i9 / W9);
+        for (const [nx9, ny9] of [[x9 + 1, y9], [x9 - 1, y9], [x9, y9 + 1], [x9, y9 - 1]]) {
+          if (nx9 < 0 || ny9 < 0 || nx9 >= W9 || ny9 >= H9) continue;
+          const j9 = ny9 * W9 + nx9;
+          if (area9.has(j9) || !tr9.walk(nx9, ny9)) continue;
+          area9.add(j9); next9.push(j9);
+        }
+      }
+      front9 = next9;
+    }
+    areaCache9.set(key9, area9);
+    return area9;
+  };
+  /** 그 자리가 (hx, hy) 본진 건물의 기지 영역 안인가 — 지형 영역(위 ★★) · 지형이 없으면 BASE_R9 원. */
+  const inBaseArea9 = (hx9: number, hy9: number, x9: number, y9: number): boolean => {
+    const a9 = areaOf9(hx9, hy9);
+    if (!a9) return Math.hypot(hx9 - x9, hy9 - y9) <= BASE_R9;
+    return a9.has(Math.floor(y9) * (opts.mapW ?? 0) + Math.floor(x9));
+  };
   const hallsOfOwner9 = (owners9: ReadonlySet<number>, sec9: number): [number, number][] => {
     const out9: [number, number][] = [];
     for (const e9 of world.lives) {
@@ -403,14 +471,14 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   const atOwnBase9 = (owner9: number, x9: number | undefined, y9: number | undefined, sec9: number): boolean => {
     if (x9 === undefined || y9 === undefined) return true;
     const halls9 = hallsOfOwner9(new Set([owner9]), sec9);
-    return halls9.length === 0 || halls9.some(([hx9, hy9]) => Math.hypot(hx9 - x9, hy9 - y9) <= BASE_R9);
+    return halls9.length === 0 || halls9.some(([hx9, hy9]) => inBaseArea9(hx9, hy9, x9, y9));
   };
   /** 일꾼이 **제 기지에서** 죽었나 — 제 본진 건물 BASE_R9 안이고, 죽인 사람의 본진 건물이 더 가깝지 않을 때(빨무처럼 기지가 붙은 맵). 제 본진 건물이 없으면 아니다. */
   const workerAtHome9 = (owner9: number, killer9: number, x9: number, y9: number, sec9: number): boolean => {
     const near9 = (o9: number): number => Math.min(Infinity, ...hallsOfOwner9(new Set([o9]), sec9).map(([hx9, hy9]) => Math.hypot(hx9 - x9, hy9 - y9)));
     if (hallsOfOwner9(new Set([owner9]), sec9).length === 0) return true;   // 본진 건물을 모르면(옛 판 · 합성 판) 옛 셈대로 제 기지
     const mine9 = near9(owner9);
-    if (!(mine9 <= BASE_R9)) return false;
+    if (!hallsOfOwner9(new Set([owner9]), sec9).some(([hx9, hy9]) => inBaseArea9(hx9, hy9, x9, y9))) return false;
     return killer9 < 0 || !(near9(killer9) < mine9);
   };
   /** 기지 밖에서 잡힌 일꾼의 갈래 — 제 짓는 중인 건물(기지 밖) FWD_R9 타일 안이면 "전진 건설" · 죽인 사람의 기지 안이면 "정찰" · 그 밖 "". */
@@ -1074,8 +1142,10 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       const dp9 = near9(hp9, x9, y9);
       const df9 = near9(hf9, x9, y9);
       all9 += v9;
-      if (dp9 <= BASE_R9 && dp9 <= df9) atP9 += v9;
-      else if (df9 <= BASE_R9 && df9 < dp9) atF9 += v9;
+      const inP9 = hp9.some(([hx9, hy9]) => inBaseArea9(hx9, hy9, x9, y9));
+      const inF9 = hf9.some(([hx9, hy9]) => inBaseArea9(hx9, hy9, x9, y9));
+      if (inP9 && (!inF9 || dp9 <= df9)) atP9 += v9;
+      else if (inF9) atF9 += v9;
     }
     if (all9 <= 0) return null;
     if (atP9 / all9 >= TURF9.home) return "def";
@@ -1099,8 +1169,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     let all9 = 0;
     for (const [, x9, y9, v9] of sc9.locs) {
       all9 += v9;
-      let best9 = ""; let bd9 = BASE_R9;
-      for (const [r9, hx9, hy9] of halls9) { const d9 = Math.hypot(hx9 - x9, hy9 - y9); if (d9 <= bd9) { bd9 = d9; best9 = r9; } }
+      let best9 = ""; let bd9 = Infinity;
+      for (const [r9, hx9, hy9] of halls9) { const d9 = Math.hypot(hx9 - x9, hy9 - y9); if (d9 < bd9 && inBaseArea9(hx9, hy9, x9, y9)) { bd9 = d9; best9 = r9; } }
       if (best9) at9.set(best9, (at9.get(best9) ?? 0) + v9);
     }
     if (all9 <= 0) return null;
@@ -1112,8 +1182,9 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     return own9 && in9 / all9 >= 0.5 && ow9 / in9 >= TURF9.home ? own9 : null;
   };
   const sameSide9 = (a9: string, b9: string): boolean => a9 === b9 || (opts.teamOf?.[a9] !== undefined && opts.teamOf?.[a9] === opts.teamOf?.[b9]);
-  const duel9 = (sc9: Sc9, pick9: string): Duel9 | undefined => {
-    const bo9 = baseOwner9(sc9);
+  /** bo0 — 전투가 정한 싸움터 임자(아래 battleOwner ★★) · 안 주면 그 장면에서 잰다. 그 편이 장면에 아무도 없으면 장면의 것. */
+  const duel9 = (sc9: Sc9, pick9: string, bo0?: string | null): Duel9 | undefined => {
+    const bo9 = bo0 && [...sc9.by.keys()].some((r9) => sameSide9(r9, bo0)) ? bo0 : baseOwner9(sc9);
     if (bo9) {
       const ppl9 = [...sc9.by.keys()];
       const gave9 = (a9: string, side9: (r: string) => boolean): number => {
@@ -1222,7 +1293,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       if (e9.bld || !own9.has(e9.owner) || !TRANSPORT9.has(e9.kind) || e9.born > sec9 || (e9.died !== null && e9.died < sec9 - DROP_W9)) continue;
       if (e9.kind === "Overlord" && !sacs9) continue;
       if (e9.orders.some((o9) => o9[0] >= sec9 - DROP_W9 && o9[0] <= sec9 + 5
-        && halls9.some(([hx9, hy9]) => Math.hypot(hx9 - o9[1], hy9 - o9[2]) <= BASE_R9))) n9 += 1;
+        && halls9.some(([hx9, hy9]) => inBaseArea9(hx9, hy9, o9[1], o9[2])))) n9 += 1;
     }
     return n9;
   };
@@ -1336,8 +1407,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       /* 돌파/방어는 스웜을 친 자리로 — 적 기지 안이면 돌파 · 제 기지 안이면 방어 · 그 밖은 맞대결의 몫. */
       const [sx9, sy9] = at9.get(tech9)!;
       const sec9 = sc9.t0;
-      const inOwn9 = hallsOfOwner9(own9, sec9).some(([hx9, hy9]) => Math.hypot(hx9 - sx9, hy9 - sy9) <= BASE_R9);
-      const inFoe9 = foeOwners9(pick9).some((o9) => hallsOfOwner9(new Set([o9]), sec9).some(([hx9, hy9]) => Math.hypot(hx9 - sx9, hy9 - sy9) <= BASE_R9));
+      const inOwn9 = hallsOfOwner9(own9, sec9).some(([hx9, hy9]) => inBaseArea9(hx9, hy9, sx9, sy9));
+      const inFoe9 = foeOwners9(pick9).some((o9) => hallsOfOwner9(new Set([o9]), sec9).some(([hx9, hy9]) => inBaseArea9(hx9, hy9, sx9, sy9)));
       const how9 = inFoe9 ? "돌파" : inOwn9 ? "방어" : role9 === "def" ? "방어" : role9 === "atk" ? "돌파" : "교전";
       if (with9) return `다크스웜+${with9} ${how9}`;
       return null;
@@ -1601,7 +1672,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     if (tm9 === undefined) return null;
     for (const r9 of new Set(rawOf9.values())) {
       if (r9 === raw9 || opts.teamOf?.[r9] !== tm9) continue;
-      if (hallsAt9(r9, sec9).some(([hx9, hy9]) => Math.hypot(hx9 - x9, hy9 - y9) <= BASE_R9)) return r9;
+      if (hallsAt9(r9, sec9).some(([hx9, hy9]) => inBaseArea9(hx9, hy9, x9, y9))) return r9;
       const st9 = start9.get(r9);
       if (st9 && Math.hypot(st9.x - x9, st9.y - y9) <= BASE_R9) return r9;
     }
@@ -1748,7 +1819,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
         /* 상대 기지 안의 캐논·성큰(크립 콜로니 포함) → "A의 B 포토러시"(요청: 포토러시 · 성큰러시). 같은 러시의 건물 여럿은 RUSH_W9 안이면 한 이정표. */
         for (const [o9, foeRaw9] of rawOf9) {
           if (own9.has(o9) || (opts.teamOf?.[foeRaw9] !== undefined && opts.teamOf?.[foeRaw9] === opts.teamOf?.[raw9])) continue;
-          if (!hallsAt9(foeRaw9, e9.born).some(([hx9, hy9]) => Math.hypot(hx9 - e9.bornX, hy9 - e9.bornY) <= BASE_R9)) continue;
+          if (!hallsAt9(foeRaw9, e9.born).some(([hx9, hy9]) => inBaseArea9(hx9, hy9, e9.bornX, e9.bornY))) continue;
           const key9 = `${foeRaw9}|${rushText9}`;
           const last9 = rushed9.get(key9);
           rushed9.set(key9, e9.born);
@@ -2024,7 +2095,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     const verb9 = ord9[3] ? "공격 이동" : "이동";
     for (const fo9 of foeOwners9(raw9)) {
       const fr9 = rawOf9.get(fo9);
-      if (fr9 && hallsOfOwner9(new Set([fo9]), ord9[0]).some(([hx9, hy9]) => Math.hypot(hx9 - ord9![1], hy9 - ord9![2]) <= BASE_R9)) {
+      if (fr9 && hallsOfOwner9(new Set([fo9]), ord9[0]).some(([hx9, hy9]) => inBaseArea9(hx9, hy9, ord9![1], ord9![2]))) {
         return [{ raw: raw9 }, { text: ` ${what9} ` }, { raw: fr9 }, { text: ` 기지로 ${verb9}` }];
       }
     }
@@ -2179,14 +2250,36 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     for (const e9 of es9) addEv9(sub9, e9);
     return sub9;
   };
+  /* ★★ **한 전투의 싸움터 임자는 안 바뀐다**(2026-10-11, 지적: "전투의 흐름이 잘 안 사는 느낌 — 한 전투에 참가자가 들락날락하는데 어느 기지를 공격하는지는 안 변하거든") —
+     창(10초)·토막(30초)마다 baseOwner9 를 새로 재면, 기지 앞에서 죽은 몫이 많은 창은 "A vs B 교전" · 기지 안 창은 "A가 B 기지 공격"으로 오가며 맥이 끊겼다.
+     이제 같은 전투(bid)의 토막 사건을 다 모은 판으로 임자를 한 번 재고(battleOwner9), 장면·창이 **제 임자를 못 세우면** 그 임자를 쓴다(공격한 사람·헬프는 그 창에 든
+     사람으로 — 들락날락은 그대로 읽힌다). 창이 딴 기지 안 싸움으로 서면(되받아 쳐들어감) 그 창의 것. */
+  const battleOwnerOf9 = new Map<number, string | null>();
+  const battleOwner9 = (bid9: number): string | null => {
+    if (battleOwnerOf9.has(bid9)) return battleOwnerOf9.get(bid9)!;
+    const es9 = scs9.filter((s9) => bidOf9.get(s9) === bid9).flatMap((s9) => s9.evs).sort((x9, y9) => x9.sec - y9.sec);
+    let bo9: string | null = null;
+    if (es9.length > 0) {
+      const head9 = scs9.find((s9) => bidOf9.get(s9) === bid9)!;
+      const b9: Sc9 = { t0: es9[0].sec, t1: es9[0].sec, by: new Map(), why: es9[0].why, tail: GAP9,
+        pair: new Map(), econ: new Map(), locs: [], bldPair: new Map(), bldLost: new Map(), byKind: new Map(), killKind: new Map(), ovl: new Map(),
+        killN: new Map(), kills: new Map(), killVic: new Map(), evs: [], cx: head9.cx, cy: head9.cy };
+      for (const e9 of es9) addEv9(b9, e9);
+      bo9 = baseOwner9(b9);
+    }
+    battleOwnerOf9.set(bid9, bo9);
+    return bo9;
+  };
   /** 토막을 자막 창으로 세운다 — 첫 창은 at 에(카메라를 먼저 옮기는 자리), 그 뒤 창은 그 창 첫 사건 때에. from 앞의 사건은 안 본다(밀린 전투로 돌아갈 때). */
   const emitScene9 = (at9: number, sc9: Sc9, pick9: string, score9: number, from9 = -Infinity): void => {
-    const dW9 = duel9(sc9, pick9);
+    const bBo9 = battleOwner9(bidOf9.get(sc9) ?? -1);
+    const own9 = (s9: Sc9): string | null => baseOwner9(s9) ?? bBo9;
+    const dW9 = duel9(sc9, pick9, own9(sc9));
     let first9 = true;
     for (let a9 = Math.max(sc9.t0, from9); a9 <= sc9.t1; a9 += CAP_WIN9) {
       const sub9 = subSc9(sc9, a9, a9 + CAP_WIN9);
       if (!sub9 || !sub9.by.has(pick9)) continue;
-      const caps9 = sceneCaps9(sub9, pick9, duel9(sub9, pick9) ?? dW9);
+      const caps9 = sceneCaps9(sub9, pick9, duel9(sub9, pick9, own9(sub9)) ?? dW9);
       /* 창 첫 사건 때(− CAP_LEAD9) — 가장 무거운 사건 때로 늦추는 안은 되물렸다(같은 날: "살짝 미리 뜨는 건 괜찮지"). */
       push9(first9 ? at9 : Math.max(at9, sub9.t0 - CAP_LEAD9), pick9, sub9.why, false, score9, dW9, caps9);
       first9 = false;
