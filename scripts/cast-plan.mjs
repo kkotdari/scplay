@@ -513,11 +513,17 @@ rmSync(tmp, { recursive: true, force: true });
     [400, 415, 430].forEach((t, i) => mk(0, "Siege Tank (Tank Mode)", false, 20, 20, 300, { orders: [[t - 10, 70 + i, 70, false]], sieges: [[t, true]] }));
   })), (c) => c.some((x) => /\[A\] 탱크 조이기/.test(x))]);
   // ④ 스톰 — P 가 600초에 (60,60)에 스톰 · B 히드라 넷이 601~602초에 그 자리에서 죽는다
-  res.push(["스톰에 히드라 넷 → 스톰으로 히드라 4기 잡음", run(mkw([["P", "프로토스", 1], ["B", "저그", 2]], ({ mk, casts }) => {
+  res.push(["스톰에 히드라 넷 → 스톰으로 활약함(2026-10-11)", run(mkw([["P", "프로토스", 1], ["B", "저그", 2]], ({ mk, casts }) => {
     mk(0, "Nexus", true, 20, 20, 0); mk(1, "Hatchery", true, 100, 100, 0);
     for (let i = 0; i < 4; i += 1) mk(1, "Hydralisk", false, 100, 100, 500, { died: 601 + i * 0.3, end: "atk", orders: [[598, 60, 60, false]] });
     casts.push([600, 60, 60, "Psionic Storm", 0]);
-  })), (c) => c.some((x) => /스톰으로 히드라 4기 잡음/.test(x))]);
+  })), (c) => c.some((x) => /\[P\]ga 스톰으로 활약함/.test(x))]);
+  // ④' 헛스톰(2026-10-11, 요청: "스톰 같은 게 무조건 들어가는 게 아니라 활약했을 때만") — 스톰에 히드라 하나만 죽는다 → 스톰을 말하지 않는다
+  res.push(["스톰에 하나만 → 스톰을 말하지 않는다", run(mkw([["P", "프로토스", 1], ["B", "저그", 2]], ({ mk, casts }) => {
+    mk(0, "Nexus", true, 20, 20, 0); mk(1, "Hatchery", true, 100, 100, 0);
+    mk(1, "Hydralisk", false, 100, 100, 500, { died: 601, end: "atk", orders: [[598, 60, 60, false]] });
+    casts.push([600, 60, 60, "Psionic Storm", 0]);
+  })), (c) => !c.some((x) => /스톰/.test(x))]);
   // ⑤ 마인드컨트롤 — P 가 700초에 B 의 울트라를 빼앗는다(손바뀜 생애)
   res.push(["마인드컨트롤 → 울트라 빼앗음", run(mkw([["P", "프로토스", 1], ["B", "저그", 2]], ({ mk, casts }) => {
     mk(0, "Nexus", true, 20, 20, 0); mk(1, "Hatchery", true, 100, 100, 0);

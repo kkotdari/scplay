@@ -128,6 +128,8 @@ const CENTER_HOLD9 = { n: 8, k: 2 };
 const SPELL_NOTE9 = ["Psionic Storm", "Maelstrom", "Stasis Field", "Mind Control", "EMP Shockwave", "Irradiate", "Plague", "Dark Swarm",
   "Lockdown", "Ensnare", "Disruption Web", "Recall", "Spawn Broodlings", "Feedback", "Defensive Matrix"];
 /** 마법으로 잡은 몸의 '죽인 유닛 종류'(처치 절) — 스톰은 stormBy9 가 하이템플러로 적는다. */
+/** 마법 활약의 문턱(2026-10-11) — 잡는 마법은 잡은 수 · 그 밖은 쓴 사람이 준 몸값(value)과 받은 것의 배(k). */
+const SPELL_ACT9 = { kills: 3, value: 300, k: 1.5 };
 const SPELL_KILLER9: Record<string, string> = { "Psionic Storm": "High Templar", Irradiate: "Science Vessel", Plague: "Defiler", "Spawn Broodlings": "Queen" };
 /** 병력 구성(국면 요약 · 2026-10-10, 요청: "바이오닉/메카닉 운영 · 파워 드라군 · 목동저그(아드레날린 저글링 울트라 조합)"). */
 const BIO9 = new Set(["Marine", "Firebat", "Medic", "Ghost"]);
@@ -1222,7 +1224,11 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   };
   /** 마법 활약 — 그 장면(앞 8초 ~ 끝 2초)에 주인공이 쓴 마법 가운데 가장 앞(SPELL_NOTE9) 것. 스톰·이레디에이트 등은 잡은 수 · 마인드컨트롤은 빼앗은 몸 ·
    *  다크스웜은 럴커·저글링과 함께면 "다크스웜+럴커 돌파/방어". */
-  const spellNote9 = (sc9: Sc9, pick9: string, role9: string | undefined): string | null => {
+  /* ★ **활약했을 때만**(2026-10-11, 요청: "스톰 같은 게 무조건 들어가야 하는 게 아니라 그걸로 활약했을 때만 들어가야 함 — 스톰으로 활약함 이렇게") — 옛 "X 사용"(쓰기만 해도
+     섰다)은 걷었다. 잡는 마법(SPELL_KILLER9)은 그 마법으로 SPELL_ACT9.kills 기 넘게 잡았을 때 · 마인드컨트롤은 빼앗았을 때 · 다크스웜은 럴커·저글링과 함께일 때 ·
+     그 밖(스테이시스·EMP·마엘스트롬 …)은 그 장면에서 쓴 사람이 준 몸값이 받은 것의 SPELL_ACT9.k 배 넘고 SPELL_ACT9.value 넘을 때. 글귀는 "스톰으로 활약함" ·
+     detail 이면(하템 드랍의 둘째 문장 · 2026-10-10 요청) "스톰으로 일꾼 4기 잡음". 활약이 없으면 null — 덧말도, 마법 장면 머리도 안 선다(머리는 맞대결 글귀로). */
+  const spellNote9 = (sc9: Sc9, pick9: string, role9: string | undefined, detail9 = false): string | null => {
     const own9 = ownersOf9(pick9);
     const used9 = new Map<string, number>();
     const at9 = new Map<string, [number, number]>();
@@ -1245,16 +1251,22 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       const inFoe9 = foeOwners9(pick9).some((o9) => hallsOfOwner9(new Set([o9]), sec9).some(([hx9, hy9]) => Math.hypot(hx9 - sx9, hy9 - sy9) <= BASE_R9));
       const how9 = inFoe9 ? "돌파" : inOwn9 ? "방어" : role9 === "def" ? "방어" : role9 === "atk" ? "돌파" : "교전";
       if (with9) return `다크스웜+${with9} ${how9}`;
-      return `${ko9} 사용`;
+      return null;
     }
     if (tech9 === "Mind Control") {
       const got9 = world.lives.find((e9) => e9.handoff && own9.has(e9.owner) && e9.born >= sc9.t0 - 8 && e9.born <= sc9.t1 + 2);
-      return got9 ? `마인드컨트롤로 ${UNIT_KO[got9.kind] ?? got9.kind} 빼앗음` : `${ko9} 사용`;
+      return got9 ? `마인드컨트롤로 ${UNIT_KO[got9.kind] ?? got9.kind} 빼앗음` : null;
     }
     const by9 = SPELL_KILLER9[tech9];
     const n9 = by9 ? sc9.killN.get(pick9)?.get(by9) ?? 0 : 0;
     /* 잡은 것을 이름으로(2026-10-10, 요청: "스톰으로 일꾼 몇 기 잡음") — 다 일꾼이면 "일꾼 N기" · 한 종류면 그 이름 · 섞이면 "많은 것 등 N기". */
-    return n9 >= 2 ? `${ko9}${koRo9(ko9)} ${vicTxt9(sc9.killVic.get(pick9)?.get(by9!))} 잡음` : `${ko9} 사용`;
+    if (by9) {
+      if (n9 < SPELL_ACT9.kills) return null;
+      return detail9 ? `${ko9}${koRo9(ko9)} ${vicTxt9(sc9.killVic.get(pick9)?.get(by9))} 잡음` : `${ko9}${koRo9(ko9)} 활약함`;
+    }
+    let dealt9 = 0; let got9 = 0;
+    for (const [key9, w9] of sc9.pair) { const [a9, b9] = key9.split(">"); if (a9 === pick9) dealt9 += w9; if (b9 === pick9) got9 += w9; }
+    return dealt9 >= SPELL_ACT9.value && dealt9 > got9 * SPELL_ACT9.k ? `${ko9}${koRo9(ko9)} 활약함` : null;
   };
   /** 잡은 몸들의 글귀 — 다 일꾼 "일꾼 N기" · 한 종류 "히드라 N기" · 섞이면 가장 많은 것 "히드라 등 N기". */
   const vicTxt9 = (m9: Map<string, number> | undefined): string => {
@@ -1310,13 +1322,16 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     }
     if (top9 && why9 === "핵") return [{ raw: top9.raw, p: "ga" }, { text: " 핵 투하" }];
     if (top9 && why9 === "마법") {
-      const sp9 = spellNote9(sc9, top9.raw, top9.raw === pick9 ? d9?.role : undefined) ?? `${top9.tech ? researchKo(top9.tech) : "마법"} 사용`;
+      const role9 = top9.raw === pick9 ? d9?.role : undefined;
       /* 적 기지에 수송선으로 실어 와 친 마법이면 드랍이 첫 문장이다(2026-10-10, 요청: "A가 B 기지에 하템 드랍. 스톰으로 일꾼 몇 기 잡음"). */
       const bo9 = baseOwner9(sc9);
       const unit9 = top9.tech ? SPELL_KILLER9[top9.tech] : undefined;
       const dn9 = bo9 && unit9 && !sameSide9(bo9, top9.raw) ? unitDrop9(top9.raw, bo9, sc9.t0, unit9) : null;
-      if (bo9 && dn9) return [{ raw: top9.raw, p: "ga" }, { text: " " }, { raw: bo9 }, { text: ` 기지에 ${dn9}. ${sp9}` }];
-      return [{ raw: top9.raw, p: "ga" }, { text: ` ${sp9}` }];
+      const spd9 = bo9 && dn9 ? spellNote9(sc9, top9.raw, role9, true) : null;
+      if (bo9 && dn9 && spd9) return [{ raw: top9.raw, p: "ga" }, { text: " " }, { raw: bo9 }, { text: ` 기지에 ${dn9}. ${spd9}` }];
+      const sp9 = spellNote9(sc9, top9.raw, role9);
+      if (sp9) return [{ raw: top9.raw, p: "ga" }, { text: ` ${sp9}` }];
+      // 활약이 없는 마법 장면은 마법을 말하지 않는다(2026-10-11) — 아래 맞대결·기지 글귀로.
     }
     if (top9 && why9 === "자폭") return [{ raw: top9.raw }, { text: " 자폭" }];
     if (top9 && (why9 === "일꾼 잡음" || why9 === "일꾼 잃음")) {

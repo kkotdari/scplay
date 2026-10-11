@@ -4554,7 +4554,7 @@
 .scr-motion-pc9 .scr-cast-caption .scr-cast-chip { top: round(nearest, -0.08em, 2px); }   /* 칩 들림도 짝수(28 → −2) */
 /* PC 단독 화면 여백(2026-10-10, 요청: "화면의 유저칩 위쪽 여백 늘리고 자막은 아래쪽 여백 많이 늘려서 위로 올리기") — 이름표 위 3·dk(≈4) → **16** · 자막 바닥 3·dk(≈4) → **48**(받침 솟음 더함 · 1080p 짝수). */
 .scr-motion-pc9 .scr-fs-solo-cap { top: round(nearest, calc(16px * var(--dks, 1)), 2px); }
-.scr-motion-pc9 .scr-cast-caption { bottom: calc(round(nearest, calc(48px * var(--dks, 1)), 2px) + var(--dock-lift, 0px)); }
+.scr-motion-pc9 .scr-cast-caption { bottom: calc(round(nearest, calc(24px * var(--dks, 1)), 2px) + var(--dock-lift, 0px)); }   /* 48 → 24(2026-10-11, 요청: "피시 자막 좀 내리기" — 글자가 46 으로 커져 위로 솟았다) */
 @keyframes scr-cast-caption-in {
   from { opacity: 0; transform: translateY(0.5em); }
   to { opacity: 1; transform: none; }
