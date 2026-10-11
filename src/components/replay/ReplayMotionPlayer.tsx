@@ -17587,6 +17587,11 @@ export default function ReplayMotionPlayer({
   const dialTrackRef9 = useRef<HTMLDivElement | null>(null);
   const dialDrag9 = useRef<number | null>(null);
   const [dialOn9, setDialOn9] = useState(false);
+  /** 휠 눈금 걸림(아래 onWheel9 ★) — 눈금 위에서 모은 굴림 · 지금 배속(리렌더 없이 읽는다) · 떠나는 문턱(다이얼 높이의 몫 · log2 칸으로 약 0.66). */
+  const dialWheelAcc9 = useRef(0);
+  const speedRef9 = useRef(speed);
+  speedRef9.current = speed;
+  const DIAL_DETENT9 = 0.22;   // 휠 한 칸(100px) = 0.12 — 눈금에서 한 칸은 더 머문다
   /* (되물림 · 2026-10-10, 요청: "중계 중에도 배속 조정은 돼야지 — 착각했어 다시 풀어주고") 중계 중 다이얼 잠금(dialLocked9 · 토스트)을 걷었다. */
   const dialAt9 = (y9: number): void => {
     const tr9 = dialTrackRef9.current?.getBoundingClientRect();
@@ -17600,7 +17605,29 @@ export default function ReplayMotionPlayer({
       e.preventDefault();
       e.stopPropagation();
       const px9 = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
-      setSpeed((v9) => uSpd9(spdU9(v9) - px9 * 0.0012, false));
+      /* ★ **눈금에 걸린다**(2026-10-10, 요청: "PC에서 배속 스크롤할 때 2 4 8 눈금에 좀 더 걸리게") — 굴려서 눈금을 지나거나 곁(SPEED_SNAP9)에 오면 그 눈금에 멈추고,
+         눈금 위에서는 굴린 몫을 모아(dialWheelAcc9) DIAL_DETENT9(다이얼 높이의 몫) 넘어야 떠난다. 끌기는 손 자리 그대로(uSpd9 의 붙음)다. */
+      const du9 = -px9 * 0.0012;
+      const u09 = spdU9(speedRef9.current);
+      const L9 = Math.log2(SPEED_MAX9 / SPEED_MIN9);
+      const onTick9 = Math.abs(u09 * L9 - Math.round(u09 * L9)) < 1e-3;
+      let u19 = u09 + du9;
+      if (onTick9) {
+        dialWheelAcc9.current += du9;
+        if (Math.abs(dialWheelAcc9.current) < DIAL_DETENT9) return;
+        u19 = u09 + du9;   // 떠날 때는 한 칸만(모은 몫만큼 뛰면 다음 값들을 건너뛴다)
+        dialWheelAcc9.current = 0;
+      } else {
+        dialWheelAcc9.current = 0;
+        const a9 = Math.min(u09, u19) * L9; const b9 = Math.max(u09, u19) * L9;
+        const crossed9 = Math.ceil(a9 - 1e-6) <= Math.floor(b9 + 1e-6) ? (du9 > 0 ? Math.ceil(a9 - 1e-6) : Math.floor(b9 + 1e-6)) : null;
+        const near9 = Math.abs(u19 * L9 - Math.round(u19 * L9)) < SPEED_SNAP9 ? Math.round(u19 * L9) : null;
+        const tick9 = crossed9 ?? near9;
+        if (tick9 !== null && tick9 >= 0 && tick9 <= L9) u19 = tick9 / L9;
+      }
+      const v19 = uSpd9(u19, false);
+      speedRef9.current = v19;
+      setSpeed(v19);
     };
     el9.addEventListener("wheel", onWheel9, { passive: false });
     return () => el9.removeEventListener("wheel", onWheel9);

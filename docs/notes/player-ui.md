@@ -1493,3 +1493,6 @@ AUTO 글자 합성) · 현재 화면에 보여주는 화면 주인(들)은 기�
 - 음악 목록 맨 아래 줄(`pickMenu9` 의 tail9 · `.scr-motion-picktail`/`.scr-motion-pickvol`) = [슬라이더 | 끄기] — 슬라이더는 pointerup 에 목록을 닫고, 끄기는 누르면 닫는다.
   volumeOk 거짓(iOS)이면 끄기만 선다.
 - 🔎 perf-check `--bgm`(곡 둘을 꽂음 · 소리 없음) + `--clicksel '[aria-label="배경 음악 — 누르면 곡 목록"]'`(새 손잡이: 선택자를 눌러 둔 채 찍기).
+- (같은 날 덧) 요청: "PC에서 배속 스크롤할 때 2 4 8 눈금에 좀 더 걸리게" — 휠(onWheel9)에 **눈금 걸림**: 굴려서 눈금을 지나거나 곁(SPEED_SNAP9)에 오면 그 눈금에 멈추고,
+  눈금 위에서는 굴린 몫을 모아(dialWheelAcc9) DIAL_DETENT9(**0.22** · 휠 한 칸 100px = 0.12) 넘어야 **한 칸만** 떠난다(모은 몫만큼 뛰면 다음 값들을 건너뛴다).
+  끌기는 그대로. 🔎 perf-check `--dialwheel N --shot x.png`(다이얼 위 휠 위로 N 번 · 배속 글자 줄) — 실측 ×1.85 → ×2 ×2 ×2 ×2 → ×2.3 …

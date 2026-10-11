@@ -1402,6 +1402,21 @@ if (SHOT) {
     console.log("[사용법]", h9, "px →", flag("--guide", ""));
   }
   /* 화면 자리 누르기(--clickat x,y · CSS px) — 보는 사람이 몸을 누르는 길(인포창)을 진짜 마우스로 찍는다. */
+  /* --dialwheel N — 배속 다이얼 위에서 휠을 위로 N 번(한 번 100px) 굴리며 배속 글자를 적는다(2026-10-10 · 눈금 걸림 확인). */
+  if (flag("--dialwheel", null)) {
+    const n9 = Number(flag("--dialwheel", 20)) || 20;
+    const box9 = await page.locator(".scr-speeddial").boundingBox();
+    if (box9) {
+      await page.mouse.move(box9.x + box9.width / 2, box9.y + box9.height / 2);
+      const seen9 = [];
+      for (let i9 = 0; i9 < n9; i9 += 1) {
+        await page.mouse.wheel(0, -100);
+        await page.waitForTimeout(60);
+        seen9.push(await page.locator(".scr-speeddial-val").textContent());
+      }
+      console.log("[다이얼 휠]", seen9.join(" "));
+    }
+  }
   /* --clicksel 선택자 — 그 요소를 눌러 둔 채 찍는다(2026-10-10 · 음악 목록 같은 펼침 확인). */
   if (flag("--clicksel", null)) {
     await page.click(String(flag("--clicksel")), { timeout: 10000 }).catch((e) => console.log("[clicksel 실패]", String(e).slice(0, 120)));
