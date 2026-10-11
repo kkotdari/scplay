@@ -6,7 +6,7 @@ import {
 } from "./perf9";
 import { createPortal } from "react-dom";
 import { useBgm } from "./useBgm";
-import { Bookmark, Check, Map as MapIcon, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Share2, Video } from "lucide-react";
+import { Bookmark, Check, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Share2, Video } from "lucide-react";
 /** 건설 명령 고스트 판의 색(원작의 배치 미리보기 초록) — 짙기는 op.plateAlpha 가 든다. */
 const GHOST_PLATE_COL9 = "#3ee06a";
 /** 툴박스가 손을 뗀 뒤 아이콘 하나로 접히기까지(2026-09, 요청: "안쓰면 몇초뒤 아이콘 하나로 최소화"). */
@@ -12214,7 +12214,8 @@ export default function ReplayMotionPlayer({
    *    셈: 미니맵이 지도 한 귀퉁이를 가리니 필요할 때 부르자). 원작에서도 미니맵은 늘
    *    떠 있는 것이고, 확대해서 보는 판일수록 '지금 어디를 보고 있나'가 먼저 필요하다.
    *    가리는 것이 싫으면 제 아이콘으로 끈다. */
-  const [fsMiniOn, setFsMiniOn] = useState(true);
+  /** 전체화면 미니맵 — 늘 선다(2026-10-10 · 여닫이 단추·N 키 걷음). 쓰는 자리가 여럿이라 이름은 남긴다. */
+  const fsMiniOn = true;
   /* 배경 음악(요청) — 켜기·끄기와 곡 고르기는 전부 useBgm 안이다. 기기 음량·무음을
      따르는 방법(아무것도 안 건드리기)과 안드로이드의 한계가 그 파일 머리에 적혀 있다.
      재생 여부를 넘긴다(요청: "재생 멈추면 음악도 멈추기") — 일시정지·되감기 잡고
@@ -16330,13 +16331,7 @@ export default function ReplayMotionPlayer({
         wakeUi();
         setColorMode(colorNextRef9.current);
       /* (걷어냄 · 2026-10-09) b = 로스터 현황 켬·끔 — 로스터가 독에서 늘 전부를 보인다. */
-      } else if (e.code === "KeyN") {
-        /* n = 미니맵(작은 지도) 여닫이 — 전체화면의 그 단추와 같은 손잡이다(요청).
-           일반 화면에서는 미니맵이 지도 밖 독에 제 자리를 가져 가릴 것이 없으므로,
-           그 단추도 이 키도 전체화면에서만 뜻이 있다(F 와 같은 결). */
-        e.preventDefault();
-        wakeUi();
-        if (fsOnRef.current) setFsMiniOn((v) => !v);
+      /* (걷어냄 · 2026-10-10, 요청: "미니맵 숨김 버튼 및 단축키 제거") n = 미니맵 여닫이. */
       } else if (e.code === "KeyV") {
         // v = 평면 ↔ 입체 토글(요청). 입체가 막힌 기기면 안내만 띄운다.
         e.preventDefault();
@@ -17721,26 +17716,7 @@ export default function ReplayMotionPlayer({
           왼쪽으로 밀렸다. 목록은 로스터(bases)에서 나므로 자취 없이도 지을 수 있고, 고르는 일은 편성표가 오면 그때 먹는다
           (castOn 은 처음부터 켜져 있다). 줄의 꼴은 처음부터 끝까지 하나다. */}
       {/* (걷어냄 · 2026-10-09) TV 단추(중계 목록)와 로스터 현황 단추(표) — 중계는 독 로스터의 카메라 단추로, 현황은 독 로스터가 늘 보인다. */}
-      {/* 미니맵 오버레이(요청) — 로스터와 같은 자리·같은 결의 여닫이다. 아이콘은 지도
-          모양: 이 버튼이 여는 것이 '작은 지도' 그 자체다. 전체화면에만 둔다 — 일반 화면
-          에서 미니맵은 지도 밖 독에 제 자리를 가져 지도를 안 가린다.
-          ★ 한 번 걷었다가 **되돌렸다**(요청: "지도 토글 제거" → 정정: "미니맵 숨기기
-            버튼은 있어야겠다 복구") — 미니맵이 조종부와 밑변을 맞춰 내려앉으며 덜 가리게
-            됐지만 그 구석도 여전히 지도라, 걷어 보고 싶을 때가 있다. 아래 '도구 숨기기'는
-            조작 손잡이만 걷으므로(로스터·미니맵은 남긴다) 겹치지 않는다 — 미니맵을 걷는
-            길은 이 단추 하나뿐이다. */}
-      {fsOn && (
-        <button
-          type="button"
-          className={cx("scr-motion-litbtn scr-motion-mapbtn", fsMiniOn && "is-on")}
-          onClick={() => setFsMiniOn((v) => !v)}
-          aria-pressed={fsMiniOn}
-          aria-label={fsMiniOn ? "미니맵 숨기기" : "미니맵 보이기"}
-          title="미니맵"
-        >
-          <MapIcon size={18} />
-        </button>
-      )}
+      {/* (걷어냄 · 2026-10-10, 요청: "미니맵 숨김 버튼 및 단축키 제거") 전체화면의 미니맵 여닫이 단추(지도 아이콘 · N) — 미니맵은 늘 선다(fsMiniOn 상수 참). */}
       {/* ★ 배속·각도·확대는 **지도 위에 값으로** 선다(요청: "배속/각도도 사이드패널이나
           오버레이에서 제거하고 맵 버튼로우로 옮겨서 상시 노출 · 버튼은 아이콘이 아닌
           실제 적용된 수치를 표현 · 확대축소도 버튼추가하고 배속이랑 안헷갈리게") ──────

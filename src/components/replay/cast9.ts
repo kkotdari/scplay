@@ -1779,7 +1779,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       }
       let mk9 = ""; let mn9 = 0;
       for (const [k9, n9] of made9) if (n9 > mn9) { mn9 = n9; mk9 = k9; }
-      if (mk9) return [{ raw: raw9 }, { text: ` ${bk9}에서 ${UNIT_KO[mk9] ?? mk9} 생산` }];
+      if (mk9) return [{ raw: raw9 }, { text: ` ${UNIT_KO[mk9] ?? mk9} 생산` }];   // "배럭에서"는 군말(2026-10-10, 요청: "~에서는 너무 당연한 거라 빼도 될 듯 그냥 ~생산")
       const up9 = world.ups.find(([us9, , uo9, ut9]) => ut9 === b9.tag && own9.has(uo9) && us9 > at9 && us9 <= at9 + RESEARCH_AHEAD9);
       if (up9) {
         const m9 = /^(.*?)(?: (\d+))?$/.exec(up9[1]);

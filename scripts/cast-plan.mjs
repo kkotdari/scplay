@@ -610,7 +610,7 @@ rmSync(tmp, { recursive: true, force: true });
   console.log(`\n화면 글귀: ${[...new Set(plan.filter((s) => s.raw === "A").map((s) => capTxt(s)))].join(" · ")}`);
   for (const [name, pass] of [
     ["골라 둔 건물의 연구 → '… 연구 중'", capsIn(188, 230).some((c) => /^\[A\] 아카데미에서 .+ 연구 중$/.test(c))],
-    ["골라 둔 배럭 곁에서 난 마린 → '배럭에서 마린 생산'", capsIn(398, 440).some((c) => c === "[A] 배럭에서 마린 생산")],
+    ["골라 둔 배럭 곁에서 난 마린 → '마린 생산'('배럭에서'는 군말 · 2026-10-10)", capsIn(398, 440).some((c) => c === "[A] 마린 생산")],
     ["대규모 병력이 적 본진으로 → '[A] 마린 [B] 기지로 공격 이동'(수 없음 · 2026-10-10)", capsIn(498, 540).some((c) => c === "[A] 마린 [B] 기지로 공격 이동")],
     ["몇 기 안 되는 무리의 이동·대기는 안 말한다", !plan.some((s) => /대기|\d+기 /.test(capTxt(s)))],
     ["연구 완료는 순환 자막에 '개발'로 안 선다", !plan.some((s) => /개발/.test(capTxt(s)))],
