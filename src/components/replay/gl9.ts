@@ -1636,7 +1636,10 @@ export class GlUnits9 implements VecSink9 {
     for (let i = 0; i < q.length; i += 1) {
       const it = q[i];
       if (isOpq(it)) continue;   // 불투명 개체는 ②(몸)와 꼬리 무리로 끝
-      const noZ = !!it.flat || !!it.add; const add = !!it.add; const flat = !!it.flat; const over = !!it.over;
+      /* ★ 발광(flat — 아콘·다크아콘·워프인)은 깊이를 **재되 쓰지 않는다**(2026-10-11, 지적: "공중유닛이 지상유닛에 가려지는 부분이 있네" — 아콘 구체가
+         발키리를 덮었다). 깊이 없이(noZ) 그리면 불투명 몸(②)을 다 그린 **뒤**라 칸이 더 앞인 몸(공중 · 아래쪽 지상)까지 덮는다. 쓰기만 끄면 제 겹끼리는
+         화가 차례 그대로 섞이고, 칸이 앞선 몸에는 가려진다. 더하기(add — 폭풍·핵)는 큐 맨 뒤의 효과라 깊이 없이 그대로. */
+      const noZ = !!it.add; const add = !!it.add; const flat = !!it.flat; const over = !!it.over;
       const last = runs.length ? runs[runs.length - 1] : null;
       const r = rec(it, i, false);
       if (last && last.mesh === it.mesh && last.cam === it.cam && last.noZ === noZ && last.add === add && last.flat === flat && last.over === over && last.r0 + last.count === r) last.count += 1;
@@ -1710,6 +1713,7 @@ export class GlUnits9 implements VecSink9 {
       if (r.add !== addNow) { addNow = r.add; gl.blendFunc(gl.ONE, addNow ? gl.ONE : gl.ONE_MINUS_SRC_ALPHA); }
       setCam(r.cam); bind(r.mesh); this.stat.draws += 1;
       if (r.noZ) { gl.disable(gl.DEPTH_TEST); gl.depthMask(false); this.drawRec(0, r.mesh.n, r.r0, r.count); gl.depthMask(true); if (GL_DEPTH9) gl.enable(gl.DEPTH_TEST); }
+      else if (r.flat) { gl.depthMask(false); this.drawRec(0, r.mesh.n, r.r0, r.count); gl.depthMask(true); }   // 발광 — 재되 안 쓴다(위 ★)
       else if (r.tail) { gl.depthMask(false); this.drawRec(r.mesh.nSolid, r.mesh.n - r.mesh.nSolid, r.r0, r.count); gl.depthMask(true); }
       else {
         this.drawRec(0, r.mesh.nSolid, r.r0, r.count);
