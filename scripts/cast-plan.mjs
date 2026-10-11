@@ -994,3 +994,29 @@ rmSync(tmp, { recursive: true, force: true });
     ["손 놓기 전에는 나온다", plan.some((s) => s.raw === "C" && s.at < 100)],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }
+
+/* ── ㉝ 자막은 사건 때에(2026-10-11, 지적: "전투가 길게 잡히면서 화면과 안 맞는 자막 — 타이밍을 정확히") — 1v1 A(테란) 대 C(저그 · 본진 100,100).
+   한 토막 안: 100~112초 C 저글링이 3초마다 A 에게 죽고(교전) · 115~127초 C 건물(스포닝풀·에볼 둘·크립 넷)이 3초마다 부서진다(기지 대파). 옛 판은 토막 머리(98.5초)에
+   "기지 대파"가 떴다 → 이제 100초 무렵은 공격 글귀 · 115초 뒤에 기지 피해 글귀. */
+{
+  let t9 = 180000;
+  const L = []; const kills = [];
+  const mk = (o, kind, bld, x, y, born, ex = {}) => { const e = { tag: (t9 += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [], ...ex }; L.push(e); return e; };
+  mk(0, "Command Center", true, 16, 16, 0); mk(1, "Hatchery", true, 100, 100, 0);
+  const ms = Array.from({ length: 6 }, () => mk(0, "Marine", false, 16, 16, 50, { orders: [[95, 100, 98, false]] }));
+  for (let i = 0; i < 5; i += 1) { const t = 100 + i * 3; const z = mk(1, "Zergling", false, 100, 100, 50, { died: t, end: "atk", orders: [[t - 2, 101, 99, false]] }); kills.push([t, 0, ms[i % 6].tag, z.tag]); }
+  const blds = [["Spawning Pool", 104, 100], ["Evolution Chamber", 96, 100], ["Evolution Chamber", 100, 104], ["Creep Colony", 104, 104], ["Creep Colony", 96, 96], ["Creep Colony", 104, 96]];
+  blds.forEach(([k, x, y], i) => { const t = 115 + i * 2.5; const b = mk(1, k, true, x, y, 10, { died: t, end: "atk" }); kills.push([t, 0, ms[i % 6].tag, b.tag]); });
+  const w = { players: [["A", "테란", 1], ["C", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
+    lives: L, ups: [], casts: [], pings: [], resFields: [], kills, sels: [], builds: [] };
+  const plan = castPlan9(w, { total: 300, order: ["A", "C"], teamOf: { A: 1, C: 2 } });
+  const seg = plan.filter((s) => s.at >= 95 && s.at < 135 && !s.cyc).map((s) => `${s.at.toFixed(1)} ${capTxt(s)}`);
+  console.log(`\n사건 때 자막: ${seg.join(" · ")}`);
+  const early = plan.filter((s) => s.at >= 95 && s.at < 110 && !s.cyc).map((s) => capTxt(s));   // 첫 창(100~110) — 살짝 미리 뜨는 건 괜찮다(같은 날: "살짝 미리 뜨는 건 괜찮지")
+  const late = plan.filter((s) => s.at >= 112 && s.at < 135 && !s.cyc).map((s) => capTxt(s));
+  for (const [name, pass] of [
+    ["앞(유닛 싸움) 자막에 기지 피해가 미리 안 뜬다", early.length > 0 && !early.some((c) => /기지 (반파|대파|궤멸)|파괴/.test(c))],
+    ["건물이 부서지는 때에 기지 피해 자막이 선다", late.some((c) => /기지 (반파|대파|궤멸)|건물 파괴/.test(c))],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
