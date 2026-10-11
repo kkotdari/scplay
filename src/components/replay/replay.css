@@ -3746,12 +3746,14 @@
 .scr-fs-minitag.is-m { font-size: calc(7.5px * var(--dk)); }
 .scr-fs-minitag.is-l { font-size: calc(9px * var(--dk)); }
 /* 폰 미니맵 이름표 짝수(2026-10-10) — 6.5/7.5/9 → 6/8/10(× --dk 를 2px 반올림) · 안 여백·줄 키도. */
-.scr-motion:not(.scr-motion-pc9) .scr-fs-minitag { font-size: round(nearest, calc(6px * var(--dk)), 2px); }
+/* ★ 최소를 키우고 폭을 좁힌다(2026-10-11, 요청: "미니맵 유저칩 크기 최소 크기를 크게 하고 그만큼 변화폭을 줄여도 괜찮") — 폰 6/8/10 → 8/8/10 · PC 10/12/14 → 12/12/14
+   (짝수 규약이라 작은·중간 단이 같아진다 · 큰 기지만 한 단 크다). */
+.scr-motion:not(.scr-motion-pc9) .scr-fs-minitag { font-size: round(nearest, calc(8px * var(--dk)), 2px); }
 .scr-motion:not(.scr-motion-pc9) .scr-fs-minitag.is-m { font-size: round(nearest, calc(8px * var(--dk)), 2px); }
 .scr-motion:not(.scr-motion-pc9) .scr-fs-minitag.is-l { font-size: round(nearest, calc(10px * var(--dk)), 2px); }
 .scr-fs-minitag { padding: 0 round(nearest, 0.35em, 2px); line-height: round(nearest, 1.35em, 2px); }
 /* PC 이름표 글자 ×1.1 정수(2026-10-10, 요청: "PC 에서 자막과 네임택도 크기 10프로 정도 키우기(정수)") — 미니맵 이름표 7/8/10 → 8/9/11. */
-.scr-motion-pc9 .scr-fs-minitag { font-size: calc(10px * var(--dks, 1)); }   /* 미니맵 246 에 맞춰 10/12/14(2026-10-10 짝수) */
+.scr-motion-pc9 .scr-fs-minitag { font-size: calc(12px * var(--dks, 1)); }   /* 미니맵 246 에 맞춰 10/12/14(2026-10-10 짝수) → 12/12/14(2026-10-11) */
 .scr-motion-pc9 .scr-fs-minitag.is-m { font-size: calc(12px * var(--dks, 1)); }
 .scr-motion-pc9 .scr-fs-minitag.is-l { font-size: calc(14px * var(--dks, 1)); }
 .scr-fs-minitag.is-dim { opacity: 0.42; filter: grayscale(0.85); }
