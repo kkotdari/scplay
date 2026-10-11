@@ -325,6 +325,8 @@ const koEul9 = (s9: string): string => (koBatchim9(s9) ? "을" : "를");
 const koGa9 = (s9: string): string => (koBatchim9(s9) ? "이" : "가");
 /** 미니맵 이름표가 진영을 묶는 반지름(타일) — 본진 둘레 이만큼의 건물이 한 진영이다(앞마당은 대개 더 멀다 · 아래 miniTags9). */
 const TAG_R9 = 14;
+/** 같은 사람의 이름표를 하나로 합치는 거리(타일 · 2026-10-11) — 이보다 가까운 두 기지는 이름표 하나(아래 miniTags9 ★). */
+const TAG_MERGE9 = 24;
 /** 미니맵 이름표의 크기 단 — 살아 있는 건물 수가 이 값 이하면 s · m, 그 위는 l. */
 const TAG_TIER9 = { s: 5, m: 14 };
 /** 본진(자원 건물) · 생산 건물 — 미니맵 이름표의 진영 무게(본진 3 · 생산 2 · 나머지 1)와 '생산 끊김' 판정에 쓴다. */
@@ -17930,7 +17932,16 @@ export default function ReplayMotionPlayer({
         return { x: sx9 / sw9, y: sy9 / sw9, n: grp9.length, prod: prod9, w: sw9 };
       };
       if (groups9.length === 0) return [sum9(live9)];
-      return groups9.map((g9) => sum9(live9.filter((b9) => g9.some((h9) => near9(h9, b9))))).sort((a9, b9) => b9.w - a9.w);
+      const cs9 = groups9.map((g9) => sum9(live9.filter((b9) => g9.some((h9) => near9(h9, b9))))).sort((a9, b9) => b9.w - a9.w);
+      /* ★ 가까운 기지는 **이름표 하나**(2026-10-11, 요청: "같은 이름표가 어느 정도 가까우면 굳이 두 개 띄우지 않기") — 무거운 기지부터 남기고, 남은 것에서 TAG_MERGE9 타일
+         안의 가벼운 기지는 그 이름표에 합친다(자리는 무거운 쪽 · 건물 수는 더한다). 본진과 앞마당은 대개 한 이름표 · 멀리 떨어진 멀티·이사만 따로 선다. */
+      const kept9: typeof cs9 = [];
+      for (const c9 of cs9) {
+        const k9 = kept9.find((x9) => (x9.x - c9.x) ** 2 + (x9.y - c9.y) ** 2 <= TAG_MERGE9 * TAG_MERGE9);
+        if (k9) { k9.n += c9.n; continue; }
+        kept9.push({ ...c9 });
+      }
+      return kept9;
     };
     const out9: MiniTag[] = [];
     for (const b9 of bases) {
@@ -17951,12 +17962,13 @@ export default function ReplayMotionPlayer({
           key: i9 === 0 ? b9.key : `${b9.key}#${i9}`, name: b9.name, fx: Math.max(0.02, Math.min(0.98, c9.x / gw)), fy: Math.max(0.02, Math.min(0.98, c9.y / gh)),
           bg: String(chip9.background ?? chip9.backgroundColor ?? "#888"), fg: String(chip9.color ?? "#fff"),
           tier: c9.n <= TAG_TIER9.s ? "s" : c9.n <= TAG_TIER9.m ? "m" : "l", dim: dead9,
+          ...(!melee && teamOfRaw(b9.key) !== undefined ? { team: teamOfRaw(b9.key) } : {}),   // 팀 배지(2026-10-11 · 팀전만)
         });
       });
     }
     return out9;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entData, bases, tTag9, grid.width, grid.height, colorNow, heroRaw9]);
+  }, [entData, bases, tTag9, grid.width, grid.height, colorNow, heroRaw9, melee]);
   const dockOps9: UnitDrawOp[] = (() => {
     if (picked) {
       const o9 = unitOps.find((o) => o.pickKey === picked && !o.ghost);

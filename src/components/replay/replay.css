@@ -3738,7 +3738,7 @@
 .scr-fs-minitags { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 1; }
 .scr-fs-minitag {
   position: absolute; transform: translate(-50%, -50%); pointer-events: none;   /* 그림뿐 — 손짓은 캔버스로(2026-10-09, 요청: "미니맵 네임칩 터치 시 화면 설정 기능 제거") */
-  display: inline-block; max-width: 46%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-sizing: border-box;
+  display: inline-block; max-width: 46%; white-space: nowrap; box-sizing: border-box;   /* 자르기(말줄임)는 안쪽 글자 칸이 — 겉은 팀 배지가 걸치도록 안 자른다(2026-10-11) */
   margin: 0; border: 0; padding: 0 0.35em; border-radius: 2px; font-family: inherit; font-weight: 700; line-height: 1.35;
   font-size: calc(6.5px * var(--dk));
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.75), 0 1px 2px rgba(0, 0, 0, 0.6);
@@ -3755,6 +3755,16 @@
 .scr-motion-pc9 .scr-fs-minitag.is-m { font-size: calc(12px * var(--dks, 1)); }
 .scr-motion-pc9 .scr-fs-minitag.is-l { font-size: calc(14px * var(--dks, 1)); }
 .scr-fs-minitag.is-dim { opacity: 0.42; filter: grayscale(0.85); }
+/* 이름 글자 칸 — 길면 말줄임(겉 상자의 max-width 안). */
+.scr-fs-minitag-txt { display: block; overflow: hidden; text-overflow: ellipsis; }
+/* ★ 팀 배지(2026-10-11, 요청: "미니맵 유저칩에 팀 배지(팀색 동그라미에 팀 숫자)를 좌상단에 걸치게 오버레이로 붙이기") — 칩 왼위 귀퉁이에 가운데를 두고 반쯤 걸친다.
+   팀색은 색 모드를 안 탄다(markers TEAM_COLOR · 분할 칸 테두리와 같은 색) · 지름 = 칩 글자의 1.2em(짝수) · 흰 숫자 · 검은 테. 팀전만(밀리는 없다). */
+.scr-fs-minitag-team {
+  position: absolute; left: 0; top: 0; transform: translate(-45%, -50%); z-index: 2;   /* 붙은 이웃 칩보다 위(칩은 쌓임 맥락이 없다) */
+  display: grid; place-items: center; width: round(nearest, 1.2em, 2px); height: round(nearest, 1.2em, 2px); border-radius: 50%;
+  font-style: normal; font-weight: 800; font-size: 0.8em; line-height: 1; color: #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.75), 0 1px 2px rgba(0, 0, 0, 0.6);
+}
 .scr-fs-minitag:focus-visible { outline: 1px solid #fff; outline-offset: 1px; }
 
 /* (삭제·요청: "모바일 전체화면 메뉴 버튼 제거") — 구석에 떠 있던 '⋯' 깨우기 알약
