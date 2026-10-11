@@ -3996,7 +3996,14 @@ export function deriveWorld9(inp: {
         if (Math.hypot(p19.x - p09.x, p19.y - p09.y) < 3) continue;
         arr9.push([p19.x, p19.y]);
       }
-      if (arr9.length > 0) m9.set(c9, arr9);
+      /* 도착 자리는 **한 아비터 곁**에 모인다 — 가운데(중앙값)에서 8타일 넘게 떨어진 것은 딴 까닭으로 뛴 몸이다(밀림·다른 수송). */
+      if (arr9.length > 0) {
+        const mid9 = (v9: number[]): number => { const s9 = [...v9].sort((p9, q9) => p9 - q9); return s9[s9.length >> 1]; };
+        const mx9 = mid9(arr9.map((p9) => p9[0]));
+        const my9 = mid9(arr9.map((p9) => p9[1]));
+        const near9 = arr9.filter(([px9, py9]) => Math.hypot(px9 - mx9, py9 - my9) <= 8);
+        if (near9.length > 0) m9.set(c9, near9);
+      }
     }
     return m9;
   })();

@@ -282,6 +282,21 @@ const angDiff = (a: number, b: number): number => {
   return d;
 };
 
+/** ★ **순간이동은 메우지 않는다**(2026-10-11, 지적: "드라군 등 이동하는 유닛은 캐스트 끝나면 짠 나타나야 함 — 원위치에서 없어짐과 동시에") — 리콜로 옮겨진 몸은
+ *  옛 자리 키(멈춰 선 때 · 몇 초 전일 수 있다)와 새 자리 키 사이를 직선으로 메우면 지도를 가로질러 미끄러졌다. 이웃 두 키가 TELEPORT_TILES 넘게 떨어졌고
+ *  ① 앞 키가 걷는 갈래가 아니거나(서 있음 · 수송선 안 · 버로우 — 캐는 일꾼·싸우는 몸은 걷는다) ② 그 사이를 초당 TELEPORT_SPEED 타일 넘게 가야 하면(어떤 유닛도 못 낸다
+ *  · 가장 빠른 벌처·저글링이 7타일 남짓) 뛴 것이다 — 뒤 키 때까지 옛 자리에 서 있다가 그 순간 새 자리에 선다. */
+export const TELEPORT_TILES = 3;
+export const TELEPORT_SPEED = 12;
+export const keyJump = (tr: TruthTrack, a: number, b: number): boolean => {
+  const d = Math.hypot(kX(tr, b) - kX(tr, a), kY(tr, b) - kY(tr, a));
+  if (d <= TELEPORT_TILES) return false;
+  const st = kS(tr, a);
+  /* 건물(BW 종류 106~ · 떠서 나는 테란 건물)은 '서 있음' 갈래로 안 가른다 — 뜬 채 나는 키가 그 갈래로 올 수 있다. 속도 자만 본다. */
+  if ((tr.types[a] ?? 0) < 106 && (st === TRUTH_ST_IDLE || st === TRUTH_ST_INSIDE || st === TRUTH_ST_BURROW)) return true;
+  return d / Math.max(0.001, tr.kt[b] - tr.kt[a]) > TELEPORT_SPEED;
+};
+
 /** t초일 때 이 개체의 자리·방향·상태. 아직 안 태어났으면 null. */
 export function posAtTruth(
   tr: TruthTrack, t: number,
@@ -315,6 +330,7 @@ export function posAtTruth(
   if (lo === n - 1) return { x: kX(tr, lo), y: kY(tr, lo), hdg: kH(tr, lo), state: st };
   const j = lo + 1;
   if (kS(tr, j) === TRUTH_ST_GONE) return { x: kX(tr, lo), y: kY(tr, lo), hdg: kH(tr, lo), state: st };
+  if (keyJump(tr, lo, j)) return { x: kX(tr, lo), y: kY(tr, lo), hdg: kH(tr, lo), state: st };   // 순간이동(위 keyJump ★) — 뒤 키 때 짠
   const span = kt[j] - kt[lo];
   const u = span > 0 ? Math.min(1, Math.max(0, (t - kt[lo]) / span)) : 0;
   /* 각은 선형으로 안 메운다 — 앞 키의 각에서 초당 TURN_DPS도로 따라가다 목표에 닿으면 멈춘다(원작의 회전).

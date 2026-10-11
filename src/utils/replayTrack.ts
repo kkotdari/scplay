@@ -1,4 +1,4 @@
-import { kX, kY, EMPTY_TRACK, type TruthTrack } from "./openbwTracks";
+import { kX, kY, keyJump, EMPTY_TRACK, type TruthTrack } from "./openbwTracks";
 /* 자취 위의 한 점 — 재생 화면이 "그때 그 개체는 어디 있었나"를 묻는 유일한 창구다.
  *
  * 여기 있는 이유(과제 #61): 이 셈은 원래 15,000줄짜리 재생 컴포넌트 한가운데 박혀 있어
@@ -111,6 +111,8 @@ export function posAtW(w: WalkView, t: number, cur?: TrackCur): TrackPos | null 
   }
   if (cur) cur.i = lo;
   const s0 = kt[b + lo]; const x0 = kX(tr, b + lo); const y0 = kY(tr, b + lo);
+  /* 순간이동(리콜 · openbwTracks keyJump ★)은 메우지 않는다 — 뒤 키 때까지 옛 자리에 선다. */
+  if (keyJump(tr, b + lo, b + lo + 1)) return { x: x0, y: y0, moving: false, sinceLast: t - s0 };
   const s1 = kt[b + lo + 1]; const x1 = kX(tr, b + lo + 1); const y1 = kY(tr, b + lo + 1);
   const dt0 = Math.max(0.001, s1 - s0);
   const k = (t - s0) / dt0;
