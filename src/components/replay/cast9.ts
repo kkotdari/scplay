@@ -94,24 +94,24 @@ export type CastPlanOpts9 = {
 /** 장면보다 몇 초 먼저 갈아타나(요청: "1-2초전에 미리") — 그 사이에 카메라가 자리를 잡는다. */
 export const CAST_LEAD9 = 1.5;
 /** 한 장면으로 묶는 사건 사이의 최대 틈(초). */
-const GAP9 = 4;
+const GAP9 = 6;   // 4 → 6(2026-10-10, 요청: "중요도 높은 이벤트와 전투를 긴 호흡으로") — 한 싸움의 잔 틈에 장면이 안 끊긴다
 /** 한 장면의 자리 반지름(타일) — 이보다 먼 사건은 같은 때여도 딴 장면이다(2026-10-10 · 아래 장면 묶기 ★★). 기지 하나(BASE_R9 18)쯤. */
 const SCENE_R9 = 20;
 /** 한 장면의 최대 길이(초) — 긴 교전은 토막을 내어 POV를 다시 고른다. */
-const MAX_SCENE9 = 22;
+const MAX_SCENE9 = 30;   // 22 → 30(2026-10-10 · 긴 호흡)
 /** 같은 사람의 새 사건 자막을 새 토막으로 세우는 최소 틈(초) — 그 안이면 앞 글귀를 덮는다(push9 ★). */
 const CAP_SPLIT9 = 3;
 /** 갈아탄 뒤 최소한 머무는 시간(초) — 이보다 잦으면 화면이 정신없다. */
-const MIN_HOLD9 = 5;
+const MIN_HOLD9 = 8;   // 5 → 8(2026-10-10 · 긴 호흡 — 갈아탄 뒤 그 장면을 읽을 만큼 머문다)
 /** 머무는 중에도 갈아탈 만한 무게 배수 — 이만큼 크면 바로 넘긴다(요청: 바로 다른 사람으로 전환). */
-const JUMP9 = 1.7;
+const JUMP9 = 2.2;   // 1.7 → 2.2(2026-10-10 · 긴 호흡 — 머무는 중 끼어들기는 훨씬 무거운 장면만)
 /** '무게 차이가 없다'의 자 — 1등이 2등의 이 배수 안이면 순환 원칙으로 고른다.
  *  ⚠ 넓게 잡지 마라 — 이 문이 열리면 **이긴 쪽 대신 진 쪽**이 잡힐 수 있다(잃은 몫도
  *  무게이므로 호각인 교전에서는 둘이 엇비슷하다). 그 자리에서 순환을 부르는 것이 뜻이지만,
  *  1.25에서는 한쪽이 20% 더 이긴 교전까지 '차이 없음'으로 읽혔다(실측 합성 판). */
 const TIE9 = 1.12;
 /** 장면으로 세울 최소 무게 — 저글링 셋(또는 드라군 하나) 어치. */
-const MIN_SCENE9 = 240;
+const MIN_SCENE9 = 450;   // 240 → 450(2026-10-10, 요청: "중요도 낮은 이벤트는 화면 보여주지 않기") — 일꾼 한 킬(310)·저글링 셋은 이제 장면이 아니다
 /** 전진의 자(2026-10-10) — 적 기지(본진 건물·출발 자리)까지 이 타일 안(기지 앞이나 안) · 제 기지(멀티 포함)까지가 그 몇 배 넘게 멂. 전진 건물·전진 건설 일꾼이 함께 쓴다. */
 const PROXY_FRONT9 = 30;
 const PROXY_FAR9 = 2;
@@ -159,7 +159,7 @@ const LEAVE_N9 = 8;
  *  `k` — 일꾼 하나의 무게 배수(50 → 200 · 한 킬이 310 으로 홀로 장면이 선다 — 캐스터가 일꾼 킬마다
  *  화면을 돌리는 그 자다) · `tail` — 그 사건 뒤 장면을 열어 두는 초(GAP9 대신 · 도망치는 일꾼을 쫓아
  *  잡는 사이를 한 장면으로 잇고, 그 사이에 순환이 끼어들지 않게 한다). */
-const HARASS9 = { k: 4, tail: 12 };
+const HARASS9 = { k: 4, tail: 14 };   // tail 12 → 14(2026-10-10: GAP9 4 → 6 에 맞춰 마지막 킬 뒤 머묾 tail − GAP9 = 8초를 지킨다)
 /** 맞대결(자동 분할)을 장면의 마지막 사건 뒤 이만큼 더 둔다(초) — 끝나자마자 한 화면으로 접히면 결말이 안 읽힌다. */
 const DUEL_TAIL9 = 2;
 /** 기지 피해 단(자막 · 2026-10-09) — 그 장면에서 잃은 건물 몸값 / 장면 머리의 기지 몸값: 반파 ≥ 0.2 · 대파 ≥ 0.45 · 궤멸 ≥ 0.75. */
@@ -195,7 +195,7 @@ export function castValue9(kind: string): number {
 const CAST_W9: Record<string, number> = {
   "Nuclear Strike": 1400, "Nuclear Missile": 1400,
   "Psionic Storm": 260, "Stasis Field": 260, Maelstrom: 260,
-  "Mind Control": 420, Recall: 380, Plague: 240, "EMP Shockwave": 240,
+  "Mind Control": 480, Recall: 480, Plague: 240, "EMP Shockwave": 240,   // 마컨·리콜 420/380 → 480(2026-10-10: MIN_SCENE9 450 위 — 홀로 장면이 선다)
   "Dark Swarm": 200, Irradiate: 170, Lockdown: 170, "Disruption Web": 140,
   "Spawn Broodlings": 130, Ensnare: 110, Feedback: 100, Hallucination: 80,
   Consume: 60, "Optical Flare": 60, Restoration: 50, "Defensive Matrix": 50,
@@ -1095,9 +1095,20 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     const jong9 = (c9 - 0xac00) % 28;
     return jong9 === 0 || jong9 === 8 ? "로" : "으로";
   };
-  const chips9 = (raws9: string[], last9?: CapPart9["p"]): CapPart9[] =>
-    raws9.map((r9, i9): CapPart9 => (i9 < raws9.length - 1 ? { raw: r9 } : { raw: r9, p: last9 }));   // 칩 사이 점은 없다(2026-10-10, 요청: "사이에 점 굳이 없어도 될듯") — 칩 여백이 가른다
+  /* ★ **팀 전원이면 "1팀 전원"**(2026-10-10, 요청: "팀 전원이 등장할 때는 나열하지 말고 1팀 전원 A를 공격 이런 식으로") — 칩 무리가 그때(capSec9) 살아 있는 한 팀
+     사람 전부(둘 이상)면 칩 대신 글귀 하나다. 조사는 '전원'의 받침(ㄴ)으로 붙인다. */
+  let capSec9 = 0;
+  const JOSA_N9: Record<string, string> = { ga: "이", eul: "을", wa: "과", ui: "의" };
+  const chips9 = (raws9: string[], last9?: CapPart9["p"]): CapPart9[] => {
+    const tm9 = raws9.length >= 2 ? opts.teamOf?.[raws9[0]] : undefined;
+    if (tm9 !== undefined && raws9.every((r9) => opts.teamOf?.[r9] === tm9)) {
+      const all9 = [...new Set(rawOf9.values())].filter((r9) => opts.teamOf?.[r9] === tm9 && (liveTo9.get(r9) ?? 0) > capSec9);
+      if (all9.length >= 2 && all9.every((r9) => raws9.includes(r9))) return [{ text: `${tm9}팀 전원${last9 ? JOSA_N9[last9] : ""}` }];
+    }
+    return raws9.map((r9, i9): CapPart9 => (i9 < raws9.length - 1 ? { raw: r9 } : { raw: r9, p: last9 }));
+  };   // 칩 사이 점은 없다(2026-10-10, 요청: "사이에 점 굳이 없어도 될듯") — 칩 여백이 가른다
   const sceneCaps9 = (sc9: Sc9, pick9: string, d9: Duel9 | undefined): CapPart9[] => {
+    capSec9 = sc9.t0;
     /* 오버로드 사냥 — 그 장면에서 주인공이 든 짝 가운데 공중 사냥꾼이 잡은 오버로드가 OVL_HUNT_N9 이상. */
     for (const [key9, n9] of sc9.ovl) {
       const [k9, v9] = key9.split(">");
@@ -1700,6 +1711,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
      차례: 창 안의 빌드 이정표(착공 = 건설 명령 = 그때 화면) > 창 안의 건설 > 화면 무리 > 창 앞 이정표 > 국면 요약. 연구 **완료**는 안 쓴다(골라 둔 건물의 '연구 중'만). */
   const RESEARCH_AHEAD9 = 200;
   const PICK_STALE9 = 30;
+  /** 병력 이동을 말하는 무리의 하한(기) — 그 아래는 군말(2026-10-10). */
+  const BIG_ARMY9 = 10;
   const picksMemo9 = new Map<string, [number, number[]][]>();
   const picksOfRaw9 = (raw9: string): [number, number[]][] => {
     const got9 = picksMemo9.get(raw9);
@@ -1724,9 +1737,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   };
   const lifeAt9 = (tag9: number, sec9: number): (typeof world.lives)[number] | undefined =>
     livesByTag9.get(tag9)?.find((e9) => e9.born <= sec9 && (e9.died === null || e9.died > sec9));
-  /** 약한 화면 글귀(명령 없는 무리 '대기' · 일꾼 이동) — 창 앞 이정표·눈에 띄는 국면(센터 장악·병력 구성)에 진다(cycleCaps9). */
-  const WEAK9 = new WeakSet<CapPart9[]>();
-  const weak9 = (c9: CapPart9[]): CapPart9[] => { WEAK9.add(c9); return c9; };
+  /* (걷어냄 · 2026-10-10) 약한 화면 글귀(WEAK9 · '대기' · 일꾼 이동) — 둘 다 이제 안 말한다(screenCap9 ★ 대규모 병력 이동만). */
   const screenCap9 = (raw9: string, t0: number, t1: number): CapPart9[] | null => {
     const picks9 = picksOfRaw9(raw9);
     if (picks9.length === 0) return null;
@@ -1788,14 +1799,16 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       if (bd9) { const bk9 = BUILDING_KO[bd9[5]] ?? bd9[5]; return [{ raw: raw9 }, { text: ` ${bk9} 건설` }]; }
       return null;   // 일꾼 이동은 군말이다(2026-10-10 · 옛 "일꾼 N기 이동") — 국면 요약으로
     }
-    if (army9.length === 0) return null;
+    /* ★ **대규모 병력 이동만**(2026-10-10, 요청: "병력 이동시킬 때 몇 기는 굳이 안 말해도 될 듯 · 유닛 이동은 대규모만 잡기 · 셔틀 대기, 히드라 2기 센터로 이동 이런 거
+       굳이 나올 필요 없어") — 무리가 BIG_ARMY9 기 아래면(수송선·몇 기) 말하지 않는다 · 명령이 없으면(대기) 말하지 않는다 · 수는 빼고 많은 종류 둘만 "마린·메딕". */
+    if (army9.length < BIG_ARMY9) return null;
     const cnt9 = new Map<string, number>();
     for (const e9 of army9) { const k9 = UNIT_KO[e9.kind] ?? e9.kind; cnt9.set(k9, (cnt9.get(k9) ?? 0) + 1); }
-    const what9 = [...cnt9.entries()].sort((a9, b9) => b9[1] - a9[1]).slice(0, 2).map(([k9, n9]) => `${k9} ${n9}기`).join("·");
+    const what9 = [...cnt9.entries()].sort((a9, b9) => b9[1] - a9[1]).slice(0, 2).map(([k9]) => k9).join("·");
     /* 그 창의 마지막 명령 — 무리의 몸 가운데 가장 늦은 것. */
     let ord9: [number, number, number, boolean] | null = null;
     for (const e9 of army9) for (const o9 of e9.orders) if (o9[0] >= t0 - 2 && o9[0] < t1 && (!ord9 || o9[0] > ord9[0])) ord9 = o9;
-    if (!ord9) return weak9([{ raw: raw9 }, { text: ` ${what9} 대기` }]);
+    if (!ord9) return null;
     const verb9 = ord9[3] ? "공격 이동" : "이동";
     for (const fo9 of foeOwners9(raw9)) {
       const fr9 = rawOf9.get(fo9);
@@ -1870,15 +1883,13 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     }
     if (bld9) return [{ raw: raw9 }, { text: PROD_BLD9.has(bld9) ? " 생산 건물 늘리는 중" : ` ${BUILDING_KO[bld9] ?? bld9} 건설` }];
     const scr9 = screenCap9(raw9, t0, hi9);
-    if (scr9 && !WEAK9.has(scr9)) return scr9;
+    if (scr9) return scr9;
     /* 화면 무리가 약하거나(대기 · 일꾼 이동) 못 읽으면 창 앞 MILE_RECENT9 초 안의 마지막 이정표(빌드 읽기 · 전술 — 그 사람의 빌드·자리를 말할 뿐 '지금 일어나는
        일'이라 하지 않는다) > 눈에 띄는 국면(센터 장악 · 병력 구성) > 약한 화면 글귀 > 국면 요약. */
     let recent9: Mile9 | undefined;
     for (const m9 of miles9) if (m9.at < lo9 && m9.at >= lo9 - MILE_RECENT9) recent9 = m9;
     if (recent9) return recent9.caps;
-    const ph9 = phaseCap9(raw9, hi9);
-    if (scr9 && /^순조롭게|기지 운영 중$|^병력 모으는 중$/.test(ph9)) return scr9;
-    return [{ raw: raw9 }, { text: ` ${ph9}` }];
+    return [{ raw: raw9 }, { text: ` ${phaseCap9(raw9, hi9)}` }];
   };
 
   let cur9 = 0;

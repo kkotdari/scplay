@@ -46,9 +46,9 @@ const mk = (o, kind, born, died, end, tgt) => {
   lives.push(e);
   return e;
 };
-// 200초: A(0)가 B(1)의 저글링 넷을 잡는다 → A 화면
+// 200초: A(0)가 B(1)의 저글링 여덟을 잡는다 → A 화면(2026-10-10: 넷은 MIN_SCENE9 450 아래 — 중요도 낮음)
 const zl = [];
-for (let i = 0; i < 4; i += 1) zl.push(mk(1, "Zergling", 100, 200 + i * 0.4, "atk"));
+for (let i = 0; i < 8; i += 1) zl.push(mk(1, "Zergling", 100, 200 + i * 0.4, "atk"));
 for (const z of zl) mk(0, "Marine", 100, null, "", [199.5, z.tag, 201, z.tag, 202, 0]);
 // 260초: B가 A의 드라군 셋·탱크를 잡는다(+ A의 스톰) → 무게가 큰 쪽이 잡혀야 한다
 /* ⚠ 드라군 **셋**이다(2026-09) — 둘이면 B 700 : A 385(잃은 몫) + 260(스톰) = 645 로 8.5% 차라 TIE9(1.12) 안의
@@ -145,7 +145,7 @@ const raze4 = razeCap(4); const raze1 = razeCap(1);
 console.log(`\n기지 피해: 넷 부숨 → ${raze4} · 하나 부숨 → ${raze1}`);
 for (const [name, pass] of [
   ["건물 넷을 잃으면 기지 피해 단(반파·대파·궤멸)", /\[Y\]ga \[X\] 기지 (반파|대파|궤멸)시킴/.test(raze4)],   // ga = 재생기가 받침 보고 붙일 '가/이'
-  ["파일런 하나면 건물 파괴", /\[Y\]ga \[X\] 건물 파괴/.test(raze1)],
+  ["파일런 하나는 장면이 아니다(중요도 낮음 · 2026-10-10)", raze1 === "(장면 없음)"],
 ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 
 /* ── ⑨ 기지 싸움 · vs · 일꾼 견제 유닛 · 폭탄드랍(2026-10-09, 요청: "교전 시 vs 로 팀 갈라서 · 특정 기지에서 교전 시 공격·방어·헬프로 기술 · 리버 일꾼 견제 · 폭탄드랍") ──
@@ -187,7 +187,7 @@ const dshow = (s) => (s ? `${s.at.toFixed(0)}s ${s.raw} ${s.role ?? "-"} ${capTx
 console.log(`\n기지 싸움·vs·견제·드랍: ${[d1, d2, d3, d4].map(dshow).join(" · ")}`);
 for (const [name, pass] of [
   ["앞마당의 싸움은 기지 싸움 — F 의 공격(교전이 아니다)", !!d1 && d1.role === (d1.raw === "F" ? "atk" : "def") && /공격/.test(capTxt(d1)) && !/교전/.test(capTxt(d1))],
-  ["가운데 호각 교전은 vs 로 팀을 가른다", !!d2 && d2.role === "war" && /\[P\]\[Q\] vs \[F\]\[G\] 교전|\[F\]\[G\] vs \[P\]\[Q\] 교전|\[Q\]\[P\] vs|\[G\]\[F\] vs/.test(capTxt(d2))],
+  ["가운데 호각 교전은 vs 로 팀을 가른다(팀 전원이면 'N팀 전원' · 2026-10-10)", !!d2 && d2.role === "war" && /^(1팀 전원 vs 2팀 전원|2팀 전원 vs 1팀 전원) 교전$/.test(capTxt(d2))],
   ["리버가 잡은 일꾼은 '리버로 … 일꾼 견제'(서술 · 2026-10-10)", !!d3 && /\[F\]ga 리버로 \[P\] 일꾼 견제/.test(capTxt(d3))],
   ["공격·방어 자막은 'A가 B를 공격' 서술 — '의' 꼴이 없다(2026-10-10)", [d1, d3, d4].every((d) => !d || !/\]ui/.test(capTxt(d)))],
   ["셔틀이 본진으로 간 뒤의 싸움은 '폭탄드랍'", !!d4 && /폭탄드랍/.test(capTxt(d4))],
@@ -566,10 +566,10 @@ rmSync(tmp, { recursive: true, force: true });
   const vu = mk(0, "Vulture", false, 10, 10, 300); [400, 403, 406].forEach((t) => die(2, "SCV", 101, 101, t, vu));
   const bm = mk(1, "Marine", false, 10, 100, 300); [401, 401.5, 402, 402.5].forEach((t) => die(3, "Zergling", 55, 55, t, bm));
   // ②
-  const am = mk(0, "Siege Tank (Tank Mode)", false, 10, 10, 500); [600, 600.5, 601].forEach((t) => die(2, "Marine", 98, 98, t, am));
-  const dh = mk(3, "Hydralisk", false, 100, 10, 500); [601.5, 602].forEach((t) => die(0, "Marine", 99, 99, t, dh));
+  const am = mk(0, "Siege Tank (Tank Mode)", false, 10, 10, 500); [600, 600.5, 601, 601.2, 601.4, 601.6].forEach((t) => die(2, "Marine", 98, 98, t, am));
+  const dh = mk(3, "Hydralisk", false, 100, 10, 500); [601.5, 602, 602.3, 602.6].forEach((t) => die(0, "Marine", 99, 99, t, dh));
   // ③
-  const ch = mk(2, "Hydralisk", false, 100, 100, 700); [800, 800.5, 801, 801.5, 802].forEach((t) => die(0, "Marine", 12, 12, t, ch));
+  const ch = mk(2, "Hydralisk", false, 100, 100, 700); [800, 800.5, 801, 801.5, 802, 802.3, 802.6, 802.9].forEach((t) => die(0, "Marine", 12, 12, t, ch));
   const at = mk(0, "Siege Tank (Tank Mode)", false, 10, 10, 700); [804, 804.5, 805, 805.5].forEach((t) => die(2, "Hydralisk", 60, 80, t, at));
   const w = { players: [["A", 1], ["B", 1], ["C", 2], ["D", 2]].map(([name, team], o) => ({ owner: o, name, race: "테란", color: "#fff", team })),
     lives: L, ups: [], casts: [], pings: [], resFields: [], kills };
@@ -601,7 +601,7 @@ rmSync(tmp, { recursive: true, force: true });
   for (const t of [190, 200, 210, 220]) sels.push([t, 0, [ac.tag], 0]);
   for (const t of [400, 410, 420, 430]) sels.push([t, 0, [rx.tag], 0]);
   for (let t = 401; t < 440; t += 3) mk(0, "Marine", false, 21, 30, t);
-  const ms = [0, 1, 2, 3, 4, 5].map(() => mk(0, "Marine", false, 20, 30, 300, { orders: [500, 510, 520, 530].map((t) => [t, 98, 98, true]) }));
+  const ms = Array.from({ length: 12 }, () => mk(0, "Marine", false, 20, 30, 300, { orders: [500, 510, 520, 530].map((t) => [t, 98, 98, true]) }));
   sels.push([440, 0, [ms[0].tag], 0]);
   const w = { players: [["A", "테란", 1], ["B", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
     lives: L, ups: [[300, "U-238 Shells", 0, ac.tag]], casts: [], pings: [], resFields: [], kills: [], sels, builds: [] };
@@ -611,7 +611,8 @@ rmSync(tmp, { recursive: true, force: true });
   for (const [name, pass] of [
     ["골라 둔 건물의 연구 → '… 연구 중'", capsIn(188, 230).some((c) => /^\[A\] 아카데미에서 .+ 연구 중$/.test(c))],
     ["골라 둔 배럭 곁에서 난 마린 → '배럭에서 마린 생산'", capsIn(398, 440).some((c) => c === "[A] 배럭에서 마린 생산")],
-    ["적 본진으로 공격 이동 → '[A] 마린 6기 [B] 기지로 공격 이동'", capsIn(498, 540).some((c) => c === "[A] 마린 6기 [B] 기지로 공격 이동")],
+    ["대규모 병력이 적 본진으로 → '[A] 마린 [B] 기지로 공격 이동'(수 없음 · 2026-10-10)", capsIn(498, 540).some((c) => c === "[A] 마린 [B] 기지로 공격 이동")],
+    ["몇 기 안 되는 무리의 이동·대기는 안 말한다", !plan.some((s) => /대기|\d+기 /.test(capTxt(s)))],
     ["연구 완료는 순환 자막에 '개발'로 안 선다", !plan.some((s) => /개발/.test(capTxt(s)))],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }
@@ -635,13 +636,13 @@ rmSync(tmp, { recursive: true, force: true });
   // ②
   const dn = mk(3, "Nexus", true, 100, 10, 0);
   mk(3, "Pylon", true, 60, 60, 0);   // D 의 딴 자리 건물 — 본진이 다 깨져도 엘리가 아니다(㉓ 의 엘리와 가른다)
-  const gw = [0, 1, 2, 3].map((i) => mk(3, "Gateway", true, 104 + i * 3, 14, 50));
+  const gw = [0, 1, 2, 3, 4, 5].map((i) => mk(3, "Gateway", true, 104 + i * 3, 14, 50));
   const py = [mk(3, "Pylon", true, 96, 6, 30), mk(3, "Pylon", true, 106, 6, 30)];
   const az = mk(0, "Zealot", false, 10, 10, 400); const bz = mk(1, "Zealot", false, 10, 100, 400);
   const kill = (e, t, k) => { e.died = t; e.end = "atk"; kills.push([t, k.owner, k.tag, e.tag]); };
   kill(gw[0], 500, az); kill(gw[1], 501, az); kill(py[0], 502, az);
-  kill(gw[2], 520, az);
-  kill(gw[3], 600, bz); kill(py[1], 601, bz); kill(dn, 603, bz);
+  kill(gw[2], 520, az); kill(gw[3], 521, az);
+  kill(gw[4], 600, bz); kill(gw[5], 600.5, bz); kill(py[1], 601, bz); kill(dn, 603, bz);
   const w = { players: [["A", 1], ["B", 1], ["C", 2], ["D", 2]].map(([name, team], o) => ({ owner: o, name, race: "프로토스", color: "#fff", team })),
     lives: L, ups: [], casts, pings: [], resFields: [], kills };
   const plan = castPlan9(w, { total: 900, order: ["A", "B", "C", "D"], teamOf: { A: 1, B: 1, C: 2, D: 2 } }).filter((s) => !s.cyc);
@@ -725,4 +726,22 @@ rmSync(tmp, { recursive: true, force: true });
     ["경기 사람이 아닌 말은 안 쓴다", !caps.some((c) => /관전자/.test(c))],
     ["끼운 뒤에도 토막 시각은 늘 오름차순", plan.every((s, i) => i === 0 || s.at > plan[i - 1].at)],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
+
+/* ── ㉕ 팀 전원(2026-10-10, 요청: "팀 전원이 등장할 때는 나열하지 말고 1팀 전원 A를 공격 이런 식으로") — 2v2 A·B(1팀) 대 C·D(2팀) · 500초 A·B 가 함께 C 본진(100,100)에서
+   C 마린 여덟을 잡는다 → "1팀 전원이 [C] 기지 공격". */
+{
+  let wt = 95000;
+  const L = []; const kills = [];
+  const mk = (o, kind, bld, x, y, born, ex = {}) => { const e = { tag: (wt += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [], ...ex }; L.push(e); return e; };
+  mk(0, "Nexus", true, 10, 10, 0); mk(1, "Nexus", true, 10, 100, 0); mk(2, "Nexus", true, 100, 100, 0); mk(3, "Nexus", true, 100, 10, 0);
+  const a = mk(0, "Dragoon", false, 10, 10, 400); const b = mk(1, "Dragoon", false, 10, 100, 400);
+  for (let i = 0; i < 8; i += 1) { const v = mk(2, "Marine", false, 100, 100, 300, { died: 500 + i * 0.4, end: "atk", orders: [[498, 99, 99, false]] }); kills.push([v.died, i % 2, (i % 2 ? b : a).tag, v.tag]); }
+  const w = { players: [["A", 1], ["B", 1], ["C", 2], ["D", 2]].map(([name, team], o) => ({ owner: o, name, race: "프로토스", color: "#fff", team })),
+    lives: L, ups: [], casts: [], pings: [], resFields: [], kills };
+  const plan = castPlan9(w, { total: 700, order: ["A", "B", "C", "D"], teamOf: { A: 1, B: 1, C: 2, D: 2 } }).filter((s) => !s.cyc);
+  console.log(`\n팀 전원: ${plan.map((s) => `${s.at.toFixed(0)}s ${capTxt(s)}`).join(" · ")}`);
+  const pass = plan.some((s) => capTxt(s) === "1팀 전원이 [C] 기지 공격");
+  console.log(`  ${pass ? "✔" : "✘"} 한 팀 전부가 친 기지 싸움 → '1팀 전원이 [C] 기지 공격'`);
 }
