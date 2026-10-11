@@ -107,6 +107,12 @@ export const CAST_HOLD_SEC = 6;
  *    낙하 창(NUKE_DROP_SEC)도 그대로라 점 10초 + 낙하 4초가 된다. 고스트의 조준
  *    자세 창(t − cs < 이 값)도 함께 길어진다 — 원작에서도 그동안 내내 서서 쏜다. */
 export const NUKE_FALL_SEC = 14;
+/** ★ 리콜의 때(2026-10-11, 요청: "리콜 캐스팅 효과 아비터 쪽에도 필요 — 원작은 부르는 동안 투명 구체들이 막 지글지글 · 시간은 조사 필요") — OpenBW
+ *  `order_CastRecall`: 시전 순간 표적 자리에 Recall Field 를 세우고 `main_order_timer = 22`(한 프레임에 1씩 준다) → 22 프레임 뒤 표적 자리 ±64px(±2타일)
+ *  안의 제 유닛(건물·은신 아닌 · 버로우·애벌레·알 빼고)을 아비터 곁으로 옮기고 **도착한 몸마다** Recall Field 를 하나씩 세운다. 22 ÷ 23.81 = 0.92초.
+ *  Field 의 재생 길이는 iscript(게임 자료)라 소스에 없다 — 눈어림 1.2초. */
+export const RECALL_DELAY_SEC = 22 / 23.81;
+export const RECALL_FIELD_SEC = 1.2;
 /** 핵 연출을 참값의 착탄 시각보다 **얼마나 앞당겨 시작하나**(초) ────────────────────
  *  (지적: "핵 폭발할 때 유닛·건물이 먼저 터지고 핵이 늦게 터져서 좀 어색한 듯. 핵탄두
  *   떨어지는 타이밍과 폭발 시작 타이밍을 좀 앞당길 수 있어?")
@@ -3972,6 +3978,28 @@ export function deriveWorld9(inp: {
   const nukeArm9 = (() => entWalks
     .filter((q) => q.unit === "Nuclear Missile")
     .map((q) => ({ raw: q.raw, t0: q.born, t1: q.died ?? Number.POSITIVE_INFINITY })))();
+  /** 리콜로 옮겨진 몸의 **도착 자리**(위 RECALL_DELAY_SEC ★) — 시전 순간 표적 ±2.2타일 안에 있던 시전자의 유닛 가운데, 옮겨질 때(+0.92초) 바로 뒤
+   *  3타일 넘게 뛴 몸의 그 자리. 걸음(참값 자취)이 곧 옮겨진 자리를 들고 있으므로 아비터를 따로 찾지 않는다. */
+  const recallArr9 = (() => {
+    const m9 = new Map<CastRow, [number, number][]>();
+    for (const c9 of castsV2) {
+      if (c9[3] !== "Recall") continue;
+      /* 옮겨진 뒤 0.8초 자리 — 옮겨진 몸은 제자리 대기(return_to_idle)로 서고, 자취 키가 성기면 바로 뒤는 옛 자리와의 보간이라 덜 간 자리가 나온다. */
+      const tA9 = c9[0] + RECALL_DELAY_SEC + 0.8;
+      const arr9: [number, number][] = [];
+      for (const q9 of entWalks) {
+        if (q9.raw !== c9[4] || q9.born > c9[0] || (q9.died !== null && q9.died < tA9)) continue;
+        const p09 = posAtW(q9.walk, c9[0]);
+        const p19 = posAtW(q9.walk, tA9);
+        if (!p09 || !p19) continue;
+        if (Math.abs(p09.x - c9[1]) > 2.2 || Math.abs(p09.y - c9[2]) > 2.2) continue;
+        if (Math.hypot(p19.x - p09.x, p19.y - p09.y) < 3) continue;
+        arr9.push([p19.x, p19.y]);
+      }
+      if (arr9.length > 0) m9.set(c9, arr9);
+    }
+    return m9;
+  })();
   const castsSrc = (() => {
     if (nukeCasts.length === 0) return castsV2;
     const out = [...castsV2];
@@ -4345,7 +4373,7 @@ export function deriveWorld9(inp: {
   return {
     selRows9,
     entData, simTracks, buildsSrc, castsV2, entBldHp, bldTagSpots, droneMorph, buildsDrawOrder, bldNudge,
-    entCombatStart, upsByRaw, prodDoneAt, prodDoneByRaw, marineBornOf, entWalks, nukeCasts, nukeLase, nukeArm9, castsSrc,
+    entCombatStart, upsByRaw, prodDoneAt, prodDoneByRaw, marineBornOf, entWalks, nukeCasts, nukeLase, nukeArm9, castsSrc, recallArr9,
     nukeImpacts, bldGoneEff, goneEffOf, prodByRawType, bldTagAt, leftAt9, tagOrdinals, buildsByType, halls, gasBuildings,
     resStageSeries, gridHasGasFlags, gasHideOf, mines, bldPre9, bldRecMemo, teamOfRaw, bases, grid, total, ghosts9, clickTargets9,
   };
@@ -4401,7 +4429,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
   let stillNow9 = false;
   const {
     entData, simTracks, buildsSrc, entBldHp, bldTagSpots, droneMorph, buildsDrawOrder, bldNudge,
-    entCombatStart, upsByRaw, marineBornOf, entWalks, nukeLase, nukeArm9, castsSrc, nukeImpacts,
+    entCombatStart, upsByRaw, marineBornOf, entWalks, nukeLase, nukeArm9, castsSrc, recallArr9, nukeImpacts,
     goneEffOf, prodByRawType, bldTagAt, leftAt9, tagOrdinals, buildsByType, halls, gasBuildings,
     resStageSeries, gridHasGasFlags, gasHideOf, mines, bldPre9, bldRecMemo, teamOfRaw, bases, grid, total, ghosts9, clickTargets9,
     selRows9,
@@ -10017,6 +10045,18 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
            표적이 죽으면 효과도 끝난다(빈 땅에 남기지 않는다). */
         const afx9 = x;
         const afy9 = y;
+        /* ★ 리콜 **도착장**(위 RECALL_DELAY_SEC ★) — 옮겨진 몸마다 투명 구체가 지글거린다(0.92초 뒤부터 RECALL_FIELD_SEC 동안). */
+        if (tech === "Recall") {
+          const ra9 = t - sec - RECALL_DELAY_SEC;
+          const arr9 = ra9 >= 0 && ra9 <= RECALL_FIELD_SEC ? recallArr9.get(castsNow[i]) : undefined;
+          if (arr9) arr9.forEach(([rx9, ry9], k9) => {
+            const [rfx9, rfy9] = posFrac(rx9, ry9);
+            fxOps.push({
+              kind: "dom", style: "cast", fx: rfx9, fy: rfy9, lift: 0,
+              size: 2 * pitchK(ry9) * (mapW9 / grid.width), sub: "recallU", age: ra9, seed: i * 31 + k9,
+            });
+          });
+        }
         {
           const [cfx9, cfy9] = posFrac(afx9, afy9);
           fxOps.push({

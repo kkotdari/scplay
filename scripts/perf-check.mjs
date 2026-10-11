@@ -171,6 +171,11 @@ function makeWorld() {
     tracks.push({ tag: tag++, owner, type, keys, hp });
   };
 
+  /* --recall(2026-10-11) — 정구(0)의 병력 넷이 (62,64) 언저리에 서 있다가 44초 리콜(기술 21)에 불려 22프레임(0.92초) 뒤 (50,64) 언저리로 뛴다
+     → 도착장(recallU)이 그 넷 자리에서 지글거린다. 보기: --t 45.4 --castoff --zoom 4 --cx 0.39 --cy 0.5. */
+  if (has("--recall")) {
+    [[0, 0], [1, 0], [0, 1], [1, 1]].forEach(([dx9, dy9]) => track(0, P.Goon, (s) => (s < 44 + 22 / 23.81 ? [62 + dx9, 64 + dy9, 0] : [50 + dx9 * 1.2, 64 + dy9 * 1.2, 0]), { bornSec: 20 }));
+  }
   let hallTag1_9 = -1;   // Rex(저그 · owner 1)의 본진 해처리 태그 — --dockhatch 가 고른다
   for (const pl of PLAYERS) {
     const [hx, hy] = pl.home;
@@ -422,6 +427,7 @@ function makeWorld() {
      --irrxy x,y 로 자리를 바꾼다. 화면은 --castoff --zoom 4 --cx/--cy 로 그 자리에. */
   const irrXY9 = String(flag("--irrxy", "62,64")).split(",").map(Number);
   const casts9 = has("--irr") ? [[F(44), irrXY9[0] * 32, irrXY9[1] * 32, 7, Number(flag("--irrby", 0))]] : [];
+  if (has("--recall")) casts9.push([F(44), 62.5 * 32, 64.5 * 32, 21, 0]);
   w.u32(casts9.length); { let pf = 0; for (const [f, x, y, tc, o] of casts9) { w.vz(f - pf); pf = f; w.u16(x); w.u16(y); w.u8(tc); w.u8(o); } }   // 마법
   /* 핑(--marks · 2026-10, UI 색 검산) — 44.5초에 정구(0 · 화면 주인이면 원작 초록 rgb(16,252,24)) · Rex(1 · 같은 편 → 제 색) · 수달이(2 · 적 →
      시점 보기에선 안 보임).

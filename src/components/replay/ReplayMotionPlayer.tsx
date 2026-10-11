@@ -97,7 +97,7 @@ import { TEAM_COLOR, type MinimapMarker } from "./markers";
 import {
   atkCutOf as atkCutOf9, flapCutOf as flapCutOf9, walkCutOf9, GAIT_CYCLE9,
   muzzlePoint as muzzlePoint9, muzzleLanes9, anchorPoint as anchorPoint9, spinMuzzle9, BLD_MUZZLE, HEAD_MUZZLE_KINDS9, TWIN_POD_BLD9, COMSAT_SWEEP9, SPIN_WORK_KINDS9, spinRateOf9, LIT_STEADY_KINDS9, MUZZLE_BURST_FX9, SHELL_ONLY_FX9,
-  AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, ATTACK_FX, NO_BEAM_FX, TARGET_FX, PROJECTILE_FX, NUKE_BOOM_SEC, NUKE_FALL_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, attackFxOf9, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SIEGE_TURN_U9, SIEGE_XF_SEC, BURROW_DIG_SEC, SPIN_ANIM9, SPIN_STEPS, SUNK_OUT9, sunkenCut9, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, addonPairGeom9, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
+  AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, ATTACK_FX, NO_BEAM_FX, TARGET_FX, PROJECTILE_FX, NUKE_BOOM_SEC, NUKE_FALL_SEC, RECALL_FIELD_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, attackFxOf9, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SIEGE_TURN_U9, SIEGE_XF_SEC, BURROW_DIG_SEC, SPIN_ANIM9, SPIN_STEPS, SUNK_OUT9, sunkenCut9, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, addonPairGeom9, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
 } from "./engine9";
 import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, Pose9, UnitDrawOp, WorldUi9 } from "./engine9";
 import {
@@ -2506,6 +2506,8 @@ function cbez9(x19: number, y19: number, x29: number, y29: number, t9: number): 
 }
 /** 죽음·붕괴·마인의 화구 팔레트(CSS의 radial-gradient 칸 그대로). */
 const DOM_RAD9: Record<string, [number, string][]> = {
+  /* 리콜 도착장(2026-10-11) — 속이 비친 하늘빛 거품: 가운데는 거의 투명, 테두리 쪽이 짙다. */
+  recallU: [[0, "rgba(220,240,255,0.18)"], [0.36, "rgba(180,218,255,0.36)"], [0.56, "rgba(160,208,255,0.78)"], [0.65, "rgba(140,195,255,0.4)"], [0.71, "rgba(120,180,255,0)"]],   // 반지름 0.71 이 칸의 한 변 절반(다른 판과 같은 자)
   "land-dust": [[0, "rgba(222,208,182,0.85)"], [0.4, "rgba(196,182,156,0.55)"], [0.72, "rgba(170,158,136,0)"]],
   "die-bio": [[0, "rgba(230,80,60,0.9)"], [0.55, "rgba(160,40,30,0.5)"], [0.75, "rgba(160,40,30,0)"]],
   "die-mech": [[0, "rgba(255,220,130,0.95)"], [0.45, "rgba(255,120,50,0.75)"], [0.7, "rgba(255,120,50,0)"]],
@@ -3091,6 +3093,26 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
         if (u9 > 1) break;
         ctx.globalCompositeOperation = "lighter";
         lay9(() => { blit9(radOf9("mael"), 0.5 + 0.7 * u9, 0.8 * (1 - u9)); });
+        break;
+      }
+      /* ★ **리콜 도착장**(2026-10-11, 요청: "리콜 캐스팅 효과 아비터 쪽에도 · 원작은 투명 구체들이 지글지글") — 엔진이 옮겨진 몸마다 싣는다(RECALL_FIELD_SEC 동안).
+         속이 비친 거품(recallU)이 초당 20번 크기·밝기를 떨고, 그 안에 하얀 낱알 여섯이 장마다 자리를 바꾼다(지글). 앞 0.1초에 피고 끝 0.3초에 스러진다. 구체라 바닥에 안 눕힌다. */
+      if (cls9 === "recallU") {
+        const d9 = RECALL_FIELD_SEC;
+        if (u0 > d9) break;
+        const env9 = Math.min(1, u0 / 0.1, Math.max(0, (d9 - u0) / 0.3));
+        const fr9 = Math.floor(u0 * 20);
+        const h9 = (n9: number): number => { const v9 = Math.sin((f.seed ?? 0) * 91.7 + fr9 * 12.9898 + n9 * 78.233) * 43758.5453; return v9 - Math.floor(v9); };
+        ctx.globalCompositeOperation = "lighter";
+        blit9(radOf9("recallU"), 0.9 + 0.14 * h9(1), env9 * (0.7 + 0.3 * h9(2)));
+        const dsp9 = dustSpr9();
+        for (let k9 = 0; k9 < 6; k9 += 1) {
+          const an9 = h9(10 + k9) * Math.PI * 2;
+          const rr9 = (W9 / 2) * 0.8 * Math.sqrt(h9(20 + k9));
+          const dw9 = W9 * (0.12 + 0.1 * h9(30 + k9));
+          ctx.globalAlpha = env9 * (0.4 + 0.6 * h9(40 + k9));
+          ctx.drawImage(dsp9, ax + Math.cos(an9) * rr9 - dw9 / 2, ay + Math.sin(an9) * rr9 - dw9 / 2, dw9, dw9);
+        }
         break;
       }
       if (cls9 === "recall") {
