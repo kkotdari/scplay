@@ -17584,6 +17584,14 @@ export default function ReplayMotionPlayer({
   const dialTrackRef9 = useRef<HTMLDivElement | null>(null);
   const dialDrag9 = useRef<number | null>(null);
   const [dialOn9, setDialOn9] = useState(false);
+  /* ★ 중계 중엔 다이얼이 안 먹는다(2026-10-10, 요청: "중계모드에서 배율창 작동 불가(토스트 띄우기)") — 누름·끌기·휠·키 다 토스트로 말한다(2.5초에 한 번 · 미니맵 잠금과 같은 손). */
+  const dialLockAt9 = useRef(0);
+  const dialLocked9 = (): boolean => {
+    if (!castOn) return false;
+    const now9 = performance.now();
+    if (now9 - dialLockAt9.current >= 2500) { dialLockAt9.current = now9; replayToast("중계 모드에선 배속 조절이 안 돼요", { kind: "info" }); }
+    return true;
+  };
   const dialAt9 = (y9: number): void => {
     const tr9 = dialTrackRef9.current?.getBoundingClientRect();
     if (!tr9 || tr9.height <= 0) return;
@@ -17595,6 +17603,7 @@ export default function ReplayMotionPlayer({
     const onWheel9 = (e: WheelEvent): void => {
       e.preventDefault();
       e.stopPropagation();
+      if (dialLocked9()) return;
       const px9 = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
       setSpeed((v9) => uSpd9(spdU9(v9) - px9 * 0.0012, false));
     };
@@ -17604,7 +17613,7 @@ export default function ReplayMotionPlayer({
   const speedDial9 = (
     <div
       ref={dialRef9}
-      className={cx("scr-speeddial", dialOn9 && "is-drag")}
+      className={cx("scr-speeddial", dialOn9 && "is-drag", castOn && "is-locked")}
       role="slider" tabIndex={0}
       aria-label="배속" aria-orientation="vertical"
       aria-valuemin={SPEED_MIN9} aria-valuemax={SPEED_MAX9} aria-valuenow={speed} aria-valuetext={`${spdTxt9(speed)}배`}
@@ -17612,6 +17621,7 @@ export default function ReplayMotionPlayer({
       onPointerDown={(e) => {
         e.stopPropagation();
         if (e.button !== 0 && e.pointerType === "mouse") return;
+        if (dialLocked9()) return;
         dialDrag9.current = e.pointerId;
         e.currentTarget.setPointerCapture(e.pointerId);
         setDialOn9(true);
@@ -17626,6 +17636,7 @@ export default function ReplayMotionPlayer({
         if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
         e.preventDefault();
         e.stopPropagation();
+        if (dialLocked9()) return;
         const up9 = e.key === "ArrowUp";
         setSpeed((v) => (up9 ? SPEEDS.find((s9) => s9 > v + 1e-6) ?? SPEED_MAX9 : [...SPEEDS].reverse().find((s9) => s9 < v - 1e-6) ?? SPEED_MIN9));
       }}

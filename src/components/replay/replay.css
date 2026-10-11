@@ -4450,30 +4450,33 @@
   position: absolute; right: var(--sd-gap); bottom: calc(var(--dock-lift, 0px) + var(--sd-gap)); z-index: 30001;
   width: var(--sd-w); height: var(--sd-h); box-sizing: border-box; padding: calc(7px * var(--sdk)) 0 calc(10px * var(--sdk));
   display: flex; flex-direction: column; align-items: stretch;
-  border-radius: calc(12px * var(--sdk)); background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: calc(12px * var(--sdk)); background: rgba(8, 10, 14, 0.42); border: 1px solid rgba(255, 255, 255, 0.22);   /* 투명도 줄임(2026-10-10 · 옛 흰 0.06) */
   color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85); pointer-events: auto; touch-action: none; user-select: none; -webkit-user-select: none;
   cursor: ns-resize; outline: none; -webkit-tap-highlight-color: transparent;
 }
 .scr-speeddial:focus-visible { border-color: rgba(255, 255, 255, 0.6); }
-.scr-speeddial-val { text-align: center; font-size: calc(12px * var(--sdk)); line-height: 1.2; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.scr-speeddial-val { text-align: center; font-size: calc(10px * var(--sdk)); line-height: 1.2; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .scr-speeddial-track { position: relative; flex: 1 1 auto; margin: calc(10px * var(--sdk)) 0 calc(2px * var(--sdk)); }
 .scr-speeddial-line, .scr-speeddial-fill {
-  position: absolute; left: 36%; width: 2px; margin-left: -1px; border-radius: 1px; box-shadow: 0 0 2px rgba(0, 0, 0, 0.7);
+  position: absolute; left: 50%; width: 2px; margin-left: -1px; border-radius: 1px; box-shadow: 0 0 2px rgba(0, 0, 0, 0.7);   /* 선은 가운데(2026-10-10 · 옛 36%) */
 }
 .scr-speeddial-line { top: 0; bottom: 0; background: rgba(255, 255, 255, 0.45); }
 .scr-speeddial-fill { bottom: 0; background: #fff; transition: height 0.12s ease-out; }
 .scr-speeddial-tick {
-  position: absolute; left: 36%; transform: translateY(50%); display: flex; align-items: center; gap: calc(4px * var(--sdk));
-  margin-left: calc(-5px * var(--sdk)); font-size: calc(10px * var(--sdk)); line-height: 1; font-weight: 600; color: rgba(255, 255, 255, 0.78);
+  position: absolute; left: 50%; transform: translateY(50%); display: flex; align-items: center; gap: calc(6px * var(--sdk));
+  margin-left: calc(-4px * var(--sdk)); font-size: calc(8px * var(--sdk)); line-height: 1; font-weight: 600; color: rgba(255, 255, 255, 0.78);
   font-variant-numeric: tabular-nums; pointer-events: none;
 }
-.scr-speeddial-tick > b { display: block; width: calc(10px * var(--sdk)); height: 1.5px; background: currentColor; box-shadow: 0 0 2px rgba(0, 0, 0, 0.7); }
+.scr-speeddial-tick > b { display: block; width: calc(8px * var(--sdk)); height: 1.5px; background: currentColor; box-shadow: 0 0 2px rgba(0, 0, 0, 0.7); }
 .scr-speeddial-tick.is-on { color: #fff; font-weight: 800; }
 .scr-speeddial-knob {
-  position: absolute; left: 36%; width: calc(14px * var(--sdk)); height: calc(14px * var(--sdk)); border-radius: 50%; transform: translate(-50%, 50%);
+  position: absolute; left: 50%; width: calc(14px * var(--sdk)); height: calc(14px * var(--sdk)); border-radius: 50%; transform: translate(-50%, 50%);
   background: #fff; box-shadow: 0 0 0 calc(3px * var(--sdk)) rgba(255, 255, 255, 0.2), 0 1px 3px rgba(0, 0, 0, 0.6); transition: bottom 0.12s ease-out; pointer-events: none;
 }
 .scr-speeddial.is-drag .scr-speeddial-knob, .scr-speeddial.is-drag .scr-speeddial-fill { transition: none; }
+/* 중계 중엔 잠김(토스트) — 흐리게 · 끌기 커서 없음. */
+.scr-speeddial.is-locked { cursor: not-allowed; }
+.scr-speeddial.is-locked > * { opacity: 0.45; }
 .scr-fs-layer.is-fs .scr-fs-solo { top: var(--safe-top, 0px); }
 /* ★ 화면 주인 이름표는 **위 가운데**다(2026-10-09, 요청: "화면 주인 이름칩은 화면 상단 가운데로 이동하고 자막을 내리기" — 옛 '아래 가운데'(같은 날 요청 1)는 되물렸다 ·
    자막(.scr-cast-caption)이 그 바닥 자리를 받는다). 단독 화면·분할 칸 다 같다 — 받침 솟음(--dock-lift)·바닥 줄 칸 올리기(옛 --cell-lift)는 이름표엔 이제 안 걸린다.
