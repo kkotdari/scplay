@@ -211,8 +211,8 @@ const CAST_W9: Record<string, number> = {
 
 /** 한 사건 — 시각·사람·무게 · `tail` 은 이 사건 뒤 장면을 열어 두는 초(없으면 GAP9). */
 type Ev9 = { sec: number; raw: string; w: number; why: string; tail?: number;
-  /** 본진 건물(커맨드·넥서스·해처리·레어·하이브)을 부순 사건(죽인 쪽 · 2026-10-11 '뚝배기' — 꼭 보여 준다). */
-  hall?: boolean;
+  /** 본진 건물(커맨드·넥서스·해처리·레어·하이브)을 부순 사건(죽인 쪽 · 2026-10-11) — main 은 시작 본진(뚝배기 · 꼭 보여 준다). */
+  hall?: boolean; hallMain?: boolean;
   /** 맞상대(죽인 쪽이면 잃은 사람 · 잃은 쪽이면 죽인 사람) · 준 몸값(죽인 쪽) · 잃은 살림 값(일꾼·건물 · 잃은 쪽). */
   vs?: string; dealt?: number; econ?: number;
   /** 자막 재료(2026-10-09) — 죽은 몸의 종류(건물 파괴 자막의 건물 이름) · 마법 이름 · **죽인 유닛의 종류**(by · 리버/하이템플러 일꾼 견제 · 저글링러시의 자). */
@@ -351,7 +351,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   };
 
   /** 죽음 한 벌 — 한꺼번에 사라지는 '나감'을 걸러 내려고 먼저 모은다. */
-  type D9 = { sec: number; owner: number; v: number; bld: boolean; killer: number; ktag: number; wk: boolean; wkw?: string; x?: number; y?: number; kind: string; by: string };
+  type D9 = { sec: number; owner: number; v: number; bld: boolean; killer: number; ktag: number; wk: boolean; wkw?: string; x?: number; y?: number; kind: string; by: string; tag?: number };
+
   /** 죽은 자리(타일) — 건물은 제 자리(bornX/Y · 앉은 자리가 여럿이면 마지막) · 유닛은 죽기 전 `LOC_W9` 초 안의 마지막 명령
    *  자리(참값 생애는 죽은 자리를 안 든다 — 명령이 '어디에 가 있었나'의 가장 가까운 어림이다) · 그도 없으면 막 태어난 몸의
    *  태어난 자리 · 모르면 null. */
@@ -384,6 +385,9 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   }
   /** 그 임자의 **살아 있는 본진 건물** 자리(확장 포함) — 기지 싸움(baseRole9)·프록시 건물 가름·드랍의 자. */
   const HALL_ANY9 = new Set(["Command Center", "Nexus", "Hatchery", "Lair", "Hive"]);
+  /** 시작 본진의 태그(2026-10-11 뚝배기) — 경기 첫 순간(2초 안)에 선 본진 건물. 레어·하이브 변태는 같은 태그를 이어 쓰므로 그대로 시작 본진이다. */
+  const startHallTags9 = new Set<number>();
+  for (const e9 of world.lives) if (e9.bld && e9.born <= 2 && HALL_ANY9.has(e9.kind)) startHallTags9.add(e9.tag);
   const BASE_R9 = 18;
   const hallsOfOwner9 = (owners9: ReadonlySet<number>, sec9: number): [number, number][] => {
     const out9: [number, number][] = [];
@@ -759,7 +763,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     const wat9 = isWk9 ? at9 ?? lastOrderAt9(e9, e9.died) ?? { x: e9.bornX, y: e9.bornY } : null;   // 명령을 한 번도 안 받은 일꾼(랠리로 곧장 캔다)은 난 자리
     const wk9 = isWk9 && !!wat9 && workerAtHome9(e9.owner, killer9, wat9.x, wat9.y, e9.died);
     const wkw9 = isWk9 && !wk9 ? (wat9 ? workerOut9(e9.owner, killer9, wat9.x, wat9.y, e9.died) : "") : undefined;
-    ds9.push({ sec: e9.died, owner: e9.owner, v: wk9 ? v9 * HARASS9.k : v9, bld: e9.bld, wk: wk9, kind: e9.kind,
+    ds9.push({ sec: e9.died, owner: e9.owner, v: wk9 ? v9 * HARASS9.k : v9, bld: e9.bld, wk: wk9, kind: e9.kind, tag: e9.tag,
       killer: killer9, ktag: ktag9, by: by9, ...(at9 ?? {}), ...(wkw9 !== undefined ? { wkw: wkw9 } : {}) });
   }
   ds9.sort((a9, b9) => a9.sec - b9.sec);
@@ -794,8 +798,9 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
        정찰병을 잡거나 도망가는 일꾼을 잡은 것 · 아니면 전진 건설하는 일꾼을 잡은 것") — 기지 밖 일꾼은 "일꾼 잡음"(갈래 wkw: 정찰 · 전진 건설 · 그 밖). */
     const why9 = base9 ? "건물 파괴" : d9.wk ? "견제" : d9.wkw !== undefined ? "일꾼 잡음" : "교전";
     const tail9 = d9.wk ? HARASS9.tail : undefined;
-    const hallK9 = d9.bld && HALL_ANY9.has(d9.kind) && !!kill9 && !!mine9 && kill9 !== mine9;   // 뚝배기(위 HALL_KILL_W9)
-    if (kill9) evs9.push({ sec: d9.sec, raw: kill9, w: d9.v * (d9.bld ? BLD_K9 : 1) + (hallK9 ? HALL_KILL_W9 : 0), why: why9, tail: tail9, ...(hallK9 ? { hall: true } : {}),
+    const hallK9 = d9.bld && HALL_ANY9.has(d9.kind) && !!kill9 && !!mine9 && kill9 !== mine9;   // 본진 건물 깨기(위 HALL_KILL_W9)
+    const hallMain9 = hallK9 && d9.tag !== undefined && startHallTags9.has(d9.tag);   // 시작 본진만 뚝배기(2026-10-11)
+    if (kill9) evs9.push({ sec: d9.sec, raw: kill9, w: d9.v * (d9.bld ? BLD_K9 : 1) + (hallK9 ? HALL_KILL_W9 : 0), why: why9, tail: tail9, ...(hallK9 ? { hall: true, ...(hallMain9 ? { hallMain: true } : {}) } : {}),
       vs: mine9, dealt: d9.v, kind: d9.kind, ...(d9.by ? { by: d9.by } : {}), ...(d9.wkw !== undefined ? { wkw: d9.wkw } : {}),
       ...(d9.ktag > 0 ? { ktag: d9.ktag } : {}), ...(d9.x !== undefined && d9.y !== undefined ? { vx: d9.x, vy: d9.y, px: d9.x, py: d9.y } : {}) });
     if (mine9) evs9.push({ sec: d9.sec, raw: mine9, w: d9.v * LOSS_K9, why: base9 ? "건물 잃음" : d9.wk ? "견제 당함" : d9.wkw !== undefined ? "일꾼 잃음" : "교전", tail: tail9,
@@ -812,8 +817,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
 
   /* ── 장면으로 묶기 ────────────────────────────────────────────────────────── */
   type Sc9 = { t0: number; t1: number; by: Map<string, number>; why: string; tail: number;
-    /** 그 토막에서 부서진 본진 건물 [부순 사람, 잃은 사람, 종류] — 첫 것(2026-10-11 뚝배기). */
-    hall?: [string, string, string];
+    /** 그 토막에서 부서진 본진 건물 [부순 사람, 잃은 사람, 종류, 시작 본진(뚝배기)인가] — 시작 본진이 먼저 · 그 밖엔 첫 것(2026-10-11). */
+    hall?: [string, string, string, boolean];
     /** 가장 무거운 사건(자막 재료 · 2026-10-09). */
     top?: Ev9;
     /** "k>v" → k 가 v 의 **건물**을 부순 몸값 · v → 잃은 건물 몸값(자막의 기지 피해 단 — 반파·대파·궤멸 · 2026-10-09). */
@@ -842,7 +847,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   const open9: Open9[] = [];
   const addEv9 = (sc9: Sc9, e9: Ev9): void => {
     sc9.t1 = e9.sec;
-    if (e9.hall && e9.vs && e9.kind && !sc9.hall) sc9.hall = [e9.raw, e9.vs, e9.kind];
+    if (e9.hall && e9.vs && e9.kind && (!sc9.hall || (e9.hallMain && !sc9.hall[3]))) sc9.hall = [e9.raw, e9.vs, e9.kind, !!e9.hallMain];
     sc9.tail = e9.tail ?? GAP9;
     sc9.by.set(e9.raw, (sc9.by.get(e9.raw) ?? 0) + e9.w);
     if (e9.vs && e9.dealt) sc9.pair.set(`${e9.raw}>${e9.vs}`, (sc9.pair.get(`${e9.raw}>${e9.vs}`) ?? 0) + e9.dealt);
@@ -1301,7 +1306,9 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
          굳이 따로 뚝배기 강조 안 해도 됨 · 기지를 부순 게 더 중요"). */
       if (/기지 (반파|대파|궤멸)|마무리지음/.test(txt0)) return base0_9;
       /* 앞 문장에 덧붙이던 꼴("… 건물 파괴. 뚝배기 파괴")은 걷었다(같은 날 지적: "좀 부자연스러워 — 뚝배기 파괴만 나오면 됨"). */
-      return [{ raw: h9[0], p: "ga" }, { text: " " }, { raw: h9[1] }, { text: " 뚝배기 파괴" }];
+      /* 뚝배기는 **시작 본진만**(2026-10-11, 요청: "맨 처음 나오는 기본 메인 홀만 뚝배기 · 나머지는 넥서스 커맨드 해처리 등으로 부르면 됨") — 멀티는 그 건물 이름. */
+      const hk9 = h9[3] ? "뚝배기" : HALL_KO9[h9[2]] ?? BUILDING_KO[h9[2]] ?? h9[2];
+      return [{ raw: h9[0], p: "ga" }, { text: " " }, { raw: h9[1] }, { text: ` ${hk9} 파괴` }];
     })();
     /* ★ 덧말은 **주어가 있는 한 마디**다(2026-10-10, 요청: "뒤에 스톰 옆탱 이런 거 붙이지 말고 문장 안에 누가 썼는지 정확하게 표현") — 옛 꼬리 " · 스톰 · 옆탱"은
        누가 쓴 것인지 안 읽혔다(늘 주인공 것이었는데도 공격 글귀의 주어가 딴 사람이면 그 사람 것으로 읽혔다). 이제 " · [A]가 사이오닉 스톰으로 4기 잡음"처럼 쓴 사람의
@@ -2211,7 +2218,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     resume9(at9);
     const cont9 = bid9 === curBid9;
     const busy9 = !cont9 && curBid9 >= 0 && at9 < bEnd9.get(curBid9)!;
-    const must9 = !!sc9.hall;   // 뚝배기 깨기는 꼭 보여 준다(HALL_KILL_W9 ★) — 한창인 딴 전투도 끊는다
+    const must9 = !!sc9.hall?.[3];   // 뚝배기(시작 본진) 깨기는 꼭 보여 준다(HALL_KILL_W9 ★) — 한창인 딴 전투도 끊는다 · 멀티 본진은 덧무게만
     if (busy9 && !must9 && btot9 < bTot9.get(curBid9)! * BATTLE_JUMP9) { skipped9.push(sc9); continue; }   // 한창인 전투를 안 끊는다
     const tot9 = btot9;
     /* 소강이 길면 그 사이를 순환으로 채운다(요청) — 장면 바로 앞까지만. */

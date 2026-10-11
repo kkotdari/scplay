@@ -846,14 +846,18 @@ rmSync(tmp, { recursive: true, force: true });
   const lings = Array.from({ length: 6 }, () => mk(2, "Zergling", false, 118, 10, 50, { orders: [[95, 31, 31, false]] }));
   for (let i = 0; i < 36; i += 1) { const t = 100 + i * 3; const m = mk(0, "Marine", false, 10, 10, 50, { died: t, end: "atk", orders: [[t - 3, 30, 30, false]] }); kills.push([t, 2, lings[i % 6].tag, m.tag]); }
   const ms = Array.from({ length: 3 }, () => mk(1, "Marine", false, 10, 118, 50, { orders: [[140, 100, 100, false]] }));
-  const hat = mk(3, "Hatchery", true, 100, 100, 60, { died: 150, end: "atk" });
+  const hat = mk(3, "Hatchery", true, 100, 100, 0, { died: 150, end: "atk" });   // 시작 본진(첫 순간) — 뚝배기(2026-10-11: 시작 본진만)
   kills.push([150, 1, ms[0].tag, hat.tag]);
   const w = { players: [["A", "테란", 1], ["B", "테란", 1], ["C", "저그", 2], ["D", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
     lives: L, ups: [], casts: [], pings: [], resFields: [], kills, sels: [], builds: [] };
   const plan = castPlan9(w, { total: 400, order: ["A", "C", "B", "D"], teamOf: { A: 1, B: 1, C: 2, D: 2 } });
+  /* 멀티(60초에 지은) 해처리면 뚝배기가 아니라 "해처리 파괴" — 긴 전투가 없는 판으로 본다(멀티는 한창인 전투를 안 끊는다). */
+  const L2 = L.filter((e) => e.kind !== "Marine" || e.owner !== 0).map((e) => (e.tag === hat.tag ? { ...e, born: 60 } : e));
+  const plan2 = castPlan9({ ...w, lives: L2, kills: kills.filter((k) => k[3] === hat.tag) }, { total: 400, order: ["A", "C", "B", "D"], teamOf: { A: 1, B: 1, C: 2, D: 2 } });
   console.log(`\n뚝배기: ${plan.filter((s) => s.at >= 90 && s.at < 220).map((s) => `${s.at.toFixed(0)} ${capTxt(s)}`).join(" · ")}`);
   for (const [name, pass] of [
-    ["긴 전투 중에도 본진 건물을 깨면 그리로 간다 · '[B]ga [D] 뚝배기 파괴'", plan.some((s) => s.at >= 140 && s.at <= 152 && capTxt(s) === "[B]ga [D] 뚝배기 파괴")],
+    ["긴 전투 중에도 시작 본진을 깨면 그리로 간다 · '[B]ga [D] 뚝배기 파괴'", plan.some((s) => s.at >= 140 && s.at <= 152 && capTxt(s) === "[B]ga [D] 뚝배기 파괴")],
+    ["멀티 해처리는 뚝배기가 아니라 '[B]ga [D] 해처리 파괴'", plan2.some((s) => capTxt(s) === "[B]ga [D] 해처리 파괴") && !plan2.some((s) => /뚝배기/.test(capTxt(s)))],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }
 
