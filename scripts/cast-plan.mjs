@@ -792,3 +792,43 @@ rmSync(tmp, { recursive: true, force: true });
     ["잃은 것 없는 소강 → '순조롭게 발전 중'(2026-10-11 되요청)", has(/^\[A\] 순조롭게 발전 중$/)],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }
+
+/* ── ㉕ 전투 단위(2026-10-11, 요청: "장면을 좀 길게 — 전투 전체를 처음부터 끝까지 · 더 중요한 게 있으면 바꾸는 건 맞는데 그 순간의 중요도가 아닌 전체 전투의 중요도") —
+   2v2 A·B(1팀 테란) 대 C·D(2팀 저그). ① 100~205초 (30,30)에서 A 마린 36기가 3초마다 C 저글링에 죽는다(긴 전투 · 토막마다 가볍고 합은 무겁다)
+   ② 150~164초 (100,100)에서 D 히드라 8기가 B 마린에 죽는다(순간은 무겁지만 합은 ① 보다 가볍다) → ① 을 안 끊는다 · ③ 같은 자리에 히드라 40기면(합이 ① 의 1.2 배 넘음) 끊는다. */
+{
+  const mkWorld = (nHyd) => {
+    let t9 = 95000;
+    const L = []; const kills = [];
+    const mk = (o, kind, bld, x, y, born, ex = {}) => { const e = { tag: (t9 += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+      sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [], ...ex }; L.push(e); return e; };
+    mk(0, "Command Center", true, 10, 10, 0); mk(1, "Command Center", true, 10, 118, 0); mk(2, "Hatchery", true, 118, 10, 0); mk(3, "Hatchery", true, 118, 118, 0);
+    const lings = Array.from({ length: 6 }, () => mk(2, "Zergling", false, 118, 10, 50, { orders: [[95, 31, 31, false]] }));
+    for (let i = 0; i < 36; i += 1) {
+      const t = 100 + i * 3;
+      const m = mk(0, "Marine", false, 10, 10, 50, { died: t, end: "atk", orders: [[t - 3, 30, 30, false]] });   // 죽기 직전 명령 — 죽은 자리(deadAt9 · LOC_W9 25초)
+      kills.push([t, 2, lings[i % 6].tag, m.tag]);
+    }
+    const ms = Array.from({ length: 6 }, () => mk(1, "Marine", false, 10, 118, 50, { orders: [[145, 99, 99, false]] }));
+    for (let i = 0; i < nHyd; i += 1) {
+      const t = 150 + i * (14 / nHyd);
+      const h = mk(3, "Hydralisk", false, 118, 118, 50, { died: t, end: "atk", orders: [[145, 100, 100, false]] });
+      kills.push([t, 1, ms[i % 6].tag, h.tag]);
+    }
+    return { players: [["A", "테란", 1], ["B", "테란", 1], ["C", "저그", 2], ["D", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
+      lives: L, ups: [], casts: [], pings: [], resFields: [], kills, sels: [], builds: [] };
+  };
+  const opt = { total: 400, order: ["A", "C", "B", "D"], teamOf: { A: 1, B: 1, C: 2, D: 2 } };
+  const small = castPlan9(mkWorld(8), opt);
+  const big = castPlan9(mkWorld(40), opt);
+  const onBD = (pl) => pl.some((s) => (s.raw === "B" || s.raw === "D") && s.at >= 140 && s.at < 200 && !s.cyc);
+  const tl = (pl) => pl.filter((s) => s.at >= 90 && s.at < 220).map((s) => `${s.at.toFixed(0)}${s.cyc ? "~" : ""}${s.raw}`).join(" ");
+  console.log(`\n전투 단위: 짧은 곳 ${tl(small)} | 큰 곳 ${tl(big)}`);
+  if (process.env.CP_DEBUG) for (const pl of [small, big]) console.log(pl.filter((s) => s.at >= 90 && s.at < 220).map((s) => `${s.at.toFixed(1)} ${s.raw} ${s.cyc ? "cyc" : s.why} ${Math.round(s.score)} ${capTxt(s)}`).join("\n"), "\n--");
+  for (const [name, pass] of [
+    ["긴 전투(합이 무거움) 중 딴 곳의 짧은 전투(순간만 무거움)는 끼어들지 않는다", !onBD(small)],
+    ["긴 전투는 처음부터 끝까지 한 주인공(A 또는 C)으로 이어진다", small.filter((s) => s.at >= 98 && s.at < 204).every((s) => s.raw === small.find((x) => x.at >= 98)?.raw)],
+    ["합이 1.2 배 넘게 무거운 딴 전투는 끼어든다", onBD(big)],
+    ["끼어든 전투가 끝나면 아직 이어지는 앞 전투로 돌아간다", big.some((s) => (s.raw === "A" || s.raw === "C") && s.at > 160 && s.at < 200 && !s.cyc)],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}

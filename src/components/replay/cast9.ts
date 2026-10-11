@@ -2035,12 +2035,68 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     return [{ raw: raw9 }, { text: ` ${phaseCap9(raw9, hi9)}` }];
   };
 
+  /* ★★ **전투 단위**(2026-10-11, 요청: "장면을 좀 길게 가져가기 — 전투 전체를 처음부터 끝까지 보여 주면 좋을 듯 · 더 중요한 게 있으면 바꾸는 건 맞는데 그 순간의
+     중요도가 아닌 전체 전투의 중요도를 봐야 해") ──────────────────────────────────────────────────────────────────────────────
+     장면은 MAX_SCENE9(30초)로 토막이 나고(자막이 사건에 맞게 갈리도록), 옛 편성은 토막마다 제 무게로 겨뤘다 — 갈아탄 지 MIN_HOLD9(8초)만 지나면 딴 곳의 조금 무거운
+     토막이 한창인 전투를 끊었다. 이제 **같은 자리에서 이어지는 토막**(앞 토막 끝 + 꼬리 + 2초 안에 시작 · 가운데가 SCENE_R9 안 · 자리 모르면 같은 사람이 든 것)을
+     한 **전투**(bid)로 묶고 무게는 그 전투 **전부의 합**이다:
+       · 장면이 되는 문턱(MIN_SCENE9)도 전투의 합으로 — 큰 전투의 가벼운 끝 토막도 보여 준다(처음부터 끝까지).
+       · 지금 보이는 전투의 토막은 늘 잇는다 — 주인공이 그 토막에 들면 그대로(카메라 안 움직임 · 자막만 사건 때에 갈림 · push9 CAP_SPLIT9).
+       · 지금 전투가 이어지는 동안(끝 = 마지막 토막 끝 + 꼬리 몫) 딴 전투는 **전체 무게가 BATTLE_JUMP9 배 넘을 때만** 끼어든다. 밀린 전투가 그 뒤에도 이어지면
+         지금 전투가 끝나는 때에 그리로 간다(resume9). */
+  const BATTLE_JUMP9 = 1.2;
+  const bidOf9 = new Map<Sc9, number>();
+  const bTot9 = new Map<number, number>();
+  const bEnd9 = new Map<number, number>();
+  const totOf9 = (sc9: Sc9): number => { let t9 = 0; for (const w9 of sc9.by.values()) t9 += w9; return t9; };
+  for (let i9 = 0; i9 < scs9.length; i9 += 1) {
+    const s9 = scs9[i9];
+    let bid9 = -1;
+    for (let j9 = i9 - 1; j9 >= 0 && bid9 < 0; j9 -= 1) {
+      const p9 = scs9[j9];
+      if (s9.t0 < p9.t1 - 0.01 || s9.t0 - p9.t1 > p9.tail + 2) continue;
+      const near9 = s9.cx !== undefined && p9.cx !== undefined && s9.cy !== undefined && p9.cy !== undefined
+        ? Math.hypot(s9.cx - p9.cx, s9.cy - p9.cy) <= SCENE_R9
+        : [...s9.by.keys()].some((r9) => p9.by.has(r9));
+      if (near9) bid9 = bidOf9.get(p9)!;
+    }
+    if (bid9 < 0) bid9 = i9;
+    bidOf9.set(s9, bid9);
+    bTot9.set(bid9, (bTot9.get(bid9) ?? 0) + totOf9(s9));
+    bEnd9.set(bid9, Math.max(bEnd9.get(bid9) ?? 0, s9.t1 + (s9.tail - GAP9)));
+  }
+  let curBid9 = -1;
+  const skipped9: Sc9[] = [];
+  /** 밀린 전투로 돌아가기 — 지금 전투가 끝났고(upTo 가 그 끝 뒤) 밀린 토막 가운데 그 끝 뒤로도 이어지는 것이 있으면 가장 무거운 전투의 것을 그 끝에 세운다. */
+  const resume9 = (upTo9: number): void => {
+    if (curBid9 < 0) return;
+    const end9 = bEnd9.get(curBid9)!;
+    if (upTo9 <= end9 + 1) return;
+    let best9: Sc9 | null = null;
+    for (const s9 of skipped9) {
+      if (bidOf9.get(s9) === curBid9 || s9.t1 <= end9 + 1) continue;
+      if (!best9 || bTot9.get(bidOf9.get(s9)!)! > bTot9.get(bidOf9.get(best9)!)!) best9 = s9;
+    }
+    skipped9.length = 0;
+    if (!best9) return;
+    const bid9 = bidOf9.get(best9)!;
+    const rank9 = [...best9.by.entries()].sort((a9, b9) => b9[1] - a9[1]);
+    const d9 = duel9(best9, rank9[0][0]);
+    push9(end9, rank9[0][0], best9.why, false, bTot9.get(bid9)!, d9, sceneCaps9(best9, rank9[0][0], d9));
+    curBid9 = bid9;
+    cur9 = Math.max(cur9, bEnd9.get(bid9)!);
+  };
   let cur9 = 0;
   for (const sc9 of scs9) {
     const at9 = Math.max(0, sc9.t0 - CAST_LEAD9);
-    let tot9 = 0;
-    for (const w9 of sc9.by.values()) tot9 += w9;
-    if (tot9 < MIN_SCENE9) continue;      // 잔 사건은 장면이 아니다 — 순환이 그 자리를 메운다
+    const bid9 = bidOf9.get(sc9)!;
+    const btot9 = bTot9.get(bid9)!;
+    if (btot9 < MIN_SCENE9) continue;      // 잔 전투는 장면이 아니다 — 순환이 그 자리를 메운다(무게는 전투 전부의 합 · 위 ★★)
+    resume9(at9);
+    const cont9 = bid9 === curBid9;
+    const busy9 = !cont9 && curBid9 >= 0 && at9 < bEnd9.get(curBid9)!;
+    if (busy9 && btot9 < bTot9.get(curBid9)! * BATTLE_JUMP9) { skipped9.push(sc9); continue; }   // 한창인 전투를 안 끊는다
+    const tot9 = btot9;
     /* 소강이 길면 그 사이를 순환으로 채운다(요청) — 장면 바로 앞까지만. */
     if (at9 - cur9 >= IDLE9 || out9.length === 0) fill9(cur9, at9);
     /* 누구를 보여주나 — 1·2등이 엇비슷하면 ★ **서로 맞붙은 둘이면 더 많이 준 쪽**(2026-10-09, 요청: "공격이나 교전 발생시 더 잘한 사람 보여주고" — 무게
@@ -2059,11 +2115,16 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
        튀지 않고, 그 사람의 새 사건이 제때 자막에 선다. */
     const cur9raw = out9.length > 0 ? out9[out9.length - 1].raw : null;
     if (held9 && tot9 < lastScore9() * JUMP9 && cur9raw !== null && sc9.by.has(cur9raw)) pick9 = cur9raw;
-    if (!held9 || tot9 >= lastScore9() * JUMP9 || pick9 === cur9raw) { const d9 = duel9(sc9, pick9); push9(at9, pick9, sc9.why, false, tot9, d9, sceneCaps9(sc9, pick9, d9)); }
+    if (cont9 && cur9raw !== null && sc9.by.has(cur9raw)) pick9 = cur9raw;   // 같은 전투는 같은 주인공으로 잇는다(위 ★★)
+    if (cont9 || busy9 || !held9 || tot9 >= lastScore9() * JUMP9 || pick9 === cur9raw) {
+      const d9 = duel9(sc9, pick9); push9(at9, pick9, sc9.why, false, tot9, d9, sceneCaps9(sc9, pick9, d9));
+      curBid9 = bid9;
+    }
     /* 장면의 끝은 마지막 사건 + **꼬리의 남는 몫**이다 — 견제는 마지막 킬 뒤에도 쫓는 몸이 그 자리에
        있으니 그만큼 머물고, 그 사이에 순환이 끼어들지 않는다(교전은 tail = GAP9 라 종전 그대로). */
     cur9 = Math.max(cur9, sc9.t1 + (sc9.tail - GAP9));
   }
+  resume9(total + 2);
   fill9(cur9, total);
   /* ★★ **gg 선언 · 노엘 외침**(2026-10-10, 요청: "엘리 gg(ㅈㅈ) 선언 ㄴㅇ 노엘 외침도") — 채팅에서 그 말을 한 사람을 그때 CHAT_HOLD9 초 보여 주고 "[A] gg 선언" ·
      "[A] 노엘 외침"을 띄운 뒤 보던 토막으로 돌아간다(그 토막이 그 뒤에도 이어지면 같은 토막을 다시 세운다). 같은 사람의 같은 말은 CHAT_DEDUP9 초에 한 번.
