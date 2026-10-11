@@ -9807,11 +9807,12 @@ export default function ReplayMotionPlayer({
       p0 = s0 > 0 ? Math.round((d9[0] / s0) * 100) : null;
       p1 = s1 > 0 ? Math.round((d9[1] / s1) * 100) : null;
     }
+    /* ★ 양도 함께(2026-10-10, 요청: "데미지량 다시 표시 — 퍼센트와 병기") — "1.2k(45%)/810(47%)"(옛 퍼센트만 "45%/47%"). */
     return (
       <>
-        <span className="scr-dmg-dealt">{p0 === null ? "–" : `${p0}%`}</span>
+        <span className="scr-dmg-dealt">{fmtK9(d9[0])}{p0 === null ? "" : `(${p0}%)`}</span>
         <span className="scr-dmg-sep">/</span>
-        <span className="scr-dmg-taken">{p1 === null ? "–" : `${p1}%`}</span>
+        <span className="scr-dmg-taken">{fmtK9(d9[1])}{p1 === null ? "" : `(${p1}%)`}</span>
       </>
     );
   };
