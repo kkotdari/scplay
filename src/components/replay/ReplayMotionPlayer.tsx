@@ -2278,10 +2278,9 @@ export const BLD_FILL_TARGET: Record<string, number> = {
   refinery: 0.92, assim: 0.92, extract: 0.92,
 };
 // 포톤은 플라즈마와 같은 그림이다(CSS의 .scr-tracer-plasma, .scr-tracer-photon 합집합).
-/* ★ 포톤 캐논만 **지름 2.5배**(2026-10-11, 요청: "포토 트레이서가 왜 이리 가늘지 — 광자포 지름이 지금의 2.5배는 돼야 할 듯") — 드라군·스카우트·아비터(plasma)는 그대로.
-   맞은 자리 섬광은 1.6배(굵어진 탄에 맞춰 · 요청 밖이라 덜). 길이·색·박자는 같다. */
-FX_BEAM.photon = { ...FX_BEAM.plasma, w: FX_BEAM.plasma.w * 2.5 };
-FX_IMPACT.photon = { ...FX_IMPACT.plasma, r: FX_IMPACT.plasma.r * 1.6 };
+/* (되돌림 2026-10-11) 포톤만 지름 2.5배 · 섬광 1.6배 — 굵기가 화면마다 달라 보인 까닭이 배율 자(아래 tw9)였다. 요청: "포터 2.5배를 롤백". */
+FX_BEAM.photon = FX_BEAM.plasma;
+FX_IMPACT.photon = FX_IMPACT.plasma;
 /** 맞은 **몸에서** 튀는 것(요청: "생명체는 피 프로토스는 에너지 기계는 불꽃 등등을
  *  작게 맞은 부위에") — 죽음 효과(scr-die-*)와 같은 넷·같은 색이다. 죽을 때 크게
  *  한 번 터지는 것이 맞을 때마다 작게 튄다고 보면 된다.
@@ -3598,6 +3597,8 @@ export type FxPaintEnv9 = {
    *  자리**다: 무기의 자(FX_BEAM.w)는 안 건드리고 보여 주는 자리에서만 키운다. */
   triK9?: number;
 };
+/** 트레이서 굵기의 기준 타일 px(위 paintFxList9 의 tw9 ★) — PC 와 폰의 가운데. */
+const TRACER_W_REF9 = 7;
 export function paintFxList9(
   ctx: CanvasRenderingContext2D, fx: readonly FxOp[], env: FxPaintEnv9,
 ): void {
@@ -3624,6 +3625,11 @@ export function paintFxList9(
      컸다. 유닛·피격(f.size)은 엔진이 타일 자로 내므로 이미 맞다. 이 상수들만 타일 8px를 기준으로
      타일 자에 태운다 — PC(≈8px)는 그대로, 폰은 그만큼 준다. */
   const tz9 = zoom * ((tilePx ?? 8) / 8);
+  /* ★ **트레이서 굵기의 자**(2026-10-11, 지적: "포터 트레이서 어떤 배율에서는 너무 굵어지고 어떤 배율에서는 괜찮아(PC/모바일 차이 같기도)" → 요청: "트레이서 굵기는
+     PC 와 모바일 중간 정도가 딱 적당") — 길이(l)는 tz9(타일 자)를 탔는데 굵기는 `st.w × zoom`(CSS px)라, 유닛 대비 굵기가 1/tilePx 로 갈렸다
+     (실측 tilePx: PC 1920 14.75 · 1440 11.0 · 폰 390 4.63 · 430 5.14 → 폰이 PC 1920 의 3.2배 굵었다). 이제 굵기도 타일 자를 타되 기준을
+     **TRACER_W_REF9 = 7**(PC 1920 과 폰 390 의 상대 굵기 1/14.75 · 1/4.63 의 가운데 = 1/7.0)로 둔다 — 어느 화면에서나 PC 의 2.1배 · 폰의 0.66배. */
+  const tw9 = zoom * ((tilePx ?? 8) / TRACER_W_REF9);
   for (const f of fx) {
     /* ★ 갈래마다 제 칸이 있다(요청: "2배에서 전투효과: 가시 분출 우리 / 4배에서
        전투효과: 피격 / 나머지는 다 8배부터") — 사다리는 FX_MIN_ZOOM이고, 배치의
@@ -4505,7 +4511,7 @@ export function paintFxList9(
         const vx8 = ex9 - bx8;
         const vy8 = ey9 - by8;
         const vl8 = Math.hypot(vx8, vy8) || 1;
-        const hw8 = Math.max(1, st.w * zoom * 1.9);
+        const hw8 = Math.max(1, st.w * tw9 * 1.9);
         ctx.globalAlpha = a9;
         ctx.fillStyle = st.warhead;
         ctx.beginPath();
@@ -4614,7 +4620,7 @@ export function paintFxList9(
       const vl7 = Math.hypot(vx7, vy7) || 1;
       const nx7 = -vy7 / vl7; const ny7 = vx7 / vl7;
       const from7 = st.billowFrom ?? 0;
-      const base7 = Math.max(1.2, st.w * zoom * (st.billowK ?? 1));
+      const base7 = Math.max(1.2, st.w * tw9 * (st.billowK ?? 1));
       const seed7 = Math.floor(p9 * 6);
       ctx.fillStyle = st.billowCol ?? "rgba(158,154,150,1)";
       for (let i7 = 0; i7 < n9; i7 += 1) {
@@ -4639,7 +4645,7 @@ export function paintFxList9(
       const hx7 = lx9 + (dx9 - lx9) * hq7; const hy7 = ly9 + (dy9 - ly9) * hq7;
       /* ⚠ 번짐이 **줄기를 삼키면** 안 된다 — 반지름 2.4배·짙기 0.7 로 뒀더니 도록 칸에서 불줄기가
          안 보이고 주황 얼룩만 남았다(실측). 열기는 불 **둘레**에 도는 것이지 불 자체가 아니다. */
-      const hr7 = Math.max(4, st.w * zoom * ((st.cone ? st.cone[1] : 1)) * 1.9);
+      const hr7 = Math.max(4, st.w * tw9 * ((st.cone ? st.cone[1] : 1)) * 1.9);
       const rg7 = ctx.createRadialGradient(hx7, hy7, 0, hx7, hy7, hr7);
       rg7.addColorStop(0, st.heat); rg7.addColorStop(0.55, "rgba(255,150,60,0.16)"); rg7.addColorStop(1, "rgba(255,140,50,0)");
       ctx.globalAlpha = a9 * 0.45;
@@ -4661,8 +4667,8 @@ export function paintFxList9(
       const au7 = Math.atan2(uy7, ux7);
       /** 뿌리·앞 끝의 **반**폭(화면 px) — ex 는 번짐 켜가 밖으로 더 두르는 몫이다. */
       const cone7 = (ex7: number): void => {
-        const h07 = Math.max(0.3, (st.w * zoom * (st.cone as readonly [number, number])[0]) / 2) + ex7;
-        const h17 = Math.max(0.5, (st.w * zoom * (st.cone as readonly [number, number])[1]) / 2) + ex7;
+        const h07 = Math.max(0.3, (st.w * tw9 * (st.cone as readonly [number, number])[0]) / 2) + ex7;
+        const h17 = Math.max(0.5, (st.w * tw9 * (st.cone as readonly [number, number])[1]) / 2) + ex7;
         ctx.beginPath();
         ctx.moveTo(lx9 + nx7 * h07, ly9 + ny7 * h07);
         ctx.lineTo(dx9 + nx7 * h17, dy9 + ny7 * h17);
@@ -4675,7 +4681,7 @@ export function paintFxList9(
       if (st.glow) {
         ctx.fillStyle = st.glow;
         ctx.globalAlpha = a9 * (st.glowA ?? 0.3);
-        cone7(st.w * zoom * ((st.glowW ?? 2.6) - 1) / 2);
+        cone7(st.w * tw9 * ((st.glowW ?? 2.6) - 1) / 2);
         ctx.globalAlpha = a9;
       }
       ctx.fillStyle = g9;
@@ -4702,7 +4708,7 @@ export function paintFxList9(
              ⚠ 갈래표의 값(zigAmp·zigW)은 이제 **상한**일 뿐이다 — 기하가 정하는 이 죔이 늘 이긴다.
                표 값만 손보면 짧은 사거리에서 도로 날카로워진다(len 이 작아지면 마디도 작아진다). */
           const seg9 = len9 / n9;
-          const amp9 = Math.min(len9 * (st.zigAmp ?? 0.16), st.w * zoom * (st.zigW ?? 2.4), seg9 * 0.42);
+          const amp9 = Math.min(len9 * (st.zigAmp ?? 0.16), st.w * tw9 * (st.zigW ?? 2.4), seg9 * 0.42);
           // 위상을 씨앗으로 — 번쩍이는 동안 무늬가 몇 번 갈린다(위 zig 주석).
           const seed9 = Math.floor(p9 * 5);
           for (let i9 = 1; i9 < n9; i9 += 1) {
@@ -4735,7 +4741,7 @@ export function paintFxList9(
             return gw9;
           })()
           : st.glow;
-        ctx.lineWidth = st.w * zoom * (st.glowW ?? 2.6);
+        ctx.lineWidth = st.w * tw9 * (st.glowW ?? 2.6);
         ctx.globalAlpha = a9 * (st.glowA ?? 0.3);
         ctx.lineCap = st.cap ?? "round";
         /* ⚠ **꺾인 갈래의 마디는 각이라야 한다**(요청: 아콘) — `lineJoin: "round"` 는 마디를
@@ -4747,7 +4753,7 @@ export function paintFxList9(
         ctx.globalAlpha = a9;
       }
       ctx.strokeStyle = g9;
-      ctx.lineWidth = Math.max(0.4, st.w * zoom);
+      ctx.lineWidth = Math.max(0.4, st.w * tw9);
       ctx.lineCap = st.cap ?? "round";
       ctx.lineJoin = (st.zig ?? 0) >= 2 ? "miter" : "round";
       ctx.miterLimit = 12;

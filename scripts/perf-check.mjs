@@ -1179,6 +1179,11 @@ if (has("--infoprobe")) {
 }
 /* 시계 자(--clockprobe) — 재생바를 끌고 난 뒤에도 시계 글자가 흐르나 본다(2026-10, 지적: "시간표시부분이 안바뀌는 문제").
    진짜 마우스로 손잡이 가운데를 눌러 끌고 놓은 뒤, 재생 중 1.5초 간격으로 시계 글자를 두 번 읽는다(같으면 멈춘 것이다). */
+/* 타일 자(--tileprobe) — 배율 1 의 타일 하나 CSS px(지도 폭 ÷ 격자 폭 · 붓의 tilePx). 트레이서 굵기를 PC·폰 사이로 맞출 때 잰다(2026-10-11). */
+if (has("--tileprobe")) {
+  const tp9 = await page.evaluate(() => { const m = document.querySelector(".scr-motion-map"); return m ? m.clientWidth : -1; });
+  console.log(`[타일] 지도 폭 ${tp9}px · 격자 ${JSON.parse(walkFixture).w} → tilePx ${(tp9 / JSON.parse(walkFixture).w).toFixed(2)}`);
+}
 if (has("--clockprobe")) {
   const rd9 = () => page.evaluate(() => document.querySelector(".scr-motion-clock")?.textContent ?? "?");
   const bx9 = await page.evaluate(() => { const r = document.querySelector("input[type=range]")?.getBoundingClientRect(); return r ? [r.left, r.top, r.width, r.height] : null; });
