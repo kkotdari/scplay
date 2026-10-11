@@ -425,3 +425,8 @@ replay.css 끝으로 옮겼고, 규칙 없던 이름표 셋(`scr-doc-calitem`·`
 타입 `ModelCatalogRace` 를 낸다. sg-web 은 `PillTabs`(라이팅 테마 라디오 알약 · `.scr-catalog-picks`) 두 줄로 그리고 종족은 제 상태로
 쥔다 — 갈래를 갈아타도 안 되돌린다(바로 앞 절의 요청은 이 손질로 앱 몫이 됐다). ⚠ 쓰는 앱(stargayte 등)이 락을 올리면 `onGroup` 이
 타입 오류로 서고 알약이 사라진다 — 제 알약을 그리고 `race` 를 넘겨야 한다.
+
+## 그리기 배수: 울트라 2.0 · 컨트롤 타워 1.0 · 발키리 1.2(2026-10-11)
+- 요청: "울트라 2.0 컨트롤타워 1.0 발키리 1.2로 변경" — `UNIT_SIZE_TUNE` ultra 1.4 → **2.0** · valk (표 없음 = 1.0) → **1.2** ·
+  `BLD_DRAW_TUNE` ctower 1.2 → **1.0**(애드온 여섯 가운데 컨트롤 타워만 — 나머지 1.2 그대로). MODEL_NORM·BLD_NORM 은 안 건드렸다(배수 표만).
+  🔎 `scene-sheet --race 테란 --addons` 에서 스타포트–컨트롤 타워 통로가 이어지는 것 확인 · `addon-wall --check` 최신.

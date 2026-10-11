@@ -1619,7 +1619,8 @@ export const SIZE_REF = gmOf(Object.values(UNIT_BW_TILES));
 export const UNIT_SIZE_TUNE: Record<string, number> = {   // 열쇠는 sizeKind(메딕처럼 원작 치수표에 없는 종류도 받는다)
   /* 도록 크기 보정 페이지(?cal)에서 실측해 준 배수(요청). */
   archon: 1.6, darchon: 1.6, corsair: 0.8, interceptor: 0.8, larva: 0.4, egg: 0.4,   // 아콘 둘 1.2 → 1.5 → 1.6(재요청)
-  muta: 0.9, scourge: 0.6, ultra: 1.4, guardian: 1.0, lurkeregg: 0.6, mutacocoon: 0.8,   // 뮤탈·가디언 0.8 → 1.0 → 뮤탈 0.9(요청)
+  muta: 0.9, scourge: 0.6, ultra: 2.0, guardian: 1.0, lurkeregg: 0.6, mutacocoon: 0.8,   // 뮤탈·가디언 0.8 → 1.0 → 뮤탈 0.9(요청) · 울트라 1.4 → 2.0(2026-10-11 요청)
+  valk: 1.2,   // 발키리 1.0(표 없음) → 1.2(2026-10-11 요청: "울트라 2.0 컨트롤타워 1.0 발키리 1.2")
   observer: 0.6,
   inf: 0.8, fbat: 0.8, ghost: 0.8,   // 메딕(inf)·파뱃(0.6 → 0.8 재요청)·고스트 — 마린(gunner)은 1.0으로 뺐다(재요청)
   htemp: 0.9,   // 0.6 → 1(요청) → 0.9(재요청). 다템은 표에서 빠져 1이다(원작 상자 24×24 대 24×26).
@@ -2103,7 +2104,7 @@ export const BLD_DRAW_TUNE: Record<string, number> = {
   creep: 1.2, sunken: 1.2, spore: 1.2,
   /* 종족별 비교 장면(scene-sheet)을 보고 정한 배수(요청) — 포지·트리뷰널은 1.0으로 되돌려 뺐다. */
   tombFlat: 1.1,                                                           // 벙커 1.2 → 1.0 → 1.1(2026-09, 요청: "벙커 1.0배" → "벙커 1.1배" — 곱이 아니라 값 자체)
-  comsat: 1.2, nsilo: 1.2, mshop: 1.2, ctower: 1.2, covert: 1.2, physlab: 1.2,   // 부속(애드온) 전부
+  comsat: 1.2, nsilo: 1.2, mshop: 1.2, ctower: 1.0, covert: 1.2, physlab: 1.2,   // 부속(애드온) 전부 · 컨트롤 타워만 1.2 → 1.0(2026-10-11 요청)
   scifac: 1.2,                                                             // 사이언스 퍼실리티
   arch: 1.2, cyber: 1.2, dome: 1.2, citadel: 1.2, archives: 1.2, observatory: 1.2, fleetbeacon: 1.2, sbattery: 1.2,
   robobay: 1.6,                                                            // 서포트 베이 1.2 → 1.4 → 1.6(재요청)
