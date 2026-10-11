@@ -3153,9 +3153,11 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
         const fd9 = u0 > dur9 - 1 ? dur9 - u0 : Math.min(1, u0 / 0.3);
         const br9 = 1.01 + 0.09 * Math.sin((u0 / 0.8) * Math.PI * 2);
         // 구름은 몸보다 넓다(몸 폭의 2.4배) — 원작의 방사능 연기는 몸을 통째로 삼킨다. 두 겹을 서로 반대로 돌려 살아 움직인다.
-        const k9 = 2.4 * br9;
+        /* 크기는 **고정**(2026-10-11, 요청: "이레디에이트 크기 증가 밝기 감소" → "크기는 고정이야 · 아콘 정도 · 아콘보다 좀 크거나") — f.size 가 걸린 몸이 아니라 아콘 몸 폭이고
+           (engine9 irrU 의 size) 그 1.2배로 편다(옛 걸린 몸 폭의 2.4배). 두 겹 알파 0.9·0.7 → 0.55·0.42 — 더하기 합성이라 알파가 곧 밝기다. */
+        const k9 = 1.2 * br9;
         ctx.globalCompositeOperation = "lighter";
-        for (const [dir9, kk9, al9] of [[1, 1, 0.9], [-1, 0.72, 0.7]] as [number, number, number][]) {
+        for (const [dir9, kk9, al9] of [[1, 1, 0.55], [-1, 0.72, 0.42]] as [number, number, number][]) {
           ctx.save();
           ctx.translate(ax, ay); ctx.rotate(dir9 * u0 * Math.PI * 2 * 0.3 + (f.seed ?? 0)); ctx.translate(-ax, -ay);
           blit9(irradSpr9(), k9 * kk9, fd9 * al9);

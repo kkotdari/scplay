@@ -444,6 +444,22 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     }
     return false;
   };
+  /** ★ 그 자리의 **고도 = 둘레 5×5 걸을 수 있는 칸의 가장 흔한 고도**(2026-10-11, 지적: "높이는 같고 사이에 벽이 있는데 언덕탱으로 나왔어 — 높은 땅을 잘못 판정") — 옛 판은
+   *  타일 한 칸만 읽어, 탱크 자리(마지막 명령 자리)나 건물 가운데 칸이 절벽 가장자리·딴 고도 표시 칸이면 같은 높이를 한 단 높게 읽었다. 걸을 칸이 없으면 그 칸 하나. */
+  const levelNear9 = (x9: number, y9: number): number => {
+    const tr9 = opts.terrain;
+    if (!tr9) return 0;
+    const cx9 = Math.floor(x9); const cy9 = Math.floor(y9);
+    const cnt9 = [0, 0, 0, 0];
+    for (let dy9 = -2; dy9 <= 2; dy9 += 1) for (let dx9 = -2; dx9 <= 2; dx9 += 1) {
+      if (!tr9.walk(cx9 + dx9, cy9 + dy9)) continue;
+      const lv9 = tr9.level(cx9 + dx9, cy9 + dy9);
+      if (lv9 >= 0 && lv9 <= 3) cnt9[lv9] += 1;
+    }
+    let best9 = -1; let bn9 = 0;
+    for (let i9 = 0; i9 < 4; i9 += 1) if (cnt9[i9] > bn9) { bn9 = cnt9[i9]; best9 = i9; }
+    return best9 >= 0 ? best9 : tr9.level(cx9, cy9);
+  };
   /** 그 자리 r 타일 안에 램프가 있나. */
   const rampNear9 = (x9: number, y9: number, r9: number): boolean => {
     const ramp9 = opts.terrain?.ramp;
@@ -501,7 +517,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     };
     for (const e9 of world.lives) {
       if (!own9.has(e9.owner)) continue;
-      /* 탱크 — 박은 자리에서 12 타일 안의 가장 가까운 적 건물을 본다. 언덕(제 고도가 더 높다) → 언덕탱 · 적 기지 밖에서 벽 너머로 → 옆탱(그 무렵 제 건물을 띄웠으면 시야 확보). */
+      /* 탱크 — 박은 자리에서 12 타일 안의 가장 가까운 적 건물을 본다. 적 기지 밖에서 벽 너머로 → 옆탱(그 무렵 제 건물을 띄웠으면 시야 확보 · 고도 무관 · 먼저) · 그 밖에서 언덕(제 고도가 더 높다) → 언덕탱. */
       if (e9.kind.startsWith("Siege Tank") && tr9) {
         for (const [ts9, on9] of e9.sieges) {
           if (!on9) continue;
@@ -514,15 +530,17 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
           }
           if (!tgt9) continue;
           const foe9 = rawOf9.get(tgt9.owner)!;
-          if (tr9.level(Math.floor(px9), Math.floor(py9)) > tr9.level(Math.floor(tgt9.bornX), Math.floor(tgt9.bornY))) {
-            add9(`hill|${foe9}`, ts9, [{ raw: raw9, p: "ga" }, { text: " 언덕탱으로 " }, { raw: foe9, p: "eul" }, { text: " 공격" }], "언덕탱");
-            continue;
-          }
+          /* ★ **옆탱이 먼저**(2026-10-11, 지적: "옆탱을 언덕탱으로 나오네 — 옆탱은 벽 너머로 때리는 거") — 옛 차례는 고도부터 봐서, 적 기지 옆 높은 땅에서 벽(절벽) 너머로
+             기지 안을 때리는 옆탱이 "언덕탱"이 됐다. 이제 적 기지 밖에서 벽 너머 그 기지 안을 치면 고도와 무관하게 옆탱 · 그 밖에서 제 고도가 더 높을 때만 언덕탱. */
           const fb9 = nearFoeBase9(tgt9.bornX, tgt9.bornY, ts9);
           const tankOut9 = !fb9 || Math.hypot(fb9.x - px9, fb9.y - py9) > BASE_R9;
           if (fb9 && fb9.d <= BASE_R9 && tankOut9 && wallBetween9(px9, py9, tgt9.bornX, tgt9.bornY)) {
             const lift9 = world.lives.some((b9) => b9.bld && own9.has(b9.owner) && b9.lifts.some((l9) => l9 >= ts9 - 90 && l9 <= ts9 + 10));
             add9(`side|${foe9}`, ts9, [{ raw: raw9, p: "ga" }, { text: " " }, { raw: foe9 }, { text: lift9 ? " 기지에 옆탱 · 건물 띄워 시야 확보" : " 기지에 옆탱" }], "옆탱");
+            continue;
+          }
+          if (levelNear9(px9, py9) > levelNear9(tgt9.bornX, tgt9.bornY)) {
+            add9(`hill|${foe9}`, ts9, [{ raw: raw9, p: "ga" }, { text: " 언덕탱으로 " }, { raw: foe9, p: "eul" }, { text: " 공격" }], "언덕탱");
           }
         }
       }
@@ -540,7 +558,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
           /* 입구럴커 — 제 본진 안쪽 가장자리(출발 자리 8 ~ BASE_R9+4 · 본진과 같은 고도 · 램프 5 타일 안). 지형이 있을 때만. */
           if (tr9?.ramp && st9) {
             const d9 = Math.hypot(st9.x - x9, st9.y - y9);
-            if (d9 >= 8 && d9 <= BASE_R9 + 4 && tr9.level(Math.floor(x9), Math.floor(y9)) === tr9.level(Math.floor(st9.x), Math.floor(st9.y)) && rampNear9(x9, y9, 5)) {
+            if (d9 >= 8 && d9 <= BASE_R9 + 4 && levelNear9(x9, y9) === levelNear9(st9.x, st9.y) && rampNear9(x9, y9, 5)) {
               add9("homeLurker", t9, [{ raw: raw9 }, { text: " 입구 럴커로 방어" }], "입구 럴커");
             }
           }
@@ -1049,9 +1067,12 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       if (best9) at9.set(best9, (at9.get(best9) ?? 0) + v9);
     }
     if (all9 <= 0) return null;
-    let own9 = ""; let ow9 = 0;
-    for (const [r9, v9] of at9) if (v9 > ow9) { ow9 = v9; own9 = r9; }
-    return own9 && ow9 / all9 >= TURF9.home ? own9 : null;
+    let own9 = ""; let ow9 = 0; let in9 = 0;
+    for (const [r9, v9] of at9) { in9 += v9; if (v9 > ow9) { ow9 = v9; own9 = r9; } }
+    if (own9 && ow9 / all9 >= TURF9.home) return own9;
+    /* ★ 기지 안 몫이 반을 넘으면 **기지 안에서** 다시 잰다(2026-10-11, 요청: "누군가의 기지에 여러 사람의 유닛이 있어도 그건 한 명의 기지를 공격한 것으로 판정해야 함") —
+       기지 밖(가는 길 · 입구 밖)에서 죽은 몫이 분모를 키워 임자가 못 서고 "A가 B C D를 공격"으로 읽혔다. */
+    return own9 && in9 / all9 >= 0.5 && ow9 / in9 >= TURF9.home ? own9 : null;
   };
   const sameSide9 = (a9: string, b9: string): boolean => a9 === b9 || (opts.teamOf?.[a9] !== undefined && opts.teamOf?.[a9] === opts.teamOf?.[b9]);
   const duel9 = (sc9: Sc9, pick9: string): Duel9 | undefined => {
@@ -1200,6 +1221,14 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     }
     return raws9.map((r9, i9): CapPart9 => (i9 < raws9.length - 1 ? { raw: r9 } : { raw: r9, p: last9 }));
   };   // 칩 사이 점은 없다(2026-10-10, 요청: "사이에 점 굳이 없어도 될듯") — 칩 여백이 가른다
+  /** ★ 헬프는 **팀으로**(2026-10-11, 요청: "한 명이 공격을 당하고 나머지 팀원이 도와준 경우 일일이 열거하지 말고 1팀 전체가 헬프") — 같은 팀 둘 이상이 도왔으면
+   *  " · N팀 전체가 헬프", 하나면 " · [C]가 헬프". */
+  const helpCap9 = (helps9: string[]): CapPart9[] => {
+    if (helps9.length === 0) return [];
+    const tm9 = opts.teamOf?.[helps9[0]];
+    if (helps9.length >= 2 && tm9 !== undefined && helps9.every((r9) => opts.teamOf?.[r9] === tm9)) return [{ text: ` · ${tm9}팀 전체가 헬프` }];
+    return [{ text: " · " }, ...chips9(helps9, "ga"), { text: " 헬프" }];
+  };
   const sceneCaps9 = (sc9: Sc9, pick9: string, d9: Duel9 | undefined): CapPart9[] => {
     capSec9 = sc9.t0;
     /* 오버로드 사냥 — 그 장면에서 주인공이 든 짝 가운데 공중 사냥꾼이 잡은 오버로드가 OVL_HUNT_N9 이상. */
@@ -1209,14 +1238,16 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     }
     const base0_9 = sceneCaps0_9(sc9, pick9, d9);
     /* ★ **뚝배기 파괴**(2026-10-11, 요청: "메인홀(뚝배기) 깨는 건 진짜 중요해서 꼭 보여줘야 함" → "아니 뚝배기 파괴") — 본진 건물을 깬 토막에서 주인공 편이 깼거나 잃었으면:
-       첫 문장이 이미 그 둘의 기지 일("[A]가 [B] 기지 마무리지음" · 엘리)이면 뒤에 ". 뚝배기 파괴"(엘리면 안 붙인다) · 아니면 "[A]가 [B] 뚝배기 파괴"가 머리다. */
+       자막은 "[A]가 [B] 뚝배기 파괴" 하나 — 엘리·기지 반파/대파/궤멸/마무리 자막이 서면 그것 그대로(뚝배기는 안 덧붙인다). */
     const base9 = ((): CapPart9[] => {
       const h9 = sc9.hall;
       if (!h9 || !(sameSide9(pick9, h9[0]) || sameSide9(pick9, h9[1]))) return base0_9;
       const txt0 = base0_9.map((c9) => c9.text ?? "").join("");
       if (/엘리/.test(txt0)) return base0_9;
-      const same9 = base0_9[0]?.raw === h9[0] && base0_9.some((c9) => c9.raw === h9[1]);
-      if (same9) return [...base0_9, { text: ". 뚝배기 파괴" }];
+      /* 기지를 부순 자막(반파·대파·궤멸·마무리)이 이미 서면 그것이 더 중요하다 — 뚝배기를 따로 말하지 않는다(같은 날 요청: "기지 반파 대파 궤멸시킴에 뚝배기 깨진 건
+         굳이 따로 뚝배기 강조 안 해도 됨 · 기지를 부순 게 더 중요"). */
+      if (/기지 (반파|대파|궤멸)|마무리지음/.test(txt0)) return base0_9;
+      /* 앞 문장에 덧붙이던 꼴("… 건물 파괴. 뚝배기 파괴")은 걷었다(같은 날 지적: "좀 부자연스러워 — 뚝배기 파괴만 나오면 됨"). */
       return [{ raw: h9[0], p: "ga" }, { text: " " }, { raw: h9[1] }, { text: " 뚝배기 파괴" }];
     })();
     /* ★ 덧말은 **주어가 있는 한 마디**다(2026-10-10, 요청: "뒤에 스톰 옆탱 이런 거 붙이지 말고 문장 안에 누가 썼는지 정확하게 표현") — 옛 꼬리 " · 스톰 · 옆탱"은
@@ -1318,7 +1349,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       const life9 = livesByTag9.get(kt9)?.find((e9) => e9.born <= ks9 && (e9.died === null || e9.died >= ks9));
       if (!life9 || life9.bld) continue;
       const [kx9, ky9] = posAt9(life9, ks9);
-      up9 += tr9.level(Math.floor(kx9), Math.floor(ky9)) - tr9.level(Math.floor(vx9), Math.floor(vy9));
+      up9 += levelNear9(kx9, ky9) - levelNear9(vx9, vy9);
       n9 += 1;
     }
     if (n9 < 3 || up9 / n9 < 1) return null;
@@ -1420,7 +1451,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       const name9 = rushKind9(a09, bo9, sc9.t0) ?? dropKind9(a09, bo9, sc9.t0) ?? (ak9 ? unitDrop9(a09, bo9, sc9.t0, ak9) : null) ?? "공격";   // 저글링러시는 이름 안 붙인다(2026-10-10, 요청: "저글링 러시 이런 거는 화면 보면 아니까 굳이 설명 x")
       const atts9 = name9 === "공격" ? d9.atks : [a09];
       return [...chips9(atts9, "ga"), { text: " " }, { raw: bo9 }, { text: name9 === "공격" ? " 기지 공격" : ` 기지에 ${name9}` },
-        ...(d9.helps && d9.helps.length > 0 ? [{ text: " · " } as CapPart9, ...chips9(d9.helps, "ga"), { text: " 헬프" } as CapPart9] : [])];
+        ...helpCap9(d9.helps ?? [])];
     }
     if (d9) {
       const foes9 = d9.foes.length > 0 ? d9.foes : [d9.foe];
@@ -1433,9 +1464,11 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
         (name9 === "공격"
           ? [...chips9(atts9, "ga"), { text: " " }, ...chips9(defs9, "eul"), { text: " 공격" }]
           : [...chips9(atts9, "ga"), { text: " " }, ...chips9(defs9), { text: `에게 ${name9}` }]);
-      if (d9.role === "atk") return hit9([pick9, ...d9.allies], foes9, attack9(pick9, d9.foe));
+      /* 맞은 쪽이 여럿이면 **나열하지 않고 주 상대 하나**(2026-10-11, 요청: "누구누구누구를 공격 이렇게 말고") — 그 팀 전원이면 "N팀 전원"(chips9). */
+      const one9 = (raws9: string[], main9: string): string[] => (raws9.length > 1 && chips9(raws9)[0]?.raw !== undefined ? [main9] : raws9);
+      if (d9.role === "atk") return hit9([pick9, ...d9.allies], one9(foes9, d9.foe), attack9(pick9, d9.foe));
       if (d9.role === "def") {
-        return [...hit9(foes9, [pick9], attack9(d9.foe, pick9)), ...(d9.allies.length > 0 ? [{ text: " · " } as CapPart9, ...chips9(d9.allies, "ga"), { text: " 헬프" } as CapPart9] : [])];
+        return [...hit9(foes9, [pick9], attack9(d9.foe, pick9)), ...helpCap9(d9.allies)];
       }
       // 교전은 **vs 로 팀을 가른다**(2026-10-09, 요청: "교전 시 vs 로 팀 갈라서 보여주고") — "A·B vs C·D 교전".
       return [...chips9([pick9, ...d9.allies]), { text: " vs " }, ...chips9(foes9), { text: " 교전" }];
@@ -2185,10 +2218,36 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       else out9.splice(i9 + 1, 0, seg9, ...(back9 ? [back9] : []));
     }
   }
+  /* ★ **첫 순환은 자리와 종족**(2026-10-11, 요청: "첫 장면들 순환할 때 순조롭게 발전 중보다는 몇 시와 종족을 말해 주면 좋을 듯 — 기수 7시 테란") — 사람마다 처음 순환으로
+     설 때 한 번 "[A] 7시 테란". 시는 지도 가운데에서 출발 자리를 본 시계 방향(위 12시 · 오른쪽 3시) · 가운데에 너무 가까우면(짧은 변의 0.12 안) 시를 뺀다. 지도 크기를
+     모르면 출발 자리들의 가운데가 기준. 종족은 참값 그대로(모르면 뺀다). */
+  const introDone9 = new Set<string>();
+  const clockOf9 = (raw9: string): string => {
+    const st9 = start9.get(raw9);
+    if (!st9) return "";
+    const sts9 = [...start9.values()];
+    const cx9 = opts.mapW ? opts.mapW / 2 : sts9.reduce((a9, p9) => a9 + p9.x, 0) / sts9.length;
+    const cy9 = opts.mapH ? opts.mapH / 2 : sts9.reduce((a9, p9) => a9 + p9.y, 0) / sts9.length;
+    const dx9 = st9.x - cx9; const dy9 = st9.y - cy9;
+    const short9 = Math.min(opts.mapW ?? 128, opts.mapH ?? 128);
+    if (Math.hypot(dx9, dy9) < short9 * 0.12) return "";
+    const deg9 = (Math.atan2(dx9, -dy9) * 180 / Math.PI + 360) % 360;   // 위 0 · 시계 방향
+    /* 대각 모서리는 스타 관례로 1·5·7·11시(정대각 225° 는 7.5 라 반올림하면 8시가 된다) — ±10° 안이면 그 값. */
+    const corner9: [number, number][] = [[45, 1], [135, 5], [225, 7], [315, 11]];
+    const cn9 = corner9.find(([c9]) => Math.abs(deg9 - c9) <= 10);
+    const h9 = cn9 ? cn9[1] : Math.round(deg9 / 30) % 12;
+    return `${h9 === 0 ? 12 : h9}시`;
+  };
   /* ★ 순환 토막의 자막(2026-10-09) — 그 사람이 그 창(다음 토막까지)에서 한 일: 연구 완료 > 빌드 이정표(창 안 > 최근) > 그 밖의 건설 > 국면 요약(위 ★★ 빌드 읽기). */
   for (let i9 = 0; i9 < out9.length; i9 += 1) {
     const sg9 = out9[i9];
-    if (sg9.caps && sg9.caps.length > 0) continue;
+    if (sg9.caps && sg9.caps.length > 0) { introDone9.add(sg9.raw); continue; }
+    if (sg9.cyc && !introDone9.has(sg9.raw)) {
+      introDone9.add(sg9.raw);
+      const race9 = world.players.find((pl9) => pl9.name === sg9.raw)?.race ?? "";
+      const where9 = [clockOf9(sg9.raw), race9].filter(Boolean).join(" ");
+      if (where9) { sg9.caps = [{ raw: sg9.raw }, { text: ` ${where9}` }]; continue; }
+    }
     sg9.caps = cycleCaps9(sg9.raw, sg9.at, i9 + 1 < out9.length ? out9[i9 + 1].at : total);
   }
   return out9;

@@ -3719,6 +3719,38 @@ export function deriveWorld9(inp: {
       walk: WalkView;
       /** 걸음이 코어(simCore)에서 왔나 — 렌더러 보정을 끄는 열쇠(과제 #61). */
     }[] = [];
+    /* ★ **이레디에이트는 대상 하나**(2026-10-11, 지적: "자신의 유닛이나 동맹 유닛에도 이레디에이트 걸 수 있고 그게 화면에 보여야 해 · 이레디에이트는 건 대상한테서만
+       표현돼야 함") — 옛 판은 다른 상태처럼 시전 자리 반경(r 1 + 몸 반지름) 안의 **적** 몸을 다 걸린 것으로 쳐, 제 편에 건 것은 안 보이고 대상 곁의 딴 몸에도 구름이
+       씌워졌다. 원작의 이레디에이트는 단일 표적이고 임자를 안 가린다 — 시전 순간 시전 자리에서 **가장 가까운 유닛 하나**(제 것·동맹·적 · 건물 아님 · IRR_PICK9 타일 안)가
+       대상이다. 고르는 자는 아래 상태 매기기와 같은 자취(코어 걸음 · 이 생애 구간)다. */
+    const IRR_PICK9 = 2.5;
+    const irrHit9 = new Map<(typeof entData.lives)[number], Set<CastRow>>();
+    {
+      const irrCasts9 = castsV2.filter((c9) => c9[3] === "Irradiate");
+      if (irrCasts9.length > 0) {
+        const best9 = new Map<CastRow, [number, (typeof entData.lives)[number]]>();
+        for (const e of entData.lives) {
+          if (e.bld || e.tag === -1) continue;
+          const tr9 = simTracks?.get(e.tag);
+          if (!tr9 || tr9.kt.length < 1) continue;
+          const end9 = e.died ?? Infinity;
+          let a9 = 0; while (a9 < tr9.kt.length && kT(tr9, a9) < e.born) a9 += 1;
+          let b9 = a9; while (b9 < tr9.kt.length && kT(tr9, b9) <= end9) b9 += 1;
+          if (b9 <= a9) continue;
+          const w9: WalkView = { tr: tr9, i0: a9, n: b9 - a9 };
+          for (const c9 of irrCasts9) {
+            if (c9[0] < e.born || c9[0] > end9) continue;
+            const p9 = posAtW(w9, c9[0]);
+            if (!p9) continue;
+            const d9 = Math.hypot(c9[1] - p9.x, c9[2] - p9.y);
+            if (d9 > IRR_PICK9) continue;
+            const cur9 = best9.get(c9);
+            if (!cur9 || d9 < cur9[0]) best9.set(c9, [d9, e]);
+          }
+        }
+        for (const [c9, [, e9]] of best9) { const s9 = irrHit9.get(e9); if (s9) s9.add(c9); else irrHit9.set(e9, new Set([c9])); }
+      }
+    }
     for (const e of entData.lives) {
       // 건물(태그·물리 모두)은 v1 층이 계속 그린다 — 여기는 유닛만.
       /* 건물(태그·물리 -1)은 v1 건물 층이 그린다. 합성 개체(원장 출신, -1000 이하)는
@@ -3846,9 +3878,12 @@ export function deriveWorld9(inp: {
       /* 상태(전수조사) — 시전 순간 그 자리에 있었으면 걸린다. 적이 건 것만(스태시스는
          아군 오폭도 언다). */
       const statuses: [number, number, string][] = [];
-      for (const [cs5, cx9, cy9, tech5, craw5] of castsV2) {
+      for (const c5 of castsV2) {
+        const [cs5, cx9, cy9, tech5, craw5] = c5;
         const cfg = STATUS_CASTS[tech5];
         if (!cfg) continue;
+        /* 이레디에이트는 위에서 고른 대상 하나만(irrHit9 ★ — 제 것·동맹도). */
+        if (tech5 === "Irradiate") { if (irrHit9.get(e)?.has(c5)) statuses.push([cs5, cs5 + cfg.dur, cfg.kind]); continue; }
         if (!cfg.any && craw5 === raw) continue;
         const pp5 = posAtW(wk, cs5);
         if (!pp5) continue;
@@ -8698,7 +8733,9 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         fxOps.push({
           kind: "dom", style: "cast", sub: stNow9[2] === "mael" ? "maelU" : "irrU", fx, fy,
           lift: (uAir ? airLiftPxOf(ay3) : 0) + rise9 * cpx8 + cpx8 * 0.24,
-          size: cpx8 * (modelInkOf(kindMain) / 16), age: t - stNow9[0], seed: e.tag % 97,
+          /* 이레디에이트 구름은 **크기 고정 — 아콘 몸 폭**(2026-10-11, 요청: "이레디에이트 크기는 고정이야 · 아콘 정도 크기 · 아콘보다 좀 크거나") — 걸린 몸의 크기를 안 탄다
+             (그리는 쪽 irrU 가 이 폭의 1.2배로 편다). 마엘스톰은 종전대로 걸린 몸 폭. */
+          size: stNow9[2] === "irr" ? unitPxOf("Archon", ay3) * (modelInkOf("archon") / 16) : cpx8 * (modelInkOf(kindMain) / 16), age: t - stNow9[0], seed: e.tag % 97,
         });
       }
     }

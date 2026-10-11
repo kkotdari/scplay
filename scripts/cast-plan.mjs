@@ -662,7 +662,7 @@ rmSync(tmp, { recursive: true, force: true });
     ["하템 한 대 드랍 + 스톰 일꾼 → '기지에 하이템플러 드랍. 스톰으로 일꾼 4기 잡음'", at(290, 310).some((c) => c === "[A]ga [C] 기지에 하이템플러 드랍. 스톰으로 일꾼 4기 잡음")],
     ["처음 피해 → '[A]ga [D] 기지 반파시킴'", at(490, 510).some((c) => c === "[A]ga [D] 기지 반파시킴")],
     ["같은 사람이 더 부숨 → '[A]ga 이어서 [D] 기지 대파시킴'", at(510, 530).some((c) => c === "[A]ga 이어서 [D] 기지 대파시킴")],
-    ["뒤늦게 온 사람이 끝냄 → '[B]ga [D] 기지 마무리지음'", at(590, 610).some((c) => c.startsWith("[B]ga [D] 기지 마무리지음"))],
+    ["뒤늦게 온 사람이 끝냄 → '[B]ga [D] 기지 마무리지음'(넥서스가 깨져도 기지 자막이 이긴다 · 2026-10-11)", at(590, 610).some((c) => c === "[B]ga [D] 기지 마무리지음")],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }
 
@@ -853,6 +853,81 @@ rmSync(tmp, { recursive: true, force: true });
   const plan = castPlan9(w, { total: 400, order: ["A", "C", "B", "D"], teamOf: { A: 1, B: 1, C: 2, D: 2 } });
   console.log(`\n뚝배기: ${plan.filter((s) => s.at >= 90 && s.at < 220).map((s) => `${s.at.toFixed(0)} ${capTxt(s)}`).join(" · ")}`);
   for (const [name, pass] of [
-    ["긴 전투 중에도 본진 건물을 깨면 그리로 간다 · '[B]ga [D] 뚝배기 파괴'", plan.some((s) => s.at >= 140 && s.at <= 152 && /^\[B\]ga \[D\].*뚝배기 파괴$/.test(capTxt(s)))],
+    ["긴 전투 중에도 본진 건물을 깨면 그리로 간다 · '[B]ga [D] 뚝배기 파괴'", plan.some((s) => s.at >= 140 && s.at <= 152 && capTxt(s) === "[B]ga [D] 뚝배기 파괴")],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
+
+/* ── ㉗ 옆탱이 먼저(2026-10-11, 지적: "옆탱을 언덕탱으로 나오네 — 옆탱은 벽 너머로 때리는 거") — 지도 128. x 36·37(y 0~40) 벽 · 벽 서쪽(x < 36)은 고도 2(높은 땅).
+   T(테란 20,20) 탱크가 160초 (34,22) 높은 땅에서 시즈 — 벽 너머 Y(저그 52,20)의 스포닝풀(44,20) → "옆탱"(언덕탱 아님). */
+{
+  const W = 128;
+  const wall = (x, y) => (x === 36 || x === 37) && y >= 0 && y <= 40;
+  const tw = { level: (x) => (x < 36 ? 2 : 0), walk: (x, y) => x >= 0 && y >= 0 && x < W && y < W && !wall(x, y), ramp: () => false };
+  let tt = 120000;
+  const L = [];
+  const mk = (o, kind, bld, x, y, born, ex = {}) => { const e = { tag: (tt += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [], ...ex }; L.push(e); return e; };
+  mk(0, "Command Center", true, 20, 20, 0); mk(1, "Hatchery", true, 52, 20, 0); mk(1, "Spawning Pool", true, 44, 20, 0);
+  mk(0, "Siege Tank (Tank Mode)", false, 20, 20, 100, { orders: [[150, 34, 22, false]], sieges: [[160, true]] });
+  const w = { players: [["T", "테란", 1], ["Y", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
+    lives: L, ups: [], casts: [], pings: [], resFields: [], kills: [], sels: [], builds: [] };
+  const caps = castPlan9(w, { total: 400, order: ["T", "Y"], teamOf: { T: 1, Y: 2 }, mapW: W, mapH: W, terrain: tw }).map((s) => capTxt(s));
+  console.log(`\n옆탱 먼저: ${[...new Set(caps)].filter((c) => /탱/.test(c)).join(" · ")}`);
+  for (const [name, pass] of [
+    ["높은 땅에서 벽 너머 적 기지 → '옆탱'(언덕탱 아님)", caps.some((c) => /\[T\]ga \[Y\] 기지에 옆탱/.test(c)) && !caps.some((c) => /언덕탱/.test(c))],
+    /* 같은 높이 · 탱크 자리 한 칸만 고도 2(절벽 가장자리 따위) · 표적은 적 기지 밖(해처리에서 먼 크립) — 옛 한 칸 고도 판정은 "언덕탱"이었다(지적: "높이는 같고 사이에 벽이 있는데
+       언덕탱으로 나왔어"). 이제 둘레 5×5 의 가장 흔한 고도라 같은 높이다. */
+    ["같은 높이 · 탱크 칸만 높게 표시 → '언덕탱' 아님", (() => {
+      const tw2 = { ...tw, level: (x, y) => (x === 34 && y === 22 ? 2 : 0) };
+      const L2 = L.filter((e) => e.kind !== "Spawning Pool" && e.kind !== "Hatchery").concat([
+        { ...L.find((e) => e.kind === "Hatchery"), tag: 120998, bornX: 100, bornY: 100 },
+        { ...L.find((e) => e.kind === "Spawning Pool"), tag: 120999, kind: "Creep Colony", bornX: 42, bornY: 26 }]);   // 표적은 탱크 9타일 · 적 기지(100,100) 밖
+      const c2 = castPlan9({ ...w, lives: L2 }, { total: 400, order: ["T", "Y"], teamOf: { T: 1, Y: 2 }, mapW: W, mapH: W, terrain: tw2 }).map((x) => capTxt(x));
+      return !c2.some((c) => /언덕탱/.test(c));
+    })()],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
+
+/* ── ㉘ 팀 헬프 · 한 사람의 기지(2026-10-11, 요청: "한 명이 공격당하고 나머지 팀원이 도와준 경우 일일이 열거하지 말고 1팀 전체가 헬프 · 누군가의 기지에 여러 사람의
+   유닛이 있어도 그건 한 명의 기지를 공격한 것으로") — 3v3 A·B·X(1팀) 대 C·D·E(2팀). 300~320초 A 마린 열둘이 C 본진(100,100)에서 C·D·E 의 히드라에 죽고(D·E 가 헬프),
+   C 히드라 넷이 A 에게 죽는다 · A 마린 넷은 기지 밖 (70,70)에서 죽는다(가는 길) → "[A]ga [C] 기지 공격 · 2팀 전체가 헬프". */
+{
+  let t9 = 130000;
+  const L = []; const kills = [];
+  const mk = (o, kind, bld, x, y, born, ex = {}) => { const e = { tag: (t9 += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [], ...ex }; L.push(e); return e; };
+  mk(0, "Command Center", true, 10, 10, 0); mk(1, "Command Center", true, 10, 60, 0); mk(2, "Command Center", true, 10, 118, 0);
+  mk(3, "Hatchery", true, 100, 100, 0); mk(4, "Hatchery", true, 118, 60, 0); mk(5, "Hatchery", true, 60, 118, 0);
+  const am = Array.from({ length: 4 }, () => mk(0, "Marine", false, 10, 10, 50, { orders: [[290, 99, 99, false]] }));
+  const hy = [3, 4, 5].map((o) => mk(o, "Hydralisk", false, 100, 100, 50, { orders: [[290, 100, 100, false]] }));
+  for (let i = 0; i < 12; i += 1) { const t = 300 + i * 1.5; const m = mk(0, "Marine", false, 10, 10, 50, { died: t, end: "atk", orders: [[t - 2, 99, 99, false]] }); kills.push([t, [3, 4, 5][i % 3], hy[i % 3].tag, m.tag]); }
+  for (let i = 0; i < 4; i += 1) { const t = 301 + i * 3; const h = mk(3, "Hydralisk", false, 100, 100, 50, { died: t, end: "atk", orders: [[t - 2, 101, 101, false]] }); kills.push([t, 0, am[i].tag, h.tag]); }
+  for (let i = 0; i < 4; i += 1) { const t = 299 + i; const m = mk(0, "Marine", false, 10, 10, 50, { died: t, end: "atk", orders: [[t - 2, 70, 70, false]] }); kills.push([t, 4, hy[1].tag, m.tag]); }
+  const w = { players: [["A", "테란", 1], ["B", "테란", 1], ["X", "테란", 1], ["C", "저그", 2], ["D", "저그", 2], ["E", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
+    lives: L, ups: [], casts: [], pings: [], resFields: [], kills, sels: [], builds: [] };
+  const plan = castPlan9(w, { total: 500, order: ["A", "C", "B", "D", "X", "E"], teamOf: { A: 1, B: 1, X: 1, C: 2, D: 2, E: 2 } });
+  const caps = plan.filter((s) => s.at >= 290 && s.at < 330 && !s.cyc).map((s) => capTxt(s));
+  console.log(`\n팀 헬프·한 사람의 기지: ${[...new Set(caps)].join(" · ")}`);
+  for (const [name, pass] of [
+    ["C 기지 싸움에 C 팀원 둘이 도움 → '[A]ga [C] 기지 공격 · 2팀 전체가 헬프'", caps.some((c) => c === "[A]ga [C] 기지 공격 · 2팀 전체가 헬프")],
+    ["맞은 사람을 나열하지 않는다(' [C] [D] [E]' 꼴 없음)", !caps.some((c) => /\[C\] \[D\]|\[D\] \[E\]/.test(c))],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
+
+/* ── ㉙ 첫 순환은 자리와 종족(2026-10-11, 요청: "첫 장면들 순환할 때 순조롭게 발전 중보다는 몇 시와 종족 — 기수 7시 테란") — 지도 128 · A 테란 (16,112) 7시 · B 저그 (112,16) 1시 ·
+   C 프로토스 (112,64) 3시. 사람마다 첫 순환 토막이 "[A] 7시 테란"이고 둘째부터는 옛 글귀. */
+{
+  let t9 = 140000;
+  const L = [];
+  const mk = (o, kind, x, y) => L.push({ tag: (t9 += 1), owner: o, kind, born: 0, bornX: x, bornY: y, died: null, end: "", bld: true, sites: [[0, x - 1, y - 1]], doneAt: 0, lifts: [], cloaks: [], sieges: [], orders: [] });
+  mk(0, "Command Center", 16, 112); mk(1, "Hatchery", 112, 16); mk(2, "Nexus", 112, 64);
+  const w = { players: [["A", "테란", 1], ["B", "저그", 2], ["C", "프로토스", 3]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
+    lives: L, ups: [], casts: [], pings: [], resFields: [], kills: [], sels: [], builds: [] };
+  const plan = castPlan9(w, { total: 200, order: ["A", "B", "C"], mapW: 128, mapH: 128 });
+  const first = (r) => plan.find((s) => s.raw === r);
+  console.log(`\n첫 순환: ${["A", "B", "C"].map((r) => capTxt(first(r))).join(" · ")} | 둘째 A: ${capTxt(plan.filter((s) => s.raw === "A")[1] ?? {})}`);
+  for (const [name, pass] of [
+    ["첫 순환 '[A] 7시 테란' · '[B] 1시 저그' · '[C] 3시 프로토스'", capTxt(first("A")) === "[A] 7시 테란" && capTxt(first("B")) === "[B] 1시 저그" && capTxt(first("C")) === "[C] 3시 프로토스"],
+    ["둘째 순환부터는 자리·종족이 아니다", !/시 (테란|저그|프로토스)$/.test(capTxt(plan.filter((s) => s.raw === "A")[1] ?? { caps: [] }))],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }

@@ -166,13 +166,14 @@ export default function ReplayFullscreenMinimap({
       /* 왼위로 걸친 팀 배지(2026-10-11)의 삐져나온 몫 — 죄기(아래)가 그만큼 더 안으로 민다(배지가 판 밖으로 안 잘리게). */
       const bd = el.querySelector(".scr-fs-minitag-team")?.getBoundingClientRect();
       const ex = bd ? Math.max(0, r.left - bd.left) : 0; const ey = bd ? Math.max(0, r.top - bd.top) : 0;
-      return { el, x: (parseFloat(el.style.left) / 100) * W, y: (parseFloat(el.style.top) / 100) * H, w: r.width, h: r.height, dy: 0, ex, ey };
+      const exr = bd ? Math.max(0, bd.right - r.right) : 0;   // 오른위로 걸친 배지(2026-10-11 · 우상단)의 오른쪽 몫
+      return { el, x: (parseFloat(el.style.left) / 100) * W, y: (parseFloat(el.style.top) / 100) * H, w: r.width, h: r.height, dy: 0, ex, ey, exr };
     });
     for (let pass = 0; pass < 3; pass += 1) {
       for (let i = 0; i < items.length; i += 1) for (let j = i + 1; j < items.length; j += 1) {
         const a = items[i]; const b = items[j];
         /* 상자는 왼위로 걸친 팀 배지까지(ex·ey · 2026-10-11) — 안 그러면 이웃 칩이 배지를 덮는다(칩은 transform 이라 배지의 z-index 가 칩 밖으로 못 나간다). */
-        const al = a.x - a.w / 2 - a.ex; const ar = a.x + a.w / 2; const bl = b.x - b.w / 2 - b.ex; const br = b.x + b.w / 2;
+        const al = a.x - a.w / 2 - a.ex; const ar = a.x + a.w / 2 + a.exr; const bl = b.x - b.w / 2 - b.ex; const br = b.x + b.w / 2 + b.exr;
         const at = a.y + a.dy - a.h / 2 - a.ey; const ab = a.y + a.dy + a.h / 2; const bt = b.y + b.dy - b.h / 2 - b.ey; const bb = b.y + b.dy + b.h / 2;
         const ox = Math.min(ar, br) - Math.max(al, bl);
         const oy = Math.min(ab, bb) - Math.max(at, bt) + 1;
@@ -185,7 +186,7 @@ export default function ReplayFullscreenMinimap({
        hidden)으로 잘렸다. 가로·세로 다 제 네모가 판 안에 다 들게 민다(margin). */
     for (const it of items) {
       const dy = Math.max(it.h / 2 + it.ey - it.y, Math.min(H - it.h / 2 - it.y, it.dy));
-      const dx = Math.max(it.w / 2 + it.ex - it.x, Math.min(W - it.w / 2 - it.x, 0));
+      const dx = Math.max(it.w / 2 + it.ex - it.x, Math.min(W - it.w / 2 - it.exr - it.x, 0));
       it.el.style.marginTop = Math.abs(dy) > 0.5 ? `${dy.toFixed(1)}px` : "0px";
       it.el.style.marginLeft = Math.abs(dx) > 0.5 ? `${dx.toFixed(1)}px` : "0px";
     }
@@ -591,11 +592,11 @@ export default function ReplayFullscreenMinimap({
             <span
               key={tg.key}
               className={`scr-fs-minitag is-${tg.tier}${tg.dim ? " is-dim" : ""}`}
-              style={{ left: `${(tg.fx * 100).toFixed(2)}%`, top: `${(tg.fy * 100).toFixed(2)}%`, background: tg.bg, color: tg.fg }}
+              style={{ left: `${(tg.fx * 100).toFixed(2)}%`, top: `${(tg.fy * 100).toFixed(2)}%`, color: tg.fg }}
               title={tg.dim ? `${tg.name} — 나감·탈락` : tg.name}
             >
-              {/* 글자는 안쪽 칸이 자른다(말줄임) — 겉 상자는 안 잘라야 팀 배지가 왼위로 걸친다(2026-10-11, 요청: "미니맵 유저칩에 팀 배지(팀색 동그라미에 팀 숫자)를 좌상단에 걸치게 오버레이로"). */}
-              <span className="scr-fs-minitag-txt">{tg.name}</span>
+              {/* 칩의 바탕·여백은 안쪽 글자 칸이 든다(말줄임도) — 팀 배지가 그 **뒤**로 오른위에 걸친다(2026-10-11, 요청: "닉네임칩 뒤에 걸쳐서 · 우상단으로"). */}
+              <span className="scr-fs-minitag-txt" style={{ background: tg.bg }}>{tg.name}</span>
               {tg.team !== undefined && <i className="scr-fs-minitag-team" style={{ background: TEAM_COLOR[tg.team] ?? "#666" }}>{tg.team}</i>}
             </span>
           ))}

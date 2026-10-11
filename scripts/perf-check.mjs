@@ -418,7 +418,11 @@ function makeWorld() {
   }
   w.u32(upRows.length);                // 업그레이드(--dockebay) — 판 7부터 줄마다 건물 태그
   { let pf = 0; for (const [f, id, lv, o, tg] of upRows) { w.vz(f - pf); pf = f; w.u16(id); w.u8(lv); w.u8(o); w.u32(tg); } }
-  w.u32(0);                            // 마법
+  /* --irr(2026-10-11) — 44초에 화면 가운데(62,64 · 46초 난전 자리 언저리)로 0번 사람이 이레디에이트(기술 7) — 대상은 그 자리에서 가장 가까운 몸 하나(제 것·적 가리지 않음).
+     --irrxy x,y 로 자리를 바꾼다. 화면은 --castoff --zoom 4 --cx/--cy 로 그 자리에. */
+  const irrXY9 = String(flag("--irrxy", "62,64")).split(",").map(Number);
+  const casts9 = has("--irr") ? [[F(44), irrXY9[0] * 32, irrXY9[1] * 32, 7, Number(flag("--irrby", 0))]] : [];
+  w.u32(casts9.length); { let pf = 0; for (const [f, x, y, tc, o] of casts9) { w.vz(f - pf); pf = f; w.u16(x); w.u16(y); w.u8(tc); w.u8(o); } }   // 마법
   /* 핑(--marks · 2026-10, UI 색 검산) — 44.5초에 정구(0 · 화면 주인이면 원작 초록 rgb(16,252,24)) · Rex(1 · 같은 편 → 제 색) · 수달이(2 · 적 →
      시점 보기에선 안 보임).
      자리는 가운데 난전 근처(병력이 46초쯤 거기 모여 카메라가 그쪽을 본다) · 좌표는 px(타일 × 32) — 덤퍼가 쓰는 자와 같다. */

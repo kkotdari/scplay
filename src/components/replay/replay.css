@@ -3755,15 +3755,21 @@
 .scr-motion-pc9 .scr-fs-minitag.is-m { font-size: calc(12px * var(--dks, 1)); }
 .scr-motion-pc9 .scr-fs-minitag.is-l { font-size: calc(14px * var(--dks, 1)); }
 .scr-fs-minitag.is-dim { opacity: 0.42; filter: grayscale(0.85); }
-/* 이름 글자 칸 — 길면 말줄임(겉 상자의 max-width 안). */
-.scr-fs-minitag-txt { display: block; overflow: hidden; text-overflow: ellipsis; }
-/* ★ 팀 배지(2026-10-11, 요청: "미니맵 유저칩에 팀 배지(팀색 동그라미에 팀 숫자)를 좌상단에 걸치게 오버레이로 붙이기") — 칩 왼위 귀퉁이에 가운데를 두고 반쯤 걸친다.
-   팀색은 색 모드를 안 탄다(markers TEAM_COLOR · 분할 칸 테두리와 같은 색) · 지름 = 칩 글자의 1.2em(짝수) · 흰 숫자 · 검은 테. 팀전만(밀리는 없다). */
-.scr-fs-minitag-team {
-  position: absolute; left: 0; top: 0; transform: translate(-45%, -50%); z-index: 2;   /* 붙은 이웃 칩보다 위(칩은 쌓임 맥락이 없다) */
-  display: grid; place-items: center; width: round(nearest, 1.2em, 2px); height: round(nearest, 1.2em, 2px); border-radius: 50%;
-  font-style: normal; font-weight: 800; font-size: 0.8em; line-height: 1; color: #fff;
+/* ★ 칩의 바탕·여백·그림자는 **안쪽 글자 칸**이 든다(2026-10-11) — 겉 상자(.scr-fs-minitag)는 transform 이라 제 쌓임 맥락이고, 제 바탕은 그 맥락의 맨 아래라 아이를
+   그 뒤로 못 보낸다. 바탕을 안쪽 칸으로 옮기면 팀 배지(z-index −1)가 칩 **뒤**로 간다. 바탕색은 TSX 가 안쪽 칸에 싣는다(tg.bg). */
+.scr-fs-minitag { padding: 0; box-shadow: none; background: none; }
+.scr-fs-minitag-txt {
+  display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  padding: 0 round(nearest, 0.35em, 2px); border-radius: 2px;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.75), 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+/* ★ 팀 배지(2026-10-11, 요청: "미니맵 유저칩에 팀 배지(팀색 동그라미에 팀 숫자)" → "크기·숫자 축소" → "닉네임칩 뒤에 걸쳐서 보이게 · 우상단으로") — 칩 **오른위 귀퉁이 뒤**로
+   반쯤 걸친 작은 동그라미(z-index −1 · 칩 바탕이 앞). 팀색은 색 모드를 안 탄다(markers TEAM_COLOR · 분할 칸 테두리와 같은 색) · 숫자 0.5em · 지름 = 숫자의 1.6em(짝수) · 팀전만. */
+.scr-fs-minitag-team {
+  position: absolute; right: 0; top: 0; transform: translate(62%, -58%); z-index: -1;   /* 숫자가 읽히게 반 넘게 밖으로 */
+  display: grid; place-items: center; width: round(nearest, 1.6em, 2px); height: round(nearest, 1.6em, 2px); border-radius: 50%;
+  font-style: normal; font-weight: 800; font-size: 0.5em; line-height: 1; color: #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6);
 }
 .scr-fs-minitag:focus-visible { outline: 1px solid #fff; outline-offset: 1px; }
 
