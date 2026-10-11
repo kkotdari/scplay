@@ -708,6 +708,17 @@ if (has("--msgsize")) {
     });
   });
 }
+/* --resfill(2026-10-11) — 픽스처 자원 절이 비어 전광판 자원 칸이 빈칸이다. 빈 자원 칸에 가장 긴 꼴("12345/9999")을 늘 채워 칸 폭을 검산한다. */
+if (has("--resfill")) {
+  await page.addInitScript(() => {
+    setInterval(() => {
+      for (const c of document.querySelectorAll(".scr-dock-cell.is-res")) {
+        if (c.querySelector(".scr-dock-lab") || c.textContent) continue;
+        c.innerHTML = '<span class="scr-motion-stat-min">12345</span><span class="scr-dock-ressep">/</span><span class="scr-motion-stat-gas">9999</span>';
+      }
+    }, 200);
+  });
+}
 if (has("--noro")) {
   await page.addInitScript(() => {
     Object.defineProperty(window, "ResizeObserver", { value: undefined, configurable: true });

@@ -75,9 +75,9 @@ export default function ReplayGuide({ onClose }: {
             <span className="scr-guide-tbtn scr-guide-tbtn-share" aria-hidden="true"><Share2 size={15}/></span>
           </div>
           <ul className="scr-guide-legend">
-            <li><span className="scr-guide-ic"><Play size={14} fill="currentColor"/></span><span><b>재생 / 일시정지</b> — 스페이스와 같습니다. 끝까지 본 뒤 누르면 처음부터(↺).</span></li>
+            <li><span className="scr-guide-ic"><Play size={14} fill="currentColor"/></span><span><b>재생 / 일시정지</b> — F 키와 같습니다. 끝까지 본 뒤 누르면 처음부터(↺).</span></li>
             <li><span className="scr-guide-ic scr-guide-ic-txt">↔</span><span><b>진행바</b> — 끌어서 원하는 시각으로. 좌우 화살표는 누르는 동안 계속 감깁니다.</span></li>
-            <li><span className="scr-guide-ic scr-guide-ic-txt">×2</span><span><b>배속 다이얼</b> — 지도 오른쪽 아래의 세로 눈금(1·2·4·8). 누르거나 위아래로 끌면 ×1~×8 사이에서 부드럽게 바뀌고, 눈금 근처에서는 그 눈금에 붙습니다. PC에서는 그 위에서 <b>휠</b>을 굴려도 되고, 휠은 눈금마다 한 번씩 걸립니다. 중계 중에도 됩니다.</span></li>
+            <li><span className="scr-guide-ic scr-guide-ic-txt">×2</span><span><b>배속 다이얼</b> — 지도 오른쪽 아래의 세로 눈금(1·2·4·8). 누르거나 위아래로 끌면 ×1~×8 사이에서 부드럽게 바뀌고, 눈금 근처에서는 그 눈금에 붙습니다. PC에서는 그 위에서 <b>휠</b>을 굴려도 되고, 휠은 눈금마다 한 번씩 걸립니다. ↑·↓ 키로도 눈금 한 칸씩. 중계 중에도 됩니다.</span></li>
             <li><span className="scr-guide-ic scr-guide-ic-txt">▼</span><span><b>접기</b> — 버튼 줄 정가운데의 작은 단추. 누르면 그 위의 전광판·미니맵·인포창이 통째로 접혀 지도가 그만큼 넓어지고, 한 번 더 누르면(▲) 다시 펼쳐집니다.</span></li>
             <li><span className="scr-guide-ic"><Bookmark size={14}/></span><span><b>장면 스크랩</b> — 제목을 붙여 담아 둡니다. 담아 둔 장면은 <b>스크랩</b> 화면에서 다시 엽니다.</span></li>
             <li><span className="scr-guide-ic"><Share2 size={14}/></span><span><b>장면 공유</b> — 카톡으로 보냅니다(안 되면 링크 복사). 시각·자리·배율·배속·각도까지 링크에 실립니다(중계 중이면 자리 대신 중계).</span></li>
@@ -125,7 +125,7 @@ export default function ReplayGuide({ onClose }: {
         </p>
         <ul className="scr-guide-legend">
           <li><span className="scr-guide-ic scr-guide-ic-txt">↔</span><span><b>끌기</b> — 지도를 잡고 끌면 그쪽으로 움직입니다(PC는 마우스, 폰은 한 손가락). PC에서는 W·A·S·D로도 밀립니다.</span></li>
-          <li><span className="scr-guide-ic scr-guide-ic-txt">휠</span><span><b>마우스 휠</b> — 굴리면 그 자리를 중심으로 한 배씩 키우고 줄입니다. ↑·↓ 키는 1·2·4·8·16배를 한 칸씩 오갑니다.</span></li>
+          <li><span className="scr-guide-ic scr-guide-ic-txt">휠</span><span><b>마우스 휠</b> — 굴리면 그 자리를 중심으로 한 배씩 키우고 줄입니다. E·Q 키는 1·2·4·8·16배를 한 칸씩 오갑니다.</span></li>
           <li><span className="scr-guide-ic scr-guide-ic-txt">✌</span><span><b>핀치</b> — 폰에서 두 손가락을 벌리면 커지고 모으면 작아집니다. 한 손가락으로 끌면서 함께 해도 됩니다.</span></li>
           <li><span className="scr-guide-ic scr-guide-ic-txt">×2</span><span><b>두 번 누르기</b> — 그 자리를 한 번에 8배로 당깁니다(더블클릭·더블탭). 한 번 더 누르면 1배로 돌아옵니다.</span></li>
           <li><span className="scr-guide-ic"><MapIcon size={15}/></span><span><b>미니맵</b> — 쇠판 가운데의 작은 지도를 누르거나 끌면 그 자리로 화면이 갑니다. 그 위에서 휠을 굴려도 확대·축소됩니다. 중계·개인 화면·분할 중에는 카메라가 잠겨 안내만 뜹니다.</span></li>
@@ -137,11 +137,21 @@ export default function ReplayGuide({ onClose }: {
           켜진 단추는 <b>초록</b>이고, 지금 보여 주는 사람은 전광판에서 <b>이름이 빛납니다</b>. 화면 위 가운데에 <b>누구 화면인지</b> 이름표가 서고, 쇠판의 미니맵은 그 사람 시야입니다.
         </p>
         <div className="scr-guide-mock">
+          {/* 전광판 머리 줄 + 두 줄(2026-10-11, 지적: "중계고르기 부분 이미지가 다름") — 옛 TV 목록(흰 바탕 AUTO · 색 점) 그림을 지금 전광판 꼴로:
+              AUTO·전체 알약 · 줄마다 카메라 단추 + 종족 배지 이름칩 · 켜짐은 반투명 초록 · 보여 주는 사람은 칩이 빛난다. */}
           <div className="scr-guide-castlist" aria-hidden="true">
-            <span className="scr-guide-castitem is-on">AUTO</span>
-            <span className="scr-guide-castitem">전체</span>
-            <span className="scr-guide-castitem"><i className="scr-guide-castdot" style={{ background: "#2b62e8" }}/>정구</span>
-            <span className="scr-guide-castitem"><i className="scr-guide-castdot" style={{ background: "#f88c14" }}/>팍규</span>
+            <div className="scr-guide-castrow">
+              <span className="scr-guide-cam is-on is-pill"><Video size={14}/>AUTO</span>
+              <span className="scr-guide-cam is-pill"><Video size={14}/>전체</span>
+            </div>
+            <div className="scr-guide-castrow">
+              <span className="scr-guide-cam"><Video size={14}/></span>
+              <span className="scr-guide-castchip is-shown" style={{ background: "#2b62e8", color: "#fff", ["--pcol" as string]: "#2b62e8" } as React.CSSProperties}><i className="scr-guide-castrace">T</i>정구</span>
+            </div>
+            <div className="scr-guide-castrow">
+              <span className="scr-guide-cam"><Video size={14}/></span>
+              <span className="scr-guide-castchip" style={{ background: "#f88c14", color: "#10151a" }}><i className="scr-guide-castrace">Z</i>팍규</span>
+            </div>
           </div>
           <ul className="scr-guide-legend">
             <li>
@@ -169,20 +179,7 @@ export default function ReplayGuide({ onClose }: {
           </ul>
         </div>
 
-        <h3 className="scr-guide-h3">중계 자막</h3>
-        <p className="scr-guide-sub">
-          자동 중계에서는 화면 아래 가운데에 <strong>장면마다 자막</strong>이 섭니다. 자막은 <b>그 화면에 나오는 일</b>을 <b>그 일이 일어난 때</b>에 말하고,
-          지도 다른 곳에서 동시에 난 일은 섞지 않습니다. 이름은 이름표 칩이고, 한 팀이 다 나오면 <b>1팀 전원</b>처럼 묶습니다.
-        </p>
-        <ul className="scr-guide-legend">
-          <li><span className="scr-guide-ic scr-guide-ic-txt">싸움</span><span><b>싸움</b> — 싸움터가 <b>누구 기지</b>인지로 가릅니다: "A가 C 기지 공격 · D가 헬프"(공격당한 사람은 그 기지 주인) · 기지 밖은 "1팀 전원 vs 2팀 전원 교전".</span></li>
-          <li><span className="scr-guide-ic scr-guide-ic-txt">견제</span><span><b>견제·드랍·러시</b> — "A가 벌처로 C 일꾼 견제" · "A가 C 기지에 하이템플러 드랍. 스톰으로 일꾼 4기 잡음" · 수송선 여럿이면 "폭탄드랍" · 상대 기지의 캐논은 "포토러시". 기지 밖에서 잡힌 일꾼은 견제가 아니라 "정찰 일꾼 잡음"입니다.</span></li>
-          <li><span className="scr-guide-ic scr-guide-ic-txt">기지</span><span><b>기지 피해</b> — 그 기지가 입은 피해로 "반파·대파·궤멸시킴" · 같은 사람이 더 부수면 "이어서 대파시킴" · 뒤늦게 와서 끝낸 사람은 "마무리지음" · 건물이 하나도 안 남으면 "엘리시킴".</span></li>
-          <li><span className="scr-guide-ic scr-guide-ic-txt">마법</span><span><b>마법·핵</b> — 쓴 사람이 주어입니다: "B가 스톰으로 히드라 4기 잡음" · "마인드컨트롤로 울트라 빼앗음" · "핵 투하".</span></li>
-          <li><span className="scr-guide-ic scr-guide-ic-txt">채팅</span><span><b>채팅·상태</b> — "A 인구 막힘 42/42" · 채팅의 gg·ㅈㅈ는 "A gg 선언", 노엘·ㄴㅇ은 "A 노엘 외침"(그 사람 화면으로 잠깐 갑니다).</span></li>
-          <li><span className="scr-guide-ic scr-guide-ic-txt">소강</span><span><b>조용할 때</b> — 그 사람이 고르고 있는 것을 말합니다("마린 생산" · "아카데미에서 마린 사업 연구 중" · 큰 병력이면 "마린·메딕 B 기지로 공격 이동").
-          없으면 빌드 읽기(선스포닝풀·빠른 앞마당 넥서스·2게이트·로보틱스 테크·누구 기지로 이사)나 "생산 건물 늘리는 중 · 업그레이드 진행 중 · 테크 올리는 중 · 바이오닉 운영 · 순조롭게 발전 중". 파일런 건설·몇 기 이동 같은 잔일은 말하지 않습니다.</span></li>
-        </ul>
+        {/* (걷어냄 · 2026-10-11, 요청: "중계자막 파트는 제거") 중계 자막 절 — 자막 말씨는 cast9 castCaps9 · docs/notes/cast-split.md 에 있다. */}
 
         <h3 className="scr-guide-h3">미니맵 · 인포창</h3>
         <p className="scr-guide-sub">
@@ -207,19 +204,19 @@ export default function ReplayGuide({ onClose }: {
         <span className="scr-guide-eyebrow">02</span>
         <h2 className="scr-guide-h2">PC 단축키</h2>
         <p className="scr-guide-lede">
-          재생 화면에서 바로 먹습니다. <strong>스페이스</strong>와{" "}
+          재생 화면에서 바로 먹습니다. <strong>F</strong>와{" "}
           <strong>좌우 화살표</strong> 둘만 익혀도 대부분 됩니다.
         </p>
 
         <div className="scr-guide-keys">
           <span className="scr-guide-group">재생</span>
-          <K keys={["Space"]} title="재생 / 일시정지" desc="끝까지 본 뒤에 누르면 처음부터 다시 돕니다."/>
+          <K keys={["F"]} title="재생 / 일시정지" desc="끝까지 본 뒤에 누르면 처음부터 다시 돕니다."/>
           <K keys={["←", "→"]} title="되감기 / 빨리감기" desc="누르고 있으면 계속 감깁니다 — 떼면 그 자리에서 멈춥니다."/>
-          <K keys={["Q", "E"]} title="배속 내리기 / 올리기" desc="다이얼 눈금(1·2·4·8)을 한 칸씩."/>
+          <K keys={["↑", "↓"]} title="배속 올리기 / 내리기" desc="다이얼 눈금(1·2·4·8)을 한 칸씩."/>
 
           <span className="scr-guide-group">지도</span>
           <K keys={["W", "A", "S", "D"]} title="지도 움직이기" desc="누르고 있는 동안 계속 밀립니다."/>
-          <K keys={["↑", "↓"]} title="확대 / 축소" desc="한 번에 한 칸씩, 마우스 휠로도 됩니다."/>
+          <K keys={["Q", "E"]} title="축소 / 확대" desc="한 번에 한 칸씩, 마우스 휠로도 됩니다."/>
 
           <span className="scr-guide-group">장면</span>
           <K keys={["Z"]} title="장면 스크랩" desc="지금 장면을 제목 붙여 담습니다."/>

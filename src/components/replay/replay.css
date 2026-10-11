@@ -2555,7 +2555,7 @@
   --dock-h: var(--dock-h0);
   /* 전광판 설계 폭 **576**(비 576/280 · 2026-10-10 재요청 "닉네임칩 폭 25프로 정도 더 축소") — 이름 기둥은 이제 **남는 폭이 아니라 못 박은 폭**(--name-w 168 = 카메라 단추 + 칩 ·
      옛 남는 폭 127 × 1.4 × 0.75 ≈ 134 칩) · 자료 기둥이 나머지를 받고 칸 사이를 고르게 벌린다(아래 .scr-dock-data). 576 은 2:2 글자 18 에서 자료 기둥(35.1ch ≈ 글자 × 20.7)이 꼭 드는 폭. */
-  --roster-r: 2.4205607;   /* 518/214(2026-10-11 · 옛 440/206) — 데미지 칸에 양이 다시 들어(10 → 22ch · 글자는 한 단 작게) 자료 기둥이 ≈ 30px 넓어진 만큼 */
+  --roster-r: 2.4859813;   /* 532/214(2026-10-11 · 옛 440/206) — 데미지 칸에 양이 다시 들어 10 → 22ch(글자는 한 단 작게) · 자원 칸 9.5 → 11.5ch 만큼 넓혔다 */
   --name-w: calc(122px * var(--dks));
   --mini-up: 1.1869159;   /* 254/214 — 미니맵이 틀 위로 40 · 폰·기본은 1.2(아래 .scr-fs-dockframe) */
   --dock-bez: calc(6px * var(--dks)); --dock-out: calc(8px * var(--dks)); --dock-sep: calc(12px * var(--dks));
@@ -3417,7 +3417,7 @@
 .scr-dock-cell { display: inline-block; text-align: center; overflow: hidden; min-width: 0; font-weight: 600; flex: none; }
 .scr-dock-cell.is-worker { width: 4ch; }   /* 머리 '일꾼'(한글 둘 = 3.6ch)이 든다 */
 .scr-dock-cell.is-apm { width: 4.6ch; }   /* 머리 'APM'(대문자 셋 ≈ 4.1ch)이 든다 */
-.scr-dock-cell.is-res { width: 9.5ch; }   /* "9999/9999" — 광물·가스 한 칸(2026-10-09) */
+.scr-dock-cell.is-res { width: 11.5ch; }   /* "12345/9999" — 광물·가스 한 칸(2026-10-09) · 9.5ch 는 다섯 자리 광물에서 살짝 잘림(2026-10-11, 요청: "자원칸 살짝 잘리는 경우 있으니 좀 넓혀줘") */
 .scr-dock-ressep { margin: 0 0.08em; opacity: 0.6; }
 .scr-dock-cell.is-sup { width: 7ch; overflow: visible; }
 .scr-dock-cell.is-dmg { width: 22ch; }   /* "12.3k(45%) / 9.8k(47%)" — 양 + 퍼센트(2026-10-10 되물림 · 옛 퍼센트만 10ch · 18ch 는 / 양옆 여백·% 에서 잘림 → 22ch) */
@@ -4183,17 +4183,27 @@
 /* 범례 칸의 작은 견본(20px) */
 .scr-guide-colsw-s{ display: inline-block; width: 18px; height: 18px; border-radius: 999px; margin-top: 1px; }
 
+/* 중계 고르기 그림 — 지금 전광판 꼴(2026-10-11): AUTO·전체 알약 · 카메라 단추(테 없음 · 켜짐 반투명 초록) · 종족 배지 이름칩(보여 주는 사람은 빛남). */
 .scr-guide-castlist{
-  display: inline-flex; flex-direction: column; gap: 2px; margin: 10px 12px;
-  padding: 6px; border-radius: 4px; background: rgba(10, 14, 18, 0.82);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+  display: inline-flex; flex-direction: column; gap: 6px; margin: 10px 12px;
+  padding: 10px 12px; border-radius: 4px; background: #0a0d12;
 }
-.scr-guide-castitem{
-  display: flex; align-items: center; gap: 7px; min-width: 96px; padding: 5px 10px;
-  border-radius: 2px; font-size: 13px; font-weight: 700; color: #f5f6f7;
+.scr-guide-castrow{ display: flex; align-items: center; gap: 6px; }
+.scr-guide-cam{
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 26px; min-width: 26px; box-sizing: border-box;
+  border-radius: 6px; background: rgba(255, 255, 255, 0.10); color: #cfd6de; font-size: 12px; font-weight: 800; letter-spacing: 0.03em;
 }
-.scr-guide-castitem.is-on{ background: rgba(255, 255, 255, 0.92); color: #10151a; }
-.scr-guide-castdot{ width: 9px; height: 9px; border-radius: 1.5px; flex: none; }
+.scr-guide-cam.is-pill{ padding: 0 8px; }
+.scr-guide-cam.is-on{ background: rgba(46, 229, 157, 0.32); color: #3dffa8; }
+.scr-guide-castchip{
+  display: inline-flex; align-items: center; gap: 6px; height: 26px; min-width: 104px; padding: 0 8px; box-sizing: border-box;
+  border-radius: 2px; font-size: 14px; font-weight: 700;
+}
+.scr-guide-castchip.is-shown{ box-shadow: 0 0 0 1px var(--pcol, #fff), 0 0 9px 3px var(--pcol, #fff); }   /* 전광판의 빛남(scr-motion-teamcol-cast)과 같은 제 색 번짐 */
+.scr-guide-castrace{
+  display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 999px; flex: none;
+  background: #fff; color: #10151a; font-size: 10px; font-weight: 800; font-style: normal;
+}
 
 
 .scr-guide-play{

@@ -16137,7 +16137,7 @@ export default function ReplayMotionPlayer({
        키보드 조작시 **그 기능이 오버레이에서 조작하는 기능이면** 오버레이가 활성화
        되어야해"). 앞선 요청("단축키 사용한다고 오버레이 활성화는 아님")을 이 한 줄이
        다듬는다 — 가르는 자는 '그 조작의 손잡이가 어디 있나'다:
-         · 깨운다 — 배속(↑↓)·시각(←→)·보기(v)·색상(c)·음악(m)·재생(p). 이것들의 손잡이는
+         · 깨운다 — 배속(↑↓)·시각(←→)·보기(v)·색상(c)·음악(m)·재생(f). 이것들의 손잡이는
            오버레이에 있으므로, 눌러 놓고 그 값이 어떻게 바뀌었는지 볼 수 있어야 한다.
          · 안 깨운다 — wasd 지도 이동. 손잡이가 없는 조작이고, 화면을 훑으려고 미는
            것이라 판이 뜨면 오히려 보려던 곳을 가린다.
@@ -16264,16 +16264,17 @@ export default function ReplayMotionPlayer({
         setZoom(z9);
         setPan(np9);
       };
-      if (k === "ArrowUp" || k === "ArrowDown") {
-        // 위아래 화살표 = 확대·축소(요청). 옛 ]/[도 아래에 별칭으로 남긴다.
+      /* (2026-10-11, 요청: "속도를 화살표 위아래에 매핑하고 축소/확대는 q/e, 재생/일시정지는 F로 변경") — 옛 ↑↓ 배율 · Q/E 배속 · 스페이스 재생을 맞바꿨다. */
+      if (e.code === "KeyQ" || e.code === "KeyE") {
+        // q/e = 축소/확대(요청).
         e.preventDefault();
         wakeUi();
-        zoomStep9(k === "ArrowUp");
-      } else if (e.code === "KeyQ" || e.code === "KeyE") {
-        // q/e = 배속 내리기/올리기(요청).
+        zoomStep9(e.code === "KeyE");
+      } else if (k === "ArrowUp" || k === "ArrowDown") {
+        // 위아래 화살표 = 배속 올리기/내리기(요청).
         e.preventDefault();
         wakeUi();
-        const up9 = e.code === "KeyE";
+        const up9 = k === "ArrowUp";
         /* 이어진 배속에서도 **다음 눈금**으로 간다(1.5 에서 E → 2 · Q → 1). */
         setSpeed((v) => (up9 ? SPEEDS.find((s9) => s9 > v + 1e-6) ?? SPEED_MAX9 : [...SPEEDS].reverse().find((s9) => s9 < v - 1e-6) ?? SPEED_MIN9));
       } else if (k === "ArrowLeft" || k === "ArrowRight") {
@@ -16296,9 +16297,8 @@ export default function ReplayMotionPlayer({
         });
         holdWasPlaying.current = holdApiRef.current.playing;
         KS.timer = window.setTimeout(() => { holdApiRef.current.start(dir); }, 260);
-      } else if (k === " " || k === "Spacebar") {
-        /* 재생/일시정지 — p에서 **스페이스바**로 옮겼다(요청). 브라우저의 기본 동작
-           (페이지 한 화면 내리기)을 반드시 막아야 한다. */
+      } else if (e.code === "KeyF") {
+        /* 재생/일시정지 — p → 스페이스바 → **f**(2026-10-11, 요청). 스페이스는 이제 안 듣는다(안내에 없는 매핑은 두지 않는다). */
         e.preventDefault();
         wakeUi();
         if (done) { setT(0); setDone(false); setPlaying(true); return; }
