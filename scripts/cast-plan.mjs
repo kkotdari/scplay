@@ -228,10 +228,10 @@ const bplanNo9 = castPlan9(bw9, { total: 900, order: bord9 });   // 자원 자�
 const capIn9 = (plan, raw, t) => { const sg = plan.find((s) => s.raw === raw && s.at >= t && s.at < t + 60); return sg ? capTxt(sg) : "(토막 없음)"; };
 const capAt9 = (raw, t) => capIn9(bplan9, raw, t);
 const bcases9 = [
-  ["Z1", 64, "[Z1] 선스포닝풀"], ["Z1", 155, "[Z1] 앞마당 해처리"], ["Z1", 505, "[Z1] 레어 테크"],
+  ["Z1", 64, "[Z1] 선스포닝풀"], ["Z1", 155, "[Z1] 앞마당 해처리"], ["Z1", 505, "[Z1] 레어 변태"],
   ["Z2", 95, "[Z2] 노스포닝풀 앞마당 해처리"], ["Z2", 155, "[Z2] 해처리 후 스포닝풀"], ["Z2", 405, "[Z2] 2번째 멀티"], ["Z2", 800, "[Z2] 3기지 운영 중"],
-  ["P1", 155, "[P1] 빠른 앞마당 넥서스"], ["P1", 205, "[P1] 코어 테크"], ["P1", 405, "[P1] 로보틱스 테크"], ["P1", 730, "[P1] 병력 모으는 중"],
-  ["T1", 125, "[T1] 2배럭"], ["T1", 205, "[T1] 팩토리 테크"], ["T1", 305, "[T1] 앞마당 커맨드"], ["T1", 800, "[T1] 순조롭게 발전 중"],
+  ["P1", 155, "[P1] 빠른 앞마당 넥서스"], ["P1", 205, "[P1] 코어 건설"], ["P1", 405, "[P1] 로보틱스 건설"], ["P1", 730, "[P1] 병력 모으는 중"],
+  ["T1", 125, "[T1] 2배럭"], ["T1", 205, "[T1] 팩토리 건설"], ["T1", 305, "[T1] 앞마당 커맨드"], ["T1", 800, "[T1] 순조롭게 발전 중"],
   ["Z3", 75, "[Z3] 8드론 스포닝풀 건설"], ["P2", 245, "[P2] 3게이트"],
 ];
 console.log(`\n빌드 읽기: ${bcases9.slice(0, 4).map(([r, t]) => `${r}@${t}s ${capAt9(r, t)}`).join(" · ")} …`);
@@ -594,7 +594,7 @@ rmSync(tmp, { recursive: true, force: true });
 }
 
 /* ── ⑳ 화면 글귀(2026-10-10, 지적: "화면에서 보여주는 내용이 자막으로 나와야 함 · 업그레이드 보이지 않는데 업그레이드 내용이 나온다거나") — 1v1 A(테란 20,20) · B(저그 100,100).
-   순환 자막은 그 창에서 A 가 가장 오래 고른 무리를 말한다: ① 190~230초 아카데미 골라 둠(300초에 U-238 완료) → "아카데미에서 … 연구 중" ·
+   순환 자막은 그 창에서 A 가 가장 오래 고른 무리를 말한다: ① 190~230초 아카데미 골라 둠(250초에 U-238 완료 — 63초짜리라 187초부터 돈다 · 2026-10-11) → "… 연구 중" ·
    ② 400~440초 배럭 골라 둠 · 곁에서 마린이 난다 → "배럭에서 마린 생산" ③ 500~540초 마린 여섯 B 본진으로 공격 이동 → "[A] 마린 6기 [B] 기지로 공격 이동" ·
    ④ 연구 완료(300초)는 순환 자막에 "개발"로 안 선다. */
 {
@@ -610,8 +610,10 @@ rmSync(tmp, { recursive: true, force: true });
   const ms = Array.from({ length: 12 }, () => mk(0, "Marine", false, 20, 30, 300, { orders: [500, 510, 520, 530].map((t) => [t, 98, 98, true]) }));
   sels.push([440, 0, [ms[0].tag], 0]);
   const w = { players: [["A", "테란", 1], ["B", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
-    lives: L, ups: [[300, "U-238 Shells", 0, ac.tag]], casts: [], pings: [], resFields: [], kills: [], sels, builds: [] };
+    lives: L, ups: [[250, "U-238 Shells", 0, ac.tag]], casts: [], pings: [], resFields: [], kills: [], sels, builds: [] };
   const plan = castPlan9(w, { total: 700, order: ["A", "B"], teamOf: { A: 1, B: 2 } });
+  /* 연구 시작 전(2026-10-11, 지적: "오버로드 이속 업그레이드가 아직 레어도 없는데 자막에서 나옴") — 완료 300초(63초짜리 → 237초 시작)면 190~230초는 '연구 중'이 아니다. */
+  const early = castPlan9({ ...w, ups: [[300, "U-238 Shells", 0, ac.tag]] }, { total: 700, order: ["A", "B"], teamOf: { A: 1, B: 2 } });
   const capsIn = (t0, t1) => plan.filter((s) => s.raw === "A" && s.at >= t0 && s.at < t1).map((s) => capTxt(s));
   console.log(`\n화면 글귀: ${[...new Set(plan.filter((s) => s.raw === "A").map((s) => capTxt(s)))].join(" · ")}`);
   for (const [name, pass] of [
@@ -620,6 +622,7 @@ rmSync(tmp, { recursive: true, force: true });
     ["대규모 병력이 적 본진으로 → '[A] 마린 [B] 기지로 공격 이동'(수 없음 · 2026-10-10)", capsIn(498, 540).some((c) => c === "[A] 마린 [B] 기지로 공격 이동")],
     ["몇 기 안 되는 무리의 이동·대기는 안 말한다", !plan.some((s) => /대기|\d+기 /.test(capTxt(s)))],
     ["연구 완료는 순환 자막에 '개발'로 안 선다", !plan.some((s) => /개발/.test(capTxt(s)))],
+    ["연구 시작 전에는 '연구 중'·'업그레이드 진행 중'이 아니다(2026-10-11)", !early.some((s) => s.raw === "A" && s.at >= 188 && s.at < 230 && /연구 중|업그레이드 진행 중/.test(capTxt(s)))],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }
 
@@ -691,7 +694,7 @@ rmSync(tmp, { recursive: true, force: true });
 }
 
 /* ── ㉓ 인구 막힘 · 엘리(2026-10-10, 요청: "인구 막힘도 중요 포인트라 자막 나오면 좋음 · 엘리") — 1v1 A(테란 20,20) · B(저그 100,100).
-   ① A 는 시작 몫 10 인구에 SCV 넷 + 마린 여섯(10)으로 215~260초 동안 꽉 찬다(서플 없음) → 순환 자막 "[A] 인구 막힘 10/10" ·
+   ① A 는 시작 몫 10 인구에 SCV 넷 + 마린 여섯(10)으로 215~260초 동안 꽉 찬다(서플 없음) → 순환 자막 "[A] 인구 막힘"(숫자는 2026-10-11 뺐다) ·
    ② 600초 A 마린 셋이 B 의 해처리(B 의 유일한 건물)를 부순다 → "[A]ga [B] 엘리시킴". */
 {
   let vt = 80000;
@@ -707,9 +710,15 @@ rmSync(tmp, { recursive: true, force: true });
   const w = { players: [["A", "테란", 1], ["B", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
     lives: L, ups: [], casts: [], pings: [], resFields: [], kills, sels: [], builds: [] };
   const plan = castPlan9(w, { total: 700, order: ["A", "B"], teamOf: { A: 1, B: 2 } });
+  /* 돈(2026-10-11, 요청: "돈이 최소 유닛 뽑을 돈이 있는 경우만 막힘") — 막힌 동안 미네랄 40(일꾼 값 50 아래)이면 막힘이 아니고 · 120 이면 막힘이다. */
+  const poor = castPlan9(w, { total: 700, order: ["A", "B"], teamOf: { A: 1, B: 2 }, bank: new Map([[0, [[0, 50, 0], [200, 40, 0]]]]) });
+  const rich = castPlan9(w, { total: 700, order: ["A", "B"], teamOf: { A: 1, B: 2 }, bank: new Map([[0, [[0, 50, 0], [200, 120, 0]]]]) });
+  const blk = (pl) => pl.some((s) => s.raw === "A" && s.at >= 205 && s.at < 262 && capTxt(s) === "[A] 인구 막힘");
   console.log(`\n인구 막힘·엘리: ${[...new Set(plan.map((s) => `${s.raw} ${capTxt(s)}`))].filter((c) => !/발전 중$/.test(c)).join(" · ")}`);
   for (const [name, pass] of [
-    ["꽉 찬 인구 → '[A] 인구 막힘 10/10'", plan.some((s) => s.raw === "A" && s.at >= 205 && s.at < 262 && capTxt(s) === "[A] 인구 막힘 10/10")],
+    ["꽉 찬 인구 → '[A] 인구 막힘'(숫자 없음 · 2026-10-11)", blk(plan)],
+    ["막힌 동안 미네랄 40(일꾼 값 아래) → 막힘 아님", !poor.some((s) => /인구 막힘/.test(capTxt(s)))],
+    ["막힌 동안 미네랄 120 → 막힘", blk(rich)],
     ["유일한 건물이 깨짐 → '[A]ga [B] 엘리시킴'", plan.some((s) => capTxt(s) === "[A]ga [B] 엘리시킴")],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }

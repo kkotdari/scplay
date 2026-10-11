@@ -10272,9 +10272,10 @@ export default function ReplayMotionPlayer({
       ? castPlan9(entData, { total, skip: obsNames, only: rosterKeys9, order: bases.map((b9) => b9.key), teamOf: melee ? undefined : teamMap9,
         resources: grid.resources,   // 자원 점 — 앞마당·멀티 가름(cast9 ★★ 자원 무더기 · 2026-10-10)
         mapW: grid.width, mapH: grid.height, terrain: castTerrain9,   // 센터·언덕·벽·램프(cast9 전술 읽기 · 2026-10-10)
-        chats: chats9 })   // gg 선언·노엘 외침(2026-10-10)
+        chats: chats9,   // gg 선언·노엘 외침(2026-10-10)
+        bank: truth?.res })   // 인구 막힘은 돈이 있을 때만(2026-10-11)
       : []),
-    [castOn, entData, total, obsNames, rosterKeys9, bases, melee, teamMap9, grid.resources, grid.width, grid.height, castTerrain9, chats9]);
+    [castOn, entData, total, obsNames, rosterKeys9, bases, melee, teamMap9, grid.resources, grid.width, grid.height, castTerrain9, chats9, truth]);
   /** 지금 짚히는 토막 번호 — 렌더마다 이분으로 찾는다(상태로 두면 프레임마다 렌더가 한 번 더 돈다). */
   const castIdx9 = castPlan.length > 0 ? castAt9(castPlan, t) : -1;
   /** 중계가 고른 사람 — 끄거나 표가 없으면 null. */
@@ -19297,8 +19298,11 @@ export default function ReplayMotionPlayer({
                 <span className="scr-split-cap scr-fs-solo-cap">
                   {/* 위 가운데의 [임자색 칩(이름)] + 흰 "화면"(2026-10-09, 요청: "화면 주인 이름칩은 화면 상단 가운데로 이동 … 이름칩 + 흰 글씨 화면으로 표시") — 옛 "정구 화면"
                       한 칩(같은 날 요청)·바닥 가운데 자리는 되물렸다. 자막(.scr-cast-caption)이 바닥을 받는다. */}
-                  <span className="scr-split-chip" style={capOf9(camRaw9, camRaw9).chip}>{bases.find((b9) => b9.key === camRaw9)?.name ?? camRaw9}</span>
-                  <span className="scr-split-word">화면</span>
+                  {/* ★ "화면"도 칩 **안**이고 팀이 있으면 앞에 "N팀"(2026-10-11, 요청: "화면 유저칩에서 화면 글자를 유저칩 안으로 이동 · 그리고 N팀 누구 화면으로") —
+                      [1팀 정구 화면] 한 칩. 밀리(팀 없음)는 [정구 화면]. 분할 칸 머리는 요청 밖이라 그대로(칩 + 흰 "화면" · 팀은 테두리색). */}
+                  <span className="scr-split-chip" style={capOf9(camRaw9, camRaw9).chip}>
+                    {(() => { const tm9 = melee ? undefined : teamOfRaw(camRaw9); return `${tm9 ? `${tm9}팀 ` : ""}${bases.find((b9) => b9.key === camRaw9)?.name ?? camRaw9} 화면`; })()}
+                  </span>
                 </span>
               )}
               {/* ★★ 중계 자막(위 castCap9 · 2026-10-09, 요청 2) — **바닥 가운데**(옛 이름표 자리 · 같은 날 되요청: "자막을 내리기" · 정가운데가 아니다). 토막이 갈리면(key) 살짝 떠오른다. */}

@@ -34,7 +34,7 @@
  */
 import { BUILDING_KO, UNIT_KO } from "../../utils/replayNames";
 import { researchKo } from "../../utils/replayTechNames";
-import { BUILDING_FOOT, costOf, raceOfBwKind9, sightTiles, SUPPLY_CAP, SUPPLY_COST, SUPPLY_GIVES, unitOf } from "../../utils/bwUnits";
+import { BUILDING_FOOT, costOf, raceOfBwKind9, sightTiles, SUPPLY_CAP, SUPPLY_COST, SUPPLY_GIVES, unitOf, UPGRADE_TIME, upgradeSeconds } from "../../utils/bwUnits";
 import { SEL_KIND9, tkN, tkT, tkV } from "../../utils/openbwTracks";
 import type { TruthWorld } from "../../utils/truthLives";
 
@@ -89,6 +89,8 @@ export type CastPlanOpts9 = {
   terrain?: { level: (x: number, y: number) => number; walk: (x: number, y: number) => boolean; ramp?: (x: number, y: number) => boolean };
   /** 경기 채팅(2026-10-10) — [초, 말한 사람(참값 이름), 글]. "gg/ㅈㅈ" 선언 · "노엘/ㄴㅇ" 외침 자막의 재료. 없으면 안 읽는다. */
   chats?: readonly { sec: number; name: string; text: string }[];
+  /** 임자별 자원 [초, 미네랄, 가스] 변곡점(openbwTracks res — 2026-10-11) — 인구 막힘은 그동안 가장 싼 유닛 값(BLOCK_MIN9)이 있을 때만 센다. 없으면 안 거른다. */
+  bank?: ReadonlyMap<number, readonly (readonly [number, number, number])[]>;
 };
 
 /** 장면보다 몇 초 먼저 갈아타나(요청: "1-2초전에 미리") — 그 사이에 카메라가 자리를 잡는다. */
@@ -1125,7 +1127,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
      재생기가 이름표 칩으로 그린다 — 조사는 표시 이름의 받침을 재생기가 안다(p). 글귀 보기:
        교전 — 공격·방어 "A가 B를 공격" · "A가 B에게 포토러시"(방어는 뒤에 " · C가 헬프") · 호각 "A B vs C D 교전"(vs · 칩은 점 없이 잇닿는다) · 견제 "A가 리버로 B 일꾼 견제" · 기지 피해 "A가 B 기지 반파/대파/궤멸시킴"(잃은 건물 몸값이 그때
        기지 몸값의 20/45/75% — 되요청: "공격 와서 뭘 부쉈는지까지보다 기지를 반파시킴 대파시킴 궤멸시킴 등으로") · 그 아래면 "A가 B 건물 파괴" · 핵 "A 핵 투하" · 마법 "A 스톰"
-       순환 — "A 메타볼릭 부스트 개발" · 빌드 읽기 "A 선스포닝풀 후 해처리" · "A 빠른 넥서스 늘리기" · "A 로보틱스 테크" · "A 포토 건설" · 국면 "A 3기지 운영 중"(아래 ★★). */
+       순환 — "A 메타볼릭 부스트 개발" · 빌드 읽기 "A 선스포닝풀 후 해처리" · "A 빠른 넥서스 늘리기" · "A 로보틱스 건설" · "A 포토 건설" · 국면 "A 3기지 운영 중"(아래 ★★). */
   /** 일꾼을 잡은 유닛의 자막 이름 — 스캐럽은 리버 · 탱크는 모드 없이 · 그 밖은 UNIT_KO(없으면 영문 그대로). */
   const harassName9 = (kind9: string): string =>
     (kind9 === "Scarab" || kind9 === "Reaver" ? "리버" : kind9.startsWith("Siege Tank") ? "탱크" : UNIT_KO[kind9] ?? BUILDING_KO[kind9] ?? kind9);   // 캐논·성큰·벙커도 든다
@@ -1470,19 +1472,21 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
        · 둘째 본진이 핵심 테크(스포닝풀 · 코어 · 팩토리)보다 먼저 → "빠른 넥서스/커맨드 늘리기" · 저그는 "노스포닝풀 해처리"(셋째까지 먼저면 "노스포닝풀 3해처리") ·
          스포닝풀이 먼저면 "선스포닝풀" → 그 뒤 해처리는 "선스포닝풀 후 해처리" · 테크 뒤의 둘째는 "앞마당 … 늘리기" · 셋째부터 "N번째 … 늘리기"/"N해처리 늘리기"
        · 포지가 게이트보다 먼저 → "선포지"(그 뒤 넥서스가 게이트보다 먼저면 "선포지 더블넥서스") · 익스트랙터가 스포닝풀보다 먼저 → "선가스"
-       · 둘째·셋째 생산 건물 → "2게이트/3게이트" · "2배럭/3배럭" · "2팩/3팩" · 테크 건물은 TECH_MILE9 의 이름("로보틱스 테크" …) · 아홉 드론 아래 스포닝풀 "N드론 스포닝풀 건설"(러시라
+       · 둘째·셋째 생산 건물 → "2게이트/3게이트" · "2배럭/3배럭" · "2팩/3팩" · 테크 건물은 TECH_MILE9 의 이름("로보틱스 건설" … · 2026-10-11 옛 "… 테크") · 아홉 드론 아래 스포닝풀 "N드론 스포닝풀 건설"(러시라
          단정하지 않는다 · 2026-10-10) ·
          상대 기지 안의 캐논·성큰 "A의 B 포토러시/성큰러시"(rushes9 — 장면 자막의 공격 이름도 이것)
      자막은 창 안의 이정표 > 창 앞 MILE_RECENT9 초 안의 마지막 이정표 > 그 밖의 건물 건설(옛 "X 건설") > 국면 요약(phaseCap9: 최근 테크 → "순조로운 테크/발전 중" ·
      본진 셋 이상 → "N기지 운영 중" · 병력이 한창 나오면 "병력 모으는 중" · 그 밖 "순조로운 발전 중"). 옛 "확장"·"운영" 글귀는 걷었다.
      🔎 cast-plan.mjs ⑧ 빌드 읽기. */
+  /* ★ 이정표 글귀는 **"X 건설"**(2026-10-11, 요청: "~ 테크를 ~ 건설로 변경 — 테크는 메카닉 테크 · 핵 테크 이렇게 전술적인 느낌에 쓰는 경우가 많아") — 옛 "로보틱스 테크"
+     꼴은 걷었다. 저그의 변태(레어·하이브·그레이터 스파이어)는 짓는 것이 아니라 "변태". 열쇠(어느 건물이 이정표인가 · 국면 요약의 '최근 테크' 자)는 그대로. */
   const TECH_MILE9: Record<string, string> = {
-    "Cybernetics Core": "코어 테크", "Robotics Facility": "로보틱스 테크", Stargate: "스타게이트 테크", "Citadel of Adun": "시타델 테크", "Templar Archives": "템플러 테크",
-    "Robotics Support Bay": "리버 테크", Observatory: "옵저버 테크", "Fleet Beacon": "캐리어 테크", "Arbiter Tribunal": "아비터 테크",
-    Factory: "팩토리 테크", Starport: "스타포트 테크", Armory: "아머리 테크", Academy: "아카데미 테크", "Science Facility": "사이언스 테크",
-    "Engineering Bay": "엔지니어링 베이 건설", "Machine Shop": "머신샵 테크", "Control Tower": "컨트롤 타워 테크", "Covert Ops": "고스트 테크", "Physics Lab": "배틀크루저 테크",
-    Lair: "레어 테크", Spire: "뮤탈리스크 테크", "Hydralisk Den": "히드라 테크", "Evolution Chamber": "에볼루션 챔버 건설", "Queen's Nest": "하이브 테크 준비",
-    Hive: "하이브 테크", "Ultralisk Cavern": "울트라리스크 테크", "Defiler Mound": "디파일러 테크", "Greater Spire": "가디언·디바우러 테크",
+    "Cybernetics Core": "코어 건설", "Robotics Facility": "로보틱스 건설", Stargate: "스타게이트 건설", "Citadel of Adun": "시타델 건설", "Templar Archives": "템플러 아카이브 건설",
+    "Robotics Support Bay": "서포트 베이 건설", Observatory: "옵저버토리 건설", "Fleet Beacon": "플릿 비콘 건설", "Arbiter Tribunal": "아비터 트리뷰널 건설",
+    Factory: "팩토리 건설", Starport: "스타포트 건설", Armory: "아머리 건설", Academy: "아카데미 건설", "Science Facility": "사이언스 퍼실리티 건설",
+    "Engineering Bay": "엔지니어링 베이 건설", "Machine Shop": "머신샵 건설", "Control Tower": "컨트롤 타워 건설", "Covert Ops": "커버트 옵스 건설", "Physics Lab": "피직스 랩 건설",
+    Lair: "레어 변태", Spire: "스파이어 건설", "Hydralisk Den": "히드라 덴 건설", "Evolution Chamber": "에볼루션 챔버 건설", "Queen's Nest": "퀸즈 네스트 건설",
+    Hive: "하이브 변태", "Ultralisk Cavern": "울트라리스크 캐번 건설", "Defiler Mound": "디파일러 마운드 건설", "Greater Spire": "그레이터 스파이어 변태",
   };
   /** 종족의 핵심 테크 — 둘째 본진·둘째 생산 건물이 이보다 먼저면 '빠른'·'투…'다. */
   const CORE_TECH9: Record<string, string> = { Nexus: "Cybernetics Core", "Command Center": "Factory", Hatchery: "Spawning Pool" };
@@ -1791,7 +1795,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     let prod9 = 0;
     for (const e9 of world.lives) if (e9.bld && own9.has(e9.owner) && PROD_BLD9.has(e9.kind) && e9.born <= sec9 && e9.born >= sec9 - PHASE9.prodWin && e9.end !== "morph") prod9 += 1;
     if (prod9 >= 2) return "생산 건물 늘리는 중";
-    if (world.ups.some(([us9, , uo9]) => own9.has(uo9) && us9 > sec9 && us9 <= sec9 + PHASE9.upAhead)) return "업그레이드 진행 중";
+    if (world.ups.some(([us9, un9, uo9]) => own9.has(uo9) && researching9(us9, un9, sec9))) return "업그레이드 진행 중";   // 실제로 도는 동안만(2026-10-11 · 아래 researching9)
     if (sec9 - lastTech9 <= PHASE9.tech) return "테크 올리는 중";
     if (bases9 >= 3) return `${bases9}기지 운영 중`;
     if (army9 >= PHASE9.armyN) return "병력 모으는 중";
@@ -1808,6 +1812,15 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
        · 병력 — 많은 종류 둘 "마린 12기·메딕 4기" + 그 창의 마지막 명령: 적 기지 안 → "[B] 기지로 공격 이동/이동" · 센터 → "센터로 …" · 그 밖 "공격 이동/이동" · 명령 없으면 "대기".
      차례: 창 안의 빌드 이정표(착공 = 건설 명령 = 그때 화면) > 창 안의 건설 > 화면 무리 > 창 앞 이정표 > 국면 요약. 연구 **완료**는 안 쓴다(골라 둔 건물의 '연구 중'만). */
   const RESEARCH_AHEAD9 = 200;
+  /** ★ 연구가 **실제로 도는 동안**만(2026-10-11, 지적: "오버로드 이속 업그레이드가 아직 레어도 없는데 자막에서 나옴") — 옛 문은 '완료가 RESEARCH_AHEAD9(200)초 안'이라
+   *  84초짜리 오버로드 속업을 시작 116초 전(레어도 없을 때)부터 '연구 중'이라 했다. ups 는 **완료** 시각만 들므로 시작 = 완료 − 연구 시간(UPGRADE_TIME · 레벨 몫).
+   *  표에 없는 기술(스팀팩·스톰 …)은 가장 짧은 1200 프레임(≈ 50초)으로 친다 — 짧게 잡아야 시작 전을 '연구 중'이라 안 한다. 상한은 RESEARCH_AHEAD9 그대로. */
+  const researchSec9 = (name9: string): number => {
+    const m9 = /^(.*?)(?: (\d+))?$/.exec(name9);
+    const base9 = m9?.[1] ?? name9; const lv9 = Number(m9?.[2] ?? 1) || 1;
+    return Math.min(RESEARCH_AHEAD9, UPGRADE_TIME[base9] ? upgradeSeconds(base9, lv9) : 1200 * 0.042);
+  };
+  const researching9 = (us9: string | number, name9: string, at9: number): boolean => Number(us9) > at9 && Number(us9) - researchSec9(name9) <= at9;
   const PICK_STALE9 = 30;
   /** 병력 이동을 말하는 무리의 하한(기) — 그 아래는 군말(2026-10-10). */
   const BIG_ARMY9 = 10;
@@ -1879,7 +1892,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       let mk9 = ""; let mn9 = 0;
       for (const [k9, n9] of made9) if (n9 > mn9) { mn9 = n9; mk9 = k9; }
       if (mk9) return [{ raw: raw9 }, { text: ` ${UNIT_KO[mk9] ?? mk9} 생산` }];   // "배럭에서"는 군말(2026-10-10, 요청: "~에서는 너무 당연한 거라 빼도 될 듯 그냥 ~생산")
-      const up9 = world.ups.find(([us9, , uo9, ut9]) => ut9 === b9.tag && own9.has(uo9) && us9 > at9 && us9 <= at9 + RESEARCH_AHEAD9);
+      const up9 = world.ups.find(([us9, un9, uo9, ut9]) => ut9 === b9.tag && own9.has(uo9) && researching9(us9, un9, at9));
       if (up9) {
         const m9 = /^(.*?)(?: (\d+))?$/.exec(up9[1]);
         /* "히드라 덴에서"는 군말(2026-10-11, 요청: "어디서인지는 빼도 되겠지 — 히드라 속업 연구 중 · 중요한 것만 깔끔하게") — 연구 이름만. */
@@ -1924,6 +1937,30 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
      먹은 것이 상한에 닿은(상한 − 1 ~ 상한 · 상한이 200 아래) 동안이 막힘이고, BLOCK9.min 초 넘게 이어진 것만 센다(BLOCK9.merge 초 안의 틈은 잇는다). 단위는 원작 내부(두 배). */
   const RACE_START_SUPPLY9: Record<string, number> = { 테란: 20, 프로토스: 18, 저그: 18 };
   const BLOCK9 = { min: 12, merge: 6 };
+  /** ★ 막힘은 **돈이 있을 때만**(2026-10-11, 요청: "인구 막힘 조건 중 하나 — 돈이 최소 유닛 뽑을 돈이 있는 경우만 막힘으로 침") — 가장 싼 인구 유닛(일꾼 · 세 종족 다 50)
+   *  미네랄. 막힘 구간 가운데 그 사람 미네랄이 이 이상인 동안만 남기고(처음 ~ 끝으로 죈다) 그 몫이 BLOCK9.min 초 넘어야 막힘이다. 자원 자료(opts.bank)가 없으면 안 거른다. */
+  const BLOCK_MIN9 = 50;
+  /** [a, b] 안에서 미네랄 ≥ BLOCK_MIN9 인 구간들 — 임자가 여럿이면 더한다. 자료가 없으면 null. */
+  const richSpans9 = (own9: ReadonlySet<number>, a9: number, b9: number): [number, number][] | null => {
+    const rows9 = [...own9].map((o9) => opts.bank?.get(o9)).filter((r9): r9 is NonNullable<typeof r9> => !!r9 && r9.length > 0);
+    if (rows9.length === 0) return null;
+    const ts9 = new Set<number>([a9]);
+    for (const r9 of rows9) for (const [s9] of r9) if (s9 > a9 && s9 < b9) ts9.add(s9);
+    const pts9 = [...ts9].sort((x9, y9) => x9 - y9);
+    const minAt9 = (sec9: number): number => {
+      let m9 = 0;
+      for (const r9 of rows9) { let v9 = 0; for (const [s9, mm9] of r9) { if (s9 > sec9) break; v9 = mm9; } m9 += v9; }
+      return m9;
+    };
+    const out9: [number, number][] = [];
+    for (let i9 = 0; i9 < pts9.length; i9 += 1) {
+      const s9 = pts9[i9]; const e9 = i9 + 1 < pts9.length ? pts9[i9 + 1] : b9;
+      if (minAt9(s9) < BLOCK_MIN9) continue;
+      const last9 = out9[out9.length - 1];
+      if (last9 && last9[1] === s9) last9[1] = e9; else out9.push([s9, e9]);
+    }
+    return out9;
+  };
   type Block9 = { t0: number; t1: number; used: number; cap: number };
   const blocksMemo9 = new Map<string, Block9[]>();
   const blocksOf9 = (raw9: string): Block9[] => {
@@ -1961,7 +1998,13 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       }
     }
     if (open9) { open9.t1 = Math.min(total, liveTo9.get(raw9) ?? total); out9.push(open9); }
-    const res9 = out9.filter((b9) => b9.t1 - b9.t0 >= BLOCK9.min);
+    const res9: Block9[] = [];
+    for (const b9 of out9) {
+      const rich9 = richSpans9(own9, b9.t0, b9.t1);
+      if (rich9 === null) { if (b9.t1 - b9.t0 >= BLOCK9.min) res9.push(b9); continue; }
+      let dur9 = 0; for (const [a9, c9] of rich9) dur9 += c9 - a9;
+      if (dur9 >= BLOCK9.min) res9.push({ ...b9, t0: rich9[0][0], t1: rich9[rich9.length - 1][1] });
+    }
     blocksMemo9.set(raw9, res9);
     return res9;
   };
@@ -1972,7 +2015,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     const hi9 = Math.max(t0 + 1, t1);
     /* 인구 막힘이 그 창에 걸치면 그것이 먼저다(위 ★★). */
     const bk9 = blockIn9(raw9, t0, hi9);
-    if (bk9) return [{ raw: raw9 }, { text: ` 인구 막힘 ${bk9.used / 2}/${bk9.cap / 2}` }];
+    if (bk9) return [{ raw: raw9 }, { text: " 인구 막힘" }];   // 숫자는 뺀다(2026-10-11, 요청: "인구막힘 뒤에 숫자 안 보여주기")
     const miles9 = buildMiles9(raw9);
     const inWin9 = miles9.find((m9) => m9.at >= lo9 && m9.at < hi9);
     if (inWin9) return inWin9.caps;
