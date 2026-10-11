@@ -634,6 +634,7 @@ rmSync(tmp, { recursive: true, force: true });
   for (let i = 0; i < 4; i += 1) mk(2, "Probe", false, 100, 100, 100, { died: 301 + i * 0.5, end: "atk", orders: [[299, 101, 101, false]] });
   // ②
   const dn = mk(3, "Nexus", true, 100, 10, 0);
+  mk(3, "Pylon", true, 60, 60, 0);   // D 의 딴 자리 건물 — 본진이 다 깨져도 엘리가 아니다(㉓ 의 엘리와 가른다)
   const gw = [0, 1, 2, 3].map((i) => mk(3, "Gateway", true, 104 + i * 3, 14, 50));
   const py = [mk(3, "Pylon", true, 96, 6, 30), mk(3, "Pylon", true, 106, 6, 30)];
   const az = mk(0, "Zealot", false, 10, 10, 400); const bz = mk(1, "Zealot", false, 10, 100, 400);
@@ -679,5 +680,49 @@ rmSync(tmp, { recursive: true, force: true });
     ["게이트 둘 → '생산 건물 늘리는 중'(또는 빌드 읽기 '2게이트')", inA(300, 400).some((c) => c === "[A] 생산 건물 늘리는 중" || c === "[A] 2게이트")],
     ["오래 골라 둔 일꾼은 '일꾼 이동' 자막이 아니다", !plan.some((s) => /일꾼 \d+기 이동/.test(capTxt(s)))],
     ["돌고 있는 연구 → '업그레이드 진행 중'", inA(490, 600).some((c) => c === "[A] 업그레이드 진행 중")],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
+
+/* ── ㉓ 인구 막힘 · 엘리(2026-10-10, 요청: "인구 막힘도 중요 포인트라 자막 나오면 좋음 · 엘리") — 1v1 A(테란 20,20) · B(저그 100,100).
+   ① A 는 시작 몫 10 인구에 SCV 넷 + 마린 여섯(10)으로 215~260초 동안 꽉 찬다(서플 없음) → 순환 자막 "[A] 인구 막힘 10/10" ·
+   ② 600초 A 마린 셋이 B 의 해처리(B 의 유일한 건물)를 부순다 → "[A]ga [B] 엘리시킴". */
+{
+  let vt = 80000;
+  const L = []; const kills = [];
+  const mk = (o, kind, bld, x, y, born, ex = {}) => { const e = { tag: (vt += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [], ...ex }; L.push(e); return e; };
+  mk(0, "Command Center", true, 20, 20, 0);
+  for (let i = 0; i < 4; i += 1) mk(0, "SCV", false, 20, 20, 0);
+  const ms = [200, 203, 206, 209, 212, 215].map((t) => mk(0, "Marine", false, 22, 22, t));
+  mk(0, "Supply Depot", true, 24, 24, 260);
+  const hc = mk(1, "Hatchery", true, 100, 100, 0, { died: 600, end: "atk" });
+  kills.push([600, 0, ms[0].tag, hc.tag]);
+  const w = { players: [["A", "테란", 1], ["B", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
+    lives: L, ups: [], casts: [], pings: [], resFields: [], kills, sels: [], builds: [] };
+  const plan = castPlan9(w, { total: 700, order: ["A", "B"], teamOf: { A: 1, B: 2 } });
+  console.log(`\n인구 막힘·엘리: ${[...new Set(plan.map((s) => `${s.raw} ${capTxt(s)}`))].filter((c) => !/순조롭게/.test(c)).join(" · ")}`);
+  for (const [name, pass] of [
+    ["꽉 찬 인구 → '[A] 인구 막힘 10/10'", plan.some((s) => s.raw === "A" && s.at >= 205 && s.at < 262 && capTxt(s) === "[A] 인구 막힘 10/10")],
+    ["유일한 건물이 깨짐 → '[A]ga [B] 엘리시킴'", plan.some((s) => capTxt(s) === "[A]ga [B] 엘리시킴")],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
+
+/* ── ㉔ gg 선언 · 노엘 외침(2026-10-10, 요청: "엘리 gg(ㅈㅈ) 선언 ㄴㅇ 노엘 외침도") — 1v1 A·B 채팅: 300초 B "ㄴㅇ" · 500초 A "gg" · 501초 A "gg"(되풀이 — 한 번만). */
+{
+  const L = [];
+  const mk = (o, kind, x, y) => L.push({ tag: 90000 + L.length, owner: o, kind, born: 0, bornX: x, bornY: y, died: null, end: "", bld: true,
+    sites: [[0, x - 1, y - 1]], doneAt: 0, lifts: [], cloaks: [], sieges: [], orders: [] });
+  mk(0, "Nexus", 20, 20); mk(1, "Hatchery", 100, 100);
+  const w = { players: [["A", "프로토스", 1], ["B", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
+    lives: L, ups: [], casts: [], pings: [], resFields: [], kills: [], sels: [], builds: [] };
+  const plan = castPlan9(w, { total: 600, order: ["A", "B"], teamOf: { A: 1, B: 2 },
+    chats: [{ sec: 300, name: "B", text: "ㄴㅇ" }, { sec: 500, name: "A", text: "gg" }, { sec: 501, name: "A", text: "gg" }, { sec: 200, name: "관전자", text: "gg" }] });
+  const caps = plan.map((s) => `${s.at.toFixed(1)}s ${capTxt(s)}`).filter((c) => /선언|외침/.test(c));
+  console.log(`\ngg·노엘: ${caps.join(" · ")}`);
+  for (const [name, pass] of [
+    ["'ㄴㅇ' → '[B] 노엘 외침'(그때 B 화면)", plan.some((s) => s.raw === "B" && Math.abs(s.at - 299.5) < 0.01 && capTxt(s) === "[B] 노엘 외침")],
+    ["'gg' → '[A] gg 선언' 한 번", caps.filter((c) => /\[A\] gg 선언/.test(c)).length === 1],
+    ["경기 사람이 아닌 말은 안 쓴다", !caps.some((c) => /관전자/.test(c))],
+    ["끼운 뒤에도 토막 시각은 늘 오름차순", plan.every((s, i) => i === 0 || s.at > plan[i - 1].at)],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }

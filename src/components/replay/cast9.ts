@@ -34,7 +34,7 @@
  */
 import { BUILDING_KO, UNIT_KO } from "../../utils/replayNames";
 import { researchKo } from "../../utils/replayTechNames";
-import { costOf, sightTiles, unitOf } from "../../utils/bwUnits";
+import { costOf, raceOfBwKind9, sightTiles, SUPPLY_CAP, SUPPLY_COST, SUPPLY_GIVES, unitOf } from "../../utils/bwUnits";
 import { SEL_KIND9, tkN, tkT, tkV } from "../../utils/openbwTracks";
 import type { TruthWorld } from "../../utils/truthLives";
 
@@ -87,6 +87,8 @@ export type CastPlanOpts9 = {
   mapW?: number; mapH?: number;
   /** 참값 지형(2026-10-10) — 고도(0~3) · 걸을 수 있나 · 램프. 없으면 언덕탱·옆탱·입구 판정은 안 읽는다. */
   terrain?: { level: (x: number, y: number) => number; walk: (x: number, y: number) => boolean; ramp?: (x: number, y: number) => boolean };
+  /** 경기 채팅(2026-10-10) — [초, 말한 사람(참값 이름), 글]. "gg/ㅈㅈ" 선언 · "노엘/ㄴㅇ" 외침 자막의 재료. 없으면 안 읽는다. */
+  chats?: readonly { sec: number; name: string; text: string }[];
 };
 
 /** 장면보다 몇 초 먼저 갈아타나(요청: "1-2초전에 미리") — 그 사이에 카메라가 자리를 잡는다. */
@@ -1018,6 +1020,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   /** 마지막 토막이 선 시각(없으면 -1000) · 그 무게. */
   const lastAt9 = (): number => (out9.length > 0 ? out9[out9.length - 1].at : -1000);
   const lastScore9 = (): number => (out9.length > 0 ? out9[out9.length - 1].score : 0);
+  const blockShown9 = new Set<object>();
   /** 소강 구간을 순환으로 메운다 — from 부터 to 까지 CYCLE9 마다 한 사람. */
   const fill9 = (from9: number, to9: number): void => {
     /* 앞 토막이 최소한 머문 뒤에 시작한다 — 장면을 보여 주다 3초 만에 순환으로 끊으면
@@ -1025,7 +1028,13 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     const s09 = out9.length > 0 ? Math.max(from9, lastAt9() + MIN_HOLD9) : from9;
     /* 끝은 **MIN_HOLD9 앞**에서 멎는다 — 장면 바로 앞에 순환 한 토막을 끼우면 자막이
        두 번 잇달아 뜨고(그 둘은 다른 사람이다) 앞 토막은 몇 초 만에 끊긴다. */
-    for (let s9 = s09; s9 < to9 - MIN_HOLD9; s9 += CYCLE9) push9(s9, nextRing9(aliveAt9(s9)), "순환 중계", true, 0);
+    /* 그 칸에 인구가 막힌 사람이 있으면 그 사람이 먼저다(2026-10-10 · 인구 막힘 ★★) — 한 막힘은 한 번만 데려온다. */
+    for (let s9 = s09; s9 < to9 - MIN_HOLD9; s9 += CYCLE9) {
+      const alive9 = aliveAt9(s9);
+      const blk9 = alive9.find((r9) => { const b9 = blockIn9(r9, s9, s9 + CYCLE9); return !!b9 && !blockShown9.has(b9); });
+      if (blk9) blockShown9.add(blockIn9(blk9, s9, s9 + CYCLE9)!);
+      push9(s9, blk9 ?? nextRing9(alive9), "순환 중계", true, 0);
+    }
   };
 
   /* ── 자막(2026-10-09, 요청: "앞으로 자동중계에서는 모든 장면에 자막 삽입 — 전투·견제·공격·방어·기술 개발·건설 등을 자연스러운 말투로(개조식) · 화려한 표현 X
@@ -1078,16 +1087,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     const n9 = dropN9(att9, def9, sec9);
     return n9 >= 1 && n9 < BOMB_DROP_N9 ? `${harassName9(kind9)} 드랍` : null;
   };
-  /** 저글링러시 — ZL_RUSH_T9 초 전의 장면에서 att 의 킬이 대개 저글링이면. */
-  const ZL_RUSH_T9 = 420;
-  const zlRush9 = (sc9: Sc9, att9: string): string | null => {
-    if (sc9.t0 >= ZL_RUSH_T9) return null;
-    const kk9 = sc9.killKind.get(att9);
-    if (!kk9) return null;
-    let all9 = 0; let zl9 = 0;
-    for (const [kind9, w9] of kk9) { all9 += w9; if (kind9 === "Zergling") zl9 += w9; }
-    return all9 > 0 && zl9 / all9 >= 0.6 ? "저글링러시" : null;
-  };
+  /* (걷어냄 · 2026-10-10, 요청: "저글링 러시 이런 거는 화면 보면 아니까 굳이 설명 x") 저글링러시 이름(zlRush9 — 초반 장면의 킬이 대개 저글링). */
   /** 로/으로 — 받침(ㄹ 아닌)이 있으면 "으로" · 없거나 ㄹ 이면 "로"(한글 아닌 이름은 "로"). */
   const koRo9 = (s9: string): string => {
     const c9 = s9.charCodeAt(s9.length - 1);
@@ -1206,6 +1206,17 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
        가장 많이 부순 짝이 주인공과 무관하면(팀전에서 같은 장면의 딴 짝) 그것을 안 쓰고 주인공의 맞대결 글귀로 간다. 건물 짝은 주인공이 든 것 중 가장 무거운 것. */
     const top9 = sc9.top && (sc9.top.raw === pick9 || sc9.top.vs === pick9) ? sc9.top : undefined;
     const why9 = top9 ? sc9.why : "";
+    /* ★ **엘리**(2026-10-10, 요청: "엘리") — 그 장면에서 건물을 잃은 사람이 그 뒤로 건물이 하나도 없으면(다시 짓지도 않으면) "[B]가 [A] 엘리시킴" — 가장 큰 사건이라
+       맨 앞이다. 부순 사람은 그 사람 건물을 가장 많이 부순 짝. 주인공과 같은 편이거나 맞선 편일 때만(밀리에서 남의 엘리는 안 쓴다). */
+    for (const v9 of sc9.bldLost.keys()) {
+      const own9 = ownersOf9(v9);
+      const left9 = world.lives.some((e9) => e9.bld && own9.has(e9.owner) && (e9.died === null || e9.died > sc9.t1 + 0.5));
+      if (left9) continue;
+      let k9 = ""; let kw9 = 0;
+      for (const [key9, w9] of sc9.bldPair) { const [a9, b9] = key9.split(">"); if (b9 === v9 && w9 > kw9) { kw9 = w9; k9 = a9; } }
+      if (!k9 || !(sameSide9(pick9, k9) || sameSide9(pick9, v9))) continue;
+      return [{ raw: k9, p: "ga" }, { text: " " }, { raw: v9 }, { text: " 엘리시킴" }];
+    }
     if (top9 && why9 === "핵") return [{ raw: top9.raw, p: "ga" }, { text: " 핵 투하" }];
     if (top9 && why9 === "마법") {
       const sp9 = spellNote9(sc9, top9.raw, top9.raw === pick9 ? d9?.role : undefined) ?? `${top9.tech ? researchKo(top9.tech) : "마법"} 사용`;
@@ -1278,7 +1289,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       const a09 = d9.atks[0];
       let ak9 = ""; let aw9 = 0;
       for (const [k9, w9] of sc9.killKind.get(a09) ?? []) if (w9 > aw9) { aw9 = w9; ak9 = k9; }
-      const name9 = rushKind9(a09, bo9, sc9.t0) ?? dropKind9(a09, bo9, sc9.t0) ?? (ak9 ? unitDrop9(a09, bo9, sc9.t0, ak9) : null) ?? zlRush9(sc9, a09) ?? "공격";
+      const name9 = rushKind9(a09, bo9, sc9.t0) ?? dropKind9(a09, bo9, sc9.t0) ?? (ak9 ? unitDrop9(a09, bo9, sc9.t0, ak9) : null) ?? "공격";   // 저글링러시는 이름 안 붙인다(2026-10-10, 요청: "저글링 러시 이런 거는 화면 보면 아니까 굳이 설명 x")
       const atts9 = name9 === "공격" ? d9.atks : [a09];
       return [...chips9(atts9, "ga"), { text: " " }, { raw: bo9 }, { text: name9 === "공격" ? " 기지 공격" : ` 기지에 ${name9}` },
         ...(d9.helps && d9.helps.length > 0 ? [{ text: " · " } as CapPart9, ...chips9(d9.helps, "ga"), { text: " 헬프" } as CapPart9] : [])];
@@ -1287,7 +1298,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       const foes9 = d9.foes.length > 0 ? d9.foes : [d9.foe];
       /* ★ 공격의 **이름**(2026-10-09, 요청: "자주 나오는 전략 — 포토러시 · 성큰러시 · 9드론 저글링러시 · 폭탄드랍") — 상대 기지의 캐논/성큰(rushKind9) > 수송선이 그 기지로
          간 뒤의 싸움(dropKind9) > 초반 저글링 킬(zlRush9) > 그냥 "공격". 방어 쪽은 "…함"(공격함과 같은 꼴). */
-      const attack9 = (att9: string, def9: string): string => rushKind9(att9, def9, sc9.t0) ?? dropKind9(att9, def9, sc9.t0) ?? zlRush9(sc9, att9) ?? "공격";
+      const attack9 = (att9: string, def9: string): string => rushKind9(att9, def9, sc9.t0) ?? dropKind9(att9, def9, sc9.t0) ?? "공격";   // 저글링러시 이름은 걷었다(2026-10-10)
       /* ★ 공격·방어 다 **"A가 B를 공격"** 서술이다(2026-10-10, 요청: "누가 누구를 공격했는지 주어나 목적어가 화면주인이어도 넣기(자막은 제 3자 느낌으로) · ~의 공격
          말고 서술로") — 옛 공격 "A의 B 공격" · 방어 "A가 공격함 · C가 헬프옴"(화면 주인 B 를 뺐다). 이름 붙은 공격은 "A가 B에게 포토러시". 방어의 팀원은 "C가 헬프". */
       const hit9 = (atts9: string[], defs9: string[], name9: string): CapPart9[] =>
@@ -1795,10 +1806,60 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     if (inCenter9(ord9[1], ord9[2], CENTER_K9.hold)) return [{ raw: raw9 }, { text: ` ${what9} 센터로 ${verb9}` }];
     return [{ raw: raw9 }, { text: ` ${what9} ${verb9}` }];
   };
+  /* ★★ **인구 막힘**(2026-10-10, 요청: "인구 막힘도 중요 포인트라 자막 나오면 좋음") — 재생기 로스터의 인구(supplyLive)와 같은 셈: 몸마다 난 초에 먹은 인구(SUPPLY_COST) ·
+     준 인구(SUPPLY_GIVES · 시작 밑천과 안 겹치게 2초 뒤에 난 것만) 계단 · 상한 = min(SUPPLY_CAP, 종족 시작 몫 + 준 것) · **제 종족 풀**만(뺏은 몸의 딴 풀은 뺀다).
+     먹은 것이 상한에 닿은(상한 − 1 ~ 상한 · 상한이 200 아래) 동안이 막힘이고, BLOCK9.min 초 넘게 이어진 것만 센다(BLOCK9.merge 초 안의 틈은 잇는다). 단위는 원작 내부(두 배). */
+  const RACE_START_SUPPLY9: Record<string, number> = { 테란: 20, 프로토스: 18, 저그: 18 };
+  const BLOCK9 = { min: 12, merge: 6 };
+  type Block9 = { t0: number; t1: number; used: number; cap: number };
+  const blocksMemo9 = new Map<string, Block9[]>();
+  const blocksOf9 = (raw9: string): Block9[] => {
+    const got9 = blocksMemo9.get(raw9);
+    if (got9) return got9;
+    const own9 = ownersOf9(raw9);
+    const race9 = world.players.find((pl9) => pl9.name === raw9)?.race ?? "";
+    const ev9: [number, number, number][] = [];
+    for (const e9 of world.lives) {
+      if (!own9.has(e9.owner)) continue;
+      if (race9 && (raceOfBwKind9(e9.kind) || race9) !== race9) continue;
+      const g9 = (SUPPLY_GIVES[e9.kind] ?? 0) > 0 && e9.born > 2 ? SUPPLY_GIVES[e9.kind] : 0;
+      const u9 = e9.bld ? 0 : SUPPLY_COST[e9.kind] ?? 0;
+      if (g9 === 0 && u9 === 0) continue;
+      ev9.push([e9.born, u9, g9]);
+      if (e9.died !== null) ev9.push([e9.died, -u9, -g9]);
+    }
+    ev9.sort((a9, b9) => a9[0] - b9[0]);
+    const base9 = RACE_START_SUPPLY9[race9] ?? 0;
+    const out9: Block9[] = [];
+    let used9 = 0; let give9 = 0; let open9: Block9 | null = null;
+    for (let i9 = 0; i9 < ev9.length;) {
+      const sec9 = ev9[i9][0];
+      while (i9 < ev9.length && ev9[i9][0] === sec9) { used9 += ev9[i9][1]; give9 += ev9[i9][2]; i9 += 1; }
+      const cap9 = Math.min(SUPPLY_CAP, base9 + give9);
+      /* 상한에 **닿은** 동안만(상한 − 1 ~ 상한 · 저글링 반 칸) — 상한을 넘은 것은 공급 건물을 잃은 것이지 막힘(서플을 늦게 지음)이 아니다. */
+      const blocked9 = cap9 < SUPPLY_CAP && used9 > 0 && used9 >= cap9 - 1 && used9 <= cap9;
+      if (blocked9 && !open9) open9 = { t0: sec9, t1: sec9, used: used9, cap: cap9 };
+      else if (blocked9 && open9) { open9.used = used9; open9.cap = cap9; }
+      else if (!blocked9 && open9) {
+        open9.t1 = sec9;
+        const last9 = out9[out9.length - 1];
+        if (last9 && open9.t0 - last9.t1 <= BLOCK9.merge) { last9.t1 = open9.t1; last9.used = open9.used; last9.cap = open9.cap; } else out9.push(open9);
+        open9 = null;
+      }
+    }
+    if (open9) { open9.t1 = Math.min(total, liveTo9.get(raw9) ?? total); out9.push(open9); }
+    const res9 = out9.filter((b9) => b9.t1 - b9.t0 >= BLOCK9.min);
+    blocksMemo9.set(raw9, res9);
+    return res9;
+  };
+  const blockIn9 = (raw9: string, t0: number, t1: number): Block9 | undefined => blocksOf9(raw9).find((b9) => b9.t0 < t1 && b9.t1 > t0);
   const cycleCaps9 = (raw9: string, t0: number, t1: number): CapPart9[] => {
     const own9 = ownersOf9(raw9);
     const lo9 = t0 - 2;
     const hi9 = Math.max(t0 + 1, t1);
+    /* 인구 막힘이 그 창에 걸치면 그것이 먼저다(위 ★★). */
+    const bk9 = blockIn9(raw9, t0, hi9);
+    if (bk9) return [{ raw: raw9 }, { text: ` 인구 막힘 ${bk9.used / 2}/${bk9.cap / 2}` }];
     const miles9 = buildMiles9(raw9);
     const inWin9 = miles9.find((m9) => m9.at >= lo9 && m9.at < hi9);
     if (inWin9) return inWin9.caps;
@@ -1850,6 +1911,33 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     cur9 = Math.max(cur9, sc9.t1 + (sc9.tail - GAP9));
   }
   fill9(cur9, total);
+  /* ★★ **gg 선언 · 노엘 외침**(2026-10-10, 요청: "엘리 gg(ㅈㅈ) 선언 ㄴㅇ 노엘 외침도") — 채팅에서 그 말을 한 사람을 그때 CHAT_HOLD9 초 보여 주고 "[A] gg 선언" ·
+     "[A] 노엘 외침"을 띄운 뒤 보던 토막으로 돌아간다(그 토막이 그 뒤에도 이어지면 같은 토막을 다시 세운다). 같은 사람의 같은 말은 CHAT_DEDUP9 초에 한 번.
+     말의 꼴은 sg-web replayTactics 의 GG_RE · NO_ELIM_RE 와 같다. */
+  {
+    const GG_RE9 = /(^|[^a-z])(g{2,}|w{2,})(?!\.[a-z])([^a-z]|$)|ㅈ{2,}|(^|[^가-힣])(지지|쥐쥐)|잘{1,2}했|잘하시네/i;
+    const NOEL_RE9 = /노\s*엘|(^|[^가-힣])ㄴ\s*ㅇ(ㄹ)?([^가-힣]|$)/;
+    const CHAT_HOLD9 = 4;
+    const CHAT_DEDUP9 = 60;
+    const names9 = new Set(rawOf9.values());
+    const last9 = new Map<string, number>();
+    for (const c9 of [...(opts.chats ?? [])].sort((a9, b9) => a9.sec - b9.sec)) {
+      if (!names9.has(c9.name) || c9.sec > total) continue;
+      const kind9 = NOEL_RE9.test(c9.text) ? "노엘 외침" : GG_RE9.test(c9.text) ? "gg 선언" : null;
+      if (!kind9) continue;
+      const key9 = `${c9.name}|${kind9}`;
+      if ((last9.get(key9) ?? -Infinity) > c9.sec - CHAT_DEDUP9) continue;
+      last9.set(key9, c9.sec);
+      const at9 = Math.max(0, c9.sec - 0.5);
+      let i9 = -1;
+      for (let k9 = 0; k9 < out9.length; k9 += 1) { if (out9[k9].at <= at9) i9 = k9; else break; }
+      const seg9: CastSeg9 = { at: at9, raw: c9.name, why: kind9, cyc: false, score: 0, caps: [{ raw: c9.name }, { text: ` ${kind9}` }] };
+      const next9 = out9[i9 + 1]?.at ?? total;
+      const back9 = i9 >= 0 && next9 > at9 + CHAT_HOLD9 + 1 ? { ...out9[i9], at: at9 + CHAT_HOLD9 } : null;
+      if (i9 >= 0 && out9[i9].at === at9) out9.splice(i9, 1, seg9, ...(back9 ? [back9] : []));
+      else out9.splice(i9 + 1, 0, seg9, ...(back9 ? [back9] : []));
+    }
+  }
   /* ★ 순환 토막의 자막(2026-10-09) — 그 사람이 그 창(다음 토막까지)에서 한 일: 연구 완료 > 빌드 이정표(창 안 > 최근) > 그 밖의 건설 > 국면 요약(위 ★★ 빌드 읽기). */
   for (let i9 = 0; i9 < out9.length; i9 += 1) {
     const sg9 = out9[i9];

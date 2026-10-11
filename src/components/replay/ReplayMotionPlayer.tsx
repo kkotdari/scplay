@@ -8645,7 +8645,8 @@ export default function ReplayMotionPlayer({
   /** 참값 자취 로더 — 서버가 리플레이를 실제로 돌려 구운 것 하나면 화면이 다 선다
    *  (자리·방향·상태·종류·체력·업그레이드·마법·핑·로스터). 없으면 재생기는 아무것도
    *  안 그리고 "재생할 수 없는 게임"이라고만 말한다(요청: 폴백 없음). */
-  loadUnitTracks?: () => Promise<{ motion: string | null }>;
+  /** 자취 받기 — chats(2026-10-10 · 있으면)는 경기 채팅 [초 · 말한 사람(게임 이름) · 글]: 중계 자막의 gg 선언·노엘 외침(cast9 ★★). */
+  loadUnitTracks?: () => Promise<{ motion: string | null; chats?: { sec: number; name: string; text: string }[] }>;
   /** 링크로 받은 장면 한 벌(`sceneLinkOf9` 가 푼 그대로 — 앱은 안 만진다): 시작 시각(&t=) · 배속(&s= · 사다리에
    *  없는 값은 가장 가까운 칸) · 자리(&z=·&cx=·&cy=·&a= · 지도 상자가 실제로 서고 나서 한 번만 건다) · 카메라 임자
    *  (&tr= · 그 판의 게임 아이디면 그 사람을 **추적한 채로**, `*`(CAST_AUTO_LINK9)면 **자동 중계를 켠 채로** 시작 ·
@@ -8763,6 +8764,8 @@ export default function ReplayMotionPlayer({
      "그 경기엔 아무 일도 없었다"가 화면에서 갈려야 한다. */
   const [entData, setEntData] = useState<TruthWorld | null>(null);
   const [entLoad, setEntLoad] = useState<"idle" | "loading" | "none">("idle");
+  /** 경기 채팅(자취와 함께 온다 · 2026-10-10) — 중계 편성표의 gg 선언·노엘 외침 재료. */
+  const [chats9, setChats9] = useState<{ sec: number; name: string; text: string }[] | undefined>(undefined);
   /* 유닛의 자리·방향·상태 — 서버가 리플레이를 그대로 돌려 구운 참값이다. 태그로 찾는다.
      (이름이 sim으로 남은 것은 읽는 자리가 수백 군데라서다 — 값의 출처만 바뀌었다.) */
   const [simTracks, setSimTracks] = useState<Map<number, TruthTrack> | null>(null);
@@ -8843,6 +8846,7 @@ export default function ReplayMotionPlayer({
       /* 자취는 zlib+varint로 눌려 온다 — 푸는 데 26분짜리 8인전이 100ms쯤이다.
          이 안에 자리·체력·업그레이드·마법·핑·로스터가 다 들어 있다. */
       const got = await loadUnitTracks();
+      if (got.chats && got.chats.length > 0) setChats9(got.chats);
       const truth = got.motion ? await decodeTruthTracks(got.motion) : null;
       /* ★ 못 쓴 까닭을 **반드시 적어 둔다**(지적: "지금 모든 경기가 거의 다 재생할 수
          없는 게임이에요라고 나온다") — 여태 진단(truthVer)은 성공 갈래 **안**에만
@@ -10266,9 +10270,10 @@ export default function ReplayMotionPlayer({
     () => (castOn && entData
       ? castPlan9(entData, { total, skip: obsNames, only: rosterKeys9, order: bases.map((b9) => b9.key), teamOf: melee ? undefined : teamMap9,
         resources: grid.resources,   // 자원 점 — 앞마당·멀티 가름(cast9 ★★ 자원 무더기 · 2026-10-10)
-        mapW: grid.width, mapH: grid.height, terrain: castTerrain9 })   // 센터·언덕·벽·램프(cast9 전술 읽기 · 2026-10-10)
+        mapW: grid.width, mapH: grid.height, terrain: castTerrain9,   // 센터·언덕·벽·램프(cast9 전술 읽기 · 2026-10-10)
+        chats: chats9 })   // gg 선언·노엘 외침(2026-10-10)
       : []),
-    [castOn, entData, total, obsNames, rosterKeys9, bases, melee, teamMap9, grid.resources, grid.width, grid.height, castTerrain9]);
+    [castOn, entData, total, obsNames, rosterKeys9, bases, melee, teamMap9, grid.resources, grid.width, grid.height, castTerrain9, chats9]);
   /** 지금 짚히는 토막 번호 — 렌더마다 이분으로 찾는다(상태로 두면 프레임마다 렌더가 한 번 더 돈다). */
   const castIdx9 = castPlan.length > 0 ? castAt9(castPlan, t) : -1;
   /** 중계가 고른 사람 — 끄거나 표가 없으면 null. */
