@@ -292,7 +292,7 @@ const seqM = castPlan9(q4, { total: 60, order: ["P", "Q", "R", "S"] }).map((s) =
 console.log(`
 순환 차례: 팀전 ${seq4} · 밀리 ${seqM}`);
 for (const [name, pass] of [
-  ["팀전은 로스터 차례로 팀을 번갈아(PRQS…)", "PRQS".repeat(8).startsWith(seq4) && seq4.length >= 4],
+  ["팀전은 첫 바퀴 팀째로(PQRS) · 그 뒤 로스터 차례로 팀을 번갈아(PRQS…) — 2026-10-11", ("PQRS" + "PRQS".repeat(8)).startsWith(seq4) && seq4.length >= 8],
   ["밀리는 로스터 차례 그대로(PQRS…)", "PQRS".repeat(8).startsWith(seqM) && seqM.length >= 4],
 ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 
@@ -929,5 +929,23 @@ rmSync(tmp, { recursive: true, force: true });
   for (const [name, pass] of [
     ["첫 순환 '[A] 7시 테란' · '[B] 1시 저그' · '[C] 3시 프로토스'", capTxt(first("A")) === "[A] 7시 테란" && capTxt(first("B")) === "[B] 1시 저그" && capTxt(first("C")) === "[C] 3시 프로토스"],
     ["둘째 순환부터는 자리·종족이 아니다", !/시 (테란|저그|프로토스)$/.test(capTxt(plan.filter((s) => s.raw === "A")[1] ?? { caps: [] }))],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
+
+/* ── ㉚ 첫 바퀴는 팀째로(2026-10-11, 요청: "첫 순환은 1팀 쭉 하고 2팀 쭉 하고 · 그다음부턴 교대로") — 2v2 A·B(1팀) 대 C·D(2팀) · 사건 없음 · 로스터 A C B D.
+   첫 넷 순환 = A B C D(팀째로) · 다섯째부터는 팀 번갈아(고리 A C B D). */
+{
+  let t9 = 150000;
+  const L = [];
+  const mk = (o, kind, x, y) => L.push({ tag: (t9 += 1), owner: o, kind, born: 0, bornX: x, bornY: y, died: null, end: "", bld: true, sites: [[0, x - 1, y - 1]], doneAt: 0, lifts: [], cloaks: [], sieges: [], orders: [] });
+  mk(0, "Command Center", 16, 112); mk(1, "Command Center", 16, 16); mk(2, "Hatchery", 112, 16); mk(3, "Hatchery", 112, 112);
+  const w = { players: [["A", "테란", 1], ["B", "테란", 1], ["C", "저그", 2], ["D", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
+    lives: L, ups: [], casts: [], pings: [], resFields: [], kills: [], sels: [], builds: [] };
+  const plan = castPlan9(w, { total: 200, order: ["A", "C", "B", "D"], teamOf: { A: 1, B: 1, C: 2, D: 2 }, mapW: 128, mapH: 128 });
+  const seq = plan.filter((s) => s.cyc).map((s) => s.raw).join("");
+  console.log(`\n첫 바퀴 팀째로: ${seq}`);
+  for (const [name, pass] of [
+    ["첫 바퀴 A B C D(1팀 쭉 · 2팀 쭉)", seq.startsWith("ABCD")],
+    ["그다음부터 팀 번갈아(D 다음 A · C 차례가 섞임)", /^ABCD(AC|CB|BD|DA)/.test(seq) && !/^ABCDAB/.test(seq)],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }

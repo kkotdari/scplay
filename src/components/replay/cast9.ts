@@ -934,11 +934,24 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     for (let i9 = 0; i9 < len9; i9 += 1) for (const g9 of groups9) if (i9 < g9.length) out9.push(g9[i9]);
     return out9;
   })();
+  /** ★ **첫 바퀴는 팀째로**(2026-10-11, 요청: "첫 순환은 1팀 쭉 하고 2팀 쭉 하고 순서를 이렇게 · 그다음부턴 교대로") — 고리(ring9)를 팀 차례로 다시 늘어세운 줄(팀 안은 로스터
+   *  차례). 순환이 이 줄의 사람을 한 번씩 다 보여 줄 때까지는 이 줄을 따르고, 그 뒤로는 고리(팀 번갈아)로 돈다(마지막으로 보인 사람 다음부터). */
+  const teamRing9: string[] = (() => {
+    const tOrd9: number[] = [];
+    for (const n9 of ring9) { const tm9 = opts.teamOf?.[n9] ?? 0; if (!tOrd9.includes(tm9)) tOrd9.push(tm9); }
+    return [...ring9].sort((a9, b9) => tOrd9.indexOf(opts.teamOf?.[a9] ?? 0) - tOrd9.indexOf(opts.teamOf?.[b9] ?? 0));
+  })();
+  const firstLap9 = new Set<string>();
   /** 고리에서 마지막으로 보여 준 사람의 자리 — 순환은 그 다음부터 돈다. */
   let ringPos9 = -1;
   /** 고리의 다음 사람 — 마지막으로 보여 준 자리 다음부터 돌며 후보(산 사람)에 든 첫 사람. */
   const nextRing9 = (cands9: string[]): string => {
     const ok9 = new Set(cands9);
+    if (firstLap9.size < teamRing9.length) {
+      const f9 = teamRing9.find((r9) => !firstLap9.has(r9) && ok9.has(r9));
+      if (f9) { firstLap9.add(f9); return f9; }
+      for (const r9 of teamRing9) firstLap9.add(r9);   // 남은 이는 다 죽었다 — 첫 바퀴 끝
+    }
     for (let k9 = 1; k9 <= ring9.length; k9 += 1) {
       const n9 = ring9[(ringPos9 + k9) % ring9.length];
       if (ok9.has(n9)) return n9;
