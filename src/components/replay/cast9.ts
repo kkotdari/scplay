@@ -245,12 +245,20 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   if (rawOf9.size === 0 && opts.only) fill_9(undefined);
   if (rawOf9.size === 0) return [];
   /** 그 사람의 몸이 마지막으로 살아 있던 초 — 순환에서 '이미 진 사람'을 뺀다. */
+  /* ★ 살아 있는 끝 = **마지막 건물이 사라진 때**(2026-10-11, 지적: "궤멸된 수달이가 있는데 자꾸 수달이 화면이 나오고 실제로는 타센 화면이 그냥 멈춘 채 나와") — 옛 판은
+     '몸 하나라도 안 죽었으면 끝까지 산 사람'이라, 기지를 다 잃고 오버로드·옵저버 몇만 남은 사람이 순환에 남았다(명령이 없으니 카메라는 앞 화면에 멈췄다). 원작의 패배는
+     건물을 다 잃는 것이다 — 건물을 가진 적이 있으면 그 마지막 건물이 진 때가 끝, 건물이 한 번도 없었던 사람(옛 판 · 합성 세계)만 몸으로 잰다. */
   const liveTo9 = new Map<string, number>();
-  for (const e9 of world.lives) {
-    const r9 = rawOf9.get(e9.owner);
-    if (!r9) continue;
-    const to9 = e9.died === null ? total : e9.died;
-    if (to9 > (liveTo9.get(r9) ?? -1)) liveTo9.set(r9, to9);
+  {
+    const bldTo9 = new Map<string, number>();
+    for (const e9 of world.lives) {
+      const r9 = rawOf9.get(e9.owner);
+      if (!r9) continue;
+      const to9 = e9.died === null ? total : e9.died;
+      if (to9 > (liveTo9.get(r9) ?? -1)) liveTo9.set(r9, to9);
+      if (e9.bld && to9 > (bldTo9.get(r9) ?? -1)) bldTo9.set(r9, to9);
+    }
+    for (const [r9, to9] of bldTo9) liveTo9.set(r9, to9);
   }
 
   /* ── 사건 모으기 ──────────────────────────────────────────────────────────── */

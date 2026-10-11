@@ -949,3 +949,23 @@ rmSync(tmp, { recursive: true, force: true });
     ["그다음부터 팀 번갈아(D 다음 A · C 차례가 섞임)", /^ABCD(AC|CB|BD|DA)/.test(seq) && !/^ABCDAB/.test(seq)],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }
+
+/* ── ㉛ 궤멸한 사람은 순환에서 빠진다(2026-10-11, 지적: "궤멸된 수달이가 있는데 자꾸 수달이 화면이 나오고 실제로는 타센 화면이 그냥 멈춘 채 나와") — 1v1v1 A·B·C(밀리).
+   C 의 해처리가 150초에 깨지고 오버로드 하나는 끝까지 산다 → 160초 뒤 순환에 C 가 없다(옛 판은 몸 하나라도 살면 끝까지 돌았다). */
+{
+  let t9 = 160000;
+  const L = [];
+  const mk = (o, kind, bld, x, y, born, ex = {}) => { const e = { tag: (t9 += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [], ...ex }; L.push(e); return e; };
+  mk(0, "Command Center", true, 16, 112, 0); mk(1, "Nexus", true, 112, 16, 0);
+  mk(2, "Hatchery", true, 112, 112, 0, { died: 150, end: "atk" }); mk(2, "Overlord", false, 112, 112, 0);
+  const w = { players: [["A", "테란", 1], ["B", "프로토스", 2], ["C", "저그", 3]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
+    lives: L, ups: [], casts: [], pings: [], resFields: [], kills: [], sels: [], builds: [] };
+  const plan = castPlan9(w, { total: 400, order: ["A", "B", "C"], mapW: 128, mapH: 128 });
+  const after = plan.filter((s) => s.at >= 160).map((s) => s.raw);
+  console.log(`\n궤멸 뒤 순환: ${after.join("")}`);
+  for (const [name, pass] of [
+    ["건물을 다 잃은 사람은 그 뒤 순환에 안 나온다(오버로드가 살아 있어도)", after.length > 0 && !after.includes("C")],
+    ["그 전에는 나온다", plan.some((s) => s.raw === "C" && s.at < 150)],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
