@@ -3456,7 +3456,7 @@
 .scr-roster-cam.is-on:hover { background: rgba(46, 229, 157, 0.42); }
 .scr-roster-cam-txt { font-size: calc(var(--rp) * 0.42); font-weight: 800; letter-spacing: 0.03em; }
 /* AUTO 알약 — 안 여백 2 → **6**·dk · 둥글기 3 → **6**·dk(2026-10-09, 요청: "자동 중계 버튼 안 패딩 늘리고 래디우스 증가" — PC·폰 다). 아래 갭은 .scr-dock-headrow. */
-.scr-roster-cam-auto, .scr-roster-cam-all { padding: 0 calc(6px * var(--dk)); border-radius: calc(6px * var(--dk)); gap: calc(3px * var(--dk)); }   /* 전체 알약(PC · 2026-10-09)도 같은 꼴 · 깜빡임은 AUTO 만 */
+.scr-roster-cam-auto, .scr-roster-cam-all { padding: 0 calc(6px * var(--dk)); border-radius: round(nearest, calc(var(--rp) * 0.18), 1px); gap: calc(3px * var(--dk)); }   /* 둥글기 6·dk → 줄 키 × 0.18(2026-10-10, 요청: "자동 중계 버튼 래디우스 줄이기 — 알약 말고 둥근 네모" · PC 의 --dk 가 커서 알약이 됐다) */   /* 전체 알약(PC · 2026-10-09)도 같은 꼴 · 깜빡임은 AUTO 만 */
 .scr-roster-cam-auto.is-on svg, .scr-roster-cam-auto.is-on .scr-roster-cam-txt { animation: scr-cast-blink-well 2s steps(1, end) infinite; }
 @media (prefers-reduced-motion: reduce) { .scr-roster-cam-auto.is-on svg, .scr-roster-cam-auto.is-on .scr-roster-cam-txt { animation: none; } }
 /* PC 짝수 px(위 .scr-motion-pc9 .scr-dock-roster 의 ★) — 칩·단추 키 = 줄 키 − 4 · 단추 그림 ≈ 0.6줄을 짝수로 · AUTO 글자 ≈ 0.42줄 · 트로피 = 글자. */
