@@ -430,3 +430,5 @@ replay.css 끝으로 옮겼고, 규칙 없던 이름표 셋(`scr-doc-calitem`·`
 - 요청: "울트라 2.0 컨트롤타워 1.0 발키리 1.2로 변경" — `UNIT_SIZE_TUNE` ultra 1.4 → **2.0** · valk (표 없음 = 1.0) → **1.2** ·
   `BLD_DRAW_TUNE` ctower 1.2 → **1.0**(애드온 여섯 가운데 컨트롤 타워만 — 나머지 1.2 그대로). MODEL_NORM·BLD_NORM 은 안 건드렸다(배수 표만).
   🔎 `scene-sheet --race 테란 --addons` 에서 스타포트–컨트롤 타워 통로가 이어지는 것 확인 · `addon-wall --check` 최신.
+- 같은 날 재요청: "디바우러 1.2 저글링 1.2 발키리 1.1 터렛 0.9 적용" — `UNIT_SIZE_TUNE` devourer·zling (표 없음 = 1.0) → **1.2** · valk 1.2 → **1.1** ·
+  `BLD_DRAW_TUNE` turret 1.0 → **0.9**. 🔎 `scene-sheet --race 테란|저그` 로 봤다.
