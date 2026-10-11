@@ -10384,7 +10384,9 @@ export default function ReplayMotionPlayer({
    *  기술 개발, 건설 등)를 자연스러운 말투로(개조식) · 화려한 표현 X 담백하고 단순하게" · "자막 중 닉네임도 모두 닉네임택으로 처리 · 줄 넘어가면 줄바꿈 · 자막 글씨는
    *  닉네임택보다 1스텝 작게") — 글귀는 편성표(cast9 castCaps9)가 토막마다 조각(CapPart9 · 글 / 사람)으로 적어 두고, 여기서는 사람 조각을 **이름표 칩**(chipStyle · 색 모드를
    *  따른다)으로, 조사(가/이 · 를/을 · 와/과)는 그 사람의 **표시 이름**(bases)의 받침으로 붙인다. 자동 중계일 때만(개인 추적·손 분할은 없음). 옛 맞대결 창(foeTo) 문은 걷었다. */
-  const castCap9: CapPart9[] | null = castOn && trackRaw === null && castSeg9?.caps && castSeg9.caps.length > 0 ? castSeg9.caps : null;
+  /* ★ 싸움 자막은 **capTo 까지만**(2026-10-11, 지적: "자막이 장면보다 너무 늦게 나오고 늦게 끝나는 듯" · cast9 emitScene9 ★) — 카메라는 그 사람에 머물러도 싸움이 끝나면 걷는다. */
+  const castCap9: CapPart9[] | null = castOn && trackRaw === null && castSeg9?.caps && castSeg9.caps.length > 0
+    && (castSeg9.capTo === undefined || t <= castSeg9.capTo) ? castSeg9.caps : null;
   const capName9 = (r9: string): string => bases.find((b9) => b9.key === r9)?.name ?? r9;
   const capParticle9 = (nm9: string, p9: CapPart9["p"]): string =>
     (p9 === "ga" ? koGa9(nm9) : p9 === "eul" ? koEul9(nm9) : p9 === "wa" ? koWa9(nm9) : p9 === "ui" ? "의" : "");

@@ -63,6 +63,9 @@ export type CastSeg9 = {
   /** ★ 자막 조각(2026-10-09, 요청: "모든 장면에 자막 — 전투·견제·공격·방어·기술 개발·건설 등을 담백한 개조식으로") — 글귀와 사람(재생기가 이름표 칩으로 그린다 ·
    *  조사 p 는 그 사람의 표시 이름 받침으로 재생기가 붙인다). 아래 castCaps9. */
   caps?: CapPart9[];
+  /** ★ 자막이 서 있는 끝(초 · 2026-10-11, 지적: "자막이 장면보다 너무 늦게 나오고 늦게 끝나는 듯") — 싸움 자막은 그 창의 마지막 사건 + CAP_TAIL9 까지만 서고,
+   *  카메라가 그 사람에 머무는 나머지 동안은 자막을 걷는다. 없으면 토막 끝까지(순환 자막). */
+  capTo?: number;
 };
 /** 자막 한 조각 — 글귀(text) 또는 사람(raw · 뒤에 붙일 조사 p: ga 가/이 · eul 를/을 · wa 와/과 · ui 의). */
 export type CapPart9 = { text: string; raw?: undefined; p?: undefined } | { raw: string; p?: "ga" | "eul" | "wa" | "ui"; text?: undefined };
@@ -94,7 +97,7 @@ export type CastPlanOpts9 = {
 };
 
 /** 장면보다 몇 초 먼저 갈아타나(요청: "1-2초전에 미리") — 그 사이에 카메라가 자리를 잡는다. */
-export const CAST_LEAD9 = 1.5;
+export const CAST_LEAD9 = 3;   // 1.5 → 3(2026-10-11, 요청: "장면 전환도 딱 시작할 때가 아니라 좀 전에 전환돼야 자연스러워") — 싸움이 붙기(eng) 3초 전
 /** 한 장면으로 묶는 사건 사이의 최대 틈(초). */
 const GAP9 = 6;   // 4 → 6(2026-10-10, 요청: "중요도 높은 이벤트와 전투를 긴 호흡으로") — 한 싸움의 잔 틈에 장면이 안 끊긴다
 /** 한 장면의 자리 반지름(타일) — 이보다 먼 사건은 같은 때여도 딴 장면이다(2026-10-10 · 아래 장면 묶기 ★★). 기지 하나(BASE_R9 18)쯤. */
@@ -105,6 +108,11 @@ const MAX_SCENE9 = 30;   // 22 → 30(2026-10-10 · 긴 호흡)
 const CAP_SPLIT9 = 3;
 /** 갈아탄 뒤 최소한 머무는 시간(초) — 이보다 잦으면 화면이 정신없다. */
 const MIN_HOLD9 = 8;   // 5 → 8(2026-10-10 · 긴 호흡 — 갈아탄 뒤 그 장면을 읽을 만큼 머문다)
+/** ★ **장면 최소 시간**(2026-10-11, 요청: "장면 최소 시간도 필요할 듯 — 너무 짧게 바뀌면 정신없어 · 그런 장면은 중요도로 걸러서 중요한 걸 길게 보여 주기") — 카메라가
+ *  딴 사람으로 갈아탄 뒤 이 초 안에는 JUMP9 배 넘게 무거운 장면(과 뚝배기)만 다시 갈아탄다 — 같은 전투(cont)·딴 전투(busy)의 문도 이 자를 지난다. */
+const MIN_SHOW9 = 10;
+/** ★ 싸움이 끝난 뒤 **여유**(2026-10-11, 요청: "끝나도 좀 여유를 주고 넘기고") — 마지막 사건(+ 꼬리) 뒤 이만큼은 그 장면에 머문다(순환·밀린 전투가 그 뒤에 온다). */
+const END_PAD9 = 4;
 /** 머무는 중에도 갈아탈 만한 무게 배수 — 이만큼 크면 바로 넘긴다(요청: 바로 다른 사람으로 전환). */
 const JUMP9 = 2.2;   // 1.7 → 2.2(2026-10-10 · 긴 호흡 — 머무는 중 끼어들기는 훨씬 무거운 장면만)
 /** '무게 차이가 없다'의 자 — 1등이 2등의 이 배수 안이면 순환 원칙으로 고른다.
@@ -211,6 +219,8 @@ const CAST_W9: Record<string, number> = {
 
 /** 한 사건 — 시각·사람·무게 · `tail` 은 이 사건 뒤 장면을 열어 두는 초(없으면 GAP9). */
 type Ev9 = { sec: number; raw: string; w: number; why: string; tail?: number;
+  /** 싸움이 **시작된 때**(2026-10-11) — 죽은 몸을 적이 처음 겨눈 때(ENG_MAX9 초 안 · 겨눔 자국) · 모르면 없다(= sec). 자막은 죽은 때가 아니라 이때 선다. */
+  eng?: number;
   /** 본진 건물(커맨드·넥서스·해처리·레어·하이브)을 부순 사건(죽인 쪽 · 2026-10-11) — main 은 시작 본진(뚝배기 · 꼭 보여 준다). */
   hall?: boolean; hallMain?: boolean;
   /** 맞상대(죽인 쪽이면 잃은 사람 · 잃은 쪽이면 죽인 사람) · 준 몸값(죽인 쪽) · 잃은 살림 값(일꾼·건물 · 잃은 쪽). */
@@ -294,6 +304,15 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       }
     }
   }
+  /** ★ 싸움이 시작된 때 — 그 몸이 sec 앞 ENG_MAX9 초 안에 처음 겨눠진 때(겨눔 자국 aim9). 겨눔은 '바뀐 때'만 적히므로 그 창의 가장 이른 값이
+   *  곧 그 몸을 두고 싸움이 붙은 때다. 모르면 sec. */
+  const ENG_MAX9 = 6;
+  const engOf9 = (tag9: number | undefined, sec9: number): number => {
+    const a9 = tag9 !== undefined ? aim9.get(tag9) : undefined;
+    let e9 = sec9;
+    if (a9) for (let i9 = 0; i9 < a9.length; i9 += 3) if (a9[i9] >= sec9 - ENG_MAX9 && a9[i9] < e9) e9 = a9[i9];
+    return e9;
+  };
   /** 태그 → 그 태그의 생애들(변태로 여럿) — 처치 절의 킬러 태그를 종류로 푼다. */
   const byTag9 = new Map<number, (typeof world.lives)[number][]>();
   for (const e9 of world.lives) { const a9 = byTag9.get(e9.tag); if (a9) a9.push(e9); else byTag9.set(e9.tag, [e9]); }
@@ -913,10 +932,11 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     const tail9 = d9.wk ? HARASS9.tail : undefined;
     const hallK9 = d9.bld && HALL_ANY9.has(d9.kind) && !!kill9 && !!mine9 && kill9 !== mine9;   // 본진 건물 깨기(위 HALL_KILL_W9)
     const hallMain9 = hallK9 && d9.tag !== undefined && startHallTags9.has(d9.tag);   // 시작 본진만 뚝배기(2026-10-11)
-    if (kill9) evs9.push({ sec: d9.sec, raw: kill9, w: d9.v * (d9.bld ? BLD_K9 : 1) + (hallK9 ? HALL_KILL_W9 : 0), why: why9, tail: tail9, ...(hallK9 ? { hall: true, ...(hallMain9 ? { hallMain: true } : {}) } : {}),
+    const eng9 = engOf9(d9.tag, d9.sec);
+    if (kill9) evs9.push({ sec: d9.sec, eng: eng9, raw: kill9, w: d9.v * (d9.bld ? BLD_K9 : 1) + (hallK9 ? HALL_KILL_W9 : 0), why: why9, tail: tail9, ...(hallK9 ? { hall: true, ...(hallMain9 ? { hallMain: true } : {}) } : {}),
       vs: mine9, dealt: d9.v, kind: d9.kind, ...(d9.by ? { by: d9.by } : {}), ...(d9.wkw !== undefined ? { wkw: d9.wkw } : {}),
       ...(d9.ktag > 0 ? { ktag: d9.ktag } : {}), ...(d9.x !== undefined && d9.y !== undefined ? { vx: d9.x, vy: d9.y, px: d9.x, py: d9.y } : {}) });
-    if (mine9) evs9.push({ sec: d9.sec, raw: mine9, w: d9.v * LOSS_K9, why: base9 ? "건물 잃음" : d9.wk ? "견제 당함" : d9.wkw !== undefined ? "일꾼 잃음" : "교전", tail: tail9,
+    if (mine9) evs9.push({ sec: d9.sec, eng: eng9, raw: mine9, w: d9.v * LOSS_K9, why: base9 ? "건물 잃음" : d9.wk ? "견제 당함" : d9.wkw !== undefined ? "일꾼 잃음" : "교전", tail: tail9,
       vs: kill9, econ: d9.bld || d9.wk ? d9.v : 0, x: d9.x, y: d9.y, px: d9.x, py: d9.y, kind: d9.kind, ...(d9.wkw !== undefined ? { wkw: d9.wkw } : {}) });
   }
   for (const [sec9, cx9, cy9, tech9, own9] of world.casts) {
@@ -1131,7 +1151,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   type Duel9 = { foe: string; role: CastRole9; foeTo: number; foes: string[]; allies: string[];
     /** 기지 싸움이면(baseOwner9) — 기지 임자(공격당한 사람) · 쳐들어온 사람들(그 편에 몸값을 준 차례) · 임자 편에서 함께 싸운 사람들(헬프). */
     owner?: string; atks?: string[]; helps?: string[] };
-  const push9 = (at9: number, raw9: string, why9: string, cyc9: boolean, score9: number, duel9?: Duel9, caps9?: CapPart9[]): void => {
+  const push9 = (at9: number, raw9: string, why9: string, cyc9: boolean, score9: number, duel9?: Duel9, caps9?: CapPart9[], capTo9?: number): void => {
     const a9 = Math.max(0, Math.min(total, at9));
     ringPos9 = ring9.indexOf(raw9);
     const last9 = out9[out9.length - 1];
@@ -1143,18 +1163,22 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     const capKey9 = (c9?: CapPart9[]): string => (c9 ?? []).map((x9) => x9.raw !== undefined ? `[${x9.raw}]${x9.p ?? ""}` : x9.text).join("");
     const split9 = !!last9 && last9.raw === raw9 && !cyc9 && !!caps9 && a9 - last9.at >= CAP_SPLIT9 && capKey9(caps9) !== capKey9(last9.caps);
     if (last9 && last9.raw === raw9 && (!last9.foe || a9 >= (last9.foeTo ?? 0)) && !duel9 && !split9) {
-      if (!cyc9 && last9.cyc) { last9.cyc = false; last9.why = why9; last9.score = score9; if (caps9) last9.caps = caps9; }
+      if (!cyc9 && last9.cyc) { last9.cyc = false; last9.why = why9; last9.score = score9; if (caps9) last9.caps = caps9; last9.capTo = capTo9; }
+      else if (!cyc9 && capTo9 !== undefined && last9.capTo !== undefined) last9.capTo = Math.max(last9.capTo, capTo9);
       shown9.set(raw9, a9);
       return;
     }
     if (last9 && last9.raw === raw9 && duel9 && last9.foe === duel9.foe && !split9) {
       last9.foeTo = Math.max(last9.foeTo ?? 0, duel9.foeTo);
-      if (!cyc9) { last9.cyc = false; last9.why = why9; last9.score = Math.max(last9.score, score9); last9.role = duel9.role; if (caps9) last9.caps = caps9; }
+      if (!cyc9) {
+        last9.cyc = false; last9.why = why9; last9.score = Math.max(last9.score, score9); last9.role = duel9.role; if (caps9) last9.caps = caps9;
+        last9.capTo = capTo9 === undefined ? undefined : Math.max(last9.capTo ?? 0, capTo9);
+      }
       shown9.set(raw9, a9);
       return;
     }
     if (last9 && a9 <= last9.at) return;   // 시각이 뒤로 가는 토막은 안 싣는다
-    out9.push({ at: a9, raw: raw9, why: why9, cyc: cyc9, score: score9, ...(duel9 ?? {}), ...(caps9 ? { caps: caps9 } : {}) });   // duel9 의 foes·allies 도 함께 실린다
+    out9.push({ at: a9, raw: raw9, why: why9, cyc: cyc9, score: score9, ...(duel9 ?? {}), ...(caps9 ? { caps: caps9 } : {}), ...(capTo9 !== undefined ? { capTo: capTo9 } : {}) });   // duel9 의 foes·allies 도 함께 실린다
     shown9.set(raw9, a9);
   };
   /** ★★ **맞대결** — 그 장면에서 주인공과 가장 많이 주고받은 적이 상대역이다(2026-10, 요청: "교전 발생시 공격자만 보여줄게
@@ -1281,6 +1305,14 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   /** 마지막 토막이 선 시각(없으면 -1000) · 그 무게. */
   const lastAt9 = (): number => (out9.length > 0 ? out9[out9.length - 1].at : -1000);
   const lastScore9 = (): number => (out9.length > 0 ? out9[out9.length - 1].score : 0);
+  /** 카메라가 지금 사람으로 갈아탄 때(그 사람 토막이 이어진 첫 토막의 at · 없으면 -1000). */
+  const lastSwitch9 = (): number => {
+    if (out9.length === 0) return -1000;
+    const r9 = out9[out9.length - 1].raw;
+    let i9 = out9.length - 1;
+    while (i9 > 0 && out9[i9 - 1].raw === r9) i9 -= 1;
+    return out9[i9].at;
+  };
   const blockShown9 = new Set<object>();
   /** 소강 구간을 순환으로 메운다 — from 부터 to 까지 CYCLE9 마다 한 사람. */
   const fill9 = (from9: number, to9: number): void => {
@@ -1622,7 +1654,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       // 교전은 **vs 로 팀을 가른다**(2026-10-09, 요청: "교전 시 vs 로 팀 갈라서 보여주고") — "A·B vs C·D 교전".
       return [...chips9([pick9, ...d9.allies]), { text: " vs " }, ...chips9(foes9), { text: " 교전" }];
     }
-    return [{ raw: pick9 }, { text: ` ${sc9.why}` }];
+    /* 맞는 글귀가 없으면 **비운다**(2026-10-11, 요청: "자막이 꼭 있어야 하는 건 아님 — 맞는 자막은 보여 주고 없으면 비워도 됨") — 옛 "[A] 교전" 같은 꼬리말. */
+    return [];
   };
   /** 기지 피해의 자(위 ★) — 그 장면에서 bv 가 잃은 건물 자리의 가운데 RAZE_R9 타일 안, RAZE_MEM9 초 전부터 장면 끝까지 서 있던 bv 의 건물(변태 앞 생애는 뺀다)이 분모 ·
    *  장면 앞에 공격으로 잃은 몫(before) · 장면 끝까지 잃은 몫(after) · 장면 앞 피해를 가장 많이 낸 사람(prior). */
@@ -2275,7 +2308,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     if (bid9 < 0) bid9 = i9;
     bidOf9.set(s9, bid9);
     bTot9.set(bid9, (bTot9.get(bid9) ?? 0) + totOf9(s9));
-    bEnd9.set(bid9, Math.max(bEnd9.get(bid9) ?? 0, s9.t1 + (s9.tail - GAP9)));
+    bEnd9.set(bid9, Math.max(bEnd9.get(bid9) ?? 0, s9.t1 + (s9.tail - GAP9) + END_PAD9));
   }
   /* ★★ **자막은 사건 때에 맞춘다**(2026-10-11, 지적: "전투가 길게 잡히면서 화면과 안 맞는 자막이 나오는 경우도 많은 듯 — 타이밍을 정확히 맞춰서") — 토막(최대 30초)의 자막을
      그 토막의 가장 무거운 사건으로 지어 토막 **머리**에 세우면, "기지 대파시킴"이 아직 안 부서진 화면에 떴다. 이제 토막을 CAP_WIN9 초 창으로 다시 나눠 창마다 그 창의 사건만으로
@@ -2283,6 +2316,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
      세운다(→ 되물림: 창 첫 사건 때 · 아래 emitScene9). 주인공(카메라)은 토막의 것 그대로 — 주인공이 안 든 창은 건너뛴다. 같은 글귀면 push9 가 잇고, 다르면 CAP_SPLIT9 초 넘게 뒤일 때 새 토막(자막만 갈림). */
   const CAP_WIN9 = 10;
   const CAP_LEAD9 = 0.5;
+  /** 싸움 자막이 마지막 사건 뒤 머무는 초(위 capTo ★). */
+  const CAP_TAIL9 = 3;
   const subSc9 = (sc9: Sc9, a9: number, b9: number): Sc9 | null => {
     const es9 = sc9.evs.filter((e9) => e9.sec >= a9 && e9.sec < b9);
     if (es9.length === 0) return null;
@@ -2318,15 +2353,22 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     const own9 = (s9: Sc9): string | null => baseOwner9(s9) ?? bBo9;
     const dW9 = duel9(sc9, pick9, own9(sc9));
     let first9 = true;
+    let prev9 = -Infinity;
     for (let a9 = Math.max(sc9.t0, from9); a9 <= sc9.t1; a9 += CAP_WIN9) {
       const sub9 = subSc9(sc9, a9, a9 + CAP_WIN9);
       if (!sub9 || !sub9.by.has(pick9)) continue;
       const caps9 = sceneCaps9(sub9, pick9, duel9(sub9, pick9, own9(sub9)) ?? dW9);
-      /* 창 첫 사건 때(− CAP_LEAD9) — 가장 무거운 사건 때로 늦추는 안은 되물렸다(같은 날: "살짝 미리 뜨는 건 괜찮지"). */
-      push9(first9 ? at9 : Math.max(at9, sub9.t0 - CAP_LEAD9), pick9, sub9.why, false, score9, dW9, caps9);
+      /* ★ 창의 자막은 **싸움이 붙은 때**(그 창 사건들의 eng 가운데 가장 이른 것 − CAP_LEAD9)에 서고 **마지막 사건 + CAP_TAIL9** 에 걷힌다(2026-10-11, 지적: "아직도 장면과
+         자막 타이밍이 안 맞아 — 자막이 장면보다 너무 늦게 나오고 늦게 끝나는 듯"). 옛 셈은 창 첫 **죽음** 때라, 싸움이 붙고 몇 초 뒤(첫 몸이 쓰러질 때)에야 떴고,
+         다음 토막(순환)이 올 때까지 — 마지막 킬 뒤 MIN_HOLD9 넘게 — 남았다. 앞 창 자막과는 CAP_SPLIT9 초 넘게 띄운다(가까우면 push9 가 앞 자막을 덮는다). */
+      let eng9 = sub9.t0;
+      for (const e9 of sub9.evs) eng9 = Math.min(eng9, e9.eng ?? e9.sec);
+      const t9 = first9 ? at9 : Math.max(at9, prev9 + CAP_SPLIT9, eng9 - CAP_LEAD9);
+      push9(t9, pick9, sub9.why, false, score9, dW9, caps9, Math.max(t9, sub9.t1) + CAP_TAIL9);
+      prev9 = t9;
       first9 = false;
     }
-    if (first9) push9(at9, pick9, sc9.why, false, score9, dW9, sceneCaps9(sc9, pick9, dW9));   // 창마다 주인공이 안 들면 옛 길
+    if (first9) push9(at9, pick9, sc9.why, false, score9, dW9, sceneCaps9(sc9, pick9, dW9), sc9.t1 + CAP_TAIL9);   // 창마다 주인공이 안 들면 옛 길
   };
   let curBid9 = -1;
   const skipped9: Sc9[] = [];
@@ -2350,7 +2392,10 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   };
   let cur9 = 0;
   for (const sc9 of scs9) {
-    const at9 = Math.max(0, sc9.t0 - CAST_LEAD9);
+    /* 카메라도 **싸움이 붙은 때**에 간다(위 emitScene9 ★ · 2026-10-11) — 장면 첫 CAP_WIN9 초 사건들의 eng 가운데 가장 이른 때 − CAST_LEAD9. */
+    let eng9 = sc9.t0;
+    for (const e9 of sc9.evs) if (e9.sec < sc9.t0 + CAP_WIN9) eng9 = Math.min(eng9, e9.eng ?? e9.sec);
+    const at9 = Math.max(0, eng9 - CAST_LEAD9);
     const bid9 = bidOf9.get(sc9)!;
     const btot9 = bTot9.get(bid9)!;
     if (btot9 < MIN_SCENE9) continue;      // 잔 전투는 장면이 아니다 — 순환이 그 자리를 메운다(무게는 전투 전부의 합 · 위 ★★)
@@ -2372,21 +2417,23 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       const d109 = sc9.pair.get(`${p19}>${p09}`) ?? 0;
       pick9 = d019 !== d109 ? (d019 > d109 ? p09 : p19) : lonely9([p09, p19]);
     }
-    /* 머무는 중이면 **훨씬 무거운 장면**만 끼어든다 — 그래야 화면이 안 튄다. */
-    const held9 = at9 - lastAt9() < MIN_HOLD9;
+    /* 머무는 중이면 **훨씬 무거운 장면**만 끼어든다 — 그래야 화면이 안 튄다. 머묾은 마지막 토막(자막 갈림 포함) MIN_HOLD9 · 카메라가 갈아탄 때 MIN_SHOW9 중 늦은 쪽. */
+    const held9 = at9 - lastAt9() < MIN_HOLD9 || at9 - lastSwitch9() < MIN_SHOW9;
     /* ★ 머무는 중이어도 **지금 보이는 사람이 든 장면**이면 그 사람을 주인공으로 자막만 갈아 끼운다(2026-10-10 · 위 push9 ★) — 카메라는 안 움직이니 화면이
        튀지 않고, 그 사람의 새 사건이 제때 자막에 선다. */
     const cur9raw = out9.length > 0 ? out9[out9.length - 1].raw : null;
     if (held9 && tot9 < lastScore9() * JUMP9 && cur9raw !== null && sc9.by.has(cur9raw)) pick9 = cur9raw;
     if (cont9 && cur9raw !== null && sc9.by.has(cur9raw)) pick9 = cur9raw;   // 같은 전투는 같은 주인공으로 잇는다(위 ★★)
     if (must9 && pick9 !== sc9.hall![0] && pick9 !== sc9.hall![1]) pick9 = cur9raw === sc9.hall![1] ? sc9.hall![1] : sc9.hall![0];   // 뚝배기는 깬 쪽(지금 잃는 쪽을 보던 중이면 그대로)
-    if (must9 || cont9 || busy9 || !held9 || tot9 >= lastScore9() * JUMP9 || pick9 === cur9raw) {
+    /* ★ 같은 전투·딴 전투의 문도 **장면 최소 시간**을 지난다(위 MIN_SHOW9) — 카메라가 갈리는 경우(pick ≠ 지금)에만. */
+    const heavy9 = tot9 >= lastScore9() * JUMP9;
+    if (must9 || pick9 === cur9raw || !held9 || heavy9 || (busy9 && at9 - lastSwitch9() >= MIN_SHOW9)) {
       emitScene9(at9, sc9, pick9, tot9);
       curBid9 = bid9;
-    }
+    } else if (bid9 !== curBid9) skipped9.push(sc9);   // 최소 시간에 걸린 딴 전투는 밀린 전투로 — 지금 전투가 끝난 뒤에도 이어지면 그때 간다(resume9)
     /* 장면의 끝은 마지막 사건 + **꼬리의 남는 몫**이다 — 견제는 마지막 킬 뒤에도 쫓는 몸이 그 자리에
        있으니 그만큼 머물고, 그 사이에 순환이 끼어들지 않는다(교전은 tail = GAP9 라 종전 그대로). */
-    cur9 = Math.max(cur9, sc9.t1 + (sc9.tail - GAP9));
+    cur9 = Math.max(cur9, sc9.t1 + (sc9.tail - GAP9) + END_PAD9);
   }
   resume9(total + 2);
   fill9(cur9, total);

@@ -589,7 +589,9 @@ rmSync(tmp, { recursive: true, force: true });
     ["딴 자리의 동시 사건은 한 자막에 안 섞인다(A 견제 · B 가운데)", in9(390, 410).every((s) => !(/\[A\]/.test(capTxt(s)) && /\[B\]/.test(capTxt(s))))],
     ["견제 자막의 주어는 견제한 한 사람", in9(390, 410).some((s) => /^\[A\]ga .*\[C\] 일꾼 견제$/.test(capTxt(s)))],
     ["기지 싸움은 그 기지 임자가 공격당한 사람 · 팀원은 헬프", s600.length > 0 && s600.every((s) => /^\[A\]ga \[C\] 기지 공격 · \[D\]ga 헬프$/.test(capTxt(s)))],
-    ["이어진 두 사건(딴 자리)은 자막이 그 때마다 갈린다", s800.length >= 2 && /\[C\]ga \[A\] 기지 공격/.test(capTxt(s800[0])) && !/\[C\]ga \[A\] 기지 공격/.test(capTxt(s800[s800.length - 1]))],
+    /* 2026-10-11 장면 최소 시간(MIN_SHOW9 10초)부터 — 804초의 딴 자리 싸움(가벼움)은 C 로 갈아탄 지 10초 안이라 안 끼어든다. 앞 글귀를 뒤 글귀가 덮지 않는 것만 본다. */
+    ["이어진 두 사건(딴 자리)은 앞 자막을 덮지 않고 · 장면 최소 시간 안에 안 갈아탄다", s800.length >= 1 && /\[C\]ga \[A\] 기지 공격/.test(capTxt(s800[0]))
+      && s800.slice(1).every((s) => s.raw === s800[0].raw || s.at - s800[0].at >= 10)],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }
 
@@ -1109,5 +1111,28 @@ rmSync(tmp, { recursive: true, force: true });
     ["뚫린 길목 앞은 기지 입구", base(600)],
     ["램프 아래도 기지 입구(입구 둘)", base(800)],
     ["벌판 멀리는 기지가 아니다", capsAt(1000).length > 0 && !base(1000)],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
+
+/* ── ㊲ 자막은 싸움이 붙을 때 서고 끝나면 걷힌다(2026-10-11, 지적: "아직도 장면과 자막 타이밍이 안 맞아 — 자막이 장면보다 너무 늦게 나오고 늦게 끝나는 듯") —
+   1v1 A 마린 여섯이 300초부터 C 히드라 여섯을 겨누고(겨눔 자국) 304~314초에 2초마다 하나씩 잡는다. 옛 판은 첫 **죽음**(304) 앞 1.5초(302.5)에 카메라·자막이 섰고
+   자막은 다음 순환까지 남았다 → 이제 겨눔이 붙은 300초 앞(≤ 299)에 서고 마지막 킬(314) + 3초 = 317 에 걷힌다(capTo). */
+{
+  let t9 = 220000;
+  const L = []; const kills = [];
+  const mk = (o, kind, bld, x, y, born, ex = {}) => { const e = { tag: (t9 += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [], ...ex }; L.push(e); return e; };
+  mk(0, "Command Center", true, 16, 16, 0); mk(1, "Hatchery", true, 100, 100, 0);
+  const hs = Array.from({ length: 6 }, (_, i) => mk(1, "Hydralisk", false, 100, 100, 200, { died: 304 + i * 2, end: "atk", orders: [[296, 60, 60, true]], endX: 60, endY: 60 }));
+  hs.forEach((h, i) => { mk(0, "Marine", false, 16, 16, 200, { orders: [[296, 58, 58, true]], tgt: Float64Array.from([300, h.tag, h.died + 0.2, 0]) }); });
+  hs.forEach((h, i) => kills.push([h.died, 0, L[L.length - 6 + i].tag, h.tag]));
+  const w = { players: [["A", "테란", 1], ["C", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
+    lives: L, ups: [], casts: [], pings: [], resFields: [], kills, sels: [], builds: [] };
+  const plan = castPlan9(w, { total: 500, order: ["A", "C"], teamOf: { A: 1, C: 2 } });
+  const fight = plan.filter((s) => !s.cyc && s.at > 280 && s.at < 330);
+  console.log(`\n싸움 자막 때: ${fight.map((s) => `${s.at.toFixed(1)}~${s.capTo?.toFixed(1) ?? "∞"} ${capTxt(s)}`).join(" · ")}`);
+  for (const [name, pass] of [
+    ["겨눔이 붙은 때(300) 앞에 선다", fight.length > 0 && fight[0].at <= 299],
+    ["마지막 킬(314) 뒤 3초 언저리에 걷힌다", fight.length > 0 && Math.abs((fight[fight.length - 1].capTo ?? 999) - 317) <= 1],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }
