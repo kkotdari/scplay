@@ -662,7 +662,7 @@ rmSync(tmp, { recursive: true, force: true });
     ["하템 한 대 드랍 + 스톰 일꾼 → '기지에 하이템플러 드랍. 스톰으로 일꾼 4기 잡음'", at(290, 310).some((c) => c === "[A]ga [C] 기지에 하이템플러 드랍. 스톰으로 일꾼 4기 잡음")],
     ["처음 피해 → '[A]ga [D] 기지 반파시킴'", at(490, 510).some((c) => c === "[A]ga [D] 기지 반파시킴")],
     ["같은 사람이 더 부숨 → '[A]ga 이어서 [D] 기지 대파시킴'", at(510, 530).some((c) => c === "[A]ga 이어서 [D] 기지 대파시킴")],
-    ["뒤늦게 온 사람이 끝냄 → '[B]ga [D] 기지 마무리지음'", at(590, 610).some((c) => c === "[B]ga [D] 기지 마무리지음")],
+    ["뒤늦게 온 사람이 끝냄 → '[B]ga [D] 기지 마무리지음'", at(590, 610).some((c) => c.startsWith("[B]ga [D] 기지 마무리지음"))],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }
 
@@ -689,7 +689,7 @@ rmSync(tmp, { recursive: true, force: true });
     ["파일런 건설은 자막에 안 선다", !plan.some((s) => /파일런/.test(capTxt(s)))],
     ["게이트 둘 → '생산 건물 늘리는 중'(또는 빌드 읽기 '2게이트')", inA(300, 400).some((c) => c === "[A] 생산 건물 늘리는 중" || c === "[A] 2게이트")],
     ["오래 골라 둔 일꾼은 '일꾼 이동' 자막이 아니다", !plan.some((s) => /일꾼 \d+기 이동/.test(capTxt(s)))],
-    ["돌고 있는 연구 → '업그레이드 진행 중'", inA(490, 600).some((c) => c === "[A] 업그레이드 진행 중")],
+    ["돌고 있는 연구 → 이름으로 '질럿 속업 연구 중'(2026-10-11 · 옛 '업그레이드 진행 중')", inA(490, 600).some((c) => c === "[A] 질럿 속업 연구 중")],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }
 
@@ -830,5 +830,29 @@ rmSync(tmp, { recursive: true, force: true });
     ["긴 전투는 처음부터 끝까지 한 주인공(A 또는 C)으로 이어진다", small.filter((s) => s.at >= 98 && s.at < 204).every((s) => s.raw === small.find((x) => x.at >= 98)?.raw)],
     ["합이 1.2 배 넘게 무거운 딴 전투는 끼어든다", onBD(big)],
     ["끼어든 전투가 끝나면 아직 이어지는 앞 전투로 돌아간다", big.some((s) => (s.raw === "A" || s.raw === "C") && s.at > 160 && s.at < 200 && !s.cyc)],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
+
+/* ── ㉖ 뚝배기 파괴(2026-10-11, 요청: "메인홀(뚝배기) 깨는 건 진짜 중요해서 꼭 보여줘야 함" → "뚝배기 파괴") — 2v2 A·B(1팀) 대 C·D(2팀).
+   ① 100~205초 (30,30) 긴 전투(A 마린이 C 저글링에 죽는다 · 합이 무겁다) ② 150초 B 마린 셋이 (100,100)의 D 해처리 하나를 깬다(D 의 다른 건물은 남는다 · 엘리 아님)
+   → 긴 전투 중이어도 그리로 가고 "[B]ga [D] 뚝배기 파괴". */
+{
+  let t9 = 99000;
+  const L = []; const kills = [];
+  const mk = (o, kind, bld, x, y, born, ex = {}) => { const e = { tag: (t9 += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [], ...ex }; L.push(e); return e; };
+  mk(0, "Command Center", true, 10, 10, 0); mk(1, "Command Center", true, 10, 118, 0); mk(2, "Hatchery", true, 118, 10, 0);
+  mk(3, "Hatchery", true, 118, 118, 0); mk(3, "Spawning Pool", true, 114, 118, 0);
+  const lings = Array.from({ length: 6 }, () => mk(2, "Zergling", false, 118, 10, 50, { orders: [[95, 31, 31, false]] }));
+  for (let i = 0; i < 36; i += 1) { const t = 100 + i * 3; const m = mk(0, "Marine", false, 10, 10, 50, { died: t, end: "atk", orders: [[t - 3, 30, 30, false]] }); kills.push([t, 2, lings[i % 6].tag, m.tag]); }
+  const ms = Array.from({ length: 3 }, () => mk(1, "Marine", false, 10, 118, 50, { orders: [[140, 100, 100, false]] }));
+  const hat = mk(3, "Hatchery", true, 100, 100, 60, { died: 150, end: "atk" });
+  kills.push([150, 1, ms[0].tag, hat.tag]);
+  const w = { players: [["A", "테란", 1], ["B", "테란", 1], ["C", "저그", 2], ["D", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
+    lives: L, ups: [], casts: [], pings: [], resFields: [], kills, sels: [], builds: [] };
+  const plan = castPlan9(w, { total: 400, order: ["A", "C", "B", "D"], teamOf: { A: 1, B: 1, C: 2, D: 2 } });
+  console.log(`\n뚝배기: ${plan.filter((s) => s.at >= 90 && s.at < 220).map((s) => `${s.at.toFixed(0)} ${capTxt(s)}`).join(" · ")}`);
+  for (const [name, pass] of [
+    ["긴 전투 중에도 본진 건물을 깨면 그리로 간다 · '[B]ga [D] 뚝배기 파괴'", plan.some((s) => s.at >= 140 && s.at <= 152 && /^\[B\]ga \[D\].*뚝배기 파괴$/.test(capTxt(s)))],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }

@@ -152,6 +152,9 @@ const KILL_W9 = 2.5;
 const LOSS_K9 = 0.55;
 /** 건물은 한 단 무겁다 — razing 은 유닛 교전보다 큰 사건이다. */
 const BLD_K9 = 1.2;
+/** ★ 본진 건물(뚝배기) 깨기의 덧무게(2026-10-11, 요청: "메인홀(뚝배기) 깨는 건 진짜 중요해서 꼭 보여줘야 함") — 홀로도 장면 문턱(MIN_SCENE9)을 넉넉히 넘고, 그 토막은
+ *  한창인 딴 전투도 끊고 들어간다(아래 편성 must9). */
+const HALL_KILL_W9 = 1500;
 /** 한꺼번에 이만큼 사라지면서 겨눈 자가 하나도 없으면 **나간 것**이다(교전이 아니다). */
 const LEAVE_N9 = 8;
 /** ★★ **일꾼의 죽음은 견제다 — 몸값이 아니라 경제의 값으로 센다**(2026-09, 지적: "자동 중계에서
@@ -208,6 +211,8 @@ const CAST_W9: Record<string, number> = {
 
 /** 한 사건 — 시각·사람·무게 · `tail` 은 이 사건 뒤 장면을 열어 두는 초(없으면 GAP9). */
 type Ev9 = { sec: number; raw: string; w: number; why: string; tail?: number;
+  /** 본진 건물(커맨드·넥서스·해처리·레어·하이브)을 부순 사건(죽인 쪽 · 2026-10-11 '뚝배기' — 꼭 보여 준다). */
+  hall?: boolean;
   /** 맞상대(죽인 쪽이면 잃은 사람 · 잃은 쪽이면 죽인 사람) · 준 몸값(죽인 쪽) · 잃은 살림 값(일꾼·건물 · 잃은 쪽). */
   vs?: string; dealt?: number; econ?: number;
   /** 자막 재료(2026-10-09) — 죽은 몸의 종류(건물 파괴 자막의 건물 이름) · 마법 이름 · **죽인 유닛의 종류**(by · 리버/하이템플러 일꾼 견제 · 저글링러시의 자). */
@@ -763,7 +768,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
        정찰병을 잡거나 도망가는 일꾼을 잡은 것 · 아니면 전진 건설하는 일꾼을 잡은 것") — 기지 밖 일꾼은 "일꾼 잡음"(갈래 wkw: 정찰 · 전진 건설 · 그 밖). */
     const why9 = base9 ? "건물 파괴" : d9.wk ? "견제" : d9.wkw !== undefined ? "일꾼 잡음" : "교전";
     const tail9 = d9.wk ? HARASS9.tail : undefined;
-    if (kill9) evs9.push({ sec: d9.sec, raw: kill9, w: d9.v * (d9.bld ? BLD_K9 : 1), why: why9, tail: tail9,
+    const hallK9 = d9.bld && HALL_ANY9.has(d9.kind) && !!kill9 && !!mine9 && kill9 !== mine9;   // 뚝배기(위 HALL_KILL_W9)
+    if (kill9) evs9.push({ sec: d9.sec, raw: kill9, w: d9.v * (d9.bld ? BLD_K9 : 1) + (hallK9 ? HALL_KILL_W9 : 0), why: why9, tail: tail9, ...(hallK9 ? { hall: true } : {}),
       vs: mine9, dealt: d9.v, kind: d9.kind, ...(d9.by ? { by: d9.by } : {}), ...(d9.wkw !== undefined ? { wkw: d9.wkw } : {}),
       ...(d9.ktag > 0 ? { ktag: d9.ktag } : {}), ...(d9.x !== undefined && d9.y !== undefined ? { vx: d9.x, vy: d9.y, px: d9.x, py: d9.y } : {}) });
     if (mine9) evs9.push({ sec: d9.sec, raw: mine9, w: d9.v * LOSS_K9, why: base9 ? "건물 잃음" : d9.wk ? "견제 당함" : d9.wkw !== undefined ? "일꾼 잃음" : "교전", tail: tail9,
@@ -780,6 +786,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
 
   /* ── 장면으로 묶기 ────────────────────────────────────────────────────────── */
   type Sc9 = { t0: number; t1: number; by: Map<string, number>; why: string; tail: number;
+    /** 그 토막에서 부서진 본진 건물 [부순 사람, 잃은 사람, 종류] — 첫 것(2026-10-11 뚝배기). */
+    hall?: [string, string, string];
     /** 가장 무거운 사건(자막 재료 · 2026-10-09). */
     top?: Ev9;
     /** "k>v" → k 가 v 의 **건물**을 부순 몸값 · v → 잃은 건물 몸값(자막의 기지 피해 단 — 반파·대파·궤멸 · 2026-10-09). */
@@ -808,6 +816,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   const open9: Open9[] = [];
   const addEv9 = (sc9: Sc9, e9: Ev9): void => {
     sc9.t1 = e9.sec;
+    if (e9.hall && e9.vs && e9.kind && !sc9.hall) sc9.hall = [e9.raw, e9.vs, e9.kind];
     sc9.tail = e9.tail ?? GAP9;
     sc9.by.set(e9.raw, (sc9.by.get(e9.raw) ?? 0) + e9.w);
     if (e9.vs && e9.dealt) sc9.pair.set(`${e9.raw}>${e9.vs}`, (sc9.pair.get(`${e9.raw}>${e9.vs}`) ?? 0) + e9.dealt);
@@ -1198,7 +1207,18 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       const [k9, v9] = key9.split(">");
       if (n9 >= OVL_HUNT_N9 && (k9 === pick9 || v9 === pick9)) return [{ raw: k9, p: "ga" }, { text: " " }, { raw: v9 }, { text: " 오버로드 사냥" }];
     }
-    const base9 = sceneCaps0_9(sc9, pick9, d9);
+    const base0_9 = sceneCaps0_9(sc9, pick9, d9);
+    /* ★ **뚝배기 파괴**(2026-10-11, 요청: "메인홀(뚝배기) 깨는 건 진짜 중요해서 꼭 보여줘야 함" → "아니 뚝배기 파괴") — 본진 건물을 깬 토막에서 주인공 편이 깼거나 잃었으면:
+       첫 문장이 이미 그 둘의 기지 일("[A]가 [B] 기지 마무리지음" · 엘리)이면 뒤에 ". 뚝배기 파괴"(엘리면 안 붙인다) · 아니면 "[A]가 [B] 뚝배기 파괴"가 머리다. */
+    const base9 = ((): CapPart9[] => {
+      const h9 = sc9.hall;
+      if (!h9 || !(sameSide9(pick9, h9[0]) || sameSide9(pick9, h9[1]))) return base0_9;
+      const txt0 = base0_9.map((c9) => c9.text ?? "").join("");
+      if (/엘리/.test(txt0)) return base0_9;
+      const same9 = base0_9[0]?.raw === h9[0] && base0_9.some((c9) => c9.raw === h9[1]);
+      if (same9) return [...base0_9, { text: ". 뚝배기 파괴" }];
+      return [{ raw: h9[0], p: "ga" }, { text: " " }, { raw: h9[1] }, { text: " 뚝배기 파괴" }];
+    })();
     /* ★ 덧말은 **주어가 있는 한 마디**다(2026-10-10, 요청: "뒤에 스톰 옆탱 이런 거 붙이지 말고 문장 안에 누가 썼는지 정확하게 표현") — 옛 꼬리 " · 스톰 · 옆탱"은
        누가 쓴 것인지 안 읽혔다(늘 주인공 것이었는데도 공격 글귀의 주어가 딴 사람이면 그 사람 것으로 읽혔다). 이제 " · [A]가 사이오닉 스톰으로 4기 잡음"처럼 쓴 사람의
        칩을 주어로 세운다. 마법은 **그 장면에 든 사람 누구든**(주인공 먼저 · 그 장면 자리의 것만 — spellNote9) · 캐리어·지형·전술은 주인공의 것. 한 마디만(자막 폭). */
@@ -1795,7 +1815,17 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     let prod9 = 0;
     for (const e9 of world.lives) if (e9.bld && own9.has(e9.owner) && PROD_BLD9.has(e9.kind) && e9.born <= sec9 && e9.born >= sec9 - PHASE9.prodWin && e9.end !== "morph") prod9 += 1;
     if (prod9 >= 2) return "생산 건물 늘리는 중";
-    if (world.ups.some(([us9, un9, uo9]) => own9.has(uo9) && researching9(us9, un9, sec9))) return "업그레이드 진행 중";   // 실제로 도는 동안만(2026-10-11 · 아래 researching9)
+    /* 실제로 도는 연구를 **이름으로 나열**(2026-10-11, 요청: "그냥 업그레이드 진행 중 → 무슨 업그레이드인지 · 여러 개면 여러 개 나열") — 셋까지 "A·B 연구 중". */
+    {
+      const ups9: string[] = [];
+      for (const [us9, un9, uo9] of world.ups) {
+        if (!own9.has(uo9) || !researching9(us9, un9, sec9)) continue;
+        const m9 = /^(.*?)(?: (\d+))?$/.exec(un9);
+        const ko9 = `${researchKo(m9?.[1] ?? un9)}${m9?.[2] ? ` ${m9[2]}단계` : ""}`;
+        if (!ups9.includes(ko9)) ups9.push(ko9);
+      }
+      if (ups9.length > 0) return `${ups9.slice(0, 3).join("·")}${ups9.length > 3 ? " 등" : ""} 연구 중`;
+    }
     if (sec9 - lastTech9 <= PHASE9.tech) return "테크 올리는 중";
     if (bases9 >= 3) return `${bases9}기지 운영 중`;
     if (army9 >= PHASE9.armyN) return "병력 모으는 중";
@@ -2095,7 +2125,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     resume9(at9);
     const cont9 = bid9 === curBid9;
     const busy9 = !cont9 && curBid9 >= 0 && at9 < bEnd9.get(curBid9)!;
-    if (busy9 && btot9 < bTot9.get(curBid9)! * BATTLE_JUMP9) { skipped9.push(sc9); continue; }   // 한창인 전투를 안 끊는다
+    const must9 = !!sc9.hall;   // 뚝배기 깨기는 꼭 보여 준다(HALL_KILL_W9 ★) — 한창인 딴 전투도 끊는다
+    if (busy9 && !must9 && btot9 < bTot9.get(curBid9)! * BATTLE_JUMP9) { skipped9.push(sc9); continue; }   // 한창인 전투를 안 끊는다
     const tot9 = btot9;
     /* 소강이 길면 그 사이를 순환으로 채운다(요청) — 장면 바로 앞까지만. */
     if (at9 - cur9 >= IDLE9 || out9.length === 0) fill9(cur9, at9);
@@ -2116,7 +2147,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     const cur9raw = out9.length > 0 ? out9[out9.length - 1].raw : null;
     if (held9 && tot9 < lastScore9() * JUMP9 && cur9raw !== null && sc9.by.has(cur9raw)) pick9 = cur9raw;
     if (cont9 && cur9raw !== null && sc9.by.has(cur9raw)) pick9 = cur9raw;   // 같은 전투는 같은 주인공으로 잇는다(위 ★★)
-    if (cont9 || busy9 || !held9 || tot9 >= lastScore9() * JUMP9 || pick9 === cur9raw) {
+    if (must9 && pick9 !== sc9.hall![0] && pick9 !== sc9.hall![1]) pick9 = cur9raw === sc9.hall![1] ? sc9.hall![1] : sc9.hall![0];   // 뚝배기는 깬 쪽(지금 잃는 쪽을 보던 중이면 그대로)
+    if (must9 || cont9 || busy9 || !held9 || tot9 >= lastScore9() * JUMP9 || pick9 === cur9raw) {
       const d9 = duel9(sc9, pick9); push9(at9, pick9, sc9.why, false, tot9, d9, sceneCaps9(sc9, pick9, d9));
       curBid9 = bid9;
     }
