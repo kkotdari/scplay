@@ -61,6 +61,14 @@ const subscribeBgm = (f9: () => void): (() => void) => {
 const bgmSnapshot = (): readonly ReplayBgmTrack[] => bgmTracks;
 
 const KEY = "scr.bgm.on";
+/* ★ **음량**(2026-10-10, 요청: "재생기 음악 볼륨 조절 버튼 필요하고 처음에 50프로로 시작") — 위 머리말의 '음량은 안 건드린다'를 되물린다: 이제 앱 음량 손잡이가 있고
+   기본은 0.5 다(기기 음량 × 0.5). iOS 사파리는 <audio>.volume 을 읽기 전용으로 둬(늘 1) 손잡이가 먹지 않는다 — 써 보고 되읽어 다르면 volumeOk 거짓(슬라이더를 안 세움).
+   WebAudio 로 돌리지 않는다(머리말: 무음 스위치를 뚫는다). */
+const VOL_KEY = "scr.bgm.vol";
+const VOL_DEFAULT = 0.5;
+const readVol = (): number => {
+  try { const v = Number(localStorage.getItem(VOL_KEY)); return localStorage.getItem(VOL_KEY) !== null && Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : VOL_DEFAULT; } catch { return VOL_DEFAULT; }
+};
 
 /** 사람의 뜻 — **적어 둔 값이 없으면 꺼짐**이다(지시: "안 건드리면 조용하고 켜야 나는
  *  게 맞아") ────────────────────────────────────────────────────────────────────────
@@ -108,6 +116,10 @@ export type Bgm = {
   pick: (i: number) => void;
   /** 끈다(이미 꺼져 있어도 '끈 뜻'을 적는다 — 첫 누름을 기다리던 기본 켜짐도 걷힌다). */
   off: () => void;
+  /** 음량 0~1(2026-10-10 · 기본 0.5 · 브라우저에 남는다) · 바꾸기 · 이 기기가 음량을 받나(iOS 사파리는 <audio>.volume 을 무시한다 — 그때는 슬라이더를 안 세운다). */
+  volume: number;
+  setVolume: (v: number) => void;
+  volumeOk: boolean;
 };
 
 /**
@@ -122,6 +134,9 @@ export function useBgm(playing = true): Bgm {
   const [now, setNow] = useState<string | null>(null);
   const [index, setIndex] = useState<number | null>(null);
   const elRef = useRef<HTMLAudioElement | null>(null);
+  const [volume, setVol] = useState<number>(readVol);
+  const volRef = useRef(volume);
+  const [volumeOk, setVolumeOk] = useState(true);
   /** 이번 바퀴의 차례와 지금 몇 번째인가. */
   const orderRef = useRef<number[]>([]);
   const atRef = useRef(0);
@@ -150,6 +165,7 @@ export function useBgm(playing = true): Bgm {
       const a = new Audio();
       // 켜기 전에는 한 바이트도 안 받는다 — 한 곡이 6~13MB다.
       a.preload = "none";
+      a.volume = volRef.current;
       elRef.current = a;
     }
     return elRef.current;
@@ -363,5 +379,18 @@ export function useBgm(playing = true): Bgm {
     audio().pause();
   }, [audio]);
 
-  return { on, toggle, now, tracks: titles, index, pick, off };
+  /* 이 기기가 음량을 받나 — 0.5 를 써 보고 되읽는다(iOS 는 늘 1). 판에 한 번. */
+  useEffect(() => {
+    const t9 = new Audio();
+    t9.volume = 0.5;
+    if (Math.abs(t9.volume - 0.5) > 0.01) setVolumeOk(false);
+  }, []);
+  const setVolume = useCallback((v: number) => {
+    const v9 = Math.min(1, Math.max(0, v));
+    volRef.current = v9;
+    setVol(v9);
+    if (elRef.current) elRef.current.volume = v9;
+    try { localStorage.setItem(VOL_KEY, String(v9)); } catch { /* 저장 못 하면 이 판에서만 */ }
+  }, []);
+  return { on, toggle, now, tracks: titles, index, pick, off, volume, setVolume, volumeOk };
 }

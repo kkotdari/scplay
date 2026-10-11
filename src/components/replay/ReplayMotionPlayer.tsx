@@ -17559,6 +17559,8 @@ export default function ReplayMotionPlayer({
   const pickMenu9 = (
     kind9: "speed" | "zoom" | "bgm" | "cast",
     items9: { label: string; on: boolean; act: () => void; key?: string; dot?: string; keep?: boolean }[], list9 = false, left9 = false,
+    /** 목록 맨 아래에 붙는 줄(2026-10-10 · 음악의 음량 슬라이더 + 끄기). */
+    tail9?: React.ReactNode,
   ): React.ReactNode => (pick9 === kind9 ? (
     <ul className={cx("scr-motion-pickmenu", list9 && "is-list", left9 && "is-left")} role="menu">
       {items9.map((it9) => (
@@ -17573,6 +17575,7 @@ export default function ReplayMotionPlayer({
           </button>
         </li>
       ))}
+      {tail9 && <li className="scr-motion-picktail">{tail9}</li>}
     </ul>
   ) : null);
   const pickToggle9 = (kind9: "speed" | "zoom" | "bgm" | "cast"): void => setPick9((p9) => (p9 === kind9 ? null : kind9));
@@ -17790,11 +17793,33 @@ export default function ReplayMotionPlayer({
           <Music size={18} />
         </button>
         {/* 곡 목록(요청: "노래도 목록으로 · 항상 처음부터") — 열 곡, 맨 아래 '끄기'(요청: 끄기는 맨 아래). 고른 곡은 처음부터(useBgm.pick). */}
+        {/* ★ 맨 아래 줄 = [음량 슬라이더 | 끄기](2026-10-10, 요청: "재생기 음악 볼륨 조절 버튼 필요하고 처음에 50프로로 시작 · 끄기 자리에 슬라이더와 끄기") —
+            음량은 useBgm(기본 0.5 · 브라우저에 남음). iOS 사파리처럼 음량을 안 받는 기기(volumeOk 거짓)에선 끄기만 선다. 슬라이더는 떼면 · 끄기는 누르면 목록이 닫힌다. */}
         {pickMenu9("bgm", [
           ...bgm.tracks.map((t9, i9) => ({ label: t9, on: bgm.on && bgm.index === i9, act: () => bgm.pick(i9) })),
-          { label: "끄기", on: !bgm.on, act: () => bgm.off() },
           /* 왼쪽 무리(인물·색 다음)의 단추라 목록은 **오른쪽으로** 자란다(지적: "음악 선택 목록 화면 밖으로 나감"). */
-        ], true, true)}
+        ], true, true, (
+          <div className="scr-motion-pickvol">
+            {bgm.volumeOk && (
+              <input
+                type="range" min={0} max={100} step={1} value={Math.round(bgm.volume * 100)}
+                onChange={(e) => bgm.setVolume(Number(e.currentTarget.value) / 100)}
+                onPointerDown={(e) => e.stopPropagation()}
+                onPointerUp={() => setPick9(null)}   /* 떼면 닫힌다(2026-10-10, 요청: "슬라이더는 떼면 팝오버가 닫히고") */
+                aria-label={`음악 음량 ${Math.round(bgm.volume * 100)}%`}
+                title={`음량 ${Math.round(bgm.volume * 100)}%`}
+                style={{ ["--vol" as string]: `${Math.round(bgm.volume * 100)}%` } as React.CSSProperties}
+              />
+            )}
+            <button
+              type="button" role="menuitemradio" aria-checked={!bgm.on}
+              className={cx("scr-motion-pickitem", !bgm.on && "is-on")}
+              onClick={() => { bgm.off(); setPick9(null); }}
+            >
+              끄기
+            </button>
+          </div>
+        ))}
       </span>
       )}
       {/* (옮김) 전체화면 단추 — 툴박스 꼬리의 **맨 오른쪽**으로 갔다(2026-09, 요청: "전체화면 온오프 버튼은 가장 오른쪽에 배치"). */}

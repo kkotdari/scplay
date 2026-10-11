@@ -507,6 +507,9 @@ const ENTRY = `
 import React from "react";
 import { createRoot } from "react-dom/client";
 import ReplayMotionPlayer, { sceneLinkQueryOf9 } from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
+/* --bgm — 곡 목록을 꽂아 음악 단추·목록(음량 슬라이더 + 끄기)을 세운다(2026-10-10). 소리는 안 난다(빈 data 주소). */
+import { setReplayBgm } from ${JSON.stringify(join(ROOT, "src/components/replay/useBgm"))};
+if (${JSON.stringify(process.argv.includes("--bgm"))}) setReplayBgm([{ title: "테스트 곡 하나", src: "data:audio/mp3," }, { title: "테스트 곡 둘", src: "data:audio/mp3," }]);
 /* 공유 표(clockKey "perf") — castprobe 가 '중계·추적 중에는 자리를 안 싣고 &tr= 만 싣나'를 읽는다. */
 window.__share9 = () => { const q = sceneLinkQueryOf9("perf"); return { tr: q.get("tr"), pos: q.has("z") || q.has("cx"), qs: q.toString() }; };
 window.__mount = (motion, players, walkJson, terrainB64) => {
@@ -1399,6 +1402,11 @@ if (SHOT) {
     console.log("[사용법]", h9, "px →", flag("--guide", ""));
   }
   /* 화면 자리 누르기(--clickat x,y · CSS px) — 보는 사람이 몸을 누르는 길(인포창)을 진짜 마우스로 찍는다. */
+  /* --clicksel 선택자 — 그 요소를 눌러 둔 채 찍는다(2026-10-10 · 음악 목록 같은 펼침 확인). */
+  if (flag("--clicksel", null)) {
+    await page.click(String(flag("--clicksel")), { timeout: 10000 }).catch((e) => console.log("[clicksel 실패]", String(e).slice(0, 120)));
+    await page.waitForTimeout(500);
+  }
   if (flag("--clickat", null)) {
     const [cx9, cy9] = String(flag("--clickat", "0,0")).split(",").map(Number);
     console.log("[누름 앞]", JSON.stringify(await page.evaluate(() => { const d = document.querySelector(".scr-motion-infodock");
