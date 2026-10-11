@@ -171,7 +171,7 @@ const HARASS9 = { k: 4, tail: 14 };   // tail 12 → 14(2026-10-10: GAP9 4 → 6
 const DUEL_TAIL9 = 2;
 /** 기지 피해 단(자막 · 2026-10-09) — 그 장면에서 잃은 건물 몸값 / 장면 머리의 기지 몸값: 반파 ≥ 0.2 · 대파 ≥ 0.45 · 궤멸 ≥ 0.75. */
 const RAZE9 = { half: 0.2, heavy: 0.45, wipe: 0.75 };
-/** 싸움터 가름(duel9 의 turf9Of) — home: 한 진영 몫이 이 위면 그 사람이 방어 · min: 자리를 아는 몸값이 맞대결 몸값의 이
+/** 싸움터 가름(baseRole9 · 옛 turf9Of 는 2026-10-11 걷음 — 기지 밖은 교전) — home: 한 진영 몫이 이 위면 그 사람이 방어 · min: 자리를 아는 몸값이 맞대결 몸값의 이
  *  몫 아래면 안 쓴다 · near: 두 출발 자리가 이 타일 안이면 안 쓴다(가를 선이 없다). */
 const TURF9 = { home: 0.65, min: 0.4, near: 12 };
 /** 유닛의 죽은 자리를 명령으로 어림하는 창(초) — 그보다 오래된 명령은 그 몸이 어디 있었는지 못 말한다. */
@@ -357,6 +357,9 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
    *  자리(참값 생애는 죽은 자리를 안 든다 — 명령이 '어디에 가 있었나'의 가장 가까운 어림이다) · 그도 없으면 막 태어난 몸의
    *  태어난 자리 · 모르면 null. */
   const deadAt9 = (e9: (typeof world.lives)[number], sec9: number): { x: number; y: number } | null => {
+    /* ★ 생애가 **마지막 키의 자리**를 들면 그것이 죽은 자리다(2026-10-11, 지적: "처들어온 걸 방어한 건데 자막은 공격한 걸로 반대로") — 명령 자리 어림은 물러나라는
+       명령을 받고 쫓겨 죽은 몸을 **제 본진**(물러날 자리)에서 죽은 것으로 읽어, 막아 낸 사람이 그 본진에 쳐들어간 공격자가 됐다. */
+    if (!e9.bld && e9.endX !== undefined && e9.endY !== undefined && e9.died !== null && Math.abs(e9.died - sec9) <= 1) return { x: e9.endX, y: e9.endY };
     if (e9.bld) {
       const s9 = e9.sites.length > 1 ? e9.sites[e9.sites.length - 1] : null;
       return s9 ? { x: s9[1] + 1, y: s9[2] + 1 } : { x: e9.bornX, y: e9.bornY };
@@ -1052,33 +1055,6 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
    *  · 몫 — **잃은 살림**(일꾼·건물)으로 가른다: 침공·드랍·견제는 지키는 쪽의 일꾼·건물이 죽는 일이고, 군대끼리의 싸움은
    *    살림이 안 죽는다. 둘의 살림 손실이 맞대결 몸값의 25% 아래면 교전 · 둘이 엇비슷하게(0.6배 안) 잃었으면 교전 ·
    *    아니면 더 잃은 쪽이 방어, 다른 쪽이 공격이다. ⚠ '누가 더 죽였나'로 가르지 마라 — 막아 낸 방어가 더 많이 죽인다. */
-  /** ★ **싸움터가 누구 진영인가**(2026-10, 지적: "포토러시 간 사람이 공격인데 방어로 나오는 현상") — 잃은 살림만 보면
-   *  프록시 러시가 뒤집힌다: 러시한 쪽의 파일런·캐논(건물 = 살림)이 **상대 본진에서** 부서지므로 그쪽이 더 잃은 쪽이 되어
-   *  방어로 섰다. 이제 그 장면의 죽음 자리를 두 사람의 출발 자리를 잇는 선에 사영해(0 = 주인공 본진 · 1 = 상대 본진) 몸값으로
-   *  무게를 둔 '주인공 진영 몫'을 낸다 — 1 에 가까우면 주인공의 땅이 싸움터이니 방어다. 자리를 아는 몸값이 맞대결의
-   *  `TURF9.min` 에 못 미치거나 출발 자리가 `TURF9.near` 타일 안에서 겹치면 null(옛 살림 자로 물러난다). */
-  const turf9Of = (sc9: Sc9, pick9: string, foe9: string): number | null => {
-    const a9 = start9.get(pick9);
-    const b9 = start9.get(foe9);
-    if (!a9 || !b9) return null;
-    const dx9 = b9.x - a9.x;
-    const dy9 = b9.y - a9.y;
-    const L9 = dx9 * dx9 + dy9 * dy9;
-    if (L9 < TURF9.near * TURF9.near) return null;
-    let home9 = 0;
-    let all9 = 0;
-    for (const [r9, x9, y9, v9] of sc9.locs) {
-      if (r9 !== pick9 && r9 !== foe9) continue;
-      const u9 = ((x9 - a9.x) * dx9 + (y9 - a9.y) * dy9) / L9;
-      /* 가운데 띠(0.35~0.65)는 어느 진영도 아니다 — 무게만 센다(곧 '가운데 싸움'이면 몫이 0.5 로 모인다). */
-      home9 += v9 * (u9 <= 0.35 ? 1 : u9 >= 0.65 ? 0 : 0.5);
-      all9 += v9;
-    }
-    let pair9 = 0;
-    for (const [k9, v9] of sc9.pair) if (k9 === `${pick9}>${foe9}` || k9 === `${foe9}>${pick9}`) pair9 += v9;
-    if (all9 <= 0 || all9 < pair9 * TURF9.min) return null;
-    return home9 / all9;
-  };
   /** ★ 그 장면이 **누구 기지에서** 났나(2026-10-09, 요청: "특정 기지에서 교전 시 교전보다는 공격·방어·헬프로 기술") — 죽은 자리들이 한쪽의 **살아 있는 본진 건물**
    *  (확장 포함 · HALL_ANY9)에서 BASE_R9 타일 안이면 그 사람의 기지다(몸값 무게 · 한쪽 몫이 TURF9.home 이상 → 주인공 기지면 방어 · 상대 기지면 공격). 출발 자리 선
    *  (turf9Of)은 가운데 확장에서의 싸움을 '가운데'(교전)로 읽었다 — 이 자가 먼저고, 못 가르면 그 선으로. */
@@ -1165,17 +1141,14 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       if (w9 > fw9) { fw9 = w9; foe9 = o9; }
     }
     if (!foe9) return undefined;
-    let role9: CastRole9 = "war";
-    const base9 = baseRole9(sc9, pick9, foe9);
-    const turf9 = base9 !== null ? null : turf9Of(sc9, pick9, foe9);
-    if (base9 !== null) role9 = base9;
-    else if (turf9 !== null) role9 = turf9 >= TURF9.home ? "def" : turf9 <= 1 - TURF9.home ? "atk" : "war";
-    if (base9 === null && (turf9 === null || role9 === "war")) {
-      /* 싸움터를 못 가르면(가운데 · 자리를 모름 · 출발 자리가 겹침) 옛 자 — 잃은 살림 — 로 간다. */
+    /* ★★ **공격은 그 사람의 기지에 쳐들어간 것뿐이다**(2026-10-11, 요청: "공격이라는 말은 그 목적어의 기지에 쳐들어간 경우만이야 · 나머지는 교전이라고 봄") —
+       기지 밖 싸움을 출발 자리 선(turf9Of)이나 잃은 살림으로 공격/방어로 가르던 옛 자를 걷었다(막아 낸 쪽이 쫓아 나가 잡은 싸움이 "A가 B를 공격"으로 뒤집혔다).
+       두 사람의 기지(baseRole9)도 아니면 교전이다. 죽은 자리를 하나도 모르는 옛 덤프만 잃은 살림(일꾼·건물 — 기지에서 잃는 것)으로 가른다. */
+    let role9: CastRole9 = baseRole9(sc9, pick9, foe9) ?? "war";
+    if (role9 === "war" && !sc9.locs.some(([r9]) => r9 === pick9 || r9 === foe9)) {
       const eP9 = sc9.econ.get(pick9) ?? 0;
       const eF9 = sc9.econ.get(foe9) ?? 0;
       if (eP9 + eF9 >= fw9 * 0.25 && !(eP9 >= eF9 * 0.6 && eF9 >= eP9 * 0.6)) role9 = eP9 > eF9 ? "def" : "atk";
-      else role9 = "war";
     }
     /* ★ 자막의 이름들(2026-10-09) — 적은 주인공과 주고받은 몸값이 큰 차례(첫째가 상대역 · 팀전이면 다른 팀 참가자 전부 · 팀이 없으면 주고받은 사람만) ·
        같은 편은 그 장면에 든 팀원이다. */
@@ -2194,7 +2167,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   /* ★★ **자막은 사건 때에 맞춘다**(2026-10-11, 지적: "전투가 길게 잡히면서 화면과 안 맞는 자막이 나오는 경우도 많은 듯 — 타이밍을 정확히 맞춰서") — 토막(최대 30초)의 자막을
      그 토막의 가장 무거운 사건으로 지어 토막 **머리**에 세우면, "기지 대파시킴"이 아직 안 부서진 화면에 떴다. 이제 토막을 CAP_WIN9 초 창으로 다시 나눠 창마다 그 창의 사건만으로
      자막을 짓고(subSc9 — 같은 addEv9 로 다시 쌓는다 · 기지 피해 단은 razeOf9 가 창 앞 피해까지 보므로 '이어서 대파'가 그대로 난다), 그 창의 **가장 무거운 사건** 때(− CAP_LEAD9)에
-     세운다. 주인공(카메라)은 토막의 것 그대로 — 주인공이 안 든 창은 건너뛴다. 같은 글귀면 push9 가 잇고, 다르면 CAP_SPLIT9 초 넘게 뒤일 때 새 토막(자막만 갈림). */
+     세운다(→ 되물림: 창 첫 사건 때 · 아래 emitScene9). 주인공(카메라)은 토막의 것 그대로 — 주인공이 안 든 창은 건너뛴다. 같은 글귀면 push9 가 잇고, 다르면 CAP_SPLIT9 초 넘게 뒤일 때 새 토막(자막만 갈림). */
   const CAP_WIN9 = 10;
   const CAP_LEAD9 = 0.5;
   const subSc9 = (sc9: Sc9, a9: number, b9: number): Sc9 | null => {
@@ -2214,8 +2187,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
       const sub9 = subSc9(sc9, a9, a9 + CAP_WIN9);
       if (!sub9 || !sub9.by.has(pick9)) continue;
       const caps9 = sceneCaps9(sub9, pick9, duel9(sub9, pick9) ?? dW9);
-      /* 창 안에서도 **그 자막을 낳은 사건**(가장 무거운 사건 sub.top)의 때에 — 창 첫 사건 때면 "기지 반파"가 건물이 부서지기 몇 초 전에 떴다. */
-      push9(first9 ? at9 : Math.max(at9, (sub9.top?.sec ?? sub9.t0) - CAP_LEAD9), pick9, sub9.why, false, score9, dW9, caps9);
+      /* 창 첫 사건 때(− CAP_LEAD9) — 가장 무거운 사건 때로 늦추는 안은 되물렸다(같은 날: "살짝 미리 뜨는 건 괜찮지"). */
+      push9(first9 ? at9 : Math.max(at9, sub9.t0 - CAP_LEAD9), pick9, sub9.why, false, score9, dW9, caps9);
       first9 = false;
     }
     if (first9) push9(at9, pick9, sc9.why, false, score9, dW9, sceneCaps9(sc9, pick9, dW9));   // 창마다 주인공이 안 들면 옛 길

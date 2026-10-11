@@ -1020,3 +1020,32 @@ rmSync(tmp, { recursive: true, force: true });
     ["건물이 부서지는 때에 기지 피해 자막이 선다", late.some((c) => /기지 (반파|대파|궤멸)|건물 파괴/.test(c))],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }
+
+/* ── ㉞ 막아 낸 쪽은 방어로(2026-10-11, 지적: "처들어온 걸 방어한 건데 자막은 공격한 걸로 반대로 나오는 케이스") — 1v1 A(테란 · 본진 16,16) 대 C(저그 · 본진 100,100).
+   100~118초 C 저글링이 A 본진에 쳐들어와 3초마다 죽고(SCV 둘도 잃는다) · 121~133초 물러나는 저글링을 A 마린이 C 쪽 길(74~80)까지 쫓아 잡는다.
+   물러나는 몸은 마지막 명령이 '본진으로 이동'(100,100)이라 옛 어림은 C 본진에서 죽은 것으로 읽어 "A가 C 기지 공격"으로 뒤집었다 → 이제 죽은 자리는 생애의 마지막
+   키(endX/Y · 가운데 길) · 기지 밖 싸움은 교전(요청: "공격이라는 말은 그 목적어의 기지에 쳐들어간 경우만 · 나머지는 교전"). */
+{
+  let t9 = 190000;
+  const L = []; const kills = [];
+  const mk = (o, kind, bld, x, y, born, ex = {}) => { const e = { tag: (t9 += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [], ...ex }; L.push(e); return e; };
+  mk(0, "Command Center", true, 16, 16, 0); mk(1, "Hatchery", true, 100, 100, 0);
+  const ms = Array.from({ length: 8 }, () => mk(0, "Marine", false, 16, 16, 50));
+  const zs = [];
+  for (let i = 0; i < 7; i += 1) { const t = 100 + i * 3; const z = mk(1, "Zergling", false, 100, 100, 50, { died: t, end: "atk", orders: [[t - 2, 18, 18, false]] }); kills.push([t, 0, ms[i % 8].tag, z.tag]); zs.push(z); }
+  for (let i = 0; i < 1; i += 1) { const t = 102 + i * 4; const s = mk(0, "SCV", false, 18, 18, 30, { died: t, end: "atk" }); kills.push([t, 1, zs[6].tag, s.tag]); }
+  for (let i = 0; i < 7; i += 1) { const t = 121 + i * 2.5; const p = 30 + i * 8; const z = mk(1, "Zergling", false, 100, 100, 50, { died: t, end: "atk", orders: [[90, 18, 18, true], [119, 100, 100, false]], endX: p, endY: p });
+    kills.push([t, 0, ms[i % 8].tag, z.tag]); }
+  const w = { players: [["A", "테란", 1], ["C", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
+    lives: L, ups: [], casts: [], pings: [], resFields: [], kills, sels: [], builds: [] };
+  const plan = castPlan9(w, { total: 300, order: ["A", "C"], teamOf: { A: 1, C: 2 } });
+  const seg = plan.filter((s) => s.at >= 95 && s.at < 160).map((s) => `${s.at.toFixed(1)} ${s.raw} ${s.cyc ? "순환 " : ""}${capTxt(s)} (${s.role ?? "-"})`);
+  console.log(`\n막아 낸 전투: ${seg.join(" · ")}`);
+  const caps = plan.filter((s) => s.at >= 95 && s.at < 140 && !s.cyc);
+  for (const [name, pass] of [
+    ["막아 낸 A 가 공격한 사람으로 안 나온다", caps.length > 0 && !caps.some((s) => /^\[A\]ga \[C\]eul 공격|^\[A\]ga \[C\] 기지 공격/.test(capTxt(s)))],
+    ["쳐들어온 C 가 A 기지 공격으로 나온다", caps.some((s) => /^\[C\]ga \[A\] 기지 공격/.test(capTxt(s)))],
+    ["쫓아 잡은 기지 밖 싸움은 교전", caps.some((s) => s.at >= 119 && /교전$/.test(capTxt(s))) && !caps.some((s) => s.at >= 119 && /공격/.test(capTxt(s)))],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
