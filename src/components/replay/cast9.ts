@@ -1795,9 +1795,10 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     if (sec9 - lastTech9 <= PHASE9.tech) return "테크 올리는 중";
     if (bases9 >= 3) return `${bases9}기지 운영 중`;
     if (army9 >= PHASE9.armyN) return "병력 모으는 중";
-    /* 끝말(2026-10-11, 요청: "그냥 순조롭게 진행 중 · 평화롭게 발전 중 이런 거가 나을 듯") — PHASE9.calm 초 안에 제 것을 하나도 안 잃었으면 "평화롭게 발전 중", 잃었으면 "순조롭게 진행 중". */
+    /* 끝말(2026-10-11, 요청: "그냥 순조롭게 진행 중 · 평화롭게 발전 중 이런 거가 나을 듯" → 같은 날 "평화롭게 발전 중 → 순조롭게 발전 중이거나 그냥 발전 중으로") —
+       PHASE9.calm 초 안에 제 것을 하나도 안 잃었으면 "순조롭게 발전 중", 잃었으면 "발전 중". */
     const lost9 = world.lives.some((e9) => own9.has(e9.owner) && e9.died !== null && e9.died <= sec9 && e9.died > sec9 - PHASE9.calm && e9.end !== "morph");
-    return lost9 ? "순조롭게 진행 중" : "평화롭게 발전 중";
+    return lost9 ? "발전 중" : "순조롭게 발전 중";
   };
   /* ★★ **화면에 나오는 것을 말한다**(2026-10-10, 지적: "화면에서 보여주는 내용이 자막으로 나와야 함 · 업그레이드 보이지 않는데 업그레이드 내용이 나온다거나") ─────
      순환 토막의 카메라는 그 사람이 **고르거나 명령한 무리**를 따른다(재생기 picksOf9 · trackAt). 옛 순환 자막은 그 창에 끝난 연구("메타볼릭 부스트 개발")나 창 밖의
