@@ -4444,17 +4444,17 @@
 /* ★★ 배속 다이얼(2026-10-10, 요청: "배속 버튼 제거하고 화면 우하단에 반투명 오버레이로 배속 다이얼 · 배경은 둥근 네모 거의 투명에 내용 선과 글자는 흰색 · 세로로 긴 선에
    배속 눈금 · 터치나 다이얼 드래그로 부드럽게 조절 · PC 에서는 그 위에서 스크롤로도") — 무대 오른아래 · 받침 솟음(--dock-lift) 위. 자(--sdk)는 폰 --dk · PC --dks.
    글자·선은 흰색 + 검은 그림자(바탕이 거의 투명이라 밝은 땅 위에서도 읽혀야 한다). 자막 폭은 다이얼 자리만큼 양쪽을 비운다(--sd-room). */
-.scr-fs-stage { --sdk: var(--dk, 1); --sd-w: calc(44px * var(--sdk)); --sd-h: calc(150px * var(--sdk)); --sd-gap: calc(10px * var(--sdk)); --sd-room: calc(var(--sd-w) + var(--sd-gap) * 2); }
-.scr-motion-pc9 .scr-fs-stage { --sdk: calc(var(--dks, 1) * 1.3); --sd-w: calc(48px * var(--sdk)); --sd-h: calc(180px * var(--sdk)); }   /* PC 는 --dks 가 0.75 쯤이라 한 단 키운다 */
+.scr-fs-stage { --sdk: var(--dk, 1); --sd-w: calc(36px * var(--sdk)); --sd-h: calc(150px * var(--sdk)); --sd-gap: calc(10px * var(--sdk)); --sd-room: calc(var(--sd-w) + var(--sd-gap) * 2); }
+.scr-motion-pc9 .scr-fs-stage { --sdk: calc(var(--dks, 1) * 1.3); --sd-w: calc(38px * var(--sdk)); --sd-h: calc(180px * var(--sdk)); }   /* 폭 44/48 → 36/38(2026-10-10, 요청: "좌우 폭 줄이자") */   /* PC 는 --dks 가 0.75 쯤이라 한 단 키운다 */
 .scr-speeddial {
   position: absolute; right: var(--sd-gap); bottom: calc(var(--dock-lift, 0px) + var(--sd-gap)); z-index: 30001;
-  width: var(--sd-w); height: var(--sd-h); box-sizing: border-box; padding: calc(7px * var(--sdk)) 0 calc(10px * var(--sdk));
+  width: var(--sd-w); height: var(--sd-h); box-sizing: border-box; padding: calc(11px * var(--sdk)) 0 calc(14px * var(--sdk));   /* 위아래 살짝 더(2026-10-10 · 옛 7/10) */
   display: flex; flex-direction: column; align-items: stretch;
-  border-radius: calc(12px * var(--sdk)); background: rgba(8, 10, 14, 0.42); border: 1px solid rgba(255, 255, 255, 0.22);   /* 투명도 줄임(2026-10-10 · 옛 흰 0.06) */
+  border-radius: calc(12px * var(--sdk)); background: rgba(8, 10, 14, 0.4); box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);   /* 투명도 줄임(옛 흰 0.06) · 테두리 없이 그림자만(2026-10-10, 요청: "테두리 없애고 자연스런 UI") */
   color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85); pointer-events: auto; touch-action: none; user-select: none; -webkit-user-select: none;
   cursor: ns-resize; outline: none; -webkit-tap-highlight-color: transparent;
 }
-.scr-speeddial:focus-visible { border-color: rgba(255, 255, 255, 0.6); }
+.scr-speeddial:focus-visible { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5); }
 .scr-speeddial-val { text-align: center; font-size: calc(10px * var(--sdk)); line-height: 1.2; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .scr-speeddial-track { position: relative; flex: 1 1 auto; margin: calc(10px * var(--sdk)) 0 calc(2px * var(--sdk)); }
 .scr-speeddial-line, .scr-speeddial-fill {
@@ -4463,20 +4463,17 @@
 .scr-speeddial-line { top: 0; bottom: 0; background: rgba(255, 255, 255, 0.45); }
 .scr-speeddial-fill { bottom: 0; background: #fff; transition: height 0.12s ease-out; }
 .scr-speeddial-tick {
-  position: absolute; left: 50%; transform: translateY(50%); display: flex; align-items: center; gap: calc(6px * var(--sdk));
-  margin-left: calc(-4px * var(--sdk)); font-size: calc(8px * var(--sdk)); line-height: 1; font-weight: 600; color: rgba(255, 255, 255, 0.78);
+  position: absolute; left: 50%; transform: translateY(50%); display: flex; align-items: center; gap: calc(3px * var(--sdk));
+  margin-left: calc(-4px * var(--sdk));   /* 라벨을 선 쪽으로(2026-10-10 · 틈 6 → 3) */ font-size: calc(8px * var(--sdk)); line-height: 1; font-weight: 600; color: rgba(255, 255, 255, 0.78);
   font-variant-numeric: tabular-nums; pointer-events: none;
 }
 .scr-speeddial-tick > b { display: block; width: calc(8px * var(--sdk)); height: 1.5px; background: currentColor; box-shadow: 0 0 2px rgba(0, 0, 0, 0.7); }
 .scr-speeddial-tick.is-on { color: #fff; font-weight: 800; }
 .scr-speeddial-knob {
-  position: absolute; left: 50%; width: calc(14px * var(--sdk)); height: calc(14px * var(--sdk)); border-radius: 50%; transform: translate(-50%, 50%);
+  position: absolute; left: 50%; width: calc(11px * var(--sdk)); height: calc(11px * var(--sdk)); border-radius: 50%;   /* 14 → 11(라벨이 안으로 와 손잡이에 안 닿게) */ transform: translate(-50%, 50%);
   background: #fff; box-shadow: 0 0 0 calc(3px * var(--sdk)) rgba(255, 255, 255, 0.2), 0 1px 3px rgba(0, 0, 0, 0.6); transition: bottom 0.12s ease-out; pointer-events: none;
 }
 .scr-speeddial.is-drag .scr-speeddial-knob, .scr-speeddial.is-drag .scr-speeddial-fill { transition: none; }
-/* 중계 중엔 잠김(토스트) — 흐리게 · 끌기 커서 없음. */
-.scr-speeddial.is-locked { cursor: not-allowed; }
-.scr-speeddial.is-locked > * { opacity: 0.45; }
 .scr-fs-layer.is-fs .scr-fs-solo { top: var(--safe-top, 0px); }
 /* ★ 화면 주인 이름표는 **위 가운데**다(2026-10-09, 요청: "화면 주인 이름칩은 화면 상단 가운데로 이동하고 자막을 내리기" — 옛 '아래 가운데'(같은 날 요청 1)는 되물렸다 ·
    자막(.scr-cast-caption)이 그 바닥 자리를 받는다). 단독 화면·분할 칸 다 같다 — 받침 솟음(--dock-lift)·바닥 줄 칸 올리기(옛 --cell-lift)는 이름표엔 이제 안 걸린다.
