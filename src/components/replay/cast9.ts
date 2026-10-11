@@ -918,10 +918,42 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   /** 그 사람을 마지막으로 보여준 시각 — 순환·동점 가름의 자다(아직이면 -1000). */
   const shown9 = new Map<string, number>();
   for (const r9 of rawOf9.values()) shown9.set(r9, -1000);
-  /** 그때 살아 있는 사람들 — 순환 후보. */
+  /* ★ **손을 놓은 사람은 순환에서 뺀다**(2026-10-11, 되지적: "건물이 남아도 생산을 안 할 수도") — 건물이 남아 있어도 명령·선택·건설 명령·유닛 생산이 IDLE_OUT9 초 넘게 없으면
+     (기지를 잃고 손 놓음 · 잠수) 보여 줄 것이 없고 카메라도 앞 화면에 멈춘다. 활동 시각을 사람마다 모아(정렬) 그 창 [sec − IDLE_OUT9, sec + CYCLE9] 에 하나라도 있어야
+     후보다. 아무도 안 남으면 옛 자(살아 있는 사람)로 물러난다. */
+  const IDLE_OUT9 = 60;
+  const acts9 = new Map<string, number[]>();
+  {
+    const push9a = (o9: number, t9: number): void => { const r9 = rawOf9.get(o9); if (!r9) return; const a9 = acts9.get(r9); if (a9) a9.push(t9); else acts9.set(r9, [t9]); };
+    for (const e9 of world.lives) {
+      if (e9.born > 1) push9a(e9.owner, e9.born);   // 생산·착공(시작 몸은 뺀다)
+      for (const o9 of e9.orders) push9a(e9.owner, o9[0]);
+    }
+    for (const [t9, o9] of world.sels ?? []) push9a(o9, t9);
+    for (const [t9, o9] of world.builds ?? []) push9a(o9, t9);
+    /* 연구 시작도 활동이다(완료 − 연구 시간 · 아래 researchSec9 와 같은 자 · 표에 없는 기술은 1200프레임). */
+    for (const [us9, un9, uo9] of world.ups) {
+      const m9 = /^(.*?)(?: (\d+))?$/.exec(un9);
+      const b9 = m9?.[1] ?? un9;
+      push9a(uo9, us9 - (UPGRADE_TIME[b9] ? upgradeSeconds(b9, Number(m9?.[2] ?? 1) || 1) : 1200 * 0.042));
+    }
+    for (const a9 of acts9.values()) a9.sort((x9, y9) => x9 - y9);
+  }
+  /** 선택 기록(판 10 · 사람이 늘 내는 것)이 있는 경기만 거른다 — 없으면(옛 판 · 합성 세계) 활동이 띄엄띄엄이라 멀쩡한 사람을 뺀다. */
+  const idleOn9 = (world.sels?.length ?? 0) > 0;
+  const activeAt9 = (raw9: string, sec9: number): boolean => {
+    if (!idleOn9) return true;
+    const a9 = acts9.get(raw9);
+    if (!a9 || a9.length === 0) return true;   // 활동 자료가 없는 판(옛 판 · 합성)은 안 거른다
+    let lo9 = 0; let hi9 = a9.length;
+    while (lo9 < hi9) { const m9 = (lo9 + hi9) >> 1; if (a9[m9] < sec9 - IDLE_OUT9) lo9 = m9 + 1; else hi9 = m9; }
+    return lo9 < a9.length && a9[lo9] <= sec9 + CYCLE9;
+  };
+  /** 그때 살아 있고 손을 안 놓은 사람들 — 순환 후보. */
   const aliveAt9 = (sec9: number): string[] => {
-    const a9 = [...rawOf9.values()].filter((r9) => (liveTo9.get(r9) ?? 0) > sec9);
-    return a9.length > 0 ? a9 : [...rawOf9.values()];
+    const live9 = [...rawOf9.values()].filter((r9) => (liveTo9.get(r9) ?? 0) > sec9);
+    const a9 = live9.filter((r9) => sec9 < IDLE_OUT9 || activeAt9(r9, sec9));
+    return a9.length > 0 ? a9 : live9.length > 0 ? live9 : [...rawOf9.values()];
   };
   /** ★ 순환 고리 — 로스터 차례로 팀을 번갈아 짠다(위 머리말의 ★). 로스터 밖(참값에만 있는 사람)은 뒤에 잇는다. */
   const ring9: string[] = (() => {

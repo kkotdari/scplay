@@ -969,3 +969,24 @@ rmSync(tmp, { recursive: true, force: true });
     ["그 전에는 나온다", plan.some((s) => s.raw === "C" && s.at < 150)],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }
+
+/* ── ㉜ 손 놓은 사람은 순환에서 빠진다(2026-10-11, 되지적: "건물이 남아도 생산을 안 할 수도") — 1v1v1 A·B·C(밀리) · 선택 기록이 있는 판.
+   A·B 는 20초마다 고른다 · C 는 100초까지만 고르고 그 뒤 손을 놓는다(건물은 끝까지 남는다) → 170초 뒤 순환에 C 가 없다. */
+{
+  let t9 = 170000;
+  const L = []; const sels = [];
+  const mk = (o, kind, bld, x, y, born) => { const e = { tag: (t9 += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [] }; L.push(e); return e; };
+  const hs = [mk(0, "Command Center", true, 16, 112, 0), mk(1, "Nexus", true, 112, 16, 0), mk(2, "Hatchery", true, 112, 112, 0)];
+  for (let t = 5; t < 400; t += 20) { sels.push([t, 0, [hs[0].tag], 0]); sels.push([t + 1, 1, [hs[1].tag], 0]); if (t < 100) sels.push([t + 2, 2, [hs[2].tag], 0]); }
+  sels.sort((a, b) => a[0] - b[0]);
+  const w = { players: [["A", "테란", 1], ["B", "프로토스", 2], ["C", "저그", 3]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
+    lives: L, ups: [], casts: [], pings: [], resFields: [], kills: [], sels, builds: [] };
+  const plan = castPlan9(w, { total: 400, order: ["A", "B", "C"], mapW: 128, mapH: 128 });
+  const after = plan.filter((s) => s.at >= 170).map((s) => s.raw);
+  console.log(`\n손 놓은 뒤 순환: ${after.join("")}`);
+  for (const [name, pass] of [
+    ["건물이 남아도 60초 넘게 활동이 없으면 순환에 안 나온다", after.length > 0 && !after.includes("C")],
+    ["손 놓기 전에는 나온다", plan.some((s) => s.raw === "C" && s.at < 100)],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
