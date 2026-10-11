@@ -10308,6 +10308,19 @@ export default function ReplayMotionPlayer({
    *  (quickZoom) · ↑↓(zoomStep9) · 미니맵 휠(fsWheelZoom). 카메라가 기계 것일 때 배율은 중계의 자(castZoomFit9)다. 옛 '분할만 막는다'는 이 안에 든다. */
   const camLockRef9 = useRef(false);
   camLockRef9.current = castOn || trackRaw !== null || splitOn9;
+  /* ★ 카메라가 잠긴 동안의 **줌·화면 이동** 손짓도 토스트로 말한다(2026-10-11, 요청: "중계 중 줌 기능이나 화면 이동 사용 시에도 토스트") — 미니맵 손짓(miniLockToast9)과
+     같은 결. 휠·핀치·↑↓·더블탭·끌기·WASD 가 이 하나를 부른다(효과 안의 처리기도 읽게 ref). 끌면 pointermove 마다라 2.5초에 한 번만. 가장자리 밀기는 마우스가
+     가장자리에 머무는 것만으로 걸려 안 부른다. */
+  const camLockToastAt9 = useRef(0);
+  const camLockToastRef9 = useRef<() => void>(() => {});
+  camLockToastRef9.current = (): void => {
+    const now9 = performance.now();
+    if (now9 - camLockToastAt9.current < 2500) return;
+    camLockToastAt9.current = now9;
+    replayToast(castOn ? "중계 모드에선 줌·화면 이동이 안 돼요" : splitOn9 ? "분할보기에선 줌·화면 이동이 안 돼요" : "개인 화면에선 줌·화면 이동이 안 돼요", { kind: "info" });
+  };
+  /** 잠긴 동안 누른 손가락 — 실제로 끌면(DRAG_SLOP 넘게) 토스트(위 ★). 그냥 누름(몸 집기)은 안 부른다. */
+  const lockDragRef9 = useRef<{ id: number; sx: number; sy: number } | null>(null);
   /* 누른 칸의 사람이 분할에서 빠지면(분할 끔 · 맞대결 상대가 바뀜) 놓는다. */
   useEffect(() => {
     if (splitPick9 !== null && (!splitOn9 || !splitBases9.some((b9) => b9.key === splitPick9))) setSplitPick9(null);
@@ -12552,7 +12565,7 @@ export default function ReplayMotionPlayer({
       e.preventDefault();
       /* 분할보기에서는 휠 배율이 없다(요청: "분할모드에서 엣지투스크롤 휠 드래그 핀치 팬 모두 막기") — 칸마다 제 카메라가 있고
          본 지도는 숨어 있다. 기본 동작(페이지 굴림)만 끊고 돌아간다. */
-      if (splitOnRef9.current || camLockRef9.current) return;   // ★ 중계가 켜진 동안도(camLockRef9 · 2026-10-09)
+      if (splitOnRef9.current || camLockRef9.current) { camLockToastRef9.current(); return; }   // ★ 중계가 켜진 동안도(camLockRef9 · 2026-10-09) · 토스트(2026-10-11)
       const lens = lensRef.current;
       if (!lens) return;
       const rect = el.getBoundingClientRect();
@@ -13606,7 +13619,7 @@ export default function ReplayMotionPlayer({
          점이 없어 통째로 죽은 코드였다 — 그래서 두 손가락을 벌려도 아무 일도 안 났다. */
       if (!twoInMap(e)) return;
       // 분할보기는 핀치가 없다 — 브라우저 확대만 끊는다.
-      if (splitOnRef9.current || camLockRef9.current) { if (e.cancelable) e.preventDefault(); return; }   // 중계 중엔 핀치도 없다(camLockRef9)
+      if (splitOnRef9.current || camLockRef9.current) { if (e.cancelable) e.preventDefault(); camLockToastRef9.current(); return; }   // 중계 중엔 핀치도 없다(camLockRef9) · 토스트
       const el2 = mapRef.current;
       if (!el2) return;
       if (e.cancelable) e.preventDefault();
@@ -15851,7 +15864,7 @@ export default function ReplayMotionPlayer({
        곧 '끌어서 보는 나머지'다. 전체화면이든 프레임이든 같은 물음이다. */
     if (!panRoom || e.button !== 0) return;
     // 추적 중에는 끌어도 안 움직인다(요청) — 아예 안 잡는다.
-    if (trackLockRef.current || splitOnRef9.current) return;   // 분할보기도 안 끈다
+    if (trackLockRef.current || splitOnRef9.current || camLockRef9.current) { lockDragRef9.current = { id: e.pointerId, sx: e.clientX, sy: e.clientY }; return; }   // 분할보기도 안 끈다 · 끌면 토스트(onMapPointerMove)
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     dragRef.current = {
       id: e.pointerId, sx: e.clientX, sy: e.clientY, px: panRef.current.x, py: panRef.current.y, live: false,
@@ -15918,6 +15931,11 @@ export default function ReplayMotionPlayer({
       };
       applyGestureXf();
       return;
+    }
+    const ld9 = lockDragRef9.current;
+    if (ld9 && ld9.id === e.pointerId && Math.hypot(e.clientX - ld9.sx, e.clientY - ld9.sy) > DRAG_SLOP * 2) {
+      lockDragRef9.current = null;
+      camLockToastRef9.current();   // 잠긴 동안 끌었다(위 lockDragRef9 ★)
     }
     const d = dragRef.current;
     if (!d || d.id !== e.pointerId) return;
@@ -16002,6 +16020,8 @@ export default function ReplayMotionPlayer({
     });
   };
   const tapZoom = (cx: number, cy: number): void => {
+    /* 중계·분할·개인 화면은 더블탭 배율도 없다(camLockRef9 · 휠·핀치·키와 한 벌) — 토스트로 말한다(2026-10-11). */
+    if (camLockRef9.current) { camLockToastRef9.current(); return; }
     const el = mapRef.current;
     const r = el?.getBoundingClientRect();
     if (!r || r.width < 4 || r.height < 4) return;
@@ -16025,6 +16045,7 @@ export default function ReplayMotionPlayer({
        남아, 그 뒤로는 렌즈 effect가 늘 손짓 갈래로만 돌고 refs도 상태와 안 맞아
        모델이 엉뚱한 자리에 그려지거나 안 그려졌다. 핀치가 아직 돌면 그쪽이 끝낸다. */
     if (!gestureRef.current) endGestureXf();
+    lockDragRef9.current = null;
     /* 한 손 줌 마무리 — 위 endGestureXf가 마지막 배율·팬을 이미 굳혔다. 여기서는
        대기표를 걷고, 실제로 끌었던 탭이면 클릭·더블탭 갈래로 안 흘러가게 삼킨다.
        (대기만 하고 안 움직였으면 그대로 흘러 종전 더블탭 확대가 돈다.) */
@@ -16264,7 +16285,7 @@ export default function ReplayMotionPlayer({
          `, c, v · 조작부 감추기/보이기: f · 도움말에 표기된 단축키 이외의 매핑은 모두 제거"). 글자 키는 e.code(자판
          자리)로 읽어 한글 자판에서도 듣는다. 안내(ReplayGuide)에 적힌 키만 여기 있어야 한다 — 별칭을 더하지 않는다. */
       const zoomStep9 = (up9: boolean): void => {
-        if (splitOnRef9.current || camLockRef9.current) return;   // 분할보기는 칸마다 제 배율이다 — 키 배율도 없다 · 중계 중에도(camLockRef9)
+        if (splitOnRef9.current || camLockRef9.current) { camLockToastRef9.current(); return; }   // 분할보기는 칸마다 제 배율이다 — 키 배율도 없다 · 중계 중에도(camLockRef9) · 토스트
         closePicked9();   // 키보드 배율도 팝업을 닫는다(요청).
         const el9 = mapRef.current;
         const r9 = el9?.getBoundingClientRect();
@@ -16373,7 +16394,7 @@ export default function ReplayMotionPlayer({
         bgmToggleRef.current();
       } else if (e.code === "KeyW" || e.code === "KeyA" || e.code === "KeyS" || e.code === "KeyD") {
         // 추적 중에는 화면을 손으로 못 민다(요청) — 키를 아예 안 담는다.
-        if (trackLockRef.current || splitOnRef9.current) return;   // 분할보기도 못 민다
+        if (trackLockRef.current || splitOnRef9.current || camLockRef9.current) { camLockToastRef9.current(); return; }   // 분할보기도 못 민다 · 토스트(2026-10-11 · 카메라 잠금도)
         /* 눌린 키를 담기만 한다 — 미는 일은 위 panStep이 매 프레임 한다.
            ★ e.key가 아니라 **e.code**를 읽는다: 한글 자판에서는 e.key가 ㅈㅁㄴㅇ로
              오고, 그 넷을 문자열로 훑던 옛 코드가 그래서 자판마다 갈렸다. code는

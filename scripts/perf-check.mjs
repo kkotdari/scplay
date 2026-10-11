@@ -513,6 +513,10 @@ import { createRoot } from "react-dom/client";
 import ReplayMotionPlayer, { sceneLinkQueryOf9 } from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
 /* --bgm — 곡 목록을 꽂아 음악 단추·목록(음량 슬라이더 + 끄기)을 세운다(2026-10-10). 소리는 안 난다(빈 data 주소). */
 import { setReplayBgm } from ${JSON.stringify(join(ROOT, "src/components/replay/useBgm"))};
+/* 토스트를 모은다(--locktoast · 2026-10-11) — 앱이 꽂는 chrome.toast 자리. */
+import { setReplayChrome } from ${JSON.stringify(join(ROOT, "src/components/replay/chrome"))};
+window.__toasts = [];
+setReplayChrome({ toast: (t) => { window.__toasts.push(t); } });
 if (${JSON.stringify(process.argv.includes("--bgm"))}) setReplayBgm([{ title: "테스트 곡 하나", src: "data:audio/mp3," }, { title: "테스트 곡 둘", src: "data:audio/mp3," }]);
 /* 공유 표(clockKey "perf") — castprobe 가 '중계·추적 중에는 자리를 안 싣고 &tr= 만 싣나'를 읽는다. */
 window.__share9 = () => { const q = sceneLinkQueryOf9("perf"); return { tr: q.get("tr"), pos: q.has("z") || q.has("cx"), qs: q.toString() }; };
@@ -1183,6 +1187,33 @@ if (has("--infoprobe")) {
 if (has("--tileprobe")) {
   const tp9 = await page.evaluate(() => { const m = document.querySelector(".scr-motion-map"); return m ? m.clientWidth : -1; });
   console.log(`[타일] 지도 폭 ${tp9}px · 격자 ${JSON.parse(walkFixture).w} → tilePx ${(tp9 / JSON.parse(walkFixture).w).toFixed(2)}`);
+}
+/* 잠금 토스트(--locktoast · --track '*' 와 함께) — 중계 중 휠·↑·더블클릭·끌기·D 키가 "중계 모드에선 줌·화면 이동이 안 돼요" 토스트를 부르나(2026-10-11).
+   토스트는 2.5초에 한 번이라 손짓 사이를 2.7초 띄운다. */
+if (has("--locktoast")) {
+  /* --castoff — 자동 중계를 끄고 잰다(토스트가 하나도 없어야 한다). */
+  if (has("--castoff")) {
+    await page.evaluate(() => { const b = document.querySelector('button[aria-label="자동 중계 끄기"]'); if (b instanceof HTMLElement) b.click(); });
+    await page.waitForTimeout(600);
+  }
+  const mp9 = await page.evaluate(() => { const r = document.querySelector(".scr-motion-map")?.getBoundingClientRect(); return r ? [r.left + r.width / 2, r.top + r.height / 2] : null; });
+  const got9 = async (tag9, act9) => {
+    const n0 = await page.evaluate(() => window.__toasts.length);
+    await act9();
+    await page.waitForTimeout(300);
+    const t9 = await page.evaluate((n) => window.__toasts.slice(n), n0);
+    console.log(`[잠금 토스트] ${tag9}: ${t9.length > 0 ? t9.join(" | ") : "없음"}`);
+    await page.waitForTimeout(2700);
+  };
+  if (mp9) {
+    const [x9, y9] = mp9;
+    await got9("휠", async () => { await page.mouse.move(x9, y9); await page.mouse.wheel(0, -200); });
+    await got9("E 키(확대)", async () => { await page.keyboard.press("KeyE"); });
+    await got9("더블클릭", async () => { await page.mouse.dblclick(x9 + 30, y9 + 30); });
+    await got9("끌기", async () => { await page.mouse.move(x9, y9); await page.mouse.down(); await page.mouse.move(x9 + 120, y9 + 40, { steps: 8 }); await page.mouse.up(); });
+    await got9("D 키", async () => { await page.keyboard.down("KeyD"); await page.waitForTimeout(200); await page.keyboard.up("KeyD"); });
+    await got9("한 번 누름(몸 집기 — 토스트 없어야)", async () => { await page.mouse.click(x9 - 40, y9 - 40); });
+  } else console.log("[잠금 토스트] 지도 없음");
 }
 if (has("--clockprobe")) {
   const rd9 = () => page.evaluate(() => document.querySelector(".scr-motion-clock")?.textContent ?? "?");
