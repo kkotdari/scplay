@@ -1078,3 +1078,36 @@ rmSync(tmp, { recursive: true, force: true });
     ["절벽 아래(옛 원 안)는 A 기지가 아니다", c2.length > 0 && !c2.some((c) => /기지 공격/.test(c))],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }
+
+/* ── ㊱ 입구는 뚫려 있고 둘 이상(2026-10-11, 지적: "입구는 뚫려 있지 · 입구(램프)가 두 개 이상이기도 하고") — 온 땅이 같은 고도(2)인데 A 본진 언덕(x 0~40 · y 0~20)을
+   벽(y 21~22 · x 41~42)이 둘렀고 **같은 고도로 뚫린 길목**(x 20~23)과 **램프**(x 36~39 · 고도 1) 두 입구가 있다. 벽·고도만 보면 길목으로 새어 열린 땅(18 원)이 됐다.
+   ① 언덕 구석(38,14 · 30타일) → A 기지 · ② 벽 바깥(12,25) → 아님 · ③ 길목 앞(21,25) → A 기지(입구) · ④ 램프 아래(37,25) → A 기지(입구) · ⑤ 벌판 멀리(60,40) → 아님. */
+{
+  let t9 = 210000;
+  const L = []; const kills = [];
+  const mk = (o, kind, bld, x, y, born, ex = {}) => { const e = { tag: (t9 += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [], ...ex }; L.push(e); return e; };
+  mk(0, "Command Center", true, 8, 8, 0); mk(1, "Hatchery", true, 110, 110, 0);
+  const ms = Array.from({ length: 6 }, () => mk(0, "Marine", false, 8, 8, 50));
+  const fight = (t0, x, y) => { for (let i = 0; i < 6; i += 1) { const t = t0 + i * 2; const z = mk(1, "Zergling", false, 110, 110, t0 - 60, { died: t, end: "atk", orders: [[t0 - 20, x, y, true]], endX: x + (i % 2) * 0.5, endY: y });
+    kills.push([t, 0, ms[i].tag, z.tag]); } };
+  const spots = [[200, 38, 14], [400, 12, 25], [600, 21, 25], [800, 37, 25], [1000, 60, 40]];
+  for (const [t0, x, y] of spots) fight(t0, x, y);
+  const ramp = (x, y) => x >= 36 && x <= 39 && (y === 21 || y === 22);
+  const gap = (x, y) => x >= 20 && x <= 23 && (y === 21 || y === 22);
+  const wall = (x, y) => !ramp(x, y) && !gap(x, y) && ((y >= 21 && y <= 22 && x <= 42) || (x >= 41 && x <= 42 && y <= 22));
+  const terrain = { level: (x, y) => (ramp(x, y) ? 1 : 2), walk: (x, y) => x >= 0 && y >= 0 && x < 128 && y < 128 && !wall(x, y), ramp };
+  const w = { players: [["A", "테란", 1], ["C", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
+    lives: L, ups: [], casts: [], pings: [], resFields: [], kills, sels: [], builds: [] };
+  const plan = castPlan9(w, { total: 1200, order: ["A", "C"], teamOf: { A: 1, C: 2 }, mapW: 128, mapH: 128, terrain });
+  const capsAt = (t0) => plan.filter((s) => s.at >= t0 - 5 && s.at < t0 + 15 && !s.cyc).map((s) => capTxt(s));
+  const base = (t0) => capsAt(t0).some((c) => /\[C\]ga \[A\] 기지 공격/.test(c));
+  console.log(`\n입구 둘: ${spots.map(([t0, x, y]) => `(${x},${y}) ${capsAt(t0).join(" · ") || "-"}`).join(" | ")}`);
+  for (const [name, pass] of [
+    ["언덕 구석은 기지(길목으로 안 샌다)", base(200)],
+    ["벽 바깥은 기지가 아니다", capsAt(400).length > 0 && !base(400)],
+    ["뚫린 길목 앞은 기지 입구", base(600)],
+    ["램프 아래도 기지 입구(입구 둘)", base(800)],
+    ["벌판 멀리는 기지가 아니다", capsAt(1000).length > 0 && !base(1000)],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
