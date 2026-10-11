@@ -2278,8 +2278,10 @@ export const BLD_FILL_TARGET: Record<string, number> = {
   refinery: 0.92, assim: 0.92, extract: 0.92,
 };
 // 포톤은 플라즈마와 같은 그림이다(CSS의 .scr-tracer-plasma, .scr-tracer-photon 합집합).
-FX_BEAM.photon = FX_BEAM.plasma;
-FX_IMPACT.photon = FX_IMPACT.plasma;
+/* ★ 포톤 캐논만 **지름 2.5배**(2026-10-11, 요청: "포토 트레이서가 왜 이리 가늘지 — 광자포 지름이 지금의 2.5배는 돼야 할 듯") — 드라군·스카우트·아비터(plasma)는 그대로.
+   맞은 자리 섬광은 1.6배(굵어진 탄에 맞춰 · 요청 밖이라 덜). 길이·색·박자는 같다. */
+FX_BEAM.photon = { ...FX_BEAM.plasma, w: FX_BEAM.plasma.w * 2.5 };
+FX_IMPACT.photon = { ...FX_IMPACT.plasma, r: FX_IMPACT.plasma.r * 1.6 };
 /** 맞은 **몸에서** 튀는 것(요청: "생명체는 피 프로토스는 에너지 기계는 불꽃 등등을
  *  작게 맞은 부위에") — 죽음 효과(scr-die-*)와 같은 넷·같은 색이다. 죽을 때 크게
  *  한 번 터지는 것이 맞을 때마다 작게 튄다고 보면 된다.
@@ -19323,7 +19325,8 @@ export default function ReplayMotionPlayer({
               {castCap9 && (
                 <span key={castIdx9} className="scr-cast-caption">
                   {castCap9.map((p9, i9) => (p9.raw !== undefined
-                    ? <React.Fragment key={i9}><span className="scr-split-chip scr-cast-chip" style={capOf9(p9.raw, p9.raw).chip}>{capName9(p9.raw)}</span>{capParticle9(capName9(p9.raw), p9.p)}</React.Fragment>
+                    /* 팀 배지(2026-10-11, 요청: "자막 이름칩에도 똑같이 팀 배지 달기") — 미니맵 이름표와 같은 꼴(칩 오른위 · 칩 앞 · 팀전만). 글자 자르기는 안쪽 칸이(배지가 안 잘리게). */
+                    ? <React.Fragment key={i9}><span className="scr-split-chip scr-cast-chip" style={capOf9(p9.raw, p9.raw).chip}><span className="scr-cast-chip-txt">{capName9(p9.raw)}</span>{!melee && teamOfRaw(p9.raw) !== undefined && <i className="scr-team-badge" style={{ background: TEAM_COLOR[teamOfRaw(p9.raw)!] ?? "#666" }}>{teamOfRaw(p9.raw)}</i>}</span>{capParticle9(capName9(p9.raw), p9.p)}</React.Fragment>
                     : <React.Fragment key={i9}>{p9.text}</React.Fragment>))}
                 </span>
               )}

@@ -1085,3 +1085,7 @@ divisor 1)에 싣고 같은 메시의 개체를 `drawArraysInstanced` 한 번으
 ③ 은 ② 불투명 몸을 다 그린 **뒤**라 칸이 더 앞인 몸(공중 · 화면 아래쪽 지상)까지 덮었다. 이제 noZ 는 더하기(add — 폭풍·핵 · 큐 맨 뒤 효과)만이고,
 flat 은 깊이 시험은 켜고 쓰기만 끈다(gl9 runs 루프 `r.flat` 갈래) — 제 겹끼리는 화가 차례로 섞이고, 칸이 앞선 몸에는 가려진다.
 옛 WebGL1 번짐 길(emZ · noZ)은 그대로. 🔎 scene-sheet 사본에서 tracks 를 아콘 + 그 아래 오른쪽 발키리로 갈아 `--race 프로토스 --zoom 8` 로 본다(되돌려라).
+
+## 포톤 캐논 광자포만 지름 2.5배(2026-10-11)
+요청: "포토 트레이서가 왜 이리 가늘지 — 광자포 지름이 지금의 2.5배는 돼야 할 듯". 옛 `FX_BEAM.photon = FX_BEAM.plasma`(드라군과 한 줄)를 갈라 photon 만 w × 2.5
+(plasma 1.0 → 2.5) · 맞은 자리 FX_IMPACT.photon r × 1.6(요청 밖이라 덜). 드라군·스카우트·아비터(plasma)는 그대로. 🔎 `doc-sheet --tracer --kinds coil,goon`.
