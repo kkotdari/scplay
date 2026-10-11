@@ -432,3 +432,4 @@ replay.css 끝으로 옮겼고, 규칙 없던 이름표 셋(`scr-doc-calitem`·`
   🔎 `scene-sheet --race 테란 --addons` 에서 스타포트–컨트롤 타워 통로가 이어지는 것 확인 · `addon-wall --check` 최신.
 - 같은 날 재요청: "디바우러 1.2 저글링 1.2 발키리 1.1 터렛 0.9 적용" — `UNIT_SIZE_TUNE` devourer·zling (표 없음 = 1.0) → **1.2** · valk 1.2 → **1.1** ·
   `BLD_DRAW_TUNE` turret 1.0 → **0.9**. 🔎 `scene-sheet --race 테란|저그` 로 봤다.
+- 같은 날: "서플라이 0.9" — `BLD_DRAW_TUNE` trapezoid(서플라이 디팟 · 표 없음 = 1.0) → **0.9**.
