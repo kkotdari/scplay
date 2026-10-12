@@ -4895,7 +4895,7 @@
 .scr-motion-searchsug-tag { flex: none; font-size: calc(11px * var(--ui)); opacity: 0.6; }
 /* ★ 자막 속 이름 — 칩 없이 임자색 글자(2026-10-12 · ReplayMotionPlayer castCap9 ★). 팀 배지는 이름 왼위 귀퉁이 **뒤**: 이름이 제 쌓임 판(z 0)을 세우고 배지는 그 안의 −1
    (자막 바탕보다는 위 · 이름 글자보다는 아래). 색이 어두워도 읽히게 글자 테를 한 겹 더. */
-.scr-cast-caption .scr-cast-name { position: relative; z-index: 0; font-weight: 800; text-shadow: 0 0 2px rgba(0, 0, 0, 0.95), 0 1px 1px rgba(0, 0, 0, 0.9); }
+.scr-cast-caption .scr-cast-name { position: relative; z-index: 0; font-weight: 800; text-shadow: 0 0 1px rgba(0, 0, 0, 0.95), 0 0.5px 0.5px rgba(0, 0, 0, 0.8); }   /* 검은 테 얇게 — 흐림 2 → 1px · 내림 1 → 0.5px(2026-10-12, 요청: "자막의 테두리 검정이든 흰색이든 좀 더 얇게") */
 .scr-cast-caption .scr-cast-name > .scr-team-badge { z-index: -1; transform: translate(-62%, -6%); text-shadow: none; }   /* −45,−30 → −62,−6%(같은 날 "자막의 팀 배지 좀 아래로 · 왼쪽으로 좀") */
 /* ★ 자동 중계 단추만 **아이콘·좌우 여백 축소**(2026-10-12, 요청: "자동 중계 버튼 TV 아이콘 축소 및 좌우 패딩 축소") — TV 0.6 → 0.46·줄 키 · 여백 6 → 3·dk. 전체 알약·사람 카메라는 그대로.
    무게: PC(.scr-motion-pc9 .scr-roster-cam svg · 0,2,1)·폰(0,3,1 · 파일 앞)보다 뒤 · 폰 2×2(is-grid2 · 0,4,1)는 제 값(0.5)이 이긴다. */
@@ -4903,4 +4903,5 @@
 .scr-motion .scr-dock-head .scr-roster-cam.scr-roster-cam-auto { padding: 0 calc(3px * var(--dk)); }
 /* 어두운 임자색 이름은 테를 흰색으로(2026-10-12 · ReplayMotionPlayer CAST_NAME_DARK9) — 자막 바탕(어두운 반투명) 위에서 검은 테로는 글자가 묻혔다. */
 /* 흰 테는 **번지지 않게** 흐림 없는 1px 여덟 방향(2026-10-12, 되지적: "흰 테두리가 번져 보여서 눈 아파 — 또렷하게"). */
-.scr-cast-caption .scr-cast-name.is-dark { text-shadow: 1px 0 0 #fff, -1px 0 0 #fff, 0 1px 0 #fff, 0 -1px 0 #fff, 1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff; }
+/* 같은 날 "좀 더 얇게" → 1 → 0.5px(고밀도 화면은 기기 화소 1~1.5 · 흐림은 여전히 0). */
+.scr-cast-caption .scr-cast-name.is-dark { text-shadow: 0.5px 0 0 #fff, -0.5px 0 0 #fff, 0 0.5px 0 #fff, 0 -0.5px 0 #fff, 0.5px 0.5px 0 #fff, -0.5px -0.5px 0 #fff, 0.5px -0.5px 0 #fff, -0.5px 0.5px 0 #fff; }
